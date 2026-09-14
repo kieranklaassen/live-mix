@@ -16,6 +16,7 @@ const dist = join(root, 'dist')
 // no module syntax, so addModule() can load them from any origin.
 const worklets = {
   'wasm-device': 'src/dsp/worklets/wasm-device.processor.ts',
+  ducker: 'src/dsp/worklets/ducker.processor.ts',
 }
 
 async function main() {

@@ -29,6 +29,7 @@ export {
   type AddInstrumentTrackOptions,
   type AddLiveInputTrackOptions,
   type AddReturnTrackOptions,
+  type AddWorkletDuckerOptions,
   type EngineOptions,
 } from './core/Engine'
 export { LiveInputTrack, type LiveInputTrackOptions } from './core/tracks/LiveInputTrack'
@@ -58,6 +59,25 @@ export {
   createDucker,
   type DuckerOptions,
 } from './core/devices/native/Ducker'
+export { type DuckerMode, type SidechainDucker } from './core/devices/native/SidechainDucker'
+export {
+  DUCKER_BYPASS_RAMP_SECONDS,
+  DUCKER_DEFAULT_WINDOW_SIZE,
+  DUCKER_PARAMS,
+  DUCKER_PROCESSOR_NAME,
+  DUCKER_REPORT_HZ,
+  DUCK_HOLD_MS,
+  type DuckerHostMessage,
+  type DuckerMessage,
+  type DuckerParamName,
+  type DuckerProcessorOptions,
+} from './core/devices/native/ducker-abi'
+export { DuckerKernel, type DuckerKernelOptions } from './core/devices/native/DuckerKernel'
+export {
+  WorkletDucker,
+  type DuckerNodeFactory,
+  type WorkletDuckerOptions,
+} from './core/devices/native/WorkletDucker'
 export {
   SampleStore,
   bytesOfBuffer,

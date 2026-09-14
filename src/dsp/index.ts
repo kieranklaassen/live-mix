@@ -23,6 +23,7 @@ export {
 export {
   WasmDevice,
   defineWasmDevice,
+  ensureProcessor,
   type WasmDeviceDefinition,
   type WasmDeviceOptions,
   type WorkletNodeFactory,
@@ -88,3 +89,19 @@ export {
   type Preset,
   type PresetTable,
 } from '../core/devices'
+export {
+  createWorkletDucker,
+  duckerProcessorUrl,
+  loadDuckerProcessor,
+  type DuckerProcessorOverrides,
+} from './devices/ducker'
+export {
+  DUCKER_PARAMS,
+  DUCKER_PROCESSOR_NAME,
+  type DuckerParamName,
+} from '../core/devices/native/ducker-abi'
+export {
+  WorkletDucker,
+  type DuckerNodeFactory,
+  type WorkletDuckerOptions,
+} from '../core/devices/native/WorkletDucker'

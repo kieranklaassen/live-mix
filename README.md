@@ -276,7 +276,7 @@ src/
   core/               Engine, tracks, buses, Transport, Scheduler, Clip, SampleStore, OutputRouter, Meter, native devices
   dsp/                WasmDevice host, C ABI typings, device factories + param tables
   dsp/devices/faust/  generated param tables for the Faust devices (scripts/build-faust.sh)
-  dsp/worklets/       wasm-device.processor.ts → dist/worklets/wasm-device.js (one file, no imports)
+  dsp/worklets/       wasm-device.processor.ts → dist/worklets/wasm-device.js, ducker.processor.ts → dist/worklets/ducker.js (one file each, no imports)
   dsp/wasm/           committed *.wasm artefacts (scripts/build-wasm.sh; CI verifies they reproduce)
   react/              Phase 1 hooks and components
   testing/            MockAudioContext + AudioParam recorder
@@ -396,6 +396,32 @@ applyPreset(plate, parsePreset(localStorage.getItem('plate')))
 
 Presets are partial param snapshots; on load, unknown params are dropped and
 values clamped, so a preset from an older device version still applies.
+
+### Sidechain ducker: legacy poll or audio-thread worklet
+
+`engine.addDucker(bus)` is the Phase 0 main-thread follower (analyser poll on
+the engine clock writing `setTargetAtTime` on the bus fader — identical
+recorded events to Breathwork Live). `mode: 'worklet'` swaps in the
+audio-thread `WorkletDucker`: a two-input `AudioWorkletNode` (signal, key)
+inserted post-fader into the bus, envelope and gain computed per sample with
+the same defaults (depth 0.68, attack 80 ms, release 800 ms, key scale 4, gain
+time constant 80 ms) plus a hold, no timers. Both implement `SidechainDucker`
+(`key`, `unkey`, `stop`, `dispose`, `envelope`). The processor is loaded once
+per context from the dsp entry:
+
+```ts
+import { createEngine } from '@kieranklaassen/live-mix'
+import { loadDuckerProcessor } from '@kieranklaassen/live-mix/dsp'
+
+await loadDuckerProcessor(engine.context) // once, before the first worklet ducker
+const ducker = engine.addDucker(music, { mode: 'worklet', holdMs: 120 })
+voice.onAttach((source) => ducker.key(source))
+ducker.setParam('depth', 0.5) // params: depth, attackMs, holdMs, releaseMs, gainScale, timeConstant
+```
+
+`DuckerKernel` is the same DSP as a plain class over `Float32Array` blocks
+(offline renders, tests); `createWorkletDucker(ctx, options)` builds a
+standalone device for `bus.addInsert`.
 
 ### Real-time rules
 
