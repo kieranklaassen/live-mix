@@ -47,6 +47,7 @@ import { SampleRetainer } from './tracks/SampleRetainer'
 import { SampleStore, type SampleStoreOptions } from './tracks/SampleStore'
 import { ElementTrack, type ElementTrackOptions } from './sources/ElementTrack'
 import { EngineStats, type EngineStatsOptions } from './stats'
+import { TempoMap } from './time/TempoMap'
 import { type TransportLoop } from './transport/anchor'
 import { Scheduler } from './transport/Scheduler'
 import { Transport } from './transport/Transport'
@@ -195,6 +196,13 @@ export class Engine {
   readonly modulation: ModMatrix
   /** Solo-in-place state across every track, return and group strip. */
   readonly solo = new SoloInPlace()
+  /**
+   * The session's tempo map (grid, quantised launches, warping). Seconds stay
+   * primary: nothing in the engine reads it unless asked. Replace it to change
+   * tempo (`TempoMap` is immutable); the score renderer keeps it in step with
+   * the document's `tempo`.
+   */
+  tempo: TempoMap = new TempoMap()
   private readonly changes = new Emitter<EngineChange>()
   /** Glitch counter and render load, where the context reports them (R38). */
   readonly stats: EngineStats

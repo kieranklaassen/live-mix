@@ -121,7 +121,7 @@ export async function renderOffline(options: RenderOptions): Promise<RenderResul
       ? engine.alignLatency({ liveInputs: true })
       : engine.latencyReport()
 
-  scheduleAhead(engine, {
+  await scheduleAhead(engine, {
     startSec: options.startSec ?? 0,
     durationSec,
     tickSec,
@@ -144,9 +144,12 @@ export interface ScheduleAheadOptions {
 /**
  * Drive the engine's scheduler and automation loop from a virtual clock until
  * every start inside `[startSec, startSec + durationSec]` has been handed to
- * the graph. Exposed for hosts that render on their own context.
+ * the graph. Samples a tick asks for are awaited before the tick is repeated
+ * at the same virtual time, so a start is never lost to a decode in flight
+ * (live, the load completes between timer ticks). Exposed for hosts that
+ * render on their own context.
  */
-export function scheduleAhead(engine: Engine, options: ScheduleAheadOptions): void {
+export async function scheduleAhead(engine: Engine, options: ScheduleAheadOptions): Promise<void> {
   const { startSec, durationSec, tickSec, setNow } = options
   setNow(0)
   engine.transport.seek(startSec)
@@ -161,6 +164,10 @@ export function scheduleAhead(engine: Engine, options: ScheduleAheadOptions): vo
   for (let t = 0; t <= end; t += tickSec) {
     setNow(t)
     engine.scheduler.tick()
+    while (engine.samples.pendingCount > 0) {
+      await engine.samples.settled()
+      engine.scheduler.tick()
+    }
     engine.automation.tick()
     if (engine.transport.state !== 'playing') break
   }
