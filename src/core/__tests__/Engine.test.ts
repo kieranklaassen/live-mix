@@ -92,3 +92,35 @@ describe('createEngine', () => {
     expect(core.isIOSWebKit()).toBe(false)
   })
 })
+
+describe('Engine transport and scheduler', () => {
+  it('owns one transport on the engine clock and a scheduler on the engine timers', () => {
+    const ctx = createMockContext({ currentTime: 5 })
+    const ticks: (() => void)[] = []
+    const setIntervalFn = vi.fn((cb: () => void) => {
+      ticks.push(cb)
+      return ticks.length as unknown as ReturnType<typeof setInterval>
+    })
+    const clearIntervalFn = vi.fn()
+    const engine = createEngine({
+      context: asAudioContext(ctx),
+      setIntervalFn,
+      clearIntervalFn,
+      tickMs: 100,
+      loop: { enabled: true, lengthSec: 32 },
+    })
+    expect(engine.transport.state).toBe('stopped')
+    expect(engine.transport.loop).toEqual({ enabled: true, lengthSec: 32 })
+    expect(engine.scheduler.tickMs).toBe(100)
+
+    engine.transport.start()
+    expect(engine.transport.position().positionSec).toBe(0)
+    expect(setIntervalFn).toHaveBeenCalledWith(expect.any(Function), 100)
+    ctx.currentTime = 7
+    expect(engine.transport.position().positionSec).toBe(2)
+
+    engine.transport.stop({ fadeSec: 0.75 })
+    expect(clearIntervalFn).toHaveBeenCalled()
+    engine.dispose()
+  })
+})
