@@ -82,7 +82,10 @@ describe('true-peak-limiter.wasm (committed artefact)', () => {
     const { left, right } = await render(0.5, sine(440, 0.5))
     let worst = 0
     for (let n = 4800; n < left.length; n += 1) {
-      worst = Math.max(worst, Math.abs(left[n] - 0.5 * Math.sin((2 * Math.PI * 440 * (n - 77)) / 48000)))
+      worst = Math.max(
+        worst,
+        Math.abs(left[n] - 0.5 * Math.sin((2 * Math.PI * 440 * (n - 77)) / 48000)),
+      )
       worst = Math.max(worst, Math.abs(left[n] - right[n]))
     }
     expect(worst).toBeLessThan(1e-5)
