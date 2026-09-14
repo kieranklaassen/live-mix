@@ -13,3 +13,8 @@ export {
 } from './abi'
 export { clampParam, type ParamSpec, type ParamTaper } from './params'
 export { DATTORRO_PARAMS, type DattorroParamName } from './devices/dattorro'
+export {
+  FDN_REVERB_PARAMS,
+  fdnReverbBreathLaw,
+  type FdnReverbParamName,
+} from './devices/fdn-reverb'
