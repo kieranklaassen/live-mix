@@ -4,8 +4,9 @@
 // voice sits in a room instead of dry on top of the music. Use it on a
 // ReturnTrack fed by sends; the dry path stays the caller's own.
 
-import { type ParamSpec } from '../../params'
+import { clampParam, type ParamSpec } from '../../params'
 import { type Device } from '../Device'
+import { type DeviceCreateOptions, type DeviceDescriptor } from '../registry'
 
 /** Voice hall reverb: impulse-response decay length (seconds). */
 export const REVERB_DECAY_SECONDS = 2.6
@@ -16,9 +17,8 @@ export const CONVOLVER_REVERB_PARAMS = {
   wet: { id: 0, name: 'Wet', min: 0, max: 1, default: REVERB_WET_LEVEL, taper: 'linear', unit: '' },
 } as const satisfies Record<string, ParamSpec>
 
-export interface ConvolverReverbOptions {
-  /** `hall` generates the Breathwork Live IR; `buffer` uses the given impulse response. */
-  preset?: 'hall'
+export interface ConvolverReverbOptions extends DeviceCreateOptions {
+  /** Use the given impulse response instead of the generated hall. */
   impulse?: AudioBuffer
   /** IR length for the generated preset. Default 2.6 s. */
   decaySeconds?: number
@@ -66,7 +66,10 @@ export class ConvolverReverb implements Device {
   constructor(ctx: BaseAudioContext, options: ConvolverReverbOptions = {}) {
     this.ctx = ctx
     this.rampSeconds = options.rampSeconds ?? 0.02
-    this.wet = options.wet ?? REVERB_WET_LEVEL
+    this.wet = clampParam(
+      CONVOLVER_REVERB_PARAMS.wet,
+      options.params?.wet ?? options.wet ?? REVERB_WET_LEVEL,
+    )
     this.convolver = ctx.createConvolver()
     this.convolver.buffer =
       options.impulse ?? generateHallImpulse(ctx, options.decaySeconds, options.random)
@@ -85,7 +88,7 @@ export class ConvolverReverb implements Device {
 
   setParam(name: string, value: number): void {
     if (name !== 'wet') throw new Error(`live-mix: convolver-reverb has no parameter "${name}"`)
-    this.wet = Math.min(1, Math.max(0, value))
+    this.wet = clampParam(CONVOLVER_REVERB_PARAMS.wet, value)
     if (!this.bypassed) this.rampWetTo(this.wet)
   }
 
@@ -127,4 +130,19 @@ export function createConvolverReverb(
   options: ConvolverReverbOptions = {},
 ): ConvolverReverb {
   return new ConvolverReverb(ctx, options)
+}
+
+export const CONVOLVER_REVERB_DESCRIPTOR: DeviceDescriptor<typeof CONVOLVER_REVERB_PARAMS> = {
+  id: 'convolver-reverb',
+  name: 'Convolver reverb',
+  kind: 'node',
+  category: 'reverb',
+  version: 1,
+  params: CONVOLVER_REVERB_PARAMS,
+  presets: {
+    Hall: { wet: REVERB_WET_LEVEL },
+    Whisper: { wet: 0.12 },
+    Wash: { wet: 0.5 },
+  },
+  create: createConvolverReverb,
 }

@@ -1,5 +1,6 @@
 // Devices built from stock Web Audio nodes, all through NodeDevice.
 
+import { CONVOLVER_REVERB_DESCRIPTOR } from './ConvolverReverb'
 import { type DeviceDescriptor } from '../registry'
 import { COMPRESSOR_DESCRIPTOR } from './Compressor'
 import { DELAY_DESCRIPTOR } from './Delay'
@@ -76,6 +77,17 @@ export {
   type UtilityParamName,
 } from './Utility'
 
+export {
+  CONVOLVER_REVERB_DESCRIPTOR,
+  CONVOLVER_REVERB_PARAMS,
+  ConvolverReverb,
+  REVERB_DECAY_SECONDS,
+  REVERB_WET_LEVEL,
+  createConvolverReverb,
+  generateHallImpulse,
+  type ConvolverReverbOptions,
+} from './ConvolverReverb'
+
 /** Every stock node device, in menu order; the default registry starts with these. */
 export const NODE_DEVICES: readonly DeviceDescriptor[] = [
   FILTER_DESCRIPTOR,
@@ -83,5 +95,6 @@ export const NODE_DEVICES: readonly DeviceDescriptor[] = [
   PARAMETRIC_EQ_DESCRIPTOR,
   COMPRESSOR_DESCRIPTOR,
   DELAY_DESCRIPTOR,
+  CONVOLVER_REVERB_DESCRIPTOR,
   UTILITY_DESCRIPTOR,
 ]

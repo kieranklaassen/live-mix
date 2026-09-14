@@ -35,15 +35,6 @@ export { InstrumentTrack, type InstrumentTrackOptions } from './core/tracks/Inst
 export { ReturnTrack, type ReturnTrackOptions } from './core/tracks/ReturnTrack'
 export { SendList, type Send, type SendOptions, type SendTarget } from './core/tracks/Send'
 export {
-  CONVOLVER_REVERB_PARAMS,
-  ConvolverReverb,
-  REVERB_DECAY_SECONDS,
-  REVERB_WET_LEVEL,
-  createConvolverReverb,
-  generateHallImpulse,
-  type ConvolverReverbOptions,
-} from './core/devices/native/ConvolverReverb'
-export {
   DUCK_DEPTH,
   DUCK_KEY_FFT_SIZE,
   DUCK_TIME_CONSTANT,

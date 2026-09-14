@@ -81,6 +81,7 @@ it('covers every stock device', () => {
       'parametric-eq',
       'compressor',
       'delay',
+      'convolver-reverb',
       'utility',
       'dattorro',
       'fdn-reverb',

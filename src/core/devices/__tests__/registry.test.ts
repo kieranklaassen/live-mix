@@ -114,6 +114,7 @@ describe('DeviceRegistry', () => {
     expect(registry.list({ kind: 'node' })).toEqual(NODE_DEVICES)
     expect(registry.list({ kind: 'wasm' })).toEqual(STOCK_WASM_DEVICES)
     expect(registry.list({ category: 'reverb' }).map((d) => d.id)).toEqual([
+      'convolver-reverb',
       'dattorro',
       'fdn-reverb',
       'zita-rev1',
@@ -254,6 +255,7 @@ describe('default registry', () => {
       'parametric-eq',
       'compressor',
       'delay',
+      'convolver-reverb',
       'utility',
     ])
   })
