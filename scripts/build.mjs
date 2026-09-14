@@ -59,6 +59,10 @@ async function main() {
     })
   }
 
+  // The kit's default theme and component rules; consumers import it (or set
+  // the `--lm-*` tokens themselves). Plain CSS, no build step.
+  await cp(join(root, 'src/react/styles.css'), join(dist, 'react/styles.css'))
+
   const wasmDir = join(root, 'src/dsp/wasm')
   await mkdir(join(dist, 'wasm'), { recursive: true })
   for (const file of await readdir(wasmDir)) {
