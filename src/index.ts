@@ -6,3 +6,5 @@
 export const LIVE_MIX_VERSION = '0.0.1'
 
 export * from './core/clips'
+export { type Device } from './core/devices/Device'
+export { clampParam, type ParamSpec, type ParamTaper } from './core/params'

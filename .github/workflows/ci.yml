@@ -62,7 +62,7 @@ jobs:
           npm init -y >/dev/null
           npm install "git+file://$GITHUB_WORKSPACE#$GITHUB_SHA"
           test -f node_modules/@kieranklaassen/live-mix/dist/index.js
-          test -f node_modules/@kieranklaassen/live-mix/dist/wasm/dattorro.wasm
+          for wasm in "$GITHUB_WORKSPACE"/src/dsp/wasm/*.wasm; do test -f "node_modules/@kieranklaassen/live-mix/dist/wasm/$(basename "$wasm")"; done
           test -f node_modules/@kieranklaassen/live-mix/dist/worklets/wasm-device.js
           node --input-type=module -e "
             import { LIVE_MIX_VERSION } from '@kieranklaassen/live-mix'

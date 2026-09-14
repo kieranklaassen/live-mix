@@ -10,10 +10,32 @@
 //              a 0.8 ms Haas delay on the right channel from 0.85
 // The device ramps width changes over 5 ms.
 
-import { type ParamSpec } from '../params'
+import { type ParamSpec } from '../../core/params'
+import { defineWasmDevice, WasmDevice, type WasmDeviceOptions } from '../WasmDevice'
 
 export const STEREO_WIDENER_PARAMS = {
   width: { id: 0, name: 'Width', min: 0, max: 1, default: 0.5, taper: 'linear', unit: '' },
 } as const satisfies Record<string, ParamSpec>
 
 export type StereoWidenerParamName = keyof typeof STEREO_WIDENER_PARAMS
+
+export const STEREO_WIDENER_DEVICE = defineWasmDevice({
+  id: 'stereo-widener',
+  // Static literal so Vite can rewrite it to a hashed asset URL at build time.
+  wasm: () => new URL('../wasm/stereo-widener.wasm', import.meta.url),
+  params: STEREO_WIDENER_PARAMS,
+})
+
+export type StereoWidener = WasmDevice<typeof STEREO_WIDENER_PARAMS>
+
+/**
+ * kkfonie's S1-style stereo widener as a stereo insert. `width` 0 is mono,
+ * 0.5 is the untouched stereo image, 1 is the full M/S boost plus allpass
+ * decorrelation and micro-Haas; bass below 200 Hz stays narrow throughout.
+ */
+export function createStereoWidener(
+  context: BaseAudioContext,
+  options: WasmDeviceOptions<typeof STEREO_WIDENER_PARAMS> = {},
+): Promise<StereoWidener> {
+  return WasmDevice.create(context, STEREO_WIDENER_DEVICE, options)
+}
