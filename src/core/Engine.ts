@@ -2,8 +2,8 @@
 // it from a user gesture; the intake path creates it before a session exists),
 // owns the OutputRouter and the MasterBus, hands out named buses, and carries
 // the injectable clock every component schedules against, plus the one
-// Transport and the one Scheduler (U4). Tracks and the sample store attach in
-// U5.
+// Transport and the one Scheduler (U4), the SampleStore and the clip tracks
+// (U5).
 //
 // Node creation order is part of the contract (consumers' recorded-AudioParam
 // harnesses index nodes by creation order): OutputRouter (stream destination
@@ -14,6 +14,8 @@ import { MasterBus, type MasterBusOptions } from './buses/MasterBus'
 import { Bus } from './buses/Bus'
 import { createClock, type Clock, type ClockOptions } from './clock'
 import { OutputRouter, type OutputRouterOptions } from './output/OutputRouter'
+import { AudioTrack, type AudioTrackOptions } from './tracks/AudioTrack'
+import { SampleStore, type SampleStoreOptions } from './tracks/SampleStore'
 import { type TransportLoop } from './transport/anchor'
 import { Scheduler } from './transport/Scheduler'
 import { Transport } from './transport/Transport'
@@ -28,6 +30,16 @@ export interface EngineOptions extends ClockOptions {
   loop?: Partial<TransportLoop>
   /** Scheduler timer period in ms (ambient-live 40, Breathwork Live 100). Default 40. */
   tickMs?: number
+  /** Sample decoding: fetch implementation and whether to compute peaks. */
+  samples?: SampleStoreOptions
+}
+
+export type AddAudioTrackOptions = Omit<
+  AudioTrackOptions,
+  'name' | 'destination' | 'samples' | 'now' | 'scheduler'
+> & {
+  /** Where the track's voices connect; defaults to the master. */
+  destination?: Bus | AudioNode
 }
 
 export interface AddBusOptions {
@@ -43,7 +55,9 @@ export class Engine {
   readonly master: MasterBus
   readonly transport: Transport
   readonly scheduler: Scheduler
+  readonly samples: SampleStore
   private readonly busMap = new Map<string, Bus>()
+  private readonly trackMap = new Map<string, AudioTrack>()
   private disposed = false
 
   constructor(options: EngineOptions) {
@@ -58,6 +72,7 @@ export class Engine {
       setIntervalFn: this.clock.setIntervalFn,
       clearIntervalFn: this.clock.clearIntervalFn,
     })
+    this.samples = new SampleStore(options.context, options.samples)
   }
 
   /** Audio-clock seconds through the injected clock. */
@@ -100,6 +115,53 @@ export class Engine {
     this.busMap.delete(name)
   }
 
+  /** Create a clip track feeding the master (or a bus), registered with the scheduler. */
+  addAudioTrack(name: string, options: AddAudioTrackOptions = {}): AudioTrack {
+    this.assertLive()
+    if (this.trackMap.has(name)) throw new Error(`live-mix: track "${name}" already exists`)
+    const track = new AudioTrack(this.context, {
+      ...options,
+      name,
+      destination: options.destination ?? this.master,
+      samples: this.samples,
+      now: this.clock.now,
+      scheduler: this.scheduler,
+    })
+    this.trackMap.set(name, track)
+    return track
+  }
+
+  track(name: string): AudioTrack {
+    const track = this.trackMap.get(name)
+    if (!track) throw new Error(`live-mix: no track "${name}"`)
+    return track
+  }
+
+  get tracks(): readonly AudioTrack[] {
+    return [...this.trackMap.values()]
+  }
+
+  /** Dispose a track: it leaves the scheduler and its voices are silenced. */
+  removeTrack(name: string): void {
+    const track = this.trackMap.get(name)
+    if (!track) return
+    track.dispose()
+    this.trackMap.delete(name)
+  }
+
+  /**
+   * Fade the master to silence over `fadeSec` and stop the transport, letting
+   * sounding voices stop at `now + fadeSec` (Breathwork Live's `stop()`:
+   * `setTargetAtTime(0, at, fadeSec / 3)` on the master, sources stop after
+   * the fade).
+   */
+  stop(options: { fadeSec?: number } = {}): void {
+    const fadeSec = options.fadeSec ?? 0
+    const at = this.clock.now()
+    if (fadeSec > 0) this.master.gain.setTargetAtTime(0, at, fadeSec / 3)
+    this.transport.stop({ fadeSec })
+  }
+
   /**
    * Start the output terminus (element play + MediaSession in element mode).
    * Call from the user gesture that starts playback.
@@ -112,7 +174,10 @@ export class Engine {
   dispose(): void {
     if (this.disposed) return
     this.disposed = true
+    for (const track of this.trackMap.values()) track.dispose()
+    this.trackMap.clear()
     this.scheduler.dispose()
+    this.samples.clear()
     for (const bus of this.busMap.values()) bus.dispose()
     this.busMap.clear()
     this.master.dispose()
