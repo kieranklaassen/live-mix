@@ -48,10 +48,34 @@ export {
 } from './core/devices/native/Ducker'
 export {
   SampleStore,
+  bytesOfBuffer,
   type LoadedSample,
+  type SampleEviction,
+  type SampleEvictionListener,
+  type SampleEvictionReason,
   type SampleSource,
+  type SampleStoreMetrics,
   type SampleStoreOptions,
 } from './core/tracks/SampleStore'
+export {
+  DEFAULT_RETAIN_GRACE_SECONDS,
+  SampleRetainer,
+  type RetainedTrack,
+  type SampleRetainerOptions,
+} from './core/tracks/SampleRetainer'
+export {
+  ElementSource,
+  type ClipSource,
+  type ElementSourceOptions,
+} from './core/sources/ElementSource'
+export {
+  ELEMENT_DRIFT_TOLERANCE_SECONDS,
+  ElementTrack,
+  type ElementTrackOptions,
+  type ElementVoice,
+  type ElementVoiceOptions,
+  type TimeoutId,
+} from './core/sources/ElementTrack'
 export { ClipList } from './core/tracks/ClipList'
 export {
   AudioTrack,
