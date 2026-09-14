@@ -93,6 +93,18 @@ takes the package's factory as an argument) with tempo-synced rates from warp
 markers and pitch in semitones, and reports the node's latency for delay
 compensation.
 
+`StretchTrack` (`engine.addStretchTrack(name, { createStretch })`) is the clip
+track over it, with the `AudioTrack` shape (`clips`, `strip`, `attach` /
+`detach`, `voices()`, `fadeOutVoice`, `stop`, `stopAll`): stretch nodes are
+built ahead by the preload schedulable (one per start; a start whose node is
+not ready is declined and offered again), rates come from the clip's warp
+markers on `engine.tempo` (a late join rebases the remaining segments), and a
+looping clip cycles `[loopStartSec, loopEndSec)` while entering anywhere in it
+— what the session grid's legato launches need. In the score an audio track
+marked `stretch: true` renders as a `StretchTrack` when `loadScore(engine,
+doc, { createStretch })` has the factory; without it the render fails loudly
+rather than playing unwarped.
+
 Key matching is the Camelot rule Breathwork Live's selector and server share
 (same number or ±1 wrapping 1–12, letter-agnostic, unparseable codes compatible
 with everything): `camelotCompatible`, `camelotDistance`, `transposeCamelot`,

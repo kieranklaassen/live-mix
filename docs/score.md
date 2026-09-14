@@ -44,7 +44,7 @@ Score
 ├─ sources[]   { id, url?, durationSec?, analysis? }  what clips reference
 ├─ tracks[]    kind 'audio' | 'live' | 'instrument'
 │    { id, name, destination, strip, …
-│      audio:      lookaheadSec?, preloadSec?, clips: Clip[]
+│      audio:      lookaheadSec?, preloadSec?, stretch?, clips: Clip[]   stretch → StretchTrack (needs createStretch)
 │      live:       (declared only — audio attached by the app)
 │      instrument: device: ScoreDevice (a NoteDevice in the registry) }
 ├─ elementTracks[] { id, name, destination, lookaheadSec?, preloadSec?, clips: Clip[] }
@@ -63,7 +63,7 @@ ScoreDevice       { id, deviceId (registry id), preset?, params: { name: number 
 ScoreSend         { target: returnId, level: number | null }   null = direct connection
 ParamTarget       { kind: 'strip', owner: id | 'master', param: 'level' | 'pan' | 'inputGain' }
                 | { kind: 'device', device: instanceId, param: name }
-Clip              the core `Clip` record (id, sourceId, startSec, offsetSec, durationSec, fades, gainDb, loop?)
+Clip              the core `Clip` record (id, sourceId, startSec, offsetSec, durationSec, fades, gainDb, loop?, loopStartSec?, loopEndSec?, warp?, semitones?)
 Breakpoint        the core `Breakpoint` (timeSec, value, curve?)
 ```
 

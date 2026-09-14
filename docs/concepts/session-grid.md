@@ -88,7 +88,8 @@ scene and checks the drums slot goes `queued → playing` and a
 
 ## Not yet
 
-Warped (tempo-synced) slot clips play unwarped until a scheduler-driven
-`StretchTrack` exists (U32 follow-up); recording into slots is the recorder's
-(U33); scene tempo, launch offsets, velocity and MIDI mapping of the grid are
-listed in [session.md § Not in this unit](../session.md#not-in-this-unit).
+Warped (tempo-synced) slot clips play warped when their track is marked
+`stretch: true` (a `StretchTrack`, see [time.md](./time.md)); recording into
+slots is the recorder's (U33); scene tempo, launch offsets, velocity and MIDI
+mapping of the grid are listed in
+[session.md § Not in this unit](../session.md#not-in-this-unit).

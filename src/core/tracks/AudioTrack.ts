@@ -70,6 +70,9 @@ export interface ClipVoiceOptions {
   gainDb?: number
   /** Loop the source for the clip's duration. */
   loop?: boolean
+  /** Source region the loop cycles over (default: `offsetSec` to the source end). */
+  loopStartSec?: number
+  loopEndSec?: number
 }
 
 export interface ClipVoice {
@@ -318,6 +321,8 @@ export class AudioTrack implements StripHost {
         fadeCurve: clip.fadeCurve,
         gainDb: clip.gainDb,
         loop: clip.loop,
+        loopStartSec: clip.loopStartSec,
+        loopEndSec: clip.loopEndSec,
       },
       when,
     )
@@ -382,8 +387,8 @@ export class AudioTrack implements StripHost {
     source.onended = () => this.forget(voice)
     if (playback.loop) {
       source.loop = true
-      source.loopStart = playback.offsetSec
-      source.loopEnd = playback.buffer.duration
+      source.loopStart = playback.loopStartSec ?? playback.offsetSec
+      source.loopEnd = playback.loopEndSec ?? playback.buffer.duration
       source.start(start, playback.offsetSec + late)
       this.stopSource(voice, end)
     } else {
@@ -413,8 +418,8 @@ export class AudioTrack implements StripHost {
     source.connect(gain)
     if (playback.loop) {
       source.loop = true
-      source.loopStart = playback.offsetSec
-      source.loopEnd = playback.buffer.duration
+      source.loopStart = playback.loopStartSec ?? playback.offsetSec
+      source.loopEnd = playback.loopEndSec ?? playback.buffer.duration
     }
     if (playback.offsetSec > 0) source.start(startAt, playback.offsetSec)
     else source.start(startAt)
@@ -478,7 +483,7 @@ export class AudioTrack implements StripHost {
 }
 
 /** A Schedulable whose lookahead and clips are read live from the track. */
-class TrackSchedulable implements Schedulable {
+export class TrackSchedulable implements Schedulable {
   private readonly readLookahead: () => number
   readonly clips: () => ClipWindow['clips']
   readonly schedule: (start: ScheduledStart, when: number) => boolean

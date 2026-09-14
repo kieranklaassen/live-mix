@@ -145,10 +145,10 @@ changes), seconds pass through; absent, the follow time is the slot clip's
 - **Legato**: the incoming clip enters at the position the outgoing one had
   reached (modulo the outgoing clip's `durationSec` while it loops), wrapped
   into the incoming clip while that loops; a one-shot with nothing left only
-  closes the outgoing slot. Note the `AudioTrack` loops a looping clip from
-  its `offsetSec` to the source end, so a legato entry into a looping clip
-  shifts its loop region — exact loop-region playback is the `StretchTrack`
-  follow-up (see below).
+  closes the outgoing slot. A looping launch carries the slot's region as
+  `Clip.loopStartSec` / `loopEndSec`, so both the `AudioTrack` (buffer voice
+  `loopStart` / `loopEnd`) and the `StretchTrack` cycle the slot's region
+  wherever the legato entry landed inside it.
 
 ## Follow actions
 
@@ -206,11 +206,11 @@ grid component is the U25 kit's.
 
 ## Not in this unit
 
-- Warped (tempo-synced) slot clips: `Clip.warp`/`semitones` are carried
-  through slots and placed clips, but the `AudioTrack` plays them unwarped.
-  A scheduler-driven `StretchTrack` over `StretchSource` (U32) is the
-  integrator's follow-up; the session needs nothing more than a track kind
-  whose clips it can place through `clip.add`.
+- Warped (tempo-synced) slot clips play warped on a `StretchTrack`: mark the
+  score's audio track `stretch: true` and hand `loadScore` a `createStretch`
+  factory (`signalsmith-stretch`); the session finds stretch tracks through
+  `engine.stretchTracks` and ends their voices the same way. Without the flag
+  the `AudioTrack` still plays such clips unwarped.
 - Recording into slots (`recording` state) — U33.
 - Scene tempo / time signature, clip launch offsets, velocity, MIDI mapping
   (U36 maps controllers to `launchSlot`/`launchScene`).

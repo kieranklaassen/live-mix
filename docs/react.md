@@ -137,6 +137,7 @@ function Studio({ engine }: { engine: Engine }) {
 | `DeviceChainView`                           | A strip's inserts as panels with move earlier / later, drag-and-drop reorder (`reorderInserts`), remove (+ dispose) and an add picker over the registry                                                                                                                |
 | `TimelineView`, `Waveform`                  | Lanes per clip source with clips placed in seconds, `sounding` / `upcoming` from `useSchedule`, loop region, a frame-sampled playhead, waveforms from decoded peaks; click or arrow the ruler to seek                                                                  |
 | `DeviceToggle`, `ToggleButton`              | The squared power switch and the pressed / unpressed button (mute, solo, loop tones)                                                                                                                                                                                   |
+| `GridView`                                  | The session grid over `useSession` / `useSlot`: scenes × audio tracks, a slot button per cell (`data-state` empty / stopped / queued / playing / recording, stopping, `gate` dashed), scene launch per row, per-track stop row and stop-all, the quantise selector (`quantizeKey` / `quantizeLabel`) |
 
 `useParamControl` is the shared interaction hook for custom controls, and the
 pure maths (`normalizeValue`, `quantize`, `faderDbToLevel`,
