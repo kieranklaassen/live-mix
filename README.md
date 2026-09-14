@@ -71,6 +71,12 @@ music.inserts.add(engine.devices.ducker({ key: voice, depth: 0.68 }))
 const plate = await createDattorroReverb(engine.context, { params: { mix: 0.35 } })
 engine.master.inserts.add(plate)
 
+// Opt-in master stages: an unbypassable −1 dBTP true-peak limiter after the
+// inserts, and a BS.1770 loudness / true-peak meter tapping the limited output.
+const limiter = await engine.master.installLimiter((ctx) => createTruePeakLimiter(ctx))
+const lufs = await engine.master.installLufsMeter({ intervalMs: 50 })
+lufs.subscribe(({ shortTerm }) => draw(shortTerm, lufs.truePeakDb))
+
 // Clips are seconds-first records; the scheduler hands them to the graph
 // inside the track's lookahead window and joins late clips mid-way.
 music.clips.add({
@@ -180,6 +186,56 @@ Element starts are timer-accurate, not sample-accurate; the envelope stays on
 the audio clock. Differences from `AudioTrack` and the iPhone checklist are in
 [`docs/iphone-memory-and-element-source.md`](./docs/iphone-memory-and-element-source.md).
 
+### Master limiter, loudness meters and stats
+
+Nothing below is in the default graph: the engine still creates exactly the
+nodes it did before (router → master gain → optional analyser meter → buses),
+so recorded-node-order harnesses stay green. Each stage is installed once,
+after the engine exists, because it loads a worklet.
+
+**Limiter.** `engine.master.installLimiter((ctx) => createTruePeakLimiter(ctx, options))`
+places the device the factory returns as a fixed stage after the fader and
+every insert, ahead of the analyser meter and the terminus. It is not an
+insert: `removeInsert` cannot reach it, the returned `MasterLimiter` exposes
+`setParam`/`getParam`/`params`/`latencySec` and no bypass, and the bus disposes
+it. `createTruePeakLimiter` (dsp entry, `cpp/devices/true-peak-limiter/`) is a
+stereo-linked lookahead brickwall: the detector is the ITU-R BS.1770-4 Annex 2
+four-phase true-peak FIR — the same table the meter uses — so the meter's
+true-peak reading of the limited output never exceeds `ceilingDb` (−20..0 dBTP,
+default −1), and a final clip keeps every sample under it too. Attack is a
+linear ramp over the 1.5 ms lookahead ending exactly when the peak arrives;
+`releaseMs` (10..2000, default 100) is the exponential recovery; `inputGainDb`
+(±24) drives the detector. Latency 77 samples at 48 kHz
+(`TRUE_PEAK_LIMITER_LATENCY_SECONDS`). Any other `Device` can be installed the
+same way (e.g. `createLimiter1176` for character before the wall — as an
+insert — or a custom device as the wall).
+
+**Meters.** `LufsMeter.create(ctx, { intervalMs, processorUrl, createNode })`
+hosts `dist/worklets/meter.js`, an AudioWorklet sink (one stereo input, no
+output) that computes BS.1770-4 momentary (400 ms), short-term (3 s) and gated
+integrated loudness (−70 LUFS absolute, −10 LU relative, 0.01 LU histogram so
+memory is fixed for any session length), sample peak and true peak (4× to
+48 kHz, 2× to 96 kHz), and posts a `MeterReading` at ≤ 30 Hz (default 20 Hz).
+Read it synchronously (`lufsShortTerm`, `truePeakDb`, `maxTruePeakDb`, …) or
+`subscribe`. Feed it from any bus with `bus.addTap(meter.input)` — taps are
+re-fed after every insert change — or use
+`engine.master.installLufsMeter(options)`, which taps the limited output.
+`LoudnessAnalyzer` (core entry) is the same DSP as a plain class for offline
+analysis of decoded buffers; the EBU Tech 3341 references (997 Hz at −23 dBFS
+stereo → −23.0 LUFS ±0.1, gating cases) are its tests.
+
+**Stats.** `engine.stats` counts glitches from `AudioContext.renderCapacity`
+where a browser exposes it (`supported`), converting each update's
+`underrunRatio` into render quanta; hosts add their own with
+`stats.recordGlitch()` and read `snapshot()` / `subscribe`.
+
+**Budgets (R38).** In Node 22 on one Xeon core the analyser runs 60 s of
+stereo 48 kHz audio in 294 ms (0.5 % of real time) and the limiter's `.wasm` in
+96 ms (0.16 %); both are allocation-free per block. The iPhone figure (target:
+meter and ducker together under 5 % CPU with two devices) is recorded by hand
+when a consumer ships them. The core entry is 40 KB minified (budget 60 KB);
+the meter worklet bundle 6 KB.
+
 ## Install
 
 The repository is **private**, so every install path authenticates. The
@@ -273,10 +329,11 @@ npm link ../live-mix
 ```
 src/
   index.ts            core entry
-  core/               Engine, tracks, buses, Transport, Scheduler, Clip, SampleStore, OutputRouter, Meter, native devices
+  core/               Engine, tracks, buses, Transport, Scheduler, Clip, SampleStore, OutputRouter, Meter, native devices, stats
+  core/analysis/      Meter (analyser), LoudnessAnalyzer (BS.1770-4 DSP), LufsMeter (worklet host) + meter protocol
   dsp/                WasmDevice host, C ABI typings, device factories + param tables
   dsp/devices/faust/  generated param tables for the Faust devices (scripts/build-faust.sh)
-  dsp/worklets/       wasm-device.processor.ts → dist/worklets/wasm-device.js, ducker.processor.ts → dist/worklets/ducker.js (one file each, no imports)
+  dsp/worklets/       wasm-device.processor.ts, ducker.processor.ts, meter.processor.ts → dist/worklets/*.js (one file each, no imports)
   dsp/wasm/           committed *.wasm artefacts (scripts/build-wasm.sh; CI verifies they reproduce)
   react/              Phase 1 hooks and components
   testing/            MockAudioContext + AudioParam recorder
@@ -285,6 +342,7 @@ cpp/
   devices/dattorro/   Dattorro plate (from ambient-live) behind the ABI
   devices/fdn-reverb/ Tides 8-line FDN reverb (from kkfonie) behind the ABI
   devices/stereo-widener/  kkfonie's StereoWidener (source unchanged, SHA in device.json) behind the ABI
+  devices/true-peak-limiter/  lookahead BS.1770 true-peak brickwall for the master (header-only DSP) behind the ABI
   faust/              Faust devices: *.dsp sources, generated/ C++, *.device.cpp ABI shims (docs/faust-devices.md)
   test/               native harnesses (parity tests for every ported device)
 scripts/              build.mjs, build-wasm.sh, build-faust.sh, test-native.sh, check-pack.mjs
