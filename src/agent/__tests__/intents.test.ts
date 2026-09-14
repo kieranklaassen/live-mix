@@ -268,9 +268,9 @@ describe('session intents', () => {
     ).toBe('rejected')
     const capped500 = tight.controller.call('extend_section', { seconds: 500 }) as ToolSuccess
     expect(capped500.rails.map((note) => note.applied)).toEqual([300, 45])
-    expect(
-      (none.controller.call('extend_section', { seconds: 0 }) as ToolFailure).error.code,
-    ).toBe('invalid_args')
+    expect((none.controller.call('extend_section', { seconds: 0 }) as ToolFailure).error.code).toBe(
+      'invalid_args',
+    )
   })
 
   it('the controller keeps its own growth budget when the session gives no headroom', async () => {
