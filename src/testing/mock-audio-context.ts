@@ -56,6 +56,7 @@ export class MockAudioContext {
   readonly elementSources: MockMediaElementSource[] = []
   readonly workletNodes: MockAudioWorkletNode[] = []
   readonly decodeCalls = new CallRecorder()
+  private readonly attachedElements = new WeakSet<object>()
 
   readonly audioWorklet: {
     readonly modules: string[]
@@ -125,7 +126,16 @@ export class MockAudioContext {
     return this.track(this.streamSources, new MockMediaStreamSource(stream))
   }
 
+  /** One node per element, as in browsers (a second call throws InvalidStateError). */
   createMediaElementSource(element: unknown): MockMediaElementSource {
+    if (typeof element === 'object' && element !== null) {
+      if (this.attachedElements.has(element)) {
+        throw new Error(
+          'InvalidStateError: HTMLMediaElement already connected to a MediaElementAudioSourceNode',
+        )
+      }
+      this.attachedElements.add(element)
+    }
     return this.track(this.elementSources, new MockMediaElementSource(element))
   }
 

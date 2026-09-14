@@ -42,4 +42,10 @@ export {
   createMockContext,
   type MockAudioContextOptions,
 } from './mock-audio-context'
+export {
+  MockMediaElement,
+  asMediaElement,
+  createMockMediaElement,
+  type MockMediaElementOptions,
+} from './mock-media-element'
 export { advance } from './advance'
