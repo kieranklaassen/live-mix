@@ -32,13 +32,18 @@ exports=(
 exported_functions=$(printf ",_%s" "${exports[@]}")
 exported_functions=${exported_functions:1}
 
+# Instruments export the note entry points the worklet host calls
+# (src/dsp/abi.ts DeviceExports.device_note_on/off) on top of the ABI.
+instrument_exports=",_device_note_on,_device_note_off"
+
+# build_device <name> <sources...>; set EXTRA_EXPORTS for additional symbols.
 build_device() {
   local name="$1"
   shift
   emcc "$@" \
     -I cpp/common \
     -std=c++17 -O3 -fno-exceptions -fno-rtti --no-entry \
-    -s "EXPORTED_FUNCTIONS=${exported_functions}" \
+    -s "EXPORTED_FUNCTIONS=${exported_functions}${EXTRA_EXPORTS:-}" \
     -s INITIAL_MEMORY=4194304 \
     -s ALLOW_MEMORY_GROWTH=0 \
     -s STACK_SIZE=131072 \
@@ -72,6 +77,13 @@ build_device spectral-drifter \
 build_device ether-reverb \
   cpp/devices/ether-reverb/ether_reverb_device.cpp \
   cpp/devices/ether-reverb/device_api.cpp
+
+EXTRA_EXPORTS="$instrument_exports" build_device felt-piano \
+  cpp/devices/felt-piano/felt_piano_device.cpp \
+  cpp/devices/felt-piano/SympatheticBank.cpp \
+  cpp/devices/felt-piano/FeltReverb.cpp \
+  cpp/devices/stereo-widener/StereoWidener.cpp \
+  cpp/devices/felt-piano/device_api.cpp
 
 # Faust devices: the C++ under cpp/faust/generated is produced by
 # scripts/build-faust.sh and committed; no Faust toolchain is needed here.

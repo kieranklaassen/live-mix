@@ -15,6 +15,7 @@ import { DUCKER_PARAMS } from '../core/devices/native/ducker-abi'
 import { type WorkletDuckerOptions } from '../core/devices/native/WorkletDucker'
 import { DATTORRO_DEVICE } from './devices/dattorro'
 import { ETHER_REVERB_DEVICE } from './devices/ether-reverb'
+import { FELT_PIANO_DEVICE } from './devices/felt-piano'
 import { createWorkletDucker, type DuckerProcessorOverrides } from './devices/ducker'
 import { FDN_REVERB_DEVICE } from './devices/fdn-reverb'
 import { LIMITER_1176_DEVICE } from './devices/limiter-1176'
@@ -28,6 +29,8 @@ export interface WasmDeviceMeta<P extends Record<string, ParamSpec>> {
   category: DeviceCategory
   version?: number
   presets?: PresetTable<P>
+  /** Over the CPU budget (docs/devices.md) or otherwise not cleared for production. */
+  experimental?: boolean
 }
 
 /**
@@ -46,6 +49,7 @@ export function wasmDeviceDescriptor<P extends Record<string, ParamSpec>>(
     version: meta.version ?? 1,
     params: definition.params,
     presets: meta.presets,
+    ...(meta.experimental ? { experimental: true } : {}),
     create: (context, options) =>
       WasmDevice.create(context, definition, options as WasmDeviceOptions<P>),
   }
@@ -156,6 +160,28 @@ export const WORKLET_DUCKER_DESCRIPTOR: DeviceDescriptor<typeof DUCKER_PARAMS> =
 }
 
 /** Every stock worklet-backed device shipped in `./dsp` (WASM modules and the ducker). */
+export const FELT_PIANO_DESCRIPTOR = wasmDeviceDescriptor(FELT_PIANO_DEVICE, {
+  name: 'Felt Piano',
+  category: 'instrument',
+  // Over the 5 % wasm budget on the CI core (docs/devices.md); the iPhone
+  // figure the plan gates on is not recorded yet.
+  experimental: true,
+  presets: {
+    Felt: { felt: 0.65, hardness: 0.35, grit: 0.12, reverbMix: 0.25, reverbSize: 0.3 },
+    Bare: { felt: 0, hardness: 0.6, thump: 0.3, grit: 0, reverbMix: 0.15, reverbSize: 0.2 },
+    Intimate: {
+      felt: 0.9,
+      hardness: 0.25,
+      thump: 0.6,
+      grit: 0.3,
+      reverbMix: 0.35,
+      reverbSize: 0.25,
+    },
+    Hall: { felt: 0.5, reverbMix: 0.45, reverbSize: 0.9, width: 0.7 },
+    Lean: { polyphony: 12, resonance: 0, reverbMix: 0.15 },
+  },
+})
+
 export const STOCK_WASM_DEVICES: readonly DeviceDescriptor[] = [
   DATTORRO_DESCRIPTOR,
   FDN_REVERB_DESCRIPTOR,
@@ -165,6 +191,7 @@ export const STOCK_WASM_DEVICES: readonly DeviceDescriptor[] = [
   WORKLET_DUCKER_DESCRIPTOR,
   SPECTRAL_DRIFTER_DESCRIPTOR,
   ETHER_REVERB_DESCRIPTOR,
+  FELT_PIANO_DESCRIPTOR,
 ]
 
 /** Register the stock WASM devices (idempotent) in `registry`, the default one unless given. */

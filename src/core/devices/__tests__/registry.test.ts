@@ -277,6 +277,7 @@ describe('default registry', () => {
       'limiter-1176',
       'spectral-drifter',
       'ether-reverb',
+      'felt-piano',
     ])
     expect(wasm.length).toBeGreaterThanOrEqual(before)
     expect(new Set(devices.ids()).size).toBe(devices.ids().length)
