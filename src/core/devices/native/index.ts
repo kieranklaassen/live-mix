@@ -13,6 +13,8 @@ export {
   NODE_DEVICE_RAMP_SECONDS,
   NodeDevice,
   defineNodeDevice,
+  definitionLatencySamples,
+  rampParamTo,
   type NodeDeviceDefinition,
   type NodeDeviceGraph,
   type NodeDeviceOptions,

@@ -22,6 +22,12 @@ export interface Device {
   bypass: boolean
   /** Processing latency in seconds, for plugin delay compensation. */
   readonly latencySec: number
+  /**
+   * Sample-exact processing latency at the context's sample rate, for devices
+   * that know it (lookahead limiters, FIR stages). Optional and additive:
+   * `deviceLatencySamples()` in `pdc.ts` rounds `latencySec` when it is absent.
+   */
+  readonly latencySamples?: number
   dispose(): void
 }
 

@@ -51,6 +51,11 @@ export class Bus {
     return last ? last.output : this.gainNode
   }
 
+  /** The node the bus currently feeds (the master's is the terminus or its meter). */
+  get destinationNode(): AudioNode {
+    return this.destination
+  }
+
   /** Post-fader inserts, in order. */
   get inserts(): readonly Device[] {
     return this.insertList

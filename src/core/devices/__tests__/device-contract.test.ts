@@ -1,6 +1,7 @@
-// Every registered device — the node devices and every stock WASM device —
-// honours the Device contract the same way when created through the registry.
-// Adding a device to NODE_DEVICES or STOCK_WASM_DEVICES adds it to this table.
+// Every registered device — the node devices, the rack, and every stock WASM
+// device — honours the Device contract the same way when created through the
+// registry. Adding a device to NODE_DEVICES or STOCK_WASM_DEVICES adds it to
+// this table.
 
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
@@ -13,6 +14,7 @@ import { clampParam } from '../../params'
 import { type Device } from '../Device'
 import { NODE_DEVICES } from '../native'
 import { applyPreset, listPresets, parsePreset, serializePreset } from '../presets'
+import { RACK_DESCRIPTOR } from '../Rack'
 import { type DeviceCreateRequest, type DeviceDescriptor, DeviceRegistry } from '../registry'
 
 // The stock WASM definitions live next to their descriptors; their lazy URLs
@@ -46,7 +48,7 @@ beforeAll(async () => {
   }
 })
 
-const registry = new DeviceRegistry([...NODE_DEVICES, ...STOCK_WASM_DEVICES])
+const registry = new DeviceRegistry([...NODE_DEVICES, RACK_DESCRIPTOR, ...STOCK_WASM_DEVICES])
 
 /** Per-kind options the factories need under the mocks. */
 function requestFor(descriptor: DeviceDescriptor): DeviceCreateRequest {
@@ -69,7 +71,7 @@ async function make(
   return { device, ctx }
 }
 
-const table = [...NODE_DEVICES, ...STOCK_WASM_DEVICES].map((descriptor) => ({
+const table = [...NODE_DEVICES, RACK_DESCRIPTOR, ...STOCK_WASM_DEVICES].map((descriptor) => ({
   id: descriptor.id,
   descriptor,
 }))
@@ -84,6 +86,7 @@ it('covers every stock device', () => {
       'delay',
       'convolver-reverb',
       'utility',
+      'rack',
       'dattorro',
       'fdn-reverb',
       'stereo-widener',
@@ -106,7 +109,7 @@ describe.each(table)('$id honours the Device contract', ({ descriptor }) => {
   it('describes itself: metadata and a sane param table', () => {
     expect(descriptor.id).toMatch(/^[a-z0-9-]+$/)
     expect(descriptor.name.length).toBeGreaterThan(0)
-    expect(['node', 'wasm', 'worklet']).toContain(descriptor.kind)
+    expect(['node', 'wasm', 'worklet', 'rack']).toContain(descriptor.kind)
     expect(descriptor.version).toBeGreaterThanOrEqual(1)
     expect(entries.length).toBeGreaterThan(0)
     const ids = entries.map(([, spec]) => spec.id)
@@ -120,7 +123,7 @@ describe.each(table)('$id honours the Device contract', ({ descriptor }) => {
   })
 
   it('instantiates through the registry with its descriptor id, params and defaults', async () => {
-    const { device } = await make(descriptor)
+    const { device, ctx } = await make(descriptor)
     expect(device.id).toBe(descriptor.id)
     expect(device.params).toEqual(descriptor.params)
     expect(typeof device.input.connect).toBe('function')
@@ -128,6 +131,8 @@ describe.each(table)('$id honours the Device contract', ({ descriptor }) => {
     for (const [name, spec] of entries) expect(device.getParam(name)).toBe(spec.default)
     expect(Number.isFinite(device.latencySec)).toBe(true)
     expect(device.latencySec).toBeGreaterThanOrEqual(0)
+    expect(Number.isInteger(device.latencySamples)).toBe(true)
+    expect(device.latencySamples).toBe(Math.round(device.latencySec * ctx.sampleRate))
     expect(device.bypass).toBe(false)
     device.dispose()
   })

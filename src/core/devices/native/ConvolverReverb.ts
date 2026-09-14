@@ -58,6 +58,7 @@ export class ConvolverReverb implements ObservableDevice {
   readonly convolver: ConvolverNode
   readonly wetGain: GainNode
   readonly latencySec = 0
+  readonly latencySamples = 0
   private readonly ctx: BaseAudioContext
   private readonly rampSeconds: number
   private wet: number

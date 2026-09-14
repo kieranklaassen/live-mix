@@ -30,6 +30,8 @@ export interface WasmDeviceDefinition<
   wasm: () => WasmSource
   params: P
   latencySec?: number
+  /** Sample-exact latency at a given rate, when the DSP knows it (default: `round(latencySec · sampleRate)`). */
+  latencySamples?: (sampleRate: number) => number
   /**
    * An app-local worklet processor implementing the same ABI plus extras
    * (ambient-live's instrument). Defaults to the library's generic processor.
@@ -66,6 +68,7 @@ export class WasmDevice<P extends Record<string, ParamSpec> = Record<string, Par
   readonly params: Readonly<P>
   readonly node: AudioWorkletNode
   readonly latencySec: number
+  readonly latencySamples: number
   private readonly values = new Map<string, number>()
   private readonly changes = new Emitter<DeviceChange>()
   private bypassed = false
@@ -75,11 +78,20 @@ export class WasmDevice<P extends Record<string, ParamSpec> = Record<string, Par
     definition: WasmDeviceDefinition<P>,
     node: AudioWorkletNode,
     initial: Map<string, number>,
+    sampleRate: number,
   ) {
     this.id = definition.id
     this.params = definition.params
     this.node = node
     this.latencySec = definition.latencySec ?? 0
+    this.latencySamples = Math.max(
+      0,
+      Math.round(
+        definition.latencySamples
+          ? definition.latencySamples(sampleRate)
+          : this.latencySec * sampleRate,
+      ),
+    )
     this.values = initial
   }
 
@@ -120,7 +132,7 @@ export class WasmDevice<P extends Record<string, ParamSpec> = Record<string, Par
       outputChannelCount: [2],
       processorOptions,
     })
-    return new WasmDevice(definition, node, initial)
+    return new WasmDevice(definition, node, initial, context.sampleRate)
   }
 
   get input(): AudioNode {

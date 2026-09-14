@@ -51,6 +51,7 @@ export class WorkletDucker implements ObservableDevice, SidechainDucker {
   readonly params = DUCKER_PARAMS
   readonly node: AudioWorkletNode
   readonly latencySec = 0
+  readonly latencySamples = 0
   private readonly values = new Map<DuckerParamName, number>()
   private readonly changes = new Emitter<DeviceChange>()
   private keyed: AudioNode | null = null
