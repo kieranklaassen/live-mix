@@ -226,7 +226,7 @@ export class Session {
 
   /** Set the score's global launch quantisation (an operation). */
   setQuantize(quantize: LaunchQuantize): void {
-    this.apply({ type: 'transport.quantize', quantize }, `launch quantisation`)
+    this.apply({ type: 'transport.quantize', quantize }, 'launch quantisation')
   }
 
   // --- Reading -----------------------------------------------------------------------------
@@ -249,7 +249,9 @@ export class Session {
   }
 
   trackStatus(track: string): TrackStatus {
-    const playing = this.launches.find((launch) => launch.track === track && launch.started)
+    const playing = this.launches.find(
+      (launch) => launch.track === track && launch.started && this.lastPositionSec < launch.endSec,
+    )
     const queued = this.launches.find((launch) => launch.track === track && !launch.started)
     return { track, playing: playing?.slotId ?? null, queued: queued?.slotId ?? null }
   }
