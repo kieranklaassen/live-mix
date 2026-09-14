@@ -14,7 +14,9 @@ import { MasterBus, type MasterBusOptions } from './buses/MasterBus'
 import { Bus } from './buses/Bus'
 import { createClock, type Clock, type ClockOptions } from './clock'
 import { OutputRouter, type OutputRouterOptions } from './output/OutputRouter'
+import { devices as defaultDevices } from './devices'
 import { Ducker, type DuckerOptions } from './devices/native/Ducker'
+import { type DeviceRegistry } from './devices/registry'
 import { AudioTrack, type AudioTrackOptions } from './tracks/AudioTrack'
 import { InstrumentTrack, type InstrumentTrackOptions } from './tracks/InstrumentTrack'
 import { LiveInputTrack, type LiveInputTrackOptions } from './tracks/LiveInputTrack'
@@ -36,6 +38,8 @@ export interface EngineOptions extends ClockOptions {
   tickMs?: number
   /** Sample decoding: fetch implementation and whether to compute peaks. */
   samples?: SampleStoreOptions
+  /** Device registry this engine creates devices from; defaults to the shared `devices`. */
+  devices?: DeviceRegistry
 }
 
 export type AddLiveInputTrackOptions = Omit<LiveInputTrackOptions, 'name' | 'destination'> & {
@@ -77,6 +81,8 @@ export class Engine {
   readonly transport: Transport
   readonly scheduler: Scheduler
   readonly samples: SampleStore
+  /** Device registry (`engine.devices.create(id, { params, preset })`). */
+  readonly devices: DeviceRegistry
   private readonly busMap = new Map<string, Bus>()
   private readonly trackMap = new Map<string, AudioTrack>()
   private readonly liveInputMap = new Map<string, LiveInputTrack>()
@@ -98,6 +104,7 @@ export class Engine {
       clearIntervalFn: this.clock.clearIntervalFn,
     })
     this.samples = new SampleStore(options.context, options.samples)
+    this.devices = options.devices ?? defaultDevices
   }
 
   /** Audio-clock seconds through the injected clock. */

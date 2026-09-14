@@ -15,6 +15,7 @@ import {
   AudioTrack,
   CROSSFADE_SECONDS,
   MAX_CLIP_GAIN_DB,
+  STEER_CROSSFADE_SECONDS,
   STOP_FADE_SECONDS,
   trimGain,
 } from '../AudioTrack'
@@ -470,5 +471,40 @@ describe('AudioTrack as Schedulables', () => {
     scheduler.tick()
     expect(ctx.sources).toHaveLength(1)
     scheduler.dispose()
+  })
+})
+
+describe('AudioTrack.fadeOutVoice (adapter primitive)', () => {
+  it('fades unconditionally, whatever the voice timing, and pulls the end in', () => {
+    const ctx = createMockContext({ sampleRate: 48000 })
+    const dest = ctx.createGain()
+    const track = new AudioTrack(asAudioContext(ctx), {
+      name: 'm',
+      destination: dest as unknown as AudioNode,
+      samples: new SampleStore(asAudioContext(ctx)),
+      now: () => ctx.currentTime,
+    })
+    const opts = {
+      buffer: buffer(ctx, 10),
+      offsetSec: 0,
+      durationSec: 10,
+      fadeInSec: CROSSFADE_SECONDS,
+      fadeOutSec: CROSSFADE_SECONDS,
+      fadeCurve: 'equalPower' as const,
+    }
+    track.play('pending', opts, 7.5)
+    // fadeOut() would only stop a pending voice; fadeOutVoice() fades it regardless.
+    track.fadeOutVoice('pending', 2, STEER_CROSSFADE_SECONDS)
+    const gain = ctx.gains[1]
+    expect(gain.gain.eventsFor('cancelScheduledValues')).toEqual([
+      { method: 'cancelScheduledValues', args: [2] },
+    ])
+    expect(gain.gain.eventsFor('setValueCurveAtTime')[2].args.slice(1)).toEqual([
+      2,
+      STEER_CROSSFADE_SECONDS,
+    ])
+    expect(ctx.sources[0].stopCalls.last).toEqual([2 + STEER_CROSSFADE_SECONDS])
+    expect(track.voice('pending')?.endTime).toBe(6)
+    track.fadeOutVoice('missing', 2, 1)
   })
 })

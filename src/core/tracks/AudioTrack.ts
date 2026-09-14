@@ -196,18 +196,31 @@ export class AudioTrack {
     const voice = this.active.get(key)
     if (!voice) return
     if (voice.startTime <= at && at < voice.endTime) {
-      voice.gain.gain.cancelScheduledValues(at)
-      if (voice.fadeCurve === 'equalPower') {
-        voice.gain.gain.setValueCurveAtTime(equalPowerFadeOut(), at, seconds)
-      } else {
-        voice.gain.gain.linearRampToValueAtTime(0, at + seconds)
-      }
-      this.stopSource(voice, at + seconds)
-      voice.endTime = at + seconds
+      this.fadeOutVoice(key, at, seconds)
     } else if (voice.startTime > at) {
       this.stopSource(voice, at)
       voice.endTime = at
     }
+  }
+
+  /**
+   * Unconditional fade: cancel the voice's scheduled envelope at `at`, fade
+   * out over `seconds` and stop after — whatever its timing. Adapters that
+   * keep their own timeline (Breathwork Live's SectionPlaylist decides
+   * sounding vs pending from its planned entries) use this and `stop(key, at)`
+   * directly; `fadeOut` is the convenience that decides from voice timing.
+   */
+  fadeOutVoice(key: string, at: number, seconds: number): void {
+    const voice = this.active.get(key)
+    if (!voice) return
+    voice.gain.gain.cancelScheduledValues(at)
+    if (voice.fadeCurve === 'equalPower') {
+      voice.gain.gain.setValueCurveAtTime(equalPowerFadeOut(), at, seconds)
+    } else {
+      voice.gain.gain.linearRampToValueAtTime(0, at + seconds)
+    }
+    this.stopSource(voice, at + seconds)
+    voice.endTime = Math.min(voice.endTime, at + seconds)
   }
 
   /**
