@@ -6,6 +6,7 @@
 export const LIVE_MIX_VERSION = '0.0.1'
 
 export * from './core/clips'
+export * from './core/automation'
 export { isNoteDevice, type Device, type NoteDevice } from './core/devices/Device'
 export { clampParam, type ParamSpec, type ParamTaper } from './core/params'
 export { createClock, type Clock, type ClockOptions, type IntervalId } from './core/clock'

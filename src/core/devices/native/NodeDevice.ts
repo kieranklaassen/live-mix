@@ -128,6 +128,22 @@ export class NodeDevice<
     return this.values.get(name) ?? spec.default
   }
 
+  /**
+   * Run the param's applier with `write` in place of the immediate ramp, so
+   * automation can schedule ahead on the underlying AudioParam(s) in the
+   * param's own units (`nodeDeviceParam` in `core/automation`). Clamps like
+   * `setParam` but leaves the tracked value alone: `getParam` keeps reporting
+   * the last `setParam`, the unautomated base. `setParam` itself still
+   * cancels-and-holds at now, so a live change wipes what was scheduled —
+   * override the lane first.
+   */
+  applyParam(name: keyof P & string, value: number, write: ParamRamp): void {
+    const spec = this.params[name]
+    if (!spec) throw new Error(`live-mix: ${this.id} has no parameter "${name}"`)
+    if (this.disposed) return
+    this.graph.apply[name](clampParam(spec, value), write)
+  }
+
   get bypass(): boolean {
     return this.bypassed
   }
