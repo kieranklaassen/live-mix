@@ -23,7 +23,7 @@ renderer.liveInput('voice').attach(stream) // live audio is the app's
 localStorage.setItem('score', document.serialize())
 ```
 
-## Schema (`format: 1`)
+## Schema (`format: 2`)
 
 Seconds are the only time unit. Every id is a string chosen by the author;
 `'master'` is reserved. Track, group and return ids share one namespace
@@ -32,8 +32,9 @@ ids are unique per track.
 
 ```
 Score
-├─ format: 1, id, name
+├─ format: 2, id, name
 ├─ transport.loop { enabled, lengthSec | null }       null = no end
+├─ transport.quantize: LaunchQuantize                 session launch grid (U31), default 'bar'
 ├─ master { level, inserts: ScoreDevice[] }
 ├─ sources[]   { id, url?, durationSec?, analysis? }  what clips reference
 ├─ tracks[]    kind 'audio' | 'live' | 'instrument'
@@ -45,7 +46,9 @@ Score
 ├─ returns[]   { id, name, destination, strip, device: ScoreDevice }
 ├─ lanes[]     { id, target: ParamTarget, defaultValue?, breakpoints: Breakpoint[] }
 ├─ modulators[] { id, kind: 'lfo' | 'random' | 'macro' | 'external-phase', … }
-└─ routes[]    { id, source: modulatorId, target: ParamTarget, depth, polarity }
+├─ routes[]    { id, source: modulatorId, target: ParamTarget, depth, polarity }
+├─ scenes[]    { id, name }                            session grid rows (U31)
+└─ slots[]     { id, track, scene, clip: SlotClip | null, quantize?, launchMode, legato, follow? }
 
 ScoreDestination  { kind: 'master' } | { kind: 'group', id }
 ScoreStrip        { level, pan, inputGain, mute, solo, soloSafe, inserts: ScoreDevice[], sends: ScoreSend[] }
@@ -70,8 +73,9 @@ them.
   normalise. `serializeScore(score)` is stable (canonical field order, clips
   sorted by start, `curve: 'linear'` and `loop: false` dropped), so equal
   documents serialise identically and diff well.
-- `migrateScore(raw)` — migrations by format; none yet (`format: 2` adds
-  `1 → 2` there and bumps `SCORE_FORMAT_VERSION`). Newer formats throw.
+- `migrateScore(raw)` — migrations by format: `1 → 2` (U31) adds empty
+  `scenes`/`slots` and `transport.quantize: 'bar'`. A future `format: 3`
+  adds `2 → 3` there and bumps `SCORE_FORMAT_VERSION`. Newer formats throw.
 - Lookups: `findTrack/findGroup/findReturn/findStripHost`, `stripHosts`,
   `allDevices`, `findDevice`, `targetKey`.
 
@@ -97,11 +101,13 @@ score throws `ScoreOperationError`, so a failed operation changes nothing.
 | Lanes                                                             | `lane.add` (one per parameter), `lane.remove`, `lane.setBreakpoints`, `lane.addBreakpoint`, `lane.removeBreakpoint`                                                |
 | Modulators                                                        | `modulator.add`, `modulator.remove` (routes go with it), `modulator.update`                                                                                        |
 | Routes                                                            | `route.add`, `route.remove`, `route.update`                                                                                                                        |
+| Session grid (U31, [`docs/session.md`](./session.md))             | `transport.quantize`, `scene.add`, `scene.remove` (its slots go with it), `scene.move`, `scene.rename`, `slot.add`, `slot.remove`, `slot.update`                   |
 | Composite                                                         | `batch { ops, label? }` — one step; inverse is the reversed inverses                                                                                               |
 
 Removals cascade: a track takes the lanes and routes on its strip and
-devices with it, a group re-routes its members, a return drops the sends
-that fed it, a device drops its lanes and routes, a modulator its routes.
+devices with it (and its session slots), a group re-routes its members, a
+return drops the sends that fed it, a device drops its lanes and routes, a
+modulator its routes, a scene its slots.
 Their inverses are `batch` operations that restore every piece at its
 original index, so `apply(invert(op), apply(op)) ≡ score` for every
 operation — the property test in `operations.test.ts` applies 150 random
@@ -210,8 +216,9 @@ anchored at audio-clock zero so a re-render lands on the same phase.
 ## Not in this unit
 
 - Element (streaming) tracks, buses as score destinations, per-send lanes,
-  markers/locators, tempo map (U32), session grid (U31), version history and
-  structural diff (U30), score-level presets/fragments.
+  markers/locators, tempo map (U32), version history and structural diff
+  (U30), score-level presets/fragments. The session grid arrived with
+  format 2 (U31, [`docs/session.md`](./session.md)).
 - Engine hooks added for the renderer, all additive: `engine.onDispose`,
   `removeLiveInputTrack` / `liveInputs`, `removeReturnTrack` /
   `returnTracks`, `removeInstrumentTrack` / `instruments`.
