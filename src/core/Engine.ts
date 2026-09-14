@@ -177,6 +177,7 @@ export class Engine {
   private readonly groupMap = new Map<string, GroupTrack>()
   private readonly duckers = new Set<SidechainDucker>()
   private readonly alignmentDelays = new Map<ChannelStrip, AlignmentDelay>()
+  private readonly disposeListeners = new Set<() => void>()
   private disposed = false
 
   constructor(options: EngineOptions) {
@@ -357,6 +358,18 @@ export class Engine {
     return track
   }
 
+  get liveInputs(): readonly LiveInputTrack[] {
+    return [...this.liveInputMap.values()]
+  }
+
+  /** Detach and dispose a live-input track. */
+  removeLiveInputTrack(name: string): void {
+    const track = this.liveInputMap.get(name)
+    if (!track) return
+    track.dispose()
+    this.liveInputMap.delete(name)
+  }
+
   /** A track hosting one instrument device, feeding the master by default. */
   addInstrumentTrack(name: string, options: AddInstrumentTrackOptions): InstrumentTrack {
     this.assertLive()
@@ -379,6 +392,18 @@ export class Engine {
     return track
   }
 
+  get instruments(): readonly InstrumentTrack[] {
+    return [...this.instrumentMap.values()]
+  }
+
+  /** Dispose an instrument track and its device. */
+  removeInstrumentTrack(name: string): void {
+    const track = this.instrumentMap.get(name)
+    if (!track) return
+    track.dispose()
+    this.instrumentMap.delete(name)
+  }
+
   /** A return fed by sends: one device whose output goes to the master by default. */
   addReturnTrack(name: string, options: AddReturnTrackOptions): ReturnTrack {
     this.assertLive()
@@ -398,6 +423,18 @@ export class Engine {
     const track = this.returnMap.get(name)
     if (!track) throw new Error(`live-mix: no return "${name}"`)
     return track
+  }
+
+  get returnTracks(): readonly ReturnTrack[] {
+    return [...this.returnMap.values()]
+  }
+
+  /** Dispose a return and its device; sends that fed it are left to their owners. */
+  removeReturnTrack(name: string): void {
+    const track = this.returnMap.get(name)
+    if (!track) return
+    track.dispose()
+    this.returnMap.delete(name)
   }
 
   /**
@@ -565,10 +602,24 @@ export class Engine {
     )
   }
 
+  /**
+   * Run `listener` first thing in `dispose()`, so companions that hold
+   * engine objects (a score renderer, meters, hooks) let go before the graph
+   * is torn down. Returns the unsubscribe.
+   */
+  onDispose(listener: () => void): () => void {
+    this.disposeListeners.add(listener)
+    return () => {
+      this.disposeListeners.delete(listener)
+    }
+  }
+
   /** Disconnect everything the engine created. Does not close the context. */
   dispose(): void {
     if (this.disposed) return
     this.disposed = true
+    for (const listener of [...this.disposeListeners]) listener()
+    this.disposeListeners.clear()
     this.automation.dispose()
     for (const retainer of this.retainers.values()) retainer.dispose()
     this.retainers.clear()

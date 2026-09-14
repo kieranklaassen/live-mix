@@ -87,6 +87,22 @@ const coreSymbols = [
   'buildLatencyReport',
   'PDC_MAX_DELAY_SECONDS',
   'rampParamTo',
+  // Score (U28)
+  'SCORE_FORMAT_VERSION',
+  'createScore',
+  'parseScore',
+  'serializeScore',
+  'validateScore',
+  'OPERATION_TYPES',
+  'apply',
+  'invert',
+  'applyWithInverse',
+  'coalesceKey',
+  'OperationLog',
+  'History',
+  'ScoreDocument',
+  'ScoreRenderer',
+  'loadScore',
 ] as const
 
 const dspSymbols = [

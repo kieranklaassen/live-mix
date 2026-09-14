@@ -133,7 +133,7 @@ Entry points (all ESM):
 
 | Import                                | Contents                                                                                                                   |
 | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `@kieranklaassen/live-mix`            | Engine, tracks, buses, `Transport`, `Scheduler`, `Clip`, `SampleStore`, `OutputRouter`, native devices                     |
+| `@kieranklaassen/live-mix`            | Engine, tracks, buses, `Transport`, `Scheduler`, `Clip`, `SampleStore`, `OutputRouter`, native devices, score              |
 | `@kieranklaassen/live-mix/dsp`        | `WasmDevice` host, the C ABI typings, device factories (`createDattorroReverb`, …) and their param tables                  |
 | `@kieranklaassen/live-mix/react`      | Headless hooks over the engine (`LiveMixProvider`, `useTransport`, `useTrack`, `useMeter`, …); `react` is an optional peer |
 | `@kieranklaassen/live-mix/testing`    | `MockAudioContext` with an AudioParam event recorder, framework-free                                                       |
@@ -338,6 +338,7 @@ src/
   dsp/worklets/       wasm-device.processor.ts, ducker.processor.ts, meter.processor.ts → dist/worklets/*.js (one file each, no imports)
   dsp/wasm/           committed *.wasm artefacts (scripts/build-wasm.sh; CI verifies they reproduce)
   react/              headless hooks (U24): hooks/*, frame sampling, useSyncExternalStore store; components follow in U25
+  score/              Score schema, operations + inverses, OperationLog, History, ScoreDocument, ScoreRenderer
   testing/            MockAudioContext + AudioParam recorder
   wam/                WebAudioModules 2.0 host adapter → its own entry (docs/wam.md)
 cpp/
@@ -697,6 +698,32 @@ import-safe under SSR and renders on the server from the same snapshots; the
 `.` and `./dsp` entries never import React. Tests run in jsdom with
 `@testing-library/react` (`src/react/__tests__`); `LiveMixProvider`'s `frame`
 prop injects a hand-driven frame scheduler.
+
+### The score: document, operations, undo, rendering
+
+The score is the source of truth for arrangement, automation and device
+graphs: a versioned, seconds-first JSON document (tracks, groups, returns,
+strips with inserts and sends, clips, lanes, modulators, routes, master,
+loop). Every edit is a JSON `Operation` with a stable name — the vocabulary
+the agent API calls — applied as a pure function with a computed inverse;
+an append-only `OperationLog` records author and time; `History` undoes one
+step per gesture (a fader drag is one undo); and `loadScore` makes the
+engine follow the document through the same public API an app would call, so
+the graph is identical either way. Live-input audio is never in the document.
+
+```ts
+import { ScoreDocument, loadScore } from '@kieranklaassen/live-mix'
+
+const document = ScoreDocument.parse(json, { devices: engine.devices })
+const renderer = loadScore(engine, document)
+document.apply({ type: 'strip.set', owner: 'kick', param: 'level', value: 0.6 }, { author })
+document.apply({ type: 'clip.replaceFrom', track: 'music', fromSec: 120, clips: plan })
+document.undo()
+renderer.liveInput('voice').attach(stream)
+```
+
+Schema, the operation list, the undo granularity decision and the rendering
+rules are in [`docs/score.md`](./docs/score.md).
 
 ### Real-time rules
 
