@@ -3,6 +3,7 @@
 // entry must be present. A named export list in src/index.ts can silently drop
 // a symbol; this pins the ones the adopters rely on.
 
+import { readFile } from 'node:fs/promises'
 import { describe, expect, it } from 'vitest'
 
 import * as core from '../index'
@@ -97,5 +98,14 @@ describe('public entries', () => {
   })
   it.each(testingSymbols)('`./testing` exports %s', (name) => {
     expect((testing as Record<string, unknown>)[name]).toBeDefined()
+  })
+})
+
+describe('version', () => {
+  it('LIVE_MIX_VERSION matches package.json', async () => {
+    const pkg = JSON.parse(
+      await readFile(new URL('../../package.json', import.meta.url), 'utf8'),
+    ) as { version: string }
+    expect(core.LIVE_MIX_VERSION).toBe(pkg.version)
   })
 })
