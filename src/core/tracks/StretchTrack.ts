@@ -485,8 +485,8 @@ export function wrapIntoLoop(
 
 /**
  * The clip-relative timeline second at which the warp reads `sourceSec` — the
- * inverse of `warpSourceSecAt`. Before the first segment's source position the
- * answer is 0 (the clip cannot start earlier than its first marker).
+ * inverse of `warpSourceSecAt`, including its linear extrapolation before the
+ * first segment (whose marker need not sit on the clip start).
  */
 export function warpClipSecAt(segments: readonly WarpSegment[], sourceSec: number): number {
   if (segments.length === 0) return sourceSec
@@ -495,7 +495,6 @@ export function warpClipSecAt(segments: readonly WarpSegment[], sourceSec: numbe
     if (segment.sourceSec <= sourceSec) current = segment
     else break
   }
-  if (sourceSec <= segments[0].sourceSec) return 0
   return current.rate > 0
     ? current.atSec + (sourceSec - current.sourceSec) / current.rate
     : current.atSec

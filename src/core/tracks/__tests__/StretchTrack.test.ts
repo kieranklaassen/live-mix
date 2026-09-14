@@ -13,6 +13,7 @@ import {
   type StretchNode,
   type StretchNodeFactory,
   type StretchScheduleChange,
+  warpSourceSecAt,
 } from '../../sources/StretchSource'
 import { TempoMap } from '../../time/TempoMap'
 import { Scheduler } from '../../transport/Scheduler'
@@ -356,10 +357,19 @@ describe('StretchTrack scheduling', () => {
       { atSec: 2, sourceSec: 3, rate: 2 },
     ]
     expect(warpClipSecAt(segments, 1)).toBe(0)
-    expect(warpClipSecAt(segments, 0.5)).toBe(0) // before the first marker: the clip start
+    expect(warpClipSecAt(segments, 0.5)).toBe(-0.5) // before the first marker: the same line, extrapolated
     expect(warpClipSecAt(segments, 2)).toBe(1)
     expect(warpClipSecAt(segments, 3.5)).toBe(2.25)
     expect(warpClipSecAt([], 4)).toBe(4)
+    // A first marker off the clip start (beat 1 at 120 BPM): entering at its source position lands on it.
+    const offStart = [
+      { atSec: 0.5, sourceSec: 2, rate: 1 },
+      { atSec: 1.5, sourceSec: 3, rate: 2 },
+    ]
+    expect(warpClipSecAt(offStart, 2)).toBe(0.5)
+    expect(warpClipSecAt(offStart, 1.5)).toBe(0)
+    for (const clipSec of [0, 0.25, 0.5, 1, 1.5, 2.5])
+      expect(warpClipSecAt(offStart, warpSourceSecAt(offStart, clipSec))).toBeCloseTo(clipSec, 12)
     expect(wrapIntoLoop(3.5, { startSec: 1, endSec: 3 })).toBe(1.5)
     expect(wrapIntoLoop(2.5, { startSec: 1, endSec: 3 })).toBe(2.5)
     expect(wrapIntoLoop(9, undefined)).toBe(9)

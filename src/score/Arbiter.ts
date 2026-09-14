@@ -159,6 +159,8 @@ export class Arbiter {
     this.table = new HoldTable({ holdMs: this.policy.holdMs })
     this.unsubscribeDocument = document.onChange((change) => {
       if (change.kind === 'load') this.reset()
+      // A restore (or its undo/redo) replaces the whole score: writes still waiting were aimed at the old one.
+      else if (change.entry?.op.type === 'score.replace') this.cancelPending()
     })
   }
 
@@ -392,9 +394,10 @@ export class Arbiter {
         this.overrideLane(key)
         this.emit({ type: 'held', hold })
       }
-      this.writeThrough(op)
       this.schedule()
     }
+    // Under an override the renderer skips the parameter, whoever wrote it.
+    this.writeThrough(op)
   }
 
   /** Under an override the renderer leaves lane-bound parameters alone; the hand's value goes straight to the graph. */
@@ -488,7 +491,8 @@ export class Arbiter {
       const holder = this.strongestHolder(pending.targets, atMs, pending.author)
       if (decide(this.policy, pending.author.kind, holder?.owner.kind ?? null) !== 'apply') continue
       const index = this.pendingList.indexOf(pending)
-      if (index >= 0) this.pendingList.splice(index, 1)
+      if (index < 0) continue // retired by an earlier landing in this pass (a restore cancels the rest)
+      this.pendingList.splice(index, 1)
       if (atMs - pending.atMs > this.policy.deferTtlMs) {
         this.dropPending(pending, 'stale')
         continue
@@ -563,8 +567,12 @@ export class Arbiter {
     )
   }
 
-  private reset(): void {
+  private cancelPending(): void {
     for (const pending of this.pendingList.splice(0)) this.dropPending(pending, 'cancelled')
+  }
+
+  private reset(): void {
+    this.cancelPending()
     for (const hold of this.table.holds) this.emit({ type: 'freed', hold, reason: 'cleared' })
     for (const lock of this.table.locks) this.emit({ type: 'unlocked', lock, reason: 'unlocked' })
     this.table.reset()

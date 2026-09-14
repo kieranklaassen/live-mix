@@ -414,6 +414,19 @@ describe('Arbiter: automation lanes', () => {
       ).outcome,
     ).toBe('dropped')
 
+    // A system write lands without taking the hold — and still reaches the graph under the override.
+    const beforeRails = fader.gain.events.length
+    expect(
+      arbiter.apply(
+        { type: 'strip.set', owner: 'pad', param: 'level', value: 0.25 },
+        { author: rails },
+      ).outcome,
+    ).toBe('applied')
+    await renderer.whenIdle()
+    expect(fader.gain.events.length).toBeGreaterThan(beforeRails)
+    expect(fader.gain.lastEvent('setTargetAtTime')?.args[0]).toBeCloseTo(0.25)
+    expect(arbiter.holds().map((hold) => hold.owner.kind)).toEqual(['human'])
+
     clock.ms = 5000
     arbiter.tick()
     expect(writer?.isOverridden).toBe(false)
