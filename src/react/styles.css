@@ -532,6 +532,195 @@
   color: var(--lm-muted);
 }
 
+/* --- Session grid --------------------------------------------------------- */
+
+.lm-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lm-space-2);
+  font-family: var(--lm-font);
+  font-size: var(--lm-font-size);
+  color: var(--lm-text);
+  line-height: 1.2;
+}
+
+.lm-grid__toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--lm-space-2);
+}
+
+.lm-grid__quantize {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lm-space-1);
+  font-size: var(--lm-label-size);
+  color: var(--lm-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.lm-grid__quantize-select {
+  font: inherit;
+  font-size: var(--lm-font-size);
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--lm-text);
+  background: var(--lm-raised);
+  border: 1px solid var(--lm-border);
+  border-radius: var(--lm-radius);
+  padding: 2px var(--lm-space-1);
+}
+
+.lm-grid__quantize-select:focus-visible,
+.lm-grid__slot:focus-visible,
+.lm-grid__scene:focus-visible {
+  outline: 1px solid var(--lm-focus);
+  outline-offset: 1px;
+}
+
+.lm-grid__table {
+  display: grid;
+  gap: 2px;
+  padding: var(--lm-space-1);
+  border: 1px solid var(--lm-border);
+  border-radius: var(--lm-radius);
+  background: var(--lm-panel);
+}
+
+.lm-grid__corner,
+.lm-grid__track {
+  padding: 2px var(--lm-space-1);
+  font-size: var(--lm-label-size);
+  color: var(--lm-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lm-grid__row-head {
+  display: flex;
+  align-items: stretch;
+  min-width: 6em;
+}
+
+.lm-grid__row-head--stops {
+  align-items: center;
+  padding: 0 var(--lm-space-1);
+  font-size: var(--lm-label-size);
+  color: var(--lm-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.lm-grid__scene {
+  flex: 1;
+  justify-content: flex-start;
+  height: auto;
+  min-height: 32px;
+  color: var(--lm-text);
+}
+
+.lm-grid__scene--queued {
+  border-color: var(--lm-accent);
+}
+
+.lm-grid__scene--playing {
+  background: var(--lm-accent-soft);
+  border-color: var(--lm-accent);
+}
+
+.lm-grid__cell {
+  display: flex;
+  min-width: 0;
+}
+
+.lm-grid__cell--none {
+  border-radius: var(--lm-radius);
+  background: var(--lm-sunken);
+  opacity: 0.5;
+}
+
+.lm-grid__slot {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lm-space-1);
+  min-height: 32px;
+  padding: 0 var(--lm-space-1);
+  border: 1px solid var(--lm-border);
+  border-radius: var(--lm-radius);
+  background: var(--lm-raised);
+  color: var(--lm-text);
+  font: inherit;
+  font-size: var(--lm-label-size);
+  text-align: left;
+  cursor: pointer;
+  user-select: none;
+  touch-action: none;
+  transition:
+    background var(--lm-transition),
+    border-color var(--lm-transition);
+}
+
+.lm-grid__slot-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lm-grid__slot--stop {
+  color: var(--lm-muted);
+  background: var(--lm-sunken);
+}
+
+.lm-grid__slot--queued {
+  border-color: var(--lm-accent);
+  animation: lm-grid-blink 0.5s steps(2, end) infinite;
+}
+
+.lm-grid__slot--playing {
+  background: var(--lm-accent);
+  border-color: var(--lm-accent);
+  color: var(--lm-bg);
+}
+
+.lm-grid__slot--recording {
+  background: var(--lm-danger);
+  border-color: var(--lm-danger);
+  color: var(--lm-bg);
+}
+
+.lm-grid__slot--stopping {
+  opacity: 0.7;
+}
+
+.lm-grid__slot--gate {
+  border-style: dashed;
+}
+
+.lm-grid__cell--stop {
+  justify-content: center;
+}
+
+.lm-grid__track-stop {
+  min-width: 32px;
+}
+
+@keyframes lm-grid-blink {
+  50% {
+    border-color: var(--lm-border);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lm-grid__slot--queued {
+    animation: none;
+  }
+}
+
 /* --- Transport ------------------------------------------------------------ */
 
 .lm-transport {

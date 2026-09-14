@@ -84,6 +84,15 @@ export {
 export { MasterStripView, type MasterStripViewProps } from './MasterStripView'
 export { MixerView, type MixerViewProps } from './MixerView'
 export {
+  GRID_QUANTIZE_CHOICES,
+  GridView,
+  parseQuantizeKey,
+  quantizeKey,
+  quantizeLabel,
+  type GridQuantizeChoice,
+  type GridViewProps,
+} from './GridView'
+export {
   DeviceFrame,
   DevicePanel,
   DeviceView,
