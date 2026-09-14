@@ -6,7 +6,7 @@
 export const LIVE_MIX_VERSION = '0.0.1'
 
 export * from './core/clips'
-export { type Device } from './core/devices/Device'
+export { isNoteDevice, type Device, type NoteDevice } from './core/devices/Device'
 export { clampParam, type ParamSpec, type ParamTaper } from './core/params'
 export { createClock, type Clock, type ClockOptions, type IntervalId } from './core/clock'
 export {
@@ -24,11 +24,13 @@ export {
   type AddAudioTrackOptions,
   type AddBusOptions,
   type AddDuckerOptions,
+  type AddInstrumentTrackOptions,
   type AddLiveInputTrackOptions,
   type AddReturnTrackOptions,
   type EngineOptions,
 } from './core/Engine'
 export { LiveInputTrack, type LiveInputTrackOptions } from './core/tracks/LiveInputTrack'
+export { InstrumentTrack, type InstrumentTrackOptions } from './core/tracks/InstrumentTrack'
 export { ReturnTrack, type ReturnTrackOptions } from './core/tracks/ReturnTrack'
 export { SendList, type Send, type SendOptions, type SendTarget } from './core/tracks/Send'
 export {

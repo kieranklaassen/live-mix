@@ -24,3 +24,14 @@ export interface Device {
   readonly latencySec: number
   dispose(): void
 }
+
+/** A device that plays notes — an instrument. */
+export interface NoteDevice extends Device {
+  noteOn(noteId: number, frequency: number, gain?: number): void
+  noteOff(noteId: number): void
+}
+
+export function isNoteDevice(device: Device): device is NoteDevice {
+  const candidate = device as Partial<NoteDevice>
+  return typeof candidate.noteOn === 'function' && typeof candidate.noteOff === 'function'
+}

@@ -5,7 +5,7 @@
 // over the MessagePort by id (v1); the typed table next to each device maps
 // names to ids and ranges.
 
-import { type Device } from '../core/devices/Device'
+import { type NoteDevice } from '../core/devices/Device'
 import { clampParam, type ParamSpec } from '../core/params'
 import {
   WASM_DEVICE_PROCESSOR_NAME,
@@ -23,6 +23,11 @@ export interface WasmDeviceDefinition<
   wasm: () => WasmSource
   params: P
   latencySec?: number
+  /**
+   * An app-local worklet processor implementing the same ABI plus extras
+   * (ambient-live's instrument). Defaults to the library's generic processor.
+   */
+  processor?: { name: string; url: () => URL | string }
 }
 
 export function defineWasmDevice<P extends Record<string, ParamSpec>>(
@@ -69,7 +74,7 @@ function ensureProcessor(context: BaseAudioContext, url: string): Promise<void> 
 
 export class WasmDevice<
   P extends Record<string, ParamSpec> = Record<string, ParamSpec>,
-> implements Device {
+> implements NoteDevice {
   readonly id: string
   readonly params: Readonly<P>
   readonly node: AudioWorkletNode
@@ -99,7 +104,7 @@ export class WasmDevice<
     definition: WasmDeviceDefinition<P>,
     options: WasmDeviceOptions<P> = {},
   ): Promise<WasmDevice<P>> {
-    const processorUrl = resolveProcessorUrl(options.processorUrl)
+    const processorUrl = resolveProcessorUrl(options.processorUrl ?? definition.processor?.url())
     const [module] = await Promise.all([
       compileWasm(options.wasm ?? definition.wasm()),
       ensureProcessor(context, processorUrl),
@@ -117,7 +122,8 @@ export class WasmDevice<
         ([name, spec]) => [spec.id, initial.get(name) ?? spec.default] as const,
       ),
     }
-    const node = (options.createNode ?? defaultCreateNode)(context, WASM_DEVICE_PROCESSOR_NAME, {
+    const processorName = definition.processor?.name ?? WASM_DEVICE_PROCESSOR_NAME
+    const node = (options.createNode ?? defaultCreateNode)(context, processorName, {
       numberOfInputs: 1,
       numberOfOutputs: 1,
       channelCount: 2,
@@ -159,6 +165,22 @@ export class WasmDevice<
     if (this.bypassed === enabled) return
     this.bypassed = enabled
     this.post({ type: 'bypass', enabled })
+  }
+
+  /** Note events for instrument modules (`device_note_on/off`); effects ignore them. */
+  noteOn(noteId: number, frequency: number, gain = 0.5): void {
+    this.post({ type: 'note-on', noteId, frequency, gain })
+  }
+
+  noteOff(noteId: number): void {
+    this.post({ type: 'note-off', noteId })
+  }
+
+  /** Send an app-specific message to a custom processor (see `processor` in the definition). */
+  postMessage(message: unknown, transfer?: Transferable[]): void {
+    if (this.disposed) return
+    if (transfer) this.node.port.postMessage(message, transfer)
+    else this.node.port.postMessage(message)
   }
 
   dispose(): void {

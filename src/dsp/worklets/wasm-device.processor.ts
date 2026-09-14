@@ -71,6 +71,12 @@ class WasmDeviceProcessor extends AudioWorkletProcessor {
       case 'bypass':
         this.bypassTarget = message.enabled ? 1 : 0
         break
+      case 'note-on':
+        this.device.device_note_on?.(message.noteId, message.frequency, message.gain)
+        break
+      case 'note-off':
+        this.device.device_note_off?.(message.noteId)
+        break
       default: {
         const unhandled: never = message
         throw new Error(`live-mix: unhandled device message ${JSON.stringify(unhandled)}`)

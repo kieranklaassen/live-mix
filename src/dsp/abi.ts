@@ -18,11 +18,17 @@ export interface DeviceExports {
   device_out_right: () => number
   device_max_block_frames: () => number
   device_process: (frames: number) => void
+  /** Instruments only: note events (see `NoteDevice`). */
+  device_note_on?: (noteId: number, frequency: number, gain: number) => void
+  device_note_off?: (noteId: number) => void
 }
 
 /** Main thread → worklet messages. */
 export type DeviceMessage =
-  { type: 'set-param'; paramId: number; value: number } | { type: 'bypass'; enabled: boolean }
+  | { type: 'set-param'; paramId: number; value: number }
+  | { type: 'bypass'; enabled: boolean }
+  | { type: 'note-on'; noteId: number; frequency: number; gain: number }
+  | { type: 'note-off'; noteId: number }
 
 /** Worklet → main thread messages. */
 export type DeviceHostMessage = { type: 'ready'; deviceId: string; maxBlockFrames: number }

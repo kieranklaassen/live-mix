@@ -27,7 +27,7 @@ export {
   type WasmDeviceOptions,
   type WorkletNodeFactory,
 } from './WasmDevice'
-export { type Device } from '../core/devices/Device'
+export { isNoteDevice, type Device, type NoteDevice } from '../core/devices/Device'
 export { clampParam, type ParamSpec, type ParamTaper } from '../core/params'
 export {
   DATTORRO_DEVICE,
