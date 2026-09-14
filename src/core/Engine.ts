@@ -17,6 +17,8 @@ import { createClock, type Clock, type ClockOptions } from './clock'
 import { OutputRouter, type OutputRouterOptions } from './output/OutputRouter'
 import { devices as defaultDevices } from './devices'
 import { Ducker, type DuckerOptions } from './devices/native/Ducker'
+import { type SidechainDucker } from './devices/native/SidechainDucker'
+import { WorkletDucker, type WorkletDuckerOptions } from './devices/native/WorkletDucker'
 import { type DeviceRegistry } from './devices/registry'
 import { AudioTrack, type AudioTrackOptions } from './tracks/AudioTrack'
 import {
@@ -74,7 +76,15 @@ export type AddReturnTrackOptions = Omit<
   destination?: StripDestination
 }
 
-export type AddDuckerOptions = Omit<DuckerOptions, 'target' | 'clock'>
+/** The Phase 0 main-thread ducker (default): an analyser poll on the engine clock. */
+export type AddDuckerOptions = Omit<DuckerOptions, 'target' | 'clock'> & { mode?: 'legacy' }
+
+/**
+ * The audio-thread ducker (U17, opt-in): inserted into the target bus, no
+ * timers. The processor must already be registered in the context
+ * (`loadDuckerProcessor` from the dsp entry).
+ */
+export type AddWorkletDuckerOptions = WorkletDuckerOptions & { mode: 'worklet' }
 
 export type AddAudioTrackOptions = Omit<
   AudioTrackOptions,
@@ -115,7 +125,7 @@ export class Engine {
   private readonly returnMap = new Map<string, ReturnTrack>()
   private readonly instrumentMap = new Map<string, InstrumentTrack>()
   private readonly groupMap = new Map<string, GroupTrack>()
-  private readonly duckers = new Set<Ducker>()
+  private readonly duckers = new Set<SidechainDucker>()
   private disposed = false
 
   constructor(options: EngineOptions) {
@@ -311,11 +321,28 @@ export class Engine {
   }
 
   /**
-   * A sidechain ducker on a bus fader (or any AudioParam), polling on the
-   * engine clock. Key it with `ducker.key(node)`; it stops with `engine.stop()`.
+   * A sidechain ducker. Default (`'legacy'`): the Phase 0 main-thread follower
+   * on a bus fader (or any AudioParam), polling on the engine clock.
+   * `mode: 'worklet'`: the audio-thread `WorkletDucker`, inserted post-fader
+   * into the target bus. Key either with `ducker.key(node)`; both stop with
+   * `engine.stop()`.
    */
-  addDucker(target: Bus | AudioParam, options: AddDuckerOptions = {}): Ducker {
+  addDucker(target: Bus | AudioParam, options?: AddDuckerOptions): Ducker
+  addDucker(target: Bus, options: AddWorkletDuckerOptions): WorkletDucker
+  addDucker(
+    target: Bus | AudioParam,
+    options: AddDuckerOptions | AddWorkletDuckerOptions = {},
+  ): SidechainDucker {
     this.assertLive()
+    if (options.mode === 'worklet') {
+      if (!(target instanceof Bus)) {
+        throw new Error('live-mix: a worklet ducker needs a Bus target (it is a bus insert)')
+      }
+      const ducker = new WorkletDucker(this.context, options)
+      target.addInsert(ducker)
+      this.duckers.add(ducker)
+      return ducker
+    }
     const ducker = new Ducker(this.context, {
       ...options,
       target: target instanceof Bus ? target.gain : target,

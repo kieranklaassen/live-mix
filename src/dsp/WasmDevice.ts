@@ -52,10 +52,10 @@ export interface WasmDeviceOptions<P extends Record<string, ParamSpec>> extends 
 const defaultCreateNode: WorkletNodeFactory = (context, name, options) =>
   new AudioWorkletNode(context, name, options)
 
-// `addModule` once per context per processor URL.
+// `addModule` once per context per processor URL (shared by every worklet host).
 const loadedProcessors = new WeakMap<BaseAudioContext, Map<string, Promise<void>>>()
 
-function ensureProcessor(context: BaseAudioContext, url: string): Promise<void> {
+export function ensureProcessor(context: BaseAudioContext, url: string): Promise<void> {
   let perContext = loadedProcessors.get(context)
   if (!perContext) {
     perContext = new Map()

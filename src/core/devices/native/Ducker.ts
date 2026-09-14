@@ -4,9 +4,11 @@
 // AnalyserNode taps the key signal; a timer polls its RMS, follows it with an
 // asymmetric one-pole (fast attack, slow release) and drives the target
 // AudioParam — the duck bus gain — toward `1 - min(env·scale, 1)·depth`.
-// U17 replaces the poll with an audio-thread worklet using the same defaults.
+// `WorkletDucker` (U17) is the audio-thread alternative with the same defaults,
+// behind `engine.addDucker(bus, { mode: 'worklet' })`; this stays the default.
 
 import { type Clock, type IntervalId } from '../../clock'
+import { type SidechainDucker } from './SidechainDucker'
 
 /** Duck depth at full envelope: 0.68 ≈ -10 dB (deepened per listener feedback). */
 export const DUCK_DEPTH = 0.68
@@ -37,7 +39,8 @@ export interface DuckerOptions {
   fftSize?: number
 }
 
-export class Ducker {
+export class Ducker implements SidechainDucker {
+  readonly mode = 'legacy' as const
   readonly depth: number
   readonly timeConstant: number
   readonly attackMs: number

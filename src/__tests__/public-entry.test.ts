@@ -57,6 +57,10 @@ const coreSymbols = [
   'SoloInPlace',
   'GroupTrack',
   'resolveInput',
+  'WorkletDucker',
+  'DuckerKernel',
+  'DUCKER_PARAMS',
+  'DUCKER_PROCESSOR_NAME',
 ] as const
 
 const dspSymbols = [
@@ -70,6 +74,11 @@ const dspSymbols = [
   'registerStockWasmDevices',
   'DATTORRO_PARAMS',
   'WASM_DEVICE_PROCESSOR_NAME',
+  'loadDuckerProcessor',
+  'createWorkletDucker',
+  'duckerProcessorUrl',
+  'ensureProcessor',
+  'WorkletDucker',
 ] as const
 
 const testingSymbols = [
