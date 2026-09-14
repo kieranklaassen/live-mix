@@ -42,6 +42,9 @@ export interface SchedulerOptions {
   transport: Transport
   /** Timer period in milliseconds. Default 40. */
   tickMs?: number
+  /** Injectable timer functions (the engine clock's); default to the globals. */
+  setIntervalFn?: (callback: () => void, ms: number) => ReturnType<typeof setInterval>
+  clearIntervalFn?: (id: ReturnType<typeof setInterval>) => void
 }
 
 export const DEFAULT_TICK_MS = 40
@@ -59,10 +62,19 @@ export class Scheduler {
   private readonly registrations = new Map<Schedulable, Registration>()
   private timer: ReturnType<typeof setInterval> | null = null
   private readonly unsubscribe: () => void
+  private readonly setIntervalFn: NonNullable<SchedulerOptions['setIntervalFn']>
+  private readonly clearIntervalFn: NonNullable<SchedulerOptions['clearIntervalFn']>
 
-  constructor({ transport, tickMs = DEFAULT_TICK_MS }: SchedulerOptions) {
+  constructor({
+    transport,
+    tickMs = DEFAULT_TICK_MS,
+    setIntervalFn = (callback, ms) => setInterval(callback, ms),
+    clearIntervalFn = (id) => clearInterval(id),
+  }: SchedulerOptions) {
     this.transport = transport
     this.tickMs = tickMs
+    this.setIntervalFn = setIntervalFn
+    this.clearIntervalFn = clearIntervalFn
     this.unsubscribe = transport.onChange((change) => this.onTransportChange(change))
     if (transport.state === 'playing') this.startTimer()
   }
@@ -221,12 +233,12 @@ export class Scheduler {
 
   private startTimer(): void {
     if (this.timer !== null) return
-    this.timer = setInterval(() => this.tick(), this.tickMs)
+    this.timer = this.setIntervalFn(() => this.tick(), this.tickMs)
   }
 
   private stopTimer(): void {
     if (this.timer === null) return
-    clearInterval(this.timer)
+    this.clearIntervalFn(this.timer)
     this.timer = null
   }
 }
