@@ -31,3 +31,17 @@ CXX="${CXX:-c++}"
   -o "$out_dir/stereo_widener_test"
 
 "$out_dir/stereo_widener_test"
+
+# Faust devices are header-only: the generated class plus the FaustDevice
+# template. -Wno-unused-parameter covers Faust's empty classInit(sample_rate).
+"$CXX" -std=c++17 -O2 -fno-exceptions -fno-rtti -Wall -Wextra -Wno-unused-parameter \
+  cpp/test/zita_rev1_test.cpp \
+  -o "$out_dir/zita_rev1_test"
+
+"$out_dir/zita_rev1_test"
+
+"$CXX" -std=c++17 -O2 -fno-exceptions -fno-rtti -Wall -Wextra -Wno-unused-parameter \
+  cpp/test/limiter_1176_test.cpp \
+  -o "$out_dir/limiter_1176_test"
+
+"$out_dir/limiter_1176_test"

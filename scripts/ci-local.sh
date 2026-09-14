@@ -4,9 +4,10 @@
 # unavailable (private-repo billing) and handy before pushing anyway.
 #
 # Mirrors .github/workflows/ci.yml: typecheck, lint, unit tests, build,
-# pack:check, native C++ tests, emsdk rebuild diffed against the committed
-# .wasm, and the github: install path (needs git access to the repo: a token
-# via GITHUB_TOKEN/GH_TOKEN, or an ssh key).
+# pack:check, native C++ tests, Faust regeneration diffed against the committed
+# sources (builds the pinned compiler into tmp/ on first run), emsdk rebuild
+# diffed against the committed .wasm, and the github: install path (needs git
+# access to the repo: a token via GITHUB_TOKEN/GH_TOKEN, or an ssh key).
 #
 # Usage: bash scripts/ci-local.sh [--skip-git-install]
 set -uo pipefail
@@ -87,9 +88,9 @@ git_install() {
       test -f node_modules/@kieranklaassen/live-mix/dist/worklets/wasm-device.js &&
       node --input-type=module -e "
         import { LIVE_MIX_VERSION } from '@kieranklaassen/live-mix'
-        import { DATTORRO_PARAMS } from '@kieranklaassen/live-mix/dsp'
+        import { DATTORRO_PARAMS, ZITA_REV1_PARAMS, LIMITER_1176_PARAMS } from '@kieranklaassen/live-mix/dsp'
         import { MockAudioContext } from '@kieranklaassen/live-mix/testing'
-        console.log('live-mix', LIVE_MIX_VERSION, DATTORRO_PARAMS.mix.id, new MockAudioContext().sampleRate)
+        console.log('live-mix', LIVE_MIX_VERSION, DATTORRO_PARAMS.mix.id, ZITA_REV1_PARAMS.mix.id, LIMITER_1176_PARAMS.inputGain.id, new MockAudioContext().sampleRate)
       "
   )
   local rc=$?
@@ -106,6 +107,20 @@ native_tests() {
   fi
 }
 
+faust_reproduce() {
+  if [ -z "${CXX:-}" ] && command -v g++ >/dev/null 2>&1; then
+    CC=gcc CXX=g++ bash scripts/build-faust.sh || return 1
+  else
+    bash scripts/build-faust.sh || return 1
+  fi
+  if git diff --exit-code --stat -- cpp/faust/generated src/dsp/devices/faust; then
+    echo "Faust output reproduces"
+  else
+    echo "cpp/faust/generated or src/dsp/devices/faust differ from what scripts/build-faust.sh produces"
+    return 1
+  fi
+}
+
 echo "live-mix local CI on $branch @ $sha"
 run_step "pnpm install --frozen-lockfile" pnpm install --frozen-lockfile
 run_step "pnpm typecheck" pnpm typecheck
@@ -114,6 +129,7 @@ run_step "pnpm test" pnpm test
 run_step "pnpm build" pnpm build
 run_step "pnpm pack:check" pnpm pack:check
 run_step "native C++ tests" native_tests
+run_step "faust reproduce (Faust 2.88.0)" faust_reproduce
 run_step "wasm reproduce (emsdk)" wasm_reproduce
 if [ "$skip_git_install" = 1 ]; then
   results+=("| github: install path | skipped | — |")

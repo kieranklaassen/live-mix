@@ -51,3 +51,17 @@ export {
   type StereoWidener,
   type StereoWidenerParamName,
 } from './devices/stereo-widener'
+export {
+  ZITA_REV1_DEVICE,
+  ZITA_REV1_PARAMS,
+  createZitaReverb,
+  type ZitaReverb,
+  type ZitaRev1ParamName,
+} from './devices/zita-rev1'
+export {
+  LIMITER_1176_DEVICE,
+  LIMITER_1176_PARAMS,
+  createLimiter1176,
+  type Limiter1176,
+  type Limiter1176ParamName,
+} from './devices/limiter-1176'

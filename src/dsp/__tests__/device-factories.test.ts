@@ -1,6 +1,6 @@
 // Every stock device factory builds a WasmDevice over its committed artefact
-// with its own param table. One table-driven test keeps the three (and future
-// U22/U37 devices) in lockstep with the WasmDevice host.
+// with its own param table. One table-driven test keeps the five (and future
+// U37 devices) in lockstep with the WasmDevice host.
 
 import { readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
@@ -11,7 +11,9 @@ import { asAudioContext, createMockContext, type MockAudioContext } from '../../
 import { type WasmDeviceProcessorOptions } from '../abi'
 import { DATTORRO_DEVICE, createDattorroReverb } from '../devices/dattorro'
 import { FDN_REVERB_DEVICE, createFdnReverb } from '../devices/fdn-reverb'
+import { LIMITER_1176_DEVICE, createLimiter1176 } from '../devices/limiter-1176'
 import { STEREO_WIDENER_DEVICE, createStereoWidener } from '../devices/stereo-widener'
+import { ZITA_REV1_DEVICE, createZitaReverb } from '../devices/zita-rev1'
 import { type WasmDeviceDefinition, type WorkletNodeFactory } from '../WasmDevice'
 
 const wasmDir = join(dirname(fileURLToPath(import.meta.url)), '../wasm')
@@ -30,6 +32,8 @@ const factories = [
     create: createStereoWidener,
     artefact: 'stereo-widener.wasm',
   },
+  { definition: ZITA_REV1_DEVICE, create: createZitaReverb, artefact: 'zita-rev1.wasm' },
+  { definition: LIMITER_1176_DEVICE, create: createLimiter1176, artefact: 'limiter-1176.wasm' },
 ] as const
 
 describe.each(factories)('$definition.id factory', ({ definition, create, artefact }) => {

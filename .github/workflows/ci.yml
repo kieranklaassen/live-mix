@@ -74,9 +74,9 @@ jobs:
           test -f node_modules/@kieranklaassen/live-mix/dist/worklets/wasm-device.js
           node --input-type=module -e "
             import { LIVE_MIX_VERSION } from '@kieranklaassen/live-mix'
-            import { DATTORRO_PARAMS } from '@kieranklaassen/live-mix/dsp'
+            import { DATTORRO_PARAMS, ZITA_REV1_PARAMS, LIMITER_1176_PARAMS } from '@kieranklaassen/live-mix/dsp'
             import { MockAudioContext } from '@kieranklaassen/live-mix/testing'
-            console.log('live-mix', LIVE_MIX_VERSION, DATTORRO_PARAMS.mix.id, new MockAudioContext().sampleRate)
+            console.log('live-mix', LIVE_MIX_VERSION, DATTORRO_PARAMS.mix.id, ZITA_REV1_PARAMS.mix.id, LIMITER_1176_PARAMS.inputGain.id, new MockAudioContext().sampleRate)
           "
 
   native:
@@ -87,6 +87,43 @@ jobs:
 
       - name: Compile and run harnesses
         run: bash scripts/test-native.sh
+
+  faust:
+    name: Faust sources reproduce
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # prettier formats the generated param tables.
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Cache the pinned Faust compiler
+        uses: actions/cache@v4
+        with:
+          # Keep in sync with FAUST_VERSION in scripts/build-faust.sh.
+          path: tmp/faust-2.88.0
+          key: faust-2.88.0-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/build-faust.sh') }}
+
+      - name: Regenerate the C++ and param tables from cpp/faust/*.dsp
+        run: bash scripts/build-faust.sh
+
+      - name: Compare against the committed sources
+        run: |
+          set -euo pipefail
+          if git diff --exit-code --stat -- cpp/faust/generated src/dsp/devices/faust; then
+            echo "Faust output reproduces"
+          else
+            echo "::error::cpp/faust/generated or src/dsp/devices/faust differ from what scripts/build-faust.sh produces with Faust 2.88.0. Run it and commit the result."
+            exit 1
+          fi
 
   wasm:
     name: WASM artefacts reproduce

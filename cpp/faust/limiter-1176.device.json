@@ -1,0 +1,11 @@
+{
+  "id": "limiter-1176",
+  "name": "1176 limiter",
+  "sources": ["limiter-1176.dsp", "generated/limiter-1176.h", "limiter-1176.device.cpp"],
+  "params": "src/dsp/devices/faust/limiter-1176.ts",
+  "origin": {
+    "faust": "2.88.0",
+    "generator": "scripts/build-faust.sh",
+    "libraries": ["compressors.lib limiter_1176_R4_stereo (Julius O. Smith III, STK-4.3)"]
+  }
+}

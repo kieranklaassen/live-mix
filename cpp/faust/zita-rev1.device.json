@@ -1,0 +1,12 @@
+{
+  "id": "zita-rev1",
+  "name": "Zita-Rev1",
+  "sources": ["zita-rev1.dsp", "generated/zita-rev1.h", "zita-rev1.device.cpp"],
+  "params": "src/dsp/devices/faust/zita-rev1.ts",
+  "origin": {
+    "faust": "2.88.0",
+    "generator": "scripts/build-faust.sh",
+    "libraries": ["reverbs.lib zita_rev1_stereo (Julius O. Smith III, STK-4.3)"],
+    "algorithm": "zita-rev1 by Fons Adriaensen"
+  }
+}
