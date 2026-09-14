@@ -23,6 +23,8 @@ import {
   StretchTrack,
   entryOffset,
   segmentsFrom,
+  warpClipSecAt,
+  wrapIntoLoop,
 } from '../StretchTrack'
 
 class FakeStretchNode extends MockAudioNode {
@@ -317,6 +319,89 @@ describe('StretchTrack scheduling', () => {
 
     track.dispose()
     expect(track.voices()).toHaveLength(0)
+  })
+
+  it('a warped clip enters at its offsetSec (legato carries a position) and wraps into the loop region', async () => {
+    const { ctx, nodes, samples, track, transport, scheduler } = setup()
+    await samples.load('s-w', buffer(ctx, 8))
+    // Source 1 → 3 over beats 0 → 4 (2 s at 120: rate 1), then 3 → 5 over beats 4 → 6 (1 s: rate 2).
+    track.clips.add(
+      clip('w', 0, {
+        durationSec: 3,
+        offsetSec: 2, // a legato launch carried the position 1 s into the first segment
+        loop: true,
+        loopStartSec: 1,
+        loopEndSec: 5,
+        warp: [
+          { sourceSec: 1, beat: 0 },
+          { sourceSec: 3, beat: 4 },
+          { sourceSec: 5, beat: 6 },
+        ],
+      }),
+    )
+    transport.start(0)
+    scheduler.tick()
+    await track.settled()
+    scheduler.tick()
+    // Entry at clip second 1 (source 2), the rate-2 segment 1 s later, end after 3 s.
+    expect(nodes[0].scheduled).toEqual([
+      { output: 0, active: true, semitones: 0, loopStart: 1, loopEnd: 5, input: 2, rate: 1 },
+      { output: 1, input: 3, rate: 2 },
+      { output: 2, input: 5, rate: 2 },
+      { output: 3, active: false },
+    ])
+
+    const segments = [
+      { atSec: 0, sourceSec: 1, rate: 1 },
+      { atSec: 2, sourceSec: 3, rate: 2 },
+    ]
+    expect(warpClipSecAt(segments, 1)).toBe(0)
+    expect(warpClipSecAt(segments, 0.5)).toBe(0) // before the first marker: the clip start
+    expect(warpClipSecAt(segments, 2)).toBe(1)
+    expect(warpClipSecAt(segments, 3.5)).toBe(2.25)
+    expect(warpClipSecAt([], 4)).toBe(4)
+    expect(wrapIntoLoop(3.5, { startSec: 1, endSec: 3 })).toBe(1.5)
+    expect(wrapIntoLoop(2.5, { startSec: 1, endSec: 3 })).toBe(2.5)
+    expect(wrapIntoLoop(9, undefined)).toBe(9)
+  })
+
+  it('the preload keeps offering a start until its node is built, so a late decode still builds ahead', async () => {
+    const { ctx, samples, track, transport, scheduler } = setup({
+      lookaheadSec: 0.2,
+      preloadSec: 10,
+    })
+    const loads: string[] = []
+    const lazy = new StretchTrack(asAudioContext(ctx), {
+      name: 'lazy',
+      destination: ctx.createGain() as unknown as AudioNode,
+      samples,
+      now: () => ctx.currentTime,
+      tempo: () => new TempoMap(),
+      createStretch: () => Promise.resolve(new FakeStretchNode() as unknown as StretchNode),
+      lookaheadSec: 0.2,
+      preloadSec: 10,
+      resolveSource: (c) => {
+        loads.push(c.sourceId)
+        return buffer(ctx, 4)
+      },
+    })
+    track.detach()
+    lazy.attach(scheduler)
+    lazy.clips.add(clip('far', 5))
+    transport.start(0)
+    scheduler.tick() // preload window (10 s) reaches the clip; the sample is not decoded yet
+    expect(loads).toEqual(['s-far'])
+    expect(lazy.pendingCount).toBe(0)
+    await samples.settled()
+    scheduler.tick() // still 5 s ahead of playback: the node is built now, not at the 0.2 s lookahead
+    expect(lazy.pendingCount).toBe(1)
+    await lazy.settled()
+    scheduler.tick()
+    expect(lazy.voices()).toHaveLength(0) // nothing plays yet: the start is 5 s away
+    ctx.currentTime = 4.9
+    scheduler.tick()
+    expect(lazy.voices().map((voice) => voice.startTime)).toEqual([5])
+    lazy.dispose()
   })
 
   it('a clip whose sample is not loaded asks for it and keeps being offered', async () => {

@@ -149,10 +149,22 @@ describe('GridView', () => {
     fireEvent.change(select, { target: { value: 'none' } })
     expect(session.quantize).toBe('none')
 
-    // Keyboard: space launches a kick slot immediately with quantize off.
+    // Keyboard: space launches a kick slot immediately with quantize off; auto-repeat is one press.
     const kick = screen.getByTestId('grid-slot-kv')
     fireEvent.keyDown(kick, { key: ' ' })
     expect(session.status('kv')?.state).toBe('queued')
+    const before = session.version
+    fireEvent.keyDown(kick, { key: ' ', repeat: true })
+    fireEvent.keyDown(kick, { key: 'Enter', repeat: true })
+    expect(session.version).toBe(before)
+
+    // A gate whose pointer slid off the pad still releases when capture is lost.
+    await act(() => advance(0.1))
+    const padAgain = screen.getByTestId('grid-slot-pv')
+    fireEvent.pointerDown(padAgain, { button: 0 })
+    await act(() => advance(0.1))
+    fireEvent.lostPointerCapture(padAgain)
+    expect(session.status('pv')?.stopping).toBe(true)
   })
 
   it('hides the quantize selector and the stops on request, and labels tracks through trackLabel', async () => {
