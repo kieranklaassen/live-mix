@@ -11,9 +11,11 @@
 //      from the served build);
 //   3. press play, wait for the transport to run and the master meter to move;
 //   4. select the hall strip so its device panel shows;
-//   5. press "Render offline" and wait for the U33 bounce to finish;
-//   6. screenshot the page, the mixer and the device chain into
-//      playground/screenshots/.
+//   5. press "Render offline" and wait for the U33 bounce of the same score;
+//   6. call agent tools (U29) from the console and check the mixer follows,
+//      that an out-of-range request is clamped and logged (AE2), and undo;
+//   7. screenshot the mixer, the device chain, the agent console and the
+//      page into playground/screenshots/.
 //
 // Usage: node playground/smoke.mjs [--no-build] [--keep-server]
 //   CHROME_BIN=/path/to/chrome   (default: google-chrome / chromium on PATH)
@@ -459,7 +461,39 @@ async function main() {
     if (!peak) fail('offline render reported no peak (silent bounce?)')
     else if (Number(peak[1]) < -40) fail(`offline render peaked at ${peak[1]} dBFS — near silence`)
 
-    // 6. Whole page.
+    // 6. The agent console (U29): a tool call edits the score, the engine follows.
+    const before = await page.evaluate(`window.playground.demo.engine.track('pad').strip.level`)
+    await page.click('[data-testid="agent-quick-set_music_volume"]')
+    await page.waitFor(
+      'the agent call result',
+      `document.querySelector('[data-testid="agent-result"]')?.dataset.ok === 'true'`,
+    )
+    const after = await page.waitFor(
+      'the pad strip to follow the score',
+      `(() => { const l = window.playground.demo.engine.track('pad').strip.level; return Math.abs(l - 0.4) < 1e-6 ? l : 0 })()`,
+    )
+    const logged = await page.evaluate(`window.playground.demo.document.log.length`)
+    log(
+      `agent: set_music_volume 0.4 → pad level ${before} → ${after}; ${logged} operation(s) logged`,
+    )
+    const clamped = await page.evaluate(`(() => {
+      const r = window.playground.demo.agent.call('set_music_volume', { level: 3 })
+      return { ok: r.ok, rails: r.rails.map((n) => n.rail), level: r.ok ? r.result.level : null }
+    })()`)
+    log(
+      `agent: set_music_volume 3.0 → ok ${clamped.ok}, rails ${JSON.stringify(clamped.rails)}, level ${clamped.level}`,
+    )
+    if (!clamped.ok || clamped.level !== 1 || !clamped.rails.includes('range')) {
+      fail('AE2: a 3.0 volume request should be clamped to 1.0 with a range rail note')
+    }
+    await page.click('[data-testid="agent-quick-undo"]')
+    await page.waitFor(
+      'undo to restore the level',
+      `Math.abs(window.playground.demo.engine.track('pad').strip.level - 0.4) < 1e-6`,
+    )
+    await page.screenshot(join(screenshotsDir, 'agent.png'), '[data-testid="agent"]')
+
+    // 7. Whole page.
     await page.screenshot(join(screenshotsDir, 'page.png'))
 
     await page.evaluate(`window.playground.demo.engine.transport.stop()`)

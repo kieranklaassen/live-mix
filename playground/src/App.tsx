@@ -1,4 +1,11 @@
-import { wavBlob, type StripHost } from '@kieranklaassen/live-mix'
+import {
+  describeOperation,
+  wavBlob,
+  type AgentController,
+  type ScoreDocument,
+  type StripHost,
+  type ToolResult,
+} from '@kieranklaassen/live-mix'
 import {
   ChannelStripView,
   DeviceChainView,
@@ -20,6 +27,7 @@ import {
 import { useEffect, useState, type CSSProperties } from 'react'
 
 import { LOOP_SEC, createDemo, renderDemo, type Demo, type DemoMode, type DemoRender } from './demo'
+import { useDocumentVersion } from './useDocumentVersion'
 
 const THEMES: { name: LiveMixThemeName; attr: string; label: string }[] = [
   { name: 'jaxa-zen', attr: 'light', label: 'JAXA-Zen' },
@@ -112,7 +120,7 @@ export function App() {
             <div className="pg-row">
               <TransportBar data-testid="transport" />
               <Playing />
-              <RenderPanel />
+              <RenderPanel document={demo.document} />
             </div>
           </section>
 
@@ -136,6 +144,11 @@ export function App() {
           <section className="pg-section">
             <h2>Device catalogue</h2>
             <DeviceCatalogue />
+          </section>
+
+          <section className="pg-section" data-testid="agent">
+            <h2>Agent console — U29 tool surface over the score</h2>
+            <AgentConsole agent={demo.agent} document={demo.document} />
           </section>
 
           <section className="pg-section">
@@ -183,7 +196,7 @@ type RenderState =
  * the same session on an `OfflineAudioContext`, independent of the engine on
  * screen, so it works from the mock demo too.
  */
-function RenderPanel() {
+function RenderPanel({ document }: { document: ScoreDocument }) {
   const [state, setState] = useState<RenderState>({ status: 'idle' })
 
   useEffect(() => {
@@ -195,7 +208,7 @@ function RenderPanel() {
   const render = async (): Promise<void> => {
     setState({ status: 'rendering' })
     try {
-      const render = await renderDemo()
+      const render = await renderDemo(document)
       const url = URL.createObjectURL(wavBlob(render.result.audio, { bitDepth: 16 }))
       setState({ status: 'done', render, url })
     } catch (error) {
@@ -372,6 +385,155 @@ function Primitives() {
         }}
         label="Static reading"
       />
+    </div>
+  )
+}
+
+/** Ready-made calls for the console; every other tool is reachable from the picker. */
+const QUICK_CALLS: { label: string; tool: string; args: Record<string, unknown> }[] = [
+  { label: 'music −6 dB', tool: 'set_music_volume', args: { level: 0.4 } },
+  { label: 'music 300 % (clamped)', tool: 'set_music_volume', args: { level: 3 } },
+  { label: 'steer calmer', tool: 'steer_music', args: { direction: 'calmer' } },
+  { label: 'steer stronger', tool: 'steer_music', args: { direction: 'stronger' } },
+  { label: 'more space', tool: 'more_space', args: {} },
+  { label: 'pan keys left', tool: 'strip_set', args: { owner: 'keys', param: 'pan', value: -0.5 } },
+  { label: 'mute drums', tool: 'strip_mute', args: { owner: 'drums', mute: true } },
+  { label: 'get state', tool: 'get_state', args: {} },
+  { label: 'undo', tool: 'undo', args: {} },
+]
+
+/**
+ * The agent API as a person would drive it: pick a tool, edit its JSON
+ * arguments, call it (or dry-run it) and read the result, the snapshot and
+ * the operation log the call left behind. Everything the console does goes
+ * through `agent.call`, so the mixer above follows.
+ */
+function AgentConsole({ agent, document }: { agent: AgentController; document: ScoreDocument }) {
+  const version = useDocumentVersion(document)
+  const tools = agent.listTools()
+  const [tool, setTool] = useState('set_music_volume')
+  const [args, setArgs] = useState('{ "level": 0.4 }')
+  const [result, setResult] = useState<ToolResult | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const call = (name: string, parsed: Record<string, unknown>, dryRun = false): void => {
+    setError(null)
+    setResult(agent.call(name, parsed, { dryRun }))
+  }
+  const callFromForm = (dryRun: boolean): void => {
+    let parsed: unknown
+    try {
+      parsed = args.trim() === '' ? {} : JSON.parse(args)
+    } catch (parseError) {
+      setError(`arguments are not JSON: ${String(parseError)}`)
+      return
+    }
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      setError('arguments must be a JSON object')
+      return
+    }
+    call(tool, parsed as Record<string, unknown>, dryRun)
+  }
+  const pick = (name: string, quickArgs: Record<string, unknown>): void => {
+    setTool(name)
+    setArgs(JSON.stringify(quickArgs))
+    call(name, quickArgs)
+  }
+
+  const selected = tools.find((definition) => definition.name === tool)
+  const snapshot = agent.snapshot()
+  const recent = document.log.entries.slice(-6).reverse()
+
+  return (
+    <div className="pg-agent">
+      <div className="pg-row pg-agent__quick">
+        {QUICK_CALLS.filter((quick) =>
+          tools.some((definition) => definition.name === quick.tool),
+        ).map((quick) => (
+          <ToggleButton
+            key={quick.label}
+            pressed={false}
+            onPressedChange={() => pick(quick.tool, quick.args)}
+            tone="accent"
+            data-testid={`agent-quick-${quick.tool}`}
+          >
+            {quick.label}
+          </ToggleButton>
+        ))}
+      </div>
+      <div className="pg-row pg-agent__form">
+        <label>
+          Tool{' '}
+          <select
+            className="pg-select"
+            value={tool}
+            onChange={(event) => setTool(event.target.value)}
+            data-testid="agent-tool"
+          >
+            {tools.map((definition) => (
+              <option key={definition.name} value={definition.name}>
+                {definition.name} · {definition.category}
+              </option>
+            ))}
+          </select>
+        </label>
+        <input
+          className="pg-input"
+          value={args}
+          onChange={(event) => setArgs(event.target.value)}
+          spellCheck={false}
+          aria-label="Tool arguments (JSON)"
+          data-testid="agent-args"
+        />
+        <ToggleButton
+          pressed={false}
+          onPressedChange={() => callFromForm(false)}
+          data-testid="agent-call"
+        >
+          Call
+        </ToggleButton>
+        <ToggleButton pressed={false} onPressedChange={() => callFromForm(true)} tone="mute">
+          Dry run
+        </ToggleButton>
+        <span className="pg-mode">
+          {tools.length} tools · {version} operations logged
+        </span>
+      </div>
+      {selected ? <p className="pg-agent__description">{selected.description}</p> : null}
+      {error ? (
+        <pre className="pg-agent__out pg-agent__out--error" data-testid="agent-error">
+          {error}
+        </pre>
+      ) : null}
+      <div className="pg-agent__panes">
+        <div>
+          <h3>Result</h3>
+          <pre
+            className="pg-agent__out"
+            data-testid="agent-result"
+            data-ok={result ? String(result.ok) : ''}
+          >
+            {result ? JSON.stringify(result, null, 2) : 'nothing called yet'}
+          </pre>
+        </div>
+        <div>
+          <h3>Snapshot ({JSON.stringify(snapshot).length} bytes)</h3>
+          <pre className="pg-agent__out" data-testid="agent-snapshot">
+            {JSON.stringify(snapshot, null, 2)}
+          </pre>
+        </div>
+        <div>
+          <h3>Operation log (latest first)</h3>
+          <ol className="pg-agent__log" data-testid="agent-log">
+            {recent.map((entry) => (
+              <li key={entry.seq}>
+                <code>#{entry.seq}</code> {entry.kind} · {entry.author.kind}:{entry.author.id} ·{' '}
+                {entry.label ?? describeOperation(entry.op)}
+              </li>
+            ))}
+          </ol>
+        </div>
+      </div>
     </div>
   )
 }
