@@ -899,7 +899,7 @@ transport, `?theme=jaxa-zen-dark`).
 
 ### The agent control API
 
-Every capability is a tool a model can call: the 46 score operations, the
+Every capability is a tool a model can call: the 51 score operations, the
 coach's intents (`steer_music`, `set_intensity`, `set_music_volume`, `duck`,
 `extend_section`, `advance_section`, `set_breath_pace`, `fade_out`,
 `set_ambience`, `more_space`, `match_key`), a `get_state` query and `undo`,
