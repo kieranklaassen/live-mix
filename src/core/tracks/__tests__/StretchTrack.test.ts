@@ -360,6 +360,10 @@ describe('StretchTrack scheduling', () => {
     expect(warpClipSecAt(segments, 2)).toBe(1)
     expect(warpClipSecAt(segments, 3.5)).toBe(2.25)
     expect(warpClipSecAt([], 4)).toBe(4)
+    // A first marker past beat 0 enters at its own clip second, not at 0.
+    const later = [{ atSec: 1, sourceSec: 1, rate: 1 }]
+    expect(warpClipSecAt(later, 1)).toBe(1)
+    expect(warpClipSecAt(later, 0.5)).toBe(1)
     expect(wrapIntoLoop(3.5, { startSec: 1, endSec: 3 })).toBe(1.5)
     expect(wrapIntoLoop(2.5, { startSec: 1, endSec: 3 })).toBe(2.5)
     expect(wrapIntoLoop(9, undefined)).toBe(9)
