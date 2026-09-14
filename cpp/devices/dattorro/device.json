@@ -6,6 +6,10 @@
   "origin": {
     "repo": "kieranklaassen/ambient-live",
     "sha": "1d3b31b",
-    "paths": ["engine/src/dattorro_reverb.h", "engine/src/dattorro_reverb.cpp", "engine/src/dsp_util.h"]
+    "paths": [
+      "engine/src/dattorro_reverb.h",
+      "engine/src/dattorro_reverb.cpp",
+      "engine/src/dsp_util.h"
+    ]
   }
 }
