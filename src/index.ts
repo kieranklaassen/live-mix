@@ -189,6 +189,23 @@ export {
   type KeyMatchOptions,
 } from './core/music/keyMatch'
 export {
+  INTENSITY_LABELS,
+  INTENSITY_LADDER,
+  MAX_INTENSITY,
+  MIN_INTENSITY,
+  STEER_DIRECTIONS,
+  clampIntensity,
+  rankTonal,
+  resolveReplacementTracks,
+  targetIntensity,
+  tonalPreference,
+  type IntensityDirection,
+  type IntensityTrack,
+  type ResolveReplacementsOptions,
+  type SteerDirection,
+  type TonalDirection,
+} from './core/music/intensity'
+export {
   StretchSource,
   semitonesToRate,
   warpRateAt,
@@ -463,3 +480,4 @@ export {
 } from './core/stats'
 export * from './score'
 export * from './core/control'
+export * from './agent'

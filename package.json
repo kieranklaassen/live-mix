@@ -115,6 +115,7 @@
     "@vitejs/plugin-react": "^6.1.1",
     "@webaudiomodules/api": "2.0.0-alpha.6",
     "@webaudiomodules/sdk": "0.0.12",
+    "ajv": "^8.20.0",
     "esbuild": "^0.28.2",
     "eslint": "^9.39.5",
     "eslint-config-prettier": "^10.1.8",
