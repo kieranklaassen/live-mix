@@ -14,6 +14,12 @@ const playground = tseslint.configs.recommended.map((config) => ({
   files: ['playground/**/*.ts', 'playground/**/*.tsx'],
 }))
 
+// The browser tests (Playwright specs + the page harness) are another project.
+const browserTests = tseslint.configs.recommended.map((config) => ({
+  ...config,
+  files: ['browser-tests/**/*.ts'],
+}))
+
 export default tseslint.config(
   {
     ignores: [
@@ -24,15 +30,23 @@ export default tseslint.config(
       'docs/**',
       '.changeset/**',
       'playground/dist/**',
+      'browser-tests/.build/**',
     ],
   },
   js.configs.recommended,
   ...typeChecked,
   ...playground,
+  ...browserTests,
   {
     files: ['playground/**/*.ts', 'playground/**/*.tsx'],
     languageOptions: {
       globals: { ...globals.browser },
+    },
+  },
+  {
+    files: ['browser-tests/**/*.ts'],
+    languageOptions: {
+      globals: { ...globals.browser, ...globals.node },
     },
   },
   {
@@ -78,7 +92,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['scripts/**/*.mjs', '*.mjs', '*.js', '*.ts'],
+    files: ['scripts/**/*.mjs', 'browser-tests/*.mjs', '*.mjs', '*.js', '*.ts'],
     languageOptions: {
       globals: { ...globals.node },
     },

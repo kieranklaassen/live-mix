@@ -4,8 +4,13 @@
 // override with cancel-and-hold (R13, R29). Every join back onto the lane
 // (first tick excepted) is a short ramp, so a seek, a stall, a lane edit under
 // playback or a released fader never steps the param (R2).
+//
+// A segment is handed to the graph whole as soon as the window reaches into
+// it: a ramp issued after its segment has begun is rendered as a jump to the
+// interpolated value (verified in Chrome by the browser golden), so the
+// write cursor lands on segment ends, never inside a segment.
 
-import { laneEventsInRange, type LaneEvent, type ParamLane } from './ParamLane'
+import { laneEventsInRange, segmentEndAfter, type LaneEvent, type ParamLane } from './ParamLane'
 import { holdParamAt, type ScheduledParam } from './scheduled-param'
 
 export interface LaneWindow {
@@ -131,8 +136,7 @@ export class LaneWriter {
     this.lastOffsetSec = offsetSec
 
     if (horizonSec > this.cursorSec) {
-      this.writeRange(this.cursorSec, horizonSec, offsetSec, this.loopLengthSec)
-      this.cursorSec = horizonSec
+      this.cursorSec = this.writeRange(this.cursorSec, horizonSec, offsetSec, this.loopLengthSec)
       this.cursorAnchored = false
     }
   }
@@ -208,34 +212,43 @@ export class LaneWriter {
   }
 
   /**
-   * Write `[fromSec, toSec)` in unwrapped timeline seconds. With a loop, a
-   * pass that ends inside the range is written up to and including its end
-   * (a breakpoint at the loop length belongs to it) and every wrap re-anchors
-   * at the lane start, ramped like a join.
+   * Write from `fromSec` to at least `toSec` in unwrapped timeline seconds,
+   * extended to the end of the segment `toSec` falls in; returns the second
+   * written up to. With a loop, a pass that ends inside the range is written
+   * up to and including its end (a breakpoint at the loop length belongs to
+   * it) and every wrap re-anchors at the lane start, ramped like a join.
    */
   private writeRange(
     fromSec: number,
     toSec: number,
     offsetSec: number,
     loopLengthSec: number,
-  ): void {
+  ): number {
     if (loopLengthSec <= 0) {
-      this.writeEvents(fromSec, toSec, false, 0, offsetSec)
-      return
+      const writeTo = segmentEndAfter(this.lane, toSec)
+      this.writeEvents(fromSec, writeTo, writeTo > toSec, 0, offsetSec)
+      return writeTo
     }
     let cursor = fromSec
     while (cursor < toSec) {
       const pass = Math.floor(cursor / loopLengthSec)
       const passStart = pass * loopLengthSec
-      const passLimit = passStart + loopLengthSec
-      const reachesEnd = toSec >= passLimit
-      const passEnd = reachesEnd ? passLimit : toSec
       let localFrom = cursor - passStart
       const wrapsHere = cursor === passStart && !(cursor === fromSec && this.cursorAnchored)
       if (wrapsHere) localFrom = this.wrap(passStart, offsetSec, loopLengthSec)
-      this.writeEvents(localFrom, passEnd - passStart, reachesEnd, passStart, offsetSec)
-      cursor = passEnd
+      const localTo = Math.min(toSec - passStart, loopLengthSec)
+      const localWriteTo = Math.min(segmentEndAfter(this.lane, localTo), loopLengthSec)
+      const reachesEnd = localWriteTo >= loopLengthSec
+      this.writeEvents(
+        localFrom,
+        localWriteTo,
+        reachesEnd || localWriteTo > localTo,
+        passStart,
+        offsetSec,
+      )
+      cursor = passStart + localWriteTo
     }
+    return cursor
   }
 
   /** The loop restarts at unwrapped `wrapSec`; returns the local second to resume from. */
