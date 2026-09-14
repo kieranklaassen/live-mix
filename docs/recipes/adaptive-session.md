@@ -1,11 +1,14 @@
-# Recipe: a breathwork-style adaptive music session
+# Recipe: an adaptive music session
 
-A coach's voice over adaptive music on a phone with the screen locked — F1
-and F5 in the plan. This is the shape Breathwork Live runs today
-([consumer guide](../consumers/breathwork-live.md)), reduced to the library
-calls: one engine, one output terminus, a duck bus keyed by the voice, a
-streaming ambience bed, a breath guide, music clips the coach can steer, and
-the agent API over all of it.
+A voice — a narrator, a guide, a live host, an AI agent speaking — over
+adaptive music on a phone with the screen locked. The same shape fits a
+meditation app, an audio tour, a fitness class or a game's dialogue over its
+score. Reduced to the library calls: one engine, one output terminus, a duck
+bus keyed by the voice, a streaming ambience bed, a guide instrument, music
+clips the voice's agent can steer, and the agent API over all of it. The
+README's [adaptive loop](../README.md#an-adaptive-loop-that-crossfades-two-layers-and-ducks-under-a-microphone)
+is the short version; this is the full session. Breathwork Live runs this
+shape in production ([consumer guide](../consumers/breathwork-live.md)).
 
 ## 1. One engine per context, on the start gesture
 
@@ -18,8 +21,8 @@ const engine = createEngine({
   tickMs: 100, // scheduler period; 5 s lookahead makes 100 ms plenty
   output: {
     mode: isIOSWebKit() ? 'element' : 'direct', // lock-screen playback on iPhone
-    mediaTitle: 'Breathwork',
-    mediaArtist: 'Adem',
+    mediaTitle: 'Evening session',
+    mediaArtist: 'Your app',
   },
   samples: { budgetBytes: 256 * 1024 * 1024 }, // decoded PCM cap; sounding voices are never cut
 })
@@ -48,10 +51,10 @@ realtime.onRemoteStream((stream) => voice.attach(stream)) // WebRTC remote voice
 ```
 
 The voice is deliberately **not** on the duck bus — the duck would silence it
-with the music. The coach's remote `<audio>` element stays muted; this path is
-how the voice reaches the speakers.
+with the music. For a WebRTC voice the remote `<audio>` element stays muted;
+this path is how the voice reaches the speakers.
 
-## 3. Music the coach can steer
+## 3. Music the agent can steer
 
 ```ts
 const tracks = engine.addAudioTrack('music', {
@@ -89,9 +92,10 @@ engine.transport.start()
 tracks.clips.replaceFrom(engine.transport.position().positionSec, planClips(now, calmerPlan))
 ```
 
-Breathwork Live drives `AudioTrack.play` itself from its verbatim
-`SectionPlaylist` (with `retainSamples: false`); a new consumer uses clips as
-above and gets the scheduler's catch-up and late join for free.
+An app that already has its own playlist logic can drive `AudioTrack.play`
+itself (with `retainSamples: false`, holding decoded samples by hand); a new
+consumer uses clips as above and gets the scheduler's catch-up and late join
+for free.
 
 ## 4. A streaming ambience bed and a breath guide
 
@@ -139,7 +143,7 @@ lufs.subscribe(({ shortTerm }) => hud.draw(shortTerm, lufs.truePeakDb))
 The limiter is a fixed master stage with no bypass; the meter also arms the
 agent rails' loudness ceilings.
 
-## 6. The coach as an agent
+## 6. The voice as an agent
 
 ```ts
 import { AgentController } from '@kieranklaassen/live-mix'
@@ -163,23 +167,25 @@ realtime.update({ tools: agent.toOpenAiTools() })
 realtime.onToolCall(({ name, args, callId }) =>
   realtime.sendToolResult(
     callId,
-    agent.call(name, args, { author: { kind: 'agent', id: 'coach' } }),
+    agent.call(name, args, { author: { kind: 'agent', id: 'narrator' } }),
   ),
 )
 setInterval(() => realtime.sendContext(agent.snapshot()), 5000)
 ```
 
 Without a `document`, the hooks-backed intents and `get_state` are the tool
-list; with a score document (the planner's output, U38) the whole operation
-vocabulary joins ([agent-api](../concepts/agent-api.md)).
+list; with a score document (a planner's output, see
+[agent-authored scores](../agent-authored-scores.md)) the whole operation
+vocabulary joins ([agent-api](../concepts/agent-api.md)). The README's
+[narrator example](../README.md#an-ai-narrator-steering-the-mix-through-the-agent-api)
+is the score-backed variant.
 
 ## 7. Ending, interruptions, tests
 
-`engine.stop({ fadeSec: 0.75 })` fades everything the engine owns (the coach's
+`engine.stop({ fadeSec: 0.75 })` fades everything the engine owns (the agent's
 `fade_out` tool is bounded to 2..30 s); `engine.dispose()` at the end of the
 session, then `context.close()`. A phone call suspends the context; resume it
 on the next gesture and the transport's anchor keeps the position. Test the
 whole graph headless on the recording mocks
-([getting started §6](../getting-started.md#6-headless-tests)) — Breathwork
-Live's 979-line harness asserts every `AudioParam` event of exactly this
-shape.
+([getting started §6](../getting-started.md#6-headless-tests)) — the
+recorded `AudioParam` events pin exactly this shape.

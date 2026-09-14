@@ -1,15 +1,16 @@
 # Getting started
 
-From an empty consumer to a mix that plays, with the wiring that trips people
-up (private install, Vite, worklet and `.wasm` assets, iPhone output) done
-once and explained.
+From an empty project to a mix that plays, with the wiring that trips people
+up (install, Vite, worklet and `.wasm` assets, iPhone output) done once and
+explained. The [README](../README.md#quick-start) has the short version — a
+hello mix and five type-checked examples — and this page fills in the rest.
 
 ## 1. Install
 
-The repository is **public** (again, as of 2026-09-14) and the package is
-published to GitHub Packages under the `@kieranklaassen` scope (registry
-publishing pending). Until the first registry publish lands, both consumer apps
-use the `github:` fallback, which needs no token; both paths are below.
+The repository is **public** and the package is published to GitHub Packages
+under the `@kieranklaassen` scope (registry publishing pending). Until the
+first registry publish lands, the apps built on the library use the `github:`
+fallback, which needs no token; both paths are below.
 
 ### Registry (preferred once published)
 
@@ -30,7 +31,7 @@ Authentication, per environment:
 
 | Where                   | How                                                                                                                                                                                                                                                                                                   |
 | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Kieran's machines       | `npm login --registry=https://npm.pkg.github.com --scope=@kieranklaassen` once (username `kieranklaassen`, password = a PAT with `read:packages`). Lands in `~/.npmrc`.                                                                                                                               |
+| A developer machine     | `npm login --registry=https://npm.pkg.github.com --scope=@kieranklaassen` once (your GitHub username, password = a PAT with `read:packages`). Lands in `~/.npmrc`.                                                                                                                                    |
 | Consumer GitHub Actions | `actions/setup-node` with `registry-url: https://npm.pkg.github.com`, `scope: '@kieranklaassen'` and `NODE_AUTH_TOKEN: ${{ secrets.LIVE_MIX_NPM_TOKEN }}` — a classic PAT with `read:packages` stored as a repository secret. A repo's own `GITHUB_TOKEN` cannot read another repo's private package. |
 | Kamal / Docker build    | Kamal `builder.secrets: [NPM_TOKEN]` (value from `.kamal/secrets`, e.g. the same token as `KAMAL_REGISTRY_PASSWORD`, which already needs `packages` scope) and, in the Dockerfile build stage, the snippet below.                                                                                     |
 
@@ -40,7 +41,7 @@ RUN --mount=type=secret,id=NPM_TOKEN,required=true \
     npm ci && rm -f /root/.npmrc
 ```
 
-### Fallback: `github:` dependency (what both apps use today)
+### Fallback: `github:` dependency (what the consumer apps use today)
 
 ```json
 "@kieranklaassen/live-mix": "github:kieranklaassen/live-mix#<sha>"
@@ -59,7 +60,7 @@ destination.
 ```sh
 # live-mix
 pnpm build --watch
-# the app (both apps use npm)
+# the app
 npm link ../live-mix
 ```
 
@@ -83,8 +84,7 @@ export default defineConfig({
 })
 ```
 
-Both apps ship exactly this (`ambient-live/vite.config.ts`,
-`breathwork-live/vite.config.ts`). No COOP/COEP headers, no
+The consumer apps ship exactly this. No COOP/COEP headers, no
 `crossOriginIsolated` requirement: the engine never needs `SharedArrayBuffer`.
 
 ## 3. Worklet and `.wasm` asset resolution
@@ -160,7 +160,9 @@ engine.dispose()
 Every parameter move is a ramp (`setTargetAtTime`, 5 ms by default), never a
 step; every clip start inside the lookahead window is idempotent by key, so a
 throttled background tab catches up instead of skipping or replaying. The
-[concepts](./concepts/) pages take each part from here.
+README's [hello mix](../README.md#hello-mix) adds a bus, a live input and a
+ducker to this graph; the [concepts](./concepts/) pages take each part from
+here.
 
 ## 5. iOS: element output mode and activation
 
@@ -179,7 +181,7 @@ const engine = createEngine({
   output: {
     mode: isIOSWebKit() ? 'element' : 'direct',
     mediaTitle: 'Morning session',
-    mediaArtist: 'Adem',
+    mediaArtist: 'Your app',
   },
 })
 
@@ -194,8 +196,9 @@ lock-screen metadata later (a placeholder at intake, the theme at takeover);
 `engine.output.metadata` reads it back. Long beds that stream through an `ElementTrack` need their
 elements unlocked on that gesture too (`track.unlockAll()`), because iOS only
 lets a timer-driven `play()` succeed on an element the user has already
-touched — Breathwork Live asks for its ambience bed **before** `activate()`
-for that reason (`consumers/breathwork-live.md`). Memory on a 45-minute
+touched — so create streamed beds **before** `activateOutput()`, not after
+(the [adaptive session recipe](./recipes/adaptive-session.md) shows the
+order). Memory on a 45-minute
 session: `samples: { budgetBytes }` and the streaming path are in
 [samples-and-memory](./concepts/samples-and-memory.md) and the iPhone
 checklist in
@@ -215,8 +218,8 @@ ctx.gains[0].gain.events // → [{ method: 'setTargetAtTime', args: [0.5, …] }
 
 The mock records every `AudioParam` automation call and every
 connect/start/stop, so tests assert what the graph was told to do — the same
-harness Breathwork Live's 979-line parity suite runs against. Vitest in the
-Node environment; no DOM shim. Renders that must equal live playback use
+harness the consumer apps' parity suites run against. Vitest in the Node
+environment; no DOM shim. Renders that must equal live playback use
 `renderOffline` on an injected offline context (see
 [render](./concepts/render.md)).
 
@@ -227,4 +230,4 @@ Node environment; no DOM shim. Renders that must equal live playback use
 - [Recipes](./recipes/) — an adaptive session, a live instrument with MIDI, a
   bounce, a new C++/Faust device, a WAM.
 - [React](./react.md) — hooks and the styled kit; `pnpm playground`.
-- [Consumers](./consumers/) — what Breathwork Live and ambient-live use today.
+- [Consumers](./consumers/) — what the apps built on the library use today.

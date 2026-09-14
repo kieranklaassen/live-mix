@@ -57,6 +57,7 @@ src/
   testing/            MockAudioContext + AudioParam recorder
   wam/                WebAudioModules 2.0 host adapter → its own entry
 playground/           Vite demo app (not published): score-driven demo, mixer, devices, agent console, grid, bounce
+examples/readme/      the README's code samples as modules, type-checked against src/ (examples/tsconfig.json) and pinned to README.md by src/__tests__/readme-examples.test.ts
 browser-tests/        Playwright real-audio golden (harness over /dist, Web Audio call recorder, fingerprints) + the playground smoke spec
 cpp/
   common/             device_api.h (the C ABI), dsp_util.h
@@ -112,7 +113,10 @@ the module pages come from the `@module` doc comments at the top of each
 entry file. Reference material for a subsystem lives next to it
 (`docs/score.md`, `docs/wam.md`, …); the concept pages explain and link to
 it; `docs/README.md` is the map. Prettier checks Markdown, so run
-`pnpm format` before pushing.
+`pnpm format` before pushing. The code samples in the repository README are
+files under `examples/readme/`: edit the file, then paste it into the block
+that follows its `<!-- example: … -->` marker — `pnpm typecheck` compiles the
+files against `src/` and `pnpm test` fails when a block and its file differ.
 
 ## Releasing
 

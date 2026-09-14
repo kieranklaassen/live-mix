@@ -1,9 +1,12 @@
-# Recipe: an ambient-live-style live instrument with MIDI
+# Recipe: a live instrument with MIDI
 
 A performer paints clips onto a looping timeline, plays a synth from a MIDI
 keyboard, plugs in a guitar and monitors it through the same mix, and maps
-knobs to anything — F2 in the plan, the shape ambient-live runs today
-([consumer guide](../consumers/ambient-live.md)).
+knobs to anything — the shape of a live performance tool, a looper or a
+small DAW. The README's
+[Faust device example](../README.md#a-faust-device-on-an-insert-modulated-by-an-lfo)
+is the insert-and-modulate part on its own; this is the whole instrument.
+ambient-live runs this shape ([consumer guide](../consumers/ambient-live.md)).
 
 ## 1. A looping engine with the smallest buffer
 
@@ -39,8 +42,8 @@ const input = engine.addLiveInputTrack('input') // node-free until a stream arri
 
 An app's own instrument works the same way: any object satisfying
 `NoteDevice` (`input`, `output`, `params`, `setParam`, `bypass`, `noteOn`,
-`noteOff`, `dispose`) — ambient-live's WASM sample-voice synth is one, hosted
-by the library's `WasmDevice` machinery.
+`noteOff`, `dispose`) — a WASM sample-voice synth of your own, for example,
+hosted by the library's `WasmDevice` machinery.
 
 ## 3. Paint clips onto the loop
 
@@ -98,12 +101,12 @@ engine.ioLatency() // { baseSec, outputSec, inputSec, totalSec } — what the br
 ```
 
 The browser's voice processing would colour and delay an instrument, hence
-the three constraints off. ambient-live's probe measures the actual round
-trip with a chirp through the input (21.6 ms in-graph loopback in headless
-Chrome; the real-machine number and method are in its
-`docs/live-input-latency.md`). `engine.alignLatency()` never delays a live
-input, so monitoring stays immediate while clip and instrument tracks line up
-with the master's plugins.
+the three constraints off. Measure the actual round trip with a chirp through
+the input and a cross-correlation on the capture (21.6 ms in-graph loopback
+in headless Chrome; the probe and the real-machine method are in the
+[ambient-live consumer guide](../consumers/ambient-live.md#latency)).
+`engine.alignLatency()` never delays a live input, so monitoring stays
+immediate while clip and instrument tracks line up with the master's plugins.
 
 ## 6. Map the knobs
 
@@ -126,9 +129,9 @@ surface.persist(localStorage, { key: 'my-app:midi-map' }) // versioned JSON, res
 
 Every write ramps through the engine's own setters; a knob learned onto a
 parameter that a lane automates overrides it with cancel-and-hold until
-`surface.release(target)`. ambient-live's stored U27 tables migrate with
-`ambientLiveMidiMapMigration` ([control-surface](../concepts/control-surface.md)).
-OSC works the same way through `OscInput({ url: 'ws://…' })`.
+`surface.release(target)`. An app with an older mapping table of its own can
+migrate it ([control-surface](../concepts/control-surface.md)). OSC works the
+same way through `OscInput({ url: 'ws://…' })`.
 
 ## 7. Bounce the loop
 
