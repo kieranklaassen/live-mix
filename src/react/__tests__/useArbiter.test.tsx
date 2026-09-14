@@ -203,6 +203,27 @@ describe('hooks write through the arbiter', () => {
     expect(findStripHost(document.score, 'kick')?.strip.level).toBe(0.1)
   })
 
+  it('toggles flip the score value: quick repeats before the renderer catches up alternate', async () => {
+    const { document, renderer, wrapper } = await rig()
+    const { result } = renderHook(() => useTrack('kick'), { wrapper })
+    const flags = (key: 'mute' | 'solo', count: number): unknown[] =>
+      document.log.entries.slice(-count).map((entry) => (entry.op as Record<string, unknown>)[key])
+    act(() => {
+      result.current.toggleMute()
+      result.current.toggleMute()
+    })
+    expect(flags('mute', 2)).toEqual([true, false])
+    act(() => {
+      result.current.toggleSolo()
+      result.current.toggleSolo()
+      result.current.toggleSolo()
+    })
+    expect(flags('solo', 3)).toEqual([true, false, true])
+    await act(() => renderer.whenIdle())
+    expect(result.current.mute).toBe(false)
+    expect(result.current.solo).toBe(true)
+  })
+
   it('a strip the score does not carry keeps writing the engine directly', async () => {
     const { engine, document, wrapper } = await rig()
     engine.addAudioTrack('extra')

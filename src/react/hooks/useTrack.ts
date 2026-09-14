@@ -116,6 +116,11 @@ export function useStrip(strip: ChannelStrip): UseStripResult {
     }
     const set = (param: StripParam, value: number, direct: () => void): void =>
       via(() => ({ type: 'strip.set', owner, param, value }), param, direct)
+    /** The value a toggle flips: the score's when arbitrated (the strip follows it later), else the strip's. */
+    const current = (flag: 'mute' | 'solo'): boolean =>
+      scoreHas(arbiter, owner)
+        ? (findScoreStripHost(arbiter.score, owner)?.strip[flag] ?? strip[flag])
+        : strip[flag]
     return {
       setLevel: (value, options) => set('level', value, () => strip.setLevel(value, options)),
       setPan: (value, options) => set('pan', value, () => strip.setPan(value, options)),
@@ -129,7 +134,7 @@ export function useStrip(strip: ChannelStrip): UseStripResult {
         ),
       toggleMute: () =>
         via(
-          () => ({ type: 'strip.mute', owner, mute: !strip.mute }),
+          () => ({ type: 'strip.mute', owner, mute: !current('mute') }),
           null,
           () => strip.setMute(!strip.mute),
         ),
@@ -141,7 +146,7 @@ export function useStrip(strip: ChannelStrip): UseStripResult {
         ),
       toggleSolo: () =>
         via(
-          () => ({ type: 'strip.solo', owner, solo: !strip.solo }),
+          () => ({ type: 'strip.solo', owner, solo: !current('solo') }),
           null,
           () => strip.setSolo(!strip.solo),
         ),

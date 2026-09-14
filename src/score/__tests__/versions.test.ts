@@ -128,6 +128,59 @@ describe('VersionHistory: save, list, restore', () => {
     expect(level()).toBe(0.5)
   })
 
+  it('a restore retires every write still waiting — none of them lands on the restored score', () => {
+    const { document, clock, level } = rig()
+    const arbiter = new Arbiter(document, {
+      now: () => clock.ms,
+      setTimeoutFn: () => 0,
+      clearTimeoutFn: () => {},
+    })
+    const dropped: string[] = []
+    arbiter.onChange((event) => {
+      if (event.type === 'dropped') dropped.push(event.reason)
+    })
+    let counter = 0
+    const versions = new VersionHistory(document, {
+      now: () => clock.ms,
+      arbiter,
+      id: () => `a${++counter}`,
+    })
+    versions.save('start')
+    const setThroughArbiter = (value: number, author: Author) =>
+      arbiter.apply({ type: 'strip.set', owner: 'kick', param: 'level', value }, { author })
+
+    // Human holds the fader; the coach's write waits; a system restore lands at once.
+    setThroughArbiter(0.9, human)
+    expect(setThroughArbiter(0.1, coach).outcome).toBe('deferred')
+    expect(versions.restore('a1', { author: { id: 'rails', kind: 'system' } }).outcome).toBe(
+      'applied',
+    )
+    expect(arbiter.pending()).toEqual([])
+    expect(dropped).toEqual(['cancelled'])
+    clock.ms += 5000
+    arbiter.tick()
+    expect(level()).toBe(0.8) // the coach's 0.1 never arrived
+
+    // The same when the restore itself was waiting and lands in the same release pass as later writes.
+    setThroughArbiter(0.9, human)
+    const restore = versions.restore('a1', { author: coach })
+    expect(restore.outcome).toBe('deferred')
+    expect(setThroughArbiter(0.2, coach).outcome).toBe('deferred')
+    clock.ms += 5000
+    arbiter.tick()
+    expect(level()).toBe(0.8)
+    expect(arbiter.pending()).toEqual([])
+    expect(dropped).toEqual(['cancelled', 'cancelled'])
+
+    // Undoing the restore is a replace too: stale waits are cancelled just the same.
+    setThroughArbiter(0.9, human)
+    expect(setThroughArbiter(0.3, coach).outcome).toBe('deferred')
+    document.undo() // the human's 0.9: an ordinary write, the wait stays
+    expect(arbiter.pending()).toHaveLength(1)
+    document.undo() // the restore
+    expect(arbiter.pending()).toEqual([])
+  })
+
   it('checkpoints name their milestones and the load of a new document starts a new one', () => {
     const { versions, document, events } = rig()
     versions.checkpoint('section', 'Settle')
