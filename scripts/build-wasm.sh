@@ -69,6 +69,10 @@ build_device spectral-drifter \
   cpp/devices/spectral-drifter/spectral_drifter_device.cpp \
   cpp/devices/spectral-drifter/device_api.cpp
 
+build_device ether-reverb \
+  cpp/devices/ether-reverb/ether_reverb_device.cpp \
+  cpp/devices/ether-reverb/device_api.cpp
+
 # Faust devices: the C++ under cpp/faust/generated is produced by
 # scripts/build-faust.sh and committed; no Faust toolchain is needed here.
 build_device zita-rev1 cpp/faust/zita-rev1.device.cpp

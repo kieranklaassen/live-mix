@@ -1,0 +1,32 @@
+{
+  "id": "ether-reverb",
+  "name": "Ether",
+  "wasm": "src/dsp/wasm/ether-reverb.wasm",
+  "params": "src/dsp/devices/ether-reverb.ts",
+  "source": {
+    "repository": "kieranklaassen/kkfonie",
+    "commit": "0c4ae88520208850e5d2b102e61d6592b24cd768",
+    "files": [
+      {
+        "path": "Ether/Source/PluginProcessor.cpp",
+        "portedTo": "ether_reverb_device.cpp",
+        "sha256": "see git: the processor is JUCE glue; the parameter layout (:19-58), decay/size/damping law (:141-152), pre-delay (:157-174), freeze muting (:170, :187) and linear mix (:186-189) are reproduced line for line",
+        "deviations": [
+          "juce::dsp::Reverb -> freeverb.h (Freeverb as juce::Reverb configures it, written JUCE-free)",
+          "juce::dsp::DelayLine<float, Linear> -> EtherReverbDevice::PredelayLine (same push/pop semantics, 32768 samples)",
+          "mix and the freeze dry-mute ramp over 5 ms per sample (Ether steps them per block)",
+          "the reverb parameters are applied before the sample rate is set, so there is no 10 ms ramp from juce::Reverb's constructor defaults at start"
+        ]
+      },
+      {
+        "path": "juce::Reverb (JUCE 8, modules/juce_audio_basics/effects/juce_Reverb.h)",
+        "portedTo": "freeverb.h",
+        "deviations": [
+          "JUCE_UNDENORMALISE (x += 0.1f; x -= 0.1f) -> livemix::flush_denormal: the 0.1f quantisation leaves the comb loop in a -116 dBFS limit cycle after every tail; flushing at 1e-15 lets it reach exact zero",
+          "juce::SmoothedValue<float> -> Freeverb::LinearRamp (same linear ramp semantics, 10 ms)"
+        ]
+      }
+    ],
+    "note": "Ether's own DSP is juce::dsp::Reverb, i.e. Freeverb (Jezar, public domain) with JUCE's constants: comb tunings {1116,1188,1277,1356,1422,1491,1557,1617}, allpass {556,441,341,225}, stereo spread 23, integer rate scaling, input gain 0.015, feedback = roomSize*0.28+0.7, damping*0.4, allpass 0.5, wet 3 / dry 2, freeze = feedback 1 / damping 0 / input 0. freeverb.h is that algorithm; ether_reverb_device.* is Ether's processBlock; device_api.cpp is the ABI shim."
+  }
+}

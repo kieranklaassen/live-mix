@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest'
 import { asAudioContext, createMockContext, type MockAudioContext } from '../../testing'
 import { type WasmDeviceProcessorOptions } from '../abi'
 import { DATTORRO_DEVICE, createDattorroReverb } from '../devices/dattorro'
+import { ETHER_REVERB_DEVICE, createEtherReverb } from '../devices/ether-reverb'
 import { FDN_REVERB_DEVICE, createFdnReverb } from '../devices/fdn-reverb'
 import { LIMITER_1176_DEVICE, createLimiter1176 } from '../devices/limiter-1176'
 import { SPECTRAL_DRIFTER_DEVICE, createSpectralDrifter } from '../devices/spectral-drifter'
@@ -46,6 +47,7 @@ const factories = [
     create: createSpectralDrifter,
     artefact: 'spectral-drifter.wasm',
   },
+  { definition: ETHER_REVERB_DEVICE, create: createEtherReverb, artefact: 'ether-reverb.wasm' },
 ] as const
 
 describe.each(factories)('$definition.id factory', ({ definition, create, artefact }) => {

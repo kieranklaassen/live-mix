@@ -121,6 +121,7 @@ describe('DeviceRegistry', () => {
       'dattorro',
       'fdn-reverb',
       'zita-rev1',
+      'ether-reverb',
     ])
     expect(registry.list({ kind: 'node', category: 'dynamics' }).map((d) => d.id)).toEqual([
       'compressor',
@@ -275,6 +276,7 @@ describe('default registry', () => {
       'zita-rev1',
       'limiter-1176',
       'spectral-drifter',
+      'ether-reverb',
     ])
     expect(wasm.length).toBeGreaterThanOrEqual(before)
     expect(new Set(devices.ids()).size).toBe(devices.ids().length)

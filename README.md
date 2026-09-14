@@ -347,6 +347,7 @@ cpp/
   devices/stereo-widener/  kkfonie's StereoWidener (source unchanged, SHA in device.json) behind the ABI
   devices/true-peak-limiter/  lookahead BS.1770 true-peak brickwall for the master (header-only DSP) behind the ABI
   devices/spectral-drifter/  kkfonie Bloom's granular pitch drifter (de-JUCEd, SHA in device.json) behind the ABI
+  devices/ether-reverb/  kkfonie Ether: Freeverb as juce::Reverb runs it, pre-delay, decay law, freeze, behind the ABI
   faust/              Faust devices: *.dsp sources, generated/ C++, *.device.cpp ABI shims (docs/faust-devices.md)
   test/               native harnesses (parity tests for every ported device)
 scripts/              build.mjs, build-wasm.sh, build-faust.sh, test-native.sh, check-pack.mjs
@@ -448,7 +449,7 @@ pre-registered; the WASM devices join with one call from `./dsp`:
 import { devices } from '@kieranklaassen/live-mix'
 import { registerStockWasmDevices, wasmDeviceDescriptor } from '@kieranklaassen/live-mix/dsp'
 
-registerStockWasmDevices() // dattorro, fdn-reverb, stereo-widener, zita-rev1, limiter-1176, ducker, spectral-drifter
+registerStockWasmDevices() // dattorro, fdn-reverb, stereo-widener, zita-rev1, limiter-1176, ducker, spectral-drifter, ether-reverb
 devices.register(wasmDeviceDescriptor(MY_DEVICE, { name: 'Mine', category: 'reverb' }))
 
 devices.list({ category: 'reverb' }).map((d) => d.name)
