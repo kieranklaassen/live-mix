@@ -20,7 +20,7 @@ import { type LfoShape } from '../core/automation/Modulator'
 import { type ModPolarity } from '../core/automation/ModMatrix'
 import { type Breakpoint, type LaneCurve } from '../core/automation/ParamLane'
 import { type DeviceRegistry } from '../core/devices/registry'
-import { DEFAULT_BPM, type TempoSegment } from '../core/time/TempoMap'
+import { DEFAULT_BEATS_PER_BAR, DEFAULT_BPM, type TempoSegment } from '../core/time/TempoMap'
 
 /**
  * Format history: 1 — U28 (tracks, groups, returns, lanes, modulators,
@@ -1080,15 +1080,26 @@ export function normaliseTempo(segments: readonly TempoSegment[]): TempoSegment[
     })
 }
 
-/** True when two tempo maps are the same segments. */
+/** True when two tempo maps are the same segments, `TempoMap`'s meter inheritance included. */
 export function sameTempo(a: readonly TempoSegment[], b: readonly TempoSegment[]): boolean {
   if (a.length !== b.length) return false
+  const metersA = resolvedMeters(a)
+  const metersB = resolvedMeters(b)
   return a.every(
     (segment, index) =>
       segment.atSec === b[index].atSec &&
       segment.bpm === b[index].bpm &&
-      (segment.beatsPerBar ?? 4) === (b[index].beatsPerBar ?? 4),
+      metersA[index] === metersB[index],
   )
+}
+
+/** Each segment's meter the way `TempoMap` resolves it: its own, else the previous one's. */
+function resolvedMeters(segments: readonly TempoSegment[]): number[] {
+  let meter = DEFAULT_BEATS_PER_BAR
+  return segments.map((segment) => {
+    meter = segment.beatsPerBar ?? meter
+    return meter
+  })
 }
 
 function normaliseTarget(target: ParamTarget): ParamTarget {

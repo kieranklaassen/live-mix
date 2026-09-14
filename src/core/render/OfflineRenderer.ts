@@ -164,8 +164,13 @@ export async function scheduleAhead(engine: Engine, options: ScheduleAheadOption
   for (let t = 0; t <= end; t += tickSec) {
     setNow(t)
     engine.scheduler.tick()
+    // Only a load that landed can turn a declined start into a scheduled one.
+    // A failed fetch/decode is asked for again by the next tick, so waiting on
+    // it once more would never end.
     while (engine.samples.pendingCount > 0) {
+      const loads = engine.samples.metrics.loads
       await engine.samples.settled()
+      if (engine.samples.metrics.loads === loads) break
       engine.scheduler.tick()
     }
     engine.automation.tick()

@@ -17,7 +17,7 @@ import {
   type StemsOptions,
 } from '../core/render/OfflineRenderer'
 import { loadScore } from './loadScore'
-import { type Score } from './schema'
+import { type ParamTarget, type Score } from './schema'
 import { type ScoreRendererOptions } from './ScoreRenderer'
 
 export type RenderScoreOptions = Omit<RenderOptions, 'build'> & {
@@ -31,19 +31,29 @@ export type RenderScoreStemsOptions = Omit<StemsOptions, 'build'> & {
 
 /** The score minus what cannot render offline. */
 export function renderableScore(score: Score): Score {
-  const liveIds = new Set(
-    score.tracks.filter((track) => track.kind === 'live').map((track) => track.id),
+  const live = score.tracks.filter((track) => track.kind === 'live')
+  const liveIds = new Set(live.map((track) => track.id))
+  const liveDeviceIds = new Set(
+    live.flatMap((track) => track.strip.inserts.map((device) => device.id)),
   )
+  const onLiveTrack = (target: ParamTarget): boolean => {
+    switch (target.kind) {
+      case 'strip':
+        return liveIds.has(target.owner)
+      case 'device':
+        return liveDeviceIds.has(target.device)
+      default: {
+        const exhaustive: never = target
+        return exhaustive
+      }
+    }
+  }
   return {
     ...score,
     tracks: score.tracks.filter((track) => !liveIds.has(track.id)),
     elementTracks: [],
-    lanes: score.lanes.filter(
-      (lane) => !(lane.target.kind === 'strip' && liveIds.has(lane.target.owner)),
-    ),
-    routes: score.routes.filter(
-      (route) => !(route.target.kind === 'strip' && liveIds.has(route.target.owner)),
-    ),
+    lanes: score.lanes.filter((lane) => !onLiveTrack(lane.target)),
+    routes: score.routes.filter((route) => !onLiveTrack(route.target)),
   }
 }
 
