@@ -39,6 +39,14 @@ CXX="${CXX:-c++}"
 
 "$out_dir/true_peak_limiter_test"
 
+"$CXX" -std=c++17 -O2 -fno-exceptions -fno-rtti -Wall -Wextra \
+  cpp/test/spectral_drifter_test.cpp \
+  cpp/devices/spectral-drifter/SpectralDrifter.cpp \
+  cpp/devices/spectral-drifter/spectral_drifter_device.cpp \
+  -o "$out_dir/spectral_drifter_test"
+
+"$out_dir/spectral_drifter_test"
+
 # Faust devices are header-only: the generated class plus the FaustDevice
 # template. -Wno-unused-parameter covers Faust's empty classInit(sample_rate).
 "$CXX" -std=c++17 -O2 -fno-exceptions -fno-rtti -Wall -Wextra -Wno-unused-parameter \

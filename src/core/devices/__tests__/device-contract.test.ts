@@ -22,6 +22,7 @@ import { type DeviceCreateRequest, type DeviceDescriptor, DeviceRegistry } from 
 import { DATTORRO_DEVICE } from '../../../dsp/devices/dattorro'
 import { FDN_REVERB_DEVICE } from '../../../dsp/devices/fdn-reverb'
 import { LIMITER_1176_DEVICE } from '../../../dsp/devices/limiter-1176'
+import { SPECTRAL_DRIFTER_DEVICE } from '../../../dsp/devices/spectral-drifter'
 import { STEREO_WIDENER_DEVICE } from '../../../dsp/devices/stereo-widener'
 import { ZITA_REV1_DEVICE } from '../../../dsp/devices/zita-rev1'
 
@@ -31,6 +32,7 @@ const WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   STEREO_WIDENER_DEVICE,
   ZITA_REV1_DEVICE,
   LIMITER_1176_DEVICE,
+  SPECTRAL_DRIFTER_DEVICE,
 ]
 
 const mockNodeFactory: WorkletNodeFactory = (context, name, options) =>
@@ -93,6 +95,7 @@ it('covers every stock device', () => {
       'zita-rev1',
       'limiter-1176',
       'ducker',
+      'spectral-drifter',
     ].sort(),
   )
   expect(WASM_DEFINITIONS.map((d) => d.id).sort()).toEqual(

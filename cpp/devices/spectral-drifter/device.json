@@ -1,0 +1,34 @@
+{
+  "id": "spectral-drifter",
+  "name": "SpectralDrifter",
+  "wasm": "src/dsp/wasm/spectral-drifter.wasm",
+  "params": "src/dsp/devices/spectral-drifter.ts",
+  "source": {
+    "repository": "kieranklaassen/kkfonie",
+    "commit": "0c4ae88520208850e5d2b102e61d6592b24cd768",
+    "files": [
+      {
+        "path": "Bloom/Source/SpectralDrifter.h",
+        "copiedTo": "SpectralDrifter.h",
+        "sha256": "ac428084c62eaa724cb934a969a90f5f2f1cafd0eceb873c84d3a1dccef6c63b",
+        "deviations": [
+          "<juce_dsp/juce_dsp.h> -> <algorithm>, <cstdint>, dsp_util.h",
+          "setBloom: juce::jlimit -> std::clamp (:73)",
+          "juce::MathConstants<float>::pi -> kPi (:118)",
+          "hasDenormalState()/isSilentState() test hooks"
+        ]
+      },
+      {
+        "path": "Bloom/Source/SpectralDrifter.cpp",
+        "copiedTo": "SpectralDrifter.cpp",
+        "sha256": "531205b32a043ec23b3daf56b8db34b33bddc4e5c73cfaeaecc7b0357f2b9824",
+        "deviations": [
+          "juce::MathConstants<float>::pi -> kPi (:15, :31)",
+          "livemix::flush_denormal on the eight one-pole filter states (no flush-to-zero in WASM)",
+          "hasDenormalState()/isSilentState() bodies"
+        ]
+      }
+    ],
+    "note": "SpectralDrifter.h/.cpp are kkfonie's Bloom drifter with the JUCE references replaced and denormal flushes added; the algorithm and constants are unchanged. spectral_drifter_device.* and device_api.cpp are live-mix host code: one drifter per channel, Bloom's equal-power mix and 5 ms bloom ramp, Bloom's per-line age tracker (PluginProcessor.cpp:323-343) run on the input or a manual age, and the ABI. Bloom's 25 % drift re-injection into its FDN loop is not reproduced (an insert has no loop)."
+  }
+}

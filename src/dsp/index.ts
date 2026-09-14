@@ -71,6 +71,7 @@ export {
   FDN_REVERB_DESCRIPTOR,
   LIMITER_1176_DESCRIPTOR,
   WORKLET_DUCKER_DESCRIPTOR,
+  SPECTRAL_DRIFTER_DESCRIPTOR,
   STEREO_WIDENER_DESCRIPTOR,
   STOCK_WASM_DEVICES,
   ZITA_REV1_DESCRIPTOR,
@@ -117,3 +118,16 @@ export {
   type TruePeakLimiter,
   type TruePeakLimiterParamName,
 } from './devices/true-peak-limiter'
+export {
+  SPECTRAL_DRIFTER_AGE_MODES,
+  SPECTRAL_DRIFTER_DEVICE,
+  SPECTRAL_DRIFTER_DIRECTIONS,
+  SPECTRAL_DRIFTER_INTERVALS,
+  SPECTRAL_DRIFTER_PARAMS,
+  SPECTRAL_DRIFTER_SEASONS,
+  SPECTRAL_DRIFTER_SEEDS,
+  createSpectralDrifter,
+  spectralDrifterIntensity,
+  type SpectralDrifter,
+  type SpectralDrifterParamName,
+} from './devices/spectral-drifter'
