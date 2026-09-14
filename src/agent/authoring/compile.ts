@@ -65,13 +65,15 @@ export const SCRIPT_SESSION_FADE_OUT_SECONDS = 4
 export const SCRIPT_VOICE_FADE_IN_SECONDS = 0.02
 export const SCRIPT_VOICE_FADE_OUT_SECONDS = 0.08
 
+export type ScriptTrackRole = 'music' | 'voice' | 'ambience' | 'breathGuide'
+
 /** Track ids the compiler writes; consumers map roles to them. */
-export const SCRIPT_TRACK_IDS = {
+export const SCRIPT_TRACK_IDS: Readonly<Record<ScriptTrackRole, string>> = {
   music: 'music',
   voice: 'voice',
   ambience: 'ambience',
   breathGuide: 'breath-guide',
-} as const
+}
 
 export const SCRIPT_LANE_IDS = {
   duck: 'music-duck',
@@ -142,7 +144,7 @@ export interface CompileScriptOptions {
   /** Score id. Default the script's id, else `session`. */
   scoreId?: string
   /** Override the track ids. */
-  ids?: Partial<typeof SCRIPT_TRACK_IDS>
+  ids?: Partial<Record<ScriptTrackRole, string>>
 }
 
 // --- Result ------------------------------------------------------------------------------

@@ -36,6 +36,7 @@ export {
   type CompiledSection,
   type DuckOptions,
   type LoadOperationsOptions,
+  type ScriptTrackRole,
 } from './compile'
 export { PythonRandom } from './pythonRandom'
 export { renderScriptToWav, type RenderScriptOptions, type RenderedScript } from './render'
