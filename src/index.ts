@@ -4,3 +4,5 @@
 // `AudioContext` at module load.
 
 export const LIVE_MIX_VERSION = '0.0.1'
+
+export * from './core/clips'
