@@ -51,8 +51,8 @@ export class OutputRouter {
   readonly output: AudioNode
   readonly element: HTMLAudioElement | null = null
   private readonly mediaSession: MediaSession | null
-  private readonly mediaTitle: string
-  private readonly mediaArtist: string | undefined
+  private mediaTitle: string
+  private mediaArtist: string | undefined
   private activated = false
 
   constructor(ctx: BaseAudioContext, options: OutputRouterOptions = {}) {
@@ -103,17 +103,7 @@ export class OutputRouter {
     const session = this.mediaSession
     if (!session) return
     try {
-      const Metadata = (
-        globalThis as {
-          MediaMetadata?: new (init: { title?: string; artist?: string }) => MediaMetadata
-        }
-      ).MediaMetadata
-      if (Metadata) {
-        session.metadata = new Metadata({
-          title: this.mediaTitle,
-          ...(this.mediaArtist !== undefined ? { artist: this.mediaArtist } : {}),
-        })
-      }
+      this.writeMetadata()
       session.playbackState = 'playing'
       session.setActionHandler('pause', () => {
         if (this.element) this.element.muted = true
@@ -123,6 +113,41 @@ export class OutputRouter {
         if (this.element) this.element.muted = false
         session.playbackState = 'playing'
       })
+    } catch {
+      // Media-session quirks must never break the audio itself.
+    }
+  }
+
+  /** The lock-screen title and artist currently set. */
+  get metadata(): { title: string; artist?: string } {
+    return {
+      title: this.mediaTitle,
+      ...(this.mediaArtist !== undefined ? { artist: this.mediaArtist } : {}),
+    }
+  }
+
+  /**
+   * Change the lock-screen title (and optionally artist) — e.g. from a
+   * placeholder at intake to the session theme at takeover. Written to the
+   * media session immediately in element mode once activated; otherwise kept
+   * for activation. A no-op without a media session.
+   */
+  setMediaTitle(title: string, artist?: string): void {
+    this.mediaTitle = title
+    if (artist !== undefined) this.mediaArtist = artist
+    if (this.mode === 'element' && this.activated) this.writeMetadata()
+  }
+
+  private writeMetadata(): void {
+    const session = this.mediaSession
+    if (!session) return
+    try {
+      const Metadata = (
+        globalThis as {
+          MediaMetadata?: new (init: { title?: string; artist?: string }) => MediaMetadata
+        }
+      ).MediaMetadata
+      if (Metadata) session.metadata = new Metadata(this.metadata)
     } catch {
       // Media-session quirks must never break the audio itself.
     }

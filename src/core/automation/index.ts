@@ -4,6 +4,7 @@
 // evaluates offline, so the same formula drives the audio, the bounce and
 // the picture on screen.
 
+export { ClockLaneWriter, type ClockLaneWriterOptions } from './ClockLaneWriter'
 export {
   DEFAULT_JOIN_RAMP_SECONDS,
   LaneWriter,

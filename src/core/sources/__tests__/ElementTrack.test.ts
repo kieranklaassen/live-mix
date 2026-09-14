@@ -291,6 +291,7 @@ describe('ElementTrack voice control', () => {
     track.play('lin', voiceOptions(source('lin')), 0)
     track.play('pending', voiceOptions(source('p')), 7.5)
     ctx.currentTime = 2
+    ctx.gains[2].gain.value = 0.4 // 'lin' is mid-fade-in
     track.fadeOut('a', 2, CROSSFADE_SECONDS)
     track.fadeOut('lin', 2, 1)
     track.fadeOut('pending', 2, CROSSFADE_SECONDS)
@@ -308,8 +309,11 @@ describe('ElementTrack voice control', () => {
     })
     expect(track.voice('a')?.endTime).toBe(2 + CROSSFADE_SECONDS)
 
+    // Linear: anchored at the current value first, so a fade-out landing
+    // mid-fade-in ramps from where the gain is (Breathwork Live's Ambience).
     const gainLin = ctx.gains[2]
-    expect(gainLin.gain.events.slice(-2)).toEqual([
+    expect(gainLin.gain.events.slice(-3)).toEqual([
+      { method: 'setValueAtTime', args: [0.4, 2] },
       { method: 'linearRampToValueAtTime', args: [0, 3] },
       { method: 'setValueAtTime', args: [0, 3] },
     ])
