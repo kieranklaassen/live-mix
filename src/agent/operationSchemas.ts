@@ -349,6 +349,31 @@ export const OPERATION_DEFS: Record<string, JsonSchema> = {
     required: ['id', 'source', 'target', 'depth', 'polarity'],
     additionalProperties: false,
   },
+  TempoSegment: {
+    type: 'object',
+    description: 'A tempo segment; the first starts at 0 and segments ascend.',
+    properties: {
+      atSec: number('Timeline second the segment starts at.', { min: 0 }),
+      bpm: number('Beats per minute.', { min: 0 }),
+      beatsPerBar: integer('Beats per bar from this point on; default 4.', 1),
+    },
+    required: ['atSec', 'bpm'],
+    additionalProperties: false,
+  },
+  ElementTrack: {
+    type: 'object',
+    description: 'A streaming (media element) track; its clips need sources with a url.',
+    properties: {
+      id: id('Element track id.'),
+      name: { type: 'string' },
+      destination: ref('Destination'),
+      lookaheadSec: number('Scheduler lookahead.', { min: 0 }),
+      preloadSec: number('Preload lead.', { min: 0 }),
+      clips: { type: 'array', items: ref('Clip') },
+    },
+    required: ['id', 'name', 'destination', 'clips'],
+    additionalProperties: false,
+  },
   Operation: {
     type: 'object',
     description: 'Any score operation, as the matching tool would take it plus its `type`.',
@@ -382,6 +407,31 @@ const OPERATION_SPECS: Record<OperationType, OperationSpec> = {
       lengthSec: nullableNumber('Loop length in seconds, or null for no end.'),
     },
     required: [],
+  },
+  'tempo.set': {
+    description: 'Replace the tempo map (segments ascending from 0).',
+    properties: { segments: { type: 'array', items: ref('TempoSegment'), minItems: 1 } },
+    required: ['segments'],
+  },
+  'elementTrack.add': {
+    description: 'Add a streaming (media element) track.',
+    properties: { track: ref('ElementTrack'), index },
+    required: ['track'],
+  },
+  'elementTrack.remove': {
+    description: 'Remove a streaming track.',
+    properties: { id: id('Element track id.') },
+    required: ['id'],
+  },
+  'elementTrack.route': {
+    description: 'Re-route a streaming track to the master or a group.',
+    properties: { id: id('Element track id.'), destination: ref('Destination') },
+    required: ['id', 'destination'],
+  },
+  'elementTrack.setClips': {
+    description: "Replace a streaming track's clips.",
+    properties: { id: id('Element track id.'), clips: { type: 'array', items: ref('Clip') } },
+    required: ['id', 'clips'],
   },
   'source.add': {
     description: 'Register a source (a decoded sample) clips can reference.',

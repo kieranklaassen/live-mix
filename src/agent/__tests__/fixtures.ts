@@ -27,6 +27,23 @@ import { type AgentTrack } from '../types'
 export const OPERATION_ARGS: Record<OperationType, Record<string, unknown>> = {
   'score.rename': { name: 'Evening' },
   'transport.loop': { enabled: true, lengthSec: 30 },
+  'tempo.set': {
+    segments: [
+      { atSec: 0, bpm: 90 },
+      { atSec: 30, bpm: 100, beatsPerBar: 3 },
+    ],
+  },
+  'elementTrack.add': {
+    track: {
+      id: 'bed',
+      name: 'Bed',
+      destination: { kind: 'master' },
+      clips: [clip('bed1', 'a', 0, { durationSec: 10 })],
+    },
+  },
+  'elementTrack.remove': { id: 'bed' },
+  'elementTrack.route': { id: 'bed', destination: { kind: 'group', id: 'drums' } },
+  'elementTrack.setClips': { id: 'bed', clips: [clip('bed2', 'a', 2, { durationSec: 6 })] },
   'source.add': { source: { id: 'c', url: '/c.mp3', durationSec: 12 } },
   'source.remove': { id: 'c' },
   'track.add': {
@@ -122,8 +139,16 @@ export const OPERATION_ARGS: Record<OperationType, Record<string, unknown>> = {
 }
 
 /** Operations that must precede a sample for it to fit the demo score. */
+const addBed: Operation = {
+  type: 'elementTrack.add',
+  track: { id: 'bed', name: 'Bed', destination: { kind: 'master' }, clips: [] },
+}
+
 export const OPERATION_PRELUDE: Partial<Record<OperationType, Operation[]>> = {
   'source.remove': [{ type: 'source.add', source: { id: 'c', url: '/c.mp3', durationSec: 12 } }],
+  'elementTrack.remove': [addBed],
+  'elementTrack.route': [addBed],
+  'elementTrack.setClips': [addBed],
 }
 
 /** A small library across the ladder; every key sits with 8A or its neighbours except 3B. */

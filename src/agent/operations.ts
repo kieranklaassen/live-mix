@@ -21,6 +21,9 @@ const STRUCTURE: ReadonlySet<OperationType> = new Set<OperationType>([
   'track.add',
   'track.remove',
   'track.move',
+  'elementTrack.add',
+  'elementTrack.remove',
+  'elementTrack.route',
   'group.add',
   'group.remove',
   'group.move',
@@ -44,6 +47,8 @@ const STRUCTURE: ReadonlySet<OperationType> = new Set<OperationType>([
 
 const ARRANGE: ReadonlySet<OperationType> = new Set<OperationType>([
   'transport.loop',
+  'tempo.set',
+  'elementTrack.setClips',
   'source.add',
   'source.remove',
   'clip.add',
