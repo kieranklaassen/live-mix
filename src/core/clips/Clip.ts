@@ -29,4 +29,11 @@ export interface Clip {
   gainDb: number
   /** Loop the source when the clip outlives it. */
   loop?: boolean
+  /**
+   * Warp markers (source second → beat from the clip start) for tempo-synced
+   * playback on a stretch source; absent means the clip plays unwarped.
+   */
+  warp?: readonly { sourceSec: number; beat: number }[]
+  /** Pitch shift in semitones on a stretch source (key matching). */
+  semitones?: number
 }

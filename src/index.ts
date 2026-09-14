@@ -130,6 +130,49 @@ export {
 } from './core/tracks/AudioTrack'
 export * from './core/transport'
 export {
+  DEFAULT_BEATS_PER_BAR,
+  DEFAULT_BPM,
+  TempoMap,
+  type BarBeat,
+  type QuantizeGrid,
+  type TempoSegment,
+} from './core/time/TempoMap'
+export {
+  camelotCompatible,
+  camelotDistance,
+  camelotNumber,
+  compatibleCamelotNumbers,
+  formatCamelot,
+  parseCamelot,
+  semitonesBetween,
+  transposeCamelot,
+  type CamelotCompatibilityOptions,
+  type CamelotKey,
+  type CamelotLetter,
+} from './core/music/camelot'
+export {
+  DEFAULT_MAX_SEMITONES,
+  keyMatch,
+  rankByKeyMatch,
+  type KeyMatch,
+  type KeyMatchOptions,
+} from './core/music/keyMatch'
+export {
+  StretchSource,
+  semitonesToRate,
+  warpRateAt,
+  warpSegments,
+  warpSourceSecAt,
+  type StretchNode,
+  type StretchNodeFactory,
+  type StretchPlayOptions,
+  type StretchScheduleChange,
+  type StretchSourceOptions,
+  type WarpMarker,
+  type WarpOptions,
+  type WarpSegment,
+} from './core/sources/StretchSource'
+export {
   // Node devices
   COMPRESSOR_DESCRIPTOR,
   COMPRESSOR_DEVICE,
