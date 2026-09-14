@@ -107,6 +107,7 @@ export class EngineStats {
     this.lastUnderrunRatio = 0
     this.lastAverageLoad = 0
     this.lastPeakLoad = 0
+    this.notify()
   }
 
   dispose(): void {

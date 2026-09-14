@@ -67,6 +67,8 @@ const coreSymbols = [
   'MasterLimiter',
   'EngineStats',
   'METER_PROCESSOR_NAME',
+  'Emitter',
+  'isObservableDevice',
 ] as const
 
 const dspSymbols = [

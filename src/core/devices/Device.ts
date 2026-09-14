@@ -35,3 +35,24 @@ export function isNoteDevice(device: Device): device is NoteDevice {
   const candidate = device as Partial<NoteDevice>
   return typeof candidate.noteOn === 'function' && typeof candidate.noteOff === 'function'
 }
+
+/** What a device reports after `setParam` or a bypass change (U24: UI subscriptions). */
+export type DeviceChange =
+  { type: 'param'; name: string; value: number } | { type: 'bypass'; bypass: boolean }
+
+export type DeviceChangeListener = (change: DeviceChange) => void
+
+/**
+ * A device that announces its own parameter and bypass changes, so a UI can
+ * follow automation and modulation writes without polling. Optional: the
+ * stock hosts (`NodeDevice`, `WasmDevice`, `ConvolverReverb`, `WorkletDucker`)
+ * implement it; third-party devices may not.
+ */
+export interface ObservableDevice extends Device {
+  /** Called after every change; returns the unsubscribe function. */
+  onChange(listener: DeviceChangeListener): () => void
+}
+
+export function isObservableDevice(device: Device): device is ObservableDevice {
+  return typeof (device as Partial<ObservableDevice>).onChange === 'function'
+}

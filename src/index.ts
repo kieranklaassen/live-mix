@@ -7,7 +7,16 @@ export const LIVE_MIX_VERSION = '0.1.0'
 
 export * from './core/clips'
 export * from './core/automation'
-export { isNoteDevice, type Device, type NoteDevice } from './core/devices/Device'
+export {
+  isNoteDevice,
+  isObservableDevice,
+  type Device,
+  type DeviceChange,
+  type DeviceChangeListener,
+  type NoteDevice,
+  type ObservableDevice,
+} from './core/devices/Device'
+export { Emitter, type Listener } from './core/events'
 export { clampParam, type ParamSpec, type ParamTaper } from './core/params'
 export { ensureProcessor } from './core/worklet-loader'
 export {
@@ -51,6 +60,9 @@ export {
   type ChannelStripOptions,
   type RampOptions,
   type RoutableInput,
+  type StripChange,
+  type StripChangeKind,
+  type StripChangeListener,
   type StripDestination,
   type StripHost,
 } from './core/tracks/ChannelStrip'
@@ -94,6 +106,7 @@ export {
   type SampleEvictionListener,
   type SampleEvictionReason,
   type SampleSource,
+  type SampleStoreListener,
   type SampleStoreMetrics,
   type SampleStoreOptions,
 } from './core/tracks/SampleStore'
@@ -115,7 +128,7 @@ export {
   type ElementVoice,
   type ElementVoiceOptions,
 } from './core/sources/ElementTrack'
-export { ClipList } from './core/tracks/ClipList'
+export { ClipList, type ClipListListener } from './core/tracks/ClipList'
 export {
   AudioTrack,
   CROSSFADE_SECONDS,

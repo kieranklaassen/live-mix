@@ -19,6 +19,7 @@ export {
   routeOffset,
   type AudioParamTargetOptions,
   type DeviceParamTargetOptions,
+  type ModMatrixListener,
   type ModMatrixOptions,
   type ModPolarity,
   type ModRoute,

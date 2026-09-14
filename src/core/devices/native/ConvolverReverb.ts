@@ -4,8 +4,9 @@
 // voice sits in a room instead of dry on top of the music. Use it on a
 // ReturnTrack fed by sends; the dry path stays the caller's own.
 
+import { Emitter } from '../../events'
 import { clampParam, type ParamSpec } from '../../params'
-import { type Device } from '../Device'
+import { type DeviceChange, type DeviceChangeListener, type ObservableDevice } from '../Device'
 import { type DeviceCreateOptions, type DeviceDescriptor } from '../registry'
 
 /** Voice hall reverb: impulse-response decay length (seconds). */
@@ -51,7 +52,7 @@ export function generateHallImpulse(
   return impulse
 }
 
-export class ConvolverReverb implements Device {
+export class ConvolverReverb implements ObservableDevice {
   readonly id = 'convolver-reverb'
   readonly params = CONVOLVER_REVERB_PARAMS
   readonly convolver: ConvolverNode
@@ -60,6 +61,7 @@ export class ConvolverReverb implements Device {
   private readonly ctx: BaseAudioContext
   private readonly rampSeconds: number
   private wet: number
+  private readonly changes = new Emitter<DeviceChange>()
   private bypassed = false
   private disposed = false
 
@@ -90,6 +92,7 @@ export class ConvolverReverb implements Device {
     if (name !== 'wet') throw new Error(`live-mix: convolver-reverb has no parameter "${name}"`)
     this.wet = clampParam(CONVOLVER_REVERB_PARAMS.wet, value)
     if (!this.bypassed) this.rampWetTo(this.wet)
+    this.changes.emit({ type: 'param', name, value: this.wet })
   }
 
   getParam(name: string): number {
@@ -106,11 +109,18 @@ export class ConvolverReverb implements Device {
     if (this.bypassed === enabled) return
     this.bypassed = enabled
     this.rampWetTo(enabled ? 0 : this.wet)
+    this.changes.emit({ type: 'bypass', bypass: enabled })
+  }
+
+  /** Called after every `setParam` and bypass change; returns the unsubscribe function. */
+  onChange(listener: DeviceChangeListener): () => void {
+    return this.changes.subscribe(listener)
   }
 
   dispose(): void {
     if (this.disposed) return
     this.disposed = true
+    this.changes.clear()
     try {
       this.convolver.disconnect()
       this.wetGain.disconnect()
