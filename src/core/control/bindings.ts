@@ -43,7 +43,7 @@ export interface ControlBinding {
  * instruments, returns, groups. Names are unique per kind, so the first kind
  * that has the name wins (the same order `useTrack` resolves).
  */
-export function findStripHost(engine: Engine, name: string): StripHost | undefined {
+export function resolveStripHost(engine: Engine, name: string): StripHost | undefined {
   const lookups: ((engine: Engine, name: string) => StripHost)[] = [
     (e, n) => e.track(n),
     (e, n) => e.liveInput(n),
@@ -70,9 +70,9 @@ export function engineResolver(
   engine: Engine,
 ): Pick<ControlResolver, 'strip' | 'send' | 'master' | 'transport'> {
   return {
-    strip: (track) => findStripHost(engine, track)?.strip,
+    strip: (track) => resolveStripHost(engine, track)?.strip,
     send: (track, send) =>
-      findStripHost(engine, track)
+      resolveStripHost(engine, track)
         ?.strip.sends.all()
         .find((candidate) => sendName(candidate) === send),
     master: () => engine.master,

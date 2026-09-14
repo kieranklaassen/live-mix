@@ -15,7 +15,7 @@ import {
 import { type ControlEvent } from '../../core/control/event'
 import { type Mapping, type MappingInit, type MappingTable } from '../../core/control/mapping'
 import { describeSource, type ControlSource } from '../../core/control/source'
-import { sameTarget, type ControlTarget } from '../../core/control/target'
+import { sameControlTarget, type ControlTarget } from '../../core/control/target'
 import { useExternalSnapshot } from '../store'
 
 export interface UseControlSurfaceOptions {
@@ -138,7 +138,7 @@ export function useLearn(surface: ControlSurface, target: ControlTarget): UseLea
   )
   const read = useCallback((): LearnSnapshot => {
     const learning = surface.learning
-    const armed = learning !== null && sameTarget(learning, target)
+    const armed = learning !== null && sameControlTarget(learning, target)
     return { armed, busy: learning !== null && !armed, mapping: surface.mappingFor(target) }
   }, [surface, target])
   const snapshot = useExternalSnapshot(subscribe, read)
@@ -151,7 +151,7 @@ export function useLearn(surface: ControlSurface, target: ControlTarget): UseLea
   const toggle = useCallback(
     (options?: BeginLearnOptions) => {
       const learning = surface.learning
-      if (learning !== null && sameTarget(learning, target)) surface.cancelLearn()
+      if (learning !== null && sameControlTarget(learning, target)) surface.cancelLearn()
       else surface.beginLearn(target, options)
     },
     [surface, target],

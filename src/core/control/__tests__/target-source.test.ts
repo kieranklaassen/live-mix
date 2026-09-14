@@ -14,8 +14,8 @@ import {
   isActionTarget,
   isBooleanTarget,
   parseControlTarget,
-  sameTarget,
-  targetKey,
+  sameControlTarget,
+  controlTargetKey,
   type ControlTarget,
 } from '../target'
 
@@ -31,7 +31,7 @@ const targets: ControlTarget[] = [
 
 describe('ControlTarget', () => {
   it('keys every kind distinctly and stably', () => {
-    const keys = targets.map(targetKey)
+    const keys = targets.map(controlTargetKey)
     expect(new Set(keys).size).toBe(keys.length)
     expect(keys).toEqual([
       'strip:pad:level',
@@ -42,8 +42,10 @@ describe('ControlTarget', () => {
       'macro:intensity',
       'transport:toggle',
     ])
-    expect(sameTarget(targets[0], { kind: 'strip', track: 'pad', control: 'level' })).toBe(true)
-    expect(sameTarget(targets[0], targets[1])).toBe(false)
+    expect(sameControlTarget(targets[0], { kind: 'strip', track: 'pad', control: 'level' })).toBe(
+      true,
+    )
+    expect(sameControlTarget(targets[0], targets[1])).toBe(false)
   })
 
   it('describes targets for a mapping row', () => {

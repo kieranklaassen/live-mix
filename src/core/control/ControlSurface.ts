@@ -57,7 +57,7 @@ import {
   type StorageLike,
 } from './serialize'
 import { type ControlSource } from './source'
-import { targetKey, type ControlTarget } from './target'
+import { controlTargetKey, type ControlTarget } from './target'
 
 /** Anything that produces control events: `MidiInput`, `OscInput`, or a test. */
 export interface ControlInput {
@@ -243,7 +243,7 @@ export class ControlSurface {
    * off until `release(target)`. Returns the detach function.
    */
   attachWriter(target: ControlTarget, writer: LaneWriter): () => void {
-    const key = targetKey(target)
+    const key = controlTargetKey(target)
     this.writers.set(key, writer)
     return () => {
       if (this.writers.get(key) === writer) this.writers.delete(key)
@@ -251,12 +251,12 @@ export class ControlSurface {
   }
 
   writerFor(target: ControlTarget): LaneWriter | undefined {
-    return this.writers.get(targetKey(target))
+    return this.writers.get(controlTargetKey(target))
   }
 
   /** Hand a target back to its lane (the next automation tick ramps onto it). */
   release(target: ControlTarget): void {
-    this.writers.get(targetKey(target))?.release()
+    this.writers.get(controlTargetKey(target))?.release()
   }
 
   releaseAll(): void {
@@ -425,12 +425,12 @@ export class ControlSurface {
       levelMax: this.levelMax,
       now: this.clock,
       remembered: this.remembered,
-      key: targetKey(target),
+      key: controlTargetKey(target),
     })
   }
 
   private override(target: ControlTarget): void {
-    const writer = this.writers.get(targetKey(target))
+    const writer = this.writers.get(controlTargetKey(target))
     if (writer && !writer.isOverridden) writer.override(this.clock())
   }
 

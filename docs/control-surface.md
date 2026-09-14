@@ -22,7 +22,7 @@ WebSocket frame ─ decodeOscPacket ─────┘        │
 
 ## Model
 
-**`ControlTarget`** — plain data, keyed by `targetKey`:
+**`ControlTarget`** — plain data, keyed by `controlTargetKey`:
 
 | Kind        | Shape                                    | Bound to                                                    |
 | ----------- | ---------------------------------------- | ----------------------------------------------------------- |

@@ -13,7 +13,7 @@
 import { type ControlEvent } from './event'
 import { decodeRelative, type RelativeEncoding } from './midi'
 import { isMidiSource, sourceKey, sourceMatches, type ControlSource } from './source'
-import { isActionTarget, isBooleanTarget, targetKey, type ControlTarget } from './target'
+import { isActionTarget, isBooleanTarget, controlTargetKey, type ControlTarget } from './target'
 
 export type MappingMode =
   /** The controller's position becomes the target's value (a knob follows the fader). */
@@ -74,7 +74,7 @@ export function createMapping(init: MappingInit): Mapping {
 }
 
 export function mappingKey(mapping: Mapping): string {
-  return targetKey(mapping.target)
+  return controlTargetKey(mapping.target)
 }
 
 export function describeMapping(mapping: Mapping): string {
@@ -103,8 +103,8 @@ export function unmapSource(table: MappingTable, source: ControlSource): Mapping
 }
 
 export function mappingFor(table: MappingTable, target: ControlTarget): Mapping | undefined {
-  const key = targetKey(target)
-  return table.find((entry) => targetKey(entry.target) === key)
+  const key = controlTargetKey(target)
+  return table.find((entry) => controlTargetKey(entry.target) === key)
 }
 
 /** Change a mapping's options in place of the old entry (mode, curve, ranges, pickup, encoding, step). */
@@ -113,9 +113,9 @@ export function updateMapping(
   target: ControlTarget,
   changes: Partial<Omit<Mapping, 'target'>>,
 ): MappingTable {
-  const key = targetKey(target)
+  const key = controlTargetKey(target)
   return table.map((entry) =>
-    targetKey(entry.target) === key ? createMapping({ ...entry, ...changes }) : entry,
+    controlTargetKey(entry.target) === key ? createMapping({ ...entry, ...changes }) : entry,
   )
 }
 
@@ -130,7 +130,7 @@ export function isMapped(table: MappingTable, event: ControlEvent): boolean {
 }
 
 function sameKey(a: ControlTarget, b: ControlTarget): boolean {
-  return targetKey(a) === targetKey(b)
+  return controlTargetKey(a) === controlTargetKey(b)
 }
 
 // --- Value shaping -------------------------------------------------------------------
@@ -246,7 +246,7 @@ function resolveOne(
   context: ResolveContext,
 ): ControlChange | null {
   const { target } = mapping
-  const key = targetKey(target)
+  const key = controlTargetKey(target)
   if (isActionTarget(target)) return resolveAction(mapping, event, context, key)
   switch (mapping.mode) {
     case 'set': {

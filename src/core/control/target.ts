@@ -26,7 +26,7 @@ const STRIP_CONTROLS: readonly StripControl[] = ['level', 'pan', 'mute', 'solo',
 const TRANSPORT_ACTIONS: readonly TransportAction[] = ['start', 'stop', 'pause', 'toggle']
 
 /** Stable identity of a target; two targets with the same key address the same thing. */
-export function targetKey(target: ControlTarget): string {
+export function controlTargetKey(target: ControlTarget): string {
   switch (target.kind) {
     case 'strip':
       return `strip:${target.track}:${target.control}`
@@ -47,8 +47,8 @@ export function targetKey(target: ControlTarget): string {
   }
 }
 
-export function sameTarget(a: ControlTarget, b: ControlTarget): boolean {
-  return targetKey(a) === targetKey(b)
+export function sameControlTarget(a: ControlTarget, b: ControlTarget): boolean {
+  return controlTargetKey(a) === controlTargetKey(b)
 }
 
 /** Human-readable label for a mapping row. */

@@ -121,7 +121,7 @@ const coreSymbols = [
   'ambientLiveMidiMapMigration',
   'loadMappingTable',
   'saveMappingTable',
-  'targetKey',
+  'controlTargetKey',
   'sourceKey',
   'describeSource',
   'normalizeParam',
