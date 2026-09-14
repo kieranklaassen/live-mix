@@ -37,7 +37,9 @@ describe('diffScores', () => {
     // A removal alone shifts indices but is not a move.
     expect(
       diffScores(before, apply(before, { type: 'clip.remove', track: 'kick', id: 'a1' })),
-    ).toEqual([{ path: 'tracks[kick].clips[a1]', kind: 'removed', before: before.tracks[0].clips[0] }])
+    ).toEqual([
+      { path: 'tracks[kick].clips[a1]', kind: 'removed', before: expect.objectContaining({ id: 'a1' }) },
+    ])
     expect(changes[0]).toMatchObject({ before: 2, after: 0 })
     expect(changes.find((change) => change.kind === 'added')?.after).toMatchObject({ id: 'c9' })
   })

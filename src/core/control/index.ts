@@ -137,6 +137,8 @@ export {
   type ControlSurfaceChange,
   type ControlSurfaceListener,
   type ControlSurfaceOptions,
+  type ControlWrite,
+  type ControlWriteHook,
   type HandleResult,
 } from './ControlSurface'
 export {

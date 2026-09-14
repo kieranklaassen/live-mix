@@ -80,10 +80,13 @@ export type RailName =
   | 'headroom'
   | 'fade'
   | 'no-silence'
+  /** The U30 arbiter: a target another writer holds. */
+  | 'arbitration'
 
 export interface RailNote {
   rail: RailName
-  action: 'clamped' | 'rejected'
+  /** `deferred`: the write waits for a hold to end (arbitration only). */
+  action: 'clamped' | 'rejected' | 'deferred'
   message: string
   requested?: unknown
   applied?: unknown

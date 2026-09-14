@@ -13,6 +13,7 @@
 // renderer agree; structural edits key on the entity and conflict with holds
 // on anything under it (`strip:music` vs `strip:music:level`).
 
+import { type Device } from '../core/devices/Device'
 import { Emitter } from '../core/events'
 import {
   HoldTable,
@@ -143,6 +144,7 @@ export class Arbiter {
   private readonly unsubscribeDocument: () => void
   private timer: TimerId | null = null
   private nextTicket = 1
+  private revisionCount = 0
   private disposed = false
 
   constructor(document: ScoreDocument, options: ArbiterOptions = {}) {
@@ -163,6 +165,16 @@ export class Arbiter {
 
   get score(): Score {
     return this.document.score
+  }
+
+  /** Bumped on every event; a cheap "did anything change" for stores and hooks. */
+  get revision(): number {
+    return this.revisionCount
+  }
+
+  /** The score device instance id behind a live device, when a renderer is bound. */
+  deviceIdFor(device: Device): string | undefined {
+    return this.renderer?.deviceIdFor(device)
   }
 
   holds(): Hold[] {
@@ -194,6 +206,11 @@ export class Arbiter {
     return this.events.subscribe(listener)
   }
 
+  private emit(event: ArbiterEvent): void {
+    this.revisionCount += 1
+    this.events.emit(event)
+  }
+
   // --- Writing --------------------------------------------------------------------------------
 
   /** Apply through the policy: lands, waits, or is refused with a reason. Throws only what `document.apply` throws. */
@@ -218,7 +235,7 @@ export class Arbiter {
       case 'drop': {
         if (!holder) throw new Error('live-mix: arbiter dropped a free target')
         const reason: DropReason = holder.source === 'lock' ? 'locked' : 'held'
-        this.events.emit({ type: 'dropped', op, author, targets, reason, holder: holder.owner })
+        this.emit({ type: 'dropped', op, author, targets, reason, holder: holder.owner })
         return { outcome: 'dropped', targets, holder: holder.owner, reason }
       }
       default: {
@@ -234,10 +251,10 @@ export class Arbiter {
     const key = arbiterKey(target)
     const previous = this.table.holdOf(key)
     if (previous && !sameOwner(previous.owner, author))
-      this.events.emit({ type: 'freed', hold: previous, reason: 'taken' })
+      this.emit({ type: 'freed', hold: previous, reason: 'taken' })
     const hold = this.table.touch(key, author, atMs)
     this.overrideLane(key)
-    this.events.emit({ type: 'held', hold })
+    this.emit({ type: 'held', hold })
     this.schedule()
     return hold
   }
@@ -256,7 +273,7 @@ export class Arbiter {
         : [arbiterKey(target)]
     for (const key of keys) {
       const hold = this.table.release(key, atMs, author)
-      if (hold) this.events.emit({ type: 'held', hold })
+      if (hold) this.emit({ type: 'held', hold })
     }
     this.schedule()
   }
@@ -266,7 +283,7 @@ export class Arbiter {
     const key = arbiterKey(target)
     const hold = this.table.clear(key)
     if (!hold) return
-    this.events.emit({ type: 'freed', hold, reason: 'cleared' })
+    this.emit({ type: 'freed', hold, reason: 'cleared' })
     this.afterFree(key)
     this.flush(atMs)
     this.schedule()
@@ -281,7 +298,7 @@ export class Arbiter {
         ? atMs + Math.max(0, options.ttlMs)
         : Infinity
     const lock = this.table.lock(arbiterKey(target), author, untilMs, options.reason)
-    this.events.emit({ type: 'locked', lock })
+    this.emit({ type: 'locked', lock })
     this.schedule()
     return lock
   }
@@ -289,7 +306,7 @@ export class Arbiter {
   unlock(target: ParamTarget | string): void {
     const lock = this.table.unlock(arbiterKey(target))
     if (!lock) return
-    this.events.emit({ type: 'unlocked', lock, reason: 'unlocked' })
+    this.emit({ type: 'unlocked', lock, reason: 'unlocked' })
     this.flush(this.now())
     this.schedule()
   }
@@ -299,7 +316,7 @@ export class Arbiter {
     const index = this.pendingList.findIndex((pending) => pending.ticket === ticket)
     if (index < 0) return false
     const [pending] = this.pendingList.splice(index, 1)
-    this.events.emit({
+    this.emit({
       type: 'dropped',
       op: pending.op,
       author: pending.author,
@@ -325,10 +342,10 @@ export class Arbiter {
     if (this.disposed) return
     const { holds, locks } = this.table.expire(atMs)
     for (const hold of holds) {
-      this.events.emit({ type: 'freed', hold, reason: 'expired' })
+      this.emit({ type: 'freed', hold, reason: 'expired' })
       this.afterFree(hold.target)
     }
-    for (const lock of locks) this.events.emit({ type: 'unlocked', lock, reason: 'expired' })
+    for (const lock of locks) this.emit({ type: 'unlocked', lock, reason: 'expired' })
     if (holds.length > 0 || locks.length > 0) {
       this.flush(atMs)
       this.schedule()
@@ -369,10 +386,10 @@ export class Arbiter {
         if (key === ANY_TARGET) continue
         const previous = this.table.holdOf(key)
         if (previous && !sameOwner(previous.owner, author))
-          this.events.emit({ type: 'freed', hold: previous, reason: 'taken' })
+          this.emit({ type: 'freed', hold: previous, reason: 'taken' })
         const hold = this.table.write(key, author, atMs)
         this.overrideLane(key)
-        this.events.emit({ type: 'held', hold })
+        this.emit({ type: 'held', hold })
       }
       this.writeThrough(op)
       this.schedule()
@@ -414,7 +431,7 @@ export class Arbiter {
     if (!writer) return
     if (!writer.isOverridden) writer.override(this.renderer.engine.now())
     this.overriddenKeys.add(key)
-    this.events.emit({ type: 'overridden', target: key })
+    this.emit({ type: 'overridden', target: key })
   }
 
   private resumeLane(key: string): void {
@@ -422,7 +439,7 @@ export class Arbiter {
     const target = paramTargetOf(key)
     const writer = target && this.renderer ? this.renderer.writerFor(target) : undefined
     writer?.release()
-    this.events.emit({ type: 'resumed', target: key })
+    this.emit({ type: 'resumed', target: key })
   }
 
   private afterFree(key: string): void {
@@ -442,7 +459,7 @@ export class Arbiter {
       const older = this.pendingList[index]
       if (older.author.id !== author.id || !sameTargets(older.targets, targets)) continue
       this.pendingList.splice(index, 1)
-      this.events.emit({
+      this.emit({
         type: 'dropped',
         op: older.op,
         author: older.author,
@@ -455,7 +472,7 @@ export class Arbiter {
     if (options.label !== undefined) pending.label = options.label
     if (options.gesture !== undefined) pending.gesture = options.gesture
     this.pendingList.push(pending)
-    this.events.emit({ type: 'deferred', pending })
+    this.emit({ type: 'deferred', pending })
     return pending
   }
 
@@ -477,7 +494,7 @@ export class Arbiter {
           label: pending.label,
           gesture: pending.gesture,
         })
-        this.events.emit({ type: 'landed', pending, entry })
+        this.emit({ type: 'landed', pending, entry })
       } catch {
         this.dropPending(pending, 'failed')
       }
@@ -485,7 +502,7 @@ export class Arbiter {
   }
 
   private dropPending(pending: PendingWrite, reason: DropReason): void {
-    this.events.emit({
+    this.emit({
       type: 'dropped',
       op: pending.op,
       author: pending.author,
@@ -542,9 +559,9 @@ export class Arbiter {
 
   private reset(): void {
     for (const pending of this.pendingList.splice(0)) this.dropPending(pending, 'cancelled')
-    for (const hold of this.table.holds) this.events.emit({ type: 'freed', hold, reason: 'cleared' })
+    for (const hold of this.table.holds) this.emit({ type: 'freed', hold, reason: 'cleared' })
     for (const lock of this.table.locks)
-      this.events.emit({ type: 'unlocked', lock, reason: 'unlocked' })
+      this.emit({ type: 'unlocked', lock, reason: 'unlocked' })
     this.table.reset()
     for (const key of [...this.overriddenKeys]) this.resumeLane(key)
     this.schedule()

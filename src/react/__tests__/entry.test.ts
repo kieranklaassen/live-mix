@@ -65,6 +65,12 @@ describe('entries', () => {
     'denormalizeParam',
     'useControlSurface',
     'useLearn',
+    'useArbiter',
+    'useArbiterTarget',
+    'useVersions',
+    'useMaybeArbiter',
+    'useMaybeVersions',
+    'VersionList',
     // U25 kit
     'Knob',
     'Fader',

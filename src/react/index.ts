@@ -20,7 +20,9 @@ export {
   useEngine,
   useEnginePart,
   useFrameScheduler,
+  useMaybeArbiter,
   useMaybeEngine,
+  useMaybeVersions,
   type LiveMixContextValue,
   type LiveMixProviderProps,
 } from './hooks/useEngine'
@@ -117,4 +119,18 @@ export {
   type UseControlSurfaceResult,
   type UseLearnResult,
 } from './hooks/useControlSurface'
+export {
+  useArbiter,
+  useArbiterTarget,
+  type ArbiterControls,
+  type ArbiterSnapshot,
+  type UseArbiterResult,
+  type UseArbiterTargetResult,
+} from './hooks/useArbiter'
+export {
+  useVersions,
+  type UseVersionsResult,
+  type VersionsControls,
+  type VersionsSnapshot,
+} from './hooks/useVersions'
 export * from './components'

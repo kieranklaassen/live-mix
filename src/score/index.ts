@@ -82,10 +82,13 @@ export {
   type SlotPatch,
 } from './operations'
 export {
+  AUTOMATION_AUTHOR,
+  CONTROLLER_AUTHOR,
   DEFAULT_CHECKPOINT_EVERY,
   LOCAL_AUTHOR,
   LOG_FORMAT_VERSION,
   OperationLog,
+  SYSTEM_AUTHOR,
   parseLog,
   serializeLog,
   type Author,
@@ -126,3 +129,56 @@ export {
   type RenderScoreOptions,
   type RenderScoreStemsOptions,
 } from './renderScore'
+export {
+  ANY_TARGET,
+  Arbiter,
+  MASTER_LEVEL_KEY,
+  arbiterKey,
+  arbiterTargets,
+  conflicts,
+  paramTargetOf,
+  type ArbiterEvent,
+  type ArbiterListener,
+  type ArbiterOptions,
+  type ArbiterOutcome,
+  type ArbiterResult,
+  type DropReason,
+  type LockOptions,
+  type PendingWrite,
+  type TargetState,
+} from './Arbiter'
+export {
+  arbitratedControlWriter,
+  controlWriteToOperation,
+  type ControlWriterOptions,
+} from './controlWriter'
+export { describeFieldChange, diffScores, type FieldChange, type FieldChangeKind } from './diff'
+export {
+  DEFAULT_FULL_EVERY,
+  DEFAULT_VERSION_BUDGET_BYTES,
+  DEFAULT_VERSION_TOTAL_BUDGET_BYTES,
+  VERSION_FORMAT,
+  VersionHistory,
+  parseStoredVersion,
+  type Milestone,
+  type RestoreOptions,
+  type SaveOptions,
+  type StoredOp,
+  type StoredVersion,
+  type VersionDiff,
+  type VersionEvent,
+  type VersionHistoryOptions,
+  type VersionKind,
+  type VersionListener,
+  type VersionSummary,
+} from './versions'
+export {
+  VERSION_STORAGE_KEY,
+  byteLength,
+  indexedDbVersionStorage,
+  memoryVersionStorage,
+  webStorageVersionStorage,
+  type IndexedDbVersionStorageOptions,
+  type StoredVersionRecord,
+  type VersionStorage,
+} from './versionStorage'

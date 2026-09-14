@@ -65,12 +65,13 @@ function diffLists(path: string, before: Json[], after: Json[], out: FieldChange
     before.forEach((item, index) => {
       if (isIdentified(item)) previous.set(item.id, { item, index })
     })
-    const afterIds = new Set(after.filter(isIdentified).map((item) => item.id))
+    const afterIds = new Set<string>()
+    for (const item of after) if (isIdentified(item)) afterIds.add(item.id)
     // Order is compared among the survivors, so a removal does not read as moves.
     const rankBefore = new Map<string, number>()
-    before.filter(isIdentified).forEach((item) => {
-      if (afterIds.has(item.id)) rankBefore.set(item.id, rankBefore.size)
-    })
+    for (const item of before) {
+      if (isIdentified(item) && afterIds.has(item.id)) rankBefore.set(item.id, rankBefore.size)
+    }
     const seen = new Set<string>()
     let rankAfter = 0
     after.forEach((item, index) => {

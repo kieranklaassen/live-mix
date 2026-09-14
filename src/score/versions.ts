@@ -150,6 +150,7 @@ export class VersionHistory {
   private queue: Promise<void> = Promise.resolve()
   private epoch = 0
   private counter = 0
+  private revisionCount = 0
   private disposed = false
 
   constructor(document: ScoreDocument, options: VersionHistoryOptions = {}) {
@@ -187,6 +188,11 @@ export class VersionHistory {
     return this.records.reduce((total, record) => total + record.bytes, 0)
   }
 
+  /** Bumped on every event; a cheap "did anything change" for stores and hooks. */
+  get revision(): number {
+    return this.revisionCount
+  }
+
   list(): VersionSummary[] {
     return this.versions
   }
@@ -219,6 +225,11 @@ export class VersionHistory {
 
   onChange(listener: VersionListener): () => void {
     return this.events.subscribe(listener)
+  }
+
+  private emit(event: VersionEvent): void {
+    this.revisionCount += 1
+    this.events.emit(event)
   }
 
   // --- Writing --------------------------------------------------------------------------------
@@ -257,7 +268,7 @@ export class VersionHistory {
     this.remember(record.id, score)
     this.persist((storage) => storage.put(record))
     const summary = summarize(record)
-    this.events.emit({ type: 'saved', version: summary })
+    this.emit({ type: 'saved', version: summary })
     this.prune()
     return summary
   }
@@ -286,7 +297,7 @@ export class VersionHistory {
       const entry: LogEntry = this.document.apply(op, applyOptions)
       result = { outcome: 'applied', entry, targets: ['*'] }
     }
-    this.events.emit({ type: 'restored', version: summarize(record), result })
+    this.emit({ type: 'restored', version: summarize(record), result })
     return result
   }
 
@@ -315,7 +326,7 @@ export class VersionHistory {
     }
     this.resolved.delete(id)
     this.persist((storage) => storage.remove(id))
-    this.events.emit({ type: 'removed', version: summarize(record) })
+    this.emit({ type: 'removed', version: summarize(record) })
     return true
   }
 
@@ -354,7 +365,7 @@ export class VersionHistory {
       this.records.sort((a, b) => a.atMs - b.atMs || a.seq - b.seq)
     }
     const versions = this.versions
-    this.events.emit({ type: 'opened', versions })
+    this.emit({ type: 'opened', versions })
     return versions
   }
 
@@ -368,7 +379,7 @@ export class VersionHistory {
     const removed = this.records.splice(0)
     this.resolved.clear()
     this.persist((storage) => storage.clear())
-    for (const record of removed) this.events.emit({ type: 'removed', version: summarize(record) })
+    for (const record of removed) this.emit({ type: 'removed', version: summarize(record) })
   }
 
   dispose(): void {

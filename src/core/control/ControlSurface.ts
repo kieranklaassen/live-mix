@@ -64,9 +64,30 @@ export interface ControlInput {
   subscribe(listener: (event: ControlEvent) => void): () => void
 }
 
+/** One value a controller wants to write, in both the normalised and the target's own units. */
+export interface ControlWrite {
+  target: ControlTarget
+  /** 0..1 position (0/1 for on/off). */
+  unit: number
+  /** What the binding would set: level, pan −1..1, a device value in its unit, 1/0 for on/off. */
+  value: number
+  /** Continuous-gesture id for undo coalescing: `controller:<target key>`. */
+  gesture: string
+}
+
+/**
+ * Where writes go instead of straight to the engine: return true when the
+ * write was taken (applied, queued or refused by an arbiter); the surface
+ * then skips its own ramp and lane override. `arbitratedControlWriter`
+ * (score module) turns writes into attributed score operations (U30).
+ */
+export type ControlWriteHook = (write: ControlWrite) => boolean
+
 export interface ControlSurfaceOptions {
   /** Strips, sends, master and transport resolve through this engine. */
   engine?: Engine
+  /** Route value writes through a document/arbiter instead of the engine directly. */
+  write?: ControlWriteHook
   /** Supply or override lookups (a surface without an engine, or a custom device registry). */
   resolve?: Partial<ControlResolver>
   /** Span of every level control, 0..levelMax. Default 1.5 (unity = 1). */
@@ -124,12 +145,14 @@ export class ControlSurface {
   private readonly resolver: ControlResolver
   private readonly clock: () => number
   private readonly migrations: readonly MappingMigration[]
+  private readonly writeHook: ControlWriteHook | null
   private disposed = false
 
   constructor(options: ControlSurfaceOptions = {}) {
     this.levelMax = options.levelMax ?? DEFAULT_LEVEL_MAX
     this.currentTable = [...(options.mappings ?? [])]
     this.migrations = options.migrations ?? []
+    this.writeHook = options.write ?? null
     const engine = options.engine
     this.clock = options.now ?? (engine ? () => engine.now() : () => 0)
     const base: ControlResolver = {
@@ -348,8 +371,7 @@ export class ControlSurface {
     if (unit === null) {
       binding.fire()
     } else {
-      this.override(change.target)
-      binding.write(unit)
+      this.write(change.target, binding, unit)
     }
     this.changes.emit({ type: 'applied', change, unit })
     return unit
@@ -359,8 +381,7 @@ export class ControlSurface {
   set(target: ControlTarget, unit: number): boolean {
     const binding = this.binding(target)
     if (!binding) return false
-    this.override(target)
-    binding.write(unit)
+    this.write(target, binding, unit)
     return true
   }
 
@@ -439,6 +460,18 @@ export class ControlSurface {
       remembered: this.remembered,
       key: controlTargetKey(target),
     })
+  }
+
+  /** The write hook first (an arbiter, a document); the engine's ramped setter otherwise. */
+  private write(target: ControlTarget, binding: ControlBinding, unit: number): void {
+    const key = controlTargetKey(target)
+    if (
+      this.writeHook?.({ target, unit, value: binding.value(unit), gesture: `controller:${key}` })
+    ) {
+      return
+    }
+    this.override(target)
+    binding.write(unit)
   }
 
   private override(target: ControlTarget): void {

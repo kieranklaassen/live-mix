@@ -36,6 +36,8 @@ export interface ControlBinding {
   write(unit: number): void
   /** Action targets only. */
   fire(): void
+  /** The value `write(unit)` would set, in the target's own units (level, pan −1..1, Hz, 0/1 for on/off). */
+  value(unit: number): number
 }
 
 /**
@@ -108,30 +110,35 @@ function stripBinding(
         read: () => clampUnit(strip.level / levelMax),
         write: (unit) => strip.setLevel(clampUnit(unit) * levelMax),
         fire: () => {},
+        value: (unit) => clampUnit(unit) * levelMax,
       }
     case 'inputGain':
       return {
         read: () => clampUnit(strip.inputGain / levelMax),
         write: (unit) => strip.setInputGain(clampUnit(unit) * levelMax),
         fire: () => {},
+        value: (unit) => clampUnit(unit) * levelMax,
       }
     case 'pan':
       return {
         read: () => clampUnit((strip.pan + 1) / 2),
         write: (unit) => strip.setPan(clampUnit(unit) * 2 - 1),
         fire: () => {},
+        value: (unit) => clampUnit(unit) * 2 - 1,
       }
     case 'mute':
       return {
         read: () => (strip.mute ? 1 : 0),
         write: (unit) => strip.setMute(unit >= 0.5),
         fire: () => {},
+        value: (unit) => (unit >= 0.5 ? 1 : 0),
       }
     case 'solo':
       return {
         read: () => (strip.solo ? 1 : 0),
         write: (unit) => strip.setSolo(unit >= 0.5),
         fire: () => {},
+        value: (unit) => (unit >= 0.5 ? 1 : 0),
       }
     default: {
       const exhaustive: never = control.control
@@ -151,6 +158,7 @@ function sendBinding(send: Send, options: BindingOptions): ControlBinding | null
       gainNode.gain.setTargetAtTime(value, options.now(), LEVEL_RAMP_SECONDS)
     },
     fire: () => {},
+    value: clampUnit,
   }
 }
 
@@ -164,6 +172,7 @@ function masterBinding(master: Bus, options: BindingOptions): ControlBinding {
       master.setLevel(value * levelMax, { at: options.now() })
     },
     fire: () => {},
+    value: (unit) => clampUnit(unit) * levelMax,
   }
 }
 
@@ -174,6 +183,7 @@ function deviceBinding(device: Device, param: string): ControlBinding | null {
     read: () => normalizeParam(spec, device.getParam(param)),
     write: (unit) => device.setParam(param, denormalizeParam(spec, unit)),
     fire: () => {},
+    value: (unit) => denormalizeParam(spec, unit),
   }
 }
 
@@ -182,6 +192,7 @@ function macroBinding(macro: Macro): ControlBinding {
     read: () => macro.value,
     write: (unit) => macro.set(unit),
     fire: () => {},
+    value: clampUnit,
   }
 }
 
@@ -210,7 +221,7 @@ function transportBinding(
       }
     }
   }
-  return { read: () => null, write: () => {}, fire }
+  return { read: () => null, write: () => {}, fire, value: () => 0 }
 }
 
 /** The binding for a target, or null when nothing answers to it right now. */
