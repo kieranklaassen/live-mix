@@ -54,6 +54,25 @@ export function trimGain(gainDb: number | undefined): number {
   return 10 ** (clamped / 20)
 }
 
+/** A source position folded into `[startSec, endSec)`; one inside the region stands. */
+export function wrapIntoLoop(
+  sourceSec: number,
+  loop: { startSec: number; endSec: number } | undefined,
+): number {
+  if (!loop || loop.endSec <= loop.startSec || sourceSec < loop.endSec) return sourceSec
+  const length = loop.endSec - loop.startSec
+  return loop.startSec + ((sourceSec - loop.startSec) % length)
+}
+
+/** Where a voice enters the source when joining `lateSec` late, wrapped into the loop region. */
+export function entryOffset(
+  offsetSec: number,
+  lateSec: number,
+  loop: { startSec: number; endSec: number } | undefined,
+): number {
+  return wrapIntoLoop(offsetSec + lateSec, loop)
+}
+
 // --- Voices -------------------------------------------------------------------
 
 /** What `play` needs: a decoded buffer plus the clip's slice and envelope. */
@@ -386,10 +405,15 @@ export class AudioTrack implements StripHost {
     }
     source.onended = () => this.forget(voice)
     if (playback.loop) {
+      const region = {
+        startSec: playback.loopStartSec ?? playback.offsetSec,
+        endSec: playback.loopEndSec ?? playback.buffer.duration,
+      }
       source.loop = true
-      source.loopStart = playback.loopStartSec ?? playback.offsetSec
-      source.loopEnd = playback.loopEndSec ?? playback.buffer.duration
-      source.start(start, playback.offsetSec + late)
+      source.loopStart = region.startSec
+      source.loopEnd = region.endSec
+      // A late join wraps into the region rather than reading past its end.
+      source.start(start, entryOffset(playback.offsetSec, late, region))
       this.stopSource(voice, end)
     } else {
       source.start(start, playback.offsetSec + late, playback.durationSec - late)

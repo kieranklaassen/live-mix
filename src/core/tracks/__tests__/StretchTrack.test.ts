@@ -17,13 +17,9 @@ import {
 import { TempoMap } from '../../time/TempoMap'
 import { Scheduler } from '../../transport/Scheduler'
 import { Transport } from '../../transport/Transport'
+import { entryOffset } from '../AudioTrack'
 import { SampleStore } from '../SampleStore'
-import {
-  DEFAULT_STRETCH_PRELOAD_SECONDS,
-  StretchTrack,
-  entryOffset,
-  segmentsFrom,
-} from '../StretchTrack'
+import { DEFAULT_STRETCH_PRELOAD_SECONDS, StretchTrack, segmentsFrom } from '../StretchTrack'
 
 class FakeStretchNode extends MockAudioNode {
   readonly scheduled: StretchScheduleChange[] = []

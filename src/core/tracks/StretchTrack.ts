@@ -20,6 +20,7 @@ import { type ClipWindow } from '../clips/window'
 import { type TempoMap } from '../time/TempoMap'
 import {
   StretchSource,
+  warpEntrySec,
   warpRateAt,
   warpSegments,
   warpSourceSecAt,
@@ -29,7 +30,13 @@ import {
 } from '../sources/StretchSource'
 import { scheduleKey, type ScheduledStart } from '../transport/anchor'
 import { type Scheduler, type Schedulable } from '../transport/Scheduler'
-import { DEFAULT_LOOKAHEAD_SECONDS, TrackSchedulable, trimGain } from './AudioTrack'
+import {
+  DEFAULT_LOOKAHEAD_SECONDS,
+  TrackSchedulable,
+  entryOffset,
+  trimGain,
+  wrapIntoLoop,
+} from './AudioTrack'
 import {
   ChannelStrip,
   type SoloInPlace,
@@ -280,8 +287,10 @@ export class StretchTrack implements StripHost {
     if (this.prepared.has(key) || this.preparing.has(key)) return true
     const sample = this.samples.get(clip.sourceId)
     if (!sample) {
+      // Decline so the preload window offers the start again once the sample
+      // is decoded: the node must still be built before playback reaches it.
       this.requestLoad(clip)
-      return true
+      return false
     }
     const building = StretchSource.create(this.ctx, {
       id: `${clip.sourceId}@${key}`,
@@ -340,9 +349,12 @@ export class StretchTrack implements StripHost {
       : undefined
     if (clip.warp && clip.warp.length > 0) {
       const segments = warpSegments(clip.warp, this.tempo(), { clipStartSec: clip.startSec })
+      // The clip may enter its source anywhere (a legato launch carries the
+      // position it reached): join the warp there, then advance by the lateness.
+      const entrySec = warpEntrySec(segments, clip.offsetSec) + late
       source.play({
         when: start,
-        warp: segmentsFrom(segments, late),
+        warp: segmentsFrom(segments, entrySec, loop),
         semitones: clip.semitones,
         durationSec,
         loop,
@@ -443,30 +455,25 @@ export class StretchTrack implements StripHost {
   }
 }
 
-/** The warp segments still ahead when joining `lateSec` into the clip, rebased to the join. */
-export function segmentsFrom(segments: readonly WarpSegment[], lateSec: number): WarpSegment[] {
+/**
+ * The warp segments still ahead when the voice enters `entrySec` into the
+ * clip's timeline, rebased to that entry and wrapped into the loop region.
+ */
+export function segmentsFrom(
+  segments: readonly WarpSegment[],
+  entrySec: number,
+  loop?: { startSec: number; endSec: number },
+): WarpSegment[] {
   if (segments.length === 0) return []
   const head: WarpSegment = {
     atSec: 0,
-    sourceSec: warpSourceSecAt(segments, lateSec),
-    rate: warpRateAt(segments, lateSec),
+    sourceSec: wrapIntoLoop(warpSourceSecAt(segments, entrySec), loop),
+    rate: warpRateAt(segments, entrySec),
   }
   const rest = segments
-    .filter((segment) => segment.atSec > lateSec)
-    .map((segment) => ({ ...segment, atSec: segment.atSec - lateSec }))
+    .filter((segment) => segment.atSec > entrySec)
+    .map((segment) => ({ ...segment, atSec: segment.atSec - entrySec }))
   return [head, ...rest]
-}
-
-/** Where an unwarped voice enters the source when joining `lateSec` late, wrapped into the loop region. */
-export function entryOffset(
-  offsetSec: number,
-  lateSec: number,
-  loop: { startSec: number; endSec: number } | undefined,
-): number {
-  const raw = offsetSec + lateSec
-  if (!loop || loop.endSec <= loop.startSec || raw < loop.endSec) return raw
-  const length = loop.endSec - loop.startSec
-  return loop.startSec + ((raw - loop.startSec) % length)
 }
 
 export type { ClipWindow }

@@ -143,6 +143,23 @@ export function warpSourceSecAt(segments: readonly WarpSegment[], clipSec: numbe
   return current.sourceSec + (clipSec - current.atSec) * current.rate
 }
 
+/**
+ * The inverse of `warpSourceSecAt`: the clip-relative timeline second whose
+ * warped playback reads source second `offsetSec`, so a clip entered partway
+ * into its source (a legato launch) joins the warp where it left off. A
+ * position before the first marker enters at the clip start.
+ */
+export function warpEntrySec(segments: readonly WarpSegment[], offsetSec: number): number {
+  if (segments.length === 0) return Math.max(0, offsetSec)
+  let current = segments[0]
+  for (const segment of segments) {
+    if (segment.sourceSec <= offsetSec) current = segment
+    else break
+  }
+  if (!(current.rate > 0)) return current.atSec
+  return Math.max(0, current.atSec + (offsetSec - current.sourceSec) / current.rate)
+}
+
 /** Semitone shift as a playback-rate factor (2^(n/12)). */
 export function semitonesToRate(semitones: number): number {
   return 2 ** (semitones / 12)

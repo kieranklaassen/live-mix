@@ -216,6 +216,9 @@ function SlotCell({ session, slot, testId }: SlotCellProps) {
         onPointerDown={(event) => {
           if (event.button !== 0) return
           event.preventDefault()
+          // A gate releases on pointer up: capture it so a pointer that slides
+          // off the pad still ends the clip here.
+          if (gate) capturePointer(event.currentTarget, event.pointerId)
           view.launch()
         }}
         onPointerUp={() => {
@@ -225,6 +228,7 @@ function SlotCell({ session, slot, testId }: SlotCellProps) {
           if (gate) view.release()
         }}
         onKeyDown={(event) => {
+          if (event.repeat) return // auto-repeat while the key is held is not another press
           if (event.key === ' ' || event.key === 'Enter') {
             event.preventDefault()
             view.launch()
@@ -241,6 +245,15 @@ function SlotCell({ session, slot, testId }: SlotCellProps) {
       </button>
     </div>
   )
+}
+
+/** Route the rest of the gesture to the slot; a no-op where pointer capture is unavailable. */
+function capturePointer(element: HTMLElement, pointerId: number): void {
+  try {
+    element.setPointerCapture(pointerId)
+  } catch {
+    // No pointer capture here (an older browser, a test environment).
+  }
 }
 
 function slotIcon(isStop: boolean, state: SlotState, stopping: boolean): string {

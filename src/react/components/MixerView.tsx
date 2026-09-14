@@ -15,7 +15,7 @@ import { MasterStripView } from './MasterStripView'
 import { cx } from './tokens'
 
 export interface MixerViewProps {
-  /** Defaults to the provided engine's audio tracks. */
+  /** Defaults to the provided engine's audio and stretch tracks. */
   tracks?: readonly StripHost[]
   /** Defaults to the provided engine's groups. */
   groups?: readonly GroupTrack[]
@@ -57,7 +57,7 @@ export function MixerView({
   'data-testid': testId,
 }: MixerViewProps) {
   const engine = useMaybeEngine()
-  const trackHosts = tracks ?? engine?.tracks ?? []
+  const trackHosts = tracks ?? [...(engine?.tracks ?? []), ...(engine?.stretchTracks ?? [])]
   const groupHosts = groups ?? engine?.groups ?? []
   const masterBus = master === undefined ? (engine?.master ?? null) : master || null
 

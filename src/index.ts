@@ -159,7 +159,9 @@ export {
   MAX_CLIP_GAIN_DB,
   STEER_CROSSFADE_SECONDS,
   STOP_FADE_SECONDS,
+  entryOffset,
   trimGain,
+  wrapIntoLoop,
   type AudioTrackOptions,
   type ClipVoice,
   type ClipVoiceOptions,
@@ -213,6 +215,7 @@ export {
 export {
   StretchSource,
   semitonesToRate,
+  warpEntrySec,
   warpRateAt,
   warpSegments,
   warpSourceSecAt,
@@ -228,7 +231,6 @@ export {
 export {
   DEFAULT_STRETCH_PRELOAD_SECONDS,
   StretchTrack,
-  entryOffset,
   segmentsFrom,
   type StretchTrackOptions,
   type StretchVoice,

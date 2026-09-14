@@ -197,7 +197,11 @@ export async function renderStems(options: StemsOptions): Promise<Record<string,
       build: async (engine, info) => {
         await options.build(engine, { ...info, stem })
         if (stem !== 'master') {
-          engine.track(stem).strip.setSolo(true, { at: 0 })
+          // Audio and stretch tracks share the track namespace.
+          const strip =
+            engine.stretchTracks.find((track) => track.name === stem)?.strip ??
+            engine.track(stem).strip
+          strip.setSolo(true, { at: 0 })
         }
       },
     })

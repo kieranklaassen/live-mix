@@ -101,13 +101,14 @@ export function useStrip(strip: ChannelStrip): UseStripResult {
 }
 
 /**
- * Find a track of any kind by name: audio tracks, then live inputs,
- * instruments, returns, groups. Names are unique per kind, so
+ * Find a track of any kind by name: audio tracks, then stretch tracks, live
+ * inputs, instruments, returns, groups. Names are unique per kind, so
  * the first kind that has the name wins.
  */
 export function findStripHost(engine: Engine, name: string): StripHost | undefined {
   const lookups: ((engine: Engine, name: string) => StripHost)[] = [
     (e, n) => e.track(n),
+    (e, n) => e.stretchTrack(n),
     (e, n) => e.liveInput(n),
     (e, n) => e.instrument(n),
     (e, n) => e.returnTrack(n),
@@ -126,7 +127,7 @@ export function findStripHost(engine: Engine, name: string): StripHost | undefin
 export type UseTrackResult<H extends StripHost = StripHost> = UseStripResult & { track: H }
 
 /**
- * Any track kind (`AudioTrack`, `LiveInputTrack`, `InstrumentTrack`,
+ * Any track kind (`AudioTrack`, `StretchTrack`, `LiveInputTrack`, `InstrumentTrack`,
  * `ReturnTrack`, `GroupTrack`) with its strip state. Pass the object, or a
  * name to resolve through the provided engine (throws when absent, like
  * `engine.track(name)`).

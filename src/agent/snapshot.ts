@@ -152,6 +152,7 @@ function levelsOf(inputs: SnapshotInputs): Record<string, number> {
 function engineLevel(engine: Engine, id: string): number | null {
   const strip =
     engine.tracks.find((track) => track.name === id)?.strip ??
+    engine.stretchTracks.find((track) => track.name === id)?.strip ??
     engine.groups.find((group) => group.name === id)?.strip ??
     engine.liveInputs.find((track) => track.name === id)?.strip ??
     engine.returnTracks.find((track) => track.name === id)?.strip
