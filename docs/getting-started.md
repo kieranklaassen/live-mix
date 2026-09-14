@@ -6,9 +6,10 @@ once and explained.
 
 ## 1. Install
 
-The repository is **private** and the package is published to GitHub Packages
-under the `@kieranklaassen` scope. Until the first registry publish lands, both
-consumer apps use the `github:` fallback; both paths are below.
+The repository is **public** (again, as of 2026-09-14) and the package is
+published to GitHub Packages under the `@kieranklaassen` scope (registry
+publishing pending). Until the first registry publish lands, both consumer apps
+use the `github:` fallback, which needs no token; both paths are below.
 
 ### Registry (preferred once published)
 
@@ -46,15 +47,12 @@ RUN --mount=type=secret,id=NPM_TOKEN,required=true \
 ```
 
 `prepare` builds `dist/` with nothing but Node and the `.wasm` artefacts are
-committed, so no Emscripten is needed in the consumer. It does need git access
-to the private repo wherever `npm ci` runs — a PAT with `repo` scope through
-
-```sh
-git config --global url."https://x-access-token:$TOKEN@github.com/".insteadOf "https://github.com/"
-```
-
-— and it re-runs the library build on every consumer install. CI proves this
-path on every run (`git-fallback` job); the registry is the destination.
+committed, so no Emscripten is needed in the consumer. The repo is public, so
+`npm ci` needs no git credentials wherever it runs (while the repo was private
+this took a PAT with `repo` scope through a `url.<...>.insteadOf` rewrite); it
+does re-run the library build on every consumer install. CI proves this path
+on every run (`git-fallback` job, anonymous clone); the registry is the
+destination.
 
 ### Local iteration against an app
 
