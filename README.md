@@ -101,6 +101,52 @@ Entry points (all ESM):
 | `@kieranklaassen/live-mix/worklets/*` | Raw worklet bundles, for consumers that prefer explicit `?url` imports                                    |
 | `@kieranklaassen/live-mix/wasm/*`     | Raw `.wasm` artefacts, same reason                                                                        |
 
+### Memory: sample eviction and streaming beds
+
+Decoded stereo PCM costs ~23 MB per minute at 48 kHz, so the `SampleStore` is
+an LRU cache with an optional byte budget. Off by default; opt in per engine:
+
+```ts
+const engine = createEngine({ context, samples: { budgetBytes: 192 * 1024 * 1024 } })
+engine.samples.pin('stinger') // never evicted until unpin
+const release = engine.samples.retain('intro') // held while a clip uses it
+engine.samples.metrics // { bytes, budgetBytes, count, pinned, held, evictions, evictedBytes, loads, overBudget }
+
+// Keep what a track is about to play out of eviction: follows its preload window.
+new SampleRetainer({
+  samples: engine.samples,
+  track: music,
+  now: () => engine.now(),
+  scheduler: engine.scheduler,
+})
+
+// Long beds stream instead of decoding: an <audio> element into the same graph.
+const bed = new ElementSource(engine.context, { id: 'bed', url: '/beds/forest.mp3' })
+const beds = new ElementTrack(engine.context, {
+  name: 'beds',
+  destination: engine.master,
+  now: () => engine.now(),
+  sources: [bed],
+  scheduler: engine.scheduler,
+})
+beds.clips.add({
+  id: 'forest',
+  sourceId: 'bed',
+  startSec: 0,
+  offsetSec: 0,
+  durationSec: 2700,
+  fadeInSec: 4,
+  fadeOutSec: 8,
+  fadeCurve: 'linear',
+  gainDb: -6,
+})
+await beds.unlockAll() // from the start gesture, so iOS allows the timer-driven play()
+```
+
+Element starts are timer-accurate, not sample-accurate; the envelope stays on
+the audio clock. Differences from `AudioTrack` and the iPhone checklist are in
+[`docs/iphone-memory-and-element-source.md`](./docs/iphone-memory-and-element-source.md).
+
 ## Install
 
 The repository is **private**, so every install path authenticates. The
