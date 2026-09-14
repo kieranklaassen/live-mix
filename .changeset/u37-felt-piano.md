@@ -1,0 +1,5 @@
+---
+'@kieranklaassen/live-mix': patch
+---
+
+Felt piano instrument (U37): kkfonie's physically modelled felt piano as a WASM `NoteDevice` for `InstrumentTrack`. `createFeltPiano` / `FELT_PIANO_DEVICE` / `FELT_PIANO_PARAMS` (dsp entry): Felt's character (felt, hardness, detune, stiffness), mechanics (thump, action, pedalNoise, grit), pedal (resonance, damper) and space (reverbMix, reverbSize, width, outputDb) controls plus `sustain` (continuous CC64), `sostenuto`, `soft` and a `polyphony` cap (1..32). `noteOn(id, frequency, gain)` rounds to the nearest key and uses gain as velocity; `feltPianoKeyFor` exposes the mapping. Felt's ten DSP sources are byte-identical (SHA in `device.json`); the JUCE voice/synthesiser/processor are ported. Registered as `felt-piano` (category instrument) with Felt/Bare/Intimate/Hall/Lean presets and **`experimental: true`** (new optional `DeviceDescriptor.experimental`): the wasm costs 8 % (six-note chord under the pedal) to 19 % (32 voices ff) of real time on the CI core, over the 5 % gate, and the iPhone measurement the plan gates on is still open. `scripts/build-wasm.sh` gains `EXTRA_EXPORTS` for the instrument entry points.

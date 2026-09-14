@@ -54,6 +54,16 @@ CXX="${CXX:-c++}"
 
 "$out_dir/ether_reverb_test"
 
+"$CXX" -std=c++17 -O2 -fno-exceptions -fno-rtti -Wall -Wextra \
+  cpp/test/felt_piano_test.cpp \
+  cpp/devices/felt-piano/felt_piano_device.cpp \
+  cpp/devices/felt-piano/SympatheticBank.cpp \
+  cpp/devices/felt-piano/FeltReverb.cpp \
+  cpp/devices/stereo-widener/StereoWidener.cpp \
+  -o "$out_dir/felt_piano_test"
+
+"$out_dir/felt_piano_test"
+
 # Faust devices are header-only: the generated class plus the FaustDevice
 # template. -Wno-unused-parameter covers Faust's empty classInit(sample_rate).
 "$CXX" -std=c++17 -O2 -fno-exceptions -fno-rtti -Wall -Wextra -Wno-unused-parameter \

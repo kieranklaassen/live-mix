@@ -70,6 +70,7 @@ export {
   DATTORRO_DESCRIPTOR,
   ETHER_REVERB_DESCRIPTOR,
   FDN_REVERB_DESCRIPTOR,
+  FELT_PIANO_DESCRIPTOR,
   LIMITER_1176_DESCRIPTOR,
   WORKLET_DUCKER_DESCRIPTOR,
   SPECTRAL_DRIFTER_DESCRIPTOR,
@@ -140,3 +141,12 @@ export {
   type EtherReverb,
   type EtherReverbParamName,
 } from './devices/ether-reverb'
+export {
+  FELT_PIANO_DEVICE,
+  FELT_PIANO_KEY_RANGE,
+  FELT_PIANO_PARAMS,
+  createFeltPiano,
+  feltPianoKeyFor,
+  type FeltPiano,
+  type FeltPianoParamName,
+} from './devices/felt-piano'

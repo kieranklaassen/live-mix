@@ -1,0 +1,103 @@
+{
+  "id": "felt-piano",
+  "name": "Felt",
+  "kind": "instrument",
+  "wasm": "src/dsp/wasm/felt-piano.wasm",
+  "params": "src/dsp/devices/felt-piano.ts",
+  "source": {
+    "repository": "kieranklaassen/kkfonie",
+    "commit": "0c4ae88520208850e5d2b102e61d6592b24cd768",
+    "files": [
+      {
+        "path": "Felt/Source/FeltMath.h",
+        "copiedTo": "FeltMath.h",
+        "sha256": "041a2e514d71d09b3322a0ee4a251c536c9364a853fca5f869cd13cd6276bd0e"
+      },
+      {
+        "path": "Felt/Source/ModalBank.h",
+        "copiedTo": "ModalBank.h",
+        "sha256": "e7f9a49513b37ba8a3db0c326906a59653c8086ac1a414badb1ea6d90a419b79"
+      },
+      {
+        "path": "Felt/Source/ModeTable.h",
+        "copiedTo": "ModeTable.h",
+        "sha256": "30d855b6a6d1bfe622c31417070070dfed218585c1004e34eebd1f2d7e681910"
+      },
+      {
+        "path": "Felt/Source/HammerExciter.h",
+        "copiedTo": "HammerExciter.h",
+        "sha256": "51e1ac527ee23a30204c496b324109b6cca835f6cf4063161f261eca68624d17"
+      },
+      {
+        "path": "Felt/Source/VelvetNoise.h",
+        "copiedTo": "VelvetNoise.h",
+        "sha256": "93634d33be464eb474965e1b0b2ef581fd9275efad0853dcc02248bff03a8853"
+      },
+      {
+        "path": "Felt/Source/GhostPool.h",
+        "copiedTo": "GhostPool.h",
+        "sha256": "2e77c43b3cc2c5443d65437ffd6774c5121f913ad24d6865d9ce46138fb9c24d"
+      },
+      {
+        "path": "Felt/Source/SympatheticBank.h",
+        "copiedTo": "SympatheticBank.h",
+        "sha256": "099c65d78178eaaff9efe77e9882de565e1e97a2762a5a30b1338331fe6ae3c4"
+      },
+      {
+        "path": "Felt/Source/SympatheticBank.cpp",
+        "copiedTo": "SympatheticBank.cpp",
+        "sha256": "8c9705acd09286edb1cb83373499898410126150479a62a5d744188932cef5bb"
+      },
+      {
+        "path": "Felt/Source/FeltReverb.h",
+        "copiedTo": "FeltReverb.h",
+        "sha256": "9a702cc5363195cd1180708b78b1b75bc48bf3478117badea1b812c5246c9088"
+      },
+      {
+        "path": "Felt/Source/FeltReverb.cpp",
+        "copiedTo": "FeltReverb.cpp",
+        "sha256": "0f1a06a91570e71445a9675ca79d61fde2b6b9eb3fdeaf02ca786ac3eef8b3ad"
+      },
+      {
+        "path": "Felt/Source/StereoWidener.h",
+        "usedFrom": "../stereo-widener/StereoWidener.h",
+        "note": "byte-identical copy already in the repo"
+      },
+      {
+        "path": "Felt/Source/StereoWidener.cpp",
+        "usedFrom": "../stereo-widener/StereoWidener.cpp"
+      },
+      {
+        "path": "Felt/Source/FeltVoice.h + FeltVoice.cpp",
+        "portedTo": "felt_voice.h",
+        "deviations": [
+          "juce::SynthesiserVoice bookkeeping (playing note, key/sustain/sostenuto flags, sample rate) inlined; juce::AudioBuffer -> float pointers; jmin/jmax -> std::min/max; MathConstants::halfPi -> kHalfPi",
+          "note_id kept per voice so the host releases notes by id",
+          "flush_decayed_state(): once per block, resonator states under 1e-18 snap to zero and rung-out velvet bursts are reset (WASM has no flush-to-zero; measured 186 % -> 6 % of real time natively without FTZ)"
+        ]
+      },
+      {
+        "path": "juce::Synthesiser (JUCE 8) + Felt/Source/FeltVoice.cpp FeltSynth::findVoiceToSteal",
+        "portedTo": "felt_synth.h",
+        "deviations": [
+          "single MIDI channel; note-off by host note id",
+          "sostenuto up clears the voice's sostenuto flag before releasing it (JUCE leaves it set, so Felt's damper never falls on a key released under sostenuto)",
+          "set_polyphony(): caps the pool new notes may start in (param 17)"
+        ]
+      },
+      {
+        "path": "Felt/Source/PluginProcessor.cpp",
+        "portedTo": "felt_piano_device.cpp",
+        "deviations": [
+          "juce::SmoothedValue -> LinearRamp (5 ms); ramps snap before the first block",
+          "MIDI CC64/66/67 -> params sustain/sostenuto/soft (>= 0.5 down; sustain continuous for half-pedal); the CC64 damper-felt burst fires on the same transitions",
+          "percent params are 0..1",
+          "idle flush: after the bus is exactly silent and the output under 1e-9 for 1 s, the room, sympathetic strings, widener, damper-noise filters and grit envelope are reset once; the rung-out damper burst is reset each block",
+          "the ABI input bus is ignored and cleared",
+          "UI snapshot, metering and state persistence omitted"
+        ]
+      }
+    ],
+    "note": "Ten DSP sources are byte-identical to kkfonie Felt; felt_voice.h / felt_synth.h / felt_piano_device.* are live-mix's JUCE-free voice, synthesiser and processor, device_api.cpp the ABI shim with device_note_on/off."
+  }
+}

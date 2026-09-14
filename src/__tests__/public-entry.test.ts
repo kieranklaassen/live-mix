@@ -154,6 +154,9 @@ const dspSymbols = [
   'createEtherReverb',
   'ETHER_REVERB_PARAMS',
   'ETHER_REVERB_DESCRIPTOR',
+  'createFeltPiano',
+  'FELT_PIANO_PARAMS',
+  'FELT_PIANO_DESCRIPTOR',
 ] as const
 
 const testingSymbols = [

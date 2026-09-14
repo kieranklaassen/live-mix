@@ -24,6 +24,7 @@ import { type DeviceCreateRequest, type DeviceDescriptor, DeviceRegistry } from 
 // point at the committed artefacts, which the contract test compiles once.
 import { DATTORRO_DEVICE } from '../../../dsp/devices/dattorro'
 import { ETHER_REVERB_DEVICE } from '../../../dsp/devices/ether-reverb'
+import { FELT_PIANO_DEVICE } from '../../../dsp/devices/felt-piano'
 import { FDN_REVERB_DEVICE } from '../../../dsp/devices/fdn-reverb'
 import { LIMITER_1176_DEVICE } from '../../../dsp/devices/limiter-1176'
 import { SPECTRAL_DRIFTER_DEVICE } from '../../../dsp/devices/spectral-drifter'
@@ -38,6 +39,7 @@ const WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   LIMITER_1176_DEVICE,
   SPECTRAL_DRIFTER_DEVICE,
   ETHER_REVERB_DEVICE,
+  FELT_PIANO_DEVICE,
 ]
 
 const mockNodeFactory: WorkletNodeFactory = (context, name, options) =>
@@ -119,6 +121,7 @@ it('covers every stock device and the WAM adapter', () => {
       'spectral-drifter',
       'wam-fake-effect',
       'ether-reverb',
+      'felt-piano',
     ].sort(),
   )
   expect(WASM_DEFINITIONS.map((d) => d.id).sort()).toEqual(

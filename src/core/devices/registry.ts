@@ -47,6 +47,12 @@ export interface DeviceDescriptor<P extends Record<string, ParamSpec> = Record<s
   params: P
   /** Factory presets: name → partial param map. */
   presets?: PresetTable<P>
+  /**
+   * Shipped but over the CPU budget or otherwise not yet cleared for
+   * production (see docs/devices.md); hosts may hide or label it. Absent
+   * means false.
+   */
+  experimental?: boolean
   create: DeviceFactory
 }
 
