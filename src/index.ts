@@ -3,7 +3,7 @@
 // Import-safe under SSR: nothing here reads `window` or constructs an
 // `AudioContext` at module load.
 
-export const LIVE_MIX_VERSION = '0.0.1'
+export const LIVE_MIX_VERSION = '0.1.0'
 
 export * from './core/clips'
 export * from './core/automation'
