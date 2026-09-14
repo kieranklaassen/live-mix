@@ -21,7 +21,10 @@
     "daw",
     "transport",
     "reverb",
-    "dattorro"
+    "dattorro",
+    "faust",
+    "zita-rev1",
+    "limiter"
   ],
   "sideEffects": false,
   "files": [
@@ -61,6 +64,7 @@
     "test:watch": "vitest",
     "test:native": "bash scripts/test-native.sh",
     "build:wasm": "bash scripts/build-wasm.sh",
+    "build:faust": "bash scripts/build-faust.sh",
     "pack:check": "node scripts/check-pack.mjs",
     "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm pack:check",
     "changeset": "changeset",
