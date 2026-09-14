@@ -43,6 +43,7 @@ export {
   type PhaseModulatorOptions,
   type RandomOptions,
 } from './Modulator'
+export { nodeDeviceParam } from './node-device-param'
 export {
   ParamLane,
   SMOOTH_SEGMENT_STEPS,
