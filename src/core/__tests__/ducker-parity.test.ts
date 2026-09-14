@@ -33,7 +33,13 @@ function legacyGain(): { gain: (t: number) => number; events: TargetEvent[]; tim
   const setIntervalFn = vi.fn(() => 1 as unknown as ReturnType<typeof setInterval>)
   const ducker = new Ducker(asAudioContext(ctx), {
     target: duck.gain as unknown as AudioParam,
-    clock: { now: () => now, setIntervalFn, clearIntervalFn: () => {} },
+    clock: {
+      now: () => now,
+      setIntervalFn,
+      clearIntervalFn: () => {},
+      setTimeoutFn: () => 0 as unknown as ReturnType<typeof setTimeout>,
+      clearTimeoutFn: () => {},
+    },
   })
   const key = ctx.createGain()
   ducker.key(key as unknown as AudioNode)
