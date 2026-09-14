@@ -17,6 +17,7 @@ import { DATTORRO_DEVICE } from './devices/dattorro'
 import { createWorkletDucker, type DuckerProcessorOverrides } from './devices/ducker'
 import { FDN_REVERB_DEVICE } from './devices/fdn-reverb'
 import { LIMITER_1176_DEVICE } from './devices/limiter-1176'
+import { SPECTRAL_DRIFTER_DEVICE } from './devices/spectral-drifter'
 import { STEREO_WIDENER_DEVICE } from './devices/stereo-widener'
 import { ZITA_REV1_DEVICE } from './devices/zita-rev1'
 import { WasmDevice, type WasmDeviceDefinition, type WasmDeviceOptions } from './WasmDevice'
@@ -100,6 +101,17 @@ export const LIMITER_1176_DESCRIPTOR = wasmDeviceDescriptor(LIMITER_1176_DEVICE,
   },
 })
 
+export const SPECTRAL_DRIFTER_DESCRIPTOR = wasmDeviceDescriptor(SPECTRAL_DRIFTER_DEVICE, {
+  name: 'Bloom Spectral Drifter',
+  category: 'other',
+  presets: {
+    Bloom: { mix: 0.5, bloom: 0.5, direction: 0, season: 0, seed: 0, interval: 1 },
+    Shimmer: { mix: 0.4, bloom: 0.8, direction: 0, season: 0, seed: 0, interval: 1, decay: 3 },
+    'Winter drift': { mix: 0.5, bloom: 0.6, direction: 1, season: 3, seed: 2, interval: 3 },
+    Scatter: { mix: 0.5, bloom: 0.7, direction: 2, season: 1, seed: 1, interval: 2 },
+  },
+})
+
 /**
  * The worklet sidechain ducker (U17) as a registry device. Its factory takes
  * the registry's `params` map and hands `processorUrl`/`createNode` through;
@@ -139,6 +151,7 @@ export const STOCK_WASM_DEVICES: readonly DeviceDescriptor[] = [
   ZITA_REV1_DESCRIPTOR,
   LIMITER_1176_DESCRIPTOR,
   WORKLET_DUCKER_DESCRIPTOR,
+  SPECTRAL_DRIFTER_DESCRIPTOR,
 ]
 
 /** Register the stock WASM devices (idempotent) in `registry`, the default one unless given. */

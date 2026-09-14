@@ -12,6 +12,7 @@ import { type WasmDeviceProcessorOptions } from '../abi'
 import { DATTORRO_DEVICE, createDattorroReverb } from '../devices/dattorro'
 import { FDN_REVERB_DEVICE, createFdnReverb } from '../devices/fdn-reverb'
 import { LIMITER_1176_DEVICE, createLimiter1176 } from '../devices/limiter-1176'
+import { SPECTRAL_DRIFTER_DEVICE, createSpectralDrifter } from '../devices/spectral-drifter'
 import { STEREO_WIDENER_DEVICE, createStereoWidener } from '../devices/stereo-widener'
 import { TRUE_PEAK_LIMITER_DEVICE, createTruePeakLimiter } from '../devices/true-peak-limiter'
 import { ZITA_REV1_DEVICE, createZitaReverb } from '../devices/zita-rev1'
@@ -39,6 +40,11 @@ const factories = [
     definition: TRUE_PEAK_LIMITER_DEVICE,
     create: createTruePeakLimiter,
     artefact: 'true-peak-limiter.wasm',
+  },
+  {
+    definition: SPECTRAL_DRIFTER_DEVICE,
+    create: createSpectralDrifter,
+    artefact: 'spectral-drifter.wasm',
   },
 ] as const
 

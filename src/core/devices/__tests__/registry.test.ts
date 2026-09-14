@@ -268,7 +268,14 @@ describe('default registry', () => {
     expect(registerStockWasmDevices()).toBe(devices)
     registerStockWasmDevices()
     const wasm = devices.list({ kind: 'wasm' }).map((d) => d.id)
-    expect(wasm).toEqual(['dattorro', 'fdn-reverb', 'stereo-widener', 'zita-rev1', 'limiter-1176'])
+    expect(wasm).toEqual([
+      'dattorro',
+      'fdn-reverb',
+      'stereo-widener',
+      'zita-rev1',
+      'limiter-1176',
+      'spectral-drifter',
+    ])
     expect(wasm.length).toBeGreaterThanOrEqual(before)
     expect(new Set(devices.ids()).size).toBe(devices.ids().length)
   })

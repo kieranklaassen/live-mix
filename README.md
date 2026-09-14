@@ -344,6 +344,7 @@ cpp/
   devices/fdn-reverb/ Tides 8-line FDN reverb (from kkfonie) behind the ABI
   devices/stereo-widener/  kkfonie's StereoWidener (source unchanged, SHA in device.json) behind the ABI
   devices/true-peak-limiter/  lookahead BS.1770 true-peak brickwall for the master (header-only DSP) behind the ABI
+  devices/spectral-drifter/  kkfonie Bloom's granular pitch drifter (de-JUCEd, SHA in device.json) behind the ABI
   faust/              Faust devices: *.dsp sources, generated/ C++, *.device.cpp ABI shims (docs/faust-devices.md)
   test/               native harnesses (parity tests for every ported device)
 scripts/              build.mjs, build-wasm.sh, build-faust.sh, test-native.sh, check-pack.mjs
@@ -393,7 +394,9 @@ device.bypass = true
 Devices written in [Faust](https://faust.grame.fr) (`cpp/faust/*.dsp`:
 Zita-Rev1 via `createZitaReverb`, an 1176 limiter via `createLimiter1176`)
 compile to C++ at library build time and sit behind the same ABI; see
-[`docs/faust-devices.md`](./docs/faust-devices.md).
+[`docs/faust-devices.md`](./docs/faust-devices.md). The full device catalogue
+with each device's origin, parameters and measured CPU cost (native and wasm)
+is [`docs/devices.md`](./docs/devices.md).
 
 ### Node devices, the registry and presets
 
@@ -443,7 +446,7 @@ pre-registered; the WASM devices join with one call from `./dsp`:
 import { devices } from '@kieranklaassen/live-mix'
 import { registerStockWasmDevices, wasmDeviceDescriptor } from '@kieranklaassen/live-mix/dsp'
 
-registerStockWasmDevices() // dattorro, fdn-reverb, stereo-widener, zita-rev1, limiter-1176
+registerStockWasmDevices() // dattorro, fdn-reverb, stereo-widener, zita-rev1, limiter-1176, spectral-drifter
 devices.register(wasmDeviceDescriptor(MY_DEVICE, { name: 'Mine', category: 'reverb' }))
 
 devices.list({ category: 'reverb' }).map((d) => d.name)
