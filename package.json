@@ -24,7 +24,9 @@
     "dattorro",
     "faust",
     "zita-rev1",
-    "limiter"
+    "limiter",
+    "wam",
+    "webaudiomodules"
   ],
   "sideEffects": false,
   "files": [
@@ -48,6 +50,10 @@
     "./testing": {
       "types": "./dist/testing/index.d.ts",
       "default": "./dist/testing/index.js"
+    },
+    "./wam": {
+      "types": "./dist/wam/index.d.ts",
+      "default": "./dist/wam/index.js"
     },
     "./worklets/*": "./dist/worklets/*",
     "./wasm/*": "./dist/wasm/*",
@@ -73,10 +79,18 @@
     "release:snapshot": "changeset version --snapshot next && pnpm build && changeset publish --tag next --no-git-tag"
   },
   "peerDependencies": {
+    "@webaudiomodules/api": "2.0.0-alpha.6",
+    "@webaudiomodules/sdk": "0.0.12",
     "react": ">=18",
     "signalsmith-stretch": ">=1.3.0"
   },
   "peerDependenciesMeta": {
+    "@webaudiomodules/api": {
+      "optional": true
+    },
+    "@webaudiomodules/sdk": {
+      "optional": true
+    },
     "react": {
       "optional": true
     },
@@ -92,6 +106,8 @@
     "@types/node": "^22.0.0",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "@webaudiomodules/api": "2.0.0-alpha.6",
+    "@webaudiomodules/sdk": "0.0.12",
     "esbuild": "^0.28.2",
     "eslint": "^9.39.5",
     "eslint-config-prettier": "^10.1.8",

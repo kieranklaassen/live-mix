@@ -84,6 +84,7 @@ git_install() {
       npm init -y >/dev/null &&
       HOME="$home" npm install "github:kieranklaassen/live-mix#$(git -C "$OLDPWD" rev-parse HEAD)" &&
       test -f node_modules/@kieranklaassen/live-mix/dist/index.js &&
+      test -f node_modules/@kieranklaassen/live-mix/dist/wam/index.js &&
       for wasm in "$OLDPWD"/src/dsp/wasm/*.wasm; do test -f "node_modules/@kieranklaassen/live-mix/dist/wasm/$(basename "$wasm")" || exit 1; done &&
       for worklet in wasm-device ducker meter; do test -f "node_modules/@kieranklaassen/live-mix/dist/worklets/$worklet.js" || exit 1; done &&
       node --input-type=module -e "
