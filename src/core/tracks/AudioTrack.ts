@@ -15,14 +15,23 @@
 // (lookaheadSec) and preload (preloadSec) over the same clip list. Adapters
 // that keep their own scheduling (Breathwork Live's SectionPlaylist) drive the
 // imperative voice API — `play`, `fadeOut`, `stop`, `stopAll` — directly.
+//
+// Voices leave the track through its ChannelStrip, which creates no nodes
+// until pan, level, mute, solo, an insert or a send is first used; until then
+// each voice connects straight to the destination as in Phase 0.
 
-import { type Bus } from '../buses/Bus'
 import { type Clip, type FadeCurve } from '../clips/Clip'
 import { equalPowerFadeIn, equalPowerFadeOut } from '../clips/curves'
 import { fadeGain } from '../clips/fade'
 import { type ClipWindow } from '../clips/window'
 import { scheduleKey, type ScheduledStart } from '../transport/anchor'
 import { type Schedulable, type Scheduler } from '../transport/Scheduler'
+import {
+  ChannelStrip,
+  type SoloInPlace,
+  type StripDestination,
+  type StripHost,
+} from './ChannelStrip'
 import { ClipList } from './ClipList'
 import { type SampleSource, type SampleStore } from './SampleStore'
 
@@ -77,8 +86,10 @@ export interface ClipVoice {
 
 export interface AudioTrackOptions {
   name: string
-  /** Where voices connect: a bus (its input) or a raw node. */
-  destination: Bus | AudioNode
+  /** Where voices connect: a bus (its input), a group, or a raw node. */
+  destination: StripDestination
+  /** The engine's solo registry, so this track's strip takes part in solo-in-place. */
+  solo?: SoloInPlace
   samples: SampleStore
   /** Audio clock in seconds (the engine clock). */
   now: () => number
@@ -96,13 +107,14 @@ export interface AudioTrackOptions {
   scheduler?: Scheduler
 }
 
-export class AudioTrack {
+export class AudioTrack implements StripHost {
   readonly name: string
   readonly clips: ClipList
+  /** Pan, fader, mute/solo, inserts and post-fader sends; node-free until first used. */
+  readonly strip: ChannelStrip
   lookaheadSec: number
   preloadSec: number
   private readonly ctx: BaseAudioContext
-  private readonly destination: AudioNode
   private readonly samples: SampleStore
   private readonly now: () => number
   private readonly resolveSource: ((clip: Clip) => SampleSource | undefined) | null
@@ -119,7 +131,11 @@ export class AudioTrack {
   constructor(ctx: BaseAudioContext, options: AudioTrackOptions) {
     this.ctx = ctx
     this.name = options.name
-    this.destination = isBus(options.destination) ? options.destination.input : options.destination
+    this.strip = new ChannelStrip(ctx, {
+      name: options.name,
+      destination: options.destination,
+      solo: options.solo,
+    })
     this.samples = options.samples
     this.now = options.now
     this.lookaheadSec = options.lookaheadSec ?? DEFAULT_LOOKAHEAD_SECONDS
@@ -274,6 +290,7 @@ export class AudioTrack {
     this.disposed = true
     this.detach()
     this.stopAll()
+    this.strip.dispose()
   }
 
   // --- Schedulable hooks ------------------------------------------------------
@@ -418,10 +435,10 @@ export class AudioTrack {
       const trim = this.ctx.createGain()
       trim.gain.value = trimValue
       gain.connect(trim)
-      trim.connect(this.destination)
+      this.strip.connectSource(trim)
       return trim
     }
-    gain.connect(this.destination)
+    this.strip.connectSource(gain)
     return null
   }
 
@@ -443,6 +460,7 @@ export class AudioTrack {
     voice.source.disconnect()
     voice.gain.disconnect()
     voice.trim?.disconnect()
+    this.strip.forgetSource(voice.trim ?? voice.gain)
     this.active.delete(voice.key)
   }
 
@@ -452,6 +470,7 @@ export class AudioTrack {
     voice.source.disconnect()
     voice.gain.disconnect()
     voice.trim?.disconnect()
+    this.strip.forgetSource(voice.trim ?? voice.gain)
   }
 }
 
@@ -481,10 +500,6 @@ class TrackSchedulable implements Schedulable {
   get lookaheadSec(): number {
     return this.readLookahead()
   }
-}
-
-function isBus(value: Bus | AudioNode): value is Bus {
-  return typeof (value as Bus).addInsert === 'function'
 }
 
 export type { ClipWindow }

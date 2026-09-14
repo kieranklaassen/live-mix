@@ -8,7 +8,8 @@
 // Node creation order is part of the contract (consumers' recorded-AudioParam
 // harnesses index nodes by creation order): OutputRouter (stream destination
 // in element mode) → master gain → optional master meter → buses in the order
-// the app adds them.
+// the app adds them. Track strips (U15) add nodes only when first used;
+// groups are explicit and add theirs on creation.
 
 import { MasterBus, type MasterBusOptions } from './buses/MasterBus'
 import { Bus } from './buses/Bus'
@@ -18,6 +19,13 @@ import { devices as defaultDevices } from './devices'
 import { Ducker, type DuckerOptions } from './devices/native/Ducker'
 import { type DeviceRegistry } from './devices/registry'
 import { AudioTrack, type AudioTrackOptions } from './tracks/AudioTrack'
+import {
+  SoloInPlace,
+  resolveInput,
+  type StripDestination,
+  type StripHost,
+} from './tracks/ChannelStrip'
+import { GroupTrack, type GroupTrackOptions } from './tracks/GroupTrack'
 import { InstrumentTrack, type InstrumentTrackOptions } from './tracks/InstrumentTrack'
 import { LiveInputTrack, type LiveInputTrackOptions } from './tracks/LiveInputTrack'
 import { ReturnTrack, type ReturnTrackOptions } from './tracks/ReturnTrack'
@@ -42,34 +50,50 @@ export interface EngineOptions extends ClockOptions {
   devices?: DeviceRegistry
 }
 
-export type AddLiveInputTrackOptions = Omit<LiveInputTrackOptions, 'name' | 'destination'> & {
+export type AddLiveInputTrackOptions = Omit<
+  LiveInputTrackOptions,
+  'name' | 'destination' | 'solo'
+> & {
   /** Where the dry signal goes; defaults to the master. */
-  destination?: Bus | AudioNode
+  destination?: StripDestination
 }
 
-export type AddInstrumentTrackOptions = Omit<InstrumentTrackOptions, 'name' | 'destination'> & {
+export type AddInstrumentTrackOptions = Omit<
+  InstrumentTrackOptions,
+  'name' | 'destination' | 'context' | 'solo'
+> & {
   /** Where the instrument feeds; defaults to the master. */
-  destination?: Bus | AudioNode
+  destination?: StripDestination
 }
 
-export type AddReturnTrackOptions = Omit<ReturnTrackOptions, 'name' | 'destination'> & {
+export type AddReturnTrackOptions = Omit<
+  ReturnTrackOptions,
+  'name' | 'destination' | 'context' | 'solo'
+> & {
   /** Where the return feeds; defaults to the master. */
-  destination?: Bus | AudioNode
+  destination?: StripDestination
 }
 
 export type AddDuckerOptions = Omit<DuckerOptions, 'target' | 'clock'>
 
 export type AddAudioTrackOptions = Omit<
   AudioTrackOptions,
-  'name' | 'destination' | 'samples' | 'now' | 'scheduler'
+  'name' | 'destination' | 'samples' | 'now' | 'scheduler' | 'solo'
 > & {
   /** Where the track's voices connect; defaults to the master. */
-  destination?: Bus | AudioNode
+  destination?: StripDestination
+}
+
+export type AddGroupOptions = Omit<GroupTrackOptions, 'name' | 'destination' | 'solo'> & {
+  /** Where the group feeds; defaults to the master. */
+  destination?: StripDestination
+  /** Tracks (or groups) to route into the new group. */
+  members?: readonly StripHost[]
 }
 
 export interface AddBusOptions {
   /** Where the bus feeds; defaults to the master. */
-  destination?: Bus | AudioNode
+  destination?: StripDestination
   gain?: number
 }
 
@@ -83,11 +107,14 @@ export class Engine {
   readonly samples: SampleStore
   /** Device registry (`engine.devices.create(id, { params, preset })`). */
   readonly devices: DeviceRegistry
+  /** Solo-in-place state across every track, return and group strip. */
+  readonly solo = new SoloInPlace()
   private readonly busMap = new Map<string, Bus>()
   private readonly trackMap = new Map<string, AudioTrack>()
   private readonly liveInputMap = new Map<string, LiveInputTrack>()
   private readonly returnMap = new Map<string, ReturnTrack>()
   private readonly instrumentMap = new Map<string, InstrumentTrack>()
+  private readonly groupMap = new Map<string, GroupTrack>()
   private readonly duckers = new Set<Ducker>()
   private disposed = false
 
@@ -116,10 +143,7 @@ export class Engine {
   addBus(name: string, options: AddBusOptions = {}): Bus {
     this.assertLive()
     if (this.busMap.has(name)) throw new Error(`live-mix: bus "${name}" already exists`)
-    const destination =
-      options.destination instanceof Bus
-        ? options.destination.input
-        : (options.destination ?? this.master.input)
+    const destination = resolveInput(options.destination ?? this.master)
     const bus = new Bus(this.context, { name, destination, gain: options.gain })
     this.busMap.set(name, bus)
     return bus
@@ -155,6 +179,7 @@ export class Engine {
       ...options,
       name,
       destination: options.destination ?? this.master,
+      solo: this.solo,
       samples: this.samples,
       now: this.clock.now,
       scheduler: this.scheduler,
@@ -190,6 +215,7 @@ export class Engine {
       ...options,
       name,
       destination: options.destination ?? this.master,
+      solo: this.solo,
     })
     this.liveInputMap.set(name, track)
     return track
@@ -210,6 +236,8 @@ export class Engine {
       ...options,
       name,
       destination: options.destination ?? this.master,
+      context: this.context,
+      solo: this.solo,
     })
     this.instrumentMap.set(name, track)
     return track
@@ -229,6 +257,8 @@ export class Engine {
       ...options,
       name,
       destination: options.destination ?? this.master,
+      context: this.context,
+      solo: this.solo,
     })
     this.returnMap.set(name, track)
     return track
@@ -238,6 +268,46 @@ export class Engine {
     const track = this.returnMap.get(name)
     if (!track) throw new Error(`live-mix: no return "${name}"`)
     return track
+  }
+
+  /**
+   * A group: a summing strip that member tracks route into, feeding the master
+   * (or a bus, or another group). Creates its four nodes immediately.
+   */
+  addGroup(name: string, options: AddGroupOptions = {}): GroupTrack {
+    this.assertLive()
+    if (this.groupMap.has(name)) throw new Error(`live-mix: group "${name}" already exists`)
+    const group = new GroupTrack(this.context, {
+      ...options,
+      name,
+      destination: options.destination ?? this.master,
+      solo: this.solo,
+    })
+    for (const member of options.members ?? []) group.add(member)
+    this.groupMap.set(name, group)
+    return group
+  }
+
+  group(name: string): GroupTrack {
+    const group = this.groupMap.get(name)
+    if (!group) throw new Error(`live-mix: no group "${name}"`)
+    return group
+  }
+
+  hasGroup(name: string): boolean {
+    return this.groupMap.has(name)
+  }
+
+  get groups(): readonly GroupTrack[] {
+    return [...this.groupMap.values()]
+  }
+
+  /** Dissolve a group: its members route to where the group fed. */
+  removeGroup(name: string): void {
+    const group = this.groupMap.get(name)
+    if (!group) return
+    group.dispose()
+    this.groupMap.delete(name)
   }
 
   /**
@@ -291,6 +361,8 @@ export class Engine {
     this.returnMap.clear()
     for (const track of this.instrumentMap.values()) track.dispose()
     this.instrumentMap.clear()
+    for (const group of this.groupMap.values()) group.dispose()
+    this.groupMap.clear()
     this.scheduler.dispose()
     this.samples.clear()
     for (const bus of this.busMap.values()) bus.dispose()
