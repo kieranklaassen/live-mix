@@ -6,16 +6,37 @@ import tseslint from 'typescript-eslint'
 const typeChecked = [
   ...tseslint.configs.recommendedTypeChecked,
   ...tseslint.configs.stylisticTypeChecked,
-].map((config) => ({ ...config, files: ['src/**/*.ts'] }))
+].map((config) => ({ ...config, files: ['src/**/*.ts', 'src/**/*.tsx'] }))
+
+// The playground is a Vite app outside the library's type-checked project.
+const playground = tseslint.configs.recommended.map((config) => ({
+  ...config,
+  files: ['playground/**/*.ts', 'playground/**/*.tsx'],
+}))
 
 export default tseslint.config(
   {
-    ignores: ['dist/**', 'coverage/**', 'node_modules/**', 'tmp/**', 'docs/**', '.changeset/**'],
+    ignores: [
+      'dist/**',
+      'coverage/**',
+      'node_modules/**',
+      'tmp/**',
+      'docs/**',
+      '.changeset/**',
+      'playground/dist/**',
+    ],
   },
   js.configs.recommended,
   ...typeChecked,
+  ...playground,
   {
-    files: ['src/**/*.ts'],
+    files: ['playground/**/*.ts', 'playground/**/*.tsx'],
+    languageOptions: {
+      globals: { ...globals.browser },
+    },
+  },
+  {
+    files: ['src/**/*.ts', 'src/**/*.tsx'],
     languageOptions: {
       parserOptions: {
         projectService: true,
@@ -45,7 +66,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['src/**/*.test.ts'],
+    files: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
     rules: {
       '@typescript-eslint/no-unsafe-assignment': 'off',
       '@typescript-eslint/no-unsafe-member-access': 'off',
