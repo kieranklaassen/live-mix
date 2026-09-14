@@ -198,9 +198,11 @@ module return `null`. GUI parameter changes usually go straight to the node —
 
 ## Latency
 
-`getCompensationDelay()` is in samples per the WAM API; `latencySec` divides
-by the context sample rate (the SDK's own JSDoc says seconds, its default is
-0). `latencySec` in the options overrides a plugin that misreports.
+`getCompensationDelay()` is in samples per the WAM API and becomes
+`latencySamples` as reported (rounded to whole samples), so U34 delay
+compensation sees the exact figure; `latencySec` divides by the context sample
+rate (the SDK's own JSDoc says seconds, its default is 0). `latencySec` in the
+options overrides a plugin that misreports.
 
 ## Dispose
 
