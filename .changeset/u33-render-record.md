@@ -14,6 +14,6 @@ taps the master or any bus/track through a capture worklet
 Hooks follow-ups: `engine.onChange` (track/group/return/live-input/instrument/
 element-track/bus added|removed, dispose), `Bus.targetLevel` + `Bus.onChange`,
 `engine.ioLatency()` (base + output + live-input latency),
-`LiveInputTrack.inputLatencySec`, `removeLiveInput`/`removeReturnTrack`/
-`removeInstrument` and `liveInputs`/`returns`/`instruments`;
+`LiveInputTrack.inputLatencySec`, change events on `removeLiveInputTrack`/`removeReturnTrack`/
+`removeInstrumentTrack`, `instruments` list;
 `MockAudioContext` takes `baseLatency`/`outputLatency` options.
