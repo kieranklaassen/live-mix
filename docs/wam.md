@@ -92,7 +92,7 @@ parameter, keyed by the WAM id (so `setParam('mix', v)` sets WAM param `mix`):
 | `defaultValue`                  | `default`      | clamped into range                                         |
 | `exponent > 0` and `min > 0`    | `taper: 'log'` | otherwise `'linear'`; the exact skew is kept as `exponent` |
 | `units`                         | `unit`         |                                                            |
-| `type`                          | `type`         | `'float'                                                   | 'int' | 'boolean' | 'choice'` — extra field |
+| `type`                          | `type`         | extra field: `float`, `int`, `boolean` or `choice`         |
 | `discreteStep` (or 1 for `int`) | `step`         | extra field; `setParam` snaps to it                        |
 | `choices`                       | `choices`      | extra field, labels indexed by value                       |
 
@@ -308,7 +308,7 @@ insertable audio effects (audio in and out) that fit a mixing engine:
 | StonePhaser, ThruZeroFlanger        | Wimmics         | Modulation                   | `wimmics/stonephaser/index.js`, `wimmics/ThruZeroFlanger/index.js`                      |
 | Csound Pitch Shifter                | Wimmics         | Pitch                        | `wimmics/csoundPitchShifter/dist/index.js`                                              |
 | DualPitchShifter                    | Wimmics         | Pitch                        | `wimmics/DualPitchShifter/index.js`                                                     |
-| Big Muff, TS9 Overdrive, Temper     | Wimmics         | Distortion (Faust)           | `wimmics/BigMuff/index.js`, `wimmics/TS9_Overdrive/index.js`, `wimmics/temper/index.js` |
+| Big Muff, TS9 Overdrive, Temper     | Wimmics         | Distortion                   | `wimmics/BigMuff/index.js`, `wimmics/TS9_Overdrive/index.js`, `wimmics/temper/index.js` |
 | Simple Distortion                   | Sequencer Party | Distortion                   | `burns-audio/distortion/index.js`                                                       |
 | LiveGain, Oscilloscope, Spectrogram | Wimmics         | Visualisation (pass-through) | `wimmics/SRVisualizers/dist/<name>/index.js`                                            |
 
@@ -322,8 +322,8 @@ descriptors (see the waveform-playlist survey), so trust
 **Licensing of the gallery.** The index carries no licence field. The
 `webaudiomodules/wam-examples` repository is MIT; `boourns/burns-audio-wam`
 (Sequencer Party) and `boourns/wam-community` publish **no licence file**; the
-Wimmics collection mixes sources (Faust-generated pedals from the Faust
-libraries — LGPL with the library exception —, Csound, hand-written JS) and
+Wimmics collection mixes sources (pedals exported from Faust — whose libraries
+are LGPL with the library exception —, a Csound build, hand-written JS) and
 must be checked per plugin. Treat the gallery as a demo catalogue: before a
 plugin ships inside Breathwork Live or ambient-live, confirm its licence with
 the author and pin a copy on our own origin (the community server is a
