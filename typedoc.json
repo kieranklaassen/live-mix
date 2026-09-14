@@ -1,0 +1,24 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "name": "@kieranklaassen/live-mix",
+  "entryPoints": [
+    "src/index.ts",
+    "src/dsp/index.ts",
+    "src/react/index.ts",
+    "src/testing/index.ts",
+    "src/wam/index.ts"
+  ],
+  "out": "docs/api",
+  "readme": "none",
+  "includeVersion": true,
+  "excludePrivate": true,
+  "excludeInternal": true,
+  "excludeExternals": true,
+  "skipErrorChecking": true,
+  "treatWarningsAsErrors": false,
+  "validation": { "notExported": false, "invalidLink": true, "notDocumented": false },
+  "navigation": { "includeCategories": true, "includeGroups": true },
+  "sort": ["kind", "alphabetical"],
+  "gitRevision": "main",
+  "sourceLinkTemplate": "https://github.com/kieranklaassen/live-mix/blob/{gitRevision}/{path}#L{line}"
+}

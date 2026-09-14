@@ -1,4 +1,4 @@
-import { type StripHost } from '@kieranklaassen/live-mix'
+import { wavBlob, type StripHost } from '@kieranklaassen/live-mix'
 import {
   ChannelStripView,
   DeviceChainView,
@@ -12,13 +12,14 @@ import {
   TimelineView,
   themeStyle,
   themes,
+  useEngine,
   useTransport,
   type LiveMixThemeName,
   type StripKind,
 } from '@kieranklaassen/live-mix/react'
 import { useEffect, useState, type CSSProperties } from 'react'
 
-import { createDemo, type Demo, type DemoMode } from './demo'
+import { LOOP_SEC, createDemo, renderDemo, type Demo, type DemoMode, type DemoRender } from './demo'
 
 const THEMES: { name: LiveMixThemeName; attr: string; label: string }[] = [
   { name: 'jaxa-zen', attr: 'light', label: 'JAXA-Zen' },
@@ -27,6 +28,11 @@ const THEMES: { name: LiveMixThemeName; attr: string; label: string }[] = [
 ]
 
 const query = new URLSearchParams(window.location.search)
+
+/** The running demo, for the console and playground/smoke.mjs (`window.playground.demo`). */
+function expose(demo: Demo | null): void {
+  ;(window as unknown as { playground: { demo: Demo | null } }).playground = { demo }
+}
 
 export function App() {
   const [demo, setDemo] = useState<Demo | null>(null)
@@ -40,17 +46,23 @@ export function App() {
     void createDemo('mock').then((created) => {
       current = created
       setDemo(created)
+      expose(created)
       setSelected({ host: created.tracks[0], kind: 'track' })
       if (query.get('play') === '1') created.engine.transport.start()
     })
-    return () => current?.dispose()
+    return () => {
+      current?.dispose()
+      expose(null)
+    }
   }, [])
 
   const switchMode = async (mode: DemoMode): Promise<void> => {
     demo?.dispose()
     setDemo(null)
+    expose(null)
     const next = await createDemo(mode)
     setDemo(next)
+    expose(next)
     setSelected({ host: next.tracks[0], kind: 'track' })
   }
 
@@ -88,6 +100,7 @@ export function App() {
           pressed={demo?.mode === 'live'}
           onPressedChange={(live) => void switchMode(live ? 'live' : 'mock')}
           tone="accent"
+          data-testid="mode-toggle"
         >
           {demo?.mode === 'live' ? 'Real audio on' : 'Use real audio'}
         </ToggleButton>
@@ -99,6 +112,7 @@ export function App() {
             <div className="pg-row">
               <TransportBar data-testid="transport" />
               <Playing />
+              <RenderPanel />
             </div>
           </section>
 
@@ -113,11 +127,16 @@ export function App() {
           </section>
 
           {selected ? (
-            <section className="pg-section">
+            <section className="pg-section" data-testid="devices">
               <h2>Devices — {selected.host.name}</h2>
               <DeviceChainView strip={selected.host} data-testid="chain" />
             </section>
           ) : null}
+
+          <section className="pg-section">
+            <h2>Device catalogue</h2>
+            <DeviceCatalogue />
+          </section>
 
           <section className="pg-section">
             <h2>Arrangement</h2>
@@ -147,9 +166,119 @@ function themeVars(theme: LiveMixThemeName): CSSProperties | undefined {
 function Playing() {
   const t = useTransport()
   return (
-    <span className="pg-mode">
+    <span className="pg-mode" data-testid="transport-state">
       {t.state} · loop {t.loop.enabled ? `${t.loop.lengthSec}s` : 'off'} · pass {t.iteration + 1}
     </span>
+  )
+}
+
+type RenderState =
+  | { status: 'idle' }
+  | { status: 'rendering' }
+  | { status: 'done'; render: DemoRender; url: string }
+  | { status: 'failed'; message: string }
+
+/**
+ * Bounce the demo session offline (U33) and offer the WAV. The render builds
+ * the same session on an `OfflineAudioContext`, independent of the engine on
+ * screen, so it works from the mock demo too.
+ */
+function RenderPanel() {
+  const [state, setState] = useState<RenderState>({ status: 'idle' })
+
+  useEffect(() => {
+    if (state.status !== 'done') return
+    const { url } = state
+    return () => URL.revokeObjectURL(url)
+  }, [state])
+
+  const render = async (): Promise<void> => {
+    setState({ status: 'rendering' })
+    try {
+      const render = await renderDemo()
+      const url = URL.createObjectURL(wavBlob(render.result.audio, { bitDepth: 16 }))
+      setState({ status: 'done', render, url })
+    } catch (error) {
+      setState({
+        status: 'failed',
+        message: error instanceof Error ? error.message : String(error),
+      })
+    }
+  }
+
+  const label = ((): string => {
+    switch (state.status) {
+      case 'idle':
+        return ''
+      case 'rendering':
+        return 'rendering…'
+      case 'done': {
+        const { render } = state
+        const peak = Number.isFinite(render.peakDb) ? `${render.peakDb.toFixed(1)} dBFS` : '−∞'
+        return `${render.result.durationSec} s · peak ${peak} · aligned ${render.alignedSamples} samples`
+      }
+      case 'failed':
+        return `failed: ${state.message}`
+      default: {
+        const _exhaustive: never = state
+        return _exhaustive
+      }
+    }
+  })()
+
+  return (
+    <div className="pg-row pg-render" data-testid="render" data-status={state.status}>
+      <ToggleButton
+        pressed={state.status === 'rendering'}
+        onPressedChange={() => void render()}
+        disabled={state.status === 'rendering'}
+        data-testid="render-button"
+      >
+        Render offline ({LOOP_SEC} s)
+      </ToggleButton>
+      <span className="pg-mode" data-testid="render-status">
+        {label}
+      </span>
+      {state.status === 'done' ? (
+        <a className="pg-link" href={state.url} download="live-mix-playground.wav">
+          Download WAV
+        </a>
+      ) : null}
+    </div>
+  )
+}
+
+/** Every device the demo engine can create, from its registry (node devices always; WASM with real audio). */
+function DeviceCatalogue() {
+  const engine = useEngine()
+  const list = engine.devices.list()
+  return (
+    <table className="pg-catalogue" data-testid="catalogue">
+      <thead>
+        <tr>
+          <th>id</th>
+          <th>name</th>
+          <th>kind</th>
+          <th>category</th>
+          <th>params</th>
+          <th>presets</th>
+        </tr>
+      </thead>
+      <tbody>
+        {list.map((descriptor) => (
+          <tr key={descriptor.id}>
+            <td>
+              <code>{descriptor.id}</code>
+            </td>
+            <td>{descriptor.name}</td>
+            <td>{descriptor.kind}</td>
+            <td>{descriptor.category}</td>
+            <td>{Object.keys(descriptor.params).length}</td>
+            <td>{descriptor.presets ? Object.keys(descriptor.presets).length : 0}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   )
 }
 

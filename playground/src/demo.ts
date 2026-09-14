@@ -6,12 +6,18 @@
 // meters and the playhead move.
 
 import {
+  DeviceRegistry,
   createEngine,
+  devices,
+  renderOffline,
+  type DeviceCreateOptions,
   type Engine,
   type Clip,
+  type RenderResult,
   type ReturnTrack,
   type AudioTrack,
 } from '@kieranklaassen/live-mix'
+import { STOCK_WASM_DEVICES, type AssetOverrides } from '@kieranklaassen/live-mix/dsp'
 import {
   asAudioContext,
   createMockContext,
@@ -28,7 +34,41 @@ export interface Demo {
   dispose(): void
 }
 
-const LOOP_SEC = 16
+export const LOOP_SEC = 16
+
+/**
+ * The playground imports the library from `src/`, where the dsp entry's
+ * `new URL('../worklets/wasm-device.js', import.meta.url)` has nothing to point
+ * at (the processor is bundled into `dist/worklets/` by `pnpm build`). The Vite
+ * config serves that folder at `/worklets/`, and every WASM factory here gets
+ * the explicit `processorUrl` override — the same escape hatch a consumer uses
+ * when its bundler cannot resolve the asset (KTD3).
+ */
+const WASM_PROCESSOR_URL = '/worklets/wasm-device.js'
+
+/**
+ * The registry each demo engine creates devices from: the stock node devices
+ * (and the rack) always; the WASM devices only where a real AudioWorklet
+ * exists — the mock context cannot construct an `AudioWorkletNode`, so its add
+ * picker must not offer one.
+ */
+function demoRegistry(mode: DemoMode): DeviceRegistry {
+  const registry = new DeviceRegistry(devices.list())
+  if (mode !== 'live') return registry
+  for (const descriptor of STOCK_WASM_DEVICES) {
+    registry.register({
+      ...descriptor,
+      create: (context, options) => {
+        const request: DeviceCreateOptions & AssetOverrides = {
+          processorUrl: WASM_PROCESSOR_URL,
+          ...options,
+        }
+        return descriptor.create(context, request)
+      },
+    })
+  }
+  return registry
+}
 
 interface Tone {
   id: string
@@ -131,16 +171,26 @@ async function buildSession(
   const bass = engine.addAudioTrack('bass')
   engine.addGroup('rhythm', { members: [drums, bass] })
 
+  // The hall is ambient-live's Dattorro plate (WASM) where a worklet can run,
+  // a feedback delay on the mock context.
   const hall = engine.addReturnTrack('hall', {
-    device: await engine.devices.create('delay', context, {
-      params: { timeSec: 0.375, feedback: 0.35, mix: 1 },
-    }),
+    device: engine.devices.has('dattorro')
+      ? await engine.devices.create('dattorro', context, { params: { mix: 1, decay: 0.7 } })
+      : await engine.devices.create('delay', context, {
+          params: { timeSec: 0.375, feedback: 0.35, mix: 1 },
+        }),
   })
 
   pad.strip.addInsert(
     await engine.devices.create('filter', context, { params: { frequency: 2400, q: 0.9 } }),
   )
   keys.strip.addInsert(await engine.devices.create('eq3', context))
+  // kkfonie's StereoWidener (WASM) after the EQ where a worklet can run.
+  if (engine.devices.has('stereo-widener')) {
+    keys.strip.addInsert(
+      await engine.devices.create('stereo-widener', context, { params: { width: 0.65 } }),
+    )
+  }
   drums.strip.addInsert(await engine.devices.create('compressor', context))
   pad.strip.sends.add(hall, { level: 0.4 })
   keys.strip.sends.add(hall, { level: 0.25 })
@@ -205,6 +255,7 @@ export async function createDemo(mode: DemoMode): Promise<Demo> {
       context: asAudioContext(ctx),
       master: { meter: true },
       samples: { peaks: 256 },
+      devices: demoRegistry(mode),
     })
     const session = await buildSession(engine)
     const stop = animateMock(ctx, engine)
@@ -219,7 +270,12 @@ export async function createDemo(mode: DemoMode): Promise<Demo> {
     }
   }
   const context = new AudioContext({ latencyHint: 'interactive' })
-  const engine = createEngine({ context, master: { meter: true }, samples: { peaks: 256 } })
+  const engine = createEngine({
+    context,
+    master: { meter: true },
+    samples: { peaks: 256 },
+    devices: demoRegistry(mode),
+  })
   await engine.activateOutput()
   const session = await buildSession(engine)
   return {
@@ -230,5 +286,39 @@ export async function createDemo(mode: DemoMode): Promise<Demo> {
       engine.dispose()
       void context.close()
     },
+  }
+}
+
+export interface DemoRender {
+  result: RenderResult
+  /** Sample peak of the bounce in dBFS (−∞ for silence). */
+  peakDb: number
+  /** Whole-mix latency the render was aligned to, in samples. */
+  alignedSamples: number
+}
+
+/**
+ * Bounce the demo session offline (U33): the same `buildSession` on an
+ * `OfflineAudioContext`, with the WASM plate — worklets run offline in Chromium
+ * and Firefox. The result's engine is disposed here; only the audio survives.
+ */
+export async function renderDemo(durationSec = LOOP_SEC): Promise<DemoRender> {
+  const result = await renderOffline({
+    durationSec,
+    sampleRate: 48_000,
+    engine: { samples: { peaks: false }, devices: demoRegistry('live') },
+    build: async (engine) => {
+      await buildSession(engine)
+    },
+  })
+  let peak = 0
+  for (const channel of result.audio.channels) {
+    for (let i = 0; i < channel.length; i += 1) peak = Math.max(peak, Math.abs(channel[i]))
+  }
+  result.engine.dispose()
+  return {
+    result,
+    peakDb: peak > 0 ? 20 * Math.log10(peak) : -Infinity,
+    alignedSamples: result.latency.maxArrivalSamples,
   }
 }

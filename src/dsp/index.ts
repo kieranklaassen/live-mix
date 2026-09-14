@@ -1,8 +1,12 @@
-// `@kieranklaassen/live-mix/dsp` — WASM device hosting.
-//
-// Nothing here touches `AudioContext`, `window` or `import.meta.url` at import
-// time, so the entry is safe to import under SSR; asset URLs resolve lazily
-// inside the factories.
+/**
+ * `@kieranklaassen/live-mix/dsp` — WASM device hosting.
+ *
+ * Nothing here touches `AudioContext`, `window` or `import.meta.url` at import
+ * time, so the entry is safe to import under SSR; asset URLs resolve lazily
+ * inside the factories.
+ *
+ * @module live-mix/dsp
+ */
 
 export {
   BYPASS_RAMP_SECONDS,

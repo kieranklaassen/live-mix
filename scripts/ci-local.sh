@@ -9,7 +9,13 @@
 # diffed against the committed .wasm, and the github: install path (needs git
 # access to the repo: a token via GITHUB_TOKEN/GH_TOKEN, or an ssh key).
 #
-# Usage: bash scripts/ci-local.sh [--skip-git-install] [--browser]
+# Also generates the API reference (TypeDoc, never committed) and, when a
+# Chrome/Chromium binary is available (or CHROME_BIN points at one), runs the
+# playground smoke test in headless Chromium: load, start audio from a
+# synthesised click, play, bounce offline, drive the agent console, no console
+# errors. Skipped with a note otherwise, or with --skip-playground.
+#
+# Usage: bash scripts/ci-local.sh [--skip-git-install] [--skip-playground] [--browser]
 #   --browser  also run the real-audio browser golden (Playwright + the
 #              installed Google Chrome, or Playwright's Chromium with
 #              LIVE_MIX_BROWSER=chromium); builds the playground for its smoke.
@@ -17,9 +23,11 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 
 skip_git_install=0
+skip_playground=0
 browser=0
 for arg in "$@"; do
   [ "$arg" = "--skip-git-install" ] && skip_git_install=1
+  [ "$arg" = "--skip-playground" ] && skip_playground=1
   [ "$arg" = "--browser" ] && browser=1
 done
 
@@ -131,6 +139,30 @@ browser_tests() {
   pnpm playground:build && pnpm test:browser
 }
 
+find_chrome() {
+  if [ -n "${CHROME_BIN:-}" ] && [ -x "${CHROME_BIN}" ]; then
+    echo "$CHROME_BIN"
+    return 0
+  fi
+  local candidate
+  for candidate in google-chrome google-chrome-stable chromium chromium-browser chrome; do
+    if command -v "$candidate" >/dev/null 2>&1; then
+      command -v "$candidate"
+      return 0
+    fi
+  done
+  local mac="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+  if [ -x "$mac" ]; then
+    echo "$mac"
+    return 0
+  fi
+  return 1
+}
+
+playground_smoke() {
+  CHROME_BIN="$1" node playground/smoke.mjs
+}
+
 echo "live-mix local CI on $branch @ $sha"
 run_step "pnpm install --frozen-lockfile" pnpm install --frozen-lockfile
 run_step "pnpm typecheck" pnpm typecheck
@@ -138,9 +170,18 @@ run_step "pnpm lint" pnpm lint
 run_step "pnpm test" pnpm test
 run_step "pnpm build" pnpm build
 run_step "pnpm pack:check" pnpm pack:check
+run_step "api reference (typedoc)" pnpm docs:api
 run_step "native C++ tests" native_tests
 run_step "faust reproduce (Faust 2.88.0)" faust_reproduce
 run_step "wasm reproduce (emsdk)" wasm_reproduce
+if [ "$skip_playground" = 1 ]; then
+  results+=("| playground smoke (headless Chromium) | skipped | — |")
+elif chrome=$(find_chrome); then
+  run_step "playground smoke (headless Chromium)" playground_smoke "$chrome"
+else
+  results+=("| playground smoke (headless Chromium) | skipped (no Chrome found; set CHROME_BIN) | — |")
+  echo "- playground smoke: skipped (no Chrome/Chromium binary found; set CHROME_BIN)"
+fi
 if [ "$skip_git_install" = 1 ]; then
   results+=("| github: install path | skipped | — |")
 else

@@ -1,14 +1,18 @@
-// `@kieranklaassen/live-mix/react` — React bindings (U24 hooks, U25 kit; R32).
-//
-// Hooks over the engine's change events through `useSyncExternalStore`, plus
-// frame-sampled readings (playhead, meters) at a bounded rate, and the styled
-// components built on them (`components/*`), themed through `--lm-*` CSS
-// variables with an optional stylesheet at `./react/styles.css`. `react` is
-// an optional peer dependency and this entry is the only one that imports it.
-//
-// Import-safe under SSR: nothing here reads `window`, `document` or
-// `requestAnimationFrame` at module load, and every hook and component
-// renders on the server from the same snapshot it uses on the client.
+/**
+ * `@kieranklaassen/live-mix/react` — React bindings (U24 hooks, U25 kit; R32).
+ *
+ * Hooks over the engine's change events through `useSyncExternalStore`, plus
+ * frame-sampled readings (playhead, meters) at a bounded rate, and the styled
+ * components built on them (`components/*`), themed through `--lm-*` CSS
+ * variables with an optional stylesheet at `./react/styles.css`. `react` is
+ * an optional peer dependency and this entry is the only one that imports it.
+ *
+ * Import-safe under SSR: nothing here reads `window`, `document` or
+ * `requestAnimationFrame` at module load, and every hook and component
+ * renders on the server from the same snapshot it uses on the client.
+ *
+ * @module live-mix/react
+ */
 
 export {
   LiveMixContext,

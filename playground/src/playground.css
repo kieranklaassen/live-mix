@@ -95,6 +95,35 @@ body {
   width: 240px;
 }
 
+.pg-render {
+  align-items: center;
+  gap: 10px;
+}
+
+a.pg-link {
+  color: var(--lm-accent);
+  font-family: var(--lm-font-mono);
+  font-size: 11px;
+}
+
+table.pg-catalogue {
+  border-collapse: collapse;
+  font-family: var(--lm-font-mono);
+  font-size: 11px;
+}
+
+table.pg-catalogue th,
+table.pg-catalogue td {
+  padding: 3px 10px 3px 0;
+  text-align: left;
+  border-bottom: 1px solid var(--lm-hairline);
+}
+
+table.pg-catalogue th {
+  color: var(--lm-muted);
+  font-weight: 500;
+}
+
 select.pg-select {
   height: 22px;
   padding: 0 6px;
