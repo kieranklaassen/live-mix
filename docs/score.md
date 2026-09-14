@@ -111,6 +111,7 @@ score throws `ScoreOperationError`, so a failed operation changes nothing.
 | Routes                                                            | `route.add`, `route.remove`, `route.update`                                                                                                                        |
 | Session grid (U31, [`docs/session.md`](./session.md))             | `transport.quantize`, `scene.add`, `scene.remove` (its slots go with it), `scene.move`, `scene.rename`, `slot.add`, `slot.remove`, `slot.update`                   |
 | Composite                                                         | `batch { ops, label? }` — one step; inverse is the reversed inverses                                                                                               |
+| Whole document (U30)                                              | `score.replace { score, label? }` — a version restored: validated on apply, inverse carries the previous document                                                  |
 
 Removals cascade: a track takes the lanes and routes on its strip and
 devices with it (and its session slots), a group re-routes its members, a
@@ -127,8 +128,10 @@ operations per seed and checks undo, redo and the inverse of the inverse.
 ## Log and history
 
 `OperationLog` is append-only: every `apply`, `undo` and `redo` becomes an
-entry `{ seq, op, inverse, author: { id, kind: 'human' | 'agent' | 'system'
-}, atMs, kind, ref?, gesture?, label? }`. Undo does not rewind the log —
+entry `{ seq, op, inverse, author: { id, kind: 'human' | 'controller' |
+'agent' | 'automation' | 'system' }, atMs, kind, ref?, gesture?, label? }`
+(the kinds are the arbitration classes of
+[`docs/arbitration.md`](./arbitration.md)). Undo does not rewind the log —
 it appends the inverse (with `ref` to the entry it undoes), so the log is a
 complete transcript for feedback loops. Checkpoints (full score snapshots,
 every 50 entries by default, plus seq 0) make `scoreAt(seq)` a bounded
@@ -160,8 +163,11 @@ where the hand started and redo where it let go. Discrete edits (add,
 remove, route, mute, preset, batch) never coalesce. The log still records
 every intermediate operation. 500 ms is the default because it separates
 "the hand moved again" from "the hand came back": UIs that know their
-pointer lifecycle should tag gestures instead. U30 layers controller
-arbitration (human vs agent vs automation) on top of this.
+pointer lifecycle should tag gestures instead. The `Arbiter`
+([`docs/arbitration.md`](./arbitration.md)) layers controller arbitration
+(human vs agent vs automation) on top of this, and `VersionHistory`
+([`docs/versions.md`](./versions.md)) names snapshots that restore as one
+`score.replace` step.
 
 ## Rendering: the graph follows the document
 
@@ -219,7 +225,9 @@ anchored at audio-clock zero so a re-render lands on the same phase.
   until the gesture ends. U28 gives that a home — apply the operations as the
   gesture goes (they coalesce into one undo step) or write the engine
   directly and commit one operation on release; the arbitration rule between
-  human, agent and automation is U30.
+  human, agent and automation is the `Arbiter` (U30,
+  [`docs/arbitration.md`](./arbitration.md)), which the hooks' `touch` /
+  `release` and the control surface's write hook plug into.
 
 ### Bouncing a score (U33)
 

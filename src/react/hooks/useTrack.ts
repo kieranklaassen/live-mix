@@ -1,9 +1,12 @@
 // Mixer state per strip: level, pan, mute/solo, audibility, inserts, over
 // `ChannelStrip.onChange`. Setters ramp through the strip (never a step, R2).
 // `useTrack` resolves any track kind by object or name; `useGroup` adds
-// membership.
+// membership. Inside a provider with an `arbiter` (U30), level/pan/trim/
+// mute/solo setters apply attributed `strip.*` operations as the human
+// author instead — the renderer ramps the strip — and `touch`/`release`
+// bracket a drag so the hand holds the target for the touch window.
 
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, useRef } from 'react'
 
 import { type Device } from '../../core/devices/Device'
 import { type Engine } from '../../core/Engine'
@@ -14,8 +17,11 @@ import {
   type StripHost,
 } from '../../core/tracks/ChannelStrip'
 import { type GroupTrack } from '../../core/tracks/GroupTrack'
+import { type Arbiter } from '../../score/Arbiter'
+import { type Operation } from '../../score/operations'
+import { findStripHost as findScoreStripHost, type StripParam } from '../../score/schema'
 import { useExternalSnapshot } from '../store'
-import { useMaybeEngine } from './useEngine'
+import { useMaybeArbiter, useMaybeEngine } from './useEngine'
 
 export interface StripSnapshot {
   name: string
@@ -53,12 +59,28 @@ export interface StripControls {
   removeInsert(device: Device): void
   /** Re-route the strip to a bus, a group or a node. */
   connectTo(destination: StripDestination): void
+  /**
+   * Pointer down on a continuous control: with an arbiter, holds the target
+   * open-ended and starts a fresh undo gesture. A no-op otherwise.
+   */
+  touch(param: StripParam): void
+  /** Pointer up: the hold runs its timer and the gesture ends. */
+  release(param: StripParam): void
+  /** True when setters write attributed score operations through an arbiter. */
+  attributed: boolean
 }
 
 export type UseStripResult = StripSnapshot & StripControls & { strip: ChannelStrip }
 
+/** Whether the arbiter's score knows this strip by name (ids are engine names). */
+function scoreHas(arbiter: Arbiter | null, name: string): arbiter is Arbiter {
+  return arbiter !== null && findScoreStripHost(arbiter.score, name) !== undefined
+}
+
 /** Mixer state and ramped setters for one strip. */
 export function useStrip(strip: ChannelStrip): UseStripResult {
+  const arbiter = useMaybeArbiter()
+  const gestures = useRef<Partial<Record<StripParam, number>>>({})
   const subscribe = useCallback((onChange: () => void) => strip.onChange(() => onChange()), [strip])
   const read = useCallback(
     (): StripSnapshot => ({
@@ -78,24 +100,74 @@ export function useStrip(strip: ChannelStrip): UseStripResult {
   )
   const snapshot = useExternalSnapshot(subscribe, read)
 
-  const controls = useMemo<StripControls>(
-    () => ({
-      setLevel: (value, options) => strip.setLevel(value, options),
-      setPan: (value, options) => strip.setPan(value, options),
-      setInputGain: (value, options) => strip.setInputGain(value, options),
-      setMute: (value, options) => strip.setMute(value, options),
-      toggleMute: () => strip.setMute(!strip.mute),
-      setSolo: (value, options) => strip.setSolo(value, options),
-      toggleSolo: () => strip.setSolo(!strip.solo),
-      setSoloSafe: (value) => {
-        strip.soloSafe = value
-      },
+  const controls = useMemo<StripControls>(() => {
+    const owner = strip.name
+    const target = (param: StripParam) => ({ kind: 'strip' as const, owner, param })
+    /** The arbiter when the score carries this strip; the engine setter otherwise. */
+    const via = (op: () => Operation, gesture: StripParam | null, direct: () => void): void => {
+      if (!scoreHas(arbiter, owner)) {
+        direct()
+        return
+      }
+      arbiter.apply(
+        op(),
+        gesture ? { gesture: `ui:${owner}:${gesture}#${gestures.current[gesture] ?? 0}` } : {},
+      )
+    }
+    const set = (param: StripParam, value: number, direct: () => void): void =>
+      via(() => ({ type: 'strip.set', owner, param, value }), param, direct)
+    return {
+      setLevel: (value, options) => set('level', value, () => strip.setLevel(value, options)),
+      setPan: (value, options) => set('pan', value, () => strip.setPan(value, options)),
+      setInputGain: (value, options) =>
+        set('inputGain', value, () => strip.setInputGain(value, options)),
+      setMute: (value, options) =>
+        via(
+          () => ({ type: 'strip.mute', owner, mute: value }),
+          null,
+          () => strip.setMute(value, options),
+        ),
+      toggleMute: () =>
+        via(
+          () => ({ type: 'strip.mute', owner, mute: !strip.mute }),
+          null,
+          () => strip.setMute(!strip.mute),
+        ),
+      setSolo: (value, options) =>
+        via(
+          () => ({ type: 'strip.solo', owner, solo: value }),
+          null,
+          () => strip.setSolo(value, options),
+        ),
+      toggleSolo: () =>
+        via(
+          () => ({ type: 'strip.solo', owner, solo: !strip.solo }),
+          null,
+          () => strip.setSolo(!strip.solo),
+        ),
+      setSoloSafe: (value) =>
+        via(
+          () => ({ type: 'strip.soloSafe', owner, soloSafe: value }),
+          null,
+          () => {
+            strip.soloSafe = value
+          },
+        ),
       addInsert: (device) => strip.addInsert(device),
       removeInsert: (device) => strip.removeInsert(device),
       connectTo: (destination) => strip.connectTo(destination),
-    }),
-    [strip],
-  )
+      touch: (param) => {
+        gestures.current[param] = (gestures.current[param] ?? 0) + 1
+        if (scoreHas(arbiter, owner)) arbiter.touch(target(param))
+      },
+      release: (param) => {
+        if (!scoreHas(arbiter, owner)) return
+        arbiter.release(target(param))
+        arbiter.endGesture()
+      },
+      attributed: scoreHas(arbiter, owner),
+    }
+  }, [strip, arbiter])
 
   return { strip, ...snapshot, ...controls }
 }

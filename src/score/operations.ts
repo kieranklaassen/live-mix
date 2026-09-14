@@ -31,6 +31,7 @@ import {
   findStripHost,
   findTrack,
   normaliseClip,
+  normaliseScore,
   normaliseSlot,
   normaliseTempo,
   sameTarget,
@@ -38,6 +39,7 @@ import {
   sortBreakpoints,
   sortClips,
   targetKey,
+  validateScore,
   type ParamTarget,
   type Score,
   type ScoreDestination,
@@ -174,6 +176,11 @@ export type Operation =
   | { type: 'slot.update'; id: string; patch: SlotPatch }
   /** Applied in order as one step; the inverse is the reversed inverses. */
   | { type: 'batch'; ops: Operation[]; label?: string }
+  /**
+   * Replace the whole document (a version restored, U30). The score is
+   * validated and normalised on apply; the inverse carries the previous one.
+   */
+  | { type: 'score.replace'; score: Score; label?: string }
 
 export type OperationType = Operation['type']
 
@@ -239,6 +246,7 @@ export const OPERATION_TYPES: readonly OperationType[] = [
   'slot.remove',
   'slot.update',
   'batch',
+  'score.replace',
 ]
 
 export function isOperation(value: unknown): value is Operation {
@@ -339,6 +347,7 @@ export function coalesceKey(op: Operation): string | null {
     case 'slot.remove':
     case 'slot.update':
     case 'batch':
+    case 'score.replace':
       return null
     default: {
       const exhaustive: never = op
@@ -1257,6 +1266,12 @@ export function apply(score: Score, op: Operation): Score {
     case 'batch':
       return op.ops.reduce((current, child) => apply(current, child), score)
 
+    case 'score.replace': {
+      const issues = validateScore(op.score)
+      if (issues.length > 0) fail(op, `${issues[0].path || 'score'}: ${issues[0].message}`)
+      return normaliseScore(op.score)
+    }
+
     default: {
       const exhaustive: never = op
       return exhaustive
@@ -1738,6 +1753,12 @@ export function invert(score: Score, op: Operation): Operation {
       return inverse
     }
 
+    case 'score.replace': {
+      const inverse: Operation = { type: 'score.replace', score }
+      if (op.label !== undefined) inverse.label = op.label
+      return inverse
+    }
+
     default: {
       const exhaustive: never = op
       return exhaustive
@@ -1887,6 +1908,8 @@ export function describeOperation(op: Operation): string {
         : `edit slot ${op.id}`
     case 'batch':
       return op.label ?? `${op.ops.length} operations`
+    case 'score.replace':
+      return op.label ?? `replace score with "${op.score.name}"`
     default: {
       const exhaustive: never = op
       return exhaustive

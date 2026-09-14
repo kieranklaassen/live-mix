@@ -286,6 +286,53 @@ export class ScoreRenderer {
     return this.lanes.get(id) ?? this.missing(id)
   }
 
+  /** The score device instance id a live device was created for, if any (the reverse of `device`). */
+  deviceIdFor(device: Device): string | undefined {
+    for (const [id, candidate] of this.deviceMap) if (candidate === device) return id
+    return undefined
+  }
+
+  /**
+   * The `LaneWriter` driving a parameter sample-accurately, when a lane alone
+   * binds it (the arbiter overrides and releases it around a touch, U30).
+   * Undefined for free parameters and for targets the `ModMatrix` drives.
+   */
+  writerFor(target: ParamTarget): LaneWriter | undefined {
+    const binding = this.bindings.get(targetKey(target))
+    return binding?.kind === 'writer' ? binding.writer : undefined
+  }
+
+  /**
+   * Ramp a parameter's live value directly, bypassing the document: what a
+   * hand does to a lane-bound parameter while its writer is overridden. The
+   * document is not touched; false when the target is not rendered.
+   */
+  writeThrough(target: ParamTarget, value: number): boolean {
+    switch (target.kind) {
+      case 'strip': {
+        if (target.owner === MASTER_OWNER) {
+          if (target.param !== 'level') return false
+          this.engine.master.setLevel(value)
+          return true
+        }
+        const handle = this.owners.get(target.owner)
+        if (!handle) return false
+        setStripParam(handle.strip, target.param, value)
+        return true
+      }
+      case 'device': {
+        const device = this.deviceMap.get(target.device)
+        if (!device || !(target.param in device.params)) return false
+        device.setParam(target.param, value)
+        return true
+      }
+      default: {
+        const exhaustive: never = target
+        return exhaustive
+      }
+    }
+  }
+
   // --- Rendering -----------------------------------------------------------------------
 
   /**

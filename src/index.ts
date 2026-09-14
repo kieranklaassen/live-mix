@@ -495,3 +495,24 @@ export * from './score'
 export * from './core/session'
 export * from './core/control'
 export * from './agent'
+export {
+  DEFAULT_ARBITRATION_POLICY,
+  DEFAULT_DEFER_TTL_MS,
+  DEFAULT_HOLD_MS,
+  HoldTable,
+  WRITER_KINDS,
+  decide,
+  formatPolicyTable,
+  policyTable,
+  resolvePolicy,
+  sameOwner,
+  type ArbitrationDecision,
+  type ArbitrationPolicy,
+  type ArbitrationPolicyOptions,
+  type Hold,
+  type HoldOwner,
+  type HoldTableOptions,
+  type Lock,
+  type PolicyRow,
+  type WriterKind,
+} from './core/params/arbitration'

@@ -194,6 +194,8 @@ export function DevicePanel({
                 d.setParam(name, value)
                 if (presetName) setPresetName('')
               }}
+              onChangeStart={() => d.touch(name)}
+              onChangeEnd={() => d.release(name)}
               className="lm-device__param"
               data-testid={testId ? `${testId}-${name}` : undefined}
             />

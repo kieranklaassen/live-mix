@@ -8,6 +8,7 @@
 
 import { type Engine } from '../core/Engine'
 import { type IntervalId } from '../core/clock'
+import { type Arbiter } from '../score/Arbiter'
 import { type Author } from '../score/log'
 import { ScoreOperationError, type Operation } from '../score/operations'
 import { type ScoreDocument } from '../score/ScoreDocument'
@@ -60,6 +61,13 @@ export interface AgentControllerOptions {
   engine?: Engine
   /** The score the operation tools edit; without one only hooks-backed intents and queries are available. */
   document?: ScoreDocument
+  /**
+   * Route every operation through the arbiter (U30): a target the listener
+   * holds defers the write (the call succeeds with an `arbitration` note and
+   * lands later) or refuses it per the policy; rails still outrank the agent.
+   * Must wrap the same `document`.
+   */
+  arbiter?: Arbiter
   /** The consumer's session hooks (sections, pace, dip logic). */
   session?: AgentSession
   roles?: AgentRoles
@@ -91,6 +99,7 @@ export class AgentController implements ControllerView {
   readonly audit: AgentAuditLog
   readonly author: Author
   readonly document: ScoreDocument | null
+  readonly arbiter: Arbiter | null
   readonly engine: Engine | null
   readonly session: AgentSession
   readonly roles: AgentRoles
@@ -110,6 +119,10 @@ export class AgentController implements ControllerView {
   constructor(options: AgentControllerOptions = {}) {
     this.engine = options.engine ?? null
     this.document = options.document ?? null
+    this.arbiter = options.arbiter ?? null
+    if (this.arbiter && this.document && this.arbiter.document !== this.document) {
+      throw new Error("live-mix: AgentController: the arbiter must wrap the controller's document")
+    }
     this.session = options.session ?? {}
     this.roles = { ...options.roles }
     this.staticLibrary = options.library ?? []
@@ -276,15 +289,52 @@ export class AgentController implements ControllerView {
 
     const applied: AppliedOperation[] = []
     const inverses: Operation[] = []
+    const tickets: number[] = []
     const label = `agent:${name}#${callId} ${plan.label}`
     try {
       for (const op of plan.operations) {
         if (!this.document) throw new ToolError('unavailable', `"${name}" needs a score document`)
-        const entry = this.document.apply(op, { author, atMs, label })
-        applied.push({ seq: entry.seq, type: op.type })
-        inverses.push(entry.inverse)
+        if (!this.arbiter) {
+          const entry = this.document.apply(op, { author, atMs, label })
+          applied.push({ seq: entry.seq, type: op.type })
+          inverses.push(entry.inverse)
+          continue
+        }
+        const outcome = this.arbiter.apply(op, { author, atMs, label })
+        const holder = outcome.holder ? `${outcome.holder.kind} "${outcome.holder.id}"` : 'someone'
+        switch (outcome.outcome) {
+          case 'applied':
+            if (outcome.entry) {
+              applied.push({ seq: outcome.entry.seq, type: op.type })
+              inverses.push(outcome.entry.inverse)
+            }
+            break
+          case 'deferred':
+            if (outcome.ticket !== undefined) tickets.push(outcome.ticket)
+            notes.push({
+              rail: 'arbitration',
+              action: 'deferred',
+              message: `${op.type} on ${outcome.targets.join(', ')} is held by ${holder}; it lands when the hold ends`,
+            })
+            break
+          case 'dropped':
+            notes.push({
+              rail: 'arbitration',
+              action: 'rejected',
+              message: `${op.type} on ${outcome.targets.join(', ')} is ${outcome.reason} by ${holder}`,
+            })
+            throw new ToolError(
+              'rejected',
+              `"${name}": ${op.type} is ${outcome.reason} by ${holder}`,
+            )
+          default: {
+            const exhaustive: never = outcome.outcome
+            throw new Error(String(exhaustive))
+          }
+        }
       }
       let result = { ...plan.result }
+      if (tickets.length > 0) result = { ...result, deferred: tickets.length }
       for (const effect of plan.effects) {
         const fragment = effect()
         if (fragment) result = { ...result, ...fragment }
@@ -313,6 +363,7 @@ export class AgentController implements ControllerView {
       })
       return success
     } catch (error) {
+      for (const ticket of tickets) this.arbiter?.cancel(ticket)
       this.rollback(inverses, author, atMs, label)
       return this.failureFrom(error, notes, fail)
     }

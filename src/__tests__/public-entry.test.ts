@@ -179,6 +179,25 @@ const coreSymbols = [
   'scriptTools',
   'ScriptAuthoring',
   'createScriptAuthoring',
+  // Controller arbitration and version history (U30)
+  'Arbiter',
+  'arbiterTargets',
+  'arbitratedControlWriter',
+  'controlWriteToOperation',
+  'DEFAULT_ARBITRATION_POLICY',
+  'policyTable',
+  'formatPolicyTable',
+  'decide',
+  'HoldTable',
+  'VersionHistory',
+  'diffScores',
+  'describeFieldChange',
+  'memoryVersionStorage',
+  'webStorageVersionStorage',
+  'indexedDbVersionStorage',
+  'CONTROLLER_AUTHOR',
+  'SYSTEM_AUTHOR',
+  'withVersionCheckpoints',
 ] as const
 
 const dspSymbols = [

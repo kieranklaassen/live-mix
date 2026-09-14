@@ -99,3 +99,4 @@ export type {
   ToolSuccess,
 } from './types'
 export * from './score-authoring'
+export { withVersionCheckpoints, type VersionCheckpointOptions } from './versionCheckpoints'

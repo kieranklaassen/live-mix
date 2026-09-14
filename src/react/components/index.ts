@@ -108,3 +108,4 @@ export {
   type TimelineViewProps,
 } from './TimelineView'
 export { clipPeaks, Waveform, waveformPath, type WaveformProps } from './Waveform'
+export { VersionList, type VersionListProps } from './VersionList'

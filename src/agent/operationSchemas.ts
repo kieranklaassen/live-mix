@@ -852,6 +852,15 @@ const OPERATION_SPECS: Record<OperationType, OperationSpec> = {
     },
     required: ['ops'],
   },
+  'score.replace': {
+    description:
+      'Replace the whole document with a full score (a saved version restored); validated on apply, undoable as one step.',
+    properties: {
+      score: { type: 'object', description: 'A complete score document (the current format).' },
+      label: { type: 'string' },
+    },
+    required: ['score'],
+  },
 }
 
 /** The parameters schema of one operation's tool: self-contained, with only the `$defs` it uses. */

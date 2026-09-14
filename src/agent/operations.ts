@@ -18,6 +18,7 @@ import { type ConsentScope } from './types'
 
 const STRUCTURE: ReadonlySet<OperationType> = new Set<OperationType>([
   'score.rename',
+  'score.replace',
   'track.add',
   'track.remove',
   'track.move',

@@ -215,6 +215,8 @@ export function ChannelStripView({
           size={36}
           className="lm-strip__pan"
           onChange={(pan) => s.setPan(pan)}
+          onChangeStart={() => s.touch('pan')}
+          onChangeEnd={() => s.release('pan')}
           data-testid={testId ? `${testId}-pan` : undefined}
         />
       ) : null}
@@ -233,6 +235,8 @@ export function ChannelStripView({
           format={(db) => (db <= faderMinDb ? '-∞ dB' : formatControlValue(db, 'dB'))}
           className="lm-strip__fader"
           onChange={(db) => s.setLevel(faderDbToLevel(db, faderMinDb))}
+          onChangeStart={() => s.touch('level')}
+          onChangeEnd={() => s.release('level')}
           data-testid={testId ? `${testId}-fader` : undefined}
         />
         {meterSource ? (

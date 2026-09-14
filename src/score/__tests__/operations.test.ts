@@ -264,6 +264,38 @@ describe('apply', () => {
     expect(score.transport.loop).toEqual({ enabled: true, lengthSec: 16 })
   })
 
+  it('score.replace swaps the whole document, validates it, and inverts to the previous one', () => {
+    const before = demoScore()
+    const next = apply(before, { type: 'strip.set', owner: 'kick', param: 'level', value: 0.1 })
+    const replaced = applyWithInverse(before, {
+      type: 'score.replace',
+      score: next,
+      label: 'restore',
+    })
+    expect(replaced.score).toEqual(next)
+    expect(replaced.inverse).toEqual({ type: 'score.replace', score: before, label: 'restore' })
+    expect(apply(replaced.score, replaced.inverse)).toEqual(before)
+    expect(coalesceKey({ type: 'score.replace', score: next })).toBeNull()
+    expect(describeOperation({ type: 'score.replace', score: next })).toBe(
+      'replace score with "Demo"',
+    )
+    expect(() =>
+      apply(before, {
+        type: 'score.replace',
+        score: { ...next, format: 9 } as unknown as typeof next,
+      }),
+    ).toThrow(ScoreOperationError)
+    expect(() =>
+      apply(before, {
+        type: 'score.replace',
+        score: {
+          ...next,
+          tracks: [{ ...next.tracks[0], destination: { kind: 'group', id: 'nope' } }],
+        },
+      }),
+    ).toThrow(/destination/)
+  })
+
   it('describes operations, lists their types, and recognises them', () => {
     expect(OPERATION_TYPES).toContain('clip.replaceFrom')
     expect(new Set(OPERATION_TYPES).size).toBe(OPERATION_TYPES.length)
