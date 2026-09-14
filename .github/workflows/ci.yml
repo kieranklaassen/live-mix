@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Typecheck, lint, test, build, pack
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+      - name: Pack and verify exports
+        run: pnpm check:pack
+
+  native:
+    name: Native C++ device tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compile and run harnesses
+        run: bash scripts/test-native.sh
+
+  wasm:
+    name: WASM artefacts reproduce
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: mymindstorm/setup-emsdk@v14
+        with:
+          # Keep in sync with EMSDK_VERSION in scripts/build-wasm.sh.
+          version: 4.0.15
+          actions-cache-folder: emsdk-cache
+
+      - name: Rebuild every device
+        run: bash scripts/build-wasm.sh tmp/wasm-rebuild
+
+      - name: Compare against the committed bytes
+        run: |
+          set -euo pipefail
+          status=0
+          for committed in src/dsp/wasm/*.wasm; do
+            name=$(basename "$committed")
+            rebuilt="tmp/wasm-rebuild/$name"
+            if [ ! -f "$rebuilt" ]; then
+              echo "::error::$name is committed but scripts/build-wasm.sh did not produce it"
+              status=1
+              continue
+            fi
+            if cmp -s "$committed" "$rebuilt"; then
+              echo "$name reproduces ($(sha256sum "$committed" | cut -c1-16))"
+            else
+              echo "::error::$name differs from the committed artefact. Run scripts/build-wasm.sh with emsdk 4.0.15 and commit the result."
+              sha256sum "$committed" "$rebuilt"
+              status=1
+            fi
+          done
+          exit $status

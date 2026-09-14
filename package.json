@@ -1,0 +1,102 @@
+{
+  "name": "@kieranklaassen/live-mix",
+  "version": "0.0.1",
+  "description": "Ableton-like browser mixing engine: tracks, sends, transport, clip scheduling, live input and WASM devices on raw Web Audio + AudioWorklet.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Kieran Klaassen",
+  "homepage": "https://github.com/kieranklaassen/live-mix#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kieranklaassen/live-mix.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kieranklaassen/live-mix/issues"
+  },
+  "keywords": [
+    "web-audio",
+    "audioworklet",
+    "wasm",
+    "mixer",
+    "daw",
+    "transport",
+    "reverb",
+    "dattorro"
+  ],
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "cpp/common",
+    "cpp/devices"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./dsp": {
+      "types": "./dist/dsp/index.d.ts",
+      "default": "./dist/dsp/index.js"
+    },
+    "./react": {
+      "types": "./dist/react/index.d.ts",
+      "default": "./dist/react/index.js"
+    },
+    "./testing": {
+      "types": "./dist/testing/index.d.ts",
+      "default": "./dist/testing/index.js"
+    },
+    "./worklets/*": "./dist/worklets/*",
+    "./wasm/*": "./dist/wasm/*",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "prepare": "node scripts/build.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint . && prettier --check .",
+    "format": "prettier --write .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:native": "bash scripts/test-native.sh",
+    "build:wasm": "bash scripts/build-wasm.sh",
+    "check:pack": "node scripts/check-pack.mjs",
+    "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm check:pack",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "pnpm build && changeset publish"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@changesets/changelog-github": "^1.0.1",
+    "@changesets/cli": "^2.31.1",
+    "@eslint/js": "^9.39.5",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.3.0",
+    "esbuild": "^0.28.2",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.12.0",
+    "prettier": "^3.9.6",
+    "react": "^19.3.0",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.70.0",
+    "vitest": "^4.1.11"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@10.33.3",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

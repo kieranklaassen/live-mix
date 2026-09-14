@@ -1,0 +1,52 @@
+name: Release
+
+# Changesets flow: every merge to main either opens/updates the "Version
+# Packages" PR (when unreleased changesets exist) or, when that PR itself was
+# just merged, publishes the new version to npm.
+#
+# Publishing uses npm trusted publishing (GitHub OIDC): no NPM_TOKEN secret.
+# One-time setup on npmjs.com is required before the first automated publish —
+# see README "Releasing". Until then this job only maintains the version PR.
+
+on:
+  push:
+    branches: [main]
+
+concurrency: release-${{ github.ref }}
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      # Trusted publishing needs npm >= 11.5.1; Node 22 bundles npm 10.
+      - name: Upgrade npm for OIDC publishing
+        run: npm install -g npm@latest
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Version or publish
+        uses: changesets/action@v1
+        with:
+          publish: pnpm release
+          title: 'chore: version packages'
+          commit: 'chore: version packages'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
