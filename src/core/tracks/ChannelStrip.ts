@@ -23,6 +23,7 @@
 
 import { LEVEL_RAMP_SECONDS, type Bus } from '../buses/Bus'
 import { type Device } from '../devices/Device'
+import { Emitter } from '../events'
 import { SendList } from './Send'
 
 /** Anything with a `strip`: `AudioTrack`, `LiveInputTrack`, `ReturnTrack`, `GroupTrack`. */
@@ -63,6 +64,31 @@ export interface RampOptions {
   timeConstant?: number
 }
 
+/**
+ * What changed on a strip (U24: UI subscriptions). `gate` is the implicit
+ * mute another strip's solo imposes; `members` fires on a group strip when a
+ * child is routed in or out; `routing` on the strip that moved.
+ */
+export type StripChangeKind =
+  | 'inputGain'
+  | 'level'
+  | 'pan'
+  | 'mute'
+  | 'solo'
+  | 'soloSafe'
+  | 'gate'
+  | 'inserts'
+  | 'routing'
+  | 'members'
+  | 'dispose'
+
+export interface StripChange {
+  kind: StripChangeKind
+  strip: ChannelStrip
+}
+
+export type StripChangeListener = (change: StripChange) => void
+
 interface StripNodes {
   readonly inputGain: GainNode
   readonly panner: StereoPannerNode
@@ -81,6 +107,7 @@ export class ChannelStrip {
   private readonly registry: SoloInPlace | null
   private readonly sources = new Set<AudioNode>()
   private readonly insertList: Device[] = []
+  private readonly changes = new Emitter<StripChange>()
   private sendList: SendList | null = null
   private nodes: StripNodes | null = null
 
@@ -230,12 +257,18 @@ export class ChannelStrip {
         source.connect(node)
       }
     }
-    this.parentStrip?.childStrips.delete(this)
+    const previousParent = this.parentStrip
+    previousParent?.childStrips.delete(this)
     this.target = destination
     this.destinationNode = node
     this.parentStrip = parent
     parent?.childStrips.add(this)
     this.registry?.refresh()
+    this.changed('routing')
+    if (previousParent !== parent) {
+      previousParent?.changed('members')
+      parent?.changed('members')
+    }
   }
 
   // --- Levels and pan ------------------------------------------------------------
@@ -250,6 +283,7 @@ export class ChannelStrip {
     const { inputGain } = this.ensureNodes()
     this.inputGainValue = Math.max(0, value)
     this.ramp(inputGain.gain, this.inputGainValue, options)
+    this.changed('inputGain')
   }
 
   /** Last commanded fader value (linear). */
@@ -262,6 +296,7 @@ export class ChannelStrip {
     const { fader } = this.ensureNodes()
     this.levelValue = Math.max(0, value)
     this.ramp(fader.gain, this.levelValue, options)
+    this.changed('level')
   }
 
   /** Last commanded pan, −1 (left) … 1 (right). */
@@ -274,6 +309,7 @@ export class ChannelStrip {
     const { panner } = this.ensureNodes()
     this.panValue = Math.min(1, Math.max(-1, value))
     this.ramp(panner.pan, this.panValue, options)
+    this.changed('pan')
   }
 
   // --- Mute and solo -------------------------------------------------------------
@@ -291,6 +327,7 @@ export class ChannelStrip {
     if (this.muted === value) return
     this.muted = value
     this.updateGate(options)
+    this.changed('mute')
   }
 
   get solo(): boolean {
@@ -306,6 +343,7 @@ export class ChannelStrip {
     if (this.soloed === value) return
     this.soloed = value
     this.registry?.refresh(options)
+    this.changed('solo')
   }
 
   get soloSafe(): boolean {
@@ -317,6 +355,7 @@ export class ChannelStrip {
     if (this.soloSafeFlag === value) return
     this.soloSafeFlag = value
     this.registry?.refresh()
+    this.changed('soloSafe')
   }
 
   /** True when another strip's solo is muting this one. */
@@ -334,6 +373,15 @@ export class ChannelStrip {
     if (this.implicitMute === !open) return
     this.implicitMute = !open
     this.updateGate(options)
+    this.changed('gate')
+  }
+
+  /**
+   * Subscribe to level, pan, mute/solo, gate, insert, routing and membership
+   * changes (everything a mixer view draws). Returns the unsubscribe function.
+   */
+  onChange(listener: StripChangeListener): () => void {
+    return this.changes.subscribe(listener)
   }
 
   // --- Inserts (between input gain and pan) ----------------------------------------
@@ -352,6 +400,7 @@ export class ChannelStrip {
     before.connect(device.input)
     device.output.connect(panner)
     this.insertList.push(device)
+    this.changed('inserts')
   }
 
   /** Remove a device and reconnect around it (does not dispose it). */
@@ -366,6 +415,7 @@ export class ChannelStrip {
     device.output.disconnect(after)
     this.insertList.splice(index, 1)
     before.connect(after)
+    this.changed('inserts')
   }
 
   // --- Sends (post-fader, post-gate: muted with the strip) ---------------------------
@@ -379,7 +429,8 @@ export class ChannelStrip {
   dispose(): void {
     if (this.disposed) return
     this.disposed = true
-    this.parentStrip?.childStrips.delete(this)
+    const parent = this.parentStrip
+    parent?.childStrips.delete(this)
     this.parentStrip = null
     this.registry?.unregister(this)
     this.sendList?.dispose()
@@ -395,9 +446,16 @@ export class ChannelStrip {
     this.nodes = null
     this.insertList.length = 0
     this.sources.clear()
+    this.changed('dispose')
+    this.changes.clear()
+    parent?.changed('members')
   }
 
   // --- Internals -------------------------------------------------------------------
+
+  private changed(kind: StripChangeKind): void {
+    this.changes.emit({ kind, strip: this })
+  }
 
   private updateGate(options: RampOptions): void {
     const command = this.muted || this.implicitMute ? 0 : 1

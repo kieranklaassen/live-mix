@@ -12,8 +12,9 @@
 // bundled worklet URL); the engine's `addDucker(bus, { mode: 'worklet' })`
 // then builds and inserts the device synchronously.
 
+import { Emitter } from '../../events'
 import { clampParam } from '../../params'
-import { type Device } from '../Device'
+import { type DeviceChange, type DeviceChangeListener, type ObservableDevice } from '../Device'
 import {
   DUCKER_PARAMS,
   DUCKER_PROCESSOR_NAME,
@@ -44,13 +45,14 @@ const defaultCreateNode: DuckerNodeFactory = (context, name, options) =>
 
 const PARAM_NAMES = Object.keys(DUCKER_PARAMS) as DuckerParamName[]
 
-export class WorkletDucker implements Device, SidechainDucker {
+export class WorkletDucker implements ObservableDevice, SidechainDucker {
   readonly id = 'ducker'
   readonly mode = 'worklet' as const
   readonly params = DUCKER_PARAMS
   readonly node: AudioWorkletNode
   readonly latencySec = 0
   private readonly values = new Map<DuckerParamName, number>()
+  private readonly changes = new Emitter<DeviceChange>()
   private keyed: AudioNode | null = null
   private envelopeValue = 0
   private gainValue = 1
@@ -162,6 +164,7 @@ export class WorkletDucker implements Device, SidechainDucker {
     const clamped = clampParam(spec, value)
     this.values.set(name, clamped)
     this.post({ type: 'set-param', paramId: spec.id, value: clamped })
+    this.changes.emit({ type: 'param', name, value: clamped })
   }
 
   getParam(name: DuckerParamName): number {
@@ -177,6 +180,12 @@ export class WorkletDucker implements Device, SidechainDucker {
     if (this.bypassed === enabled) return
     this.bypassed = enabled
     this.post({ type: 'bypass', enabled })
+    this.changes.emit({ type: 'bypass', bypass: enabled })
+  }
+
+  /** Called after every `setParam` and bypass change; returns the unsubscribe function. */
+  onChange(listener: DeviceChangeListener): () => void {
+    return this.changes.subscribe(listener)
   }
 
   /** Freeze the follower for good: the gain settles at its last target. */
@@ -193,6 +202,7 @@ export class WorkletDucker implements Device, SidechainDucker {
     this.unkey()
     this.post({ type: 'dispose' })
     this.disposed = true
+    this.changes.clear()
     try {
       this.node.disconnect()
     } catch {

@@ -6,6 +6,7 @@
 // parameter at control rate through the same path.
 
 import { type Device } from '../devices/Device'
+import { Emitter } from '../events'
 import { type ModSource } from './Modulator'
 import { type ParamLane } from './ParamLane'
 import { DEFAULT_RAMP_SECONDS, ParamRamper, type ScheduledParam } from './scheduled-param'
@@ -106,10 +107,13 @@ export function routeOffset(route: ModRoute, timeSec: number): number {
   return route.depth * signal
 }
 
+export type ModMatrixListener = (matrix: ModMatrix) => void
+
 export class ModMatrix {
   readonly rampSec: number
   private readonly routeList: ModRoute[] = []
   private readonly targetSet = new Set<ModTarget>()
+  private readonly listeners = new Emitter<ModMatrix>()
 
   constructor(options: ModMatrixOptions = {}) {
     this.rampSec = options.rampSec ?? DEFAULT_RAMP_SECONDS
@@ -135,26 +139,50 @@ export class ModMatrix {
     }
     this.routeList.push(route)
     this.targetSet.add(target)
+    this.changed()
     return route
   }
 
   /** Remove a route; the target stays attached until `detach`. */
   unmap(route: ModRoute): void {
     const index = this.routeList.indexOf(route)
-    if (index >= 0) this.routeList.splice(index, 1)
+    if (index < 0) return
+    this.routeList.splice(index, 1)
+    this.changed()
+  }
+
+  /** Change a route's depth and/or polarity in place (U24: the matrix announces it). */
+  setRoute(route: ModRoute, options: ModRouteOptions): ModRoute {
+    if (!this.routeList.includes(route)) throw new Error('live-mix: route is not in this matrix')
+    if (options.depth !== undefined) route.depth = clampDepth(options.depth)
+    if (options.polarity !== undefined) route.polarity = options.polarity
+    this.changed()
+    return route
   }
 
   /** Drive a target with no routes — a lane base on a device parameter. */
   attach(target: ModTarget): void {
+    if (this.targetSet.has(target)) return
     this.targetSet.add(target)
+    this.changed()
   }
 
   /** Stop driving a target and drop its routes. */
   detach(target: ModTarget): void {
-    this.targetSet.delete(target)
+    if (!this.targetSet.delete(target)) return
     for (let index = this.routeList.length - 1; index >= 0; index -= 1) {
       if (this.routeList[index].target === target) this.routeList.splice(index, 1)
     }
+    this.changed()
+  }
+
+  /** Called after every `map`, `unmap`, `setRoute`, `attach` and `detach`. Returns the unsubscribe function. */
+  onChange(listener: ModMatrixListener): () => void {
+    return this.listeners.subscribe(listener)
+  }
+
+  private changed(): void {
+    this.listeners.emit(this)
   }
 
   /** The value a target takes: base plus every route's offset, clamped to its range. */

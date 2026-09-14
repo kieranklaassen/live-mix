@@ -13,6 +13,8 @@
  * (`v0 + (v1 − v0)·(1 − cos πu)/2`), written as `SMOOTH_SEGMENT_STEPS` linear
  * sub-ramps because a curve is not a native AudioParam event.
  */
+import { Emitter } from '../events'
+
 export type LaneCurve = 'step' | 'linear' | 'exponential' | 'smooth'
 
 export interface Breakpoint {
@@ -42,6 +44,7 @@ export class ParamLane {
   /** Bumps on every edit so writers know to re-plan their lookahead. */
   version = 0
   private points: Breakpoint[] = []
+  private readonly listeners = new Emitter<ParamLane>()
 
   constructor(options: ParamLaneOptions = {}) {
     this.min = options.min ?? Number.NEGATIVE_INFINITY
@@ -65,7 +68,7 @@ export class ParamLane {
       if (index < 0) this.points.push(next)
       else this.points.splice(index, 0, next)
     }
-    this.version += 1
+    this.bump()
     return this
   }
 
@@ -74,7 +77,7 @@ export class ParamLane {
     const index = this.points.findIndex((point) => point.timeSec === timeSec)
     if (index >= 0) {
       this.points.splice(index, 1)
-      this.version += 1
+      this.bump()
     }
     return this
   }
@@ -87,12 +90,17 @@ export class ParamLane {
       byTime.set(next.timeSec, next)
     }
     this.points = [...byTime.values()].sort((a, b) => a.timeSec - b.timeSec)
-    this.version += 1
+    this.bump()
     return this
   }
 
   clear(): this {
     return this.replace([])
+  }
+
+  /** Called after every edit (each `version` bump) with the lane. Returns the unsubscribe function. */
+  onChange(listener: (lane: ParamLane) => void): () => void {
+    return this.listeners.subscribe(listener)
   }
 
   /**
@@ -138,6 +146,11 @@ export class ParamLane {
 
   private clamp(value: number): number {
     return Math.min(this.max, Math.max(this.min, value))
+  }
+
+  private bump(): void {
+    this.version += 1
+    this.listeners.emit(this)
   }
 }
 

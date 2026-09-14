@@ -12,8 +12,9 @@
 // the same 5 ms the WASM host uses for its bypass crossfade, so both device
 // kinds respond identically to a knob.
 
+import { Emitter } from '../../events'
 import { clampParam, type ParamSpec } from '../../params'
-import { type Device } from '../Device'
+import { type DeviceChange, type DeviceChangeListener, type ObservableDevice } from '../Device'
 
 /** Ramp length for parameter and bypass changes; equals the WASM host's `BYPASS_RAMP_SECONDS`. */
 export const NODE_DEVICE_RAMP_SECONDS = 0.005
@@ -67,7 +68,7 @@ const setImmediately: ParamRamp = (param, value) => {
 export class NodeDevice<
   P extends Record<string, ParamSpec> = Record<string, ParamSpec>,
   G extends NodeDeviceGraph<P> = NodeDeviceGraph<P>,
-> implements Device {
+> implements ObservableDevice {
   readonly id: string
   readonly params: Readonly<P>
   readonly input: GainNode
@@ -78,6 +79,7 @@ export class NodeDevice<
   private readonly dry: GainNode
   private readonly wet: GainNode
   private readonly values = new Map<string, number>()
+  private readonly changes = new Emitter<DeviceChange>()
   private bypassed = false
   private disposed = false
 
@@ -118,8 +120,8 @@ export class NodeDevice<
     if (!spec) throw new Error(`live-mix: ${this.id} has no parameter "${name}"`)
     const clamped = clampParam(spec, value)
     this.values.set(name, clamped)
-    if (this.disposed) return
-    this.graph.apply[name](clamped, this.ramp)
+    if (!this.disposed) this.graph.apply[name](clamped, this.ramp)
+    this.changes.emit({ type: 'param', name, value: clamped })
   }
 
   getParam(name: keyof P & string): number {
@@ -151,14 +153,22 @@ export class NodeDevice<
   set bypass(enabled: boolean) {
     if (this.bypassed === enabled) return
     this.bypassed = enabled
-    if (this.disposed) return
-    this.ramp(this.dry.gain, enabled ? 1 : 0)
-    this.ramp(this.wet.gain, enabled ? 0 : 1)
+    if (!this.disposed) {
+      this.ramp(this.dry.gain, enabled ? 1 : 0)
+      this.ramp(this.wet.gain, enabled ? 0 : 1)
+    }
+    this.changes.emit({ type: 'bypass', bypass: enabled })
+  }
+
+  /** Called after every `setParam` and bypass change; returns the unsubscribe function. */
+  onChange(listener: DeviceChangeListener): () => void {
+    return this.changes.subscribe(listener)
   }
 
   dispose(): void {
     if (this.disposed) return
     this.disposed = true
+    this.changes.clear()
     for (const node of [this.input, this.dry, this.wet, this.output, ...this.graph.nodes]) {
       node.disconnect()
     }

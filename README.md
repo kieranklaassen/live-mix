@@ -131,14 +131,14 @@ an ancestor group is soloed, a descendant is soloed, or it is `soloSafe`
 
 Entry points (all ESM):
 
-| Import                                | Contents                                                                                                  |
-| ------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `@kieranklaassen/live-mix`            | Engine, tracks, buses, `Transport`, `Scheduler`, `Clip`, `SampleStore`, `OutputRouter`, native devices    |
-| `@kieranklaassen/live-mix/dsp`        | `WasmDevice` host, the C ABI typings, device factories (`createDattorroReverb`, …) and their param tables |
-| `@kieranklaassen/live-mix/react`      | Optional hooks and tokenised Knob/Fader/DevicePanel (Phase 1; `react` is an optional peer)                |
-| `@kieranklaassen/live-mix/testing`    | `MockAudioContext` with an AudioParam event recorder, framework-free                                      |
-| `@kieranklaassen/live-mix/worklets/*` | Raw worklet bundles, for consumers that prefer explicit `?url` imports                                    |
-| `@kieranklaassen/live-mix/wasm/*`     | Raw `.wasm` artefacts, same reason                                                                        |
+| Import                                | Contents                                                                                                                   |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `@kieranklaassen/live-mix`            | Engine, tracks, buses, `Transport`, `Scheduler`, `Clip`, `SampleStore`, `OutputRouter`, native devices                     |
+| `@kieranklaassen/live-mix/dsp`        | `WasmDevice` host, the C ABI typings, device factories (`createDattorroReverb`, …) and their param tables                  |
+| `@kieranklaassen/live-mix/react`      | Headless hooks over the engine (`LiveMixProvider`, `useTransport`, `useTrack`, `useMeter`, …); `react` is an optional peer |
+| `@kieranklaassen/live-mix/testing`    | `MockAudioContext` with an AudioParam event recorder, framework-free                                                       |
+| `@kieranklaassen/live-mix/worklets/*` | Raw worklet bundles, for consumers that prefer explicit `?url` imports                                                     |
+| `@kieranklaassen/live-mix/wasm/*`     | Raw `.wasm` artefacts, same reason                                                                                         |
 
 ### Memory: sample eviction and streaming beds
 
@@ -335,7 +335,7 @@ src/
   dsp/devices/faust/  generated param tables for the Faust devices (scripts/build-faust.sh)
   dsp/worklets/       wasm-device.processor.ts, ducker.processor.ts, meter.processor.ts → dist/worklets/*.js (one file each, no imports)
   dsp/wasm/           committed *.wasm artefacts (scripts/build-wasm.sh; CI verifies they reproduce)
-  react/              Phase 1 hooks and components
+  react/              headless hooks (U24): hooks/*, frame sampling, useSyncExternalStore store; components follow in U25
   testing/            MockAudioContext + AudioParam recorder
 cpp/
   common/             device_api.h (the C ABI), dsp_util.h
@@ -500,6 +500,84 @@ compatible with everything): `camelotCompatible`, `camelotDistance`,
 `transposeCamelot` (one semitone = seven steps around the wheel), and
 `keyMatch(anchor, candidate, { maxSemitones })` — the smallest shift that
 lands compatible, `rankByKeyMatch` to order candidates.
+
+### React hooks (`./react`)
+
+Headless bindings, no components and no styles (the styled kit is U25). Every
+hook subscribes through `useSyncExternalStore` to the change events the core
+objects expose (`Transport.onChange`, `ChannelStrip.onChange`,
+`ClipList.subscribe`, `ParamLane.onChange`, `ModMatrix.onChange`,
+`SampleStore.onChange`, `EngineStats.subscribe`, `ObservableDevice.onChange`)
+and re-renders only when its snapshot changed. Values the engine does not
+announce — the playhead while playing, analyser and LUFS meter levels — are
+sampled on `requestAnimationFrame` at a bounded rate (`fps`, default 30).
+Setters go through the engine's own ramped calls (never a step).
+
+```tsx
+import type { Engine } from '@kieranklaassen/live-mix'
+import {
+  LiveMixProvider,
+  useDeviceParam,
+  useEngine,
+  useMeter,
+  useSchedule,
+  useTrack,
+  useTransport,
+} from '@kieranklaassen/live-mix/react'
+
+function App({ engine }: { engine: Engine | null }) {
+  return (
+    <LiveMixProvider engine={engine}>
+      <TransportBar />
+      <Strip name="pad" />
+    </LiveMixProvider>
+  )
+}
+
+function TransportBar() {
+  const { playing, positionSec, toggle } = useTransport() // engine.transport
+  const { peak, lufsShortTerm } = useMeter() // engine.master: analyser peak, LUFS once installed
+  return (
+    <button onClick={toggle}>
+      {playing ? 'Pause' : 'Play'} {positionSec.toFixed(1)} s · {peak.toFixed(2)} ·{' '}
+      {lufsShortTerm.toFixed(1)} LUFS
+    </button>
+  )
+}
+
+function Strip({ name }: { name: string }) {
+  const pad = useEngine().track(name) // or useTrack(name) to resolve any track kind by name
+  const { level, pan, audible, setLevel, setPan, toggleMute, toggleSolo } = useTrack(pad)
+  const { sounding, upcoming } = useSchedule(pad, { horizonSec: 8 })
+  const cutoff = useDeviceParam(pad.strip.inserts[0], 'frequency')
+  // cutoff: { value, normalized, spec, set, setNormalized, reset }
+  // …
+}
+```
+
+| Hook                                      | Reads                                                                                  | Writes                                                           |
+| ----------------------------------------- | -------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `useEngine()` / `useMaybeEngine()`        | the provided `Engine` (throws / null without one)                                      | —                                                                |
+| `useTransport(transport?, { fps })`       | `state`, `playing`, `position` (frame-sampled while playing), `loop`                   | `start`, `pause`, `stop`, `seek`, `setLoop`, `toggle`            |
+| `useStrip(strip)`                         | `level`, `pan`, `inputGain`, `mute`, `solo`, `audible`, `implicitlyMuted`, `inserts`   | `setLevel`, `setPan`, `setMute`, `setSolo`, `addInsert`, …       |
+| `useTrack(track \| name)`                 | `useStrip` of any track kind, resolved by object or name                               | same                                                             |
+| `useGroup(group \| name)`                 | `useStrip` plus `members`                                                              | `add`, `remove`                                                  |
+| `useMeter(source?, { fps, active })`      | `peak`, `rms`, `peakDb`, `lufs` reading, `lufsShortTerm`, `truePeakDb`                 | —                                                                |
+| `useDevice(device, { registry })`         | `values`, `bypass`, `params`, `descriptor`, `presets`                                  | `setParam`, `setBypass`, `applyPreset`, `capturePreset`, `reset` |
+| `useDeviceParam(device, name)`            | `value`, `normalized` (taper-aware), `spec`                                            | `set`, `setNormalized`, `reset`                                  |
+| `useLane(lane)`                           | `breakpoints`, `version`, `valueAt`                                                    | `add`, `remove`, `replace`, `clear`                              |
+| `useModulation(matrix?)`                  | `routes`, `targets`, `routesFor`                                                       | `map`, `unmap`, `setRoute`, `attach`, `detach`                   |
+| `useSampleStore(store?)`                  | `metrics`, `ids`                                                                       | `load`, `forget`, `pin`, `unpin`, `setBudgetBytes`, `evict`      |
+| `useEngineStats(stats?)`                  | `glitches`, `underrunRatio`, `averageLoad`, `peakLoad`, `supported`                    | `reset`, `recordGlitch`                                          |
+| `useClips(track \| list)`                 | `clips` (sorted)                                                                       | `add`, `update`, `remove`, `set`, `replaceFrom`, `clear`         |
+| `useSchedule(track, { horizonSec, fps })` | `sounding`, `upcoming` (the Scheduler's own window function), `positionSec`, `playing` | —                                                                |
+
+Hooks that default to an engine part (`useTransport()`, `useMeter()`, …) need
+the provider; every hook also takes the object explicitly. The entry is
+import-safe under SSR and renders on the server from the same snapshots; the
+`.` and `./dsp` entries never import React. Tests run in jsdom with
+`@testing-library/react` (`src/react/__tests__`); `LiveMixProvider`'s `frame`
+prop injects a hand-driven frame scheduler.
 
 ### Real-time rules
 

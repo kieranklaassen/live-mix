@@ -5,7 +5,13 @@
 // over the MessagePort by id (v1); the typed table next to each device maps
 // names to ids and ranges.
 
-import { type NoteDevice } from '../core/devices/Device'
+import {
+  type DeviceChange,
+  type DeviceChangeListener,
+  type NoteDevice,
+  type ObservableDevice,
+} from '../core/devices/Device'
+import { Emitter } from '../core/events'
 import { ensureProcessor } from '../core/worklet-loader'
 import { clampParam, type ParamSpec } from '../core/params'
 import {
@@ -53,14 +59,15 @@ export interface WasmDeviceOptions<P extends Record<string, ParamSpec>> extends 
 const defaultCreateNode: WorkletNodeFactory = (context, name, options) =>
   new AudioWorkletNode(context, name, options)
 
-export class WasmDevice<
-  P extends Record<string, ParamSpec> = Record<string, ParamSpec>,
-> implements NoteDevice {
+export class WasmDevice<P extends Record<string, ParamSpec> = Record<string, ParamSpec>>
+  implements NoteDevice, ObservableDevice
+{
   readonly id: string
   readonly params: Readonly<P>
   readonly node: AudioWorkletNode
   readonly latencySec: number
   private readonly values = new Map<string, number>()
+  private readonly changes = new Emitter<DeviceChange>()
   private bypassed = false
   private disposed = false
 
@@ -130,6 +137,7 @@ export class WasmDevice<
     const clamped = clampParam(spec, value)
     this.values.set(name, clamped)
     this.post({ type: 'set-param', paramId: spec.id, value: clamped })
+    this.changes.emit({ type: 'param', name, value: clamped })
   }
 
   getParam(name: keyof P & string): number {
@@ -146,6 +154,12 @@ export class WasmDevice<
     if (this.bypassed === enabled) return
     this.bypassed = enabled
     this.post({ type: 'bypass', enabled })
+    this.changes.emit({ type: 'bypass', bypass: enabled })
+  }
+
+  /** Called after every `setParam` and bypass change; returns the unsubscribe function. */
+  onChange(listener: DeviceChangeListener): () => void {
+    return this.changes.subscribe(listener)
   }
 
   /** Note events for instrument modules (`device_note_on/off`); effects ignore them. */
@@ -167,6 +181,7 @@ export class WasmDevice<
   dispose(): void {
     if (this.disposed) return
     this.disposed = true
+    this.changes.clear()
     this.node.disconnect()
     this.node.port.close()
   }

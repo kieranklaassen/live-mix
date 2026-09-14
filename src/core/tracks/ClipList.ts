@@ -3,13 +3,26 @@
 // live's re-derive-on-edit effect) instead of waiting for the next tick.
 
 import { type Clip } from '../clips/Clip'
+import { Emitter } from '../events'
+
+export type ClipListListener = (clips: readonly Clip[]) => void
 
 export class ClipList {
   private items: Clip[] = []
-  private readonly onChange: () => void
+  private readonly owner: () => void
+  private readonly listeners = new Emitter<readonly Clip[]>()
 
   constructor(onChange: () => void) {
-    this.onChange = onChange
+    this.owner = onChange
+  }
+
+  /**
+   * Called after every mutation with the new sorted list (U24: UI
+   * subscriptions). The owner's callback runs first, so the scheduler has
+   * re-derived its queue by the time a view redraws. Returns the unsubscribe.
+   */
+  subscribe(listener: ClipListListener): () => void {
+    return this.listeners.subscribe(listener)
   }
 
   all(): readonly Clip[] {
@@ -31,7 +44,7 @@ export class ClipList {
   add(clip: Clip): Clip {
     if (this.has(clip.id)) throw new Error(`live-mix: clip "${clip.id}" already exists`)
     this.items = sorted([...this.items, clip])
-    this.onChange()
+    this.changed()
     return clip
   }
 
@@ -43,7 +56,7 @@ export class ClipList {
     const items = [...this.items]
     items[index] = next
     this.items = sorted(items)
-    this.onChange()
+    this.changed()
     return next
   }
 
@@ -51,14 +64,14 @@ export class ClipList {
     const before = this.items.length
     this.items = this.items.filter((clip) => clip.id !== id)
     if (this.items.length === before) return false
-    this.onChange()
+    this.changed()
     return true
   }
 
   /** Replace the whole list (an app that owns the arrangement in its own state). */
   set(clips: readonly Clip[]): void {
     this.items = sorted([...clips])
-    this.onChange()
+    this.changed()
   }
 
   /**
@@ -68,13 +81,18 @@ export class ClipList {
    */
   replaceFrom(sec: number, clips: readonly Clip[]): void {
     this.items = sorted([...this.items.filter((clip) => clip.startSec < sec), ...clips])
-    this.onChange()
+    this.changed()
   }
 
   clear(): void {
     if (this.items.length === 0) return
     this.items = []
-    this.onChange()
+    this.changed()
+  }
+
+  private changed(): void {
+    this.owner()
+    this.listeners.emit(this.items)
   }
 }
 

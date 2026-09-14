@@ -16,6 +16,7 @@
 // `evictOnRelease` false), so Phase 0 consumers see no change.
 
 import { computePeaks, DEFAULT_PEAK_BUCKETS, type WaveformPeaks } from '../clips/peaks'
+import { Emitter } from '../events'
 
 /** A decoded sample, kept for playback and (optionally) waveform drawing. */
 export interface LoadedSample {
@@ -61,6 +62,8 @@ export interface SampleEviction {
 
 export type SampleEvictionListener = (eviction: SampleEviction) => void
 
+export type SampleStoreListener = (store: SampleStore) => void
+
 /** A snapshot of what the store holds and what the policy has done so far. */
 export interface SampleStoreMetrics {
   /** Decoded bytes currently held. */
@@ -97,6 +100,7 @@ export class SampleStore {
   private readonly pins = new Set<string>()
   private readonly holdCounts = new Map<string, number>()
   private readonly evictionListeners = new Set<SampleEvictionListener>()
+  private readonly changeListeners = new Emitter<SampleStore>()
   private budget: number
   private heldBytes = 0
   private evictionCount = 0
@@ -187,6 +191,7 @@ export class SampleStore {
     this.pending.delete(id)
     this.pins.delete(id)
     this.holdCounts.delete(id)
+    this.changed()
   }
 
   clear(): void {
@@ -195,6 +200,7 @@ export class SampleStore {
     this.pins.clear()
     this.holdCounts.clear()
     this.heldBytes = 0
+    this.changed()
   }
 
   get size(): number {
@@ -221,6 +227,7 @@ export class SampleStore {
   set budgetBytes(value: number) {
     this.budget = normaliseBudget(value)
     this.enforceBudget()
+    this.changed()
   }
 
   /**
@@ -229,12 +236,15 @@ export class SampleStore {
    * not loaded yet applies once it is.
    */
   pin(id: string): void {
+    if (this.pins.has(id)) return
     this.pins.add(id)
+    this.changed()
   }
 
   unpin(id: string): void {
     if (!this.pins.delete(id)) return
     this.enforceBudget()
+    this.changed()
   }
 
   isPinned(id: string): boolean {
@@ -249,6 +259,7 @@ export class SampleStore {
    */
   retain(id: string): () => void {
     this.holdCounts.set(id, (this.holdCounts.get(id) ?? 0) + 1)
+    this.changed()
     let released = false
     return () => {
       if (released) return
@@ -274,13 +285,25 @@ export class SampleStore {
    * knows a quiet moment.
    */
   evict(): string[] {
-    return this.enforceBudget()
+    const dropped = this.enforceBudget()
+    if (dropped.length > 0) this.changed()
+    return dropped
   }
 
   /** Called with every sample the policy drops (not `forget`/`clear`). */
   onEvict(listener: SampleEvictionListener): () => void {
     this.evictionListeners.add(listener)
     return () => this.evictionListeners.delete(listener)
+  }
+
+  /**
+   * Called after anything `metrics` or `ids()` reflect changes: a load
+   * completing, a forget/clear, an eviction, a pin/unpin, a hold taken or
+   * released, a budget change (U24: UI subscriptions). Not on `get`/`touch`.
+   * Returns the unsubscribe function.
+   */
+  onChange(listener: SampleStoreListener): () => void {
+    return this.changeListeners.subscribe(listener)
   }
 
   get metrics(): SampleStoreMetrics {
@@ -313,20 +336,25 @@ export class SampleStore {
     this.loadCount += 1
     // The caller is about to use what it just loaded: it survives its own admission.
     this.enforceBudget(sample.id)
+    this.changed()
   }
 
   private release(id: string): void {
     const count = this.holdCounts.get(id) ?? 0
     if (count <= 1) this.holdCounts.delete(id)
     else this.holdCounts.set(id, count - 1)
-    if (count > 1) return
+    if (count > 1) {
+      this.changed()
+      return
+    }
 
     const sample = this.loaded.get(id)
     if (sample && this.evictOnRelease && !this.pins.has(id)) {
       this.dropByPolicy(sample, 'release')
-      return
+    } else {
+      this.enforceBudget()
     }
-    this.enforceBudget()
+    this.changed()
   }
 
   private enforceBudget(protectedId?: string): string[] {
@@ -353,6 +381,10 @@ export class SampleStore {
     if (!sample) return
     this.loaded.delete(id)
     this.heldBytes -= sample.bytes
+  }
+
+  private changed(): void {
+    this.changeListeners.emit(this)
   }
 
   private async decode(id: string, source: SampleSource): Promise<LoadedSample> {
