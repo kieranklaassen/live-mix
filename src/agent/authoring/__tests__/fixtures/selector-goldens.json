@@ -1,0 +1,1996 @@
+{
+  "seeds": [0, 1, 7, 42, 2024, 123456789],
+  "durations": [600, 900, 1200, 1800, 3000],
+  "cases": [
+    {
+      "library": "standard",
+      "seed": 0,
+      "totalSec": 600,
+      "sections": [
+        {
+          "ids": ["s33", "s15"],
+          "totalDurationSec": 275
+        },
+        {
+          "ids": ["s32"],
+          "totalDurationSec": 318
+        },
+        {
+          "ids": ["s19"],
+          "totalDurationSec": 299
+        }
+      ],
+      "usedIds": ["s15", "s19", "s32", "s33"]
+    },
+    {
+      "library": "standard",
+      "seed": 0,
+      "totalSec": 900,
+      "sections": [
+        {
+          "ids": ["s33", "s15", "s19"],
+          "totalDurationSec": 574
+        },
+        {
+          "ids": ["s08", "s32"],
+          "totalDurationSec": 441
+        },
+        {
+          "ids": ["s27", "s24"],
+          "totalDurationSec": 386
+        }
+      ],
+      "usedIds": ["s08", "s15", "s19", "s24", "s27", "s32", "s33"]
+    },
+    {
+      "library": "standard",
+      "seed": 0,
+      "totalSec": 1200,
+      "sections": [
+        {
+          "ids": ["s33", "s15", "s19"],
+          "totalDurationSec": 574
+        },
+        {
+          "ids": ["s08", "s32"],
+          "totalDurationSec": 441
+        },
+        {
+          "ids": ["s27", "s24", "s17"],
+          "totalDurationSec": 611
+        }
+      ],
+      "usedIds": ["s08", "s15", "s17", "s19", "s24", "s27", "s32", "s33"]
+    },
+    {
+      "library": "standard",
+      "seed": 0,
+      "totalSec": 1800,
+      "sections": [
+        {
+          "ids": ["s33", "s15", "s19", "s03"],
+          "totalDurationSec": 743
+        },
+        {
+          "ids": ["s16", "s28", "s20", "s04"],
+          "totalDurationSec": 669
+        },
+        {
+          "ids": ["s27", "s24", "s17"],
+          "totalDurationSec": 611
+        }
+      ],
+      "usedIds": ["s03", "s04", "s15", "s16", "s17", "s19", "s20", "s24", "s27", "s28", "s33"]
+    },
+    {
+      "library": "standard",
+      "seed": 0,
+      "totalSec": 3000,
+      "sections": [
+        {
+          "ids": ["s33", "s09", "s15", "s19", "s10", "s34"],
+          "totalDurationSec": 1092
+        },
+        {
+          "ids": ["s16", "s20", "s28", "s04", "s30", "s06"],
+          "totalDurationSec": 1193
+        },
+        {
+          "ids": ["s31", "s13", "s29", "s05"],
+          "totalDurationSec": 1039
+        }
+      ],
+      "usedIds": [
+        "s04",
+        "s05",
+        "s06",
+        "s09",
+        "s10",
+        "s13",
+        "s15",
+        "s16",
+        "s19",
+        "s20",
+        "s28",
+        "s29",
+        "s30",
+        "s31",
+        "s33",
+        "s34"
+      ]
+    },
+    {
+      "library": "standard",
+      "seed": 1,
+      "totalSec": 600,
+      "sections": [
+        {
+          "ids": ["s05"],
+          "totalDurationSec": 243
+        },
+        {
+          "ids": ["s20", "s16"],
+          "totalDurationSec": 293
+        },
+        {
+          "ids": ["s03", "s24"],
+          "totalDurationSec": 422
+        }
+      ],
+      "usedIds": ["s03", "s05", "s16", "s20", "s24"]
+    },
+    {
+      "library": "standard",
+      "seed": 1,
+      "totalSec": 900,
+      "sections": [
+        {
+          "ids": ["s05", "s31"],
+          "totalDurationSec": 524
+        },
+        {
+          "ids": ["s20", "s16", "s04"],
+          "totalDurationSec": 499
+        },
+        {
+          "ids": ["s34", "s24"],
+          "totalDurationSec": 414
+        }
+      ],
+      "usedIds": ["s04", "s05", "s16", "s20", "s24", "s31", "s34"]
+    },
+    {
+      "library": "standard",
+      "seed": 1,
+      "totalSec": 1200,
+      "sections": [
+        {
+          "ids": ["s05", "s31"],
+          "totalDurationSec": 524
+        },
+        {
+          "ids": ["s20", "s16", "s04"],
+          "totalDurationSec": 499
+        },
+        {
+          "ids": ["s34", "s24"],
+          "totalDurationSec": 414
+        }
+      ],
+      "usedIds": ["s04", "s05", "s16", "s20", "s24", "s31", "s34"]
+    },
+    {
+      "library": "standard",
+      "seed": 1,
+      "totalSec": 1800,
+      "sections": [
+        {
+          "ids": ["s05", "s31", "s07"],
+          "totalDurationSec": 841
+        },
+        {
+          "ids": ["s20", "s04", "s28", "s16"],
+          "totalDurationSec": 669
+        },
+        {
+          "ids": ["s34", "s24", "s12"],
+          "totalDurationSec": 685
+        }
+      ],
+      "usedIds": ["s04", "s05", "s07", "s12", "s16", "s20", "s24", "s28", "s31", "s34"]
+    },
+    {
+      "library": "standard",
+      "seed": 1,
+      "totalSec": 3000,
+      "sections": [
+        {
+          "ids": ["s05", "s29", "s07", "s31"],
+          "totalDurationSec": 1048
+        },
+        {
+          "ids": ["s20", "s16", "s28", "s04", "s32", "s08"],
+          "totalDurationSec": 1110
+        },
+        {
+          "ids": ["s15", "s26", "s02", "s33", "s09", "s01", "s25"],
+          "totalDurationSec": 1048
+        }
+      ],
+      "usedIds": [
+        "s01",
+        "s02",
+        "s04",
+        "s05",
+        "s07",
+        "s08",
+        "s09",
+        "s15",
+        "s16",
+        "s20",
+        "s25",
+        "s26",
+        "s28",
+        "s29",
+        "s31",
+        "s32",
+        "s33"
+      ]
+    },
+    {
+      "library": "standard",
+      "seed": 7,
+      "totalSec": 600,
+      "sections": [
+        {
+          "ids": ["s13"],
+          "totalDurationSec": 308
+        },
+        {
+          "ids": ["s16", "s20"],
+          "totalDurationSec": 293
+        },
+        {
+          "ids": ["s07"],
+          "totalDurationSec": 317
+        }
+      ],
+      "usedIds": ["s07", "s13", "s16", "s20"]
+    },
+    {
+      "library": "standard",
+      "seed": 7,
+      "totalSec": 900,
+      "sections": [
+        {
+          "ids": ["s13"],
+          "totalDurationSec": 308
+        },
+        {
+          "ids": ["s16", "s20", "s04"],
+          "totalDurationSec": 499
+        },
+        {
+          "ids": ["s03", "s17"],
+          "totalDurationSec": 394
+        }
+      ],
+      "usedIds": ["s03", "s04", "s13", "s16", "s17", "s20"]
+    },
+    {
+      "library": "standard",
+      "seed": 7,
+      "totalSec": 1200,
+      "sections": [
+        {
+          "ids": ["s13", "s07"],
+          "totalDurationSec": 625
+        },
+        {
+          "ids": ["s20", "s28", "s04"],
+          "totalDurationSec": 481
+        },
+        {
+          "ids": ["s03", "s17", "s24"],
+          "totalDurationSec": 647
+        }
+      ],
+      "usedIds": ["s03", "s04", "s07", "s13", "s17", "s20", "s24", "s28"]
+    },
+    {
+      "library": "standard",
+      "seed": 7,
+      "totalSec": 1800,
+      "sections": [
+        {
+          "ids": ["s13", "s07"],
+          "totalDurationSec": 625
+        },
+        {
+          "ids": ["s20", "s28", "s04", "s16"],
+          "totalDurationSec": 669
+        },
+        {
+          "ids": ["s03", "s24", "s36"],
+          "totalDurationSec": 657
+        }
+      ],
+      "usedIds": ["s03", "s04", "s07", "s13", "s16", "s20", "s24", "s28", "s36"]
+    },
+    {
+      "library": "standard",
+      "seed": 7,
+      "totalSec": 3000,
+      "sections": [
+        {
+          "ids": ["s13", "s05", "s22", "s07"],
+          "totalDurationSec": 1047
+        },
+        {
+          "ids": ["s20", "s28", "s04", "s16", "s06", "s23"],
+          "totalDurationSec": 1165
+        },
+        {
+          "ids": ["s03", "s17", "s24", "s36", "s12"],
+          "totalDurationSec": 1153
+        }
+      ],
+      "usedIds": [
+        "s03",
+        "s04",
+        "s05",
+        "s06",
+        "s07",
+        "s12",
+        "s13",
+        "s16",
+        "s17",
+        "s20",
+        "s22",
+        "s23",
+        "s24",
+        "s28",
+        "s36"
+      ]
+    },
+    {
+      "library": "standard",
+      "seed": 42,
+      "totalSec": 600,
+      "sections": [
+        {
+          "ids": ["s25"],
+          "totalDurationSec": 290
+        },
+        {
+          "ids": ["s06"],
+          "totalDurationSec": 280
+        },
+        {
+          "ids": ["s03", "s24"],
+          "totalDurationSec": 422
+        }
+      ],
+      "usedIds": ["s03", "s06", "s24", "s25"]
+    },
+    {
+      "library": "standard",
+      "seed": 42,
+      "totalSec": 900,
+      "sections": [
+        {
+          "ids": ["s25", "s07"],
+          "totalDurationSec": 607
+        },
+        {
+          "ids": ["s20", "s28", "s16"],
+          "totalDurationSec": 463
+        },
+        {
+          "ids": ["s10", "s17"],
+          "totalDurationSec": 422
+        }
+      ],
+      "usedIds": ["s07", "s10", "s16", "s17", "s20", "s25", "s28"]
+    },
+    {
+      "library": "standard",
+      "seed": 42,
+      "totalSec": 1200,
+      "sections": [
+        {
+          "ids": ["s25", "s07"],
+          "totalDurationSec": 607
+        },
+        {
+          "ids": ["s20", "s28", "s16"],
+          "totalDurationSec": 463
+        },
+        {
+          "ids": ["s10", "s17"],
+          "totalDurationSec": 422
+        }
+      ],
+      "usedIds": ["s07", "s10", "s16", "s17", "s20", "s25", "s28"]
+    },
+    {
+      "library": "standard",
+      "seed": 42,
+      "totalSec": 1800,
+      "sections": [
+        {
+          "ids": ["s25", "s07"],
+          "totalDurationSec": 607
+        },
+        {
+          "ids": ["s20", "s28", "s16", "s04"],
+          "totalDurationSec": 669
+        },
+        {
+          "ids": ["s10", "s17", "s36"],
+          "totalDurationSec": 657
+        }
+      ],
+      "usedIds": ["s04", "s07", "s10", "s16", "s17", "s20", "s25", "s28", "s36"]
+    },
+    {
+      "library": "standard",
+      "seed": 42,
+      "totalSec": 3000,
+      "sections": [
+        {
+          "ids": ["s25", "s01", "s03", "s34", "s27", "s10"],
+          "totalDurationSec": 1045
+        },
+        {
+          "ids": ["s04", "s16", "s20", "s28", "s32", "s08"],
+          "totalDurationSec": 1110
+        },
+        {
+          "ids": ["s15", "s02", "s09", "s26", "s33", "s36", "s12"],
+          "totalDurationSec": 1169
+        }
+      ],
+      "usedIds": [
+        "s01",
+        "s02",
+        "s03",
+        "s04",
+        "s08",
+        "s09",
+        "s10",
+        "s12",
+        "s15",
+        "s16",
+        "s20",
+        "s25",
+        "s26",
+        "s27",
+        "s28",
+        "s32",
+        "s33",
+        "s34",
+        "s36"
+      ]
+    },
+    {
+      "library": "standard",
+      "seed": 2024,
+      "totalSec": 600,
+      "sections": [
+        {
+          "ids": ["s17"],
+          "totalDurationSec": 225
+        },
+        {
+          "ids": ["s08", "s32"],
+          "totalDurationSec": 441
+        },
+        {
+          "ids": ["s15", "s36"],
+          "totalDurationSec": 386
+        }
+      ],
+      "usedIds": ["s08", "s15", "s17", "s32", "s36"]
+    },
+    {
+      "library": "standard",
+      "seed": 2024,
+      "totalSec": 900,
+      "sections": [
+        {
+          "ids": ["s17", "s10"],
+          "totalDurationSec": 422
+        },
+        {
+          "ids": ["s28", "s20", "s16"],
+          "totalDurationSec": 463
+        },
+        {
+          "ids": ["s03", "s24"],
+          "totalDurationSec": 422
+        }
+      ],
+      "usedIds": ["s03", "s10", "s16", "s17", "s20", "s24", "s28"]
+    },
+    {
+      "library": "standard",
+      "seed": 2024,
+      "totalSec": 1200,
+      "sections": [
+        {
+          "ids": ["s17", "s10"],
+          "totalDurationSec": 422
+        },
+        {
+          "ids": ["s28", "s20", "s16"],
+          "totalDurationSec": 463
+        },
+        {
+          "ids": ["s03", "s24"],
+          "totalDurationSec": 422
+        }
+      ],
+      "usedIds": ["s03", "s10", "s16", "s17", "s20", "s24", "s28"]
+    },
+    {
+      "library": "standard",
+      "seed": 2024,
+      "totalSec": 1800,
+      "sections": [
+        {
+          "ids": ["s17", "s10", "s34", "s27"],
+          "totalDurationSec": 716
+        },
+        {
+          "ids": ["s04", "s28", "s20", "s16"],
+          "totalDurationSec": 669
+        },
+        {
+          "ids": ["s03", "s24", "s36"],
+          "totalDurationSec": 657
+        }
+      ],
+      "usedIds": ["s03", "s04", "s10", "s16", "s17", "s20", "s24", "s27", "s28", "s34", "s36"]
+    },
+    {
+      "library": "standard",
+      "seed": 2024,
+      "totalSec": 3000,
+      "sections": [
+        {
+          "ids": ["s17", "s12", "s19", "s15", "s31"],
+          "totalDurationSec": 1227
+        },
+        {
+          "ids": ["s20", "s28", "s16", "s04", "s35", "s18"],
+          "totalDurationSec": 1129
+        },
+        {
+          "ids": ["s22", "s29", "s14", "s05", "s13"],
+          "totalDurationSec": 1051
+        }
+      ],
+      "usedIds": [
+        "s04",
+        "s05",
+        "s12",
+        "s13",
+        "s14",
+        "s15",
+        "s16",
+        "s17",
+        "s18",
+        "s19",
+        "s20",
+        "s22",
+        "s28",
+        "s29",
+        "s31",
+        "s35"
+      ]
+    },
+    {
+      "library": "standard",
+      "seed": 123456789,
+      "totalSec": 600,
+      "sections": [
+        {
+          "ids": ["s25"],
+          "totalDurationSec": 290
+        },
+        {
+          "ids": ["s23"],
+          "totalDurationSec": 216
+        },
+        {
+          "ids": ["s34", "s24"],
+          "totalDurationSec": 414
+        }
+      ],
+      "usedIds": ["s23", "s24", "s25", "s34"]
+    },
+    {
+      "library": "standard",
+      "seed": 123456789,
+      "totalSec": 900,
+      "sections": [
+        {
+          "ids": ["s25", "s31"],
+          "totalDurationSec": 571
+        },
+        {
+          "ids": ["s20", "s16", "s28"],
+          "totalDurationSec": 463
+        },
+        {
+          "ids": ["s34", "s24"],
+          "totalDurationSec": 414
+        }
+      ],
+      "usedIds": ["s16", "s20", "s24", "s25", "s28", "s31", "s34"]
+    },
+    {
+      "library": "standard",
+      "seed": 123456789,
+      "totalSec": 1200,
+      "sections": [
+        {
+          "ids": ["s25", "s31"],
+          "totalDurationSec": 571
+        },
+        {
+          "ids": ["s20", "s16", "s28"],
+          "totalDurationSec": 463
+        },
+        {
+          "ids": ["s34", "s24"],
+          "totalDurationSec": 414
+        }
+      ],
+      "usedIds": ["s16", "s20", "s24", "s25", "s28", "s31", "s34"]
+    },
+    {
+      "library": "standard",
+      "seed": 123456789,
+      "totalSec": 1800,
+      "sections": [
+        {
+          "ids": ["s25", "s31", "s22"],
+          "totalDurationSec": 750
+        },
+        {
+          "ids": ["s18", "s35", "s11"],
+          "totalDurationSec": 694
+        },
+        {
+          "ids": ["s19", "s24", "s17"],
+          "totalDurationSec": 777
+        }
+      ],
+      "usedIds": ["s11", "s17", "s18", "s19", "s22", "s24", "s25", "s31", "s35"]
+    },
+    {
+      "library": "standard",
+      "seed": 123456789,
+      "totalSec": 3000,
+      "sections": [
+        {
+          "ids": ["s25", "s21", "s34", "s27", "s10", "s03"],
+          "totalDurationSec": 1092
+        },
+        {
+          "ids": ["s28", "s16", "s20", "s04", "s32", "s08"],
+          "totalDurationSec": 1110
+        },
+        {
+          "ids": ["s15", "s36", "s24", "s12", "s17"],
+          "totalDurationSec": 1135
+        }
+      ],
+      "usedIds": [
+        "s03",
+        "s04",
+        "s08",
+        "s10",
+        "s12",
+        "s15",
+        "s16",
+        "s17",
+        "s20",
+        "s21",
+        "s24",
+        "s25",
+        "s27",
+        "s28",
+        "s32",
+        "s34",
+        "s36"
+      ]
+    },
+    {
+      "library": "sparse",
+      "seed": 0,
+      "totalSec": 600,
+      "sections": [
+        {
+          "ids": ["p06", "p08"],
+          "totalDurationSec": 454
+        },
+        {
+          "ids": ["p02", "p04"],
+          "totalDurationSec": 492
+        },
+        {
+          "ids": ["p05"],
+          "totalDurationSec": 352
+        }
+      ],
+      "usedIds": ["p02", "p04", "p05", "p06", "p08"]
+    },
+    {
+      "library": "sparse",
+      "seed": 0,
+      "totalSec": 900,
+      "sections": [
+        {
+          "ids": ["p06", "p08"],
+          "totalDurationSec": 454
+        },
+        {
+          "ids": ["p02", "p04"],
+          "totalDurationSec": 492
+        },
+        {
+          "ids": ["p05"],
+          "totalDurationSec": 352
+        }
+      ],
+      "usedIds": ["p02", "p04", "p05", "p06", "p08"]
+    },
+    {
+      "library": "sparse",
+      "seed": 0,
+      "totalSec": 1200,
+      "sections": [
+        {
+          "ids": ["p06", "p08"],
+          "totalDurationSec": 454
+        },
+        {
+          "ids": ["p02", "p04"],
+          "totalDurationSec": 492
+        },
+        {
+          "ids": ["p05", "p01"],
+          "totalDurationSec": 492
+        }
+      ],
+      "usedIds": ["p01", "p02", "p04", "p05", "p06", "p08"]
+    },
+    {
+      "library": "sparse",
+      "seed": 0,
+      "totalSec": 1800,
+      "sections": [
+        {
+          "ids": ["p06", "p08", "p02"],
+          "totalDurationSec": 647
+        },
+        {
+          "ids": ["p04", "p07"],
+          "totalDurationSec": 526
+        },
+        {
+          "ids": ["p03", "p05", "p01"],
+          "totalDurationSec": 738
+        }
+      ],
+      "usedIds": ["p01", "p02", "p03", "p04", "p05", "p06", "p07", "p08"]
+    },
+    {
+      "library": "sparse",
+      "seed": 0,
+      "totalSec": 3000,
+      "sections": [
+        {
+          "ids": ["p06", "p03", "p07", "p04", "p02"],
+          "totalDurationSec": 1139
+        },
+        {
+          "ids": ["p08"],
+          "totalDurationSec": 280
+        },
+        {
+          "ids": ["p05", "p01"],
+          "totalDurationSec": 492
+        }
+      ],
+      "usedIds": ["p01", "p02", "p03", "p04", "p05", "p06", "p07", "p08"]
+    },
+    {
+      "library": "sparse",
+      "seed": 1,
+      "totalSec": 600,
+      "sections": [
+        {
+          "ids": ["p03"],
+          "totalDurationSec": 246
+        },
+        {
+          "ids": ["p07"],
+          "totalDurationSec": 227
+        },
+        {
+          "ids": ["p05"],
+          "totalDurationSec": 352
+        }
+      ],
+      "usedIds": ["p03", "p05", "p07"]
+    },
+    {
+      "library": "sparse",
+      "seed": 1,
+      "totalSec": 900,
+      "sections": [
+        {
+          "ids": ["p03", "p07"],
+          "totalDurationSec": 473
+        },
+        {
+          "ids": ["p04", "p02"],
+          "totalDurationSec": 492
+        },
+        {
+          "ids": ["p05"],
+          "totalDurationSec": 352
+        }
+      ],
+      "usedIds": ["p02", "p03", "p04", "p05", "p07"]
+    },
+    {
+      "library": "sparse",
+      "seed": 1,
+      "totalSec": 1200,
+      "sections": [
+        {
+          "ids": ["p03", "p07"],
+          "totalDurationSec": 473
+        },
+        {
+          "ids": ["p04", "p02"],
+          "totalDurationSec": 492
+        },
+        {
+          "ids": ["p05", "p01"],
+          "totalDurationSec": 492
+        }
+      ],
+      "usedIds": ["p01", "p02", "p03", "p04", "p05", "p07"]
+    },
+    {
+      "library": "sparse",
+      "seed": 1,
+      "totalSec": 1800,
+      "sections": [
+        {
+          "ids": ["p03", "p07", "p04"],
+          "totalDurationSec": 772
+        },
+        {
+          "ids": ["p02", "p08"],
+          "totalDurationSec": 473
+        },
+        {
+          "ids": ["p06", "p05", "p01"],
+          "totalDurationSec": 666
+        }
+      ],
+      "usedIds": ["p01", "p02", "p03", "p04", "p05", "p06", "p07", "p08"]
+    },
+    {
+      "library": "sparse",
+      "seed": 1,
+      "totalSec": 3000,
+      "sections": [
+        {
+          "ids": ["p03", "p06", "p08", "p02", "p04"],
+          "totalDurationSec": 1192
+        },
+        {
+          "ids": ["p07"],
+          "totalDurationSec": 227
+        },
+        {
+          "ids": ["p05", "p01"],
+          "totalDurationSec": 492
+        }
+      ],
+      "usedIds": ["p01", "p02", "p03", "p04", "p05", "p06", "p07", "p08"]
+    },
+    {
+      "library": "sparse",
+      "seed": 7,
+      "totalSec": 600,
+      "sections": [
+        {
+          "ids": ["p05"],
+          "totalDurationSec": 352
+        },
+        {
+          "ids": ["p04"],
+          "totalDurationSec": 299
+        },
+        {
+          "ids": ["p03"],
+          "totalDurationSec": 246
+        }
+      ],
+      "usedIds": ["p03", "p04", "p05"]
+    },
+    {
+      "library": "sparse",
+      "seed": 7,
+      "totalSec": 900,
+      "sections": [
+        {
+          "ids": ["p05"],
+          "totalDurationSec": 352
+        },
+        {
+          "ids": ["p04", "p02"],
+          "totalDurationSec": 492
+        },
+        {
+          "ids": ["p06", "p03"],
+          "totalDurationSec": 420
+        }
+      ],
+      "usedIds": ["p02", "p03", "p04", "p05", "p06"]
+    },
+    {
+      "library": "sparse",
+      "seed": 7,
+      "totalSec": 1200,
+      "sections": [
+        {
+          "ids": ["p05", "p04"],
+          "totalDurationSec": 651
+        },
+        {
+          "ids": ["p02", "p07"],
+          "totalDurationSec": 420
+        },
+        {
+          "ids": ["p03", "p06"],
+          "totalDurationSec": 420
+        }
+      ],
+      "usedIds": ["p02", "p03", "p04", "p05", "p06", "p07"]
+    },
+    {
+      "library": "sparse",
+      "seed": 7,
+      "totalSec": 1800,
+      "sections": [
+        {
+          "ids": ["p05", "p04"],
+          "totalDurationSec": 651
+        },
+        {
+          "ids": ["p02", "p07", "p08"],
+          "totalDurationSec": 700
+        },
+        {
+          "ids": ["p06", "p03", "p01"],
+          "totalDurationSec": 560
+        }
+      ],
+      "usedIds": ["p01", "p02", "p03", "p04", "p05", "p06", "p07", "p08"]
+    },
+    {
+      "library": "sparse",
+      "seed": 7,
+      "totalSec": 3000,
+      "sections": [
+        {
+          "ids": ["p05", "p01", "p08", "p07", "p02"],
+          "totalDurationSec": 1192
+        },
+        {
+          "ids": ["p04"],
+          "totalDurationSec": 299
+        },
+        {
+          "ids": ["p03", "p06"],
+          "totalDurationSec": 420
+        }
+      ],
+      "usedIds": ["p01", "p02", "p03", "p04", "p05", "p06", "p07", "p08"]
+    },
+    {
+      "library": "sparse",
+      "seed": 42,
+      "totalSec": 600,
+      "sections": [
+        {
+          "ids": ["p01", "p02"],
+          "totalDurationSec": 333
+        },
+        {
+          "ids": ["p04"],
+          "totalDurationSec": 299
+        },
+        {
+          "ids": ["p03"],
+          "totalDurationSec": 246
+        }
+      ],
+      "usedIds": ["p01", "p02", "p03", "p04"]
+    },
+    {
+      "library": "sparse",
+      "seed": 42,
+      "totalSec": 900,
+      "sections": [
+        {
+          "ids": ["p01", "p02"],
+          "totalDurationSec": 333
+        },
+        {
+          "ids": ["p04", "p07"],
+          "totalDurationSec": 526
+        },
+        {
+          "ids": ["p03", "p06"],
+          "totalDurationSec": 420
+        }
+      ],
+      "usedIds": ["p01", "p02", "p03", "p04", "p06", "p07"]
+    },
+    {
+      "library": "sparse",
+      "seed": 42,
+      "totalSec": 1200,
+      "sections": [
+        {
+          "ids": ["p01", "p02", "p04"],
+          "totalDurationSec": 632
+        },
+        {
+          "ids": ["p07", "p08"],
+          "totalDurationSec": 507
+        },
+        {
+          "ids": ["p06", "p03"],
+          "totalDurationSec": 420
+        }
+      ],
+      "usedIds": ["p01", "p02", "p03", "p04", "p06", "p07", "p08"]
+    },
+    {
+      "library": "sparse",
+      "seed": 42,
+      "totalSec": 1800,
+      "sections": [
+        {
+          "ids": ["p01", "p02", "p04"],
+          "totalDurationSec": 632
+        },
+        {
+          "ids": ["p07", "p08"],
+          "totalDurationSec": 507
+        },
+        {
+          "ids": ["p06", "p03", "p05"],
+          "totalDurationSec": 772
+        }
+      ],
+      "usedIds": ["p01", "p02", "p03", "p04", "p05", "p06", "p07", "p08"]
+    },
+    {
+      "library": "sparse",
+      "seed": 42,
+      "totalSec": 3000,
+      "sections": [
+        {
+          "ids": ["p01", "p05", "p07", "p02", "p04"],
+          "totalDurationSec": 1211
+        },
+        {
+          "ids": ["p08"],
+          "totalDurationSec": 280
+        },
+        {
+          "ids": ["p06", "p03"],
+          "totalDurationSec": 420
+        }
+      ],
+      "usedIds": ["p01", "p02", "p03", "p04", "p05", "p06", "p07", "p08"]
+    },
+    {
+      "library": "sparse",
+      "seed": 2024,
+      "totalSec": 600,
+      "sections": [
+        {
+          "ids": ["p06", "p08"],
+          "totalDurationSec": 454
+        },
+        {
+          "ids": ["p07"],
+          "totalDurationSec": 227
+        },
+        {
+          "ids": ["p03"],
+          "totalDurationSec": 246
+        }
+      ],
+      "usedIds": ["p03", "p06", "p07", "p08"]
+    },
+    {
+      "library": "sparse",
+      "seed": 2024,
+      "totalSec": 900,
+      "sections": [
+        {
+          "ids": ["p06", "p08"],
+          "totalDurationSec": 454
+        },
+        {
+          "ids": ["p07", "p04"],
+          "totalDurationSec": 526
+        },
+        {
+          "ids": ["p01", "p05"],
+          "totalDurationSec": 492
+        }
+      ],
+      "usedIds": ["p01", "p04", "p05", "p06", "p07", "p08"]
+    },
+    {
+      "library": "sparse",
+      "seed": 2024,
+      "totalSec": 1200,
+      "sections": [
+        {
+          "ids": ["p06", "p08"],
+          "totalDurationSec": 454
+        },
+        {
+          "ids": ["p07", "p04"],
+          "totalDurationSec": 526
+        },
+        {
+          "ids": ["p01", "p05"],
+          "totalDurationSec": 492
+        }
+      ],
+      "usedIds": ["p01", "p04", "p05", "p06", "p07", "p08"]
+    },
+    {
+      "library": "sparse",
+      "seed": 2024,
+      "totalSec": 1800,
+      "sections": [
+        {
+          "ids": ["p06", "p08", "p07"],
+          "totalDurationSec": 681
+        },
+        {
+          "ids": ["p04", "p02"],
+          "totalDurationSec": 492
+        },
+        {
+          "ids": ["p05", "p01", "p03"],
+          "totalDurationSec": 738
+        }
+      ],
+      "usedIds": ["p01", "p02", "p03", "p04", "p05", "p06", "p07", "p08"]
+    },
+    {
+      "library": "sparse",
+      "seed": 2024,
+      "totalSec": 3000,
+      "sections": [
+        {
+          "ids": ["p06", "p03", "p07", "p02", "p04"],
+          "totalDurationSec": 1139
+        },
+        {
+          "ids": ["p08"],
+          "totalDurationSec": 280
+        },
+        {
+          "ids": ["p01", "p05"],
+          "totalDurationSec": 492
+        }
+      ],
+      "usedIds": ["p01", "p02", "p03", "p04", "p05", "p06", "p07", "p08"]
+    },
+    {
+      "library": "sparse",
+      "seed": 123456789,
+      "totalSec": 600,
+      "sections": [
+        {
+          "ids": ["p06", "p08"],
+          "totalDurationSec": 454
+        },
+        {
+          "ids": ["p04"],
+          "totalDurationSec": 299
+        },
+        {
+          "ids": ["p05"],
+          "totalDurationSec": 352
+        }
+      ],
+      "usedIds": ["p04", "p05", "p06", "p08"]
+    },
+    {
+      "library": "sparse",
+      "seed": 123456789,
+      "totalSec": 900,
+      "sections": [
+        {
+          "ids": ["p06", "p08"],
+          "totalDurationSec": 454
+        },
+        {
+          "ids": ["p04", "p02"],
+          "totalDurationSec": 492
+        },
+        {
+          "ids": ["p03", "p05"],
+          "totalDurationSec": 598
+        }
+      ],
+      "usedIds": ["p02", "p03", "p04", "p05", "p06", "p08"]
+    },
+    {
+      "library": "sparse",
+      "seed": 123456789,
+      "totalSec": 1200,
+      "sections": [
+        {
+          "ids": ["p06", "p08"],
+          "totalDurationSec": 454
+        },
+        {
+          "ids": ["p04", "p02"],
+          "totalDurationSec": 492
+        },
+        {
+          "ids": ["p03", "p05"],
+          "totalDurationSec": 598
+        }
+      ],
+      "usedIds": ["p02", "p03", "p04", "p05", "p06", "p08"]
+    },
+    {
+      "library": "sparse",
+      "seed": 123456789,
+      "totalSec": 1800,
+      "sections": [
+        {
+          "ids": ["p06", "p08", "p04"],
+          "totalDurationSec": 753
+        },
+        {
+          "ids": ["p02", "p07"],
+          "totalDurationSec": 420
+        },
+        {
+          "ids": ["p03", "p05", "p01"],
+          "totalDurationSec": 738
+        }
+      ],
+      "usedIds": ["p01", "p02", "p03", "p04", "p05", "p06", "p07", "p08"]
+    },
+    {
+      "library": "sparse",
+      "seed": 123456789,
+      "totalSec": 3000,
+      "sections": [
+        {
+          "ids": ["p06", "p03", "p07", "p08", "p04"],
+          "totalDurationSec": 1226
+        },
+        {
+          "ids": ["p02"],
+          "totalDurationSec": 193
+        },
+        {
+          "ids": ["p05", "p01"],
+          "totalDurationSec": 492
+        }
+      ],
+      "usedIds": ["p01", "p02", "p03", "p04", "p05", "p06", "p07", "p08"]
+    },
+    {
+      "library": "unknownKeys",
+      "seed": 0,
+      "totalSec": 600,
+      "sections": [
+        {
+          "ids": ["u09", "u02"],
+          "totalDurationSec": 307
+        },
+        {
+          "ids": ["u03"],
+          "totalDurationSec": 232
+        },
+        {
+          "ids": ["u11"],
+          "totalDurationSec": 258
+        }
+      ],
+      "usedIds": ["u02", "u03", "u09", "u11"]
+    },
+    {
+      "library": "unknownKeys",
+      "seed": 0,
+      "totalSec": 900,
+      "sections": [
+        {
+          "ids": ["u09", "u02"],
+          "totalDurationSec": 307
+        },
+        {
+          "ids": ["u03", "u10"],
+          "totalDurationSec": 429
+        },
+        {
+          "ids": ["u14", "u13"],
+          "totalDurationSec": 359
+        }
+      ],
+      "usedIds": ["u02", "u03", "u09", "u10", "u13", "u14"]
+    },
+    {
+      "library": "unknownKeys",
+      "seed": 0,
+      "totalSec": 1200,
+      "sections": [
+        {
+          "ids": ["u09", "u02", "u06"],
+          "totalDurationSec": 491
+        },
+        {
+          "ids": ["u07", "u15"],
+          "totalDurationSec": 516
+        },
+        {
+          "ids": ["u14", "u13", "u08"],
+          "totalDurationSec": 665
+        }
+      ],
+      "usedIds": ["u02", "u06", "u07", "u08", "u09", "u13", "u14", "u15"]
+    },
+    {
+      "library": "unknownKeys",
+      "seed": 0,
+      "totalSec": 1800,
+      "sections": [
+        {
+          "ids": ["u09", "u02", "u06", "u14"],
+          "totalDurationSec": 701
+        },
+        {
+          "ids": ["u12", "u10", "u07"],
+          "totalDurationSec": 761
+        },
+        {
+          "ids": ["u11", "u08", "u01"],
+          "totalDurationSec": 674
+        }
+      ],
+      "usedIds": ["u01", "u02", "u06", "u07", "u08", "u09", "u10", "u11", "u12", "u14"]
+    },
+    {
+      "library": "unknownKeys",
+      "seed": 0,
+      "totalSec": 3000,
+      "sections": [
+        {
+          "ids": ["u09", "u05", "u02", "u11", "u14", "u06"],
+          "totalDurationSec": 1082
+        },
+        {
+          "ids": ["u07", "u12", "u10", "u15"],
+          "totalDurationSec": 1032
+        },
+        {
+          "ids": ["u01", "u08", "u13"],
+          "totalDurationSec": 565
+        }
+      ],
+      "usedIds": [
+        "u01",
+        "u02",
+        "u05",
+        "u06",
+        "u07",
+        "u08",
+        "u09",
+        "u10",
+        "u11",
+        "u12",
+        "u13",
+        "u14",
+        "u15"
+      ]
+    },
+    {
+      "library": "unknownKeys",
+      "seed": 1,
+      "totalSec": 600,
+      "sections": [
+        {
+          "ids": ["u05", "u02"],
+          "totalDurationSec": 294
+        },
+        {
+          "ids": ["u07"],
+          "totalDurationSec": 245
+        },
+        {
+          "ids": ["u06", "u08"],
+          "totalDurationSec": 490
+        }
+      ],
+      "usedIds": ["u02", "u05", "u06", "u07", "u08"]
+    },
+    {
+      "library": "unknownKeys",
+      "seed": 1,
+      "totalSec": 900,
+      "sections": [
+        {
+          "ids": ["u05", "u02", "u11"],
+          "totalDurationSec": 552
+        },
+        {
+          "ids": ["u03", "u12"],
+          "totalDurationSec": 551
+        },
+        {
+          "ids": ["u14", "u13"],
+          "totalDurationSec": 359
+        }
+      ],
+      "usedIds": ["u02", "u03", "u05", "u11", "u12", "u13", "u14"]
+    },
+    {
+      "library": "unknownKeys",
+      "seed": 1,
+      "totalSec": 1200,
+      "sections": [
+        {
+          "ids": ["u05", "u02", "u11"],
+          "totalDurationSec": 552
+        },
+        {
+          "ids": ["u03", "u12"],
+          "totalDurationSec": 551
+        },
+        {
+          "ids": ["u14", "u13", "u08"],
+          "totalDurationSec": 665
+        }
+      ],
+      "usedIds": ["u02", "u03", "u05", "u08", "u11", "u12", "u13", "u14"]
+    },
+    {
+      "library": "unknownKeys",
+      "seed": 1,
+      "totalSec": 1800,
+      "sections": [
+        {
+          "ids": ["u05", "u02", "u11", "u06"],
+          "totalDurationSec": 736
+        },
+        {
+          "ids": ["u10", "u12", "u15"],
+          "totalDurationSec": 787
+        },
+        {
+          "ids": ["u14", "u08", "u01"],
+          "totalDurationSec": 626
+        }
+      ],
+      "usedIds": ["u01", "u02", "u05", "u06", "u08", "u10", "u11", "u12", "u14", "u15"]
+    },
+    {
+      "library": "unknownKeys",
+      "seed": 1,
+      "totalSec": 3000,
+      "sections": [
+        {
+          "ids": ["u05", "u09", "u02", "u06", "u14", "u11"],
+          "totalDurationSec": 1082
+        },
+        {
+          "ids": ["u10", "u12", "u04", "u03"],
+          "totalDurationSec": 1041
+        },
+        {
+          "ids": ["u08", "u01", "u13"],
+          "totalDurationSec": 565
+        }
+      ],
+      "usedIds": [
+        "u01",
+        "u02",
+        "u03",
+        "u04",
+        "u05",
+        "u06",
+        "u08",
+        "u09",
+        "u10",
+        "u11",
+        "u12",
+        "u13",
+        "u14"
+      ]
+    },
+    {
+      "library": "unknownKeys",
+      "seed": 7,
+      "totalSec": 600,
+      "sections": [
+        {
+          "ids": ["u08"],
+          "totalDurationSec": 306
+        },
+        {
+          "ids": ["u04"],
+          "totalDurationSec": 293
+        },
+        {
+          "ids": ["u14"],
+          "totalDurationSec": 210
+        }
+      ],
+      "usedIds": ["u04", "u08", "u14"]
+    },
+    {
+      "library": "unknownKeys",
+      "seed": 7,
+      "totalSec": 900,
+      "sections": [
+        {
+          "ids": ["u08"],
+          "totalDurationSec": 306
+        },
+        {
+          "ids": ["u04", "u12"],
+          "totalDurationSec": 612
+        },
+        {
+          "ids": ["u14", "u01"],
+          "totalDurationSec": 320
+        }
+      ],
+      "usedIds": ["u01", "u04", "u08", "u12", "u14"]
+    },
+    {
+      "library": "unknownKeys",
+      "seed": 7,
+      "totalSec": 1200,
+      "sections": [
+        {
+          "ids": ["u08", "u06"],
+          "totalDurationSec": 490
+        },
+        {
+          "ids": ["u10", "u12"],
+          "totalDurationSec": 516
+        },
+        {
+          "ids": ["u14", "u01", "u13"],
+          "totalDurationSec": 469
+        }
+      ],
+      "usedIds": ["u01", "u06", "u08", "u10", "u12", "u13", "u14"]
+    },
+    {
+      "library": "unknownKeys",
+      "seed": 7,
+      "totalSec": 1800,
+      "sections": [
+        {
+          "ids": ["u08", "u06", "u11"],
+          "totalDurationSec": 748
+        },
+        {
+          "ids": ["u15", "u03", "u04"],
+          "totalDurationSec": 796
+        },
+        {
+          "ids": ["u02", "u09", "u05", "u01", "u13"],
+          "totalDurationSec": 689
+        }
+      ],
+      "usedIds": ["u01", "u02", "u03", "u04", "u05", "u06", "u08", "u09", "u11", "u13", "u15"]
+    },
+    {
+      "library": "unknownKeys",
+      "seed": 7,
+      "totalSec": 3000,
+      "sections": [
+        {
+          "ids": ["u08", "u01", "u06", "u14", "u02", "u11"],
+          "totalDurationSec": 1239
+        },
+        {
+          "ids": ["u12", "u10", "u07", "u15"],
+          "totalDurationSec": 1032
+        },
+        {
+          "ids": ["u05", "u09", "u13"],
+          "totalDurationSec": 408
+        }
+      ],
+      "usedIds": [
+        "u01",
+        "u02",
+        "u05",
+        "u06",
+        "u07",
+        "u08",
+        "u09",
+        "u10",
+        "u11",
+        "u12",
+        "u13",
+        "u14",
+        "u15"
+      ]
+    },
+    {
+      "library": "unknownKeys",
+      "seed": 42,
+      "totalSec": 600,
+      "sections": [
+        {
+          "ids": ["u01", "u06"],
+          "totalDurationSec": 294
+        },
+        {
+          "ids": ["u15"],
+          "totalDurationSec": 271
+        },
+        {
+          "ids": ["u11"],
+          "totalDurationSec": 258
+        }
+      ],
+      "usedIds": ["u01", "u06", "u11", "u15"]
+    },
+    {
+      "library": "unknownKeys",
+      "seed": 42,
+      "totalSec": 900,
+      "sections": [
+        {
+          "ids": ["u01", "u06", "u14"],
+          "totalDurationSec": 504
+        },
+        {
+          "ids": ["u12"],
+          "totalDurationSec": 319
+        },
+        {
+          "ids": ["u02", "u05", "u09"],
+          "totalDurationSec": 430
+        }
+      ],
+      "usedIds": ["u01", "u02", "u05", "u06", "u09", "u12", "u14"]
+    },
+    {
+      "library": "unknownKeys",
+      "seed": 42,
+      "totalSec": 1200,
+      "sections": [
+        {
+          "ids": ["u01", "u06", "u14"],
+          "totalDurationSec": 504
+        },
+        {
+          "ids": ["u12", "u10"],
+          "totalDurationSec": 516
+        },
+        {
+          "ids": ["u02", "u05", "u09"],
+          "totalDurationSec": 430
+        }
+      ],
+      "usedIds": ["u01", "u02", "u05", "u06", "u09", "u10", "u12", "u14"]
+    },
+    {
+      "library": "unknownKeys",
+      "seed": 42,
+      "totalSec": 1800,
+      "sections": [
+        {
+          "ids": ["u01", "u06", "u14", "u11"],
+          "totalDurationSec": 762
+        },
+        {
+          "ids": ["u04", "u07", "u10"],
+          "totalDurationSec": 735
+        },
+        {
+          "ids": ["u02", "u05", "u09", "u08"],
+          "totalDurationSec": 736
+        }
+      ],
+      "usedIds": ["u01", "u02", "u04", "u05", "u06", "u07", "u08", "u09", "u10", "u11", "u14"]
+    },
+    {
+      "library": "unknownKeys",
+      "seed": 42,
+      "totalSec": 3000,
+      "sections": [
+        {
+          "ids": ["u01", "u08", "u06", "u02", "u11"],
+          "totalDurationSec": 1029
+        },
+        {
+          "ids": ["u04", "u03", "u07", "u15"],
+          "totalDurationSec": 1041
+        },
+        {
+          "ids": ["u14", "u05", "u09", "u13"],
+          "totalDurationSec": 618
+        }
+      ],
+      "usedIds": [
+        "u01",
+        "u02",
+        "u03",
+        "u04",
+        "u05",
+        "u06",
+        "u07",
+        "u08",
+        "u09",
+        "u11",
+        "u13",
+        "u14",
+        "u15"
+      ]
+    },
+    {
+      "library": "unknownKeys",
+      "seed": 2024,
+      "totalSec": 600,
+      "sections": [
+        {
+          "ids": ["u09", "u02"],
+          "totalDurationSec": 307
+        },
+        {
+          "ids": ["u15"],
+          "totalDurationSec": 271
+        },
+        {
+          "ids": ["u14"],
+          "totalDurationSec": 210
+        }
+      ],
+      "usedIds": ["u02", "u09", "u14", "u15"]
+    },
+    {
+      "library": "unknownKeys",
+      "seed": 2024,
+      "totalSec": 900,
+      "sections": [
+        {
+          "ids": ["u09", "u02"],
+          "totalDurationSec": 307
+        },
+        {
+          "ids": ["u15", "u12"],
+          "totalDurationSec": 590
+        },
+        {
+          "ids": ["u14", "u05"],
+          "totalDurationSec": 333
+        }
+      ],
+      "usedIds": ["u02", "u05", "u09", "u12", "u14", "u15"]
+    },
+    {
+      "library": "unknownKeys",
+      "seed": 2024,
+      "totalSec": 1200,
+      "sections": [
+        {
+          "ids": ["u09", "u02", "u14"],
+          "totalDurationSec": 517
+        },
+        {
+          "ids": ["u12", "u10"],
+          "totalDurationSec": 516
+        },
+        {
+          "ids": ["u11", "u08"],
+          "totalDurationSec": 564
+        }
+      ],
+      "usedIds": ["u02", "u08", "u09", "u10", "u11", "u12", "u14"]
+    },
+    {
+      "library": "unknownKeys",
+      "seed": 2024,
+      "totalSec": 1800,
+      "sections": [
+        {
+          "ids": ["u09", "u02", "u14", "u11"],
+          "totalDurationSec": 775
+        },
+        {
+          "ids": ["u04", "u12"],
+          "totalDurationSec": 612
+        },
+        {
+          "ids": ["u06", "u13", "u01", "u08"],
+          "totalDurationSec": 749
+        }
+      ],
+      "usedIds": ["u01", "u02", "u04", "u06", "u08", "u09", "u11", "u12", "u13", "u14"]
+    },
+    {
+      "library": "unknownKeys",
+      "seed": 2024,
+      "totalSec": 3000,
+      "sections": [
+        {
+          "ids": ["u09", "u05", "u02", "u06", "u14", "u11"],
+          "totalDurationSec": 1082
+        },
+        {
+          "ids": ["u12", "u10", "u15", "u04"],
+          "totalDurationSec": 1080
+        },
+        {
+          "ids": ["u08", "u01", "u13"],
+          "totalDurationSec": 565
+        }
+      ],
+      "usedIds": [
+        "u01",
+        "u02",
+        "u04",
+        "u05",
+        "u06",
+        "u08",
+        "u09",
+        "u10",
+        "u11",
+        "u12",
+        "u13",
+        "u14",
+        "u15"
+      ]
+    },
+    {
+      "library": "unknownKeys",
+      "seed": 123456789,
+      "totalSec": 600,
+      "sections": [
+        {
+          "ids": ["u09", "u02"],
+          "totalDurationSec": 307
+        },
+        {
+          "ids": ["u07"],
+          "totalDurationSec": 245
+        },
+        {
+          "ids": ["u14"],
+          "totalDurationSec": 210
+        }
+      ],
+      "usedIds": ["u02", "u07", "u09", "u14"]
+    },
+    {
+      "library": "unknownKeys",
+      "seed": 123456789,
+      "totalSec": 900,
+      "sections": [
+        {
+          "ids": ["u09", "u02"],
+          "totalDurationSec": 307
+        },
+        {
+          "ids": ["u07", "u12"],
+          "totalDurationSec": 564
+        },
+        {
+          "ids": ["u14", "u08"],
+          "totalDurationSec": 516
+        }
+      ],
+      "usedIds": ["u02", "u07", "u08", "u09", "u12", "u14"]
+    },
+    {
+      "library": "unknownKeys",
+      "seed": 123456789,
+      "totalSec": 1200,
+      "sections": [
+        {
+          "ids": ["u09", "u02", "u11"],
+          "totalDurationSec": 565
+        },
+        {
+          "ids": ["u15", "u10"],
+          "totalDurationSec": 468
+        },
+        {
+          "ids": ["u14", "u08"],
+          "totalDurationSec": 516
+        }
+      ],
+      "usedIds": ["u02", "u08", "u09", "u10", "u11", "u14", "u15"]
+    },
+    {
+      "library": "unknownKeys",
+      "seed": 123456789,
+      "totalSec": 1800,
+      "sections": [
+        {
+          "ids": ["u09", "u02", "u11", "u14"],
+          "totalDurationSec": 775
+        },
+        {
+          "ids": ["u12", "u10", "u15"],
+          "totalDurationSec": 787
+        },
+        {
+          "ids": ["u06", "u13", "u01", "u08"],
+          "totalDurationSec": 749
+        }
+      ],
+      "usedIds": ["u01", "u02", "u06", "u08", "u09", "u10", "u11", "u12", "u13", "u14", "u15"]
+    },
+    {
+      "library": "unknownKeys",
+      "seed": 123456789,
+      "totalSec": 3000,
+      "sections": [
+        {
+          "ids": ["u09", "u05", "u02", "u14", "u11", "u06"],
+          "totalDurationSec": 1082
+        },
+        {
+          "ids": ["u12", "u10", "u15", "u04"],
+          "totalDurationSec": 1080
+        },
+        {
+          "ids": ["u01", "u08", "u13"],
+          "totalDurationSec": 565
+        }
+      ],
+      "usedIds": [
+        "u01",
+        "u02",
+        "u04",
+        "u05",
+        "u06",
+        "u08",
+        "u09",
+        "u10",
+        "u11",
+        "u12",
+        "u13",
+        "u14",
+        "u15"
+      ]
+    }
+  ]
+}

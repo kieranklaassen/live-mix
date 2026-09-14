@@ -98,3 +98,4 @@ export type {
   ToolResult,
   ToolSuccess,
 } from './types'
+export * from './score-authoring'

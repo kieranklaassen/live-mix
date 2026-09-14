@@ -130,11 +130,11 @@ export class ToolRegistry {
     return this.all().filter((spec) => spec.available(view))
   }
 
-  /** Definitions of the available tools with their effective rate limits. */
+  /** Definitions of the available tools with their effective rate limits (the rails table wins over a spec's own). */
   definitions(view: ControllerView): ToolDefinition[] {
     return this.available(view).map((spec) => ({
       ...spec.definition,
-      rateLimit: spec.definition.rateLimit ?? view.rails.rateLimitFor(spec.definition.name),
+      rateLimit: view.rails.rateLimitFor(spec.definition.name, spec.definition.rateLimit),
     }))
   }
 }

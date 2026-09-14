@@ -268,6 +268,16 @@ cursor (`full: true` with the whole snapshot for an unknown cursor).
 timers (R28's settable cadence); `get_state` gives the model the same
 document on demand.
 
+## Consumer tools and authored scores
+
+`tools: [...]` registers consumer `ToolSpec`s after the built-in catalogue. A
+spec may declare its own `rateLimit`; it is enforced unless the controller's
+`rails.rateLimits` table names the tool, in which case the table wins (and is
+what `listTools()` reports). The library ships one such set:
+`scriptTools()` — `author_script`, `preview_section`, `render_session` — for
+planner-written sessions, documented in
+[`docs/agent-authored-scores.md`](./agent-authored-scores.md).
+
 ## Consumer wiring notes
 
 - Breathwork Live: the conductor supplies `setMusicVolume` (so its user-speech

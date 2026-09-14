@@ -159,6 +159,26 @@ const coreSymbols = [
   'LAUNCH_MODES',
   'FOLLOW_ACTION_KINDS',
   'DEFAULT_LAUNCH_QUANTIZE',
+  // Agent-authored scores (U38)
+  'SESSION_SCRIPT_SCHEMA',
+  'SESSION_SCRIPT_CANON',
+  'parseSessionScript',
+  'validateSessionScript',
+  'checkScriptCanon',
+  'sessionScriptPromptContract',
+  'selectTracksForSession',
+  'pythonChooser',
+  'PythonRandom',
+  'compileScript',
+  'compileScriptDetailed',
+  'operationsToLoad',
+  'estimatedVoiceProvider',
+  'staticVoiceProvider',
+  'synthesizeVoice',
+  'renderScriptToWav',
+  'scriptTools',
+  'ScriptAuthoring',
+  'createScriptAuthoring',
 ] as const
 
 const dspSymbols = [
