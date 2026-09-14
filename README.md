@@ -253,8 +253,9 @@ device.bypass = true
 ```
 
 Devices written in [Faust](https://faust.grame.fr) (`cpp/faust/*.dsp`:
-Zita-Rev1, an 1176 limiter) compile to C++ at library build time and sit
-behind the same ABI; see [`docs/faust-devices.md`](./docs/faust-devices.md).
+Zita-Rev1 via `createZitaReverb`, an 1176 limiter via `createLimiter1176`)
+compile to C++ at library build time and sit behind the same ABI; see
+[`docs/faust-devices.md`](./docs/faust-devices.md).
 
 ### Real-time rules
 

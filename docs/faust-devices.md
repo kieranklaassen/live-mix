@@ -17,6 +17,8 @@ cpp/faust/<name>.dsp
 cpp/faust/<name>.device.cpp                20-line hand-written ABI shim
    │  scripts/build-wasm.sh   (Emscripten 4.0.15, same flags as every device)
    └─► src/dsp/wasm/<name>.wasm            committed artefact, copied to dist/wasm/
+src/dsp/devices/<name>.ts                  hand-written defineWasmDevice() + factory,
+                                           same shape as dattorro.ts
 ```
 
 Both generation steps are reproducible and gated in CI: job `faust` rebuilds
@@ -100,10 +102,11 @@ drives that threshold like the hardware's INPUT knob; output gain is make-up.
 A full-scale sine in both channels sits 12 dB over the detector's threshold
 and comes out 9 dB down.
 
-Param tables: `ZITA_REV1_PARAMS`, `LIMITER_1176_PARAMS` from
-`@kieranklaassen/live-mix/dsp`. Factories (`createZitaReverb`,
-`createLimiter1176`) follow the `WasmDevice` host, as `createDattorroReverb`
-does.
+From `@kieranklaassen/live-mix/dsp`: `createZitaReverb(ctx, options)` and
+`createLimiter1176(ctx, options)` return a `WasmDevice` over the committed
+artefact, exactly like `createDattorroReverb`; `ZITA_REV1_DEVICE` /
+`LIMITER_1176_DEVICE` are the definitions and `ZITA_REV1_PARAMS` /
+`LIMITER_1176_PARAMS` the tables.
 
 ## Tests
 
