@@ -1,0 +1,480 @@
+{
+  "standard": [
+    {
+      "id": "s01",
+      "title": "Still Water",
+      "intensity": 1,
+      "camelot": "8A",
+      "durationSec": 95,
+      "url": "/music/s01.mp3"
+    },
+    {
+      "id": "s02",
+      "title": "Low Tide",
+      "intensity": 1,
+      "camelot": "10A",
+      "durationSec": 132,
+      "url": "/music/s02.mp3"
+    },
+    {
+      "id": "s03",
+      "title": "Far Shore",
+      "intensity": 2,
+      "camelot": "2A",
+      "durationSec": 169,
+      "url": "/music/s03.mp3"
+    },
+    {
+      "id": "s04",
+      "title": "Slow Pulse",
+      "intensity": 3,
+      "camelot": "3A",
+      "durationSec": 206,
+      "url": "/music/s04.mp3"
+    },
+    {
+      "id": "s05",
+      "title": "Warm Current",
+      "intensity": 1,
+      "camelot": "5B",
+      "durationSec": 243,
+      "url": "/music/s05.mp3"
+    },
+    {
+      "id": "s06",
+      "title": "Rising",
+      "intensity": 3,
+      "camelot": "9A",
+      "durationSec": 280,
+      "url": "/music/s06.mp3"
+    },
+    {
+      "id": "s07",
+      "title": "Open Sky",
+      "intensity": 2,
+      "camelot": "5A",
+      "durationSec": 317,
+      "url": "/music/s07.mp3"
+    },
+    {
+      "id": "s08",
+      "title": "Ember",
+      "intensity": 3,
+      "camelot": "11B",
+      "durationSec": 123,
+      "url": "/music/s08.mp3"
+    },
+    {
+      "id": "s09",
+      "title": "Deep Field",
+      "intensity": 1,
+      "camelot": "10B",
+      "durationSec": 160,
+      "url": "/music/s09.mp3"
+    },
+    {
+      "id": "s10",
+      "title": "Cedar",
+      "intensity": 2,
+      "camelot": "2B",
+      "durationSec": 197,
+      "url": "/music/s10.mp3"
+    },
+    {
+      "id": "s11",
+      "title": "Hollow",
+      "intensity": 3,
+      "camelot": "7B",
+      "durationSec": 234,
+      "url": "/music/s11.mp3"
+    },
+    {
+      "id": "s12",
+      "title": "Glass Rain",
+      "intensity": 1,
+      "camelot": "12B",
+      "durationSec": 271,
+      "url": "/music/s12.mp3"
+    },
+    {
+      "id": "s13",
+      "title": "Tidal",
+      "intensity": 1,
+      "camelot": "4A",
+      "durationSec": 308,
+      "url": "/music/s13.mp3"
+    },
+    {
+      "id": "s14",
+      "title": "Kite",
+      "intensity": 1,
+      "camelot": "6A",
+      "durationSec": 114,
+      "url": "/music/s14.mp3"
+    },
+    {
+      "id": "s15",
+      "title": "Moss",
+      "intensity": 2,
+      "camelot": "11A",
+      "durationSec": 151,
+      "url": "/music/s15.mp3"
+    },
+    {
+      "id": "s16",
+      "title": "Lantern",
+      "intensity": 3,
+      "camelot": "3B",
+      "durationSec": 188,
+      "url": "/music/s16.mp3"
+    },
+    {
+      "id": "s17",
+      "title": "Ridge",
+      "intensity": 1,
+      "camelot": "1A",
+      "durationSec": 225,
+      "url": "/music/s17.mp3"
+    },
+    {
+      "id": "s18",
+      "title": "Salt",
+      "intensity": 3,
+      "camelot": "7A",
+      "durationSec": 262,
+      "url": "/music/s18.mp3"
+    },
+    {
+      "id": "s19",
+      "title": "Harbor",
+      "intensity": 2,
+      "camelot": "12A",
+      "durationSec": 299,
+      "url": "/music/s19.mp3"
+    },
+    {
+      "id": "s20",
+      "title": "Fern",
+      "intensity": 3,
+      "camelot": "4B",
+      "durationSec": 105,
+      "url": "/music/s20.mp3"
+    },
+    {
+      "id": "s21",
+      "title": "Aurora",
+      "intensity": 1,
+      "camelot": "8B",
+      "durationSec": 142,
+      "url": "/music/s21.mp3"
+    },
+    {
+      "id": "s22",
+      "title": "Quarry",
+      "intensity": 2,
+      "camelot": "6B",
+      "durationSec": 179,
+      "url": "/music/s22.mp3"
+    },
+    {
+      "id": "s23",
+      "title": "Drift",
+      "intensity": 3,
+      "camelot": "9B",
+      "durationSec": 216,
+      "url": "/music/s23.mp3"
+    },
+    {
+      "id": "s24",
+      "title": "Bloom",
+      "intensity": 1,
+      "camelot": "1B",
+      "durationSec": 253,
+      "url": "/music/s24.mp3"
+    },
+    {
+      "id": "s25",
+      "title": "Pine",
+      "intensity": 1,
+      "camelot": "8A",
+      "durationSec": 290,
+      "url": "/music/s25.mp3"
+    },
+    {
+      "id": "s26",
+      "title": "Comet",
+      "intensity": 1,
+      "camelot": "10A",
+      "durationSec": 96,
+      "url": "/music/s26.mp3"
+    },
+    {
+      "id": "s27",
+      "title": "Loam",
+      "intensity": 2,
+      "camelot": "2A",
+      "durationSec": 133,
+      "url": "/music/s27.mp3"
+    },
+    {
+      "id": "s28",
+      "title": "Marrow",
+      "intensity": 3,
+      "camelot": "3A",
+      "durationSec": 170,
+      "url": "/music/s28.mp3"
+    },
+    {
+      "id": "s29",
+      "title": "Signal",
+      "intensity": 1,
+      "camelot": "5B",
+      "durationSec": 207,
+      "url": "/music/s29.mp3"
+    },
+    {
+      "id": "s30",
+      "title": "Thaw",
+      "intensity": 3,
+      "camelot": "9A",
+      "durationSec": 244,
+      "url": "/music/s30.mp3"
+    },
+    {
+      "id": "s31",
+      "title": "Vale",
+      "intensity": 2,
+      "camelot": "5A",
+      "durationSec": 281,
+      "url": "/music/s31.mp3"
+    },
+    {
+      "id": "s32",
+      "title": "Wick",
+      "intensity": 3,
+      "camelot": "11B",
+      "durationSec": 318,
+      "url": "/music/s32.mp3"
+    },
+    {
+      "id": "s33",
+      "title": "Yarrow",
+      "intensity": 1,
+      "camelot": "10B",
+      "durationSec": 124,
+      "url": "/music/s33.mp3"
+    },
+    {
+      "id": "s34",
+      "title": "Zenith",
+      "intensity": 2,
+      "camelot": "2B",
+      "durationSec": 161,
+      "url": "/music/s34.mp3"
+    },
+    {
+      "id": "s35",
+      "title": "Anchor",
+      "intensity": 3,
+      "camelot": "7B",
+      "durationSec": 198,
+      "url": "/music/s35.mp3"
+    },
+    {
+      "id": "s36",
+      "title": "Breeze",
+      "intensity": 1,
+      "camelot": "12B",
+      "durationSec": 235,
+      "url": "/music/s36.mp3"
+    }
+  ],
+  "sparse": [
+    {
+      "id": "p01",
+      "title": "Slow Pulse",
+      "intensity": 1,
+      "camelot": "3B",
+      "durationSec": 140,
+      "url": "/music/p01.mp3"
+    },
+    {
+      "id": "p02",
+      "title": "Warm Current",
+      "intensity": 2,
+      "camelot": "1A",
+      "durationSec": 193,
+      "url": "/music/p02.mp3"
+    },
+    {
+      "id": "p03",
+      "title": "Rising",
+      "intensity": 1,
+      "camelot": "7A",
+      "durationSec": 246,
+      "url": "/music/p03.mp3"
+    },
+    {
+      "id": "p04",
+      "title": "Open Sky",
+      "intensity": 2,
+      "camelot": "12A",
+      "durationSec": 299,
+      "url": "/music/p04.mp3"
+    },
+    {
+      "id": "p05",
+      "title": "Ember",
+      "intensity": 1,
+      "camelot": "4B",
+      "durationSec": 352,
+      "url": "/music/p05.mp3"
+    },
+    {
+      "id": "p06",
+      "title": "Deep Field",
+      "intensity": 1,
+      "camelot": "8B",
+      "durationSec": 174,
+      "url": "/music/p06.mp3"
+    },
+    {
+      "id": "p07",
+      "title": "Cedar",
+      "intensity": 2,
+      "camelot": "6B",
+      "durationSec": 227,
+      "url": "/music/p07.mp3"
+    },
+    {
+      "id": "p08",
+      "title": "Hollow",
+      "intensity": 2,
+      "camelot": "9B",
+      "durationSec": 280,
+      "url": "/music/p08.mp3"
+    }
+  ],
+  "unknownKeys": [
+    {
+      "id": "u01",
+      "title": "Ember",
+      "intensity": 1,
+      "camelot": "12B",
+      "durationSec": 110,
+      "url": "/music/u01.mp3"
+    },
+    {
+      "id": "u02",
+      "title": "Deep Field",
+      "intensity": 2,
+      "camelot": "4A",
+      "durationSec": 171,
+      "url": "/music/u02.mp3"
+    },
+    {
+      "id": "u03",
+      "title": "Cedar",
+      "intensity": 3,
+      "camelot": "Unknown",
+      "durationSec": 232,
+      "url": "/music/u03.mp3"
+    },
+    {
+      "id": "u04",
+      "title": "Hollow",
+      "intensity": 3,
+      "camelot": "11A",
+      "durationSec": 293,
+      "url": "/music/u04.mp3"
+    },
+    {
+      "id": "u05",
+      "title": "Glass Rain",
+      "intensity": 1,
+      "camelot": "3B",
+      "durationSec": 123,
+      "url": "/music/u05.mp3"
+    },
+    {
+      "id": "u06",
+      "title": "Tidal",
+      "intensity": 2,
+      "camelot": "1A",
+      "durationSec": 184,
+      "url": "/music/u06.mp3"
+    },
+    {
+      "id": "u07",
+      "title": "Kite",
+      "intensity": 3,
+      "camelot": "Unknown",
+      "durationSec": 245,
+      "url": "/music/u07.mp3"
+    },
+    {
+      "id": "u08",
+      "title": "Moss",
+      "intensity": 1,
+      "camelot": "12A",
+      "durationSec": 306,
+      "url": "/music/u08.mp3"
+    },
+    {
+      "id": "u09",
+      "title": "Lantern",
+      "intensity": 1,
+      "camelot": "4B",
+      "durationSec": 136,
+      "url": "/music/u09.mp3"
+    },
+    {
+      "id": "u10",
+      "title": "Ridge",
+      "intensity": 3,
+      "camelot": "8B",
+      "durationSec": 197,
+      "url": "/music/u10.mp3"
+    },
+    {
+      "id": "u11",
+      "title": "Salt",
+      "intensity": 2,
+      "camelot": "Unknown",
+      "durationSec": 258,
+      "url": "/music/u11.mp3"
+    },
+    {
+      "id": "u12",
+      "title": "Harbor",
+      "intensity": 3,
+      "camelot": "9B",
+      "durationSec": 319,
+      "url": "/music/u12.mp3"
+    },
+    {
+      "id": "u13",
+      "title": "Fern",
+      "intensity": 1,
+      "camelot": "1B",
+      "durationSec": 149,
+      "url": "/music/u13.mp3"
+    },
+    {
+      "id": "u14",
+      "title": "Aurora",
+      "intensity": 2,
+      "camelot": "8A",
+      "durationSec": 210,
+      "url": "/music/u14.mp3"
+    },
+    {
+      "id": "u15",
+      "title": "Quarry",
+      "intensity": 3,
+      "camelot": "Unknown",
+      "durationSec": 271,
+      "url": "/music/u15.mp3"
+    }
+  ]
+}

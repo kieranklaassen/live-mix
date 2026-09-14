@@ -225,7 +225,10 @@ export class AgentController implements ControllerView {
       notes.push({ rail: 'consent', action: 'rejected', message: `needs consent "${consent}"` })
       return fail('consent_required', `"${name}" needs the "${consent}" consent`)
     }
-    const wait = dryRun ? this.rails.peekCall(name, atMs) : this.rails.takeCall(name, atMs)
+    const declared = spec.definition.rateLimit
+    const wait = dryRun
+      ? this.rails.peekCall(name, atMs, declared)
+      : this.rails.takeCall(name, atMs, declared)
     if (wait !== null) {
       notes.push({ rail: 'rate-limit', action: 'rejected', message: `retry in ${wait} ms` })
       return fail('rate_limited', `"${name}" is rate-limited; retry in ${wait} ms`, {

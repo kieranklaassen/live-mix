@@ -158,13 +158,17 @@ export class Rails {
 
   // --- Rate limits -----------------------------------------------------------
 
-  rateLimitFor(tool: string): RateLimit {
-    return this.config.rateLimits[tool] ?? this.config.rateLimits.default
+  /**
+   * The limit for `tool`: the configured table first, then the limit the
+   * tool's own spec declares (consumer tools), then the default.
+   */
+  rateLimitFor(tool: string, declared?: RateLimit): RateLimit {
+    return this.config.rateLimits[tool] ?? declared ?? this.config.rateLimits.default
   }
 
   /** Consume one call of `tool`; the ms to wait when the bucket is empty, else null. */
-  takeCall(tool: string, atMs: number): number | null {
-    const limit = this.rateLimitFor(tool)
+  takeCall(tool: string, atMs: number, declared?: RateLimit): number | null {
+    const limit = this.rateLimitFor(tool, declared)
     const refillPerMs = limit.perMinute / 60_000
     const bucket = take(
       this.callBuckets.get(tool) ?? { tokens: limit.burst, atMs },
@@ -181,8 +185,8 @@ export class Rails {
   }
 
   /** Whether a call of `tool` would pass now, without consuming it (dry runs). */
-  peekCall(tool: string, atMs: number): number | null {
-    const limit = this.rateLimitFor(tool)
+  peekCall(tool: string, atMs: number, declared?: RateLimit): number | null {
+    const limit = this.rateLimitFor(tool, declared)
     const refillPerMs = limit.perMinute / 60_000
     const bucket = take(
       this.callBuckets.get(tool) ?? { tokens: limit.burst, atMs },
