@@ -234,8 +234,10 @@ where a browser exposes it (`supported`), converting each update's
 stereo 48 kHz audio in 294 ms (0.5 % of real time) and the limiter's `.wasm` in
 96 ms (0.16 %); both are allocation-free per block. The iPhone figure (target:
 meter and ducker together under 5 % CPU with two devices) is recorded by hand
-when a consumer ships them. The core entry is 40 KB minified (budget 60 KB);
-the meter worklet bundle 6 KB.
+when a consumer ships them. The core entry with its shared chunks (React and
+`signalsmith-stretch` external) is 115 KB minified / 34 KB gzipped, measured
+with `esbuild dist/index.js --bundle --minify --format=esm`; the meter worklet
+bundle is 13 KB, the capture worklet 3 KB.
 
 ## Install
 
@@ -333,9 +335,10 @@ src/
   core/               Engine, tracks, buses, Transport, Scheduler, Clip, SampleStore, OutputRouter, Meter, native devices, stats
   core/devices/       Device contract, NodeDevice host + stock node devices, registry, presets, Rack/Chain, Macro maths, pdc (latency report, AlignmentDelay)
   core/analysis/      Meter (analyser), LoudnessAnalyzer (BS.1770-4 DSP), LufsMeter (worklet host) + meter protocol
+  core/render/        OfflineRenderer (renderOffline, renderStems, scheduleAhead), encode (WAV), Recorder (worklet + MediaRecorder capture)
   dsp/                WasmDevice host, C ABI typings, device factories + param tables
   dsp/devices/faust/  generated param tables for the Faust devices (scripts/build-faust.sh)
-  dsp/worklets/       wasm-device.processor.ts, ducker.processor.ts, meter.processor.ts → dist/worklets/*.js (one file each, no imports)
+  dsp/worklets/       wasm-device, ducker, meter, recorder processors → dist/worklets/*.js (one file each, no imports)
   dsp/wasm/           committed *.wasm artefacts (scripts/build-wasm.sh; CI verifies they reproduce)
   react/              headless hooks (U24): hooks/*, frame sampling, useSyncExternalStore store; components follow in U25
   score/              Score schema, operations + inverses, OperationLog, History, ScoreDocument, ScoreRenderer
@@ -620,6 +623,32 @@ compatible with everything): `camelotCompatible`, `camelotDistance`,
 `transposeCamelot` (one semitone = seven steps around the wheel), and
 `keyMatch(anchor, candidate, { maxSemitones })` — the smallest shift that
 lands compatible, `rankByKeyMatch` to order candidates.
+
+### Bouncing, stems and recording
+
+`renderOffline({ durationSec, sampleRate, build })` builds the same engine on
+an `OfflineAudioContext` and pre-schedules the whole arrangement from a
+virtual clock (scheduler and automation ticks stepped through the duration
+plus lookahead) before `startRendering()`, so a bounce is a pure function of
+the arrangement: identical every run, and identical — at the level of every
+source start and AudioParam event — to what the live engine tells its graph
+(`render equals live` golden on the recording mocks; a real-audio comparison
+needs a browser and is a Playwright follow-up). `engine.alignLatency()` runs
+after the build so plugin-delay compensation is the same in every render;
+`result.latency` is the report. `renderStems({ stems: ['music', 'voice'] })`
+renders the master plus one solo-in-place pass per track. Main-thread
+followers (the legacy `Ducker`, `Meter` readings) cannot run offline; use the
+worklet ducker for bounces with sidechain ducking.
+
+`encodeWav(planar, { bitDepth: 16 | 24 | 32 })` writes PCM or float WAV
+(`audioBufferToWav`, `wavBlob`, `decodeWav` for tests and imports).
+Compressed formats come from the browser: `createRecorder(ctx, source, { mode:
+'media-recorder', mimeType })` feeds a `MediaStreamAudioDestinationNode` into
+`MediaRecorder` and resolves a `Blob`. The default `'worklet'` mode taps the
+master or any bus/track through `dist/worklets/recorder.js`, which posts
+sample-exact planar chunks; `stop()` resolves planar audio to encode or to load
+into the `SampleStore` as a new clip. Recorders are taps: nothing is inserted
+into the audible path.
 
 ### React hooks (`./react`)
 
