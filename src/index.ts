@@ -187,6 +187,57 @@ export {
   type WarpSegment,
 } from './core/sources/StretchSource'
 export {
+  audioBufferToWav,
+  decodeWav,
+  deinterleave,
+  encodeWav,
+  interleave,
+  planarFromAudioBuffer,
+  readWavInfo,
+  wavBlob,
+  type PlanarAudio,
+  type WavBitDepth,
+  type WavEncodeOptions,
+  type WavInfo,
+} from './core/render/encode'
+export {
+  maxAbsDifference,
+  renderOffline,
+  renderStems,
+  scheduleAhead,
+  type OfflineContextFactory,
+  type OfflineContextLike,
+  type RenderBuild,
+  type RenderBuildInfo,
+  type RenderOptions,
+  type RenderResult,
+  type ScheduleAheadOptions,
+  type StemsOptions,
+} from './core/render/OfflineRenderer'
+export {
+  MediaStreamRecorder,
+  Recorder,
+  WorkletRecorder,
+  createRecorder,
+  defaultRecorderProcessorUrl,
+  type MediaRecorderLike,
+  type MediaRecorderOptions,
+  type MediaRecording,
+  type RecordSource,
+  type Recording,
+  type RecorderNodeFactory,
+  type RecorderOptions,
+  type WorkletRecorderOptions,
+  type WorkletRecording,
+} from './core/render/Recorder'
+export {
+  DEFAULT_RECORDER_CHUNK_FRAMES,
+  RECORDER_PROCESSOR_NAME,
+  type RecorderHostMessage,
+  type RecorderMessage,
+  type RecorderProcessorOptions,
+} from './core/render/recorder-protocol'
+export {
   // Node devices
   COMPRESSOR_DESCRIPTOR,
   COMPRESSOR_DEVICE,
