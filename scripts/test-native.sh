@@ -16,3 +16,10 @@ CXX="${CXX:-c++}"
   -o "$out_dir/dattorro_test"
 
 "$out_dir/dattorro_test"
+
+"$CXX" -std=c++17 -O2 -fno-exceptions -fno-rtti -Wall -Wextra \
+  cpp/test/fdn_reverb_test.cpp \
+  cpp/devices/fdn-reverb/fdn_reverb_device.cpp \
+  -o "$out_dir/fdn_reverb_test"
+
+"$out_dir/fdn_reverb_test"

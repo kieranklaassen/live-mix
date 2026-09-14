@@ -50,3 +50,7 @@ build_device dattorro \
   cpp/devices/dattorro/dattorro_reverb.cpp \
   cpp/devices/dattorro/dattorro_device.cpp \
   cpp/devices/dattorro/device_api.cpp
+
+build_device fdn-reverb \
+  cpp/devices/fdn-reverb/fdn_reverb_device.cpp \
+  cpp/devices/fdn-reverb/device_api.cpp
