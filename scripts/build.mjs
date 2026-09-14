@@ -27,6 +27,7 @@ async function main() {
       'dsp/index': 'src/dsp/index.ts',
       'react/index': 'src/react/index.ts',
       'testing/index': 'src/testing/index.ts',
+      'wam/index': 'src/wam/index.ts',
     },
     format: ['esm'],
     target: 'es2022',
@@ -36,7 +37,8 @@ async function main() {
     splitting: true,
     clean: true,
     treeshake: true,
-    external: ['react'],
+    // Optional peers: consumers that import `./react` or `./wam` install them.
+    external: ['react', '@webaudiomodules/sdk', '@webaudiomodules/api'],
     outDir: 'dist',
     silent: true,
   })

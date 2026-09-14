@@ -137,6 +137,7 @@ Entry points (all ESM):
 | `@kieranklaassen/live-mix/dsp`        | `WasmDevice` host, the C ABI typings, device factories (`createDattorroReverb`, …) and their param tables                  |
 | `@kieranklaassen/live-mix/react`      | Headless hooks over the engine (`LiveMixProvider`, `useTransport`, `useTrack`, `useMeter`, …); `react` is an optional peer |
 | `@kieranklaassen/live-mix/testing`    | `MockAudioContext` with an AudioParam event recorder, framework-free                                                       |
+| `@kieranklaassen/live-mix/wam`        | `WamDevice`: WebAudioModules 2.0 plugins as devices (`@webaudiomodules/sdk` + `api` are optional peers)                    |
 | `@kieranklaassen/live-mix/worklets/*` | Raw worklet bundles, for consumers that prefer explicit `?url` imports                                                     |
 | `@kieranklaassen/live-mix/wasm/*`     | Raw `.wasm` artefacts, same reason                                                                                         |
 
@@ -338,6 +339,7 @@ src/
   dsp/wasm/           committed *.wasm artefacts (scripts/build-wasm.sh; CI verifies they reproduce)
   react/              headless hooks (U24): hooks/*, frame sampling, useSyncExternalStore store; components follow in U25
   testing/            MockAudioContext + AudioParam recorder
+  wam/                WebAudioModules 2.0 host adapter → its own entry (docs/wam.md)
 cpp/
   common/             device_api.h (the C ABI), dsp_util.h
   devices/dattorro/   Dattorro plate (from ambient-live) behind the ABI
@@ -538,6 +540,38 @@ engine.alignLatency() // returns the report afterwards; alignable paths show def
 
 The whole mix is late by `maxArrivalSamples` relative to a dry input;
 compensating recorded input against that offset is U33.
+
+### WebAudioModules 2.0 plugins
+
+Third-party browser plugins in the [WAM 2.0](https://www.webaudiomodules.com)
+format load through `@kieranklaassen/live-mix/wam`, a separate entry so that
+`.` and `./dsp` never depend on `@webaudiomodules/sdk` (an optional peer,
+pinned with `@webaudiomodules/api`; `pnpm pack:check` enforces the split). A
+WAM's `audioNode` becomes a `Device`: its `getParameterInfo()` is the param
+table (WAM ids as names, `type`/`step`/`choices` kept on `WamParamSpec`),
+`setParam` is `setParameterValues`, bypass is the 5 ms dry/wet crossfade,
+`latencySec` comes from `getCompensationDelay()`, presets work unchanged and
+`getState`/`setState` carry the plugin's own state. Instruments are
+`NoteDevice`s (notes → MIDI events).
+
+```ts
+import { devices } from '@kieranklaassen/live-mix'
+import { WamDevice, registerWamDevice, wamDeviceParam } from '@kieranklaassen/live-mix/wam'
+
+const verb = await WamDevice.create(ctx, 'https://…/kbverb/index.js', { params: { mix: 0.3 } })
+music.strip.addInsert(verb)
+panel.append(await verb.createGui()) // the plugin's own UI, placed by the UI kit
+engine.automation.add(lane, wamDeviceParam(verb, 'mix')) // U19 lanes as wam-automation events
+
+const kbverb = await registerWamDevice(ctx, 'https://…/kbverb/index.js') // kind: 'wam', id wam:<identifier>
+const another = await devices.create(kbverb.id, ctx, { preset: 'Hall' })
+```
+
+The host (`WamEnv` + `WamGroup`) installs once per context through the SDK's
+`initializeWamHost`; the entry imports only that file, so it stays import-safe
+under SSR. Param mapping, the state/preset split, the automation caveats, a
+Faust → WAM recipe, the plugin gallery and its licensing are in
+[`docs/wam.md`](./docs/wam.md).
 
 ### Sidechain ducker: legacy poll or audio-thread worklet
 

@@ -1,0 +1,11 @@
+---
+'@kieranklaassen/live-mix': minor
+---
+
+WebAudioModules 2.0 host adapter (U35) on a new entry, `@kieranklaassen/live-mix/wam`.
+
+- `WamDevice.create(ctx, urlOrConstructor, { params, initialState, host, importModule, latencySec, id })` loads a WAM 2.0 plugin (dynamic `import()` of its ES module, or an imported constructor), instantiates it in the context's host group and exposes it under the `Device` contract: `getParameterInfo()` → `params` (`WamParamSpec` adds `type`, `step`, `choices`, `exponent` to `ParamSpec`; WAM ids are the param names), `setParam`/`setParams` → `setParameterValues` (clamped, snapped for discrete params), synchronous `getParam` mirror with `syncParams()` for GUI edits and automatic updates from `wam-automation` events, click-free 5 ms dry/wet `bypass`, `latencySec` and `latencySamples` from `getCompensationDelay()`, `getState`/`setState` for the plugin's native state, `createGui`/`destroyGui`, `scheduleParam`/`clearScheduled`/`scheduleEvents`/`sendMidi`, `NoteDevice` (`noteOn`/`noteOff` as MIDI), idempotent `dispose`.
+- `ensureWamHost(ctx, { groupId, groupKey, initialize })`: one `WamEnv` + `WamGroup` per context via the SDK's `initializeWamHost`, cached; only `@webaudiomodules/sdk/src/initializeWamHost.js` is imported so the entry is import-safe in Node/SSR (the SDK index is not).
+- Registry `kind: 'wam'`: `describeWamDevice(ctx, source, meta)` probes a plugin once and returns a `WamDeviceDescriptor` (`url`, `wam` descriptor, default id `wam:<identifier>`); `wamDeviceDescriptor(spec)` rebuilds one synchronously from a persisted table; `registerWamDevice` registers it. `registry.create(id, ctx, { preset, params })` works as for every other kind.
+- `wamDeviceParam(device, name, { stepSec })`: a `ScheduledParam` so `LaneWriter`/`engine.automation` drive WAM params; ramps become `wam-automation` points every 20 ms, cancels clear the plugin queue (plugin-wide, a WAM limit).
+- `@webaudiomodules/sdk@0.0.12` and `@webaudiomodules/api@2.0.0-alpha.6` are optional peer dependencies; `pnpm pack:check` now fails if `.`, `./dsp` or `./testing` reach an optional peer. `docs/wam.md` covers the mapping, licensing, the community gallery, a Faust → WAM recipe and a playground snippet.

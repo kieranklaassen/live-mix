@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest'
 import * as core from '../index'
 import * as dsp from '../dsp/index'
 import * as testing from '../testing/index'
+import * as wam from '../wam/index'
 
 const coreSymbols = [
   'createEngine',
@@ -119,6 +120,19 @@ const testingSymbols = [
   'configureMocks',
 ] as const
 
+const wamSymbols = [
+  'WamDevice',
+  'ensureWamHost',
+  'initializeWamHost',
+  'describeWamDevice',
+  'wamDeviceDescriptor',
+  'registerWamDevice',
+  'wamDeviceParam',
+  'wamParamSpecs',
+  'loadWamModule',
+  'WAM_DEVICE_RAMP_SECONDS',
+] as const
+
 describe('public entries', () => {
   it.each(coreSymbols)('`.` exports %s', (name) => {
     expect((core as Record<string, unknown>)[name]).toBeDefined()
@@ -128,6 +142,9 @@ describe('public entries', () => {
   })
   it.each(testingSymbols)('`./testing` exports %s', (name) => {
     expect((testing as Record<string, unknown>)[name]).toBeDefined()
+  })
+  it.each(wamSymbols)('`./wam` exports %s', (name) => {
+    expect((wam as Record<string, unknown>)[name]).toBeDefined()
   })
 })
 

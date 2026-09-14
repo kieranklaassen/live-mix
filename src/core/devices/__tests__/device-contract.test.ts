@@ -1,7 +1,7 @@
-// Every registered device — the node devices, the rack, and every stock WASM
-// device — honours the Device contract the same way when created through the
-// registry. Adding a device to NODE_DEVICES or STOCK_WASM_DEVICES adds it to
-// this table.
+// Every registered device — the node devices, the rack, every stock WASM
+// device and a WAM behind the U35 adapter — honours the Device contract the
+// same way when created through the registry. Adding a device to NODE_DEVICES
+// or STOCK_WASM_DEVICES adds it to this table.
 
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
@@ -10,6 +10,9 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import { STOCK_WASM_DEVICES } from '../../../dsp/registry'
 import { type WasmDeviceDefinition, type WorkletNodeFactory } from '../../../dsp/WasmDevice'
 import { asAudioContext, createMockContext, type MockAudioContext } from '../../../testing'
+import { FAKE_EFFECT_CONFIG, FakeWamNode, defineFakeWam } from '../../../wam/__tests__/fake-wam'
+import { wamParamSpecs } from '../../../wam/params'
+import { wamDeviceDescriptor } from '../../../wam/registry'
 import { clampParam } from '../../params'
 import { type Device } from '../Device'
 import { NODE_DEVICES } from '../native'
@@ -50,7 +53,24 @@ beforeAll(async () => {
   }
 })
 
-const registry = new DeviceRegistry([...NODE_DEVICES, RACK_DESCRIPTOR, ...STOCK_WASM_DEVICES])
+// The WAM row: the in-repo fake plugin behind a descriptor built the way a
+// score restores one (a persisted param table, no probe).
+const FAKE_WAM_DESCRIPTOR = wamDeviceDescriptor({
+  id: 'wam-fake-effect',
+  name: 'Fake WAM Effect',
+  category: 'other',
+  source: defineFakeWam(FAKE_EFFECT_CONFIG),
+  params: wamParamSpecs(new FakeWamNode(FAKE_EFFECT_CONFIG).info),
+  presets: { Warm: { mode: 1, cutoff: 4000 }, Loud: { gain: 12 } },
+  host: { groupId: 'contract', groupKey: 'k' },
+})
+
+const registry = new DeviceRegistry([
+  ...NODE_DEVICES,
+  RACK_DESCRIPTOR,
+  ...STOCK_WASM_DEVICES,
+  FAKE_WAM_DESCRIPTOR,
+])
 
 /** Per-kind options the factories need under the mocks. */
 function requestFor(descriptor: DeviceDescriptor): DeviceCreateRequest {
@@ -73,12 +93,11 @@ async function make(
   return { device, ctx }
 }
 
-const table = [...NODE_DEVICES, RACK_DESCRIPTOR, ...STOCK_WASM_DEVICES].map((descriptor) => ({
-  id: descriptor.id,
-  descriptor,
-}))
+const table = [...NODE_DEVICES, RACK_DESCRIPTOR, ...STOCK_WASM_DEVICES, FAKE_WAM_DESCRIPTOR].map(
+  (descriptor) => ({ id: descriptor.id, descriptor }),
+)
 
-it('covers every stock device', () => {
+it('covers every stock device and the WAM adapter', () => {
   expect(table.map((row) => row.id).sort()).toEqual(
     [
       'filter',
@@ -96,6 +115,7 @@ it('covers every stock device', () => {
       'limiter-1176',
       'ducker',
       'spectral-drifter',
+      'wam-fake-effect',
     ].sort(),
   )
   expect(WASM_DEFINITIONS.map((d) => d.id).sort()).toEqual(
@@ -112,7 +132,7 @@ describe.each(table)('$id honours the Device contract', ({ descriptor }) => {
   it('describes itself: metadata and a sane param table', () => {
     expect(descriptor.id).toMatch(/^[a-z0-9-]+$/)
     expect(descriptor.name.length).toBeGreaterThan(0)
-    expect(['node', 'wasm', 'worklet', 'rack']).toContain(descriptor.kind)
+    expect(['node', 'wasm', 'worklet', 'rack', 'wam']).toContain(descriptor.kind)
     expect(descriptor.version).toBeGreaterThanOrEqual(1)
     expect(entries.length).toBeGreaterThan(0)
     const ids = entries.map(([, spec]) => spec.id)

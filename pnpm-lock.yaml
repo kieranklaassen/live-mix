@@ -33,6 +33,12 @@ importers:
       '@types/react-dom':
         specifier: ^19.3.0
         version: 19.3.0(@types/react@19.3.0)
+      '@webaudiomodules/api':
+        specifier: 2.0.0-alpha.6
+        version: 2.0.0-alpha.6
+      '@webaudiomodules/sdk':
+        specifier: 0.0.12
+        version: 0.0.12
       esbuild:
         specifier: ^0.28.2
         version: 0.28.2
@@ -985,6 +991,12 @@ packages:
 
   '@vitest/spy@5.0.0':
     resolution: {integrity: sha512-uy+luWBAPw9XfthoHi5AkfHUnuPYEESjl0p/r+meoBnU8bxg5GDQ3Ey8MjcJ6sqahkL4PFyrvfMJJBw7LbU06g==}
+
+  '@webaudiomodules/api@2.0.0-alpha.6':
+    resolution: {integrity: sha512-GFyp7fVgNd26aFlmk7svGWtwrS1PqrwWajR+JDnbF3aSka9TteZbIcKA6lQ1D7gMc+n8h+te69h+zG5DWwYKIw==}
+
+  '@webaudiomodules/sdk@0.0.12':
+    resolution: {integrity: sha512-8eV+7wX8Wjrkjs3sIysq508ehS4mBEkLdwk8xinY3IXGi/zvWIfoipbWfvQ+AsaKnN3hBMGZI0AgLf1GlApBIA==}
 
   acorn-jsx@5.3.2:
     resolution: {integrity: sha512-rq9s+JNhf0IChjtDXxllJ7g41oZk5SlXtp0LHwyA5cejwn7vKmKp4pPri6YEePv2PU65sAsegbXtIinmDFDXgQ==}
@@ -2858,6 +2870,10 @@ snapshots:
       vite: 8.3.0(@types/node@22.20.2)(esbuild@0.28.2)
 
   '@vitest/spy@5.0.0': {}
+
+  '@webaudiomodules/api@2.0.0-alpha.6': {}
+
+  '@webaudiomodules/sdk@0.0.12': {}
 
   acorn-jsx@5.3.2(acorn@8.18.0):
     dependencies:
