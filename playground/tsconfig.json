@@ -1,0 +1,14 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "types": ["node", "vite/client"],
+    "paths": {
+      "@kieranklaassen/live-mix": ["../src/index.ts"],
+      "@kieranklaassen/live-mix/react": ["../src/react/index.ts"],
+      "@kieranklaassen/live-mix/react/styles.css": ["../src/react/styles.css"],
+      "@kieranklaassen/live-mix/testing": ["../src/testing/index.ts"],
+      "@kieranklaassen/live-mix/dsp": ["../src/dsp/index.ts"]
+    }
+  },
+  "include": ["src", "vite.config.ts"]
+}

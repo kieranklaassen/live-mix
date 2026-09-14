@@ -636,21 +636,48 @@
   color: var(--lm-muted);
 }
 
+.lm-strip__send-control {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 100%;
+}
+
+.lm-strip__send-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+  font-size: var(--lm-label-size);
+}
+
+.lm-strip__send-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--lm-muted);
+}
+
+.lm-strip__send-value {
+  flex: 0 0 auto;
+  font-family: var(--lm-font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--lm-control-value);
+}
+
 .lm-strip__send-fader {
   width: 100%;
 }
 
-.lm-strip__send-fader .lm-fader__label {
-  width: 2.5em;
-}
-
 .lm-strip__send-fader .lm-fader__track {
-  height: 8px;
+  height: 7px;
+  cursor: ew-resize;
 }
 
-.lm-strip__send-fader .lm-fader__value {
-  width: 2.5em;
-  font-size: var(--lm-label-size);
+.lm-strip__send-fader .lm-fader__thumb {
+  width: 2px;
 }
 
 .lm-strip__pan {
@@ -670,8 +697,10 @@
   height: auto;
 }
 
+/* The meter bars stop level with the fader track, above the fader's value line. */
 .lm-strip__meter {
   min-height: 0;
+  padding-bottom: calc(var(--lm-font-size) + 3px);
 }
 
 .lm-strip__buttons {
@@ -768,6 +797,10 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--lm-space-1);
+}
+
+.lm-device__param.lm-knob {
+  width: calc(var(--lm-knob-size) + var(--lm-space-3) + var(--lm-space-2));
 }
 
 .lm-device__presets,

@@ -280,27 +280,45 @@ export function ChannelStripView({
 }
 
 /**
- * A send: a horizontal level fader when the send carries a gain node, a
- * label alone for a direct connection (the return sets the level).
+ * A send: the target's name and level over a thin horizontal fader when the
+ * send carries a gain node; the name alone for a direct connection (the
+ * return sets the level). The gain node keeps no commanded value, so the
+ * level lives here and ramps through `setTargetAtTime`.
  */
 function SendControl({ send, now }: { send: Send; now: () => number }) {
   const { gainNode } = send
+  const [db, setDb] = useState(() => levelToFaderDb(gainNode?.gain.value ?? 1))
   if (!gainNode) {
     return <span className="lm-strip__send-direct">→ {send.target.name}</span>
   }
+  const text = db <= FADER_MIN_DB ? '-∞' : formatControlValue(db, 'dB', 0)
   return (
-    <Fader
-      label={send.target.name}
-      orientation="horizontal"
-      defaultValue={levelToFaderDb(gainNode.gain.value)}
-      min={FADER_MIN_DB}
-      max={FADER_MAX_DB}
-      step={0.1}
-      unit="dB"
-      taper="fader"
-      format={(db) => (db <= FADER_MIN_DB ? '-∞' : formatControlValue(db, 'dB', 0))}
-      onChange={(db) => gainNode.gain.setTargetAtTime(faderDbToLevel(db), now(), 0.005)}
-      className="lm-strip__send-fader"
-    />
+    <div className="lm-strip__send-control">
+      <div className="lm-strip__send-head">
+        <span className="lm-strip__send-name" title={send.target.name}>
+          {send.target.name}
+        </span>
+        <span className="lm-strip__send-value">{text}</span>
+      </div>
+      <Fader
+        label={`Send to ${send.target.name}`}
+        hideLabel
+        hideValue
+        orientation="horizontal"
+        value={db}
+        defaultValue={0}
+        min={FADER_MIN_DB}
+        max={FADER_MAX_DB}
+        step={0.1}
+        unit="dB"
+        taper="fader"
+        format={() => text}
+        onChange={(next) => {
+          setDb(next)
+          gainNode.gain.setTargetAtTime(faderDbToLevel(next), now(), 0.005)
+        }}
+        className="lm-strip__send-fader"
+      />
+    </div>
   )
 }

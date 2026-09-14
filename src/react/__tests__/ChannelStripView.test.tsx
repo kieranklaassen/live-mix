@@ -110,12 +110,17 @@ describe('ChannelStripView', () => {
     expect(
       within(screen.getByRole('list', { name: 'Inserts' })).getByText('filter'),
     ).toBeInTheDocument()
-    const send = screen.getByRole('slider', { name: 'hall' })
+    const send = screen.getByRole('slider', { name: 'Send to hall' })
     expect(send).toHaveAttribute('aria-orientation', 'horizontal')
     expect(Number(send.getAttribute('aria-valuenow'))).toBeCloseTo(gainToDb(0.5), 1)
+    expect(screen.getByText('hall')).toHaveClass('lm-strip__send-name')
+    expect(screen.getByText('-6 dB')).toHaveClass('lm-strip__send-value')
     fireEvent.keyDown(send, { key: 'End' })
     const sendGain = mock(pad.strip.sends.all()[0].gainNode)
-    expect(sendGain.gain.events.at(-1)?.method).toBe('setTargetAtTime')
+    const ramp = sendGain.gain.events.at(-1)
+    expect(ramp?.method).toBe('setTargetAtTime')
+    expect(ramp?.args[0]).toBeCloseTo(dbToGain(6))
+    expect(screen.getByText('+6 dB')).toHaveClass('lm-strip__send-value')
     act(() => {
       filter.bypass = true
     })
