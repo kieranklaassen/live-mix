@@ -13,6 +13,7 @@ import { DATTORRO_DEVICE, createDattorroReverb } from '../devices/dattorro'
 import { FDN_REVERB_DEVICE, createFdnReverb } from '../devices/fdn-reverb'
 import { LIMITER_1176_DEVICE, createLimiter1176 } from '../devices/limiter-1176'
 import { STEREO_WIDENER_DEVICE, createStereoWidener } from '../devices/stereo-widener'
+import { TRUE_PEAK_LIMITER_DEVICE, createTruePeakLimiter } from '../devices/true-peak-limiter'
 import { ZITA_REV1_DEVICE, createZitaReverb } from '../devices/zita-rev1'
 import { type WasmDeviceDefinition, type WorkletNodeFactory } from '../WasmDevice'
 
@@ -34,6 +35,11 @@ const factories = [
   },
   { definition: ZITA_REV1_DEVICE, create: createZitaReverb, artefact: 'zita-rev1.wasm' },
   { definition: LIMITER_1176_DEVICE, create: createLimiter1176, artefact: 'limiter-1176.wasm' },
+  {
+    definition: TRUE_PEAK_LIMITER_DEVICE,
+    create: createTruePeakLimiter,
+    artefact: 'true-peak-limiter.wasm',
+  },
 ] as const
 
 describe.each(factories)('$definition.id factory', ({ definition, create, artefact }) => {

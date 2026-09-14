@@ -60,6 +60,10 @@ build_device stereo-widener \
   cpp/devices/stereo-widener/stereo_widener_device.cpp \
   cpp/devices/stereo-widener/device_api.cpp
 
+build_device true-peak-limiter \
+  cpp/devices/true-peak-limiter/true_peak_limiter_device.cpp \
+  cpp/devices/true-peak-limiter/device_api.cpp
+
 # Faust devices: the C++ under cpp/faust/generated is produced by
 # scripts/build-faust.sh and committed; no Faust toolchain is needed here.
 build_device zita-rev1 cpp/faust/zita-rev1.device.cpp
