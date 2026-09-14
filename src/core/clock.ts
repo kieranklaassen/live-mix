@@ -4,18 +4,23 @@
 // (`now`, `setIntervalFn`, `clearIntervalFn`).
 
 export type IntervalId = ReturnType<typeof setInterval>
+export type TimeoutId = ReturnType<typeof setTimeout>
 
 export interface Clock {
   /** Audio-clock seconds (defaults to `ctx.currentTime`). */
   now: () => number
   setIntervalFn: (callback: () => void, ms: number) => IntervalId
   clearIntervalFn: (id: IntervalId) => void
+  setTimeoutFn: (callback: () => void, ms: number) => TimeoutId
+  clearTimeoutFn: (id: TimeoutId) => void
 }
 
 export interface ClockOptions {
   now?: () => number
   setIntervalFn?: (callback: () => void, ms: number) => IntervalId
   clearIntervalFn?: (id: IntervalId) => void
+  setTimeoutFn?: (callback: () => void, ms: number) => TimeoutId
+  clearTimeoutFn?: (id: TimeoutId) => void
 }
 
 export function createClock(ctx: BaseAudioContext, options: ClockOptions = {}): Clock {
@@ -23,5 +28,7 @@ export function createClock(ctx: BaseAudioContext, options: ClockOptions = {}): 
     now: options.now ?? (() => ctx.currentTime),
     setIntervalFn: options.setIntervalFn ?? ((cb, ms) => setInterval(cb, ms)),
     clearIntervalFn: options.clearIntervalFn ?? ((id) => clearInterval(id)),
+    setTimeoutFn: options.setTimeoutFn ?? ((cb, ms) => setTimeout(cb, ms)),
+    clearTimeoutFn: options.clearTimeoutFn ?? ((id) => clearTimeout(id)),
   }
 }

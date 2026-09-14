@@ -9,7 +9,13 @@ export * from './core/clips'
 export * from './core/automation'
 export { isNoteDevice, type Device, type NoteDevice } from './core/devices/Device'
 export { clampParam, type ParamSpec, type ParamTaper } from './core/params'
-export { createClock, type Clock, type ClockOptions, type IntervalId } from './core/clock'
+export {
+  createClock,
+  type Clock,
+  type ClockOptions,
+  type IntervalId,
+  type TimeoutId,
+} from './core/clock'
 export {
   OutputRouter,
   isIOSWebKit,
@@ -26,6 +32,7 @@ export {
   type AddBusOptions,
   type AddDuckerOptions,
   type AddGroupOptions,
+  type AddElementTrackOptions,
   type AddInstrumentTrackOptions,
   type AddLiveInputTrackOptions,
   type AddReturnTrackOptions,
@@ -106,7 +113,6 @@ export {
   type ElementTrackOptions,
   type ElementVoice,
   type ElementVoiceOptions,
-  type TimeoutId,
 } from './core/sources/ElementTrack'
 export { ClipList } from './core/tracks/ClipList'
 export {

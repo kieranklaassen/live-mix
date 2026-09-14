@@ -11,6 +11,8 @@
 // the app adds them. Track strips (U15) add nodes only when first used;
 // groups are explicit and add theirs on creation.
 
+import { Automation, type AutomationOptions } from './automation/Automation'
+import { type ModMatrix } from './automation/ModMatrix'
 import { MasterBus, type MasterBusOptions } from './buses/MasterBus'
 import { Bus } from './buses/Bus'
 import { createClock, type Clock, type ClockOptions } from './clock'
@@ -31,7 +33,9 @@ import { GroupTrack, type GroupTrackOptions } from './tracks/GroupTrack'
 import { InstrumentTrack, type InstrumentTrackOptions } from './tracks/InstrumentTrack'
 import { LiveInputTrack, type LiveInputTrackOptions } from './tracks/LiveInputTrack'
 import { ReturnTrack, type ReturnTrackOptions } from './tracks/ReturnTrack'
+import { SampleRetainer } from './tracks/SampleRetainer'
 import { SampleStore, type SampleStoreOptions } from './tracks/SampleStore'
+import { ElementTrack, type ElementTrackOptions } from './sources/ElementTrack'
 import { type TransportLoop } from './transport/anchor'
 import { Scheduler } from './transport/Scheduler'
 import { Transport } from './transport/Transport'
@@ -50,6 +54,21 @@ export interface EngineOptions extends ClockOptions {
   samples?: SampleStoreOptions
   /** Device registry this engine creates devices from; defaults to the shared `devices`. */
   devices?: DeviceRegistry
+  /** Automation/modulation control loop: period (default = tickMs) and lane lookahead (default 0.2 s). */
+  automation?: Pick<AutomationOptions, 'tickMs' | 'lookaheadSec' | 'modulation'>
+  /**
+   * Keep decoded samples alive only while a clip needs them (U18). Default
+   * on; off for adapters that drive `AudioTrack.play` themselves.
+   */
+  retainSamples?: boolean
+}
+
+export type AddElementTrackOptions = Omit<
+  ElementTrackOptions,
+  'name' | 'destination' | 'now' | 'scheduler' | 'setTimeoutFn' | 'clearTimeoutFn'
+> & {
+  /** Where the track's voices connect; defaults to the master. */
+  destination?: Bus | AudioNode
 }
 
 export type AddLiveInputTrackOptions = Omit<
@@ -117,10 +136,17 @@ export class Engine {
   readonly samples: SampleStore
   /** Device registry (`engine.devices.create(id, { params, preset })`). */
   readonly devices: DeviceRegistry
+  /** Automation lanes and the control-rate loop (U19). */
+  readonly automation: Automation
+  /** Modulation routes (`engine.modulation.map(source, target, depth)`). */
+  readonly modulation: ModMatrix
   /** Solo-in-place state across every track, return and group strip. */
   readonly solo = new SoloInPlace()
   private readonly busMap = new Map<string, Bus>()
   private readonly trackMap = new Map<string, AudioTrack>()
+  private readonly retainers = new Map<AudioTrack, SampleRetainer>()
+  private readonly elementTrackMap = new Map<string, ElementTrack>()
+  private readonly retainSamples: boolean
   private readonly liveInputMap = new Map<string, LiveInputTrack>()
   private readonly returnMap = new Map<string, ReturnTrack>()
   private readonly instrumentMap = new Map<string, InstrumentTrack>()
@@ -142,6 +168,15 @@ export class Engine {
     })
     this.samples = new SampleStore(options.context, options.samples)
     this.devices = options.devices ?? defaultDevices
+    this.automation = new Automation({
+      transport: this.transport,
+      clock: this.clock,
+      tickMs: options.automation?.tickMs ?? options.tickMs,
+      lookaheadSec: options.automation?.lookaheadSec,
+      modulation: options.automation?.modulation,
+    })
+    this.modulation = this.automation.modulation
+    this.retainSamples = options.retainSamples ?? true
   }
 
   /** Audio-clock seconds through the injected clock. */
@@ -192,10 +227,67 @@ export class Engine {
       solo: this.solo,
       samples: this.samples,
       now: this.clock.now,
-      scheduler: this.scheduler,
     })
+    // The retainer registers ahead of the track so a hold exists before the
+    // first voice asks for its sample.
+    if (this.retainSamples) {
+      this.retainers.set(
+        track,
+        new SampleRetainer({
+          samples: this.samples,
+          track,
+          now: this.clock.now,
+          scheduler: this.scheduler,
+        }),
+      )
+    }
+    track.attach(this.scheduler)
     this.trackMap.set(name, track)
     return track
+  }
+
+  /** The retainer keeping a track's samples decoded, when sample retention is on. */
+  retainerFor(track: AudioTrack): SampleRetainer | undefined {
+    return this.retainers.get(track)
+  }
+
+  /**
+   * A streaming clip track (media elements instead of decoded buffers) for
+   * long beds, feeding the master by default and registered with the scheduler.
+   */
+  addElementTrack(name: string, options: AddElementTrackOptions = {}): ElementTrack {
+    this.assertLive()
+    if (this.elementTrackMap.has(name)) {
+      throw new Error(`live-mix: element track "${name}" already exists`)
+    }
+    const track = new ElementTrack(this.context, {
+      ...options,
+      name,
+      destination: options.destination ?? this.master,
+      now: this.clock.now,
+      scheduler: this.scheduler,
+      setTimeoutFn: this.clock.setTimeoutFn,
+      clearTimeoutFn: this.clock.clearTimeoutFn,
+    })
+    this.elementTrackMap.set(name, track)
+    return track
+  }
+
+  elementTrack(name: string): ElementTrack {
+    const track = this.elementTrackMap.get(name)
+    if (!track) throw new Error(`live-mix: no element track "${name}"`)
+    return track
+  }
+
+  get elementTracks(): readonly ElementTrack[] {
+    return [...this.elementTrackMap.values()]
+  }
+
+  removeElementTrack(name: string): void {
+    const track = this.elementTrackMap.get(name)
+    if (!track) return
+    track.dispose()
+    this.elementTrackMap.delete(name)
   }
 
   track(name: string): AudioTrack {
@@ -212,6 +304,8 @@ export class Engine {
   removeTrack(name: string): void {
     const track = this.trackMap.get(name)
     if (!track) return
+    this.retainers.get(track)?.dispose()
+    this.retainers.delete(track)
     track.dispose()
     this.trackMap.delete(name)
   }
@@ -367,19 +461,29 @@ export class Engine {
   }
 
   /**
-   * Start the output terminus (element play + MediaSession in element mode).
-   * Call from the user gesture that starts playback.
+   * Start the output terminus (element play + MediaSession in element mode)
+   * and unlock every element track's media elements — all on the same user
+   * gesture. The terminus activates synchronously; the returned promise
+   * settles when the elements are unlocked.
    */
-  activateOutput(): void {
+  activateOutput(): Promise<void> {
     this.output.activate()
+    return Promise.all([...this.elementTrackMap.values()].map((track) => track.unlockAll())).then(
+      () => {},
+    )
   }
 
   /** Disconnect everything the engine created. Does not close the context. */
   dispose(): void {
     if (this.disposed) return
     this.disposed = true
+    this.automation.dispose()
+    for (const retainer of this.retainers.values()) retainer.dispose()
+    this.retainers.clear()
     for (const track of this.trackMap.values()) track.dispose()
     this.trackMap.clear()
+    for (const track of this.elementTrackMap.values()) track.dispose()
+    this.elementTrackMap.clear()
     for (const ducker of this.duckers) ducker.dispose()
     this.duckers.clear()
     for (const track of this.liveInputMap.values()) track.dispose()
