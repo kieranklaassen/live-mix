@@ -11,7 +11,10 @@ import {
   devices,
 } from '../core/devices'
 import { type ParamSpec } from '../core/params'
+import { DUCKER_PARAMS } from '../core/devices/native/ducker-abi'
+import { type WorkletDuckerOptions } from '../core/devices/native/WorkletDucker'
 import { DATTORRO_DEVICE } from './devices/dattorro'
+import { createWorkletDucker, type DuckerProcessorOverrides } from './devices/ducker'
 import { FDN_REVERB_DEVICE } from './devices/fdn-reverb'
 import { LIMITER_1176_DEVICE } from './devices/limiter-1176'
 import { STEREO_WIDENER_DEVICE } from './devices/stereo-widener'
@@ -97,13 +100,45 @@ export const LIMITER_1176_DESCRIPTOR = wasmDeviceDescriptor(LIMITER_1176_DEVICE,
   },
 })
 
-/** Every stock WASM device shipped in `./dsp`. */
+/**
+ * The worklet sidechain ducker (U17) as a registry device. Its factory takes
+ * the registry's `params` map and hands `processorUrl`/`createNode` through;
+ * key it after creation with `device.key(node)` (the registry cannot know
+ * the key source).
+ */
+export const WORKLET_DUCKER_DESCRIPTOR: DeviceDescriptor<typeof DUCKER_PARAMS> = {
+  id: 'ducker',
+  name: 'Sidechain Ducker',
+  kind: 'worklet',
+  category: 'dynamics',
+  version: 1,
+  params: DUCKER_PARAMS,
+  presets: {
+    'Breathwork voice': {
+      depth: DUCKER_PARAMS.depth.default,
+      attackMs: DUCKER_PARAMS.attackMs.default,
+      releaseMs: DUCKER_PARAMS.releaseMs.default,
+    },
+    Gentle: { depth: 0.4, attackMs: 120, releaseMs: 1200 },
+    Hard: { depth: 0.85, attackMs: 40, releaseMs: 400 },
+  },
+  create: (context, options) => {
+    const { params, ...rest } = options as {
+      params?: Readonly<Record<string, number>>
+    } & DuckerProcessorOverrides &
+      Pick<WorkletDuckerOptions, 'createNode' | 'windowSize' | 'reportHz'>
+    return createWorkletDucker(context, { ...rest, ...(params ?? {}) })
+  },
+}
+
+/** Every stock worklet-backed device shipped in `./dsp` (WASM modules and the ducker). */
 export const STOCK_WASM_DEVICES: readonly DeviceDescriptor[] = [
   DATTORRO_DESCRIPTOR,
   FDN_REVERB_DESCRIPTOR,
   STEREO_WIDENER_DESCRIPTOR,
   ZITA_REV1_DESCRIPTOR,
   LIMITER_1176_DESCRIPTOR,
+  WORKLET_DUCKER_DESCRIPTOR,
 ]
 
 /** Register the stock WASM devices (idempotent) in `registry`, the default one unless given. */

@@ -50,6 +50,7 @@ const registry = new DeviceRegistry([...NODE_DEVICES, ...STOCK_WASM_DEVICES])
 
 /** Per-kind options the factories need under the mocks. */
 function requestFor(descriptor: DeviceDescriptor): DeviceCreateRequest {
+  if (descriptor.kind === 'worklet') return { processorUrl: 'p', createNode: mockNodeFactory }
   if (descriptor.kind !== 'wasm') return {}
   const module = modules.get(descriptor.id)
   if (!module) throw new Error(`no compiled module for ${descriptor.id}`)
@@ -88,10 +89,13 @@ it('covers every stock device', () => {
       'stereo-widener',
       'zita-rev1',
       'limiter-1176',
+      'ducker',
     ].sort(),
   )
   expect(WASM_DEFINITIONS.map((d) => d.id).sort()).toEqual(
-    STOCK_WASM_DEVICES.map((d) => d.id).sort(),
+    STOCK_WASM_DEVICES.filter((d) => d.kind === 'wasm')
+      .map((d) => d.id)
+      .sort(),
   )
 })
 
@@ -102,7 +106,7 @@ describe.each(table)('$id honours the Device contract', ({ descriptor }) => {
   it('describes itself: metadata and a sane param table', () => {
     expect(descriptor.id).toMatch(/^[a-z0-9-]+$/)
     expect(descriptor.name.length).toBeGreaterThan(0)
-    expect(['node', 'wasm']).toContain(descriptor.kind)
+    expect(['node', 'wasm', 'worklet']).toContain(descriptor.kind)
     expect(descriptor.version).toBeGreaterThanOrEqual(1)
     expect(entries.length).toBeGreaterThan(0)
     const ids = entries.map(([, spec]) => spec.id)
