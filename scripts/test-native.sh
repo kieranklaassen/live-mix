@@ -32,6 +32,13 @@ CXX="${CXX:-c++}"
 
 "$out_dir/stereo_widener_test"
 
+"$CXX" -std=c++17 -O2 -fno-exceptions -fno-rtti -Wall -Wextra \
+  cpp/test/true_peak_limiter_test.cpp \
+  cpp/devices/true-peak-limiter/true_peak_limiter_device.cpp \
+  -o "$out_dir/true_peak_limiter_test"
+
+"$out_dir/true_peak_limiter_test"
+
 # Faust devices are header-only: the generated class plus the FaustDevice
 # template. -Wno-unused-parameter covers Faust's empty classInit(sample_rate).
 "$CXX" -std=c++17 -O2 -fno-exceptions -fno-rtti -Wall -Wextra -Wno-unused-parameter \

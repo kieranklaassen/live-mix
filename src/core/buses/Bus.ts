@@ -1,7 +1,8 @@
 // A summing bus: one GainNode (the fader) that sources connect into, an
 // optional post-fader insert chain, and a destination. Exactly one node is
 // created per bus so a consumer's node order stays predictable; inserts
-// rewire the tail when added or removed.
+// rewire the tail when added or removed. Taps (meters) hang off the tail and
+// are re-fed after every rewire.
 
 import { type Device } from '../devices/Device'
 
@@ -22,6 +23,7 @@ export class Bus {
   protected readonly ctx: BaseAudioContext
   protected destination: AudioNode
   protected readonly insertList: Device[] = []
+  protected readonly tapSet = new Set<AudioNode>()
   protected disposed = false
 
   constructor(ctx: BaseAudioContext, options: BusOptions) {
@@ -67,6 +69,11 @@ export class Bus {
     )
   }
 
+  /** Nodes fed a copy of the bus output (meters, analysers), in the order added. */
+  get taps(): readonly AudioNode[] {
+    return [...this.tapSet]
+  }
+
   /** Append a device to the post-fader chain. */
   addInsert(device: Device): void {
     this.assertLive()
@@ -75,6 +82,7 @@ export class Bus {
     this.output.connect(device.input)
     this.insertList.push(device)
     device.output.connect(this.destination)
+    this.retap(device.output)
   }
 
   /** Remove a device from the chain and reconnect around it (does not dispose it). */
@@ -82,20 +90,44 @@ export class Bus {
     this.assertLive()
     const index = this.insertList.indexOf(device)
     if (index === -1) return
+    const wasTail = index === this.insertList.length - 1
     const before = index === 0 ? this.gainNode : this.insertList[index - 1].output
     const after = this.insertList[index + 1]?.input ?? this.destination
     before.disconnect()
     device.output.disconnect()
     this.insertList.splice(index, 1)
     before.connect(after)
+    if (wasTail) this.retap(before)
+  }
+
+  /**
+   * Feed a copy of the bus output (post-fader, post-inserts) into `node`, for
+   * example a `LufsMeter` input. The tap survives insert changes.
+   */
+  addTap(node: AudioNode): void {
+    this.assertLive()
+    if (this.tapSet.has(node)) return
+    this.tapSet.add(node)
+    this.tapSource().connect(node)
+  }
+
+  removeTap(node: AudioNode): void {
+    if (!this.tapSet.delete(node)) return
+    try {
+      this.tapSource().disconnect(node)
+    } catch {
+      // Already disconnected by a rewire or a closed context; ignore.
+    }
   }
 
   /** Re-point the bus (and its chain tail) at a new destination. */
   connectTo(destination: AudioNode): void {
     this.assertLive()
-    this.output.disconnect()
+    const tail = this.output
+    tail.disconnect()
     this.destination = destination
-    this.output.connect(destination)
+    tail.connect(destination)
+    this.retap(tail)
   }
 
   dispose(): void {
@@ -108,6 +140,18 @@ export class Bus {
       // Context may already be closed; ignore.
     }
     this.insertList.length = 0
+    this.tapSet.clear()
+  }
+
+  /** The node taps read from: the chain tail here; the master overrides it to sit after its limiter. */
+  protected tapSource(): AudioNode {
+    return this.output
+  }
+
+  /** Re-feed the taps after `tail` was rewired, if that is where they hang. */
+  protected retap(tail: AudioNode): void {
+    if (this.tapSource() !== tail) return
+    for (const tap of this.tapSet) tail.connect(tap)
   }
 
   protected assertLive(): void {

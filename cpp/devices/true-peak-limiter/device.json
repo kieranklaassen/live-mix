@@ -1,0 +1,10 @@
+{
+  "id": "true-peak-limiter",
+  "name": "TruePeakLimiter",
+  "wasm": "src/dsp/wasm/true-peak-limiter.wasm",
+  "params": "src/dsp/devices/true-peak-limiter.ts",
+  "source": {
+    "repository": "kieranklaassen/live-mix",
+    "note": "Written for live-mix (U16): a lookahead brickwall limiter whose detector is the ITU-R BS.1770-4 Annex 2 four-phase true-peak FIR, the same coefficients src/core/analysis/loudness.ts uses for the meter. true_peak_limiter.h is the header-only DSP; true_peak_limiter_device.* and device_api.cpp are the stereo-bus wrapper and ABI shim."
+  }
+}

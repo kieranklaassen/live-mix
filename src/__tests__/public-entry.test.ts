@@ -62,6 +62,11 @@ const coreSymbols = [
   'DuckerKernel',
   'DUCKER_PARAMS',
   'DUCKER_PROCESSOR_NAME',
+  'LufsMeter',
+  'LoudnessAnalyzer',
+  'MasterLimiter',
+  'EngineStats',
+  'METER_PROCESSOR_NAME',
 ] as const
 
 const dspSymbols = [
@@ -80,6 +85,8 @@ const dspSymbols = [
   'duckerProcessorUrl',
   'ensureProcessor',
   'WorkletDucker',
+  'createTruePeakLimiter',
+  'TRUE_PEAK_LIMITER_PARAMS',
 ] as const
 
 const testingSymbols = [

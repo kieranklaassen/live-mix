@@ -105,3 +105,12 @@ export {
   type DuckerNodeFactory,
   type WorkletDuckerOptions,
 } from '../core/devices/native/WorkletDucker'
+export {
+  TRUE_PEAK_LIMITER_DEVICE,
+  TRUE_PEAK_LIMITER_LATENCY_SECONDS,
+  TRUE_PEAK_LIMITER_LOOKAHEAD_SECONDS,
+  TRUE_PEAK_LIMITER_PARAMS,
+  createTruePeakLimiter,
+  type TruePeakLimiter,
+  type TruePeakLimiterParamName,
+} from './devices/true-peak-limiter'

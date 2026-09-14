@@ -36,6 +36,7 @@ import { ReturnTrack, type ReturnTrackOptions } from './tracks/ReturnTrack'
 import { SampleRetainer } from './tracks/SampleRetainer'
 import { SampleStore, type SampleStoreOptions } from './tracks/SampleStore'
 import { ElementTrack, type ElementTrackOptions } from './sources/ElementTrack'
+import { EngineStats, type EngineStatsOptions } from './stats'
 import { type TransportLoop } from './transport/anchor'
 import { Scheduler } from './transport/Scheduler'
 import { Transport } from './transport/Transport'
@@ -61,6 +62,8 @@ export interface EngineOptions extends ClockOptions {
    * on; off for adapters that drive `AudioTrack.play` themselves.
    */
   retainSamples?: boolean
+  /** Render-capacity polling for `engine.stats` (glitch counter). */
+  stats?: EngineStatsOptions
 }
 
 export type AddElementTrackOptions = Omit<
@@ -142,6 +145,8 @@ export class Engine {
   readonly modulation: ModMatrix
   /** Solo-in-place state across every track, return and group strip. */
   readonly solo = new SoloInPlace()
+  /** Glitch counter and render load, where the context reports them (R38). */
+  readonly stats: EngineStats
   private readonly busMap = new Map<string, Bus>()
   private readonly trackMap = new Map<string, AudioTrack>()
   private readonly retainers = new Map<AudioTrack, SampleRetainer>()
@@ -177,6 +182,7 @@ export class Engine {
     })
     this.modulation = this.automation.modulation
     this.retainSamples = options.retainSamples ?? true
+    this.stats = new EngineStats(options.context, options.stats)
   }
 
   /** Audio-clock seconds through the injected clock. */
@@ -500,6 +506,7 @@ export class Engine {
     this.busMap.clear()
     this.master.dispose()
     this.output.dispose()
+    this.stats.dispose()
   }
 
   private assertLive(): void {
