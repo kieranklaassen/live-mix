@@ -772,7 +772,13 @@ it crosses the target's current position, and lets go again when automation
 or the UI moves the target away.
 
 ```ts
-import { ControlSurface, MidiInput, OscInput } from '@kieranklaassen/live-mix'
+import {
+  ControlSurface,
+  MidiInput,
+  OscInput,
+  controlEventsFromMidi,
+  isMapped,
+} from '@kieranklaassen/live-mix'
 
 const surface = new ControlSurface({ engine })
 surface.registerDevice('pad-filter', filter) // { kind: 'device', device: 'pad-filter', param: 'frequency' }
@@ -780,9 +786,12 @@ surface.attachWriter({ kind: 'strip', track: 'pad', control: 'level' }, laneWrit
 
 const midi = new MidiInput() // navigator.requestMIDIAccess, injectable
 await midi.open()
-surface.connect(midi)
+surface.connect(midi) // every event → surface.handle
 midi.onMessage((message) => {
-  if (message.type === 'note-on' && !surface.handle(...)) synth.noteOn(...) // or check `isMapped`
+  // Unmapped notes still play the instrument; a mapped pad never does.
+  if (message.type !== 'note-on') return
+  const [event] = controlEventsFromMidi(message)
+  if (!isMapped(surface.table, event)) instrument.noteOn(message.note, midiToHz(message.note))
 })
 
 const osc = new OscInput({ url: 'ws://localhost:8080' }) // OSC 1.0 over a WebSocket bridge, bundles included
