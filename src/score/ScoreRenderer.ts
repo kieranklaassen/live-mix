@@ -167,6 +167,10 @@ export class ScoreRenderer {
     return this.inFlight !== null || this.scheduled
   }
 
+  get isDisposed(): boolean {
+    return this.disposed
+  }
+
   // --- Handles -------------------------------------------------------------------------
 
   /** The live object a track, group or return id renders to. */
@@ -676,11 +680,13 @@ export class ScoreRenderer {
   ): Promise<void> {
     const afterById = new Map(after.map((device) => [device.id, device]))
     const beforeById = new Map(before.map((device) => [device.id, device]))
-    // Drop what is gone or changed type.
+    // Drop what is gone or changed type; bindings on it come down first so a
+    // replacement of the same instance id is bound afresh in the last step.
     for (let index = ids.length - 1; index >= 0; index -= 1) {
       const id = ids[index]
       const next = afterById.get(id)
       if (next && next.deviceId === beforeById.get(id)?.deviceId) continue
+      this.teardownBindingsOnDevice(id)
       chain.removeInsert(devices[index])
       devices[index].dispose()
       this.deviceMap.delete(id)
@@ -850,6 +856,14 @@ export class ScoreRenderer {
         live.polarity = route.polarity
       }
       if (!spec.lane) binding.target.base = this.staticValueFor(spec.target, score)
+    }
+  }
+
+  private teardownBindingsOnDevice(deviceId: string): void {
+    for (const [key, binding] of [...this.bindings]) {
+      if (!key.startsWith(`device:${deviceId}:`)) continue
+      this.teardownBinding(binding)
+      this.bindings.delete(key)
     }
   }
 

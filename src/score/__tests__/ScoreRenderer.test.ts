@@ -222,6 +222,43 @@ describe('ScoreRenderer: incremental edits', () => {
     expect(renderer.device('kick-filter')).not.toBe(filter)
     expect(renderer.device('kick-filter').id).toBe('delay')
     expect(strip.inserts).toEqual([renderer.device('kick-filter')])
+    // The route that targeted the old filter's `frequency` was dropped by the
+    // operation cascade; a route on the new device binds to the new instance.
+    expect(engine.modulation.routes).toHaveLength(0)
+    await edit({
+      type: 'route.add',
+      route: {
+        id: 'r1',
+        source: 'lfo1',
+        target: { kind: 'device', device: 'kick-filter', param: 'timeSec' },
+        depth: 0.2,
+        polarity: 'unipolar',
+      },
+    })
+    expect(engine.modulation.routes).toHaveLength(1)
+    // Swapping the type again (same id) rebinds: the route follows the new device.
+    const delay = renderer.device('kick-filter')
+    await edit(
+      { type: 'device.remove', id: 'kick-filter' },
+      {
+        type: 'device.add',
+        owner: 'kick',
+        device: { id: 'kick-filter', deviceId: 'utility', params: {}, bypass: false },
+      },
+      {
+        type: 'route.add',
+        route: {
+          id: 'r1',
+          source: 'lfo1',
+          target: { kind: 'device', device: 'kick-filter', param: 'gainDb' },
+          depth: 0.2,
+          polarity: 'unipolar',
+        },
+      },
+    )
+    expect(renderer.device('kick-filter')).not.toBe(delay)
+    expect(engine.modulation.routes).toHaveLength(1)
+    expect(engine.modulation.targets.size).toBe(1)
 
     const hall = renderer.returnTrack('hall')
     await edit(
