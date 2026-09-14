@@ -86,7 +86,7 @@ git_install() {
       test -f node_modules/@kieranklaassen/live-mix/dist/index.js &&
       test -f node_modules/@kieranklaassen/live-mix/dist/wam/index.js &&
       for wasm in "$OLDPWD"/src/dsp/wasm/*.wasm; do test -f "node_modules/@kieranklaassen/live-mix/dist/wasm/$(basename "$wasm")" || exit 1; done &&
-      for worklet in wasm-device ducker meter; do test -f "node_modules/@kieranklaassen/live-mix/dist/worklets/$worklet.js" || exit 1; done &&
+      for worklet in wasm-device ducker meter recorder; do test -f "node_modules/@kieranklaassen/live-mix/dist/worklets/$worklet.js" || exit 1; done &&
       node --input-type=module -e "
         import { LIVE_MIX_VERSION } from '@kieranklaassen/live-mix'
         import { DATTORRO_PARAMS, ZITA_REV1_PARAMS, LIMITER_1176_PARAMS } from '@kieranklaassen/live-mix/dsp'

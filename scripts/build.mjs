@@ -18,6 +18,7 @@ const worklets = {
   'wasm-device': 'src/dsp/worklets/wasm-device.processor.ts',
   ducker: 'src/dsp/worklets/ducker.processor.ts',
   meter: 'src/dsp/worklets/meter.processor.ts',
+  recorder: 'src/dsp/worklets/recorder.processor.ts',
 }
 
 async function main() {

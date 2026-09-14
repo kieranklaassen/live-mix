@@ -143,3 +143,35 @@ describe('MasterBus', () => {
     expect(fader.reaches(ctx.destination)).toBe(true)
   })
 })
+
+describe('Bus level tracking (U24 hooks follow-up)', () => {
+  it('stores the fader target and reports level and insert changes', () => {
+    const ctx = createMockContext()
+    const bus = new Bus(asAudioContext(ctx), {
+      name: 'music',
+      destination: ctx.createGain() as unknown as AudioNode,
+      gain: 0.5,
+    })
+    expect(bus.targetLevel).toBe(0.5)
+    const seen: string[] = []
+    const unsubscribe = bus.onChange((change) => {
+      expect(change.bus).toBe(bus)
+      seen.push(change.kind)
+    })
+    bus.setLevel(0.8)
+    expect(bus.targetLevel).toBe(0.8)
+    bus.setLevel(-1)
+    expect(bus.targetLevel).toBe(0)
+    expect(ctx.gains[1].gain.lastEvent('setTargetAtTime')?.args[0]).toBe(0)
+    expect(seen).toEqual(['level', 'level'])
+    unsubscribe()
+    bus.setLevel(1)
+    expect(seen).toEqual(['level', 'level'])
+    expect(
+      new Bus(asAudioContext(ctx), {
+        name: 'x',
+        destination: ctx.createGain() as unknown as AudioNode,
+      }).targetLevel,
+    ).toBe(1)
+  })
+})
