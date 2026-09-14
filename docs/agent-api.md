@@ -1,6 +1,6 @@
 # The agent control API (U29)
 
-Every mixer capability is a tool a model can call (plan KD4 / KTD9): the 59
+Every mixer capability is a tool a model can call (plan KD4 / KTD9): the 60
 score operations from [`docs/score.md`](./score.md), the coach's musical
 intents, a state query and undo — each with a JSON Schema, passed through
 safety rails the agent cannot override (KD10, R27), applied through
@@ -217,6 +217,16 @@ earphones; every field is overridable per consumer through
 Rails not in this unit (Dream tier in the plan): boundary quantisation of
 edits to the next bar (U32's tempo map is there; the intents already swap at
 crossfades), and two-step "agent proposes, listener confirms" operations.
+
+**Arbitration (U30).** With `new AgentController({ document, arbiter })`
+every planned operation goes through the `Arbiter`
+([`docs/arbitration.md`](./arbitration.md)): a target the listener or a
+controller holds defers the write — the call succeeds with
+`{ rail: 'arbitration', action: 'deferred' }` and `result.deferred`, and the
+operation lands later under the call's label — or, with `onHeld: { agent:
+'drop' }`, fails the call with `rejected` naming the holder. `score_replace`
+(a restored version) needs the `structure` consent like the other whole-
+document edits.
 
 ## Results, audit and the operation log
 
