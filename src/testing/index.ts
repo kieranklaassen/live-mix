@@ -43,6 +43,13 @@ export {
   type MockAudioContextOptions,
 } from './mock-audio-context'
 export {
+  MockOfflineAudioContext,
+  createMockOfflineContext,
+  scheduleSnapshotOf,
+  type MockOfflineContextOptions,
+  type ScheduleSnapshot,
+} from './mock-offline-context'
+export {
   MockMediaElement,
   asMediaElement,
   createMockMediaElement,

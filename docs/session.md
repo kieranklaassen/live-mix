@@ -14,7 +14,7 @@ const engine = createEngine({ context })
 const document = ScoreDocument.parse(json, { devices: engine.devices })
 loadScore(engine, document) // the graph follows the document
 
-const session = new Session({ document, engine, tempo: TempoMap.constant(124) })
+const session = new Session({ document, engine }) // quantises on the document's tempo map
 session.launchScene('verse') // every slot in the row, on the next bar
 session.launchSlot('kick-chorus') // one slot; the track's playing slot ends on the same line
 session.stopAll() // on the next bar
@@ -24,8 +24,9 @@ document.undo() // the launch never happened
 ## Model
 
 ```
-Score (format 2)
+Score (format 3)
 ├─ transport.quantize: LaunchQuantize          global launch grid, default 'bar'
+├─ tempo[]                                     the TempoMap the grid quantises on (U33)
 ├─ scenes[]  { id, name }                       rows
 └─ slots[]   { id, track, scene, clip: SlotClip | null, quantize?, launchMode, legato, follow? }
                                                 one per audio track × scene
@@ -44,8 +45,9 @@ alone; a slot with `clip: null` is a **stop button** — launching it (or the
 scene) stops the track on the grid. `recording` is reserved for the recorder
 (U33); the runtime never enters it yet.
 
-Format 1 documents migrate: `migrateScore` adds empty `scenes`/`slots` and
-`transport.quantize: 'bar'`. Validation checks that a slot's track is an
+Format 2 documents (U33: element tracks, tempo) migrate with `2 → 3`:
+`migrateScore` adds empty `scenes`/`slots` and `transport.quantize: 'bar'`;
+format 1 runs `1 → 2` first. Validation checks that a slot's track is an
 audio track, its scene exists, its cell is unique, its clip's source exists,
 and its settings are well-formed.
 
@@ -115,7 +117,9 @@ Consequences, by design:
 ## Quantisation
 
 `quantizeLaunch(tempo, sec, grid)`: the next grid line at or after `sec`, or
-`sec` itself when it is on the grid. `'bar'` and `'beat'` are
+`sec` itself when it is on the grid. The session's `tempo` is the document's
+tempo map (`score.tempo`, kept current across `tempo.set`) unless the
+`tempo` option overrides it. `'bar'` and `'beat'` are
 `TempoMap.quantize`; a number `n` is the next multiple of `n` bars from the
 origin (2, 4, 8 bars…); `{ seconds }` is the next multiple of a period on
 the clock. Resolution order: the call's `quantize` → the slot's → the
@@ -173,6 +177,7 @@ leaves its placed clip sounding; its follow action is gone with it.
 ## Runtime API
 
 `new Session({ document, engine?, tempo?, random?, lookaheadSec?, immediateLeadSec?, autoStart?, openEndSec?, author? })`
+— `tempo` overrides the document's tempo map.
 
 - `launchSlot(id, { quantize? })`, `releaseSlot(id)`, `launchScene(id)`,
   `stopSlot(id)`, `stopTrack(trackId)`, `stopAll()`, `setQuantize(grid)`.

@@ -63,7 +63,67 @@ describe('entries', () => {
     'defaultFrameScheduler',
     'normalizeParam',
     'denormalizeParam',
+    'useControlSurface',
+    'useLearn',
+    // U25 kit
+    'Knob',
+    'Fader',
+    'Meter',
+    'TransportBar',
+    'ChannelStripView',
+    'MixerStrip',
+    'MasterStripView',
+    'MixerView',
+    'DeviceFrame',
+    'DevicePanel',
+    'DeviceView',
+    'DeviceToggle',
+    'ToggleButton',
+    'DeviceChainView',
+    'TimelineView',
+    'Waveform',
+    'useParamControl',
+    'useStripMeter',
+    'reorderInserts',
+    'normalizeValue',
+    'denormalizeValue',
+    'formatControlValue',
+    'faderDbToLevel',
+    'levelToFaderDb',
+    'themeStyle',
+    'jaxaZenLight',
+    'jaxaZenDark',
+    'LM_TOKENS',
   ] as const)('`./react` exports %s', (name) => {
     expect((react as Record<string, unknown>)[name]).toBeDefined()
+  })
+
+  it('the stylesheet declares every token of the default theme, light and dark', async () => {
+    const css = await readFile(join(src, 'react/styles.css'), 'utf8')
+    for (const token of react.LM_TOKENS) {
+      expect(css, `--lm-${token}`).toMatch(new RegExp(`--lm-${token}:`))
+    }
+    expect(css).toMatch(/\[data-lm-theme='dark'\]/)
+    // The tokens module and the stylesheet agree on the JAXA-Zen defaults.
+    expect(css).toMatch(/--lm-bg: #fdfdfb/i)
+    expect(css).toMatch(/--lm-panel: #f4f4f0/i)
+    expect(css).toMatch(/--lm-text: #1a1a1a/i)
+    expect(css).toMatch(/--lm-accent: #e63946/i)
+    expect(react.jaxaZenLight.bg.toLowerCase()).toBe('#fdfdfb')
+    expect(react.jaxaZenDark.text.toLowerCase()).toBe('#fdfdfb')
+  })
+
+  it('components reference colours only through --lm-* variables', async () => {
+    const dir = join(src, 'react/components')
+    const offenders: string[] = []
+    for (const file of await readdir(dir)) {
+      if (!file.endsWith('.tsx')) continue
+      const text = await readFile(join(dir, file), 'utf8')
+      // Hex colours are allowed only as `tokenRef('token', '#fallback')` fallbacks.
+      const stripped = text.replace(/tokenRef\([^)]*\)/g, '')
+      const bare = stripped.match(/#[0-9a-fA-F]{6}\b/g)
+      if (bare) offenders.push(`${file}: ${bare.join(', ')}`)
+    }
+    expect(offenders).toEqual([])
   })
 })

@@ -25,7 +25,7 @@
 
 import { type Clip } from '../clips/Clip'
 import { type Engine } from '../Engine'
-import { TempoMap } from '../time/TempoMap'
+import { TempoMap, type TempoSegment } from '../time/TempoMap'
 import { type AudioTrack } from '../tracks/AudioTrack'
 import { isLooping, type TransportPosition } from '../transport/anchor'
 import { type SchedulerTick } from '../transport/Scheduler'
@@ -58,7 +58,7 @@ export interface SessionOptions {
    * rendered tracks sound it. Without one the session only edits the document.
    */
   engine?: Engine
-  /** Seconds ↔ bars for quantisation and follow times. Default: 120 BPM, 4/4. */
+  /** Overrides the document's tempo map (`score.tempo`) for quantisation and follow times. */
   tempo?: TempoMap
   /** Random source in [0, 1) for follow-action draws. Default `Math.random`. */
   random?: () => number
@@ -152,14 +152,14 @@ interface Placement {
 export class Session {
   readonly document: ScoreDocument
   readonly engine: Engine | null
-  /** Seconds ↔ bars for quantisation and follow times; replace it when the set's tempo changes. */
-  tempo: TempoMap
   readonly lookaheadSec: number
   readonly immediateLeadSec: number
   readonly autoStart: boolean
   readonly openEndSec: number
   private readonly random: () => number
   private readonly author: Author | undefined
+  private readonly tempoOverride: TempoMap | null
+  private tempoCache: { segments: readonly TempoSegment[]; map: TempoMap } | null = null
   private readonly launches: Launch[] = []
   private readonly listeners = new Set<SessionListener>()
   private readonly unsubscribe: (() => void)[] = []
@@ -171,7 +171,7 @@ export class Session {
   constructor(options: SessionOptions) {
     this.document = options.document
     this.engine = options.engine ?? null
-    this.tempo = options.tempo ?? TempoMap.constant(120)
+    this.tempoOverride = options.tempo ?? null
     this.random = options.random ?? Math.random
     this.lookaheadSec = Math.max(0, options.lookaheadSec ?? DEFAULT_SESSION_LOOKAHEAD_SECONDS)
     this.immediateLeadSec = Math.max(0, options.immediateLeadSec ?? DEFAULT_IMMEDIATE_LEAD_SECONDS)
@@ -198,6 +198,16 @@ export class Session {
   /** The current score. */
   get score(): Score {
     return this.document.score
+  }
+
+  /** Seconds ↔ bars: the `tempo` option, else the document's tempo map (`tempo.set` moves it). */
+  get tempo(): TempoMap {
+    if (this.tempoOverride) return this.tempoOverride
+    const segments = this.score.tempo
+    if (this.tempoCache?.segments !== segments) {
+      this.tempoCache = { segments, map: new TempoMap(segments) }
+    }
+    return this.tempoCache.map
   }
 
   /** Bumped on every change a listener is told about. */

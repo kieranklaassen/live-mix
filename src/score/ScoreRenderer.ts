@@ -35,8 +35,11 @@ import { nodeDeviceParam } from '../core/automation/node-device-param'
 import { ParamLane } from '../core/automation/ParamLane'
 import { type ScheduledParam } from '../core/automation/scheduled-param'
 import { type Engine } from '../core/Engine'
+import { ElementSource } from '../core/sources/ElementSource'
+import { type ElementTrack } from '../core/sources/ElementTrack'
+import { TempoMap } from '../core/time/TempoMap'
 import { AudioTrack, DEFAULT_LOOKAHEAD_SECONDS } from '../core/tracks/AudioTrack'
-import { type ChannelStrip, type StripDestination } from '../core/tracks/ChannelStrip'
+import { resolveInput, type ChannelStrip, type StripDestination } from '../core/tracks/ChannelStrip'
 import { GroupTrack } from '../core/tracks/GroupTrack'
 import { InstrumentTrack } from '../core/tracks/InstrumentTrack'
 import { LiveInputTrack } from '../core/tracks/LiveInputTrack'
@@ -52,12 +55,14 @@ import {
   defaultStrip,
   findDevice,
   sameDestination,
+  sameTempo,
   stripHosts,
   targetKey,
   type ParamTarget,
   type Score,
   type ScoreDestination,
   type ScoreDevice,
+  type ScoreElementTrack,
   type ScoreGroup,
   type ScoreLane,
   type ScoreModRoute,
@@ -73,6 +78,12 @@ import {
 export type RenderedHost = AudioTrack | LiveInputTrack | InstrumentTrack | GroupTrack | ReturnTrack
 
 export interface ScoreRendererOptions {
+  /**
+   * How an element track streams a score source: the `ElementSource` for a
+   * source with a `url`. Default: `new ElementSource(ctx, { id, url })`, i.e.
+   * an `<audio>` element. Inject for tests and non-DOM hosts.
+   */
+  createElementSource?: (source: ScoreSource, ctx: BaseAudioContext) => ElementSource | undefined
   /** Registry devices are created from. Default: the engine's. */
   devices?: DeviceRegistry
   /**
@@ -127,6 +138,11 @@ export class ScoreRenderer {
   readonly engine: Engine
   readonly devices: DeviceRegistry
   private readonly resolveSourceFn: (source: ScoreSource) => SampleSource | undefined
+  private readonly createElementSourceFn: (
+    source: ScoreSource,
+    ctx: BaseAudioContext,
+  ) => ElementSource | undefined
+  private readonly elementTracks = new Map<string, ElementTrack>()
   private readonly onError: (error: unknown) => void
   private readonly owners = new Map<string, OwnerHandle>()
   private readonly deviceMap = new Map<string, Device>()
@@ -148,6 +164,12 @@ export class ScoreRenderer {
     this.engine = engine
     this.devices = options.devices ?? engine.devices
     this.resolveSourceFn = options.resolveSource ?? ((source) => source.url)
+    this.createElementSourceFn =
+      options.createElementSource ??
+      ((source, ctx) =>
+        source.url === undefined
+          ? undefined
+          : new ElementSource(ctx, { id: source.id, url: source.url }))
     this.onError =
       options.onError ??
       ((error) => {
@@ -202,6 +224,13 @@ export class ScoreRenderer {
     const host = this.host(id)
     if (!(host instanceof GroupTrack)) throw new ScoreRenderError(`"${id}" is not a group`)
     return host
+  }
+
+  /** The live element track for a score element track id. */
+  elementTrack(id: string): ElementTrack {
+    const track = this.elementTracks.get(id)
+    if (!track) throw new ScoreRenderError(`no element track "${id}"`)
+    return track
   }
 
   returnTrack(id: string): ReturnTrack {
@@ -289,6 +318,7 @@ export class ScoreRenderer {
         for (const [target] of handle.sendTargets) this.removeSend(handle, target)
       }
       for (const id of [...this.owners.keys()]) this.removeOwner(id)
+      for (const id of [...this.elementTracks.keys()]) this.removeElementTrack(id)
       for (const device of this.masterInserts) {
         this.engine.master.removeInsert(device)
         device.dispose()
@@ -296,6 +326,7 @@ export class ScoreRenderer {
     }
     this.bindings.clear()
     this.owners.clear()
+    this.elementTracks.clear()
     this.masterInserts = []
     this.masterInsertIds = []
     this.deviceMap.clear()
@@ -343,6 +374,10 @@ export class ScoreRenderer {
       })
     }
 
+    if (!sameTempo(prev.tempo, next.tempo) || this.renderedScore === null) {
+      this.engine.tempo = new TempoMap(next.tempo)
+    }
+
     // 2. Modulators first: a recreated source changes the signature of every route on it.
     this.reconcileModulators(prev.modulators, next.modulators, now)
 
@@ -388,6 +423,20 @@ export class ScoreRenderer {
     for (const ret of next.returns) if (!this.owners.has(ret.id)) await this.addReturn(ret, added)
     for (const track of next.tracks)
       if (!this.owners.has(track.id)) await this.addTrack(track, added)
+
+    // 5b. Element tracks: no strip, so a destination change is a rebuild.
+    const nextElements = new Map(next.elementTracks.map((track) => [track.id, track]))
+    const prevElements = new Map(prev.elementTracks.map((track) => [track.id, track]))
+    for (const id of [...this.elementTracks.keys()]) {
+      const spec = nextElements.get(id)
+      const before = prevElements.get(id)
+      if (!spec || !before || !sameDestination(before.destination, spec.destination)) {
+        this.removeElementTrack(id)
+      }
+    }
+    for (const track of next.elementTracks) {
+      if (!this.elementTracks.has(track.id)) this.addElementTrack(track, added)
+    }
 
     const prevHosts = new Map(stripHosts(prev).map((host) => [host.id, host]))
     const priorOf = (id: string): ScoreStripHost | undefined =>
@@ -448,6 +497,17 @@ export class ScoreRenderer {
       const preload = track.preloadSec ?? lookahead
       if (beforeTrack && live.preloadSec !== preload) live.preloadSec = preload
       if (!beforeTrack || !sameClips(beforeTrack.clips, track.clips)) live.clips.set(track.clips)
+    }
+
+    // 10b. Element clips and lookahead.
+    for (const track of next.elementTracks) {
+      const live = this.elementTrack(track.id)
+      const before = added.has(track.id) ? undefined : prevElements.get(track.id)
+      const lookahead = track.lookaheadSec ?? DEFAULT_LOOKAHEAD_SECONDS
+      if (before && live.lookaheadSec !== lookahead) live.lookaheadSec = lookahead
+      const preload = track.preloadSec ?? lookahead
+      if (before && live.preloadSec !== preload) live.preloadSec = preload
+      if (!before || !sameClips(before.clips, track.clips)) live.clips.set(track.clips)
     }
 
     // 11. Bindings that are new or changed; lanes no longer in the document are forgotten.
@@ -545,6 +605,29 @@ export class ScoreRenderer {
         return exhaustive
       }
     }
+  }
+
+  private addElementTrack(track: ScoreElementTrack, added: Set<string>): void {
+    added.add(track.id)
+    const live = this.engine.addElementTrack(track.id, {
+      destination: resolveInput(this.resolveDestination(track.destination)),
+      lookaheadSec: track.lookaheadSec,
+      preloadSec: track.preloadSec,
+      resolveSource: (clip) => this.resolveElementSource(clip),
+    })
+    this.elementTracks.set(track.id, live)
+  }
+
+  private removeElementTrack(id: string): void {
+    if (!this.elementTracks.has(id)) return
+    this.engine.removeElementTrack(id)
+    this.elementTracks.delete(id)
+  }
+
+  private resolveElementSource(clip: Clip): ElementSource | undefined {
+    const score = this.latest ?? this.renderedScore
+    const source = score?.sources.find((candidate) => candidate.id === clip.sourceId)
+    return source ? this.createElementSourceFn(source, this.engine.context) : undefined
   }
 
   private newHandle(

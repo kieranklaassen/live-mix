@@ -17,7 +17,13 @@ export {
   type ObservableDevice,
 } from './core/devices/Device'
 export { Emitter, type Listener } from './core/events'
-export { clampParam, type ParamSpec, type ParamTaper } from './core/params'
+export {
+  clampParam,
+  denormalizeParam,
+  normalizeParam,
+  type ParamSpec,
+  type ParamTaper,
+} from './core/params'
 export { ensureProcessor } from './core/worklet-loader'
 export {
   createClock,
@@ -32,7 +38,14 @@ export {
   type OutputMode,
   type OutputRouterOptions,
 } from './core/output/OutputRouter'
-export { Bus, LEVEL_RAMP_SECONDS, type BusOptions } from './core/buses/Bus'
+export {
+  Bus,
+  LEVEL_RAMP_SECONDS,
+  type BusChange,
+  type BusChangeKind,
+  type BusChangeListener,
+  type BusOptions,
+} from './core/buses/Bus'
 export { MasterBus, type MasterBusOptions } from './core/buses/MasterBus'
 export { Meter, type MeterOptions } from './core/analysis/Meter'
 export {
@@ -48,7 +61,11 @@ export {
   type AddReturnTrackOptions,
   type AddWorkletDuckerOptions,
   type AlignLatencyOptions,
+  type EngineChange,
+  type EngineChangeListener,
+  type EngineObjectKind,
   type EngineOptions,
+  type IoLatency,
 } from './core/Engine'
 export { LiveInputTrack, type LiveInputTrackOptions } from './core/tracks/LiveInputTrack'
 export { InstrumentTrack, type InstrumentTrackOptions } from './core/tracks/InstrumentTrack'
@@ -186,6 +203,57 @@ export {
   type WarpOptions,
   type WarpSegment,
 } from './core/sources/StretchSource'
+export {
+  audioBufferToWav,
+  decodeWav,
+  deinterleave,
+  encodeWav,
+  interleave,
+  planarFromAudioBuffer,
+  readWavInfo,
+  wavBlob,
+  type PlanarAudio,
+  type WavBitDepth,
+  type WavEncodeOptions,
+  type WavInfo,
+} from './core/render/encode'
+export {
+  maxAbsDifference,
+  renderOffline,
+  renderStems,
+  scheduleAhead,
+  type OfflineContextFactory,
+  type OfflineContextLike,
+  type RenderBuild,
+  type RenderBuildInfo,
+  type RenderOptions,
+  type RenderResult,
+  type ScheduleAheadOptions,
+  type StemsOptions,
+} from './core/render/OfflineRenderer'
+export {
+  MediaStreamRecorder,
+  Recorder,
+  WorkletRecorder,
+  createRecorder,
+  defaultRecorderProcessorUrl,
+  type MediaRecorderLike,
+  type MediaRecorderOptions,
+  type MediaRecording,
+  type RecordSource,
+  type Recording,
+  type RecorderNodeFactory,
+  type RecorderOptions,
+  type WorkletRecorderOptions,
+  type WorkletRecording,
+} from './core/render/Recorder'
+export {
+  DEFAULT_RECORDER_CHUNK_FRAMES,
+  RECORDER_PROCESSOR_NAME,
+  type RecorderHostMessage,
+  type RecorderMessage,
+  type RecorderProcessorOptions,
+} from './core/render/recorder-protocol'
 export {
   // Node devices
   COMPRESSOR_DESCRIPTOR,
@@ -395,3 +463,4 @@ export {
 } from './core/stats'
 export * from './score'
 export * from './core/session'
+export * from './core/control'

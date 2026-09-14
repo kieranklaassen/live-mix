@@ -157,3 +157,90 @@ describe('Engine instrument tracks', () => {
     expect(notes).toHaveLength(2)
   })
 })
+
+describe('engine change events and latency (U24 hooks follow-up)', () => {
+  it('reports every add/remove of tracks, groups, returns, live inputs, instruments and buses, then dispose', async () => {
+    const ctx = createMockContext({ baseLatency: 0.005, outputLatency: 0.02 })
+    const engine = createEngine({ context: asAudioContext(ctx) })
+    const seen: unknown[] = []
+    const unsubscribe = engine.onChange((change) => seen.push(change))
+
+    engine.addBus('music')
+    engine.addAudioTrack('pad')
+    engine.addGroup('stems')
+    engine.addLiveInputTrack('mic')
+    engine.addElementTrack('bed')
+    engine.removeTrack('pad')
+    engine.removeGroup('stems')
+    engine.removeLiveInputTrack('mic')
+    engine.removeElementTrack('bed')
+    engine.removeBus('music')
+    engine.removeBus('music') // no-op: nothing to report
+
+    expect(seen).toEqual([
+      { kind: 'bus', action: 'added', name: 'music' },
+      { kind: 'track', action: 'added', name: 'pad' },
+      { kind: 'group', action: 'added', name: 'stems' },
+      { kind: 'live-input', action: 'added', name: 'mic' },
+      { kind: 'element-track', action: 'added', name: 'bed' },
+      { kind: 'track', action: 'removed', name: 'pad' },
+      { kind: 'group', action: 'removed', name: 'stems' },
+      { kind: 'live-input', action: 'removed', name: 'mic' },
+      { kind: 'element-track', action: 'removed', name: 'bed' },
+      { kind: 'bus', action: 'removed', name: 'music' },
+    ])
+    expect(engine.liveInputs).toEqual([])
+    expect(engine.returnTracks).toEqual([])
+    expect(engine.instruments).toEqual([])
+
+    seen.length = 0
+    engine.dispose()
+    expect(seen).toEqual([{ kind: 'dispose' }])
+    unsubscribe()
+    await Promise.resolve()
+  })
+
+  it('unsubscribe stops delivery', () => {
+    const ctx = createMockContext()
+    const engine = createEngine({ context: asAudioContext(ctx) })
+    const seen: unknown[] = []
+    const unsubscribe = engine.onChange((change) => seen.push(change))
+    unsubscribe()
+    engine.addBus('a')
+    expect(seen).toEqual([])
+    engine.dispose()
+  })
+
+  it('ioLatency() sums context base + output latency with the largest live-input latency', () => {
+    const ctx = createMockContext({ baseLatency: 0.005, outputLatency: 0.02 })
+    const engine = createEngine({ context: asAudioContext(ctx) })
+    expect(engine.ioLatency()).toEqual({
+      baseSec: 0.005,
+      outputSec: 0.02,
+      inputSec: 0,
+      totalSec: 0.025,
+    })
+
+    const mic = engine.addLiveInputTrack('mic')
+    const stream = {
+      getAudioTracks: () => [{ getSettings: () => ({ latency: 0.012 }) }],
+    } as unknown as MediaStream
+    mic.attach(stream)
+    expect(mic.inputLatencySec).toBe(0.012)
+    const other = engine.addLiveInputTrack('line')
+    other.attach(ctx.createGain() as unknown as AudioNode)
+    expect(other.inputLatencySec).toBe(0)
+    const latency = engine.ioLatency()
+    expect(latency.inputSec).toBe(0.012)
+    expect(latency.totalSec).toBeCloseTo(0.037)
+    engine.dispose()
+  })
+
+  it('ioLatency() treats missing latency fields as zero', () => {
+    const ctx = createMockContext()
+    ;(ctx as { outputLatency?: number }).outputLatency = undefined
+    const engine = createEngine({ context: asAudioContext(ctx) })
+    expect(engine.ioLatency().totalSec).toBe(0)
+    engine.dispose()
+  })
+})

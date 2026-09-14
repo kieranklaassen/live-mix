@@ -130,6 +130,30 @@ describe('OutputRouter', () => {
     expect(session.metadata).toMatchObject({ title: 'solo', artist: '' })
   })
 
+  it('setMediaTitle rewrites the lock-screen metadata once activated and is kept until then', () => {
+    const ctx = createMockContext()
+    const element = fakeAudioElement()
+    const session = fakeMediaSession()
+    const router = new OutputRouter(asAudioContext(ctx), {
+      mode: 'element',
+      mediaTitle: 'Breathwork',
+      createAudioElement: () => element as unknown as HTMLAudioElement,
+      mediaSession: session as unknown as MediaSession,
+    })
+    router.setMediaTitle('Grounding', 'Adem')
+    expect(session.metadata).toBeNull()
+    expect(router.metadata).toEqual({ title: 'Grounding', artist: 'Adem' })
+    router.activate()
+    expect(session.metadata).toMatchObject({ title: 'Grounding', artist: 'Adem' })
+    router.setMediaTitle('Ocean')
+    expect(session.metadata).toMatchObject({ title: 'Ocean', artist: 'Adem' })
+    expect(session.setActionHandler).toHaveBeenCalledTimes(2)
+
+    const direct = new OutputRouter(asAudioContext(ctx), { mediaSession: null })
+    direct.setMediaTitle('Nothing happens')
+    expect(direct.metadata).toEqual({ title: 'Nothing happens' })
+  })
+
   it('dispose pauses and detaches the element', () => {
     const ctx = createMockContext()
     const element = fakeAudioElement()

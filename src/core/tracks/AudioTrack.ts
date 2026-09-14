@@ -233,6 +233,9 @@ export class AudioTrack implements StripHost {
     if (voice.fadeCurve === 'equalPower') {
       voice.gain.gain.setValueCurveAtTime(equalPowerFadeOut(), at, seconds)
     } else {
+      // Anchor at the current value so a fade-out landing mid-fade-in ramps
+      // from where the gain is, not from the cancelled ramp's start value.
+      voice.gain.gain.setValueAtTime(voice.gain.gain.value, at)
       voice.gain.gain.linearRampToValueAtTime(0, at + seconds)
     }
     this.stopSource(voice, at + seconds)

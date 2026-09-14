@@ -1,9 +1,10 @@
 // The score: a declarative, serialisable, seconds-first document that is the
 // source of truth for arrangement, automation and device graphs (KTD8,
 // KTD16 approach C). Everything the engine plays from a document lives here:
-// tracks (audio, live input, instrument), groups, returns, their strips with
-// inserts and sends, clips on a timeline, automation lanes, modulators and
-// modulation routes, master settings and the transport loop.
+// tracks (audio, live input, instrument), element tracks (streamed beds),
+// groups, returns, their strips with inserts and sends, clips on a timeline,
+// automation lanes, modulators and modulation routes, master settings, the
+// transport loop and the tempo map.
 //
 // What is *not* in the score: the audio of a live input (declared, never
 // rendered — the app attaches the stream), the phase an `ExternalPhase`
@@ -27,13 +28,15 @@ import {
 } from '../core/session/launch'
 import { type ScoreScene } from '../core/session/Scene'
 import { LAUNCH_MODES, type ScoreSlot, type SlotClip } from '../core/session/Slot'
+import { DEFAULT_BPM, type TempoSegment } from '../core/time/TempoMap'
 
 /**
- * 1: the U28 document. 2 (U31): `scenes`, `slots` and `transport.quantize`
- * for the session grid; `migrateScore` brings 1 up with empty lists and the
- * default quantisation.
+ * Format history: 1 — U28 (tracks, groups, returns, lanes, modulators,
+ * routes); 2 — U33 adds `elementTracks` (streamed HTMLMediaElement beds, no
+ * strip) and `tempo` (the `TempoMap` segments); 3 — U31 adds `scenes`,
+ * `slots` and `transport.quantize` for the session grid.
  */
-export const SCORE_FORMAT_VERSION = 2
+export const SCORE_FORMAT_VERSION = 3
 
 /** Reserved owner id for the master bus in operations and parameter targets. */
 export const MASTER_OWNER = 'master'
@@ -111,6 +114,21 @@ export interface ScoreInstrumentTrack extends ScoreStripOwner {
 export type ScoreTrack = ScoreAudioTrack | ScoreLiveTrack | ScoreInstrumentTrack
 export type ScoreTrackKind = ScoreTrack['kind']
 
+/**
+ * A streaming track (U18 `ElementTrack`): clips play from `HTMLMediaElement`s
+ * created for their sources' `url`s, never decoded into memory. No strip —
+ * voices connect straight to the destination — so lanes and routes cannot
+ * address it; its id still shares the owner id space.
+ */
+export interface ScoreElementTrack {
+  id: string
+  name: string
+  destination: ScoreDestination
+  lookaheadSec?: number
+  preloadSec?: number
+  clips: Clip[]
+}
+
 export interface ScoreGroup extends ScoreStripOwner {}
 
 export interface ScoreReturn extends ScoreStripOwner {
@@ -170,9 +188,12 @@ export interface Score {
   id: string
   name: string
   transport: ScoreTransport
+  /** Tempo map segments (ascending `atSec`, the first at 0). Seconds stay primary. */
+  tempo: TempoSegment[]
   master: ScoreMaster
   sources: ScoreSource[]
   tracks: ScoreTrack[]
+  elementTracks: ScoreElementTrack[]
   groups: ScoreGroup[]
   returns: ScoreReturn[]
   lanes: ScoreLane[]
@@ -229,16 +250,23 @@ export interface CreateScoreOptions {
   name?: string
 }
 
-/** An empty document: master at unity, loop off, nothing else. */
+/** The tempo map of a new document: 120 BPM, 4/4 from 0. */
+export function defaultTempo(): TempoSegment[] {
+  return [{ atSec: 0, bpm: DEFAULT_BPM }]
+}
+
+/** An empty document: master at unity, loop off, 120 BPM, nothing else. */
 export function createScore(options: CreateScoreOptions = {}): Score {
   return {
     format: SCORE_FORMAT_VERSION,
     id: options.id ?? 'score',
     name: options.name ?? '',
     transport: { loop: { enabled: false, lengthSec: null }, quantize: DEFAULT_LAUNCH_QUANTIZE },
+    tempo: defaultTempo(),
     master: { level: 1, inserts: [] },
     sources: [],
     tracks: [],
+    elementTracks: [],
     groups: [],
     returns: [],
     lanes: [],
@@ -253,6 +281,10 @@ export function createScore(options: CreateScoreOptions = {}): Score {
 
 /** Anything with a strip: tracks, groups and returns. */
 export type ScoreStripHost = ScoreTrack | ScoreGroup | ScoreReturn
+
+export function findElementTrack(score: Score, id: string): ScoreElementTrack | undefined {
+  return score.elementTracks.find((track) => track.id === id)
+}
 
 export function findTrack(score: Score, id: string): ScoreTrack | undefined {
   return score.tracks.find((track) => track.id === id)
@@ -426,6 +458,7 @@ class Checker {
 
 interface Ids {
   owners: Set<string>
+  elementTracks: Set<string>
   groups: Set<string>
   returns: Set<string>
   devices: Set<string>
@@ -439,6 +472,7 @@ interface Ids {
 function collectIds(raw: Record<string, unknown>): Ids {
   const ids: Ids = {
     owners: new Set(),
+    elementTracks: new Set(),
     groups: new Set(),
     returns: new Set(),
     devices: new Set(),
@@ -480,6 +514,12 @@ function collectIds(raw: Record<string, unknown>): Ids {
       if (id !== null) ids.scenes.add(id)
     }
   }
+  if (Array.isArray(raw.elementTracks)) {
+    for (const track of raw.elementTracks) {
+      const id = idOf(track)
+      if (id !== null) ids.elementTracks.add(id)
+    }
+  }
   if (Array.isArray(raw.groups)) for (const group of raw.groups) collectOwner(group, 'group')
   if (Array.isArray(raw.returns)) for (const ret of raw.returns) collectOwner(ret, 'return')
   if (isRecord(raw.master) && Array.isArray(raw.master.inserts)) {
@@ -518,9 +558,22 @@ class UniqueIds {
 interface Context {
   check: Checker
   ids: Ids
+  /** Source ids that carry a `url` (what an element track can stream). */
+  streamable: Set<string>
   ownerIds: UniqueIds
   deviceIds: UniqueIds
   devices: DeviceRegistry | undefined
+}
+
+function streamableSources(raw: Record<string, unknown>): Set<string> {
+  const out = new Set<string>()
+  if (!Array.isArray(raw.sources)) return out
+  for (const source of raw.sources) {
+    if (isRecord(source) && typeof source.id === 'string' && typeof source.url === 'string') {
+      out.add(source.id)
+    }
+  }
+  return out
 }
 
 function checkDestination(raw: unknown, path: string, ctx: Context, selfId?: string): void {
@@ -750,6 +803,66 @@ function checkTrack(raw: unknown, path: string, ctx: Context): void {
   }
 }
 
+function checkElementTrack(raw: unknown, path: string, ctx: Context): void {
+  const { check } = ctx
+  if (!check.record(raw, path)) return
+  const id = checkOwnerHead(raw, path, ctx)
+  if (id !== undefined && ctx.ids.owners.has(id)) {
+    check.fail(`${path}.id`, `"${id}" is also a strip owner`)
+  }
+  checkDestination(raw.destination, `${path}.destination`, ctx)
+  if (raw.lookaheadSec !== undefined)
+    check.number(raw.lookaheadSec, `${path}.lookaheadSec`, { min: 0 })
+  if (raw.preloadSec !== undefined) check.number(raw.preloadSec, `${path}.preloadSec`, { min: 0 })
+  if (check.array(raw.clips, `${path}.clips`)) {
+    const clipIds = new UniqueIds(check)
+    raw.clips.forEach((clip, index) => {
+      const clipPath = `${path}.clips[${index}]`
+      checkClip(clip, clipPath, ctx, clipIds)
+      if (
+        isRecord(clip) &&
+        typeof clip.sourceId === 'string' &&
+        !ctx.streamable.has(clip.sourceId)
+      ) {
+        if (ctx.ids.sources.has(clip.sourceId)) {
+          check.fail(`${clipPath}.sourceId`, `source "${clip.sourceId}" has no url to stream`)
+        }
+      }
+    })
+  }
+}
+
+function checkTempo(raw: unknown, path: string, check: Checker): void {
+  if (!check.array(raw, path)) return
+  if (raw.length === 0) {
+    check.fail(path, 'expected at least one segment')
+    return
+  }
+  let previous = -1
+  raw.forEach((segment, index) => {
+    const segmentPath = `${path}[${index}]`
+    if (!check.record(segment, segmentPath)) return
+    if (check.number(segment.atSec, `${segmentPath}.atSec`, { min: 0 })) {
+      const atSec = segment.atSec as number
+      if (index === 0 && atSec !== 0)
+        check.fail(`${segmentPath}.atSec`, 'the first segment starts at 0')
+      if (atSec <= previous) check.fail(`${segmentPath}.atSec`, 'segments must ascend')
+      previous = atSec
+    }
+    if (check.number(segment.bpm, `${segmentPath}.bpm`) && (segment.bpm as number) <= 0) {
+      check.fail(`${segmentPath}.bpm`, 'expected > 0')
+    }
+    if (segment.beatsPerBar !== undefined) {
+      if (
+        check.number(segment.beatsPerBar, `${segmentPath}.beatsPerBar`, { min: 1 }) &&
+        !Number.isInteger(segment.beatsPerBar)
+      ) {
+        check.fail(`${segmentPath}.beatsPerBar`, 'expected an integer')
+      }
+    }
+  })
+}
+
 function checkGroup(raw: unknown, path: string, ctx: Context): void {
   if (!ctx.check.record(raw, path)) return
   const id = checkOwnerHead(raw, path, ctx)
@@ -895,6 +1008,7 @@ export function validateScore(input: unknown, options: ValidateScoreOptions = {}
   const ctx: Context = {
     check,
     ids: collectIds(raw),
+    streamable: streamableSources(raw),
     ownerIds: new UniqueIds(check),
     deviceIds: new UniqueIds(check),
     devices: options.devices,
@@ -939,6 +1053,12 @@ export function validateScore(input: unknown, options: ValidateScoreOptions = {}
   if (check.array(raw.tracks, 'tracks')) {
     raw.tracks.forEach((track, index) => checkTrack(track, `tracks[${index}]`, ctx))
   }
+  if (check.array(raw.elementTracks, 'elementTracks')) {
+    raw.elementTracks.forEach((track, index) =>
+      checkElementTrack(track, `elementTracks[${index}]`, ctx),
+    )
+  }
+  checkTempo(raw.tempo, 'tempo', check)
   if (check.array(raw.groups, 'groups')) {
     raw.groups.forEach((group, index) => checkGroup(group, `groups[${index}]`, ctx))
     checkGroupCycles(raw, check)
@@ -1117,6 +1237,28 @@ function normaliseTrack(track: ScoreTrack): ScoreTrack {
   }
 }
 
+/** Segments in `atSec` order, `beatsPerBar` only when set. */
+export function normaliseTempo(segments: readonly TempoSegment[]): TempoSegment[] {
+  return [...segments]
+    .sort((a, b) => a.atSec - b.atSec)
+    .map((segment) => {
+      const out: TempoSegment = { atSec: segment.atSec, bpm: segment.bpm }
+      if (segment.beatsPerBar !== undefined) out.beatsPerBar = segment.beatsPerBar
+      return out
+    })
+}
+
+/** True when two tempo maps are the same segments. */
+export function sameTempo(a: readonly TempoSegment[], b: readonly TempoSegment[]): boolean {
+  if (a.length !== b.length) return false
+  return a.every(
+    (segment, index) =>
+      segment.atSec === b[index].atSec &&
+      segment.bpm === b[index].bpm &&
+      (segment.beatsPerBar ?? 4) === (b[index].beatsPerBar ?? 4),
+  )
+}
+
 function normaliseTarget(target: ParamTarget): ParamTarget {
   return target.kind === 'strip'
     ? { kind: 'strip', owner: target.owner, param: target.param }
@@ -1198,6 +1340,7 @@ export function normaliseScore(score: Score): Score {
       loop: { enabled: score.transport.loop.enabled, lengthSec: score.transport.loop.lengthSec },
       quantize: normaliseQuantize(score.transport.quantize),
     },
+    tempo: normaliseTempo(score.tempo),
     master: { level: score.master.level, inserts: score.master.inserts.map(normaliseDevice) },
     sources: score.sources.map((source) => {
       const out: ScoreSource = { id: source.id }
@@ -1207,6 +1350,17 @@ export function normaliseScore(score: Score): Score {
       return out
     }),
     tracks: score.tracks.map(normaliseTrack),
+    elementTracks: score.elementTracks.map((track) => {
+      const out: ScoreElementTrack = {
+        id: track.id,
+        name: track.name,
+        destination: normaliseDestination(track.destination),
+        clips: sortClips(track.clips.map(normaliseClip)),
+      }
+      if (track.lookaheadSec !== undefined) out.lookaheadSec = track.lookaheadSec
+      if (track.preloadSec !== undefined) out.preloadSec = track.preloadSec
+      return out
+    }),
     groups: score.groups.map((group) => ({
       id: group.id,
       name: group.name,
@@ -1248,15 +1402,15 @@ export function serializeScore(score: Score): string {
 }
 
 /**
- * `1 → 2` (U31): the session grid. A format-1 document has no scenes or
+ * `2 → 3` (U31): the session grid. A format-2 document has no scenes or
  * slots and no global launch quantisation; it gains empty lists and the
  * default (`'bar'`). Existing fields are untouched.
  */
-function migrate1to2(raw: Record<string, unknown>): Record<string, unknown> {
+function migrate2to3(raw: Record<string, unknown>): Record<string, unknown> {
   const transport = isRecord(raw.transport) ? raw.transport : {}
   return {
     ...raw,
-    format: 2,
+    format: 3,
     transport: { ...transport, quantize: transport.quantize ?? DEFAULT_LAUNCH_QUANTIZE },
     scenes: Array.isArray(raw.scenes) ? raw.scenes : [],
     slots: Array.isArray(raw.slots) ? raw.slots : [],
@@ -1265,11 +1419,15 @@ function migrate1to2(raw: Record<string, unknown>): Record<string, unknown> {
 
 /**
  * Migrations from older format versions, keyed by the format they read,
- * applied in order before validation. A future `format: 3` adds `2 → 3`
- * here and bumps `SCORE_FORMAT_VERSION`.
+ * applied in order before validation. Each takes a document of format `n`
+ * and returns one of format `n + 1`.
  */
 const MIGRATIONS: ReadonlyMap<number, (raw: Record<string, unknown>) => Record<string, unknown>> =
-  new Map([[1, migrate1to2]])
+  new Map([
+    // 1 → 2: element tracks and the tempo map (U33). Nothing existing changes meaning.
+    [1, (raw) => ({ ...raw, format: 2, elementTracks: [], tempo: defaultTempo() })],
+    [2, migrate2to3],
+  ])
 
 /** Bring a document of any known older format up to the current one; unknown formats throw. */
 export function migrateScore(input: unknown): unknown {

@@ -16,6 +16,7 @@ import { type ModMatrix } from './automation/ModMatrix'
 import { MasterBus, type MasterBusOptions } from './buses/MasterBus'
 import { Bus } from './buses/Bus'
 import { createClock, type Clock, type ClockOptions } from './clock'
+import { Emitter } from './events'
 import { OutputRouter, type OutputRouterOptions } from './output/OutputRouter'
 import { devices as defaultDevices } from './devices'
 import {
@@ -46,6 +47,7 @@ import { SampleRetainer } from './tracks/SampleRetainer'
 import { SampleStore, type SampleStoreOptions } from './tracks/SampleStore'
 import { ElementTrack, type ElementTrackOptions } from './sources/ElementTrack'
 import { EngineStats, type EngineStatsOptions } from './stats'
+import { TempoMap } from './time/TempoMap'
 import { type TransportLoop } from './transport/anchor'
 import { Scheduler } from './transport/Scheduler'
 import { Transport } from './transport/Transport'
@@ -132,6 +134,36 @@ export type AddGroupOptions = Omit<GroupTrackOptions, 'name' | 'destination' | '
   members?: readonly StripHost[]
 }
 
+/** What kind of mixer object an `EngineChange` is about. */
+export type EngineObjectKind =
+  'track' | 'element-track' | 'live-input' | 'instrument' | 'return' | 'group' | 'bus'
+
+/**
+ * Structural changes a host lists from (React `useTracks()`, agent snapshots):
+ * something was added or removed, or the engine was disposed. Parameter and
+ * strip changes are reported by the objects themselves.
+ */
+export type EngineChange =
+  { kind: EngineObjectKind; action: 'added' | 'removed'; name: string } | { kind: 'dispose' }
+
+export type EngineChangeListener = (change: EngineChange) => void
+
+/**
+ * I/O latency budget of the running context, in seconds: what a listener
+ * hears late relative to the audio clock. Plugin delay inside the graph is a
+ * separate matter — see `latencyReport()` / `alignLatency()` (PDC).
+ */
+export interface IoLatency {
+  /** `AudioContext.baseLatency` (0 on offline contexts). */
+  baseSec: number
+  /** `AudioContext.outputLatency` (0 where unsupported). */
+  outputSec: number
+  /** Largest reported input latency over the live-input tracks. */
+  inputSec: number
+  /** `baseSec + outputSec + inputSec`. */
+  totalSec: number
+}
+
 export interface AddBusOptions {
   /** Where the bus feeds; defaults to the master. */
   destination?: StripDestination
@@ -164,6 +196,14 @@ export class Engine {
   readonly modulation: ModMatrix
   /** Solo-in-place state across every track, return and group strip. */
   readonly solo = new SoloInPlace()
+  /**
+   * The session's tempo map (grid, quantised launches, warping). Seconds stay
+   * primary: nothing in the engine reads it unless asked. Replace it to change
+   * tempo (`TempoMap` is immutable); the score renderer keeps it in step with
+   * the document's `tempo`.
+   */
+  tempo: TempoMap = new TempoMap()
+  private readonly changes = new Emitter<EngineChange>()
   /** Glitch counter and render load, where the context reports them (R38). */
   readonly stats: EngineStats
   private readonly busMap = new Map<string, Bus>()
@@ -218,6 +258,7 @@ export class Engine {
     const destination = resolveInput(options.destination ?? this.master)
     const bus = new Bus(this.context, { name, destination, gain: options.gain })
     this.busMap.set(name, bus)
+    this.changed('bus', 'added', name)
     return bus
   }
 
@@ -241,6 +282,7 @@ export class Engine {
     if (!bus) return
     bus.dispose()
     this.busMap.delete(name)
+    this.changed('bus', 'removed', name)
   }
 
   /** Create a clip track feeding the master (or a bus), registered with the scheduler. */
@@ -270,6 +312,7 @@ export class Engine {
     }
     track.attach(this.scheduler)
     this.trackMap.set(name, track)
+    this.changed('track', 'added', name)
     return track
   }
 
@@ -297,6 +340,7 @@ export class Engine {
       clearTimeoutFn: this.clock.clearTimeoutFn,
     })
     this.elementTrackMap.set(name, track)
+    this.changed('element-track', 'added', name)
     return track
   }
 
@@ -315,6 +359,7 @@ export class Engine {
     if (!track) return
     track.dispose()
     this.elementTrackMap.delete(name)
+    this.changed('element-track', 'removed', name)
   }
 
   track(name: string): AudioTrack {
@@ -335,6 +380,7 @@ export class Engine {
     this.retainers.delete(track)
     track.dispose()
     this.trackMap.delete(name)
+    this.changed('track', 'removed', name)
   }
 
   /** A pass-through track for a MediaStream or node, feeding the master by default. */
@@ -349,6 +395,7 @@ export class Engine {
       solo: this.solo,
     })
     this.liveInputMap.set(name, track)
+    this.changed('live-input', 'added', name)
     return track
   }
 
@@ -368,6 +415,7 @@ export class Engine {
     if (!track) return
     track.dispose()
     this.liveInputMap.delete(name)
+    this.changed('live-input', 'removed', name)
   }
 
   /** A track hosting one instrument device, feeding the master by default. */
@@ -383,6 +431,7 @@ export class Engine {
       solo: this.solo,
     })
     this.instrumentMap.set(name, track)
+    this.changed('instrument', 'added', name)
     return track
   }
 
@@ -402,6 +451,7 @@ export class Engine {
     if (!track) return
     track.dispose()
     this.instrumentMap.delete(name)
+    this.changed('instrument', 'removed', name)
   }
 
   /** A return fed by sends: one device whose output goes to the master by default. */
@@ -416,6 +466,7 @@ export class Engine {
       solo: this.solo,
     })
     this.returnMap.set(name, track)
+    this.changed('return', 'added', name)
     return track
   }
 
@@ -435,6 +486,32 @@ export class Engine {
     if (!track) return
     track.dispose()
     this.returnMap.delete(name)
+    this.changed('return', 'removed', name)
+  }
+
+  /**
+   * Structural changes: any track, group, return or bus added or removed, and
+   * disposal. Returns the unsubscribe function.
+   */
+  onChange(listener: EngineChangeListener): () => void {
+    return this.changes.subscribe(listener)
+  }
+
+  /**
+   * Context base + output latency plus the largest input latency a live-input
+   * track reports (from its MediaStreamTrack settings, when the browser exposes
+   * one). Plugin delay compensation is `latencyReport()` / `alignLatency()`.
+   */
+  ioLatency(): IoLatency {
+    const context = this.context as Partial<AudioContext>
+    const baseSec = finiteOrZero(context.baseLatency)
+    const outputSec = finiteOrZero(context.outputLatency)
+    const inputSec = Math.max(0, ...this.liveInputs.map((track) => track.inputLatencySec))
+    return { baseSec, outputSec, inputSec, totalSec: baseSec + outputSec + inputSec }
+  }
+
+  private changed(kind: EngineObjectKind, action: 'added' | 'removed', name: string): void {
+    this.changes.emit({ kind, action, name })
   }
 
   /**
@@ -452,6 +529,7 @@ export class Engine {
     })
     for (const member of options.members ?? []) group.add(member)
     this.groupMap.set(name, group)
+    this.changed('group', 'added', name)
     return group
   }
 
@@ -475,6 +553,7 @@ export class Engine {
     if (!group) return
     group.dispose()
     this.groupMap.delete(name)
+    this.changed('group', 'removed', name)
   }
 
   /**
@@ -646,6 +725,8 @@ export class Engine {
     this.stats.dispose()
     for (const delay of this.alignmentDelays.values()) delay.dispose()
     this.alignmentDelays.clear()
+    this.changes.emit({ kind: 'dispose' })
+    this.changes.clear()
   }
 
   /** Every path the latency report covers, with its destination resolved by input node. */
@@ -710,4 +791,8 @@ export class Engine {
 
 export function createEngine(options: EngineOptions): Engine {
   return new Engine(options)
+}
+
+function finiteOrZero(value: number | undefined): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0
 }

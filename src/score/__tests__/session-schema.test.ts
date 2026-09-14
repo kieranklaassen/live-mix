@@ -55,11 +55,11 @@ function gridScore(): Score {
   return score
 }
 
-describe('score format 2: session grid', () => {
+describe('score format 3: session grid', () => {
   it('createScore has the session fields at their defaults', () => {
     const score = createScore()
-    expect(score.format).toBe(2)
-    expect(SCORE_FORMAT_VERSION).toBe(2)
+    expect(score.format).toBe(3)
+    expect(SCORE_FORMAT_VERSION).toBe(3)
     expect(score.scenes).toEqual([])
     expect(score.slots).toEqual([])
     expect(score.transport.quantize).toBe('bar')
@@ -171,44 +171,63 @@ describe('score format 2: session grid', () => {
   })
 })
 
-describe('migration 1 → 2', () => {
-  function formatOne(): Record<string, unknown> {
+describe('migration 2 → 3', () => {
+  /** A U33 (format 2) document: element tracks and tempo, no grid. */
+  function formatTwo(): Record<string, unknown> {
     const raw = JSON.parse(serializeScore(demoScore())) as Record<string, unknown>
-    raw.format = 1
+    raw.format = 2
     delete raw.scenes
     delete raw.slots
     delete (raw.transport as Record<string, unknown>).quantize
     return raw
   }
 
-  it('brings a format-1 document up with an empty grid and the default quantisation', () => {
-    const raw = formatOne()
+  /** A U28 (format 1) document: neither element tracks, tempo nor grid. */
+  function formatOne(): Record<string, unknown> {
+    const raw = formatTwo()
+    raw.format = 1
+    delete raw.elementTracks
+    delete raw.tempo
+    return raw
+  }
+
+  it('brings a format-2 document up with an empty grid and the default quantisation', () => {
+    const raw = formatTwo()
     const migrated = migrateScore(raw) as Score
-    expect(migrated.format).toBe(2)
+    expect(migrated.format).toBe(3)
     expect(migrated.scenes).toEqual([])
     expect(migrated.slots).toEqual([])
     expect(migrated.transport.quantize).toBe('bar')
-    expect(migrated.transport.loop).toEqual(
-      raw.transport && (raw.transport as Score['transport']).loop,
-    )
-    expect(raw.format).toBe(1) // the input is not mutated
+    expect(migrated.transport.loop).toEqual((raw.transport as Score['transport']).loop)
+    expect(migrated.tempo).toEqual(raw.tempo)
+    expect(raw.format).toBe(2) // the input is not mutated
     const parsed = parseScore(JSON.stringify(raw))
-    expect(parsed.format).toBe(2)
+    expect(parsed.format).toBe(3)
     expect(parsed.tracks.map((track) => track.id)).toEqual(['kick', 'pad', 'voice'])
     expect(validateScore(parsed)).toEqual([])
+  })
+
+  it('a format-1 document runs both migrations in order', () => {
+    const parsed = parseScore(formatOne())
+    expect(parsed.format).toBe(3)
+    expect(parsed.elementTracks).toEqual([])
+    expect(parsed.tempo).toEqual([{ atSec: 0, bpm: 120 }])
+    expect(parsed.scenes).toEqual([])
+    expect(parsed.slots).toEqual([])
+    expect(parsed.transport.quantize).toBe('bar')
   })
 
   it('leaves an already-current document alone and still refuses newer or unknown formats', () => {
     const score = createScore()
     expect(migrateScore(score)).toBe(score)
-    expect(() => migrateScore({ format: 3 })).toThrow(/newer/)
+    expect(() => migrateScore({ format: 4 })).toThrow(/newer/)
     expect(() => migrateScore({ format: 0 })).toThrow(/unknown format/)
-    expect(() => parseScore({ format: 1 })).toThrow(ScoreValidationError) // migrated, then invalid
+    expect(() => parseScore({ format: 2 })).toThrow(ScoreValidationError) // migrated, then invalid
   })
 
-  it('a format-1 document that already carries a grid keeps it', () => {
+  it('a format-2 document that already carries a grid keeps it', () => {
     const raw = JSON.parse(serializeScore(gridScore())) as Record<string, unknown>
-    raw.format = 1
+    raw.format = 2
     const parsed = parseScore(raw)
     expect(parsed.slots).toHaveLength(3)
     expect(parsed.transport.quantize).toBe(2)

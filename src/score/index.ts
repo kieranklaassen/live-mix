@@ -13,7 +13,9 @@ export {
   assertValidScore,
   createScore,
   defaultStrip,
+  defaultTempo,
   findDevice,
+  findElementTrack,
   findGroup,
   findReturn,
   findStripHost,
@@ -26,9 +28,11 @@ export {
   normaliseScore,
   normaliseSlot,
   normaliseSlotClip,
+  normaliseTempo,
   parseScore,
   sameDestination,
   sameTarget,
+  sameTempo,
   serializeScore,
   stripHosts,
   targetKey,
@@ -40,6 +44,7 @@ export {
   type ScoreAudioTrack,
   type ScoreDestination,
   type ScoreDevice,
+  type ScoreElementTrack,
   type ScoreGroup,
   type ScoreInstrumentTrack,
   type ScoreIssue,
@@ -114,3 +119,10 @@ export {
   type ScoreRendererOptions,
 } from './ScoreRenderer'
 export { loadScore, scoreRendererOf, unloadScore } from './loadScore'
+export {
+  renderScore,
+  renderScoreStems,
+  renderableScore,
+  type RenderScoreOptions,
+  type RenderScoreStemsOptions,
+} from './renderScore'

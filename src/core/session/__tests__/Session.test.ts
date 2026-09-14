@@ -121,13 +121,8 @@ async function rig(
     },
   })
   await renderer.whenIdle()
-  const session = new Session({
-    document,
-    engine,
-    tempo: TempoMap.constant(120),
-    random: seededRandom(1),
-    ...options,
-  })
+  // No `tempo` option: the session reads the document's tempo map (120 BPM, 4/4 by default).
+  const session = new Session({ document, engine, random: seededRandom(1), ...options })
   const settle = (): Promise<void> => renderer.whenIdle()
   // Microtasks (the renderer applying an edit) run before the next timer tick
   // does, so pending document changes reach the engine before the clock moves.
@@ -207,6 +202,30 @@ describe('Session: quantised launch', () => {
     session.launchSlot('pad-verse')
     // Immediate launches sit `immediateLeadSec` ahead so the scheduler cannot skip them.
     expect(clips('pad')[0].startSec).toBeCloseTo(7.75 + session.immediateLeadSec)
+  })
+
+  it('follows the document’s tempo map, and a tempo option overrides it', async () => {
+    const { engine, session, document, advance, clips } = await rig()
+    engine.transport.start()
+    await advance(7.7)
+    document.apply({ type: 'tempo.set', segments: [{ atSec: 0, bpm: 60 }] }) // bars of 4 s
+    expect(session.tempo.bpmAt(0)).toBe(60)
+    session.launchSlot('kick-verse')
+    expect(clips('kick')[0].startSec).toBe(8)
+    document.undo()
+    document.apply({ type: 'tempo.set', segments: [{ atSec: 0, bpm: 240 }] }) // bars of 1 s
+    session.launchSlot('kick-chorus')
+    expect(clips('kick')).toEqual([{ id: 'kick-chorus@2', startSec: 8, durationSec: 4 }])
+    await advance(0.5) // 8.2
+    session.launchSlot('kick-verse')
+    expect(clips('kick')[1].startSec).toBe(9)
+
+    const fixed = await rig({ tempo: TempoMap.constant(30) }) // bars of 8 s
+    fixed.engine.transport.start()
+    await fixed.advance(1)
+    fixed.document.apply({ type: 'tempo.set', segments: [{ atSec: 0, bpm: 240 }] })
+    fixed.session.launchSlot('kick-verse')
+    expect(fixed.clips('kick')[0].startSec).toBe(8)
   })
 
   it('a grid line already reached launches with the immediate lead, not at the next line', async () => {

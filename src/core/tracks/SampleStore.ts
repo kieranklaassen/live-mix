@@ -173,6 +173,18 @@ export class SampleStore {
     return this.pending.get(id)
   }
 
+  /** How many loads are in flight. */
+  get pendingCount(): number {
+    return this.pending.size
+  }
+
+  /** Resolves once every load in flight right now has finished (failures included). */
+  settled(): Promise<void> {
+    return Promise.all([...this.pending.values()].map((load) => load.catch(() => undefined))).then(
+      () => undefined,
+    )
+  }
+
   /** Mark `id` as most recently used. */
   touch(id: string): void {
     const sample = this.loaded.get(id)

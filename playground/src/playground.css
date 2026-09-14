@@ -1,0 +1,107 @@
+/* Page chrome only; the kit is styled by its own stylesheet and tokens. */
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  background: var(--lm-bg);
+  color: var(--lm-text);
+  font-family: var(--lm-font);
+  font-size: 13px;
+}
+
+.pg-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px 20px 40px;
+}
+
+.pg-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.pg-header h1 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.pg-header h1 span {
+  color: var(--lm-accent);
+}
+
+.pg-header .pg-spacer {
+  flex: 1;
+}
+
+.pg-mode {
+  color: var(--lm-muted);
+  font-family: var(--lm-font-mono);
+  font-size: 11px;
+}
+
+.pg-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pg-section > h2 {
+  margin: 0;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--lm-muted);
+}
+
+.pg-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.pg-primitives {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 20px;
+  padding: 12px;
+  border: 1px solid var(--lm-border);
+  border-radius: var(--lm-radius);
+  background: var(--lm-panel);
+}
+
+.pg-primitives .lm-fader--vertical {
+  height: 140px;
+}
+
+.pg-primitives .lm-meter--vertical {
+  height: 140px;
+}
+
+.pg-primitives .pg-h {
+  width: 240px;
+}
+
+select.pg-select {
+  height: 22px;
+  padding: 0 6px;
+  border: 1px solid var(--lm-border);
+  border-radius: var(--lm-radius);
+  background: var(--lm-sunken);
+  color: var(--lm-text);
+  font: inherit;
+  font-size: 11px;
+}

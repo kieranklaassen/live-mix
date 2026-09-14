@@ -1,0 +1,12 @@
+{
+  "name": "live-mix-playground",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Vite page that mounts the React kit on a demo engine. Not published; uses the repository's dev dependencies (`pnpm playground` from the root).",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  }
+}

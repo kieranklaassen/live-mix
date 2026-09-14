@@ -5,7 +5,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { MockAudioBuffer } from '../../testing'
 import { Session } from '../../core/session/Session'
 import { defaultSlot, type SlotClip } from '../../core/session/Slot'
-import { TempoMap } from '../../core/time/TempoMap'
 import { loadScore } from '../../score/loadScore'
 import { createScore, defaultStrip, masterDestination, type Score } from '../../score/schema'
 import { ScoreDocument } from '../../score/ScoreDocument'
@@ -86,7 +85,7 @@ async function rig(): Promise<Rig> {
   const document = new ScoreDocument(gridScore(), { now: () => 0 })
   const renderer = loadScore(fixture.engine, document)
   await renderer.whenIdle()
-  const session = new Session({ document, engine: fixture.engine, tempo: TempoMap.constant(120) })
+  const session = new Session({ document, engine: fixture.engine })
   const advance = async (sec: number): Promise<void> => {
     await renderer.whenIdle()
     fixture.ctx.advanceClock(sec)
