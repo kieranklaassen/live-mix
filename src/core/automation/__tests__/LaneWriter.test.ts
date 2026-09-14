@@ -39,16 +39,33 @@ function firefoxParam(): MockAudioParam {
 }
 
 describe('LaneWriter', () => {
-  it('anchors at the playhead on the first tick and writes the ramps inside the lookahead', () => {
+  it('anchors at the playhead on the first tick and writes every segment the window reaches into, whole', () => {
     const param = new MockAudioParam()
     const writer = new LaneWriter(swell(), param)
     writer.tick({ playheadSec: 1, lookaheadSec: 2, contextTimeSec: 10 })
 
+    // The window ends at 3, inside the 2 → 4 segment: its arrival is written now.
+    // A ramp handed to the graph after its segment began renders as a jump.
     expect(calls(param)).toEqual([
       ['setValueAtTime', 0.5, 10],
       ['linearRampToValueAtTime', 1, 11],
+      ['linearRampToValueAtTime', 0, 13],
     ])
-    expect(writer.writtenUntilSec).toBe(3)
+    expect(writer.writtenUntilSec).toBe(4)
+  })
+
+  it('a short window still writes a long segment whole, and only once', () => {
+    const param = new MockAudioParam()
+    const writer = new LaneWriter(swell(), param)
+    for (let step = 0; step <= 40; step += 1) {
+      const playheadSec = step * 0.1
+      writer.tick({ playheadSec, lookaheadSec: 0.2, contextTimeSec: 100 + playheadSec })
+    }
+    expect(calls(param)).toEqual([
+      ['setValueAtTime', 0, 100],
+      ['linearRampToValueAtTime', 1, 102],
+      ['linearRampToValueAtTime', 0, 104],
+    ])
   })
 
   it('writes every ramp exactly once across overlapping windows', () => {
@@ -159,7 +176,8 @@ describe('LaneWriter', () => {
     const catchUp = calls(param).slice(before)
     expect(catchUp[0]).toEqual(['cancelAndHoldAtTime', 3])
     expect(catchUp[1][1]).toBeCloseTo(0.475, 12)
-    expect(writer.writtenUntilSec).toBe(3.5)
+    expect(catchUp[2]).toEqual(['linearRampToValueAtTime', 0, 4])
+    expect(writer.writtenUntilSec).toBe(4)
   })
 
   it('snaps instead of ramping when joinRampSec is 0', () => {
@@ -167,11 +185,14 @@ describe('LaneWriter', () => {
     const writer = new LaneWriter(swell(), param, { joinRampSec: 0 })
     writer.tick({ playheadSec: 0, lookaheadSec: 1, contextTimeSec: 0 })
     writer.override(0.5)
+    const before = param.events.length
     writer.release()
     writer.tick({ playheadSec: 1, lookaheadSec: 1, contextTimeSec: 1 })
-    expect(calls(param).slice(-2)).toEqual([
+    expect(calls(param).slice(before)).toEqual([
       ['cancelAndHoldAtTime', 1],
       ['setValueAtTime', 0.5, 1],
+      ['linearRampToValueAtTime', 1, 2],
+      ['linearRampToValueAtTime', 0, 4],
     ])
   })
 
@@ -182,7 +203,10 @@ describe('LaneWriter', () => {
     writer.reset()
     expect(writer.writtenUntilSec).toBeNull()
     writer.tick({ playheadSec: 2, lookaheadSec: 1, contextTimeSec: 50 })
-    expect(calls(param).slice(-1)).toEqual([['setValueAtTime', 1, 50]])
+    expect(calls(param).slice(-2)).toEqual([
+      ['setValueAtTime', 1, 50],
+      ['linearRampToValueAtTime', 0, 52],
+    ])
   })
 
   it('reproduces the breath guide’s cycle automation from a gain lane and a filter lane', () => {
@@ -253,9 +277,10 @@ describe('LaneWriter', () => {
         ['linearRampToValueAtTime', 1, 102],
         ['linearRampToValueAtTime', 0, 104],
         ['linearRampToValueAtTime', 0.025, 104.05],
+        ['linearRampToValueAtTime', 1, 106],
       ])
       expect(transport.position().iteration).toBe(1)
-      expect(writer.writtenUntilSec).toBeCloseTo(5.5, 6)
+      expect(writer.writtenUntilSec).toBeCloseTo(6, 6)
 
       // Seek to 1 s: the transport re-pins with a fresh pass number; the
       // writer sees the offset change and ramps onto the lane at its new place.
@@ -300,13 +325,15 @@ describe('LaneWriter', () => {
         loopEnabled: true,
         loopLengthSec,
       })
-      // The breakpoint on the loop length is written, then the wrap ramps onto the lane start.
+      // The breakpoint on the loop length is written, the wrap ramps onto the
+      // lane start, and the next pass's first segment (reached by the window) is written whole.
       expect(calls(param)).toEqual([
         ['setValueAtTime', 0.5, 13],
         ['linearRampToValueAtTime', 0, 14],
         ['linearRampToValueAtTime', 0.025, 14.05],
+        ['linearRampToValueAtTime', 1, 16],
       ])
-      expect(writer.writtenUntilSec).toBe(5)
+      expect(writer.writtenUntilSec).toBe(6)
 
       writer.tick({
         playheadSec: 0.5,
@@ -316,7 +343,7 @@ describe('LaneWriter', () => {
         loopEnabled: true,
         loopLengthSec,
       })
-      expect(calls(param).slice(3)).toEqual([['linearRampToValueAtTime', 1, 16]])
+      expect(calls(param).slice(4)).toEqual([['linearRampToValueAtTime', 0, 18]])
     })
 
     it('detects the wrap from a backwards playhead when no iteration is given', () => {
@@ -329,9 +356,10 @@ describe('LaneWriter', () => {
       expect(calls(param)).toEqual([
         ['setValueAtTime', 0.25, 3.5],
         ['linearRampToValueAtTime', 0, 4],
+        ['linearRampToValueAtTime', 1, 6],
       ])
       expect(param.eventsFor('cancelAndHoldAtTime')).toHaveLength(0)
-      expect(writer.writtenUntilSec).toBe(5.1)
+      expect(writer.writtenUntilSec).toBe(6)
     })
 
     it('reads the lane at the position inside the loop, not the unwrapped time', () => {
@@ -339,9 +367,13 @@ describe('LaneWriter', () => {
       const writer = new LaneWriter(swell(), param, { joinRampSec: 0 })
       const window = { lookaheadSec: 1, loopEnabled: true, loopLengthSec }
       writer.tick({ ...window, playheadSec: 1, contextTimeSec: 105, iteration: 2 })
-      expect(calls(param)).toEqual([['setValueAtTime', 0.5, 105]])
+      expect(calls(param)).toEqual([
+        ['setValueAtTime', 0.5, 105],
+        ['linearRampToValueAtTime', 1, 106],
+        ['linearRampToValueAtTime', 0, 108],
+      ])
       writer.override(106)
-      expect(calls(param).slice(1)).toEqual([
+      expect(calls(param).slice(3)).toEqual([
         ['cancelScheduledValues', 106],
         ['setValueAtTime', 1, 106],
       ])
@@ -367,6 +399,7 @@ describe('LaneWriter', () => {
         ['linearRampToValueAtTime', 0, 4],
         ['setValueAtTime', 0.2, 4],
         ['linearRampToValueAtTime', 1, 6],
+        ['linearRampToValueAtTime', 0, 8],
       ])
     })
   })

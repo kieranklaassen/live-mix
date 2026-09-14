@@ -105,13 +105,15 @@ describe('Engine automation control loop (U19 wiring)', () => {
     expect(writer.writtenUntilSec).toBeNull()
 
     engine.transport.start()
-    // 'start' ticks immediately and the loop keeps writing ahead.
-    expect(writer.writtenUntilSec).toBeCloseTo(1)
+    // 'start' ticks immediately; the 1 s window reaches into the 0 → 2 s segment,
+    // which is written whole (a late ramp would render as a jump).
+    expect(writer.writtenUntilSec).toBeCloseTo(2)
     const written = gain.gain.events.length
     expect(written).toBeGreaterThan(0)
     ctx.currentTime = 10.5
     timers.fire(40)
-    expect(writer.writtenUntilSec).toBeCloseTo(1.5)
+    expect(writer.writtenUntilSec).toBeCloseTo(2)
+    expect(gain.gain.events.length).toBe(written)
 
     engine.transport.pause()
     expect(writer.writtenUntilSec).toBeNull()

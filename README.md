@@ -337,6 +337,7 @@ src/
   core/devices/       Device contract, NodeDevice host + stock node devices, registry, presets, Rack/Chain, Macro maths, pdc (latency report, AlignmentDelay)
   core/analysis/      Meter (analyser), LoudnessAnalyzer (BS.1770-4 DSP), LufsMeter (worklet host) + meter protocol
   core/render/        OfflineRenderer (renderOffline, renderStems, scheduleAhead), encode (WAV), Recorder (worklet + MediaRecorder capture)
+  browser-tests/      Playwright real-audio golden: page harness over /dist, Web Audio call recorder, fingerprints, playground smoke
   dsp/                WasmDevice host, C ABI typings, device factories + param tables
   dsp/devices/faust/  generated param tables for the Faust devices (scripts/build-faust.sh)
   dsp/worklets/       wasm-device, ducker, meter, recorder processors → dist/worklets/*.js (one file each, no imports)
@@ -613,7 +614,10 @@ standalone device for `bus.addInsert`.
 
 `LaneWriter` writes a `ParamLane` ahead of the transport playhead (loop-aware,
 rejoins with a short ramp after a seek, stall, edit or released fader, dedupes
-same-time events). `ClockLaneWriter` is the other anchoring: lane seconds are
+same-time events). Both writers hand a segment to the graph whole the moment
+the window reaches into it: Chrome and Safari render a ramp issued after its
+segment began as a jump to the interpolated value, so the write cursor lands
+on segment ends, never inside a segment. `ClockLaneWriter` is the other anchoring: lane seconds are
 audio-clock seconds from `anchorSec`, and every lane event is written
 verbatim — no join ramps, no dedupe — so a producer that already schedules its
 own automation (Breathwork Live's breath guide) can publish it as a lane
@@ -660,6 +664,24 @@ after the build so plugin-delay compensation is the same in every render;
 renders the master plus one solo-in-place pass per track. Main-thread
 followers (the legacy `Ducker`, `Meter` readings) cannot run offline; use the
 worklet ducker for bounces with sidechain ducking.
+
+**Real-audio golden (`browser-tests/`).** `pnpm test:browser` builds a page
+harness over the built package (`/dist`, so worklets and WASM resolve as they
+do for a consumer) and drives headless Chrome through Playwright with a real
+`AudioContext` (`--autoplay-policy=no-user-gesture-required`, fake media
+devices). A scripted session — two clip tracks with a crossfade, a fader lane,
+a send into a Dattorro return — is rendered on a real `OfflineAudioContext`
+with the graph's `start/stop` and AudioParam calls recorded, then played live
+and captured through the recorder worklet. Asserted: the real offline schedule
+equals the Node mock golden for the same session; audio flows through the
+worklets and WASM; the live capture matches the offline render within 1.5 dB
+RMS, 3 dB per 250 ms block and per log band (gated 25 dB under the loudest);
+and the built playground mounts without errors. The installed Google Chrome is
+used (`channel: 'chrome'`), or Playwright's Chromium with
+`LIVE_MIX_BROWSER=chromium`; `scripts/ci-local.sh --browser` runs it, and the
+`browser` CI job runs it on every push. Its first catch: a lane ramp handed
+to the graph after its segment had begun rendered live as a jump — writers now
+schedule a segment whole as soon as the window reaches into it.
 
 `encodeWav(planar, { bitDepth: 16 | 24 | 32 })` writes PCM or float WAV
 (`audioBufferToWav`, `wavBlob`, `decodeWav` for tests and imports).

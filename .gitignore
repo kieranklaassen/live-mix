@@ -8,3 +8,4 @@ tmp/
 .env
 .env.*
 playground/dist/
+browser-tests/.build/
