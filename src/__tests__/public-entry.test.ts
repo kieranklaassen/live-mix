@@ -111,6 +111,9 @@ const dspSymbols = [
   'createSpectralDrifter',
   'SPECTRAL_DRIFTER_PARAMS',
   'SPECTRAL_DRIFTER_DESCRIPTOR',
+  'createEtherReverb',
+  'ETHER_REVERB_PARAMS',
+  'ETHER_REVERB_DESCRIPTOR',
 ] as const
 
 const testingSymbols = [

@@ -47,6 +47,13 @@ CXX="${CXX:-c++}"
 
 "$out_dir/spectral_drifter_test"
 
+"$CXX" -std=c++17 -O2 -fno-exceptions -fno-rtti -Wall -Wextra \
+  cpp/test/ether_reverb_test.cpp \
+  cpp/devices/ether-reverb/ether_reverb_device.cpp \
+  -o "$out_dir/ether_reverb_test"
+
+"$out_dir/ether_reverb_test"
+
 # Faust devices are header-only: the generated class plus the FaustDevice
 # template. -Wno-unused-parameter covers Faust's empty classInit(sample_rate).
 "$CXX" -std=c++17 -O2 -fno-exceptions -fno-rtti -Wall -Wextra -Wno-unused-parameter \

@@ -68,6 +68,7 @@ export {
 } from './devices/limiter-1176'
 export {
   DATTORRO_DESCRIPTOR,
+  ETHER_REVERB_DESCRIPTOR,
   FDN_REVERB_DESCRIPTOR,
   LIMITER_1176_DESCRIPTOR,
   WORKLET_DUCKER_DESCRIPTOR,
@@ -131,3 +132,11 @@ export {
   type SpectralDrifter,
   type SpectralDrifterParamName,
 } from './devices/spectral-drifter'
+export {
+  ETHER_REVERB_DEVICE,
+  ETHER_REVERB_PARAMS,
+  createEtherReverb,
+  etherReverbLaw,
+  type EtherReverb,
+  type EtherReverbParamName,
+} from './devices/ether-reverb'

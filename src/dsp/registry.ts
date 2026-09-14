@@ -14,6 +14,7 @@ import { type ParamSpec } from '../core/params'
 import { DUCKER_PARAMS } from '../core/devices/native/ducker-abi'
 import { type WorkletDuckerOptions } from '../core/devices/native/WorkletDucker'
 import { DATTORRO_DEVICE } from './devices/dattorro'
+import { ETHER_REVERB_DEVICE } from './devices/ether-reverb'
 import { createWorkletDucker, type DuckerProcessorOverrides } from './devices/ducker'
 import { FDN_REVERB_DEVICE } from './devices/fdn-reverb'
 import { LIMITER_1176_DEVICE } from './devices/limiter-1176'
@@ -101,6 +102,17 @@ export const LIMITER_1176_DESCRIPTOR = wasmDeviceDescriptor(LIMITER_1176_DEVICE,
   },
 })
 
+export const ETHER_REVERB_DESCRIPTOR = wasmDeviceDescriptor(ETHER_REVERB_DEVICE, {
+  name: 'Ether Reverb',
+  category: 'reverb',
+  presets: {
+    Ether: { mix: 0.3, decay: 5, damping: 0.4, predelayMs: 0, size: 0.6 },
+    Room: { mix: 0.25, decay: 1, damping: 0.6, predelayMs: 10, size: 0.3 },
+    Cathedral: { mix: 0.4, decay: 20, damping: 0.2, predelayMs: 40, size: 0.9 },
+    Frozen: { mix: 0.5, decay: 30, damping: 0, predelayMs: 0, size: 1, freeze: 1 },
+  },
+})
+
 export const SPECTRAL_DRIFTER_DESCRIPTOR = wasmDeviceDescriptor(SPECTRAL_DRIFTER_DEVICE, {
   name: 'Bloom Spectral Drifter',
   category: 'other',
@@ -152,6 +164,7 @@ export const STOCK_WASM_DEVICES: readonly DeviceDescriptor[] = [
   LIMITER_1176_DESCRIPTOR,
   WORKLET_DUCKER_DESCRIPTOR,
   SPECTRAL_DRIFTER_DESCRIPTOR,
+  ETHER_REVERB_DESCRIPTOR,
 ]
 
 /** Register the stock WASM devices (idempotent) in `registry`, the default one unless given. */
