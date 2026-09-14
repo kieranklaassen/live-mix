@@ -123,12 +123,14 @@ describe('WamDevice.create', () => {
     device.dispose()
   })
 
-  it('reports the compensation delay in seconds and lets an option override it', async () => {
+  it('reports the compensation delay in samples and seconds and lets an option override it', async () => {
     const { device, ctx } = await makeEffect()
+    expect(device.latencySamples).toBe(480)
     expect(device.latencySec).toBeCloseTo(480 / ctx.sampleRate, 9)
     device.dispose()
-    const { device: forced } = await makeEffect({ latencySec: 0.001 })
-    expect(forced.latencySec).toBe(0.001)
+    const { device: forced, ctx: forcedCtx } = await makeEffect({ latencySec: 0.001 })
+    expect(forced.latencySamples).toBe(44) // 0.001 s at 44.1 kHz, whole samples
+    expect(forced.latencySec).toBe(44 / forcedCtx.sampleRate)
     forced.dispose()
   })
 

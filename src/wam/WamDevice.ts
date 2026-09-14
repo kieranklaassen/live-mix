@@ -148,7 +148,7 @@ interface WamDeviceInit {
   module: WamModuleLike
   url: string | undefined
   paramInfo: WamParameterInfoMap
-  latencySec: number
+  latencySamples: number
   rampSec: number
 }
 
@@ -159,7 +159,10 @@ export class WamDevice implements NoteDevice {
   readonly paramInfo: Readonly<WamParameterInfoMap>
   readonly input: GainNode
   readonly output: GainNode
+  /** `getCompensationDelay()` (samples) in seconds at the context rate. */
   readonly latencySec: number
+  /** The plugin's compensation delay as reported, whole samples, for PDC (U34). */
+  readonly latencySamples: number
   readonly context: BaseAudioContext
   readonly host: WamHost
   readonly module: WamModuleLike
@@ -185,7 +188,8 @@ export class WamDevice implements NoteDevice {
     this.url = init.url
     this.paramInfo = init.paramInfo
     this.params = wamParamSpecs(init.paramInfo)
-    this.latencySec = init.latencySec
+    this.latencySamples = init.latencySamples
+    this.latencySec = init.latencySamples / init.context.sampleRate
     this.rampSec = init.rampSec
     for (const [name, spec] of Object.entries(this.params)) this.values.set(name, spec.default)
 
@@ -233,7 +237,8 @@ export class WamDevice implements NoteDevice {
         node.getParameterInfo(),
         node.getCompensationDelay(),
       ])
-      const reported = delaySamples / context.sampleRate
+      const samples =
+        options.latencySec === undefined ? delaySamples : options.latencySec * context.sampleRate
       device = new WamDevice({
         id: options.id ?? wamDeviceId(module.descriptor),
         context,
@@ -241,8 +246,7 @@ export class WamDevice implements NoteDevice {
         module,
         url: typeof source === 'string' ? source : undefined,
         paramInfo,
-        latencySec:
-          options.latencySec ?? (Number.isFinite(reported) && reported > 0 ? reported : 0),
+        latencySamples: Number.isFinite(samples) && samples > 0 ? Math.round(samples) : 0,
         rampSec: options.rampSec ?? WAM_DEVICE_RAMP_SECONDS,
       })
       await device.syncParams()
