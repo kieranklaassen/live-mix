@@ -39,7 +39,37 @@ jobs:
         run: pnpm build
 
       - name: Pack and verify exports
-        run: pnpm check:pack
+        run: pnpm pack:check
+
+  git-fallback:
+    name: 'Installs as a github: dependency with npm'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Both consumer apps install with npm. A github:#sha dependency clones the
+      # repo, runs the nested devDependency install and the prepare script, so
+      # this job is the only place that exercises that path before an app does.
+      - name: Install this commit into a scratch consumer
+        run: |
+          set -euo pipefail
+          consumer=$(mktemp -d)
+          cd "$consumer"
+          npm init -y >/dev/null
+          npm install "git+file://$GITHUB_WORKSPACE#$GITHUB_SHA"
+          test -f node_modules/@kieranklaassen/live-mix/dist/index.js
+          test -f node_modules/@kieranklaassen/live-mix/dist/wasm/dattorro.wasm
+          test -f node_modules/@kieranklaassen/live-mix/dist/worklets/wasm-device.js
+          node --input-type=module -e "
+            import { LIVE_MIX_VERSION } from '@kieranklaassen/live-mix'
+            import { DATTORRO_PARAMS } from '@kieranklaassen/live-mix/dsp'
+            import { MockAudioContext } from '@kieranklaassen/live-mix/testing'
+            console.log('live-mix', LIVE_MIX_VERSION, DATTORRO_PARAMS.mix.id, new MockAudioContext().sampleRate)
+          "
 
   native:
     name: Native C++ device tests

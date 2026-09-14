@@ -129,8 +129,9 @@ pnpm install          # also builds dist/ (prepare)
 pnpm test             # Vitest, Node environment
 pnpm typecheck
 pnpm lint             # eslint + prettier --check
+pnpm dev              # rebuild on change
 pnpm build            # tsup entries + esbuild worklet bundles + wasm copy
-pnpm check:pack       # pack a tarball and verify every export resolves
+pnpm pack:check       # pack a tarball and verify every export resolves
 pnpm test:native      # C++ device harnesses with the system compiler
 pnpm build:wasm       # rebuild src/dsp/wasm/*.wasm (needs Emscripten 4.0.15)
 ```
