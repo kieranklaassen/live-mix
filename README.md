@@ -481,6 +481,26 @@ ducker.setParam('depth', 0.5) // params: depth, attackMs, holdMs, releaseMs, gai
 (offline renders, tests); `createWorkletDucker(ctx, options)` builds a
 standalone device for `bus.addInsert`.
 
+### Warping, tempo and key matching
+
+Seconds stay primary; `TempoMap` (piecewise-constant BPM and meter) is a view
+for the grid, quantised launches and warping: `secondsToBeats`,
+`beatsToSeconds`, `barBeatAt`, `quantize(sec, 'bar' | 'beat' | n)`.
+
+`StretchSource` plays a decoded buffer through a
+[`signalsmith-stretch`](https://www.npmjs.com/package/signalsmith-stretch)
+worklet (MIT, optional peer — the library imports nothing from it; pass the
+package's `SignalsmithStretch` factory) with tempo-synced rates from warp
+markers (`Clip.warp`, `warpSegments(markers, tempo)`) and pitch in semitones
+(`Clip.semitones`). It reports the node's latency for delay compensation.
+
+Key matching follows the Camelot rule shared with Breathwork Live's selector
+(same number or ±1 wrapping 1–12, letter-agnostic, unparseable codes
+compatible with everything): `camelotCompatible`, `camelotDistance`,
+`transposeCamelot` (one semitone = seven steps around the wheel), and
+`keyMatch(anchor, candidate, { maxSemitones })` — the smallest shift that
+lands compatible, `rankByKeyMatch` to order candidates.
+
 ### Real-time rules
 
 - Nothing allocates inside `process()`; WASM memory is fixed and heap views are

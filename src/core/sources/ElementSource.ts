@@ -13,6 +13,7 @@
 // only where the node is connected, so nothing is heard until a voice wires
 // the node to a gain.
 
+import { type StretchSource } from './StretchSource'
 import { type LoadedSample } from '../tracks/SampleStore'
 
 export interface ElementSourceOptions {
@@ -28,8 +29,8 @@ export interface ElementSourceOptions {
   preload?: 'none' | 'metadata' | 'auto'
 }
 
-/** Either kind of thing a clip can play from. */
-export type ClipSource = LoadedSample | ElementSource
+/** Any kind of thing a clip can play from. */
+export type ClipSource = LoadedSample | ElementSource | StretchSource
 
 export class ElementSource {
   /** Discriminant shared with `LoadedSample` (`ClipSource`). */
