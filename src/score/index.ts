@@ -24,7 +24,10 @@ export {
   masterDestination,
   migrateScore,
   normaliseClip,
+  normaliseQuantize,
   normaliseScore,
+  normaliseSlot,
+  normaliseSlotClip,
   normaliseTempo,
   parseScore,
   sameDestination,
@@ -76,6 +79,7 @@ export {
   type ModulatorPatch,
   type Operation,
   type OperationType,
+  type SlotPatch,
 } from './operations'
 export {
   DEFAULT_CHECKPOINT_EVERY,

@@ -43,10 +43,18 @@ const STRUCTURE: ReadonlySet<OperationType> = new Set<OperationType>([
   'modulator.remove',
   'route.add',
   'route.remove',
+  'scene.add',
+  'scene.remove',
+  'scene.move',
+  'scene.rename',
+  'slot.add',
+  'slot.remove',
+  'slot.update',
 ])
 
 const ARRANGE: ReadonlySet<OperationType> = new Set<OperationType>([
   'transport.loop',
+  'transport.quantize',
   'tempo.set',
   'elementTrack.setClips',
   'source.add',

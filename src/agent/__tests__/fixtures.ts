@@ -129,6 +129,34 @@ export const OPERATION_ARGS: Record<OperationType, Record<string, unknown>> = {
   },
   'route.remove': { id: 'r1' },
   'route.update': { id: 'r1', depth: -0.5, polarity: 'unipolar' },
+  'transport.quantize': { quantize: 2 },
+  'scene.add': { scene: { id: 'chorus', name: 'Chorus' } },
+  'scene.remove': { id: 'verse' },
+  'scene.move': { id: 'verse', index: 0 },
+  'scene.rename': { id: 'verse', name: 'Intro' },
+  'slot.add': {
+    slot: {
+      id: 'kick-verse',
+      track: 'kick',
+      scene: 'verse',
+      clip: {
+        sourceId: 'a',
+        offsetSec: 0,
+        durationSec: 4,
+        fadeInSec: 0,
+        fadeOutSec: 0.1,
+        fadeCurve: 'linear',
+        gainDb: 0,
+        loop: true,
+      },
+      quantize: 'bar',
+      launchMode: 'toggle',
+      legato: false,
+      follow: { a: 'next', b: 'stop', chance: 0.7, time: { unit: 'bars', value: 4 } },
+    },
+  },
+  'slot.remove': { id: 'kick-verse' },
+  'slot.update': { id: 'kick-verse', patch: { legato: true, quantize: null, follow: null } },
   batch: {
     ops: [
       { type: 'strip.mute', owner: 'kick', mute: true },
@@ -144,11 +172,30 @@ const addBed: Operation = {
   track: { id: 'bed', name: 'Bed', destination: { kind: 'master' }, clips: [] },
 }
 
+const addVerse: Operation = { type: 'scene.add', scene: { id: 'verse', name: 'Verse' } }
+const addKickVerse: Operation = {
+  type: 'slot.add',
+  slot: {
+    id: 'kick-verse',
+    track: 'kick',
+    scene: 'verse',
+    clip: null,
+    launchMode: 'trigger',
+    legato: false,
+  },
+}
+
 export const OPERATION_PRELUDE: Partial<Record<OperationType, Operation[]>> = {
   'source.remove': [{ type: 'source.add', source: { id: 'c', url: '/c.mp3', durationSec: 12 } }],
   'elementTrack.remove': [addBed],
   'elementTrack.route': [addBed],
   'elementTrack.setClips': [addBed],
+  'scene.remove': [addVerse],
+  'scene.move': [addVerse],
+  'scene.rename': [addVerse],
+  'slot.add': [addVerse],
+  'slot.remove': [addVerse, addKickVerse],
+  'slot.update': [addVerse, addKickVerse],
 }
 
 /** A small library across the ladder; every key sits with 8A or its neighbours except 3B. */

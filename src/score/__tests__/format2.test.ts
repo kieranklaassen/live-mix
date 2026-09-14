@@ -46,8 +46,9 @@ function issuesOf(score: unknown): string[] {
 describe('format 2 schema', () => {
   it('createScore carries a default tempo and no element tracks', () => {
     const score = createScore()
-    expect(score.format).toBe(2)
-    expect(SCORE_FORMAT_VERSION).toBe(2)
+    // Format 3 (U31) sits on top of this; the format-2 fields are unchanged.
+    expect(score.format).toBe(SCORE_FORMAT_VERSION)
+    expect(SCORE_FORMAT_VERSION).toBeGreaterThanOrEqual(2)
     expect(score.tempo).toEqual([{ atSec: 0, bpm: 120 }])
     expect(score.elementTracks).toEqual([])
     expect(issuesOf(score)).toEqual([])
@@ -58,7 +59,7 @@ describe('format 2 schema', () => {
     delete legacy.tempo
     delete legacy.elementTracks
     const migrated = migrateScore(legacy) as Score
-    expect(migrated.format).toBe(2)
+    expect(migrated.format).toBe(SCORE_FORMAT_VERSION)
     expect(migrated.tempo).toEqual([{ atSec: 0, bpm: 120 }])
     expect(migrated.elementTracks).toEqual([])
     expect(issuesOf(migrated)).toEqual([])

@@ -20,14 +20,23 @@ import { type LfoShape } from '../core/automation/Modulator'
 import { type ModPolarity } from '../core/automation/ModMatrix'
 import { type Breakpoint, type LaneCurve } from '../core/automation/ParamLane'
 import { type DeviceRegistry } from '../core/devices/registry'
+import { isFollowAction, normaliseFollowAction } from '../core/session/followActions'
+import {
+  DEFAULT_LAUNCH_QUANTIZE,
+  isLaunchQuantize,
+  type LaunchQuantize,
+} from '../core/session/launch'
+import { type ScoreScene } from '../core/session/Scene'
+import { LAUNCH_MODES, type ScoreSlot, type SlotClip } from '../core/session/Slot'
 import { DEFAULT_BPM, type TempoSegment } from '../core/time/TempoMap'
 
 /**
  * Format history: 1 — U28 (tracks, groups, returns, lanes, modulators,
  * routes); 2 — U33 adds `elementTracks` (streamed HTMLMediaElement beds, no
- * strip) and `tempo` (the `TempoMap` segments).
+ * strip) and `tempo` (the `TempoMap` segments); 3 — U31 adds `scenes`,
+ * `slots` and `transport.quantize` for the session grid.
  */
-export const SCORE_FORMAT_VERSION = 2
+export const SCORE_FORMAT_VERSION = 3
 
 /** Reserved owner id for the master bus in operations and parameter targets. */
 export const MASTER_OWNER = 'master'
@@ -137,6 +146,8 @@ export interface ScoreTransport {
     /** Loop length; `null` is no end (JSON has no Infinity). */
     lengthSec: number | null
   }
+  /** Global launch quantisation for the session grid; a slot may override it. */
+  quantize: LaunchQuantize
 }
 
 export type StripParam = 'level' | 'pan' | 'inputGain'
@@ -188,6 +199,10 @@ export interface Score {
   lanes: ScoreLane[]
   modulators: ScoreModulator[]
   routes: ScoreModRoute[]
+  /** Session grid rows (U31). */
+  scenes: ScoreScene[]
+  /** Session grid cells: one per audio track × scene that holds a clip or a stop. */
+  slots: ScoreSlot[]
 }
 
 // --- Defaults -----------------------------------------------------------------------
@@ -246,7 +261,7 @@ export function createScore(options: CreateScoreOptions = {}): Score {
     format: SCORE_FORMAT_VERSION,
     id: options.id ?? 'score',
     name: options.name ?? '',
-    transport: { loop: { enabled: false, lengthSec: null } },
+    transport: { loop: { enabled: false, lengthSec: null }, quantize: DEFAULT_LAUNCH_QUANTIZE },
     tempo: defaultTempo(),
     master: { level: 1, inserts: [] },
     sources: [],
@@ -257,6 +272,8 @@ export function createScore(options: CreateScoreOptions = {}): Score {
     lanes: [],
     modulators: [],
     routes: [],
+    scenes: [],
+    slots: [],
   }
 }
 
@@ -319,6 +336,11 @@ export function allDevices(score: Score): DeviceLocation[] {
 export function findDevice(score: Score, id: string): DeviceLocation | undefined {
   return allDevices(score).find((location) => location.device.id === id)
 }
+
+// `findScene`, `findSlot` and `slotAt` live in `core/session` and take any
+// document shaped like a score.
+export { findScene } from '../core/session/Scene'
+export { findSlot, slotAt } from '../core/session/Slot'
 
 /** Stable key for a parameter target (a lane and its routes share one). */
 export function targetKey(target: ParamTarget): string {
@@ -442,6 +464,8 @@ interface Ids {
   devices: Set<string>
   sources: Set<string>
   modulators: Set<string>
+  audioTracks: Set<string>
+  scenes: Set<string>
 }
 
 /** Collect every id before the reference checks, so order in the document does not matter. */
@@ -454,6 +478,8 @@ function collectIds(raw: Record<string, unknown>): Ids {
     devices: new Set(),
     sources: new Set(),
     modulators: new Set(),
+    audioTracks: new Set(),
+    scenes: new Set(),
   }
   const idOf = (value: unknown): string | null =>
     isRecord(value) && typeof value.id === 'string' ? value.id : null
@@ -475,7 +501,19 @@ function collectIds(raw: Record<string, unknown>): Ids {
     collectStrip(value.strip)
     if ('device' in value) collectDevices(value.device)
   }
-  if (Array.isArray(raw.tracks)) for (const track of raw.tracks) collectOwner(track, 'track')
+  if (Array.isArray(raw.tracks)) {
+    for (const track of raw.tracks) {
+      collectOwner(track, 'track')
+      const id = idOf(track)
+      if (id !== null && isRecord(track) && track.kind === 'audio') ids.audioTracks.add(id)
+    }
+  }
+  if (Array.isArray(raw.scenes)) {
+    for (const scene of raw.scenes) {
+      const id = idOf(scene)
+      if (id !== null) ids.scenes.add(id)
+    }
+  }
   if (Array.isArray(raw.elementTracks)) {
     for (const track of raw.elementTracks) {
       const id = idOf(track)
@@ -636,6 +674,86 @@ function checkClip(raw: unknown, path: string, ctx: Context, clipIds: UniqueIds)
   check.oneOf(raw.fadeCurve, `${path}.fadeCurve`, ['linear', 'equalPower'])
   check.number(raw.gainDb, `${path}.gainDb`)
   if (raw.loop !== undefined) check.boolean(raw.loop, `${path}.loop`)
+  checkWarp(raw, path, check)
+}
+
+/** Optional warp markers and pitch shift (U32) on a clip or slot clip. */
+function checkWarp(raw: Record<string, unknown>, path: string, check: Checker): void {
+  if (raw.semitones !== undefined) check.number(raw.semitones, `${path}.semitones`)
+  if (raw.warp !== undefined && check.array(raw.warp, `${path}.warp`)) {
+    raw.warp.forEach((marker, index) => {
+      const markerPath = `${path}.warp[${index}]`
+      if (!check.record(marker, markerPath)) return
+      check.number(marker.sourceSec, `${markerPath}.sourceSec`, { min: 0 })
+      check.number(marker.beat, `${markerPath}.beat`, { min: 0 })
+    })
+  }
+}
+
+/** A slot's clip: the clip fields without identity or position. */
+function checkSlotClip(raw: unknown, path: string, ctx: Context): void {
+  const { check } = ctx
+  if (!check.record(raw, path)) return
+  if (check.string(raw.sourceId, `${path}.sourceId`) && !ctx.ids.sources.has(raw.sourceId)) {
+    check.fail(`${path}.sourceId`, `unknown source "${raw.sourceId}"`)
+  }
+  check.number(raw.offsetSec, `${path}.offsetSec`, { min: 0 })
+  check.number(raw.durationSec, `${path}.durationSec`, { min: 0 })
+  check.number(raw.fadeInSec, `${path}.fadeInSec`, { min: 0 })
+  check.number(raw.fadeOutSec, `${path}.fadeOutSec`, { min: 0 })
+  check.oneOf(raw.fadeCurve, `${path}.fadeCurve`, ['linear', 'equalPower'])
+  check.number(raw.gainDb, `${path}.gainDb`)
+  if (raw.loop !== undefined) check.boolean(raw.loop, `${path}.loop`)
+  checkWarp(raw, path, check)
+  if (raw.warp !== undefined && check.array(raw.warp, `${path}.warp`)) {
+    raw.warp.forEach((marker, index) => {
+      const markerPath = `${path}.warp[${index}]`
+      if (!check.record(marker, markerPath)) return
+      check.number(marker.sourceSec, `${markerPath}.sourceSec`, { min: 0 })
+      check.number(marker.beat, `${markerPath}.beat`, { min: 0 })
+    })
+  }
+}
+
+function checkQuantize(raw: unknown, path: string, check: Checker): void {
+  if (!isLaunchQuantize(raw)) {
+    check.fail(path, "expected 'none', 'bar', 'beat', a positive bar count or { seconds > 0 }")
+  }
+}
+
+function checkScene(raw: unknown, path: string, ctx: Context, sceneIds: UniqueIds): void {
+  const { check } = ctx
+  if (!check.record(raw, path)) return
+  if (check.string(raw.id, `${path}.id`)) sceneIds.claim(raw.id, `${path}.id`)
+  check.string(raw.name, `${path}.name`, false)
+}
+
+function checkSlot(
+  raw: unknown,
+  path: string,
+  ctx: Context,
+  slotIds: UniqueIds,
+  cells: UniqueIds,
+): void {
+  const { check } = ctx
+  if (!check.record(raw, path)) return
+  if (check.string(raw.id, `${path}.id`)) slotIds.claim(raw.id, `${path}.id`)
+  const track = check.string(raw.track, `${path}.track`) ? raw.track : null
+  const scene = check.string(raw.scene, `${path}.scene`) ? raw.scene : null
+  if (track !== null && !ctx.ids.audioTracks.has(track)) {
+    check.fail(`${path}.track`, `"${track}" is not an audio track`)
+  }
+  if (scene !== null && !ctx.ids.scenes.has(scene)) {
+    check.fail(`${path}.scene`, `unknown scene "${scene}"`)
+  }
+  if (track !== null && scene !== null) cells.claim(`${track}×${scene}`, `${path}`)
+  if (raw.clip !== null) checkSlotClip(raw.clip, `${path}.clip`, ctx)
+  if (raw.quantize !== undefined) checkQuantize(raw.quantize, `${path}.quantize`, check)
+  check.oneOf(raw.launchMode, `${path}.launchMode`, LAUNCH_MODES)
+  check.boolean(raw.legato, `${path}.legato`)
+  if (raw.follow !== undefined && !isFollowAction(raw.follow)) {
+    check.fail(`${path}.follow`, 'expected { a, b, chance 0..1, time?: { unit, value > 0 } }')
+  }
 }
 
 function checkOwnerHead(
@@ -910,6 +1028,7 @@ export function validateScore(input: unknown, options: ValidateScoreOptions = {}
         check.fail('transport.loop.lengthSec', 'expected > 0 or null')
       }
     }
+    checkQuantize(raw.transport.quantize, 'transport.quantize', check)
   }
   if (check.record(raw.master, 'master')) {
     check.number(raw.master.level, 'master.level', { min: 0 })
@@ -972,6 +1091,15 @@ export function validateScore(input: unknown, options: ValidateScoreOptions = {}
   if (check.array(raw.routes, 'routes')) {
     const routeIds = new UniqueIds(check)
     raw.routes.forEach((route, index) => checkRoute(route, `routes[${index}]`, ctx, routeIds))
+  }
+  if (check.array(raw.scenes, 'scenes')) {
+    const sceneIds = new UniqueIds(check)
+    raw.scenes.forEach((scene, index) => checkScene(scene, `scenes[${index}]`, ctx, sceneIds))
+  }
+  if (check.array(raw.slots, 'slots')) {
+    const slotIds = new UniqueIds(check)
+    const cells = new UniqueIds(check)
+    raw.slots.forEach((slot, index) => checkSlot(slot, `slots[${index}]`, ctx, slotIds, cells))
   }
   return check.issues
 }
@@ -1037,6 +1165,46 @@ export function normaliseClip(clip: Clip): Clip {
     gainDb: clip.gainDb,
   }
   if (clip.loop) out.loop = true
+  if (clip.warp !== undefined)
+    out.warp = clip.warp.map((m) => ({ sourceSec: m.sourceSec, beat: m.beat }))
+  if (clip.semitones !== undefined) out.semitones = clip.semitones
+  return out
+}
+
+/** Slot clip fields in a fixed order; `loop` only when true, warp/semitones only when set. */
+export function normaliseSlotClip(clip: SlotClip): SlotClip {
+  const out: SlotClip = {
+    sourceId: clip.sourceId,
+    offsetSec: clip.offsetSec,
+    durationSec: clip.durationSec,
+    fadeInSec: clip.fadeInSec,
+    fadeOutSec: clip.fadeOutSec,
+    fadeCurve: clip.fadeCurve,
+    gainDb: clip.gainDb,
+  }
+  if (clip.loop) out.loop = true
+  if (clip.warp !== undefined)
+    out.warp = clip.warp.map((m) => ({ sourceSec: m.sourceSec, beat: m.beat }))
+  if (clip.semitones !== undefined) out.semitones = clip.semitones
+  return out
+}
+
+export function normaliseQuantize(quantize: LaunchQuantize): LaunchQuantize {
+  return typeof quantize === 'object' ? { seconds: quantize.seconds } : quantize
+}
+
+/** A slot with fields in a fixed order and optional settings only when set. */
+export function normaliseSlot(slot: ScoreSlot): ScoreSlot {
+  const out: ScoreSlot = {
+    id: slot.id,
+    track: slot.track,
+    scene: slot.scene,
+    clip: slot.clip === null ? null : normaliseSlotClip(slot.clip),
+    launchMode: slot.launchMode,
+    legato: slot.legato,
+  }
+  if (slot.quantize !== undefined) out.quantize = normaliseQuantize(slot.quantize)
+  if (slot.follow !== undefined) out.follow = normaliseFollowAction(slot.follow)
   return out
 }
 
@@ -1170,6 +1338,7 @@ export function normaliseScore(score: Score): Score {
     name: score.name,
     transport: {
       loop: { enabled: score.transport.loop.enabled, lengthSec: score.transport.loop.lengthSec },
+      quantize: normaliseQuantize(score.transport.quantize),
     },
     tempo: normaliseTempo(score.tempo),
     master: { level: score.master.level, inserts: score.master.inserts.map(normaliseDevice) },
@@ -1222,6 +1391,8 @@ export function normaliseScore(score: Score): Score {
       depth: route.depth,
       polarity: route.polarity,
     })),
+    scenes: score.scenes.map((scene) => ({ id: scene.id, name: scene.name })),
+    slots: score.slots.map(normaliseSlot),
   }
 }
 
@@ -1231,13 +1402,31 @@ export function serializeScore(score: Score): string {
 }
 
 /**
- * Migrations from older format versions, applied in order before validation.
- * Each takes a document of format `n` and returns one of format `n + 1`.
+ * `2 → 3` (U31): the session grid. A format-2 document has no scenes or
+ * slots and no global launch quantisation; it gains empty lists and the
+ * default (`'bar'`). Existing fields are untouched.
+ */
+function migrate2to3(raw: Record<string, unknown>): Record<string, unknown> {
+  const transport = isRecord(raw.transport) ? raw.transport : {}
+  return {
+    ...raw,
+    format: 3,
+    transport: { ...transport, quantize: transport.quantize ?? DEFAULT_LAUNCH_QUANTIZE },
+    scenes: Array.isArray(raw.scenes) ? raw.scenes : [],
+    slots: Array.isArray(raw.slots) ? raw.slots : [],
+  }
+}
+
+/**
+ * Migrations from older format versions, keyed by the format they read,
+ * applied in order before validation. Each takes a document of format `n`
+ * and returns one of format `n + 1`.
  */
 const MIGRATIONS: ReadonlyMap<number, (raw: Record<string, unknown>) => Record<string, unknown>> =
   new Map([
     // 1 → 2: element tracks and the tempo map (U33). Nothing existing changes meaning.
     [1, (raw) => ({ ...raw, format: 2, elementTracks: [], tempo: defaultTempo() })],
+    [2, migrate2to3],
   ])
 
 /** Bring a document of any known older format up to the current one; unknown formats throw. */

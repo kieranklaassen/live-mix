@@ -747,22 +747,24 @@ function Strip({ name }: { name: string }) {
 }
 ```
 
-| Hook                                      | Reads                                                                                  | Writes                                                           |
-| ----------------------------------------- | -------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| `useEngine()` / `useMaybeEngine()`        | the provided `Engine` (throws / null without one)                                      | —                                                                |
-| `useTransport(transport?, { fps })`       | `state`, `playing`, `position` (frame-sampled while playing), `loop`                   | `start`, `pause`, `stop`, `seek`, `setLoop`, `toggle`            |
-| `useStrip(strip)`                         | `level`, `pan`, `inputGain`, `mute`, `solo`, `audible`, `implicitlyMuted`, `inserts`   | `setLevel`, `setPan`, `setMute`, `setSolo`, `addInsert`, …       |
-| `useTrack(track \| name)`                 | `useStrip` of any track kind, resolved by object or name                               | same                                                             |
-| `useGroup(group \| name)`                 | `useStrip` plus `members`                                                              | `add`, `remove`                                                  |
-| `useMeter(source?, { fps, active })`      | `peak`, `rms`, `peakDb`, `lufs` reading, `lufsShortTerm`, `truePeakDb`                 | —                                                                |
-| `useDevice(device, { registry })`         | `values`, `bypass`, `params`, `descriptor`, `presets`                                  | `setParam`, `setBypass`, `applyPreset`, `capturePreset`, `reset` |
-| `useDeviceParam(device, name)`            | `value`, `normalized` (taper-aware), `spec`                                            | `set`, `setNormalized`, `reset`                                  |
-| `useLane(lane)`                           | `breakpoints`, `version`, `valueAt`                                                    | `add`, `remove`, `replace`, `clear`                              |
-| `useModulation(matrix?)`                  | `routes`, `targets`, `routesFor`                                                       | `map`, `unmap`, `setRoute`, `attach`, `detach`                   |
-| `useSampleStore(store?)`                  | `metrics`, `ids`                                                                       | `load`, `forget`, `pin`, `unpin`, `setBudgetBytes`, `evict`      |
-| `useEngineStats(stats?)`                  | `glitches`, `underrunRatio`, `averageLoad`, `peakLoad`, `supported`                    | `reset`, `recordGlitch`                                          |
-| `useClips(track \| list)`                 | `clips` (sorted)                                                                       | `add`, `update`, `remove`, `set`, `replaceFrom`, `clear`         |
-| `useSchedule(track, { horizonSec, fps })` | `sounding`, `upcoming` (the Scheduler's own window function), `positionSec`, `playing` | —                                                                |
+| Hook                                      | Reads                                                                                  | Writes                                                                                        |
+| ----------------------------------------- | -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `useEngine()` / `useMaybeEngine()`        | the provided `Engine` (throws / null without one)                                      | —                                                                                             |
+| `useTransport(transport?, { fps })`       | `state`, `playing`, `position` (frame-sampled while playing), `loop`                   | `start`, `pause`, `stop`, `seek`, `setLoop`, `toggle`                                         |
+| `useStrip(strip)`                         | `level`, `pan`, `inputGain`, `mute`, `solo`, `audible`, `implicitlyMuted`, `inserts`   | `setLevel`, `setPan`, `setMute`, `setSolo`, `addInsert`, …                                    |
+| `useTrack(track \| name)`                 | `useStrip` of any track kind, resolved by object or name                               | same                                                                                          |
+| `useGroup(group \| name)`                 | `useStrip` plus `members`                                                              | `add`, `remove`                                                                               |
+| `useMeter(source?, { fps, active })`      | `peak`, `rms`, `peakDb`, `lufs` reading, `lufsShortTerm`, `truePeakDb`                 | —                                                                                             |
+| `useDevice(device, { registry })`         | `values`, `bypass`, `params`, `descriptor`, `presets`                                  | `setParam`, `setBypass`, `applyPreset`, `capturePreset`, `reset`                              |
+| `useDeviceParam(device, name)`            | `value`, `normalized` (taper-aware), `spec`                                            | `set`, `setNormalized`, `reset`                                                               |
+| `useLane(lane)`                           | `breakpoints`, `version`, `valueAt`                                                    | `add`, `remove`, `replace`, `clear`                                                           |
+| `useModulation(matrix?)`                  | `routes`, `targets`, `routesFor`                                                       | `map`, `unmap`, `setRoute`, `attach`, `detach`                                                |
+| `useSampleStore(store?)`                  | `metrics`, `ids`                                                                       | `load`, `forget`, `pin`, `unpin`, `setBudgetBytes`, `evict`                                   |
+| `useEngineStats(stats?)`                  | `glitches`, `underrunRatio`, `averageLoad`, `peakLoad`, `supported`                    | `reset`, `recordGlitch`                                                                       |
+| `useClips(track \| list)`                 | `clips` (sorted)                                                                       | `add`, `update`, `remove`, `set`, `replaceFrom`, `clear`                                      |
+| `useSchedule(track, { horizonSec, fps })` | `sounding`, `upcoming` (the Scheduler's own window function), `positionSec`, `playing` | —                                                                                             |
+| `useSession(session)`                     | `scenes`, `tracks`, `cells[scene][track]` with slot states, `statuses`, `quantize`     | `launchScene`, `launchSlot`, `releaseSlot`, `stopSlot`, `stopTrack`, `stopAll`, `setQuantize` |
+| `useSlot(session, id)`                    | `slot`, `status`, `state`, `playing`, `queued`, `stopping`                             | `launch`, `release`, `stop`                                                                   |
 
 Hooks that default to an engine part (`useTransport()`, `useMeter()`, …) need
 the provider; every hook also takes the object explicitly. The entry is
@@ -776,7 +778,7 @@ prop injects a hand-driven frame scheduler.
 The score is the source of truth for arrangement, automation and device
 graphs: a versioned, seconds-first JSON document (tracks, element tracks,
 groups, returns, strips with inserts and sends, clips, lanes, modulators,
-routes, master, loop, tempo map — `format: 2`). Every edit is a JSON `Operation` with a stable name — the vocabulary
+routes, master, loop, tempo map, session scenes and slots — `format: 3`). Every edit is a JSON `Operation` with a stable name — the vocabulary
 the agent API calls — applied as a pure function with a computed inverse;
 an append-only `OperationLog` records author and time; `History` undoes one
 step per gesture (a fader drag is one undo); and `loadScore` makes the
@@ -921,7 +923,7 @@ transport, `?theme=jaxa-zen-dark`).
 
 ### The agent control API
 
-Every capability is a tool a model can call: the 51 score operations, the
+Every capability is a tool a model can call: the 59 score operations, the
 coach's intents (`steer_music`, `set_intensity`, `set_music_volume`, `duck`,
 `extend_section`, `advance_section`, `set_breath_pace`, `fade_out`,
 `set_ambience`, `more_space`, `match_key`), a `get_state` query and `undo`,
@@ -956,6 +958,35 @@ const result = agent.call(
 
 The tool list, the intent mapping table, the rails and their defaults and
 the snapshot shape are in [`docs/agent-api.md`](./docs/agent-api.md).
+
+### The session grid: scenes, slots, quantised launch, follow actions
+
+Scenes × clip slots over the same clip model as the arrangement (score
+`format: 3`: `scenes`, `slots`, `transport.quantize`; older documents
+migrate). A slot holds a clip and its launch settings — quantisation
+(`'none' | 'bar' | 'beat' | n bars | { seconds }` on the document's tempo map),
+`trigger`/`gate`/`toggle` launch modes, legato, and a follow action (A/B
+with a probability and a follow time in bars or seconds: `next`, `previous`,
+`first`, `last`, `any`, `other`, `again`, `stop`, `none`). Launching places
+the clip on its track's arrangement lane at the quantised time (`clip.add`),
+stopping trims it there (`clip.trim`), a scene launch is one `batch` — so the
+grid plays through the same scheduler path as the arrangement, the
+arrangement holds what was performed, and undo takes a launch back. Follow
+actions are evaluated on the scheduler tick from an injected random source.
+
+```ts
+import { Session } from '@kieranklaassen/live-mix'
+
+const session = new Session({ document, engine })
+session.launchScene('verse') // on the next bar, one undo step
+session.launchSlot('kick-chorus', { quantize: 'beat' })
+session.status('kick-chorus') // { state: 'queued' | 'playing' | 'stopped' | 'empty', startSec, … }
+session.stopAll()
+```
+
+`useSession(session)` / `useSlot(session, id)` on `./react` expose the grid
+and its controls for the kit. `Scheduler.onTick` is new (additive). Model,
+decisions and limits in [`docs/session.md`](./docs/session.md).
 
 ### Real-time rules
 

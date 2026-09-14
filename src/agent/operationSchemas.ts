@@ -6,6 +6,8 @@
 // guaranteed to fit the score — `apply` still checks references — but the
 // model gets ranges, enums and required fields up front.
 
+import { FOLLOW_ACTION_KINDS } from '../core/session/followActions'
+import { LAUNCH_MODES } from '../core/session/Slot'
 import { OPERATION_TYPES, type OperationType } from '../score/operations'
 import { STRIP_PARAMS } from '../score/schema'
 import { withDefs, type JsonSchema } from './jsonSchema'
@@ -374,6 +376,91 @@ export const OPERATION_DEFS: Record<string, JsonSchema> = {
     required: ['id', 'name', 'destination', 'clips'],
     additionalProperties: false,
   },
+  LaunchQuantize: {
+    description:
+      "Launch grid: 'none' (immediately), 'bar', 'beat', a positive bar count, or { seconds } on the clock.",
+    anyOf: [
+      { type: 'string', enum: ['none', 'bar', 'beat'] },
+      { type: 'number', exclusiveMinimum: 0, description: 'Bars.' },
+      {
+        type: 'object',
+        properties: { seconds: number('Period in seconds.', { min: 0 }) },
+        required: ['seconds'],
+        additionalProperties: false,
+      },
+    ],
+  },
+  SlotClip: {
+    type: 'object',
+    description: 'The clip a slot launches: a Clip without id and startSec.',
+    properties: {
+      sourceId: id('Source id the clip plays.'),
+      offsetSec: number('Seconds into the source where playback enters.', { min: 0 }),
+      durationSec: number('Audible length (one pass when looping).', { min: 0 }),
+      fadeInSec: number('Fade-in length.', { min: 0 }),
+      fadeOutSec: number('Fade-out length.', { min: 0 }),
+      fadeCurve: { type: 'string', enum: ['linear', 'equalPower'] },
+      gainDb: number('Loudness trim in dB.'),
+      loop: { type: 'boolean', description: 'Loop until stopped.' },
+      semitones: number('Pitch shift on a stretch source.'),
+    },
+    required: [
+      'sourceId',
+      'offsetSec',
+      'durationSec',
+      'fadeInSec',
+      'fadeOutSec',
+      'fadeCurve',
+      'gainDb',
+    ],
+    additionalProperties: false,
+  },
+  FollowAction: {
+    type: 'object',
+    description:
+      'What a slot does after its follow time: A with probability `chance`, else B. Kinds walk the column of slots on the track.',
+    properties: {
+      a: { type: 'string', enum: [...FOLLOW_ACTION_KINDS] },
+      b: { type: 'string', enum: [...FOLLOW_ACTION_KINDS] },
+      chance: number('Probability of A.', { min: 0, max: 1 }),
+      time: {
+        type: 'object',
+        description: 'Measured from the launch; omitted means the clip duration.',
+        properties: {
+          unit: { type: 'string', enum: ['bars', 'seconds'] },
+          value: number('Amount.', { min: 0 }),
+        },
+        required: ['unit', 'value'],
+        additionalProperties: false,
+      },
+    },
+    required: ['a', 'b', 'chance'],
+    additionalProperties: false,
+  },
+  Scene: {
+    type: 'object',
+    description: 'A session grid row.',
+    properties: { id: id('Scene id.'), name: { type: 'string' } },
+    required: ['id', 'name'],
+    additionalProperties: false,
+  },
+  Slot: {
+    type: 'object',
+    description:
+      'A session grid cell (audio track × scene): the clip it launches (null = a stop button) and its launch settings.',
+    properties: {
+      id: id('Slot id.'),
+      track: id('Audio track id.'),
+      scene: id('Scene id.'),
+      clip: { anyOf: [ref('SlotClip'), { type: 'null' }] },
+      quantize: ref('LaunchQuantize'),
+      launchMode: { type: 'string', enum: [...LAUNCH_MODES] },
+      legato: { type: 'boolean', description: 'Enter the new clip where the old one was.' },
+      follow: ref('FollowAction'),
+    },
+    required: ['id', 'track', 'scene', 'clip', 'launchMode', 'legato'],
+    additionalProperties: false,
+  },
   Operation: {
     type: 'object',
     description: 'Any score operation, as the matching tool would take it plus its `type`.',
@@ -700,6 +787,62 @@ const OPERATION_SPECS: Record<OperationType, OperationSpec> = {
       polarity: { type: 'string', enum: ['unipolar', 'bipolar'] },
     },
     required: ['id'],
+  },
+  'transport.quantize': {
+    description: 'Set the global launch quantisation of the session grid.',
+    properties: { quantize: ref('LaunchQuantize') },
+    required: ['quantize'],
+  },
+  'scene.add': {
+    description: 'Add a session grid row.',
+    properties: { scene: ref('Scene'), index },
+    required: ['scene'],
+  },
+  'scene.remove': {
+    description: 'Remove a scene and every slot in it.',
+    properties: { id: id('Scene id.') },
+    required: ['id'],
+  },
+  'scene.move': {
+    description: 'Move a scene to another row index.',
+    properties: { id: id('Scene id.'), index: integer('New row index.') },
+    required: ['id', 'index'],
+  },
+  'scene.rename': {
+    description: 'Rename a scene.',
+    properties: { id: id('Scene id.'), name: { type: 'string' } },
+    required: ['id', 'name'],
+  },
+  'slot.add': {
+    description: 'Put a slot in a free cell (audio track × scene).',
+    properties: { slot: ref('Slot'), index },
+    required: ['slot'],
+  },
+  'slot.remove': {
+    description: 'Remove a slot from the grid.',
+    properties: { id: id('Slot id.') },
+    required: ['id'],
+  },
+  'slot.update': {
+    description:
+      "Patch a slot's cell, clip or launch settings; `quantize: null` and `follow: null` clear them, `clip: null` empties the slot.",
+    properties: {
+      id: id('Slot id.'),
+      patch: {
+        type: 'object',
+        properties: {
+          track: id('Audio track id.'),
+          scene: id('Scene id.'),
+          clip: { anyOf: [ref('SlotClip'), { type: 'null' }] },
+          quantize: { anyOf: [ref('LaunchQuantize'), { type: 'null' }] },
+          launchMode: { type: 'string', enum: [...LAUNCH_MODES] },
+          legato: { type: 'boolean' },
+          follow: { anyOf: [ref('FollowAction'), { type: 'null' }] },
+        },
+        additionalProperties: false,
+      },
+    },
+    required: ['id', 'patch'],
   },
   batch: {
     description: 'Apply several operations as one undoable step.',

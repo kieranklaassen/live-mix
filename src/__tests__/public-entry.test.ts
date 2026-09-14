@@ -144,6 +144,21 @@ const coreSymbols = [
   'toolNameForOperation',
   'validateSchema',
   'buildSnapshot',
+  // Session grid (U31)
+  'Session',
+  'quantizeLaunch',
+  'followTimeSeconds',
+  'drawFollowAction',
+  'resolveFollowAction',
+  'defaultSlot',
+  'slotAt',
+  'findSlot',
+  'findScene',
+  'trackSlots',
+  'sceneSlots',
+  'LAUNCH_MODES',
+  'FOLLOW_ACTION_KINDS',
+  'DEFAULT_LAUNCH_QUANTIZE',
 ] as const
 
 const dspSymbols = [

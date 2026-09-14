@@ -479,5 +479,6 @@ export {
   type RenderCapacityUpdate,
 } from './core/stats'
 export * from './score'
+export * from './core/session'
 export * from './core/control'
 export * from './agent'
