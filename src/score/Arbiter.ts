@@ -612,8 +612,20 @@ export function arbiterTargets(op: Operation): string[] {
   switch (op.type) {
     case 'score.rename':
     case 'transport.loop':
+    case 'transport.quantize':
     case 'tempo.set':
       return ['score']
+    case 'scene.add':
+      return [`scene:${op.scene.id}`]
+    case 'scene.remove':
+    case 'scene.move':
+    case 'scene.rename':
+      return [`scene:${op.id}`]
+    case 'slot.add':
+      return [`slot:${op.slot.id}`]
+    case 'slot.remove':
+    case 'slot.update':
+      return [`slot:${op.id}`]
     case 'score.replace':
       return [ANY_TARGET]
     case 'source.add':

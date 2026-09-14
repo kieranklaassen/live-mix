@@ -856,7 +856,7 @@ const OPERATION_SPECS: Record<OperationType, OperationSpec> = {
     description:
       'Replace the whole document with a full score (a saved version restored); validated on apply, undoable as one step.',
     properties: {
-      score: { type: 'object', description: 'A complete score document (format 2).' },
+      score: { type: 'object', description: 'A complete score document (the current format).' },
       label: { type: 'string' },
     },
     required: ['score'],
