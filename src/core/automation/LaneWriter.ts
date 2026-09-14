@@ -30,6 +30,26 @@ export interface LaneWriterOptions {
   joinRampSec?: number
 }
 
+/** The slice of `Transport` a lane window is built from; `Transport` satisfies it. */
+export interface LaneTransport {
+  position(): { positionSec: number; iteration: number }
+  readonly loop: { readonly enabled: boolean; readonly lengthSec: number }
+  contextTimeAt(positionSec: number, iteration?: number): number
+}
+
+/** This tick's `LaneWindow` from a playing transport. */
+export function laneWindowFrom(transport: LaneTransport, lookaheadSec: number): LaneWindow {
+  const { positionSec, iteration } = transport.position()
+  return {
+    playheadSec: positionSec,
+    iteration,
+    lookaheadSec,
+    contextTimeSec: transport.contextTimeAt(positionSec, iteration),
+    loopEnabled: transport.loop.enabled,
+    loopLengthSec: transport.loop.lengthSec,
+  }
+}
+
 export const DEFAULT_JOIN_RAMP_SECONDS = 0.05
 
 /** Offset drift smaller than this is clock jitter, not a seek. */
@@ -52,6 +72,8 @@ export class LaneWriter {
   private lastWrappedPlayheadSec: number | null = null
   private lastOffsetSec: number | null = null
   private iteration = 0
+  /** Loop length of the last tick; 0 when not looping. */
+  private loopLengthSec = 0
   private laneVersion: number
 
   constructor(
@@ -79,7 +101,9 @@ export class LaneWriter {
    */
   tick(window: LaneWindow): void {
     const loopLengthSec = window.loopLengthSec ?? 0
-    const looping = window.loopEnabled === true && loopLengthSec > 0
+    const looping =
+      window.loopEnabled === true && Number.isFinite(loopLengthSec) && loopLengthSec > 0
+    this.loopLengthSec = looping ? loopLengthSec : 0
     const playheadSec = this.unwrap(window, looping, loopLengthSec)
     const offsetSec = window.contextTimeSec - playheadSec
     const horizonSec = playheadSec + Math.max(0, window.lookaheadSec)
@@ -96,7 +120,7 @@ export class LaneWriter {
     const stalled = this.cursorSec !== null && playheadSec > this.cursorSec
 
     if (this.cursorSec === null) {
-      this.emit('setValueAtTime', this.lane.valueAt(playheadSec), window.contextTimeSec)
+      this.emit('setValueAtTime', this.laneValueAt(playheadSec), window.contextTimeSec)
       this.cursorSec = playheadSec
       this.cursorAnchored = true
     } else if (this.rejoin || edited || seeked || stalled) {
@@ -107,10 +131,18 @@ export class LaneWriter {
     this.lastOffsetSec = offsetSec
 
     if (horizonSec > this.cursorSec) {
-      this.writeRange(this.cursorSec, horizonSec, offsetSec, looping ? loopLengthSec : 0)
+      this.writeRange(this.cursorSec, horizonSec, offsetSec, this.loopLengthSec)
       this.cursorSec = horizonSec
       this.cursorAnchored = false
     }
+  }
+
+  /** The lane's value at an unwrapped timeline second (folded into the loop). */
+  private laneValueAt(unwrappedSec: number): number {
+    const length = this.loopLengthSec
+    const local =
+      length > 0 ? unwrappedSec - Math.floor(unwrappedSec / length) * length : unwrappedSec
+    return this.lane.valueAt(local)
   }
 
   /**
@@ -120,7 +152,7 @@ export class LaneWriter {
    */
   override(contextTimeSec: number): void {
     const timelineSec = this.lastOffsetSec === null ? 0 : contextTimeSec - this.lastOffsetSec
-    holdParamAt(this.param, contextTimeSec, this.lane.valueAt(timelineSec))
+    holdParamAt(this.param, contextTimeSec, this.laneValueAt(timelineSec))
     this.overridden = true
     this.rejoin = true
   }
@@ -162,14 +194,14 @@ export class LaneWriter {
   /** Hold at `playheadSec`, ramp onto the lane, and continue from the ramp's end. */
   private join(playheadSec: number, offsetSec: number): void {
     const contextTimeSec = playheadSec + offsetSec
-    holdParamAt(this.param, contextTimeSec, this.lane.valueAt(playheadSec))
+    holdParamAt(this.param, contextTimeSec, this.laneValueAt(playheadSec))
     this.lastWritten = null
     if (this.joinRampSec > 0) {
       const endSec = playheadSec + this.joinRampSec
-      this.emit('linearRampToValueAtTime', this.lane.valueAt(endSec), endSec + offsetSec)
+      this.emit('linearRampToValueAtTime', this.laneValueAt(endSec), endSec + offsetSec)
       this.cursorSec = endSec
     } else {
-      this.emit('setValueAtTime', this.lane.valueAt(playheadSec), contextTimeSec)
+      this.emit('setValueAtTime', this.laneValueAt(playheadSec), contextTimeSec)
       this.cursorSec = playheadSec
     }
     this.cursorAnchored = true

@@ -7,6 +7,8 @@
 export {
   DEFAULT_JOIN_RAMP_SECONDS,
   LaneWriter,
+  laneWindowFrom,
+  type LaneTransport,
   type LaneWindow,
   type LaneWriterOptions,
 } from './LaneWriter'

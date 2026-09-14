@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import { MockAudioParam, createMockContext } from '../../../testing'
-import { LaneWriter } from '../LaneWriter'
+import { Transport } from '../../transport'
+import { LaneWriter, laneWindowFrom } from '../LaneWriter'
 import { ParamLane } from '../ParamLane'
 
 // A 0 → 1 → 0 swell over four seconds, the breath guide's gain lane in miniature.
@@ -17,6 +18,17 @@ function swell(): ParamLane {
 
 function calls(param: MockAudioParam): [string, ...unknown[]][] {
   return param.events.map((event) => [event.method, ...event.args])
+}
+
+/** `calls` with numbers rounded to 9 places, for times the transport derives in float math. */
+function rounded(param: MockAudioParam): [string, ...unknown[]][] {
+  return calls(param).map(
+    ([method, ...args]) =>
+      [method, ...args.map((arg) => (typeof arg === 'number' ? Number(arg.toFixed(9)) : arg))] as [
+        string,
+        ...unknown[],
+      ],
+  )
 }
 
 /** A param without `cancelAndHoldAtTime`, as Firefox ships it. */
@@ -222,6 +234,58 @@ describe('LaneWriter', () => {
     expect(filterLane.valueAt(at + 7)).toBeCloseTo(750, 12)
   })
 
+  describe('with the Transport', () => {
+    it('builds each tick’s window from the transport, wraps with its pass numbers and rejoins on seek', () => {
+      let now = 100
+      const transport = new Transport({ now: () => now, loop: { enabled: true, lengthSec: 4 } })
+      const param = new MockAudioParam()
+      const writer = new LaneWriter(swell(), param, { joinRampSec: 0.05 })
+      transport.start()
+
+      const tick = () => writer.tick(laneWindowFrom(transport, 1))
+      for (let step = 0; step <= 45; step += 1) {
+        now = 100 + step / 10
+        tick()
+      }
+
+      expect(rounded(param)).toEqual([
+        ['setValueAtTime', 0, 100],
+        ['linearRampToValueAtTime', 1, 102],
+        ['linearRampToValueAtTime', 0, 104],
+        ['linearRampToValueAtTime', 0.025, 104.05],
+      ])
+      expect(transport.position().iteration).toBe(1)
+      expect(writer.writtenUntilSec).toBeCloseTo(5.5, 6)
+
+      // Seek to 1 s: the transport re-pins with a fresh pass number; the
+      // writer sees the offset change and ramps onto the lane at its new place.
+      const before = param.events.length
+      transport.seek(1)
+      tick()
+      const seek = calls(param).slice(before)
+      expect(seek[0]).toEqual(['cancelAndHoldAtTime', now])
+      expect(seek[1][1]).toBeCloseTo(0.525, 9)
+      expect(seek[1][2]).toBeCloseTo(now + 0.05, 9)
+    })
+
+    it('treats the default never-ending loop as no loop at all', () => {
+      let now = 0
+      const transport = new Transport({ now: () => now })
+      const param = new MockAudioParam()
+      const writer = new LaneWriter(swell(), param)
+      transport.start()
+      writer.tick(laneWindowFrom(transport, 10))
+      now = 5
+      writer.tick(laneWindowFrom(transport, 10))
+      expect(calls(param)).toEqual([
+        ['setValueAtTime', 0, 0],
+        ['linearRampToValueAtTime', 1, 2],
+        ['linearRampToValueAtTime', 0, 4],
+      ])
+      expect(writer.writtenUntilSec).toBe(15)
+    })
+  })
+
   describe('looping', () => {
     const loopLengthSec = 4
 
@@ -268,6 +332,19 @@ describe('LaneWriter', () => {
       ])
       expect(param.eventsFor('cancelAndHoldAtTime')).toHaveLength(0)
       expect(writer.writtenUntilSec).toBe(5.1)
+    })
+
+    it('reads the lane at the position inside the loop, not the unwrapped time', () => {
+      const param = firefoxParam()
+      const writer = new LaneWriter(swell(), param, { joinRampSec: 0 })
+      const window = { lookaheadSec: 1, loopEnabled: true, loopLengthSec }
+      writer.tick({ ...window, playheadSec: 1, contextTimeSec: 105, iteration: 2 })
+      expect(calls(param)).toEqual([['setValueAtTime', 0.5, 105]])
+      writer.override(106)
+      expect(calls(param).slice(1)).toEqual([
+        ['cancelScheduledValues', 106],
+        ['setValueAtTime', 1, 106],
+      ])
     })
 
     it('writes the wrap once when a window ends exactly on the loop boundary', () => {
