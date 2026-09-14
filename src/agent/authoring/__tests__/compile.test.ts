@@ -62,7 +62,7 @@ function audioTrack(
 }
 
 describe('compileScript', () => {
-  it('produces a valid format-2 score with music, voice and breath-guide tracks', () => {
+  it('produces a valid score with music, voice and breath-guide tracks', () => {
     const compiled = compileScriptDetailed(shortScript(), shortLibrary())
     expect(validateScore(compiled.score)).toEqual([])
     expect(compiled.score.id).toBe('evening-grounding')
