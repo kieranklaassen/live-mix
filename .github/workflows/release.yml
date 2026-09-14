@@ -1,13 +1,15 @@
 name: Release
 
-# Changesets flow: every merge to main either opens/updates the "Version
-# Packages" PR (when unreleased changesets exist) or, when that PR itself was
-# just merged, publishes the new version to npm.
+# Distribution: GitHub Packages (npm.pkg.github.com), private, scoped
+# @kieranklaassen. Publishing authenticates with the workflow's own
+# GITHUB_TOKEN (packages: write) — no long-lived secret in this repo.
 #
-# Publishing uses npm trusted publishing (GitHub OIDC): no NPM_TOKEN secret.
-# One-time setup on npmjs.com is required before the first automated publish —
-# see README "Releasing". Until the repository variable NPM_PUBLISH_ENABLED is
-# set to "true", this job only maintains the version PR and never publishes.
+# Every push to main:
+# - with pending changesets: publishes a `next` snapshot
+#   (0.0.0-next-<timestamp>) so adoption PRs in the apps can pin a build, and
+#   opens/updates the "Version Packages" PR (needs the repo setting
+#   "Allow GitHub Actions to create and approve pull requests");
+# - after that PR merges: publishes the versioned release with the `latest` tag.
 
 on:
   push:
@@ -18,7 +20,7 @@ concurrency: release-${{ github.ref }}
 permissions:
   contents: write
   pull-requests: write
-  id-token: write
+  packages: write
 
 jobs:
   release:
@@ -34,20 +36,32 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          registry-url: https://registry.npmjs.org
-
-      # Trusted publishing needs npm >= 11.5.1; Node 22 bundles npm 10.
-      - name: Upgrade npm for OIDC publishing
-        run: npm install -g npm@latest
+          registry-url: https://npm.pkg.github.com
+          scope: '@kieranklaassen'
 
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      # setup-node writes the registry auth for npm; pnpm publish (what
+      # `changeset publish` runs under a pnpm packageManager) reads ~/.npmrc.
+      - name: Authenticate pnpm against GitHub Packages
+        run: echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" >> ~/.npmrc
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Version or publish
+        id: changesets
         uses: changesets/action@v1
         with:
-          publish: ${{ vars.NPM_PUBLISH_ENABLED == 'true' && 'pnpm release' || '' }}
+          publish: pnpm release
           title: 'chore: version packages'
           commit: 'chore: version packages'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish next snapshot
+        if: steps.changesets.outputs.published != 'true' && steps.changesets.outputs.hasChangesets == 'true'
+        run: pnpm release:snapshot
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -11,6 +11,9 @@ execution: code
 
 # Audio Mixing Engine - Plan
 
+> **Distribution addendum (2026-09-14, after U1):** Kieran made `kieranklaassen/live-mix` **private**. Wherever this document says the repo or package is public, or that consumers install from public npm / trusted publishing, read: the package is published to **GitHub Packages** (`npm.pkg.github.com`, scope `@kieranklaassen`) by the release workflow's own `GITHUB_TOKEN`; consumers authenticate with a read-only PAT in CI and a Docker build secret under Kamal; the `github:#sha` fallback needs git auth. Details and the Kieran checklist: [README § Install](../../README.md#install). KTD2/U10 are superseded to that extent; the MIT licence stands.
+
+
 Plan of record for the shared JS/TS mixing engine (working name `live-mix`): the north-star Product Contract plus the implementation units that build it, from Phase 0 through the Dream tier. It supersedes the phased section of [mixing-engine-plan.md](./mixing-engine-plan-of-record.md), whose §1–§3 (ambient-live map, requirement union, library location) remain the grounding this plan cites. Repo paths are prefixed with the repo name (`live-mix/…`, `breathwork-live/…`, `ambient-live/…`, `kkfonie/…`) and pinned to `breathwork-live@ebdd457` (branch `feat/breathwork-live`), `ambient-live@1d3b31b` (`main`), and the kkfonie workspace checkout.
 
 ---
