@@ -25,6 +25,10 @@ import {
 export interface MockAudioContextOptions {
   sampleRate?: number
   currentTime?: number
+  /** `AudioContext.baseLatency` to report (default 0). */
+  baseLatency?: number
+  /** `AudioContext.outputLatency` to report (default 0). */
+  outputLatency?: number
   /**
    * What `decodeAudioData` returns for a given input. The default decodes an
    * `ArrayBuffer` of N bytes to a buffer N seconds long, so fixtures pick
@@ -37,8 +41,8 @@ export class MockAudioContext {
   currentTime: number
   readonly sampleRate: number
   state: 'suspended' | 'running' | 'closed' = 'running'
-  readonly baseLatency = 0
-  readonly outputLatency = 0
+  baseLatency: number
+  outputLatency: number
   readonly destination = new MockAudioNode('destination')
   readonly listener = {}
 
@@ -68,6 +72,8 @@ export class MockAudioContext {
   constructor(options: MockAudioContextOptions = {}) {
     this.sampleRate = options.sampleRate ?? 44100
     this.currentTime = options.currentTime ?? 0
+    this.baseLatency = options.baseLatency ?? 0
+    this.outputLatency = options.outputLatency ?? 0
     this.decode =
       options.decode ??
       ((data, ctx) => new MockAudioBuffer(2, data.byteLength * ctx.sampleRate, ctx.sampleRate))

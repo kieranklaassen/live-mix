@@ -117,18 +117,18 @@ export function encodeWav(audio: PlanarAudio, options: WavEncodeOptions = {}): A
   u32(dataBytes)
   const interleaved = interleave(audio.channels)
   if (isFloat) {
-    for (let i = 0; i < interleaved.length; i += 1) {
-      view.setFloat32(offset, interleaved[i], true)
+    for (const sample of interleaved) {
+      view.setFloat32(offset, sample, true)
       offset += 4
     }
   } else if (bitDepth === 16) {
-    for (let i = 0; i < interleaved.length; i += 1) {
-      view.setInt16(offset, toInt(interleaved[i], 32767), true)
+    for (const sample of interleaved) {
+      view.setInt16(offset, toInt(sample, 32767), true)
       offset += 2
     }
   } else {
-    for (let i = 0; i < interleaved.length; i += 1) {
-      const value = toInt(interleaved[i], 8388607)
+    for (const sample of interleaved) {
+      const value = toInt(sample, 8388607)
       view.setUint8(offset, value & 0xff)
       view.setUint8(offset + 1, (value >> 8) & 0xff)
       view.setUint8(offset + 2, (value >> 16) & 0xff)
@@ -212,7 +212,9 @@ export function decodeWav(wav: ArrayBuffer): PlanarAudio {
         offset += 2
       } else {
         const raw =
-          view.getUint8(offset) | (view.getUint8(offset + 1) << 8) | (view.getUint8(offset + 2) << 16)
+          view.getUint8(offset) |
+          (view.getUint8(offset + 1) << 8) |
+          (view.getUint8(offset + 2) << 16)
         const signed = raw & 0x800000 ? raw - 0x1000000 : raw
         channels[c][i] = signed / 8388608
         offset += 3

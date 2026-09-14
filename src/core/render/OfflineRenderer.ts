@@ -16,6 +16,7 @@
 // the worklet ducker (`mode: 'worklet'`) for bounces with sidechain ducking.
 
 import { type Clock } from '../clock'
+import { type LatencyReport } from '../devices/pdc'
 import { createEngine, type Engine, type EngineOptions } from '../Engine'
 import { type AudioTrack } from '../tracks/AudioTrack'
 import { planarFromAudioBuffer, type PlanarAudio } from './encode'
@@ -51,6 +52,12 @@ export interface RenderOptions {
   startSec?: number
   /** Virtual clock step for pre-scheduling. Default 0.05 s. */
   tickSec?: number
+  /**
+   * Run `engine.alignLatency()` after the build so every alignable path carries
+   * the same plugin-delay compensation as the master mix and bounced stems line
+   * up sample-exactly. Default true.
+   */
+  alignLatency?: boolean
   /** Engine options other than the context and clock (loop, master, samples…). */
   engine?: Omit<EngineOptions, 'context' | 'now' | 'setIntervalFn' | 'clearIntervalFn'>
   /** `OfflineAudioContext` constructor by default; injectable for tests and non-DOM hosts. */
@@ -60,6 +67,8 @@ export interface RenderOptions {
 
 export interface RenderResult {
   buffer: AudioBuffer
+  /** Plugin-delay report after alignment (or the raw report when `alignLatency: false`). */
+  latency: LatencyReport
   audio: PlanarAudio
   sampleRate: number
   durationSec: number
@@ -107,6 +116,10 @@ export async function renderOffline(options: RenderOptions): Promise<RenderResul
     ...inertTimers(),
   })
   await options.build(engine, { stem: 'master', sampleRate, durationSec })
+  const latency =
+    (options.alignLatency ?? true)
+      ? engine.alignLatency({ liveInputs: true })
+      : engine.latencyReport()
 
   scheduleAhead(engine, {
     startSec: options.startSec ?? 0,
@@ -118,7 +131,7 @@ export async function renderOffline(options: RenderOptions): Promise<RenderResul
   })
 
   const buffer = await context.startRendering()
-  return { buffer, audio: planarFromAudioBuffer(buffer), sampleRate, durationSec, engine }
+  return { buffer, audio: planarFromAudioBuffer(buffer), sampleRate, durationSec, engine, latency }
 }
 
 export interface ScheduleAheadOptions {
@@ -169,7 +182,7 @@ export interface StemsOptions extends Omit<RenderOptions, 'build'> {
  */
 export async function renderStems(options: StemsOptions): Promise<Record<string, RenderResult>> {
   const results: Record<string, RenderResult> = {}
-  const names = [...(options.includeMaster ?? true ? ['master'] : []), ...options.stems]
+  const names = [...((options.includeMaster ?? true) ? ['master'] : []), ...options.stems]
   for (const stem of names) {
     results[stem] = await renderOffline({
       ...options,

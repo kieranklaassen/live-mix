@@ -18,8 +18,14 @@ import {
   type MockOfflineAudioContext,
 } from '../../../testing'
 import { type Clip } from '../../clips/Clip'
+import { type Device } from '../../devices/Device'
 import { createEngine, type Engine } from '../../Engine'
-import { maxAbsDifference, renderOffline, renderStems, type OfflineContextFactory } from '../OfflineRenderer'
+import {
+  maxAbsDifference,
+  renderOffline,
+  renderStems,
+  type OfflineContextFactory,
+} from '../OfflineRenderer'
 
 const SAMPLE_RATE = 48000
 
@@ -198,15 +204,65 @@ describe('renderStems', () => {
   })
 })
 
+describe('plugin delay compensation in renders (U34)', () => {
+  function latentDevice(engine: Engine, id: string, latencySamples: number): Device {
+    const node = engine.context.createGain()
+    return {
+      id,
+      input: node,
+      output: node,
+      params: {},
+      setParam: () => {},
+      getParam: () => 0,
+      bypass: false,
+      latencySec: latencySamples / SAMPLE_RATE,
+      latencySamples,
+      dispose: () => node.disconnect(),
+    }
+  }
+
+  async function latentArrangement(engine: Engine): Promise<void> {
+    await arrangement(engine)
+    engine.track('music').strip.addInsert(latentDevice(engine, 'look-ahead', 288))
+  }
+
+  it('aligns every alignable path to the latest arrival, identically in master and stem renders', async () => {
+    const stems = await renderStems({
+      durationSec: 4,
+      sampleRate: SAMPLE_RATE,
+      createContext: factory,
+      stems: ['music', 'voice'],
+      build: latentArrangement,
+    })
+    for (const result of Object.values(stems)) {
+      const paths = Object.fromEntries(result.latency.paths.map((path) => [path.key, path]))
+      expect(result.latency.maxArrivalSamples).toBe(288)
+      expect(paths['track/music']).toMatchObject({ compensationSamples: 0, deficitSamples: 0 })
+      expect(paths['track/voice']).toMatchObject({ compensationSamples: 288, deficitSamples: 0 })
+    }
+  })
+
+  it('alignLatency: false leaves the raw report', async () => {
+    const result = await renderOffline({
+      durationSec: 4,
+      alignLatency: false,
+      createContext: factory,
+      build: latentArrangement,
+    })
+    const voice = result.latency.paths.find((path) => path.key === 'track/voice')
+    expect(voice).toMatchObject({ compensationSamples: 0, deficitSamples: 288 })
+  })
+})
+
 describe('maxAbsDifference', () => {
   it('measures the largest sample deviation and flags shape mismatches', () => {
     const a = { channels: [Float32Array.from([0, 0.5, 1])], sampleRate: 48000 }
     const b = { channels: [Float32Array.from([0, 0.25, 1])], sampleRate: 48000 }
     expect(maxAbsDifference(a, a)).toBe(0)
     expect(maxAbsDifference(a, b)).toBeCloseTo(0.25)
-    expect(
-      maxAbsDifference(a, { channels: [Float32Array.from([0, 0])], sampleRate: 48000 }),
-    ).toBe(Number.POSITIVE_INFINITY)
+    expect(maxAbsDifference(a, { channels: [Float32Array.from([0, 0])], sampleRate: 48000 })).toBe(
+      Number.POSITIVE_INFINITY,
+    )
     expect(maxAbsDifference(a, { channels: [], sampleRate: 48000 })).toBe(Number.POSITIVE_INFINITY)
   })
 })

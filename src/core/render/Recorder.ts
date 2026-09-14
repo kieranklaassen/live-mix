@@ -55,7 +55,10 @@ export interface MediaRecorderOptions {
   mimeType?: string
   audioBitsPerSecond?: number
   /** Injectable constructor (tests, non-DOM hosts). Default: `globalThis.MediaRecorder`. */
-  createMediaRecorder?: (stream: MediaStream, options: { mimeType?: string; audioBitsPerSecond?: number }) => MediaRecorderLike
+  createMediaRecorder?: (
+    stream: MediaStream,
+    options: { mimeType?: string; audioBitsPerSecond?: number },
+  ) => MediaRecorderLike
 }
 
 export type RecorderOptions = WorkletRecorderOptions | MediaRecorderOptions
@@ -264,8 +267,9 @@ export class MediaStreamRecorder extends Recorder {
     const create =
       options.createMediaRecorder ??
       ((stream, init) => {
-        const Ctor = (globalThis as { MediaRecorder?: new (s: MediaStream, o: unknown) => MediaRecorderLike })
-          .MediaRecorder
+        const Ctor = (
+          globalThis as { MediaRecorder?: new (s: MediaStream, o: unknown) => MediaRecorderLike }
+        ).MediaRecorder
         if (!Ctor) throw new Error('live-mix: MediaRecorder is not available here')
         return new Ctor(stream, init)
       })
@@ -278,7 +282,7 @@ export class MediaStreamRecorder extends Recorder {
     }
     this.recorder.onstop = () => {
       this.recordingState = 'stopped'
-      const mimeType = this.recorder.mimeType || options.mimeType || 'audio/webm'
+      const mimeType = nonEmpty(this.recorder.mimeType) ?? options.mimeType ?? 'audio/webm'
       const recording: MediaRecording = {
         kind: 'blob',
         blob: new Blob(this.parts, { type: mimeType }),
@@ -307,7 +311,11 @@ export class MediaStreamRecorder extends Recorder {
 
   stop(): Promise<MediaRecording> {
     if (this.recordingState !== 'recording') {
-      return Promise.resolve({ kind: 'blob', blob: new Blob(this.parts), mimeType: this.recorder.mimeType })
+      return Promise.resolve({
+        kind: 'blob',
+        blob: new Blob(this.parts),
+        mimeType: this.recorder.mimeType,
+      })
     }
     return new Promise((resolve) => {
       this.resolveStop = resolve
@@ -324,6 +332,10 @@ export class MediaStreamRecorder extends Recorder {
       // ignore
     }
   }
+}
+
+function nonEmpty(value: string): string | undefined {
+  return value.length > 0 ? value : undefined
 }
 
 /** Create a recorder tapping `source`, worklet mode unless asked otherwise. */

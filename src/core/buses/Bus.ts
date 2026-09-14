@@ -5,6 +5,17 @@
 // are re-fed after every rewire.
 
 import { type Device } from '../devices/Device'
+import { Emitter } from '../events'
+
+/** What a bus reports to hosts: a fader target change or an insert-chain change. */
+export type BusChangeKind = 'level' | 'inserts'
+
+export interface BusChange {
+  kind: BusChangeKind
+  bus: Bus
+}
+
+export type BusChangeListener = (change: BusChange) => void
 
 export interface BusOptions {
   name: string
@@ -22,6 +33,8 @@ export class Bus {
   readonly gainNode: GainNode
   protected readonly ctx: BaseAudioContext
   protected destination: AudioNode
+  private levelValue: number
+  private readonly changes = new Emitter<BusChange>()
   protected readonly insertList: Device[] = []
   protected readonly tapSet = new Set<AudioNode>()
   protected disposed = false
@@ -32,6 +45,7 @@ export class Bus {
     this.destination = options.destination
     this.gainNode = ctx.createGain()
     if (options.gain !== undefined) this.gainNode.gain.value = options.gain
+    this.levelValue = Math.max(0, options.gain ?? 1)
     this.gainNode.connect(this.destination)
   }
 
@@ -67,11 +81,23 @@ export class Bus {
    */
   setLevel(value: number, options: { at?: number; timeConstant?: number } = {}): void {
     const at = options.at ?? this.ctx.currentTime
+    this.levelValue = Math.max(0, value)
     this.gainNode.gain.setTargetAtTime(
-      Math.max(0, value),
+      this.levelValue,
       at,
       options.timeConstant ?? LEVEL_RAMP_SECONDS,
     )
+    this.changes.emit({ kind: 'level', bus: this })
+  }
+
+  /** The fader's target (the last `setLevel`, or the initial gain); `MasterBus.level()` is the meter. */
+  get targetLevel(): number {
+    return this.levelValue
+  }
+
+  /** Level and insert-chain changes, for views. Returns the unsubscribe function. */
+  onChange(listener: BusChangeListener): () => void {
+    return this.changes.subscribe(listener)
   }
 
   /** Nodes fed a copy of the bus output (meters, analysers), in the order added. */
@@ -88,6 +114,7 @@ export class Bus {
     this.insertList.push(device)
     device.output.connect(this.destination)
     this.retap(device.output)
+    this.changes.emit({ kind: 'inserts', bus: this })
   }
 
   /** Remove a device from the chain and reconnect around it (does not dispose it). */
@@ -103,6 +130,7 @@ export class Bus {
     this.insertList.splice(index, 1)
     before.connect(after)
     if (wasTail) this.retap(before)
+    this.changes.emit({ kind: 'inserts', bus: this })
   }
 
   /**
@@ -146,6 +174,7 @@ export class Bus {
     }
     this.insertList.length = 0
     this.tapSet.clear()
+    this.changes.clear()
   }
 
   /** The node taps read from: the chain tail here; the master overrides it to sit after its limiter. */

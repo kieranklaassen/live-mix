@@ -42,6 +42,7 @@ export class LiveInputTrack implements StripHost {
   private readonly initialGain: number
   private sourceNode: AudioNode | null = null
   private gain: GainNode | null = null
+  private streamLatencySec = 0
   private attachListeners = new Set<(source: AudioNode) => void>()
   private disposed = false
 
@@ -68,6 +69,14 @@ export class LiveInputTrack implements StripHost {
   }
 
   /**
+   * Input latency the attached MediaStream reports through its first audio
+   * track's settings (`latency`, Chrome), else 0. Node inputs report 0.
+   */
+  get inputLatencySec(): number {
+    return this.streamLatencySec
+  }
+
+  /**
    * Wire a live source into the graph: source → dedicated gain → destination,
    * plus source → every send. Attaching again (reconnect) unwires the previous
    * source and gain first.
@@ -77,6 +86,7 @@ export class LiveInputTrack implements StripHost {
     const node = isMediaStream(input)
       ? (this.ctx as AudioContext).createMediaStreamSource(input)
       : input
+    this.streamLatencySec = isMediaStream(input) ? streamLatency(input) : 0
 
     if (this.sourceNode) {
       try {
@@ -137,6 +147,13 @@ export class LiveInputTrack implements StripHost {
     this.strip.forgetSource(this.gain)
     this.gain = null
   }
+}
+
+function streamLatency(stream: MediaStream): number {
+  const track = stream.getAudioTracks()[0] as
+    { getSettings?: () => { latency?: number } } | undefined
+  const latency = track?.getSettings?.().latency
+  return typeof latency === 'number' && Number.isFinite(latency) ? Math.max(0, latency) : 0
 }
 
 function isMediaStream(value: AudioNode | MediaStream): value is MediaStream {

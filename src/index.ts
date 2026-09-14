@@ -32,7 +32,14 @@ export {
   type OutputMode,
   type OutputRouterOptions,
 } from './core/output/OutputRouter'
-export { Bus, LEVEL_RAMP_SECONDS, type BusOptions } from './core/buses/Bus'
+export {
+  Bus,
+  LEVEL_RAMP_SECONDS,
+  type BusChange,
+  type BusChangeKind,
+  type BusChangeListener,
+  type BusOptions,
+} from './core/buses/Bus'
 export { MasterBus, type MasterBusOptions } from './core/buses/MasterBus'
 export { Meter, type MeterOptions } from './core/analysis/Meter'
 export {
@@ -48,7 +55,11 @@ export {
   type AddReturnTrackOptions,
   type AddWorkletDuckerOptions,
   type AlignLatencyOptions,
+  type EngineChange,
+  type EngineChangeListener,
+  type EngineObjectKind,
   type EngineOptions,
+  type IoLatency,
 } from './core/Engine'
 export { LiveInputTrack, type LiveInputTrackOptions } from './core/tracks/LiveInputTrack'
 export { InstrumentTrack, type InstrumentTrackOptions } from './core/tracks/InstrumentTrack'

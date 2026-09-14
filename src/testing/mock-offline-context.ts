@@ -37,7 +37,8 @@ export class MockOfflineAudioContext extends MockAudioContext {
     this.renderCount += 1
     this.currentTime = this.length / this.sampleRate
     return Promise.resolve(
-      this.render?.(this) ?? new MockAudioBuffer(this.numberOfChannels, this.length, this.sampleRate),
+      this.render?.(this) ??
+        new MockAudioBuffer(this.numberOfChannels, this.length, this.sampleRate),
     )
   }
 
@@ -64,7 +65,9 @@ export class MockOfflineAudioContext extends MockAudioContext {
       record('filter', index, 'Q', filter.Q.events)
       record('filter', index, 'gain', filter.gain.events)
     })
-    this.delays.forEach((delay, index) => record('delay', index, 'delayTime', delay.delayTime.events))
+    this.delays.forEach((delay, index) =>
+      record('delay', index, 'delayTime', delay.delayTime.events),
+    )
     return { sources, params }
   }
 }
@@ -77,5 +80,5 @@ export function createMockOfflineContext(
 
 /** The same snapshot from a live `MockAudioContext`, for offline-vs-live comparisons. */
 export function scheduleSnapshotOf(ctx: MockAudioContext): ScheduleSnapshot {
-  return MockOfflineAudioContext.prototype.scheduleSnapshot.call(ctx) as ScheduleSnapshot
+  return MockOfflineAudioContext.prototype.scheduleSnapshot.call(ctx)
 }

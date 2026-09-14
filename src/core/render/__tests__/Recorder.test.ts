@@ -5,6 +5,7 @@ import {
   asAudioContext,
   createMockContext,
   type MockAudioContext,
+  type MockAudioNode,
 } from '../../../testing'
 import { Bus } from '../../buses/Bus'
 import { decodeWav, encodeWav } from '../encode'
@@ -23,7 +24,8 @@ function setup() {
     name: 'music',
     destination: destination as unknown as AudioNode,
   })
-  return { ctx, bus }
+  const output = () => bus.output as unknown as MockAudioNode
+  return { ctx, bus, output }
 }
 
 async function workletRecorder(ctx: MockAudioContext, source: Bus | AudioNode) {
@@ -42,7 +44,7 @@ async function workletRecorder(ctx: MockAudioContext, source: Bus | AudioNode) {
 
 describe('WorkletRecorder', () => {
   it('loads the processor once, builds a sink node and taps the source', async () => {
-    const { ctx, bus } = setup()
+    const { ctx, bus, output } = setup()
     const { recorder, node } = await workletRecorder(ctx, bus)
     expect(ctx.audioWorklet.modules).toEqual(['blob:recorder'])
     expect(node.name).toBe(RECORDER_PROCESSOR_NAME)
@@ -52,7 +54,7 @@ describe('WorkletRecorder', () => {
       channelCount: 2,
       processorOptions: { channelCount: 2, chunkFrames: 256 },
     })
-    expect(bus.output.connectCalls.calledWith(node)).toBe(true)
+    expect(output().connectCalls.calledWith(node)).toBe(true)
     expect(recorder.state).toBe('idle')
     expect(recorder.input).toBe(node)
   })
@@ -87,7 +89,9 @@ describe('WorkletRecorder', () => {
     expect(recording.kind).toBe('planar')
     expect(recording.audio.sampleRate).toBe(48000)
     expect(recording.durationSec).toBeCloseTo(5 / 48000)
-    expect(Array.from(recording.audio.channels[0])).toEqual([0.1, 0.2, 0.3, 0.4, 0.5].map(Math.fround))
+    expect(Array.from(recording.audio.channels[0])).toEqual(
+      [0.1, 0.2, 0.3, 0.4, 0.5].map(Math.fround),
+    )
     expect(Array.from(recording.audio.channels[1])).toEqual(
       [-0.1, -0.2, -0.3, -0.4, -0.5].map(Math.fround),
     )
@@ -117,12 +121,12 @@ describe('WorkletRecorder', () => {
   })
 
   it('stop while idle resolves with what has been captured; dispose disconnects', async () => {
-    const { ctx, bus } = setup()
+    const { ctx, bus, output } = setup()
     const { recorder, node } = await workletRecorder(ctx, bus)
     const recording = await recorder.stop()
     expect(recording.audio.channels[0].length).toBe(0)
     recorder.dispose()
-    expect(bus.output.disconnectCalls.calls.some((call) => call[0] === node)).toBe(true)
+    expect(output().disconnectCalls.calledWith(node)).toBe(true)
     recorder.start()
     expect(recorder.state).toBe('idle')
   })
@@ -174,7 +178,7 @@ class FakeMediaRecorder implements MediaRecorderLike {
 
 describe('MediaStreamRecorder', () => {
   it('feeds a MediaStreamDestination into MediaRecorder and resolves a Blob on stop', async () => {
-    const { ctx, bus } = setup()
+    const { ctx, bus, output } = setup()
     FakeMediaRecorder.instances = []
     const recorder = new MediaStreamRecorder(asAudioContext(ctx), bus, {
       mode: 'media-recorder',
@@ -184,7 +188,7 @@ describe('MediaStreamRecorder', () => {
     })
     const destination = ctx.streamDestinations[0]
     expect(recorder.input).toBe(destination)
-    expect(bus.output.connectCalls.calledWith(destination)).toBe(true)
+    expect(output().connectCalls.calledWith(destination)).toBe(true)
     const fake = FakeMediaRecorder.instances[0]
     expect(fake.stream).toBe(destination.stream)
     expect(fake.init).toEqual({ mimeType: 'audio/ogg;codecs=opus', audioBitsPerSecond: 128000 })
