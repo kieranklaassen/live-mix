@@ -5,4 +5,9 @@
 
 export const LIVE_MIX_VERSION = '0.0.1'
 
+<<<<<<< HEAD
 export * from './core/clips'
+=======
+export { type Device } from './core/devices/Device'
+export { clampParam, type ParamSpec, type ParamTaper } from './core/params'
+>>>>>>> 6cd0082 (feat(U8): WasmDevice host, asset resolution, Device contract, bypass)

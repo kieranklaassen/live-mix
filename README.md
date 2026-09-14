@@ -67,7 +67,7 @@ voice.sends.add(hall, { level: 0.26 })
 music.inserts.add(engine.devices.ducker({ key: voice, depth: 0.68 }))
 
 // A WASM device as a master insert (ambient-live's Dattorro plate).
-const plate = await createDattorroReverb(engine.context, { mix: 0.35 })
+const plate = await createDattorroReverb(engine.context, { params: { mix: 0.35 } })
 engine.master.inserts.add(plate)
 
 // Clips are seconds-first records; the scheduler hands them to the graph
@@ -181,7 +181,30 @@ void   device_process(int frames);   // allocation-free
 Built with `emcc -O3 -fno-exceptions -fno-rtti --no-entry -s ALLOW_MEMORY_GROWTH=0`,
 no JS glue, one static instance per module. Parameter tables (id, name, range,
 taper, default) live in TypeScript next to each device
-(`src/dsp/devices/*.ts`).
+(`src/dsp/devices/*.ts`), and a `device.json` beside the C++ records the
+sources and their origin.
+
+On the main thread a device is `WasmDevice.create(ctx, definition, options)`:
+the module is compiled once per page, the worklet script is added once per
+context, and each device gets its own node and `WebAssembly.Instance`.
+Parameters travel over the `MessagePort` (`set-param`), bypass is an in-thread
+5 ms crossfade (`bypass`), and every factory accepts `{ processorUrl, wasm }`
+overrides for hosts that resolve assets themselves:
+
+```ts
+import { defineWasmDevice, WasmDevice } from '@kieranklaassen/live-mix/dsp'
+
+const MY_DEVICE = defineWasmDevice({
+  id: 'my-device',
+  wasm: () => new URL('./my-device.wasm', import.meta.url), // lazy, literal path
+  params: {
+    amount: { id: 0, name: 'Amount', min: 0, max: 1, default: 0.5, taper: 'linear', unit: '' },
+  },
+})
+const device = await WasmDevice.create(ctx, MY_DEVICE, { params: { amount: 0.8 } })
+device.setParam('amount', 0.2)
+device.bypass = true
+```
 
 ### Real-time rules
 
