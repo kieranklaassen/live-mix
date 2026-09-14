@@ -172,6 +172,7 @@ pnpm pack:check       # pack a tarball and verify every export resolves
 pnpm test:native      # C++ device harnesses with the system compiler
 pnpm build:wasm       # rebuild src/dsp/wasm/*.wasm (needs Emscripten 4.0.15)
 bash scripts/ci-local.sh   # the whole CI matrix locally; prints a Markdown summary for PR bodies
+pnpm build:faust      # regenerate cpp/faust/generated + src/dsp/devices/faust from *.dsp (builds Faust 2.88.0 into tmp/)
 ```
 
 `scripts/ci-local.sh` mirrors `.github/workflows/ci.yml` step for step (typecheck,
@@ -195,6 +196,7 @@ src/
   index.ts            core entry
   core/               Engine, tracks, buses, Transport, Scheduler, Clip, SampleStore, OutputRouter, Meter, native devices
   dsp/                WasmDevice host, C ABI typings, device factories + param tables
+  dsp/devices/faust/  generated param tables for the Faust devices (scripts/build-faust.sh)
   dsp/worklets/       wasm-device.processor.ts → dist/worklets/wasm-device.js (one file, no imports)
   dsp/wasm/           committed *.wasm artefacts (scripts/build-wasm.sh; CI verifies they reproduce)
   react/              Phase 1 hooks and components
@@ -204,8 +206,9 @@ cpp/
   devices/dattorro/   Dattorro plate (from ambient-live) behind the ABI
   devices/fdn-reverb/ Tides 8-line FDN reverb (from kkfonie) behind the ABI
   devices/stereo-widener/  kkfonie's StereoWidener (source unchanged, SHA in device.json) behind the ABI
+  faust/              Faust devices: *.dsp sources, generated/ C++, *.device.cpp ABI shims (docs/faust-devices.md)
   test/               native harnesses (parity tests for every ported device)
-scripts/              build.mjs, build-wasm.sh, test-native.sh, check-pack.mjs
+scripts/              build.mjs, build-wasm.sh, build-faust.sh, test-native.sh, check-pack.mjs
 ```
 
 ### The WASM device ABI
@@ -248,6 +251,10 @@ const device = await WasmDevice.create(ctx, MY_DEVICE, { params: { amount: 0.8 }
 device.setParam('amount', 0.2)
 device.bypass = true
 ```
+
+Devices written in [Faust](https://faust.grame.fr) (`cpp/faust/*.dsp`:
+Zita-Rev1, an 1176 limiter) compile to C++ at library build time and sit
+behind the same ABI; see [`docs/faust-devices.md`](./docs/faust-devices.md).
 
 ### Real-time rules
 
