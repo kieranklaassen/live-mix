@@ -1,9 +1,13 @@
-// `@kieranklaassen/live-mix/wam` — WebAudioModules 2.0 host adapter.
-//
-// Separate entry on purpose: it imports `@webaudiomodules/sdk` (an optional
-// peer), which nothing in `.` or `./dsp` may depend on. Import-safe under SSR
-// like the other entries — only the SDK's host bootstrap is imported, never
-// its `WamNode extends AudioWorkletNode`.
+/**
+ * `@kieranklaassen/live-mix/wam` — WebAudioModules 2.0 host adapter.
+ *
+ * Separate entry on purpose: it imports `@webaudiomodules/sdk` (an optional
+ * peer), which nothing in `.` or `./dsp` may depend on. Import-safe under SSR
+ * like the other entries — only the SDK's host bootstrap is imported, never
+ * its `WamNode extends AudioWorkletNode`.
+ *
+ * @module live-mix/wam
+ */
 
 export {
   ensureWamHost,

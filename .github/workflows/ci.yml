@@ -78,6 +78,49 @@ jobs:
           path: tmp/browser-tests
           if-no-files-found: ignore
 
+  docs:
+    name: API reference (TypeDoc) and playground smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # docs/api is generated, never committed (see docs/README.md): the
+      # reference for this commit is the workflow artefact below.
+      - name: Generate the API reference
+        run: pnpm docs:api
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: api-reference
+          path: docs/api
+          retention-days: 30
+
+      # The playground smoke spec (browser-tests/specs/playground.smoke.spec.ts)
+      # in the runner's Google Chrome (preinstalled on ubuntu-latest): loads the
+      # page, starts real audio from a click, plays, bounces offline, drives the
+      # agent console and the grid, and fails on any console error or page
+      # exception. The `browser` job runs the same spec under Playwright's
+      # Chromium as part of the whole suite.
+      - name: Playground smoke test
+        run: pnpm playground:smoke
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playground-screenshots
+          path: playground/screenshots
+          retention-days: 30
+
   git-fallback:
     name: 'Installs as a github: dependency with npm'
     runs-on: ubuntu-latest

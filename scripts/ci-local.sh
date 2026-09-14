@@ -9,7 +9,15 @@
 # diffed against the committed .wasm, and the github: install path (needs git
 # access to the repo: a token via GITHUB_TOKEN/GH_TOKEN, or an ssh key).
 #
-# Usage: bash scripts/ci-local.sh [--skip-git-install] [--browser]
+# Also generates the API reference (TypeDoc, never committed) and, when Google
+# Chrome or a Chromium is installed, runs the playground smoke spec in it
+# (Playwright, browser-tests/specs/playground.smoke.spec.ts): load, start audio
+# from a click, play, device chain, bounce offline, agent console, session
+# grid, no console errors. Skipped with a note otherwise, or with
+# --skip-playground; --browser runs the whole browser suite (golden included),
+# which covers the smoke.
+#
+# Usage: bash scripts/ci-local.sh [--skip-git-install] [--skip-playground] [--browser]
 #   --browser  also run the real-audio browser golden (Playwright + the
 #              installed Google Chrome, or Playwright's Chromium with
 #              LIVE_MIX_BROWSER=chromium); builds the playground for its smoke.
@@ -17,9 +25,11 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 
 skip_git_install=0
+skip_playground=0
 browser=0
 for arg in "$@"; do
   [ "$arg" = "--skip-git-install" ] && skip_git_install=1
+  [ "$arg" = "--skip-playground" ] && skip_playground=1
   [ "$arg" = "--browser" ] && browser=1
 done
 
@@ -131,6 +141,22 @@ browser_tests() {
   pnpm playground:build && pnpm test:browser
 }
 
+# Playwright's `chrome` channel needs Google Chrome installed; LIVE_MIX_BROWSER=chromium
+# uses Playwright's own Chromium (`pnpm exec playwright install chromium`).
+have_browser() {
+  if [ "${LIVE_MIX_BROWSER:-}" = "chromium" ]; then
+    return 0
+  fi
+  command -v google-chrome >/dev/null 2>&1 && return 0
+  command -v google-chrome-stable >/dev/null 2>&1 && return 0
+  [ -x "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" ] && return 0
+  return 1
+}
+
+playground_smoke() {
+  pnpm playground:smoke
+}
+
 echo "live-mix local CI on $branch @ $sha"
 run_step "pnpm install --frozen-lockfile" pnpm install --frozen-lockfile
 run_step "pnpm typecheck" pnpm typecheck
@@ -138,9 +164,18 @@ run_step "pnpm lint" pnpm lint
 run_step "pnpm test" pnpm test
 run_step "pnpm build" pnpm build
 run_step "pnpm pack:check" pnpm pack:check
+run_step "api reference (typedoc)" pnpm docs:api
 run_step "native C++ tests" native_tests
 run_step "faust reproduce (Faust 2.88.0)" faust_reproduce
 run_step "wasm reproduce (emsdk)" wasm_reproduce
+if [ "$skip_playground" = 1 ] || [ "$browser" = 1 ]; then
+  results+=("| playground smoke (Playwright, headless Chrome) | $([ "$browser" = 1 ] && echo 'covered by --browser' || echo skipped) | — |")
+elif have_browser; then
+  run_step "playground smoke (Playwright, headless Chrome)" playground_smoke
+else
+  results+=("| playground smoke (Playwright, headless Chrome) | skipped (no Google Chrome; set LIVE_MIX_BROWSER=chromium) | — |")
+  echo "- playground smoke: skipped (no Google Chrome found; install it or set LIVE_MIX_BROWSER=chromium after 'pnpm exec playwright install chromium')"
+fi
 if [ "$skip_git_install" = 1 ]; then
   results+=("| github: install path | skipped | — |")
 else

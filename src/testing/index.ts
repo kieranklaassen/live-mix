@@ -1,11 +1,15 @@
-// `@kieranklaassen/live-mix/testing` — a recording Web Audio mock.
-//
-// Lifted from Breathwork Live's musicEngine.test.ts harness and made
-// framework-free: every AudioParam automation call and every node
-// connect/start/stop is recorded so tests assert behaviour at the AudioParam
-// boundary (what the graph was told to do) rather than on internals. Works in
-// plain Node under any test runner; `configureMocks` optionally plugs in the
-// runner's spy factory and fake-timer advancer.
+/**
+ * `@kieranklaassen/live-mix/testing` — a recording Web Audio mock.
+ *
+ * Lifted from Breathwork Live's musicEngine.test.ts harness and made
+ * framework-free: every AudioParam automation call and every node
+ * connect/start/stop is recorded so tests assert behaviour at the AudioParam
+ * boundary (what the graph was told to do) rather than on internals. Works in
+ * plain Node under any test runner; `configureMocks` optionally plugs in the
+ * runner's spy factory and fake-timer advancer.
+ *
+ * @module live-mix/testing
+ */
 
 export {
   configureMocks,

@@ -9,3 +9,5 @@ tmp/
 .env.*
 playground/dist/
 browser-tests/.build/
+playground/screenshots/
+docs/api/
