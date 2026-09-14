@@ -605,6 +605,22 @@ ducker.setParam('depth', 0.5) // params: depth, attackMs, holdMs, releaseMs, gai
 (offline renders, tests); `createWorkletDucker(ctx, options)` builds a
 standalone device for `bus.addInsert`.
 
+### Automation writers: transport- and clock-anchored
+
+`LaneWriter` writes a `ParamLane` ahead of the transport playhead (loop-aware,
+rejoins with a short ramp after a seek, stall, edit or released fader, dedupes
+same-time events). `ClockLaneWriter` is the other anchoring: lane seconds are
+audio-clock seconds from `anchorSec`, and every lane event is written
+verbatim — no join ramps, no dedupe — so a producer that already schedules its
+own automation (Breathwork Live's breath guide) can publish it as a lane
+without one recorded event changing. `tick(nowSec, lookaheadSec)` is the
+guide's loop; `override(t)` / `release(now)` hold and resume with a plain set;
+`onEdit: 'append'` keeps scheduled events when the lane only grows.
+
+`OutputRouter.setMediaTitle(title, artist?)` rewrites the lock-screen metadata
+in element mode (a placeholder at intake, the theme at takeover); `metadata`
+reads it back.
+
 ### Warping, tempo and key matching
 
 Seconds stay primary; `TempoMap` (piecewise-constant BPM and meter) is a view
