@@ -112,7 +112,10 @@ describe('DeviceRegistry', () => {
     const registry = registerStockWasmDevices(new DeviceRegistry(NODE_DEVICES))
     expect(registry.list()).toHaveLength(NODE_DEVICES.length + STOCK_WASM_DEVICES.length)
     expect(registry.list({ kind: 'node' })).toEqual(NODE_DEVICES)
-    expect(registry.list({ kind: 'wasm' })).toEqual(STOCK_WASM_DEVICES)
+    expect(registry.list({ kind: 'wasm' })).toEqual(
+      STOCK_WASM_DEVICES.filter((d) => d.kind === 'wasm'),
+    )
+    expect(registry.list({ kind: 'worklet' }).map((d) => d.id)).toEqual(['ducker'])
     expect(registry.list({ category: 'reverb' }).map((d) => d.id)).toEqual([
       'convolver-reverb',
       'dattorro',
