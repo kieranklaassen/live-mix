@@ -131,15 +131,16 @@ an ancestor group is soloed, a descendant is soloed, or it is `soloSafe`
 
 Entry points (all ESM):
 
-| Import                                | Contents                                                                                                                   |
-| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `@kieranklaassen/live-mix`            | Engine, tracks, buses, `Transport`, `Scheduler`, `Clip`, `SampleStore`, `OutputRouter`, native devices, score              |
-| `@kieranklaassen/live-mix/dsp`        | `WasmDevice` host, the C ABI typings, device factories (`createDattorroReverb`, …) and their param tables                  |
-| `@kieranklaassen/live-mix/react`      | Headless hooks over the engine (`LiveMixProvider`, `useTransport`, `useTrack`, `useMeter`, …); `react` is an optional peer |
-| `@kieranklaassen/live-mix/testing`    | `MockAudioContext` with an AudioParam event recorder, framework-free                                                       |
-| `@kieranklaassen/live-mix/wam`        | `WamDevice`: WebAudioModules 2.0 plugins as devices (`@webaudiomodules/sdk` + `api` are optional peers)                    |
-| `@kieranklaassen/live-mix/worklets/*` | Raw worklet bundles, for consumers that prefer explicit `?url` imports                                                     |
-| `@kieranklaassen/live-mix/wasm/*`     | Raw `.wasm` artefacts, same reason                                                                                         |
+| Import                                      | Contents                                                                                                                                                                                                                |
+| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@kieranklaassen/live-mix`                  | Engine, tracks, buses, `Transport`, `Scheduler`, `Clip`, `SampleStore`, `OutputRouter`, native devices, score                                                                                                           |
+| `@kieranklaassen/live-mix/dsp`              | `WasmDevice` host, the C ABI typings, device factories (`createDattorroReverb`, …) and their param tables                                                                                                               |
+| `@kieranklaassen/live-mix/react`            | Headless hooks over the engine (`LiveMixProvider`, `useTransport`, `useTrack`, `useMeter`, …) and the styled kit (`Knob`, `Fader`, `Meter`, `MixerView`, `DevicePanel`, `TimelineView`, …); `react` is an optional peer |
+| `@kieranklaassen/live-mix/react/styles.css` | The kit's default theme (JAXA-Zen, `data-lm-theme="dark"`) and component rules; optional — set the `--lm-*` tokens yourself instead                                                                                     |
+| `@kieranklaassen/live-mix/testing`          | `MockAudioContext` with an AudioParam event recorder, framework-free                                                                                                                                                    |
+| `@kieranklaassen/live-mix/wam`              | `WamDevice`: WebAudioModules 2.0 plugins as devices (`@webaudiomodules/sdk` + `api` are optional peers)                                                                                                                 |
+| `@kieranklaassen/live-mix/worklets/*`       | Raw worklet bundles, for consumers that prefer explicit `?url` imports                                                                                                                                                  |
+| `@kieranklaassen/live-mix/wasm/*`           | Raw `.wasm` artefacts, same reason                                                                                                                                                                                      |
 
 ### Memory: sample eviction and streaming beds
 
@@ -340,10 +341,13 @@ src/
   dsp/devices/faust/  generated param tables for the Faust devices (scripts/build-faust.sh)
   dsp/worklets/       wasm-device, ducker, meter, recorder processors → dist/worklets/*.js (one file each, no imports)
   dsp/wasm/           committed *.wasm artefacts (scripts/build-wasm.sh; CI verifies they reproduce)
-  react/              headless hooks (U24): hooks/*, frame sampling, useSyncExternalStore store; components follow in U25
+  react/              headless hooks (U24): hooks/*, frame sampling, useSyncExternalStore store
+  react/components/   the styled kit (U25): control maths, useParamControl, Knob, Fader, Meter, TransportBar, strips, mixer, device panel/chain, timeline, tokens
+  react/styles.css    default theme (--lm-* tokens) + component rules → dist/react/styles.css
   score/              Score schema, operations + inverses, OperationLog, History, ScoreDocument, ScoreRenderer
   testing/            MockAudioContext + AudioParam recorder
   wam/                WebAudioModules 2.0 host adapter → its own entry (docs/wam.md)
+playground/           Vite page mounting the kit on a demo engine (not published): pnpm playground
 cpp/
   common/             device_api.h (the C ABI), dsp_util.h
   devices/dattorro/   Dattorro plate (from ambient-live) behind the ABI
@@ -820,6 +824,62 @@ generalised; `ambientLiveMidiMapMigration` converts its stored format-1
 tables. `./react` adds `useControlSurface(surface)` and
 `useLearn(surface, target)`. Details and the migration path:
 [docs/control-surface.md](./docs/control-surface.md).
+
+### React UI kit (`./react`, U25)
+
+Styled components over the hooks, from the same entry. Every colour, size and
+font they use is a `--lm-*` CSS variable; import the stylesheet for the
+defaults (JAXA-Zen: Paper White `#FDFDFB`, Ceramic Grey `#F4F4F0`, Obsidian
+`#1A1A1A`, Vermillion `#E63946`; `data-lm-theme="dark"` for the same palette
+on Obsidian) or set the tokens yourself — `themeStyle(jaxaZenDark)` returns
+the inline style, `ambientWater` is ambient-live's water/moss palette, and
+`LM_TOKENS` lists every variable.
+
+```tsx
+import '@kieranklaassen/live-mix/react/styles.css'
+import {
+  DeviceChainView,
+  LiveMixProvider,
+  MixerView,
+  TimelineView,
+  TransportBar,
+} from '@kieranklaassen/live-mix/react'
+
+function Studio({ engine }: { engine: Engine }) {
+  return (
+    <LiveMixProvider engine={engine}>
+      <TransportBar />
+      <MixerView returns={[hall]} onSelectStrip={(host) => select(host)} />
+      <DeviceChainView strip={engine.track('pad')} />
+      <TimelineView pixelsPerSecond={48} />
+    </LiveMixProvider>
+  )
+}
+```
+
+| Component                                   | What it draws                                                                                                                                                                                                                                                          |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Knob`, `Fader`                             | `role="slider"` controls, controlled (`value`) or uncontrolled (`defaultValue`): pointer drag (Shift = fine), wheel, arrows / PageUp / Home / End, double-click reset; `linear`, `log`, `skewed` and `fader` tapers; `onChangeStart` / `onChangeEnd` bracket a gesture |
+| `Meter`                                     | Peak / RMS / LUFS / true-peak bars on the dB scale (`gainToDb` of the analyser reading) with a peak-hold marker; a `MeterSource` through `useMeter`, or an explicit `reading`                                                                                          |
+| `TransportBar`                              | Play / pause, stop, position (`m:ss.t`), loop toggle with length, loop pass                                                                                                                                                                                            |
+| `ChannelStripView` (`MixerStrip`)           | Inserts, sends (name, level, thin fader), pan, a dB fader (`−60 … +6`, unity tick, `−∞` at the bottom) that converts through `dbToGain` / `gainToDb`, mute / solo, a meter tapped off the strip output (`meter` prop)                                                  |
+| `MixerView`, `MasterStripView`              | Sections for tracks (+ `inputs`), groups, `returns`, and the master (bus fader + engine meter); lists default to the provided engine's `tracks` / `groups`                                                                                                             |
+| `DevicePanel` (`DeviceView`), `DeviceFrame` | One taper-aware knob per `ParamSpec` (steps derived from unit and range; `choiceLabels` for enumerations), bypass on the power switch, a preset picker from the registry descriptor; the frame alone for custom bodies                                                 |
+| `DeviceChainView`                           | A strip's inserts as panels with move earlier / later, drag-and-drop reorder (`reorderInserts`), remove (+ dispose) and an add picker over the registry                                                                                                                |
+| `TimelineView`, `Waveform`                  | Lanes per clip source with clips placed in seconds, `sounding` / `upcoming` from `useSchedule`, loop region, a frame-sampled playhead, waveforms from decoded peaks; click or arrow the ruler to seek                                                                  |
+| `DeviceToggle`, `ToggleButton`              | The squared power switch and the pressed / unpressed button (mute, solo, loop tones)                                                                                                                                                                                   |
+
+`useParamControl` is the shared interaction hook for custom controls, and the
+pure maths (`normalizeValue`, `quantize`, `faderDbToLevel`, `dbToMeterPosition`,
+`formatControlValue`, `paramStep`, …) is exported for hosts that draw their
+own. Every value shown derives from the DSP's own formula (R33): fader dB is
+`gainToDb` of the strip level, meter positions are `gainToDb` of the analyser
+peak, knob positions are `useDeviceParam`'s taper. Component tests run in
+jsdom (pointer, wheel and keyboard through `@testing-library/react`), and every
+component renders under `react-dom/server` from the same snapshots.
+`playground/` mounts the kit on a demo engine over the recording mocks:
+`pnpm playground`, then <http://localhost:5199/> (`?play=1` starts the
+transport, `?theme=jaxa-zen-dark`).
 
 ### Real-time rules
 
