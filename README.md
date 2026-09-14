@@ -446,7 +446,7 @@ pre-registered; the WASM devices join with one call from `./dsp`:
 import { devices } from '@kieranklaassen/live-mix'
 import { registerStockWasmDevices, wasmDeviceDescriptor } from '@kieranklaassen/live-mix/dsp'
 
-registerStockWasmDevices() // dattorro, fdn-reverb, stereo-widener, zita-rev1, limiter-1176, spectral-drifter
+registerStockWasmDevices() // dattorro, fdn-reverb, stereo-widener, zita-rev1, limiter-1176, ducker, spectral-drifter
 devices.register(wasmDeviceDescriptor(MY_DEVICE, { name: 'Mine', category: 'reverb' }))
 
 devices.list({ category: 'reverb' }).map((d) => d.name)
