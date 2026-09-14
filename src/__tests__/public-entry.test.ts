@@ -106,13 +106,10 @@ const dspSymbols = [
   'WorkletDucker',
   'createTruePeakLimiter',
   'TRUE_PEAK_LIMITER_PARAMS',
-<<<<<<< HEAD
   'truePeakLimiterLatencySamples',
-=======
   'createSpectralDrifter',
   'SPECTRAL_DRIFTER_PARAMS',
   'SPECTRAL_DRIFTER_DESCRIPTOR',
->>>>>>> ec58b6e (feat(dsp): U37 SpectralDrifter device)
 ] as const
 
 const testingSymbols = [
