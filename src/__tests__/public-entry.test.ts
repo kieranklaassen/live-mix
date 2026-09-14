@@ -53,6 +53,10 @@ const coreSymbols = [
   'devices',
   'DeviceRegistry',
   'clampParam',
+  'ChannelStrip',
+  'SoloInPlace',
+  'GroupTrack',
+  'resolveInput',
 ] as const
 
 const dspSymbols = [

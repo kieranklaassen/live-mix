@@ -8,23 +8,37 @@
 // The Chrome muted-`<audio>` workaround for remote WebRTC tracks stays in the
 // app (Breathwork Live's realtimeClient.ts): the stream still has to be
 // attached to a media element for its audio to flow into the graph.
+//
+// The dry gain leaves through the track's ChannelStrip (node-free until pan,
+// level, mute, solo, an insert or a post-fader send is first used). `sends`
+// stays the Phase 0 pre-fader list from the raw source; `strip.sends` are the
+// post-fader ones.
 
-import { type Bus } from '../buses/Bus'
+import {
+  ChannelStrip,
+  type SoloInPlace,
+  type StripDestination,
+  type StripHost,
+} from './ChannelStrip'
 import { SendList } from './Send'
 
 export interface LiveInputTrackOptions {
   name: string
-  /** Where the dry signal goes: a bus (its input) or a raw node (the terminus). */
-  destination: Bus | AudioNode
+  /** Where the dry signal goes: a bus (its input), a group, or a raw node (the terminus). */
+  destination: StripDestination
   /** Initial fader value for each attached gain. Default 1. */
   gain?: number
+  /** The engine's solo registry, so this track's strip takes part in solo-in-place. */
+  solo?: SoloInPlace
 }
 
-export class LiveInputTrack {
+export class LiveInputTrack implements StripHost {
   readonly name: string
+  /** Pre-fader sends from the raw source (Phase 0 semantics). */
   readonly sends: SendList
+  /** Pan, fader, mute/solo, inserts and post-fader sends; node-free until first used. */
+  readonly strip: ChannelStrip
   private readonly ctx: BaseAudioContext
-  private readonly destination: AudioNode
   private readonly initialGain: number
   private sourceNode: AudioNode | null = null
   private gain: GainNode | null = null
@@ -34,7 +48,11 @@ export class LiveInputTrack {
   constructor(ctx: BaseAudioContext, options: LiveInputTrackOptions) {
     this.ctx = ctx
     this.name = options.name
-    this.destination = isBus(options.destination) ? options.destination.input : options.destination
+    this.strip = new ChannelStrip(ctx, {
+      name: options.name,
+      destination: options.destination,
+      solo: options.solo,
+    })
     this.initialGain = options.gain ?? 1
     this.sends = new SendList(ctx, () => this.sourceNode)
   }
@@ -68,14 +86,13 @@ export class LiveInputTrack {
       }
       this.sourceNode = null
     }
-    this.gain?.disconnect()
-    this.gain = null
+    this.releaseGain()
 
     for (const listener of this.attachListeners) listener(node)
 
     this.gain = this.ctx.createGain()
     if (this.initialGain !== 1) this.gain.gain.value = this.initialGain
-    this.gain.connect(this.destination)
+    this.strip.connectSource(this.gain)
     node.connect(this.gain)
     this.sends.connectAll(node)
     this.sourceNode = node
@@ -101,9 +118,8 @@ export class LiveInputTrack {
         // ignore
       }
     }
-    this.gain?.disconnect()
+    this.releaseGain()
     this.sourceNode = null
-    this.gain = null
   }
 
   dispose(): void {
@@ -111,12 +127,16 @@ export class LiveInputTrack {
     this.disposed = true
     this.detach()
     this.sends.dispose()
+    this.strip.dispose()
     this.attachListeners.clear()
   }
-}
 
-function isBus(value: Bus | AudioNode): value is Bus {
-  return typeof (value as Bus).addInsert === 'function'
+  private releaseGain(): void {
+    if (!this.gain) return
+    this.gain.disconnect()
+    this.strip.forgetSource(this.gain)
+    this.gain = null
+  }
 }
 
 function isMediaStream(value: AudioNode | MediaStream): value is MediaStream {

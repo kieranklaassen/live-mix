@@ -25,6 +25,7 @@ export {
   type AddAudioTrackOptions,
   type AddBusOptions,
   type AddDuckerOptions,
+  type AddGroupOptions,
   type AddInstrumentTrackOptions,
   type AddLiveInputTrackOptions,
   type AddReturnTrackOptions,
@@ -34,6 +35,17 @@ export { LiveInputTrack, type LiveInputTrackOptions } from './core/tracks/LiveIn
 export { InstrumentTrack, type InstrumentTrackOptions } from './core/tracks/InstrumentTrack'
 export { ReturnTrack, type ReturnTrackOptions } from './core/tracks/ReturnTrack'
 export { SendList, type Send, type SendOptions, type SendTarget } from './core/tracks/Send'
+export {
+  ChannelStrip,
+  SoloInPlace,
+  resolveInput,
+  type ChannelStripOptions,
+  type RampOptions,
+  type RoutableInput,
+  type StripDestination,
+  type StripHost,
+} from './core/tracks/ChannelStrip'
+export { GroupTrack, type GroupTrackOptions } from './core/tracks/GroupTrack'
 export {
   DUCK_DEPTH,
   DUCK_KEY_FFT_SIZE,

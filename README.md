@@ -90,6 +90,39 @@ engine.transport.onStateChange((state) => console.log(state))
 engine.transport.stop({ fadeSec: 0.75 })
 ```
 
+### Channel strips and groups
+
+Every track kind (`AudioTrack`, `LiveInputTrack`, `InstrumentTrack`, `ReturnTrack`, `GroupTrack`)
+has a `strip`: input gain → inserts → pan → fader → mute/solo gate →
+destination, plus post-fader `sends`. All changes are `setTargetAtTime`
+approaches (5 ms constant by default), never steps.
+
+```ts
+const kick = engine.addAudioTrack('kick')
+const snare = engine.addAudioTrack('snare')
+const drums = engine.addGroup('drums', { members: [kick, snare] }) // summing strip → master
+
+kick.strip.setPan(-0.3)
+drums.strip.setLevel(0.8)
+snare.strip.mute = true
+kick.strip.solo = true // solo-in-place: pad/voice ramp to silence, drums and returns stay open
+engine.solo.clear()
+drums.strip.addInsert(plate)
+drums.strip.sends.add(hall, { level: 0.2 })
+```
+
+A track's strip creates **no nodes until first used** (pan, level, mute, solo,
+an insert or a send), so Phase 0 node order is unchanged: voices and dry gains
+connect straight to the destination and are re-pointed into the strip on
+first use, at unity, on one render quantum. Groups are explicit and build
+their four nodes on creation; `group.input` is the summing node.
+
+Solo-in-place: a soloed strip is heard through its normal routing at the main
+output; every other strip is muted by a ramp on its gate unless it is soloed,
+an ancestor group is soloed, a descendant is soloed, or it is `soloSafe`
+(returns default to `soloSafe: true`). An explicit `mute` always wins. Plain
+`Bus`es are summing nodes outside the solo tree.
+
 Entry points (all ESM):
 
 | Import                                | Contents                                                                                                  |
