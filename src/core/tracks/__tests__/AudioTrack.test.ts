@@ -225,6 +225,25 @@ describe('AudioTrack linear voices (ambient-live ClipPlayer parity)', () => {
     expect(region.loopStart).toBe(1)
     expect(region.loopEnd).toBe(3)
     expect(region.startCalls.calls).toEqual([[1, 2.5]])
+
+    // A late join wraps into the region instead of running past its end onto the source tail.
+    ctx.currentTime = 4.5
+    track.play(
+      'late',
+      {
+        buffer: buffer(ctx, 4),
+        offsetSec: 1,
+        durationSec: 10,
+        fadeInSec: 0,
+        fadeOutSec: 0,
+        fadeCurve: 'linear',
+        loop: true,
+        loopStartSec: 1,
+        loopEndSec: 3,
+      },
+      2, // 2.5 s late: 1 + 2.5 = 3.5 → 1.5 inside [1, 3)
+    )
+    expect(ctx.sources[2].startCalls.calls).toEqual([[4.5, 1.5]])
   })
 })
 

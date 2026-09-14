@@ -261,7 +261,10 @@ describe('engine stretch tracks (U31 follow-up)', () => {
     engine.addAudioTrack('plain')
     expect(() => engine.addStretchTrack('plain', { createStretch })).toThrow(/already exists/)
     expect(engine.latencyReport().paths.map((path) => path.key)).toContain('track/warped')
+    // Retained like audio tracks: a hold exists before the first node asks for its sample.
+    expect(engine.retainerFor(warped)).toBeDefined()
     engine.removeStretchTrack('warped')
+    expect(engine.retainerFor(warped)).toBeUndefined()
     expect(engine.stretchTracks).toEqual([])
     expect(() => engine.stretchTrack('warped')).toThrow(/no stretch track/)
     expect(seen).toEqual([

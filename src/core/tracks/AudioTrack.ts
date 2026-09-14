@@ -389,7 +389,11 @@ export class AudioTrack implements StripHost {
       source.loop = true
       source.loopStart = playback.loopStartSec ?? playback.offsetSec
       source.loopEnd = playback.loopEndSec ?? playback.buffer.duration
-      source.start(start, playback.offsetSec + late)
+      // A late join lands inside the region, not past its end on the source tail.
+      source.start(
+        start,
+        wrapIntoRegion(playback.offsetSec + late, source.loopStart, source.loopEnd),
+      )
       this.stopSource(voice, end)
     } else {
       source.start(start, playback.offsetSec + late, playback.durationSec - late)
@@ -480,6 +484,12 @@ export class AudioTrack implements StripHost {
     voice.trim?.disconnect()
     this.strip.forgetSource(voice.trim ?? voice.gain)
   }
+}
+
+/** Fold a source position into a loop region once it runs past the region's end. */
+function wrapIntoRegion(sourceSec: number, startSec: number, endSec: number): number {
+  if (endSec <= startSec || sourceSec < endSec) return sourceSec
+  return startSec + ((sourceSec - startSec) % (endSec - startSec))
 }
 
 /** A Schedulable whose lookahead and clips are read live from the track. */

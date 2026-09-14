@@ -272,16 +272,23 @@ export class StretchTrack implements StripHost {
     return true
   }
 
-  /** Build the stretch source for a start ahead of time (once per start). */
+  /**
+   * Build the stretch source for a start ahead of time (once per start).
+   * Returns true only once the node is ready, so the preload schedulable keeps
+   * offering the start while the sample decodes or the node is being built —
+   * a `true` here would mark the start done and leave construction to the
+   * (much shorter) playback lookahead.
+   */
   private prepareStart(start: ScheduledStart): boolean {
     const clip = this.clips.get(start.clipId)
     if (!clip) return true
     const key = scheduleKey(start)
-    if (this.prepared.has(key) || this.preparing.has(key)) return true
+    if (this.prepared.has(key)) return true
+    if (this.preparing.has(key)) return false
     const sample = this.samples.get(clip.sourceId)
     if (!sample) {
       this.requestLoad(clip)
-      return true
+      return false
     }
     const building = StretchSource.create(this.ctx, {
       id: `${clip.sourceId}@${key}`,
@@ -303,7 +310,7 @@ export class StretchTrack implements StripHost {
         this.preparing.delete(key)
       })
     this.preparing.set(key, building)
-    return true
+    return false
   }
 
   private requestLoad(clip: Clip): void {
@@ -339,14 +346,14 @@ export class StretchTrack implements StripHost {
         }
       : undefined
     if (clip.warp && clip.warp.length > 0) {
+      // The clip enters the source at `offsetSec` (a legato launch carries a
+      // position in); place that on the warp's own timeline, add the lateness,
+      // and wrap the resulting source position into the loop region.
       const segments = warpSegments(clip.warp, this.tempo(), { clipStartSec: clip.startSec })
-      source.play({
-        when: start,
-        warp: segmentsFrom(segments, late),
-        semitones: clip.semitones,
-        durationSec,
-        loop,
-      })
+      const entryClipSec = warpClipSecAt(segments, clip.offsetSec) + late
+      const warp = segmentsFrom(segments, entryClipSec)
+      warp[0] = { ...warp[0], sourceSec: wrapIntoLoop(warp[0].sourceSec, loop) }
+      source.play({ when: start, warp, semitones: clip.semitones, durationSec, loop })
     } else {
       source.play({
         when: start,
@@ -463,10 +470,35 @@ export function entryOffset(
   lateSec: number,
   loop: { startSec: number; endSec: number } | undefined,
 ): number {
-  const raw = offsetSec + lateSec
-  if (!loop || loop.endSec <= loop.startSec || raw < loop.endSec) return raw
+  return wrapIntoLoop(offsetSec + lateSec, loop)
+}
+
+/** A source position folded into `[startSec, endSec)` once it runs past the region's end. */
+export function wrapIntoLoop(
+  sourceSec: number,
+  loop: { startSec: number; endSec: number } | undefined,
+): number {
+  if (!loop || loop.endSec <= loop.startSec || sourceSec < loop.endSec) return sourceSec
   const length = loop.endSec - loop.startSec
-  return loop.startSec + ((raw - loop.startSec) % length)
+  return loop.startSec + ((sourceSec - loop.startSec) % length)
+}
+
+/**
+ * The clip-relative timeline second at which the warp reads `sourceSec` — the
+ * inverse of `warpSourceSecAt`. Before the first segment's source position the
+ * answer is 0 (the clip cannot start earlier than its first marker).
+ */
+export function warpClipSecAt(segments: readonly WarpSegment[], sourceSec: number): number {
+  if (segments.length === 0) return sourceSec
+  let current = segments[0]
+  for (const segment of segments) {
+    if (segment.sourceSec <= sourceSec) current = segment
+    else break
+  }
+  if (sourceSec <= segments[0].sourceSec) return 0
+  return current.rate > 0
+    ? current.atSec + (sourceSec - current.sourceSec) / current.rate
+    : current.atSec
 }
 
 export type { ClipWindow }

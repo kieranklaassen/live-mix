@@ -41,13 +41,14 @@ export interface ControlBinding {
 }
 
 /**
- * Find a track of any kind by name — audio tracks, then live inputs,
- * instruments, returns, groups. Names are unique per kind, so the first kind
- * that has the name wins (the same order `useTrack` resolves).
+ * Find a track of any kind by name — audio tracks, stretch tracks, then live
+ * inputs, instruments, returns, groups. Names are unique per kind, so the
+ * first kind that has the name wins (the same order `useTrack` resolves).
  */
 export function resolveStripHost(engine: Engine, name: string): StripHost | undefined {
   const lookups: ((engine: Engine, name: string) => StripHost)[] = [
     (e, n) => e.track(n),
+    (e, n) => e.stretchTrack(n),
     (e, n) => e.liveInput(n),
     (e, n) => e.instrument(n),
     (e, n) => e.returnTrack(n),

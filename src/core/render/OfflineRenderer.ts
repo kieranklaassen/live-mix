@@ -197,7 +197,11 @@ export async function renderStems(options: StemsOptions): Promise<Record<string,
       build: async (engine, info) => {
         await options.build(engine, { ...info, stem })
         if (stem !== 'master') {
-          engine.track(stem).strip.setSolo(true, { at: 0 })
+          const track =
+            engine.tracks.find((t) => t.name === stem) ??
+            engine.stretchTracks.find((t) => t.name === stem)
+          if (!track) throw new Error(`live-mix: renderStems: no track "${stem}"`)
+          track.strip.setSolo(true, { at: 0 })
         }
       },
     })

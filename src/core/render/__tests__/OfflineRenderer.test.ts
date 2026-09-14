@@ -254,6 +254,29 @@ describe('plugin delay compensation in renders (U34)', () => {
   })
 })
 
+describe('renderStems with a stretch track', () => {
+  it('solos a stretch-track stem instead of throwing', async () => {
+    const stems = await renderStems({
+      durationSec: 1,
+      createContext: factory,
+      stems: ['warped'],
+      includeMaster: false,
+      build: async (engine) => {
+        await arrangement(engine)
+        engine.addStretchTrack('warped', {
+          createStretch: () => Promise.reject(new Error('unused')),
+        })
+      },
+    })
+    const engine = stems.warped.engine
+    expect(engine.stretchTrack('warped').strip.audible).toBe(true)
+    expect(engine.track('music').strip.audible).toBe(false)
+    await expect(
+      renderStems({ durationSec: 1, createContext: factory, stems: ['nope'], build: arrangement }),
+    ).rejects.toThrow(/no track "nope"/)
+  })
+})
+
 describe('maxAbsDifference', () => {
   it('measures the largest sample deviation and flags shape mismatches', () => {
     const a = { channels: [Float32Array.from([0, 0.5, 1])], sampleRate: 48000 }

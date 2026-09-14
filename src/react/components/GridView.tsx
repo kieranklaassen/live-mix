@@ -216,6 +216,8 @@ function SlotCell({ session, slot, testId }: SlotCellProps) {
         onPointerDown={(event) => {
           if (event.button !== 0) return
           event.preventDefault()
+          // A gate must see its release even when the finger slides off the pad.
+          if (gate) capturePointer(event.currentTarget, event.pointerId)
           view.launch()
         }}
         onPointerUp={() => {
@@ -224,11 +226,14 @@ function SlotCell({ session, slot, testId }: SlotCellProps) {
         onPointerCancel={() => {
           if (gate) view.release()
         }}
+        onLostPointerCapture={() => {
+          if (gate) view.release()
+        }}
         onKeyDown={(event) => {
-          if (event.key === ' ' || event.key === 'Enter') {
-            event.preventDefault()
-            view.launch()
-          }
+          if (event.key !== ' ' && event.key !== 'Enter') return
+          event.preventDefault()
+          if (event.repeat) return // holding the key is one press, not a retrigger
+          view.launch()
         }}
         onKeyUp={(event) => {
           if (gate && (event.key === ' ' || event.key === 'Enter')) view.release()
@@ -241,6 +246,14 @@ function SlotCell({ session, slot, testId }: SlotCellProps) {
       </button>
     </div>
   )
+}
+
+function capturePointer(element: HTMLElement, pointerId: number): void {
+  try {
+    element.setPointerCapture(pointerId)
+  } catch {
+    // Not a pointer-capturing environment (jsdom, old WebKit): release still fires on the element.
+  }
 }
 
 function slotIcon(isStop: boolean, state: SlotState, stopping: boolean): string {

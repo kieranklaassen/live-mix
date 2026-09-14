@@ -233,7 +233,7 @@ export class Engine {
   private readonly busMap = new Map<string, Bus>()
   private readonly trackMap = new Map<string, AudioTrack>()
   private readonly stretchTrackMap = new Map<string, StretchTrack>()
-  private readonly retainers = new Map<AudioTrack, SampleRetainer>()
+  private readonly retainers = new Map<AudioTrack | StretchTrack, SampleRetainer>()
   private readonly elementTrackMap = new Map<string, ElementTrack>()
   private readonly retainSamples: boolean
   private readonly liveInputMap = new Map<string, LiveInputTrack>()
@@ -344,7 +344,7 @@ export class Engine {
   }
 
   /** The retainer keeping a track's samples decoded, when sample retention is on. */
-  retainerFor(track: AudioTrack): SampleRetainer | undefined {
+  retainerFor(track: AudioTrack | StretchTrack): SampleRetainer | undefined {
     return this.retainers.get(track)
   }
 
@@ -416,6 +416,19 @@ export class Engine {
       setTimeoutFn: this.clock.setTimeoutFn,
       clearTimeoutFn: this.clock.clearTimeoutFn,
     })
+    // As for audio tracks: the retainer registers ahead of the track so a
+    // hold exists before the first stretch node asks for its sample.
+    if (this.retainSamples) {
+      this.retainers.set(
+        track,
+        new SampleRetainer({
+          samples: this.samples,
+          track,
+          now: this.clock.now,
+          scheduler: this.scheduler,
+        }),
+      )
+    }
     track.attach(this.scheduler)
     this.stretchTrackMap.set(name, track)
     this.changed('stretch-track', 'added', name)
@@ -435,6 +448,8 @@ export class Engine {
   removeStretchTrack(name: string): void {
     const track = this.stretchTrackMap.get(name)
     if (!track) return
+    this.retainers.get(track)?.dispose()
+    this.retainers.delete(track)
     track.dispose()
     this.stretchTrackMap.delete(name)
     this.changed('stretch-track', 'removed', name)

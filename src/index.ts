@@ -230,6 +230,8 @@ export {
   StretchTrack,
   entryOffset,
   segmentsFrom,
+  warpClipSecAt,
+  wrapIntoLoop,
   type StretchTrackOptions,
   type StretchVoice,
 } from './core/tracks/StretchTrack'
