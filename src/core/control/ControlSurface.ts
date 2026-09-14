@@ -304,7 +304,7 @@ export class ControlSurface {
     }
     // A mapped source is consumed even when this particular event produced no
     // change (a release, a blocked pickup), so a mapped pad never plays the synth.
-    const consumed = changes.length > 0 || isMapped(this.currentTable, event)
+    const consumed = isMapped(this.currentTable, event)
     this.changes.emit({ type: 'event', event, consumed })
     return { consumed, learned: null, applied }
   }
