@@ -29,7 +29,7 @@ describe('createEngine', () => {
     expect(ctx.gains[0].isConnectedTo(ctx.streamDestinations[0])).toBe(true)
     expect(ctx.gains[0].isConnectedTo(ctx.destination)).toBe(false)
     expect(element.srcObject).toBe(ctx.streamDestinations[0].stream)
-    engine.activateOutput()
+    void engine.activateOutput()
     expect(element.play).toHaveBeenCalledTimes(1)
   })
 

@@ -61,3 +61,8 @@ export {
   holdParamAt,
   type ScheduledParam,
 } from './scheduled-param'
+export {
+  Automation,
+  DEFAULT_AUTOMATION_LOOKAHEAD_SECONDS,
+  type AutomationOptions,
+} from './Automation'
