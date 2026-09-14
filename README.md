@@ -20,10 +20,11 @@ ambient instrument painting samples onto a looping timeline). Both apps had
 grown their own half of a mixer; this is the one they share, and their old
 engines are deleted.
 
-> **Status:** `0.x`, pre-release, **private repository**, published to GitHub
-> Packages. The API changes in minor versions; both consumer apps pin exact
-> versions. No support promise — a solo-maintainer library that contains
-> exactly what its consumers use.
+> **Status:** `0.x`, pre-release, **public repository** (public again as of
+> 2026-09-14: `github:kieranklaassen/live-mix#<sha>` installs need no token;
+> registry publishing to GitHub Packages pending). The API changes in minor
+> versions; both consumer apps pin exact versions. No support promise — a
+> solo-maintainer library that contains exactly what its consumers use.
 
 ## Vision
 
@@ -191,8 +192,10 @@ at which point the WASM devices join ([react.md § playground](./docs/react.md#t
 ## Status
 
 The plan's 40 units. Library PRs are on this repo; app units link to their
-repos. GitHub Actions is billing-blocked on the private repos, so every PR
-carries its local CI table (`scripts/ci-local.sh`) and is squash-merged on it.
+repos. GitHub Actions was billing-blocked while the repo was private, so PRs up
+to [#48](https://github.com/kieranklaassen/live-mix/pull/48) carry their local
+CI table (`scripts/ci-local.sh`) and were squash-merged on it; since the repo
+went public (2026-09-14) the workflow runs on every PR and push to `main`.
 
 | Unit | What                                                                               | Status                                                                                                                                                                                                                                                                                                                                        |
 | ---- | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

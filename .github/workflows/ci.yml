@@ -134,17 +134,13 @@ jobs:
       # Both consumer apps install with npm. A github:#sha dependency clones the
       # repo, runs the nested devDependency install and the prepare script, so
       # this job is the only place that exercises that path before an app does.
-      # The repo is private: git authenticates with the workflow token, exactly
-      # the way a consumer's CI or Docker build has to (see README "Install").
+      # The repo is public (again, 2026-09-14): no token, so this is exactly the
+      # anonymous clone a consumer's CI or Docker build performs.
       - name: Install this commit into a scratch consumer
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
-          git config --global url."https://x-access-token:${GH_TOKEN}@github.com/".insteadOf "https://github.com/"
-          git config --global --add url."https://x-access-token:${GH_TOKEN}@github.com/".insteadOf "ssh://git@github.com/"
-          git config --global --add url."https://x-access-token:${GH_TOKEN}@github.com/".insteadOf "git@github.com:"
           consumer=$(mktemp -d)
           cd "$consumer"
           npm init -y >/dev/null
