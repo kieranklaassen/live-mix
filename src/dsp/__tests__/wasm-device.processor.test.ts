@@ -125,6 +125,15 @@ describe('WasmDeviceProcessor', () => {
     expect(Math.abs(back[0][0][511])).toBeLessThan(0.5)
   })
 
+  it('ignores note messages on an effect module (no device_note_on export)', () => {
+    const { processor, port } = construct([[DATTORRO_PARAMS.mix.id, 0]])
+    port.receive({ type: 'note-on', noteId: 1, frequency: 440, gain: 0.5 })
+    port.receive({ type: 'note-off', noteId: 1 })
+    const out = outputs()
+    processor.process(block(0.25), out)
+    expect(out[0][0][0]).toBeCloseTo(0.25, 6)
+  })
+
   it('throws on an unknown message', () => {
     const { port } = construct()
     expect(() => port.receive({ type: 'nope' } as unknown as DeviceMessage)).toThrow(

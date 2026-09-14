@@ -16,6 +16,7 @@ import { createClock, type Clock, type ClockOptions } from './clock'
 import { OutputRouter, type OutputRouterOptions } from './output/OutputRouter'
 import { Ducker, type DuckerOptions } from './devices/native/Ducker'
 import { AudioTrack, type AudioTrackOptions } from './tracks/AudioTrack'
+import { InstrumentTrack, type InstrumentTrackOptions } from './tracks/InstrumentTrack'
 import { LiveInputTrack, type LiveInputTrackOptions } from './tracks/LiveInputTrack'
 import { ReturnTrack, type ReturnTrackOptions } from './tracks/ReturnTrack'
 import { SampleStore, type SampleStoreOptions } from './tracks/SampleStore'
@@ -39,6 +40,11 @@ export interface EngineOptions extends ClockOptions {
 
 export type AddLiveInputTrackOptions = Omit<LiveInputTrackOptions, 'name' | 'destination'> & {
   /** Where the dry signal goes; defaults to the master. */
+  destination?: Bus | AudioNode
+}
+
+export type AddInstrumentTrackOptions = Omit<InstrumentTrackOptions, 'name' | 'destination'> & {
+  /** Where the instrument feeds; defaults to the master. */
   destination?: Bus | AudioNode
 }
 
@@ -75,6 +81,7 @@ export class Engine {
   private readonly trackMap = new Map<string, AudioTrack>()
   private readonly liveInputMap = new Map<string, LiveInputTrack>()
   private readonly returnMap = new Map<string, ReturnTrack>()
+  private readonly instrumentMap = new Map<string, InstrumentTrack>()
   private readonly duckers = new Set<Ducker>()
   private disposed = false
 
@@ -187,6 +194,26 @@ export class Engine {
     return track
   }
 
+  /** A track hosting one instrument device, feeding the master by default. */
+  addInstrumentTrack(name: string, options: AddInstrumentTrackOptions): InstrumentTrack {
+    this.assertLive()
+    if (this.instrumentMap.has(name))
+      throw new Error(`live-mix: instrument "${name}" already exists`)
+    const track = new InstrumentTrack({
+      ...options,
+      name,
+      destination: options.destination ?? this.master,
+    })
+    this.instrumentMap.set(name, track)
+    return track
+  }
+
+  instrument(name: string): InstrumentTrack {
+    const track = this.instrumentMap.get(name)
+    if (!track) throw new Error(`live-mix: no instrument "${name}"`)
+    return track
+  }
+
   /** A return fed by sends: one device whose output goes to the master by default. */
   addReturnTrack(name: string, options: AddReturnTrackOptions): ReturnTrack {
     this.assertLive()
@@ -255,6 +282,8 @@ export class Engine {
     this.liveInputMap.clear()
     for (const track of this.returnMap.values()) track.dispose()
     this.returnMap.clear()
+    for (const track of this.instrumentMap.values()) track.dispose()
+    this.instrumentMap.clear()
     this.scheduler.dispose()
     this.samples.clear()
     for (const bus of this.busMap.values()) bus.dispose()

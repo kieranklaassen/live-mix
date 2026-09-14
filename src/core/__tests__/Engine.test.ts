@@ -124,3 +124,36 @@ describe('Engine transport and scheduler', () => {
     engine.dispose()
   })
 })
+
+describe('Engine instrument tracks', () => {
+  it('hosts a NoteDevice, passes notes through and connects its output to the master', () => {
+    const ctx = createMockContext()
+    const engine = createEngine({ context: asAudioContext(ctx) })
+    const node = ctx.createGain()
+    const notes: string[] = []
+    const device = {
+      id: 'synth',
+      input: node as unknown as AudioNode,
+      output: node as unknown as AudioNode,
+      params: {},
+      setParam: () => {},
+      getParam: () => 0,
+      bypass: false,
+      latencySec: 0,
+      dispose: vi.fn(),
+      noteOn: (id: number, hz: number, gain?: number) => notes.push(`on:${id}:${hz}:${gain}`),
+      noteOff: (id: number) => notes.push(`off:${id}`),
+    }
+    const synth = engine.addInstrumentTrack('synth', { device })
+    expect(node.connectCalls.calledWith(ctx.gains[0])).toBe(true)
+    synth.noteOn(60, 440, 0.4)
+    synth.noteOff(60)
+    expect(notes).toEqual(['on:60:440:0.4', 'off:60'])
+    expect(engine.instrument('synth')).toBe(synth)
+    expect(() => engine.addInstrumentTrack('synth', { device })).toThrow(/already exists/)
+    engine.dispose()
+    expect(device.dispose).toHaveBeenCalledTimes(1)
+    synth.noteOn(61, 466)
+    expect(notes).toHaveLength(2)
+  })
+})

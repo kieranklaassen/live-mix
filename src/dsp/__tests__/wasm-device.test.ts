@@ -176,3 +176,29 @@ describe('WasmDevice', () => {
     expect(device.getParam('amount')).toBe(0.5)
   })
 })
+
+describe('WasmDevice notes and custom processors', () => {
+  it('posts note-on/off over the port and honours a definition-level processor', async () => {
+    const ctx = createMockContext()
+    const custom = defineWasmDevice({
+      id: 'app-synth',
+      wasm: () => dattorroModule,
+      params: {},
+      processor: { name: 'app-synth-processor', url: () => 'https://app.test/synth.js' },
+    })
+    const device = await WasmDevice.create(asAudioContext(ctx), custom, {
+      createNode: mockNodeFactory,
+    })
+    expect(ctx.audioWorklet.modules).toEqual(['https://app.test/synth.js'])
+    expect(ctx.workletNodes[0].name).toBe('app-synth-processor')
+    device.noteOn(1, 440, 0.4)
+    device.noteOff(1)
+    device.postMessage({ type: 'load-sample', frames: 2 })
+    const posted = ctx.workletNodes[0].port.posted.calls.map((call) => call[0])
+    expect(posted).toEqual([
+      { type: 'note-on', noteId: 1, frequency: 440, gain: 0.4 },
+      { type: 'note-off', noteId: 1 },
+      { type: 'load-sample', frames: 2 },
+    ])
+  })
+})
