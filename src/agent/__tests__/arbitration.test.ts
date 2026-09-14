@@ -2,7 +2,7 @@
 // coach's write, the audit and the result say so, and a deferred write lands
 // with the agent's label once the listener lets go.
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { MockAudioBuffer, asAudioContext, createMockContext } from '../../testing'
 import { NODE_DEVICES } from '../../core/devices/native'
@@ -13,8 +13,10 @@ import { loadScore } from '../../score/loadScore'
 import { type Author } from '../../score/log'
 import { findStripHost } from '../../score/schema'
 import { ScoreDocument } from '../../score/ScoreDocument'
+import { VersionHistory } from '../../score/versions'
 import { AgentController } from '../AgentController'
 import { type ToolFailure, type ToolSuccess } from '../types'
+import { withVersionCheckpoints } from '../versionCheckpoints'
 import { duckerDescriptor, library, sessionScore } from './fixtures'
 
 const listener: Author = { id: 'listener', kind: 'human' }
@@ -187,5 +189,43 @@ describe('AgentController through the arbiter', () => {
     expect(
       () => new AgentController({ document: new ScoreDocument(sessionScore()), arbiter }),
     ).toThrow(/must wrap/)
+  })
+})
+
+describe('withVersionCheckpoints', () => {
+  it('saves a section checkpoint on advance and an end checkpoint on fade-out, passing the hooks through', async () => {
+    const { document, clock } = await rig()
+    let counter = 0
+    const versions = new VersionHistory(document, {
+      now: () => clock.ms,
+      id: () => `v${++counter}`,
+    })
+    let section = 0
+    const fadeOut = vi.fn()
+    const session = withVersionCheckpoints(
+      { advanceSection: () => ++section, fadeOut, extendSection: (seconds) => seconds },
+      versions,
+    )
+    const controller = new AgentController({ document, session, now: () => clock.ms })
+    expect(controller.call('advance_section', {}).ok).toBe(true)
+    expect(session.extendSection?.(10)).toBe(10)
+    clock.ms += 60_000
+    expect(controller.call('advance_section', {}).ok).toBe(true)
+    clock.ms += 60_000
+    expect(controller.call('fade_out', { seconds: 5 }).ok).toBe(true)
+    expect(fadeOut).toHaveBeenCalledWith(5)
+    expect(versions.list().map((version) => [version.milestone, version.label])).toEqual([
+      ['start', 'Session start'],
+      ['section', 'Section 2'],
+      ['section', 'Section 3'],
+      ['end', 'Session end'],
+    ])
+    // Opt out per milestone; a session without the hooks is returned as is.
+    const quiet = withVersionCheckpoints({ advanceSection: () => 0 }, versions, {
+      onAdvance: false,
+    })
+    quiet.advanceSection?.()
+    expect(versions.list()).toHaveLength(4)
+    expect(withVersionCheckpoints({}, versions)).toEqual({})
   })
 })

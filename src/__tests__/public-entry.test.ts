@@ -197,6 +197,7 @@ const coreSymbols = [
   'indexedDbVersionStorage',
   'CONTROLLER_AUTHOR',
   'SYSTEM_AUTHOR',
+  'withVersionCheckpoints',
 ] as const
 
 const dspSymbols = [
