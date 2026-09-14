@@ -160,6 +160,7 @@ cpp/
   common/             device_api.h (the C ABI), dsp_util.h
   devices/dattorro/   Dattorro plate (from ambient-live) behind the ABI
   devices/fdn-reverb/ Tides 8-line FDN reverb (from kkfonie) behind the ABI
+  devices/stereo-widener/  kkfonie's StereoWidener (source unchanged, SHA in device.json) behind the ABI
   test/               native harnesses (parity tests for every ported device)
 scripts/              build.mjs, build-wasm.sh, test-native.sh, check-pack.mjs
 ```

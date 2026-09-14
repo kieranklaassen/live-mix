@@ -23,3 +23,11 @@ CXX="${CXX:-c++}"
   -o "$out_dir/fdn_reverb_test"
 
 "$out_dir/fdn_reverb_test"
+
+"$CXX" -std=c++17 -O2 -fno-exceptions -fno-rtti -Wall -Wextra \
+  cpp/test/stereo_widener_test.cpp \
+  cpp/devices/stereo-widener/StereoWidener.cpp \
+  cpp/devices/stereo-widener/stereo_widener_device.cpp \
+  -o "$out_dir/stereo_widener_test"
+
+"$out_dir/stereo_widener_test"

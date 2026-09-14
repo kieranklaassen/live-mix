@@ -54,3 +54,8 @@ build_device dattorro \
 build_device fdn-reverb \
   cpp/devices/fdn-reverb/fdn_reverb_device.cpp \
   cpp/devices/fdn-reverb/device_api.cpp
+
+build_device stereo-widener \
+  cpp/devices/stereo-widener/StereoWidener.cpp \
+  cpp/devices/stereo-widener/stereo_widener_device.cpp \
+  cpp/devices/stereo-widener/device_api.cpp
