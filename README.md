@@ -15,9 +15,10 @@ ambient instrument that paints samples onto a looping timeline through a plate
 reverb). Both apps had grown their own half of a mixer; this is the one they
 share.
 
-> **Status:** `0.x`, pre-release. The API changes in minor versions; both
-> consumer apps pin exact versions. No support promise — this is a
-> solo-maintainer library that contains exactly what its two consumers use.
+> **Status:** `0.x`, pre-release, **private repository**. The API changes in
+> minor versions; both consumer apps pin exact versions. No support promise —
+> this is a solo-maintainer library that contains exactly what its two
+> consumers use.
 
 ## Vision
 
@@ -102,13 +103,51 @@ Entry points (all ESM):
 
 ## Install
 
-Not yet on npm. Until the first release, install straight from GitHub at a
-pinned commit; the `prepare` script builds `dist/` with nothing but Node (the
-`.wasm` artefacts are committed, so consumers never need Emscripten):
+The repository is **private**, so every install path authenticates. The
+package is published to **GitHub Packages** (`npm.pkg.github.com`) under the
+`@kieranklaassen` scope; consumers pin exact versions and point the scope at
+that registry.
+
+### 1. Consumer `.npmrc` (committed)
+
+```ini
+@kieranklaassen:registry=https://npm.pkg.github.com
+```
+
+No token goes in the committed file. `swiss-grid` and other `github:`
+dependencies in the same scope are unaffected (git specs bypass the registry).
+
+### 2. Auth, per environment
+
+| Where                   | How                                                                                                                                                                                                                                                                                                    |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Kieran's machines       | `npm login --registry=https://npm.pkg.github.com --scope=@kieranklaassen` once (username `kieranklaassen`, password = a PAT with `read:packages`). Stored in `~/.npmrc`.                                                                                                                               |
+| Consumer GitHub Actions | `actions/setup-node` with `registry-url: https://npm.pkg.github.com`, `scope: '@kieranklaassen'` and `NODE_AUTH_TOKEN: ${{ secrets.LIVE_MIX_NPM_TOKEN }}` — a classic PAT with `read:packages`, stored as a repository secret. A repo's own `GITHUB_TOKEN` cannot read another repo's private package. |
+| Kamal / Docker build    | Kamal `builder.secrets: [NPM_TOKEN]` (value from `.kamal/secrets`, e.g. the same token as `KAMAL_REGISTRY_PASSWORD`, which already needs `packages` scope to push to ghcr), and in the Dockerfile build stage:                                                                                         |
+
+```dockerfile
+RUN --mount=type=secret,id=NPM_TOKEN,required=true \
+    echo "//npm.pkg.github.com/:_authToken=$(cat /run/secrets/NPM_TOKEN)" > /root/.npmrc && \
+    npm ci && rm -f /root/.npmrc
+```
+
+### 3. Versions
 
 ```sh
-npm install github:kieranklaassen/live-mix#<sha>
+npm install @kieranklaassen/live-mix@0.1.0        # releases (dist-tag latest)
+npm install @kieranklaassen/live-mix@next          # snapshot of the latest main with pending changesets
 ```
+
+### Fallback: git dependency
+
+`npm install github:kieranklaassen/live-mix#<sha>` still works — `prepare`
+builds `dist/` with nothing but Node, and the `.wasm` artefacts are committed —
+but it needs git access to the private repo wherever `npm ci` runs (a PAT with
+`repo` scope via `git config url."https://x-access-token:$TOKEN@github.com/".insteadOf "https://github.com/"`)
+and re-runs the library build in every consumer install. CI proves this path on
+every run (`git-fallback` job); prefer the registry.
+
+### Vite
 
 Vite consumers add this so the pure-ESM package is not pre-bundled (which would
 break `import.meta.url` asset resolution for the worklet and `.wasm` in dev):
@@ -119,8 +158,6 @@ export default defineConfig({
   optimizeDeps: { exclude: ['@kieranklaassen/live-mix'] },
 })
 ```
-
-Once published: `npm install @kieranklaassen/live-mix@0.1.0` (exact pins).
 
 ## Development
 
@@ -134,7 +171,13 @@ pnpm build            # tsup entries + esbuild worklet bundles + wasm copy
 pnpm pack:check       # pack a tarball and verify every export resolves
 pnpm test:native      # C++ device harnesses with the system compiler
 pnpm build:wasm       # rebuild src/dsp/wasm/*.wasm (needs Emscripten 4.0.15)
+bash scripts/ci-local.sh   # the whole CI matrix locally; prints a Markdown summary for PR bodies
 ```
+
+`scripts/ci-local.sh` mirrors `.github/workflows/ci.yml` step for step (typecheck,
+lint, tests, build, pack check, native C++ tests, emsdk rebuild diffed against
+the committed `.wasm`, and the `github:` install path — set `GITHUB_TOKEN` for
+the last one). On machines where `c++` is a header-less clang it picks `g++`.
 
 Iterating against an app without publishing:
 
@@ -219,11 +262,21 @@ device.bypass = true
 
 ## Releasing
 
-Versioning uses [changesets](./.changeset/README.md): add one per PR, merge the
-generated "Version Packages" PR to publish. The release workflow publishes via
-npm **trusted publishing** (GitHub OIDC), which needs one-time setup on
-npmjs.com: publish `0.0.1` once by hand to create the package, then add this
-repository's `release.yml` as a trusted publisher in the package settings.
+Versioning uses [changesets](./.changeset/README.md): add one per PR. On every
+push to `main` the release workflow publishes to GitHub Packages with the
+workflow's own `GITHUB_TOKEN`:
+
+- pending changesets → a `next` snapshot (`0.0.0-next-<timestamp>`, dist-tag
+  `next`) and the "Version Packages" PR;
+- merging that PR → the versioned release (dist-tag `latest`).
+
+One-time repository settings (Kieran):
+
+- Settings → Actions → General → **Allow GitHub Actions to create and approve
+  pull requests** (otherwise the version PR cannot be opened; the branch
+  `changeset-release/main` is still pushed and can be turned into a PR by hand).
+- Billing: Actions minutes on a private repository are metered; keep a spending
+  limit or the included minutes available, or CI stops running.
 
 ## License
 

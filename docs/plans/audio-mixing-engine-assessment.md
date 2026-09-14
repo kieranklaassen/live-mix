@@ -2,6 +2,9 @@ Plan of record: [mixing-engine-plan.md](./mixing-engine-plan-of-record.md) — s
 
 # Audio mixing engine assessment: extracting an Ableton-like JS/TS mixer from Breathwork Live
 
+> **Distribution addendum (2026-09-14, after U1):** Kieran made `kieranklaassen/live-mix` **private**. Wherever this document says the repo or package is public, or that consumers install from public npm / trusted publishing, read: the package is published to **GitHub Packages** (`npm.pkg.github.com`, scope `@kieranklaassen`) by the release workflow's own `GITHUB_TOKEN`; consumers authenticate with a read-only PAT in CI and a Docker build secret under Kamal; the `github:#sha` fallback needs git auth. Details and the Kieran checklist: [README § Install](../../README.md#install). KTD2/U10 are superseded to that extent; the MIT licence stands.
+
+
 Assessed 2026-09-14 against `breathwork-live@ebdd457` (branch `feat/breathwork-live`) and `ambient-live@1d3b31b` (`main`), plus the kkfonie JUCE workspace. Read-only; nothing was edited or pushed. Companion to the [Breathwork survey](https://github.com/kieranklaassen/breathwork-live).
 
 Links below use `bl:` = `https://github.com/kieranklaassen/breathwork-live/blob/feat/breathwork-live/` and `al:` = `https://github.com/kieranklaassen/ambient-live/blob/main/`.

@@ -1,5 +1,8 @@
 # Mixing engine plan of record
 
+> **Distribution addendum (2026-09-14, after U1):** Kieran made `kieranklaassen/live-mix` **private**. Wherever this document says the repo or package is public, or that consumers install from public npm / trusted publishing, read: the package is published to **GitHub Packages** (`npm.pkg.github.com`, scope `@kieranklaassen`) by the release workflow's own `GITHUB_TOKEN`; consumers authenticate with a read-only PAT in CI and a Docker build secret under Kamal; the `github:#sha` fallback needs git auth. Details and the Kieran checklist: [README § Install](../../README.md#install). KTD2/U10 are superseded to that extent; the MIT licence stands.
+
+
 Copied from the Breathwork project store on 2026-09-14. Companion to the [unified plan](./2026-09-14-001-feat-audio-mixing-engine-plan.md) and the [assessment](./audio-mixing-engine-assessment.md); this document holds the Phase 0 task list and the package/adoption decisions.
 
 

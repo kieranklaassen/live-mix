@@ -54,13 +54,21 @@ jobs:
       # Both consumer apps install with npm. A github:#sha dependency clones the
       # repo, runs the nested devDependency install and the prepare script, so
       # this job is the only place that exercises that path before an app does.
+      # The repo is private: git authenticates with the workflow token, exactly
+      # the way a consumer's CI or Docker build has to (see README "Install").
       - name: Install this commit into a scratch consumer
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
+          git config --global url."https://x-access-token:${GH_TOKEN}@github.com/".insteadOf "https://github.com/"
+          git config --global --add url."https://x-access-token:${GH_TOKEN}@github.com/".insteadOf "ssh://git@github.com/"
+          git config --global --add url."https://x-access-token:${GH_TOKEN}@github.com/".insteadOf "git@github.com:"
           consumer=$(mktemp -d)
           cd "$consumer"
           npm init -y >/dev/null
-          npm install "git+file://$GITHUB_WORKSPACE#$GITHUB_SHA"
+          npm install "github:kieranklaassen/live-mix#${COMMIT}"
           test -f node_modules/@kieranklaassen/live-mix/dist/index.js
           for wasm in "$GITHUB_WORKSPACE"/src/dsp/wasm/*.wasm; do test -f "node_modules/@kieranklaassen/live-mix/dist/wasm/$(basename "$wasm")"; done
           test -f node_modules/@kieranklaassen/live-mix/dist/worklets/wasm-device.js

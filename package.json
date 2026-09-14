@@ -65,7 +65,8 @@
     "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm pack:check",
     "changeset": "changeset",
     "version-packages": "changeset version",
-    "release": "pnpm build && changeset publish"
+    "release": "pnpm build && changeset publish",
+    "release:snapshot": "changeset version --snapshot next && pnpm build && changeset publish --tag next --no-git-tag"
   },
   "peerDependencies": {
     "react": ">=18"
@@ -97,7 +98,7 @@
   },
   "packageManager": "pnpm@10.33.3",
   "publishConfig": {
-    "access": "public",
-    "provenance": true
+    "registry": "https://npm.pkg.github.com",
+    "access": "restricted"
   }
 }
