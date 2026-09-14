@@ -41,6 +41,43 @@ jobs:
       - name: Pack and verify exports
         run: pnpm pack:check
 
+  browser:
+    name: Real-audio browser golden (Playwright + Chromium)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Build library and playground
+        run: pnpm build && pnpm playground:build
+
+      # Real AudioContext/OfflineAudioContext, worklets and WASM in headless
+      # Chromium: offline schedule == mock golden, live capture ≈ offline
+      # render, playground mounts.
+      - name: Browser tests
+        run: pnpm test:browser
+        env:
+          LIVE_MIX_BROWSER: chromium
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-test-output
+          path: tmp/browser-tests
+          if-no-files-found: ignore
+
   git-fallback:
     name: 'Installs as a github: dependency with npm'
     runs-on: ubuntu-latest

@@ -1,0 +1,14 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "paths": {
+      "@kieranklaassen/live-mix": ["../src/index.ts"],
+      "@kieranklaassen/live-mix/dsp": ["../src/dsp/index.ts"],
+      "@kieranklaassen/live-mix/testing": ["../src/testing/index.ts"]
+    }
+  },
+  "include": ["**/*.ts"],
+  "exclude": [".build"]
+}

@@ -23,26 +23,26 @@ function calls(param: MockAudioParam): [string, ...unknown[]][] {
 }
 
 describe('ClockLaneWriter', () => {
-  it('writes lane events verbatim at anchor + timeSec, within now + lookahead, never twice', () => {
+  it('writes lane events verbatim at anchor + timeSec, segments whole as the window reaches them, never twice', () => {
     const param = new MockAudioParam(0)
     const writer = new ClockLaneWriter(cycles(), param, { anchorSec: 10 })
     writer.tick(10, 3)
+    // The window ends at 3, inside the 2 → 4 segment, so that segment's arrival is written now.
     expect(calls(param)).toEqual([
       ['setValueAtTime', 0, 10],
       ['linearRampToValueAtTime', 1, 12],
+      ['linearRampToValueAtTime', 0, 14],
     ])
-    expect(writer.writtenUntilSec).toBe(3)
+    expect(writer.writtenUntilSec).toBe(4)
     writer.tick(10.5, 3)
-    expect(calls(param)).toHaveLength(2)
+    expect(calls(param)).toHaveLength(3)
     writer.tick(11.5, 3)
-    // Half-open window: the reset at lane second 4.5 waits for the next tick.
-    expect(calls(param).slice(2)).toEqual([['linearRampToValueAtTime', 0, 14]])
-    writer.tick(20, 3)
     expect(calls(param).slice(3)).toEqual([
       ['setValueAtTime', 0, 14.5],
       ['linearRampToValueAtTime', 1, 16],
-      ['linearRampToValueAtTime', 0, 18],
     ])
+    writer.tick(20, 3)
+    expect(calls(param).slice(5)).toEqual([['linearRampToValueAtTime', 0, 18]])
     // No join ramps, no synthetic anchors: the events are exactly the lane's.
     expect(calls(param)).toHaveLength(6)
   })
@@ -54,6 +54,7 @@ describe('ClockLaneWriter', () => {
     expect(calls(param)).toEqual([
       ['linearRampToValueAtTime', 0, 4],
       ['setValueAtTime', 0, 4.5],
+      ['linearRampToValueAtTime', 1, 6],
     ])
   })
 
@@ -90,17 +91,19 @@ describe('ClockLaneWriter', () => {
     const param = new MockAudioParam(0)
     const writer = new ClockLaneWriter(cycles(), param)
     writer.tick(0, 1)
+    expect(calls(param)).toHaveLength(2) // anchor + the 0 → 2 segment's arrival
     writer.override(1)
     expect(writer.isOverridden).toBe(true)
     expect(calls(param).at(-1)).toEqual(['cancelAndHoldAtTime', 1])
     writer.tick(1.5, 5)
-    expect(calls(param)).toHaveLength(2)
+    expect(calls(param)).toHaveLength(3)
     writer.release(3)
     expect(calls(param).at(-1)).toEqual(['setValueAtTime', 0.5, 3])
     writer.tick(3, 2)
-    expect(calls(param).slice(-2)).toEqual([
+    expect(calls(param).slice(-3)).toEqual([
       ['linearRampToValueAtTime', 0, 4],
       ['setValueAtTime', 0, 4.5],
+      ['linearRampToValueAtTime', 1, 6],
     ])
     writer.reset()
     expect(writer.writtenUntilSec).toBeNull()

@@ -9,13 +9,18 @@
 # diffed against the committed .wasm, and the github: install path (needs git
 # access to the repo: a token via GITHUB_TOKEN/GH_TOKEN, or an ssh key).
 #
-# Usage: bash scripts/ci-local.sh [--skip-git-install]
+# Usage: bash scripts/ci-local.sh [--skip-git-install] [--browser]
+#   --browser  also run the real-audio browser golden (Playwright + the
+#              installed Google Chrome, or Playwright's Chromium with
+#              LIVE_MIX_BROWSER=chromium); builds the playground for its smoke.
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
 skip_git_install=0
+browser=0
 for arg in "$@"; do
   [ "$arg" = "--skip-git-install" ] && skip_git_install=1
+  [ "$arg" = "--browser" ] && browser=1
 done
 
 sha=$(git rev-parse --short HEAD)
@@ -122,6 +127,10 @@ faust_reproduce() {
   fi
 }
 
+browser_tests() {
+  pnpm playground:build && pnpm test:browser
+}
+
 echo "live-mix local CI on $branch @ $sha"
 run_step "pnpm install --frozen-lockfile" pnpm install --frozen-lockfile
 run_step "pnpm typecheck" pnpm typecheck
@@ -136,6 +145,11 @@ if [ "$skip_git_install" = 1 ]; then
   results+=("| github: install path | skipped | — |")
 else
   run_step "github: install path" git_install
+fi
+if [ "$browser" = 1 ]; then
+  run_step "browser golden (Playwright, $(google-chrome --version 2>/dev/null || echo Chromium))" browser_tests
+else
+  results+=("| browser golden (Playwright) | skipped (--browser) | — |")
 fi
 
 echo

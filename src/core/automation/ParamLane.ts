@@ -195,6 +195,21 @@ export interface LaneEvent {
 }
 
 /**
+ * Where a write window ending at `toSec` must really end so the segment the
+ * window reaches into is scheduled whole: the time of the first breakpoint
+ * after `toSec`, or `toSec` itself past the last one. A ramp handed to the
+ * graph after its segment has begun is rendered as a jump to the
+ * interpolated value (Chrome, Safari), so a writer must issue a segment's
+ * arrival no later than the segment's start.
+ */
+export function segmentEndAfter(lane: ParamLane, toSec: number): number {
+  for (const point of lane.breakpoints) {
+    if (point.timeSec > toSec) return point.timeSec
+  }
+  return toSec
+}
+
+/**
  * The AudioParam calls that realise the lane inside `[fromSec, toSec)`,
  * ordered by time. Half-open, so consecutive windows never return the same
  * call twice; `includeEnd` closes the range for the last window of a loop
