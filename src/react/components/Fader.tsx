@@ -21,6 +21,8 @@ export interface FaderProps {
   taper?: ControlTaper
   skew?: number
   orientation?: FaderOrientation
+  /** Alias of `orientation` (the `useParamControl` name); wins when both are given. */
+  axis?: FaderOrientation
   disabled?: boolean
   sensitivityPx?: number
   wheel?: boolean
@@ -53,6 +55,7 @@ export function Fader({
   taper = 'linear',
   skew = 2,
   orientation = 'vertical',
+  axis,
   disabled = false,
   sensitivityPx,
   wheel,
@@ -70,7 +73,8 @@ export function Fader({
   id,
   'data-testid': testId,
 }: FaderProps) {
-  const vertical = orientation === 'vertical'
+  const direction = axis ?? orientation
+  const vertical = direction === 'vertical'
   const control = useParamControl({
     value,
     defaultValue,
@@ -111,7 +115,7 @@ export function Fader({
         role="slider"
         id={id}
         aria-label={label}
-        aria-orientation={orientation}
+        aria-orientation={direction}
         aria-valuemin={min}
         aria-valuemax={max}
         aria-valuenow={control.value}

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { type ControlEvent } from '../event'
 import {
   MidiInput,
+  fromMidiAccess,
   isWebMidiSupported,
   type MidiAccessLike,
   type MidiMessageEventLike,
@@ -173,5 +174,85 @@ describe('MidiInput', () => {
     // A failed open is not cached: the next open asks again.
     await expect(input.open()).rejects.toThrow('denied')
     expect(requestAccess).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('MidiInput and the access object (ambient-live #28)', () => {
+  it('chains an existing onstatechange instead of owning it, and restores it on close', async () => {
+    const access = new FakeAccess()
+    const appHandler = vi.fn()
+    access.onstatechange = appHandler
+    const input = new MidiInput({ requestAccess: () => Promise.resolve(access) })
+    await input.open()
+    expect(access.onstatechange).not.toBe(appHandler)
+
+    const port = new FakePort('in-1', 'Keys')
+    access.plug(port)
+    expect(appHandler).toHaveBeenCalledWith({ port })
+    expect(input.ports.map((info) => info.id)).toEqual(['in-1'])
+
+    input.close()
+    expect(access.onstatechange).toBe(appHandler)
+  })
+
+  it('prefers addEventListener("statechange") when the access has it', async () => {
+    const listeners = new Set<(event: { port?: MidiPortLike | null }) => void>()
+    const port = new FakePort('in-1', 'Keys')
+    const access: MidiAccessLike = {
+      inputs: new Map([[port.id, port]]),
+      onstatechange: null,
+      addEventListener: (_type, listener) => void listeners.add(listener),
+      removeEventListener: (_type, listener) => void listeners.delete(listener),
+    }
+    const input = new MidiInput({ requestAccess: () => Promise.resolve(access) })
+    await input.open()
+    expect(access.onstatechange).toBeNull()
+    expect(listeners.size).toBe(1)
+    const later = new FakePort('in-2', 'Pads')
+    ;(access.inputs as Map<string, FakePort>).set(later.id, later)
+    for (const listener of listeners) listener({ port: later })
+    expect(input.ports.map((info) => info.id)).toEqual(['in-1', 'in-2'])
+    input.close()
+    expect(listeners.size).toBe(0)
+  })
+
+  it('fromMidiAccess adapts the browser MIDIAccess: stable port wrappers, forwarded handlers and statechange', async () => {
+    const stateListeners = new Set<(event: unknown) => void>()
+    const browserPort = {
+      id: 'in-1',
+      name: 'Keys',
+      manufacturer: 'Acme',
+      state: 'connected',
+      connection: 'open',
+      onmidimessage: null as ((event: MidiMessageEventLike) => void) | null,
+    }
+    const browserAccess = {
+      inputs: new Map([[browserPort.id, browserPort]]),
+      addEventListener: (_type: 'statechange', listener: (event: unknown) => void) =>
+        void stateListeners.add(listener),
+      removeEventListener: (_type: 'statechange', listener: (event: unknown) => void) =>
+        void stateListeners.delete(listener),
+    }
+    const access = fromMidiAccess(browserAccess)
+    const [first] = access.inputs.values()
+    const [again] = access.inputs.values()
+    expect(first).toBe(again)
+    expect(first.state).toBe('connected')
+
+    const input = new MidiInput({ requestAccess: () => Promise.resolve(access) })
+    const events: ControlEvent[] = []
+    input.subscribe((event) => events.push(event))
+    await input.open()
+    expect(browserPort.onmidimessage).not.toBeNull()
+    browserPort.onmidimessage?.({ data: Uint8Array.from([0xb0, 74, 100]), timeStamp: 5 })
+    expect(events).toHaveLength(1)
+
+    const pads = { ...browserPort, id: 'in-2', name: 'Pads', onmidimessage: null }
+    browserAccess.inputs.set(pads.id, pads)
+    for (const listener of stateListeners) listener({ port: pads })
+    expect(input.ports.map((info) => info.name)).toEqual(['Keys', 'Pads'])
+    input.close()
+    expect(stateListeners.size).toBe(0)
+    expect(browserPort.onmidimessage).toBeNull()
   })
 })

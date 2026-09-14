@@ -1,8 +1,9 @@
 // Web MIDI as a `ControlInput`. `open()` asks for access (by default
 // `navigator.requestMIDIAccess`, injectable for tests and for hosts with
 // their own MIDI stack), listens on every input port (or the ones named),
-// follows hot-plugging through `onstatechange`, decodes with `MidiDecoder`
-// and publishes control events. Raw messages are published too, so an app
+// follows hot-plugging through `statechange` (as a listener — the access
+// object's `onstatechange` stays the app's), decodes with `MidiDecoder` and
+// publishes control events. Raw messages are published too, so an app
 // can route unmapped notes to an instrument (ambient-live's synth path).
 // Nothing here touches `navigator` at import time.
 
@@ -26,10 +27,25 @@ export interface MidiPortLike {
   onmidimessage: ((event: MidiMessageEventLike) => void) | null
 }
 
-/** The slice of `MIDIAccess` the adapter uses; a `Map<string, MidiPortLike>` satisfies `inputs`. */
+export interface MidiStateChangeEventLike {
+  port?: MidiPortLike | null
+}
+
+/**
+ * The slice of `MIDIAccess` the adapter uses; a `Map<string, MidiPortLike>`
+ * satisfies `inputs`. Hot-plugging is followed through
+ * `addEventListener('statechange')` when present; otherwise `onstatechange`
+ * is chained (the previous handler keeps being called) and restored on
+ * `close()`. The browser's own `MIDIAccess` goes through `fromMidiAccess`.
+ */
 export interface MidiAccessLike {
   readonly inputs: { values(): Iterable<MidiPortLike> }
-  onstatechange: ((event: { port?: MidiPortLike | null }) => void) | null
+  onstatechange?: ((event: MidiStateChangeEventLike) => void) | null
+  addEventListener?(type: 'statechange', listener: (event: MidiStateChangeEventLike) => void): void
+  removeEventListener?(
+    type: 'statechange',
+    listener: (event: MidiStateChangeEventLike) => void,
+  ): void
 }
 
 export type MidiAccessRequest = (options?: { sysex?: boolean }) => Promise<MidiAccessLike>
@@ -84,8 +100,84 @@ function defaultRequestAccess(): MidiAccessRequest {
     if (!isWebMidiSupported()) {
       return Promise.reject(new Error('live-mix: Web MIDI is not available in this environment'))
     }
-    const nav = navigator as unknown as { requestMIDIAccess: MidiAccessRequest }
-    return nav.requestMIDIAccess(options)
+    const nav = navigator as unknown as {
+      requestMIDIAccess: (options?: { sysex?: boolean }) => Promise<MIDIAccess>
+    }
+    return nav.requestMIDIAccess(options).then(fromMidiAccess)
+  }
+}
+
+/** The DOM `MIDIInput` surface the adapter forwards; structural so tests can pass plain objects. */
+export interface BrowserMidiInputLike {
+  readonly id: string
+  readonly name?: string | null
+  readonly manufacturer?: string | null
+  readonly state?: string
+  onmidimessage: ((event: MidiMessageEventLike) => void) | null
+}
+
+export interface BrowserMidiAccessLike {
+  readonly inputs: { values(): Iterable<BrowserMidiInputLike> }
+  addEventListener(type: 'statechange', listener: (event: unknown) => void): void
+  removeEventListener(type: 'statechange', listener: (event: unknown) => void): void
+}
+
+/**
+ * Adapt the browser's `MIDIAccess` to `MidiAccessLike` without a cast: ports
+ * are wrapped once each (stable identity across `inputs.values()`), with
+ * `onmidimessage` forwarded to the real port, and `statechange` is followed
+ * as an event listener so the app keeps `onstatechange` for its own picker.
+ */
+export function fromMidiAccess(access: BrowserMidiAccessLike | MIDIAccess): MidiAccessLike {
+  const ports = new Map<string, MidiPortLike>()
+  const wrap = (port: BrowserMidiInputLike): MidiPortLike => {
+    const existing = ports.get(port.id)
+    if (existing) return existing
+    const wrapped: MidiPortLike = {
+      get id() {
+        return port.id
+      },
+      get name() {
+        return port.name
+      },
+      get manufacturer() {
+        return port.manufacturer
+      },
+      get state() {
+        return port.state === 'disconnected' ? 'disconnected' : 'connected'
+      },
+      get onmidimessage() {
+        return port.onmidimessage
+      },
+      set onmidimessage(handler) {
+        port.onmidimessage = handler
+      },
+    }
+    ports.set(port.id, wrapped)
+    return wrapped
+  }
+  const source = access as BrowserMidiAccessLike
+  const listeners = new Map<(event: MidiStateChangeEventLike) => void, (event: unknown) => void>()
+  return {
+    inputs: {
+      *values() {
+        for (const port of source.inputs.values()) yield wrap(port)
+      },
+    },
+    addEventListener(type, listener) {
+      const forward = (event: unknown): void => {
+        const port = (event as { port?: BrowserMidiInputLike | null }).port
+        listener({ port: port ? wrap(port) : port })
+      }
+      listeners.set(listener, forward)
+      source.addEventListener(type, forward)
+    },
+    removeEventListener(type, listener) {
+      const forward = listeners.get(listener)
+      if (!forward) return
+      listeners.delete(listener)
+      source.removeEventListener(type, forward)
+    },
   }
 }
 
@@ -102,6 +194,8 @@ export class MidiInput implements ControlInput {
   private readonly injected: MidiDecoder
   private access: MidiAccessLike | null = null
   private opening: Promise<void> | null = null
+  /** How hot-plugging is followed on the current access, and how to stop. */
+  private unfollow: (() => void) | null = null
 
   constructor(options: MidiInputOptions = {}) {
     this.requestAccess = options.requestAccess ?? defaultRequestAccess()
@@ -123,7 +217,7 @@ export class MidiInput implements ControlInput {
     ).then(
       (access) => {
         this.access = access
-        access.onstatechange = () => this.refreshPorts()
+        this.unfollow = this.follow(access)
         this.refreshPorts()
       },
       (error: unknown) => {
@@ -172,10 +266,33 @@ export class MidiInput implements ControlInput {
   close(): void {
     for (const entry of this.attached.values()) entry.port.onmidimessage = null
     this.attached.clear()
-    if (this.access) this.access.onstatechange = null
+    this.unfollow?.()
+    this.unfollow = null
     this.access = null
     this.opening = null
     this.injected.reset()
+  }
+
+  /**
+   * Follow `statechange` as a listener when the access supports it; otherwise
+   * chain `onstatechange` so a handler the app installed keeps running, and
+   * restore it on `close()`.
+   */
+  private follow(access: MidiAccessLike): () => void {
+    const refresh = (): void => this.refreshPorts()
+    if (typeof access.addEventListener === 'function') {
+      access.addEventListener('statechange', refresh)
+      return () => access.removeEventListener?.('statechange', refresh)
+    }
+    const previous = access.onstatechange ?? null
+    const chained = (event: MidiStateChangeEventLike): void => {
+      previous?.(event)
+      refresh()
+    }
+    access.onstatechange = chained
+    return () => {
+      if (access.onstatechange === chained) access.onstatechange = previous
+    }
   }
 
   private refreshPorts(): void {

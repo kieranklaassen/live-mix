@@ -355,6 +355,8 @@ export interface LearnState {
   target: ControlTarget | null
   /** Force the mode of the learned mapping; otherwise inferred from the source and target. */
   mode?: MappingMode
+  /** On a re-learn, infer the mode from the new source instead of keeping the existing one. */
+  inferMode?: boolean
 }
 
 export const IDLE_LEARN: Readonly<LearnState> = { target: null }
@@ -387,7 +389,8 @@ export function inferMode(
  * Feed an event through learn mode: idle passes it untouched; armed binds the
  * target to the event's source on a position or a press (a release keeps
  * waiting) and returns to idle. Options of a previous mapping for the target
- * survive a re-learn.
+ * survive a re-learn; so does its mode unless `learn.inferMode` asks for the
+ * new source's.
  */
 export function learnFromEvent(
   learn: LearnState,
@@ -401,7 +404,7 @@ export function learnFromEvent(
     ...existing,
     source: event.source,
     target: learn.target,
-    mode: learn.mode ?? inferMode(learn.target, event, existing),
+    mode: learn.mode ?? inferMode(learn.target, event, learn.inferMode ? undefined : existing),
   })
   return { learn: { target: null }, table: mapTarget(table, mapping), consumed: true, mapping }
 }

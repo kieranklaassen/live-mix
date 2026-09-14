@@ -100,6 +100,12 @@ export interface HandleResult {
 export interface BeginLearnOptions {
   /** Force the learned mapping's mode instead of inferring it. */
   mode?: MappingMode
+  /**
+   * Re-infer the mode from the new source on a re-learn instead of keeping the
+   * existing mapping's (a pad re-learned onto a CC switch becomes `set`, not
+   * `toggle`). Other options of the existing mapping (spans, pickup) survive.
+   */
+  inferMode?: boolean
 }
 
 export class ControlSurface {
@@ -203,7 +209,10 @@ export class ControlSurface {
   /** Arm a target: the next position or press binds it and is consumed. */
   beginLearn(target: ControlTarget, options: BeginLearnOptions = {}): void {
     this.lastLearned = null
-    this.setLearn(options.mode ? { target, mode: options.mode } : { target })
+    const learn: LearnState = { target }
+    if (options.mode) learn.mode = options.mode
+    if (options.inferMode) learn.inferMode = true
+    this.setLearn(learn)
   }
 
   cancelLearn(): void {
@@ -403,8 +412,11 @@ export class ControlSurface {
       const loaded = loadMappingTable(storage, storageOptions)
       if (loaded.length > 0) this.setTable(loaded)
     }
+    // Save what the surface holds now, not the emission's payload: a listener
+    // that normalises the table from inside an emission (`replace`) would
+    // otherwise see its save overwritten by the outer emission's stale table.
     return this.onChange((change) => {
-      if (change.type === 'table') saveMappingTable(storage, change.table, storageOptions)
+      if (change.type === 'table') saveMappingTable(storage, this.currentTable, storageOptions)
     })
   }
 

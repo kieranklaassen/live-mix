@@ -77,6 +77,30 @@ describe('Fader', () => {
     expect(container.querySelector<HTMLElement>('.lm-fader__fill')?.style.width).toBe('70%')
   })
 
+  it('accepts `axis` as the horizontal switch (alias of orientation, wins when both are given)', () => {
+    const onChange = vi.fn()
+    const { container } = render(
+      <Fader
+        label="Send"
+        orientation="vertical"
+        axis="horizontal"
+        defaultValue={0.5}
+        min={0}
+        max={1}
+        step={0.01}
+        sensitivityPx={100}
+        onChange={onChange}
+      />,
+    )
+    const track = screen.getByRole('slider')
+    expect(track).toHaveAttribute('aria-orientation', 'horizontal')
+    expect(container.querySelector('.lm-fader--horizontal')).not.toBeNull()
+    fireEvent.pointerDown(track, { pointerId: 1, button: 0, clientX: 0, clientY: 0 })
+    fireEvent.pointerMove(track, { pointerId: 1, clientX: 20, clientY: 0 })
+    fireEvent.pointerUp(track, { pointerId: 1 })
+    expect(onChange).toHaveBeenLastCalledWith(0.7)
+  })
+
   it('draws ticks and steps with the keyboard along the fader taper', () => {
     const onChange = vi.fn()
     const { container } = render(

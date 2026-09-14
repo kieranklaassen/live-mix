@@ -473,3 +473,69 @@ describe('ControlSurface table, inputs and persistence', () => {
     ])
   })
 })
+
+describe('ControlSurface follow-ups (ambient-live #28)', () => {
+  it('persist saves the table the surface holds, so a normalising listener is not overwritten', () => {
+    const store = new Map<string, string>()
+    const storage = {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => void store.set(key, value),
+      removeItem: (key: string) => void store.delete(key),
+    }
+    const { engine } = fixture()
+    engine.addAudioTrack('pad')
+    const surface = new ControlSurface({ engine })
+    // A listener that normalises every table from inside the emission (the
+    // app's semantics pass): every mapping onto `level` carries a 0–0.5 span.
+    surface.onChange((change) => {
+      if (change.type !== 'table') return
+      const normalised = change.table.map((mapping) =>
+        mapping.target.kind === 'strip' &&
+        mapping.target.control === 'level' &&
+        mapping.output.max !== 0.5
+          ? { ...mapping, output: { min: 0, max: 0.5 } }
+          : mapping,
+      )
+      if (normalised.some((mapping, index) => mapping !== change.table[index])) {
+        surface.replace(normalised)
+      }
+    })
+    surface.persist(storage)
+    surface.map({ source: cc74, target: level })
+    expect(surface.mappingFor(level)?.output).toEqual({ min: 0, max: 0.5 })
+    // What is stored equals what is in memory, even though the outer emission
+    // ran its save after the nested (normalised) one.
+    expect(store.get('live-mix:control-map')).toBe(surface.serialize())
+    expect(JSON.parse(store.get('live-mix:control-map') ?? '{}')).toMatchObject({
+      mappings: [{ output: { min: 0, max: 0.5 } }],
+    })
+  })
+
+  it('beginLearn({ inferMode: true }) re-infers the mode from the new source and keeps the other options', () => {
+    const { engine } = fixture()
+    engine.addAudioTrack('pad')
+    const surface = new ControlSurface({ engine })
+    surface.beginLearn(mute)
+    surface.handle(press(pad36))
+    expect(surface.mappingFor(mute)?.mode).toBe('toggle')
+    surface.update(mute, { output: { min: 1, max: 0 } })
+
+    // Default: a re-learn onto a CC switch keeps `toggle`.
+    surface.beginLearn(mute)
+    surface.handle(cc(cc74, 127))
+    expect(surface.mappingFor(mute)).toMatchObject({ source: cc74, mode: 'toggle' })
+
+    // With inferMode: the CC implies `set`; the reversed span survives.
+    surface.beginLearn(mute, { inferMode: true })
+    surface.handle(cc(cc1, 127))
+    expect(surface.mappingFor(mute)).toMatchObject({
+      source: cc1,
+      mode: 'set',
+      output: { min: 1, max: 0 },
+    })
+    // And back to a pad: toggle again.
+    surface.beginLearn(mute, { inferMode: true })
+    surface.handle(press(pad36))
+    expect(surface.mappingFor(mute)).toMatchObject({ source: pad36, mode: 'toggle' })
+  })
+})
