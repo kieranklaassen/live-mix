@@ -257,6 +257,67 @@ Zita-Rev1 via `createZitaReverb`, an 1176 limiter via `createLimiter1176`)
 compile to C++ at library build time and sit behind the same ABI; see
 [`docs/faust-devices.md`](./docs/faust-devices.md).
 
+### Node devices, the registry and presets
+
+Stock Web Audio graphs satisfy the same `Device` contract through `NodeDevice`
+(core entry): `filter`, `eq3`, `parametric-eq`, `compressor`, `delay` and
+`utility`. Every parameter change ramps the underlying `AudioParam` over the
+same 5 ms the WASM bypass crossfades, and bypass is a dry/wet crossfade that
+keeps the chain running. A new node device is a param table plus a
+`build(context)` that returns the chain and one applier per param:
+
+```ts
+import { defineNodeDevice, NodeDevice } from '@kieranklaassen/live-mix'
+
+const TILT = defineNodeDevice({
+  id: 'tilt',
+  params: {
+    tilt: { id: 0, name: 'Tilt', min: -6, max: 6, default: 0, taper: 'linear', unit: 'dB' },
+  },
+  build(ctx) {
+    const low = ctx.createBiquadFilter()
+    low.type = 'lowshelf'
+    const high = ctx.createBiquadFilter()
+    high.type = 'highshelf'
+    low.connect(high)
+    return {
+      input: low,
+      output: high,
+      nodes: [low, high],
+      apply: {
+        tilt: (value, ramp) => {
+          ramp(low.gain, -value)
+          ramp(high.gain, value)
+        },
+      },
+    }
+  },
+})
+const tilt = new NodeDevice(ctx, TILT, { params: { tilt: 2 } })
+```
+
+The registry (`devices`, a `DeviceRegistry`) maps ids to descriptors —
+metadata, param table, factory presets, version and factory — so an engine or
+UI can enumerate and instantiate any device uniformly. The node devices are
+pre-registered; the WASM devices join with one call from `./dsp`:
+
+```ts
+import { devices } from '@kieranklaassen/live-mix'
+import { registerStockWasmDevices, wasmDeviceDescriptor } from '@kieranklaassen/live-mix/dsp'
+
+registerStockWasmDevices() // dattorro, fdn-reverb, stereo-widener, zita-rev1, limiter-1176
+devices.register(wasmDeviceDescriptor(MY_DEVICE, { name: 'Mine', category: 'reverb' }))
+
+devices.list({ category: 'reverb' }).map((d) => d.name)
+const plate = await devices.create('dattorro', ctx, { preset: 'Small plate', params: { mix: 0.2 } })
+const preset = devices.capturePreset(plate, 'Tonight') // { name, deviceId, deviceVersion, params }
+localStorage.setItem('plate', serializePreset(preset))
+applyPreset(plate, parsePreset(localStorage.getItem('plate')))
+```
+
+Presets are partial param snapshots; on load, unknown params are dropped and
+values clamped, so a preset from an older device version still applies.
+
 ### Real-time rules
 
 - Nothing allocates inside `process()`; WASM memory is fixed and heap views are

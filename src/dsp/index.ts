@@ -65,3 +65,26 @@ export {
   type Limiter1176,
   type Limiter1176ParamName,
 } from './devices/limiter-1176'
+export {
+  DATTORRO_DESCRIPTOR,
+  FDN_REVERB_DESCRIPTOR,
+  LIMITER_1176_DESCRIPTOR,
+  STEREO_WIDENER_DESCRIPTOR,
+  STOCK_WASM_DEVICES,
+  ZITA_REV1_DESCRIPTOR,
+  registerStockWasmDevices,
+  wasmDeviceDescriptor,
+  type WasmDeviceMeta,
+} from './registry'
+export {
+  DeviceRegistry,
+  devices,
+  type DeviceCategory,
+  type DeviceCreateOptions,
+  type DeviceCreateRequest,
+  type DeviceDescriptor,
+  type DeviceFactory,
+  type DeviceKind,
+  type Preset,
+  type PresetTable,
+} from '../core/devices'
