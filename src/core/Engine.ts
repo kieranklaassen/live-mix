@@ -49,13 +49,10 @@ export interface EngineOptions extends ClockOptions {
   tickMs?: number
   /** Sample decoding: fetch implementation and whether to compute peaks. */
   samples?: SampleStoreOptions
-<<<<<<< HEAD
   /** Device registry this engine creates devices from; defaults to the shared `devices`. */
   devices?: DeviceRegistry
-=======
   /** Render-capacity polling for `engine.stats` (glitch counter). */
   stats?: EngineStatsOptions
->>>>>>> 6de3303 (feat(core): bus taps, master installLimiter/installLufsMeter, engine.stats)
 }
 
 export type AddLiveInputTrackOptions = Omit<
@@ -121,15 +118,12 @@ export class Engine {
   readonly transport: Transport
   readonly scheduler: Scheduler
   readonly samples: SampleStore
-<<<<<<< HEAD
   /** Device registry (`engine.devices.create(id, { params, preset })`). */
   readonly devices: DeviceRegistry
   /** Solo-in-place state across every track, return and group strip. */
   readonly solo = new SoloInPlace()
-=======
   /** Glitch counter and render load, where the context reports them (R38). */
   readonly stats: EngineStats
->>>>>>> 6de3303 (feat(core): bus taps, master installLimiter/installLufsMeter, engine.stats)
   private readonly busMap = new Map<string, Bus>()
   private readonly trackMap = new Map<string, AudioTrack>()
   private readonly liveInputMap = new Map<string, LiveInputTrack>()
@@ -152,11 +146,8 @@ export class Engine {
       clearIntervalFn: this.clock.clearIntervalFn,
     })
     this.samples = new SampleStore(options.context, options.samples)
-<<<<<<< HEAD
     this.devices = options.devices ?? defaultDevices
-=======
     this.stats = new EngineStats(options.context, options.stats)
->>>>>>> 6de3303 (feat(core): bus taps, master installLimiter/installLufsMeter, engine.stats)
   }
 
   /** Audio-clock seconds through the injected clock. */
