@@ -34,6 +34,7 @@ export {
   wheelDeltaToNormDelta,
   type ControlTaper,
   type ControlUnit,
+  type FormatControlValueOptions,
   type KnownControlUnit,
 } from './control-math'
 export {

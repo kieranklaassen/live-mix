@@ -146,15 +146,27 @@ export function parseMappingTable(
 
 // --- ambient-live (U27) migration --------------------------------------------------
 
+export interface AmbientLiveMigrationOptions {
+  /**
+   * The output span a migrated mapping should carry, by target and app id —
+   * for knobs whose range is narrower than the target's (ambient-live's
+   * decay/damping 0–0.99 against a 0–1 param), or reversed (monitor on =
+   * mute off). Return undefined for the unit span.
+   */
+  outputFor?: (target: ControlTarget, id: string) => MappingRange | undefined
+}
+
 /**
  * Migration for ambient-live's `{ format: 1, mappings: [{ source, target }] }`
  * table. `targetFor` maps the app's string ids (`'reverb.mix'`,
  * `'synth.level'`, …) onto `ControlTarget`s; an id it returns null for is
  * dropped. U27 semantics carry over: a CC sets; a note on an on/off target
- * toggles, on a continuous target sets from velocity.
+ * toggles, on a continuous target sets from velocity. `outputFor` lets the
+ * migrated table carry knob ranges so no post-pass is needed.
  */
 export function ambientLiveMidiMapMigration(
   targetFor: (id: string) => ControlTarget | null,
+  options: AmbientLiveMigrationOptions = {},
 ): MappingMigration {
   return {
     from: AMBIENT_LIVE_MIDI_MAP_FORMAT,
@@ -171,7 +183,10 @@ export function ambientLiveMidiMapMigration(
         if (!target || !source) continue
         const mode: MappingMode =
           source.kind === 'note' && isBooleanTarget(target) ? 'toggle' : 'set'
-        mappings.push({ source, target, mode })
+        const output = options.outputFor?.(target, record.target)
+        mappings.push(
+          output ? { source, target, mode, output: { ...output } } : { source, target, mode },
+        )
       }
       return { format: MAPPING_TABLE_FORMAT, mappings }
     },

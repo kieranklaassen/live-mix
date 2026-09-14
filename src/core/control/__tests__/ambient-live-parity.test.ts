@@ -254,3 +254,31 @@ describe('U27 learn scenarios', () => {
     })
   })
 })
+
+describe('migration outputFor (ambient-live #28)', () => {
+  it('carries knob ranges as output spans so no post-pass is needed', () => {
+    const withSpans = ambientLiveMidiMapMigration(targetFor, {
+      outputFor: (target, id) => {
+        if (id === 'reverb.decay' || id === 'reverb.damping') return { min: 0, max: 0.99 }
+        if (target.kind === 'strip' && target.control === 'mute') return { min: 1, max: 0 }
+        return undefined
+      },
+    })
+    const table = parseMappingTable(
+      {
+        format: AMBIENT_LIVE_MIDI_MAP_FORMAT,
+        mappings: [
+          { source: { kind: 'cc', channel: 1, controller: 74 }, target: 'reverb.decay' },
+          { source: { kind: 'cc', channel: 1, controller: 75 }, target: 'reverb.mix' },
+          { source: { kind: 'note', channel: 1, note: 36 }, target: 'input.monitor' },
+        ],
+      },
+      { migrations: [withSpans] },
+    )
+    expect(table).toMatchObject([
+      { target: AMBIENT_TARGETS['reverb.decay'], mode: 'set', output: { min: 0, max: 0.99 } },
+      { target: AMBIENT_TARGETS['reverb.mix'], mode: 'set', output: { min: 0, max: 1 } },
+      { target: AMBIENT_TARGETS['input.monitor'], mode: 'toggle', output: { min: 1, max: 0 } },
+    ])
+  })
+})

@@ -32,6 +32,7 @@
   --lm-meter-rms: #6b6b66;
   --lm-meter-lufs: #3d5a80;
   --lm-meter-track: #e9e9e4;
+  --lm-meter-border: transparent;
   --lm-playhead: #e63946;
   --lm-clip: #ffffff;
   --lm-clip-border: #1a1a1a;
@@ -74,6 +75,7 @@
   --lm-meter-rms: #9a9a94;
   --lm-meter-lufs: #98c1d9;
   --lm-meter-track: #0e0e0e;
+  --lm-meter-border: transparent;
   --lm-clip: #242424;
   --lm-clip-border: #f4f4f0;
 }
@@ -446,6 +448,7 @@
 .lm-meter__bar {
   position: relative;
   background: var(--lm-meter-track);
+  border: 1px solid var(--lm-meter-border);
   border-radius: var(--lm-radius);
   overflow: visible;
 }

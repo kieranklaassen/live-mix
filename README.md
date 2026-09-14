@@ -855,13 +855,21 @@ overridden with cancel-and-hold on the first controller write and handed back
 with `surface.release(target)`. `handle(event)` reports whether the event was
 consumed, so a mapped pad never reaches an instrument. Learning binds the
 next position or press (a release keeps waiting); a 14-bit knob learned from
-its MSB upgrades to the `cc14` pair when the LSB follows.
+its MSB upgrades to the `cc14` pair when the LSB follows. A re-learn keeps the
+mapping's options and mode; `beginLearn(target, { inferMode: true })` takes
+the mode from the new source instead (pad → CC switch becomes `set`).
+`persist(storage)` saves the table the surface holds after every change, so a
+listener that normalises the table from inside an emission (`replace`) is
+what gets stored. `MidiInput` follows hot-plugging through
+`addEventListener('statechange')` (or chains, never replaces, an existing
+`onstatechange`); `fromMidiAccess(navigator MIDIAccess)` adapts the browser
+object without a cast (the default request already does).
 
 The pure layer (`createMapping`, `mapTarget`, `resolveControlEvent`,
 `learnFromEvent`, `serializeMappingTable`/`parseMappingTable`,
 `loadMappingTable`/`saveMappingTable`) is ambient-live's U27 `midi-map`
-generalised; `ambientLiveMidiMapMigration` converts its stored format-1
-tables. `./react` adds `useControlSurface(surface)` and
+generalised; `ambientLiveMidiMapMigration(targetFor, { outputFor })` converts
+its stored format-1 tables, carrying knob ranges as `output` spans. `./react` adds `useControlSurface(surface)` and
 `useLearn(surface, target)`. Details and the migration path:
 [docs/control-surface.md](./docs/control-surface.md).
 

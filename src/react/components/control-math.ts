@@ -214,15 +214,15 @@ export function levelToMeterPosition(level: number, floorDb = METER_FLOOR_DB): n
 
 // --- Formatting ----------------------------------------------------------------
 
-function formatHz(value: number, digits?: number): string {
-  if (value >= 1000) return `${(value / 1000).toFixed(digits ?? 2)} kHz`
-  return `${value.toFixed(digits ?? (value < 100 ? 1 : 0))} Hz`
+function formatHz(value: number, digits?: number, sp = ' '): string {
+  if (value >= 1000) return `${(value / 1000).toFixed(digits ?? 2)}${sp}kHz`
+  return `${value.toFixed(digits ?? (value < 100 ? 1 : 0))}${sp}Hz`
 }
 
-function formatDb(value: number, digits?: number): string {
-  if (value === Number.NEGATIVE_INFINITY) return '-∞ dB'
+function formatDb(value: number, digits?: number, sp = ' '): string {
+  if (value === Number.NEGATIVE_INFINITY) return `-∞${sp}dB`
   const sign = value > 0 ? '+' : ''
-  return `${sign}${value.toFixed(digits ?? 1)} dB`
+  return `${sign}${value.toFixed(digits ?? 1)}${sp}dB`
 }
 
 /** −1…1 → `L50` / `C` / `R50`. */
@@ -233,33 +233,43 @@ function formatPan(value: number): string {
 }
 
 /** Print a value with its unit; unknown units are appended after a space. */
+export interface FormatControlValueOptions {
+  digits?: number
+  /** What sits between the number and its unit: `' '` (default) or `''` for `20ms`. */
+  spacing?: ' ' | ''
+}
+
 export function formatControlValue(
   value: number,
   unit: ControlUnit = 'ratio',
-  digits?: number,
+  digitsOrOptions?: number | FormatControlValueOptions,
 ): string {
+  const options: FormatControlValueOptions =
+    typeof digitsOrOptions === 'number' ? { digits: digitsOrOptions } : (digitsOrOptions ?? {})
+  const { digits } = options
+  const sp = options.spacing ?? ' '
   const known = unit as KnownControlUnit
   switch (known) {
     case 'ratio':
     case '':
       return value.toFixed(digits ?? 2)
     case 'ms':
-      return `${value < 10 ? value.toFixed(digits ?? 1) : Math.round(value)} ms`
+      return `${value < 10 ? value.toFixed(digits ?? 1) : Math.round(value)}${sp}ms`
     case 's':
-      return `${value.toFixed(digits ?? 2)} s`
+      return `${value.toFixed(digits ?? 2)}${sp}s`
     case 'dB':
-      return formatDb(value, digits)
+      return formatDb(value, digits, sp)
     case 'Hz':
-      return formatHz(value, digits)
+      return formatHz(value, digits, sp)
     case '%':
-      return `${Math.round(value)} %`
+      return `${Math.round(value)}${sp}%`
     case 'pan':
       return formatPan(value)
     case 'raw':
       return String(value)
     default: {
       const _exhaustive: never = known
-      return `${value.toFixed(digits ?? 2)} ${String(_exhaustive)}`
+      return `${value.toFixed(digits ?? 2)}${sp}${String(_exhaustive)}`
     }
   }
 }
