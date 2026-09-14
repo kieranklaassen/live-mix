@@ -1,0 +1,124 @@
+// A pass-through track for a live source: a MediaStream (microphone, WebRTC
+// remote voice) or any AudioNode. Nothing buffers in this path. Lifted from
+// Breathwork Live `attachVoiceSource`: attaching creates a fresh gain to the
+// destination and connects the source into it and into every send; a
+// re-attach unwires the previous source and gain first. The attached node is
+// also the key a Ducker taps (`ducker.key(track.source)`).
+//
+// The Chrome muted-`<audio>` workaround for remote WebRTC tracks stays in the
+// app (Breathwork Live's realtimeClient.ts): the stream still has to be
+// attached to a media element for its audio to flow into the graph.
+
+import { type Bus } from '../buses/Bus'
+import { SendList } from './Send'
+
+export interface LiveInputTrackOptions {
+  name: string
+  /** Where the dry signal goes: a bus (its input) or a raw node (the terminus). */
+  destination: Bus | AudioNode
+  /** Initial fader value for each attached gain. Default 1. */
+  gain?: number
+}
+
+export class LiveInputTrack {
+  readonly name: string
+  readonly sends: SendList
+  private readonly ctx: BaseAudioContext
+  private readonly destination: AudioNode
+  private readonly initialGain: number
+  private sourceNode: AudioNode | null = null
+  private gain: GainNode | null = null
+  private attachListeners = new Set<(source: AudioNode) => void>()
+  private disposed = false
+
+  constructor(ctx: BaseAudioContext, options: LiveInputTrackOptions) {
+    this.ctx = ctx
+    this.name = options.name
+    this.destination = isBus(options.destination) ? options.destination.input : options.destination
+    this.initialGain = options.gain ?? 1
+    this.sends = new SendList(ctx, () => this.sourceNode)
+  }
+
+  /** The attached source node (a `MediaStreamAudioSourceNode` for streams), or null. */
+  get source(): AudioNode | null {
+    return this.sourceNode
+  }
+
+  /** The dry-path gain created by the current attach, or null. */
+  get gainNode(): GainNode | null {
+    return this.gain
+  }
+
+  /**
+   * Wire a live source into the graph: source → dedicated gain → destination,
+   * plus source → every send. Attaching again (reconnect) unwires the previous
+   * source and gain first.
+   */
+  attach(input: AudioNode | MediaStream): AudioNode {
+    if (this.disposed) throw new Error(`live-mix: live input "${this.name}" is disposed`)
+    const node = isMediaStream(input)
+      ? (this.ctx as AudioContext).createMediaStreamSource(input)
+      : input
+
+    if (this.sourceNode) {
+      try {
+        this.sourceNode.disconnect()
+      } catch {
+        // Node may already be disconnected; ignore.
+      }
+      this.sourceNode = null
+    }
+    this.gain?.disconnect()
+    this.gain = null
+
+    for (const listener of this.attachListeners) listener(node)
+
+    this.gain = this.ctx.createGain()
+    if (this.initialGain !== 1) this.gain.gain.value = this.initialGain
+    this.gain.connect(this.destination)
+    node.connect(this.gain)
+    this.sends.connectAll(node)
+    this.sourceNode = node
+    return node
+  }
+
+  /**
+   * Called with the new source node at the start of every `attach`, before the
+   * dry gain is created — the hook a Ducker uses to re-key (so its analyser is
+   * created ahead of the gain, matching Breathwork Live's node order).
+   */
+  onAttach(listener: (source: AudioNode) => void): () => void {
+    this.attachListeners.add(listener)
+    return () => this.attachListeners.delete(listener)
+  }
+
+  /** Unwire the current source and gain. */
+  detach(): void {
+    if (this.sourceNode) {
+      try {
+        this.sourceNode.disconnect()
+      } catch {
+        // ignore
+      }
+    }
+    this.gain?.disconnect()
+    this.sourceNode = null
+    this.gain = null
+  }
+
+  dispose(): void {
+    if (this.disposed) return
+    this.disposed = true
+    this.detach()
+    this.sends.dispose()
+    this.attachListeners.clear()
+  }
+}
+
+function isBus(value: Bus | AudioNode): value is Bus {
+  return typeof (value as Bus).addInsert === 'function'
+}
+
+function isMediaStream(value: AudioNode | MediaStream): value is MediaStream {
+  return typeof (value as MediaStream).getAudioTracks === 'function'
+}
