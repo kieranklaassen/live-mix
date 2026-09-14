@@ -897,6 +897,44 @@ component renders under `react-dom/server` from the same snapshots.
 `pnpm playground`, then <http://localhost:5199/> (`?play=1` starts the
 transport, `?theme=jaxa-zen-dark`).
 
+### The agent control API
+
+Every capability is a tool a model can call: the 46 score operations, the
+coach's intents (`steer_music`, `set_intensity`, `set_music_volume`, `duck`,
+`extend_section`, `advance_section`, `set_breath_pace`, `fade_out`,
+`set_ambience`, `more_space`, `match_key`), a `get_state` query and `undo`,
+each with a JSON Schema. `listTools()` / `toOpenAiTools()` /
+`toAnthropicTools()` export the catalogue for a model session; `call` runs
+the safety rails the agent cannot override — fader range, short-term LUFS and
+true-peak ceilings, gain slew, no hard mute of the voice while speaking, no
+silencing the music, per-tool rate limits, consent for structural edits —
+applies through `ScoreDocument.apply` with the agent as author, and records
+an audit trail. `snapshot()` is a ≤ 2 KB state document for the prompt;
+`diffSince(cursor)` only what changed. Intents compile to score operations,
+engine calls, or the consumer's session hooks (sections, pace, dip logic).
+
+```ts
+import { AgentController } from '@kieranklaassen/live-mix'
+
+const agent = new AgentController({
+  engine,
+  document,
+  roles: { voice: 'voice', music: 'music' },
+  library,
+  session,
+})
+realtime.update({ tools: agent.toOpenAiTools() })
+const result = agent.call(
+  'steer_music',
+  { direction: 'calmer' },
+  { author: { kind: 'agent', id: 'coach' } },
+)
+// { ok: true, result: { direction: 'calmer', targetIntensity: 1, nowPlaying: 'Still Water', boundaryShiftSec: 84 }, operations: [...], rails: [] }
+```
+
+The tool list, the intent mapping table, the rails and their defaults and
+the snapshot shape are in [`docs/agent-api.md`](./docs/agent-api.md).
+
 ### Real-time rules
 
 - Nothing allocates inside `process()`; WASM memory is fixed and heap views are
