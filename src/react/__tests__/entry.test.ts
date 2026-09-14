@@ -56,6 +56,8 @@ describe('entries', () => {
     'useEngineStats',
     'useClips',
     'useSchedule',
+    'useSession',
+    'useSlot',
     'useExternalSnapshot',
     'useFrameSampled',
     'defaultFrameScheduler',

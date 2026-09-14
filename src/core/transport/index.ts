@@ -21,4 +21,12 @@ export {
   type TransportOptions,
   type TransportState,
 } from './Transport'
-export { DEFAULT_TICK_MS, Scheduler, type Schedulable, type SchedulerOptions } from './Scheduler'
+export {
+  DEFAULT_TICK_MS,
+  Scheduler,
+  type Schedulable,
+  type SchedulerOptions,
+  type SchedulerTick,
+  type SchedulerTickListener,
+  type SchedulerTickReason,
+} from './Scheduler'

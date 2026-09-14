@@ -10,9 +10,32 @@
 // 5 s lookahead — hence both are per-instance settings here.
 
 import type { ClipWindow } from '../clips/window'
-import { isLooping, scheduleKey, type ScheduledStart, type TransportLoop } from './anchor'
+import {
+  isLooping,
+  scheduleKey,
+  type ScheduledStart,
+  type TransportLoop,
+  type TransportPosition,
+} from './anchor'
 import type { Transport, TransportChange } from './Transport'
 import { startsInWindow } from './window'
+
+/**
+ * Why a scheduling pass ran: the timer, a transport re-pin (`start`, `seek`,
+ * `loop`), an edit (`refresh`), a new registration, or a direct `tick()` call.
+ */
+export type SchedulerTickReason =
+  'timer' | 'start' | 'seek' | 'loop' | 'refresh' | 'register' | 'manual'
+
+/** What a tick listener sees: the transport position the pass ran at, plus its unwrapped timeline second. */
+export interface SchedulerTick {
+  position: TransportPosition
+  /** Timeline seconds since pass 0 began — monotonic across loop wraps. */
+  timelineSec: number
+  reason: SchedulerTickReason
+}
+
+export type SchedulerTickListener = (tick: SchedulerTick) => void
 
 /**
  * Something with clips on the timeline whose starts the scheduler hands over
@@ -60,6 +83,7 @@ export class Scheduler {
   readonly tickMs: number
   private readonly transport: Transport
   private readonly registrations = new Map<Schedulable, Registration>()
+  private readonly tickListeners = new Set<SchedulerTickListener>()
   private timer: ReturnType<typeof setInterval> | null = null
   private readonly unsubscribe: () => void
   private readonly setIntervalFn: NonNullable<SchedulerOptions['setIntervalFn']>
@@ -83,7 +107,7 @@ export class Scheduler {
   register(schedulable: Schedulable): () => void {
     if (!this.registrations.has(schedulable)) {
       this.registrations.set(schedulable, { scheduled: new Map() })
-      this.tick()
+      this.tick('register')
     }
     return () => this.unregister(schedulable)
   }
@@ -94,10 +118,23 @@ export class Scheduler {
   }
 
   /**
-   * One scheduling pass: hands over every start due inside each schedulable's
-   * window. Runs on the timer, but is safe to call directly.
+   * Called after every scheduling pass while playing, with the position the
+   * pass ran at — for logic that must run on the scheduler's clock (the
+   * session grid's launches and follow actions). Returns the unsubscribe.
    */
-  tick(): void {
+  onTick(listener: SchedulerTickListener): () => void {
+    this.tickListeners.add(listener)
+    return () => {
+      this.tickListeners.delete(listener)
+    }
+  }
+
+  /**
+   * One scheduling pass: hands over every start due inside each schedulable's
+   * window. Runs on the timer, but is safe to call directly. `reason` is
+   * reported to tick listeners.
+   */
+  tick(reason: SchedulerTickReason = 'manual'): void {
     if (this.transport.state !== 'playing') return
     const position = this.transport.position()
     if (position.finished) {
@@ -145,6 +182,11 @@ export class Scheduler {
         if (start.iteration < position.iteration) registration.scheduled.delete(key)
       }
     }
+
+    if (this.tickListeners.size > 0) {
+      const tick: SchedulerTick = { position, timelineSec: nowSec, reason }
+      for (const listener of [...this.tickListeners]) listener(tick)
+    }
   }
 
   /** Cancels every start not yet begun and forgets its key, so the next pass re-derives it. */
@@ -161,7 +203,7 @@ export class Scheduler {
    * mid-note; a start that moved gives up the audio it began at its old
    * position rather than playing twice.
    */
-  refresh(): void {
+  refresh(reason: SchedulerTickReason = 'refresh'): void {
     if (this.transport.state !== 'playing') return
     this.cancelPending()
     for (const [schedulable, registration] of this.registrations) {
@@ -173,7 +215,7 @@ export class Scheduler {
         registration.scheduled.delete(key)
       }
     }
-    this.tick()
+    this.tick(reason)
   }
 
   /** Stops the timer and the transport subscription. Audio in flight is left alone. */
@@ -181,6 +223,7 @@ export class Scheduler {
     this.unsubscribe()
     this.stopTimer()
     this.registrations.clear()
+    this.tickListeners.clear()
   }
 
   private onTransportChange(change: TransportChange): void {
@@ -188,12 +231,12 @@ export class Scheduler {
       case 'start':
         this.reset()
         this.startTimer()
-        this.tick()
+        this.tick('start')
         return
       case 'seek':
         this.silence(0)
         this.reset()
-        this.tick()
+        this.tick('seek')
         return
       case 'loop':
         // The transport re-pinned with a new pass number: keys of pending
@@ -201,7 +244,7 @@ export class Scheduler {
         for (const registration of this.registrations.values()) {
           registration.windowEndSec = undefined
         }
-        this.refresh()
+        this.refresh('loop')
         return
       case 'pause':
       case 'end':
@@ -233,7 +276,7 @@ export class Scheduler {
 
   private startTimer(): void {
     if (this.timer !== null) return
-    this.timer = this.setIntervalFn(() => this.tick(), this.tickMs)
+    this.timer = this.setIntervalFn(() => this.tick('timer'), this.tickMs)
   }
 
   private stopTimer(): void {

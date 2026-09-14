@@ -12,14 +12,26 @@ import { type Clip } from '../core/clips/Clip'
 import { type ModPolarity } from '../core/automation/ModMatrix'
 import { type Breakpoint } from '../core/automation/ParamLane'
 import {
+  describeFollowAction,
+  isFollowAction,
+  type ScoreFollowAction,
+} from '../core/session/followActions'
+import { describeQuantize, isLaunchQuantize, type LaunchQuantize } from '../core/session/launch'
+import { type ScoreScene } from '../core/session/Scene'
+import { LAUNCH_MODES, type LaunchMode, type ScoreSlot, type SlotClip } from '../core/session/Slot'
+import {
   MASTER_OWNER,
   findDevice,
   findGroup,
   findReturn,
+  findScene,
+  findSlot,
   findStripHost,
   findTrack,
   normaliseClip,
+  normaliseSlot,
   sameTarget,
+  slotAt,
   sortBreakpoints,
   sortClips,
   targetKey,
@@ -55,6 +67,21 @@ export interface ModulatorPatch {
 }
 
 export type ClipPatch = Partial<Omit<Clip, 'id'>>
+
+/**
+ * Fields a `slot.update` may patch. `quantize: null` and `follow: null`
+ * clear the optional setting (back to the global quantisation / no follow
+ * action); `clip: null` empties the slot.
+ */
+export interface SlotPatch {
+  track?: string
+  scene?: string
+  clip?: SlotClip | null
+  quantize?: LaunchQuantize | null
+  launchMode?: LaunchMode
+  legato?: boolean
+  follow?: ScoreFollowAction | null
+}
 
 export type Operation =
   | { type: 'score.rename'; name: string }
@@ -122,6 +149,18 @@ export type Operation =
   | { type: 'route.add'; route: ScoreModRoute; index?: number }
   | { type: 'route.remove'; id: string }
   | { type: 'route.update'; id: string; depth?: number; polarity?: ModPolarity }
+  /** Global launch quantisation for the session grid (U31). */
+  | { type: 'transport.quantize'; quantize: LaunchQuantize }
+  | { type: 'scene.add'; scene: ScoreScene; index?: number }
+  /** Removes the scene and every slot in it. */
+  | { type: 'scene.remove'; id: string }
+  | { type: 'scene.move'; id: string; index: number }
+  | { type: 'scene.rename'; id: string; name: string }
+  /** Put a slot in a free cell (audio track × scene). */
+  | { type: 'slot.add'; slot: ScoreSlot; index?: number }
+  | { type: 'slot.remove'; id: string }
+  /** Patch a slot's cell, clip or launch settings. */
+  | { type: 'slot.update'; id: string; patch: SlotPatch }
   /** Applied in order as one step; the inverse is the reversed inverses. */
   | { type: 'batch'; ops: Operation[]; label?: string }
 
@@ -175,6 +214,14 @@ export const OPERATION_TYPES: readonly OperationType[] = [
   'route.add',
   'route.remove',
   'route.update',
+  'transport.quantize',
+  'scene.add',
+  'scene.remove',
+  'scene.move',
+  'scene.rename',
+  'slot.add',
+  'slot.remove',
+  'slot.update',
   'batch',
 ]
 
@@ -262,6 +309,14 @@ export function coalesceKey(op: Operation): string | null {
     case 'modulator.remove':
     case 'route.add':
     case 'route.remove':
+    case 'transport.quantize':
+    case 'scene.add':
+    case 'scene.remove':
+    case 'scene.move':
+    case 'scene.rename':
+    case 'slot.add':
+    case 'slot.remove':
+    case 'slot.update':
     case 'batch':
       return null
     default: {
@@ -350,6 +405,57 @@ function requireModulator(score: Score, op: Operation, id: string): ScoreModulat
 
 function requireRoute(score: Score, op: Operation, id: string): ScoreModRoute {
   return score.routes.find((route) => route.id === id) ?? fail(op, `no route "${id}"`)
+}
+
+function requireScene(score: Score, op: Operation, id: string): ScoreScene {
+  return findScene(score, id) ?? fail(op, `no scene "${id}"`)
+}
+
+function requireSlot(score: Score, op: Operation, id: string): ScoreSlot {
+  return findSlot(score, id) ?? fail(op, `no slot "${id}"`)
+}
+
+/** A slot's cell must name an audio track and a scene, and be the only slot there. */
+function assertSlotCell(score: Score, op: Operation, slot: ScoreSlot): void {
+  requireAudioTrack(score, op, slot.track)
+  requireScene(score, op, slot.scene)
+  const occupant = slotAt(score, slot.track, slot.scene)
+  if (occupant && occupant.id !== slot.id) {
+    fail(op, `slot "${occupant.id}" already sits at ${slot.track} × ${slot.scene}`)
+  }
+}
+
+function assertSlotSettings(score: Score, op: Operation, slot: ScoreSlot): void {
+  if (slot.clip !== null && !score.sources.some((source) => source.id === slot.clip?.sourceId)) {
+    fail(op, `no source "${slot.clip.sourceId}"`)
+  }
+  if (slot.quantize !== undefined && !isLaunchQuantize(slot.quantize)) {
+    fail(op, 'quantize must be none, bar, beat, a positive bar count or { seconds > 0 }')
+  }
+  if (!LAUNCH_MODES.includes(slot.launchMode)) fail(op, `unknown launch mode "${slot.launchMode}"`)
+  if (slot.follow !== undefined && !isFollowAction(slot.follow)) {
+    fail(op, 'follow must be { a, b, chance 0..1, time?: { unit, value > 0 } }')
+  }
+}
+
+/** The slots `keep` selects, with their indices, and the score without them. */
+function detachSlots(
+  score: Score,
+  keep: (slot: ScoreSlot) => boolean,
+): { score: Score; slots: Indexed<ScoreSlot>[] } {
+  const slots = indexed(score.slots, keep)
+  return {
+    score: slots.length ? { ...score, slots: score.slots.filter((slot) => !keep(slot)) } : score,
+    slots,
+  }
+}
+
+function reattachSlotOps(slots: Indexed<ScoreSlot>[]): Operation[] {
+  return slots.map((entry): Operation => ({
+    type: 'slot.add',
+    slot: entry.item,
+    index: entry.index,
+  }))
 }
 
 function assertFreshOwnerId(score: Score, op: Operation, id: string): void {
@@ -589,6 +695,10 @@ export function apply(score: Score, op: Operation): Score {
           fail(op, `source "${op.id}" is used by a clip on track "${track.id}"`)
         }
       }
+      for (const slot of score.slots) {
+        if (slot.clip?.sourceId === op.id)
+          fail(op, `source "${op.id}" is used by slot "${slot.id}"`)
+      }
       return { ...score, sources: score.sources.filter((source) => source.id !== op.id) }
     }
 
@@ -606,7 +716,8 @@ export function apply(score: Score, op: Operation): Score {
     case 'track.remove': {
       const track = requireTrack(score, op, op.id)
       const detached = detachAutomation(score, op.id, hostDevices(track))
-      return { ...detached.score, tracks: score.tracks.filter((candidate) => candidate !== track) }
+      const withoutSlots = detachSlots(detached.score, (slot) => slot.track === op.id).score
+      return { ...withoutSlots, tracks: score.tracks.filter((candidate) => candidate !== track) }
     }
 
     case 'track.move': {
@@ -965,6 +1076,79 @@ export function apply(score: Score, op: Operation): Score {
       }
     }
 
+    case 'transport.quantize':
+      if (!isLaunchQuantize(op.quantize)) {
+        fail(op, 'quantize must be none, bar, beat, a positive bar count or { seconds > 0 }')
+      }
+      return { ...score, transport: { ...score.transport, quantize: op.quantize } }
+
+    case 'scene.add':
+      if (findScene(score, op.scene.id)) fail(op, `scene "${op.scene.id}" already exists`)
+      return {
+        ...score,
+        scenes: insertAt(op, score.scenes, { id: op.scene.id, name: op.scene.name }, op.index),
+      }
+
+    case 'scene.remove': {
+      const scene = requireScene(score, op, op.id)
+      const detached = detachSlots(score, (slot) => slot.scene === op.id).score
+      return { ...detached, scenes: score.scenes.filter((candidate) => candidate !== scene) }
+    }
+
+    case 'scene.move': {
+      const from = score.scenes.findIndex((scene) => scene.id === op.id)
+      if (from === -1) fail(op, `no scene "${op.id}"`)
+      return { ...score, scenes: moveTo(op, score.scenes, from, op.index) }
+    }
+
+    case 'scene.rename': {
+      const scene = requireScene(score, op, op.id)
+      return {
+        ...score,
+        scenes: score.scenes.map((candidate) =>
+          candidate === scene ? { ...scene, name: op.name } : candidate,
+        ),
+      }
+    }
+
+    case 'slot.add': {
+      if (findSlot(score, op.slot.id)) fail(op, `slot "${op.slot.id}" already exists`)
+      assertSlotCell(score, op, op.slot)
+      assertSlotSettings(score, op, op.slot)
+      return { ...score, slots: insertAt(op, score.slots, normaliseSlot(op.slot), op.index) }
+    }
+
+    case 'slot.remove':
+      requireSlot(score, op, op.id)
+      return { ...score, slots: score.slots.filter((slot) => slot.id !== op.id) }
+
+    case 'slot.update': {
+      const slot = requireSlot(score, op, op.id)
+      if ('id' in op.patch) fail(op, 'a slot id cannot be changed')
+      const next: ScoreSlot = { ...slot }
+      if (op.patch.track !== undefined) next.track = op.patch.track
+      if (op.patch.scene !== undefined) next.scene = op.patch.scene
+      if (op.patch.clip !== undefined) next.clip = op.patch.clip
+      if (op.patch.launchMode !== undefined) next.launchMode = op.patch.launchMode
+      if (op.patch.legato !== undefined) next.legato = op.patch.legato
+      if (op.patch.quantize !== undefined) {
+        if (op.patch.quantize === null) delete next.quantize
+        else next.quantize = op.patch.quantize
+      }
+      if (op.patch.follow !== undefined) {
+        if (op.patch.follow === null) delete next.follow
+        else next.follow = op.patch.follow
+      }
+      assertSlotCell(score, op, next)
+      assertSlotSettings(score, op, next)
+      return {
+        ...score,
+        slots: score.slots.map((candidate) =>
+          candidate === slot ? normaliseSlot(next) : candidate,
+        ),
+      }
+    }
+
     case 'batch':
       return op.ops.reduce((current, child) => apply(current, child), score)
 
@@ -1052,9 +1236,11 @@ export function invert(score: Score, op: Operation): Operation {
       if (index === -1) fail(op, `no track "${op.id}"`)
       const track = score.tracks[index]
       const detached = detachAutomation(score, op.id, hostDevices(track))
+      const slots = detachSlots(score, (slot) => slot.track === op.id).slots
       return batchOf(op, [
         { type: 'track.add', track, index },
         ...reattachOps(detached.lanes, detached.routes),
+        ...reattachSlotOps(slots),
       ])
     }
 
@@ -1358,6 +1544,53 @@ export function invert(score: Score, op: Operation): Operation {
       return inverse
     }
 
+    case 'transport.quantize':
+      return { type: 'transport.quantize', quantize: score.transport.quantize }
+
+    case 'scene.add':
+      return { type: 'scene.remove', id: op.scene.id }
+
+    case 'scene.remove': {
+      const index = score.scenes.findIndex((scene) => scene.id === op.id)
+      if (index === -1) fail(op, `no scene "${op.id}"`)
+      const slots = detachSlots(score, (slot) => slot.scene === op.id).slots
+      return batchOf(op, [
+        { type: 'scene.add', scene: score.scenes[index], index },
+        ...reattachSlotOps(slots),
+      ])
+    }
+
+    case 'scene.move': {
+      const index = score.scenes.findIndex((scene) => scene.id === op.id)
+      if (index === -1) fail(op, `no scene "${op.id}"`)
+      return { type: 'scene.move', id: op.id, index }
+    }
+
+    case 'scene.rename':
+      return { type: 'scene.rename', id: op.id, name: requireScene(score, op, op.id).name }
+
+    case 'slot.add':
+      return { type: 'slot.remove', id: op.slot.id }
+
+    case 'slot.remove': {
+      const index = score.slots.findIndex((slot) => slot.id === op.id)
+      if (index === -1) fail(op, `no slot "${op.id}"`)
+      return { type: 'slot.add', slot: score.slots[index], index }
+    }
+
+    case 'slot.update': {
+      const slot = requireSlot(score, op, op.id)
+      const patch: SlotPatch = {}
+      if (op.patch.track !== undefined) patch.track = slot.track
+      if (op.patch.scene !== undefined) patch.scene = slot.scene
+      if (op.patch.clip !== undefined) patch.clip = slot.clip
+      if (op.patch.launchMode !== undefined) patch.launchMode = slot.launchMode
+      if (op.patch.legato !== undefined) patch.legato = slot.legato
+      if (op.patch.quantize !== undefined) patch.quantize = slot.quantize ?? null
+      if (op.patch.follow !== undefined) patch.follow = slot.follow ?? null
+      return { type: 'slot.update', id: op.id, patch }
+    }
+
     case 'batch': {
       const inverses: Operation[] = []
       let current = score
@@ -1489,6 +1722,24 @@ export function describeOperation(op: Operation): string {
       return `remove route ${op.id}`
     case 'route.update':
       return `edit route ${op.id}`
+    case 'transport.quantize':
+      return `launch quantisation ${describeQuantize(op.quantize)}`
+    case 'scene.add':
+      return `add scene ${op.scene.id}`
+    case 'scene.remove':
+      return `remove scene ${op.id}`
+    case 'scene.move':
+      return `move scene ${op.id}`
+    case 'scene.rename':
+      return `rename scene ${op.id} to "${op.name}"`
+    case 'slot.add':
+      return `add slot ${op.slot.id} at ${op.slot.track} × ${op.slot.scene}`
+    case 'slot.remove':
+      return `remove slot ${op.id}`
+    case 'slot.update':
+      return op.patch.follow
+        ? `slot ${op.id} follow: ${describeFollowAction(op.patch.follow)}`
+        : `edit slot ${op.id}`
     case 'batch':
       return op.label ?? `${op.ops.length} operations`
     default: {

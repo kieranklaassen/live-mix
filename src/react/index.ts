@@ -93,3 +93,13 @@ export {
   type UseScheduleOptions,
   type UseScheduleResult,
 } from './hooks/useClips'
+export {
+  useSession,
+  useSlot,
+  type SessionCell,
+  type SessionControls,
+  type SessionSnapshot,
+  type SlotControls,
+  type UseSessionResult,
+  type UseSlotResult,
+} from './hooks/useSession'
