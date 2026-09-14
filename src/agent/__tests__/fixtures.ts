@@ -164,6 +164,7 @@ export const OPERATION_ARGS: Record<OperationType, Record<string, unknown>> = {
     ],
     label: 'two edits',
   },
+  'score.replace': { score: demoScore(), label: 'restore' },
 }
 
 /** Operations that must precede a sample for it to fit the demo score. */

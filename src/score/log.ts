@@ -5,10 +5,17 @@
 // point. Checkpoints are full score snapshots taken every N entries so
 // `scoreAt(seq)` never replays more than N operations.
 
+import { type WriterKind } from '../core/params/arbitration'
 import { apply, isOperation, type Operation } from './operations'
 import { parseScore, type Score } from './schema'
 
-export type AuthorKind = 'human' | 'agent' | 'system'
+/**
+ * Who made an edit: `human` (the UI, a knob), `controller` (MIDI/OSC),
+ * `agent`, `automation` (a lane or follow action writing through the
+ * document), `system` (rails, restores, migrations). The same vocabulary the
+ * arbiter ranks (U30).
+ */
+export type AuthorKind = WriterKind
 
 export interface Author {
   id: string
@@ -16,6 +23,9 @@ export interface Author {
 }
 
 export const LOCAL_AUTHOR: Author = { id: 'local', kind: 'human' }
+export const CONTROLLER_AUTHOR: Author = { id: 'controller', kind: 'controller' }
+export const AUTOMATION_AUTHOR: Author = { id: 'automation', kind: 'automation' }
+export const SYSTEM_AUTHOR: Author = { id: 'system', kind: 'system' }
 
 export type LogEntryKind = 'apply' | 'undo' | 'redo'
 
