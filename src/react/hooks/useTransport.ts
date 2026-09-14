@@ -81,13 +81,15 @@ export function useTransport(
   const playing = snapshot.state === 'playing'
   const samplePosition = useCallback((): TransportPosition => target.position(), [target])
   const sampled = useFrameSampled(playing, frameIntervalMs(options.fps), samplePosition, frame)
-  const position: TransportPosition = playing
-    ? sampled
-    : {
-        positionSec: snapshot.positionSec,
-        iteration: snapshot.iteration,
-        finished: snapshot.finished,
-      }
+  const resting = useMemo<TransportPosition>(
+    () => ({
+      positionSec: snapshot.positionSec,
+      iteration: snapshot.iteration,
+      finished: snapshot.finished,
+    }),
+    [snapshot.positionSec, snapshot.iteration, snapshot.finished],
+  )
+  const position = playing ? sampled : resting
 
   const controls = useMemo<TransportControls>(
     () => ({
