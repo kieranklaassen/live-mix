@@ -20,6 +20,13 @@ const browserTests = tseslint.configs.recommended.map((config) => ({
   files: ['browser-tests/**/*.ts'],
 }))
 
+// The README snippets: type-checked against src/ through examples/tsconfig.json
+// and compared verbatim with README.md by src/__tests__/readme-examples.test.ts.
+const examples = tseslint.configs.recommended.map((config) => ({
+  ...config,
+  files: ['examples/**/*.ts', 'examples/**/*.tsx'],
+}))
+
 export default tseslint.config(
   {
     ignores: [
@@ -37,8 +44,9 @@ export default tseslint.config(
   ...typeChecked,
   ...playground,
   ...browserTests,
+  ...examples,
   {
-    files: ['playground/**/*.ts', 'playground/**/*.tsx'],
+    files: ['playground/**/*.ts', 'playground/**/*.tsx', 'examples/**/*.ts', 'examples/**/*.tsx'],
     languageOptions: {
       globals: { ...globals.browser },
     },

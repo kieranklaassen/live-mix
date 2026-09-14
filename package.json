@@ -66,7 +66,7 @@
     "build": "node scripts/build.mjs",
     "dev": "node scripts/build.mjs --watch",
     "prepare": "node scripts/build.mjs",
-    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p playground/tsconfig.json --noEmit && tsc -p browser-tests/tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p playground/tsconfig.json --noEmit && tsc -p browser-tests/tsconfig.json --noEmit && tsc -p examples/tsconfig.json --noEmit",
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
     "test": "vitest run",
