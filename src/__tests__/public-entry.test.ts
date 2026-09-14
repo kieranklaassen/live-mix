@@ -69,6 +69,23 @@ const coreSymbols = [
   'METER_PROCESSOR_NAME',
   'Emitter',
   'isObservableDevice',
+  'Rack',
+  'Chain',
+  'createRack',
+  'RACK_DESCRIPTOR',
+  'RACK_PARAMS',
+  'RackMacro',
+  'macroMappedValue',
+  'macroCurve',
+  'captureRackPreset',
+  'createRackFromPreset',
+  'serializeRackPreset',
+  'parseRackPreset',
+  'AlignmentDelay',
+  'deviceLatencySamples',
+  'buildLatencyReport',
+  'PDC_MAX_DELAY_SECONDS',
+  'rampParamTo',
 ] as const
 
 const dspSymbols = [
@@ -89,6 +106,7 @@ const dspSymbols = [
   'WorkletDucker',
   'createTruePeakLimiter',
   'TRUE_PEAK_LIMITER_PARAMS',
+  'truePeakLimiterLatencySamples',
 ] as const
 
 const testingSymbols = [

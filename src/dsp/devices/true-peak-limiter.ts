@@ -49,12 +49,33 @@ export const TRUE_PEAK_LIMITER_LOOKAHEAD_SECONDS = 0.0015
  */
 export const TRUE_PEAK_LIMITER_LATENCY_SECONDS = (Math.round(0.0015 * 48000) + 5) / 48000
 
+/** The DSP clamps the lookahead to this many frames (`kMinLookaheadFrames`, `kMaxLookaheadFrames`). */
+export const TRUE_PEAK_LIMITER_LOOKAHEAD_FRAMES = { min: 8, max: 512 } as const
+
+/**
+ * Exact input-to-output delay in samples at `sampleRate`, the same arithmetic
+ * as `TruePeakLimiter::latencyFrames()` in the C++: the rounded 1.5 ms
+ * lookahead (clamped to 8..512 frames) plus five samples of interpolator
+ * alignment. 44.1 kHz → 71, 48 kHz → 77, 96 kHz → 149, 192 kHz → 293.
+ */
+export function truePeakLimiterLatencySamples(sampleRate: number): number {
+  const lookahead = Math.min(
+    TRUE_PEAK_LIMITER_LOOKAHEAD_FRAMES.max,
+    Math.max(
+      TRUE_PEAK_LIMITER_LOOKAHEAD_FRAMES.min,
+      Math.round(TRUE_PEAK_LIMITER_LOOKAHEAD_SECONDS * sampleRate),
+    ),
+  )
+  return lookahead + 5
+}
+
 export const TRUE_PEAK_LIMITER_DEVICE = defineWasmDevice({
   id: 'true-peak-limiter',
   // Static literal so Vite can rewrite it to a hashed asset URL at build time.
   wasm: () => new URL('../wasm/true-peak-limiter.wasm', import.meta.url),
   params: TRUE_PEAK_LIMITER_PARAMS,
   latencySec: TRUE_PEAK_LIMITER_LATENCY_SECONDS,
+  latencySamples: truePeakLimiterLatencySamples,
 })
 
 export type TruePeakLimiter = WasmDevice<typeof TRUE_PEAK_LIMITER_PARAMS>

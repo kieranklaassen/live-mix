@@ -109,9 +109,11 @@ export {
 export {
   TRUE_PEAK_LIMITER_DEVICE,
   TRUE_PEAK_LIMITER_LATENCY_SECONDS,
+  TRUE_PEAK_LIMITER_LOOKAHEAD_FRAMES,
   TRUE_PEAK_LIMITER_LOOKAHEAD_SECONDS,
   TRUE_PEAK_LIMITER_PARAMS,
   createTruePeakLimiter,
+  truePeakLimiterLatencySamples,
   type TruePeakLimiter,
   type TruePeakLimiterParamName,
 } from './devices/true-peak-limiter'

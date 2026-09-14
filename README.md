@@ -330,6 +330,7 @@ npm link ../live-mix
 src/
   index.ts            core entry
   core/               Engine, tracks, buses, Transport, Scheduler, Clip, SampleStore, OutputRouter, Meter, native devices, stats
+  core/devices/       Device contract, NodeDevice host + stock node devices, registry, presets, Rack/Chain, Macro maths, pdc (latency report, AlignmentDelay)
   core/analysis/      Meter (analyser), LoudnessAnalyzer (BS.1770-4 DSP), LufsMeter (worklet host) + meter protocol
   dsp/                WasmDevice host, C ABI typings, device factories + param tables
   dsp/devices/faust/  generated param tables for the Faust devices (scripts/build-faust.sh)
@@ -454,6 +455,86 @@ applyPreset(plate, parsePreset(localStorage.getItem('plate')))
 
 Presets are partial param snapshots; on load, unknown params are dropped and
 values clamped, so a preset from an older device version still applies.
+
+### Racks, macros and delay compensation
+
+A `Rack` is a `Device` made of parallel `Chain`s summed back to one output, so
+it sits anywhere a device does — a strip, a bus, the master, another rack.
+Each chain is an ordered insert list with its own gain, pan and mute (5 ms
+ramps) and a `keyZone`/`selectorZone` reserved for instrument racks. An empty
+rack passes audio; `mix` is the rack's dry/wet (linear law, default wet) and
+bypass crossfades to dry. Racks nest.
+
+```ts
+import { Lfo, createCompressor, createFilter, createRack } from '@kieranklaassen/live-mix'
+
+const rack = createRack(engine.context, { name: 'Space' })
+const dry = rack.addChain({ name: 'Dry', gain: 0.8 })
+const wet = rack.addChain({ name: 'Wet', pan: 0.3 })
+const squash = createCompressor(engine.context)
+const tone = createFilter(engine.context)
+wet.addInsert(squash)
+wet.addInsert(tone)
+music.strip.addInsert(rack) // or bus.addInsert, or anotherRack.chains[0].addInsert
+
+// Macros: eight 0..1 params (`macro1`…`macro8`, plus `mix`) mapped onto inner
+// device params with a range and a curve, following the param's taper (a log
+// frequency sweeps geometrically). A macro's first mapping adopts the param's
+// current position, so nothing jumps; later mappings move the param.
+rack.mapMacro(0, tone, 'frequency', { min: 200, max: 8000, curve: 'logarithmic' })
+rack.mapMacro(0, squash, 'threshold', { min: -12, max: -36 }) // inverted range
+rack.macros[0].name = 'Tone'
+rack.setParam('macro1', 0.5) // ≡ rack.macros[0].set(0.5)
+
+// The macros are U19 `Macro`s: lanes and LFOs drive them through the engine's
+// ModMatrix, and they are `ModSource`s other routes can read.
+engine.modulation.attach(rack.macroTarget(0, { base: toneLane })) // a ParamLane at the playhead
+engine.modulation.map(new Lfo({ rateHz: 0.1 }), rack.macroTarget(1), 0.3)
+```
+
+`devices.create('rack', ctx, { preset: 'Centred' })`, `capturePreset(rack)` and
+`applyPreset` cover the macro and mix values (the U23 model). A whole-rack
+preset is the structure too: `captureRackPreset(rack, 'Tonight', { registry: devices })`
+records every chain's settings, every device as a U23 preset (nested racks
+recursively), macro names, values and mappings; `serializeRackPreset` /
+`parseRackPreset` are its JSON form, and
+`await createRackFromPreset(ctx, preset, { registry: devices })` rebuilds it
+through the registry (`deviceOptions: (id) => ({ processorUrl, wasm })` hands
+per-device factory options through).
+
+**Plugin delay compensation (R12).** Every device reports `latencySec`, and
+those that know it exactly also report `latencySamples` (the true-peak limiter:
+`truePeakLimiterLatencySamples(sampleRate)`, 77 at 48 kHz; every `NodeDevice`
+and `WasmDevice` derives it from the seconds otherwise; `deviceLatencySamples()`
+reads either). Compensated automatically: the chains inside a rack — each one
+ends in a `DelayNode` set sample-exactly to the longest chain's latency minus
+its own, updated whenever any chain's inserts (or a nested rack's) change, so
+parallel processing never smears. The rack reports its longest chain as its own
+latency. Compensated on request: `engine.alignLatency()` gives every clip and
+instrument track an `AlignmentDelay` insert (one `DelayNode`, zero reported
+latency) sized so all of them reach the output together with the longest path;
+re-run it after inserts change and the stages resize in place. Reported only,
+never delayed: **live-input tracks (monitoring stays immediate; pass
+`{ liveInputs: true }` to opt in)**, returns (sends are post-fader, so a return
+hears its sources already aligned), plain buses (raw sources connect to
+`bus.input`), groups, element tracks, and sends themselves. A device's latency
+counts whether or not it is bypassed, so toggling bypass never moves a delay
+line; compensation is capped at `PDC_MAX_DELAY_SECONDS` (1 s) per stage.
+
+```ts
+const report = engine.latencyReport() // creates no nodes
+report.masterSamples // inserts + limiter on the master (77 with the true-peak limiter at 48 kHz)
+report.maxArrivalSamples // what alignLatency brings every alignable path to
+for (const path of report.paths) {
+  // { key: 'track/music', kind, ownSamples, compensationSamples, latencySamples,
+  //   arrivalSamples, arrivalSec, deficitSamples, devices: [{ id, latencySamples, compensation }],
+  //   destination: 'group/drums' | 'master' | null, alignable }
+}
+engine.alignLatency() // returns the report afterwards; alignable paths show deficitSamples 0
+```
+
+The whole mix is late by `maxArrivalSamples` relative to a dry input;
+compensating recorded input against that offset is U33.
 
 ### Sidechain ducker: legacy poll or audio-thread worklet
 

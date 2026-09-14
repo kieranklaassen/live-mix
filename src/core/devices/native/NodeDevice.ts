@@ -45,6 +45,11 @@ export interface NodeDeviceDefinition<
   params: P
   /** Fixed processing latency of the chain, for plugin delay compensation. */
   latencySec?: number
+  /**
+   * Sample-exact latency at a given rate, when the chain knows it better than
+   * `round(latencySec · sampleRate)` (the default).
+   */
+  latencySamples?: (sampleRate: number) => number
   build(context: BaseAudioContext): G
 }
 
@@ -65,6 +70,41 @@ const setImmediately: ParamRamp = (param, value) => {
   param.value = value
 }
 
+/**
+ * Hold the param where it is now and ramp linearly to `value`: the click-free
+ * write every node device (and the rack's chains) uses. `cancelAndHoldAtTime`
+ * where the browser has it; otherwise the current value is pinned with
+ * `setValueAtTime` after cancelling what was scheduled.
+ */
+export function rampParamTo(
+  context: BaseAudioContext,
+  param: AudioParam,
+  value: number,
+  rampSec = NODE_DEVICE_RAMP_SECONDS,
+): void {
+  const now = context.currentTime
+  if (typeof param.cancelAndHoldAtTime === 'function') {
+    param.cancelAndHoldAtTime(now)
+  } else {
+    param.cancelScheduledValues(now)
+    param.setValueAtTime(param.value, now)
+  }
+  param.linearRampToValueAtTime(value, now + rampSec)
+}
+
+/** `latencySamples` of a definition at `sampleRate`: its own function, else the rounded seconds. */
+export function definitionLatencySamples(
+  definition: Pick<
+    NodeDeviceDefinition<Record<string, ParamSpec>>,
+    'latencySec' | 'latencySamples'
+  >,
+  sampleRate: number,
+): number {
+  if (definition.latencySamples)
+    return Math.max(0, Math.round(definition.latencySamples(sampleRate)))
+  return Math.max(0, Math.round((definition.latencySec ?? 0) * sampleRate))
+}
+
 export class NodeDevice<
   P extends Record<string, ParamSpec> = Record<string, ParamSpec>,
   G extends NodeDeviceGraph<P> = NodeDeviceGraph<P>,
@@ -74,6 +114,7 @@ export class NodeDevice<
   readonly input: GainNode
   readonly output: GainNode
   readonly latencySec: number
+  readonly latencySamples: number
   protected readonly context: BaseAudioContext
   protected readonly graph: G
   private readonly dry: GainNode
@@ -92,6 +133,7 @@ export class NodeDevice<
     this.id = definition.id
     this.params = definition.params
     this.latencySec = definition.latencySec ?? 0
+    this.latencySamples = definitionLatencySamples(definition, context.sampleRate)
 
     this.input = context.createGain()
     this.output = context.createGain()
@@ -174,19 +216,8 @@ export class NodeDevice<
     }
   }
 
-  /**
-   * Hold the param where it is now and ramp linearly to `value`. Uses
-   * `cancelAndHoldAtTime` where the browser has it; otherwise pins the current
-   * value with `setValueAtTime` after cancelling what was scheduled.
-   */
+  /** `rampParamTo` on this device's context. */
   protected readonly ramp: ParamRamp = (param, value, rampSec = NODE_DEVICE_RAMP_SECONDS) => {
-    const now = this.context.currentTime
-    if (typeof param.cancelAndHoldAtTime === 'function') {
-      param.cancelAndHoldAtTime(now)
-    } else {
-      param.cancelScheduledValues(now)
-      param.setValueAtTime(param.value, now)
-    }
-    param.linearRampToValueAtTime(value, now + rampSec)
+    rampParamTo(this.context, param, value, rampSec)
   }
 }

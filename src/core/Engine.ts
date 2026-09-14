@@ -18,6 +18,14 @@ import { Bus } from './buses/Bus'
 import { createClock, type Clock, type ClockOptions } from './clock'
 import { OutputRouter, type OutputRouterOptions } from './output/OutputRouter'
 import { devices as defaultDevices } from './devices'
+import {
+  AlignmentDelay,
+  buildLatencyReport,
+  isAlignmentDelay,
+  type LatencyPathInput,
+  type LatencyReport,
+  type LatencySource,
+} from './devices/pdc'
 import { Ducker, type DuckerOptions } from './devices/native/Ducker'
 import { type SidechainDucker } from './devices/native/SidechainDucker'
 import { WorkletDucker, type WorkletDuckerOptions } from './devices/native/WorkletDucker'
@@ -26,6 +34,7 @@ import { AudioTrack, type AudioTrackOptions } from './tracks/AudioTrack'
 import {
   SoloInPlace,
   resolveInput,
+  type ChannelStrip,
   type StripDestination,
   type StripHost,
 } from './tracks/ChannelStrip'
@@ -129,6 +138,16 @@ export interface AddBusOptions {
   gain?: number
 }
 
+export interface AlignLatencyOptions {
+  /** Delay live-input tracks too. Default false: monitoring stays undelayed. */
+  liveInputs?: boolean
+}
+
+/** A path plus the strip an alignment stage would go into. */
+interface LatencyPath extends LatencyPathInput {
+  strip?: ChannelStrip
+}
+
 export class Engine {
   readonly context: BaseAudioContext
   readonly clock: Clock
@@ -157,6 +176,7 @@ export class Engine {
   private readonly instrumentMap = new Map<string, InstrumentTrack>()
   private readonly groupMap = new Map<string, GroupTrack>()
   private readonly duckers = new Set<SidechainDucker>()
+  private readonly alignmentDelays = new Map<ChannelStrip, AlignmentDelay>()
   private disposed = false
 
   constructor(options: EngineOptions) {
@@ -453,6 +473,72 @@ export class Engine {
   }
 
   /**
+   * Latency of every path to the output (R12): each track, group and bus with
+   * its own insert latency (racks report their longest chain, the master its
+   * inserts and limiter), the total on the way to the master, and how far
+   * behind the latest arrival it lands. Sends into returns are not followed;
+   * element tracks have no inserts and are not listed. Creates no nodes.
+   */
+  latencyReport(): LatencyReport {
+    return buildLatencyReport(this.latencyPaths(), this.context.sampleRate)
+  }
+
+  /**
+   * Plugin delay compensation across tracks: every clip and instrument track
+   * gets an `AlignmentDelay` insert sized so all of them reach the output
+   * together with the longest path (racks already align their own chains).
+   * Live inputs are never delayed unless `liveInputs` is set — monitoring
+   * stays immediate; returns hear their sources post-fader, i.e. already
+   * aligned, so they, plain buses and groups are reported only. Re-run after
+   * inserts change: existing stages are resized in place, and a track whose
+   * strip has not materialised yet does so on its first stage. Returns the
+   * report afterwards.
+   */
+  alignLatency(options: AlignLatencyOptions = {}): LatencyReport {
+    this.assertLive()
+    const sampleRate = this.context.sampleRate
+    const paths = this.latencyPaths()
+    // Plan from raw latencies so a stale stage never inflates the target.
+    const raw = buildLatencyReport(
+      paths.map((path) => ({
+        ...path,
+        devices: path.devices.filter((device) => !isAlignmentDelay(device)),
+      })),
+      sampleRate,
+    )
+    const target = raw.maxLatencySamples
+    const seen = new Set<ChannelStrip>()
+    for (const path of paths) {
+      const strip = path.strip
+      if (!strip) continue
+      seen.add(strip)
+      const alignable =
+        path.alignable === true || (options.liveInputs === true && path.kind === 'live-input')
+      const existing = this.alignmentDelays.get(strip)
+      if (!alignable) {
+        existing?.setDelaySamples(0)
+        continue
+      }
+      const latency = raw.paths.find((entry) => entry.key === path.key)?.latencySamples ?? 0
+      const deficit = Math.max(0, target - latency)
+      let delay = existing
+      if (!delay) {
+        if (deficit === 0) continue
+        delay = new AlignmentDelay(this.context)
+        this.alignmentDelays.set(strip, delay)
+      }
+      if (!strip.inserts.includes(delay)) strip.addInsert(delay)
+      delay.setDelaySamples(deficit)
+    }
+    for (const [strip, delay] of this.alignmentDelays) {
+      if (seen.has(strip)) continue
+      delay.dispose()
+      this.alignmentDelays.delete(strip)
+    }
+    return this.latencyReport()
+  }
+
+  /**
    * Fade the master to silence over `fadeSec` and stop the transport, letting
    * sounding voices stop at `now + fadeSec` (Breathwork Live's `stop()`:
    * `setTargetAtTime(0, at, fadeSec / 3)` on the master, sources stop after
@@ -507,6 +593,63 @@ export class Engine {
     this.master.dispose()
     this.output.dispose()
     this.stats.dispose()
+    for (const delay of this.alignmentDelays.values()) delay.dispose()
+    this.alignmentDelays.clear()
+  }
+
+  /** Every path the latency report covers, with its destination resolved by input node. */
+  private latencyPaths(): LatencyPath[] {
+    const keyOfNode = new Map<AudioNode, string>()
+    keyOfNode.set(this.master.input, 'master')
+    for (const bus of this.busMap.values()) keyOfNode.set(bus.input, `bus/${bus.name}`)
+    for (const group of this.groupMap.values()) keyOfNode.set(group.input, `group/${group.name}`)
+    const destinationOf = (strip: ChannelStrip): string | null =>
+      keyOfNode.get(resolveInput(strip.destinationTarget)) ?? null
+
+    const masterDevices: (LatencySource & { id: string })[] = [...this.master.inserts]
+    if (this.master.limiter) masterDevices.push(this.master.limiter)
+    const paths: LatencyPath[] = [
+      {
+        key: 'master',
+        name: this.master.name,
+        kind: 'master',
+        devices: masterDevices,
+        destination: null,
+        alignable: false,
+      },
+    ]
+    for (const bus of this.busMap.values()) {
+      paths.push({
+        key: `bus/${bus.name}`,
+        name: bus.name,
+        kind: 'bus',
+        devices: bus.inserts,
+        destination: keyOfNode.get(bus.destinationNode) ?? null,
+        alignable: false,
+      })
+    }
+    const strips: { hosts: Iterable<StripHost>; kind: LatencyPath['kind']; alignable: boolean }[] =
+      [
+        { hosts: this.groupMap.values(), kind: 'group', alignable: false },
+        { hosts: this.trackMap.values(), kind: 'track', alignable: true },
+        { hosts: this.instrumentMap.values(), kind: 'instrument', alignable: true },
+        { hosts: this.liveInputMap.values(), kind: 'live-input', alignable: false },
+        { hosts: this.returnMap.values(), kind: 'return', alignable: false },
+      ]
+    for (const { hosts, kind, alignable } of strips) {
+      for (const host of hosts) {
+        paths.push({
+          key: `${kind}/${host.name}`,
+          name: host.name,
+          kind,
+          devices: host.strip.inserts,
+          destination: destinationOf(host.strip),
+          alignable,
+          strip: host.strip,
+        })
+      }
+    }
+    return paths
   }
 
   private assertLive(): void {

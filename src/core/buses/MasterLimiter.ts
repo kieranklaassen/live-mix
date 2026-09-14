@@ -14,12 +14,15 @@ export class MasterLimiter<
   readonly id: string
   readonly params: P
   readonly latencySec: number
+  /** Sample-exact latency when the device reports one (the true-peak limiter does). */
+  readonly latencySamples?: number
   private readonly device: Device
 
   constructor(device: Device & { params: P }) {
     this.id = device.id
     this.params = device.params
     this.latencySec = device.latencySec
+    if (device.latencySamples !== undefined) this.latencySamples = device.latencySamples
     this.device = device
     device.bypass = false
   }
