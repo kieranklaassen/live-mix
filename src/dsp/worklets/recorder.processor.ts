@@ -44,6 +44,8 @@ class RecorderProcessor extends AudioWorkletProcessor {
       case 'start':
         this.recording = true
         this.startAt = message.at ?? null
+        this.totalFrames = 0
+        this.filled = 0
         break
       case 'stop':
         this.recording = false

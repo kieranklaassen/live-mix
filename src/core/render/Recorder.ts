@@ -132,6 +132,7 @@ export class WorkletRecorder extends Recorder {
   private readonly ctx: BaseAudioContext
   private readonly chunks: { startFrame: number; channels: Float32Array[] }[] = []
   private resolveStop: ((recording: WorkletRecording) => void) | null = null
+  private stopPromise: Promise<WorkletRecording> | null = null
 
   private constructor(
     ctx: BaseAudioContext,
@@ -189,13 +190,15 @@ export class WorkletRecorder extends Recorder {
   }
 
   stop(): Promise<WorkletRecording> {
+    if (this.stopPromise) return this.stopPromise
     if (this.recordingState !== 'recording') {
       return Promise.resolve(this.assemble(0))
     }
-    return new Promise((resolve) => {
+    this.stopPromise = new Promise((resolve) => {
       this.resolveStop = resolve
       this.post({ type: 'stop' })
     })
+    return this.stopPromise
   }
 
   /** Assembled audio so far (partial while recording). */
@@ -212,6 +215,8 @@ export class WorkletRecorder extends Recorder {
     } catch {
       // ignore
     }
+    // The worklet can no longer reply, so settle any pending stop() here.
+    if (this.recordingState === 'recording') this.settleStop(this.assemble(0))
   }
 
   private handleMessage(message: RecorderHostMessage): void {
@@ -219,18 +224,22 @@ export class WorkletRecorder extends Recorder {
       case 'chunk':
         this.chunks.push({ startFrame: message.startFrame, channels: message.channels })
         break
-      case 'stopped': {
-        this.recordingState = 'stopped'
-        const recording = this.assemble(message.totalFrames)
-        this.resolveStop?.(recording)
-        this.resolveStop = null
+      case 'stopped':
+        this.settleStop(this.assemble(message.totalFrames))
         break
-      }
       default: {
         const unhandled: never = message
         throw new Error(`live-mix: unhandled recorder host message ${JSON.stringify(unhandled)}`)
       }
     }
+  }
+
+  private settleStop(recording: WorkletRecording): void {
+    this.recordingState = 'stopped'
+    const resolve = this.resolveStop
+    this.resolveStop = null
+    this.stopPromise = null
+    resolve?.(recording)
   }
 
   private assemble(totalFrames: number): WorkletRecording {
@@ -260,6 +269,7 @@ export class MediaStreamRecorder extends Recorder {
   private readonly recorder: MediaRecorderLike
   private readonly parts: Blob[] = []
   private resolveStop: ((recording: MediaRecording) => void) | null = null
+  private stopPromise: Promise<MediaRecording> | null = null
 
   constructor(ctx: BaseAudioContext, source: RecordSource, options: MediaRecorderOptions) {
     super(source)
@@ -281,15 +291,12 @@ export class MediaStreamRecorder extends Recorder {
       if (event.data.size > 0) this.parts.push(event.data)
     }
     this.recorder.onstop = () => {
-      this.recordingState = 'stopped'
       const mimeType = nonEmpty(this.recorder.mimeType) ?? options.mimeType ?? 'audio/webm'
-      const recording: MediaRecording = {
+      this.settleStop({
         kind: 'blob',
         blob: new Blob(this.parts, { type: mimeType }),
         mimeType,
-      }
-      this.resolveStop?.(recording)
-      this.resolveStop = null
+      })
     }
     this.source.connect(this.destination)
   }
@@ -310,6 +317,7 @@ export class MediaStreamRecorder extends Recorder {
   }
 
   stop(): Promise<MediaRecording> {
+    if (this.stopPromise) return this.stopPromise
     if (this.recordingState !== 'recording') {
       return Promise.resolve({
         kind: 'blob',
@@ -317,20 +325,46 @@ export class MediaStreamRecorder extends Recorder {
         mimeType: this.recorder.mimeType,
       })
     }
-    return new Promise((resolve) => {
+    this.stopPromise = new Promise((resolve) => {
       this.resolveStop = resolve
       this.recorder.stop()
     })
+    return this.stopPromise
   }
 
   override dispose(): void {
     if (this.disposed) return
     super.dispose()
+    // Stopping the encoder frees it and lets `onstop` settle any pending stop().
+    let stopping = false
+    try {
+      if (this.recorder.state !== 'inactive') {
+        this.recorder.stop()
+        stopping = true
+      }
+    } catch {
+      // ignore
+    }
     try {
       this.destination.disconnect()
     } catch {
       // ignore
     }
+    if (!stopping && this.recordingState === 'recording') {
+      this.settleStop({
+        kind: 'blob',
+        blob: new Blob(this.parts),
+        mimeType: this.recorder.mimeType,
+      })
+    }
+  }
+
+  private settleStop(recording: MediaRecording): void {
+    this.recordingState = 'stopped'
+    const resolve = this.resolveStop
+    this.resolveStop = null
+    this.stopPromise = null
+    resolve?.(recording)
   }
 }
 
