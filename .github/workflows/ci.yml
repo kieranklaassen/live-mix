@@ -105,11 +105,12 @@ jobs:
           path: docs/api
           retention-days: 30
 
-      # Builds playground/, serves it, drives the runner's Google Chrome
-      # (preinstalled on ubuntu-latest; CHROME_BIN overrides) headless through
-      # CDP: loads the page, starts real audio from a synthesised click, plays,
-      # bounces offline, drives the agent console and the grid, and fails on
-      # any console error or page exception.
+      # The playground smoke spec (browser-tests/specs/playground.smoke.spec.ts)
+      # in the runner's Google Chrome (preinstalled on ubuntu-latest): loads the
+      # page, starts real audio from a click, plays, bounces offline, drives the
+      # agent console and the grid, and fails on any console error or page
+      # exception. The `browser` job runs the same spec under Playwright's
+      # Chromium as part of the whole suite.
       - name: Playground smoke test
         run: pnpm playground:smoke
 

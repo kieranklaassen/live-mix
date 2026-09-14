@@ -78,7 +78,7 @@
     "playground": "vite --config playground/vite.config.ts",
     "playground:build": "vite build --config playground/vite.config.ts",
     "test:browser": "node browser-tests/build-harness.mjs && playwright test -c browser-tests/playwright.config.ts",
-    "playground:smoke": "node playground/smoke.mjs",
+    "playground:smoke": "pnpm playground:build && playwright test -c browser-tests/playwright.config.ts playground.smoke",
     "docs:api": "typedoc",
     "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm pack:check",
     "changeset": "changeset",

@@ -13,6 +13,7 @@ import {
   AgentController,
   DeviceRegistry,
   ScoreDocument,
+  Session,
   createEngine,
   createScore,
   defaultStrip,
@@ -29,7 +30,9 @@ import {
   type Score,
   type ScoreDevice,
   type ScoreRenderer,
+  type ScoreSlot,
   type ScoreSource,
+  type SlotClip,
 } from '@kieranklaassen/live-mix'
 import { STOCK_WASM_DEVICES, type AssetOverrides } from '@kieranklaassen/live-mix/dsp'
 import {
@@ -48,6 +51,8 @@ export interface Demo {
   renderer: ScoreRenderer
   /** The U29 tool surface over the document and the engine. */
   agent: AgentController
+  /** The U31 session grid performing the document's scenes and slots. */
+  session: Session
   tracks: AudioTrack[]
   returns: ReturnTrack[]
   dispose(): void
@@ -61,11 +66,14 @@ export const MUSIC_ROLE = 'pad'
  * The playground imports the library from `src/`, where the dsp entry's
  * `new URL('../worklets/wasm-device.js', import.meta.url)` has nothing to point
  * at (the processor is bundled into `dist/worklets/` by `pnpm build`). The Vite
- * config serves that folder at `/worklets/`, and every WASM factory here gets
- * the explicit `processorUrl` override — the same escape hatch a consumer uses
- * when its bundler cannot resolve the asset (KTD3).
+ * config serves that folder at `worklets/` next to the page (dev and build),
+ * and every WASM factory here gets the explicit `processorUrl` override — the
+ * same escape hatch a consumer uses when its bundler cannot resolve the asset
+ * (KTD3).
  */
-const WASM_PROCESSOR_URL = '/worklets/wasm-device.js'
+function wasmProcessorUrl(): string {
+  return new URL('worklets/wasm-device.js', document.baseURI).href
+}
 
 /**
  * The registry each demo engine creates devices from: the stock node devices
@@ -81,7 +89,7 @@ function demoRegistry(wasm: boolean): DeviceRegistry {
       ...descriptor,
       create: (context, options) => {
         const request: DeviceCreateOptions & AssetOverrides = {
-          processorUrl: WASM_PROCESSOR_URL,
+          processorUrl: wasmProcessorUrl(),
           ...options,
         }
         return descriptor.create(context, request)
@@ -259,13 +267,64 @@ function device(id: string, deviceId: string, params: Record<string, number> = {
   return { id, deviceId, params, bypass: false }
 }
 
+function slotClip(sourceId: string, durationSec: number, extra: Partial<SlotClip> = {}): SlotClip {
+  return {
+    sourceId,
+    offsetSec: 0,
+    durationSec,
+    fadeInSec: 0.05,
+    fadeOutSec: 0.2,
+    fadeCurve: 'equalPower',
+    gainDb: 0,
+    ...extra,
+  }
+}
+
+function slot(
+  scene: string,
+  track: string,
+  clip: SlotClip | null,
+  extra: Partial<ScoreSlot> = {},
+): ScoreSlot {
+  return {
+    id: `${scene}-${track}`,
+    scene,
+    track,
+    clip,
+    launchMode: 'trigger',
+    legato: false,
+    ...extra,
+  }
+}
+
 const MASTER = { kind: 'master' } as const
 
 /** The demo arrangement as a score document (format 2). */
 export function demoScore(wasm: boolean): Score {
   const score = createScore({ id: 'playground', name: 'live-mix playground' })
   score.transport.loop = { enabled: true, lengthSec: LOOP_SEC }
+  score.transport.quantize = 'bar' // 120 BPM default tempo → a 2 s launch grid
   score.sources = TONES.map((tone) => ({ id: tone.id, durationSec: tone.durationSec }))
+  // The session grid (U31): three scenes over the four audio tracks. Launches
+  // land on the tracks' arrangement lanes at the next bar; the empty cells in
+  // the last row are stop buttons.
+  score.scenes = [
+    { id: 'calm', name: 'Calm' },
+    { id: 'groove', name: 'Groove' },
+    { id: 'stop', name: 'Stop' },
+  ]
+  score.slots = [
+    slot('calm', 'pad', slotClip('pad-Fmaj', 8, { loop: true })),
+    slot('calm', 'keys', slotClip('keys-arp', 4, { loop: true }), { launchMode: 'toggle' }),
+    slot('groove', 'pad', slotClip('pad-Gmaj', 8, { loop: true })),
+    slot('groove', 'keys', slotClip('keys-arp', 4, { loop: true }), { launchMode: 'toggle' }),
+    slot('groove', 'drums', slotClip('drums-loop', 2, { loop: true })),
+    slot('groove', 'bass', slotClip('bass-line', 8, { loop: true }), { legato: true }),
+    slot('stop', 'pad', null),
+    slot('stop', 'keys', null),
+    slot('stop', 'drums', null),
+    slot('stop', 'bass', null),
+  ]
   score.groups = [{ id: 'rhythm', name: 'rhythm', destination: MASTER, strip: defaultStrip() }]
   // The hall is ambient-live's Dattorro plate (WASM) where a worklet can run,
   // a feedback delay on the mock context.
@@ -385,11 +444,13 @@ async function follow(
   })
   agent.grantConsent('arrange')
   agent.grantConsent('structure')
+  const session = new Session({ document, engine })
   const byName = (name: string): AudioTrack => engine.track(name)
   return {
     document,
     renderer,
     agent,
+    session,
     tracks: ['pad', 'keys', 'drums', 'bass'].map(byName),
     returns: [...engine.returnTracks],
   }
@@ -412,6 +473,7 @@ export async function createDemo(mode: DemoMode): Promise<Demo> {
       ...session,
       dispose: () => {
         stop()
+        session.session.dispose()
         session.agent.dispose()
         engine.dispose()
       },
@@ -431,6 +493,7 @@ export async function createDemo(mode: DemoMode): Promise<Demo> {
     engine,
     ...session,
     dispose: () => {
+      session.session.dispose()
       session.agent.dispose()
       engine.dispose()
       void context.close()

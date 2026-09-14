@@ -9,11 +9,13 @@
 # diffed against the committed .wasm, and the github: install path (needs git
 # access to the repo: a token via GITHUB_TOKEN/GH_TOKEN, or an ssh key).
 #
-# Also generates the API reference (TypeDoc, never committed) and, when a
-# Chrome/Chromium binary is available (or CHROME_BIN points at one), runs the
-# playground smoke test in headless Chromium: load, start audio from a
-# synthesised click, play, bounce offline, drive the agent console, no console
-# errors. Skipped with a note otherwise, or with --skip-playground.
+# Also generates the API reference (TypeDoc, never committed) and, when Google
+# Chrome or a Chromium is installed, runs the playground smoke spec in it
+# (Playwright, browser-tests/specs/playground.smoke.spec.ts): load, start audio
+# from a click, play, device chain, bounce offline, agent console, session
+# grid, no console errors. Skipped with a note otherwise, or with
+# --skip-playground; --browser runs the whole browser suite (golden included),
+# which covers the smoke.
 #
 # Usage: bash scripts/ci-local.sh [--skip-git-install] [--skip-playground] [--browser]
 #   --browser  also run the real-audio browser golden (Playwright + the
@@ -139,28 +141,20 @@ browser_tests() {
   pnpm playground:build && pnpm test:browser
 }
 
-find_chrome() {
-  if [ -n "${CHROME_BIN:-}" ] && [ -x "${CHROME_BIN}" ]; then
-    echo "$CHROME_BIN"
+# Playwright's `chrome` channel needs Google Chrome installed; LIVE_MIX_BROWSER=chromium
+# uses Playwright's own Chromium (`pnpm exec playwright install chromium`).
+have_browser() {
+  if [ "${LIVE_MIX_BROWSER:-}" = "chromium" ]; then
     return 0
   fi
-  local candidate
-  for candidate in google-chrome google-chrome-stable chromium chromium-browser chrome; do
-    if command -v "$candidate" >/dev/null 2>&1; then
-      command -v "$candidate"
-      return 0
-    fi
-  done
-  local mac="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-  if [ -x "$mac" ]; then
-    echo "$mac"
-    return 0
-  fi
+  command -v google-chrome >/dev/null 2>&1 && return 0
+  command -v google-chrome-stable >/dev/null 2>&1 && return 0
+  [ -x "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" ] && return 0
   return 1
 }
 
 playground_smoke() {
-  CHROME_BIN="$1" node playground/smoke.mjs
+  pnpm playground:smoke
 }
 
 echo "live-mix local CI on $branch @ $sha"
@@ -174,13 +168,13 @@ run_step "api reference (typedoc)" pnpm docs:api
 run_step "native C++ tests" native_tests
 run_step "faust reproduce (Faust 2.88.0)" faust_reproduce
 run_step "wasm reproduce (emsdk)" wasm_reproduce
-if [ "$skip_playground" = 1 ]; then
-  results+=("| playground smoke (headless Chromium) | skipped | — |")
-elif chrome=$(find_chrome); then
-  run_step "playground smoke (headless Chromium)" playground_smoke "$chrome"
+if [ "$skip_playground" = 1 ] || [ "$browser" = 1 ]; then
+  results+=("| playground smoke (Playwright, headless Chrome) | $([ "$browser" = 1 ] && echo 'covered by --browser' || echo skipped) | — |")
+elif have_browser; then
+  run_step "playground smoke (Playwright, headless Chrome)" playground_smoke
 else
-  results+=("| playground smoke (headless Chromium) | skipped (no Chrome found; set CHROME_BIN) | — |")
-  echo "- playground smoke: skipped (no Chrome/Chromium binary found; set CHROME_BIN)"
+  results+=("| playground smoke (Playwright, headless Chrome) | skipped (no Google Chrome; set LIVE_MIX_BROWSER=chromium) | — |")
+  echo "- playground smoke: skipped (no Google Chrome found; install it or set LIVE_MIX_BROWSER=chromium after 'pnpm exec playwright install chromium')"
 fi
 if [ "$skip_git_install" = 1 ]; then
   results+=("| github: install path | skipped | — |")

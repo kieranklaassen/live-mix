@@ -61,6 +61,9 @@ function distWorklets(): Plugin {
 
 export default defineConfig({
   root: here,
+  // Relative asset URLs, so the build serves from any path (the browser tests
+  // mount it under /playground/dist/).
+  base: './',
   plugins: [react(), distWorklets()],
   resolve: {
     alias: [
