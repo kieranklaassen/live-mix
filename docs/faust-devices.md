@@ -135,8 +135,10 @@ artefact, exactly like `createDattorroReverb`; `ZITA_REV1_DEVICE` /
    commit `src/dsp/wasm/<name>.wasm`. Check the module memory still fits:
    `INITIAL_MEMORY` is 4 MB for every device.
 5. Add a native harness under `cpp/test/` and a block to
-   `scripts/test-native.sh`; add a WASM test next to the existing ones.
-6. Export the param table from `src/dsp/index.ts`, add a changeset.
+   `scripts/test-native.sh`; add a WASM test next to the existing ones and a
+   row to `src/dsp/__tests__/device-factories.test.ts`.
+6. Write `src/dsp/devices/<name>.ts` (definition + factory, copy
+   `zita-rev1.ts`), export it from `src/dsp/index.ts`, add a changeset.
 
 To move to a newer Faust, change `FAUST_VERSION` and `FAUST_TARBALL_SHA256`
 in `scripts/build-faust.sh`, rerun it, review the diff in

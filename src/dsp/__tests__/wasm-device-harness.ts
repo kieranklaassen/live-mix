@@ -7,8 +7,8 @@ import { readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { type ParamSpec } from '../../core/params'
 import { type DeviceExports } from '../abi'
-import { type ParamSpec } from '../params'
 
 const wasmDir = join(dirname(fileURLToPath(import.meta.url)), '../wasm')
 
