@@ -18,3 +18,4 @@ export {
   fdnReverbBreathLaw,
   type FdnReverbParamName,
 } from './devices/fdn-reverb'
+export { STEREO_WIDENER_PARAMS, type StereoWidenerParamName } from './devices/stereo-widener'

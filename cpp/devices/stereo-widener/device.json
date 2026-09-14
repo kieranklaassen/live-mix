@@ -1,0 +1,24 @@
+{
+  "id": "stereo-widener",
+  "name": "StereoWidener",
+  "wasm": "src/dsp/wasm/stereo-widener.wasm",
+  "params": "src/dsp/devices/stereo-widener.ts",
+  "source": {
+    "repository": "kieranklaassen/kkfonie",
+    "commit": "0c4ae88520208850e5d2b102e61d6592b24cd768",
+    "files": [
+      {
+        "path": "Felt/Source/StereoWidener.h",
+        "copiedTo": "StereoWidener.h",
+        "sha256": "b036257a740d265654d02660a447df06ce18e8eb4bdb71f2c67bbf4f9f5858ed"
+      },
+      {
+        "path": "Felt/Source/StereoWidener.cpp",
+        "copiedTo": "StereoWidener.cpp",
+        "sha256": "77e05e78cb217ecf90c36ebcfb4a15f7790c70595328483e7a421d36a125a542"
+      }
+    ],
+    "identicalCopiesIn": ["Bloom/Source", "Sympathetic/Source", "Thesis/Source"],
+    "note": "StereoWidener.h/.cpp are byte-identical to kkfonie. stereo_widener_device.* and device_api.cpp are live-mix host code (width ramp, silence reset, ABI)."
+  }
+}
