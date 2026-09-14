@@ -40,19 +40,25 @@ export function memoryVersionStorage(): VersionStorage & {
       for (const json of records.values()) total += byteLength(json)
       return total
     },
-    list: async () => [...records.values()].map((json) => JSON.parse(json) as StoredVersionRecord),
-    get: async (id) => {
+    list: () =>
+      Promise.resolve([...records.values()].map((json) => JSON.parse(json) as StoredVersionRecord)),
+    get: (id) => {
       const json = records.get(id)
-      return json === undefined ? undefined : (JSON.parse(json) as StoredVersionRecord)
+      return Promise.resolve(
+        json === undefined ? undefined : (JSON.parse(json) as StoredVersionRecord),
+      )
     },
-    put: async (record) => {
+    put: (record) => {
       records.set(record.id, JSON.stringify(record))
+      return Promise.resolve()
     },
-    remove: async (id) => {
+    remove: (id) => {
       records.delete(id)
+      return Promise.resolve()
     },
-    clear: async () => {
+    clear: () => {
       records.clear()
+      return Promise.resolve()
     },
   }
 }
@@ -73,7 +79,9 @@ export function webStorageVersionStorage(
     try {
       const raw = storage.getItem(key)
       const parsed: unknown = raw === null ? [] : JSON.parse(raw)
-      return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : []
+      return Array.isArray(parsed)
+        ? parsed.filter((id): id is string => typeof id === 'string')
+        : []
     } catch {
       return []
     }
@@ -92,23 +100,28 @@ export function webStorageVersionStorage(
     }
   }
   return {
-    list: async () =>
-      readIndex()
-        .map(read)
-        .filter((record): record is StoredVersionRecord => record !== undefined),
-    get: async (id) => read(id),
-    put: async (record) => {
+    list: () =>
+      Promise.resolve(
+        readIndex()
+          .map(read)
+          .filter((record): record is StoredVersionRecord => record !== undefined),
+      ),
+    get: (id) => Promise.resolve(read(id)),
+    put: (record) => {
       storage.setItem(`${key}:${record.id}`, JSON.stringify(record))
       const ids = readIndex()
       if (!ids.includes(record.id)) writeIndex([...ids, record.id])
+      return Promise.resolve()
     },
-    remove: async (id) => {
+    remove: (id) => {
       storage.removeItem(`${key}:${id}`)
       writeIndex(readIndex().filter((candidate) => candidate !== id))
+      return Promise.resolve()
     },
-    clear: async () => {
+    clear: () => {
       for (const id of readIndex()) storage.removeItem(`${key}:${id}`)
       storage.removeItem(key)
+      return Promise.resolve()
     },
   }
 }
@@ -140,7 +153,8 @@ export function indexedDbVersionStorage(
       const request = factory.open(dbName, 1)
       request.onupgradeneeded = () => {
         const db = request.result
-        if (!db.objectStoreNames.contains(storeName)) db.createObjectStore(storeName, { keyPath: 'id' })
+        if (!db.objectStoreNames.contains(storeName))
+          db.createObjectStore(storeName, { keyPath: 'id' })
       }
       request.onsuccess = () => resolve(request.result)
       request.onerror = () => reject(request.error ?? new Error('live-mix: IndexedDB open failed'))
@@ -161,7 +175,8 @@ export function indexedDbVersionStorage(
       const transaction = db.transaction(storeName, mode)
       const request = run(transaction.objectStore(storeName))
       request.onsuccess = () => resolve(request.result)
-      request.onerror = () => reject(request.error ?? new Error('live-mix: IndexedDB request failed'))
+      request.onerror = () =>
+        reject(request.error ?? new Error('live-mix: IndexedDB request failed'))
       transaction.onabort = () =>
         reject(transaction.error ?? new Error('live-mix: IndexedDB transaction aborted'))
     })

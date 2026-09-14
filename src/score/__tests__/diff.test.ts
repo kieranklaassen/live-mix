@@ -38,7 +38,11 @@ describe('diffScores', () => {
     expect(
       diffScores(before, apply(before, { type: 'clip.remove', track: 'kick', id: 'a1' })),
     ).toEqual([
-      { path: 'tracks[kick].clips[a1]', kind: 'removed', before: expect.objectContaining({ id: 'a1' }) },
+      {
+        path: 'tracks[kick].clips[a1]',
+        kind: 'removed',
+        before: expect.objectContaining({ id: 'a1' }),
+      },
     ])
     expect(changes[0]).toMatchObject({ before: 2, after: 0 })
     expect(changes.find((change) => change.kind === 'added')?.after).toMatchObject({ id: 'c9' })
@@ -71,7 +75,12 @@ describe('diffScores', () => {
 
   it('describes changes in one line each', () => {
     expect(
-      describeFieldChange({ path: 'tracks[kick].strip.level', kind: 'changed', before: 0.8, after: 0.5 }),
+      describeFieldChange({
+        path: 'tracks[kick].strip.level',
+        kind: 'changed',
+        before: 0.8,
+        after: 0.5,
+      }),
     ).toBe('tracks[kick].strip.level 0.800 → 0.500')
     expect(describeFieldChange({ path: 'tracks[x]', kind: 'added', after: { id: 'x' } })).toBe(
       'tracks[x] added x',

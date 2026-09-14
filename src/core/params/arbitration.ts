@@ -65,7 +65,9 @@ export const DEFAULT_ARBITRATION_POLICY: ArbitrationPolicy = {
   automationResume: 'after-hold',
 }
 
-export type ArbitrationPolicyOptions = Partial<Omit<ArbitrationPolicy, 'rank' | 'onHeld' | 'holds' | 'overrides'>> & {
+export type ArbitrationPolicyOptions = Partial<
+  Omit<ArbitrationPolicy, 'rank' | 'onHeld' | 'holds' | 'overrides'>
+> & {
   rank?: Partial<Record<WriterKind, number>>
   onHeld?: Partial<Record<WriterKind, 'defer' | 'drop'>>
   holds?: Partial<Record<WriterKind, boolean>>

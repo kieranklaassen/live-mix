@@ -158,7 +158,8 @@ export class VersionHistory {
     this.storage = options.storage ?? null
     this.arbiter = options.arbiter ?? null
     this.now = options.now ?? (() => Date.now())
-    this.makeId = options.id ?? (() => `${this.now().toString(36)}-${(this.counter++).toString(36)}`)
+    this.makeId =
+      options.id ?? (() => `${this.now().toString(36)}-${(this.counter++).toString(36)}`)
     this.budgetBytes = Math.max(0, options.budgetBytes ?? DEFAULT_VERSION_BUDGET_BYTES)
     this.totalBudgetBytes = Math.max(
       0,
@@ -216,7 +217,8 @@ export class VersionHistory {
     if (!cursor?.score) throw new Error(`live-mix: version "${id}" has no full base to replay from`)
     let score: Score = cursor.score
     for (const link of chain) {
-      if (!link.ops) throw new Error(`live-mix: version "${link.id}" kept neither a score nor its operations`)
+      if (!link.ops)
+        throw new Error(`live-mix: version "${link.id}" kept neither a score nor its operations`)
       for (const stored of link.ops) score = apply(score, stored.op)
     }
     this.remember(id, score)
@@ -274,7 +276,11 @@ export class VersionHistory {
   }
 
   /** An automatic version at a session milestone (`start`, `section`, `end`, or your own). */
-  checkpoint(milestone: Milestone, label?: string, options: Omit<SaveOptions, 'kind' | 'milestone'> = {}): VersionSummary {
+  checkpoint(
+    milestone: Milestone,
+    label?: string,
+    options: Omit<SaveOptions, 'kind' | 'milestone'> = {},
+  ): VersionSummary {
     return this.save(label ?? defaultLabel(milestone), { ...options, kind: 'auto', milestone })
   }
 
@@ -285,7 +291,11 @@ export class VersionHistory {
   restore(id: string, options: RestoreOptions = {}): ArbiterResult {
     const record = this.requireRecord(id)
     const score = this.scoreOf(id)
-    const op: Operation = { type: 'score.replace', score, label: options.label ?? `restore "${record.label}"` }
+    const op: Operation = {
+      type: 'score.replace',
+      score,
+      label: options.label ?? `restore "${record.label}"`,
+    }
     const applyOptions = {
       author: options.author ?? this.author,
       atMs: options.atMs ?? this.now(),
@@ -312,13 +322,12 @@ export class VersionHistory {
     const [record] = this.records.splice(index, 1)
     for (const child of this.records) {
       if (child.parent !== id) continue
-      const joinable =
-        record.parent !== null && record.ops !== undefined && child.ops !== undefined
+      const joinable = record.parent !== null && record.ops !== undefined && child.ops !== undefined
       if (joinable) {
         child.ops = [...(record.ops ?? []), ...(child.ops ?? [])]
         child.parent = record.parent
       } else {
-        if (!child.score) child.score = this.scoreOfRemoved(child, record)
+        child.score ??= this.scoreOfRemoved(child, record)
         child.parent = null
       }
       child.bytes = measure(child)
@@ -422,7 +431,8 @@ export class VersionHistory {
     const cached = this.resolved.get(child.id)
     if (cached) return cached
     const base = this.resolved.get(removed.id) ?? removed.score ?? this.baseOf(removed)
-    if (!child.ops) throw new Error(`live-mix: version "${child.id}" kept neither a score nor its operations`)
+    if (!child.ops)
+      throw new Error(`live-mix: version "${child.id}" kept neither a score nor its operations`)
     let score = base
     for (const stored of child.ops) score = apply(score, stored.op)
     return score
@@ -565,8 +575,8 @@ export function parseStoredVersion(raw: unknown): StoredVersion | null {
   if (Array.isArray(value.ops)) {
     const ops: StoredOp[] = []
     for (const stored of value.ops) {
-      if (!stored || typeof stored !== 'object' || !isOperation((stored as StoredOp).op)) return null
-      ops.push(stored as StoredOp)
+      if (!stored || typeof stored !== 'object' || !isOperation(stored.op)) return null
+      ops.push(stored)
     }
     record.ops = ops
   }

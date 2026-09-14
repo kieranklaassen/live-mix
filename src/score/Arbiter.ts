@@ -32,7 +32,7 @@ import { MASTER_OWNER, targetKey, type ParamTarget, type Score } from './schema'
 import { type ApplyOptions, type ScoreDocument } from './ScoreDocument'
 import { type ScoreRenderer } from './ScoreRenderer'
 
-type TimerId = unknown
+type TimerId = ReturnType<typeof setTimeout> | number | object
 
 interface Holder {
   owner: HoldOwner
@@ -154,7 +154,8 @@ export class Arbiter {
     this.renderer = options.renderer ?? null
     this.now = options.now ?? (() => Date.now())
     this.setTimeoutFn = options.setTimeoutFn ?? ((callback, ms) => setTimeout(callback, ms))
-    this.clearTimeoutFn = options.clearTimeoutFn ?? ((id) => clearTimeout(id as number))
+    this.clearTimeoutFn =
+      options.clearTimeoutFn ?? ((id) => clearTimeout(id as ReturnType<typeof setTimeout>))
     this.table = new HoldTable({ holdMs: this.policy.holdMs })
     this.unsubscribeDocument = document.onChange((change) => {
       if (change.kind === 'load') this.reset()
@@ -405,8 +406,13 @@ export class Arbiter {
           this.renderer.writeThrough({ kind: 'strip', owner: op.owner, param: op.param }, op.value)
         return
       case 'device.setParam':
-        if (this.overriddenKeys.has(targetKey({ kind: 'device', device: op.device, param: op.param })))
-          this.renderer.writeThrough({ kind: 'device', device: op.device, param: op.param }, op.value)
+        if (
+          this.overriddenKeys.has(targetKey({ kind: 'device', device: op.device, param: op.param }))
+        )
+          this.renderer.writeThrough(
+            { kind: 'device', device: op.device, param: op.param },
+            op.value,
+          )
         return
       case 'device.setParams':
         for (const [param, value] of Object.entries(op.params)) {
@@ -560,8 +566,7 @@ export class Arbiter {
   private reset(): void {
     for (const pending of this.pendingList.splice(0)) this.dropPending(pending, 'cancelled')
     for (const hold of this.table.holds) this.emit({ type: 'freed', hold, reason: 'cleared' })
-    for (const lock of this.table.locks)
-      this.emit({ type: 'unlocked', lock, reason: 'unlocked' })
+    for (const lock of this.table.locks) this.emit({ type: 'unlocked', lock, reason: 'unlocked' })
     this.table.reset()
     for (const key of [...this.overriddenKeys]) this.resumeLane(key)
     this.schedule()

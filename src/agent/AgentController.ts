@@ -121,7 +121,7 @@ export class AgentController implements ControllerView {
     this.document = options.document ?? null
     this.arbiter = options.arbiter ?? null
     if (this.arbiter && this.document && this.arbiter.document !== this.document) {
-      throw new Error('live-mix: AgentController: the arbiter must wrap the controller\'s document')
+      throw new Error("live-mix: AgentController: the arbiter must wrap the controller's document")
     }
     this.session = options.session ?? {}
     this.roles = { ...options.roles }
@@ -323,7 +323,10 @@ export class AgentController implements ControllerView {
               action: 'rejected',
               message: `${op.type} on ${outcome.targets.join(', ')} is ${outcome.reason} by ${holder}`,
             })
-            throw new ToolError('rejected', `"${name}": ${op.type} is ${outcome.reason} by ${holder}`)
+            throw new ToolError(
+              'rejected',
+              `"${name}": ${op.type} is ${outcome.reason} by ${holder}`,
+            )
           default: {
             const exhaustive: never = outcome.outcome
             throw new Error(String(exhaustive))

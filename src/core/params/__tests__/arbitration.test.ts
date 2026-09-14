@@ -78,7 +78,9 @@ describe('the policy table', () => {
     const lines = table.split('\n')
     expect(lines).toHaveLength(2 + WRITER_KINDS.length)
     expect(lines[0]).toContain('held by')
-    expect(lines[2]).toMatch(/^\| system \| apply \| apply \| apply \| apply \| apply \| apply \| no \|$/)
+    expect(lines[2]).toMatch(
+      /^\| system \| apply \| apply \| apply \| apply \| apply \| apply \| no \|$/,
+    )
     expect(lines[3]).toContain('yes (5000 ms)')
   })
 

@@ -6,7 +6,12 @@ import {
   decide,
   type WriterKind,
 } from '../../core/params/arbitration'
-import { MockAudioBuffer, asAudioContext, createMockContext, type MockGainNode } from '../../testing'
+import {
+  MockAudioBuffer,
+  asAudioContext,
+  createMockContext,
+  type MockGainNode,
+} from '../../testing'
 import { createEngine } from '../../core/Engine'
 import { Arbiter, arbiterTargets, conflicts, paramTargetOf, type ArbiterEvent } from '../Arbiter'
 import { loadScore } from '../loadScore'
@@ -99,7 +104,9 @@ describe('Arbiter: the matrix', () => {
           expect(result.outcome).toBe(expected)
           if (expected !== 'applied') expect(result.holder).toEqual(holder)
           if (expected === 'dropped')
-            expect(result.reason).toBe(DEFAULT_ARBITRATION_POLICY.holds[holderKind] ? 'held' : 'locked')
+            expect(result.reason).toBe(
+              DEFAULT_ARBITRATION_POLICY.holds[holderKind] ? 'held' : 'locked',
+            )
         })
       }
     }
@@ -120,11 +127,16 @@ describe('Arbiter: touch holds with an injected clock', () => {
   it('a human write holds for holdMs; an agent write waits and lands when the hold lapses', () => {
     const { arbiter, clock, events, level, timers } = rig()
     expect(arbiter.apply(kickLevel(0.5), { author: human }).outcome).toBe('applied')
-    expect(arbiter.stateOf({ kind: 'strip', owner: 'kick', param: 'level' }).hold?.untilMs).toBe(5000)
+    expect(arbiter.stateOf({ kind: 'strip', owner: 'kick', param: 'level' }).hold?.untilMs).toBe(
+      5000,
+    )
     expect(timers).toHaveLength(1)
 
     clock.ms = 1000
-    const deferred = arbiter.apply(kickLevel(0.2), { author: coach, label: 'agent:set_music_volume#1' })
+    const deferred = arbiter.apply(kickLevel(0.2), {
+      author: coach,
+      label: 'agent:set_music_volume#1',
+    })
     expect(deferred).toMatchObject({ outcome: 'deferred', holder: human, ticket: 1 })
     expect(level()).toBe(0.5)
     expect(arbiter.pending()).toHaveLength(1)
@@ -270,13 +282,27 @@ describe('Arbiter: target keys', () => {
   it('structural edits conflict with holds beneath them; a restore conflicts with everything', () => {
     const { arbiter } = rig()
     arbiter.apply(kickLevel(0.5), { author: human })
-    expect(arbiter.apply({ type: 'strip.rename', id: 'kick', name: 'K' }, { author: coach }).outcome).toBe('deferred')
-    expect(arbiter.apply({ type: 'strip.rename', id: 'pad', name: 'P' }, { author: coach }).outcome).toBe('applied')
-    expect(arbiter.apply({ type: 'score.replace', score: demoScore() }, { author: coach }).outcome).toBe('deferred')
+    expect(
+      arbiter.apply({ type: 'strip.rename', id: 'kick', name: 'K' }, { author: coach }).outcome,
+    ).toBe('deferred')
+    expect(
+      arbiter.apply({ type: 'strip.rename', id: 'pad', name: 'P' }, { author: coach }).outcome,
+    ).toBe('applied')
+    expect(
+      arbiter.apply({ type: 'score.replace', score: demoScore() }, { author: coach }).outcome,
+    ).toBe('deferred')
     expect(conflicts('strip:kick', 'strip:kick:level')).toBe(true)
     expect(conflicts('strip:kick', 'strip:kickdrum')).toBe(false)
-    expect(paramTargetOf('strip:kick:level')).toEqual({ kind: 'strip', owner: 'kick', param: 'level' })
-    expect(paramTargetOf('device:d:cutoff')).toEqual({ kind: 'device', device: 'd', param: 'cutoff' })
+    expect(paramTargetOf('strip:kick:level')).toEqual({
+      kind: 'strip',
+      owner: 'kick',
+      param: 'level',
+    })
+    expect(paramTargetOf('device:d:cutoff')).toEqual({
+      kind: 'device',
+      device: 'd',
+      param: 'cutoff',
+    })
     expect(paramTargetOf('strip:kick:mute')).toBeNull()
     expect(paramTargetOf('clips:kick')).toBeNull()
   })
@@ -287,16 +313,15 @@ describe('Arbiter: target keys', () => {
       ops: [kickLevel(0.1), { type: 'strip.mute', owner: 'kick', mute: true }, kickLevel(0.2)],
     }
     expect(arbiterTargets(batch)).toEqual(['strip:kick:level', 'strip:kick:mute'])
-    expect(arbiterTargets({ type: 'device.setParams', device: 'd', params: { a: 1, b: null } })).toEqual([
-      'device:d:a',
-      'device:d:b',
-    ])
+    expect(
+      arbiterTargets({ type: 'device.setParams', device: 'd', params: { a: 1, b: null } }),
+    ).toEqual(['device:d:a', 'device:d:b'])
     expect(arbiterTargets({ type: 'clip.move', track: 'kick', id: 'a1', startSec: 1 })).toEqual([
       'clips:kick:a1',
     ])
-    expect(arbiterTargets({ type: 'clip.replaceFrom', track: 'kick', fromSec: 1, clips: [] })).toEqual([
-      'clips:kick',
-    ])
+    expect(
+      arbiterTargets({ type: 'clip.replaceFrom', track: 'kick', fromSec: 1, clips: [] }),
+    ).toEqual(['clips:kick'])
     expect(arbiterTargets({ type: 'tempo.set', segments: [] })).toEqual(['score'])
   })
 
@@ -369,7 +394,10 @@ describe('Arbiter: automation lanes', () => {
     const fader = renderer.audioTrack('pad').strip.fader as unknown as MockGainNode
     const before = fader.gain.events.length
 
-    arbiter.apply({ type: 'strip.set', owner: 'pad', param: 'level', value: 0.55 }, { author: human })
+    arbiter.apply(
+      { type: 'strip.set', owner: 'pad', param: 'level', value: 0.55 },
+      { author: human },
+    )
     await renderer.whenIdle()
     expect(writer?.isOverridden).toBe(true)
     expect(arbiter.stateOf(target).overridden).toBe(true)
@@ -380,8 +408,10 @@ describe('Arbiter: automation lanes', () => {
 
     // Automation writing through the document while the hand holds is dropped.
     expect(
-      arbiter.apply({ type: 'strip.set', owner: 'pad', param: 'level', value: 0.1 }, { author: lane })
-        .outcome,
+      arbiter.apply(
+        { type: 'strip.set', owner: 'pad', param: 'level', value: 0.1 },
+        { author: lane },
+      ).outcome,
     ).toBe('dropped')
 
     clock.ms = 5000

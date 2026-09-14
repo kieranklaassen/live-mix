@@ -132,7 +132,7 @@ function diffValues(path: string, before: Json, after: Json, out: FieldChange[])
  */
 export function diffScores(before: Score, after: Score): FieldChange[] {
   const out: FieldChange[] = []
-  diffValues('', before as unknown as Json, after as unknown as Json, out)
+  diffValues('', before, after, out)
   return out
 }
 

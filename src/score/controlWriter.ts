@@ -52,7 +52,7 @@ export function controlWriteToOperation(
     }
     case 'send': {
       const host = findStripHost(score, target.track)
-      if (!host || !host.strip.sends.some((send) => send.target === target.send)) return null
+      if (!host?.strip.sends.some((send) => send.target === target.send)) return null
       return { type: 'send.set', owner: target.track, target: target.send, level: value }
     }
     case 'master':

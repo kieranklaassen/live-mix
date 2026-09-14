@@ -52,7 +52,9 @@ export function VersionList({
 }: VersionListProps) {
   const v = useVersions(versions)
   const [label, setLabel] = useState('')
-  const shown = [...v.versions].reverse().filter((version) => !manualOnly || version.kind === 'manual')
+  const shown = [...v.versions]
+    .reverse()
+    .filter((version) => !manualOnly || version.kind === 'manual')
 
   const submit = (event: FormEvent): void => {
     event.preventDefault()

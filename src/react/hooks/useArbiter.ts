@@ -55,7 +55,11 @@ function useArbiterSubscription(arbiter: Arbiter) {
   return useCallback((onChange: () => void) => arbiter.onChange(() => onChange()), [arbiter])
 }
 
-function resolveArbiter(explicit: Arbiter | undefined, provided: Arbiter | null, hook: string): Arbiter {
+function resolveArbiter(
+  explicit: Arbiter | undefined,
+  provided: Arbiter | null,
+  hook: string,
+): Arbiter {
   const arbiter = explicit ?? provided
   if (!arbiter) {
     throw new Error(

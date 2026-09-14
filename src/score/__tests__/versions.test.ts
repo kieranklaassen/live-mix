@@ -107,10 +107,17 @@ describe('VersionHistory: save, list, restore', () => {
       clearTimeoutFn: () => {},
     })
     let counter = 0
-    const versions = new VersionHistory(document, { now: () => clock.ms, arbiter, id: () => `a${++counter}` })
+    const versions = new VersionHistory(document, {
+      now: () => clock.ms,
+      arbiter,
+      id: () => `a${++counter}`,
+    })
     document.apply({ type: 'strip.set', owner: 'kick', param: 'level', value: 0.5 })
     versions.save('half')
-    arbiter.apply({ type: 'strip.set', owner: 'kick', param: 'level', value: 0.9 }, { author: human })
+    arbiter.apply(
+      { type: 'strip.set', owner: 'kick', param: 'level', value: 0.9 },
+      { author: human },
+    )
     const deferred = versions.restore('a1', { author: coach })
     expect(deferred.outcome).toBe('deferred')
     expect(level()).toBe(0.9)
@@ -229,7 +236,12 @@ describe('VersionHistory: compact storage', () => {
     versions.save('two')
     editsOf(document, 2)
     versions.save('three')
-    expect(versions.list().map((version) => version.base)).toEqual(['full', 'delta', 'delta', 'full'])
+    expect(versions.list().map((version) => version.base)).toEqual([
+      'full',
+      'delta',
+      'delta',
+      'full',
+    ])
     expect(versions.list()[3].opCount).toBe(2)
     editsOf(document, 30)
     const wide = versions.save('wide')
@@ -251,7 +263,11 @@ describe('VersionHistory: compact storage', () => {
     expect(budgeted.versions.list()[0].base).toBe('full')
     for (const id of ids) expect(() => budgeted.versions.scoreOf(id)).not.toThrow()
     // Manual versions survive while automatic ones remain to prune.
-    const manual = rig({ totalBudgetBytes: fullBytes * 1.15, fullEvery: 100, autoCheckpoints: false })
+    const manual = rig({
+      totalBudgetBytes: fullBytes * 1.15,
+      fullEvery: 100,
+      autoCheckpoints: false,
+    })
     manual.versions.save('keep me')
     for (let index = 0; index < 5; index += 1) {
       editsOf(manual.document, 1)
@@ -328,7 +344,11 @@ describe('VersionHistory: compact storage', () => {
     set(0.5)
     versions.save('half')
     await versions.flush()
-    expect([...backing.keys()].sort()).toEqual(['test:versions', 'test:versions:v1', 'test:versions:v2'])
+    expect([...backing.keys()].sort()).toEqual([
+      'test:versions',
+      'test:versions:v1',
+      'test:versions:v2',
+    ])
     expect(await web.list()).toHaveLength(2)
     await web.remove('v1')
     expect(JSON.parse(backing.get('test:versions') ?? '[]')).toEqual(['v2'])
@@ -369,7 +389,8 @@ describe('VersionHistory: compact storage', () => {
     expect(ok?.bytes).toBe(byteLength(JSON.stringify(ok)))
     const op: Operation = { type: 'score.rename', name: 'y' }
     expect(
-      parseStoredVersion({ ...base, ops: [{ seq: 1, op, author: human, atMs: 1, kind: 'apply' }] })?.ops,
+      parseStoredVersion({ ...base, ops: [{ seq: 1, op, author: human, atMs: 1, kind: 'apply' }] })
+        ?.ops,
     ).toHaveLength(1)
   })
 })
