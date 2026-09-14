@@ -1,0 +1,88 @@
+// The public surface of `@kieranklaassen/live-mix`: every symbol a consumer
+// (ambient-live, Breathwork Live's SectionPlaylist) imports from the root
+// entry must be present. A named export list in src/index.ts can silently drop
+// a symbol; this pins the ones the adopters rely on.
+
+import { describe, expect, it } from 'vitest'
+
+import * as core from '../index'
+import * as dsp from '../dsp/index'
+import * as testing from '../testing/index'
+
+const coreSymbols = [
+  'createEngine',
+  'Engine',
+  'Bus',
+  'MasterBus',
+  'OutputRouter',
+  'isIOSWebKit',
+  'Meter',
+  'Transport',
+  'Scheduler',
+  'SampleStore',
+  'AudioTrack',
+  'LiveInputTrack',
+  'ReturnTrack',
+  'InstrumentTrack',
+  'SendList',
+  'Ducker',
+  'createDucker',
+  'ConvolverReverb',
+  'createConvolverReverb',
+  'generateHallImpulse',
+  'CONVOLVER_REVERB_PARAMS',
+  'CONVOLVER_REVERB_DESCRIPTOR',
+  'REVERB_DECAY_SECONDS',
+  'REVERB_WET_LEVEL',
+  'CROSSFADE_SECONDS',
+  'STEER_CROSSFADE_SECONDS',
+  'STOP_FADE_SECONDS',
+  'MAX_CLIP_GAIN_DB',
+  'DUCK_DEPTH',
+  'DUCK_TIME_CONSTANT',
+  'ENV_ATTACK_MS',
+  'ENV_RELEASE_MS',
+  'ENV_POLL_MS',
+  'ENV_GAIN_SCALE',
+  'fadeGain',
+  'computePeaks',
+  'slicePeaks',
+  'clipsInWindow',
+  'equalPowerFadeIn',
+  'equalPowerFadeOut',
+  'devices',
+  'DeviceRegistry',
+  'clampParam',
+] as const
+
+const dspSymbols = [
+  'WasmDevice',
+  'defineWasmDevice',
+  'createDattorroReverb',
+  'createFdnReverb',
+  'createStereoWidener',
+  'createZitaReverb',
+  'createLimiter1176',
+  'registerStockWasmDevices',
+  'DATTORRO_PARAMS',
+  'WASM_DEVICE_PROCESSOR_NAME',
+] as const
+
+const testingSymbols = [
+  'MockAudioContext',
+  'createMockContext',
+  'advance',
+  'configureMocks',
+] as const
+
+describe('public entries', () => {
+  it.each(coreSymbols)('`.` exports %s', (name) => {
+    expect((core as Record<string, unknown>)[name]).toBeDefined()
+  })
+  it.each(dspSymbols)('`./dsp` exports %s', (name) => {
+    expect((dsp as Record<string, unknown>)[name]).toBeDefined()
+  })
+  it.each(testingSymbols)('`./testing` exports %s', (name) => {
+    expect((testing as Record<string, unknown>)[name]).toBeDefined()
+  })
+})
