@@ -30,6 +30,13 @@ export interface Clip {
   /** Loop the source when the clip outlives it. */
   loop?: boolean
   /**
+   * Source region a looping clip cycles over, in source seconds; `offsetSec`
+   * may sit anywhere inside it (a legato launch enters mid-region). Default:
+   * from `offsetSec` to the end of the source.
+   */
+  loopStartSec?: number
+  loopEndSec?: number
+  /**
    * Warp markers (source second → beat from the clip start) for tempo-synced
    * playback on a stretch source; absent means the clip plays unwarped.
    */

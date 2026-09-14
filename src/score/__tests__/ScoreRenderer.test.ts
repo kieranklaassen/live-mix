@@ -9,6 +9,7 @@ import {
   type MockGainNode,
 } from '../../testing'
 import { Lfo, Macro } from '../../core/automation/Modulator'
+import { type StretchNode, type StretchNodeFactory } from '../../core/sources/StretchSource'
 import { type Device, type NoteDevice } from '../../core/devices/Device'
 import { NODE_DEVICES } from '../../core/devices/native'
 import { DeviceRegistry } from '../../core/devices/registry'
@@ -654,5 +655,83 @@ describe('ScoreRenderer: lifecycle', () => {
     const { renderer } = await rig()
     const device: Device = renderer.device('hall-verb')
     expect(device.id).toBe('convolver-reverb')
+  })
+})
+
+describe('ScoreRenderer: stretch tracks (U31 follow-up)', () => {
+  const createStretch: StretchNodeFactory = () =>
+    Promise.resolve({
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+      schedule: vi.fn(),
+      start: vi.fn(),
+      stop: vi.fn(),
+      addBuffers: vi.fn(() => Promise.resolve(10)),
+      dropBuffers: vi.fn(() => Promise.resolve(undefined)),
+      latency: () => 0.05,
+      inputTime: 0,
+    } as unknown as StretchNode)
+
+  async function stretchRig(withFactory: boolean) {
+    const score = demoScore()
+    const kick = score.tracks[0]
+    if (kick.kind === 'audio') kick.stretch = true
+    const ctx = createMockContext({ sampleRate: 48000 })
+    const engine = createEngine({
+      context: asAudioContext(ctx),
+      setIntervalFn: () => 0 as unknown as ReturnType<typeof setInterval>,
+      clearIntervalFn: () => {},
+    })
+    const document = new ScoreDocument(score, { now: () => 0 })
+    const errors: unknown[] = []
+    const renderer = loadScore(engine, document, {
+      onError: (error) => errors.push(error),
+      ...(withFactory ? { createStretch } : {}),
+    })
+    await renderer.whenIdle()
+    return { engine, document, renderer, errors }
+  }
+
+  it('renders an audio track marked stretch as a StretchTrack with its clips, strip and routing', async () => {
+    const { engine, renderer, document } = await stretchRig(true)
+    const kick = renderer.stretchTrack('kick')
+    expect(engine.stretchTracks).toEqual([kick])
+    expect(engine.tracks.map((track) => track.name)).toEqual(['pad'])
+    expect(renderer.clipTrack('kick')).toBe(kick)
+    expect(renderer.clipTrack('pad')).toBe(renderer.audioTrack('pad'))
+    expect(() => renderer.audioTrack('kick')).toThrow(/not an audio track/)
+    expect(kick.strip.destinationTarget).toBe(renderer.group('drums'))
+    expect(kick.clips.all().map((clip) => clip.id)).toEqual(['a1', 'b1'])
+    expect(kick.strip.inserts.map((device) => device.id)).toEqual(['filter'])
+
+    // Flipping the flag rebuilds the track the other way; clips follow.
+    document.apply({
+      type: 'clip.add',
+      track: 'kick',
+      clip: { ...kick.clips.all()[0], id: 'c1', startSec: 20 },
+    })
+    await renderer.whenIdle()
+    expect(kick.clips.all().map((clip) => clip.id)).toEqual(['a1', 'b1', 'c1'])
+    const score = {
+      ...document.score,
+      tracks: document.score.tracks.map((track) =>
+        track.id === 'kick' && track.kind === 'audio' ? { ...track, stretch: false } : track,
+      ),
+    }
+    await renderer.render(score)
+    expect(engine.stretchTracks).toEqual([])
+    expect(
+      renderer
+        .audioTrack('kick')
+        .clips.all()
+        .map((clip) => clip.id),
+    ).toEqual(['a1', 'b1', 'c1'])
+  })
+
+  it('a stretch track without a factory is a render error, not a silent buffer track', async () => {
+    const { errors, engine } = await stretchRig(false)
+    expect(errors).toHaveLength(1)
+    expect(String((errors[0] as Error).message)).toMatch(/createStretch/)
+    expect(engine.stretchTracks).toEqual([])
   })
 })

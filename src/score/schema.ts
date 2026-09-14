@@ -98,6 +98,12 @@ export interface ScoreAudioTrack extends ScoreStripOwner {
   kind: 'audio'
   lookaheadSec?: number
   preloadSec?: number
+  /**
+   * Play through a `StretchTrack` (signalsmith-stretch): warp markers on the
+   * tempo map, semitones, loop regions entered anywhere. The renderer needs
+   * `createStretch`. Optional field of format 3; absent = buffer voices.
+   */
+  stretch?: boolean
   clips: Clip[]
 }
 
@@ -674,6 +680,17 @@ function checkClip(raw: unknown, path: string, ctx: Context, clipIds: UniqueIds)
   check.oneOf(raw.fadeCurve, `${path}.fadeCurve`, ['linear', 'equalPower'])
   check.number(raw.gainDb, `${path}.gainDb`)
   if (raw.loop !== undefined) check.boolean(raw.loop, `${path}.loop`)
+  if (raw.loopStartSec !== undefined)
+    check.number(raw.loopStartSec, `${path}.loopStartSec`, { min: 0 })
+  if (raw.loopEndSec !== undefined) {
+    if (
+      check.number(raw.loopEndSec, `${path}.loopEndSec`, { min: 0 }) &&
+      typeof raw.loopStartSec === 'number' &&
+      (raw.loopEndSec as number) <= raw.loopStartSec
+    ) {
+      check.fail(`${path}.loopEndSec`, 'expected > loopStartSec')
+    }
+  }
   checkWarp(raw, path, check)
 }
 
@@ -785,6 +802,7 @@ function checkTrack(raw: unknown, path: string, ctx: Context): void {
         check.number(raw.lookaheadSec, `${path}.lookaheadSec`, { min: 0 })
       if (raw.preloadSec !== undefined)
         check.number(raw.preloadSec, `${path}.preloadSec`, { min: 0 })
+      if (raw.stretch !== undefined) check.boolean(raw.stretch, `${path}.stretch`)
       if (check.array(raw.clips, `${path}.clips`)) {
         const clipIds = new UniqueIds(check)
         raw.clips.forEach((clip, index) => checkClip(clip, `${path}.clips[${index}]`, ctx, clipIds))
@@ -1165,6 +1183,8 @@ export function normaliseClip(clip: Clip): Clip {
     gainDb: clip.gainDb,
   }
   if (clip.loop) out.loop = true
+  if (clip.loopStartSec !== undefined) out.loopStartSec = clip.loopStartSec
+  if (clip.loopEndSec !== undefined) out.loopEndSec = clip.loopEndSec
   if (clip.warp !== undefined)
     out.warp = clip.warp.map((m) => ({ sourceSec: m.sourceSec, beat: m.beat }))
   if (clip.semitones !== undefined) out.semitones = clip.semitones
@@ -1224,6 +1244,7 @@ function normaliseTrack(track: ScoreTrack): ScoreTrack {
       }
       if (track.lookaheadSec !== undefined) out.lookaheadSec = track.lookaheadSec
       if (track.preloadSec !== undefined) out.preloadSec = track.preloadSec
+      if (track.stretch) out.stretch = true
       return out
     }
     case 'live':

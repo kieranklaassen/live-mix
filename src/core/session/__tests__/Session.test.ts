@@ -403,6 +403,31 @@ describe('Session: one clip per track, legato, launch modes', () => {
     expect(sources()[1].startCalls.last).toEqual([contextAt(10), 2, 2])
   })
 
+  it('a looping launch carries the slot region, so a legato entry loops the slot, not the source tail', async () => {
+    const { engine, session, advance, sources } = await rig({}, (score) => {
+      score.slots[0].clip = slotClip('a', { loop: true, offsetSec: 1, durationSec: 2 })
+      score.slots[1].clip = slotClip('b', { loop: true, offsetSec: 3, durationSec: 4 })
+      score.slots[1].legato = true
+    })
+    engine.transport.start()
+    await advance(7.9)
+    session.launchSlot('kick-verse') // loops source seconds [1, 3) from 8
+    await advance(0.2)
+    const verse = sources()[0]
+    expect(verse.loop).toBe(true)
+    expect(verse.loopStart).toBe(1)
+    expect(verse.loopEnd).toBe(3)
+    expect(verse.startCalls.last).toEqual([contextAt(8), 1])
+    await advance(1.5) // 9.6
+    session.launchSlot('kick-chorus') // at 10: 2 s in → wraps to 0 in the 2 s verse → chorus enters at 3 + 0
+    await advance(0.3)
+    const chorus = sources()[1]
+    expect(chorus.loop).toBe(true)
+    expect(chorus.loopStart).toBe(3)
+    expect(chorus.loopEnd).toBe(7)
+    expect(chorus.startCalls.last).toEqual([contextAt(10), 3])
+  })
+
   it('legato into a one-shot with nothing left only closes the outgoing slot', async () => {
     const { engine, session, advance, clips } = await rig({}, (score) => {
       score.slots[1].legato = true

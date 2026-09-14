@@ -38,7 +38,9 @@ import { type Engine } from '../core/Engine'
 import { ElementSource } from '../core/sources/ElementSource'
 import { type ElementTrack } from '../core/sources/ElementTrack'
 import { TempoMap } from '../core/time/TempoMap'
+import { type StretchNodeFactory, type StretchSourceOptions } from '../core/sources/StretchSource'
 import { AudioTrack, DEFAULT_LOOKAHEAD_SECONDS } from '../core/tracks/AudioTrack'
+import { StretchTrack } from '../core/tracks/StretchTrack'
 import { resolveInput, type ChannelStrip, type StripDestination } from '../core/tracks/ChannelStrip'
 import { GroupTrack } from '../core/tracks/GroupTrack'
 import { InstrumentTrack } from '../core/tracks/InstrumentTrack'
@@ -75,7 +77,8 @@ import {
   type StripParam,
 } from './schema'
 
-export type RenderedHost = AudioTrack | LiveInputTrack | InstrumentTrack | GroupTrack | ReturnTrack
+export type RenderedHost =
+  AudioTrack | StretchTrack | LiveInputTrack | InstrumentTrack | GroupTrack | ReturnTrack
 
 export interface ScoreRendererOptions {
   /**
@@ -84,6 +87,14 @@ export interface ScoreRendererOptions {
    * an `<audio>` element. Inject for tests and non-DOM hosts.
    */
   createElementSource?: (source: ScoreSource, ctx: BaseAudioContext) => ElementSource | undefined
+  /**
+   * `SignalsmithStretch` from `signalsmith-stretch` (or a compatible factory)
+   * for audio tracks marked `stretch: true`. Without it such a track is a
+   * render error: the library never loads the optional peer itself.
+   */
+  createStretch?: StretchNodeFactory
+  /** Quality preset / block settings for every stretch node. */
+  stretchConfigure?: StretchSourceOptions['configure']
   /** Registry devices are created from. Default: the engine's. */
   devices?: DeviceRegistry
   /**
@@ -138,6 +149,8 @@ export class ScoreRenderer {
   readonly engine: Engine
   readonly devices: DeviceRegistry
   private readonly resolveSourceFn: (source: ScoreSource) => SampleSource | undefined
+  private readonly createStretch: StretchNodeFactory | null
+  private readonly stretchConfigure: StretchSourceOptions['configure']
   private readonly createElementSourceFn: (
     source: ScoreSource,
     ctx: BaseAudioContext,
@@ -164,6 +177,8 @@ export class ScoreRenderer {
     this.engine = engine
     this.devices = options.devices ?? engine.devices
     this.resolveSourceFn = options.resolveSource ?? ((source) => source.url)
+    this.createStretch = options.createStretch ?? null
+    this.stretchConfigure = options.stretchConfigure
     this.createElementSourceFn =
       options.createElementSource ??
       ((source, ctx) =>
@@ -203,6 +218,23 @@ export class ScoreRenderer {
   audioTrack(id: string): AudioTrack {
     const host = this.host(id)
     if (!(host instanceof AudioTrack)) throw new ScoreRenderError(`"${id}" is not an audio track`)
+    return host
+  }
+
+  /** The live `StretchTrack` for an audio track marked `stretch: true`. */
+  stretchTrack(id: string): StretchTrack {
+    const host = this.host(id)
+    if (!(host instanceof StretchTrack))
+      throw new ScoreRenderError(`"${id}" is not a stretch track`)
+    return host
+  }
+
+  /** The live clip track for a `kind: 'audio'` score track, buffer or stretch. */
+  clipTrack(id: string): AudioTrack | StretchTrack {
+    const host = this.host(id)
+    if (!(host instanceof AudioTrack) && !(host instanceof StretchTrack)) {
+      throw new ScoreRenderError(`"${id}" is not a clip track`)
+    }
     return host
   }
 
@@ -489,7 +521,7 @@ export class ScoreRenderer {
     // 10. Clips and lookahead.
     for (const track of next.tracks) {
       if (track.kind !== 'audio') continue
-      const live = this.audioTrack(track.id)
+      const live = this.clipTrack(track.id)
       const before = priorOf(track.id)
       const beforeTrack = before && 'kind' in before && before.kind === 'audio' ? before : null
       const lookahead = track.lookaheadSec ?? DEFAULT_LOOKAHEAD_SECONDS
@@ -530,6 +562,9 @@ export class ScoreRenderer {
     const kind = 'kind' in host ? host.kind : 'device' in host ? 'return' : 'group'
     if (handle.kind !== kind) return true
     if ('device' in host) return handle.ownDeviceId !== host.device.deviceId
+    if ('kind' in host && host.kind === 'audio') {
+      return (host.stretch ?? false) !== handle.host instanceof StretchTrack
+    }
     return false
   }
 
@@ -571,6 +606,23 @@ export class ScoreRenderer {
     added.add(track.id)
     switch (track.kind) {
       case 'audio': {
+        if (track.stretch) {
+          if (!this.createStretch) {
+            throw new ScoreRenderError(
+              `track "${track.id}" is marked stretch but the renderer has no createStretch factory`,
+            )
+          }
+          const live = this.engine.addStretchTrack(track.id, {
+            destination,
+            createStretch: this.createStretch,
+            configure: this.stretchConfigure,
+            lookaheadSec: track.lookaheadSec,
+            preloadSec: track.preloadSec,
+            resolveSource: (clip) => this.resolveClipSource(clip),
+          })
+          this.owners.set(track.id, this.newHandle('audio', live, live.strip))
+          return
+        }
         const live = this.engine.addAudioTrack(track.id, {
           destination,
           lookaheadSec: track.lookaheadSec,
@@ -657,6 +709,7 @@ export class ScoreRenderer {
     if (own !== null) this.deviceMap.delete(own)
     const { host } = handle
     if (host instanceof AudioTrack) this.engine.removeTrack(id)
+    else if (host instanceof StretchTrack) this.engine.removeStretchTrack(id)
     else if (host instanceof LiveInputTrack) this.engine.removeLiveInputTrack(id)
     else if (host instanceof InstrumentTrack) this.engine.removeInstrumentTrack(id)
     else if (host instanceof ReturnTrack) this.engine.removeReturnTrack(id)

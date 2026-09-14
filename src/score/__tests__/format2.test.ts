@@ -111,6 +111,27 @@ describe('format 2 schema', () => {
     expect(issuesOf(score).some((issue) => issue.includes('elementTracks[1].id'))).toBe(true)
   })
 
+  it('validates and keeps a clip loop region and the audio track stretch flag (format 3 optional fields)', () => {
+    const score = demoScore()
+    const kick = score.tracks[0]
+    if (kick.kind !== 'audio') throw new Error('fixture')
+    kick.stretch = true
+    kick.clips[0] = { ...kick.clips[0], loop: true, loopStartSec: 1, loopEndSec: 3 }
+    expect(issuesOf(score)).toEqual([])
+    const parsed = parseScore(serializeScore(score))
+    const parsedKick = parsed.tracks[0]
+    if (parsedKick.kind !== 'audio') throw new Error('fixture')
+    expect(parsedKick.stretch).toBe(true)
+    expect(parsedKick.clips[0]).toMatchObject({ loop: true, loopStartSec: 1, loopEndSec: 3 })
+
+    kick.clips[0] = { ...kick.clips[0], loopStartSec: 3, loopEndSec: 3 }
+    expect(issuesOf(score)).toEqual(['tracks[0].clips[0].loopEndSec: expected > loopStartSec'])
+    kick.clips[0] = { ...kick.clips[0], loopStartSec: -1, loopEndSec: 3 }
+    expect(issuesOf(score).some((issue) => issue.includes('loopStartSec'))).toBe(true)
+    ;(kick as unknown as { stretch: unknown }).stretch = 'yes'
+    expect(issuesOf(score).some((issue) => issue.includes('tracks[0].stretch'))).toBe(true)
+  })
+
   it('normalises and serialises stably (sorted clips and tempo segments)', () => {
     const score = demoScore()
     score.tempo = [

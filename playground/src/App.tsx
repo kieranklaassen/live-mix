@@ -1,11 +1,8 @@
 import {
   describeOperation,
-  describeQuantize,
   wavBlob,
   type AgentController,
-  type LaunchQuantize,
   type ScoreDocument,
-  type Session,
   type StripHost,
   type ToolResult,
 } from '@kieranklaassen/live-mix'
@@ -13,6 +10,7 @@ import {
   ChannelStripView,
   DeviceChainView,
   Fader,
+  GridView,
   Knob,
   LiveMixProvider,
   Meter,
@@ -23,10 +21,8 @@ import {
   themeStyle,
   themes,
   useEngine,
-  useSession,
   useTransport,
   type LiveMixThemeName,
-  type SessionCell,
   type StripKind,
 } from '@kieranklaassen/live-mix/react'
 import { useEffect, useState, type CSSProperties } from 'react'
@@ -158,7 +154,7 @@ export function App() {
 
           <section className="pg-section" data-testid="grid-section">
             <h2>Session grid — scenes × slots over the same clips</h2>
-            <SessionGrid session={demo.session} />
+            <GridView session={demo.session} data-testid="grid" />
           </section>
 
           <section className="pg-section">
@@ -560,114 +556,5 @@ function AgentConsole({ agent, document }: { agent: AgentController; document: S
         </div>
       </div>
     </div>
-  )
-}
-
-const QUANTIZE_CHOICES: { label: string; value: LaunchQuantize }[] = [
-  { label: 'none', value: 'none' },
-  { label: 'beat', value: 'beat' },
-  { label: 'bar', value: 'bar' },
-  { label: '2 bars', value: 2 },
-  { label: '4 bars', value: 4 },
-]
-
-/**
- * A minimal grid over `useSession` (U31): scenes as rows with a launch
- * button, the score's audio tracks as columns, a cell per slot showing its
- * state. Launching places the clip on the track's arrangement lane at the
- * next grid line, so the timeline below shows what was performed. The styled
- * `GridView` is the kit's to add; this stays the playground's own.
- */
-function SessionGrid({ session }: { session: Session }) {
-  const grid = useSession(session)
-  return (
-    <div className="pg-grid" data-testid="grid">
-      <div className="pg-row pg-grid__bar">
-        <label>
-          Quantize{' '}
-          <select
-            className="pg-select"
-            value={String(grid.quantize)}
-            onChange={(event) => {
-              const choice = QUANTIZE_CHOICES.find((c) => String(c.value) === event.target.value)
-              if (choice) grid.setQuantize(choice.value)
-            }}
-            data-testid="grid-quantize"
-          >
-            {QUANTIZE_CHOICES.map((choice) => (
-              <option key={choice.label} value={String(choice.value)}>
-                {choice.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <ToggleButton
-          pressed={false}
-          onPressedChange={() => grid.stopAll()}
-          tone="mute"
-          data-testid="grid-stop-all"
-        >
-          Stop all
-        </ToggleButton>
-        <span className="pg-mode">
-          launch grid {describeQuantize(grid.quantize)} · {grid.scenes.length} scenes ×{' '}
-          {grid.tracks.length} tracks
-        </span>
-      </div>
-      <table className="pg-grid__table">
-        <thead>
-          <tr>
-            <th />
-            {grid.tracks.map((track) => (
-              <th key={track.id}>{track.name}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {grid.scenes.map((scene, sceneIndex) => (
-            <tr key={scene.id}>
-              <th>
-                <button
-                  type="button"
-                  className="pg-grid__scene"
-                  onClick={() => grid.launchScene(scene.id)}
-                  data-testid={`grid-scene-${scene.id}`}
-                >
-                  ▶ {scene.name}
-                </button>
-              </th>
-              {grid.cells[sceneIndex].map((cell) => (
-                <td key={`${cell.scene}-${cell.track}`}>
-                  <GridCell cell={cell} grid={grid} />
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
-}
-
-function GridCell({ cell, grid }: { cell: SessionCell; grid: ReturnType<typeof useSession> }) {
-  if (!cell.slot) return <span className="pg-grid__cell pg-grid__cell--none" />
-  const { slot } = cell
-  const label = slot.clip ? slot.clip.sourceId : '■ stop'
-  const press = (): void => {
-    if (cell.state === 'playing' && slot.launchMode === 'toggle') grid.stopSlot(slot.id)
-    else grid.launchSlot(slot.id)
-  }
-  return (
-    <button
-      type="button"
-      className={`pg-grid__cell pg-grid__cell--${cell.state}`}
-      onClick={press}
-      title={`${slot.launchMode}${slot.legato ? ' · legato' : ''}${slot.clip?.loop ? ' · loop' : ''}`}
-      data-testid={`grid-slot-${slot.id}`}
-      data-state={cell.state}
-    >
-      <span className="pg-grid__label">{label}</span>
-      <span className="pg-grid__state">{cell.state}</span>
-    </button>
   )
 }

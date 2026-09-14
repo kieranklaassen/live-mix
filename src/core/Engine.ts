@@ -32,6 +32,7 @@ import { type SidechainDucker } from './devices/native/SidechainDucker'
 import { WorkletDucker, type WorkletDuckerOptions } from './devices/native/WorkletDucker'
 import { type DeviceRegistry } from './devices/registry'
 import { AudioTrack, type AudioTrackOptions } from './tracks/AudioTrack'
+import { StretchTrack, type StretchTrackOptions } from './tracks/StretchTrack'
 import {
   SoloInPlace,
   resolveInput,
@@ -127,6 +128,22 @@ export type AddAudioTrackOptions = Omit<
   destination?: StripDestination
 }
 
+export type AddStretchTrackOptions = Omit<
+  StretchTrackOptions,
+  | 'name'
+  | 'destination'
+  | 'samples'
+  | 'now'
+  | 'scheduler'
+  | 'solo'
+  | 'tempo'
+  | 'setTimeoutFn'
+  | 'clearTimeoutFn'
+> & {
+  /** Where the track's voices connect; defaults to the master. */
+  destination?: StripDestination
+}
+
 export type AddGroupOptions = Omit<GroupTrackOptions, 'name' | 'destination' | 'solo'> & {
   /** Where the group feeds; defaults to the master. */
   destination?: StripDestination
@@ -136,7 +153,14 @@ export type AddGroupOptions = Omit<GroupTrackOptions, 'name' | 'destination' | '
 
 /** What kind of mixer object an `EngineChange` is about. */
 export type EngineObjectKind =
-  'track' | 'element-track' | 'live-input' | 'instrument' | 'return' | 'group' | 'bus'
+  | 'track'
+  | 'stretch-track'
+  | 'element-track'
+  | 'live-input'
+  | 'instrument'
+  | 'return'
+  | 'group'
+  | 'bus'
 
 /**
  * Structural changes a host lists from (React `useTracks()`, agent snapshots):
@@ -208,6 +232,7 @@ export class Engine {
   readonly stats: EngineStats
   private readonly busMap = new Map<string, Bus>()
   private readonly trackMap = new Map<string, AudioTrack>()
+  private readonly stretchTrackMap = new Map<string, StretchTrack>()
   private readonly retainers = new Map<AudioTrack, SampleRetainer>()
   private readonly elementTrackMap = new Map<string, ElementTrack>()
   private readonly retainSamples: boolean
@@ -288,7 +313,9 @@ export class Engine {
   /** Create a clip track feeding the master (or a bus), registered with the scheduler. */
   addAudioTrack(name: string, options: AddAudioTrackOptions = {}): AudioTrack {
     this.assertLive()
-    if (this.trackMap.has(name)) throw new Error(`live-mix: track "${name}" already exists`)
+    if (this.trackMap.has(name) || this.stretchTrackMap.has(name)) {
+      throw new Error(`live-mix: track "${name}" already exists`)
+    }
     const track = new AudioTrack(this.context, {
       ...options,
       name,
@@ -366,6 +393,51 @@ export class Engine {
     const track = this.trackMap.get(name)
     if (!track) throw new Error(`live-mix: no track "${name}"`)
     return track
+  }
+
+  /**
+   * A clip track whose voices play through `StretchSource` (warp markers on
+   * `engine.tempo`, semitones, loop regions entered anywhere). Needs the
+   * `signalsmith-stretch` factory; shares the track namespace with audio tracks.
+   */
+  addStretchTrack(name: string, options: AddStretchTrackOptions): StretchTrack {
+    this.assertLive()
+    if (this.trackMap.has(name) || this.stretchTrackMap.has(name)) {
+      throw new Error(`live-mix: track "${name}" already exists`)
+    }
+    const track = new StretchTrack(this.context, {
+      ...options,
+      name,
+      destination: options.destination ?? this.master,
+      solo: this.solo,
+      samples: this.samples,
+      now: this.clock.now,
+      tempo: () => this.tempo,
+      setTimeoutFn: this.clock.setTimeoutFn,
+      clearTimeoutFn: this.clock.clearTimeoutFn,
+    })
+    track.attach(this.scheduler)
+    this.stretchTrackMap.set(name, track)
+    this.changed('stretch-track', 'added', name)
+    return track
+  }
+
+  stretchTrack(name: string): StretchTrack {
+    const track = this.stretchTrackMap.get(name)
+    if (!track) throw new Error(`live-mix: no stretch track "${name}"`)
+    return track
+  }
+
+  get stretchTracks(): readonly StretchTrack[] {
+    return [...this.stretchTrackMap.values()]
+  }
+
+  removeStretchTrack(name: string): void {
+    const track = this.stretchTrackMap.get(name)
+    if (!track) return
+    track.dispose()
+    this.stretchTrackMap.delete(name)
+    this.changed('stretch-track', 'removed', name)
   }
 
   get tracks(): readonly AudioTrack[] {
@@ -704,6 +776,8 @@ export class Engine {
     this.retainers.clear()
     for (const track of this.trackMap.values()) track.dispose()
     this.trackMap.clear()
+    for (const track of this.stretchTrackMap.values()) track.dispose()
+    this.stretchTrackMap.clear()
     for (const track of this.elementTrackMap.values()) track.dispose()
     this.elementTrackMap.clear()
     for (const ducker of this.duckers) ducker.dispose()
@@ -764,6 +838,7 @@ export class Engine {
       [
         { hosts: this.groupMap.values(), kind: 'group', alignable: false },
         { hosts: this.trackMap.values(), kind: 'track', alignable: true },
+        { hosts: this.stretchTrackMap.values(), kind: 'track', alignable: true },
         { hosts: this.instrumentMap.values(), kind: 'instrument', alignable: true },
         { hosts: this.liveInputMap.values(), kind: 'live-input', alignable: false },
         { hosts: this.returnMap.values(), kind: 'return', alignable: false },

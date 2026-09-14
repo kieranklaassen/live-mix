@@ -27,6 +27,7 @@ import { type Clip } from '../clips/Clip'
 import { type Engine } from '../Engine'
 import { TempoMap, type TempoSegment } from '../time/TempoMap'
 import { type AudioTrack } from '../tracks/AudioTrack'
+import { type StretchTrack } from '../tracks/StretchTrack'
 import { isLooping, type TransportPosition } from '../transport/anchor'
 import { type SchedulerTick } from '../transport/Scheduler'
 import { type TransportChange } from '../transport/Transport'
@@ -463,7 +464,13 @@ export class Session {
       fadeCurve: slot.clip.fadeCurve,
       gainDb: slot.clip.gainDb,
     }
-    if (slot.clip.loop) clip.loop = true
+    if (slot.clip.loop) {
+      clip.loop = true
+      // The slot's region is what loops, wherever a legato launch entered it;
+      // without this a buffer voice would cycle from the entry point to the source end.
+      clip.loopStartSec = slot.clip.offsetSec
+      clip.loopEndSec = slot.clip.offsetSec + slot.clip.durationSec
+    }
     if (slot.clip.warp !== undefined) clip.warp = slot.clip.warp
     if (slot.clip.semitones !== undefined) clip.semitones = slot.clip.semitones
     ops.push({ type: 'clip.add', track: slot.track, clip })
@@ -582,8 +589,13 @@ export class Session {
     }
   }
 
-  private liveTrack(id: string): AudioTrack | undefined {
-    return this.engine?.tracks.find((track) => track.name === id)
+  private liveTrack(id: string): AudioTrack | StretchTrack | undefined {
+    const engine = this.engine
+    if (!engine) return undefined
+    return (
+      engine.tracks.find((track) => track.name === id) ??
+      engine.stretchTracks.find((track) => track.name === id)
+    )
   }
 
   // --- Bookkeeping -----------------------------------------------------------------------------

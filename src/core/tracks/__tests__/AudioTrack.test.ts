@@ -204,6 +204,27 @@ describe('AudioTrack linear voices (ambient-live ClipPlayer parity)', () => {
     expect(source.loopEnd).toBe(4)
     expect(source.startCalls.calls).toEqual([[1, 0.5]])
     expect(source.stopCalls.calls).toEqual([[11]])
+
+    // An explicit loop region is honoured with the entry offset inside it (legato launches).
+    track.play(
+      'region',
+      {
+        buffer: buffer(ctx, 4),
+        offsetSec: 2.5,
+        durationSec: 10,
+        fadeInSec: 0,
+        fadeOutSec: 0,
+        fadeCurve: 'linear',
+        loop: true,
+        loopStartSec: 1,
+        loopEndSec: 3,
+      },
+      1,
+    )
+    const region = ctx.sources[1]
+    expect(region.loopStart).toBe(1)
+    expect(region.loopEnd).toBe(3)
+    expect(region.startCalls.calls).toEqual([[1, 2.5]])
   })
 })
 

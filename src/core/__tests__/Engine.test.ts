@@ -244,3 +244,31 @@ describe('engine change events and latency (U24 hooks follow-up)', () => {
     engine.dispose()
   })
 })
+
+describe('engine stretch tracks (U31 follow-up)', () => {
+  it('adds, lists, removes and reports stretch tracks; names share the track namespace', () => {
+    const ctx = createMockContext()
+    const engine = createEngine({ context: asAudioContext(ctx) })
+    const seen: unknown[] = []
+    engine.onChange((change) => seen.push(change))
+    const createStretch = () => Promise.reject(new Error('unused'))
+    const warped = engine.addStretchTrack('warped', { createStretch })
+    expect(engine.stretchTracks).toEqual([warped])
+    expect(engine.stretchTrack('warped')).toBe(warped)
+    expect(warped.strip.destinationTarget).toBe(engine.master)
+    expect(() => engine.addAudioTrack('warped')).toThrow(/already exists/)
+    expect(() => engine.addStretchTrack('warped', { createStretch })).toThrow(/already exists/)
+    engine.addAudioTrack('plain')
+    expect(() => engine.addStretchTrack('plain', { createStretch })).toThrow(/already exists/)
+    expect(engine.latencyReport().paths.map((path) => path.key)).toContain('track/warped')
+    engine.removeStretchTrack('warped')
+    expect(engine.stretchTracks).toEqual([])
+    expect(() => engine.stretchTrack('warped')).toThrow(/no stretch track/)
+    expect(seen).toEqual([
+      { kind: 'stretch-track', action: 'added', name: 'warped' },
+      { kind: 'track', action: 'added', name: 'plain' },
+      { kind: 'stretch-track', action: 'removed', name: 'warped' },
+    ])
+    engine.dispose()
+  })
+})

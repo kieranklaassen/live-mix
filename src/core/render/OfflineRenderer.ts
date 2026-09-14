@@ -158,14 +158,15 @@ export async function scheduleAhead(engine: Engine, options: ScheduleAheadOption
   const lookahead = Math.max(
     engine.automation.lookaheadSec,
     ...engine.tracks.map((track: AudioTrack) => Math.max(track.lookaheadSec, track.preloadSec)),
+    ...engine.stretchTracks.map((track) => Math.max(track.lookaheadSec, track.preloadSec)),
     0,
   )
   const end = durationSec + lookahead + tickSec
   for (let t = 0; t <= end; t += tickSec) {
     setNow(t)
     engine.scheduler.tick()
-    while (engine.samples.pendingCount > 0) {
-      await engine.samples.settled()
+    while (engine.samples.pendingCount > 0 || pendingStretch(engine) > 0) {
+      await Promise.all([engine.samples.settled(), ...engine.stretchTracks.map((t) => t.settled())])
       engine.scheduler.tick()
     }
     engine.automation.tick()
@@ -202,6 +203,12 @@ export async function renderStems(options: StemsOptions): Promise<Record<string,
     })
   }
   return results
+}
+
+function pendingStretch(engine: Engine): number {
+  let count = 0
+  for (const track of engine.stretchTracks) count += track.pendingCount
+  return count
 }
 
 /** Largest absolute sample difference between two renders (same length required). */

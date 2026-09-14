@@ -56,6 +56,7 @@ export {
   Engine,
   createEngine,
   type AddAudioTrackOptions,
+  type AddStretchTrackOptions,
   type AddBusOptions,
   type AddDuckerOptions,
   type AddGroupOptions,
@@ -224,6 +225,14 @@ export {
   type WarpOptions,
   type WarpSegment,
 } from './core/sources/StretchSource'
+export {
+  DEFAULT_STRETCH_PRELOAD_SECONDS,
+  StretchTrack,
+  entryOffset,
+  segmentsFrom,
+  type StretchTrackOptions,
+  type StretchVoice,
+} from './core/tracks/StretchTrack'
 export {
   audioBufferToWav,
   decodeWav,
