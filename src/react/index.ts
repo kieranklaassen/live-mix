@@ -93,3 +93,12 @@ export {
   type UseScheduleOptions,
   type UseScheduleResult,
 } from './hooks/useClips'
+export {
+  useControlSurface,
+  useLearn,
+  type ControlSurfaceControls,
+  type ControlSurfaceSnapshot,
+  type UseControlSurfaceOptions,
+  type UseControlSurfaceResult,
+  type UseLearnResult,
+} from './hooks/useControlSurface'

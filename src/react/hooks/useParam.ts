@@ -16,9 +16,14 @@ import {
   type Preset,
 } from '../../core/devices/presets'
 import { type DeviceDescriptor, type DeviceRegistry } from '../../core/devices/registry'
-import { clampParam, type ParamSpec } from '../../core/params'
+import { denormalizeParam, normalizeParam, type ParamSpec } from '../../core/params'
 import { neverSubscribe, useExternalSnapshot, type Subscribe } from '../store'
 import { useMaybeEngine } from './useEngine'
+
+// The taper math lives in core (`normalizeParam` / `denormalizeParam` in
+// `core/params.ts`) so the control surface (U36) shares the formula; both
+// stay exported from this module and from `./react`.
+export { denormalizeParam, normalizeParam }
 
 export interface UseDeviceOptions {
   /** Where to look the descriptor (presets, version) up; defaults to the provided engine's registry. */
@@ -144,24 +149,6 @@ function requireDescriptor(descriptor: DeviceDescriptor | null, device: Device):
     )
   }
   return descriptor
-}
-
-/** Value → 0..1 control position under the spec's taper. */
-export function normalizeParam(spec: ParamSpec, value: number): number {
-  const clamped = clampParam(spec, value)
-  if (spec.taper === 'log' && spec.min > 0) {
-    return Math.log(clamped / spec.min) / Math.log(spec.max / spec.min)
-  }
-  return (clamped - spec.min) / (spec.max - spec.min)
-}
-
-/** 0..1 control position → value under the spec's taper, clamped to the range. */
-export function denormalizeParam(spec: ParamSpec, position: number): number {
-  const u = Number.isFinite(position) ? Math.min(1, Math.max(0, position)) : 0
-  if (spec.taper === 'log' && spec.min > 0) {
-    return clampParam(spec, spec.min * Math.pow(spec.max / spec.min, u))
-  }
-  return clampParam(spec, spec.min + (spec.max - spec.min) * u)
 }
 
 export interface UseDeviceParamResult {
