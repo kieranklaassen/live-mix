@@ -1,0 +1,5 @@
+---
+'@kieranklaassen/live-mix': patch
+---
+
+README rewritten for a general audience: a one-paragraph pitch, a grouped feature list, a quick start (install, Vite, a hello mix), five generic examples (an adaptive loop with a microphone duck, a Faust device modulated by an LFO, a score loaded, edited, undone and bounced, an AI narrator steering the mix through `AgentController` with rails and a snapshot, a React `LiveMixProvider` + `MixerView`), the architecture diagram, the entry map, browser and iOS notes, re-measured bundle figures, a docs map, status and a single "Used by" line. The unit status table moved to `docs/status.md`, which also states what is stable and what is experimental. Every README code sample is a file under `examples/readme/`, type-checked against `src/` by `pnpm typecheck` (`examples/tsconfig.json`) and compared verbatim with the README by `src/__tests__/readme-examples.test.ts`, so the samples cannot drift from the API. `docs/getting-started.md` and the adaptive-session and live-instrument recipes were retitled and lightly edited to match the README's generic framing; the consumer guides are unchanged.

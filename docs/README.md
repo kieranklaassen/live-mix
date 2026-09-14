@@ -5,9 +5,11 @@ generated from the five public entries and lives in CI, not in git.
 
 ## Start
 
-- [Getting started](./getting-started.md) — install (GitHub Packages or
-  `github:` for the private repo), Vite, worklet/`.wasm` asset resolution,
-  a first engine, iOS output activation, headless tests.
+- [Getting started](./getting-started.md) — install (`github:#sha` today,
+  GitHub Packages once published), Vite, worklet/`.wasm` asset resolution,
+  a first engine, iOS output activation, headless tests. The
+  [README](../README.md#quick-start) has the shortest path: a hello mix and
+  five type-checked examples.
 - [React](./react.md) — the headless hooks, the styled kit, and the
   `playground/` app (`pnpm playground`), with its browser smoke test.
 
@@ -34,8 +36,8 @@ the reference documents.
 
 | Recipe                                                            | Shape                                                                                             |
 | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| [Adaptive music session](./recipes/adaptive-session.md)           | Breathwork-style: one engine, a duck bus keyed by a voice, streaming ambience, the coach as agent |
-| [Live instrument with MIDI](./recipes/live-instrument.md)         | ambient-live-style: a looping timeline, a synth from keys, a guitar monitored, knobs learned      |
+| [Adaptive music session](./recipes/adaptive-session.md)           | A voice over adaptive music: one engine, a duck bus keyed by the voice, a streaming bed, an agent |
+| [Live instrument with MIDI](./recipes/live-instrument.md)         | A looping timeline, a synth from keys, a guitar monitored through the mix, knobs learned          |
 | [Offline bounce](./recipes/offline-bounce.md)                     | Render, stems, a score bounce, proving render equals live, running in Node                        |
 | [Adding a C++ or Faust device](./recipes/adding-a-wasm-device.md) | From kkfonie source to a registered device both apps list                                         |
 | [Adding a WAM](./recipes/adding-a-wam.md)                         | A WebAudioModules 2.0 plugin as an insert, an instrument, a registry device                       |
@@ -68,6 +70,8 @@ Written next to the subsystem they document, by the unit that built it.
 
 ## Project
 
+- [Status](./status.md) — what is stable and what is experimental, the
+  plan's units and their PRs, known gaps.
 - [Decisions log](./decisions.md) — KD/KTD distilled, plus what each unit
   decided on the way.
 - [Contributing](./contributing.md) — commands, layout, conventions, CI,
