@@ -61,6 +61,8 @@ describe('entries', () => {
     'defaultFrameScheduler',
     'normalizeParam',
     'denormalizeParam',
+    'useControlSurface',
+    'useLearn',
   ] as const)('`./react` exports %s', (name) => {
     expect((react as Record<string, unknown>)[name]).toBeDefined()
   })

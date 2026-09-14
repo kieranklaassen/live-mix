@@ -754,6 +754,62 @@ renderer.liveInput('voice').attach(stream)
 Schema, the operation list, the undo granularity decision and the rendering
 rules are in [`docs/score.md`](./docs/score.md).
 
+### MIDI and OSC learn (`ControlSurface`)
+
+`src/core/control` maps hardware to the engine (U36, R15). A **mapping table**
+binds a `ControlSource` — a MIDI note, CC, 14-bit CC pair, pitch bend or
+channel pressure on a channel (0 = omni), or one argument of an OSC address
+pattern — to a `ControlTarget`: a strip control (`level`, `pan`, `mute`,
+`solo`, `inputGain`) by track name, a send level, the master fader, one
+parameter of a registered device instance (taper-aware, through the same
+`normalizeParam`/`denormalizeParam` as `useDeviceParam`), a macro, or a
+transport action. Modes are `set` (the knob's position becomes the value),
+`toggle` and `relative` (endless encoders in two's-complement, binary-offset
+or signed-bit encoding); every mapping has an input range, an output span (a
+reversed span inverts), a curve (`linear`, `exp`, `log`, `s`) and optional
+**soft takeover** (`pickup`): an absolute controller only takes a target once
+it crosses the target's current position, and lets go again when automation
+or the UI moves the target away.
+
+```ts
+import { ControlSurface, MidiInput, OscInput } from '@kieranklaassen/live-mix'
+
+const surface = new ControlSurface({ engine })
+surface.registerDevice('pad-filter', filter) // { kind: 'device', device: 'pad-filter', param: 'frequency' }
+surface.attachWriter({ kind: 'strip', track: 'pad', control: 'level' }, laneWriter) // automation yields (R29)
+
+const midi = new MidiInput() // navigator.requestMIDIAccess, injectable
+await midi.open()
+surface.connect(midi)
+midi.onMessage((message) => {
+  if (message.type === 'note-on' && !surface.handle(...)) synth.noteOn(...) // or check `isMapped`
+})
+
+const osc = new OscInput({ url: 'ws://localhost:8080' }) // OSC 1.0 over a WebSocket bridge, bundles included
+await osc.open()
+surface.connect(osc)
+
+surface.beginLearn({ kind: 'strip', track: 'pad', control: 'level' }) // next CC/note/OSC arg binds
+surface.persist(localStorage) // versioned JSON, malformed entries dropped, migrations supported
+```
+
+Dispatch goes through the engine's own ramped setters (`ChannelStrip.setLevel`
+/ `setPan` / `setMute` / `setSolo`, `Bus.setLevel`, `Device.setParam`,
+`Macro.set`), never a step. A target with an attached `LaneWriter` is
+overridden with cancel-and-hold on the first controller write and handed back
+with `surface.release(target)`. `handle(event)` reports whether the event was
+consumed, so a mapped pad never reaches an instrument. Learning binds the
+next position or press (a release keeps waiting); a 14-bit knob learned from
+its MSB upgrades to the `cc14` pair when the LSB follows.
+
+The pure layer (`createMapping`, `mapTarget`, `resolveControlEvent`,
+`learnFromEvent`, `serializeMappingTable`/`parseMappingTable`,
+`loadMappingTable`/`saveMappingTable`) is ambient-live's U27 `midi-map`
+generalised; `ambientLiveMidiMapMigration` converts its stored format-1
+tables. `./react` adds `useControlSurface(surface)` and
+`useLearn(surface, target)`. Details and the migration path:
+[docs/control-surface.md](./docs/control-surface.md).
+
 ### Real-time rules
 
 - Nothing allocates inside `process()`; WASM memory is fixed and heap views are

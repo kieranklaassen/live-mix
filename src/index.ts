@@ -17,7 +17,13 @@ export {
   type ObservableDevice,
 } from './core/devices/Device'
 export { Emitter, type Listener } from './core/events'
-export { clampParam, type ParamSpec, type ParamTaper } from './core/params'
+export {
+  clampParam,
+  denormalizeParam,
+  normalizeParam,
+  type ParamSpec,
+  type ParamTaper,
+} from './core/params'
 export { ensureProcessor } from './core/worklet-loader'
 export {
   createClock,
@@ -456,3 +462,4 @@ export {
   type RenderCapacityUpdate,
 } from './core/stats'
 export * from './score'
+export * from './core/control'

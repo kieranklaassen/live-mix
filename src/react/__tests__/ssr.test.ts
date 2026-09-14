@@ -7,6 +7,7 @@ import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 
 import { ParamLane } from '../../core/automation/ParamLane'
+import { ControlSurface } from '../../core/control/ControlSurface'
 import { type Device } from '../../core/devices/Device'
 import { createEngine } from '../../core/Engine'
 import { asAudioContext, createMockContext } from '../../testing'
@@ -69,6 +70,20 @@ describe('./react under SSR', () => {
     )
     expect(html).toBe('<pre>stopped|3|pad|1|1|0|eq3|0|1|0|0|0|0|0</pre>')
     engine.dispose()
+  })
+
+  it('renders the control-surface hooks on the server from the table (U36)', () => {
+    const surface = new ControlSurface()
+    surface.map({
+      source: { kind: 'cc', channel: 1, controller: 74 },
+      target: { kind: 'master', control: 'level' },
+    })
+    function Panel(): ReactNode {
+      const { mappings, learning } = react.useControlSurface(surface)
+      const row = react.useLearn(surface, { kind: 'master', control: 'level' })
+      return createElement('span', null, `${mappings.length}|${learning ? 1 : 0}|${row.label}`)
+    }
+    expect(renderToString(createElement(Panel))).toBe('<span>1|0|CC 74 · ch 1</span>')
   })
 
   it('renders hooks given explicit objects without a provider', () => {
