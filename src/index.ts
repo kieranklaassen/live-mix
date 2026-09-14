@@ -393,3 +393,4 @@ export {
   type RenderCapacityLike,
   type RenderCapacityUpdate,
 } from './core/stats'
+export * from './score'
