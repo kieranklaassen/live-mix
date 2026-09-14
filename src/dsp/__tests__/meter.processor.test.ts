@@ -3,7 +3,8 @@
 
 import { describe, expect, it, vi } from 'vitest'
 
-import { dbToGain, type MeterReading } from '../../core/analysis/loudness'
+import { type MeterReading } from '../../core/analysis/loudness'
+import { dbToGain } from '../../core/devices/native/units'
 import { type MeterHostMessage, type MeterMessage } from '../../core/analysis/meter-protocol'
 // Registers the processor into the shimmed `registerProcessor`.
 import '../worklets/meter.processor'

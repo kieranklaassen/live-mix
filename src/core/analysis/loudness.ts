@@ -173,16 +173,6 @@ export function loudnessFromMeanSquare(meanSquare: number): number {
   return LOUDNESS_OFFSET_LU + 10 * Math.log10(meanSquare)
 }
 
-/** Linear magnitude to dB (dBFS or dBTP); −Infinity for 0. */
-export function gainToDb(gain: number): number {
-  if (gain <= 0) return -Infinity
-  return 20 * Math.log10(gain)
-}
-
-export function dbToGain(db: number): number {
-  return 10 ** (db / 20)
-}
-
 /** One snapshot of the meter. Peaks are linear (1 = 0 dBFS / 0 dBTP). */
 export interface MeterReading {
   /** 400 ms loudness, LUFS; −Infinity when silent. */

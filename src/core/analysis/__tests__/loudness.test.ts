@@ -1,12 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
+import { dbToGain, gainToDb } from '../../devices/native/units'
 import {
   Biquad,
   LoudnessAnalyzer,
   TRUE_PEAK_FIR_PHASES,
   TruePeakDetector,
-  dbToGain,
-  gainToDb,
   kWeightingCoefficients,
   loudnessFromMeanSquare,
   truePeakOversampling,
@@ -235,11 +234,9 @@ describe('LoudnessAnalyzer', () => {
     expect(analyzer.read().samplePeak).toEqual([0, 0])
   })
 
-  it('exposes the dB helpers used by hosts', () => {
-    expect(gainToDb(1)).toBe(0)
-    expect(gainToDb(0)).toBe(-Infinity)
-    expect(gainToDb(dbToGain(-6))).toBeCloseTo(-6, 10)
+  it('maps mean square to LUFS with the spec offset', () => {
     expect(loudnessFromMeanSquare(0)).toBe(-Infinity)
     expect(loudnessFromMeanSquare(1)).toBeCloseTo(-0.691, 10)
+    expect(loudnessFromMeanSquare(0.1)).toBeCloseTo(-10.691, 10)
   })
 })

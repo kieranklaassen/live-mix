@@ -7,7 +7,8 @@
 // The processor script is added once per context per URL. Hosts that resolve
 // assets themselves pass `processorUrl`; tests pass `createNode`.
 
-import { gainToDb, silentReading, type MeterReading } from './loudness'
+import { gainToDb } from '../devices/native/units'
+import { silentReading, type MeterReading } from './loudness'
 import {
   DEFAULT_METER_INTERVAL_MS,
   METER_PROCESSOR_NAME,

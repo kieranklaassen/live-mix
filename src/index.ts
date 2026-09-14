@@ -217,3 +217,50 @@ export {
   type RegisterOptions,
   type SerializedPreset,
 } from './core/devices'
+export {
+  ABSOLUTE_GATE_LUFS,
+  Biquad,
+  GATING_HOP_SECONDS,
+  LOUDNESS_OFFSET_LU,
+  LoudnessAnalyzer,
+  MOMENTARY_WINDOW_SECONDS,
+  RELATIVE_GATE_LU,
+  SHORT_TERM_WINDOW_SECONDS,
+  TRUE_PEAK_FIR_PHASES,
+  TRUE_PEAK_FIR_TAPS,
+  TruePeakDetector,
+  kWeightingCoefficients,
+  loudnessFromMeanSquare,
+  silentReading,
+  truePeakOversampling,
+  type BiquadCoefficients,
+  type KWeighting,
+  type MeterReading,
+} from './core/analysis/loudness'
+export {
+  DEFAULT_METER_INTERVAL_MS,
+  MAX_METER_INTERVAL_MS,
+  METER_PROCESSOR_NAME,
+  MIN_METER_INTERVAL_MS,
+  clampMeterInterval,
+  type MeterHostMessage,
+  type MeterMessage,
+  type MeterProcessorOptions,
+} from './core/analysis/meter-protocol'
+export {
+  LufsMeter,
+  defaultMeterProcessorUrl,
+  type LufsMeterOptions,
+  type MeterListener,
+  type MeterNodeFactory,
+} from './core/analysis/LufsMeter'
+export { MasterLimiter } from './core/buses/MasterLimiter'
+export { type LimiterFactory } from './core/buses/MasterBus'
+export {
+  EngineStats,
+  type EngineStatsListener,
+  type EngineStatsOptions,
+  type EngineStatsSnapshot,
+  type RenderCapacityLike,
+  type RenderCapacityUpdate,
+} from './core/stats'
