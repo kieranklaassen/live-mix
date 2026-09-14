@@ -11,14 +11,17 @@
 import { type Clip } from '../core/clips/Clip'
 import { type ModPolarity } from '../core/automation/ModMatrix'
 import { type Breakpoint } from '../core/automation/ParamLane'
+import { type TempoSegment } from '../core/time/TempoMap'
 import {
   MASTER_OWNER,
   findDevice,
+  findElementTrack,
   findGroup,
   findReturn,
   findStripHost,
   findTrack,
   normaliseClip,
+  normaliseTempo,
   sameTarget,
   sortBreakpoints,
   sortClips,
@@ -27,6 +30,7 @@ import {
   type Score,
   type ScoreDestination,
   type ScoreDevice,
+  type ScoreElementTrack,
   type ScoreGroup,
   type ScoreLane,
   type ScoreModRoute,
@@ -59,11 +63,18 @@ export type ClipPatch = Partial<Omit<Clip, 'id'>>
 export type Operation =
   | { type: 'score.rename'; name: string }
   | { type: 'transport.loop'; enabled?: boolean; lengthSec?: number | null }
+  /** Replace the tempo map (segments are sorted; the first must start at 0). */
+  | { type: 'tempo.set'; segments: TempoSegment[] }
   | { type: 'source.add'; source: ScoreSource; index?: number }
   | { type: 'source.remove'; id: string }
   | { type: 'track.add'; track: ScoreTrack; index?: number }
   | { type: 'track.remove'; id: string }
   | { type: 'track.move'; id: string; index: number }
+  | { type: 'elementTrack.add'; track: ScoreElementTrack; index?: number }
+  | { type: 'elementTrack.remove'; id: string }
+  | { type: 'elementTrack.route'; id: string; destination: ScoreDestination }
+  /** Replace an element track's clip list (element clips have no per-clip operations). */
+  | { type: 'elementTrack.setClips'; id: string; clips: Clip[] }
   | { type: 'group.add'; group: ScoreGroup; index?: number }
   | { type: 'group.remove'; id: string }
   | { type: 'group.move'; id: string; index: number }
@@ -131,11 +142,16 @@ export type OperationType = Operation['type']
 export const OPERATION_TYPES: readonly OperationType[] = [
   'score.rename',
   'transport.loop',
+  'tempo.set',
   'source.add',
   'source.remove',
   'track.add',
   'track.remove',
   'track.move',
+  'elementTrack.add',
+  'elementTrack.remove',
+  'elementTrack.route',
+  'elementTrack.setClips',
   'group.add',
   'group.remove',
   'group.move',
@@ -227,6 +243,11 @@ export function coalesceKey(op: Operation): string | null {
       return `route.update|${op.id}|${routeKeys(op).join(',')}`
     case 'score.rename':
     case 'transport.loop':
+    case 'tempo.set':
+    case 'elementTrack.add':
+    case 'elementTrack.remove':
+    case 'elementTrack.route':
+    case 'elementTrack.setClips':
     case 'source.add':
     case 'source.remove':
     case 'track.add':
@@ -314,6 +335,19 @@ function requireTrack(score: Score, op: Operation, id: string): ScoreTrack {
   return findTrack(score, id) ?? fail(op, `no track "${id}"`)
 }
 
+function requireElementTrack(score: Score, op: Operation, id: string): ScoreElementTrack {
+  return findElementTrack(score, id) ?? fail(op, `no element track "${id}"`)
+}
+
+/** Element clips need a source with a `url` to stream from. */
+function assertStreamableClips(score: Score, op: Operation, clips: readonly Clip[]): void {
+  for (const clip of clips) {
+    const source = score.sources.find((candidate) => candidate.id === clip.sourceId)
+    if (!source) fail(op, `unknown source "${clip.sourceId}"`)
+    if (source.url === undefined) fail(op, `source "${clip.sourceId}" has no url to stream`)
+  }
+}
+
 function requireAudioTrack(
   score: Score,
   op: Operation,
@@ -355,6 +389,7 @@ function requireRoute(score: Score, op: Operation, id: string): ScoreModRoute {
 function assertFreshOwnerId(score: Score, op: Operation, id: string): void {
   if (id === MASTER_OWNER) fail(op, `"${MASTER_OWNER}" is reserved`)
   if (findStripHost(score, id)) fail(op, `id "${id}" is already a track, group or return`)
+  if (findElementTrack(score, id)) fail(op, `id "${id}" is already an element track`)
 }
 
 function assertFreshDeviceIds(score: Score, op: Operation, devices: readonly ScoreDevice[]): void {
@@ -576,6 +611,70 @@ export function apply(score: Score, op: Operation): Score {
       return { ...score, transport: { ...score.transport, loop } }
     }
 
+    case 'tempo.set': {
+      if (op.segments.length === 0) fail(op, 'tempo needs at least one segment')
+      const segments = normaliseTempo(op.segments)
+      if (segments[0].atSec !== 0) fail(op, 'the first tempo segment must start at 0')
+      for (const [index, segment] of segments.entries()) {
+        if (!(segment.bpm > 0) || !Number.isFinite(segment.bpm))
+          fail(op, `bpm must be > 0 (segment ${index})`)
+        if (index > 0 && segment.atSec <= segments[index - 1].atSec) {
+          fail(op, `tempo segments must ascend (segment ${index})`)
+        }
+        if (
+          segment.beatsPerBar !== undefined &&
+          (!Number.isInteger(segment.beatsPerBar) || segment.beatsPerBar < 1)
+        ) {
+          fail(op, `beatsPerBar must be a positive integer (segment ${index})`)
+        }
+      }
+      return { ...score, tempo: segments }
+    }
+
+    case 'elementTrack.add': {
+      assertFreshOwnerId(score, op, op.track.id)
+      if (findElementTrack(score, op.track.id))
+        fail(op, `element track "${op.track.id}" already exists`)
+      assertDestinationExists(score, op, op.track.destination)
+      assertStreamableClips(score, op, op.track.clips)
+      const track: ScoreElementTrack = {
+        ...op.track,
+        clips: sortClips(op.track.clips.map(tidyClip)),
+      }
+      return { ...score, elementTracks: insertAt(op, score.elementTracks, track, op.index) }
+    }
+
+    case 'elementTrack.remove': {
+      const track = requireElementTrack(score, op, op.id)
+      return {
+        ...score,
+        elementTracks: score.elementTracks.filter((candidate) => candidate !== track),
+      }
+    }
+
+    case 'elementTrack.route': {
+      const track = requireElementTrack(score, op, op.id)
+      assertDestinationExists(score, op, op.destination)
+      return {
+        ...score,
+        elementTracks: score.elementTracks.map((candidate) =>
+          candidate === track ? { ...candidate, destination: op.destination } : candidate,
+        ),
+      }
+    }
+
+    case 'elementTrack.setClips': {
+      const track = requireElementTrack(score, op, op.id)
+      assertStreamableClips(score, op, op.clips)
+      const clips = sortClips(op.clips.map(tidyClip))
+      return {
+        ...score,
+        elementTracks: score.elementTracks.map((candidate) =>
+          candidate === track ? { ...candidate, clips } : candidate,
+        ),
+      }
+    }
+
     case 'source.add':
       if (score.sources.some((source) => source.id === op.source.id)) {
         fail(op, `source "${op.source.id}" already exists`)
@@ -587,6 +686,11 @@ export function apply(score: Score, op: Operation): Score {
       for (const track of score.tracks) {
         if (track.kind === 'audio' && track.clips.some((clip) => clip.sourceId === op.id)) {
           fail(op, `source "${op.id}" is used by a clip on track "${track.id}"`)
+        }
+      }
+      for (const track of score.elementTracks) {
+        if (track.clips.some((clip) => clip.sourceId === op.id)) {
+          fail(op, `source "${op.id}" is used by a clip on element track "${track.id}"`)
         }
       }
       return { ...score, sources: score.sources.filter((source) => source.id !== op.id) }
@@ -624,13 +728,14 @@ export function apply(score: Score, op: Operation): Score {
     case 'group.remove': {
       const group = findGroup(score, op.id) ?? fail(op, `no group "${op.id}"`)
       const detached = detachAutomation(score, op.id, hostDevices(group))
-      const reroute = <T extends ScoreStripHost>(host: T): T =>
+      const reroute = <T extends ScoreStripHost | ScoreElementTrack>(host: T): T =>
         host.destination.kind === 'group' && host.destination.id === op.id
           ? { ...host, destination: group.destination }
           : host
       return {
         ...detached.score,
         tracks: detached.score.tracks.map(reroute),
+        elementTracks: detached.score.elementTracks.map(reroute),
         groups: detached.score.groups.filter((candidate) => candidate !== group).map(reroute),
         returns: detached.score.returns.map(reroute),
       }
@@ -1035,6 +1140,28 @@ export function invert(score: Score, op: Operation): Operation {
       return inverse
     }
 
+    case 'tempo.set':
+      return { type: 'tempo.set', segments: score.tempo.map((segment) => ({ ...segment })) }
+
+    case 'elementTrack.add':
+      return { type: 'elementTrack.remove', id: op.track.id }
+
+    case 'elementTrack.remove': {
+      const index = score.elementTracks.findIndex((track) => track.id === op.id)
+      if (index === -1) fail(op, `no element track "${op.id}"`)
+      return { type: 'elementTrack.add', track: score.elementTracks[index], index }
+    }
+
+    case 'elementTrack.route': {
+      const track = requireElementTrack(score, op, op.id)
+      return { type: 'elementTrack.route', id: op.id, destination: track.destination }
+    }
+
+    case 'elementTrack.setClips': {
+      const track = requireElementTrack(score, op, op.id)
+      return { type: 'elementTrack.setClips', id: op.id, clips: [...track.clips] }
+    }
+
     case 'source.add':
       return { type: 'source.remove', id: op.source.id }
 
@@ -1079,9 +1206,17 @@ export function invert(score: Score, op: Operation): Operation {
           id: host.id,
           destination: { kind: 'group', id: op.id },
         }))
+      const elementMembers: Operation[] = score.elementTracks
+        .filter((track) => track.destination.kind === 'group' && track.destination.id === op.id)
+        .map((track) => ({
+          type: 'elementTrack.route',
+          id: track.id,
+          destination: { kind: 'group', id: op.id },
+        }))
       return batchOf(op, [
         { type: 'group.add', group, index },
         ...members,
+        ...elementMembers,
         ...reattachOps(detached.lanes, detached.routes),
       ])
     }
@@ -1401,6 +1536,16 @@ export function describeOperation(op: Operation): string {
       return `rename score to "${op.name}"`
     case 'transport.loop':
       return 'change loop'
+    case 'tempo.set':
+      return 'set tempo'
+    case 'elementTrack.add':
+      return `add element track ${op.track.id}`
+    case 'elementTrack.remove':
+      return `remove element track ${op.id}`
+    case 'elementTrack.route':
+      return `route element track ${op.id}`
+    case 'elementTrack.setClips':
+      return `set clips on ${op.id}`
     case 'source.add':
       return `add source ${op.source.id}`
     case 'source.remove':

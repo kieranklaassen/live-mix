@@ -23,17 +23,22 @@ renderer.liveInput('voice').attach(stream) // live audio is the app's
 localStorage.setItem('score', document.serialize())
 ```
 
-## Schema (`format: 1`)
+## Schema (`format: 2`)
 
-Seconds are the only time unit. Every id is a string chosen by the author;
-`'master'` is reserved. Track, group and return ids share one namespace
-(they are also the engine names); device instance ids share another; clip
-ids are unique per track.
+Seconds are the only time unit; the tempo map is a view on them. Every id is
+a string chosen by the author; `'master'` is reserved. Track, element track,
+group and return ids share one namespace (they are also the engine names);
+device instance ids share another; clip ids are unique per track.
+
+Format history: **1** (U28) — everything below except `tempo` and
+`elementTracks`; **2** (U33) — adds them, migration `1 → 2` fills defaults
+(120 BPM, no element tracks). U31 takes `format: 3` for scenes and slots.
 
 ```
 Score
-├─ format: 1, id, name
+├─ format: 2, id, name
 ├─ transport.loop { enabled, lengthSec | null }       null = no end
+├─ tempo[]     TempoSegment { atSec, bpm, beatsPerBar? }  ascending, first at 0 → engine.tempo (TempoMap)
 ├─ master { level, inserts: ScoreDevice[] }
 ├─ sources[]   { id, url?, durationSec?, analysis? }  what clips reference
 ├─ tracks[]    kind 'audio' | 'live' | 'instrument'
@@ -41,6 +46,8 @@ Score
 │      audio:      lookaheadSec?, preloadSec?, clips: Clip[]
 │      live:       (declared only — audio attached by the app)
 │      instrument: device: ScoreDevice (a NoteDevice in the registry) }
+├─ elementTracks[] { id, name, destination, lookaheadSec?, preloadSec?, clips: Clip[] }
+│                  streamed beds (U18 ElementTrack): no strip, clips need a source with a url
 ├─ groups[]    { id, name, destination, strip }        summing strips; a forest
 ├─ returns[]   { id, name, destination, strip, device: ScoreDevice }
 ├─ lanes[]     { id, target: ParamTarget, defaultValue?, breakpoints: Breakpoint[] }
@@ -70,10 +77,11 @@ them.
   normalise. `serializeScore(score)` is stable (canonical field order, clips
   sorted by start, `curve: 'linear'` and `loop: false` dropped), so equal
   documents serialise identically and diff well.
-- `migrateScore(raw)` — migrations by format; none yet (`format: 2` adds
-  `1 → 2` there and bumps `SCORE_FORMAT_VERSION`). Newer formats throw.
-- Lookups: `findTrack/findGroup/findReturn/findStripHost`, `stripHosts`,
-  `allDevices`, `findDevice`, `targetKey`.
+- `migrateScore(raw)` — migrations by format, applied in order (`1 → 2`:
+  `elementTracks: []`, `tempo: defaultTempo()`). Newer formats throw.
+- Lookups: `findTrack/findElementTrack/findGroup/findReturn/findStripHost`,
+  `stripHosts`, `allDevices`, `findDevice`, `targetKey`; `normaliseTempo`,
+  `sameTempo`.
 
 ## Operations
 
@@ -207,11 +215,24 @@ anchored at audio-clock zero so a re-render lands on the same phase.
   directly and commit one operation on release; the arbitration rule between
   human, agent and automation is U30.
 
+### Bouncing a score (U33)
+
+`renderScore(score, { durationSec, sampleRate, … })` loads the document on an
+offline engine and renders it (`renderScoreStems` per track id). What cannot
+render offline is dropped first (`renderableScore`): live-input tracks and
+element tracks (media elements play in real time only), with any lanes and
+routes on them. The score-driven golden renders a document offline and
+compares every source start/stop and AudioParam event with a live engine
+following the same document.
+
 ## Not in this unit
 
-- Element (streaming) tracks, buses as score destinations, per-send lanes,
-  markers/locators, tempo map (U32), session grid (U31), version history and
-  structural diff (U30), score-level presets/fragments.
+- Buses as score destinations, per-send lanes, markers/locators, session grid
+  (U31), version history and structural diff (U30), score-level
+  presets/fragments. Element tracks and the tempo map arrived with format 2
+  (U33): operations `tempo.set`, `elementTrack.add/remove/route/setClips`;
+  the renderer creates element tracks through `createElementSource` (default
+  `<audio>` elements) and keeps `engine.tempo` in step.
 - Engine hooks added for the renderer, all additive: `engine.onDispose`,
   `removeLiveInputTrack` / `liveInputs`, `removeReturnTrack` /
   `returnTracks`, `removeInstrumentTrack` / `instruments`.

@@ -731,9 +731,9 @@ prop injects a hand-driven frame scheduler.
 ### The score: document, operations, undo, rendering
 
 The score is the source of truth for arrangement, automation and device
-graphs: a versioned, seconds-first JSON document (tracks, groups, returns,
-strips with inserts and sends, clips, lanes, modulators, routes, master,
-loop). Every edit is a JSON `Operation` with a stable name — the vocabulary
+graphs: a versioned, seconds-first JSON document (tracks, element tracks,
+groups, returns, strips with inserts and sends, clips, lanes, modulators,
+routes, master, loop, tempo map — `format: 2`). Every edit is a JSON `Operation` with a stable name — the vocabulary
 the agent API calls — applied as a pure function with a computed inverse;
 an append-only `OperationLog` records author and time; `History` undoes one
 step per gesture (a fader drag is one undo); and `loadScore` makes the
@@ -749,10 +749,11 @@ document.apply({ type: 'strip.set', owner: 'kick', param: 'level', value: 0.6 },
 document.apply({ type: 'clip.replaceFrom', track: 'music', fromSec: 120, clips: plan })
 document.undo()
 renderer.liveInput('voice').attach(stream)
+const bounce = await renderScore(document.score, { durationSec: 240 })
 ```
 
-Schema, the operation list, the undo granularity decision and the rendering
-rules are in [`docs/score.md`](./docs/score.md).
+Schema, the operation list, the undo granularity decision, the rendering
+rules and score bouncing are in [`docs/score.md`](./docs/score.md).
 
 ### MIDI and OSC learn (`ControlSurface`)
 
