@@ -9,6 +9,7 @@ export * from './core/clips'
 export * from './core/automation'
 export { isNoteDevice, type Device, type NoteDevice } from './core/devices/Device'
 export { clampParam, type ParamSpec, type ParamTaper } from './core/params'
+export { ensureProcessor } from './core/worklet-loader'
 export {
   createClock,
   type Clock,
