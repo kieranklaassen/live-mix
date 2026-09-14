@@ -10,7 +10,7 @@ import {
   type MockGainNode,
 } from '../../../testing'
 import { type ParamSpec } from '../../params'
-import { type Device } from '../Device'
+import { type Device, isObservableDevice } from '../Device'
 import { devices } from '../index'
 import { macroMappedValue } from '../Macro'
 import { NODE_DEVICE_RAMP_SECONDS } from '../native/NodeDevice'
@@ -470,6 +470,33 @@ describe('Rack macros', () => {
     const { rack } = withDevices()
     rack.setParam('macro5', 0.7)
     expect(rack.macros[4].valueAtTime(1234)).toBe(0.7)
+  })
+
+  it('announces macro, mix and bypass changes as an ObservableDevice, whichever path moved them', () => {
+    const { rack, utility } = withDevices()
+    expect(isObservableDevice(rack)).toBe(true)
+    const seen: unknown[] = []
+    const unsubscribe = rack.onChange((change) => seen.push(change))
+    rack.mapMacro(0, utility, 'gainDb', { apply: false })
+
+    rack.setParam('macro1', 0.25)
+    rack.macros[0].set(0.5)
+    rack.setParam('macro1', 0.5)
+    rack.setParam('mix', 0.4)
+    rack.bypass = true
+    rack.bypass = true
+    expect(seen).toEqual([
+      { type: 'param', name: 'macro1', value: 0.25 },
+      { type: 'param', name: 'macro1', value: 0.5 },
+      { type: 'param', name: 'macro1', value: 0.5 },
+      { type: 'param', name: 'mix', value: 0.4 },
+      { type: 'bypass', bypass: true },
+    ])
+    expect(utility.getParam('gainDb')).toBe(-24)
+
+    unsubscribe()
+    rack.setParam('macro2', 1)
+    expect(seen).toHaveLength(5)
   })
 })
 

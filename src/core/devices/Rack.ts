@@ -20,8 +20,14 @@ import {
   type DeviceParamTargetOptions,
   type ModTarget,
 } from '../automation/ModMatrix'
+import { Emitter } from '../events'
 import { clampParam, type ParamSpec } from '../params'
-import { type Device } from './Device'
+import {
+  type Device,
+  type DeviceChange,
+  type DeviceChangeListener,
+  type ObservableDevice,
+} from './Device'
 import {
   MACRO_CURVES,
   RackMacro,
@@ -314,7 +320,7 @@ export interface MapMacroOptions extends MacroMappingOptions {
   apply?: boolean
 }
 
-export class Rack implements Device {
+export class Rack implements ObservableDevice {
   readonly id = RACK_ID
   readonly name: string
   readonly params: Readonly<Record<string, ParamSpec>>
@@ -330,6 +336,7 @@ export class Rack implements Device {
   private readonly chainList: Chain[] = []
   private readonly mappingList: MacroMapping[] = []
   private readonly latencyListeners = new Set<() => void>()
+  private readonly changes = new Emitter<DeviceChange>()
   private mixValue = RACK_MIX_PARAM.default
   private bypassed = false
   private disposed = false
@@ -425,10 +432,16 @@ export class Rack implements Device {
     if (name === 'mix') {
       this.mixValue = clamped
       if (!this.bypassed) this.applyMix()
+      this.changes.emit({ type: 'param', name, value: clamped })
       return
     }
     const index = macroIndexOf(name)
-    if (index !== null) this.macros[index].set(clamped)
+    if (index === null) return
+    const macro = this.macros[index]
+    const before = macro.value
+    macro.set(clamped)
+    // A real move already announced itself through `applyMacro`.
+    if (macro.value === before) this.changes.emit({ type: 'param', name, value: clamped })
   }
 
   getParam(name: string): number {
@@ -448,6 +461,12 @@ export class Rack implements Device {
     if (this.bypassed === enabled) return
     this.bypassed = enabled
     this.applyMix()
+    this.changes.emit({ type: 'bypass', bypass: enabled })
+  }
+
+  /** Called after every macro, `mix` and bypass change (U24 UI subscriptions); returns the unsubscribe. */
+  onChange(listener: DeviceChangeListener): () => void {
+    return this.changes.subscribe(listener)
   }
 
   /** The rack's latency: its longest chain, which every other chain is aligned to. */
@@ -468,6 +487,7 @@ export class Rack implements Device {
     this.chainList.length = 0
     this.mappingList.length = 0
     this.latencyListeners.clear()
+    this.changes.clear()
     for (const node of [this.input, this.dry, this.wet, this.sum, this.output]) node.disconnect()
   }
 
@@ -557,6 +577,7 @@ export class Rack implements Device {
       if (mapping.macro !== index) continue
       mapping.device.setParam(mapping.param, macroMappedValue(mapping, position))
     }
+    this.changes.emit({ type: 'param', name: macroParamName(index), value: position })
   }
 
   private applyMix(): void {
