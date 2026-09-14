@@ -7,6 +7,7 @@
 // The processor script is added once per context per URL. Hosts that resolve
 // assets themselves pass `processorUrl`; tests pass `createNode`.
 
+import { ensureProcessor } from '../worklet-loader'
 import { gainToDb } from '../devices/native/units'
 import { silentReading, type MeterReading } from './loudness'
 import {
@@ -42,26 +43,6 @@ export function defaultMeterProcessorUrl(): string {
 
 const defaultCreateNode: MeterNodeFactory = (context, name, options) =>
   new AudioWorkletNode(context, name, options)
-
-// `addModule` once per context per processor URL.
-const loadedProcessors = new WeakMap<BaseAudioContext, Map<string, Promise<void>>>()
-
-function ensureProcessor(context: BaseAudioContext, url: string): Promise<void> {
-  let perContext = loadedProcessors.get(context)
-  if (!perContext) {
-    perContext = new Map()
-    loadedProcessors.set(context, perContext)
-  }
-  let loading = perContext.get(url)
-  if (!loading) {
-    loading = context.audioWorklet.addModule(url).catch((error: unknown) => {
-      perContext.delete(url)
-      throw error
-    })
-    perContext.set(url, loading)
-  }
-  return loading
-}
 
 export class LufsMeter {
   readonly node: AudioWorkletNode

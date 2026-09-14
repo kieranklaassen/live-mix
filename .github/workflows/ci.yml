@@ -71,7 +71,7 @@ jobs:
           npm install "github:kieranklaassen/live-mix#${COMMIT}"
           test -f node_modules/@kieranklaassen/live-mix/dist/index.js
           for wasm in "$GITHUB_WORKSPACE"/src/dsp/wasm/*.wasm; do test -f "node_modules/@kieranklaassen/live-mix/dist/wasm/$(basename "$wasm")"; done
-          test -f node_modules/@kieranklaassen/live-mix/dist/worklets/wasm-device.js
+          for worklet in wasm-device ducker meter; do test -f "node_modules/@kieranklaassen/live-mix/dist/worklets/$worklet.js"; done
           node --input-type=module -e "
             import { LIVE_MIX_VERSION } from '@kieranklaassen/live-mix'
             import { DATTORRO_PARAMS, ZITA_REV1_PARAMS, LIMITER_1176_PARAMS } from '@kieranklaassen/live-mix/dsp'

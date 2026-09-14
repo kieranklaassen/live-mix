@@ -6,6 +6,7 @@
 // names to ids and ranges.
 
 import { type NoteDevice } from '../core/devices/Device'
+import { ensureProcessor } from '../core/worklet-loader'
 import { clampParam, type ParamSpec } from '../core/params'
 import {
   WASM_DEVICE_PROCESSOR_NAME,
@@ -51,26 +52,6 @@ export interface WasmDeviceOptions<P extends Record<string, ParamSpec>> extends 
 
 const defaultCreateNode: WorkletNodeFactory = (context, name, options) =>
   new AudioWorkletNode(context, name, options)
-
-// `addModule` once per context per processor URL (shared by every worklet host).
-const loadedProcessors = new WeakMap<BaseAudioContext, Map<string, Promise<void>>>()
-
-export function ensureProcessor(context: BaseAudioContext, url: string): Promise<void> {
-  let perContext = loadedProcessors.get(context)
-  if (!perContext) {
-    perContext = new Map()
-    loadedProcessors.set(context, perContext)
-  }
-  let loading = perContext.get(url)
-  if (!loading) {
-    loading = context.audioWorklet.addModule(url).catch((error: unknown) => {
-      perContext.delete(url)
-      throw error
-    })
-    perContext.set(url, loading)
-  }
-  return loading
-}
 
 export class WasmDevice<
   P extends Record<string, ParamSpec> = Record<string, ParamSpec>,
@@ -195,3 +176,5 @@ export class WasmDevice<
     this.node.port.postMessage(message)
   }
 }
+
+export { ensureProcessor }
