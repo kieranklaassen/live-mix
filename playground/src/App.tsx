@@ -42,7 +42,7 @@ const THEMES: { name: LiveMixThemeName; attr: string; label: string }[] = [
 
 const query = new URLSearchParams(window.location.search)
 
-/** The running demo, for the console and playground/smoke.mjs (`window.playground.demo`). */
+/** The running demo, for the console and the browser smoke spec (`window.playground.demo`). */
 function expose(demo: Demo | null): void {
   ;(window as unknown as { playground: { demo: Demo | null } }).playground = { demo }
 }
