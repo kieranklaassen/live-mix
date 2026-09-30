@@ -19,6 +19,7 @@ const engine = createEngine({
   samples: {
     budgetBytes: 192 * 1024 * 1024, // ≈ 8 minutes of stereo PCM
     peaks: 256, // min/max buckets at decode time, for waveforms (true = 512)
+    analysis: true, // onsets, tempo and kind of sound at decode time (default false)
     fetchImpl: fetch.bind(globalThis), // injectable (tests, Rails CSRF fetch, …)
   },
 })
@@ -26,7 +27,7 @@ const engine = createEngine({
 await engine.samples.load('stinger', '/music/stinger.mp3') // URL, ArrayBuffer or AudioBuffer
 engine.samples.pin('stinger') // never evicted until unpin
 const release = engine.samples.retain('intro') // held while a clip uses it
-engine.samples.get('intro') // { kind: 'buffer', id, buffer, durationSec, bytes, peaks }
+engine.samples.get('intro') // { kind: 'buffer', id, buffer, durationSec, bytes, peaks, analysis }
 engine.samples.forget('intro') // explicit drop
 engine.samples.metrics // { bytes, budgetBytes, count, pinned, held, evictions, evictedBytes, loads, overBudget }
 engine.samples.onChange(() => redraw())

@@ -3,7 +3,9 @@
 // track is fetched once however many times it is asked for) and ambient-live
 // `audio-engine.ts` `loadSample`/`sample`/`forgetSample` (decode plus waveform
 // peaks at decode time). Decoding runs on the engine's context so the PCM is
-// already at the output sample rate.
+// already at the output sample rate. Sound analysis (onsets, tempo, kind) is
+// computed at the same moment when asked for, for the same reason as peaks:
+// the UI never has to look at the PCM itself.
 //
 // Eviction (U18, R34). Decoded stereo PCM costs ~23 MB per minute at 48 kHz
 // and Breathwork Live's cache was never emptied, which puts a 45-minute
@@ -15,6 +17,7 @@
 // `SampleRetainer`). Everything is off by default (`budgetBytes` Infinity,
 // `evictOnRelease` false), so Phase 0 consumers see no change.
 
+import { analyzeSound, type SoundAnalysis } from '../analysis/sound-kind'
 import { computePeaks, DEFAULT_PEAK_BUCKETS, type WaveformPeaks } from '../clips/peaks'
 import { Emitter } from '../events'
 
@@ -29,6 +32,8 @@ export interface LoadedSample {
   bytes: number
   /** Present when the store computes peaks (ambient-live); null otherwise. */
   peaks: WaveformPeaks | null
+  /** Present when the store analyses sounds (onsets, tempo, kind); null otherwise. */
+  analysis: SoundAnalysis | null
 }
 
 /** What `load` accepts: a URL to fetch, encoded bytes, or an already-decoded buffer. */
@@ -38,6 +43,12 @@ export interface SampleStoreOptions {
   fetchImpl?: typeof fetch
   /** Compute min/max peaks at decode time; `true` = 512 buckets, or a bucket count. */
   peaks?: boolean | number
+  /**
+   * Analyse each sample at decode time: where its hits are, whether it is a
+   * loop and at what tempo, and what kind of sound it is (`analyzeSound`).
+   * Default false.
+   */
+  analysis?: boolean
   /**
    * Cap on decoded PCM bytes held. When a load pushes the total past it, the
    * least recently used samples that are neither pinned nor held are dropped
@@ -94,6 +105,7 @@ export class SampleStore {
   private readonly ctx: BaseAudioContext
   private readonly fetchImpl: typeof fetch
   private readonly peakBuckets: number | null
+  private readonly analyse: boolean
   /** Insertion order is recency: `get` re-inserts, eviction walks from the front. */
   private readonly loaded = new Map<string, LoadedSample>()
   private readonly pending = new Map<string, Promise<LoadedSample>>()
@@ -117,6 +129,7 @@ export class SampleStore {
         : typeof options.peaks === 'number'
           ? options.peaks
           : null
+    this.analyse = options.analysis ?? false
     this.budget = normaliseBudget(options.budgetBytes)
     this.evictOnRelease = options.evictOnRelease ?? false
   }
@@ -413,6 +426,7 @@ export class SampleStore {
       durationSec: buffer.duration,
       bytes: bytesOfBuffer(buffer),
       peaks: this.peakBuckets === null ? null : peaksOf(buffer, this.peakBuckets),
+      analysis: this.analyse ? analysisOf(buffer) : null,
     }
   }
 
@@ -430,9 +444,14 @@ function normaliseBudget(value: number | undefined): number {
   return Math.max(0, value)
 }
 
+function channelsOf(buffer: AudioBuffer): Float32Array[] {
+  return Array.from({ length: buffer.numberOfChannels }, (_, index) => buffer.getChannelData(index))
+}
+
 function peaksOf(buffer: AudioBuffer, buckets: number): WaveformPeaks {
-  const channels = Array.from({ length: buffer.numberOfChannels }, (_, index) =>
-    buffer.getChannelData(index),
-  )
-  return computePeaks(channels, buffer.length, buckets)
+  return computePeaks(channelsOf(buffer), buffer.length, buckets)
+}
+
+function analysisOf(buffer: AudioBuffer): SoundAnalysis {
+  return analyzeSound(channelsOf(buffer), buffer.sampleRate)
 }
