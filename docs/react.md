@@ -101,8 +101,9 @@ font they use is a `--lm-*` CSS variable; import the stylesheet for the
 defaults (JAXA-Zen: Paper White `#FDFDFB`, Ceramic Grey `#F4F4F0`, Obsidian
 `#1A1A1A`, Vermillion `#E63946`; `data-lm-theme="dark"` for the same palette
 on Obsidian) or set the tokens yourself — `themeStyle(jaxaZenDark)` returns
-the inline style, `ambientWater` is ambient-live's water/moss palette, and
-`LM_TOKENS` lists every variable.
+the inline style, `ambientWater` is ambient-live's water/moss palette,
+`graphite` and `paper` are the grid themes below, and `LM_TOKENS` lists every
+variable.
 
 ```tsx
 import '@kieranklaassen/live-mix/react/styles.css'
@@ -138,6 +139,63 @@ function Studio({ engine }: { engine: Engine }) {
 | `TimelineView`, `Waveform`                  | Lanes per clip source with clips placed in seconds, `sounding` / `upcoming` from `useSchedule`, loop region, a frame-sampled playhead, waveforms from decoded peaks; click or arrow the ruler to seek                                                                                                |
 | `DeviceToggle`, `ToggleButton`              | The squared power switch and the pressed / unpressed button (mute, solo, loop tones)                                                                                                                                                                                                                 |
 | `GridView`                                  | The session grid over `useSession` / `useSlot`: scenes × audio tracks, a slot button per cell (`data-state` empty / stopped / queued / playing / recording, stopping, `gate` dashed), scene launch per row, per-track stop row and stop-all, the quantise selector (`quantizeKey` / `quantizeLabel`) |
+
+### The paint kit and the grid themes
+
+Three more themes and the pieces a paint-style arranger needs. `graphite`
+(dark), `paper` (light) and `water` (`ambientWater`'s palette) put the kit on a strict module, `--lm-col` ×
+`--lm-row` (40 × 20 px): square controls, 28 px knobs that fill one column, a
+Futura-style sans in a regular weight (`Jost` first in the stack; load it
+yourself). Set them with `data-lm-theme="graphite"` / `"paper"` / `"water"` or
+`themeStyle(graphite)`, and add `className="lm-dense"` on the wrapper for the
+density rules (one-row device title bars, no body padding, sentence-case
+labels). Every theme also carries a six-colour brush palette (`--lm-brush-N`
+to paint with, `--lm-brush-ink-N` for detail and text on it), grid lines
+(`--lm-grid-line`, `--lm-grid-line-strong`, `--lm-rule`) and an automation
+colour.
+
+```tsx
+<div data-lm-theme="graphite" className="lm-dense">
+  <PaintField columnPx={40} rowPx={20} style={{ height: 240 }}>
+    <Stroke
+      style={{ position: 'absolute', left: 80, top: 40 }}
+      width={320}
+      height={40}
+      brush={2}
+      name="Tabla loop"
+      kind={sample.analysis?.kind}
+      peaks={sample.peaks}
+      repeats={4}
+      hits={onsetFractions}
+      fadeIn={0.1}
+      automation={{
+        label: 'Reverb',
+        points: [
+          [0, 0.2],
+          [1, 0.8],
+        ],
+      }}
+      tags={['96 bpm']}
+    />
+  </PaintField>
+  <ChannelRowView strip={engine.track('tabla')} brush={2} />
+</div>
+```
+
+| Component        | What it draws                                                                                                                                                                                                                                                                                                                                             |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Stroke`         | One sound as a pill: a thin ring in the brush colour around the sound's own waveform (halo, filled shape, fine bars, from `WaveformPeaks`). `repeats` dims later passes behind a dashed seam; `fadeIn` / `fadeOut` close toward the centre line (`crossfade` leaves them unshaded); `hits`, `automation`, `selected`, `muted`, `reversed`, `gain`, `tags` |
+| `SoundIcon`      | A 10 px glyph per `SoundKind` (texture, pad, drone, one-shot, melodic, beat loop) plus loop and reverse; `SOUND_KIND_LABELS` names them                                                                                                                                                                                                                   |
+| `PaintField`     | The grid the strokes sit on: hairlines every cell, a stronger line every `majorColumns` / `majorRows`                                                                                                                                                                                                                                                     |
+| `ChannelRowView` | A strip on its side in one row: brush swatch, name, mute, solo, a horizontal dB fader and a meter, over the same `useStrip` state as `ChannelStripView`                                                                                                                                                                                                   |
+
+`Stroke` is presentational: the host gives it a size in px and everything
+along it as fractions of its width, and owns dragging, trimming and painting
+(pointer handlers and `data-*` pass through to the root). The geometry is
+exported for hosts that hit-test or draw their own (`strokeLevels`,
+`levelsOutlinePath`, `fadePaths`, `fadeGainAt`, `repeatSeams`, `hitPositions`,
+`automationPositions`). The kind, hits and tempo come from the engine's sound
+analysis (`analyzeSound`, or `samples: { analysis: true }` on the engine).
 
 `useParamControl` is the shared interaction hook for custom controls, and the
 pure maths (`normalizeValue`, `quantize`, `faderDbToLevel`,

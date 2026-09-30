@@ -38,6 +38,22 @@
   --lm-clip-border: #1a1a1a;
   --lm-clip-active: rgba(230, 57, 70, 0.18);
   --lm-focus: #e63946;
+  --lm-grid-line: #ecece7;
+  --lm-grid-line-strong: #d6d6d0;
+  --lm-rule: #6b6b66;
+  --lm-automation: #a8501c;
+  --lm-brush-1: #7bbab8;
+  --lm-brush-2: #5b9bb0;
+  --lm-brush-3: #adc088;
+  --lm-brush-4: #79a570;
+  --lm-brush-5: #cdd77f;
+  --lm-brush-6: #b4c0ba;
+  --lm-brush-ink-1: #2a6664;
+  --lm-brush-ink-2: #1f5568;
+  --lm-brush-ink-3: #566c30;
+  --lm-brush-ink-4: #335a2c;
+  --lm-brush-ink-5: #6f7b24;
+  --lm-brush-ink-6: #55625c;
 
   --lm-font: ui-sans-serif, system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
   --lm-font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
@@ -55,6 +71,8 @@
   --lm-strip-width: 76px;
   --lm-stroke: 2px;
   --lm-lane-height: 44px;
+  --lm-row: 20px;
+  --lm-col: 40px;
   --lm-transition: 80ms;
 }
 
@@ -78,6 +96,217 @@
   --lm-meter-border: transparent;
   --lm-clip: #242424;
   --lm-clip-border: #f4f4f0;
+  --lm-grid-line: #1c1c1c;
+  --lm-grid-line-strong: #2e2e2e;
+  --lm-rule: #000000;
+  --lm-automation: #f2b872;
+  --lm-brush-1: #5fb3a6;
+  --lm-brush-2: #5a9ac0;
+  --lm-brush-3: #a9b060;
+  --lm-brush-4: #6fa070;
+  --lm-brush-5: #d0b860;
+  --lm-brush-6: #8f9994;
+  --lm-brush-ink-1: #b4ece2;
+  --lm-brush-ink-2: #add5ee;
+  --lm-brush-ink-3: #e2e8a8;
+  --lm-brush-ink-4: #b3dcb4;
+  --lm-brush-ink-5: #f2e0a2;
+  --lm-brush-ink-6: #cfd7d3;
+}
+
+/*
+ * The grid themes (`graphite`, `paper`, `water` in tokens.ts): a 40 px column by
+ * 20 px row module, square controls, a Futura-style sans in regular weight.
+ * Load Jost and JetBrains Mono yourself; the stacks fall back to system fonts.
+ */
+
+[data-lm-theme='graphite'] {
+  --lm-bg: #232826;
+  --lm-panel: #2a302d;
+  --lm-raised: #3a413d;
+  --lm-sunken: #1e2220;
+  --lm-border: #141816;
+  --lm-hairline: #4a524e;
+  --lm-text: #e2e7e4;
+  --lm-muted: #a2aca7;
+  --lm-dim: #7d8782;
+  --lm-accent: #7fd0bd;
+  --lm-accent-soft: #7fd0bd33;
+  --lm-control-value: #f0f4f2;
+  --lm-danger: #e07a6a;
+  --lm-solo: #e0c05a;
+  --lm-mute: #e2e7e4;
+  --lm-meter: #7fd0bd;
+  --lm-meter-hot: #e07a6a;
+  --lm-meter-rms: #a2aca7;
+  --lm-meter-lufs: #8fb3cf;
+  --lm-meter-track: #161a18;
+  --lm-meter-border: transparent;
+  --lm-playhead: #f0f4f2;
+  --lm-clip: #3a413d;
+  --lm-clip-border: #7fd0bd;
+  --lm-clip-active: #7fd0bd33;
+  --lm-focus: #7fd0bd;
+  --lm-grid-line: #272d2a;
+  --lm-grid-line-strong: #3a423e;
+  --lm-rule: #0f1211;
+  --lm-automation: #f2b872;
+  --lm-brush-1: #5fb3a6;
+  --lm-brush-2: #5a9ac0;
+  --lm-brush-3: #a9b060;
+  --lm-brush-4: #6fa070;
+  --lm-brush-5: #d0b860;
+  --lm-brush-6: #8f9994;
+  --lm-brush-ink-1: #b4ece2;
+  --lm-brush-ink-2: #add5ee;
+  --lm-brush-ink-3: #e2e8a8;
+  --lm-brush-ink-4: #b3dcb4;
+  --lm-brush-ink-5: #f2e0a2;
+  --lm-brush-ink-6: #cfd7d3;
+  --lm-font: Jost, Futura, 'Futura PT', 'Century Gothic', ui-sans-serif, system-ui, sans-serif;
+  --lm-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --lm-font-size: 11px;
+  --lm-label-size: 9px;
+  --lm-radius: 0px;
+  --lm-space-1: 4px;
+  --lm-space-2: 8px;
+  --lm-space-3: 12px;
+  --lm-knob-size: 28px;
+  --lm-fader-width: 12px;
+  --lm-fader-height: 40px;
+  --lm-meter-width: 6px;
+  --lm-strip-width: 76px;
+  --lm-stroke: 1.5px;
+  --lm-lane-height: 40px;
+  --lm-row: 20px;
+  --lm-col: 40px;
+  --lm-transition: 80ms;
+}
+
+[data-lm-theme='paper'] {
+  --lm-bg: #f4f5f0;
+  --lm-panel: #f4f5f0;
+  --lm-raised: #fcfcfa;
+  --lm-sunken: #fbfbf8;
+  --lm-border: #c4ccbf;
+  --lm-hairline: #b9c2b3;
+  --lm-text: #1b2622;
+  --lm-muted: #55645c;
+  --lm-dim: #66736b;
+  --lm-accent: #2e6f63;
+  --lm-accent-soft: #2e6f6326;
+  --lm-control-value: #1b2622;
+  --lm-danger: #b04a3c;
+  --lm-solo: #d9b13a;
+  --lm-mute: #1b2622;
+  --lm-meter: #2e6f63;
+  --lm-meter-hot: #b04a3c;
+  --lm-meter-rms: #8fa89c;
+  --lm-meter-lufs: #4f7390;
+  --lm-meter-track: #e3e7de;
+  --lm-meter-border: transparent;
+  --lm-playhead: #1b2622;
+  --lm-clip: #fcfcfa;
+  --lm-clip-border: #1b2622;
+  --lm-clip-active: #2e6f6326;
+  --lm-focus: #2e6f63;
+  --lm-grid-line: #e6e9e0;
+  --lm-grid-line-strong: #c9d0c4;
+  --lm-rule: #55645c;
+  --lm-automation: #a8501c;
+  --lm-brush-1: #7bbab8;
+  --lm-brush-2: #5b9bb0;
+  --lm-brush-3: #adc088;
+  --lm-brush-4: #79a570;
+  --lm-brush-5: #cdd77f;
+  --lm-brush-6: #b4c0ba;
+  --lm-brush-ink-1: #2a6664;
+  --lm-brush-ink-2: #1f5568;
+  --lm-brush-ink-3: #566c30;
+  --lm-brush-ink-4: #335a2c;
+  --lm-brush-ink-5: #6f7b24;
+  --lm-brush-ink-6: #55625c;
+  --lm-font: Jost, Futura, 'Futura PT', 'Century Gothic', ui-sans-serif, system-ui, sans-serif;
+  --lm-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --lm-font-size: 11px;
+  --lm-label-size: 9px;
+  --lm-radius: 0px;
+  --lm-space-1: 4px;
+  --lm-space-2: 8px;
+  --lm-space-3: 12px;
+  --lm-knob-size: 28px;
+  --lm-fader-width: 12px;
+  --lm-fader-height: 40px;
+  --lm-meter-width: 6px;
+  --lm-strip-width: 76px;
+  --lm-stroke: 1.5px;
+  --lm-lane-height: 40px;
+  --lm-row: 20px;
+  --lm-col: 40px;
+  --lm-transition: 80ms;
+}
+
+[data-lm-theme='water'] {
+  --lm-bg: #0e1c1a;
+  --lm-panel: #132622;
+  --lm-raised: #214038;
+  --lm-sunken: #0b1614;
+  --lm-border: #071210;
+  --lm-hairline: #3a534c;
+  --lm-text: #d7e4df;
+  --lm-muted: #8eaaa1;
+  --lm-dim: #6f8a81;
+  --lm-accent: #5fafa0;
+  --lm-accent-soft: #5fafa045;
+  --lm-control-value: #dceae4;
+  --lm-danger: #d27a7a;
+  --lm-solo: #d9c36a;
+  --lm-mute: #d7e4df;
+  --lm-meter: #5fafa0;
+  --lm-meter-hot: #d27a7a;
+  --lm-meter-rms: #8eaaa1;
+  --lm-meter-lufs: #7aa6c2;
+  --lm-meter-track: #0b1614;
+  --lm-meter-border: transparent;
+  --lm-playhead: #5fafa0;
+  --lm-clip: #214038;
+  --lm-clip-border: #5fafa0;
+  --lm-clip-active: #5fafa045;
+  --lm-focus: #5fafa0;
+  --lm-grid-line: #11221f;
+  --lm-grid-line-strong: #1f3a34;
+  --lm-rule: #050d0c;
+  --lm-automation: #f2c27a;
+  --lm-brush-1: #6fb3b0;
+  --lm-brush-2: #5a93ad;
+  --lm-brush-3: #a5b98a;
+  --lm-brush-4: #7fa37a;
+  --lm-brush-5: #c4cf86;
+  --lm-brush-6: #8aa39c;
+  --lm-brush-ink-1: #bde6e2;
+  --lm-brush-ink-2: #aed3e6;
+  --lm-brush-ink-3: #dbe7c6;
+  --lm-brush-ink-4: #bcdab6;
+  --lm-brush-ink-5: #e8eebe;
+  --lm-brush-ink-6: #c9d9d3;
+  --lm-font: Jost, Futura, 'Futura PT', 'Century Gothic', ui-sans-serif, system-ui, sans-serif;
+  --lm-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --lm-font-size: 11px;
+  --lm-label-size: 9px;
+  --lm-radius: 0px;
+  --lm-space-1: 4px;
+  --lm-space-2: 8px;
+  --lm-space-3: 12px;
+  --lm-knob-size: 28px;
+  --lm-fader-width: 12px;
+  --lm-fader-height: 40px;
+  --lm-meter-width: 6px;
+  --lm-strip-width: 76px;
+  --lm-stroke: 1.5px;
+  --lm-lane-height: 40px;
+  --lm-row: 20px;
+  --lm-col: 40px;
+  --lm-transition: 80ms;
 }
 
 /* --- Shared ------------------------------------------------------------------ */
@@ -1313,4 +1542,408 @@
 .lm-versions__empty {
   margin: 0;
   color: var(--lm-muted);
+}
+
+/* --- Sound icon ------------------------------------------------------------ */
+
+.lm-sound-icon {
+  display: block;
+  flex: 0 0 auto;
+}
+
+/* --- Paint field ----------------------------------------------------------- */
+
+.lm-field {
+  --lm-field-col: var(--lm-col);
+  --lm-field-row: var(--lm-row);
+  position: relative;
+  overflow: hidden;
+  background-color: var(--lm-sunken);
+  background-image:
+    linear-gradient(to right, var(--lm-grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--lm-grid-line) 1px, transparent 1px);
+  background-size:
+    var(--lm-field-col) 100%,
+    100% var(--lm-field-row);
+  font-family: var(--lm-font);
+  font-size: var(--lm-font-size);
+  color: var(--lm-text);
+}
+
+.lm-field--major-cols.lm-field--major-rows {
+  background-image:
+    linear-gradient(to right, var(--lm-grid-line-strong) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--lm-grid-line-strong) 1px, transparent 1px),
+    linear-gradient(to right, var(--lm-grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--lm-grid-line) 1px, transparent 1px);
+  background-size:
+    calc(var(--lm-field-col) * var(--lm-field-major-cols)) 100%,
+    100% calc(var(--lm-field-row) * var(--lm-field-major-rows)),
+    var(--lm-field-col) 100%,
+    100% var(--lm-field-row);
+}
+
+.lm-field--major-cols:not(.lm-field--major-rows) {
+  background-image:
+    linear-gradient(to right, var(--lm-grid-line-strong) 1px, transparent 1px),
+    linear-gradient(to right, var(--lm-grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--lm-grid-line) 1px, transparent 1px);
+  background-size:
+    calc(var(--lm-field-col) * var(--lm-field-major-cols)) 100%,
+    var(--lm-field-col) 100%,
+    100% var(--lm-field-row);
+}
+
+.lm-field--major-rows:not(.lm-field--major-cols) {
+  background-image:
+    linear-gradient(to bottom, var(--lm-grid-line-strong) 1px, transparent 1px),
+    linear-gradient(to right, var(--lm-grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--lm-grid-line) 1px, transparent 1px);
+  background-size:
+    100% calc(var(--lm-field-row) * var(--lm-field-major-rows)),
+    var(--lm-field-col) 100%,
+    100% var(--lm-field-row);
+}
+
+/* --- Stroke ---------------------------------------------------------------- */
+
+.lm-stroke {
+  --lm-stroke-brush: var(--lm-brush-1);
+  --lm-stroke-ink: var(--lm-brush-ink-1);
+  position: relative;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--lm-stroke-brush) 60%, var(--lm-sunken));
+  background: color-mix(in srgb, var(--lm-stroke-brush) 9%, transparent);
+  font-family: var(--lm-font);
+  font-size: var(--lm-label-size);
+  line-height: 14px;
+  color: var(--lm-stroke-ink);
+  user-select: none;
+}
+
+.lm-stroke--b2 {
+  --lm-stroke-brush: var(--lm-brush-2);
+  --lm-stroke-ink: var(--lm-brush-ink-2);
+}
+
+.lm-stroke--b3 {
+  --lm-stroke-brush: var(--lm-brush-3);
+  --lm-stroke-ink: var(--lm-brush-ink-3);
+}
+
+.lm-stroke--b4 {
+  --lm-stroke-brush: var(--lm-brush-4);
+  --lm-stroke-ink: var(--lm-brush-ink-4);
+}
+
+.lm-stroke--b5 {
+  --lm-stroke-brush: var(--lm-brush-5);
+  --lm-stroke-ink: var(--lm-brush-ink-5);
+}
+
+.lm-stroke--b6 {
+  --lm-stroke-brush: var(--lm-brush-6);
+  --lm-stroke-ink: var(--lm-brush-ink-6);
+}
+
+.lm-stroke--selected {
+  border-color: var(--lm-stroke-brush);
+  background: color-mix(in srgb, var(--lm-stroke-brush) 16%, transparent);
+  outline: 1px solid var(--lm-text);
+  outline-offset: 1px;
+}
+
+.lm-stroke--muted {
+  border-style: dashed;
+  opacity: 0.4;
+}
+
+.lm-stroke:focus-visible {
+  outline: 1px solid var(--lm-focus);
+  outline-offset: 1px;
+}
+
+.lm-stroke__svg {
+  position: absolute;
+  /* The ring is a border; the drawing starts at the stroke's outer edge. */
+  left: -1px;
+  top: -1px;
+  display: block;
+  pointer-events: none;
+}
+
+.lm-stroke__halo {
+  fill: var(--lm-stroke-brush);
+  opacity: 0.3;
+}
+
+.lm-stroke__wave {
+  fill: var(--lm-stroke-brush);
+}
+
+.lm-stroke__bars {
+  fill: none;
+  stroke: var(--lm-stroke-ink);
+  stroke-width: 1;
+  opacity: 0.4;
+  shape-rendering: crispEdges;
+}
+
+.lm-stroke__repeat {
+  fill: var(--lm-sunken);
+  opacity: 0.38;
+}
+
+.lm-stroke__seam-line {
+  fill: none;
+  stroke: var(--lm-stroke-ink);
+  stroke-width: 1;
+  stroke-dasharray: 2 2;
+  shape-rendering: crispEdges;
+}
+
+.lm-stroke__seam-notch {
+  fill: var(--lm-stroke-ink);
+}
+
+.lm-stroke__hit-line {
+  fill: none;
+  stroke: var(--lm-stroke-ink);
+  stroke-width: 1;
+  opacity: 0.55;
+  shape-rendering: crispEdges;
+}
+
+.lm-stroke__hit-dot {
+  fill: var(--lm-stroke-ink);
+}
+
+.lm-stroke__fade-shade {
+  fill: var(--lm-sunken);
+  opacity: 0.5;
+}
+
+.lm-stroke__fade-curve {
+  fill: none;
+  stroke: var(--lm-stroke-ink);
+  stroke-width: 1;
+}
+
+.lm-stroke__fade-handle {
+  fill: var(--lm-sunken);
+  stroke: var(--lm-stroke-ink);
+  stroke-width: 1;
+}
+
+.lm-stroke__automation-line {
+  fill: none;
+  stroke: var(--lm-automation);
+  stroke-width: 1.25;
+}
+
+.lm-stroke__automation-node {
+  fill: var(--lm-sunken);
+  stroke: var(--lm-automation);
+  stroke-width: 1;
+}
+
+.lm-stroke__grips {
+  fill: none;
+  stroke: var(--lm-text);
+  stroke-width: 1;
+}
+
+.lm-stroke__tag,
+.lm-stroke__automation-label {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 14px;
+  padding: 0 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--lm-stroke-brush) 9%, var(--lm-sunken));
+}
+
+.lm-stroke__name {
+  color: var(--lm-text);
+}
+
+.lm-stroke__meta {
+  font-family: var(--lm-font-mono);
+  font-size: calc(var(--lm-label-size) - 1px);
+}
+
+.lm-stroke__automation-label {
+  color: var(--lm-automation);
+}
+
+/* --- Channel row ----------------------------------------------------------- */
+
+.lm-row {
+  display: flex;
+  align-items: center;
+  height: var(--lm-row);
+  min-width: 0;
+  border-bottom: 1px solid var(--lm-grid-line-strong);
+  background: var(--lm-panel);
+  font-family: var(--lm-font);
+  font-size: var(--lm-font-size);
+  line-height: 1.2;
+  color: var(--lm-text);
+}
+
+.lm-row--selected {
+  background: var(--lm-accent-soft);
+}
+
+.lm-row--muted .lm-row__name,
+.lm-row--implicit-muted .lm-row__name,
+.lm-row--muted .lm-row__meter,
+.lm-row--implicit-muted .lm-row__meter {
+  opacity: 0.45;
+}
+
+.lm-row__swatch {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  margin: 0 0 0 6px;
+  border-radius: 50%;
+  background: var(--lm-brush-1);
+}
+
+.lm-row > .lm-sound-icon {
+  margin-left: 6px;
+  color: var(--lm-muted);
+}
+
+.lm-row__swatch--b2 {
+  background: var(--lm-brush-2);
+}
+
+.lm-row__swatch--b3 {
+  background: var(--lm-brush-3);
+}
+
+.lm-row__swatch--b4 {
+  background: var(--lm-brush-4);
+}
+
+.lm-row__swatch--b5 {
+  background: var(--lm-brush-5);
+}
+
+.lm-row__swatch--b6 {
+  background: var(--lm-brush-6);
+}
+
+.lm-row__name {
+  flex: 1 1 0;
+  min-width: 0;
+  margin: 0;
+  padding: 0 6px;
+  overflow: hidden;
+  font: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lm-row .lm-button {
+  flex: 0 0 auto;
+  align-self: stretch;
+  width: calc(var(--lm-col) / 2);
+  min-width: 0;
+  height: auto;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid var(--lm-grid-line-strong);
+  border-radius: 0;
+  background: transparent;
+}
+
+.lm-row .lm-button--on.lm-button--mute {
+  background: var(--lm-mute);
+  color: var(--lm-bg);
+}
+
+.lm-row .lm-button--on.lm-button--solo {
+  background: var(--lm-solo);
+  color: var(--lm-bg);
+}
+
+.lm-row__fader {
+  flex: 0 0 auto;
+  width: calc(var(--lm-col) * 1.5);
+  padding: 0 6px;
+  border-left: 1px solid var(--lm-grid-line-strong);
+}
+
+.lm-row__meter {
+  flex: 0 0 auto;
+  width: calc(var(--lm-col) * 0.75);
+  margin-right: 6px;
+}
+
+/* --- Grid density ----------------------------------------------------------
+ * `.lm-dense` on a wrapper puts the kit on the theme's module: a device's
+ * title bar is one row, its body has no padding, a knob is one column wide,
+ * labels are sentence case in a regular weight and buttons are square. Use
+ * it with the `graphite` and `paper` themes. */
+
+.lm-dense {
+  font-family: var(--lm-font);
+  font-weight: 400;
+}
+
+.lm-dense button {
+  font-family: inherit;
+  font-weight: 400;
+}
+
+.lm-dense .lm-device {
+  border: 0;
+  border-right: 1px solid var(--lm-grid-line-strong);
+  border-radius: 0;
+}
+
+.lm-dense .lm-device__header {
+  height: var(--lm-row);
+  padding: 0 6px;
+  border-bottom: 1px solid var(--lm-grid-line-strong);
+  background: var(--lm-panel);
+}
+
+.lm-dense .lm-device__body {
+  padding: 0;
+}
+
+.lm-dense .lm-device__params {
+  gap: 0;
+}
+
+.lm-dense .lm-device__param.lm-knob,
+.lm-dense .lm-knob {
+  width: var(--lm-col);
+}
+
+.lm-dense .lm-device__title,
+.lm-dense .lm-knob__label,
+.lm-dense .lm-fader__label,
+.lm-dense .lm-strip__name,
+.lm-dense .lm-timeline__lane-name {
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+.lm-dense .lm-knob__label {
+  letter-spacing: 0;
+}
+
+.lm-dense .lm-button {
+  border-radius: 0;
+  font-weight: 400;
+  letter-spacing: 0.02em;
 }

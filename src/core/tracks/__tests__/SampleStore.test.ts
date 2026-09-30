@@ -56,6 +56,39 @@ describe('SampleStore', () => {
     expect(withDefault.peaks?.min).toHaveLength(512)
   })
 
+  it('analyses the sound at decode time when asked, and not by default', async () => {
+    const ctx = createMockContext()
+    // A click every half second for four seconds: a 120 bpm loop.
+    const sampleRate = 48000
+    const beat = new MockAudioBuffer(2, sampleRate * 4, sampleRate)
+    for (let channel = 0; channel < 2; channel++) {
+      const data = beat.getChannelData(channel)
+      for (let hit = 0; hit < 8; hit++) {
+        for (let i = 0; i < 2400; i++) {
+          data[hit * (sampleRate / 2) + i] = (i % 2 === 0 ? 0.8 : -0.8) * Math.exp(-i / 600)
+        }
+      }
+    }
+
+    const plain = new SampleStore(asAudioContext(ctx))
+    expect((await plain.load('beat', beat as unknown as AudioBuffer)).analysis).toBeNull()
+    const off = new SampleStore(asAudioContext(ctx), { analysis: false, peaks: true })
+    expect((await off.load('beat', beat as unknown as AudioBuffer)).analysis).toBeNull()
+
+    const store = new SampleStore(asAudioContext(ctx), { analysis: true })
+    const sample = await store.load('beat', beat as unknown as AudioBuffer)
+    expect(sample.peaks).toBeNull()
+    expect(sample.analysis?.kind).toBe('beat')
+    expect(sample.analysis?.onsetsSec).toHaveLength(8)
+    expect(sample.analysis?.tempo?.bpm).toBeCloseTo(120, 0)
+    expect(sample.analysis?.loop).toBe(true)
+    expect(store.get('beat')?.analysis).toBe(sample.analysis)
+
+    // A decoded (here: silent) buffer still gets an analysis object.
+    const silent = await store.load('silent', new ArrayBuffer(1))
+    expect(silent.analysis).toEqual({ kind: 'texture', onsetsSec: [], tempo: null, loop: false })
+  })
+
   it('a failed fetch rejects, is forgotten, and can be retried', async () => {
     const ctx = createMockContext()
     let attempts = 0

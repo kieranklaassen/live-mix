@@ -467,6 +467,18 @@ export {
   type MeterReading,
 } from './core/analysis/loudness'
 export {
+  DEFAULT_ONSET_HOP_SECONDS,
+  DEFAULT_ONSET_MIN_GAP_SECONDS,
+  MAX_TEMPO_BPM,
+  MIN_TEMPO_BPM,
+  MIN_TEMPO_ONSETS,
+  detectOnsets,
+  estimateTempo,
+  type OnsetOptions,
+  type TempoEstimate,
+} from './core/analysis/onsets'
+export { analyzeSound, type SoundAnalysis, type SoundKind } from './core/analysis/sound-kind'
+export {
   DEFAULT_METER_INTERVAL_MS,
   MAX_METER_INTERVAL_MS,
   METER_PROCESSOR_NAME,
