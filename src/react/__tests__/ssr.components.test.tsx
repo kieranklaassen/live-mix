@@ -116,7 +116,7 @@ describe('kit components under SSR', () => {
   it('renders the paint kit to markup', async () => {
     const peaks = computePeaks([new Float32Array([0.5, -0.5, 0.25, -1])], 4, 4)
     const html = renderToString(
-      <div style={themeStyle(graphite)} data-lm-theme="graphite" className="lm-grid">
+      <div style={themeStyle(graphite)} data-lm-theme="graphite" className="lm-dense">
         <PaintField columnPx={40} rowPx={20}>
           <Stroke
             width={200}

@@ -147,7 +147,7 @@ Three more themes and the pieces a paint-style arranger needs. `graphite`
 `--lm-row` (40 × 20 px): square controls, 28 px knobs that fill one column, a
 Futura-style sans in a regular weight (`Jost` first in the stack; load it
 yourself). Set them with `data-lm-theme="graphite"` / `"paper"` / `"water"` or
-`themeStyle(graphite)`, and add `className="lm-grid"` on the wrapper for the
+`themeStyle(graphite)`, and add `className="lm-dense"` on the wrapper for the
 density rules (one-row device title bars, no body padding, sentence-case
 labels). Every theme also carries a six-colour brush palette (`--lm-brush-N`
 to paint with, `--lm-brush-ink-N` for detail and text on it), grid lines
@@ -155,7 +155,7 @@ to paint with, `--lm-brush-ink-N` for detail and text on it), grid lines
 colour.
 
 ```tsx
-<div data-lm-theme="graphite" className="lm-grid">
+<div data-lm-theme="graphite" className="lm-dense">
   <PaintField columnPx={40} rowPx={20} style={{ height: 240 }}>
     <Stroke
       style={{ position: 'absolute', left: 80, top: 40 }}

@@ -1875,74 +1875,74 @@
 
 .lm-row__fader {
   flex: 0 0 auto;
-  width: calc(var(--lm-col) * 2);
+  width: calc(var(--lm-col) * 1.5);
   padding: 0 6px;
   border-left: 1px solid var(--lm-grid-line-strong);
 }
 
 .lm-row__meter {
   flex: 0 0 auto;
-  width: var(--lm-col);
+  width: calc(var(--lm-col) * 0.75);
   margin-right: 6px;
 }
 
 /* --- Grid density ----------------------------------------------------------
- * `.lm-grid` on a wrapper puts the kit on the theme's module: a device's
+ * `.lm-dense` on a wrapper puts the kit on the theme's module: a device's
  * title bar is one row, its body has no padding, a knob is one column wide,
  * labels are sentence case in a regular weight and buttons are square. Use
  * it with the `graphite` and `paper` themes. */
 
-.lm-grid {
+.lm-dense {
   font-family: var(--lm-font);
   font-weight: 400;
 }
 
-.lm-grid button {
+.lm-dense button {
   font-family: inherit;
   font-weight: 400;
 }
 
-.lm-grid .lm-device {
+.lm-dense .lm-device {
   border: 0;
   border-right: 1px solid var(--lm-grid-line-strong);
   border-radius: 0;
 }
 
-.lm-grid .lm-device__header {
+.lm-dense .lm-device__header {
   height: var(--lm-row);
   padding: 0 6px;
   border-bottom: 1px solid var(--lm-grid-line-strong);
   background: var(--lm-panel);
 }
 
-.lm-grid .lm-device__body {
+.lm-dense .lm-device__body {
   padding: 0;
 }
 
-.lm-grid .lm-device__params {
+.lm-dense .lm-device__params {
   gap: 0;
 }
 
-.lm-grid .lm-device__param.lm-knob,
-.lm-grid .lm-knob {
+.lm-dense .lm-device__param.lm-knob,
+.lm-dense .lm-knob {
   width: var(--lm-col);
 }
 
-.lm-grid .lm-device__title,
-.lm-grid .lm-knob__label,
-.lm-grid .lm-fader__label,
-.lm-grid .lm-strip__name,
-.lm-grid .lm-timeline__lane-name {
+.lm-dense .lm-device__title,
+.lm-dense .lm-knob__label,
+.lm-dense .lm-fader__label,
+.lm-dense .lm-strip__name,
+.lm-dense .lm-timeline__lane-name {
   font-weight: 400;
   letter-spacing: 0.02em;
   text-transform: none;
 }
 
-.lm-grid .lm-knob__label {
+.lm-dense .lm-knob__label {
   letter-spacing: 0;
 }
 
-.lm-grid .lm-button {
+.lm-dense .lm-button {
   border-radius: 0;
   font-weight: 400;
   letter-spacing: 0.02em;

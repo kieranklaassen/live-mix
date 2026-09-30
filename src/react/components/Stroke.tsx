@@ -5,9 +5,9 @@
 // shows: fades (the curve closes toward the centre line), repeats (later
 // passes sit back behind a dashed seam), detected hits, an automation line,
 // and the selected and muted states. Presentational only: geometry comes in
-// as px and fractions, pointer handlers and `data-*` pass through to the root.
+// as px and fractions; pointer handlers, `data-*` and the ref go to the root.
 
-import { useMemo, type CSSProperties, type HTMLAttributes } from 'react'
+import { forwardRef, useMemo, type CSSProperties, type HTMLAttributes } from 'react'
 
 import { type SoundKind } from '../../core/analysis/sound-kind'
 import { type WaveformPeaks } from '../../core/clips/peaks'
@@ -66,28 +66,31 @@ function formatRepeats(repeats: number): string {
   return `×${Number(repeats.toFixed(1))}`
 }
 
-export function Stroke({
-  width,
-  height,
-  brush = 1,
-  name,
-  kind,
-  peaks = null,
-  repeats = 1,
-  fadeIn = 0,
-  fadeOut = 0,
-  crossfade = false,
-  hits,
-  automation = null,
-  selected = false,
-  muted = false,
-  reversed = false,
-  gain = 1,
-  tags,
-  className,
-  style,
-  ...rest
-}: StrokeProps) {
+export const Stroke = forwardRef<HTMLDivElement, StrokeProps>(function Stroke(
+  {
+    width,
+    height,
+    brush = 1,
+    name,
+    kind,
+    peaks = null,
+    repeats = 1,
+    fadeIn = 0,
+    fadeOut = 0,
+    crossfade = false,
+    hits,
+    automation = null,
+    selected = false,
+    muted = false,
+    reversed = false,
+    gain = 1,
+    tags,
+    className,
+    style,
+    ...rest
+  },
+  ref,
+) {
   const mid = height / 2
   const looping = repeats > 1 + 1e-6
   // Transients stay sharp on anything with hits; sustained sounds are smoothed.
@@ -121,6 +124,7 @@ export function Stroke({
 
   return (
     <div
+      ref={ref}
       className={cx(
         'lm-stroke',
         `lm-stroke--b${brushIndex}`,
@@ -245,4 +249,4 @@ export function Stroke({
       ) : null}
     </div>
   )
-}
+})

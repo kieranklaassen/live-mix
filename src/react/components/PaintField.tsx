@@ -1,9 +1,10 @@
 // The surface strokes are painted on: a grid of `columnPx` × `rowPx` cells
 // drawn as hairlines, with a stronger line every `majorColumns` columns and
 // `majorRows` rows. Children position themselves absolutely (a `Stroke` at
-// `left`/`top` in px); the field only draws the grid and clips to it.
+// `left`/`top` in px); the field only draws the grid and clips to it. The ref
+// is the field element, for hosts that measure it or capture the pointer.
 
-import { type CSSProperties, type HTMLAttributes } from 'react'
+import { forwardRef, type CSSProperties, type HTMLAttributes } from 'react'
 
 import { cx } from './tokens'
 
@@ -17,16 +18,10 @@ export interface PaintFieldProps extends HTMLAttributes<HTMLDivElement> {
   'data-testid'?: string
 }
 
-export function PaintField({
-  columnPx,
-  rowPx,
-  majorColumns = 4,
-  majorRows = 2,
-  className,
-  style,
-  children,
-  ...rest
-}: PaintFieldProps) {
+export const PaintField = forwardRef<HTMLDivElement, PaintFieldProps>(function PaintField(
+  { columnPx, rowPx, majorColumns = 4, majorRows = 2, className, style, children, ...rest },
+  ref,
+) {
   const vars: Record<string, string | number> = {
     '--lm-field-major-cols': Math.max(0, majorColumns),
     '--lm-field-major-rows': Math.max(0, majorRows),
@@ -35,6 +30,7 @@ export function PaintField({
   if (rowPx !== undefined) vars['--lm-field-row'] = `${rowPx}px`
   return (
     <div
+      ref={ref}
       className={cx(
         'lm-field',
         majorColumns > 0 && 'lm-field--major-cols',
@@ -47,4 +43,4 @@ export function PaintField({
       {children}
     </div>
   )
-}
+})
