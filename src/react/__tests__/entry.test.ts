@@ -100,6 +100,18 @@ describe('entries', () => {
     'jaxaZenLight',
     'jaxaZenDark',
     'LM_TOKENS',
+    // Paint kit
+    'Stroke',
+    'SoundIcon',
+    'SOUND_KIND_LABELS',
+    'PaintField',
+    'ChannelRowView',
+    'strokeLevels',
+    'fadePaths',
+    'graphite',
+    'paper',
+    'water',
+    'BRUSH_COUNT',
   ] as const)('`./react` exports %s', (name) => {
     expect((react as Record<string, unknown>)[name]).toBeDefined()
   })
@@ -118,6 +130,21 @@ describe('entries', () => {
     expect(react.jaxaZenLight.bg.toLowerCase()).toBe('#fdfdfb')
     expect(react.jaxaZenDark.text.toLowerCase()).toBe('#fdfdfb')
   })
+
+  it.each(['graphite', 'paper', 'water'] as const)(
+    'the stylesheet carries the %s theme exactly as the tokens module does',
+    async (name) => {
+      const css = await readFile(join(src, 'react/styles.css'), 'utf8')
+      const block = new RegExp(`\\[data-lm-theme='${name}'\\] \\{([^}]*)\\}`).exec(css)?.[1] ?? ''
+      const declared = new Map(
+        [...block.matchAll(/--lm-([a-z0-9-]+): ([^;]+);/g)].map((match) => [match[1], match[2]]),
+      )
+      const theme = react.themes[name]
+      for (const token of react.LM_TOKENS) {
+        expect(declared.get(token)?.toLowerCase(), `--lm-${token}`).toBe(theme[token].toLowerCase())
+      }
+    },
+  )
 
   it('components reference colours only through --lm-* variables', async () => {
     const dir = join(src, 'react/components')

@@ -35,6 +35,24 @@ export const LM_TOKENS = [
   'clip-border',
   'clip-active',
   'focus',
+  // Paint field: grid lines, the automation line, and the brush palette
+  // (`brush-N` paints a stroke, `brush-ink-N` draws detail and text on it).
+  'grid-line',
+  'grid-line-strong',
+  'rule',
+  'automation',
+  'brush-1',
+  'brush-2',
+  'brush-3',
+  'brush-4',
+  'brush-5',
+  'brush-6',
+  'brush-ink-1',
+  'brush-ink-2',
+  'brush-ink-3',
+  'brush-ink-4',
+  'brush-ink-5',
+  'brush-ink-6',
   // Type
   'font',
   'font-mono',
@@ -52,8 +70,13 @@ export const LM_TOKENS = [
   'strip-width',
   'stroke',
   'lane-height',
+  'row',
+  'col',
   'transition',
 ] as const
+
+/** How many brush colours a theme carries (`brush-1` … `brush-6`). */
+export const BRUSH_COUNT = 6
 
 export type LiveMixToken = (typeof LM_TOKENS)[number]
 
@@ -77,7 +100,27 @@ const geometry: LiveMixTheme = {
   'strip-width': '76px',
   stroke: '2px',
   'lane-height': '44px',
+  row: '20px',
+  col: '40px',
   transition: '80ms',
+}
+
+/**
+ * Geometry of the grid themes (`graphite`, `paper`, `water`): everything sits on a
+ * 40 × 20 px module, corners are square, a knob fills one column, and the
+ * type is a regular-weight geometric sans (Jost first, because Futura's
+ * regular face on macOS is Medium and reads bold at 11 px).
+ */
+const gridGeometry: LiveMixTheme = {
+  ...geometry,
+  font: "Jost, Futura, 'Futura PT', 'Century Gothic', ui-sans-serif, system-ui, sans-serif",
+  'font-mono': "'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace",
+  radius: '0px',
+  'knob-size': '28px',
+  'fader-width': '12px',
+  'fader-height': '40px',
+  stroke: '1.5px',
+  'lane-height': '40px',
 }
 
 /**
@@ -112,6 +155,22 @@ export const jaxaZenLight: Required<LiveMixTheme> = {
   'clip-border': '#1A1A1A',
   'clip-active': 'rgba(230, 57, 70, 0.18)',
   focus: '#E63946',
+  'grid-line': '#ECECE7',
+  'grid-line-strong': '#D6D6D0',
+  rule: '#6B6B66',
+  automation: '#A8501C',
+  'brush-1': '#7BBAB8',
+  'brush-2': '#5B9BB0',
+  'brush-3': '#ADC088',
+  'brush-4': '#79A570',
+  'brush-5': '#CDD77F',
+  'brush-6': '#B4C0BA',
+  'brush-ink-1': '#2A6664',
+  'brush-ink-2': '#1F5568',
+  'brush-ink-3': '#566C30',
+  'brush-ink-4': '#335A2C',
+  'brush-ink-5': '#6F7B24',
+  'brush-ink-6': '#55625C',
 }
 
 /** The same palette on Obsidian, for `data-lm-theme="dark"`. */
@@ -134,6 +193,22 @@ export const jaxaZenDark: Required<LiveMixTheme> = {
   'meter-track': '#0E0E0E',
   clip: '#242424',
   'clip-border': '#F4F4F0',
+  'grid-line': '#1C1C1C',
+  'grid-line-strong': '#2E2E2E',
+  rule: '#000000',
+  automation: '#F2B872',
+  'brush-1': '#5FB3A6',
+  'brush-2': '#5A9AC0',
+  'brush-3': '#A9B060',
+  'brush-4': '#6FA070',
+  'brush-5': '#D0B860',
+  'brush-6': '#8F9994',
+  'brush-ink-1': '#B4ECE2',
+  'brush-ink-2': '#ADD5EE',
+  'brush-ink-3': '#E2E8A8',
+  'brush-ink-4': '#B3DCB4',
+  'brush-ink-5': '#F2E0A2',
+  'brush-ink-6': '#CFD7D3',
 }
 
 /** ambient-live's water/moss/sage `al-*` palette mapped onto the kit's tokens. */
@@ -164,12 +239,138 @@ export const ambientWater: Required<LiveMixTheme> = {
   'clip-border': '#5fafa0',
   'clip-active': '#5fafa045',
   focus: '#5fafa0',
+  'grid-line': '#11221f',
+  'grid-line-strong': '#1f3a34',
+  rule: '#050d0c',
+  automation: '#f2c27a',
+  'brush-1': '#6fb3b0',
+  'brush-2': '#5a93ad',
+  'brush-3': '#a5b98a',
+  'brush-4': '#7fa37a',
+  'brush-5': '#c4cf86',
+  'brush-6': '#8aa39c',
+  'brush-ink-1': '#bde6e2',
+  'brush-ink-2': '#aed3e6',
+  'brush-ink-3': '#dbe7c6',
+  'brush-ink-4': '#bcdab6',
+  'brush-ink-5': '#e8eebe',
+  'brush-ink-6': '#c9d9d3',
+}
+
+/**
+ * Graphite: the dark grid theme. Neutral green-grey surfaces, a mint accent,
+ * and brush colours bright enough to read as paint on the dark field.
+ */
+export const graphite: Required<LiveMixTheme> = {
+  ...jaxaZenDark,
+  ...(gridGeometry as Required<LiveMixTheme>),
+  bg: '#232826',
+  panel: '#2a302d',
+  raised: '#3a413d',
+  sunken: '#1e2220',
+  border: '#141816',
+  hairline: '#4a524e',
+  text: '#e2e7e4',
+  muted: '#a2aca7',
+  dim: '#7d8782',
+  accent: '#7fd0bd',
+  'accent-soft': '#7fd0bd33',
+  'control-value': '#f0f4f2',
+  danger: '#e07a6a',
+  solo: '#e0c05a',
+  mute: '#e2e7e4',
+  meter: '#7fd0bd',
+  'meter-hot': '#e07a6a',
+  'meter-rms': '#a2aca7',
+  'meter-lufs': '#8fb3cf',
+  'meter-track': '#161a18',
+  'meter-border': 'transparent',
+  playhead: '#f0f4f2',
+  clip: '#3a413d',
+  'clip-border': '#7fd0bd',
+  'clip-active': '#7fd0bd33',
+  focus: '#7fd0bd',
+  'grid-line': '#272d2a',
+  'grid-line-strong': '#3a423e',
+  rule: '#0f1211',
+  automation: '#f2b872',
+  'brush-1': '#5fb3a6',
+  'brush-2': '#5a9ac0',
+  'brush-3': '#a9b060',
+  'brush-4': '#6fa070',
+  'brush-5': '#d0b860',
+  'brush-6': '#8f9994',
+  'brush-ink-1': '#b4ece2',
+  'brush-ink-2': '#add5ee',
+  'brush-ink-3': '#e2e8a8',
+  'brush-ink-4': '#b3dcb4',
+  'brush-ink-5': '#f2e0a2',
+  'brush-ink-6': '#cfd7d3',
+}
+
+/** Paper: the light grid theme. Off-white paper, ink rules, water-to-grass paint. */
+export const paper: Required<LiveMixTheme> = {
+  ...jaxaZenLight,
+  ...(gridGeometry as Required<LiveMixTheme>),
+  bg: '#f4f5f0',
+  panel: '#f4f5f0',
+  raised: '#fcfcfa',
+  sunken: '#fbfbf8',
+  border: '#c4ccbf',
+  hairline: '#b9c2b3',
+  text: '#1b2622',
+  muted: '#55645c',
+  dim: '#66736b',
+  accent: '#2e6f63',
+  'accent-soft': '#2e6f6326',
+  'control-value': '#1b2622',
+  danger: '#b04a3c',
+  solo: '#d9b13a',
+  mute: '#1b2622',
+  meter: '#2e6f63',
+  'meter-hot': '#b04a3c',
+  'meter-rms': '#8fa89c',
+  'meter-lufs': '#4f7390',
+  'meter-track': '#e3e7de',
+  'meter-border': 'transparent',
+  playhead: '#1b2622',
+  clip: '#fcfcfa',
+  'clip-border': '#1b2622',
+  'clip-active': '#2e6f6326',
+  focus: '#2e6f63',
+  'grid-line': '#e6e9e0',
+  'grid-line-strong': '#c9d0c4',
+  rule: '#55645c',
+  automation: '#a8501c',
+  'brush-1': '#7bbab8',
+  'brush-2': '#5b9bb0',
+  'brush-3': '#adc088',
+  'brush-4': '#79a570',
+  'brush-5': '#cdd77f',
+  'brush-6': '#b4c0ba',
+  'brush-ink-1': '#2a6664',
+  'brush-ink-2': '#1f5568',
+  'brush-ink-3': '#566c30',
+  'brush-ink-4': '#335a2c',
+  'brush-ink-5': '#6f7b24',
+  'brush-ink-6': '#55625c',
+}
+
+/** Water: `ambientWater`'s deep water/moss palette on the grid geometry. */
+export const water: Required<LiveMixTheme> = {
+  ...ambientWater,
+  ...(gridGeometry as Required<LiveMixTheme>),
+  panel: '#132622',
+  dim: '#6f8a81',
 }
 
 export const themes = {
   'jaxa-zen': jaxaZenLight,
   'jaxa-zen-dark': jaxaZenDark,
   'ambient-water': ambientWater,
+  graphite,
+  paper,
+  water,
 } as const
 
 export type LiveMixThemeName = keyof typeof themes

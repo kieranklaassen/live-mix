@@ -10,6 +10,7 @@ import { computePeaks } from '../../core/clips/peaks'
 import { createEngine, type Engine } from '../../core/Engine'
 import { asAudioContext, createMockContext } from '../../testing'
 import {
+  ChannelRowView,
   ChannelStripView,
   DeviceChainView,
   DeviceFrame,
@@ -21,11 +22,15 @@ import {
   MasterStripView,
   Meter,
   MixerView,
+  PaintField,
+  SoundIcon,
+  Stroke,
   themeStyle,
   TimelineView,
   ToggleButton,
   TransportBar,
   Waveform,
+  graphite,
   jaxaZenDark,
 } from '../index'
 
@@ -106,6 +111,55 @@ describe('kit components under SSR', () => {
       <Waveform peaks={computePeaks([new Float32Array([0.5, -0.5])], 2, 2)} />,
     )
     expect(wave).toContain('<path d="M 0 0.5000')
+  })
+
+  it('renders the paint kit to markup', async () => {
+    const peaks = computePeaks([new Float32Array([0.5, -0.5, 0.25, -1])], 4, 4)
+    const html = renderToString(
+      <div style={themeStyle(graphite)} data-lm-theme="graphite" className="lm-grid">
+        <PaintField columnPx={40} rowPx={20}>
+          <Stroke
+            width={200}
+            height={40}
+            brush={2}
+            name="Creek, low"
+            kind="texture"
+            peaks={peaks}
+            repeats={2}
+            fadeIn={0.2}
+            hits={[0.1]}
+            automation={{
+              label: 'Level',
+              points: [
+                [0, 0],
+                [1, 1],
+              ],
+            }}
+            selected
+          />
+        </PaintField>
+        <SoundIcon kind="drone" label="Drone" />
+      </div>,
+    )
+    expect(html).toContain('--lm-bg:#232826')
+    expect(html).toContain('--lm-field-col:40px')
+    expect(html).toContain('lm-stroke lm-stroke--b2 lm-stroke--selected')
+    expect(html).toContain('width:200px;height:40px;border-radius:20px')
+    expect(html).toContain('Creek, low')
+    expect(html).toContain('lm-stroke__seam')
+    expect(html).toContain('lm-stroke__fade-curve')
+    expect(html).toContain('lm-stroke__automation-line')
+    expect(html).toContain('aria-label="Drone"')
+
+    const engine = await engineWithContent()
+    const row = renderToString(
+      <LiveMixProvider engine={engine}>
+        <ChannelRowView strip={engine.track('bass')} brush={1} />
+      </LiveMixProvider>,
+    )
+    expect(row).toContain('aria-label="bass strip"')
+    expect(row).toContain('aria-orientation="horizontal"')
+    engine.dispose()
   })
 
   it('renders every engine-bound view inside a provider from the same snapshots', async () => {

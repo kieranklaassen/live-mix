@@ -1,7 +1,8 @@
 // The styled kit (U25, R32): primitives and composite views over the U24
 // hooks, themed through `--lm-*` CSS variables. Import
 // `@kieranklaassen/live-mix/react/styles.css` for the defaults, or set the
-// tokens yourself (`themeStyle`, `jaxaZenLight`, `jaxaZenDark`).
+// tokens yourself (`themeStyle`, `jaxaZenLight`, `jaxaZenDark`, `graphite`,
+// `paper`, `water`).
 
 export {
   clamp,
@@ -39,14 +40,18 @@ export {
 } from './control-math'
 export {
   ambientWater,
+  BRUSH_COUNT,
   cx,
+  graphite,
   jaxaZenDark,
   jaxaZenLight,
   LM_TOKENS,
+  paper,
   themes,
   themeStyle,
   tokenRef,
   tokenVar,
+  water,
   type LiveMixTheme,
   type LiveMixThemeName,
   type LiveMixToken,
@@ -81,6 +86,7 @@ export {
   type ChannelStripViewProps,
   type StripKind,
 } from './ChannelStripView'
+export { ChannelRowView, type ChannelRowViewProps } from './ChannelRowView'
 export { MasterStripView, type MasterStripViewProps } from './MasterStripView'
 export { MixerView, type MixerViewProps } from './MixerView'
 export {
@@ -108,4 +114,24 @@ export {
   type TimelineViewProps,
 } from './TimelineView'
 export { clipPeaks, Waveform, waveformPath, type WaveformProps } from './Waveform'
+export {
+  automationPositions,
+  capInset,
+  fadeEase,
+  fadeGainAt,
+  fadePaths,
+  hitPositions,
+  levelsBarsPath,
+  levelsOutlinePath,
+  repeatSeams,
+  STROKE_COLUMN_PX,
+  STROKE_INSET_PX,
+  strokeLevels,
+  type FadePaths,
+  type StrokeLevel,
+  type StrokeLevelsOptions,
+} from './stroke-math'
+export { SOUND_KIND_LABELS, SoundIcon, type SoundIconKind, type SoundIconProps } from './SoundIcon'
+export { Stroke, type StrokeAutomation, type StrokeProps } from './Stroke'
+export { PaintField, type PaintFieldProps } from './PaintField'
 export { VersionList, type VersionListProps } from './VersionList'
