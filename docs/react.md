@@ -139,6 +139,17 @@ function Studio({ engine }: { engine: Engine }) {
 | `DeviceToggle`, `ToggleButton`              | The squared power switch and the pressed / unpressed button (mute, solo, loop tones)                                                                                                                                                                                                                 |
 | `GridView`                                  | The session grid over `useSession` / `useSlot`: scenes × audio tracks, a slot button per cell (`data-state` empty / stopped / queued / playing / recording, stopping, `gate` dashed), scene launch per row, per-track stop row and stop-all, the quantise selector (`quantizeKey` / `quantizeLabel`) |
 
+Two plain classes cover app chrome around the kit, so hosts don't grow their
+own: `lm-button` (with a `lm-button--accent` / `--neutral` / `--mute` /
+`--solo` tone and `lm-button--on` when pressed; `ToggleButton` renders it) and
+`lm-input` for a text field or select at the same 20px height.
+
+Faders draw a 4px groove, a 2px accent fill and a raised cap with an index
+line; the full `--lm-fader-width` stays the hit area. That keeps a fader
+visually distinct from the meter bars beside it. Knobs draw a raised cap
+inside the arc with a pointer that reaches the arc; the cap outline turns
+accent on hover and while dragging.
+
 `useParamControl` is the shared interaction hook for custom controls, and the
 pure maths (`normalizeValue`, `quantize`, `faderDbToLevel`,
 `dbToMeterPosition`, `formatControlValue`, `paramStep`, …) is exported for

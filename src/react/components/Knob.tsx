@@ -105,7 +105,7 @@ export function Knob({
   const cy0 = size / 2
   const radius = size * 0.36
   const pointerAngle = (normToKnobAngle(normalized) * Math.PI) / 180
-  const pointerLen = radius - 2
+  const pointerLen = radius + 1
   const trackPath = knobArcPath(cx0, cy0, radius, 0, 1)
   const fillStart = bipolar ? 0.5 : 0
   const fillPath =
@@ -156,6 +156,7 @@ export function Knob({
             stroke={tokenRef('hairline', '#C4C4BE')}
             strokeWidth={stroke}
             strokeLinecap="butt"
+            opacity={0.7}
           />
           {fillPath ? (
             <path
@@ -167,21 +168,22 @@ export function Knob({
             />
           ) : null}
           <circle
+            className="lm-knob__cap"
             cx={cx0}
             cy={cy0}
-            r={radius * 0.55}
-            fill={tokenRef('sunken', '#E9E9E4')}
-            stroke={tokenRef('border', '#D6D6D0')}
+            r={radius * 0.62}
+            fill={tokenRef('raised', '#FFFFFF')}
+            stroke={tokenRef('hairline', '#C4C4BE')}
             strokeWidth={1}
           />
           <line
-            x1={cx0}
-            y1={cy0}
+            x1={cx0 + radius * 0.2 * Math.cos(pointerAngle)}
+            y1={cy0 + radius * 0.2 * Math.sin(pointerAngle)}
             x2={cx0 + pointerLen * Math.cos(pointerAngle)}
             y2={cy0 + pointerLen * Math.sin(pointerAngle)}
             stroke={tokenRef('text', '#1A1A1A')}
             strokeWidth={1.5}
-            strokeLinecap="square"
+            strokeLinecap="round"
           />
         </svg>
       </button>

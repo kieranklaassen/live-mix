@@ -180,6 +180,16 @@
 
 .lm-knob__control svg {
   display: block;
+  overflow: visible;
+}
+
+.lm-knob__cap {
+  transition: stroke var(--lm-transition);
+}
+
+.lm-knob__control:hover:not(:disabled) .lm-knob__cap,
+.lm-knob--active .lm-knob__cap {
+  stroke: var(--lm-accent);
 }
 
 .lm-knob--active .lm-knob__value {
@@ -224,13 +234,24 @@
   display: block;
   flex: 1 1 auto;
   padding: 0;
-  border: 1px solid var(--lm-border);
+  border: 0;
   border-radius: var(--lm-radius);
-  background: var(--lm-sunken);
+  background: transparent;
   cursor: ns-resize;
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
+}
+
+/* The groove: a thin sunken slot centred in the track. The track keeps the
+   full --lm-fader-width as its hit area; only the groove and cap are drawn,
+   so a fader never reads as a meter bar next to one. */
+.lm-fader__track::before {
+  content: '';
+  position: absolute;
+  background: var(--lm-sunken);
+  box-shadow: inset 0 0 0 1px var(--lm-border);
+  border-radius: var(--lm-radius);
 }
 
 .lm-fader--vertical .lm-fader__track {
@@ -238,10 +259,24 @@
   min-height: var(--lm-fader-height);
 }
 
+.lm-fader--vertical .lm-fader__track::before {
+  top: 0;
+  bottom: 0;
+  left: calc(50% - 2px);
+  width: 4px;
+}
+
 .lm-fader--horizontal .lm-fader__track {
   height: var(--lm-fader-width);
   width: 100%;
   cursor: ew-resize;
+}
+
+.lm-fader--horizontal .lm-fader__track::before {
+  left: 0;
+  right: 0;
+  top: calc(50% - 2px);
+  height: 4px;
 }
 
 .lm-fader__track:disabled {
@@ -255,37 +290,68 @@
 }
 
 .lm-fader--vertical .lm-fader__fill {
-  left: 2px;
-  right: 2px;
-  bottom: 2px;
-  max-height: calc(100% - 4px);
+  left: calc(50% - 1px);
+  width: 2px;
+  bottom: 0;
+  max-height: 100%;
 }
 
 .lm-fader--horizontal .lm-fader__fill {
-  top: 2px;
-  bottom: 2px;
-  left: 2px;
-  max-width: calc(100% - 4px);
+  top: calc(50% - 1px);
+  height: 2px;
+  left: 0;
+  max-width: 100%;
 }
 
+/* The cap: a raised block across the full track width with an index line,
+   the one part of the fader the hand reaches for. */
 .lm-fader__thumb {
   position: absolute;
+  z-index: 1;
+  background: var(--lm-raised);
+  border: 1px solid var(--lm-hairline);
+  border-radius: var(--lm-radius);
+  box-shadow: 0 1px 0 var(--lm-border);
+  transition: border-color var(--lm-transition);
+}
+
+.lm-fader__thumb::after {
+  content: '';
+  position: absolute;
   background: var(--lm-text);
-  border: 1px solid var(--lm-border);
 }
 
 .lm-fader--vertical .lm-fader__thumb {
-  left: 1px;
-  right: 1px;
-  height: 3px;
-  transform: translateY(1.5px);
+  left: 0;
+  right: 0;
+  height: 10px;
+  transform: translateY(5px);
+}
+
+.lm-fader--vertical .lm-fader__thumb::after {
+  left: 2px;
+  right: 2px;
+  top: calc(50% - 0.5px);
+  height: 1px;
 }
 
 .lm-fader--horizontal .lm-fader__thumb {
-  top: 1px;
-  bottom: 1px;
-  width: 3px;
-  transform: translateX(-1.5px);
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  transform: translateX(-5px);
+}
+
+.lm-fader--horizontal .lm-fader__thumb::after {
+  top: 2px;
+  bottom: 2px;
+  left: calc(50% - 0.5px);
+  width: 1px;
+}
+
+.lm-fader__track:hover:not(:disabled) .lm-fader__thumb,
+.lm-fader--active .lm-fader__thumb {
+  border-color: var(--lm-accent);
 }
 
 .lm-fader__tick {
@@ -294,13 +360,13 @@
 }
 
 .lm-fader--vertical .lm-fader__tick {
-  left: -4px;
+  left: 0;
   width: 3px;
   height: 1px;
 }
 
 .lm-fader--horizontal .lm-fader__tick {
-  top: -4px;
+  top: 0;
   height: 3px;
   width: 1px;
 }
@@ -405,6 +471,44 @@
 .lm-button--on.lm-button--neutral {
   background: var(--lm-sunken);
   color: var(--lm-text);
+}
+
+/* A text field or select at button height, for app chrome around the kit
+   (names, filters, pickers) so consumers do not grow their own. */
+.lm-input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  height: 20px;
+  padding: 0 6px;
+  border: 1px solid var(--lm-border);
+  border-radius: var(--lm-radius);
+  background: var(--lm-sunken);
+  color: var(--lm-text);
+  font: inherit;
+  font-family: var(--lm-font);
+  font-size: var(--lm-font-size);
+  line-height: 18px;
+  box-shadow: none;
+  transition: border-color var(--lm-transition);
+}
+
+.lm-input::placeholder {
+  color: var(--lm-dim);
+}
+
+.lm-input:hover:not(:disabled) {
+  border-color: var(--lm-hairline);
+}
+
+.lm-input:focus {
+  outline: none;
+  border-color: var(--lm-focus);
+  box-shadow: none;
+}
+
+.lm-input:disabled {
+  opacity: 0.4;
 }
 
 /* --- Meter ---------------------------------------------------------------- */
@@ -869,7 +973,12 @@
 }
 
 .lm-strip__send-fader .lm-fader__thumb {
-  width: 2px;
+  width: 6px;
+  transform: translateX(-3px);
+}
+
+.lm-strip__send-fader .lm-fader__thumb::after {
+  display: none;
 }
 
 .lm-strip__pan {
