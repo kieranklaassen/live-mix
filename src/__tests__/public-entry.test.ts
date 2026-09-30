@@ -198,6 +198,15 @@ const coreSymbols = [
   'CONTROLLER_AUTHOR',
   'SYSTEM_AUTHOR',
   'withVersionCheckpoints',
+  // Sample analysis
+  'analyzeSound',
+  'detectOnsets',
+  'estimateTempo',
+  'DEFAULT_ONSET_HOP_SECONDS',
+  'DEFAULT_ONSET_MIN_GAP_SECONDS',
+  'MAX_TEMPO_BPM',
+  'MIN_TEMPO_BPM',
+  'MIN_TEMPO_ONSETS',
 ] as const
 
 const dspSymbols = [
