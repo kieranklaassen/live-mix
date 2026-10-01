@@ -1,0 +1,98 @@
+{
+  "id": "rotary",
+  "name": "Rotary",
+  "category": "modulation",
+  "description": "A Leslie cabinet: a horn and a bass drum that spin at their own speeds, heard through two microphones, with the slow run-up between chorale and tremolo.",
+  "class": "Rotary",
+  "header": "rotary.h",
+  "sources": [],
+  "params": [
+    { "key": "speed", "name": "Speed", "choices": ["Slow", "Fast", "Brake"], "default": 0 },
+    { "key": "hornDepth", "name": "Horn Depth", "min": 0, "max": 1, "default": 0.6 },
+    { "key": "drumDepth", "name": "Drum Depth", "min": 0, "max": 1, "default": 0.5 },
+    {
+      "key": "acceleration",
+      "name": "Acceleration",
+      "min": 0.25,
+      "max": 4,
+      "default": 1,
+      "taper": "log",
+      "unit": "x"
+    },
+    { "key": "drive", "name": "Drive", "min": 0, "max": 1, "default": 0.25 },
+    { "key": "balance", "name": "Balance", "min": 0, "max": 1, "default": 0.5 },
+    { "key": "distance", "name": "Distance", "min": 0, "max": 1, "default": 0.3 },
+    { "key": "spread", "name": "Spread", "min": 0, "max": 1, "default": 0.7 },
+    { "key": "mix", "name": "Mix", "min": 0, "max": 1, "default": 1 }
+  ],
+  "presets": {
+    "Chorale": {
+      "speed": 0,
+      "hornDepth": 0.6,
+      "drumDepth": 0.5,
+      "acceleration": 1,
+      "drive": 0.25,
+      "balance": 0.5,
+      "distance": 0.3,
+      "spread": 0.7,
+      "mix": 1
+    },
+    "Tremolo": {
+      "speed": 1,
+      "hornDepth": 0.6,
+      "drumDepth": 0.5,
+      "drive": 0.25,
+      "distance": 0.3,
+      "spread": 0.7
+    },
+    "Stopped horn": {
+      "speed": 2,
+      "hornDepth": 0.8,
+      "drumDepth": 0.4,
+      "drive": 0.35,
+      "distance": 0.15,
+      "spread": 0.5
+    },
+    "Growl": {
+      "speed": 1,
+      "hornDepth": 0.7,
+      "drumDepth": 0.6,
+      "drive": 0.85,
+      "balance": 0.55,
+      "distance": 0.15,
+      "spread": 0.6
+    },
+    "Across the room": {
+      "speed": 0,
+      "hornDepth": 0.8,
+      "drumDepth": 0.6,
+      "drive": 0.1,
+      "distance": 0.9,
+      "spread": 1
+    },
+    "Heavy rotors": {
+      "speed": 1,
+      "hornDepth": 0.65,
+      "drumDepth": 0.7,
+      "acceleration": 0.35,
+      "drive": 0.3,
+      "distance": 0.4,
+      "spread": 0.8
+    },
+    "Guitar swirl": {
+      "speed": 1,
+      "hornDepth": 0.9,
+      "drumDepth": 0.25,
+      "acceleration": 1.6,
+      "drive": 0.15,
+      "balance": 0.65,
+      "distance": 0.5,
+      "spread": 1,
+      "mix": 0.7
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. The speeds, crossover and run-up times are those of a Leslie 122 in outline; the cabinet is a geometric sketch (path length, facing and a few reflections per microphone), not a measured model."
+  }
+}

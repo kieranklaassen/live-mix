@@ -1,0 +1,147 @@
+{
+  "id": "organ",
+  "name": "Reed Organ",
+  "category": "instrument",
+  "description": "Harmonium and small pipe organ for held chords and drones: five ranks from flute to reed, a beating celeste, wind noise, a breathing bellows and a tremulant.",
+  "class": "Organ",
+  "header": "organ.h",
+  "sources": [],
+  "params": [
+    { "key": "sub", "name": "Sub 16'", "min": 0, "max": 1, "default": 0.3 },
+    { "key": "octave", "name": "Octave 4'", "min": 0, "max": 1, "default": 0.45 },
+    { "key": "twelfth", "name": "Twelfth 2 2/3'", "min": 0, "max": 1, "default": 0.12 },
+    { "key": "fifteenth", "name": "Fifteenth 2'", "min": 0, "max": 1, "default": 0.18 },
+    { "key": "reed", "name": "Reed", "min": 0, "max": 1, "default": 0.3 },
+    { "key": "celeste", "name": "Celeste", "min": 0, "max": 1, "default": 0.3 },
+    { "key": "breath", "name": "Breath", "min": 0, "max": 1, "default": 0.2 },
+    { "key": "bellows", "name": "Bellows", "min": 0, "max": 1, "default": 0.3 },
+    { "key": "tremulant", "name": "Tremulant", "min": 0, "max": 1, "default": 0 },
+    {
+      "key": "attack",
+      "name": "Attack",
+      "min": 0.005,
+      "max": 6,
+      "default": 0.12,
+      "taper": "log",
+      "unit": "s"
+    },
+    {
+      "key": "release",
+      "name": "Release",
+      "min": 0.02,
+      "max": 10,
+      "default": 0.4,
+      "taper": "log",
+      "unit": "s"
+    },
+    {
+      "key": "tone",
+      "name": "Tone",
+      "min": 300,
+      "max": 12000,
+      "default": 3200,
+      "taper": "log",
+      "unit": "Hz"
+    },
+    { "key": "volume", "name": "Volume", "min": -48, "max": 6, "default": -10, "unit": "dB" }
+  ],
+  "presets": {
+    "Harmonium": {
+      "sub": 0.3,
+      "octave": 0.45,
+      "twelfth": 0.12,
+      "fifteenth": 0.18,
+      "reed": 0.3,
+      "celeste": 0.3,
+      "breath": 0.2,
+      "bellows": 0.3,
+      "tremulant": 0,
+      "attack": 0.12,
+      "release": 0.4,
+      "tone": 3200
+    },
+    "Chapel flutes": {
+      "sub": 0.5,
+      "octave": 0.35,
+      "twelfth": 0,
+      "fifteenth": 0.1,
+      "reed": 0,
+      "celeste": 0,
+      "breath": 0.3,
+      "bellows": 0.1,
+      "attack": 0.08,
+      "release": 0.6,
+      "tone": 5000
+    },
+    "Celeste drone": {
+      "sub": 0.7,
+      "octave": 0.25,
+      "twelfth": 0,
+      "fifteenth": 0,
+      "reed": 0.15,
+      "celeste": 0.9,
+      "breath": 0.25,
+      "bellows": 0.5,
+      "attack": 1.8,
+      "release": 4,
+      "tone": 1800
+    },
+    "Full organ": {
+      "sub": 0.8,
+      "octave": 0.8,
+      "twelfth": 0.5,
+      "fifteenth": 0.6,
+      "reed": 0.55,
+      "celeste": 0.15,
+      "breath": 0.1,
+      "bellows": 0.1,
+      "attack": 0.05,
+      "release": 0.8,
+      "tone": 7000
+    },
+    "Pump organ": {
+      "sub": 0.15,
+      "octave": 0.3,
+      "twelfth": 0.2,
+      "fifteenth": 0,
+      "reed": 0.75,
+      "celeste": 0.2,
+      "breath": 0.45,
+      "bellows": 0.85,
+      "attack": 0.2,
+      "release": 0.5,
+      "tone": 2400
+    },
+    "Tremulant flute": {
+      "sub": 0,
+      "octave": 0.2,
+      "twelfth": 0,
+      "fifteenth": 0,
+      "reed": 0.05,
+      "celeste": 0,
+      "breath": 0.35,
+      "bellows": 0.15,
+      "tremulant": 0.6,
+      "attack": 0.1,
+      "release": 0.5,
+      "tone": 4500
+    },
+    "Distant pipes": {
+      "sub": 0.6,
+      "octave": 0.5,
+      "twelfth": 0.25,
+      "fifteenth": 0.3,
+      "reed": 0.2,
+      "celeste": 0.5,
+      "breath": 0.15,
+      "bellows": 0.25,
+      "attack": 3,
+      "release": 7,
+      "tone": 1200
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. Organ footages and the celeste, tremulant and bellows behave as on a harmonium or a small pipe organ in outline (ranks at 16', 8', 4', 2 2/3' and 2' locked to one phase per key, wind pressure moving level and pitch together); it is a signal model, not a physical model of reeds or pipes, and uses no samples."
+  }
+}

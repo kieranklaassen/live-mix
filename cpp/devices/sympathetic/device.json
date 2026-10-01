@@ -1,0 +1,270 @@
+{
+  "id": "sympathetic",
+  "name": "Sympathetic",
+  "category": "reverb",
+  "description": "Harmonic reverb: a bank of tuned strings that ring in sympathy with the notes you play, like a piano with the sustain pedal held or the drone strings of a sitar.",
+  "class": "Sympathetic",
+  "header": "sympathetic.h",
+  "sources": ["cpp/devices/stereo-widener/StereoWidener.cpp"],
+  "params": [
+    {
+      "key": "root",
+      "name": "Root",
+      "choices": ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"],
+      "default": 0
+    },
+    {
+      "key": "mode",
+      "name": "Mode",
+      "choices": ["Major", "Minor", "Learn"],
+      "default": 0
+    },
+    {
+      "key": "sympathy",
+      "name": "Sympathy",
+      "min": 0,
+      "max": 1,
+      "default": 0.5
+    },
+    {
+      "key": "strings",
+      "name": "Strings",
+      "choices": ["4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16"],
+      "default": 4
+    },
+    {
+      "key": "decay",
+      "name": "Decay",
+      "min": 0.5,
+      "max": 10,
+      "default": 3,
+      "taper": "log",
+      "unit": "s"
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.5
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 0.5
+    }
+  ],
+  "presets": {
+    "Piano pedal": {
+      "root": 0,
+      "mode": 0,
+      "sympathy": 0.5,
+      "strings": 4,
+      "decay": 3,
+      "mix": 0.5,
+      "width": 0.5
+    },
+    "Sitar drone": {
+      "root": 2,
+      "mode": 0,
+      "sympathy": 0.8,
+      "strings": 9,
+      "decay": 6,
+      "mix": 0.4,
+      "width": 0.35
+    },
+    "Minor strings": {
+      "root": 9,
+      "mode": 1,
+      "sympathy": 0.6,
+      "strings": 8,
+      "decay": 4,
+      "mix": 0.45,
+      "width": 0.7
+    },
+    "Open triad": {
+      "root": 7,
+      "mode": 0,
+      "sympathy": 0.7,
+      "strings": 0,
+      "decay": 5,
+      "mix": 0.4,
+      "width": 0.3
+    },
+    "Glass harp": {
+      "root": 5,
+      "mode": 0,
+      "sympathy": 0.85,
+      "strings": 12,
+      "decay": 7,
+      "mix": 0.7,
+      "width": 0.9
+    },
+    "Long resonance": {
+      "root": 0,
+      "mode": 0,
+      "sympathy": 0.4,
+      "strings": 12,
+      "decay": 10,
+      "mix": 0.6,
+      "width": 0.85
+    },
+    "Follow the melody": {
+      "root": 0,
+      "mode": 2,
+      "sympathy": 0.6,
+      "strings": 6,
+      "decay": 4,
+      "mix": 0.5,
+      "width": 0.6
+    },
+    "Short halo": {
+      "root": 0,
+      "mode": 0,
+      "sympathy": 0.9,
+      "strings": 12,
+      "decay": 0.8,
+      "mix": 0.35,
+      "width": 0.6
+    }
+  },
+  "origin": {
+    "kind": "port",
+    "repository": "kieranklaassen/kkfonie",
+    "commit": "808719d0190315e5c6991833fe4e51c24ae75d3f",
+    "files": [
+      {
+        "path": "Sympathetic/Source/PluginProcessor.h",
+        "sha256": "8cad7442d369be285806f5f0bcc2c88ad968905c1718a1c745678bd58cbf8347",
+        "portedTo": "sympathetic.h",
+        "deviations": ["See PluginProcessor.cpp."]
+      },
+      {
+        "path": "Sympathetic/Source/PluginProcessor.cpp",
+        "sha256": "3836b65c1d1776339e35701d2b799381a6257cfcb361c93dd6dd7e121f94a530",
+        "portedTo": "sympathetic.h",
+        "deviations": [
+          "Pitch detection runs inside process() instead of on the message thread (juce::Timer at 30 Hz fed through a juce::AbstractFifo). A detection still takes each 2048-sample window once, as the timer did; its three steps (forward FFT, inverse FFT, pick) run 128 samples apart on a count of samples, so no block carries more than one FFT, the result does not depend on the host block size, and a note takes effect 256 samples after its third window fills (about 133 ms at 48 kHz).",
+          "The string drive is split. The source fed the strings at input x sympathy and scaled their sum by WET_GAIN 0.125. With the strings now exactly in tune (see TunedCombFilter) a held note at that level pins the tanh inside every string it matches, and notes in and out of the scale leave the same tail. Here the strings get input x sympathy x 0.1 and their sum x 1.25: the product is still 0.125, so quiet and broadband material comes out at the source's level, and a matched note has 20 dB more room before the clip.",
+          "mix is an equal-power crossfade (the live-mix rule for a wet/dry control); the source's was linear, dry x (1 - mix) + wet x mix.",
+          "root (AudioParameterInt 0..11) and strings (AudioParameterInt 4..16) are choice parameters; the value of strings is an index, 0 for four strings and 4 for the default eight.",
+          "Sympathy, Decay and Width are smoothed (5 ms; Decay is applied to the strings every 32 samples while it moves). The source advanced juce::SmoothedValues for them but applied their targets once per block.",
+          "Root, Mode and Strings retune the bank at once. In the source needsRetuning was only raised by prepareToPlay, setStateInformation, the Reset button and the detection timer, so a change waited for the next note the detector settled on and strings added by Strings kept the frequency they were constructed with.",
+          "Both soft limiters (inside each string and on the wet sum) use kit::fast_tanh, within 2.5 % of std::tanh and with the same unit slope at rest.",
+          "Learn mode is not persisted: the source saved the pitch profile with the plugin state (pitchProfile_0..11). Choosing Learn clears what was learned, which stands in for the editor's Reset button (resetLearnMode).",
+          "The values published for the editor are gone: string amplitudes, input and output meters, detected key and its confidence. The detected note and frequency can be read natively (detected_note, detected_frequency) for the harness.",
+          "The source has no factory presets (getNumPrograms is 1); the eight in this manifest are new.",
+          "An idle gate was added: half a second after the wet signal (not just the output, so Mix 0 cannot freeze a tail) falls under -140 dBFS with no input, process() writes exact zeros; the detector's window restarts and the widener is emptied when that happens. The widener is also emptied after 100 ms of exactly silent wet signal, as the stereo-widener device does, because its bass filter has no denormal guard.",
+          "juce::ScopedNoDenormals is replaced by flushing every recursive state in software."
+        ]
+      },
+      {
+        "path": "Sympathetic/Source/ResonatorBank.h",
+        "sha256": "d957b0f57a87dcebcccb41d8782bebcb3156800867db22e08a9b5cbf6d7af107",
+        "portedTo": "resonator_bank.h",
+        "deviations": ["See ResonatorBank.cpp."]
+      },
+      {
+        "path": "Sympathetic/Source/ResonatorBank.cpp",
+        "sha256": "ca40294deadd909cd33599023562c54cc94f2e60e5b3662f1a0dc460585ba56f",
+        "portedTo": "resonator_bank.h",
+        "deviations": [
+          "std::array of filters and atomics become plain members; the per-string amplitudes for the display are dropped, as is the legacy mono process().",
+          "Each string's left and right gain (constant-power pan x 1/sqrt(n), or zero for a string outside the bank) is smoothed over 10 ms. The source recomputed the pans and the 1/sqrt(n) factor from the raw width and string count on every sample, so both stepped.",
+          "A string taken out of the bank stops being fed, fades and is then emptied; one brought in starts empty. The source stopped processing it and left its delay line as it was, to be replayed when the count went back up.",
+          "setDecay and setDamping reach all sixteen strings, not only the active ones.",
+          "The sympathy gain is applied (smoothed) by the device before the bank instead of inside it.",
+          "The pan spread divides by n - 1 only when n > 1 (unreachable through the parameter, which starts at four)."
+        ]
+      },
+      {
+        "path": "Sympathetic/Source/TunedCombFilter.h",
+        "sha256": "430f77bf4ec04be3e888de2d1e450ad0d8dec4d64ba0e0b9804292db314995ba",
+        "portedTo": "tuned_comb_filter.h",
+        "deviations": ["See TunedCombFilter.cpp."]
+      },
+      {
+        "path": "Sympathetic/Source/TunedCombFilter.cpp",
+        "sha256": "7318ebabf3540e0f93ed0d8b002347fbe9a8639b0c788895da6b4b2758bd8107",
+        "portedTo": "tuned_comb_filter.h",
+        "deviations": [
+          "Tuning is exact at the fundamental. The loop is the delay line, the tuning allpass, the damping low-pass (which adds phase delay) and the DC blocker (which adds phase lead); the port solves for the delay that makes their sum one period. The source set delay = sampleRate / frequency and ignored both filters, so every string rang sharp: 74 cents at C3, 36 at C4 and 19 at C5 at 48 kHz.",
+          "The allpass delay really is 0.5 to 1.5 samples, and its coefficient is the one whose phase delay is exact at the string's frequency, sin((1 - D) w / 2) / sin((1 + D) w / 2). The source computed D = frac + 1 in [1, 2) with the Thiran value (1 - D) / (1 + D) and then clamped D to 1.5, which shortened the loop by up to half a sample.",
+          "Decay is the RT60 of the fundamental: the feedback gain is 0.001^(period / rt60) divided by the gain of the damping filter and DC blocker at that frequency, still capped at the source's 0.999. The source used 0.001^(period / rt60) alone, so with Decay at 3 s the C3 string lasted 1.0 s and at 10 s 1.35 s (measured on the source at 48 kHz). Where the cap binds the high strings still die sooner than the control says, as in the source: at most 6.8 s at C5, 3.7 s at F5, 1.4 s at C6 and 0.2 s at C7.",
+          "The DC blocker's corner is 2 Hz at every sample rate, with its gain normalised to (1 + R) / 2 so it never exceeds unity; the source's R = 0.995 put the corner at 35 Hz at 44.1 kHz (76 Hz at 96 kHz), inside the range of the strings.",
+          "The damping coefficient (0.3 x 0.7 = 0.21, per sample in the source) is taken to be for 44.1 kHz and converted to the coefficient with the same loss per second at the running sample rate, so the high strings last as long at 48 and 96 kHz as at 44.1 kHz.",
+          "Retuning crossfades over 40 ms between two read taps (each with its own allpass) on the same delay line, and a retune asked for during a fade waits for it to land. The source changed the delay length and coefficient in one sample.",
+          "std::tanh in the loop is kit::fast_tanh.",
+          "The delay buffer is a fixed array of 4096 samples instead of a std::vector; a frequency whose period would not fit it (only above 96 kHz) is raised by octaves instead of having its delay clamped.",
+          "The 64-sample energy tracker for the display is dropped."
+        ]
+      },
+      {
+        "path": "Sympathetic/Source/ScaleMapper.h",
+        "sha256": "3c0ef0d374d0d7b9acf65c3d0b3dd9e866d752f154d23656322820ee95711b7e",
+        "portedTo": "scale_mapper.h",
+        "deviations": ["See ScaleMapper.cpp."]
+      },
+      {
+        "path": "Sympathetic/Source/ScaleMapper.cpp",
+        "sha256": "c10639786a948cc9bb8af15808a47b6e94534586ddb7de70f05e2d0e55251887",
+        "portedTo": "scale_mapper.h",
+        "deviations": [
+          "std::vector scales and the vector built per call become fixed arrays; nothing allocates.",
+          "A note outside the range is folded back by octaves and the top of the range is B7 (MIDI 107). The source clamped to MIDI 24..108, which piled every string that ran off the top onto C8 whatever the scale, and C8 (4186 Hz) is above the string's own 4 kHz limit. The default tuning (no note heard yet) gets the same folding; the source did not limit it.",
+          "A learned scale may hold one to seven intervals (the source always had seven), and its third degree is not added twice when it is also the fifth."
+        ]
+      },
+      {
+        "path": "Sympathetic/Source/YINPitchDetector.h",
+        "sha256": "5f3a1f7a48378615c7761dfa3f3be25b7e3e303f0cfc47ebea9965e65d2018f5",
+        "portedTo": "yin_pitch_detector.h",
+        "deviations": ["See YINPitchDetector.cpp."]
+      },
+      {
+        "path": "Sympathetic/Source/YINPitchDetector.cpp",
+        "sha256": "8a4936c70c8dd5deea7d86f4c61a044433b15c7984a168e07c1fe8d82cf9835a",
+        "portedTo": "yin_pitch_detector.h",
+        "deviations": [
+          "The difference function is the exact one, d(tau) = sum (x[j] - x[j + tau])^2 over a fixed window of 2048 - tau_max samples, built from the cross-correlation of the window's head with the whole window plus two running energy sums. The source used 2 r(0) - 2 r(tau) from a zero-padded autocorrelation; its taper leaves d near tau / 2048 of full scale at the true period, which stays above the 0.10 threshold for notes below about 230 Hz at 48 kHz, so those were never detected.",
+          "juce::dsp::FFT at 4096 points is replaced by kit::Fft<2048>: the window's head rides the real part and the whole window the imaginary part of one complex transform, so a detection is one forward and one inverse 2048-point FFT.",
+          "detect() is split into transform(), correlate() and pick() so the device can spread them over three blocks.",
+          "The largest lag is sampleRate / 50 capped at 1022 (the source capped at 1023 for the difference function and 1022 for the search).",
+          "Above 50 kHz the input is averaged in pairs (in fours above 150 kHz) before the window, so the window covers 43 to 46 ms and reaches 50 Hz at every rate; the source's fixed 2048 samples reached only 94 Hz at 96 kHz.",
+          "Windows are filled in order and do not overlap, which is what the plugin's FIFO read gave the circular buffer in practice."
+        ]
+      },
+      {
+        "path": "Sympathetic/Source/MarkovScaleLearner.h",
+        "sha256": "060268798362ac29d63c3370ecb7fcaabf348ba6ede738fcc593c481a4c454ad",
+        "portedTo": "scale_learner.h",
+        "deviations": ["See MarkovScaleLearner.cpp."]
+      },
+      {
+        "path": "Sympathetic/Source/MarkovScaleLearner.cpp",
+        "sha256": "766e1a6b44a539a40be416e620196be2a5a2a26d5ffcd9121891205edafa4f6e",
+        "portedTo": "scale_learner.h",
+        "deviations": [
+          "Only what shapes the sound is ported: the decaying pitch-class histogram (decay 0.995 per observation, weight 0.033 x confidence) and the scale taken from it. Key detection (Krumhansl-Schmuckler over the Krumhansl-Kessler profiles), softReset, the normalised profile for the display and get/setPitchProfile for the plugin state fed only the editor or persistence and are dropped.",
+          "The learned scale holds the classes that were actually heard: up to the seven strongest that reach 2 % of the strongest. The source always returned seven, filling up with classes of zero weight in whatever order std::sort left them, so one played note produced a seven-note cluster.",
+          "The scale is returned as intervals above the Root. The source returned absolute pitch classes, which ScaleMapper then added to the root, so Learn was only right with Root on C."
+        ]
+      },
+      {
+        "path": "Sympathetic/Source/StereoWidener.h",
+        "sha256": "b036257a740d265654d02660a447df06ce18e8eb4bdb71f2c67bbf4f9f5858ed",
+        "portedTo": "../stereo-widener/StereoWidener.h",
+        "deviations": []
+      },
+      {
+        "path": "Sympathetic/Source/StereoWidener.cpp",
+        "sha256": "77e05e78cb217ecf90c36ebcfb4a15f7790c70595328483e7a421d36a125a542",
+        "portedTo": "../stereo-widener/StereoWidener.cpp",
+        "deviations": []
+      }
+    ],
+    "note": "The Sympathetic plugin's DSP on cpp/kit. The signal path, parameters, ranges and defaults are the source's; the strings were retuned and their decay corrected so that they resonate with the notes they are named for (the measurements are in cpp/test/sympathetic_test.cpp), and the pitch detector runs in the audio callback. StereoWidener is the copy already in cpp/devices/stereo-widener, byte-identical to Sympathetic/Source and compiled from there. PluginEditor.h/.cpp (the JUCE interface) are not ported."
+  }
+}

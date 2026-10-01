@@ -1,0 +1,854 @@
+{
+  "id": "ember",
+  "name": "Ember",
+  "category": "instrument",
+  "description": "Subtractive pad synth: two oscillators with hard sync, sub and noise through a 12/24 dB filter with its own envelope, two LFOs, glide and up to eight detuned unison voices spread across the stereo field.",
+  "class": "Ember",
+  "header": "ember.h",
+  "sources": [],
+  "latencySamples": 16,
+  "params": [
+    {
+      "key": "osc1Shape",
+      "name": "Osc 1 Shape",
+      "choices": ["Saw", "Pulse", "Triangle", "Sine"],
+      "default": 0
+    },
+    {
+      "key": "osc1Coarse",
+      "name": "Osc 1 Coarse",
+      "min": -24,
+      "max": 24,
+      "default": 0,
+      "unit": "st"
+    },
+    {
+      "key": "osc1Fine",
+      "name": "Osc 1 Fine",
+      "min": -100,
+      "max": 100,
+      "default": 0,
+      "unit": "ct"
+    },
+    {
+      "key": "osc1Pw",
+      "name": "Osc 1 Width",
+      "min": 0.05,
+      "max": 0.95,
+      "default": 0.5
+    },
+    {
+      "key": "osc2Shape",
+      "name": "Osc 2 Shape",
+      "choices": ["Saw", "Pulse", "Triangle", "Sine"],
+      "default": 0
+    },
+    {
+      "key": "osc2Coarse",
+      "name": "Osc 2 Coarse",
+      "min": -24,
+      "max": 24,
+      "default": 0,
+      "unit": "st"
+    },
+    {
+      "key": "osc2Fine",
+      "name": "Osc 2 Fine",
+      "min": -100,
+      "max": 100,
+      "default": 0,
+      "unit": "ct"
+    },
+    {
+      "key": "osc2Pw",
+      "name": "Osc 2 Width",
+      "min": 0.05,
+      "max": 0.95,
+      "default": 0.5
+    },
+    {
+      "key": "osc2Sync",
+      "name": "Osc 2 Sync",
+      "choices": ["Off", "On"],
+      "default": 0
+    },
+    {
+      "key": "oscMix",
+      "name": "Osc Mix",
+      "min": 0,
+      "max": 1,
+      "default": 0
+    },
+    {
+      "key": "subLevel",
+      "name": "Sub",
+      "min": 0,
+      "max": 1,
+      "default": 0
+    },
+    {
+      "key": "noiseLevel",
+      "name": "Noise",
+      "min": 0,
+      "max": 1,
+      "default": 0
+    },
+    {
+      "key": "filterType",
+      "name": "Filter Type",
+      "choices": ["LP", "HP", "BP"],
+      "default": 0
+    },
+    {
+      "key": "filterSlope",
+      "name": "Filter Slope",
+      "choices": ["12 dB", "24 dB"],
+      "default": 1
+    },
+    {
+      "key": "cutoff",
+      "name": "Cutoff",
+      "min": 20,
+      "max": 20000,
+      "default": 20000,
+      "taper": "log",
+      "unit": "Hz"
+    },
+    {
+      "key": "resonance",
+      "name": "Resonance",
+      "min": 0,
+      "max": 1,
+      "default": 0
+    },
+    {
+      "key": "filterDrive",
+      "name": "Drive",
+      "min": 0,
+      "max": 1,
+      "default": 0
+    },
+    {
+      "key": "keyTrack",
+      "name": "Key Track",
+      "min": 0,
+      "max": 1,
+      "default": 0
+    },
+    {
+      "key": "filterEnvAmount",
+      "name": "Filter Env",
+      "min": -1,
+      "max": 1,
+      "default": 0
+    },
+    {
+      "key": "velToFilter",
+      "name": "Vel > Filter",
+      "min": 0,
+      "max": 1,
+      "default": 0
+    },
+    {
+      "key": "filterAttack",
+      "name": "Filter Attack",
+      "min": 0.001,
+      "max": 10,
+      "default": 0.005,
+      "taper": "log",
+      "unit": "s"
+    },
+    {
+      "key": "filterDecay",
+      "name": "Filter Decay",
+      "min": 0.001,
+      "max": 10,
+      "default": 0.3,
+      "taper": "log",
+      "unit": "s"
+    },
+    {
+      "key": "filterSustain",
+      "name": "Filter Sustain",
+      "min": 0,
+      "max": 1,
+      "default": 0.5
+    },
+    {
+      "key": "filterRelease",
+      "name": "Filter Release",
+      "min": 0.001,
+      "max": 20,
+      "default": 0.3,
+      "taper": "log",
+      "unit": "s"
+    },
+    {
+      "key": "ampAttack",
+      "name": "Amp Attack",
+      "min": 0.001,
+      "max": 10,
+      "default": 0.005,
+      "taper": "log",
+      "unit": "s"
+    },
+    {
+      "key": "ampDecay",
+      "name": "Amp Decay",
+      "min": 0.001,
+      "max": 10,
+      "default": 0.3,
+      "taper": "log",
+      "unit": "s"
+    },
+    {
+      "key": "ampSustain",
+      "name": "Amp Sustain",
+      "min": 0,
+      "max": 1,
+      "default": 1
+    },
+    {
+      "key": "ampRelease",
+      "name": "Amp Release",
+      "min": 0.001,
+      "max": 20,
+      "default": 0.2,
+      "taper": "log",
+      "unit": "s"
+    },
+    {
+      "key": "velToAmp",
+      "name": "Vel > Amp",
+      "min": 0,
+      "max": 1,
+      "default": 0.7
+    },
+    {
+      "key": "lfo1Shape",
+      "name": "LFO 1 Shape",
+      "choices": ["Sine", "Triangle", "Saw", "Square", "S&H"],
+      "default": 0
+    },
+    {
+      "key": "lfo1Rate",
+      "name": "LFO 1 Rate",
+      "min": 0.01,
+      "max": 40,
+      "default": 2,
+      "taper": "log",
+      "unit": "Hz"
+    },
+    {
+      "key": "lfo1Dest",
+      "name": "LFO 1 Destination",
+      "choices": ["Pitch", "Cutoff", "Amp", "Pan", "PW"],
+      "default": 1
+    },
+    {
+      "key": "lfo1Amount",
+      "name": "LFO 1 Amount",
+      "min": -1,
+      "max": 1,
+      "default": 0
+    },
+    {
+      "key": "lfo2Shape",
+      "name": "LFO 2 Shape",
+      "choices": ["Sine", "Triangle", "Saw", "Square", "S&H"],
+      "default": 0
+    },
+    {
+      "key": "lfo2Rate",
+      "name": "LFO 2 Rate",
+      "min": 0.01,
+      "max": 40,
+      "default": 5,
+      "taper": "log",
+      "unit": "Hz"
+    },
+    {
+      "key": "lfo2Dest",
+      "name": "LFO 2 Destination",
+      "choices": ["Pitch", "Cutoff", "Amp", "Pan", "PW"],
+      "default": 0
+    },
+    {
+      "key": "lfo2Amount",
+      "name": "LFO 2 Amount",
+      "min": -1,
+      "max": 1,
+      "default": 0
+    },
+    {
+      "key": "voiceMode",
+      "name": "Voice Mode",
+      "choices": ["Poly", "Mono", "Legato"],
+      "default": 0
+    },
+    {
+      "key": "glide",
+      "name": "Glide",
+      "min": 0,
+      "max": 2,
+      "default": 0,
+      "unit": "s"
+    },
+    {
+      "key": "unisonVoices",
+      "name": "Unison",
+      "min": 1,
+      "max": 8,
+      "default": 1
+    },
+    {
+      "key": "unisonDetune",
+      "name": "Unison Detune",
+      "min": 0,
+      "max": 100,
+      "default": 15,
+      "unit": "ct"
+    },
+    {
+      "key": "unisonSpread",
+      "name": "Unison Spread",
+      "min": 0,
+      "max": 1,
+      "default": 0.5
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -60,
+      "max": 6,
+      "default": -6,
+      "unit": "dB"
+    }
+  ],
+  "presets": {
+    "Warm pad": {
+      "osc2Fine": 8,
+      "oscMix": 0.5,
+      "subLevel": 0.2,
+      "filterSlope": 1,
+      "cutoff": 1300,
+      "resonance": 0.12,
+      "keyTrack": 0.4,
+      "filterEnvAmount": 0.2,
+      "filterAttack": 2.0,
+      "filterDecay": 3.0,
+      "filterSustain": 0.6,
+      "filterRelease": 4.0,
+      "ampAttack": 1.2,
+      "ampDecay": 2.0,
+      "ampSustain": 0.85,
+      "ampRelease": 4.5,
+      "velToAmp": 0.5,
+      "lfo1Shape": 0,
+      "lfo1Rate": 0.13,
+      "lfo1Dest": 1,
+      "lfo1Amount": 0.14,
+      "lfo2Shape": 1,
+      "lfo2Rate": 0.21,
+      "lfo2Dest": 3,
+      "lfo2Amount": 0.2,
+      "unisonVoices": 2,
+      "unisonDetune": 14,
+      "unisonSpread": 0.8,
+      "volume": -4
+    },
+    "Slow strings": {
+      "osc2Fine": 11,
+      "oscMix": 0.5,
+      "filterSlope": 0,
+      "cutoff": 3200,
+      "resonance": 0.08,
+      "keyTrack": 0.5,
+      "filterEnvAmount": 0.15,
+      "filterAttack": 2.0,
+      "filterDecay": 2.0,
+      "filterSustain": 0.7,
+      "filterRelease": 3.0,
+      "ampAttack": 1.8,
+      "ampDecay": 1.0,
+      "ampSustain": 1,
+      "ampRelease": 4.0,
+      "velToAmp": 0.5,
+      "lfo1Shape": 0,
+      "lfo1Rate": 0.17,
+      "lfo1Dest": 1,
+      "lfo1Amount": 0.12,
+      "lfo2Shape": 0,
+      "lfo2Rate": 5.2,
+      "lfo2Dest": 0,
+      "lfo2Amount": 0.004,
+      "unisonVoices": 3,
+      "unisonDetune": 22,
+      "unisonSpread": 1.0,
+      "volume": -5
+    },
+    "Glass pad": {
+      "osc1Shape": 2,
+      "osc2Shape": 1,
+      "osc2Coarse": 12,
+      "osc2Fine": 5,
+      "osc2Pw": 0.3,
+      "oscMix": 0.4,
+      "filterSlope": 0,
+      "cutoff": 3200,
+      "resonance": 0.3,
+      "keyTrack": 0.7,
+      "ampAttack": 0.8,
+      "ampDecay": 2.5,
+      "ampSustain": 0.8,
+      "ampRelease": 6.0,
+      "velToAmp": 0.5,
+      "lfo1Shape": 0,
+      "lfo1Rate": 0.09,
+      "lfo1Dest": 1,
+      "lfo1Amount": 0.12,
+      "lfo2Shape": 1,
+      "lfo2Rate": 0.31,
+      "lfo2Dest": 4,
+      "lfo2Amount": 0.3,
+      "unisonVoices": 3,
+      "unisonDetune": 16,
+      "unisonSpread": 1.0,
+      "volume": -6
+    },
+    "Dark drone": {
+      "osc2Shape": 1,
+      "osc2Coarse": -12,
+      "osc2Pw": 0.35,
+      "oscMix": 0.5,
+      "subLevel": 0.5,
+      "noiseLevel": 0.03,
+      "filterSlope": 1,
+      "cutoff": 260,
+      "resonance": 0.3,
+      "filterDrive": 0.25,
+      "ampAttack": 3.0,
+      "ampDecay": 1.0,
+      "ampSustain": 1,
+      "ampRelease": 8.0,
+      "velToAmp": 0.4,
+      "lfo1Shape": 0,
+      "lfo1Rate": 0.05,
+      "lfo1Dest": 1,
+      "lfo1Amount": 0.3,
+      "lfo2Shape": 1,
+      "lfo2Rate": 0.08,
+      "lfo2Dest": 4,
+      "lfo2Amount": 0.5,
+      "unisonVoices": 2,
+      "unisonDetune": 10,
+      "unisonSpread": 0.9,
+      "volume": -8
+    },
+    "Airy pad": {
+      "osc2Coarse": 12,
+      "osc2Fine": -6,
+      "oscMix": 0.35,
+      "noiseLevel": 0.04,
+      "filterSlope": 0,
+      "cutoff": 5000,
+      "resonance": 0.1,
+      "keyTrack": 0.3,
+      "ampAttack": 1.5,
+      "ampDecay": 2.0,
+      "ampSustain": 0.9,
+      "ampRelease": 5.0,
+      "velToAmp": 0.5,
+      "lfo1Shape": 1,
+      "lfo1Rate": 0.11,
+      "lfo1Dest": 1,
+      "lfo1Amount": 0.2,
+      "lfo2Shape": 0,
+      "lfo2Rate": 0.27,
+      "lfo2Dest": 3,
+      "lfo2Amount": 0.3,
+      "unisonVoices": 3,
+      "unisonDetune": 18,
+      "unisonSpread": 1.0,
+      "volume": -4
+    },
+    "Init": {},
+    "Warm Bass": {
+      "osc1Shape": 0,
+      "osc2Shape": 0,
+      "osc2Coarse": -12,
+      "oscMix": 0.4,
+      "subLevel": 0.5,
+      "filterType": 0,
+      "filterSlope": 1,
+      "cutoff": 420,
+      "resonance": 0.2,
+      "filterDrive": 0.15,
+      "filterEnvAmount": 0.5,
+      "filterAttack": 0.002,
+      "filterDecay": 0.25,
+      "filterSustain": 0.1,
+      "filterRelease": 0.2,
+      "ampAttack": 0.002,
+      "ampDecay": 0.3,
+      "ampSustain": 1,
+      "ampRelease": 0.15,
+      "voiceMode": 1,
+      "glide": 0.03,
+      "volume": -6
+    },
+    "Super Saw": {
+      "osc1Shape": 0,
+      "osc2Shape": 0,
+      "osc2Fine": 7,
+      "oscMix": 0.5,
+      "filterType": 0,
+      "filterSlope": 0,
+      "cutoff": 9000,
+      "resonance": 0.05,
+      "ampAttack": 0.01,
+      "ampDecay": 0.3,
+      "ampSustain": 1,
+      "ampRelease": 0.45,
+      "unisonVoices": 7,
+      "unisonDetune": 22,
+      "unisonSpread": 0.9,
+      "volume": -12
+    },
+    "Glass Pluck": {
+      "osc1Shape": 2,
+      "osc2Shape": 1,
+      "osc2Pw": 0.3,
+      "osc2Coarse": 12,
+      "oscMix": 0.35,
+      "filterType": 0,
+      "filterSlope": 1,
+      "cutoff": 320,
+      "resonance": 0.35,
+      "filterEnvAmount": 0.8,
+      "filterAttack": 0.001,
+      "filterDecay": 0.12,
+      "filterSustain": 0,
+      "filterRelease": 0.12,
+      "ampAttack": 0.001,
+      "ampDecay": 0.35,
+      "ampSustain": 0,
+      "ampRelease": 0.3,
+      "velToFilter": 0.5,
+      "volume": -6
+    },
+    "Sync Lead": {
+      "osc1Shape": 0,
+      "osc2Shape": 0,
+      "osc2Coarse": 7,
+      "osc2Sync": 1,
+      "oscMix": 1,
+      "filterType": 0,
+      "filterSlope": 1,
+      "cutoff": 6000,
+      "resonance": 0.1,
+      "filterDrive": 0.3,
+      "filterEnvAmount": 0.3,
+      "filterDecay": 0.4,
+      "filterSustain": 0.4,
+      "ampAttack": 0.003,
+      "ampRelease": 0.25,
+      "lfo1Shape": 0,
+      "lfo1Rate": 5.5,
+      "lfo1Dest": 0,
+      "lfo1Amount": 0.02,
+      "voiceMode": 2,
+      "glide": 0.08,
+      "volume": -8
+    },
+    "Hollow Pad": {
+      "osc1Shape": 1,
+      "osc1Pw": 0.5,
+      "osc2Shape": 2,
+      "osc2Coarse": 12,
+      "osc2Fine": 5,
+      "oscMix": 0.5,
+      "filterType": 0,
+      "filterSlope": 0,
+      "cutoff": 1800,
+      "resonance": 0.15,
+      "filterEnvAmount": 0.2,
+      "filterAttack": 1.2,
+      "filterDecay": 1.0,
+      "filterSustain": 0.6,
+      "filterRelease": 1.5,
+      "ampAttack": 0.8,
+      "ampDecay": 1.0,
+      "ampSustain": 0.9,
+      "ampRelease": 1.6,
+      "lfo1Shape": 0,
+      "lfo1Rate": 0.15,
+      "lfo1Dest": 1,
+      "lfo1Amount": 0.3,
+      "lfo2Shape": 1,
+      "lfo2Rate": 0.3,
+      "lfo2Dest": 3,
+      "lfo2Amount": 0.5,
+      "unisonVoices": 3,
+      "unisonDetune": 8,
+      "unisonSpread": 0.7,
+      "volume": -10
+    },
+    "Acid Line": {
+      "osc1Shape": 0,
+      "oscMix": 0,
+      "filterType": 0,
+      "filterSlope": 1,
+      "cutoff": 500,
+      "resonance": 0.75,
+      "filterDrive": 0.5,
+      "filterEnvAmount": 0.7,
+      "filterAttack": 0.001,
+      "filterDecay": 0.2,
+      "filterSustain": 0,
+      "filterRelease": 0.2,
+      "ampAttack": 0.002,
+      "ampDecay": 0.3,
+      "ampSustain": 1,
+      "ampRelease": 0.08,
+      "velToFilter": 0.6,
+      "voiceMode": 1,
+      "glide": 0.05,
+      "volume": -6
+    },
+    "Sub Sine": {
+      "osc1Shape": 3,
+      "oscMix": 0,
+      "subLevel": 1,
+      "filterType": 0,
+      "filterSlope": 0,
+      "cutoff": 20000,
+      "resonance": 0,
+      "ampAttack": 0.005,
+      "ampDecay": 0.3,
+      "ampSustain": 1,
+      "ampRelease": 0.1,
+      "voiceMode": 1,
+      "glide": 0.02,
+      "volume": -4
+    },
+    "Wobble": {
+      "osc1Shape": 0,
+      "osc2Shape": 1,
+      "osc2Pw": 0.5,
+      "osc2Coarse": -12,
+      "oscMix": 0.5,
+      "subLevel": 0.3,
+      "filterType": 0,
+      "filterSlope": 1,
+      "cutoff": 300,
+      "resonance": 0.5,
+      "lfo1Shape": 0,
+      "lfo1Rate": 4,
+      "lfo1Dest": 1,
+      "lfo1Amount": 0.8,
+      "ampAttack": 0.005,
+      "ampRelease": 0.2,
+      "voiceMode": 1,
+      "volume": -6
+    },
+    "Noise Sweep": {
+      "oscMix": 0,
+      "noiseLevel": 1,
+      "osc1Shape": 3,
+      "filterType": 2,
+      "filterSlope": 1,
+      "cutoff": 200,
+      "resonance": 0.6,
+      "filterEnvAmount": 1,
+      "filterAttack": 1.5,
+      "filterDecay": 2.0,
+      "filterSustain": 0.2,
+      "filterRelease": 1.0,
+      "ampAttack": 0.5,
+      "ampDecay": 1.0,
+      "ampSustain": 1,
+      "ampRelease": 1.2,
+      "volume": -6
+    },
+    "Bell": {
+      "osc1Shape": 3,
+      "osc2Shape": 3,
+      "osc2Coarse": 19,
+      "oscMix": 0.4,
+      "filterType": 0,
+      "filterSlope": 0,
+      "cutoff": 12000,
+      "resonance": 0,
+      "ampAttack": 0.001,
+      "ampDecay": 1.5,
+      "ampSustain": 0,
+      "ampRelease": 1.5,
+      "velToAmp": 0.9,
+      "volume": -6
+    },
+    "Brass": {
+      "osc1Shape": 0,
+      "osc2Shape": 0,
+      "osc2Fine": 8,
+      "oscMix": 0.5,
+      "filterType": 0,
+      "filterSlope": 1,
+      "cutoff": 900,
+      "resonance": 0.2,
+      "filterDrive": 0.2,
+      "filterEnvAmount": 0.6,
+      "filterAttack": 0.08,
+      "filterDecay": 0.3,
+      "filterSustain": 0.6,
+      "filterRelease": 0.3,
+      "ampAttack": 0.03,
+      "ampDecay": 0.3,
+      "ampSustain": 1,
+      "ampRelease": 0.25,
+      "keyTrack": 0.5,
+      "volume": -8
+    }
+  },
+  "origin": {
+    "kind": "port",
+    "repository": "kieranklaassen/kkfonie",
+    "commit": "808719d0190315e5c6991833fe4e51c24ae75d3f",
+    "files": [
+      {
+        "path": "Tatami/Source/Devices/Instruments/EmberParams.h",
+        "sha256": "4a2cf92811e96c0a58e74144d0122b328e9dc031555f115b8316e69dad95b6e3",
+        "portedTo": "cpp/devices/ember/device.json",
+        "deviations": [
+          "lfo1Sync, lfo1Division, lfo2Sync and lfo2Division are dropped: the device ABI has no tempo. Both LFOs always run at their rate in Hz. The other 43 parameters keep their ids, order, ranges and defaults.",
+          "Labelled discrete parameters (oscillator and LFO shapes, osc2Sync, filterType, filterSlope, LFO destinations, voiceMode) are choice parameters. osc1Coarse, osc2Coarse and unisonVoices stay numeric and are rounded to whole numbers by the device.",
+          "JUCE skew factors became tapers: cutoff (skew 0.25), the eight envelope times and both LFO rates (skew 0.3) are log; glide (skew 0.4, minimum 0) is linear.",
+          "The '%' unit on 0..1 amounts is left out; the values are unchanged.",
+          "kPitchBendRangeSemitones is unused: the ABI has no pitch wheel."
+        ]
+      },
+      {
+        "path": "Tatami/Source/Devices/Instruments/EmberDevice.h",
+        "sha256": "f5a8d957b8b69f27ce73380962818b015e88b76a4ac57e60f1f54fd15116738f",
+        "portedTo": "cpp/devices/ember/ember.h",
+        "deviations": [
+          "The meter outputs (level, voices, lfo1, lfo2, ampEnv, filterEnv) are removed; active_voices() remains as a test hook.",
+          "State for the pitch wheel and the sustain pedal is removed (see EmberDevice.cpp)."
+        ]
+      },
+      {
+        "path": "Tatami/Source/Devices/Instruments/EmberDevice.cpp",
+        "sha256": "443f0a4272a92acb51d7eef14d07d620336ada1177550204268a289c79fde385",
+        "portedTo": "cpp/devices/ember/ember.h",
+        "deviations": [
+          "Notes arrive as note_on(note id, frequency, gain) instead of MIDI. The pitch is the fractional MIDI note of the frequency (frequency clamped to 8..13000 Hz, pitch to 0..127), the velocity is the gain clamped to 0..1, and voices and the mono/legato held-note stack are keyed by note id instead of note number. A NaN frequency is ignored; a NaN gain plays at 0.7.",
+          "Pitch wheel, sustain pedal (CC 64) and all-notes-off are dropped: the ABI carries no such messages.",
+          "Tempo-synced LFO rates are dropped (no tempo in the ABI).",
+          "juce::dsp::Oversampling (2x, polyphase IIR half-band) is replaced by the decimating half of kit::Halfband2x, a 63-tap linear-phase FIR, one per channel. The engine renders at 2x directly, so there is no upsampling stage. Each pair of 2x samples is fed one 2x sample late, which makes the latency exactly 16 samples (latencySamples).",
+          "Consequence of the FIR's transition band (flat to 0.42 fs, -80 dB from 0.58 fs): content between 24 and 27.8 kHz at the 2x rate is only partly removed and folds to 20.2..24 kHz. For a 1 kHz saw the worst such component is 45 dB under the fundamental, above 22 kHz. From 10 to 22 kHz aliasing measures 67 dB under the fundamental against 68 dB in the source.",
+          "The output is clamped to +-1 after the decimator: the half-band can overshoot an already soft-clipped master by a fraction of a dB. The soft clip itself (linear to 0.5, knee to 1) is the source's and still runs at the 2x rate on the voice sum.",
+          "kOutputTrim (0.36, -8.9 dB) scales the Volume gain. The source reaches -12 dBFS with one note at the default volume and puts chords into the clipper; with the trim one default note at gain 0.7 peaks at -23 dBFS and ten notes stay under the clip knee. Every preset is 8.9 dB quieter than in Tatami at the same Volume value.",
+          "Each voice starts its oscillators at a different phase (golden-ratio steps per voice index, added to the source's per-unison-voice offsets). In the source all voices start in phase, so identical notes add coherently.",
+          "The 32-sample control sub-blocks run on a counter across host blocks instead of restarting at every host block and MIDI event, so the output does not depend on the block size. Parameters that are not smoothed per sample advance their 5 ms ramp 32 samples at a time at the start of each sub-block.",
+          "set_param applies a new target at once instead of at the start of the next host block; parameters set before the first processed block take effect without a ramp.",
+          "An idle gate is added: 50 ms after the last voice has finished the instrument writes exact zeros and skips voices, summing and decimation. Its clock (sub-block counter, parameter ramps, LFO phases) keeps running, so the LFOs stay free-running and waking is sample-identical to never having slept.",
+          "Per-sample control values (log2 of the cutoff, the volume gain) are computed once and reused while the parameter is at rest, and an LFO whose amount is zero only advances its phase. Same values as the source.",
+          "Block chunking to maxBlockSize, the mono output fold-down and the meter updates are gone (the ABI is stereo, blocks are at most 2048 frames)."
+        ]
+      },
+      {
+        "path": "Tatami/Source/Devices/Instruments/EmberVoice.h",
+        "sha256": "0ae660c6e78bd3957b96ac21b9853237061e785e65709695292fde467b1fb4b4",
+        "portedTo": "cpp/devices/ember/ember_voice.h",
+        "deviations": [
+          "A note is a fractional pitch instead of an integer MIDI note; the pitch-bend input is removed.",
+          "Pitch to frequency and cutoff to the filter coefficient g come from two lookup tables built with the source's own functions (midiNoteToHz, SvfTptSynth::compute) and read with linear interpolation: 16 points per semitone from MIDI -36 to 164, 128 points per octave from 20 Hz to 20 kHz. Error below 0.003 cent in pitch and 0.004 % in cutoff. The source evaluates fastExp2 and the tan polynomial per voice per sample.",
+          "The oscillator increment, the filter coefficients and the pan gains are recomputed only when their inputs change (exact comparison), not every sample.",
+          "Oscillator 2 only advances its phase while oscMix is 0 and sync is off, and the sub's sine is not evaluated while subLevel is 0. Both are multiplied by zero in the source.",
+          "While every unison voice is panned to the centre the two channels are identical, so one filter runs for both. When the spread opens the right filter starts from the left's state; a centred voice that starts from silence goes back to one filter.",
+          "A voice that is restarted while it still sounds (stolen, or retriggered in mono mode) fades from the old note's velocity gain to the new one over 5 ms. The source switches at once, which steps the waveform (a click).",
+          "prepare() takes the per-voice oscillator phase offset described under EmberDevice.cpp.",
+          "The envelope read-outs for the meters are removed."
+        ]
+      },
+      {
+        "path": "Tatami/Source/Devices/Instruments/InstrumentParamBank.h",
+        "sha256": "d43ca86298316a3679614eddd04022052a808e3f063b10528687e62d904313b8",
+        "portedTo": "cpp/devices/ember/ember.h",
+        "deviations": [
+          "Replaced by an array of linear ramps inside the device (Ember::Ramp), indexed by the generated parameter enum. Range clamping is done by kit::DeviceBase; discrete values are rounded on set and read from the target, as in the source.",
+          "No atomics and no pull(): the ABI calls set_param on the audio thread between blocks."
+        ]
+      },
+      {
+        "path": "Tatami/Source/Shared/DSP/SmoothedParam.h",
+        "sha256": "7d532c619104afb6590802195007f39cd22f326eeb1cb15ce68a5b12ebb4b7b9",
+        "portedTo": "cpp/devices/ember/ember.h",
+        "deviations": [
+          "The juce::SmoothedValue linear ramp (5 ms at the 2x rate) is rewritten as Ember::Ramp with the same length, restarting from the current value whenever the target moves. The atomic target and pull() are gone."
+        ]
+      },
+      {
+        "path": "Tatami/Source/Shared/DSP/Lfo.h",
+        "sha256": "1e0948b51b9117205bdf8067d0b804f517bd037e1eb013445daa1800b257e226",
+        "portedTo": "cpp/devices/ember/ember_lfo.h",
+        "deviations": [
+          "setRateSynced and the division tables are removed (no tempo).",
+          "skip() is added: one sample of phase without computing the value, for an LFO nothing reads. Phase and sample-and-hold sequence are the same as with next()."
+        ]
+      },
+      {
+        "path": "Tatami/Source/Shared/DSP/Adsr.h",
+        "sha256": "ddef1d90906f2dfffbb1295b018ad4b3597b8ae58715bdbc8957ec6db99478f9",
+        "portedTo": "cpp/devices/ember/Adsr.h",
+        "deviations": []
+      },
+      {
+        "path": "Tatami/Source/Shared/DSP/FastMath.h",
+        "sha256": "97302c3262d906ecc9c6a2249b2a98a286fcabac50185d8da50d48c251045793",
+        "portedTo": "cpp/devices/ember/FastMath.h",
+        "deviations": []
+      },
+      {
+        "path": "Tatami/Source/Shared/DSP/PolyBlepOsc.h",
+        "sha256": "28e644e643d2738e868bd71f99a668dc675d0bc898babc75b47409dda8366ebd",
+        "portedTo": "cpp/devices/ember/PolyBlepOsc.h",
+        "deviations": []
+      },
+      {
+        "path": "Tatami/Source/Shared/DSP/SvfTptSynth.h",
+        "sha256": "10299c811cb3a868916c158ac4fbba72e48fdcf57e8de3c2fec5bc92711a107d",
+        "portedTo": "cpp/devices/ember/SvfTptSynth.h",
+        "deviations": [
+          "Copied unchanged. The voice calls compute() only to build its cutoff table and derives the remaining coefficients from g and k with the same formulas."
+        ]
+      },
+      {
+        "path": "Tatami/Source/Shared/DSP/VoiceAllocator.h",
+        "sha256": "fa480df0ca3e130449d614e424cdbf9ee0bd7b7bf18b084e6de53d7552708003",
+        "portedTo": "cpp/devices/ember/VoiceAllocator.h",
+        "deviations": []
+      },
+      {
+        "path": "Tatami/Presets/instruments/ember.json",
+        "sha256": "6230717f0f29596b35609ad1d46d3b5c18e126ec318359ca31d5bfb8ae91e688",
+        "portedTo": "cpp/devices/ember/device.json",
+        "deviations": [
+          "All twelve factory presets (Init and eleven sounds) are carried over with their values. Wobble's LFO was synced to 1/8 note; it is now 4 Hz, the same rate at 120 BPM.",
+          "Five pads written for live-mix come first: Warm pad, Slow strings, Glass pad, Dark drone, Airy pad. The manifest's defaults are the source's defaults (the Init preset), not the first preset."
+        ]
+      },
+      {
+        "path": "Tatami/Tests/Instruments/EmberTests.cpp",
+        "sha256": "eba6a2a8a014ce61369f3b16d8d89cb391146951b72785695b4652faa92a605b",
+        "portedTo": "cpp/test/ember_test.cpp",
+        "deviations": [
+          "Carried over with their thresholds: A4 within 0.1 Hz, amp attack and release within 10 %, 16 voices / steal / no stuck voices, repeated notes and legato leave no voice hanging, a poly chord held across a switch to mono or legato is released, default patch and every preset stay at or under 0 dBFS, the documented parameter ids, at least eight presets with Warm Bass among them.",
+          "The alias test (saw at 1006 Hz, 10..22 kHz, below -60 dBFS) is measured against the fundamental, because the output trim lowers every absolute level: the source's fundamental sat at -22 dBFS, so the threshold is 38 dB under the fundamental; the port measures 67 dB.",
+          "Not carried over: the tempo-synced LFO test (no tempo) and the allocation guard (the device has no heap use; nothing in the native harness can observe it)."
+        ]
+      }
+    ],
+    "note": "Ember is the poly synth of Tatami (tatami.ember). The voice path, constants, parameter ids and factory presets are the source's; what changed is listed per file. Costs measured for a six-note pad chord with unison are above the 8-note default-patch budget case: see the cost lines of cpp/test/ember_test.cpp."
+  }
+}

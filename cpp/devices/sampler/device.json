@@ -1,0 +1,129 @@
+{
+  "id": "sampler",
+  "name": "Sampler",
+  "category": "instrument",
+  "description": "One-sound sampler for your own recordings: the keys transpose it, a crossfaded loop holds it as long as you like, and a little tape wobble makes it a pad.",
+  "class": "Sampler",
+  "header": "sampler.h",
+  "sources": [],
+  "samples": true,
+  "memoryMb": 24,
+  "params": [
+    { "key": "start", "name": "Start", "min": 0, "max": 1, "default": 0.15 },
+    { "key": "end", "name": "End", "min": 0, "max": 1, "default": 0.85 },
+    { "key": "loop", "name": "Loop", "choices": ["Off", "Forward", "Ping-pong"], "default": 1 },
+    { "key": "crossfade", "name": "Crossfade", "min": 0, "max": 500, "default": 50, "unit": "ms" },
+    { "key": "reverse", "name": "Reverse", "choices": ["Off", "On"], "default": 0 },
+    { "key": "tune", "name": "Tune", "min": -24, "max": 24, "default": 0, "unit": "st" },
+    { "key": "fine", "name": "Fine", "min": -100, "max": 100, "default": 0, "unit": "ct" },
+    {
+      "key": "attack",
+      "name": "Attack",
+      "min": 0.001,
+      "max": 8,
+      "default": 0.06,
+      "taper": "log",
+      "unit": "s"
+    },
+    {
+      "key": "release",
+      "name": "Release",
+      "min": 0.01,
+      "max": 12,
+      "default": 0.6,
+      "taper": "log",
+      "unit": "s"
+    },
+    {
+      "key": "tone",
+      "name": "Tone",
+      "min": 200,
+      "max": 18000,
+      "default": 8000,
+      "taper": "log",
+      "unit": "Hz"
+    },
+    { "key": "wobble", "name": "Wobble", "min": 0, "max": 1, "default": 0.2 },
+    { "key": "velocity", "name": "Velocity", "min": 0, "max": 1, "default": 0.6 },
+    { "key": "volume", "name": "Volume", "min": -48, "max": 6, "default": -9, "unit": "dB" }
+  ],
+  "presets": {
+    "Soft flute": {
+      "start": 0.15,
+      "end": 0.85,
+      "loop": 1,
+      "crossfade": 50,
+      "reverse": 0,
+      "tune": 0,
+      "fine": 0,
+      "attack": 0.06,
+      "release": 0.6,
+      "tone": 8000,
+      "wobble": 0.2,
+      "velocity": 0.6
+    },
+    "Tape choir": {
+      "start": 0.15,
+      "end": 0.85,
+      "loop": 1,
+      "crossfade": 200,
+      "tune": -12,
+      "fine": 6,
+      "attack": 0.7,
+      "release": 2.8,
+      "tone": 4200,
+      "wobble": 0.5,
+      "velocity": 0.3
+    },
+    "One shot": {
+      "start": 0,
+      "end": 1,
+      "loop": 0,
+      "crossfade": 0,
+      "attack": 0.001,
+      "release": 0.3,
+      "tone": 14000,
+      "wobble": 0,
+      "velocity": 1
+    },
+    "Backwards": {
+      "start": 0,
+      "end": 1,
+      "loop": 0,
+      "crossfade": 0,
+      "reverse": 1,
+      "attack": 0.01,
+      "release": 1.2,
+      "tone": 9000,
+      "wobble": 0.15,
+      "velocity": 0.7
+    },
+    "There and back": {
+      "start": 0.3,
+      "end": 0.7,
+      "loop": 2,
+      "tune": -12,
+      "attack": 1.6,
+      "release": 4.5,
+      "tone": 3000,
+      "wobble": 0.3,
+      "velocity": 0.2
+    },
+    "Worn tape": {
+      "start": 0.15,
+      "end": 0.85,
+      "loop": 1,
+      "crossfade": 120,
+      "fine": -14,
+      "attack": 0.12,
+      "release": 1.5,
+      "tone": 3200,
+      "wobble": 0.9,
+      "velocity": 0.5
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. A Mellotron in spirit only: one recording per instance, transposed by the key, with a loop the tape machines never had."
+  }
+}

@@ -90,7 +90,8 @@ describe.each(entries)('$id (generated device)', ({ id, instrument, samples, mem
       const mix = definition.params.mix
       if (mix) harness.set(mix, mix.max)
       peak = harness.feedTone(1, 330, 0.5)
-      peak = Math.max(peak, harness.renderSilence(0.5).peak)
+      // Long enough for a loop or delay whose first repeat is seconds away.
+      peak = Math.max(peak, harness.renderSilence(2).peak)
     }
     expect(Number.isFinite(peak)).toBe(true)
     expect(peak).toBeGreaterThan(1e-4)

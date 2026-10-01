@@ -1,0 +1,137 @@
+{
+  "id": "grain-cloud",
+  "name": "Cloud",
+  "category": "texture",
+  "description": "Live granular processor: records the input into an eight-second buffer and replays it as a cloud of overlapping grains that can be scattered, pitched, reversed, fed back and frozen.",
+  "class": "GrainCloud",
+  "header": "grain_cloud.h",
+  "sources": [],
+  "memoryMb": 10,
+  "params": [
+    { "key": "position", "name": "Position", "min": 0, "max": 1, "default": 0.04 },
+    {
+      "key": "size",
+      "name": "Size",
+      "min": 10,
+      "max": 2000,
+      "default": 220,
+      "taper": "log",
+      "unit": "ms"
+    },
+    {
+      "key": "density",
+      "name": "Density",
+      "min": 0.5,
+      "max": 100,
+      "default": 20,
+      "taper": "log",
+      "unit": "/s"
+    },
+    { "key": "pitch", "name": "Pitch", "min": -24, "max": 24, "default": 0, "unit": "st" },
+    { "key": "spray", "name": "Spray", "min": 0, "max": 1, "default": 0.3 },
+    { "key": "scatter", "name": "Scatter", "min": 0, "max": 1, "default": 0.3 },
+    { "key": "texture", "name": "Texture", "min": 0, "max": 1, "default": 0.1 },
+    { "key": "reverse", "name": "Reverse", "min": 0, "max": 1, "default": 0.25 },
+    { "key": "feedback", "name": "Feedback", "min": 0, "max": 0.95, "default": 0.25 },
+    { "key": "freeze", "name": "Freeze", "choices": ["Off", "On"], "default": 0 },
+    { "key": "spread", "name": "Spread", "min": 0, "max": 1, "default": 0.7 },
+    { "key": "mix", "name": "Mix", "min": 0, "max": 1, "default": 0.5 }
+  ],
+  "presets": {
+    "Soft cloud": {
+      "position": 0.04,
+      "size": 220,
+      "density": 20,
+      "pitch": 0,
+      "spray": 0.3,
+      "scatter": 0.3,
+      "texture": 0.1,
+      "reverse": 0.25,
+      "feedback": 0.25,
+      "spread": 0.7,
+      "mix": 0.5
+    },
+    "Octave rain": {
+      "position": 0.1,
+      "size": 90,
+      "density": 7,
+      "pitch": 12,
+      "spray": 0.45,
+      "scatter": 0.15,
+      "texture": 0,
+      "reverse": 0,
+      "feedback": 0.45,
+      "spread": 1,
+      "mix": 0.45
+    },
+    "Slow smear": {
+      "position": 0.15,
+      "size": 1400,
+      "density": 6,
+      "pitch": 0,
+      "spray": 0.5,
+      "scatter": 0.25,
+      "texture": 0,
+      "reverse": 0.5,
+      "feedback": 0.4,
+      "spread": 0.8,
+      "mix": 0.65
+    },
+    "Choir of fifths": {
+      "position": 0.08,
+      "size": 600,
+      "density": 14,
+      "pitch": 0,
+      "spray": 0.4,
+      "scatter": 0.85,
+      "texture": 0,
+      "reverse": 0.2,
+      "feedback": 0.3,
+      "spread": 1,
+      "mix": 0.6
+    },
+    "Low tide": {
+      "position": 0.2,
+      "size": 900,
+      "density": 5,
+      "pitch": -12,
+      "spray": 0.35,
+      "scatter": 0.2,
+      "texture": 0,
+      "reverse": 0.6,
+      "feedback": 0.5,
+      "spread": 0.6,
+      "mix": 0.55
+    },
+    "Glass shards": {
+      "position": 0.05,
+      "size": 28,
+      "density": 12,
+      "pitch": 12,
+      "spray": 0.6,
+      "scatter": 1,
+      "texture": 0.75,
+      "reverse": 0.3,
+      "feedback": 0.2,
+      "spread": 1,
+      "mix": 0.4
+    },
+    "Backwards room": {
+      "position": 0.02,
+      "size": 380,
+      "density": 9,
+      "pitch": 0,
+      "spray": 0.1,
+      "scatter": 0.1,
+      "texture": 0.2,
+      "reverse": 1,
+      "feedback": 0.55,
+      "spread": 0.5,
+      "mix": 0.5
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on kit::GrainPool. In the family of Mutable Instruments Clouds and the Hologram Microcosm (a live buffer replayed as a grain cloud, with freeze), not a port of either."
+  }
+}

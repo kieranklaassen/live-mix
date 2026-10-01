@@ -1,0 +1,115 @@
+{
+  "id": "tine-piano",
+  "name": "Tine",
+  "category": "instrument",
+  "description": "Modelled tine electric piano: struck tines and tone bars read by a pickup that barks when played hard, through a suitcase amplifier with stereo tremolo.",
+  "class": "TinePiano",
+  "header": "tine_piano.h",
+  "sources": [],
+  "params": [
+    { "key": "bell", "name": "Bell", "min": 0, "max": 1, "default": 0.45 },
+    { "key": "bark", "name": "Bark", "min": 0, "max": 1, "default": 0.35 },
+    { "key": "decay", "name": "Decay", "min": 0.25, "max": 4, "default": 1, "taper": "log" },
+    {
+      "key": "release",
+      "name": "Release",
+      "min": 0.03,
+      "max": 3,
+      "default": 0.25,
+      "taper": "log",
+      "unit": "s"
+    },
+    { "key": "hardness", "name": "Hardness", "min": 0, "max": 1, "default": 0.7 },
+    { "key": "tremolo", "name": "Tremolo", "min": 0, "max": 1, "default": 0.3 },
+    {
+      "key": "tremoloRate",
+      "name": "Rate",
+      "min": 0.1,
+      "max": 10,
+      "default": 3.2,
+      "taper": "log",
+      "unit": "Hz"
+    },
+    { "key": "pan", "name": "Pan", "min": 0, "max": 1, "default": 1 },
+    { "key": "tone", "name": "Tone", "min": 0, "max": 1, "default": 0.55 },
+    { "key": "drive", "name": "Drive", "min": 0, "max": 1, "default": 0.15 },
+    { "key": "volume", "name": "Volume", "min": -48, "max": 6, "default": -9, "unit": "dB" }
+  ],
+  "presets": {
+    "Soft suitcase": {
+      "bell": 0.45,
+      "bark": 0.35,
+      "decay": 1,
+      "release": 0.25,
+      "hardness": 0.7,
+      "tremolo": 0.3,
+      "tremoloRate": 3.2,
+      "pan": 1,
+      "tone": 0.55,
+      "drive": 0.15
+    },
+    "Bell tines": {
+      "bell": 0.9,
+      "bark": 0.15,
+      "decay": 1.2,
+      "hardness": 0.8,
+      "tremolo": 0.15,
+      "tremoloRate": 2.4,
+      "tone": 0.75,
+      "drive": 0.05
+    },
+    "Barking stage": {
+      "bell": 0.3,
+      "bark": 0.85,
+      "hardness": 1,
+      "release": 0.15,
+      "tremolo": 0,
+      "tone": 0.65,
+      "drive": 0.45
+    },
+    "Dark felt": {
+      "bell": 0.1,
+      "bark": 0.2,
+      "decay": 1.5,
+      "release": 0.5,
+      "hardness": 0.4,
+      "tremolo": 0,
+      "tone": 0.25,
+      "drive": 0.1
+    },
+    "Slow pan": {
+      "bell": 0.5,
+      "bark": 0.3,
+      "decay": 1.6,
+      "release": 0.8,
+      "tremolo": 0.75,
+      "tremoloRate": 0.45,
+      "pan": 1,
+      "tone": 0.5
+    },
+    "Tremolo": {
+      "bell": 0.35,
+      "bark": 0.5,
+      "tremolo": 0.6,
+      "tremoloRate": 5.8,
+      "pan": 0,
+      "tone": 0.6,
+      "drive": 0.25
+    },
+    "Long sustain": {
+      "bell": 0.6,
+      "bark": 0.25,
+      "decay": 3,
+      "release": 1.5,
+      "hardness": 0.6,
+      "tremolo": 0.2,
+      "tremoloRate": 1.1,
+      "tone": 0.45,
+      "drive": 0.1
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. A signal model in the manner of the tine electric pianos of the seventies (a struck tine with a short inharmonic second mode, a tone bar that carries the sustain, an electromagnetic pickup modelled as the rate of change of a bell-shaped flux curve, a suitcase-style stereo tremolo); it uses no samples and is not a circuit model of any one instrument."
+  }
+}
