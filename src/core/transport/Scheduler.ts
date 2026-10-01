@@ -9,7 +9,7 @@
 // (`musicEngine.ts:722-745`, ebdd457) is the same loop with a 100 ms tick and a
 // 5 s lookahead — hence both are per-instance settings here.
 
-import type { ClipWindow } from '../clips/window'
+import type { ClipWindow, ScheduledClip } from '../clips/window'
 import {
   isLooping,
   scheduleKey,
@@ -77,6 +77,12 @@ interface Registration {
   scheduled: Map<string, ScheduledStart>
   /** Where the last window ended, in unwrapped timeline seconds; unset until the first tick after a pin. */
   windowEndSec?: number
+  /**
+   * Set when a `start` or `seek` has silenced everything, until the next tick:
+   * that tick's window begins at the anchor itself, not at wherever the clock
+   * has got to since.
+   */
+  fromAnchor?: boolean
 }
 
 export class Scheduler {
@@ -136,31 +142,55 @@ export class Scheduler {
    */
   tick(reason: SchedulerTickReason = 'manual'): void {
     if (this.transport.state !== 'playing') return
-    const position = this.transport.position()
+    // One reading of the clock for the whole pass: it moves while this runs.
+    const contextTime = this.transport.now()
+    const position = this.transport.position(contextTime)
     if (position.finished) {
       this.transport.pause()
       return
     }
     const loop = this.transport.loop
+    const anchor = this.transport.anchor
     const nowSec = unwrap(position.positionSec, position.iteration, loop)
 
     for (const [schedulable, registration] of this.registrations) {
-      // Runs on a timer rather than a frame so a backgrounded tab keeps playing;
-      // when that timer is throttled the window reaches back to where the last
-      // one ended, so nothing due in the gap is skipped.
-      const catchUpSec =
-        registration.windowEndSec === undefined
-          ? 0
-          : Math.max(0, nowSec - registration.windowEndSec)
       const clips = schedulable.clips()
-      const due = startsInWindow({
-        clips,
-        positionSec: position.positionSec,
-        lookaheadSec: schedulable.lookaheadSec,
-        iteration: position.iteration,
-        loop,
-        catchUpSec,
-      })
+      let due: ScheduledClip[]
+      if (registration.fromAnchor && anchor) {
+        // The audio clock can move between the pin and this pass (a render
+        // quantum ends, a listener ahead of this one takes its time). The
+        // position has then left the anchor behind, and a window that began
+        // at the position would step over a clip starting exactly where the
+        // transport was started: silent until the loop comes round. So the
+        // first window after a start or a seek runs from the anchor's own
+        // position, which needs no arithmetic to land on, up to the usual
+        // lookahead. Nothing is sounding then, so nothing can be handed over
+        // twice; a loop change keeps what sounds and is left as it was.
+        due = startsInWindow({
+          clips,
+          positionSec: anchor.positionSec,
+          lookaheadSec: Math.max(0, contextTime - anchor.contextTime) + schedulable.lookaheadSec,
+          iteration: anchor.iteration,
+          loop,
+        })
+      } else {
+        // Runs on a timer rather than a frame so a backgrounded tab keeps playing;
+        // when that timer is throttled the window reaches back to where the last
+        // one ended, so nothing due in the gap is skipped.
+        const catchUpSec =
+          registration.windowEndSec === undefined
+            ? 0
+            : Math.max(0, nowSec - registration.windowEndSec)
+        due = startsInWindow({
+          clips,
+          positionSec: position.positionSec,
+          lookaheadSec: schedulable.lookaheadSec,
+          iteration: position.iteration,
+          loop,
+          catchUpSec,
+        })
+      }
+      registration.fromAnchor = false
       registration.windowEndSec = nowSec + schedulable.lookaheadSec
 
       for (const hit of due) {
@@ -271,6 +301,7 @@ export class Scheduler {
     for (const registration of this.registrations.values()) {
       registration.scheduled.clear()
       registration.windowEndSec = undefined
+      registration.fromAnchor = true
     }
   }
 
