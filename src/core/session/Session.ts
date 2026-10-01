@@ -447,7 +447,13 @@ export class Session {
     let offsetSec = slot.clip.offsetSec
     let durationSec = slot.clip.loop ? this.openEndSec : slot.clip.durationSec
     if (slot.legato && outgoing && at > outgoing.startSec) {
-      const carried = legatoEntry(outgoing, slot.clip, at, this.openEndSec)
+      const carried = legatoEntry(
+        outgoing,
+        slot.clip,
+        at,
+        this.openEndSec,
+        this.sourceSeconds(slot.clip.sourceId),
+      )
       if (!carried) return { launch: null, ops }
       offsetSec = carried.offsetSec
       durationSec = carried.durationSec
@@ -490,6 +496,13 @@ export class Session {
       nextPass: at < this.lastPositionSec,
     }
     return { launch, ops }
+  }
+
+  /** How long a source is: its decoded buffer when the engine has it, else what the score says. */
+  private sourceSeconds(sourceId: string): number | undefined {
+    const decoded = this.engine?.samples.get(sourceId)?.buffer.duration
+    if (decoded !== undefined) return decoded
+    return this.score.sources.find((source) => source.id === sourceId)?.durationSec
   }
 
   private followSeconds(follow: ScoreFollowAction, clip: SlotClip, fromSec: number): number {
@@ -741,6 +754,7 @@ function legatoEntry(
   incoming: SlotClip,
   at: number,
   openEndSec: number,
+  sourceSec?: number,
 ): { offsetSec: number; durationSec: number } | null {
   const elapsed = Math.max(0, at - outgoing.startSec)
   const outLength = outgoing.clip.durationSec
@@ -753,7 +767,16 @@ function legatoEntry(
   }
   const remaining = incoming.durationSec - position
   if (remaining <= 0) return null
-  // Backwards, what is left to play is the near end of the slice: the far end is what was skipped.
-  if (incoming.reversed) return { offsetSec: incoming.offsetSec, durationSec: remaining }
+  if (incoming.reversed) {
+    // Backwards, what is left to play is the near end of the slice: the far
+    // end is what was skipped. A slice that runs past its source only sounds
+    // for as long as the source reaches, so what was skipped comes off that.
+    const sounding =
+      sourceSec === undefined
+        ? incoming.durationSec
+        : Math.min(incoming.durationSec, Math.max(0, sourceSec - incoming.offsetSec))
+    const left = sounding - position
+    return left > 0 ? { offsetSec: incoming.offsetSec, durationSec: left } : null
+  }
   return { offsetSec: incoming.offsetSec + position, durationSec: remaining }
 }

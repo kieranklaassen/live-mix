@@ -17,7 +17,7 @@ import { type ScoreRenderer } from '../../../score/ScoreRenderer'
 import { TempoMap } from '../../time/TempoMap'
 import { type ScoreFollowAction } from '../followActions'
 import { Session, type SessionOptions } from '../Session'
-import { defaultSlot, type ScoreSlot, type SlotClip } from '../Slot'
+import { defaultSlot, slotClipOf, type ScoreSlot, type SlotClip } from '../Slot'
 
 // 120 BPM 4/4: a bar is 2 s. The transport starts at audio-clock 100.
 const START = 100
@@ -358,6 +358,14 @@ describe('Session: stopping', () => {
   })
 })
 
+describe('slotClipOf', () => {
+  it('is the placed clip without its identity and position, `reversed` included', () => {
+    const placed = { id: 'c', startSec: 12, ...slotClip('a', { offsetSec: 1, reversed: true }) }
+    expect(slotClipOf(placed)).toEqual(slotClip('a', { offsetSec: 1, reversed: true }))
+    expect(slotClipOf({ ...placed, reversed: false })).not.toHaveProperty('reversed')
+  })
+})
+
 describe('Session: one clip per track, legato, launch modes', () => {
   it('launching a second slot on a track closes the first at the new start', async () => {
     const { engine, session, advance, sources, clips } = await rig()
@@ -468,6 +476,37 @@ describe('Session: one clip per track, legato, launch modes', () => {
     })
     await advance(0.3) // 9.9
     expect(sources()[1].startCalls.last).toEqual([contextAt(10), 7, 2])
+  })
+
+  it('legato into a reversed one-shot that outlives its source skips what the source let it play', async () => {
+    // Source seconds [7, 11) of a 10 s source: backwards it sounds from 10 down to 7, then is quiet.
+    const { engine, session, advance, sources, clips } = await rig({}, (score) => {
+      score.slots[1].legato = true
+      score.slots[1].clip = slotClip('b', { offsetSec: 7, durationSec: 4, reversed: true })
+    })
+    engine.transport.start()
+    await advance(7.9)
+    session.launchSlot('kick-verse') // loop of 4 s from 8
+    await advance(0.2)
+    await advance(1.5) // 9.6
+    session.launchSlot('kick-chorus') // at 10: 2 s in → source seconds [7, 8) are left, backwards
+    expect(clips('kick')[1]).toEqual({ id: 'kick-chorus@2', startSec: 10, durationSec: 1 })
+    await advance(0.3) // 9.9
+    expect(sources()[1].startCalls.last).toEqual([contextAt(10), 2, 1])
+  })
+
+  it('legato into a reversed one-shot whose sound has already run out places nothing', async () => {
+    const { engine, session, advance, clips } = await rig({}, (score) => {
+      score.slots[1].legato = true
+      score.slots[1].clip = slotClip('b', { offsetSec: 8, durationSec: 4, reversed: true })
+    })
+    engine.transport.start()
+    await advance(7.9)
+    session.launchSlot('kick-verse')
+    await advance(1.3) // 9.2
+    session.launchSlot('kick-chorus') // 2 s in; only source seconds [8, 10) ever sounded
+    expect(clips('kick')).toEqual([{ id: 'kick-verse@1', startSec: 8, durationSec: 2 }])
+    expect(session.status('kick-chorus').state).toBe('stopped')
   })
 
   it('legato into a one-shot with nothing left only closes the outgoing slot', async () => {
