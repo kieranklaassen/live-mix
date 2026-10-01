@@ -4,6 +4,16 @@
 # (native_test).
 
 build_generated_devices() {
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device auto-filter \
+    cpp/devices/auto-filter/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device chorus \
+    cpp/devices/chorus/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device flanger \
+    cpp/devices/flanger/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device phaser \
+    cpp/devices/phaser/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device saturator \
+    cpp/devices/saturator/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device string-machine \
     cpp/devices/string-machine/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device tape-echo \
@@ -11,6 +21,16 @@ build_generated_devices() {
 }
 
 test_generated_devices() {
+  native_test auto_filter_test \
+    cpp/test/auto_filter_test.cpp
+  native_test chorus_test \
+    cpp/test/chorus_test.cpp
+  native_test flanger_test \
+    cpp/test/flanger_test.cpp
+  native_test phaser_test \
+    cpp/test/phaser_test.cpp
+  native_test saturator_test \
+    cpp/test/saturator_test.cpp
   native_test string_machine_test \
     cpp/test/string_machine_test.cpp
   native_test tape_echo_test \

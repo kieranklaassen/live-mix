@@ -2,26 +2,51 @@
 
 import { type DeviceDescriptor } from '../../core/devices'
 import { type WasmDeviceDefinition } from '../WasmDevice'
+import { AUTO_FILTER_DESCRIPTOR, AUTO_FILTER_DEVICE } from './auto-filter.gen'
+import { CHORUS_DESCRIPTOR, CHORUS_DEVICE } from './chorus.gen'
+import { FLANGER_DESCRIPTOR, FLANGER_DEVICE } from './flanger.gen'
+import { PHASER_DESCRIPTOR, PHASER_DEVICE } from './phaser.gen'
+import { SATURATOR_DESCRIPTOR, SATURATOR_DEVICE } from './saturator.gen'
 import { STRING_MACHINE_DESCRIPTOR, STRING_MACHINE_DEVICE } from './string-machine.gen'
 import { TAPE_ECHO_DESCRIPTOR, TAPE_ECHO_DEVICE } from './tape-echo.gen'
 
+export * from './auto-filter.gen'
+export * from './chorus.gen'
+export * from './flanger.gen'
+export * from './phaser.gen'
+export * from './saturator.gen'
 export * from './string-machine.gen'
 export * from './tape-echo.gen'
 
 /** Every generated WASM device, in id order; part of `STOCK_WASM_DEVICES`. */
 export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
+  AUTO_FILTER_DESCRIPTOR,
+  CHORUS_DESCRIPTOR,
+  FLANGER_DESCRIPTOR,
+  PHASER_DESCRIPTOR,
+  SATURATOR_DESCRIPTOR,
   STRING_MACHINE_DESCRIPTOR,
   TAPE_ECHO_DESCRIPTOR,
 ]
 
 /** Their definitions (module location and parameter table), in the same order. */
 export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
+  AUTO_FILTER_DEVICE,
+  CHORUS_DEVICE,
+  FLANGER_DEVICE,
+  PHASER_DEVICE,
+  SATURATOR_DEVICE,
   STRING_MACHINE_DEVICE,
   TAPE_ECHO_DEVICE,
 ]
 
 /** What the device-agnostic tests need to know about each generated artefact. */
 export const GENERATED_WASM_DEVICES = [
+  { id: 'auto-filter', instrument: false, samples: false, memoryMb: 4 },
+  { id: 'chorus', instrument: false, samples: false, memoryMb: 4 },
+  { id: 'flanger', instrument: false, samples: false, memoryMb: 4 },
+  { id: 'phaser', instrument: false, samples: false, memoryMb: 4 },
+  { id: 'saturator', instrument: false, samples: false, memoryMb: 4 },
   { id: 'string-machine', instrument: true, samples: false, memoryMb: 4 },
   { id: 'tape-echo', instrument: false, samples: false, memoryMb: 4 },
 ] as const

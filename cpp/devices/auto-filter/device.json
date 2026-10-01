@@ -1,0 +1,359 @@
+{
+  "id": "auto-filter",
+  "name": "Auto Filter",
+  "category": "eq",
+  "description": "Resonant low-pass, high-pass, band-pass, notch or peak filter at 12 or 24 dB per octave, swept by an envelope follower and an LFO, with drive that saturates the filter itself.",
+  "class": "AutoFilter",
+  "header": "auto_filter.h",
+  "sources": [],
+  "latencySamples": 31,
+  "params": [
+    {
+      "key": "type",
+      "name": "Type",
+      "choices": ["Lowpass", "Highpass", "Bandpass", "Notch", "Peak"],
+      "default": 0
+    },
+    {
+      "key": "slope",
+      "name": "Slope",
+      "choices": ["12 dB", "24 dB"],
+      "default": 0
+    },
+    {
+      "key": "cutoffHz",
+      "name": "Cutoff",
+      "min": 20,
+      "max": 20000,
+      "default": 1000,
+      "taper": "log",
+      "unit": "Hz"
+    },
+    {
+      "key": "resonance",
+      "name": "Resonance",
+      "min": 0.5,
+      "max": 25,
+      "default": 0.7071,
+      "taper": "log",
+      "unit": "Q"
+    },
+    {
+      "key": "driveDb",
+      "name": "Drive",
+      "min": 0,
+      "max": 24,
+      "default": 0,
+      "unit": "dB"
+    },
+    {
+      "key": "envAmount",
+      "name": "Env Amount",
+      "min": -100,
+      "max": 100,
+      "default": 0,
+      "unit": "%"
+    },
+    {
+      "key": "envAttackMs",
+      "name": "Env Attack",
+      "min": 1,
+      "max": 500,
+      "default": 10,
+      "taper": "log",
+      "unit": "ms"
+    },
+    {
+      "key": "envReleaseMs",
+      "name": "Env Release",
+      "min": 10,
+      "max": 2000,
+      "default": 200,
+      "taper": "log",
+      "unit": "ms"
+    },
+    {
+      "key": "lfoAmount",
+      "name": "LFO Amount",
+      "min": 0,
+      "max": 100,
+      "default": 0,
+      "unit": "%"
+    },
+    {
+      "key": "lfoRateHz",
+      "name": "LFO Rate",
+      "min": 0.01,
+      "max": 20,
+      "default": 1,
+      "taper": "log",
+      "unit": "Hz"
+    },
+    {
+      "key": "lfoShape",
+      "name": "LFO Shape",
+      "choices": ["Sine", "Triangle", "Saw Up", "Saw Down", "Square", "S&H"],
+      "default": 0
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 1
+    }
+  ],
+  "presets": {
+    "Init": {
+      "type": 0,
+      "slope": 0,
+      "cutoffHz": 1000,
+      "resonance": 0.7071,
+      "driveDb": 0,
+      "envAmount": 0,
+      "envAttackMs": 10,
+      "envReleaseMs": 200,
+      "lfoAmount": 0,
+      "lfoRateHz": 1,
+      "lfoShape": 0,
+      "mix": 1
+    },
+    "Low-Pass Gate": {
+      "type": 0,
+      "slope": 1,
+      "cutoffHz": 400,
+      "resonance": 1.2,
+      "driveDb": 0,
+      "envAmount": 0,
+      "envAttackMs": 10,
+      "envReleaseMs": 200,
+      "lfoAmount": 0,
+      "lfoRateHz": 1,
+      "lfoShape": 0,
+      "mix": 1
+    },
+    "Auto-Wah": {
+      "type": 2,
+      "slope": 0,
+      "cutoffHz": 350,
+      "resonance": 5,
+      "driveDb": 3,
+      "envAmount": 80,
+      "envAttackMs": 4,
+      "envReleaseMs": 120,
+      "lfoAmount": 0,
+      "lfoRateHz": 1,
+      "lfoShape": 0,
+      "mix": 1
+    },
+    "Dub Sweep": {
+      "type": 0,
+      "slope": 1,
+      "cutoffHz": 800,
+      "resonance": 4,
+      "driveDb": 6,
+      "envAmount": 0,
+      "envAttackMs": 10,
+      "envReleaseMs": 200,
+      "lfoAmount": 70,
+      "lfoRateHz": 0.5,
+      "lfoShape": 1,
+      "mix": 1
+    },
+    "Squelch": {
+      "type": 0,
+      "slope": 0,
+      "cutoffHz": 600,
+      "resonance": 9,
+      "driveDb": 9,
+      "envAmount": 0,
+      "envAttackMs": 10,
+      "envReleaseMs": 200,
+      "lfoAmount": 60,
+      "lfoRateHz": 4,
+      "lfoShape": 2,
+      "mix": 1
+    },
+    "Random Steps": {
+      "type": 2,
+      "slope": 0,
+      "cutoffHz": 1200,
+      "resonance": 6,
+      "driveDb": 0,
+      "envAmount": 0,
+      "envAttackMs": 10,
+      "envReleaseMs": 200,
+      "lfoAmount": 80,
+      "lfoRateHz": 8,
+      "lfoShape": 5,
+      "mix": 1
+    },
+    "Rumble Cut": {
+      "type": 1,
+      "slope": 1,
+      "cutoffHz": 80,
+      "resonance": 0.7071,
+      "driveDb": 0,
+      "envAmount": 0,
+      "envAttackMs": 10,
+      "envReleaseMs": 200,
+      "lfoAmount": 0,
+      "lfoRateHz": 1,
+      "lfoShape": 0,
+      "mix": 1
+    },
+    "Telephone": {
+      "type": 2,
+      "slope": 1,
+      "cutoffHz": 1800,
+      "resonance": 2,
+      "driveDb": 12,
+      "envAmount": 0,
+      "envAttackMs": 10,
+      "envReleaseMs": 200,
+      "lfoAmount": 0,
+      "lfoRateHz": 1,
+      "lfoShape": 0,
+      "mix": 1
+    },
+    "Slow Phaser Notch": {
+      "type": 3,
+      "slope": 0,
+      "cutoffHz": 900,
+      "resonance": 1.5,
+      "driveDb": 0,
+      "envAmount": 0,
+      "envAttackMs": 10,
+      "envReleaseMs": 200,
+      "lfoAmount": 90,
+      "lfoRateHz": 0.15,
+      "lfoShape": 0,
+      "mix": 1
+    },
+    "Resonant Peak Bump": {
+      "type": 4,
+      "slope": 0,
+      "cutoffHz": 2500,
+      "resonance": 3,
+      "driveDb": 0,
+      "envAmount": 30,
+      "envAttackMs": 20,
+      "envReleaseMs": 300,
+      "lfoAmount": 0,
+      "lfoRateHz": 1,
+      "lfoShape": 0,
+      "mix": 1
+    },
+    "Screaming Self-Osc": {
+      "type": 0,
+      "slope": 0,
+      "cutoffHz": 440,
+      "resonance": 25,
+      "driveDb": 18,
+      "envAmount": -40,
+      "envAttackMs": 2,
+      "envReleaseMs": 400,
+      "lfoAmount": 20,
+      "lfoRateHz": 6,
+      "lfoShape": 0,
+      "mix": 1
+    },
+    "Half-Wet Tremolo Filter": {
+      "type": 0,
+      "slope": 0,
+      "cutoffHz": 2000,
+      "resonance": 1,
+      "driveDb": 0,
+      "envAmount": 0,
+      "envAttackMs": 10,
+      "envReleaseMs": 200,
+      "lfoAmount": 100,
+      "lfoRateHz": 8,
+      "lfoShape": 4,
+      "mix": 0.5
+    }
+  },
+  "origin": {
+    "kind": "port",
+    "repository": "kieranklaassen/kkfonie",
+    "commit": "808719d0190315e5c6991833fe4e51c24ae75d3f",
+    "files": [
+      {
+        "path": "Tatami/Source/Devices/Effects/FilterDevice.h",
+        "sha256": "048589d45e1bac59832fd6c1c0f181beb95885f383322de41043ac208bb3c72c",
+        "portedTo": "cpp/devices/auto-filter/auto_filter.h",
+        "deviations": [
+          "The device is called Auto Filter in the browser (the source's name is Filter, type tatami.filter); category eq.",
+          "lfoSync and lfoDivision (and the beatsPerCycle table) are dropped: the device ABI has no tempo. The LFO always runs free at lfoRateHz. Twelve parameters remain, with the source's ids, ranges and defaults.",
+          "The envelope, lfo and cutoffHz meters and the enabled flag do not exist in the device ABI and are dropped."
+        ]
+      },
+      {
+        "path": "Tatami/Source/Devices/Effects/FilterDevice.cpp",
+        "sha256": "918f0c08170ab8f92da0224ff73177ca712257ef32d15b42f5f9a3e4065d00b4",
+        "portedTo": "cpp/devices/auto-filter/auto_filter.h",
+        "deviations": [
+          "The Dry/Wet parameter (0..100 %) is `mix`, 0..1. The crossfade law is the source's, linear (dry + (wet - dry) * mix), not the equal-power law the live-mix recipe gives for mix: the dry signal is delayed to line up with the wet one, so they are correlated and equal power would add 3 dB at 0.5.",
+          "cutoffHz, resonance, envAttackMs, envReleaseMs and lfoRateHz use a log taper in place of the JUCE skews (0.23, 0.33, 0.3, 0.3, 0.25). Ranges and defaults are unchanged.",
+          "Oversampling: juce::dsp::Oversampling 2x with the half-band polyphase IIR (the low-latency stage, which measured 4 samples in the Saturator's reference run) is replaced by kit::Halfband2x (63-tap linear-phase half-band). Latency is 31 samples at every setting and the dry signal is delayed by 31 in a kit::DelayLine. The half-band is flat to 0.42 of the sample rate (20.2 kHz at 48 kHz, 18.5 kHz at 44.1 kHz) and rolls off above.",
+          "Type: the source picks one output per block with SvfTptTone::select and jumps when Type changes. Here each stage's output is a weighting of its low, k x band and high outputs (lowpass 1,0,0; highpass 0,0,1; bandpass 0,1,0; notch 1,0,1; peak 1,0,-1) and the weights ramp over 10 ms. Settled, every type is the source's response; notch is computed as low + high, which is the source's input - k x band.",
+          "Slope: the source switches the second stage in and out per block, the stage Q jumping between Q and sqrt(Q), and the second stage resumes from whatever state it last had. Here Slope ramps over 10 ms: the stage Q moves from Q to sqrt(Q) along the exponent, the second stage's output is faded in, and the second stage is reset once Slope is back at 12 dB.",
+          "Filter coefficients are recomputed only on samples where the cutoff (after modulation), the resonance or the slope changed; the source computed them every sample. Same values.",
+          "LFO: the sine comes from kit::SineTable instead of std::sin. Sample and Hold draws from kit::Rng seeded with 0x7a7a in init instead of juce::Random (0x7a7a): the same distribution (-1..1, a new value each cycle), a different sequence. The phase increment is rate / sample rate in float (double in the source), a relative error under 1e-7. kit::Lfo is not used because its shapes differ (no Saw Up, an extra smooth random).",
+          "sanitize() on the filter states runs every 64 samples (once per host block in the source) and also restarts a non-finite envelope; the envelope flushes denormals.",
+          "kit::IdleGate (new): after 50 ms with no input and the output under -140 dBFS the device stops and returns exact zero; the source ran continuously. The time asleep is counted, and on waking the envelope is decayed by its release for that time and the LFO phase advanced by rate x time, so the sweep is where it would have been (measured against a device kept awake: 4.6e-6). Sample and Hold draws one new value if a cycle boundary passed while asleep, not one per cycle, so its sequence position differs from a device that never slept. On waking every ramp jumps to its target.",
+          "Out-of-range and non-finite parameter values are handled by kit::DeviceBase (clamped to the same ranges; a non-finite value becomes the default) instead of juce::jlimit in setParam."
+        ]
+      },
+      {
+        "path": "Tatami/Source/Shared/DSP/SvfTptTone.h",
+        "sha256": "14fb22bffd0ea6dd34c498e6bd6b140049e173d17a602f57ceceaa581000912d",
+        "portedTo": "cpp/devices/auto-filter/SvfTptTone.h",
+        "deviations": [
+          "Copied with the tatami::dsp namespace. juce::MathConstants and juce::jlimit are replaced by plain C++.",
+          "saturateStates calls tanhExp, added in this file (1 - 2 / (e^(2|x|) + 1), a five-term series below |x| = 0.3), in place of std::tanh: within 2e-7 of it, about half the cost in WebAssembly.",
+          "process() flushes denormals from both integrator states (juce::ScopedNoDenormals is not available).",
+          "select() is kept but the device does not call it (see Type under FilterDevice.cpp); magnitude() is used by the test harness as the reference model. The comments pointing at the TypeScript twin and at the parallel SvfTpt.h are removed."
+        ]
+      },
+      {
+        "path": "Tatami/Source/Shared/DSP/OversamplerTone.h",
+        "sha256": "102c06c7cf6f58fcaf6b2618fcc8a26da2133fdc2bf33ffaaefb9a7c68590958",
+        "portedTo": "cpp/kit/delay.h",
+        "deviations": [
+          "The filter uses only LatencyDelay from this file (the dry-path delay); it becomes kit::DelayLine read at 31 samples. OversamplerTone itself is not used by the filter."
+        ]
+      },
+      {
+        "path": "Tatami/Source/Shared/DSP/SmoothedParam.h",
+        "sha256": "7d532c619104afb6590802195007f39cd22f326eeb1cb15ce68a5b12ebb4b7b9",
+        "portedTo": "cpp/kit/smooth.h",
+        "deviations": [
+          "Replaced by kit::LinearRamp with the same 5 ms linear ramp on cutoff and resonance (both in log2, as in the source), Drive, Env Amount, Env Attack, Env Release, LFO Amount, LFO Rate and Mix. A new target takes effect in the process call after set_param, as the source's pull() did at the next block; the ramps jump to their targets in init and when the device wakes from sleep."
+        ]
+      },
+      {
+        "path": "Tatami/Presets/effects/filter.json",
+        "sha256": "43e7b25e4ef92670312ece96e2802a43fffffee012680ad4ad786c12f237a150",
+        "portedTo": "cpp/devices/auto-filter/device.json",
+        "deviations": [
+          "All twelve factory presets are kept in order with their values; mix is divided by 100 and lfoSync and lfoDivision are removed. Init is the source's defaults and is the first preset.",
+          "The four presets that had LFO Sync on carry the rate their division gives at 120 BPM as lfoRateHz: Dub Sweep 1 bar 0.5 Hz and Squelch 1/8 4 Hz (both equal to the stored free rate), Random Steps 8 Hz (1/16; the stored free rate was 2 Hz) and Half-Wet Tremolo Filter 8 Hz (1/16; stored 5 Hz).",
+          "Two names lose the division they no longer have: Dub Sweep 1 bar is Dub Sweep, Squelch 1/8 is Squelch."
+        ]
+      },
+      {
+        "path": "Tatami/Tests/Effects/FilterTests.cpp",
+        "sha256": "0bc58b5f3b8ddb9978ee0e42ddc42d75ecca0605049d77ee048c1f1cb50fe2d4",
+        "portedTo": "cpp/test/auto_filter_test.cpp",
+        "deviations": [
+          "Carried over with the same thresholds: the -3 dB point within 2 % of the cutoff for 12 dB lowpass and highpass at 100 Hz, 1 kHz and 8 kHz; resonance peaks within 1 dB of the Q model at Q 2, 4 and 10 (lowpass at both slopes, bandpass 0 dB, peak +6.02 dB); the lowpass within 0.5 dB of SvfTptTone::magnitude from 200 Hz to 12 kHz; slopes of 12 and 24 dB per octave within 1 dB and -3.01 dB at the cutoff for the 24 dB lowpass; LFO rate within 1 %; the LFO shapes spanning -1..1 and Sample and Hold returning its held value; the envelope opening a 200 Hz lowpass by more than 20 dB at 2 kHz; Q 25 with +24 dB of drive and a full-scale tone on the cutoff finite, under 4 and over 0.01; unity within 0.1 dB wide open.",
+          "Re-baselined: the tests run at 48 kHz (44.1 kHz in the source). The latency test expects 31 samples where the source accepted any positive figure, and still requires the dry impulse to arrive there at exactly 1.0. The LFO rate is measured free-running at 0.5, 2 and 8 Hz; the tempo-synced half of that test and the division-table checks are dropped with lfoSync.",
+          "The enabled=false null test, the allocation guard (the device has no heap), the parameter round-trip through getParam and the meter test have no counterpart in the device ABI; the conformance suite covers parameter handling.",
+          "Added: all five types at both slopes against the model, stopband attenuation two octaves out, the notch depth, the peak type at 24 dB and Q 25, LFO depth against the model, Saw direction and Sample and Hold stepping, the envelope's octaves per unit level, negative amounts, attack and release times, the drive level law and harmonics, wet/dry alignment at Mix 0.5, click tests for every parameter, and that a sleep leaves the envelope and LFO where they would have been."
+        ]
+      }
+    ],
+    "note": "Tatami's Filter on cpp/kit, named Auto Filter. The TPT state variable filter, the two-stage 24 dB slope at sqrt(Q), the 2x oversampled core, the drive (input gain, tanh on the integrator states from +3 dB, half the gain given back), the envelope follower (5 octaves per unit of level at 100 %), the LFO (six shapes, 3 octaves either way at 100 %), the parameter ids, ranges, defaults and the twelve factory presets are the source's. Tempo sync is dropped; the oversampler is kit::Halfband2x and the latency 31 samples."
+  }
+}

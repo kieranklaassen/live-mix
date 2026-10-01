@@ -1,0 +1,251 @@
+{
+  "id": "saturator",
+  "name": "Saturator",
+  "category": "drive",
+  "description": "Drive into five curves (soft, hard, tube, tape, wavefold) with bias, a tone tilt and up to 4x oversampling, so the grit you add is harmonics rather than aliasing.",
+  "class": "Saturator",
+  "header": "saturator.h",
+  "sources": [],
+  "latencySamples": 39,
+  "params": [
+    {
+      "key": "curve",
+      "name": "Curve",
+      "choices": ["Soft", "Hard", "Tube", "Tape", "Fold"],
+      "default": 0
+    },
+    { "key": "driveDb", "name": "Drive", "min": 0, "max": 36, "default": 6, "unit": "dB" },
+    { "key": "bias", "name": "Bias", "min": -1, "max": 1, "default": 0 },
+    { "key": "toneDb", "name": "Tone", "min": -12, "max": 12, "default": 0, "unit": "dB" },
+    { "key": "outputDb", "name": "Output", "min": -24, "max": 24, "default": 0, "unit": "dB" },
+    { "key": "mix", "name": "Mix", "min": 0, "max": 1, "default": 1 },
+    { "key": "dcBlock", "name": "DC Block", "choices": ["Off", "On"], "default": 1 },
+    { "key": "oversample", "name": "Oversampling", "choices": ["1x", "2x", "4x"], "default": 2 },
+    { "key": "adaa", "name": "ADAA", "choices": ["Off", "On"], "default": 0 }
+  ],
+  "presets": {
+    "Init": {
+      "curve": 0,
+      "driveDb": 6,
+      "bias": 0,
+      "toneDb": 0,
+      "outputDb": 0,
+      "mix": 1,
+      "dcBlock": 1,
+      "oversample": 2,
+      "adaa": 0
+    },
+    "Warm Glue": {
+      "curve": 0,
+      "driveDb": 4,
+      "bias": 0,
+      "toneDb": -1.5,
+      "outputDb": -1,
+      "mix": 1,
+      "dcBlock": 1,
+      "oversample": 2,
+      "adaa": 1
+    },
+    "Tape Print": {
+      "curve": 3,
+      "driveDb": 9,
+      "bias": 0.05,
+      "toneDb": -3,
+      "outputDb": -2,
+      "mix": 1,
+      "dcBlock": 1,
+      "oversample": 2,
+      "adaa": 0
+    },
+    "Tube Preamp": {
+      "curve": 2,
+      "driveDb": 12,
+      "bias": 0.2,
+      "toneDb": 2,
+      "outputDb": -6,
+      "mix": 1,
+      "dcBlock": 1,
+      "oversample": 2,
+      "adaa": 0
+    },
+    "Bass DI Grit": {
+      "curve": 2,
+      "driveDb": 18,
+      "bias": 0.35,
+      "toneDb": -6,
+      "outputDb": -9,
+      "mix": 0.7,
+      "dcBlock": 1,
+      "oversample": 2,
+      "adaa": 0
+    },
+    "Drum Bus Crunch": {
+      "curve": 0,
+      "driveDb": 14,
+      "bias": 0,
+      "toneDb": 3,
+      "outputDb": -8,
+      "mix": 0.45,
+      "dcBlock": 1,
+      "oversample": 2,
+      "adaa": 1
+    },
+    "Hard Clip Master": {
+      "curve": 1,
+      "driveDb": 3,
+      "bias": 0,
+      "toneDb": 0,
+      "outputDb": -0.5,
+      "mix": 1,
+      "dcBlock": 0,
+      "oversample": 2,
+      "adaa": 1
+    },
+    "Fuzz Pedal": {
+      "curve": 1,
+      "driveDb": 30,
+      "bias": 0.4,
+      "toneDb": 6,
+      "outputDb": -18,
+      "mix": 1,
+      "dcBlock": 1,
+      "oversample": 2,
+      "adaa": 1
+    },
+    "Wavefold Lead": {
+      "curve": 4,
+      "driveDb": 16,
+      "bias": 0.15,
+      "toneDb": 4,
+      "outputDb": -10,
+      "mix": 1,
+      "dcBlock": 1,
+      "oversample": 2,
+      "adaa": 0
+    },
+    "Broken Speaker": {
+      "curve": 4,
+      "driveDb": 36,
+      "bias": 0.6,
+      "toneDb": -12,
+      "outputDb": -14,
+      "mix": 1,
+      "dcBlock": 1,
+      "oversample": 2,
+      "adaa": 0
+    },
+    "Lo-Fi 1x": {
+      "curve": 1,
+      "driveDb": 24,
+      "bias": 0,
+      "toneDb": -8,
+      "outputDb": -12,
+      "mix": 1,
+      "dcBlock": 1,
+      "oversample": 0,
+      "adaa": 0
+    },
+    "Parallel Shine": {
+      "curve": 3,
+      "driveDb": 20,
+      "bias": 0,
+      "toneDb": 8,
+      "outputDb": -12,
+      "mix": 0.3,
+      "dcBlock": 1,
+      "oversample": 2,
+      "adaa": 0
+    }
+  },
+  "origin": {
+    "kind": "port",
+    "repository": "kieranklaassen/kkfonie",
+    "commit": "808719d0190315e5c6991833fe4e51c24ae75d3f",
+    "files": [
+      {
+        "path": "Tatami/Source/Devices/Effects/SaturatorDevice.h",
+        "sha256": "46760692aad4550a5bb75a9b939e12c1f1ea65653e7a3a6406ebaef8b461d2c6",
+        "portedTo": "cpp/devices/saturator/saturator.h",
+        "deviations": [
+          "The osQuality parameter (OS Filter: IIR low latency / FIR linear phase) is dropped. There is one oversampler and it is linear phase; nine parameters remain, with the source's ids, ranges and defaults.",
+          "getLatencySamples() followed the Oversampling and OS Filter choice (0 samples at 1x, 4 and 6 with the IIR filters at 2x and 4x, 49 and 61 with the FIR ones). A live-mix device reports one latency, so this one takes 39 samples at every setting; see SaturatorDevice.cpp and OversamplerTone.h.",
+          "The inputPeak and outputPeak meters and the enabled flag do not exist in the device ABI and are dropped."
+        ]
+      },
+      {
+        "path": "Tatami/Source/Devices/Effects/SaturatorDevice.cpp",
+        "sha256": "d662198bd6f53e44c8061275d7034e44ad766fc38ef60b15b2c17d2031e1e197",
+        "portedTo": "cpp/devices/saturator/saturator.h",
+        "deviations": [
+          "The Dry/Wet parameter (0..100 %) is `mix`, 0..1. The crossfade law is the source's, linear (dry + (wet - dry) * mix), not the equal-power law the live-mix recipe gives for mix: dry and wet are time-aligned and correlated here, so equal power would add 3 dB at 0.5.",
+          "One latency for every setting. The 4x path is 39 samples long (31 for the outer half-band pair, 8 for the inner pair including one sample of padding at the 2x rate); the 2x path is fed the input 8 samples late and the 1x path 39 samples late, so all three, and the dry signal that Mix blends in, land on sample 39. In the source the 1x path had no delay and the dry delay followed the selection.",
+          "Bias: the source adds Bias to the driven signal ahead of the oversampler, so the curve's value at the bias is a constant on the output that only DC Block removes; with DC Block off it reaches the output even in silence. Here Bias is added at the curve, at the oversampled rate, and curve(bias) is subtracted there. The operating point, and with it every harmonic, is unchanged (the half-band filters have unit gain at DC), but silence in is exact silence out for every curve and with ADAA, and DC Block removes only the DC the signal generates through the asymmetry. The source's full-bias case (Soft, +12 dB, 100 Hz at 0.5, bias 1) measured -8.6 dBFS of DC unblocked; here the same mean less tanh(1) is -8.1 dBFS.",
+          "Curve, Oversampling and ADAA: the source switches at the next block boundary, resetting the newly selected oversampler and leaving the ADAA and tape filter states as they were. Here the new setting runs beside the old one for 2 ms (at least 78 samples) to fill its filters, then the two are crossfaded over 10 ms. A change that arrives during a transition is taken up when it ends. ADAA state is started at the bias so its first output is the offset rather than a step from zero.",
+          "The Tape high cut (one pole, 16 kHz at Drive 0 falling to 6 kHz at +36 dB) runs directly after the downsampler, ahead of the DC blocker and the tilt, instead of after the tilt: the three are linear, so the response is the same, and each of the two crossfading shapers carries its own. Its cutoff follows the Drive ramp every sample; the source recomputed it once per block from the ramp's value at the end of the block.",
+          "Drive, Output and Tone coefficients are recomputed only on samples where their ramp moved (the source converted dB to gain every sample; the values are the same).",
+          "kit::IdleGate (new): after 50 ms with no input and the output under -140 dBFS the device stops and returns exact zero; the source ran continuously. On waking, every ramp jumps to its target and a pending Curve, Oversampling or ADAA change applies without the crossfade, because nothing is sounding.",
+          "Out-of-range and non-finite parameter values are handled by kit::DeviceBase (clamped to the same ranges; a non-finite value becomes the default) instead of juce::jlimit in setParam."
+        ]
+      },
+      {
+        "path": "Tatami/Source/Shared/DSP/Waveshapers.h",
+        "sha256": "e59ecaf7b69a0ced95c64752861fc631e58e67460415a634a610b0c7bdccd533",
+        "portedTo": "cpp/devices/saturator/Waveshapers.h",
+        "deviations": [
+          "Copied with the tatami::dsp namespaces. juce::jlimit and juce::MathConstants are replaced by plain C++.",
+          "Soft and Tube call tanhExp, added in this file (1 - 2 / (e^(2|x|) + 1), a five-term series below |x| = 0.3), in place of std::tanh: within 2e-7 of it and exactly odd (both asserted by the harness), about half the cost in WebAssembly. The antiderivatives, Hard, Tape and Fold are unchanged.",
+          "DcBlocker keeps its low-pass state and coefficient in double and exposes the low-pass as a method, lowpass(x), where the source had a float OnePoleLowpass member: in float the 10 Hz low-pass stalls about 2e-5 short of a constant input and would leave that much DC behind. Cutoff (10 Hz) and structure (input minus its one-pole low-pass) are the source's.",
+          "OnePoleLowpass, TiltFilter and DcBlocker flush denormals from their state (juce::ScopedNoDenormals is not available).",
+          "The comment pointing at the TypeScript twin of the curves is removed; that file is not part of live-mix."
+        ]
+      },
+      {
+        "path": "Tatami/Source/Shared/DSP/Adaa.h",
+        "sha256": "1b648118fef32522f9a43a939369014548461a3cbfcec9bb51dce848507b8ac7",
+        "portedTo": "cpp/devices/saturator/Adaa.h",
+        "deviations": []
+      },
+      {
+        "path": "Tatami/Source/Shared/DSP/OversamplerTone.h",
+        "sha256": "102c06c7cf6f58fcaf6b2618fcc8a26da2133fdc2bf33ffaaefb9a7c68590958",
+        "portedTo": "cpp/devices/saturator/halfband.h",
+        "deviations": [
+          "juce::dsp::Oversampling (half-band polyphase IIR or equiripple FIR stages, chosen by osQuality) is replaced. The 2x stage is kit::Halfband2x (cpp/kit/oversample.h: 63-tap Kaiser half-band, 31 samples, linear phase). For 4x a second, shorter half-band runs inside it at the 2x rate: 31 taps, Kaiser beta 10, -98 dB from 0.355 of its rate, 15 samples at that rate; it is written in halfband.h because the kit has no short second stage.",
+          "Measured with the source's test signal moved to 48 kHz (1.1 kHz at -6 dBFS, Soft, +36 dB): 1x -29.9, 2x -49.9, 4x -85.8, 4x with ADAA -105.1 dBFS; hard clip at +24 dB and 4x -68.7, with ADAA -88.4 dBFS. The source's reference run at 44.1 kHz gave -28.0, -48.3, -85.9, -104.0 and -68.8, -87.7.",
+          "At 44.1 kHz the transition band of kit::Halfband2x (0.42 to 0.58 of the sample rate) reaches down to 18.5 kHz: for a 1 kHz tone at full drive the 25th harmonic folds to 19.1 kHz at -76.2 dBFS. Below 18 kHz the aliasing is -87.1 dBFS. The source's -80 dBFS bar is therefore held over 20 Hz to 20 kHz at 48 kHz, and up to 18 kHz at 44.1 kHz.",
+          "LatencyDelay becomes one kit::DelayLine per channel with fixed taps at 39 samples (dry signal, 1x path) and 8 samples (2x path).",
+          "Switching no longer resets the selected stage and jumps; see SaturatorDevice.cpp."
+        ]
+      },
+      {
+        "path": "Tatami/Source/Shared/DSP/SmoothedParam.h",
+        "sha256": "7d532c619104afb6590802195007f39cd22f326eeb1cb15ce68a5b12ebb4b7b9",
+        "portedTo": "cpp/kit/smooth.h",
+        "deviations": [
+          "Replaced by kit::LinearRamp with the same 5 ms linear ramp on Drive, Bias, Tone, Output, Mix and DC Block. A new target takes effect in the process call after set_param, as the source's pull() did at the next block; the ramps jump to their targets in init and when the device wakes from sleep."
+        ]
+      },
+      {
+        "path": "Tatami/Presets/effects/saturator.json",
+        "sha256": "86fb1af6d96d3807888aaf517b883d039a6a89efd58903f5398e00aed457be12",
+        "portedTo": "cpp/devices/saturator/device.json",
+        "deviations": [
+          "All twelve factory presets are kept with their names, order and values; mix is divided by 100. Init is the source's defaults and is the first preset.",
+          "osQuality is removed from every preset. Hard Clip Master and Parallel Shine had the linear-phase FIR selected; there is now only the linear-phase oversampler."
+        ]
+      },
+      {
+        "path": "Tatami/Tests/Effects/SaturatorTests.cpp",
+        "sha256": "61a465dc508e4dd1ce645564c38ccdf106e3123e54038dd65431d1a0d7271f25",
+        "portedTo": "cpp/test/saturator_test.cpp",
+        "deviations": [
+          "Carried over with the same thresholds: 1x aliasing above -40 dBFS, 4x below -80 dBFS and lower again with ADAA; ADAA at least 6 dB better on the hard clip; THD monotonic in Drive and over 20 % at +36 dB; DC over 0.1 unblocked and under -60 dBFS blocked at full bias; Drive 0 dB unity within 0.1 dB; Mix 0 returns the dry signal within 1e-6; dry and wet aligned within 0.05 x 0.04 on a 5 kHz tone at Mix 0.5; the curve bounds, unit slope at the origin, Tube asymmetry, Fold values and antiderivative checks.",
+          "Re-baselined: the aliasing bar is measured at 48 kHz with a 1.1 kHz tone (so aliases still fall between harmonics); at 44.1 kHz it is asserted up to 18 kHz, with -70 dBFS as the bar from 18 to 20 kHz (see OversamplerTone.h). The latency test expects the wet impulse on sample 39 at 1x, 2x and 4x, where the source expected 0 at 1x and the JUCE figure otherwise. Mix 0 is compared against the input delayed by 39 samples. The FIR-quality variants are dropped with osQuality.",
+          "The enabled=false null test, the allocation guard (the device has no heap), the parameter round-trip through getParam and the meter test have no counterpart in the device ABI; the conformance suite covers parameter handling.",
+          "Added: each curve's harmonics 1 to 7 against its Fourier series, the absence of even harmonics for the symmetric curves, the folded 27th harmonic at 1x against 4x, the Tape high cut, the Tone tilt, silence with a bias set, click tests for every parameter, sleep and wake."
+        ]
+      }
+    ],
+    "note": "Tatami's Saturator on cpp/kit. The five curves, first-order ADAA on Soft and Hard, the bias, the 10 Hz DC blocker, the 1 kHz tilt, the drive-dependent Tape high cut (16 kHz to 6 kHz), the parameter ids, ranges, defaults and the twelve factory presets are the source's. The oversampler is new (kit::Halfband2x around a short second stage) and gives one latency of 39 samples at every setting."
+  }
+}
