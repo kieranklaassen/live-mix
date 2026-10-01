@@ -95,6 +95,7 @@ export {
   type SerializedPreset,
 } from './presets'
 export {
+  DEVICE_CATEGORIES,
   DeviceRegistry,
   validateDescriptor,
   type DeviceCategory,

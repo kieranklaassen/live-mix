@@ -1,0 +1,99 @@
+{
+  "id": "spring-reverb",
+  "name": "Spring",
+  "category": "reverb",
+  "description": "A spring tank: one to three dispersive springs whose echoes chirp and drip, with a transformer drive in front.",
+  "class": "SpringReverb",
+  "header": "spring_reverb.h",
+  "sources": [],
+  "params": [
+    { "key": "mix", "name": "Mix", "min": 0, "max": 1, "default": 0.3 },
+    {
+      "key": "decay",
+      "name": "Decay",
+      "min": 0.5,
+      "max": 6,
+      "default": 2.5,
+      "taper": "log",
+      "unit": "s"
+    },
+    { "key": "tension", "name": "Tension", "min": 0, "max": 1, "default": 0.5 },
+    { "key": "springs", "name": "Springs", "choices": ["One", "Two", "Three"], "default": 1 },
+    {
+      "key": "tone",
+      "name": "Tone",
+      "min": 500,
+      "max": 6000,
+      "default": 3500,
+      "taper": "log",
+      "unit": "Hz"
+    },
+    { "key": "drip", "name": "Drip", "min": 0, "max": 1, "default": 0.4 },
+    { "key": "predelay", "name": "Pre-delay", "min": 0, "max": 200, "default": 0, "unit": "ms" },
+    { "key": "drive", "name": "Drive", "min": 0, "max": 1, "default": 0.25 },
+    { "key": "width", "name": "Width", "min": 0, "max": 1, "default": 1 }
+  ],
+  "presets": {
+    "Two spring tank": {
+      "mix": 0.3,
+      "decay": 2.5,
+      "tension": 0.5,
+      "springs": 1,
+      "tone": 3500,
+      "drip": 0.4,
+      "drive": 0.25
+    },
+    "Surf drip": {
+      "mix": 0.4,
+      "decay": 2.2,
+      "tension": 0.2,
+      "springs": 1,
+      "tone": 5000,
+      "drip": 1,
+      "drive": 0.45
+    },
+    "Dark amp spring": {
+      "mix": 0.25,
+      "decay": 1.6,
+      "tension": 0.55,
+      "springs": 0,
+      "tone": 1800,
+      "drip": 0.15,
+      "drive": 0.35,
+      "width": 0
+    },
+    "Long three spring": {
+      "mix": 0.35,
+      "decay": 4.5,
+      "tension": 0.5,
+      "springs": 2,
+      "tone": 3000,
+      "drip": 0.3,
+      "drive": 0.15
+    },
+    "Slack and strange": {
+      "mix": 0.45,
+      "decay": 3.5,
+      "tension": 0,
+      "springs": 2,
+      "tone": 4200,
+      "drip": 0.7,
+      "predelay": 30,
+      "drive": 0.2
+    },
+    "Dub send": {
+      "mix": 0.5,
+      "decay": 3,
+      "tension": 0.35,
+      "springs": 1,
+      "tone": 2400,
+      "drip": 0.55,
+      "predelay": 60,
+      "drive": 0.7
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit after the parametric spring model of Valimaki, Parker and Abel (JAES 2010): each spring is a feedback delay loop dispersed by a cascade of 100 first-order allpasses stretched to a transition frequency, here run at a reduced sample rate as in their efficient form. The low-frequency chirp structure only; not a model of any particular tank."
+  }
+}

@@ -1,0 +1,42 @@
+// `wasmDeviceDescriptor` turns a WASM device definition into a registry
+// descriptor. It lives apart from registry.ts so the generated device modules
+// (devices/*.gen.ts) can build their own descriptors without importing the list
+// that imports them.
+
+import { type DeviceCategory, type DeviceDescriptor, type PresetTable } from '../core/devices'
+import { type ParamSpec } from '../core/params'
+import { WasmDevice, type WasmDeviceDefinition, type WasmDeviceOptions } from './WasmDevice'
+
+export interface WasmDeviceMeta<P extends Record<string, ParamSpec>> {
+  name: string
+  category: DeviceCategory
+  /** One sentence for a device browser. */
+  description?: string
+  version?: number
+  presets?: PresetTable<P>
+  /** Over the CPU budget (docs/devices.md) or otherwise not cleared for production. */
+  experimental?: boolean
+}
+
+/**
+ * Describe a WASM device for the registry. `registry.create(id, ctx, options)`
+ * hands `processorUrl`, `wasm` and `createNode` through to `WasmDevice.create`.
+ */
+export function wasmDeviceDescriptor<P extends Record<string, ParamSpec>>(
+  definition: WasmDeviceDefinition<P>,
+  meta: WasmDeviceMeta<P>,
+): DeviceDescriptor<P> {
+  return {
+    id: definition.id,
+    name: meta.name,
+    kind: 'wasm',
+    category: meta.category,
+    ...(meta.description ? { description: meta.description } : {}),
+    version: meta.version ?? 1,
+    params: definition.params,
+    presets: meta.presets,
+    ...(meta.experimental ? { experimental: true } : {}),
+    create: (context, options) =>
+      WasmDevice.create(context, definition, options as WasmDeviceOptions<P>),
+  }
+}

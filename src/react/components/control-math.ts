@@ -289,11 +289,13 @@ export function formatTimeSec(seconds: number): string {
 // --- ParamSpec helpers for the generated device panel --------------------------------
 
 /**
- * True for a small integer range (2…32 steps) with an integer default and no
- * unit — a choice like a filter type. A 0…1 range is never a choice here
- * (`width`, `mix`); pass `choiceLabels` to the panel to force one.
+ * True for a spec that names its `choices`, and otherwise for a small integer
+ * range (2…32 steps) with an integer default and no unit — a choice like a
+ * filter type. An unlabelled 0…1 range is never a choice here (`width`,
+ * `mix`); give the spec `choices` or pass `choiceLabels` to the panel.
  */
 export function isChoiceParam(spec: ParamSpec): boolean {
+  if (spec.choices !== undefined && spec.choices.length > 0) return true
   const span = spec.max - spec.min
   return (
     spec.taper === 'linear' &&
@@ -334,8 +336,11 @@ export function paramTaper(spec: ParamSpec): ControlTaper {
   return spec.taper === 'log' && spec.min > 0 ? 'log' : 'linear'
 }
 
-/** Format a parameter value with the spec's unit (choices print as integers). */
+/** Format a parameter value with the spec's unit (choices print their label, or the integer). */
 export function formatParamValue(spec: ParamSpec, value: number): string {
-  if (isChoiceParam(spec)) return String(Math.round(value))
+  if (isChoiceParam(spec)) {
+    const step = Math.round(value)
+    return spec.choices?.[step - spec.min] ?? String(step)
+  }
   return formatControlValue(value, spec.unit || 'ratio')
 }

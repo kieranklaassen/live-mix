@@ -132,7 +132,11 @@ export function Knob({
       style={style}
       data-testid={testId}
     >
-      {hideLabel ? null : <span className="lm-knob__label">{label}</span>}
+      {hideLabel ? null : (
+        <span className="lm-knob__label" title={label}>
+          {label}
+        </span>
+      )}
       <button
         type="button"
         role="slider"

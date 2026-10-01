@@ -175,6 +175,25 @@ describe('WasmDevice', () => {
     expect(device.latencySec).toBe(0.01)
     expect(device.getParam('amount')).toBe(0.5)
   })
+
+  it('reports seconds for a definition that only gives its latency in samples', async () => {
+    const ctx = createMockContext()
+    const delayed = defineWasmDevice({
+      id: 'delayed',
+      wasm: () => dattorroModule,
+      params: {
+        amount: { id: 0, name: 'Amount', min: 0, max: 1, default: 0.5, taper: 'linear', unit: '' },
+      },
+      latencySamples: () => 39,
+    })
+    const device = await WasmDevice.create(asAudioContext(ctx), delayed, {
+      processorUrl: 'p',
+      createNode: mockNodeFactory,
+    })
+    expect(device.latencySamples).toBe(39)
+    expect(device.latencySec).toBeCloseTo(39 / ctx.sampleRate, 12)
+    expect(Math.round(device.latencySec * ctx.sampleRate)).toBe(39)
+  })
 })
 
 describe('WasmDevice notes and custom processors', () => {
@@ -200,5 +219,32 @@ describe('WasmDevice notes and custom processors', () => {
       { type: 'note-off', noteId: 1 },
       { type: 'load-sample', frames: 2 },
     ])
+  })
+
+  it('hands a sample device copies of at most two channels and leaves the caller its buffers', async () => {
+    const ctx = createMockContext()
+    const device = await WasmDevice.create(asAudioContext(ctx), DATTORRO_DEVICE, {
+      wasm: dattorroModule,
+      createNode: mockNodeFactory,
+    })
+    const left = Float32Array.of(0.1, 0.2, 0.3)
+    const right = Float32Array.of(-0.1, -0.2, -0.3)
+    device.loadSample([], 48000)
+    device.loadSample([left, right, Float32Array.of(9)], 44100)
+    const calls = ctx.workletNodes[0].port.posted.calls
+    const samples = calls.filter((call) => (call[0] as { type: string }).type === 'sample')
+    expect(samples).toHaveLength(1)
+    const [message, transfer] = samples[0] as [
+      { channels: Float32Array[]; sampleRate: number },
+      ArrayBuffer[],
+    ]
+    expect(message.sampleRate).toBe(44100)
+    expect(message.channels.map((channel) => [...channel])).toEqual([[...left], [...right]])
+    expect(message.channels[0]).not.toBe(left)
+    expect(transfer).toEqual(message.channels.map((channel) => channel.buffer))
+    expect(left).toHaveLength(3)
+    device.dispose()
+    device.loadSample([left], 48000)
+    expect(calls.filter((call) => (call[0] as { type: string }).type === 'sample')).toHaveLength(1)
   })
 })

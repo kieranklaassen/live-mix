@@ -1,0 +1,286 @@
+{
+  "id": "phaser",
+  "name": "Phaser",
+  "category": "modulation",
+  "description": "Four to twelve swept allpass stages with staggered tuning, positive or negative feedback, six LFO shapes and a stereo phase offset: slow swirls, vibe and stepped filter patterns.",
+  "class": "Phaser",
+  "header": "phaser.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "stages",
+      "name": "Stages",
+      "choices": ["4", "6", "8", "10", "12"],
+      "default": 1
+    },
+    {
+      "key": "centerHz",
+      "name": "Centre",
+      "min": 100,
+      "max": 5000,
+      "default": 800,
+      "taper": "log",
+      "unit": "Hz"
+    },
+    {
+      "key": "spread",
+      "name": "Spread",
+      "min": 0,
+      "max": 100,
+      "default": 30,
+      "unit": "%"
+    },
+    {
+      "key": "feedback",
+      "name": "Feedback",
+      "min": -95,
+      "max": 95,
+      "default": 40,
+      "unit": "%"
+    },
+    {
+      "key": "rate",
+      "name": "Rate",
+      "min": 0.01,
+      "max": 10,
+      "default": 0.3,
+      "taper": "log",
+      "unit": "Hz"
+    },
+    {
+      "key": "depth",
+      "name": "Depth",
+      "min": 0,
+      "max": 100,
+      "default": 60,
+      "unit": "%"
+    },
+    {
+      "key": "shape",
+      "name": "Shape",
+      "choices": ["Sine", "Triangle", "Saw up", "Saw down", "Square", "Random"],
+      "default": 0
+    },
+    {
+      "key": "stereo",
+      "name": "Stereo",
+      "min": 0,
+      "max": 180,
+      "default": 90,
+      "unit": "deg"
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.5
+    }
+  ],
+  "presets": {
+    "Warm Six-Stage": {
+      "stages": 1,
+      "centerHz": 800,
+      "spread": 30,
+      "feedback": 40,
+      "rate": 0.3,
+      "depth": 60,
+      "shape": 0,
+      "stereo": 90,
+      "mix": 0.5
+    },
+    "Classic 4-Stage": {
+      "stages": 0,
+      "centerHz": 800,
+      "spread": 20,
+      "feedback": 40,
+      "rate": 0.3,
+      "depth": 60,
+      "shape": 0,
+      "stereo": 90,
+      "mix": 0.5
+    },
+    "Deep 8-Stage": {
+      "stages": 2,
+      "centerHz": 600,
+      "spread": 40,
+      "feedback": 60,
+      "rate": 0.2,
+      "depth": 75,
+      "shape": 0,
+      "stereo": 90,
+      "mix": 0.5
+    },
+    "Slow Swirl": {
+      "stages": 1,
+      "centerHz": 1200,
+      "spread": 30,
+      "feedback": 30,
+      "rate": 0.06,
+      "depth": 90,
+      "shape": 1,
+      "stereo": 120,
+      "mix": 0.5
+    },
+    "Fast Vibe": {
+      "stages": 0,
+      "centerHz": 1500,
+      "spread": 10,
+      "feedback": 20,
+      "rate": 4.5,
+      "depth": 35,
+      "shape": 0,
+      "stereo": 0,
+      "mix": 0.5
+    },
+    "Twelve Stage Cloud": {
+      "stages": 4,
+      "centerHz": 900,
+      "spread": 100,
+      "feedback": 50,
+      "rate": 0.12,
+      "depth": 70,
+      "shape": 0,
+      "stereo": 180,
+      "mix": 0.5
+    },
+    "Negative Notch": {
+      "stages": 1,
+      "centerHz": 700,
+      "spread": 25,
+      "feedback": -75,
+      "rate": 0.25,
+      "depth": 55,
+      "shape": 0,
+      "stereo": 90,
+      "mix": 0.5
+    },
+    "Random Steps": {
+      "stages": 2,
+      "centerHz": 1000,
+      "spread": 30,
+      "feedback": 45,
+      "rate": 3.0,
+      "depth": 80,
+      "shape": 5,
+      "stereo": 90,
+      "mix": 0.5
+    },
+    "Saw Riser": {
+      "stages": 1,
+      "centerHz": 400,
+      "spread": 20,
+      "feedback": 35,
+      "rate": 0.5,
+      "depth": 100,
+      "shape": 2,
+      "stereo": 0,
+      "mix": 0.5
+    },
+    "Bass Safe": {
+      "stages": 0,
+      "centerHz": 2500,
+      "spread": 15,
+      "feedback": 30,
+      "rate": 0.35,
+      "depth": 40,
+      "shape": 0,
+      "stereo": 90,
+      "mix": 0.45
+    }
+  },
+  "origin": {
+    "kind": "port",
+    "repository": "kieranklaassen/kkfonie",
+    "commit": "808719d0190315e5c6991833fe4e51c24ae75d3f",
+    "files": [
+      {
+        "path": "Tatami/Source/Devices/Effects/PhaserDevice.h",
+        "sha256": "95596ac59850b5a8d493c6b0d44a0549c32663540ae5fe6201237f5228e06aba",
+        "portedTo": "cpp/devices/phaser/phaser.h",
+        "deviations": [
+          "The lfoPhase, sweepHz and wetLevel meters and the enabled flag do not exist in the device ABI and are dropped."
+        ]
+      },
+      {
+        "path": "Tatami/Source/Devices/Effects/PhaserDevice.cpp",
+        "sha256": "28aa9937db18a9768d2909e85092caeb497ee72ae6b6f7ad992874b445b647c1",
+        "portedTo": "cpp/devices/phaser/phaser.h",
+        "deviations": [
+          "The Dry/Wet parameter (0..100 %) is `mix`, 0..1. The crossfade law is the source's, linear (dry + (wet - dry) * mix), not the equal-power law other live-mix devices use: the notches are deepest at 0.5 only with a linear sum. Preset mix values are divided by 100.",
+          "centerHz and rate use a log taper in place of the JUCE skew that centred the knob on 800 Hz and 0.5 Hz. Ranges and defaults are unchanged.",
+          "Added: an idle gate. With no input and the wet path below -140 dBFS for 50 ms the device outputs exact zero and stops rendering; the LFO phase keeps advancing while asleep, so it stays free-running, and the control clock restarts on waking so the first sample retunes the stages.",
+          "Added: a change of Stages crossfades over 20 ms to a second chain that starts cleared (both chains run while it lasts). The source changed the number of stages processed within one block, which steps the output and brings back whatever the re-enabled stages last held.",
+          "Added: the LFO passes through a 3 ms one-pole lag (at the control rate) before it sets the sweep, so the Saw, Square and Random shapes and a Shape change do not jump the filters. The lag costs 1.7 % of the sweep depth at 10 Hz and under 0.1 % below 2 Hz.",
+          "Added: the feedback signal goes through a soft limiter that is exactly linear up to +-1 (0 dBFS) and lands on +-2. The source's loop is linear at any level and reaches 20 times the input at 95 % feedback.",
+          "Centre, Spread, Depth and Stereo are smoothed at the control rate (every 4 samples, where the source reads them) with a 5 ms one-pole; Feedback and Mix per sample with a 5 ms one-pole. The source ramps every parameter linearly over 5 ms, pulled once per block.",
+          "The per-stage frequency 2^(position * spread) is built from one ratio multiplied up the chain rather than one exp2 per stage; the values are the same to float rounding.",
+          "Mono input handling is dropped: the ABI is always stereo."
+        ]
+      },
+      {
+        "path": "Tatami/Source/Shared/DSP/PhaserStage.h",
+        "sha256": "96e65b1ea7d7782f636decf00b454cf37f198f0368fa1c39b65e867db6b595ee",
+        "portedTo": "cpp/devices/phaser/phaser_stage.h",
+        "deviations": [
+          "The coefficient (tan(pi f / fs) - 1) / (tan(pi f / fs) + 1) is computed from the (5,4) Pade approximant of the tangent with one division, in place of std::tan: within 1e-4 of the function at the 0.45 fs clamp and closer than float rounding below 0.2 fs.",
+          "The stage output is flushed of denormals (WASM has no flush-to-zero).",
+          "firstNotchHz is not ported; the harness computes notch positions itself."
+        ]
+      },
+      {
+        "path": "Tatami/Source/Shared/DSP/ModLfo.h",
+        "sha256": "247692b06415cd2c75dc6059792f29a13049edf9428c0d6e6921ecdca0713d99",
+        "portedTo": "cpp/devices/phaser/mod_lfo.h",
+        "deviations": [
+          "The phase accumulator is a double; the source's float phase cannot represent the increment of 0.01 Hz at 48 or 96 kHz closely (it is 2 to 4 float steps), which made the lowest rates run up to 40 % off.",
+          "The sine shape reads the kit's 4096-point interpolated table (error below -100 dB) in place of std::sin.",
+          "advance() and value() are separate calls and advance() takes a sample count; the source's next() did both for one sample."
+        ]
+      },
+      {
+        "path": "Tatami/Source/Shared/DSP/ParamBank.h",
+        "sha256": "ab289bdb29a6edd7ea6b819a1e9ec8800cf45464562de0a29ccc49ed09f6ca58",
+        "portedTo": "cpp/kit/device.h",
+        "deviations": [
+          "Replaced by kit::DeviceBase (clamped parameter store addressed by index) and kit::Smoother."
+        ]
+      },
+      {
+        "path": "Tatami/Source/Shared/DSP/SmoothedParam.h",
+        "sha256": "7d532c619104afb6590802195007f39cd22f326eeb1cb15ce68a5b12ebb4b7b9",
+        "portedTo": "cpp/kit/smooth.h",
+        "deviations": [
+          "Replaced by kit::Smoother: a one-pole with a 5 ms time constant in place of juce::SmoothedValue's 5 ms linear ramp."
+        ]
+      },
+      {
+        "path": "Tatami/Presets/effects/phaser.json",
+        "sha256": "5ed32995a084f83cf5b506267c7250fa486de92d8029e4a708de0100dfea0937",
+        "portedTo": "cpp/devices/phaser/device.json",
+        "deviations": [
+          "All nine factory presets are kept with their names and values (mix divided by 100).",
+          "Added a first preset, Warm Six-Stage, that holds the source's default values: live-mix expects the first preset to be the default sound and no factory preset matched the defaults."
+        ]
+      },
+      {
+        "path": "Tatami/Tests/Effects/PhaserTests.cpp",
+        "sha256": "3562e6387613fb1d997ca9b088e7b04c808f21331f499061f437cf78215faccc",
+        "portedTo": "cpp/test/phaser_test.cpp",
+        "deviations": [
+          "The notch sweep (depth * 5 octaves within 10 %, each end within 10 % of firstNotchHz, notch more than 20 dB deep), the LFO rate within 1 %, the fully wet unity gain within 0.1 dB and the bounded check for 12 stages at 95 % feedback (peak under 10) are carried over with the same thresholds. LFO phase and rate are measured from the audio because there is no lfoPhase meter.",
+          "The enabled=false null test becomes Mix 0 is the input, sample for sample. The allocation guard is replaced by the build (no heap in device code); the meter test is dropped with the meters."
+        ]
+      },
+      {
+        "path": "Tatami/Tests/Effects/TimeEffectsSupport.h",
+        "sha256": "09531d0c1ee51f005fc09a55dcaf1ae4b2caf0b82d9cc11d0ba82e2c0402f58a",
+        "portedTo": "cpp/test/phaser_test.cpp",
+        "deviations": [
+          "notchFrequency and impulseDbAt are replaced by a direct transform of the impulse response at the frequencies of interest (the test kit has no FFT)."
+        ]
+      }
+    ],
+    "note": "Tatami's Phaser on cpp/kit. The signal flow, constants (2.5 octave sweep either way at full Depth, +-1 octave stage Spread, 4-sample control interval, feedback one sample behind the output), parameter ids, ranges, defaults and factory presets are the source's. EffectBase.h, ModDelayLine.h and OnePoleFilter.h are not used by this device."
+  }
+}

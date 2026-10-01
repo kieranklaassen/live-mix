@@ -11,6 +11,12 @@ export interface ParamSpec {
   default: number
   taper: ParamTaper
   unit: string
+  /**
+   * Labels for an enumerated parameter, one per integer from `min` to `max`
+   * (a filter type, a waveform, a mode). Present means the parameter is a
+   * choice: panels step it by one and print the label instead of a number.
+   */
+  choices?: readonly string[]
 }
 
 export function clampParam(spec: ParamSpec, value: number): number {

@@ -1,0 +1,208 @@
+{
+  "id": "bloom-reverb",
+  "name": "Bloom",
+  "category": "reverb",
+  "description": "Reverb with evolving spectral tails: the tail is read through reversed, pitch-shifted grains and fed back into itself, so the shift grows the longer a sound has been ringing.",
+  "class": "BloomReverb",
+  "header": "bloom_reverb.h",
+  "sources": [
+    "cpp/devices/spectral-drifter/SpectralDrifter.cpp",
+    "cpp/devices/stereo-widener/StereoWidener.cpp"
+  ],
+  "params": [
+    {
+      "key": "bloom",
+      "name": "Bloom",
+      "min": 0,
+      "max": 1,
+      "default": 0.5
+    },
+    {
+      "key": "direction",
+      "name": "Direction",
+      "choices": ["Up", "Down", "Scatter"],
+      "default": 0
+    },
+    {
+      "key": "season",
+      "name": "Season",
+      "choices": ["Spring", "Summer", "Autumn", "Winter"],
+      "default": 0
+    },
+    {
+      "key": "decay",
+      "name": "Decay",
+      "min": 1,
+      "max": 30,
+      "default": 5,
+      "taper": "log",
+      "unit": "s"
+    },
+    {
+      "key": "seed",
+      "name": "Seed",
+      "choices": ["Fundamental", "Odd", "Even"],
+      "default": 0
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.5
+    },
+    {
+      "key": "interval",
+      "name": "Interval",
+      "choices": ["5th", "Octave", "5th+Oct", "Atonal"],
+      "default": 1
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 0.5
+    }
+  ],
+  "presets": {
+    "Bloom": {
+      "bloom": 0.5,
+      "direction": 0,
+      "season": 0,
+      "decay": 5,
+      "seed": 0,
+      "mix": 0.5,
+      "interval": 1,
+      "width": 0.5
+    },
+    "Rising fifths": {
+      "bloom": 0.7,
+      "direction": 0,
+      "season": 0,
+      "decay": 8,
+      "seed": 0,
+      "mix": 0.45,
+      "interval": 0,
+      "width": 0.6
+    },
+    "Winter drift": {
+      "bloom": 0.6,
+      "direction": 1,
+      "season": 3,
+      "decay": 12,
+      "seed": 2,
+      "mix": 0.5,
+      "interval": 3,
+      "width": 0.5
+    },
+    "Octave halo": {
+      "bloom": 0.85,
+      "direction": 0,
+      "season": 1,
+      "decay": 6,
+      "seed": 1,
+      "mix": 0.4,
+      "interval": 1,
+      "width": 0.7
+    },
+    "Scatter": {
+      "bloom": 0.75,
+      "direction": 2,
+      "season": 2,
+      "decay": 9,
+      "seed": 0,
+      "mix": 0.5,
+      "interval": 2,
+      "width": 0.65
+    },
+    "Long dark": {
+      "bloom": 0.35,
+      "direction": 1,
+      "season": 3,
+      "decay": 24,
+      "seed": 0,
+      "mix": 0.6,
+      "interval": 1,
+      "width": 0.55
+    },
+    "Still room": {
+      "bloom": 0,
+      "direction": 0,
+      "season": 1,
+      "decay": 2.5,
+      "seed": 0,
+      "mix": 0.35,
+      "interval": 1,
+      "width": 0.5
+    }
+  },
+  "origin": {
+    "kind": "port",
+    "repository": "kieranklaassen/kkfonie",
+    "commit": "808719d0190315e5c6991833fe4e51c24ae75d3f",
+    "files": [
+      {
+        "path": "Bloom/Source/PluginProcessor.cpp",
+        "sha256": "8988dbf5472d37936b803152736541dc8662abd34257f45008b6323efa1d168d",
+        "portedTo": "bloom_reverb.h",
+        "deviations": [
+          "bloom, mix and width are 0..1 instead of 0..100 % (the source divides by 100; same laws and defaults)",
+          "decay: JUCE skew 0.4 becomes a log taper; range 1..30 s and default 5 s unchanged",
+          "LFO depth: 18 samples at any rate in the source; here 18 x rate / 44100 (0.408 ms at every rate; 19.6 samples at 48 kHz)",
+          "damping pole 0.45, DC-blocker pole 0.995 and the feedback-gain smoothing pole 0.999 are per-sample constants in the source; here each is raised to the power 44100 / rate, which keeps the 5.6 kHz damping corner, the 35 Hz DC corner and the 23 ms glide of 44.1 kHz at every rate (identical at 44.1 kHz; at 48 kHz the plugin's corners sit 8.8 % higher)",
+          "above 64 kHz the reverb core (diffusers, lines, age tracker, drifters) runs at half the host rate behind kit::Halfband2x (63-tap halfband down and up), because SpectralDrifter's grain length, ratio smoothing and second output low-pass are sample counts inside the shared class: 88.2/96 kHz behave as 44.1/48 kHz. Only the wet path is resampled (about 0.65 ms of extra pre-delay at 96 kHz); the dry path and the widener stay at the host rate. Above 128 kHz the core runs at 88.2/96 kHz and the drifter's sample-count constants are twice as fast, as they would be in the plugin",
+          "MAX_DELAY_SAMPLES 44100 (a one-second cap counted in samples) becomes 32768-sample lines: the longest line is 0.177 s, so no rate up to a 185 kHz core rate is clamped",
+          "the feedback-gain target is recomputed when decay changes instead of once per host block (the source reads the unsmoothed parameter per block); a decay set before the first block snaps instead of gliding from the 5 s default",
+          "juce::SmoothedValue 5 ms linear ramps on bloom, mix and width become kit::LinearRamp 5 ms; smoothedDecay, which the source advances but never reads, is dropped; parameter changes take effect at the sample they arrive on, not at the next host block",
+          "std::sin per line per sample becomes a coupled-form sine oscillator per line (same rates 0.1 + 0.025 i Hz, same golden-ratio start phases)",
+          "juce::ScopedNoDenormals becomes flush_denormal on the diffuser, interpolator, damping, DC-blocker and age states",
+          "the normalised age is clamped to 1 before it reaches the drifter (in the source it can exceed 1 for a moment after decay is lowered while a tail rings)",
+          "width: below 0.25 the side signal left by StereoWidener is faded to zero so that width 0 is exactly mono; the widener alone keeps the band under its 200 Hz crossover at full width when width is 0 (measured side 9 to 14 dB under mid on Bloom's tail). From 0.25 up the output is the source's",
+          "StereoWidener::setWidth is called only on samples where the ramped width changes (same output, no per-sample sqrt)",
+          "kit::IdleGate: once the network and the output have stayed under -140 dBFS for one second the device stops and returns exact zero; the plugin runs continuously",
+          "the UI meters (input and output peaks, currentDrift, decayProgress) and the JUCE state/program plumbing are not ported",
+          "the plugin has no presets: the seven presets are new, the first being the source's defaults"
+        ]
+      },
+      {
+        "path": "Bloom/Source/PluginProcessor.h",
+        "sha256": "b440e7941bf76ea50a989c8b380212f4aa7d8cc05fcae968b1336600577e59ed",
+        "portedTo": "bloom_reverb.h",
+        "deviations": [
+          "constants carried over unchanged: 8 lines of 4799..7789 samples and 4 diffusers of 142, 107, 379, 277 samples at 44.1 kHz, diffusion 0.75 / 0.625, damping 0.45, DC pole 0.995, drift injection 0.25, wet headroom 0.35 (rate handling as listed for PluginProcessor.cpp)",
+          "std::array members become kit::DelayLine and plain arrays in one static object; atomics for the editor dropped"
+        ]
+      },
+      {
+        "path": "Bloom/Source/SpectralDrifter.h",
+        "sha256": "ac428084c62eaa724cb934a969a90f5f2f1cafd0eceb873c84d3a1dccef6c63b",
+        "portedTo": "../spectral-drifter/SpectralDrifter.h",
+        "deviations": [
+          "reused unchanged from cpp/devices/spectral-drifter, whose manifest records its de-JUCE edits (jlimit to std::clamp, MathConstants to kPi, two test hooks)"
+        ]
+      },
+      {
+        "path": "Bloom/Source/SpectralDrifter.cpp",
+        "sha256": "531205b32a043ec23b3daf56b8db34b33bddc4e5c73cfaeaecc7b0357f2b9824",
+        "portedTo": "../spectral-drifter/SpectralDrifter.cpp",
+        "deviations": [
+          "reused unchanged from cpp/devices/spectral-drifter, whose manifest records its edits (MathConstants to kPi, flush_denormal on the eight one-pole states)"
+        ]
+      },
+      {
+        "path": "Bloom/Source/StereoWidener.h",
+        "sha256": "b036257a740d265654d02660a447df06ce18e8eb4bdb71f2c67bbf4f9f5858ed",
+        "portedTo": "../stereo-widener/StereoWidener.h",
+        "deviations": []
+      },
+      {
+        "path": "Bloom/Source/StereoWidener.cpp",
+        "sha256": "77e05e78cb217ecf90c36ebcfb4a15f7790c70595328483e7a421d36a125a542",
+        "portedTo": "../stereo-widener/StereoWidener.cpp",
+        "deviations": []
+      }
+    ],
+    "note": "bloom_reverb.h is Bloom's processBlock rebuilt on cpp/kit: the algorithm, its constants and its quirks are the plugin's (the four input diffusers are Schroeder allpasses without the (1 - k^2) term and therefore resonant combs; the wet path is the drifters' output only). SpectralDrifter and StereoWidener are the copies live-mix already builds for spectral-drifter, stereo-widener and felt-piano, compiled in through `sources`. PluginEditor.h/.cpp (the WebView UI) are not ported."
+  }
+}

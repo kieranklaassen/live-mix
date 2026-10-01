@@ -1,0 +1,133 @@
+{
+  "id": "freq-shifter",
+  "name": "Frequency Shifter",
+  "category": "pitch",
+  "description": "Single-sideband frequency shifter: moves every partial by the same number of hertz, from slow phasing drift to bell tones, with a delayed feedback path for barber-pole spirals.",
+  "class": "FreqShifter",
+  "header": "freq_shifter.h",
+  "sources": [],
+  "params": [
+    { "key": "shift", "name": "Shift", "min": -1000, "max": 1000, "default": 0, "unit": "Hz" },
+    { "key": "fine", "name": "Fine", "min": -10, "max": 10, "default": 0.4, "unit": "Hz" },
+    { "key": "mode", "name": "Mode", "choices": ["Up", "Down", "Stereo", "Ring"], "default": 0 },
+    { "key": "feedback", "name": "Feedback", "min": 0, "max": 0.98, "default": 0.5 },
+    {
+      "key": "delay",
+      "name": "Delay",
+      "min": 1,
+      "max": 500,
+      "default": 45,
+      "taper": "log",
+      "unit": "ms"
+    },
+    {
+      "key": "lfoRate",
+      "name": "LFO Rate",
+      "min": 0.01,
+      "max": 10,
+      "default": 0.08,
+      "taper": "log",
+      "unit": "Hz"
+    },
+    { "key": "lfoDepth", "name": "LFO Depth", "min": 0, "max": 1, "default": 0.08 },
+    {
+      "key": "tone",
+      "name": "Tone",
+      "min": 200,
+      "max": 16000,
+      "default": 4500,
+      "taper": "log",
+      "unit": "Hz"
+    },
+    { "key": "width", "name": "Width", "min": 0, "max": 1, "default": 0.6 },
+    { "key": "mix", "name": "Mix", "min": 0, "max": 1, "default": 0.5 }
+  ],
+  "presets": {
+    "Slow drift": {
+      "shift": 0,
+      "fine": 0.4,
+      "mode": 0,
+      "feedback": 0.5,
+      "delay": 45,
+      "lfoRate": 0.08,
+      "lfoDepth": 0.08,
+      "tone": 4500,
+      "width": 0.6,
+      "mix": 0.5
+    },
+    "Barber pole": {
+      "shift": 0,
+      "fine": 1.5,
+      "mode": 0,
+      "feedback": 0.85,
+      "delay": 12,
+      "lfoDepth": 0,
+      "tone": 7000,
+      "width": 1,
+      "mix": 0.5
+    },
+    "Falling spiral": {
+      "shift": 0,
+      "fine": 6,
+      "mode": 1,
+      "feedback": 0.8,
+      "delay": 260,
+      "lfoRate": 0.05,
+      "lfoDepth": 0.1,
+      "tone": 3200,
+      "width": 0.8,
+      "mix": 0.45
+    },
+    "Bell metal": {
+      "shift": 233,
+      "fine": 0,
+      "mode": 0,
+      "feedback": 0.3,
+      "delay": 90,
+      "lfoDepth": 0,
+      "tone": 6000,
+      "width": 0.3,
+      "mix": 0.7
+    },
+    "Split sky": {
+      "shift": 0,
+      "fine": 3,
+      "mode": 2,
+      "feedback": 0.6,
+      "delay": 180,
+      "lfoRate": 0.12,
+      "lfoDepth": 0.15,
+      "tone": 5000,
+      "width": 1,
+      "mix": 0.6
+    },
+    "Radio ring": {
+      "shift": 110,
+      "fine": 0,
+      "mode": 3,
+      "feedback": 0.2,
+      "delay": 30,
+      "lfoRate": 0.3,
+      "lfoDepth": 0.25,
+      "tone": 3000,
+      "width": 0.5,
+      "mix": 0.8
+    },
+    "Seasick": {
+      "shift": 0,
+      "fine": 0,
+      "mode": 0,
+      "feedback": 0.35,
+      "delay": 20,
+      "lfoRate": 0.25,
+      "lfoDepth": 0.35,
+      "tone": 8000,
+      "width": 0.7,
+      "mix": 1
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. A Bode-style single-sideband shifter (Hilbert pair times a quadrature carrier) with the delayed, filtered feedback path of the later rack shifters; not a model of any one unit."
+  }
+}

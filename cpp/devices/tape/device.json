@@ -1,0 +1,106 @@
+{
+  "id": "tape",
+  "name": "Tape",
+  "category": "texture",
+  "description": "What tape does to a sound: saturation that dulls loud highs, wow and flutter, head bump, the bandwidth of the chosen speed, and the dropouts and hiss of a worn reel.",
+  "class": "Tape",
+  "header": "tape.h",
+  "sources": [],
+  "latencySamples": 415,
+  "params": [
+    { "key": "drive", "name": "Drive", "min": 0, "max": 1, "default": 0.3 },
+    { "key": "wow", "name": "Wow", "min": 0, "max": 1, "default": 0.25 },
+    { "key": "flutter", "name": "Flutter", "min": 0, "max": 1, "default": 0.2 },
+    {
+      "key": "speed",
+      "name": "Speed",
+      "choices": ["15 ips", "7.5 ips", "3.75 ips", "Cassette"],
+      "default": 1
+    },
+    { "key": "age", "name": "Age", "min": 0, "max": 1, "default": 0.2 },
+    { "key": "hiss", "name": "Hiss", "min": 0, "max": 1, "default": 0.25 },
+    { "key": "bump", "name": "Head Bump", "min": 0, "max": 1, "default": 0.5 },
+    { "key": "tone", "name": "Tone", "min": 0, "max": 1, "default": 0.5 },
+    { "key": "output", "name": "Output", "min": -12, "max": 12, "default": 0, "unit": "dB" },
+    { "key": "mix", "name": "Mix", "min": 0, "max": 1, "default": 1 }
+  ],
+  "presets": {
+    "Quarter inch": {
+      "drive": 0.3,
+      "wow": 0.25,
+      "flutter": 0.2,
+      "speed": 1,
+      "age": 0.2,
+      "hiss": 0.25,
+      "bump": 0.5,
+      "tone": 0.5,
+      "output": 0,
+      "mix": 1
+    },
+    "Studio master": {
+      "drive": 0.4,
+      "wow": 0.05,
+      "flutter": 0.05,
+      "speed": 0,
+      "age": 0,
+      "hiss": 0.1,
+      "bump": 0.5,
+      "tone": 0.5
+    },
+    "Cassette four-track": {
+      "drive": 0.55,
+      "wow": 0.4,
+      "flutter": 0.35,
+      "speed": 3,
+      "age": 0.35,
+      "hiss": 0.45,
+      "bump": 0.6,
+      "tone": 0.55
+    },
+    "Disintegrating loop": {
+      "drive": 0.5,
+      "wow": 0.7,
+      "flutter": 0.4,
+      "speed": 2,
+      "age": 0.9,
+      "hiss": 0.5,
+      "bump": 0.4,
+      "tone": 0.4
+    },
+    "Hot glue": {
+      "drive": 0.75,
+      "wow": 0.08,
+      "flutter": 0.05,
+      "speed": 0,
+      "age": 0,
+      "hiss": 0,
+      "bump": 0.7,
+      "tone": 0.5,
+      "output": -2
+    },
+    "Seasick": {
+      "drive": 0.35,
+      "wow": 1,
+      "flutter": 0.15,
+      "speed": 2,
+      "age": 0.4,
+      "hiss": 0.3,
+      "bump": 0.5,
+      "tone": 0.5
+    },
+    "Old dictation": {
+      "drive": 0.65,
+      "wow": 0.5,
+      "flutter": 0.8,
+      "speed": 3,
+      "age": 0.7,
+      "hiss": 0.7,
+      "bump": 0.2,
+      "tone": 0.3
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. A behavioural sketch of a tape machine (emphasis around a soft saturator, a wobbling transport, playback equalisation per speed, dropouts, hiss), not a model of any one deck or of magnetic hysteresis. Hiss is only made while the device is awake: it carries on for a second after the input stops, fades, and an idle track is exactly silent."
+  }
+}

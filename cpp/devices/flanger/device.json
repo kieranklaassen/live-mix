@@ -1,0 +1,222 @@
+{
+  "id": "flanger",
+  "name": "Flanger",
+  "category": "modulation",
+  "description": "Short swept delay with positive or negative feedback, six LFO shapes and a stereo phase offset: jet sweeps, hollow combs and metallic resonance.",
+  "class": "Flanger",
+  "header": "flanger.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "delayMs",
+      "name": "Delay",
+      "min": 0.5,
+      "max": 10,
+      "default": 2.5,
+      "taper": "log",
+      "unit": "ms"
+    },
+    {
+      "key": "rate",
+      "name": "Rate",
+      "min": 0.01,
+      "max": 10,
+      "default": 0.25,
+      "taper": "log",
+      "unit": "Hz"
+    },
+    { "key": "depth", "name": "Depth", "min": 0, "max": 100, "default": 50, "unit": "%" },
+    { "key": "feedback", "name": "Feedback", "min": -95, "max": 95, "default": 30, "unit": "%" },
+    {
+      "key": "shape",
+      "name": "Shape",
+      "choices": ["Sine", "Triangle", "Saw up", "Saw down", "Square", "Random"],
+      "default": 0
+    },
+    { "key": "stereo", "name": "Stereo", "min": 0, "max": 180, "default": 90, "unit": "deg" },
+    { "key": "mix", "name": "Mix", "min": 0, "max": 1, "default": 0.5 }
+  ],
+  "presets": {
+    "Gentle Sweep": {
+      "delayMs": 2.5,
+      "rate": 0.25,
+      "depth": 50,
+      "feedback": 30,
+      "shape": 0,
+      "stereo": 90,
+      "mix": 0.5
+    },
+    "Classic Jet": {
+      "delayMs": 2.5,
+      "rate": 0.25,
+      "depth": 60,
+      "feedback": 45,
+      "shape": 0,
+      "stereo": 90,
+      "mix": 0.5
+    },
+    "Slow Sweep": {
+      "delayMs": 4,
+      "rate": 0.08,
+      "depth": 80,
+      "feedback": 30,
+      "shape": 1,
+      "stereo": 90,
+      "mix": 0.5
+    },
+    "Negative Hollow": {
+      "delayMs": 1.5,
+      "rate": 0.4,
+      "depth": 50,
+      "feedback": -70,
+      "shape": 0,
+      "stereo": 60,
+      "mix": 0.5
+    },
+    "Through-Zero Feel": {
+      "delayMs": 0.8,
+      "rate": 0.3,
+      "depth": 100,
+      "feedback": 20,
+      "shape": 0,
+      "stereo": 180,
+      "mix": 0.5
+    },
+    "Tremolo Saw": {
+      "delayMs": 3,
+      "rate": 2,
+      "depth": 40,
+      "feedback": 10,
+      "shape": 2,
+      "stereo": 0,
+      "mix": 0.5
+    },
+    "Stepped Random": {
+      "delayMs": 5,
+      "rate": 4,
+      "depth": 70,
+      "feedback": 40,
+      "shape": 5,
+      "stereo": 90,
+      "mix": 0.5
+    },
+    "Metal Resonator": {
+      "delayMs": 1,
+      "rate": 0.05,
+      "depth": 30,
+      "feedback": 92,
+      "shape": 0,
+      "stereo": 45,
+      "mix": 0.45
+    },
+    "Wide Wash": {
+      "delayMs": 8,
+      "rate": 0.15,
+      "depth": 55,
+      "feedback": 25,
+      "shape": 1,
+      "stereo": 180,
+      "mix": 0.4
+    },
+    "Square Chop": {
+      "delayMs": 2,
+      "rate": 1,
+      "depth": 50,
+      "feedback": 0,
+      "shape": 4,
+      "stereo": 0,
+      "mix": 0.5
+    }
+  },
+  "origin": {
+    "kind": "port",
+    "repository": "kieranklaassen/kkfonie",
+    "commit": "808719d0190315e5c6991833fe4e51c24ae75d3f",
+    "files": [
+      {
+        "path": "Tatami/Source/Devices/Effects/FlangerDevice.h",
+        "sha256": "4ccc10e3d5297c053a2a7ccb7a16d18dac611bddef44c66b1e2383f6ef5e7722",
+        "portedTo": "cpp/devices/flanger/flanger.h",
+        "deviations": [
+          "The lfoPhase and wetLevel meters and the enabled flag do not exist in the device ABI and are dropped."
+        ]
+      },
+      {
+        "path": "Tatami/Source/Devices/Effects/FlangerDevice.cpp",
+        "sha256": "2b5cb49f0269cea589e31a2da73df041f7c6197d3d26a4927a8733a143c9fd7a",
+        "portedTo": "cpp/devices/flanger/flanger.h",
+        "deviations": [
+          "The Dry/Wet parameter (0..100 %) is `mix`, 0..1. The crossfade law is the source's, linear (dry + (wet - dry) * mix), not the equal-power law other live-mix devices use: the notches are deepest at 0.5 only with a linear sum. Preset mix values are divided by 100.",
+          "delayMs and rate use a log taper in place of the JUCE skew that centred the knob on 3 ms and 0.5 Hz. Ranges and defaults are unchanged.",
+          "Added: an idle gate. With no input and the wet path below -140 dBFS for 100 ms the device outputs exact zero and stops rendering; the LFO phase keeps advancing while asleep, so it stays free-running.",
+          "Added: the LFO passes through a 3 ms one-pole lag before it moves the read point, so the Saw, Square and Random shapes and a Shape change glide instead of jumping the delay (a click in the source). The lag costs 1.7 % of the sweep depth at 10 Hz and under 0.1 % below 2 Hz.",
+          "Added: the feedback signal goes through a soft limiter that is exactly linear up to +-1 (0 dBFS) and lands on +-2. The source's loop is linear at any level and reaches 20 times the input at 95 % feedback.",
+          "Delay and Depth are smoothed as the read point and its deviation in samples with a 50 ms time constant; the source ramps both parameters over 5 ms. Feedback, Stereo and Mix use a 5 ms one-pole smoother set when the value arrives, in place of the source's 5 ms linear ramp pulled once per block.",
+          "The delay line holds 2048 samples (20 ms at 96 kHz); above 96 kHz the longest read points are clamped. The source allocated for the session rate.",
+          "Mono input handling is dropped: the ABI is always stereo."
+        ]
+      },
+      {
+        "path": "Tatami/Source/Shared/DSP/ModLfo.h",
+        "sha256": "247692b06415cd2c75dc6059792f29a13049edf9428c0d6e6921ecdca0713d99",
+        "portedTo": "cpp/devices/flanger/mod_lfo.h",
+        "deviations": [
+          "The phase accumulator is a double; the source's float phase cannot represent the increment of 0.01 Hz at 48 or 96 kHz closely (it is 2 to 4 float steps), which made the lowest rates run up to 40 % off.",
+          "The sine shape reads the kit's 4096-point interpolated table (error below -100 dB) in place of std::sin.",
+          "advance() and value() are separate calls and advance() takes a sample count; the source's next() did both for one sample."
+        ]
+      },
+      {
+        "path": "Tatami/Source/Shared/DSP/ModDelayLine.h",
+        "sha256": "c314bc146d3b8f3a43df8e9fafa23ae983c63c7a50d7c68ac3b1c69dcc593468",
+        "portedTo": "cpp/kit/delay.h",
+        "deviations": [
+          "Replaced by kit::DelayLine (fixed power-of-two storage, no std::vector). read_hermite is the same 4-point Catmull-Rom polynomial. The kit reads before the write with delay 1 as the newest sample, so the source's `delay - 1` read offset is gone and the shortest read is 2 samples in both."
+        ]
+      },
+      {
+        "path": "Tatami/Source/Shared/DSP/ParamBank.h",
+        "sha256": "ab289bdb29a6edd7ea6b819a1e9ec8800cf45464562de0a29ccc49ed09f6ca58",
+        "portedTo": "cpp/kit/device.h",
+        "deviations": [
+          "Replaced by kit::DeviceBase (clamped parameter store addressed by index) and kit::Smoother."
+        ]
+      },
+      {
+        "path": "Tatami/Source/Shared/DSP/SmoothedParam.h",
+        "sha256": "7d532c619104afb6590802195007f39cd22f326eeb1cb15ce68a5b12ebb4b7b9",
+        "portedTo": "cpp/kit/smooth.h",
+        "deviations": [
+          "Replaced by kit::Smoother: a one-pole with a 5 ms time constant in place of juce::SmoothedValue's 5 ms linear ramp."
+        ]
+      },
+      {
+        "path": "Tatami/Presets/effects/flanger.json",
+        "sha256": "e6defbb1fc93af02fab1c83dcac10fce4141f66d5fcf21b27d5a8f4dc9292003",
+        "portedTo": "cpp/devices/flanger/device.json",
+        "deviations": [
+          "All nine factory presets are kept with their names and values (mix divided by 100).",
+          "Added a first preset, Gentle Sweep, that holds the source's default values: live-mix expects the first preset to be the default sound and no factory preset matched the defaults."
+        ]
+      },
+      {
+        "path": "Tatami/Tests/Effects/FlangerTests.cpp",
+        "sha256": "c67074a17ed9c2a3e630f73f594f893c66db4fdf90ac66cac1aa9289ff94203f",
+        "portedTo": "cpp/test/flanger_test.cpp",
+        "deviations": [
+          "Depth within 10 % and centre within 3 samples by impulse-train delay tracking (sine and triangle), rate within 1 %, left and right deviation within 15 % at 180 degrees, and the bounded check at 95 % feedback (peak under 10) are carried over with the same thresholds. The rate is measured from the tracked delay because there is no lfoPhase meter.",
+          "The enabled=false null test becomes Mix 0 is the input, sample for sample. The allocation guard is replaced by the build (no heap in device code); the meter test is dropped with the meters."
+        ]
+      },
+      {
+        "path": "Tatami/Tests/Effects/TimeEffectsSupport.h",
+        "sha256": "09531d0c1ee51f005fc09a55dcaf1ae4b2caf0b82d9cc11d0ba82e2c0402f58a",
+        "portedTo": "cpp/test/flanger_test.cpp",
+        "deviations": [
+          "Only trackDelays and refinePeak are ported (same peak picking and parabolic refinement)."
+        ]
+      }
+    ],
+    "note": "Tatami's Flanger on cpp/kit. The signal flow, constants (0.95 depth scale, 0.5 to 10 ms, feedback one sample behind the read), parameter ids, ranges, defaults and factory presets are the source's. EffectBase.h and OnePoleFilter.h are not used by this device."
+  }
+}

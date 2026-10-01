@@ -1,0 +1,278 @@
+{
+  "id": "chorus",
+  "name": "Chorus",
+  "category": "modulation",
+  "description": "Two or three detuned voices on a modulated delay, spread across the stereo field, with feedback and a high-pass on the wet signal: from a light widener to a deep ensemble.",
+  "class": "Chorus",
+  "header": "chorus.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "voices",
+      "name": "Voices",
+      "choices": ["2", "3"],
+      "default": 1
+    },
+    {
+      "key": "rate",
+      "name": "Rate",
+      "min": 0.01,
+      "max": 10,
+      "default": 0.8,
+      "taper": "log",
+      "unit": "Hz"
+    },
+    {
+      "key": "depth",
+      "name": "Depth",
+      "min": 0,
+      "max": 100,
+      "default": 50,
+      "unit": "%"
+    },
+    {
+      "key": "delayMs",
+      "name": "Delay",
+      "min": 5,
+      "max": 30,
+      "default": 12,
+      "unit": "ms"
+    },
+    {
+      "key": "spread",
+      "name": "Spread",
+      "min": 0,
+      "max": 100,
+      "default": 70,
+      "unit": "%"
+    },
+    {
+      "key": "feedback",
+      "name": "Feedback",
+      "min": -95,
+      "max": 95,
+      "default": 0,
+      "unit": "%"
+    },
+    {
+      "key": "hpHz",
+      "name": "High-pass",
+      "min": 20,
+      "max": 2000,
+      "default": 20,
+      "taper": "log",
+      "unit": "Hz"
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.5
+    }
+  ],
+  "presets": {
+    "Wide Chorus": {
+      "voices": 1,
+      "rate": 0.8,
+      "depth": 50,
+      "delayMs": 12,
+      "spread": 70,
+      "feedback": 0,
+      "hpHz": 20,
+      "mix": 0.5
+    },
+    "Classic Chorus": {
+      "voices": 0,
+      "rate": 0.8,
+      "depth": 45,
+      "delayMs": 12,
+      "spread": 60,
+      "feedback": 0,
+      "hpHz": 20,
+      "mix": 0.5
+    },
+    "Lush Ensemble": {
+      "voices": 1,
+      "rate": 0.5,
+      "depth": 60,
+      "delayMs": 18,
+      "spread": 90,
+      "feedback": 10,
+      "hpHz": 20,
+      "mix": 0.55
+    },
+    "Subtle Widener": {
+      "voices": 0,
+      "rate": 0.3,
+      "depth": 20,
+      "delayMs": 8,
+      "spread": 100,
+      "feedback": 0,
+      "hpHz": 120,
+      "mix": 0.35
+    },
+    "Vibrato": {
+      "voices": 0,
+      "rate": 5.5,
+      "depth": 35,
+      "delayMs": 6,
+      "spread": 0,
+      "feedback": 0,
+      "hpHz": 20,
+      "mix": 1.0
+    },
+    "Guitar Shimmer": {
+      "voices": 1,
+      "rate": 1.2,
+      "depth": 40,
+      "delayMs": 14,
+      "spread": 70,
+      "feedback": -15,
+      "hpHz": 200,
+      "mix": 0.45
+    },
+    "Deep Sea": {
+      "voices": 1,
+      "rate": 0.15,
+      "depth": 100,
+      "delayMs": 30,
+      "spread": 80,
+      "feedback": 30,
+      "hpHz": 60,
+      "mix": 0.6
+    },
+    "Vocal Thickener": {
+      "voices": 1,
+      "rate": 0.4,
+      "depth": 25,
+      "delayMs": 20,
+      "spread": 50,
+      "feedback": 0,
+      "hpHz": 250,
+      "mix": 0.4
+    },
+    "Metallic Comb": {
+      "voices": 0,
+      "rate": 2.0,
+      "depth": 70,
+      "delayMs": 5,
+      "spread": 30,
+      "feedback": 80,
+      "hpHz": 20,
+      "mix": 0.5
+    },
+    "Slow Drift": {
+      "voices": 1,
+      "rate": 0.08,
+      "depth": 55,
+      "delayMs": 25,
+      "spread": 100,
+      "feedback": 0,
+      "hpHz": 20,
+      "mix": 0.5
+    }
+  },
+  "origin": {
+    "kind": "port",
+    "repository": "kieranklaassen/kkfonie",
+    "commit": "808719d0190315e5c6991833fe4e51c24ae75d3f",
+    "files": [
+      {
+        "path": "Tatami/Source/Devices/Effects/ChorusDevice.h",
+        "sha256": "268f820ea3e9292d5333bd3fc327841b97d6b6e8fd7537bfb7422e7b7748435c",
+        "portedTo": "cpp/devices/chorus/chorus.h",
+        "deviations": [
+          "The lfoPhase and wetLevel meters and the enabled flag do not exist in the device ABI and are dropped."
+        ]
+      },
+      {
+        "path": "Tatami/Source/Devices/Effects/ChorusDevice.cpp",
+        "sha256": "9ffe0daa23740a7a82e33a29253daae68614ff8158a57dbebf1d1848bd245b0b",
+        "portedTo": "cpp/devices/chorus/chorus.h",
+        "deviations": [
+          "voices is a choice with index 0 for two voices and 1 for three; the source's parameter took the values 2 and 3. Preset values are translated.",
+          "The Dry/Wet parameter (0..100 %) is `mix`, 0..1. The crossfade law is the source's, linear (dry + (wet - dry) * mix), not the equal-power law other live-mix devices use; with the wet signal decorrelated from the dry, 0.5 is about 3 dB quieter than either end on broadband material. Preset mix values are divided by 100.",
+          "rate and hpHz use a log taper in place of the JUCE skew that centred the knob on 1 Hz and 200 Hz. Ranges and defaults are unchanged.",
+          "Added: an idle gate. With no input and the wet path below -140 dBFS for 150 ms the device outputs exact zero and stops rendering; the LFO phase keeps advancing while asleep, so it stays free-running.",
+          "Added: a change of Voices crossfades between the two-voice and three-voice sets over about 20 ms (both sets are read while it lasts). The source switched within one block, which jumps every read point because the voice LFO phases differ between the sets.",
+          "Added: the feedback signal goes through a soft limiter that is exactly linear up to +-1 (0 dBFS) and lands on +-2. The source's loop is linear at any level and reaches 20 times the input at 95 % feedback.",
+          "Delay and Depth are smoothed as the read point and its deviation in samples with a 50 ms time constant; the source ramps both parameters over 5 ms. Spread, Feedback and Mix use a 5 ms one-pole smoother set when the value arrives, in place of the source's 5 ms linear ramp pulled once per block.",
+          "The wet high-pass keeps running at 20 Hz (where the source bypasses it and freezes its state) and its contribution fades out over 5 ms, so leaving or reaching 20 Hz does not step. At 20 Hz the wet signal is untouched, as in the source. The cutoff is set when the value arrives rather than once per block.",
+          "The voice pan gains read the kit's sine table in place of std::cos and std::sin and are recomputed only while Spread is moving.",
+          "The delay line holds 4096 samples (35 ms at 96 kHz); above 96 kHz the longest read points are clamped. The source allocated for the session rate.",
+          "Mono input handling is dropped: the ABI is always stereo."
+        ]
+      },
+      {
+        "path": "Tatami/Source/Shared/DSP/ModLfo.h",
+        "sha256": "247692b06415cd2c75dc6059792f29a13049edf9428c0d6e6921ecdca0713d99",
+        "portedTo": "cpp/devices/chorus/chorus.h",
+        "deviations": [
+          "Not copied as a class: the chorus uses only the sine shape, so chorus.h keeps the free-running phase accumulator and evaluates the sine itself.",
+          "The phase accumulator is a double; the source's float phase cannot represent the increment of 0.01 Hz at 48 or 96 kHz closely (it is 2 to 4 float steps), which made the lowest rates run up to 40 % off.",
+          "One sine and one cosine of the LFO phase are read from the kit's 4096-point table per sample and rotated to each voice's offset and to the right channel's Spread offset, in place of one std::sin per voice and channel. The values are the same to table accuracy (error below -100 dB)."
+        ]
+      },
+      {
+        "path": "Tatami/Source/Shared/DSP/ModDelayLine.h",
+        "sha256": "c314bc146d3b8f3a43df8e9fafa23ae983c63c7a50d7c68ac3b1c69dcc593468",
+        "portedTo": "cpp/kit/delay.h",
+        "deviations": [
+          "Replaced by kit::DelayLine (fixed power-of-two storage, no std::vector). read_hermite is the same 4-point Catmull-Rom polynomial. The kit reads before the write with delay 1 as the newest sample, so the source's `delay - 1` read offset is gone."
+        ]
+      },
+      {
+        "path": "Tatami/Source/Shared/DSP/OnePoleFilter.h",
+        "sha256": "9124fa4e55d6c38977c236bcf76a6e166b22193f32fe571454a15862a3471dbb",
+        "portedTo": "cpp/kit/filters.h",
+        "deviations": [
+          "Replaced by kit::OnePole: the same recurrence and coefficient, exp(-2 pi f / fs). The bypass flag is handled in chorus.h."
+        ]
+      },
+      {
+        "path": "Tatami/Source/Shared/DSP/ParamBank.h",
+        "sha256": "ab289bdb29a6edd7ea6b819a1e9ec8800cf45464562de0a29ccc49ed09f6ca58",
+        "portedTo": "cpp/kit/device.h",
+        "deviations": [
+          "Replaced by kit::DeviceBase (clamped parameter store addressed by index) and kit::Smoother."
+        ]
+      },
+      {
+        "path": "Tatami/Source/Shared/DSP/SmoothedParam.h",
+        "sha256": "7d532c619104afb6590802195007f39cd22f326eeb1cb15ce68a5b12ebb4b7b9",
+        "portedTo": "cpp/kit/smooth.h",
+        "deviations": [
+          "Replaced by kit::Smoother: a one-pole with a 5 ms time constant in place of juce::SmoothedValue's 5 ms linear ramp."
+        ]
+      },
+      {
+        "path": "Tatami/Presets/effects/chorus.json",
+        "sha256": "f6a3e07b9fbfe9cfaf8c8397fcb0da9a4714d54d7976475d788ce39f93f2efe3",
+        "portedTo": "cpp/devices/chorus/device.json",
+        "deviations": [
+          "All nine factory presets are kept with their names and values (voices as an index, mix divided by 100).",
+          "Added a first preset, Wide Chorus, that holds the source's default values: live-mix expects the first preset to be the default sound and no factory preset matched the defaults."
+        ]
+      },
+      {
+        "path": "Tatami/Tests/Effects/ChorusTests.cpp",
+        "sha256": "9ad7912b5b9c8fff904af0b2711b6273d6ee70afaf3e6330391d346f956a745b",
+        "portedTo": "cpp/test/chorus_test.cpp",
+        "deviations": [
+          "Depth within 10 % and centre within 3 samples by impulse-train delay tracking, rate within 1 %, the free-running LFO, and the three-voice level window with 90 % feedback (-6 to +12 dB) are carried over with the same thresholds. Rate and LFO phase are measured from the tracked delay because there is no lfoPhase meter.",
+          "The enabled=false null test becomes Mix 0 is the input, sample for sample. The allocation guard is replaced by the build (no heap in device code); the meter test is dropped with the meters."
+        ]
+      },
+      {
+        "path": "Tatami/Tests/Effects/TimeEffectsSupport.h",
+        "sha256": "09531d0c1ee51f005fc09a55dcaf1ae4b2caf0b82d9cc11d0ba82e2c0402f58a",
+        "portedTo": "cpp/test/chorus_test.cpp",
+        "deviations": [
+          "Only trackDelays and refinePeak are ported (same peak picking and parabolic refinement)."
+        ]
+      }
+    ],
+    "note": "Tatami's Chorus on cpp/kit. The signal flow, constants (5 ms deviation cap, Delay - 1 ms floor, 1/sqrt(voices) wet scale, quarter-cycle right offset at full Spread, unpanned feedback mean), parameter ids, ranges, defaults and factory presets are the source's. EffectBase.h is not used by this device."
+  }
+}

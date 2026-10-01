@@ -1,0 +1,120 @@
+{
+  "id": "shimmer",
+  "name": "Shimmer",
+  "category": "reverb",
+  "description": "Long reverb with a pitch shifter in its feedback loop: every pass climbs an interval, so the tail rises into a soft choir-like halo.",
+  "class": "Shimmer",
+  "header": "shimmer.h",
+  "sources": [],
+  "params": [
+    { "key": "mix", "name": "Mix", "min": 0, "max": 1, "default": 0.4 },
+    {
+      "key": "decay",
+      "name": "Decay",
+      "min": 0.5,
+      "max": 30,
+      "default": 8,
+      "taper": "log",
+      "unit": "s"
+    },
+    { "key": "shimmer", "name": "Shimmer", "min": 0, "max": 1, "default": 0.5 },
+    {
+      "key": "interval",
+      "name": "Interval",
+      "choices": ["Octave up", "Fifth up", "Octave and fifth", "Octave down", "Two octaves"],
+      "default": 0
+    },
+    { "key": "size", "name": "Size", "min": 0, "max": 1, "default": 0.5 },
+    {
+      "key": "tone",
+      "name": "Tone",
+      "min": 500,
+      "max": 16000,
+      "default": 6000,
+      "taper": "log",
+      "unit": "Hz"
+    },
+    { "key": "modulation", "name": "Modulation", "min": 0, "max": 1, "default": 0.3 },
+    { "key": "predelay", "name": "Pre-delay", "min": 0, "max": 500, "default": 20, "unit": "ms" },
+    {
+      "key": "lowCut",
+      "name": "Low Cut",
+      "min": 20,
+      "max": 1000,
+      "default": 100,
+      "taper": "log",
+      "unit": "Hz"
+    },
+    { "key": "width", "name": "Width", "min": 0, "max": 1, "default": 1 }
+  ],
+  "presets": {
+    "Rising choir": {
+      "mix": 0.4,
+      "decay": 8,
+      "shimmer": 0.5,
+      "interval": 0,
+      "size": 0.5,
+      "tone": 6000,
+      "modulation": 0.3
+    },
+    "Fifths": {
+      "decay": 10,
+      "shimmer": 0.4,
+      "interval": 1,
+      "size": 0.6,
+      "tone": 5000,
+      "modulation": 0.35
+    },
+    "Organ loft": {
+      "decay": 14,
+      "shimmer": 0.35,
+      "interval": 2,
+      "size": 0.8,
+      "tone": 4200,
+      "modulation": 0.2,
+      "predelay": 40
+    },
+    "Undertow": {
+      "decay": 12,
+      "shimmer": 0.55,
+      "interval": 3,
+      "size": 0.9,
+      "tone": 3500,
+      "modulation": 0.4,
+      "lowCut": 45
+    },
+    "Glass": {
+      "mix": 0.3,
+      "decay": 6,
+      "shimmer": 0.3,
+      "interval": 4,
+      "size": 0.35,
+      "tone": 9000,
+      "modulation": 0.5,
+      "lowCut": 200
+    },
+    "Plain hall": {
+      "mix": 0.3,
+      "decay": 3.2,
+      "shimmer": 0,
+      "size": 0.45,
+      "tone": 7000,
+      "modulation": 0.25,
+      "predelay": 15
+    },
+    "Endless ascent": {
+      "mix": 0.5,
+      "decay": 30,
+      "shimmer": 0.75,
+      "interval": 0,
+      "size": 1,
+      "tone": 5000,
+      "modulation": 0.45,
+      "predelay": 60
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. The shimmer effect as Brian Eno and Daniel Lanois used it (a pitch shifter recirculating through a long reverb), built as an eight-line feedback delay network with a four-head delay-line shifter in the feedback path; not a model of any unit."
+  }
+}

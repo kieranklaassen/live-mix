@@ -76,6 +76,7 @@ export {
   FDN_REVERB_DESCRIPTOR,
   FELT_PIANO_DESCRIPTOR,
   LIMITER_1176_DESCRIPTOR,
+  SAMPLE_DEVICE_IDS,
   WORKLET_DUCKER_DESCRIPTOR,
   SPECTRAL_DRIFTER_DESCRIPTOR,
   STEREO_WIDENER_DESCRIPTOR,
@@ -154,3 +155,6 @@ export {
   type FeltPiano,
   type FeltPianoParamName,
 } from './devices/felt-piano'
+
+// The spec devices: one generated module per cpp/devices/<id>/device.json.
+export * from './devices/index.gen'

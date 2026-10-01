@@ -1,0 +1,151 @@
+{
+  "id": "grain-synth",
+  "name": "Grain",
+  "category": "instrument",
+  "description": "Granular synthesizer: each key plays a cloud of overlapping grains from the loaded sound, with pitch and time independent, from a frozen moment to a slow stretch.",
+  "class": "GrainSynth",
+  "header": "grain_synth.h",
+  "sources": [],
+  "samples": true,
+  "memoryMb": 12,
+  "params": [
+    { "key": "position", "name": "Position", "min": 0, "max": 1, "default": 0.2 },
+    { "key": "scan", "name": "Scan", "min": -2, "max": 2, "default": 0.1 },
+    {
+      "key": "size",
+      "name": "Size",
+      "min": 10,
+      "max": 2000,
+      "default": 280,
+      "taper": "log",
+      "unit": "ms"
+    },
+    { "key": "density", "name": "Density", "min": 1, "max": 16, "default": 6 },
+    { "key": "spray", "name": "Spray", "min": 0, "max": 1, "default": 0.2 },
+    { "key": "detune", "name": "Detune", "min": 0, "max": 100, "default": 6, "unit": "ct" },
+    { "key": "octaves", "name": "Octaves", "min": 0, "max": 1, "default": 0.08 },
+    { "key": "shape", "name": "Shape", "min": 0, "max": 1, "default": 0 },
+    { "key": "reverse", "name": "Reverse", "min": 0, "max": 1, "default": 0.15 },
+    {
+      "key": "attack",
+      "name": "Attack",
+      "min": 0.005,
+      "max": 8,
+      "default": 0.5,
+      "taper": "log",
+      "unit": "s"
+    },
+    {
+      "key": "release",
+      "name": "Release",
+      "min": 0.05,
+      "max": 12,
+      "default": 2,
+      "taper": "log",
+      "unit": "s"
+    },
+    { "key": "spread", "name": "Spread", "min": 0, "max": 1, "default": 0.7 },
+    {
+      "key": "tone",
+      "name": "Tone",
+      "min": 200,
+      "max": 18000,
+      "default": 9000,
+      "taper": "log",
+      "unit": "Hz"
+    },
+    { "key": "volume", "name": "Volume", "min": -48, "max": 6, "default": -9, "unit": "dB" }
+  ],
+  "presets": {
+    "Cloud": {
+      "position": 0.2,
+      "scan": 0.1,
+      "size": 280,
+      "density": 6,
+      "spray": 0.2,
+      "detune": 6,
+      "octaves": 0.08,
+      "shape": 0,
+      "reverse": 0.15,
+      "attack": 0.5,
+      "release": 2,
+      "spread": 0.7,
+      "tone": 9000
+    },
+    "Frozen moment": {
+      "position": 0.45,
+      "scan": 0,
+      "size": 420,
+      "density": 8,
+      "spray": 0.06,
+      "detune": 3,
+      "octaves": 0,
+      "reverse": 0,
+      "attack": 1.2,
+      "release": 3.5,
+      "spread": 0.5,
+      "tone": 7000
+    },
+    "Slow stretch": {
+      "position": 0,
+      "scan": 0.12,
+      "size": 140,
+      "density": 4,
+      "spray": 0.03,
+      "detune": 0,
+      "octaves": 0,
+      "reverse": 0,
+      "attack": 0.05,
+      "release": 0.8,
+      "spread": 0.2,
+      "tone": 14000
+    },
+    "Shimmer": {
+      "position": 0.5,
+      "scan": 0.05,
+      "size": 360,
+      "density": 10,
+      "spray": 0.3,
+      "detune": 9,
+      "octaves": 0.55,
+      "reverse": 0.3,
+      "attack": 1.5,
+      "release": 5,
+      "spread": 1,
+      "tone": 12000
+    },
+    "Backwards wash": {
+      "position": 0.6,
+      "scan": -0.3,
+      "size": 900,
+      "density": 8,
+      "spray": 0.35,
+      "detune": 5,
+      "octaves": 0.1,
+      "reverse": 1,
+      "attack": 2.5,
+      "release": 6,
+      "spread": 0.9,
+      "tone": 6000
+    },
+    "Stutter": {
+      "position": 0.3,
+      "scan": 0.5,
+      "size": 45,
+      "density": 1.5,
+      "spray": 0,
+      "detune": 0,
+      "octaves": 0,
+      "shape": 0.8,
+      "reverse": 0,
+      "attack": 0.005,
+      "release": 0.2,
+      "spread": 0.4,
+      "tone": 16000
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. An asynchronous granular voice in the usual shape (windowed, overlapping, randomised reads of one stored sound); the grain pool is per key so each key keeps its own envelope and scan position."
+  }
+}

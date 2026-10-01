@@ -77,7 +77,7 @@ export interface DevicePanelProps {
   title?: string
   /** Parameters to show, in order; defaults to every parameter of the device. */
   params?: readonly string[]
-  /** Labels for choice parameters (small integer ranges), by parameter name. */
+  /** Labels for choice parameters by name; overrides the labels a spec carries in `choices`. */
   choiceLabels?: Readonly<Record<string, readonly string[]>>
   showBypass?: boolean
   /** Default: when the descriptor has presets. */
@@ -168,7 +168,7 @@ export function DevicePanel({
         {names.map((name) => {
           const spec = d.params[name]
           if (!spec) return null
-          const labels = choiceLabels?.[name]
+          const labels = choiceLabels?.[name] ?? (spec.choices?.length ? spec.choices : undefined)
           const choice = labels !== undefined || isChoiceParam(spec)
           return (
             <Knob

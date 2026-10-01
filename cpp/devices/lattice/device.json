@@ -1,0 +1,767 @@
+{
+  "id": "lattice",
+  "name": "Lattice",
+  "category": "pitch",
+  "description": "Scale-aware harmonizer: tracks a single line and adds up to four voices on the steps of a scale, by interval or by Thesis voicing around a centre note, each with its own delay, feedback, level and pan.",
+  "class": "Lattice",
+  "header": "lattice.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "root",
+      "name": "Root",
+      "choices": ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"],
+      "default": 0
+    },
+    {
+      "key": "scale",
+      "name": "Scale",
+      "choices": [
+        "Major",
+        "Natural Minor",
+        "Harmonic Minor",
+        "Melodic Minor",
+        "Dorian",
+        "Phrygian",
+        "Lydian",
+        "Mixolydian",
+        "Locrian",
+        "Major Pentatonic",
+        "Minor Pentatonic",
+        "Blues",
+        "Whole Tone",
+        "Chromatic",
+        "Custom"
+      ],
+      "default": 0
+    },
+    {
+      "key": "center",
+      "name": "Center Note",
+      "min": 36,
+      "max": 84,
+      "default": 62,
+      "unit": "note"
+    },
+    {
+      "key": "snap",
+      "name": "Snap",
+      "min": 0,
+      "max": 100,
+      "default": 0,
+      "unit": "%"
+    },
+    {
+      "key": "glide",
+      "name": "Glide",
+      "min": 0,
+      "max": 300,
+      "default": 15,
+      "unit": "ms"
+    },
+    {
+      "key": "window",
+      "name": "Splice Window",
+      "min": 10,
+      "max": 60,
+      "default": 24,
+      "unit": "ms"
+    },
+    {
+      "key": "deglitch",
+      "name": "De-glitch",
+      "choices": ["Off", "On"],
+      "default": 1
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 100,
+      "default": 50,
+      "unit": "%"
+    },
+    {
+      "key": "output",
+      "name": "Output",
+      "min": -24,
+      "max": 12,
+      "default": 0,
+      "unit": "dB"
+    },
+    {
+      "key": "v1Role",
+      "name": "Voice 1 Role",
+      "choices": ["Off", "Interval", "Mirror", "Middle", "Mirror Middle", "Octaflip", "Center"],
+      "default": 2
+    },
+    {
+      "key": "v1Degrees",
+      "name": "Voice 1 Degrees",
+      "min": -14,
+      "max": 14,
+      "default": 0,
+      "unit": "steps"
+    },
+    {
+      "key": "v1Level",
+      "name": "Voice 1 Level",
+      "min": -60,
+      "max": 6,
+      "default": -6,
+      "unit": "dB"
+    },
+    {
+      "key": "v1Pan",
+      "name": "Voice 1 Pan",
+      "min": -100,
+      "max": 100,
+      "default": -40
+    },
+    {
+      "key": "v1Delay",
+      "name": "Voice 1 Delay",
+      "min": 0,
+      "max": 500,
+      "default": 0,
+      "unit": "ms"
+    },
+    {
+      "key": "v1Feedback",
+      "name": "Voice 1 Feedback",
+      "min": 0,
+      "max": 90,
+      "default": 0,
+      "unit": "%"
+    },
+    {
+      "key": "v2Role",
+      "name": "Voice 2 Role",
+      "choices": ["Off", "Interval", "Mirror", "Middle", "Mirror Middle", "Octaflip", "Center"],
+      "default": 1
+    },
+    {
+      "key": "v2Degrees",
+      "name": "Voice 2 Degrees",
+      "min": -14,
+      "max": 14,
+      "default": 2,
+      "unit": "steps"
+    },
+    {
+      "key": "v2Level",
+      "name": "Voice 2 Level",
+      "min": -60,
+      "max": 6,
+      "default": -6,
+      "unit": "dB"
+    },
+    {
+      "key": "v2Pan",
+      "name": "Voice 2 Pan",
+      "min": -100,
+      "max": 100,
+      "default": 40
+    },
+    {
+      "key": "v2Delay",
+      "name": "Voice 2 Delay",
+      "min": 0,
+      "max": 500,
+      "default": 0,
+      "unit": "ms"
+    },
+    {
+      "key": "v2Feedback",
+      "name": "Voice 2 Feedback",
+      "min": 0,
+      "max": 90,
+      "default": 0,
+      "unit": "%"
+    },
+    {
+      "key": "v3Role",
+      "name": "Voice 3 Role",
+      "choices": ["Off", "Interval", "Mirror", "Middle", "Mirror Middle", "Octaflip", "Center"],
+      "default": 5
+    },
+    {
+      "key": "v3Degrees",
+      "name": "Voice 3 Degrees",
+      "min": -14,
+      "max": 14,
+      "default": 0,
+      "unit": "steps"
+    },
+    {
+      "key": "v3Level",
+      "name": "Voice 3 Level",
+      "min": -60,
+      "max": 6,
+      "default": -6,
+      "unit": "dB"
+    },
+    {
+      "key": "v3Pan",
+      "name": "Voice 3 Pan",
+      "min": -100,
+      "max": 100,
+      "default": -15
+    },
+    {
+      "key": "v3Delay",
+      "name": "Voice 3 Delay",
+      "min": 0,
+      "max": 500,
+      "default": 0,
+      "unit": "ms"
+    },
+    {
+      "key": "v3Feedback",
+      "name": "Voice 3 Feedback",
+      "min": 0,
+      "max": 90,
+      "default": 0,
+      "unit": "%"
+    },
+    {
+      "key": "v4Role",
+      "name": "Voice 4 Role",
+      "choices": ["Off", "Interval", "Mirror", "Middle", "Mirror Middle", "Octaflip", "Center"],
+      "default": 0
+    },
+    {
+      "key": "v4Degrees",
+      "name": "Voice 4 Degrees",
+      "min": -14,
+      "max": 14,
+      "default": 0,
+      "unit": "steps"
+    },
+    {
+      "key": "v4Level",
+      "name": "Voice 4 Level",
+      "min": -60,
+      "max": 6,
+      "default": -6,
+      "unit": "dB"
+    },
+    {
+      "key": "v4Pan",
+      "name": "Voice 4 Pan",
+      "min": -100,
+      "max": 100,
+      "default": 15
+    },
+    {
+      "key": "v4Delay",
+      "name": "Voice 4 Delay",
+      "min": 0,
+      "max": 500,
+      "default": 0,
+      "unit": "ms"
+    },
+    {
+      "key": "v4Feedback",
+      "name": "Voice 4 Feedback",
+      "min": 0,
+      "max": 90,
+      "default": 0,
+      "unit": "%"
+    },
+    {
+      "key": "customPeriod",
+      "name": "Custom Period",
+      "min": 600,
+      "max": 2400,
+      "default": 1200,
+      "unit": "ct"
+    },
+    {
+      "key": "customOn1",
+      "name": "Custom Degree 1 On",
+      "choices": ["Off", "On"],
+      "default": 1
+    },
+    {
+      "key": "customCents1",
+      "name": "Custom Degree 1 Cents",
+      "min": 0,
+      "max": 1200,
+      "default": 0,
+      "unit": "ct"
+    },
+    {
+      "key": "customOn2",
+      "name": "Custom Degree 2 On",
+      "choices": ["Off", "On"],
+      "default": 0
+    },
+    {
+      "key": "customCents2",
+      "name": "Custom Degree 2 Cents",
+      "min": 0,
+      "max": 1200,
+      "default": 100,
+      "unit": "ct"
+    },
+    {
+      "key": "customOn3",
+      "name": "Custom Degree 3 On",
+      "choices": ["Off", "On"],
+      "default": 1
+    },
+    {
+      "key": "customCents3",
+      "name": "Custom Degree 3 Cents",
+      "min": 0,
+      "max": 1200,
+      "default": 200,
+      "unit": "ct"
+    },
+    {
+      "key": "customOn4",
+      "name": "Custom Degree 4 On",
+      "choices": ["Off", "On"],
+      "default": 0
+    },
+    {
+      "key": "customCents4",
+      "name": "Custom Degree 4 Cents",
+      "min": 0,
+      "max": 1200,
+      "default": 300,
+      "unit": "ct"
+    },
+    {
+      "key": "customOn5",
+      "name": "Custom Degree 5 On",
+      "choices": ["Off", "On"],
+      "default": 1
+    },
+    {
+      "key": "customCents5",
+      "name": "Custom Degree 5 Cents",
+      "min": 0,
+      "max": 1200,
+      "default": 400,
+      "unit": "ct"
+    },
+    {
+      "key": "customOn6",
+      "name": "Custom Degree 6 On",
+      "choices": ["Off", "On"],
+      "default": 1
+    },
+    {
+      "key": "customCents6",
+      "name": "Custom Degree 6 Cents",
+      "min": 0,
+      "max": 1200,
+      "default": 500,
+      "unit": "ct"
+    },
+    {
+      "key": "customOn7",
+      "name": "Custom Degree 7 On",
+      "choices": ["Off", "On"],
+      "default": 0
+    },
+    {
+      "key": "customCents7",
+      "name": "Custom Degree 7 Cents",
+      "min": 0,
+      "max": 1200,
+      "default": 600,
+      "unit": "ct"
+    },
+    {
+      "key": "customOn8",
+      "name": "Custom Degree 8 On",
+      "choices": ["Off", "On"],
+      "default": 1
+    },
+    {
+      "key": "customCents8",
+      "name": "Custom Degree 8 Cents",
+      "min": 0,
+      "max": 1200,
+      "default": 700,
+      "unit": "ct"
+    },
+    {
+      "key": "customOn9",
+      "name": "Custom Degree 9 On",
+      "choices": ["Off", "On"],
+      "default": 0
+    },
+    {
+      "key": "customCents9",
+      "name": "Custom Degree 9 Cents",
+      "min": 0,
+      "max": 1200,
+      "default": 800,
+      "unit": "ct"
+    },
+    {
+      "key": "customOn10",
+      "name": "Custom Degree 10 On",
+      "choices": ["Off", "On"],
+      "default": 1
+    },
+    {
+      "key": "customCents10",
+      "name": "Custom Degree 10 Cents",
+      "min": 0,
+      "max": 1200,
+      "default": 900,
+      "unit": "ct"
+    },
+    {
+      "key": "customOn11",
+      "name": "Custom Degree 11 On",
+      "choices": ["Off", "On"],
+      "default": 0
+    },
+    {
+      "key": "customCents11",
+      "name": "Custom Degree 11 Cents",
+      "min": 0,
+      "max": 1200,
+      "default": 1000,
+      "unit": "ct"
+    },
+    {
+      "key": "customOn12",
+      "name": "Custom Degree 12 On",
+      "choices": ["Off", "On"],
+      "default": 1
+    },
+    {
+      "key": "customCents12",
+      "name": "Custom Degree 12 Cents",
+      "min": 0,
+      "max": 1200,
+      "default": 1100,
+      "unit": "ct"
+    },
+    {
+      "key": "feedbackPath",
+      "name": "Feedback Path",
+      "choices": ["Echo", "Cascade"],
+      "default": 0
+    }
+  ],
+  "presets": {
+    "Thesis voicing": {
+      "root": 0,
+      "scale": 0,
+      "center": 62,
+      "v1Role": 2,
+      "v1Degrees": 0,
+      "v1Pan": -40,
+      "v2Role": 1,
+      "v2Degrees": 2,
+      "v2Pan": 40,
+      "v3Role": 5,
+      "v3Pan": -15,
+      "v4Role": 0,
+      "mix": 50
+    },
+    "Octaves": {
+      "scale": 13,
+      "window": 32,
+      "v1Role": 1,
+      "v1Degrees": 12,
+      "v1Level": -9,
+      "v1Pan": -35,
+      "v2Role": 1,
+      "v2Degrees": -12,
+      "v2Level": -5,
+      "v2Pan": 35,
+      "v3Role": 0,
+      "v4Role": 0,
+      "mix": 50
+    },
+    "Fifths up": {
+      "scale": 13,
+      "v1Role": 1,
+      "v1Degrees": 7,
+      "v1Level": -6,
+      "v1Pan": -30,
+      "v2Role": 1,
+      "v2Degrees": 14,
+      "v2Level": -11,
+      "v2Pan": 30,
+      "v2Delay": 24,
+      "v3Role": 0,
+      "v4Role": 0,
+      "mix": 45
+    },
+    "Diatonic thirds": {
+      "scale": 0,
+      "glide": 25,
+      "v1Role": 1,
+      "v1Degrees": 2,
+      "v1Level": -6,
+      "v1Pan": -45,
+      "v2Role": 1,
+      "v2Degrees": -5,
+      "v2Level": -7,
+      "v2Pan": 45,
+      "v3Role": 0,
+      "v4Role": 0,
+      "mix": 50
+    },
+    "Seventh chord stack": {
+      "scale": 0,
+      "glide": 30,
+      "v1Role": 1,
+      "v1Degrees": 2,
+      "v1Level": -7,
+      "v1Pan": -50,
+      "v2Role": 1,
+      "v2Degrees": 4,
+      "v2Level": -8,
+      "v2Pan": 50,
+      "v3Role": 1,
+      "v3Degrees": 6,
+      "v3Level": -10,
+      "v3Pan": 0,
+      "v4Role": 0,
+      "mix": 55
+    },
+    "Crystal cascade": {
+      "scale": 13,
+      "window": 40,
+      "feedbackPath": 1,
+      "v1Role": 1,
+      "v1Degrees": 12,
+      "v1Level": -8,
+      "v1Pan": -60,
+      "v1Delay": 320,
+      "v1Feedback": 55,
+      "v2Role": 1,
+      "v2Degrees": 12,
+      "v2Level": -10,
+      "v2Pan": 60,
+      "v2Delay": 480,
+      "v2Feedback": 45,
+      "v3Role": 1,
+      "v3Degrees": 7,
+      "v3Level": -14,
+      "v3Pan": 0,
+      "v3Delay": 160,
+      "v4Role": 0,
+      "mix": 40
+    },
+    "Sub octave": {
+      "scale": 13,
+      "window": 40,
+      "v1Role": 1,
+      "v1Degrees": -12,
+      "v1Level": 0,
+      "v1Pan": 0,
+      "v2Role": 0,
+      "v3Role": 0,
+      "v4Role": 0,
+      "mix": 50
+    },
+    "Minor mirror and drone": {
+      "root": 9,
+      "scale": 1,
+      "center": 69,
+      "glide": 60,
+      "v1Role": 2,
+      "v1Level": -6,
+      "v1Pan": -45,
+      "v2Role": 3,
+      "v2Degrees": 0,
+      "v2Level": -8,
+      "v2Pan": 45,
+      "v3Role": 4,
+      "v3Level": -10,
+      "v3Pan": -15,
+      "v4Role": 6,
+      "v4Degrees": -7,
+      "v4Level": -14,
+      "v4Pan": 15,
+      "mix": 55
+    },
+    "Pentatonic harp": {
+      "scale": 9,
+      "v1Role": 1,
+      "v1Degrees": 1,
+      "v1Level": -8,
+      "v1Pan": -60,
+      "v1Delay": 140,
+      "v1Feedback": 30,
+      "v2Role": 1,
+      "v2Degrees": 2,
+      "v2Level": -9,
+      "v2Pan": 60,
+      "v2Delay": 280,
+      "v2Feedback": 30,
+      "v3Role": 1,
+      "v3Degrees": 3,
+      "v3Level": -10,
+      "v3Pan": -25,
+      "v3Delay": 420,
+      "v3Feedback": 30,
+      "v4Role": 1,
+      "v4Degrees": 5,
+      "v4Level": -12,
+      "v4Pan": 25,
+      "v4Delay": 490,
+      "v4Feedback": 40,
+      "mix": 45
+    },
+    "Just intonation triad": {
+      "scale": 14,
+      "customCents3": 204,
+      "customCents5": 386,
+      "customCents6": 498,
+      "customCents8": 702,
+      "customCents10": 884,
+      "customCents12": 1088,
+      "snap": 100,
+      "glide": 40,
+      "v1Role": 1,
+      "v1Degrees": 2,
+      "v1Level": -6,
+      "v1Pan": -40,
+      "v2Role": 1,
+      "v2Degrees": 4,
+      "v2Level": -7,
+      "v2Pan": 40,
+      "v3Role": 1,
+      "v3Degrees": -7,
+      "v3Level": -12,
+      "v3Pan": 0,
+      "v4Role": 0,
+      "mix": 55
+    },
+    "Tuned double": {
+      "scale": 13,
+      "snap": 100,
+      "glide": 30,
+      "v1Role": 1,
+      "v1Degrees": 0,
+      "v1Level": -4,
+      "v1Pan": -100,
+      "v1Delay": 17,
+      "v2Role": 1,
+      "v2Degrees": 0,
+      "v2Level": -4,
+      "v2Pan": 100,
+      "v2Delay": 29,
+      "v3Role": 0,
+      "v4Role": 0,
+      "mix": 45
+    }
+  },
+  "origin": {
+    "kind": "port",
+    "repository": "kieranklaassen/kkfonie",
+    "commit": "808719d0190315e5c6991833fe4e51c24ae75d3f",
+    "files": [
+      {
+        "path": "Lattice/Source/PluginProcessor.cpp",
+        "sha256": "6ce6b5f1abf3de23c19ccaef26384bac25541a5fe8fa3f308ffdf49924282db2",
+        "portedTo": "lattice.h",
+        "deviations": [
+          "parameter ids are camelCase keys: vN_role -> vNRole (and Degrees, Level, Pan, Delay, Feedback), custom_period -> customPeriod, custom_on_N -> customOnN, custom_cents_N -> customCentsN; names, ranges and defaults are unchanged. The four voice groups are listed before the custom-scale block.",
+          "midiMode (Off / Center / Root: a note-on sets the centre note or the root) is dropped: effects receive no MIDI here; the host can set center and root.",
+          "bypass is dropped: the host bypasses devices.",
+          "the boolean parameters deglitch and custom_on_1..12 are two-way choices (Off, On).",
+          "glide (0..300 ms, skew 0.5) and vN_delay (0..500 ms, skew 0.5) have linear tapers: a log taper needs a positive minimum.",
+          "step sizes and integer types are not enforced by the host: the device rounds center, vN_degrees and every choice to the nearest integer.",
+          "mix stays the source control: 0..100 %, linear crossfade in*(1-mix) + wet*mix (not the 0..1 equal-power convention of new devices).",
+          "juce::SmoothedValue (linear, 5 ms) for mix, output, voice gains, delay time and feedback -> kit::LinearRamp (the same linear ramp, 5 ms).",
+          "the scale and the voice targets are recomputed when a parameter that affects them has changed, at the start of the next block (the source recomputes them every block; same values).",
+          "glide: the float one-pole shiftCents += coeff * (target - shiftCents) -> kit::Smoother with the same pole, which lands on the target; the float recursion stalls short of it (0.04 ct at the default 15 ms, up to 1.8 ct at 300 ms).",
+          "std::exp2 of the shift is recomputed only when the glided value has changed (same values).",
+          "pitch estimates reach the voicing 128 samples later (hop / 2), see PitchTracker.h.",
+          "a voice whose role is Off is no longer processed once its gains have ramped to zero (the source runs all four shifters and delays always). Its shifter ring keeps recording the input; when the role is set again the voice starts with an empty delay line and fresh grains.",
+          "added parameter feedbackPath (Echo, Cascade), default Echo = the source (feedback inside the voice delay, repeats keep their pitch). Cascade feeds the delay output through a one-pole 8 kHz low-pass back into that voice shifter, so each repeat is shifted again; the two paths crossfade over 20 ms. In Cascade, while the tracker reports no pitch, a voice splices on the period of what its own loop returns (the period it spliced with one delay earlier, divided by the ratio, kept in a 2048-slot table beside the delay line).",
+          "added output ceiling: exactly linear up to +/-4.0 (+12 dBFS), then a tanh knee that lands on +/-8.0. The source has no limit; four voices at +6 dB with 90 % feedback and +12 dB of output reach +40 dBFS.",
+          "added idle gate (1.25 s hold, longer than the longest grain lag plus voice delay): exact zero output and no work once input, output and voices are below -140 dBFS.",
+          "UI telemetry (input and output levels, tracked Hz, confidence and cents, per-voice target cents) is dropped; tracked_hz() and tracking() remain as plain accessors.",
+          "always stereo (the mono bus layout is dropped); state save/restore and programs belong to the host; getTailLengthSeconds (2.0) is replaced by the idle gate."
+        ]
+      },
+      {
+        "path": "Lattice/Source/PluginProcessor.h",
+        "sha256": "3a78ac0ad63ea3c217b09f788c82c7a6d90bcbb525fdd632fab1cd059b35812c",
+        "portedTo": "lattice.h",
+        "deviations": [
+          "juce::AudioProcessor, AudioProcessorValueTreeState, juce::Timer (MIDI to parameter) and the std::atomic telemetry members are replaced by kit::DeviceBase and plain members; see PluginProcessor.cpp for the behaviour."
+        ]
+      },
+      {
+        "path": "Lattice/Source/CrossfadeShifter.h",
+        "sha256": "bddd43dbe7f04c18ee1ec4d30616b5a78549504ddb5d0ad69952c752ef05aac7",
+        "portedTo": "CrossfadeShifter.h",
+        "deviations": [
+          "kBufferSize 32768 -> 65536: at 96 kHz a two-octave up-shift with the 60 ms window starts a grain 34,560 samples (plus 2 ms and a period) behind the input, which overruns the source ring.",
+          "added feed() (record a sample without reading grains) and restart() (drop both grains) for voices that are switched off.",
+          "kMinTrackedHz (45 Hz) moved from the .cpp into the class."
+        ]
+      },
+      {
+        "path": "Lattice/Source/CrossfadeShifter.cpp",
+        "sha256": "cb3c3d33965f26e013c9803dfabba767bddf5ff780803c3ebf94a5768af02663",
+        "portedTo": "CrossfadeShifter.h",
+        "deviations": [
+          "merged into the header.",
+          "setWindowSamples: the hop limit covers the up-shift excursion as well, max(1 - 0.25, 4 - 1) instead of (1 - 0.25) only. No effect inside the 10..60 ms window range up to 96 kHz.",
+          "grain envelope: std::sin(pi * age / 2H)^2 -> 0.5 - 0.5 * cos from kit::SineTable (4096-point table, linear interpolation, error under -100 dB).",
+          "prepare() also resets ratio, period and the de-glitch flag, so init() restores every member."
+        ]
+      },
+      {
+        "path": "Lattice/Source/PitchTracker.h",
+        "sha256": "73813e58a3f119a3bbd172d2dd5d6b0495a9299aba35e129c30c0f7774bc2274",
+        "portedTo": "PitchTracker.h",
+        "deviations": [
+          "std::unique_ptr<juce::dsp::FFT> and the std::vector buffers -> two kit::Fft members (2048 and 4096 points) and fixed arrays sized for the 4096-sample frame used above 50 kHz."
+        ]
+      },
+      {
+        "path": "Lattice/Source/PitchTracker.cpp",
+        "sha256": "f1ade46217cef27dcd8b8bf2db5c54688b2025a82a5b3f34391dc8d928893ea0",
+        "portedTo": "PitchTracker.h",
+        "deviations": [
+          "merged into the header.",
+          "juce::dsp::FFT real-only forward and inverse transforms of 2N points -> kit::Fft (complex radix-2) of N points: both inputs are real (the zero-padded frame, then its power spectrum), so even samples go in as the real part and odd samples as the imaginary part and the 2N-point result is unpacked with one twiddle per bin. Same autocorrelation up to float rounding, at half the transform cost.",
+          "the analysis is split over the hop: frame capture, energy sums and power spectrum when the hop completes; autocorrelation, NSDF and peak picking hop / 2 samples later, which is when pushSample() returns true. No 128-frame block holds more than one transform; estimates arrive 128 samples (2.7 ms at 48 kHz) later than in the source.",
+          "ring indexing by % frameSize -> & (frameSize - 1) (frame sizes are powers of two)."
+        ]
+      },
+      {
+        "path": "Lattice/Source/Scale.h",
+        "sha256": "0aa52db4c6ca31c93600abaef3c8d3c6be2238c1d188351763bcf4c5aca3bf11",
+        "portedTo": "Scale.h",
+        "deviations": []
+      },
+      {
+        "path": "Lattice/Source/Voicing.h",
+        "sha256": "ac4ea096b4002e40db16471f460d3f79601f9c55c035cb8a005237633b3d1e8f",
+        "portedTo": "Voicing.h",
+        "deviations": []
+      },
+      {
+        "path": "Lattice/Source/VoiceDelay.h",
+        "sha256": "430cfc11e353ce77394ce8b423163cc1f25ee20935924f2a47c64c38867efaa7",
+        "portedTo": "VoiceDelay.h",
+        "deviations": [
+          "std::vector of sampleRate * maxSeconds + 4 samples -> a fixed ring of 65536 samples (0.68 s at 96 kHz; the Delay control reaches 0.5 s). Longer requests are clamped to the ring.",
+          "the read position is taken from the integer and fractional parts of the delay instead of float(writePos) - delay: the same two samples and weights, without the fraction bits a large write index costs.",
+          "livemix::flush_denormal on the value written back (WASM has no flush-to-zero; the source relies on juce::ScopedNoDenormals).",
+          "effectiveFeedbackScale() exposes the 5 ms feedback fade for the Cascade path."
+        ]
+      }
+    ],
+    "note": "Scale.h and Voicing.h are byte-identical copies. The shifter, tracker and voice delay keep the source algorithms and constants (two-grain sin^2 crossfade with the period-synchronous splice, McLeod pitch method with frame 2048 / hop 256, 20-cent degree hysteresis, 5 ms feedback fade) in the source namespace ::lattice; lattice.h is processBlock and the parameter layout on kit::DeviceBase. The source has no factory presets: the eleven here are new, and the first is the source default patch. Editor files (PluginEditor.*) are not ported."
+  }
+}

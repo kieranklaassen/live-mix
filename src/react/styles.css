@@ -1947,3 +1947,113 @@
   font-weight: 400;
   letter-spacing: 0.02em;
 }
+
+/* A dense device chain is a rack: panels edge to edge, each as tall as the
+ * rack. A panel's knobs sit in cells 1.5 columns wide (room for a value with
+ * its unit), filled top to bottom in `--lm-rack-rows` rows (default 2; a cell
+ * wants three rows of the module), so a taller rack can show more rows of
+ * knobs and narrower panels. `lm-device--rack` gives a panel outside a chain
+ * the same layout. */
+
+.lm-dense .lm-chain {
+  gap: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.lm-dense .lm-chain__item {
+  border-radius: 0;
+}
+
+.lm-dense .lm-chain__handle {
+  justify-content: center;
+  width: calc(var(--lm-row) / 2);
+  padding: 0;
+  border-right: 1px solid var(--lm-grid-line-strong);
+  font-size: 8px;
+  letter-spacing: -1px;
+  writing-mode: vertical-rl;
+}
+
+.lm-dense .lm-device__header {
+  gap: 4px;
+}
+
+.lm-dense .lm-device__actions {
+  align-self: stretch;
+  gap: 0;
+  margin-right: -6px;
+}
+
+.lm-dense .lm-device__actions .lm-button,
+.lm-dense .lm-device__presets,
+.lm-dense .lm-chain__picker {
+  height: 100%;
+  border: 0;
+  border-left: 1px solid var(--lm-grid-line-strong);
+  border-radius: 0;
+  background: transparent;
+  color: var(--lm-muted);
+}
+
+.lm-dense .lm-device__actions .lm-button {
+  min-width: var(--lm-row);
+  padding: 0;
+}
+
+.lm-dense .lm-device__actions .lm-button:hover:not(:disabled),
+.lm-dense .lm-device__presets:hover,
+.lm-dense .lm-chain__picker:hover {
+  background: var(--lm-raised);
+  color: var(--lm-text);
+}
+
+.lm-dense .lm-chain__add {
+  align-items: flex-start;
+  padding: 0;
+}
+
+.lm-dense .lm-chain__picker {
+  height: var(--lm-row);
+  border-left: 0;
+  border-right: 1px solid var(--lm-grid-line-strong);
+  border-bottom: 1px solid var(--lm-grid-line-strong);
+}
+
+.lm-dense .lm-chain .lm-device--generated,
+.lm-dense .lm-device--rack {
+  height: 100%;
+}
+
+.lm-dense .lm-chain .lm-device--generated .lm-device__body,
+.lm-dense .lm-device--rack .lm-device__body {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.lm-dense .lm-chain .lm-device--generated .lm-device__params,
+.lm-dense .lm-device--rack .lm-device__params {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: calc(var(--lm-col) * 1.5);
+  grid-template-rows: repeat(var(--lm-rack-rows, 2), minmax(0, 1fr));
+  height: 100%;
+}
+
+.lm-dense .lm-chain .lm-device--generated .lm-device__param.lm-knob,
+.lm-dense .lm-device--rack .lm-device__param.lm-knob {
+  justify-content: center;
+  width: 100%;
+  gap: 1px;
+}
+
+.lm-dense .lm-chain .lm-device--generated .lm-knob__label,
+.lm-dense .lm-device--rack .lm-knob__label {
+  box-sizing: border-box;
+  padding-inline: 3px;
+}
+
+.lm-dense .lm-chain .lm-device--generated .lm-knob__value,
+.lm-dense .lm-device--rack .lm-knob__value {
+  white-space: nowrap;
+}

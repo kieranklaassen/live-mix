@@ -1,0 +1,110 @@
+{
+  "id": "tape-loop",
+  "name": "Tape Loop",
+  "category": "delay",
+  "description": "A long loop of tape between two decks that you play into: every pass comes back quieter and a little more worn, so layers pile up and slowly fade.",
+  "class": "TapeLoop",
+  "header": "tape_loop.h",
+  "sources": [],
+  "memoryMb": 24,
+  "params": [
+    {
+      "key": "length",
+      "name": "Length",
+      "min": 1,
+      "max": 30,
+      "default": 1.8,
+      "taper": "log",
+      "unit": "s"
+    },
+    { "key": "feedback", "name": "Feedback", "min": 0, "max": 1, "default": 0.7 },
+    { "key": "speed", "name": "Speed", "choices": ["Half", "Normal", "Double"], "default": 1 },
+    { "key": "direction", "name": "Direction", "choices": ["Forward", "Reverse"], "default": 0 },
+    { "key": "record", "name": "Record", "choices": ["On", "Off"], "default": 0 },
+    { "key": "wear", "name": "Wear", "min": 0, "max": 1, "default": 0.3 },
+    { "key": "wow", "name": "Wow", "min": 0, "max": 1, "default": 0.2 },
+    {
+      "key": "lowCut",
+      "name": "Low Cut",
+      "min": 20,
+      "max": 800,
+      "default": 60,
+      "taper": "log",
+      "unit": "Hz"
+    },
+    { "key": "spread", "name": "Ping Pong", "min": 0, "max": 1, "default": 0.3 },
+    { "key": "mix", "name": "Mix", "min": 0, "max": 1, "default": 0.5 }
+  ],
+  "presets": {
+    "Slow fade": {
+      "length": 1.8,
+      "feedback": 0.7,
+      "speed": 1,
+      "direction": 0,
+      "record": 0,
+      "wear": 0.3,
+      "wow": 0.2,
+      "lowCut": 60,
+      "spread": 0.3,
+      "mix": 0.5
+    },
+    "Two decks": {
+      "length": 4.2,
+      "feedback": 0.8,
+      "wear": 0.25,
+      "wow": 0.3,
+      "lowCut": 80,
+      "spread": 0,
+      "mix": 0.5
+    },
+    "Long horizon": {
+      "length": 13,
+      "feedback": 0.72,
+      "wear": 0.4,
+      "wow": 0.25,
+      "lowCut": 70,
+      "spread": 0.6,
+      "mix": 0.55
+    },
+    "Slowed down": {
+      "length": 8,
+      "feedback": 0.75,
+      "speed": 0,
+      "wear": 0.35,
+      "wow": 0.3,
+      "spread": 0.4,
+      "mix": 0.5
+    },
+    "Backwards layers": {
+      "length": 6,
+      "feedback": 0.68,
+      "direction": 1,
+      "wear": 0.2,
+      "wow": 0.15,
+      "spread": 0.5,
+      "mix": 0.5
+    },
+    "Worn out": {
+      "length": 3,
+      "feedback": 0.7,
+      "wear": 1,
+      "wow": 0.8,
+      "lowCut": 150,
+      "spread": 0.2,
+      "mix": 0.5
+    },
+    "Hold forever": {
+      "length": 8,
+      "feedback": 1,
+      "wear": 0,
+      "wow": 0.1,
+      "lowCut": 40,
+      "spread": 0,
+      "mix": 0.5
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. The two-deck tape delay of Frippertronics and Discreet Music in outline (one record head, one playback head a loop length away, the playback fed back to the record deck), with a varispeed playback head; not a model of any machine."
+  }
+}

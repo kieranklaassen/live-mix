@@ -1,0 +1,396 @@
+{
+  "id": "thesis",
+  "name": "Thesis",
+  "category": "instrument",
+  "description": "Chord instrument of filtered noise: every note becomes up to six resonant bands, the played pitch plus its reflections around a centre note within a scale.",
+  "class": "Thesis",
+  "header": "thesis.h",
+  "sources": ["cpp/devices/stereo-widener/StereoWidener.cpp"],
+  "params": [
+    {
+      "key": "center",
+      "name": "Center Note",
+      "min": 48,
+      "max": 71,
+      "default": 62,
+      "unit": "note"
+    },
+    {
+      "key": "resonance",
+      "name": "Resonance",
+      "min": 5,
+      "max": 100,
+      "default": 40,
+      "taper": "log"
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 100,
+      "default": 50,
+      "unit": "%"
+    },
+    {
+      "key": "attack",
+      "name": "Attack",
+      "min": 0.01,
+      "max": 5,
+      "default": 0.5,
+      "taper": "log",
+      "unit": "s"
+    },
+    {
+      "key": "release",
+      "name": "Release",
+      "min": 0.1,
+      "max": 10,
+      "default": 2,
+      "taper": "log",
+      "unit": "s"
+    },
+    {
+      "key": "mode",
+      "name": "Mode",
+      "choices": ["Fixed", "Breathe", "Drift", "Gravity"],
+      "default": 1
+    },
+    {
+      "key": "breatheRate",
+      "name": "Rate",
+      "min": 0.1,
+      "max": 2,
+      "default": 0.3,
+      "unit": "Hz"
+    },
+    {
+      "key": "strum",
+      "name": "Strum",
+      "min": 0,
+      "max": 100,
+      "default": 0,
+      "unit": "ms"
+    },
+    {
+      "key": "mirrorEnabled",
+      "name": "Mirror",
+      "choices": ["Off", "On"],
+      "default": 1
+    },
+    {
+      "key": "octaflipEnabled",
+      "name": "Octaflip",
+      "choices": ["Off", "On"],
+      "default": 1
+    },
+    {
+      "key": "middleEnabled",
+      "name": "Middle",
+      "choices": ["Off", "On"],
+      "default": 0
+    },
+    {
+      "key": "mirrorMiddleEnabled",
+      "name": "Mirror Middle",
+      "choices": ["Off", "On"],
+      "default": 0
+    },
+    {
+      "key": "centerEnabled",
+      "name": "Center",
+      "choices": ["Off", "On"],
+      "default": 0
+    },
+    {
+      "key": "scale",
+      "name": "Scale",
+      "choices": [
+        "Major",
+        "Natural Minor",
+        "Harmonic Minor",
+        "Melodic Minor",
+        "Dorian",
+        "Phrygian",
+        "Lydian",
+        "Mixolydian",
+        "Locrian",
+        "Pentatonic",
+        "Blues",
+        "Whole Tone",
+        "Chromatic"
+      ],
+      "default": 0
+    },
+    {
+      "key": "root",
+      "name": "Root",
+      "choices": ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"],
+      "default": 0
+    }
+  ],
+  "presets": {
+    "Thesis Default": {
+      "center": 62,
+      "resonance": 40,
+      "width": 50,
+      "attack": 0.5,
+      "release": 2,
+      "mode": 1,
+      "breatheRate": 0.3,
+      "strum": 0,
+      "mirrorEnabled": 1,
+      "octaflipEnabled": 1,
+      "middleEnabled": 0,
+      "mirrorMiddleEnabled": 0,
+      "centerEnabled": 0,
+      "scale": 0,
+      "root": 0
+    },
+    "Glass Choir": {
+      "center": 64,
+      "resonance": 80,
+      "width": 80,
+      "attack": 1.5,
+      "release": 4,
+      "mode": 1,
+      "breatheRate": 0.15,
+      "strum": 0,
+      "mirrorEnabled": 1,
+      "octaflipEnabled": 1,
+      "middleEnabled": 0,
+      "mirrorMiddleEnabled": 0,
+      "centerEnabled": 0,
+      "scale": 0,
+      "root": 0
+    },
+    "Drifting Minor": {
+      "center": 60,
+      "resonance": 55,
+      "width": 60,
+      "attack": 0.8,
+      "release": 3,
+      "mode": 2,
+      "breatheRate": 0.25,
+      "strum": 10,
+      "mirrorEnabled": 1,
+      "octaflipEnabled": 1,
+      "middleEnabled": 0,
+      "mirrorMiddleEnabled": 0,
+      "centerEnabled": 0,
+      "scale": 1,
+      "root": 9
+    },
+    "Gravity Well": {
+      "center": 58,
+      "resonance": 30,
+      "width": 100,
+      "attack": 0.3,
+      "release": 5,
+      "mode": 3,
+      "breatheRate": 0.4,
+      "strum": 40,
+      "mirrorEnabled": 1,
+      "octaflipEnabled": 1,
+      "middleEnabled": 1,
+      "mirrorMiddleEnabled": 0,
+      "centerEnabled": 0,
+      "scale": 0,
+      "root": 0
+    },
+    "Strummed Lydian": {
+      "center": 62,
+      "resonance": 45,
+      "width": 60,
+      "attack": 0.05,
+      "release": 1.2,
+      "mode": 0,
+      "breatheRate": 0.3,
+      "strum": 80,
+      "mirrorEnabled": 1,
+      "octaflipEnabled": 1,
+      "middleEnabled": 1,
+      "mirrorMiddleEnabled": 0,
+      "centerEnabled": 0,
+      "scale": 6,
+      "root": 0
+    },
+    "Fixed Full Stack": {
+      "center": 62,
+      "resonance": 60,
+      "width": 70,
+      "attack": 0.4,
+      "release": 2.5,
+      "mode": 0,
+      "breatheRate": 0.3,
+      "strum": 20,
+      "mirrorEnabled": 1,
+      "octaflipEnabled": 1,
+      "middleEnabled": 1,
+      "mirrorMiddleEnabled": 1,
+      "centerEnabled": 1,
+      "scale": 0,
+      "root": 0
+    },
+    "Pentatonic Breath": {
+      "center": 62,
+      "resonance": 50,
+      "width": 50,
+      "attack": 0.2,
+      "release": 1.5,
+      "mode": 1,
+      "breatheRate": 0.6,
+      "strum": 0,
+      "mirrorEnabled": 1,
+      "octaflipEnabled": 1,
+      "middleEnabled": 0,
+      "mirrorMiddleEnabled": 0,
+      "centerEnabled": 0,
+      "scale": 9,
+      "root": 0
+    },
+    "Dark Phrygian": {
+      "center": 50,
+      "resonance": 25,
+      "width": 30,
+      "attack": 1.0,
+      "release": 6,
+      "mode": 2,
+      "breatheRate": 0.12,
+      "strum": 0,
+      "mirrorEnabled": 1,
+      "octaflipEnabled": 1,
+      "middleEnabled": 0,
+      "mirrorMiddleEnabled": 1,
+      "centerEnabled": 0,
+      "scale": 5,
+      "root": 4
+    },
+    "Sparse Mirror": {
+      "center": 62,
+      "resonance": 70,
+      "width": 40,
+      "attack": 0.4,
+      "release": 2.5,
+      "mode": 1,
+      "breatheRate": 0.2,
+      "strum": 0,
+      "mirrorEnabled": 1,
+      "octaflipEnabled": 0,
+      "middleEnabled": 0,
+      "mirrorMiddleEnabled": 0,
+      "centerEnabled": 0,
+      "scale": 0,
+      "root": 0
+    }
+  },
+  "origin": {
+    "kind": "port",
+    "repository": "kieranklaassen/kkfonie",
+    "commit": "808719d0190315e5c6991833fe4e51c24ae75d3f",
+    "files": [
+      {
+        "path": "Thesis/Source/PluginProcessor.cpp",
+        "sha256": "d8496f1b91e002a635c4ce29d897f6243e6e14d98638755f2c31a99ea26f4a7a",
+        "portedTo": "thesis.h",
+        "deviations": [
+          "juce::AudioProcessor, APVTS, editor, state save/restore and the output meters are dropped; parameters arrive through set_param and are applied when they change instead of being pushed to every voice each block",
+          "MIDI is replaced by note_on(note_id, frequency, gain): the MIDI note the transform needs is the frequency rounded to the nearest semitone (A = 440 Hz), and gain 0..1 stands in for velocity / 127",
+          "juce::Synthesiser is replaced by kit::VoicePool with the same eight voices. A full pool takes the quietest releasing voice, else the quietest held one (oldest on a tie), where JUCE picks by its own note-priority rule; the stolen voice keeps its envelope level and filter state and ramps to the new chord in 5 ms, where JUCE resets the envelope to zero (a hard cut)",
+          "notes are told apart by host note id, not by pitch: striking a held id again releases the old voice at the Release time (as JUCE does for a repeated key), but two different ids on the same pitch sound together, where JUCE would release the first",
+          "the shared noise is drawn one sample at a time from a seeded xorshift generator (kit::Rng) instead of filling a 2048-sample buffer per block, and only on samples where a note sounds. The source reads that buffer from index 0 in every sub-block the synthesiser renders, so a note-on in the middle of a block replays the start of the block's noise and the output depends on block size and MIDI timing; here it does not",
+          "the noise is scaled by sqrt(rate / 48 kHz) so a band-pass hears the same power at any sample rate; unscaled, the plugin is 3 dB quieter at 96 kHz and 0.37 dB louder at 44.1 kHz than at 48 kHz, so this port is 0.37 dB under the plugin at 44.1 kHz and equal at 48 kHz",
+          "center is a float parameter 48..71 rounded to the nearest note (the manifest has no integer type); the five voice switches are Off/On choices; resonance, attack and release keep their ranges with a log taper for the JUCE skews 0.5 and 0.3; the 0.01 to 1 parameter steps are not enforced",
+          "the 5 ms width ramp is a kit::LinearRamp and StereoWidener::setWidth is called only when the ramped value changes, not every sample",
+          "Resonance is also ramped over 5 ms (the plugin steps it, which jumps the level by up to 4x in one sample); the ramped value feeds the 1 / max(1, Q / 10) gain every sample and the filter damping every 16 samples",
+          "the output passes kit::soft_clip (exactly linear below 0.5) and the device sleeps through kit::IdleGate 0.1 s after the last voice ends; waking resets the widener and snaps the width and resonance ramps",
+          "getTailLengthSeconds (2 s fixed) is not carried over; the tail is the Release time"
+        ]
+      },
+      {
+        "path": "Thesis/Source/PluginProcessor.h",
+        "sha256": "58916d3f4b6505f8f457372a05c4bdfc7b5a4814aa8db84d95cfe286b7f7e54c",
+        "portedTo": "thesis.h",
+        "deviations": [
+          "members become plain fields of the device class; MAX_POLYPHONY 8 is kMaxVoices"
+        ]
+      },
+      {
+        "path": "Thesis/Source/ThesisVoice.cpp",
+        "sha256": "48841c777a94587574c583c065f4d60a4ec5d7b7b280c2cc60a281b0ba917b0a",
+        "portedTo": "thesis.h",
+        "deviations": [
+          "juce::dsp::StateVariableTPTFilter is written out (same equations: g = tan(pi f / rate), R2 = 1 / Q, h = 1 / (1 + R2 g + g^2), band output). The cutoff is still ramped and clamped to 20..20000 Hz every sample, but tan() is taken every 16 samples and only when the frequency has moved by more than 0.001 % (0.02 cents); the clamp's upper end is also held under 0.49 x rate",
+          "juce::SmoothedValue (linear, 5 ms) is written out with the same restart-on-new-target behaviour; in Fixed and Breathe it is skipped once every ramp has finished",
+          "juce::ADSR is written out as a linear attack and release with full sustain (decay 0.1 s at sustain 1 does nothing). The release always falls at 1 / Release per second: the plugin does the same from the second block on, because it rewrites the ADSR parameters every block, but for the rest of the block in which the key is let go JUCE uses level / Release",
+          "the evolution LFO is a coupled-form sine/cosine pair advanced once per sample instead of a phase accumulator and std::sin per partial per sample; the six partial phases (offsets 0, 0.17, 0.33, 0.5, 0.67, 0.83 cycles) come from it by rotation. Amplitude is within 0.02 % of a true sine",
+          "the random start phase (0 to 0.1 cycle) comes from a seeded kit::Rng instead of juce::Random::getSystemRandom(), so init() gives the same sound every time",
+          "Gravity's per-sample pull, (lfo / 2 + 1 / 2) x 0.1, is scaled by 44100 / rate so the glide to the fifth takes the same time at any sample rate (the plugin's is twice as fast at 96 kHz)",
+          "a voice that has finished its release stops at that sample instead of rendering zeros to the end of the block",
+          "pitch wheel and controllers were not implemented in the source and do not exist here"
+        ]
+      },
+      {
+        "path": "Thesis/Source/ThesisVoice.h",
+        "sha256": "5c993c8b168e7d2d7de29c4b0e12e222ecd969196101b746bd9f42c0e03ec5d8",
+        "portedTo": "thesis.h",
+        "deviations": [
+          "the voice is a plain struct inside the device; its constants (six partials, phase offsets, 0.3 output gain, 2 % drift, Q clamp 1..50) are unchanged",
+          "the clamp of Resonance to 50 is kept although the parameter runs to 100: three factory presets (Glass Choir, Fixed Full Stack, Sparse Mirror) set 60 to 80 and would otherwise change"
+        ]
+      },
+      {
+        "path": "Thesis/Source/ThesisTransform.h",
+        "sha256": "e444bcdc020ba11ee9183376ae27d86ef55730b5c9f6aac3a813e28d7fe05d5a",
+        "portedTo": "ThesisTransform.h",
+        "deviations": [
+          "copied; the transform is unchanged",
+          "juce_core is not included: juce::jlimit becomes a local limit()",
+          "scaleNotes is a fixed int[73] with a count instead of a std::vector rebuilt on every setScale/setRoot, and the interval tables are a constexpr array instead of function-local static vectors, so nothing allocates",
+          "an out-of-range Scale value falls back to Major when the intervals are looked up (the source's switch default does the same)"
+        ]
+      },
+      {
+        "path": "Thesis/Source/NoiseGenerator.h",
+        "sha256": "8c041e80d2a62ec1e01d3a99d2944c2a9c3c40daa9af9036efc582c68d65830c",
+        "portedTo": "thesis.h",
+        "deviations": [
+          "juce::Random::nextFloat() x 2 - 1 becomes kit::Rng::bipolar() with a fixed seed: the same uniform white noise in [-1, 1), now repeatable"
+        ]
+      },
+      {
+        "path": "Thesis/Source/ThesisSound.h",
+        "sha256": "f99ca386dc2bf632d2eb97204d381ce80efda355f86b9d43b69683bfa2319ad1",
+        "portedTo": "thesis.h",
+        "deviations": ["the juce::SynthesiserSound marker class has no counterpart"]
+      },
+      {
+        "path": "Thesis/Source/StereoWidener.h",
+        "sha256": "b036257a740d265654d02660a447df06ce18e8eb4bdb71f2c67bbf4f9f5858ed",
+        "portedTo": "../stereo-widener/StereoWidener.h",
+        "deviations": []
+      },
+      {
+        "path": "Thesis/Source/StereoWidener.cpp",
+        "sha256": "77e05e78cb217ecf90c36ebcfb4a15f7790c70595328483e7a421d36a125a542",
+        "portedTo": "../stereo-widener/StereoWidener.cpp",
+        "deviations": []
+      },
+      {
+        "path": "Tatami/Presets/instruments/thesis.json",
+        "sha256": "efa547bd0887a25da0f96cfb706a82e1e7b202b99afb64339514b6ff8acd12af",
+        "portedTo": "device.json",
+        "deviations": ["all nine factory presets carried over with their names and values"]
+      },
+      {
+        "path": "Tatami/Tests/Instruments/ThesisInstrumentTests.cpp",
+        "sha256": "8b7494facbdc6c0be02a9e525cb2a269a954a40cf10b643078577a4ba10a1946",
+        "portedTo": "../../test/thesis_test.cpp",
+        "deviations": [
+          "the parameter checks (Mode 4, Scale 13 and Root 12 choices, Mirror on by default, Center 48..71 default 62) and the render check (note 62 for 0.6 s with a 10 ms attack: peak above 0.001 on both channels, finite) are carried over with the same thresholds",
+          "the state round trip, the meter list and the InternalPluginDevice adapter tests have no counterpart: the device has no state blob, meters or plugin adapter"
+        ]
+      }
+    ],
+    "note": "Port of the Thesis plugin: every note becomes up to six resonant noise bands tuned by ThesisTransform. The transform header is copied into the device directory; StereoWidener is the file already ported for the stereo-widener device (byte-identical to Thesis/Source/StereoWidener.{h,cpp}) and is compiled in unchanged. Known limits kept from the plugin: the voices sum to mono before the widener, so Width only changes the level up to 75 (+3 dB at 0, -3 dB at 75, above 200 Hz) and turns stereo above it; Resonance above 50 has no effect; Gravity settles every partial a fifth above its pitch within a few milliseconds; level rises 3 dB per octave of pitch."
+  }
+}

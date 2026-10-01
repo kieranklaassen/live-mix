@@ -1,0 +1,113 @@
+{
+  "id": "spectral-blur",
+  "name": "Spectral Blur",
+  "category": "texture",
+  "description": "Smears and freezes the spectrum: every frequency hangs for as long as Blur says, phases dissolve into a diffuse wash, and Freeze holds the moment as a slowly living drone.",
+  "class": "SpectralBlur",
+  "header": "spectral_blur.h",
+  "sources": [],
+  "latencySamples": 2304,
+  "params": [
+    { "key": "blur", "name": "Blur", "min": 0, "max": 1, "default": 0.6 },
+    { "key": "smear", "name": "Smear", "min": 0, "max": 1, "default": 0.7 },
+    { "key": "freeze", "name": "Freeze", "choices": ["Off", "On"], "default": 0 },
+    { "key": "tilt", "name": "Tilt", "min": -6, "max": 6, "default": -0.5, "unit": "dB/oct" },
+    {
+      "key": "lowCut",
+      "name": "Low Cut",
+      "min": 20,
+      "max": 2000,
+      "default": 20,
+      "taper": "log",
+      "unit": "Hz"
+    },
+    {
+      "key": "highCut",
+      "name": "High Cut",
+      "min": 500,
+      "max": 20000,
+      "default": 12000,
+      "taper": "log",
+      "unit": "Hz"
+    },
+    { "key": "shimmer", "name": "Shimmer", "min": 0, "max": 1, "default": 0.15 },
+    { "key": "width", "name": "Width", "min": 0, "max": 1, "default": 1 },
+    { "key": "mix", "name": "Mix", "min": 0, "max": 1, "default": 0.5 }
+  ],
+  "presets": {
+    "Hanging mist": {
+      "blur": 0.6,
+      "smear": 0.7,
+      "tilt": -0.5,
+      "lowCut": 20,
+      "highCut": 12000,
+      "shimmer": 0.15,
+      "width": 1,
+      "mix": 0.5
+    },
+    "Clean sustain": {
+      "blur": 0.7,
+      "smear": 0,
+      "tilt": 0,
+      "lowCut": 20,
+      "highCut": 20000,
+      "shimmer": 0,
+      "width": 0,
+      "mix": 0.45
+    },
+    "Slow dissolve": {
+      "blur": 0.88,
+      "smear": 1,
+      "tilt": -1.5,
+      "lowCut": 80,
+      "highCut": 8000,
+      "shimmer": 0.1,
+      "width": 1,
+      "mix": 0.7
+    },
+    "Glass halo": {
+      "blur": 0.55,
+      "smear": 0.5,
+      "tilt": 1.5,
+      "lowCut": 250,
+      "highCut": 16000,
+      "shimmer": 0.7,
+      "width": 1,
+      "mix": 0.45
+    },
+    "Dark water": {
+      "blur": 0.8,
+      "smear": 0.85,
+      "tilt": -3,
+      "lowCut": 20,
+      "highCut": 2500,
+      "shimmer": 0,
+      "width": 0.8,
+      "mix": 0.6
+    },
+    "Whisper": {
+      "blur": 0.15,
+      "smear": 1,
+      "tilt": 0,
+      "lowCut": 150,
+      "highCut": 14000,
+      "shimmer": 0.25,
+      "width": 1,
+      "mix": 1
+    },
+    "Endless": {
+      "blur": 1,
+      "smear": 0.9,
+      "tilt": -1,
+      "lowCut": 40,
+      "highCut": 10000,
+      "shimmer": 0.3,
+      "width": 1,
+      "mix": 0.75
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on kit::Fft. A real-time relative of Paul's Extreme Sound Stretch (held magnitudes, random phase per frame) with a phase-vocoder path for the unsmeared sound; not a port of either."
+  }
+}
