@@ -50,7 +50,7 @@ The `.wasm` must come from Emscripten 4.0.15 (CI rebuilds it and compares bytes)
 ```
 
 - `category`: `instrument`, `reverb`, `delay`, `texture`, `pitch`, `modulation`, `eq`, `dynamics`, `drive`, `spatial`, `utility`. `instrument` adds the note entry points.
-- `params`: array order is the parameter id. `key` is camelCase; `taper` is `linear` (default) or `log` (needs `min > 0`); `unit` is free text (`ms`, `s`, `Hz`, `dB`, `st`, `ct`, or empty for 0..1 amounts). A `choices` param takes only `key`, `name`, `choices`, `default` (an index). A wet/dry control is called `mix`, 0..1, equal power.
+- `params`: array order is the parameter id. `key` is camelCase; `taper` is `linear` (default) or `log` (needs `min > 0`); `unit` is free text (`ms`, `s`, `Hz`, `dB`, `st`, `ct`, or empty for 0..1 amounts). A `choices` param takes only `key`, `name`, `choices`, `default` (an index). A wet/dry control is called `mix`, 0..1: equal power when the wet signal is decorrelated from the dry one (a reverb, a long delay, a granular cloud), a linear crossfade when the two stay time-aligned and coherent (a filter, a saturator, a tremolo), where equal power would add 3 dB at the centre.
 - `presets`: at least four, named in plain words, each a sound someone would want. A preset lists only what it changes.
 - `sources`: extra `.cpp` files, repo-relative. Prefer header-only.
 - `memoryMb` (default 4): raise it when the static storage needs it (the linker says so). `samples: true` adds the sample entry points (see `cpp/kit/sample.h`). `experimental: true` marks a device over the CPU budget. `latencySamples` when the device delays its output by a fixed count.
