@@ -6,6 +6,7 @@
   "class": "Ember",
   "header": "ember.h",
   "sources": [],
+  "experimental": true,
   "latencySamples": 16,
   "params": [
     {

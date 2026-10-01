@@ -2,9 +2,13 @@
 
 import { type DeviceDescriptor } from '../../core/devices'
 import { type WasmDeviceDefinition } from '../WasmDevice'
+import { ATMOSPHERE_DESCRIPTOR, ATMOSPHERE_DEVICE } from './atmosphere.gen'
 import { AUTO_FILTER_DESCRIPTOR, AUTO_FILTER_DEVICE } from './auto-filter.gen'
 import { BLOOM_REVERB_DESCRIPTOR, BLOOM_REVERB_DEVICE } from './bloom-reverb.gen'
+import { BOWED_STRING_DESCRIPTOR, BOWED_STRING_DEVICE } from './bowed-string.gen'
+import { CHOIR_DESCRIPTOR, CHOIR_DEVICE } from './choir.gen'
 import { CHORUS_DESCRIPTOR, CHORUS_DEVICE } from './chorus.gen'
+import { DRONE_DESCRIPTOR, DRONE_DEVICE } from './drone.gen'
 import { EMBER_DESCRIPTOR, EMBER_DEVICE } from './ember.gen'
 import { EXPANSE_DESCRIPTOR, EXPANSE_DEVICE } from './expanse.gen'
 import { FLANGER_DESCRIPTOR, FLANGER_DEVICE } from './flanger.gen'
@@ -14,6 +18,7 @@ import { GRAIN_CLOUD_DESCRIPTOR, GRAIN_CLOUD_DEVICE } from './grain-cloud.gen'
 import { GRAIN_DELAY_DESCRIPTOR, GRAIN_DELAY_DEVICE } from './grain-delay.gen'
 import { GRAIN_SYNTH_DESCRIPTOR, GRAIN_SYNTH_DEVICE } from './grain-synth.gen'
 import { LATTICE_DESCRIPTOR, LATTICE_DEVICE } from './lattice.gen'
+import { MODAL_BELLS_DESCRIPTOR, MODAL_BELLS_DEVICE } from './modal-bells.gen'
 import { ORGAN_DESCRIPTOR, ORGAN_DEVICE } from './organ.gen'
 import { PHASER_DESCRIPTOR, PHASER_DEVICE } from './phaser.gen'
 import { REVERSE_DELAY_DESCRIPTOR, REVERSE_DELAY_DEVICE } from './reverse-delay.gen'
@@ -32,10 +37,15 @@ import { TAPE_LOOP_DESCRIPTOR, TAPE_LOOP_DEVICE } from './tape-loop.gen'
 import { THESIS_DESCRIPTOR, THESIS_DEVICE } from './thesis.gen'
 import { TINE_PIANO_DESCRIPTOR, TINE_PIANO_DEVICE } from './tine-piano.gen'
 import { TREMOLO_DESCRIPTOR, TREMOLO_DEVICE } from './tremolo.gen'
+import { WAVETABLE_DESCRIPTOR, WAVETABLE_DEVICE } from './wavetable.gen'
 
+export * from './atmosphere.gen'
 export * from './auto-filter.gen'
 export * from './bloom-reverb.gen'
+export * from './bowed-string.gen'
+export * from './choir.gen'
 export * from './chorus.gen'
+export * from './drone.gen'
 export * from './ember.gen'
 export * from './expanse.gen'
 export * from './flanger.gen'
@@ -45,6 +55,7 @@ export * from './grain-cloud.gen'
 export * from './grain-delay.gen'
 export * from './grain-synth.gen'
 export * from './lattice.gen'
+export * from './modal-bells.gen'
 export * from './organ.gen'
 export * from './phaser.gen'
 export * from './reverse-delay.gen'
@@ -63,12 +74,17 @@ export * from './tape-loop.gen'
 export * from './thesis.gen'
 export * from './tine-piano.gen'
 export * from './tremolo.gen'
+export * from './wavetable.gen'
 
 /** Every generated WASM device, in id order; part of `STOCK_WASM_DEVICES`. */
 export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
+  ATMOSPHERE_DESCRIPTOR,
   AUTO_FILTER_DESCRIPTOR,
   BLOOM_REVERB_DESCRIPTOR,
+  BOWED_STRING_DESCRIPTOR,
+  CHOIR_DESCRIPTOR,
   CHORUS_DESCRIPTOR,
+  DRONE_DESCRIPTOR,
   EMBER_DESCRIPTOR,
   EXPANSE_DESCRIPTOR,
   FLANGER_DESCRIPTOR,
@@ -78,6 +94,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   GRAIN_DELAY_DESCRIPTOR,
   GRAIN_SYNTH_DESCRIPTOR,
   LATTICE_DESCRIPTOR,
+  MODAL_BELLS_DESCRIPTOR,
   ORGAN_DESCRIPTOR,
   PHASER_DESCRIPTOR,
   REVERSE_DELAY_DESCRIPTOR,
@@ -96,13 +113,18 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   THESIS_DESCRIPTOR,
   TINE_PIANO_DESCRIPTOR,
   TREMOLO_DESCRIPTOR,
+  WAVETABLE_DESCRIPTOR,
 ]
 
 /** Their definitions (module location and parameter table), in the same order. */
 export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
+  ATMOSPHERE_DEVICE,
   AUTO_FILTER_DEVICE,
   BLOOM_REVERB_DEVICE,
+  BOWED_STRING_DEVICE,
+  CHOIR_DEVICE,
   CHORUS_DEVICE,
+  DRONE_DEVICE,
   EMBER_DEVICE,
   EXPANSE_DEVICE,
   FLANGER_DEVICE,
@@ -112,6 +134,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   GRAIN_DELAY_DEVICE,
   GRAIN_SYNTH_DEVICE,
   LATTICE_DEVICE,
+  MODAL_BELLS_DEVICE,
   ORGAN_DEVICE,
   PHASER_DEVICE,
   REVERSE_DELAY_DEVICE,
@@ -130,13 +153,18 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   THESIS_DEVICE,
   TINE_PIANO_DEVICE,
   TREMOLO_DEVICE,
+  WAVETABLE_DEVICE,
 ]
 
 /** What the device-agnostic tests need to know about each generated artefact. */
 export const GENERATED_WASM_DEVICES = [
+  { id: 'atmosphere', instrument: true, samples: false, memoryMb: 4 },
   { id: 'auto-filter', instrument: false, samples: false, memoryMb: 4 },
   { id: 'bloom-reverb', instrument: false, samples: false, memoryMb: 4 },
+  { id: 'bowed-string', instrument: true, samples: false, memoryMb: 4 },
+  { id: 'choir', instrument: true, samples: false, memoryMb: 4 },
   { id: 'chorus', instrument: false, samples: false, memoryMb: 4 },
+  { id: 'drone', instrument: true, samples: false, memoryMb: 4 },
   { id: 'ember', instrument: true, samples: false, memoryMb: 4 },
   { id: 'expanse', instrument: false, samples: false, memoryMb: 6 },
   { id: 'flanger', instrument: false, samples: false, memoryMb: 4 },
@@ -146,6 +174,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'grain-delay', instrument: false, samples: false, memoryMb: 10 },
   { id: 'grain-synth', instrument: true, samples: true, memoryMb: 12 },
   { id: 'lattice', instrument: false, samples: false, memoryMb: 4 },
+  { id: 'modal-bells', instrument: true, samples: false, memoryMb: 4 },
   { id: 'organ', instrument: true, samples: false, memoryMb: 4 },
   { id: 'phaser', instrument: false, samples: false, memoryMb: 4 },
   { id: 'reverse-delay', instrument: false, samples: false, memoryMb: 20 },
@@ -164,4 +193,5 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'thesis', instrument: true, samples: false, memoryMb: 4 },
   { id: 'tine-piano', instrument: true, samples: false, memoryMb: 4 },
   { id: 'tremolo', instrument: false, samples: false, memoryMb: 4 },
+  { id: 'wavetable', instrument: true, samples: false, memoryMb: 5 },
 ] as const

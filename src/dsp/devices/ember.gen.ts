@@ -331,6 +331,7 @@ export const EMBER_DESCRIPTOR = wasmDeviceDescriptor(EMBER_DEVICE, {
   category: 'instrument',
   description:
     'Subtractive pad synth: two oscillators with hard sync, sub and noise through a 12/24 dB filter with its own envelope, two LFOs, glide and up to eight detuned unison voices spread across the stereo field.',
+  experimental: true,
   presets: {
     'Warm pad': {
       osc2Fine: 8,

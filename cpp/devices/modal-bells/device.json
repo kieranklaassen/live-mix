@@ -1,0 +1,175 @@
+{
+  "id": "modal-bells",
+  "name": "Bells",
+  "category": "instrument",
+  "description": "Struck and rubbed metal, glass and wood: church bells, singing bowls, vibraphone and chime bars, kalimba, glass and gongs, each a bank of ringing modes at the ratios of the real thing.",
+  "class": "ModalBells",
+  "header": "modal_bells.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "material",
+      "name": "Material",
+      "choices": ["Church bell", "Singing bowl", "Vibraphone", "Bar", "Kalimba", "Glass", "Gong"],
+      "default": 1
+    },
+    {
+      "key": "decay",
+      "name": "Decay",
+      "min": 0.2,
+      "max": 40,
+      "default": 12,
+      "taper": "log",
+      "unit": "s"
+    },
+    {
+      "key": "damping",
+      "name": "Damping",
+      "min": 0,
+      "max": 1,
+      "default": 0.4
+    },
+    {
+      "key": "hardness",
+      "name": "Hardness",
+      "min": 0,
+      "max": 1,
+      "default": 0.45
+    },
+    {
+      "key": "position",
+      "name": "Position",
+      "min": 0,
+      "max": 1,
+      "default": 0.15
+    },
+    {
+      "key": "detune",
+      "name": "Detune",
+      "min": 0,
+      "max": 8,
+      "default": 1,
+      "unit": "Hz"
+    },
+    {
+      "key": "stretch",
+      "name": "Stretch",
+      "min": 0.5,
+      "max": 1.5,
+      "default": 1
+    },
+    {
+      "key": "sustain",
+      "name": "Sustain",
+      "min": 0,
+      "max": 1,
+      "default": 0
+    },
+    {
+      "key": "brightness",
+      "name": "Brightness",
+      "min": 0,
+      "max": 1,
+      "default": 0.5
+    },
+    {
+      "key": "release",
+      "name": "Release",
+      "min": 0,
+      "max": 1,
+      "default": 0.25
+    },
+    {
+      "key": "spread",
+      "name": "Spread",
+      "min": 0,
+      "max": 1,
+      "default": 0.6
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -9,
+      "unit": "dB"
+    }
+  ],
+  "presets": {
+    "Singing bowl": {},
+    "Rubbed bowl": {
+      "decay": 20,
+      "hardness": 0.2,
+      "detune": 0.7,
+      "sustain": 1,
+      "release": 0.05,
+      "spread": 0.8
+    },
+    "Church bell": {
+      "material": 0,
+      "decay": 28,
+      "damping": 0.45,
+      "hardness": 0.7,
+      "position": 0.05,
+      "detune": 0.6,
+      "release": 0,
+      "spread": 0.4
+    },
+    "Vibraphone": {
+      "material": 2,
+      "decay": 7,
+      "damping": 0.5,
+      "hardness": 0.3,
+      "position": 0.9,
+      "detune": 0.3,
+      "release": 0.75,
+      "spread": 0.3
+    },
+    "Music box": {
+      "material": 3,
+      "decay": 3,
+      "damping": 0.3,
+      "hardness": 0.85,
+      "position": 0.1,
+      "detune": 0.4,
+      "brightness": 0.6,
+      "release": 0.2,
+      "spread": 0.5
+    },
+    "Kalimba": {
+      "material": 4,
+      "decay": 2.5,
+      "damping": 0.75,
+      "hardness": 0.6,
+      "position": 0.1,
+      "detune": 0.5,
+      "release": 0.4,
+      "spread": 0.3
+    },
+    "Glass harp": {
+      "material": 5,
+      "decay": 9,
+      "damping": 0.3,
+      "hardness": 0.15,
+      "detune": 1.5,
+      "sustain": 0.9,
+      "brightness": 0.4,
+      "release": 0.3,
+      "spread": 0.7
+    },
+    "Gong": {
+      "material": 6,
+      "decay": 30,
+      "damping": 0.5,
+      "hardness": 0.3,
+      "position": 0.35,
+      "detune": 2,
+      "release": 0,
+      "spread": 1
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. Modal synthesis in the tradition of Adrien's Modalys and the MI Elements/Rings resonators in outline only: each mode is a rotating complex one-pole. Mode ratios are textbook and measured values (Rossing, The Science of Percussion Instruments; Fletcher and Rossing; Inacio, Henrique and Antunes on Tibetan bowls), rounded. Not a model of a particular instrument."
+  }
+}

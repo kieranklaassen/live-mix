@@ -1,0 +1,121 @@
+{
+  "id": "bowed-string",
+  "name": "Bow",
+  "category": "instrument",
+  "description": "One string, three ways to play it: plucked, held singing by an ebow, or bowed. Sustained guitar swells and cello-like drones from a waveguide string with a resonant body.",
+  "class": "BowedString",
+  "header": "bowed_string.h",
+  "sources": [],
+  "experimental": true,
+  "params": [
+    { "key": "mode", "name": "Mode", "choices": ["Pluck", "Ebow", "Bow"], "default": 1 },
+    {
+      "key": "attack",
+      "name": "Attack",
+      "min": 0.005,
+      "max": 10,
+      "default": 1.2,
+      "taper": "log",
+      "unit": "s"
+    },
+    {
+      "key": "release",
+      "name": "Release",
+      "min": 0.05,
+      "max": 15,
+      "default": 2,
+      "taper": "log",
+      "unit": "s"
+    },
+    { "key": "brightness", "name": "Brightness", "min": 0, "max": 1, "default": 0.5 },
+    {
+      "key": "decay",
+      "name": "Decay",
+      "min": 0.3,
+      "max": 30,
+      "default": 6,
+      "taper": "log",
+      "unit": "s"
+    },
+    { "key": "position", "name": "Position", "min": 0.02, "max": 0.5, "default": 0.14 },
+    { "key": "pressure", "name": "Pressure", "min": 0, "max": 1, "default": 0.4 },
+    { "key": "body", "name": "Body", "min": 0, "max": 1, "default": 0.4 },
+    { "key": "vibrato", "name": "Vibrato", "min": 0, "max": 1, "default": 0.15 },
+    {
+      "key": "vibratoRate",
+      "name": "Vibrato Rate",
+      "min": 2,
+      "max": 9,
+      "default": 5,
+      "unit": "Hz"
+    },
+    { "key": "detune", "name": "Detune", "min": 0, "max": 25, "default": 6, "unit": "ct" },
+    { "key": "volume", "name": "Volume", "min": -48, "max": 6, "default": -9, "unit": "dB" }
+  ],
+  "presets": {
+    "Ebow swell": {},
+    "Cello drone": {
+      "mode": 2,
+      "attack": 0.6,
+      "release": 1.5,
+      "brightness": 0.4,
+      "position": 0.1,
+      "pressure": 0.55,
+      "body": 0.8,
+      "vibrato": 0.25,
+      "vibratoRate": 5.5,
+      "detune": 0
+    },
+    "Glass bow": {
+      "mode": 2,
+      "attack": 3,
+      "release": 6,
+      "brightness": 0.75,
+      "decay": 12,
+      "position": 0.06,
+      "pressure": 0.15,
+      "body": 0.25,
+      "vibrato": 0.1,
+      "vibratoRate": 4.5,
+      "detune": 9
+    },
+    "Octave feedback": {
+      "attack": 2.5,
+      "release": 5,
+      "brightness": 0.7,
+      "decay": 10,
+      "position": 0.3,
+      "pressure": 0.9,
+      "body": 0.3,
+      "vibrato": 0.3,
+      "vibratoRate": 5.5,
+      "detune": 10
+    },
+    "Felt guitar": {
+      "mode": 0,
+      "attack": 0.005,
+      "release": 1.2,
+      "brightness": 0.35,
+      "decay": 5,
+      "position": 0.22,
+      "body": 0.6,
+      "vibrato": 0,
+      "detune": 4
+    },
+    "Volume swell": {
+      "mode": 0,
+      "attack": 0.9,
+      "release": 4,
+      "brightness": 0.6,
+      "decay": 14,
+      "position": 0.12,
+      "body": 0.35,
+      "vibrato": 0.1,
+      "detune": 8
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. A two-segment digital waveguide string (Karplus-Strong and Jaffe-Smith lineage) with the excitation at the junction. The ebow and the bow share one driver: it reads the string's own fundamental, pushes in phase with it to hold a set level, and adds upper partials from a table read at the string's phase (the octave for a hard-driven ebow, a slipping-string ramp plus rosin noise for the bow). A friction-junction bow was tried and dropped because it fell into double-slip and whistling regimes. Not a model of a particular instrument."
+  }
+}

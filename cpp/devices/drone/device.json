@@ -1,0 +1,168 @@
+{
+  "id": "drone",
+  "name": "Drone",
+  "category": "instrument",
+  "description": "Sustained tones that never sit still: each key is a small ensemble of partials in a just-intoned shape, every one wandering in pitch, level and pan, with a sub octave, tuned air and a latch.",
+  "class": "Drone",
+  "header": "drone.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "shape",
+      "name": "Shape",
+      "choices": [
+        "Unison",
+        "Octaves",
+        "Fifths",
+        "Harmonic series",
+        "Just major",
+        "Just minor",
+        "Cluster"
+      ],
+      "default": 2
+    },
+    { "key": "partials", "name": "Partials", "min": 0, "max": 1, "default": 0.6 },
+    { "key": "wave", "name": "Wave", "min": 0, "max": 1, "default": 0.2 },
+    { "key": "movement", "name": "Movement", "min": 0, "max": 1, "default": 0.5 },
+    {
+      "key": "rate",
+      "name": "Rate",
+      "min": 0.01,
+      "max": 2,
+      "default": 0.08,
+      "taper": "log",
+      "unit": "Hz"
+    },
+    { "key": "sub", "name": "Sub", "min": 0, "max": 1, "default": 0.3 },
+    { "key": "air", "name": "Air", "min": 0, "max": 1, "default": 0.15 },
+    {
+      "key": "cutoff",
+      "name": "Cutoff",
+      "min": 60,
+      "max": 16000,
+      "default": 2400,
+      "taper": "log",
+      "unit": "Hz"
+    },
+    {
+      "key": "attack",
+      "name": "Attack",
+      "min": 0.01,
+      "max": 30,
+      "default": 3,
+      "taper": "log",
+      "unit": "s"
+    },
+    {
+      "key": "release",
+      "name": "Release",
+      "min": 0.05,
+      "max": 30,
+      "default": 6,
+      "taper": "log",
+      "unit": "s"
+    },
+    { "key": "width", "name": "Width", "min": 0, "max": 1, "default": 0.7 },
+    { "key": "hold", "name": "Hold", "choices": ["Off", "On"], "default": 0 },
+    { "key": "volume", "name": "Volume", "min": -48, "max": 6, "default": -10, "unit": "dB" }
+  ],
+  "presets": {
+    "Open fifths": {
+      "shape": 2,
+      "partials": 0.6,
+      "wave": 0.2,
+      "movement": 0.5,
+      "rate": 0.08,
+      "sub": 0.3,
+      "air": 0.15,
+      "cutoff": 2400,
+      "attack": 3,
+      "release": 6,
+      "width": 0.7,
+      "hold": 0
+    },
+    "Tanpura": {
+      "shape": 3,
+      "partials": 1,
+      "wave": 0.7,
+      "movement": 0.7,
+      "rate": 0.2,
+      "sub": 0.1,
+      "air": 0.05,
+      "cutoff": 3200,
+      "attack": 1.5,
+      "release": 8,
+      "width": 0.5
+    },
+    "Major light": {
+      "shape": 4,
+      "partials": 0.75,
+      "wave": 0.05,
+      "movement": 0.4,
+      "rate": 0.05,
+      "sub": 0.2,
+      "air": 0.3,
+      "cutoff": 5000,
+      "attack": 5,
+      "release": 10,
+      "width": 0.9
+    },
+    "Minor dusk": {
+      "shape": 5,
+      "partials": 0.7,
+      "wave": 0.35,
+      "movement": 0.6,
+      "rate": 0.04,
+      "sub": 0.5,
+      "air": 0.2,
+      "cutoff": 900,
+      "attack": 8,
+      "release": 14,
+      "width": 0.8
+    },
+    "Deep octaves": {
+      "shape": 1,
+      "partials": 0.45,
+      "wave": 0.5,
+      "movement": 0.8,
+      "rate": 0.03,
+      "sub": 0.8,
+      "air": 0,
+      "cutoff": 600,
+      "attack": 6,
+      "release": 12,
+      "width": 0.6
+    },
+    "Fog cluster": {
+      "shape": 6,
+      "partials": 0.85,
+      "wave": 0,
+      "movement": 1,
+      "rate": 0.12,
+      "sub": 0,
+      "air": 0.5,
+      "cutoff": 1600,
+      "attack": 10,
+      "release": 20,
+      "width": 1
+    },
+    "Latched unison": {
+      "shape": 0,
+      "partials": 1,
+      "wave": 0.3,
+      "movement": 0.9,
+      "rate": 0.15,
+      "sub": 0.4,
+      "air": 0.1,
+      "cutoff": 1800,
+      "attack": 4,
+      "release": 9,
+      "width": 1,
+      "hold": 1
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. The shapes are just-intonation ratio sets; the sine, triangle and sawtooth cycles are built additively at init and stored band-limited per octave."
+  }
+}

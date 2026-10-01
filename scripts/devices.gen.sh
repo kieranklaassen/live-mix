@@ -4,14 +4,22 @@
 # (native_test).
 
 build_generated_devices() {
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device atmosphere \
+    cpp/devices/atmosphere/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device auto-filter \
     cpp/devices/auto-filter/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device bloom-reverb \
     cpp/devices/bloom-reverb/device_api.gen.cpp \
     cpp/devices/spectral-drifter/SpectralDrifter.cpp \
     cpp/devices/stereo-widener/StereoWidener.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device bowed-string \
+    cpp/devices/bowed-string/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device choir \
+    cpp/devices/choir/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device chorus \
     cpp/devices/chorus/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device drone \
+    cpp/devices/drone/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device ember \
     cpp/devices/ember/device_api.gen.cpp
   MEMORY_BYTES=6291456 EXTRA_EXPORTS="" build_device expanse \
@@ -30,6 +38,8 @@ build_generated_devices() {
     cpp/devices/grain-synth/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device lattice \
     cpp/devices/lattice/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device modal-bells \
+    cpp/devices/modal-bells/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device organ \
     cpp/devices/organ/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device phaser \
@@ -68,17 +78,27 @@ build_generated_devices() {
     cpp/devices/tine-piano/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device tremolo \
     cpp/devices/tremolo/device_api.gen.cpp
+  MEMORY_BYTES=5242880 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device wavetable \
+    cpp/devices/wavetable/device_api.gen.cpp
 }
 
 test_generated_devices() {
+  native_test atmosphere_test \
+    cpp/test/atmosphere_test.cpp
   native_test auto_filter_test \
     cpp/test/auto_filter_test.cpp
   native_test bloom_reverb_test \
     cpp/test/bloom_reverb_test.cpp \
     cpp/devices/spectral-drifter/SpectralDrifter.cpp \
     cpp/devices/stereo-widener/StereoWidener.cpp
+  native_test bowed_string_test \
+    cpp/test/bowed_string_test.cpp
+  native_test choir_test \
+    cpp/test/choir_test.cpp
   native_test chorus_test \
     cpp/test/chorus_test.cpp
+  native_test drone_test \
+    cpp/test/drone_test.cpp
   native_test ember_test \
     cpp/test/ember_test.cpp
   native_test expanse_test \
@@ -97,6 +117,8 @@ test_generated_devices() {
     cpp/test/grain_synth_test.cpp
   native_test lattice_test \
     cpp/test/lattice_test.cpp
+  native_test modal_bells_test \
+    cpp/test/modal_bells_test.cpp
   native_test organ_test \
     cpp/test/organ_test.cpp
   native_test phaser_test \
@@ -135,4 +157,6 @@ test_generated_devices() {
     cpp/test/tine_piano_test.cpp
   native_test tremolo_test \
     cpp/test/tremolo_test.cpp
+  native_test wavetable_test \
+    cpp/test/wavetable_test.cpp
 }
