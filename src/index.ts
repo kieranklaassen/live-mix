@@ -12,13 +12,17 @@ export const LIVE_MIX_VERSION = '0.1.0'
 export * from './core/clips'
 export * from './core/automation'
 export {
+  isEditorDevice,
   isNoteDevice,
   isObservableDevice,
+  isParamTextDevice,
   type Device,
   type DeviceChange,
   type DeviceChangeListener,
+  type EditorDevice,
   type NoteDevice,
   type ObservableDevice,
+  type ParamTextDevice,
 } from './core/devices/Device'
 export { Emitter, type Listener } from './core/events'
 export {
@@ -271,6 +275,13 @@ export {
   type ScheduleAheadOptions,
   type StemsOptions,
 } from './core/render/OfflineRenderer'
+export {
+  RENDER_QUANTUM_FRAMES,
+  canHoldRender,
+  holdFrame,
+  holdRenderAt,
+  type HoldableContext,
+} from './core/render/hold'
 export {
   MediaStreamRecorder,
   Recorder,

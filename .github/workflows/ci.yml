@@ -148,13 +148,91 @@ jobs:
           test -f node_modules/@kieranklaassen/live-mix/dist/index.js
           test -f node_modules/@kieranklaassen/live-mix/dist/wam/index.js
           for wasm in "$GITHUB_WORKSPACE"/src/dsp/wasm/*.wasm; do test -f "node_modules/@kieranklaassen/live-mix/dist/wasm/$(basename "$wasm")"; done
-          for worklet in wasm-device ducker meter recorder; do test -f "node_modules/@kieranklaassen/live-mix/dist/worklets/$worklet.js"; done
+          for worklet in wasm-device ducker meter recorder native-bridge native-pump; do test -f "node_modules/@kieranklaassen/live-mix/dist/worklets/$worklet.js"; done
+          test -f node_modules/@kieranklaassen/live-mix/dist/native/index.js
+          test -f node_modules/@kieranklaassen/live-mix/native/host/CMakeLists.txt
           node --input-type=module -e "
             import { LIVE_MIX_VERSION } from '@kieranklaassen/live-mix'
             import { DATTORRO_PARAMS, ZITA_REV1_PARAMS, LIMITER_1176_PARAMS } from '@kieranklaassen/live-mix/dsp'
             import { MockAudioContext } from '@kieranklaassen/live-mix/testing'
-            console.log('live-mix', LIVE_MIX_VERSION, DATTORRO_PARAMS.mix.id, ZITA_REV1_PARAMS.mix.id, LIMITER_1176_PARAMS.inputGain.id, new MockAudioContext().sampleRate)
+            import { NATIVE_PROTOCOL_VERSION } from '@kieranklaassen/live-mix/native'
+            import { pluginHostSourceDir } from '@kieranklaassen/live-mix/native/shell'
+            console.log('live-mix', LIVE_MIX_VERSION, DATTORRO_PARAMS.mix.id, ZITA_REV1_PARAMS.mix.id, LIMITER_1176_PARAMS.inputGain.id, new MockAudioContext().sampleRate, NATIVE_PROTOCOL_VERSION, pluginHostSourceDir)
           "
+
+  plugin-host:
+    name: Plug-in host (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # What JUCE needs to build on Linux (native/host/README.md), and a
+      # display for the host to run on: plug-in editors need one.
+      - name: Install build tools (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build xvfb pkg-config \
+            libasound2-dev libfreetype-dev libfontconfig1-dev libx11-dev libxcomposite-dev \
+            libxcursor-dev libxext-dev libxi-dev libxinerama-dev libxrandr-dev libxrender-dev \
+            libgl1-mesa-dev libegl-dev
+
+      - name: Install build tools (macOS)
+        if: runner.os == 'macOS'
+        run: brew install ninja
+
+      # The build directory holds the fetched JUCE and its compiled modules,
+      # which only change with the host's own CMake files and sources.
+      - name: Cache the host build
+        uses: actions/cache@v4
+        with:
+          path: tmp/plugin-host
+          key: plugin-host-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('native/host/CMakeLists.txt', 'native/host/cmake/**', 'native/host/Source/**', 'native/host/test/plugins/**', 'native/shell.mjs') }}
+          restore-keys: plugin-host-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Build the host and its test plug-ins
+        run: pnpm host:build
+
+      # The host over its own protocol: scan, load, audio, MIDI, parameters,
+      # state, editors, and on macOS one of Apple's Audio Units.
+      - name: Host protocol tests
+        run: pnpm test:host
+
+      # A hosted plug-in behind a real AudioContext and OfflineAudioContext.
+      - name: Install Chromium
+        if: runner.os == 'Linux'
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Hosted plug-ins in the browser
+        if: runner.os == 'Linux'
+        run: |
+          pnpm build
+          node browser-tests/build-harness.mjs
+          pnpm exec playwright test -c browser-tests/playwright.config.ts native-host
+        env:
+          LIVE_MIX_BROWSER: chromium
+          LIVE_MIX_REQUIRE_PLUGIN_HOST: '1'
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: plugin-host-test-output-${{ matrix.os }}
+          path: tmp/browser-tests
+          if-no-files-found: ignore
 
   native:
     name: Native C++ device tests

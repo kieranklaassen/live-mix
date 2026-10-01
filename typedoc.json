@@ -6,7 +6,8 @@
     "src/dsp/index.ts",
     "src/react/index.ts",
     "src/testing/index.ts",
-    "src/wam/index.ts"
+    "src/wam/index.ts",
+    "src/native/index.ts"
   ],
   "out": "docs/api",
   "readme": "none",
@@ -16,8 +17,15 @@
   "excludeExternals": true,
   "skipErrorChecking": true,
   "treatWarningsAsErrors": false,
-  "validation": { "notExported": false, "invalidLink": true, "notDocumented": false },
-  "navigation": { "includeCategories": true, "includeGroups": true },
+  "validation": {
+    "notExported": false,
+    "invalidLink": true,
+    "notDocumented": false
+  },
+  "navigation": {
+    "includeCategories": true,
+    "includeGroups": true
+  },
   "sort": ["kind", "alphabetical"],
   "gitRevision": "main",
   "sourceLinkTemplate": "https://github.com/kieranklaassen/live-mix/blob/{gitRevision}/{path}#L{line}"

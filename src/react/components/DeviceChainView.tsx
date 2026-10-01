@@ -88,9 +88,12 @@ export function freshDeviceId(arbiter: Arbiter, deviceId: string): string {
   return `${deviceId}-${n}`
 }
 
-/** The picker's default: every effect. An instrument is a source, not an insert. */
+/**
+ * The picker's default: every effect that can be made here. An instrument is
+ * a source, not an insert, and an unavailable device is only a stand-in.
+ */
 export function isInsertDevice(descriptor: DeviceDescriptor): boolean {
-  return descriptor.category !== 'instrument'
+  return descriptor.category !== 'instrument' && descriptor.unavailable !== true
 }
 
 /** Descriptors under their category label, in menu order; empty categories are left out. */

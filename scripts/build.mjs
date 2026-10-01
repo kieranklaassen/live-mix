@@ -19,6 +19,10 @@ const worklets = {
   ducker: 'src/dsp/worklets/ducker.processor.ts',
   meter: 'src/dsp/worklets/meter.processor.ts',
   recorder: 'src/dsp/worklets/recorder.processor.ts',
+  'native-bridge': 'src/native/worklets/native-bridge.processor.ts',
+  // Not a worklet but a worker; it ships next to them as one more
+  // self-contained script a host page loads by URL.
+  'native-pump': 'src/native/worklets/native-pump.worker.ts',
 }
 
 async function main() {
@@ -29,6 +33,7 @@ async function main() {
       'react/index': 'src/react/index.ts',
       'testing/index': 'src/testing/index.ts',
       'wam/index': 'src/wam/index.ts',
+      'native/index': 'src/native/index.ts',
     },
     format: ['esm'],
     target: 'es2022',

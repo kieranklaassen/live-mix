@@ -62,6 +62,26 @@ and the steps are in the app's `docs/live-input-latency.md`. The library
 never adds buffering to the monitoring path and `alignLatency()` leaves live
 inputs alone by default.
 
+## Desktop app and plug-ins
+
+The app has a desktop build (`desktop/` in ambient-live, an Electron shell)
+that hosts VST3 and Audio Unit plug-ins; the web version keeps the built-in
+devices only. [native.md](../native.md) is the library side.
+
+| App file                                                        | Library surface                                                                                                                         | Why                                                                                                                                                 |
+| --------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `desktop/main.mjs`, `desktop/preload.cjs`                       | `startPluginHost`, `pluginHostBinaryPath` (`./native/shell`)                                                                            | Starts the host next to the window, serves the standalone build from `app://ambient-live/` with the isolation headers, exposes `window.liveMixHost` |
+| `app/frontend/audio/plugin-host.ts` (`PluginHost`)              | `findNativeHost`, `NativeHostClient`, `registerNativeDevices`, `bridgeLatencyFor`                                                       | One connection for the page: scan, the plug-in list, the buffer choice, and `register` for each engine's registry                                   |
+| `app/frontend/audio/live-engine.ts`                             | `registerMissingNativeDevices`, `followNativeEdits`                                                                                     | An arrangement keeps a plug-in that is not on this machine; edits made in a plug-in's own window land in the document and undo                      |
+| `app/frontend/audio/bounce.ts`                                  | `NativeDevice.getState`, `holdRenderAt`, `isMissingNativeDevice`                                                                        | A WAV export renders through the same plug-ins with their current state, and stops with the reason when one does not load                           |
+| `app/frontend/pages/live/plugins-panel.tsx`, `device-strip.tsx` | `NativePluginInfo`, `NativeScanProgress`, `DeviceChainView` (hosted plug-ins list under "Plug-ins", instruments in the instrument rack) | The Plug-ins tab and the pickers                                                                                                                    |
+
+`npm run desktop:host` builds the host from the installed package
+(`node_modules/@kieranklaassen/live-mix/native/host`) into
+`desktop/build/host`; `npm run desktop` builds the page and opens the app.
+`desktop/test/desktop.test.mjs` drives the real window with Playwright against
+the host's two test plug-ins.
+
 ## Install and build
 
 - `vite.config.ts`: `optimizeDeps: { exclude: ['@kieranklaassen/live-mix'] }`,

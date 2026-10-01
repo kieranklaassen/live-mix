@@ -8,6 +8,9 @@ import { defineConfig, devices } from '@playwright/test'
 
 const port = Number(process.env.LIVE_MIX_BROWSER_PORT ?? 4173)
 const channel = process.env.LIVE_MIX_BROWSER === 'chromium' ? undefined : 'chrome'
+// A Chromium that is already on the machine, for places that cannot download
+// the build this Playwright version would fetch.
+const executablePath = process.env.LIVE_MIX_BROWSER_PATH
 
 export default defineConfig({
   testDir: './specs',
@@ -20,9 +23,10 @@ export default defineConfig({
   use: {
     ...devices['Desktop Chrome'],
     baseURL: `http://127.0.0.1:${port}`,
-    channel,
+    channel: executablePath ? undefined : channel,
     headless: true,
     launchOptions: {
+      executablePath,
       args: [
         '--autoplay-policy=no-user-gesture-required',
         '--use-fake-device-for-media-stream',

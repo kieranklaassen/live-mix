@@ -4,6 +4,7 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { type Device } from '../../core/devices/Device'
+import { MissingNativeDevice } from '../../native/missing'
 import { DeviceFrame, DevicePanel } from '../components/DevicePanel'
 import { createTestEngine, type TestEngine } from './harness'
 
@@ -163,5 +164,29 @@ describe('DevicePanel', () => {
     render(<DevicePanel device={device} />)
     expect(screen.getByRole('heading', { name: 'filter' })).toBeInTheDocument()
     expect(screen.queryByRole('combobox')).toBeNull()
+  })
+
+  it('shows what a device has to say for itself, and nothing when it says nothing', async () => {
+    const fixture = createTestEngine()
+    const device = await filter(fixture)
+    const { rerender } = render(<DevicePanel device={device} data-testid="panel" />, {
+      wrapper: fixture.wrapper,
+    })
+    expect(screen.queryByRole('note')).toBeNull()
+
+    // A plug-in that is not there: no knobs, a sentence in their place.
+    const standIn = new MissingNativeDevice(
+      fixture.engine.context,
+      'native:VST3-Verb-1-2',
+      { p7: 0.3 },
+      'Verb did not load: the file is gone.',
+    )
+    rerender(<DevicePanel device={standIn} title="Verb" onRemove={() => {}} data-testid="panel" />)
+    expect(screen.getByTestId('panel-notice')).toHaveTextContent(
+      'Verb did not load: the file is gone. Its sound passes through unchanged and its settings are kept.',
+    )
+    expect(screen.queryAllByRole('slider')).toEqual([])
+    expect(screen.queryByRole('button', { name: 'Open Verb editor' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Remove Verb' })).toBeInTheDocument()
   })
 })

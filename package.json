@@ -34,6 +34,7 @@
   "files": [
     "dist",
     "cpp",
+    "native",
     "README.md"
   ],
   "exports": {
@@ -58,6 +59,14 @@
       "types": "./dist/wam/index.d.ts",
       "default": "./dist/wam/index.js"
     },
+    "./native": {
+      "types": "./dist/native/index.d.ts",
+      "default": "./dist/native/index.js"
+    },
+    "./native/shell": {
+      "types": "./native/shell.d.mts",
+      "default": "./native/shell.mjs"
+    },
     "./worklets/*": "./dist/worklets/*",
     "./wasm/*": "./dist/wasm/*",
     "./package.json": "./package.json"
@@ -72,6 +81,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:native": "bash scripts/test-native.sh",
+    "host:build": "node native/host/build.mjs --test-plugins",
+    "test:host": "node --test --test-timeout=60000 native/host/test/host.test.mjs",
     "build:wasm": "bash scripts/build-wasm.sh",
     "build:faust": "bash scripts/build-faust.sh",
     "pack:check": "node scripts/check-pack.mjs",

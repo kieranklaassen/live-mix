@@ -100,7 +100,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['scripts/**/*.mjs', 'browser-tests/*.mjs', '*.mjs', '*.js', '*.ts'],
+    files: ['scripts/**/*.mjs', 'browser-tests/*.mjs', 'native/**/*.mjs', '*.mjs', '*.js', '*.ts'],
     languageOptions: {
       globals: { ...globals.node },
     },

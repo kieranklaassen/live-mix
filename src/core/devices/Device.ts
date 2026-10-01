@@ -28,6 +28,18 @@ export interface Device {
    * `deviceLatencySamples()` in `pdc.ts` rounds `latencySec` when it is absent.
    */
   readonly latencySamples?: number
+  /**
+   * The parameters a generated panel shows, in order, for a device with more
+   * than fit one (a hosted plug-in can have hundreds). Optional: absent means
+   * every parameter. Automation, presets and scores still reach all of them.
+   */
+  readonly panelParams?: readonly string[]
+  /**
+   * A sentence a generated panel shows above its knobs when the device has
+   * something to say for itself: a stand-in for a plug-in that could not be
+   * loaded says why. Optional; absent means nothing to say.
+   */
+  readonly notice?: string
   dispose(): void
 }
 
@@ -35,11 +47,44 @@ export interface Device {
 export interface NoteDevice extends Device {
   noteOn(noteId: number, frequency: number, gain?: number): void
   noteOff(noteId: number): void
+  /**
+   * Resolves once every note sent so far is with the part of the device that
+   * makes the sound. Optional: a device whose notes take a path of their own
+   * (a hosted plug-in's go to another process) has it, so an offline render
+   * held at a note's time (`holdRenderAt`) can wait for the note before it
+   * carries on, and the note lands where it was sent.
+   */
+  notesDelivered?(): Promise<void>
 }
 
 export function isNoteDevice(device: Device): device is NoteDevice {
   const candidate = device as Partial<NoteDevice>
   return typeof candidate.noteOn === 'function' && typeof candidate.noteOff === 'function'
+}
+
+/** A device with a window of its own, such as a hosted plug-in's editor. */
+export interface EditorDevice extends Device {
+  /** Open the device's own window, or bring it to the front. */
+  openEditor(): Promise<void>
+  closeEditor(): Promise<void>
+}
+
+export function isEditorDevice(device: Device): device is EditorDevice {
+  const candidate = device as Partial<EditorDevice>
+  return typeof candidate.openEditor === 'function' && typeof candidate.closeEditor === 'function'
+}
+
+/**
+ * A device that words its own parameter values. A hosted plug-in knows its
+ * decay reads "2.4 s"; its spec only knows a position between 0 and 1.
+ */
+export interface ParamTextDevice extends Device {
+  /** The device's wording of the parameter's current value, when it has one. */
+  paramText(name: string): string | undefined
+}
+
+export function isParamTextDevice(device: Device): device is ParamTextDevice {
+  return typeof (device as Partial<ParamTextDevice>).paramText === 'function'
 }
 
 /** What a device reports after `setParam` or a bypass change (U24: UI subscriptions). */

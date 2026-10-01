@@ -6,7 +6,7 @@
 
 import { useState, type CSSProperties, type ReactNode } from 'react'
 
-import { type Device } from '../../core/devices/Device'
+import { type Device, isEditorDevice, isParamTextDevice } from '../../core/devices/Device'
 import { type DeviceRegistry } from '../../core/devices/registry'
 import { type ParamSpec } from '../../core/params'
 import { useDevice } from '../hooks/useParam'
@@ -75,7 +75,10 @@ export interface DevicePanelProps {
   registry?: DeviceRegistry
   /** Defaults to the descriptor's name, else the device id. */
   title?: string
-  /** Parameters to show, in order; defaults to every parameter of the device. */
+  /**
+   * Parameters to show, in order; defaults to the device's own `panelParams`
+   * when it names some, else every parameter of the device.
+   */
   params?: readonly string[]
   /** Labels for choice parameters by name; overrides the labels a spec carries in `choices`. */
   choiceLabels?: Readonly<Record<string, readonly string[]>>
@@ -113,7 +116,8 @@ export function DevicePanel({
 }: DevicePanelProps) {
   const d = useDevice(device, registry ? { registry } : {})
   const [presetName, setPresetName] = useState('')
-  const names = params ?? Object.keys(d.params)
+  const names = params ?? device.panelParams ?? Object.keys(d.params)
+  const ownText = isParamTextDevice(device) ? device : null
   const presetsShown = showPresets ?? d.presets.length > 0
   const heading = title ?? d.descriptor?.name ?? d.id
 
@@ -138,6 +142,20 @@ export function DevicePanel({
             </option>
           ))}
         </select>
+      ) : null}
+      {isEditorDevice(device) ? (
+        <button
+          type="button"
+          className="lm-button lm-button--neutral lm-device__editor"
+          aria-label={`Open ${heading} editor`}
+          title="Open the plug-in's own window"
+          onClick={() => {
+            void device.openEditor().catch(() => {})
+          }}
+          data-testid={testId ? `${testId}-editor` : undefined}
+        >
+          Edit
+        </button>
       ) : null}
       {actions}
       {onRemove ? (
@@ -164,6 +182,15 @@ export function DevicePanel({
       style={style}
       data-testid={testId}
     >
+      {device.notice ? (
+        <p
+          className="lm-device__notice"
+          role="note"
+          data-testid={testId ? `${testId}-notice` : undefined}
+        >
+          {device.notice}
+        </p>
+      ) : null}
       <div className="lm-device__params">
         {names.map((name) => {
           const spec = d.params[name]
@@ -188,7 +215,7 @@ export function DevicePanel({
                   ? (value) => labels[Math.round(value) - spec.min] ?? String(Math.round(value))
                   : choice
                     ? (value) => String(Math.round(value))
-                    : (value) => formatParamValue(spec, value)
+                    : (value) => ownText?.paramText(name) ?? formatParamValue(spec, value)
               }
               onChange={(value) => {
                 d.setParam(name, value)
