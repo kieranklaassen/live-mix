@@ -45,6 +45,96 @@ Costs for the devices that predate this page were measured with the same Node
 harness when it was introduced (U37); their native harnesses do not print a
 timing.
 
+## Spec devices
+
+The devices below are spec devices: a `cpp/devices/<id>/device.json`, one C++
+class on `cpp/kit` and a native harness, with everything else generated (see
+the [recipe](./recipes/adding-a-spec-device.md)). Their parameters and presets
+are listed in [devices-generated.md](./devices-generated.md); this table
+records what each costs. "kkfonie" in the source column means the DSP is a
+port, and the manifest's `origin` block records the commit, the file hashes
+and every deviation from the source.
+
+Costs are for 128-frame stereo blocks at 48 kHz on the same VM as above, with
+nothing else running: the native figure is the first load the harness prints
+(instruments hold 8 to 20 notes, effects process a tone), the wasm figure is
+the best of three runs of `scripts/smoke-wasm-device.mjs` (10 s; instruments
+hold 8 notes).
+
+| Device id        | Name              | Source              | Kind       | Params | `.wasm`  | Native cost per block | wasm cost per block (Node) | Latency (samples) | Memory (MB) |
+| ---------------- | ----------------- | ------------------- | ---------- | ------ | -------- | --------------------- | -------------------------- | ----------------- | ----------- |
+| `atmosphere`     | Atmosphere        | live-mix            | instrument | 10     | 33,549 B | 44.5 µs, 1.67 %       | 34.8 µs, 1.31 %            | 0                 | 4           |
+| `auto-filter`    | Auto Filter       | kkfonie Tatami      | eq         | 12     | 23,170 B | 21.0 µs, 0.79 %       | 22.8 µs, 0.86 %            | 31                | 4           |
+| `bloom-reverb`   | Bloom             | kkfonie Bloom       | reverb     | 8      | 25,205 B | 68.9 µs, 2.58 %       | 82.4 µs, 3.09 %            | 0                 | 4           |
+| `bowed-string`   | Bow               | live-mix            | instrument | 12     | 34,123 B | 85.8 µs, 3.22 %       | 108.2 µs, 4.06 %           | 0                 | 4           |
+| `choir`          | Choir             | live-mix            | instrument | 12     | 33,135 B | 66.9 µs, 2.51 %       | 46.7 µs, 1.75 %            | 0                 | 4           |
+| `chorus`         | Chorus            | kkfonie Tatami      | modulation | 8      | 12,666 B | 24.3 µs, 0.91 %       | 18.7 µs, 0.70 %            | 0                 | 4           |
+| `drone`          | Drone             | live-mix            | instrument | 13     | 32,213 B | 56.1 µs, 2.11 %       | 73.5 µs, 2.75 %            | 0                 | 4           |
+| `ember`          | Ember             | kkfonie Tatami      | instrument | 43     | 37,237 B | 55.8 µs, 2.09 %       | 75.8 µs, 2.84 %            | 16                | 4           |
+| `expanse`        | Expanse           | live-mix            | reverb     | 11     | 31,432 B | 60.4 µs, 2.27 %       | 33.3 µs, 1.25 %            | 0                 | 6           |
+| `flanger`        | Flanger           | kkfonie Tatami      | modulation | 7      | 11,926 B | 11.9 µs, 0.45 %       | 10.4 µs, 0.39 %            | 0                 | 4           |
+| `fm-glass`       | Glass             | live-mix            | instrument | 12     | 26,749 B | 90.2 µs, 3.38 %       | 42.0 µs, 1.57 %            | 0                 | 4           |
+| `freq-shifter`   | Frequency Shifter | live-mix            | pitch      | 10     | 14,333 B | 26.8 µs, 1.01 %       | 18.9 µs, 0.71 %            | 0                 | 4           |
+| `grain-cloud`    | Cloud             | live-mix            | texture    | 12     | 15,870 B | 18.4 µs, 0.69 %       | 23.8 µs, 0.89 %            | 0                 | 10          |
+| `grain-delay`    | Grain Delay       | live-mix            | delay      | 11     | 17,855 B | 27.2 µs, 1.02 %       | 32.8 µs, 1.23 %            | 0                 | 10          |
+| `grain-synth`    | Grain             | live-mix            | instrument | 14     | 32,028 B | 61.6 µs, 2.31 %       | 72.0 µs, 2.70 %            | 0                 | 12          |
+| `lattice`        | Lattice           | kkfonie Lattice     | pitch      | 59     | 34,723 B | 52.7 µs, 1.98 %       | 62.2 µs, 2.33 %            | 0                 | 4           |
+| `modal-bells`    | Bells             | live-mix            | instrument | 12     | 24,210 B | 58.5 µs, 2.20 %       | 40.6 µs, 1.52 %            | 0                 | 4           |
+| `organ`          | Reed Organ        | live-mix            | instrument | 13     | 23,093 B | 127.0 µs, 4.76 %      | 70.4 µs, 2.64 %            | 0                 | 4           |
+| `phaser`         | Phaser            | kkfonie Tatami      | modulation | 9      | 14,298 B | 13.9 µs, 0.52 %       | 10.9 µs, 0.41 %            | 0                 | 4           |
+| `reverse-delay`  | Reverse Delay     | live-mix            | delay      | 8      | 15,057 B | 17.1 µs, 0.64 %       | 13.2 µs, 0.50 %            | 0                 | 20          |
+| `rotary`         | Rotary            | live-mix            | modulation | 9      | 16,495 B | 25.3 µs, 0.95 %       | 27.2 µs, 1.02 %            | 0                 | 4           |
+| `sampler`        | Sampler           | live-mix            | instrument | 13     | 27,427 B | 46.8 µs, 1.76 %       | 30.9 µs, 1.16 %            | 0                 | 24          |
+| `saturator`      | Saturator         | kkfonie Tatami      | drive      | 9      | 23,810 B | 46.1 µs, 1.73 %       | 40.5 µs, 1.52 %            | 39                | 4           |
+| `shimmer`        | Shimmer           | live-mix            | reverb     | 10     | 26,901 B | 70.4 µs, 2.64 %       | 39.1 µs, 1.47 %            | 0                 | 4           |
+| `spectral-blur`  | Spectral Blur     | live-mix            | texture    | 9      | 17,643 B | 42.8 µs, 1.60 %       | 53.1 µs, 1.99 %            | 2304              | 4           |
+| `spring-reverb`  | Spring            | live-mix            | reverb     | 9      | 22,946 B | 33.2 µs, 1.25 %       | 26.1 µs, 0.98 %            | 0                 | 4           |
+| `string-machine` | String Machine    | live-mix            | instrument | 10     | 19,106 B | 31.0 µs, 1.16 %       | 22.4 µs, 0.84 %            | 0                 | 4           |
+| `swell`          | Swell             | live-mix            | dynamics   | 8      | 4,842 B  | 3.9 µs, 0.15 %        | 5.2 µs, 0.20 %             | 960               | 4           |
+| `sympathetic`    | Sympathetic       | kkfonie Sympathetic | reverb     | 7      | 31,992 B | 19.7 µs, 0.74 %       | 23.1 µs, 0.87 %            | 0                 | 4           |
+| `tape`           | Tape              | live-mix            | texture    | 10     | 22,263 B | 45.2 µs, 1.70 %       | 33.7 µs, 1.27 %            | 415               | 4           |
+| `tape-echo`      | Tape Echo         | live-mix            | delay      | 10     | 16,147 B | 19.5 µs, 0.73 %       | 18.3 µs, 0.69 %            | 0                 | 4           |
+| `tape-loop`      | Tape Loop         | live-mix            | delay      | 10     | 18,730 B | 19.3 µs, 0.72 %       | 21.3 µs, 0.80 %            | 0                 | 24          |
+| `thesis`         | Thesis            | kkfonie Thesis      | instrument | 15     | 36,421 B | 21.1 µs, 0.79 %       | 19.6 µs, 0.73 %            | 0                 | 4           |
+| `tine-piano`     | Tine              | live-mix            | instrument | 11     | 17,742 B | 76.9 µs, 2.88 %       | 44.9 µs, 1.68 %            | 0                 | 4           |
+| `tremolo`        | Tremolo           | live-mix            | modulation | 9      | 12,884 B | 7.7 µs, 0.29 %        | 8.1 µs, 0.30 %             | 0                 | 4           |
+| `wavetable`      | Wavetable         | live-mix            | instrument | 12     | 25,222 B | 48.4 µs, 1.82 %       | 35.9 µs, 1.34 %            | 0                 | 5           |
+
+What the table does not show:
+
+- **`ember` and `bowed-string` are `experimental`.** Ember's default patch
+  costs 2.9 % with eight notes, but unison multiplies it: the Super Saw preset
+  (seven unison voices) measures 8.7 % with eight notes. Eight bowed notes
+  cost 4.1 %, and the worst case (twelve, with the detuned second string)
+  about 6.2 %; with Detune at 0 the same twelve cost 3.4 %.
+- **Over the 2 % aim on their default patch, under the flag at their worst
+  preset:** `bloom-reverb` (3.3 %; about two thirds of it is the two shared
+  `SpectralDrifter`s), `drone` (3.6 %), `grain-synth` (3.4 %), `saturator`
+  (2.8 % at 4x oversampling), `lattice` (2.7 %; about 70 % of it is the pitch
+  tracker's FFT), `thesis` (2.6 %) and `organ` (2.5 %). The worst preset of
+  every other device stays under 2.4 %.
+- **Memory** is the module's fixed linear memory (`memoryMb`), which holds the
+  delay and sample buffers: 20 to 24 MB for the long loops and the sampler.
+- **Levels.** One note at velocity 0.8 peaks between -16 and -22 dBFS on the
+  default patch of every instrument here, and ten notes at full velocity stay
+  under 0 dBFS. `felt-piano` predates this convention and is about 15 dB
+  hotter.
+
+### Kit follow-ups
+
+Building these devices on `cpp/kit` turned up the same gaps several times. None blocks a device (each one works around it locally and says so in a comment), but each is a candidate for the kit before the next batch:
+
+- **Mix and pan.** `kit::equal_power(1)` leaves the dry gain at about -4e-8 instead of 0, so devices that promise exact silence at full wet force it to zero; it also calls `sin` and `cos` on every call, so several devices cache its result.
+- **LFOs.** `kit::Lfo` keeps a `float` phase, which is coarse near 0.01 Hz, and has no rising saw. Flanger and phaser share a local `mod_lfo.h` (six shapes, `double` phase) that belongs in the kit.
+- **Smoothing and sleep.** `kit::Smoother` at 5 ms is too fast for delay times, has no cheap path once settled, and keeps ramping while a device sleeps. `kit::IdleGate` has a fixed, block-quantised hold and no wake hook; delays and loops need a hold that follows a setting.
+- **Oversampling.** `kit::Halfband2x` lets its transition band fold just under Nyquist (18.5 to 22 kHz at 44.1 kHz), has no short second stage for 4x and no decimate-only mode with whole-sample latency.
+- **FFT.** A real-input transform would cut Lattice's pitch tracker (about 70 % of its cost) and the STFT devices.
+- **Delay lines.** `kit::DelayLine` is power-of-two only and reads at a `float` position; long loops need a ring with `double` positions (tape loop and reverse delay each carry one), and high-Q waveguides have to compensate for the Hermite read's loss.
+- **Grains and samples.** `kit::GrainPool` has no per-voice ownership and reads one channel at a time. `kit::SampleStore::commit` scans every frame (3.5 ms for 31 s of stereo) and does not expose its channel count.
+- **Small helpers that got copied.** An anti-aliased waveshaper (rotary, tape), a three-multiply band-pass (drone, atmosphere), per-octave band-limited tables (wavetable, drone), a splice-search pitch shifter (shimmer), a seed hash so two generators seeded in sequence do not correlate (drone, atmosphere).
+- **Test kit.** It lacks a power spectrum, a spectral centroid, a fast narrow-band level and pitch measure and an aliasing measure, so harnesses carry their own; `dominant_frequency` takes seconds per call; `check_instrument` has no block-size check.
+- **Generator and smoke test.** `latencySamples` cannot vary with the sample rate; a class constant named like a parameter (`kPartials`) silently shadows the generated enum; the smoke test's cost is wall-clock and swings under load.
+
 ## spectral-drifter
 
 Bloom's granular pitch drifter (`Bloom/Source/SpectralDrifter.{h,cpp}` at
