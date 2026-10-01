@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import {
   MockAudioBuffer,
@@ -538,6 +538,152 @@ describe('AudioTrack as Schedulables', () => {
     track.clips.add(clip('b', 0.1))
     scheduler.tick()
     expect(ctx.sources).toHaveLength(1)
+    scheduler.dispose()
+  })
+})
+
+describe('AudioTrack reversed clips', () => {
+  function ramp(ctx: MockAudioContext, seconds: number): AudioBuffer {
+    const made = new MockAudioBuffer(2, seconds * ctx.sampleRate, ctx.sampleRate)
+    for (let channel = 0; channel < 2; channel += 1) {
+      const data = made.getChannelData(channel)
+      for (let frame = 0; frame < data.length; frame += 1) data[frame] = frame + channel
+    }
+    return made as unknown as AudioBuffer
+  }
+
+  const voice = (buf: AudioBuffer, extra: Record<string, unknown> = {}) => ({
+    buffer: buf,
+    offsetSec: 2,
+    durationSec: 3,
+    fadeInSec: 1,
+    fadeOutSec: 0.5,
+    fadeCurve: 'linear' as const,
+    reversed: true,
+    ...extra,
+  })
+
+  it('plays a mirrored copy of the buffer from the far end of the slice, under the same envelope', () => {
+    const { ctx, track } = setup()
+    const buf = ramp(ctx, 10)
+    track.play('k', voice(buf), 4)
+    const source = ctx.sources[0]
+    const copy = source.buffer as unknown as MockAudioBuffer
+    expect(copy).not.toBe(buf)
+    expect(copy.length).toBe(buf.length)
+    const last = buf.length - 1
+    expect(Array.from(copy.getChannelData(0).subarray(0, 3))).toEqual([last, last - 1, last - 2])
+    expect(copy.getChannelData(1)[last]).toBe(1)
+    // Source seconds 2..5 are seconds 5..8 of the copy.
+    expect(source.startCalls.calls).toEqual([[4, 5, 3]])
+    expect(source.loop).toBe(false)
+    // The fades belong to the clip, not to the sound: the same events as a forward voice.
+    expect(ctx.gains[1].gain.events).toEqual([
+      { method: 'setValueAtTime', args: [fadeGain(0, 3, 1, 0.5), 4] },
+      { method: 'linearRampToValueAtTime', args: [1, 5] },
+      { method: 'setValueAtTime', args: [1, 6.5] },
+      { method: 'linearRampToValueAtTime', args: [0, 7] },
+    ])
+    // The source buffer itself is left as it was.
+    expect(buf.getChannelData(0)[1]).toBe(1)
+  })
+
+  it('makes the mirrored copy once per buffer', () => {
+    const { ctx, track } = setup()
+    const buf = ramp(ctx, 4)
+    track.play('a', voice(buf, { offsetSec: 0, durationSec: 1 }), 1)
+    track.play('b', voice(buf, { offsetSec: 1, durationSec: 1 }), 2)
+    expect(ctx.sources[1].buffer).toBe(ctx.sources[0].buffer)
+    track.play('c', voice(buf, { offsetSec: 0, durationSec: 1, reversed: false }), 3)
+    expect(ctx.sources[2].buffer).toBe(buf)
+  })
+
+  it('a clip longer than what is left of its source goes quiet where the slice ends', () => {
+    const { ctx, track } = setup()
+    const made = track.play('k', voice(ramp(ctx, 10), { offsetSec: 6, durationSec: 9 }), 1)
+    // Four seconds of sound, read from the very end; the clip itself still runs its nine.
+    expect(ctx.sources[0].startCalls.calls).toEqual([[1, 0, 4]])
+    expect(made?.endTime).toBe(10)
+  })
+
+  it('joins late partway through the mirrored slice, and not at all once the slice is spent', () => {
+    const late = setup({ currentTime: 5 })
+    late.track.play('k', voice(ramp(late.ctx, 10)), 4)
+    expect(late.ctx.sources[0].startCalls.calls).toEqual([[5, 6, 2]])
+
+    const spent = setup({ currentTime: 6 })
+    const made = spent.track.play(
+      'k',
+      voice(ramp(spent.ctx, 10), { offsetSec: 6, durationSec: 9 }),
+      1,
+    )
+    expect(made).toBeNull()
+    expect(spent.ctx.sources).toHaveLength(0)
+  })
+
+  it('a looping clip cycles over the mirrored region and stops at the clip end', () => {
+    const { ctx, track } = setup()
+    track.play('k', voice(ramp(ctx, 10), { offsetSec: 4, durationSec: 20, loop: true }), 2)
+    const source = ctx.sources[0]
+    expect(source.loop).toBe(true)
+    expect([source.loopStart, source.loopEnd]).toEqual([0, 6])
+    expect(source.startCalls.calls).toEqual([[2, 0]])
+    expect(source.stopCalls.calls).toEqual([[22]])
+
+    // A late join wraps inside the mirrored region.
+    const late = setup({ currentTime: 9 })
+    late.track.play(
+      'k',
+      voice(ramp(late.ctx, 10), { offsetSec: 4, durationSec: 20, loop: true }),
+      2,
+    )
+    expect(late.ctx.sources[0].startCalls.calls).toEqual([[9, 1]])
+  })
+
+  it('an equal-power voice reads the mirrored slice for exactly its length', () => {
+    const { ctx, track } = setup()
+    track.play(
+      'k',
+      voice(ramp(ctx, 10), { fadeCurve: 'equalPower', fadeInSec: 1, fadeOutSec: 1 }),
+      4,
+    )
+    const source = ctx.sources[0]
+    expect(source.buffer).not.toBeNull()
+    expect(source.startCalls.calls).toEqual([[4, 5, 3]])
+    expect(source.stopCalls.calls).toEqual([[7]])
+  })
+
+  it('the scheduler plays a reversed clip off the mirrored copy, made ahead of the start', async () => {
+    const { ctx, samples, track } = setup({ lookaheadSec: 0.2, preloadSec: 2 })
+    const transport = new Transport({ now: () => ctx.currentTime })
+    const scheduler = new Scheduler({ transport, tickMs: 40 })
+    track.attach(scheduler)
+    const buf = ramp(ctx, 10)
+    await samples.load('s-a', buf)
+    const mirror = vi.spyOn(ctx, 'createBuffer')
+    track.clips.add({
+      id: 'a',
+      sourceId: 's-a',
+      startSec: 1,
+      offsetSec: 2,
+      durationSec: 3,
+      fadeInSec: 0,
+      fadeOutSec: 0,
+      fadeCurve: 'linear',
+      gainDb: 0,
+      reversed: true,
+    })
+    transport.start()
+    scheduler.tick()
+    // Inside the preload window, outside the playback one: the copy exists, nothing sounds yet.
+    expect(ctx.sources).toHaveLength(0)
+    expect(mirror).toHaveBeenCalledTimes(1)
+    ctx.currentTime = 0.9
+    scheduler.tick()
+    expect(ctx.sources).toHaveLength(1)
+    expect(ctx.sources[0].buffer).not.toBe(buf)
+    expect(ctx.sources[0].startCalls.calls).toEqual([[1, 5, 3]])
+    expect(mirror).toHaveBeenCalledTimes(1)
     scheduler.dispose()
   })
 })

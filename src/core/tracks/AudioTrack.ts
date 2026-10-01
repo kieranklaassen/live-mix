@@ -11,6 +11,9 @@
 //   `source.start(startAt)` / `source.stop(startAt + duration)`, a start that
 //   has passed plays from now) and `fadeOutSounding`.
 //
+// A reversed clip is the same voice on a mirrored copy of its buffer
+// (`reversed-buffer.ts`), entered where `mirrorSlice` says.
+//
 // The track is also two Schedulables for the engine's Scheduler: playback
 // (lookaheadSec) and preload (preloadSec) over the same clip list. Adapters
 // that keep their own scheduling (Breathwork Live's SectionPlaylist) drive the
@@ -23,6 +26,7 @@
 import { type Clip, type FadeCurve } from '../clips/Clip'
 import { equalPowerFadeIn, equalPowerFadeOut } from '../clips/curves'
 import { fadeGain } from '../clips/fade'
+import { mirrorSlice } from '../clips/reverse'
 import { type ClipWindow } from '../clips/window'
 import { scheduleKey, type ScheduledStart } from '../transport/anchor'
 import { type Schedulable, type Scheduler } from '../transport/Scheduler'
@@ -33,6 +37,7 @@ import {
   type StripHost,
 } from './ChannelStrip'
 import { ClipList } from './ClipList'
+import { reversedBuffer } from './reversed-buffer'
 import { type SampleSource, type SampleStore } from './SampleStore'
 
 // --- Constants shared with Breathwork Live (re-exported for its adapter) -----
@@ -73,6 +78,14 @@ export interface ClipVoiceOptions {
   /** Source region the loop cycles over (default: `offsetSec` to the source end). */
   loopStartSec?: number
   loopEndSec?: number
+  /** Play the slice backwards (`Clip.reversed`). */
+  reversed?: boolean
+}
+
+/** A voice's options once a reversed clip has been turned into positions on its mirrored buffer. */
+interface VoicePlayback extends ClipVoiceOptions {
+  /** How long the source may sound when that is shorter than the clip; only a reversed clip sets it. */
+  soundSec?: number
 }
 
 export interface ClipVoice {
@@ -195,10 +208,11 @@ export class AudioTrack implements StripHost {
    */
   play(key: string, options: ClipVoiceOptions, when: number): ClipVoice | null {
     if (this.disposed || options.durationSec <= 0) return null
+    const playback = options.reversed ? this.mirrored(options) : options
     const voice =
-      options.fadeCurve === 'equalPower'
-        ? this.playEqualPower(key, options, when)
-        : this.playLinear(key, options, when)
+      playback.fadeCurve === 'equalPower'
+        ? this.playEqualPower(key, playback, when)
+        : this.playLinear(key, playback, when)
     if (!voice) return null
     const previous = this.active.get(key)
     if (previous && previous !== voice) this.silence(previous)
@@ -323,6 +337,7 @@ export class AudioTrack implements StripHost {
         loop: clip.loop,
         loopStartSec: clip.loopStartSec,
         loopEndSec: clip.loopEndSec,
+        reversed: clip.reversed,
       },
       when,
     )
@@ -331,7 +346,11 @@ export class AudioTrack implements StripHost {
 
   private preloadStart(start: ScheduledStart): boolean {
     const clip = this.clips.get(start.clipId)
-    if (clip) this.requestLoad(clip)
+    if (!clip) return true
+    this.requestLoad(clip)
+    // The mirrored copy is made ahead of the start, not in the tick that plays it.
+    const sample = clip.reversed ? this.samples.get(clip.sourceId) : undefined
+    if (sample) reversedBuffer(this.ctx, sample.buffer)
     return true
   }
 
@@ -346,12 +365,21 @@ export class AudioTrack implements StripHost {
 
   // --- Voice construction -----------------------------------------------------
 
+  /** The same voice read off the mirrored copy of the buffer. */
+  private mirrored(options: ClipVoiceOptions): VoicePlayback {
+    return {
+      ...options,
+      buffer: reversedBuffer(this.ctx, options.buffer),
+      ...mirrorSlice(options, options.buffer.duration),
+    }
+  }
+
   /** ambient-live `ClipPlayer.play`, verbatim. */
-  private playLinear(key: string, playback: ClipVoiceOptions, when: number): ClipVoice | null {
+  private playLinear(key: string, playback: VoicePlayback, when: number): ClipVoice | null {
     // A start that has already passed joins the clip partway in rather than
     // replaying it from the trim point and overrunning its end.
     const late = Math.max(0, this.now() - when)
-    if (late >= playback.durationSec) return null
+    if (late >= (playback.soundSec ?? playback.durationSec)) return null
     const start = when + late
     const end = when + playback.durationSec
 
@@ -396,13 +424,17 @@ export class AudioTrack implements StripHost {
       )
       this.stopSource(voice, end)
     } else {
-      source.start(start, playback.offsetSec + late, playback.durationSec - late)
+      source.start(
+        start,
+        playback.offsetSec + late,
+        (playback.soundSec ?? playback.durationSec) - late,
+      )
     }
     return voice
   }
 
   /** Breathwork Live `MusicEngine.scheduleEntry`, verbatim. */
-  private playEqualPower(key: string, playback: ClipVoiceOptions, when: number): ClipVoice | null {
+  private playEqualPower(key: string, playback: VoicePlayback, when: number): ClipVoice | null {
     const startAt = Math.max(when, this.now())
     const gain = this.ctx.createGain()
     gain.gain.setValueAtTime(0, startAt)
@@ -425,7 +457,9 @@ export class AudioTrack implements StripHost {
       source.loopStart = playback.loopStartSec ?? playback.offsetSec
       source.loopEnd = playback.loopEndSec ?? playback.buffer.duration
     }
-    if (playback.offsetSec > 0) source.start(startAt, playback.offsetSec)
+    if (playback.soundSec !== undefined) {
+      source.start(startAt, playback.offsetSec, playback.soundSec)
+    } else if (playback.offsetSec > 0) source.start(startAt, playback.offsetSec)
     else source.start(startAt)
     const voice: ClipVoice = {
       key,

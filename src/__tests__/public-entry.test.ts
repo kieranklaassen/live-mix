@@ -81,6 +81,8 @@ const coreSymbols = [
   'canonicalJson',
   'sameJson',
   'isAudibleClip',
+  'mirrorSlice',
+  'reversedSourceSec',
   'isObservableDevice',
   'Rack',
   'Chain',

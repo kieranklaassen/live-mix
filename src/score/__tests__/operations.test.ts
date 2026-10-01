@@ -104,6 +104,27 @@ describe('apply', () => {
     expect(audio(moved, 'kick').clips.map((c) => c.id)).toEqual(['a1', 'b1', 'z'])
   })
 
+  it('a clip can be reversed; reversed: false is the same as none, and the change inverts', () => {
+    const added = apply(base, {
+      type: 'clip.add',
+      track: 'kick',
+      clip: clip('z', 'a', 2, { reversed: true }),
+    })
+    expect(audio(added, 'kick').clips[1]).toMatchObject({ id: 'z', reversed: true })
+    const update = (patch: Partial<Clip>): Operation => ({
+      type: 'clip.update',
+      track: 'kick',
+      id: 'z',
+      patch,
+    })
+    const forwards = applyWithInverse(added, update({ reversed: false }))
+    expect('reversed' in audio(forwards.score, 'kick').clips[1]).toBe(false)
+    expect(forwards.inverse).toEqual(update({ reversed: true }))
+    const again = applyWithInverse(forwards.score, update({ reversed: true }))
+    expect(again.inverse).toEqual(update({ reversed: false }))
+    expect(canon(apply(again.score, again.inverse))).toEqual(canon(forwards.score))
+  })
+
   it('a clip carries muted and meta; an empty meta and muted: false are the same as none', () => {
     const meta = { paint: { rows: 2, row: 3, auto: [[0, 1]] } }
     const added = apply(base, {
@@ -715,6 +736,7 @@ function randomOp(random: () => number, score: Score, counter: { n: number }): G
                 gainDb: value * -12,
                 fadeCurve: pick(random, ['linear', 'equalPower']),
                 muted: random() < 0.5,
+                reversed: random() < 0.5,
                 ...(random() < 0.5
                   ? { meta: random() < 0.3 ? {} : { row: value, tags: ['x'] } }
                   : {}),

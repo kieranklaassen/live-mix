@@ -1614,7 +1614,7 @@ export function invert(score: Score, op: Operation): Operation {
         // Absent optional fields invert to the value that clears them, so the
         // inverse still says what it undoes after a round trip through JSON.
         patch[key] =
-          key === 'loop' || key === 'muted'
+          key === 'loop' || key === 'muted' || key === 'reversed'
             ? (clip[key] ?? false)
             : key === 'meta'
               ? (clip.meta ?? {})
