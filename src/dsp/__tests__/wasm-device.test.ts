@@ -175,6 +175,25 @@ describe('WasmDevice', () => {
     expect(device.latencySec).toBe(0.01)
     expect(device.getParam('amount')).toBe(0.5)
   })
+
+  it('reports seconds for a definition that only gives its latency in samples', async () => {
+    const ctx = createMockContext()
+    const delayed = defineWasmDevice({
+      id: 'delayed',
+      wasm: () => dattorroModule,
+      params: {
+        amount: { id: 0, name: 'Amount', min: 0, max: 1, default: 0.5, taper: 'linear', unit: '' },
+      },
+      latencySamples: () => 39,
+    })
+    const device = await WasmDevice.create(asAudioContext(ctx), delayed, {
+      processorUrl: 'p',
+      createNode: mockNodeFactory,
+    })
+    expect(device.latencySamples).toBe(39)
+    expect(device.latencySec).toBeCloseTo(39 / ctx.sampleRate, 12)
+    expect(Math.round(device.latencySec * ctx.sampleRate)).toBe(39)
+  })
 })
 
 describe('WasmDevice notes and custom processors', () => {

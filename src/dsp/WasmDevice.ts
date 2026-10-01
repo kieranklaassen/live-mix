@@ -30,7 +30,7 @@ export interface WasmDeviceDefinition<
   wasm: () => WasmSource
   params: P
   latencySec?: number
-  /** Sample-exact latency at a given rate, when the DSP knows it (default: `round(latencySec · sampleRate)`). */
+  /** Sample-exact latency at a given rate, when the DSP knows it (default: `round(latencySec · sampleRate)`); given alone, `latencySec` follows from it. */
   latencySamples?: (sampleRate: number) => number
   /**
    * An app-local worklet processor implementing the same ABI plus extras
@@ -83,15 +83,17 @@ export class WasmDevice<P extends Record<string, ParamSpec> = Record<string, Par
     this.id = definition.id
     this.params = definition.params
     this.node = node
-    this.latencySec = definition.latencySec ?? 0
     this.latencySamples = Math.max(
       0,
       Math.round(
         definition.latencySamples
           ? definition.latencySamples(sampleRate)
-          : this.latencySec * sampleRate,
+          : (definition.latencySec ?? 0) * sampleRate,
       ),
     )
+    // A definition that only knows its sample count still reports seconds, so
+    // delay compensation sees the device whichever field it reads.
+    this.latencySec = definition.latencySec ?? this.latencySamples / sampleRate
     this.values = initial
   }
 
