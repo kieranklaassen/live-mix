@@ -240,12 +240,14 @@ id, `params` holds the `p…` values. Three things are particular to it.
   the plug-ins that are there and before loading the score. Pickers skip
   `unavailable` descriptors.
 - **A plug-in that does not load.** A file removed since the scan, a plug-in
-  that refuses the sample rate, a host that has gone: a registry-made effect
+  that refuses the sample rate, a host that has gone: a registry-made plug-in
   that fails to load comes back as the same stand-in with a `notice` saying
   why, which `DevicePanel` shows in place of knobs. One bad plug-in costs that
-  one effect, not the render of the whole document. `defaults.onLoadError`
-  hears about it. An instrument that fails rejects instead (there is nothing
-  to pass through), and so does `NativeDevice.create` called directly.
+  one device, not the render of the whole document. `defaults.onLoadError`
+  hears about it. The stand-in takes notes and plays nothing, so an
+  instrument track whose plug-in is missing or will not load stays in the
+  document, silent, with its settings and state. `NativeDevice.create` called
+  directly rejects instead.
 - **Edits made in the plug-in's window.** `followNativeEdits(document,
 renderer)`, above.
 - **What no parameter shows.** A sampler's loaded instrument, a synth's

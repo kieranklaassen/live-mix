@@ -476,6 +476,46 @@ describe('a hosted plug-in this machine does not have', () => {
     expect(device.bypass).toBe(true)
   })
 
+  it('an instrument track that names one renders silent and keeps the instrument and its state', async () => {
+    const score = createScore()
+    score.tracks = [
+      {
+        kind: 'instrument',
+        id: 'keys',
+        name: 'Keys',
+        destination: { kind: 'master' },
+        strip: {
+          level: 1,
+          pan: 0,
+          inputGain: 1,
+          mute: false,
+          solo: false,
+          soloSafe: false,
+          inserts: [],
+          sends: [],
+        },
+        device: {
+          id: 'synth-1',
+          deviceId: 'native:VST3-Gone Synth-1-2',
+          params: { p1: 0.6 },
+          bypass: false,
+          state: 'c2F2ZWQ=',
+        },
+      },
+    ]
+    const { engine, document, renderer, errors, missing } = await rig(score, false)
+    expect(missing).toEqual(['native:VST3-Gone Synth-1-2'])
+    expect(errors).toEqual([])
+    const track = renderer.instrument('keys')
+    expect(engine.instruments).toEqual([track])
+    expect(isMissingNativeDevice(track.device)).toBe(true)
+    // Notes go nowhere, without an error.
+    track.noteOn(1, 440, 1)
+    track.noteOff(1)
+    expect(await captureNativeState(document, renderer)).toBe(0)
+    expect(parseScore(JSON.parse(serializeScore(document.score)))).toEqual(score)
+  })
+
   it('leaves stock devices and plug-ins that are registered alone', async () => {
     const { missing, registry } = await rig(scoreWithReverb(), true)
     expect(missing).toEqual([])
