@@ -374,6 +374,33 @@ describe('hooks write through the arbiter', () => {
     expect(kick.strip.inserts).toHaveLength(1)
   })
 
+  it('DeviceChainView never steps a device in front of a pinned insert the score holds', async () => {
+    const { document, engine, renderer, wrapper } = await rig()
+    const kick = engine.track('kick')
+    render(createElement(DeviceChainView, { strip: kick, pinned: 1, 'data-testid': 'chain' }), {
+      wrapper,
+    })
+    const ids = () =>
+      findStripHost(document.score, 'kick')?.strip.inserts.map((device) => device.id)
+    const picker = screen.getByRole('combobox', { name: 'Add device' })
+    fireEvent.change(picker, { target: { value: 'delay' } })
+    fireEvent.change(picker, { target: { value: 'delay' } })
+    await act(() => renderer.whenIdle())
+    await waitFor(() => expect(screen.getAllByRole('heading')).toHaveLength(2))
+    expect(ids()).toEqual(['kick-filter', 'delay-1', 'delay-2'])
+
+    // Two clicks before the renderer has caught up: the first steps the device
+    // to the head of the movable part, the second has nowhere left to go.
+    fireEvent.click(screen.getByTestId('chain-earlier-1'))
+    fireEvent.click(screen.getByTestId('chain-earlier-1'))
+    expect(ids()).toEqual(['kick-filter', 'delay-2', 'delay-1'])
+    await act(() => renderer.whenIdle())
+    expect(kick.strip.inserts.map((device) => renderer.deviceIdFor(device))).toEqual([
+      'kick-filter',
+      'delay-2',
+      'delay-1',
+    ])
+  })
   it('DeviceChainView edits the master through the score and leaves hand-made inserts first', async () => {
     const { document, engine, renderer, wrapper } = await rig()
     render(

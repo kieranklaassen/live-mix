@@ -220,8 +220,10 @@ export function DeviceChainView({
     }
     const moved = index < skip ? undefined : scoreSlot(inserts[index])
     if (!moved) return
+    // The pinned inserts the score holds head its chain; nothing steps in front of them.
+    const first = inserts.slice(0, skip).filter((device) => scoreSlot(device)).length
     const to = moved.index + delta
-    if (to >= 0 && to < scoreInserts(arbiter, owner).length)
+    if (to >= first && to < scoreInserts(arbiter, owner).length)
       arbiter.apply({ type: 'device.move', id: moved.device.id, index: to })
   }
 
