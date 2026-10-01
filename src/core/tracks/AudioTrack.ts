@@ -149,7 +149,7 @@ export class AudioTrack implements StripHost {
     // Lookaheads are read on every tick, so later writes to the track apply.
     this.playback = new TrackSchedulable(
       () => this.lookaheadSec,
-      () => this.clips.all(),
+      () => this.clips.audible(),
       (start, when) => this.scheduleStart(start, when),
       {
         cancel: (key) => this.stop(key),
@@ -159,7 +159,7 @@ export class AudioTrack implements StripHost {
     )
     this.preload = new TrackSchedulable(
       () => this.preloadSec,
-      () => this.clips.all(),
+      () => this.clips.audible(),
       (start) => this.preloadStart(start),
     )
 

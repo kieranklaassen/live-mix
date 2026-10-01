@@ -1,7 +1,7 @@
 // Pure clip math: the record, its fade envelopes, waveform peaks and the
 // lookahead window. Nothing here touches Web Audio.
 
-export { type Clip, type FadeCurve } from './Clip'
+export { isAudibleClip, type Clip, type FadeCurve } from './Clip'
 export { EQUAL_POWER_CURVE_LENGTH, equalPowerFadeIn, equalPowerFadeOut } from './curves'
 export { fadeGain } from './fade'
 export {

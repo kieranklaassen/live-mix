@@ -14,6 +14,14 @@
 // undo lands where the hand started and redo where it let go. Discrete edits
 // (add, remove, route, mute, preset) never coalesce. The log still records
 // every intermediate operation.
+//
+// A gesture that touches more than one thing is one step too. A paint stroke
+// dragged across others moves the clip, shifts its neighbours' crossfades and
+// rewrites a lane; none of those share a key, so operations tagged with the
+// same `gesture` id that do not fold are *joined*: the step becomes a `batch`
+// of the operations in order, and its inverse the batch of their inverses in
+// reverse. Inside a joined step a run of same-key operations still keeps
+// only its latest. Untagged operations never join.
 
 import { type Author } from './log'
 import { coalesceKey, describeOperation, type Operation } from './operations'
@@ -35,6 +43,12 @@ export interface HistoryEntry {
   label: string
   /** Operations folded into this step. */
   count: number
+  /**
+   * True once operations of different keys were joined: `op` and `inverse`
+   * are then batches this history built, and `key` is that of the last
+   * operation joined.
+   */
+  joined?: boolean
 }
 
 export interface HistoryPush {
@@ -102,12 +116,16 @@ export class History {
     this.redoList.length = 0
     const key = coalesceKey(push.op)
     const top = this.undoList[this.undoList.length - 1]
-    if (top && !this.sealed && this.coalesces(top, push, key)) {
+    if (top && !this.sealed && !top.joined && this.coalesces(top, push, key)) {
       top.op = push.op
       top.lastSeq = push.seq
       top.lastAtMs = push.atMs
       top.count += 1
       top.label = push.label ?? describeOperation(push.op)
+      return top
+    }
+    if (top && !this.sealed && this.joins(top, push)) {
+      this.join(top, push, key)
       return top
     }
     this.sealed = false
@@ -160,6 +178,39 @@ export class History {
     this.undoList.length = 0
     this.redoList.length = 0
     this.sealed = false
+  }
+
+  /** Same author, same explicit gesture: the operation belongs to the step whatever its key. */
+  private joins(top: HistoryEntry, push: HistoryPush): boolean {
+    return (
+      top.gesture !== undefined && top.gesture === push.gesture && top.author.id === push.author.id
+    )
+  }
+
+  private join(top: HistoryEntry, push: HistoryPush, key: string | null): void {
+    const label = push.label ?? top.label
+    if (!top.joined) {
+      top.op = { type: 'batch', ops: [top.op, push.op], label }
+      top.inverse = { type: 'batch', ops: [push.inverse, top.inverse], label: `undo ${label}` }
+      top.joined = true
+    } else if (top.op.type === 'batch' && top.inverse.type === 'batch') {
+      // These batches are this history's own, so growing them in place is safe.
+      top.op.label = label
+      top.inverse.label = `undo ${label}`
+      if (key !== null && key === top.key) {
+        // The same parameter again: redo needs only where it ended, and the
+        // inverse already recorded restores where it began.
+        top.op.ops[top.op.ops.length - 1] = push.op
+      } else {
+        top.op.ops.push(push.op)
+        top.inverse.ops.unshift(push.inverse)
+      }
+    }
+    top.key = key
+    top.lastSeq = push.seq
+    top.lastAtMs = push.atMs
+    top.count += 1
+    top.label = label
   }
 
   private coalesces(top: HistoryEntry, push: HistoryPush, key: string | null): boolean {

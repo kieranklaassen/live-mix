@@ -3,6 +3,11 @@
 // into the chain. The chain belongs to a channel strip or to a bus (the
 // master); both only append and remove, so a reorder rebuilds the tail of the
 // chain from the first changed slot.
+//
+// Inside a provider with an `arbiter` whose score carries the chain's owner,
+// adding, removing and moving are score operations (`device.add`,
+// `device.remove`, `device.move`) and the renderer changes the chain: the
+// edits are in the document, in the log and on the undo stack.
 
 import { useCallback, useState, type CSSProperties, type DragEvent } from 'react'
 
@@ -13,7 +18,9 @@ import {
   type DeviceRegistry,
 } from '../../core/devices/registry'
 import { type StripHost } from '../../core/tracks/ChannelStrip'
-import { useMaybeEngine } from '../hooks/useEngine'
+import { type Arbiter } from '../../score/Arbiter'
+import { MASTER_OWNER, allDevices, findDevice, findStripHost } from '../../score/schema'
+import { useMaybeArbiter, useMaybeEngine } from '../hooks/useEngine'
 import { useExternalSnapshot } from '../store'
 import { DevicePanel, type DevicePanelProps } from './DevicePanel'
 import { cx } from './tokens'
@@ -47,6 +54,25 @@ export function reorderInserts(host: InsertHost, from: number, to: number, pinne
   while (first < current.length && current[first] === next[first]) first += 1
   for (const device of current.slice(first)) host.removeInsert(device)
   for (const device of next.slice(first)) host.addInsert(device)
+}
+
+/** The owner id the arbiter's score knows this chain by, or null when it is not in the score. */
+function scoreOwner(
+  arbiter: Arbiter | null,
+  host: InsertHost,
+  master: InsertHost | null,
+): string | null {
+  if (!arbiter) return null
+  if (host === master) return MASTER_OWNER
+  return findStripHost(arbiter.score, host.name) ? host.name : null
+}
+
+/** An instance id no device in the score has yet: `delay-1`, `delay-2`, … */
+export function freshDeviceId(arbiter: Arbiter, deviceId: string): string {
+  const taken = new Set(allDevices(arbiter.score).map((location) => location.device.id))
+  let n = 1
+  while (taken.has(`${deviceId}-${n}`)) n += 1
+  return `${deviceId}-${n}`
 }
 
 /** The picker's default: every effect. An instrument is a source, not an insert. */
@@ -96,9 +122,9 @@ export interface DeviceChainViewProps {
   filter?: (descriptor: DeviceDescriptor) => boolean
   /** The picker's resting label (default "Add device…"). */
   addLabel?: string
-  /** Called instead of `removeInsert` + `dispose` when set. */
+  /** Called instead of `removeInsert` + `dispose` (or the score operation) when set. */
   onRemove?: (device: Device, index: number) => void
-  /** Called with the created device instead of `addInsert` when set. */
+  /** Called with the created device instead of `addInsert` (or the score operation) when set. */
   onAdd?: (device: Device) => void
   /** Forwarded to every panel (knob size, choice labels, …). */
   panelProps?: Partial<Omit<DevicePanelProps, 'device' | 'registry' | 'onRemove'>>
@@ -123,8 +149,10 @@ export function DeviceChainView({
 }: DeviceChainViewProps) {
   const strip = resolveInsertHost(stripOrHost)
   const engine = useMaybeEngine()
+  const arbiter = useMaybeArbiter()
   const reg = registry ?? engine?.devices ?? null
   const inserts = useInserts(strip)
+  const owner = scoreOwner(arbiter, strip, engine?.master ?? null)
   const skip = Math.max(0, Math.floor(pinned))
   const [dragIndex, setDragIndex] = useState<number | null>(null)
   const [overIndex, setOverIndex] = useState<number | null>(null)
@@ -136,13 +164,41 @@ export function DeviceChainView({
       onRemove(device, index)
       return
     }
+    const id = owner !== null ? arbiter?.deviceIdFor(device) : undefined
+    if (arbiter && id !== undefined) {
+      arbiter.apply({ type: 'device.remove', id })
+      return
+    }
     strip.removeInsert(device)
     device.dispose()
   }
 
+  /** Move within the chain: a `device.move` when the score owns both ends, else a rebuild. */
+  const move = (from: number, to: number): void => {
+    const id = owner !== null ? arbiter?.deviceIdFor(inserts[from]) : undefined
+    const target = owner !== null && inserts[to] ? arbiter?.deviceIdFor(inserts[to]) : undefined
+    if (!arbiter || id === undefined || target === undefined) {
+      reorderInserts(strip, from, to, skip)
+      return
+    }
+    if (from === to || from < skip || to < skip) return
+    // The score lists only its own devices; land on the slot the target holds there.
+    const index = findDevice(arbiter.score, target)?.index
+    if (index !== undefined) arbiter.apply({ type: 'device.move', id, index })
+  }
+
   const add = async (id: string): Promise<void> => {
     const context = engine?.context ?? contextOf(strip)
-    if (!reg || !id || !context) return
+    if (!reg || !id) return
+    if (arbiter && owner !== null && !onAdd) {
+      arbiter.apply({
+        type: 'device.add',
+        owner,
+        device: { id: freshDeviceId(arbiter, id), deviceId: id, params: {}, bypass: false },
+      })
+      return
+    }
+    if (!context) return
     setAdding(true)
     try {
       const device = await reg.create(id, context)
@@ -169,7 +225,7 @@ export function DeviceChainView({
     const from = dragIndex ?? Number(event.dataTransfer.getData('text/plain'))
     setDragIndex(null)
     setOverIndex(null)
-    if (Number.isInteger(from)) reorderInserts(strip, from, index, skip)
+    if (Number.isInteger(from)) move(from, index)
   }
   const onDragEnd = (): void => {
     setDragIndex(null)
@@ -216,7 +272,7 @@ export function DeviceChainView({
                     className="lm-button lm-button--neutral lm-chain__move"
                     aria-label={`Move ${device.id} earlier`}
                     disabled={index === skip}
-                    onClick={() => reorderInserts(strip, index, index - 1, skip)}
+                    onClick={() => move(index, index - 1)}
                     data-testid={testId ? `${testId}-earlier-${index - skip}` : undefined}
                   >
                     ◂
@@ -226,7 +282,7 @@ export function DeviceChainView({
                     className="lm-button lm-button--neutral lm-chain__move"
                     aria-label={`Move ${device.id} later`}
                     disabled={index === inserts.length - 1}
-                    onClick={() => reorderInserts(strip, index, index + 1, skip)}
+                    onClick={() => move(index, index + 1)}
                     data-testid={testId ? `${testId}-later-${index - skip}` : undefined}
                   >
                     ▸

@@ -353,6 +353,37 @@ describe('ScoreRenderer: incremental edits', () => {
     expect([bed.lookaheadSec, bed.preloadSec]).toEqual([5, 12])
   })
 
+  it('muting a clip reaches the track; an annotation alone never touches it', async () => {
+    const { renderer, edit } = await rig()
+    const track = renderer.audioTrack('kick')
+    const set = vi.spyOn(track.clips, 'set')
+    await edit({ type: 'clip.update', track: 'kick', id: 'a1', patch: { meta: { row: 3 } } })
+    expect(set).not.toHaveBeenCalled()
+    await edit({ type: 'clip.update', track: 'kick', id: 'a1', patch: { muted: true } })
+    expect(set).toHaveBeenCalledTimes(1)
+    expect(track.clips.get('a1')?.muted).toBe(true)
+    expect(track.clips.audible().map((c) => c.id)).toEqual(['b1'])
+    await edit({ type: 'clip.update', track: 'kick', id: 'a1', patch: { muted: false } })
+    expect(track.clips.audible().map((c) => c.id)).toEqual(['a1', 'b1'])
+  })
+
+  it('a source update that only renames or annotates leaves the tracks alone', async () => {
+    const { renderer, document, edit } = await rig()
+    const set = vi.spyOn(renderer.audioTrack('kick').clips, 'set')
+    await edit({
+      type: 'source.update',
+      id: 'a',
+      patch: { durationSec: 12, meta: { name: 'Kick' } },
+    })
+    expect(set).not.toHaveBeenCalled()
+    expect(document.score.sources[0]).toEqual({
+      id: 'a',
+      url: '/a.mp3',
+      durationSec: 12,
+      meta: { name: 'Kick' },
+    })
+  })
+
   it('unloaded clip sources resolve through the score (url by default, or the app)', async () => {
     const seen: string[] = []
     const ctx = createMockContext()

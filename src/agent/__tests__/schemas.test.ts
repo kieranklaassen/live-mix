@@ -83,6 +83,7 @@ describe('operation tool schemas', () => {
       'Clip',
       'Destination',
       'Device',
+      'Meta',
       'Send',
       'Strip',
       'Track',

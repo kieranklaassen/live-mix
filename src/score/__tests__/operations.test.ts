@@ -104,6 +104,72 @@ describe('apply', () => {
     expect(audio(moved, 'kick').clips.map((c) => c.id)).toEqual(['a1', 'b1', 'z'])
   })
 
+  it('a clip carries muted and meta; an empty meta and muted: false are the same as none', () => {
+    const meta = { paint: { rows: 2, row: 3, auto: [[0, 1]] } }
+    const added = apply(base, {
+      type: 'clip.add',
+      track: 'kick',
+      clip: clip('z', 'a', 2, { muted: true, meta }),
+    })
+    const z = audio(added, 'kick').clips[1]
+    expect(z).toMatchObject({ id: 'z', muted: true, meta })
+    // Keys come out sorted, so equal annotations serialise identically.
+    expect(JSON.stringify(z.meta)).toBe('{"paint":{"auto":[[0,1]],"row":3,"rows":2}}')
+
+    const update = (patch: Partial<Clip>): Operation => ({
+      type: 'clip.update',
+      track: 'kick',
+      id: 'z',
+      patch,
+    })
+    const cleared = apply(added, update({ muted: false, meta: {} }))
+    expect('muted' in audio(cleared, 'kick').clips[1]).toBe(false)
+    expect('meta' in audio(cleared, 'kick').clips[1]).toBe(false)
+
+    // Setting them on a clip that had neither inverts to values that clear them.
+    const { score, inverse } = applyWithInverse(cleared, update({ muted: true, meta: { a: 1 } }))
+    expect(inverse).toEqual(update({ muted: false, meta: {} }))
+    expect(canon(apply(score, inverse))).toEqual(canon(cleared))
+    // The inverse survives a trip through JSON (an undefined would be dropped).
+    expect(canon(apply(score, JSON.parse(JSON.stringify(inverse)) as Operation))).toEqual(
+      canon(cleared),
+    )
+
+    expect(() =>
+      apply(base, update({ meta: { when: new Date(0) } as unknown as Clip['meta'] })),
+    ).toThrow(/no clip|plain JSON/)
+    expect(() => apply(added, update({ meta: { bad: Number.NaN } }))).toThrow(/plain JSON/)
+  })
+
+  it('source.update patches a source, clears with null and inverts to what was there', () => {
+    const { score, inverse } = applyWithInverse(base, {
+      type: 'source.update',
+      id: 'b',
+      patch: { url: '/b.wav', durationSec: 7, meta: { name: 'Bell', colour: 2 } },
+    })
+    expect(score.sources[1]).toEqual({
+      id: 'b',
+      url: '/b.wav',
+      durationSec: 7,
+      meta: { colour: 2, name: 'Bell' },
+    })
+    expect(inverse).toEqual({
+      type: 'source.update',
+      id: 'b',
+      patch: { url: null, durationSec: 10, meta: null },
+    })
+    expect(canon(apply(score, inverse))).toEqual(base)
+    expect(
+      apply(score, { type: 'source.update', id: 'b', patch: { url: null } }).sources[1],
+    ).toEqual({ id: 'b', durationSec: 7, meta: { colour: 2, name: 'Bell' } })
+    expect(() => apply(base, { type: 'source.update', id: 'zz', patch: {} })).toThrow(/no source/)
+    expect(() =>
+      apply(base, { type: 'source.update', id: 'a', patch: { durationSec: -1 } }),
+    ).toThrow(/durationSec/)
+    // Clips keep pointing at it: the id cannot change.
+    expect(audio(score, 'kick').clips.map((c) => c.sourceId)).toEqual(['a', 'b'])
+  })
+
   it('clip.replaceFrom keeps what starts before the cut and refuses clips before it', () => {
     const replaced = apply(base, {
       type: 'clip.replaceFrom',
@@ -474,6 +540,7 @@ function randomOp(random: () => number, score: Score, counter: { n: number }): G
     'route.update',
     'transport.loop',
     'source.add',
+    'source.update',
     'batch',
   ] as const
   const kind = pick(random, kinds)
@@ -647,6 +714,10 @@ function randomOp(random: () => number, score: Score, counter: { n: number }): G
                 loop: random() < 0.5,
                 gainDb: value * -12,
                 fadeCurve: pick(random, ['linear', 'equalPower']),
+                muted: random() < 0.5,
+                ...(random() < 0.5
+                  ? { meta: random() < 0.3 ? {} : { row: value, tags: ['x'] } }
+                  : {}),
               },
             },
           }
@@ -907,6 +978,22 @@ function randomOp(random: () => number, score: Score, counter: { n: number }): G
           index: Math.floor(random() * (score.sources.length + 1)),
         },
       }
+    case 'source.update': {
+      const source = someSource()
+      return source
+        ? {
+            op: {
+              type: 'source.update',
+              id: source.id,
+              patch: {
+                durationSec: random() < 0.3 ? null : 1 + value * 10,
+                ...(random() < 0.5 ? { url: random() < 0.3 ? null : `/${fresh()}.mp3` } : {}),
+                ...(random() < 0.5 ? { meta: random() < 0.3 ? null : { name: fresh() } } : {}),
+              },
+            },
+          }
+        : null
+    }
     case 'batch': {
       const ops: Operation[] = []
       let current = score

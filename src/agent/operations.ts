@@ -60,6 +60,7 @@ const ARRANGE: ReadonlySet<OperationType> = new Set<OperationType>([
   'elementTrack.setClips',
   'source.add',
   'source.remove',
+  'source.update',
   'clip.add',
   'clip.remove',
   'clip.move',

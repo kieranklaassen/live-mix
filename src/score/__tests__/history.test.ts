@@ -129,3 +129,100 @@ describe('History undo/redo stacks', () => {
     expect(history.canUndo).toBe(false)
   })
 })
+
+describe('History: one step per gesture across different operations', () => {
+  const move = (startSec: number): Operation => ({
+    type: 'clip.move',
+    track: 'kick',
+    id: 'a1',
+    startSec,
+  })
+  const fade = (fadeOutSec: number): Operation => ({
+    type: 'clip.update',
+    track: 'kick',
+    id: 'b1',
+    patch: { fadeOutSec },
+  })
+  const breakpoints = (value: number): Operation => ({
+    type: 'lane.setBreakpoints',
+    id: 'kick-level',
+    breakpoints: [{ timeSec: 0, value }],
+  })
+  const inverseOf = (seq: number): Operation => ({
+    type: 'strip.set',
+    owner: 'kick',
+    param: 'level',
+    value: seq - 1,
+  })
+
+  it('joins operations of different keys tagged with the same gesture', () => {
+    const history = new History()
+    push(history, 1, move(1), 0, { gesture: 'drag', label: 'Move stroke' })
+    push(history, 2, fade(0.5), 10, { gesture: 'drag', label: 'Move stroke' })
+    push(history, 3, breakpoints(-6), 20, { gesture: 'drag', label: 'Move stroke' })
+    expect(history.undoStack).toHaveLength(1)
+    const step = history.peekUndo()
+    expect(step).toMatchObject({ seq: 1, lastSeq: 3, count: 3, joined: true, label: 'Move stroke' })
+    // Redo replays them in order; undo applies the inverses back to front.
+    expect(step?.op).toEqual({
+      type: 'batch',
+      ops: [move(1), fade(0.5), breakpoints(-6)],
+      label: 'Move stroke',
+    })
+    expect(step?.inverse).toEqual({
+      type: 'batch',
+      ops: [inverseOf(3), inverseOf(2), inverseOf(1)],
+      label: 'undo Move stroke',
+    })
+  })
+
+  it('keeps only the latest of a same-key run inside a joined step', () => {
+    const history = new History()
+    const trim = (durationSec: number): Operation => ({
+      type: 'clip.trim',
+      track: 'kick',
+      id: 'b1',
+      durationSec,
+    })
+    push(history, 1, move(1), 0, { gesture: 'drag' })
+    push(history, 2, trim(0.5), 10, { gesture: 'drag' })
+    push(history, 3, trim(0.7), 20, { gesture: 'drag' })
+    push(history, 4, trim(0.9), 30, { gesture: 'drag' })
+    push(history, 5, move(2), 40, { gesture: 'drag' })
+    const step = history.peekUndo()
+    expect(history.undoStack).toHaveLength(1)
+    expect(step?.count).toBe(5)
+    expect(step?.op).toMatchObject({ type: 'batch', ops: [move(1), trim(0.9), move(2)] })
+    // The run's first inverse restores where it began; the later ones are not needed.
+    expect(step?.inverse).toMatchObject({
+      type: 'batch',
+      ops: [inverseOf(5), inverseOf(2), inverseOf(1)],
+    })
+  })
+
+  it('still folds a same-key gesture without building a batch', () => {
+    const history = new History()
+    push(history, 1, level(0.1), 0, { gesture: 'drag' })
+    push(history, 2, level(0.2), 10, { gesture: 'drag' })
+    expect(history.peekUndo()?.joined).toBeUndefined()
+    expect(history.peekUndo()?.op).toEqual(level(0.2))
+  })
+
+  it('does not join untagged operations, another gesture, another author or a sealed step', () => {
+    const history = new History()
+    push(history, 1, move(1), 0)
+    push(history, 2, fade(0.5), 10)
+    expect(history.undoStack).toHaveLength(2)
+
+    push(history, 3, move(2), 20, { gesture: 'drag-1' })
+    push(history, 4, fade(0.6), 30, { gesture: 'drag-2' })
+    expect(history.undoStack).toHaveLength(4)
+
+    push(history, 5, fade(0.7), 40, { gesture: 'drag-2', author: agent })
+    expect(history.undoStack).toHaveLength(5)
+
+    history.seal()
+    push(history, 6, move(3), 50, { gesture: 'drag-2', author: agent })
+    expect(history.undoStack).toHaveLength(6)
+  })
+})

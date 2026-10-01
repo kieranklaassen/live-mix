@@ -119,6 +119,22 @@ describe('useSchedule', () => {
     expect(result.current.upcoming[0].startsInSec).toBeCloseTo(3)
   })
 
+  it('leaves muted clips out of what is sounding and coming up', () => {
+    const fixture = createTestEngine()
+    const track = fixture.engine.addAudioTrack('music')
+    track.clips.set([{ ...clip('a', 0, 4), muted: true }, clip('b', 2, 4)])
+    const { result } = renderHook(() => useSchedule(track, { horizonSec: 8 }), {
+      wrapper: fixture.wrapper,
+    })
+    expect(result.current.clips.map((c) => c.id)).toEqual(['a', 'b'])
+    expect(result.current.sounding).toEqual([])
+    expect(result.current.upcoming.map((view) => view.clip.id)).toEqual(['b'])
+    act(() => {
+      track.clips.update('a', { muted: false })
+    })
+    expect(result.current.sounding.map((view) => view.clip.id)).toEqual(['a'])
+  })
+
   it('recomputes when the clip list changes', () => {
     const fixture = createTestEngine()
     const track = fixture.engine.addAudioTrack('music')

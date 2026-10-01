@@ -132,7 +132,7 @@ export class StretchTrack implements StripHost {
     this.clips = new ClipList(() => this.scheduler?.refresh())
     this.playback = new TrackSchedulable(
       () => this.lookaheadSec,
-      () => this.clips.all(),
+      () => this.clips.audible(),
       (start, when) => this.scheduleStart(start, when),
       {
         cancel: (key) => this.stop(key),
@@ -142,7 +142,7 @@ export class StretchTrack implements StripHost {
     )
     this.preload = new TrackSchedulable(
       () => this.preloadSec,
-      () => this.clips.all(),
+      () => this.clips.audible(),
       (start) => this.prepareStart(start),
     )
     if (options.scheduler) this.attach(options.scheduler)

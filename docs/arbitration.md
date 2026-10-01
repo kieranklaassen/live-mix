@@ -135,8 +135,10 @@ cancels every wait.
 
 - **Hooks** (`./react`): `<LiveMixProvider engine arbiter>` makes
   `useStrip`/`useTrack`/`useGroup` level, pan, trim, mute, solo, solo-safe
-  and `useDevice`/`useDeviceParam` sets apply operations as the provider's
-  human author (a strip or device the score does not carry keeps the direct
+  and `useDevice`/`useDeviceParam` sets (bypass, presets and reset
+  included) apply operations as the provider's human author, and
+  `DeviceChainView` adds, removes and reorders inserts with `device.add` /
+  `device.remove` / `device.move` (a strip or device the score does not carry keeps the direct
   engine write; `attributed` tells which). `touch(param)`/`release(param)`
   bracket a drag: a fresh gesture id per touch, so two drags are two undo
   steps. The kit's `ChannelStripView` and `DevicePanel` already wire

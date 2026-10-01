@@ -22,6 +22,14 @@ export {
 } from './core/devices/Device'
 export { Emitter, type Listener } from './core/events'
 export {
+  canonicalJson,
+  isJsonObject,
+  isJsonValue,
+  sameJson,
+  type JsonObject,
+  type JsonValue,
+} from './core/json'
+export {
   clampParam,
   denormalizeParam,
   normalizeParam,

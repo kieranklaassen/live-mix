@@ -639,6 +639,7 @@ export function arbiterTargets(op: Operation): string[] {
     case 'source.add':
       return [`source:${op.source.id}`]
     case 'source.remove':
+    case 'source.update':
       return [`source:${op.id}`]
     case 'track.add':
       return [`strip:${op.track.id}`]

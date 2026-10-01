@@ -46,6 +46,7 @@ export const OPERATION_ARGS: Record<OperationType, Record<string, unknown>> = {
   'elementTrack.setClips': { id: 'bed', clips: [clip('bed2', 'a', 2, { durationSec: 6 })] },
   'source.add': { source: { id: 'c', url: '/c.mp3', durationSec: 12 } },
   'source.remove': { id: 'c' },
+  'source.update': { id: 'a', patch: { durationSec: 9, meta: { name: 'Kick' } } },
   'track.add': {
     track: {
       kind: 'live',

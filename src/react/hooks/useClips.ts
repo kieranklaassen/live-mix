@@ -5,7 +5,7 @@
 
 import { useCallback, useMemo } from 'react'
 
-import { type Clip } from '../../core/clips/Clip'
+import { isAudibleClip, type Clip } from '../../core/clips/Clip'
 import { type ClipList } from '../../core/tracks/ClipList'
 import { type Transport } from '../../core/transport/Transport'
 import { startsInWindow } from '../../core/transport/window'
@@ -99,16 +99,18 @@ export function useSchedule(
   const { positionSec, iteration, playing, loop } = transport
 
   const schedule = useMemo((): ScheduleSnapshot => {
+    // Muted clips stay in `clips` for drawing; the scheduler never starts them.
+    const audible = clips.filter(isAudibleClip)
     const sounding: ScheduledClipView[] = []
-    for (const clip of clips) {
+    for (const clip of audible) {
       if (clip.startSec <= positionSec && positionSec < clip.startSec + clip.durationSec) {
         sounding.push({ clip, startsInSec: clip.startSec - positionSec, iteration })
       }
     }
-    const byId = new Map(clips.map((clip) => [clip.id, clip] as const))
+    const byId = new Map(audible.map((clip) => [clip.id, clip] as const))
     const upcoming: ScheduledClipView[] = []
     for (const hit of startsInWindow({
-      clips,
+      clips: audible,
       positionSec,
       lookaheadSec: horizonSec,
       iteration,

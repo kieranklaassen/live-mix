@@ -38,9 +38,18 @@ export interface ApplyOptions {
   author?: Author
   /** Wall-clock time; defaults to the document's `now()`. */
   atMs?: number
-  /** Continuous-gesture id: same-key operations with the same id form one undo step. */
+  /** Continuous-gesture id: operations with the same id form one undo step. */
   gesture?: string
   label?: string
+  /**
+   * `false` applies and logs the operation without making it an undo step,
+   * and leaves the redo stack alone: an amendment the user did not make and
+   * should not undo (a decoded length arriving late, a track the app creates
+   * on demand, a derived field brought back in line). It has to commute with
+   * the steps on the stacks, so it must not remove or re-add anything they
+   * refer to. Default true.
+   */
+  history?: boolean
 }
 
 export interface ScoreDocumentOptions extends HistoryOptions, OperationLogOptions {
@@ -95,15 +104,17 @@ export class ScoreDocument {
       withOptional({ op, inverse, author, atMs, kind: 'apply' }, options),
       score,
     )
-    this.history.push({
-      seq: entry.seq,
-      op,
-      inverse,
-      author,
-      atMs,
-      gesture: options.gesture,
-      label: options.label,
-    })
+    if (options.history !== false) {
+      this.history.push({
+        seq: entry.seq,
+        op,
+        inverse,
+        author,
+        atMs,
+        gesture: options.gesture,
+        label: options.label,
+      })
+    }
     this.current = score
     this.emit({ kind: 'apply', score, previous, entry })
     return entry

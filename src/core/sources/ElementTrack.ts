@@ -138,7 +138,7 @@ export class ElementTrack {
 
     this.playback = new TrackSchedulable(
       () => this.lookaheadSec,
-      () => this.clips.all(),
+      () => this.clips.audible(),
       (start, when) => this.scheduleStart(start, when),
       {
         cancel: (key) => this.stop(key),
@@ -148,7 +148,7 @@ export class ElementTrack {
     )
     this.preload = new TrackSchedulable(
       () => this.preloadSec,
-      () => this.clips.all(),
+      () => this.clips.audible(),
       (start) => this.primeStart(start),
     )
 
