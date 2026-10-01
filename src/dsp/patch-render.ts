@@ -241,9 +241,11 @@ export async function renderPatch(patch: Patch, options: RenderPatchOptions): Pr
   const crossfade = Math.max(0, Math.round((options.loopCrossfadeSec ?? 0) * sampleRate))
   const total = skip + frames + crossfade
 
-  const instrument = patch.instrument
-    ? await createStage(patch.instrument, sampleRate, options)
-    : null
+  // A bypassed instrument is a switched-off note device: silence, as it is live.
+  const instrument =
+    patch.instrument && !patch.instrument.bypass
+      ? await createStage(patch.instrument, sampleRate, options)
+      : null
   const effects: Stage[] = []
   for (const device of patch.effects) {
     if (!device.bypass) effects.push(await createStage(device, sampleRate, options))

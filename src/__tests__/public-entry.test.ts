@@ -284,9 +284,13 @@ const dspSymbols = [
   'renderChainPreview',
   'renderFactorySound',
   'validatePatch',
+  'patchDeviceParams',
+  'patchDevices',
+  'isInstrumentPatch',
   'createPatchDevice',
   'createPatchEffects',
   'replaceInserts',
+  'capturePatch',
   'SAMPLE_DEVICE_IDS',
   'STOCK_WASM_DEVICES',
 ] as const

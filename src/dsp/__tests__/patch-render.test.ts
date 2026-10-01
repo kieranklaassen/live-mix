@@ -138,6 +138,14 @@ describe('renderPatch', () => {
     expect(bypassed.channels[0]).toEqual(dry.channels[0])
   })
 
+  it('renders a bypassed instrument silent', async () => {
+    const audio = await render(
+      { ...BELL, instrument: { deviceId: 'modal-bells', bypass: true } },
+      { durationSec: 1, phrase: { notes: [{ atSec: 0, durSec: 0.5, note: 60 }] } },
+    )
+    expect(peakOf(audio.channels)).toBe(0)
+  })
+
   it('drops the skipped start, so what is left is the later part of the same render', async () => {
     const phrase = { notes: [{ atSec: 0, durSec: 3, note: 48 }] }
     const patch: Patch = { ...BELL, instrument: { deviceId: 'string-machine' } }
