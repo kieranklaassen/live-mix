@@ -156,6 +156,55 @@ describe('Engine instrument tracks', () => {
     synth.noteOn(61, 466)
     expect(notes).toHaveLength(2)
   })
+
+  it('swaps the instrument on a track, releasing held notes and keeping the strip', () => {
+    const ctx = createMockContext()
+    const engine = createEngine({ context: asAudioContext(ctx) })
+    const make = (id: string, notes: string[]) => {
+      const node = ctx.createGain()
+      return {
+        id,
+        input: node as unknown as AudioNode,
+        output: node as unknown as AudioNode,
+        params: {},
+        setParam: () => {},
+        getParam: () => 0,
+        bypass: false,
+        latencySec: 0,
+        dispose: vi.fn(),
+        noteOn: (note: number) => notes.push(`${id} on:${note}`),
+        noteOff: (note: number) => notes.push(`${id} off:${note}`),
+        node,
+      }
+    }
+    const notes: string[] = []
+    const pad = make('pad', notes)
+    const bells = make('bells', notes)
+    const track = engine.addInstrumentTrack('keys', { device: pad })
+    track.strip.setLevel(0.5)
+    expect(track.strip.sourceNodes).toEqual([pad.output])
+    const disconnects = pad.node.disconnectCalls.count
+    track.noteOn(60, 261.6)
+    track.noteOn(64, 329.6)
+    track.noteOff(64)
+
+    expect(track.setDevice(bells)).toBe(pad)
+    expect(track.device).toBe(bells)
+    expect(notes).toEqual(['pad on:60', 'pad on:64', 'pad off:64', 'pad off:60'])
+    expect(track.strip.sourceNodes).toEqual([bells.output])
+    expect(pad.node.disconnectCalls.count).toBe(disconnects + 1)
+    expect(pad.dispose).not.toHaveBeenCalled()
+    expect(track.strip.level).toBe(0.5)
+
+    track.noteOn(67, 392)
+    expect(notes.at(-1)).toBe('bells on:67')
+    expect(track.setDevice(bells)).toBe(bells)
+    engine.dispose()
+    expect(bells.dispose).toHaveBeenCalledTimes(1)
+    expect(pad.dispose).not.toHaveBeenCalled()
+    expect(track.setDevice(pad)).toBe(bells)
+    expect(track.device).toBe(bells)
+  })
 })
 
 describe('engine change events and latency (U24 hooks follow-up)', () => {

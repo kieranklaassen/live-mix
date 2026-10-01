@@ -105,7 +105,17 @@ export {
   type DeviceFrameProps,
   type DevicePanelProps,
 } from './DevicePanel'
-export { DeviceChainView, reorderInserts, type DeviceChainViewProps } from './DeviceChainView'
+export {
+  DeviceChainView,
+  groupDevices,
+  isInsertDevice,
+  reorderInserts,
+  resolveInsertHost,
+  useInserts,
+  type DeviceChainViewProps,
+  type InsertHost,
+} from './DeviceChainView'
+
 export {
   rulerTicks,
   TimelineView,

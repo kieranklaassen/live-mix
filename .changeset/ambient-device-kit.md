@@ -10,3 +10,5 @@ Foundation for the ambient instruments and effects, and the first of them:
 - `ParamSpec.choices`: labels for an enumerated parameter; `DevicePanel` and `formatParamValue` print them. `DeviceDescriptor.description`, more `DeviceCategory` values (`delay`, `modulation`, `pitch`, `drive`, `texture`) and `DEVICE_CATEGORIES` for grouping a device browser.
 - `WasmDevice.loadSample(channels, sampleRate)` and the `device_sample_*` ABI entry points, for devices that play a loaded sound.
 - `registerStockWasmDevices()` now also registers the generated devices.
+
+`InstrumentTrack.setDevice(device)` swaps the instrument on a track and keeps its strip. `DeviceChainView` now edits any insert chain (a track, a strip or a bus such as the master), takes `pinned` and `filter`, and groups its picker by category without instruments.

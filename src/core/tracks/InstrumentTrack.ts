@@ -31,37 +31,63 @@ export interface InstrumentTrackOptions {
 
 export class InstrumentTrack implements StripHost {
   readonly name: string
-  readonly device: NoteDevice
   /** Pan, fader, mute/solo, inserts and post-fader sends; node-free until first used. */
   readonly strip: ChannelStrip
+  private current: NoteDevice
+  private readonly held = new Set<number>()
   private disposed = false
 
   constructor(options: InstrumentTrackOptions) {
     this.name = options.name
-    this.device = options.device
+    this.current = options.device
     this.strip = new ChannelStrip(options.context ?? null, {
       name: options.name,
       destination: options.destination,
       solo: options.solo,
     })
-    this.strip.connectSource(this.device.output)
+    this.strip.connectSource(this.current.output)
+  }
+
+  /** The instrument the track plays right now. */
+  get device(): NoteDevice {
+    return this.current
+  }
+
+  /**
+   * Swap the instrument and keep the strip (level, pan, inserts, sends). Notes
+   * held on the old device are released so its tail can ring out, then its
+   * output leaves the strip. Returns the old device, which the caller owns
+   * from here: dispose it once its tail has gone, or keep it to swap back.
+   */
+  setDevice(device: NoteDevice): NoteDevice {
+    const previous = this.current
+    if (this.disposed || device === previous) return previous
+    for (const noteId of this.held) previous.noteOff(noteId)
+    this.held.clear()
+    this.strip.disconnectSource(previous.output)
+    this.current = device
+    this.strip.connectSource(device.output)
+    return previous
   }
 
   noteOn(noteId: number, frequency: number, gain?: number): void {
     if (this.disposed) return
-    this.device.noteOn(noteId, frequency, gain)
+    this.held.add(noteId)
+    this.current.noteOn(noteId, frequency, gain)
   }
 
   noteOff(noteId: number): void {
     if (this.disposed) return
-    this.device.noteOff(noteId)
+    this.held.delete(noteId)
+    this.current.noteOff(noteId)
   }
 
   /** Dispose the track and its device. */
   dispose(): void {
     if (this.disposed) return
     this.disposed = true
-    this.device.dispose()
+    this.held.clear()
+    this.current.dispose()
     this.strip.dispose()
   }
 }
