@@ -797,6 +797,22 @@ describe('ScoreRenderer: instruments', () => {
     expect(renderer.lane('keys-gain').breakpoints).toHaveLength(1)
   })
 
+  it('an instrument kept under its own id but changed in kind is swapped too', async () => {
+    const { registry, score, made } = instruments()
+    const { renderer, edit, errors } = await rig(score, registry)
+    const track = renderer.instrument('keys')
+    await edit({
+      type: 'device.replace',
+      id: 'synth-1',
+      device: { id: 'synth-1', deviceId: 'organ', params: {}, bypass: false },
+    })
+    expect(errors).toEqual([])
+    expect(renderer.instrument('keys')).toBe(track)
+    expect(made[1].made).toBe('organ')
+    expect(track.device).toBe(made[1])
+    expect(renderer.device('synth-1')).toBe(made[1])
+  })
+
   it('an instrument swapped for something that plays no notes fails and the track keeps what it had', async () => {
     const { registry, score, made } = instruments()
     const { renderer, document, errors } = await rig(score, registry)

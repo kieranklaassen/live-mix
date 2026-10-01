@@ -671,19 +671,33 @@ export class ScoreRenderer {
   private async swapInstrument(handle: OwnerHandle, spec: ScoreDevice): Promise<void> {
     const track = handle.host as InstrumentTrack
     const previousId = handle.ownInstanceId
+    // A replacement can keep the instance id and change the device, so the old
+    // mapping goes before the new device takes the id; it comes back, with the
+    // instrument the track still has, if the new one cannot stand.
+    const keptId = previousId === spec.id
+    if (keptId) this.deviceMap.delete(spec.id)
+    const putBack = (): void => {
+      if (keptId) this.deviceMap.set(spec.id, track.device)
+      else this.deviceMap.delete(spec.id)
+    }
     // Nothing of the instrument the track has is touched until the new one stands.
-    const device = await this.createDevice(spec)
+    let device: Device
+    try {
+      device = await this.createDevice(spec)
+    } catch (error) {
+      putBack()
+      throw error
+    }
     if (!isNoteDevice(device)) {
       device.dispose()
-      if (previousId === spec.id) this.deviceMap.set(previousId, track.device)
-      else this.deviceMap.delete(spec.id)
+      putBack()
       throw new ScoreRenderError(
         `device "${spec.deviceId}" plays no notes; an instrument track needs a NoteDevice`,
       )
     }
     if (previousId !== undefined) {
       this.teardownBindingsOnDevice(previousId)
-      if (previousId !== spec.id) this.deviceMap.delete(previousId)
+      if (!keptId) this.deviceMap.delete(previousId)
     }
     const previous = track.setDevice(device)
     handle.ownDeviceId = spec.deviceId
