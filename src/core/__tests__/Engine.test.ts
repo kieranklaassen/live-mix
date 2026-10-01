@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { asAudioContext, createMockContext } from '../../testing'
+import { asAudioContext, createMockContext, type MockAudioNode } from '../../testing'
 import { createEngine } from '../Engine'
 import * as core from '../../index'
 
@@ -192,7 +192,9 @@ describe('Engine instrument tracks', () => {
     expect(track.device).toBe(bells)
     expect(notes).toEqual(['pad on:60', 'pad on:64', 'pad off:64', 'pad off:60'])
     expect(track.strip.sourceNodes).toEqual([bells.output])
-    expect(pad.node.disconnectCalls.count).toBe(disconnects + 1)
+    // The old output stays in the graph so the release it just started is heard.
+    expect(pad.node.disconnectCalls.count).toBe(disconnects)
+    expect(pad.node.isConnectedTo(track.strip.inputGainNode as unknown as MockAudioNode)).toBe(true)
     expect(pad.dispose).not.toHaveBeenCalled()
     expect(track.strip.level).toBe(0.5)
 

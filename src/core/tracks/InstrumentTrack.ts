@@ -55,16 +55,20 @@ export class InstrumentTrack implements StripHost {
 
   /**
    * Swap the instrument and keep the strip (level, pan, inserts, sends). Notes
-   * held on the old device are released so its tail can ring out, then its
-   * output leaves the strip. Returns the old device, which the caller owns
-   * from here: dispose it once its tail has gone, or keep it to swap back.
+   * held on the old device are released and its output stays wired into the
+   * strip, so the release is heard. Returns the old device, which the caller
+   * owns from here: dispose it once its tail has gone (that disconnects it),
+   * or keep it to swap back.
    */
   setDevice(device: NoteDevice): NoteDevice {
     const previous = this.current
     if (this.disposed || device === previous) return previous
     for (const noteId of this.held) previous.noteOff(noteId)
     this.held.clear()
-    this.strip.disconnectSource(previous.output)
+    // A release a device starts on the audio thread is only audible while its
+    // output is still in the graph, so the strip forgets the node rather than
+    // disconnecting it: the caller's `dispose` cuts it once the tail has gone.
+    this.strip.forgetSource(previous.output)
     this.current = device
     this.strip.connectSource(device.output)
     return previous
