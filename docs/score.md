@@ -63,7 +63,7 @@ ScoreDevice       { id, deviceId (registry id), preset?, params: { name: number 
 ScoreSend         { target: returnId, level: number | null }   null = direct connection
 ParamTarget       { kind: 'strip', owner: id | 'master', param: 'level' | 'pan' | 'inputGain' }
                 | { kind: 'device', device: instanceId, param: name }
-Clip              the core `Clip` record (id, sourceId, startSec, offsetSec, durationSec, fades, gainDb, loop?, loopStartSec?, loopEndSec?, warp?, semitones?, muted?, meta?)
+Clip              the core `Clip` record (id, sourceId, startSec, offsetSec, durationSec, fades, gainDb, loop?, loopStartSec?, loopEndSec?, warp?, semitones?, muted?, reversed?, meta?)
 Breakpoint        the core `Breakpoint` (timeSec, value, curve?)
 ```
 
@@ -74,7 +74,12 @@ devices })`, which the renderer runs before touching the graph) reports
 them.
 
 A clip with `muted: true` keeps its place in the document and is never
-started; muting one that is sounding stops it. `meta` on a clip or a source
+started; muting one that is sounding stops it. A clip with `reversed: true`
+plays its slice of the source backwards on an audio track: one pass reads
+from the far end of the slice back to `offsetSec`, and a looping clip cycles
+backwards over its region. `mirrorSlice` and `reversedSourceSec` are that
+mapping as plain numbers, for a drawing that has to match the sound; the
+fades stay where they are on the clip. `meta` on a clip or a source
 is the host application's own annotation: any plain JSON object (a display
 name, a colour, where a painted stroke sits on screen). The library
 validates that it is JSON, stores it with sorted keys, carries it through
@@ -86,7 +91,7 @@ touch the audio graph.
   `assertValidScore` throws `ScoreValidationError`.
 - `parseScore(json | object, { devices? })` — migrate → validate →
   normalise. `serializeScore(score)` is stable (canonical field order, clips
-  sorted by start, `curve: 'linear'`, `loop: false`, `muted: false` and an
+  sorted by start, `curve: 'linear'`, `loop: false`, `muted: false`, `reversed: false` and an
   empty `meta` dropped), so equal
   documents serialise identically and diff well.
 - `migrateScore(raw)` — migrations by format, applied in order (`1 → 2`:

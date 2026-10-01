@@ -129,6 +129,7 @@ export const OPERATION_DEFS: Record<string, JsonSchema> = {
       loop: { type: 'boolean', description: 'Loop the source when the clip outlives it.' },
       semitones: number('Pitch shift on a stretch source.'),
       muted: { type: 'boolean', description: 'Keep the clip on the track without playing it.' },
+      reversed: { type: 'boolean', description: "Play the clip's slice of the source backwards." },
       meta: ref('Meta'),
     },
     required: [
@@ -159,6 +160,7 @@ export const OPERATION_DEFS: Record<string, JsonSchema> = {
       loop: { type: 'boolean' },
       semitones: number('Pitch shift on a stretch source.'),
       muted: { type: 'boolean' },
+      reversed: { type: 'boolean' },
       meta: ref('Meta'),
     },
     additionalProperties: false,
@@ -425,6 +427,7 @@ export const OPERATION_DEFS: Record<string, JsonSchema> = {
       gainDb: number('Loudness trim in dB.'),
       loop: { type: 'boolean', description: 'Loop until stopped.' },
       semitones: number('Pitch shift on a stretch source.'),
+      reversed: { type: 'boolean', description: 'Play the slice backwards.' },
     },
     required: [
       'sourceId',

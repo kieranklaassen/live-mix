@@ -687,6 +687,7 @@ function checkClip(raw: unknown, path: string, ctx: Context, clipIds: UniqueIds)
   check.number(raw.gainDb, `${path}.gainDb`)
   if (raw.loop !== undefined) check.boolean(raw.loop, `${path}.loop`)
   if (raw.muted !== undefined) check.boolean(raw.muted, `${path}.muted`)
+  if (raw.reversed !== undefined) check.boolean(raw.reversed, `${path}.reversed`)
   checkMeta(raw.meta, `${path}.meta`, check)
   if (raw.loopStartSec !== undefined)
     check.number(raw.loopStartSec, `${path}.loopStartSec`, { min: 0 })
@@ -734,6 +735,7 @@ function checkSlotClip(raw: unknown, path: string, ctx: Context): void {
   check.oneOf(raw.fadeCurve, `${path}.fadeCurve`, ['linear', 'equalPower'])
   check.number(raw.gainDb, `${path}.gainDb`)
   if (raw.loop !== undefined) check.boolean(raw.loop, `${path}.loop`)
+  if (raw.reversed !== undefined) check.boolean(raw.reversed, `${path}.reversed`)
   checkWarp(raw, path, check)
   if (raw.warp !== undefined && check.array(raw.warp, `${path}.warp`)) {
     raw.warp.forEach((marker, index) => {
@@ -1183,7 +1185,7 @@ function normaliseDestination(destination: ScoreDestination): ScoreDestination {
   return destination.kind === 'group' ? { kind: 'group', id: destination.id } : { kind: 'master' }
 }
 
-/** Clip fields in a fixed order; `loop` only when true (absent and `false` mean the same). */
+/** Clip fields in a fixed order; `loop`, `muted` and `reversed` only when true (absent and `false` mean the same). */
 export function normaliseClip(clip: Clip): Clip {
   const out: Clip = {
     id: clip.id,
@@ -1203,6 +1205,7 @@ export function normaliseClip(clip: Clip): Clip {
     out.warp = clip.warp.map((m) => ({ sourceSec: m.sourceSec, beat: m.beat }))
   if (clip.semitones !== undefined) out.semitones = clip.semitones
   if (clip.muted) out.muted = true
+  if (clip.reversed) out.reversed = true
   const meta = normaliseMeta(clip.meta)
   if (meta) out.meta = meta
   return out
@@ -1225,7 +1228,7 @@ export function normaliseSource(source: ScoreSource): ScoreSource {
   return out
 }
 
-/** Slot clip fields in a fixed order; `loop` only when true, warp/semitones only when set. */
+/** Slot clip fields in a fixed order; `loop` and `reversed` only when true, warp/semitones only when set. */
 export function normaliseSlotClip(clip: SlotClip): SlotClip {
   const out: SlotClip = {
     sourceId: clip.sourceId,
@@ -1240,6 +1243,7 @@ export function normaliseSlotClip(clip: SlotClip): SlotClip {
   if (clip.warp !== undefined)
     out.warp = clip.warp.map((m) => ({ sourceSec: m.sourceSec, beat: m.beat }))
   if (clip.semitones !== undefined) out.semitones = clip.semitones
+  if (clip.reversed) out.reversed = true
   return out
 }
 

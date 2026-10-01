@@ -1289,7 +1289,10 @@ function sameClips(a: readonly Clip[], b: readonly Clip[]): boolean {
       clip.fadeCurve === other.fadeCurve &&
       clip.gainDb === other.gainDb &&
       (clip.loop ?? false) === (other.loop ?? false) &&
-      (clip.muted ?? false) === (other.muted ?? false)
+      clip.loopStartSec === other.loopStartSec &&
+      clip.loopEndSec === other.loopEndSec &&
+      (clip.muted ?? false) === (other.muted ?? false) &&
+      (clip.reversed ?? false) === (other.reversed ?? false)
     )
   })
 }

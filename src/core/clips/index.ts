@@ -11,4 +11,5 @@ export {
   slicePeaks,
   type WaveformPeaks,
 } from './peaks'
+export { mirrorSlice, reversedSourceSec, type MirroredSlice } from './reverse'
 export { clipsInWindow, type ClipWindow, type ScheduledClip } from './window'

@@ -79,18 +79,25 @@ describe('serializeScore / parseScore', () => {
     expect(parsedTrack.clips.map((clip) => clip.id)).toEqual(['a1', 'b1'])
     expect(parsed.lanes[0].breakpoints[0]).toEqual({ timeSec: 0, value: 0.2 })
   })
-  it('keeps a muted clip and host annotations, and writes neither when empty', () => {
+  it('keeps a muted or reversed clip and host annotations, and writes none of them when empty', () => {
     const score = demoScore()
     const track = score.tracks[0]
     if (track.kind !== 'audio') throw new Error('fixture')
-    track.clips[0] = { ...track.clips[0], muted: true, meta: { paint: { row: 2, auto: [[0, 1]] } } }
-    track.clips[1] = { ...track.clips[1], muted: false, meta: {} }
+    track.clips[0] = {
+      ...track.clips[0],
+      muted: true,
+      reversed: true,
+      meta: { paint: { row: 2, auto: [[0, 1]] } },
+    }
+    track.clips[1] = { ...track.clips[1], muted: false, reversed: false, meta: {} }
     score.sources[0] = { ...score.sources[0], meta: { name: 'Kick', colour: '#e63946' } }
     score.sources[1] = { ...score.sources[1], meta: {} }
     const parsed = parseScore(serializeScore(score))
     const parsedTrack = parsed.tracks[0]
     if (parsedTrack.kind !== 'audio') throw new Error('fixture')
     expect(parsedTrack.clips[0].muted).toBe(true)
+    expect(parsedTrack.clips[0].reversed).toBe(true)
+    expect('reversed' in parsedTrack.clips[1]).toBe(false)
     expect(parsedTrack.clips[0].meta).toEqual({ paint: { auto: [[0, 1]], row: 2 } })
     expect('muted' in parsedTrack.clips[1]).toBe(false)
     expect('meta' in parsedTrack.clips[1]).toBe(false)
@@ -172,17 +179,19 @@ describe('validateScore', () => {
     )
   })
 
-  it("a clip's muted flag is a boolean and annotations are plain JSON", () => {
+  it("a clip's muted and reversed flags are booleans and annotations are plain JSON", () => {
     const score = demoScore()
     const track = score.tracks[0]
     if (track.kind !== 'audio') throw new Error('fixture')
     ;(track.clips[0] as { muted?: unknown }).muted = 'yes'
+    ;(track.clips[0] as { reversed?: unknown }).reversed = 1
     ;(track.clips[1] as { meta?: unknown }).meta = { at: new Date(0) }
     ;(score.sources[0] as { meta?: unknown }).meta = [1, 2]
     const paths = validateScore(score).map((issue) => issue.path)
     expect(paths).toEqual(
       expect.arrayContaining([
         'tracks[0].clips[0].muted',
+        'tracks[0].clips[0].reversed',
         'tracks[0].clips[1].meta',
         'sources[0].meta',
       ]),

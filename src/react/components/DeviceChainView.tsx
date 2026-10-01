@@ -19,7 +19,14 @@ import {
 } from '../../core/devices/registry'
 import { type StripHost } from '../../core/tracks/ChannelStrip'
 import { type Arbiter } from '../../score/Arbiter'
-import { MASTER_OWNER, allDevices, findDevice, findStripHost } from '../../score/schema'
+import {
+  MASTER_OWNER,
+  allDevices,
+  findDevice,
+  findStripHost,
+  type DeviceLocation,
+  type ScoreDevice,
+} from '../../score/schema'
 import { useMaybeArbiter, useMaybeEngine } from '../hooks/useEngine'
 import { useExternalSnapshot } from '../store'
 import { DevicePanel, type DevicePanelProps } from './DevicePanel'
@@ -65,6 +72,12 @@ function scoreOwner(
   if (!arbiter) return null
   if (host === master) return MASTER_OWNER
   return findStripHost(arbiter.score, host.name) ? host.name : null
+}
+
+/** The insert chain the score holds for an owner. */
+function scoreInserts(arbiter: Arbiter, owner: string): readonly ScoreDevice[] {
+  if (owner === MASTER_OWNER) return arbiter.score.master.inserts
+  return findStripHost(arbiter.score, owner)?.strip.inserts ?? []
 }
 
 /** An instance id no device in the score has yet: `delay-1`, `delay-2`, … */
@@ -173,18 +186,45 @@ export function DeviceChainView({
     device.dispose()
   }
 
-  /** Move within the chain: a `device.move` when the score owns both ends, else a rebuild. */
+  /** Where the score holds a device of this chain, when the score owns the chain. */
+  const scoreSlot = (device: Device | undefined): DeviceLocation | undefined => {
+    if (!arbiter || owner === null || !device) return undefined
+    const id = arbiter.deviceIdFor(device)
+    return id === undefined ? undefined : findDevice(arbiter.score, id)
+  }
+
+  /** A drop: the device lands on the slot the one it was dropped on holds, else a rebuild. */
   const move = (from: number, to: number): void => {
-    const id = owner !== null ? arbiter?.deviceIdFor(inserts[from]) : undefined
-    const target = owner !== null && inserts[to] ? arbiter?.deviceIdFor(inserts[to]) : undefined
-    if (!arbiter || id === undefined || target === undefined) {
+    if (from === to || from < skip || to < skip) return
+    if (!arbiter || owner === null) {
       reorderInserts(strip, from, to, skip)
       return
     }
-    if (from === to || from < skip || to < skip) return
+    const moved = scoreSlot(inserts[from])
     // The score lists only its own devices; land on the slot the target holds there.
-    const index = findDevice(arbiter.score, target)?.index
-    if (index !== undefined) arbiter.apply({ type: 'device.move', id, index })
+    const index = scoreSlot(inserts[to])?.index
+    if (moved && index !== undefined)
+      arbiter.apply({ type: 'device.move', id: moved.device.id, index })
+  }
+
+  /**
+   * The move buttons: one slot earlier or later. The step is through the
+   * score's own order, which the engine's chain follows a render behind — read
+   * out of the chain, a second click would land back on the slot the first
+   * came from.
+   */
+  const step = (index: number, delta: 1 | -1): void => {
+    if (!arbiter || owner === null) {
+      move(index, index + delta)
+      return
+    }
+    const moved = index < skip ? undefined : scoreSlot(inserts[index])
+    if (!moved) return
+    // The pinned inserts the score holds head its chain; nothing steps in front of them.
+    const first = inserts.slice(0, skip).filter((device) => scoreSlot(device)).length
+    const to = moved.index + delta
+    if (to >= first && to < scoreInserts(arbiter, owner).length)
+      arbiter.apply({ type: 'device.move', id: moved.device.id, index: to })
   }
 
   const add = async (id: string): Promise<void> => {
@@ -272,7 +312,7 @@ export function DeviceChainView({
                     className="lm-button lm-button--neutral lm-chain__move"
                     aria-label={`Move ${device.id} earlier`}
                     disabled={index === skip}
-                    onClick={() => move(index, index - 1)}
+                    onClick={() => step(index, -1)}
                     data-testid={testId ? `${testId}-earlier-${index - skip}` : undefined}
                   >
                     ◂
@@ -282,7 +322,7 @@ export function DeviceChainView({
                     className="lm-button lm-button--neutral lm-chain__move"
                     aria-label={`Move ${device.id} later`}
                     disabled={index === inserts.length - 1}
-                    onClick={() => move(index, index + 1)}
+                    onClick={() => step(index, 1)}
                     data-testid={testId ? `${testId}-later-${index - skip}` : undefined}
                   >
                     ▸

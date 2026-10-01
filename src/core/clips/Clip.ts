@@ -51,6 +51,13 @@ export interface Clip {
    */
   muted?: boolean
   /**
+   * Play the clip's slice of the source backwards: one pass reads from the
+   * far end of the slice back to `offsetSec`, and a looping clip cycles
+   * backwards over its region (`mirrorSlice`). Audio tracks only; a stretch
+   * or element source plays the clip forwards.
+   */
+  reversed?: boolean
+  /**
    * Annotations the host application keeps with the clip (where a paint
    * field draws it, what it was painted with). Plain JSON: the library
    * carries it through the score and its operations and never reads it.

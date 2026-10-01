@@ -367,6 +367,29 @@ describe('ScoreRenderer: incremental edits', () => {
     expect(track.clips.audible().map((c) => c.id)).toEqual(['a1', 'b1'])
   })
 
+  it('a change to the region a clip loops over reaches the track on its own', async () => {
+    const { renderer, edit } = await rig()
+    const track = renderer.audioTrack('kick')
+    const loop = { loop: true, loopStartSec: 0, loopEndSec: 1 }
+    await edit({ type: 'clip.update', track: 'kick', id: 'a1', patch: loop })
+    const set = vi.spyOn(track.clips, 'set')
+    await edit({ type: 'clip.update', track: 'kick', id: 'a1', patch: { loopEndSec: 0.5 } })
+    expect(set).toHaveBeenCalledTimes(1)
+    expect(track.clips.get('a1')?.loopEndSec).toBe(0.5)
+  })
+
+  it('reversing a clip reaches the track, and so does turning it back', async () => {
+    const { renderer, edit } = await rig()
+    const track = renderer.audioTrack('kick')
+    const set = vi.spyOn(track.clips, 'set')
+    await edit({ type: 'clip.update', track: 'kick', id: 'a1', patch: { reversed: true } })
+    expect(set).toHaveBeenCalledTimes(1)
+    expect(track.clips.get('a1')?.reversed).toBe(true)
+    await edit({ type: 'clip.update', track: 'kick', id: 'a1', patch: { reversed: false } })
+    expect(set).toHaveBeenCalledTimes(2)
+    expect(track.clips.get('a1')?.reversed ?? false).toBe(false)
+  })
+
   it('a source update that only renames or annotates leaves the tracks alone', async () => {
     const { renderer, document, edit } = await rig()
     const set = vi.spyOn(renderer.audioTrack('kick').clips, 'set')
