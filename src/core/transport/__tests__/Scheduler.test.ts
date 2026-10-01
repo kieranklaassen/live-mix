@@ -384,6 +384,90 @@ describe('Scheduler follows the transport', () => {
   })
 })
 
+describe('Scheduler first window after a pin', () => {
+  // The audio clock is the audio thread's: it can move on between the
+  // transport's pin and the scheduler's first pass, in the same task. Here a
+  // listener ahead of the scheduler stands in for that.
+  function buildWithDrift(
+    items: ClipWindow['clips'],
+    { driftSec = 128 / 44_100, loop = LOOP }: { driftSec?: number; loop?: TransportLoop } = {},
+  ) {
+    const ctx = new MockAudioContext()
+    ctx.currentTime = 100
+    const transport = new Transport({ now: () => ctx.currentTime, loop })
+    transport.onChange((change) => {
+      if (change.reason === 'start' || change.reason === 'seek') ctx.currentTime += driftSec
+    })
+    const scheduler = new Scheduler({ transport })
+    const track = new FakeTrack(ctx, 0.2, items)
+    scheduler.register(track)
+    return { ctx, transport, scheduler, track }
+  }
+
+  it('hands over a clip that starts exactly where the transport is started', () => {
+    const { ctx, transport, scheduler, track } = buildWithDrift([{ id: 'top', startSec: 0 }])
+    transport.start()
+    expect(track.keys()).toEqual(['top:0:0.000'])
+    // Its time is the anchor's, already a render quantum behind: the track joins it late.
+    expect(track.handed[0].when).toBe(100)
+    expect(track.handed[0].at).toBeGreaterThan(100)
+
+    ctx.currentTime += 0.04
+    scheduler.tick()
+    expect(track.handed).toHaveLength(1)
+  })
+
+  it('does so from a position the transport was left at, and after any number of pins', () => {
+    const { ctx, transport, track } = buildWithDrift([
+      { id: 'before', startSec: 3.999 },
+      { id: 'here', startSec: 4 },
+    ])
+    for (let pin = 0; pin < 500; pin += 1) {
+      transport.seek(4)
+      transport.start()
+      ctx.currentTime += 0.37
+      transport.pause()
+    }
+    // Every start from 4 handed the clip at 4 over, in that pass, and never the one just before it.
+    expect(track.keys()).toEqual(Array.from({ length: 500 }, (_, pin) => `here:${pin}:4.000`))
+  })
+
+  it('does so when a seek lands on a clip while playing', () => {
+    const { ctx, transport, track } = buildWithDrift([{ id: 'here', startSec: 12.5 }])
+    transport.start()
+    ctx.currentTime += 1
+    transport.seek(12.5)
+    expect(track.keys()).toEqual(['here:1:12.500'])
+    expect(track.handed[0].when).toBe(transport.anchor?.contextTime)
+  })
+
+  it('reaches across the loop end when the clock ran that far', () => {
+    const { transport, track } = buildWithDrift(
+      [
+        { id: 'end', startSec: 3.95 },
+        { id: 'top', startSec: 0 },
+      ],
+      { driftSec: 0.1, loop: { enabled: true, lengthSec: 4 } },
+    )
+    transport.seek(3.95)
+    transport.start()
+    expect(track.keys()).toEqual(['end:0:3.950', 'top:1:0.000'])
+    expect(track.handed.map((entry) => round(entry.when))).toEqual([100.1, 100.15])
+  })
+
+  it('leaves a schedulable registered mid-play to start from where the transport is', () => {
+    const { ctx, transport, scheduler } = buildWithDrift([])
+    transport.start()
+    ctx.currentTime += 4
+    const late = new FakeTrack(ctx, 0.2, [
+      { id: 'gone', startSec: 0 },
+      { id: 'next', startSec: 4.1 },
+    ])
+    scheduler.register(late)
+    expect(late.keys()).toEqual(['next:0:4.100'])
+  })
+})
+
 describe('Scheduler timer', () => {
   it('ticks on an interval of tickMs, 40 ms by default', () => {
     const { ctx, transport, scheduler, track } = build()

@@ -44,6 +44,13 @@ and hands each one to the graph exactly once, keyed by
 - **Late join.** A clip that should already be sounding starts mid-way
   (`offsetSec` advanced, fade-in shortened), the way ambient-live's
   `clip-player` did.
+- **The first window starts at the anchor.** The audio clock is the audio
+  thread's, so it can move on between `start()` (or `seek()`) pinning the
+  anchor and the scheduler's first look, in the same task. That first window
+  runs from the anchor's own position, not from wherever the clock has got
+  to, so a clip that starts exactly where you pressed Play is handed over
+  (and joined a few milliseconds late) rather than left until the loop comes
+  round.
 
 Per track, `lookaheadSec` is how far ahead starts are handed to the graph and
 `preloadSec` how far ahead decoding begins (Breathwork Live: 5 s and 12 s).
