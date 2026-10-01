@@ -691,7 +691,12 @@ export function arbiterTargets(op: Operation): string[] {
       return [`device:${op.id}`]
     case 'device.preset':
     case 'device.bypass':
+    case 'device.setState':
       return [`device:${op.device}`]
+    case 'device.replace':
+      return op.device.id === op.id
+        ? [`device:${op.id}`]
+        : [`device:${op.id}`, `device:${op.device.id}`]
     case 'device.setParam':
       return [targetKey({ kind: 'device', device: op.device, param: op.param })]
     case 'device.setParams':

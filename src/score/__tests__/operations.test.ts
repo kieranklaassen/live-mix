@@ -320,6 +320,179 @@ describe('apply', () => {
     expect(score.routes).toEqual([])
   })
 
+  it('device.setState keeps what a device holds besides its parameters, and null takes it off', () => {
+    const kept = applyWithInverse(base, {
+      type: 'device.setState',
+      device: 'kick-filter',
+      state: 'c3RhdGU=',
+    })
+    expect(findDevice(kept.score, 'kick-filter')?.device).toEqual({
+      id: 'kick-filter',
+      deviceId: 'filter',
+      params: { frequency: 2000 },
+      bypass: false,
+      state: 'c3RhdGU=',
+    })
+    // The state survives a save, and the settings beside it are untouched.
+    expect(parseScore(serializeScore(kept.score))).toEqual(canon(kept.score))
+    expect(validateScore(kept.score)).toEqual([])
+    expect(kept.inverse).toEqual({ type: 'device.setState', device: 'kick-filter', state: null })
+    expect(canon(apply(kept.score, kept.inverse))).toEqual(canon(base))
+
+    const again = applyWithInverse(kept.score, {
+      type: 'device.setState',
+      device: 'kick-filter',
+      state: 'bmV3',
+    })
+    expect(again.inverse).toEqual({
+      type: 'device.setState',
+      device: 'kick-filter',
+      state: 'c3RhdGU=',
+    })
+    const cleared = apply(again.score, {
+      type: 'device.setState',
+      device: 'kick-filter',
+      state: null,
+    })
+    expect('state' in (findDevice(cleared, 'kick-filter')?.device ?? {})).toBe(false)
+    // An instrument's or a return's own device takes one too.
+    expect(
+      apply(base, { type: 'device.setState', device: 'hall-verb', state: '' }).returns[0].device
+        .state,
+    ).toBe('')
+    expect(() => apply(base, { type: 'device.setState', device: 'nope', state: 'x' })).toThrow(
+      ScoreOperationError,
+    )
+    expect(() =>
+      apply(base, { type: 'device.setState', device: 'glue', state: 7 as unknown as string }),
+    ).toThrow(/string or null/)
+  })
+
+  it('device.replace puts another device where one is and takes its automation along', () => {
+    const delay: ScoreDevice = {
+      id: 'kick-delay',
+      deviceId: 'delay',
+      params: { timeSec: 0.25 },
+      bypass: false,
+    }
+    const before = apply(base, {
+      type: 'device.add',
+      owner: 'kick',
+      device: { id: 'kick-eq', deviceId: 'eq3', params: {}, bypass: false },
+    })
+    expect(before.routes).toHaveLength(1)
+    const replaced = applyWithInverse(before, {
+      type: 'device.replace',
+      id: 'kick-filter',
+      device: delay,
+    })
+    // Same place in the chain, the route on the old filter gone with it.
+    expect(replaced.score.tracks[0].strip.inserts.map((d) => d.id)).toEqual([
+      'kick-delay',
+      'kick-eq',
+    ])
+    expect(replaced.score.routes).toEqual([])
+    expect(validateScore(replaced.score)).toEqual([])
+    expect(canon(apply(replaced.score, replaced.inverse))).toEqual(canon(before))
+    expect(
+      canon(
+        apply(apply(replaced.score, replaced.inverse), {
+          type: 'device.replace',
+          id: 'kick-filter',
+          device: delay,
+        }),
+      ),
+    ).toEqual(canon(replaced.score))
+
+    // The same instance of the same device with other settings keeps what is bound to it.
+    const retuned = applyWithInverse(before, {
+      type: 'device.replace',
+      id: 'kick-filter',
+      device: { id: 'kick-filter', deviceId: 'filter', params: { frequency: 500 }, bypass: true },
+    })
+    expect(retuned.score.routes).toEqual(before.routes)
+    expect(findDevice(retuned.score, 'kick-filter')?.device).toMatchObject({
+      params: { frequency: 500 },
+      bypass: true,
+    })
+    expect(retuned.inverse).toEqual({
+      type: 'device.replace',
+      id: 'kick-filter',
+      device: findDevice(before, 'kick-filter')?.device,
+    })
+
+    // The same id on another device is another device: its automation goes.
+    const retyped = applyWithInverse(before, {
+      type: 'device.replace',
+      id: 'kick-filter',
+      device: { id: 'kick-filter', deviceId: 'delay', params: {}, bypass: false },
+    })
+    expect(retyped.score.routes).toEqual([])
+    expect(canon(apply(retyped.score, retyped.inverse))).toEqual(canon(before))
+
+    // A return's own device, which `device.remove` refuses, can be replaced.
+    const hall = apply(before, {
+      type: 'device.replace',
+      id: 'hall-verb',
+      device: { id: 'hall-delay', deviceId: 'delay', params: {}, bypass: false },
+    })
+    expect(hall.returns[0].device.id).toBe('hall-delay')
+    expect(hall.returns[0].strip).toBe(before.returns[0].strip)
+
+    expect(() => apply(before, { type: 'device.replace', id: 'nope', device: delay })).toThrow(
+      /no device/,
+    )
+    // An id another device already has is refused.
+    expect(() =>
+      apply(before, {
+        type: 'device.replace',
+        id: 'kick-filter',
+        device: { ...delay, id: 'kick-eq' },
+      }),
+    ).toThrow(ScoreOperationError)
+  })
+
+  it('device.replace on an instrument track swaps the instrument and leaves the strip', () => {
+    let score = apply(base, {
+      type: 'track.add',
+      track: {
+        kind: 'instrument',
+        id: 'keys',
+        name: 'Keys',
+        destination: masterDestination(),
+        strip: defaultStrip({
+          level: 0.5,
+          inserts: [{ id: 'keys-delay', deviceId: 'delay', params: {}, bypass: false }],
+        }),
+        device: { id: 'keys-synth', deviceId: 'utility', params: { gainDb: -6 }, bypass: false },
+      },
+    })
+    score = apply(score, {
+      type: 'lane.add',
+      lane: {
+        id: 'keys-gain',
+        target: { kind: 'device', device: 'keys-synth', param: 'gainDb' },
+        breakpoints: [{ timeSec: 0, value: -3 }],
+      },
+    })
+    const strip = findTrack(score, 'keys')?.strip
+    const swapped = applyWithInverse(score, {
+      type: 'device.replace',
+      id: 'keys-synth',
+      device: { id: 'keys-filter', deviceId: 'filter', params: {}, bypass: false, state: 'c3Q=' },
+    })
+    const keys = findTrack(swapped.score, 'keys')
+    expect(keys?.kind === 'instrument' && keys.device).toMatchObject({
+      id: 'keys-filter',
+      deviceId: 'filter',
+      state: 'c3Q=',
+    })
+    expect(keys?.strip).toBe(strip)
+    expect(swapped.score.lanes.map((lane) => lane.id)).not.toContain('keys-gain')
+    // Undo: the instrument and the lane on it are back.
+    expect(canon(apply(swapped.score, swapped.inverse))).toEqual(canon(score))
+  })
+
   it('the master takes a level and inserts but no pan, mute or sends', () => {
     const score = apply(base, { type: 'strip.set', owner: 'master', param: 'level', value: 0.5 })
     expect(score.master.level).toBe(0.5)
@@ -479,6 +652,19 @@ describe('apply', () => {
         },
       }),
     ).toBe('route lfo → device:d:mix')
+    expect(describeOperation({ type: 'device.setState', device: 'd', state: 'x' })).toBe(
+      'keep d state',
+    )
+    expect(describeOperation({ type: 'device.setState', device: 'd', state: null })).toBe(
+      'clear d state',
+    )
+    expect(
+      describeOperation({
+        type: 'device.replace',
+        id: 'd',
+        device: { id: 'e', deviceId: 'delay', params: {}, bypass: false },
+      }),
+    ).toBe('replace d with delay')
   })
 
   it('coalesce keys mark continuous gestures only', () => {
@@ -494,8 +680,18 @@ describe('apply', () => {
     expect(coalesceKey({ type: 'clip.trim', track: 't', id: 'c', durationSec: 1 })).toBe(
       'clip.trim|t|c|durationSec',
     )
+    expect(coalesceKey({ type: 'device.setState', device: 'd', state: 'x' })).toBe(
+      'device.setState|d',
+    )
     expect(coalesceKey({ type: 'strip.mute', owner: 'kick', mute: true })).toBeNull()
     expect(coalesceKey({ type: 'track.remove', id: 'kick' })).toBeNull()
+    expect(
+      coalesceKey({
+        type: 'device.replace',
+        id: 'd',
+        device: { id: 'd', deviceId: 'delay', params: {}, bypass: false },
+      }),
+    ).toBeNull()
   })
 })
 
@@ -618,6 +814,8 @@ function randomOp(random: () => number, score: Score, counter: { n: number }): G
     'device.setParams',
     'device.preset',
     'device.bypass',
+    'device.setState',
+    'device.replace',
     'send.add',
     'send.remove',
     'send.set',
@@ -897,6 +1095,36 @@ function randomOp(random: () => number, score: Score, counter: { n: number }): G
       return device
         ? { op: { type: 'device.bypass', device: device.id, bypass: random() < 0.5 } }
         : null
+    }
+    case 'device.setState': {
+      const device = someDevice()
+      return device
+        ? {
+            op: {
+              type: 'device.setState',
+              device: device.id,
+              state: random() < 0.3 ? null : `state-${Math.round(value * 100)}`,
+            },
+          }
+        : null
+    }
+    case 'device.replace': {
+      const device = someDevice()
+      if (!device) return null
+      const next = newDevice()
+      // Half the time the same instance with other settings, which keeps its automation.
+      return {
+        op: {
+          type: 'device.replace',
+          id: device.id,
+          device:
+            random() < 0.5
+              ? { ...next, id: device.id, deviceId: device.deviceId }
+              : random() < 0.5
+                ? { ...next, id: device.id }
+                : next,
+        },
+      }
     }
     case 'send.add':
       return score.returns.length

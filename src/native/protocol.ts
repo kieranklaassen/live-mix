@@ -140,6 +140,12 @@ export interface NativeHostEvents {
   scanProgress: NativeScanProgress
   params: { slot: string; changes: NativeParamChange[] }
   latency: { slot: string; latencySamples: number }
+  /**
+   * The plug-in says its state changed in a way its parameters do not show
+   * (a program picked, a file loaded in its window): `getState` now returns
+   * something else.
+   */
+  stateChanged: { slot: string }
   editorClosed: { slot: string }
   /** The control connection is gone; every slot it loaded went with it. */
   close: { reason: string }

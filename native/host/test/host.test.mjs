@@ -319,6 +319,62 @@ test('plays an instrument from MIDI', async () => {
   await control.call('unload', { slot: slot.slot })
 })
 
+test('says when the state changed and brings back what no parameter shows', async () => {
+  const slot = await loadTestPlugin('LiveMix Test Sine')
+  const audio = await connectAudio(slot.slot)
+  const crossings = async () => {
+    audio.midi([0x90, 69, 127])
+    const [left] = await audio.process([], 480)
+    audio.midi([0x80, 69, 0])
+    await audio.process([], 64)
+    let count = 0
+    for (let index = 1; index < left.length; index += 1) {
+      if (left[index - 1] < 0 !== left[index] < 0) count += 1
+    }
+    return count
+  }
+  const inTune = await control.call('getState', { slot: slot.slot })
+  const before = await crossings()
+  assert.ok(before === 8 || before === 9, `${before} zero crossings`)
+
+  // Controller 20 tunes the test instrument an octave up; no parameter moves.
+  audio.midi([0xb0, 20, 76])
+  await audio.process([], 64)
+  await control.event('stateChanged', (entry) => entry.slot === slot.slot)
+  const up = await crossings()
+  assert.ok(up === 17 || up === 18, `${up} zero crossings`)
+  const tuned = await control.call('getState', { slot: slot.slot })
+  assert.notEqual(tuned.state, inTune.state)
+  const { params } = await control.call('getParams', { slot: slot.slot })
+  near(params[0].value, slot.params[0].value)
+
+  await control.call('setState', { slot: slot.slot, state: inTune.state })
+  const back = await crossings()
+  assert.ok(back === 8 || back === 9, `${back} zero crossings`)
+  await control.call('unload', { slot: slot.slot })
+
+  // A fresh instance given the tuned state plays an octave up.
+  const { plugins } = await control.call('plugins')
+  const plugin = plugins.find(
+    (entry) => entry.name === 'LiveMix Test Sine' && entry.format === 'VST3',
+  )
+  const again = await control.call('load', {
+    plugin: plugin.id,
+    sampleRate: SAMPLE_RATE,
+    blockSize: 512,
+    state: tuned.state,
+  })
+  const fresh = await connectAudio(again.slot)
+  fresh.midi([0x90, 69, 127])
+  const [left] = await fresh.process([], 480)
+  let count = 0
+  for (let index = 1; index < left.length; index += 1) {
+    if (left[index - 1] < 0 !== left[index] < 0) count += 1
+  }
+  assert.ok(count === 17 || count === 18, `${count} zero crossings`)
+  await control.call('unload', { slot: again.slot })
+})
+
 test('opens and closes the editor window', async () => {
   const slot = await loadTestPlugin('LiveMix Test Gain')
   assert.deepEqual(await control.call('showEditor', { slot: slot.slot }), { showing: true })

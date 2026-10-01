@@ -5,6 +5,7 @@ import {
   isNoteDevice,
   isObservableDevice,
   isParamTextDevice,
+  isStatefulDevice,
   type DeviceChange,
 } from '../../core/devices/Device'
 import { deviceLatencySamples } from '../../core/devices/pdc'
@@ -308,6 +309,66 @@ describe('NativeDevice parameters', () => {
     expect(ctx.delays[0].delayTime.value).toBeCloseTo(768 / 48000, 9)
   })
 
+  it('a state it already holds is not loaded again: the one it read, started from or was given', async () => {
+    const { device, host } = await makeDevice()
+    const read = await device.getState()
+    expect(await device.setState(read)).toBe(false)
+    expect(host.calls('setState')).toHaveLength(0)
+
+    expect(await device.setState('bmV3')).toBe(true)
+    expect(await device.setState('bmV3')).toBe(false)
+    expect(host.calls('setState')).toHaveLength(1)
+    // Reading moves what it holds on.
+    await device.getState()
+    expect(await device.setState('c3RhdGU=')).toBe(true)
+
+    const started = await makeDevice(FAKE_REVERB, { state: 'c2F2ZWQ=' })
+    expect(await started.device.setState('c2F2ZWQ=')).toBe(false)
+    expect(started.host.calls('setState')).toHaveLength(0)
+    expect(await started.device.getState()).toBe('c2F2ZWQ=')
+  })
+
+  it('says when its state may have changed: the plug-in said so, or its window was closed', async () => {
+    const { device, host } = await makeDevice()
+    let changes = 0
+    const off = device.onStateChange(() => (changes += 1))
+    host.emit('stateChanged', { slot: 's1' })
+    expect(changes).toBe(1)
+    host.emit('stateChanged', { slot: 'other' })
+    expect(changes).toBe(1)
+
+    expect(device.editorOpen).toBe(false)
+    await device.openEditor()
+    expect(device.editorOpen).toBe(true)
+    host.emit('editorClosed', { slot: 'other' })
+    expect(device.editorOpen).toBe(true)
+    host.emit('editorClosed', { slot: 's1' })
+    expect(device.editorOpen).toBe(false)
+    expect(changes).toBe(2)
+
+    await device.openEditor()
+    await device.closeEditor()
+    expect(device.editorOpen).toBe(false)
+    off()
+    host.emit('stateChanged', { slot: 's1' })
+    expect(changes).toBe(2)
+  })
+
+  it('a value the plug-in reports where it already was is no edit', async () => {
+    const { device, host } = await makeDevice()
+    const edits: NativeParamEdit[] = []
+    device.onEdit((edit) => edits.push(edit))
+    // After a state restore a plug-in reports every parameter, moved or not.
+    host.emit('params', {
+      slot: 's1',
+      changes: [
+        { index: 0, value: device.getParam('p100'), text: '2.4', origin: 'plugin' },
+        { index: 1, value: 0.9, text: '90', origin: 'plugin' },
+      ],
+    })
+    expect(edits).toEqual([{ name: 'p7', value: 0.9 }])
+  })
+
   it('follows a latency change the plug-in announces', async () => {
     const { device, host, ctx } = await makeDevice()
     host.emit('latency', { slot: 's1', latencySamples: 1024 })
@@ -322,6 +383,7 @@ describe('NativeDevice behaviour', () => {
     expect(isNoteDevice(device)).toBe(true)
     expect(isObservableDevice(device)).toBe(true)
     expect(isEditorDevice(device)).toBe(true)
+    expect(isStatefulDevice(device)).toBe(true)
   })
 
   it('bypass crossfades to the delayed dry path and announces itself', async () => {

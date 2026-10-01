@@ -406,6 +406,9 @@ void PluginSlot::audioProcessorChanged (juce::AudioProcessor*, const ChangeDetai
         latencyDirty = true;
     if (details.parameterInfoChanged || details.programChanged)
         markAllDirty (Origin::plugin);
+    // A sample loaded, a program picked, a curve drawn: what only the state holds.
+    if (details.nonParameterStateChanged || details.programChanged)
+        stateDirty = true;
 }
 
 juce::Optional<juce::AudioPlayHead::PositionInfo> PluginSlot::getPosition() const

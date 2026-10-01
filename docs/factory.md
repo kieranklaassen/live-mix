@@ -70,6 +70,19 @@ const ops = patchEffectOps(document.score, 'pad', chain, { pinned: 1 })
 arbiter.apply({ type: 'batch', ops, label: `Load ${chain.name}` })
 ```
 
+An instrument preset goes onto an instrument track the same way:
+`patchInstrumentOps(score, track, patch, { pinned })` gives a `device.replace`
+for the track's own device (the preset's instrument with its settings) and
+then the effect operations. The track keeps its strip, level and sends; a
+track already playing that instrument keeps the instance and takes the
+settings, and the renderer swaps any other instrument in on the same track
+with the old one ringing out.
+
+```ts
+const ops = patchInstrumentOps(document.score, 'synth', preset)
+arbiter.apply({ type: 'batch', ops, label: `Load ${preset.name}` })
+```
+
 ## Rendering without an audio context
 
 `renderPatch` (`./dsp`) instantiates the device modules directly and calls the

@@ -14,12 +14,16 @@
 // tracks are created from the document but their audio is the app's — it
 // attaches the stream through `renderer.liveInput(id)`. Rendering is
 // serialised: renders requested while one is in flight fold into the next.
+//
+// An instrument track whose device is replaced keeps its strip: the new
+// instrument goes on it and the old one stays wired for a while, so the
+// release of what it was playing is heard instead of cut.
 
 import { LEVEL_RAMP_SECONDS } from '../core/buses/Bus'
 import { type Clip } from '../core/clips/Clip'
 import { type Device } from '../core/devices/Device'
 import { NodeDevice } from '../core/devices/native/NodeDevice'
-import { isNoteDevice } from '../core/devices/Device'
+import { isNoteDevice, isStatefulDevice, type NoteDevice } from '../core/devices/Device'
 import { clampParam } from '../core/params'
 import { defaultPreset, presetParams, resolvePreset } from '../core/devices/presets'
 import { type DeviceRegistry } from '../core/devices/registry'
@@ -105,7 +109,15 @@ export interface ScoreRendererOptions {
   resolveSource?: (source: ScoreSource) => SampleSource | undefined
   /** Called when a render triggered by a document change fails. Default: rethrow. */
   onError?: (error: unknown) => void
+  /**
+   * How long an instrument that was swapped off its track stays in the graph
+   * before it is disposed, so its release rings out (default 10 s).
+   */
+  instrumentTailSec?: number
 }
+
+/** Default for `ScoreRendererOptions.instrumentTailSec`. */
+export const DEFAULT_INSTRUMENT_TAIL_SECONDS = 10
 
 export class ScoreRenderError extends Error {
   constructor(message: string) {
@@ -125,6 +137,8 @@ interface OwnerHandle {
   sendTargets: Map<string, ReturnTrack>
   /** Device id the return's or instrument's own device was created from. */
   ownDeviceId?: string
+  /** The score instance id of that device. */
+  ownInstanceId?: string
 }
 
 type Binding =
@@ -172,6 +186,11 @@ export class ScoreRenderer {
   private detachDocument: (() => void) | null = null
   private readonly unsubscribeEngine: () => void
   private disposed = false
+  private readonly instrumentTailMs: number
+  // Instruments swapped off their track, still ringing, each with the timer that disposes it.
+  private readonly retiring = new Map<NoteDevice, ReturnType<typeof setTimeout>>()
+  // States on their way into devices that were already in the graph.
+  private readonly restoring = new Set<Promise<void>>()
 
   constructor(engine: Engine, options: ScoreRendererOptions = {}) {
     this.engine = engine
@@ -190,6 +209,8 @@ export class ScoreRenderer {
       ((error) => {
         throw error
       })
+    this.instrumentTailMs =
+      Math.max(0, options.instrumentTailSec ?? DEFAULT_INSTRUMENT_TAIL_SECONDS) * 1000
     // The engine tears its graph down itself; the renderer only lets go.
     this.unsubscribeEngine = engine.onDispose(() => this.dispose({ engineDisposed: true }))
   }
@@ -370,13 +391,15 @@ export class ScoreRenderer {
   }
 
   /**
-   * Resolves once no render is running or queued. Failures are not
+   * Resolves once no render is running or queued and no device is still
+   * taking in a state the document gave it. Failures are not
    * re-thrown here: `render()` callers get them from their own promise and
    * document-driven renders report through `onError`.
    */
   async whenIdle(): Promise<void> {
-    while (this.scheduled || this.inFlight) {
+    while (this.scheduled || this.inFlight || this.restoring.size > 0) {
       if (this.inFlight) await this.inFlight.catch(() => {})
+      else if (this.restoring.size > 0) await Promise.allSettled(this.restoring)
       else await new Promise<void>((resolve) => queueMicrotask(resolve))
     }
   }
@@ -391,6 +414,12 @@ export class ScoreRenderer {
     this.disposed = true
     this.detachDocument?.()
     this.unsubscribeEngine()
+    // A retired instrument is off its track: nobody else takes it down.
+    for (const [device, timer] of this.retiring) {
+      clearTimeout(timer)
+      device.dispose()
+    }
+    this.retiring.clear()
     if (!options.engineDisposed) {
       for (const binding of this.bindings.values()) this.teardownBinding(binding)
       for (const handle of this.owners.values()) {
@@ -488,8 +517,14 @@ export class ScoreRenderer {
     // 5. Owners: remove what is gone or must be rebuilt, then add in dependency order.
     //    A rebuilt owner is a new one for every later step (`added`).
     const nextHosts = new Map(stripHosts(next).map((host) => [host.id, host]))
+    const swapped = new Set<string>()
     for (const [id, handle] of [...this.owners]) {
       const host = nextHosts.get(id)
+      if (host && this.needsInstrumentSwap(handle, host)) {
+        await this.swapInstrument(handle, host.device)
+        swapped.add(id)
+        continue
+      }
       if (!host || this.needsRebuild(handle, host)) {
         for (const [, other] of this.owners) {
           if (other.sendTargets.has(id)) this.removeSend(other, id)
@@ -540,7 +575,7 @@ export class ScoreRenderer {
     for (const host of stripHosts(next)) {
       const handle = this.handle(host.id)
       const before = priorOf(host.id)
-      if ('device' in host && before && 'device' in before) {
+      if ('device' in host && before && 'device' in before && !swapped.has(host.id)) {
         this.reconcileDeviceState(
           this.device(host.device.id),
           before.device,
@@ -608,11 +643,60 @@ export class ScoreRenderer {
   private needsRebuild(handle: OwnerHandle, host: ScoreStripHost): boolean {
     const kind = 'kind' in host ? host.kind : 'device' in host ? 'return' : 'group'
     if (handle.kind !== kind) return true
-    if ('device' in host) return handle.ownDeviceId !== host.device.deviceId
+    if ('device' in host) {
+      return handle.ownDeviceId !== host.device.deviceId || handle.ownInstanceId !== host.device.id
+    }
     if ('kind' in host && host.kind === 'audio') {
       return (host.stretch ?? false) !== handle.host instanceof StretchTrack
     }
     return false
+  }
+
+  /** An instrument track that stays an instrument track with another device of its own. */
+  private needsInstrumentSwap(
+    handle: OwnerHandle,
+    host: ScoreStripHost,
+  ): host is Extract<ScoreTrack, { kind: 'instrument' }> {
+    if (handle.kind !== 'instrument' || !('kind' in host) || host.kind !== 'instrument') {
+      return false
+    }
+    return handle.ownDeviceId !== host.device.deviceId || handle.ownInstanceId !== host.device.id
+  }
+
+  /**
+   * Put another instrument on a track that is already in the graph. The strip
+   * with its level, inserts and sends stays; the instrument that leaves keeps
+   * sounding into it until its tail has gone.
+   */
+  private async swapInstrument(handle: OwnerHandle, spec: ScoreDevice): Promise<void> {
+    const track = handle.host as InstrumentTrack
+    const previousId = handle.ownInstanceId
+    // Nothing of the instrument the track has is touched until the new one stands.
+    const device = await this.createDevice(spec)
+    if (!isNoteDevice(device)) {
+      device.dispose()
+      if (previousId === spec.id) this.deviceMap.set(previousId, track.device)
+      else this.deviceMap.delete(spec.id)
+      throw new ScoreRenderError(
+        `device "${spec.deviceId}" plays no notes; an instrument track needs a NoteDevice`,
+      )
+    }
+    if (previousId !== undefined) {
+      this.teardownBindingsOnDevice(previousId)
+      if (previousId !== spec.id) this.deviceMap.delete(previousId)
+    }
+    const previous = track.setDevice(device)
+    handle.ownDeviceId = spec.deviceId
+    handle.ownInstanceId = spec.id
+    if (previous !== device) this.retire(previous)
+  }
+
+  private retire(device: NoteDevice): void {
+    const timer = setTimeout(() => {
+      this.retiring.delete(device)
+      device.dispose()
+    }, this.instrumentTailMs)
+    this.retiring.set(device, timer)
   }
 
   /** Groups first, parents before children, so every destination exists when its feeders arrive. */
@@ -644,6 +728,7 @@ export class ScoreRenderer {
     })
     const handle = this.newHandle('return', live, live.strip)
     handle.ownDeviceId = ret.device.deviceId
+    handle.ownInstanceId = ret.device.id
     this.owners.set(ret.id, handle)
     added.add(ret.id)
   }
@@ -696,6 +781,7 @@ export class ScoreRenderer {
         const live = this.engine.addInstrumentTrack(track.id, { device, destination })
         const handle = this.newHandle('instrument', live, live.strip)
         handle.ownDeviceId = track.device.deviceId
+        handle.ownInstanceId = track.device.id
         this.owners.set(track.id, handle)
         return
       }
@@ -740,8 +826,9 @@ export class ScoreRenderer {
   private removeOwner(id: string): void {
     const handle = this.owners.get(id)
     if (!handle) return
+    const own = handle.ownInstanceId ?? null
     for (const [key, binding] of [...this.bindings]) {
-      if (bindingTouches(key, id, handle.insertIds, this.ownDeviceScoreId(id))) {
+      if (bindingTouches(key, id, handle.insertIds, own)) {
         this.teardownBinding(binding)
         this.bindings.delete(key)
       }
@@ -752,7 +839,6 @@ export class ScoreRenderer {
       device.dispose()
     }
     for (const scoreId of handle.insertIds) this.deviceMap.delete(scoreId)
-    const own = this.ownDeviceScoreId(id)
     if (own !== null) this.deviceMap.delete(own)
     const { host } = handle
     if (host instanceof AudioTrack) this.engine.removeTrack(id)
@@ -762,14 +848,6 @@ export class ScoreRenderer {
     else if (host instanceof ReturnTrack) this.engine.removeReturnTrack(id)
     else this.engine.removeGroup(id)
     this.owners.delete(id)
-  }
-
-  /** The score id of a return's or instrument's own device, from the rendered score. */
-  private ownDeviceScoreId(ownerId: string): string | null {
-    const score = this.renderedScore
-    if (!score) return null
-    const host = stripHosts(score).find((candidate) => candidate.id === ownerId)
-    return host && 'device' in host ? host.device.id : null
   }
 
   private handle(id: string): OwnerHandle {
@@ -816,6 +894,7 @@ export class ScoreRenderer {
     const device = await this.devices.create(spec.deviceId, this.engine.context, {
       preset: spec.preset,
       params: spec.params,
+      ...(spec.state === undefined ? {} : { state: spec.state }),
     })
     if (spec.bypass) device.bypass = true
     this.deviceMap.set(spec.id, device)
@@ -838,7 +917,7 @@ export class ScoreRenderer {
     return params
   }
 
-  /** Param and bypass diffs on a device that already existed (creation covers new ones). */
+  /** Param, state and bypass diffs on a device that already existed (creation covers new ones). */
   private reconcileDeviceState(
     device: Device,
     before: ScoreDevice,
@@ -847,12 +926,31 @@ export class ScoreRenderer {
   ): void {
     const previous = this.effectiveParams(before)
     const next = this.effectiveParams(after)
+    const free = (name: string): boolean =>
+      !specs.has(targetKey({ kind: 'device', device: after.id, param: name }))
+    if (before.bypass !== after.bypass) device.bypass = after.bypass
     for (const [name, value] of Object.entries(next)) {
       if (previous[name] === value) continue
-      if (specs.has(targetKey({ kind: 'device', device: after.id, param: name }))) continue
-      device.setParam(name, value)
+      if (free(name)) device.setParam(name, value)
     }
-    if (before.bypass !== after.bypass) device.bypass = after.bypass
+    if (after.state === undefined || after.state === before.state || !isStatefulDevice(device)) {
+      return
+    }
+    // A restored state moves the device's parameters to wherever it had them:
+    // the document's values go on top again once it has landed. A device that
+    // already holds this state (it was read from it) loads nothing, and then
+    // nothing is written over what it is doing now.
+    const restore = device
+      .setState(after.state)
+      .then((loaded) => {
+        if (!loaded || this.deviceMap.get(after.id) !== device) return
+        for (const [name, value] of Object.entries(next)) {
+          if (free(name) && name in device.params) device.setParam(name, value)
+        }
+      })
+      .catch((error: unknown) => this.handleError(error))
+      .finally(() => this.restoring.delete(restore))
+    this.restoring.add(restore)
   }
 
   private async reconcileInserts(

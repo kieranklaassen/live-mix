@@ -657,6 +657,12 @@ void HostServer::timerCallback()
             event->setProperty ("slot", slot->id);
             emit (owner, "editorClosed", event);
         }
+        if (slot->takeStateChanged())
+        {
+            auto* event = new juce::DynamicObject();
+            event->setProperty ("slot", slot->id);
+            emit (owner, "stateChanged", event);
+        }
     }
 }
 

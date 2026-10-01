@@ -85,6 +85,11 @@ export const OPERATION_DEFS: Record<string, JsonSchema> = {
       preset: { type: 'string', description: 'Factory preset name; params overlay it.' },
       params: paramMap,
       bypass: { type: 'boolean' },
+      state: {
+        type: 'string',
+        description:
+          "What the device holds besides its parameters, as its own getState() gave it (a hosted plug-in's chunk). Opaque: copy it, never write it.",
+      },
     },
     required: ['id', 'deviceId', 'params', 'bypass'],
     additionalProperties: false,
@@ -766,6 +771,21 @@ const OPERATION_SPECS: Record<OperationType, OperationSpec> = {
     description: 'Bypass or engage a device.',
     properties: { device: id('Device instance id.'), bypass: { type: 'boolean' } },
     required: ['device', 'bypass'],
+  },
+  'device.setState': {
+    description:
+      "Keep what a device holds besides its parameters (a hosted plug-in's own state, as the device reported it); null clears it.",
+    properties: {
+      device: id('Device instance id.'),
+      state: { type: ['string', 'null'], description: 'Opaque state text, or null.' },
+    },
+    required: ['device', 'state'],
+  },
+  'device.replace': {
+    description:
+      "Put another device where one is: an insert keeps its place, an instrument track or a return gets a new device of its own and keeps its strip. The old device's lanes and routes go with it.",
+    properties: { id: id('Instance id of the device to replace.'), device: ref('Device') },
+    required: ['id', 'device'],
   },
   'send.add': {
     description: 'Add a post-fader send from a strip to a return.',

@@ -16,6 +16,7 @@ export {
   isNoteDevice,
   isObservableDevice,
   isParamTextDevice,
+  isStatefulDevice,
   type Device,
   type DeviceChange,
   type DeviceChangeListener,
@@ -23,6 +24,7 @@ export {
   type NoteDevice,
   type ObservableDevice,
   type ParamTextDevice,
+  type StatefulDevice,
 } from './core/devices/Device'
 export { Emitter, type Listener } from './core/events'
 export {

@@ -327,6 +327,17 @@ describe('Arbiter: target keys', () => {
       arbiterTargets({ type: 'clip.replaceFrom', track: 'kick', fromSec: 1, clips: [] }),
     ).toEqual(['clips:kick'])
     expect(arbiterTargets({ type: 'tempo.set', segments: [] })).toEqual(['score'])
+    // A device's state and a device replaced are claims on the device as a whole.
+    expect(arbiterTargets({ type: 'device.setState', device: 'd', state: 'x' })).toEqual([
+      'device:d',
+    ])
+    const delay = { deviceId: 'delay', params: {}, bypass: false }
+    expect(
+      arbiterTargets({ type: 'device.replace', id: 'd', device: { id: 'd', ...delay } }),
+    ).toEqual(['device:d'])
+    expect(
+      arbiterTargets({ type: 'device.replace', id: 'd', device: { id: 'e', ...delay } }),
+    ).toEqual(['device:d', 'device:e'])
   })
 
   it('a deferred write that no longer applies is dropped as failed; a load cancels every wait', () => {

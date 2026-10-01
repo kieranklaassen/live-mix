@@ -160,6 +160,16 @@ per drag.
 base64; `setState(state)` or the `state` option of `create` restores it. Use it
 for what parameters do not cover (a loaded sample, a mode without a knob).
 
+The device remembers the state it last read, started from or was given, and
+`setState` with that same text loads nothing and resolves `false`: a restore
+pauses the plug-in's sound and puts every knob back where the state had it,
+which is wrong for a state that was just read from the plug-in itself.
+`device.onStateChange(listener)` fires when the state may have changed without
+a parameter moving: the plug-in told its host so (a program picked, a file
+loaded), or its window was closed. `device.editorOpen` says whether the window
+is open. A hosted plug-in is a `StatefulDevice` (`isStatefulDevice(device)`),
+the contract the score renderer uses.
+
 ### Instruments
 
 An instrument takes `noteOn(noteId, frequency, gain)` and `noteOff(noteId)`
@@ -238,11 +248,22 @@ id, `params` holds the `p…` values. Three things are particular to it.
   to pass through), and so does `NativeDevice.create` called directly.
 - **Edits made in the plug-in's window.** `followNativeEdits(document,
 renderer)`, above.
-
-What a score does not hold yet is the plug-in's opaque state (`getState()`):
-a score restores a plug-in from its parameters. For a reverb or an EQ that is
-everything; for a sampler with a loaded instrument it is not. A `state` field
-on `ScoreDevice` is the follow-up.
+- **What no parameter shows.** A sampler's loaded instrument, a synth's
+  program, a curve drawn in the plug-in's window live only in its state.
+  `ScoreDevice.state` holds it (base64, opaque to everything but the
+  plug-in), the renderer creates the plug-in from it with the `params` on top,
+  and the stand-in for a missing plug-in keeps it untouched.
+  `followNativeEdits` keeps it current: it reads the state when a plug-in
+  first appears without one, half a second after the last change that came
+  from the plug-in (`stateDelayMs`), when the plug-in says its state changed,
+  when its window closes, and every five seconds while the window is open
+  (`statePollMs`, for plug-ins that never say). Each read that differs goes
+  into the document as `device.setState` **without an undo step**: keeping
+  the state is not an edit of the person's, and undo does not put a plug-in's
+  inside back. `{ state: false }` turns all of this off.
+  `await captureNativeState(document, renderer)` reads every hosted plug-in
+  now; call it before the document is saved for good, exported or closed, so
+  what is written is each plug-in as it is at that moment.
 
 ## When the host goes away
 
@@ -260,6 +281,12 @@ devices again.
 - Stereo in, stereo out on the plug-in's main bus (the host asks the plug-in
   for a stereo layout). No side-chain input, no extra output buses.
 - MIDI goes to the plug-in; what a plug-in sends out is dropped.
+- A plug-in's state is carried as it comes, in the document and in its
+  operation log. A plug-in whose state is megabytes and reads differently
+  every time grows the log while its window is open; `statePollMs: 0` leaves
+  only the reads the plug-in or a closing window asks for. Undo does not
+  restore a state: it puts parameters back, and a device that was replaced
+  comes back as the document last knew it.
 - The play head carries tempo and a running flag (`client.setTransport({ bpm,
 playing })`), not a song position.
 - The sample rate and largest block are fixed when the plug-in is loaded.
@@ -334,6 +361,7 @@ loaded.
 | `params`       | `slot`, `changes: [{ index, value, text, origin }]`; `origin` is `client` (the echo of a `setParam`) or `plugin` (its editor, a preset, a state restore) |
 | `latency`      | `slot`, `latencySamples`: the plug-in changed its latency                                                                                                |
 | `editorClosed` | `slot`: the person closed the window                                                                                                                     |
+| `stateChanged` | `slot`: the plug-in told its host its state changed in a way no parameter shows (a program, a loaded file); read it with `getState`                      |
 
 The types are in `src/native/protocol.ts`.
 
