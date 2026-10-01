@@ -34,7 +34,7 @@ export type DeviceMessage =
   | { type: 'bypass'; enabled: boolean }
   | { type: 'note-on'; noteId: number; frequency: number; gain: number }
   | { type: 'note-off'; noteId: number }
-  | { type: 'load-sample'; channels: Float32Array[]; sampleRate: number }
+  | { type: 'sample'; channels: Float32Array[]; sampleRate: number }
 
 /** Worklet → main thread messages. */
 export type DeviceHostMessage = { type: 'ready'; deviceId: string; maxBlockFrames: number }

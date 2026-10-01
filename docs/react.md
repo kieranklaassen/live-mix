@@ -154,6 +154,12 @@ to paint with, `--lm-brush-ink-N` for detail and text on it), grid lines
 (`--lm-grid-line`, `--lm-grid-line-strong`, `--lm-rule`) and an automation
 colour.
 
+Under `lm-dense` a `DeviceChainView` is a rack: panels edge to edge and as tall
+as the rack, each panel's knobs in cells 1.5 columns wide that fill top to
+bottom in `--lm-rack-rows` rows (default 2; a cell wants three rows of the
+module, so set it from the rack's height). `className="lm-device--rack"` gives a
+`DevicePanel` outside a chain the same layout.
+
 ```tsx
 <div data-lm-theme="graphite" className="lm-dense">
   <PaintField columnPx={40} rowPx={20} style={{ height: 240 }}>

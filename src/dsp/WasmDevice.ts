@@ -194,7 +194,7 @@ export class WasmDevice<P extends Record<string, ParamSpec> = Record<string, Par
     const copies = channels.slice(0, 2).map((channel) => channel.slice())
     if (this.disposed) return
     this.node.port.postMessage(
-      { type: 'load-sample', channels: copies, sampleRate } satisfies DeviceMessage,
+      { type: 'sample', channels: copies, sampleRate } satisfies DeviceMessage,
       copies.map((copy) => copy.buffer),
     )
   }

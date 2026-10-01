@@ -11,7 +11,7 @@ import { ETHER_REVERB_DEVICE } from './devices/ether-reverb'
 import { FELT_PIANO_DEVICE } from './devices/felt-piano'
 import { createWorkletDucker, type DuckerProcessorOverrides } from './devices/ducker'
 import { FDN_REVERB_DEVICE } from './devices/fdn-reverb'
-import { GENERATED_WASM_DESCRIPTORS } from './devices/index.gen'
+import { GENERATED_WASM_DESCRIPTORS, GENERATED_WASM_DEVICES } from './devices/index.gen'
 import { LIMITER_1176_DEVICE } from './devices/limiter-1176'
 import { SPECTRAL_DRIFTER_DEVICE } from './devices/spectral-drifter'
 import { STEREO_WIDENER_DEVICE } from './devices/stereo-widener'
@@ -160,6 +160,11 @@ export const STOCK_WASM_DEVICES: readonly DeviceDescriptor[] = [
   // The spec devices (cpp/devices/*/device.json with a params array).
   ...GENERATED_WASM_DESCRIPTORS,
 ]
+
+/** Stock devices that play a sound handed to them through `WasmDevice.loadSample`. */
+export const SAMPLE_DEVICE_IDS: ReadonlySet<string> = new Set(
+  GENERATED_WASM_DEVICES.filter((device) => device.samples).map((device) => device.id),
+)
 
 /** Register the stock WASM devices (idempotent) in `registry`, the default one unless given. */
 export function registerStockWasmDevices(registry: DeviceRegistry = devices): DeviceRegistry {

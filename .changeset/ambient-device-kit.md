@@ -12,3 +12,5 @@ Foundation for the ambient instruments and effects, and the first of them:
 - `registerStockWasmDevices()` now also registers the generated devices.
 
 `InstrumentTrack.setDevice(device)` swaps the instrument on a track and keeps its strip. `DeviceChainView` now edits any insert chain (a track, a strip or a bus such as the master), takes `pinned` and `filter`, and groups its picker by category without instruments.
+
+Under `lm-dense` a device chain lays out as a rack (`--lm-rack-rows`, `lm-device--rack`). `SAMPLE_DEVICE_IDS` lists the stock devices that take a sound through `WasmDevice.loadSample`, which posts a `sample` message to the worklet.

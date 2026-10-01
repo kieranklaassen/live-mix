@@ -77,7 +77,7 @@ class WasmDeviceProcessor extends AudioWorkletProcessor {
       case 'note-off':
         this.device.device_note_off?.(message.noteId)
         break
-      case 'load-sample':
+      case 'sample':
         this.loadSample(message.channels, message.sampleRate)
         break
       default: {

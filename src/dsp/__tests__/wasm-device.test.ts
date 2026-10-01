@@ -201,4 +201,31 @@ describe('WasmDevice notes and custom processors', () => {
       { type: 'load-sample', frames: 2 },
     ])
   })
+
+  it('hands a sample device copies of at most two channels and leaves the caller its buffers', async () => {
+    const ctx = createMockContext()
+    const device = await WasmDevice.create(asAudioContext(ctx), DATTORRO_DEVICE, {
+      wasm: dattorroModule,
+      createNode: mockNodeFactory,
+    })
+    const left = Float32Array.of(0.1, 0.2, 0.3)
+    const right = Float32Array.of(-0.1, -0.2, -0.3)
+    device.loadSample([], 48000)
+    device.loadSample([left, right, Float32Array.of(9)], 44100)
+    const calls = ctx.workletNodes[0].port.posted.calls
+    const samples = calls.filter((call) => (call[0] as { type: string }).type === 'sample')
+    expect(samples).toHaveLength(1)
+    const [message, transfer] = samples[0] as [
+      { channels: Float32Array[]; sampleRate: number },
+      ArrayBuffer[],
+    ]
+    expect(message.sampleRate).toBe(44100)
+    expect(message.channels.map((channel) => [...channel])).toEqual([[...left], [...right]])
+    expect(message.channels[0]).not.toBe(left)
+    expect(transfer).toEqual(message.channels.map((channel) => channel.buffer))
+    expect(left).toHaveLength(3)
+    device.dispose()
+    device.loadSample([left], 48000)
+    expect(calls.filter((call) => (call[0] as { type: string }).type === 'sample')).toHaveLength(1)
+  })
 })
