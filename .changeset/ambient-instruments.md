@@ -12,3 +12,5 @@ More ambient instruments, built as spec devices and registered by `registerStock
 - `modal-bells`: struck and rubbed metal, glass and wood (church bell, singing bowl, vibraphone, bar, kalimba, glass, gong) as banks of decaying modes.
 
 `ember` is now marked `experimental` as well: its unison presets pass 5 % of real time in WASM with eight notes held (Super Saw measures 8.7 %). `docs/devices.md` has the measured cost of every spec device and the kit follow-ups found while building them.
+
+`InstrumentTrack.setDevice` now leaves the outgoing device's output wired into the strip, so the release of the notes it was holding is heard instead of being cut. The strip no longer tracks that node: the caller disposes the old device, or disconnects its output, once the tail has gone.
