@@ -11,5 +11,18 @@ export {
   slicePeaks,
   type WaveformPeaks,
 } from './peaks'
+export {
+  CLIP_PLACEMENT_KEYS,
+  MAX_SPACE_DB,
+  MIN_CLIP_LOWPASS_HZ,
+  OPEN_CLIP_LOWPASS_HZ,
+  SPACE_FLOOR_DB,
+  clipLowpassHz,
+  clipPan,
+  isPlacedClip,
+  spaceSendGain,
+  type ClipPlacement,
+  type ClipPlacementKey,
+} from './placement'
 export { mirrorSlice, reversedSourceSec, type MirroredSlice } from './reverse'
 export { clipsInWindow, type ClipWindow, type ScheduledClip } from './window'

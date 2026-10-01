@@ -93,6 +93,33 @@ describe('createEngine', () => {
   })
 })
 
+describe('Engine space', () => {
+  it('makes one room on first use and hands every audio track the same one', () => {
+    const ctx = createMockContext({ sampleRate: 48000 })
+    const engine = createEngine({ context: asAudioContext(ctx), space: { decaySec: 1.5 } })
+    const impulse = engine.spaceImpulse()
+    expect(engine.spaceImpulse()).toBe(impulse)
+    expect(impulse.duration).toBeCloseTo(1.52, 2)
+    const voice = {
+      buffer: ctx.createBuffer(2, 48000, 48000) as unknown as AudioBuffer,
+      offsetSec: 0,
+      durationSec: 1,
+      fadeInSec: 0,
+      fadeOutSec: 0,
+      fadeCurve: 'linear' as const,
+      spaceDb: -6,
+    }
+    const a = engine.addAudioTrack('a')
+    const b = engine.addAudioTrack('b')
+    a.play('k', voice, 0)
+    b.play('k', voice, 0)
+    // A room each, ahead of each track's own strip, on the one impulse.
+    expect(ctx.convolvers).toHaveLength(2)
+    expect(a.space?.buffer).toBe(impulse)
+    expect(b.space?.buffer).toBe(impulse)
+  })
+})
+
 describe('Engine transport and scheduler', () => {
   it('owns one transport on the engine clock and a scheduler on the engine timers', () => {
     const ctx = createMockContext({ currentTime: 5 })

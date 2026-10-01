@@ -58,6 +58,22 @@ export interface Clip {
    */
   reversed?: boolean
   /**
+   * Where this clip sits between left (−1) and right (1), ahead of the
+   * track's own pan. A clip with `pan`, `lowpassHz` or `spaceDb` is placed:
+   * it plays through nodes of its own, so clips sharing a track can sit in
+   * different places at once, and a change to any of the three (or to
+   * `gainDb`) is heard while the clip sounds. Audio tracks only.
+   */
+  pan?: number
+  /** Cutoff of a low-pass on this clip alone, in Hz: lower is duller, further off. */
+  lowpassHz?: number
+  /**
+   * How much of this clip goes into the track's space (a long dark room
+   * ahead of the track's inserts), in dB against the clip's own level after
+   * `gainDb`. At −60 and below, and when absent, it sends nothing.
+   */
+  spaceDb?: number
+  /**
    * Annotations the host application keeps with the clip (where a paint
    * field draws it, what it was painted with). Plain JSON: the library
    * carries it through the score and its operations and never reads it.

@@ -1296,7 +1296,10 @@ function sameClips(a: readonly Clip[], b: readonly Clip[]): boolean {
       clip.loopStartSec === other.loopStartSec &&
       clip.loopEndSec === other.loopEndSec &&
       (clip.muted ?? false) === (other.muted ?? false) &&
-      (clip.reversed ?? false) === (other.reversed ?? false)
+      (clip.reversed ?? false) === (other.reversed ?? false) &&
+      clip.pan === other.pan &&
+      clip.lowpassHz === other.lowpassHz &&
+      clip.spaceDb === other.spaceDb
     )
   })
 }

@@ -16,6 +16,7 @@
 // stable (same score → same string) so documents diff well in git.
 
 import { type Clip } from '../core/clips/Clip'
+import { MIN_CLIP_LOWPASS_HZ } from '../core/clips/placement'
 import { canonicalJson, isJsonObject, type JsonObject } from '../core/json'
 import { type LfoShape } from '../core/automation/Modulator'
 import { type ModPolarity } from '../core/automation/ModMatrix'
@@ -697,6 +698,11 @@ function checkClip(raw: unknown, path: string, ctx: Context, clipIds: UniqueIds)
   if (raw.loop !== undefined) check.boolean(raw.loop, `${path}.loop`)
   if (raw.muted !== undefined) check.boolean(raw.muted, `${path}.muted`)
   if (raw.reversed !== undefined) check.boolean(raw.reversed, `${path}.reversed`)
+  if (raw.pan !== undefined) check.number(raw.pan, `${path}.pan`, { min: -1, max: 1 })
+  if (raw.lowpassHz !== undefined) {
+    check.number(raw.lowpassHz, `${path}.lowpassHz`, { min: MIN_CLIP_LOWPASS_HZ })
+  }
+  if (raw.spaceDb !== undefined) check.number(raw.spaceDb, `${path}.spaceDb`)
   checkMeta(raw.meta, `${path}.meta`, check)
   if (raw.loopStartSec !== undefined)
     check.number(raw.loopStartSec, `${path}.loopStartSec`, { min: 0 })
@@ -1195,7 +1201,11 @@ function normaliseDestination(destination: ScoreDestination): ScoreDestination {
   return destination.kind === 'group' ? { kind: 'group', id: destination.id } : { kind: 'master' }
 }
 
-/** Clip fields in a fixed order; `loop`, `muted` and `reversed` only when true (absent and `false` mean the same). */
+/**
+ * Clip fields in a fixed order; `loop`, `muted` and `reversed` only when true
+ * (absent and `false` mean the same). The placement fields are kept as given:
+ * a `pan` of 0 still says the clip is placed.
+ */
 export function normaliseClip(clip: Clip): Clip {
   const out: Clip = {
     id: clip.id,
@@ -1216,6 +1226,9 @@ export function normaliseClip(clip: Clip): Clip {
   if (clip.semitones !== undefined) out.semitones = clip.semitones
   if (clip.muted) out.muted = true
   if (clip.reversed) out.reversed = true
+  if (clip.pan !== undefined) out.pan = clip.pan
+  if (clip.lowpassHz !== undefined) out.lowpassHz = clip.lowpassHz
+  if (clip.spaceDb !== undefined) out.spaceDb = clip.spaceDb
   const meta = normaliseMeta(clip.meta)
   if (meta) out.meta = meta
   return out

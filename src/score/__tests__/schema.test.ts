@@ -183,6 +183,36 @@ describe('validateScore', () => {
     )
   })
 
+  it("keeps a clip's placement through a round trip, a pan of 0 included", () => {
+    const score = demoScore()
+    const track = score.tracks[0]
+    if (track.kind !== 'audio') throw new Error('fixture')
+    track.clips[0] = { ...track.clips[0], pan: 0, lowpassHz: 2400, spaceDb: -9 }
+    const parsed = parseScore(serializeScore(score))
+    const parsedTrack = parsed.tracks[0]
+    if (parsedTrack.kind !== 'audio') throw new Error('fixture')
+    expect(parsedTrack.clips[0]).toMatchObject({ pan: 0, lowpassHz: 2400, spaceDb: -9 })
+    for (const key of ['pan', 'lowpassHz', 'spaceDb']) {
+      expect(key in parsedTrack.clips[1]).toBe(false)
+    }
+  })
+
+  it("a clip's placement stays in range: pan between the sides, a cutoff of 20 Hz or more", () => {
+    const score = demoScore()
+    const track = score.tracks[0]
+    if (track.kind !== 'audio') throw new Error('fixture')
+    track.clips[0] = { ...track.clips[0], pan: 1.5, lowpassHz: 5 }
+    ;(track.clips[1] as { spaceDb?: unknown }).spaceDb = 'far'
+    const paths = validateScore(score).map((issue) => issue.path)
+    expect(paths).toEqual(
+      expect.arrayContaining([
+        'tracks[0].clips[0].pan',
+        'tracks[0].clips[0].lowpassHz',
+        'tracks[0].clips[1].spaceDb',
+      ]),
+    )
+  })
+
   it("a clip's muted and reversed flags are booleans and annotations are plain JSON", () => {
     const score = demoScore()
     const track = score.tracks[0]

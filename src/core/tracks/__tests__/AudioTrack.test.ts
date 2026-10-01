@@ -15,8 +15,11 @@ import {
   AudioTrack,
   CROSSFADE_SECONDS,
   MAX_CLIP_GAIN_DB,
+  MIN_PLACED_GAIN_DB,
+  PLACEMENT_RAMP_SECONDS,
   STEER_CROSSFADE_SECONDS,
   STOP_FADE_SECONDS,
+  placedTrimGain,
   trimGain,
 } from '../AudioTrack'
 import { SampleStore } from '../SampleStore'
@@ -755,5 +758,250 @@ describe('AudioTrack.fadeOutVoice (adapter primitive)', () => {
     expect(ctx.sources[0].stopCalls.last).toEqual([2 + STEER_CROSSFADE_SECONDS])
     expect(track.voice('pending')?.endTime).toBe(6)
     track.fadeOutVoice('missing', 2, 1)
+  })
+})
+
+describe('AudioTrack placed clips', () => {
+  const voice = {
+    offsetSec: 0,
+    durationSec: 4,
+    fadeInSec: 0,
+    fadeOutSec: 0,
+    fadeCurve: 'linear' as const,
+  }
+
+  function mono(ctx: MockAudioContext, seconds: number): AudioBuffer {
+    return new MockAudioBuffer(
+      1,
+      seconds * ctx.sampleRate,
+      ctx.sampleRate,
+    ) as unknown as AudioBuffer
+  }
+
+  it('a clip that names no placement makes no nodes of its own', () => {
+    const { ctx, track } = setup()
+    const played = track.play('k', { ...voice, buffer: buffer(ctx, 10), gainDb: -6 }, 1)
+    expect(played?.placement).toBeNull()
+    expect(ctx.filters).toHaveLength(0)
+    expect(ctx.panners).toHaveLength(0)
+    expect(ctx.convolvers).toHaveLength(0)
+    expect(track.space).toBeNull()
+  })
+
+  it('plays through its own trim, low-pass and panner into the strip', () => {
+    const { ctx, dest, track } = setup()
+    const played = track.play(
+      'k',
+      { ...voice, buffer: buffer(ctx, 10), gainDb: -6, pan: -0.4, lowpassHz: 3000 },
+      1,
+    )
+    const [, gain, trim] = ctx.gains
+    const [lowpass] = ctx.filters
+    const [panner] = ctx.panners
+    expect(ctx.sources[0].isConnectedTo(gain)).toBe(true)
+    expect(gain.isConnectedTo(trim)).toBe(true)
+    expect(trim.isConnectedTo(lowpass)).toBe(true)
+    expect(lowpass.isConnectedTo(panner)).toBe(true)
+    expect(panner.isConnectedTo(dest)).toBe(true)
+    expect(trim.gain.value).toBeCloseTo(10 ** (-6 / 20))
+    expect(lowpass.type).toBe('lowpass')
+    expect(lowpass.frequency.value).toBe(3000)
+    expect(lowpass.Q.value).toBeCloseTo(Math.SQRT1_2)
+    expect(panner.pan.value).toBe(-0.4)
+    expect(played?.placement?.panner).toBe(panner)
+    expect(played?.placement?.send).toBeNull()
+    // Nothing is sent, so no room is made.
+    expect(ctx.convolvers).toHaveLength(0)
+  })
+
+  it('a placed clip that names only a pan is left open and has a trim to follow', () => {
+    const { ctx, track } = setup()
+    const played = track.play('k', { ...voice, buffer: buffer(ctx, 10), pan: 0 }, 1)
+    expect(played?.trim).not.toBeNull()
+    expect(played?.trim?.gain.value).toBe(1)
+    expect(ctx.filters[0].frequency.value).toBeCloseTo(48000 * 0.49)
+    expect(ctx.panners[0].pan.value).toBe(0)
+  })
+
+  it('makes up the 3 dB a panner takes off a mono source at the centre', () => {
+    const { ctx, track } = setup()
+    track.play('m', { ...voice, buffer: mono(ctx, 10), pan: 0 }, 1)
+    track.play('s', { ...voice, buffer: buffer(ctx, 10), pan: 0 }, 1)
+    expect(track.voice('m')?.trim?.gain.value).toBeCloseTo(Math.SQRT2)
+    expect(track.voice('s')?.trim?.gain.value).toBe(1)
+  })
+
+  it('a placed trim reaches below the ±12 dB of a loudness trim, and is capped above', () => {
+    expect(placedTrimGain(-18)).toBeCloseTo(10 ** (-18 / 20))
+    expect(placedTrimGain(-200)).toBeCloseTo(10 ** (MIN_PLACED_GAIN_DB / 20))
+    expect(placedTrimGain(40)).toBeCloseTo(10 ** (MAX_CLIP_GAIN_DB / 20))
+    expect(placedTrimGain(undefined)).toBe(1)
+    const { ctx, track } = setup()
+    track.play('k', { ...voice, buffer: buffer(ctx, 10), gainDb: -18, pan: 0 }, 1)
+    expect(track.voice('k')?.trim?.gain.value).toBeCloseTo(10 ** (-18 / 20))
+  })
+
+  it('sends from after the low-pass into one room per track, which feeds the strip', () => {
+    const ctx = createMockContext({ sampleRate: 48000 })
+    const dest = ctx.createGain()
+    const impulse = buffer(ctx, 2)
+    const spaceImpulse = vi.fn(() => impulse)
+    const track = new AudioTrack(asAudioContext(ctx), {
+      name: 'music',
+      destination: dest as unknown as AudioNode,
+      samples: new SampleStore(asAudioContext(ctx)),
+      now: () => ctx.currentTime,
+      spaceImpulse,
+    })
+    const a = track.play('a', { ...voice, buffer: buffer(ctx, 10), spaceDb: -6 }, 1)
+    const b = track.play('b', { ...voice, buffer: mono(ctx, 10), spaceDb: 0, pan: 0.5 }, 1)
+    expect(ctx.convolvers).toHaveLength(1)
+    const [room] = ctx.convolvers
+    expect(track.space).toBe(room)
+    expect(spaceImpulse).toHaveBeenCalledTimes(1)
+    expect(room.buffer).toBe(impulse)
+    expect(room.normalize).toBe(false)
+    expect(room.isConnectedTo(dest)).toBe(true)
+    const [lowpassA, lowpassB] = ctx.filters
+    const sendA = a?.placement?.send as unknown as (typeof ctx.gains)[number]
+    const sendB = b?.placement?.send as unknown as (typeof ctx.gains)[number]
+    expect(lowpassA.isConnectedTo(sendA)).toBe(true)
+    expect(lowpassB.isConnectedTo(sendB)).toBe(true)
+    expect(sendA.isConnectedTo(room)).toBe(true)
+    expect(sendB.isConnectedTo(room)).toBe(true)
+    expect(sendA.gain.value).toBeCloseTo(10 ** (-6 / 20))
+    // The mono voice's trim carries the panner's makeup; its send takes it back out.
+    expect(sendB.gain.value).toBeCloseTo(Math.SQRT1_2)
+  })
+
+  it('generates the stock room when none is handed in', () => {
+    const { ctx, track } = setup()
+    track.play('k', { ...voice, buffer: buffer(ctx, 10), spaceDb: 0 }, 1)
+    const impulse = ctx.convolvers[0].buffer
+    expect(impulse?.numberOfChannels).toBe(2)
+    expect(impulse?.duration).toBeCloseTo(5.02, 2)
+  })
+
+  it('place moves a sounding voice, sending only what changed', () => {
+    const { ctx, track } = setup({ currentTime: 2 })
+    const played = track.play(
+      'k',
+      { ...voice, buffer: buffer(ctx, 10), gainDb: 0, pan: 0.2, lowpassHz: 8000 },
+      1,
+    )
+    const [panner] = ctx.panners
+    const [lowpass] = ctx.filters
+    const trim = played?.trim as unknown as (typeof ctx.gains)[number]
+    expect(track.place('k', { gainDb: 0, pan: -0.6, lowpassHz: 8000 })).toBe(true)
+    expect(panner.pan.events).toEqual([
+      { method: 'setTargetAtTime', args: [-0.6, 2, PLACEMENT_RAMP_SECONDS] },
+    ])
+    expect(lowpass.frequency.events).toEqual([])
+    expect(trim.gain.events).toEqual([])
+    track.place('k', { gainDb: -9, pan: -0.6, lowpassHz: 2000, spaceDb: -3 })
+    expect(panner.pan.events).toHaveLength(1)
+    expect(lowpass.frequency.events).toEqual([
+      { method: 'setTargetAtTime', args: [2000, 2, PLACEMENT_RAMP_SECONDS] },
+    ])
+    expect(trim.gain.lastEvent('setTargetAtTime')?.args[0]).toBeCloseTo(10 ** (-9 / 20))
+    // The send did not exist: it is made silent and comes up beside the dry path.
+    const send = played?.placement?.send as unknown as (typeof ctx.gains)[number]
+    expect(send.gain.value).toBe(0)
+    expect(send.gain.lastEvent('setTargetAtTime')?.args[0]).toBeCloseTo(10 ** (-3 / 20))
+    expect(send.isConnectedTo(ctx.convolvers[0])).toBe(true)
+    // Taking the send away again fades it; the node stays for the next change.
+    track.place('k', { gainDb: -9, pan: -0.6, lowpassHz: 2000 })
+    expect(send.gain.lastEvent('setTargetAtTime')?.args[0]).toBe(0)
+    expect(ctx.convolvers).toHaveLength(1)
+  })
+
+  it('place leaves a voice that was started unplaced, and one that is gone, alone', () => {
+    const { ctx, track } = setup()
+    track.play('k', { ...voice, buffer: buffer(ctx, 10), gainDb: -6 }, 1)
+    expect(track.place('k', { gainDb: 0, pan: 0.5 })).toBe(false)
+    expect(track.place('missing', { gainDb: 0, pan: 0.5 })).toBe(false)
+    expect(ctx.panners).toHaveLength(0)
+  })
+
+  it('an equal-power voice is placed the same way', () => {
+    const { ctx, dest, track } = setup()
+    const played = track.play(
+      'k',
+      {
+        ...voice,
+        fadeInSec: 1,
+        fadeOutSec: 1,
+        fadeCurve: 'equalPower',
+        buffer: buffer(ctx, 10),
+        pan: 0.3,
+        spaceDb: -12,
+      },
+      1,
+    )
+    expect(played?.placement?.send).not.toBeNull()
+    expect(ctx.panners[0].pan.value).toBe(0.3)
+    expect(ctx.panners[0].isConnectedTo(dest)).toBe(true)
+    expect(ctx.gains[1].isConnectedTo(played?.trim as never)).toBe(true)
+  })
+
+  it('stopping a voice takes its nodes out and leaves the room ringing', () => {
+    const { ctx, dest, track } = setup()
+    const played = track.play('k', { ...voice, buffer: buffer(ctx, 10), pan: 0, spaceDb: 0 }, 1)
+    const send = played?.placement?.send as unknown as (typeof ctx.gains)[number]
+    track.stop('k')
+    expect(ctx.filters[0].outputs.size).toBe(0)
+    expect(ctx.panners[0].isConnectedTo(dest)).toBe(false)
+    expect(send.isConnectedTo(ctx.convolvers[0])).toBe(false)
+    expect(ctx.convolvers[0].isConnectedTo(dest)).toBe(true)
+    expect(track.strip.sourceNodes).toEqual([ctx.convolvers[0]])
+    track.dispose()
+    expect(ctx.convolvers[0].isConnectedTo(dest)).toBe(false)
+    expect(track.space).toBeNull()
+  })
+
+  it('a scheduled clip that is moved while it sounds follows without starting again', async () => {
+    const { ctx, samples, track } = setup({ lookaheadSec: 1 })
+    const transport = new Transport({ now: () => ctx.currentTime })
+    const scheduler = new Scheduler({ transport, tickMs: 40 })
+    track.attach(scheduler)
+    await samples.load('s', buffer(ctx, 10))
+    const clip: Clip = {
+      id: 'a',
+      sourceId: 's',
+      startSec: 0.5,
+      offsetSec: 0,
+      durationSec: 4,
+      fadeInSec: 0,
+      fadeOutSec: 0,
+      fadeCurve: 'linear',
+      gainDb: 0,
+      pan: 0,
+    }
+    track.clips.add(clip)
+    transport.start()
+    scheduler.tick()
+    expect(ctx.sources).toHaveLength(1)
+    ctx.currentTime = 1
+    track.clips.update('a', { gainDb: -6, pan: 0.5, lowpassHz: 4000, spaceDb: -9 })
+    expect(ctx.sources).toHaveLength(1)
+    expect(ctx.sources[0].stopCalls.count).toBe(0)
+    expect(ctx.panners[0].pan.lastEvent('setTargetAtTime')?.args).toEqual([
+      0.5,
+      1,
+      PLACEMENT_RAMP_SECONDS,
+    ])
+    expect(ctx.filters[0].frequency.lastEvent('setTargetAtTime')?.args[0]).toBe(4000)
+    const live = track.voice('a:0:0.500')
+    expect(
+      (
+        live?.trim as never as { gain: { lastEvent(m: string): { args: number[] } } }
+      ).gain.lastEvent('setTargetAtTime').args[0],
+    ).toBeCloseTo(10 ** (-6 / 20))
+    expect(live?.placement?.send).not.toBeNull()
+    // An edit of another clip sends this one nothing new.
+    const events = ctx.panners[0].pan.events.length
+    track.clips.add({ ...clip, id: 'b', startSec: 20 })
+    expect(ctx.panners[0].pan.events).toHaveLength(events)
+    scheduler.dispose()
   })
 })

@@ -64,7 +64,7 @@ ScoreDevice       { id, deviceId (registry id), preset?, params: { name: number 
 ScoreSend         { target: returnId, level: number | null }   null = direct connection
 ParamTarget       { kind: 'strip', owner: id | 'master', param: 'level' | 'pan' | 'inputGain' }
                 | { kind: 'device', device: instanceId, param: name }
-Clip              the core `Clip` record (id, sourceId, startSec, offsetSec, durationSec, fades, gainDb, loop?, loopStartSec?, loopEndSec?, warp?, semitones?, muted?, reversed?, meta?)
+Clip              the core `Clip` record (id, sourceId, startSec, offsetSec, durationSec, fades, gainDb, loop?, loopStartSec?, loopEndSec?, warp?, semitones?, muted?, reversed?, pan?, lowpassHz?, spaceDb?, meta?)
 Breakpoint        the core `Breakpoint` (timeSec, value, curve?)
 ```
 
@@ -80,7 +80,31 @@ plays its slice of the source backwards on an audio track: one pass reads
 from the far end of the slice back to `offsetSec`, and a looping clip cycles
 backwards over its region. `mirrorSlice` and `reversedSourceSec` are that
 mapping as plain numbers, for a drawing that has to match the sound; the
-fades stay where they are on the clip. `meta` on a clip, a source or the
+fades stay where they are on the clip.
+
+A clip can say where it sits, apart from the other clips on its track:
+`pan` (−1 left … 1 right, ahead of the track's own pan), `lowpassHz` (a
+low-pass on this clip alone) and `spaceDb` (how much of it is sent into the
+track's space, in dB against the clip's own level after `gainDb`). A clip
+with any of the three is _placed_: on an audio track it plays through a
+trim, a low-pass and a panner of its own into the strip, so two clips of one
+source on one track can sound in different places at the same moment, and
+its `gainDb` reaches down to −60 dB instead of the ±12 dB of a loudness
+trim. The space is a long dark room with no early slap (`space.ts`:
+generated noise that swells in, falls 60 dB over five seconds and dulls as
+it goes), convolved per track ahead of the strip, so the track's inserts,
+fader and mute act on it as they do on the dry clips; every track of an
+engine reads the same impulse (`createEngine({ space })`,
+`engine.spaceImpulse()`), so they sound as if they shared one room. The
+impulse has unit energy: a steady sound sent at 0 dB comes back as loud as
+it went in. A change to a placed clip's `pan`, `lowpassHz`, `spaceDb` or
+`gainDb` is heard while the clip sounds (`AudioTrack.place`); a clip that
+names none of them is wired as before and takes the change at its next
+start. In a `clip.update`, `null` takes a placement field off the clip; a
+`pan` of 0 is kept, because it still says the clip is placed. Stretch and
+element tracks play placed clips unplaced.
+
+`meta` on a clip, a source or the
 document itself is the host application's own annotation: any plain JSON
 object (a display name, a colour, where a painted stroke sits on screen; on
 the document, what the host keeps beside the arrangement and wants saved and

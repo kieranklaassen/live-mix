@@ -14,6 +14,14 @@
 // A reversed clip is the same voice on a mirrored copy of its buffer
 // (`reversed-buffer.ts`), entered where `mirrorSlice` says.
 //
+// A placed clip (`pan`, `lowpassHz` or `spaceDb`, see `clips/placement.ts`)
+// gets nodes of its own after its envelope: trim → low-pass → panner into the
+// strip, and from the low-pass a send into the track's space (`space.ts`),
+// which also feeds the strip. Clips of one source on one track can then sit
+// in different places at once, and the track's inserts, fader and mute act
+// on all of it. The nodes follow the clip while it sounds (`place`). A clip
+// that names none of the three is wired exactly as before.
+//
 // The track is also two Schedulables for the engine's Scheduler: playback
 // (lookaheadSec) and preload (preloadSec) over the same clip list. Adapters
 // that keep their own scheduling (Breathwork Live's SectionPlaylist) drive the
@@ -26,6 +34,13 @@
 import { type Clip, type FadeCurve } from '../clips/Clip'
 import { equalPowerFadeIn, equalPowerFadeOut } from '../clips/curves'
 import { fadeGain } from '../clips/fade'
+import {
+  clipLowpassHz,
+  clipPan,
+  isPlacedClip,
+  spaceSendGain,
+  type ClipPlacement,
+} from '../clips/placement'
 import { mirrorSlice } from '../clips/reverse'
 import { type ClipWindow } from '../clips/window'
 import { scheduleKey, type ScheduledStart } from '../transport/anchor'
@@ -39,6 +54,7 @@ import {
 import { ClipList } from './ClipList'
 import { reversedBuffer } from './reversed-buffer'
 import { type SampleSource, type SampleStore } from './SampleStore'
+import { generateSpaceImpulse } from './space'
 
 // --- Constants shared with Breathwork Live (re-exported for its adapter) -----
 
@@ -53,9 +69,20 @@ export const MAX_CLIP_GAIN_DB = 12
 /** ambient-live's scheduling lookahead. */
 export const DEFAULT_LOOKAHEAD_SECONDS = 0.2
 
+/** How far down a placed clip's trim reaches: sitting far back costs more than the ±12 dB of a loudness trim. */
+export const MIN_PLACED_GAIN_DB = -60
+/** Time constant of the approach when a sounding clip's placement or trim changes. */
+export const PLACEMENT_RAMP_SECONDS = 0.03
+
 /** Linear gain for a dB trim, clamped to ±MAX_CLIP_GAIN_DB. */
 export function trimGain(gainDb: number | undefined): number {
   const clamped = Math.min(MAX_CLIP_GAIN_DB, Math.max(-MAX_CLIP_GAIN_DB, gainDb ?? 0))
+  return 10 ** (clamped / 20)
+}
+
+/** Linear gain for a placed clip's trim: capped at +MAX_CLIP_GAIN_DB, down to MIN_PLACED_GAIN_DB. */
+export function placedTrimGain(gainDb: number | undefined): number {
+  const clamped = Math.min(MAX_CLIP_GAIN_DB, Math.max(MIN_PLACED_GAIN_DB, gainDb ?? 0))
   return 10 ** (clamped / 20)
 }
 
@@ -80,6 +107,37 @@ export interface ClipVoiceOptions {
   loopEndSec?: number
   /** Play the slice backwards (`Clip.reversed`). */
   reversed?: boolean
+  /** Left to right for this voice alone (`Clip.pan`). */
+  pan?: number
+  /** Low-pass cutoff for this voice alone (`Clip.lowpassHz`). */
+  lowpassHz?: number
+  /** Send into the track's space, in dB against the voice's own level (`Clip.spaceDb`). */
+  spaceDb?: number
+}
+
+/** What `place` moves on a sounding voice: where it sits, and its trim. */
+export type VoicePlace = ClipPlacement & Pick<Clip, 'gainDb'>
+
+/** The nodes a placed voice plays through, after its envelope and trim. */
+export interface VoicePlacement {
+  readonly lowpass: BiquadFilterNode
+  readonly panner: StereoPannerNode
+  /** The send into the track's space; made when the voice first sends there. */
+  send: GainNode | null
+}
+
+/** A placed voice's nodes with what each was last told, so a change is sent only once. */
+interface PlacedNodes extends VoicePlacement {
+  /**
+   * A panner halves the power of a mono source at the centre, where an
+   * unplaced one reaches both sides whole: the trim makes that up, and the
+   * send, taken ahead of the panner, takes it back out.
+   */
+  readonly makeup: number
+  trim: number
+  pan: number
+  lowpassHz: number
+  space: number
 }
 
 /** A voice's options once a reversed clip has been turned into positions on its mirrored buffer. */
@@ -93,6 +151,8 @@ export interface ClipVoice {
   readonly source: AudioBufferSourceNode
   readonly gain: GainNode
   readonly trim: GainNode | null
+  /** The voice's own low-pass, panner and space send; null for a clip that names no placement. */
+  readonly placement: VoicePlacement | null
   readonly fadeCurve: FadeCurve
   /** Audio-clock time the source starts (after any late join). */
   readonly startTime: number
@@ -121,6 +181,12 @@ export interface AudioTrackOptions {
   resolveSource?: (clip: Clip) => SampleSource | undefined
   /** Register with this scheduler on construction. */
   scheduler?: Scheduler
+  /**
+   * The impulse response of the space this track's clips send into
+   * (`Clip.spaceDb`), read when a clip first does. An engine hands every
+   * track the same one; without it the track generates the stock room.
+   */
+  spaceImpulse?: () => AudioBuffer
 }
 
 export class AudioTrack implements StripHost {
@@ -135,9 +201,15 @@ export class AudioTrack implements StripHost {
   private readonly now: () => number
   private readonly resolveSource: ((clip: Clip) => SampleSource | undefined) | null
   private readonly active = new Map<string, ClipVoice>()
+  // The clip each scheduled voice plays, so the voice can follow its edits.
+  private readonly voiceClips = new Map<string, string>()
+  private readonly spaceImpulse: () => AudioBuffer
+  private spaceNode: ConvolverNode | null = null
   private scheduler: Scheduler | null = null
   private unregister: (() => void)[] = []
   private disposed = false
+  // What each placed voice's nodes were last told.
+  private readonly placed = new WeakMap<ClipVoice, PlacedNodes>()
 
   /** The Schedulable that hands clip starts to the graph. */
   readonly playback: Schedulable
@@ -157,7 +229,11 @@ export class AudioTrack implements StripHost {
     this.lookaheadSec = options.lookaheadSec ?? DEFAULT_LOOKAHEAD_SECONDS
     this.preloadSec = options.preloadSec ?? this.lookaheadSec
     this.resolveSource = options.resolveSource ?? null
-    this.clips = new ClipList(() => this.scheduler?.refresh())
+    this.spaceImpulse = options.spaceImpulse ?? (() => generateSpaceImpulse(ctx))
+    this.clips = new ClipList(() => {
+      this.scheduler?.refresh()
+      this.followClips()
+    })
 
     // Lookaheads are read on every tick, so later writes to the track apply.
     this.playback = new TrackSchedulable(
@@ -218,6 +294,54 @@ export class AudioTrack implements StripHost {
     if (previous && previous !== voice) this.silence(previous)
     this.active.set(key, voice)
     return voice
+  }
+
+  /**
+   * The convolver every placed clip's `spaceDb` sends into, ahead of the
+   * strip; null until a clip first sends there.
+   */
+  get space(): ConvolverNode | null {
+    return this.spaceNode
+  }
+
+  /**
+   * Move the voice under `key` to another place while it sounds: its trim,
+   * pan, low-pass and space send approach the new values over a few
+   * milliseconds. Only a voice that was started placed can follow; the track
+   * does this itself for scheduled clips whenever its clip list changes.
+   * Returns whether the voice could be moved.
+   */
+  place(key: string, to: VoicePlace): boolean {
+    const voice = this.active.get(key)
+    const nodes = voice ? this.placed.get(voice) : undefined
+    if (!voice?.trim || !nodes) return false
+    const at = this.ctx.currentTime
+    const approach = (param: AudioParam, value: number): void => {
+      param.setTargetAtTime(value, at, PLACEMENT_RAMP_SECONDS)
+    }
+    const trim = placedTrimGain(to.gainDb) * nodes.makeup
+    if (trim !== nodes.trim) {
+      nodes.trim = trim
+      approach(voice.trim.gain, trim)
+    }
+    const pan = clipPan(to.pan)
+    if (pan !== nodes.pan) {
+      nodes.pan = pan
+      approach(nodes.panner.pan, pan)
+    }
+    const lowpassHz = clipLowpassHz(to.lowpassHz, this.ctx.sampleRate)
+    if (lowpassHz !== nodes.lowpassHz) {
+      nodes.lowpassHz = lowpassHz
+      approach(nodes.lowpass.frequency, lowpassHz)
+    }
+    const space = spaceSendGain(to.spaceDb) / nodes.makeup
+    if (space !== nodes.space) {
+      nodes.space = space
+      // A send that did not exist comes up from silence beside the dry path.
+      if (nodes.send) approach(nodes.send.gain, space)
+      else approach(this.sendToSpace(nodes, 0).gain, space)
+    }
+    return true
   }
 
   /**
@@ -310,6 +434,12 @@ export class AudioTrack implements StripHost {
     this.disposed = true
     this.detach()
     this.stopAll()
+    try {
+      this.spaceNode?.disconnect()
+    } catch {
+      // Context may already be closed; ignore.
+    }
+    this.spaceNode = null
     this.strip.dispose()
   }
 
@@ -338,10 +468,22 @@ export class AudioTrack implements StripHost {
         loopStartSec: clip.loopStartSec,
         loopEndSec: clip.loopEndSec,
         reversed: clip.reversed,
+        pan: clip.pan,
+        lowpassHz: clip.lowpassHz,
+        spaceDb: clip.spaceDb,
       },
       when,
     )
+    if (this.active.has(key)) this.voiceClips.set(key, clip.id)
     return true
+  }
+
+  /** Every scheduled voice that is placed takes its clip's current place and trim. */
+  private followClips(): void {
+    for (const [key, clipId] of this.voiceClips) {
+      const clip = this.clips.get(clipId)
+      if (clip) this.place(key, clip)
+    }
   }
 
   private preloadStart(start: ScheduledStart): boolean {
@@ -391,7 +533,7 @@ export class AudioTrack implements StripHost {
     const gain = this.ctx.createGain()
     source.buffer = playback.buffer
     source.connect(gain)
-    const trim = this.connectThroughTrim(gain, playback.gainDb)
+    const { trim, placement } = this.connectVoice(gain, playback)
 
     // Linear ramps against the clip's own timeline, so the drawn fade slope is
     // the applied gain even when the clip is joined late.
@@ -412,10 +554,12 @@ export class AudioTrack implements StripHost {
       source,
       gain,
       trim,
+      placement,
       fadeCurve: 'linear',
       startTime: start,
       endTime: end,
     }
+    if (placement) this.placed.set(voice, placement)
     source.onended = () => this.forget(voice)
     if (playback.loop) {
       source.loop = true
@@ -451,7 +595,7 @@ export class AudioTrack implements StripHost {
     // Per-clip loudness trim (LUFS normalization): the fade gain chains
     // through a constant trim node of 10^(gainDb/20). Absent gainDb (or a
     // 0 dB trim) connects straight through at unity.
-    const trim = this.connectThroughTrim(gain, playback.gainDb)
+    const { trim, placement } = this.connectVoice(gain, playback)
 
     const source = this.ctx.createBufferSource()
     source.buffer = playback.buffer
@@ -470,13 +614,71 @@ export class AudioTrack implements StripHost {
       source,
       gain,
       trim,
+      placement,
       fadeCurve: 'equalPower',
       startTime: startAt,
       endTime: startAt + playback.durationSec,
     }
+    if (placement) this.placed.set(voice, placement)
     this.stopSource(voice, startAt + playback.durationSec)
     source.onended = () => this.forget(voice)
     return voice
+  }
+
+  /** The voice's way out of its envelope: straight through a trim, or through its own placement. */
+  private connectVoice(
+    gain: GainNode,
+    playback: VoicePlayback,
+  ): { trim: GainNode | null; placement: PlacedNodes | null } {
+    if (!isPlacedClip(playback)) {
+      return { trim: this.connectThroughTrim(gain, playback.gainDb), placement: null }
+    }
+    const makeup = playback.buffer.numberOfChannels === 1 ? Math.SQRT2 : 1
+    const trim = this.ctx.createGain()
+    const lowpass = this.ctx.createBiquadFilter()
+    const panner = this.ctx.createStereoPanner()
+    const placement: PlacedNodes = {
+      lowpass,
+      panner,
+      send: null,
+      makeup,
+      trim: placedTrimGain(playback.gainDb) * makeup,
+      pan: clipPan(playback.pan),
+      lowpassHz: clipLowpassHz(playback.lowpassHz, this.ctx.sampleRate),
+      space: spaceSendGain(playback.spaceDb) / makeup,
+    }
+    trim.gain.value = placement.trim
+    lowpass.type = 'lowpass'
+    lowpass.Q.value = Math.SQRT1_2
+    lowpass.frequency.value = placement.lowpassHz
+    panner.pan.value = placement.pan
+    gain.connect(trim)
+    trim.connect(lowpass)
+    lowpass.connect(panner)
+    this.strip.connectSource(panner)
+    if (placement.space > 0) this.sendToSpace(placement, placement.space)
+    return { trim, placement }
+  }
+
+  /** Taps a placed voice after its low-pass into the track's space, making the space on first use. */
+  private sendToSpace(placement: PlacedNodes, level: number): GainNode {
+    const send = this.ctx.createGain()
+    send.gain.value = level
+    placement.lowpass.connect(send)
+    send.connect(this.ensureSpace())
+    placement.send = send
+    return send
+  }
+
+  private ensureSpace(): ConvolverNode {
+    if (this.spaceNode) return this.spaceNode
+    const convolver = this.ctx.createConvolver()
+    // The impulse carries its own level (unit energy); the node's scaling would undo it.
+    convolver.normalize = false
+    convolver.buffer = this.spaceImpulse()
+    this.strip.connectSource(convolver)
+    this.spaceNode = convolver
+    return convolver
   }
 
   private connectThroughTrim(gain: GainNode, gainDb: number | undefined): GainNode | null {
@@ -507,20 +709,30 @@ export class AudioTrack implements StripHost {
     } catch {
       // Already stopped — nothing left to silence.
     }
-    voice.source.disconnect()
-    voice.gain.disconnect()
-    voice.trim?.disconnect()
-    this.strip.forgetSource(voice.trim ?? voice.gain)
+    this.unwire(voice)
     this.active.delete(voice.key)
+    this.voiceClips.delete(voice.key)
   }
 
   private forget(voice: ClipVoice): void {
     if (this.active.get(voice.key) !== voice) return
     this.active.delete(voice.key)
+    this.voiceClips.delete(voice.key)
+    this.unwire(voice)
+  }
+
+  /** Takes a voice's nodes out of the graph; what it already sent into the space rings on. */
+  private unwire(voice: ClipVoice): void {
     voice.source.disconnect()
     voice.gain.disconnect()
     voice.trim?.disconnect()
-    this.strip.forgetSource(voice.trim ?? voice.gain)
+    const placement = voice.placement
+    if (placement) {
+      placement.lowpass.disconnect()
+      placement.panner.disconnect()
+      placement.send?.disconnect()
+    }
+    this.strip.forgetSource(placement?.panner ?? voice.trim ?? voice.gain)
   }
 }
 

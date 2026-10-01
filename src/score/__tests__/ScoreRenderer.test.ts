@@ -390,6 +390,20 @@ describe('ScoreRenderer: incremental edits', () => {
     expect(track.clips.get('a1')?.reversed ?? false).toBe(false)
   })
 
+  it('a change to where a clip sits reaches the track, and so does taking it off', async () => {
+    const { renderer, edit } = await rig()
+    const track = renderer.audioTrack('kick')
+    const set = vi.spyOn(track.clips, 'set')
+    await edit({ type: 'clip.update', track: 'kick', id: 'a1', patch: { pan: 0.4, spaceDb: -9 } })
+    expect(set).toHaveBeenCalledTimes(1)
+    expect(track.clips.get('a1')).toMatchObject({ pan: 0.4, spaceDb: -9 })
+    await edit({ type: 'clip.update', track: 'kick', id: 'a1', patch: { lowpassHz: 3000 } })
+    expect(set).toHaveBeenCalledTimes(2)
+    await edit({ type: 'clip.update', track: 'kick', id: 'a1', patch: { pan: null } })
+    expect(set).toHaveBeenCalledTimes(3)
+    expect(track.clips.get('a1')?.pan).toBeUndefined()
+  })
+
   it('a source update that only renames or annotates leaves the tracks alone', async () => {
     const { renderer, document, edit } = await rig()
     const set = vi.spyOn(renderer.audioTrack('kick').clips, 'set')
