@@ -106,8 +106,10 @@ engine.master.addInsert(reverb)
 `client.plugins()` returns the list the host already knows without scanning;
 `client.scan({ paths, defaultPaths, rescan })` searches the format's standard
 folders (and `paths`), reports each file on `scanProgress`, and answers with
-`{ plugins, failed }`. A plug-in that crashes the host during a scan is
-skipped by the next one; `rescan: true` forgets that along with the list.
+`{ plugins, failed }`. With `defaultPaths: false` only `paths` are searched,
+and Audio Units are left out: the system lists them, not a folder. A plug-in
+that crashes the host during a scan is skipped by the next one; `rescan: true`
+forgets that along with the list.
 
 `registerNativeDevices(client, plugins, { registry, defaults })` is the
 registration without the scan. Each plug-in registers as:

@@ -416,7 +416,13 @@ void HostServer::startScan (const Connection& connection, const juce::var& id, c
         for (const auto& path : *paths)
             scan->extraPaths.add (juce::File (path.toString()));
     for (auto* format : formats.getFormats())
+    {
+        // Audio Units are registered with the system rather than found in
+        // folders, so a scan of named folders only leaves them out.
+        if (! scan->useDefaultPaths && format->getName() == "AudioUnit")
+            continue;
         scan->pending.add (format);
+    }
 
     if (static_cast<bool> (params["rescan"]))
     {

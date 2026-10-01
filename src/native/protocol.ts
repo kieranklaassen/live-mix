@@ -45,7 +45,11 @@ export interface NativePluginInfo {
 export interface NativeScanOptions {
   /** Extra folders to search besides the format's standard locations. */
   paths?: readonly string[]
-  /** Search the standard locations (default true). */
+  /**
+   * Search the standard locations (default true). With false only `paths`
+   * are searched, and Audio Units, which the system lists rather than a
+   * folder, are left out.
+   */
   defaultPaths?: boolean
   /** Forget the cached list and the blocklist first. */
   rescan?: boolean

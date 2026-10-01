@@ -391,13 +391,11 @@ test('a second start takes the port and token it is given and knows the scanned 
       socket.onmessage = ({ data }) => done(JSON.parse(data).result.plugins)
       socket.send(JSON.stringify({ id: 1, method: 'plugins', params: {} }))
     })
-    assert.deepEqual(
-      plugins
-        .map((plugin) => plugin.name)
-        .sort()
-        .slice(0, 2),
-      ['LiveMix Test Gain', 'LiveMix Test Sine'],
-    )
+    // On a Mac the list also holds the Audio Units an earlier test scanned.
+    const names = plugins.map((plugin) => plugin.name)
+    for (const name of ['LiveMix Test Gain', 'LiveMix Test Sine']) {
+      assert.ok(names.includes(name), `${name} is not in ${names.join(', ')}`)
+    }
     socket.close()
   } finally {
     await second.stop()
