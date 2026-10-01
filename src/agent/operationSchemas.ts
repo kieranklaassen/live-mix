@@ -440,6 +440,14 @@ export const OPERATION_DEFS: Record<string, JsonSchema> = {
       loop: { type: 'boolean', description: 'Loop until stopped.' },
       semitones: number('Pitch shift on a stretch source.'),
       reversed: { type: 'boolean', description: 'Play the slice backwards.' },
+      pan: number("The clip's own place, −1 left … 1 right, ahead of the track's pan.", {
+        min: -1,
+        max: 1,
+      }),
+      lowpassHz: number('Cutoff of a low-pass on this clip alone, in Hz.', { min: 20 }),
+      spaceDb: number(
+        "Send into the track's space (a long dark room), in dB against the clip's own level.",
+      ),
     },
     required: [
       'sourceId',

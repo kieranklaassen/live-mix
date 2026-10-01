@@ -54,6 +54,33 @@ function gridScore(): Score {
 
 const canon = normaliseScore
 
+describe('a slot clip that names its place', () => {
+  it('keeps pan, low-pass and space through a round trip, a pan of 0 included', () => {
+    const score = gridScore()
+    score.slots[0].clip = slotClip('a', { loop: true, pan: 0, lowpassHz: 2400, spaceDb: -9 })
+    expect(validateScore(score)).toEqual([])
+    const parsed = parseScore(serializeScore(score))
+    expect(parsed.slots[0].clip).toMatchObject({ pan: 0, lowpassHz: 2400, spaceDb: -9 })
+    for (const key of ['pan', 'lowpassHz', 'spaceDb']) {
+      expect(parsed.slots[1].clip).not.toHaveProperty(key)
+    }
+  })
+
+  it('is held to the same ranges as a clip on a track', () => {
+    const score = gridScore()
+    score.slots[0].clip = slotClip('a', { pan: 1.5, lowpassHz: 5 })
+    ;(score.slots[1].clip as { spaceDb?: unknown }).spaceDb = 'far'
+    const paths = validateScore(score).map((issue) => issue.path)
+    expect(paths).toEqual(
+      expect.arrayContaining([
+        'slots[0].clip.pan',
+        'slots[0].clip.lowpassHz',
+        'slots[1].clip.spaceDb',
+      ]),
+    )
+  })
+})
+
 describe('session operations: apply', () => {
   const base = gridScore()
 
