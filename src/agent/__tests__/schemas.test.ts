@@ -64,6 +64,33 @@ describe('operation tool schemas', () => {
     },
   )
 
+  it('a slot takes a clip that names its place, held to the clip ranges', () => {
+    const validate = ajv.compile(operationSchema('slot.add'))
+    const slot = (clip: Record<string, unknown>) => ({
+      slot: {
+        id: 's',
+        track: 'kick',
+        scene: 'verse',
+        launchMode: 'trigger',
+        legato: false,
+        clip: {
+          sourceId: 'a',
+          offsetSec: 0,
+          durationSec: 4,
+          fadeInSec: 0,
+          fadeOutSec: 0,
+          fadeCurve: 'linear',
+          gainDb: 0,
+          ...clip,
+        },
+      },
+    })
+    expect(validate(slot({ pan: -0.4, lowpassHz: 3000, spaceDb: -6 }))).toBe(true)
+    expect(validate(slot({ pan: 2 }))).toBe(false)
+    expect(validate(slot({ lowpassHz: 5 }))).toBe(false)
+    expect(validate(slot({ spaceDb: 'far' }))).toBe(false)
+  })
+
   it('missing required fields are reported by path', () => {
     const issues = validateSchema(operationSchema('strip.set'), { owner: 'kick' })
     expect(issues.map((issue) => issue.path).sort()).toEqual(['param', 'value'])

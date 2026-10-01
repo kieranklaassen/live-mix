@@ -10,6 +10,7 @@ import {
   describeOperation,
   invert,
   isOperation,
+  type ClipPatch,
   type Operation,
 } from '../operations'
 import {
@@ -123,6 +124,31 @@ describe('apply', () => {
     const again = applyWithInverse(forwards.score, update({ reversed: true }))
     expect(again.inverse).toEqual(update({ reversed: false }))
     expect(canon(apply(again.score, again.inverse))).toEqual(canon(forwards.score))
+  })
+
+  it('a clip carries its placement; null takes a field off, and an undo puts it back or takes it off', () => {
+    const added = apply(base, {
+      type: 'clip.add',
+      track: 'kick',
+      clip: clip('z', 'a', 2, { pan: 0, lowpassHz: 3000 }),
+    })
+    // A pan of 0 still says the clip is placed, so it is kept.
+    expect(audio(added, 'kick').clips[1]).toMatchObject({ id: 'z', pan: 0, lowpassHz: 3000 })
+    const update = (patch: ClipPatch): Operation => ({
+      type: 'clip.update',
+      track: 'kick',
+      id: 'z',
+      patch,
+    })
+    const moved = applyWithInverse(added, update({ pan: -0.5, lowpassHz: null, spaceDb: -9 }))
+    const after = audio(moved.score, 'kick').clips[1]
+    expect(after).toMatchObject({ pan: -0.5, spaceDb: -9 })
+    expect('lowpassHz' in after).toBe(false)
+    // The clip had no send: the inverse says so in a way that survives JSON.
+    expect(moved.inverse).toEqual(update({ pan: 0, lowpassHz: 3000, spaceDb: null }))
+    const undone = apply(moved.score, JSON.parse(JSON.stringify(moved.inverse)) as Operation)
+    expect(canon(undone)).toEqual(canon(added))
+    expect(validateScore(moved.score)).toEqual([])
   })
 
   it('a clip carries muted and meta; an empty meta and muted: false are the same as none', () => {
@@ -784,6 +810,11 @@ function randomOp(random: () => number, score: Score, counter: { n: number }): G
                 fadeCurve: pick(random, ['linear', 'equalPower']),
                 muted: random() < 0.5,
                 reversed: random() < 0.5,
+                ...(random() < 0.5 ? { pan: random() < 0.3 ? null : value * 2 - 1 } : {}),
+                ...(random() < 0.5
+                  ? { lowpassHz: random() < 0.3 ? null : 200 + value * 9000 }
+                  : {}),
+                ...(random() < 0.5 ? { spaceDb: random() < 0.3 ? null : value * -30 } : {}),
                 ...(random() < 0.5
                   ? { meta: random() < 0.3 ? {} : { row: value, tags: ['x'] } }
                   : {}),

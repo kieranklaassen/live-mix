@@ -16,6 +16,7 @@
 // stable (same score → same string) so documents diff well in git.
 
 import { type Clip } from '../core/clips/Clip'
+import { MIN_CLIP_LOWPASS_HZ } from '../core/clips/placement'
 import { canonicalJson, isJsonObject, type JsonObject } from '../core/json'
 import { type LfoShape } from '../core/automation/Modulator'
 import { type ModPolarity } from '../core/automation/ModMatrix'
@@ -697,6 +698,7 @@ function checkClip(raw: unknown, path: string, ctx: Context, clipIds: UniqueIds)
   if (raw.loop !== undefined) check.boolean(raw.loop, `${path}.loop`)
   if (raw.muted !== undefined) check.boolean(raw.muted, `${path}.muted`)
   if (raw.reversed !== undefined) check.boolean(raw.reversed, `${path}.reversed`)
+  checkPlacement(raw, path, check)
   checkMeta(raw.meta, `${path}.meta`, check)
   if (raw.loopStartSec !== undefined)
     check.number(raw.loopStartSec, `${path}.loopStartSec`, { min: 0 })
@@ -730,6 +732,15 @@ function checkWarp(raw: Record<string, unknown>, path: string, check: Checker): 
   }
 }
 
+/** Where a clip sits (`pan`, `lowpassHz`, `spaceDb`), on a clip or on a slot's clip: each optional. */
+function checkPlacement(raw: Record<string, unknown>, path: string, check: Checker): void {
+  if (raw.pan !== undefined) check.number(raw.pan, `${path}.pan`, { min: -1, max: 1 })
+  if (raw.lowpassHz !== undefined) {
+    check.number(raw.lowpassHz, `${path}.lowpassHz`, { min: MIN_CLIP_LOWPASS_HZ })
+  }
+  if (raw.spaceDb !== undefined) check.number(raw.spaceDb, `${path}.spaceDb`)
+}
+
 /** A slot's clip: the clip fields without identity or position. */
 function checkSlotClip(raw: unknown, path: string, ctx: Context): void {
   const { check } = ctx
@@ -745,6 +756,7 @@ function checkSlotClip(raw: unknown, path: string, ctx: Context): void {
   check.number(raw.gainDb, `${path}.gainDb`)
   if (raw.loop !== undefined) check.boolean(raw.loop, `${path}.loop`)
   if (raw.reversed !== undefined) check.boolean(raw.reversed, `${path}.reversed`)
+  checkPlacement(raw, path, check)
   checkWarp(raw, path, check)
   if (raw.warp !== undefined && check.array(raw.warp, `${path}.warp`)) {
     raw.warp.forEach((marker, index) => {
@@ -1195,7 +1207,11 @@ function normaliseDestination(destination: ScoreDestination): ScoreDestination {
   return destination.kind === 'group' ? { kind: 'group', id: destination.id } : { kind: 'master' }
 }
 
-/** Clip fields in a fixed order; `loop`, `muted` and `reversed` only when true (absent and `false` mean the same). */
+/**
+ * Clip fields in a fixed order; `loop`, `muted` and `reversed` only when true
+ * (absent and `false` mean the same). The placement fields are kept as given:
+ * a `pan` of 0 still says the clip is placed.
+ */
 export function normaliseClip(clip: Clip): Clip {
   const out: Clip = {
     id: clip.id,
@@ -1216,6 +1232,9 @@ export function normaliseClip(clip: Clip): Clip {
   if (clip.semitones !== undefined) out.semitones = clip.semitones
   if (clip.muted) out.muted = true
   if (clip.reversed) out.reversed = true
+  if (clip.pan !== undefined) out.pan = clip.pan
+  if (clip.lowpassHz !== undefined) out.lowpassHz = clip.lowpassHz
+  if (clip.spaceDb !== undefined) out.spaceDb = clip.spaceDb
   const meta = normaliseMeta(clip.meta)
   if (meta) out.meta = meta
   return out
@@ -1238,7 +1257,7 @@ export function normaliseSource(source: ScoreSource): ScoreSource {
   return out
 }
 
-/** Slot clip fields in a fixed order; `loop` and `reversed` only when true, warp/semitones only when set. */
+/** Slot clip fields in a fixed order; `loop` and `reversed` only when true, warp, semitones and placement only when set. */
 export function normaliseSlotClip(clip: SlotClip): SlotClip {
   const out: SlotClip = {
     sourceId: clip.sourceId,
@@ -1254,6 +1273,9 @@ export function normaliseSlotClip(clip: SlotClip): SlotClip {
     out.warp = clip.warp.map((m) => ({ sourceSec: m.sourceSec, beat: m.beat }))
   if (clip.semitones !== undefined) out.semitones = clip.semitones
   if (clip.reversed) out.reversed = true
+  if (clip.pan !== undefined) out.pan = clip.pan
+  if (clip.lowpassHz !== undefined) out.lowpassHz = clip.lowpassHz
+  if (clip.spaceDb !== undefined) out.spaceDb = clip.spaceDb
   return out
 }
 

@@ -364,6 +364,15 @@ describe('slotClipOf', () => {
     expect(slotClipOf(placed)).toEqual(slotClip('a', { offsetSec: 1, reversed: true }))
     expect(slotClipOf({ ...placed, reversed: false })).not.toHaveProperty('reversed')
   })
+
+  it('keeps where the clip sits in the mix, a pan of 0 included', () => {
+    const place = { pan: 0, lowpassHz: 2400, spaceDb: -9 }
+    const placed = { id: 'c', startSec: 12, ...slotClip('a', place) }
+    expect(slotClipOf(placed)).toEqual(slotClip('a', place))
+    for (const key of ['pan', 'lowpassHz', 'spaceDb']) {
+      expect(slotClipOf({ id: 'c', startSec: 12, ...slotClip('a') })).not.toHaveProperty(key)
+    }
+  })
 })
 
 describe('Session: one clip per track, legato, launch modes', () => {
@@ -455,6 +464,19 @@ describe('Session: one clip per track, legato, launch modes', () => {
     await advance(0.2)
     // Source seconds [1, 4) of 10, backwards: the mirrored copy from 6 for 3 s.
     expect(sources()[0].startCalls.last).toEqual([contextAt(8), 6, 3])
+  })
+
+  it('a slot whose clip names its place puts a clip in that place on the track', async () => {
+    const { engine, session, advance, document } = await rig({}, (score) => {
+      score.slots[1].clip = slotClip('b', { pan: -0.4, lowpassHz: 3000, spaceDb: -6 })
+    })
+    engine.transport.start()
+    await advance(7.9)
+    session.launchSlot('kick-chorus') // at 8
+    const kick = document.score.tracks.find((track) => track.id === 'kick')
+    expect(kick?.kind === 'audio' && kick.clips).toEqual([
+      expect.objectContaining({ id: 'kick-chorus@1', pan: -0.4, lowpassHz: 3000, spaceDb: -6 }),
+    ])
   })
 
   it('legato into a reversed one-shot skips its far end, which is what would have played', async () => {

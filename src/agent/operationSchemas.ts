@@ -43,10 +43,11 @@ const integer = (description: string, min = 0): JsonSchema => ({
   description,
 })
 const ref = (name: string): JsonSchema => ({ $ref: `#/$defs/${name}` })
-const nullableNumber = (description: string, min?: number): JsonSchema => ({
+const nullableNumber = (description: string, min?: number, max?: number): JsonSchema => ({
   type: ['number', 'null'],
   description,
   ...(min !== undefined ? { minimum: min } : {}),
+  ...(max !== undefined ? { maximum: max } : {}),
 })
 
 const paramMap: JsonSchema = {
@@ -130,6 +131,14 @@ export const OPERATION_DEFS: Record<string, JsonSchema> = {
       semitones: number('Pitch shift on a stretch source.'),
       muted: { type: 'boolean', description: 'Keep the clip on the track without playing it.' },
       reversed: { type: 'boolean', description: "Play the clip's slice of the source backwards." },
+      pan: number("This clip's own place, −1 left … 1 right, ahead of the track's pan.", {
+        min: -1,
+        max: 1,
+      }),
+      lowpassHz: number('Cutoff of a low-pass on this clip alone, in Hz.', { min: 20 }),
+      spaceDb: number(
+        "Send into the track's space (a long dark room), in dB against the clip's own level.",
+      ),
       meta: ref('Meta'),
     },
     required: [
@@ -161,6 +170,9 @@ export const OPERATION_DEFS: Record<string, JsonSchema> = {
       semitones: number('Pitch shift on a stretch source.'),
       muted: { type: 'boolean' },
       reversed: { type: 'boolean' },
+      pan: nullableNumber('−1 left … 1 right; null takes it off the clip.', -1, 1),
+      lowpassHz: nullableNumber('Low-pass cutoff in Hz; null takes it off the clip.', 20),
+      spaceDb: nullableNumber("Send into the track's space in dB; null takes it off the clip."),
       meta: ref('Meta'),
     },
     additionalProperties: false,
@@ -428,6 +440,14 @@ export const OPERATION_DEFS: Record<string, JsonSchema> = {
       loop: { type: 'boolean', description: 'Loop until stopped.' },
       semitones: number('Pitch shift on a stretch source.'),
       reversed: { type: 'boolean', description: 'Play the slice backwards.' },
+      pan: number("The clip's own place, −1 left … 1 right, ahead of the track's pan.", {
+        min: -1,
+        max: 1,
+      }),
+      lowpassHz: number('Cutoff of a low-pass on this clip alone, in Hz.', { min: 20 }),
+      spaceDb: number(
+        "Send into the track's space (a long dark room), in dB against the clip's own level.",
+      ),
     },
     required: [
       'sourceId',

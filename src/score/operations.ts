@@ -9,6 +9,7 @@
 // `apply(invert(op), apply(op)) ≡ score` holds for every operation.
 
 import { type Clip } from '../core/clips/Clip'
+import { CLIP_PLACEMENT_KEYS, type ClipPlacementKey } from '../core/clips/placement'
 import { isJsonObject, isJsonValue, type JsonObject, type JsonValue } from '../core/json'
 import { type ModPolarity } from '../core/automation/ModMatrix'
 import { type Breakpoint } from '../core/automation/ParamLane'
@@ -75,7 +76,13 @@ export interface ModulatorPatch {
   phaseOffset?: number
 }
 
-export type ClipPatch = Partial<Omit<Clip, 'id'>>
+/**
+ * Fields a `clip.update` may patch. A placement field (`pan`, `lowpassHz`,
+ * `spaceDb`) set to `null` is taken off the clip, which is how an undo says
+ * the clip had none.
+ */
+export type ClipPatch = Partial<Omit<Clip, 'id' | ClipPlacementKey>> &
+  Partial<Record<ClipPlacementKey, number | null>>
 
 /**
  * Fields a `source.update` may patch; `null` clears an optional field (a
@@ -650,6 +657,10 @@ function withInserts(score: Score, op: Operation, owner: string, inserts: ScoreD
 }
 
 const tidyClip = normaliseClip
+
+function isPlacementKey(key: string): key is ClipPlacementKey {
+  return (CLIP_PLACEMENT_KEYS as readonly string[]).includes(key)
+}
 
 /** A clip an operation carries: its `meta`, when set, has to be plain JSON. */
 function checkedClip(op: Operation, clip: Clip): Clip {
@@ -1413,7 +1424,9 @@ function patchClip(
   ) {
     fail(op, `no source "${patch.sourceId}"`)
   }
-  const next = checkedClip(op, { ...clip, ...patch })
+  const merged: Record<string, unknown> = { ...clip, ...patch }
+  for (const key of CLIP_PLACEMENT_KEYS) if (merged[key] === null) delete merged[key]
+  const next = checkedClip(op, merged as unknown as Clip)
   return replaceHost(score, track.id, {
     ...track,
     clips: sortClips(track.clips.map((candidate) => (candidate === clip ? next : candidate))),
@@ -1659,7 +1672,9 @@ export function invert(score: Score, op: Operation): Operation {
             ? (clip[key] ?? false)
             : key === 'meta'
               ? (clip.meta ?? {})
-              : clip[key]
+              : isPlacementKey(key)
+                ? (clip[key] ?? null)
+                : clip[key]
       }
       return { type: 'clip.update', track: op.track, id: op.id, patch: patch }
     }

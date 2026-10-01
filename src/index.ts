@@ -169,13 +169,27 @@ export {
   CROSSFADE_SECONDS,
   DEFAULT_LOOKAHEAD_SECONDS,
   MAX_CLIP_GAIN_DB,
+  MIN_PLACED_GAIN_DB,
+  PLACEMENT_RAMP_SECONDS,
   STEER_CROSSFADE_SECONDS,
   STOP_FADE_SECONDS,
+  placedTrimGain,
   trimGain,
   type AudioTrackOptions,
   type ClipVoice,
   type ClipVoiceOptions,
+  type VoicePlace,
+  type VoicePlacement,
 } from './core/tracks/AudioTrack'
+export {
+  DEFAULT_SPACE,
+  SPACE_LEVEL_HIGH_HZ,
+  SPACE_LEVEL_LOW_HZ,
+  generateSpaceImpulse,
+  resolveSpace,
+  spaceImpulseChannel,
+  type SpaceOptions,
+} from './core/tracks/space'
 export * from './core/transport'
 export {
   DEFAULT_BEATS_PER_BAR,

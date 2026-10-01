@@ -480,6 +480,10 @@ export class Session {
     if (slot.clip.warp !== undefined) clip.warp = slot.clip.warp
     if (slot.clip.semitones !== undefined) clip.semitones = slot.clip.semitones
     if (slot.clip.reversed) clip.reversed = true
+    // Where the slot's clip sits in the mix goes onto the track with it.
+    if (slot.clip.pan !== undefined) clip.pan = slot.clip.pan
+    if (slot.clip.lowpassHz !== undefined) clip.lowpassHz = slot.clip.lowpassHz
+    if (slot.clip.spaceDb !== undefined) clip.spaceDb = slot.clip.spaceDb
     ops.push({ type: 'clip.add', track: slot.track, clip })
     const launch: Launch = {
       slotId: slot.id,

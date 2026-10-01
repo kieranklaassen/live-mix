@@ -81,7 +81,7 @@ export function defaultSlot(
   return out
 }
 
-/** A slot clip from a placed arrangement clip: the same slice and envelope, no position. */
+/** A slot clip from an arrangement clip: the same slice, envelope and place in the mix, no position on the timeline. */
 export function slotClipOf(clip: Clip): SlotClip {
   const out: SlotClip = {
     sourceId: clip.sourceId,
@@ -96,6 +96,9 @@ export function slotClipOf(clip: Clip): SlotClip {
   if (clip.warp !== undefined) out.warp = clip.warp
   if (clip.semitones !== undefined) out.semitones = clip.semitones
   if (clip.reversed) out.reversed = true
+  if (clip.pan !== undefined) out.pan = clip.pan
+  if (clip.lowpassHz !== undefined) out.lowpassHz = clip.lowpassHz
+  if (clip.spaceDb !== undefined) out.spaceDb = clip.spaceDb
   return out
 }
 

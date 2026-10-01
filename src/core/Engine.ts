@@ -46,6 +46,7 @@ import { LiveInputTrack, type LiveInputTrackOptions } from './tracks/LiveInputTr
 import { ReturnTrack, type ReturnTrackOptions } from './tracks/ReturnTrack'
 import { SampleRetainer } from './tracks/SampleRetainer'
 import { SampleStore, type SampleStoreOptions } from './tracks/SampleStore'
+import { generateSpaceImpulse, type SpaceOptions } from './tracks/space'
 import { ElementTrack, type ElementTrackOptions } from './sources/ElementTrack'
 import { EngineStats, type EngineStatsOptions } from './stats'
 import { TempoMap } from './time/TempoMap'
@@ -76,6 +77,12 @@ export interface EngineOptions extends ClockOptions {
   retainSamples?: boolean
   /** Render-capacity polling for `engine.stats` (glitch counter). */
   stats?: EngineStatsOptions
+  /**
+   * The room placed clips send into (`Clip.spaceDb`): its decay and colour.
+   * One impulse is generated for the engine on first use and every audio
+   * track convolves with it, so the tracks sound as if they shared a room.
+   */
+  space?: SpaceOptions
 }
 
 export type AddElementTrackOptions = Omit<
@@ -243,10 +250,13 @@ export class Engine {
   private readonly duckers = new Set<SidechainDucker>()
   private readonly alignmentDelays = new Map<ChannelStrip, AlignmentDelay>()
   private readonly disposeListeners = new Set<() => void>()
+  private readonly space: SpaceOptions
+  private spaceBuffer: AudioBuffer | null = null
   private disposed = false
 
   constructor(options: EngineOptions) {
     this.context = options.context
+    this.space = options.space ?? {}
     this.clock = createClock(options.context, options)
     this.output = new OutputRouter(options.context, options.output)
     this.master = new MasterBus(options.context, this.output, options.master)
@@ -310,6 +320,15 @@ export class Engine {
     this.changed('bus', 'removed', name)
   }
 
+  /**
+   * The impulse response of the engine's space (`EngineOptions.space`), made
+   * on first use: what every audio track's placed clips are convolved with.
+   */
+  spaceImpulse(): AudioBuffer {
+    this.spaceBuffer ??= generateSpaceImpulse(this.context, this.space)
+    return this.spaceBuffer
+  }
+
   /** Create a clip track feeding the master (or a bus), registered with the scheduler. */
   addAudioTrack(name: string, options: AddAudioTrackOptions = {}): AudioTrack {
     this.assertLive()
@@ -317,6 +336,7 @@ export class Engine {
       throw new Error(`live-mix: track "${name}" already exists`)
     }
     const track = new AudioTrack(this.context, {
+      spaceImpulse: () => this.spaceImpulse(),
       ...options,
       name,
       destination: options.destination ?? this.master,
