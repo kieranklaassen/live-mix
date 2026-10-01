@@ -50,3 +50,4 @@ emcc "cpp/devices/$id/device_api.gen.cpp" $sources \
   -s STACK_SIZE=131072 \
   -o "src/dsp/wasm/$id.wasm"
 echo "Built src/dsp/wasm/$id.wasm ($(wc -c < "src/dsp/wasm/$id.wasm") bytes)"
+node scripts/smoke-wasm-device.mjs "$id"

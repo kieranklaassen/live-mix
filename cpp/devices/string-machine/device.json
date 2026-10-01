@@ -1,0 +1,101 @@
+{
+  "id": "string-machine",
+  "name": "String Machine",
+  "category": "instrument",
+  "description": "Seventies string ensemble: three octaves of sawtooth per key through a tone filter and a three-phase bucket-brigade ensemble chorus.",
+  "class": "StringMachine",
+  "header": "string_machine.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "attack",
+      "name": "Attack",
+      "min": 0.005,
+      "max": 8,
+      "default": 0.6,
+      "taper": "log",
+      "unit": "s"
+    },
+    {
+      "key": "release",
+      "name": "Release",
+      "min": 0.05,
+      "max": 12,
+      "default": 1.8,
+      "taper": "log",
+      "unit": "s"
+    },
+    { "key": "low", "name": "Cello", "min": 0, "max": 1, "default": 0.4 },
+    { "key": "high", "name": "Violin", "min": 0, "max": 1, "default": 0.35 },
+    {
+      "key": "tone",
+      "name": "Tone",
+      "min": 200,
+      "max": 12000,
+      "default": 3200,
+      "taper": "log",
+      "unit": "Hz"
+    },
+    { "key": "ensemble", "name": "Ensemble", "min": 0, "max": 1, "default": 0.8 },
+    { "key": "speed", "name": "Speed", "min": 0.25, "max": 2, "default": 1 },
+    { "key": "drift", "name": "Drift", "min": 0, "max": 1, "default": 0.3 },
+    { "key": "width", "name": "Width", "min": 0, "max": 1, "default": 0.8 },
+    { "key": "volume", "name": "Volume", "min": -48, "max": 6, "default": -9, "unit": "dB" }
+  ],
+  "presets": {
+    "Solina": {
+      "attack": 0.6,
+      "release": 1.8,
+      "low": 0.4,
+      "high": 0.35,
+      "tone": 3200,
+      "ensemble": 0.8,
+      "speed": 1,
+      "drift": 0.3
+    },
+    "Slow strings": {
+      "attack": 3.5,
+      "release": 6,
+      "low": 0.6,
+      "high": 0.2,
+      "tone": 1800,
+      "ensemble": 0.9,
+      "speed": 0.7,
+      "drift": 0.5
+    },
+    "Glass": {
+      "attack": 1.2,
+      "release": 4,
+      "low": 0,
+      "high": 1,
+      "tone": 7000,
+      "ensemble": 0.7,
+      "speed": 1.3,
+      "drift": 0.2
+    },
+    "Cellos": {
+      "attack": 0.9,
+      "release": 2.5,
+      "low": 1,
+      "high": 0,
+      "tone": 1200,
+      "ensemble": 0.6,
+      "speed": 0.8,
+      "drift": 0.4
+    },
+    "Dry saws": {
+      "attack": 0.02,
+      "release": 0.4,
+      "low": 0.3,
+      "high": 0.3,
+      "tone": 6000,
+      "ensemble": 0,
+      "drift": 0.1,
+      "width": 0
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. The architecture follows the ARP Solina/Omni family in outline (octave-related sawtooths per key, one shared filter, a three-line chorus whose LFOs sit 120 degrees apart at about 0.6 Hz and 6 Hz); it is not a circuit model."
+  }
+}

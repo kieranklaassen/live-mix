@@ -493,6 +493,39 @@ void test_math() {
   }
   EXPECT(worst < 0.025, "fast_tanh stays within 2.5 % of tanh");
   EXPECT(kit::fast_tanh(100.0f) == 1.0f && kit::fast_tanh(-100.0f) == -1.0f, "fast_tanh clamps");
+  EXPECT(kit::soft_clip(0.4f) == 0.4f && kit::soft_clip(-0.5f) == -0.5f, "soft_clip is linear to 0.5");
+  EXPECT(kit::soft_clip(100.0f) == 1.0f && kit::soft_clip(-100.0f) == -1.0f, "soft_clip lands on 1");
+  {
+    bool monotonic = true;
+    for (float x = -4.0f; x < 4.0f; x += 0.01f) {
+      if (kit::soft_clip(x + 0.01f) < kit::soft_clip(x)) monotonic = false;
+    }
+    EXPECT(monotonic, "soft_clip is monotonic");
+  }
+  {
+    kit::SampleStore<1024>* store = new kit::SampleStore<1024>();
+    for (int i = 0; i < 100; ++i) store->buffer()[i] = 0.01f * static_cast<float>(i);
+    store->buffer()[7] = std::nanf("");
+    store->commit(100, 1, 44100.0f);
+    EXPECT(store->frames() == 100 && store->loaded(), "sample store keeps what was committed");
+    EXPECT(store->at(1, 50) == 0.01f * 50.0f, "a mono sound is copied to the right channel");
+    EXPECT(store->at(0, 7) == 0.0f, "non-finite samples are zeroed on commit");
+    EXPECT_NEAR(store->read(0, 20.5), 0.205f, 1.0e-5, "sample store reads between frames");
+    EXPECT(store->read(0, -5.0) == 0.0f && store->read(0, 100.0) == 0.0f, "silence outside the sound");
+    EXPECT_NEAR(store->read_wrapped(0, 61.5, 20, 60), 0.215f, 1.0e-5, "wrapped reads fold into the loop");
+    store->commit(5000, 2, 48000.0f);
+    EXPECT(store->frames() == 1024, "a commit past capacity is clamped");
+    delete store;
+
+    kit::IdleGate gate;
+    gate.reset(48000.0f, 0.01f);
+    EXPECT(!gate.wake(false), "an idle gate starts asleep");
+    EXPECT(gate.wake(true), "excitation wakes it");
+    gate.settle(0.5f, 128);
+    EXPECT(gate.wake(false), "it stays awake while there is output");
+    for (int i = 0; i < 4; ++i) gate.settle(0.0f, 128);
+    EXPECT(!gate.wake(false), "it sleeps after the hold of silence");
+  }
   float dry, wet;
   kit::equal_power(0.5f, &dry, &wet);
   EXPECT_NEAR(dry * dry + wet * wet, 1.0, 1.0e-6, "equal-power mix keeps the power");

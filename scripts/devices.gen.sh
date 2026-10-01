@@ -4,11 +4,15 @@
 # (native_test).
 
 build_generated_devices() {
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device string-machine \
+    cpp/devices/string-machine/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device tape-echo \
     cpp/devices/tape-echo/device_api.gen.cpp
 }
 
 test_generated_devices() {
+  native_test string_machine_test \
+    cpp/test/string_machine_test.cpp
   native_test tape_echo_test \
     cpp/test/tape_echo_test.cpp
 }

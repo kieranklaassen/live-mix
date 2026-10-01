@@ -2,17 +2,26 @@
 
 import { type DeviceDescriptor } from '../../core/devices'
 import { type WasmDeviceDefinition } from '../WasmDevice'
+import { STRING_MACHINE_DESCRIPTOR, STRING_MACHINE_DEVICE } from './string-machine.gen'
 import { TAPE_ECHO_DESCRIPTOR, TAPE_ECHO_DEVICE } from './tape-echo.gen'
 
+export * from './string-machine.gen'
 export * from './tape-echo.gen'
 
 /** Every generated WASM device, in id order; part of `STOCK_WASM_DEVICES`. */
-export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [TAPE_ECHO_DESCRIPTOR]
+export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
+  STRING_MACHINE_DESCRIPTOR,
+  TAPE_ECHO_DESCRIPTOR,
+]
 
 /** Their definitions (module location and parameter table), in the same order. */
-export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [TAPE_ECHO_DEVICE]
+export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
+  STRING_MACHINE_DEVICE,
+  TAPE_ECHO_DEVICE,
+]
 
 /** What the device-agnostic tests need to know about each generated artefact. */
 export const GENERATED_WASM_DEVICES = [
+  { id: 'string-machine', instrument: true, samples: false, memoryMb: 4 },
   { id: 'tape-echo', instrument: false, samples: false, memoryMb: 4 },
 ] as const

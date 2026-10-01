@@ -41,6 +41,16 @@ inline float fast_tanh(float x) {
   return x * (27.0f + x2) / (27.0f + 9.0f * x2);
 }
 
+// Output safety for instruments and anything that can stack: exactly linear
+// up to ±0.5, then a smooth knee that lands on ±1. Unlike a bare tanh it
+// leaves normal levels untouched.
+inline float soft_clip(float x) {
+  const float magnitude = x < 0.0f ? -x : x;
+  if (magnitude <= 0.5f) return x;
+  const float shaped = 0.5f + 0.5f * fast_tanh((magnitude - 0.5f) * 2.0f);
+  return x < 0.0f ? -shaped : shaped;
+}
+
 // Equal-power dry/wet gains for mix in [0, 1].
 inline void equal_power(float mix, float* dry_gain, float* wet_gain) {
   const float angle = clamp(mix, 0.0f, 1.0f) * kHalfPi;
