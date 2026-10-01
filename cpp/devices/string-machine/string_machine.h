@@ -156,8 +156,8 @@ class StringMachine : public kit::DeviceBase<string_machine::kNumParams> {
     float level() const { return env.level(); }
   };
 
-  // One key at full velocity peaks near -14 dBFS before Volume.
-  static constexpr float kVoiceGain = 0.11f;
+  // One key at full velocity peaks near -10 dBFS before Volume.
+  static constexpr float kVoiceGain = 0.18f;
   static constexpr float kChorusBaseSeconds = 0.006f;
   static constexpr float kSlowDepthSeconds = 0.0012f;
   static constexpr float kFastDepthSeconds = 0.00018f;
