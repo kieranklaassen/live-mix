@@ -56,7 +56,7 @@ export const STRING_MACHINE_PRESETS: readonly FactoryPreset[] = [
     description: 'The low octave alone: a dark section sound for slow bass lines and drones.',
     instrument: { deviceId: 'string-machine', preset: 'Cellos', params: { volume: -5 } },
     effects: [
-      { deviceId: 'saturator', preset: 'Warm Glue' },
+      { deviceId: 'saturator', preset: 'Warm Glue', params: { outputDb: -4.5 } },
       { deviceId: 'zita-rev1', preset: 'Hall' },
     ],
     preview: 'low',

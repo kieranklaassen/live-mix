@@ -53,7 +53,7 @@ export const GRAIN_SYNTH_PRESETS: readonly FactoryPreset[] = [
     instrument: {
       deviceId: 'grain-synth',
       preset: 'Backwards wash',
-      params: { position: 0.12, scan: -0.08, size: 700, spread: 0.5, volume: -6 },
+      params: { position: 0.12, scan: -0.08, size: 700, spread: 0.5, volume: -10 },
     },
     effects: [{ deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.35 } }],
   },
@@ -78,7 +78,7 @@ export const GRAIN_SYNTH_PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'tape', preset: 'Disintegrating loop' },
+      { deviceId: 'tape', preset: 'Disintegrating loop', params: { output: -3 } },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },

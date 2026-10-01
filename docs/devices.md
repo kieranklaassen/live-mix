@@ -34,11 +34,11 @@ bounds.
 | `dattorro`          | ambient-live's Dattorro plate                                                 | reverb       | mix, decay, damping, predelayMs                                                                                                                                    | 9,659 B  | —                                                           | 7.5 µs / block, 0.28 %                                      |                  |
 | `fdn-reverb`        | kkfonie Tides (8-line FDN, breathing gate)                                    | reverb       | mix, decay, damping, predelayMs, size, breathRate, breathDepth                                                                                                     | 13,349 B | —                                                           | 31.7 µs / block, 1.19 %                                     |                  |
 | `stereo-widener`    | kkfonie StereoWidener (byte-identical)                                        | spatial      | width                                                                                                                                                              | 3,553 B  | —                                                           | 3.8 µs / block, 0.14 %                                      |                  |
-| `zita-rev1`         | Faust `re.zita_rev1_stereo`                                                   | reverb       | see `src/dsp/devices/faust/zita-rev1.ts`                                                                                                                           | 17,754 B | —                                                           | 7.8 µs / block, 0.29 %                                      |                  |
-| `limiter-1176`      | Faust                                                                         | dynamics     | inputGain, outputGain                                                                                                                                              | 6,222 B  | —                                                           | 4.9 µs / block, 0.18 %                                      |                  |
+| `zita-rev1`         | Faust `re.zita_rev1_stereo`                                                   | reverb       | see `src/dsp/devices/faust/zita-rev1.ts`                                                                                                                           | 17,728 B | —                                                           | 7.8 µs / block, 0.29 %                                      |                  |
+| `limiter-1176`      | Faust                                                                         | dynamics     | inputGain, outputGain                                                                                                                                              | 7,066 B  | —                                                           | 4.9 µs / block, 0.18 %                                      |                  |
 | `true-peak-limiter` | live-mix (BS.1770 true-peak brickwall)                                        | master stage | ceilingDb, releaseMs, inputGainDb                                                                                                                                  | 5,135 B  | —                                                           | 6.3 µs / block, 0.23 %                                      |                  |
 | `spectral-drifter`  | kkfonie Bloom `SpectralDrifter` (de-JUCEd)                                    | other        | mix, bloom, direction, season, seed, interval, decay, ageMode, age                                                                                                 | 12,418 B | 18.5 µs / block, 0.69 %                                     | 43.4 µs / block, 1.63 % (Atonal/Scatter, bloom 1)           |                  |
-| `ether-reverb`      | kkfonie Ether (Freeverb as `juce::dsp::Reverb`, pre-delay, decay law, freeze) | reverb       | mix, decay, damping, predelayMs, size, freeze                                                                                                                      | 6,753 B  | 6.8 µs / block, 0.25 %                                      | 8.4 µs / block, 0.32 %                                      |                  |
+| `ether-reverb`      | kkfonie Ether (Freeverb as `juce::dsp::Reverb`, pre-delay, decay law, freeze) | reverb       | mix, decay, damping, predelayMs, size, freeze                                                                                                                      | 7,254 B  | 6.8 µs / block, 0.25 %                                      | 8.4 µs / block, 0.32 %                                      |                  |
 | `felt-piano`        | kkfonie Felt (modal felt piano; ten DSP sources byte-identical)               | instrument   | felt, hardness, detune, stiffness, thump, action, pedalNoise, grit, resonance, damper, reverbMix, reverbSize, width, outputDb, sustain, sostenuto, soft, polyphony | 49,404 B | typical 152 µs / block, 5.7 %; worst 340 µs / block, 12.7 % | typical 218 µs / block, 8.2 %; worst 512 µs / block, 19.2 % | **experimental** |
 
 Costs for the devices that predate this page were measured with the same Node
@@ -70,14 +70,14 @@ hold 8 notes).
 | `choir`          | Choir             | live-mix            | instrument | 12     | 33,135 B | 66.9 µs, 2.51 %       | 46.7 µs, 1.75 %            | 0                 | 4           |
 | `chorus`         | Chorus            | kkfonie Tatami      | modulation | 8      | 12,666 B | 24.3 µs, 0.91 %       | 18.7 µs, 0.70 %            | 0                 | 4           |
 | `drone`          | Drone             | live-mix            | instrument | 13     | 32,213 B | 56.1 µs, 2.11 %       | 73.5 µs, 2.75 %            | 0                 | 4           |
-| `ember`          | Ember             | kkfonie Tatami      | instrument | 43     | 37,237 B | 55.8 µs, 2.09 %       | 75.8 µs, 2.84 %            | 16                | 4           |
+| `ember`          | Ember             | kkfonie Tatami      | instrument | 43     | 37,239 B | 55.8 µs, 2.09 %       | 75.8 µs, 2.84 %            | 16                | 4           |
 | `expanse`        | Expanse           | live-mix            | reverb     | 11     | 31,432 B | 60.4 µs, 2.27 %       | 33.3 µs, 1.25 %            | 0                 | 6           |
 | `flanger`        | Flanger           | kkfonie Tatami      | modulation | 7      | 11,926 B | 11.9 µs, 0.45 %       | 10.4 µs, 0.39 %            | 0                 | 4           |
 | `fm-glass`       | Glass             | live-mix            | instrument | 12     | 26,749 B | 90.2 µs, 3.38 %       | 42.0 µs, 1.57 %            | 0                 | 4           |
 | `freq-shifter`   | Frequency Shifter | live-mix            | pitch      | 10     | 14,333 B | 26.8 µs, 1.01 %       | 18.9 µs, 0.71 %            | 0                 | 4           |
 | `grain-cloud`    | Cloud             | live-mix            | texture    | 12     | 15,870 B | 18.4 µs, 0.69 %       | 23.8 µs, 0.89 %            | 0                 | 10          |
 | `grain-delay`    | Grain Delay       | live-mix            | delay      | 11     | 17,855 B | 27.2 µs, 1.02 %       | 32.8 µs, 1.23 %            | 0                 | 10          |
-| `grain-synth`    | Grain             | live-mix            | instrument | 14     | 32,028 B | 61.6 µs, 2.31 %       | 72.0 µs, 2.70 %            | 0                 | 12          |
+| `grain-synth`    | Grain             | live-mix            | instrument | 14     | 32,011 B | 61.6 µs, 2.31 %       | 72.0 µs, 2.70 %            | 0                 | 12          |
 | `lattice`        | Lattice           | kkfonie Lattice     | pitch      | 59     | 34,723 B | 52.7 µs, 1.98 %       | 62.2 µs, 2.33 %            | 0                 | 4           |
 | `modal-bells`    | Bells             | live-mix            | instrument | 12     | 24,210 B | 58.5 µs, 2.20 %       | 40.6 µs, 1.52 %            | 0                 | 4           |
 | `organ`          | Reed Organ        | live-mix            | instrument | 13     | 23,093 B | 127.0 µs, 4.76 %      | 70.4 µs, 2.64 %            | 0                 | 4           |
@@ -85,7 +85,7 @@ hold 8 notes).
 | `reverse-delay`  | Reverse Delay     | live-mix            | delay      | 8      | 15,057 B | 17.1 µs, 0.64 %       | 13.2 µs, 0.50 %            | 0                 | 20          |
 | `rotary`         | Rotary            | live-mix            | modulation | 9      | 16,495 B | 25.3 µs, 0.95 %       | 27.2 µs, 1.02 %            | 0                 | 4           |
 | `sampler`        | Sampler           | live-mix            | instrument | 13     | 27,427 B | 46.8 µs, 1.76 %       | 30.9 µs, 1.16 %            | 0                 | 24          |
-| `saturator`      | Saturator         | kkfonie Tatami      | drive      | 9      | 23,810 B | 46.1 µs, 1.73 %       | 40.5 µs, 1.52 %            | 39                | 4           |
+| `saturator`      | Saturator         | kkfonie Tatami      | drive      | 9      | 23,626 B | 46.1 µs, 1.73 %       | 40.5 µs, 1.52 %            | 39                | 4           |
 | `shimmer`        | Shimmer           | live-mix            | reverb     | 10     | 26,901 B | 70.4 µs, 2.64 %       | 39.1 µs, 1.47 %            | 0                 | 4           |
 | `spectral-blur`  | Spectral Blur     | live-mix            | texture    | 9      | 17,643 B | 42.8 µs, 1.60 %       | 53.1 µs, 1.99 %            | 2304              | 4           |
 | `spring-reverb`  | Spring            | live-mix            | reverb     | 9      | 22,946 B | 33.2 µs, 1.25 %       | 26.1 µs, 0.98 %            | 0                 | 4           |
@@ -192,6 +192,16 @@ the pre-delay silence and mutes the dry, so whatever is in the combs hangs
 losslessly until released. Output is Ether's linear `dry * (1 - mix) + wet *
 mix`.
 
+Freeze on an empty room is the one place the device does not follow Ether.
+There, freeze shuts the input and the dry signal the moment it is on, so the
+"Frozen" preset, or a session saved with freeze on, loaded to silence and
+stayed silent whatever was played. Here a freeze with nothing in the room
+(the reverb's own output under about −50 dBFS) is armed: the device runs
+unfrozen, the first sound gets in and is heard, and once its tail has turned
+and fallen 3 dB from its top the room is held (2 s after the tail became
+audible at the latest, so a pad that keeps swelling is held too). From then
+on it is Ether's freeze. Thrown while the room is ringing it holds at once.
+
 Deviations, all recorded in `device.json`: `mix` and the freeze dry-mute ramp
 over 5 ms (Ether steps them per block); the reverb's parameters are applied
 before the rate is set so there is no start-up ramp from JUCE's constructor
@@ -213,8 +223,9 @@ Verification: `cpp/test/ether_reverb_test.cpp` checks the line lengths at
 44.1/48/96 kHz, the knob law and Freeverb's mapping, the linear mix and
 input-bus contract, onset at the shortest comb (1214 / 1239 samples at 48 kHz)
 and with pre-delay, a decaying tail whose RT60 grows with decay and size and is
-rate-independent, damping, freeze (held level over 8 s, silence in, silence
-out), 10 s of loud input at maximum feedback, the flush to exact zero, the 5 ms
+rate-independent, damping, freeze (held level over 8 s, no more input once
+held; armed on an empty room, silent until a sound arrives, then held near
+the top of its tail, at 44.1, 48 and 96 kHz), 10 s of loud input at maximum feedback, the flush to exact zero, the 5 ms
 host ramps, and prints the CPU cost; `src/dsp/__tests__/ether-reverb-wasm.test.ts`
 repeats the mix law, onsets, tail-to-silence, freeze and stability checks on
 the artefact.

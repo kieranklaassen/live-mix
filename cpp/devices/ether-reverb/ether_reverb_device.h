@@ -15,7 +15,8 @@ enum class EtherReverbParam : int {
   kDamping = 2,     // 0..1     default 0.4
   kPredelayMs = 3,  // 0..200   default 0
   kSize = 4,        // 0..1     Freeverb roomSize before the decay offset, default 0.6
-  kFreeze = 5,      // 0/1      >= 0.5 freezes: input and dry muted, combs lossless; default 0
+  kFreeze = 5,      // 0/1      >= 0.5 freezes: input and dry muted, combs lossless; default 0.
+                    //          Thrown on an empty room it waits for a sound and holds that.
 };
 
 // kkfonie Ether (Ether/Source/PluginProcessor.cpp:112-195) behind the device
@@ -33,6 +34,16 @@ enum class EtherReverbParam : int {
 // are click-free. Everything inside Freeverb (10 ms linear ramps, instant
 // input-gain switch on freeze) is juce::Reverb's. Statically allocated;
 // process() is allocation-free.
+//
+// Freeze on an empty room (a deviation): Ether's freeze mutes the input and
+// the dry signal the moment it is thrown, so thrown with nothing ringing (a
+// preset or a saved session that loads with it on) there is nothing to hold
+// and nothing gets in: silence for good. Here a freeze with nothing to hold
+// is armed instead. The device keeps running unfrozen until a sound arrives,
+// lets its tail build, and holds it once the tail has turned and fallen 3 dB
+// from its top (two seconds after it became audible at the latest, so a pad
+// that keeps swelling is held too). From then on it is Ether's freeze. Thrown
+// while the room is ringing it holds at once, as in Ether.
 class EtherReverbDevice {
  public:
   static constexpr int kMaxBlockFrames = 2048;
@@ -96,7 +107,10 @@ class EtherReverbDevice {
   float damping() const { return damping_; }
   float predelay_ms() const { return predelay_ms_; }
   float size() const { return size_; }
+  // The Freeze switch, and whether the room is being held yet: a freeze
+  // thrown on an empty room is armed until it has caught a sound.
   bool frozen() const { return frozen_; }
+  bool holding() const { return hold_ == Hold::kHolding; }
 
   // Write up to kMaxBlockFrames of input here before each process() call;
   // process() consumes and clears it.
@@ -115,8 +129,23 @@ class EtherReverbDevice {
 
  private:
   static constexpr float kSmoothingSeconds = 0.005f;
+  // The level of the reverb's own output (pre-mix, both channels' power,
+  // smoothed over 30 ms) above which there is something worth holding:
+  // about -50 dBFS, over a microphone's noise floor.
+  static constexpr float kAudiblePower = 1.0e-5f;
+  static constexpr float kFollowerSeconds = 0.03f;
+  // An armed freeze holds once the tail is 3 dB under its highest so far.
+  // Not before two follower times have passed, so the first reflections do
+  // not count as a peak; not later than two seconds.
+  static constexpr float kPastPeak = 0.5f;
+  static constexpr float kCatchMinSeconds = 0.06f;
+  static constexpr float kCatchMaxSeconds = 2.0f;
+
+  // Off, waiting for a sound, letting its tail build, held.
+  enum class Hold : int { kOff = 0, kArmed, kCatching, kHolding };
 
   void apply_parameters();
+  void advance_catch();
 
   float sample_rate_ = 48000.0f;
   bool primed_ = false;
@@ -128,6 +157,14 @@ class EtherReverbDevice {
   float size_ = kDefaultSize;
   bool frozen_ = false;
   float predelay_samples_ = 0.0f;
+
+  Hold hold_ = Hold::kOff;
+  float wet_power_ = 0.0f;
+  float follower_coefficient_ = 0.0f;
+  float catch_peak_ = 0.0f;
+  int catch_frames_ = 0;
+  int catch_min_frames_ = 0;
+  int catch_max_frames_ = 0;
 
   Smoother dry_gain_;
   Smoother wet_gain_;

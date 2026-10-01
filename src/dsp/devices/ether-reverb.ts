@@ -59,7 +59,9 @@ export type EtherReverb = WasmDevice<typeof ETHER_REVERB_PARAMS>
  * per channel, as juce::Reverb runs it) fed through `predelayMs`, with `decay`
  * and `size` setting the room and `damping` the high-frequency loss. `freeze`
  * (>= 0.5) makes the combs lossless and mutes the input and the dry signal so
- * the tail hangs until released. Linear dry/wet `mix`.
+ * the tail hangs until released. Switched on with nothing ringing (a preset
+ * or a saved session that loads with it on) it waits: the next sound gets in,
+ * and its tail is what is held. Linear dry/wet `mix`.
  */
 export function createEtherReverb(
   context: BaseAudioContext,

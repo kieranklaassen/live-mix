@@ -9,7 +9,7 @@ export const MODAL_BELLS_PRESETS: readonly FactoryPreset[] = [
     instrument: {
       deviceId: 'modal-bells',
       preset: 'Rubbed bowl',
-      params: { decay: 7, release: 0.3, volume: -5 },
+      params: { decay: 7, release: 0.3, volume: -8 },
     },
     effects: [{ deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } }],
     preview: 'line',
@@ -22,7 +22,7 @@ export const MODAL_BELLS_PRESETS: readonly FactoryPreset[] = [
     instrument: {
       deviceId: 'modal-bells',
       preset: 'Kalimba',
-      params: { hardness: 0.8, brightness: 0.65, volume: -3 },
+      params: { hardness: 0.8, brightness: 0.65, volume: -5.5 },
     },
     effects: [
       { deviceId: 'reverse-delay', preset: 'Backwards echo' },

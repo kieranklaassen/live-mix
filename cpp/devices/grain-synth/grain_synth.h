@@ -272,20 +272,31 @@ class GrainSynth : public kit::DeviceBase<grain_synth::kNumParams> {
       dc = std::cos(step);
       ds = std::sin(step);
     }
-    double next() {
-      const double out = s;
+    void turn() {
       const double turned = c * dc - s * ds;
       s = s * dc + c * ds;
       c = turned;
+    }
+    double next() {
+      const double out = s;
+      turn();
       return out;
     }
   };
 
   // The built-in sound. Every component completes a whole number of cycles
-  // in the loop: partial k of middle C turns k · 1046 times on the left and
-  // one turn more or fewer on the right (a 0.25 Hz drift between the
-  // channels), each partial breathes on its own slow cycle, and the roll-off
-  // (and the breath noise with it) opens to the midpoint and closes again.
+  // in the loop: partial k of middle C turns k · 1046 times, each partial
+  // breathes on its own slow cycle, and the roll-off (and the breath noise
+  // with it) opens to the midpoint and closes again.
+  //
+  // Stereo: each partial is its sine in both channels plus a little of its
+  // cosine, taken off on the left and added on the right, by an amount that
+  // leans from side to side on a slow cycle of its own. So the two channels
+  // add up to exactly the plain partials wherever the sound is read: nothing
+  // cancels in mono. (The first version ran each partial one turn more or
+  // fewer on the right over the loop. Half way through, left and right were
+  // out of phase, and a key holding the middle of the sound had 4 to 5 dB
+  // more side than mid.)
   void build_default_sound() {
     float* left = store_.channel(0);
     float* right = store_.channel(1);
@@ -294,12 +305,10 @@ class GrainSynth : public kit::DeviceBase<grain_synth::kNumParams> {
     const double turn = two_pi / static_cast<double>(n);
     kit::Rng rng;
     rng.seed(0x1F83D9ABu);
-    Rotor osc_left[kDefaultPartials], osc_right[kDefaultPartials], swell[kDefaultPartials];
+    Rotor osc[kDefaultPartials], lean[kDefaultPartials], swell[kDefaultPartials];
     for (int k = 0; k < kDefaultPartials; ++k) {
-      const double phase = two_pi * rng.uniform();
-      const double cycles = static_cast<double>((k + 1) * kDefaultCycles);
-      osc_left[k].start(phase, turn * cycles);
-      osc_right[k].start(phase + 1.5 * rng.bipolar(), turn * (cycles + ((k & 1) ? 1.0 : -1.0)));
+      osc[k].start(two_pi * rng.uniform(), turn * static_cast<double>((k + 1) * kDefaultCycles));
+      lean[k].start(two_pi * rng.uniform(), turn * static_cast<double>(1 + (k * 2) % 3));
       swell[k].start(two_pi * rng.uniform(), turn * static_cast<double>(1 + (k * 3) % 5));
     }
     Rotor opening;
@@ -313,8 +322,10 @@ class GrainSynth : public kit::DeviceBase<grain_synth::kNumParams> {
       double level = 1.0, sum_left = 0.0, sum_right = 0.0;
       for (int k = 0; k < kDefaultPartials; ++k) {
         const double amplitude = level * (1.0 + 0.35 * swell[k].next());
-        sum_left += amplitude * osc_left[k].next();
-        sum_right += amplitude * osc_right[k].next();
+        const double side = kDefaultLean * lean[k].next() * osc[k].c;
+        sum_left += amplitude * (osc[k].s - side);
+        sum_right += amplitude * (osc[k].s + side);
+        osc[k].turn();
         level *= rolloff;
       }
       // Breath: white noise band-limited to roughly 1 to 5 kHz.
@@ -331,7 +342,11 @@ class GrainSynth : public kit::DeviceBase<grain_synth::kNumParams> {
     store_.commit(n, 2, kDefaultRate);
   }
 
-  static constexpr double kDefaultLevel = 0.16;
+  // How far a partial leans to one side at most: its side signal over its mid.
+  // On average that is 7.4 dB of side under the mid, all along the sound.
+  static constexpr double kDefaultLean = 0.6;
+  // 0.16 less the power the lean adds to each channel (1 + lean² / 2).
+  static constexpr double kDefaultLevel = 0.1473;
   void adopt_store(bool stereo) {
     // Anything shorter than a Hermite stencil or two is treated as empty.
     frames_ = store_.frames() >= 16 ? store_.frames() : 0;

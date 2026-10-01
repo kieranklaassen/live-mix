@@ -10,7 +10,7 @@ export const DRONE_PRESETS: readonly FactoryPreset[] = [
     instrument: {
       deviceId: 'drone',
       preset: 'Tanpura',
-      params: { wave: 1, cutoff: 7000, movement: 0.8, rate: 0.25, width: 0.75, volume: -9 },
+      params: { wave: 1, cutoff: 7000, movement: 0.8, rate: 0.25, width: 0.75, volume: -11.5 },
     },
     effects: [
       { deviceId: 'sympathetic', preset: 'Sitar drone', params: { mix: 0.5, width: 0.7 } },
@@ -29,7 +29,7 @@ export const DRONE_PRESETS: readonly FactoryPreset[] = [
       params: { partials: 0.6, wave: 0.6, sub: 0.6, cutoff: 800, volume: -8 },
     },
     effects: [
-      { deviceId: 'tape', preset: 'Hot glue' },
+      { deviceId: 'tape', preset: 'Hot glue', params: { output: -4.5 } },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.25 } },
     ],
   },

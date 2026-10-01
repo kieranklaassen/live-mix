@@ -4,7 +4,8 @@
 // the linear mix law and input-bus contract, onset at the shortest comb and
 // with pre-delay, a tail that decays and whose RT60 grows with decay and size
 // and is sample-rate independent, damping darkening the tail, freeze holding
-// energy and muting the input and dry, stability under loud input, the tail
+// energy and muting the input and dry, a freeze on an empty room waiting for
+// a sound to hold, stability under loud input, the tail
 // flushing to exact zero, 5 ms host ramps and the CPU cost.
 // Compiled with the system C++ compiler by scripts/test-native.sh.
 
@@ -337,24 +338,82 @@ void test_freeze_holds_energy_and_mutes_input() {
   float rms_d = 0.0f;
   render_seconds(device, 2.0f, kSampleRate, &rms_d);
   EXPECT(rms_d < 0.5f * rms_a, "unfreezing lets the tail decay again");
+}
 
-  // Frozen from the start: input reaches neither the reverb nor the dry path,
-  // so a loud block produces exact silence once the 5 ms dry ramp is done.
+// A freeze thrown with nothing ringing (the "Frozen" preset, a saved session
+// that loads with it on) used to shut the room on silence for good. It is
+// armed instead: the first sound gets in, and its tail is what is held.
+void test_freeze_on_an_empty_room_waits_for_a_sound() {
+  EtherReverbDevice& device = g_test_device;
   device.init(kSampleRate);
+  device.set_param(EtherReverbParam::kMix, 0.5f);
   device.set_param(EtherReverbParam::kFreeze, 1.0f);
-  float peak = 0.0f;
-  for (int block = 0; block < 40; ++block) {
-    for (int i = 0; i < kBlock; ++i) {
-      device.in_left()[i] = 0.9f;
-      device.in_right()[i] = 0.9f;
-    }
-    device.process(kBlock);
-    if (block >= 4) {
-      for (int i = 0; i < kBlock; ++i) peak = std::max(peak, std::fabs(device.out_left()[i]));
-    }
+  EXPECT(device.frozen() && !device.holding(), "a freeze on an empty room is armed, not holding");
+  EXPECT(render_seconds(device, 3.0f, kSampleRate) == 0.0f && !device.holding(),
+         "armed in silence: exact silence out, and it stays armed however long");
+
+  // A held tone: the dry signal still passes while the tail builds, and the
+  // hold lands inside the catch window.
+  const float onset_peak = feed_tone(device, 0.05f, 440.0f, 0.5f);
+  EXPECT(onset_peak > 0.2f, "the dry signal passes until the room is held");
+  EXPECT(!device.holding(), "not held on the first reflections of a sound");
+  feed_tone(device, 2.2f, 440.0f, 0.5f);
+  EXPECT(device.holding(), "held at the latest 2 s after the sound became audible");
+  EXPECT(device.reverb().current_feedback() == 1.0f && device.reverb().input_gain() == 0.0f,
+         "once held it is Ether's freeze: feedback 1, input gain 0");
+
+  float rms_a = 0.0f, rms_b = 0.0f;
+  render_seconds(device, 0.1f, kSampleRate);
+  render_seconds(device, 2.0f, kSampleRate, &rms_a);
+  render_seconds(device, 4.0f, kSampleRate);
+  render_seconds(device, 2.0f, kSampleRate, &rms_b);
+  EXPECT(rms_a > 1.0e-2f, "what it caught is audible");
+  EXPECT(std::fabs(rms_b - rms_a) < 0.1f * rms_a, "and holds its level over 8 s");
+
+  // Held: a second sound gets in neither through the room nor dry.
+  float rms_fed = 0.0f;
+  feed_tone(device, 1.0f, 660.0f, 0.9f);
+  render_seconds(device, 2.0f, kSampleRate, &rms_fed);
+  EXPECT(std::fabs(rms_fed - rms_a) < 0.1f * rms_a, "a held room takes no more input");
+
+  // A short note in a short room: the tail peaks early and is caught near
+  // its top, not after it has died away.
+  device.init(kSampleRate);
+  device.set_param(EtherReverbParam::kMix, 1.0f);
+  device.set_param(EtherReverbParam::kDecay, 0.5f);
+  device.set_param(EtherReverbParam::kSize, 0.2f);
+  device.set_param(EtherReverbParam::kFreeze, 1.0f);
+  feed_tone(device, 0.05f, 440.0f, 0.5f);
+  float running = 0.0f;
+  render_seconds(device, 0.05f, kSampleRate, &running);
+  render_seconds(device, 0.25f, kSampleRate);
+  EXPECT(device.holding(), "a dying tail is held well inside a third of a second");
+  float held = 0.0f;
+  render_seconds(device, 2.0f, kSampleRate, &held);
+  std::printf("ether-reverb armed freeze, 50 ms note in a 0.5 s room: early tail %.4f rms, held %.4f rms\n",
+              running, held);
+  EXPECT(held > 0.25f * running, "a short note is caught within 12 dB of its early tail");
+
+  // Released and thrown again on the decayed room: armed again.
+  device.set_param(EtherReverbParam::kFreeze, 0.0f);
+  render_seconds(device, 20.0f, kSampleRate);
+  device.set_param(EtherReverbParam::kFreeze, 1.0f);
+  EXPECT(!device.holding(), "thrown again once the room has died away, it waits again");
+  // The same value sent twice does not re-arm a held room.
+  feed_tone(device, 2.5f, 440.0f, 0.5f);
+  EXPECT(device.holding(), "caught again");
+  device.set_param(EtherReverbParam::kFreeze, 1.0f);
+  EXPECT(device.holding(), "setting freeze to the value it has changes nothing");
+
+  // Sample-rate independent: the same catch window at 44.1 and 96 kHz.
+  for (float rate : {44100.0f, 96000.0f}) {
+    device.init(rate);
+    device.set_param(EtherReverbParam::kFreeze, 1.0f);
+    feed_tone(device, 0.05f, 440.0f, 0.5f, rate);
+    const bool early = device.holding();
+    feed_tone(device, 2.2f, 440.0f, 0.5f, rate);
+    EXPECT(!early && device.holding(), "the catch window is in seconds, not samples");
   }
-  EXPECT(peak == 0.0f, "while frozen neither the input nor the dry reaches the output");
-  EXPECT(device.reverb().is_silent_state(), "input while frozen never enters the combs");
 }
 
 void test_stability_under_loud_input() {
@@ -468,6 +527,7 @@ int main() {
   test_tail_decays_and_rt60_tracks_decay();
   test_damping_darkens_tail();
   test_freeze_holds_energy_and_mutes_input();
+  test_freeze_on_an_empty_room_waits_for_a_sound();
   test_stability_under_loud_input();
   test_tail_flushes_to_exact_zero();
   test_host_gains_ramp();

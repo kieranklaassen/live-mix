@@ -5,7 +5,8 @@ import { DEVICE_EXPORT_NAMES, dbToGain, gainToDb, loadWasmDevice } from './wasm-
 
 const P = LIMITER_1176_PARAMS
 
-// co.limiter_1176_R4_stereo: level = |L|+|R| in dB, 4:1 above -6 dB.
+// co.limiter_1176_R4_stereo: level = |L|+|R| in dB, 4:1 above -6 dB. The
+// ceiling after it is a wire up to half scale, which is where these sit.
 const expectedPeak = (gain: number) => {
   const overDb = Math.max(0, gainToDb(2 * gain) + 6)
   return gain * dbToGain(-overDb * 0.75)
@@ -61,11 +62,28 @@ describe('limiter-1176.wasm (committed Faust artefact)', () => {
     expect(gainToDb((await settledPeak(1, 0, -6)) / unity)).toBeCloseTo(-6, 1)
   })
 
-  it('stays finite and bounded under 40 dB of drive', async () => {
+  it('stops a transient at full scale, whatever the input gain', async () => {
+    // One sample at -6 dBFS used to leave at +6 dBFS with 12 dB of input
+    // gain and at +18 dBFS with 24: the 0.8 ms attack never sees it.
+    for (const inputGain of [12, 24, 40]) {
+      const h = await loadWasmDevice('limiter-1176')
+      h.set(P.inputGain, inputGain)
+      h.renderSilence(0.1)
+      const click = new Float32Array(128)
+      click[7] = 0.5
+      h.processBlock(click)
+      const out = h.view(h.device.device_out_left(), 128)
+      const peak = Math.max(...Array.from(out, Math.abs))
+      expect(peak).toBeLessThanOrEqual(1)
+      expect(peak).toBeGreaterThan(0.9)
+    }
+  })
+
+  it('stays finite and under full scale with 40 dB of drive', async () => {
     const h = await loadWasmDevice('limiter-1176')
     h.set(P.inputGain, 40)
     const peak = h.feedTone(5, 55, 4)
     expect(Number.isFinite(peak)).toBe(true)
-    expect(peak).toBeLessThan(4)
+    expect(peak).toBeLessThanOrEqual(1)
   })
 })

@@ -7,7 +7,7 @@
 // Ported from kkfonie Tatami/Source/Shared/DSP/Waveshapers.h (see device.json
 // for the commit and the deviations: JUCE helpers replaced by plain C++, a
 // cheaper way to the same tanh, denormals flushed in the filters, the DC
-// blocker's state held in double).
+// blocker's state held in double, and a DC blocker that works under a ceiling).
 //
 // Memoryless saturation curves (with the antiderivatives ADAA needs) plus the small
 // companion filters a saturation stage always ends up wanting: a DC blocker for asymmetric
@@ -152,6 +152,28 @@ struct DcBlocker
     float lowpass (float x) noexcept
     {
         state += a * ((double) x - state);
+        if (state > -1.0e-30 && state < 1.0e-30)
+            state = 0.0;
+        return (float) state;
+    }
+
+    /**
+        The low-pass part for a blocker whose output is held inside +-limit: it follows the
+        mean of what leaves after that ceiling, not the mean of what comes in, so the ceiling
+        and the blocker agree on where zero is. A plain blocker sags the flat top of a
+        squared-off low note and the next edge then overshoots the ceiling the curve just
+        gave it; clipping after a plain blocker would put back an offset of its own on
+        anything asymmetric. While the output stays inside the limit this is `lowpass` to
+        the last bit.
+    */
+    float lowpassBounded (float x, float limit) noexcept
+    {
+        auto y = (double) x - state;
+        if (y > (double) limit)
+            y = (double) limit;
+        else if (y < -(double) limit)
+            y = -(double) limit;
+        state += a * y;
         if (state > -1.0e-30 && state < 1.0e-30)
             state = 0.0;
         return (float) state;
