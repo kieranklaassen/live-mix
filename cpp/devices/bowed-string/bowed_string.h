@@ -69,7 +69,7 @@ class BowedString : public kit::DeviceBase<bowed_string::kNumParams> {
       voice.pick[1].reset();
       voice.rosin.reset();
       voice.rosin.set_cutoff(2500.0f, sr);
-      voice.sounding = voice.released = voice.pending = false;
+      voice.sounding = voice.released = voice.pending = voice.fading = false;
       voice.follow = voice.chunk_peak = 0.0f;
       voice.steal = 1.0f;
       voice.bow_on = 0.0f;
@@ -123,6 +123,7 @@ class BowedString : public kit::DeviceBase<bowed_string::kNumParams> {
     if (stolen) {
       // Fade the old note over 2 ms, then start (see render_voice).
       voice.pending = true;
+      voice.fading = false;
       voice.released = false;
       voice.pending_frequency = frequency;
       voice.pending_gain = gain;
@@ -136,8 +137,10 @@ class BowedString : public kit::DeviceBase<bowed_string::kNumParams> {
     if (held < 0) return;
     Voice& voice = pool_.voices[held];
     if (voice.pending) {
-      // Released before its stolen start: it never sounds.
+      // Released before its stolen start: it never sounds, but the string it
+      // was stealing still has its fade to finish.
       voice.pending = false;
+      voice.fading = true;
       voice.choke = true;
     }
     voice.released = true;
@@ -242,7 +245,7 @@ class BowedString : public kit::DeviceBase<bowed_string::kNumParams> {
     float age = 0.0f;         // seconds since note-on
     float steal = 1.0f;       // fades the old note out before a stolen start
     int burst_left = 0, burst_length = 1;
-    bool sounding = false, released = false, pending = false;
+    bool sounding = false, released = false, pending = false, fading = false;
     float pending_frequency = 0.0f, pending_gain = 0.0f;
 
     bool choke = false;       // restruck or cancelled: mute in 60 ms
@@ -323,7 +326,7 @@ class BowedString : public kit::DeviceBase<bowed_string::kNumParams> {
     voice.frequency = frequency;
     voice.strength = 0.3f + 0.7f * gain;
     voice.sounding = true;
-    voice.released = voice.choke = voice.pending = false;
+    voice.released = voice.choke = voice.pending = voice.fading = false;
     voice.steal = 1.0f;
     voice.bow_on = 1.0f;
     voice.age = 0.0f;
@@ -753,7 +756,7 @@ class BowedString : public kit::DeviceBase<bowed_string::kNumParams> {
       env[i] = voice.env.next();
       if (voice.released) voice.bow_on *= lift_coeff_;
       touch[i] = voice.bow_on;
-      if (voice.pending) voice.steal = kit::max(0.0f, voice.steal - steal_step_);
+      if (voice.pending || voice.fading) voice.steal = kit::max(0.0f, voice.steal - steal_step_);
       fade[i] = voice.steal;
       float x = 0.0f;
       hiss[i] = bowed ? voice.rosin.lowpass(voice.rng.bipolar()) * voice.rosin_gain * env[i] : 0.0f;
