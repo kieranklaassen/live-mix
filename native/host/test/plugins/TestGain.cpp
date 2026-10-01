@@ -1,6 +1,8 @@
 // Test effect: a gain with a mode switch and a fixed 64-sample delay it
 // reports as latency. Everything about it is predictable, so the host's
-// tests can check audio, parameters, state and latency by value.
+// tests can check audio, parameters, state and latency by value. With
+// Transport on Follow it is silent while the host's play head is stopped,
+// which is how the tests see what the play head says.
 
 #include <juce_audio_utils/juce_audio_utils.h>
 
@@ -20,6 +22,7 @@ public:
     {
         gain = state.getRawParameterValue ("gain");
         mode = state.getRawParameterValue ("mode");
+        transport = state.getRawParameterValue ("transport");
         setLatencySamples (reportedLatency);
     }
 
@@ -30,6 +33,8 @@ public:
                                                                 juce::NormalisableRange<float> (0.0f, 2.0f), 1.0f));
         layout.add (std::make_unique<juce::AudioParameterChoice> (juce::ParameterID { "mode", 1 }, "Mode",
                                                                  juce::StringArray { "Normal", "Invert", "Mute" }, 0));
+        layout.add (std::make_unique<juce::AudioParameterChoice> (juce::ParameterID { "transport", 1 }, "Transport",
+                                                                 juce::StringArray { "Ignore", "Follow" }, 0));
         return layout;
     }
 
@@ -67,7 +72,8 @@ public:
     {
         juce::ScopedNoDenormals noDenormals;
         const int choice = juce::roundToInt (mode->load());
-        const float factor = choice == 2 ? 0.0f : (choice == 1 ? -gain->load() : gain->load());
+        const bool stopped = juce::roundToInt (transport->load()) == 1 && ! hostIsPlaying();
+        const float factor = stopped || choice == 2 ? 0.0f : (choice == 1 ? -gain->load() : gain->load());
         const int channels = juce::jmin (buffer.getNumChannels(), 2);
 
         for (int sample = 0; sample < buffer.getNumSamples(); ++sample)
@@ -96,9 +102,18 @@ public:
     }
 
 private:
+    bool hostIsPlaying() const
+    {
+        if (auto* head = getPlayHead())
+            if (const auto position = head->getPosition())
+                return position->getIsPlaying();
+        return false;
+    }
+
     juce::AudioProcessorValueTreeState state;
     std::atomic<float>* gain = nullptr;
     std::atomic<float>* mode = nullptr;
+    std::atomic<float>* transport = nullptr;
     std::array<std::array<float, reportedLatency>, 2> delay {};
     int position = 0;
 };

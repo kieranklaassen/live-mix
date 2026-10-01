@@ -123,11 +123,38 @@ describe('NativeDevice.create', () => {
     expect(input.isConnectedTo(delay)).toBe(true)
     expect(delay.isConnectedTo(dry)).toBe(true)
     expect(dry.isConnectedTo(output)).toBe(true)
-    // Still connecting: the dry signal passes until the host answers.
-    expect(dry.gain.value).toBe(1)
-    expect(wet.gain.value).toBe(0)
     // Bridge 512 + plug-in 64, in seconds: the dry path arrives with the wet one.
     expect(delay.delayTime.value).toBeCloseTo(576 / 48000, 9)
+  })
+
+  it('an effect passes its input until the host has opened audio, then crossfades one latency later', async () => {
+    const { device, ctx, worker } = await makeDevice()
+    const [, , dry, wet] = ctx.gains
+    // Still connecting: the worklet has nothing to play, so the strip keeps sounding dry.
+    expect(device.status).toBe('connecting')
+    expect(dry.gain.value).toBe(1)
+    expect(wet.gain.value).toBe(0)
+    expect(dry.gain.eventsFor('linearRampToValueAtTime')).toHaveLength(0)
+
+    worker.emit({ type: 'open' })
+    // The first sound back is one latency (576 frames) behind: hold until then, then 5 ms.
+    const arrives = 2 + 576 / 48000
+    const [dryHeld, dryTime] = dry.gain.lastEvent('setValueAtTime')?.args ?? []
+    expect(dryHeld).toBe(1)
+    expect(dryTime).toBeCloseTo(arrives, 9)
+    const [dryTarget, dryEnd] = dry.gain.lastEvent('linearRampToValueAtTime')?.args ?? []
+    expect(dryTarget).toBe(0)
+    expect(dryEnd).toBeCloseTo(arrives + 0.005, 9)
+    const [wetTarget, wetEnd] = wet.gain.lastEvent('linearRampToValueAtTime')?.args ?? []
+    expect(wetTarget).toBe(1)
+    expect(wetEnd).toBeCloseTo(arrives + 0.005, 9)
+  })
+
+  it('an instrument has no input to pass and is wet from the start', async () => {
+    const { ctx } = await makeDevice(FAKE_SYNTH)
+    const [, , dry, wet] = ctx.gains
+    expect(dry.gain.value).toBe(0)
+    expect(wet.gain.value).toBe(1)
   })
 
   it('reports the bridge and the plug-in latency together', async () => {
@@ -309,7 +336,7 @@ describe('NativeDevice behaviour', () => {
     device.bypass = true
     device.bypass = false
     expect(wet.gain.lastEvent('linearRampToValueAtTime')?.args).toEqual([1, 2.005])
-    // The open connection, then the two toggles: pressing bypass twice is one ramp.
+    // The crossfade when audio opened, then one for each change of bypass.
     expect(dry.gain.eventsFor('linearRampToValueAtTime')).toHaveLength(3)
     expect(seen).toEqual([
       { type: 'bypass', bypass: true },
@@ -338,9 +365,6 @@ describe('NativeDevice behaviour', () => {
     expect(device.status).toBe('connecting')
     worker.emit({ type: 'open' })
     expect(device.status).toBe('running')
-    // Audio flows at last: the wet path takes over from the dry one it started on.
-    expect(dry.gain.lastEvent('linearRampToValueAtTime')?.args).toEqual([0, 2.005])
-    expect(wet.gain.lastEvent('linearRampToValueAtTime')?.args).toEqual([1, 2.005])
     worker.emit({ type: 'close', reason: 'the plug-in host closed the connection' })
     expect(device.status).toBe('stopped')
     expect(seen).toEqual(['running', 'stopped'])

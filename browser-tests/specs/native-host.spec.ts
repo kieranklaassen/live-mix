@@ -82,7 +82,7 @@ test.describe('hosted plug-ins', () => {
     expect(result.underruns).toBeLessThan(40)
     expect(result.mismatched).toBeLessThanOrEqual(result.underruns * 128)
 
-    expect(result.paramNames).toEqual(['Gain', 'Mode'])
+    expect(result.paramNames).toEqual(['Gain', 'Mode', 'Transport'])
     expect(result.halved).toBeCloseTo(0.5, 3)
     expect(result.gainText).toMatch(/^0\.5/)
     expect(errors).toEqual([])

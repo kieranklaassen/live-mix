@@ -61,8 +61,8 @@ public:
     void setParameter (int index, float normalised);
     juce::String getState() const;
     bool setState (const juce::String& base64);
-    /** A bpm of zero or no run state leaves that half of the play head alone. */
-    void setTransport (double bpm, std::optional<bool> playing);
+    /** Tempo and run state for the play head; a field left out keeps its value. */
+    void setTransport (std::optional<double> bpm, std::optional<bool> playing);
     int latencySamples() const;
 
     bool showEditor();

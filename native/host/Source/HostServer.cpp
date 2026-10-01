@@ -366,11 +366,9 @@ void HostServer::handleRequest (const Connection& connection, const juce::var& r
     }
     else if (method == "setTransport")
     {
-        const auto bpm = params.hasProperty ("bpm") ? static_cast<double> (params["bpm"]) : 0.0;
-        // Both fields are optional: a tempo-only update must not start the play head.
-        const auto playing = params.hasProperty ("playing")
-                                 ? std::optional<bool> (static_cast<bool> (params["playing"]))
-                                 : std::nullopt;
+        // Each field is its own: a tempo change must not start a stopped transport.
+        const auto bpm = params.hasProperty ("bpm") ? std::optional<double> (static_cast<double> (params["bpm"])) : std::nullopt;
+        const auto playing = params.hasProperty ("playing") ? std::optional<bool> (static_cast<bool> (params["playing"])) : std::nullopt;
         std::vector<std::shared_ptr<PluginSlot>> all;
         {
             const juce::ScopedLock lock (slotLock);

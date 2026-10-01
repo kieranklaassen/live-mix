@@ -12,8 +12,9 @@
 // (`bridgeLatencyFrames`), which the device reports as latency together with
 // the plug-in's own, so delay compensation lines other tracks up with it. The
 // dry path is delayed by the same amount: bypass never moves the timing.
-// Until the host answers, and again if it goes away (`status === 'stopped'`),
-// the device passes the dry signal rather than the worklet's silence.
+// If the host goes away the device passes the dry signal and reports
+// `status === 'stopped'`. An effect also passes the dry signal while it is
+// `'connecting'`, so putting one on a sounding strip leaves no hole.
 
 import {
   type DeviceChange,
@@ -177,6 +178,21 @@ function rampGain(param: AudioParam, value: number, now: number, rampSec: number
   param.linearRampToValueAtTime(value, now + rampSec)
 }
 
+/** Stays where it is for `holdSec`, then ramps: a ramp alone would start from now. */
+function holdThenRampGain(
+  param: AudioParam,
+  value: number,
+  now: number,
+  holdSec: number,
+  rampSec: number,
+): void {
+  const held = param.value
+  param.cancelScheduledValues(now)
+  param.setValueAtTime(held, now)
+  param.setValueAtTime(held, now + holdSec)
+  param.linearRampToValueAtTime(value, now + holdSec + rampSec)
+}
+
 const defaultCreateNode: NativeNodeFactory = (context, name, options) =>
   new AudioWorkletNode(context, name, options)
 
@@ -226,6 +242,7 @@ export class NativeDevice implements NoteDevice, ObservableDevice, EditorDevice,
   private readonly unsubscribe: (() => void)[] = []
   private pluginLatencySamples: number
   private currentStatus: NativeDeviceStatus = 'connecting'
+  private readonly dryUntilRunning: boolean
   private lastStats: PumpStats | null = null
   private bypassed = false
   private disposed = false
@@ -256,10 +273,14 @@ export class NativeDevice implements NoteDevice, ObservableDevice, EditorDevice,
     this.dry = context.createGain()
     this.wet = context.createGain()
     this.dryDelay = context.createDelay(DRY_DELAY_MAX_SECONDS)
-    // Still connecting: the dry signal passes until the host answers, so
-    // inserting a plug-in on a playing strip does not drop it.
-    this.dry.gain.value = 1
-    this.wet.gain.value = 0
+    // An effect put on a strip that is already sounding passes its input
+    // until the host has opened audio for it: the worklet has nothing to play
+    // before that, and wet from the start would be a hole in the strip. A
+    // render waits for the host before it starts, and an instrument has no
+    // input to pass.
+    this.dryUntilRunning = !this.offline && init.slot.inputs > 0
+    this.dry.gain.value = this.dryUntilRunning ? 1 : 0
+    this.wet.gain.value = this.dryUntilRunning ? 0 : 1
     this.dryDelay.delayTime.value = this.latencySec
 
     if (init.slot.inputs > 0) this.input.connect(this.node)
@@ -640,8 +661,11 @@ export class NativeDevice implements NoteDevice, ObservableDevice, EditorDevice,
     if (this.disposed || this.currentStatus === status) return
     // A stopped device does not come back: a new one is made against a new host.
     if (this.currentStatus === 'stopped') return
+    const opened = this.currentStatus === 'connecting' && status === 'running'
     this.currentStatus = status
-    this.applyMix()
+    // The first sound back from the host is one latency behind the moment
+    // audio opened; the delayed dry signal covers until it arrives.
+    this.applyMix(opened && this.dryUntilRunning ? this.latencySec : 0)
     this.statusChanges.emit(status)
   }
 
@@ -652,12 +676,24 @@ export class NativeDevice implements NoteDevice, ObservableDevice, EditorDevice,
     this.dryDelay.delayTime.value = Math.min(DRY_DELAY_MAX_SECONDS, this.latencySec)
   }
 
-  /** Dry passes when bypassed or while no audio flows through the host; wet otherwise. */
-  private applyMix(): void {
+  /**
+   * Dry passes when bypassed, when the host is gone, and for an effect whose
+   * audio has not opened yet; wet otherwise. `delaySec` puts the crossfade off.
+   */
+  private applyMix(delaySec = 0): void {
     if (this.disposed) return
-    const dry = this.bypassed || this.currentStatus !== 'running'
+    const dry =
+      this.bypassed ||
+      this.currentStatus === 'stopped' ||
+      (this.dryUntilRunning && this.currentStatus === 'connecting')
     const now = this.context.currentTime
-    rampGain(this.dry.gain, dry ? 1 : 0, now, this.rampSec)
-    rampGain(this.wet.gain, dry ? 0 : 1, now, this.rampSec)
+    const targets: [AudioParam, number][] = [
+      [this.dry.gain, dry ? 1 : 0],
+      [this.wet.gain, dry ? 0 : 1],
+    ]
+    for (const [param, value] of targets) {
+      if (delaySec > 0) holdThenRampGain(param, value, now, delaySec, this.rampSec)
+      else rampGain(param, value, now, this.rampSec)
+    }
   }
 }

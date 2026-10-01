@@ -247,10 +247,11 @@ on `ScoreDevice` is the follow-up.
 ## When the host goes away
 
 `device.status` is `'connecting'`, `'running'` or `'stopped'`
-(`device.onStatus`). Until the audio connection opens the device passes its
-input through dry, so inserting a plug-in on a playing strip never drops the
-signal. If the host crashes or is quit, the device stops, passes its input
-through dry again, and the client's `close` event fires. Nothing
+(`device.onStatus`). An effect passes its input through dry while it is
+connecting, and crossfades to the plug-in once the host's audio has arrived,
+so putting one on a strip that is sounding leaves no hole. If the host crashes
+or is quit, the device stops, passes its input through dry, and the client's
+`close` event fires. Nothing
 reconnects by itself: start the host again, connect a new client and make the
 devices again.
 

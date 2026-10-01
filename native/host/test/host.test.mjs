@@ -198,7 +198,7 @@ test('loads an effect and describes it', async () => {
   assert.equal(slot.latencySamples, GAIN_DELAY)
   assert.equal(slot.hasEditor, true)
 
-  const [gain, mode] = slot.params
+  const [gain, mode, transport] = slot.params
   assert.equal(gain.name, 'Gain')
   near(gain.value, 0.5)
   assert.equal(gain.automatable, true)
@@ -206,6 +206,7 @@ test('loads an effect and describes it', async () => {
   assert.equal(mode.name, 'Mode')
   assert.equal(mode.steps, 3)
   assert.deepEqual(mode.choices, ['Normal', 'Invert', 'Mute'])
+  assert.deepEqual(transport.choices, ['Ignore', 'Follow'])
   // No MIDI controller stand-ins among the parameters.
   assert.ok(slot.params.every((param) => !param.name.startsWith('MIDI CC')))
   await control.call('unload', { slot: slot.slot })
@@ -345,6 +346,51 @@ test('unloads what a page loaded when the page goes away', async () => {
     await sleep(10)
   }
   assert.fail('the slot outlived its connection')
+})
+
+test('a plug-in still loading when its page goes away is not kept', async () => {
+  // Slot ids count up: this is the one the abandoned load would be given.
+  const probe = await loadTestPlugin('LiveMix Test Gain')
+  await control.call('unload', { slot: probe.slot })
+  const next = `s${Number(probe.slot.slice(1)) + 1}`
+
+  const page = await connectControl()
+  const { plugins } = await control.call('plugins')
+  const plugin = plugins.find((entry) => entry.name === 'LiveMix Test Gain')
+  // The request and the goodbye go out together: the host reads both before
+  // the plug-in is up.
+  void page
+    .call('load', { plugin: plugin.id, sampleRate: SAMPLE_RATE, blockSize: 512 })
+    .catch(() => {})
+  page.close()
+  await sleep(500)
+  await assert.rejects(control.call('getParams', { slot: next }), /unknown slot/)
+})
+
+test('a tempo change leaves a stopped transport stopped', async () => {
+  const slot = await loadTestPlugin('LiveMix Test Gain')
+  const audio = await connectAudio(slot.slot)
+  const level = async () => {
+    const ones = new Float32Array(256).fill(1)
+    const [left] = await audio.process([ones, ones], 256)
+    return left[255]
+  }
+  // Transport on Follow: the plug-in is silent while the play head is stopped.
+  control.notify('setParam', { slot: slot.slot, index: 2, value: 1 })
+  await control.event(
+    'params',
+    (entry) => entry.slot === slot.slot && entry.changes.some((change) => change.index === 2),
+  )
+  near(await level(), 1)
+
+  await control.call('setTransport', { playing: false })
+  near(await level(), 0)
+  await control.call('setTransport', { bpm: 90 })
+  near(await level(), 0)
+  await control.call('setTransport', { playing: true })
+  near(await level(), 1)
+
+  await control.call('unload', { slot: slot.slot })
 })
 
 test('hosts an Audio Unit', { skip: process.platform !== 'darwin' }, async () => {

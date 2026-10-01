@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest'
 
 import * as core from '../index'
 import * as dsp from '../dsp/index'
+import * as native from '../native/index'
 import * as testing from '../testing/index'
 import * as wam from '../wam/index'
 
@@ -229,10 +230,11 @@ const coreSymbols = [
   // Patches into a score
   'patchEffectOps',
   'scoreDeviceFromPatch',
-  // Hosted plug-ins (U39): offline holds and the device contracts they need
-  'holdRenderAt',
+  // Offline render holds and the device traits hosted plug-ins use (U39)
+  'RENDER_QUANTUM_FRAMES',
   'canHoldRender',
   'holdFrame',
+  'holdRenderAt',
   'isEditorDevice',
   'isParamTextDevice',
 ] as const
@@ -309,7 +311,33 @@ const testingSymbols = [
   'createMockContext',
   'advance',
   'configureMocks',
+  // The plug-in host in memory (U39)
   'FakePluginHost',
+  'FakeSocket',
+  'FAKE_HOST_ADDRESS',
+  'FAKE_REVERB',
+  'FAKE_SYNTH',
+  'fakeReverbParams',
+] as const
+
+// What ambient-live's desktop app imports from `./native`.
+const nativeSymbols = [
+  'NativeHostClient',
+  'findNativeHost',
+  'NativeDevice',
+  'nativeDeviceId',
+  'registerNativeDevices',
+  'scanNativeDevices',
+  'nativeDeviceDescriptor',
+  'registerMissingNativeDevices',
+  'MissingNativeDevice',
+  'isMissingNativeDevice',
+  'isNativeDeviceId',
+  'nativePluginName',
+  'followNativeEdits',
+  'bridgeLatencyFor',
+  'tidyParamText',
+  'NATIVE_PROTOCOL_VERSION',
 ] as const
 
 const wamSymbols = [
@@ -334,6 +362,9 @@ describe('public entries', () => {
   })
   it.each(testingSymbols)('`./testing` exports %s', (name) => {
     expect((testing as Record<string, unknown>)[name]).toBeDefined()
+  })
+  it.each(nativeSymbols)('`./native` exports %s', (name) => {
+    expect((native as Record<string, unknown>)[name]).toBeDefined()
   })
   it.each(wamSymbols)('`./wam` exports %s', (name) => {
     expect((wam as Record<string, unknown>)[name]).toBeDefined()

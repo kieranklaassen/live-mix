@@ -305,13 +305,10 @@ void PluginSlot::setParameter (int index, float normalised)
 
 juce::String PluginSlot::getState() const
 {
-    // State travels through the plug-in itself: keep it away from a block
-    // being processed on the audio connection thread.
-    const juce::ScopedLock lock (processLock);
-
+    // Read beside the audio connection's thread, as every host does: waiting
+    // for it here would hold up a block of live sound on each save or export.
     if (plugin == nullptr)
         return {};
-    const juce::ScopedLock callbackLock (plugin->getCallbackLock());
     juce::MemoryBlock state;
     plugin->getStateInformation (state);
     return juce::Base64::toBase64 (state.getData(), state.getSize());
@@ -319,26 +316,25 @@ juce::String PluginSlot::getState() const
 
 bool PluginSlot::setState (const juce::String& base64)
 {
+    if (plugin == nullptr)
+        return false;
     juce::MemoryOutputStream decoded;
     if (! juce::Base64::convertFromBase64 (decoded, base64))
         return false;
-
-    const juce::ScopedLock lock (processLock);
-
-    if (plugin == nullptr)
-        return false;
-    {
-        const juce::ScopedLock callbackLock (plugin->getCallbackLock());
-        plugin->setStateInformation (decoded.getData(), static_cast<int> (decoded.getDataSize()));
-    }
+    // The audio connection's thread may be inside processBlock. Suspending
+    // waits for that block to end and has `process` write silence until the
+    // new state is in, without holding the audio thread for the whole load.
+    plugin->suspendProcessing (true);
+    plugin->setStateInformation (decoded.getData(), static_cast<int> (decoded.getDataSize()));
+    plugin->suspendProcessing (false);
     markAllDirty (Origin::plugin);
     return true;
 }
 
-void PluginSlot::setTransport (double newBpm, std::optional<bool> isPlaying)
+void PluginSlot::setTransport (std::optional<double> newBpm, std::optional<bool> isPlaying)
 {
-    if (newBpm > 0.0)
-        bpm = newBpm;
+    if (newBpm.has_value() && *newBpm > 0.0)
+        bpm = *newBpm;
     if (isPlaying.has_value())
         playing = *isPlaying;
 }
