@@ -1,7 +1,7 @@
 # live-mix documentation
 
 Everything here is prose you can read on GitHub; the API reference is
-generated from the five public entries and lives in CI, not in git.
+generated from the six public entries and lives in CI, not in git.
 
 ## Start
 
@@ -53,21 +53,22 @@ the reference documents.
 
 Written next to the subsystem they document, by the unit that built it.
 
-| Document                                                                     | Subsystem                                                                                                                                               |
-| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [score.md](./score.md)                                                       | Schema, the operations, log and history, undo granularity, rendering rules                                                                              |
-| [agent-api.md](./agent-api.md)                                               | Every tool, intent compilation, rails table, results, audit, snapshot, wiring                                                                           |
-| [agent-authored-scores.md](./agent-authored-scores.md)                       | The session script a planner fills, its canon, the compiler to a score (tuin selector parity), live and offline renderers, the authoring tools          |
-| [arbitration.md](./arbitration.md)                                           | Controller arbitration: authors, the policy table, touch holds, deferral, locks, where each writer plugs in                                             |
-| [versions.md](./versions.md)                                                 | Version history: saves and milestone checkpoints, undoable restore, compact delta storage and budgets, diff, storage adapters                           |
-| [session.md](./session.md)                                                   | The session grid: model, operations, quantisation, launch modes, follow actions, runtime API                                                            |
-| [control-surface.md](./control-surface.md)                                   | Mapping model, decoders, persistence, React hooks, ambient-live migration                                                                               |
-| [devices.md](./devices.md)                                                   | The device catalogue with origins, parameters and measured CPU cost                                                                                     |
-| [factory.md](./factory.md)                                                   | Patches (an instrument with its effects, or a chain), the offline patch renderer, the factory bank and what it is held to, what the bench found         |
-| [faust-devices.md](./faust-devices.md)                                       | Faust → C++ → the ABI; adding a Faust device                                                                                                            |
-| [wam.md](./wam.md)                                                           | The WAM host adapter end to end, gallery and licensing                                                                                                  |
-| [iphone-memory-and-element-source.md](./iphone-memory-and-element-source.md) | The iPhone verification checklist for eviction and streaming                                                                                            |
-| **API reference**                                                            | `pnpm docs:api` → `docs/api/` (TypeDoc over `.`, `./dsp`, `./react`, `./testing`, `./wam`); the `api-reference` artefact of every CI run; not committed |
+| Document                                                                     | Subsystem                                                                                                                                                           |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [score.md](./score.md)                                                       | Schema, the operations, log and history, undo granularity, rendering rules                                                                                          |
+| [agent-api.md](./agent-api.md)                                               | Every tool, intent compilation, rails table, results, audit, snapshot, wiring                                                                                       |
+| [agent-authored-scores.md](./agent-authored-scores.md)                       | The session script a planner fills, its canon, the compiler to a score (tuin selector parity), live and offline renderers, the authoring tools                      |
+| [arbitration.md](./arbitration.md)                                           | Controller arbitration: authors, the policy table, touch holds, deferral, locks, where each writer plugs in                                                         |
+| [versions.md](./versions.md)                                                 | Version history: saves and milestone checkpoints, undoable restore, compact delta storage and budgets, diff, storage adapters                                       |
+| [session.md](./session.md)                                                   | The session grid: model, operations, quantisation, launch modes, follow actions, runtime API                                                                        |
+| [control-surface.md](./control-surface.md)                                   | Mapping model, decoders, persistence, React hooks, ambient-live migration                                                                                           |
+| [devices.md](./devices.md)                                                   | The device catalogue with origins, parameters and measured CPU cost                                                                                                 |
+| [factory.md](./factory.md)                                                   | Patches (an instrument with its effects, or a chain), the offline patch renderer, the factory bank and what it is held to, what the bench found                     |
+| [faust-devices.md](./faust-devices.md)                                       | Faust → C++ → the ABI; adding a Faust device                                                                                                                        |
+| [wam.md](./wam.md)                                                           | The WAM host adapter end to end, gallery and licensing                                                                                                              |
+| [native.md](./native.md)                                                     | VST3 and Audio Unit plug-ins as devices: the plug-in host, the shell's side, latency, offline rendering, scores, the protocol, licensing                            |
+| [iphone-memory-and-element-source.md](./iphone-memory-and-element-source.md) | The iPhone verification checklist for eviction and streaming                                                                                                        |
+| **API reference**                                                            | `pnpm docs:api` → `docs/api/` (TypeDoc over `.`, `./dsp`, `./react`, `./testing`, `./wam`, `./native`); the `api-reference` artefact of every CI run; not committed |
 
 ## Project
 

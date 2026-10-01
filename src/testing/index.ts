@@ -60,3 +60,12 @@ export {
   type MockMediaElementOptions,
 } from './mock-media-element'
 export { advance } from './advance'
+export {
+  FAKE_HOST_ADDRESS,
+  FAKE_REVERB,
+  FAKE_SYNTH,
+  FakePluginHost,
+  FakeSocket,
+  fakeReverbParams,
+  type FakePluginHostOptions,
+} from './fake-plugin-host'

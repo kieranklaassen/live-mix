@@ -832,6 +832,8 @@ export class ScoreRenderer {
     for (const [name, value] of Object.entries(spec.params)) {
       const paramSpec = descriptor.params[name]
       if (paramSpec) params[name] = clampParam(paramSpec, value)
+      // No table to clamp against before the plug-in is loaded; the device clamps.
+      else if (descriptor.dynamicParams) params[name] = value
     }
     return params
   }
@@ -1117,7 +1119,9 @@ export class ScoreRenderer {
       }
       case 'device': {
         const location = findDevice(score, target.device) ?? this.missing(target.device)
-        const spec = this.devices.describe(location.device.deviceId).params[target.param]
+        const spec =
+          this.devices.describe(location.device.deviceId).params[target.param] ??
+          this.deviceMap.get(target.device)?.params[target.param]
         if (!spec)
           throw new ScoreRenderError(
             `${location.device.deviceId} has no parameter "${target.param}"`,

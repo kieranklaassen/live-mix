@@ -14,6 +14,7 @@ const SUBPATHS = {
   '@kieranklaassen/live-mix': '/dist/index.js',
   '@kieranklaassen/live-mix/dsp': '/dist/dsp/index.js',
   '@kieranklaassen/live-mix/testing': '/dist/testing/index.js',
+  '@kieranklaassen/live-mix/native': '/dist/native/index.js',
 }
 
 /** @type {import('esbuild').Plugin} */
@@ -29,14 +30,17 @@ const servedPackage = {
 }
 
 await mkdir(outdir, { recursive: true })
-await build({
-  entryPoints: [`${here}harness/main.ts`],
-  bundle: true,
-  format: 'esm',
-  target: 'es2022',
-  platform: 'browser',
-  sourcemap: true,
-  outfile: `${outdir}/harness.js`,
-  plugins: [servedPackage],
-  logLevel: 'info',
-})
+// harness.js is the real-audio golden's page; native.js the hosted plug-in page.
+for (const [name, entry] of Object.entries({ harness: 'main.ts', native: 'native.ts' })) {
+  await build({
+    entryPoints: [`${here}harness/${entry}`],
+    bundle: true,
+    format: 'esm',
+    target: 'es2022',
+    platform: 'browser',
+    sourcemap: true,
+    outfile: `${outdir}/${name}.js`,
+    plugins: [servedPackage],
+    logLevel: 'info',
+  })
+}

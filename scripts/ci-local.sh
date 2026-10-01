@@ -101,12 +101,16 @@ git_install() {
       test -f node_modules/@kieranklaassen/live-mix/dist/index.js &&
       test -f node_modules/@kieranklaassen/live-mix/dist/wam/index.js &&
       for wasm in "$OLDPWD"/src/dsp/wasm/*.wasm; do test -f "node_modules/@kieranklaassen/live-mix/dist/wasm/$(basename "$wasm")" || exit 1; done &&
-      for worklet in wasm-device ducker meter recorder; do test -f "node_modules/@kieranklaassen/live-mix/dist/worklets/$worklet.js" || exit 1; done &&
+      for worklet in wasm-device ducker meter recorder native-bridge native-pump; do test -f "node_modules/@kieranklaassen/live-mix/dist/worklets/$worklet.js" || exit 1; done &&
+      test -f node_modules/@kieranklaassen/live-mix/dist/native/index.js &&
+      test -f node_modules/@kieranklaassen/live-mix/native/host/CMakeLists.txt &&
       node --input-type=module -e "
         import { LIVE_MIX_VERSION } from '@kieranklaassen/live-mix'
         import { DATTORRO_PARAMS, ZITA_REV1_PARAMS, LIMITER_1176_PARAMS } from '@kieranklaassen/live-mix/dsp'
         import { MockAudioContext } from '@kieranklaassen/live-mix/testing'
-        console.log('live-mix', LIVE_MIX_VERSION, DATTORRO_PARAMS.mix.id, ZITA_REV1_PARAMS.mix.id, LIMITER_1176_PARAMS.inputGain.id, new MockAudioContext().sampleRate)
+        import { NATIVE_PROTOCOL_VERSION } from '@kieranklaassen/live-mix/native'
+        import { pluginHostSourceDir } from '@kieranklaassen/live-mix/native/shell'
+        console.log('live-mix', LIVE_MIX_VERSION, DATTORRO_PARAMS.mix.id, ZITA_REV1_PARAMS.mix.id, LIMITER_1176_PARAMS.inputGain.id, new MockAudioContext().sampleRate, NATIVE_PROTOCOL_VERSION, pluginHostSourceDir)
       "
   )
   local rc=$?

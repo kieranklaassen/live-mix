@@ -17,7 +17,7 @@ import {
 } from './presets'
 
 /** Where a device's DSP runs. Open-ended for later hosts. */
-export type DeviceKind = 'node' | 'wasm' | 'wam' | (string & {})
+export type DeviceKind = 'node' | 'wasm' | 'wam' | 'native' | (string & {})
 
 /** Menu grouping for device lists. */
 export type DeviceCategory =
@@ -32,6 +32,7 @@ export type DeviceCategory =
   | 'spatial'
   | 'utility'
   | 'instrument'
+  | 'plugin'
   | 'other'
 
 /** Every category in menu order, with the label a device list prints for it. */
@@ -47,6 +48,7 @@ export const DEVICE_CATEGORIES: readonly { id: DeviceCategory; label: string }[]
   { id: 'drive', label: 'Drive' },
   { id: 'spatial', label: 'Spatial' },
   { id: 'utility', label: 'Utility' },
+  { id: 'plugin', label: 'Plug-ins' },
   { id: 'other', label: 'Other' },
 ]
 
@@ -74,6 +76,13 @@ export interface DeviceDescriptor<P extends Record<string, ParamSpec> = Record<s
   version: number
   /** Static parameter table, readable before the device is instantiated. */
   params: P
+  /**
+   * The table is only known per instance (a hosted plug-in tells its
+   * parameters once it is loaded): `params` holds what is known beforehand,
+   * possibly nothing, and parameter names are not checked against it. The
+   * device a factory returns carries the real table. Absent means false.
+   */
+  dynamicParams?: boolean
   /** Factory presets: name → partial param map. */
   presets?: PresetTable<P>
   /**
@@ -82,6 +91,12 @@ export interface DeviceDescriptor<P extends Record<string, ParamSpec> = Record<s
    * means false.
    */
   experimental?: boolean
+  /**
+   * Registered so documents that use it still render, but the thing behind it
+   * is not there (a hosted plug-in on a machine without it): what `create`
+   * returns is a stand-in, and pickers leave the device out. Absent means false.
+   */
+  unavailable?: boolean
   create: DeviceFactory
 }
 
@@ -120,7 +135,9 @@ export function validateDescriptor(descriptor: DeviceDescriptor): void {
     throw new Error(`live-mix: device ${id} needs a create factory`)
   }
   const entries = Object.entries(descriptor.params)
-  if (entries.length === 0) throw new Error(`live-mix: device ${id} has no parameters`)
+  if (entries.length === 0 && !descriptor.dynamicParams) {
+    throw new Error(`live-mix: device ${id} has no parameters`)
+  }
   const ids = new Set<number>()
   for (const [name, spec] of entries) {
     const where = `live-mix: device ${id} param "${name}"`

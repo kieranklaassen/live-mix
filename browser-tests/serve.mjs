@@ -26,6 +26,23 @@ const TYPES = {
   '.woff2': 'font/woff2',
 }
 
+// The hosted plug-in page shares memory between its bridge worklet and pump
+// worker, which a browser only allows on a cross-origin isolated page; a
+// worker started from such a page must carry the embedder policy itself.
+// Everything is same-origin here, so the headers change nothing else.
+function isolation(pathname) {
+  if (pathname === '/browser-tests/harness/native.html') {
+    return {
+      'cross-origin-opener-policy': 'same-origin',
+      'cross-origin-embedder-policy': 'require-corp',
+    }
+  }
+  if (pathname.startsWith('/dist/') || pathname.startsWith('/browser-tests/.build/')) {
+    return { 'cross-origin-embedder-policy': 'require-corp' }
+  }
+  return {}
+}
+
 const server = createServer(async (request, response) => {
   const url = new URL(request.url ?? '/', `http://localhost:${port}`)
   let pathname = decodeURIComponent(url.pathname)
@@ -50,6 +67,7 @@ const server = createServer(async (request, response) => {
       'content-type': TYPES[extname(file)] ?? 'application/octet-stream',
       'content-length': info.size,
       'cache-control': 'no-store',
+      ...isolation(pathname),
     })
     createReadStream(file).pipe(response)
   } catch {

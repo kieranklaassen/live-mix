@@ -13,6 +13,7 @@ without knowing which:
 | `worklet` | `WorkletDucker` | A hand-written AudioWorklet processor                                              | `./dsp` (`ducker`)                                                                                  |
 | `rack`    | `Rack`          | Parallel chains of other devices                                                   | core entry (`rack`)                                                                                 |
 | `wam`     | `WamDevice`     | A WebAudioModules 2.0 plugin                                                       | `./wam` ([wam.md](../wam.md))                                                                       |
+| `native`  | `NativeDevice`  | A VST3 or Audio Unit plug-in, in a plug-in host process beside a desktop shell     | `./native` ([native.md](../native.md)); not in a browser tab                                        |
 
 ```ts
 interface Device {

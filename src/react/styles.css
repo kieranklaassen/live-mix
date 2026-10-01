@@ -1242,6 +1242,23 @@
   padding: 0;
 }
 
+/* Opens a hosted plug-in's own window. */
+.lm-device__editor {
+  padding: 0 6px;
+  font-size: var(--lm-label-size);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* What a device says for itself: a plug-in that could not be loaded. */
+.lm-device__notice {
+  max-width: 28ch;
+  margin: 0;
+  color: var(--lm-text-muted);
+  font-size: var(--lm-label-size);
+  line-height: 1.4;
+}
+
 /* --- Device chain --------------------------------------------------------- */
 
 .lm-chain {
@@ -2055,5 +2072,9 @@
 
 .lm-dense .lm-chain .lm-device--generated .lm-knob__value,
 .lm-dense .lm-device--rack .lm-knob__value {
+  /* A hosted plug-in words its own values; a long one is cut, not laid over its neighbour. */
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
