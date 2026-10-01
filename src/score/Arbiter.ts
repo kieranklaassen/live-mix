@@ -618,6 +618,11 @@ export function paramTargetOf(key: string): ParamTarget | null {
  */
 export function arbiterTargets(op: Operation): string[] {
   switch (op.type) {
+    case 'score.setMeta':
+      // One key per entry: a host's chord loop and its key do not contend.
+      return Object.keys(op.patch)
+        .sort()
+        .map((entry) => `meta:${entry}`)
     case 'score.rename':
     case 'transport.loop':
     case 'transport.quantize':

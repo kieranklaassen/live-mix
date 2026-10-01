@@ -82,6 +82,7 @@ export {
   type Operation,
   type OperationType,
   type SlotPatch,
+  type ScoreMetaPatch,
   type SourcePatch,
 } from './operations'
 export {

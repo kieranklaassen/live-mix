@@ -92,7 +92,11 @@ describe('serializeScore / parseScore', () => {
     track.clips[1] = { ...track.clips[1], muted: false, reversed: false, meta: {} }
     score.sources[0] = { ...score.sources[0], meta: { name: 'Kick', colour: '#e63946' } }
     score.sources[1] = { ...score.sources[1], meta: {} }
+    score.meta = { key: { scale: 'minor', root: 2 }, chords: [0, 2, 5, 3] }
     const parsed = parseScore(serializeScore(score))
+    expect(parsed.meta).toEqual({ chords: [0, 2, 5, 3], key: { root: 2, scale: 'minor' } })
+    expect(Object.keys(parsed.meta ?? {})).toEqual(['chords', 'key'])
+    expect('meta' in parseScore(serializeScore({ ...score, meta: {} }))).toBe(false)
     const parsedTrack = parsed.tracks[0]
     if (parsedTrack.kind !== 'audio') throw new Error('fixture')
     expect(parsedTrack.clips[0].muted).toBe(true)
@@ -187,6 +191,7 @@ describe('validateScore', () => {
     ;(track.clips[0] as { reversed?: unknown }).reversed = 1
     ;(track.clips[1] as { meta?: unknown }).meta = { at: new Date(0) }
     ;(score.sources[0] as { meta?: unknown }).meta = [1, 2]
+    ;(score as { meta?: unknown }).meta = { bad: Number.NaN }
     const paths = validateScore(score).map((issue) => issue.path)
     expect(paths).toEqual(
       expect.arrayContaining([
@@ -194,6 +199,7 @@ describe('validateScore', () => {
         'tracks[0].clips[0].reversed',
         'tracks[0].clips[1].meta',
         'sources[0].meta',
+        'meta',
       ]),
     )
   })

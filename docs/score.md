@@ -37,6 +37,7 @@ Format history: **1** (U28) — everything below except `tempo` and
 ```
 Score
 ├─ format: 3, id, name
+├─ meta?       JsonObject                              the host application's own annotations
 ├─ transport.loop { enabled, lengthSec | null }       null = no end
 ├─ transport.quantize: LaunchQuantize                 session launch grid (U31), default 'bar'
 ├─ tempo[]     TempoSegment { atSec, bpm, beatsPerBar? }  ascending, first at 0 → engine.tempo (TempoMap)
@@ -79,12 +80,14 @@ plays its slice of the source backwards on an audio track: one pass reads
 from the far end of the slice back to `offsetSec`, and a looping clip cycles
 backwards over its region. `mirrorSlice` and `reversedSourceSec` are that
 mapping as plain numbers, for a drawing that has to match the sound; the
-fades stay where they are on the clip. `meta` on a clip or a source
-is the host application's own annotation: any plain JSON object (a display
-name, a colour, where a painted stroke sits on screen). The library
-validates that it is JSON, stores it with sorted keys, carries it through
-operations and undo, and never reads it; a change to `meta` alone does not
-touch the audio graph.
+fades stay where they are on the clip. `meta` on a clip, a source or the
+document itself is the host application's own annotation: any plain JSON
+object (a display name, a colour, where a painted stroke sits on screen; on
+the document, what the host keeps beside the arrangement and wants saved and
+undone with it, such as a key or a chord loop, one entry per concern). The
+library validates that it is JSON, stores it with sorted keys, carries it
+through operations and undo, and never reads it; a change to `meta` alone
+does not touch the audio graph.
 
 - `createScore({ id, name })` — an empty document.
 - `validateScore(input, { devices? })` → `ScoreIssue[]` (path + message);
@@ -111,7 +114,7 @@ score throws `ScoreOperationError`, so a failed operation changes nothing.
 
 | Group                                                             | Operations                                                                                                                                                         |
 | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Document                                                          | `score.rename`, `transport.loop`                                                                                                                                   |
+| Document                                                          | `score.rename`, `score.setMeta` (`patch`: a value sets an entry of `meta`, `null` removes it), `transport.loop`                                                    |
 | Sources                                                           | `source.add`, `source.update` (`url`, `durationSec`, `analysis`, `meta`; `null` clears), `source.remove` (refused while a clip uses it)                            |
 | Tracks                                                            | `track.add`, `track.remove`, `track.move`                                                                                                                          |
 | Groups                                                            | `group.add`, `group.remove` (members re-route to where it fed), `group.move`                                                                                       |

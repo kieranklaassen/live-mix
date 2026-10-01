@@ -224,6 +224,23 @@ describe('ScoreDocument', () => {
     expect(document.score.sources[0].durationSec).toBe(12)
   })
 
+  it('score.setMeta is saved with the document and undone like any other edit', () => {
+    const document = new ScoreDocument(demoScore())
+    document.apply({ type: 'score.setMeta', patch: { chords: [0, 2, 5, 3] } })
+    document.endGesture()
+    document.apply({ type: 'score.setMeta', patch: { chords: [0, 4, 5, 3] } })
+    expect(document.history.undoStack).toHaveLength(2)
+    expect(ScoreDocument.parse(document.serialize()).score.meta).toEqual({ chords: [0, 4, 5, 3] })
+
+    document.undo()
+    expect(document.score.meta).toEqual({ chords: [0, 2, 5, 3] })
+    document.undo()
+    expect('meta' in document.score).toBe(false)
+    document.redo()
+    document.redo()
+    expect(document.score.meta).toEqual({ chords: [0, 4, 5, 3] })
+  })
+
   it('an amendment in the middle of a gesture does not split its step', () => {
     const document = new ScoreDocument(demoScore())
     const drag = { gesture: 'drag-1' }

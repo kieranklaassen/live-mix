@@ -9,7 +9,7 @@
 // `apply(invert(op), apply(op)) ≡ score` holds for every operation.
 
 import { type Clip } from '../core/clips/Clip'
-import { isJsonObject, type JsonObject } from '../core/json'
+import { isJsonObject, isJsonValue, type JsonObject, type JsonValue } from '../core/json'
 import { type ModPolarity } from '../core/automation/ModMatrix'
 import { type Breakpoint } from '../core/automation/ParamLane'
 import { type TempoSegment } from '../core/time/TempoMap'
@@ -34,6 +34,7 @@ import {
   normaliseClip,
   normaliseScore,
   normaliseSlot,
+  normaliseMeta,
   normaliseSource,
   normaliseTempo,
   sameTarget,
@@ -102,8 +103,16 @@ export interface SlotPatch {
   follow?: ScoreFollowAction | null
 }
 
+/**
+ * Entries a `score.setMeta` writes into the document's `meta`: a value sets
+ * the entry, `null` removes it. Entries it does not name stay as they are,
+ * so two concerns of a host never overwrite each other.
+ */
+export type ScoreMetaPatch = Record<string, JsonValue | null>
+
 export type Operation =
   | { type: 'score.rename'; name: string }
+  | { type: 'score.setMeta'; patch: ScoreMetaPatch }
   | { type: 'transport.loop'; enabled?: boolean; lengthSec?: number | null }
   /** Replace the tempo map (segments are sorted; the first must start at 0). */
   | { type: 'tempo.set'; segments: TempoSegment[] }
@@ -201,6 +210,7 @@ export type OperationType = Operation['type']
 /** Every operation type, in vocabulary order — the agent registry enumerates these. */
 export const OPERATION_TYPES: readonly OperationType[] = [
   'score.rename',
+  'score.setMeta',
   'transport.loop',
   'tempo.set',
   'source.add',
@@ -311,6 +321,8 @@ export function coalesceKey(op: Operation): string | null {
       return `modulator.update|${op.id}|${Object.keys(op.patch).sort().join(',')}`
     case 'route.update':
       return `route.update|${op.id}|${routeKeys(op).join(',')}`
+    case 'score.setMeta':
+      return `score.setMeta|${metaKeys(op).join(',')}`
     case 'score.rename':
     case 'transport.loop':
     case 'tempo.set':
@@ -378,6 +390,14 @@ function trimKeys(op: Extract<Operation, { type: 'clip.trim' }>): string[] {
   if (op.offsetSec !== undefined) keys.push('offsetSec')
   if (op.durationSec !== undefined) keys.push('durationSec')
   return keys
+}
+
+/** The entries a `score.setMeta` names, in a fixed order. */
+function metaKeys(op: Extract<Operation, { type: 'score.setMeta' }>): string[] {
+  if (typeof op.patch !== 'object' || op.patch === null || Array.isArray(op.patch)) {
+    fail(op, 'patch must be an object of meta entries')
+  }
+  return Object.keys(op.patch).sort()
 }
 
 function routeKeys(op: Extract<Operation, { type: 'route.update' }>): string[] {
@@ -763,6 +783,21 @@ export function apply(score: Score, op: Operation): Score {
   switch (op.type) {
     case 'score.rename':
       return { ...score, name: op.name }
+
+    case 'score.setMeta': {
+      const meta: JsonObject = { ...score.meta }
+      for (const key of metaKeys(op)) {
+        const value = op.patch[key]
+        if (value === null) delete meta[key]
+        else if (!isJsonValue(value)) fail(op, `meta "${key}" must be plain JSON`)
+        else meta[key] = value
+      }
+      const next: Score = { ...score }
+      const normalised = normaliseMeta(meta)
+      if (normalised) next.meta = normalised
+      else delete next.meta
+      return next
+    }
 
     case 'transport.loop': {
       const loop = { ...score.transport.loop }
@@ -1397,6 +1432,12 @@ export function invert(score: Score, op: Operation): Operation {
     case 'score.rename':
       return { type: 'score.rename', name: score.name }
 
+    case 'score.setMeta': {
+      const patch: ScoreMetaPatch = {}
+      for (const key of metaKeys(op)) patch[key] = score.meta?.[key] ?? null
+      return { type: 'score.setMeta', patch }
+    }
+
     case 'transport.loop': {
       const inverse: Operation = { type: 'transport.loop' }
       if (op.enabled !== undefined) inverse.enabled = score.transport.loop.enabled
@@ -1872,6 +1913,8 @@ export function describeOperation(op: Operation): string {
   switch (op.type) {
     case 'score.rename':
       return `rename score to "${op.name}"`
+    case 'score.setMeta':
+      return `set score meta ${metaKeys(op).join(', ')}`
     case 'transport.loop':
       return 'change loop'
     case 'tempo.set':
