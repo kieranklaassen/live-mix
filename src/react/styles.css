@@ -2047,6 +2047,12 @@
   gap: 1px;
 }
 
+.lm-dense .lm-chain .lm-device--generated .lm-knob__label,
+.lm-dense .lm-device--rack .lm-knob__label {
+  box-sizing: border-box;
+  padding-inline: 3px;
+}
+
 .lm-dense .lm-chain .lm-device--generated .lm-knob__value,
 .lm-dense .lm-device--rack .lm-knob__value {
   white-space: nowrap;
