@@ -428,6 +428,48 @@ describe('Session: one clip per track, legato, launch modes', () => {
     expect(chorus.startCalls.last).toEqual([contextAt(10), 3])
   })
 
+  it('a reversed slot places a reversed clip, which plays off the mirrored copy', async () => {
+    const { engine, session, advance, sources, document } = await rig({}, (score) => {
+      score.slots[1].clip = slotClip('b', { offsetSec: 1, durationSec: 3, reversed: true })
+    })
+    engine.transport.start()
+    await advance(7.9)
+    session.launchSlot('kick-chorus') // at 8
+    const kick = document.score.tracks.find((track) => track.id === 'kick')
+    expect(kick?.kind === 'audio' && kick.clips).toEqual([
+      expect.objectContaining({
+        id: 'kick-chorus@1',
+        offsetSec: 1,
+        durationSec: 3,
+        reversed: true,
+      }),
+    ])
+    await advance(0.2)
+    // Source seconds [1, 4) of 10, backwards: the mirrored copy from 6 for 3 s.
+    expect(sources()[0].startCalls.last).toEqual([contextAt(8), 6, 3])
+  })
+
+  it('legato into a reversed one-shot skips its far end, which is what would have played', async () => {
+    const { engine, session, advance, sources, document } = await rig({}, (score) => {
+      score.slots[1].legato = true
+      score.slots[1].clip = slotClip('b', { offsetSec: 1, durationSec: 4, reversed: true })
+    })
+    engine.transport.start()
+    await advance(7.9)
+    session.launchSlot('kick-verse') // loop of 4 s from 8
+    await advance(0.2)
+    await advance(1.5) // 9.6
+    session.launchSlot('kick-chorus') // at 10: 2 s in → source seconds [1, 3) are left, backwards
+    const kick = document.score.tracks.find((track) => track.id === 'kick')
+    expect(kick?.kind === 'audio' && kick.clips[1]).toMatchObject({
+      offsetSec: 1,
+      durationSec: 2,
+      reversed: true,
+    })
+    await advance(0.3) // 9.9
+    expect(sources()[1].startCalls.last).toEqual([contextAt(10), 7, 2])
+  })
+
   it('legato into a one-shot with nothing left only closes the outgoing slot', async () => {
     const { engine, session, advance, clips } = await rig({}, (score) => {
       score.slots[1].legato = true

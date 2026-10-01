@@ -473,6 +473,7 @@ export class Session {
     }
     if (slot.clip.warp !== undefined) clip.warp = slot.clip.warp
     if (slot.clip.semitones !== undefined) clip.semitones = slot.clip.semitones
+    if (slot.clip.reversed) clip.reversed = true
     ops.push({ type: 'clip.add', track: slot.track, clip })
     const launch: Launch = {
       slotId: slot.id,
@@ -752,5 +753,7 @@ function legatoEntry(
   }
   const remaining = incoming.durationSec - position
   if (remaining <= 0) return null
+  // Backwards, what is left to play is the near end of the slice: the far end is what was skipped.
+  if (incoming.reversed) return { offsetSec: incoming.offsetSec, durationSec: remaining }
   return { offsetSec: incoming.offsetSec + position, durationSec: remaining }
 }

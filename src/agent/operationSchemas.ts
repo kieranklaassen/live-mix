@@ -427,6 +427,7 @@ export const OPERATION_DEFS: Record<string, JsonSchema> = {
       gainDb: number('Loudness trim in dB.'),
       loop: { type: 'boolean', description: 'Loop until stopped.' },
       semitones: number('Pitch shift on a stretch source.'),
+      reversed: { type: 'boolean', description: 'Play the slice backwards.' },
     },
     required: [
       'sourceId',

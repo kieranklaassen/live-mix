@@ -135,6 +135,21 @@ describe('score format 3: session grid', () => {
     })
   })
 
+  it('a slot clip keeps `reversed` when true and only then, and it has to be a boolean', () => {
+    const score = gridScore()
+    score.slots[0].clip = slotClip('a', { loop: true, reversed: true })
+    score.slots[1].clip = slotClip('b', { reversed: false })
+    expect(validateScore(score)).toEqual([])
+    const parsed = parseScore(serializeScore(score))
+    expect(parsed.slots[0].clip).toMatchObject({ loop: true, reversed: true })
+    expect(parsed.slots[1].clip).not.toHaveProperty('reversed')
+    const raw = JSON.parse(serializeScore(score)) as { slots: { clip: Record<string, unknown> }[] }
+    raw.slots[0].clip.reversed = 'yes'
+    expect(validateScore(raw).map((issue) => `${issue.path}: ${issue.message}`)).toEqual([
+      expect.stringContaining('slots[0].clip.reversed: expected a boolean'),
+    ])
+  })
+
   it('reports every structural and referential problem in the grid', () => {
     const score = gridScore()
     const raw = JSON.parse(serializeScore(score)) as Record<string, unknown>

@@ -686,6 +686,41 @@ describe('AudioTrack reversed clips', () => {
     expect(mirror).toHaveBeenCalledTimes(1)
     scheduler.dispose()
   })
+
+  it('a reversed clip still decoding is offered to the preload again, so its copy is made before the start', async () => {
+    const { ctx, samples, track } = setup({ lookaheadSec: 0.2, preloadSec: 2 })
+    const transport = new Transport({ now: () => ctx.currentTime })
+    const scheduler = new Scheduler({ transport, tickMs: 40 })
+    track.attach(scheduler)
+    const mirror = vi.spyOn(ctx, 'createBuffer')
+    track.clips.add({
+      id: 'a',
+      sourceId: 's-a',
+      startSec: 1,
+      offsetSec: 2,
+      durationSec: 3,
+      fadeInSec: 0,
+      fadeOutSec: 0,
+      fadeCurve: 'linear',
+      gainDb: 0,
+      reversed: true,
+    })
+    transport.start()
+    scheduler.tick()
+    // In the preload window with nothing decoded: no copy yet.
+    expect(mirror).not.toHaveBeenCalled()
+    await samples.load('s-a', ramp(ctx, 10))
+    ctx.currentTime = 0.3
+    scheduler.tick()
+    // Decoded, still outside the playback window: the copy is made now, not at the start.
+    expect(mirror).toHaveBeenCalledTimes(1)
+    expect(ctx.sources).toHaveLength(0)
+    ctx.currentTime = 0.9
+    scheduler.tick()
+    expect(ctx.sources[0].startCalls.calls).toEqual([[1, 5, 3]])
+    expect(mirror).toHaveBeenCalledTimes(1)
+    scheduler.dispose()
+  })
 })
 
 describe('AudioTrack.fadeOutVoice (adapter primitive)', () => {

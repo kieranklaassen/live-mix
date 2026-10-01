@@ -348,9 +348,13 @@ export class AudioTrack implements StripHost {
     const clip = this.clips.get(start.clipId)
     if (!clip) return true
     this.requestLoad(clip)
-    // The mirrored copy is made ahead of the start, not in the tick that plays it.
-    const sample = clip.reversed ? this.samples.get(clip.sourceId) : undefined
-    if (sample) reversedBuffer(this.ctx, sample.buffer)
+    if (!clip.reversed) return true
+    // The mirrored copy is made ahead of the start, not in the tick that plays
+    // it: a `true` marks the start done, so a reversed clip is offered again
+    // until its buffer has decoded.
+    const sample = this.samples.get(clip.sourceId)
+    if (!sample) return false
+    reversedBuffer(this.ctx, sample.buffer)
     return true
   }
 

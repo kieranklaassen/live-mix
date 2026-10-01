@@ -735,6 +735,7 @@ function checkSlotClip(raw: unknown, path: string, ctx: Context): void {
   check.oneOf(raw.fadeCurve, `${path}.fadeCurve`, ['linear', 'equalPower'])
   check.number(raw.gainDb, `${path}.gainDb`)
   if (raw.loop !== undefined) check.boolean(raw.loop, `${path}.loop`)
+  if (raw.reversed !== undefined) check.boolean(raw.reversed, `${path}.reversed`)
   checkWarp(raw, path, check)
   if (raw.warp !== undefined && check.array(raw.warp, `${path}.warp`)) {
     raw.warp.forEach((marker, index) => {
@@ -1227,7 +1228,7 @@ export function normaliseSource(source: ScoreSource): ScoreSource {
   return out
 }
 
-/** Slot clip fields in a fixed order; `loop` only when true, warp/semitones only when set. */
+/** Slot clip fields in a fixed order; `loop` and `reversed` only when true, warp/semitones only when set. */
 export function normaliseSlotClip(clip: SlotClip): SlotClip {
   const out: SlotClip = {
     sourceId: clip.sourceId,
@@ -1242,6 +1243,7 @@ export function normaliseSlotClip(clip: SlotClip): SlotClip {
   if (clip.warp !== undefined)
     out.warp = clip.warp.map((m) => ({ sourceSec: m.sourceSec, beat: m.beat }))
   if (clip.semitones !== undefined) out.semitones = clip.semitones
+  if (clip.reversed) out.reversed = true
   return out
 }
 
