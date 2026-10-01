@@ -73,6 +73,11 @@ export const DEFAULT_LOOKAHEAD_SECONDS = 0.2
 export const MIN_PLACED_GAIN_DB = -60
 /** Time constant of the approach when a sounding clip's placement or trim changes. */
 export const PLACEMENT_RAMP_SECONDS = 0.03
+/**
+ * Resonance of a placed clip's low-pass, in dB as a Web Audio low-pass takes
+ * it: 3 dB down at the cutoff with no bump ahead of it.
+ */
+const PLACED_LOWPASS_Q_DB = 20 * Math.log10(Math.SQRT1_2)
 
 /** Linear gain for a dB trim, clamped to ±MAX_CLIP_GAIN_DB. */
 export function trimGain(gainDb: number | undefined): number {
@@ -649,7 +654,7 @@ export class AudioTrack implements StripHost {
     }
     trim.gain.value = placement.trim
     lowpass.type = 'lowpass'
-    lowpass.Q.value = Math.SQRT1_2
+    lowpass.Q.value = PLACED_LOWPASS_Q_DB
     lowpass.frequency.value = placement.lowpassHz
     panner.pan.value = placement.pan
     gain.connect(trim)
@@ -673,7 +678,7 @@ export class AudioTrack implements StripHost {
   private ensureSpace(): ConvolverNode {
     if (this.spaceNode) return this.spaceNode
     const convolver = this.ctx.createConvolver()
-    // The impulse carries its own level (unit energy); the node's scaling would undo it.
+    // The impulse carries its own level; the node's scaling would undo it.
     convolver.normalize = false
     convolver.buffer = this.spaceImpulse()
     this.strip.connectSource(convolver)

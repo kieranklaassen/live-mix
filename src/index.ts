@@ -183,6 +183,8 @@ export {
 } from './core/tracks/AudioTrack'
 export {
   DEFAULT_SPACE,
+  SPACE_LEVEL_HIGH_HZ,
+  SPACE_LEVEL_LOW_HZ,
   generateSpaceImpulse,
   resolveSpace,
   spaceImpulseChannel,

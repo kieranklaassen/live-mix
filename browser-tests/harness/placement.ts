@@ -1,9 +1,10 @@
 // The page side of the placed-clip check. A clip's `pan`, `lowpassHz` and
 // `spaceDb` are a handful of real nodes, and the mocks cannot say what those
 // nodes do to sound: that a mono clip is as loud placed in the centre as
-// unplaced, that the room returns as much as it is sent, that it rings on
-// and is wide. Each case renders one second of noise through an audio track
-// on a real OfflineAudioContext and is measured here.
+// unplaced, that the room returns as much of a low-mid sound as it is sent
+// and less of hiss, that it rings on and is wide. Each case renders one
+// second of noise through an audio track on a real OfflineAudioContext and
+// is measured here.
 
 import { renderOffline, type Clip } from '@kieranklaassen/live-mix'
 
@@ -25,17 +26,39 @@ export interface PlacementMeasure {
 
 export type PlacementCase = Partial<Pick<Clip, 'gainDb' | 'pan' | 'lowpassHz' | 'spaceDb'>> & {
   channels: 1 | 2
+  /** Noise with its weight in the low mids, where the room's level is set, instead of white. */
+  warm?: boolean
 }
 
+/** The band a warm noise is kept to. */
+const WARM_LOW_HZ = 300
+const WARM_HIGH_HZ = 1200
+
 /** The same noise every time, so two renders differ only by their placement. */
-function noiseBuffer(ctx: BaseAudioContext, channels: number): AudioBuffer {
+function noiseBuffer(ctx: BaseAudioContext, channels: number, warm: boolean): AudioBuffer {
   const buffer = ctx.createBuffer(channels, CLIP_SEC * RATE, RATE)
+  const high = Math.exp((-2 * Math.PI * WARM_LOW_HZ) / RATE)
+  const low = 1 - Math.exp((-2 * Math.PI * WARM_HIGH_HZ) / RATE)
   let state = 0x1234_5678
   for (let channel = 0; channel < channels; channel += 1) {
     const data = buffer.getChannelData(channel)
+    let highIn = 0
+    let highOut = 0
+    let lowOut = 0
+    let lowerOut = 0
     for (let i = 0; i < data.length; i += 1) {
       state = (Math.imul(state, 1664525) + 1013904223) >>> 0
-      data[i] = (state / 4294967296) * 0.5 - 0.25
+      const white = (state / 4294967296) * 0.5 - 0.25
+      if (!warm) {
+        data[i] = white
+        continue
+      }
+      // A high-pass and two low-passes: what is left sits between the two ends.
+      highOut = high * (highOut + white - highIn)
+      highIn = white
+      lowOut += low * (highOut - lowOut)
+      lowerOut += low * (lowOut - lowerOut)
+      data[i] = lowerOut * 4
     }
   }
   return buffer
@@ -48,12 +71,12 @@ function energy(data: Float32Array, from: number, to: number): number {
 }
 
 async function measure(placement: PlacementCase): Promise<PlacementMeasure> {
-  const { channels, ...place } = placement
+  const { channels, warm = false, ...place } = placement
   const result = await renderOffline({
     durationSec: RENDER_SEC,
     sampleRate: RATE,
     build: async (engine) => {
-      await engine.samples.load('noise', noiseBuffer(engine.context, channels))
+      await engine.samples.load('noise', noiseBuffer(engine.context, channels, warm))
       engine.addAudioTrack('placed').clips.add({
         id: 'clip',
         sourceId: 'noise',

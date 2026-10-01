@@ -1,7 +1,8 @@
 // A placed clip in a real browser: what `pan`, `lowpassHz` and `spaceDb` do
 // to one second of noise on a real OfflineAudioContext, against the same
 // clip unplaced. The numbers a host maps positions onto only mean something
-// if these hold.
+// if these hold. The room's level is set in the low mids, so that is where
+// it is measured: a warm noise comes back as loud as it was sent, hiss less.
 
 import { expect, test } from '@playwright/test'
 
@@ -15,10 +16,14 @@ const CASES = {
   stereoPlain: { channels: 2 },
   stereoCentre: { channels: 2, pan: 0 },
   dull: { channels: 1, pan: 0, lowpassHz: 1000 },
+  halfOpen: { channels: 1, pan: 0, lowpassHz: 6000 },
   quiet: { channels: 1, pan: 0, gainDb: -18 },
   // Dry as far down as a placed trim goes and the send as far up: the room alone, at −36 dB.
   room: { channels: 1, gainDb: -60, spaceDb: 24 },
-  roomStereo: { channels: 2, gainDb: -60, spaceDb: 24 },
+  warmPlain: { channels: 1, warm: true },
+  warmRoom: { channels: 1, warm: true, gainDb: -60, spaceDb: 24 },
+  warmStereoPlain: { channels: 2, warm: true },
+  warmStereoRoom: { channels: 2, warm: true, gainDb: -60, spaceDb: 24 },
 } as const
 
 const db = (ratio: number): number => 10 * Math.log10(ratio)
@@ -42,8 +47,14 @@ test.describe('placed clips in real audio', () => {
       ['monoPlain', 'monoCentre'],
       ['stereoPlain', 'stereoCentre'],
     ] as const) {
-      expect(Math.abs(db(measured[centre].during[0] / measured[plain].during[0]))).toBeLessThan(0.1)
-      expect(Math.abs(db(measured[centre].during[1] / measured[plain].during[1]))).toBeLessThan(0.1)
+      // The open low-pass sits just under half the sample rate; of white
+      // noise it takes a tenth of a dB, all of it above 22 kHz.
+      expect(Math.abs(db(measured[centre].during[0] / measured[plain].during[0]))).toBeLessThan(
+        0.15,
+      )
+      expect(Math.abs(db(measured[centre].during[1] / measured[plain].during[1]))).toBeLessThan(
+        0.15,
+      )
     }
     // Without a send nothing is left once the clip has ended.
     expect(total(measured.monoCentre.after)).toBeLessThan(total(measured.monoCentre.during) * 1e-8)
@@ -59,23 +70,38 @@ test.describe('placed clips in real audio', () => {
     expect(measured.dull.brightness).toBeLessThan(measured.monoCentre.brightness * 0.05)
   })
 
+  test('the low-pass is flat up to its cutoff: no bump ahead of it', () => {
+    // White noise through a flat two-pole low-pass at a quarter of the band
+    // keeps 1.11 quarters of its power, 5.6 dB down. A resonant one keeps more.
+    const fall = db(total(measured.halfOpen.during) / total(measured.monoCentre.during))
+    expect(fall).toBeGreaterThan(-6.3)
+    expect(fall).toBeLessThan(-4.9)
+  })
+
   test('a placed clip can sit 18 dB down, past the loudness trim of an unplaced one', () => {
     const fall = db(total(measured.quiet.during) / total(measured.monoCentre.during))
     expect(fall).toBeGreaterThan(-18.2)
     expect(fall).toBeLessThan(-17.8)
   })
 
-  test('the room gives back as much as it was sent', () => {
-    // Everything the render holds, against the dry clip's energy 36 dB down.
+  /** Everything a room-only render holds, against the dry clip's energy. */
+  const returned = (room: keyof typeof CASES, plain: keyof typeof CASES): number =>
+    db((total(measured[room].during) + total(measured[room].after)) / total(measured[plain].during))
+
+  test('the room gives back as much of a low-mid sound as it was sent', () => {
+    // The send is 36 dB under the clip's own level.
     for (const [room, plain] of [
-      ['room', 'monoPlain'],
-      ['roomStereo', 'stereoPlain'],
+      ['warmRoom', 'warmPlain'],
+      ['warmStereoRoom', 'warmStereoPlain'],
     ] as const) {
-      const wet = total(measured[room].during) + total(measured[room].after)
-      const returned = db(wet / total(measured[plain].during))
-      expect(returned).toBeGreaterThan(-37.5)
-      expect(returned).toBeLessThan(-34.5)
+      expect(returned(room, plain)).toBeGreaterThan(-38)
+      expect(returned(room, plain)).toBeLessThan(-34)
     }
+  })
+
+  test('the room gives back less of hiss: its top end is gone early', () => {
+    expect(returned('room', 'monoPlain')).toBeLessThan(returned('warmRoom', 'warmPlain') - 3)
+    expect(returned('room', 'monoPlain')).toBeGreaterThan(-36 - 12)
   })
 
   test('the room rings on after the clip, wide and falling', () => {

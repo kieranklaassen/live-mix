@@ -96,8 +96,9 @@ it goes), convolved per track ahead of the strip, so the track's inserts,
 fader and mute act on it as they do on the dry clips; every track of an
 engine reads the same impulse (`createEngine({ space })`,
 `engine.spaceImpulse()`), so they sound as if they shared one room. The
-impulse has unit energy: a steady sound sent at 0 dB comes back as loud as
-it went in. A change to a placed clip's `pan`, `lowpassHz`, `spaceDb` or
+room's level is set in the low mids (150 Hz to 1.5 kHz): a steady sound
+there sent at 0 dB comes back as loud as it went in, and hiss comes back
+quieter, since the room's top end is gone early. A change to a placed clip's `pan`, `lowpassHz`, `spaceDb` or
 `gainDb` is heard while the clip sounds (`AudioTrack.place`); a clip that
 names none of them is wired as before and takes the change at its next
 start. In a `clip.update`, `null` takes a placement field off the clip; a

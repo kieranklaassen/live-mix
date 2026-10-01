@@ -806,7 +806,8 @@ describe('AudioTrack placed clips', () => {
     expect(trim.gain.value).toBeCloseTo(10 ** (-6 / 20))
     expect(lowpass.type).toBe('lowpass')
     expect(lowpass.frequency.value).toBe(3000)
-    expect(lowpass.Q.value).toBeCloseTo(Math.SQRT1_2)
+    // A Web Audio low-pass takes its resonance in dB: this is the flat one.
+    expect(lowpass.Q.value).toBeCloseTo(-3.01, 2)
     expect(panner.pan.value).toBe(-0.4)
     expect(played?.placement?.panner).toBe(panner)
     expect(played?.placement?.send).toBeNull()

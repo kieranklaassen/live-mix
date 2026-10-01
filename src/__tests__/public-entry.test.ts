@@ -92,6 +92,8 @@ const coreSymbols = [
   'spaceImpulseChannel',
   'resolveSpace',
   'DEFAULT_SPACE',
+  'SPACE_LEVEL_HIGH_HZ',
+  'SPACE_LEVEL_LOW_HZ',
   'mirrorSlice',
   'reversedSourceSec',
   'isObservableDevice',

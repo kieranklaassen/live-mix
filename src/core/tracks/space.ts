@@ -4,6 +4,11 @@
 // noise that swells in, decays to −60 dB over `decaySec` and dulls as it
 // goes, different left and right so the tail is wide.
 //
+// The room is dark, so it gives back more of a sound's low mids than of its
+// top. Its level is set where musical sound has its weight (`SPACE_LEVEL_LOW_HZ`
+// to `SPACE_LEVEL_HIGH_HZ`): a steady sound there, sent in at 0 dB, comes
+// back as loud as it went in, and hiss comes back quieter than that.
+//
 // Each audio track convolves for itself, ahead of its strip, so its inserts,
 // fader and mute act on the space as they do on the dry clips. Every track
 // reads the same impulse, and convolution is linear, so the tracks still
@@ -53,6 +58,41 @@ export function resolveSpace(options: SpaceOptions = {}): Required<SpaceOptions>
   }
 }
 
+/**
+ * The band the room's level is set in: between these a steady sound sent in
+ * at 0 dB comes back as loud as it went in.
+ */
+export const SPACE_LEVEL_LOW_HZ = 150
+export const SPACE_LEVEL_HIGH_HZ = 1500
+
+/**
+ * Energy of `data` weighted to the level band: through a one-pole high-pass
+ * at its low end and a one-pole low-pass at its high end.
+ */
+function levelBandEnergy(data: Float32Array, from: number, sampleRate: number): number {
+  const high = Math.exp((-2 * Math.PI * SPACE_LEVEL_LOW_HZ) / sampleRate)
+  const low = 1 - Math.exp((-2 * Math.PI * SPACE_LEVEL_HIGH_HZ) / sampleRate)
+  let highIn = 0
+  let highOut = 0
+  let lowOut = 0
+  let energy = 0
+  for (let i = from; i < data.length; i += 1) {
+    highOut = high * (highOut + data[i] - highIn)
+    highIn = data[i]
+    lowOut += low * (highOut - lowOut)
+    energy += lowOut * lowOut
+  }
+  return energy
+}
+
+/** What the level band lets through of a single sample: the weight a flat response of unit gain has. */
+function levelBandUnit(sampleRate: number): number {
+  // The band's own response has rung out well inside a tenth of a second.
+  const impulse = new Float32Array(Math.max(1, Math.round(sampleRate / 10)))
+  impulse[0] = 1
+  return levelBandEnergy(impulse, 0, sampleRate)
+}
+
 /** Mulberry32: a small seeded generator, so a render is the same every time. */
 function noise(seed: number): () => number {
   let state = seed >>> 0
@@ -65,7 +105,7 @@ function noise(seed: number): () => number {
   }
 }
 
-/** One channel of the room: its samples, scaled so they sum to unit energy. */
+/** One channel of the room: its samples, scaled to unit gain in the level band. */
 export function spaceImpulseChannel(
   sampleRate: number,
   options: SpaceOptions = {},
@@ -84,7 +124,6 @@ export function spaceImpulseChannel(
   let lower = 0
   let cutIn = 0
   let cutOut = 0
-  let energy = 0
   for (let i = 0; i < tail; i += 1) {
     const along = i / tail
     const t = i / sampleRate
@@ -107,12 +146,13 @@ export function spaceImpulseChannel(
     const swell = space.attackSec > 0 ? 1 - Math.exp(-t / (space.attackSec / 3)) : 1
     const decay = 10 ** (-3 * along)
     const end = i >= tail - runOut ? (tail - i) / runOut : 1
-    const value = sample * swell * decay * end
-    data[predelay + i] = value
-    energy += value * value
+    data[predelay + i] = sample * swell * decay * end
   }
-  // Unit energy: a steady sound sent in at 0 dB comes back as loud as it went in.
-  const scale = energy > 0 ? 1 / Math.sqrt(energy) : 0
+  // Unit gain where sound has its weight: a steady sound there sent in at
+  // 0 dB comes back as loud as it went in. Over the whole spectrum the room
+  // gives back less than it is sent, because its top end is gone early.
+  const energy = levelBandEnergy(data, predelay, sampleRate)
+  const scale = energy > 0 ? Math.sqrt(levelBandUnit(sampleRate) / energy) : 0
   for (let i = predelay; i < data.length; i += 1) data[i] *= scale
   return data
 }
