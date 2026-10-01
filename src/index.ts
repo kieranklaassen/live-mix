@@ -455,6 +455,27 @@ export {
   type SerializedRackPreset,
   type ZoneRange,
 } from './core/devices'
+// Patches: an instrument with its effects, or an effect chain
+export {
+  capturePatch,
+  capturePatchDevice,
+  createPatchDevice,
+  createPatchEffects,
+  isInstrumentPatch,
+  isPatch,
+  patchDeviceParams,
+  patchDevices,
+  replaceInserts,
+  validatePatch,
+  type CapturePatchOptions,
+  type Patch,
+  type PatchCategory,
+  type PatchCreateOptions,
+  type PatchDevice,
+  type PatchInsertHost,
+  type PatchIssue,
+  type ReplaceInsertsOptions,
+} from './core/devices'
 export {
   ABSOLUTE_GATE_LUFS,
   Biquad,

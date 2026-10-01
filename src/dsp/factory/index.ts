@@ -7,13 +7,24 @@ import { type PatchCategory } from '../../core/devices/patch'
 import { type PlanarAudio } from '../../core/render/encode'
 import { renderPatch, type RenderPatchOptions } from '../patch-render'
 import { FACTORY_CHAINS } from './chains'
-import { PREVIEW_SECONDS, previewPhrase } from './phrases'
+import {
+  CHAIN_PREVIEW_PATCH,
+  CHAIN_PREVIEW_PHRASE,
+  PREVIEW_SECONDS,
+  previewPhrase,
+} from './phrases'
 import { FACTORY_PRESETS } from './presets'
 import { FACTORY_SOUNDS } from './sounds'
-import { type FactoryPreset, type FactorySound } from './types'
+import { type FactoryChain, type FactoryPreset, type FactorySound } from './types'
 
 export { FACTORY_CHAINS } from './chains'
-export { FACTORY_PHRASES, PREVIEW_SECONDS, previewPhrase } from './phrases'
+export {
+  CHAIN_PREVIEW_PATCH,
+  CHAIN_PREVIEW_PHRASE,
+  FACTORY_PHRASES,
+  PREVIEW_SECONDS,
+  previewPhrase,
+} from './phrases'
 export { FACTORY_PRESETS } from './presets'
 export { FACTORY_SOUNDS } from './sounds'
 export {
@@ -83,6 +94,57 @@ export function renderPresetPreview(
   return renderPatch(preset, {
     ...options,
     phrase: previewPhrase(preset),
+    durationSec: PREVIEW_SECONDS,
+    fadeOutSec: 0.25,
+    normalizePeakDb: FACTORY_PEAK_DB,
+  })
+}
+
+/** Seconds of the input a chain preview plays before leaving the chain to ring out. */
+export const CHAIN_PREVIEW_INPUT_SECONDS = 6
+
+export interface ChainPreviewOptions extends FactoryRenderOptions {
+  /**
+   * The sound to run through the chain, at the render's sample rate: its
+   * first six seconds are used. Without one a dry electric piano plays.
+   */
+  input?: PlanarAudio
+}
+
+/**
+ * A chain's audition: a dry sound through it, eight seconds with the tail,
+ * at the bank's peak level.
+ */
+export async function renderChainPreview(
+  chain: FactoryChain,
+  options: ChainPreviewOptions = {},
+): Promise<PlanarAudio> {
+  const { input: given, ...render } = options
+  const sampleRate = given?.sampleRate ?? render.sampleRate
+  const dry =
+    given ??
+    (await renderPatch(CHAIN_PREVIEW_PATCH, {
+      ...render,
+      phrase: CHAIN_PREVIEW_PHRASE,
+      durationSec: CHAIN_PREVIEW_INPUT_SECONDS,
+    }))
+  const frames = Math.round(CHAIN_PREVIEW_INPUT_SECONDS * dry.sampleRate)
+  // A long sound is cut with a short fade, so the chain's tail is heard on
+  // its own instead of a click.
+  const fade = Math.min(frames, Math.round(0.05 * dry.sampleRate))
+  const input: PlanarAudio = {
+    sampleRate: dry.sampleRate,
+    channels: dry.channels.map((channel) => {
+      if (channel.length <= frames) return channel
+      const cut = channel.slice(0, frames)
+      for (let i = 0; i < fade; i += 1) cut[frames - 1 - i] *= i / fade
+      return cut
+    }),
+  }
+  return renderPatch(chain, {
+    ...render,
+    sampleRate,
+    input,
     durationSec: PREVIEW_SECONDS,
     fadeOutSec: 0.25,
     normalizePeakDb: FACTORY_PEAK_DB,

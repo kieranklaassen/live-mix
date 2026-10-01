@@ -2,6 +2,7 @@
 // (C major, A minor, D dorian), so previews and factory sounds sit together
 // and inside the scale lock's default.
 
+import { type Patch } from '../../core/devices/patch'
 import { type Phrase } from '../patch-render'
 import { type FactoryPhraseName, type FactoryPresetCategory } from './types'
 
@@ -78,4 +79,29 @@ export function previewPhrase(preset: {
   preview?: FactoryPhraseName
 }): Phrase {
   return FACTORY_PHRASES[preset.preview ?? CATEGORY_PHRASE[preset.category]]
+}
+
+/**
+ * What an effect chain is auditioned on when the host has no sound of its
+ * own to run through it: a dry electric piano.
+ */
+export const CHAIN_PREVIEW_PATCH: Patch = {
+  id: 'chain-preview-input',
+  name: 'Chain preview input',
+  category: 'preview',
+  description: 'A dry electric piano.',
+  instrument: { deviceId: 'tine-piano' },
+  effects: [],
+}
+
+/** A sparse phrase with attacks and gaps, so a chain's tail and colour are heard between the notes. */
+export const CHAIN_PREVIEW_PHRASE: Phrase = {
+  notes: [
+    { atSec: 0, durSec: 1.2, note: 57 },
+    { atSec: 0.6, durSec: 1.2, note: 64 },
+    { atSec: 1.2, durSec: 1.2, note: 72 },
+    { atSec: 2.4, durSec: 1.5, note: 69 },
+    { atSec: 2.4, durSec: 1.5, note: 53 },
+    { atSec: 4, durSec: 1, note: 76, gain: 0.6 },
+  ],
 }

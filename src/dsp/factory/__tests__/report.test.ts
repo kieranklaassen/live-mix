@@ -2,14 +2,14 @@
 //
 //   FACTORY_REPORT=devices pnpm vitest run src/dsp/factory/__tests__/report.test.ts
 //     every stock WASM device with its parameters and presets
-//   FACTORY_REPORT=presets [FACTORY=<part of an id>] pnpm vitest run …
+//   FACTORY_REPORT=presets [FACTORY=<part of an id>] [FACTORY_DEVICE=<instrument id>] pnpm vitest run …
 //     each preset's preview as it leaves the patch (not normalised), measured
 //   FACTORY_REPORT=sounds [FACTORY=<part of an id>] pnpm vitest run …
 //     each factory sound as rendered, measured and classified
 //   FACTORY_REPORT=chains [FACTORY=<part of an id>] pnpm vitest run …
 //     each effect chain on a dry piano phrase, measured against the dry phrase
 //
-// The report is written to tmp/factory-<mode>.txt (and printed, when the reporter shows
+// The report is written to tmp/factory-<mode>-<filter or all>.txt (and printed, when the reporter shows
 // test output). FACTORY_WAV=<dir> also writes what was rendered as WAV files.
 
 import { mkdirSync, writeFileSync } from 'node:fs'
@@ -34,13 +34,17 @@ import { CHAIN_TEST_PATCH, CHAIN_TEST_PHRASE } from './chain-input'
 
 const mode = process.env.FACTORY_REPORT
 const only = process.env.FACTORY ?? ''
+const onlyDevice = process.env.FACTORY_DEVICE
 const wavDir = process.env.FACTORY_WAV
 const lines: string[] = []
 const say = (line: string) => lines.push(line)
 
 function publish(): void {
   mkdirSync('tmp', { recursive: true })
-  writeFileSync(join('tmp', `factory-${mode}.txt`), `${lines.join('\n')}\n`)
+  writeFileSync(
+    join('tmp', `factory-${mode}-${onlyDevice ?? (only || 'all')}.txt`),
+    `${lines.join('\n')}\n`,
+  )
   console.log(lines.join('\n'))
 }
 
@@ -79,7 +83,10 @@ describe.skipIf(!mode)('factory bench', () => {
   it.skipIf(mode !== 'presets')(
     'presets',
     async () => {
-      for (const preset of FACTORY_PRESETS.filter((p) => p.id.includes(only))) {
+      const chosen = FACTORY_PRESETS.filter(
+        (p) => p.id.includes(only) && (!onlyDevice || p.instrument.deviceId === onlyDevice),
+      )
+      for (const preset of chosen) {
         const [audio, cost] = await timed(PREVIEW_SECONDS, () =>
           renderPatch(preset, {
             phrase: previewPhrase(preset),

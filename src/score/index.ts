@@ -185,3 +185,4 @@ export {
   type StoredVersionRecord,
   type VersionStorage,
 } from './versionStorage'
+export { patchEffectOps, scoreDeviceFromPatch, type PatchEffectOpsOptions } from './patch'

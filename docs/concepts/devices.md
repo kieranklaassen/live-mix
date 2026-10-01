@@ -137,6 +137,12 @@ clamped, so a preset from an older device version still applies. A descriptor
 may carry `experimental: true` (Felt today: over the CPU gate) for hosts to
 label or hide.
 
+A preset is one device. A **patch** is an instrument with its effects, or an
+effect chain: `validatePatch`, `createPatchEffects` and `replaceInserts` load
+one, `renderPatch` (`./dsp`) plays one without an audio context, and the
+factory bank is 75 instrument presets, 32 chains and 34 sounds built that way
+([factory.md](../factory.md)).
+
 ## Racks and macros
 
 A `Rack` is a `Device` made of parallel `Chain`s summed back to one output, so

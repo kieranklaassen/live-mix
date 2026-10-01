@@ -78,6 +78,26 @@ export {
   type ZoneRange,
 } from './Rack'
 export {
+  capturePatch,
+  capturePatchDevice,
+  createPatchDevice,
+  createPatchEffects,
+  isInstrumentPatch,
+  isPatch,
+  patchDeviceParams,
+  patchDevices,
+  replaceInserts,
+  validatePatch,
+  type CapturePatchOptions,
+  type Patch,
+  type PatchCategory,
+  type PatchCreateOptions,
+  type PatchDevice,
+  type PatchInsertHost,
+  type PatchIssue,
+  type ReplaceInsertsOptions,
+} from './patch'
+export {
   PRESET_FORMAT_VERSION,
   applyPreset,
   capturePreset,
