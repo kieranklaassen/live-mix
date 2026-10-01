@@ -162,6 +162,53 @@ describe('apply', () => {
     expect(() => apply(added, update({ meta: { bad: Number.NaN } }))).toThrow(/plain JSON/)
   })
 
+  it('score.setMeta sets and removes entries of the document meta and inverts to what was there', () => {
+    const set: Operation = {
+      type: 'score.setMeta',
+      patch: { key: { scale: 'minor', root: 2 }, chords: [0, 2, 5, 3] },
+    }
+    const { score, inverse } = applyWithInverse(base, set)
+    expect(score.meta).toEqual({ chords: [0, 2, 5, 3], key: { root: 2, scale: 'minor' } })
+    expect(Object.keys(score.meta ?? {})).toEqual(['chords', 'key'])
+    expect(inverse).toEqual({ type: 'score.setMeta', patch: { chords: null, key: null } })
+    expect('meta' in base).toBe(false)
+    // Undoing the only entries leaves no empty meta behind.
+    expect('meta' in apply(score, inverse)).toBe(false)
+    expect(canon(apply(score, inverse))).toEqual(base)
+
+    // An entry the patch does not name stays; null removes one.
+    const swap: Operation = { type: 'score.setMeta', patch: { chords: [0, 4, 5, 3] } }
+    const swapped = applyWithInverse(score, swap)
+    expect(swapped.score.meta).toEqual({ chords: [0, 4, 5, 3], key: { root: 2, scale: 'minor' } })
+    expect(swapped.inverse).toEqual({ type: 'score.setMeta', patch: { chords: [0, 2, 5, 3] } })
+    expect(apply(swapped.score, swapped.inverse).meta).toEqual(score.meta)
+    expect(apply(score, { type: 'score.setMeta', patch: { key: null } }).meta).toEqual({
+      chords: [0, 2, 5, 3],
+    })
+    // Nothing else in the document is rebuilt.
+    expect(swapped.score.tracks).toBe(score.tracks)
+    expect(validateScore(swapped.score)).toEqual([])
+    expect(parseScore(serializeScore(swapped.score))).toEqual(canon(swapped.score))
+
+    expect(() => apply(base, { type: 'score.setMeta', patch: { bad: Number.NaN } })).toThrow(
+      /plain JSON/,
+    )
+    expect(() =>
+      apply(base, {
+        type: 'score.setMeta',
+        patch: { when: new Date(0) as unknown as string },
+      }),
+    ).toThrow(/plain JSON/)
+    expect(() =>
+      apply(base, { type: 'score.setMeta', patch: null as unknown as Record<string, null> }),
+    ).toThrow(/patch must be an object/)
+
+    // A dragged value folds into one undo step per set of entries.
+    expect(coalesceKey(set)).toBe('score.setMeta|chords,key')
+    expect(coalesceKey(swap)).toBe('score.setMeta|chords')
+    expect(describeOperation(set)).toBe('set score meta chords, key')
+  })
+
   it('source.update patches a source, clears with null and inverts to what was there', () => {
     const { score, inverse } = applyWithInverse(base, {
       type: 'source.update',

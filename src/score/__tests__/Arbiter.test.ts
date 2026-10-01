@@ -319,6 +319,10 @@ describe('Arbiter: target keys', () => {
     expect(arbiterTargets({ type: 'clip.move', track: 'kick', id: 'a1', startSec: 1 })).toEqual([
       'clips:kick:a1',
     ])
+    expect(arbiterTargets({ type: 'score.setMeta', patch: { key: 1, chords: null } })).toEqual([
+      'meta:chords',
+      'meta:key',
+    ])
     expect(
       arbiterTargets({ type: 'clip.replaceFrom', track: 'kick', fromSec: 1, clips: [] }),
     ).toEqual(['clips:kick'])

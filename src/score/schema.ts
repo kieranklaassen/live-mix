@@ -215,6 +215,14 @@ export interface Score {
   scenes: ScoreScene[]
   /** Session grid cells: one per audio track × scene that holds a clip or a stop. */
   slots: ScoreSlot[]
+  /**
+   * Annotations of the host application on the document as a whole: what it
+   * keeps beside the arrangement and wants saved and undone with it (a key, a
+   * chord loop, which panel was open). Plain JSON, one entry per concern,
+   * written with `score.setMeta` and never read by the library. Optional
+   * field of format 3; absent and empty mean the same.
+   */
+  meta?: JsonObject
 }
 
 // --- Defaults -----------------------------------------------------------------------
@@ -1039,6 +1047,7 @@ export function validateScore(input: unknown, options: ValidateScoreOptions = {}
   }
   check.string(raw.id, 'id')
   check.string(raw.name, 'name', false)
+  checkMeta(raw.meta, 'meta', check)
   const ctx: Context = {
     check,
     ids: collectIds(raw),
@@ -1392,7 +1401,7 @@ function sortedRecord<T>(record: Record<string, T>): Record<string, T> {
  * them). `serializeScore` runs it, so equal documents serialise equally.
  */
 export function normaliseScore(score: Score): Score {
-  return {
+  const out: Score = {
     format: SCORE_FORMAT_VERSION,
     id: score.id,
     name: score.name,
@@ -1448,6 +1457,9 @@ export function normaliseScore(score: Score): Score {
     scenes: score.scenes.map((scene) => ({ id: scene.id, name: scene.name })),
     slots: score.slots.map(normaliseSlot),
   }
+  const meta = normaliseMeta(score.meta)
+  if (meta) out.meta = meta
+  return out
 }
 
 /** Stable JSON (two-space indent, canonical field order). */

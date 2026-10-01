@@ -407,6 +407,16 @@ describe('ScoreRenderer: incremental edits', () => {
     })
   })
 
+  it('an annotation on the document changes nothing in the graph', async () => {
+    const { renderer, document, edit } = await rig()
+    const set = vi.spyOn(renderer.audioTrack('kick').clips, 'set')
+    const kick = renderer.audioTrack('kick')
+    await edit({ type: 'score.setMeta', patch: { chords: [0, 2, 5, 3] } })
+    expect(set).not.toHaveBeenCalled()
+    expect(renderer.audioTrack('kick')).toBe(kick)
+    expect(document.score.meta).toEqual({ chords: [0, 2, 5, 3] })
+  })
+
   it('unloaded clip sources resolve through the score (url by default, or the app)', async () => {
     const seen: string[] = []
     const ctx = createMockContext()

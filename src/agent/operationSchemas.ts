@@ -512,6 +512,18 @@ const OPERATION_SPECS: Record<OperationType, OperationSpec> = {
     properties: { name: { type: 'string' } },
     required: ['name'],
   },
+  'score.setMeta': {
+    description:
+      "Set or remove entries of the document's host annotations (`meta`): a value sets the entry, null removes it. The library never reads them.",
+    properties: {
+      patch: {
+        type: 'object',
+        additionalProperties: true,
+        description: 'Entry name to its JSON value, or null to remove the entry.',
+      },
+    },
+    required: ['patch'],
+  },
   'transport.loop': {
     description: 'Enable/disable the transport loop and/or set its length (null = no end).',
     properties: {

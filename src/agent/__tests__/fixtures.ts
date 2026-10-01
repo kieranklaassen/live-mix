@@ -26,6 +26,7 @@ import { type AgentTrack } from '../types'
 /** Valid arguments for every operation tool, each applicable to `demoScore()`. */
 export const OPERATION_ARGS: Record<OperationType, Record<string, unknown>> = {
   'score.rename': { name: 'Evening' },
+  'score.setMeta': { patch: { key: { root: 2, scale: 'minor' } } },
   'transport.loop': { enabled: true, lengthSec: 30 },
   'tempo.set': {
     segments: [
