@@ -123,8 +123,9 @@ describe('NativeDevice.create', () => {
     expect(input.isConnectedTo(delay)).toBe(true)
     expect(delay.isConnectedTo(dry)).toBe(true)
     expect(dry.isConnectedTo(output)).toBe(true)
-    expect(dry.gain.value).toBe(0)
-    expect(wet.gain.value).toBe(1)
+    // Still connecting: the dry signal passes until the host answers.
+    expect(dry.gain.value).toBe(1)
+    expect(wet.gain.value).toBe(0)
     // Bridge 512 + plug-in 64, in seconds: the dry path arrives with the wet one.
     expect(delay.delayTime.value).toBeCloseTo(576 / 48000, 9)
   })
@@ -297,8 +298,9 @@ describe('NativeDevice behaviour', () => {
   })
 
   it('bypass crossfades to the delayed dry path and announces itself', async () => {
-    const { device, ctx } = await makeDevice()
+    const { device, ctx, worker } = await makeDevice()
     const [, , dry, wet] = ctx.gains
+    worker.emit({ type: 'open' })
     const seen: DeviceChange[] = []
     device.onChange((change) => seen.push(change))
     device.bypass = true
@@ -307,7 +309,8 @@ describe('NativeDevice behaviour', () => {
     device.bypass = true
     device.bypass = false
     expect(wet.gain.lastEvent('linearRampToValueAtTime')?.args).toEqual([1, 2.005])
-    expect(dry.gain.eventsFor('linearRampToValueAtTime')).toHaveLength(2)
+    // The open connection, then the two toggles: pressing bypass twice is one ramp.
+    expect(dry.gain.eventsFor('linearRampToValueAtTime')).toHaveLength(3)
     expect(seen).toEqual([
       { type: 'bypass', bypass: true },
       { type: 'bypass', bypass: false },
@@ -335,6 +338,9 @@ describe('NativeDevice behaviour', () => {
     expect(device.status).toBe('connecting')
     worker.emit({ type: 'open' })
     expect(device.status).toBe('running')
+    // Audio flows at last: the wet path takes over from the dry one it started on.
+    expect(dry.gain.lastEvent('linearRampToValueAtTime')?.args).toEqual([0, 2.005])
+    expect(wet.gain.lastEvent('linearRampToValueAtTime')?.args).toEqual([1, 2.005])
     worker.emit({ type: 'close', reason: 'the plug-in host closed the connection' })
     expect(device.status).toBe('stopped')
     expect(seen).toEqual(['running', 'stopped'])

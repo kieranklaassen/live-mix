@@ -223,7 +223,10 @@ export class NativeHostClient {
     return this.call('hideEditor', { slot }).then(() => undefined)
   }
 
-  /** Tempo and run state every loaded plug-in sees on its play head. */
+  /**
+   * Tempo and run state every loaded plug-in sees on its play head. A field
+   * left out keeps its value: `{ bpm }` does not start a stopped play head.
+   */
   setTransport(transport: { bpm?: number; playing?: boolean }): void {
     this.notify('setTransport', transport)
   }

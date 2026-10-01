@@ -305,8 +305,13 @@ void PluginSlot::setParameter (int index, float normalised)
 
 juce::String PluginSlot::getState() const
 {
+    // State travels through the plug-in itself: keep it away from a block
+    // being processed on the audio connection thread.
+    const juce::ScopedLock lock (processLock);
+
     if (plugin == nullptr)
         return {};
+    const juce::ScopedLock callbackLock (plugin->getCallbackLock());
     juce::MemoryBlock state;
     plugin->getStateInformation (state);
     return juce::Base64::toBase64 (state.getData(), state.getSize());
@@ -314,21 +319,28 @@ juce::String PluginSlot::getState() const
 
 bool PluginSlot::setState (const juce::String& base64)
 {
-    if (plugin == nullptr)
-        return false;
     juce::MemoryOutputStream decoded;
     if (! juce::Base64::convertFromBase64 (decoded, base64))
         return false;
-    plugin->setStateInformation (decoded.getData(), static_cast<int> (decoded.getDataSize()));
+
+    const juce::ScopedLock lock (processLock);
+
+    if (plugin == nullptr)
+        return false;
+    {
+        const juce::ScopedLock callbackLock (plugin->getCallbackLock());
+        plugin->setStateInformation (decoded.getData(), static_cast<int> (decoded.getDataSize()));
+    }
     markAllDirty (Origin::plugin);
     return true;
 }
 
-void PluginSlot::setTransport (double newBpm, bool isPlaying)
+void PluginSlot::setTransport (double newBpm, std::optional<bool> isPlaying)
 {
     if (newBpm > 0.0)
         bpm = newBpm;
-    playing = isPlaying;
+    if (isPlaying.has_value())
+        playing = *isPlaying;
 }
 
 void PluginSlot::markAllDirty (Origin origin)

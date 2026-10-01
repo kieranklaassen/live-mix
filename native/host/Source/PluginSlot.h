@@ -10,6 +10,7 @@
 #include <atomic>
 #include <functional>
 #include <memory>
+#include <optional>
 
 namespace livemix
 {
@@ -60,7 +61,8 @@ public:
     void setParameter (int index, float normalised);
     juce::String getState() const;
     bool setState (const juce::String& base64);
-    void setTransport (double bpm, bool playing);
+    /** A bpm of zero or no run state leaves that half of the play head alone. */
+    void setTransport (double bpm, std::optional<bool> playing);
     int latencySamples() const;
 
     bool showEditor();

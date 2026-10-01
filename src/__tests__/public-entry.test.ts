@@ -229,6 +229,12 @@ const coreSymbols = [
   // Patches into a score
   'patchEffectOps',
   'scoreDeviceFromPatch',
+  // Hosted plug-ins (U39): offline holds and the device contracts they need
+  'holdRenderAt',
+  'canHoldRender',
+  'holdFrame',
+  'isEditorDevice',
+  'isParamTextDevice',
 ] as const
 
 const dspSymbols = [
@@ -303,6 +309,7 @@ const testingSymbols = [
   'createMockContext',
   'advance',
   'configureMocks',
+  'FakePluginHost',
 ] as const
 
 const wamSymbols = [

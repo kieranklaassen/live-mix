@@ -1,6 +1,7 @@
 #include "HostServer.h"
 
 #include <cstring>
+#include <optional>
 
 namespace livemix
 {
@@ -366,7 +367,10 @@ void HostServer::handleRequest (const Connection& connection, const juce::var& r
     else if (method == "setTransport")
     {
         const auto bpm = params.hasProperty ("bpm") ? static_cast<double> (params["bpm"]) : 0.0;
-        const auto playing = ! params.hasProperty ("playing") || static_cast<bool> (params["playing"]);
+        // Both fields are optional: a tempo-only update must not start the play head.
+        const auto playing = params.hasProperty ("playing")
+                                 ? std::optional<bool> (static_cast<bool> (params["playing"]))
+                                 : std::nullopt;
         std::vector<std::shared_ptr<PluginSlot>> all;
         {
             const juce::ScopedLock lock (slotLock);
@@ -550,6 +554,11 @@ void HostServer::load (const Connection& connection, const juce::var& id, const 
                 weak->fail (connection, id, error.isNotEmpty() ? error : "the plug-in could not be created");
                 return;
             }
+            // The control connection went away while the plug-in was loading:
+            // `controlClosed` never saw this slot, so let the instance go here
+            // rather than leave it loaded for the life of the process.
+            if (connection == nullptr || ! connection->isOpen())
+                return;
 
             const auto slotId = "s" + juce::String (weak->nextSlot++);
             auto slot = std::make_shared<PluginSlot> (slotId, std::move (instance), chosen, sampleRate, blockSize);

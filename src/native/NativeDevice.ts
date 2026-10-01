@@ -12,8 +12,8 @@
 // (`bridgeLatencyFrames`), which the device reports as latency together with
 // the plug-in's own, so delay compensation lines other tracks up with it. The
 // dry path is delayed by the same amount: bypass never moves the timing.
-// If the host goes away the device passes the dry signal and reports
-// `status === 'stopped'`.
+// Until the host answers, and again if it goes away (`status === 'stopped'`),
+// the device passes the dry signal rather than the worklet's silence.
 
 import {
   type DeviceChange,
@@ -256,8 +256,10 @@ export class NativeDevice implements NoteDevice, ObservableDevice, EditorDevice,
     this.dry = context.createGain()
     this.wet = context.createGain()
     this.dryDelay = context.createDelay(DRY_DELAY_MAX_SECONDS)
-    this.dry.gain.value = 0
-    this.wet.gain.value = 1
+    // Still connecting: the dry signal passes until the host answers, so
+    // inserting a plug-in on a playing strip does not drop it.
+    this.dry.gain.value = 1
+    this.wet.gain.value = 0
     this.dryDelay.delayTime.value = this.latencySec
 
     if (init.slot.inputs > 0) this.input.connect(this.node)
@@ -650,10 +652,10 @@ export class NativeDevice implements NoteDevice, ObservableDevice, EditorDevice,
     this.dryDelay.delayTime.value = Math.min(DRY_DELAY_MAX_SECONDS, this.latencySec)
   }
 
-  /** Dry passes when bypassed or when the host is gone; wet otherwise. */
+  /** Dry passes when bypassed or while no audio flows through the host; wet otherwise. */
   private applyMix(): void {
     if (this.disposed) return
-    const dry = this.bypassed || this.currentStatus === 'stopped'
+    const dry = this.bypassed || this.currentStatus !== 'running'
     const now = this.context.currentTime
     rampGain(this.dry.gain, dry ? 1 : 0, now, this.rampSec)
     rampGain(this.wet.gain, dry ? 0 : 1, now, this.rampSec)
