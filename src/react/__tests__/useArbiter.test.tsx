@@ -342,6 +342,17 @@ describe('hooks write through the arbiter', () => {
       id: 'delay-2',
       index: 1,
     })
+    // A second click before the renderer has caught up steps on from the slot
+    // the score holds now, not back to the one the first click came from.
+    fireEvent.click(screen.getByTestId('chain-earlier-2'))
+    expect(document.log.entries.at(-1)?.op).toEqual({
+      type: 'device.move',
+      id: 'delay-2',
+      index: 0,
+    })
+    act(() => {
+      document.undo()
+    })
     await act(() => renderer.whenIdle())
     expect(kick.strip.inserts.map((device) => renderer.deviceIdFor(device))).toEqual([
       'kick-filter',

@@ -78,6 +78,7 @@ const coreSymbols = [
   'METER_PROCESSOR_NAME',
   'Emitter',
   'isJsonObject',
+  'isJsonValue',
   'canonicalJson',
   'sameJson',
   'isAudibleClip',
