@@ -1,5 +1,13 @@
 // @vitest-environment jsdom
-import { act, cleanup, renderHook } from '@testing-library/react'
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  renderHook,
+  screen,
+  waitFor,
+} from '@testing-library/react'
 import { createElement, type ReactNode } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
 
@@ -12,10 +20,11 @@ import { type Author } from '../../score/log'
 import { type Operation } from '../../score/operations'
 import { findStripHost } from '../../score/schema'
 import { ScoreDocument } from '../../score/ScoreDocument'
+import { DeviceChainView } from '../components/DeviceChainView'
 import { demoScore } from '../../score/__tests__/fixtures'
 import { useArbiter, useArbiterTarget } from '../hooks/useArbiter'
 import { LiveMixProvider } from '../hooks/useEngine'
-import { useDeviceParam } from '../hooks/useParam'
+import { useDevice, useDeviceParam } from '../hooks/useParam'
 import { useTrack } from '../hooks/useTrack'
 import { createTestEngine } from './harness'
 
@@ -251,5 +260,134 @@ describe('hooks write through the arbiter', () => {
     })
     await act(() => renderer.whenIdle())
     expect(result.current.value).toBeCloseTo(0.6)
+  })
+
+  it('useDevice bypass, presets and reset are score operations for a score device', async () => {
+    const { document, renderer, wrapper } = await rig()
+    const filter = renderer.device('kick-filter')
+    const { result } = renderHook(() => useDevice(filter), { wrapper })
+    const scoreFilter = () =>
+      findStripHost(document.score, 'kick')?.strip.inserts.find((d) => d.id === 'kick-filter')
+
+    act(() => result.current.toggleBypass())
+    expect(document.log.entries.at(-1)?.op).toEqual({
+      type: 'device.bypass',
+      device: 'kick-filter',
+      bypass: true,
+    })
+    // A second toggle before the renderer has caught up flips the score's value back.
+    act(() => result.current.toggleBypass())
+    expect(scoreFilter()?.bypass).toBe(false)
+    act(() => result.current.setBypass(true))
+    await act(() => renderer.whenIdle())
+    expect(filter.bypass).toBe(true)
+
+    const preset = result.current.presets[0]
+    let report = { applied: [] as string[], skipped: [] as string[] }
+    act(() => {
+      report = result.current.applyPreset({
+        ...preset,
+        params: { ...preset.params, notAParam: 1 },
+      })
+    })
+    expect(report.skipped).toEqual(['notAParam'])
+    expect(report.applied).toEqual(Object.keys(preset.params))
+    expect(document.log.entries.at(-1)?.op).toEqual({
+      type: 'device.setParams',
+      device: 'kick-filter',
+      params: preset.params,
+    })
+
+    act(() => result.current.setParam('gain', 6))
+    await act(() => renderer.whenIdle())
+    expect(filter.getParam('gain')).toBe(6)
+    act(() => result.current.reset())
+    expect(document.log.entries.at(-1)?.op).toMatchObject({
+      type: 'device.setParams',
+      device: 'kick-filter',
+      params: { frequency: filter.params.frequency.default },
+    })
+    await act(() => renderer.whenIdle())
+    // (The LFO route owns `frequency`, so the static value shows on another parameter.)
+    expect(filter.getParam('gain')).toBe(filter.params.gain.default)
+    // One undo step each: three bypass writes, the preset, the gain, the reset.
+    expect(document.history.undoStack).toHaveLength(6)
+  })
+
+  it('DeviceChainView adds, moves and removes through the score when it carries the strip', async () => {
+    const { document, engine, renderer, wrapper } = await rig()
+    const kick = engine.track('kick')
+    render(createElement(DeviceChainView, { strip: kick, 'data-testid': 'chain' }), { wrapper })
+    const ids = () =>
+      findStripHost(document.score, 'kick')?.strip.inserts.map((device) => device.id)
+    expect(ids()).toEqual(['kick-filter'])
+
+    const picker = screen.getByRole('combobox', { name: 'Add device' })
+    fireEvent.change(picker, { target: { value: 'delay' } })
+    expect(document.log.entries.at(-1)?.op).toEqual({
+      type: 'device.add',
+      owner: 'kick',
+      device: { id: 'delay-1', deviceId: 'delay', params: {}, bypass: false },
+    })
+    fireEvent.change(picker, { target: { value: 'delay' } })
+    expect(ids()).toEqual(['kick-filter', 'delay-1', 'delay-2'])
+    // The renderer builds the chain; the view follows the strip.
+    await act(() => renderer.whenIdle())
+    await waitFor(() => expect(screen.getAllByRole('heading')).toHaveLength(3))
+    expect(kick.strip.inserts[1]).toBe(renderer.device('delay-1'))
+
+    fireEvent.click(screen.getByTestId('chain-earlier-2'))
+    expect(document.log.entries.at(-1)?.op).toEqual({
+      type: 'device.move',
+      id: 'delay-2',
+      index: 1,
+    })
+    await act(() => renderer.whenIdle())
+    expect(kick.strip.inserts.map((device) => renderer.deviceIdFor(device))).toEqual([
+      'kick-filter',
+      'delay-2',
+      'delay-1',
+    ])
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Remove Delay' })[0])
+    expect(document.log.entries.at(-1)?.op).toEqual({ type: 'device.remove', id: 'delay-2' })
+    await act(() => renderer.whenIdle())
+    expect(kick.strip.inserts).toHaveLength(2)
+
+    // Every edit is on the undo stack: back to the chain the score started with.
+    act(() => {
+      while (document.canUndo) document.undo()
+    })
+    await act(() => renderer.whenIdle())
+    expect(ids()).toEqual(['kick-filter'])
+    expect(kick.strip.inserts).toHaveLength(1)
+  })
+
+  it('DeviceChainView edits the master through the score and leaves hand-made inserts first', async () => {
+    const { document, engine, renderer, wrapper } = await rig()
+    render(
+      createElement(DeviceChainView, { strip: engine.master, pinned: 0, 'data-testid': 'chain' }),
+      { wrapper },
+    )
+    fireEvent.change(screen.getByRole('combobox', { name: 'Add device' }), {
+      target: { value: 'eq3' },
+    })
+    expect(document.score.master.inserts.map((device) => device.id)).toEqual(['glue', 'eq3-1'])
+    await act(() => renderer.whenIdle())
+    expect(engine.master.inserts.map((device) => device.id)).toEqual(['compressor', 'eq3'])
+  })
+
+  it('DeviceChainView keeps writing the engine for a strip the score does not carry', async () => {
+    const { document, engine, wrapper } = await rig()
+    const extra = engine.addAudioTrack('extra')
+    const before = document.log.length
+    render(createElement(DeviceChainView, { strip: extra }), { wrapper })
+    await act(async () => {
+      fireEvent.change(screen.getByRole('combobox', { name: 'Add device' }), {
+        target: { value: 'filter' },
+      })
+    })
+    await waitFor(() => expect(extra.strip.inserts.map((d) => d.id)).toEqual(['filter']))
+    expect(document.log.length).toBe(before)
   })
 })

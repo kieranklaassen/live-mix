@@ -91,6 +91,7 @@ describe('entries', () => {
     'useParamControl',
     'useStripMeter',
     'reorderInserts',
+    'freshDeviceId',
     'normalizeValue',
     'denormalizeValue',
     'formatControlValue',

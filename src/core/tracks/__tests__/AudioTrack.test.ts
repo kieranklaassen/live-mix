@@ -463,6 +463,34 @@ describe('AudioTrack as Schedulables', () => {
     scheduler.dispose()
   })
 
+  it('never starts a muted clip, stops one muted while sounding, and plays it again once unmuted', async () => {
+    const { ctx, samples, track, transport, scheduler } = scheduled({ lookaheadSec: 1, loop: true })
+    await samples.load('s-a', buffer(ctx, 10))
+    await samples.load('s-b', buffer(ctx, 10))
+    track.clips.add(clip('a', 0.5, { muted: true }))
+    track.clips.add(clip('b', 0.5))
+    transport.start()
+    scheduler.tick()
+    // Only the unmuted clip was handed to the graph; the muted one is still on the track.
+    expect(ctx.sources).toHaveLength(1)
+    expect(track.voice('b:0:0.500')).toBeDefined()
+    expect(track.clips.all().map((c) => c.id)).toEqual(['a', 'b'])
+    expect(track.clips.audible().map((c) => c.id)).toEqual(['b'])
+
+    ctx.currentTime = 1
+    track.clips.update('b', { muted: true })
+    expect(ctx.sources[0].stopCalls.count).toBe(1)
+    expect(track.clips.audible()).toEqual([])
+
+    // Unmuted, it is due again on the next pass of the loop.
+    track.clips.update('b', { muted: false })
+    ctx.currentTime = 31.8
+    scheduler.tick()
+    expect(ctx.sources).toHaveLength(2)
+    expect(track.voice('b:1:0.500')).toBeDefined()
+    scheduler.dispose()
+  })
+
   it('transport stop with a fade stops sources at now + fade; pause silences immediately', async () => {
     const { ctx, samples, track, transport, scheduler } = scheduled({ lookaheadSec: 1 })
     await samples.load('s-a', buffer(ctx, 10))

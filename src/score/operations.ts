@@ -9,6 +9,7 @@
 // `apply(invert(op), apply(op)) ≡ score` holds for every operation.
 
 import { type Clip } from '../core/clips/Clip'
+import { isJsonObject, type JsonObject } from '../core/json'
 import { type ModPolarity } from '../core/automation/ModMatrix'
 import { type Breakpoint } from '../core/automation/ParamLane'
 import { type TempoSegment } from '../core/time/TempoMap'
@@ -33,6 +34,7 @@ import {
   normaliseClip,
   normaliseScore,
   normaliseSlot,
+  normaliseSource,
   normaliseTempo,
   sameTarget,
   slotAt,
@@ -75,6 +77,17 @@ export interface ModulatorPatch {
 export type ClipPatch = Partial<Omit<Clip, 'id'>>
 
 /**
+ * Fields a `source.update` may patch; `null` clears an optional field (a
+ * relinked file gets a new `url`, a decoded one its `durationSec`).
+ */
+export interface SourcePatch {
+  url?: string | null
+  durationSec?: number | null
+  analysis?: Record<string, unknown> | null
+  meta?: JsonObject | null
+}
+
+/**
  * Fields a `slot.update` may patch. `quantize: null` and `follow: null`
  * clear the optional setting (back to the global quantisation / no follow
  * action); `clip: null` empties the slot.
@@ -96,6 +109,7 @@ export type Operation =
   | { type: 'tempo.set'; segments: TempoSegment[] }
   | { type: 'source.add'; source: ScoreSource; index?: number }
   | { type: 'source.remove'; id: string }
+  | { type: 'source.update'; id: string; patch: SourcePatch }
   | { type: 'track.add'; track: ScoreTrack; index?: number }
   | { type: 'track.remove'; id: string }
   | { type: 'track.move'; id: string; index: number }
@@ -191,6 +205,7 @@ export const OPERATION_TYPES: readonly OperationType[] = [
   'tempo.set',
   'source.add',
   'source.remove',
+  'source.update',
   'track.add',
   'track.remove',
   'track.move',
@@ -305,6 +320,7 @@ export function coalesceKey(op: Operation): string | null {
     case 'elementTrack.setClips':
     case 'source.add':
     case 'source.remove':
+    case 'source.update':
     case 'track.add':
     case 'track.remove':
     case 'track.move':
@@ -615,6 +631,38 @@ function withInserts(score: Score, op: Operation, owner: string, inserts: ScoreD
 
 const tidyClip = normaliseClip
 
+/** A clip an operation carries: its `meta`, when set, has to be plain JSON. */
+function checkedClip(op: Operation, clip: Clip): Clip {
+  if (clip.meta !== undefined && !isJsonObject(clip.meta)) {
+    fail(op, `clip "${clip.id}" meta must be a plain JSON object`)
+  }
+  return tidyClip(clip)
+}
+
+function patchSource(op: Operation, source: ScoreSource, patch: SourcePatch): ScoreSource {
+  const next: ScoreSource = { ...source }
+  if (patch.url !== undefined) {
+    if (patch.url === null) delete next.url
+    else next.url = patch.url
+  }
+  if (patch.durationSec !== undefined) {
+    if (patch.durationSec === null) delete next.durationSec
+    else if (!Number.isFinite(patch.durationSec) || patch.durationSec < 0) {
+      fail(op, 'durationSec must be a finite number ≥ 0')
+    } else next.durationSec = patch.durationSec
+  }
+  if (patch.analysis !== undefined) {
+    if (patch.analysis === null) delete next.analysis
+    else next.analysis = patch.analysis
+  }
+  if (patch.meta !== undefined) {
+    if (patch.meta === null) delete next.meta
+    else if (!isJsonObject(patch.meta)) fail(op, 'source meta must be a plain JSON object')
+    else next.meta = patch.meta
+  }
+  return normaliseSource(next)
+}
+
 function targetsDevice(target: ParamTarget, deviceIds: ReadonlySet<string>): boolean {
   return target.kind === 'device' && deviceIds.has(target.device)
 }
@@ -794,7 +842,13 @@ export function apply(score: Score, op: Operation): Score {
       if (score.sources.some((source) => source.id === op.source.id)) {
         fail(op, `source "${op.source.id}" already exists`)
       }
-      return { ...score, sources: insertAt(op, score.sources, { ...op.source }, op.index) }
+      if (op.source.meta !== undefined && !isJsonObject(op.source.meta)) {
+        fail(op, 'source meta must be a plain JSON object')
+      }
+      return {
+        ...score,
+        sources: insertAt(op, score.sources, normaliseSource(op.source), op.index),
+      }
 
     case 'source.remove': {
       if (!score.sources.some((source) => source.id === op.id)) fail(op, `no source "${op.id}"`)
@@ -813,6 +867,17 @@ export function apply(score: Score, op: Operation): Score {
         }
       }
       return { ...score, sources: score.sources.filter((source) => source.id !== op.id) }
+    }
+
+    case 'source.update': {
+      const source =
+        score.sources.find((candidate) => candidate.id === op.id) ??
+        fail(op, `no source "${op.id}"`)
+      const next = patchSource(op, source, op.patch)
+      return {
+        ...score,
+        sources: score.sources.map((candidate) => (candidate === source ? next : candidate)),
+      }
     }
 
     case 'track.add': {
@@ -944,7 +1009,7 @@ export function apply(score: Score, op: Operation): Score {
       }
       return replaceHost(score, track.id, {
         ...track,
-        clips: sortClips([...track.clips, tidyClip(op.clip)]),
+        clips: sortClips([...track.clips, checkedClip(op, op.clip)]),
       })
     }
 
@@ -1313,7 +1378,7 @@ function patchClip(
   ) {
     fail(op, `no source "${patch.sourceId}"`)
   }
-  const next = tidyClip({ ...clip, ...patch })
+  const next = checkedClip(op, { ...clip, ...patch })
   return replaceHost(score, track.id, {
     ...track,
     clips: sortClips(track.clips.map((candidate) => (candidate === clip ? next : candidate))),
@@ -1368,6 +1433,18 @@ export function invert(score: Score, op: Operation): Operation {
       const index = score.sources.findIndex((source) => source.id === op.id)
       if (index === -1) fail(op, `no source "${op.id}"`)
       return { type: 'source.add', source: score.sources[index], index }
+    }
+
+    case 'source.update': {
+      const source =
+        score.sources.find((candidate) => candidate.id === op.id) ??
+        fail(op, `no source "${op.id}"`)
+      const patch: SourcePatch = {}
+      if ('url' in op.patch) patch.url = source.url ?? null
+      if ('durationSec' in op.patch) patch.durationSec = source.durationSec ?? null
+      if ('analysis' in op.patch) patch.analysis = source.analysis ?? null
+      if ('meta' in op.patch) patch.meta = source.meta ?? null
+      return { type: 'source.update', id: op.id, patch }
     }
 
     case 'track.add':
@@ -1534,7 +1611,14 @@ export function invert(score: Score, op: Operation): Operation {
       const clip = requireClip(track, op, op.id)
       const patch: Record<string, unknown> = {}
       for (const key of Object.keys(op.patch) as (keyof ClipPatch)[]) {
-        patch[key] = key === 'loop' ? (clip.loop ?? false) : clip[key]
+        // Absent optional fields invert to the value that clears them, so the
+        // inverse still says what it undoes after a round trip through JSON.
+        patch[key] =
+          key === 'loop' || key === 'muted'
+            ? (clip[key] ?? false)
+            : key === 'meta'
+              ? (clip.meta ?? {})
+              : clip[key]
       }
       return { type: 'clip.update', track: op.track, id: op.id, patch: patch }
     }
@@ -1804,6 +1888,8 @@ export function describeOperation(op: Operation): string {
       return `add source ${op.source.id}`
     case 'source.remove':
       return `remove source ${op.id}`
+    case 'source.update':
+      return `update source ${op.id}`
     case 'track.add':
       return `add ${op.track.kind} track ${op.track.id}`
     case 'track.remove':

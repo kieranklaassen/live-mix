@@ -171,6 +171,73 @@ describe('ScoreDocument', () => {
     expect(parsed.apply({ type: 'score.rename', name: 'x' }).author).toBe(agent)
   })
 
+  it('a gesture across several operations is one undo step', () => {
+    const document = new ScoreDocument(demoScore())
+    const before = document.score
+    const drag = { gesture: 'drag-1', label: 'Move clip' }
+    // A clip dragged over its neighbour: it moves, the neighbour's fade follows, twice.
+    document.apply({ type: 'clip.move', track: 'kick', id: 'b1', startSec: 3 }, drag)
+    document.apply({ type: 'clip.update', track: 'kick', id: 'a1', patch: { fadeOutSec: 1 } }, drag)
+    document.apply({ type: 'clip.move', track: 'kick', id: 'b1', startSec: 2 }, drag)
+    document.apply({ type: 'clip.update', track: 'kick', id: 'a1', patch: { fadeOutSec: 2 } }, drag)
+    document.endGesture()
+    const after = document.score
+    expect(document.history.undoStack).toHaveLength(1)
+    expect(document.history.peekUndo()?.label).toBe('Move clip')
+
+    document.undo()
+    expect(document.score).toEqual(before)
+    expect(document.canUndo).toBe(false)
+    document.redo()
+    expect(document.score).toEqual(after)
+    // The log still has every operation, then the undo and the redo.
+    expect(document.log.entries.map((entry) => entry.kind)).toEqual([
+      'apply',
+      'apply',
+      'apply',
+      'apply',
+      'undo',
+      'redo',
+    ])
+  })
+
+  it('history: false amends the document without an undo step and keeps the redo stack', () => {
+    const document = new ScoreDocument(demoScore())
+    document.apply({ type: 'strip.mute', owner: 'kick', mute: true })
+    document.undo()
+    expect(document.canRedo).toBe(true)
+
+    const entry = document.apply(
+      { type: 'source.update', id: 'a', patch: { durationSec: 12 } },
+      { history: false, author: { id: 'system', kind: 'system' } },
+    )
+    expect(document.score.sources[0].durationSec).toBe(12)
+    expect(entry).toMatchObject({ kind: 'apply', author: { kind: 'system' } })
+    expect(document.log.entries.at(-1)).toBe(entry)
+    expect(document.canUndo).toBe(false)
+    expect(document.canRedo).toBe(true)
+
+    // The amendment stays through a redo and an undo of the user's own step.
+    document.redo()
+    expect(document.score.tracks[0].strip.mute).toBe(true)
+    document.undo()
+    expect(document.score.sources[0].durationSec).toBe(12)
+  })
+
+  it('an amendment in the middle of a gesture does not split its step', () => {
+    const document = new ScoreDocument(demoScore())
+    const drag = { gesture: 'drag-1' }
+    document.apply({ type: 'clip.move', track: 'kick', id: 'b1', startSec: 3 }, drag)
+    document.apply(
+      { type: 'source.update', id: 'b', patch: { durationSec: 20 } },
+      { history: false },
+    )
+    document.apply({ type: 'clip.move', track: 'kick', id: 'b1', startSec: 2 }, drag)
+    expect(document.history.undoStack).toHaveLength(1)
+    document.undo()
+    expect(document.score.sources[1].durationSec).toBe(20)
+  })
+
   it('listeners can unsubscribe', () => {
     const document = new ScoreDocument(demoScore())
     const listener = vi.fn()

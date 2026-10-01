@@ -107,6 +107,7 @@ export {
 } from './DevicePanel'
 export {
   DeviceChainView,
+  freshDeviceId,
   groupDevices,
   isInsertDevice,
   reorderInserts,

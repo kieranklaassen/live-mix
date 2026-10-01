@@ -24,10 +24,12 @@ export {
   masterDestination,
   migrateScore,
   normaliseClip,
+  normaliseMeta,
   normaliseQuantize,
   normaliseScore,
   normaliseSlot,
   normaliseSlotClip,
+  normaliseSource,
   normaliseTempo,
   parseScore,
   sameDestination,
@@ -80,6 +82,7 @@ export {
   type Operation,
   type OperationType,
   type SlotPatch,
+  type SourcePatch,
 } from './operations'
 export {
   AUTOMATION_AUTHOR,

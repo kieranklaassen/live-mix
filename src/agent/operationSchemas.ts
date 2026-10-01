@@ -128,6 +128,8 @@ export const OPERATION_DEFS: Record<string, JsonSchema> = {
       gainDb: number('Loudness trim in dB (the track caps it at ±12).'),
       loop: { type: 'boolean', description: 'Loop the source when the clip outlives it.' },
       semitones: number('Pitch shift on a stretch source.'),
+      muted: { type: 'boolean', description: 'Keep the clip on the track without playing it.' },
+      meta: ref('Meta'),
     },
     required: [
       'id',
@@ -156,6 +158,25 @@ export const OPERATION_DEFS: Record<string, JsonSchema> = {
       gainDb: number('Loudness trim in dB.'),
       loop: { type: 'boolean' },
       semitones: number('Pitch shift on a stretch source.'),
+      muted: { type: 'boolean' },
+      meta: ref('Meta'),
+    },
+    additionalProperties: false,
+  },
+  Meta: {
+    type: 'object',
+    description:
+      "The host application's own annotations (plain JSON); the engine never reads them.",
+    additionalProperties: true,
+  },
+  SourcePatch: {
+    type: 'object',
+    description: 'Source fields to change; null clears one.',
+    properties: {
+      url: { type: ['string', 'null'] },
+      durationSec: { type: ['number', 'null'], minimum: 0 },
+      analysis: { type: ['object', 'null'], additionalProperties: true },
+      meta: { type: ['object', 'null'], additionalProperties: true },
     },
     additionalProperties: false,
   },
@@ -171,6 +192,7 @@ export const OPERATION_DEFS: Record<string, JsonSchema> = {
         description: 'Server analysis (LUFS, key, BPM, …).',
         additionalProperties: true,
       },
+      meta: ref('Meta'),
     },
     required: ['id'],
     additionalProperties: false,
@@ -529,6 +551,11 @@ const OPERATION_SPECS: Record<OperationType, OperationSpec> = {
     description: 'Remove a source; refused while a clip uses it.',
     properties: { id: id('Source id.') },
     required: ['id'],
+  },
+  'source.update': {
+    description: "Change a source's url, length, analysis or annotations.",
+    properties: { id: id('Source id.'), patch: ref('SourcePatch') },
+    required: ['id', 'patch'],
   },
   'track.add': {
     description: 'Add an audio, live-input or instrument track.',

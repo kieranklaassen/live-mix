@@ -16,6 +16,7 @@
 // stable (same score → same string) so documents diff well in git.
 
 import { type Clip } from '../core/clips/Clip'
+import { canonicalJson, isJsonObject, type JsonObject } from '../core/json'
 import { type LfoShape } from '../core/automation/Modulator'
 import { type ModPolarity } from '../core/automation/ModMatrix'
 import { type Breakpoint, type LaneCurve } from '../core/automation/ParamLane'
@@ -85,6 +86,11 @@ export interface ScoreSource {
   durationSec?: number
   /** Server analysis (LUFS, key, BPM, …) carried with the document. */
   analysis?: Record<string, unknown>
+  /**
+   * Annotations of the host application (a display name, a colour). Plain
+   * JSON, carried with the document and never read by the library.
+   */
+  meta?: JsonObject
 }
 
 interface ScoreStripOwner {
@@ -680,6 +686,8 @@ function checkClip(raw: unknown, path: string, ctx: Context, clipIds: UniqueIds)
   check.oneOf(raw.fadeCurve, `${path}.fadeCurve`, ['linear', 'equalPower'])
   check.number(raw.gainDb, `${path}.gainDb`)
   if (raw.loop !== undefined) check.boolean(raw.loop, `${path}.loop`)
+  if (raw.muted !== undefined) check.boolean(raw.muted, `${path}.muted`)
+  checkMeta(raw.meta, `${path}.meta`, check)
   if (raw.loopStartSec !== undefined)
     check.number(raw.loopStartSec, `${path}.loopStartSec`, { min: 0 })
   if (raw.loopEndSec !== undefined) {
@@ -692,6 +700,11 @@ function checkClip(raw: unknown, path: string, ctx: Context, clipIds: UniqueIds)
     }
   }
   checkWarp(raw, path, check)
+}
+
+/** An optional `meta`: a JSON object, nothing the library interprets. */
+function checkMeta(raw: unknown, path: string, check: Checker): void {
+  if (raw !== undefined && !isJsonObject(raw)) check.fail(path, 'expected a plain JSON object')
 }
 
 /** Optional warp markers and pitch shift (U32) on a clip or slot clip. */
@@ -1066,6 +1079,7 @@ export function validateScore(input: unknown, options: ValidateScoreOptions = {}
       if (source.durationSec !== undefined)
         check.number(source.durationSec, `${path}.durationSec`, { min: 0 })
       if (source.analysis !== undefined) check.record(source.analysis, `${path}.analysis`)
+      checkMeta(source.meta, `${path}.meta`, check)
     })
   }
   if (check.array(raw.tracks, 'tracks')) {
@@ -1188,6 +1202,26 @@ export function normaliseClip(clip: Clip): Clip {
   if (clip.warp !== undefined)
     out.warp = clip.warp.map((m) => ({ sourceSec: m.sourceSec, beat: m.beat }))
   if (clip.semitones !== undefined) out.semitones = clip.semitones
+  if (clip.muted) out.muted = true
+  const meta = normaliseMeta(clip.meta)
+  if (meta) out.meta = meta
+  return out
+}
+
+/** A `meta` with its keys in order; an empty one is the same as none. */
+export function normaliseMeta(meta: JsonObject | undefined): JsonObject | undefined {
+  if (meta === undefined || Object.keys(meta).length === 0) return undefined
+  return canonicalJson(meta)
+}
+
+/** A source with fields in a fixed order and optional ones only when set. */
+export function normaliseSource(source: ScoreSource): ScoreSource {
+  const out: ScoreSource = { id: source.id }
+  if (source.url !== undefined) out.url = source.url
+  if (source.durationSec !== undefined) out.durationSec = source.durationSec
+  if (source.analysis !== undefined) out.analysis = { ...source.analysis }
+  const meta = normaliseMeta(source.meta)
+  if (meta) out.meta = meta
   return out
 }
 
@@ -1363,13 +1397,7 @@ export function normaliseScore(score: Score): Score {
     },
     tempo: normaliseTempo(score.tempo),
     master: { level: score.master.level, inserts: score.master.inserts.map(normaliseDevice) },
-    sources: score.sources.map((source) => {
-      const out: ScoreSource = { id: source.id }
-      if (source.url !== undefined) out.url = source.url
-      if (source.durationSec !== undefined) out.durationSec = source.durationSec
-      if (source.analysis !== undefined) out.analysis = { ...source.analysis }
-      return out
-    }),
+    sources: score.sources.map(normaliseSource),
     tracks: score.tracks.map(normaliseTrack),
     elementTracks: score.elementTracks.map((track) => {
       const out: ScoreElementTrack = {

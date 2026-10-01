@@ -3,6 +3,8 @@
 // timeline: `startSec` is where it sits, `offsetSec` where playback enters the
 // source, `durationSec` the audible length (not the source length).
 
+import { type JsonObject } from '../json'
+
 /**
  * Shape of a clip's fade-in and fade-out gain envelope.
  *
@@ -43,4 +45,20 @@ export interface Clip {
   warp?: readonly { sourceSec: number; beat: number }[]
   /** Pitch shift in semitones on a stretch source (key matching). */
   semitones?: number
+  /**
+   * A muted clip keeps its place on the track and is never started: the
+   * arrangement's "deactivate clip". Muting one that is sounding stops it.
+   */
+  muted?: boolean
+  /**
+   * Annotations the host application keeps with the clip (where a paint
+   * field draws it, what it was painted with). Plain JSON: the library
+   * carries it through the score and its operations and never reads it.
+   */
+  meta?: JsonObject
+}
+
+/** True for a clip the scheduler may start. */
+export function isAudibleClip(clip: Pick<Clip, 'muted'>): boolean {
+  return clip.muted !== true
 }

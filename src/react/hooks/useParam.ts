@@ -20,6 +20,7 @@ import {
 import { type DeviceDescriptor, type DeviceRegistry } from '../../core/devices/registry'
 import { denormalizeParam, normalizeParam, type ParamSpec } from '../../core/params'
 import { type Arbiter } from '../../score/Arbiter'
+import { findDevice as findScoreDevice } from '../../score/schema'
 import { neverSubscribe, useExternalSnapshot, type Subscribe } from '../store'
 import { useMaybeArbiter, useMaybeEngine } from './useEngine'
 
@@ -107,6 +108,21 @@ function useAttributedParams(device: Device) {
         )
         return true
       },
+      /** Several parameters as one operation (a preset, a reset): one undo step. */
+      setMany: (params: Record<string, number>): boolean => {
+        if (!arbiter || id === null) return false
+        arbiter.apply({ type: 'device.setParams', device: id, params })
+        return true
+      },
+      /** Bypass through the arbiter; false when the device is not in the score. */
+      setBypass: (bypass: boolean): boolean => {
+        if (!arbiter || id === null) return false
+        arbiter.apply({ type: 'device.bypass', device: id, bypass })
+        return true
+      },
+      /** The score's bypass state: the device follows it a render later. */
+      bypass: (): boolean | undefined =>
+        arbiter && id !== null ? findScoreDevice(arbiter.score, id)?.device.bypass : undefined,
       touch: (name: string): void => {
         gestures.current[name] = (gestures.current[name] ?? 0) + 1
         if (arbiter && id !== null) arbiter.touch(target(name))
@@ -152,11 +168,12 @@ export function useDevice(device: Device, options: UseDeviceOptions = {}): UseDe
       release: attributed.release,
       attributed: attributed.attributed,
       setBypass: (enabled) => {
-        device.bypass = enabled
+        if (!attributed.setBypass(enabled)) device.bypass = enabled
         after()
       },
       toggleBypass: () => {
-        device.bypass = !device.bypass
+        const next = !(attributed.bypass() ?? device.bypass)
+        if (!attributed.setBypass(next)) device.bypass = next
         after()
       },
       applyPreset: (preset) => {
@@ -164,14 +181,19 @@ export function useDevice(device: Device, options: UseDeviceOptions = {}): UseDe
           typeof preset === 'string'
             ? resolvePreset(requireDescriptor(descriptor, device), preset)
             : preset
-        const result = applyPreset(device, resolved)
+        const result = attributed.attributed
+          ? applyPresetThrough(device, resolved, attributed.setMany)
+          : applyPreset(device, resolved)
         after()
         return result
       },
       capturePreset: (name) => capturePreset(device, name, descriptor?.version ?? 1),
       reset: () => {
-        for (const [name, spec] of Object.entries(device.params)) {
-          if (!attributed.set(name, spec.default)) device.setParam(name, spec.default)
+        const defaults = Object.fromEntries(
+          Object.entries(device.params).map(([name, spec]) => [name, spec.default]),
+        )
+        if (!attributed.setMany(defaults)) {
+          for (const [name, value] of Object.entries(defaults)) device.setParam(name, value)
         }
         after()
       },
@@ -190,6 +212,29 @@ export function useDevice(device: Device, options: UseDeviceOptions = {}): UseDe
     observable,
     ...controls,
   }
+}
+
+/** `applyPreset` as one score operation: the same params set, the same report. */
+function applyPresetThrough(
+  device: Device,
+  preset: Preset,
+  setMany: (params: Record<string, number>) => boolean,
+): ApplyPresetResult {
+  if (preset.deviceId !== device.id) {
+    throw new Error(`live-mix: preset "${preset.name}" is for ${preset.deviceId}, not ${device.id}`)
+  }
+  const result: ApplyPresetResult = { applied: [], skipped: [] }
+  const params: Record<string, number> = {}
+  for (const [name, value] of Object.entries(preset.params)) {
+    if (name in device.params) {
+      params[name] = value
+      result.applied.push(name)
+    } else {
+      result.skipped.push(name)
+    }
+  }
+  if (result.applied.length > 0) setMany(params)
+  return result
 }
 
 function requireDescriptor(descriptor: DeviceDescriptor | null, device: Device): DeviceDescriptor {

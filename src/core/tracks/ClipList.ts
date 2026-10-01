@@ -2,13 +2,15 @@
 // owner so the scheduler can re-derive its queue in the same turn (ambient-
 // live's re-derive-on-edit effect) instead of waiting for the next tick.
 
-import { type Clip } from '../clips/Clip'
+import { isAudibleClip, type Clip } from '../clips/Clip'
 import { Emitter } from '../events'
 
 export type ClipListListener = (clips: readonly Clip[]) => void
 
 export class ClipList {
   private items: Clip[] = []
+  // The unmuted clips, derived on first read after a change.
+  private playable: readonly Clip[] | null = null
   private readonly owner: () => void
   private readonly listeners = new Emitter<readonly Clip[]>()
 
@@ -27,6 +29,17 @@ export class ClipList {
 
   all(): readonly Clip[] {
     return this.items
+  }
+
+  /**
+   * The clips the scheduler plays: everything that is not muted. A muted clip
+   * stays in `all()` so a view can still draw it.
+   */
+  audible(): readonly Clip[] {
+    this.playable ??= this.items.every(isAudibleClip)
+      ? this.items
+      : this.items.filter(isAudibleClip)
+    return this.playable
   }
 
   get(id: string): Clip | undefined {
@@ -91,6 +104,7 @@ export class ClipList {
   }
 
   private changed(): void {
+    this.playable = null
     this.owner()
     this.listeners.emit(this.items)
   }

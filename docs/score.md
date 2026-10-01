@@ -41,7 +41,7 @@ Score
 ├─ transport.quantize: LaunchQuantize                 session launch grid (U31), default 'bar'
 ├─ tempo[]     TempoSegment { atSec, bpm, beatsPerBar? }  ascending, first at 0 → engine.tempo (TempoMap)
 ├─ master { level, inserts: ScoreDevice[] }
-├─ sources[]   { id, url?, durationSec?, analysis? }  what clips reference
+├─ sources[]   { id, url?, durationSec?, analysis?, meta? }  what clips reference
 ├─ tracks[]    kind 'audio' | 'live' | 'instrument'
 │    { id, name, destination, strip, …
 │      audio:      lookaheadSec?, preloadSec?, stretch?, clips: Clip[]   stretch → StretchTrack (needs createStretch)
@@ -63,7 +63,7 @@ ScoreDevice       { id, deviceId (registry id), preset?, params: { name: number 
 ScoreSend         { target: returnId, level: number | null }   null = direct connection
 ParamTarget       { kind: 'strip', owner: id | 'master', param: 'level' | 'pan' | 'inputGain' }
                 | { kind: 'device', device: instanceId, param: name }
-Clip              the core `Clip` record (id, sourceId, startSec, offsetSec, durationSec, fades, gainDb, loop?, loopStartSec?, loopEndSec?, warp?, semitones?)
+Clip              the core `Clip` record (id, sourceId, startSec, offsetSec, durationSec, fades, gainDb, loop?, loopStartSec?, loopEndSec?, warp?, semitones?, muted?, meta?)
 Breakpoint        the core `Breakpoint` (timeSec, value, curve?)
 ```
 
@@ -73,12 +73,21 @@ ignored on render; a registry-aware validation (`validateScore(score, {
 devices })`, which the renderer runs before touching the graph) reports
 them.
 
+A clip with `muted: true` keeps its place in the document and is never
+started; muting one that is sounding stops it. `meta` on a clip or a source
+is the host application's own annotation: any plain JSON object (a display
+name, a colour, where a painted stroke sits on screen). The library
+validates that it is JSON, stores it with sorted keys, carries it through
+operations and undo, and never reads it; a change to `meta` alone does not
+touch the audio graph.
+
 - `createScore({ id, name })` — an empty document.
 - `validateScore(input, { devices? })` → `ScoreIssue[]` (path + message);
   `assertValidScore` throws `ScoreValidationError`.
 - `parseScore(json | object, { devices? })` — migrate → validate →
   normalise. `serializeScore(score)` is stable (canonical field order, clips
-  sorted by start, `curve: 'linear'` and `loop: false` dropped), so equal
+  sorted by start, `curve: 'linear'`, `loop: false`, `muted: false` and an
+  empty `meta` dropped), so equal
   documents serialise identically and diff well.
 - `migrateScore(raw)` — migrations by format, applied in order (`1 → 2`:
   `elementTracks: []`, `tempo: defaultTempo()`; `2 → 3`: `scenes: []`,
@@ -98,7 +107,7 @@ score throws `ScoreOperationError`, so a failed operation changes nothing.
 | Group                                                             | Operations                                                                                                                                                         |
 | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Document                                                          | `score.rename`, `transport.loop`                                                                                                                                   |
-| Sources                                                           | `source.add`, `source.remove` (refused while a clip uses it)                                                                                                       |
+| Sources                                                           | `source.add`, `source.update` (`url`, `durationSec`, `analysis`, `meta`; `null` clears), `source.remove` (refused while a clip uses it)                            |
 | Tracks                                                            | `track.add`, `track.remove`, `track.move`                                                                                                                          |
 | Groups                                                            | `group.add`, `group.remove` (members re-route to where it fed), `group.move`                                                                                       |
 | Returns                                                           | `return.add`, `return.remove` (sends to it are dropped), `return.move`                                                                                             |
@@ -160,7 +169,24 @@ belong to the same gesture:
 
 The step keeps the _first_ inverse and the _latest_ operation, so undo lands
 where the hand started and redo where it let go. Discrete edits (add,
-remove, route, mute, preset, batch) never coalesce. The log still records
+remove, route, mute, preset, batch) never coalesce on their own.
+
+A gesture that an application tags is one step whatever it is made of.
+Operations with the same explicit `gesture` id from the same author join
+the step on top of the undo stack even when their types or targets differ:
+a painted stroke that adds a clip, stretches it and rewrites the fades of
+its neighbours undoes in one go. The joined step is a `batch` of the
+operations (a run on one target keeps only its latest) whose inverse is the
+inverses in reverse. Untagged operations never join, so two quick discrete
+edits stay two steps.
+
+`document.apply(op, { history: false })` is an amendment: the operation is
+applied, logged and rendered like any other, but it is not an undo step and
+it leaves the redo stack alone. It is for facts the application learns
+rather than edits the user makes (a decoded file's real length, a value
+re-derived after an undo). An amendment must commute with the steps on the
+stacks, because undo will later apply their stored inverses on top of it:
+amend fields no undoable step writes, or re-derive after every undo. The log still records
 every intermediate operation. 500 ms is the default because it separates
 "the hand moved again" from "the hand came back": UIs that know their
 pointer lifecycle should tag gestures instead. The `Arbiter`
