@@ -1,0 +1,144 @@
+{
+  "id": "wavetable",
+  "name": "Wavetable",
+  "category": "instrument",
+  "description": "Wavetable pad for slowly morphing timbres: five tables to travel through, two detuned oscillators and a sub per key, a resonant low-pass and a motion LFO that shimmers across a chord.",
+  "class": "Wavetable",
+  "header": "wavetable.h",
+  "sources": [],
+  "memoryMb": 5,
+  "params": [
+    {
+      "key": "table",
+      "name": "Table",
+      "choices": ["Glass", "Vowels", "Reed to Saw", "Hollow", "Spectral"],
+      "default": 0
+    },
+    { "key": "position", "name": "Position", "min": 0, "max": 1, "default": 0.3 },
+    { "key": "motion", "name": "Motion", "min": 0, "max": 1, "default": 0.45 },
+    {
+      "key": "rate",
+      "name": "Rate",
+      "min": 0.01,
+      "max": 10,
+      "default": 0.11,
+      "taper": "log",
+      "unit": "Hz"
+    },
+    { "key": "detune", "name": "Detune", "min": 0, "max": 50, "default": 9, "unit": "ct" },
+    { "key": "sub", "name": "Sub", "min": 0, "max": 1, "default": 0.25 },
+    {
+      "key": "cutoff",
+      "name": "Cutoff",
+      "min": 80,
+      "max": 20000,
+      "default": 4200,
+      "taper": "log",
+      "unit": "Hz"
+    },
+    { "key": "resonance", "name": "Resonance", "min": 0, "max": 1, "default": 0.15 },
+    {
+      "key": "attack",
+      "name": "Attack",
+      "min": 0.005,
+      "max": 20,
+      "default": 1.2,
+      "taper": "log",
+      "unit": "s"
+    },
+    {
+      "key": "release",
+      "name": "Release",
+      "min": 0.02,
+      "max": 30,
+      "default": 3.5,
+      "taper": "log",
+      "unit": "s"
+    },
+    { "key": "spread", "name": "Spread", "min": 0, "max": 1, "default": 0.7 },
+    { "key": "volume", "name": "Volume", "min": -48, "max": 6, "default": -9, "unit": "dB" }
+  ],
+  "presets": {
+    "Glass morning": {
+      "table": 0,
+      "position": 0.3,
+      "motion": 0.45,
+      "rate": 0.11,
+      "detune": 9,
+      "sub": 0.25,
+      "cutoff": 4200,
+      "resonance": 0.15,
+      "attack": 1.2,
+      "release": 3.5,
+      "spread": 0.7
+    },
+    "Slow choir": {
+      "table": 1,
+      "position": 0.5,
+      "motion": 0.8,
+      "rate": 0.05,
+      "detune": 14,
+      "sub": 0.1,
+      "cutoff": 6500,
+      "resonance": 0.05,
+      "attack": 2.5,
+      "release": 5,
+      "spread": 0.9
+    },
+    "Reed organ": {
+      "table": 2,
+      "position": 0.15,
+      "motion": 0.2,
+      "rate": 0.3,
+      "detune": 6,
+      "sub": 0.4,
+      "cutoff": 2400,
+      "resonance": 0.1,
+      "attack": 0.15,
+      "release": 1.2,
+      "spread": 0.5
+    },
+    "Hollow drift": {
+      "table": 3,
+      "position": 0.4,
+      "motion": 0.7,
+      "rate": 0.07,
+      "detune": 12,
+      "sub": 0.3,
+      "cutoff": 1800,
+      "resonance": 0.3,
+      "attack": 3,
+      "release": 6,
+      "spread": 0.8
+    },
+    "Spectral cloud": {
+      "table": 4,
+      "position": 0.5,
+      "motion": 1,
+      "rate": 0.03,
+      "detune": 18,
+      "sub": 0.2,
+      "cutoff": 9000,
+      "resonance": 0,
+      "attack": 5,
+      "release": 10,
+      "spread": 1
+    },
+    "Still sine": {
+      "table": 0,
+      "position": 0,
+      "motion": 0,
+      "detune": 4,
+      "sub": 0.5,
+      "cutoff": 1200,
+      "resonance": 0,
+      "attack": 2,
+      "release": 4,
+      "spread": 0.4
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. Tables are built additively at init from harmonic recipes (no sample data) and stored band-limited per octave; the vowel formants are the Peterson and Barney averages."
+  }
+}

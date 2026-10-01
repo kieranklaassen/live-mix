@@ -1,0 +1,132 @@
+{
+  "id": "atmosphere",
+  "name": "Atmosphere",
+  "category": "instrument",
+  "description": "Weather and room tone to play: wind, rain, sea, fire, vinyl and mains hum, synthesised live. Hold a key to open the texture; its pitch tunes whatever in it is pitched, and more keys layer.",
+  "class": "Atmosphere",
+  "header": "atmosphere.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "type",
+      "name": "Type",
+      "choices": ["Wind", "Rain", "Sea", "Fire", "Vinyl", "Hum"],
+      "default": 0
+    },
+    { "key": "density", "name": "Density", "min": 0, "max": 1, "default": 0.4 },
+    { "key": "movement", "name": "Movement", "min": 0, "max": 1, "default": 0.6 },
+    { "key": "tone", "name": "Tone", "min": 0, "max": 1, "default": 0.5 },
+    { "key": "resonance", "name": "Resonance", "min": 0, "max": 1, "default": 0.15 },
+    { "key": "size", "name": "Size", "min": 0, "max": 1, "default": 0.3 },
+    {
+      "key": "attack",
+      "name": "Attack",
+      "min": 0.01,
+      "max": 20,
+      "default": 2,
+      "taper": "log",
+      "unit": "s"
+    },
+    {
+      "key": "release",
+      "name": "Release",
+      "min": 0.05,
+      "max": 30,
+      "default": 4,
+      "taper": "log",
+      "unit": "s"
+    },
+    { "key": "width", "name": "Width", "min": 0, "max": 1, "default": 1 },
+    { "key": "volume", "name": "Volume", "min": -48, "max": 6, "default": -9, "unit": "dB" }
+  ],
+  "presets": {
+    "Hill wind": {
+      "type": 0,
+      "density": 0.4,
+      "movement": 0.6,
+      "tone": 0.5,
+      "resonance": 0.15,
+      "size": 0.3,
+      "attack": 2,
+      "release": 4,
+      "width": 1
+    },
+    "Whistling gap": {
+      "type": 0,
+      "density": 0.6,
+      "movement": 0.8,
+      "tone": 0.6,
+      "resonance": 0.85,
+      "size": 0.2,
+      "attack": 1,
+      "release": 3
+    },
+    "Rain on the window": {
+      "type": 1,
+      "density": 0.45,
+      "movement": 0.4,
+      "tone": 0.55,
+      "resonance": 0,
+      "size": 0.15,
+      "attack": 3,
+      "release": 5
+    },
+    "Distant downpour": {
+      "type": 1,
+      "density": 0.9,
+      "movement": 0.5,
+      "tone": 0.4,
+      "resonance": 0,
+      "size": 0.8,
+      "attack": 5,
+      "release": 8
+    },
+    "Slow shore": {
+      "type": 2,
+      "density": 0.3,
+      "movement": 0.9,
+      "tone": 0.5,
+      "resonance": 0,
+      "size": 0.4,
+      "attack": 4,
+      "release": 8
+    },
+    "Hearth": {
+      "type": 3,
+      "density": 0.45,
+      "movement": 0.6,
+      "tone": 0.45,
+      "resonance": 0.1,
+      "size": 0.1,
+      "attack": 2,
+      "release": 4,
+      "width": 0.8
+    },
+    "Old record": {
+      "type": 4,
+      "density": 0.4,
+      "movement": 0.5,
+      "tone": 0.5,
+      "resonance": 0,
+      "size": 0,
+      "attack": 0.3,
+      "release": 0.5,
+      "width": 0.7
+    },
+    "Mains hum": {
+      "type": 5,
+      "density": 0.4,
+      "movement": 0.4,
+      "tone": 0.35,
+      "resonance": 0.2,
+      "size": 0.2,
+      "attack": 1,
+      "release": 2,
+      "width": 0.6
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. Every texture is synthesised from seeded noise, random event trains and oscillators; there are no recordings."
+  }
+}

@@ -1,0 +1,151 @@
+{
+  "id": "choir",
+  "name": "Choir",
+  "category": "instrument",
+  "description": "Wordless voices for held chords: a small section of singers on every note, sung through five formants that morph from Ah through Eh, Ee and Oh to Oo and slowly breathe.",
+  "class": "Choir",
+  "header": "choir.h",
+  "sources": [],
+  "params": [
+    { "key": "vowel", "name": "Vowel", "min": 0, "max": 1, "default": 0.04 },
+    { "key": "voice", "name": "Voice", "min": 0.8, "max": 1.4, "default": 1.16, "unit": "x" },
+    { "key": "motion", "name": "Motion", "min": 0, "max": 1, "default": 0.35 },
+    { "key": "breath", "name": "Breath", "min": 0, "max": 1, "default": 0.3 },
+    { "key": "ensemble", "name": "Ensemble", "min": 0, "max": 1, "default": 0.65 },
+    { "key": "vibrato", "name": "Vibrato", "min": 0, "max": 60, "default": 10, "unit": "ct" },
+    {
+      "key": "vibratoRate",
+      "name": "Vibrato Rate",
+      "min": 3,
+      "max": 8,
+      "default": 5.2,
+      "unit": "Hz"
+    },
+    {
+      "key": "attack",
+      "name": "Attack",
+      "min": 0.01,
+      "max": 10,
+      "default": 0.9,
+      "taper": "log",
+      "unit": "s"
+    },
+    {
+      "key": "release",
+      "name": "Release",
+      "min": 0.05,
+      "max": 15,
+      "default": 2.8,
+      "taper": "log",
+      "unit": "s"
+    },
+    {
+      "key": "tone",
+      "name": "Tone",
+      "min": 400,
+      "max": 12000,
+      "default": 6500,
+      "taper": "log",
+      "unit": "Hz"
+    },
+    { "key": "width", "name": "Width", "min": 0, "max": 1, "default": 0.8 },
+    { "key": "volume", "name": "Volume", "min": -48, "max": 6, "default": -10, "unit": "dB" }
+  ],
+  "presets": {
+    "Airport ah": {
+      "vowel": 0.04,
+      "voice": 1.16,
+      "motion": 0.35,
+      "breath": 0.3,
+      "ensemble": 0.65,
+      "vibrato": 10,
+      "vibratoRate": 5.2,
+      "attack": 0.9,
+      "release": 2.8,
+      "tone": 6500,
+      "width": 0.8
+    },
+    "Low monks": {
+      "vowel": 0.82,
+      "voice": 0.88,
+      "motion": 0.2,
+      "breath": 0.12,
+      "ensemble": 1,
+      "vibrato": 0,
+      "vibratoRate": 5,
+      "attack": 1.6,
+      "release": 4,
+      "tone": 3200,
+      "width": 0.7
+    },
+    "Boys ooh": {
+      "vowel": 1,
+      "voice": 1.34,
+      "motion": 0.15,
+      "breath": 0.2,
+      "ensemble": 0.8,
+      "vibrato": 5,
+      "vibratoRate": 5.6,
+      "attack": 0.5,
+      "release": 2.2,
+      "tone": 8000,
+      "width": 0.8
+    },
+    "Breath": {
+      "vowel": 0.1,
+      "voice": 1.2,
+      "motion": 0.6,
+      "breath": 1,
+      "ensemble": 1,
+      "vibrato": 0,
+      "vibratoRate": 5,
+      "attack": 2.5,
+      "release": 5,
+      "tone": 9000,
+      "width": 1
+    },
+    "Slow vowels": {
+      "vowel": 0.3,
+      "voice": 1.06,
+      "motion": 1,
+      "breath": 0.3,
+      "ensemble": 0.9,
+      "vibrato": 6,
+      "vibratoRate": 4.8,
+      "attack": 3,
+      "release": 7,
+      "tone": 5000,
+      "width": 0.9
+    },
+    "Glass ee": {
+      "vowel": 0.5,
+      "voice": 1.26,
+      "motion": 0.25,
+      "breath": 0.1,
+      "ensemble": 1,
+      "vibrato": 0,
+      "vibratoRate": 5,
+      "attack": 2,
+      "release": 5,
+      "tone": 10000,
+      "width": 1
+    },
+    "Soloist": {
+      "vowel": 0,
+      "voice": 1.18,
+      "motion": 0.15,
+      "breath": 0.15,
+      "ensemble": 0,
+      "vibrato": 32,
+      "vibratoRate": 5.6,
+      "attack": 0.12,
+      "release": 0.6,
+      "tone": 7000,
+      "width": 0.5
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. A paraphonic formant voice in the manner of the seventies choir machines, with the source and tract of a formant speech synthesiser: KLGLOTT88 glottal pulses (Klatt and Klatt 1990) into five formant resonators in parallel, weighted to equal their cascade. Formant frequencies F1 to F3 are the male averages of Peterson and Barney (1952); F4 and F5 are the 3500 and 4500 Hz of a uniform 17.5 cm tract; bandwidths are those commonly tabulated for a sung tenor, with the first formant of Ee, Oh and Oo widened from 40 Hz to 60-70 Hz. It is not a model of any one instrument or singer."
+  }
+}
