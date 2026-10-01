@@ -19,15 +19,31 @@ export interface WasmDeviceMeta<P extends Record<string, ParamSpec>> {
 }
 
 /**
+ * A registry descriptor that still knows its module: what the offline patch
+ * renderer needs to run the device without an audio context.
+ */
+export interface WasmDeviceDescriptor<
+  P extends Record<string, ParamSpec> = Record<string, ParamSpec>,
+> extends DeviceDescriptor<P> {
+  kind: 'wasm'
+  definition: WasmDeviceDefinition<P>
+}
+
+export function isWasmDescriptor(descriptor: DeviceDescriptor): descriptor is WasmDeviceDescriptor {
+  return descriptor.kind === 'wasm' && 'definition' in descriptor
+}
+
+/**
  * Describe a WASM device for the registry. `registry.create(id, ctx, options)`
  * hands `processorUrl`, `wasm` and `createNode` through to `WasmDevice.create`.
  */
 export function wasmDeviceDescriptor<P extends Record<string, ParamSpec>>(
   definition: WasmDeviceDefinition<P>,
   meta: WasmDeviceMeta<P>,
-): DeviceDescriptor<P> {
+): WasmDeviceDescriptor<P> {
   return {
     id: definition.id,
+    definition,
     name: meta.name,
     kind: 'wasm',
     category: meta.category,
