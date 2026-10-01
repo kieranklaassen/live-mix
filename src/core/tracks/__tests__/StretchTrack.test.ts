@@ -252,6 +252,26 @@ describe('StretchTrack scheduling', () => {
     ])
   })
 
+  it('the transport started inside a clip builds its source and enters it where the clip has got to', async () => {
+    const { ctx, nodes, samples, track, transport, scheduler } = setup()
+    await samples.load('s-a', buffer(ctx, 10))
+    track.clips.add(clip('a', 1, { durationSec: 6 }))
+    transport.seek(3)
+    transport.start()
+    // Not built yet: the start is declined, and offered again as a join once it is.
+    expect(track.voices()).toHaveLength(0)
+    await track.settled()
+    ctx.currentTime = 0.5
+    scheduler.tick()
+    const [voice] = track.voices()
+    expect(voice.key).toBe('a:0:1.000')
+    expect(voice.startTime).toBe(0.5)
+    expect(voice.endTime).toBe(4)
+    expect(nodes[0].scheduled[0]).toMatchObject({ output: 0.5, input: 2.5 })
+    scheduler.tick()
+    expect(track.voices()).toHaveLength(1)
+  })
+
   it('fadeOutVoice anchors, ramps out and stops the source; equal-power uses the curve', async () => {
     const { ctx, nodes, samples, track, transport, scheduler } = setup()
     await samples.load('s-a', buffer(ctx, 10))

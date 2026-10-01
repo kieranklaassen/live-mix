@@ -23,6 +23,7 @@ export {
 } from './Transport'
 export {
   DEFAULT_TICK_MS,
+  REJOIN_FADE_SECONDS,
   Scheduler,
   type Schedulable,
   type SchedulerOptions,

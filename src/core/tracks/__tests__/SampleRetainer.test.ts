@@ -135,6 +135,24 @@ describe('SampleRetainer', () => {
     scheduler.dispose()
   })
 
+  it('holds the sample of a clip the transport is started inside, until that clip ends', async () => {
+    const { ctx, samples, track, transport, scheduler, retainer } = setup()
+    await samples.load('s-a', minutes(60))
+    track.clips.add(clip('a', 10))
+    transport.seek(12)
+    transport.start()
+    expect(retainer.heldKeys()).toEqual(['a:0:10.000'])
+    expect(samples.isEvictable('s-a')).toBe(false)
+    // Two seconds of the clip are left, then the 1 s grace.
+    ctx.currentTime = 2.5
+    scheduler.tick()
+    expect(samples.holds('s-a')).toBe(1)
+    ctx.currentTime = 3
+    scheduler.tick()
+    expect(samples.holds('s-a')).toBe(0)
+    scheduler.dispose()
+  })
+
   it('a moved clip releases the old hold and takes one under the new key', async () => {
     const { ctx, samples, track, transport, scheduler, retainer } = setup()
     await samples.load('s-a', minutes(60))

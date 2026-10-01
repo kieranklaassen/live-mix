@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { clipsInWindow } from '../window'
+import { clipsInWindow, clipsSoundingAt } from '../window'
 
 // ambient-live's timeline length; the library takes it as an argument.
 const LOOP_LENGTH_SEC = 32
@@ -82,5 +82,29 @@ describe('clipsInWindow', () => {
     expect(short.map((entry) => entry.clipId)).toEqual(['a'])
     expect(short[0].iteration).toBe(1)
     expect(short[0].startsInSec).toBeCloseTo(0.6, 5)
+  })
+})
+
+describe('clipsSoundingAt', () => {
+  const strokes = [
+    { id: 'late', startSec: 6, durationSec: 4 },
+    { id: 'early', startSec: 2, durationSec: 16 },
+    { id: 'bare', startSec: 0 },
+  ]
+
+  it('names the clips begun before the position and not yet over, in timeline order', () => {
+    expect(clipsSoundingAt(strokes, 7).map((clip) => clip.id)).toEqual(['early', 'late'])
+    expect(clipsSoundingAt(strokes, 12).map((clip) => clip.id)).toEqual(['early'])
+    expect(clipsSoundingAt(strokes, 1)).toEqual([])
+  })
+
+  it('leaves out a clip that starts or ends exactly there', () => {
+    expect(clipsSoundingAt(strokes, 6).map((clip) => clip.id)).toEqual(['early'])
+    expect(clipsSoundingAt(strokes, 10).map((clip) => clip.id)).toEqual(['early'])
+    expect(clipsSoundingAt(strokes, 18)).toEqual([])
+  })
+
+  it('never names a clip with no length', () => {
+    expect(clipsSoundingAt([{ id: 'bare', startSec: 0 }], 5)).toEqual([])
   })
 })

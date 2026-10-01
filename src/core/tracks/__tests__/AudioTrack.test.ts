@@ -9,11 +9,12 @@ import {
 import { equalPowerFadeIn, equalPowerFadeOut } from '../../clips/curves'
 import { fadeGain } from '../../clips/fade'
 import { type Clip } from '../../clips/Clip'
-import { Scheduler } from '../../transport/Scheduler'
+import { REJOIN_FADE_SECONDS, Scheduler } from '../../transport/Scheduler'
 import { Transport } from '../../transport/Transport'
 import {
   AudioTrack,
   CROSSFADE_SECONDS,
+  JOIN_EASE_SECONDS,
   MAX_CLIP_GAIN_DB,
   MIN_PLACED_GAIN_DB,
   PLACEMENT_RAMP_SECONDS,
@@ -1004,5 +1005,242 @@ describe('AudioTrack placed clips', () => {
     track.clips.add({ ...clip, id: 'b', startSec: 20 })
     expect(ctx.panners[0].pan.events).toHaveLength(events)
     scheduler.dispose()
+  })
+})
+
+describe('AudioTrack clips entered partway', () => {
+  function clip(id: string, startSec: number, extra: Partial<Clip> = {}): Clip {
+    return {
+      id,
+      sourceId: 's',
+      startSec,
+      offsetSec: 0,
+      durationSec: 16,
+      fadeInSec: 0,
+      fadeOutSec: 0,
+      fadeCurve: 'linear',
+      gainDb: 0,
+      ...extra,
+    }
+  }
+
+  async function scheduled(currentTime = 100) {
+    const { ctx, samples, track } = setup({ currentTime, lookaheadSec: 0.2 })
+    const transport = new Transport({
+      now: () => ctx.currentTime,
+      loop: { enabled: true, lengthSec: 32 },
+    })
+    const scheduler = new Scheduler({ transport, tickMs: 40 })
+    track.attach(scheduler)
+    await samples.load('s', buffer(ctx, 20))
+    return { ctx, samples, track, transport, scheduler }
+  }
+
+  it('easeInSec comes up from silence to the envelope, which carries on from there', () => {
+    const { ctx, track } = setup({ currentTime: 4.5 })
+    track.play(
+      'k',
+      {
+        buffer: buffer(ctx, 10),
+        offsetSec: 1,
+        durationSec: 6,
+        fadeInSec: 2,
+        fadeOutSec: 1,
+        fadeCurve: 'linear',
+        easeInSec: 0.005,
+      },
+      3,
+    )
+    // The same late join as without it: 1.5 s in, at 4.5.
+    expect(ctx.sources[0].startCalls.calls).toEqual([[4.5, 2.5, 4.5]])
+    expect(ctx.gains[1].gain.events).toEqual([
+      { method: 'setValueAtTime', args: [0, 4.5] },
+      { method: 'linearRampToValueAtTime', args: [fadeGain(1.505, 6, 2, 1), 4.505] },
+      { method: 'linearRampToValueAtTime', args: [1, 5] },
+      { method: 'setValueAtTime', args: [1, 8] },
+      { method: 'linearRampToValueAtTime', args: [0, 9] },
+    ])
+  })
+
+  it('easeInSec inside the fade-out eases to where the fade has got to, and never past the end', () => {
+    const { ctx, track } = setup({ currentTime: 8.5 })
+    const opts = {
+      buffer: buffer(ctx, 10),
+      offsetSec: 0,
+      durationSec: 6,
+      fadeInSec: 0,
+      fadeOutSec: 1,
+      fadeCurve: 'linear' as const,
+      easeInSec: 0.005,
+    }
+    track.play('k', opts, 3)
+    expect(ctx.gains[1].gain.events).toEqual([
+      { method: 'setValueAtTime', args: [0, 8.5] },
+      { method: 'linearRampToValueAtTime', args: [fadeGain(5.505, 6, 0, 1), 8.505] },
+      { method: 'linearRampToValueAtTime', args: [0, 9] },
+    ])
+    ctx.currentTime = 8.998
+    track.play('end', { ...opts, fadeOutSec: 0 }, 3)
+    const events = ctx.gains[2].gain.events
+    expect(events[1].method).toBe('linearRampToValueAtTime')
+    expect(events[1].args[1]).toBeCloseTo(9, 9)
+  })
+
+  it('the transport started inside a clip plays it from that point in it, eased in', async () => {
+    const { ctx, track, transport, scheduler } = await scheduled()
+    track.clips.add(clip('pad', 2, { offsetSec: 1 }))
+    transport.seek(6)
+    transport.start()
+    // Four seconds into the clip: the source is entered at its offset plus four, for the twelve left.
+    expect(ctx.sources).toHaveLength(1)
+    expect(ctx.sources[0].startCalls.calls).toEqual([[100, 5, 12]])
+    expect(ctx.gains[1].gain.events).toEqual([
+      { method: 'setValueAtTime', args: [0, 100] },
+      { method: 'linearRampToValueAtTime', args: [1, 100 + JOIN_EASE_SECONDS] },
+    ])
+    expect(track.voice('pad:0:2.000')?.endTime).toBe(112)
+    scheduler.dispose()
+  })
+
+  it('a seek while playing lands inside a clip the same way, and inside a repeating one in its region', async () => {
+    const { ctx, track, transport, scheduler } = await scheduled()
+    track.clips.add(clip('pad', 2))
+    track.clips.add(
+      clip('loop', 20, {
+        sourceId: 's',
+        durationSec: 10,
+        loop: true,
+        loopStartSec: 0,
+        loopEndSec: 4,
+      }),
+    )
+    transport.start()
+    ctx.currentTime = 101
+    transport.seek(10)
+    expect(ctx.sources[0].startCalls.calls).toEqual([[101, 8, 8]])
+    ctx.currentTime = 102
+    transport.seek(27)
+    // Seven seconds into a clip that cycles over four: three seconds into the region.
+    expect(ctx.sources[1].loop).toBe(true)
+    expect(ctx.sources[1].startCalls.calls).toEqual([[102, 3]])
+    scheduler.dispose()
+  })
+
+  it('a reversed clip is entered partway through its mirrored slice', async () => {
+    const { ctx, track, transport, scheduler } = await scheduled()
+    track.clips.add(clip('back', 2, { durationSec: 8, reversed: true }))
+    transport.seek(5)
+    transport.start()
+    // The slice is the first 8 s of a 20 s source; mirrored it sits at 12..20, entered 3 s in.
+    expect(ctx.sources[0].startCalls.calls).toEqual([[100, 15, 5]])
+    scheduler.dispose()
+  })
+
+  it('a clip whose sample decodes after the playhead passed its start comes in where it has got to', async () => {
+    const { ctx, samples, track } = setup({ currentTime: 100, lookaheadSec: 0.2 })
+    const transport = new Transport({ now: () => ctx.currentTime })
+    const scheduler = new Scheduler({ transport, tickMs: 40 })
+    track.attach(scheduler)
+    track.clips.add(clip('pad', 0.1))
+    transport.start()
+    ctx.currentTime = 103
+    scheduler.tick()
+    expect(ctx.sources).toHaveLength(0)
+    await samples.load('s', buffer(ctx, 20))
+    scheduler.tick()
+    expect(ctx.sources[0].startCalls.calls[0][0]).toBe(103)
+    expect(ctx.sources[0].startCalls.calls[0][1]).toBeCloseTo(2.9, 9)
+    scheduler.dispose()
+  })
+
+  it('an equal-power clip is not entered partway: it waits for its start', async () => {
+    const { ctx, track, transport, scheduler } = await scheduled()
+    track.clips.add(
+      clip('section', 2, {
+        fadeCurve: 'equalPower',
+        fadeInSec: CROSSFADE_SECONDS,
+        fadeOutSec: CROSSFADE_SECONDS,
+      }),
+    )
+    transport.seek(6)
+    transport.start()
+    scheduler.tick()
+    expect(ctx.sources).toHaveLength(0)
+    scheduler.dispose()
+  })
+
+  it('rejoin fades the voice of an edited clip out and plays the clip as it now is from the same point', async () => {
+    const { ctx, track, transport, scheduler } = await scheduled()
+    track.clips.add(clip('pad', 2))
+    transport.seek(1.9)
+    transport.start()
+    ctx.currentTime = 104.1
+    scheduler.tick()
+    expect(ctx.sources).toHaveLength(1)
+
+    // Trimmed at the front by two seconds and faded out: same place on the timeline, another slice.
+    track.clips.update('pad', { offsetSec: 2, fadeOutSec: 4 })
+    expect(ctx.sources).toHaveLength(1)
+    scheduler.rejoin(['pad'])
+
+    const old = ctx.gains[1].gain
+    expect(old.eventsFor('cancelScheduledValues')).toEqual([
+      { method: 'cancelScheduledValues', args: [104.1] },
+    ])
+    expect(old.lastEvent('linearRampToValueAtTime')?.args).toEqual([0, 104.1 + REJOIN_FADE_SECONDS])
+    expect(ctx.sources[0].stopCalls.last).toEqual([104.1 + REJOIN_FADE_SECONDS])
+    // It is not cut off by the voice that takes its key, and unwires itself when it ends.
+    expect(ctx.sources[0].stopCalls.count).toBe(1)
+    expect(ctx.sources[0].disconnectCalls.count).toBe(0)
+    ctx.sources[0].finish()
+    expect(ctx.sources[0].disconnectCalls.count).toBe(1)
+
+    expect(ctx.sources).toHaveLength(2)
+    const [at, offset, left] = ctx.sources[1].startCalls.calls[0]
+    expect(at).toBe(104.1)
+    expect(offset).toBeCloseTo(6, 9)
+    expect(left).toBeCloseTo(12, 9)
+    expect(track.voice('pad:0:2.000')?.source).toBe(ctx.sources[1])
+    expect(ctx.gains[2].gain.events[0]).toEqual({ method: 'setValueAtTime', args: [0, 104.1] })
+    scheduler.dispose()
+  })
+
+  it('rejoin plays a clip dragged under the playhead at once, and an edit that cuts one short stops it', async () => {
+    const { ctx, track, transport, scheduler } = await scheduled()
+    track.clips.add(clip('pad', 20, { durationSec: 8 }))
+    transport.start()
+    ctx.currentTime = 105
+    scheduler.tick()
+    track.clips.update('pad', { startSec: 2 })
+    expect(ctx.sources).toHaveLength(0)
+    scheduler.rejoin(['pad'])
+    expect(ctx.sources[0].startCalls.calls).toEqual([[105, 3, 5]])
+
+    // Its right edge is dragged back behind the playhead.
+    track.clips.update('pad', { durationSec: 2 })
+    expect(ctx.sources[0].stopCalls.last).toEqual([105 + REJOIN_FADE_SECONDS])
+    expect(track.voices()).toHaveLength(0)
+    scheduler.dispose()
+  })
+
+  it('release silences a voice that has not started, and one with no fade asked for', () => {
+    const { ctx, track } = setup()
+    const opts = {
+      buffer: buffer(ctx, 10),
+      offsetSec: 0,
+      durationSec: 6,
+      fadeInSec: 0,
+      fadeOutSec: 0,
+      fadeCurve: 'linear' as const,
+    }
+    track.play('pending', opts, 2)
+    track.play('sounding', opts, 0)
+    track.release('pending', 0.005)
+    ctx.currentTime = 1
+    track.release('sounding', 0)
+    track.release('missing', 0.005)
+    expect(ctx.sources[0].stopCalls.calls).toEqual([[]])
+    expect(ctx.sources[1].stopCalls.calls).toEqual([[]])
+    expect(track.voices()).toHaveLength(0)
   })
 })

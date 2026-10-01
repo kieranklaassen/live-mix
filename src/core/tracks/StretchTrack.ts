@@ -139,6 +139,8 @@ export class StretchTrack implements StripHost {
         cancelPending: () => this.stopPending(),
         cancelAll: (fadeSec) => this.stopAll(fadeSec > 0 ? { at: this.now() + fadeSec } : {}),
       },
+      // `play` enters the stretch source where the clip has got to.
+      { joinsLate: true },
     )
     this.preload = new TrackSchedulable(
       () => this.preloadSec,
