@@ -77,11 +77,31 @@ class WasmDeviceProcessor extends AudioWorkletProcessor {
       case 'note-off':
         this.device.device_note_off?.(message.noteId)
         break
+      case 'load-sample':
+        this.loadSample(message.channels, message.sampleRate)
+        break
       default: {
         const unhandled: never = message
         throw new Error(`live-mix: unhandled device message ${JSON.stringify(unhandled)}`)
       }
     }
+  }
+
+  // Copy a sound into a sample device's fixed store (cpp/kit/sample.h).
+  // Runs between blocks on the audio thread; anything past the device's
+  // capacity is dropped. Devices without the exports ignore the message.
+  private loadSample(channels: Float32Array[], rate: number): void {
+    const { device_sample_capacity, device_sample_buffer, device_sample_commit } = this.device
+    if (!device_sample_capacity || !device_sample_buffer || !device_sample_commit) return
+    if (channels.length === 0) return
+    const capacity = device_sample_capacity()
+    const frames = Math.min(channels[0].length, capacity)
+    const count = Math.min(channels.length, 2)
+    const store = new Float32Array(this.device.memory.buffer, device_sample_buffer(), capacity * 2)
+    for (let channel = 0; channel < count; channel += 1) {
+      store.set(channels[channel].subarray(0, frames), channel * capacity)
+    }
+    device_sample_commit(frames, count, rate)
   }
 
   process(inputs: Float32Array[][], outputs: Float32Array[][]): boolean {

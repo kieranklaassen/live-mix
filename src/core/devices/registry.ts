@@ -21,7 +21,34 @@ export type DeviceKind = 'node' | 'wasm' | 'wam' | (string & {})
 
 /** Menu grouping for device lists. */
 export type DeviceCategory =
-  'eq' | 'dynamics' | 'delay' | 'reverb' | 'spatial' | 'utility' | 'instrument' | 'other'
+  | 'eq'
+  | 'dynamics'
+  | 'delay'
+  | 'reverb'
+  | 'modulation'
+  | 'pitch'
+  | 'drive'
+  | 'texture'
+  | 'spatial'
+  | 'utility'
+  | 'instrument'
+  | 'other'
+
+/** Every category in menu order, with the label a device list prints for it. */
+export const DEVICE_CATEGORIES: readonly { id: DeviceCategory; label: string }[] = [
+  { id: 'instrument', label: 'Instruments' },
+  { id: 'reverb', label: 'Reverb' },
+  { id: 'delay', label: 'Delay' },
+  { id: 'texture', label: 'Texture' },
+  { id: 'pitch', label: 'Pitch' },
+  { id: 'modulation', label: 'Modulation' },
+  { id: 'eq', label: 'EQ and filters' },
+  { id: 'dynamics', label: 'Dynamics' },
+  { id: 'drive', label: 'Drive' },
+  { id: 'spatial', label: 'Spatial' },
+  { id: 'utility', label: 'Utility' },
+  { id: 'other', label: 'Other' },
+]
 
 /** Options every factory understands; factories may accept more (WASM asset overrides, …). */
 export interface DeviceCreateOptions {
@@ -41,6 +68,8 @@ export interface DeviceDescriptor<P extends Record<string, ParamSpec> = Record<s
   name: string
   kind: DeviceKind
   category: DeviceCategory
+  /** One sentence for a device browser: what it is and what it is for. */
+  description?: string
   /** Bump when the param table changes incompatibly; presets record it. */
   version: number
   /** Static parameter table, readable before the device is instantiated. */
@@ -103,6 +132,16 @@ export function validateDescriptor(descriptor: DeviceDescriptor): void {
     }
     if (spec.taper === 'log' && spec.min <= 0) {
       throw new Error(`${where} has a log taper but min ${spec.min} is not positive`)
+    }
+    // An empty list means "no labels" (WAM tables always carry the field).
+    if (spec.choices !== undefined && spec.choices.length > 0) {
+      const steps = spec.max - spec.min + 1
+      if (!Number.isInteger(spec.min) || !Number.isInteger(spec.max)) {
+        throw new Error(`${where} has choices but a non-integer range`)
+      }
+      if (spec.choices.length !== steps) {
+        throw new Error(`${where} has ${spec.choices.length} choices for ${steps} steps`)
+      }
     }
   }
   for (const preset of listPresets(descriptor)) {

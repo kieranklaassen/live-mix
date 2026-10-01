@@ -3,14 +3,7 @@
 // `registerStockWasmDevices()` once, or register the descriptors they want.
 // `wasmDeviceDescriptor` is what U22/U37 devices use to join the registry.
 
-import {
-  type DeviceCategory,
-  type DeviceDescriptor,
-  type DeviceRegistry,
-  type PresetTable,
-  devices,
-} from '../core/devices'
-import { type ParamSpec } from '../core/params'
+import { type DeviceDescriptor, type DeviceRegistry, devices } from '../core/devices'
 import { DUCKER_PARAMS } from '../core/devices/native/ducker-abi'
 import { type WorkletDuckerOptions } from '../core/devices/native/WorkletDucker'
 import { DATTORRO_DEVICE } from './devices/dattorro'
@@ -18,42 +11,14 @@ import { ETHER_REVERB_DEVICE } from './devices/ether-reverb'
 import { FELT_PIANO_DEVICE } from './devices/felt-piano'
 import { createWorkletDucker, type DuckerProcessorOverrides } from './devices/ducker'
 import { FDN_REVERB_DEVICE } from './devices/fdn-reverb'
+import { GENERATED_WASM_DESCRIPTORS } from './devices/index.gen'
 import { LIMITER_1176_DEVICE } from './devices/limiter-1176'
 import { SPECTRAL_DRIFTER_DEVICE } from './devices/spectral-drifter'
 import { STEREO_WIDENER_DEVICE } from './devices/stereo-widener'
 import { ZITA_REV1_DEVICE } from './devices/zita-rev1'
-import { WasmDevice, type WasmDeviceDefinition, type WasmDeviceOptions } from './WasmDevice'
+import { wasmDeviceDescriptor } from './descriptor'
 
-export interface WasmDeviceMeta<P extends Record<string, ParamSpec>> {
-  name: string
-  category: DeviceCategory
-  version?: number
-  presets?: PresetTable<P>
-  /** Over the CPU budget (docs/devices.md) or otherwise not cleared for production. */
-  experimental?: boolean
-}
-
-/**
- * Describe a WASM device for the registry. `registry.create(id, ctx, options)`
- * hands `processorUrl`, `wasm` and `createNode` through to `WasmDevice.create`.
- */
-export function wasmDeviceDescriptor<P extends Record<string, ParamSpec>>(
-  definition: WasmDeviceDefinition<P>,
-  meta: WasmDeviceMeta<P>,
-): DeviceDescriptor<P> {
-  return {
-    id: definition.id,
-    name: meta.name,
-    kind: 'wasm',
-    category: meta.category,
-    version: meta.version ?? 1,
-    params: definition.params,
-    presets: meta.presets,
-    ...(meta.experimental ? { experimental: true } : {}),
-    create: (context, options) =>
-      WasmDevice.create(context, definition, options as WasmDeviceOptions<P>),
-  }
-}
+export { wasmDeviceDescriptor, type WasmDeviceMeta } from './descriptor'
 
 export const DATTORRO_DESCRIPTOR = wasmDeviceDescriptor(DATTORRO_DEVICE, {
   name: 'Dattorro Plate',
@@ -192,6 +157,8 @@ export const STOCK_WASM_DEVICES: readonly DeviceDescriptor[] = [
   SPECTRAL_DRIFTER_DESCRIPTOR,
   ETHER_REVERB_DESCRIPTOR,
   FELT_PIANO_DESCRIPTOR,
+  // The spec devices (cpp/devices/*/device.json with a params array).
+  ...GENERATED_WASM_DESCRIPTORS,
 ]
 
 /** Register the stock WASM devices (idempotent) in `registry`, the default one unless given. */

@@ -183,6 +183,22 @@ export class WasmDevice<P extends Record<string, ParamSpec> = Record<string, Par
     this.post({ type: 'note-off', noteId })
   }
 
+  /**
+   * Hand a sample device (granular synth, sampler) the sound it plays: one or
+   * two channels of audio at `sampleRate`. The data is copied, so the caller's
+   * buffers stay usable; frames beyond the device's capacity are dropped.
+   * Devices that take no sample ignore it.
+   */
+  loadSample(channels: readonly Float32Array[], sampleRate: number): void {
+    if (channels.length === 0) return
+    const copies = channels.slice(0, 2).map((channel) => channel.slice())
+    if (this.disposed) return
+    this.node.port.postMessage(
+      { type: 'load-sample', channels: copies, sampleRate } satisfies DeviceMessage,
+      copies.map((copy) => copy.buffer),
+    )
+  }
+
   /** Send an app-specific message to a custom processor (see `processor` in the definition). */
   postMessage(message: unknown, transfer?: Transferable[]): void {
     if (this.disposed) return

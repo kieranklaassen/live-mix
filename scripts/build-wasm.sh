@@ -36,7 +36,9 @@ exported_functions=${exported_functions:1}
 # (src/dsp/abi.ts DeviceExports.device_note_on/off) on top of the ABI.
 instrument_exports=",_device_note_on,_device_note_off"
 
-# build_device <name> <sources...>; set EXTRA_EXPORTS for additional symbols.
+# build_device <name> <sources...>; set EXTRA_EXPORTS for additional symbols
+# and MEMORY_BYTES for a device that needs more than the default 4 MiB of
+# fixed linear memory (long delay lines, sample buffers).
 build_device() {
   local name="$1"
   shift
@@ -44,7 +46,7 @@ build_device() {
     -I cpp/common \
     -std=c++17 -O3 -fno-exceptions -fno-rtti --no-entry \
     -s "EXPORTED_FUNCTIONS=${exported_functions}${EXTRA_EXPORTS:-}" \
-    -s INITIAL_MEMORY=4194304 \
+    -s "INITIAL_MEMORY=${MEMORY_BYTES:-4194304}" \
     -s ALLOW_MEMORY_GROWTH=0 \
     -s STACK_SIZE=131072 \
     -o "$out_dir/$name.wasm"
@@ -89,3 +91,8 @@ EXTRA_EXPORTS="$instrument_exports" build_device felt-piano \
 # scripts/build-faust.sh and committed; no Faust toolchain is needed here.
 build_device zita-rev1 cpp/faust/zita-rev1.device.cpp
 build_device limiter-1176 cpp/faust/limiter-1176.device.cpp
+
+# Spec devices: everything under cpp/devices/<id>/ whose device.json carries
+# its parameter table. scripts/gen-devices.mjs writes the list below.
+source scripts/devices.gen.sh
+build_generated_devices

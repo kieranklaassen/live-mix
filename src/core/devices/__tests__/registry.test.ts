@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
+import { GENERATED_WASM_DESCRIPTORS } from '../../../dsp/devices/index.gen'
 import { STOCK_WASM_DEVICES, registerStockWasmDevices } from '../../../dsp/registry'
 import { asAudioContext, createMockContext } from '../../../testing'
 import { type ParamSpec } from '../../params'
@@ -116,19 +117,18 @@ describe('DeviceRegistry', () => {
       STOCK_WASM_DEVICES.filter((d) => d.kind === 'wasm'),
     )
     expect(registry.list({ kind: 'worklet' }).map((d) => d.id)).toEqual(['ducker'])
-    expect(registry.list({ category: 'reverb' }).map((d) => d.id)).toEqual([
-      'convolver-reverb',
-      'dattorro',
-      'fdn-reverb',
-      'zita-rev1',
-      'ether-reverb',
-    ])
+    expect(
+      registry
+        .list({ category: 'reverb' })
+        .map((d) => d.id)
+        .slice(0, 5),
+    ).toEqual(['convolver-reverb', 'dattorro', 'fdn-reverb', 'zita-rev1', 'ether-reverb'])
     expect(registry.list({ kind: 'node', category: 'dynamics' }).map((d) => d.id)).toEqual([
       'compressor',
     ])
-    expect(registry.list({ kind: 'wasm', category: 'dynamics' }).map((d) => d.id)).toEqual([
+    expect(registry.list({ kind: 'wasm', category: 'dynamics' }).map((d) => d.id)).toContain(
       'limiter-1176',
-    ])
+    )
   })
 
   it('creates by id with defaults, params, presets, and params over presets', async () => {
@@ -269,7 +269,7 @@ describe('default registry', () => {
     expect(registerStockWasmDevices()).toBe(devices)
     registerStockWasmDevices()
     const wasm = devices.list({ kind: 'wasm' }).map((d) => d.id)
-    expect(wasm).toEqual([
+    expect(wasm.slice(0, 8)).toEqual([
       'dattorro',
       'fdn-reverb',
       'stereo-widener',
@@ -279,6 +279,8 @@ describe('default registry', () => {
       'ether-reverb',
       'felt-piano',
     ])
+    // The spec devices follow, in id order (src/dsp/devices/index.gen.ts).
+    expect(wasm.slice(8)).toEqual(GENERATED_WASM_DESCRIPTORS.map((d) => d.id))
     expect(wasm.length).toBeGreaterThanOrEqual(before)
     expect(new Set(devices.ids()).size).toBe(devices.ids().length)
   })

@@ -154,3 +154,6 @@ export {
   type FeltPiano,
   type FeltPianoParamName,
 } from './devices/felt-piano'
+
+// The spec devices: one generated module per cpp/devices/<id>/device.json.
+export * from './devices/index.gen'

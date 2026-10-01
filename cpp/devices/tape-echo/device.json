@@ -1,0 +1,117 @@
+{
+  "id": "tape-echo",
+  "name": "Tape Echo",
+  "category": "delay",
+  "description": "Tape delay with three playback heads, wow and flutter, tape saturation and a band-limited feedback loop that can run away.",
+  "class": "TapeEcho",
+  "header": "tape_echo.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "time",
+      "name": "Time",
+      "min": 30,
+      "max": 2000,
+      "default": 380,
+      "taper": "log",
+      "unit": "ms"
+    },
+    { "key": "feedback", "name": "Feedback", "min": 0, "max": 1.1, "default": 0.45 },
+    { "key": "heads", "name": "Heads", "choices": ["One", "Two", "Three", "Dotted"], "default": 0 },
+    { "key": "wow", "name": "Wow", "min": 0, "max": 1, "default": 0.25 },
+    { "key": "flutter", "name": "Flutter", "min": 0, "max": 1, "default": 0.15 },
+    { "key": "drive", "name": "Drive", "min": 0, "max": 1, "default": 0.3 },
+    {
+      "key": "lowCut",
+      "name": "Low Cut",
+      "min": 20,
+      "max": 800,
+      "default": 120,
+      "taper": "log",
+      "unit": "Hz"
+    },
+    {
+      "key": "highCut",
+      "name": "High Cut",
+      "min": 800,
+      "max": 16000,
+      "default": 4500,
+      "taper": "log",
+      "unit": "Hz"
+    },
+    { "key": "spread", "name": "Ping Pong", "min": 0, "max": 1, "default": 0.3 },
+    { "key": "mix", "name": "Mix", "min": 0, "max": 1, "default": 0.35 }
+  ],
+  "presets": {
+    "Space echo": {
+      "time": 380,
+      "feedback": 0.45,
+      "heads": 0,
+      "wow": 0.25,
+      "flutter": 0.15,
+      "drive": 0.3,
+      "highCut": 4500,
+      "mix": 0.35
+    },
+    "Discreet": {
+      "time": 160,
+      "feedback": 0.3,
+      "heads": 0,
+      "wow": 0.15,
+      "flutter": 0.1,
+      "drive": 0.2,
+      "highCut": 6000,
+      "spread": 0,
+      "mix": 0.3
+    },
+    "Three heads": {
+      "time": 540,
+      "feedback": 0.5,
+      "heads": 2,
+      "wow": 0.3,
+      "flutter": 0.2,
+      "drive": 0.35,
+      "highCut": 3800,
+      "spread": 0.5,
+      "mix": 0.4
+    },
+    "Worn tape": {
+      "time": 620,
+      "feedback": 0.6,
+      "heads": 0,
+      "wow": 0.8,
+      "flutter": 0.6,
+      "drive": 0.7,
+      "lowCut": 220,
+      "highCut": 2200,
+      "mix": 0.45
+    },
+    "Dub wash": {
+      "time": 750,
+      "feedback": 0.85,
+      "heads": 3,
+      "wow": 0.35,
+      "flutter": 0.2,
+      "drive": 0.5,
+      "lowCut": 180,
+      "highCut": 3000,
+      "spread": 1,
+      "mix": 0.5
+    },
+    "Runaway": {
+      "time": 300,
+      "feedback": 1.05,
+      "heads": 1,
+      "wow": 0.4,
+      "flutter": 0.3,
+      "drive": 0.6,
+      "highCut": 3200,
+      "spread": 0.6,
+      "mix": 0.4
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. Models a Roland RE-201 style machine in outline (one record head, up to three playback heads on one loop, speed drift, band-limited recirculation), not a circuit emulation of any unit."
+  }
+}

@@ -32,6 +32,21 @@ float* device_out_right(void);
 int device_max_block_frames(void);
 void device_process(int frames);
 
+// Instruments add (optional exports; the host calls them when present):
+//
+//   void device_note_on(int note_id, float frequency, float gain);
+//   void device_note_off(int note_id);
+//
+// Sample devices (granular synth, sampler) add a way for the host to hand
+// them one sound. The host writes up to device_sample_capacity() frames per
+// channel into device_sample_buffer() (channel 0 first, channel 1 starting
+// capacity frames later), then calls device_sample_commit. All three run on
+// the audio thread between device_process calls.
+//
+//   int device_sample_capacity(void);
+//   float* device_sample_buffer(void);
+//   void device_sample_commit(int frames, int channels, float sample_rate);
+
 #ifdef __cplusplus
 }
 #endif

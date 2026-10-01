@@ -23,6 +23,7 @@ import { type DeviceCreateRequest, type DeviceDescriptor, DeviceRegistry } from 
 // The stock WASM definitions live next to their descriptors; their lazy URLs
 // point at the committed artefacts, which the contract test compiles once.
 import { DATTORRO_DEVICE } from '../../../dsp/devices/dattorro'
+import { GENERATED_WASM_DEFINITIONS } from '../../../dsp/devices/index.gen'
 import { ETHER_REVERB_DEVICE } from '../../../dsp/devices/ether-reverb'
 import { FELT_PIANO_DEVICE } from '../../../dsp/devices/felt-piano'
 import { FDN_REVERB_DEVICE } from '../../../dsp/devices/fdn-reverb'
@@ -40,6 +41,7 @@ const WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   SPECTRAL_DRIFTER_DEVICE,
   ETHER_REVERB_DEVICE,
   FELT_PIANO_DEVICE,
+  ...GENERATED_WASM_DEFINITIONS,
 ]
 
 const mockNodeFactory: WorkletNodeFactory = (context, name, options) =>
@@ -122,6 +124,7 @@ it('covers every stock device and the WAM adapter', () => {
       'wam-fake-effect',
       'ether-reverb',
       'felt-piano',
+      ...GENERATED_WASM_DEFINITIONS.map((definition) => definition.id),
     ].sort(),
   )
   expect(WASM_DEFINITIONS.map((d) => d.id).sort()).toEqual(

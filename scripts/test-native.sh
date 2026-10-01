@@ -77,3 +77,18 @@ CXX="${CXX:-c++}"
   -o "$out_dir/limiter_1176_test"
 
 "$out_dir/limiter_1176_test"
+
+# native_test <name> <sources...>: compile one harness and run it.
+native_test() {
+  local name="$1"
+  shift
+  "$CXX" -std=c++17 -O2 -fno-exceptions -fno-rtti -Wall -Wextra "$@" -o "$out_dir/$name"
+  "$out_dir/$name"
+}
+
+# The shared DSP kit (cpp/kit) and the spec devices built on it. The device
+# list is written by scripts/gen-devices.mjs from cpp/devices/*/device.json.
+native_test kit_test cpp/test/kit_test.cpp
+
+source scripts/devices.gen.sh
+test_generated_devices

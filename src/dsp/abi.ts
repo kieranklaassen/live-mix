@@ -21,6 +21,11 @@ export interface DeviceExports {
   /** Instruments only: note events (see `NoteDevice`). */
   device_note_on?: (noteId: number, frequency: number, gain: number) => void
   device_note_off?: (noteId: number) => void
+  /** Sample devices only: frames per channel that fit (see `WasmDevice.loadSample`). */
+  device_sample_capacity?: () => number
+  /** Where the host writes the sound: channel 0, then channel 1 `capacity` frames later. */
+  device_sample_buffer?: () => number
+  device_sample_commit?: (frames: number, channels: number, sampleRate: number) => void
 }
 
 /** Main thread → worklet messages. */
@@ -29,6 +34,7 @@ export type DeviceMessage =
   | { type: 'bypass'; enabled: boolean }
   | { type: 'note-on'; noteId: number; frequency: number; gain: number }
   | { type: 'note-off'; noteId: number }
+  | { type: 'load-sample'; channels: Float32Array[]; sampleRate: number }
 
 /** Worklet → main thread messages. */
 export type DeviceHostMessage = { type: 'ready'; deviceId: string; maxBlockFrames: number }

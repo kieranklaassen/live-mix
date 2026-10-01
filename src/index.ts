@@ -344,6 +344,7 @@ export {
   type Utility,
   type UtilityParamName,
   // Registry and presets
+  DEVICE_CATEGORIES,
   DeviceRegistry,
   PRESET_FORMAT_VERSION,
   applyPreset,
