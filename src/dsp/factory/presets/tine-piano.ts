@@ -7,7 +7,7 @@ export const TINE_PIANO_PRESETS: readonly FactoryPreset[] = [
     category: 'keys',
     description:
       'The soft electric piano with its tremolo on, through a slow phaser in a small room.',
-    instrument: { deviceId: 'tine-piano', preset: 'Soft suitcase' },
+    instrument: { deviceId: 'tine-piano', preset: 'Soft suitcase', params: { volume: -11.5 } },
     effects: [
       { deviceId: 'phaser', preset: 'Slow Swirl' },
       { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.25 } },

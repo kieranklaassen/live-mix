@@ -3,6 +3,13 @@
 // device. Input gain drives the fixed threshold like the hardware's INPUT knob;
 // output gain is the make-up stage.
 //
+// The compressor alone is a levelling stage: its attack lets a transient
+// through at whatever height the input gain gave it (a click at -6 dBFS left
+// at +18 dBFS with 24 dB of drive). The ceiling after it is the part that
+// limits: linear up to half scale, where the compressor holds a steady
+// signal, then a tanh knee that approaches full scale and never passes it.
+// With output gain at 0 dB nothing leaves above 0 dBFS.
+//
 // scripts/build-faust.sh compiles this to cpp/faust/generated/limiter-1176.h
 // and src/dsp/devices/faust/limiter-1176.ts. Parameter ids are the `[N]` order.
 
@@ -18,4 +25,7 @@ smooth = si.smooth(ba.tau2pole(0.005));
 inputGain = hslider("[0] Input gain [unit:dB]", 0, 0, 40, 0.1) : ba.db2linear : smooth;
 outputGain = hslider("[1] Output gain [unit:dB]", 0, -24, 24, 0.1) : ba.db2linear : smooth;
 
-process = *(inputGain), *(inputGain) : co.limiter_1176_R4_stereo : *(outputGain), *(outputGain);
+knee = 0.5;
+ceiling(x) = ba.if(abs(x) > knee, ma.signum(x) * (knee + (1 - knee) * ma.tanh((abs(x) - knee) / (1 - knee))), x);
+
+process = *(inputGain), *(inputGain) : co.limiter_1176_R4_stereo : ceiling, ceiling : *(outputGain), *(outputGain);

@@ -92,10 +92,27 @@ describe('ether-reverb.wasm (committed artefact)', () => {
     expect(a.rms).toBeGreaterThan(1e-3)
     expect(Math.abs(b.rms - a.rms)).toBeLessThan(0.1 * a.rms)
 
+    // Held: more input gets in neither through the room nor dry.
+    harness.feedTone(1, 660, 0.9)
+    const c = harness.renderSilence(2)
+    expect(Math.abs(c.rms - a.rms)).toBeLessThan(0.1 * a.rms)
+  })
+
+  it('waits for a sound when frozen with nothing ringing, then holds it', async () => {
+    // The "Frozen" preset and a session saved with Freeze on load like this.
+    // It used to mute the input before anything was in the room: silence.
     const fresh = await loadWasmDevice('ether-reverb', sampleRate)
+    fresh.set(ETHER_REVERB_PARAMS.mix, 0.5)
     fresh.set(ETHER_REVERB_PARAMS.freeze, 1)
-    fresh.renderSilence(0.05)
-    expect(fresh.feedTone(0.5, 440, 0.9)).toBe(0)
+    expect(fresh.renderSilence(1).peak).toBe(0)
+    expect(fresh.feedTone(0.05, 440, 0.5)).toBeGreaterThan(0.2) // the dry signal still passes
+    fresh.feedTone(2.2, 440, 0.5)
+    fresh.renderSilence(0.1)
+    const held = fresh.renderSilence(2)
+    fresh.renderSilence(4)
+    const later = fresh.renderSilence(2)
+    expect(held.rms).toBeGreaterThan(1e-2)
+    expect(Math.abs(later.rms - held.rms)).toBeLessThan(0.1 * held.rms)
   })
 
   it('stays finite under loud input at maximum feedback', async () => {

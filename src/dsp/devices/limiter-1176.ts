@@ -21,7 +21,10 @@ export type Limiter1176 = WasmDevice<typeof LIMITER_1176_PARAMS>
  * Fixed 1176 "R4" law: 4:1 above −6 dB on `|L|+|R|`, 0.8 ms attack, 0.5 s
  * release. `inputGain` drives that threshold like the hardware's INPUT knob
  * (a full-scale sine comes out 9 dB down at 0 dB); `outputGain` is make-up.
- * Both gains are smoothed over 5 ms inside the DSP.
+ * After the compressor sits a ceiling, a wire up to half scale and a tanh
+ * knee from there to full scale: what the attack lets through stops at
+ * 0 dBFS, so with `outputGain` at 0 nothing leaves above it. Both gains are
+ * smoothed over 5 ms inside the DSP.
  */
 export function createLimiter1176(
   context: BaseAudioContext,

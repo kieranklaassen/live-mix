@@ -29,7 +29,7 @@ export const CHOIR_PRESETS: readonly FactoryPreset[] = [
     name: 'Monks in a cathedral',
     category: 'voice',
     description: 'Bass voices on a closed oh without vibrato, a long way down a stone nave.',
-    instrument: { deviceId: 'choir', preset: 'Low monks', params: { volume: -4 } },
+    instrument: { deviceId: 'choir', preset: 'Low monks', params: { volume: -8 } },
     effects: [{ deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.4 } }],
     preview: 'low',
   },

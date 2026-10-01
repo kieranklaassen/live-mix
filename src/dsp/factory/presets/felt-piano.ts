@@ -111,7 +111,7 @@ export const FELT_PIANO_PRESETS: readonly FactoryPreset[] = [
     instrument: {
       deviceId: 'felt-piano',
       preset: 'Bare',
-      params: { hardness: 0.7, reverbMix: 0, width: 0.7, polyphony: 16, outputDb: -8 },
+      params: { hardness: 0.7, reverbMix: 0, width: 0.7, polyphony: 16, outputDb: -12 },
     },
     effects: [
       { deviceId: 'zita-rev1', preset: 'Hall', params: { midDecay: 3.5, lowDecay: 4, mix: 0.4 } },

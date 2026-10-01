@@ -13,7 +13,7 @@ export const THESIS_PRESETS: readonly FactoryPreset[] = [
       params: { center: 71, attack: 0.7, release: 2.5 },
     },
     effects: [
-      { deviceId: 'limiter-1176', params: { inputGain: 14 } },
+      { deviceId: 'limiter-1176', params: { inputGain: 14, outputGain: -3.5 } },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.35 } },
     ],
     preview: 'hold',

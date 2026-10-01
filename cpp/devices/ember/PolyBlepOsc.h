@@ -11,6 +11,8 @@ namespace tatami::dsp
     master's fractional overshoot and replaces the wrap BLEP by one sized to the actual jump,
     so the reset itself does not alias. Only the "after the edge" half of the residual can be
     applied without a delay; Ember runs at 2x so the missing half stays inaudible.
+    The pulse is centred on zero at every width (the source's is +-1 whatever the width,
+    which carries 2 pw - 1 of DC); what is heard is the same wave.
 */
 class PolyBlepOsc
 {
@@ -64,7 +66,11 @@ public:
             case Shape::saw:
                 return naive (phase, shape, pulseWidth) + edgeAtZero * blep (phase, inc);
             case Shape::pulse:
-                return naive (phase, shape, pulseWidth) + edgeAtZero * blep (phase, inc) - blep (wrap (phase + 1.0f - pulseWidth), inc);
+                // Less its own mean: a pulse that is high for `pulseWidth` of the cycle sits at
+                // 2 pw - 1 on average, a DC offset as soon as the width leaves the middle (and
+                // a sub-audio swing when an LFO moves the width).
+                return naive (phase, shape, pulseWidth) + edgeAtZero * blep (phase, inc) - blep (wrap (phase + 1.0f - pulseWidth), inc)
+                       - (2.0f * pulseWidth - 1.0f);
             case Shape::triangle:
                 return naive (phase, shape, pulseWidth)
                        + 8.0f * inc * (blamp (phase, inc) - blamp (wrap (phase + 0.5f), inc))

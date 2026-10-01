@@ -49,12 +49,15 @@ describe('zita-rev1.wasm (committed Faust artefact)', () => {
     expect(Math.max(...h.view(h.device.device_out_left(), frames).map(Math.abs))).toBeLessThan(1e-5)
   })
 
-  it('applies dry*(1-mix) + wet*mix with the default mix of 0.35', async () => {
+  it('balances dry*(1-mix) + wet*mix and levels the sum, at the default mix of 0.35', async () => {
+    // The sum is divided by sqrt((1-mix)^2 + 0.2*mix^2): dry and a wet signal
+    // 7 dB under it, added in power. Before the pre-delay only dry is there.
+    const level = 1 / Math.sqrt(0.65 ** 2 + 0.2 * 0.35 ** 2)
     const h = await loadWasmDevice('zita-rev1')
     h.renderSilence(0.1)
     h.processBlock([1], [0.5])
-    expect(h.view(h.device.device_out_left(), 1)[0]).toBeCloseTo(0.65, 4)
-    expect(h.view(h.device.device_out_right(), 1)[0]).toBeCloseTo(0.325, 4)
+    expect(h.view(h.device.device_out_left(), 1)[0]).toBeCloseTo(0.65 * level, 4)
+    expect(h.view(h.device.device_out_right(), 1)[0]).toBeCloseTo(0.325 * level, 4)
   })
 
   it('delays the impulse response by the pre-delay, across its whole range', async () => {

@@ -20,7 +20,7 @@ export const BOWED_STRING_PRESETS: readonly FactoryPreset[] = [
     category: 'string',
     description:
       'One bowed string with a wooden body and a slow vibrato, for low notes held in a nave.',
-    instrument: { deviceId: 'bowed-string', preset: 'Cello drone', params: { volume: -9 } },
+    instrument: { deviceId: 'bowed-string', preset: 'Cello drone', params: { volume: -13 } },
     effects: [{ deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.4 } }],
     preview: 'low',
   },

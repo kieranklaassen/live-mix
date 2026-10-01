@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <cstring>
 
@@ -158,17 +159,68 @@ void test_input_bus_passthrough_and_clear() {
   EXPECT(residual < 1.0e-5f, "input bus should clear between blocks");
 }
 
-void test_mix_law_matches_dattorro_device() {
-  // dry*(1-mix) + wet*mix: before the pre-delay elapses the wet path is silent,
-  // so a settled mix of 0.35 leaves exactly 0.65 * dry.
+// The balance is the Dattorro device's (dry*(1-mix) + wet*mix); the sum is
+// then divided by sqrt((1-mix)^2 + 0.2*mix^2), what dry and a wet signal 7 dB
+// under it add up to in power, so the level does not fall as Mix rises.
+float levelled(float mix) {
+  return 1.0f / std::sqrt((1.0f - mix) * (1.0f - mix) + 0.2f * mix * mix);
+}
+
+void test_mix_law_is_a_levelled_balance() {
+  // Before the pre-delay elapses the wet path is silent, so a settled mix of
+  // 0.35 leaves (1 - mix) * level of the dry signal.
   Device& device = g_test_device;
   device.init(kSampleRate);
   render_seconds(device, 0.1f);
   device.in_left()[0] = 1.0f;
   device.in_right()[0] = 0.5f;
   device.process(1);
-  EXPECT(std::fabs(device.out_left()[0] - 0.65f) < 1.0e-4f, "left dry scaled by (1 - mix)");
-  EXPECT(std::fabs(device.out_right()[0] - 0.325f) < 1.0e-4f, "right dry scaled by (1 - mix)");
+  const float dry = 0.65f * levelled(0.35f);
+  EXPECT(std::fabs(dry - 0.9722f) < 1.0e-3f, "0.65 of the dry signal is levelled up to 0.972");
+  EXPECT(std::fabs(device.out_left()[0] - dry) < 1.0e-4f, "left dry scaled by (1 - mix) * level");
+  EXPECT(std::fabs(device.out_right()[0] - 0.5f * dry) < 1.0e-4f, "right dry scaled by (1 - mix) * level");
+}
+
+// What the levelling is for: a steady sound comes out about as loud wherever
+// Mix stands. Without it the output fell 4 dB by 0.35 and 7 dB fully wet.
+void test_level_holds_as_mix_rises() {
+  const auto rms_at = [](float mix) {
+    Device& device = g_test_device;
+    device.init(kSampleRate);
+    device.set_param(kMix, mix);
+    // Pink-ish noise: white noise through a one-pole, the same on both sides.
+    uint32_t seed = 0x2545F491u;
+    float low = 0.0f;
+    double sum = 0.0;
+    int counted = 0;
+    const int total = static_cast<int>(6.0f * kSampleRate);
+    for (int rendered = 0; rendered < total; rendered += kBlock) {
+      for (int i = 0; i < kBlock; ++i) {
+        seed = seed * 1664525u + 1013904223u;
+        const float white = static_cast<float>(static_cast<int32_t>(seed)) / 2147483648.0f;
+        low += 0.1f * (white - low);
+        device.in_left()[i] = 0.5f * low;
+        device.in_right()[i] = 0.5f * low;
+      }
+      device.process(kBlock);
+      if (rendered >= static_cast<int>(3.0f * kSampleRate)) {  // the room is full
+        for (int i = 0; i < kBlock; ++i) {
+          const double l = device.out_left()[i], r = device.out_right()[i];
+          sum += 0.5 * (l * l + r * r);
+          ++counted;
+        }
+      }
+    }
+    return static_cast<float>(std::sqrt(sum / counted));
+  };
+  const float dry = rms_at(0.0f);
+  std::printf("zita-rev1 level against the dry signal (steady noise):");
+  for (float mix : {0.25f, 0.35f, 0.5f, 0.75f, 1.0f}) {
+    const float db = 20.0f * std::log10(rms_at(mix) / dry);
+    std::printf(" mix %.2f %+.1f dB", mix, db);
+    EXPECT(std::fabs(db) < 2.5f, "the output stays within 2.5 dB of the dry level at every mix");
+  }
+  std::printf("\n");
 }
 
 void test_impulse_produces_decaying_tail() {
@@ -295,7 +347,8 @@ int main() {
   test_param_table_matches_typescript();
   test_set_param_clamps_to_declared_range();
   test_input_bus_passthrough_and_clear();
-  test_mix_law_matches_dattorro_device();
+  test_mix_law_is_a_levelled_balance();
+  test_level_holds_as_mix_rises();
   test_impulse_produces_decaying_tail();
   test_decay_parameters_track_rt60();
   test_sample_rate_independence();

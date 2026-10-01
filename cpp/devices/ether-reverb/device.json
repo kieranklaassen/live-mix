@@ -15,7 +15,8 @@
           "juce::dsp::Reverb -> freeverb.h (Freeverb as juce::Reverb configures it, written JUCE-free)",
           "juce::dsp::DelayLine<float, Linear> -> EtherReverbDevice::PredelayLine (same push/pop semantics, 32768 samples)",
           "mix and the freeze dry-mute ramp over 5 ms per sample (Ether steps them per block)",
-          "the reverb parameters are applied before the sample rate is set, so there is no 10 ms ramp from juce::Reverb's constructor defaults at start"
+          "the reverb parameters are applied before the sample rate is set, so there is no 10 ms ramp from juce::Reverb's constructor defaults at start",
+          "freeze on an empty room waits for a sound: Ether mutes the input and the dry signal the moment freeze is on, so a preset or a session that loads with it on stays silent for good. Here a freeze with nothing above about -50 dBFS in the room is armed: the device runs unfrozen until a sound arrives, and holds once the tail has fallen 3 dB from its top (2 s after it became audible at the latest). Thrown while the room is ringing it holds at once, as in Ether"
         ]
       },
       {

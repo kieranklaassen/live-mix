@@ -163,6 +163,46 @@ void test_attack_and_release_shape() {
   EXPECT(std::fabs(recovered - 0.1f) < 2.0e-3f, "release returns to unity after the hot passage");
 }
 
+// The compressor's attack lets a transient through at the height the input
+// gain gave it; the ceiling after it is what limits. One sample at -6 dBFS
+// used to leave at +6 dBFS with 12 dB of input gain and +18 dBFS with 24.
+void test_transients_stop_at_full_scale() {
+  Device& device = g_test_device;
+  for (float input_gain_db : {12.0f, 24.0f, 40.0f}) {
+    device.init(kSampleRate);
+    device.set_param(kInputGain, input_gain_db);
+    feed_tone(device, 0.1f, 440.0f, 0.0f);  // let the gain smoothers settle
+    float peak = 0.0f;
+    for (int block = 0; block < 8; ++block) {
+      for (int i = 0; i < kBlock; ++i) {
+        const float click = (block == 1 && i == 7) ? 0.5f : 0.0f;
+        device.in_left()[i] = click;
+        device.in_right()[i] = -click;
+      }
+      device.process(kBlock);
+      for (int i = 0; i < kBlock; ++i) {
+        peak = std::max(peak, std::max(std::fabs(device.out_left()[i]), std::fabs(device.out_right()[i])));
+      }
+    }
+    EXPECT(peak <= 1.0f, "a click never leaves above full scale, whatever the input gain");
+    EXPECT(peak > 0.9f, "and is not held any lower than the ceiling");
+
+    // A burst too short for the attack: the same ceiling.
+    device.init(kSampleRate);
+    device.set_param(kInputGain, input_gain_db);
+    feed_tone(device, 0.1f, 440.0f, 0.0f);
+    EXPECT(feed_tone(device, 0.001f, 1000.0f, 0.5f) <= 1.0f, "a 1 ms burst stays under full scale");
+  }
+
+  // Up to half scale the ceiling is a wire, which is where the compressor
+  // holds a steady signal: the law tests above all sit there. Driven as hard
+  // as it goes, a full-scale tone settles under the ceiling.
+  device.init(kSampleRate);
+  device.set_param(kInputGain, 40.0f);
+  const float flat_out = feed_tone(device, 1.0f, 440.0f, 1.0f, 0.5f);
+  EXPECT(flat_out < 1.0f && flat_out > 0.8f, "40 dB of drive on a full-scale tone settles just under full scale");
+}
+
 void test_input_bus_clears_between_blocks() {
   Device& device = g_test_device;
   device.init(kSampleRate);
@@ -183,7 +223,7 @@ void test_stability_under_load() {
   device.init(kSampleRate);
   device.set_param(kInputGain, 40.0f);
   const float peak = feed_tone(device, 10.0f, 55.0f, 4.0f);
-  EXPECT(peak < 4.0f, "40 dB of drive into +12 dBFS stays bounded");
+  EXPECT(peak <= 1.0f, "40 dB of drive into +12 dBFS stays under full scale");
   EXPECT(peak < 1.0e8f, "no NaN/inf during sustained processing");
 }
 
@@ -197,6 +237,7 @@ int main() {
   test_input_gain_drives_the_threshold();
   test_output_gain_is_make_up();
   test_attack_and_release_shape();
+  test_transients_stop_at_full_scale();
   test_input_bus_clears_between_blocks();
   test_stability_under_load();
 
