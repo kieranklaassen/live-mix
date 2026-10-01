@@ -95,6 +95,7 @@ export function slotClipOf(clip: Clip): SlotClip {
   if (clip.loop) out.loop = true
   if (clip.warp !== undefined) out.warp = clip.warp
   if (clip.semitones !== undefined) out.semitones = clip.semitones
+  if (clip.reversed) out.reversed = true
   return out
 }
 
