@@ -25,4 +25,10 @@ export {
   type ClipPlacementKey,
 } from './placement'
 export { mirrorSlice, reversedSourceSec, type MirroredSlice } from './reverse'
-export { clipsInWindow, type ClipWindow, type ScheduledClip } from './window'
+export {
+  clipsInWindow,
+  clipsSoundingAt,
+  type ClipWindow,
+  type ScheduledClip,
+  type WindowClip,
+} from './window'

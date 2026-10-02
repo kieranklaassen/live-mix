@@ -11,6 +11,13 @@
 //   `source.start(startAt)` / `source.stop(startAt + duration)`, a start that
 //   has passed plays from now) and `fadeOutSounding`.
 //
+// A clip entered partway on purpose (the transport started or landed inside it,
+// or it was edited while it sounded) is the linear family's late join with a
+// few milliseconds of ease-in, since nothing before it hides the cut
+// (`easeInSec`); the voice it replaces after an edit fades out as briefly
+// (`release`). An equal-power clip is not entered partway: its envelope is
+// written from its start, so it waits for its start to come round.
+//
 // A reversed clip is the same voice on a mirrored copy of its buffer
 // (`reversed-buffer.ts`), entered where `mirrorSlice` says.
 //
@@ -69,6 +76,9 @@ export const MAX_CLIP_GAIN_DB = 12
 /** ambient-live's scheduling lookahead. */
 export const DEFAULT_LOOKAHEAD_SECONDS = 0.2
 
+/** The ease-in of a clip entered partway, and the fade of the voice it replaces. */
+export const JOIN_EASE_SECONDS = 0.005
+
 /** How far down a placed clip's trim reaches: sitting far back costs more than the ±12 dB of a loudness trim. */
 export const MIN_PLACED_GAIN_DB = -60
 /** Time constant of the approach when a sounding clip's placement or trim changes. */
@@ -118,6 +128,12 @@ export interface ClipVoiceOptions {
   lowpassHz?: number
   /** Send into the track's space, in dB against the voice's own level (`Clip.spaceDb`). */
   spaceDb?: number
+  /**
+   * Come up from silence over this long where the voice enters, under its own
+   * fades: for a clip entered partway, where there is no silence before it to
+   * hide a cut. Linear clips only; 0 or undefined enters at the envelope's value.
+   */
+  easeInSec?: number
 }
 
 /** What `place` moves on a sounding voice: where it sits, and its trim. */
@@ -244,12 +260,13 @@ export class AudioTrack implements StripHost {
     this.playback = new TrackSchedulable(
       () => this.lookaheadSec,
       () => this.clips.audible(),
-      (start, when) => this.scheduleStart(start, when),
+      (start, when, joining) => this.scheduleStart(start, when, joining),
       {
-        cancel: (key) => this.stop(key),
+        cancel: (key, fadeSec) => (fadeSec ? this.release(key, fadeSec) : this.stop(key)),
         cancelPending: () => this.stopPending(),
         cancelAll: (fadeSec) => this.stopAll(fadeSec > 0 ? { at: this.now() + fadeSec } : {}),
       },
+      { joinsLate: true, keeps: (key) => this.keeps(key) },
     )
     this.preload = new TrackSchedulable(
       () => this.preloadSec,
@@ -404,6 +421,26 @@ export class AudioTrack implements StripHost {
   }
 
   /**
+   * Let the voice under `key` go for another that takes its place: one that
+   * is sounding fades out over `seconds` from now and is forgotten at once, so
+   * the key is free; one that has not started, or `seconds` of 0, is silenced.
+   */
+  release(key: string, seconds: number): void {
+    const voice = this.active.get(key)
+    if (!voice) return
+    const at = this.now()
+    if (seconds <= 0 || voice.startTime > at || at >= voice.endTime) {
+      this.silence(voice)
+      return
+    }
+    this.fadeOutVoice(key, at, seconds)
+    this.active.delete(key)
+    this.voiceClips.delete(key)
+    // No longer the key's voice, so `forget` would pass it by.
+    voice.source.onended = () => this.unwire(voice)
+  }
+
+  /**
    * Cancel voices that have not started yet and return their keys, so an edit
    * can be rescheduled without cutting audio already in flight.
    */
@@ -450,9 +487,25 @@ export class AudioTrack implements StripHost {
 
   // --- Schedulable hooks ------------------------------------------------------
 
-  private scheduleStart(start: ScheduledStart, when: number): boolean {
+  /**
+   * A sounding voice whose clip is equal-power: let go, the clip could not be
+   * entered again partway, so a rejoin leaves it as it sounds.
+   */
+  private keeps(key: string): boolean {
+    const voice = this.active.get(key)
+    const clipId = this.voiceClips.get(key)
+    if (!voice || clipId === undefined) return false
+    const now = this.now()
+    if (now < voice.startTime || now >= voice.endTime) return false
+    return this.clips.get(clipId)?.fadeCurve === 'equalPower'
+  }
+
+  private scheduleStart(start: ScheduledStart, when: number, joining = false): boolean {
     const clip = this.clips.get(start.clipId)
     if (!clip) return false
+    // An equal-power envelope is written from the clip's start and has no way
+    // in partway: taken as handled, it sounds when its start next comes round.
+    if (joining && clip.fadeCurve === 'equalPower') return true
     const sample = this.samples.get(clip.sourceId)
     if (!sample) {
       this.requestLoad(clip)
@@ -476,6 +529,7 @@ export class AudioTrack implements StripHost {
         pan: clip.pan,
         lowpassHz: clip.lowpassHz,
         spaceDb: clip.spaceDb,
+        easeInSec: joining ? JOIN_EASE_SECONDS : undefined,
       },
       when,
     )
@@ -525,7 +579,7 @@ export class AudioTrack implements StripHost {
     }
   }
 
-  /** ambient-live `ClipPlayer.play`, verbatim. */
+  /** ambient-live `ClipPlayer.play`, verbatim, plus the ease-in of a voice entered partway. */
   private playLinear(key: string, playback: VoicePlayback, when: number): ClipVoice | null {
     // A start that has already passed joins the clip partway in rather than
     // replaying it from the trim point and overrunning its end.
@@ -544,13 +598,21 @@ export class AudioTrack implements StripHost {
     // the applied gain even when the clip is joined late.
     const fadeInEnd = when + Math.min(playback.fadeInSec, playback.durationSec)
     const fadeOutStart = Math.max(fadeInEnd, end - playback.fadeOutSec)
-    gain.gain.setValueAtTime(
-      fadeGain(late, playback.durationSec, playback.fadeInSec, playback.fadeOutSec),
-      start,
+    // The envelope takes over where the ease-in ends: at the join itself when there is none.
+    const easeSec = Math.max(0, Math.min(playback.easeInSec ?? 0, end - start))
+    const from = start + easeSec
+    if (easeSec > 0) gain.gain.setValueAtTime(0, start)
+    const envelopeAtFrom = fadeGain(
+      late + easeSec,
+      playback.durationSec,
+      playback.fadeInSec,
+      playback.fadeOutSec,
     )
-    if (fadeInEnd > start) gain.gain.linearRampToValueAtTime(1, fadeInEnd)
+    if (easeSec > 0) gain.gain.linearRampToValueAtTime(envelopeAtFrom, from)
+    else gain.gain.setValueAtTime(envelopeAtFrom, from)
+    if (fadeInEnd > from) gain.gain.linearRampToValueAtTime(1, fadeInEnd)
     if (playback.fadeOutSec > 0) {
-      if (fadeOutStart > start) gain.gain.setValueAtTime(1, fadeOutStart)
+      if (fadeOutStart > from) gain.gain.setValueAtTime(1, fadeOutStart)
       gain.gain.linearRampToValueAtTime(0, end)
     }
 
@@ -750,19 +812,24 @@ function wrapIntoRegion(sourceSec: number, startSec: number, endSec: number): nu
 /** A Schedulable whose lookahead and clips are read live from the track. */
 export class TrackSchedulable implements Schedulable {
   private readonly readLookahead: () => number
+  readonly joinsLate: boolean
   readonly clips: () => ClipWindow['clips']
-  readonly schedule: (start: ScheduledStart, when: number) => boolean
-  readonly cancel: (key: string) => void
+  readonly schedule: (start: ScheduledStart, when: number, joining?: boolean) => boolean
+  readonly cancel: (key: string, fadeSec?: number) => void
+  readonly keeps?: (key: string) => boolean
   readonly cancelPending: () => string[]
   readonly cancelAll: (fadeSec: number) => void
 
   constructor(
     readLookahead: () => number,
     clips: () => ClipWindow['clips'],
-    schedule: (start: ScheduledStart, when: number) => boolean,
+    schedule: (start: ScheduledStart, when: number, joining?: boolean) => boolean,
     cancels: Partial<Pick<Schedulable, 'cancel' | 'cancelPending' | 'cancelAll'>> = {},
+    options: { joinsLate?: boolean; keeps?: (key: string) => boolean } = {},
   ) {
     this.readLookahead = readLookahead
+    this.joinsLate = options.joinsLate ?? false
+    this.keeps = options.keeps
     this.clips = clips
     this.schedule = schedule
     this.cancel = cancels.cancel ?? (() => {})

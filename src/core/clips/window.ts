@@ -11,8 +11,15 @@ export interface ScheduledClip {
   startsInSec: number
 }
 
+/**
+ * What the scheduler reads off a clip. `durationSec` is only needed to tell
+ * whether a clip is sounding at a position (`clipsSoundingAt`); one without
+ * it is only ever started at its start.
+ */
+export type WindowClip = Pick<Clip, 'id' | 'startSec'> & Partial<Pick<Clip, 'durationSec'>>
+
 export interface ClipWindow {
-  clips: readonly Pick<Clip, 'id' | 'startSec'>[]
+  clips: readonly WindowClip[]
   playheadSec: number
   lookaheadSec: number
   iteration: number
@@ -62,4 +69,20 @@ export function clipsInWindow({
   }
 
   return scheduled.sort((a, b) => a.startsInSec - b.startsInSec)
+}
+
+/**
+ * The clips already sounding at `positionSec`: begun before it and not yet
+ * over. A clip that starts exactly there is not one of them (the window hands
+ * it over), and a clip with no `durationSec` never is. In timeline order.
+ */
+export function clipsSoundingAt(clips: ClipWindow['clips'], positionSec: number): WindowClip[] {
+  return clips
+    .filter(
+      (clip) =>
+        clip.durationSec !== undefined &&
+        clip.startSec < positionSec &&
+        positionSec < clip.startSec + clip.durationSec,
+    )
+    .sort((a, b) => a.startSec - b.startSec)
 }
