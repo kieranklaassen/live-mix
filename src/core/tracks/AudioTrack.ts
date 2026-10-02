@@ -196,6 +196,7 @@ interface VoicePlayback extends ClipVoiceOptions {
 }
 
 export interface ClipVoice {
+  /** The start it was scheduled under; changes only when the timeline is stretched under it. */
   readonly key: string
   readonly source: AudioBufferSourceNode
   readonly gain: GainNode
@@ -301,6 +302,7 @@ export class AudioTrack implements StripHost {
       {
         joinsLate: true,
         keeps: (key) => this.keeps(key),
+        rekey: (key, to) => this.rekey(key, to),
         retime: (rate, at) => this.setRate(rate, at),
       },
     )
@@ -553,6 +555,19 @@ export class AudioTrack implements StripHost {
     const now = this.now()
     if (now < voice.startTime || now >= voice.endTime) return false
     return this.clips.get(clipId)?.fadeCurve === 'equalPower'
+  }
+
+  /** The voice under `key` is its clip's start under `to` now: the timeline was stretched under it. */
+  private rekey(key: string, to: string): boolean {
+    const voice = this.active.get(key)
+    if (!voice || this.active.has(to)) return false
+    this.active.delete(key)
+    ;(voice as { key: string }).key = to
+    this.active.set(to, voice)
+    const clipId = this.voiceClips.get(key)
+    this.voiceClips.delete(key)
+    if (clipId !== undefined) this.voiceClips.set(to, clipId)
+    return true
   }
 
   private scheduleStart(start: ScheduledStart, when: number, joining = false): boolean {
@@ -947,6 +962,7 @@ export class TrackSchedulable implements Schedulable {
   readonly schedule: (start: ScheduledStart, when: number, joining?: boolean) => boolean
   readonly cancel: (key: string, fadeSec?: number) => void
   readonly keeps?: (key: string) => boolean
+  readonly rekey?: (key: string, to: string) => boolean
   readonly retime?: (rate: number, at: number) => void
   readonly cancelPending: () => string[]
   readonly cancelAll: (fadeSec: number) => void
@@ -959,12 +975,14 @@ export class TrackSchedulable implements Schedulable {
     options: {
       joinsLate?: boolean
       keeps?: (key: string) => boolean
+      rekey?: (key: string, to: string) => boolean
       retime?: (rate: number, at: number) => void
     } = {},
   ) {
     this.readLookahead = readLookahead
     this.joinsLate = options.joinsLate ?? false
     this.keeps = options.keeps
+    this.rekey = options.rekey
     this.retime = options.retime
     this.clips = clips
     this.schedule = schedule

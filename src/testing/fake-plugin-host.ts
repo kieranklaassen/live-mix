@@ -1,6 +1,7 @@
 // A plug-in host small enough for unit tests: the control protocol of
 // `@kieranklaassen/live-mix/native` over a fake socket, two plug-ins, and a
-// record of what it was asked. It moves no audio; an application uses it to
+// record of what it was asked, plus a Link session a test plays the peers of
+// (`host.link`, fake-link.ts). It moves no audio; an application uses it to
 // test its plug-in list, its registry and its documents without a host binary:
 //
 //   const host = new FakePluginHost()
@@ -9,6 +10,7 @@
 //   })
 
 import { type ControlSocket } from '../native/HostClient'
+import { FakeLinkSession, type FakeLinkOptions } from './fake-link'
 import {
   NATIVE_PROTOCOL_VERSION,
   type NativeHostAddress,
@@ -145,17 +147,30 @@ export interface FakePluginHostOptions {
   plugins?: NativePluginInfo[]
   /** Latency the reverb reports. */
   latencySamples?: number
+  /** False for a host built without Ableton Link. Default true. */
+  link?: boolean
+  /** The fake session's clock. */
+  linkClock?: FakeLinkOptions['clock']
 }
 
 export class FakePluginHost {
   readonly requests: Request[] = []
   readonly sockets: FakeSocket[] = []
   readonly slots = new Map<string, { plugin: string; params: NativeParamInfo[]; state: string }>()
+  /** The Link session; a test plays its peers through this. */
+  readonly link: FakeLinkSession
   private readonly options: FakePluginHostOptions
+  private readonly linkFollowers = new Set<FakeSocket>()
   private nextSlot = 1
 
   constructor(options: FakePluginHostOptions = {}) {
     this.options = options
+    this.link = new FakeLinkSession({ clock: options.linkClock })
+    this.link.onAnnounce = (state) => {
+      for (const socket of this.linkFollowers) {
+        if (!socket.closed) socket.deliver({ event: 'link', ...state })
+      }
+    }
   }
 
   /** `createSocket` for `NativeHostClient.connect`: opens on the next microtask. */
@@ -201,7 +216,31 @@ export class FakePluginHost {
           juce: '9.0.2',
           formats: ['VST3', 'AudioUnit'],
           platform: 'mac',
+          link: this.options.link ?? true,
+          ...((this.options.link ?? true) ? { linkVersion: '4.1' } : {}),
         })
+        break
+      case 'linkPing':
+        // Answered at once, like the real one: the page times the round trip.
+        if (request.id !== undefined) {
+          socket.deliver({ id: request.id, result: { micros: this.link.micros() } })
+        }
+        break
+      case 'link':
+      case 'linkStart':
+      case 'linkStop':
+        if (!(this.options.link ?? true)) {
+          if (request.method === 'link' && Object.keys(request.params).length === 0) {
+            reply({ available: false, enabled: false })
+          } else {
+            fail('this host was built without Ableton Link')
+          }
+          break
+        }
+        this.linkFollowers.add(socket)
+        if (request.method === 'link') reply(this.link.apply(request.params))
+        else if (request.method === 'linkStart') reply(this.link.start(request.params))
+        else reply(this.link.stop(request.params))
         break
       case 'plugins':
         reply({ plugins })

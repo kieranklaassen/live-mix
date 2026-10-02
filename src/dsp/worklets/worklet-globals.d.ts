@@ -16,3 +16,5 @@ declare function registerProcessor(
 ): void
 
 declare const sampleRate: number
+/** The context frame of the first sample of the render quantum being processed. */
+declare const currentFrame: number

@@ -183,6 +183,8 @@ export class ScoreRenderer {
   private latest: Score | null = null
   private inFlight: Promise<void> | null = null
   private scheduled = false
+  // Set by `stretchTimeline` for the render that follows; 1 otherwise.
+  private pendingStretch = 1
   private detachDocument: (() => void) | null = null
   private readonly unsubscribeEngine: () => void
   private disposed = false
@@ -391,6 +393,27 @@ export class ScoreRenderer {
   }
 
   /**
+   * Says that the next change rendered stretches the timeline by `ratio`: a
+   * tempo change in a host whose clips keep their beat, which multiplies the
+   * loop length and every clip's `startSec` by `ratio` (old tempo over new)
+   * in one edit. Call it right before that edit.
+   *
+   * Rendered as any other edit, that is a loop change and clips moved under
+   * a playing transport: the position stays where it was in seconds, so it
+   * lands in another bar, and what is sounding is cut. Announced here, the
+   * transport is stretched along with the clips (`Transport.rescale`) and the
+   * clips are moved under `Scheduler.rescale`: the transport stays in its bar
+   * and sounding clips play on. Stretches announced before a render runs
+   * multiply.
+   */
+  stretchTimeline(ratio: number): void {
+    if (!Number.isFinite(ratio) || ratio <= 0) {
+      throw new RangeError(`ScoreRenderer: stretch ratio must be positive, got ${ratio}`)
+    }
+    this.pendingStretch *= ratio
+  }
+
+  /**
    * Resolves once no render is running or queued and no device is still
    * taking in a state the document gave it. Failures are not
    * re-thrown here: `render()` callers get them from their own promise and
@@ -471,14 +494,22 @@ export class ScoreRenderer {
     assertValidScore(next, { devices: this.devices })
     const now = (): number => this.engine.now()
 
-    // 1. Transport.
-    if (
+    // 1. Transport. A stretched timeline takes its new length further down,
+    // in the same turn as its clips take their new places.
+    const stretch = this.pendingStretch
+    this.pendingStretch = 1
+    const nextLoopLength = next.transport.loop.lengthSec ?? Infinity
+    if (stretch !== 1) {
+      if (prev.transport.loop.enabled !== next.transport.loop.enabled) {
+        this.engine.transport.setLoop({ enabled: next.transport.loop.enabled })
+      }
+    } else if (
       prev.transport.loop.enabled !== next.transport.loop.enabled ||
       prev.transport.loop.lengthSec !== next.transport.loop.lengthSec
     ) {
       this.engine.transport.setLoop({
         enabled: next.transport.loop.enabled,
-        lengthSec: next.transport.loop.lengthSec ?? Infinity,
+        lengthSec: nextLoopLength,
       })
     }
 
@@ -604,28 +635,44 @@ export class ScoreRenderer {
       this.reconcileSends(handle, before, host.strip.sends, now)
     }
 
-    // 10. Clips and lookahead.
-    for (const track of next.tracks) {
-      if (track.kind !== 'audio') continue
-      const live = this.clipTrack(track.id)
-      const before = priorOf(track.id)
-      const beforeTrack = before && 'kind' in before && before.kind === 'audio' ? before : null
-      const lookahead = track.lookaheadSec ?? DEFAULT_LOOKAHEAD_SECONDS
-      if (beforeTrack && live.lookaheadSec !== lookahead) live.lookaheadSec = lookahead
-      const preload = track.preloadSec ?? lookahead
-      if (beforeTrack && live.preloadSec !== preload) live.preloadSec = preload
-      if (!beforeTrack || !sameClips(beforeTrack.clips, track.clips)) live.clips.set(track.clips)
-    }
+    // 10. Clips and lookahead; 10b, element clips. In one turn, and with the
+    // transport when the timeline is stretched under them.
+    const placeClips = (): void => {
+      for (const track of next.tracks) {
+        if (track.kind !== 'audio') continue
+        const live = this.clipTrack(track.id)
+        const before = priorOf(track.id)
+        const beforeTrack = before && 'kind' in before && before.kind === 'audio' ? before : null
+        const lookahead = track.lookaheadSec ?? DEFAULT_LOOKAHEAD_SECONDS
+        if (beforeTrack && live.lookaheadSec !== lookahead) live.lookaheadSec = lookahead
+        const preload = track.preloadSec ?? lookahead
+        if (beforeTrack && live.preloadSec !== preload) live.preloadSec = preload
+        if (!beforeTrack || !sameClips(beforeTrack.clips, track.clips)) live.clips.set(track.clips)
+      }
 
-    // 10b. Element clips and lookahead.
-    for (const track of next.elementTracks) {
-      const live = this.elementTrack(track.id)
-      const before = added.has(track.id) ? undefined : prevElements.get(track.id)
-      const lookahead = track.lookaheadSec ?? DEFAULT_LOOKAHEAD_SECONDS
-      if (before && live.lookaheadSec !== lookahead) live.lookaheadSec = lookahead
-      const preload = track.preloadSec ?? lookahead
-      if (before && live.preloadSec !== preload) live.preloadSec = preload
-      if (!before || !sameClips(before.clips, track.clips)) live.clips.set(track.clips)
+      // 10b. Element clips and lookahead.
+      for (const track of next.elementTracks) {
+        const live = this.elementTrack(track.id)
+        const before = added.has(track.id) ? undefined : prevElements.get(track.id)
+        const lookahead = track.lookaheadSec ?? DEFAULT_LOOKAHEAD_SECONDS
+        if (before && live.lookaheadSec !== lookahead) live.lookaheadSec = lookahead
+        const preload = track.preloadSec ?? lookahead
+        if (before && live.preloadSec !== preload) live.preloadSec = preload
+        if (!before || !sameClips(before.clips, track.clips)) live.clips.set(track.clips)
+      }
+    }
+    if (stretch !== 1) {
+      this.engine.scheduler.rescale(() => {
+        this.engine.transport.rescale(
+          stretch,
+          Number.isFinite(nextLoopLength)
+            ? nextLoopLength
+            : this.engine.transport.loop.lengthSec * stretch,
+        )
+        placeClips()
+      })
+    } else {
+      placeClips()
     }
 
     // 11. Bindings that are new or changed; lanes no longer in the document are forgotten.

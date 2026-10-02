@@ -5,6 +5,8 @@
 // notification from the host. docs/native.md is the reference; these are the
 // types of protocol version 1.
 
+import type { NativeLinkState } from './link-time'
+
 export const NATIVE_PROTOCOL_VERSION = 1
 
 /** Where the host listens and the token it expects, as the shell hands them to the page. */
@@ -24,6 +26,10 @@ export interface NativeHostInfo {
   /** Plug-in formats the host can load, e.g. `['VST3', 'AudioUnit']`. */
   formats: string[]
   platform: 'mac' | 'windows' | 'linux'
+  /** Whether the host was built with Ableton Link. Absent from hosts older than Link support. */
+  link?: boolean
+  /** The Link release the host was built with, e.g. `'4.1'`. */
+  linkVersion?: string
 }
 
 /** One plug-in the host knows about, from a scan. */
@@ -147,6 +153,8 @@ export interface NativeHostEvents {
    */
   stateChanged: { slot: string }
   editorClosed: { slot: string }
+  /** The Link session changed: tempo, peers, start/stop, channels, or the beat moved. */
+  link: NativeLinkState
   /** The control connection is gone; every slot it loaded went with it. */
   close: { reason: string }
 }
