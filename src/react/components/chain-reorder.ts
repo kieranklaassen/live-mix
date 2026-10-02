@@ -80,6 +80,27 @@ export function edgeScroll(x: number, left: number, right: number): number {
   return 0
 }
 
+/**
+ * Swallows the click the browser sends after the pointer is let go, so a carry
+ * is not also a press on what the pointer landed on. No click follows a carry
+ * that was called off, so the guard goes on the next turn either way; what
+ * takes it down sooner is given back.
+ */
+function swallowClick(): () => void {
+  const guard = (event: Event) => {
+    event.preventDefault()
+    event.stopPropagation()
+    off()
+  }
+  const off = () => {
+    clearTimeout(timer)
+    window.removeEventListener('click', guard, true)
+  }
+  const timer = setTimeout(off, 0)
+  window.addEventListener('click', guard, true)
+  return off
+}
+
 /** The nearest element, from the chain outwards, that scrolls sideways. */
 function scrollerOf(chain: HTMLElement): HTMLElement | null {
   for (let element: HTMLElement | null = chain; element; element = element.parentElement) {
@@ -105,6 +126,13 @@ interface Carry {
     scroller: HTMLElement | null
     /** The chain's own left edge, in the same content. */
     chainLeft: number
+    /**
+     * How wide what the chain scrolls was when the device was taken, when the
+     * chain is itself what scrolls; null when something else is. The carried
+     * name is kept inside it: a transformed child past it is more for the chain
+     * to scroll, which near its end would have it run away under the pointer.
+     */
+    content: number | null
     /** Where the carried name stands, in px from the chain's left edge. */
     labelLeft: number
     to: number
@@ -142,6 +170,8 @@ export function useChainReorder(onMove: (from: number, to: number) => void): Cha
   const [marker, setMarker] = useState<number | null>(null)
   // The listeners a carry holds on the window, taken down when it ends.
   const release = useRef<(() => void) | null>(null)
+  // Takes down the guard on the click that follows the last carry, if it is still up.
+  const unguard = useRef<(() => void) | null>(null)
 
   const end = useCallback((land: boolean) => {
     const current = carry.current
@@ -157,13 +187,22 @@ export function useChainReorder(onMove: (from: number, to: number) => void): Cha
     } catch {
       // No capture was held for this pointer.
     }
+    unguard.current?.()
+    unguard.current = swallowClick()
     setCarried(null)
     setMarker(null)
     if (land && lifted.to !== from) move.current(from, lifted.to)
   }, [])
 
   // A chain taken off the page mid-carry lets go of the window.
-  useEffect(() => () => end(false), [end])
+  useEffect(
+    () => () => {
+      end(false)
+      unguard.current?.()
+      unguard.current = null
+    },
+    [end],
+  )
 
   /** Puts the carried name under the pointer and the marker where the device would land. */
   const follow = useCallback(() => {
@@ -172,7 +211,10 @@ export function useChainReorder(onMove: (from: number, to: number) => void): Cha
     if (!current || !lifted) return
     // Read each time: the chain scrolling under a still pointer moves what the pointer is over.
     const scroll = lifted.scroller?.scrollLeft ?? 0
-    lifted.labelLeft = Math.max(0, current.x + scroll - lifted.chainLeft - LABEL_LEAD_PX)
+    let left = Math.max(0, current.x + scroll - lifted.chainLeft - LABEL_LEAD_PX)
+    if (lifted.content !== null)
+      left = Math.min(left, Math.max(0, lifted.content - (label.current?.offsetWidth ?? 0)))
+    lifted.labelLeft = left
     if (label.current) label.current.style.transform = `translateX(${lifted.labelLeft}px)`
     const to = landingIndex(lifted.spans, current.from, current.x + scroll)
     if (to === lifted.to) return
@@ -198,6 +240,7 @@ export function useChainReorder(onMove: (from: number, to: number) => void): Cha
         // The marker is placed inside the chain's border, and scrolls with what the chain scrolls.
         chainLeft:
           element.getBoundingClientRect().left + element.clientLeft + scroll - element.scrollLeft,
+        content: scroller === element ? element.scrollWidth : null,
         labelLeft: 0,
         to: current.from,
         frame: null,
