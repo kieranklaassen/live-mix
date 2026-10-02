@@ -146,7 +146,7 @@ class HalfSpeed : public kit::DeviceBase<half_speed::kNumParams> {
   // followed, and how far each may be corrected.
   static constexpr float kLiftSeconds = 0.1f;
   static constexpr float kTrimSeconds = 1.0f;
-  static constexpr float kMaxTrim = 1.2589f;  // 2 dB either way
+  static constexpr float kMaxTrim = 1.1885f;  // 1.5 dB either way
   static constexpr float kTrimPedestal = 1.0e-4f;
   static constexpr int kControlPeriod = 16;
   static constexpr float kFilterEaseSeconds = 0.008f;
@@ -528,7 +528,7 @@ inline float HalfSpeed::make_up(Timing& timing) const {
 //   200 Hz) they are not in step either, and a held chord comes out a little
 //   quieter on the right than on the left. The two halves of one set add
 //   more than their separate powers (they overlap, in phase); the low half
-//   and the second set's upper half do not. A slow trim, 2 dB at most, puts
+//   and the second set's upper half do not. A slow trim, 1.5 dB at most, puts
 //   back what is missing, measured: the product of the low half with the
 //   first set's upper half and with the blend, each followed over a second.
 //   With none of the second set nothing is missing and the trim is one. It
