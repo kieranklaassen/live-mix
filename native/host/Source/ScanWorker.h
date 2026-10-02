@@ -18,7 +18,9 @@
 //
 // A plug-in that keeps the thread it is scanned on waiting for `--idle`
 // seconds (for something that never comes) ends the worker too: the worker
-// sees to that itself, by the processor time that thread has used.
+// sees to that itself, by the processor time that thread has used. One made
+// asynchronously, a version 3 Audio Unit among them, is put together away
+// from that thread and so is left to the host's own time limit.
 
 #pragma once
 

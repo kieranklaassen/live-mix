@@ -46,16 +46,21 @@ namespace
     std::atomic<int> scanning { -1 };
 
    #if ! JUCE_WINDOWS
-    /** The thread the plug-in is being scanned on, for the watch below. */
+    /**
+        The thread the plug-in is being scanned on, for the watch below, or
+        none when the work is not that thread's: a plug-in made asynchronously
+        is put together elsewhere while the thread that asked for it waits, so
+        there is nothing of its own there to tell work from waiting.
+    */
     juce::CriticalSection scanThreadLock;
     pthread_t scanThread {};
     bool hasScanThread = false;
 
-    void noteScanThread()
+    void noteScanThread (bool worksOnThisThread)
     {
         const juce::ScopedLock lock (scanThreadLock);
         scanThread = pthread_self();
-        hasScanThread = true;
+        hasScanThread = worksOnThisThread;
     }
 
     /**
@@ -85,7 +90,7 @@ namespace
        #endif
     }
    #else
-    void noteScanThread() {}
+    void noteScanThread (bool) {}
     double scanThreadMillis() { return -1.0; }
    #endif
 
@@ -99,7 +104,9 @@ namespace
         it was started for, and when the plug-in being scanned has kept its
         thread waiting for too long: one that waits for something that never
         comes would hold the scan for ever, and a plug-in at work uses the
-        processor. The thread is detached: it ends with the process.
+        processor. A plug-in made asynchronously is left to the host's time
+        limit, there being no thread of its own to go by. The thread is
+        detached: it ends with the process.
     */
     void watchOver (const ScanWorker::Job& job)
     {
@@ -236,9 +243,13 @@ void ScanWorker::scan (const juce::String& identifier, juce::OwnedArray<juce::Pl
     probe.fileOrIdentifier = identifier;
     probe.uniqueId = probe.deprecatedUid = 0;
 
-    const auto find = [this, &identifier, &found, index]
+    // Most plug-ins are made on the message thread. A version 3 Audio Unit
+    // answers on it, so it has to be asked from another thread.
+    const auto asynchronous = format->requiresUnblockedMessageThreadDuringCreation (probe);
+
+    const auto find = [this, &identifier, &found, index, asynchronous]
     {
-        noteScanThread();
+        noteScanThread (! asynchronous);
         scanning = index;
         try
         {
@@ -251,9 +262,7 @@ void ScanWorker::scan (const juce::String& identifier, juce::OwnedArray<juce::Pl
         scanning = -1;
     };
 
-    // Most plug-ins are made on the message thread. A version 3 Audio Unit
-    // answers on it, so it has to be asked from another thread.
-    if (format->requiresUnblockedMessageThreadDuringCreation (probe))
+    if (asynchronous)
         find();
     else
         juce::MessageManager::callSync (find);

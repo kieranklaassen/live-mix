@@ -767,6 +767,8 @@ void HostServer::stepScan()
             break;
 
         // The next format: what it has that is neither known nor left out.
+        // The ones that are made asynchronously are in, version 3 Audio Units
+        // among them; the worker asks those from a thread of its own.
         auto* format = job.pending.removeAndReturn (0);
         auto paths = job.useDefaultPaths ? format->getDefaultLocationsToSearch() : juce::FileSearchPath();
         paths.addPath (job.extraPaths);
@@ -775,7 +777,7 @@ void HostServer::stepScan()
         job.settled = 0;
         job.emptyWorkers = 0;
         job.secondGo = -1;
-        for (const auto& identifier : format->searchPathsForPlugins (paths, true, false))
+        for (const auto& identifier : format->searchPathsForPlugins (paths, true, true))
             if (! knownPlugins.getBlacklistedFiles().contains (identifier)
                 && ! knownPlugins.isListingUpToDate (identifier, *format))
                 job.queue.add (identifier);
