@@ -545,6 +545,34 @@ int main() {
     if (verbose) std::printf("bounded: loudest noise peak at Level -12, Follow +1, full-scale input: %.3f\n", worst);
   }
 
+  // 11. Tape hiss carries modulation noise: it is rougher under a loud
+  // signal than in silence (about 1 dB under a tone at -12 dBFS RMS, about
+  // 5 dB under a full-scale one), and what is added sits around the tone.
+  {
+    const double quiet = db(rms(bed(NoiseFloor::kTape, -30.0f, 10.0f)));
+    double rise[2];
+    const float gains[2] = {0.3536f, 1.0f};
+    std::vector<float> residue;
+    for (int k = 0; k < 2; ++k) {
+      still(device, NoiseFloor::kTape, -30.0f);
+      std::vector<float> tone = sine(1000.0f, 10.0f, kRate, gains[k]);
+      residue = minus(run(device, tone), tone, tone).left;
+      rise[k] = db(rms(residue, 24000)) - quiet;
+    }
+    EXPECT(rise[0] > 0.4 && rise[0] < 2.0, "tape: about 1 dB more noise under a tone at -12 dBFS RMS");
+    EXPECT(rise[1] > 3.0 && rise[1] < 7.0, "tape: about 5 dB more noise under a full-scale tone");
+    // In silence the octave around 1 kHz holds little of the hiss; under the
+    // tone it holds most of what was added.
+    std::vector<float> silent = bed(NoiseFloor::kTape, -30.0f, 10.0f);
+    const double around_quiet = band_power(silent, 500.0, 2000.0);
+    const double around_loud = band_power(residue, 500.0, 2000.0);
+    EXPECT(around_loud > 10.0 * around_quiet, "tape: the modulation noise sits around the signal");
+    if (verbose) {
+      std::printf("tape modulation noise: +%.2f dB under -12 dBFS RMS, +%.2f dB under full scale, 0.5-2 kHz band up %.1f dB\n",
+                  rise[0], rise[1], 10.0 * std::log10(around_loud / around_quiet));
+    }
+  }
+
   still(device, NoiseFloor::kStatic, -30.0f);
   device.set_param(p::kMovement, 1.0f);
   device.set_param(p::kFollow, -0.5f);

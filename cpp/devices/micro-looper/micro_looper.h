@@ -27,7 +27,7 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     speed_.set_time(kMotorLagSeconds, sr);
     width_.set_time(kSmoothingSeconds, sr);
     smear_.set_time(kSmoothingSeconds, sr);
-    side_cut_.set_cutoff(kSideCutHz, sr);
+    side_cut_.set(kSideCutHz, kit::kSqrtHalf, sr);
     drift_.seed(0x51ED270Bu);
     drift_.set_rate(kWobbleHz, sr);
     rng_.seed(0xA341316Cu);
@@ -122,7 +122,7 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
   // Spread: the side reads sit this far either side of the playhead, and
   // the side signal is kept above this corner so the low end stays central.
   static constexpr float kSideSeconds = 0.011f;
-  static constexpr float kSideCutHz = 200.0f;
+  static constexpr float kSideCutHz = 160.0f;
   static constexpr float kMaxWidth = 0.75f;
   // Above this the Tone filter is blended out, so its top is no filter.
   static constexpr float kToneOpenFromHz = 11000.0f;
@@ -736,7 +736,7 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
   kit::Svf write_cut_[2][kBandSections];
   kit::Svf read_cut_[2][kBandSections];
   kit::Svf tone_[2];
-  kit::OnePole side_cut_;
+  kit::Svf side_cut_;
   kit::Drift drift_;
   kit::Rng rng_;
   Line wobble_;

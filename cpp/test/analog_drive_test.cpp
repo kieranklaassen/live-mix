@@ -681,8 +681,10 @@ int main() {
   device.set_param(p::kThump, 0.5f);
   device.set_param(p::kTone, 0.3f);
   device.set_param(p::kHighCut, 8000.0f);
-  const std::vector<float> load = pink(10.0f, kRate, 0.125893f, 0xBEEFu);
-  report_cost("analog-drive", 10.0f, kRate, [&] { run(device, load); });
+  // A stereo source, so both channels are worked out (a mono one costs half).
+  const std::vector<float> load_left = pink(10.0f, kRate, 0.125893f, 0xBEEFu);
+  const std::vector<float> load_right = pink(10.0f, kRate, 0.125893f, 0xF00Du);
+  report_cost("analog-drive", 10.0f, kRate, [&] { run(device, load_left, load_right); });
 
   return finish("analog-drive");
 }

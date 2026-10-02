@@ -270,7 +270,6 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
 
   void on_sample(uint32_t phase) {
     if (phase == static_cast<uint32_t>(hop_ / 2)) {
-      analyse();
       frame_tick();
     }
     if (capture_due_ > 0) --capture_due_;
@@ -418,21 +417,18 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     }
   }
 
-  // The long analysis frame: the last `frame_` samples, Hann-windowed. The
-  // frame before it (one hop earlier) is kept for the phase turn.
-  void analyse() {
-    for (int k = 0; k <= half_; ++k) {
-      last_re_[k] = now_re_[k];
-      last_im_[k] = now_im_[k];
-    }
-    const uint32_t first = position_ + 1u - static_cast<uint32_t>(frame_);
+  // A long analysis frame: the `frame_` samples that end `back` samples ago,
+  // under a Blackman window.
+  void analyse(int back, float* re, float* im) {
+    const uint32_t first = position_ + 1u - static_cast<uint32_t>(frame_ + back);
     for (int n = 0; n < frame_; ++n) {
       scratch_[n] = input_[(first + static_cast<uint32_t>(n)) & kRingMask] * analysis_window_[n];
     }
-    fft_.forward(scratch_, now_re_, now_im_, frame_);
+    fft_.forward(scratch_, re, im, frame_);
   }
 
-  // Catch the sound of the last two analysis frames into `slot`.
+  // Catch what is sounding now into `slot`, from two frames a hop apart: the
+  // one that ends now and the one before it.
   //
   // Magnitudes are the mean of the two frames; phases are those of the newer
   // one. The spectrum is cut at the valleys between its peaks, and every
@@ -443,6 +439,8 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
   // (identity phase locking) and its frequency exact.
   void capture(Slot& slot) {
     const float sr = sample_rate();
+    analyse(hop_, last_re_, last_im_);
+    analyse(0, now_re_, now_im_);
     float top = 0.0f;
     for (int k = 0; k <= half_; ++k) {
       const float now = std::sqrt(now_re_[k] * now_re_[k] + now_im_[k] * now_im_[k]);

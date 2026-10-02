@@ -46,7 +46,7 @@
       "min": 0,
       "max": 1,
       "default": 0.5,
-      "description": "At zero you hear each cycle start, a rhythm of slowed chunks. Turning it up brings in a second playback half a cycle behind, until at full the jumps disappear into one continuous slowed sound."
+      "description": "At zero you hear each cycle start: a rhythm of slowed chunks, with what there was no time for left out. Turning it up brings in a second playback half a cycle behind, until at full the jumps disappear into one continuous slowed sound."
     },
     {
       "key": "jitter",
@@ -54,7 +54,7 @@
       "min": 0,
       "max": 1,
       "default": 0.1,
-      "description": "Makes every cycle a little longer or shorter than the last, so the jumps stop ticking like a machine."
+      "description": "Makes every cycle a little longer or shorter than the last, up to a quarter either way, so the jumps stop ticking like a machine."
     },
     {
       "key": "lowCut",
@@ -82,7 +82,7 @@
       "min": 0,
       "max": 1,
       "default": 0.3,
-      "description": "Lets the right side run its cycles later than the left, so the jumps land at different moments and the slowed sound widens. The bass stays together."
+      "description": "Lets the right side run its cycles later than the left, so the jumps land at different moments and the slowed sound widens. The bass stays in the middle."
     },
     {
       "key": "mix",
@@ -143,10 +143,10 @@
       "spread": 0.6
     },
     "Blurred half": {
-      "length": 700,
+      "length": 320,
       "fade": 0.5,
       "smooth": 0.7,
-      "jitter": 0.8,
+      "jitter": 1,
       "spread": 1
     },
     "Under the mix": {
@@ -176,6 +176,6 @@
   },
   "origin": {
     "kind": "new",
-    "note": "Written for live-mix on cpp/kit."
+    "note": "Written for live-mix on cpp/kit. A live varispeed player in outline: read heads on a delay line that run slower than the input and start again from the present every cycle, with two heads half a cycle apart under windows that sum to one when Smooth is up (a delay-line pitch shifter with a window as long as the cycle); not a model of any product. Each new head is placed by a waveform-similarity search (Verhelst and Roelands, 'An overlap-add technique based on waveform similarity (WSOLA) for high quality time-scale modification of speech', ICASSP 1993), and the cross-fades keep their level with a gain matched to how alike the two sounds are (Fink, Holters and Zölzer, 'Signal-matched power-complementary cross-fading and dry-wet mixing', DAFx-16)."
   }
 }

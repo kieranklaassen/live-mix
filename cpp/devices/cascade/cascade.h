@@ -65,6 +65,8 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
     guard_ = static_cast<int>(kGuardSeconds * sr);
     preroll_ = static_cast<int>(kPrerollSeconds * sr);
     fade_step_ = 1.0f / (kStealSeconds * sr);
+    // Never longer than the ring holds a slice for (it matters above 96 kHz).
+    max_life_ = kit::min(kMaxLifeSeconds * sr, static_cast<float>(kRing0) - 3.2f * sr);
     fast_.set(0.0005f, 0.01f, sr);
     slow_.set(0.02f, 0.08f, sr);
     slice_count_ = 0;
@@ -361,7 +363,7 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
         break;
     }
     const float run = length / speed;
-    if (voice.elapsed + run > kMaxLifeSeconds * sr) return false;
+    if (voice.elapsed + run > max_life_) return false;
 
     voice.role = speed > 1.0f ? kRoleHigh : (speed < 1.0f ? kRoleLow : kRoleMain);
     const float placed = pan * param(kSpread);
@@ -976,6 +978,7 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
   int guard_ = 0;
   int preroll_ = 0;
   float fade_step_ = 0.0f;
+  float max_life_ = 0.0f;
   // The slice clock.
   long long slot_begin_ = 0;
   long long slot_samples_ = 0;

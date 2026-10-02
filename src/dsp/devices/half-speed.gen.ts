@@ -60,7 +60,7 @@ export const HALF_SPEED_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'At zero you hear each cycle start, a rhythm of slowed chunks. Turning it up brings in a second playback half a cycle behind, until at full the jumps disappear into one continuous slowed sound.',
+      'At zero you hear each cycle start: a rhythm of slowed chunks, with what there was no time for left out. Turning it up brings in a second playback half a cycle behind, until at full the jumps disappear into one continuous slowed sound.',
   },
   jitter: {
     id: 5,
@@ -71,7 +71,7 @@ export const HALF_SPEED_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Makes every cycle a little longer or shorter than the last, so the jumps stop ticking like a machine.',
+      'Makes every cycle a little longer or shorter than the last, up to a quarter either way, so the jumps stop ticking like a machine.',
   },
   lowCut: {
     id: 6,
@@ -104,7 +104,7 @@ export const HALF_SPEED_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Lets the right side run its cycles later than the left, so the jumps land at different moments and the slowed sound widens. The bass stays together.',
+      'Lets the right side run its cycles later than the left, so the jumps land at different moments and the slowed sound widens. The bass stays in the middle.',
   },
   mix: {
     id: 9,
@@ -157,7 +157,7 @@ export const HALF_SPEED_DESCRIPTOR = wasmDeviceDescriptor(HALF_SPEED_DEVICE, {
       mix: 0.4,
     },
     'Long drag': { length: 4000, fade: 0.3, smooth: 0.6, jitter: 0.2, spread: 0.6 },
-    'Blurred half': { length: 700, fade: 0.5, smooth: 0.7, jitter: 0.8, spread: 1 },
+    'Blurred half': { length: 320, fade: 0.5, smooth: 0.7, jitter: 1, spread: 1 },
     'Under the mix': { length: 1200, smooth: 1, lowCut: 60, highCut: 2500, spread: 0.5, mix: 0.3 },
     'Short stutter': { length: 110, fade: 0.08, smooth: 0, jitter: 0.3, spread: 0.15 },
     'Fourth down drift': {

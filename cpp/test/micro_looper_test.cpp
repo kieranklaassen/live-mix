@@ -445,7 +445,20 @@ int main() {
     const double narrow_corr = correlation(narrow.left, narrow.right, 48000);
     const double wide_corr = correlation(wide.left, wide.right, 48000);
     const double fold = match(mono, 48000, narrow.left, 48000, 2 * 48000);
-    const double level = db(rms(wide.left, 48000) / rms(narrow.left, 48000));
+    // Level on a broadband loop (on one tone the side signal is a comb and
+    // its level depends on the pitch).
+    rng_state() = 0x51DEu;
+    std::vector<float> hiss = noise(1.5f, kRate, 0.2f);
+    double levels[2] = {0.0, 0.0};
+    for (int pass = 0; pass < 2; ++pass) {
+      plain(device, length);
+      device.set_param(p::kSpread, pass ? 1.0f : 0.0f);
+      run(device, hiss);
+      device.set_param(p::kState, kHold);
+      Stereo out = render(device, 4.0f, kRate);
+      levels[pass] = rms(out.left, 48000);
+    }
+    const double level = db(levels[1] / levels[0]);
     std::printf("micro-looper: Spread 0 -> 1: L/R correlation %.3f -> %.3f, mono sum matches the plain loop %.5f, level %+.2f dB\n",
                 narrow_corr, wide_corr, fold, level);
     EXPECT(narrow_corr > 0.999, "Spread 0 leaves a mono loop mono");

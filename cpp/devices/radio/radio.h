@@ -60,7 +60,7 @@ class Radio : public kit::DeviceBase<radio::kNumParams> {
     tune_phase_ = 0.0;
     centre_phase_ = 0.0;
     level_ = 1.0f;
-    low_hz_ = high_hz_ = cone_ = fading_ = -1.0f;
+    low_hz_ = high_hz_ = cone_ = fading_ = width_ = -1.0f;
     gate_ = 0.0f;
     gate_rise_ = 1.0f / (0.003f * sr);
     gate_fall_ = 1.0f / (kFallSeconds * sr);
@@ -100,11 +100,19 @@ class Radio : public kit::DeviceBase<radio::kNumParams> {
       float programme = 0.5f * (left + right);
       if (!(programme > -64.0f && programme < 64.0f)) programme = 0.0f;
       programme = kit::soft_clip(transmit_.lowpass(programme));
-      float in_phase, quadrature;
-      hilbert_.process(programme, &in_phase, &quadrature);
-      const float sent_re = band.carrier + band.depth * in_phase;
-      // kit::Hilbert's quadrature output leads, so the upper sideband is I - jQ.
-      const float sent_im = band.carrier > 0.0f ? 0.0f : -quadrature;
+      // With a carrier the programme rides on it, in phase. Without one the
+      // station sends the upper sideband alone: kit::Hilbert's quadrature
+      // output leads, so that is I - jQ.
+      float sent_re, sent_im;
+      if (band.carrier > 0.0f) {
+        sent_re = band.carrier + band.depth * programme;
+        sent_im = 0.0f;
+      } else {
+        float in_phase, quadrature;
+        hilbert_.process(programme, &in_phase, &quadrature);
+        sent_re = band.depth * in_phase;
+        sent_im = -band.depth * quadrature;
+      }
 
       // The sky wave: the direct path and a late one with a turning phase.
       const float delay = delay_.next();
@@ -193,7 +201,7 @@ class Radio : public kit::DeviceBase<radio::kNumParams> {
   }
 
  private:
-  static constexpr int kControlPeriod = 16;
+  static constexpr int kControlPeriod = 32;
   static constexpr float kQuiet = 1.0e-6f;
   // The oscillating detector of a simple set: a little of the receiver's own
   // frequency at the detector, which beats with an off-tune carrier.
@@ -213,16 +221,16 @@ class Radio : public kit::DeviceBase<radio::kNumParams> {
     bool tune_square;              // square-law dial (fine near the station)
     float drift_hz;                // Drift at 1
     radio_parts::Propagation::Style path;
-    float agc_slope, agc_max, agc_reference, agc_attack, agc_release;
+    float agc_max, agc_reference, agc_attack, agc_release;
     float trim;
   };
   static constexpr BandSpec kBandSpec[kBands] = {
       {110.0f, 60.0f, 2800.0f, 6000.0f, 6500.0f, 1.0f, 0.8f, 5500.0f, true, 250.0f,
-       {24.0f, 0.06f, 0.14f, 0.3f, 0.12f, 0.0005f}, 0.5f, 6.0f, 1.0f, 0.04f, 0.3f, 1.12f},
+       {24.0f, 0.06f, 0.14f, 0.3f, 0.12f, 0.0005f}, 6.0f, 1.0f, 0.04f, 0.3f, 1.12f},
       {330.0f, 155.0f, 2400.0f, 5000.0f, 5500.0f, 1.0f, 0.8f, 5500.0f, true, 250.0f,
-       {40.0f, 0.13f, 0.31f, 0.7f, 0.35f, 0.001f}, 0.5f, 6.0f, 1.0f, 0.04f, 0.3f, 1.26f},
+       {40.0f, 0.13f, 0.31f, 0.7f, 0.35f, 0.001f}, 6.0f, 1.0f, 0.04f, 0.3f, 1.26f},
       {350.0f, 180.0f, 2200.0f, 3200.0f, 3400.0f, 0.0f, 1.0f, 400.0f, false, 50.0f,
-       {40.0f, 0.13f, 0.31f, 0.7f, 0.35f, 0.001f}, 0.5f, 4.0f, 0.3f, 0.006f, 1.4f, 1.41f},
+       {40.0f, 0.13f, 0.31f, 0.7f, 0.35f, 0.001f}, 4.0f, 0.3f, 0.006f, 1.4f, 1.41f},
   };
 
   // Move towards a target a twentieth of the way per control tick.
@@ -246,10 +254,11 @@ class Radio : public kit::DeviceBase<radio::kNumParams> {
     attack_ = kit::time_to_coeff(band.agc_attack, sr);
     release_ = kit::time_to_coeff(band.agc_release, sr);
     level_ = band.agc_reference;
+    hilbert_.reset();
     low_hz_ = high_hz_ = -1.0f;  // the filters jump to the new band
   }
 
-  // Every 16 samples: everything derived from the controls, the slow
+  // Every 32 samples: everything derived from the controls, the slow
   // movements, and the dice for static and neighbours.
   void control(float sr) {
     using namespace radio;
@@ -274,11 +283,14 @@ class Radio : public kit::DeviceBase<radio::kNumParams> {
     // so its half-width is the top of the audio; without one it sits beside
     // the missing carrier and passes low edge to high edge.
     const float width = param(kBandwidth);
-    const float low = band.low_narrow * std::pow(band.low_wide / band.low_narrow, width);
-    const float high =
-        kit::min(band.high_narrow * std::pow(band.high_wide / band.high_narrow, width), 0.45f * sr);
-    const bool low_moved = glide(&low_hz_, low, jump);
-    const bool high_moved = glide(&high_hz_, high, jump);
+    if (width != width_ || jump) {
+      width_ = width;
+      low_target_ = band.low_narrow * std::pow(band.low_wide / band.low_narrow, width);
+      high_target_ =
+          kit::min(band.high_narrow * std::pow(band.high_wide / band.high_narrow, width), 0.45f * sr);
+    }
+    const bool low_moved = glide(&low_hz_, low_target_, jump);
+    const bool high_moved = glide(&high_hz_, high_target_, jump);
     if (low_moved || high_moved) {
       const float half = carrier ? high_hz_ : 0.5f * (high_hz_ - low_hz_);
       if_re_.set(half, sr, radio_parts::kButter8);
@@ -318,7 +330,9 @@ class Radio : public kit::DeviceBase<radio::kNumParams> {
 
     // Automatic gain: weak signals are pulled most of the way back up, and
     // the noise that came in with them comes up too.
-    const float wanted = std::pow(band.agc_reference / (level_ + 1.0e-4f), band.agc_slope);
+    // A square-root law: a fade of 20 dB leaves the programme 10 dB down
+    // and the noise 10 dB up.
+    const float wanted = std::sqrt(band.agc_reference / (level_ + 1.0e-4f));
     agc_gain_.aim(kit::min(wanted, band.agc_max), inverse, jump);
     started_ = true;
   }
@@ -363,6 +377,7 @@ class Radio : public kit::DeviceBase<radio::kNumParams> {
   double centre_phase_ = 0.0;
   float level_ = 1.0f;
   float low_hz_ = -1.0f, high_hz_ = -1.0f, cone_ = -1.0f, fading_ = 0.0f;
+  float width_ = -1.0f, low_target_ = 0.0f, high_target_ = 0.0f;
   float gate_ = 0.0f, gate_rise_ = 0.0f, gate_fall_ = 0.0f;
   long hold_samples_ = 1, drain_samples_ = 1, quiet_ = 1;
   float attack_ = 0.0f, release_ = 0.0f;

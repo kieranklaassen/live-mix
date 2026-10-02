@@ -445,6 +445,92 @@ int main(int argc, char**) {
            "the lurch is over within 0.1 s: after it the pitch only wobbles");
   }
 
+  // Half speed: an octave lower, half the bandwidth, a slower attack.
+  {
+    auto take = [&](float speed) {
+      plain(device, kStrings);
+      device.set_param(p::kSpeed, speed);
+      device.note_on(1, 440.0f, 0.7f);
+      return render(device, 3.0f, kRate);
+    };
+    Stereo normal = take(0.0f);
+    Stereo half = take(1.0f);
+    const double pitch = mean_of(cents_track(half.left, 220.0), 200, 560);
+    SHOW("half speed: the 440 Hz key sounds %.1f cents from 220 Hz", pitch);
+    EXPECT(std::fabs(pitch) < 12.0, "Half: the key sounds one octave lower");
+    EXPECT(tone_level(half.left, 440.0 * 3, kRate, at(1.0), at(3.0)) <
+               0.1 * tone_level(half.left, 220.0 * 3, kRate, at(1.0), at(3.0)) ||
+               tone_level(half.left, 220.0, kRate, at(1.0), at(3.0)) >
+                   10.0 * tone_level(normal.left, 220.0, kRate, at(1.0), at(3.0)),
+           "Half: nothing is left at the old pitch that was not there before");
+    // The highest harmonic within 40 dB of the strongest.
+    auto reach = [&](const Stereo& out, double hz) {
+      double strongest = 0.0;
+      for (int h = 1; h * hz < 16000.0; ++h) {
+        strongest = std::max(strongest, tone_level(out.left, hz * h, kRate, at(1.0), at(3.0)));
+      }
+      double top = 0.0;
+      for (int h = 1; h * hz < 16000.0; ++h) {
+        if (tone_level(out.left, hz * h, kRate, at(1.0), at(3.0)) > 0.01 * strongest) top = hz * h;
+      }
+      return top;
+    };
+    const double normal_reach = reach(normal, 440.0);
+    const double half_reach = reach(half, 220.0);
+    SHOW("bandwidth (-40 dB): %.0f Hz at full speed, %.0f Hz at half", normal_reach, half_reach);
+    EXPECT(half_reach > 0.4 * normal_reach && half_reach < 0.62 * normal_reach,
+           "Half: the bandwidth is about halved");
+    auto rise = [&](const Stereo& out) {
+      const double full = rms(out.left, at(1.0), at(2.0));
+      for (size_t from = 0; from + 480 <= out.size(); from += 48) {
+        if (rms(out.left, from, from + 480) > 0.5 * full) return static_cast<double>(from) / kRate;
+      }
+      return 9.0;
+    };
+    SHOW("time to half level: %.0f ms at full speed, %.0f ms at half", 1000.0 * rise(normal), 1000.0 * rise(half));
+    EXPECT(rise(half) > 1.5 * rise(normal), "Half: the attack is slower");
+  }
+
+  // Length: a key has that much tape. The note fades over the last half
+  // second and is gone; fully up the tape never ends.
+  {
+    plain(device, kStrings);
+    device.set_param(p::kLength, 8.0f);
+    device.note_on(1, 220.0f, 0.7f);
+    Stereo out = render(device, 9.0f, kRate);
+    const double held = rms(out.left, at(3.0), at(4.0));
+    const double late = rms(out.left, at(7.0), at(7.4));
+    const double fading = rms(out.left, at(7.7), at(7.9));
+    const double gone = peak(out.left, at(8.6), at(9.0));
+    SHOW("length 8: %.1f dB at 7.2 s, %.1f dB at 7.8 s, peak %g after 8.6 s (re the held note)",
+         db(late / held), db(fading / held), gone);
+    EXPECT(late > 0.7 * held, "Length 8: the note is still there after 7 s");
+    EXPECT(fading < 0.6 * held && fading > 0.01 * held, "Length 8: it fades over the last half second");
+    EXPECT(gone < 0.001 * held, "Length 8: at least 60 dB down by 8.6 s with the key still held");
+    EXPECT(gone == 0.0, "Length 8: in fact silent, and the instrument sleeps");
+    // The key has to be struck again.
+    device.note_on(1, 220.0f, 0.7f);
+    Stereo again = render(device, 1.0f, kRate);
+    EXPECT(rms(again.left, at(0.5), at(1.0)) > 0.7 * held, "a key that ran out plays again when struck");
+
+    plain(device, kStrings);
+    device.note_on(1, 220.0f, 0.7f);
+    Stereo endless = render(device, 30.0f, kRate);
+    const double end = rms(endless.left, at(29.0), at(30.0));
+    SHOW("endless: %.1f dB after 30 s", db(end / rms(endless.left, at(3.0), at(4.0))));
+    EXPECT(end > 0.7 * rms(endless.left, at(3.0), at(4.0)), "Length fully up: the note holds for 30 s");
+
+    // Half speed makes the same tape last twice as long.
+    plain(device, kStrings);
+    device.set_param(p::kLength, 2.0f);
+    device.set_param(p::kSpeed, 1.0f);
+    device.note_on(1, 220.0f, 0.7f);
+    Stereo slow = render(device, 5.0f, kRate);
+    EXPECT(rms(slow.left, at(2.5), at(2.9)) > 0.5 * rms(slow.left, at(1.5), at(2.0)),
+           "Half: two seconds of tape are still playing after 2.5 s");
+    EXPECT(peak(slow.left, at(4.3), at(5.0)) == 0.0, "Half: and have run out by 4 s");
+  }
+
   // TESTS
 
   device.init(kRate);

@@ -67,7 +67,141 @@ struct Birds {
 
   // SPECIES
 
-  // GRAMMAR
+  // How a species uses its motif: repeats of it in a phrase, the pause
+  // between phrases (seconds), phrases in a bout, and the chance that a
+  // phrase gets a newly drawn motif.
+  struct Habit {
+    int repeat_lo, repeat_hi;
+    float pause_lo, pause_hi;
+    int bout_lo, bout_hi;
+    float fresh;
+  };
+  static constexpr Habit kHabit[kSpecies] = {
+      {1, 1, 1.8f, 4.5f, 4, 9, 0.65f},    // thrush: a new fluty phrase most times
+      {3, 7, 2.5f, 6.0f, 3, 6, 0.15f},    // tit: two notes, over and over
+      {12, 28, 4.0f, 9.0f, 2, 5, 0.2f},   // wren: a long fast trill
+      {2, 6, 0.8f, 3.0f, 4, 10, 0.3f},    // sparrow: loose chirps
+      {1, 2, 2.5f, 6.0f, 3, 6, 1.0f},     // warbler: never the same twice
+      {1, 1, 5.0f, 9.0f, 2, 5, 0.1f},     // finch: a falling run and a flourish
+      {1, 3, 4.0f, 9.0f, 2, 4, 0.3f},     // whistler: long slurs
+      {1, 2, 5.0f, 11.0f, 2, 4, 0.2f},    // buzzer: a dry buzzing trill
+  };
+
+  static int draw_int(kit::Rng& rng, int lo, int hi) {
+    return lo + static_cast<int>(rng.next_u32() % static_cast<uint32_t>(hi - lo + 1));
+  }
+
+  void start(float hz, const Controls& c) {
+    lean = key_lean(hz, 0.33f, 0.5f);
+    singing = 0;
+    for (int i = 0; i < kBirds; ++i) {
+      bird[i].singing = false;
+      arrive(bird[i], i);
+      // The nearest bird answers the key at once; the others join in.
+      bird[i].wait = i == 0 ? 0.03f : between(bird[i].rng, 0.4f, 2.0f + 2.5f * static_cast<float>(i));
+    }
+    (void)c;
+  }
+
+  // A bird lands: which species, where, how far off, and its first motif.
+  void arrive(Bird& b, int slot) {
+    b.species = slot == 0 ? 0 : draw_int(b.rng, 0, kSpecies - 1);
+    if (slot != 0) {
+      for (int other = 0; other < kBirds; ++other) {  // two of a kind only by a second coincidence
+        if (&bird[other] != &b && bird[other].species == b.species) {
+          b.species = draw_int(b.rng, 1, kSpecies - 1);
+          break;
+        }
+      }
+    }
+    const float side = b.rng.bipolar();
+    kit::pan_gains(slot == 0 ? 0.45f * side : (side < 0.0f ? side * 0.8f - 0.2f : side * 0.8f + 0.2f),
+                   &b.pan_left, &b.pan_right);
+    b.near = slot == 0 ? 1.0f : between_log(b.rng, 0.16f, 0.6f);
+    b.own = between_log(b.rng, 0.93f, 1.09f);
+    b.songs = draw_int(b.rng, 2, 5);
+    b.phrases = draw_int(b.rng, kHabit[b.species].bout_lo, kHabit[b.species].bout_hi);
+    b.repeats = 0;
+    b.at = 0;
+    compose(b);
+  }
+
+  void control(const Controls& c) {
+    const float dt = c.step_seconds;
+    // Waves of activity: with Movement the whole tree goes quiet and picks up again.
+    const float wave = mood.next(0.07f, dt);
+    activity = kit::lerp(1.0f, 0.3f + 1.6f * wave * wave, c.movement);
+    const int here = 1 + static_cast<int>(c.density * static_cast<float>(kBirds - 1) + 0.5f);
+    for (int i = 0; i < kBirds; ++i) {
+      Bird& b = bird[i];
+      b.wait -= dt;
+      if (b.wait > 0.0f || b.singing) continue;
+      if (i >= here) {
+        b.wait = 0.25f;  // not in this tree at this Density
+        continue;
+      }
+      advance(b, i, c);
+    }
+  }
+
+  // The next thing this bird does: a syllable, or the wait before one.
+  void advance(Bird& b, int slot, const Controls& c) {
+    const Habit& habit = kHabit[b.species];
+    // Sparse scenes leave long gaps; a busy one hardly pauses.
+    const float patience = (2.4f - 2.0f * c.density) / kit::max(activity, 0.05f);
+    if (b.repeats <= 0) {
+      if (b.phrases <= 0) {
+        // The bout is over: a long silence, and after a few bouts another bird.
+        b.phrases = draw_int(b.rng, habit.bout_lo, habit.bout_hi);
+        b.wait = (slot == 0 ? between(b.rng, 3.0f, 8.0f) : between(b.rng, 6.0f, 20.0f)) * patience;
+        if (--b.songs <= 0) arrive(b, slot);
+        return;
+      }
+      --b.phrases;
+      b.repeats = draw_int(b.rng, habit.repeat_lo, habit.repeat_hi);
+      if (b.rng.uniform() < habit.fresh) compose(b);
+      b.shift = std::exp2(0.06f * b.rng.bipolar());
+      // Far birds come and go with the air between.
+      b.fade = std::exp2(-2.0f * c.distance * b.rng.uniform());
+      b.swell = habit.repeat_hi > 8 ? 0.35f : 1.0f;
+      b.at = 0;
+    }
+    const Syllable& s = b.motif[b.at];
+    sing(b, s, c);
+    b.wait = s.seconds + s.gap;
+    if (++b.at >= b.length) {
+      b.at = 0;
+      b.swell = kit::min(1.0f, b.swell + 0.13f);
+      if (--b.repeats <= 0) b.wait += between(b.rng, habit.pause_lo, habit.pause_hi) * patience;
+    }
+  }
+
+  void sing(Bird& b, const Syllable& s, const Controls& c) {
+    const float sr = c.sample_rate;
+    // Tone moves the register by a third either way and adds the octave.
+    const float reg = lean * b.own * b.shift * std::exp2(0.6f * (c.tone - 0.5f)) / sr;
+    const float top = 9500.0f / sr, bottom = 500.0f / sr;
+    const float i0 = kit::clamp(s.f0 * reg, bottom, top);
+    const float im = kit::clamp(s.fm * reg, bottom, top);
+    const float i1 = kit::clamp(s.f1 * reg, bottom, top);
+    // The parabola through the three pitches.
+    b.inc_a = i0;
+    b.inc_b = -3.0f * i0 + 4.0f * im - i1;
+    b.inc_c = 2.0f * i0 - 4.0f * im + 2.0f * i1;
+    b.u = 0.0f;
+    b.du = 1.0f / kit::max(8.0f, s.seconds * sr);
+    b.trill_phase = 0.0f;
+    b.trill_inc = s.trill_hz / sr;
+    b.trill_depth = s.trill_depth;
+    b.edge = s.edge;
+    b.rough = kit::min(0.45f, s.rough + 0.25f * c.tone * c.tone);
+    const float level = kGain * s.level * b.near * b.fade * b.swell / (1.0f + b.rough);
+    b.amp = level * (1.0f - kit::max(0.0f, s.tilt));
+    b.amp_slope = level * s.tilt;
+    b.phase = 0.0f;
+    if (!b.singing) ++singing;
+    b.singing = true;
+  }
 
   void tick(float& left, float& right) {
     if (singing == 0) return;

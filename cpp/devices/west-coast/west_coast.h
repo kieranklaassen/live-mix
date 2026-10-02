@@ -29,6 +29,9 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
     init_base(sample_rate, kParamMin, kParamMax, kParamDefault);
     const float sr = this->sample_rate();
     rate2_ = 2.0f * sr;
+    inverse_rate2_ = 1.0f / rate2_;
+    dc_coeff_ = 1.0f - kit::time_to_coeff(1.0f / (kit::kTwoPi * kDcBlockHz), rate2_);
+    curve_.init();
     build_tables();
     pool_.reset();
     for (int v = 0; v < kMaxVoices; ++v) {
@@ -38,7 +41,6 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
       voice.pitch_drift.set_rate(kPitchDriftHz, sr);
       voice.timbre_drift.seed(0x0BADC0DEu + 104729u * static_cast<uint32_t>(v));
       voice.timbre_drift.set_rate(kTimbreDriftHz, sr);
-      voice.dc.set_cutoff(kDcBlockHz, rate2_);
     }
     chance_.seed(0xC0A57A1u);
     for (kit::Halfband2x& half : down_) half.init();
@@ -89,10 +91,10 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
       voice.mod_phase = 0.0f;
       voice.last_sine = 0.0f;
       voice.folder.reset();
-      voice.dc.reset();
-      voice.gate.reset();
+      voice.dc = 0.0f;
+      voice.ic1 = 0.0f;
+      voice.ic2 = 0.0f;
       voice.vactrol = 0.0f;
-      voice.last_level = kStartLevel;
       voice.last_gain = 0.0f;
     }
     voice.frequency = frequency;
@@ -102,7 +104,7 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
     // get a smaller index and fewer folds, and tend to a sine.
     voice.index_limit = kit::max(0.0f, (kFmLimitHz / frequency - 1.0f) / voice.ratio - 2.0f);
     voice.level_limit =
-        kStartLevel + (Wavefolder::kFullLevel - kStartLevel) *
+        kStartLevel + (FoldCurve::kFullLevel - kStartLevel) *
                           kit::min(1.0f, kFoldLimitHz / frequency) *
                           kit::clamp((kFoldEndHz - frequency) / (kFoldEndHz - kFoldFadeHz), 0.0f, 1.0f);
 
@@ -129,6 +131,7 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
     voice.stage = kStageStrike;
     tune(voice);
     if (fresh) {
+      steer(voice, fold_.value, symmetry_.value, timbre_env_.value, true);
       voice.open_hz = voice.open_target;
       voice.gain_left = voice.target_left;
       voice.gain_right = voice.target_right;
@@ -187,8 +190,15 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
     float detune = 1.0f;
     float last_sine = 0.0f;
     west_coast::Wavefolder folder;
-    kit::OnePole dc;
-    kit::Svf gate;
+    // DC blocker and the gate's low-pass (two integrator states).
+    float dc = 0.0f;
+    float ic1 = 0.0f, ic2 = 0.0f;
+    // Fold, ramped between the points steer() sets.
+    int steer_in = 0;
+    float drive = 0.42f, drive_step = 0.0f;
+    float offset = 0.0f, offset_step = 0.0f;
+    float fundamental = 0.42f, fundamental_step = 0.0f;
+    float makeup = 1.0f, makeup_step = 0.0f;
     // The gate's control: where the key drives it and where the vactrol is.
     int stage = kStageOff;
     float ramp = 0.0f;
@@ -215,7 +225,7 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
     float gain_left = 0.0f, gain_right = 0.0f;
     float target_left = 0.0f, target_right = 0.0f;
     // Carried between samples so the 2x pair can be interpolated.
-    float last_level = 0.0f;
+    float last_drive = 0.0f;
     float last_gain = 0.0f;
     kit::Drift pitch_drift;
     kit::Drift timbre_drift;
@@ -264,7 +274,9 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
   static constexpr float kDarkFloorHz = 150.0f;
   static constexpr float kDarkCeilingHz = 6000.0f;
   static constexpr float kQuickAttackSeconds = 0.02f;
-  static constexpr float kGateQ = 0.8f;
+  static constexpr float kGateDamping = 1.25f;  // 1 / Q
+  static constexpr float kGateLimit = 0.2f;     // of the 2x rate
+  static constexpr int kSlowPeriod = 4;
   static constexpr float kSoftStrike = 0.55f;
 
   // Chance and drift.
@@ -295,7 +307,7 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
         const double level = static_cast<double>(i) * kTableLevel / kLevelSteps;
         double first = 0.0, square = 0.0, mean = 0.0;
         for (int k = 0; k < kSteps; ++k) {
-          const double y = west_coast::Wavefolder::shape(level * sines[k] + offset);
+          const double y = curve_.shape(level * sines[k] + offset);
           first += y * sines[k];
           square += y * y;
           mean += y;
@@ -304,24 +316,48 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
         square *= 1.0 / kSteps;  // mean square
         mean *= 1.0 / kSteps;    // DC, which the voice blocks
         const double overtones = 2.0 * (square - mean * mean) - first * first;
-        fundamental_[j][i] = static_cast<float>(first);
-        makeup_[j][i] = static_cast<float>(
+        table_[j][i][0] = static_cast<float>(first);
+        table_[j][i][1] = static_cast<float>(
             1.0 / std::sqrt(1.0 + kOvertoneGain * kOvertoneGain * (overtones > 0.0 ? overtones : 0.0)));
       }
     }
   }
 
-  // Bilinear read of one of the two tables.
-  static float read_table(const float table[][kLevelSteps + 1], float level, float offset) {
+  // Every kSlowPeriod samples of a voice: where its fold is heading. The
+  // level the sine enters the folder at, the offset Symmetry adds, and what
+  // the folder does to a sine of that level (two table reads) are ramped
+  // between these points.
+  void steer(Voice& voice, float fold, float symmetry, float timbre_env, bool snap) {
+    const float amount = kit::clamp(
+        fold + voice.fold_chance + voice.fold_drift + timbre_env * kTimbreEnvRange * voice.vactrol, 0.0f, 1.0f);
+    // Fold to the power 1.5: the first half of the knob is the first two folds.
+    const float level = kStartLevel + amount * std::sqrt(amount) * (voice.level_limit - kStartLevel);
+    const float offset = symmetry * (kSymmetryBase + kSymmetrySlope * level);
     const float x = level * (kLevelSteps / kTableLevel);
     const float y = offset * (kOffsetSteps / kTableOffset);
     const int i = kit::clamp_int(static_cast<int>(x), 0, kLevelSteps - 1);
     const int j = kit::clamp_int(static_cast<int>(y), 0, kOffsetSteps - 1);
     const float fx = x - static_cast<float>(i);
     const float fy = y - static_cast<float>(j);
-    const float low = table[j][i] + (table[j][i + 1] - table[j][i]) * fx;
-    const float high = table[j + 1][i] + (table[j + 1][i + 1] - table[j + 1][i]) * fx;
-    return low + (high - low) * fy;
+    float read[2];
+    for (int t = 0; t < 2; ++t) {
+      const float low = table_[j][i][t] + (table_[j][i + 1][t] - table_[j][i][t]) * fx;
+      const float high = table_[j + 1][i][t] + (table_[j + 1][i + 1][t] - table_[j + 1][i][t]) * fx;
+      read[t] = low + (high - low) * fy;
+    }
+    if (snap) {
+      voice.drive = level;
+      voice.offset = offset;
+      voice.fundamental = read[0];
+      voice.makeup = read[1];
+      voice.last_drive = level;
+    }
+    const float per_sample = 1.0f / kSlowPeriod;
+    voice.drive_step = (level - voice.drive) * per_sample;
+    voice.offset_step = (offset - voice.offset) * per_sample;
+    voice.fundamental_step = (read[0] - voice.fundamental) * per_sample;
+    voice.makeup_step = (read[1] - voice.makeup) * per_sample;
+    voice.steer_in = kSlowPeriod;
   }
 
   // One voice for one output sample: two samples at twice the rate, added
@@ -365,60 +401,89 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
       return;
     }
 
-    // Fold: the level the sine enters the folder at, and what the folder
-    // does to a sine of that level.
-    const float amount = kit::clamp(
-        fold + voice.fold_chance + voice.fold_drift + timbre_env * kTimbreEnvRange * vactrol, 0.0f, 1.0f);
-    // Fold to the power 1.5: the first half of the knob is the first two folds.
-    const float level = kStartLevel + amount * std::sqrt(amount) * (voice.level_limit - kStartLevel);
-    const float offset = symmetry * (kSymmetryBase + kSymmetrySlope * level);
-    const float fundamental = read_table(fundamental_, level, offset);
-    const float makeup = read_table(makeup_, level, offset);
+    if (voice.steer_in <= 0) steer(voice, fold, symmetry, timbre_env, false);
+    --voice.steer_in;
+    voice.drive += voice.drive_step;
+    voice.offset += voice.offset_step;
+    voice.fundamental += voice.fundamental_step;
+    voice.makeup += voice.makeup_step;
 
     // The gate: the vactrol sets how far the low-pass is open (its cutoff
-    // falls with the square, so the tone dulls before it fades) and the gain.
+    // falls with the square, so the tone dulls before it fades) and the
+    // gain. A trapezoidal state-variable low-pass, its tangent by the same
+    // Padé form as kit::tan_prewarp, with one division for all of it.
     voice.open_hz += (voice.open_target - voice.open_hz) * open_coeff_;
-    const float cutoff = kit::min(voice.open_hz * vactrol * vactrol, 0.2f * rate2_);
-    kit::Svf& gate = voice.gate;
-    gate.g = kit::tan_prewarp(kit::kPi * cutoff / rate2_);
-    gate.a1 = 1.0f / (1.0f + gate.g * (gate.g + gate.k));
-    gate.a2 = gate.g * gate.a1;
-    gate.a3 = gate.g * gate.a2;
-    const float gain = vactrol * makeup;
+    const float cutoff = kit::min(voice.open_hz * vactrol * vactrol, kGateLimit * rate2_);
+    const float w = kit::kPi * cutoff * inverse_rate2_;
+    const float w2 = w * w;
+    const float n = w * (15.0f - w2);
+    const float d = 15.0f - 6.0f * w2;
+    const float scale = 1.0f / (d * d + n * (n + kGateDamping * d));
+    const float a1 = d * d * scale;
+    const float a2 = n * d * scale;
+    const float a3 = n * n * scale;
+    const float gain = vactrol * voice.makeup;
     voice.gain_left += (voice.target_left - voice.gain_left) * open_coeff_;
     voice.gain_right += (voice.target_right - voice.gain_right) * open_coeff_;
 
     const float increment = voice.increment * voice.detune;
     const float mod_increment = increment * voice.ratio;
     const float deviation = kit::min(index * voice.fm_chance, voice.index_limit) * mod_increment;
-    const float level_step = 0.5f * (level - voice.last_level);
+    const float level_step = 0.5f * (voice.drive - voice.last_drive);
     const float gain_step = 0.5f * (gain - voice.last_gain);
-    float level_now = voice.last_level;
+    const float offset = voice.offset;
+    const float fundamental = voice.fundamental;
+    float level_now = voice.last_drive;
     float gain_now = voice.last_gain;
+    float phase = voice.phase;
+    float mod_phase = voice.mod_phase;
+    float last_sine = voice.last_sine;
+    float dc = voice.dc;
+    float ic1 = voice.ic1;
+    float ic2 = voice.ic2;
+    float pair[2];
     for (int s = 0; s < 2; ++s) {
       level_now += level_step;
       gain_now += gain_step;
       // Through-zero linear FM: the modulator adds to the frequency, and
       // the phase runs backwards when the sum goes negative.
-      const float modulator = kit::SineTable::lookup(voice.mod_phase);
-      voice.mod_phase += mod_increment;
-      voice.mod_phase -= std::floor(voice.mod_phase);
-      voice.phase += increment + deviation * modulator;
-      voice.phase -= std::floor(voice.phase);
-      const float sine = kit::SineTable::lookup(voice.phase);
+      float step = increment;
+      if (deviation != 0.0f) {
+        step += deviation * kit::SineTable::lookup(mod_phase);
+        mod_phase += mod_increment;
+        mod_phase -= std::floor(mod_phase);
+      }
+      phase += step;
+      phase -= std::floor(phase);
+      const float sine = kit::SineTable::lookup(phase);
       // The folder returns the mean of its curve over the step, so the sine
       // it is compared with is the mean over the same step.
-      const float mean_sine = 0.5f * (sine + voice.last_sine);
-      voice.last_sine = sine;
-      const float folded = voice.folder.process(level_now * sine + offset);
+      const float mean_sine = 0.5f * (sine + last_sine);
+      last_sine = sine;
+      const float folded = voice.folder.process(curve_, level_now * sine + offset);
       // A steady sine as the body, the folder's overtones on top.
       const float tone = mean_sine + kOvertoneGain * (folded - fundamental * mean_sine);
-      const float out = gate.lowpass(voice.dc.highpass(tone)) * gain_now;
-      left[s] += out * voice.gain_left;
-      right[s] += out * voice.gain_right;
+      // DC block (Symmetry's offset), then the gate's low-pass.
+      dc += (tone - dc) * dc_coeff_;
+      const float v3 = tone - dc - ic2;
+      const float v1 = a1 * ic1 + a2 * v3;
+      const float v2 = ic2 + a2 * ic1 + a3 * v3;
+      ic1 = 2.0f * v1 - ic1;
+      ic2 = 2.0f * v2 - ic2;
+      pair[s] = v2 * gain_now;
     }
-    voice.last_level = level;
+    voice.phase = phase;
+    voice.mod_phase = mod_phase;
+    voice.last_sine = last_sine;
+    voice.dc = flush_denormal(dc);
+    voice.ic1 = flush_denormal(ic1);
+    voice.ic2 = flush_denormal(ic2);
+    voice.last_drive = voice.drive;
     voice.last_gain = gain;
+    left[0] += pair[0] * voice.gain_left;
+    left[1] += pair[1] * voice.gain_left;
+    right[0] += pair[0] * voice.gain_right;
+    right[1] += pair[1] * voice.gain_right;
   }
 
   // Every 32 samples: drift, and what follows Decay and Colour.
@@ -485,8 +550,11 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
   float rise_coeff_ = 0.02f;
   float open_coeff_ = 0.004f;
   int hold_samples_ = 96;
-  float fundamental_[kOffsetSteps + 1][kLevelSteps + 1] = {};
-  float makeup_[kOffsetSteps + 1][kLevelSteps + 1] = {};
+  west_coast::FoldCurve curve_;
+  // [offset][level]{fundamental, makeup}
+  float table_[kOffsetSteps + 1][kLevelSteps + 1][2] = {};
+  float inverse_rate2_ = 1.0f / 96000.0f;
+  float dc_coeff_ = 0.001f;
 };
 
 }  // namespace livemix
