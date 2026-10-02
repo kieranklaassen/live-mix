@@ -17,6 +17,7 @@ import { FLUTE_PRESETS } from './flute'
 import { FM_GLASS_PRESETS } from './fm-glass'
 import { GRAIN_SYNTH_PRESETS } from './grain-synth'
 import { HANDPAN_PRESETS } from './handpan'
+import { HARP_PRESETS } from './harp'
 import { LADDER_BASS_PRESETS } from './ladder-bass'
 import { MALLETS_PRESETS } from './mallets'
 import { MODAL_BELLS_PRESETS } from './modal-bells'
@@ -52,4 +53,5 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...LADDER_BASS_PRESETS,
   ...ACOUSTIC_GUITAR_PRESETS,
   ...CHORD_HARP_PRESETS,
+  ...HARP_PRESETS,
 ]
