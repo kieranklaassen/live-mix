@@ -23,7 +23,8 @@ import {
 } from '../abi'
 
 class WasmDeviceProcessor extends AudioWorkletProcessor {
-  private readonly device: DeviceExports
+  // Null once the host has disposed the device: the instance and its memory are let go of there and then.
+  private device: DeviceExports | null
   private readonly maxBlockFrames: number
   private outLeft = new Float32Array(0)
   private outRight = new Float32Array(0)
@@ -53,12 +54,13 @@ class WasmDeviceProcessor extends AudioWorkletProcessor {
       throw new Error('live-mix: WasmDeviceProcessor needs processorOptions.module')
     }
     const instance = new WebAssembly.Instance(processorOptions.module, {})
-    this.device = instance.exports as unknown as DeviceExports
-    this.device._initialize?.()
-    this.maxBlockFrames = this.device.device_max_block_frames()
-    this.device.device_init(sampleRate, this.maxBlockFrames)
+    const device = instance.exports as unknown as DeviceExports
+    this.device = device
+    device._initialize?.()
+    this.maxBlockFrames = device.device_max_block_frames()
+    device.device_init(sampleRate, this.maxBlockFrames)
     for (const [paramId, value] of processorOptions.params ?? []) {
-      this.device.device_set_param(paramId, value)
+      device.device_set_param(paramId, value)
     }
     this.bypassStep = 1 / Math.max(1, BYPASS_RAMP_SECONDS * sampleRate)
     this.load = loadCells(processorOptions.load)
@@ -76,30 +78,34 @@ class WasmDeviceProcessor extends AudioWorkletProcessor {
   }
 
   private handleMessage(message: DeviceMessage): void {
+    const device = this.device
+    // Nothing is left to tell a disposed device.
+    if (!device) return
     switch (message.type) {
       case 'set-param':
-        this.device.device_set_param(message.paramId, message.value)
+        device.device_set_param(message.paramId, message.value)
         break
       case 'bypass':
         this.bypassTarget = message.enabled ? 1 : 0
         break
       case 'note-on':
-        this.device.device_note_on?.(message.noteId, message.frequency, message.gain)
+        device.device_note_on?.(message.noteId, message.frequency, message.gain)
         break
       case 'note-off':
-        this.device.device_note_off?.(message.noteId)
+        device.device_note_off?.(message.noteId)
         break
       case 'sample':
-        this.loadSample(message.channels, message.sampleRate)
+        this.loadSample(device, message.channels, message.sampleRate)
         break
       case 'meters':
-        this.meterCount = this.device.device_meter ? Math.max(0, Math.floor(message.count)) : 0
+        this.meterCount = device.device_meter ? Math.max(0, Math.floor(message.count)) : 0
         this.meterInterval = Math.max(1, Math.floor(message.intervalFrames))
         // The first report goes out with the next block.
         this.meterElapsed = this.meterInterval
         break
       case 'dispose':
         this.running = false
+        this.release()
         break
       default: {
         const unhandled: never = message
@@ -108,17 +114,34 @@ class WasmDeviceProcessor extends AudioWorkletProcessor {
     }
   }
 
+  // Let go of the instance and of every view into its memory, so the memory
+  // can be reclaimed now. `process` returning false is not enough: a context
+  // that has stopped rendering (an offline one, once its render is done) never
+  // calls it again, its processors live as long as the page, and a browser has
+  // room for only so many WASM memories at a time. Renders past that would
+  // come out silent.
+  private release(): void {
+    this.device = null
+    const none = new Float32Array(0)
+    this.outLeft = none
+    this.outRight = none
+    this.inLeft = none
+    this.inRight = none
+    this.dryLeft = none
+    this.dryRight = none
+  }
+
   // Copy a sound into a sample device's fixed store (cpp/kit/sample.h).
   // Runs between blocks on the audio thread; anything past the device's
   // capacity is dropped. Devices without the exports ignore the message.
-  private loadSample(channels: Float32Array[], rate: number): void {
-    const { device_sample_capacity, device_sample_buffer, device_sample_commit } = this.device
+  private loadSample(device: DeviceExports, channels: Float32Array[], rate: number): void {
+    const { device_sample_capacity, device_sample_buffer, device_sample_commit } = device
     if (!device_sample_capacity || !device_sample_buffer || !device_sample_commit) return
     if (channels.length === 0) return
     const capacity = device_sample_capacity()
     const frames = Math.min(channels[0].length, capacity)
     const count = Math.min(channels.length, 2)
-    const store = new Float32Array(this.device.memory.buffer, device_sample_buffer(), capacity * 2)
+    const store = new Float32Array(device.memory.buffer, device_sample_buffer(), capacity * 2)
     for (let channel = 0; channel < count; channel += 1) {
       store.set(channels[channel].subarray(0, frames), channel * capacity)
     }
@@ -126,11 +149,11 @@ class WasmDeviceProcessor extends AudioWorkletProcessor {
   }
 
   // Read the device's meters and post them, once every `meterInterval` frames.
-  private reportMeters(frames: number): void {
+  private reportMeters(device: DeviceExports, frames: number): void {
     this.meterElapsed += frames
     if (this.meterElapsed < this.meterInterval) return
     this.meterElapsed = 0
-    const read = this.device.device_meter
+    const read = device.device_meter
     if (!read) return
     const values: number[] = []
     for (let index = 0; index < this.meterCount; index += 1) values.push(read(index))
@@ -139,26 +162,31 @@ class WasmDeviceProcessor extends AudioWorkletProcessor {
 
   process(inputs: Float32Array[][], outputs: Float32Array[][]): boolean {
     // A disconnected node whose processor keeps answering true is rendered for as long as the context lives.
-    if (!this.running) return false
+    const device = this.device
+    if (!this.running || !device) return false
     const load = this.load
-    if (!load) return this.render(inputs, outputs)
+    if (!load) return this.render(device, inputs, outputs)
     Atomics.store(load, LOAD_CELL_BUSY, this.loadMark)
-    const alive = this.render(inputs, outputs)
+    const alive = this.render(device, inputs, outputs)
     Atomics.store(load, LOAD_CELL_BUSY, 0)
     return alive
   }
 
-  private render(inputs: Float32Array[][], outputs: Float32Array[][]): boolean {
+  private render(
+    device: DeviceExports,
+    inputs: Float32Array[][],
+    outputs: Float32Array[][],
+  ): boolean {
     const output = outputs[0]
     if (!output || output.length === 0) return true
     const frames = Math.min(output[0].length, this.maxBlockFrames)
 
     if (this.outLeft.length !== frames) {
-      const memory = this.device.memory.buffer
-      this.outLeft = new Float32Array(memory, this.device.device_out_left(), frames)
-      this.outRight = new Float32Array(memory, this.device.device_out_right(), frames)
-      this.inLeft = new Float32Array(memory, this.device.device_in_left(), frames)
-      this.inRight = new Float32Array(memory, this.device.device_in_right(), frames)
+      const memory = device.memory.buffer
+      this.outLeft = new Float32Array(memory, device.device_out_left(), frames)
+      this.outRight = new Float32Array(memory, device.device_out_right(), frames)
+      this.inLeft = new Float32Array(memory, device.device_in_left(), frames)
+      this.inRight = new Float32Array(memory, device.device_in_right(), frames)
       this.dryLeft = new Float32Array(frames)
       this.dryRight = new Float32Array(frames)
     }
@@ -179,8 +207,8 @@ class WasmDeviceProcessor extends AudioWorkletProcessor {
       this.dryRight.fill(0)
     }
 
-    this.device.device_process(frames)
-    if (this.meterCount > 0) this.reportMeters(frames)
+    device.device_process(frames)
+    if (this.meterCount > 0) this.reportMeters(device, frames)
 
     const outLeft = output[0]
     const outRight = output.length > 1 ? output[1] : null
