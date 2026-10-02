@@ -53,3 +53,19 @@ export const PLATE_PALETTES = {
   vinyl: { plate: '#201f1f', ink: '#eee6d8', accent: '#e8604c' },
   'vowel-reverb': { plate: '#2f9c99', ink: '#03201f', accent: '#fffbe6' },
 } as const satisfies Record<string, PlatePalette>
+
+/**
+ * Cases for hosted plug-ins: a plug-in the kit has never seen takes one of
+ * these by its id, so the same plug-in is the same colour every time and two
+ * in a chain are told apart. Workshop colours, none of them a maker's own.
+ */
+export const HOSTED_PLATES = [
+  { plate: '#3b3f46', ink: '#eef0f2', accent: '#ffd166' },
+  { plate: '#c9c3b4', ink: '#26231d', accent: '#b5371f' },
+  { plate: '#6e7f73', ink: '#f2f6ef', accent: '#ffe9a8' },
+  { plate: '#8a6f5c', ink: '#fbf3e9', accent: '#ffd9a0' },
+  { plate: '#2c3a4a', ink: '#e9f0f7', accent: '#7fe0c8' },
+  { plate: '#d8d2c2', ink: '#2a2620', accent: '#1f6f8a' },
+  { plate: '#7a7f8c', ink: '#f6f7fa', accent: '#ffcf8a' },
+  { plate: '#4a3f3a', ink: '#f4ebe2', accent: '#f08a5d' },
+] as const satisfies readonly PlatePalette[]
