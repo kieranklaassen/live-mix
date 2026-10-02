@@ -17,6 +17,12 @@ export interface ParamSpec {
    * choice: panels step it by one and print the label instead of a number.
    */
   choices?: readonly string[]
+  /**
+   * What turning it does to the sound, in a sentence or two, for a host that
+   * explains its controls (the kit's info view). Not its range or its unit:
+   * those are in the fields above.
+   */
+  description?: string
 }
 
 export function clampParam(spec: ParamSpec, value: number): number {

@@ -140,6 +140,49 @@ function Studio({ engine }: { engine: Engine }) {
 | `DeviceToggle`, `ToggleButton`              | The squared power switch and the pressed / unpressed button (mute, solo, loop tones)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `GridView`                                  | The session grid over `useSession` / `useSlot`: scenes × audio tracks, a slot button per cell (`data-state` empty / stopped / queued / playing / recording, stopping, `gate` dashed), scene launch per row, per-track stop row and stop-all, the quantise selector (`quantizeKey` / `quantizeLabel`)                                                                                                                                                                                                                                                                                                                    |
 
+### The info view
+
+`InfoView` is the box in the bottom left corner of Ableton Live: point at a
+control and it says the control's name and what it does. A control carries
+its entry in two attributes, which `infoProps` writes:
+
+```tsx
+import { InfoView, infoProps } from '@kieranklaassen/live-mix/react'
+
+function Shell() {
+  const shell = useRef<HTMLElement>(null)
+  return (
+    <main ref={shell}>
+      <button {...infoProps('Loop', 'Plays the loop again each time it ends.')}>Loop</button>
+      <InfoView root={shell} />
+    </main>
+  )
+}
+```
+
+- `infoProps(title, text)` gives `data-lm-info-title` and `data-lm-info`. A
+  null title names the control by its `aria-label`, its label or its own short
+  text. Paragraphs are split by a line break (`infoText(a, b)` joins them).
+- The view shows the nearest entry from the element under the pointer up to
+  `root` (`resolveInfo`, `findInfo`). A control without an entry is described
+  by its `title` tooltip, and failing that by whatever around it has an entry,
+  so nothing a host forgot is blank. An empty `data-lm-info=""` leaves a part
+  of the page undescribed. Keyboard focus is followed like the pointer, and a
+  control whose text changes when it is pressed is read again.
+- The kit's own controls have entries already. `Knob` and `Fader` take an
+  `info` sentence and add how they are worked (drag, Shift, what a double-click
+  returns to); `DeviceFrame`, `DeviceToggle`, `ToggleButton` and `Meter` take
+  `info` too. `DevicePanel` says the descriptor's `description` for the device
+  and, for each knob, the parameter's own `ParamSpec.description`, else the
+  common meaning of its name (`paramInfo`: Mix, Attack, Feedback, …), and
+  describes its preset picker, power switch, readings and remove button;
+  `DeviceChainView` its handle, move buttons and add picker. The strips, the
+  transport bar, the session grid and the version list say theirs
+  (`STRIP_INFO`, `TRANSPORT_INFO` for a host that builds its own).
+- `useInfo({ root, disabled })` returns the entry for a view of your own;
+  `InfoView` takes `idle` (what it says over nothing), `actions` (a hide
+  button in its title row) and `entry` (to draw one without following).
+
 ### The paint kit and the grid themes
 
 Three more themes and the pieces a paint-style arranger needs. `graphite`

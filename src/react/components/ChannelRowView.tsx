@@ -19,6 +19,7 @@ import {
 } from './control-math'
 import { Fader } from './Fader'
 import { Meter } from './Meter'
+import { STRIP_INFO } from './mixer-info'
 import { ToggleButton } from './Toggle'
 import { BRUSH_COUNT, cx } from './tokens'
 
@@ -98,6 +99,7 @@ export function ChannelRowView({
         onPressedChange={(mute) => s.setMute(mute)}
         label="Mute"
         tone="mute"
+        info={STRIP_INFO.mute}
         className="lm-row__mute"
         data-testid={testId ? `${testId}-mute` : undefined}
       >
@@ -109,6 +111,7 @@ export function ChannelRowView({
           onPressedChange={(solo) => s.setSolo(solo)}
           label="Solo"
           tone="solo"
+          info={STRIP_INFO.solo}
           className="lm-row__solo"
           data-testid={testId ? `${testId}-solo` : undefined}
         >
@@ -129,6 +132,7 @@ export function ChannelRowView({
         taper="fader"
         ticks={[normalizeValue(0, faderMinDb, faderMaxDb, 'fader')]}
         format={(db) => (db <= faderMinDb ? '-∞ dB' : formatControlValue(db, 'dB'))}
+        info={STRIP_INFO.level}
         className="lm-row__fader"
         onChange={(db) => s.setLevel(faderDbToLevel(db, faderMinDb))}
         onChangeStart={() => s.touch('level')}

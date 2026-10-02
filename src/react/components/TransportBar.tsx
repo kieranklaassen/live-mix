@@ -7,6 +7,8 @@ import { type CSSProperties, type ReactNode } from 'react'
 import { type Transport } from '../../core/transport/Transport'
 import { useTransport } from '../hooks/useTransport'
 import { formatTimeSec } from './control-math'
+import { infoProps } from './info'
+import { TRANSPORT_INFO } from './mixer-info'
 import { ToggleButton } from './Toggle'
 import { cx } from './tokens'
 
@@ -50,6 +52,7 @@ export function TransportBar({
         pressed={t.playing}
         onPressedChange={() => t.toggle()}
         label={t.playing ? 'Pause' : 'Play'}
+        info={TRANSPORT_INFO.play}
         className="lm-transport__button lm-transport__button--play"
         data-testid={testId ? `${testId}-play` : undefined}
       >
@@ -59,6 +62,7 @@ export function TransportBar({
         <button
           type="button"
           aria-label="Stop"
+          {...infoProps('Stop', TRANSPORT_INFO.stop)}
           onClick={() => t.stop(stopFadeSec === undefined ? undefined : { fadeSec: stopFadeSec })}
           className="lm-button lm-button--neutral lm-transport__button lm-transport__button--stop"
           data-testid={testId ? `${testId}-stop` : undefined}
@@ -66,7 +70,12 @@ export function TransportBar({
           <span aria-hidden="true">■</span>
         </button>
       ) : null}
-      <output className="lm-transport__time" aria-label="Position" aria-live="off">
+      <output
+        className="lm-transport__time"
+        aria-label="Position"
+        aria-live="off"
+        {...infoProps('Position', TRANSPORT_INFO.position)}
+      >
         {formatTimeSec(t.positionSec)}
       </output>
       {showLoop ? (
@@ -75,6 +84,7 @@ export function TransportBar({
           onPressedChange={(enabled) => t.setLoop({ enabled })}
           label="Loop"
           title={`Loop ${formatTimeSec(t.loop.lengthSec)}`}
+          info={TRANSPORT_INFO.loop}
           className="lm-transport__button lm-transport__button--loop"
           data-testid={testId ? `${testId}-loop` : undefined}
         >
