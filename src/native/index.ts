@@ -12,8 +12,9 @@
  *
  * The same host joins an Ableton Link session for the page: `NativeLink` is
  * the session's tempo and beat on the page's clock, `OutputClock` takes them
- * to an `AudioContext`, and `LinkAudioSender` sends a node's sound to the
- * session as a Link Audio channel. docs/link.md is the guide.
+ * to an `AudioContext`, `LinkAudioSender` sends a node's sound to the session
+ * as a Link Audio channel, and `LinkAudioReceiver` plays a channel a peer
+ * sends, on the beat. docs/link.md is the guide.
  *
  * @module live-mix/native
  */
@@ -131,6 +132,22 @@ export {
   LINK_TAP_PROCESSOR_NAME,
   type LinkAudioStats,
 } from './link-audio-protocol'
+export {
+  LinkAudioReceiver,
+  defaultLinkAudioIntakeUrl,
+  defaultLinkSourceProcessorUrl,
+  type LinkAudioReceiverOptions,
+  type LinkAudioReceiverStatus,
+  type LinkIntakeWorker,
+} from './LinkAudioReceiver'
+export {
+  HOST_MESSAGE_LINK_AUDIO_IN,
+  LINK_AUDIO_IN_HEADER_BYTES,
+  LINK_SOURCE_PROCESSOR_NAME,
+  encodeLinkAudioInBlock,
+  type LinkAudioInBlock,
+  type LinkReceiveStats,
+} from './link-receive-protocol'
 export {
   NATIVE_PROTOCOL_VERSION,
   type NativeHostAddress,

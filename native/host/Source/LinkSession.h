@@ -1,8 +1,8 @@
 // Ableton Link in the host: tempo, beat and start/stop shared with every other
 // Link program on the local network, and Link Audio channels that carry the
-// page's sound to them. A page cannot reach the network Link uses (multicast
-// UDP), so the host joins the session for it and tells it where the beat is on
-// a clock both can read.
+// page's sound to them and theirs to the page. A page cannot reach the network
+// Link uses (multicast UDP), so the host joins the session for it and tells it
+// where the beat is on a clock both can read.
 //
 // This wraps Ableton's own library (cmake/LiveMixLink.cmake). In a host built
 // without it (`-DLIVE_MIX_HOST_LINK=OFF`) `available()` is false and nothing
@@ -13,6 +13,7 @@
 #include <juce_core/juce_core.h>
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <optional>
 
@@ -87,6 +88,29 @@ public:
 
     /** Announces a channel called `name` for as long as the sink lives; null without Link. */
     std::unique_ptr<Sink> openSink (const juce::String& name);
+
+    /** One Link Audio channel of a peer this program listens to, for as long as it lives. */
+    class Source
+    {
+    public:
+        virtual ~Source() = default;
+    };
+
+    /**
+        One buffer of a channel being listened to: interleaved samples, and
+        `atMicros`, when its first frame was heard where it was sent from.
+        `count` goes up by one with each buffer the sender made, so a gap is a
+        buffer the network lost. Called on Link's own thread: it must not wait.
+    */
+    using Received = std::function<void (const float* interleaved, uint32_t frames, uint32_t channels,
+                                         uint32_t sampleRate, int64_t atMicros, uint64_t count)>;
+
+    /**
+        Listens to the channel `describe()` lists under `channelId`; the peer
+        sends it for as long as somebody listens. Null without Link, and when
+        the session has no such channel.
+    */
+    std::unique_ptr<Source> openSource (const juce::String& channelId, Received received);
 
 private:
     struct Impl;

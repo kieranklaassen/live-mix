@@ -26,6 +26,9 @@ const worklets = {
   // Link Audio: the tap is a worklet, its pump a worker.
   'link-tap': 'src/native/worklets/link-tap.processor.ts',
   'link-audio': 'src/native/worklets/link-audio.worker.ts',
+  // And the other way: the intake is a worker, its playout a worklet.
+  'link-receive': 'src/native/worklets/link-receive.worker.ts',
+  'link-source': 'src/native/worklets/link-source.processor.ts',
   // And the worker that samples the engine's load.
   'load-sampler': 'src/core/load-sampler.worker.ts',
 }

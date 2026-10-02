@@ -27,6 +27,8 @@ const QUANTUM = 4
 const SAMPLE_RATE = 48000
 const LINK_AUDIO = 3
 const LINK_AUDIO_HEADER = 24
+const LINK_AUDIO_IN = 4
+const LINK_AUDIO_IN_HEADER = 32
 
 let host
 let control
@@ -363,6 +365,104 @@ session('sends a channel a peer can listen to, with every sample on its beat', a
   await until(
     async () => (await peer.ask('state')).channels.every((channel) => channel.name !== 'Main'),
     'the channel to go when its connection does',
+  )
+})
+
+session('listens to a channel a peer sends, with every sample at its moment', async () => {
+  const RATE = 44100
+  await control.call('link', { audio: true })
+  await peer.ask('audio 1')
+  peer.send(`send ${RATE} 2 From the peer`)
+  const channel = await until(
+    async () =>
+      (await control.call('link')).channels.find((entry) => entry.name === 'From the peer'),
+    'the host to see the channel',
+  )
+  assert.equal(channel.peerName, 'Second peer')
+  assert.equal((await control.call('hello')).linkAudioReceive, true)
+
+  const blocks = []
+  const socket = await open(`${host.url}/link-audio-in?token=${host.token}&channel=${channel.id}`)
+  socket.onmessage = ({ data }) => {
+    const [type, frames, channels, sampleRate] = new Uint32Array(data, 0, 4)
+    const [atMicros, count] = new Float64Array(data, 16, 2)
+    const samples = new Float32Array(data, LINK_AUDIO_IN_HEADER)
+    blocks.push({ type, frames, channels, sampleRate, atMicros, count, samples })
+  }
+  /** Every loud sample so far: which side, and when it was heard at the peer. */
+  const clicks = () =>
+    blocks.flatMap((block) =>
+      Array.from(block.samples.keys())
+        .filter((index) => Math.abs(block.samples[index]) > 0.5)
+        .map((index) => ({
+          side: index % block.channels,
+          value: block.samples[index],
+          micros: block.atMicros + (Math.floor(index / block.channels) / block.sampleRate) * 1e6,
+        })),
+    )
+  try {
+    // Two bars of beats: eight on the left, two on the right.
+    await until(
+      () => clicks().filter((click) => click.side === 1).length >= 2,
+      'two bars of the channel',
+      8000,
+    )
+    for (const block of blocks) {
+      assert.deepEqual(
+        [block.type, block.channels, block.sampleRate, block.samples.length],
+        [LINK_AUDIO_IN, 2, RATE, block.frames * 2],
+      )
+    }
+    // Nothing lost between two programs on one machine, and each block begins where the last ended.
+    for (let index = 1; index < blocks.length; index += 1) {
+      const [last, block] = [blocks[index - 1], blocks[index]]
+      assert.equal(block.count, last.count + 1, 'the count goes up by one')
+      near(
+        block.atMicros - last.atMicros,
+        (last.frames / RATE) * 1e6,
+        200,
+        'a block after the last',
+      )
+    }
+
+    // The peer puts a sample on the first frame at or past each beat, so it
+    // is heard up to one frame after the beat: 0.00005 beats at this tempo.
+    const state = await control.call('link')
+    const frameBeats = state.bpm / 60 / RATE
+    const heard = clicks().map((click) => ({ ...click, beat: beatAt(state, click.micros) }))
+    const worst = Math.max(...heard.map((click) => Math.abs(click.beat - Math.round(click.beat))))
+    console.log(
+      `link audio in: ${blocks.length} blocks, ${heard.length} clicks, the furthest ${(
+        (worst * 60e3) /
+        state.bpm
+      ).toFixed(3)} ms from its beat`,
+    )
+    for (const click of heard) {
+      const late = click.beat - Math.floor(click.beat + 0.001)
+      assert.ok(late > -0.001 && late < frameBeats + 0.001, `a click ${late} beats past its beat`)
+      if (click.side === 0) assert.ok(click.value > 0.89, 'the left clicks up')
+      else {
+        assert.ok(click.value < -0.89, 'the right clicks down')
+        near(phaseGap(click.beat, 0), 0, frameBeats + 0.001, 'the right click in the bar')
+      }
+    }
+    assert.ok(heard.filter((click) => click.side === 0).length >= 5, 'a click on every beat')
+  } finally {
+    socket.close()
+  }
+
+  // A channel the session does not have: the connection is closed, not left waiting.
+  const none = await open(`${host.url}/link-audio-in?token=${host.token}&channel=0000`)
+  await new Promise((done) => {
+    if (none.readyState === WebSocket.CLOSED) done()
+    else none.onclose = done
+  })
+
+  peer.send('unsend')
+  await until(
+    async () =>
+      (await control.call('link')).channels.every((entry) => entry.name !== 'From the peer'),
+    'the channel to go when the peer stops sending',
   )
 })
 

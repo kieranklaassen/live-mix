@@ -43,7 +43,7 @@ export interface NativeLinkState {
   startStopSync: boolean
   /** Link Audio: channels are announced and can be listened to. */
   audio: boolean
-  /** Every channel in the session, this program's own included. */
+  /** Every channel the session's other peers send; this program's own are not listed. */
   channels: NativeLinkChannel[]
 }
 

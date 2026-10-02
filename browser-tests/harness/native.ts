@@ -16,6 +16,7 @@ import {
   unloadScore,
 } from '@kieranklaassen/live-mix'
 import {
+  LinkAudioReceiver,
   LinkAudioSender,
   NativeDevice,
   NativeHostClient,
@@ -26,6 +27,7 @@ import {
   nativeDeviceId,
   nextBeatInPhase,
   scanNativeDevices,
+  type LinkReceiveStats,
   type NativeHostAddress,
   type NativeLinkSettings,
   type NativeLinkState,
@@ -666,9 +668,138 @@ async function linkStop(): Promise<LinkPageState> {
   return linkPageState()
 }
 
+/** One loud moment in a channel the page listens to. */
+export interface LinkHeardClick {
+  /** 0 left, 1 right. */
+  side: number
+  /** The loudest sample of it. */
+  peak: number
+  /** The page's beat at the moment the click was heard at the sender, and that beat's place in the bar. */
+  beat: number
+  phase: number
+  /** Page milliseconds minus context milliseconds when the click came out, to tell a moved output by. */
+  outputOffsetMs: number
+}
+
+export interface LinkHeard {
+  status: string
+  /** Seconds behind the sender, as the receiver settled it; null before. */
+  delaySec: number | null
+  /** Every delay the receiver has said, in order. */
+  delays: number[]
+  clicks: LinkHeardClick[]
+  /** The receiver's reports, one a second. */
+  stats: LinkReceiveStats[]
+}
+
+// Finds the loud moments in what a node plays: a run of frames above a tenth
+// of full scale is one click, at the middle of its weight (a click sent at
+// another rate comes out over two or three frames).
+const CLICK_FINDER = `
+class ClickFinder extends AudioWorkletProcessor {
+  constructor() {
+    super()
+    this.runs = [null, null]
+  }
+  process(inputs) {
+    const input = inputs[0] || []
+    for (let side = 0; side < 2; side += 1) {
+      const samples = input[side]
+      for (let i = 0; i < 128; i += 1) {
+        const value = samples ? Math.abs(samples[i]) : 0
+        let run = this.runs[side]
+        if (value > 0.1) {
+          if (!run) run = this.runs[side] = { weight: 0, moment: 0, peak: 0 }
+          run.weight += value
+          run.moment += value * (currentFrame + i)
+          if (value > Math.abs(run.peak)) run.peak = samples[i]
+        } else if (run) {
+          this.port.postMessage({ side, peak: run.peak, frame: run.moment / run.weight })
+          this.runs[side] = null
+        }
+      }
+    }
+    return true
+  }
+}
+registerProcessor('click-finder', ClickFinder)
+`
+
+let linkHeardState:
+  { receiver: LinkAudioReceiver; finder: AudioWorkletNode; heard: LinkHeard } | undefined
+
+/**
+ * Listens to the channel called `name` that a peer sends and notes every
+ * click in it: which beat of the page's it was heard on at the sender, worked
+ * out from the frame it came out at here, less the receiver's delay.
+ */
+async function linkListen(name: string): Promise<{ peerName: string }> {
+  const { client, link, ctx } = linkOf()
+  let channel = link.state.channels.find((entry) => entry.name === name)
+  for (let i = 0; i < 300 && !channel; i += 1) {
+    await sleep(20)
+    channel = link.state.channels.find((entry) => entry.name === name)
+  }
+  if (!channel) throw new Error(`no channel called ${name} in the session`)
+
+  const module = URL.createObjectURL(new Blob([CLICK_FINDER], { type: 'text/javascript' }))
+  await ctx.audioWorklet.addModule(module)
+  const finder = new AudioWorkletNode(ctx, 'click-finder', {
+    numberOfInputs: 1,
+    numberOfOutputs: 0,
+    channelCount: 2,
+    channelCountMode: 'explicit',
+  })
+  const receiver = await LinkAudioReceiver.create(ctx, client, link, { channel: channel.id })
+  const heard: LinkHeard = {
+    status: receiver.status,
+    delaySec: receiver.delaySec,
+    delays: [],
+    clicks: [],
+    stats: [],
+  }
+  receiver.onStatus = (status) => {
+    heard.status = status
+  }
+  receiver.onDelay = (delaySec) => {
+    heard.delaySec = delaySec
+    heard.delays.push(delaySec)
+  }
+  receiver.onStats = (stats) => heard.stats.push(stats)
+  finder.port.onmessage = ({ data }: { data: { side: number; peak: number; frame: number } }) => {
+    const delaySec = receiver.delaySec
+    if (delaySec === null) return
+    receiver.outputClock.sample()
+    const heardMs = receiver.outputClock.localMsAt(data.frame / ctx.sampleRate) - delaySec * 1000
+    const beat = link.beatAt(heardMs)
+    heard.clicks.push({
+      side: data.side,
+      peak: data.peak,
+      beat,
+      phase: linkPhase(beat, link.state.quantum),
+      outputOffsetMs: receiver.outputClock.offsetMs,
+    })
+  }
+  receiver.output.connect(finder)
+  linkHeardState = { receiver, finder, heard }
+  return { peerName: channel.peerName }
+}
+
+function linkHeard(): LinkHeard {
+  if (!linkHeardState) throw new Error('linkListen was not called')
+  return linkHeardState.heard
+}
+
+function linkUnlisten(): void {
+  linkHeardState?.receiver.dispose()
+  linkHeardState?.finder.disconnect()
+  linkHeardState = undefined
+}
+
 async function linkClose(): Promise<void> {
   const { client, link, ctx, sender } = linkOf()
   linkPage = undefined
+  linkUnlisten()
   sender.dispose()
   link.dispose()
   client.close()
@@ -685,6 +816,9 @@ declare global {
       linkStart: typeof linkStart
       linkFollowStart: typeof linkFollowStart
       linkStop: typeof linkStop
+      linkListen: typeof linkListen
+      linkHeard: typeof linkHeard
+      linkUnlisten: typeof linkUnlisten
       linkClose: typeof linkClose
       live: typeof live
       offline: typeof offline
@@ -710,5 +844,8 @@ window.nativeHarness = {
   linkStart,
   linkFollowStart,
   linkStop,
+  linkListen,
+  linkHeard,
+  linkUnlisten,
   linkClose,
 }

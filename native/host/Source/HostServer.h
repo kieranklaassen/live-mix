@@ -2,8 +2,8 @@
 // plug-in list, and the loaded slots. Requests arrive as JSON on a `/control`
 // connection and are answered on the message thread; each slot's audio runs on
 // its own `/audio` connection. A `/link-audio` connection is one Link Audio
-// channel the page sends. docs/native.md and docs/link.md have the message
-// reference.
+// channel the page sends, a `/link-audio-in` connection one it listens to.
+// docs/native.md and docs/link.md have the message reference.
 
 #pragma once
 
@@ -49,6 +49,7 @@ private:
     void serveControl (Connection connection);
     void serveAudio (Connection connection, const juce::String& slotId, int outputChannels);
     void serveLinkAudio (Connection connection, const juce::String& channelName);
+    void serveLinkAudioIn (Connection connection, const juce::String& channelId);
 
     // Message thread.
     void handleRequest (const Connection& connection, const juce::var& request);
