@@ -73,8 +73,8 @@ struct Stream {
     const float dt = c.step_seconds;
     sr = c.sample_rate;
     pitch = lean * std::exp2(1.2f * (c.tone - 0.5f));
-    // 25 bubbles a second is a trickle; 1000 is a brook in a hurry.
-    const float rate = 25.0f * std::pow(40.0f, c.density);
+    // 40 bubbles a second is a trickle; 2000 is a brook in a hurry.
+    const float rate = 40.0f * std::pow(50.0f, c.density);
     // The whole stream surges slowly; each place babbles quickly on its own.
     const float swell = kit::lerp(1.0f, 0.45f + 1.3f * surge.next(0.15f, dt), c.movement);
     float sum = 0.0f;
@@ -91,7 +91,7 @@ struct Stream {
     rush_step = (rush_target - rush) / static_cast<float>(kControlPeriod);
     for (int ch = 0; ch < 2; ++ch) {
       rush_low[ch].set_cutoff(kit::min(1400.0f * pitch, 0.4f * sr), sr);
-      rush_high[ch].set_cutoff(350.0f * pitch, sr);
+      rush_high[ch].set_cutoff(160.0f * pitch, sr);
     }
   }
 
@@ -116,9 +116,11 @@ struct Stream {
     b.rise = b.osc.eps * kit::min(between(rng, 0.0f, 0.14f), room) * per_sample;
     // Bigger is louder; most start shallow and weak, a few deep and strong.
     const float depth = rng.uniform();
+    const float strength = (0.12f + 0.88f * depth * depth) * kit::min(2.0f, std::pow(1000.0f / hz, 0.35f));
     b.osc.x = 0.0f;
-    b.osc.y = -level * (0.08f + 0.92f * depth * depth * depth) * kit::min(2.5f, 1000.0f / hz);
-    b.left = static_cast<int>(4.6f * sr / damping);  // 40 dB down
+    b.osc.y = -level * strength;
+    // It sounds until it is 48 dB under the loudest a bubble can be.
+    b.left = static_cast<int>(kit::max(1.5f, std::log(strength * 250.0f)) * sr / damping);
   }
 
   void tick(float& left, float& right) {
@@ -141,14 +143,15 @@ struct Stream {
       }
     }
     rush += rush_step;
-    float l = rush * rush_high[0].highpass(rush_low[0].lowpass(noise[0].pink()));
-    float r = rush * rush_high[1].highpass(rush_low[1].lowpass(noise[1].pink()));
+    float l = rush * rush_low[0].lowpass(noise[0].pink());
+    float r = rush * rush_low[1].lowpass(noise[1].pink());
     for (int s = 0; s < kSites; ++s) {
       l += at[s] * pan_left[s];
       r += at[s] * pan_right[s];
     }
-    left += l;
-    right += r;
+    // A bubble starts on one side of zero; take out what that leaves at the bottom.
+    left += rush_high[0].highpass(l);
+    right += rush_high[1].highpass(r);
   }
 };
 

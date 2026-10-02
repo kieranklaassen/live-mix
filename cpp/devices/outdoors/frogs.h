@@ -57,6 +57,7 @@ struct Frogs {
   };
 
   Frog frog[kFrogs];
+  kit::DcBlocker floor[2];  // a pulse lands on one side of zero: take out what that leaves
   Wander mood;
   float lean = 1.0f;
   float tune = 1.0f;      // key and Tone on the formants
@@ -76,6 +77,10 @@ struct Frogs {
   void start(float hz, const Controls& c) {
     lean = key_lean(hz, 0.3f, 0.5f);
     answering = false;
+    for (kit::DcBlocker& f : floor) {
+      f.reset();
+      f.set_cutoff(90.0f, c.sample_rate);
+    }
     for (int i = 0; i < kFrogs; ++i) {
       Frog& f = frog[i];
       kit::Rng& rng = f.rng;
@@ -230,6 +235,7 @@ struct Frogs {
   }
 
   void tick(float& left, float& right) {
+    float body_left = 0.0f, body_right = 0.0f;
     for (Frog& f : frog) {
       if (f.calling) {
         f.u += f.du;
@@ -254,9 +260,11 @@ struct Frogs {
       }
       if (!f.ringing) continue;
       const float sum = f.formant[0].tick() + f.formant[1].tick() + f.formant[2].tick();
-      left += sum * f.pan_left;
-      right += sum * f.pan_right;
+      body_left += sum * f.pan_left;
+      body_right += sum * f.pan_right;
     }
+    left += floor[0].process(body_left);
+    right += floor[1].process(body_right);
   }
 };
 

@@ -160,7 +160,49 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
     return kit::hermite(line.at(at + 1), line.at(at), line.at(at - 1), line.at(at - 2), fraction);
   }
 
-  void build_swarm() {}
+  // The tap table: where each echo arrives (a share of Length), how loud and
+  // which way up. Seeded, so it is the same swarm every time; left and right
+  // draw different numbers.
+  void build_swarm() {
+    kit::Rng rng;
+    rng.seed(0x1F83D9ABu);
+    for (int c = 0; c < 2; ++c) {
+      float diffusers = 0.0f;
+      for (int a = 0; a < kStages; ++a) {
+        Read& stage = stage_[c][a];
+        stage = Read();
+        stage.span = kAllpassSpan[c][a];
+        stage.limit = static_cast<float>(kAllpassSize - 16);
+        diffusers += kAllpassSpan[c][a];
+      }
+      float energy = 0.0f;
+      for (int k = 0; k < kTaps; ++k) {
+        // One tap per fourteenth of the way, moved about inside its slot.
+        float u = (static_cast<float>(k) + 0.5f + 0.7f * (rng.uniform() - 0.5f)) / kTaps;
+        if (k == kTaps - 1) u = 1.0f;
+        const float arrival = kFirstArrival + (1.0f - kFirstArrival) * std::pow(u, kSwarmCurve);
+        Read& tap = tap_[c][k];
+        tap = Read();
+        tap.span = arrival - diffusers;
+        tap.limit = static_cast<float>(kLineSize - 16);
+        tap.phase = rng.uniform();
+        tap.rate = 0.15f + 0.6f * rng.uniform();
+        const float sign = rng.uniform() < 0.5f ? -1.0f : 1.0f;
+        tap.gain = sign * kit::db_to_gain(-kSwarmTiltDb * arrival);
+        energy += tap.gain * tap.gain;
+      }
+      // Unit energy: the swarm is as loud as the sound that made it.
+      const float scale = 1.0f / std::sqrt(energy);
+      for (int k = 0; k < kTaps; ++k) tap_[c][k].gain *= scale;
+
+      Read& loop = loop_[c];
+      loop = Read();
+      loop.span = kLoopSpan[c] - diffusers;
+      loop.limit = static_cast<float>(kLineSize - 16);
+      loop.phase = rng.uniform();
+      loop.rate = 0.11f + 0.2f * rng.uniform();
+    }
+  }
   void render(int i) { (void)i; }
   void apply(int id) { (void)id; }
 
