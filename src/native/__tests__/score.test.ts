@@ -354,6 +354,40 @@ describe('followNativeEdits: the plug-in state', () => {
     }
   })
 
+  it('keeps a timer for the poll only while there is a plug-in to ask', async () => {
+    vi.useFakeTimers()
+    try {
+      const score = scoreWithReverb()
+      score.master.inserts[0].state = 'c2F2ZWQ='
+      const { document, renderer } = await rig(score, true)
+      const idle = vi.getTimerCount()
+      const stop = followNativeEdits(document, renderer)
+      await vi.advanceTimersByTimeAsync(0)
+      expect(vi.getTimerCount()).toBe(idle + 1)
+
+      // The plug-in leaves the document: nothing is left to ask, so nothing ticks.
+      document.apply({ type: 'device.remove', id: 'verb-1' })
+      await vi.advanceTimersByTimeAsync(0)
+      expect(vi.getTimerCount()).toBe(idle)
+      document.undo()
+      await vi.advanceTimersByTimeAsync(0)
+      expect(vi.getTimerCount()).toBe(idle + 1)
+
+      stop()
+      expect(vi.getTimerCount()).toBe(idle)
+
+      // A document that never had one never starts it.
+      const plain = await rig(createScore(), true)
+      const before = vi.getTimerCount()
+      const stopPlain = followNativeEdits(plain.document, plain.renderer)
+      await vi.advanceTimersByTimeAsync(0)
+      expect(vi.getTimerCount()).toBe(before)
+      stopPlain()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('can be told to leave the state alone', async () => {
     vi.useFakeTimers()
     try {

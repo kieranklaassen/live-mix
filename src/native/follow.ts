@@ -216,14 +216,22 @@ export function followNativeEdits(
       off()
       followed.delete(device)
     }
+    pollWhileFollowing()
   }
 
-  if (keepsState && statePoll > 0) {
-    poll = setInterval(() => {
-      for (const device of followed.keys()) {
-        if (device.editorOpen && !reads.has(device)) readSoon(device, 0)
-      }
-    }, statePoll)
+  /** The poll runs only while there is a plug-in to ask: a document without one keeps no timer. */
+  const pollWhileFollowing = (): void => {
+    const wanted = keepsState && statePoll > 0 && followed.size > 0 && !stopped
+    if (wanted && poll === null) {
+      poll = setInterval(() => {
+        for (const device of followed.keys()) {
+          if (device.editorOpen && !reads.has(device)) readSoon(device, 0)
+        }
+      }, statePoll)
+    } else if (!wanted && poll !== null) {
+      clearInterval(poll)
+      poll = null
+    }
   }
 
   const stopListening = document.onChange(() => void sync())
@@ -232,9 +240,9 @@ export function followNativeEdits(
   return () => {
     stopped = true
     stopListening()
-    if (poll !== null) clearInterval(poll)
     for (const off of followed.values()) off()
     followed.clear()
+    pollWhileFollowing()
     gestures.clear()
   }
 }
