@@ -372,10 +372,11 @@ class FollowerBank {
     last_r_[b] = zr;
     last_i_[b] = zi;
     // The octave below has a phase of its own. Where two neighbouring bands
-    // follow the same partial, the upper one's is pulled to the lower one's,
-    // or the two halves of that note could cancel.
+    // follow the same partial, the upper one's is pulled to the lower one's
+    // (if that one is sounding: a silent oscillator stands still), or the
+    // two halves of that note could cancel.
     float half_pull = 0.0f;
-    if (down_active_ && b > 0 && follow > 0.0f && trust_[b - 1] > 0.5f) {
+    if (down_active_ && b > 0 && follow > 0.0f && trust_[b - 1] > 0.5f && level_[b - 1] > 0.0f) {
       const float apart = (omega_[b] + dev_[b]) - (omega_[b - 1] + dev_[b - 1]);
       if (std::fabs(apart) * share_scale_[b] < 0.15f) {
         half_pull = lock_[b] * follow * (hi_[b - 1] * hr_[b] - hr_[b - 1] * hi_[b]);

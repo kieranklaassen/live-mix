@@ -953,7 +953,7 @@ int main(int argc, char**) {
     }
     SHOW("held keys: the level moves by at most %.2f dB in 10 s; the 5th harmonic by at least %.1f dB", worst,
          moving);
-    EXPECT(worst < 4.0, "a held key's level stays within 4 dB on every tape");
+    EXPECT(worst < 3.0, "a held key's level stays within 3 dB on every tape");
     EXPECT(moving > 8.0, "while its players still beat in the upper harmonics");
   }
 

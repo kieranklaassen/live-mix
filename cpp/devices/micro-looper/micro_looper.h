@@ -28,8 +28,11 @@
 //   takes the longest loop there can be, so Length can be moved on a loop
 //   that is already held.
 // - A deck plays its loop as a seamless thing: over the last 4 % of the loop
-//   (3 to 80 ms) it fades, with equal power, into the tape just before the
-//   loop's start, which runs on into the next pass. That holds at any speed
+//   (3 to 80 ms) it fades into the tape just before the loop's start, which
+//   runs on into the next pass. The fade's law follows the measured
+//   correlation of those two pieces of tape: equal power when they have
+//   nothing in common, gains that add up to one when they are alike (a held
+//   chord), so the level does not swell at the join. That holds at any speed
 //   and in either direction, so Speed is a motor with a 60 ms lag and passes
 //   through a stop into reverse. A second deck exists so that a new capture
 //   or a new Length fades in while the old loop fades out.

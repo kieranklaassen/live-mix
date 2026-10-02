@@ -148,6 +148,15 @@ class ReAmp : public kit::DeviceBase<re_amp::kNumParams> {
       // depend on Room.
       line_gain_[i] = std::pow(10.0f, -3.0f * kLineRatio[i] * kLineSeconds / (kDecayTrim * kMaxDecaySeconds));
     }
+    // Each line's length drifts on its own slow sine, so the room's modes
+    // move instead of standing on the same notes.
+    drift_depth_ = kDriftSeconds * sr;
+    for (int i = 0; i < kNumLines; ++i) {
+      drift_start_[i] = rng.uniform();
+      drift_rate_[i] = kDriftHz[i] * static_cast<float>(kControlPeriod) / sr;
+      line_base_[i] = kLineRatio[i] * kLineSeconds * sr;
+    }
+    restart_drift();
     for (int k = 0; k < 2; ++k) {
       diffuse_[k].clear();
       diffuse_samples_[k] = kit::clamp_int(static_cast<int>(kDiffuseSeconds[k] * sr), 1, 1000);
@@ -192,11 +201,23 @@ class ReAmp : public kit::DeviceBase<re_amp::kNumParams> {
       return;
     }
     const float sr = sample_rate();
-    if (was_asleep) settle(sr);
+    // Waking starts on the first sample that carries anything, wherever in
+    // the host's block it falls, so the result does not depend on the block.
+    int first = 0;
+    if (was_asleep) {
+      settle(sr);
+      while (first < frames - 1 && in_left_[first] == 0.0f && in_right_[first] == 0.0f) {
+        out_left_[first] = 0.0f;
+        out_right_[first] = 0.0f;
+        ++first;
+      }
+    }
 
-    for (int i = 0; i < frames; ++i) {
+    for (int i = first; i < frames; ++i) {
       float in[2];
       take_input(i, &in[0], &in[1]);
+      in[0] = sane(in[0]);
+      in[1] = sane(in[1]);
       if (clock_.tick()) control(sr);
 
       // The amplifier's working point.
@@ -224,7 +245,11 @@ class ReAmp : public kit::DeviceBase<re_amp::kNumParams> {
           for (int k = 0; k < kNumTaps; ++k) tap_[side][k].set(tap_seconds_[side][k] * early);
         }
         pre_tap_.set(kFirstReflectionSeconds[0] * early);
-        for (int k = 0; k < kNumLines; ++k) line_tap_[k].set(kLineRatio[k] * kLineSeconds * size);
+        for (int k = 0; k < kNumLines; ++k) line_base_[k] = kLineRatio[k] * kLineSeconds * size;
+      }
+      for (int k = 0; k < kNumLines; ++k) {
+        drift_[k] += drift_step_[k];
+        line_tap_[k].set(line_base_[k] + drift_[k]);
       }
       refresh_ = false;
       const float hiss = glide(hiss_);
@@ -407,6 +432,9 @@ class ReAmp : public kit::DeviceBase<re_amp::kNumParams> {
   static constexpr float kOutLeft[kNumLines] = {1.0f, -1.0f, 1.0f, -1.0f, 1.0f, -1.0f, 1.0f, -1.0f};
   static constexpr float kOutRight[kNumLines] = {1.0f, 1.0f, -1.0f, -1.0f, 1.0f, 1.0f, -1.0f, -1.0f};
   static constexpr float kInSign[kNumLines] = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
+  // How far each line's length drifts either way, and how fast.
+  static constexpr float kDriftSeconds = 0.0006f;
+  static constexpr float kDriftHz[kNumLines] = {0.23f, 0.41f, 0.29f, 0.47f, 0.26f, 0.37f, 0.33f, 0.44f};
   static constexpr float kDampHz = 5500.0f;
   // The damping shortens what a broadband burst measures; this puts it back.
   static constexpr float kDecayTrim = 1.1f;
@@ -451,6 +479,17 @@ class ReAmp : public kit::DeviceBase<re_amp::kNumParams> {
              w[3] * line.read(whole + 2);
     }
   };
+
+  // The input as it is, unless it is not a number or infinite (dropped: it
+  // would go round the filters and the room for good) or absurdly large (held
+  // at the limit).
+  static constexpr float kInputLimit = 64.0f;
+  static float sane(float x) {
+    if (x > -kInputLimit && x < kInputLimit) return x;
+    if (x >= kInputLimit && x <= 3.0e38f) return kInputLimit;
+    if (x <= -kInputLimit && x >= -3.0e38f) return -kInputLimit;
+    return 0.0f;
+  }
 
   // A settled smoother costs one comparison.
   static float glide(kit::Smoother& smoother) {
@@ -508,6 +547,12 @@ class ReAmp : public kit::DeviceBase<re_amp::kNumParams> {
     const float norm = 1.5f - 0.5f * (hum_cos_ * hum_cos_ + hum_sin_ * hum_sin_);
     hum_cos_ *= norm;
     hum_sin_ *= norm;
+    for (int k = 0; k < kNumLines; ++k) {
+      drift_phase_[k] += drift_rate_[k];
+      if (drift_phase_[k] >= 1.0f) drift_phase_[k] -= 1.0f;
+      const float target = drift_depth_ * kit::SineTable::lookup(drift_phase_[k]);
+      drift_step_[k] = (target - drift_[k]) * (1.0f / static_cast<float>(kControlPeriod));
+    }
     if (approach(&bass_db_, kToneDb * param(kBass))) {
       for (kit::Biquad& filter : bass_) filter.set_low_shelf(kBassHz, bass_db_, sr);
     }
@@ -569,6 +614,17 @@ class ReAmp : public kit::DeviceBase<re_amp::kNumParams> {
       bank_[active_].design(wanted_speaker_, sr, speaker_gain_[wanted_speaker_]);
     }
     clock_.reset(kControlPeriod);
+    restart_drift();
+  }
+
+  // The drift starts from its seeded phases at init and on every waking, so
+  // the same input gives the same output after any rest.
+  void restart_drift() {
+    for (int k = 0; k < kNumLines; ++k) {
+      drift_phase_[k] = drift_start_[k];
+      drift_[k] = drift_depth_ * kit::SineTable::lookup(drift_phase_[k]);
+      drift_step_[k] = 0.0f;
+    }
   }
 
   void apply(int id) {
@@ -625,6 +681,13 @@ class ReAmp : public kit::DeviceBase<re_amp::kNumParams> {
   Tap pre_tap_;
   Tap line_tap_[kNumLines];
   float line_gain_[kNumLines] = {};
+  float line_base_[kNumLines] = {};
+  float drift_[kNumLines] = {};
+  float drift_step_[kNumLines] = {};
+  float drift_phase_[kNumLines] = {};
+  float drift_start_[kNumLines] = {};
+  float drift_rate_[kNumLines] = {};
+  float drift_depth_ = 0.0f;
   int diffuse_samples_[2] = {1, 1};
   float glide_ = 0.05f;
   float bass_db_ = 0.0f;

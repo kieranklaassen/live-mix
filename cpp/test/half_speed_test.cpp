@@ -703,6 +703,32 @@ int main() {
     EXPECT(worst_later < 0.75, "a bad input sample: the level is back to normal within a second");
   }
 
+  // The same audio whatever the block size across sleeping and waking too:
+  // a chord that starts part of the way into a block, a silence long enough
+  // to sleep, and the chord again. The cycle starts on the chord's first
+  // frame, not at the start of the host's block.
+  {
+    const std::vector<float> note = held_chord(196.0);
+    std::vector<float> in(10257, 0.0f);
+    for (int k = 0; k < 2; ++k) {
+      in.insert(in.end(), note.begin(), note.begin() + 72000);
+      in.insert(in.end(), 120000 + 77 * k, 0.0f);
+    }
+    Stereo reference;
+    for (int block : {128, 1, 100, 2048}) {
+      device.init(kRate);
+      Stereo out = run(device, in, block);
+      if (block == 128) {
+        reference = out;
+        EXPECT(rms(out.left, 10257 + 72000 + 110000, 10257 + 72000 + 120000) == 0.0,
+               "asleep in the silence between the two chords");
+      } else {
+        EXPECT(out.left == reference.left && out.right == reference.right,
+               "a note after a silence gives the same samples at every block size");
+      }
+    }
+  }
+
   // Waking from sleep is a fresh start at every rate: a chord played after
   // a burst and a silence comes out as it does from a device just made. (At
   // 44.1 kHz the splice search's low-rate copy takes one frame in seven, and

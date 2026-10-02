@@ -103,6 +103,10 @@ class PitchShifter : public kit::DeviceBase<pitch_shifter::kNumParams> {
     for (int i = 0; i < frames; ++i) {
       float in[2];
       take_input(i, &in[0], &in[1]);
+      // A bad sample from upstream (not a number, infinite, absurdly large)
+      // must not lodge in the filters, the ring or the Chords phases.
+      in[0] = sane(in[0]);
+      in[1] = sane(in[1]);
 
       pitch_[0].next();
       pitch_[1].next();
@@ -174,6 +178,15 @@ class PitchShifter : public kit::DeviceBase<pitch_shifter::kNumParams> {
   static constexpr float kBlendSeconds = 0.04f;
   static constexpr int kChords = pitch_shifter_dsp::kNumModes;  // the choice after the voices' own
   static constexpr float kSqrtTwo = 1.41421356f;
+  static constexpr float kInputLimit = 8.0f;  // +18 dBFS
+
+  // Not-a-number and infinity become silence; anything else is held to the limit.
+  static float sane(float x) {
+    if (x >= -kInputLimit && x <= kInputLimit) return x;
+    if (x > kInputLimit && x <= 3.0e38f) return kInputLimit;
+    if (x < -kInputLimit && x >= -3.0e38f) return -kInputLimit;
+    return 0.0f;
+  }
 
   void apply(int id) {
     using namespace pitch_shifter;

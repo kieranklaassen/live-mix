@@ -30,10 +30,20 @@
 // - Movement: a slow drift of level (±2.5 dB) and tone shared by both sides,
 //   and whatever is unsteady in the chosen bed.
 // - An idle device is silent, so the noise only runs while something is
-//   playing: it carries on for Hold after the input stops, fades over half a
-//   second, and the device sleeps. It fades back in over 40 ms.
-// - The noise path ends in a soft clip, so at the loudest settings a crackle
-//   or a crash cannot exceed full scale by itself.
+//   playing, which means an input above -74 dBFS: it carries on for Hold
+//   after that, fades over half a second, and the device sleeps. It fades
+//   back in over 40 ms. Below -74 dBFS (the end of a reverb tail, another
+//   device's hiss) the input passes alone.
+// - Nothing in a bed peaks more than 14 dB over the RMS that Level sets: the
+//   ticks, crackles and crashes are sized to stay under that, and a ceiling
+//   after Tone, Width and the drift shaves the few peaks that would pass it.
+//   Hum is exempt (its buzz is all peaks, and steady).
+// - Width: at 1 the two sides of a noisy bed are unrelated. Hum keeps a
+//   correlation of 0.7 there, since hum a quarter cycle apart between the
+//   ears sounds hollow.
+// - The noise path ends in a soft clip, so at the loudest settings it cannot
+//   exceed full scale by itself. A sample of the input that is not a number
+//   is taken as silence and one beyond +18 dBFS is held there.
 
 #include "../../kit/kit.h"
 #include "noise_beds.h"

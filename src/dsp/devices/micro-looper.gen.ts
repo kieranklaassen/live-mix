@@ -15,7 +15,7 @@ export const MICRO_LOOPER_PARAMS = {
     unit: '',
     choices: ['Listen', 'Hold', 'Auto'],
     description:
-      'Listen only remembers what you play. Hold loops the last thing you played and keeps it for ever; if nothing was played yet it waits for the next phrase. Auto loops each new phrase in place of the last one and lets it die away.',
+      'Listen only remembers what you play. Hold loops the last thing you played and keeps it for ever; if the last Length was silent it waits for the next phrase. Auto loops each new phrase in place of the last one and lets it die away.',
   },
   length: {
     id: 1,
@@ -186,7 +186,7 @@ export const MICRO_LOOPER_DESCRIPTOR = wasmDeviceDescriptor(MICRO_LOOPER_DEVICE,
       drift: 0,
       tone: 12000,
       spread: 0.2,
-      mix: 0.35,
+      mix: 0.3,
     },
     'Octave sparkle': {
       state: 2,

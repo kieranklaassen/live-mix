@@ -77,26 +77,38 @@ class HalfSpeed : public kit::DeviceBase<half_speed::kNumParams> {
   void process(int frames) {
     using namespace half_speed;
     frames = begin_block(frames);
-    const bool excited = input_present(frames);
-    if (asleep_) {
-      if (!excited) {
-        silence_output(frames);
-        return;
-      }
-      asleep_ = false;
-      restart();
-    }
+    const float floor = kit::IdleGate::kFloor;
     for (int i = 0; i < frames; ++i) {
       float in[2];
       take_input(i, &in[0], &in[1]);
+      const bool excited = in[0] != 0.0f || in[1] != 0.0f;
+      // Asleep and awake are decided frame by frame, not block by block:
+      // waking starts a cycle, and it has to start on the first frame of the
+      // note whatever the host's block size.
+      if (asleep_) {
+        if (!excited) {
+          out_left_[i] = 0.0f;
+          out_right_[i] = 0.0f;
+          continue;
+        }
+        asleep_ = false;
+        restart();
+      }
       in[0] = tidy(in[0]);
       in[1] = tidy(in[1]);
       render_frame(in, &out_left_[i], &out_right_[i]);
-    }
-    // Asleep once every head can only find blank input behind it.
-    if (!excited && static_cast<double>(blank_) > reach() &&
-        output_peak(frames) <= kit::IdleGate::kFloor) {
-      asleep_ = true;
+      // Asleep once every head can only find blank input behind it and the
+      // filters have rung out (the output under the floor for a while, not
+      // just passing through zero).
+      const float left = out_left_[i], right = out_right_[i];
+      if (left > floor || left < -floor || right > floor || right < -floor) {
+        quiet_ = 0;
+      } else if (quiet_ < kLongEnough) {
+        ++quiet_;
+      }
+      if (!excited && quiet_ > quiet_frames_ && static_cast<double>(blank_) > reach()) {
+        asleep_ = true;
+      }
     }
   }
 
@@ -116,6 +128,8 @@ class HalfSpeed : public kit::DeviceBase<half_speed::kNumParams> {
   static constexpr float kMatchGlideSeconds = 0.02f;
   static constexpr float kPowerFadeSeconds = 0.03f;
   static constexpr float kMinFadeSeconds = 0.004f;
+  // How long the output has to stay under the floor before the device sleeps.
+  static constexpr float kQuietSeconds = 0.05f;
   // Jitter at 1 makes a cycle up to a quarter longer or shorter.
   static constexpr float kJitterRange = 0.25f;
   // Spread at 1 holds the right side a quarter of a cycle behind the left.
@@ -174,6 +188,8 @@ class HalfSpeed : public kit::DeviceBase<half_speed::kNumParams> {
   bool together_ = true;
   bool engage_ = false;
   long blank_ = 0;
+  long quiet_ = 0;
+  long quiet_frames_ = 2400;
   bool asleep_ = true;
 };
 
@@ -200,6 +216,8 @@ inline void HalfSpeed::restart() {
   mix_seen_ = -1.0f;
   engage_ = false;
   blank_ = 0;
+  quiet_ = 0;
+  quiet_frames_ = static_cast<long>(kQuietSeconds * sample_rate());
 }
 
 inline void HalfSpeed::clear_filters() {

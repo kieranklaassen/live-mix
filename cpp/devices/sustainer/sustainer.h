@@ -201,6 +201,7 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
   static constexpr int kCompSteps = 32;
   static constexpr float kPanNear = 0.9239f;    // each copy leans to its side: 7.7 dB louder there
   static constexpr float kPanFar = 0.3827f;
+  static constexpr float kTurnPerCentHz = 0.00057779f;  // one cent of a hertz: 2^(1/1200) - 1
   static constexpr float kDriftCents = 3.0f;    // Motion 1: pitch wander of a partial (rms) ...
   static constexpr float kDriftMaxHz = 1.5f;    // ... but no more than this
   static constexpr float kSideCycles = 0.18f;   // Motion 1: left/right phase difference (rms)
@@ -490,7 +491,9 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     // (Latch takes whatever there is, but not plain silence.)
     if (slot.power < (mode() == kModeLatch ? 1.0e-12f : gate_ * gate_)) return;
     const bool layering = mode() == kModeLayer;
-    const float glide_rate = hop_seconds_ / param(kGlide);
+    // The old layer gives way over Glide, but never faster than the new one
+    // rises (Attack): otherwise a long Attack leaves a hole between chords.
+    const float glide_rate = hop_seconds_ / kit::max(param(kGlide), param(kAttack));
     int held = 0;
     for (int s = 0; s < kSlots; ++s) {
       Slot& other = slots_[s];
@@ -507,6 +510,20 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     // The first frame built from it is the caught frame one hop on.
     slot.delay = static_cast<float>(static_cast<int32_t>(next_landing() - position_)) - static_cast<float>(hop_) +
                  static_cast<float>(frame_) - 1.0f;
+    // That frame is `delay` samples old by the time it sounds. Turn every
+    // region forward by what its partial has turned since, so that the held
+    // sound starts in step with the note still ringing in the dry signal and
+    // adds to it. Left as caught, each partial met the dry one at whatever
+    // angle the delay gave it, and those that met in opposition were notched
+    // out of the played note (by up to 12 dB) for as long as it rang.
+    const double delay_seconds = static_cast<double>(slot.delay) / sample_rate();
+    for (int r = 0; r < slot.regions; ++r) {
+      const double hz = static_cast<double>(slot.cent_turn[r]) / (kTurnPerCentHz * static_cast<double>(hop_seconds_));
+      double turns = hz * delay_seconds;
+      turns -= std::floor(turns);
+      slot.u_re[r] = kit::SineTable::cos_lookup(static_cast<float>(turns));
+      slot.u_im[r] = kit::SineTable::lookup(static_cast<float>(turns));
+    }
     // Look again at the lows once a long frame of the note has gone by.
     refine_slot_ = chosen;
     refine_stage_ = 0;
@@ -630,9 +647,10 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     }
     // The frame that will be built next lands where the hop after it begins;
     // the layer's phase starts one hop behind that frame's middle.
-    // The held sound runs `delay` samples behind the input, and so must they.
+    // The caught regions were started in step with the input (start_layer),
+    // and so are these.
     const double from_middle = static_cast<double>(static_cast<int32_t>(next_landing() - end)) + 0.5 * frame_ - hop_ -
-                               1.0 + 0.5 * long_frame_ - slot.delay;
+                               1.0 + 0.5 * long_frame_;
     // A partial counts when it is within 60 dB of the strongest low one and
     // within 80 dB of the level of the whole layer.
     const float whole = std::sqrt(slot.power) * 0.21f * static_cast<float>(long_frame_);
@@ -697,7 +715,7 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     slot.rot_im[r] = std::sin(angle);
     slot.u_re[r] = 1.0f;
     slot.u_im[r] = 0.0f;
-    slot.cent_turn[r] = hz * 0.00057779f * hop_seconds_;
+    slot.cent_turn[r] = hz * kTurnPerCentHz * hop_seconds_;
     slot.det_phase[r] = slot.rng.uniform();
     // Left and right stay together below 150 Hz and part freely above 400 Hz.
     const float x = kit::clamp(std::log2(kit::max(hz, 1.0f) / 150.0f) / 1.415f, 0.0f, 1.0f);

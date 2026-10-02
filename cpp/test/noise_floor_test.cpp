@@ -53,6 +53,16 @@ static Stereo minus(const Stereo& out, const std::vector<float>& left, const std
   return n;
 }
 
+// One side of a bed for longer than Hold can last: a quiet tone keeps the
+// device awake and is taken back out. The first 0.2 s is dropped.
+static std::vector<float> long_bed(int type, float level_db, float seconds) {
+  still(device, type, level_db);
+  std::vector<float> keep = sine(1000.0f, seconds + 0.2f, kRate, 0.002f);
+  std::vector<float> n = minus(run(device, keep), keep, keep).left;
+  n.erase(n.begin(), n.begin() + static_cast<long>(0.2f * kRate));
+  return n;
+}
+
 // Mean power of `x` between `lo` and `hi` Hz, through fourth-order filters.
 static double band_power(const std::vector<float>& x, double lo, double hi, double rate = kRate) {
   livemix::kit::Svf high[2], low[2];
@@ -116,6 +126,24 @@ static double events_per_second(const std::vector<float>& x, double times, float
     }
   }
   return static_cast<double>(count) * rate / static_cast<double>(x.size());
+}
+
+// Ticks the ear picks out: windows of 1 ms of what lies above 3.5 kHz that
+// hold four times the mean power (6 dB over), per second.
+static double bright_events_per_second(const std::vector<float>& x, float rate = kRate) {
+  livemix::kit::Svf high[2];
+  high[0].set(3500.0f, 0.5412f, rate);
+  high[1].set(3500.0f, 1.3066f, rate);
+  std::vector<float> y(x.size());
+  for (size_t i = 0; i < x.size(); ++i) y[i] = high[1].highpass(high[0].highpass(x[i]));
+  const size_t window = static_cast<size_t>(0.001f * rate);
+  const double mean_power = rms(y) * rms(y);
+  size_t count = 0, windows = 0;
+  for (size_t at = 0; at + window <= y.size(); at += window, ++windows) {
+    const double level = rms(y, at, at + window);
+    if (level * level > 4.0 * mean_power) ++count;
+  }
+  return static_cast<double>(count) / (static_cast<double>(windows) * 0.001);
 }
 
 int main() {
@@ -242,29 +270,38 @@ int main() {
       EXPECT_NEAR(db(rms(buzz)), -30.0, 0.5, "hum: Tone keeps the level");
     }
 
-    // Vinyl and static are made of events: a crest factor far above the
-    // steady beds, and ticks at a countable rate.
-    std::vector<float> vinyl = bed(NoiseFloor::kVinyl, -42.0f, 30.0f);
-    std::vector<float> crackle = bed(NoiseFloor::kStatic, -42.0f, 30.0f);
+    // Vinyl and static are made of events, but events that sit in the bed:
+    // over two minutes nothing peaks more than 14 dB over the bed's RMS (a
+    // tick 25 dB over, as these once had, is a jump scare under quiet music),
+    // while the steady beds stay well under that. The ticks are heard because
+    // they are bright and the bed under them is dull: counted in windows of
+    // 1 ms above 3.5 kHz, several a second stand 6 dB over the mean.
+    std::vector<float> vinyl = long_bed(NoiseFloor::kVinyl, -42.0f, 120.0f);
+    std::vector<float> crackle = long_bed(NoiseFloor::kStatic, -42.0f, 120.0f);
     const double steady_crest = std::max(db(peak(hiss) / rms(hiss)), db(peak(air) / rms(air)));
     const double vinyl_crest = db(peak(vinyl) / rms(vinyl));
     const double static_crest = db(peak(crackle) / rms(crackle));
-    const double vinyl_ticks = events_per_second(vinyl, 5.0);
-    const double static_ticks = events_per_second(crackle, 5.0);
-    EXPECT(steady_crest < 14.0, "hiss and air are steady (crest under 14 dB)");
-    EXPECT(vinyl_crest > steady_crest + 6.0, "vinyl: crest factor well above the steady beds");
-    EXPECT(static_crest > steady_crest + 6.0, "static: crest factor well above the steady beds");
-    EXPECT(vinyl_ticks > 1.0 && vinyl_ticks < 30.0, "vinyl: a few ticks a second stand out of the hiss");
-    EXPECT(static_ticks > 1.0 && static_ticks < 60.0, "static: crackles stand out of the hiss");
-    EXPECT(events_per_second(hiss, 5.0) < 0.2, "tape hiss has no ticks");
+    const double vinyl_ticks = bright_events_per_second(vinyl);
+    const double static_ticks = bright_events_per_second(crackle);
+    const double hiss_ticks = bright_events_per_second(hiss);
+    EXPECT(steady_crest < 12.5, "hiss and air are steady (crest under 12.5 dB)");
+    EXPECT(vinyl_crest > steady_crest + 1.5 && vinyl_crest < 14.2, "vinyl: the largest tick is 12.5 to 14 dB over the bed's RMS");
+    EXPECT(static_crest > steady_crest + 1.5 && static_crest < 14.2, "static: the largest crackle is 12.5 to 14 dB over the bed's RMS");
+    EXPECT(db(peak(vinyl)) < -42.0 + 14.1 && db(peak(crackle)) < -42.0 + 14.1, "no event passes Level + 14 dB");
+    EXPECT(vinyl_ticks > 3.0 && vinyl_ticks < 30.0, "vinyl: a few bright ticks a second stand out of the surface noise");
+    EXPECT(static_ticks > 1.5 && static_ticks < 60.0, "static: bright crackles stand out of the hiss");
+    EXPECT(hiss_ticks < 0.3 && events_per_second(hiss, 5.0) < 0.2, "tape hiss has no ticks");
+    // The vinyl's surface noise is dull and its ticks are bright.
+    const double vinyl_low = band_power(vinyl, 0.0, 2000.0) / band_power(vinyl, 0.0, 24000.0);
+    EXPECT(vinyl_low > 0.85, "vinyl: most of the bed is below 2 kHz");
     if (verbose) {
       std::printf("spectra: tape rise %.1f dB, 8-14 kHz %.1f dB; room below 300 Hz %.0f%%; air above 4 kHz %.0f%%\n",
                   rise, flat, 100.0 * room_low, 100.0 * air_high);
       std::printf("hum: %.3f / %.3f Hz, with Movement 1 %.3f / %.3f Hz, 2nd harmonic %.1f / %.1f dB, between lines %.1f / %.1f dB\n",
                   hum_hz[0], hum_hz[1], hum_drift_hz[0], hum_drift_hz[1], hum_second[0], hum_second[1],
                   hum_between[0], hum_between[1]);
-      std::printf("events: crest steady %.1f, vinyl %.1f, static %.1f dB; ticks over 5x RMS vinyl %.1f/s, static %.1f/s\n",
-                  steady_crest, vinyl_crest, static_crest, vinyl_ticks, static_ticks);
+      std::printf("events: crest steady %.1f, vinyl %.1f, static %.1f dB; bright ticks vinyl %.1f/s, static %.1f/s, tape %.2f/s; vinyl below 2 kHz %.0f%%\n",
+                  steady_crest, vinyl_crest, static_crest, vinyl_ticks, static_ticks, hiss_ticks, 100.0 * vinyl_low);
     }
   }
 
@@ -342,10 +379,13 @@ int main() {
     }
   }
 
-  // 5. The image. At Width 1 the sides are unrelated for every type, at
+  // 5. The image. At Width 1 the sides are unrelated for every noisy bed, at
   // Width 0 they are the same signal, and the level does not change between.
+  // Hum is the exception: a quarter of a cycle between the ears sounds
+  // hollow, so at full Width its sides still correlate by 0.7 and its mono
+  // sum loses under 1 dB.
   {
-    double worst_wide = 0.0, worst_level = 0.0;
+    double worst_wide = 0.0, worst_level = 0.0, hum_corr = 0.0, hum_mono = 0.0;
     for (int t = 0; t < kTypes; ++t) {
       still(device, t, -30.0f);
       Stereo wide = noise_only(device, 10.0f);
@@ -353,10 +393,22 @@ int main() {
       device.set_param(p::kWidth, 0.0f);
       Stereo mono = noise_only(device, 10.0f);
       const double c = correlation(wide.left, wide.right);
-      worst_wide = std::max(worst_wide, std::fabs(c));
       worst_level = std::max(worst_level, std::fabs(db(rms(mono.left) / rms(wide.left))));
-      std::snprintf(label, sizeof label, "%s: left and right are unrelated at Width 1 (%.3f)", kTypeName[t], c);
-      EXPECT(std::fabs(c) < 0.2, label);
+      if (t == NoiseFloor::kHum50 || t == NoiseFloor::kHum60) {
+        std::vector<float> sum(wide.size());
+        for (size_t i = 0; i < sum.size(); ++i) sum[i] = 0.5f * (wide.left[i] + wide.right[i]);
+        hum_corr = c;
+        hum_mono = db(rms(sum) / rms(wide.left));
+        std::snprintf(label, sizeof label, "%s: the sides stay together at Width 1 (%.3f)", kTypeName[t], c);
+        EXPECT(c > 0.6 && c < 0.8, label);
+        std::snprintf(label, sizeof label, "%s: the mono sum at Width 1 loses under 1 dB (%.2f)", kTypeName[t], hum_mono);
+        EXPECT(hum_mono > -1.0 && hum_mono < 0.1, label);
+        EXPECT_NEAR(db(rms(wide.right) / rms(wide.left)), 0.0, 0.2, "hum: both sides at the same level");
+      } else {
+        worst_wide = std::max(worst_wide, std::fabs(c));
+        std::snprintf(label, sizeof label, "%s: left and right are unrelated at Width 1 (%.3f)", kTypeName[t], c);
+        EXPECT(std::fabs(c) < 0.2, label);
+      }
       std::snprintf(label, sizeof label, "%s: mono at Width 0", kTypeName[t]);
       EXPECT(mono.left == mono.right, label);
       std::snprintf(label, sizeof label, "%s: Width does not change the level", kTypeName[t]);
@@ -369,8 +421,8 @@ int main() {
     const double usual_corr = correlation(usual.left, usual.right);
     EXPECT(usual_corr > 0.25 && usual_corr < 0.47, "the default Width of 0.8 leaves a correlation near 0.36");
     if (verbose) {
-      std::printf("width: worst |corr| at Width 1 %.3f, level change to Width 0 at most %.2f dB, default corr %.2f\n",
-                  worst_wide, worst_level, usual_corr);
+      std::printf("width: worst |corr| at Width 1 %.3f (hum %.3f, mono sum %.2f dB), level change to Width 0 at most %.2f dB, default corr %.2f\n",
+                  worst_wide, hum_corr, hum_mono, worst_level, usual_corr);
     }
   }
 
@@ -599,6 +651,135 @@ int main() {
       std::printf("tape modulation noise: +%.2f dB under -12 dBFS RMS, +%.2f dB under full scale, 0.5-2 kHz band up %.1f dB\n",
                   rise[0], rise[1], 10.0 * std::log10(around_loud / around_quiet));
     }
+  }
+
+  // 12. The ceiling holds wherever the knobs are: with Tone at either end
+  // (which strips the bed from under the ticks), Width at 0 (which adds the
+  // sides) and Movement at full (which swells the level), a minute of vinyl
+  // or static never peaks more than 14 dB over Level. And the two presets
+  // built on them peak under -22 dBFS.
+  {
+    double worst = -200.0;
+    for (int t : {static_cast<int>(NoiseFloor::kVinyl), static_cast<int>(NoiseFloor::kStatic)}) {
+      for (float tone : {-1.0f, 1.0f}) {
+        still(device, t, -42.0f);
+        device.set_param(p::kTone, tone);
+        device.set_param(p::kWidth, 0.0f);
+        device.set_param(p::kMovement, 1.0f);
+        std::vector<float> keep = sine(1000.0f, 60.0f, kRate, 0.002f);
+        Stereo n = minus(run(device, keep), keep, keep);
+        worst = std::max(worst, db(std::max(peak(n.left), peak(n.right))) + 42.0);
+      }
+    }
+    EXPECT(worst < 14.1, "vinyl and static: no peak more than 14 dB over Level at any Tone, Width or Movement");
+    double preset_peak[2];
+    const float old_record[8] = {1, -38, 0, 0.4f, 0, 0.5f, 0.7f, 8};
+    const float between_stations[8] = {5, -36, 0, 0.4f, 0.1f, 0.6f, 0.5f, 10};
+    for (int k = 0; k < 2; ++k) {
+      device.init(kRate);
+      for (int id = 0; id < p::kNumParams; ++id) device.set_param(id, (k == 0 ? old_record : between_stations)[id]);
+      std::vector<float> keep = sine(1000.0f, 60.0f, kRate, 0.002f);
+      Stereo n = minus(run(device, keep), keep, keep);
+      preset_peak[k] = db(std::max(peak(n.left), peak(n.right)));
+    }
+    EXPECT(preset_peak[0] < -23.9, "Old record (Level -38) peaks under -24 dBFS");
+    EXPECT(preset_peak[1] < -21.9, "Between stations (Level -36) peaks under -22 dBFS");
+    if (verbose) {
+      std::printf("ceiling: worst peak over Level at the extremes %.2f dB; Old record peaks %.2f dBFS, Between stations %.2f dBFS\n",
+                  worst, preset_peak[0], preset_peak[1]);
+    }
+  }
+
+  // 13. What counts as playing. Below -74 dBFS nothing is: an input at
+  // -80 dBFS passes untouched and starts no noise, and behind a reverb-like
+  // tail (60 dB down in 3 s) the noise stops Hold and the fade after the tail
+  // has sunk under -74 dBFS, not seconds later when it reaches the last bit.
+  {
+    still(device, NoiseFloor::kTape, -30.0f);
+    std::vector<float> faint = sine(440.0f, 1.0f, kRate, 1.0e-4f);
+    Stereo out = run(device, faint);
+    EXPECT(out.left == faint && out.right == faint, "an input at -80 dBFS passes bit for bit and starts no noise");
+
+    still(device, NoiseFloor::kTape, -30.0f);
+    device.set_param(p::kHold, 2.0f);
+    rng_state() = 0x7A11u;
+    std::vector<float> tail(static_cast<size_t>(12.0f * kRate), 0.0f);
+    double under = 0.0;
+    for (size_t i = 0; i < tail.size(); ++i) {
+      const double seconds = static_cast<double>(i) / kRate;
+      const double env = 0.17 * std::pow(10.0, -seconds);
+      tail[i] = env > 1.0e-7 ? static_cast<float>(env * white()) : 0.0f;
+      if (std::fabs(tail[i]) > 2.0e-4f) under = seconds;
+    }
+    std::vector<float> n = minus(run(device, tail), tail, tail).left;
+    double noise_ends = 0.0;
+    const size_t window = static_cast<size_t>(0.05f * kRate);
+    for (size_t at = 0; at + window <= n.size(); at += window) {
+      if (rms(n, at, at + window) > 1.0e-5) noise_ends = static_cast<double>(at + window) / kRate;
+    }
+    EXPECT(under > 2.5 && under < 3.4, "the tail sinks under -74 dBFS about 3 s in");
+    EXPECT_NEAR(noise_ends, under + 2.5, 0.15, "behind a reverb tail the noise stops Hold and the fade after -74 dBFS");
+    EXPECT(peak(n, static_cast<size_t>((under + 2.6) * kRate)) < 1.0e-9, "after that the tail passes alone");
+    Stereo rest = render(device, 0.5f, kRate);
+    EXPECT(peak(rest.left) == 0.0 && peak(rest.right) == 0.0, "and the device sleeps when the tail has ended");
+    if (verbose) std::printf("threshold: tail under -74 dBFS at %.2f s, noise ends at %.2f s (Hold 2 s)\n", under, noise_ends);
+  }
+
+  // 14. Bad samples from upstream: one NaN, one infinity and one 1e30 in the
+  // middle of a note, at the default patch and with Follow at either end
+  // (where the follower could keep them). The output stays finite and
+  // bounded, the noise is back where it was within a few seconds, and the
+  // device still reaches exact zeros and sleeps.
+  {
+    const float patches[3][3] = {{0.0f, -42.0f, 0.4f}, {-1.0f, -28.0f, 0.9f}, {1.0f, -30.0f, 0.15f}};  // Follow, Level, Response
+    for (const float* patch : patches) {
+      Stereo clean, dirty;
+      std::vector<float> note = sine(220.0f, 8.0f, kRate, 0.2f);
+      for (int pass = 0; pass < 2; ++pass) {
+        device.init(kRate);
+        device.set_param(p::kFollow, patch[0]);
+        device.set_param(p::kLevel, patch[1]);
+        device.set_param(p::kResponse, patch[2]);
+        device.set_param(p::kMovement, 0.0f);
+        device.set_param(p::kHold, 1.0f);
+        std::vector<float> in = note;
+        if (pass == 1) {
+          in[96000] = std::nanf("");
+          in[120000] = INFINITY;
+          in[144000] = -1.0e30f;
+        }
+        (pass == 0 ? clean : dirty) = minus(run(device, in), note, note);
+      }
+      Stereo tail = render(device, 2.0f, kRate);
+      Stereo rest = render(device, 0.5f, kRate);
+      std::snprintf(label, sizeof label, "Follow %+.0f: bad input samples leave the output finite and bounded", patch[0]);
+      EXPECT(finite(dirty.left) && finite(dirty.right) && finite(tail.left) && peak(dirty.left) < 10.0, label);
+      std::snprintf(label, sizeof label, "Follow %+.0f: the noise is back at its level 3 s after the bad samples (%.2f against %.2f dB)",
+                    patch[0], db(rms(dirty.left, 288000)), db(rms(clean.left, 288000)));
+      EXPECT_NEAR(db(rms(dirty.left, 288000)), db(rms(clean.left, 288000)), 0.5, label);
+      EXPECT(peak(rest.left) == 0.0 && peak(rest.right) == 0.0, "after bad input the device still falls silent and sleeps");
+    }
+  }
+
+  // 15. The dry path is exact. The beds other than tape hiss do not listen
+  // to the input when Follow is 0, so the same noise can be rendered alone
+  // (a click, then nothing: the output is the noise) and under a phrase: the
+  // output under the phrase is that noise added to the input in one float
+  // addition, every sample, nothing else.
+  {
+    rng_state() = 0xD27u;
+    std::vector<float> phrase = noise(3.0f, kRate, 0.3f);
+    std::vector<float> nothing(phrase.size(), 0.0f);
+    phrase[0] = nothing[0] = 0.001f;
+    still(device, NoiseFloor::kVinyl, -30.0f);
+    Stereo alone = run(device, nothing);
+    still(device, NoiseFloor::kVinyl, -30.0f);
+    Stereo under = run(device, phrase);
+    size_t wrong = 0;
+    for (size_t i = 1; i < phrase.size(); ++i) {
+      if (under.left[i] != phrase[i] + alone.left[i] || under.right[i] != phrase[i] + alone.right[i]) ++wrong;
+    }
+    EXPECT(wrong == 0 && rms(alone.left, 24000) > 0.01, "the output is the input plus the noise, bit for bit");
   }
 
   still(device, NoiseFloor::kStatic, -30.0f);

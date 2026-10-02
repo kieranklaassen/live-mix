@@ -13,7 +13,7 @@
       "name": "State",
       "choices": ["Listen", "Hold", "Auto"],
       "default": 2,
-      "description": "Listen only remembers what you play. Hold loops the last thing you played and keeps it for ever; if nothing was played yet it waits for the next phrase. Auto loops each new phrase in place of the last one and lets it die away."
+      "description": "Listen only remembers what you play. Hold loops the last thing you played and keeps it for ever; if the last Length was silent it waits for the next phrase. Auto loops each new phrase in place of the last one and lets it die away."
     },
     {
       "key": "length",
@@ -179,6 +179,6 @@
   },
   "origin": {
     "kind": "new",
-    "note": "Written for live-mix on cpp/kit. In outline a short hold-style looper with a variable sample clock, as the small micro-looper pedals work: a ring buffer written and read at a divided clock with band-limiting that follows it, a cross-faded loop join, and granular reading of the loop after Curtis Roads, Microsound (asynchronous granulation). Not a model of any unit."
+    "note": "Written for live-mix on cpp/kit. In outline a short always-listening looper with a variable sample clock, in the manner of small hold-style looper pedals: a ring buffer written and read at a divided clock with a band-limit that follows it, a loop join whose crossfade follows how alike its two sides are, and overlapping grains read around the loop position, after the approach of Curtis Roads, Microsound. Not a model of any particular unit."
   }
 }

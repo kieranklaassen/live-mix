@@ -22,11 +22,12 @@
 //
 // Low-pass gate. A vactrol, the lamp and photocell at the heart of such
 // gates, follows the key: up in a millisecond, down fast at first and
-// slower the further it has closed. It sets the gain of the voice and, by
-// its square, the cutoff of a two-pole low-pass, which Colour opens up to
-// 18 kHz and which never closes below the note itself. So a note is struck
-// bright, dulls quickly and rings on as a bare sine. Decay is the time it
-// takes to fall 60 dB. Sustain is where the gate stays while a key is held;
+// slower the further it has closed. It sets the gain of the voice and the
+// cutoff of a two-pole low-pass, which Colour opens up to 18 kHz and which
+// never closes below the note itself. The cutoff falls faster than the gain
+// (half with the vactrol, half with its square), so a note is struck
+// bright, dulls as it fades and rings on as a bare sine. Decay is the time
+// it takes to fall 60 dB. Sustain is where the gate stays while a key is held;
 // Attack ramps the key's drive instead of striking.
 //
 // Aliasing. The voices run at twice the sample rate (one shared half-band
@@ -44,7 +45,7 @@
 // init). Drift moves each voice's pitch and Fold slowly.
 //
 // Velocity is how hard the gate is struck: louder and, because the cutoff
-// goes with the square, brighter.
+// at the strike goes with its square, brighter.
 //
 // The instrument sleeps when no voice sounds.
 
@@ -336,6 +337,11 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
   // Sets the vactrol's fall rate so that Decay is the time a mid-keyboard
   // note takes to fall 60 dB.
   static constexpr float kDecayScale = 21.0f;
+  // How the cutoff follows the vactrol: this share of it in step with the
+  // gain, the rest with the square. All square and a pluck's overtones are
+  // over in a third of the time its level takes to fall 20 dB (a click
+  // and then a sine); all in step and the tone no longer dulls as it fades.
+  static constexpr float kCutoffInStep = 0.5f;
   // A voice stops once its gate has closed this far (-72 dB).
   static constexpr float kOffLevel = 2.5e-4f;
   // The gate never closes below the note itself: the tail of a note is its
@@ -563,10 +569,11 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
       makeup += makeup_step;
 
       // The gate: the vactrol sets how far the low-pass is open (its cutoff
-      // falls with the square, so the tone dulls before it fades) and the
+      // falls faster than the gain, so the tone dulls as it fades) and the
       // gain. A trapezoidal state-variable low-pass, its tangent by the
       // same Padé form as kit::tan_prewarp, with one division for all of it.
-      const float w = w_scale * kit::min(floor_hz + open_hz * vactrol * vactrol, gate_limit);
+      const float opening = vactrol * (kCutoffInStep + (1.0f - kCutoffInStep) * vactrol);
+      const float w = w_scale * kit::min(floor_hz + open_hz * opening, gate_limit);
       const float w2 = w * w;
       const float n = w * (15.0f - w2);
       const float d = 15.0f - 6.0f * w2;
@@ -670,7 +677,10 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
     // Colour 0 opens the gate to just above the note; Colour 1 opens it
     // all the way whatever the note.
     const float dark = kit::clamp(kDarkRatio * voice.frequency, kDarkFloorHz, kDarkCeilingHz);
-    voice.open_target = dark * std::pow(kGateCeilingHz / dark, colour_);
+    // A softer strike opens the gate less far, by as much as if the cutoff
+    // went with the square of the strike.
+    const float struck = voice.strike / (kCutoffInStep + (1.0f - kCutoffInStep) * voice.strike);
+    voice.open_target = dark * std::pow(kGateCeilingHz / dark, colour_) * struck;
   }
 
   void apply(int id) {
