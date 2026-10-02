@@ -11,6 +11,9 @@ import { useParamControl } from './useParamControl'
 
 export type FaderOrientation = 'vertical' | 'horizontal'
 
+/** How the fader is drawn: a filled bar with a line for a thumb, or a slot with a cap. */
+export type FaderLook = 'bar' | 'cap'
+
 export interface FaderProps {
   label: string
   value?: number
@@ -36,6 +39,12 @@ export interface FaderProps {
   hideValue?: boolean
   /** Marks along the track as normalised positions (e.g. unity), drawn as ticks. */
   ticks?: readonly number[]
+  /**
+   * `'cap'` draws a console fader: a slot with a cap that rides it, its centre
+   * line at the value. It has no fill and draws no `ticks`; put a scale beside
+   * it. Default `'bar'`.
+   */
+  look?: FaderLook
   /**
    * What the fader does, for the info view (`InfoView`): a sentence or two.
    * How it is worked is said after it, so leave that out.
@@ -71,6 +80,7 @@ export function Fader({
   hideLabel = false,
   hideValue = false,
   ticks,
+  look = 'bar',
   info,
   onChange,
   onChangeStart,
@@ -82,6 +92,7 @@ export function Fader({
 }: FaderProps) {
   const direction = axis ?? orientation
   const vertical = direction === 'vertical'
+  const cap = look === 'cap'
   const control = useParamControl({
     value,
     defaultValue,
@@ -114,6 +125,7 @@ export function Fader({
       className={cx(
         'lm-fader',
         vertical ? 'lm-fader--vertical' : 'lm-fader--horizontal',
+        cap && 'lm-fader--cap',
         disabled && 'lm-fader--disabled',
         interacting && 'lm-fader--active',
         className,
@@ -139,19 +151,23 @@ export function Fader({
         ref={control.ref}
         {...handlers}
       >
-        {ticks?.map((tick) => (
+        {cap
+          ? null
+          : ticks?.map((tick) => (
+              <span
+                key={tick}
+                aria-hidden="true"
+                className="lm-fader__tick"
+                style={vertical ? { bottom: `${tick * 100}%` } : { left: `${tick * 100}%` }}
+              />
+            ))}
+        {cap ? null : (
           <span
-            key={tick}
             aria-hidden="true"
-            className="lm-fader__tick"
-            style={vertical ? { bottom: `${tick * 100}%` } : { left: `${tick * 100}%` }}
+            className="lm-fader__fill"
+            style={vertical ? { height: percent } : { width: percent }}
           />
-        ))}
-        <span
-          aria-hidden="true"
-          className="lm-fader__fill"
-          style={vertical ? { height: percent } : { width: percent }}
-        />
+        )}
         <span
           aria-hidden="true"
           className="lm-fader__thumb"

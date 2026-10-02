@@ -12,6 +12,7 @@ import {
   formatControlValue,
   formatParamValue,
   formatTimeSec,
+  heldPeak,
   isChoiceParam,
   knobAngleToNorm,
   levelToFaderDb,
@@ -45,6 +46,38 @@ describe('clamp / quantize / stepBy', () => {
     expect(stepBy(0.5, 1, 0.01, 0, 1)).toBe(0.51)
     expect(stepBy(0.5, 1, 0.01, 0, 1, true)).toBe(0.501)
     expect(stepBy(0.5, -10, 0.01, 0, 1)).toBe(0.4)
+  })
+})
+
+describe('heldPeak', () => {
+  const none = { db: Number.NEGATIVE_INFINITY, at: 0 }
+
+  it('takes a reading as high as the held one at once', () => {
+    expect(heldPeak(none, -20, 100, 1500)).toEqual({ db: -20, at: 100 })
+    expect(heldPeak({ db: -20, at: 100 }, -6, 200, 1500)).toEqual({ db: -6, at: 200 })
+    // An equal reading holds again from now.
+    expect(heldPeak({ db: -6, at: 200 }, -6, 900, 1500)).toEqual({ db: -6, at: 900 })
+    expect(heldPeak(none, Number.NEGATIVE_INFINITY, 50, 1500)).toEqual({ ...none, at: 50 })
+  })
+
+  it('keeps the held peak over a lower reading until the hold time has passed', () => {
+    const held = { db: -6, at: 1000 }
+    expect(heldPeak(held, -30, 1001, 1500)).toBe(held)
+    expect(heldPeak(held, -30, 2500, 1500)).toBe(held)
+    expect(heldPeak(held, -30, 2501, 1500)).toEqual({ db: -30, at: 2501 })
+    expect(heldPeak(held, Number.NEGATIVE_INFINITY, 2501, 1500)).toEqual({
+      db: Number.NEGATIVE_INFINITY,
+      at: 2501,
+    })
+  })
+
+  it('is the rule the meter holds its mark by', () => {
+    let held = none
+    const marks = [-12, -3, -20, -20, -9].map((db, index) => {
+      held = heldPeak(held, db, index * 600, 1500)
+      return held.db
+    })
+    expect(marks).toEqual([-12, -3, -3, -3, -9])
   })
 })
 
