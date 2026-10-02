@@ -7,6 +7,7 @@ import {
   renderHook,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react'
 import { createElement, type ReactNode } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -359,6 +360,31 @@ describe('hooks write through the arbiter', () => {
       'delay-2',
       'delay-1',
     ])
+
+    // Carried by its title bar past the last device: one move in the score, one undo step.
+    const items = [0, 1, 2].map((index) => screen.getByTestId(`chain-item-${index}`))
+    items.forEach((item, index) => {
+      item.getBoundingClientRect = () =>
+        ({ left: index * 100, right: index * 100 + 100, top: 0, bottom: 40 }) as DOMRect
+    })
+    const steps = document.history.undoStack.length
+    fireEvent.pointerDown(within(items[0]).getByRole('heading'), {
+      pointerId: 1,
+      button: 0,
+      clientX: 20,
+    })
+    fireEvent.pointerMove(window, { pointerId: 1, clientX: 290 })
+    fireEvent.pointerUp(window, { pointerId: 1 })
+    expect(document.log.entries.at(-1)?.op).toEqual({
+      type: 'device.move',
+      id: 'kick-filter',
+      index: 2,
+    })
+    expect(document.history.undoStack).toHaveLength(steps + 1)
+    act(() => {
+      document.undo()
+    })
+    await act(() => renderer.whenIdle())
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Remove Delay' })[0])
     expect(document.log.entries.at(-1)?.op).toEqual({ type: 'device.remove', id: 'delay-2' })

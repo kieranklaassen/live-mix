@@ -22,7 +22,7 @@ import {
   type DeviceSkin,
   type PlatePicture,
 } from './device-skins'
-import { infoProps } from './info'
+import { infoProps, infoText } from './info'
 import { Knob } from './Knob'
 import { paramInfo } from './param-info'
 import { DeviceToggle } from './Toggle'
@@ -81,6 +81,8 @@ export interface DevicePlateProps {
   onOpenChange?: (open: boolean) => void
   /** Extra tools after the preset picker (a chain's move buttons). */
   actions?: ReactNode
+  /** A line added to the plate's info text: how it is worked where it stands (a chain says it can be moved). */
+  hint?: string
   onRemove?: () => void
   className?: string
   style?: CSSProperties
@@ -124,6 +126,7 @@ export function DevicePlate({
   defaultOpen = false,
   onOpenChange,
   actions,
+  hint,
   onRemove,
   className,
   style,
@@ -182,7 +185,10 @@ export function DevicePlate({
       data-powered={powered ? 'true' : 'false'}
       data-finish={skin.finish}
       aria-label={heading}
-      {...infoProps(heading, about ?? `${heading}: one of the devices of this chain.`)}
+      {...infoProps(
+        heading,
+        infoText(about ?? `${heading}: one of the devices of this chain.`, hint),
+      )}
     >
       <PlateFinishLayer
         finish={skin.finish}

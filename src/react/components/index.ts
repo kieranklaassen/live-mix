@@ -135,6 +135,13 @@ export {
 } from './device-skins'
 export { PLATE_PALETTES, type PlatePalette } from './plate-palettes'
 export {
+  landingIndex,
+  markerPosition,
+  useChainReorder,
+  type ChainReorder,
+  type ItemSpan,
+} from './chain-reorder'
+export {
   DeviceChainView,
   freshDeviceId,
   groupDevices,
