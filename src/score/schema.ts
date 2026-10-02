@@ -59,6 +59,14 @@ export interface ScoreDevice {
   /** Explicit parameter values; anything omitted follows the preset or the spec default. */
   params: Record<string, number>
   bypass: boolean
+  /**
+   * What the device holds besides its parameters, as its own
+   * `StatefulDevice.getState()` gave it (a hosted plug-in's chunk, base64):
+   * opaque text the library carries and hands back when the device is made,
+   * with `params` applied on top. Optional field of format 3; absent for a
+   * device with nothing of the kind.
+   */
+  state?: string
 }
 
 export interface ScoreSend {
@@ -626,6 +634,7 @@ function checkDevice(raw: unknown, path: string, ctx: Context): void {
     }
   }
   if (raw.preset !== undefined) check.string(raw.preset, `${path}.preset`)
+  if (raw.state !== undefined) check.string(raw.state, `${path}.state`, false)
   if (!ctx.devices || !knownDevice || typeof deviceId !== 'string') return
   const descriptor = ctx.devices.get(deviceId)
   if (!descriptor) {
@@ -1187,6 +1196,7 @@ function normaliseDevice(device: ScoreDevice): ScoreDevice {
     bypass: device.bypass,
   }
   if (device.preset !== undefined) out.preset = device.preset
+  if (device.state !== undefined) out.state = device.state
   return out
 }
 

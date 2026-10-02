@@ -36,6 +36,7 @@ const STRUCTURE: ReadonlySet<OperationType> = new Set<OperationType>([
   'device.add',
   'device.remove',
   'device.move',
+  'device.replace',
   'send.add',
   'send.remove',
   'lane.add',
@@ -257,7 +258,7 @@ function operationTool(type: OperationType): ToolSpec {
   }
 }
 
-/** The 46 operation tools, in vocabulary order. */
+/** One tool per operation type, in vocabulary order. */
 export function operationTools(): ToolSpec[] {
   return OPERATION_TYPES.map(operationTool)
 }

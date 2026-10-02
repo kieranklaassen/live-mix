@@ -323,6 +323,10 @@ const coreSymbols = [
   'pushTouchAt',
   'pushTouchStripFlags',
   'pushWhiteFor',
+  // A score holds the instrument a track plays and a plug-in's own state
+  'isStatefulDevice',
+  'patchInstrumentOps',
+  'DEFAULT_INSTRUMENT_TAIL_SECONDS',
 ] as const
 
 const dspSymbols = [
@@ -402,6 +406,7 @@ const testingSymbols = [
   'FakeSocket',
   'FAKE_HOST_ADDRESS',
   'FAKE_REVERB',
+  'FAKE_STATE',
   'FAKE_SYNTH',
   'fakeReverbParams',
   // A Push with no hardware
@@ -423,6 +428,9 @@ const nativeSymbols = [
   'isNativeDeviceId',
   'nativePluginName',
   'followNativeEdits',
+  'captureNativeState',
+  'DEFAULT_STATE_DELAY_MS',
+  'DEFAULT_STATE_POLL_MS',
   'bridgeLatencyFor',
   'tidyParamText',
   'NATIVE_PROTOCOL_VERSION',

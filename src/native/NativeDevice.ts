@@ -23,6 +23,7 @@ import {
   type NoteDevice,
   type ObservableDevice,
   type ParamTextDevice,
+  type StatefulDevice,
 } from '../core/devices/Device'
 import { NODE_DEVICE_RAMP_SECONDS } from '../core/devices/native/NodeDevice'
 import { Emitter } from '../core/events'
@@ -199,6 +200,8 @@ const defaultCreateNode: NativeNodeFactory = (context, name, options) =>
 const defaultCreateWorker = (url: string): PumpWorker => new Worker(url) as unknown as PumpWorker
 
 interface NativeDeviceInit {
+  /** The state the plug-in was loaded with, when it was given one. */
+  state: string | undefined
   id: string
   context: BaseAudioContext
   client: NativeHostClient
@@ -211,7 +214,9 @@ interface NativeDeviceInit {
   panelParamCount: number
 }
 
-export class NativeDevice implements NoteDevice, ObservableDevice, EditorDevice, ParamTextDevice {
+export class NativeDevice
+  implements NoteDevice, ObservableDevice, EditorDevice, ParamTextDevice, StatefulDevice
+{
   readonly id: string
   readonly params: Readonly<Record<string, NativeParamSpec>>
   readonly panelParams: readonly string[]
@@ -238,6 +243,15 @@ export class NativeDevice implements NoteDevice, ObservableDevice, EditorDevice,
   private readonly edits = new Emitter<NativeParamEdit>()
   private readonly statusChanges = new Emitter<NativeDeviceStatus>()
   private readonly statsChanges = new Emitter<PumpStats>()
+  private readonly stateChanges = new Emitter<void>()
+  readonly stateful = true as const
+  // The state last read from the plug-in or given to it.
+  private knownState: string | undefined
+  // How many restores were asked for, so a read can tell one happened meanwhile.
+  private stateRestores = 0
+  // How many `setState` loads are in flight.
+  private stateLoads = 0
+  private editorShown = false
   private readonly notes = new Map<number, number>()
   private readonly unsubscribe: (() => void)[] = []
   private pluginLatencySamples: number
@@ -262,6 +276,7 @@ export class NativeDevice implements NoteDevice, ObservableDevice, EditorDevice,
     this.bridgeLatencyFrames = init.bridgeLatencyFrames
     this.pluginLatencySamples = Math.max(0, Math.round(init.slot.latencySamples))
     this.rampSec = init.rampSec
+    this.knownState = init.state
     this.params = nativeParamSpecs(init.slot.params)
     this.panelParams = Object.keys(this.params).slice(0, init.panelParamCount)
     for (const [key, spec] of Object.entries(this.params)) this.keysByIndex.set(spec.index, key)
@@ -298,6 +313,15 @@ export class NativeDevice implements NoteDevice, ObservableDevice, EditorDevice,
       }),
       client.on('latency', (event) => {
         if (event.slot === slotId) this.setPluginLatency(event.latencySamples)
+      }),
+      client.on('stateChanged', (event) => {
+        if (event.slot === slotId) this.stateChanges.emit()
+      }),
+      client.on('editorClosed', (event) => {
+        if (event.slot !== slotId) return
+        this.editorShown = false
+        // Whatever was done in the window is done: a good moment to read the state.
+        this.stateChanges.emit()
       }),
       client.on('close', () => this.setStatus('stopped')),
     )
@@ -352,6 +376,7 @@ export class NativeDevice implements NoteDevice, ObservableDevice, EditorDevice,
         href(options.pumpUrl ?? defaultNativePumpUrl()),
       )
       const device = new NativeDevice({
+        state: options.state,
         id: options.id ?? nativeDeviceId(plugin),
         context,
         client,
@@ -538,26 +563,74 @@ export class NativeDevice implements NoteDevice, ObservableDevice, EditorDevice,
   /** Open the plug-in's editor window (the host's, outside the page), or bring it forward. */
   async openEditor(): Promise<void> {
     if (this.disposed) return
-    await this.client.showEditor(this.slot.slot)
+    // Up before the host answers: a close that lands while the window is
+    // opening lowers it, and raising it again afterwards would leave the flag
+    // on with no window, polled for state for as long as the device lives.
+    this.editorShown = true
+    try {
+      await this.client.showEditor(this.slot.slot)
+    } catch (error) {
+      this.editorShown = false
+      throw error
+    }
+    // The host answers once the window is up, and says a window closed a
+    // moment after the fact: a close heard while this one was opening was the
+    // window before it.
+    if (!this.disposed) this.editorShown = true
   }
 
   async closeEditor(): Promise<void> {
     if (this.disposed) return
+    this.editorShown = false
     await this.client.hideEditor(this.slot.slot)
   }
 
-  /** The plug-in's full state as base64: what its own preset or project file would hold. */
-  getState(): Promise<string> {
-    return this.client.getState(this.slot.slot)
+  /** Whether the plug-in's window is open, as far as the device knows: it opened it and nobody has closed it. */
+  get editorOpen(): boolean {
+    return this.editorShown
   }
 
-  /** Restore a `getState()` result, then refresh the mirrored values. */
-  async setState(state: string): Promise<void> {
-    if (this.disposed) return
-    const { params, latencySamples } = await this.client.setState(this.slot.slot, state)
-    this.mirror(params)
-    this.setPluginLatency(latencySamples)
-    for (const [name, value] of this.values) this.changes.emit({ type: 'param', name, value })
+  /** The plug-in's full state as base64: what its own preset or project file would hold. */
+  async getState(): Promise<string> {
+    const restores = this.stateRestores
+    const state = await this.client.getState(this.slot.slot)
+    // A restore asked for while this read was out has the last word on what
+    // the plug-in holds: an older read must not pass for it afterwards.
+    if (restores === this.stateRestores) this.knownState = state
+    return state
+  }
+
+  /**
+   * Restore a `getState()` result, then refresh the mirrored values. The
+   * state last read from the plug-in, or last given to it, is not loaded
+   * again: a host that keeps the state it reads in a document gets the same
+   * text back from the document's renderer, and restoring pauses the
+   * plug-in's sound and would undo whatever was turned since the read.
+   * Resolves to whether the state was loaded.
+   */
+  async setState(state: string): Promise<boolean> {
+    if (this.disposed || state === this.knownState) return false
+    this.stateRestores += 1
+    this.stateLoads += 1
+    try {
+      const { params, latencySamples } = await this.client.setState(this.slot.slot, state)
+      this.mirror(params)
+      this.setPluginLatency(latencySamples)
+      this.knownState = state
+      for (const [name, value] of this.values) this.changes.emit({ type: 'param', name, value })
+      return true
+    } finally {
+      this.stateLoads -= 1
+    }
+  }
+
+  /**
+   * Called when the plug-in's state may have changed in a way its parameters
+   * do not show: it said so itself (a program picked, a file loaded), or its
+   * window was closed. A host that keeps the state reads it again.
+   */
+  onStateChange(listener: () => void): () => void {
+    return this.stateChanges.subscribe(listener)
   }
 
   /** Re-read every value from the plug-in into the mirror `getParam` serves. */
@@ -574,6 +647,7 @@ export class NativeDevice implements NoteDevice, ObservableDevice, EditorDevice,
     this.edits.clear()
     this.statusChanges.clear()
     this.statsChanges.clear()
+    this.stateChanges.clear()
     this.notes.clear()
     this.worker.onmessage = null
     this.worker.postMessage({ type: 'stop' })
@@ -634,11 +708,18 @@ export class NativeDevice implements NoteDevice, ObservableDevice, EditorDevice,
       this.texts.set(key, change.text)
       const spec = this.params[key]
       // The echo of our own write only brings the text; the knob already moved on.
+      const previous = this.values.get(key)
       const value =
         change.origin === 'plugin' ? fromNormalised(spec, change.value) : this.getParam(key)
       this.values.set(key, value)
       this.changes.emit({ type: 'param', name: key, value })
-      if (change.origin === 'plugin') this.edits.emit({ name: key, value })
+      // A plug-in that changes program reports every parameter, most of
+      // them where they already were: only a value that moved is an edit. What
+      // an older host reports while a state we gave it lands came from that
+      // state, not from its user, and the values kept beside the state go on
+      // top of it.
+      if (change.origin === 'plugin' && previous !== value && this.stateLoads === 0)
+        this.edits.emit({ name: key, value })
     }
   }
 

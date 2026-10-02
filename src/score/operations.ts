@@ -178,6 +178,18 @@ export type Operation =
       params?: Record<string, number>
     }
   | { type: 'device.bypass'; device: string; bypass: boolean }
+  /**
+   * What the device holds besides its parameters (`ScoreDevice.state`), as
+   * its own `getState()` gave it; `null` clears it.
+   */
+  | { type: 'device.setState'; device: string; state: string | null }
+  /**
+   * Put another device where one is: an insert keeps its place in the chain,
+   * an instrument track or a return gets a new device of its own and keeps
+   * its strip. Lanes and routes on the old device go with it, unless the new
+   * one is the same instance of the same device with other settings.
+   */
+  | { type: 'device.replace'; id: string; device: ScoreDevice }
   | { type: 'send.add'; owner: string; target: string; level: number | null; index?: number }
   | { type: 'send.remove'; owner: string; target: string }
   | { type: 'send.set'; owner: string; target: string; level: number | null }
@@ -255,6 +267,8 @@ export const OPERATION_TYPES: readonly OperationType[] = [
   'device.setParams',
   'device.preset',
   'device.bypass',
+  'device.setState',
+  'device.replace',
   'send.add',
   'send.remove',
   'send.set',
@@ -316,6 +330,8 @@ export function coalesceKey(op: Operation): string | null {
       return `device.setParam|${op.device}|${op.param}`
     case 'device.setParams':
       return `device.setParams|${op.device}|${Object.keys(op.params).sort().join(',')}`
+    case 'device.setState':
+      return `device.setState|${op.device}`
     case 'send.set':
       return `send.set|${op.owner}|${op.target}`
     case 'clip.move':
@@ -363,6 +379,7 @@ export function coalesceKey(op: Operation): string | null {
     case 'device.move':
     case 'device.preset':
     case 'device.bypass':
+    case 'device.replace':
     case 'send.add':
     case 'send.remove':
     case 'lane.add':
@@ -639,6 +656,14 @@ function replaceDevice(score: Score, id: string, next: ScoreDevice): Score {
       return strip === ret.strip ? ret : { ...ret, strip }
     }),
   }
+}
+
+/**
+ * A `device.replace` that swaps a device for the same instance of the same
+ * registry device only changes its settings: what is bound to it stays.
+ */
+function keepsAutomation(before: ScoreDevice, after: ScoreDevice): boolean {
+  return before.id === after.id && before.deviceId === after.deviceId
 }
 
 function requireDevice(score: Score, op: Operation, id: string): ScoreDevice {
@@ -1165,6 +1190,24 @@ export function apply(score: Score, op: Operation): Score {
     case 'device.bypass': {
       const device = requireDevice(score, op, op.device)
       return replaceDevice(score, op.device, { ...device, bypass: op.bypass })
+    }
+
+    case 'device.setState': {
+      const device = requireDevice(score, op, op.device)
+      const next: ScoreDevice = { ...device }
+      if (op.state === null) delete next.state
+      else if (typeof op.state !== 'string') fail(op, 'state must be a string or null')
+      else next.state = op.state
+      return replaceDevice(score, op.device, next)
+    }
+
+    case 'device.replace': {
+      const location = findDevice(score, op.id) ?? fail(op, `no device "${op.id}"`)
+      if (op.device.id !== op.id) assertFreshDeviceIds(score, op, [op.device])
+      const next: ScoreDevice = { ...op.device, params: { ...op.device.params } }
+      const kept = keepsAutomation(location.device, next)
+      const base = kept ? score : detachAutomation(score, null, [location.device]).score
+      return replaceDevice(base, op.id, next)
     }
 
     case 'send.add': {
@@ -1739,6 +1782,21 @@ export function invert(score: Score, op: Operation): Operation {
         bypass: requireDevice(score, op, op.device).bypass,
       }
 
+    case 'device.setState':
+      return {
+        type: 'device.setState',
+        device: op.device,
+        state: requireDevice(score, op, op.device).state ?? null,
+      }
+
+    case 'device.replace': {
+      const location = findDevice(score, op.id) ?? fail(op, `no device "${op.id}"`)
+      const back: Operation = { type: 'device.replace', id: op.device.id, device: location.device }
+      if (keepsAutomation(location.device, op.device)) return back
+      const detached = detachAutomation(score, null, [location.device])
+      return batchOf(op, [back, ...reattachOps(detached.lanes, detached.routes)])
+    }
+
     case 'send.add':
       return { type: 'send.remove', owner: op.owner, target: op.target }
 
@@ -2004,6 +2062,10 @@ export function describeOperation(op: Operation): string {
       return op.preset === null ? `clear ${op.device} preset` : `${op.device} preset "${op.preset}"`
     case 'device.bypass':
       return `${op.bypass ? 'bypass' : 'enable'} ${op.device}`
+    case 'device.setState':
+      return op.state === null ? `clear ${op.device} state` : `keep ${op.device} state`
+    case 'device.replace':
+      return `replace ${op.id} with ${op.device.deviceId}`
     case 'send.add':
       return `send ${op.owner} → ${op.target}`
     case 'send.remove':

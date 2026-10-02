@@ -2,7 +2,7 @@
 // registry, their settings live in the document, and a document made with a
 // plug-in this machine lacks still renders, saves and reloads.
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { DeviceRegistry } from '../../core/devices/registry'
 import { createEngine } from '../../core/Engine'
@@ -18,7 +18,7 @@ import {
 } from '../../score/schema'
 import { asAudioContext, createMockContext } from '../../testing'
 import { type PumpEvent, type PumpMessage } from '../bridge-protocol'
-import { followNativeEdits } from '../follow'
+import { captureNativeState, followNativeEdits } from '../follow'
 import { NativeHostClient } from '../HostClient'
 import {
   MissingNativeDevice,
@@ -30,7 +30,12 @@ import {
 } from '../missing'
 import { NativeDevice, type PumpWorker } from '../NativeDevice'
 import { registerNativeDevices } from '../registry'
-import { FAKE_HOST_ADDRESS, FAKE_REVERB, FakePluginHost } from '../../testing/fake-plugin-host'
+import {
+  FAKE_HOST_ADDRESS,
+  FAKE_REVERB,
+  FAKE_STATE,
+  FakePluginHost,
+} from '../../testing/fake-plugin-host'
 
 const REVERB_ID = `native:${FAKE_REVERB.id}`
 
@@ -216,6 +221,258 @@ describe('followNativeEdits', () => {
   })
 })
 
+describe('followNativeEdits: the plug-in state', () => {
+  const state = (document: ScoreDocument): string | undefined =>
+    document.score.master.inserts[0]?.state
+
+  it('reads the state of a plug-in the document has none for, without an undo step', async () => {
+    vi.useFakeTimers()
+    try {
+      const { document, renderer, host } = await rig(scoreWithReverb(), true)
+      const stop = followNativeEdits(document, renderer)
+      await vi.advanceTimersByTimeAsync(0)
+      expect(state(document)).toBe(FAKE_STATE)
+      expect(document.canUndo).toBe(false)
+      // The renderer hands the state back to the device that just gave it: nothing is loaded.
+      await renderer.whenIdle()
+      expect(host.calls('setState')).toHaveLength(0)
+      // It survives a save.
+      expect(parseScore(JSON.parse(serializeScore(document.score))).master.inserts[0].state).toBe(
+        FAKE_STATE,
+      )
+      stop()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('a plug-in that starts from a saved state is loaded with it and not read again', async () => {
+    vi.useFakeTimers()
+    try {
+      const score = scoreWithReverb({ p7: 0.3 })
+      score.master.inserts[0].state = 'c2F2ZWQ='
+      const { document, renderer, host } = await rig(score, true)
+      expect(host.calls('load')[0].params.state).toBe('c2F2ZWQ=')
+      // Its parameters go on top of the state.
+      expect(host.calls('setParam').map((call) => call.params)).toEqual([
+        { slot: 's1', index: 1, value: 0.3 },
+      ])
+      const stop = followNativeEdits(document, renderer)
+      await vi.advanceTimersByTimeAsync(10_000)
+      expect(host.calls('getState')).toHaveLength(0)
+      expect(state(document)).toBe('c2F2ZWQ=')
+      stop()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('reads again once after a drag in the plug-in, when it says its state changed, and when its window closes', async () => {
+    vi.useFakeTimers()
+    try {
+      const score = scoreWithReverb()
+      score.master.inserts[0].state = 'c2F2ZWQ='
+      const { document, renderer, host } = await rig(score, true)
+      const stop = followNativeEdits(document, renderer, { stateDelayMs: 200 })
+      await vi.advanceTimersByTimeAsync(0)
+      const reads = (): number => host.calls('getState').length
+      const slot = host.slots.get('s1')
+      if (!slot) throw new Error('no slot')
+
+      // A drag: many changes, one read once it has gone quiet.
+      for (const value of [0.5, 0.6, 0.7]) {
+        host.emit('params', {
+          slot: 's1',
+          changes: [{ index: 0, value, text: String(value), origin: 'plugin' }],
+        })
+        await vi.advanceTimersByTimeAsync(100)
+      }
+      expect(reads()).toBe(0)
+      slot.state = 'ZHJhZ2dlZA=='
+      await vi.advanceTimersByTimeAsync(200)
+      expect(reads()).toBe(1)
+      expect(state(document)).toBe('ZHJhZ2dlZA==')
+      // The drag is one undo step; keeping the state added none.
+      document.undo()
+      expect(document.canUndo).toBe(false)
+      expect(state(document)).toBe('ZHJhZ2dlZA==')
+
+      // A sample loaded in the plug-in: no parameter moves, the plug-in says so.
+      slot.state = 'c2FtcGxl'
+      host.emit('stateChanged', { slot: 's1' })
+      await vi.advanceTimersByTimeAsync(200)
+      expect(state(document)).toBe('c2FtcGxl')
+
+      // The window closed.
+      slot.state = 'Y2xvc2Vk'
+      host.emit('editorClosed', { slot: 's1' })
+      await vi.advanceTimersByTimeAsync(200)
+      expect(state(document)).toBe('Y2xvc2Vk')
+
+      // A read that finds what the document has changes nothing.
+      const before = document.score
+      host.emit('stateChanged', { slot: 's1' })
+      await vi.advanceTimersByTimeAsync(200)
+      expect(document.score).toBe(before)
+      // Nothing of this was ever loaded back into the plug-in.
+      await renderer.whenIdle()
+      expect(host.calls('setState')).toHaveLength(0)
+      stop()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('reads every few seconds while the plug-in window is open, and not when it is shut', async () => {
+    vi.useFakeTimers()
+    try {
+      const score = scoreWithReverb()
+      score.master.inserts[0].state = 'c2F2ZWQ='
+      const { engine, document, renderer, host } = await rig(score, true)
+      const stop = followNativeEdits(document, renderer, { statePollMs: 1000 })
+      await vi.advanceTimersByTimeAsync(3000)
+      expect(host.calls('getState')).toHaveLength(0)
+
+      const device = engine.master.inserts[0] as NativeDevice
+      await device.openEditor()
+      const slot = host.slots.get('s1')
+      if (!slot) throw new Error('no slot')
+      slot.state = 'ZHJhd24='
+      await vi.advanceTimersByTimeAsync(1100)
+      expect(state(document)).toBe('ZHJhd24=')
+      const reads = host.calls('getState').length
+      await device.closeEditor()
+      await vi.advanceTimersByTimeAsync(3000)
+      expect(host.calls('getState')).toHaveLength(reads)
+
+      stop()
+      await device.openEditor()
+      await vi.advanceTimersByTimeAsync(3000)
+      expect(host.calls('getState')).toHaveLength(reads)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('keeps a timer for the poll only while there is a plug-in to ask', async () => {
+    vi.useFakeTimers()
+    try {
+      const score = scoreWithReverb()
+      score.master.inserts[0].state = 'c2F2ZWQ='
+      const { document, renderer } = await rig(score, true)
+      const idle = vi.getTimerCount()
+      const stop = followNativeEdits(document, renderer)
+      await vi.advanceTimersByTimeAsync(0)
+      expect(vi.getTimerCount()).toBe(idle + 1)
+
+      // The plug-in leaves the document: nothing is left to ask, so nothing ticks.
+      document.apply({ type: 'device.remove', id: 'verb-1' })
+      await vi.advanceTimersByTimeAsync(0)
+      expect(vi.getTimerCount()).toBe(idle)
+      document.undo()
+      await vi.advanceTimersByTimeAsync(0)
+      expect(vi.getTimerCount()).toBe(idle + 1)
+
+      stop()
+      expect(vi.getTimerCount()).toBe(idle)
+
+      // A document that never had one never starts it.
+      const plain = await rig(createScore(), true)
+      const before = vi.getTimerCount()
+      const stopPlain = followNativeEdits(plain.document, plain.renderer)
+      await vi.advanceTimersByTimeAsync(0)
+      expect(vi.getTimerCount()).toBe(before)
+      stopPlain()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('can be told to leave the state alone', async () => {
+    vi.useFakeTimers()
+    try {
+      const { document, renderer, host } = await rig(scoreWithReverb(), true)
+      const stop = followNativeEdits(document, renderer, { state: false })
+      host.emit('stateChanged', { slot: 's1' })
+      await vi.advanceTimersByTimeAsync(10_000)
+      expect(host.calls('getState')).toHaveLength(0)
+      expect(state(document)).toBeUndefined()
+      stop()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('a read that comes back after the document was given another state is dropped', async () => {
+    const score = scoreWithReverb()
+    score.master.inserts[0].state = 'c2F2ZWQ='
+    const { engine, document, renderer } = await rig(score, true)
+    const device = engine.master.inserts[0] as NativeDevice
+    const read = device.getState.bind(device)
+    device.getState = async () => {
+      const answer = await read()
+      // While the host answered, the document moved on.
+      document.apply({ type: 'device.setState', device: 'verb-1', state: 'bmV3ZXI=' })
+      return answer
+    }
+    expect(await captureNativeState(document, renderer)).toBe(0)
+    expect(state(document)).toBe('bmV3ZXI=')
+  })
+})
+
+describe('captureNativeState', () => {
+  it('reads every hosted plug-in now and says how many states changed', async () => {
+    const score = scoreWithReverb()
+    score.master.inserts.push({ id: 'verb-2', deviceId: REVERB_ID, params: {}, bypass: false })
+    const { document, renderer, host, errors } = await rig(score, true)
+    expect(errors).toEqual([])
+    const second = host.slots.get('s2')
+    if (!second) throw new Error('no slot')
+    second.state = 'c2Vjb25k'
+
+    expect(await captureNativeState(document, renderer)).toBe(2)
+    expect(document.score.master.inserts.map((device) => device.state)).toEqual([
+      FAKE_STATE,
+      'c2Vjb25k',
+    ])
+    expect(document.canUndo).toBe(false)
+    // Nothing changed since: nothing to keep.
+    expect(await captureNativeState(document, renderer)).toBe(0)
+    await renderer.whenIdle()
+    expect(host.calls('setState')).toHaveLength(0)
+  })
+
+  it('a plug-in that cannot be read keeps the state the document has', async () => {
+    const score = scoreWithReverb()
+    score.master.inserts[0].state = 'c2F2ZWQ='
+    const { engine, document, renderer } = await rig(score, true)
+    const device = engine.master.inserts[0] as NativeDevice
+    device.getState = () => Promise.reject(new Error('the host is gone'))
+    const failures: unknown[] = []
+    expect(
+      await captureNativeState(document, renderer, { onError: (error) => failures.push(error) }),
+    ).toBe(0)
+    expect(failures.map(String)).toEqual(['Error: the host is gone'])
+    expect(document.score.master.inserts[0].state).toBe('c2F2ZWQ=')
+  })
+
+  it('leaves the stand-in for a plug-in this machine lacks, and its saved state, alone', async () => {
+    const score = scoreWithReverb({ p7: 0.3 })
+    score.master.inserts[0].state = 'c2F2ZWQ='
+    const { document, renderer, errors } = await rig(score, false)
+    expect(errors).toEqual([])
+    expect(await captureNativeState(document, renderer)).toBe(0)
+    expect(document.score.master.inserts[0]).toEqual({
+      id: 'verb-1',
+      deviceId: REVERB_ID,
+      params: { p7: 0.3 },
+      bypass: false,
+      state: 'c2F2ZWQ=',
+    })
+    expect(parseScore(JSON.parse(serializeScore(document.score)))).toEqual(document.score)
+  })
+})
+
 describe('a hosted plug-in this machine does not have', () => {
   it('does not validate until a stand-in is registered for it', () => {
     const score = scoreWithReverb({ p7: 0.3 })
@@ -251,6 +508,46 @@ describe('a hosted plug-in this machine does not have', () => {
     document.apply({ type: 'device.bypass', device: 'verb-1', bypass: true })
     await renderer.whenIdle()
     expect(device.bypass).toBe(true)
+  })
+
+  it('an instrument track that names one renders silent and keeps the instrument and its state', async () => {
+    const score = createScore()
+    score.tracks = [
+      {
+        kind: 'instrument',
+        id: 'keys',
+        name: 'Keys',
+        destination: { kind: 'master' },
+        strip: {
+          level: 1,
+          pan: 0,
+          inputGain: 1,
+          mute: false,
+          solo: false,
+          soloSafe: false,
+          inserts: [],
+          sends: [],
+        },
+        device: {
+          id: 'synth-1',
+          deviceId: 'native:VST3-Gone Synth-1-2',
+          params: { p1: 0.6 },
+          bypass: false,
+          state: 'c2F2ZWQ=',
+        },
+      },
+    ]
+    const { engine, document, renderer, errors, missing } = await rig(score, false)
+    expect(missing).toEqual(['native:VST3-Gone Synth-1-2'])
+    expect(errors).toEqual([])
+    const track = renderer.instrument('keys')
+    expect(engine.instruments).toEqual([track])
+    expect(isMissingNativeDevice(track.device)).toBe(true)
+    // Notes go nowhere, without an error.
+    track.noteOn(1, 440, 1)
+    track.noteOff(1)
+    expect(await captureNativeState(document, renderer)).toBe(0)
+    expect(parseScore(JSON.parse(serializeScore(document.score)))).toEqual(score)
   })
 
   it('leaves stock devices and plug-ins that are registered alone', async () => {

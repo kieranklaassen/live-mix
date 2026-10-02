@@ -4,9 +4,10 @@
 // the device would lose its settings, so the plug-in registers as
 // `unavailable` with a stand-in: audio passes through untouched, every
 // parameter value it is given is kept and handed back, and the document
-// renders, saves and reloads as it was.
+// renders, saves and reloads as it was. The stand-in takes notes and plays
+// nothing, so it can also hold the place of an instrument on its track.
 
-import { type Device } from '../core/devices/Device'
+import { type Device, type NoteDevice } from '../core/devices/Device'
 import { type DeviceDescriptor, type DeviceRegistry, devices } from '../core/devices'
 import { type ParamSpec } from '../core/params'
 import { allDevices, type Score } from '../score/schema'
@@ -30,9 +31,14 @@ export function nativePluginName(id: string): string {
 
 const MISSING_NOTICE = 'This plug-in is not available here.'
 const PASS_THROUGH_NOTICE = 'Its sound passes through unchanged and its settings are kept.'
+const SILENT_NOTICE = 'It plays nothing and its settings are kept.'
 
-/** The stand-in for a plug-in that cannot be loaded here: a wire that remembers its settings. */
-export class MissingNativeDevice implements Device {
+/**
+ * The stand-in for a plug-in that cannot be loaded here: a wire that
+ * remembers its settings. Notes sent to it are dropped, so on an instrument
+ * track it is a silent instrument.
+ */
+export class MissingNativeDevice implements NoteDevice {
   readonly id: string
   readonly params: Readonly<Record<string, ParamSpec>> = {}
   readonly panelParams: readonly string[] = []
@@ -50,15 +56,17 @@ export class MissingNativeDevice implements Device {
   /**
    * `reason` says why the plug-in is not there when more is known than that
    * it is missing ("it did not load: ..."); it becomes the stand-in's notice.
+   * `instrument` words the notice for a plug-in known to be an instrument.
    */
   constructor(
     context: BaseAudioContext,
     id: string,
     params: Readonly<Record<string, number>> = {},
     reason?: string,
+    instrument = false,
   ) {
     this.id = id
-    this.notice = `${reason ?? MISSING_NOTICE} ${PASS_THROUGH_NOTICE}`
+    this.notice = `${reason ?? MISSING_NOTICE} ${instrument ? SILENT_NOTICE : PASS_THROUGH_NOTICE}`
     this.input = context.createGain()
     this.output = this.input
     for (const [name, value] of Object.entries(params)) this.values.set(name, value)
@@ -72,6 +80,11 @@ export class MissingNativeDevice implements Device {
   getParam(name: string): number {
     return this.values.get(name) ?? 0
   }
+
+  /** Dropped: there is nothing here to play it. */
+  noteOn(): void {}
+
+  noteOff(): void {}
 
   dispose(): void {
     this.input.disconnect()

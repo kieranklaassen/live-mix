@@ -51,12 +51,12 @@ export function nativeDeviceDescription(plugin: NativePluginInfo): string {
  * The registry descriptor of one hosted plug-in.
  *
  * A plug-in can fail to load where a built-in device cannot: its file was
- * removed after the scan, the host has gone, it refuses the sample rate. An
- * effect that fails comes back as a stand-in (`MissingNativeDevice`): sound
- * passes through, the settings it was given are kept, and its panel says why.
- * One plug-in that will not load then costs that one effect, not the render
- * of the whole document. An instrument that fails rejects, since there is no
- * sound to pass through; so does `NativeDevice.create` called directly.
+ * removed after the scan, the host has gone, it refuses the sample rate. One
+ * that fails comes back as a stand-in (`MissingNativeDevice`): an effect
+ * passes its sound through, an instrument plays nothing, the settings it was
+ * given are kept, and its panel says why. One plug-in that will not load then
+ * costs that one device, not the render of the whole document.
+ * `NativeDevice.create` called directly rejects instead.
  */
 export function nativeDeviceDescriptor(
   client: NativeHostClient,
@@ -83,7 +83,6 @@ export function nativeDeviceDescriptor(
           id,
         })
       } catch (reason) {
-        if (plugin.isInstrument) throw reason
         const error = reason instanceof Error ? reason : new Error(String(reason))
         onLoadError?.(plugin, error)
         return new MissingNativeDevice(
@@ -91,6 +90,7 @@ export function nativeDeviceDescriptor(
           id,
           options.params,
           `${plugin.name} did not load: ${error.message.replace(/^live-mix: /, '').replace(/\.$/, '')}.`,
+          plugin.isInstrument,
         )
       }
     },

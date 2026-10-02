@@ -77,6 +77,8 @@ public:
     bool collectChanges (const ParameterChange& onChange);
     /** True once after the user closed the editor window. */
     bool takeEditorClosed() noexcept { return editorClosed.exchange (false); }
+    /** True once after the plug-in said its state changed in a way no parameter shows. */
+    bool takeStateChanged() noexcept { return stateDirty.exchange (false); }
 
 private:
     class EditorWindow;
@@ -105,6 +107,7 @@ private:
     int numParameters = 0;
     std::atomic<bool> latencyDirty { false };
     std::atomic<bool> editorClosed { false };
+    std::atomic<bool> stateDirty { false };
 
     std::atomic<double> bpm { 120.0 };
     std::atomic<bool> playing { true };

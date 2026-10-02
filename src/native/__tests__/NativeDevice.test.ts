@@ -1,10 +1,11 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import {
   isEditorDevice,
   isNoteDevice,
   isObservableDevice,
   isParamTextDevice,
+  isStatefulDevice,
   type DeviceChange,
 } from '../../core/devices/Device'
 import { deviceLatencySamples } from '../../core/devices/pdc'
@@ -30,6 +31,7 @@ import {
 import {
   FAKE_HOST_ADDRESS,
   FAKE_REVERB,
+  FAKE_STATE,
   FAKE_SYNTH,
   FakePluginHost,
 } from '../../testing/fake-plugin-host'
@@ -308,6 +310,136 @@ describe('NativeDevice parameters', () => {
     expect(ctx.delays[0].delayTime.value).toBeCloseTo(768 / 48000, 9)
   })
 
+  it('a read answered after a restore does not pass for what the plug-in holds', async () => {
+    const { device, client, host } = await makeDevice()
+    // The read's answer is held up until after the restore has landed.
+    const ask = client.getState.bind(client)
+    let land = (): void => {}
+    vi.spyOn(client, 'getState').mockImplementationOnce(async (slot) => {
+      const state = await ask(slot)
+      await new Promise<void>((resolve) => (land = resolve))
+      return state
+    })
+    const reading = device.getState()
+    expect(await device.setState('bmV3')).toBe(true)
+    land()
+    expect(await reading).toBe(FAKE_STATE)
+    // The plug-in holds the restored state, so the older one is loaded when it is given back.
+    expect(await device.setState(FAKE_STATE)).toBe(true)
+    expect(host.calls('setState')).toHaveLength(2)
+  })
+
+  it('a state it already holds is not loaded again: the one it read, started from or was given', async () => {
+    const { device, host } = await makeDevice()
+    const read = await device.getState()
+    expect(await device.setState(read)).toBe(false)
+    expect(host.calls('setState')).toHaveLength(0)
+
+    expect(await device.setState('bmV3')).toBe(true)
+    expect(await device.setState('bmV3')).toBe(false)
+    expect(host.calls('setState')).toHaveLength(1)
+    // Reading moves what it holds on.
+    await device.getState()
+    expect(await device.setState('c3RhdGU=')).toBe(true)
+
+    const started = await makeDevice(FAKE_REVERB, { state: 'c2F2ZWQ=' })
+    expect(await started.device.setState('c2F2ZWQ=')).toBe(false)
+    expect(started.host.calls('setState')).toHaveLength(0)
+    expect(await started.device.getState()).toBe('c2F2ZWQ=')
+  })
+
+  it('says when its state may have changed: the plug-in said so, or its window was closed', async () => {
+    const { device, host } = await makeDevice()
+    let changes = 0
+    const off = device.onStateChange(() => (changes += 1))
+    host.emit('stateChanged', { slot: 's1' })
+    expect(changes).toBe(1)
+    host.emit('stateChanged', { slot: 'other' })
+    expect(changes).toBe(1)
+
+    expect(device.editorOpen).toBe(false)
+    await device.openEditor()
+    expect(device.editorOpen).toBe(true)
+    host.emit('editorClosed', { slot: 'other' })
+    expect(device.editorOpen).toBe(true)
+    host.emit('editorClosed', { slot: 's1' })
+    expect(device.editorOpen).toBe(false)
+    expect(changes).toBe(2)
+
+    await device.openEditor()
+    await device.closeEditor()
+    expect(device.editorOpen).toBe(false)
+    off()
+    host.emit('stateChanged', { slot: 's1' })
+    expect(changes).toBe(2)
+  })
+
+  it('a value the plug-in reports where it already was is no edit', async () => {
+    const { device, host } = await makeDevice()
+    const edits: NativeParamEdit[] = []
+    device.onEdit((edit) => edits.push(edit))
+    // After a state restore a plug-in reports every parameter, moved or not.
+    host.emit('params', {
+      slot: 's1',
+      changes: [
+        { index: 0, value: device.getParam('p100'), text: '2.4', origin: 'plugin' },
+        { index: 1, value: 0.9, text: '90', origin: 'plugin' },
+      ],
+    })
+    expect(edits).toEqual([{ name: 'p7', value: 0.9 }])
+  })
+
+  it('what the plug-in reports while a state lands in it is no edit', async () => {
+    const { device, host } = await makeDevice()
+    const edits: NativeParamEdit[] = []
+    device.onEdit((edit) => edits.push(edit))
+    const loading = device.setState('bmV3')
+    // Where the state put the plug-in's parameters, said before the load answers.
+    host.emit('params', {
+      slot: 's1',
+      changes: [{ index: 1, value: 0.9, text: '90', origin: 'plugin' }],
+    })
+    expect(await loading).toBe(true)
+    expect(edits).toEqual([])
+  })
+
+  it('a state read answered after a restore does not stand for the newer one', async () => {
+    const { device, client, host } = await makeDevice()
+    let answer: (state: string) => void = () => {}
+    const reading = vi
+      .spyOn(client, 'getState')
+      .mockReturnValue(new Promise<string>((resolve) => (answer = resolve)))
+    const read = device.getState()
+    reading.mockRestore()
+    expect(await device.setState('bmV3')).toBe(true)
+    // The host answers the earlier read with the chunk from before the restore.
+    answer('c3RhdGU=')
+    expect(await read).toBe('c3RhdGU=')
+    expect(await device.setState('c3RhdGU=')).toBe(true)
+    expect(host.calls('setState')).toHaveLength(2)
+  })
+
+  it('knows its window is open through a late close report and a failed open', async () => {
+    const { device, host } = await makeDevice()
+    await device.openEditor()
+    // The person closes the window and opens it again at once: the host says
+    // the first one closed while the second is opening.
+    const opening = device.openEditor()
+    expect(device.editorOpen).toBe(true)
+    host.emit('editorClosed', { slot: 's1' })
+    expect(device.editorOpen).toBe(false)
+    await opening
+    expect(device.editorOpen).toBe(true)
+    // Closed after it was up: that is this window.
+    host.emit('editorClosed', { slot: 's1' })
+    expect(device.editorOpen).toBe(false)
+
+    // A window that could not be shown is not open.
+    host.socket.close()
+    await expect(device.openEditor()).rejects.toThrow()
+    expect(device.editorOpen).toBe(false)
+  })
+
   it('follows a latency change the plug-in announces', async () => {
     const { device, host, ctx } = await makeDevice()
     host.emit('latency', { slot: 's1', latencySamples: 1024 })
@@ -322,6 +454,7 @@ describe('NativeDevice behaviour', () => {
     expect(isNoteDevice(device)).toBe(true)
     expect(isObservableDevice(device)).toBe(true)
     expect(isEditorDevice(device)).toBe(true)
+    expect(isStatefulDevice(device)).toBe(true)
   })
 
   it('bypass crossfades to the delayed dry path and announces itself', async () => {

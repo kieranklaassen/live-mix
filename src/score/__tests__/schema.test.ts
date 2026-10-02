@@ -183,6 +183,23 @@ describe('validateScore', () => {
     )
   })
 
+  it('keeps what a device holds besides its parameters, and writes nothing for a device without', () => {
+    const score = demoScore()
+    score.tracks[0].strip.inserts[0].state = 'c3RhdGU='
+    score.returns[0].device.state = ''
+    expect(validateScore(score)).toEqual([])
+    const saved = serializeScore(score)
+    const back = parseScore(saved)
+    expect(back.tracks[0].strip.inserts[0].state).toBe('c3RhdGU=')
+    expect(back.returns[0].device.state).toBe('')
+    expect('state' in back.master.inserts[0]).toBe(false)
+    expect(serializeScore(back)).toBe(saved)
+    expect(serializeScore(demoScore())).not.toContain('"state"')
+
+    ;(score.master.inserts[0] as { state: unknown }).state = 7
+    expect(validateScore(score).map((issue) => issue.path)).toEqual(['master.inserts[0].state'])
+  })
+
   it("keeps a clip's placement through a round trip, a pan of 0 included", () => {
     const score = demoScore()
     const track = score.tracks[0]
