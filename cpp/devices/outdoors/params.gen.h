@@ -2,7 +2,7 @@
 //
 // Parameter ids and ranges of Outdoors, shared with
 // src/dsp/devices/outdoors.gen.ts:
-//    0  type: 0 Birds, 1 Crickets, 2 Frogs, 3 Stream, 4 Thunder, 5 Chimes, default 0
+//    0  type: 0 Birds, 1 Crickets, 2 Frogs, 3 Stream, 4 Thunder, 5 Chimes, default 5
 //    1  density: 0..1, default 0.5
 //    2  distance: 0..1, default 0.4
 //    3  movement: 0..1, default 0.5
@@ -32,7 +32,7 @@ enum Param : int {
 
 inline constexpr float kParamMin[kNumParams] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.01f, 0.05f, 0.0f, -48.0f};
 inline constexpr float kParamMax[kNumParams] = {5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 20.0f, 30.0f, 1.0f, 6.0f};
-inline constexpr float kParamDefault[kNumParams] = {0.0f, 0.5f, 0.4f, 0.5f, 0.5f, 2.0f, 4.0f, 1.0f, -9.0f};
+inline constexpr float kParamDefault[kNumParams] = {5.0f, 0.5f, 0.4f, 0.5f, 0.5f, 2.0f, 4.0f, 1.0f, -9.0f};
 
 }  // namespace outdoors
 }  // namespace livemix

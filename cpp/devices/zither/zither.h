@@ -547,9 +547,9 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
   // Its level is set by its fastest movement against the pluck's own edge
   // (kTouch*, a share of that), so a soft, dark touch has a soft, dull noise
   // and it never adds an edge sharper than the pluck's.
-  static constexpr float kTouchFinger = 0.35f, kTouchPick = 0.8f;
+  static constexpr float kTouchFinger = 0.35f, kTouchPick = 0.45f;
   static constexpr float kFingerCutSoft = 2500.0f, kFingerCutHard = 4500.0f;  // its top, Hz
-  static constexpr float kPickCutSoft = 3500.0f, kPickCutHard = 7000.0f;
+  static constexpr float kPickCutSoft = 3000.0f, kPickCutHard = 6000.0f;
   static constexpr float kTouchFloor = 0.4f;  // its bottom, as a share of the top
   static constexpr float kFingerTouchSeconds = 0.010f, kPickTouchSeconds = 0.0025f;
   static constexpr float kTouchRise = 0.15f;  // of that

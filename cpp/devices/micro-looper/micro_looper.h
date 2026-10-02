@@ -83,6 +83,7 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     rng_.seed(0xA341316Cu);
     fast_.set(0.0005f, 0.04f, sr);
     slow_.set(0.08f, 0.4f, sr);
+    held_.set(0.08f, 0.4f, sr);
     write_phase_ = 0.0f;
     mix_seen_ = -1.0f;
     asleep_ = true;
@@ -185,6 +186,7 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
   static constexpr float kSoundFloor = 0.001f;   // -60 dBFS: something was played
   static constexpr float kOnsetFloor = 0.004f;   // -48 dBFS
   static constexpr float kOnsetRatio = 1.7f;     // fast over slow envelope
+  static constexpr float kStruckRatio = 1.3f;    // fast over its own slow envelope: a note really struck
   static constexpr double kRenewTurns = 2.0;
   static constexpr float kMinFade = 0.003f;
   // A loop that Fade has taken 60 dB off is let go.
@@ -820,6 +822,7 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     const float level = left > right ? left : right;
     const float fast = fast_.process(level);
     const float slow = slow_.process(level);
+    const float held = held_.process(fast);
     if (level > kSoundFloor) loud_at_ = ring_.written();
     if (state_ != state_seen_) enter_state();
     if (wait_ > 0) {
@@ -838,7 +841,7 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
         // A new attack once the loop has been round, or playing that goes
         // on without one (a held chord) once it has been round twice.
         wait_ = wait_samples();
-        soft_ = !(fast > kOnsetRatio * slow);
+        soft_ = fast < kStruckRatio * held;
       }
     }
     if (pending_ != kNone && !swap_.active && !decks_[current_ ^ 1].active) begin_pending();
@@ -1104,6 +1107,7 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     store_ready_ = false;
     fast_.reset();
     slow_.reset();
+    held_.reset();
     write_phase_ = 0.0f;
     for (int c = 0; c < 2; ++c) {
       for (float& value : history_[c]) value = 0.0f;
@@ -1196,6 +1200,7 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
   long long copy_at_ = 0;
   bool store_ready_ = false;
   kit::Follower fast_, slow_;
+  kit::Follower held_;       // the slow envelope of the fast one: the level a new attack has to rise over
   kit::LinearRamp clock_;
   kit::Smoother mix_, speed_, width_, smear_;
   kit::Svf write_cut_[2][kBandSections];

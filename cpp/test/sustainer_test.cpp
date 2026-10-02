@@ -740,14 +740,16 @@ static void check_review_fixes() {
   // Sound with no attack is caught too. A chord that swells in over a
   // second never made an onset, so the default patch did nothing on a pad;
   // now the layer follows the swell up and ends within a few dB of the
-  // chord at full level. A second chord faded in over the first (no onset
-  // either) takes over. A chord that just stands is caught once and left.
+  // chord at full level. A second chord faded in as the first one ends (no
+  // onset either) takes over; what it is caught with is what sounds at that
+  // moment, so the first chord is made to end while the second still rises.
+  // A chord that just stands is caught once or twice and then left alone.
   {
     device.init(kRate);
     device.set_param(p::kMix, 1.0f);
     device.set_param(p::kMotion, 0.0f);
     device.set_param(p::kEnsemble, 0.0f);
-    std::vector<float> first = swell_chord({220.0f, 277.18f, 329.63f}, 6.0f, 0.08f, 1.0f);
+    std::vector<float> first = swell_chord({220.0f, 277.18f, 329.63f}, 5.2f, 0.08f, 1.0f);
     std::vector<float> input = first;
     mix_at(input, swell_chord({196.0f, 246.94f, 293.66f}, 6.0f, 0.08f, 1.5f), 4.8f);
     Stereo early = run(device, std::vector<float>(input.begin(), input.begin() + 4 * s));

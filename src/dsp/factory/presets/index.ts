@@ -12,6 +12,7 @@ import { FM_GLASS_PRESETS } from './fm-glass'
 import { GRAIN_SYNTH_PRESETS } from './grain-synth'
 import { MODAL_BELLS_PRESETS } from './modal-bells'
 import { ORGAN_PRESETS } from './organ'
+import { OUTDOORS_PRESETS } from './outdoors'
 import { SAMPLER_PRESETS } from './sampler'
 import { STRING_MACHINE_PRESETS } from './string-machine'
 import { TAPE_ORCHESTRA_PRESETS } from './tape-orchestra'
@@ -38,4 +39,5 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...ATMOSPHERE_PRESETS,
   ...TAPE_ORCHESTRA_PRESETS,
   ...WEST_COAST_PRESETS,
+  ...OUTDOORS_PRESETS,
 ]

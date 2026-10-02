@@ -613,7 +613,8 @@ int main() {
   // beside the pluck, so the first 20 ms carry more above 2 kHz than the
   // next 20 ms (some 3 to 6 dB for a finger on the harp; a bare pluck gave
   // about 2.5), and it is noise, not a click: no sample step in it much
-  // over the pluck's own later edges. A hammer has none.
+  // over the pluck's own later edges (a bare pluck's first edges are 1.3
+  // times its later ones). A hammer has none.
   {
     auto top = [&](const std::vector<float>& x, size_t from) {  // energy above 2 kHz over 20 ms, four one-poles
       const double k = std::exp(-2.0 * kPi * 2000.0 / kRate);
@@ -645,8 +646,58 @@ int main() {
     std::printf("touch: first 20 ms against the next above 2 kHz: finger %+.1f dB, pick %+.1f dB (mean of 98, 220, 440 Hz); largest step %.2f times the later edges'\n",
                 more[0], more[1], steps);
     EXPECT(more[0] > 3.0 && more[0] < 6.5, "a finger's touch is heard in the first 20 ms");
-    EXPECT(more[1] > more[0], "a pick's more so");
-    EXPECT(steps < 1.8, "and it is not a click");
+    // A pick's own click is already most of its attack (a bare pick measures about 2.8 here): its touch adds
+    // little, because more would put a step on the string larger than the pluck's own.
+    EXPECT(more[1] > 2.8, "a pick's attack is at least as marked as before");
+    EXPECT(steps < 1.7, "and it is not a click");
+  }
+
+  // 10g. The body rings a little. A note damped at once leaves the box
+  // behind for a moment (longest on the dulcimer, shortest on the koto) and
+  // the instrument is still exactly silent within a second; and no held
+  // note stands more than 3 dB over its neighbours a semitone either side,
+  // a quarter-tone at a time from 98 Hz to 1.57 kHz, on any body.
+  {
+    double ring[4], left_over[4], silent[4], bump[4];
+    for (int b = 0; b < 4; ++b) {
+      plain(device);
+      device.set_param(p::kBody, static_cast<float>(b));
+      device.set_param(p::kExciter, 1.0f);
+      device.set_param(p::kRelease, 0.05f);
+      device.note_on(1, 196.0f, 1.0f);
+      const std::vector<float> held = mono(render(device, 0.3f, kRate));
+      device.note_off(1);
+      const Stereo tail = render(device, 1.5f, kRate);
+      const std::vector<float> after = mono(tail);
+      ring[b] = rt60(after, kRate, 0.08, 0.02, -150.0);
+      left_over[b] = db(rms(after, at(0.08), at(0.1))) - db(rms(held, at(0.2), at(0.3)));
+      size_t last = 0;
+      for (size_t i = 0; i < tail.size(); ++i) {
+        if (tail.left[i] != 0.0f || tail.right[i] != 0.0f) last = i + 1;
+      }
+      silent[b] = static_cast<double>(last) / kRate;
+      std::vector<double> level;
+      for (int q = 0; q <= 96; ++q) {
+        plain(device);
+        device.set_param(p::kBody, static_cast<float>(b));
+        device.note_on(1, 98.0f * std::pow(2.0f, static_cast<float>(q) / 24.0f), 0.7f);
+        const Stereo out = render(device, 0.6f, kRate);
+        level.push_back(std::max(db(rms(out.left, at(0.1), at(0.6))), db(rms(out.right, at(0.1), at(0.6)))));
+      }
+      bump[b] = -100.0;
+      for (size_t i = 2; i + 2 < level.size(); ++i) bump[b] = std::max(bump[b], level[i] - 0.5 * (level[i - 2] + level[i + 2]));
+    }
+    std::printf("body ring (harp, zither, dulcimer, koto): after-ring T60 %.0f, %.0f, %.0f, %.0f ms; 80-100 ms after a damped note %.0f, %.0f, %.0f, %.0f dB under it; silent after %.2f, %.2f, %.2f, %.2f s; worst note +%.1f, +%.1f, +%.1f, +%.1f dB over its neighbours\n",
+                ring[0] * 1000.0, ring[1] * 1000.0, ring[2] * 1000.0, ring[3] * 1000.0, -left_over[0], -left_over[1], -left_over[2],
+                -left_over[3], silent[0], silent[1], silent[2], silent[3], bump[0], bump[1], bump[2], bump[3]);
+    EXPECT(ring[0] > 0.06 && ring[0] < 0.2 && ring[2] > 0.08 && ring[2] < 0.22, "the harp and the dulcimer ring for a tenth of a second or so");
+    EXPECT(ring[1] > 0.04 && ring[1] < ring[2], "the zither rings shorter than the dulcimer");
+    EXPECT(left_over[0] > -75.0, "a damped note leaves the harp's box behind");
+    EXPECT(left_over[3] < left_over[1] && left_over[1] < left_over[2], "the koto leaves the least, the dulcimer the most");
+    for (int b = 0; b < 4; ++b) {
+      EXPECT(silent[b] < 1.0, "the box is silent within a second of a damped note");
+      EXPECT(bump[b] < 3.0, "no note booms over its neighbours");
+    }
   }
 
   // 11. Moving the controls under a ringing chord does not click: Decay,
