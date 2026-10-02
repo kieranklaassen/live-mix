@@ -250,6 +250,25 @@ describe('Engine with sharedSpace', () => {
     }
   })
 
+  it("keeps what hears the strip on the track's way into the room, through a change of room", () => {
+    const { ctx, engine, voice } = setup()
+    const track = engine.addAudioTrack('a')
+    // A meter attached before the track first sounds, as a mixer view's is.
+    const meter = ctx.createAnalyser()
+    track.strip.tap(meter as unknown as AudioNode)
+    const send = sendOf(track.play('k', voice(), 0))
+    const [room] = ctx.convolvers
+    const gate = gainsBetween(ctx, send, room).at(-1)
+    if (!gate) throw new Error('the track has no level on its way in')
+    expect(gate.isConnectedTo(meter)).toBe(true)
+    engine.setSpace({ driveDb: 6, decaySec: 8 })
+    expect(gate.isConnectedTo(meter)).toBe(true)
+    expect(gate.reaches(ctx.convolvers.at(-1) as MockAudioNode)).toBe(true)
+    engine.setSpace({ driveDb: 0 })
+    expect(gate.isConnectedTo(meter)).toBe(true)
+    engine.dispose()
+  })
+
   it('takes a room nobody sends into down once its tail is over, and keeps one that is joined again', () => {
     vi.useFakeTimers()
     try {
