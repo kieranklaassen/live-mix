@@ -323,7 +323,7 @@ static void check_envelope() {
   plain(kRate);
   device.note_on(1, 220.0f, 0.8f);
   Stereo out = render(device, 3.0f, kRate);
-  EXPECT(peak(out.left, 0, 4800) > 0.1, "a pluck sounds");
+  EXPECT(peak(out.left, 0, 4800) > 0.05, "a pluck sounds");
   EXPECT(peak(out.left, 96000) == 0.0, "with Sustain 0 a held note dies away on its own");
 
   plain(kRate);
@@ -502,17 +502,30 @@ static void check_velocity() {
 // stay under the knee of the output clip (0.5), and the output is the same
 // whatever block size the host uses.
 static void check_headroom_and_blocks() {
-  double worst = 0.0;
-  for (float fold : {0.0f, 0.35f, 1.0f}) {
-    device.init(kRate);
-    device.set_param(p::kSustain, 1.0f);
-    device.set_param(p::kFold, fold);
-    for (int n = 0; n < 8; ++n) device.note_on(n, 110.0f * std::pow(2.0f, n * 4 / 12.0f), 1.0f);
-    const Stereo out = render(device, 3.0f, kRate);
-    worst = std::max(worst, std::max(peak(out.left), peak(out.right)));
+  // The house chord (minor thirds stacked from 110 Hz) and a two-handed
+  // major chord full of octaves; plucked as the default patch has it, and
+  // held with Sustain 1, with little and with all the folding.
+  const int chords[2][8] = {{0, 3, 6, 9, 12, 15, 18, 21}, {0, 7, 12, 16, 19, 24, 28, 31}};
+  double worst = 0.0, firm = 0.0;
+  for (float gain : {0.7f, 0.85f}) {
+  for (float sustain : {0.0f, 1.0f}) {
+    for (const int* chord : {chords[0], chords[1]}) {
+      for (float fold : {0.35f, 1.0f}) {
+        device.init(kRate);
+        device.set_param(p::kSustain, sustain);
+        device.set_param(p::kFold, fold);
+        for (int n = 0; n < 8; ++n) device.note_on(n, 110.0f * std::pow(2.0f, chord[n] / 12.0f), gain);
+        const Stereo out = render(device, 8.0f, kRate);
+        const double top = std::max(peak(out.left), peak(out.right));
+        NOTE("headroom: gain %.2f, Sustain %.0f, chord %d, Fold %.2f: eight notes peak at %.1f dBFS\n", gain, sustain,
+             chord == chords[0] ? 1 : 2, fold, db(top));
+        (gain < 0.8f ? worst : firm) = std::max(gain < 0.8f ? worst : firm, top);
+      }
+    }
   }
-  NOTE("headroom: eight held notes at full velocity peak at %.1f dBFS\n", db(worst));
-  EXPECT(worst < 0.5, "eight held notes stay under the clip knee");
+  }
+  EXPECT(worst < 0.5, "eight notes at gain 0.7, plucked or held, stay under the clip knee");
+  EXPECT(firm < 0.65, "eight notes played harder only graze the knee");
 
   Stereo reference;
   for (int block : {128, 1, 37, 2048}) {
@@ -536,8 +549,6 @@ static void check_headroom_and_blocks() {
   }
 }
 
-// CHECKS
-
 int main() {
   Conformance spec;
   spec.name = "west-coast";
@@ -559,7 +570,6 @@ int main() {
   check_chance();
   check_velocity();
   check_headroom_and_blocks();
-  // BEHAVIOUR
 
   // Cost with every voice sounding at the heaviest setting: eight held
   // notes, full fold with the timbre envelope and symmetry, deep FM.

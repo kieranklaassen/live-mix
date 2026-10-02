@@ -742,6 +742,35 @@ int main() {
     EXPECT(woken.left == fresh.left, "wakes straight into the new circuit, with no crossfade from the old one");
   }
 
+  // Input that is not a number, infinite or absurdly large for a moment does
+  // not stay in the filters: half a second later the output is what it
+  // would have been without it.
+  {
+    const std::vector<float> clean = sine(220.0f, 1.0f, kRate, 0.25f);
+    setup(kRate, kTransformer, 0.5f);
+    device.set_param(p::kLowCut, 80.0f);
+    device.set_param(p::kHighCut, 6000.0f);
+    Stereo reference = run(device, clean);
+    const float poison[] = {std::nanf(""), std::numeric_limits<float>::infinity(),
+                            -std::numeric_limits<float>::infinity(), 1.0e30f};
+    for (float value : poison) {
+      std::vector<float> spoiled = clean;
+      for (size_t i = 12000; i < 12004; ++i) spoiled[i] = value;
+      setup(kRate, kTransformer, 0.5f);
+      device.set_param(p::kLowCut, 80.0f);
+      device.set_param(p::kHighCut, 6000.0f);
+      Stereo out = run(device, spoiled);
+      double off = 0.0;
+      for (size_t i = 36000; i < out.size(); ++i) {
+        off = std::max(off, std::fabs(static_cast<double>(out.left[i]) - reference.left[i]));
+      }
+      char label[128];
+      std::snprintf(label, sizeof label, "four samples of %g on the input are gone half a second later (off by %.2g)",
+                    static_cast<double>(value), off);
+      EXPECT(finite(out.left) && finite(out.right) && off < 1.0e-4 && peak(out.left) < spec.max_peak, label);
+    }
+  }
+
   // Cost with everything in the path: the transformer (two kernels, four
   // filters around the curve), Low Cut, Thump, Tone and High Cut all in.
   setup(kRate, kTransformer, 0.6f);

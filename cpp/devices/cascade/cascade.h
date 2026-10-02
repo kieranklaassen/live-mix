@@ -266,6 +266,15 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
     control_left_ = 0;
     step_ = 0;
     restart_slots();
+    // Nothing sounded while asleep, so what was set meanwhile is there from
+    // the first sample instead of gliding in under the note that woke it
+    // (Mix moved to fully wet would let 5 ms of the dry attack through).
+    high_.snap(high_.target);
+    low_.snap(low_.target);
+    spread_.snap(spread_.target);
+    tone_hz_.snap(tone_hz_.target);
+    mix_.snap(mix_.target);
+    trim_.snap(wet_trim());
   }
 
   int repeats() const { return kit::clamp_int(static_cast<int>(param(cascade::kRepeats) + 0.5f), 1, 16); }

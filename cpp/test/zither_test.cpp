@@ -436,7 +436,7 @@ int main() {
     std::printf("clicks: largest step %.4f for one strum, %.4f stealing strings (peak %.2f), %.4f plucking ringing strings\n",
                 reference, stolen, std::max(peak(pile.left), peak(pile.right)), replucked);
     EXPECT(stolen < 2.5 * reference, "taking a string that is in use does not click");
-    EXPECT(replucked < 2.5 * reference, "plucking a string that is still ringing does not click");
+    EXPECT(replucked < 1.6 * reference, "plucking a string that is still ringing does not click");
     EXPECT(peak(pile.left) < 1.0 && peak(pile.right) < 1.0, "and the pile stays bounded");
   }
 
@@ -470,7 +470,92 @@ int main() {
     EXPECT(peak(ten.left) < 0.9 && peak(ten.right) < 0.9, "ten keys stay under the clip knee region");
   }
 
-  // CHECKS
+  // 11. Moving the controls under a ringing chord does not click: Decay,
+  // Release, Sympathy, Volume and Body all act on what is sounding.
+  {
+    auto ringing = [&](int sweep) {
+      device.init(kRate);
+      device.set_param(p::kBrightness, 0.15f);
+      device.set_param(p::kChord, 3.0f);
+      device.set_param(p::kDecay, 12.0f);
+      device.note_on(1, 110.0f, 0.8f);
+      render(device, 0.5f, kRate);
+      Stereo out;
+      const int blocks = static_cast<int>(2.0f * kRate / kBlock);
+      for (int b = 0; b < blocks; ++b) {
+        const float t = static_cast<float>(b) / static_cast<float>(blocks);
+        const float there_and_back = t < 0.5f ? 2.0f * t : 2.0f - 2.0f * t;
+        if (sweep == 1) device.set_param(p::kDecay, 20.0f * std::pow(0.5f / 20.0f, there_and_back));
+        if (sweep == 2) device.set_param(p::kSympathy, there_and_back);
+        if (sweep == 3) device.set_param(p::kVolume, -9.0f - 30.0f * there_and_back);
+        if (sweep == 4 && b % 40 == 0) device.set_param(p::kBody, static_cast<float>((b / 40) % 4));
+        if (sweep == 5 && b == 10) device.note_off(1);
+        if (sweep == 5) device.set_param(p::kRelease, 20.0f * std::pow(0.05f / 20.0f, there_and_back));
+        out = concat(out, render(device, static_cast<float>(kBlock) / kRate, kRate));
+      }
+      return std::max(max_step(out.left), max_step(out.right));
+    };
+    const double still = ringing(0);
+    const double decay = ringing(1), sympathy = ringing(2), volume = ringing(3), body = ringing(4), release = ringing(5);
+    std::printf("moving controls: largest step %.4f at rest; Decay %.4f, Sympathy %.4f, Volume %.4f, Body %.4f, Release %.4f\n",
+                still, decay, sympathy, volume, body, release);
+    EXPECT(decay < 1.3 * still, "sweeping Decay under a ringing chord does not click");
+    EXPECT(sympathy < 1.5 * still, "sweeping Sympathy does not click");
+    EXPECT(volume < 1.3 * still, "sweeping Volume does not click");
+    EXPECT(body < 3.0 * still, "switching Body crossfades");
+    EXPECT(release < 1.3 * still, "sweeping Release over released strings does not click");
+  }
+
+  // 12. Stereo: strings and courses are spread, the bass stays in the
+  // middle, and the mono sum loses nothing.
+  {
+    device.init(kRate);
+    device.set_param(p::kChord, 3.0f);
+    device.note_on(1, 110.0f, 0.8f);
+    Stereo chord = render(device, 3.0f, kRate);
+    const double spread = correlation(chord.left, chord.right);
+    const std::vector<float> sum = mono(chord);
+    const double folded = db(rms(sum) / std::sqrt(0.5 * (rms(chord.left) * rms(chord.left) + rms(chord.right) * rms(chord.right))));
+    device.init(kRate);
+    device.note_on(1, 55.0f, 0.8f);
+    Stereo bass = render(device, 2.0f, kRate);
+    const double low = correlation(bass.left, bass.right);
+    std::printf("stereo: a strummed chord correlates %.2f left to right (mono sum %.1f dB), a 55 Hz string %.2f\n", spread,
+                folded, low);
+    EXPECT(spread > 0.3 && spread < 0.97, "a chord is spread but stays mono compatible");
+    EXPECT(folded > -1.5, "the mono sum keeps the level");
+    EXPECT(low > 0.9, "the bass stays in the middle");
+  }
+
+  // 13. The four bodies are four different boxes.
+  {
+    double top[4], thin[4];
+    for (int b = 0; b < 4; ++b) {
+      plain(device);
+      device.set_param(p::kBody, static_cast<float>(b));
+      device.set_param(p::kExciter, 1.0f);
+      device.note_on(1, 110.0f, 0.8f);
+      Stereo out = render(device, 0.5f, kRate);
+      top[b] = db(energy_above(out.left, 1500.0, kRate, 0, at(0.4)));
+      thin[b] = db(energy_above(out.left, 300.0, kRate, 0, at(0.4)));
+    }
+    std::printf("bodies (harp, zither, dulcimer, koto): share of energy above 1.5 kHz %.1f, %.1f, %.1f, %.1f dB; above 300 Hz %.1f, %.1f, %.1f, %.1f dB\n",
+                top[0], top[1], top[2], top[3], thin[0], thin[1], thin[2], thin[3]);
+    EXPECT(top[1] > top[0] + 3.0, "the zither is brighter than the harp");
+    EXPECT(thin[3] > thin[1] + 1.5 && thin[3] > thin[0] + 3.0, "the koto is the thinnest below");
+    EXPECT(std::fabs(top[2] - top[1]) + std::fabs(thin[2] - thin[1]) > 1.0, "and the dulcimer is not the zither");
+  }
+
+  // Cost: eight keys held on a six-string chord with a roll, every string
+  // in use, both strings of every course and the sympathetic strings.
+  device.init(kRate);
+  device.set_param(p::kChord, 3.0f);
+  device.set_param(p::kRoll, 9.0f);
+  device.set_param(p::kExciter, 2.0f);
+  device.set_param(p::kDecay, 20.0f);
+  for (int n = 0; n < 8; ++n) device.note_on(n, 110.0f * std::pow(2.0f, n * 3 / 12.0f), 0.8f);
+  render(device, 1.0f, kRate);
+  report_cost("zither (8 keys, six-string chord, roll 9)", 10.0f, kRate, [&] { render(device, 10.0f, kRate); });
 
   return finish("zither");
 }

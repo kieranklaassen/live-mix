@@ -15,8 +15,8 @@ namespace outdoors_scene {
 
 struct Thunder {
   static constexpr int kBands = 4;  // crack, body, rumble, sub
-  static constexpr float kGain = 1.6f;
-  static constexpr float kCrack = 4.0f;
+  static constexpr float kGain = 3.0f;
+  static constexpr float kCrack = 1.6f;
   static constexpr float kLull = 0.09f;  // what is left of the arrivals between claps
   // The chain of one-poles, and after which of them each band is taken:
   // the body has gone through two at 420 Hz, so it carries no hiss.
@@ -71,7 +71,9 @@ struct Thunder {
     }
     sounding = false;
     rolling = false;
-    wait = 0.01f;  // the key brings the first stroke
+    // The key brings the first stroke; a key added to others brings its own
+    // a little later, so a chord is a storm and not one clap eight times over.
+    wait = c.held > 0 ? between(rng, 0.4f, 3.0f) : 0.01f;
     seen_tone = -1.0f;
     retune(c);
   }

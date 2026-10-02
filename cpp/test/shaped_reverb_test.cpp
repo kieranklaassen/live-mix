@@ -637,9 +637,10 @@ int main() {
   }
 
   // The Tail does not flutter: once the shape has stopped, what rings on
-  // does not repeat itself at any of the network's line lengths (43 to
-  // 137 ms). With the same alternating signs into and out of the Hadamard
-  // network it did, at one line's length a side (correlation 0.5).
+  // does not repeat itself at any of the network's line lengths (99 to
+  // 317 ms) or at their sums. With the same alternating signs into and out
+  // of the Hadamard network it did, at one line's length a side
+  // (correlation 0.5).
   {
     bare(device, kGate, 0.3f);
     device.set_param(p::kDensity, 1.0f);
@@ -656,7 +657,7 @@ int main() {
         for (size_t j = 0; j < 4; ++j) sum += (*side)[28800 + 4 * i + j];
         flat[i] = sum * std::pow(10.0, 3.0 * (static_cast<double>(i) / 12000.0) / decay);
       }
-      for (size_t lag = 360; lag < 2400; ++lag) {  // 30 to 200 ms
+      for (size_t lag = 360; lag < 4800; ++lag) {  // 30 to 400 ms
         double sum = 0.0, a = 0.0, b = 0.0;
         for (size_t i = 0; i + lag < flat.size(); ++i) {
           sum += flat[i] * flat[i + lag];
@@ -671,7 +672,40 @@ int main() {
       }
     }
     std::printf("tail 0.7 after a gate: strongest repeat in the decay has correlation %.2f, at %.1f ms\n", worst, worst_ms);
-    EXPECT(worst < 0.3, "the tail does not flutter at a line's length");
+    EXPECT(worst < 0.2, "the tail does not flutter at a line's length");
+  }
+
+  // The Tail has no modes that stand out: the spectrum of its decay is as
+  // even as noise. Each bin is held against the mean power of the 110 Hz
+  // around it, from 200 Hz to 4 kHz; the spread of that in dB is 5.6 for
+  // plain noise and about 7 for this wash through an ideal dense decay. (A
+  // network half as long, standing still, read 8.1.)
+  {
+    bare(device, kGate, 0.3f);
+    device.set_param(p::kDensity, 1.0f);
+    device.set_param(p::kTail, 0.7f);
+    device.set_param(p::kModulation, 0.3f);
+    Stereo out = run(device, impulse(3.0f, kRate, 1.0f));
+    const double decay = rt60(out.left, kRate, 0.5, 0.1, -120.0);
+    std::vector<float> flat(96000);
+    for (size_t i = 0; i < flat.size(); ++i) {
+      flat[i] = out.left[28800 + i] * static_cast<float>(std::pow(10.0, 3.0 * (static_cast<double>(i) / kRate) / decay));
+    }
+    size_t n = 0;
+    const std::vector<double> power = spectrum(flat, 0, flat.size(), &n);
+    const size_t lo = static_cast<size_t>(200.0 * n / kRate), hi = static_cast<size_t>(4000.0 * n / kRate);
+    double local = 0.0, sum = 0.0, squares = 0.0;
+    for (size_t b = lo - 150; b <= lo + 150; ++b) local += power[b];
+    for (size_t b = lo; b < hi; ++b) {
+      const double d = 10.0 * std::log10(power[b] / (local / 301.0) + 1.0e-30);
+      sum += d;
+      squares += d * d;
+      local += power[b + 151] - power[b - 150];
+    }
+    const double count = static_cast<double>(hi - lo);
+    const double spread = std::sqrt(squares / count - (sum / count) * (sum / count));
+    std::printf("tail 0.7 after a gate: the decay's spectrum spreads %.2f dB about its local mean (noise: 5.6)\n", spread);
+    EXPECT(spread < 7.3, "no mode of the tail stands out");
   }
 
   // High Cut, Low Cut and Tail glide to a new setting: a jump of any of them
@@ -767,6 +801,41 @@ int main() {
                 db(rms(heard[0].left, 4800)), worst);
     EXPECT(db(rms(heard[1].left, 4800)) > -40.0, "the repeats are still going after 8 s");
     EXPECT(worst < 1.0e-5, "a device left at Mix 0 does not sleep on its repeats");
+  }
+
+  // Bad input does not stick: not-a-number, infinity and 1e30 in the audio
+  // are made safe on the way in, the output stays finite and bounded, the
+  // device rings out and sleeps, and the next note sounds as it does on a
+  // device that never saw them.
+  {
+    std::vector<float> bad = sine(220.0f, 0.2f, kRate, 0.25f);
+    bad[1000] = std::nanf("");
+    bad[2000] = INFINITY;
+    bad[3000] = -INFINITY;
+    bad[4000] = 1.0e30f;
+    bad[5000] = -1.0e30f;
+    const std::vector<float> note = sine(330.0f, 1.0f, kRate, 0.25f);
+    // (Modulation off, so the two devices can be compared sample by sample.)
+    device.init(kRate);
+    device.set_param(p::kModulation, 0.0f);
+    Stereo hit = run(device, bad);
+    Stereo rest = run(device, silence(16.0f, kRate));
+    Stereo after = run(device, note);
+    device.init(kRate);
+    device.set_param(p::kModulation, 0.0f);
+    Stereo fresh = run(device, note);
+    double worst = 0.0;
+    for (size_t i = 0; i < note.size(); ++i) {
+      worst = std::max(worst, std::fabs(static_cast<double>(after.left[i]) - fresh.left[i]));
+    }
+    const size_t last = rest.left.size() - 48000;
+    std::printf("bad input: peak %.1f while it lasts, %.3f a second later, %.2g in the last second; next note differs by %.2g\n",
+                peak(hit.left), peak(rest.left, 48000, 96000), std::max(peak(rest.left, last), peak(rest.right, last)), worst);
+    EXPECT(finite(hit.left) && finite(hit.right) && finite(rest.left) && finite(rest.right), "bad input leaves the output finite");
+    EXPECT(peak(hit.left) <= 64.0 && peak(hit.right) <= 64.0, "bad input is held to +36 dBFS");
+    EXPECT(peak(rest.left, 48000, 96000) < 1.0, "the device recovers within a second of bad input");
+    EXPECT(peak(rest.left, last) == 0.0 && peak(rest.right, last) == 0.0, "the device sleeps after bad input");
+    EXPECT(worst < 1.0e-5, "a note after bad input sounds as on a fresh device");
   }
 
   // Cost at the default patch, and at the heaviest sensible setting: the

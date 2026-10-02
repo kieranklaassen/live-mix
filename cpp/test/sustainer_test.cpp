@@ -569,6 +569,18 @@ int main() {
     EXPECT_NEAR(level, -2.5, 0.5, "the held tone is at level at every sample rate");
     EXPECT(begins > static_cast<size_t>(0.10 * rate) && begins < static_cast<size_t>(0.19 * rate),
            "the catch comes at the same time at every sample rate");
+    // The second look resolves a semitone at B3 and C4 at this rate too.
+    device.init(rate);
+    device.set_param(p::kMix, 1.0f);
+    device.set_param(p::kMotion, 0.0f);
+    device.set_param(p::kEnsemble, 0.0f);
+    device.set_param(p::kLowCut, 20.0f);
+    device.set_param(p::kDecay, 60.0f);
+    Stereo pair = run(device, join(add(sine(246.94f, 1.5f, rate, 0.1f), sine(261.63f, 1.5f, rate, 0.15f)), silence(6.5f, rate)));
+    const double b3 = db(tone_level(pair.left, 246.94, rate, 2 * s, 8 * s) / 0.1);
+    const double c4 = db(tone_level(pair.left, 261.63, rate, 2 * s, 8 * s) / 0.15);
+    std::printf("sustainer: at %.1f kHz: B3 held at %.2f dB, C4 at %.2f dB re their inputs\n", rate / 1000.0, b3, c4);
+    EXPECT(std::fabs(b3 + 2.5) < 1.0 && std::fabs(c4 + 2.5) < 1.0, "a semitone in the low register is held as two notes");
   }
 
   // The default patch on a played phrase: three plucked notes and a chord.

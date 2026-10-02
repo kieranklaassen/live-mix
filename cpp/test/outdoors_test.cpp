@@ -768,6 +768,77 @@ int main() {
     EXPECT(max_step(ninth.left) < 1.2 * max_step(eight.left, 48000), "a stolen voice makes no click");
   }
 
+  // The same scene at other sample rates: pitches and levels hold.
+  {
+    double carrier[3] = {}, chime[3] = {}, storm[3] = {}, brook[3] = {};
+    const float rates[3] = {48000.0f, 44100.0f, 96000.0f};
+    for (int r = 0; r < 3; ++r) {
+      const float rate = rates[r];
+      auto patch = [&](int type, float density) {
+        device.init(rate);
+        device.set_param(p::kType, static_cast<float>(type));
+        device.set_param(p::kDensity, density);
+        device.set_param(p::kDistance, 0.2f);
+        device.set_param(p::kMovement, 0.0f);
+        device.set_param(p::kAttack, 0.01f);
+        device.set_param(p::kVolume, 0.0f);
+        device.note_on(1, 440.0f, 1.0f);
+      };
+      // The cricket's pitch: zero crossings over the loud half-milliseconds.
+      patch(Outdoors::kCrickets, 0.0f);
+      const std::vector<float> chirps = mid(render(device, 3.0f, rate));
+      const size_t w = static_cast<size_t>(rate / 2000.0f);
+      const double gate = 0.3 * peak(chirps);
+      double crossings = 0.0, spans = 0.0;
+      for (size_t at = 0; at + w <= chirps.size(); at += w) {
+        if (rms(chirps, at, at + w) < gate) continue;
+        for (size_t i = at + 1; i < at + w; ++i) crossings += (chirps[i] > 0.0f) != (chirps[i - 1] > 0.0f) ? 1 : 0;
+        spans += static_cast<double>(w - 1) / rate;
+      }
+      carrier[r] = 0.5 * crossings / spans;
+      patch(Outdoors::kChimes, 1.0f);
+      const std::vector<float> rung = mid(render(device, 8.0f, rate));
+      chime[r] = dominant_frequency(rung, rate, 430.0, 450.0, static_cast<size_t>(4.0f * rate));
+      patch(Outdoors::kThunder, 0.5f);
+      storm[r] = rms(mid(render(device, 8.0f, rate)));
+      patch(Outdoors::kStream, 0.6f);
+      brook[r] = rms(mid(render(device, 8.0f, rate)));
+    }
+    std::printf("outdoors: at 48 / 44.1 / 96 kHz: cricket %.0f / %.0f / %.0f Hz, chime %.2f / %.2f / %.2f Hz, a roll of "
+                "thunder %.1f / %.1f / %.1f dB, a stream %.1f / %.1f / %.1f dB\n",
+                carrier[0], carrier[1], carrier[2], chime[0], chime[1], chime[2], db(storm[0]), db(storm[1]),
+                db(storm[2]), db(brook[0]), db(brook[1]), db(brook[2]));
+    for (int r = 1; r < 3; ++r) {
+      EXPECT_NEAR(carrier[r] / carrier[0], 1.0, 0.01, "the cricket's pitch does not depend on the sample rate");
+      EXPECT_NEAR(chime[r] / chime[0], 1.0, 0.002, "nor the chime's");
+      EXPECT_NEAR(db(storm[r] / storm[0]), 0.0, 1.5, "nor the level of thunder");
+      EXPECT_NEAR(db(brook[r] / brook[0]), 0.0, 1.5, "nor the level of the stream");
+    }
+    EXPECT_NEAR(chime[0], 440.0, 1.0, "Chimes: the lowest tube is the key");
+  }
+
+  // Levels, as Atmosphere keeps them: one key of each type at velocity 0.7
+  // peaks between -24 and -10 dBFS at the default patch; eight keys stay
+  // under the clip knee.
+  for (int type = 0; type < Outdoors::kKinds; ++type) {
+    device.init(kRate);
+    device.set_param(p::kType, static_cast<float>(type));
+    device.note_on(1, 220.0f, 0.7f);
+    Stereo one = render(device, 90.0f, kRate);
+    const double level_db = db(std::max(peak(one.left, 4 * 48000), peak(one.right, 4 * 48000)));
+    device.init(kRate);
+    device.set_param(p::kType, static_cast<float>(type));
+    for (int n = 0; n < 8; ++n) device.note_on(n, 110.0f * std::pow(2.0f, n * 3 / 12.0f), 0.7f);
+    Stereo eight = render(device, 40.0f, kRate);
+    const double many = std::max(peak(eight.left), peak(eight.right));
+    std::printf("outdoors: %s peaks at %.1f dBFS (rms %.1f dBFS) with one key, %.2f with eight\n", kNames[type],
+                level_db, db(rms(one.left, 4 * 48000)), many);
+    std::snprintf(label, sizeof label, "%s: one key at velocity 0.7 peaks between -24 and -10 dBFS", kNames[type]);
+    EXPECT(level_db > -24.0 && level_db < -10.0, label);
+    std::snprintf(label, sizeof label, "%s: eight keys stay under the clip knee", kNames[type]);
+    EXPECT(many < 0.5, label);
+  }
+
   // BEHAVIOUR
 
   // Cost with eight keys held at full Density, per type.

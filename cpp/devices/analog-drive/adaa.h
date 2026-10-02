@@ -2,11 +2,11 @@
 
 #include "curve.h"
 
-// Second-order antiderivative anti-aliasing (Parker, Zavalishin and Le Bivic,
-// "Reducing the aliasing of nonlinear waveshaping using continuous-time
-// convolution", DAFx 2016; the second-order form and its fallbacks are from
-// Bilbao, Esqueda, Parker and Välimäki, "Antiderivative antialiasing for
-// memoryless nonlinearities", IEEE SPL 2017). Instead of f(x[n]) the output
+// Second-order antiderivative anti-aliasing, after the approach of Parker,
+// Zavalishin and Le Bivic, "Reducing the aliasing of nonlinear waveshaping
+// using continuous-time convolution", and of Bilbao, Esqueda, Parker and
+// Välimäki, "Antiderivative antialiasing for memoryless nonlinearities"
+// (written from the idea, without either text open). Instead of f(x[n]) the output
 // is f convolved with a triangle two samples wide, worked out exactly from
 // the curve's second antiderivative: the triangle is a continuous-time
 // low-pass on what the curve makes, so far less of it is left above Nyquist

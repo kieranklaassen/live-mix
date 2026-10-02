@@ -117,7 +117,7 @@ class FollowerBank {
       mag_[b] = level_[b] = 0.0f;
       env1_[b] = env2_[b] = 0.0f;
       dev_[b] = 0.0f;
-      trust_[b] = estimate_[b] = average_[b] = peak_[b] = 0.0f;
+      trust_[b] = estimate_[b] = average_[b] = peak_[b] = jitter_[b] = 0.0f;
       kept_[b] = kept_older_[b] = 0.0f;
       age_[b] = 0;
     }
@@ -253,11 +253,14 @@ class FollowerBank {
             (estimate_[b] + measured) / static_cast<float>(settle_[b] - warm_[b]), -max_dev_[b],
             max_dev_[b]);
         estimate_[b] = average_[b] = kept_[b] = kept_older_[b] = first;
+        jitter_[b] = 0.0f;
         // A band whose oscillator is silent takes it as it is.
         if (level_[b] < 1.0e-4f) dev_[b] = first;
       } else {
         // From then on two poles, so the beat against a neighbouring partial
         // does not reach the oscillator.
+        const float off = kit::min(std::fabs(measured - estimate_[b]) * share_scale_[b], 4.0f);
+        jitter_[b] += estimate_coeff_[b] * (off - jitter_[b]);
         estimate_[b] += estimate_coeff_[b] * (measured - estimate_[b]);
         estimate_[b] = kit::clamp(estimate_[b], -max_dev_[b], max_dev_[b]);
         average_[b] += estimate_coeff_[b] * (estimate_[b] - average_[b]);
@@ -275,7 +278,11 @@ class FollowerBank {
     // The oscillator follows the reading as it stood one to two notes ago:
     // by the time a ring is noticed it has not been heard.
     dev_[b] += commit_ * (kept_older_[b] - dev_[b]);
-    const float follow = settled ? presence : 0.0f;
+    // A band in which two partials are about equally strong has no pitch of
+    // its own: its reading swings by bands at a time. So does noise. Neither
+    // gets a voice (each of the two partials has nearer bands that do).
+    const float purity = kit::clamp((kJitterMute - jitter_[b]) * (1.0f / (kJitterMute - kJitterFull)), 0.0f, 1.0f);
+    const float follow = settled ? presence * purity : 0.0f;
     const float trust = trust_[b] + (follow - trust_[b]) * (follow > trust_[b] ? trust_rise_ : trust_fall_);
     trust_[b] = trust < 1.0e-6f ? 0.0f : trust;
 
@@ -386,6 +393,10 @@ class FollowerBank {
   // recent peak (a peak that itself decays with kPeakSeconds).
   static constexpr float kGoneRatio = 0.3f;
   static constexpr float kPeakSeconds = 0.15f;
+  // Mean swing of the reading, in band spacings: a full voice up to the
+  // first, none from the second.
+  static constexpr float kJitterFull = 1.0f;
+  static constexpr float kJitterMute = 1.8f;
   // The second section at full Octaves, against the unshifted pad.
   static constexpr float kOctaveLevel = 0.9f;
   static constexpr float kCommitSeconds = 0.025f;
@@ -420,7 +431,7 @@ class FollowerBank {
   float mag_[kBands] = {}, level_[kBands] = {};
   float env1_[kBands] = {}, env2_[kBands] = {};
   float estimate_[kBands] = {}, average_[kBands] = {}, dev_[kBands] = {}, trust_[kBands] = {}, peak_[kBands] = {};
-  float kept_[kBands] = {}, kept_older_[kBands] = {};
+  float kept_[kBands] = {}, kept_older_[kBands] = {}, jitter_[kBands] = {};
   int age_[kBands] = {};
 };
 

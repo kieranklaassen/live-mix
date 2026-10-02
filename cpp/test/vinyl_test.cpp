@@ -489,6 +489,54 @@ int main() {
     EXPECT(rms(minus(woken.left, sine(440.0f, 1.0f, kRate, 0.2f)), at(0.5)) > 0.003, "and the surface comes back with it");
   }
 
+  // Waking and bad input. A note that starts the instant the device wakes
+  // keeps its first samples; nothing recorded before a sleep is played after
+  // it; and a NaN or an infinity in the input does not stay in the filters.
+  {
+    for (float rate : {48000.0f, 96000.0f}) {
+      for (float warp : {0.25f, 1.0f}) {
+        bare(device, rate);
+        device.set_param(p::kWarp, warp);
+        std::vector<float> tone(at(0.1, rate));
+        for (size_t i = 0; i < tone.size(); ++i) {
+          tone[i] = static_cast<float>(0.5 * std::cos(2.0 * kPi * 1000.0 * static_cast<double>(i) / rate));
+        }
+        Stereo out = run(device, tone);
+        size_t first = 0;
+        while (first < out.left.size() && std::fabs(out.left[first]) < 0.2f) ++first;
+        char label[128];
+        std::snprintf(label, sizeof label,
+                      "%.0f Hz, Warp %.2f: a tone that starts at its peak as the device wakes starts at its peak on the record",
+                      rate, warp);
+        EXPECT(first < out.left.size() && out.left[first] > 0.0f, label);
+      }
+    }
+    bare(device);
+    device.set_param(p::kWarp, 1.0f);
+    rng_state() = 0xD15Cu;
+    run(device, noise(1.0f, kRate, 0.5f));
+    Stereo rest = render(device, 2.0f, kRate);
+    EXPECT(peak(rest.left, at(1.0)) == 0.0 && peak(rest.right, at(1.0)) == 0.0, "a bare record sleeps a second after its input");
+    Stereo woken = run(device, impulse(0.5f, kRate, 1.0e-3f));
+    EXPECT(peak(woken.left) > 4.0e-4 && peak(woken.left) < 2.0e-3 && peak(woken.right) < 2.0e-3,
+           "woken by a small click, it plays the click and nothing recorded before the sleep");
+
+    device.init(kRate);
+    const std::vector<float> good = sine(440.0f, 2.0f, kRate, 0.25f);
+    std::vector<float> bad = good;
+    bad[at(0.5)] = std::nanf("");
+    bad[at(0.5) + 1] = INFINITY;
+    bad[at(0.5) + 2] = -INFINITY;
+    bad[at(0.5) + 3] = 1.0e30f;
+    Stereo clean = run(device, good);
+    device.init(kRate);
+    Stereo hurt = run(device, bad);
+    EXPECT(finite(hurt.left) && finite(hurt.right), "a NaN, infinities and 1e30 in the input: the output stays finite");
+    EXPECT(worst_difference(hurt.left, clean.left, at(1.0)) < 1.0e-3 &&
+               worst_difference(hurt.right, clean.right, at(1.0)) < 1.0e-3,
+           "and half a second later the record plays as if nothing had happened");
+  }
+
   // Wear: the top goes, the bass folds to the middle, the image narrows.
   {
     rng_state() = 0xBEEFu;

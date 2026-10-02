@@ -1,8 +1,57 @@
 #pragma once
 
-// Sustain: catches what is played and holds it as an endless pad.
-// (Signal path and method notes: see the end of this comment block, filled
-// in as the device grows.)
+// Sustain: catches what is played and holds it as an endless, even pad.
+//
+//   in ──┬───────────────────────────────────────────────────────► dry ─┐
+//        │                                                              ├─► out
+//        ├─► onset detector ─► wait for the attack to pass ─┐           │
+//        │                                                  ▼           │
+//        └─► ring ─► two frames ─► peaks, turn per hop ─► layer         │
+//                                                           │           │
+//            up to six layers ─► lobes × phase ─► tone ─► IFFT ─► overlap-add ─► wet
+//
+// The dry signal is never delayed or touched. The held sound is a new
+// voice, so Mix is an equal-power balance.
+//
+// - Listening. A short frame (21 ms) every 11 ms gives a spectral flux on
+//   log-compressed magnitudes with a maximum filter over neighbouring bins
+//   (Böck and Widmer, "Maximum filter vibrato suppression for onset
+//   detection", 2013), against a threshold that rises with the recent
+//   average. Sensitivity sets the level below which nothing counts and the
+//   fixed part of the threshold.
+// - Catching. Once an onset is 96 ms old, two Blackman-windowed frames of
+//   85 ms that both lie after the attack are transformed. Each spectral peak
+//   becomes a region that reaches to the valleys beside it; the phase the
+//   peak gained between the two frames is its exact frequency (the phase
+//   vocoder's estimate: Flanagan and Golden 1966, Dolson 1986), and from
+//   then on the whole region turns by that amount every hop as one rigid
+//   piece (identity phase locking: Laroche and Dolson, "Improved phase
+//   vocoder time-scale modification of audio", 1999). A partial's lobe is
+//   therefore replayed exactly, which is why a held sine has no sideband at
+//   the frame rate and no amplitude ripple. Blackman, not Hann: its side
+//   lobes are 58 dB down, so what one partial leaks into its neighbours'
+//   regions (where it turns at the wrong rate) stays inaudible; and the
+//   product Blackman × Hann still overlap-adds to an exact constant at 75 %.
+// - The second look. 85 ms cannot separate partials closer than 35 Hz, which
+//   is every low chord. A third of a second into the note, the partials
+//   under 650 Hz are measured again from frames four times as long and
+//   rebuilt as clean lobes of their own (the inverse-FFT synthesis of Rodet
+//   and Depalle, "Spectral envelopes and inverse FFT synthesis", 1992); the
+//   caught frame hands its low bins over. If the note has ended or another
+//   has begun by then, the first look stands.
+// - Holding. Every hop (21 ms) each region's phase is turned and its bins
+//   are added to one spectrum per channel; one inverse transform per channel
+//   and a Hann window give the next frame. Motion adds to each region a slow
+//   random wander of pitch, of level and of the phase between left and right
+//   (none below 150 Hz). Ensemble adds two copies turning a few cents faster
+//   and slower, panned apart. Tone and Low Cut are gains per bin. Layers are
+//   scaled by their envelopes here, so fades are as smooth as the window.
+// - Modes. Auto: a new catch replaces the layer over Glide; it stays while
+//   you play and falls by 60 dB per Decay time once you stop. Layer: a new
+//   catch is added and the older ones fall. Latch: Hold catches and lets go.
+//
+// At 96 kHz the frames are twice as long in samples, the same in time.
+// Latency of the held sound: it begins about 140 ms after the note.
 
 #include <cstring>
 
@@ -109,8 +158,7 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     idle_.settle(output_peak(frames), frames);
   }
 
-  // For the harness: what the detector saw and how many layers sound.
-  float flux() const { return flux_; }
+  // For the harness: onsets detected so far and layers sounding now.
   int onsets() const { return onsets_; }
   int layers() const {
     int count = 0;
@@ -264,7 +312,6 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     refine_due_ = 0;
     frame_any_ = false;
     for (int s = 0; s < kSlots; ++s) frame_gain_[s] = 0.0f;
-    flux_ = 0.0f;
     flux_mean_ = 0.0f;
     since_onset_ = 1.0f;
     quiet_for_ = 1.0f;
@@ -387,14 +434,13 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
       det_a_[k] = value;
       before = here;
     }
-    flux_ = flux;
     const float fixed = kFluxAtZero * std::pow(kFluxAtOne / kFluxAtZero, sensitivity);
     const bool onset = flux > fixed + kFluxAdapt * flux_mean_ && level > gate && since_onset_ >= kRefractorySeconds;
     flux_mean_ += kFluxMeanRate * (kit::min(flux, 3.0f * flux_mean_ + fixed) - flux_mean_);
     const float step = static_cast<float>(size / 2) / sample_rate();
-    since_onset_ += step;
+    since_onset_ = kit::min(since_onset_ + step, 100.0f);
     // "Playing" lasts a little past the last frame above half the gate level.
-    quiet_for_ = level > 0.5f * gate ? 0.0f : quiet_for_ + step;
+    quiet_for_ = level > 0.5f * gate ? 0.0f : kit::min(quiet_for_ + step, 100.0f);
     playing_ = quiet_for_ < kPlayingHangSeconds;
     if (!onset) return;
     since_onset_ = 0.0f;
@@ -920,7 +966,7 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
   float det_re_[kMaxFrame / 8 + 1], det_im_[kMaxFrame / 8 + 1];
   float frame_gain_[kSlots] = {};
   bool frame_any_ = false;
-  float flux_ = 0.0f, flux_mean_ = 0.0f;
+  float flux_mean_ = 0.0f;
   float since_onset_ = 1.0f, quiet_for_ = 1.0f, postponed_ = 0.0f;
   int onsets_ = 0;
   float gate_ = 0.0f;      // the level under which nothing counts as playing

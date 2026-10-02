@@ -50,6 +50,7 @@ class PeakShifter {
     current_ = 0;
     num_peaks_ = 0;
     advance_ = kHop;
+    last_ratio_[0] = last_ratio_[1] = 0.0f;
   }
 
   int peaks() const { return num_peaks_; }
@@ -102,15 +103,20 @@ class PeakShifter {
     const float* ri = spectrum_[current_][3];
     float* theta = theta_[v];
     const int came = advance_ > 0 ? advance_ : kHop;
+    // While the ratio moves, the phase runs on at the mean of this frame's
+    // and the last one's, so the two agree halfway between them.
+    const double run = 0.5 * (ratio + (last_ratio_[v] > 0.0f ? last_ratio_[v] : ratio));
+    last_ratio_[v] = ratio;
     const float level = 1.0f / (1.5f * N);  // inverse FFT and the squared window at this overlap
     for (int i = 0; i < num_peaks_; ++i) {
       const double omega = peak_omega_[i];
       if (omega < from || omega >= to) continue;
       const double target = omega * ratio;
       if (target >= 0.98 * kPi) continue;
-      // Whole bins, and the part of a bin left over as a rotation: it runs
-      // on at the target frequency from frame to frame, and is set so the
-      // partial is exactly right at the middle of the frame.
+      // Whole bins, and the part of a bin left over as a rotation: `theta`
+      // is the turn at the middle of the frame, and runs on at the target
+      // frequency from frame to frame, so each frame is exactly right at
+      // its middle whatever whole number of bins it moved by.
       const double move = (target - omega) * N / (2.0 * kPi);
       // The whole part stays what it was last frame while that is within
       // 0.6 of a bin, so a move that sits between two bins does not flicker.
@@ -119,9 +125,12 @@ class PeakShifter {
       if (move - whole > kHold || whole - move > kHold) whole = std::floor(move + 0.5);
       const float rest = static_cast<float>(move - whole);
       const int shift = static_cast<int>(whole);
-      const double turned = wrap(theta[bin] + target * kHop - omega * came);
-      const float angle = static_cast<float>(turned) + rest * static_cast<float>(kPi);
-      const float gain = level / (1.0f - 0.38f * rest * rest);  // a bin's slope off centre
+      const double turned = wrap(theta[bin] + omega * run * kHop - omega * came);
+      const float angle = static_cast<float>(turned);
+      // Moving by whole bins turns the middle of the frame by half a turn a
+      // bin, taken out here; and a move that ends off a bin's centre comes
+      // out a little low, made up here.
+      const float gain = ((shift & 1) ? -level : level) / (1.0f - 0.38f * rest * rest);
       const float c = gain * std::cos(angle);
       const float s = gain * std::sin(angle);
       const float kept = static_cast<float>(turned);
@@ -218,6 +227,7 @@ class PeakShifter {
   short shift_[kVoices][kHalf + 1];      // whole bins each bin's region moved last frame
   int peak_bin_[kMaxPeaks], peak_from_[kMaxPeaks], peak_to_[kMaxPeaks];
   float peak_omega_[kMaxPeaks];          // radians per sample
+  float last_ratio_[kVoices] = {0.0f, 0.0f};
   int current_ = 0;
   int num_peaks_ = 0;
   int advance_ = kHop;

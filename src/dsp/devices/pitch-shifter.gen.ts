@@ -52,13 +52,13 @@ export const PITCH_SHIFTER_PARAMS = {
     id: 4,
     name: 'Mode',
     min: 0,
-    max: 2,
+    max: 3,
     default: 0,
     taper: 'linear',
     unit: '',
-    choices: ['Smooth', 'Grain', 'Vintage'],
+    choices: ['Smooth', 'Grain', 'Vintage', 'Chords'],
     description:
-      'The character of the shift. Smooth lines its splices up with the sound and stays clean, Grain rebuilds it from overlapping grains, Vintage splices blindly and flutters like an early digital pitch changer.',
+      'The character of the shift. Smooth lines its splices up with the sound and stays clean on single notes, Grain rebuilds it from overlapping grains, Vintage splices blindly and flutters like an early digital pitch changer. Chords moves every note of a chord on its own, so held chords and pads stay clean; it answers later, low notes latest, and softer on attacks.',
   },
   size: {
     id: 5,
@@ -69,7 +69,7 @@ export const PITCH_SHIFTER_PARAMS = {
     taper: 'log',
     unit: 'ms',
     description:
-      'The length of the pieces the sound is cut into. Short is tight in time and rough, down to a metallic buzz in Grain; long is smoother and trails further behind the playing.',
+      'The length of the pieces the sound is cut into. Short is tight in time and rough, down to a metallic buzz in Grain; long is smoother and trails further behind the playing. Has no part in Chords.',
   },
   jitter: {
     id: 6,
@@ -80,7 +80,7 @@ export const PITCH_SHIFTER_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Scatters each piece in time and pitch. A little loosens the shift like a chorus; a lot turns it into a noisy cloud, most of all in Grain.',
+      'Scatters each piece in time and pitch. A little loosens the shift like a chorus; a lot turns it into a noisy cloud, most of all in Grain. Has no part in Chords.',
   },
   delay: {
     id: 7,
@@ -150,7 +150,7 @@ export const PITCH_SHIFTER_DESCRIPTOR = wasmDeviceDescriptor(PITCH_SHIFTER_DEVIC
   name: 'Pitch Shifter',
   category: 'pitch',
   description:
-    'Two pitch-shifted voices in three characters, clean, grainy or fluttering, with a delay and feedback that make the repeats climb or fall.',
+    'Two pitch-shifted voices in four characters, clean, grainy, fluttering or made for chords, with a delay and feedback that make the repeats climb or fall.',
   presets: {
     'Octave up': {
       pitchA: 12,
@@ -294,7 +294,7 @@ export const PITCH_SHIFTER_DESCRIPTOR = wasmDeviceDescriptor(PITCH_SHIFTER_DEVIC
 
 export type PitchShifter = WasmDevice<typeof PITCH_SHIFTER_PARAMS>
 
-/** Two pitch-shifted voices in three characters, clean, grainy or fluttering, with a delay and feedback that make the repeats climb or fall. */
+/** Two pitch-shifted voices in four characters, clean, grainy, fluttering or made for chords, with a delay and feedback that make the repeats climb or fall. */
 export function createPitchShifter(
   context: BaseAudioContext,
   options: WasmDeviceOptions<typeof PITCH_SHIFTER_PARAMS> = {},

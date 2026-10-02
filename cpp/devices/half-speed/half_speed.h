@@ -89,6 +89,8 @@ class HalfSpeed : public kit::DeviceBase<half_speed::kNumParams> {
     for (int i = 0; i < frames; ++i) {
       float in[2];
       take_input(i, &in[0], &in[1]);
+      in[0] = tidy(in[0]);
+      in[1] = tidy(in[1]);
       render_frame(in, &out_left_[i], &out_right_[i]);
     }
     // Asleep once every head can only find blank input behind it.
@@ -105,6 +107,8 @@ class HalfSpeed : public kit::DeviceBase<half_speed::kNumParams> {
   // Spread moves, losing three quarters of a frame per frame at Quarter
   // speed: 7.5 s at 96 kHz. advance() holds a head at the end of the ring.
   static constexpr int kRingFrames = 730000;
+  // No input sample is taken to be larger than this (12 dB over full scale).
+  static constexpr float kInputBound = 4.0f;
   static constexpr long kLongEnough = 1L << 30;
   // Where a head starts: as close to the present as the read kernel allows.
   static constexpr double kStartDelay = 6.0;
@@ -135,6 +139,13 @@ class HalfSpeed : public kit::DeviceBase<half_speed::kNumParams> {
     kit::Smoother match;
   };
 
+  // What comes in is kept as it is unless it is not a number (then it is
+  // silence) or absurdly large (then it is held to the bound): one such
+  // sample would otherwise sit in the ring and in every filter for good.
+  static float tidy(float x) {
+    if (!(x == x)) return 0.0f;
+    return x > kInputBound ? kInputBound : (x < -kInputBound ? -kInputBound : x);
+  }
   void restart();
   void apply(int id);
   void render_frame(const float* in, float* out_left, float* out_right);

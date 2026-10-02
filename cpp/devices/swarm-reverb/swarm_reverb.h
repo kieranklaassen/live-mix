@@ -141,7 +141,7 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
   static constexpr float kWanderOctaves = 0.6f;
   static constexpr float kBassMonoHz = 160.0f;
   static constexpr float kWetGain = 1.0f;
-  static constexpr float kFullLevel = 0.3f;        // RMS in the line where the return starts to give
+  static constexpr float kFullLevel = 0.4f;        // RMS in the line where the return starts to give
   static constexpr float kFillSeconds = 0.25f;
   static constexpr float kAntiDenormal = 1.0e-18f;
   // Drag positions with Steps on, in octaves of time: 1/2, 2/3, 3/4, 1, 4/3,
@@ -227,6 +227,14 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
       loop.rate = 0.11f + 0.2f * rng.uniform();
     }
   }
+  static void copy_tuning(const kit::Svf& from, kit::Svf* to) {
+    to->g = from.g;
+    to->k = from.k;
+    to->a1 = from.a1;
+    to->a2 = from.a2;
+    to->a3 = from.a3;
+  }
+
   static float glide(kit::Smoother& s) { return s.value == s.target ? s.value : s.next(); }
 
   // Exact to ±1, landing on ±2: the ceiling on the return and on the swarm.
@@ -431,15 +439,13 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
     }
     ++tick_;
 
-    dampen_[0].set_cutoff(dampen_hz_.next(), sr);
-    dampen_[1].a = dampen_[0].a;
-    // Second order, so the loop loses next to nothing above the corner.
+    // Both second-order Butterworth: next to no loss between the corners, so
+    // at the top of Reflect the middle of the spectrum hangs while the edges
+    // fall away a little more on every trip.
+    dampen_[0].set(dampen_hz_.next(), kit::kSqrtHalf, sr);
     low_cut_[0].set(low_cut_hz_.next(), kit::kSqrtHalf, sr);
-    low_cut_[1].g = low_cut_[0].g;
-    low_cut_[1].k = low_cut_[0].k;
-    low_cut_[1].a1 = low_cut_[0].a1;
-    low_cut_[1].a2 = low_cut_[0].a2;
-    low_cut_[1].a3 = low_cut_[0].a3;
+    copy_tuning(dampen_[0], &dampen_[1]);
+    copy_tuning(low_cut_[0], &low_cut_[1]);
   }
   void apply(int id) {
     using namespace swarm_reverb;
@@ -498,7 +504,7 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
   Read loop_[2];
   Read stage_[2][kStages];
 
-  kit::OnePole dampen_[2];
+  kit::Svf dampen_[2];
   kit::Svf low_cut_[2];
   kit::OnePole side_low_;
   kit::Smoother reflect_, diffuse_, dry_, wet_, width_, level_;

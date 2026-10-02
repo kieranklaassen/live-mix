@@ -3,7 +3,7 @@
 // The Chords mode: two phase vocoders (PeakShifter.h) that share the work by
 // frequency, because a chord needs a long look and an attack a short one.
 //
-//   ring ────────────────► frames of 43 ms ─► partials above the split ─┐
+//   ring ─► 145 ms back ─► frames of 43 ms ─► partials above the split ─┐
 //   ring ─► low-pass ─► every 4th sample                                (+)─► voice
 //             └─► frames of 171 ms ─► partials below the split ─► x4 ───┘
 //
@@ -12,8 +12,10 @@
 //   moves them as one, to the wrong places. So everything below the split is
 //   shifted from a window four times as long, taken from the same sound at a
 //   quarter of the rate (an eighth at 88.2 kHz and above), which costs no
-//   more than the short one. The price is time: what is below the split
-//   comes out about 190 ms late, what is above it about 48 ms late.
+//   more than the short one. The price is time: the mode answers about
+//   190 ms late. The short window could answer in 48 ms, but a note's body
+//   would then follow its overtones like a second attack, so it is read
+//   late enough for the two to arrive together.
 // - Both read the ring `Delay` back like the other modes, so Delay, Feedback
 //   and the rest of the device work unchanged.
 // - The work is spread: within one hop of the short window come its analysis,
@@ -49,13 +51,20 @@ class ChordEngine {
       lowpass_[1][c].set(2000.0f, 1.3066f, sample_rate);
     }
     design_interpolator();
-    clear_history();
     reset();
   }
 
-  // Everything the mode has heard and made so far is dropped; what the ring
-  // and the slow copy of it hold stays.
+  // A fresh start, for when the mode is chosen. The slow copy of the ring
+  // starts empty too, so what is below the split is whole only once
+  // latency() and the Delay have gone by.
   void reset() {
+    for (int c = 0; c < 2; ++c) {
+      slow_[c].clear();
+      lowpass_[0][c].reset();
+      lowpass_[1][c].reset();
+    }
+    tick_ = 0;
+    low_time_ = 0;
     small_.reset();
     big_.reset();
     low_.reset();
@@ -71,13 +80,53 @@ class ChordEngine {
     high_base_ = low_base_ = -1;
   }
 
-  // How long after a sound the part of it above the split comes out, and the
-  // part below it, in samples.
-  int latency() const { return size_ + hop_ / 2; }
-  int low_latency() const { return (kLowSize + kLowWait) * down_ + (kTaps * down_) / 2; }
+  // How long after a sound its shifted copy comes out, in samples: the long
+  // window, the wait for its second voice, the interpolator and the low-pass
+  // before it. The short window is read that much later to arrive with it.
+  int latency() const {
+    return (kLowSize + kLowWait) * down_ + (kTaps * down_) / 2 + static_cast<int>(0.00021f * sample_rate_);
+  }
 
-  // Every sample the ring records, in every mode, so the slow copy is there
-  // when the mode is chosen.
+  // One sample of each voice (`out[voice][channel]`), read `base` samples
+  // back in the ring; call before the ring and record() take the sample.
+  void render(const Ring& ring, double base, const float* ratio, bool second, float (*out)[2]) {
+    const int phase = step_ & (hop_ - 1);
+    if (phase == 0) {
+      if (large_) hear(big_, ring, base); else hear(small_, ring, base);
+    } else if (phase == hop_ / 4 || (phase == hop_ / 2 && second)) {
+      const int v = phase == hop_ / 4 ? 0 : 1;
+      if (large_) voice_high(big_, v, ratio[v]); else voice_high(small_, v, ratio[v]);
+    } else if (phase == 3 * hop_ / 4) {
+      const int turn = step_ / hop_;
+      if (turn == 0) hear_low(base);
+      if (turn == 1) voice_low(0, ratio[0]);
+      if (turn == 2 && second) voice_low(1, ratio[1]);
+    }
+    step_ = (step_ + 1) & (4 * hop_ - 1);
+
+    const unsigned at = (high_time_ - static_cast<unsigned>(size_ + hop_ / 2)) & kHighMask;
+    const unsigned low_at = (low_time_ - static_cast<unsigned>(kLowSize + kLowWait)) & kLowMask;
+    const float* taps = taps_[tick_];
+    for (int v = 0; v < 2; ++v) {
+      for (int c = 0; c < 2; ++c) {
+        float* held = held_[v][c];
+        if (tick_ == 0) {  // a new reduced-rate sample is due
+          for (int k = kTaps - 1; k > 0; --k) held[k] = held[k - 1];
+          held[0] = low_sum_[v][c][low_at];
+          low_sum_[v][c][low_at] = 0.0f;
+        }
+        float sum = high_sum_[v][c][at];
+        high_sum_[v][c][at] = 0.0f;
+        if (v == 0 || second) {
+          for (int k = 0; k < kTaps; ++k) sum += taps[k] * held[k];
+        }
+        out[v][c] = sum;
+      }
+    }
+    ++high_time_;
+  }
+
+  // Every sample the ring records while the mode is on.
   void record(float left, float right) {
     const float l = lowpass_[1][0].lowpass(lowpass_[0][0].lowpass(left));
     const float r = lowpass_[1][1].lowpass(lowpass_[0][1].lowpass(right));
@@ -122,15 +171,59 @@ class ChordEngine {
     return advance >= hop / 2 && advance <= 2 * hop ? advance : 0;
   }
 
-  void clear_history() {
-    for (int c = 0; c < 2; ++c) {
-      slow_[c].clear();
-      lowpass_[0][c].reset();
-      lowpass_[1][c].reset();
+  // The short window: a frame off the ring, and a voice's shifted frame
+  // added to its running sum.
+  template <class Shifter>
+  void hear(Shifter& shifter, const Ring& ring, double base) {
+    const int size = Shifter::kSize;
+    const int back = static_cast<int>(base + 0.5) + latency() - (size_ + hop_ / 2);
+    for (int n = 0; n < size; ++n) {
+      frame_[0][n] = ring.left.read(back + size - n);
+      frame_[1][n] = ring.right.read(back + size - n);
     }
-    tick_ = 0;
-    low_time_ = 0;
+    shifter.analyse(frame_[0], frame_[1], spacing(size / 4, back, &high_base_));
+    high_frame_ = high_time_;
   }
+
+  template <class Shifter>
+  void voice_high(Shifter& shifter, int v, float ratio) {
+    const int size = Shifter::kSize;
+    shifter.synthesise(v, ratio, kit::kTwoPi * kSplitHz / sample_rate_, 4.0f);
+    const float* left = shifter.frame_left();
+    const float* right = shifter.frame_right();
+    const unsigned from = high_frame_ - static_cast<unsigned>(size);
+    for (int n = 0; n < size; ++n) {
+      const unsigned at = (from + static_cast<unsigned>(n)) & kHighMask;
+      high_sum_[v][0][at] += left[n];
+      high_sum_[v][1][at] += right[n];
+    }
+  }
+
+  // The long window, at the reduced rate.
+  void hear_low(double base) {
+    const int back = static_cast<int>(base / down_ + 0.5);
+    for (int n = 0; n < kLowSize; ++n) {
+      frame_[0][n] = slow_[0].read(back + kLowSize - n);
+      frame_[1][n] = slow_[1].read(back + kLowSize - n);
+    }
+    low_.analyse(frame_[0], frame_[1], spacing(kLowHop, back, &low_base_));
+    low_frame_ = low_time_;
+  }
+
+  void voice_low(int v, float ratio) {
+    low_.synthesise(v, ratio, 0.0f, kit::kTwoPi * kSplitHz * down_ / sample_rate_);
+    const float* left = low_.frame_left();
+    const float* right = low_.frame_right();
+    const unsigned from = low_frame_ - static_cast<unsigned>(kLowSize);
+    for (int n = 0; n < kLowSize; ++n) {
+      const unsigned at = (from + static_cast<unsigned>(n)) & kLowMask;
+      low_sum_[v][0][at] += left[n];
+      low_sum_[v][1][at] += right[n];
+    }
+  }
+
+  static constexpr unsigned kHighMask = 2 * kMaxHighSize - 1;
+  static constexpr unsigned kLowMask = 2 * kLowSize - 1;
 
   float sample_rate_ = 48000.0f;
   bool large_ = false;

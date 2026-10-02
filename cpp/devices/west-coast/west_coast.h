@@ -94,8 +94,6 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
     if (fresh) {
       // A new voice starts from rest. A struck or stolen one keeps running:
       // a jump in phase or level would click.
-      voice.phase = 0.0f;
-      voice.mod_phase = 0.0f;
       voice.last_sine = 0.0f;
       voice.folder.reset();
       voice.dc = 0.0f;
@@ -107,6 +105,19 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
     voice.frequency = frequency;
     voice.increment = frequency / rate2_;
     voice.ratio = kRatios[kit::clamp_int(static_cast<int>(param(kRatio) + 0.5f), 0, kNumRatios - 1)];
+    if (fresh) {
+      // The oscillators of such an instrument run all the time and the gate
+      // opens on them wherever they are. Here each pitch has its own place
+      // to start (the same every time), so the notes of a chord, octaves
+      // above all, do not all crest together. The gate is shut at this
+      // point, so any phase starts without a click. The modulator starts
+      // where it would be had both run from zero.
+      const float place = kPhaseScatter * std::log2(frequency);
+      voice.phase = place - std::floor(place);
+      const float mod_place = voice.phase * voice.ratio;
+      voice.mod_phase = mod_place - std::floor(mod_place);
+      voice.last_sine = carrier_sine(voice.phase);
+    }
     // Keep FM's sidebands under the top of the band: high notes get a
     // smaller index. (The folder's own limit is in aim().)
     voice.index_limit = kit::max(0.0f, (kFmLimitHz / frequency - 1.0f) / voice.ratio - 2.0f);
@@ -248,8 +259,10 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
     float level() const { return vactrol; }
   };
 
-  // One note at gain 0.7 peaks near -17 dBFS at the default volume.
-  static constexpr float kVoiceGain = 0.55f;
+  // One note at gain 0.7 peaks near -23 dBFS at the default volume, which
+  // is as loud as it can be if eight held ones are to stay under the knee
+  // of the clip: steady sines sooner or later crest together.
+  static constexpr float kVoiceGain = 0.21f;
 
   // Wavefolder. Fold 0 sits inside the folder's linear part (a pure sine);
   // Fold 1 reaches every fold at low notes and fewer the higher the note.
@@ -272,6 +285,9 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
   // How much of FM's frequency swing counts against the folder's level.
   static constexpr float kFmReach = 1.0f;
   static constexpr float kFmLimitHz = 14000.0f;
+  // Start phase per octave of pitch, in cycles: an octave and a semitone
+  // both land about a golden ratio of a cycle apart.
+  static constexpr float kPhaseScatter = 7.6180339f;
 
   // Low-pass gate.
   static constexpr float kVactrolRiseSeconds = 0.0007f;

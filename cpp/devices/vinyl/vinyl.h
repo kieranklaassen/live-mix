@@ -36,23 +36,32 @@
 // - Crackle is one Poisson stream whose sizes are Pareto distributed: most
 //   events are dust at the floor and go to two shared bands; the few that
 //   stand out are ticks, each ringing a band-pass of its own colour for half
-//   a millisecond. Every event is kicked somewhere between lateral and
-//   vertical, so left and right are uncorrelated. The rate follows a map of
-//   where the dust lies round the disc, which shifts a little every turn.
-// - Pops are larger, duller clicks with a 75 Hz thump. A scratch is a pop
-//   that returns at the same turn phase for 5 to 37 turns, swelling and
-//   fading as the stylus crosses it: the tick that makes it read as a record.
+//   a millisecond. The law is cut off at a ceiling that opens with the
+//   square of the control: low settings are an even bed (nothing over
+//   -38 dBFS at the default, so it sits under quiet music), and only the
+//   top of the control has ticks 40 dB over the dust. Every event is kicked
+//   somewhere between lateral and vertical, so left and right are
+//   uncorrelated. The rate follows a map of where the dust lies round the
+//   disc, which shifts a little every turn.
+// - Pops are larger, duller clicks with a 75 Hz thump: one every half
+//   minute and under -30 dBFS at the default, more than one a second and up
+//   to -10 dBFS at the top. A scratch is a pop that returns at the same
+//   turn phase for 5 to 37 turns, swelling and fading as the stylus crosses
+//   it: the tick that makes it read as a record. At the default one comes
+//   every few minutes; at the top there are always three.
 // - Surface: pink hiss, a separate stream per wall, swishing ±30 % once per
 //   turn, over a rumble (38 Hz, cut under 20 Hz) the walls mostly share.
 // - 78 is shellac: 150 Hz to 6 kHz with a small lift at 1.1 kHz, a quarter
 //   of the stereo width, 7 dB more hiss and half as much crackle again. It
 //   fades across in 30 ms when Speed changes.
 // - Tone tilts the playback about 800 Hz, noise included.
-// - The noise is made only while there is signal on the record and for four
+// - The noise is made only while there is signal on the record (anything
+//   over -120 dBFS, so the whole of a long decay counts) and for four
 //   seconds after; then it fades over 1.2 s and the device sleeps, its output
 //   exactly zero. All of it goes down with the platter. Asleep, the platter
 //   is simply where its switch says, and nothing recorded before the sleep
-//   is played after it.
+//   is played after it: on waking, the warp's reach of silence is laid on
+//   the disc ahead of the new input.
 
 #include "../../kit/kit.h"
 #include "params.gen.h"
@@ -140,7 +149,7 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
     hiss_noise_[0].seed(0x3C6EF372u);
     hiss_noise_[1].seed(0xA54FF53Au);
     event_rng_.seed(0x510E527Fu);
-    dust_rng_.seed(0x1F83D9ABu);
+    dust_rng_.seed(0xCBBB9D5Du);
     rumble_rng_.seed(0x5BE0CD19u);
     for (float& density : dust_map_) density = dust_rng_.uniform();
     crackle_wait_ = exponential(event_rng_);
@@ -342,7 +351,7 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
   static constexpr float kCrackleRate = 500.0f;  // events a second at Crackle 1
   static constexpr float kCrackleAlpha = 1.3f;  // Pareto tail exponent
   static constexpr float kCrackleFloor = 2.0e-3f;  // smallest event at Crackle 1
-  static constexpr float kCrackleCeiling = 0.25f;  // largest at Crackle 1
+  static constexpr float kCrackleCeiling = 0.25f;  // largest at Crackle 1 (see crackle_ceiling)
   static constexpr float kTickRatio = 6.0f;  // events this far above the floor get their own colour
   static constexpr int kTickSlots = 4;
   static constexpr int kPopSlots = 2;

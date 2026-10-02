@@ -692,6 +692,8 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
     float feed[2][kPeriod];
     for (int j = 0; j < frames; ++j) {
       take_input(offset + j, &dry_in[0][j], &dry_in[1][j]);
+      dry_in[0][j] = tidy(dry_in[0][j]);
+      dry_in[1][j] = tidy(dry_in[1][j]);
       const float repeat = glide(repeat_);
       if (repeat == 0.0f) {
         // No loop: its filters rest, empty.
@@ -840,12 +842,19 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
     v[7] = b3 - b7;
   }
 
+  // What comes in is made safe before anything keeps it: not-a-number is
+  // silence, and nothing is louder than +36 dBFS (which also holds infinity).
+  // One bad sample would otherwise go round the allpasses and the tail for
+  // good.
+  static float tidy(float x) { return x == x ? kit::clamp(x, -63.0f, 63.0f) : 0.0f; }
+
   // A smoother that is at rest costs one comparison.
   static float glide(kit::Smoother& s) { return s.value == s.target ? s.value : s.next(); }
 
-  // (0.92: what rings on after a gate is as loud as it was before the
-  // network's signs were changed, when the gain here was 0.75.)
-  static float tail_level_for(float tail) { return tail <= 0.0f ? 0.0f : 0.92f * std::sqrt(tail); }
+  // Tuned so that what rings on just after a gate sits about 13 dB under
+  // it at Tail 0.3 and 6.5 dB under it at 0.9. (The longer lines hold more
+  // sound when the input stops, so low settings need less of it.)
+  static float tail_level_for(float tail) { return tail <= 0.0f ? 0.0f : 0.95f * std::pow(tail, 0.765f); }
 
   TapLine line_[2];
   Stage diffuser_[2][kStages];

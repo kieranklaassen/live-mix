@@ -109,6 +109,12 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
     for (int i = 0; i < frames; ++i) {
       float in[2];
       take_input(i, &in[0], &in[1]);
+      // A sample that is not a number would sit in every filter after it
+      // until the next silence: it goes in as silence instead, and anything
+      // absurdly large (36 dB over full scale) is held there.
+      for (float& v : in) {
+        if (!(std::fabs(v) <= kInputCeiling)) v = std::isnan(v) ? 0.0f : (v < 0.0f ? -kInputCeiling : kInputCeiling);
+      }
       if (clock_.tick()) control();
       if (!drive_.settled()) {
         // The make-up moves with the gain it answers, sample for sample, so
@@ -225,6 +231,7 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
 
  private:
   static constexpr int kControlPeriod = 16;
+  static constexpr float kInputCeiling = 64.0f;
   // Full scale reaches a quarter of the way to the curve's ceiling at Drive 0.
   static constexpr float kHeadroom = 0.25f;
   static constexpr float kHeadroomDb = -12.0412f;

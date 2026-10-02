@@ -10,7 +10,11 @@
     {
       "key": "exciter",
       "name": "Exciter",
-      "choices": ["Finger", "Pick", "Hammer"],
+      "choices": [
+        "Finger",
+        "Pick",
+        "Hammer"
+      ],
       "default": 0,
       "description": "What sets the strings going. A fingertip is soft and round, a pick is bright and thin, and a felt hammer strikes with a wider, softer blow and a small bounce. Applies from the next string that is played."
     },
@@ -42,7 +46,11 @@
     {
       "key": "direction",
       "name": "Direction",
-      "choices": ["Up", "Down", "Alternate"],
+      "choices": [
+        "Up",
+        "Down",
+        "Alternate"
+      ],
       "default": 0,
       "description": "Which way a chord is strummed and rolled: from the low string up, from the high string down, or the other way round on every new key."
     },
@@ -110,7 +118,12 @@
     {
       "key": "body",
       "name": "Body",
-      "choices": ["Harp", "Zither", "Dulcimer", "Koto"],
+      "choices": [
+        "Harp",
+        "Zither",
+        "Dulcimer",
+        "Koto"
+      ],
       "default": 1,
       "description": "The soundbox the strings are mounted on: the warm board of a harp, the bright flat box of a zither, the ringing box of a hammered dulcimer or the hollow, nasal body of a koto."
     },
@@ -125,10 +138,125 @@
     }
   ],
   "presets": {
-    "Open zither": { "chord": 2 },
-    "Concert harp": { "exciter": 0, "body": 0 },
-    "Hammered shimmer": { "exciter": 2, "roll": 9, "body": 2 },
-    "Koto pluck": { "exciter": 1, "body": 3 }
+    "Open zither": {
+      "exciter": 1,
+      "chord": 2,
+      "strum": 110,
+      "brightness": 0.6,
+      "position": 0.16,
+      "sympathy": 0.4
+    },
+    "Concert harp": {
+      "exciter": 0,
+      "chord": 0,
+      "decay": 9,
+      "release": 20,
+      "brightness": 0.6,
+      "position": 0.3,
+      "courses": 0,
+      "sympathy": 0.2,
+      "body": 0,
+      "volume": -13
+    },
+    "Harp glissando": {
+      "exciter": 0,
+      "chord": 7,
+      "strum": 480,
+      "direction": 2,
+      "decay": 8,
+      "release": 20,
+      "brightness": 0.6,
+      "position": 0.28,
+      "courses": 0,
+      "sympathy": 0.35,
+      "body": 0,
+      "volume": -12
+    },
+    "Hammered shimmer": {
+      "exciter": 2,
+      "chord": 1,
+      "strum": 60,
+      "roll": 9,
+      "decay": 8,
+      "release": 4,
+      "brightness": 0.6,
+      "position": 0.14,
+      "courses": 0.4,
+      "sympathy": 0.7,
+      "body": 2
+    },
+    "Autoharp major": {
+      "exciter": 1,
+      "chord": 3,
+      "strum": 90,
+      "decay": 5,
+      "release": 2,
+      "brightness": 0.65,
+      "position": 0.18,
+      "courses": 0.25,
+      "sympathy": 0.3
+    },
+    "Autoharp minor": {
+      "exciter": 1,
+      "chord": 4,
+      "strum": 90,
+      "decay": 5,
+      "release": 2,
+      "brightness": 0.65,
+      "position": 0.18,
+      "courses": 0.25,
+      "sympathy": 0.3
+    },
+    "Koto pluck": {
+      "exciter": 1,
+      "chord": 0,
+      "decay": 2.5,
+      "release": 1.2,
+      "brightness": 0.7,
+      "position": 0.08,
+      "courses": 0,
+      "sympathy": 0.15,
+      "body": 3,
+      "volume": -3
+    },
+    "Twelve-string haze": {
+      "exciter": 1,
+      "chord": 1,
+      "strum": 40,
+      "decay": 12,
+      "release": 8,
+      "brightness": 0.6,
+      "position": 0.2,
+      "courses": 0.85,
+      "sympathy": 0.5
+    },
+    "Single felt string": {
+      "exciter": 2,
+      "chord": 0,
+      "decay": 5,
+      "release": 2,
+      "brightness": 0.4,
+      "position": 0.35,
+      "courses": 0,
+      "sympathy": 0.25,
+      "body": 0,
+      "volume": -11
+    },
+    "Slow sus arpeggio": {
+      "exciter": 0,
+      "chord": 5,
+      "strum": 360,
+      "direction": 2,
+      "roll": 3,
+      "decay": 10,
+      "release": 20,
+      "brightness": 0.5,
+      "position": 0.25,
+      "courses": 0.2,
+      "sympathy": 0.45,
+      "body": 0,
+      "volume": -12
+    }
   },
   "origin": {
     "kind": "new",

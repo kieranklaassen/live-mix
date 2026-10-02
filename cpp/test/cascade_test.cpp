@@ -396,6 +396,61 @@ int main() {
     EXPECT(late < 0.4 * early, "Tunnel: the drone gets darker");
   }
 
+  // Tunnel on sound with no pitch to cut on. Noise does not repeat, so the
+  // two voices that hand the loop to each other are unrelated where they
+  // cross; with gains that add up to one the drone would dip 3 dB at every
+  // crossing (a flutter at twice the loop rate). The crossing bends towards
+  // equal power by how badly the loop closes: the drone of one slice of
+  // noise is then about as steady as the noise itself, and a pure tone's
+  // drone stays as steady as before.
+  {
+    auto steadiness = [&](const std::vector<float>& x, double from, double to) {
+      // Spread of the 20 ms levels about their straight-line trend (each
+      // pass is a little darker, which is not flutter).
+      double n = 0.0, st = 0.0, sl = 0.0, stt = 0.0, stl = 0.0, sll = 0.0;
+      for (double t = from; t + 0.02 <= to; t += 0.005) {
+        const double level = level_db(x, t, t + 0.02);
+        n += 1.0;
+        st += t;
+        sl += level;
+        stt += t * t;
+        stl += t * level;
+        sll += level * level;
+      }
+      const double slope = (n * stl - st * sl) / (n * stt - st * st);
+      const double residual = sll - sl * sl / n - slope * (stl - st * sl / n);
+      return std::sqrt(std::max(0.0, residual / n));
+    };
+    auto drone = [&](const std::vector<float>& slice) {
+      std::vector<float> x(static_cast<size_t>(8.0f * kRate), 0.0f);
+      const size_t n = static_cast<size_t>(0.88f * kRate);
+      for (size_t i = 0; i < n; ++i) {
+        x[i] = slice[i] * static_cast<float>(std::min(1.0, std::min(i / 240.0, (n - 1 - i) / 240.0)));
+      }
+      plain(device);
+      device.set_param(p::kPattern, 2.0f);
+      device.set_param(p::kTime, 900.0f);
+      device.set_param(p::kRepeats, 8.0f);
+      return run(device, x).left;
+    };
+    rng_state() = 0xC0FFEEu;
+    std::vector<float> hiss = noise(1.0f, kRate, 0.5f);
+    // Rumble rather than hiss: two poles at 1.5 kHz.
+    float one = 0.0f, two = 0.0f;
+    for (float& v : hiss) {
+      one += 0.18f * (v - one);
+      two += 0.18f * (one - two);
+      v = two;
+    }
+    const double noise_own = steadiness(hiss, 0.1, 0.85);
+    const double noise_drone = steadiness(drone(hiss), 1.4, 7.0);
+    const double tone_drone = steadiness(drone(sine(220.0f, 1.0f, kRate, 0.25f)), 1.4, 7.0);
+    std::printf("tunnel on noise: the drone's level in 20 ms windows varies by %.2f dB (the noise itself: %.2f dB); "
+                "on a 220 Hz tone: %.2f dB\n", noise_drone, noise_own, tone_drone);
+    EXPECT(noise_drone < 0.95, "Tunnel: a drone of noise does not flutter where the loop crosses over");
+    EXPECT(tone_drone < 0.3, "Tunnel: a drone of a tone is steady");
+  }
+
   // No clicks. A held 110 Hz sine through the x1 loops only: the steepest
   // the output can be is the sine's own slope times the voices that overlap,
   // so a window that opened or closed with a jump would stand out. Checked
@@ -644,6 +699,60 @@ int main() {
     while (first < woken.size() && std::fabs(woken.left[first]) < 1.0e-5f) ++first;
     std::printf("sleep: silent after the tail; woken, the first replay starts at %.1f ms\n", 1000.0 * first / kRate);
     EXPECT_NEAR(first / kRate, 0.4, 0.004, "wakes on new input and replays it one Time later");
+  }
+
+  // What is set while the device sleeps is there from the first sample of
+  // the note that wakes it: Mix moved to fully wet lets none of the dry
+  // attack through (nothing is replayed until one Time later).
+  {
+    device.init(kRate);
+    render(device, 1.0f, kRate);
+    device.set_param(p::kMix, 1.0f);
+    Stereo out = run(device, tone_burst(330.0f, 0.3f, 1.0f));
+    const size_t before = static_cast<size_t>(0.39f * kRate);
+    std::printf("asleep: Mix set to 1 in silence, then a note: peak before the first replay %.1e\n",
+                std::max(peak(out.left, 0, before), peak(out.right, 0, before)));
+    // (Under -120 dB rather than zero: the cosine of a float pi / 2 is -4e-8.)
+    EXPECT(peak(out.left, 0, before) < 1.0e-6 && peak(out.right, 0, before) < 1.0e-6,
+           "a control moved while asleep does not glide in under the next note");
+    EXPECT(rms(out.left, before) > 1.0e-3, "and the note is still replayed");
+  }
+
+  // Bad input samples are survivable. A NaN, an infinity or an absurd value
+  // on either input is dropped: the output stays finite and in range, and
+  // once the slices that held the bad samples have played out the device is
+  // back to what it does with clean input.
+  {
+    std::vector<float> clean(static_cast<size_t>(9.0f * kRate), 0.0f);
+    for (float at : {0.0f, 0.6f, 1.1f, 1.9f, 2.5f, 5.0f, 5.7f}) pluck(clean, at, 196.0f + 90.0f * at, 0.4f);
+    for (size_t i = static_cast<size_t>(4.5f * kRate); i < static_cast<size_t>(5.0f * kRate); ++i) clean[i] = 0.0f;
+    for (size_t i = static_cast<size_t>(6.5f * kRate); i < clean.size(); ++i) clean[i] = 0.0f;
+    std::vector<float> left = clean, right = clean;
+    left[static_cast<size_t>(1.0f * kRate)] = std::nanf("");
+    right[static_cast<size_t>(1.3f * kRate)] = INFINITY;
+    left[static_cast<size_t>(1.6f * kRate)] = -INFINITY;
+    right[static_cast<size_t>(2.0f * kRate)] = 1.0e30f;
+    left[static_cast<size_t>(2.2f * kRate)] = -1.0e30f;
+    device.init(kRate);
+    Stereo good = run(device, clean);
+    device.init(kRate);
+    Stereo bad = run(device, left, right);
+    const size_t later = static_cast<size_t>(5.0f * kRate);
+    double apart = 0.0;
+    for (size_t i = later; i < bad.size(); ++i) {
+      apart = std::max(apart, static_cast<double>(std::fabs(bad.left[i] - good.left[i])));
+      apart = std::max(apart, static_cast<double>(std::fabs(bad.right[i] - good.right[i])));
+    }
+    const size_t end = static_cast<size_t>(8.9f * kRate);
+    std::printf("bad input (NaN, +inf, -inf, 1e30, -1e30 between 1.0 and 2.2 s): %s, peak %.2f (clean %.2f); "
+                "from 5 s on it differs from the clean render by at most %.1e\n",
+                finite(bad.left) && finite(bad.right) ? "finite" : "NOT FINITE",
+                std::max(peak(bad.left), peak(bad.right)), std::max(peak(good.left), peak(good.right)), apart);
+    EXPECT(finite(bad.left) && finite(bad.right), "bad input samples never reach the output");
+    EXPECT(std::max(peak(bad.left), peak(bad.right)) < 1.25 * std::max(peak(good.left), peak(good.right)),
+           "bad input samples do not make a burst");
+    EXPECT(apart < 1.0e-4, "the device recovers from bad input samples");
+    EXPECT(peak(bad.left, end) == 0.0 && peak(bad.right, end) == 0.0, "and still falls asleep afterwards");
   }
 
   // Cost: the default patch, and the heaviest setting (every part up, sixteen

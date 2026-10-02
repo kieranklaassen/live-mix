@@ -10,9 +10,9 @@
 namespace livemix {
 namespace analog_drive_dsp {
 
-// Trapezoidal state-variable filter (Andrew Simper, "Solving the continuous
-// SVF equations using trapezoidal integration and equivalent currents",
-// Cytomic 2013), output = m0 x + m1 band + m2 low.
+// Trapezoidal state-variable filter, after the approach of Andrew Simper,
+// "Solving the continuous SVF equations using trapezoidal integration and
+// equivalent currents": output = m0 x + m1 band + m2 low.
 struct Section {
   float ic1 = 0.0f, ic2 = 0.0f;
   float a1 = 0.0f, a2 = 0.0f, a3 = 0.0f;

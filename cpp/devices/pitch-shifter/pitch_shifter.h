@@ -25,6 +25,7 @@
 //   each grain to either side of its voice.
 
 #include "../../kit/kit.h"
+#include "ChordEngine.h"
 #include "ShiftVoice.h"
 #include "params.gen.h"
 
@@ -38,6 +39,13 @@ class PitchShifter : public kit::DeviceBase<pitch_shifter::kNumParams> {
     init_base(sample_rate, kParamMin, kParamMax, kParamDefault);
     const float sr = this->sample_rate();
     ring_.clear();
+    chords_.init(sr);
+    chords_on_ = false;
+    voices_on_ = true;
+    voice_mode_ = pitch_shifter_dsp::kSmooth;
+    blend_ = 0.0f;
+    blend_step_ = 1.0f / (kBlendSeconds * sr);
+    wait_ = 0;
     for (int v = 0; v < 2; ++v) {
       voice_[v].reset(v == 0 ? 0x3C6EF372u : 0xA54FF53Au, sr);
       pitch_[v].set_time(kGlideSeconds, sr);
@@ -101,10 +109,20 @@ class PitchShifter : public kit::DeviceBase<pitch_shifter::kNumParams> {
       float wet[2] = {0.0f, 0.0f};
       float back[2] = {0.0f, 0.0f};
       const float level_b = level_b_.next();
+      ratio_[0] += ratio_step_[0];
+      ratio_[1] += ratio_step_[1];
+      float chord[2][2];
+      if (chords_on_) {
+        chords_.render(ring_, base, ratio_, b_active_, chord);
+        if (voices_on_) cross();
+      }
       for (int v = 0; v < (b_active_ ? 2 : 1); ++v) {
-        ratio_[v] += ratio_step_[v];
-        float left, right;
-        voice_[v].render(ring_, setup_[v], base, ratio_[v], &left, &right);
+        float left = 0.0f, right = 0.0f;
+        if (voices_on_) voice_[v].render(ring_, setup_[v], base, ratio_[v], &left, &right);
+        if (chords_on_) {
+          left = left * voices_gain_ + chord[v][0] * chords_gain_;
+          right = right * voices_gain_ + chord[v][1] * chords_gain_;
+        }
         left = tone_[v][0].lowpass(left);
         right = tone_[v][1].lowpass(right);
         const float level = v == 0 ? 1.0f : level_b;
@@ -130,6 +148,7 @@ class PitchShifter : public kit::DeviceBase<pitch_shifter::kNumParams> {
         if (size > loudest) loudest = size;
       }
       ring_.write(back[0], back[1]);
+      if (chords_on_) chords_.record(back[0], back[1]);
 
       const float mix = mix_.next();
       if (mix != mix_seen_) {
@@ -147,6 +166,8 @@ class PitchShifter : public kit::DeviceBase<pitch_shifter::kNumParams> {
   static constexpr int kControlPeriod = 16;
   static constexpr float kGlideSeconds = 0.012f;
   static constexpr float kDelayLagSeconds = 0.08f;
+  static constexpr float kBlendSeconds = 0.04f;
+  static constexpr int kChords = pitch_shifter_dsp::kNumModes;  // the choice after the voices' own
   static constexpr float kSqrtTwo = 1.41421356f;
 
   void apply(int id) {
@@ -193,6 +214,29 @@ class PitchShifter : public kit::DeviceBase<pitch_shifter::kNumParams> {
     return together * 0.5f + (1.0f - together) * 0.8165f;
   }
 
+  // One sample of the crossing between the voices and Chords, equal in power.
+  void cross() {
+    if (want_chords_) {
+      if (wait_ > 0) {
+        --wait_;
+        return;
+      }
+      blend_ += blend_step_;
+      if (blend_ >= 1.0f) {
+        blend_ = 1.0f;
+        voices_on_ = false;
+      }
+    } else {
+      blend_ -= blend_step_;
+      if (blend_ <= 0.0f) {
+        blend_ = 0.0f;
+        chords_on_ = false;
+      }
+    }
+    voices_gain_ = kit::SineTable::cos_lookup(0.25f * blend_);
+    chords_gain_ = kit::SineTable::lookup(0.25f * blend_);
+  }
+
   void control() {
     using namespace pitch_shifter;
     using namespace pitch_shifter_dsp;
@@ -202,7 +246,30 @@ class PitchShifter : public kit::DeviceBase<pitch_shifter::kNumParams> {
     if (want_b && !b_active_) voice_[1].restart();
     b_active_ = want_b;
 
-    const int mode = kit::clamp_int(static_cast<int>(param(kMode) + 0.5f), 0, kNumModes - 1);
+    // Chords is its own engine. Turning to it, the voices play on until it
+    // has caught up (its long window and the Delay, so what was played
+    // before the turn still comes out of the voices), then the two cross
+    // over; turning away, the voices start at once and Chords fades under.
+    const int choice = kit::clamp_int(static_cast<int>(param(kMode) + 0.5f), 0, kChords);
+    want_chords_ = choice == kChords;
+    if (!want_chords_) voice_mode_ = choice;
+    const int mode = voice_mode_;
+    if (settle_) {
+      chords_on_ = want_chords_;
+      voices_on_ = !want_chords_;
+      blend_ = want_chords_ ? 1.0f : 0.0f;
+      voices_gain_ = 1.0f - blend_;
+      chords_gain_ = blend_;
+      wait_ = 0;
+    } else if (want_chords_ && !chords_on_) {
+      chords_.reset();
+      chords_on_ = true;
+      wait_ = chords_.latency() + static_cast<int>(base_.target);
+    } else if (!want_chords_ && !voices_on_) {
+      voice_[0].restart();
+      voice_[1].restart();
+      voices_on_ = true;
+    }
     const float size_seconds = param(kSize) * 0.001f;
     float fastest = 1.0f;
     for (int v = 0; v < 2; ++v) {
@@ -220,7 +287,9 @@ class PitchShifter : public kit::DeviceBase<pitch_shifter::kNumParams> {
       if (v == 0 || b_active_) fastest = kit::max(fastest, kit::max(next, setup.target_ratio));
     }
 
-    // Record only what the fastest voice can read back below Nyquist.
+    // Record only what the fastest voice can read back below Nyquist;
+    // Chords drops what would pass it, so alone it needs no such limit.
+    if (!voices_on_) fastest = 1.0f;
     if (settle_) guard_hz_.snap(0.45f * sr / fastest);
     guard_hz_.set_target(0.45f * sr / fastest);
     const float guard = guard_hz_.next();
@@ -250,12 +319,13 @@ class PitchShifter : public kit::DeviceBase<pitch_shifter::kNumParams> {
       mid_right_[v].set(right * kSqrtTwo, !settle_);
       side_[v].set(1.0f - away, !settle_);
     }
-    loop_trim_ = mode == kGrain ? 0.5f / kit::max(setup_[0].grain_gain, setup_[1].grain_gain) : 1.0f;
+    loop_trim_ = voices_on_ && mode == kGrain ? 0.5f / kit::max(setup_[0].grain_gain, setup_[1].grain_gain) : 1.0f;
     settle_ = false;
   }
 
   pitch_shifter_dsp::Ring ring_;
   pitch_shifter_dsp::ShiftVoice voice_[2];
+  pitch_shifter_dsp::ChordEngine chords_;
   pitch_shifter_dsp::VoiceSetup setup_[2];
   kit::Smoother pitch_[2];  // semitones, detune included
   kit::Smoother mid_left_[2], mid_right_[2], side_[2];
@@ -270,6 +340,13 @@ class PitchShifter : public kit::DeviceBase<pitch_shifter::kNumParams> {
   float mix_seen_ = -1.0f, dry_gain_ = 1.0f, wet_gain_ = 0.0f;
   float tone_seen_ = -1.0f, guard_seen_ = -1.0f;
   float loop_trim_ = 1.0f;
+  // Chords is a second engine beside the voices: `blend_` is how much of it
+  // is heard (0 the voices, 1 Chords), and each runs only while it is.
+  float blend_ = 0.0f, blend_step_ = 0.0f;
+  float voices_gain_ = 1.0f, chords_gain_ = 0.0f;
+  int wait_ = 0;        // samples until Chords, just started, has caught up
+  int voice_mode_ = 0;  // the mode the voices are in, or were last
+  bool chords_on_ = false, voices_on_ = true, want_chords_ = false;
   bool b_active_ = false;
   bool settle_ = true;  // the first control tick snaps what later ones glide
 };

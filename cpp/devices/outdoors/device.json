@@ -85,10 +85,121 @@
     }
   ],
   "presets": {
-    "Dawn chorus": { "type": 0 }
+    "Dawn chorus": {
+      "type": 0,
+      "density": 0.65,
+      "distance": 0.4,
+      "movement": 0.5,
+      "tone": 0.5,
+      "attack": 3,
+      "release": 5
+    },
+    "One blackbird": {
+      "type": 0,
+      "density": 0,
+      "distance": 0.12,
+      "movement": 0.2,
+      "tone": 0.45,
+      "attack": 0.5,
+      "release": 3,
+      "width": 0.7
+    },
+    "Summer night": {
+      "type": 1,
+      "density": 0.6,
+      "distance": 0.35,
+      "movement": 0.4,
+      "tone": 0.5,
+      "attack": 2,
+      "release": 4
+    },
+    "Evening field": {
+      "type": 1,
+      "density": 1,
+      "distance": 0.85,
+      "movement": 0.7,
+      "tone": 0.4,
+      "attack": 4,
+      "release": 6,
+      "volume": -5
+    },
+    "Pond at dusk": {
+      "type": 2,
+      "density": 0.6,
+      "distance": 0.4,
+      "movement": 0.6,
+      "tone": 0.5,
+      "attack": 2,
+      "release": 4
+    },
+    "Spring pond": {
+      "type": 2,
+      "density": 1,
+      "distance": 0.7,
+      "movement": 0.8,
+      "tone": 0.6,
+      "attack": 3,
+      "release": 6,
+      "volume": -6
+    },
+    "Small stream": {
+      "type": 3,
+      "density": 0.45,
+      "distance": 0.2,
+      "movement": 0.5,
+      "tone": 0.55,
+      "attack": 2,
+      "release": 4
+    },
+    "Fast water": {
+      "type": 3,
+      "density": 0.95,
+      "distance": 0.5,
+      "movement": 0.7,
+      "tone": 0.4,
+      "attack": 3,
+      "release": 5
+    },
+    "Far storm": {
+      "type": 4,
+      "density": 0.5,
+      "distance": 0.8,
+      "movement": 0.6,
+      "tone": 0.4,
+      "attack": 0.5,
+      "release": 8
+    },
+    "Storm overhead": {
+      "type": 4,
+      "density": 0.9,
+      "distance": 0.05,
+      "movement": 0.8,
+      "tone": 0.55,
+      "attack": 0.01,
+      "release": 6,
+      "volume": -12
+    },
+    "Porch chimes": {
+      "type": 5,
+      "density": 0.4,
+      "distance": 0.15,
+      "movement": 0.4,
+      "tone": 0.5,
+      "attack": 0.01,
+      "release": 6
+    },
+    "Chimes in a breeze": {
+      "type": 5,
+      "density": 0.7,
+      "distance": 0.4,
+      "movement": 1,
+      "tone": 0.6,
+      "attack": 0.01,
+      "release": 8
+    }
   },
   "origin": {
     "kind": "new",
-    "note": "Written for live-mix on cpp/kit."
+    "note": "Written for live-mix on cpp/kit: six procedural scenes, no recordings. Birds, crickets, frogs, thunder and chimes are built in the manner of Andy Farnell's \"Designing Sound\" (MIT Press, 2010): birds as chirped tones arranged by a phrase grammar, crickets as pulsed tones, frogs as pulse trains through formant resonators, thunder as many delayed and filtered arrivals of noise, chimes as struck partials of a free-free bar. The stream is a population of bubbles after the approach of Kees van den Doel, \"Physically Based Models for Liquid Sounds\" (ACM Transactions on Applied Perception, 2005): damped sines at the Minnaert resonance whose pitch rises as they decay. The constants were set by measurement here, not copied from those texts."
   }
 }

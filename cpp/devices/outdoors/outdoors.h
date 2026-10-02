@@ -100,6 +100,7 @@ class Outdoors : public kit::DeviceBase<outdoors::kNumParams> {
     if (held >= 0) pool_.voices[held].env.fast_release(0.05f);
 
     read_controls(false);
+    survey();
     bool stolen = false;
     Voice& voice = pool_.voices[pool_.note_on(note_id, &stolen)];
     if (stolen) {

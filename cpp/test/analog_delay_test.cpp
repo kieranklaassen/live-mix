@@ -477,6 +477,32 @@ int main() {
     EXPECT(peak(woken.left, at(1.3), at(3.0)) > 0.01, "wakes on new input");
   }
 
+  // 14b. Knobs turned while the device sleeps are in place when the next
+  // note arrives, exactly as if they had been set at load: no glide of the
+  // clock left over to bend the front of the first echo.
+  {
+    const std::vector<float> note = burst(440.0f, 0.3f, 3.0f, kRate, 0.3f);
+    auto settings = [&] {
+      device.set_param(p::kTime, 900.0f);
+      device.set_param(p::kTone, 1500.0f);
+      device.set_param(p::kFeedback, 0.7f);
+      device.set_param(p::kAge, 0.8f);
+      device.set_param(p::kIntervalA, 6.0f);
+      device.set_param(p::kGlide, 0.5f);
+      device.set_param(p::kMix, 0.6f);
+    };
+    device.init(kRate);
+    settings();
+    Stereo at_load = run(device, note);
+    device.init(kRate);
+    render(device, 0.5f, kRate);
+    settings();
+    render(device, 0.5f, kRate);
+    Stereo asleep = run(device, note);
+    EXPECT(asleep.left == at_load.left && asleep.right == at_load.right,
+           "parameters set while asleep sound as they do set at load");
+  }
+
   // 15. The same audio whatever the block size, with the sequencer, the
   // hiss and the modulation all running.
   {

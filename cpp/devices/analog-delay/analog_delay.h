@@ -286,14 +286,20 @@ class AnalogDelay : public kit::DeviceBase<analog_delay::kNumParams> {
     return (static_cast<float>(BbdLine::kSamples) + 0.5f) / (line * sr);
   }
 
+  // A knob turned while the device sounds glides to its value. One turned
+  // while it sleeps (or before the first block) is simply there when the next
+  // note arrives: asleep nothing runs, so a glide would start with that note
+  // and bend the front of its first echo.
+  bool gliding() const { return primed() && !idle_.asleep(); }
+
   void apply(int id) {
     using namespace analog_delay;
     const float value = param(id);
     switch (id) {
       case kTime:
       case kTone:
-        if (!primed()) tone_ = param(kTone);
-        clock_.set(ticks_for(param(kTime) * 0.001f), primed());
+        if (!gliding()) tone_ = param(kTone);
+        clock_.set(ticks_for(param(kTime) * 0.001f), gliding());
         step_length_ = param(kTime) * 0.001f * sample_rate();
         break;
       case kIntervalA:
@@ -305,6 +311,7 @@ class AnalogDelay : public kit::DeviceBase<analog_delay::kNumParams> {
           step_elapsed_ = 0.0f;
         }
         step_target_ = slot_gain(step_slot_);
+        if (!gliding()) step_gain_ = step_target_;
         break;
       case kStep:
         step_repeats_ = static_cast<float>(1 << kit::clamp_int(static_cast<int>(value + 0.5f), 0, 3));
@@ -314,22 +321,22 @@ class AnalogDelay : public kit::DeviceBase<analog_delay::kNumParams> {
         glide_coeff_ = kit::time_to_coeff(kMaxGlideSeconds * value * value, sample_rate());
         break;
       case kFeedback:
-        feedback_.set(value, primed());
+        feedback_.set(value, gliding());
         break;
       case kModDepth:
-        depth_.set(value, primed());
+        depth_.set(value, gliding());
         break;
       case kModRate:
         lfo_increment_ = value / sample_rate();
         break;
       case kAge:
-        age_.set(value, primed());
+        age_.set(value, gliding());
         break;
       case kSpread:
-        spread_.set(value, primed());
+        spread_.set(value, gliding());
         break;
       case kMix:
-        mix_.set(value, primed());
+        mix_.set(value, gliding());
         break;
       default:
         break;

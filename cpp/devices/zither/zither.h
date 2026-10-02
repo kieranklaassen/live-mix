@@ -503,11 +503,13 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
   // wider toward the treble, and a course lies a little across it.
   void place(Voice& voice) {
     const float note = kit::hz_to_midi(voice.hz);
-    const float width = 0.1f + 0.35f * kit::clamp((note - 40.0f) / 44.0f, 0.0f, 1.0f);
+    const float width = 0.15f + 0.45f * kit::clamp((note - 40.0f) / 44.0f, 0.0f, 1.0f);
     const float pan = width * kit::SineTable::lookup(note * 0.381966f);
     if (voice.two) {
-      kit::pan_gains(pan - kCourseSplit, &voice.left[0], &voice.right[0]);
-      kit::pan_gains(pan + kCourseSplit, &voice.left[1], &voice.right[1]);
+      // The two strings of a low course lie close together: the bass stays in the middle.
+      const float split = kCourseSplit * kit::clamp((note - 28.0f) / 36.0f, 0.15f, 1.0f);
+      kit::pan_gains(pan - split, &voice.left[0], &voice.right[0]);
+      kit::pan_gains(pan + split, &voice.left[1], &voice.right[1]);
       for (int s = 0; s < 2; ++s) {
         voice.left[s] *= kCourseGain;
         voice.right[s] *= kCourseGain;
@@ -556,10 +558,10 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
   // Exciters. Widths are for a string at 220 Hz, from the softest to the
   // hardest touch, and grow toward the bass by the power given.
   static constexpr float kFingerSoft = 0.0009f, kFingerHard = 0.00004f, kFingerLean = 0.5f;
-  static constexpr float kPickSoft = 0.0002f, kPickHard = 0.00003f, kPickLean = 0.25f;
+  static constexpr float kPickSoft = 0.0003f, kPickHard = 0.00006f, kPickLean = 0.25f;
   static constexpr float kHammerSoft = 0.0026f, kHammerHard = 0.00045f, kHammerLean = 0.5f;
   static constexpr float kPickStep = 0.55f;     // the pick's share of pluck: thin
-  static constexpr float kPickClick = 0.8f;     // and of click: bright
+  static constexpr float kPickClick = 0.35f;     // and of click: bright
   static constexpr float kHammerLevel = 0.6f;
   static constexpr float kBounce = 0.28f;       // the hammer's second, softer contact
   static constexpr float kBounceSeconds = 0.011f;
@@ -803,17 +805,17 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
   };
   static constexpr BodySpec kBodies[kNumBodies] = {
       // Harp: a wide warm board, soft on top.
-      {{165.0f, 260.0f, 440.0f, 780.0f}, {5.0f, 6.0f, 6.0f, 5.0f}, {0.5f, 0.45f, 0.35f, 0.25f},
-       150.0f, 1.0f, 3500.0f, 1.0f, 0.8f, 1.0f},
+      {{165.0f, 260.0f, 440.0f, 780.0f}, {5.0f, 6.0f, 6.0f, 5.0f}, {0.6f, 0.5f, 0.4f, 0.3f},
+       200.0f, 2.0f, 3000.0f, 0.0f, 0.8f, 1.0f},
       // Zither: a shallow box, bright.
       {{210.0f, 345.0f, 590.0f, 1150.0f}, {7.0f, 8.0f, 8.0f, 6.0f}, {0.4f, 0.45f, 0.4f, 0.3f},
-       160.0f, -3.0f, 2500.0f, 6.0f, 0.8f, 1.0f},
+       160.0f, -3.0f, 2500.0f, 4.5f, 0.8f, 1.0f},
       // Dulcimer: a ringing trapezoid, brighter still.
-      {{185.0f, 300.0f, 520.0f, 930.0f}, {10.0f, 12.0f, 12.0f, 9.0f}, {0.5f, 0.5f, 0.45f, 0.35f},
-       180.0f, -3.0f, 2000.0f, 7.0f, 0.7f, 1.0f},
+      {{185.0f, 300.0f, 520.0f, 930.0f}, {14.0f, 16.0f, 16.0f, 12.0f}, {0.6f, 0.6f, 0.55f, 0.45f},
+       180.0f, -2.0f, 2000.0f, 4.0f, 0.65f, 1.0f},
       // Koto: a long hollow body, thin below and nasal.
-      {{140.0f, 310.0f, 620.0f, 1350.0f}, {4.0f, 5.0f, 4.0f, 3.0f}, {0.3f, 0.5f, 0.6f, 0.7f},
-       220.0f, -5.0f, 4000.0f, 3.0f, 0.6f, 1.0f},
+      {{140.0f, 310.0f, 620.0f, 1350.0f}, {4.0f, 5.0f, 3.5f, 3.0f}, {0.2f, 0.4f, 0.8f, 1.2f},
+       250.0f, -7.0f, 4500.0f, 1.0f, 0.5f, 1.0f},
   };
   static constexpr float kBodySkew[kBodyModes] = {1.045f, 0.96f, 1.035f, 0.955f};
   static constexpr float kBodyFadeSeconds = 0.04f;
