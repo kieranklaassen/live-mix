@@ -24,7 +24,7 @@ export const TANPURA_PRESETS: readonly FactoryPreset[] = [
     instrument: { deviceId: 'tanpura', preset: 'Slow wall', params: { volume: -5 } },
     effects: [
       // The drive the preset had when this was tuned.
-      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4 } },
+      { deviceId: 'tape', preset: 'Mastering deck', params: { drive: 0.4 } },
       { deviceId: 'expanse', preset: 'Open space', params: { mix: 0.45, decay: 16 } },
     ],
     preview: 'low',

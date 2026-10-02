@@ -155,7 +155,7 @@ export const TREMOLO_DESCRIPTOR = wasmDeviceDescriptor(TREMOLO_DEVICE, {
       drift: 0.25,
       smooth: 0.3,
     },
-    'Tape vibrato': { mode: 3, rate: 5.2, depth: 0.3, shape: 0, phase: 8, drift: 0.5, smooth: 0.2 },
+    'Pitch wobble': { mode: 3, rate: 5.2, depth: 0.3, shape: 0, phase: 8, drift: 0.5, smooth: 0.2 },
     'Slow chorus': {
       mode: 3,
       rate: 0.7,
@@ -202,6 +202,9 @@ export const TREMOLO_DESCRIPTOR = wasmDeviceDescriptor(TREMOLO_DEVICE, {
     },
   },
   formerPresets: { 'Brownface shimmer': 'Harmonic shimmer' },
+  retiredPresets: {
+    'Tape vibrato': { mode: 3, rate: 5.2, depth: 0.3, shape: 0, phase: 0, drift: 0.5, smooth: 0.2 },
+  },
 })
 
 export type Tremolo = WasmDevice<typeof TREMOLO_PARAMS>

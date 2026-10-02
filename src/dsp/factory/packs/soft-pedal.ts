@@ -551,7 +551,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { highCut: 6000 } },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { highCut: 6000 } },
       {
         deviceId: 'fdn-reverb',
         preset: 'Hall',
@@ -683,7 +683,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { decay: 30, hardness: 0.4, brightness: 0.3, volume: -5 },
     },
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { lowCut: 80, highCut: 4500 } },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { lowCut: 80, highCut: 4500 } },
       { deviceId: 'expanse', preset: 'Far echoes', params: { mix: 0.5 } },
     ],
   },
@@ -956,7 +956,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { mallet: 0.4, decay: 1.5, width: 0.6, volume: -4 },
     },
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { highCut: 7000 } },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { highCut: 7000 } },
       { deviceId: 'expanse', preset: 'Far echoes', params: { highCut: 4000, mix: 0.45 } },
     ],
   },
@@ -1587,7 +1587,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { cutoff: 160, volume: -21 },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Tape Print', params: { outputDb: -2, driveDb: 6 } },
+      { deviceId: 'saturator', preset: 'On tape', params: { outputDb: -2, driveDb: 6 } },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { lowDecay: 4, mix: 0.3 } },
     ],
     preview: 'low',
@@ -1657,7 +1657,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { tone: 0.25, volume: 3.8 },
     },
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { highCut: 7000 } },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { highCut: 7000 } },
       { deviceId: 'expanse', preset: 'Open space', params: { decay: 12, mix: 0.45 } },
     ],
   },
@@ -1993,7 +1993,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { roll: 6, brightness: 0.4, volume: -9 },
     },
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { highCut: 6000 } },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { highCut: 6000 } },
       { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.4 } },
     ],
   },

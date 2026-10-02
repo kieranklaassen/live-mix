@@ -74,7 +74,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
       {
         deviceId: 'ambient-eq',
-        preset: 'Dark',
+        preset: 'Shaded',
         params: { low: -2, body: -2, presence: -2, highCut: 5000 },
       },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.35, decay: 5 } },
@@ -700,10 +700,10 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'saturator',
-        preset: 'Broken Speaker',
+        preset: 'Blown speaker',
         params: { driveDb: 28, toneDb: -6, outputDb: -23.5, mix: 0.8 },
       },
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { highCut: 4000 } },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { highCut: 4000 } },
       { deviceId: 'expanse', preset: 'Open space', params: { mix: 0.35 } },
     ],
   },
@@ -823,7 +823,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { blow: 0.75, breath: 0.15, attack: 2, release: 5, volume: -4.5 },
     },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.75, hiss: 0 } },
+      { deviceId: 'tape', preset: 'Mastering deck', params: { drive: 0.75, hiss: 0 } },
       {
         deviceId: 're-amp',
         preset: 'Just the room',
@@ -989,7 +989,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Wavefold Lead',
         params: { driveDb: 18, toneDb: 0, outputDb: -19 },
       },
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { highCut: 6000 } },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { highCut: 6000 } },
       { deviceId: 'expanse', preset: 'Open space', params: { width: 0.7, mix: 0.4 } },
     ],
   },
@@ -1092,7 +1092,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'glitch', preset: 'Rare slips', params: { chance: 0.2 } },
-      { deviceId: 'patina', preset: 'Twelve bit', params: { wear: 0.35 } },
+      { deviceId: 'patina', preset: 'Early sampler', params: { wear: 0.35 } },
       { deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.3 } },
     ],
   },
@@ -1354,10 +1354,10 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'saturator',
-        preset: 'Lo-Fi 1x',
+        preset: 'Lo-fi',
         params: { driveDb: 22, toneDb: -4, outputDb: -22.5, mix: 0.7 },
       },
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { highCut: 7000 } },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { highCut: 7000 } },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.35 } },
     ],
   },
@@ -1642,7 +1642,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { beat: 14, sub: 0.8, cutoff: 500, drive: 0.6, volume: -10 },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Bass DI Grit', params: { outputDb: -14 } },
+      { deviceId: 'saturator', preset: 'Bass grit', params: { outputDb: -14 } },
       { deviceId: 're-amp', preset: 'Warm stack', params: { output: -11.5 } },
       { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.25 } },
     ],
@@ -1841,7 +1841,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 1.2, release: 4, tone: 2600, wobble: 0.8, volume: -11 },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Tape Print', params: { driveDb: 12, outputDb: -20 } },
+      { deviceId: 'saturator', preset: 'On tape', params: { driveDb: 12, outputDb: -20 } },
       { deviceId: 're-amp', preset: 'Down the hall', params: { room: 0.6 } },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
     ],
@@ -1964,7 +1964,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { age: 0.7, attack: 0.8, release: 3.5, players: 1, vibrato: 0.2, volume: -10 },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Tape Print', params: { driveDb: 12, outputDb: -15 } },
+      { deviceId: 'saturator', preset: 'On tape', params: { driveDb: 12, outputDb: -15 } },
       { deviceId: 'grain-cloud', preset: 'Slow smear', params: { spread: 0.4, mix: 0.5 } },
       { deviceId: 'expanse', preset: 'Open space', params: { width: 0.7, mix: 0.35 } },
     ],
@@ -2027,7 +2027,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'saturator',
-        preset: 'Broken Speaker',
+        preset: 'Blown speaker',
         params: { driveDb: 24, outputDb: -18, mix: 0.6 },
       },
       { deviceId: 're-amp', preset: 'Combo in a room', params: { distance: 0.35, output: -8.8 } },

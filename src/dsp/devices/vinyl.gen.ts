@@ -134,7 +134,7 @@ export const VINYL_DESCRIPTOR = wasmDeviceDescriptor(VINYL_DEVICE, {
   description:
     'Puts the sound on a record: the slow pitch warp of a disc that is not flat, crackle, pops and a scratch that comes round once a turn, surface hiss and rumble, a worn groove, and a platter you can stop and start.',
   presets: {
-    'Clean pressing': {
+    'New pressing': {
       speed: 0,
       warp: 0.15,
       crackle: 0.22,
@@ -267,6 +267,20 @@ export const VINYL_DESCRIPTOR = wasmDeviceDescriptor(VINYL_DEVICE, {
       mix: 0.4,
     },
     'Ruined record': { speed: 0, warp: 1, crackle: 1, pops: 1, surface: 0.9, wear: 1, tone: -0.3 },
+  },
+  retiredPresets: {
+    'Clean pressing': {
+      speed: 0,
+      warp: 0.15,
+      crackle: 0.22,
+      pops: 0.05,
+      surface: 0.2,
+      wear: 0.1,
+      tone: 0,
+      platter: 0,
+      spin: 1.5,
+      mix: 1,
+    },
   },
 })
 

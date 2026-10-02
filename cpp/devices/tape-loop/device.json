@@ -148,7 +148,7 @@
       "spread": 0.2,
       "mix": 0.5
     },
-    "Hold forever": {
+    "Endless hold": {
       "length": 7,
       "feedback": 1,
       "wear": 0,
@@ -240,6 +240,17 @@
       "wow": 0.15,
       "lowCut": 30,
       "spread": 0.3,
+      "mix": 0.5
+    }
+  },
+  "retiredPresets": {
+    "Hold forever": {
+      "length": 8,
+      "feedback": 1,
+      "wear": 0,
+      "wow": 0.1,
+      "lowCut": 40,
+      "spread": 0,
       "mix": 0.5
     }
   },

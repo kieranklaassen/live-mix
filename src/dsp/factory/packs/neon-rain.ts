@@ -70,7 +70,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'tremolo',
-        preset: 'Tape vibrato',
+        preset: 'Pitch wobble',
         params: { phase: 0, rate: 4.6, depth: 0.22, drift: 0.4 },
       },
       { deviceId: 'analog-delay', preset: 'Dark repeats', params: { time: 440, mix: 0.28 } },
@@ -241,7 +241,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { cutoff: 500, attack: 1.5, release: 5, chorus: 0, volume: -14 },
     },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4, hiss: 0.05 } },
+      { deviceId: 'tape', preset: 'Mastering deck', params: { drive: 0.4, hiss: 0.05 } },
       { deviceId: 'dattorro', preset: 'Long plate', params: { damping: 0.5, mix: 0.22 } },
     ],
     preview: 'low',
@@ -425,7 +425,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { blow: 0.5, attack: 3, release: 7 },
     },
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { highCut: 9000, lowCut: 30 } },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { highCut: 9000, lowCut: 30 } },
       { deviceId: 'ether-reverb', preset: 'Cathedral', params: { damping: 0.4, mix: 0.3 } },
     ],
     preview: 'low',
@@ -579,7 +579,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { decay: 3, hardness: 0.7, brightness: 0.6, volume: -6 },
     },
     effects: [
-      { deviceId: 'patina', preset: 'Twelve bit', params: { wear: 0.35, noise: 0.1 } },
+      { deviceId: 'patina', preset: 'Early sampler', params: { wear: 0.35, noise: 0.1 } },
       {
         deviceId: 'analog-delay',
         preset: 'Fifths and fourths',
@@ -734,7 +734,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { tone: 1500, width: 0.6, volume: -7.5 },
     },
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { highCut: 6000 } },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { highCut: 6000 } },
       {
         deviceId: 'expanse',
         preset: 'Open space',
@@ -1546,7 +1546,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'patina',
-        preset: 'Twelve bit',
+        preset: 'Early sampler',
         params: { drive: 0.7, wobble: 0.05, wear: 0.5, noise: 0.08 },
       },
       { deviceId: 'analog-delay', preset: 'Dark repeats', params: { time: 450, mix: 0.3 } },
@@ -1679,7 +1679,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { density: 0.65, distance: 0.7, volume: -2 },
     },
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { lowCut: 28, highCut: 7000 } },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { lowCut: 28, highCut: 7000 } },
       {
         deviceId: 'expanse',
         preset: 'Open space',

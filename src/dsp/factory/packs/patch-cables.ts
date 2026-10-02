@@ -94,7 +94,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'auto-filter',
-        preset: 'Random Steps',
+        preset: 'Stepped',
         params: { cutoffHz: 900, resonance: 4, lfoAmount: 65, lfoRateHz: 5, mix: 0.6 },
       },
       { deviceId: 'echo-memory', preset: 'Flickers', params: { time: 250, mix: 0.3 } },
@@ -393,7 +393,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'auto-filter',
-        preset: 'Random Steps',
+        preset: 'Stepped',
         params: { mix: 1, resonance: 5, lfoAmount: 85 },
       },
       { deviceId: 'tremolo', preset: 'Slow pan', params: { rate: 2, shape: 3, depth: 0.4 } },
@@ -487,7 +487,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'auto-filter',
-        preset: 'Random Steps',
+        preset: 'Stepped',
         params: { cutoffHz: 1500, resonance: 3, lfoAmount: 60, lfoRateHz: 6, mix: 0.7 },
       },
       {
@@ -961,7 +961,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'auto-filter',
-        preset: 'Auto-Wah',
+        preset: 'Touch wah',
         params: { cutoffHz: 500, resonance: 3, envAmount: 70, mix: 0.7 },
       },
       { deviceId: 'chorus', preset: 'Classic Chorus', params: { mix: 0.3 } },
@@ -1057,7 +1057,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'auto-filter',
-        preset: 'Random Steps',
+        preset: 'Stepped',
         params: { cutoffHz: 1400, resonance: 8, lfoAmount: 60, lfoRateHz: 5, mix: 0.75 },
       },
       { deviceId: 'saturator', params: { curve: 0, driveDb: 16, outputDb: -11.5 } },
@@ -1489,7 +1489,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'auto-filter',
-        preset: 'Auto-Wah',
+        preset: 'Touch wah',
         params: { mix: 1, type: 0, cutoffHz: 450, resonance: 4, envAmount: 75, envReleaseMs: 180 },
       },
       { deviceId: 'analog-delay', preset: 'Chorus echo', params: { time: 375, mix: 0.3 } },

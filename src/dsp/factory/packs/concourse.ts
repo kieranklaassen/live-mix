@@ -519,7 +519,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4, wow: 0.15 } },
+      { deviceId: 'tape', preset: 'Mastering deck', params: { drive: 0.4, wow: 0.15 } },
       { deviceId: 'expanse', preset: 'Open space', params: { decay: 14, mix: 0.35, width: 0.8 } },
     ],
   },
@@ -2585,7 +2585,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { density: 0.8, distance: 0.7, movement: 0.6, tone: 0.15, volume: 3 },
     },
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { highCut: 5000 } },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { highCut: 5000 } },
       { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.25 } },
     ],
   },

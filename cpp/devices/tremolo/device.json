@@ -140,7 +140,7 @@
       "drift": 0.25,
       "smooth": 0.3
     },
-    "Tape vibrato": {
+    "Pitch wobble": {
       "mode": 3,
       "rate": 5.2,
       "depth": 0.3,
@@ -233,6 +233,17 @@
     }
   },
   "formerPresets": { "Brownface shimmer": "Harmonic shimmer" },
+  "retiredPresets": {
+    "Tape vibrato": {
+      "mode": 3,
+      "rate": 5.2,
+      "depth": 0.3,
+      "shape": 0,
+      "phase": 0,
+      "drift": 0.5,
+      "smooth": 0.2
+    }
+  },
   "origin": {
     "kind": "new",
     "note": "Written for live-mix on cpp/kit. The harmonic mode follows the idea of the early-sixties Fender brownface circuit (a low and a high band modulated in opposite phase), not its schematic."

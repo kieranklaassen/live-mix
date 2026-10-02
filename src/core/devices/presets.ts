@@ -37,9 +37,10 @@ export interface PresetSource<P extends Record<string, ParamSpec> = Record<strin
   params: P
   presets?: PresetTable<P>
   formerPresets?: Readonly<Record<string, string>>
+  retiredPresets?: PresetTable<P>
 }
 
-/** Materialise a descriptor's factory presets. */
+/** Materialise a descriptor's factory presets: the ones a list shows, not the retired ones. */
 export function listPresets(source: PresetSource): Preset[] {
   return Object.entries(source.presets ?? {}).map(([name, params]) => ({
     name,
@@ -56,24 +57,41 @@ export function defaultPreset(source: PresetSource, name = 'Default'): Preset {
   return { name, deviceId: source.id, deviceVersion: source.version, params }
 }
 
-/** Whether `name` is a preset of the descriptor, by its name of today or one it had before a rename. */
+/**
+ * Whether `name` loads a preset of the descriptor: by its name of today, by a
+ * name it had before a rename, or as one that is no longer listed.
+ */
 export function hasPreset(source: PresetSource, name: string): boolean {
   const presets = source.presets ?? {}
-  return name in presets || (source.formerPresets?.[name] ?? '') in presets
+  return (
+    Object.hasOwn(presets, name) ||
+    Object.hasOwn(source.retiredPresets ?? {}, name) ||
+    Object.hasOwn(presets, source.formerPresets?.[name] ?? '')
+  )
 }
 
 /**
- * Look a preset up by name in a descriptor's table, or validate a preset
- * object against the descriptor (device id must match). A name the preset had
- * before it was renamed (`formerPresets`) finds the preset under its name of
- * today, so a saved score that names it still loads.
+ * Look a preset up by name, or validate a preset object against the
+ * descriptor (device id must match). A name that was ever shipped loads the
+ * settings it had, so a saved score that names it sounds as it did: a name
+ * the preset had before it was renamed (`formerPresets`) finds the preset
+ * under its name of today, and the name of a preset that was retuned
+ * (`retiredPresets`) finds the settings from before, which no list shows.
  */
 export function resolvePreset(source: PresetSource, preset: string | Preset): Preset {
   if (typeof preset === 'string') {
     const presets = listPresets(source)
+    const retired = (source.retiredPresets ?? {}) as Record<string, Record<string, number>>
     const found =
       presets.find((candidate) => candidate.name === preset) ??
-      presets.find((candidate) => candidate.name === source.formerPresets?.[preset])
+      (Object.hasOwn(retired, preset)
+        ? {
+            name: preset,
+            deviceId: source.id,
+            deviceVersion: source.version,
+            params: { ...retired[preset] },
+          }
+        : presets.find((candidate) => candidate.name === source.formerPresets?.[preset]))
     if (!found) throw new Error(`live-mix: ${source.id} has no preset "${preset}"`)
     return found
   }

@@ -99,6 +99,14 @@ export interface DeviceDescriptor<P extends Record<string, ParamSpec> = Record<s
    */
   formerPresets?: Readonly<Record<string, string>>
   /**
+   * Presets that were retuned, under the name and with the settings they had
+   * before: name → partial param map. A shipped name never changes what it
+   * loads, because a saved score names its presets and must sound as it did;
+   * the retuned preset goes on under a new name, and this one is kept here.
+   * `resolvePreset` finds it; a list of presets does not show it.
+   */
+  retiredPresets?: PresetTable<P>
+  /**
    * Shipped but over the CPU budget or otherwise not yet cleared for
    * production (see docs/devices.md); hosts may hide or label it. Absent
    * means false.

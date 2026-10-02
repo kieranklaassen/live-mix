@@ -299,13 +299,26 @@ sample. The presets named in `QUIET_PRESETS` are let off the last two rules:
 the settings a host's mixer starts a channel's EQ and compressor on, and the
 limiter's ways of doing one job.
 
-A preset is loaded by name by the factory sounds, chains and packs, each tuned
-with the preset as it was that day. So a preset that is retuned takes its old
-values along: every factory sound that loads it gets them as `params` beside
-the preset's name, and sounds as it did. Fifteen presets were retuned here
-(up to 14 LU over the dry phrase, 12 LU under it, or too close to it or to a
-sibling); ten of them are loaded by factory sounds, 93 of which pin what they
-had.
+**A shipped preset never changes what it loads.** A saved score names the
+presets it loads (`{ deviceId, preset, params }`) and leaves the rest to the
+device's defaults, and so do the factory sounds, chains and packs. Retune a
+preset in place and every piece saved with it sounds different the next time
+it is opened. So a retune gets a new name, and the old name moves to the
+device's `retiredPresets` with the settings it had: `resolvePreset` and
+`hasPreset` still find it, and no list shows it. Fifteen presets were retuned
+here (up to 14 LU over the dry phrase, 12 LU under it, or too close to it or
+to a sibling), and each is both: auto-filter "Auto-Wah" as it was, and "Touch
+wah" as the retune. The factory sounds that loaded one name the retune and
+carry the old value of the retuned control as `params`, so they resolve to
+what they were tuned with.
+
+`src/dsp/__tests__/shipped-presets.json` holds every preset that has shipped,
+on every device, with every parameter filled in, and
+`shipped-presets.test.ts` holds the devices to it: a changed value, a changed
+default or a name that no longer loads fails the suite and says what to do. A
+new preset, device or parameter is added to the file with
+`UPDATE_SHIPPED_PRESETS=1 pnpm vitest run src/dsp/__tests__/shipped-presets.test.ts`,
+which adds what is missing and never changes a row that is there.
 
 A saved score names the presets it loads, so a preset that is renamed keeps
 its old name in the device's `formerPresets` (old name to the name of today),
@@ -331,9 +344,9 @@ listen:
   Their subtle presets ("Watery trace", "Faint haze") were measured against a
   transparent setting of the same effect instead.
 - **Anything longer than the render.** A loop of 8 s or more never returns
-  inside it ("Hold forever" on `tape-loop` is 7 s for that reason), and the
+  inside it ("Endless hold" on `tape-loop` is 7 s for that reason), and the
   rotary's rotors start at speed, so its acceleration does not show.
-- **A pitch wobble in mono.** "Tape vibrato" on `tremolo` passes by a slight
+- **A pitch wobble in mono.** "Pitch wobble" on `tremolo` passes by a slight
   left and right offset, not by more wobble.
 - **Freeze and Hold.** No preset loads frozen or held: nothing has been played
   at that moment, so the wet side would be silent (`expanse`, `grain-cloud`,

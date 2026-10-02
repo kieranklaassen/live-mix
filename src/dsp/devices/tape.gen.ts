@@ -145,7 +145,7 @@ export const TAPE_DESCRIPTOR = wasmDeviceDescriptor(TAPE_DEVICE, {
       output: 0,
       mix: 1,
     },
-    'Studio master': {
+    'Mastering deck': {
       drive: 0.55,
       wow: 0.05,
       flutter: 0.05,
@@ -305,6 +305,18 @@ export const TAPE_DESCRIPTOR = wasmDeviceDescriptor(TAPE_DEVICE, {
     },
   },
   formerPresets: { 'Disintegrating loop': 'Worn thin' },
+  retiredPresets: {
+    'Studio master': {
+      drive: 0.4,
+      wow: 0.05,
+      flutter: 0.05,
+      speed: 0,
+      age: 0,
+      hiss: 0.1,
+      bump: 0.5,
+      tone: 0.5,
+    },
+  },
 })
 
 export type Tape = WasmDevice<typeof TAPE_PARAMS>

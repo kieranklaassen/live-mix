@@ -81,7 +81,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { touch: 0.7, decay: 0.45, damp: 0.25, halo: 0.15, volume: 1.6 },
     },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.45, hiss: 0.15 } },
+      { deviceId: 'tape', preset: 'Mastering deck', params: { drive: 0.45, hiss: 0.15 } },
       { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.22 } },
     ],
   },
@@ -280,7 +280,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'tremolo',
-        preset: 'Tape vibrato',
+        preset: 'Pitch wobble',
         params: { phase: 0, rate: 1.3, depth: 0.55, drift: 0.7 },
       },
       { deviceId: 'rotary', preset: 'Chorale', params: { drive: 0.45 } },
@@ -311,7 +311,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       'A slow cycle on long strings with the bridge wide open, on master tape in a long plate.',
     instrument: { deviceId: 'tanpura', preset: 'Slow wall', params: { speed: 8, volume: -5 } },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4 } },
+      { deviceId: 'tape', preset: 'Mastering deck', params: { drive: 0.4 } },
       { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.35 } },
     ],
   },
@@ -495,7 +495,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 0.08, bow: 0.8, air: 0.5, vibrato: 20, scatter: 0.6, volume: -12 },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Tape Print', params: { outputDb: -2, driveDb: 6 } },
+      { deviceId: 'saturator', preset: 'On tape', params: { outputDb: -2, driveDb: 6 } },
       { deviceId: 'spring-reverb', preset: 'Two spring tank', params: { mix: 0.28 } },
     ],
     preview: 'line',
@@ -875,7 +875,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { brilliance: 950, swell: 0.6, release: 5, volume: -13 },
     },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4 } },
+      { deviceId: 'tape', preset: 'Mastering deck', params: { drive: 0.4 } },
       { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.32 } },
     ],
   },
@@ -941,7 +941,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { highCut: 6000 } },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { highCut: 6000 } },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.35 } },
     ],
   },
@@ -1129,7 +1129,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'spring-reverb', preset: 'Two spring tank', params: { decay: 2, mix: 0.22 } },
-      { deviceId: 'vinyl', preset: 'Clean pressing', params: { surface: 0.2, warp: 0.2 } },
+      { deviceId: 'vinyl', preset: 'New pressing', params: { surface: 0.2, warp: 0.2 } },
     ],
   },
   {
@@ -1203,7 +1203,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'ambient-comp', preset: 'Keys' },
-      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.45, hiss: 0.15 } },
+      { deviceId: 'tape', preset: 'Mastering deck', params: { drive: 0.45, hiss: 0.15 } },
       { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.25 } },
     ],
   },
@@ -1250,8 +1250,8 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Tape Print', params: { driveDb: 14, outputDb: -8 } },
-      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.5, hiss: 0.15 } },
+      { deviceId: 'saturator', preset: 'On tape', params: { driveDb: 14, outputDb: -8 } },
+      { deviceId: 'tape', preset: 'Mastering deck', params: { drive: 0.5, hiss: 0.15 } },
       { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.3 } },
     ],
   },
@@ -1366,7 +1366,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { strum: 420, brightness: 0.65, sympathy: 0.5, body: 1, volume: -11 },
     },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4 } },
+      { deviceId: 'tape', preset: 'Mastering deck', params: { drive: 0.4 } },
       { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.3 } },
     ],
   },
@@ -1408,7 +1408,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Tape Print', params: { outputDb: -2, driveDb: 6 } },
+      { deviceId: 'saturator', preset: 'On tape', params: { outputDb: -2, driveDb: 6 } },
       { deviceId: 'fdn-reverb', preset: 'Room', params: { mix: 0.25 } },
     ],
     preview: 'low',
@@ -1515,7 +1515,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { blow: 0.75, vibrato: 0.3, attack: 0.04, release: 0.4, volume: -5 },
     },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4, hiss: 0.15 } },
+      { deviceId: 'tape', preset: 'Mastering deck', params: { drive: 0.4, hiss: 0.15 } },
       { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.3 } },
     ],
   },

@@ -140,7 +140,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 0.25, release: 2.5, chorus: 1, volume: -9 },
     },
     effects: [
-      { deviceId: 'tremolo', preset: 'Tape vibrato', params: { phase: 0, rate: 4.6, depth: 0.35 } },
+      { deviceId: 'tremolo', preset: 'Pitch wobble', params: { phase: 0, rate: 4.6, depth: 0.35 } },
       {
         deviceId: 'tape-echo',
         params: { time: 480, feedback: 0.45, heads: 2, wow: 0.4, spread: 0.5, mix: 0.3 },
@@ -560,7 +560,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { brilliance: 600, lowCut: 30, attack: 3.5, release: 9, detune: 14, volume: -7.5 },
     },
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { highCut: 9000 } },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { highCut: 9000 } },
       { deviceId: 'expanse', preset: 'Open space', params: { decay: 7, highCut: 4000, mix: 0.3 } },
     ],
   },
@@ -586,7 +586,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'patina', preset: 'Twelve bit', params: { wear: 0.35 } },
+      { deviceId: 'patina', preset: 'Early sampler', params: { wear: 0.35 } },
       {
         deviceId: 'tape-echo',
         params: { time: 520, feedback: 0.35, wow: 0.35, highCut: 3800, spread: 0.5, mix: 0.22 },
@@ -614,7 +614,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'tremolo', preset: 'Tape vibrato', params: { phase: 0, rate: 4.8, depth: 0.35 } },
+      { deviceId: 'tremolo', preset: 'Pitch wobble', params: { phase: 0, rate: 4.8, depth: 0.35 } },
       { deviceId: 'tape', preset: 'Cassette four-track', params: { hiss: 0.3 } },
     ],
   },
@@ -757,7 +757,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { wave: 0.4, beat: 8, cutoff: 1300, emphasis: 0.5, glide: 0.16, volume: 2 },
     },
     effects: [
-      { deviceId: 'tremolo', preset: 'Tape vibrato', params: { phase: 0, rate: 5, depth: 0.3 } },
+      { deviceId: 'tremolo', preset: 'Pitch wobble', params: { phase: 0, rate: 5, depth: 0.3 } },
       { deviceId: 'analog-delay', preset: 'Chorus echo', params: { mix: 0.3 } },
     ],
     preview: 'line',
@@ -774,7 +774,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { beat: 5, cutoff: 160, drive: 0.15, volume: -22 },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Tape Print', params: { outputDb: -2, driveDb: 6 } },
+      { deviceId: 'saturator', preset: 'On tape', params: { outputDb: -2, driveDb: 6 } },
       { deviceId: 'noise-floor', params: { type: 3, level: -44, movement: 0.2, width: 0.4 } },
     ],
     preview: 'low',
@@ -914,7 +914,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { age: 0.55, attack: 0.03, release: 0.5, volume: -3.5 },
     },
     effects: [
-      { deviceId: 'patina', preset: 'Twelve bit', params: { wear: 0.35, wobble: 0.25 } },
+      { deviceId: 'patina', preset: 'Early sampler', params: { wear: 0.35, wobble: 0.25 } },
       {
         deviceId: 'tape-echo',
         params: { time: 420, feedback: 0.4, mix: 0.28 },
@@ -1424,7 +1424,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tape', preset: 'Quarter inch', params: { wow: 0.4 } },
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { air: -6, highCut: 4000 } },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { air: -6, highCut: 4000 } },
       { deviceId: 'expanse', preset: 'Far echoes', params: { mix: 0.4 } },
     ],
   },
@@ -1509,7 +1509,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { players: 4, attack: 1.2, release: 2.5, volume: -7.5 },
     },
     effects: [
-      { deviceId: 'patina', preset: 'Twelve bit', params: { wear: 0.5 } },
+      { deviceId: 'patina', preset: 'Early sampler', params: { wear: 0.5 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
@@ -1707,7 +1707,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'rotary', preset: 'Across the room' },
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { highCut: 9000 } },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { highCut: 9000 } },
     ],
   },
 

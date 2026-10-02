@@ -121,11 +121,11 @@ export const PATINA_DESCRIPTOR = wasmDeviceDescriptor(PATINA_DEVICE, {
       output: 0,
       mix: 1,
     },
-    'Fresh tape': { medium: 0, drive: 0.2, wobble: 0.08, wear: 0.05, noise: 0.12, tone: 0.75 },
+    'New tape': { medium: 0, drive: 0.2, wobble: 0.08, wear: 0.05, noise: 0.12, tone: 0.75 },
     'Worn cassette': { medium: 1, drive: 0.5, wobble: 0.45, wear: 0.55, noise: 0.45 },
     'Dusty record': { medium: 2, drive: 0.3, wobble: 0.35, wear: 0.4, noise: 0.55, tone: 0.45 },
     Shortwave: { medium: 3, drive: 0.45, wobble: 0.6, wear: 0.8, noise: 0.5, output: 2 },
-    'Twelve bit': { medium: 4, drive: 0.5, wobble: 0.15, wear: 0.5, noise: 0.2 },
+    'Early sampler': { medium: 4, drive: 0.5, wobble: 0.15, wear: 0.5, noise: 0.2 },
     'Hot valve': { medium: 5, drive: 0.7, wobble: 0.3, wear: 0.3, noise: 0.15, tone: 0.55 },
     'Falling apart': { medium: 1, drive: 0.65, wobble: 0.9, wear: 0.95, noise: 0.7, tone: 0.4 },
     'Reel pushed hard': { medium: 0, drive: 0.9, wobble: 0.2, wear: 0.35, noise: 0.25, output: -3 },
@@ -152,6 +152,10 @@ export const PATINA_DESCRIPTOR = wasmDeviceDescriptor(PATINA_DEVICE, {
       tone: 0.45,
       output: -7,
     },
+  },
+  retiredPresets: {
+    'Fresh tape': { medium: 0, drive: 0.2, wobble: 0.08, wear: 0.05, noise: 0.12 },
+    'Twelve bit': { medium: 4, drive: 0.5, wobble: 0.15, wear: 0.35, noise: 0.2 },
   },
 })
 

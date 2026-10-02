@@ -144,7 +144,7 @@
       "lfoShape": 0,
       "mix": 1
     },
-    "Auto-Wah": {
+    "Touch wah": {
       "type": 2,
       "slope": 0,
       "cutoffHz": 350,
@@ -186,7 +186,7 @@
       "lfoShape": 2,
       "mix": 1
     },
-    "Random Steps": {
+    "Stepped": {
       "type": 2,
       "slope": 0,
       "cutoffHz": 1200,
@@ -214,7 +214,7 @@
       "lfoShape": 0,
       "mix": 1
     },
-    "Telephone": {
+    "Phone line": {
       "type": 2,
       "slope": 1,
       "cutoffHz": 900,
@@ -335,6 +335,50 @@
       "envAmount": -70,
       "envAttackMs": 30,
       "envReleaseMs": 600,
+      "lfoAmount": 0,
+      "lfoRateHz": 1,
+      "lfoShape": 0,
+      "mix": 1
+    }
+  },
+  "retiredPresets": {
+    "Auto-Wah": {
+      "type": 2,
+      "slope": 0,
+      "cutoffHz": 350,
+      "resonance": 5,
+      "driveDb": 3,
+      "envAmount": 80,
+      "envAttackMs": 4,
+      "envReleaseMs": 120,
+      "lfoAmount": 0,
+      "lfoRateHz": 1,
+      "lfoShape": 0,
+      "mix": 1
+    },
+    "Random Steps": {
+      "type": 2,
+      "slope": 0,
+      "cutoffHz": 1200,
+      "resonance": 6,
+      "driveDb": 0,
+      "envAmount": 0,
+      "envAttackMs": 10,
+      "envReleaseMs": 200,
+      "lfoAmount": 80,
+      "lfoRateHz": 8,
+      "lfoShape": 5,
+      "mix": 1
+    },
+    "Telephone": {
+      "type": 2,
+      "slope": 1,
+      "cutoffHz": 1800,
+      "resonance": 2,
+      "driveDb": 12,
+      "envAmount": 0,
+      "envAttackMs": 10,
+      "envReleaseMs": 200,
       "lfoAmount": 0,
       "lfoRateHz": 1,
       "lfoShape": 0,

@@ -665,7 +665,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { hardness: 0.9, reverbMix: 0, width: 0.7, polyphony: 16, outputDb: -9.5 },
     },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4 } },
+      { deviceId: 'tape', preset: 'Mastering deck', params: { drive: 0.4 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { decay: 6, mix: 0.4 } },
     ],
   },
@@ -1538,7 +1538,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'vinyl',
-        preset: 'Clean pressing',
+        preset: 'New pressing',
         params: { surface: 0.2, warp: 0.3, crackle: 0.3 },
       },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.4 } },

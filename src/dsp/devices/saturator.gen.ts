@@ -148,7 +148,7 @@ export const SATURATOR_DESCRIPTOR = wasmDeviceDescriptor(SATURATOR_DEVICE, {
       oversample: 2,
       adaa: 1,
     },
-    'Tape Print': {
+    'On tape': {
       curve: 3,
       driveDb: 9,
       bias: 0.05,
@@ -170,7 +170,7 @@ export const SATURATOR_DESCRIPTOR = wasmDeviceDescriptor(SATURATOR_DEVICE, {
       oversample: 2,
       adaa: 0,
     },
-    'Bass DI Grit': {
+    'Bass grit': {
       curve: 2,
       driveDb: 18,
       bias: 0.35,
@@ -225,7 +225,7 @@ export const SATURATOR_DESCRIPTOR = wasmDeviceDescriptor(SATURATOR_DEVICE, {
       oversample: 2,
       adaa: 0,
     },
-    'Broken Speaker': {
+    'Blown speaker': {
       curve: 4,
       driveDb: 36,
       bias: 0.6,
@@ -236,7 +236,7 @@ export const SATURATOR_DESCRIPTOR = wasmDeviceDescriptor(SATURATOR_DEVICE, {
       oversample: 2,
       adaa: 0,
     },
-    'Lo-Fi 1x': {
+    'Lo-fi': {
       curve: 1,
       driveDb: 24,
       bias: 0,
@@ -301,6 +301,52 @@ export const SATURATOR_DESCRIPTOR = wasmDeviceDescriptor(SATURATOR_DEVICE, {
       dcBlock: 1,
       oversample: 2,
       adaa: 1,
+    },
+  },
+  retiredPresets: {
+    'Tape Print': {
+      curve: 3,
+      driveDb: 9,
+      bias: 0.05,
+      toneDb: -3,
+      outputDb: -2,
+      mix: 1,
+      dcBlock: 1,
+      oversample: 2,
+      adaa: 0,
+    },
+    'Bass DI Grit': {
+      curve: 2,
+      driveDb: 18,
+      bias: 0.35,
+      toneDb: -6,
+      outputDb: -9,
+      mix: 0.7,
+      dcBlock: 1,
+      oversample: 2,
+      adaa: 0,
+    },
+    'Broken Speaker': {
+      curve: 4,
+      driveDb: 36,
+      bias: 0.6,
+      toneDb: -12,
+      outputDb: -14,
+      mix: 1,
+      dcBlock: 1,
+      oversample: 2,
+      adaa: 0,
+    },
+    'Lo-Fi 1x': {
+      curve: 1,
+      driveDb: 24,
+      bias: 0,
+      toneDb: -8,
+      outputDb: -12,
+      mix: 1,
+      dcBlock: 1,
+      oversample: 0,
+      adaa: 0,
     },
   },
 })

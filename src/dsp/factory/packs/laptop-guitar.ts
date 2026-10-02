@@ -354,7 +354,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { type: 1, sustain: 5, release: 2, strum: 35, volume: 3.5 },
     },
     effects: [
-      { deviceId: 'patina', preset: 'Twelve bit', params: { drive: 0.4, wear: 0.5 } },
+      { deviceId: 'patina', preset: 'Early sampler', params: { drive: 0.4, wear: 0.5 } },
       {
         deviceId: 'reverse-delay',
         preset: 'Backwards echo',
@@ -1384,7 +1384,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'saturator',
-        preset: 'Lo-Fi 1x',
+        preset: 'Lo-fi',
         params: { driveDb: 18, toneDb: -2, outputDb: -18.5 },
       },
       { deviceId: 'glitch', preset: 'Rare slips', params: { chance: 0.25, calm: 0.4 } },
@@ -1656,7 +1656,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { pluck: 0.14, touch: 0.35, decay: 2.2, bend: 0, volume: -4 },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Tape Print', params: { driveDb: 16, outputDb: -8 } },
+      { deviceId: 'saturator', preset: 'On tape', params: { driveDb: 16, outputDb: -8 } },
       {
         deviceId: 'grain-cloud',
         preset: 'Soft cloud',
@@ -1939,7 +1939,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 0.05, release: 1, ensemble: 0.3, width: 0.5, volume: 1 },
     },
     effects: [
-      { deviceId: 'auto-filter', preset: 'Random Steps', params: { resonance: 4, mix: 0.85 } },
+      { deviceId: 'auto-filter', preset: 'Stepped', params: { resonance: 4, mix: 0.85 } },
       { deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.25 } },
     ],
   },

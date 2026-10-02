@@ -102,7 +102,7 @@
       "output": 0,
       "mix": 1
     },
-    "Studio master": {
+    "Mastering deck": {
       "drive": 0.55,
       "wow": 0.05,
       "flutter": 0.05,
@@ -262,6 +262,18 @@
     }
   },
   "formerPresets": { "Disintegrating loop": "Worn thin" },
+  "retiredPresets": {
+    "Studio master": {
+      "drive": 0.4,
+      "wow": 0.05,
+      "flutter": 0.05,
+      "speed": 0,
+      "age": 0,
+      "hiss": 0.1,
+      "bump": 0.5,
+      "tone": 0.5
+    }
+  },
   "origin": {
     "kind": "new",
     "note": "Written for live-mix on cpp/kit. A behavioural sketch of a tape machine (emphasis around a soft saturator, a wobbling transport, playback equalisation per speed, dropouts, hiss), not a model of any one deck or of magnetic hysteresis. Hiss is only made while the device is awake: it carries on for a second after the input stops, fades, and an idle track is exactly silent."

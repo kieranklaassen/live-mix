@@ -132,7 +132,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Long horizon',
         params: { length: 6, feedback: 0.6, mix: 0.4 },
       },
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { highCut: 9000, lowCut: 40 } },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { highCut: 9000, lowCut: 40 } },
     ],
   },
   {
@@ -348,7 +348,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { lowCut: 60, highCut: 6000 } },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { lowCut: 60, highCut: 6000 } },
       { deviceId: 'expanse', preset: 'Far echoes', params: { mix: 0.3 } },
     ],
   },
@@ -424,7 +424,11 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 're-amp', preset: 'Just the room' },
-      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.8, hiss: 0.1, output: 0.2 } },
+      {
+        deviceId: 'tape',
+        preset: 'Mastering deck',
+        params: { drive: 0.8, hiss: 0.1, output: 0.2 },
+      },
     ],
   },
   {
@@ -474,7 +478,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Tape Print', params: { outputDb: -2 } },
+      { deviceId: 'saturator', preset: 'On tape', params: { outputDb: -2 } },
       { deviceId: 'expanse', preset: 'Small dark room', params: { mix: 0.3 } },
     ],
     preview: 'low',
@@ -517,7 +521,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'half-speed', preset: 'Continuous octave', params: { mix: 0.5 } },
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { highCut: 6000 } },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { highCut: 6000 } },
       { deviceId: 'expanse', preset: 'Far echoes', params: { mix: 0.4 } },
     ],
   },
@@ -606,7 +610,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'vinyl',
-        preset: 'Clean pressing',
+        preset: 'New pressing',
         params: { surface: 0.2, crackle: 0.35, wear: 0.4, tone: -0.3 },
       },
       { deviceId: 'fdn-reverb', preset: 'Room', params: { mix: 0.25 } },
@@ -679,7 +683,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { lowCut: 50, highCut: 5000 } },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { lowCut: 50, highCut: 5000 } },
       { deviceId: 'expanse', preset: 'Event horizon', params: { mix: 0.4, width: 0.7 } },
     ],
     preview: 'hold',
@@ -944,7 +948,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { blow: 0.5, attack: 0.8, release: 3, volume: -3.5 },
     },
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { highCut: 3500 } },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { highCut: 3500 } },
       { deviceId: 'expanse', preset: 'Far echoes', params: { mix: 0.45, decay: 14 } },
     ],
     preview: 'low',
@@ -979,7 +983,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'vinyl', preset: 'Inner groove', params: { tone: -0.4 } },
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { air: -6, highCut: 3000 } },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { air: -6, highCut: 3000 } },
       { deviceId: 'micro-looper', preset: 'Drifting memory', params: { mix: 0.35 } },
     ],
     preview: 'chord',
@@ -1455,7 +1459,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { cutoff: 400, envelope: 0.6, attack: 2.5, release: 6, volume: -10 },
     },
     effects: [
-      { deviceId: 'patina', preset: 'Twelve bit', params: { wear: 0.35, noise: 0.1 } },
+      { deviceId: 'patina', preset: 'Early sampler', params: { wear: 0.35, noise: 0.1 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.35 } },
     ],
   },
@@ -1529,7 +1533,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { breath: 1, blow: 0.12, attack: 2, release: 4, vibrato: 0, volume: -18 },
     },
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { lowCut: 120, highCut: 7000 } },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { lowCut: 120, highCut: 7000 } },
       { deviceId: 'vowel-reverb', preset: 'Whispering hall', params: { decay: 6, mix: 0.4 } },
     ],
     preview: 'chord',
@@ -1669,7 +1673,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { sustain: 2.4, tone: 3000, volume: -6 },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Tape Print', params: { driveDb: 15, outputDb: -5.5 } },
+      { deviceId: 'saturator', preset: 'On tape', params: { driveDb: 15, outputDb: -5.5 } },
       {
         deviceId: 'analog-delay',
         preset: 'Dark repeats',
@@ -1708,7 +1712,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { decay: 1.5, damp: 0.6, volume: -0.5 },
     },
     effects: [
-      { deviceId: 'vinyl', preset: 'Clean pressing', params: { surface: 0.2, crackle: 0.3 } },
+      { deviceId: 'vinyl', preset: 'New pressing', params: { surface: 0.2, crackle: 0.3 } },
       { deviceId: 'glitch', preset: 'Skipping disc', params: { time: 140, chance: 0.2 } },
       { deviceId: 'fdn-reverb', preset: 'Room', params: { mix: 0.25 } },
     ],
@@ -1846,7 +1850,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { density: 0.6, distance: 0.8, tone: 0.6, width: 0.7, volume: -3.8 },
     },
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { highCut: 6000 } },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { highCut: 6000 } },
       { deviceId: 'expanse', preset: 'Open space', params: { mix: 0.3, width: 0.8 } },
     ],
   },
