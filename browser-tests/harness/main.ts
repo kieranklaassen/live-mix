@@ -13,6 +13,7 @@ import { DEFAULT_SESSION, buildSession, type SessionDeps, type SessionSpec } fro
 import { fingerprint, type Fingerprint } from './fingerprint'
 import { measurePlacements } from './placement'
 import { installWebAudioRecorder } from './record-web-audio'
+import { measureRooms } from './room'
 
 export interface HarnessResult {
   offline: { events: ScheduleSnapshot; fingerprint: Fingerprint; latency: unknown }
@@ -98,6 +99,7 @@ declare global {
       renderOffline: typeof renderOfflineSession
       captureLive: typeof captureLiveSession
       measurePlacements: typeof measurePlacements
+      measureRooms: typeof measureRooms
       defaultSession: SessionSpec
     }
   }
@@ -108,6 +110,7 @@ window.liveMixHarness = {
   renderOffline: renderOfflineSession,
   captureLive: captureLiveSession,
   measurePlacements,
+  measureRooms,
   defaultSession: DEFAULT_SESSION,
 }
 document.body.dataset.harness = 'ready'

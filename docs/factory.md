@@ -143,7 +143,7 @@ import {
 |             | Count | Groups                                                                                                       |
 | ----------- | ----- | ------------------------------------------------------------------------------------------------------------ |
 | **Presets** | 75    | Five for each of the fifteen stock instruments: pads, keys, bells, strings, voices, organs, drones, textures |
-| **Chains**  | 33    | Space, echo, tape, motion, texture, pitch, master; every WASM effect is in at least one                      |
+| **Chains**  | 34    | Space, echo, tape, motion, texture, pitch, master; every WASM effect is in at least one                      |
 | **Sounds**  | 34    | Looping drones, pads and textures, one-shots, short phrases, and three made from other sounds                |
 
 The bank is data: importing it loads no module and touches no audio. A host
