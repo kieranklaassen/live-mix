@@ -235,12 +235,15 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
   static constexpr float kSettleSeconds = 0.2f;       // after a catch the reference takes in what still rises
   // Breath, hiss and other noise have no partials to hold: frozen as it was
   // caught, each chance peak of the frame would ring on as a note of its
-  // own. A peak whose neighbouring bins do not fit the window's lobe (by
-  // this many dB, and then fully 1 dB further on) is noise, and its region
-  // is given a new random phase every hop instead of a steady turn.
-  static constexpr float kNoisyFromDb = 2.0f;
-  static constexpr float kNoisySpanDb = 1.0f;
-  static constexpr float kNoisyOwnSpanDb = 3.0f;      // ... more gently for a peak that stands alone
+  // own. Where the bins beside the peaks do not fit the window's lobe, the
+  // sound is noise, and its regions are given a new random phase every hop
+  // instead of a steady turn. The misfit is judged over about a hundred
+  // peaks together: measured on this code, close chords, clusters and
+  // detuned pads read 0.2 to 1.4 dB, white noise and breath 2.0 to 2.7 dB.
+  static constexpr float kNoisyFromDb = 1.5f;         // noise begins here ...
+  static constexpr float kNoisySpanDb = 0.5f;         // ... and is complete this much further on
+  static constexpr float kNoisyOwnFromDb = 3.0f;      // a single peak is judged on its own only when it is
+  static constexpr float kNoisyOwnSpanDb = 3.0f;      // far off: close partials bend each other's lobes
   static constexpr int kNoisyBlock = 32;              // peaks that are judged together
   static constexpr int kNoisyReach = 2;               // peaks either side that a partial must stand above
   static constexpr int kMaxBlocks = (kMaxRegions + kNoisyBlock - 1) / kNoisyBlock;
@@ -968,8 +971,11 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
       block_misfit[b] = 0.0f;
       for (int i = from; i < from + count; ++i) {
         if (stands_[i]) continue;
-        block_power[b] += weight_[i];
-        block_misfit[b] += weight_[i] * misfit_[i];
+        // Weighted by magnitude: by power, the few tall peaks of a frame of
+        // noise (which fit best, as chance has it) would speak for all.
+        const float w = std::sqrt(weight_[i]);
+        block_power[b] += w;
+        block_misfit[b] += w * misfit_[i];
       }
     }
     float low_noise = 0.0f, low_all = 0.0f;
@@ -980,9 +986,9 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
         around += block_power[i];
         around_misfit += block_misfit[i];
       }
-      float noisy = (misfit_[r] - kNoisyFromDb) / kNoisyOwnSpanDb;
+      float noisy = (misfit_[r] - kNoisyOwnFromDb) / kNoisyOwnSpanDb;
       if (!stands_[r] && around > 0.0f) {
-        noisy = (kit::max(misfit_[r], around_misfit / around) - kNoisyFromDb) / kNoisySpanDb;
+        noisy = kit::max(noisy, (around_misfit / around - kNoisyFromDb) / kNoisySpanDb);
       }
       slot.noisy[r] = regions > 1 ? kit::clamp(noisy, 0.0f, 1.0f) : 0.0f;
       if (static_cast<float>(peak_[r]) < cross) {
