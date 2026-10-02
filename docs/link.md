@@ -180,7 +180,7 @@ import { LinkAudioSender } from '@kieranklaassen/live-mix/native'
 
 await link.set({ audio: true })
 const main = await LinkAudioSender.create(audioContext, client, link, { name: 'Main' })
-engine.masterBus.output.connect(main.input)
+engine.master.addTap(main.input) // a copy of the master, after its inserts and limiter
 ```
 
 Peers now see a channel `Main` from the peer called whatever `name` was set to
