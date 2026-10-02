@@ -501,7 +501,55 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     set_strike(voice, blow);
   }
 
-  // ZITHER_STRIKE
+  // Exciters. Widths are for a string at 220 Hz, from the softest to the
+  // hardest touch, and grow toward the bass by the power given.
+  static constexpr float kFingerSoft = 0.0018f, kFingerHard = 0.00022f, kFingerLean = 0.35f;
+  static constexpr float kPickSoft = 0.00045f, kPickHard = 0.00007f, kPickLean = 0.25f;
+  static constexpr float kHammerSoft = 0.0032f, kHammerHard = 0.0006f, kHammerLean = 0.5f;
+  static constexpr float kPickStep = 0.45f;     // the pick's share of pluck: thin
+  static constexpr float kPickClick = 0.8f;     // and of click: bright
+  static constexpr float kHammerLevel = 0.75f;
+  static constexpr float kBounce = 0.28f;       // the hammer's second, softer contact
+  static constexpr float kBounceSeconds = 0.011f;
+
+  // Draw the blow for this string and hand it to a free strike slot.
+  void set_strike(Voice& voice, const Blow& blow) {
+    const float sr = sample_rate();
+    zither::Strike& strike = voice.strikes[voice.next_strike];
+    voice.next_strike = 1 - voice.next_strike;
+    strike = zither::Strike();
+    const float period = sr / voice.hz;
+    const float lean = 220.0f / voice.hz;
+    // A harder touch is a narrower one.
+    const float hard = kit::clamp(blow.brightness + 0.35f * (blow.level - 0.6f), 0.0f, 1.0f);
+    const float level = kStringLevel * (0.08f + 0.92f * std::pow(blow.level, 1.5f));
+    strike.period = period;
+    strike.split = kit::clamp(blow.position, 0.02f, 0.5f) * period;
+    if (blow.exciter == kHammer) {
+      float width = kHammerSoft * std::pow(kHammerHard / kHammerSoft, hard) * std::pow(lean, kHammerLean) * sr;
+      width = kit::clamp(width, 2.5f, 0.7f * period);
+      strike.blow = 1.0f / width;
+      // Level by the fundamental the blow leaves on the string, eased toward
+      // the bass where that would make a tall narrow spike.
+      strike.pulse = level * kHammerLevel * std::pow(period / (kit::kPi * width), 0.75f);
+      strike.bounce = strike.pulse * kBounce;
+      strike.bounce_at = kBounceSeconds * (1.3f - 0.6f * blow.level) * sr;
+      strike.bounce_blow = 1.0f / (1.5f * width);
+    } else if (blow.exciter == kPick) {
+      float width = kPickSoft * std::pow(kPickHard / kPickSoft, hard) * std::pow(lean, kPickLean) * sr;
+      width = kit::clamp(width, 1.5f, 0.3f * period);
+      strike.edge = 1.0f / width;
+      strike.blow = 1.0f / (2.0f * width);
+      strike.step = level * kPickStep;
+      strike.pulse = level * kPickClick;
+    } else {
+      float width = kFingerSoft * std::pow(kFingerHard / kFingerSoft, hard) * std::pow(lean, kFingerLean) * sr;
+      width = kit::clamp(width, 1.5f, 0.45f * period);
+      strike.edge = 1.0f / width;
+      strike.step = level;
+    }
+    strike.finish_setup();
+  }
 
   // Every 32 samples: keys, ring times, freeing.
   void control() {
