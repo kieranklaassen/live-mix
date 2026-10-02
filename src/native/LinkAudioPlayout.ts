@@ -52,7 +52,10 @@ const MAX_PULL = 0.002
 /** Blocks whose moments are averaged before the stream's place is smoothed. */
 const ORIGIN_SETTLE_BLOCKS = 16
 const ORIGIN_SMOOTHING = 1 / 64
-/** A block this far from the stream's place is not wobble; this many in a row, to one side, move the place. */
+/**
+ * A block this far from the stream's place is not wobble; this many in a row,
+ * to one side, move the place, and the reading with it.
+ */
 const ORIGIN_STEP_SEC = 0.005
 const ORIGIN_STEP_BLOCKS = 8
 /** A block that follows the last by count and is this far from following it in time starts over. */
@@ -282,8 +285,12 @@ export class LinkAudioPlayout {
       const side = Math.sign(off)
       this.stepStreak = Math.sign(this.stepStreak) === side ? this.stepStreak + side : side
       if (Math.abs(this.stepStreak) >= ORIGIN_STEP_BLOCKS) {
+        // The output moved (another device, a dropped buffer) and everything is
+        // heard that much earlier or later from here on: the reading place goes
+        // there at once. Pulled, it would be off the beat for seconds.
         this.origin = origin
         this.stepStreak = 0
+        this.playing = false
       }
       return
     }

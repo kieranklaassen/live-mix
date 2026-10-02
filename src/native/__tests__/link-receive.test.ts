@@ -309,6 +309,37 @@ describe('LinkAudioPlayout', () => {
     }
   })
 
+  it.each([
+    ['later', 0.02],
+    ['earlier', -0.02],
+  ])('goes with the output at once when it moves %s, and is on the moment again', (_way, moved) => {
+    const playout = new LinkAudioPlayout({ sampleRate: CONTEXT_RATE, delaySec: 0.05 }, () => {})
+    // Two seconds in, the output moves (it drops buffers, say): every moment is heard 20 ms off from there.
+    const { left } = play(
+      playout,
+      {
+        rate: 48000,
+        blockFrames: 480,
+        sample: clicks(4800),
+        heardAt: (frame) => 1 + frame / 48000 + (frame >= 96000 ? moved : 0),
+      },
+      4,
+    )
+    const heard = loud(left)
+    // Before it: on the old moments.
+    for (const frame of heard.filter((each) => each < frameAt(3))) {
+      const moment = frame / CONTEXT_RATE - 0.05
+      expect(Math.abs(moment * 10 - Math.round(moment * 10)) / 10).toBeLessThan(1 / CONTEXT_RATE)
+    }
+    // A fifth of a second after it, and from there on: on the new ones, not sliding towards them.
+    const after = heard.filter((each) => each > frameAt(3.2))
+    expect(after.length).toBeGreaterThanOrEqual(17)
+    for (const frame of after) {
+      const moment = frame / CONTEXT_RATE - 0.05 - moved
+      expect(Math.abs(moment * 10 - Math.round(moment * 10)) / 10).toBeLessThan(1 / CONTEXT_RATE)
+    }
+  })
+
   it('leaves out a block that comes after the ones that followed it', () => {
     const playout = new LinkAudioPlayout({ sampleRate: CONTEXT_RATE, delaySec: 0.05 }, () => {})
     const block = (count: number, value: number): LinkReceivedBlock => ({

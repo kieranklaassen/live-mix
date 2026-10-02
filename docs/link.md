@@ -253,7 +253,11 @@ the transport in step by where it is _heard_.
 samples, at another rate (44.1 against 48 kHz) or at the same rate a few
 parts in a million apart. The playout reads the stream between its samples at
 whatever speed keeps every block on its moment, so it neither runs dry nor
-piles up, and a channel at another rate plays at its own pitch.
+piles up, and a channel at another rate plays at its own pitch. The speed
+never changes by more than 0.2 %. When your own output moves by more than
+5 ms (another device, a dropped buffer: everything is heard that much later
+from there on), the playout goes to the new place at once, with a fade in of a
+millisecond, instead of sliding there for seconds.
 
 - 16-bit on the wire (Link Audio's format), mono or stereo, at the sender's
   sample rate.
