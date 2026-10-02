@@ -1164,7 +1164,8 @@ export const PRESETS: readonly FactoryPreset[] = [
         felt: 0.8,
         hardness: 0.25,
         thump: 0.2,
-        outputDb: -6,
+        resonance: 0,
+        outputDb: -4.8,
       },
     },
     effects: [

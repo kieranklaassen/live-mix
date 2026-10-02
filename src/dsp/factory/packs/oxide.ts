@@ -429,7 +429,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     instrument: {
       deviceId: 'felt-piano',
       preset: 'Hall',
-      params: { felt: 0.3, hardness: 0.55, outputDb: -3 },
+      params: { felt: 0.3, hardness: 0.55, resonance: 0, outputDb: -3 },
     },
     effects: [
       {

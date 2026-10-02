@@ -8,7 +8,7 @@
 
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { after, before, test } from 'node:test'
@@ -24,6 +24,8 @@ const buildDir = resolve(process.env.LIVE_MIX_PLUGIN_HOST_BUILD ?? 'tmp/plugin-h
 const binary = pluginHostBinaryPath(buildDir)
 const testPlugins = pluginHostTestPluginsDir(buildDir)
 const troublePlugin = pluginHostTroublePluginDir(buildDir)
+// A folder with a VST3 bundle built for Intel processors only; built on a Mac only.
+const intelOnly = join(buildDir, 'test', 'intel')
 // How many windows a process has on the screen; built on a Mac only.
 const windowCount = join(buildDir, 'test', 'windows', 'live-mix-window-count')
 const wrapper = process.platform === 'linux' && !process.env.DISPLAY ? ['xvfb-run', '-a'] : []
@@ -772,6 +774,37 @@ test('keeps out a plug-in an earlier host noted as the one it ended in', async (
   }
 })
 
+test('a note an earlier host left empty does not make its scan unfinished', async () => {
+  const folder = mkdtempSync(join(tmpdir(), 'live-mix-host-note-'))
+  try {
+    // An earlier host wrote the plug-in it was in to the note and took it
+    // out again after it, so a scan that reached its end left an empty one.
+    const file = await withTrouble(null, folder, async (connection) => {
+      const scan = await scanWithTrouble(connection)
+      return scan.plugins.find((plugin) => plugin.name === 'LiveMix Test Trouble').file
+    })
+    for (const left of ['', '\n']) {
+      writeFileSync(join(folder, 'scan-in-progress.txt'), left)
+      await withTrouble(null, folder, async (connection) => {
+        assert.equal((await connection.call('hello')).scanUnfinished, false)
+        const known = await connection.call('plugins')
+        assert.equal(known.plugins.length, 3)
+        assert.deepEqual(known.crashed, [])
+        assert.ok(!existsSync(join(folder, 'scan-in-progress.txt')))
+      })
+    }
+
+    // One that names a plug-in was left by a host that ended in it.
+    writeFileSync(join(folder, 'scan-in-progress.txt'), file)
+    await withTrouble(null, folder, async (connection) => {
+      assert.equal((await connection.call('hello')).scanUnfinished, true)
+      assert.deepEqual((await connection.call('plugins')).crashed, [file])
+    })
+  } finally {
+    rmSync(folder, { recursive: true, force: true })
+  }
+})
+
 test('a scan nobody waits for any more ends its scanner and keeps what it found', async () => {
   const folder = mkdtempSync(join(tmpdir(), 'live-mix-host-gone-'))
   try {
@@ -806,6 +839,109 @@ test('a scan nobody waits for any more ends its scanner and keeps what it found'
     rmSync(folder, { recursive: true, force: true })
   }
 })
+
+test('says what is wrong with a file that holds no plug-in, and keeps saying it', async () => {
+  const folder = mkdtempSync(join(tmpdir(), 'live-mix-host-why-'))
+  const plugins = join(folder, 'plugins')
+  const data = join(folder, 'data')
+  // A bundle with nothing in it, and one whose program is no program.
+  mkdirSync(join(plugins, 'Broken.vst3'), { recursive: true })
+  const programs =
+    process.platform === 'darwin'
+      ? join(plugins, 'Garbled.vst3', 'Contents', 'MacOS')
+      : join(
+          plugins,
+          'Garbled.vst3',
+          'Contents',
+          `${process.arch === 'arm64' ? 'aarch64' : 'x86_64'}-linux`,
+        )
+  mkdirSync(programs, { recursive: true })
+  writeFileSync(
+    join(programs, process.platform === 'darwin' ? 'Garbled' : 'Garbled.so'),
+    'not a program\n',
+  )
+  const why = (known, name) =>
+    known.reasons[known.failed.find((file) => file.endsWith(`${name}.vst3`))]
+  try {
+    await withTrouble(null, data, async (connection) => {
+      const scan = await connection.call('scan', { paths: [plugins], defaultPaths: false })
+      assert.equal(scan.failed.length, 2)
+      assert.equal(why(scan, 'Broken'), 'The bundle holds no program for this system.')
+      assert.match(why(scan, 'Garbled'), /^The system would not load it: ./)
+    })
+    // A host started later says the same, with no scan run,
+    await withTrouble(null, data, async (connection) => {
+      const known = await connection.call('plugins')
+      assert.equal(why(known, 'Broken'), 'The bundle holds no program for this system.')
+      assert.match(why(known, 'Garbled'), /^The system would not load it: ./)
+      // and a file given another go is asked again.
+      const again = await connection.call('scan', {
+        paths: [plugins],
+        defaultPaths: false,
+        retry: known.failed,
+      })
+      assert.match(why(again, 'Garbled'), /^The system would not load it: ./)
+    })
+  } finally {
+    rmSync(folder, { recursive: true, force: true })
+  }
+})
+
+// A Linux bundle may hold a program for more than one machine. The reason is
+// about the one a scan loads here, not the first one that happens to be found.
+test(
+  'looks at the program for this machine in a bundle that has several',
+  { skip: process.platform !== 'linux' },
+  async () => {
+    const folder = mkdtempSync(join(tmpdir(), 'live-mix-host-machines-'))
+    const plugins = join(folder, 'plugins')
+    // Any library that loads and is no plug-in will do for this machine's.
+    const library = process.report
+      .getReport()
+      .sharedObjects.find((path) => /\/libm\.so[.\d]*$/.test(path))
+    assert.ok(library, 'no system library to stand in for a program')
+    const own = process.arch === 'arm64' ? 'aarch64' : 'x86_64'
+    const others = ['aarch64', 'armv7l', 'i386', 'riscv64', 'x86_64'].filter((it) => it !== own)
+    const contents = join(plugins, 'Twice.vst3', 'Contents')
+    for (const machine of others) {
+      mkdirSync(join(contents, `${machine}-linux`), { recursive: true })
+      writeFileSync(join(contents, `${machine}-linux`, 'Twice.so'), 'not a program\n')
+    }
+    mkdirSync(join(contents, `${own}-linux`), { recursive: true })
+    copyFileSync(library, join(contents, `${own}-linux`, 'Twice.so'))
+    try {
+      await withTrouble(null, join(folder, 'data'), async (connection) => {
+        const scan = await connection.call('scan', { paths: [plugins], defaultPaths: false })
+        assert.equal(scan.failed.length, 1)
+        assert.equal(scan.reasons[scan.failed[0]], 'It loads, and gave the scan no plug-in.')
+      })
+    } finally {
+      rmSync(folder, { recursive: true, force: true })
+    }
+  },
+)
+
+// What an old plug-in is to a Mac with Apple silicon: the commonest reason a
+// plug-in folder full of working plug-ins has some a host cannot read.
+test(
+  'says a plug-in is built for another processor',
+  { skip: process.platform !== 'darwin' || process.arch !== 'arm64' },
+  async () => {
+    const folder = mkdtempSync(join(tmpdir(), 'live-mix-host-intel-'))
+    try {
+      await withTrouble(null, folder, async (connection) => {
+        const scan = await connection.call('scan', { paths: [intelOnly], defaultPaths: false })
+        assert.equal(scan.failed.length, 1)
+        assert.equal(
+          scan.reasons[scan.failed[0]],
+          'It is built for Intel only, and this app runs as Apple silicon. It needs a version of the plug-in for Apple silicon.',
+        )
+      })
+    } finally {
+      rmSync(folder, { recursive: true, force: true })
+    }
+  },
+)
 
 test('stops a scan when asked, keeping what it found', async () => {
   const folder = mkdtempSync(join(tmpdir(), 'live-mix-host-stop-'))

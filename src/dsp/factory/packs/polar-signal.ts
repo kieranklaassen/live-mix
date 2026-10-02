@@ -1491,7 +1491,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     instrument: {
       deviceId: 'felt-piano',
       preset: 'Intimate',
-      params: { reverbMix: 0.15, outputDb: -17 },
+      params: { reverbMix: 0.15, resonance: 0, outputDb: -17 },
     },
     effects: [
       { deviceId: 're-amp', preset: 'Down the hall', params: { drive: 0.15, room: 0.6 } },

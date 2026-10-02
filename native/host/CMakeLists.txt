@@ -43,7 +43,8 @@ target_sources(LiveMixPluginHost PRIVATE
     Source/Main.cpp
     Source/PluginSlot.cpp
     Source/ScanWorker.cpp
-    Source/WebSocket.cpp)
+    Source/WebSocket.cpp
+    Source/WhyNoPlugin.cpp)
 
 if(APPLE)
     target_sources(LiveMixPluginHost PRIVATE Source/MacWindows.mm)
@@ -89,6 +90,7 @@ if(LIVE_MIX_HOST_BUILD_TEST_PLUGINS)
     add_subdirectory(test/trouble)
     if(APPLE)
         add_subdirectory(test/windows)
+        add_subdirectory(test/intel)
     endif()
     if(LIVE_MIX_HOST_LINK)
         add_subdirectory(test/link)

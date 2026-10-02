@@ -13,8 +13,9 @@
 // host starts the next worker where this one stopped. To `--results` it adds
 // one line of JSON before each plug-in
 // (`{"begin":N}`) and one after it (`{"done":N,"types":[…]}`, each type a
-// plug-in description as XML). A `begin` without its `done` is the plug-in
-// the worker ended in.
+// plug-in description as XML, and `"why"` saying what is wrong with a file
+// that had none). A `begin` without its `done` is the plug-in the worker
+// ended in.
 //
 // A plug-in that keeps the thread it is scanned on waiting for `--idle`
 // seconds (for something that never comes) ends the worker too: the worker
@@ -64,6 +65,8 @@ public:
         int index = -1;
         bool done = false;
         juce::OwnedArray<juce::PluginDescription> types;
+        /** What is wrong with a file that held no plug-in, where the worker could tell. */
+        juce::String why;
     };
 
     /** Reads a line of the results file; nothing when it is not one. */
@@ -71,7 +74,7 @@ public:
 
 private:
     void run() override;
-    void scan (const juce::String& identifier, juce::OwnedArray<juce::PluginDescription>& found, int index);
+    void scan (const juce::String& identifier, juce::OwnedArray<juce::PluginDescription>& found, juce::String& why, int index);
     void write (const juce::var& line) const;
 
     const Job job;

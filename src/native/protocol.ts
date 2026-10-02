@@ -111,6 +111,13 @@ export interface NativeScanResult {
    * listed by a code, not a file.
    */
   names: Record<string, string>
+  /**
+   * What is wrong with an entry of `failed`, in words for the person whose
+   * plug-in it is, where the scan could tell: no program in the bundle, a
+   * program built for another processor, or what the system said when it was
+   * asked to load it. A host from before reasons says none.
+   */
+  reasons?: Record<string, string>
   /** True when the scan was ended with `stopScan` before it was through. */
   stopped?: boolean
 }
