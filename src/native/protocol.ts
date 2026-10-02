@@ -69,6 +69,8 @@ export interface NativeScanOptions {
    * How many seconds a plug-in may keep the scan waiting without using the
    * processor before the scan goes on without it (default 10). A plug-in
    * that waits for something that never comes would hold the scan for ever.
+   * Not for a version 3 Audio Unit, which the system makes outside the scan
+   * process: only `timeout` holds for it.
    */
   idle?: number
   /** How many seconds one plug-in may take at most, at work or not (default 120). */

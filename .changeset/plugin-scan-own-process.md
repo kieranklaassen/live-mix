@@ -10,5 +10,5 @@ A plug-in that crashed while it was scanned took the host down with it, and ever
 - One scan process takes 40 plug-ins (`perProcess`) and the next carries on where it stopped: what plug-ins leave behind in a process adds up, and a long list ended the process whichever plug-in came next.
 - `scan` answers with `crashed` (what is left out, from this scan and earlier ones; `rescan: true` tries them again) and `names` (what to call each entry of `failed` and `crashed`; an Audio Unit is listed by a code). `scanProgress` carries `name`.
 - The list is saved while a scan runs. A host that is quit half way says so at the next start (`NativeHostInfo.scanUnfinished`), has what it found until then, and another scan carries on from there.
-- Version 3 Audio Units are asked from a thread other than the main one, as they have to be; the scan inside the host skipped them.
+- Version 3 Audio Units are listed and asked from a thread other than the main one, as they have to be; the scan inside the host skipped them. The system makes them outside the scan process, so only `timeout` holds for them.
 - `pluginHostTroublePluginDir` (`./native/shell`) and `FakePluginHost`'s `scanUnfinished` and `crashed` options, for tests.

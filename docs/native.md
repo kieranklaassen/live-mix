@@ -118,7 +118,9 @@ plug-in that crashes while it is scanned ends that process and not the host:
 the scan leaves the plug-in out and goes on with the rest. So does a plug-in
 that keeps the scan waiting for `idle` seconds without using the processor
 (10 unless you say: it waits for something that never comes), and one that
-takes longer than `timeout` seconds in all (120). What a scan left out is in
+takes longer than `timeout` seconds in all (120). A version 3 Audio Unit is
+made by the system outside the scan process, where the scan cannot tell
+waiting from work: only `timeout` holds for it. What a scan left out is in
 `crashed`, and later scans do not try it again; `rescan: true` forgets that
 along with the list. `names` has what to call each entry of `failed` and
 `crashed`: an Audio Unit is listed by a code, not a file.
