@@ -503,6 +503,13 @@ const nativeSymbols = [
   'LINK_AUDIO_BLOCK_FRAMES',
   'LINK_AUDIO_HEADER_BYTES',
   'LINK_TAP_PROCESSOR_NAME',
+  'LinkAudioReceiver',
+  'defaultLinkAudioIntakeUrl',
+  'defaultLinkSourceProcessorUrl',
+  'HOST_MESSAGE_LINK_AUDIO_IN',
+  'LINK_AUDIO_IN_HEADER_BYTES',
+  'LINK_SOURCE_PROCESSOR_NAME',
+  'encodeLinkAudioInBlock',
 ] as const
 
 const wamSymbols = [
