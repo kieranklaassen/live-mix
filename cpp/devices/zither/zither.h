@@ -1014,7 +1014,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
   // Bodies: four resonances beside the direct sound, then a low and a high
   // shelf (first order, a gentle contour). Each resonance has a Q that lets
   // it ring for a time of its own (2.2 Q / Hz seconds to -60 dB): about 150
-  // down to 60 ms on the harp, 80 to 40 ms on the zither, 150 to 90 ms on
+  // down to 60 ms on the harp, 80 to 25 ms on the zither, 150 to 90 ms on
   // the dulcimer; the koto's two low ones 60 and 45 ms, its two formants
   // wide and short. So a touch gives a knock and a damped note leaves a
   // little of the box behind. The right channel's resonances sit a few percent off the left's
@@ -1030,7 +1030,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
       {{165.0f, 260.0f, 440.0f, 780.0f}, {11.0f, 14.0f, 18.0f, 21.0f}, {0.6f, 0.5f, 0.4f, 0.3f},
        200.0f, 2.0f, 3000.0f, 0.0f, 0.8f, 0.9f, 1.0f},
       // Zither: a shallow box, bright.
-      {{210.0f, 345.0f, 590.0f, 1150.0f}, {7.5f, 10.0f, 13.5f, 21.0f}, {0.4f, 0.45f, 0.4f, 0.3f},
+      {{210.0f, 345.0f, 590.0f, 1150.0f}, {7.5f, 10.0f, 11.0f, 12.0f}, {0.4f, 0.45f, 0.4f, 0.3f},
        160.0f, -3.0f, 2500.0f, 4.5f, 0.8f, 1.0f, 1.6f},
       // Dulcimer: a ringing trapezoid, brighter still.
       {{185.0f, 300.0f, 520.0f, 930.0f}, {12.5f, 19.0f, 28.0f, 38.0f}, {0.6f, 0.6f, 0.55f, 0.45f},
