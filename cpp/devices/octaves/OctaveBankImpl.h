@@ -168,6 +168,9 @@ inline void OctaveBank::init(float rate, float low_hz, float high_hz, int count)
     power_[k] = 0.0f;
     slow_[k] = 0.0f;
     weight_[k] = 0.0f;
+    bare_[k] = 0.0f;
+    paired_[k] = false;
+    upper_leads_[k] = false;
     agree_[k] = 0.0f;
     beat_ext_[k] = 0.0f;
     beat_last_[k] = -1.0f;
@@ -197,6 +200,11 @@ inline void OctaveBank::init(float rate, float low_hz, float high_hz, int count)
       if (std::fabs(centre_[g] - centre_[k]) < std::fabs(centre_[best] - centre_[k])) best = g;
     }
     grid_of_[k] = best;
+    // The channels its open passband reaches, below and above.
+    span_[0][k] = 0;
+    span_[1][k] = 0;
+    while (k - span_[0][k] > 0 && centre_[k] - centre_[k - span_[0][k] - 1] < 1.5f * wide_hz_[k]) ++span_[0][k];
+    while (k + span_[1][k] + 1 < bands_ && centre_[k + span_[1][k] + 1] - centre_[k] < 1.5f * wide_hz_[k]) ++span_[1][k];
     grid_below_[k] = -1;
     grid_above_[k] = -1;
     for (int g = k - 1; g >= 0 && grid_below_[k] < 0; --g) {
@@ -530,6 +538,9 @@ inline void OctaveBank::tick() {
   float before[kMaxBands][4];
   bool due[kMaxBands];
   float mute[kMaxBands];
+  float late[kMaxBands];
+  float early[kMaxBands];
+  float yield_[2][kMaxBands];
   float freq[kMaxBands], width[kMaxBands];
   parity_ ^= 1;
   jump_index_ = (jump_index_ + 1) % kJumpDelay;
@@ -565,7 +576,8 @@ inline void OctaveBank::tick() {
   recent_ring_[recent_index_] = recent;
   recent_index_ = (recent_index_ + 1) % (2 * kPeakTicks);
   peak_index_ = (peak_index_ + 1) % kPeakTicks;
-  for (int k = 0; k < bands_; ++k) held += power_[k];
+  // (what the voices hold: each channel's power at the weight it was last given)
+  for (int k = 0; k < bands_; ++k) held += power_[k] * bare_[k] * bare_[k];
   const float allowed = kReleaseMargin * recent * recent;
   const float release = allowed >= held ? 1.0f : std::sqrt(allowed / held);
   float floor2 = kFloorShare * kFloorShare * held;
@@ -609,7 +621,10 @@ inline void OctaveBank::tick() {
       unit_re[k] = 0.0f;
       unit_im[k] = 0.0f;
       sharp[k] = 0.0f;
+      early[k] = 0.0f;
+      bare_[k] = 0.0f;
       mute[k] = 1.0f;
+      late[k] = 1.0f;
       freq[k] = centre_[k];
       width[k] = narrow_hz_[k];
       due[k] = false;
@@ -669,16 +684,13 @@ inline void OctaveBank::tick() {
     age_[k] += tick_seconds_;
     settled[k] = 1.0f;
     moved[k] = false;
-    if (grid_[k]) {
-      // Open through the hold, then close exponentially.
+    {
+      // Wide at the onset, and closing from the first moment.
       float open = 0.0f;
       const float cycles = age_[k] * narrow_hz_[k];
-      if (cycles < kHold) {
-        open = 1.0f;
-      } else if (cycles < kHold + 12.0f * kClose) {
-        open = std::exp(-(cycles - kHold) / kClose);
-      }
-      if (open != open_[k]) {
+      if (cycles < kClosed * kClose) open = std::exp(-cycles / kClose);
+      // (in steps of kCloseStep: the move is exact at any size)
+      if (open != open_[k] && (open == 0.0f || open > open_[k] || open < kCloseStep * open_[k])) {
         if (live_[k]) {
           float half[2], quarter[2];
           sub_phasors(k, half, quarter);
@@ -690,9 +702,10 @@ inline void OctaveBank::tick() {
         set_width(k, open, true);
         moved[k] = true;
       }
-    } else {
-      const float t = (age_[k] * narrow_hz_[k] - kSettle[0]) / (kSettle[1] - kSettle[0]);
-      settled[k] = t <= 0.0f ? 0.0f : (t >= 1.0f ? 1.0f : t * t * (3.0f - 2.0f * t));
+      // How far the channel knows what it holds (0..1): see the claims below.
+      const float t = (age_[k] * wide_hz_[k] - kSettle[0]) / (kSettle[1] - kSettle[0]);
+      late[k] = t <= 0.0f ? 0.0f : (t >= 1.0f ? 1.0f : t * t * (3.0f - 2.0f * t));
+      if (!grid_[k]) settled[k] = late[k];
     }
 
     const float br = yr_[1][k], bi = yi_[1][k];
@@ -832,55 +845,95 @@ inline void OctaveBank::tick() {
     // An open channel holds every note near it and is meant to: it is the
     // settled ones that are turned down for beating.
     mute[k] = 1.0f - (1.0f - pure_[k]) * (1.0f - open_[k]) * mute_depth_[k];
-    sharp[k] = power_[k] * power_[k] * settled[k] * own * mute[k] * mute[k];
+    // What counts in the end is what the channel will hold of its partial
+    // once it has closed: an open channel holds every partial near it at
+    // full level, and the ones that will keep it take it over while all of
+    // them are still open and agree about it.
+    float keep = 1.0f;
+    if (open_[k] > 0.0f) {
+      const float xn = x * width[k] / narrow_hz_[k];
+      const float x3 = x * x * x, xn3 = xn * xn * xn;
+      keep = (1.0f + x3 * x3) / (1.0f + xn3 * xn3);
+    }
+    // Until then the open grid channel carries what it holds, as it is.
+    early[k] = power_[k] * power_[k] * own * mute[k] * mute[k];
+    sharp[k] = early[k] * keep * keep;
+  }
+
+  // Grid channels that have just opened overlap: two of them hold the same
+  // new partial, and for the first cycle of their cutoff they disagree about
+  // its phase, so one of the two carries it. Which: the one with more of it
+  // (it is the nearer; kLead keeps the choice from going back and forth).
+  // Once both know where their partial is, they yield only as far as it is
+  // the same one.
+  for (int k = 0; k < bands_; ++k) {
+    yield_[0][k] = 0.0f;
+    yield_[1][k] = 0.0f;
+  }
+  for (int k = 0; k < bands_; ++k) {
+    const int up = grid_above_[k];
+    if (!grid_[k] || up < 0) continue;
+    if (!(late[k] < 1.0f && late[up] < 1.0f && open_[k] > 0.0f && open_[up] > 0.0f)) {
+      paired_[k] = false;
+      continue;
+    }
+    if (!paired_[k]) {
+      paired_[k] = true;
+      upper_leads_[k] = power_[up] > power_[k];
+    } else if (upper_leads_[k]) {
+      if (power_[k] > kLead * power_[up]) upper_leads_[k] = false;
+    } else if (power_[up] > kLead * power_[k]) {
+      upper_leads_[k] = true;
+    }
+    const float younger = age_[k] * wide_hz_[k] < age_[up] * wide_hz_[up] ? age_[k] * wide_hz_[k] : age_[up] * wide_hz_[up];
+    const float t = (younger - kSure[0]) / (kSure[1] - kSure[0]);
+    const float sure = t <= 0.0f ? 0.0f : (t >= 1.0f ? 1.0f : t * t * (3.0f - 2.0f * t));
+    const float d = (freq[k] - freq[up]) / (kSame * 0.5f * (width[k] + width[up]));
+    const float d2 = d * d;
+    const float gives = 1.0f - sure * (1.0f - 1.0f / (1.0f + d2 * d2));
+    if (upper_leads_[k]) {
+      yield_[1][k] = gives;
+    } else {
+      yield_[0][up] = gives;
+    }
+  }
+  // What each channel claims of its partial: what it will keep, as far as
+  // the onset is behind it; a grid channel, before that, all it holds.
+  for (int k = 0; k < bands_; ++k) {
+    if (late[k] >= 1.0f) continue;
+    const float first = grid_[k] ? early[k] * (1.0f - yield_[0][k]) * (1.0f - yield_[1][k]) : 0.0f;
+    sharp[k] = late[k] * sharp[k] + (1.0f - late[k]) * first;
   }
 
   for (int k = 0; k < bands_; ++k) {
-    // How far the channel stands out from the ones that hold the same
-    // partial: the two beside it, and for an open grid channel the settled
-    // ones out to the next grid channels.
+    // How far the channel stands out from the ones that claim the same
+    // partial: the two beside it, for an open channel every one its
+    // passband reaches, and for a settled one the open grid channels on
+    // either side.
     if (!due[k] || (sharp[k] == 0.0f && !live_[k])) continue;
     float total = sharp[k];
-    for (int j = k - 1; j <= k + 1; j += 2) {
-      if (j < 0 || j >= bands_) continue;
+    const bool wide = open_[k] > 0.0f;
+    const int from = k - (wide && span_[0][k] > 1 ? span_[0][k] : 1);
+    const int to = k + (wide && span_[1][k] > 1 ? span_[1][k] : 1);
+    for (int j = from; j <= to; ++j) {
+      if (j < 0 || j >= bands_ || j == k || sharp[j] == 0.0f) continue;
       const float d = (freq[k] - freq[j]) / (kSame * 0.5f * (width[k] + width[j]));
       const float d2 = d * d;
       total += sharp[j] / (1.0f + d2 * d2);
     }
-    const int below = grid_below_[k], above = grid_above_[k];
-    float share = 1.0f;
-    // A settled channel between grid channels competes with an open one as
-    // far as that one's passband reaches it, and the other way round.
-    const float closed = 1.0f - open_[k];
-    if (below >= 0 && below < k - 1 && open_[below] > 0.0f) {
-      total += closed * reach(below, k) * sharp[below];
+    if (open_[k] == 0.0f) {
+      const int below = grid_below_[k], above = grid_above_[k];
+      if (below >= 0 && below < k - 1 && open_[below] > 0.0f) total += reach(below, k) * sharp[below];
+      if (above >= 0 && above > k + 1 && open_[above] > 0.0f) total += reach(above, k) * sharp[above];
     }
-    if (above >= 0 && above > k + 1 && open_[above] > 0.0f) {
-      total += closed * reach(above, k) * sharp[above];
-    }
-    if (open_[k] > 0.0f) {
-      for (int j = (below < 0 ? 0 : below + 1); j < k - 1; ++j) total += reach(k, j) * sharp[j];
-      for (int j = k + 2; j < (above < 0 ? bands_ : above); ++j) total += reach(k, j) * sharp[j];
-      // Open grid channels overlap, so the one next door on the partial's
-      // side holds it too, and until both have settled they disagree about
-      // its phase. The one it is nearer to carries it.
-      const int other = offset[k] > 0.0f ? above : below;
-      if (other >= 0 && open_[other] > 0.0f) {
-        const float cutoff = narrow_hz_[other] + open_[other] * (wide_hz_[other] - narrow_hz_[other]);
-        const float mine = offset[k] * (narrow_hz_[k] + open_[k] * (wide_hz_[k] - narrow_hz_[k]));
-        const float theirs = offset[other] * cutoff;
-        // ... as long as the neighbour's passband still takes the partial in.
-        const float x = (centre_[k] + mine - centre_[other]) / (1.5f * cutoff);
-        const float x2 = x * x;
-        share = 1.0f - yield(mine, theirs) / (1.0f + x2 * x2 * x2);
-      }
-    }
-    float target = total > 0.0f ? share * correction[k] * sharp[k] / total : 0.0f;
+    float target = total > 0.0f ? correction[k] * sharp[k] / total : 0.0f;
     if (attack_coeff_ > 0.0f) {
       const float level2 = slow_[k] * slow_[k];
       if (level2 < power_[k]) target *= std::sqrt(level2 / power_[k]);
     }
-    target *= release * mute[k];
+    target *= mute[k];
+    bare_[k] = target;
+    target *= release;
     // Too quiet to hear: the channel's voices are switched off (after one
     // ramp to zero) and run_group skips them.
     if (target * target * power_[k] < floor2) target = 0.0f;

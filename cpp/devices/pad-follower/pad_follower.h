@@ -86,11 +86,14 @@ class PadFollower : public kit::DeviceBase<pad_follower::kNumParams> {
     for (int i = 0; i < frames; ++i) {
       float left, right;
       take_input(i, &left, &right);
+      // A NaN, an infinity or a wild value would go straight to the output
+      // through the dry path, and would never leave the resonators.
+      left = sane(left);
+      right = sane(right);
       float wet_left, wet_right;
-      float mono = 0.5f * (left + right);
-      // A NaN or a wild value must not get into the resonators: it would never leave.
-      if (!(mono > -64.0f && mono < 64.0f)) mono = 0.0f;
-      push(mono, &wet_left, &wet_right);
+      push(0.5f * (left + right), &wet_left, &wet_right);
+      wet_left = ceiling(wet_left);
+      wet_right = ceiling(wet_right);
       // Equal power: the pad is a new voice, not a copy of the input. From
       // the table so that Mix 0 is exactly the input.
       const float mix = mix_.next();
@@ -108,6 +111,8 @@ class PadFollower : public kit::DeviceBase<pad_follower::kNumParams> {
  private:
   static constexpr int kGroups = pad_follower::FollowerBank::kGroups;
   static constexpr float kMonoBelowHz = 180.0f;
+  static constexpr float kInputBound = 8.0f;
+  static constexpr float kKnee = 0.6f;
   // Where each register bus sits (-1 left, 1 right): neighbours in pitch on
   // opposite sides, so no register leans the image one way.
   static constexpr float kSeat[kGroups] = {-0.55f, 0.4f, -0.2f, 0.7f, -0.7f, 0.2f, -0.4f, 0.55f};
@@ -117,6 +122,33 @@ class PadFollower : public kit::DeviceBase<pad_follower::kNumParams> {
   static constexpr float kLevelDrift = 0.75f;
   static constexpr float kLevelRest = 0.25f;
   static constexpr float kSeatDrift = 0.4f;
+  // And every partial wanders in level by itself: a quarter of a decibel
+  // (RMS) with Movement at zero, two at full.
+  static constexpr float kFlutterRest = 0.03f;
+  static constexpr float kFlutterMove = 0.20f;
+
+  // Ordinary input passes untouched; not-a-number becomes silence and
+  // anything else is held to kInputBound.
+  static float sane(float x) {
+    if (x >= -kInputBound && x <= kInputBound) return x;
+    return x > kInputBound ? kInputBound : (x < -kInputBound ? -kInputBound : 0.0f);
+  }
+
+  // The safety stage of the pad. Up to kKnee the pad passes untouched (the
+  // device is linear there, and a pad that follows playing at an ordinary
+  // level never leaves that range); past it the pad is eased towards a
+  // ceiling of one that it cannot reach. A full-scale input can make a pad
+  // above full scale: its partials can line up differently than they did in
+  // the input, and the octave, a seat and the ensemble's taps can all peak
+  // together. With the dry signal at full scale beside it, at any Mix, the
+  // output then stays under 1.42 (+3 dBFS).
+  static float ceiling(float x) {
+    const float size = std::fabs(x);
+    if (size <= kKnee) return x;
+    const float over = (size - kKnee) * (1.0f / (1.0f - kKnee));
+    const float eased = kKnee + (1.0f - kKnee) * over / (1.0f + over);
+    return x < 0.0f ? -eased : eased;
+  }
 
   // One host-rate sample in, one stereo pad sample out, with the bank and
   // everything after it running on every `factor_`-th sample.
@@ -177,6 +209,7 @@ class PadFollower : public kit::DeviceBase<pad_follower::kNumParams> {
   void control() {
     const int tick = pad_follower::FollowerBank::kTick;
     const float movement = movement_.next();
+    bank_.set_flutter(kFlutterRest + kFlutterMove * movement);
     for (int g = 0; g < kGroups; ++g) {
       const float swing = kLevelDrift * level_drift_[g].next(tick) - kLevelRest;
       const float level = std::exp2(movement * swing);

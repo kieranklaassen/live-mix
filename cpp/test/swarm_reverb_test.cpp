@@ -151,7 +151,7 @@ int main() {
   }
 
   // Feedback at its top: the cave feeds on itself, holds a steady level and
-  // stays dark (the loop's own filters decide what survives).
+  // does not grow a bright edge (the return is not clipped on every trip).
   {
     device.init(kRate);
     device.set_param(p::kMix, 1.0f);
@@ -489,6 +489,176 @@ int main() {
     EXPECT(peak(out.left) < 1.0 && peak(out.right) < 1.0, "default patch does not clip on a held chord");
     std::printf("held chord: default patch %+.2f dB re dry, peak %.2f; wet at Feedback 0.95 against 0.2: %+.2f dB\n",
                 db(patch / dry), std::max(peak(out.left), peak(out.right)), db(wet_level[1] / wet_level[0]));
+  }
+
+  // A held note keeps its level at the default patch. The swarm on a steady
+  // tone is a sum of taps, and sweeping them moves that sum; at the default
+  // Modulation the sweeps are a few hundredths of a millisecond, so the
+  // level stays put instead of fading in and out over seconds.
+  {
+    // The widest the level strays (100 ms windows, either side) from 4 s on.
+    const auto strays = [&](const std::vector<float>& in) {
+      device.init(kRate);
+      Stereo out = run(device, in);
+      double worst = 0.0;
+      for (const std::vector<float>* side : {&out.left, &out.right}) {
+        double lowest = 1.0e9, highest = -1.0e9;
+        for (size_t i = 192000; i + 4800 <= side->size(); i += 2400) {
+          const double level = db(rms(*side, i, i + 4800));
+          lowest = std::min(lowest, level);
+          highest = std::max(highest, level);
+        }
+        worst = std::max(worst, highest - lowest);
+      }
+      return worst;
+    };
+    const auto note = [&](double hz, int harmonics, double gain) {
+      std::vector<float> out(static_cast<size_t>(24.0f * kRate));
+      for (size_t i = 0; i < out.size(); ++i) {
+        double sum = 0.0;
+        for (int h = 1; h <= harmonics; ++h) sum += std::sin(2.0 * kPi * hz * h * i / kRate + 0.7 * h) / h;
+        out[i] = static_cast<float>(gain * sum * std::min(1.0, i / (0.05 * kRate)));
+      }
+      return out;
+    };
+    std::vector<double> sines;
+    for (double hz : {110.0, 164.81, 220.0, 329.63, 440.0, 659.26, 880.0}) sines.push_back(strays(note(hz, 1, 0.2)));
+    const double worst_sine = *std::max_element(sines.begin(), sines.end());
+    std::sort(sines.begin(), sines.end());
+    const double rich = strays(note(220.0, 8, 0.15));
+    std::vector<float> chord = note(146.83, 4, 0.07);
+    for (double hz : {220.0, 277.18, 369.99}) {
+      const std::vector<float> more = note(hz, 4, 0.07);
+      for (size_t i = 0; i < chord.size(); ++i) chord[i] += more[i];
+    }
+    const double held_chord = strays(chord);
+    EXPECT(sines[3] < 2.5, "held sines: the level strays by under 2.5 dB on the median note");
+    EXPECT(worst_sine < 6.0, "held sines: no note fades by 6 dB");
+    EXPECT(rich < 3.0, "a held note with harmonics keeps its level within 3 dB");
+    EXPECT(held_chord < 3.0, "a held chord keeps its level within 3 dB");
+    std::printf("held notes, default patch, level range over 20 s: sines median %.1f dB, worst %.1f dB; "
+                "note with harmonics %.1f dB; chord %.1f dB\n",
+                sines[3], worst_sine, rich, held_chord);
+  }
+
+  // Feedback 1 holds what it was given. A chord is played for 6 s into a
+  // long cave and left for 90 s: the level stays, and the low notes are
+  // still there at the end (the filters on the return open up towards
+  // Feedback 1; left at the knobs they would thin the cave to a narrow band).
+  // And a chord held for a minute does not build up on one of its partials
+  // (the loop reads are stirred more as Feedback rises).
+  {
+    const double low[5] = {146.83, 220.0, 277.18, 293.66, 369.99};
+    const double high[9] = {440.0, 554.36, 587.32, 660.0, 739.98, 831.54, 880.0, 1109.3, 1479.96};
+    // Mean power of one partial over [from, to) seconds, both sides, in half-second windows.
+    const auto partial = [&](const Stereo& out, double hz, double from, double to) {
+      double sum = 0.0;
+      int count = 0;
+      for (double t = from; t + 0.5 <= to; t += 0.5, ++count) {
+        const size_t a = static_cast<size_t>(t * kRate), b = a + 24000;
+        sum += std::pow(tone_level(out.left, hz, kRate, a, b), 2) + std::pow(tone_level(out.right, hz, kRate, a, b), 2);
+      }
+      return sum / count;
+    };
+    const auto low_share = [&](const Stereo& out, double from, double to) {
+      double below = 0.0, above = 0.0;
+      for (double hz : low) below += partial(out, hz, from, to);
+      for (double hz : high) above += partial(out, hz, from, to);
+      return below / (below + above);
+    };
+    const auto cave = [&](float chord_seconds, float total_seconds) {
+      device.init(kRate);
+      device.set_param(p::kMix, 1.0f);
+      device.set_param(p::kLength, 0.8f);
+      device.set_param(p::kBlur, 0.8f);
+      device.set_param(p::kFeedback, 1.0f);
+      device.set_param(p::kHighCut, 4000.0f);
+      device.set_param(p::kLowCut, 150.0f);
+      const double notes[4] = {146.83, 220.0, 277.18, 369.99};
+      std::vector<float> in(static_cast<size_t>(total_seconds * kRate), 0.0f);
+      const size_t n = static_cast<size_t>(chord_seconds * kRate);
+      for (size_t i = 0; i < n; ++i) {
+        double sum = 0.0;
+        for (int k = 0; k < 4; ++k) {
+          for (int h = 1; h <= 4; ++h) sum += std::sin(2.0 * kPi * notes[k] * h * i / kRate + 0.7 * h) / h;
+        }
+        const double fade = std::min(1.0, std::min(i / (0.05 * kRate), (n - i) / (0.05 * kRate)));
+        in[i] = static_cast<float>(0.07 * sum * fade);
+      }
+      return run(device, in);
+    };
+    Stereo left_alone = cave(6.0f, 96.0f);
+    const double early = rms(left_alone.left, 960000, 1440000), late = rms(left_alone.left, 4128000, 4608000);
+    const double share_early = low_share(left_alone, 20.0, 30.0), share_late = low_share(left_alone, 86.0, 96.0);
+    EXPECT(std::fabs(db(late / early)) < 2.0, "Feedback 1: the cave holds its level for 90 s (within 2 dB)");
+    EXPECT(share_late > 0.6 * share_early && share_late > 0.2, "Feedback 1: the low notes of the chord are still there after 90 s");
+
+    Stereo held = cave(60.0f, 60.0f);
+    double all = 0.0;
+    for (double hz : low) all += partial(held, hz, 40.0, 60.0);
+    for (double hz : high) all += partial(held, hz, 40.0, 60.0);
+    // The two partials above 1 kHz are 4 % of the chord's power as played.
+    const double top = partial(held, 1109.3, 40.0, 60.0) + partial(held, 1479.96, 40.0, 60.0);
+    EXPECT(top < 0.15 * all, "Feedback 1: a held chord does not build up on its top partials");
+    std::printf("Feedback 1, chord left alone: level at 20..30 s %.1f dB, at 86..96 s %.1f dB; share of the low notes "
+                "%.2f then %.2f. Chord held 60 s: the partials above 1 kHz are %.0f %% of the swarm\n",
+                db(early), db(late), share_early, share_late, 100.0 * top / all);
+  }
+
+  // One bad input sample (not a number, infinite, absurdly large) in the
+  // middle of a tone, at Feedback 0.9: the output stays finite and bounded,
+  // the level is back to normal two seconds later, and the device still
+  // dies away to exact zeros.
+  {
+    const std::vector<float> tone = sine(330.0f, 4.0f, kRate, 0.25f);
+    const auto after_bad = [&](float bad, double* largest, bool* asleep) {
+      device.init(kRate);
+      device.set_param(p::kFeedback, 0.9f);
+      std::vector<float> spoiled = tone;
+      spoiled[96000] = bad;
+      Stereo out = run(device, spoiled, spoiled);
+      Stereo next = run(device, tone);
+      *largest = finite(out.left) && finite(out.right) && finite(next.left) && finite(next.right)
+                     ? std::max(std::max(peak(out.left), peak(out.right)), std::max(peak(next.left), peak(next.right)))
+                     : 1.0e30;
+      Stereo rest = render(device, 120.0f, kRate);
+      *asleep = peak(rest.left, rest.size() - 48000) == 0.0 && peak(rest.right, rest.size() - 48000) == 0.0;
+      return rms(next.left, 96000, next.size());
+    };
+    double largest = 0.0;
+    bool asleep = false;
+    const double clean = after_bad(0.25f, &largest, &asleep);
+    const float bads[3] = {std::nanf(""), std::numeric_limits<float>::infinity(), -1.0e30f};
+    const char* names[3] = {"a NaN", "an infinite", "a 1e30"};
+    for (int k = 0; k < 3; ++k) {
+      const double level = after_bad(bads[k], &largest, &asleep);
+      char label[96];
+      std::snprintf(label, sizeof label, "%s input sample: output finite, peak %.2f, level after %+.2f dB", names[k],
+                    largest, db(level / clean));
+      EXPECT(largest < 4.0 && std::fabs(db(level / clean)) < 1.0, label);
+      std::snprintf(label, sizeof label, "%s input sample: the device still falls silent and sleeps", names[k]);
+      EXPECT(asleep, label);
+    }
+  }
+
+  // With Mix at 0 the output is silent while the cave still rings. The
+  // device must not fall asleep then with the sound still in its lines: a
+  // device that had Mix at 0 through a note and a long silence gives the same
+  // output afterwards as one that had Mix at 1 all along.
+  {
+    Stereo after[2];
+    for (int k = 0; k < 2; ++k) {
+      device.init(kRate);
+      device.set_param(p::kMix, k == 0 ? 0.0f : 1.0f);
+      run(device, sine(330.0f, 2.0f, kRate, 0.25f));
+      render(device, 6.0f, kRate);
+      device.set_param(p::kMix, 1.0f);
+      render(device, 0.1f, kRate);
+      after[k] = run(device, impulse(3.0f, kRate, 1.0e-4f));
+    }
+    const double quiet = rms(after[1].left), hidden = rms(after[0].left);
+    EXPECT(std::fabs(db(hidden / quiet)) < 1.0, "Mix 0 does not put the device to sleep with sound still in its lines");
+    std::printf("after a note and 6 s of silence: Mix 1 all along %.1f dB, Mix 0 until then %.1f dB\n", db(quiet), db(hidden));
   }
 
   // The same cave at 44.1 and 96 kHz: times are seconds, not samples.

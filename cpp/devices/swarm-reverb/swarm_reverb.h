@@ -89,6 +89,7 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
     low_cut_hz_.set_time(0.02f, control_rate);
     stretch_ = 0.0f;
     fill_ = 0.0f;
+    loop_peak_ = 0.0f;
     fill_coeff_ = kit::time_to_coeff(kFillSeconds, sr);
 
     wander_drift_.seed(0x3C6EF372u);
@@ -115,8 +116,12 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
       silence_output(frames);
       return;
     }
+    loop_peak_ = 0.0f;
     for (int i = 0; i < frames; ++i) render(i);
-    idle_.settle(output_peak(frames), frames);
+    // Quiet means the lines as well as the output: with Mix at 0 the output
+    // is silent while the cave still rings, and a device that slept then
+    // would wake later with that old sound still in it.
+    idle_.settle(kit::max(output_peak(frames), loop_peak_), frames);
   }
 
  private:
@@ -143,7 +148,7 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
   static constexpr float kFirstArrival = 0.035f;
   static constexpr float kSwarmCurve = 1.25f;    // above 1: denser at the front
   static constexpr float kSwarmTiltDb = 6.0f;    // the last tap against the first
-  static constexpr float kMaxDiffusion = 0.7f;
+  static constexpr float kMaxBlur = 0.7f;
   // How far a swept tap moves at Modulation 1. The depth follows the cube of
   // the knob: a held note is a sum of taps whose phases the sweep moves, so
   // the swarm's level on it wanders once the sweep nears the note's period.
@@ -169,6 +174,7 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
   static constexpr float kFullLevel = 0.4f;
   static constexpr float kFillSeconds = 0.25f;
   static constexpr float kAntiDenormal = 1.0e-18f;
+  static constexpr float kInputBound = 4.0f;
   // Above this Feedback the return's filters open, by this much at 1.
   static constexpr float kOpenFrom = 0.9f;
   static constexpr float kOpenLowOctaves = 1.5f;
@@ -222,13 +228,13 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
     kit::Rng rng;
     rng.seed(0x1F83D9ABu);
     for (int c = 0; c < 2; ++c) {
-      float diffusers = 0.0f;
+      float allpass_span = 0.0f;
       for (int a = 0; a < kStages; ++a) {
         Read& stage = stage_[c][a];
         stage = Read();
         stage.span = kAllpassSpan[c][a];
         stage.limit = static_cast<float>(kAllpassSize - 16);
-        diffusers += kAllpassSpan[c][a];
+        allpass_span += kAllpassSpan[c][a];
       }
       float energy = 0.0f;
       for (int k = 0; k < kTaps; ++k) {
@@ -238,7 +244,7 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
         const float arrival = kFirstArrival + (1.0f - kFirstArrival) * std::pow(u, kSwarmCurve);
         Read& tap = tap_[c][k];
         tap = Read();
-        tap.span = arrival - diffusers;
+        tap.span = arrival - allpass_span;
         tap.limit = static_cast<float>(kLineSize - 16);
         tap.least = kLeastTap;
         tap.swept = ((k + c) & 1) != 0;
@@ -254,7 +260,7 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
 
       Read& loop = loop_[c];
       loop = Read();
-      loop.span = kLoopSpan[c] - diffusers;
+      loop.span = kLoopSpan[c] - allpass_span;
       loop.limit = static_cast<float>(kLineSize - 16);
       loop.least = kLeastTap;
       loop.swept = true;
@@ -271,6 +277,14 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
   }
 
   static float glide(kit::Smoother& s) { return s.value == s.target ? s.value : s.next(); }
+
+  // What may come in: a sample that is not a number is silence, and nothing
+  // is larger than kInputBound. One such sample would otherwise sit in the
+  // filters and the lines for good.
+  static float sane(float x) {
+    if (!(x == x)) return 0.0f;
+    return kit::clamp(x, -kInputBound, kInputBound);
+  }
 
   // Exact to ±1, landing on ±2: the ceiling on the swarm.
   static float limit(float x) { return 2.0f * kit::soft_clip(0.5f * x); }
@@ -315,6 +329,8 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
   void render(int i) {
     float in[2];
     take_input(i, &in[0], &in[1]);
+    in[0] = sane(in[0]);
+    in[1] = sane(in[1]);
     if (clock_.tick()) {
       control();
       gather();
@@ -322,10 +338,11 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
       chunk_at_ = 0;
     }
     const float feedback = glide(feedback_);
-    const float diffusion = glide(blur_);
+    const float blur = glide(blur_);
     const float back[2] = {back_chunk_[0][chunk_at_], back_chunk_[1][chunk_at_]};
     const float swarm[2] = {swarm_chunk_[0][chunk_at_], swarm_chunk_[1][chunk_at_]};
     ++chunk_at_;
+    loop_peak_ = kit::max(loop_peak_, kit::max(std::fabs(back[0]), std::fabs(back[1])));
 
     // The return: a quarter-turn rotation between the sides, then the limiter.
     const float turned[2] = {(back[0] + back[1]) * kit::kSqrtHalf,
@@ -353,9 +370,9 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
                                   ? allpass_[c][a].at(static_cast<int>(stage.at >> 32))
                                   : read_at(allpass_[c][a], stage.at);
         stage.at += stage.advance;
-        const float v = x + diffusion * delayed;
+        const float v = x + blur * delayed;
         allpass_[c][a].write(v);
-        x = delayed - diffusion * v;
+        x = delayed - blur * v;
       }
       line_[c].write(flush_denormal(x));
     }
@@ -530,7 +547,7 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
         length_.set(std::log2(value), primed());
         break;
       case kBlur:
-        blur_.set(value * kMaxDiffusion, primed());
+        blur_.set(value * kMaxBlur, primed());
         break;
       case kFeedback:
         feedback_.set(value, primed());
@@ -589,6 +606,7 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
   float stretch_ = 0.0f;  // where Stretch is now, in octaves of time
   float fill_ = 0.0f;  // mean square at the end of the lines
   float fill_coeff_ = 0.0f;
+  float loop_peak_ = 0.0f;  // largest sample at the end of the lines in this block
   kit::Drift wander_drift_;
   kit::Rng step_rng_;
   int step_offset_ = 0;

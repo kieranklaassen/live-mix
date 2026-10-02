@@ -103,7 +103,7 @@ export const SWARM_REVERB_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Slow movement of individual echoes, each at its own rate. A little keeps the swarm from ringing like metal; a lot makes it shimmer and detune.',
+      'Slow movement of individual echoes, each at its own rate. A little keeps the swarm from sounding fixed and metallic; a lot makes it shimmer, and held notes swell and fade.',
   },
   lowCut: {
     id: 9,
@@ -167,7 +167,7 @@ export const SWARM_REVERB_DESCRIPTOR = wasmDeviceDescriptor(SWARM_REVERB_DEVICE,
       wander: 0.45,
     },
     'Dark well': { length: 1.1, blur: 0.9, feedback: 0.6, highCut: 1400, lowCut: 60, mix: 0.45 },
-    'Small swarm': { length: 0.1, blur: 0.3, feedback: 0.45, modulation: 0.5, mix: 0.3 },
+    'Small swarm': { length: 0.1, blur: 0.3, feedback: 0.45, modulation: 0.4, mix: 0.3 },
     'Slow stretch': {
       length: 0.7,
       blur: 0.85,

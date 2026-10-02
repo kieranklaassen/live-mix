@@ -84,6 +84,13 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
       { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.25 } },
     ],
   },
+  {
+    id: 'swarm-cavern',
+    name: 'Swarm cavern',
+    category: 'space',
+    description: 'A rush of separate echoes after each note that piles up into a dark cave.',
+    effects: [{ deviceId: 'swarm-reverb', preset: 'Cavern' }],
+  },
   // Echo: delays.
   {
     id: 'tape-echo-wash',
@@ -706,6 +713,17 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'pitch-shifter', preset: 'Pad fifth above' },
       { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.3 } },
+    ],
+  },
+  {
+    id: 'interval-ghosts',
+    name: 'Interval ghosts',
+    category: 'pitch',
+    description:
+      'A cave whose echoes jump by fourths and fifths on their own, softened by a plate.',
+    effects: [
+      { deviceId: 'swarm-reverb', preset: 'Interval ghosts', params: { mix: 0.35 } },
+      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.25 } },
     ],
   },
   // Master: last on the mix.

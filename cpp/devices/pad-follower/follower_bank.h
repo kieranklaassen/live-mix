@@ -118,6 +118,29 @@ class FollowerBank {
       warm_[b] = 2 + static_cast<int>(3.0 * ring * ticks);
       settle_[b] = warm_[b] + 2 + static_cast<int>(average * ticks);
       keep_[b] = 2 + static_cast<int>((2.5 * ring + 0.012) * ticks);
+      // The upper partials of a section come in after the lower ones, are a
+      // little rough (the bow), and every partial has a slow life of its own.
+      const double above = kit::clamp(static_cast<float>(std::log2(hz / kOnsetFromHz) / 3.0), 0.0f, 1.0f);
+      onset_[b] = static_cast<float>(1.0 + kOnsetStretch * above);
+      bow_depth_[b] = kBowDepth * kit::clamp(static_cast<float>(std::log2(hz / kBowFromHz) / 2.5), 0.0f, 1.0f);
+      // The body: a gentle formant curve over the bands, the way the box of
+      // a string instrument colours whatever its strings do (fuller around
+      // 480 Hz, held back around 1.25 kHz, a little sheen around 2.8 kHz;
+      // a decibel under everywhere, so that the fullest band is at +1 dB).
+      double body_db = kBodyRestDb;
+      for (int k = 0; k < 3; ++k) {
+        const double x = std::log2(hz / kBodyHz[k]) / kBodyOctaves[k];
+        body_db += kBodyDb[k] * std::exp(-0.5 * x * x);
+      }
+      body_[b] = static_cast<float>(std::pow(10.0, body_db / 20.0));
+      const double flutter_hz = kFlutterHz * (0.6 + 0.8 * ((b * 37) % kBands) / kBands);
+      flutter_coeff_[b] = static_cast<float>(1.0 - std::exp(-two_pi * flutter_hz / ticks));
+      // (uniform noise, variance a third, through two such poles in a row
+      // has the variance c⁴(1 + a²)/(1 − a²)³ / 3, a = 1 − c: scaled to one)
+      const double c = flutter_coeff_[b], a2 = (1.0 - c) * (1.0 - c);
+      const double one_less = 1.0 - a2;
+      flutter_norm_[b] = static_cast<float>(
+          1.0 / std::sqrt(c * c * c * c * (1.0 + a2) / (3.0 * one_less * one_less * one_less)));
       // The octave above fades out before it would reach the internal Nyquist.
       const double doubled = 2.0 * hz / rate;
       up_taper_[b] = kit::clamp(static_cast<float>((0.44 - doubled) / 0.10), 0.0f, 1.0f);
@@ -131,6 +154,8 @@ class FollowerBank {
     trust_fall_ = 1.0f - kit::time_to_coeff(kTrustFallSeconds, rate / kTick);
     peak_decay_ = kit::time_to_coeff(kPeakSeconds, rate / kTick);
     commit_ = 1.0f - kit::time_to_coeff(kCommitSeconds, rate / kTick);
+    bow_coeff_ = 1.0f - std::exp(-6.2831853f * kBowHz * kTick / rate);
+    bow_norm_ = 1.0f / std::sqrt(bow_coeff_ / (2.0f - bow_coeff_) / 3.0f);
     jitter_fall_ = 1.0f - kit::time_to_coeff(kJitterFallSeconds, rate / kTick);
     reset();
   }
@@ -156,7 +181,9 @@ class FollowerBank {
       kept_[b] = kept_older_[b] = 0.0f;
       age_[b] = 0;
       doubt_[b] = 0;
+      flutter1_[b] = flutter2_[b] = bow_[b] = 0.0f;
     }
+    noise_ = 0x2545F491u;
     halve_[0].reset();
     halve_[1].reset();
     for (float& v : wait_full_) v = 0.0f;
@@ -182,11 +209,17 @@ class FollowerBank {
     // The follower starts once a band has settled on its partial, which
     // takes about 70 ms in the middle of the range; that is part of the rise.
     const float swell = kit::max(0.3f * rise_seconds, rise_seconds - 0.07f);
-    attack_ = 1.0f - kit::time_to_coeff(swell / 3.89f, ticks);
+    for (int b = 0; b < kBands; ++b) {
+      attack_[b] = 1.0f - kit::time_to_coeff(swell * onset_[b] / 3.89f, ticks);
+    }
     const float fall_tau = fall_seconds / 6.908f;
     release_ = 1.0f - kit::time_to_coeff(fall_tau, ticks);
     release_follow_ = 1.0f - kit::time_to_coeff(kit::min(0.03f, fall_tau * 0.25f), ticks);
   }
+
+  // How far each partial's level wanders slowly by itself, as a share of
+  // its level (RMS).
+  void set_flutter(float depth) { flutter_depth_ = depth; }
 
   // The partial amplitude at which the gate is half open.
   void set_threshold(float amplitude) { threshold2_ = amplitude * amplitude; }
@@ -439,18 +472,39 @@ class FollowerBank {
     const float partial2 = partial * partial;
     const float target = partial2 > 0.0f ? partial * partial2 / (partial2 + threshold2_) : 0.0f;
     float e1 = env1_[b], e2 = env2_[b];
-    e1 += (target - e1) * (target > e1 ? attack_ : release_);
-    e2 += (e1 - e2) * (e1 > e2 ? attack_ : release_follow_);
+    e1 += (target - e1) * (target > e1 ? attack_[b] : release_);
+    e2 += (e1 - e2) * (e1 > e2 ? attack_[b] : release_follow_);
     if (e2 < 1.0e-8f && target < 1.0e-8f) e1 = e2 = 0.0f;
     env1_[b] = e1;
     env2_[b] = e2;
-    const float level = e2 * trim;
+    float level = e2 * trim * body_[b];
+    if (level > 0.0f) level *= alive(b);
     gain_[b] = level_[b];
     gain_step_[b] = (level - level_[b]) * (1.0f / kTick);
     level_[b] = level;
     up_[b] = up * up_taper_[b];
     down_[b] = down;
     return level > 0.0f || gain_[b] > 0.0f;
+  }
+
+  // The life of one partial, as a factor on its level: a slow wander of its
+  // own (smoothed noise, a different pace in every band) and, in the upper
+  // bands, the roughness of a bow (faster noise). Never below a quarter.
+  float alive(int b) {
+    flutter1_[b] += flutter_coeff_[b] * (white() - flutter1_[b]);
+    flutter2_[b] += flutter_coeff_[b] * (flutter1_[b] - flutter2_[b]);
+    bow_[b] += bow_coeff_ * (white() - bow_[b]);
+    const float slow = kit::clamp(flutter2_[b] * flutter_norm_[b], -2.5f, 2.5f);
+    const float rough = kit::clamp(bow_[b] * bow_norm_, -2.5f, 2.5f);
+    return kit::max(0.25f, 1.0f + flutter_depth_ * slow + bow_depth_[b] * rough);
+  }
+
+  // Uniform in -1..1 (xorshift32, reseeded by reset()).
+  float white() {
+    noise_ ^= noise_ << 13;
+    noise_ ^= noise_ >> 17;
+    noise_ ^= noise_ << 5;
+    return static_cast<float>(noise_ >> 8) * (2.0f / 16777216.0f) - 1.0f;
   }
 
   // How far the averaged reading strays from its own longer average, in band
@@ -537,6 +591,24 @@ class FollowerBank {
   // The second section at full Octaves, against the unshifted pad.
   static constexpr float kOctaveLevel = 0.9f;
 
+  // Onset: from kOnsetFromHz up the swell takes longer, by this much more
+  // three octaves above it.
+  static constexpr float kOnsetFromHz = 500.0f;
+  static constexpr float kOnsetStretch = 0.8f;
+  // Bow: amplitude noise of this bandwidth, from nothing at kBowFromHz to
+  // kBowDepth (RMS, as a share of the partial) two and a half octaves up.
+  static constexpr float kBowHz = 45.0f;
+  static constexpr float kBowFromHz = 350.0f;
+  static constexpr float kBowDepth = 0.08f;
+  // Body: centre, width (as the octaves of one standard deviation) and
+  // height of the three bumps of the formant curve.
+  static constexpr float kBodyHz[3] = {480.0f, 1250.0f, 2800.0f};
+  static constexpr float kBodyOctaves[3] = {0.55f, 0.45f, 0.4f};
+  static constexpr float kBodyDb[3] = {2.0f, -2.0f, 2.5f};
+  static constexpr float kBodyRestDb = -1.0f;
+  // Flutter: the middle pace of the slow wander.
+  static constexpr float kFlutterHz = 0.9f;
+
   // The kit's half-band filter is flat to 0.42 of its output rate.
   static constexpr float kHalfbandFlat = 0.42f;
   static constexpr int kWaitSize = 128;
@@ -554,7 +626,9 @@ class FollowerBank {
   bool down_active_ = false;
   float fast_ = 0.0f, peak_decay_ = 0.0f, commit_ = 0.0f, octave_coeff_ = 0.0f;
   float trust_rise_ = 0.0f, trust_fall_ = 0.0f, jitter_fall_ = 0.0f;
-  float attack_ = 0.01f, release_ = 0.001f, release_follow_ = 0.01f;
+  float release_ = 0.001f, release_follow_ = 0.01f;
+  float flutter_depth_ = 0.0f, bow_coeff_ = 0.0f, bow_norm_ = 1.0f;
+  uint32_t noise_ = 0x2545F491u;
   float threshold2_ = 1.0e-6f;
   float octaves_ = 0.0f, octaves_target_ = 0.0f;
 
@@ -567,6 +641,8 @@ class FollowerBank {
   float lock_[kBands] = {}, max_dev_[kBands] = {}, up_taper_[kBands] = {};
   float detune_scale_[kBands] = {}, share_scale_[kBands] = {}, estimate_coeff_[kBands] = {};
   float stage_scale_[kBands] = {}, wander_rise_[kBands] = {};
+  float onset_[kBands] = {}, bow_depth_[kBands] = {}, flutter_coeff_[kBands] = {}, flutter_norm_[kBands] = {};
+  float attack_[kBands] = {}, body_[kBands] = {};
   int warm_[kBands] = {}, settle_[kBands] = {}, keep_[kBands] = {};
   // Audio-rate state.
   float s1r_[kBands] = {}, s1i_[kBands] = {}, s2r_[kBands] = {}, s2i_[kBands] = {};
@@ -582,6 +658,7 @@ class FollowerBank {
   float trust_[kBands] = {}, peak_[kBands] = {};
   float kept_[kBands] = {}, kept_older_[kBands] = {}, jitter_[kBands] = {}, first_[kBands] = {};
   float wander_[kBands] = {};
+  float flutter1_[kBands] = {}, flutter2_[kBands] = {}, bow_[kBands] = {};
   int age_[kBands] = {}, doubt_[kBands] = {};
 };
 

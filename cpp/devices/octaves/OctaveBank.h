@@ -18,13 +18,25 @@
 //   read from the phase between the last two stages, and the shift and the
 //   level it lost are put back before the scaling.
 // - Sharpened weights: a channel counts by the square of its power against
-//   its neighbours', so a partial is carried by the channel it is in and not
-//   smeared over three.
+//   the neighbours that hold the same partial (the frequencies they measure
+//   agree), so a partial is carried by the channel it is in and not smeared
+//   over three, and two notes in neighbouring channels keep their levels.
+// - Layout: about one channel per semitone where chords are played, placed
+//   halfway between the notes of the tempered scale, so a note played in
+//   tune is shared by two channels that each have its neighbours a
+//   semitone and a tone away well down their skirts.
+// - Collisions: a channel that holds two partials beats, and its voices
+//   would be their products. The beat is read from the envelope and the
+//   channel is turned down as it deepens.
 // - Adaptive width: settled channels are narrow (a chord's notes fall in
-//   different channels and do not intermodulate) and so slow to rise. At an
-//   onset every few channels (the "grid") open to about one ERB, carry the
-//   note for the few milliseconds the narrow ones need, and close again,
-//   with their states moved so the partial does not notice.
+//   different channels and do not intermodulate) and would be slow to rise.
+//   At an onset the channels that hear it open to about one ERB and close
+//   again at once, as fast as their states can be moved along with the
+//   width (exactly, for the partial a channel holds): a channel arrives at
+//   its settled width already settled, and nothing has to be handed over
+//   from a wide channel to a slow narrow one. While they are wide the
+//   notes of a chord share channels and intermodulate: about a tenth of a
+//   second after a chord is struck, less higher up.
 // - Sub octaves: the half-angle phasor is the principal square root with a
 //   sign that flips each time the phase passes half a turn: exact, with no
 //   memory to drift. Neighbouring channels that hold one partial are made to
@@ -135,14 +147,26 @@ class OctaveBank {
   static constexpr double kNarrow = 0.55;
   // Cutoff just after an onset: this many ERB at the channel centre.
   static constexpr double kWideErb = 1.0;
-  // Only every few channels open (the "grid": about one per open
-  // bandwidth). The ones between stay narrow and sit out the kSettle[0] to
-  // kSettle[1] cycles of their cutoff that their own rise takes; the open
-  // grid channel carries the note meanwhile. It stays open for kHold cycles
-  // of its settled cutoff, then closes with a time constant of kClose cycles.
-  static constexpr float kSettle[2] = {0.25f, 0.6f};
-  static constexpr float kHold = 0.6f;
+  // Every channel that hears an onset opens to that width and closes again
+  // from the first moment, with a time constant of kClose cycles of its
+  // settled cutoff; its states are moved with it (set_width), so the partial
+  // it holds stays where it would be had the channel always been that wide.
   static constexpr float kClose = 0.25f;
+  static constexpr float kClosed = 8.0f;
+  static constexpr float kCloseStep = 0.94f;
+  // Who carries the new note. At first one channel in every few (the
+  // "grid": about one per open bandwidth), because channels that have just
+  // opened disagree about the phase of what they hold. From kSettle[0] to
+  // kSettle[1] cycles of the open cutoff after the onset the channels that
+  // will keep the partial once they have closed take it over, while all of
+  // them still hold it in full and agree.
+  static constexpr float kSettle[2] = {0.8f, 1.6f};
+  // Two grid channels that hold the same new partial: the one with more of
+  // it carries it (kLead in power before the choice changes). From kSure[0]
+  // to kSure[1] cycles on they know where their partials are and give way
+  // only as far as it is one partial.
+  static constexpr float kSure[2] = {0.3f, 0.8f};
+  static constexpr float kLead = 1.6f;
   // An onset: first-stage power this many times its highest level of the
   // recent past (a peak hold that falls in kJumpFall seconds and is fed
   // kJumpDelay ticks late, so it does not yet know about the jump). The beat
@@ -212,13 +236,13 @@ class OctaveBank {
   // Release: the voices may hold kReleaseMargin times the square of the
   // input's peak over the last kPeakTicks ticks (16 ms).
   static constexpr int kPeakTicks = 24;
-  static constexpr float kReleaseMargin = 4.0f;
+  static constexpr float kReleaseMargin = 2.5f;
   // A channel whose voices would come out under this level is switched off.
   static constexpr float kFloor = 3.0e-6f;
-  // ... and so is one whose voices would come out this far under everything
-  // the bank holds: 60 dB under the rest of the sound it is not heard, and
+  // ... and so is one whose voices would come out this far under all the
+  // voices together: 50 dB under the rest of the sound it is not heard, and
   // on a chord that is half the channels.
-  static constexpr float kFloorShare = 1.0e-3f;
+  static constexpr float kFloorShare = 3.0e-3f;
   // After an onset a channel's weights are worked out on every tick for
   // this long, then on every other one.
   static constexpr float kFresh = 0.03f;
@@ -255,15 +279,6 @@ class OctaveBank {
     const float x = (centre_[j] - centre_[k]) / (narrow_hz_[k] + open_[k] * (wide_hz_[k] - narrow_hz_[k]));
     const float x2 = x * x;
     return 1.0f / (1.0f + x2 * x2 * x2);
-  }
-
-  // How much of a shared partial a channel that sees it `mine` from its
-  // centre gives up to a neighbour that sees it `theirs` away (0..1).
-  static float yield(float mine, float theirs) {
-    float a = mine * mine, b = theirs * theirs;
-    a *= a * a;
-    b *= b * b;
-    return a / (a + b + 1.0e-20f);
   }
 
   // The square root of (re, im) with a positive real part, same length.
@@ -369,6 +384,9 @@ class OctaveBank {
   float first_scale_[kMaxBands] = {};
   bool grid_[kMaxBands] = {};
   int grid_of_[kMaxBands] = {};
+  int span_[2][kMaxBands] = {};
+  bool paired_[kMaxBands] = {};
+  bool upper_leads_[kMaxBands] = {};
   int grid_below_[kMaxBands] = {};
   int grid_above_[kMaxBands] = {};
   float rot_re_[kMaxBands] = {};
@@ -382,6 +400,7 @@ class OctaveBank {
   float power_[kMaxBands] = {};
   float slow_[kMaxBands] = {};
   float weight_[kMaxBands] = {};
+  float bare_[kMaxBands] = {};
   float leak_[kMaxBands] = {};
   float agree_[kMaxBands] = {};
   // Per channel: the beat of its envelope.

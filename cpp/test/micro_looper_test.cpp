@@ -735,6 +735,62 @@ int main() {
     EXPECT(furthest <= 0.01, "and lining the join up moves the loop's length by no more than 1 %");
   }
 
+  // Auto on a note that is held with no new attack: every second pass the
+  // loop is replaced by a newer recording of the same note, and the new one
+  // is started where it agrees with the old, so the level stays put through
+  // the change (met at any phase it ran from a null to +3 dB). Single notes
+  // by their amplitude, a chord by its level over two of its periods.
+  {
+    struct Case {
+      float hz, length;
+      int speed;
+      double ratio;
+    };
+    double deepest = 0.0, highest = 0.0;
+    for (const Case& c : {Case{110.0f, 0.523f, kNormal, 1.0}, Case{220.0f, 1.017f, kRev, 1.0},
+                          Case{440.0f, 0.731f, kDouble, 2.0}, Case{880.0f, 0.523f, kHalf, 0.5},
+                          Case{0.0f, 0.731f, kNormal, 1.0}}) {
+      const double every = 2.0 * c.length / c.ratio + c.length + 0.3;  // one renewal
+      std::vector<float> input = sine(c.hz, static_cast<float>(c.length + 3.2 * every), kRate, 0.3f);
+      if (c.hz == 0.0f) {
+        for (size_t i = 0; i < input.size(); ++i) {
+          double sum = 0.0;
+          for (double note : {220.0, 275.0, 330.0, 440.0}) {
+            for (int k = 1; k <= 6; ++k) sum += 0.06 * std::sin(2.0 * kPi * k * note * i / kRate + 0.7 * k + note) / (k * k);
+          }
+          input[i] = static_cast<float>(sum);
+        }
+      }
+      plain(device, c.length);
+      device.set_param(p::kState, kAuto);
+      device.set_param(p::kFade, 1.0f);
+      device.set_param(p::kSpeed, static_cast<float>(c.speed));
+      Stereo out = run(device, input);
+      // From the second loop on: the first holds the note's start.
+      const size_t from = static_cast<size_t>((c.length + every + 0.3) * kRate);
+      std::vector<double> level;
+      if (c.hz > 0.0f) {
+        const double quarter = kRate / (4.0 * c.hz * c.ratio);
+        for (size_t i = from; i < out.size(); ++i) {
+          const double at = static_cast<double>(i) - quarter;
+          const size_t whole = static_cast<size_t>(at);
+          const double before = out.left[whole] + (out.left[whole + 1] - out.left[whole]) * (at - whole);
+          level.push_back(std::sqrt(static_cast<double>(out.left[i]) * out.left[i] + before * before));
+        }
+      } else {
+        const size_t span = static_cast<size_t>(2.0 * kRate / 55.0);
+        for (size_t i = from; i + span < out.size(); i += span / 16) level.push_back(rms(out.left, i, i + span));
+      }
+      std::sort(level.begin(), level.end());
+      const double median = level[level.size() / 2];
+      deepest = std::min(deepest, db(level.front() / median));
+      highest = std::max(highest, db(level.back() / median));
+    }
+    std::printf("micro-looper: Auto renewing a held note: level %+.2f / %+.2f dB\n", deepest, highest);
+    EXPECT(deepest > -1.0, "a held note does not dip when Auto renews its loop");
+    EXPECT(highest < 1.0, "nor swell then");
+  }
+
   // Hold a moment after the playing has stopped: the device must not have
   // gone to sleep on the silence and emptied its memory. Past one Length of
   // silence there is nothing to take, and Hold waits.
