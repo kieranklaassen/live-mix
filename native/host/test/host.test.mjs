@@ -24,6 +24,8 @@ const buildDir = resolve(process.env.LIVE_MIX_PLUGIN_HOST_BUILD ?? 'tmp/plugin-h
 const binary = pluginHostBinaryPath(buildDir)
 const testPlugins = pluginHostTestPluginsDir(buildDir)
 const troublePlugin = pluginHostTroublePluginDir(buildDir)
+// How many windows a process has on the screen; built on a Mac only.
+const windowCount = join(buildDir, 'test', 'windows', 'live-mix-window-count')
 const wrapper = process.platform === 'linux' && !process.env.DISPLAY ? ['xvfb-run', '-a'] : []
 const dataDir = mkdtempSync(join(tmpdir(), 'live-mix-host-test-'))
 
@@ -592,82 +594,90 @@ const namesOf = (scan) => scan.plugins.map((plugin) => plugin.name).sort()
 // only waits by the scanner noticing its thread uses no processor, one that
 // keeps a processor busy by the time a plug-in is given. `goes` is how often
 // the scan takes the plug-in up: a crash after other plug-ins may be their
-// doing, so the plug-in gets a scanner to itself before it is left out.
-for (const [trouble, what, limits, goes] of [
+// doing, so the plug-in gets a scanner to itself before it is left out. The
+// one that waits in a dialog is a licence dialog as a Mac shows it: its thread
+// serves events while it waits, which must still count as waiting.
+for (const [trouble, what, limits, goes, only] of [
   ['abort', 'crashes', {}, 2],
   ['hang', 'never answers', { idle: 1 }, 1],
+  ['window', 'waits in a dialog for an answer', { idle: 1 }, 1, 'darwin'],
   ['spin', 'never finishes', { timeout: 2 }, 1],
 ]) {
-  test(`a plug-in that ${what} while it is scanned is left out, and the host carries on`, async () => {
-    const folder = mkdtempSync(join(tmpdir(), 'live-mix-host-trouble-'))
-    try {
-      const left = await withTrouble(trouble, folder, async (connection, own) => {
-        const scan = await scanWithTrouble(connection, limits)
-        // The two beside it are found, in the same scan and the same host.
-        assert.deepEqual(namesOf(scan), ['LiveMix Test Gain', 'LiveMix Test Sine'])
-        assert.equal(scan.crashed.length, 1)
-        assert.match(scan.crashed[0], /LiveMix Test Trouble/)
-        assert.deepEqual(scan.failed, [])
-        assert.equal(scan.names[scan.crashed[0]], 'LiveMix Test Trouble')
-        assert.equal(own.process.exitCode, null, 'the host ended')
-        const taken = connection.events.filter(
-          (entry) => entry.event === 'scanProgress' && entry.name === 'LiveMix Test Trouble',
-        )
-        assert.equal(taken.length, goes)
+  const skip = only !== undefined && process.platform !== only
+  test(
+    `a plug-in that ${what} while it is scanned is left out, and the host carries on`,
+    { skip },
+    async () => {
+      const folder = mkdtempSync(join(tmpdir(), 'live-mix-host-trouble-'))
+      try {
+        const left = await withTrouble(trouble, folder, async (connection, own) => {
+          const scan = await scanWithTrouble(connection, limits)
+          // The two beside it are found, in the same scan and the same host.
+          assert.deepEqual(namesOf(scan), ['LiveMix Test Gain', 'LiveMix Test Sine'])
+          assert.equal(scan.crashed.length, 1)
+          assert.match(scan.crashed[0], /LiveMix Test Trouble/)
+          assert.deepEqual(scan.failed, [])
+          assert.equal(scan.names[scan.crashed[0]], 'LiveMix Test Trouble')
+          assert.equal(own.process.exitCode, null, 'the host ended')
+          const taken = connection.events.filter(
+            (entry) => entry.event === 'scanProgress' && entry.name === 'LiveMix Test Trouble',
+          )
+          assert.equal(taken.length, goes)
 
-        // Still a host: it loads and runs what it found.
-        const slot = await loadTestPlugin('LiveMix Test Gain', connection)
-        assert.equal(slot.name, 'LiveMix Test Gain')
-        await connection.call('unload', { slot: slot.slot })
+          // Still a host: it loads and runs what it found.
+          const slot = await loadTestPlugin('LiveMix Test Gain', connection)
+          assert.equal(slot.name, 'LiveMix Test Gain')
+          await connection.call('unload', { slot: slot.slot })
 
-        // The next scan does not go near it again.
-        const started = Date.now()
-        const again = await scanWithTrouble(connection, limits)
-        assert.ok(Date.now() - started < 1500, 'the scan tried the plug-in again')
-        assert.deepEqual(again.failed, [])
-        assert.deepEqual(again.crashed, scan.crashed)
-        return scan.crashed
-      })
+          // The next scan does not go near it again.
+          const started = Date.now()
+          const again = await scanWithTrouble(connection, limits)
+          assert.ok(Date.now() - started < 1500, 'the scan tried the plug-in again')
+          assert.deepEqual(again.failed, [])
+          assert.deepEqual(again.crashed, scan.crashed)
+          return scan.crashed
+        })
 
-      // Nor does a host started later, with the plug-in behaving by now: it
-      // says what is left out before any scan, and a scan passes it by.
-      await withTrouble(null, folder, async (connection) => {
-        const known = await connection.call('plugins')
-        assert.deepEqual(known.crashed, left)
-        assert.equal(known.names[left[0]], 'LiveMix Test Trouble')
-        const scan = await scanWithTrouble(connection)
-        assert.deepEqual(namesOf(scan), ['LiveMix Test Gain', 'LiveMix Test Sine'])
-        assert.deepEqual(scan.crashed, left)
+        // Nor does a host started later, with the plug-in behaving by now: it
+        // says what is left out before any scan, and a scan passes it by.
+        await withTrouble(null, folder, async (connection) => {
+          const known = await connection.call('plugins')
+          assert.deepEqual(known.crashed, left)
+          assert.equal(known.names[left[0]], 'LiveMix Test Trouble')
+          const scan = await scanWithTrouble(connection)
+          assert.deepEqual(namesOf(scan), ['LiveMix Test Gain', 'LiveMix Test Sine'])
+          assert.deepEqual(scan.crashed, left)
 
-        // Until a scan is asked to give it another go,
-        const retried = await scanWithTrouble(connection, { retry: left })
-        assert.deepEqual(namesOf(retried), [
-          'LiveMix Test Gain',
-          'LiveMix Test Sine',
-          'LiveMix Test Trouble',
-        ])
-        assert.deepEqual(retried.crashed, [])
-        assert.deepEqual((await connection.call('plugins')).crashed, [])
-      })
+          // Until a scan is asked to give it another go,
+          const retried = await scanWithTrouble(connection, { retry: left })
+          assert.deepEqual(namesOf(retried), [
+            'LiveMix Test Gain',
+            'LiveMix Test Sine',
+            'LiveMix Test Trouble',
+          ])
+          assert.deepEqual(retried.crashed, [])
+          assert.deepEqual((await connection.call('plugins')).crashed, [])
+        })
 
-      // or, in a host that still has it left out, to start over.
-      rmSync(join(folder, 'plugins.xml'))
-      writeFileSync(join(folder, 'scan-in-progress.txt'), left[0])
-      await withTrouble(null, folder, async (connection) => {
-        assert.deepEqual((await connection.call('plugins')).crashed, left)
-        const fresh = await scanWithTrouble(connection, { rescan: true })
-        assert.deepEqual(namesOf(fresh), [
-          'LiveMix Test Gain',
-          'LiveMix Test Sine',
-          'LiveMix Test Trouble',
-        ])
-        assert.deepEqual(fresh.crashed, [])
-        assert.deepEqual(fresh.failed, [])
-      })
-    } finally {
-      rmSync(folder, { recursive: true, force: true })
-    }
-  })
+        // or, in a host that still has it left out, to start over.
+        rmSync(join(folder, 'plugins.xml'))
+        writeFileSync(join(folder, 'scan-in-progress.txt'), left[0])
+        await withTrouble(null, folder, async (connection) => {
+          assert.deepEqual((await connection.call('plugins')).crashed, left)
+          const fresh = await scanWithTrouble(connection, { rescan: true })
+          assert.deepEqual(namesOf(fresh), [
+            'LiveMix Test Gain',
+            'LiveMix Test Sine',
+            'LiveMix Test Trouble',
+          ])
+          assert.deepEqual(fresh.crashed, [])
+          assert.deepEqual(fresh.failed, [])
+        })
+      } finally {
+        rmSync(folder, { recursive: true, force: true })
+      }
+    },
+  )
 }
 
 test('remembers a file that holds no plug-in, and does not open it again until asked', async () => {
@@ -796,6 +806,86 @@ test('a scan nobody waits for any more ends its scanner and keeps what it found'
     rmSync(folder, { recursive: true, force: true })
   }
 })
+
+test('stops a scan when asked, keeping what it found', async () => {
+  const folder = mkdtempSync(join(tmpdir(), 'live-mix-host-stop-'))
+  try {
+    await withTrouble('hang', folder, async (connection) => {
+      assert.deepEqual(await connection.call('stopScan'), { stopped: false })
+
+      const scanning = scanWithTrouble(connection, { idle: 60 })
+      await connection.event(
+        'scanProgress',
+        (entry) => /LiveMix Test Trouble/.test(entry.file),
+        1000,
+      )
+      assert.deepEqual(await connection.call('stopScan'), { stopped: true })
+      const scan = await scanning
+      assert.equal(scan.stopped, true)
+      assert.deepEqual(namesOf(scan), ['LiveMix Test Gain', 'LiveMix Test Sine'])
+      // The plug-in it was stopped in is not held against it.
+      assert.deepEqual(scan.crashed, [])
+      assert.deepEqual(scan.failed, [])
+      for (let i = 0; i < 300 && scanners().length > 0; i += 1) await sleep(10)
+      assert.equal(scanners().length, 0, 'the scanner outlived its scan')
+      // The list is not all there is, and the next scan carries on from there.
+      assert.equal((await connection.call('hello')).scanUnfinished, true)
+      const next = await scanWithTrouble(connection, { idle: 1 })
+      assert.equal(next.stopped, undefined)
+      assert.equal(next.crashed.length, 1)
+    })
+  } finally {
+    rmSync(folder, { recursive: true, force: true })
+  }
+})
+
+// A plug-in that asks for its licence in a dialog would put that dialog over
+// what the person is doing, once for every plug-in of the product. A scan
+// takes whatever its plug-ins open off the screen again. Only a Mac is looked
+// at: it is where those dialogs are, and where the scanner sees to it.
+for (const [shown, what] of [
+  [true, 'shows the window a plug-in opens when it is told to let windows show'],
+  [false, 'keeps the window a plug-in opens off the screen'],
+]) {
+  test(`a scan ${what}`, { skip: process.platform !== 'darwin' }, async () => {
+    const folder = mkdtempSync(join(tmpdir(), 'live-mix-host-window-'))
+    const previous = process.env.LIVE_MIX_SCAN_WINDOWS
+    if (shown) process.env.LIVE_MIX_SCAN_WINDOWS = '1'
+    else delete process.env.LIVE_MIX_SCAN_WINDOWS
+    try {
+      await withTrouble('window', folder, async (connection) => {
+        void scanWithTrouble(connection, { idle: 60 }).catch(() => {})
+        await connection.event(
+          'scanProgress',
+          (entry) => /LiveMix Test Trouble/.test(entry.file),
+          1000,
+        )
+        const [scanner] = scanners()
+        assert.ok(scanner, 'no scanner is running')
+        const windows = () =>
+          Number(execFileSync(windowCount, [scanner], { encoding: 'utf8' }).trim())
+        if (shown) {
+          // The count that is nothing below can tell a window when there is one.
+          let seen = 0
+          for (let i = 0; i < 300 && seen === 0; i += 1) {
+            await sleep(10)
+            seen = windows()
+          }
+          assert.ok(seen > 0, 'the plug-in’s window never showed')
+        } else {
+          // Long enough for the window to have been opened, and taken away.
+          await sleep(1500)
+          assert.equal(windows(), 0)
+        }
+        await connection.call('stopScan')
+      })
+    } finally {
+      if (previous === undefined) delete process.env.LIVE_MIX_SCAN_WINDOWS
+      else process.env.LIVE_MIX_SCAN_WINDOWS = previous
+      rmSync(folder, { recursive: true, force: true })
+    }
+  })
+}
 
 test('exits when its standard input closes', async () => {
   const second = await startPluginHost({ binary, dataDir, wrapper })

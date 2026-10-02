@@ -123,6 +123,7 @@ export { DevicePlate, plateLayout, type DevicePlateProps, type PlateLayout } fro
 export {
   DEVICE_SKINS,
   deviceSkin,
+  hostedSkin,
   isDarkPlate,
   PLATE_FINISHES,
   PLATE_PICTURE_HEIGHT,
@@ -133,7 +134,7 @@ export {
   type PlateFinish,
   type PlatePicture,
 } from './device-skins'
-export { PLATE_PALETTES, type PlatePalette } from './plate-palettes'
+export { HOSTED_PLATES, PLATE_PALETTES, type PlatePalette } from './plate-palettes'
 export {
   landingIndex,
   markerPosition,

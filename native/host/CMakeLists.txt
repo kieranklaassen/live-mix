@@ -45,6 +45,10 @@ target_sources(LiveMixPluginHost PRIVATE
     Source/ScanWorker.cpp
     Source/WebSocket.cpp)
 
+if(APPLE)
+    target_sources(LiveMixPluginHost PRIVATE Source/MacWindows.mm)
+endif()
+
 target_compile_definitions(LiveMixPluginHost PRIVATE
     JUCE_PLUGINHOST_VST3=1
     JUCE_PLUGINHOST_VST=0
@@ -83,6 +87,9 @@ endif()
 if(LIVE_MIX_HOST_BUILD_TEST_PLUGINS)
     add_subdirectory(test/plugins)
     add_subdirectory(test/trouble)
+    if(APPLE)
+        add_subdirectory(test/windows)
+    endif()
     if(LIVE_MIX_HOST_LINK)
         add_subdirectory(test/link)
     endif()

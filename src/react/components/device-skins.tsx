@@ -12,7 +12,7 @@ import { type ReactNode } from 'react'
 
 import { type Device, isEditorDevice } from '../../core/devices/Device'
 import { type KnobCap } from './Knob'
-import { PLATE_PALETTES } from './plate-palettes'
+import { HOSTED_PLATES, PLATE_PALETTES } from './plate-palettes'
 
 /** How a plate's surface is worked. */
 export type PlateFinish =
@@ -1768,16 +1768,91 @@ export const QUIET_SKIN: DeviceSkin = {
   cap: 'disc',
 }
 
+/** A number from a text, the same every time. */
+function textHash(text: string): number {
+  let hash = 2166136261
+  for (let i = 0; i < text.length; i++) hash = Math.imul(hash ^ text.charCodeAt(i), 16777619) >>> 0
+  return hash
+}
+
+/**
+ * A plug-in's own window, small: a title bar and three sliders, each at the
+ * place of one of the plug-in's first parameters. It says what the plate
+ * cannot show, that the rest is in a window of the plug-in's own. It stands
+ * under a knob's name of two lines and above the name tag.
+ */
+function windowPicture(params: readonly string[]): PlatePicture {
+  const shown = params.slice(0, 3)
+  return {
+    params: shown,
+    draw: (at) => (
+      <g fill="none" stroke={INK} strokeWidth={1}>
+        <rect x={70} y={66} width={100} height={40} />
+        <path d="M70 74H170" />
+        {range(3).map((i) => (
+          <circle key={i} cx={76 + i * 6} cy={70} r={1.5} fill={INK} stroke="none" />
+        ))}
+        {shown.map((param, i) => {
+          const y = 81 + i * 9
+          return (
+            <g key={param}>
+              <path d={`M80 ${y}H160`} opacity={0.45} />
+              <rect
+                x={r1(80 + at(param) * 76)}
+                y={y - 3}
+                width={4}
+                height={6}
+                fill={ACCENT}
+                stroke="none"
+              />
+            </g>
+          )
+        })}
+      </g>
+    ),
+  }
+}
+
+const HOSTED_FINISHES: readonly PlateFinish[] = ['brushed', 'hammered', 'matte', 'grain']
+const HOSTED_CAPS: readonly Exclude<KnobCap, 'arc'>[] = ['pointer', 'skirt', 'disc', 'dot']
+const hostedSkins = new WeakMap<Device, DeviceSkin>()
+
+/**
+ * The skin of a hosted plug-in, which the kit has no look for: a case picked
+ * by the plug-in's id (colour, finish and knob cap, the same every time), its
+ * first four parameters on the face and its own window drawn small under them.
+ * Kept per device, so the picture is drawn again only when a slider moves.
+ */
+export function hostedSkin(device: Device): DeviceSkin {
+  const kept = hostedSkins.get(device)
+  if (kept) return kept
+  const hash = textHash(device.id)
+  const palette = HOSTED_PLATES[hash % HOSTED_PLATES.length]
+  const params = (device.panelParams ?? Object.keys(device.params)).filter(
+    (name) => device.params[name],
+  )
+  const skin: DeviceSkin = {
+    ...palette,
+    finish: HOSTED_FINISHES[(hash >>> 8) % HOSTED_FINISHES.length],
+    cap: HOSTED_CAPS[(hash >>> 16) % HOSTED_CAPS.length],
+    picture: windowPicture(params),
+  }
+  hostedSkins.set(device, skin)
+  return skin
+}
+
 /**
  * The skin a device is drawn with: its own from `skins`, else the quiet one.
- * Null for a device that draws itself (a hosted plug-in with its own window)
- * or has something to say instead of knobs: those keep the plain panel.
+ * A hosted plug-in, which has a window of its own, gets a case by its id
+ * (`hostedSkin`). Null for a device that has something to say instead of
+ * knobs (a plug-in that is missing): that one keeps the plain panel.
  */
 export function deviceSkin(
   device: Device,
   skins: Readonly<Record<string, DeviceSkin>> = DEVICE_SKINS,
 ): DeviceSkin | null {
-  if (isEditorDevice(device) || device.notice) return null
+  if (device.notice) return null
+  if (isEditorDevice(device)) return hostedSkin(device)
   return Object.hasOwn(skins, device.id) ? skins[device.id] : QUIET_SKIN
 }
 

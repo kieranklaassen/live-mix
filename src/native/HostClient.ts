@@ -199,6 +199,17 @@ export class NativeHostClient {
     return this.call<NativeScanResult>('scan', options)
   }
 
+  /**
+   * End the scan that is running. Its `scan()` resolves with what was found
+   * until then and `stopped: true`; the plug-in it was looking at is not held
+   * against it, and the next scan carries on from there. Resolves with
+   * whether a scan was running.
+   */
+  async stopScan(): Promise<boolean> {
+    const { stopped } = await this.call<{ stopped: boolean }>('stopScan')
+    return stopped
+  }
+
   load(options: NativeLoadOptions): Promise<NativeSlotInfo> {
     return this.call<NativeSlotInfo>('load', options)
   }

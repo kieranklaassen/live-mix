@@ -116,6 +116,8 @@ export interface NativeScanResult {
    * listed by a code, not a file.
    */
   names: Record<string, string>
+  /** True when the scan was ended with `stopScan` before it was through. */
+  stopped?: boolean
 }
 
 export interface NativeScanProgress {

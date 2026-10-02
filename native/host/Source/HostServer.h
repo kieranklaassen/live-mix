@@ -64,6 +64,8 @@ private:
     void describeKnown (juce::DynamicObject& result) const;
     void startScan (const Connection& connection, const juce::var& id, const juce::var& params);
     void stepScan();
+    /** Ends the scan that is running, answering it with what it found; false when none is. */
+    bool stopScan();
     bool startScanWorker();
     void takeScanResults();
     /** What a person calls the plug-in a scan knows by its file or its code. */

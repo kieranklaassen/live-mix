@@ -524,6 +524,13 @@ void HostServer::handleRequest (const Connection& connection, const juce::var& r
     {
         startScan (connection, id, params);
     }
+    else if (method == "stopScan")
+    {
+        const auto stopped = stopScan();
+        auto* result = new juce::DynamicObject();
+        result->setProperty ("stopped", stopped);
+        reply (connection, id, juce::var (result));
+    }
     else if (method == "load")
     {
         load (connection, id, params);
@@ -899,6 +906,23 @@ void HostServer::stepScan()
     describeKnown (*result);
     const auto finished = std::move (scan);
     reply (finished->connection, finished->id, juce::var (result));
+}
+
+bool HostServer::stopScan()
+{
+    if (scan == nullptr)
+        return false;
+
+    // What the scanner has finished is kept; the plug-in it was in is not
+    // held against it, and the list says it is not all there is.
+    takeScanResults();
+    savePluginCache();
+    auto* result = new juce::DynamicObject();
+    describeKnown (*result);
+    result->setProperty ("stopped", true);
+    const auto finished = std::move (scan);
+    reply (finished->connection, finished->id, juce::var (result));
+    return true;
 }
 
 void HostServer::describeKnown (juce::DynamicObject& result) const

@@ -4,11 +4,17 @@
 // A few knobs sit on the face; a cell opens the rest, and the plate widens by
 // whole cells to hold them. The name is on a tag, and the lamp beside it is
 // the power switch. It is the same device as in `DevicePanel`: every knob,
-// the presets and the readings are there, with the same info text.
+// the presets and the readings are there, with the same info text. A device
+// with a window of its own (a hosted plug-in) has a cell that opens it.
 
 import { memo, useId, useState, type CSSProperties, type ReactNode } from 'react'
 
-import { type Device, isMeteredDevice, isParamTextDevice } from '../../core/devices/Device'
+import {
+  type Device,
+  isEditorDevice,
+  isMeteredDevice,
+  isParamTextDevice,
+} from '../../core/devices/Device'
 import { type DeviceRegistry } from '../../core/devices/registry'
 import { normalizeParam } from '../../core/params'
 import { useDevice } from '../hooks/useParam'
@@ -149,6 +155,7 @@ export function DevicePlate({
   const names = open ? [...face, ...rest] : face
   const layout = plateLayout(names.length, skin.picture !== undefined)
   const ownText = isParamTextDevice(device) ? device : null
+  const editor = isEditorDevice(device) ? device : null
   const presetsShown = showPresets ?? d.presets.length > 0
   const heading = title ?? d.descriptor?.name ?? d.id
   const tag = skin.name ?? heading
@@ -248,10 +255,28 @@ export function DevicePlate({
           )
         })}
       </div>
+      {editor ? (
+        <button
+          type="button"
+          className="lm-plate__more lm-plate__edit"
+          aria-label={`Open ${heading} editor`}
+          {...infoProps(
+            'Open editor',
+            `Opens the window ${heading} draws itself, with every control it has. The knobs here are its first few, and move with the ones in the window.`,
+          )}
+          onClick={() => {
+            // A plug-in that cannot show a window says so there; the plate stays as it is.
+            void editor.openEditor().catch(() => {})
+          }}
+          data-testid={testId ? `${testId}-editor` : undefined}
+        >
+          Edit
+        </button>
+      ) : null}
       {rest.length > 0 ? (
         <button
           type="button"
-          className="lm-plate__more"
+          className={cx('lm-plate__more', editor && 'lm-plate__more--second')}
           aria-expanded={open}
           aria-label={
             open

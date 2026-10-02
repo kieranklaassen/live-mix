@@ -1,5 +1,7 @@
 #include "PluginSlot.h"
 
+#include "MacWindows.h"
+
 #include <juce_gui_basics/juce_gui_basics.h>
 
 namespace livemix
@@ -51,7 +53,15 @@ public:
         setAlwaysOnTop (true);
         centreWithSize (getWidth(), getHeight());
         setVisible (true);
+        bringToFront();
+    }
+
+    /** In front of the shell's window, also while the shell is the program in front. */
+    void bringToFront()
+    {
         toFront (true);
+        if (auto* peer = getPeer())
+            bringWindowToFront (peer->getNativeHandle());
     }
 
     ~EditorWindow() override
@@ -374,7 +384,7 @@ bool PluginSlot::showEditor()
         return false;
     if (window != nullptr)
     {
-        window->toFront (true);
+        window->bringToFront();
         return true;
     }
 
