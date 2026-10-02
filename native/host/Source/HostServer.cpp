@@ -116,7 +116,6 @@ struct HostServer::ScanJob
     /** A plug-in a worker crashed in after others, given one more go at the head of a worker of its own. */
     int secondGo = -1;
 
-    juce::StringArray failed;
     juce::uint32 lastSaved = 0;
 };
 
@@ -421,7 +420,7 @@ void HostServer::handleRequest (const Connection& connection, const juce::var& r
     else if (method == "plugins")
     {
         auto* result = new juce::DynamicObject();
-        result->setProperty ("plugins", pluginList());
+        describeKnown (*result);
         reply (connection, id, juce::var (result));
     }
     else if (method == "scan")
@@ -681,6 +680,18 @@ void HostServer::startScan (const Connection& connection, const juce::var& id, c
     {
         knownPlugins.clear();
         knownPlugins.clearBlacklistedFiles();
+        couldNotLoad.clear();
+    }
+
+    // Plug-ins to give another go: no longer held against them, so this scan
+    // meets them again like any it has not seen.
+    if (auto* again = params["retry"].getArray())
+    {
+        for (const auto& entry : *again)
+        {
+            knownPlugins.removeFromBlacklist (entry.toString());
+            couldNotLoad.removeString (entry.toString());
+        }
     }
 
     const auto scratch = juce::File::getSpecialLocation (juce::File::tempDirectory);
@@ -733,7 +744,6 @@ void HostServer::stepScan()
             // and of the ones after it, until a scan is asked to start over.
             const auto identifier = job.queue[job.current];
             knownPlugins.addToBlacklist (identifier);
-            job.failed.add (identifier);
             job.settled = job.current + 1;
             job.current = -1;
             savePluginCache();
@@ -766,7 +776,8 @@ void HostServer::stepScan()
         if (job.pending.isEmpty())
             break;
 
-        // The next format: what it has that is neither known nor left out.
+        // The next format: what it has that is neither known, left out, nor
+        // found earlier to hold no plug-in.
         // The ones that are made asynchronously are in, version 3 Audio Units
         // among them; the worker asks those from a thread of its own.
         auto* format = job.pending.removeAndReturn (0);
@@ -779,6 +790,7 @@ void HostServer::stepScan()
         job.secondGo = -1;
         for (const auto& identifier : format->searchPathsForPlugins (paths, true, true))
             if (! knownPlugins.getBlacklistedFiles().contains (identifier)
+                && ! couldNotLoad.contains (identifier)
                 && ! knownPlugins.isListingUpToDate (identifier, *format))
                 job.queue.add (identifier);
         job.list.replaceWithText (job.queue.joinIntoString ("\n"));
@@ -786,11 +798,19 @@ void HostServer::stepScan()
 
     scanUnfinished = false;
     savePluginCache();
+    auto* result = new juce::DynamicObject();
+    describeKnown (*result);
+    const auto finished = std::move (scan);
+    reply (finished->connection, finished->id, juce::var (result));
+}
+
+void HostServer::describeKnown (juce::DynamicObject& result) const
+{
     juce::Array<juce::var> failed;
     juce::Array<juce::var> crashed;
     // What to call each of them: an Audio Unit is found by a code, not a file.
     auto* names = new juce::DynamicObject();
-    for (const auto& file : job.failed)
+    for (const auto& file : couldNotLoad)
     {
         failed.add (file);
         names->setProperty (file, pluginName (file));
@@ -800,13 +820,10 @@ void HostServer::stepScan()
         crashed.add (file);
         names->setProperty (file, pluginName (file));
     }
-    auto* result = new juce::DynamicObject();
-    result->setProperty ("plugins", pluginList());
-    result->setProperty ("failed", failed);
-    result->setProperty ("crashed", crashed);
-    result->setProperty ("names", juce::var (names));
-    const auto finished = std::move (scan);
-    reply (finished->connection, finished->id, juce::var (result));
+    result.setProperty ("plugins", pluginList());
+    result.setProperty ("failed", failed);
+    result.setProperty ("crashed", crashed);
+    result.setProperty ("names", juce::var (names));
 }
 
 juce::String HostServer::pluginName (const juce::String& identifier) const
@@ -895,7 +912,7 @@ void HostServer::takeScanResults()
         for (const auto* type : line->types)
             knownPlugins.addType (*type);
         if (line->types.isEmpty())
-            job.failed.add (identifier);
+            couldNotLoad.addIfNotAlreadyThere (identifier);
         job.settled = line->index + 1;
         job.current = -1;
         ++job.workerDone;
@@ -1024,6 +1041,9 @@ void HostServer::loadPluginCache()
     {
         knownPlugins.recreateFromXml (*xml);
         scanUnfinished = xml->getBoolAttribute ("scanUnfinished");
+        couldNotLoad.clear();
+        for (auto* entry : xml->getChildWithTagNameIterator ("COULDNOTLOAD"))
+            couldNotLoad.addIfNotAlreadyThere (entry->getStringAttribute ("id"));
     }
 
     // A host from before scans had a process of their own noted here which
@@ -1048,6 +1068,9 @@ void HostServer::savePluginCache() const
         // Saved while a scan runs, the list is not all there is yet.
         if (scanUnfinished)
             xml->setAttribute ("scanUnfinished", true);
+        // Beside the list's own entries, which is all the list reads back.
+        for (const auto& file : couldNotLoad)
+            xml->createNewChildElement ("COULDNOTLOAD")->setAttribute ("id", file);
         xml->writeTo (options.dataDirectory.getChildFile ("plugins.xml"));
     }
 }

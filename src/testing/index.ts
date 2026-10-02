@@ -63,6 +63,7 @@ export {
 export { advance } from './advance'
 export {
   FAKE_HOST_ADDRESS,
+  FAKE_BROKEN_FILE,
   FAKE_REVERB,
   FAKE_STATE,
   FAKE_SYNTH,

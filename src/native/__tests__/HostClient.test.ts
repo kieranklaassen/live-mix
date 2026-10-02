@@ -1,7 +1,12 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { NativeHostClient, findNativeHost } from '../HostClient'
-import { FAKE_HOST_ADDRESS, FAKE_REVERB, FakePluginHost } from '../../testing/fake-plugin-host'
+import {
+  FAKE_HOST_ADDRESS,
+  FAKE_REVERB,
+  FAKE_SYNTH,
+  FakePluginHost,
+} from '../../testing/fake-plugin-host'
 
 async function connect(host = new FakePluginHost()) {
   const client = await NativeHostClient.connect(FAKE_HOST_ADDRESS, {
@@ -66,6 +71,49 @@ describe('NativeHostClient', () => {
     off()
     await client.scan()
     expect(seen).toHaveLength(1)
+  })
+
+  it('says what the host has left out without a scan, and gives one another go', async () => {
+    const host = new FakePluginHost({ crashed: ['/plugins/Stuck.vst3'] })
+    const client = await NativeHostClient.connect(FAKE_HOST_ADDRESS, {
+      createSocket: host.createSocket,
+    })
+    const known = await client.known()
+    expect(known.plugins).toHaveLength(2)
+    expect(known.failed).toEqual([])
+    expect(known.crashed).toEqual(['/plugins/Stuck.vst3'])
+    expect(known.names).toEqual({ '/plugins/Stuck.vst3': 'Stuck' })
+
+    // A scan passes it by; one asked to try it again does not.
+    expect((await client.scan()).crashed).toEqual(['/plugins/Stuck.vst3'])
+    const retried = await client.scan({ retry: ['/plugins/Stuck.vst3'] })
+    expect(host.calls('scan').at(-1)?.params).toEqual({ retry: ['/plugins/Stuck.vst3'] })
+    expect(retried.crashed).toEqual([])
+    expect(retried.failed).toEqual(['/plugins/Broken.vst3'])
+    expect((await client.known()).failed).toEqual(['/plugins/Broken.vst3'])
+  })
+
+  it('reads the list of a host from before it said what it left out', async () => {
+    const host = new FakePluginHost()
+    const client = await NativeHostClient.connect(FAKE_HOST_ADDRESS, {
+      createSocket: (url) => {
+        const socket = host.createSocket(url)
+        const deliver = socket.deliver.bind(socket)
+        socket.deliver = (message) => {
+          const result = (message as { result?: Record<string, unknown> }).result
+          if (result && 'failed' in result)
+            deliver({ ...(message as object), result: { plugins: result.plugins } })
+          else deliver(message)
+        }
+        return socket
+      },
+    })
+    expect(await client.known()).toEqual({
+      plugins: [FAKE_REVERB, FAKE_SYNTH],
+      failed: [],
+      crashed: [],
+      names: {},
+    })
   })
 
   it('setParam is a notification: no id, nothing awaited', async () => {

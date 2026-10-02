@@ -172,8 +172,22 @@ export class NativeHostClient {
 
   /** The plug-ins the host already knows (its cached list), without scanning. */
   async plugins(): Promise<NativePluginInfo[]> {
-    const { plugins } = await this.call<{ plugins: NativePluginInfo[] }>('plugins')
-    return plugins
+    return (await this.known()).plugins
+  }
+
+  /**
+   * What the host already knows, without scanning: its list, and what its
+   * scans left out of it (`failed`, `crashed`, and their `names`), which it
+   * keeps between runs. An older host says only the list.
+   */
+  async known(): Promise<NativeScanResult> {
+    const known = await this.call<Partial<NativeScanResult>>('plugins')
+    return {
+      plugins: known.plugins ?? [],
+      failed: known.failed ?? [],
+      crashed: known.crashed ?? [],
+      names: known.names ?? {},
+    }
   }
 
   /**
