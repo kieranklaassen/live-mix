@@ -82,7 +82,8 @@ class FollowerBank {
     }
     fast_ = 1.0f - kit::time_to_coeff(kFastSeconds, rate / kTick);
     octave_coeff_ = 1.0f - kit::time_to_coeff(kOctaveSeconds, rate / kTick);
-    trust_decay_ = kit::time_to_coeff(kTrustSeconds, rate / kTick);
+    trust_rise_ = 1.0f - kit::time_to_coeff(kTrustRiseSeconds, rate / kTick);
+    trust_fall_ = 1.0f - kit::time_to_coeff(kTrustFallSeconds, rate / kTick);
     estimate_ = 1.0f - kit::time_to_coeff(kEstimateSeconds, rate / kTick);
     commit_ = 1.0f - kit::time_to_coeff(kCommitSeconds, rate / kTick);
     reset();
@@ -105,8 +106,12 @@ class FollowerBank {
       mag_[b] = level_[b] = 0.0f;
       env1_[b] = env2_[b] = 0.0f;
       dev_est_[b] = dev_[b] = 0.0f;
-      trust_[b] = 0.0f;
+      trust_[b] = reading_[b] = 0.0f;
+      kept_[b] = kept_older_[b] = 0.0f;
+      rewound_[b] = false;
     }
+    keep_counter_ = 0;
+    keep_now_ = false;
     counter_ = 0;
     sounding_ = false;
     down_active_ = false;
@@ -171,6 +176,8 @@ class FollowerBank {
     // Keep the pad's power about level as the second section comes in.
     const float trim = 1.0f / std::sqrt(1.0f + up * up + down * down);
     down_active_ = down > 0.0f;
+    keep_now_ = ++keep_counter_ >= kKeepTicks;
+    if (keep_now_) keep_counter_ = 0;
     bool any = false;
     for (int b = 0; b < kBands; ++b) any = steer(b, up, down, trim) || any;
     sounding_ = any;
@@ -205,6 +212,7 @@ class FollowerBank {
     // the band centre, not at the played pitch) can pull the estimate.
     float confidence = 0.0f;
     float measured = 0.0f;
+    bool ringing = false;
     if (m > 1.0e-7f && first2 > 0.0f) {
       const float dr = zr * last_r_[b] + zi * last_i_[b];
       const float di = zi * last_r_[b] - zr * last_i_[b];
@@ -220,9 +228,14 @@ class FollowerBank {
       }
       measured = kit::clamp(angle * (1.0f / kTick), -max_dev_[b], max_dev_[b]);
       const float tm = detune_scale_[b] * measured;
-      const float ratio2 = m2 * (1.0f + tm * tm) * stage_norm_[b] / first2;
-      const float steady = kit::clamp((ratio2 - 0.45f) * 5.0f, 0.0f, 1.0f) *
-                           kit::clamp((1.7f - ratio2) * 2.5f, 0.0f, 1.0f);
+      const float ratio = m2 * (1.0f + tm * tm) * stage_norm_[b] / first2;
+      ringing = ratio >= kRingRatio;
+      float steady = kit::clamp((ratio - 0.45f) * 5.0f, 0.0f, 1.0f) *
+                     kit::clamp((kRingRatio - ratio) * 4.0f, 0.0f, 1.0f);
+      // Two readings in a row have to agree (to within a fifth of a band):
+      // noise and the splash of an attack do not.
+      const float jump = std::fabs(measured - reading_[b]) * share_scale_[b];
+      steady *= kit::clamp(2.0f - jump * 5.0f, 0.0f, 1.0f);
       const float mag2 = mag * mag;
       confidence = steady * mag2 / (mag2 + 0.0625f * threshold2_);
     }
@@ -233,6 +246,7 @@ class FollowerBank {
         // A band that was not following anything takes the first steady
         // reading as it is.
         dev_est_[b] = dev_[b] = measured;
+        kept_[b] = kept_older_[b] = measured;
       } else {
         dev_est_[b] += estimate_ * confidence * (measured - dev_est_[b]);
         dev_[b] += commit_ * confidence * (dev_est_[b] - dev_[b]);
@@ -246,7 +260,21 @@ class FollowerBank {
       const float error = (pi * ur_[b] - pr * ui_[b]) / (m * (1.0f + tl * tl));
       pull = lock_[b] * confidence * error;
     }
-    const float trust = kit::max(confidence, trust_[b] * trust_decay_);
+    reading_[b] = measured;
+    // When a followed partial stops, the last few readings before the ring
+    // was noticed were already bent towards the band centre. Go back to the
+    // detune held a moment earlier, so the pad hangs on at the played pitch.
+    if (ringing && trust_[b] > 0.5f && !rewound_[b]) {
+      dev_est_[b] = dev_[b] = kept_older_[b];
+      rewound_[b] = true;
+    } else if (confidence > 0.9f) {
+      rewound_[b] = false;
+      if (keep_now_ && trust_[b] > 0.9f) {
+        kept_older_[b] = kept_[b];
+        kept_[b] = dev_[b];
+      }
+    }
+    const float trust = trust_[b] + (confidence - trust_[b]) * (confidence > trust_[b] ? trust_rise_ : trust_fall_);
     trust_[b] = trust < 1.0e-6f ? 0.0f : trust;
     const float t = detune_scale_[b] * dev_[b];
     const float boost = 1.0f + t * t;
@@ -327,7 +355,12 @@ class FollowerBank {
   static constexpr float kLockFactor = 0.3f;
   static constexpr float kFastSeconds = 0.008f;
   static constexpr float kOctaveSeconds = 0.06f;
-  static constexpr float kTrustSeconds = 0.06f;
+  static constexpr float kTrustRiseSeconds = 0.012f;
+  static constexpr float kTrustFallSeconds = 0.06f;
+  // |s2|²(1 + t²)(1 − r)²/|s1|² is 1 for a steady partial; past this the band is ringing.
+  static constexpr float kRingRatio = 1.45f;
+  // The held detune is noted every 8 ms; a rewind goes back 8 to 16 ms.
+  static constexpr int kKeepTicks = 12;
   // The second section at full Octaves, against the unshifted pad.
   static constexpr float kOctaveLevel = 0.9f;
   static constexpr float kEstimateSeconds = 0.008f;
@@ -337,7 +370,8 @@ class FollowerBank {
   int counter_ = 0;
   bool sounding_ = false;
   bool down_active_ = false;
-  float fast_ = 0.0f, estimate_ = 0.0f, commit_ = 0.0f, octave_coeff_ = 0.0f, trust_decay_ = 0.0f;
+  float fast_ = 0.0f, estimate_ = 0.0f, commit_ = 0.0f, octave_coeff_ = 0.0f;
+  float trust_rise_ = 0.0f, trust_fall_ = 0.0f;
   float attack_ = 0.01f, release_ = 0.001f, release_follow_ = 0.01f;
   float threshold2_ = 1.0e-6f;
   float octaves_ = 0.0f, octaves_target_ = 0.0f;
@@ -360,7 +394,11 @@ class FollowerBank {
   float last_r_[kBands] = {}, last_i_[kBands] = {};
   float mag_[kBands] = {}, level_[kBands] = {};
   float env1_[kBands] = {}, env2_[kBands] = {};
-  float dev_est_[kBands] = {}, dev_[kBands] = {}, trust_[kBands] = {};
+  float dev_est_[kBands] = {}, dev_[kBands] = {}, trust_[kBands] = {}, reading_[kBands] = {};
+  float kept_[kBands] = {}, kept_older_[kBands] = {};
+  bool rewound_[kBands] = {};
+  int keep_counter_ = 0;
+  bool keep_now_ = false;
 };
 
 }  // namespace pad_follower

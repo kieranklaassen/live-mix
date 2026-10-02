@@ -33,10 +33,10 @@
 // length) to twice as long. What the machine does in real time (the lurch,
 // Attack, Release, the hiss) keeps its own pace.
 //
-// Control values move once every 32 samples and ramp linearly in between.
+// Control values move once every 64 samples and ramp linearly in between.
 // A block is rendered in runs that end on those ticks, so the output does
-// not depend on the host's block size. One recording is made per tick: the
-// last note of a ten-note chord starts 6 ms after the first.
+// not depend on the host's block size. Two recordings are made per tick at
+// most: the last note of a ten-note chord starts 5 ms after the first.
 //
 // The instrument sleeps when no key sounds, and wakes with its shared
 // filters and noise in the same state every time.
@@ -50,7 +50,7 @@ namespace livemix {
 class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
  public:
   static constexpr int kMaxVoices = 16;
-  static constexpr int kControlPeriod = 32;
+  static constexpr int kControlPeriod = 64;
   static constexpr int kMaxPlayers = tape_orchestra_dsp::kMaxPlayers;
 
   // --- the tape under a key -------------------------------------------------
@@ -201,6 +201,7 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
     } else {
       voice.cut.value = 0.0f;
       voice.cut.step = 0.0f;
+      voice.resting = true;
     }
   }
 
@@ -242,7 +243,7 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
       }
       for (int v = 0; v < kMaxVoices; ++v) {
         Voice& voice = pool_.voices[v];
-        if (!voice.on || voice.waiting()) continue;
+        if (!voice.on || voice.resting) continue;
         render(voice, bus_left, bus_right, count);
       }
       for (int n = 0; n < count; ++n) {
@@ -314,6 +315,7 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
     bool fresh = false;        // ... and for a new note
     bool let_go = false;       // released before it started
     bool snap = false;         // the next control tick sets its ramps outright
+    bool resting = false;      // silent until the next control tick at least
     uint32_t order = 0;        // who asked first
     // The note waiting to start.
     float next_frequency = 220.0f;
@@ -475,7 +477,7 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
     }
   }
 
-  // Every 32 samples: the motor, one waiting note, the tape band, the keys.
+  // Every 64 samples: the motor, the waiting notes, the tape band, the keys.
   void control() {
     using namespace tape_orchestra;
     const float sr = sample_rate();
@@ -493,14 +495,17 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
 
     noise_speed_ = 1.0f / std::sqrt(speed_);
 
-    // One recording per tick: a chord's notes start within a few
+    // Two recordings per tick at most: a chord's notes start within a few
     // milliseconds of each other, in the order they were played.
-    Voice* next = nullptr;
-    for (int v = 0; v < kMaxVoices; ++v) {
-      Voice& voice = pool_.voices[v];
-      if (voice.on && voice.waiting() && (!next || voice.order < next->order)) next = &voice;
+    for (int turn = 0; turn < 2; ++turn) {
+      Voice* next = nullptr;
+      for (int v = 0; v < kMaxVoices; ++v) {
+        Voice& voice = pool_.voices[v];
+        if (voice.on && voice.waiting() && (!next || voice.order < next->order)) next = &voice;
+      }
+      if (!next) break;
+      start(*next);
     }
-    if (next) start(*next);
 
     // The band the tape passes: narrower with Age, lower at half speed.
     const float age = param(kAge);
@@ -522,10 +527,14 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
     shelf_[0].set_cutoff(1200.0f * speed_, sr);
     shelf_[1].a = shelf_[0].a;
 
+    // A voice that has faded for its new recording falls silent here, on
+    // the tick, and not in the middle of a run: the block size must not
+    // decide how far its players have read.
     float sounding = 0.0f;
     for (int v = 0; v < kMaxVoices; ++v) {
       Voice& voice = pool_.voices[v];
-      if (!voice.on || voice.waiting()) continue;
+      voice.resting = voice.on && voice.waiting();
+      if (!voice.on || voice.resting) continue;
       sounding += control_voice(voice, dt, sr);
     }
 
@@ -553,6 +562,9 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
   static float pole(float x) {
     return 1.0f - 1.0f / (1.0f + x * (1.0f + x * (0.5f + x * (1.0f / 6.0f))));
   }
+
+  // A phase that moved less than one turn, back into 0..1.
+  static float wrap(float x) { return x >= 1.0f ? x - 1.0f : x; }
 
   // 2^(cents/1200) to second order: exact to 0.01 cent over ±100 cents.
   static float ratio(float cents) {
@@ -655,7 +667,7 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
     voice.snap = true;
   }
 
-  // One key, every 32 samples: its tape's speed, its players, its level.
+  // One key, every 64 samples: its tape's speed, its players, its level.
   // Returns the weight of its hiss (a power).
   float control_voice(Voice& voice, float dt, float sr) {
     using namespace tape_orchestra;
@@ -676,11 +688,11 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
                       0.2f * kit::SineTable::lookup(voice.sway_phase);
     const float flutter = kit::SineTable::lookup(voice.flutter_phase);
     voice.wow_phase += voice.wow_rate * tape_dt;
-    voice.wow_phase -= std::floor(voice.wow_phase);
+    voice.wow_phase = wrap(voice.wow_phase);
     voice.sway_phase += voice.wow_rate * 0.37f * tape_dt;
-    voice.sway_phase -= std::floor(voice.sway_phase);
+    voice.sway_phase = wrap(voice.sway_phase);
     voice.flutter_phase += voice.flutter_rate * tape_dt;
-    voice.flutter_phase -= std::floor(voice.flutter_phase);
+    voice.flutter_phase = wrap(voice.flutter_phase);
     float lurch = 0.0f;
     if (voice.gripped < kLurchSeconds) {
       lurch = 0.5f + 0.5f * kit::SineTable::cos_lookup(0.5f * voice.gripped / kLurchSeconds);
@@ -746,7 +758,7 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
       const float loud = kit::SineTable::lookup(player.wander_phase[1]);
       for (int w = 0; w < 2; ++w) {
         player.wander_phase[w] += player.wander_rate[w] * tape_dt;
-        player.wander_phase[w] -= std::floor(player.wander_phase[w]);
+        player.wander_phase[w] = wrap(player.wander_phase[w]);
       }
       level *= 1.0f + 0.12f * section * loud;
 

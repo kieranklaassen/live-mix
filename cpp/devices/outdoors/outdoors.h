@@ -37,7 +37,7 @@ class Outdoors : public kit::DeviceBase<outdoors::kNumParams> {
     uint32_t stream = 0;
     for (int v = 0; v < kMaxVoices; ++v) {
       Voice& voice = pool_.voices[v];
-      voice.reset();
+      voice = Voice();  // every scene back to how it was built
       voice.env.set_sample_rate(sr);
       voice.swap.set_time(0.005f, sr);
       voice.swap.snap(1.0f);
@@ -218,12 +218,6 @@ class Outdoors : public kit::DeviceBase<outdoors::kNumParams> {
     float gain = 0.0f, next_gain = 0.0f;
     bool restart = false;
 
-    void reset() {
-      env.reset();
-      hz = next_hz = 220.0f;
-      gain = next_gain = 0.0f;
-      restart = false;
-    }
     bool active() const { return env.active(); }
     bool releasing() const { return env.releasing(); }
     float level() const { return env.level(); }

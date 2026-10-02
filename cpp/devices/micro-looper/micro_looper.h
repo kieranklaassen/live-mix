@@ -257,6 +257,7 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     float env = 0.0f;        // fade between decks, 0..1
     float env_step = 0.0f;
     float blur = 0.0f;       // frames between the three reads above speed 1
+    bool linear = false;     // fades linearly: the other deck is on the same tape
     bool stored = false;     // the store holds its capture, complete (control rate)
     float until_grain = 0.0f;  // samples until Smear starts its next grain
     kit::GrainPool<kMaxGrains> grains;
@@ -381,6 +382,7 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
       d.place = 0.0;
       d.turns = 0.0;
       d.gain = 1.0f;
+      d.linear = false;
     } else {
       Deck probe = old;
       set_bounds(probe);
@@ -393,7 +395,12 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
       set_bounds(d);
       // Stay on the same piece of tape when it is inside the new loop.
       const double rel = old.start + old.place - d.start;
-      d.place = (rel >= 0.0 && rel < d.length) ? rel : 0.0;
+      const bool same_tape = rel >= 0.0 && rel < d.length;
+      d.place = same_tape ? rel : 0.0;
+      // Two decks on the same piece of tape add up in phase, so they fade
+      // linearly; unrelated ones fade with equal power.
+      d.linear = same_tape;
+      old.linear = same_tape;
       d.turns = old.turns;
       d.gain = old.gain;
     }
@@ -529,7 +536,8 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
   void play(Deck& d, double step, bool wide, float* wet, float* side) {
     float loop[2];
     loop_read(d, d.place, d.offset, &loop[0], &loop[1]);
-    const float gain = d.gain * (d.env >= 1.0f ? 1.0f : kit::SineTable::lookup(0.25f * d.env));
+    const float fade = d.linear ? d.env : kit::SineTable::lookup(0.25f * d.env);
+    const float gain = d.gain * (d.env >= 1.0f ? 1.0f : fade);
     // Smear: grains from around the playhead, moving at the loop's speed.
     if (grain_gain_ > 0.0f && !d.releasing) {
       d.until_grain -= 1.0f;
@@ -687,7 +695,8 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     ring_.forget();
     for (Deck& d : decks_) d = Deck();
     current_ = 0;
-    state_seen_ = -1;
+    // Nothing to take yet: Hold and Auto both wait for the first phrase.
+    state_seen_ = state_;
     pending_ = kNone;
     wait_ = 0;
     loud_at_ = -(1LL << 40);

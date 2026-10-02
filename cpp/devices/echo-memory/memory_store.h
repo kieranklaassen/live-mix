@@ -11,9 +11,11 @@ namespace echo_memory {
 // loud each 100 ms of it was.
 //
 // - Frames are stored with TPDF dither of one step, so what comes back has a
-//   steady noise floor near -96 dBFS instead of distortion that follows the
-//   signal. Positions are absolute frame counts (64-bit), so a read stays
-//   exact however long the session runs.
+//   steady noise floor near -90 dBFS instead of distortion that follows the
+//   signal. The 16 bits span ±2, not ±1: the caller soft-limits to that, so
+//   a note a few dB over full scale comes back rounded, not squared off.
+//   Positions are absolute frame counts (64-bit), so a read stays exact
+//   however long the session runs.
 // - Reads are on a quarter-frame grid. The memory voice only ever plays at a
 //   quarter, a half, one or two frames per output sample, from a whole frame,
 //   so four fixed polyphase kernels (a 24-tap Kaiser-windowed sinc at each
@@ -36,6 +38,9 @@ class Memory {
   static constexpr int kGuard = 2 * kHalfReach + 2;  // frames mirrored past the end
   static constexpr int kMapBlocks = 720;  // 72 s of 100 ms blocks
   static constexpr float kScale = 32767.0f;
+  // What ±32767 stands for: 6 dB of headroom over ±1.
+  static constexpr float kFullScale = 2.0f;
+  static constexpr float kStep = kFullScale / kScale;  // one 16-bit step
 
   // Build the kernels. Call once per init; cheap.
   void prepare(float store_rate) {
@@ -56,7 +61,7 @@ class Memory {
         sum += taps[k];
       }
       // Unity at DC: 0.5 + 2 x the sum of the odd taps.
-      for (int k = 0; k < kHalfPairs; ++k) half_[k] = static_cast<float>(taps[k] * 0.25 / sum / kScale);
+      for (int k = 0; k < kHalfPairs; ++k) half_[k] = static_cast<float>(taps[k] * 0.25 / sum * kStep);
     }
     for (int phase = 0; phase < 4; ++phase) {
       // Interpolation at phase/4, cutoff at Nyquist.
@@ -76,7 +81,7 @@ class Memory {
         taps[k] = value;
         sum += value;
       }
-      for (int k = 0; k < kTaps; ++k) kernel_[phase][k] = static_cast<float>(taps[k] / sum / kScale);
+      for (int k = 0; k < kTaps; ++k) kernel_[phase][k] = static_cast<float>(taps[k] / sum * kStep);
     }
   }
 
@@ -148,15 +153,15 @@ class Memory {
         sum_left += half_[k] * static_cast<float>(centre[-offset] + centre[offset]);
         sum_right += half_[k] * static_cast<float>(centre[1 - offset] + centre[1 + offset]);
       }
-      *left = sum_left + static_cast<float>(centre[0]) * (0.5f / kScale);
-      *right = sum_right + static_cast<float>(centre[1]) * (0.5f / kScale);
+      *left = sum_left + static_cast<float>(centre[0]) * (0.5f * kStep);
+      *right = sum_right + static_cast<float>(centre[1]) * (0.5f * kStep);
       return;
     }
     const int phase = static_cast<int>(position_q & 3);
     if (phase == 0) {
       const int at = 2 * slot(whole);
-      *left = static_cast<float>(buffer_[at]) * (1.0f / kScale);
-      *right = static_cast<float>(buffer_[at + 1]) * (1.0f / kScale);
+      *left = static_cast<float>(buffer_[at]) * kStep;
+      *right = static_cast<float>(buffer_[at + 1]) * kStep;
       return;
     }
     const int16_t* frames = buffer_ + 2 * slot(whole - kBefore);
@@ -193,7 +198,7 @@ class Memory {
     const uint32_t bits = rng_.next_u32();
     const float dither =
         (static_cast<float>(bits & 0xFFFFu) - static_cast<float>(bits >> 16)) * (1.0f / 65536.0f);
-    float scaled = x * kScale + dither;
+    float scaled = x * (1.0f / kStep) + dither;
     if (!(scaled == scaled)) scaled = 0.0f;
     if (scaled < -32767.0f) scaled = -32767.0f;
     if (scaled > 32767.0f) scaled = 32767.0f;

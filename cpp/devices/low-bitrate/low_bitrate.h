@@ -219,6 +219,12 @@ class LowBitrate : public kit::DeviceBase<low_bitrate::kNumParams> {
   static constexpr float kShortestEventSeconds = 0.02f; // Burst 0 → 1: events of 20 ms to half a second
   static constexpr float kEventRange = 25.0f;
   static constexpr float kStuckDecay = 0.94f;           // half a decibel per replay
+  // A held loop of one packet is a 47 Hz buzz as bright as its source. A
+  // gentle low-pass (12 dB per octave) closes over it while the stream stays
+  // stuck, so a short stutter keeps its edge and a long one dulls to a hum.
+  static constexpr float kStuckOpenHz = 20000.0f;
+  static constexpr float kStuckFloorHz = 400.0f;
+  static constexpr float kStuckOctavesPerSecond = 10.0f;
   static constexpr float kDropFadeSeconds = 0.008f;
   static constexpr float kMaxSmearSeconds = 30.0f;  // RT60 of a held bin = 30 s × Smear³
   static constexpr float kSmearFrozen = 0.999f;     // from here up nothing fades
@@ -519,8 +525,17 @@ class LowBitrate : public kit::DeviceBase<low_bitrate::kNumParams> {
     if (packet_state_ == kStuck) {
       float gain = 1.0f;
       for (int r = 0; r <= packet_repeats_ && r < 64; ++r) gain *= kStuckDecay;
-      for (int c = 0; c < 2; ++c) {
-        for (int k = 0; k < n; ++k) cosine_[c][k] = gain * engine.store[c][offset + k];
+      const float held_seconds =
+          (static_cast<float>(packet_repeats_) * static_cast<float>(packet_size_) + static_cast<float>(offset)) /
+          sample_rate();
+      const float cutoff = kit::max(kStuckFloorHz, kStuckOpenHz * std::exp2(-kStuckOctavesPerSecond * held_seconds));
+      const float per_bin = sample_rate() / (static_cast<float>(2 * n) * cutoff);  // a bin's width over the cutoff
+      for (int k = 0; k < n; ++k) {
+        const float ratio = (static_cast<float>(k) + 0.5f) * per_bin;
+        const float squared = ratio * ratio;
+        const float dulled = gain / std::sqrt(1.0f + squared * squared);
+        cosine_[0][k] = dulled * engine.store[0][offset + k];
+        cosine_[1][k] = dulled * engine.store[1][offset + k];
       }
     } else if (packet_state_ == kFlowing) {
       for (int c = 0; c < 2; ++c) {

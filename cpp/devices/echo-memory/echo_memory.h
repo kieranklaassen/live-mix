@@ -12,12 +12,15 @@
 //
 // - The echo voice is an ordinary feedback delay on its own float line. Time
 //   is the distance to the playback head and glides (a 120 ms motor lag, at
-//   most two samples a sample), so moving it bends the repeats. Tone is a
+//   most two samples a sample) until it lands exactly, so moving it bends
+//   the repeats. Tone is a
 //   low-pass on the playback, so every repeat is darker than the last; the
 //   loop also loses its lows below 70 Hz and is limited (exactly linear up
 //   to ±1). Spread records the input on the left and crosses the feedback.
 // - The memory is everything that came in, kept for 68 s as 16-bit stereo
-//   with TPDF dither, at no more than 48 kHz: at 88.2 and 96 kHz it is
+//   with TPDF dither (the 16 bits span ±2, behind the echo's limiter, so a
+//   note over full scale is rounded like an echo of it, not squared off),
+//   at no more than 48 kHz: at 88.2 and 96 kHz it is
 //   recorded through a half-band filter at half rate (memory_store.h). A map
 //   of the peak level of every 100 ms goes with it.
 // - The memory voice is two snippet voices. Every so often (Wander: 20 s
@@ -279,8 +282,10 @@ class EchoMemory : public kit::DeviceBase<echo_memory::kNumParams> {
     return 1.0f;
   }
 
+  // The memory takes ±2 and is fed through the echo's limiter: exact up to
+  // full scale, rounded above it (kept at ±1 it squared off anything over).
   void remember(float left, float right) {
-    memory_.write(left, right);
+    memory_.write(limit(left), limit(right));
     if (left > kHeard || left < -kHeard || right > kHeard || right < -kHeard) {
       last_loud_ = memory_.written();
     }

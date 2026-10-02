@@ -17,7 +17,7 @@
 // - A string is a delay loop with a loss filter (zither_string.h). The blow
 //   is a function of time added to the loop: for a pluck, the rectangular
 //   wave an ideal pluck sends down the string, its duty set by `position`
-//   and its edges as wide as the fingertip; for the hammer, a raised-cosine
+//   and its edges as wide as the fingertip; for the hammer, a half-sine
 //   blow with its reflection from the near end and a second, softer bounce.
 // - `chord` lays open strings over two octaves above the key; `strum` is
 //   the time the hand takes to cross them, and `roll` goes on striking them
@@ -347,9 +347,9 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
   static constexpr float kKeepRollPluck = 0.65f;
   static constexpr float kRingLean = 0.3f;
   static constexpr float kDampHz = 3000.0f;
-  static constexpr float kDarkSeconds = 0.2f;
-  static constexpr float kBrightSeconds = 9.0f;
-  static constexpr float kTopShare = 0.3f;  // the highest partials ring this share of that
+  static constexpr float kDarkSeconds = 0.25f;
+  static constexpr float kBrightSeconds = 12.0f;
+  static constexpr float kTopShare = 0.5f;  // the highest partials ring this share of that
   // Release at its top never damps.
   static constexpr float kOpenRelease = 19.5f;
   // A released string that has fallen this far is hurried out.
@@ -492,7 +492,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
   // wider toward the treble, and a course lies a little across it.
   void place(Voice& voice) {
     const float note = kit::hz_to_midi(voice.hz);
-    const float width = 0.1f + 0.3f * kit::clamp((note - 40.0f) / 44.0f, 0.0f, 1.0f);
+    const float width = 0.1f + 0.35f * kit::clamp((note - 40.0f) / 44.0f, 0.0f, 1.0f);
     const float pan = width * kit::SineTable::lookup(note * 0.381966f);
     if (voice.two) {
       kit::pan_gains(pan - kCourseSplit, &voice.left[0], &voice.right[0]);
@@ -519,10 +519,10 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
 
   // Exciters. Widths are for a string at 220 Hz, from the softest to the
   // hardest touch, and grow toward the bass by the power given.
-  static constexpr float kFingerSoft = 0.0012f, kFingerHard = 0.00008f, kFingerLean = 0.5f;
+  static constexpr float kFingerSoft = 0.0009f, kFingerHard = 0.00004f, kFingerLean = 0.5f;
   static constexpr float kPickSoft = 0.00045f, kPickHard = 0.00007f, kPickLean = 0.25f;
-  static constexpr float kHammerSoft = 0.0032f, kHammerHard = 0.0006f, kHammerLean = 0.5f;
-  static constexpr float kPickStep = 0.45f;     // the pick's share of pluck: thin
+  static constexpr float kHammerSoft = 0.0026f, kHammerHard = 0.00045f, kHammerLean = 0.5f;
+  static constexpr float kPickStep = 0.55f;     // the pick's share of pluck: thin
   static constexpr float kPickClick = 0.8f;     // and of click: bright
   static constexpr float kHammerLevel = 0.75f;
   static constexpr float kBounce = 0.28f;       // the hammer's second, softer contact
@@ -607,7 +607,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
   // The second string of a course is plucked a little less than the first,
   // so the pair never beats down to nothing, and lies to the other side.
   static constexpr float kCourseSecond = 0.7f;
-  static constexpr float kCourseSplit = 0.25f;
+  static constexpr float kCourseSplit = 0.4f;
 
   void render_voice(Voice& voice, int n, float* left, float* right, float* bridge) {
     float in[kChunk];
@@ -668,7 +668,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
                                                            51.0f, 64.0f, 53.0f, 66.0f, 55.0f, 68.0f};
   static constexpr float kSympatheticSeconds = 9.0f;     // ring of the lowest, at its fundamental
   static constexpr float kSympatheticBrightness = 0.62f;
-  static constexpr float kSympatheticGain = 0.012f;      // bridge to string at Sympathy 1
+  static constexpr float kSympatheticGain = 0.009f;      // bridge to string at Sympathy 1
   static constexpr float kSympatheticHighpass = 140.0f;  // the thump of a blow stays out
 
   void init_sympathetic(float sr) {
@@ -767,16 +767,16 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
   static constexpr BodySpec kBodies[kNumBodies] = {
       // Harp: a wide warm board, soft on top.
       {{165.0f, 260.0f, 440.0f, 780.0f}, {5.0f, 6.0f, 6.0f, 5.0f}, {0.5f, 0.45f, 0.35f, 0.25f},
-       150.0f, 2.0f, 3500.0f, -4.0f, 0.8f, 1.0f},
+       150.0f, 1.0f, 3500.0f, 1.0f, 0.8f, 1.0f},
       // Zither: a shallow box, bright.
       {{210.0f, 345.0f, 590.0f, 1150.0f}, {7.0f, 8.0f, 8.0f, 6.0f}, {0.4f, 0.45f, 0.4f, 0.3f},
-       150.0f, 0.0f, 3000.0f, 2.5f, 0.8f, 1.0f},
+       160.0f, -3.0f, 2500.0f, 6.0f, 0.8f, 1.0f},
       // Dulcimer: a ringing trapezoid, brighter still.
       {{185.0f, 300.0f, 520.0f, 930.0f}, {10.0f, 12.0f, 12.0f, 9.0f}, {0.5f, 0.5f, 0.45f, 0.35f},
-       150.0f, 0.0f, 2500.0f, 3.5f, 0.7f, 1.0f},
+       180.0f, -3.0f, 2000.0f, 7.0f, 0.7f, 1.0f},
       // Koto: a long hollow body, thin below and nasal.
       {{140.0f, 310.0f, 620.0f, 1350.0f}, {4.0f, 5.0f, 4.0f, 3.0f}, {0.3f, 0.5f, 0.6f, 0.7f},
-       200.0f, -4.0f, 5000.0f, -2.0f, 0.6f, 1.0f},
+       220.0f, -5.0f, 4000.0f, 3.0f, 0.6f, 1.0f},
   };
   static constexpr float kBodySkew[kBodyModes] = {1.045f, 0.96f, 1.035f, 0.955f};
   static constexpr float kBodyFadeSeconds = 0.04f;
@@ -851,7 +851,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
         volume_.set(kit::db_to_gain(value), primed());
         break;
       case kSympathy:
-        coupling_.set(value * value * kSympatheticGain, primed());
+        coupling_.set(value * std::sqrt(value) * kSympatheticGain, primed());
         break;
       default:
         break;  // read at the strike or on the control clock

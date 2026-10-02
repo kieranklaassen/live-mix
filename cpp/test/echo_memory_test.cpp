@@ -421,6 +421,33 @@ int main() {
     EXPECT(snr > 60.0, "the memory's noise is more than 60 dB under a -20 dBFS sine");
   }
 
+  // A note over full scale comes back rounded, not squared off: the memory
+  // holds ±2 behind a soft limiter. A 220 Hz tone peaking 2 dB over, recalled
+  // one moment at a time. (Stored at ±1 it came back hard-clipped, third
+  // harmonic at -21 dB.)
+  {
+    std::vector<float> input = sine(220.0f, 40.0f, kRate, 1.26f);
+    memory_only(device);
+    device.set_param(p::kMemory, 0.5f);
+    device.set_param(p::kWander, 0.2f);
+    device.set_param(p::kSize, 2.0f);
+    std::vector<Event> events;
+    Stereo out = run_logged(device, input, input, &events);
+    double third = 1.0, fifth = 1.0;
+    for (const Event& event : events) {
+      const size_t length = static_cast<size_t>(event.recall.seconds * kRate);
+      const size_t from = event.at + length * 42 / 100, to = event.at + length * 58 / 100;
+      if (length < 90000 || event.at + length >= out.size()) continue;
+      const double fundamental = tone_level(out.left, 220.0, kRate, from, to);
+      third = tone_level(out.left, 660.0, kRate, from, to) / fundamental;
+      fifth = tone_level(out.left, 1100.0, kRate, from, to) / fundamental;
+      break;
+    }
+    std::printf("over full scale: a +2 dBFS tone recalled has its third harmonic at %.1f dB, fifth at %.1f dB\n",
+                db(third), db(fifth));
+    EXPECT(third < 5.6e-3 && fifth < 5.6e-3, "a note 2 dB over full scale is recalled without hard clipping");
+  }
+
   // It comes to rest. At the defaults nothing can start later than Reach
   // after the last sound and nothing lasts longer than Size, so the output is
   // exact zero within Reach + Size (23 s) of the input stopping, and the
@@ -596,8 +623,9 @@ int main() {
                 narrowest, widest, flips, pairs, apart);
     EXPECT(pairs >= 8 && flips == pairs, "Spread 1: successive moments are on opposite sides");
     EXPECT(narrowest > 2.0 && widest > 9.0 && widest < 13.0, "Spread 1: from just off centre to wide, never hard");
-    // Each channel of the memory has its own dither, a step of 1/32767.
-    EXPECT(apart < 1.0e-4, "Spread 0 keeps a mono source mono, down to the memory's dither");
+    // Each channel of the memory has its own dither, a step of 2/32767 (the
+    // 16 bits span ±2), and two moments can overlap.
+    EXPECT(apart < 2.0e-4, "Spread 0 keeps a mono source mono, down to the memory's dither");
   }
 
   // Tone darkens both voices, and the echo more on every repeat.

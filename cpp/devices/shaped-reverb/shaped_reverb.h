@@ -256,6 +256,7 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
 
     counter_ = 0;
     started_ = false;
+    active_ = 0.0f;
     seen_high_ = seen_low_ = seen_tail_ = -1.0e9f;
     // The longest silent gap: the pre-delay and a whole shape whose start is
     // too quiet to see, plus the diffuser.
@@ -273,6 +274,7 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
       silence_output(frames);
       return;
     }
+    active_ = 0.0f;
     int done = 0;
     while (done < frames) {
       if (counter_ == 0) {
@@ -287,7 +289,10 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
       if (counter_ >= kPeriod) counter_ = 0;
       done += chunk;
     }
-    idle_.settle(output_peak(frames), frames);
+    // The gate goes by the reverb itself as well as by the output: with Mix
+    // at zero the output is silent while repeats or a tail still go round,
+    // and a device that slept on them would play them back on waking.
+    idle_.settle(kit::max(output_peak(frames), active_), frames);
   }
 
  private:
@@ -683,6 +688,11 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
 
       for (int c = 0; c < 2; ++c) wet[c] = low_cut_[c].highpass(high_cut_[c].lowpass(wet[c]));
 
+      const float loud0 = wet[0] < 0.0f ? -wet[0] : wet[0];
+      const float loud1 = wet[1] < 0.0f ? -wet[1] : wet[1];
+      if (loud0 > active_) active_ = loud0;
+      if (loud1 > active_) active_ = loud1;
+
       const float width = glide(width_);
       const float level = glide(level_) * glide(wet_);
       const float mid = 0.5f * (wet[0] + wet[1]);
@@ -791,6 +801,7 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
   float seen_high_ = -1.0f, seen_low_ = -1.0f, seen_tail_ = -1.0f;
   int counter_ = 0;
   bool started_ = false;
+  float active_ = 0.0f;  // the wet signal's peak in this block, before Mix
   kit::IdleGate idle_;
 };
 

@@ -24,9 +24,9 @@
 //     wave whose duty is the plucking position (partials as 1/n with a comb
 //     from the position), with raised-cosine edges as wide as the fingertip
 //     and its mean taken off over one period;
-//   - the pulse: a raised-cosine blow and its inverted reflection from the
-//     near end (flat partials up to the reciprocal of its width, same comb),
-//     the felt hammer and the click of a pick.
+//   - the pulse: a half-sine blow and its inverted reflection from the near
+//     end (flat partials up to the reciprocal of its width, same comb), the
+//     felt hammer and the click of a pick.
 
 #include "../../kit/math.h"
 
@@ -166,10 +166,11 @@ struct Strike {
     if (u >= 1.0f) return 1.0f;
     return 0.5f - 0.5f * kit::SineTable::cos_lookup(0.5f * u);
   }
-  // A raised-cosine bump on (0, 1), peak 1.
+  // Half a sine on (0, 1), peak 1: its corners leave more of the top of
+  // the spectrum than a raised cosine would, as a real contact does.
   static float bump(float u) {
     if (u <= 0.0f || u >= 1.0f) return 0.0f;
-    return 0.5f - 0.5f * kit::SineTable::cos_lookup(u);
+    return kit::SineTable::lookup(0.5f * u);
   }
 
   void finish_setup() {

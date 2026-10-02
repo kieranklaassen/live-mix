@@ -611,6 +611,45 @@ int main() {
     EXPECT(db(folded / 0.25) < -20.0, "Double speed band-limits what would fold back");
   }
 
+  // The longest loop at the highest rate: 8 s at 96 kHz, held while the
+  // input goes on for longer than the ring remembers. The loop has moved
+  // into the store by then and is untouched.
+  {
+    const float rate = 96000.0f, length = 8.0f;
+    const size_t n = static_cast<size_t>(length * rate);
+    plain(device, length, rate);
+    std::vector<float> input = phrase(9.0f, 330.0f, 0x10A6u, rate);
+    run(device, input);
+    device.set_param(p::kState, kHold);
+    rng_state() = 0xFEEDu;
+    Stereo first = run(device, noise(8.0f, rate, 0.3f));
+    Stereo later = run(device, noise(16.0f, rate, 0.3f));
+    // Wet only: the second pass after 16 s of other input against the first.
+    const double same = match(later.left, n + 48000, first.left, 48000, 96000);
+    const double played = match(first.left, 48000, input, input.size() - n + 48000, 96000);
+    std::printf("micro-looper: 8 s loop at 96 kHz after 24 s of other input: match %.5f (first pass against the input %.5f)\n",
+                same, played);
+    EXPECT(played > 0.9999, "an 8 s loop at 96 kHz is what was played");
+    EXPECT(same > 0.9999, "and it survives the ring being overwritten");
+  }
+
+  // Hold from empty when the phrase starts on a loud sample: it still waits
+  // for the phrase to be played rather than taking the silence before it.
+  {
+    plain(device, 0.5f);
+    device.set_param(p::kState, kHold);
+    std::vector<float> input = sine(440.0f, 0.4f, kRate, 0.4f);
+    for (size_t i = 0; i < input.size(); ++i) {
+      input[i] = 0.4f * static_cast<float>(std::cos(2.0 * kPi * 440.0 * static_cast<double>(i) / kRate));
+    }
+    input.resize(48000, 0.0f);
+    run(device, input);
+    Stereo after = render(device, 2.0f, kRate);
+    const double level = tone_level(after.left, 440.0, kRate, 24000, 24000 + 12000);
+    std::printf("micro-looper: Hold from empty, phrase starting at full level: loop at %.4f\n", level);
+    EXPECT(level > 0.2, "Hold from empty takes the phrase, not the silence before it");
+  }
+
   // Cost under a realistic load: notes every 0.7 s into the default patch
   // (Auto keeps taking new loops, so the copy into the store runs too), and
   // the heaviest setting: double speed, Smear and Spread at full, clock 1/2.

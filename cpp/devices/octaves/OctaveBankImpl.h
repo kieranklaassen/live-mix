@@ -673,7 +673,14 @@ inline void OctaveBank::tick() {
     if (attack_coeff_ > 0.0f) {
       // Attack: the allowed level rises at the set rate and falls at once.
       const float level = std::sqrt(power_[k]);
-      if (level > slow_[k]) {
+      if (settled[k] < 1.0f) {
+        // Sitting out behind its grid channel, which carries the note for
+        // now: it will take over at the share of its level the grid channel
+        // has been allowed so far.
+        const int g = grid_of_[k];
+        const float theirs = std::sqrt(power_[g]);
+        slow_[k] = theirs > slow_[g] ? level * slow_[g] / theirs : level;
+      } else if (level > slow_[k]) {
         slow_[k] += attack_coeff_ * (level - slow_[k]);
       } else {
         slow_[k] = level;

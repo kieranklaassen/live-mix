@@ -16,6 +16,7 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
  public:
   static constexpr int kMaxFrame = 8192;  // the frame at 96 kHz
   static constexpr int kMaxHalf = kMaxFrame / 2;
+  static constexpr int kMaxLongFrame = 32768;  // the long frame for the lows at 96 kHz
   static constexpr int kSlots = 6;
   static constexpr int kMaxRegions = 1400;  // peaks are at least three bins apart
 
@@ -46,10 +47,10 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
       comp_[i] = static_cast<float>(0.335 / g);
     }
     for (int i = 0; i < kRing; ++i) {
-      input_[i] = 0.0f;
       output_[0][i] = 0.0f;
       output_[1][i] = 0.0f;
     }
+    for (int i = 0; i < kInputRing; ++i) input_[i] = 0.0f;
     position_ = 0;
     mix_.set_time(kSmoothingSeconds, sr);
     mix_seen_ = -1.0f;
@@ -78,7 +79,7 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
       take_input(i, &in[0], &in[1]);
       const float mono = 0.5f * (in[0] + in[1]);
       // A NaN or runaway sample must not reach the analysis.
-      input_[position_ & kRingMask] = (mono > -64.0f && mono < 64.0f) ? mono : 0.0f;
+      input_[position_ & kInputMask] = (mono > -64.0f && mono < 64.0f) ? mono : 0.0f;
 
       const uint32_t phase = position_ & hop_mask;
       on_sample(phase);
@@ -112,8 +113,10 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
   }
 
  private:
-  static constexpr int kRing = 16384;
+  static constexpr int kRing = 16384;       // output: a frame and a hop
   static constexpr uint32_t kRingMask = kRing - 1;
+  static constexpr int kInputRing = 65536;  // input: the long frame and what is waiting behind it
+  static constexpr uint32_t kInputMask = kInputRing - 1;
 
   void apply(int id) {
     using namespace sustainer;
@@ -331,7 +334,7 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     const uint32_t first = position_ + 1u - static_cast<uint32_t>(size);
     float sum = 0.0f;
     for (int n = 0; n < size; ++n) {
-      const float x = input_[(first + static_cast<uint32_t>(n)) & kRingMask];
+      const float x = input_[(first + static_cast<uint32_t>(n)) & kInputMask];
       sum += x * x;
       scratch_[n] = x * window_[4 * n];
     }
@@ -450,7 +453,7 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
   void analyse(int back, float* re, float* im) {
     const uint32_t first = position_ + 1u - static_cast<uint32_t>(frame_ + back);
     for (int n = 0; n < frame_; ++n) {
-      scratch_[n] = input_[(first + static_cast<uint32_t>(n)) & kRingMask] * analysis_window_[n];
+      scratch_[n] = input_[(first + static_cast<uint32_t>(n)) & kInputMask] * analysis_window_[n];
     }
     fft_.forward(scratch_, re, im, frame_);
   }
@@ -724,11 +727,11 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
   int onsets_ = 0;
   float gate_ = 0.0f;      // the level under which nothing counts as playing
 
-  sustainer_detail::RealFft<kMaxFrame> fft_;
+  sustainer_detail::RealFft<kMaxLongFrame> fft_;
   float window_[kMaxFrame];           // Hann: synthesis, and the detector's frame
   float analysis_window_[kMaxFrame];  // Blackman: the capture's frames
   float comp_[kCompSteps + 1];
-  float input_[kRing];
+  float input_[kInputRing];
   float output_[2][kRing];
   kit::Smoother mix_;
   kit::IdleGate idle_;

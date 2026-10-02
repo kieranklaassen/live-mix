@@ -7,7 +7,7 @@
 // complex sequence), which is about half the work of kit::Fft on the same
 // frame. No allocation: the tables are members.
 //
-//   forward(x, re, im)   x[0..N)            -> re/im[0..N/2]
+//   forward(x, re, im)   x[0..N)            -> re/im[0..N/2] (or its first bins)
 //   inverse(re, im, x)   re/im[0..N/2]      -> x[0..N), scaled by N/2
 //
 // `inverse` destroys re/im. kit::Fft has a fixed size per instance, which is
@@ -42,15 +42,17 @@ class RealFft {
   }
 
   // n: a power of two, 16 <= n <= MaxN.
-  void forward(const float* x, float* re, float* im, int n) {
+  // `bins`: how many output bins are wanted, counted from 0 (all by default).
+  void forward(const float* x, float* re, float* im, int n, int bins = -1) {
     const int m = n / 2;
+    const int last = (bins < 0 || bins > m + 1) ? m : bins - 1;
     for (int i = 0; i < m; ++i) {
       zr_[i] = x[2 * i];
       zi_[i] = x[2 * i + 1];
     }
     transform(m, false);
     const int step = MaxN / n;  // table index of e^(-j 2 pi k / n) is k * step
-    for (int k = 0; k <= m; ++k) {
+    for (int k = 0; k <= last; ++k) {
       const int a = k == m ? 0 : k;
       const int b = k == 0 ? 0 : m - k;
       // E = (Z[a] + conj Z[b]) / 2, O = (Z[a] - conj Z[b]) / 2j

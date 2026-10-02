@@ -79,7 +79,7 @@ export const ECHO_MEMORY_PARAMS = {
     taper: 'log',
     unit: 's',
     description:
-      'How long each recalled moment lasts. Short gives glimpses of single notes, long brings back whole phrases under a slow fade.',
+      'How long each recalled moment lasts. Short gives glimpses of single notes, long brings back whole phrases under a slow fade. The more often Wander moves on, the shorter a moment can be.',
   },
   vary: {
     id: 7,

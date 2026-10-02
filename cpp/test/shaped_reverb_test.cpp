@@ -636,6 +636,103 @@ int main() {
     EXPECT(db(after) - db(inside) < -40.0, "the shape ends at the same time at every sample rate");
   }
 
+  // The Tail does not flutter: once the shape has stopped, what rings on
+  // does not repeat itself at any of the network's line lengths (43 to
+  // 137 ms). With the same alternating signs into and out of the Hadamard
+  // network it did, at one line's length a side (correlation 0.5).
+  {
+    bare(device, kGate, 0.3f);
+    device.set_param(p::kDensity, 1.0f);
+    device.set_param(p::kTail, 0.7f);
+    Stereo out = run(device, impulse(3.0f, kRate, 1.0f));
+    double worst = 0.0, worst_ms = 0.0;
+    for (const std::vector<float>* side : {&out.left, &out.right}) {
+      // The tail from 0.6 s on, the decay undone so that every part of it
+      // weighs the same, averaged down to 12 kHz.
+      const double decay = rt60(*side, kRate, 0.5, 0.1, -120.0);
+      std::vector<double> flat(24000);
+      for (size_t i = 0; i < flat.size(); ++i) {
+        double sum = 0.0;
+        for (size_t j = 0; j < 4; ++j) sum += (*side)[28800 + 4 * i + j];
+        flat[i] = sum * std::pow(10.0, 3.0 * (static_cast<double>(i) / 12000.0) / decay);
+      }
+      for (size_t lag = 360; lag < 2400; ++lag) {  // 30 to 200 ms
+        double sum = 0.0, a = 0.0, b = 0.0;
+        for (size_t i = 0; i + lag < flat.size(); ++i) {
+          sum += flat[i] * flat[i + lag];
+          a += flat[i] * flat[i];
+          b += flat[i + lag] * flat[i + lag];
+        }
+        const double r = std::fabs(sum) / std::sqrt(a * b + 1.0e-30);
+        if (r > worst) {
+          worst = r;
+          worst_ms = static_cast<double>(lag) / 12.0;
+        }
+      }
+    }
+    std::printf("tail 0.7 after a gate: strongest repeat in the decay has correlation %.2f, at %.1f ms\n", worst, worst_ms);
+    EXPECT(worst < 0.3, "the tail does not flutter at a line's length");
+  }
+
+  // High Cut, Low Cut and Tail glide to a new setting: a jump of any of them
+  // while a chord sounds (a preset change makes all three at once) does not
+  // tick. Unsmoothed, each of these jumps stepped three to four times as far
+  // as the chord itself.
+  {
+    std::vector<float> held(static_cast<size_t>(3.0f * kRate));
+    for (size_t i = 0; i < held.size(); ++i) {
+      const double t = static_cast<double>(i) / kRate;
+      held[i] = 0.25f * static_cast<float>(std::sin(2.0 * kPi * 220.0 * t) + 0.5 * std::sin(2.0 * kPi * 330.0 * t) +
+                                           0.3 * std::sin(2.0 * kPi * 554.37 * t));
+    }
+    const std::vector<float> before(held.begin(), held.begin() + 96000);
+    const std::vector<float> during(held.begin() + 96000, held.end());
+    const int ids[4] = {-1, p::kHighCut, p::kLowCut, p::kTail};
+    const float to[4] = {0.0f, 1000.0f, 800.0f, 1.0f};
+    double step[4];
+    for (int k = 0; k < 4; ++k) {
+      device.init(kRate);
+      device.set_param(p::kMix, 1.0f);
+      run(device, before);
+      if (ids[k] >= 0) device.set_param(ids[k], to[k]);
+      Stereo out = run(device, during);
+      step[k] = std::max(max_step(out.left), max_step(out.right));
+    }
+    std::printf("largest sample step on a chord: steady %.4f, High Cut jump %.4f, Low Cut jump %.4f, Tail jump %.4f\n", step[0],
+                step[1], step[2], step[3]);
+    EXPECT(step[1] < 1.3 * step[0], "a High Cut jump does not click");
+    EXPECT(step[2] < 1.3 * step[0], "a Low Cut jump does not click");
+    EXPECT(step[3] < 1.3 * step[0], "a Tail jump does not click");
+  }
+
+  // With Mix at zero the output is silent while repeats still go round. The
+  // device must not fall asleep on them: turned up later, it plays what a
+  // device with Mix up all along plays, not an old pass held over the gap.
+  {
+    Stereo heard[2];
+    for (int k = 0; k < 2; ++k) {
+      device.init(kRate);
+      device.set_param(p::kShape, static_cast<float>(kGate));
+      device.set_param(p::kTime, 4.0f);
+      device.set_param(p::kRepeat, 0.9f);
+      device.set_param(p::kTail, 0.0f);
+      device.set_param(p::kMix, k == 0 ? 0.0f : 1.0f);
+      rng_state() = 0x5EEDu;
+      run(device, noise(0.5f, kRate, 0.5f));
+      run(device, silence(8.0f, kRate));
+      device.set_param(p::kMix, 1.0f);
+      heard[k] = run(device, silence(4.0f, kRate));
+    }
+    double worst = 0.0;
+    for (size_t i = 4800; i < heard[0].left.size(); ++i) {
+      worst = std::max(worst, std::fabs(static_cast<double>(heard[0].left[i]) - heard[1].left[i]));
+    }
+    std::printf("repeats left at Mix 0 for 8 s, then Mix up: %.1f dB, largest difference from Mix up all along %.2g\n",
+                db(rms(heard[0].left, 4800)), worst);
+    EXPECT(db(rms(heard[1].left, 4800)) > -40.0, "the repeats are still going after 8 s");
+    EXPECT(worst < 1.0e-5, "a device left at Mix 0 does not sleep on its repeats");
+  }
+
   // Cost at the default patch, and at the heaviest sensible setting: the
   // most taps (Density 1 at 4 s), the tail, repeats and full modulation.
   rng_state() = 0xBEEFu;

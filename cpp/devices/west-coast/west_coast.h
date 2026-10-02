@@ -31,9 +31,6 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
     inverse_rate2_ = 1.0f / rate2_;
     dc_coeff_ = 1.0f - kit::time_to_coeff(1.0f / (kit::kTwoPi * kDcBlockHz), rate2_);
     curve_.init();
-    for (int i = 0; i < kSineSize + 2; ++i) {
-      sine_[i] = static_cast<float>(std::sin(2.0 * 3.14159265358979323846 * i / kSineSize));
-    }
     build_tables();
     pool_.reset();
     for (int v = 0; v < kMaxVoices; ++v) {
@@ -252,7 +249,6 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
 
   // Wavefolder. Fold 0 sits inside the folder's linear part (a pure sine);
   // Fold 1 reaches every fold at low notes and fewer the higher the note.
-  static constexpr int kSineSize = 4096;
   static constexpr int kLevelSteps = 96;
   static constexpr int kOffsetSteps = 16;
   static constexpr float kTableLevel = 6.6f;
@@ -335,6 +331,26 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
             1.0 / std::sqrt(1.0 + kOvertoneGain * kOvertoneGain * (overtones > 0.0 ? overtones : 0.0)));
       }
     }
+  }
+
+  // sin(2π·phase) for a phase in [0, 1], without a table: a table read
+  // needs a float-to-integer conversion, which costs several times this
+  // polynomial in WebAssembly. Folded onto a quarter cycle as a cosine of
+  // z = 1/4 − |phase − 1/2|, even in z. The carrier's fit is good to 6e-8
+  // (below float rounding); the modulator's to 1e-5, which only ever bends
+  // the pitch.
+  static float carrier_sine(float phase) {
+    const float z = 0.25f - std::fabs(phase - 0.5f);
+    const float u = z * z;
+    const float cosine =
+        1.0f + u * (-19.7391792f + u * (64.9348952f + u * (-85.2436265f + u * 56.2430199f)));
+    return std::copysign(cosine, 0.5f - phase);
+  }
+  static float modulator_sine(float phase) {
+    const float z = 0.25f - std::fabs(phase - 0.5f);
+    const float u = z * z;
+    const float cosine = 1.0f + u * (-19.7363455f + u * (64.6701907f + u * -78.2186439f));
+    return std::copysign(cosine, 0.5f - phase);
   }
 
   // Where a voice's fold is heading: the level the sine enters the folder
@@ -479,26 +495,24 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
       const float deviation = kit::min(index_buf_[i] * fm_scale, fm_limit);
       const float level_step = 0.5f * (drive - last_drive);
       const float gain_step = 0.5f * (gain - last_gain);
+      float level_now = last_drive;
+      float gain_now = last_gain;
       for (int s = 0; s < 2; ++s) {
-        const float level_now = last_drive + level_step * static_cast<float>(s + 1);
-        const float gain_now = last_gain + gain_step * static_cast<float>(s + 1);
+        level_now += level_step;
+        gain_now += gain_step;
         // Through-zero linear FM: the modulator adds to the frequency, and
         // the phase runs backwards when the sum goes negative. A step is
         // always shorter than a cycle, so one wrap each way is enough.
         float step = increment;
         if (deviation != 0.0f) {
-          // The modulator is read without interpolation: its error is 70 dB
-          // down and only ever bends the pitch.
-          step += deviation * sine_[static_cast<int>(mod_phase * kSineSize + 0.5f)];
+          step += deviation * modulator_sine(mod_phase);
           mod_phase += mod_increment;
           if (mod_phase >= 1.0f) mod_phase -= 1.0f;
         }
         phase += step;
         if (phase >= 1.0f) phase -= 1.0f;
         if (phase < 0.0f) phase += 1.0f;
-        const float position = phase * kSineSize;
-        const int cell = static_cast<int>(position);
-        const float sine = sine_[cell] + (sine_[cell + 1] - sine_[cell]) * (position - static_cast<float>(cell));
+        const float sine = carrier_sine(phase);
         // The folder returns the mean of its curve over the step, so the
         // sine it is compared with is the mean over the same step.
         const float mean_sine = 0.5f * (sine + last_sine);
@@ -618,8 +632,6 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
   float open_coeff_ = 0.004f;
   int hold_samples_ = 96;
   west_coast::FoldCurve curve_;
-  // One cycle of a sine and two points more: a phase that rounds up to 1 still reads inside.
-  float sine_[kSineSize + 2] = {};
   // [offset][level]{fundamental, makeup}
   float table_[kOffsetSteps + 1][kLevelSteps + 1][2] = {};
   float inverse_rate2_ = 1.0f / 96000.0f;

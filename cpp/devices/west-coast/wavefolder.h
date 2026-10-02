@@ -75,7 +75,9 @@ class FoldCurve {
       curve_[p + 1][0] = curve_[p][0] + u * (curve_[p][1] + u * curve_[p][2]);
       area_[p + 1] = area_[p] + u * (curve_[p][0] + u * (0.5 * curve_[p][1] + u * curve_[p][2] * (1.0 / 3.0)));
     }
+    edge_[kPieces] = 1.0e30f;
     for (int p = 0; p < kPieces; ++p) {
+      edge_[p] = static_cast<float>(start_[p]);
       fast_[p][0] = static_cast<float>(start_[p]);
       fast_[p][1] = static_cast<float>(curve_[p][0]);
       fast_[p][2] = static_cast<float>(0.5 * curve_[p][1]);
@@ -106,13 +108,31 @@ class FoldCurve {
     return area_[p] + u * (curve_[p][0] + u * (0.5 * curve_[p][1] + u * (curve_[p][2] * (1.0 / 3.0))));
   }
 
-  // For Wavefolder: the piece an input magnitude lies on, and the mean of
-  // the curve between two magnitudes on one piece.
-  int piece_of_float(float a) const {
-    const int cell = static_cast<int>(a * static_cast<float>(kGridScale));
-    return piece_[cell < kGrid ? cell : kGrid - 1];
+  // For Wavefolder: the piece an input magnitude lies on, found by walking
+  // from the piece the last input was on (the input moves a little at a
+  // time, and a float-to-integer conversion per sample costs far more in
+  // WebAssembly than these two comparisons).
+  int walk_to_piece(int piece, float a) const {
+    while (a >= edge_[piece + 1]) ++piece;
+    while (a < edge_[piece]) --piece;
+    return piece;
   }
-  float start_of(int piece) const { return fast_[piece][0]; }
+  // The antiderivative at magnitude `a`, known to lie on `piece`.
+  double area_on_piece(int piece, double a) const {
+    const double u = a - start_[piece];
+    return area_[piece] +
+           u * (curve_[piece][0] + u * (0.5 * curve_[piece][1] + u * (curve_[piece][2] * (1.0 / 3.0))));
+  }
+  float half_slope_at_centre() const { return fast_[0][2]; }
+  // The mean of the curve from `low` on `piece` to `high` on the next one:
+  // the two parts weighted by their lengths.
+  float mean_across(int piece, float low, float high) const {
+    const float corner = fast_[piece + 1][0];
+    return ((corner - low) * mean_on_piece(piece, low, corner) +
+            (high - corner) * mean_on_piece(piece + 1, corner, high)) /
+           (high - low);
+  }
+  // The mean of the curve between two magnitudes on one piece.
   float mean_on_piece(int piece, float a0, float a1) const {
     const float* c = fast_[piece];
     const float u0 = a0 - c[0];
@@ -138,16 +158,18 @@ class FoldCurve {
   double area_[kPieces] = {};
   // {start, f0, f1 / 2, f2 / 3} of each piece, for mean_on_piece.
   float fast_[kPieces][4] = {};
+  // Where each piece starts, closed by a value no input reaches.
+  float edge_[kPieces + 1] = {};
   uint8_t piece_[kGrid] = {};
 };
 
 // One voice's folder: the mean of the curve over the step from the last
 // input to this one. A step that stays on one piece, or runs from one piece
-// into the next, is two parabolas' means weighted by length: no
-// cancellation, so float is enough, and no branch the input's pattern could
-// fool (a step inside one piece is split at its middle and takes the same
-// path). Only a step over more than one corner, or through zero from beyond
-// the first, takes the difference of the antiderivative.
+// into the next, has a closed form with no cancellation (the mean of a
+// parabola, or two of them weighted by length), so float is enough. Only a
+// step over more than one corner, or through zero from beyond the first,
+// takes the difference of the antiderivative, in double because the two
+// values are large and close.
 struct Wavefolder {
   float last_input = 0.0f;
   int last_piece = 0;
@@ -159,42 +181,30 @@ struct Wavefolder {
 
   float process(const FoldCurve& curve, float input) {
     const float previous = last_input;
-    const float a = input < 0.0f ? -input : input;
-    const float b = previous < 0.0f ? -previous : previous;
-    const int piece = curve.piece_of_float(a);
+    const float a = std::fabs(input);
+    const float b = std::fabs(previous);
     const int old_piece = last_piece;
+    const int piece = curve.walk_to_piece(old_piece, a);
     last_input = input;
     last_piece = piece;
-    const int apart = piece - old_piece;
-    const bool opposite = (previous < 0.0f) != (input < 0.0f);
-    if (apart > 1 || apart < -1 || (opposite && (piece | old_piece) != 0)) {
-      return wide_step(curve, previous, input);
+    if ((previous < 0.0f) == (input < 0.0f)) {
+      // The curve is odd: work on magnitudes and give the result the input's side.
+      const float side = std::copysign(1.0f, input);
+      if (piece == old_piece) return side * curve.mean_on_piece(piece, b, a);
+      if (piece == old_piece + 1) return side * curve.mean_across(old_piece, b, a);
+      if (piece + 1 == old_piece) return side * curve.mean_across(piece, a, b);
+    } else if ((piece | old_piece) == 0) {
+      // Through zero on the straight piece through the centre, which is
+      // odd: the mean is the curve at the middle of the step.
+      return curve.half_slope_at_centre() * (previous + input);
     }
-    // The centre piece is a straight line through zero, so a step across
-    // zero on it is the same sum with signed ends.
-    const float from = (piece | old_piece) == 0 ? previous : b;
-    const float to = (piece | old_piece) == 0 ? input : a;
-    const float low = from < to ? from : to;
-    const float high = from < to ? to : from;
-    const int low_piece = apart < 0 ? piece : old_piece;
-    const int high_piece = apart < 0 ? old_piece : piece;
-    const float split = apart != 0 ? curve.start_of(high_piece) : 0.5f * (low + high);
-    const float first = curve.mean_on_piece(low_piece, low, split);
-    const float span = high - low;
-    const float second = curve.mean_on_piece(high_piece, split, high);
-    const float mean = span > 0.0f ? ((split - low) * first + (high - split) * second) / span : first;
-    return ((piece | old_piece) != 0 && input < 0.0f) ? -mean : mean;
-  }
-
-  // A step over more than one corner, or through zero from beyond the
-  // first: the difference of the antiderivative, in double because the two
-  // values are large and close.
-  static float wide_step(const FoldCurve& curve, float previous, float input) {
-    const double x0 = static_cast<double>(previous);
-    const double x1 = static_cast<double>(input);
-    const double delta = x1 - x0;
-    if (delta < kMinDelta && delta > -kMinDelta) return static_cast<float>(curve.shape(0.5 * (x0 + x1)));
-    return static_cast<float>((curve.antiderivative(x1) - curve.antiderivative(x0)) / delta);
+    const double delta = static_cast<double>(input) - static_cast<double>(previous);
+    if (delta < kMinDelta && delta > -kMinDelta) {
+      return static_cast<float>(curve.shape(0.5 * (static_cast<double>(input) + static_cast<double>(previous))));
+    }
+    return static_cast<float>(
+        (curve.area_on_piece(piece, static_cast<double>(a)) - curve.area_on_piece(old_piece, static_cast<double>(b))) /
+        delta);
   }
 
   static constexpr double kMinDelta = 1.0e-5;
