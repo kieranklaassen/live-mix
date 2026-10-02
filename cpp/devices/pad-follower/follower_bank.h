@@ -74,8 +74,18 @@ class FollowerBank {
       lock_[b] = static_cast<float>(two_pi * kLockFactor * spacing / rate);
       max_dev_[b] = static_cast<float>(two_pi * 2.0 * spacing / rate);
       detune_scale_[b] = static_cast<float>(r / (1.0 - r));
-      stage_norm_[b] = static_cast<float>((1.0 - r) * (1.0 - r));
       share_scale_[b] = static_cast<float>(rate / (two_pi * spacing));
+      // Times, in ticks. The resonator pair settles in about three of its
+      // time constants; the reading is averaged over a beat against a
+      // partial one band away; a stopped partial is noticed once the ring
+      // has fallen to kGoneRatio, about two and a half time constants.
+      const double ticks = rate / kTick;
+      const double ring = 1.0 / (3.141592653589793 * kBandwidthFactor * spacing);
+      const double average = kit::clamp(static_cast<float>(1.0 / spacing), 0.012f, 0.08f);
+      estimate_coeff_[b] = static_cast<float>(1.0 - std::exp(-1.0 / (average * ticks)));
+      warm_[b] = 2 + static_cast<int>(3.0 * ring * ticks);
+      settle_[b] = warm_[b] + 1 + static_cast<int>(0.3 * average * ticks);
+      keep_[b] = 2 + static_cast<int>((2.5 * ring + 0.012) * ticks);
       // The octave above fades out before it would reach the internal Nyquist.
       const double doubled = 2.0 * hz / rate;
       up_taper_[b] = kit::clamp(static_cast<float>((0.44 - doubled) / 0.10), 0.0f, 1.0f);
@@ -84,7 +94,7 @@ class FollowerBank {
     octave_coeff_ = 1.0f - kit::time_to_coeff(kOctaveSeconds, rate / kTick);
     trust_rise_ = 1.0f - kit::time_to_coeff(kTrustRiseSeconds, rate / kTick);
     trust_fall_ = 1.0f - kit::time_to_coeff(kTrustFallSeconds, rate / kTick);
-    estimate_ = 1.0f - kit::time_to_coeff(kEstimateSeconds, rate / kTick);
+    peak_decay_ = kit::time_to_coeff(kPeakSeconds, rate / kTick);
     commit_ = 1.0f - kit::time_to_coeff(kCommitSeconds, rate / kTick);
     reset();
   }
@@ -230,7 +240,7 @@ class FollowerBank {
     }
     bool settled = false;
     if (presence > 0.0f) {
-      if (age_[b] == 0) estimate_[b] = kit::clamp(measured, -max_dev_[b], max_dev_[b]);
+      if (age_[b] == 0 || age_[b] == warm_[b]) estimate_[b] = measured;
       estimate_[b] += estimate_coeff_[b] * (measured - estimate_[b]);
       estimate_[b] = kit::clamp(estimate_[b], -max_dev_[b], max_dev_[b]);
       if (age_[b] < 30000) ++age_[b];
@@ -348,20 +358,27 @@ class FollowerBank {
   static constexpr float kOctaveSeconds = 0.06f;
   static constexpr float kTrustRiseSeconds = 0.012f;
   static constexpr float kTrustFallSeconds = 0.06f;
+  // A partial counts as gone once its band has fallen to this share of its
+  // recent peak (a peak that itself decays with kPeakSeconds).
+  static constexpr float kGoneRatio = 0.3f;
+  static constexpr float kPeakSeconds = 0.15f;
+  static constexpr float kFastSeconds = 0.008f;
+  static constexpr float kOctaveSeconds = 0.06f;
+  static constexpr float kTrustRiseSeconds = 0.012f;
+  static constexpr float kTrustFallSeconds = 0.06f;
   // |s2|²(1 + t²)(1 − r)²/|s1|² is 1 for a steady partial; past this the band is ringing.
   static constexpr float kRingRatio = 1.45f;
   // The held detune is noted every 8 ms; a rewind goes back 8 to 16 ms.
   static constexpr int kKeepTicks = 12;
   // The second section at full Octaves, against the unshifted pad.
   static constexpr float kOctaveLevel = 0.9f;
-  static constexpr float kEstimateSeconds = 0.008f;
   static constexpr float kCommitSeconds = 0.025f;
 
   float rate_ = 24000.0f;
   int counter_ = 0;
   bool sounding_ = false;
   bool down_active_ = false;
-  float fast_ = 0.0f, estimate_ = 0.0f, commit_ = 0.0f, octave_coeff_ = 0.0f;
+  float fast_ = 0.0f, peak_decay_ = 0.0f, commit_ = 0.0f, octave_coeff_ = 0.0f;
   float trust_rise_ = 0.0f, trust_fall_ = 0.0f;
   float attack_ = 0.01f, release_ = 0.001f, release_follow_ = 0.01f;
   float threshold2_ = 1.0e-6f;
@@ -374,7 +391,8 @@ class FollowerBank {
   float half_r_[kBands] = {}, half_i_[kBands] = {};
   float unlag_r_[kBands] = {}, unlag_i_[kBands] = {};
   float lock_[kBands] = {}, max_dev_[kBands] = {}, up_taper_[kBands] = {};
-  float detune_scale_[kBands] = {}, stage_norm_[kBands] = {}, share_scale_[kBands] = {};
+  float detune_scale_[kBands] = {}, share_scale_[kBands] = {}, estimate_coeff_[kBands] = {};
+  int warm_[kBands] = {}, settle_[kBands] = {}, keep_[kBands] = {};
   // Audio-rate state.
   float s1r_[kBands] = {}, s1i_[kBands] = {}, s2r_[kBands] = {}, s2i_[kBands] = {};
   float ur_[kBands] = {}, ui_[kBands] = {}, hr_[kBands] = {}, hi_[kBands] = {};

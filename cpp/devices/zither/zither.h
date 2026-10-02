@@ -347,8 +347,9 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
   // leans with pitch, and how long a partial near 3 kHz (higher for the
   // treble strings) rings from Brightness 0 to 1.
   static constexpr float kKeepHammer = 0.45f;
-  static constexpr float kKeepRollHammer = 0.8f;
-  static constexpr float kKeepRollPluck = 0.65f;
+  static constexpr float kKeepRollHammer = 0.6f;
+  static constexpr float kKeepRollPluck = 0.5f;
+  static constexpr float kRollPhaseSpread = 0.25f;  // of a period
   static constexpr float kRingLean = 0.3f;
   static constexpr float kDampHz = 3000.0f;
   static constexpr float kDarkSeconds = 0.25f;
@@ -515,9 +516,11 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
   }
 
   // A blow on a string that is already moving. A stroke of the roll waits
-  // for the wave of the first blow to come round (less than a period), so
-  // it pushes the string the way it is going and every stroke adds; a key
-  // struck again does not wait, and the string keeps less of itself.
+  // for the wave of the first blow to come round (less than a period), give
+  // or take an eighth of a period: it pushes the string the way it is
+  // going, so the fundamental holds its level from stroke to stroke, while
+  // the upper partials meet it in a different phase every time and glitter.
+  // A key struck again does not wait, and the string keeps less of itself.
   void add_blow(Voice& voice, const Blow& blow) {
     voice.absorb = blow.soft ? (blow.exciter == kHammer ? kKeepRollHammer : kKeepRollPluck) : kKeepHammer;
     const float period = sample_rate() / voice.hz;
@@ -526,7 +529,8 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     float wait = 0.0f;
     if (blow.soft) {
       wait = period - static_cast<float>(std::fmod(now_ - voice.origin, static_cast<double>(period)));
-      if (wait > period - 0.01f) wait = 0.0f;
+      wait += period * (kRollPhaseSpread * rng_.uniform() - 0.5f * kRollPhaseSpread);
+      if (wait > period) wait -= period;
     }
     set_strike(voice, blow, wait);
   }

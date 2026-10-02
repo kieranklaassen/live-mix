@@ -315,18 +315,23 @@ int main() {
     device.set_param(p::kDecay, 12.0f);
     device.note_on(1, 220.0f, 0.8f);
     Stereo out = render(device, 8.0f, kRate);
-    // A blow shows as a jump in the level, taken over two periods at a time.
+    // A blow brings fresh upper partials: it shows as a jump in the level of
+    // the sample-to-sample difference, taken over two periods at a time.
     const double hop = 2.0 * kRate / 220.0;
-    std::vector<float> jump;
-    double before = 0.0;
+    std::vector<float> edge, jump;
     for (size_t k = 0; at((k + 1) * hop, 1.0) <= out.left.size(); ++k) {
-      const double level = rms(out.left, at(k * hop, 1.0), at((k + 1) * hop, 1.0));
-      jump.push_back(static_cast<float>(std::max(0.0, level - before)));
-      before = level;
+      double sum = 0.0;
+      const size_t from = std::max<size_t>(1, at(k * hop, 1.0)), to = at((k + 1) * hop, 1.0);
+      for (size_t i = from; i < to; ++i) {
+        const double step = static_cast<double>(out.left[i]) - out.left[i - 1];
+        sum += step * step;
+      }
+      edge.push_back(static_cast<float>(std::sqrt(sum / (to - from))));
+      jump.push_back(k == 0 ? 0.0f : std::max(0.0f, edge[k] - edge[k - 1]));
     }
     std::vector<double> strikes;
     const size_t skip = static_cast<size_t>(0.5 * kRate / hop);  // from 0.5 s: the roll alone
-    const double threshold = 0.3 * peak(jump, skip);
+    const double threshold = 0.25 * peak(jump, skip);
     for (size_t i = skip; i + 1 < jump.size(); ++i) {
       const double when = i * hop / kRate;
       if (jump[i] > threshold && jump[i] >= jump[i - 1] && jump[i] > jump[i + 1] &&
@@ -340,13 +345,10 @@ int main() {
     const double gap = gaps > 0 ? total / gaps : 0.0;
     for (size_t i = 0; i < gaps; ++i) squares += (strikes[i + 1] - strikes[i] - gap) * (strikes[i + 1] - strikes[i] - gap);
     const double jitter = gaps > 0 ? std::sqrt(squares / gaps) / gap : 1.0;
-    std::vector<float> envelope;
-    for (size_t from = at(1.0); from + 240 <= out.left.size(); from += 240) {
-      envelope.push_back(static_cast<float>(rms(out.left, from, from + 240)));
-    }
+    std::vector<float> envelope(edge.begin() + skip, edge.end());
     const double average = mean(envelope);
     for (float& value : envelope) value -= static_cast<float>(average);
-    const double wobble = dominant_frequency(envelope, 200.0, 2.0, 20.0);
+    const double wobble = dominant_frequency(envelope, kRate / hop, 2.0, 20.0);
     const double early = rms(out.left, at(1.0), at(2.0)), mid = rms(out.left, at(4.0), at(5.0)),
                  late = rms(out.left, at(7.0), at(8.0));
     std::printf("roll 8 Hz: %zu strikes in 7.5 s, %.2f a second, jitter %.1f %%, envelope at %.2f Hz; level %.1f, %.1f, %.1f dB at 1.5, 4.5, 7.5 s\n",
