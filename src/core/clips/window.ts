@@ -14,9 +14,11 @@ export interface ScheduledClip {
 /**
  * What the scheduler reads off a clip. `durationSec` is only needed to tell
  * whether a clip is sounding at a position (`clipsSoundingAt`); one without
- * it is only ever started at its start.
+ * it is only ever started at its start. One with a `chance` sits some passes
+ * out (`soundsOnPass`).
  */
-export type WindowClip = Pick<Clip, 'id' | 'startSec'> & Partial<Pick<Clip, 'durationSec'>>
+export type WindowClip = Pick<Clip, 'id' | 'startSec'> &
+  Partial<Pick<Clip, 'durationSec' | 'chance'>>
 
 export interface ClipWindow {
   clips: readonly WindowClip[]

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { soundsOnPass } from '../../clips/chance'
 import { type ClipWindow } from '../../clips/window'
 import { MockAudioContext, advance, configureMocks } from '../../../testing'
 import { scheduleKey, type ScheduledStart, type TransportLoop } from '../anchor'
@@ -860,5 +861,147 @@ describe('Scheduler joins clips the position is inside', () => {
       scheduler.refresh()
       expect(track.cancelled).toEqual([])
     })
+  })
+})
+
+describe('Scheduler leaves clips to chance', () => {
+  class JoiningTrack extends FakeTrack {
+    readonly joinsLate = true
+    readonly faded: string[] = []
+
+    override schedule(start: ScheduledStart, when: number, joining?: boolean): boolean {
+      if (!super.schedule(start, when)) return false
+      this.handed[this.handed.length - 1].joining = joining === true
+      return true
+    }
+
+    override cancel(key: string, fadeSec?: number): void {
+      super.cancel(key)
+      if (fadeSec !== undefined) this.faded.push(key)
+    }
+  }
+
+  const SHORT: TransportLoop = { enabled: true, lengthSec: 4 }
+  const items = [
+    { id: 'always', startSec: 1, durationSec: 2 },
+    { id: 'sometimes', startSec: 1, durationSec: 2, chance: 0.5 },
+  ]
+
+  function buildChance(seed: number, clips: ClipWindow['clips'] = items) {
+    const ctx = new MockAudioContext()
+    ctx.currentTime = 100
+    const transport = new Transport({ now: () => ctx.currentTime, loop: SHORT })
+    const scheduler = new Scheduler({ transport, seed })
+    const track = new JoiningTrack(ctx, 0.2, clips)
+    scheduler.register(track)
+    return { ctx, transport, scheduler, track }
+  }
+
+  /** The counted passes on which `id` was handed over, in order. */
+  function passesOf(track: JoiningTrack, transport: Transport, id: string): number[] {
+    return track.handed
+      .filter((entry) => entry.start.clipId === id)
+      .map((entry) => transport.passOf(entry.start.iteration))
+  }
+
+  it('starts a clip with a chance only on the passes the seed gives it', async () => {
+    const { ctx, transport, track } = buildChance(7)
+    transport.start()
+    await advance(ctx, 4 * 24)
+    const expected = Array.from({ length: 24 }, (_, pass) => pass).filter((pass) =>
+      soundsOnPass(items[1], pass, 7),
+    )
+    expect(passesOf(track, transport, 'sometimes')).toEqual(expected)
+    expect(expected.length).toBeGreaterThan(4)
+    expect(expected.length).toBeLessThan(20)
+    expect(passesOf(track, transport, 'always')).toHaveLength(24)
+  })
+
+  it('plays the same passes again after a stop, and other ones with another seed', async () => {
+    const run = async (seed: number) => {
+      const { ctx, transport, track } = buildChance(seed)
+      transport.start()
+      await advance(ctx, 4 * 12)
+      const first = passesOf(track, transport, 'sometimes')
+      transport.stop()
+      track.handed.length = 0
+      transport.start()
+      await advance(ctx, 4 * 12)
+      return { first, again: passesOf(track, transport, 'sometimes') }
+    }
+    const seven = await run(7)
+    expect(seven.again).toEqual(seven.first)
+    expect((await run(8)).first).not.toEqual(seven.first)
+  })
+
+  it('does not enter a clip partway on a pass it sits out', () => {
+    const sitsOut = Array.from({ length: 50 }, (_, pass) => pass).find(
+      (pass) => !soundsOnPass(items[1], pass, 7),
+    )!
+    const sounds = Array.from({ length: 50 }, (_, pass) => pass).find((pass) =>
+      soundsOnPass(items[1], pass, 7),
+    )!
+    const { transport, track } = buildChance(7)
+    transport.setPass(sitsOut)
+    transport.seek(2)
+    transport.start()
+    expect(track.handed.map((entry) => entry.start.clipId)).toEqual(['always'])
+
+    track.handed.length = 0
+    transport.setPass(sounds)
+    expect(track.handed.map((entry) => entry.start.clipId).sort()).toEqual(['always', 'sometimes'])
+    expect(track.handed.every((entry) => entry.joining)).toBe(true)
+  })
+
+  it('puts the clips left to chance in step with a new seed while playing', () => {
+    // Two seeds that disagree about the first pass.
+    const seeds = Array.from({ length: 200 }, (_, seed) => seed)
+    const on = seeds.find((seed) => soundsOnPass(items[1], 0, seed))!
+    const off = seeds.find((seed) => !soundsOnPass(items[1], 0, seed))!
+    const { transport, scheduler, track } = buildChance(on)
+    transport.seek(2)
+    transport.start()
+    expect(track.voices.size).toBe(2)
+
+    scheduler.setSeed(off)
+    expect(scheduler.seed).toBe(off)
+    expect([...track.voices.keys()].map((key) => key.split(':')[0])).toEqual(['always'])
+    expect(track.faded.map((key) => key.split(':')[0])).toEqual(['sometimes'])
+
+    track.handed.length = 0
+    scheduler.setSeed(on)
+    expect(track.handed.map((entry) => [entry.start.clipId, entry.joining])).toEqual([
+      ['sometimes', true],
+    ])
+  })
+
+  it('lets go of a sounding clip whose chance now sits the pass out, on rejoin', () => {
+    const clips = [
+      { id: 'pad', startSec: 1, durationSec: 2 } as {
+        id: string
+        startSec: number
+        durationSec: number
+        chance?: number
+      },
+    ]
+    const { transport, scheduler, track } = buildChance(7, clips)
+    transport.seek(2)
+    transport.start()
+    expect(track.voices.size).toBe(1)
+    clips[0].chance = 0
+    scheduler.rejoin(['pad'])
+    expect(track.voices.size).toBe(0)
+    clips[0].chance = 1
+    scheduler.rejoin(['pad'])
+    expect(track.voices.size).toBe(1)
+  })
+
+  it('answers whether a clip sounds on the pass the transport is in', () => {
+    const { transport, scheduler } = buildChance(7)
+    for (const pass of [0, 1, 2, 3, 9]) {
+      transport.setPass(pass)
+      expect(scheduler.sounds(items[1])).toBe(soundsOnPass(items[1], pass, 7))
+      expect(scheduler.sounds(items[0])).toBe(true)
+    }
   })
 })

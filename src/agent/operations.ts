@@ -57,6 +57,7 @@ const STRUCTURE: ReadonlySet<OperationType> = new Set<OperationType>([
 const ARRANGE: ReadonlySet<OperationType> = new Set<OperationType>([
   'score.setMeta',
   'transport.loop',
+  'transport.seed',
   'transport.quantize',
   'tempo.set',
   'elementTrack.setClips',

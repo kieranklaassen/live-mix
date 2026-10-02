@@ -54,6 +54,12 @@ export class Transport {
   private idleIteration = 0
   // Loop passes are numbered across anchors so a re-pin cannot reuse a number.
   private nextIteration = 0
+  // The counted pass: how many times the loop has come round since `stop` or
+  // `setPass`. `iteration` names a handover and is new after every re-pin;
+  // this is the piece's own count, and a pause, a seek or a loop change keeps it.
+  private idlePass = 0
+  /** The counted pass of the anchor's own `iteration`, while playing. */
+  private anchorPass = 0
   private readonly listeners = new Set<TransportListener>()
 
   constructor(options: TransportOptions) {
@@ -92,6 +98,45 @@ export class Transport {
   }
 
   /**
+   * The counted pass at `contextTime`: 0 on the first time through, one more
+   * each time the loop comes round. A pause, a seek and a loop change keep
+   * the count; `stop` goes back to 0 and `setPass` puts it anywhere. With the
+   * loop off it stays where it is. What is left to chance is drawn per
+   * counted pass (`soundsOnPass`), so the same pass always plays the same.
+   */
+  pass(contextTime = this.clock()): number {
+    if (!this.currentAnchor) return this.idlePass
+    return this.passOf(this.position(contextTime).iteration)
+  }
+
+  /** The counted pass that loop pass `iteration` is under the current anchor. */
+  passOf(iteration: number): number {
+    const anchor = this.currentAnchor
+    if (!anchor) return this.idlePass
+    return Math.max(0, this.anchorPass + (iteration - anchor.iteration))
+  }
+
+  /**
+   * Makes the pass the position is in counted pass `pass`. While playing
+   * this is a seek to where the transport already is: it is re-pinned with a
+   * fresh pass number, so what sounds is let go and entered again as that
+   * pass has it. Listeners hear `seek`.
+   */
+  setPass(pass: number): void {
+    if (Number.isNaN(pass)) throw new RangeError('Transport: pass must be a number')
+    const next = Math.max(0, Math.floor(pass))
+    if (next === this.pass()) return
+    if (this.currentAnchor) {
+      const position = this.unpin()
+      this.idlePass = next
+      this.pin(this.clock(), position.positionSec)
+    } else {
+      this.idlePass = next
+    }
+    this.emit('seek')
+  }
+
+  /**
    * Audio-clock time at which timeline position `positionSec` of loop pass
    * `iteration` is reached under the current anchor. This is how a scheduler
    * turns a start into a `when` for the audio graph.
@@ -126,11 +171,17 @@ export class Transport {
     this.emit(position.finished ? 'end' : 'pause')
   }
 
-  /** Returns to position 0. `fadeSec` is passed on to listeners for their fade-out. */
+  /**
+   * Returns to position 0 and to the first counted pass. `fadeSec` is passed
+   * on to listeners for their fade-out.
+   */
   stop(options: StopOptions = {}): void {
-    if (this.currentState === 'stopped' && this.idlePositionSec === 0) return
+    if (this.currentState === 'stopped' && this.idlePositionSec === 0 && this.idlePass === 0) {
+      return
+    }
     if (this.currentAnchor) this.unpin()
     this.idlePositionSec = 0
+    this.idlePass = 0
     this.currentState = 'stopped'
     this.emit('stop', Math.max(0, options.fadeSec ?? 0))
   }
@@ -138,7 +189,7 @@ export class Transport {
   /**
    * Moves the position. Wraps into the loop when looping, clamps to
    * `[0, lengthSec]` otherwise. While playing the transport is re-pinned to
-   * now with a fresh pass number.
+   * now with a fresh pass number; the counted pass stays as it is.
    */
   seek(positionSec: number): void {
     const target = this.normalisePosition(positionSec)
@@ -181,12 +232,14 @@ export class Transport {
 
   private pin(contextTime: number, positionSec: number): void {
     this.currentAnchor = { contextTime, positionSec, iteration: this.nextIteration }
+    this.anchorPass = this.idlePass
     this.nextIteration += 1
   }
 
   /** Drops the anchor, freezing the position it reported and retiring its pass number. */
   private unpin(): TransportPosition {
     const position = this.position()
+    this.idlePass = this.passOf(position.iteration)
     this.currentAnchor = null
     this.idlePositionSec = position.positionSec
     this.idleIteration = position.iteration

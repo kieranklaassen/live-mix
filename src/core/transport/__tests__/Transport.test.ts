@@ -283,3 +283,90 @@ describe('Transport change notifications', () => {
     expect(seen).toEqual(['start'])
   })
 })
+
+describe('Transport counted pass', () => {
+  const LOOP = { enabled: true, lengthSec: 4 }
+
+  it('starts at 0 and counts each time the loop comes round', () => {
+    const { ctx, transport } = build(LOOP)
+    expect(transport.pass()).toBe(0)
+    transport.start()
+    ctx.currentTime = 3.9
+    expect(transport.pass()).toBe(0)
+    ctx.currentTime = 9.5
+    expect(transport.pass()).toBe(2)
+    expect(transport.pass(4.5)).toBe(1)
+    expect(transport.passOf(transport.position().iteration + 1)).toBe(3)
+  })
+
+  it('keeps the count through a pause, a seek and a loop change, where the iteration moves on', () => {
+    const { ctx, transport } = build(LOOP)
+    transport.start()
+    ctx.currentTime = 9.5
+    transport.pause()
+    expect(transport.pass()).toBe(2)
+    transport.seek(1)
+    expect(transport.pass()).toBe(2)
+    transport.start()
+    expect(transport.pass()).toBe(2)
+    ctx.currentTime = 10
+    transport.seek(3.5)
+    expect(transport.pass()).toBe(2)
+    transport.setLoop({ enabled: false })
+    transport.setLoop({ enabled: true })
+    expect(transport.pass()).toBe(2)
+    // Each re-pin took a fresh iteration; the count did not follow it.
+    expect(transport.position().iteration).toBeGreaterThan(2)
+    ctx.currentTime = 11
+    expect(transport.pass()).toBe(3)
+  })
+
+  it('goes back to 0 on stop, also from a stop at 0', () => {
+    const { ctx, transport, changes } = build(LOOP)
+    transport.start()
+    ctx.currentTime = 9.5
+    transport.stop()
+    expect(transport.pass()).toBe(0)
+    transport.setPass(5)
+    expect(transport.pass()).toBe(5)
+    changes.length = 0
+    transport.stop()
+    expect(transport.pass()).toBe(0)
+    expect(changes.map((change) => change.reason)).toEqual(['stop'])
+    // Nothing left to go back from.
+    transport.stop()
+    expect(changes).toHaveLength(1)
+  })
+
+  it('setPass puts the count anywhere, as a seek to where the transport is', () => {
+    const { ctx, transport, changes } = build(LOOP)
+    transport.start()
+    ctx.currentTime = 5.5
+    const before = transport.position()
+    changes.length = 0
+    transport.setPass(13)
+    expect(transport.pass()).toBe(13)
+    expect(changes.map((change) => change.reason)).toEqual(['seek'])
+    expect(transport.position().positionSec).toBe(before.positionSec)
+    expect(transport.position().iteration).toBeGreaterThan(before.iteration)
+    ctx.currentTime = 8.5
+    expect(transport.pass()).toBe(14)
+    // The same pass again is no change; below 0 is 0; a fraction is its whole pass.
+    changes.length = 0
+    transport.setPass(14)
+    expect(changes).toEqual([])
+    transport.setPass(-3)
+    expect(transport.pass()).toBe(0)
+    transport.setPass(2.9)
+    expect(transport.pass()).toBe(2)
+    expect(() => transport.setPass(Number.NaN)).toThrow(RangeError)
+  })
+
+  it('stays where it is with the loop off', () => {
+    const { ctx, transport } = build({ enabled: false, lengthSec: 4 })
+    transport.setPass(3)
+    transport.start()
+    ctx.currentTime = 3
+    expect(transport.pass()).toBe(3)
+  })
+})

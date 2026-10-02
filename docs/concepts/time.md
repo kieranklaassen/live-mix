@@ -81,6 +81,47 @@ and hands each one to the graph exactly once, keyed by
   this; the library does not rejoin by itself, because a host may already be
   playing that pass of a clip by other means.
 
+## Counted passes, the seed and chance
+
+`iteration` names a handover: it is new after every re-pin, so it cannot say
+how far into a piece the loop is. The transport also keeps a **counted pass**
+for that:
+
+```ts
+t.pass() // 0 the first time through, one more each time the loop comes round
+t.passOf(iteration) // the counted pass of a loop pass under the current anchor
+t.setPass(13) // go to that pass: a seek to where the transport already is
+```
+
+A pause, a seek and a loop change keep the count; `stop()` goes back to 0.
+
+A clip can be left to chance: `chance` (0 to 1, absent = 1) is how likely it
+is to sound each time its start comes round. The scheduler draws once per
+clip and counted pass, from its `seed`
+(`soundsOnPass(clip, pass, seed)`, a hash of the three and nothing else):
+
+```ts
+engine.scheduler.setSeed(7) // or `transport.seed` in a score
+engine.scheduler.sounds(clip) // on the pass the transport is in
+soundsOnPass({ id: 'pad', chance: 2 / 3 }, 14, 7) // any pass, without playing up to it
+```
+
+On a pass a clip sits out it is neither started nor entered partway. Nothing
+is drawn from the clock or from `Math.random`, so the same seed sits the same
+passes out every time the piece is played, a bounce hears what a live pass
+heard, and pass 14 can be asked about without playing the thirteen before it.
+Raising a clip's chance only adds passes to the ones it already had. A new
+seed while playing puts the clips left to chance in step with it at once
+(`rejoin`); after changing one clip's `chance`, a host calls `rejoin` for it
+like for any other edit. `seededUnit(seed, ...parts)` and
+`seededRandom(seed, ...parts)` are the same draws for a host's own choices
+(ambient-live's chord Drift), so one seed covers everything a piece leaves to
+chance.
+
+A render with the loop off has one pass, so a host that wants several in one
+file lays them out end to end and asks `soundsOnPass` which clips each one
+has (ambient-live's export does).
+
 Per track, `lookaheadSec` is how far ahead starts are handed to the graph and
 `preloadSec` how far ahead decoding begins (Breathwork Live: 5 s and 12 s).
 The same loop drives automation lanes ahead of the playhead

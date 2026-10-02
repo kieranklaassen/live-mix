@@ -126,6 +126,46 @@ describe('apply', () => {
     expect(canon(apply(again.score, again.inverse))).toEqual(canon(forwards.score))
   })
 
+  it('a clip carries a chance; 1 is the same as none, it inverts, and it stays within 0 and 1', () => {
+    const added = apply(base, {
+      type: 'clip.add',
+      track: 'kick',
+      clip: clip('z', 'a', 2, { chance: 0.5 }),
+    })
+    expect(audio(added, 'kick').clips[1]).toMatchObject({ id: 'z', chance: 0.5 })
+    const update = (patch: Partial<Clip>): Operation => ({
+      type: 'clip.update',
+      track: 'kick',
+      id: 'z',
+      patch,
+    })
+    const always = applyWithInverse(added, update({ chance: 1 }))
+    expect('chance' in audio(always.score, 'kick').clips[1]).toBe(false)
+    expect(always.inverse).toEqual(update({ chance: 0.5 }))
+    const again = applyWithInverse(always.score, update({ chance: 0.25 }))
+    expect(again.inverse).toEqual(update({ chance: 1 }))
+    expect(canon(apply(again.score, again.inverse))).toEqual(canon(always.score))
+    expect(() => apply(added, update({ chance: 1.5 }))).toThrow(/chance must be from 0 to 1/)
+    expect(() => apply(added, update({ chance: -0.1 }))).toThrow(ScoreOperationError)
+    expect(validateScore(parseScore(serializeScore(added)))).toEqual([])
+  })
+
+  it('transport.seed sets what chance is drawn from; 0 is the same as none, and it inverts', () => {
+    const seeded = applyWithInverse(base, { type: 'transport.seed', seed: 7 })
+    expect(seeded.score.transport.seed).toBe(7)
+    expect(seeded.inverse).toEqual({ type: 'transport.seed', seed: 0 })
+    expect(parseScore(serializeScore(seeded.score)).transport.seed).toBe(7)
+    const other = applyWithInverse(seeded.score, { type: 'transport.seed', seed: 8 })
+    expect(other.inverse).toEqual({ type: 'transport.seed', seed: 7 })
+    const none = apply(other.score, { type: 'transport.seed', seed: 0 })
+    expect('seed' in none.transport).toBe(false)
+    expect('seed' in normaliseScore(none).transport).toBe(false)
+    for (const seed of [-1, 1.5, 4294967296, Number.NaN]) {
+      expect(() => apply(base, { type: 'transport.seed', seed })).toThrow(/whole number/)
+    }
+    expect(describeOperation({ type: 'transport.seed', seed: 7 })).toBe('seed 7')
+  })
+
   it('a clip carries its placement; null takes a field off, and an undo puts it back or takes it off', () => {
     const added = apply(base, {
       type: 'clip.add',
