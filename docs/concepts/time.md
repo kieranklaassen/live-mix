@@ -57,14 +57,14 @@ and hands each one to the graph exactly once, keyed by
   or seeking into one while playing, plays it from that point in it instead
   of leaving it silent until its start comes round. The same goes for a start
   the track declined (its sample was still decoding when the playhead reached
-  it): it comes in where the clip has got to as soon as it can be taken. A
-  clip entered this way eases in over 5 ms (`JOIN_EASE_SECONDS`), since there
-  is no silence before it to hide a cut. Equal-power clips are the exception:
-  their envelope is written from the start, so they wait for it. So is the
-  far side of the loop: a clip that runs past the loop's end keeps sounding
-  into the next pass when the loop comes round by itself, but a start or a
-  jump enters only what is drawn under the playhead, not what would have
-  carried over from a pass that was never played.
+  it): it comes in where the clip has got to as soon as it can be taken. A clip
+  that runs past the loop's end counts as under the playhead on the far side of
+  the seam too, from its start on the pass before, so it sounds there whether
+  the loop came round by itself or the transport was started or dropped into
+  that stretch. A clip entered this way eases in over 5 ms
+  (`JOIN_EASE_SECONDS`), since there is no silence before it to hide a cut.
+  Equal-power clips are the exception: their envelope is written from the
+  start, so they wait for it.
 - **Edits while playing.** `refresh()` (which every clip-list change calls)
   keeps what is sounding and re-derives what is pending; a clip cut short of
   the playhead stops. It does not start anything whose start has passed. To

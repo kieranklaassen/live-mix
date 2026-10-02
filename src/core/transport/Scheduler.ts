@@ -217,9 +217,7 @@ export class Scheduler {
         // The transport started, or landed, inside these: they play from
         // there rather than waiting for their start to come round again.
         if (schedulable.joinsLate) {
-          for (const clip of clipsSoundingAt(clips, anchor.positionSec)) {
-            joins.push({ clipId: clip.id, iteration: anchor.iteration, startSec: clip.startSec })
-          }
+          joins.push(...joinsAt(clips, anchor.positionSec, anchor.iteration, loop))
         }
       } else {
         // Runs on a timer rather than a frame so a backgrounded tab keeps playing;
@@ -285,8 +283,10 @@ export class Scheduler {
         }
       }
 
+      // Housekeeping of keys from passes gone by. The pass before this one is
+      // kept, since a clip carried over the loop end was handed over under it.
       for (const [key, start] of registration.scheduled) {
-        if (start.iteration < position.iteration) registration.scheduled.delete(key)
+        if (start.iteration < position.iteration - 1) registration.scheduled.delete(key)
       }
     }
 
@@ -358,6 +358,7 @@ export class Scheduler {
     const contextTime = this.transport.now()
     const position = this.transport.position(contextTime)
     if (position.finished) return
+    const loop = this.transport.loop
 
     for (const [schedulable, registration] of this.registrations) {
       if (!schedulable.joinsLate) continue
@@ -375,12 +376,7 @@ export class Scheduler {
         if (ids.has(start.clipId) && !kept.has(start.clipId)) registration.declined.delete(key)
       }
       const named = schedulable.clips().filter((clip) => ids.has(clip.id) && !kept.has(clip.id))
-      for (const clip of clipsSoundingAt(named, position.positionSec)) {
-        const start: ScheduledStart = {
-          clipId: clip.id,
-          iteration: position.iteration,
-          startSec: clip.startSec,
-        }
+      for (const start of joinsAt(named, position.positionSec, position.iteration, loop)) {
         const key = scheduleKey(start)
         const when = this.transport.contextTimeAt(start.startSec, start.iteration)
         if (schedulable.schedule(start, when, true)) {
@@ -464,6 +460,25 @@ export class Scheduler {
     this.clearIntervalFn(this.timer)
     this.timer = null
   }
+}
+
+/**
+ * The starts of the clips `positionSec` is already inside, to be entered
+ * partway. A clip that began before the loop end and still sounds after the
+ * wrap is under the playhead too; its start belongs to the pass before this one.
+ */
+function joinsAt(
+  clips: ClipWindow['clips'],
+  positionSec: number,
+  iteration: number,
+  loop: TransportLoop,
+): ScheduledStart[] {
+  const sounding = clipsSoundingAt(clips, positionSec, isLooping(loop) ? loop.lengthSec : 0)
+  return sounding.map((clip) => ({
+    clipId: clip.id,
+    iteration: clip.startSec < positionSec ? iteration : iteration - 1,
+    startSec: clip.startSec,
+  }))
 }
 
 /** Timeline seconds since pass 0 began — a monotonic coordinate across loop wraps. */

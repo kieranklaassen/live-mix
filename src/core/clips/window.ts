@@ -74,15 +74,22 @@ export function clipsInWindow({
 /**
  * The clips already sounding at `positionSec`: begun before it and not yet
  * over. A clip that starts exactly there is not one of them (the window hands
- * it over), and a clip with no `durationSec` never is. In timeline order.
+ * it over), and a clip with no `durationSec` never is. With `loopLengthSec`, a
+ * clip that began before the loop end and still sounds after the wrap counts
+ * too — its start is then the one a pass back. In timeline order.
  */
-export function clipsSoundingAt(clips: ClipWindow['clips'], positionSec: number): WindowClip[] {
+export function clipsSoundingAt(
+  clips: ClipWindow['clips'],
+  positionSec: number,
+  loopLengthSec = 0,
+): WindowClip[] {
   return clips
-    .filter(
-      (clip) =>
-        clip.durationSec !== undefined &&
-        clip.startSec < positionSec &&
-        positionSec < clip.startSec + clip.durationSec,
-    )
+    .filter((clip) => {
+      if (clip.durationSec === undefined) return false
+      // The clip's latest start at or before the position: its own, or the one
+      // a loop pass back when the position has already wrapped past it.
+      const begunSec = clip.startSec < positionSec ? clip.startSec : clip.startSec - loopLengthSec
+      return begunSec < positionSec && positionSec < begunSec + clip.durationSec
+    })
     .sort((a, b) => a.startSec - b.startSec)
 }

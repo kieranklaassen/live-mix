@@ -686,6 +686,22 @@ describe('Scheduler joins clips the position is inside', () => {
       expect(round(track.handed[1].when)).toBe(100.1)
     })
 
+    it('enters a clip still sounding from before the loop end, under the pass it began on', () => {
+      const { ctx, transport, scheduler, track } = buildJoining([
+        { id: 'drone', startSec: 24, durationSec: 16 },
+      ])
+      transport.seek(2)
+      transport.start()
+      // The drone began at 24 s of the pass before and runs 8 s into this one.
+      expect(track.joined()).toEqual(['drone:-1:24.000'])
+      expect(round(track.handed[0].when)).toBe(90)
+
+      ctx.currentTime = 101
+      scheduler.rejoin(['drone'])
+      expect(track.faded).toEqual([['drone:-1:24.000', REJOIN_FADE_SECONDS]])
+      expect(track.joined()).toEqual(['drone:-1:24.000', 'drone:-1:24.000'])
+    })
+
     it('leaves clips it was not given alone, and a named clip the position is outside', () => {
       const { ctx, transport, scheduler, track } = buildJoining()
       transport.seek(10)
