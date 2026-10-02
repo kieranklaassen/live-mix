@@ -389,12 +389,24 @@ inline void OctaveBank::process(float x, const Want& want, Frame* out) {
   }
 }
 
+// Channel k's half-angle and quarter-angle phasors as run_group has them now.
+inline void OctaveBank::sub_phasors(int k, float* half, float* quarter) const {
+  principal_root(yr_[2][k], yi_[2][k], &half[0], &half[1]);
+  half[0] *= sign1_[k];
+  half[1] *= sign1_[k];
+  principal_root(half[0], half[1], &quarter[0], &quarter[1]);
+  quarter[0] *= sign2_[k];
+  quarter[1] *= sign2_[k];
+}
+
 inline void OctaveBank::tick() {
   static_assert(kStages == 3, "the equaliser below is written for three stages");
   float unit_re[kMaxBands], unit_im[kMaxBands], sharp[kMaxBands], correction[kMaxBands];
   float settled[kMaxBands];
   bool moved[kMaxBands];
   float offset[kMaxBands];
+  // Where a channel's sub voices pointed before its width was moved.
+  float before[kMaxBands][4];
   jump_index_ = (jump_index_ + 1) % kJumpDelay;
   for (int k = 0; k < bands_; ++k) {
     // An onset opens the channel: its first stage jumps above its recent
@@ -443,6 +455,14 @@ inline void OctaveBank::tick() {
         open = std::exp(-(cycles - kHold) / kClose);
       }
       if (open != open_[k]) {
+        if (live_[k]) {
+          float half[2], quarter[2];
+          sub_phasors(k, half, quarter);
+          before[k][0] = half[0] * w_target_re_[1][k] - half[1] * w_target_im_[1][k];
+          before[k][1] = half[0] * w_target_im_[1][k] + half[1] * w_target_re_[1][k];
+          before[k][2] = quarter[0] * w_target_re_[0][k] - quarter[1] * w_target_im_[0][k];
+          before[k][3] = quarter[0] * w_target_im_[0][k] + quarter[1] * w_target_re_[0][k];
+        }
         set_width(k, open, true);
         moved[k] = true;
       }
@@ -478,8 +498,6 @@ inline void OctaveBank::tick() {
 
     // The equaliser: the phase of all three stages at x, and what they took
     // off the partial's level there.
-    rot_re_[k] = rot_target_re_[k];
-    rot_im_[k] = rot_target_im_[k];
     float er = 1.0f, ei = 0.0f, gain = 1.0f, x = 0.0f;
     const float ar = avg_re_[k], ai = avg_im_[k];
     if (ar * ar + ai * ai > 1.0e-36f) {
@@ -496,21 +514,15 @@ inline void OctaveBank::tick() {
     }
     correction[k] = gain;
     offset[k] = x;
-    rot_target_re_[k] = er;
-    rot_target_im_[k] = ei;
-    if (moved[k]) {
-      // The states have just been moved to the new width: so is the rotor.
-      rot_re_[k] = er;
-      rot_im_[k] = ei;
-    }
-    rot_step_re_[k] = (er - rot_re_[k]) * inv_period_;
-    rot_step_im_[k] = (ei - rot_im_[k]) * inv_period_;
-    // This sample's equalised unit phasor, for the agreement below.
-    const float zr = cr * rot_re_[k] - ci * rot_im_[k];
-    const float zi = cr * rot_im_[k] + ci * rot_re_[k];
+    rot_re_[k] = er;
+    rot_im_[k] = ei;
+    // This sample's equalised unit phasor, at the time the top group is at,
+    // for the agreement below.
+    const float zr = cr * er - ci * ei;
+    const float zi = cr * ei + ci * er;
     const float inv = 1.0f / std::sqrt(zr * zr + zi * zi + 1.0e-30f);
-    unit_re[k] = zr * inv;
-    unit_im[k] = zi * inv;
+    unit_re[k] = (zr * unskew_re_[k] - zi * unskew_im_[k]) * inv;
+    unit_im[k] = (zr * unskew_im_[k] + zi * unskew_re_[k]) * inv;
     // A channel that is sitting out does not compete for weight either.
     sharp[k] = power_[k] * power_[k] * settled[k];
   }
@@ -559,17 +571,127 @@ inline void OctaveBank::tick() {
     } else {
       slow_[k] = level;
     }
-    weight_[k] = moved[k] ? target : weight_target_[k];
-    weight_target_[k] = target;
-    weight_step_[k] = (target - weight_[k]) * inv_period_;
-    // The detune rotors are multiplied every sample: keep them at length 1.
-    if (detune_ > 0.0f) {
-      for (int v = 0; v < 4; ++v) {
-        const float dr = det_re_[v][k], di = det_im_[v][k];
-        const float fix = 1.5f - 0.5f * (dr * dr + di * di);
-        det_re_[v][k] = dr * fix;
-        det_im_[v][k] = di * fix;
+    // Too quiet to hear: the channel's voices are switched off (after one
+    // tick's ramp to zero) and run_group skips them.
+    if (target * level < kFloor) target = 0.0f;
+    weight_[k] = target;
+    const bool was_live = live_[k];
+    const float steps = inv_steps_[group_of(k)];
+    if (target == 0.0f) {
+      if (!was_live) continue;
+      bool any = false;
+      for (int v = 0; v < kVoices; ++v) {
+        const float wr = w_target_re_[v][k], wi = w_target_im_[v][k];
+        if (wr != 0.0f || wi != 0.0f) any = true;
+        w_re_[v][k] = wr;
+        w_im_[v][k] = wi;
+        w_step_re_[v][k] = -wr * steps;
+        w_step_im_[v][k] = -wi * steps;
+        w_target_re_[v][k] = 0.0f;
+        w_target_im_[v][k] = 0.0f;
       }
+      live_[k] = any;
+      continue;
+    }
+    live_[k] = true;
+    if (!was_live) {
+      // Coming on: its detune phase is that of the stronger sounding
+      // neighbour, which may hold the same partial.
+      int from = -1;
+      if (k > 0 && live_[k - 1]) from = k - 1;
+      if (k < bands_ - 1 && live_[k + 1] && (from < 0 || power_[k + 1] > power_[k - 1])) from = k + 1;
+      for (int v = 0; v < kVoices; ++v) {
+        det_re_[v][k] = from < 0 ? 1.0f : det_re_[v][from];
+        det_im_[v][k] = from < 0 ? 0.0f : det_im_[v][from];
+      }
+    }
+    // The voices' phases: the equaliser's rotor squared, to the fourth, and
+    // its square roots (the ones nearest the last tick's).
+    const float er = rot_re_[k], ei = rot_im_[k];
+    float pr[kVoices], pi[kVoices];
+    principal_root(er, ei, &pr[1], &pi[1]);
+    if (pr[1] * root1_re_[k] + pi[1] * root1_im_[k] < 0.0f) {
+      pr[1] = -pr[1];
+      pi[1] = -pi[1];
+    }
+    root1_re_[k] = pr[1];
+    root1_im_[k] = pi[1];
+    principal_root(pr[1], pi[1], &pr[0], &pi[0]);
+    if (pr[0] * root2_re_[k] + pi[0] * root2_im_[k] < 0.0f) {
+      pr[0] = -pr[0];
+      pi[0] = -pi[0];
+    }
+    root2_re_[k] = pr[0];
+    root2_im_[k] = pi[0];
+    pr[2] = er * er - ei * ei;
+    pi[2] = 2.0f * er * ei;
+    pr[3] = pr[2] * pr[2] - pi[2] * pi[2];
+    pi[3] = 2.0f * pr[2] * pi[2];
+    const float away = offset[k] * (narrow_hz_[k] + open_[k] * (wide_hz_[k] - narrow_hz_[k]));
+    if (delay_slope_[k] != 0.0f) {
+      // The group's delay, for a partial this far off the centre (the
+      // centre's share is in comp_): a small angle for the lowest voice,
+      // doubled from voice to voice.
+      const float beta = delay_slope_[k] * away, b2 = beta * beta;
+      float cr = 1.0f - b2 * (0.5f - b2 * (1.0f / 24.0f));
+      float ci = beta * (1.0f - b2 * ((1.0f / 6.0f) - b2 * (1.0f / 120.0f)));
+      static const int kDoublings[kVoices] = {0, 1, 2, 1};
+      for (int v = 0; v < kVoices; ++v) {
+        for (int d = 0; d < kDoublings[v]; ++d) {
+          const float t = cr * cr - ci * ci;
+          ci = 2.0f * cr * ci;
+          cr = t;
+        }
+        const float t = pr[v] * cr - pi[v] * ci;
+        pi[v] = pr[v] * ci + pi[v] * cr;
+        pr[v] = t;
+      }
+    }
+    const float hz = centre_[k] + away;
+    for (int v = 0; v < kVoices; ++v) {
+      float qr = pr[v] * comp_re_[v][k] - pi[v] * comp_im_[v][k];
+      float qi = pr[v] * comp_im_[v][k] + pi[v] * comp_re_[v][k];
+      if (detune_ > 0.0f) {
+        // Detune: the voice's phase runs on at its share of the partial's
+        // own frequency, so every channel that holds the partial turns alike.
+        const float angle = det_rate_[v] * hz, a2 = angle * angle;
+        const float cs = 1.0f - a2 * (0.5f - a2 * (1.0f / 24.0f));
+        const float sn = angle * (1.0f - a2 * ((1.0f / 6.0f) - a2 * (1.0f / 120.0f)));
+        float dr = det_re_[v][k] * cs - det_im_[v][k] * sn;
+        float di = det_re_[v][k] * sn + det_im_[v][k] * cs;
+        const float fix = 1.5f - 0.5f * (dr * dr + di * di);
+        dr *= fix;
+        di *= fix;
+        det_re_[v][k] = dr;
+        det_im_[v][k] = di;
+        const float t = qr * dr - qi * di;
+        qi = qr * di + qi * dr;
+        qr = t;
+      }
+      qr *= target;
+      qi *= target;
+      w_re_[v][k] = moved[k] ? qr : w_target_re_[v][k];
+      w_im_[v][k] = moved[k] ? qi : w_target_im_[v][k];
+      w_target_re_[v][k] = qr;
+      w_target_im_[v][k] = qi;
+      w_step_re_[v][k] = (qr - w_re_[v][k]) * steps;
+      w_step_im_[v][k] = (qi - w_im_[v][k]) * steps;
+    }
+    if (moved[k] && was_live) {
+      // The move turned the channel's phase and the equaliser turned it
+      // back; the square roots have to come out where they were.
+      float half[2], quarter[2];
+      sub_phasors(k, half, quarter);
+      const float hr = half[0] * w_target_re_[1][k] - half[1] * w_target_im_[1][k];
+      const float hi = half[0] * w_target_im_[1][k] + half[1] * w_target_re_[1][k];
+      if (hr * before[k][0] + hi * before[k][1] < 0.0f) {
+        sign1_[k] = -sign1_[k];
+        half_im_[k] = -half_im_[k];
+        sub_phasors(k, half, quarter);
+      }
+      const float qr = quarter[0] * w_target_re_[0][k] - quarter[1] * w_target_im_[0][k];
+      const float qi = quarter[0] * w_target_im_[0][k] + quarter[1] * w_target_re_[0][k];
+      if (qr * before[k][2] + qi * before[k][3] < 0.0f) sign2_[k] = -sign2_[k];
     }
   }
 

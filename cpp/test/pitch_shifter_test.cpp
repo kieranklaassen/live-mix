@@ -91,22 +91,35 @@ static double flutter_db(const std::vector<float>& x, size_t from, size_t to, si
   return db(hi / std::max(lo, 1.0e-12));
 }
 
-// Share of the power further than about `band` Hz from `hz` (heterodyne and
-// two one-pole lowpasses: soft skirts, so only compare like with like).
-static double share_outside(const std::vector<float>& x, double hz, double band, size_t from, size_t to) {
+// Mean power within about `band` Hz of `hz` (heterodyne and two one-pole
+// lowpasses: soft skirts, so only compare like with like), skipping the
+// first 100 ms while the filters settle. `total` gets the whole power.
+static double band_power(const std::vector<float>& x, double hz, double band, size_t from, size_t to,
+                         double* total = nullptr) {
   const double a = std::exp(-2.0 * kPi * band / kRate);
-  double re1 = 0, im1 = 0, re2 = 0, im2 = 0, inside = 0, total = 0;
+  double re1 = 0, im1 = 0, re2 = 0, im2 = 0, inside = 0, whole = 0;
+  size_t count = 0;
   for (size_t i = from; i < to; ++i) {
     const double phase = 2.0 * kPi * hz * static_cast<double>(i) / kRate;
-    re1 = x[i] * std::cos(phase) + (re1 - x[i] * std::cos(phase)) * a;
-    im1 = -x[i] * std::sin(phase) + (im1 + x[i] * std::sin(phase)) * a;
+    const double re = x[i] * std::cos(phase), im = -x[i] * std::sin(phase);
+    re1 = re + (re1 - re) * a;
+    im1 = im + (im1 - im) * a;
     re2 = re1 + (re2 - re1) * a;
     im2 = im1 + (im2 - im1) * a;
     if (i >= from + 4800) {
       inside += 2.0 * (re2 * re2 + im2 * im2);
-      total += static_cast<double>(x[i]) * x[i];
+      whole += static_cast<double>(x[i]) * x[i];
+      ++count;
     }
   }
+  if (total) *total = whole / static_cast<double>(count);
+  return inside / static_cast<double>(count);
+}
+
+// Share of the power further than about `band` Hz from `hz`.
+static double share_outside(const std::vector<float>& x, double hz, double band, size_t from, size_t to) {
+  double total = 0.0;
+  const double inside = band_power(x, hz, band, from, to, &total);
   return std::max(0.0, 1.0 - inside / std::max(total, 1.0e-20));
 }
 
@@ -259,7 +272,7 @@ static void check_character() {
     Stereo out = run(device, sine(n.hz, 1.5f, kRate, 0.5f));
     const double want = n.hz * std::pow(2.0, n.pitch / 12.0);
     smooth_worst = std::max(smooth_worst, spurious_db(out.left, want, from, to));
-    smooth_flutter = std::max(smooth_flutter, flutter_db(out.left, from, to, 960));
+    smooth_flutter = std::max(smooth_flutter, flutter_db(out.left, from, to, 480));
   }
   NOTE("character: Smooth on a sine: spurious %.1f dB, flutter %.2f dB\n", smooth_worst, smooth_flutter);
   std::snprintf(label, sizeof label, "Smooth: everything but the tone is 40 dB down (%.1f dB)", smooth_worst);
@@ -275,7 +288,7 @@ static void check_character() {
     wet_only(device, kVintage, 12.0f);
     Stereo vintage = run(device, sine(hz, 1.5f, kRate, 0.5f));
     vintage_spurious = std::min(vintage_spurious, spurious_db(vintage.left, 2.0 * hz, from, to));
-    vintage_flutter = std::max(vintage_flutter, flutter_db(vintage.left, from, to, 960));
+    vintage_flutter = std::max(vintage_flutter, flutter_db(vintage.left, from, to, 480));
   }
   NOTE("character: Vintage on a sine: spurious %.1f dB, flutter %.2f dB\n", vintage_spurious, vintage_flutter);
   EXPECT(vintage_spurious > smooth_worst + 20.0, "Vintage: sidebands at least 20 dB above Smooth's");
@@ -333,13 +346,10 @@ static void check_chord_and_voices() {
       Stereo out = run(device, chord);
       double weakest = 1.0e9, leak = 0.0;
       for (float hz : notes) {
-        // In Grain a note is a cluster: take its power within 40 Hz.
-        double power = 0.0;
-        for (int k = -8; k <= 8; ++k) {
-          const double level = tone_level(out.left, hz * std::pow(2.0, 7.0 / 12.0) + 5.0 * k, kRate, from, to);
-          power = mode == kGrain ? power + level * level : std::max(power, level * level);
-        }
-        weakest = std::min(weakest, std::sqrt(power));
+        // A note is a cluster in Grain and wavers in a chord in Smooth:
+        // take its power within 20 Hz, as an amplitude.
+        const double power = band_power(out.left, hz * std::pow(2.0, 7.0 / 12.0), 20.0, from, to);
+        weakest = std::min(weakest, std::sqrt(2.0 * power));
         // 220 Hz and 277 Hz are not notes of the shifted chord (329.6 Hz is: it is 220 up a fifth).
         if (hz < 300.0f) leak = std::max(leak, tone_level(out.left, hz, kRate, from, to));
       }

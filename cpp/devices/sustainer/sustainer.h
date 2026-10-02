@@ -146,7 +146,7 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
   static constexpr float kDriftMaxHz = 1.5f;    // ... but no more than this
   static constexpr float kSideCycles = 0.18f;   // Motion 1: left/right phase difference (rms)
   static constexpr float kSwellDepth = 0.3f;    // Motion 1: level wander of a partial (rms)
-  static constexpr float kTiltPivotHz = 800.0f;
+  static constexpr float kTiltPivotHz = 600.0f;
   static constexpr float kFluxAtZero = 20.0f;   // fixed part of the onset threshold at Sensitivity 0 ...
   static constexpr float kFluxAtOne = 9.0f;     // ... and at 1
   static constexpr float kFluxAdapt = 2.0f;     // plus this many times the recent average flux
@@ -174,13 +174,19 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     if (tone == shape_tone_ && low_cut == shape_low_cut_) return;
     shape_tone_ = tone;
     shape_low_cut_ = low_cut;
-    // Tone: up to 4.5 dB per octave either way about the pivot.
-    const float slope = 4.5f * tone;
+    // Tone, about the pivot. Dark takes the top off (up to 6 dB per octave)
+    // and leaves the lows alone; bright leans the whole sound upwards by up
+    // to 3 dB per octave, lifting the top by no more than 9 dB.
     const float bin_hz = sample_rate() / static_cast<float>(frame_);
     const float cut_octave = std::log2(low_cut / kTiltPivotHz);
     for (int k = 0; k <= half_; ++k) {
       const float octave = std::log2(static_cast<float>(k > 0 ? k : 1) * bin_hz / kTiltPivotHz);
-      const float db = kit::clamp(slope * octave, -48.0f, 12.0f);
+      float db = 0.0f;
+      if (tone < 0.0f) {
+        db = octave > 0.0f ? 6.0f * tone * octave : 0.0f;
+      } else {
+        db = kit::clamp(3.0f * tone * octave, -18.0f, 9.0f);
+      }
       // The cut is a raised-cosine step one octave wide, -6 dB at Low Cut.
       const float x = k == 0 ? 0.0f : kit::clamp(octave - cut_octave + 0.5f, 0.0f, 1.0f);
       shape_[k] = std::exp(db * 0.11512925f) * x * x * (3.0f - 2.0f * x);

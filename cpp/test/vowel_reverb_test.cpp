@@ -523,7 +523,12 @@ int main() {
     EXPECT(peak(woken.left, 2000, 20000) > 0.001, "wakes on new input");
   }
 
+  // Cost at the heaviest setting: the vowel full up in the loop and moving
+  // (so every filter is retuned all the time), under continuous input.
   device.init(kRate);
+  device.set_param(p::kResonance, 1.0f);
+  device.set_param(p::kMotion, 1.0f);
+  device.set_param(p::kModulation, 1.0f);
   rng_state() = 0xBEEFu;
   std::vector<float> input = noise(10.0f, kRate, 0.25f);
   report_cost("vowel-reverb", 10.0f, kRate, [&] { run(device, input); });

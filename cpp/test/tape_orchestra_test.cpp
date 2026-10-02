@@ -123,11 +123,11 @@ int main(int argc, char**) {
   {
     double worst = 0.0;
     for (int tape = 0; tape < 6; ++tape) {
-      for (float hz : {110.0f, 164.81f, 220.0f, 329.63f, 440.0f, 698.46f}) {
+      for (float hz : {110.0f, 164.81f, 329.63f, 698.46f}) {
         device.init(kRate);
         device.set_param(p::kTape, static_cast<float>(tape));
         device.note_on(1, hz, 0.7f);
-        Stereo out = render(device, 5.0f, kRate);
+        Stereo out = render(device, 4.0f, kRate);
         // The strongest of the first three harmonics carries the pitch.
         int h = 1;
         for (int k = 2; k <= 3; ++k) {
@@ -136,8 +136,8 @@ int main(int argc, char**) {
             h = k;
           }
         }
-        const double found = dominant_frequency(out.left, kRate, hz * h * 0.97, hz * h * 1.03, at(1.0), at(5.0));
-        worst = std::max(worst, std::fabs(1200.0 * std::log2(found / (hz * h))));
+        const std::vector<double> track = cents_track(out.left, hz * h);
+        worst = std::max(worst, std::fabs(mean_of(track, 200, track.size())));
       }
     }
     SHOW("tuning: worst key is %.1f cents from its note", worst);

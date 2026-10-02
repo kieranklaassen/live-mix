@@ -109,6 +109,7 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
   static constexpr float kSoundFloor = 0.001f;   // -60 dBFS: something was played
   static constexpr float kOnsetFloor = 0.004f;   // -48 dBFS
   static constexpr float kOnsetRatio = 1.7f;     // fast over slow envelope
+  static constexpr double kRenewTurns = 2.0;
   static constexpr float kMinFade = 0.003f;
   // A loop that Fade has taken 60 dB off is let go.
   static constexpr float kGoneGain = 0.001f;
@@ -412,7 +413,10 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
       const bool playing = now.active && !now.releasing;
       if (!playing) {
         wait_ = wait_samples();
-      } else if (state_ == kAuto && now.turns >= 1.0 && fast > kOnsetRatio * slow) {
+      } else if (state_ == kAuto && ((now.turns >= 1.0 && fast > kOnsetRatio * slow) ||
+                                    now.turns >= kRenewTurns)) {
+        // A new attack once the loop has been round, or playing that goes
+        // on without one (a held chord) once it has been round twice.
         wait_ = wait_samples();
       }
     }

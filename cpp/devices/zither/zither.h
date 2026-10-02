@@ -581,9 +581,241 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     return false;
   }
 
-  // ZITHER_RENDER
+  // Levels: the step a full-velocity pluck puts on a string, and each string
+  // of a course against a single one.
+  static constexpr float kStringLevel = 0.5f;
+  static constexpr float kCourseGain = 0.62f;
 
-  // ZITHER_BODY
+  void render_voice(Voice& voice, int n, float* left, float* right, float* bridge) {
+    float in[kChunk];
+    bool struck = false;
+    for (zither::Strike& strike : voice.strikes) {
+      if (!strike.active) continue;
+      if (!struck) {
+        for (int i = 0; i < n; ++i) in[i] = 0.0f;
+        struck = true;
+      }
+      for (int i = 0; i < n && strike.active; ++i) in[i] += strike.next();
+    }
+    // Under a new blow the moving string keeps only part of itself: scale
+    // what comes round for one period.
+    const int kept = kit::clamp_int(voice.absorb_left, 0, n);
+    voice.absorb_left -= kept;
+    float a[kChunk], b[kChunk];
+    const float* drive = struck ? in : nullptr;
+    if (kept > 0) voice.strings[0].run(drive, 1.0f, voice.absorb, a, kept);
+    if (kept < n) voice.strings[0].run(drive ? drive + kept : nullptr, 1.0f, 1.0f, a + kept, n - kept);
+    if (voice.two) {
+      if (kept > 0) voice.strings[1].run(drive, voice.second, voice.absorb, b, kept);
+      if (kept < n) voice.strings[1].run(drive ? drive + kept : nullptr, voice.second, 1.0f, b + kept, n - kept);
+    } else {
+      for (int i = 0; i < n; ++i) b[i] = 0.0f;
+    }
+    float peak = voice.chunk_peak;
+    if (voice.fading) {
+      float fade = voice.fade;
+      for (int i = 0; i < n; ++i) {
+        fade = kit::max(0.0f, fade - fade_step_);
+        const float gain = fade * fade * (3.0f - 2.0f * fade);
+        a[i] *= gain;
+        b[i] *= gain;
+      }
+      voice.fade = fade;
+    }
+    for (int i = 0; i < n; ++i) {
+      const float sum = a[i] + b[i];
+      const float size = sum < 0.0f ? -sum : sum;
+      if (size > peak) peak = size;
+      bridge[i] += sum;
+      left[i] += a[i] * voice.left[0] + b[i] * voice.left[1];
+      right[i] += a[i] * voice.right[0] + b[i] * voice.right[1];
+    }
+    voice.chunk_peak = peak;
+    if (voice.fading && voice.fade <= 0.0f) {
+      if (voice.pending) {
+        start(voice, voice.pending_blow);
+      } else {
+        voice.sounding = voice.fading = false;
+      }
+    }
+  }
+
+  // Sympathetic strings: every pitch class once, neighbours a ninth apart.
+  static constexpr float kSympatheticNote[kSympathetic] = {45.0f, 58.0f, 47.0f, 60.0f, 49.0f, 62.0f,
+                                                           51.0f, 64.0f, 53.0f, 66.0f, 55.0f, 68.0f};
+  static constexpr float kSympatheticSeconds = 9.0f;     // ring of the lowest, at its fundamental
+  static constexpr float kSympatheticBrightness = 0.62f;
+  static constexpr float kSympatheticGain = 0.012f;      // bridge to string at Sympathy 1
+  static constexpr float kSympatheticHighpass = 140.0f;  // the thump of a blow stays out
+
+  void init_sympathetic(float sr) {
+    for (int s = 0; s < kSympathetic; ++s) {
+      SympatheticString& string = sympathetic_[s];
+      string.reset();
+      const float hz = kit::midi_to_hz(kSympatheticNote[s]);
+      string.tune(hz, loss_pole(hz, kSympatheticBrightness), sr);
+      string.clear();
+      // Low and high strings alternate sides, further out toward the treble.
+      const float side = (s & 1) ? 1.0f : -1.0f;
+      const float pan = side * (0.25f + 0.04f * static_cast<float>(s));
+      kit::pan_gains(pan, &sympathetic_left_[s], &sympathetic_right_[s]);
+    }
+    set_sympathetic_ring(false);
+    bridge_highpass_.reset();
+    bridge_highpass_.set_cutoff(kSympatheticHighpass, sr);
+    coupling_.set_time(kSmoothingSeconds, sr);
+    coupling_.snap(0.0f);
+    sympathetic_follow_ = sympathetic_peak_ = 0.0f;
+    sympathetic_live_ = false;
+  }
+
+  void set_sympathetic_ring(bool hurried) {
+    for (SympatheticString& string : sympathetic_) {
+      string.set_ring(hurried ? kHurrySeconds : kSympatheticSeconds * std::pow(110.0f / string.hz, 0.25f));
+    }
+    sympathetic_hurried_ = hurried;
+  }
+
+  void control_sympathetic() {
+    bool playing = false;
+    for (const Voice& voice : voices_) playing = playing || voice.sounding;
+    sympathetic_follow_ = kit::max(sympathetic_peak_, sympathetic_follow_ * 0.98f);
+    sympathetic_peak_ = 0.0f;
+    const bool wanted = playing && coupling_.target > 0.0f;
+    if (sympathetic_live_ && !wanted && sympathetic_follow_ < kFreeLevel * 0.1f) {
+      // Rung out: empty the strings and stop working on them.
+      for (SympatheticString& string : sympathetic_) string.clear();
+      sympathetic_live_ = false;
+      sympathetic_follow_ = 0.0f;
+    } else if (wanted) {
+      sympathetic_live_ = true;
+    }
+    if (!sympathetic_live_) return;
+    // With nothing left to drive them and nothing left to hear, hurry out.
+    const bool hurry = !playing && sympathetic_follow_ < kHurryLevel;
+    if (hurry != sympathetic_hurried_) set_sympathetic_ring(hurry);
+    for (SympatheticString& string : sympathetic_) string.flush();
+  }
+
+  void render_sympathetic(int n, float* left, float* right, const float* bridge) {
+    if (!sympathetic_live_) {
+      coupling_.snap(coupling_.target);
+      for (int i = 0; i < n; ++i) bridge_highpass_.highpass(bridge[i]);
+      return;
+    }
+    float drive[kChunk], out[kChunk];
+    for (int i = 0; i < n; ++i) drive[i] = bridge_highpass_.highpass(bridge[i]) * coupling_.next();
+    float peak = sympathetic_peak_;
+    for (int s = 0; s < kSympathetic; ++s) {
+      sympathetic_[s].run(drive, 1.0f, 1.0f, out, n);
+      const float gl = sympathetic_left_[s], gr = sympathetic_right_[s];
+      for (int i = 0; i < n; ++i) {
+        const float size = out[i] < 0.0f ? -out[i] : out[i];
+        if (size > peak) peak = size;
+        left[i] += out[i] * gl;
+        right[i] += out[i] * gr;
+      }
+    }
+    sympathetic_peak_ = peak;
+  }
+
+  void finish_chunk(const float* left, const float* right, int n, int at) {
+    for (int i = 0; i < n; ++i) {
+      float l = rumble_[0].process(left[i]);
+      float r = rumble_[1].process(right[i]);
+      body(&l, &r);
+      const float volume = volume_.next() * kOutGain;
+      out_left_[at + i] = kit::soft_clip(l * volume);
+      out_right_[at + i] = kit::soft_clip(r * volume);
+    }
+  }
+
+  // Bodies: four resonances beside the direct sound, then a low and a high
+  // shelf. The right channel's resonances sit a few percent off the left's
+  // (two places on one soundboard).
+  static constexpr int kBodyModes = 4;
+  struct BodySpec {
+    float hz[kBodyModes], q[kBodyModes], gain[kBodyModes];
+    float low_hz, low_db, high_hz, high_db, direct, makeup;
+  };
+  static constexpr BodySpec kBodies[kNumBodies] = {
+      // Harp: a wide warm board, soft on top.
+      {{165.0f, 260.0f, 440.0f, 780.0f}, {5.0f, 6.0f, 6.0f, 5.0f}, {0.5f, 0.45f, 0.35f, 0.25f},
+       150.0f, 2.0f, 3500.0f, -4.0f, 0.8f, 1.0f},
+      // Zither: a shallow box, bright.
+      {{210.0f, 345.0f, 590.0f, 1150.0f}, {7.0f, 8.0f, 8.0f, 6.0f}, {0.4f, 0.45f, 0.4f, 0.3f},
+       150.0f, 0.0f, 3000.0f, 2.5f, 0.8f, 1.0f},
+      // Dulcimer: a ringing trapezoid, brighter still.
+      {{185.0f, 300.0f, 520.0f, 930.0f}, {10.0f, 12.0f, 12.0f, 9.0f}, {0.5f, 0.5f, 0.45f, 0.35f},
+       150.0f, 0.0f, 2500.0f, 3.5f, 0.7f, 1.0f},
+      // Koto: a long hollow body, thin below and nasal.
+      {{140.0f, 310.0f, 620.0f, 1350.0f}, {4.0f, 5.0f, 4.0f, 3.0f}, {0.3f, 0.5f, 0.6f, 0.7f},
+       200.0f, -4.0f, 5000.0f, -2.0f, 0.6f, 1.0f},
+  };
+  static constexpr float kBodySkew[kBodyModes] = {1.045f, 0.96f, 1.035f, 0.955f};
+  static constexpr float kBodyFadeSeconds = 0.04f;
+  static constexpr float kOutGain = 0.5f;
+
+  struct Body {
+    kit::Svf mode[2][kBodyModes];
+    kit::Biquad low[2], high[2];
+    int spec = -1;
+
+    void load(int which, float sr) {
+      spec = which;
+      const BodySpec& body = kBodies[which];
+      for (int c = 0; c < 2; ++c) {
+        for (int m = 0; m < kBodyModes; ++m) {
+          mode[c][m].reset();
+          mode[c][m].set(body.hz[m] * (c == 1 ? kBodySkew[m] : 1.0f), body.q[m], sr);
+        }
+        low[c].reset();
+        low[c].set_low_shelf(body.low_hz, body.low_db, sr);
+        high[c].reset();
+        high[c].set_high_shelf(body.high_hz, body.high_db, sr);
+      }
+    }
+
+    float process(int c, float x) {
+      const BodySpec& body = kBodies[spec];
+      float y = body.direct * x;
+      for (int m = 0; m < kBodyModes; ++m) y += body.gain[m] * mode[c][m].bandpass(x);
+      return high[c].process(low[c].process(y)) * body.makeup;
+    }
+  };
+
+  void init_bodies(float sr) {
+    body_now_ = 0;
+    bodies_[0].load(choice(zither::kBody, kNumBodies), sr);
+    bodies_[1].load(bodies_[0].spec, sr);
+    body_mix_ = 1.0f;
+    body_step_ = 1.0f / (kBodyFadeSeconds * sr);
+    for (kit::DcBlocker& blocker : rumble_) {
+      blocker.reset();
+      blocker.set_cutoff(22.0f, sr);
+    }
+  }
+
+  // A new Body is loaded beside the old one and faded to.
+  void control_body() {
+    const int wanted = choice(zither::kBody, kNumBodies);
+    if (body_mix_ < 1.0f || wanted == bodies_[body_now_].spec) return;
+    body_now_ = 1 - body_now_;
+    bodies_[body_now_].load(wanted, sample_rate());
+    body_mix_ = 0.0f;
+  }
+
+  void body(float* left, float* right) {
+    float l = bodies_[body_now_].process(0, *left);
+    float r = bodies_[body_now_].process(1, *right);
+    if (body_mix_ < 1.0f) {
+      body_mix_ = kit::min(1.0f, body_mix_ + body_step_);
+      l = kit::lerp(bodies_[1 - body_now_].process(0, *left), l, body_mix_);
+      r = kit::lerp(bodies_[1 - body_now_].process(1, *right), r, body_mix_);
+    }
+    *left = l;
+    *right = r;
+  }
 
   void apply(int id) {
     using namespace zither;

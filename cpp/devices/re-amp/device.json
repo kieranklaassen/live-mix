@@ -11,13 +11,7 @@
     {
       "key": "speaker",
       "name": "Speaker",
-      "choices": [
-        "Small",
-        "Combo",
-        "Stack",
-        "Horn",
-        "Full range"
-      ],
+      "choices": ["Small", "Combo", "Stack", "Horn", "Full range"],
       "default": 1,
       "description": "Which loudspeaker the sound is played through. Small is a boxy little radio speaker, Combo an open guitar cabinet with a presence peak, Stack a closed cabinet with thump and scooped mids, Horn a honky public address horn, and Full range a nearly flat monitor for using the room alone."
     },

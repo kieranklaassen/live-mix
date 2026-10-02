@@ -256,7 +256,7 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
   static constexpr float kSlowShare = 0.25f;
   // Sets the vactrol's fall rate so that Decay is the time a mid-keyboard
   // note takes to fall 60 dB.
-  static constexpr float kDecayScale = 9.0f;
+  static constexpr float kDecayScale = 5.4f;
   // A voice stops once its gate has closed this far below its open level.
   static constexpr float kOffGain = 3.0e-6f;
   static constexpr float kGateCeilingHz = 18000.0f;

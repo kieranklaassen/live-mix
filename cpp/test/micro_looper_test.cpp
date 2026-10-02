@@ -381,6 +381,48 @@ int main() {
     EXPECT_NEAR(late, first, 0.002, "and holds it: awake and at level a minute later");
   }
 
+  // Handling it while it sounds: Speed (through a stop into reverse), Clock,
+  // Length and State all move a held sine without a click.
+  {
+    const float hz = 220.0f, gain = 0.5f;
+    const double natural = gain * 2.0 * kPi * hz / kRate;
+    plain(device, 1.0f);
+    run(device, sine(hz, 2.0f, kRate, gain));
+    device.set_param(p::kState, kHold);
+    render(device, 0.5f, kRate);
+    double worst_speed = 0.0;
+    for (int speed : {kHalf, kRev, kDouble, kRev2, kNormal}) {
+      device.set_param(p::kSpeed, static_cast<float>(speed));
+      Stereo out = render(device, 0.7f, kRate);
+      worst_speed = std::max(worst_speed, max_step(out.left));
+    }
+    double worst_clock = 0.0;
+    for (int clock : {3, 7, 1, 0}) {
+      device.set_param(p::kClock, static_cast<float>(clock));
+      Stereo out = render(device, 0.7f, kRate);
+      worst_clock = std::max(worst_clock, max_step(out.left));
+    }
+    double worst_length = 0.0;
+    for (float length : {0.2f, 0.11f, 1.7f, 0.5f}) {
+      device.set_param(p::kLength, length);
+      Stereo out = render(device, 0.7f, kRate);
+      worst_length = std::max(worst_length, max_step(out.left));
+    }
+    double worst_state = 0.0;
+    for (int state : {kListen, kHold, kAuto, kListen}) {
+      device.set_param(p::kState, static_cast<float>(state));
+      Stereo out = run(device, sine(hz, 0.7f, kRate, gain * 0.5f));
+      worst_state = std::max(worst_state, max_step(out.left));
+    }
+    std::printf("micro-looper: largest step moving Speed %.4f, Clock %.4f, Length %.4f, State %.4f (the sine's own %.4f)\n",
+                worst_speed, worst_clock, worst_length, worst_state, natural);
+    // Double speed doubles the sine's own step; a crossfade of two phases adds 41 %.
+    EXPECT(worst_speed < 2.0 * 1.45 * natural, "a Speed change glides like tape, without a click");
+    EXPECT(worst_clock < 1.45 * natural, "a Clock change glides without a click");
+    EXPECT(worst_length < 1.45 * natural, "a Length change cross-fades without a click");
+    EXPECT(worst_state < 1.45 * natural, "a State change fades without a click");
+  }
+
   // BEHAVIOUR CHECKS GO HERE
 
   return finish("micro-looper");

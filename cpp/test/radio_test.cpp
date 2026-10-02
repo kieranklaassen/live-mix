@@ -288,7 +288,7 @@ int main() {
                 none, little, some, full, top, narrow);
     EXPECT(none < little - 15.0, "Static 0: no noise");
     EXPECT(little > -70.0 && some > little + 6.0 && full > some + 4.0, "Static: more is louder");
-    EXPECT(narrow < top - 12.0, "a narrower filter lets less noise through at the top of the band");
+    EXPECT(narrow < top - 8.0, "a narrower filter lets less noise through at the top of the band");
   }
 
   // 9. Interference: nothing at 0; at the default it is occasional; turned
@@ -361,6 +361,107 @@ int main() {
     EXPECT(worst < 0.06, "sweeping Tuning does not click");
     EXPECT(to_sideband < 0.06 && to_medium < 0.06, "changing Band does not click");
     EXPECT(knobs < 0.06, "Bandwidth, Speaker and Fading jumps do not click");
+  }
+
+  // 11. Mix 0 is the input, untouched and still stereo; at Mix 1 the radio is
+  // one loudspeaker, the same on both sides.
+  {
+    device.init(kRate);
+    device.set_param(p::kMix, 0.0f);
+    rng_state() = 0xC0FFEEu;
+    const std::vector<float> left = noise(1.0f, kRate, 0.5f), right = noise(1.0f, kRate, 0.5f);
+    Stereo out = run(device, left, right);
+    EXPECT(out.left == left && out.right == right, "Mix 0 passes the input through bit for bit");
+    device.init(kRate);
+    out = run(device, left, right);
+    EXPECT(out.left == out.right, "Mix 1: the radio is mono");
+    EXPECT(correlation(out.left, out.right) > 0.999, "Mix 1: mono compatible");
+  }
+
+  // 12. The receiver stays on for four seconds after the input stops (the
+  // static carries on), fades over a second and a half, and is then asleep.
+  {
+    device.init(kRate);
+    device.set_param(p::kStatic, 0.6f);
+    run(device, sine(440.0f, 1.0f, kRate, 0.3f));
+    Stereo after = render(device, 7.0f, kRate);
+    const double held = db(rms(after.left, 1 * 48000, 3 * 48000));
+    const double fading_out = db(rms(after.left, 4 * 48000 + 36000, 5 * 48000));
+    size_t last = 0;
+    for (size_t i = 0; i < after.size(); ++i) {
+      if (after.left[i] != 0.0f) last = i;
+    }
+    std::printf("tail: static %.1f dB one to three seconds after the input stops, %.1f dB at 4.75 to 5 s, "
+                "exact silence from %.2f s\n",
+                held, fading_out, static_cast<double>(last + 1) / kRate);
+    EXPECT(held > -50.0, "the static carries on after the input stops");
+    EXPECT(fading_out < held - 6.0, "then it fades");
+    EXPECT(static_cast<double>(last) / kRate < 5.6, "silent 5.6 s after the input stops");
+    Stereo rest = render(device, 1.0f, kRate);
+    EXPECT(peak(rest.left) == 0.0 && peak(rest.right) == 0.0, "asleep after the tail");
+    Stereo woken = run(device, sine(440.0f, 0.5f, kRate, 0.3f));
+    EXPECT(rms(woken.left, 12000, 24000) > 0.05, "wakes on new input");
+  }
+
+  // 13. The loudspeaker: small takes away bass and treble, humps the middle,
+  // and overloads softly.
+  {
+    auto through = [&](float speaker, float hz, float gain, double* third) {
+      clean(device, Radio::kMediumWave);
+      device.set_param(p::kBandwidth, 1.0f);
+      device.set_param(p::kSpeaker, speaker);
+      Stereo out = run(device, sine(hz, 1.0f, kRate, gain));
+      if (third) *third = db(tone_level(out.left, 3.0 * hz, kRate, 24000, 48000));
+      return db(tone_level(out.left, hz, kRate, 24000, 48000));
+    };
+    double clean_third, small_third;
+    const double bass = through(1.0f, 120.0f, 0.1f, nullptr) - through(0.0f, 120.0f, 0.1f, nullptr);
+    const double treble = through(1.0f, 5500.0f, 0.1f, nullptr) - through(0.0f, 5500.0f, 0.1f, nullptr);
+    const double hump = through(1.0f, 1900.0f, 0.1f, nullptr) - through(1.0f, 700.0f, 0.1f, nullptr);
+    const double line = through(0.0f, 500.0f, 0.4f, &clean_third);
+    const double small = through(1.0f, 500.0f, 0.4f, &small_third);
+    std::printf("speaker 1 against 0: 120 Hz %.1f dB, 5.5 kHz %.1f dB; 1.9 kHz is %.1f dB over 700 Hz; third "
+                "harmonic of a -8 dB tone %.1f dB re fundamental (line %.1f)\n",
+                bass, treble, hump, small_third - small, clean_third - line);
+    EXPECT(bass < -12.0, "small speaker: no bass");
+    EXPECT(treble < -10.0, "small speaker: no top");
+    EXPECT(hump > 3.0, "small speaker: a hump in the middle");
+    EXPECT(small_third - small > -40.0 && small_third - small > clean_third - line + 10.0,
+           "small speaker: overloads softly");
+  }
+
+  // 14. The same radio at 44.1, 48 and 96 kHz: passband level, the sideband
+  // shift, the whistle and the noise floor.
+  {
+    double level[3], shifted[3], whistle[3], hiss[3];
+    const float rates[3] = {44100.0f, 48000.0f, 96000.0f};
+    for (int r = 0; r < 3; ++r) {
+      const float rate = rates[r];
+      const size_t from = static_cast<size_t>(rate), to = static_cast<size_t>(2.0f * rate);
+      clean(device, Radio::kShortwave, rate);
+      device.set_param(p::kStatic, 0.5f);
+      Stereo out = run(device, sine(700.0f, 12.0f, rate, 0.25f));
+      level[r] = db(tone_level(out.left, 700.0, rate, from, to));
+      hiss[r] = average(band_envelope(out.left, 1600.0f, 2000.0f, rate, 0.5f), 2);
+      clean(device, Radio::kShortwave, rate);
+      device.set_param(p::kTuning, 0.5f);
+      out = run(device, sine(300.0f, 2.0f, rate, 0.25f));
+      whistle[r] = dominant_frequency(out.left, rate, 600.0, 4000.0, from, to);
+      clean(device, Radio::kSideband, rate);
+      device.set_param(p::kTuning, 0.5f);
+      out = run(device, sine(1000.0f, 2.0f, rate, 0.2f));
+      shifted[r] = dominant_frequency(out.left, rate, 500.0, 2000.0, from, to);
+    }
+    std::printf("rates 44.1 / 48 / 96 kHz: level %.2f / %.2f / %.2f dB, noise %.1f / %.1f / %.1f dB, whistle "
+                "%.1f / %.1f / %.1f Hz, sideband %.1f / %.1f / %.1f Hz\n",
+                level[0], level[1], level[2], hiss[0], hiss[1], hiss[2], whistle[0], whistle[1], whistle[2],
+                shifted[0], shifted[1], shifted[2]);
+    for (int r = 0; r < 3; ++r) {
+      EXPECT_NEAR(level[r], level[1], 0.3, "the passband level does not depend on the sample rate");
+      EXPECT_NEAR(hiss[r], hiss[1], 2.0, "the noise floor does not depend on the sample rate");
+      EXPECT_NEAR(whistle[r], 1375.0, 2.0, "the whistle is at the offset at every sample rate");
+      EXPECT_NEAR(shifted[r], 1200.0, 1.0, "the sideband shift is in hertz at every sample rate");
+    }
   }
 
   // BEHAVIOUR

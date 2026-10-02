@@ -85,6 +85,36 @@ static double autocorrelation(const std::vector<float>& x, size_t lag) {
   return same > 0.0 ? shifted / same : 0.0;
 }
 
+// Something played: six plucked notes (harmonics that die away faster the
+// higher they are), then a held four-note chord of soft sawtooths, then
+// silence. Mono, 12 s.
+static std::vector<float> phrase() {
+  std::vector<float> out(static_cast<size_t>(12.0f * kRate), 0.0f);
+  const double plucks[6] = {220.0, 277.18, 329.63, 440.0, 369.99, 329.63};
+  for (int k = 0; k < 6; ++k) {
+    const size_t start = static_cast<size_t>((0.2 + 0.55 * k) * kRate);
+    for (size_t i = 0; i < static_cast<size_t>(3.0f * kRate); ++i) {
+      const double t = i / kRate;
+      double v = 0.0;
+      for (int h = 1; h <= 10; ++h) {
+        v += std::sin(2.0 * kPi * plucks[k] * h * t) * std::exp(-t * (1.2 + 0.9 * h)) / h;
+      }
+      out[start + i] += static_cast<float>(0.25 * v * (1.0 - std::exp(-t * 900.0)));
+    }
+  }
+  const double chord[4] = {110.0, 164.81, 220.66, 277.18};
+  for (size_t i = 0; i < static_cast<size_t>(5.5f * kRate); ++i) {
+    const double t = i / kRate;
+    double v = 0.0;
+    for (double hz : chord) {
+      for (int h = 1; h <= 12; ++h) v += std::sin(2.0 * kPi * hz * h * t + 0.3 * h) / (h * (1.0 + 0.15 * h));
+    }
+    const double env = (1.0 - std::exp(-t * 4.0)) * (t > 4.5 ? std::exp(-(t - 4.5) * 5.0) : 1.0);
+    out[static_cast<size_t>(4.0f * kRate) + i] += static_cast<float>(0.07 * v * env);
+  }
+  return out;
+}
+
 int main() {
   Conformance spec;
   spec.name = "half-speed";
@@ -527,11 +557,63 @@ int main() {
     EXPECT_NEAR((last - at) / rate, 0.3, 0.03, "a click 0.3 s into a cycle is heard 0.3 s late");
   }
 
+  // The default patch on a played phrase (six plucked notes, then a held
+  // four-note chord), mono in: about as loud as the dry phrase, no DC, wide
+  // but on the right side of mono, and gone soon after the phrase ends.
+  {
+    const std::vector<float> in = phrase();
+    device.init(kRate);
+    Stereo out = run(device, in);
+    const size_t a = 5 * 48000, b = 8 * 48000;  // inside the held chord
+    const double level = db(rms(out.left, a, b)) - db(rms(in, a, b));
+    const double level_right = db(rms(out.right, a, b)) - db(rms(in, a, b));
+    std::vector<float> mid(out.size());
+    for (size_t i = 0; i < out.size(); ++i) mid[i] = 0.5f * (out.left[i] + out.right[i]);
+    const double width = correlation(out.left, out.right);
+    const double fold = db(rms(mid)) - db(0.5 * (rms(out.left) + rms(out.right)));
+    std::printf("  default patch on a phrase: chord %+.2f dB (left) %+.2f dB (right) against dry, peak %.1f dB "
+                "(dry %.1f), correlation %.2f, mono fold-down %+.2f dB, DC %.1e\n",
+                level, level_right, db(std::max(peak(out.left), peak(out.right))), db(peak(in)), width,
+                fold, std::fabs(mean(out.left)));
+    EXPECT(std::fabs(level) < 3.0 && std::fabs(level_right) < 3.0, "defaults: as loud as the dry signal");
+    EXPECT(std::max(peak(out.left), peak(out.right)) < peak(in) * 1.26, "defaults: peaks stay near the dry peak");
+    EXPECT(width > 0.0 && width < 0.98, "defaults: wide, and positively correlated");
+    EXPECT(fold > -3.0, "defaults: survives a mono fold-down");
+    EXPECT(std::fabs(mean(out.left)) < 1.0e-4, "defaults: no DC");
+    // The chord sustains: its level in 100 ms steps does not pump.
+    double lo = 1.0e9, hi = -1.0e9;
+    for (size_t at = a; at + 4800 <= b; at += 4800) {
+      lo = std::min(lo, db(rms(out.left, at, at + 4800)));
+      hi = std::max(hi, db(rms(out.left, at, at + 4800)));
+    }
+    std::printf("  default patch: held chord level stays within %.2f dB\n", hi - lo);
+    EXPECT(hi - lo < 3.0, "defaults: a held chord does not pump");
+  }
 
-  plain(device);
+  // Worst case for level: full-scale noise, heads that share nothing, the
+  // make-up gain at its largest and dry and wet mixed half and half.
+  {
+    device.init(kRate);
+    device.set_param(p::kMix, 0.5f);
+    device.set_param(p::kLength, 50.0f);
+    device.set_param(p::kFade, 0.5f);
+    rng_state() = 0xF00Du;
+    Stereo out = run(device, noise(4.0f, kRate, 1.0f));
+    std::printf("  worst case: full-scale noise peaks at %.2f\n", std::max(peak(out.left), peak(out.right)));
+    EXPECT(std::max(peak(out.left), peak(out.right)) < 3.0, "full-scale input stays bounded");
+  }
+
+  // Cost at the heaviest sensible setting: the shortest cycles (forty
+  // splice searches a second), both sets of heads, all three heads sounding.
+  device.init(kRate);
+  device.set_param(p::kLength, 50.0f);
+  device.set_param(p::kSpread, 1.0f);
+  device.set_param(p::kSmooth, 0.5f);
   rng_state() = 0xBEEFu;
   std::vector<float> input = noise(10.0f, kRate, 0.25f);
-  report_cost("half-speed", 10.0f, kRate, [&] { run(device, input); });
+  report_cost("half-speed (50 ms cycles, full spread)", 10.0f, kRate, [&] { run(device, input); });
+  device.init(kRate);
+  report_cost("half-speed (defaults)", 10.0f, kRate, [&] { run(device, input); });
 
   return finish("half-speed");
 }

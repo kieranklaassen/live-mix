@@ -99,6 +99,30 @@ struct StringLoop {
     return out;
   }
 
+  // `count` samples at once: out[i] is the loop with in[i] * in_gain added
+  // (`in` may be null). `scale` as in tick().
+  void run(const float* in, float in_gain, float scale, float* out, int count) {
+    int w = write;
+    float x1 = ap_x1, y1 = ap_y1, state = lp;
+    const float e = eta, p = pole, g = gain * scale;
+    const int d = delay;
+    for (int i = 0; i < count; ++i) {
+      const float read = buffer[(w - d) & kMask];
+      const float through = e * (read - y1) + x1;
+      x1 = read;
+      y1 = through;
+      state = through + (state - through) * p;
+      const float y = state * g + (in ? in[i] * in_gain : 0.0f);
+      buffer[w] = y;
+      w = (w + 1) & kMask;
+      out[i] = y;
+    }
+    write = w;
+    ap_x1 = x1;
+    ap_y1 = y1;
+    lp = state;
+  }
+
   void flush() {
     lp = flush_denormal(lp);
     ap_y1 = flush_denormal(ap_y1);

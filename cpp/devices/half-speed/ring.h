@@ -9,8 +9,9 @@ namespace half_speed {
 // sub-sample positions, joined by straight lines. A head that plays slower
 // than the input was recorded is an upsampler, and what a short interpolator
 // leaves of the spectral images lands in the audible band (at quarter speed
-// from 6 kHz up). Against the kit's 4-point Hermite this takes the image of
-// a 9 kHz partial from -31 dB to under -50 dB.
+// from 6 kHz up). Against the kit's 4-point Hermite, at half speed and
+// 44.1 kHz, the image of a 9 kHz partial falls from -31 dB to -70 dB and that
+// of a 14 kHz partial from -16 dB to -30 dB; the top octave droops 0.3 dB.
 class SincTable {
  public:
   static constexpr int kTaps = 8;

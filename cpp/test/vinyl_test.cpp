@@ -367,6 +367,8 @@ int main() {
       const double off = std::max({std::fabs(autocorrelation(clicks, lag(0.62 * period[speed]))),
                                    std::fabs(autocorrelation(clicks, lag(0.8 * period[speed]))),
                                    std::fabs(autocorrelation(clicks, lag(1.25 * period[speed])))});
+      if (speed == 0) note("scratch: click-train autocorrelation at one turn, 33", on);
+      if (speed == 0) note("scratch: largest autocorrelation off the turn, 33", off);
       char label[96];
       std::snprintf(label, sizeof label, "%s rpm: the clicks repeat every %.3f s (autocorrelation %.2f)",
                     names[speed], period[speed], on);

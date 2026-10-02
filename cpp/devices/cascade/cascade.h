@@ -52,6 +52,7 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
     for (int i = 0; i < kRing2; ++i) ring2_[i] = 0.0f;
     half_[0].init();
     half_[1].init();
+    make_kernel();
     written_ = kRing0;
     held1_ = 0.0f;
     held2_ = 0.0f;
@@ -143,10 +144,11 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
   // The decimated rings trail the input: sample m of the x2 ring is the
   // input at 2m - 31, sample j of the x4 ring the input at 4j - 93. A slice
   // ends kGuardSeconds before the voices that read it start, so that all of
-  // it is in every ring by then.
+  // it (and the eight samples past it the sinc reads) is in every ring by
+  // then.
   static constexpr double kLag1 = 31.0;
   static constexpr double kLag2 = 93.0;
-  static constexpr float kGuardSeconds = 0.003f;
+  static constexpr float kGuardSeconds = 0.0035f;
   static constexpr float kPrerollSeconds = 0.002f;
   static constexpr float kStealSeconds = 0.01f;
   static constexpr float kAttackSeconds = 0.002f;
@@ -184,6 +186,8 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
     // The pass being played.
     int level = 0;
     bool exact = false;
+    long long quarter = 0;
+    int quarter_step = 0;
     double position = 0.0;
     double step = 0.0;
     float phase = 0.0f;
@@ -278,12 +282,37 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
     ++written_;
   }
 
-  static float hermite_at(const float* ring, int mask, double position) {
-    const double floored = std::floor(position);
-    const long long whole = static_cast<long long>(floored);
-    const float t = static_cast<float>(position - floored);
-    return kit::hermite(ring[(whole - 1) & mask], ring[whole & mask], ring[(whole + 1) & mask],
-                        ring[(whole + 2) & mask], t);
+  // A voice at x1, x2 or x4 reads whole samples of its ring. The others move
+  // by three quarters of a sample (x3/2, x3) or half a sample (x1/2) per
+  // output sample, so only four fractional positions ever occur: they use a
+  // four-phase, 16-tap windowed sinc (Kaiser, 50 dB). A cubic would leave
+  // images of the top octave of the ring at -15 dB, from 16 kHz up.
+  static constexpr int kTaps = 16;
+  void make_kernel() {
+    const double cutoff = 0.915;
+    const double beta = 4.55;
+    for (int phase = 0; phase < 4; ++phase) {
+      double sum = 0.0;
+      double taps[kTaps];
+      for (int t = 0; t < kTaps; ++t) {
+        const double u = static_cast<double>(t - 7) - 0.25 * phase;
+        const double x = 3.14159265358979323846 * cutoff * u;
+        const double sinc = (u > -1.0e-9 && u < 1.0e-9) ? cutoff : std::sin(x) / (3.14159265358979323846 * u);
+        const double r = u / 8.5;
+        taps[t] = sinc * bessel_i0(beta * std::sqrt(1.0 - r * r)) / bessel_i0(beta);
+        sum += taps[t];
+      }
+      for (int t = 0; t < kTaps; ++t) kernel_[phase][t] = static_cast<float>(taps[t] / sum);
+    }
+  }
+  static double bessel_i0(double x) {
+    double sum = 1.0;
+    double term = 1.0;
+    for (int k = 1; k < 32; ++k) {
+      term *= (x / (2.0 * k)) * (x / (2.0 * k));
+      sum += term;
+    }
+    return sum;
   }
 
   // Work out pass number `voice.pass` of a voice: what stretch of the slice
@@ -358,6 +387,10 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
     voice.step = reversed ? -rate : rate;
     voice.exact = rate == 1.0;
     if (voice.exact) voice.position = std::floor(voice.position + 0.5);
+    if (!voice.exact) {
+      voice.quarter = std::llround(voice.position * 4.0);
+      voice.quarter_step = (reversed ? -1 : 1) * (rate == 0.75 ? 3 : 2);
+    }
 
     const long begin = std::lround(voice.elapsed);
     const long next = std::lround(voice.elapsed + grid);
@@ -789,8 +822,11 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
           sample = ring[whole & mask];
           whole += direction;
         } else {
-          sample = hermite_at(ring, mask, voice.position);
-          voice.position += voice.step;
+          const float* taps = kernel_[voice.quarter & 3];
+          const long long first = (voice.quarter >> 2) - 7;
+          sample = 0.0f;
+          for (int t = 0; t < kTaps; ++t) sample += taps[t] * ring[(first + t) & mask];
+          voice.quarter += voice.quarter_step;
         }
         if (a > 0.0f) {
           lp1 = sample + (lp1 - sample) * a;
@@ -913,6 +949,7 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
   float ring0_[kRing0];
   float ring1_[kRing1];
   float ring2_[kRing2];
+  float kernel_[4][kTaps];
   kit::Halfband2x half_[2];
   kit::DcBlocker dc_;
   Voice voices_[kMaxVoices];

@@ -2,7 +2,44 @@
 
 // Half Speed: what is being played, slowed down as it is played.
 //
-// (signal path and method notes are filled in at the end of the file's life)
+//   in ─┬─────────────────────────────────────────────────────────── dry ─┐
+//       ├─► ring ─► first set of heads (L, R) ──────────► L ─┐            (+)─► out
+//       │      └──► second set (R only, held behind) ─┐      ├─► low cut ─► high cut ─► wet ─┘
+//       │              first set R ─► below 200 Hz ──(+)─► R ─┘
+//       └─► mono, 6 kHz copy ─► splice search (matcher.h)
+//
+// - Sound cannot be slowed without falling behind, so it runs in cycles of
+//   Length. A head starts at the present and reads at Speed, losing
+//   (1 - Speed) of a frame per frame; at the end of the cycle a new head
+//   starts at the present again. What a cycle had no time for is skipped.
+// - Three heads on one cycle clock, their gains summing to one (weigh()):
+//   Smooth 0 is the cycle's head alone, cross-fading from the last cycle's
+//   over Fade of the cycle (a rhythm of slowed chunks). Smooth 1 puts the
+//   cycle's head under a Hann window and a third head, started mid-cycle,
+//   under the same window half a cycle later: two heads half a cycle apart
+//   that always sum to one, the delay-line pitch shifter with a window as
+//   long as the cycle. In between the gains are blended.
+// - A new head does not start exactly at the present but up to 26 ms before
+//   it, where the waveform lines up with the heads it fades in against (the
+//   WSOLA search, matcher.h), so a held note does not cancel or thump at
+//   the join. How well they line up also sets how much the fade's level
+//   is made up (make_up()): nothing when they match, 3 dB at the middle of
+//   a fade between unrelated sounds.
+// - Speed glides over 60 ms and every head follows it, so a change bends
+//   like a tape machine. Length sets how fast the cycle clock turns and
+//   acts at once; Jitter draws a new clock rate for every cycle.
+// - Spread: a second set of heads on its own clock, held up to a quarter of
+//   a cycle behind the first, plays the right side above 200 Hz. Left and
+//   bass stay on the first set, so the low end is one signal on both sides.
+//   The second clock runs a little fast or slow to reach its place; with no
+//   Spread it locks to the first and the sets become one.
+// - Power fades between dry and the mix; switching on from off starts a new
+//   cycle at that moment, as does the first sound after a silence, with all
+//   heads together so the slowed sound is there in full from the start.
+// - No latency: the dry path is not delayed. The wet is a different stretch
+//   of time from the dry, so Mix is equal power.
+// - Sleep: once the input has been blank for longer than the furthest head
+//   is behind, and the filters have rung out, the device stops.
 
 #include "../../kit/kit.h"
 #include "matcher.h"
@@ -62,11 +99,12 @@ class HalfSpeed : public kit::DeviceBase<half_speed::kNumParams> {
   }
 
  private:
-  // The farthest a head falls behind: the previous cycle's head is still
-  // read during the first half of the next cycle, 1.5 cycles of 4 s
-  // stretched by a quarter by Jitter, at 96 kHz, losing a quarter of a
-  // sample per sample at the fastest speed... (see reach()); plus margin.
-  static constexpr int kRingFrames = 700000;
+  // The farthest a head falls behind: the last cycle's head is still read
+  // for up to half of the next cycle, so it lives 1.5 cycles of 4 s, each
+  // stretched a quarter by Jitter and (the second set) a third more while
+  // Spread moves, losing three quarters of a frame per frame at Quarter
+  // speed: 7.5 s at 96 kHz. advance() holds a head at the end of the ring.
+  static constexpr int kRingFrames = 730000;
   static constexpr long kLongEnough = 1L << 30;
   // Where a head starts: as close to the present as the read kernel allows.
   static constexpr double kStartDelay = 6.0;
