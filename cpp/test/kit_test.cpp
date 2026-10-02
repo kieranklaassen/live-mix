@@ -270,6 +270,30 @@ void test_lfo_and_env() {
   for (int i = 0; i < 48000; ++i) env.next();
   EXPECT(!env.active() && env.level() == 0.0f, "envelope goes idle at exact zero");
 
+  // A fast release cut short by the next note: that note releases at the set
+  // time. (A voice stolen while it is being faded for a steal.)
+  for (int restart = 0; restart < 2; ++restart) {
+    env.gate_on();
+    for (int i = 0; i < 48000; ++i) env.next();
+    env.fast_release(0.03f);
+    for (int i = 0; i < 48; ++i) env.next();
+    if (restart == 1) env.reset();
+    env.gate_on();
+    for (int i = 0; i < 48000; ++i) env.next();
+    env.gate_off();
+    for (int i = 0; i < static_cast<int>(0.15f * kRate); ++i) env.next();
+    EXPECT_NEAR(db(env.level() / 0.5), -30.0, 0.5,
+                restart == 0 ? "a note after a cut-short fast release keeps the set release"
+                             : "reset clears a fast release");
+    for (int i = 0; i < 48000; ++i) env.next();
+  }
+  env.gate_on();
+  for (int i = 0; i < 48000; ++i) env.next();
+  env.fast_release(0.03f);
+  for (int i = 0; i < static_cast<int>(0.03f * kRate); ++i) env.next();
+  EXPECT_NEAR(db(env.level() / 0.5), -60.0, 0.5, "a fast release covers 60 dB in its own time");
+  for (int i = 0; i < 4800; ++i) env.next();
+
   kit::Follower follower;
   follower.set(0.001f, 0.1f, kRate);
   float level = 0.0f;
@@ -541,6 +565,258 @@ void test_math() {
   EXPECT_NEAR(squares / 100000.0, 1.0, 0.03, "gaussian has unit variance");
 }
 
+// One plucked note, rendered: the exciter into the string.
+template <int Size>
+std::vector<float> pluck_note(kit::PluckedString<Size>& string, float hz, float rate, float seconds,
+                              float position, float pick_hz = 6000.0f, float noise = 0.0f) {
+  kit::PluckExciter exciter;
+  kit::Rng rng;
+  rng.seed(7);
+  string.set_pluck_position(position);
+  exciter.strike(1.0f, hz, pick_hz, noise, rate);
+  std::vector<float> out(static_cast<size_t>(seconds * rate));
+  for (float& v : out) v = string.tick(exciter.next(rng));
+  return out;
+}
+
+double cents_off(double hz, double wanted) { return 1200.0 * std::log2(hz / wanted); }
+
+// The strongest frequency within a quarter tone of `hz`, to a hundredth of a
+// cent: a coarse scan and three finer ones (dominant_frequency's 600-step
+// scan is for when the pitch is not known).
+double partial_near(const std::vector<float>& x, double hz, double rate, size_t from, size_t to) {
+  double best_hz = hz, best = -1.0;
+  double span = 50.0;  // cents either side
+  for (int pass = 0; pass < 4; ++pass) {
+    const double centre = best_hz;
+    for (int i = -10; i <= 10; ++i) {
+      const double candidate = centre * std::pow(2.0, span * i / 12000.0);
+      const double level = tone_level(x, candidate, rate, from, to);
+      if (level > best) {
+        best = level;
+        best_hz = candidate;
+      }
+    }
+    span /= 8.0;
+  }
+  return best_hz;
+}
+
+void test_plucked_string() {
+  using String = kit::PluckedString<8192>;
+  static String string;
+
+  // In tune from C1 to C7 at every rate, bright and dull, in both tunings.
+  {
+    double worst = 0.0;
+    for (float rate : {44100.0f, 48000.0f, 96000.0f}) {
+      for (String::Tuning tuning : {String::Tuning::Allpass, String::Tuning::Interpolated}) {
+        for (float high : {0.05f, 3.0f}) {
+          for (int midi : {24, 45, 64, 84, 96}) {
+            const float hz = kit::midi_to_hz(static_cast<float>(midi));
+            string.reset();
+            string.set_tuning(tuning);
+            string.set_frequency(hz, rate);
+            string.set_decay(6.0f, high, 3000.0f);
+            // The dull string's top notes are over in a few tenths of a second.
+            const std::vector<float> out = pluck_note(string, hz, rate, 0.6f, 0.0f);
+            const size_t from = static_cast<size_t>(0.05f * rate);
+            const double got = partial_near(out, hz, rate, from, out.size());
+            worst = std::max(worst, std::fabs(cents_off(got, hz)));
+          }
+        }
+      }
+    }
+    std::printf("  string: worst tuning error %.2f cents (C1..C7, 44.1/48/96 kHz, both tunings)\n", worst);
+    EXPECT(worst < 1.5, "a plucked string is in tune to 1.5 cents whatever its loss");
+  }
+
+  // The fundamental rings as long as it was asked to, and a high partial as
+  // short as it was asked to.
+  for (float hz : {82.41f, 220.0f, 659.26f}) {
+    string.reset();
+    string.set_frequency(hz, kRate);
+    string.set_decay(4.0f, 0.8f, 3000.0f);
+    const std::vector<float> out = pluck_note(string, hz, kRate, 3.0f, 0.0f);
+    const size_t window = 12000;
+    const double early = tone_level(out, hz, kRate, 12000, 12000 + window);
+    const double late = tone_level(out, hz, kRate, 108000, 108000 + window);
+    const double t60 = 60.0 * 2.0 / (db(early) - db(late));
+    EXPECT_NEAR(t60, 4.0, 0.4, "the fundamental's decay time is the one set");
+    // The partial nearest 3 kHz.
+    const double n = std::round(3000.0 / hz);
+    const double high_early = tone_level(out, n * hz, kRate, 2400, 2400 + 9600);
+    const double high_late = tone_level(out, n * hz, kRate, 2400 + 9600, 2400 + 19200);
+    const double high_t60 = 60.0 * 0.2 / (db(high_early) - db(high_late));
+    EXPECT_NEAR(high_t60, 0.8, 0.2, "a partial at the high frequency decays in the time set for it");
+  }
+
+  // It darkens as it dies.
+  {
+    string.reset();
+    string.set_frequency(110.0f, kRate);
+    string.set_decay(5.0f, 0.4f, 2500.0f);
+    const std::vector<float> out = pluck_note(string, 110.0f, kRate, 1.0f, 0.0f, 9000.0f);
+    const double low_fall = db(tone_level(out, 110.0, kRate, 0, 12000)) - db(tone_level(out, 110.0, kRate, 24000, 36000));
+    const double mid_fall = db(tone_level(out, 1100.0, kRate, 0, 12000)) - db(tone_level(out, 1100.0, kRate, 24000, 36000));
+    const double high_fall = db(tone_level(out, 2530.0, kRate, 0, 12000)) - db(tone_level(out, 2530.0, kRate, 24000, 36000));
+    EXPECT(low_fall < 8.0 && mid_fall > 2.0 * low_fall && high_fall > 2.0 * mid_fall,
+           "the highs go first: the string darkens as it rings");
+  }
+
+  // Plucked at a fifth of its length, every fifth partial is missing.
+  {
+    string.reset();
+    string.set_frequency(110.0f, kRate);
+    string.set_decay(6.0f, 3.0f, 3000.0f);
+    const std::vector<float> out = pluck_note(string, 110.0f, kRate, 1.0f, 0.2f);
+    const double fourth = tone_level(out, 440.0, kRate, 0, 24000);
+    const double fifth = tone_level(out, 550.0, kRate, 0, 24000);
+    const double sixth = tone_level(out, 660.0, kRate, 0, 24000);
+    EXPECT(db(fifth) < db(fourth) - 20.0 && db(fifth) < db(sixth) - 20.0,
+           "a pluck at 1/5 leaves the 5th partial 20 dB under its neighbours");
+    // 24000 samples are 55 whole periods, so the mean is the string's DC.
+    EXPECT(std::fabs(mean(out, 0, 24000)) < 0.02, "and the comb leaves no DC on the string");
+    string.reset();
+    string.set_frequency(110.0f, kRate);
+    string.set_decay(6.0f, 3.0f, 3000.0f);
+    const std::vector<float> whole = pluck_note(string, 110.0f, kRate, 1.0f, 0.0f);
+    EXPECT(std::fabs(mean(whole, 0, 24000)) > 0.2, "which a pluck with the comb off does");
+  }
+
+  // A stiff string: partial n at n·f0·sqrt((1 + B·n²) / (1 + B)).
+  {
+    const float hz = 82.41f;
+    const double b = 2.0e-4;
+    string.reset();
+    string.set_frequency(hz, kRate);
+    string.set_decay(8.0f, 4.0f, 3000.0f);
+    string.set_stiffness(static_cast<float>(b), 4);
+    const std::vector<float> out = pluck_note(string, hz, kRate, 2.0f, 0.0f, 9000.0f);
+    double worst = 0.0;
+    for (int n = 1; n <= 8; ++n) {
+      const double wanted = n * hz * std::sqrt((1.0 + b * n * n) / (1.0 + b));
+      const double got = partial_near(out, wanted, kRate, 4800, out.size());
+      worst = std::max(worst, std::fabs(cents_off(got, wanted)));
+    }
+    std::printf("  string: stiff partials 1..8 within %.2f cents of the law (B = 2e-4, E2)\n", worst);
+    EXPECT(worst < 3.0, "a stiff string's first eight partials follow the inharmonicity law");
+    const double eighth = partial_near(out, 8.0 * hz * 1.0063, kRate, 4800, out.size());
+    EXPECT(cents_off(eighth, 8.0 * hz) > 7.0, "and its 8th partial is audibly sharp of a harmonic");
+
+    // Without stiffness the partials are harmonic.
+    string.reset();
+    string.set_frequency(hz, kRate);
+    string.set_decay(8.0f, 4.0f, 3000.0f);
+    const std::vector<float> plain = pluck_note(string, hz, kRate, 2.0f, 0.0f, 9000.0f);
+    double plain_worst = 0.0;
+    for (int n = 1; n <= 8; ++n) {
+      const double got = partial_near(plain, n * hz, kRate, 4800, plain.size());
+      plain_worst = std::max(plain_worst, std::fabs(cents_off(got, n * hz)));
+    }
+    EXPECT(plain_worst < 1.5, "a string with no stiffness has harmonic partials");
+  }
+
+  // The same level at every pitch, and near the amplitude asked for.
+  {
+    double lo = 1.0e9, hi = 0.0;
+    for (int midi = 28; midi <= 88; midi += 12) {
+      const float hz = kit::midi_to_hz(static_cast<float>(midi));
+      string.reset();
+      string.set_frequency(hz, kRate);
+      string.set_decay(8.0f, 4.0f, 3000.0f);
+      const std::vector<float> out = pluck_note(string, hz, kRate, 0.5f, 0.0f, 12000.0f);
+      const double level = tone_level(out, hz, kRate, 2400, 21600);
+      lo = std::min(lo, level);
+      hi = std::max(hi, level);
+    }
+    EXPECT(hi < 1.5 * lo, "the exciter gives the fundamental the same level from E1 to E6");
+    EXPECT(lo > 0.4 && hi < 1.0, "which is about 0.7 of the amplitude asked for");
+  }
+
+  // A pitch that moves: no step, and it arrives in tune.
+  {
+    string.reset();
+    string.set_tuning(String::Tuning::Interpolated);
+    string.set_frequency(220.0f, kRate);
+    string.set_decay(8.0f, 2.0f, 3000.0f);
+    std::vector<float> out = pluck_note(string, 220.0f, kRate, 0.5f, 0.3f, 3000.0f);
+    const double before = max_step(out, 12000, 24000);
+    // Up a whole tone over 100 ms, a control tick at a time.
+    const size_t start = out.size();
+    for (int tick = 0; tick < 150; ++tick) {
+      const float t = static_cast<float>(tick + 1) / 150.0f;
+      string.set_frequency(220.0f * std::pow(2.0f, t * 2.0f / 12.0f), kRate);
+      for (int i = 0; i < 32; ++i) out.push_back(string.tick(0.0f));
+    }
+    const size_t arrived = out.size();
+    for (int i = 0; i < 48000; ++i) out.push_back(string.tick(0.0f));
+    EXPECT(max_step(out, start, arrived) < 1.3 * before, "a slide makes no step larger than the note's own");
+    const double hz = partial_near(out, 246.94, kRate, arrived + 4800, out.size());
+    EXPECT(std::fabs(cents_off(hz, 246.94)) < 1.5, "and lands in tune");
+  }
+
+  // A pickup a quarter of the way along hears no 4th partial.
+  {
+    string.reset();
+    string.set_frequency(110.0f, kRate);
+    string.set_decay(6.0f, 3.0f, 3000.0f);
+    kit::PluckExciter exciter;
+    kit::Rng rng;
+    exciter.strike(1.0f, 110.0f, 9000.0f, 0.0f, kRate);
+    std::vector<float> out(24000);
+    for (float& v : out) {
+      const float direct = string.tick(exciter.next(rng));
+      v = direct - string.tap(0.25f * string.period());
+    }
+    EXPECT(db(tone_level(out, 440.0, kRate)) < db(tone_level(out, 330.0, kRate)) - 20.0,
+           "a tap at 1/4 of the period nulls the 4th partial");
+  }
+
+  // Reset is complete, silence stays silence, and nothing runs away.
+  {
+    string.reset();
+    string.set_frequency(98.0f, kRate);
+    string.set_decay(30.0f, 30.0f, 3000.0f);
+    string.set_stiffness(1.0e-4f, 2);
+    const std::vector<float> first = pluck_note(string, 98.0f, kRate, 0.5f, 0.13f, 5000.0f, 0.5f);
+    string.reset();
+    string.set_frequency(98.0f, kRate);
+    string.set_decay(30.0f, 30.0f, 3000.0f);
+    string.set_stiffness(1.0e-4f, 2);
+    const std::vector<float> second = pluck_note(string, 98.0f, kRate, 0.5f, 0.13f, 5000.0f, 0.5f);
+    EXPECT(first == second, "two strings reset and plucked alike sound alike, bit for bit");
+
+    string.reset();
+    string.set_frequency(98.0f, kRate);
+    string.set_decay(30.0f, 30.0f, 3000.0f);
+    double loudest = 0.0;
+    for (int i = 0; i < 48000; ++i) loudest = std::max(loudest, std::fabs(static_cast<double>(string.tick(0.0f))));
+    EXPECT(loudest == 0.0, "an unplucked string is exactly silent");
+    // Ten seconds of full-scale noise into the longest decay there is.
+    for (int i = 0; i < 480000; ++i) {
+      loudest = std::max(loudest, std::fabs(static_cast<double>(string.tick(white()))));
+    }
+    EXPECT(std::isfinite(loudest) && loudest < 2000.0, "driven hard for ten seconds it stays bounded");
+    string.damp(0.0f);
+    EXPECT(string.tick(0.0f) == 0.0f, "and damp(0) stops it dead");
+  }
+
+  // The exciter ends, and exactly.
+  {
+    kit::PluckExciter exciter;
+    kit::Rng rng;
+    exciter.strike(1.0f, 55.0f, 800.0f, 1.0f, kRate);
+    int length = 0;
+    while (exciter.active() && length < 48000) {
+      exciter.next(rng);
+      ++length;
+    }
+    EXPECT(length > 480 && length < 12000, "a pluck is over in a fraction of a second");
+    EXPECT(exciter.next(rng) == 0.0f, "and is exactly zero afterwards");
+  }
+}
+
 }  // namespace
 
 int main() {
@@ -558,6 +834,7 @@ int main() {
   test_pitch_shifter();
   test_oversampler();
   test_grains();
+  test_plucked_string();
   if (failures() == 0) {
     std::printf("dsp kit tests: all passed\n");
     return 0;

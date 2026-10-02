@@ -1,0 +1,153 @@
+{
+  "id": "horns",
+  "name": "Horns",
+  "category": "instrument",
+  "description": "Soft brass for swells and distant lines: horn, flugelhorn, trumpet open or muted and low brass, brighter as they get louder, with a section of players on every key.",
+  "class": "Horns",
+  "header": "horns.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "type",
+      "name": "Type",
+      "choices": ["French horn", "Flugelhorn", "Trumpet", "Muted trumpet", "Low brass"],
+      "default": 0,
+      "description": "Which instrument plays. Each has its own bell, from the round dark horn to the thin nasal muted trumpet, and its own way of speaking."
+    },
+    {
+      "key": "blow",
+      "name": "Blow",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "How hard the players blow. Low is a pure warm hum; high is a bright blare. The tone brightens as each note swells and darkens as it fades."
+    },
+    {
+      "key": "breath",
+      "name": "Breath",
+      "min": 0,
+      "max": 1,
+      "default": 0.12,
+      "description": "Air in the tone: breath noise that rings through the tube at the pitch of the note. High with a gentle Blow, the note is half air."
+    },
+    {
+      "key": "section",
+      "name": "Section",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "From one player to four on every key, further apart in tuning, timing and place as it rises. At zero a single steady player sits in the centre."
+    },
+    {
+      "key": "attack",
+      "name": "Attack",
+      "min": 0.02,
+      "max": 6,
+      "default": 2.5,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long a note takes to arrive, from a tongued start to a slow swell. Low notes always speak a little later than high ones."
+    },
+    {
+      "key": "release",
+      "name": "Release",
+      "min": 0.05,
+      "max": 8,
+      "default": 4,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long a note takes to recede after the key is released. The brightness leaves before the body of the tone does."
+    },
+    {
+      "key": "vibrato",
+      "name": "Vibrato",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "Depth of a slow waver in pitch that waits a moment and then eases in, as a player adds it to a held note."
+    },
+    {
+      "key": "harmony",
+      "name": "Harmony",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "description": "Adds a second voice that follows every note in parallel: a fourth below to the left of centre, a fifth above to the right. At centre it is silent."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -6,
+      "unit": "dB",
+      "description": "Output level of the instrument. A soft clip after it rounds off the peaks when many notes stack up."
+    }
+  ],
+  "presets": {
+    "Horn swell": {
+      "type": 0,
+      "blow": 0.6,
+      "breath": 0.12,
+      "section": 0.6,
+      "attack": 2.5,
+      "release": 4,
+      "vibrato": 0,
+      "harmony": 0
+    },
+    "Parallel fifths": {
+      "type": 2,
+      "blow": 0.22,
+      "breath": 0.75,
+      "section": 0,
+      "attack": 0.18,
+      "release": 1.2,
+      "vibrato": 0.2,
+      "harmony": 0.5
+    },
+    "Flugel breath": {
+      "type": 1,
+      "blow": 0.35,
+      "breath": 0.5,
+      "section": 0,
+      "attack": 0.25,
+      "release": 1.5,
+      "vibrato": 0.3,
+      "harmony": 0
+    },
+    "Low brass choir": {
+      "type": 4,
+      "blow": 0.4,
+      "breath": 0.08,
+      "section": 1,
+      "attack": 4,
+      "release": 6,
+      "vibrato": 0,
+      "harmony": 0
+    },
+    "Muted distance": {
+      "type": 3,
+      "blow": 0.5,
+      "breath": 0.25,
+      "section": 0,
+      "attack": 0.08,
+      "release": 0.9,
+      "vibrato": 0.15,
+      "harmony": 0
+    },
+    "Brass band": {
+      "type": 2,
+      "blow": 0.68,
+      "breath": 0.05,
+      "section": 1,
+      "attack": 0.6,
+      "release": 2,
+      "vibrato": 0,
+      "harmony": 0
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. Models soft orchestral and jazz brass (French horn, flugelhorn, trumpet open and with a Harmon-style mute, trombone and tuba as low brass) as an open-loop driven pipe: a breath envelope drives a closed-form harmonic series whose brightness rises with the pressure (the brass rule Risset found in trumpet tones, the small-amplitude power law of Worman and Benade), lagging on the way up, through a bell filter fixed in hertz. Grounded in the project's acoustic research notes (Risset and Mathews, Beauchamp, Meyer, Fletcher and Rossing, Hirschberg). Simplified: no lip valve or bore waveguide, so no register breaks or cracked notes; one shared bell per type instead of one per note; each note is levelled so loudness follows the envelope while colour follows the pressure; the harmony voice is a second oscillator, not a pitch shifter, so its formant does not move and it has no splice artefacts. Choices rather than measurements of an original: the bell formants (French horn 340 Hz, trumpet 1300 Hz and low brass 480 Hz follow figures recalled from Meyer; flugelhorn 800 Hz is a guess between them), the whole muted voicing (two high-passes, the second with a resonant corner near 1.8 kHz), the brightness range of each type, the lag, lip settle, scatter and vibrato figures. Not a circuit or sample emulation."
+  }
+}

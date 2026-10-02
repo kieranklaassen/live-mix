@@ -72,6 +72,8 @@ export const FACTORY_PRESET_CATEGORIES: readonly PatchCategory[] = [
   { id: 'keys', label: 'Keys' },
   { id: 'bell', label: 'Bells' },
   { id: 'string', label: 'Strings' },
+  { id: 'plucked', label: 'Plucked' },
+  { id: 'wind', label: 'Wind' },
   { id: 'voice', label: 'Voices' },
   { id: 'organ', label: 'Organs' },
   { id: 'drone', label: 'Drones' },

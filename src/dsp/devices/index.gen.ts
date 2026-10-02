@@ -2,28 +2,42 @@
 
 import { type DeviceDescriptor } from '../../core/devices'
 import { type WasmDeviceDefinition } from '../WasmDevice'
+import { ACOUSTIC_GUITAR_DESCRIPTOR, ACOUSTIC_GUITAR_DEVICE } from './acoustic-guitar.gen'
 import { AMBIENT_COMP_DESCRIPTOR, AMBIENT_COMP_DEVICE } from './ambient-comp.gen'
 import { AMBIENT_EQ_DESCRIPTOR, AMBIENT_EQ_DEVICE } from './ambient-eq.gen'
 import { AMBIENT_LIMITER_DESCRIPTOR, AMBIENT_LIMITER_DEVICE } from './ambient-limiter.gen'
 import { ATMOSPHERE_DESCRIPTOR, ATMOSPHERE_DEVICE } from './atmosphere.gen'
+import { AURORA_DESCRIPTOR, AURORA_DEVICE } from './aurora.gen'
 import { AUTO_FILTER_DESCRIPTOR, AUTO_FILTER_DEVICE } from './auto-filter.gen'
 import { BLOOM_REVERB_DESCRIPTOR, BLOOM_REVERB_DEVICE } from './bloom-reverb.gen'
 import { BOWED_STRING_DESCRIPTOR, BOWED_STRING_DEVICE } from './bowed-string.gen'
+import { CHAMBER_STRINGS_DESCRIPTOR, CHAMBER_STRINGS_DEVICE } from './chamber-strings.gen'
 import { CHOIR_DESCRIPTOR, CHOIR_DEVICE } from './choir.gen'
+import { CHORD_HARP_DESCRIPTOR, CHORD_HARP_DEVICE } from './chord-harp.gen'
 import { CHORUS_DESCRIPTOR, CHORUS_DEVICE } from './chorus.gen'
+import { CLARINET_DESCRIPTOR, CLARINET_DEVICE } from './clarinet.gen'
 import { DRONE_DESCRIPTOR, DRONE_DEVICE } from './drone.gen'
+import { DUSK_DESCRIPTOR, DUSK_DEVICE } from './dusk.gen'
 import { EMBER_DESCRIPTOR, EMBER_DEVICE } from './ember.gen'
 import { EXPANSE_DESCRIPTOR, EXPANSE_DEVICE } from './expanse.gen'
 import { FLANGER_DESCRIPTOR, FLANGER_DEVICE } from './flanger.gen'
+import { FLUTE_DESCRIPTOR, FLUTE_DEVICE } from './flute.gen'
 import { FM_GLASS_DESCRIPTOR, FM_GLASS_DEVICE } from './fm-glass.gen'
 import { FREQ_SHIFTER_DESCRIPTOR, FREQ_SHIFTER_DEVICE } from './freq-shifter.gen'
 import { GRAIN_CLOUD_DESCRIPTOR, GRAIN_CLOUD_DEVICE } from './grain-cloud.gen'
 import { GRAIN_DELAY_DESCRIPTOR, GRAIN_DELAY_DEVICE } from './grain-delay.gen'
 import { GRAIN_SYNTH_DESCRIPTOR, GRAIN_SYNTH_DEVICE } from './grain-synth.gen'
+import { GUITAR_DESCRIPTOR, GUITAR_DEVICE } from './guitar.gen'
+import { HANDPAN_DESCRIPTOR, HANDPAN_DEVICE } from './handpan.gen'
+import { HARP_DESCRIPTOR, HARP_DEVICE } from './harp.gen'
+import { HORNS_DESCRIPTOR, HORNS_DEVICE } from './horns.gen'
+import { LADDER_BASS_DESCRIPTOR, LADDER_BASS_DEVICE } from './ladder-bass.gen'
 import { LATTICE_DESCRIPTOR, LATTICE_DEVICE } from './lattice.gen'
+import { MALLETS_DESCRIPTOR, MALLETS_DEVICE } from './mallets.gen'
 import { MODAL_BELLS_DESCRIPTOR, MODAL_BELLS_DEVICE } from './modal-bells.gen'
 import { ORGAN_DESCRIPTOR, ORGAN_DEVICE } from './organ.gen'
 import { PATINA_DESCRIPTOR, PATINA_DEVICE } from './patina.gen'
+import { PEDAL_STEEL_DESCRIPTOR, PEDAL_STEEL_DEVICE } from './pedal-steel.gen'
 import { PHASER_DESCRIPTOR, PHASER_DEVICE } from './phaser.gen'
 import { REVERSE_DELAY_DESCRIPTOR, REVERSE_DELAY_DEVICE } from './reverse-delay.gen'
 import { ROTARY_DESCRIPTOR, ROTARY_DEVICE } from './rotary.gen'
@@ -35,6 +49,7 @@ import { SPRING_REVERB_DESCRIPTOR, SPRING_REVERB_DEVICE } from './spring-reverb.
 import { STRING_MACHINE_DESCRIPTOR, STRING_MACHINE_DEVICE } from './string-machine.gen'
 import { SWELL_DESCRIPTOR, SWELL_DEVICE } from './swell.gen'
 import { SYMPATHETIC_DESCRIPTOR, SYMPATHETIC_DEVICE } from './sympathetic.gen'
+import { TANPURA_DESCRIPTOR, TANPURA_DEVICE } from './tanpura.gen'
 import { TAPE_DESCRIPTOR, TAPE_DEVICE } from './tape.gen'
 import { TAPE_ECHO_DESCRIPTOR, TAPE_ECHO_DEVICE } from './tape-echo.gen'
 import { TAPE_LOOP_DESCRIPTOR, TAPE_LOOP_DEVICE } from './tape-loop.gen'
@@ -43,28 +58,42 @@ import { TINE_PIANO_DESCRIPTOR, TINE_PIANO_DEVICE } from './tine-piano.gen'
 import { TREMOLO_DESCRIPTOR, TREMOLO_DEVICE } from './tremolo.gen'
 import { WAVETABLE_DESCRIPTOR, WAVETABLE_DEVICE } from './wavetable.gen'
 
+export * from './acoustic-guitar.gen'
 export * from './ambient-comp.gen'
 export * from './ambient-eq.gen'
 export * from './ambient-limiter.gen'
 export * from './atmosphere.gen'
+export * from './aurora.gen'
 export * from './auto-filter.gen'
 export * from './bloom-reverb.gen'
 export * from './bowed-string.gen'
+export * from './chamber-strings.gen'
 export * from './choir.gen'
+export * from './chord-harp.gen'
 export * from './chorus.gen'
+export * from './clarinet.gen'
 export * from './drone.gen'
+export * from './dusk.gen'
 export * from './ember.gen'
 export * from './expanse.gen'
 export * from './flanger.gen'
+export * from './flute.gen'
 export * from './fm-glass.gen'
 export * from './freq-shifter.gen'
 export * from './grain-cloud.gen'
 export * from './grain-delay.gen'
 export * from './grain-synth.gen'
+export * from './guitar.gen'
+export * from './handpan.gen'
+export * from './harp.gen'
+export * from './horns.gen'
+export * from './ladder-bass.gen'
 export * from './lattice.gen'
+export * from './mallets.gen'
 export * from './modal-bells.gen'
 export * from './organ.gen'
 export * from './patina.gen'
+export * from './pedal-steel.gen'
 export * from './phaser.gen'
 export * from './reverse-delay.gen'
 export * from './rotary.gen'
@@ -76,6 +105,7 @@ export * from './spring-reverb.gen'
 export * from './string-machine.gen'
 export * from './swell.gen'
 export * from './sympathetic.gen'
+export * from './tanpura.gen'
 export * from './tape.gen'
 export * from './tape-echo.gen'
 export * from './tape-loop.gen'
@@ -86,28 +116,42 @@ export * from './wavetable.gen'
 
 /** Every generated WASM device, in id order; part of `STOCK_WASM_DEVICES`. */
 export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
+  ACOUSTIC_GUITAR_DESCRIPTOR,
   AMBIENT_COMP_DESCRIPTOR,
   AMBIENT_EQ_DESCRIPTOR,
   AMBIENT_LIMITER_DESCRIPTOR,
   ATMOSPHERE_DESCRIPTOR,
+  AURORA_DESCRIPTOR,
   AUTO_FILTER_DESCRIPTOR,
   BLOOM_REVERB_DESCRIPTOR,
   BOWED_STRING_DESCRIPTOR,
+  CHAMBER_STRINGS_DESCRIPTOR,
   CHOIR_DESCRIPTOR,
+  CHORD_HARP_DESCRIPTOR,
   CHORUS_DESCRIPTOR,
+  CLARINET_DESCRIPTOR,
   DRONE_DESCRIPTOR,
+  DUSK_DESCRIPTOR,
   EMBER_DESCRIPTOR,
   EXPANSE_DESCRIPTOR,
   FLANGER_DESCRIPTOR,
+  FLUTE_DESCRIPTOR,
   FM_GLASS_DESCRIPTOR,
   FREQ_SHIFTER_DESCRIPTOR,
   GRAIN_CLOUD_DESCRIPTOR,
   GRAIN_DELAY_DESCRIPTOR,
   GRAIN_SYNTH_DESCRIPTOR,
+  GUITAR_DESCRIPTOR,
+  HANDPAN_DESCRIPTOR,
+  HARP_DESCRIPTOR,
+  HORNS_DESCRIPTOR,
+  LADDER_BASS_DESCRIPTOR,
   LATTICE_DESCRIPTOR,
+  MALLETS_DESCRIPTOR,
   MODAL_BELLS_DESCRIPTOR,
   ORGAN_DESCRIPTOR,
   PATINA_DESCRIPTOR,
+  PEDAL_STEEL_DESCRIPTOR,
   PHASER_DESCRIPTOR,
   REVERSE_DELAY_DESCRIPTOR,
   ROTARY_DESCRIPTOR,
@@ -119,6 +163,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   STRING_MACHINE_DESCRIPTOR,
   SWELL_DESCRIPTOR,
   SYMPATHETIC_DESCRIPTOR,
+  TANPURA_DESCRIPTOR,
   TAPE_DESCRIPTOR,
   TAPE_ECHO_DESCRIPTOR,
   TAPE_LOOP_DESCRIPTOR,
@@ -130,28 +175,42 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
 
 /** Their definitions (module location and parameter table), in the same order. */
 export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
+  ACOUSTIC_GUITAR_DEVICE,
   AMBIENT_COMP_DEVICE,
   AMBIENT_EQ_DEVICE,
   AMBIENT_LIMITER_DEVICE,
   ATMOSPHERE_DEVICE,
+  AURORA_DEVICE,
   AUTO_FILTER_DEVICE,
   BLOOM_REVERB_DEVICE,
   BOWED_STRING_DEVICE,
+  CHAMBER_STRINGS_DEVICE,
   CHOIR_DEVICE,
+  CHORD_HARP_DEVICE,
   CHORUS_DEVICE,
+  CLARINET_DEVICE,
   DRONE_DEVICE,
+  DUSK_DEVICE,
   EMBER_DEVICE,
   EXPANSE_DEVICE,
   FLANGER_DEVICE,
+  FLUTE_DEVICE,
   FM_GLASS_DEVICE,
   FREQ_SHIFTER_DEVICE,
   GRAIN_CLOUD_DEVICE,
   GRAIN_DELAY_DEVICE,
   GRAIN_SYNTH_DEVICE,
+  GUITAR_DEVICE,
+  HANDPAN_DEVICE,
+  HARP_DEVICE,
+  HORNS_DEVICE,
+  LADDER_BASS_DEVICE,
   LATTICE_DEVICE,
+  MALLETS_DEVICE,
   MODAL_BELLS_DEVICE,
   ORGAN_DEVICE,
   PATINA_DEVICE,
+  PEDAL_STEEL_DEVICE,
   PHASER_DEVICE,
   REVERSE_DELAY_DEVICE,
   ROTARY_DEVICE,
@@ -163,6 +222,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   STRING_MACHINE_DEVICE,
   SWELL_DEVICE,
   SYMPATHETIC_DEVICE,
+  TANPURA_DEVICE,
   TAPE_DEVICE,
   TAPE_ECHO_DEVICE,
   TAPE_LOOP_DEVICE,
@@ -174,28 +234,42 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
 
 /** What the device-agnostic tests need to know about each generated artefact. */
 export const GENERATED_WASM_DEVICES = [
+  { id: 'acoustic-guitar', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'ambient-comp', instrument: false, samples: false, meters: 1, memoryMb: 4 },
   { id: 'ambient-eq', instrument: false, samples: false, meters: 1, memoryMb: 4 },
   { id: 'ambient-limiter', instrument: false, samples: false, meters: 1, memoryMb: 4 },
   { id: 'atmosphere', instrument: true, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'aurora', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'auto-filter', instrument: false, samples: false, meters: 0, memoryMb: 4 },
   { id: 'bloom-reverb', instrument: false, samples: false, meters: 0, memoryMb: 4 },
   { id: 'bowed-string', instrument: true, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'chamber-strings', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'choir', instrument: true, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'chord-harp', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'chorus', instrument: false, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'clarinet', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'drone', instrument: true, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'dusk', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'ember', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'expanse', instrument: false, samples: false, meters: 0, memoryMb: 6 },
   { id: 'flanger', instrument: false, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'flute', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'fm-glass', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'freq-shifter', instrument: false, samples: false, meters: 0, memoryMb: 4 },
   { id: 'grain-cloud', instrument: false, samples: false, meters: 0, memoryMb: 10 },
   { id: 'grain-delay', instrument: false, samples: false, meters: 0, memoryMb: 10 },
   { id: 'grain-synth', instrument: true, samples: true, meters: 0, memoryMb: 12 },
+  { id: 'guitar', instrument: true, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'handpan', instrument: true, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'harp', instrument: true, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'horns', instrument: true, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'ladder-bass', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'lattice', instrument: false, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'mallets', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'modal-bells', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'organ', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'patina', instrument: false, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'pedal-steel', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'phaser', instrument: false, samples: false, meters: 0, memoryMb: 4 },
   { id: 'reverse-delay', instrument: false, samples: false, meters: 0, memoryMb: 20 },
   { id: 'rotary', instrument: false, samples: false, meters: 0, memoryMb: 4 },
@@ -207,6 +281,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'string-machine', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'swell', instrument: false, samples: false, meters: 0, memoryMb: 4 },
   { id: 'sympathetic', instrument: false, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'tanpura', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'tape', instrument: false, samples: false, meters: 0, memoryMb: 4 },
   { id: 'tape-echo', instrument: false, samples: false, meters: 0, memoryMb: 4 },
   { id: 'tape-loop', instrument: false, samples: false, meters: 0, memoryMb: 24 },

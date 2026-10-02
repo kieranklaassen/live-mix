@@ -1,0 +1,165 @@
+{
+  "id": "flute",
+  "name": "Flute",
+  "category": "instrument",
+  "description": "A blown flute for slow lines and held chords: concert and low flutes, shakuhachi, pan pipes and wood flute, with breath in the tone and a touch that brightens as it gets louder.",
+  "class": "Flute",
+  "header": "flute.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "type",
+      "name": "Type",
+      "choices": ["Concert", "Low flute", "Shakuhachi", "Pan pipes", "Wood flute"],
+      "default": 0,
+      "description": "Which flute is played: a clear concert flute, a darker, airier low flute, a breathy shakuhachi, hollow pan pipes or a round wood flute. Applies from the next note."
+    },
+    {
+      "key": "breath",
+      "name": "Breath",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "How much air is heard in the tone. Low is a clean, pure flute; high is mostly breath with the note inside it."
+    },
+    {
+      "key": "blow",
+      "name": "Blow",
+      "min": 0,
+      "max": 1,
+      "default": 0.45,
+      "description": "How hard the flute is blown. Soft is close to a pure tone; hard adds overtones for a brighter, more open sound. Loud notes are always brighter than soft ones."
+    },
+    {
+      "key": "chiff",
+      "name": "Chiff",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "The puff of air and the flick of a higher note at the very start of each note. Slow attacks have little of either."
+    },
+    {
+      "key": "attack",
+      "name": "Attack",
+      "min": 0.005,
+      "max": 3,
+      "default": 0.04,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the breath takes to arrive. Short is a tongued note; long swells in from nothing. Low notes always speak a little later than high ones."
+    },
+    {
+      "key": "release",
+      "name": "Release",
+      "min": 0.03,
+      "max": 8,
+      "default": 0.4,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long a note takes to die away after the key is let go. Its pitch sags a little as it fades, as a breath running out does."
+    },
+    {
+      "key": "vibrato",
+      "name": "Vibrato",
+      "min": 0,
+      "max": 1,
+      "default": 0.35,
+      "description": "Depth of the breath vibrato: a wobble in loudness, brightness and pitch that fades in once a note has settled. Each type has its own speed."
+    },
+    {
+      "key": "scoop",
+      "name": "Scoop",
+      "min": 0,
+      "max": 200,
+      "default": 15,
+      "unit": "ct",
+      "description": "How far below the note each one starts before it bends up into tune. A little sounds played by a person; a lot is the shakuhachi's bend from below."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -9,
+      "unit": "dB",
+      "description": "Output level of the instrument. A soft clip after it rounds off the peaks when many notes stack up."
+    }
+  ],
+  "presets": {
+    "Concert flute": {
+      "type": 0,
+      "breath": 0.4,
+      "blow": 0.45,
+      "chiff": 0.5,
+      "attack": 0.04,
+      "release": 0.4,
+      "vibrato": 0.35,
+      "scoop": 15
+    },
+    "Shakuhachi": {
+      "type": 2,
+      "breath": 0.62,
+      "blow": 0.55,
+      "chiff": 0.9,
+      "attack": 0.02,
+      "release": 0.7,
+      "vibrato": 0.6,
+      "scoop": 120
+    },
+    "Pan pipes": {
+      "type": 3,
+      "breath": 0.5,
+      "blow": 0.5,
+      "chiff": 0.9,
+      "attack": 0.012,
+      "release": 0.5,
+      "vibrato": 0,
+      "scoop": 25
+    },
+    "Breath pad": {
+      "type": 1,
+      "breath": 0.95,
+      "blow": 0.15,
+      "chiff": 0,
+      "attack": 1.5,
+      "release": 2.8,
+      "vibrato": 0.2,
+      "scoop": 0,
+      "volume": -14
+    },
+    "Low flute drone": {
+      "type": 1,
+      "breath": 0.5,
+      "blow": 0.25,
+      "chiff": 0.2,
+      "attack": 0.7,
+      "release": 4,
+      "vibrato": 0.3,
+      "scoop": 10
+    },
+    "Canyon flute": {
+      "type": 4,
+      "breath": 0.3,
+      "blow": 0.4,
+      "chiff": 0.6,
+      "attack": 0.03,
+      "release": 0.8,
+      "vibrato": 0.4,
+      "scoop": 40
+    },
+    "Soft wind lead": {
+      "type": 0,
+      "breath": 0.5,
+      "blow": 0.25,
+      "chiff": 0,
+      "attack": 0.12,
+      "release": 0.9,
+      "vibrato": 0.5,
+      "scoop": 30
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. An open-loop driven pipe (driven_pipe.h): one phase per voice reads a closed-form harmonic series whose brightness is proportional to breath pressure (the small-amplitude result of Worman and Benade for blown instruments), and breath noise, pulsed at the pitch period, passes through a feedback comb that stands for the passive bore (every harmonic for an open pipe, the odd ones for stopped pan pipes). One breath envelope with slow drift and a delayed vibrato drives level, brightness, noise and a small pitch offset together; the tone lags the breath by a time that scales with the note's period, so air leads and low notes speak slowly. It follows the acoustics described by Fletcher, Wolfe and others and the noise treatment of Chafe and Smith in outline; a self-oscillating jet waveguide (Cook; Valimaki and Karjalainen) was not used because its pitch and register are discovered, not set. Simplified: no finger holes or slides between notes, no register jumps, and the pipe does not feed back on the jet. These are choices, not measurements of an instrument: the five types' voicing (brightness, air, comb feedback and damping, body filters, chiff levels and times, speech lag, vibrato rates of 3.8 to 5.8 Hz and depths), the noise exponent 1.75, the pitch rise of 12 cents per unit of pressure, and the size of the drift. Nobody has listened to it; every trait is held by a measurement in cpp/test/flute_test.cpp. Not a sample or a model of a particular instrument."
+  }
+}

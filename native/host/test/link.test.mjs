@@ -205,7 +205,9 @@ test('sets its own tempo and name while alone', async () => {
 test('alone, a beat asked for now falls now', async () => {
   const { micros } = await control.call('linkPing')
   const started = await control.call('linkStart', { beat: 8, atMicros: micros + 20_000 })
-  assert.equal(started.atMicros, micros + 20_000)
+  // The time comes back through Link's beat arithmetic, which is in floating
+  // point: it can land a microsecond to either side of the one asked for.
+  near(started.atMicros, micros + 20_000, 1, 'the time the beat falls at')
   near(beatAt(started, micros + 20_000), 8, 1e-5, 'the beat at that time')
 })
 

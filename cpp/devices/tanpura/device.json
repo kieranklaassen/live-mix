@@ -1,0 +1,122 @@
+{
+  "id": "tanpura",
+  "name": "Tanpura",
+  "category": "instrument",
+  "description": "Four-string Indian drone lute: a held key is plucked round and round, and each pluck blooms into a slow sweep of overtones as the string grazes its curved bridge.",
+  "class": "Tanpura",
+  "header": "tanpura.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "tuning",
+      "name": "Tuning",
+      "choices": ["Pa", "Ma", "Ni"],
+      "default": 0,
+      "description": "The first string against the key: Pa a fourth below it, Ma a fifth below, Ni a semitone below. The other three stay on the key and its lower octave."
+    },
+    {
+      "key": "jawari",
+      "name": "Jawari",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "How firmly the curved bridge holds the string. At zero it is a plain string; higher makes each pluck open into a longer, louder sweep of buzzing overtones."
+    },
+    {
+      "key": "speed",
+      "name": "Speed",
+      "min": 2,
+      "max": 12,
+      "default": 5,
+      "taper": "log",
+      "unit": "s",
+      "description": "Time for one round of the four plucks. Short is a busy shimmer; long lets each string ring down before it is plucked again."
+    },
+    {
+      "key": "decay",
+      "name": "Decay",
+      "min": 3,
+      "max": 30,
+      "default": 12,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long each string rings after its pluck. Applies from each string's next pluck."
+    },
+    {
+      "key": "detune",
+      "name": "Detune",
+      "min": 0,
+      "max": 8,
+      "default": 2,
+      "unit": "ct",
+      "description": "Tunes the two middle strings apart so they beat slowly against each other. Applies from each string's next pluck."
+    },
+    {
+      "key": "body",
+      "name": "Body",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "Blend from the bare strings to the hollow gourd they sit on, which adds a low woody resonance."
+    },
+    {
+      "key": "spread",
+      "name": "Spread",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Places the four strings across the stereo field. At zero all four sit in the centre."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -8,
+      "unit": "dB",
+      "description": "Output level of the instrument. A soft clip after it rounds off the peaks when many notes stack up."
+    }
+  ],
+  "presets": {
+    "Morning raga": {},
+    "Slow wall": {
+      "jawari": 0.8,
+      "speed": 10,
+      "decay": 30,
+      "detune": 3,
+      "spread": 0.8
+    },
+    "Ma tuning": {
+      "tuning": 1,
+      "jawari": 0.45,
+      "speed": 6,
+      "decay": 15
+    },
+    "Closed jawari": {
+      "jawari": 0.25,
+      "speed": 4,
+      "decay": 7,
+      "detune": 1,
+      "body": 0.55
+    },
+    "Monochord": {
+      "jawari": 0,
+      "speed": 8,
+      "decay": 30,
+      "detune": 4,
+      "body": 0.6,
+      "spread": 0.7
+    },
+    "Evening Ni": {
+      "tuning": 2,
+      "jawari": 0.7,
+      "speed": 7,
+      "decay": 20,
+      "detune": 3
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit after the tanpura, the four-string drone lute of Indian classical music. Each string is a stiff digital waveguide loop (Karplus-Strong and Jaffe-Smith lineage) at twice the sample rate whose bridge end is a jawari, modelled as a lossless junction: where the wave swings onto the bridge it turns round a little early, and the short piece of string behind the contact point is cut off until the string lifts again. The two-point picture of the bridge and the need for a stiff string follow what is recalled of Raman (1921), Valette, and van Walstijn and Chatziioannou's tanpura simulations; no page of them was read for this work, the reduced junction is our own, and it is checked only by measurement: a delayed bloom of the upper partials, Raman's missing-partial test, level dependence, a band of overtones that slides down, pitch, and passivity. Simplified: one polarisation, no coupling between the strings through the bridge, no tension modulation, a gourd of five fixed resonances, and the plucking finger as a short damping before each pluck. Choices rather than measurements of an instrument: the inharmonicity (2e-5), the length of string behind the contact point (0.5 % of the period), the contact gap and reach, the softness of the pluck, the shape of the decay, the body resonances and the stereo places. Nobody has listened to it beside a real tanpura. Not a circuit or sample emulation."
+  }
+}

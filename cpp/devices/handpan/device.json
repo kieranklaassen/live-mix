@@ -1,0 +1,140 @@
+{
+  "id": "handpan",
+  "name": "Handpan",
+  "category": "instrument",
+  "description": "A hand-played steel pan and tongue drum: each note rings with its octave and the fifth above, over a low thump of air, and ringing notes answer each other. Most at home from D3 to C5.",
+  "class": "Handpan",
+  "header": "handpan.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "type",
+      "name": "Type",
+      "choices": ["Handpan", "Tongue drum"],
+      "default": 0,
+      "description": "Handpan is the hammered steel note with its octave and fifth ringing in it. Tongue drum is a plainer, purer tone with a faint high ping. Heard from the next note."
+    },
+    {
+      "key": "decay",
+      "name": "Decay",
+      "min": 0.5,
+      "max": 10,
+      "default": 3.5,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long a note rings after the tap. The overtones die a little sooner than the note itself."
+    },
+    {
+      "key": "touch",
+      "name": "Touch",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "From the pad of a finger to a knuckle or soft mallet. A harder touch starts faster and brighter, and its overtones bloom just after the hit."
+    },
+    {
+      "key": "position",
+      "name": "Position",
+      "min": 0,
+      "max": 1,
+      "default": 0.45,
+      "description": "Where the hand lands on the note. The centre is nearly a pure tone; toward the edge the octave and the fifth above it come up."
+    },
+    {
+      "key": "shimmer",
+      "name": "Shimmer",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "How far the overtones sit from perfect tuning, a little differently on every key. More makes the colour of a ringing note turn slowly."
+    },
+    {
+      "key": "cavity",
+      "name": "Cavity",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "The low thump of the air inside the shell under every tap, like a soft drum beneath the note."
+    },
+    {
+      "key": "sympathy",
+      "name": "Sympathy",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How much other ringing notes take up a new tap where their overtones match it, so chords glow. It does nothing while only one note sounds."
+    },
+    {
+      "key": "damp",
+      "name": "Damp",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "How quickly a note is muted when the key is let go, like a hand laid on the steel. At zero notes ring out."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -6,
+      "unit": "dB",
+      "description": "Output level of the instrument. A soft clip after it rounds off the peaks when many notes stack up."
+    }
+  ],
+  "presets": {
+    "Soft hands": {
+      "type": 0,
+      "decay": 3.5,
+      "touch": 0.3,
+      "position": 0.45,
+      "shimmer": 0.4,
+      "cavity": 0.5,
+      "sympathy": 0.5,
+      "damp": 0
+    },
+    "Low ding": {
+      "decay": 6,
+      "touch": 0.35,
+      "position": 0.25,
+      "shimmer": 0.3,
+      "cavity": 0.9,
+      "sympathy": 0.4
+    },
+    "Halo": {
+      "decay": 7,
+      "touch": 0.2,
+      "position": 0.5,
+      "shimmer": 0.85,
+      "cavity": 0.3,
+      "sympathy": 1
+    },
+    "Tongue drum": {
+      "type": 1,
+      "decay": 7,
+      "touch": 0.15,
+      "position": 0.2,
+      "shimmer": 0.25,
+      "cavity": 0.6
+    },
+    "Rain taps": {
+      "decay": 1.2,
+      "touch": 0.55,
+      "position": 0.85,
+      "cavity": 0.35,
+      "sympathy": 0.3,
+      "damp": 0.8
+    },
+    "Knuckles": {
+      "decay": 2.8,
+      "touch": 0.9,
+      "position": 0.6,
+      "shimmer": 0.5,
+      "cavity": 0.6
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. Models the PANArt Hang, the handpans that followed it and the steel tongue drum in outline, after the measurements of Rossing, Morrison, Hansen, Rohner and Scharer (Acoustics of the Hang, 2007; Physics Today, 2009): note fields tuned to fundamental, octave and twelfth, a Helmholtz cavity excited by every tap, soft hand excitation, and notes that ring each other through the shared shell. Simplified: three tuned modes and two weak shell modes a note by modal synthesis; the shell is one energy-conserving coupling between the tuned modes of the notes that are ringing, not a set of always-present note fields; the brightening after a hard strike is the fundamental's own square and cube fed to the octave and twelfth for about 15 ms; no pitch settle after a strike; any key plays, not a fixed scale. Choices, not measurements of an instrument: contact time 6 ms to 1.5 ms, ring times of octave, twelfth and shell modes at 0.8, 0.6 and 0.15 of the fundamental's, shell modes at 4.2 and 5.6 times the fundamental, the cavity at 80 Hz with a Q of 8, detuning of up to 8 cents capped near 2 Hz, the strength of the coupling, the tongue drum's levels. Not a sample or circuit emulation."
+  }
+}
