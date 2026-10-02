@@ -273,9 +273,24 @@ test('saves and restores the plug-in state', async () => {
 
   control.notify('setParam', { slot: slot.slot, index: 0, value: 0.1 })
   await sleep(50)
+  const heard = control.events.length
   const restored = await control.call('setState', { slot: slot.slot, state })
   near(restored.params[0].value, 0.75)
   assert.equal(restored.latencySamples, GAIN_DELAY)
+  // The answer said where every parameter is: the restore is not told again
+  // as the plug-in turning its own knobs, which would arrive after a client
+  // has set its values on top.
+  control.notify('setParam', { slot: slot.slot, index: 0, value: 0.4 })
+  await sleep(150)
+  const told = control.events
+    .slice(heard)
+    .filter((entry) => entry.event === 'params' && entry.slot === slot.slot)
+    .flatMap((entry) => entry.changes)
+  assert.deepEqual(
+    told.map((change) => [change.index, change.origin]),
+    [[0, 'client']],
+  )
+  near(told[0].value, 0.4)
   await assert.rejects(control.call('setState', { slot: slot.slot, state: '***' }), /base64/)
   await control.call('unload', { slot: slot.slot })
 

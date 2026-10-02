@@ -327,7 +327,10 @@ bool PluginSlot::setState (const juce::String& base64)
     plugin->suspendProcessing (true);
     plugin->setStateInformation (decoded.getData(), static_cast<int> (decoded.getDataSize()));
     plugin->suspendProcessing (false);
-    markAllDirty (Origin::plugin);
+    // The answer to the request carries every value as the state left it.
+    // Reporting them again as the plug-in's own changes would reach a client
+    // after it has put its values on top, and read as someone turning them back.
+    markAllDirty (Origin::none);
     return true;
 }
 

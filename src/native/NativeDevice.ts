@@ -247,6 +247,8 @@ export class NativeDevice
   readonly stateful = true as const
   // The state last read from the plug-in or given to it.
   private knownState: string | undefined
+  // How many restores were asked for, so a read can tell one happened meanwhile.
+  private stateRestores = 0
   private editorShown = false
   private readonly notes = new Map<number, number>()
   private readonly unsubscribe: (() => void)[] = []
@@ -588,8 +590,11 @@ export class NativeDevice
 
   /** The plug-in's full state as base64: what its own preset or project file would hold. */
   async getState(): Promise<string> {
+    const restores = this.stateRestores
     const state = await this.client.getState(this.slot.slot)
-    this.knownState = state
+    // A restore asked for while this read was out has the last word on what
+    // the plug-in holds: an older read must not pass for it afterwards.
+    if (restores === this.stateRestores) this.knownState = state
     return state
   }
 
@@ -603,6 +608,7 @@ export class NativeDevice
    */
   async setState(state: string): Promise<boolean> {
     if (this.disposed || state === this.knownState) return false
+    this.stateRestores += 1
     const { params, latencySamples } = await this.client.setState(this.slot.slot, state)
     this.mirror(params)
     this.setPluginLatency(latencySamples)
@@ -700,7 +706,7 @@ export class NativeDevice
         change.origin === 'plugin' ? fromNormalised(spec, change.value) : this.getParam(key)
       this.values.set(key, value)
       this.changes.emit({ type: 'param', name: key, value })
-      // After a state restore the plug-in reports every parameter, most of
+      // A plug-in that changes program reports every parameter, most of
       // them where they already were: only a value that moved is an edit.
       if (change.origin === 'plugin' && previous !== value) this.edits.emit({ name: key, value })
     }

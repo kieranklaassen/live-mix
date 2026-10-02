@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import {
   isEditorDevice,
@@ -31,6 +31,7 @@ import {
 import {
   FAKE_HOST_ADDRESS,
   FAKE_REVERB,
+  FAKE_STATE,
   FAKE_SYNTH,
   FakePluginHost,
 } from '../../testing/fake-plugin-host'
@@ -307,6 +308,25 @@ describe('NativeDevice parameters', () => {
     expect(seen).toContainEqual({ type: 'param', name: 'p100', value: 0.75 })
     expect(device.latencySamples).toBe(512 + 256)
     expect(ctx.delays[0].delayTime.value).toBeCloseTo(768 / 48000, 9)
+  })
+
+  it('a read answered after a restore does not pass for what the plug-in holds', async () => {
+    const { device, client, host } = await makeDevice()
+    // The read's answer is held up until after the restore has landed.
+    const ask = client.getState.bind(client)
+    let land = (): void => {}
+    vi.spyOn(client, 'getState').mockImplementationOnce(async (slot) => {
+      const state = await ask(slot)
+      await new Promise<void>((resolve) => (land = resolve))
+      return state
+    })
+    const reading = device.getState()
+    expect(await device.setState('bmV3')).toBe(true)
+    land()
+    expect(await reading).toBe(FAKE_STATE)
+    // The plug-in holds the restored state, so the older one is loaded when it is given back.
+    expect(await device.setState(FAKE_STATE)).toBe(true)
+    expect(host.calls('setState')).toHaveLength(2)
   })
 
   it('a state it already holds is not loaded again: the one it read, started from or was given', async () => {
