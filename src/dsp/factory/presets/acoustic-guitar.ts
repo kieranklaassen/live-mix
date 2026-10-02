@@ -4,7 +4,7 @@ export const ACOUSTIC_GUITAR_PRESETS: readonly FactoryPreset[] = [
   {
     id: 'steel-fingerstyle-room',
     name: 'Steel fingerstyle room',
-    category: 'string',
+    category: 'plucked',
     description: 'A steel-string guitar picked with the fingers, close, in a small wooden room.',
     instrument: {
       deviceId: 'acoustic-guitar',
@@ -17,7 +17,7 @@ export const ACOUSTIC_GUITAR_PRESETS: readonly FactoryPreset[] = [
   {
     id: 'nylon-at-dusk',
     name: 'Nylon at dusk',
-    category: 'string',
+    category: 'plucked',
     description:
       'A few round nylon notes played with the pad of the finger, on worn tape, left in a very large space.',
     instrument: { deviceId: 'acoustic-guitar', preset: 'Nylon dusk', params: { volume: -3 } },
@@ -30,7 +30,7 @@ export const ACOUSTIC_GUITAR_PRESETS: readonly FactoryPreset[] = [
   {
     id: 'twelve-string-hall',
     name: 'Twelve string hall',
-    category: 'string',
+    category: 'plucked',
     description:
       'Twelve strings in octave and unison pairs, strummed with a pick and heard in a hall.',
     instrument: { deviceId: 'acoustic-guitar', preset: 'Twelve string', params: { volume: -5 } },
@@ -40,7 +40,7 @@ export const ACOUSTIC_GUITAR_PRESETS: readonly FactoryPreset[] = [
   {
     id: 'open-strings-ringing',
     name: 'Open strings ringing',
-    category: 'string',
+    category: 'plucked',
     description:
       'Steel strings left to ring into each other, with tuned strings that answer and a quiet room behind.',
     instrument: { deviceId: 'acoustic-guitar', preset: 'Let ring', params: { volume: -6 } },
@@ -53,7 +53,7 @@ export const ACOUSTIC_GUITAR_PRESETS: readonly FactoryPreset[] = [
   {
     id: 'muted-acoustic-echo',
     name: 'Muted acoustic echo',
-    category: 'string',
+    category: 'plucked',
     description:
       'Short muted plucks near the bridge that a three-head tape echo turns into a pattern, with a spring behind.',
     instrument: { deviceId: 'acoustic-guitar', preset: 'Muted pattern', params: { volume: 0 } },

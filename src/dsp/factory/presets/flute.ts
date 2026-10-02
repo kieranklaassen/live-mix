@@ -6,7 +6,7 @@ export const FLUTE_PRESETS: readonly FactoryPreset[] = [
   {
     id: 'flute-in-a-hall',
     name: 'Flute in a hall',
-    category: 'voice',
+    category: 'wind',
     description:
       'A concert flute as it comes, a little breath in the tone, with a long hall behind it.',
     instrument: { deviceId: 'flute', preset: 'Concert flute', params: { volume: -7 } },
@@ -16,7 +16,7 @@ export const FLUTE_PRESETS: readonly FactoryPreset[] = [
   {
     id: 'temple-shakuhachi',
     name: 'Temple shakuhachi',
-    category: 'voice',
+    category: 'wind',
     description:
       'A breathy bamboo flute that bends up into each note, alone in a very large stone room.',
     instrument: { deviceId: 'flute', preset: 'Shakuhachi', params: { volume: -11 } },
@@ -26,7 +26,7 @@ export const FLUTE_PRESETS: readonly FactoryPreset[] = [
   {
     id: 'pan-pipes-on-tape',
     name: 'Pan pipes on tape',
-    category: 'voice',
+    category: 'wind',
     description: 'Hollow stopped pipes with a puff on every note, repeated by three tape heads.',
     instrument: { deviceId: 'flute', preset: 'Pan pipes', params: { volume: -7 } },
     effects: [
@@ -38,7 +38,7 @@ export const FLUTE_PRESETS: readonly FactoryPreset[] = [
   {
     id: 'canyon-flute',
     name: 'Canyon flute',
-    category: 'voice',
+    category: 'wind',
     description:
       'A round wood flute with a small scoop and a gentle vibrato, far off in open space.',
     instrument: { deviceId: 'flute', preset: 'Canyon flute' },

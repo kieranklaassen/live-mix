@@ -6,7 +6,7 @@ export const HORNS_PRESETS: readonly FactoryPreset[] = [
   {
     id: 'horn-section-hall',
     name: 'Horns in a hall',
-    category: 'pad',
+    category: 'wind',
     description:
       'Three horns to a key, swelling in and warming as they grow, with a concert hall behind them.',
     instrument: { deviceId: 'horns', preset: 'Horn swell' },
@@ -16,7 +16,7 @@ export const HORNS_PRESETS: readonly FactoryPreset[] = [
   {
     id: 'breathy-fifths-trumpet',
     name: 'Trumpet in fifths',
-    category: 'pad',
+    category: 'wind',
     description:
       'A soft trumpet that is half air, shadowed a fifth above, its tape echoes trailing into open space.',
     instrument: { deviceId: 'horns', preset: 'Parallel fifths', params: { volume: -3 } },
@@ -29,7 +29,7 @@ export const HORNS_PRESETS: readonly FactoryPreset[] = [
   {
     id: 'flugelhorn-close',
     name: 'Flugelhorn up close',
-    category: 'pad',
+    category: 'wind',
     description:
       'One flugelhorn played quietly into the microphone, breath and all, in a small warm room.',
     instrument: { deviceId: 'horns', preset: 'Flugel breath', params: { volume: -3 } },
@@ -42,7 +42,7 @@ export const HORNS_PRESETS: readonly FactoryPreset[] = [
   {
     id: 'low-brass-choir',
     name: 'Low brass choir',
-    category: 'pad',
+    category: 'wind',
     description:
       'Trombones and tuba, four to a note, rising slowly out of a very large and dark space.',
     instrument: { deviceId: 'horns', preset: 'Low brass choir', params: { attack: 2.5 } },
@@ -52,7 +52,7 @@ export const HORNS_PRESETS: readonly FactoryPreset[] = [
   {
     id: 'muted-trumpet-far',
     name: 'Muted trumpet, far off',
-    category: 'pad',
+    category: 'wind',
     description:
       'A thin, nasal muted trumpet heard from a distance through worn tape echo and a long hall.',
     instrument: { deviceId: 'horns', preset: 'Muted distance', params: { volume: -2 } },

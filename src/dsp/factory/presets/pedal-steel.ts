@@ -4,7 +4,7 @@ export const PEDAL_STEEL_PRESETS: readonly FactoryPreset[] = [
   {
     id: 'steel-slow-chords',
     name: 'Slow steel chords',
-    category: 'string',
+    category: 'plucked',
     description:
       'A pedal steel swelled in with the volume pedal, so chords rise out of an amp spring and a long plate.',
     instrument: { deviceId: 'pedal-steel', preset: 'Slow steel' },
@@ -17,7 +17,7 @@ export const PEDAL_STEEL_PRESETS: readonly FactoryPreset[] = [
   {
     id: 'steel-still-glass',
     name: 'Still glass steel',
-    category: 'string',
+    category: 'plucked',
     description:
       'Steel strings with no vibrato, faded in over a second and a half and held in a very large, dark space.',
     instrument: { deviceId: 'pedal-steel', preset: 'Still glass', params: { volume: -10.5 } },
@@ -30,7 +30,7 @@ export const PEDAL_STEEL_PRESETS: readonly FactoryPreset[] = [
   {
     id: 'steel-long-slides',
     name: 'Long steel slides',
-    category: 'string',
+    category: 'plucked',
     description:
       'One string that slides to every overlapping note within an octave, trailing tape echo into a hall.',
     instrument: { deviceId: 'pedal-steel', preset: 'Long slides', params: { volume: -7 } },
@@ -43,7 +43,7 @@ export const PEDAL_STEEL_PRESETS: readonly FactoryPreset[] = [
   {
     id: 'steel-singing-lead',
     name: 'Singing steel lead',
-    category: 'string',
+    category: 'plucked',
     description:
       'A lead that bends between neighbouring notes under a slow, deep bar vibrato, with three echoes and a plate.',
     instrument: { deviceId: 'pedal-steel', preset: 'Singing lead', params: { volume: -6 } },
@@ -56,7 +56,7 @@ export const PEDAL_STEEL_PRESETS: readonly FactoryPreset[] = [
   {
     id: 'lap-steel-tremolo',
     name: 'Lap steel tremolo',
-    category: 'string',
+    category: 'plucked',
     description:
       'A bright lap steel picked hard with no swell, through amp tremolo and a dripping spring tank.',
     instrument: { deviceId: 'pedal-steel', preset: 'Lap slide', params: { volume: -6 } },

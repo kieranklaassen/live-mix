@@ -4,7 +4,7 @@ export const CHORD_HARP_PRESETS: readonly FactoryPreset[] = [
   {
     id: 'evening-chord-harp',
     name: 'Evening chord harp',
-    category: 'keys',
+    category: 'plucked',
     description:
       'A held chord strummed up three octaves of soft electronic strings, in a slow chorus and a hall.',
     instrument: { deviceId: 'chord-harp', preset: 'Evening strum', params: { volume: -6 } },
@@ -17,7 +17,7 @@ export const CHORD_HARP_PRESETS: readonly FactoryPreset[] = [
   {
     id: 'harp-slow-cascade',
     name: 'Slow harp cascade',
-    category: 'keys',
+    category: 'plucked',
     description:
       'The chord climbs four octaves one dark string at a time and comes back down, with tape repeats.',
     instrument: { deviceId: 'chord-harp', preset: 'Slow cascade' },
@@ -30,7 +30,7 @@ export const CHORD_HARP_PRESETS: readonly FactoryPreset[] = [
   {
     id: 'harp-chime-keys',
     name: 'Chime keys',
-    category: 'keys',
+    category: 'plucked',
     description: 'No strum: every key is one bright electronic pluck, ringing into a long spring.',
     instrument: { deviceId: 'chord-harp', preset: 'Single chimes' },
     effects: [{ deviceId: 'spring-reverb', preset: 'Long three spring', params: { mix: 0.3 } }],
@@ -39,7 +39,7 @@ export const CHORD_HARP_PRESETS: readonly FactoryPreset[] = [
   {
     id: 'harp-pad-and-sparkle',
     name: 'Pad and sparkle',
-    category: 'keys',
+    category: 'plucked',
     description:
       'A soft organ chord with its notes scattered above it in no order, wide, in a very large space.',
     instrument: { deviceId: 'chord-harp', preset: 'Pad and sparkle' },
@@ -52,7 +52,7 @@ export const CHORD_HARP_PRESETS: readonly FactoryPreset[] = [
   {
     id: 'toy-harp-tape',
     name: 'Toy harp on tape',
-    category: 'keys',
+    category: 'plucked',
     description:
       'A quick downward strum of short, bright strings over two octaves, on tape in a small room.',
     instrument: { deviceId: 'chord-harp', preset: 'Toy harp' },

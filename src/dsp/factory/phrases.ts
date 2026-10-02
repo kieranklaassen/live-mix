@@ -67,6 +67,8 @@ const CATEGORY_PHRASE: Readonly<Record<FactoryPresetCategory, FactoryPhraseName>
   keys: 'keys',
   bell: 'bells',
   string: 'chord',
+  plucked: 'keys',
+  wind: 'line',
   voice: 'chord',
   organ: 'chord',
   drone: 'low',
