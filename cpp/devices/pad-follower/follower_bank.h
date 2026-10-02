@@ -362,14 +362,6 @@ class FollowerBank {
   // recent peak (a peak that itself decays with kPeakSeconds).
   static constexpr float kGoneRatio = 0.3f;
   static constexpr float kPeakSeconds = 0.15f;
-  static constexpr float kFastSeconds = 0.008f;
-  static constexpr float kOctaveSeconds = 0.06f;
-  static constexpr float kTrustRiseSeconds = 0.012f;
-  static constexpr float kTrustFallSeconds = 0.06f;
-  // |s2|²(1 + t²)(1 − r)²/|s1|² is 1 for a steady partial; past this the band is ringing.
-  static constexpr float kRingRatio = 1.45f;
-  // The held detune is noted every 8 ms; a rewind goes back 8 to 16 ms.
-  static constexpr int kKeepTicks = 12;
   // The second section at full Octaves, against the unshifted pad.
   static constexpr float kOctaveLevel = 0.9f;
   static constexpr float kCommitSeconds = 0.025f;

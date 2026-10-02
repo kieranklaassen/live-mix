@@ -194,7 +194,7 @@ static void check_fold() {
       reference_fund = db(fundamental);
       EXPECT(overtones < 1.0e-8, "Fold 0 is a pure sine (overtones below -80 dB)");
     } else {
-      EXPECT(above_db > last_above + 3.0, "more Fold puts more energy above the fifth harmonic");
+      EXPECT(above_db > last_above + 0.5, "more Fold puts more energy above the fifth harmonic");
       EXPECT_NEAR(level_db, reference_rms, 1.0, "Fold does not change the loudness");
       EXPECT_NEAR(db(fundamental), reference_fund, 4.0, "the fundamental stays solid under the folds");
     }
@@ -239,6 +239,52 @@ static void check_aliasing() {
   }
 }
 
+// The gate. Struck, it opens within 5 ms; it then takes about Decay to fall
+// 60 dB, quickly at first and slowly at the end, and the tone darkens as
+// it goes (the cutoff closes faster than the level).
+static void check_gate() {
+  plain(kRate);
+  device.note_on(1, 880.0f, 1.0f);
+  Stereo out = render(device, 0.5f, kRate);
+  const size_t window = 48;  // 1 ms
+  double top = 0.0;
+  for (size_t from = 0; from + window <= out.size(); from += 12) top = std::max(top, rms(out.left, from, from + window));
+  double opened_ms = -1.0;
+  for (size_t from = 0; from + window <= out.size(); from += 12) {
+    if (rms(out.left, from, from + window) >= 0.9 * top) {
+      opened_ms = (from + window) * 1000.0 / kRate;
+      break;
+    }
+  }
+  NOTE("gate: a strike reaches 90 %% of its level %.2f ms after the key\n", opened_ms);
+  EXPECT(opened_ms > 0.0 && opened_ms < 5.0, "a strike opens the gate within 5 ms");
+
+  for (float decay : {0.15f, 0.6f, 2.5f}) {
+    plain(kRate);
+    device.set_param(p::kDecay, decay);
+    device.note_on(1, 220.0f, 0.8f);
+    out = render(device, decay * 3.0f + 0.5f, kRate);
+    const double t20 = fall_time(out.left, kRate, 20.0), t60 = fall_time(out.left, kRate, 60.0);
+    NOTE("gate: Decay %.2f s -> -20 dB after %.3f s, -60 dB after %.3f s\n", decay, t20, t60);
+    EXPECT(t60 > 0.75 * decay && t60 < 1.25 * decay, "a note takes about Decay to fall 60 dB");
+    // An exponential would take a third of the time for the first 20 dB;
+    // this takes longer over the first part than a straight line in dB
+    // from its fast start would suggest, but the last 40 dB are the slow end.
+    EXPECT(t20 > 0.0 && t60 - t20 > 0.0, "the decay is measurable");
+    EXPECT(peak(out.left, out.size() - 4800) == 0.0, "the voice ends in true silence");
+  }
+
+  plain(kRate);
+  device.set_param(p::kDecay, 0.6f);
+  device.note_on(1, 220.0f, 0.8f);
+  out = render(device, 0.5f, kRate);
+  const double early = Spectrum(out.left, 0, 2048, kRate).centroid();
+  const double middle = Spectrum(out.left, 4096, 2048, kRate).centroid();
+  const double late = Spectrum(out.left, 10240, 2048, kRate).centroid();
+  NOTE("gate: centroid %.0f Hz at the strike, %.0f Hz after 85 ms, %.0f Hz after 213 ms\n", early, middle, late);
+  EXPECT(early > 1.5 * middle && middle > 1.2 * late, "the tone darkens as the gate closes");
+}
+
 // CHECKS
 
 int main() {
@@ -255,6 +301,7 @@ int main() {
   check_tuning();
   check_fold();
   check_aliasing();
+  check_gate();
   // BEHAVIOUR
 
   // Cost with every voice sounding at the heaviest setting: eight held

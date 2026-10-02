@@ -205,6 +205,11 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
   static constexpr float kMaxDriveDb = 42.0f;
 
   static float safety(float x) {
+#ifdef LIVEMIX_ANALOG_DRIVE_RAW_MAKEUP
+    // Calibrating the make-up table: the circuits are measured with a fixed
+    // 12 dB after them, which this stage would otherwise be holding down.
+    return x;
+#endif
     const float magnitude = x < 0.0f ? -x : x;
     if (magnitude <= kSafetyKnee) return x;
     const float range = kSafetyCeiling - kSafetyKnee;

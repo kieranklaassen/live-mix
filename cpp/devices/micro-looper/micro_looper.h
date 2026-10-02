@@ -536,8 +536,8 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
   void play(Deck& d, double step, bool wide, float* wet, float* side) {
     float loop[2];
     loop_read(d, d.place, d.offset, &loop[0], &loop[1]);
-    const float fade = d.linear ? d.env : kit::SineTable::lookup(0.25f * d.env);
-    const float gain = d.gain * (d.env >= 1.0f ? 1.0f : fade);
+    float gain = d.gain;
+    if (d.env < 1.0f) gain *= d.linear ? d.env : kit::SineTable::lookup(0.25f * d.env);
     // Smear: grains from around the playhead, moving at the loop's speed.
     if (grain_gain_ > 0.0f && !d.releasing) {
       d.until_grain -= 1.0f;
