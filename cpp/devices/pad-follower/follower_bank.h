@@ -105,13 +105,11 @@ class FollowerBank {
       last_r_[b] = last_i_[b] = 0.0f;
       mag_[b] = level_[b] = 0.0f;
       env1_[b] = env2_[b] = 0.0f;
-      dev_est_[b] = dev_[b] = 0.0f;
-      trust_[b] = reading_[b] = 0.0f;
+      dev_[b] = 0.0f;
+      trust_[b] = estimate_[b] = peak_[b] = 0.0f;
       kept_[b] = kept_older_[b] = 0.0f;
-      rewound_[b] = false;
+      age_[b] = 0;
     }
-    keep_counter_ = 0;
-    keep_now_ = false;
     counter_ = 0;
     sounding_ = false;
     down_active_ = false;
@@ -176,8 +174,6 @@ class FollowerBank {
     // Keep the pad's power about level as the second section comes in.
     const float trim = 1.0f / std::sqrt(1.0f + up * up + down * down);
     down_active_ = down > 0.0f;
-    keep_now_ = ++keep_counter_ >= kKeepTicks;
-    if (keep_now_) keep_counter_ = 0;
     bool any = false;
     for (int b = 0; b < kBands; ++b) any = steer(b, up, down, trim) || any;
     sounding_ = any;
@@ -201,19 +197,11 @@ class FollowerBank {
 
     // What the band hears: the phase z advanced since the last tick, less
     // what the centre frequency turns in that time, is the detune of the
-    // partial in it. The resonator's own response at a detune d is
-    // 1/(1 + jt)² with t = d·r/(1 − r), which the code below divides out
-    // wherever it needs the partial rather than the filtered partial.
-    //
-    // Is that partial steady? Compare the two stages: in a steady state
-    // |s2|·(1 + t²) equals |s1|/(1 − r). The second stage lags on an onset
-    // and rings on after the input stops, which shows in this ratio long
-    // before the level itself has moved, and before the ringing (which is at
-    // the band centre, not at the played pitch) can pull the estimate.
-    float confidence = 0.0f;
+    // partial in it. Averaged as an angle, without weighting by power, the
+    // reading of a band that holds two partials settles on the stronger one
+    // (the weaker only makes the phase wobble around it).
     float measured = 0.0f;
-    bool ringing = false;
-    if (m > 1.0e-7f && first2 > 0.0f) {
+    if (m > 1.0e-7f) {
       const float dr = zr * last_r_[b] + zi * last_i_[b];
       const float di = zi * last_r_[b] - zr * last_i_[b];
       const float er = dr * unlag_r_[b] - di * unlag_i_[b];
@@ -226,58 +214,61 @@ class FollowerBank {
       } else {
         angle = std::atan2(ei, er);
       }
-      measured = kit::clamp(angle * (1.0f / kTick), -max_dev_[b], max_dev_[b]);
-      const float tm = detune_scale_[b] * measured;
-      const float ratio = m2 * (1.0f + tm * tm) * stage_norm_[b] / first2;
-      ringing = ratio >= kRingRatio;
-      float steady = kit::clamp((ratio - 0.45f) * 5.0f, 0.0f, 1.0f) *
-                     kit::clamp((kRingRatio - ratio) * 4.0f, 0.0f, 1.0f);
-      // Two readings in a row have to agree (to within a fifth of a band):
-      // noise and the splash of an attack do not.
-      const float jump = std::fabs(measured - reading_[b]) * share_scale_[b];
-      steady *= kit::clamp(2.0f - jump * 5.0f, 0.0f, 1.0f);
-      const float mag2 = mag * mag;
-      confidence = steady * mag2 / (mag2 + 0.0625f * threshold2_);
+      measured = angle * (1.0f / kTick);
     }
 
-    float pull = 0.0f;
-    if (confidence > 0.0f) {
-      if (trust_[b] < 0.05f) {
-        // A band that was not following anything takes the first steady
-        // reading as it is.
-        dev_est_[b] = dev_[b] = measured;
-        kept_[b] = kept_older_[b] = measured;
-      } else {
-        dev_est_[b] += estimate_ * confidence * (measured - dev_est_[b]);
-        dev_[b] += commit_ * confidence * (dev_est_[b] - dev_[b]);
-      }
-      // Lock: the partial's phase (z with the resonator's shift undone)
-      // against the oscillator's.
-      const float tl = detune_scale_[b] * dev_[b];
-      const float cr = 1.0f - tl * tl, ci = 2.0f * tl;
-      const float pr = zr * cr - zi * ci;
-      const float pi = zr * ci + zi * cr;
-      const float error = (pi * ur_[b] - pr * ui_[b]) / (m * (1.0f + tl * tl));
-      pull = lock_[b] * confidence * error;
+    // Is the partial still being played? Its level against the recent peak:
+    // a band rings on at its own centre once the input stops, so readings
+    // taken after that are worthless.
+    const float recent = kit::max(mag, peak_[b] * peak_decay_);
+    peak_[b] = recent;
+    const float mag2 = mag * mag;
+    float presence = 0.0f;
+    if (mag > 1.0e-7f) {
+      presence = kit::clamp((mag / recent - kGoneRatio) * 5.0f, 0.0f, 1.0f) * mag2 /
+                 (mag2 + 0.0625f * threshold2_);
     }
-    reading_[b] = measured;
-    // When a followed partial stops, the last few readings before the ring
-    // was noticed were already bent towards the band centre. Go back to the
-    // detune held a moment earlier, so the pad hangs on at the played pitch.
-    if (ringing && trust_[b] > 0.5f && !rewound_[b]) {
-      dev_est_[b] = dev_[b] = kept_older_[b];
-      rewound_[b] = true;
-    } else if (confidence > 0.9f) {
-      rewound_[b] = false;
-      if (keep_now_ && trust_[b] > 0.9f) {
+    bool settled = false;
+    if (presence > 0.0f) {
+      if (age_[b] == 0) estimate_[b] = kit::clamp(measured, -max_dev_[b], max_dev_[b]);
+      estimate_[b] += estimate_coeff_[b] * (measured - estimate_[b]);
+      estimate_[b] = kit::clamp(estimate_[b], -max_dev_[b], max_dev_[b]);
+      if (age_[b] < 30000) ++age_[b];
+      if (age_[b] == settle_[b]) {
+        // A band that starts to follow takes the settled reading as it is.
+        kept_[b] = kept_older_[b] = estimate_[b];
+        if (level_[b] < 1.0e-4f) dev_[b] = estimate_[b];
+      } else if (age_[b] > settle_[b] && (age_[b] - settle_[b]) % keep_[b] == 0) {
         kept_older_[b] = kept_[b];
-        kept_[b] = dev_[b];
+        kept_[b] = estimate_[b];
       }
+      settled = age_[b] >= settle_[b];
+    } else {
+      // Gone. The newer note of the reading may already be bent by the ring.
+      age_[b] = 0;
+      kept_[b] = kept_older_[b];
     }
-    const float trust = trust_[b] + (confidence - trust_[b]) * (confidence > trust_[b] ? trust_rise_ : trust_fall_);
+    // The oscillator follows the reading as it stood one to two notes ago:
+    // by the time a ring is noticed it has not been heard.
+    dev_[b] += commit_ * (kept_older_[b] - dev_[b]);
+    const float follow = settled ? presence : 0.0f;
+    const float trust = trust_[b] + (follow - trust_[b]) * (follow > trust_[b] ? trust_rise_ : trust_fall_);
     trust_[b] = trust < 1.0e-6f ? 0.0f : trust;
+
+    // The resonator's own response at a detune d is 1/(1 + jt)² with
+    // t = d·r/(1 − r); dividing it out gives the partial itself.
     const float t = detune_scale_[b] * dev_[b];
     const float boost = 1.0f + t * t;
+    float pull = 0.0f;
+    if (follow > 0.0f) {
+      // Lock: the partial's phase (z with the resonator's shift undone)
+      // against the oscillator's.
+      const float cr = 1.0f - t * t, ci = 2.0f * t;
+      const float pr = zr * cr - zi * ci;
+      const float pi = zr * ci + zi * cr;
+      const float error = (pi * ur_[b] - pr * ui_[b]) / (m * boost + 1.0e-12f);
+      pull = lock_[b] * follow * error;
+    }
     last_r_[b] = zr;
     last_i_[b] = zi;
     set_rotation(b, dev_[b] + pull);
@@ -394,11 +385,9 @@ class FollowerBank {
   float last_r_[kBands] = {}, last_i_[kBands] = {};
   float mag_[kBands] = {}, level_[kBands] = {};
   float env1_[kBands] = {}, env2_[kBands] = {};
-  float dev_est_[kBands] = {}, dev_[kBands] = {}, trust_[kBands] = {}, reading_[kBands] = {};
+  float estimate_[kBands] = {}, dev_[kBands] = {}, trust_[kBands] = {}, peak_[kBands] = {};
   float kept_[kBands] = {}, kept_older_[kBands] = {};
-  bool rewound_[kBands] = {};
-  int keep_counter_ = 0;
-  bool keep_now_ = false;
+  int age_[kBands] = {};
 };
 
 }  // namespace pad_follower

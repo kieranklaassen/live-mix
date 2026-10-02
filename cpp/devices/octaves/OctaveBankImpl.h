@@ -55,6 +55,7 @@ inline void OctaveBank::init(float rate, float low_hz, float high_hz, int count)
   slow_count_ = 0;
   parity_ = 0;
   tick_peak_ = 0.0f;
+  attack_fresh_ = false;
   peak_index_ = 0;
   for (float& v : peak_ring_) v = 0.0f;
   jump_index_ = 0;
@@ -508,6 +509,11 @@ inline void OctaveBank::tick() {
   slow_count_ = (slow_count_ + 1) & 3;
   const bool slow_tick = slow_count_ == 0;
   if (slow_tick) leak_floor();
+  if (attack_fresh_) {
+    // Attack has just been turned up: what is sounding stays as it is.
+    for (int k = 0; k < bands_; ++k) slow_[k] = std::sqrt(power_[k]);
+    attack_fresh_ = false;
+  }
   // Release. A narrow channel rings on after its note has stopped, for a
   // third of a second at the bottom of the range; the input itself says
   // when to stop. The voices may hold no more than a few times the input's
@@ -578,8 +584,16 @@ inline void OctaveBank::tick() {
       }
       if (leak * leak > around) around = leak * leak;
       if (first * first_scale_[k] > around) {
+        const int g = grid_of_[k];
         age_[k] = 0.0f;
-        age_[grid_of_[k]] = 0.0f;
+        age_[g] = 0.0f;
+        if (attack_coeff_ > 0.0f) {
+          // Attack: what the two channels hold now (the last stage has not
+          // heard the new note yet) stays; what the note adds fades in.
+          const float mine = std::sqrt(power_[k]), theirs = std::sqrt(power_[g]);
+          if (slow_[k] > mine) slow_[k] = mine;
+          if (slow_[g] > theirs) slow_[g] = theirs;
+        }
       }
     }
     const float delayed = jump_ring_[jump_index_][k];
@@ -689,7 +703,10 @@ inline void OctaveBank::tick() {
       unit_im[k] = (zr * unskew_im_[k] + zi * unskew_re_[k]) * inv;
     }
     if (attack_coeff_ > 0.0f) {
-      // Attack: the allowed level rises at the set rate and falls at once.
+      // Attack: the level a channel's voices are allowed rises at the set
+      // rate and is taken down only by a new note (above). It does not
+      // follow the level down: two partials beating in one channel would
+      // be held to the troughs of their beat.
       const float level = std::sqrt(power_[k]);
       if (settled[k] < 1.0f) {
         // Sitting out behind its grid channel, which carries the note for
@@ -700,8 +717,6 @@ inline void OctaveBank::tick() {
         slow_[k] = theirs > slow_[g] ? level * slow_[g] / theirs : level;
       } else if (level > slow_[k]) {
         slow_[k] += attack_coeff_ * (level - slow_[k]);
-      } else {
-        slow_[k] = level;
       }
     }
     // A channel that is sitting out does not compete for weight either.

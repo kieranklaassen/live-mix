@@ -580,6 +580,66 @@ int main() {
     }
   }
 
+  // Distance: the highs get quieter and the onsets blur.
+  for (int type : {Outdoors::kBirds, Outdoors::kCrickets, Outdoors::kFrogs, Outdoors::kStream, Outdoors::kChimes}) {
+    double top[2] = {}, crest[2] = {}, level[2] = {};
+    for (int far = 0; far < 2; ++far) {
+      plain(device, type);
+      device.set_param(p::kDistance, static_cast<float>(far));
+      const std::vector<float> m = mid(hold(device, 261.63f, 40.0f));
+      const std::vector<double> power = spectrum(m);
+      top[far] = band_power(power, 3000.0, 24000.0);
+      level[far] = rms(m);
+      crest[far] = peak(m) / rms(m);
+    }
+    std::printf("outdoors: %s from far: power above 3 kHz down %.1f dB, level down %.1f dB, crest factor %.1f -> %.1f dB\n",
+                kNames[type], -0.5 * db(top[1] / top[0]), -db(level[1] / level[0]), db(crest[0]), db(crest[1]));
+    std::snprintf(label, sizeof label, "%s: Distance takes the highs down", kNames[type]);
+    EXPECT(top[1] < 0.25 * top[0], label);
+    std::snprintf(label, sizeof label, "%s: Distance blurs what was sharp", kNames[type]);
+    EXPECT(crest[1] < crest[0], label);
+  }
+  {
+    // A cricket's pulses run into each other from far off: the gaps between them fill.
+    double gaps[2] = {};
+    for (int far = 0; far < 2; ++far) {
+      plain(device, Outdoors::kCrickets, 0.0f);
+      device.set_param(p::kDistance, static_cast<float>(far));
+      const std::vector<float> env = frames(mid(hold(device, 261.63f, 20.0f)), 48);
+      const int pulses = count_rises(env, 0.2 * highest(env), 2);
+      const int chirps = count_rises(env, 0.2 * highest(env), 60);
+      gaps[far] = static_cast<double>(pulses) / chirps;
+    }
+    std::printf("outdoors: a cricket's chirp shows %.2f separate pulses near, %.2f from far\n", gaps[0], gaps[1]);
+    EXPECT(gaps[0] > 2.5 && gaps[1] < 0.75 * gaps[0], "Distance: the pulses of a chirp blur together");
+  }
+
+  // Width: every source has its place; at 0 the scene is mono, and the sum
+  // of left and right never loses anything on the way (mono compatible),
+  // near or far.
+  for (int type = 0; type < Outdoors::kKinds; ++type) {
+    double corr[2] = {}, sum[2] = {};
+    bool same = false;
+    for (int far = 0; far < 2; ++far) {
+      plain(device, type, 0.75f);
+      device.set_param(p::kDistance, static_cast<float>(far));
+      Stereo wide = hold(device, 261.63f, 30.0f);
+      plain(device, type, 0.75f);
+      device.set_param(p::kDistance, static_cast<float>(far));
+      device.set_param(p::kWidth, 0.0f);
+      Stereo mono = hold(device, 261.63f, 30.0f);
+      corr[far] = correlation(wide.left, wide.right);
+      sum[far] = rms(mid(mono)) / rms(mid(wide));
+      same = mono.left == mono.right;
+    }
+    std::printf("outdoors: %s: left/right correlation %.2f near, %.2f far; mono fold over the wide sum %.2f / %.2f\n",
+                kNames[type], corr[0], corr[1], sum[0], sum[1]);
+    std::snprintf(label, sizeof label, "%s: Width 1 decorrelates the sides, yet they stay in phase", kNames[type]);
+    EXPECT(corr[0] < 0.97 && corr[1] < corr[0] && corr[1] > 0.1, label);
+    std::snprintf(label, sizeof label, "%s: Width 0 is mono, and the fold keeps the level of the sum", kNames[type]);
+    EXPECT(same && sum[0] > 1.05 && sum[0] < 1.15 && sum[1] > 1.05 && sum[1] < 1.15, label);
+  }
+
   // BEHAVIOUR
 
   // Cost with eight keys held at full Density, per type.

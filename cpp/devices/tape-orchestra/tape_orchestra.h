@@ -2,13 +2,13 @@
 
 // Tape Orchestra: orchestral sections played from a strip of tape per key.
 //
-//   per key (up to 16), three or four players:
+//   per key (up to 16), three or four players, at half the sample rate:
 //     recording (tapes.h) read at  note × player's tuning and vibrato × tape speed
 //       ─► × player's attack, swell and place ─┐
 //     bow / breath noise ─► band-pass ─────────┴─► brightness ─► tape saturation
 //       ─► × dropouts × tape length × attack/release ─┐
 //                                                     ▼
-//   out ◄─ soft clip ◄─ volume ◄─(+ hiss)◄─ tone ◄─ tape band (low cut, roll-off)
+//   out ◄─ soft clip ◄─ volume ◄─(+ hiss)◄─ tone ◄─ tape band ◄─ ×2 (doubler.h)
 //
 // Nothing here is sampled. When a key goes down its "recording" is made on
 // the spot (tapes.h): one period of the instrument at that pitch, built from
@@ -33,10 +33,16 @@
 // length) to twice as long. What the machine does in real time (the lurch,
 // Attack, Release, the hiss) keeps its own pace.
 //
-// Control values move once every 64 samples and ramp linearly in between.
-// A block is rendered in runs that end on those ticks, so the output does
-// not depend on the host's block size. Two recordings are made per tick at
-// most: the last note of a ten-note chord starts 5 ms after the first.
+// The keys run at half the host's sample rate: what is on the tapes ends
+// near a fifth of it, and a halfband filter (doubler.h) brings their sum
+// back up before the tape band, the tone, the hiss and the output level.
+// It costs 23 samples of delay and nothing that can be heard.
+//
+// Control values move once every 64 samples of output and ramp linearly in
+// between. A block is rendered in runs that end on those ticks, so the
+// output does not depend on the host's block size. Two recordings are made
+// per tick at most: the last note of a ten-note chord starts 5 ms after the
+// first.
 //
 // The instrument sleeps when no key sounds, and wakes with its shared
 // filters and noise in the same state every time.
@@ -371,8 +377,9 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
   static constexpr float kPlayerLevel[kMaxPlayers] = {1.0f, 1.0f, 0.85f, 0.7f};
 
   // The tape's curve: a cubic with a trace of asymmetry, flat where it is
-  // clamped. Third order only, so a recording that ends near 10 kHz folds
-  // nothing audible back at 44.1 kHz.
+  // clamped. Third order only and gently driven: what the top of a
+  // recording folds back at the engine's rate is its own weak upper
+  // harmonics times the square of the drive, far under the hiss.
   static constexpr float kEven = 0.05f;
   static constexpr float kClampHigh = 1.0512492f;   // kEven + sqrt(kEven² + 1)
   static constexpr float kClampLow = -0.9512492f;   // kEven - sqrt(kEven² + 1)
@@ -511,7 +518,7 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
     }
   }
 
-  // Every 64 samples: the motor, the waiting notes, the tape band, the keys.
+  // Every tick: the motor, the waiting notes, the tape band, the keys.
   void control() {
     using namespace tape_orchestra;
     const float sr = sample_rate();
@@ -702,7 +709,7 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
     voice.snap = true;
   }
 
-  // One key, every 64 samples: its tape's speed, its players, its level.
+  // One key, every tick: its tape's speed, its players, its level.
   // Returns the weight of its hiss (a power).
   float control_voice(Voice& voice, float dt, float sr) {
     using namespace tape_orchestra;

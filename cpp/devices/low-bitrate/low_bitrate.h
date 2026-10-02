@@ -419,13 +419,36 @@ class LowBitrate : public kit::DeviceBase<low_bitrate::kNumParams> {
   // stream has left gets a new random phase every frame, which is the wash.
   // Magnitudes are those of the complex spectrum (cosine and sine transform
   // together), which do not flicker with the phase of a steady tone.
-  void hang(Engine& engine, int n, float smear, bool jittered) {
+  void hang(Engine& engine, int n, float smear, bool jittered, bool residue) {
     const Layout& layout = layout_[engine.frame];
     const float seconds = kMaxSmearSeconds * smear * smear * smear;
     const float decay = smear >= kSmearFrozen
                             ? 1.0f
                             : (seconds > 0.0f ? std::exp(-6.9077553f * layout.hop_seconds / seconds) : 0.0f);
     const float floor = kHeldFloor * static_cast<float>(n);
+    // Inverse: what passes is the residue, and where a bin was kept that is
+    // its rounding error, which does not turn with the input's phase. Lifting
+    // it by the input's phase (below) then reads a loud partial whose cosine
+    // coefficient happens to cross zero as a loud residue, and the hold would
+    // keep it: a wash many times louder than the sound. So the lifted levels
+    // of a frame are scaled to carry no more energy than the frame has (a
+    // complex spectrum holds twice the energy of its cosine half).
+    float trim = 1.0f;
+    if (residue) {
+      float lifted = 0.0f, real = 0.0f;
+      for (int c = 0; c < 2; ++c) {
+        for (int k = 0; k < n; ++k) {
+          const float source = source_[c][k];
+          const float reference = source < 0.0f ? -source : source;
+          if (reference <= 1.0e-20f) continue;
+          const float size = std::sqrt(source * source + sine_[c][k] * sine_[c][k]);
+          const float level = cosine_[c][k] * kit::min(size / reference, kMaxPhaseLift);
+          lifted += level * level;
+          real += 2.0f * cosine_[c][k] * cosine_[c][k];
+        }
+      }
+      if (lifted > real && lifted > 0.0f) trim = std::sqrt(real / lifted);
+    }
     bool alive = false;
     float passing = 0.0f, hanging = 0.0f;
     for (int c = 0; c < 2; ++c) {
@@ -442,7 +465,7 @@ class LowBitrate : public kit::DeviceBase<low_bitrate::kNumParams> {
         if (jittered) {
           level = size;
         } else {
-          level = reference > 1.0e-20f ? absolute * kit::min(size / reference, kMaxPhaseLift) : 0.0f;
+          level = reference > 1.0e-20f ? trim * absolute * kit::min(size / reference, kMaxPhaseLift) : 0.0f;
         }
         float hold = held[k] * decay;
         const int index = static_cast<int>(angle_rng_.next_u32() >> 22);  // kAngles = 1024
@@ -677,7 +700,7 @@ class LowBitrate : public kit::DeviceBase<low_bitrate::kNumParams> {
       }
     }
     if (smear > 0.0f) {
-      hang(engine, n, smear, mode == kJitter);
+      hang(engine, n, smear, mode == kJitter, mode == kInverse && loss > kLossOff);
     } else if (engine.alive) {
       let_go(engine);
     }

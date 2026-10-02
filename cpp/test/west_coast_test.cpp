@@ -166,6 +166,79 @@ static void check_tuning() {
   EXPECT_NEAR(cents(found, 440.0), 0.0, 3.0, "the default drift keeps a note within 3 cents");
 }
 
+// Fold 0 is a pure sine; turning it up puts more and more energy above the
+// fifth harmonic while the loudness and the fundamental stay put. Symmetry
+// brings in the even harmonics, which are absent at zero.
+static void check_fold() {
+  const float hz = 220.0f;
+  double last_above = -200.0, reference_rms = 0.0, reference_fund = 0.0;
+  for (float fold : {0.0f, 0.2f, 0.4f, 0.6f, 0.8f, 1.0f}) {
+    steady(kRate);
+    device.set_param(p::kFold, fold);
+    device.note_on(1, hz, 0.8f);
+    const Stereo out = render(device, 2.0f, kRate);
+    const Spectrum spectrum(out.left, 16384, 65536, kRate);
+    const double fundamental = spectrum.at(hz);
+    double above = 0.0, overtones = 0.0;
+    for (int k = 2; k * hz < 20000.0f; ++k) {
+      const double level = spectrum.at(k * hz) / fundamental;
+      overtones += level * level;
+      if (k > 5) above += level * level;
+    }
+    const double above_db = 10.0 * std::log10(above + 1.0e-20);
+    const double level_db = db(rms(out.left, 16384));
+    NOTE("fold %.1f: rms %6.2f dB, fundamental %6.2f dB, overtones %6.1f dB, above 5th %6.1f dB\n", fold, level_db,
+         db(fundamental), 10.0 * std::log10(overtones + 1.0e-20), above_db);
+    if (fold == 0.0f) {
+      reference_rms = level_db;
+      reference_fund = db(fundamental);
+      EXPECT(overtones < 1.0e-8, "Fold 0 is a pure sine (overtones below -80 dB)");
+    } else {
+      EXPECT(above_db > last_above + 3.0, "more Fold puts more energy above the fifth harmonic");
+      EXPECT_NEAR(level_db, reference_rms, 1.0, "Fold does not change the loudness");
+      EXPECT_NEAR(db(fundamental), reference_fund, 4.0, "the fundamental stays solid under the folds");
+    }
+    last_above = above_db;
+  }
+  double even_db[3] = {};
+  int n = 0;
+  for (float symmetry : {0.0f, 0.5f, 1.0f}) {
+    steady(kRate);
+    device.set_param(p::kFold, 0.5f);
+    device.set_param(p::kSymmetry, symmetry);
+    device.note_on(1, hz, 0.8f);
+    const Stereo out = render(device, 2.0f, kRate);
+    const Spectrum spectrum(out.left, 16384, 65536, kRate);
+    double even = 0.0;
+    for (int k = 2; k <= 16; k += 2) even += std::pow(spectrum.at(k * hz) / spectrum.at(hz), 2.0);
+    even_db[n++] = 10.0 * std::log10(even + 1.0e-20);
+    EXPECT(std::fabs(mean(out.left, 16384)) < 1.0e-3, "Symmetry leaves no DC at the output");
+  }
+  NOTE("symmetry 0 / 0.5 / 1: even harmonics %.1f / %.1f / %.1f dB re fundamental\n", even_db[0], even_db[1], even_db[2]);
+  EXPECT(even_db[0] < -80.0, "no even harmonics without Symmetry");
+  EXPECT(even_db[1] > -30.0 && even_db[2] > even_db[1] + 2.0, "Symmetry raises the even harmonics");
+}
+
+// The folder stays clean at high notes at 44.1 kHz: with everything it
+// folds, nothing that is not a harmonic stands above -60 dB.
+static void check_aliasing() {
+  const float rate = 44100.0f;
+  for (float hz : {1760.0f, 2637.0f, 3520.0f}) {
+    for (float symmetry : {0.0f, 1.0f}) {
+      steady(rate);
+      device.set_param(p::kFold, 1.0f);
+      device.set_param(p::kSymmetry, symmetry);
+      device.note_on(1, hz, 1.0f);
+      const Stereo out = render(device, 2.0f, rate);
+      const Spectrum spectrum(out.left, 16384, 65536, rate);
+      const double worst = db(spectrum.worst_inharmonic(hz, 20000.0) / spectrum.at(hz));
+      NOTE("aliasing: %4.0f Hz, Fold 1, Symmetry %.0f at 44.1 kHz: worst inharmonic %.1f dB re fundamental\n", hz,
+           symmetry, worst);
+      EXPECT(worst < -60.0, "no inharmonic component above -60 dB at a high note with Fold 1");
+    }
+  }
+}
+
 // CHECKS
 
 int main() {
@@ -180,6 +253,8 @@ int main() {
   check_instrument(device, spec, kRate);
 
   check_tuning();
+  check_fold();
+  check_aliasing();
   // BEHAVIOUR
 
   // Cost with every voice sounding at the heaviest setting: eight held

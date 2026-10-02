@@ -165,7 +165,7 @@ struct Thunder {
     const float bright = clear * std::exp(-3.0f * age);
     // Only a near stroke cracks, and only at its very start.
     const float close = kit::max(0.0f, 1.0f - c.distance / 0.3f);
-    const float crack = t < 0.05f ? 1.1f * size * close * close : 0.6f * amount * bright * bright;
+    const float crack = t < 0.05f ? 0.9f * size * close * close : 0.6f * amount * bright * bright;
     const float weight[kBands] = {crack, amount * (0.2f + 0.8f * bright), amount,
                                   amount * (1.0f - 0.3f * bright)};
     float pan_left, pan_right;

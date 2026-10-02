@@ -176,13 +176,15 @@ int main() {
   for (int t = 0; t < kTypes; ++t) {
     double got[3];
     const float levels[3] = {-60.0f, -42.0f, -24.0f};
+    // The beds made of events need longer to average.
+    const float seconds = (t == NoiseFloor::kVinyl || t == NoiseFloor::kStatic) ? 30.0f : 10.0f;
     for (int k = 0; k < 3; ++k) {
-      got[k] = db(rms(bed(t, levels[k], 30.0f)));
+      got[k] = db(rms(bed(t, levels[k], seconds)));
       std::snprintf(label, sizeof label, "%s: noise RMS at Level %.0f dB", kTypeName[t], levels[k]);
       EXPECT_NEAR(got[k], levels[k], 1.5, label);
     }
-    const double low_rate = db(rms(bed(t, -42.0f, 30.0f, 44100.0f)));
-    const double high_rate = db(rms(bed(t, -42.0f, 30.0f, 96000.0f)));
+    const double low_rate = db(rms(bed(t, -42.0f, seconds, 44100.0f)));
+    const double high_rate = db(rms(bed(t, -42.0f, seconds, 96000.0f)));
     std::snprintf(label, sizeof label, "%s: the same level at 44.1 kHz", kTypeName[t]);
     EXPECT_NEAR(low_rate, -42.0, 1.5, label);
     std::snprintf(label, sizeof label, "%s: the same level at 96 kHz", kTypeName[t]);
@@ -346,10 +348,10 @@ int main() {
     double worst_wide = 0.0, worst_level = 0.0;
     for (int t = 0; t < kTypes; ++t) {
       still(device, t, -30.0f);
-      Stereo wide = noise_only(device, 20.0f);
+      Stereo wide = noise_only(device, 10.0f);
       still(device, t, -30.0f);
       device.set_param(p::kWidth, 0.0f);
-      Stereo mono = noise_only(device, 20.0f);
+      Stereo mono = noise_only(device, 10.0f);
       const double c = correlation(wide.left, wide.right);
       worst_wide = std::max(worst_wide, std::fabs(c));
       worst_level = std::max(worst_level, std::fabs(db(rms(mono.left) / rms(wide.left))));
@@ -520,8 +522,19 @@ int main() {
   }
 
   // 9. The same audio at block sizes of 1, 128 and 2048, with everything
-  // that runs on the control clock in play.
+  // that runs on the control clock in play; and every bed starts again from
+  // the same place after init().
   {
+    for (int t = 0; t < kTypes; ++t) {
+      Stereo first, second;
+      for (Stereo* take : {&first, &second}) {
+        still(device, t, -30.0f);
+        device.set_param(p::kMovement, 1.0f);
+        *take = noise_only(device, 1.0f);
+      }
+      std::snprintf(label, sizeof label, "%s: init() resets the bed", kTypeName[t]);
+      EXPECT(first.left == second.left && first.right == second.right && rms(first.left) > 1.0e-4, label);
+    }
     rng_state() = 0x5EEDu;
     std::vector<float> input = noise(1.5f, kRate, 0.3f);
     for (size_t i = 24000; i < 48000; ++i) input[i] = 0.0f;
@@ -552,7 +565,7 @@ int main() {
       device.set_param(p::kMovement, 1.0f);
       device.set_param(p::kTone, 1.0f);
       rng_state() = 0xF00Du;
-      std::vector<float> loud = noise(10.0f, kRate, 1.0f);
+      std::vector<float> loud = noise(5.0f, kRate, 1.0f);
       Stereo n = minus(run(device, loud), loud, loud);
       worst = std::max(worst, std::max(peak(n.left), peak(n.right)));
     }

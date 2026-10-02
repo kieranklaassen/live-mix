@@ -89,7 +89,7 @@ inline const Circuit& circuit(int index) {
       // mids pushed at it; the supply sags under a sustained load and
       // recovers.
       {Curve(0.0, 1.0, 1.0, 0.5, 0.75, 0.5, 0.55),
-       0.04f, 0.04f, 0.0f, 1.0f, 0.5f, 0.015f, 0.18f,
+       0.02f, 0.02f, 0.0f, 1.0f, 0.5f, 0.015f, 0.18f,
        {{Eq::kPeak, 2000.0f, 3.5f, 0.6f}, {Eq::kLowShelf, 150.0f, -4.0f, 0.0f}},
        {{Eq::kPeak, 2000.0f, -0.5f, 0.6f},
         {Eq::kLowShelf, 150.0f, 1.5f, 0.0f},

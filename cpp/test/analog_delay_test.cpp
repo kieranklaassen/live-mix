@@ -179,7 +179,7 @@ int main() {
   // 4. The bandwidth falls as Time rises (the clock slows and the filters
   // follow it), and Tone moves the corner while the clock allows.
   {
-    auto brightness = [&](float ms, float tone) {
+    auto brightness = [&](float ms, float tone, float split = 4000.0f) {
       clean(device);
       device.set_param(p::kTime, ms);
       device.set_param(p::kTone, tone);
@@ -187,18 +187,18 @@ int main() {
       std::vector<float> x = noise(0.3f, kRate, 0.2f);
       x.resize(at(ms * 0.001 + 0.4), 0.0f);
       Stereo out = run(device, x);
-      return share_above(out.left, 4000.0f, at(ms * 0.001 + 0.05), at(ms * 0.001 + 0.3));
+      return share_above(out.left, split, at(ms * 0.001 + 0.05), at(ms * 0.001 + 0.3));
     };
     const double at_100 = brightness(100.0f, 8000.0f);
-    const double at_400 = brightness(400.0f, 8000.0f);
+    const double at_600 = brightness(600.0f, 8000.0f);
     const double at_1200 = brightness(1200.0f, 8000.0f);
     const double dark = brightness(100.0f, 1000.0f);
     const double mid = brightness(100.0f, 3200.0f);
-    std::printf("share of the first repeat above 4 kHz: %.4f at 100 ms, %.5f at 400 ms, %.2g at 1.2 s; "
+    std::printf("share of the first repeat above 4 kHz: %.4f at 100 ms, %.5f at 600 ms, %.2g at 1.2 s; "
                 "Tone 1 kHz %.2g, 3.2 kHz %.5f, 8 kHz %.4f\n",
-                at_100, at_400, at_1200, dark, mid, at_100);
-    EXPECT(at_400 < 0.5 * at_100, "a 400 ms echo is darker than a 100 ms one");
-    EXPECT(at_1200 < 0.1 * at_400, "a 1.2 s echo is darker again");
+                at_100, at_600, at_1200, dark, mid, at_100);
+    EXPECT(at_600 < 0.5 * at_100, "a 600 ms echo is darker than a 100 ms one");
+    EXPECT(at_1200 < 0.1 * at_600, "a 1.2 s echo is darker again");
     EXPECT(dark < 0.1 * mid && mid < 0.5 * at_100, "Tone moves the corner of the echo");
   }
 

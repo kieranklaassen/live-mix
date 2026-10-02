@@ -18,9 +18,10 @@
 // - Follow: at 0 the noise is constant. Towards +1 it is scaled by the
 //   input's level (at +1 it is at Level when the input peaks at -12 dBFS,
 //   never more than 6 dB above it, and gone in silence). Towards -1 it ducks
-//   under the input by 1 / (1 + 4·level) and comes back up in the gaps, as
-//   the automatic level of a cheap recorder does. The follower rises in a
-//   tenth of Response and falls in Response.
+//   under the input by 1 / (1 + 4·level), level counted in multiples of
+//   -12 dBFS, and comes back up in the gaps, as the automatic level of a
+//   cheap recorder does. The follower rises in a tenth of Response and
+//   falls in Response.
 // - Tone: below the middle a low-pass closes over the bed (to a dark
 //   frequency of its own: 2.5 kHz for tape hiss, 80 Hz for the room); above
 //   it a first-order high-pass thins the bed out from underneath. A table

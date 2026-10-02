@@ -204,18 +204,19 @@ int main() {
     }
   }
 
-  // Each circuit's harmonic series, on 220 Hz at -12 dBFS and Drive 0.6:
+  // Each circuit's harmonic series, on 220 Hz at -12 dBFS and Drive 0.25
+  // (21 dB into the curve: the knob is tapered, see drive_taper):
   // the lopsided triode makes the second harmonic first, the console and
   // the pentode the third.
   {
     double second[kCircuits], third[kCircuits];
     for (int c = 0; c < kCircuits; ++c) {
-      setup(kRate, c, 0.6f);
+      setup(kRate, c, 0.25f);
       Stereo out = run(device, sine(220.0f, 1.5f, kRate, 0.25f));
       const double fundamental = tone_level(out.left, 220.0, kRate, 24000, 72000);
       second[c] = db(tone_level(out.left, 440.0, kRate, 24000, 72000) / fundamental);
       third[c] = db(tone_level(out.left, 660.0, kRate, 24000, 72000) / fundamental);
-      std::printf("analog-drive %s: 2nd %.1f dBc, 3rd %.1f dBc at Drive 0.6\n", kNames[c], second[c], third[c]);
+      std::printf("analog-drive %s: 2nd %.1f dBc, 3rd %.1f dBc at Drive 0.25\n", kNames[c], second[c], third[c]);
     }
     EXPECT(second[kTriode] > third[kTriode] + 6.0, "Triode: the second harmonic leads the third by over 6 dB");
     EXPECT(second[kTriode] > -30.0, "Triode: a strong second harmonic");
@@ -233,11 +234,11 @@ int main() {
     double thd[2];
     const float tones[2] = {60.0f, 2000.0f};
     for (int i = 0; i < 2; ++i) {
-      setup(kRate, kTransformer, 0.4f);
+      setup(kRate, kTransformer, 0.15f);
       Stereo out = run(device, sine(tones[i], 1.5f, kRate, 0.25f));
       thd[i] = thd_percent(out.left, tones[i], kRate, 24000, 72000);
     }
-    std::printf("analog-drive Transformer at Drive 0.4: THD %.1f %% at 60 Hz, %.2f %% at 2 kHz\n", thd[0], thd[1]);
+    std::printf("analog-drive Transformer at Drive 0.15: THD %.1f %% at 60 Hz, %.2f %% at 2 kHz\n", thd[0], thd[1]);
     EXPECT(thd[0] > 4.0 * thd[1], "Transformer: 60 Hz distorts over four times as much as 2 kHz");
 
     double loss[2];
@@ -246,12 +247,12 @@ int main() {
       double gain[2];
       const float levels[2] = {0.01f, 0.5f};
       for (int k = 0; k < 2; ++k) {
-        setup(kRate, kTape, 0.5f);
+        setup(kRate, kTape, 0.2f);
         gain[k] = small_signal_db(bands[i], kRate, levels[k]);
       }
       loss[i] = gain[0] - gain[1];
     }
-    std::printf("analog-drive Tape preamp at Drive 0.5, -40 to -6 dBFS: 500 Hz loses %.1f dB, 9 kHz loses %.1f dB\n",
+    std::printf("analog-drive Tape preamp at Drive 0.2, -40 to -6 dBFS: 500 Hz loses %.1f dB, 9 kHz loses %.1f dB\n",
                 loss[0], loss[1]);
     EXPECT(loss[1] > loss[0] + 3.0, "Tape preamp: loud highs are held back at least 3 dB more than loud mids");
 
@@ -273,7 +274,7 @@ int main() {
         }
         const double scale = levels[k] / rms(in);
         for (float& v : in) v = static_cast<float>(v * scale);
-        setup(kRate, kTape, 0.5f);
+        setup(kRate, kTape, 0.2f);
         Stereo out = run(device, in);
         gain[k] = db(rms(out.left, 24000) / rms(in, 24000));
       }
@@ -413,7 +414,7 @@ int main() {
   {
     double grit[2];
     for (int k = 0; k < 2; ++k) {
-      setup(kRate, kTape, 0.7f);
+      setup(kRate, kTape, 0.35f);
       if (k == 1) device.set_param(p::kLowCut, 400.0f);
       std::vector<float> in = sine(55.0f, 1.5f, kRate, 0.4f);
       const std::vector<float> high = sine(1000.0f, 1.5f, kRate, 0.05f);
@@ -484,7 +485,7 @@ int main() {
   // side. The triode's working point moves with the level of both channels,
   // and what that leaves on a silent side is under -100 dBFS.
   {
-    setup(kRate, kTriode, 0.7f);
+    setup(kRate, kTriode, 0.35f);
     const std::vector<float> in = pink(1.0f, kRate, 0.125893f, 0xB0B0u);
     Stereo mono = run(device, in);
     bool identical = true;
@@ -493,7 +494,7 @@ int main() {
     setup(kRate, kTape, 0.7f);
     Stereo sided = run(device, in, silence(1.0f, kRate));
     EXPECT(rms(sided.left) > 0.05 && peak(sided.right) == 0.0, "Tape preamp: a left-only source leaves the right silent");
-    setup(kRate, kTriode, 0.7f);
+    setup(kRate, kTriode, 0.35f);
     sided = run(device, in, silence(1.0f, kRate));
     std::printf("analog-drive Triode, left-only source: right peaks at %.1f dBFS\n", db(peak(sided.right)));
     EXPECT(peak(sided.right) < 1.0e-5, "Triode: a left-only source leaves under -100 dBFS on the right");
@@ -615,7 +616,7 @@ int main() {
       }
     }
     std::printf("analog-drive full scale with Push, Auto Gain on: peak %.2f; loudest setting (Auto Gain off, Thump, Tone "
-                "and Output up, full-scale noise): %.1f\n",
+                "and Output up, full-scale noise): %.3f\n",
                 held, loudest);
     EXPECT(held < 1.0, "Push on a full-scale note stays under full scale with Auto Gain on");
     EXPECT(loudest < spec.max_peak, "the loudest setting stays under the ceiling");
@@ -702,7 +703,7 @@ int main() {
     double thd[3], bass[3], treble[3];
     const float rates[3] = {44100.0f, 48000.0f, 96000.0f};
     for (int r = 0; r < 3; ++r) {
-      setup(rates[r], kTransformer, 0.5f);
+      setup(rates[r], kTransformer, 0.2f);
       Stereo out = run(device, sine(220.0f, 1.5f, rates[r], 0.25f));
       const size_t n = out.size();
       thd[r] = thd_percent(out.left, 220.0, rates[r], n / 3, n);

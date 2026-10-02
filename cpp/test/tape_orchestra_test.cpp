@@ -864,6 +864,38 @@ int main(int argc, char**) {
     EXPECT(worst < 1.0e-5, "the output does not depend on the block size");
   }
 
+  // The keys run at half the host's rate and are brought up by a halfband
+  // filter: the mirror images of their harmonics above a quarter of the
+  // host rate must be gone, at 44.1 kHz as well, and the top of what is on
+  // the tape (to 0.2 of the rate) must still be there.
+  for (float rate : {48000.0f, 44100.0f, 96000.0f}) {
+    device.init(rate);
+    device.set_param(p::kAge, 0.0f);
+    device.set_param(p::kHiss, 0.0f);
+    device.set_param(p::kPlayers, 0.0f);
+    device.set_param(p::kVibrato, 0.0f);
+    device.set_param(p::kTone, 1.0f);
+    device.set_param(p::kAttack, 0.005f);
+    const double hz = 220.0;
+    device.note_on(1, static_cast<float>(hz), 1.0f);
+    Stereo out = render(device, 1.0f, rate);
+    const size_t from = static_cast<size_t>(0.6 * rate), to = static_cast<size_t>(0.8 * rate);
+    const double fundamental = tone_level(out.left, hz, rate, from, to);
+    const int top = std::min(static_cast<int>(0.19 * rate / hz), static_cast<int>(10000.0 / hz));
+    double image = 0.0, own = 0.0;
+    for (int h = 1; h <= top; ++h) {
+      const double level = tone_level(out.left, 0.5 * rate - hz * h, rate, from, to);
+      image = std::max(image, level);
+      own = std::max(own, level / std::max(tone_level(out.left, hz * h, rate, from, to), 1.0e-9));
+    }
+    const double highest = tone_level(out.left, hz * top, rate, from, to);
+    SHOW("engine at %.0f Hz: images at most %.1f dB re the fundamental (%.1f dB re their harmonic); "
+         "harmonic %d at %.0f Hz is %.1f dB",
+         rate, db(image / fundamental), db(own), top, hz * top, db(highest / fundamental));
+    EXPECT(db(image / fundamental) < -80.0, "the images of the half-rate engine are 80 dB under the note");
+    EXPECT(db(own) < -55.0, "each image is far under its own harmonic");
+    EXPECT(db(highest / fundamental) > -75.0, "the top of the recorded band is still there");
+  }
 
   // Cost with eight keys held on the heaviest tape (the choir has four
   // players a key) and on the default one.

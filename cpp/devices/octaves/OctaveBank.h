@@ -86,6 +86,7 @@ class OctaveBank {
       attack_coeff_ = 0.0f;
       return;
     }
+    if (attack_coeff_ == 0.0f) attack_fresh_ = true;
     attack_coeff_ = 1.0f - std::exp(-tick_seconds_ * 2.3026f / seconds);
   }
 
@@ -241,6 +242,7 @@ class OctaveBank {
   int slow_count_ = 0;
   int parity_ = 0;
   float tick_peak_ = 0.0f;
+  bool attack_fresh_ = false;
   float peak_ring_[kPeakTicks] = {};
   int peak_index_ = 0;
   float tick_seconds_ = 0.0f;
