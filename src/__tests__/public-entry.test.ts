@@ -156,6 +156,7 @@ const coreSymbols = [
   'controlTargetKey',
   'sourceKey',
   'describeSource',
+  'keyCodeLabel',
   'normalizeParam',
   'denormalizeParam',
   'MAPPING_TABLE_FORMAT',
