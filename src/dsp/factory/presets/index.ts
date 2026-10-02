@@ -9,6 +9,7 @@ import { CHOIR_PRESETS } from './choir'
 import { DRONE_PRESETS } from './drone'
 import { EMBER_PRESETS } from './ember'
 import { FELT_PIANO_PRESETS } from './felt-piano'
+import { FLUTE_PRESETS } from './flute'
 import { FM_GLASS_PRESETS } from './fm-glass'
 import { GRAIN_SYNTH_PRESETS } from './grain-synth'
 import { HANDPAN_PRESETS } from './handpan'
@@ -40,4 +41,5 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...HANDPAN_PRESETS,
   ...AURORA_PRESETS,
   ...MALLETS_PRESETS,
+  ...FLUTE_PRESETS,
 ]
