@@ -28,8 +28,16 @@
 //   rather than retuned to what is played: a string only takes up what
 //   falls on its own partials, so whatever the key, the ones that ring are
 //   the ones in tune with it, and nothing glides.
+// - A finger or a pick also leaves a touch: a few milliseconds of seeded
+//   noise no steeper than the pluck's own edge, and a soft knock into the
+//   body. The hammer has its blow and gets neither.
+// - Below 220 Hz the loss filter follows the pitch less closely, so the
+//   upper partials of a bass string die two to three times as fast as its
+//   fundamental and the note mellows as it rings.
 // - The body is four resonances and two shelves per channel, a little
-//   apart left and right; changing it crossfades.
+//   apart left and right; changing it crossfades. The resonances ring on
+//   for 0.05 to 0.15 s (the koto's hardly at all), which is the wood a
+//   damped note leaves behind.
 //
 // Brightness, position, courses and the exciter are read when a string is
 // struck; decay, release, sympathy, body and volume act on what is ringing.
