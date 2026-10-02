@@ -595,8 +595,8 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
     // of three and of four; alternate keys are seated the other way round.
     static constexpr float kDetune[2][kMaxPlayers] = {{0.1f, -1.0f, 0.9f, 0.0f},
                                                       {-0.1f, 1.0f, -1.0f, 0.4f}};
-    static constexpr float kSeat[2][kMaxPlayers] = {{0.2f, -0.75f, 0.75f, 0.0f},
-                                                    {-0.2f, 0.75f, -0.75f, 0.35f}};
+    static constexpr float kSeat[2][kMaxPlayers] = {{0.3f, -0.85f, 0.85f, 0.0f},
+                                                    {-0.3f, 0.85f, -0.85f, 0.4f}};
     const int layout = kTapes[tape].players >= 4 ? 1 : 0;
     const float side = rng.uniform() < 0.5f ? -1.0f : 1.0f;
     const float apart = kit::clamp(param(kPlayers) * 5.0f, 0.0f, 1.0f);

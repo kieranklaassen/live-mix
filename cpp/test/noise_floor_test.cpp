@@ -406,6 +406,21 @@ int main() {
     std::vector<float> air = render(device, 5.0f, kRate).left;
     const double rumble_left = band_power(air, 0.0, 300.0) / band_power(air, 0.0, 24000.0);
     EXPECT(rumble_left < 0.01, "0.2 s after Room to Air there is no rumble left");
+    // A bed switched to takes the Tone that was set while another one played.
+    still(device, NoiseFloor::kAir, -30.0f);
+    device.set_param(p::kTone, -1.0f);
+    std::vector<float> direct = noise_only(device, 5.0f).left;
+    still(device, NoiseFloor::kTape, -30.0f);
+    noise_only(device, 1.0f);
+    device.set_param(p::kTone, -1.0f);
+    render(device, 0.5f, kRate);
+    device.set_param(p::kType, static_cast<float>(NoiseFloor::kAir));
+    render(device, 0.3f, kRate);
+    std::vector<float> switched = render(device, 5.0f, kRate).left;
+    const double top_direct = band_power(direct, 8000.0, 24000.0) / band_power(direct, 0.0, 24000.0);
+    const double top_switched = band_power(switched, 8000.0, 24000.0) / band_power(switched, 0.0, 24000.0);
+    EXPECT_NEAR(top_switched, top_direct, 0.03, "a bed switched to has the Tone set before the switch");
+    EXPECT_NEAR(db(rms(switched)), -30.0, 0.5, "and its level");
     if (verbose) {
       std::printf("type change: largest step %.2f of steady, level within %+.1f / %+.1f dB, rumble left after Room to Air %.4f\n",
                   worst_step, worst_dip, worst_bump, rumble_left);

@@ -583,9 +583,10 @@ inline void OctaveBank::tick() {
     }
     offset[k] = x;
     // A channel's weights are worked out on every other tick (odd and even
-    // channels in turn), and at once when it has just moved or come on.
+    // channels in turn); on every tick just after an onset, and at once
+    // when the channel has moved or come on.
     if (since_[k] < 2) ++since_[k];
-    due[k] = moved[k] || ((k ^ parity_) & 1) == 0 || !live_[k];
+    due[k] = moved[k] || ((k ^ parity_) & 1) == 0 || !live_[k] || age_[k] < kFresh;
     if (due[k] && own > 0.0f) {
       float er = 1.0f, ei = 0.0f, gain = 1.0f;
       if (tracking) {
@@ -672,8 +673,8 @@ inline void OctaveBank::tick() {
     weight_[k] = target;
     const bool was_live = live_[k];
     // The ramp lasts until the channel is due again.
-    const bool on_turn = ((k ^ parity_) & 1) == 0;
-    const float steps = inv_steps_[group_of(k)] * (on_turn ? 0.5f : 1.0f);
+    const bool next_tick = ((k ^ parity_) & 1) != 0 || age_[k] + tick_seconds_ < kFresh;
+    const float steps = inv_steps_[group_of(k)] * (next_tick ? 1.0f : 0.5f);
     const float elapsed = static_cast<float>(since_[k]);
     since_[k] = 0;
     if (target == 0.0f) {

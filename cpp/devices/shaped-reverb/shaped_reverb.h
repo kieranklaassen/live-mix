@@ -646,12 +646,17 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
           v[n] = tail_damp_[n].lowpass(tail_[n].read(tail_length_[n]));
         }
         const float amount = tail_level * tail_norm_ * 0.5f;
-        wet[0] += amount * (v[0] - v[2] + v[4] - v[6]);
-        wet[1] += amount * (v[1] - v[3] + v[5] - v[7]);
+        // The signs in and out are chosen against the Hadamard matrix: with
+        // the same alternating pattern at both ends every pass through one
+        // line lined up, and the tail fluttered at that line's length. These
+        // two patterns spread that evenly over a side's four lines, with
+        // opposite signs at the two ends, so it cancels.
+        wet[0] += amount * (v[0] + v[2] + v[4] - v[6]);
+        wet[1] += amount * (v[1] + v[3] + v[5] - v[7]);
         hadamard8(v);
         for (int n = 0; n < kTailLines; ++n) {
           const float inject = 0.5f * shaped[n & 1];
-          tail_[n].write(flush_denormal(v[n] * tail_gain_[n] + ((n & 2) ? -inject : inject)));
+          tail_[n].write(flush_denormal(v[n] * tail_gain_[n] + (n < 2 ? -inject : inject)));
         }
         tail_clear_ = false;
       } else if (!tail_clear_) {

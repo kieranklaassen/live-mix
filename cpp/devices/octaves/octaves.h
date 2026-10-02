@@ -110,7 +110,7 @@ class Octaves : public kit::DeviceBase<octaves::kNumParams> {
   }
 
  private:
-  static constexpr int kChannels = 58;
+  static constexpr int kChannels = 55;
   static constexpr float kLowHz = 40.0f;
   static constexpr float kHighHz = 5500.0f;
   static constexpr float kMaxQ = 9.0f;

@@ -162,7 +162,7 @@ class OctaveBank {
   // The lower channels run at lower rates: those centred under these shares
   // of the bank's rate at a half and at a quarter of it. The highest voice a
   // channel makes is four times its centre, a fifth of its own rate at most.
-  static constexpr double kGroupBelow[kGroups] = {1.0, 0.0375, 0.0125};
+  static constexpr double kGroupBelow[kGroups] = {1.0, 0.0375, 0.00625};
   // Kaiser beta of the rate changers (Halfband.h): 7 taps down each time,
   // 19 and 11 taps up, all better than 54 dB where they have to be.
   static constexpr double kDownBeta = 4.0;
@@ -171,6 +171,9 @@ class OctaveBank {
   static constexpr int kUpHalf[2] = {5, 3};
   // A channel whose voices would come out under this level is switched off.
   static constexpr float kFloor = 3.0e-6f;
+  // After an onset a channel's weights are worked out on every tick for
+  // this long, then on every other one.
+  static constexpr float kFresh = 0.03f;
   // Power under which a channel is not worth the control rate's attention.
   static constexpr float kQuiet = 1.0e-22f;
 

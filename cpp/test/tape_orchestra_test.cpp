@@ -716,11 +716,174 @@ int main(int argc, char**) {
     EXPECT(rms(after.left, at(0.5), at(1.0)) > 0.3 * rms(before.left, at(0.5), at(1.0)), "and keeps sounding");
   }
 
-  // TESTS
+  // Stereo: the players of a key sit apart. Spread 0 is mono; at the
+  // default the image is wide but the channels still agree, and the mono
+  // sum loses nothing.
+  {
+    device.init(kRate);
+    device.set_param(p::kSpread, 0.0f);
+    device.note_on(1, 220.0f, 0.7f);
+    device.note_on(2, 329.63f, 0.7f);
+    Stereo mono = render(device, 2.0f, kRate);
+    EXPECT(mono.left == mono.right, "Spread 0 is mono, hiss included");
 
+    auto image = [&](float spread, int tape, double* sum_loss) {
+      device.init(kRate);
+      device.set_param(p::kTape, static_cast<float>(tape));
+      device.set_param(p::kSpread, spread);
+      device.note_on(1, 146.83f, 0.7f);
+      device.note_on(2, 220.0f, 0.7f);
+      device.note_on(3, 369.99f, 0.7f);
+      Stereo out = render(device, 8.0f, kRate);
+      std::vector<float> mid(out.size());
+      for (size_t i = 0; i < out.size(); ++i) mid[i] = 0.5f * (out.left[i] + out.right[i]);
+      const double left = rms(out.left, at(1.0)), right = rms(out.right, at(1.0));
+      *sum_loss = db(std::sqrt(0.5 * (left * left + right * right)) / rms(mid, at(1.0)));
+      return correlation(out.left, out.right, at(1.0));
+    };
+    double loss = 0.0, wide_loss = 0.0, worst_loss = 0.0;
+    const double usual = image(0.7f, kStrings, &loss);
+    const double wide = image(1.0f, kStrings, &wide_loss);
+    double least = 1.0;
+    for (int tape = 0; tape < 6; ++tape) {
+      double tape_loss = 0.0;
+      least = std::min(least, image(1.0f, tape, &tape_loss));
+      worst_loss = std::max(worst_loss, tape_loss);
+    }
+    SHOW("stereo: correlation %.2f at the default spread (mono sum loses %.1f dB), %.2f at Spread 1 (%.1f dB)",
+         usual, loss, wide, wide_loss);
+    SHOW("stereo: over all tapes at Spread 1 the correlation is at least %.2f, the mono loss at most %.1f dB",
+         least, worst_loss);
+    EXPECT(usual > 0.3 && usual < 0.95, "the default patch is wide and its channels agree");
+    EXPECT(wide < usual, "Spread widens the image");
+    EXPECT(least > 0.0, "the channels never oppose each other, on any tape");
+    EXPECT(worst_loss < 3.0, "the mono sum keeps its level on every tape");
+  }
+
+  // Attack and Release are the times they say, on top of the tape's own.
+  {
+    plain(device, kFlutes);
+    device.set_param(p::kAttack, 2.0f);
+    device.set_param(p::kRelease, 1.0f);
+    device.note_on(1, 440.0f, 0.7f);
+    Stereo rise = render(device, 4.0f, kRate);
+    const double full = rms(rise.left, at(3.0), at(4.0));
+    SHOW("attack 2 s: %.1f dB at 0.2 s, %.1f dB at 2.2 s", db(rms(rise.left, at(0.15), at(0.25)) / full),
+         db(rms(rise.left, at(2.15), at(2.25)) / full));
+    EXPECT(rms(rise.left, at(0.15), at(0.25)) < 0.3 * full, "a 2 s attack is still quiet after 0.2 s");
+    EXPECT(rms(rise.left, at(2.15), at(2.25)) > 0.85 * full, "and has arrived shortly after 2 s");
+    device.note_off(1);
+    Stereo fall = render(device, 3.0f, kRate);
+    SHOW("release 1 s: %.1f dB at 0.45 s, %.1f dB at 1.05 s", db(rms(fall.left, at(0.4), at(0.5)) / full),
+         db(rms(fall.left, at(1.0), at(1.1)) / full));
+    EXPECT(rms(fall.left, at(0.4), at(0.5)) > 0.01 * full, "a 1 s release is still audible at 0.45 s");
+    EXPECT(rms(fall.left, at(1.0), at(1.1)) < 0.002 * full, "is 60 dB down after its time");
+    EXPECT(peak(fall.left, at(2.0), at(3.0)) == 0.0, "and is exactly silent soon after");
+  }
+
+  // Vibrato: late, at about six a second, as deep as the knob says.
+  {
+    auto shake = [&](float amount, double* early) {
+      plain(device, kStrings);
+      device.set_param(p::kVibrato, amount);
+      device.note_on(1, 440.0f, 0.7f);
+      Stereo out = render(device, 3.0f, kRate);
+      std::vector<double> track = cents_track(out.left, 440.0);
+      double lo = 1.0e9, hi = -1.0e9;
+      for (size_t i = 240; i < track.size(); ++i) {
+        lo = std::min(lo, track[i]);
+        hi = std::max(hi, track[i]);
+      }
+      double early_lo = 1.0e9, early_hi = -1.0e9;
+      for (size_t i = 24; i < 44; ++i) {  // 0.12 .. 0.22 s: after the lurch, before the vibrato
+        early_lo = std::min(early_lo, track[i]);
+        early_hi = std::max(early_hi, track[i]);
+      }
+      *early = 0.5 * (early_hi - early_lo);
+      // Rate: upward crossings of the mean between 1.2 and 3 s.
+      const double centre = mean_of(track, 240, track.size());
+      int crossings = 0;
+      for (size_t i = 241; i < track.size(); ++i) {
+        if (track[i - 1] < centre && track[i] >= centre) ++crossings;
+      }
+      return std::pair<double, double>(0.5 * (hi - lo),
+                                       crossings / (static_cast<double>(track.size() - 241) * 0.005));
+    };
+    double early_full = 0.0, early_none = 0.0, early_half = 0.0;
+    const std::pair<double, double> full = shake(1.0f, &early_full);
+    const std::pair<double, double> half = shake(0.5f, &early_half);
+    const std::pair<double, double> none = shake(0.0f, &early_none);
+    SHOW("vibrato on strings: +-%.1f cents at %.1f Hz fully up (+-%.1f in the first 0.2 s), +-%.1f at half, +-%.1f off",
+         full.first, full.second, early_full, half.first, none.first);
+    EXPECT(full.first > 16.0 && full.first < 32.0, "Vibrato 1: about a quarter of a semitone either way");
+    EXPECT(full.second > 4.5 && full.second < 7.5, "at about six a second");
+    EXPECT(half.first > 0.35 * full.first && half.first < 0.65 * full.first, "Vibrato follows its knob");
+    EXPECT(none.first < 2.5, "Vibrato 0: a straight tone");
+    EXPECT(early_full < 0.3 * full.first, "the vibrato comes in after the note has begun");
+  }
+
+  // Dropouts: none on a tape in fair shape, brief dips in level at fixed
+  // places on a worn one.
+  {
+    auto deepest = [&](float age) {
+      plain(device, kFlutes);
+      device.set_param(p::kAge, age);
+      device.note_on(1, 440.0f, 0.7f);
+      Stereo out = render(device, 8.0f, kRate);
+      std::vector<double> levels;
+      for (size_t from = at(1.0); from + 960 <= out.size(); from += 480) levels.push_back(rms(out.left, from, from + 960));
+      std::vector<double> sorted = levels;
+      std::sort(sorted.begin(), sorted.end());
+      return db(sorted[sorted.size() / 2] / sorted[0]);
+    };
+    const double fair = deepest(0.4f);
+    const double worn = deepest(1.0f);
+    SHOW("dropouts: the deepest dip is %.1f dB at Age 0.4, %.1f dB at Age 1", fair, worn);
+    EXPECT(fair < 1.0, "Age 0.4: no dropouts");
+    EXPECT(worn > 3.0 && worn < 20.0, "Age 1: the level dips by several dB here and there");
+  }
+
+  // The same audio whatever the host's block size (the control clock, the
+  // note starts and the steal fades all count samples, not blocks).
+  {
+    auto session = [&](int block) {
+      device.init(kRate);
+      device.set_param(p::kAge, 0.8f);
+      Stereo out;
+      for (int n = 0; n < 20; ++n) {
+        device.note_on(n, 110.0f * std::pow(2.0f, static_cast<float>(n % 10) * 3.0f / 12.0f), 0.7f);
+        if (n == 12) device.set_param(p::kTape, static_cast<float>(kChoir));
+        if (n == 15) device.set_param(p::kSpeed, 1.0f);
+        if (n >= 3) device.note_off(n - 3);
+        out = concat(out, render(device, 0.064f, kRate, block));
+      }
+      return out;
+    };
+    Stereo usual = session(128);
+    double worst = 0.0;
+    for (int block : {1, 32, 96, 2048}) {
+      Stereo other = session(block);
+      for (size_t i = 0; i < usual.size(); ++i) {
+        worst = std::max(worst, std::fabs(static_cast<double>(usual.left[i]) - other.left[i]));
+        worst = std::max(worst, std::fabs(static_cast<double>(usual.right[i]) - other.right[i]));
+      }
+    }
+    SHOW("block size: largest difference between 128-frame blocks and 1, 32, 96, 2048: %g", worst);
+    EXPECT(worst < 1.0e-5, "the output does not depend on the block size");
+  }
+
+
+  // Cost with eight keys held on the heaviest tape (the choir has four
+  // players a key) and on the default one.
+  device.init(kRate);
+  device.set_param(p::kTape, static_cast<float>(kChoir));
+  for (int n = 0; n < 8; ++n) device.note_on(n, 110.0f * std::pow(2.0f, n * 3 / 12.0f), 0.7f);
+  render(device, 1.0f, kRate);
+  report_cost("tape-orchestra (8 keys, choir)", 10.0f, kRate, [&] { render(device, 10.0f, kRate); });
   device.init(kRate);
   for (int n = 0; n < 8; ++n) device.note_on(n, 110.0f * std::pow(2.0f, n * 3 / 12.0f), 0.7f);
-  report_cost("tape-orchestra (8 keys)", 10.0f, kRate, [&] { render(device, 10.0f, kRate); });
+  render(device, 1.0f, kRate);
+  report_cost("tape-orchestra (8 keys, strings)", 10.0f, kRate, [&] { render(device, 10.0f, kRate); });
 
   return finish("tape-orchestra");
 }

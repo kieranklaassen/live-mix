@@ -203,8 +203,224 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
       loop.rate = 0.11f + 0.2f * rng.uniform();
     }
   }
-  void render(int i) { (void)i; }
-  void apply(int id) { (void)id; }
+  static float glide(kit::Smoother& s) { return s.value == s.target ? s.value : s.next(); }
+
+  // Exact to ±1, landing on ±2: what holds the loop when Reflect is past 1.
+  static float limit(float x) { return 2.0f * kit::soft_clip(0.5f * x); }
+
+  void render(int i) {
+    float in[2];
+    take_input(i, &in[0], &in[1]);
+    if (clock_.tick()) {
+      control();
+      started_ = true;
+    }
+    const float reflect = glide(reflect_);
+    const float diffusion = glide(diffuse_);
+
+    float back[2];
+    float swarm[2];
+    for (int c = 0; c < 2; ++c) {
+      back[c] = read_at(line_[c], loop_[c].next());
+      float sum = 0.0f;
+      for (int k = 0; k < kTaps; ++k) {
+        Read& tap = tap_[c][k];
+        sum += tap.gain * read_at(line_[c], tap.next());
+      }
+      swarm[c] = sum;
+    }
+
+    // The return: a quarter-turn rotation between the sides, then the limiter.
+    const float turned[2] = {(back[0] + back[1]) * kit::kSqrtHalf,
+                             (back[1] - back[0]) * kit::kSqrtHalf};
+    for (int c = 0; c < 2; ++c) {
+      float x = in[c] + limit(reflect * turned[c]);
+      x = low_cut_[c].highpass(dampen_[c].lowpass(x));
+      for (int a = 0; a < kStages; ++a) {
+        const float delayed = read_at(allpass_[c][a], stage_[c][a].next());
+        const float v = flush_denormal(x + diffusion * delayed);
+        allpass_[c][a].write(v);
+        x = delayed - diffusion * v;
+      }
+      line_[c].write(flush_denormal(x));
+    }
+
+    // Width on the swarm only; below kBassMonoHz the difference between the
+    // sides is dropped so the bass stays in the middle.
+    const float mid = 0.5f * (swarm[0] + swarm[1]);
+    float side = 0.5f * (swarm[0] - swarm[1]);
+    side = (side - side_low_.lowpass(side)) * glide(width_);
+    const float wet = glide(wet_) * glide(level_);
+    const float dry = glide(dry_);
+    out_left_[i] = in[0] * dry + limit((mid + side) * wet);
+    out_right_[i] = in[1] * dry + limit((mid - side) * wet);
+  }
+
+  // Find where a read point will be one control period on, and ramp to it.
+  // `position_` is then the tape position at that time and the history holds
+  // the position at every control tick before it: the sample `span` behind
+  // the write point was written when the tape was at position_ - span.
+  void aim(Read& read, float sweep, float turn) {
+    const long long ahead = tick_ + 1;
+    const double wanted = position_ - read.span;
+    if (!started_) read.index = ahead - kHistory + 2;
+    if (read.index < ahead - kHistory + 2) read.index = ahead - kHistory + 2;
+    while (read.index + 1 < ahead && history_[(read.index + 1) & (kHistory - 1)] <= wanted) {
+      ++read.index;
+    }
+    const double lo = history_[read.index & (kHistory - 1)];
+    const double hi = history_[(read.index + 1) & (kHistory - 1)];
+    double fraction = hi > lo ? (wanted - lo) / (hi - lo) : 0.0;
+    if (fraction < 0.0) fraction = 0.0;
+    if (fraction > 1.0) fraction = 1.0;
+    double target =
+        (static_cast<double>(ahead - read.index) - fraction) * static_cast<double>(kControlPeriod);
+    if (sweep > 0.0f) {
+      read.phase += read.rate * turn;
+      if (read.phase >= 1.0f) read.phase -= 1.0f;
+      // Never sweep a short tap by more than a quarter of its own length.
+      const float reach = kit::min(sweep, 0.25f * static_cast<float>(target));
+      target += static_cast<double>(reach * kit::SineTable::lookup(read.phase));
+    }
+    if (target < 3.0) target = 3.0;
+    if (target > read.limit) target = read.limit;
+    if (!started_) {
+      read.delay = target;
+      read.step = 0.0;
+    } else {
+      read.step = (target - read.delay) * (1.0 / kControlPeriod);
+    }
+  }
+
+  // With Steps on, Wander is a walk: every few seconds Drag jumps to another
+  // step within reach. More Wander reaches further and jumps more often.
+  int walk(float wander) {
+    if (wander < 0.005f) {
+      step_offset_ = 0;
+      step_armed_ = false;
+      return 0;
+    }
+    const float ticks_per_second = sample_rate() / kControlPeriod;
+    if (!step_armed_) {
+      step_armed_ = true;
+      step_wait_ = static_cast<int>(1.5f * ticks_per_second);
+    }
+    if (--step_wait_ <= 0) {
+      const int reach = 1 + static_cast<int>(wander * 2.99f);
+      int next = step_offset_;
+      while (next == step_offset_) {
+        next = static_cast<int>(step_rng_.uniform() * static_cast<float>(2 * reach + 1)) - reach;
+      }
+      step_offset_ = next;
+      const float seconds = kit::lerp(9.0f, 2.0f, wander) * (0.6f + 0.8f * step_rng_.uniform());
+      step_wait_ = static_cast<int>(seconds * ticks_per_second);
+    }
+    return step_offset_;
+  }
+
+  // Every 16 samples: where Drag is, how fast the tape runs, where every
+  // read point is going, and the loop filters.
+  void control() {
+    using namespace swarm_reverb;
+    const float sr = sample_rate();
+    const float knob = 2.0f * param(kDrag) - 1.0f;
+    const float wander = wander_.next();
+    const float drift = wander_drift_.next(kControlPeriod);
+    float target = knob;
+    float free = wander * kWanderOctaves * drift;
+    if (param(kSteps) >= 0.5f) {
+      int nearest = 0;
+      for (int s = 1; s < kSteps; ++s) {
+        if (std::fabs(kStepOctaves[s] - knob) < std::fabs(kStepOctaves[nearest] - knob)) nearest = s;
+      }
+      const int offset = walk(wander);
+      int index = nearest + offset;
+      if (index < 0 || index >= kSteps) index = nearest - offset;  // bounce off the ends
+      target = kStepOctaves[kit::clamp_int(index, 0, kSteps - 1)];
+      free = 0.0f;
+    } else {
+      step_offset_ = 0;
+      step_armed_ = false;
+    }
+    if (!started_) {
+      drag_ = target;
+    } else {
+      // Drag Time is the time to cover 95 % of a move.
+      const float coeff = kit::time_to_coeff(param(kDragTime) * (1.0f / 3.0f), sr / kControlPeriod);
+      drag_ = flush_denormal(target + (drag_ - target) * coeff);
+    }
+    const float octaves = kit::clamp(drag_ + free, -1.0f, 1.0f);
+    const float seconds = std::exp2(length_.next() + octaves);
+    const double speed = 1.0 / (static_cast<double>(seconds) * sr);  // Lengths per sample
+
+    if (!started_) {
+      // As if the tape had always run at this speed.
+      for (int n = 0; n < kHistory; ++n) {
+        history_[(kHistory - n) & (kHistory - 1)] = -speed * kControlPeriod * n;
+      }
+      position_ = 0.0;
+    }
+    position_ += speed * kControlPeriod;
+    history_[(tick_ + 1) & (kHistory - 1)] = position_;
+
+    const float sweep = depth_.next() * kSweepSeconds * sr;
+    const float turn = kControlPeriod / sr;
+    for (int c = 0; c < 2; ++c) {
+      for (int k = 0; k < kTaps; ++k) aim(tap_[c][k], sweep, turn);
+      aim(loop_[c], sweep, turn);
+      for (int a = 0; a < kStages; ++a) aim(stage_[c][a], 0.0f, turn);
+    }
+    ++tick_;
+
+    dampen_[0].set_cutoff(dampen_hz_.next(), sr);
+    dampen_[1].a = dampen_[0].a;
+    low_cut_[0].set_cutoff(low_cut_hz_.next(), sr);
+    low_cut_[1].a = low_cut_[0].a;
+  }
+  void apply(int id) {
+    using namespace swarm_reverb;
+    const float value = param(id);
+    switch (id) {
+      case kLength:
+        length_.set(std::log2(value), primed());
+        break;
+      case kDiffuse:
+        diffuse_.set(value * kMaxDiffusion, primed());
+        break;
+      case kReflect:
+        reflect_.set(value, primed());
+        // A long decay stores more energy for the same input; take half of
+        // that back (in dB) so Reflect is not also a volume knob.
+        level_.set(kWetGain * std::sqrt(std::sqrt(kit::max(1.0f - value * value, 0.04f))),
+                   primed());
+        break;
+      case kDampen:
+        dampen_hz_.set(value, primed());
+        break;
+      case kLowCut:
+        low_cut_hz_.set(value, primed());
+        break;
+      case kWander:
+        wander_.set(value, primed());
+        break;
+      case kModulation:
+        depth_.set(value, primed());
+        break;
+      case kWidth:
+        width_.set(value, primed());
+        break;
+      case kMix: {
+        float dry, wet;
+        kit::equal_power(value, &dry, &wet);
+        if (value >= 1.0f) dry = 0.0f;  // cos(pi/2) in floats is not quite 0
+        dry_.set(dry, primed());
+        wet_.set(wet, primed());
+        break;
+      }
+      default:
+        break;  // Drag, Drag Time and Steps are read on the control clock
+    }
+  }
 
   kit::DelayLine<kLineSize> line_[2];
   kit::DelayLine<kAllpassSize> allpass_[2][kStages];

@@ -510,6 +510,86 @@ int main() {
     EXPECT_NEAR(db(rms(later.left, later.left.size() - 96000)), level, 0.2, "held layers neither grow nor fade");
   }
 
-  // (more checks are added above this line)
+  // The same at 44.1 and 96 kHz (the frame is twice as long at 96 kHz): the
+  // held tone is at pitch and at level.
+  for (float rate : {44100.0f, 96000.0f}) {
+    device.init(rate);
+    device.set_param(p::kMix, 1.0f);
+    device.set_param(p::kMotion, 0.0f);
+    device.set_param(p::kEnsemble, 0.0f);
+    device.set_param(p::kLowCut, 20.0f);
+    device.set_param(p::kDecay, 60.0f);
+    Stereo out = run(device, join(sine(440.0f, 1.0f, rate, 0.25f), silence(5.0f, rate)));
+    const size_t s = static_cast<size_t>(rate);
+    const double hz = dominant_frequency(out.left, rate, 400.0, 480.0, 2 * s, 6 * s);
+    const double level = db(tone_level(out.left, 440.0, rate, 2 * s, 6 * s) / 0.25);
+    size_t begins = 0;
+    while (begins < out.left.size() && std::fabs(out.left[begins]) < 1.0e-3f) ++begins;
+    std::printf("sustainer: at %.1f kHz: held %.3f Hz at %.2f dB, beginning %.0f ms after the note\n", rate / 1000.0, hz,
+                level, 1000.0 * begins / rate);
+    EXPECT_NEAR(hz, 440.0, 0.2, "the held tone is at pitch at every sample rate");
+    EXPECT_NEAR(level, -2.5, 0.5, "the held tone is at level at every sample rate");
+    EXPECT(begins > static_cast<size_t>(0.10 * rate) && begins < static_cast<size_t>(0.19 * rate),
+           "the catch comes at the same time at every sample rate");
+  }
+
+  // The default patch on a played phrase: three plucked notes and a chord.
+  // The output stays within 3 dB of the dry phrase while it is played, the
+  // held sound is mono-compatible, and once the playing stops it dies away
+  // to exact silence, after which a new note wakes the device again.
+  {
+    device.init(kRate);
+    rng_state() = 0x77u;
+    std::vector<float> phrase;
+    mix_at(phrase, pluck(196.0f, 2.0f, 0.3f), 0.25f);
+    mix_at(phrase, pluck(293.66f, 2.0f, 0.3f), 1.25f);
+    mix_at(phrase, pluck(246.94f, 2.0f, 0.3f), 2.25f);
+    for (float hz : {130.81f, 196.0f, 261.63f, 329.63f}) mix_at(phrase, pluck(hz, 3.0f, 0.18f), 3.5f);
+    const size_t s = static_cast<size_t>(kRate);
+    Stereo out = run(device, phrase);
+    const double change = db(rms(out.left, s / 2, 6 * s) / rms(phrase, s / 2, 6 * s));
+    const double width = correlation(out.left, out.right, s / 2, 6 * s);
+    std::vector<float> mono(out.left.size());
+    for (size_t i = 0; i < mono.size(); ++i) mono[i] = 0.5f * (out.left[i] + out.right[i]);
+    const double folded = db(rms(mono, s / 2, 6 * s) / rms(out.left, s / 2, 6 * s));
+    const double offset = std::fabs(mean(out.left, s, 6 * s));
+    std::printf("sustainer: default patch on a phrase: %+.1f dB re the dry phrase, left/right correlation %.2f, "
+                "mono fold-down %+.2f dB, peak %.2f, DC %.5f\n",
+                change, width, folded, std::max(peak(out.left), peak(out.right)), offset);
+    EXPECT(std::fabs(change) < 3.0, "default patch: within 3 dB of the dry phrase while it is played");
+    EXPECT(width > 0.3 && folded > -1.5, "default patch: wide but mono-compatible");
+    EXPECT(std::max(peak(out.left), peak(out.right)) < 1.0 && offset < 1.0e-3, "default patch: no clipping, no DC");
+    Stereo tail = render(device, 14.0f, kRate);
+    Stereo rest = render(device, 1.0f, kRate);
+    EXPECT(rms(tail.left, 0, s) > 0.01, "default patch: the last chord hangs on after the playing stops");
+    EXPECT(peak(rest.left) == 0.0 && peak(rest.right) == 0.0 && device.layers() == 0, "asleep after the tail");
+    device.set_param(p::kMix, 1.0f);
+    Stereo woken = run(device, pluck(220.0f, 1.0f, 0.3f));
+    EXPECT(device.layers() == 1 && rms(woken.left, s / 2, s) > 0.01, "a new note wakes it and is caught");
+  }
+
+  // Cost: Layer mode with all six layers sounding, Motion and Ensemble up,
+  // and a new chord caught twice a second.
+  {
+    device.init(kRate);
+    device.set_param(p::kMode, 1.0f);
+    device.set_param(p::kDecay, 60.0f);
+    device.set_param(p::kMotion, 1.0f);
+    device.set_param(p::kEnsemble, 1.0f);
+    rng_state() = 0xBEEFu;
+    std::vector<float> input;
+    for (int n = 0; n < 20; ++n) {
+      for (int voice = 0; voice < 3; ++voice) {
+        mix_at(input, pluck(110.0f * std::pow(2.0f, ((n * 5 + voice * 4) % 30) / 12.0f), 0.5f, 0.15f), 0.5f * n);
+      }
+    }
+    input.resize(static_cast<size_t>(10.0f * kRate), 0.0f);
+    report_cost("sustainer", 10.0f, kRate, [&] { run(device, input); });
+    EXPECT(device.layers() >= 4, "the cost run keeps the layers busy");
+  }
+
+  return finish("sustainer");
+}
+// (old tail follows and is removed below)
   return finish("sustainer");
 }
