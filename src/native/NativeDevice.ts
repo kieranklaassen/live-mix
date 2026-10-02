@@ -559,8 +559,16 @@ export class NativeDevice
   /** Open the plug-in's editor window (the host's, outside the page), or bring it forward. */
   async openEditor(): Promise<void> {
     if (this.disposed) return
-    await this.client.showEditor(this.slot.slot)
+    // Up before the host answers: a close that lands while the window is
+    // opening lowers it, and raising it again afterwards would leave the flag
+    // on with no window, polled for state for as long as the device lives.
     this.editorShown = true
+    try {
+      await this.client.showEditor(this.slot.slot)
+    } catch (error) {
+      this.editorShown = false
+      throw error
+    }
   }
 
   async closeEditor(): Promise<void> {

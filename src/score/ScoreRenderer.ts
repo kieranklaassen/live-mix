@@ -576,7 +576,7 @@ export class ScoreRenderer {
       const handle = this.handle(host.id)
       const before = priorOf(host.id)
       if ('device' in host && before && 'device' in before && !swapped.has(host.id)) {
-        this.reconcileDeviceState(
+        await this.reconcileDeviceState(
           this.device(host.device.id),
           before.device,
           host.device,
@@ -932,12 +932,12 @@ export class ScoreRenderer {
   }
 
   /** Param, state and bypass diffs on a device that already existed (creation covers new ones). */
-  private reconcileDeviceState(
+  private async reconcileDeviceState(
     device: Device,
     before: ScoreDevice,
     after: ScoreDevice,
     specs: Map<string, BindingSpec>,
-  ): void {
+  ): Promise<void> {
     const previous = this.effectiveParams(before)
     const next = this.effectiveParams(after)
     const free = (name: string): boolean =>
@@ -951,9 +951,11 @@ export class ScoreRenderer {
       return
     }
     // A restored state moves the device's parameters to wherever it had them:
-    // the document's values go on top again once it has landed. A device that
-    // already holds this state (it was read from it) loads nothing, and then
-    // nothing is written over what it is doing now.
+    // the document's values go on top again once it has landed. The render
+    // waits for that, so a later one cannot have its values written over by a
+    // restore still in flight. A device that already holds this state (it was
+    // read from it) loads nothing, and then nothing is written over what it is
+    // doing now.
     const restore = device
       .setState(after.state)
       .then((loaded) => {
@@ -965,6 +967,7 @@ export class ScoreRenderer {
       .catch((error: unknown) => this.handleError(error))
       .finally(() => this.restoring.delete(restore))
     this.restoring.add(restore)
+    await restore
   }
 
   private async reconcileInserts(
@@ -1011,7 +1014,7 @@ export class ScoreRenderer {
     for (const spec of after) {
       const previous = beforeById.get(spec.id)
       if (previous?.deviceId === spec.deviceId) {
-        this.reconcileDeviceState(this.device(spec.id), previous, spec, specs)
+        await this.reconcileDeviceState(this.device(spec.id), previous, spec, specs)
       }
     }
   }

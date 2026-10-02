@@ -83,9 +83,9 @@ export function patchEffectOps(
  * its instrument with its settings in place of the track's own device
  * (`device.replace`), and its effects in place of the track's inserts. The
  * strip's level, pan and sends stay, and a track already playing the
- * preset's instrument keeps that instance. Apply them as one `batch` and the load
- * is one undo step. Throws when the patch has no instrument or the score has
- * no such instrument track.
+ * preset's instrument keeps that instance and the state it holds. Apply them
+ * as one `batch` and the load is one undo step. Throws when the patch has no
+ * instrument or the score has no such instrument track.
  */
 export function patchInstrumentOps(
   score: Score,
@@ -101,15 +101,20 @@ export function patchInstrumentOps(
   const freshId = idAllocator(score)
   // The same instrument stays the instance it is and takes the preset's
   // settings, so what it is playing goes on; another one is a new instance.
-  const id =
-    host.device.deviceId === patch.instrument.deviceId
-      ? host.device.id
-      : freshId(patch.instrument.deviceId)
+  const kept = host.device.deviceId === patch.instrument.deviceId
+  const device = scoreDeviceFromPatch(
+    kept ? host.device.id : freshId(patch.instrument.deviceId),
+    patch.instrument,
+  )
+  // A patch cannot say what a device holds besides its parameters, and the
+  // instance that stays still holds it: dropping it here would take a hosted
+  // sample or program out of the document while it goes on sounding.
+  if (kept && host.device.state !== undefined) device.state = host.device.state
   return [
     {
       type: 'device.replace',
       id: host.device.id,
-      device: scoreDeviceFromPatch(id, patch.instrument),
+      device,
     },
     ...effectOps(score, track, patch, options, freshId),
   ]
