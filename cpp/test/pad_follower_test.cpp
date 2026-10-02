@@ -110,7 +110,9 @@ int main() {
   spec.maxs = p::kParamMax;
   spec.defaults = p::kParamDefault;
   spec.tail_seconds = 12.0f;
-  spec.max_peak = 4.0f;
+  // The dry signal at full scale plus a pad held under one by its safety
+  // stage: under 1.42 at any Mix (asserted below with pure notes and a square).
+  spec.max_peak = 1.5f;
   check_effect(device, spec, kRate);
 
   // The pad plays the pitch that was played, at about its level, and keeps
@@ -367,29 +369,73 @@ int main() {
     EXPECT(together > 0.3, "the default patch keeps left and right in phase");
   }
 
-  // The worst input for level is one pure full-scale note: the ensemble's
-  // taps, a register's drift, its seat and the octave can all line up on it.
-  // Twenty seconds each of a low and a high note.
+  // The worst input for level is one full-scale note: the ensemble's taps, a
+  // register's drift, its seat and the octave can all line up on it, and the
+  // partials of a square add up differently in the pad than in the input. The
+  // pad's safety stage keeps the output under +3 dBFS all the same: twenty
+  // seconds each of a low note, a high note and a square, on the default
+  // patch and with everything that adds level at its maximum, at the Mix
+  // where dry and pad add up furthest and with the pad alone.
   {
-    double usual = 0.0, loudest = 0.0;
-    for (float hz : {220.0f, 1000.0f}) {
-      std::vector<float> x = sine(hz, 20.0f, kRate, 1.0f);
+    double usual = 0.0, loudest = 0.0, alone = 0.0;
+    for (int kind = 0; kind < 3; ++kind) {
+      std::vector<float> x = sine(kind == 1 ? 1000.0f : 220.0f, 20.0f, kRate, 1.0f);
+      if (kind == 2) {
+        for (float& v : x) v = v < 0.0f ? -1.0f : 1.0f;
+      }
       device.init(kRate);
       Stereo out = run(device, x);
       usual = std::max(usual, static_cast<double>(std::max(peak(out.left), peak(out.right))));
+      for (float mix : {0.5f, 1.0f}) {
+        device.init(kRate);
+        device.set_param(p::kMix, mix);
+        device.set_param(p::kOctaves, kind == 2 ? -1.0f : 1.0f);
+        device.set_param(p::kEnsemble, 1.0f);
+        device.set_param(p::kMovement, 1.0f);
+        device.set_param(p::kSensitivity, 1.0f);
+        device.set_param(p::kBrightness, 12000.0f);
+        device.set_param(p::kLowCut, 40.0f);
+        Stereo all = run(device, x);
+        double& worst = mix < 1.0f ? loudest : alone;
+        worst = std::max(worst, static_cast<double>(std::max(peak(all.left), peak(all.right))));
+      }
+    }
+    NOTE("full-scale note: peak %+.2f dBFS on the default patch, %+.2f dBFS with everything at maximum "
+         "and Mix at half, %+.2f dBFS with the pad alone\n",
+         db(usual), db(loudest), db(alone));
+    EXPECT(usual < 1.42, "a full-scale note peaks under +3 dBFS on the default patch");
+    EXPECT(loudest < 1.42, "a full-scale note peaks under +3 dBFS at the loudest settings");
+    EXPECT(alone < 1.0, "the pad alone never reaches full scale");
+  }
+
+  // That safety stage does nothing to playing at an ordinary level. The pad
+  // of a phrase that peaks at -3 dBFS stays under the level where the stage
+  // begins (-4.4 dBFS), and below that level the pad is linear: a held note
+  // at twice the level gives twice the settled pad, sample for sample.
+  {
+    device.init(kRate);
+    device.set_param(p::kMix, 1.0f);
+    std::vector<float> x = played(6.0f);
+    Stereo phrase = run(device, x);
+    const double pad_peak = std::max(peak(phrase.left), peak(phrase.right));
+    Stereo out[2];
+    for (int which = 0; which < 2; ++which) {
       device.init(kRate);
       device.set_param(p::kMix, 1.0f);
-      device.set_param(p::kOctaves, 1.0f);
-      device.set_param(p::kEnsemble, 1.0f);
-      device.set_param(p::kMovement, 1.0f);
-      Stereo all = run(device, x);
-      loudest = std::max(loudest, static_cast<double>(std::max(peak(all.left), peak(all.right))));
+      device.set_param(p::kSensitivity, 1.0f);  // the gate, which is not linear, far below both
+      out[which] = run(device, sine(330.0f, 5.0f, kRate, which == 0 ? 0.3f : 0.15f));
     }
-    NOTE("full-scale pure note: peak %+.1f dBFS on the default patch, %+.1f dBFS with Octaves, "
-         "Ensemble, Movement and Mix at maximum\n",
-         db(usual), db(loudest));
-    EXPECT(usual < 2.2, "a full-scale pure note peaks under +7 dBFS on the default patch");
-    EXPECT(loudest < 4.0, "a full-scale pure note peaks under +12 dBFS at the loudest settings");
+    double apart = 0.0;
+    for (size_t i = at(4.0); i < out[0].size(); ++i) {
+      apart = std::max(apart, std::fabs(static_cast<double>(out[0].left[i]) - 2.0 * out[1].left[i]));
+      apart = std::max(apart, std::fabs(static_cast<double>(out[0].right[i]) - 2.0 * out[1].right[i]));
+    }
+    const double note_peak = std::max(peak(out[0].left, at(4.0)), peak(out[0].right, at(4.0)));
+    NOTE("phrase at %.1f dBFS peak: pad peak %.1f dBFS; held note: pad peak %.1f dBFS, %.1f dB from "
+         "twice the pad of the note at half level\n",
+         db(peak(x)), db(pad_peak), db(note_peak), db(apart / note_peak));
+    EXPECT(pad_peak < 0.6, "the pad of a phrase stays under the safety stage");
+    EXPECT(note_peak < 0.6 && db(apart / note_peak) < -80.0, "the pad is linear below the safety stage");
   }
 
   // Moving Octaves, Rise or Fall while a chord sounds neither clicks nor
@@ -434,6 +480,191 @@ int main() {
     Stereo jumped = run(device, x);
     NOTE("largest step after Octaves jumps -1 to +1: %.4f\n", max_step(jumped.left, 0, at(0.5)));
     EXPECT(max_step(jumped.left, 0, at(0.5)) < natural * 1.3 + 0.001, "a jump of Octaves glides");
+  }
+
+  // Noise is not a note: a band's reading of it is wild and its average
+  // wanders, which no partial's does. Loud hiss and a breathy band of noise
+  // make next to no pad, while a soft held note still gets all of its own
+  // at the default Sensitivity.
+  {
+    const auto both = [](const Stereo& s, size_t from, size_t to) {
+      const double l = rms(s.left, from, to), r = rms(s.right, from, to);
+      return std::sqrt(0.5 * (l * l + r * r));
+    };
+    rng_state() = 0xB0A7u;
+    std::vector<float> hiss = noise(6.0f, kRate, 0.1732f);  // -20 dBFS RMS
+    std::vector<float> breath(hiss.size());
+    float low = 0.0f, band = 0.0f;
+    for (size_t i = 0; i < hiss.size(); ++i) {  // roughly 500 Hz to 4 kHz
+      low += 0.0634f * (hiss[i] - low);
+      band += 0.408f * (hiss[i] - low - band);
+      breath[i] = 1.5f * band;
+    }
+    device.init(kRate);
+    device.set_param(p::kMix, 1.0f);
+    const double from_hiss = db(both(run(device, hiss), at(2.0), at(6.0)) / rms(hiss));
+    device.init(kRate);
+    device.set_param(p::kMix, 1.0f);
+    const double from_breath = db(both(run(device, breath), at(2.0), at(6.0)) / rms(breath));
+    plain(device);
+    Stereo soft = run(device, sine(330.0f, 4.0f, kRate, 0.01f));  // -40 dBFS
+    const double from_soft = db(tone_level(soft.left, 330.0, kRate, at(2.0), at(4.0)) / 0.01);
+    NOTE("pad of -20 dBFS white noise %.1f dB re the noise, of breath noise %.1f dB; pad of a -40 dBFS "
+         "note %+.1f dB re the note\n",
+         from_hiss, from_breath, from_soft);
+    EXPECT(from_hiss < -25.0, "loud white noise makes a pad at least 25 dB below itself");
+    EXPECT(from_breath < -25.0, "breath noise makes a pad at least 25 dB below itself");
+    EXPECT(std::fabs(from_soft) < 3.0, "a soft held note is still followed at the default Sensitivity");
+  }
+
+  // A held pure note is the hardest thing for an ensemble: copies of one
+  // partial that are equally loud cancel as they drift, and the pad comes and
+  // goes by 15 dB several times a second. With one main tap per side it
+  // breathes instead. The pad alone, twenty seconds, in 100 ms windows.
+  {
+    for (float hz : {220.0f, 1000.0f}) {
+      device.init(kRate);
+      device.set_param(p::kMix, 1.0f);
+      Stereo out = run(device, sine(hz, 22.0f, kRate, 0.25f));
+      double sum = 0.0, squares = 0.0, power = 0.0, lowest = 1.0e9, highest = -1.0e9;
+      int count = 0;
+      for (double t = 2.0; t < 21.95; t += 0.1, ++count) {
+        const double l = rms(out.left, at(t), at(t + 0.1)), r = rms(out.right, at(t), at(t + 0.1));
+        const double level = 10.0 * std::log10(0.5 * (l * l + r * r) / (0.25 * 0.25 * 0.5));
+        sum += level;
+        squares += level * level;
+        power += 0.5 * (l * l + r * r);
+        lowest = std::min(lowest, level);
+        highest = std::max(highest, level);
+      }
+      const double average = 10.0 * std::log10(power / count / (0.25 * 0.25 * 0.5));
+      const double spread = std::sqrt(std::max(0.0, squares / count - (sum / count) * (sum / count)));
+      NOTE("held %.0f Hz note, pad alone: %+.1f dB re the note on average, standard deviation %.2f dB, "
+           "from %+.1f to %+.1f dB\n",
+           hz, average, spread, lowest, highest);
+      EXPECT(average > -5.0 && average < 0.5, "the pad of a held note is at or a little under the note's level");
+      EXPECT(spread < 2.3, "the pad of a held pure note breathes by a decibel or two");
+      EXPECT(lowest > average - 8.0, "the pad of a held pure note never drops out");
+      EXPECT(highest < 3.5, "the pad of a held pure note never swells far past the note");
+    }
+  }
+
+  // A bad sample in the input (not-a-number, an infinity, a wild value) in
+  // the middle of a chord: the output stays finite, the pad carries on as if
+  // nothing had happened, and the device still falls silent afterwards.
+  {
+    std::vector<float> x = chord({196.0, 246.94, 293.66}, 4.0f, 0.1f);
+    device.init(kRate);
+    Stereo clean = run(device, x);
+    const float bad[3] = {std::nanf(""), HUGE_VALF, 1.0e30f};
+    for (float sample : bad) {
+      std::vector<float> spoiled = x;
+      spoiled[at(2.0)] = sample;
+      device.init(kRate);
+      Stereo out = run(device, spoiled);
+      const double after = db(rms(out.left, at(3.0), at(4.0)) / rms(clean.left, at(3.0), at(4.0)));
+      render(device, p::kParamDefault[p::kFall] * 2.5f + 1.0f, kRate);
+      Stereo rest = render(device, 0.5f, kRate);
+      NOTE("bad input sample %g: output finite %d, peak %.2f, level a second later %+.2f dB re clean\n",
+           static_cast<double>(sample), finite(out.left) && finite(out.right) ? 1 : 0,
+           std::max(peak(out.left), peak(out.right)), after);
+      EXPECT(finite(out.left) && finite(out.right), "a bad input sample leaves the output finite");
+      EXPECT(std::max(peak(out.left), peak(out.right)) < 8.5, "a wild input sample is held to a sane size");
+      EXPECT(std::fabs(after) < 0.5, "the pad carries on after a bad input sample");
+      EXPECT(peak(rest.left) == 0.0 && peak(rest.right) == 0.0, "and the device still falls silent");
+    }
+  }
+
+  // A section, not an organ stop. Three things a bank of bare sines would not
+  // do: the upper partials swell in after the lower ones; they are a little
+  // rough (the bow: fast, small changes of level that a low partial does not
+  // have); and every partial's level wanders slowly by itself, further with
+  // Movement.
+  {
+    double arrive[2], rough[2];
+    int which = 0;
+    for (float hz : {400.0f, 3200.0f}) {
+      plain(device);
+      Stereo out = run(device, sine(hz, 6.0f, kRate, 0.1f));
+      const double settled = rms(out.left, at(4.0), at(6.0));
+      // (in windows long enough to average the roughness out)
+      arrive[which] = -1.0;
+      for (double t = 0.0; t < 4.0 && arrive[which] < 0.0; t += 0.005) {
+        if (rms(out.left, at(t), at(t + 0.2)) >= 0.9 * settled) arrive[which] = t + 0.1;
+      }
+      // Level in 10 ms windows (whole periods of both tones): the RMS of
+      // its change from one window to the next, as a share of the level.
+      double change = 0.0, before = rms(out.left, at(4.0), at(4.01));
+      int count = 0;
+      for (double t = 4.01; t < 5.985; t += 0.01, ++count) {
+        const double now = rms(out.left, at(t), at(t + 0.01));
+        change += (now - before) * (now - before);
+        before = now;
+      }
+      rough[which++] = std::sqrt(change / count) / settled;
+    }
+    NOTE("400 Hz / 3200 Hz partial: 90 %% after %.2f / %.2f s; roughness %.4f / %.4f\n", arrive[0],
+         arrive[1], rough[0], rough[1]);
+    EXPECT(arrive[1] > 1.4 * arrive[0] && arrive[1] < 2.4 * arrive[0],
+           "an upper partial swells in later than a lower one");
+    EXPECT(rough[1] > 0.02 && rough[1] < 0.12, "an upper partial has the roughness of a bow");
+    EXPECT(rough[0] < 0.25 * rough[1], "a lower partial is smooth");
+
+    // Two notes held for twenty seconds, each partial's level in half-second
+    // windows: both wander, not together, and further with Movement up.
+    double wander[2] = {0.0, 0.0}, together = 0.0;
+    which = 0;
+    for (float movement : {0.0f, 1.0f}) {
+      plain(device);
+      device.set_param(p::kMovement, movement);
+      Stereo out = run(device, chord({220.0, 554.37}, 22.0f, 0.1f));
+      std::vector<float> track[2];
+      for (double t = 2.0; t < 21.6; t += 0.5) {
+        track[0].push_back(static_cast<float>(db(tone_level(out.left, 220.0, kRate, at(t), at(t + 0.5)))));
+        track[1].push_back(static_cast<float>(db(tone_level(out.left, 554.37, kRate, at(t), at(t + 0.5)))));
+      }
+      double spread[2];
+      for (int k = 0; k < 2; ++k) {
+        const double centre = mean(track[k]);
+        for (float& v : track[k]) v -= static_cast<float>(centre);
+        spread[k] = rms(track[k]);
+      }
+      wander[which++] = std::min(spread[0], spread[1]);
+      if (movement == 0.0f) together = correlation(track[0], track[1]);
+    }
+    NOTE("partial levels over 20 s: standard deviation %.2f dB with Movement at zero (correlation "
+         "between two partials %.2f), %.2f dB at full\n",
+         wander[0], together, wander[1]);
+    EXPECT(wander[0] > 0.08 && wander[0] < 0.8, "every partial's level wanders a little by itself");
+    EXPECT(std::fabs(together) < 0.7, "two partials do not wander together");
+    EXPECT(wander[1] > 2.0 * wander[0], "Movement makes the partials wander further");
+  }
+
+  // A fast trill, eight notes a second with a gap between them: the pad is
+  // the two notes, and what it sounds between them stays well under both.
+  {
+    std::vector<float> x(at(7.0), 0.0f);
+    int note = 0;
+    for (double start = 0.0; start < 6.0; start += 0.125, ++note) {
+      const double hz = note % 2 ? 440.0 : 392.0;
+      for (size_t i = at(start); i < at(start + 0.106); ++i) {
+        const double t = static_cast<double>(i) / kRate - start;
+        const double edge = std::min(1.0, std::min(t, 0.106 - t) / 0.01);
+        x[i] = static_cast<float>(0.1 * edge * (std::sin(2.0 * kPi * hz * t) + 0.5 * std::sin(4.0 * kPi * hz * t)));
+      }
+    }
+    plain(device);
+    Stereo out = run(device, x);
+    const double lower = tone_level(out.left, 392.0, kRate, at(3.0), at(6.0));
+    const double upper = tone_level(out.left, 440.0, kRate, at(3.0), at(6.0));
+    double between = 0.0;
+    for (double hz = 400.0; hz <= 431.0; hz += 1.0) {
+      between = std::max(between, tone_level(out.left, hz, kRate, at(3.0), at(6.0)));
+    }
+    NOTE("trill: pad at 392 Hz %.1f dB, at 440 Hz %.1f dB, strongest between them %.1f dB (re a note)\n",
+         db(lower / 0.1), db(upper / 0.1), db(between / 0.1));
+    EXPECT(db(std::min(lower, upper) / 0.1) > -16.0, "a fast trill becomes a pad of its two notes");
+    EXPECT(between < 0.6 * std::min(lower, upper), "and the pad does not sound the passage between them");
   }
 
   // Silence: once the pad has fallen the output is exact zeros and the

@@ -39,8 +39,14 @@
 //   second after a chord is struck, less higher up.
 // - Sub octaves: the half-angle phasor is the principal square root with a
 //   sign that flips each time the phase passes half a turn: exact, with no
-//   memory to drift. Neighbouring channels that hold one partial are made to
-//   agree on the sign.
+//   memory to drift. Neighbouring channels that hold one partial (their
+//   envelopes move together, or the frequencies they measure agree) are
+//   made to agree on the sign.
+// - Phase lock (the two upper voices): two channels that share a partial
+//   measure its phase a little differently while the pitch moves (the
+//   equaliser follows slowly), and doubled, the difference would cancel
+//   part of the voice: vibrato and glides would dip. The weaker of the two
+//   is turned onto the stronger one's phase.
 // - Rates: the lower channels run at a half and a quarter of the bank's
 //   rate (they are far below the fold there), which is where the cost goes.
 //   Their voices come back through short halfband interpolators; the delay
@@ -77,8 +83,8 @@ class OctaveBank {
   static constexpr int kBuses = 6;
 
   // Voice outputs for one sample. The up voices come out on two buses
-  // (alternate channels) so the device can spread them across the stereo
-  // field; their sum is the voice.
+  // (alternate runs of channels) so the device can spread them across the
+  // stereo field; their sum is the voice.
   struct Frame {
     float sub2 = 0.0f;
     float sub1 = 0.0f;
@@ -213,6 +219,7 @@ class OctaveBank {
   // this share of their cutoff. Two notes a tone apart sit in neighbouring
   // channels and must not take each other's level.
   static constexpr float kSame = 0.6f;
+  static constexpr float kLockFollow = 0.3f;
   // The upper voices leave on two buses for Spread, the channels taking
   // them in runs of this many. A note in tune lies between two channels
   // (OctaveBankImpl.h, the layout): with runs of three, of every six
@@ -279,6 +286,15 @@ class OctaveBank {
     const float x = (centre_[j] - centre_[k]) / (narrow_hz_[k] + open_[k] * (wide_hz_[k] - narrow_hz_[k]));
     const float x2 = x * x;
     return 1.0f / (1.0f + x2 * x2 * x2);
+  }
+
+  // Channel k's last sample with the equaliser's phase applied, at the time
+  // the top group is at.
+  void equalised(int k, float* re, float* im) const {
+    const float zr = yr_[kStages - 1][k] * rot_re_[k] - yi_[kStages - 1][k] * rot_im_[k];
+    const float zi = yr_[kStages - 1][k] * rot_im_[k] + yi_[kStages - 1][k] * rot_re_[k];
+    *re = zr * unskew_re_[k] - zi * unskew_im_[k];
+    *im = zr * unskew_im_[k] + zi * unskew_re_[k];
   }
 
   // The square root of (re, im) with a positive real part, same length.
@@ -401,6 +417,8 @@ class OctaveBank {
   float slow_[kMaxBands] = {};
   float weight_[kMaxBands] = {};
   float bare_[kMaxBands] = {};
+  float lock_re_[kMaxBands] = {};
+  float lock_im_[kMaxBands] = {};
   float leak_[kMaxBands] = {};
   float agree_[kMaxBands] = {};
   // Per channel: the beat of its envelope.

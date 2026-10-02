@@ -26,9 +26,10 @@
 //   notes (the harness measures it).
 // - There is no Mix: Dry is the balance. With the four voices at 0 the
 //   output is the input, bit for bit.
-// - Spread sends alternate channels of the two upper voices left and right
-//   (opposite ways for the two voices), so every note sits somewhere of its
-//   own; the sub octaves stay in the centre and the mono sum never changes.
+// - Spread sends the channels of the two upper voices left and right in
+//   alternate runs of three (opposite ways for the two voices), so every
+//   note sits somewhere of its own; the sub octaves stay in the centre and
+//   the mono sum never changes.
 // - The low-pass and a soft ceiling (linear to ±1, never past ±2) act on the
 //   generated voices only.
 
@@ -68,6 +69,7 @@ class Octaves : public kit::DeviceBase<octaves::kNumParams> {
     filter_[0].reset();
     filter_[1].reset();
     filter_clock_.reset(16);
+    filter_set_ = false;
     // The longest a channel rings after its input stops is well under this.
     idle_.reset(sr, 0.5f);
     for (int id = 0; id < kNumParams; ++id) apply(id);
@@ -86,8 +88,14 @@ class Octaves : public kit::DeviceBase<octaves::kNumParams> {
     for (int i = 0; i < frames; ++i) {
       float left, right;
       take_input(i, &left, &right);
+      // A sample that is not a number, or absurdly large, is not sound: the
+      // dry path holds it to a bound and the bank hears silence for it.
       float mono = 0.5f * (left + right);
-      if (!(mono > -64.0f && mono < 64.0f)) mono = 0.0f;
+      if (!(left > -kSane && left < kSane) || !(right > -kSane && right < kSane)) {
+        left = sane(left);
+        right = sane(right);
+        mono = 0.0f;
+      }
 
       // The bank runs when it has a full set of input samples; the first of
       // what it makes goes out with this sample, the rest with the next ones.
@@ -99,10 +107,13 @@ class Octaves : public kit::DeviceBase<octaves::kNumParams> {
       float wet_left = ready_[0][phase_];
       float wet_right = ready_[1][phase_];
 
-      if (filter_clock_.tick()) {
+      // (the coefficients only while Filter or Resonance are on their way)
+      if (filter_clock_.tick() && !filter_set_) {
         const float q = 0.7071f * std::pow(kMaxQ / 0.7071f, resonance_.value);
-        filter_[0].set(std::exp(cutoff_.value), q, sample_rate());
-        filter_[1].set(std::exp(cutoff_.value), q, sample_rate());
+        const float hz = std::exp(cutoff_.value);
+        filter_[0].set(hz, q, sample_rate());
+        filter_[1].set(hz, q, sample_rate());
+        filter_set_ = cutoff_.settled() && resonance_.settled();
       }
       cutoff_.next();
       resonance_.next();
@@ -131,6 +142,12 @@ class Octaves : public kit::DeviceBase<octaves::kNumParams> {
   static constexpr float kCeiling = 2.0f;
   // How far Spread moves a channel off centre at its top.
   static constexpr float kMaxSpread = 0.8f;
+  // The largest input sample taken as sound (+36 dB over full scale).
+  static constexpr float kSane = 64.0f;
+  static float sane(float x) {
+    if (!(x == x)) return 0.0f;
+    return x > kSane ? kSane : (x < -kSane ? -kSane : x);
+  }
   enum Voice : int { kVoiceSub2 = 0, kVoiceSub1, kVoiceUp1, kVoiceUp2, kNumVoices };
 
   // One bank sample from the last `factor_` input samples, and the
@@ -155,7 +172,7 @@ class Octaves : public kit::DeviceBase<octaves::kNumParams> {
     octaves::OctaveBank::Frame frame;
     bank_.process(x, want, &frame);
 
-    // Alternate channels lean left and right; the two sides always sum to
+    // Alternate runs of channels lean left and right; the two sides sum to
     // the whole voice.
     const float lean = spread_.next() * kMaxSpread;
     const float near = 1.0f + lean, far = 1.0f - lean;
@@ -205,9 +222,11 @@ class Octaves : public kit::DeviceBase<octaves::kNumParams> {
         break;
       case kFilter:
         cutoff_.set(std::log(value), primed());
+        filter_set_ = false;
         break;
       case kResonance:
         resonance_.set(value, primed());
+        filter_set_ = false;
         break;
       case kDetune:
         bank_.set_detune(value);
@@ -233,6 +252,7 @@ class Octaves : public kit::DeviceBase<octaves::kNumParams> {
   kit::Smoother spread_, dry_, cutoff_, resonance_;
   kit::Svf filter_[2];
   kit::ControlClock filter_clock_;
+  bool filter_set_ = false;
   kit::IdleGate idle_;
 };
 

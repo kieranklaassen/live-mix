@@ -229,6 +229,10 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
   static constexpr float kCrossHighHz = 650.0f; // ... and is not searched above here
   static constexpr float kMovedCents = 6.0f;    // the two looks are this far apart, on average ...
   static constexpr float kMovedTogether = 0.7f; // ... and this much of it is one way: the pitch is moving
+  static constexpr float kDeepFromDb = 20.0f;   // valleys this deep on both sides: less likely noise ...
+  static constexpr float kDeepToDb = 30.0f;     // ... and this deep: a partial for certain
+  static constexpr float kUnsteady = 1.035f;    // partials of one region change this unlike in a hop (0.3 dB) ...
+  static constexpr float kWobbleShare = 0.25f;  // ... in this much of the low power: the pitch is moving
   static constexpr float kFluxAtZero = 20.0f;   // fixed part of the onset threshold at Sensitivity 0 ...
   static constexpr float kFluxAtOne = 9.0f;     // ... and at 1
   static constexpr float kFluxAdapt = 2.0f;     // plus this many times the recent average flux
@@ -809,8 +813,34 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     int r = slot.regions;
     int pool = half_ + 1;
     int at = 0;
-    int alone = -1, shared = -1;
-    float moved = 0.0f, apart = 0.0f, weighed = 0.0f, one_moved = 0.0f, one_apart = 0.0f, one_weight = 0.0f;
+    // Is this a note whose pitch moves (vibrato, a bend)? Two signs of it,
+    // gathered over the partials the long frame finds in each caught region.
+    // One partial there, where the first look saw a partial too: the long
+    // frame, which averages a third of a second, reads it elsewhere than
+    // the short one, which caught an instant, and every such partial is off
+    // the same way (close notes pull each other's first reading up and down
+    // alike, which is not this). Several partials there: they are the
+    // sidebands of a vibrato if, from one long frame to the next, some grow
+    // while others shrink; the partials of close notes keep their levels,
+    // or fall together.
+    int group = 0, group_at = -1;
+    float group_hz = 0.0f, group_power = 0.0f, least = 0.0f, most = 0.0f;
+    float moved = 0.0f, apart = 0.0f, weighed = 0.0f, wobble = 0.0f, low_power = 0.0f;
+    const auto close_group = [&]() {
+      if (group == 1) {
+        const float first = slot.cent_turn[group_at] / (kTurnPerCentHz * hop_seconds_);
+        if (slot.noisy[group_at] < 0.5f && first > 15.0f) {
+          const float cents = group_power * kit::clamp((first / group_hz - 1.0f) / kTurnPerCentHz, -50.0f, 50.0f);
+          moved += cents;
+          apart += std::fabs(cents);
+          weighed += group_power;
+        }
+      } else if (group > 1 && most > kUnsteady * least) {
+        wobble += group_power;
+      }
+      group = 0;
+      group_power = 0.0f;
+    };
     for (int k = 2; k <= top && r < slot.regions + kMaxLow; ++k) {
       const float m = mag_[k];
       if (!(m > floor && m > mag_[k - 1] && m >= mag_[k + 1] && m > mag_[k - 2] && m >= mag_[k + 2])) continue;
@@ -826,28 +856,19 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
       if (offset < -1.5f || offset > 1.5f) continue;       // not a steady partial
       const float hz = (static_cast<float>(k) + offset) * long_bin;
       if (hz < 15.0f || hz >= (static_cast<float>(edge) - 0.5f) * short_bin) continue;
-      // Where both looks see one clean partial, they should agree on its
-      // pitch: how far they are apart is summed, with and without its sign.
+      // The partials found within one caught region are judged together.
       while (at + 1 < slot.regions && static_cast<float>(slot.start[at + 1]) * short_bin <= hz) ++at;
-      const float first = slot.cent_turn[at] / (kTurnPerCentHz * hop_seconds_);
-#ifdef RV_DEBUG
-      std::fprintf(stderr, "  long %.2f Hz m %.4f | region %d first %.2f Hz (%+.1f c) noisy %.2f\n", hz, m, at, first, 1200.0*std::log2(first/hz), slot.noisy[at]);
-#endif
-      if (at == alone) {  // a second partial in that region: neither counts
-        apart -= one_apart;
-        moved -= one_moved;
-        weighed -= one_weight;
-        shared = at;
-        alone = -1;
-      } else if (at != shared && slot.noisy[at] <= 0.0f && first > 15.0f) {
-        alone = at;
-        one_weight = m * m;
-        one_moved = one_weight * kit::clamp((first / hz - 1.0f) / kTurnPerCentHz, -50.0f, 50.0f);
-        one_apart = std::fabs(one_moved);
-        apart += one_apart;
-        moved += one_moved;
-        weighed += one_weight;
+      if (at != group_at) {
+        close_group();
+        group_at = at;
       }
+      const float change = m / (std::sqrt(last_re[k] * last_re[k] + last_im[k] * last_im[k]) + 1.0e-30f);
+      if (group == 0 || change < least) least = change;
+      if (group == 0 || change > most) most = change;
+      if (group == 0) group_hz = hz;
+      group_power += m * m;
+      ++group;
+      low_power += m * m;
       // A partial of amplitude A puts A/2 × N × lobe(k - b) into bin k, with
       // its phase at the middle of the frame and a sign that alternates.
       const float amplitude = 2.0f * m / (static_cast<float>(long_frame_) * lobe(-offset));
@@ -872,17 +893,15 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
       pool += kLobe;
       ++r;
     }
-    // A note whose pitch moves (vibrato, a bend) reads differently in the
-    // long frame, which averages a third of a second, than in the short one,
-    // which caught an instant: every partial is then off the same way.
-    // Rebuilding its lows from the long frame would leave them some tens of
-    // cents away from their own overtones, so the first look stands and the
-    // held note is at least in tune with itself. (Close notes pull each
-    // other's first reading up and down alike, which is not this.)
+    close_group();
+    // Then the lows are not rebuilt: they would end up some tens of cents
+    // away from their own overtones, or flutter as a pair of sidebands. The
+    // first look stands, and the held note is at least in tune with itself.
 #ifdef RV_DEBUG
-    std::fprintf(stderr, "  moved %+.2f cents, apart %.2f\n", moved / (weighed + 1e-20f), apart / (weighed + 1e-20f));
+    std::fprintf(stderr, "  moved %+.2f cents, apart %.2f, wobble share %.2f\n", moved / (weighed + 1e-20f), apart / (weighed + 1e-20f), wobble / (low_power + 1e-20f));
 #endif
     if (std::fabs(moved) > kMovedCents * weighed && std::fabs(moved) > kMovedTogether * apart) return;
+    if (wobble > kWobbleShare * low_power) return;
     slot.start[r] = static_cast<uint16_t>(pool);
     slot.regions = r;
     for (int k = 0; k < edge && k <= half_; ++k) {
@@ -1042,7 +1061,24 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
       if (!stands_[r] && around > 0.0f) {
         noisy = kit::max(noisy, (around_misfit / around - kNoisyFromDb) / kNoisySpanDb);
       }
+      // A peak between two deep valleys is a partial however poorly it
+      // fits: one whose pitch is moving (vibrato widens the lobe). The
+      // valleys of noise are shallow, 8 dB as a rule and hardly ever 25.
+      const int next = slot.start[r + 1] > half_ ? half_ : slot.start[r + 1];
+      const float edge = kit::max(mag_[slot.start[r]], mag_[next]);
+      const float depth = 6.0206f * fast_log2((mag_[peak_[r]] + 1.0e-30f) / (edge + 1.0e-30f));
+      noisy = kit::min(noisy, (kDeepToDb - depth) / (kDeepToDb - kDeepFromDb));
       slot.noisy[r] = regions > 1 ? kit::clamp(noisy, 0.0f, 1.0f) : 0.0f;
+#ifdef RV_DEBUG
+      {
+        const int e = slot.start[r + 1] > half_ ? half_ : slot.start[r + 1];
+        const float edge_mag = kit::max(mag_[slot.start[r]], mag_[e]);
+        std::fprintf(stderr, "R %d hz %.1f db %.1f misfit %.2f stands %d depth %.1f width %d noisy %.2f block %.2f\n", r, peak_[r] * bin_hz,
+                     10.0f * std::log10(weight_[r] / (top * top) + 1e-30f), misfit_[r], stands_[r] ? 1 : 0,
+                     20.0f * std::log10(mag_[peak_[r]] / (edge_mag + 1e-30f)), slot.start[r + 1] - slot.start[r], slot.noisy[r],
+                     around > 0.0f ? around_misfit / around : 0.0f);
+      }
+#endif
       if (static_cast<float>(peak_[r]) < cross) {
         low_noise += weight_[r] * slot.noisy[r];
         low_all += weight_[r];

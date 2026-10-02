@@ -39,7 +39,9 @@
 //   (unrelated material stays where it was). That holds at any speed
 //   and in either direction, so Speed is a motor with a 60 ms lag and passes
 //   through a stop into reverse. A second deck exists so that a new capture
-//   or a new Length fades in while the old loop fades out.
+//   or a new Length fades in while the old loop fades out; when Auto renews
+//   the loop of a note that is simply held, the new loop is started where
+//   it agrees with the old one, by the same search (see Swap).
 // - Above speed 1 the read skips frames; it low-passes as it interpolates
 //   then (see source_read) so the top of the capture does not fold back.
 // - Smear blends the playhead (equal power) into grains of 120 to 400 ms
@@ -450,8 +452,9 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
   // same small window; the new deck then starts at the place that agrees
   // (carried on by however far the old deck has really moved), and the fade
   // between them follows their likeness. A new loop that is unlike the old
-  // one starts at its beginning as ever, and a loop taken on an attack or
-  // by Hold never waits.
+  // one starts at its beginning as ever, and a loop taken by Hold, or one
+  // that had anything struck in it (the fast envelope kStruckRatio over its
+  // own slow one at any time while it was played in), never waits.
   struct Swap {
     bool active = false;
     bool done = false;       // the search is over

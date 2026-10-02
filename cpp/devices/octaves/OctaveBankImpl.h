@@ -169,6 +169,8 @@ inline void OctaveBank::init(float rate, float low_hz, float high_hz, int count)
     slow_[k] = 0.0f;
     weight_[k] = 0.0f;
     bare_[k] = 0.0f;
+    lock_re_[k] = 1.0f;
+    lock_im_[k] = 0.0f;
     paired_[k] = false;
     upper_leads_[k] = false;
     agree_[k] = 0.0f;
@@ -974,9 +976,41 @@ inline void OctaveBank::tick() {
     }
     // The voices' phases: the equaliser's rotor squared, to the fourth, and
     // its square roots (the ones nearest the last tick's).
-    const float er = rot_re_[k], ei = rot_im_[k];
+    // Two neighbours that hold one partial have to add, and the equaliser
+    // alone does not make them when the partial moves (a bend, vibrato):
+    // each knows where it is a little late, and differently late. What is
+    // left between their equalised phases is measured and taken out, each
+    // turning towards the other by the other's share of the two voices.
+    float lr = 1.0f, li = 0.0f;
+    for (int j = k - 1; j <= k + 1; j += 2) {
+      if (j < 0 || j >= bands_ || !was_live || !live_[j] || bare_[j] == 0.0f) continue;
+      const float d = (freq[k] - freq[j]) / (kSame * 0.5f * (width[k] + width[j]));
+      const float d2 = d * d;
+      if (d2 > 9.0f) continue;
+      const float theirs = bare_[j] * bare_[j] * power_[j], mine = bare_[k] * bare_[k] * power_[k];
+      const float f = theirs / (theirs + mine + 1.0e-30f) * pure_[k] * pure_[j] / (1.0f + d2 * d2);
+      // The neighbour's equalised phase against this channel's (both at the
+      // time the top group is at), and that far towards it.
+      float ar, ai, br, bi;
+      equalised(k, &ar, &ai);
+      equalised(j, &br, &bi);
+      const float pr2 = br * ar + bi * ai, pi2 = bi * ar - br * ai;
+      const float size = std::sqrt(pr2 * pr2 + pi2 * pi2) + 1.0e-30f;
+      const float cr2 = size + f * (pr2 - size), ci2 = f * pi2;
+      const float t = lr * cr2 - li * ci2;
+      li = lr * ci2 + li * cr2;
+      lr = t;
+    }
+    const float turn_inv = 1.0f / std::sqrt(lr * lr + li * li + 1.0e-30f);
+    lock_re_[k] += kLockFollow * (lr * turn_inv - lock_re_[k]);
+    lock_im_[k] += kLockFollow * (li * turn_inv - lock_im_[k]);
+    const float lock_inv = 1.0f / std::sqrt(lock_re_[k] * lock_re_[k] + lock_im_[k] * lock_im_[k] + 1.0e-20f);
+    const float er = (rot_re_[k] * lock_re_[k] - rot_im_[k] * lock_im_[k]) * lock_inv;
+    const float ei = (rot_re_[k] * lock_im_[k] + rot_im_[k] * lock_re_[k]) * lock_inv;
     float pr[kVoices], pi[kVoices];
-    unit_root(er, ei, &pr[1], &pi[1]);
+    // (the lock is for the upper voices: it doubles and quadruples there,
+    // and halves for the lower ones, whose signs are settled below)
+    unit_root(rot_re_[k], rot_im_[k], &pr[1], &pi[1]);
     if (pr[1] * root1_re_[k] + pi[1] * root1_im_[k] < 0.0f) {
       pr[1] = -pr[1];
       pi[1] = -pi[1];
@@ -1078,14 +1112,18 @@ inline void OctaveBank::tick() {
     // partials, its root slips once a beat, and nothing may follow that.)
     int j = -1;
     float best = power_[k] * pure_[k] * pure_[k];
-    if (k > 0 && live_[k - 1] && agree_[k - 1] > kAgreeThreshold) {
+    const auto same = [&](int a, int b) {
+      const float d = (freq[a] - freq[b]) / (kSame * 0.5f * (width[a] + width[b]));
+      return d * d < 1.0f;
+    };
+    if (k > 0 && live_[k - 1] && (agree_[k - 1] > kAgreeThreshold || same(k, k - 1))) {
       const float theirs = power_[k - 1] * pure_[k - 1] * pure_[k - 1];
       if (theirs > best) {
         j = k - 1;
         best = theirs;
       }
     }
-    if (k < bands_ - 1 && live_[k + 1] && agree_[k] > kAgreeThreshold &&
+    if (k < bands_ - 1 && live_[k + 1] && (agree_[k] > kAgreeThreshold || same(k, k + 1)) &&
         power_[k + 1] * pure_[k + 1] * pure_[k + 1] > best) {
       j = k + 1;
     }
