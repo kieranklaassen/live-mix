@@ -328,6 +328,12 @@ const coreSymbols = [
   'isStatefulDevice',
   'patchInstrumentOps',
   'DEFAULT_INSTRUMENT_TAIL_SECONDS',
+  // The engine measures its own load; a host marks its own processors
+  'LoadProbe',
+  'loadCells',
+  'LOAD_CELL_BUSY',
+  'wasmMemoryBytes',
+  'defaultLoadSamplerUrl',
 ] as const
 
 const dspSymbols = [
