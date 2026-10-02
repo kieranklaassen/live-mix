@@ -1344,7 +1344,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       'A string held singing by a magnet, slow to rise and wide in pitch, with a shifter spiralling in a large dark space.',
     instrument: {
       deviceId: 'bowed-string',
-      preset: 'Ebow swell',
+      preset: 'Sustained swell',
       params: {
         attack: 2.2,
         release: 5,

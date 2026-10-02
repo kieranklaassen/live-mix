@@ -2,7 +2,7 @@
 //
 // Parameter ids and ranges of Bow, shared with
 // src/dsp/devices/bowed-string.gen.ts:
-//    0  mode: 0 Pluck, 1 Ebow, 2 Bow, default 1
+//    0  mode: 0 Pluck, 1 Sustain, 2 Bow, default 1
 //    1  attack: 0.005..10 s, default 1.2
 //    2  release: 0.05..15 s, default 2
 //    3  brightness: 0..1, default 0.5

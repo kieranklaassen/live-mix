@@ -6,7 +6,7 @@ export const STRING_MACHINE_PRESETS: readonly FactoryPreset[] = [
     name: 'Ensemble strings, hall',
     category: 'string',
     description: 'The seventies string ensemble as it comes, with a long hall behind it.',
-    instrument: { deviceId: 'string-machine', preset: 'Solina' },
+    instrument: { deviceId: 'string-machine', preset: 'Ensemble strings' },
     effects: [{ deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.35 } }],
   },
   {
@@ -29,7 +29,7 @@ export const STRING_MACHINE_PRESETS: readonly FactoryPreset[] = [
       'The string machine through a slow phaser, the way it was recorded all through the seventies.',
     instrument: {
       deviceId: 'string-machine',
-      preset: 'Solina',
+      preset: 'Ensemble strings',
       params: { attack: 0.9, release: 3, tone: 4200, width: 0.6, volume: -4 },
     },
     effects: [

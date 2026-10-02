@@ -96,7 +96,7 @@
     }
   ],
   "presets": {
-    "Solina": {
+    "Ensemble strings": {
       "attack": 0.6,
       "release": 1.8,
       "low": 0.4,
@@ -147,6 +147,7 @@
       "width": 0
     }
   },
+  "formerPresets": { "Solina": "Ensemble strings" },
   "origin": {
     "kind": "new",
     "note": "Written for live-mix on cpp/kit. The architecture follows the ARP Solina/Omni family in outline (octave-related sawtooths per key, one shared filter, a three-line chorus whose LFOs sit 120 degrees apart at about 0.6 Hz and 6 Hz); it is not a circuit model."
