@@ -7,16 +7,23 @@
 // need one.
 
 import assert from 'node:assert/strict'
-import { existsSync, mkdtempSync, rmSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { after, before, test } from 'node:test'
 
-import { pluginHostBinaryPath, pluginHostTestPluginsDir, startPluginHost } from '../../shell.mjs'
+import {
+  pluginHostBinaryPath,
+  pluginHostTestPluginsDir,
+  pluginHostTroublePluginDir,
+  startPluginHost,
+} from '../../shell.mjs'
 
 const buildDir = resolve(process.env.LIVE_MIX_PLUGIN_HOST_BUILD ?? 'tmp/plugin-host')
 const binary = pluginHostBinaryPath(buildDir)
 const testPlugins = pluginHostTestPluginsDir(buildDir)
+const troublePlugin = pluginHostTroublePluginDir(buildDir)
 const wrapper = process.platform === 'linux' && !process.env.DISPLAY ? ['xvfb-run', '-a'] : []
 const dataDir = mkdtempSync(join(tmpdir(), 'live-mix-host-test-'))
 
@@ -68,9 +75,9 @@ async function connectControl(token = host.token) {
         socket.send(JSON.stringify({ id, method, params }))
       }),
     notify: (method, params = {}) => socket.send(JSON.stringify({ method, params })),
-    /** The first event of `name` that `match` accepts, waiting up to a second for it. */
-    async event(name, match = () => true) {
-      for (let i = 0; i < 100; i += 1) {
+    /** The first event of `name` that `match` accepts, waiting up to a second for it (or `tries` hundredths). */
+    async event(name, match = () => true, tries = 100) {
+      for (let i = 0; i < tries; i += 1) {
         const found = events.find((entry) => entry.event === name && match(entry))
         if (found) return found
         await sleep(10)
@@ -126,6 +133,20 @@ const near = (actual, expected, tolerance = 1e-6) =>
     `${actual} is not within ${tolerance} of ${expected}`,
   )
 
+/** The process ids of the scanners running now: the host started again with `--scan-worker`. */
+function scanners() {
+  try {
+    return execFileSync('pgrep', ['-f', 'live-mix-plugin-host.*--scan-worker'], {
+      encoding: 'utf8',
+    })
+      .split('\n')
+      .filter(Boolean)
+  } catch {
+    // pgrep ends with status 1 when nothing matches.
+    return []
+  }
+}
+
 async function loadTestPlugin(name, connection = control) {
   const { plugins } = await connection.call('plugins')
   const plugin = plugins.find((entry) => entry.name === name && entry.format === 'VST3')
@@ -162,6 +183,7 @@ test('scans a folder, reports progress and remembers what it found', async () =>
   const names = scan.plugins.map((plugin) => plugin.name).sort()
   assert.deepEqual(names, ['LiveMix Test Gain', 'LiveMix Test Sine'])
   assert.deepEqual(scan.failed, [])
+  assert.deepEqual(scan.crashed, [])
   assert.ok(
     control.events.some((entry) => entry.event === 'scanProgress' && entry.format === 'VST3'),
   )
@@ -536,6 +558,175 @@ test('a second start takes the port and token it is given and knows the scanned 
     socket.close()
   } finally {
     await second.stop()
+  }
+})
+
+/**
+ * A host of its own, in a data folder of its own, with the plug-in that goes
+ * wrong told how to (`trouble`: "abort", "hang" or nothing).
+ */
+async function withTrouble(trouble, folder, body) {
+  const env = { ...process.env }
+  delete env.LIVE_MIX_TEST_TROUBLE
+  if (trouble) env.LIVE_MIX_TEST_TROUBLE = trouble
+  const previous = host
+  const own = await startPluginHost({ binary, dataDir: folder, wrapper, env })
+  host = own
+  let connection
+  try {
+    connection = await connectControl(own.token)
+    return await body(connection, own)
+  } finally {
+    host = previous
+    connection?.close()
+    await own.stop()
+  }
+}
+
+const scanWithTrouble = (connection, more = {}) =>
+  connection.call('scan', { paths: [testPlugins, troublePlugin], defaultPaths: false, ...more })
+
+const namesOf = (scan) => scan.plugins.map((plugin) => plugin.name).sort()
+
+// What a plug-in does to a scan, and what ends it: a crash by itself, one that
+// only waits by the scanner noticing its thread uses no processor, one that
+// keeps a processor busy by the time a plug-in is given. `goes` is how often
+// the scan takes the plug-in up: a crash after other plug-ins may be their
+// doing, so the plug-in gets a scanner to itself before it is left out.
+for (const [trouble, what, limits, goes] of [
+  ['abort', 'crashes', {}, 2],
+  ['hang', 'never answers', { idle: 1 }, 1],
+  ['spin', 'never finishes', { timeout: 2 }, 1],
+]) {
+  test(`a plug-in that ${what} while it is scanned is left out, and the host carries on`, async () => {
+    const folder = mkdtempSync(join(tmpdir(), 'live-mix-host-trouble-'))
+    try {
+      const left = await withTrouble(trouble, folder, async (connection, own) => {
+        const scan = await scanWithTrouble(connection, limits)
+        // The two beside it are found, in the same scan and the same host.
+        assert.deepEqual(namesOf(scan), ['LiveMix Test Gain', 'LiveMix Test Sine'])
+        assert.equal(scan.crashed.length, 1)
+        assert.match(scan.crashed[0], /LiveMix Test Trouble/)
+        assert.deepEqual(scan.failed, scan.crashed)
+        assert.equal(scan.names[scan.crashed[0]], 'LiveMix Test Trouble')
+        assert.equal(own.process.exitCode, null, 'the host ended')
+        const taken = connection.events.filter(
+          (entry) => entry.event === 'scanProgress' && entry.name === 'LiveMix Test Trouble',
+        )
+        assert.equal(taken.length, goes)
+
+        // Still a host: it loads and runs what it found.
+        const slot = await loadTestPlugin('LiveMix Test Gain', connection)
+        assert.equal(slot.name, 'LiveMix Test Gain')
+        await connection.call('unload', { slot: slot.slot })
+
+        // The next scan does not go near it again.
+        const started = Date.now()
+        const again = await scanWithTrouble(connection, limits)
+        assert.ok(Date.now() - started < 1500, 'the scan tried the plug-in again')
+        assert.deepEqual(again.failed, [])
+        assert.deepEqual(again.crashed, scan.crashed)
+        return scan.crashed
+      })
+
+      // Nor does a host started later, with the plug-in behaving by now.
+      await withTrouble(null, folder, async (connection) => {
+        const scan = await scanWithTrouble(connection)
+        assert.deepEqual(namesOf(scan), ['LiveMix Test Gain', 'LiveMix Test Sine'])
+        assert.deepEqual(scan.crashed, left)
+
+        // Until a scan is asked to start over.
+        const fresh = await scanWithTrouble(connection, { rescan: true })
+        assert.deepEqual(namesOf(fresh), [
+          'LiveMix Test Gain',
+          'LiveMix Test Sine',
+          'LiveMix Test Trouble',
+        ])
+        assert.deepEqual(fresh.crashed, [])
+        assert.deepEqual(fresh.failed, [])
+      })
+    } finally {
+      rmSync(folder, { recursive: true, force: true })
+    }
+  })
+}
+
+test('hands a list from one scanner to the next, which carries on where it stopped', async () => {
+  const folder = mkdtempSync(join(tmpdir(), 'live-mix-host-relay-'))
+  try {
+    await withTrouble(null, folder, async (connection) => {
+      // One plug-in to a scanner: three scanners for the three plug-ins.
+      const scan = await scanWithTrouble(connection, { perProcess: 1 })
+      assert.deepEqual(namesOf(scan), [
+        'LiveMix Test Gain',
+        'LiveMix Test Sine',
+        'LiveMix Test Trouble',
+      ])
+      assert.deepEqual(scan.failed, [])
+      assert.deepEqual(scan.crashed, [])
+      const taken = connection.events
+        .filter((entry) => entry.event === 'scanProgress')
+        .map((entry) => entry.name)
+      assert.deepEqual(taken.sort(), namesOf(scan))
+    })
+  } finally {
+    rmSync(folder, { recursive: true, force: true })
+  }
+})
+
+test('keeps out a plug-in an earlier host noted as the one it ended in', async () => {
+  const folder = mkdtempSync(join(tmpdir(), 'live-mix-host-noted-'))
+  try {
+    const file = await withTrouble(null, folder, async (connection) => {
+      const scan = await scanWithTrouble(connection)
+      return scan.plugins.find((plugin) => plugin.name === 'LiveMix Test Trouble').file
+    })
+    rmSync(join(folder, 'plugins.xml'))
+    writeFileSync(join(folder, 'scan-in-progress.txt'), file)
+
+    await withTrouble(null, folder, async (connection) => {
+      const scan = await scanWithTrouble(connection)
+      assert.deepEqual(namesOf(scan), ['LiveMix Test Gain', 'LiveMix Test Sine'])
+      assert.deepEqual(scan.crashed, [file])
+      assert.ok(!existsSync(join(folder, 'scan-in-progress.txt')))
+    })
+  } finally {
+    rmSync(folder, { recursive: true, force: true })
+  }
+})
+
+test('a scan nobody waits for any more ends its scanner and keeps what it found', async () => {
+  const folder = mkdtempSync(join(tmpdir(), 'live-mix-host-gone-'))
+  try {
+    await withTrouble('hang', folder, async (connection) => {
+      void scanWithTrouble(connection).catch(() => {})
+      await connection.event(
+        'scanProgress',
+        (entry) => /LiveMix Test Trouble/.test(entry.file),
+        1000,
+      )
+      assert.equal(scanners().length, 1)
+      // The page that asked goes away in the middle of the plug-in.
+      connection.close()
+      for (let i = 0; i < 300 && scanners().length > 0; i += 1) await sleep(10)
+      assert.equal(scanners().length, 0, 'the scanner outlived its scan')
+    })
+
+    // What it found until then is kept, and the host says it is not everything.
+    await withTrouble(null, folder, async (connection) => {
+      assert.equal((await connection.call('hello')).scanUnfinished, true)
+      assert.deepEqual(namesOf(await connection.call('plugins')), [
+        'LiveMix Test Gain',
+        'LiveMix Test Sine',
+      ])
+      // The plug-in the scan was cut short in is not held against it.
+      const scan = await scanWithTrouble(connection)
+      assert.equal(scan.plugins.length, 3)
+      assert.deepEqual(scan.crashed, [])
+      assert.equal((await connection.call('hello')).scanUnfinished, false)
+    })
+  } finally {
+    rmSync(folder, { recursive: true, force: true })
   }
 })
 

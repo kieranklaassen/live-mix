@@ -1,8 +1,14 @@
 #include "HostServer.h"
 
+#include "ScanWorker.h"
+
 #include <cmath>
 #include <cstring>
 #include <optional>
+
+#if ! JUCE_WINDOWS
+ #include <unistd.h>
+#endif
 
 namespace livemix
 {
@@ -18,6 +24,20 @@ namespace
     constexpr uint32_t maxFramesPerMessage = 16384;
     constexpr uint32_t maxChannels = 8;
     constexpr int changeTimerHz = 30;
+    /** How long one plug-in may take to be scanned before the scan goes on without it. */
+    constexpr double scanSecondsPerPlugin = 120.0;
+    /** How long a plug-in may keep its scan waiting, using no processor: for something that never comes. */
+    constexpr double scanSecondsIdle = 10.0;
+    /** How often a scan in progress is saved, so a host that is quit keeps what it found. */
+    constexpr juce::uint32 scanSaveMillis = 5000;
+    /**
+        How many plug-ins one scan worker takes before the next is started.
+        Plug-ins leave threads and memory behind in the process that loaded
+        them, and enough of them end it whichever one comes next.
+    */
+    constexpr int scanPluginsPerWorker = 40;
+    /** Scan workers in a row that may end without taking up a plug-in before the scan gives up. */
+    constexpr int scanEmptyWorkers = 3;
 
     juce::var describePlugin (const juce::PluginDescription& description)
     {
@@ -41,16 +61,63 @@ namespace
     }
 }
 
+/**
+    One `scan` request. The plug-ins are scanned by a worker, the host started
+    a second time (ScanWorker.h), so one that crashes or never answers ends
+    the worker and not the host: the scan leaves it out and goes on with a new
+    worker.
+*/
 struct HostServer::ScanJob
 {
+    ~ScanJob()
+    {
+        endWorker();
+        list.deleteFile();
+        results.deleteFile();
+    }
+
+    void endWorker()
+    {
+        if (worker == nullptr)
+            return;
+        if (worker->isRunning())
+            worker->kill();
+        // Collects the ended process, so none is left behind for each crash.
+        worker->waitForProcessToFinish (2000);
+        worker.reset();
+    }
+
     Connection connection;
     juce::var id;
     juce::Array<juce::AudioPluginFormat*> pending;
     juce::FileSearchPath extraPaths;
     bool useDefaultPaths = true;
-    std::unique_ptr<juce::PluginDirectoryScanner> scanner;
+    double secondsPerPlugin = scanSecondsPerPlugin;
+    double secondsIdle = scanSecondsIdle;
+    int pluginsPerWorker = scanPluginsPerWorker;
+
+    /** The format being scanned, and what of it is neither known nor left out. */
     juce::String format;
+    juce::StringArray queue;
+    /** How many of the queue are settled: found, failed or left out. */
+    int settled = 0;
+
+    std::unique_ptr<juce::ChildProcess> worker;
+    /** The queue as the worker reads it, and what the worker writes back. */
+    juce::File list, results;
+    juce::int64 resultsRead = 0;
+    /** The plug-in the worker is in (its place in the queue), or -1 between two. */
+    int current = -1;
+    /** When the worker was started or last wrote a line, whichever is later. */
+    juce::uint32 lastWord = 0;
+    /** How many plug-ins the running worker has taken up, and how many it is through. */
+    int workerBegan = 0, workerDone = 0;
+    int emptyWorkers = 0;
+    /** A plug-in a worker crashed in after others, given one more go at the head of a worker of its own. */
+    int secondGo = -1;
+
     juce::StringArray failed;
+    juce::uint32 lastSaved = 0;
 };
 
 //==============================================================================
@@ -304,6 +371,7 @@ juce::var HostServer::hello() const
     result->setProperty ("version", JUCE_APPLICATION_VERSION_STRING);
     result->setProperty ("juce", LIVE_MIX_HOST_JUCE_VERSION);
     result->setProperty ("formats", formatNames);
+    result->setProperty ("scanUnfinished", scanUnfinished);
     result->setProperty ("link", LinkSession::available());
     if (LinkSession::available())
         result->setProperty ("linkVersion", LinkSession::version());
@@ -545,7 +613,11 @@ void HostServer::announceLink()
 void HostServer::controlClosed (const Connection& connection)
 {
     if (scan != nullptr && scan->connection == connection)
+    {
+        // What it found so far is kept; the list says it is not all of it.
         scan.reset();
+        savePluginCache();
+    }
 
     juce::StringArray owned;
     {
@@ -590,6 +662,12 @@ void HostServer::startScan (const Connection& connection, const juce::var& id, c
     if (auto* paths = params["paths"].getArray())
         for (const auto& path : *paths)
             scan->extraPaths.add (juce::File (path.toString()));
+    if (const auto seconds = static_cast<double> (params["timeout"]); seconds > 0.0)
+        scan->secondsPerPlugin = seconds;
+    if (const auto seconds = static_cast<double> (params["idle"]); seconds > 0.0)
+        scan->secondsIdle = seconds;
+    if (const auto count = static_cast<int> (params["perProcess"]); count > 0)
+        scan->pluginsPerWorker = count;
     for (auto* format : formats.getFormats())
     {
         // Audio Units are registered with the system rather than found in
@@ -605,6 +683,13 @@ void HostServer::startScan (const Connection& connection, const juce::var& id, c
         knownPlugins.clearBlacklistedFiles();
     }
 
+    const auto scratch = juce::File::getSpecialLocation (juce::File::tempDirectory);
+    const auto stamp = juce::Uuid().toString();
+    scan->list = scratch.getChildFile ("live-mix-scan-" + stamp + ".list");
+    scan->results = scratch.getChildFile ("live-mix-scan-" + stamp + ".results");
+    scan->lastSaved = juce::Time::getMillisecondCounter();
+    scanUnfinished = true;
+
     stepScan();
 }
 
@@ -612,54 +697,215 @@ void HostServer::stepScan()
 {
     if (scan == nullptr)
         return;
+    auto& job = *scan;
 
-    if (scan->scanner == nullptr)
+    if (job.worker != nullptr)
     {
-        if (scan->pending.isEmpty())
+        // Asked before the results are read, so nothing a worker wrote on its
+        // way out is missed.
+        const auto running = job.worker->isRunning();
+        takeScanResults();
+
+        // A plug-in, or the worker itself, that has taken too long is ended.
+        const auto quiet = juce::Time::getMillisecondCounter() - job.lastWord;
+        const auto late = quiet >= static_cast<juce::uint32> (job.secondsPerPlugin * 1000.0);
+        if (running && job.settled < job.queue.size() && ! late)
+            return;
+
+        // Zero when the worker ended by itself after the list, or was ended
+        // here with the list done; the worker's own word for a plug-in that
+        // only waited is 71 (ScanWorker.cpp).
+        const auto crashed = ! running && job.worker->getExitCode() != 71;
+        job.endWorker();
+
+        if (job.current >= 0 && crashed && job.workerDone > 0 && job.secondGo != job.current)
+        {
+            // It crashed after other plug-ins in the same worker, and one of
+            // those may have left the process in a bad way. It gets a worker
+            // to itself before it is held against it.
+            job.secondGo = job.current;
+            job.settled = job.current;
+            job.current = -1;
+        }
+        else if (job.current >= 0)
+        {
+            // The worker ended inside a plug-in. It is left out of this scan
+            // and of the ones after it, until a scan is asked to start over.
+            const auto identifier = job.queue[job.current];
+            knownPlugins.addToBlacklist (identifier);
+            job.failed.add (identifier);
+            job.settled = job.current + 1;
+            job.current = -1;
+            savePluginCache();
+            job.lastSaved = juce::Time::getMillisecondCounter();
+        }
+
+        job.emptyWorkers = job.workerBegan > 0 ? 0 : job.emptyWorkers + 1;
+        if (job.settled < job.queue.size() && job.emptyWorkers >= scanEmptyWorkers)
         {
             savePluginCache();
-            juce::Array<juce::var> failed;
-            for (const auto& file : scan->failed)
-                failed.add (file);
-            auto* result = new juce::DynamicObject();
-            result->setProperty ("plugins", pluginList());
-            result->setProperty ("failed", failed);
             const auto finished = std::move (scan);
-            reply (finished->connection, finished->id, juce::var (result));
+            fail (finished->connection, finished->id, "the plug-in scanner ended before it scanned anything");
+            return;
+        }
+    }
+
+    for (;;)
+    {
+        if (job.settled < job.queue.size())
+        {
+            if (! startScanWorker())
+            {
+                savePluginCache();
+                const auto finished = std::move (scan);
+                fail (finished->connection, finished->id, "the plug-in scanner could not be started");
+            }
             return;
         }
 
-        auto* format = scan->pending.removeAndReturn (0);
-        auto paths = scan->useDefaultPaths ? format->getDefaultLocationsToSearch() : juce::FileSearchPath();
-        paths.addPath (scan->extraPaths);
-        scan->format = format->getName();
-        scan->scanner = std::make_unique<juce::PluginDirectoryScanner> (
-            knownPlugins, *format, paths, true,
-            options.dataDirectory.getChildFile ("scan-in-progress.txt"), true);
+        if (job.pending.isEmpty())
+            break;
+
+        // The next format: what it has that is neither known nor left out.
+        // The ones that are made asynchronously are in, version 3 Audio Units
+        // among them; the worker asks those from a thread of its own.
+        auto* format = job.pending.removeAndReturn (0);
+        auto paths = job.useDefaultPaths ? format->getDefaultLocationsToSearch() : juce::FileSearchPath();
+        paths.addPath (job.extraPaths);
+        job.format = format->getName();
+        job.queue.clear();
+        job.settled = 0;
+        job.emptyWorkers = 0;
+        job.secondGo = -1;
+        for (const auto& identifier : format->searchPathsForPlugins (paths, true, true))
+            if (! knownPlugins.getBlacklistedFiles().contains (identifier)
+                && ! knownPlugins.isListingUpToDate (identifier, *format))
+                job.queue.add (identifier);
+        job.list.replaceWithText (job.queue.joinIntoString ("\n"));
     }
 
-    const auto file = scan->scanner->getNextPluginFileThatWillBeScanned();
-    if (file.isNotEmpty())
+    scanUnfinished = false;
+    savePluginCache();
+    juce::Array<juce::var> failed;
+    juce::Array<juce::var> crashed;
+    // What to call each of them: an Audio Unit is found by a code, not a file.
+    auto* names = new juce::DynamicObject();
+    for (const auto& file : job.failed)
     {
-        auto* progress = new juce::DynamicObject();
-        progress->setProperty ("format", scan->format);
-        progress->setProperty ("file", file);
-        progress->setProperty ("progress", scan->scanner->getProgress());
-        emit (scan->connection, "scanProgress", progress);
+        failed.add (file);
+        names->setProperty (file, pluginName (file));
+    }
+    for (const auto& file : knownPlugins.getBlacklistedFiles())
+    {
+        crashed.add (file);
+        names->setProperty (file, pluginName (file));
+    }
+    auto* result = new juce::DynamicObject();
+    result->setProperty ("plugins", pluginList());
+    result->setProperty ("failed", failed);
+    result->setProperty ("crashed", crashed);
+    result->setProperty ("names", juce::var (names));
+    const auto finished = std::move (scan);
+    reply (finished->connection, finished->id, juce::var (result));
+}
+
+juce::String HostServer::pluginName (const juce::String& identifier) const
+{
+    for (auto* format : formats.getFormats())
+    {
+        if (! format->fileMightContainThisPluginType (identifier))
+            continue;
+        const auto name = format->getNameOfPluginFromIdentifier (identifier);
+        // A format that knows a plug-in by its file gives the path back.
+        if (name.isNotEmpty() && name != identifier)
+            return name;
+        break;
+    }
+    return juce::File::isAbsolutePath (identifier) ? juce::File (identifier).getFileNameWithoutExtension()
+                                                    : identifier;
+}
+
+bool HostServer::startScanWorker()
+{
+    auto& job = *scan;
+    job.results.deleteFile();
+    job.resultsRead = 0;
+    job.current = -1;
+    job.workerBegan = job.workerDone = 0;
+    job.lastWord = juce::Time::getMillisecondCounter();
+
+    ScanWorker::Job work;
+    work.format = job.format;
+    work.list = job.list;
+    work.results = job.results;
+    work.from = job.settled;
+    work.count = job.pluginsPerWorker;
+    work.idleSeconds = job.secondsIdle;
+   #if ! JUCE_WINDOWS
+    work.parent = static_cast<int> (::getpid());
+   #endif
+
+    auto command = work.toCommandLine();
+    command.insert (0, juce::File::getSpecialLocation (juce::File::currentExecutableFile).getFullPathName());
+    job.worker = std::make_unique<juce::ChildProcess>();
+    // Neither output is read: what a plug-in prints is not the host's to keep.
+    if (job.worker->start (command, 0))
+        return true;
+    job.worker.reset();
+    return false;
+}
+
+void HostServer::takeScanResults()
+{
+    auto& job = *scan;
+    juce::FileInputStream in (job.results);
+    if (! in.openedOk() || ! in.setPosition (job.resultsRead))
+        return;
+
+    juce::MemoryBlock fresh;
+    in.readIntoMemoryBlock (fresh);
+    // Only whole lines: the worker may be in the middle of the last one.
+    auto whole = fresh.getSize();
+    while (whole > 0 && fresh[whole - 1] != '\n')
+        --whole;
+    job.resultsRead += static_cast<juce::int64> (whole);
+    const auto text = juce::String::fromUTF8 (static_cast<const char*> (fresh.getData()), static_cast<int> (whole));
+
+    for (const auto& written : juce::StringArray::fromLines (text))
+    {
+        auto line = ScanWorker::parse (written);
+        if (! line || ! juce::isPositiveAndBelow (line->index, job.queue.size()))
+            continue;
+        const auto identifier = job.queue[line->index];
+        job.lastWord = juce::Time::getMillisecondCounter();
+
+        if (! line->done)
+        {
+            job.current = line->index;
+            ++job.workerBegan;
+            auto* progress = new juce::DynamicObject();
+            progress->setProperty ("format", job.format);
+            progress->setProperty ("file", identifier);
+            progress->setProperty ("name", pluginName (identifier));
+            progress->setProperty ("progress", static_cast<double> (line->index) / static_cast<double> (job.queue.size()));
+            emit (job.connection, "scanProgress", progress);
+            continue;
+        }
+
+        for (const auto* type : line->types)
+            knownPlugins.addType (*type);
+        if (line->types.isEmpty())
+            job.failed.add (identifier);
+        job.settled = line->index + 1;
+        job.current = -1;
+        ++job.workerDone;
     }
 
-    juce::String scanned;
-    if (! scan->scanner->scanNextFile (true, scanned))
+    if (juce::Time::getMillisecondCounter() - job.lastSaved > scanSaveMillis)
     {
-        scan->failed.addArray (scan->scanner->getFailedFiles());
-        scan->scanner.reset();
+        savePluginCache();
+        job.lastSaved = juce::Time::getMillisecondCounter();
     }
-
-    juce::MessageManager::callAsync ([weak = juce::WeakReference<HostServer> (this)]
-    {
-        if (weak != nullptr)
-            weak->stepScan();
-    });
 }
 
 void HostServer::load (const Connection& connection, const juce::var& id, const juce::var& params)
@@ -775,7 +1021,21 @@ void HostServer::loadPluginCache()
 {
     const auto file = options.dataDirectory.getChildFile ("plugins.xml");
     if (auto xml = juce::parseXML (file))
+    {
         knownPlugins.recreateFromXml (*xml);
+        scanUnfinished = xml->getBoolAttribute ("scanUnfinished");
+    }
+
+    // A host from before scans had a process of their own noted here which
+    // plug-in it was in, and that plug-in took it down. Those stay left out.
+    const auto noted = options.dataDirectory.getChildFile ("scan-in-progress.txt");
+    if (noted.existsAsFile())
+    {
+        juce::PluginDirectoryScanner::applyBlacklistingsFromDeadMansPedal (knownPlugins, noted);
+        scanUnfinished = true;
+        savePluginCache();
+        noted.deleteFile();
+    }
 }
 
 void HostServer::savePluginCache() const
@@ -784,12 +1044,18 @@ void HostServer::savePluginCache() const
         return;
     options.dataDirectory.createDirectory();
     if (auto xml = knownPlugins.createXml())
+    {
+        // Saved while a scan runs, the list is not all there is yet.
+        if (scanUnfinished)
+            xml->setAttribute ("scanUnfinished", true);
         xml->writeTo (options.dataDirectory.getChildFile ("plugins.xml"));
+    }
 }
 
 void HostServer::timerCallback()
 {
     announceLink();
+    stepScan();
 
     std::vector<std::shared_ptr<PluginSlot>> all;
     {

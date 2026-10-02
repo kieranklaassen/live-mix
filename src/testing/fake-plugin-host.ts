@@ -147,6 +147,10 @@ export interface FakePluginHostOptions {
   plugins?: NativePluginInfo[]
   /** Latency the reverb reports. */
   latencySamples?: number
+  /** The host's last scan was cut short: it says so at hello. Default false. */
+  scanUnfinished?: boolean
+  /** Plug-ins a scan leaves out for having ended one, by file. Default none. */
+  crashed?: readonly string[]
   /** False for a host built without Ableton Link. Default true. */
   link?: boolean
   /** The fake session's clock. */
@@ -216,6 +220,7 @@ export class FakePluginHost {
           juce: '9.0.2',
           formats: ['VST3', 'AudioUnit'],
           platform: 'mac',
+          scanUnfinished: this.options.scanUnfinished ?? false,
           link: this.options.link ?? true,
           ...((this.options.link ?? true) ? { linkVersion: '4.1' } : {}),
         })
@@ -250,9 +255,23 @@ export class FakePluginHost {
           event: 'scanProgress',
           format: 'VST3',
           file: FAKE_REVERB.file,
+          name: FAKE_REVERB.name,
           progress: 0,
         })
-        reply({ plugins, failed: ['/plugins/Broken.vst3'] })
+        reply({
+          plugins,
+          failed: ['/plugins/Broken.vst3'],
+          crashed: [...(this.options.crashed ?? [])],
+          names: {
+            '/plugins/Broken.vst3': 'Broken',
+            ...Object.fromEntries(
+              (this.options.crashed ?? []).map((file) => [
+                file,
+                file.replace(/^.*\//, '').replace(/\.[^.]+$/, ''),
+              ]),
+            ),
+          },
+        })
         break
       case 'load': {
         const plugin = plugins.find((candidate) => candidate.id === request.params.plugin)

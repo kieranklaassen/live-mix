@@ -26,6 +26,12 @@ export interface NativeHostInfo {
   /** Plug-in formats the host can load, e.g. `['VST3', 'AudioUnit']`. */
   formats: string[]
   platform: 'mac' | 'windows' | 'linux'
+  /**
+   * True when the host's last scan was cut short (the host was quit, or the
+   * page that asked went away): its list holds what was found until then,
+   * and another scan carries on from there. Absent from older hosts.
+   */
+  scanUnfinished?: boolean
   /** Whether the host was built with Ableton Link. Absent from hosts older than Link support. */
   link?: boolean
   /** The Link release the host was built with, e.g. `'4.1'`. */
@@ -57,19 +63,49 @@ export interface NativeScanOptions {
    * folder, are left out.
    */
   defaultPaths?: boolean
-  /** Forget the cached list and the blocklist first. */
+  /** Forget the cached list first, and try again the plug-ins left out for ending a scan. */
   rescan?: boolean
+  /**
+   * How many seconds a plug-in may keep the scan waiting without using the
+   * processor before the scan goes on without it (default 10). A plug-in
+   * that waits for something that never comes would hold the scan for ever.
+   * Not for a version 3 Audio Unit, which the system makes outside the scan
+   * process: only `timeout` holds for it.
+   */
+  idle?: number
+  /** How many seconds one plug-in may take at most, at work or not (default 120). */
+  timeout?: number
+  /**
+   * How many plug-ins one scan process takes before the host starts the
+   * next (default 40). Plug-ins leave threads and memory behind in the
+   * process that loaded them; enough of them end it.
+   */
+  perProcess?: number
 }
 
 export interface NativeScanResult {
   plugins: NativePluginInfo[]
-  /** Files that could not be loaded as plug-ins. */
+  /** Files that could not be loaded as plug-ins in this scan. */
   failed: string[]
+  /**
+   * Plug-ins left out because they crashed or never answered while they
+   * were scanned, in this scan or an earlier one. A scan does not try them
+   * again until it is asked to with `rescan`.
+   */
+  crashed: string[]
+  /**
+   * What to call each entry of `failed` and `crashed`: the plug-in's name
+   * where the host can tell it without loading the plug-in. An Audio Unit is
+   * listed by a code, not a file.
+   */
+  names: Record<string, string>
 }
 
 export interface NativeScanProgress {
   format: string
   file: string
+  /** The plug-in's name, where the host can tell it before loading it. Absent from older hosts. */
+  name?: string
   /** 0..1 within the current format. */
   progress: number
 }

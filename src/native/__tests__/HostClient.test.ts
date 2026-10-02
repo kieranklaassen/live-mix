@@ -61,6 +61,8 @@ describe('NativeHostClient', () => {
     expect(seen).toEqual([FAKE_REVERB.file])
     expect(result.plugins[0].name).toBe('Fake Verb')
     expect(result.failed).toEqual(['/plugins/Broken.vst3'])
+    expect(result.crashed).toEqual([])
+    expect(result.names).toEqual({ '/plugins/Broken.vst3': 'Broken' })
     off()
     await client.scan()
     expect(seen).toHaveLength(1)

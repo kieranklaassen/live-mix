@@ -63,6 +63,11 @@ standard input closes, unless `--stay-alive`. Without `--port` it takes a free
 one; without `--token` it makes one. `--data-dir` is where the plug-in list
 (`plugins.xml`) is kept between runs.
 
+A scan runs in a second process: the host starts its own binary again with
+`--scan-worker` (`Source/ScanWorker.h` has the options and what the two say to
+each other), so a plug-in that crashes or never answers while it is scanned
+ends that process and not the host.
+
 ## Test
 
 ```sh
@@ -72,8 +77,9 @@ pnpm host:build && pnpm test:host
 `test/host.test.mjs` starts the built binary and speaks the protocol to it:
 hello, a refused token, scan, load, audio through the test gain plug-in
 (sample-exact against its 64-sample delay), state, MIDI into the test synth,
-the editor window, unloading, shutdown. On macOS it also loads one of Apple's
-own Audio Units. `LIVE_MIX_PLUGIN_HOST_BUILD` names another build directory.
+the editor window, unloading, shutdown, and a scan that meets a plug-in which
+crashes, one which only waits and one which never finishes. On macOS it also
+loads one of Apple's own Audio Units. `LIVE_MIX_PLUGIN_HOST_BUILD` names another build directory.
 
 `test/link.test.mjs` is Ableton Link: it starts the host next to a second Link
 peer and compares what the two see (tempo both ways, the place in the bar at
@@ -87,7 +93,10 @@ no interface carries it those tests skip, unless
 `test/plugins/` holds the two plug-ins the tests load, built as VST3 with
 `--test-plugins`: **LiveMix Test Gain** (gain, a Normal/Invert/Mute mode, 64
 samples of reported latency) and **LiveMix Test Sine** (an instrument: a sine
-per held note, no envelope). They are test fixtures, not something to ship.
+per held note, no envelope). `test/trouble/` holds **LiveMix Test Trouble**,
+which goes wrong when `LIVE_MIX_TEST_TROUBLE` tells it to (`abort`, `hang` or
+`spin`) and sits in a folder of its own so no other scan finds it. They are
+test fixtures, not something to ship.
 
 ## Source
 
@@ -96,6 +105,7 @@ per held note, no envelope). They are test fixtures, not something to ship.
 | `Source/Main.cpp`      | Arguments, the ready line, shutdown when the parent goes                                    |
 | `Source/WebSocket.*`   | A WebSocket server on `juce::StreamingSocket`: handshake, frames, one thread per connection |
 | `Source/HostServer.*`  | The control protocol, the plug-in list and scanning, the audio connections                  |
+| `Source/ScanWorker.*`  | The scan's own process: one plug-in after another, and a watch that ends one that waits     |
 | `Source/PluginSlot.*`  | One loaded plug-in: processing, parameters, state, MIDI, its editor window                  |
 | `Source/LinkSession.*` | Ableton Link and Link Audio: the session's state, beat requests, audio channels             |
 | `Source/Sha1.h`        | SHA-1 for the WebSocket handshake                                                           |

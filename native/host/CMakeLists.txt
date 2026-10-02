@@ -11,7 +11,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "Minimum macOS version")
 
-option(LIVE_MIX_HOST_BUILD_TEST_PLUGINS "Build the two plug-ins and the Link peer the host's own tests use" OFF)
+option(LIVE_MIX_HOST_BUILD_TEST_PLUGINS "Build the plug-ins and the Link peer the host's own tests use" OFF)
 # Ableton Link is GPL v2 or later: a host built with it is covered by that
 # licence (cmake/LiveMixLink.cmake). OFF leaves Link out; the host then says
 # it has none and pages carry on without it.
@@ -42,6 +42,7 @@ target_sources(LiveMixPluginHost PRIVATE
     Source/LinkSession.cpp
     Source/Main.cpp
     Source/PluginSlot.cpp
+    Source/ScanWorker.cpp
     Source/WebSocket.cpp)
 
 target_compile_definitions(LiveMixPluginHost PRIVATE
@@ -81,6 +82,7 @@ endif()
 
 if(LIVE_MIX_HOST_BUILD_TEST_PLUGINS)
     add_subdirectory(test/plugins)
+    add_subdirectory(test/trouble)
     if(LIVE_MIX_HOST_LINK)
         add_subdirectory(test/link)
     endif()
