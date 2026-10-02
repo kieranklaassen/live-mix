@@ -701,6 +701,7 @@
 .lm-strip,
 .lm-mixer,
 .lm-device,
+.lm-plate,
 .lm-chain,
 .lm-timeline {
   font-family: var(--lm-font);
@@ -1691,6 +1692,227 @@
   display: flex;
   align-items: center;
   padding: 0 var(--lm-space-1);
+}
+
+/* --- Device plate ---------------------------------------------------------
+ * A device drawn from a skin (`DevicePlate`): the skin sets `--lm-plate`,
+ * `--lm-plate-ink` and `--lm-plate-accent`, and everything on the plate is
+ * drawn in those three, so a plate keeps its colours in every theme. The
+ * plate is 140 px high and whole 20 px cells wide.
+ */
+
+.lm-plate {
+  --lm-plate: var(--lm-raised);
+  --lm-plate-ink: var(--lm-text);
+  --lm-plate-accent: var(--lm-accent);
+  position: relative;
+  flex: 0 0 auto;
+  align-self: stretch;
+  min-height: 140px;
+  overflow: hidden;
+  /* The finish is noise: it is painted once, not again with every knob turned over it. */
+  contain: layout paint;
+  background: var(--lm-plate);
+  color: var(--lm-plate-ink);
+}
+
+.lm-plate--off {
+  filter: saturate(0.25);
+  opacity: 0.7;
+}
+
+.lm-plate__finish,
+.lm-plate__picture {
+  position: absolute;
+  display: block;
+  pointer-events: none;
+}
+
+.lm-plate__finish {
+  inset: 0;
+}
+
+/* The picture keeps to the right end as the plate widens. */
+.lm-plate__picture {
+  right: 0;
+  bottom: 0;
+}
+
+.lm-plate__knobs {
+  position: absolute;
+  top: 8px;
+  left: 4px;
+  display: grid;
+  grid-template-columns: repeat(var(--lm-plate-columns, 4), var(--lm-plate-column, 48px));
+  grid-template-rows: repeat(var(--lm-plate-rows, 1), 50px);
+}
+
+.lm-plate .lm-knob {
+  width: 100%;
+  gap: 3px;
+  color: var(--lm-plate-ink);
+}
+
+/* The word sits under the knob, and gives way to the value while the knob is in hand. */
+.lm-plate .lm-knob__control {
+  order: 0;
+}
+
+.lm-plate .lm-knob__label,
+.lm-plate .lm-knob__value {
+  order: 1;
+  width: 100%;
+  padding: 0 2px;
+  overflow: hidden;
+  color: var(--lm-plate-ink);
+  font-size: 8px;
+  font-weight: 400;
+  line-height: 10px;
+  letter-spacing: 0.04em;
+  text-align: center;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.lm-plate .lm-knob__value {
+  display: none;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.lm-plate .lm-knob:hover .lm-knob__label,
+.lm-plate .lm-knob:focus-within .lm-knob__label,
+.lm-plate .lm-knob--active .lm-knob__label {
+  display: none;
+}
+
+.lm-plate .lm-knob:hover .lm-knob__value,
+.lm-plate .lm-knob:focus-within .lm-knob__value,
+.lm-plate .lm-knob--active .lm-knob__value {
+  display: block;
+}
+
+.lm-plate .lm-knob__control:focus-visible,
+.lm-plate .lm-button:focus-visible,
+.lm-plate .lm-toggle:focus-visible,
+.lm-plate .lm-device__presets:focus-visible,
+.lm-plate__more:focus-visible {
+  outline: 1px solid var(--lm-plate-ink);
+  outline-offset: 1px;
+}
+
+/* Opens the plate to every control, and folds it back. */
+.lm-plate__more {
+  position: absolute;
+  top: 12px;
+  right: 8px;
+  width: 30px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--lm-plate-ink);
+  border-radius: 0;
+  background: transparent;
+  color: var(--lm-plate-ink);
+  font-family: var(--lm-font-mono);
+  font-size: 9px;
+  cursor: pointer;
+}
+
+.lm-plate__more:hover,
+.lm-plate__more[aria-expanded='true'] {
+  background: var(--lm-plate-ink);
+  color: var(--lm-plate);
+}
+
+.lm-plate__foot {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  left: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+}
+
+.lm-plate__name {
+  flex: 0 1 auto;
+  min-width: 0;
+  height: 20px;
+  margin: 0 auto 0 0;
+  padding: 0 7px;
+  overflow: hidden;
+  background: var(--lm-plate-ink);
+  color: var(--lm-plate);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 20px;
+  letter-spacing: 0.14em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.lm-plate .lm-device__meter {
+  min-width: 0;
+  color: var(--lm-plate-ink);
+  font-size: 9px;
+}
+
+/* Presets, moving and removing: there while the plate is pointed at, in use or open. */
+.lm-plate__tools {
+  display: none;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+}
+
+.lm-plate:hover .lm-plate__tools,
+.lm-plate:focus-within .lm-plate__tools,
+.lm-plate--open .lm-plate__tools {
+  display: flex;
+}
+
+.lm-plate__tools .lm-button,
+.lm-plate__tools .lm-device__presets {
+  min-width: 16px;
+  height: 20px;
+  padding: 0 3px;
+  border: 0;
+  border-radius: 0;
+  background: var(--lm-plate-ink);
+  color: var(--lm-plate);
+  font-weight: 400;
+}
+
+.lm-plate__tools .lm-device__presets {
+  max-width: 64px;
+}
+
+.lm-plate__tools .lm-button:hover:not(:disabled) {
+  color: var(--lm-plate);
+}
+
+/* The lamp is the power switch: lit in the second ink while the device is on. */
+.lm-plate__lamp.lm-toggle {
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.lm-plate__lamp .lm-toggle__dot {
+  width: 8px;
+  height: 8px;
+  border: 1px solid var(--lm-plate-ink);
+  border-radius: 50%;
+  background: transparent;
+}
+
+.lm-plate__lamp.lm-toggle--on .lm-toggle__dot {
+  background: var(--lm-plate-accent);
 }
 
 /* --- Timeline ------------------------------------------------------------- */

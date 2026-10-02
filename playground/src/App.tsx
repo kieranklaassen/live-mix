@@ -9,6 +9,7 @@ import {
 import {
   ChannelStripView,
   DeviceChainView,
+  deviceSkin,
   Fader,
   GridView,
   Knob,
@@ -138,7 +139,7 @@ export function App() {
           {selected ? (
             <section className="pg-section" data-testid="devices">
               <h2>Devices — {selected.host.name}</h2>
-              <DeviceChainView strip={selected.host} data-testid="chain" />
+              <DeviceChainView strip={selected.host} skin={deviceSkin} data-testid="chain" />
             </section>
           ) : null}
 

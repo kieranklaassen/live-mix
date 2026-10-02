@@ -207,6 +207,78 @@ describe('ControlSurface dispatch', () => {
     expect(engine.transport.state).toBe('paused')
   })
 
+  it('fires a host action from a key, a pad or a switch, and only while something answers to it', () => {
+    const surface = new ControlSurface()
+    const jump = vi.fn()
+    const key1: ControlSource = { kind: 'key', code: 'Digit1' }
+    const marker: ControlTarget = { kind: 'action', id: 'marker.jump.1' }
+    surface.map({ source: key1, target: marker })
+
+    // Nothing registered yet: the key is the map's (consumed), and nothing happens.
+    const idle = surface.handle(press(key1))
+    expect(idle.consumed).toBe(true)
+    expect(idle.applied).toEqual([])
+
+    const unregister = surface.registerAction('marker.jump.1', jump)
+    expect([...surface.actions.keys()]).toEqual(['marker.jump.1'])
+    const changes: ControlSurfaceChange[] = []
+    surface.onChange((change) => changes.push(change))
+    expect(surface.handle(press(key1)).applied).toHaveLength(1)
+    expect(jump).toHaveBeenCalledTimes(1)
+    // The key coming up fires nothing.
+    expect(surface.handle(triggerEvent(key1, false, 0)).consumed).toBe(true)
+    expect(jump).toHaveBeenCalledTimes(1)
+    expect(surface.read(marker)).toBeNull()
+    expect(changes.filter((change) => change.type === 'applied')).toEqual([
+      {
+        type: 'applied',
+        change: expect.objectContaining({ kind: 'trigger', target: marker }),
+        unit: null,
+      },
+    ])
+
+    // A pad and a switch fire it too: a source may be a key or a controller.
+    surface.map({ source: pad36, target: marker })
+    surface.handle(press(pad36))
+    expect(jump).toHaveBeenCalledTimes(2)
+    surface.map({ source: cc1, target: marker })
+    surface.handle(cc(cc1, 10))
+    surface.handle(cc(cc1, 127))
+    surface.handle(cc(cc1, 120))
+    expect(jump).toHaveBeenCalledTimes(3)
+
+    // One source drives several targets, a mute among them, and a resolver can stand in for the registry.
+    const { engine } = fixture()
+    const pad = engine.addAudioTrack('pad')
+    const mixed = new ControlSurface({
+      engine,
+      resolve: { action: (id) => (id === 'go' ? jump : undefined) },
+    })
+    mixed.map({ source: key1, target: { kind: 'action', id: 'go' } })
+    mixed.map({ source: key1, target: mute, mode: 'toggle' })
+    mixed.handle(press(key1))
+    expect(jump).toHaveBeenCalledTimes(4)
+    expect(pad.strip.mute).toBe(true)
+    mixed.handle(press(key1))
+    expect(jump).toHaveBeenCalledTimes(5)
+    expect(pad.strip.mute).toBe(false)
+    // What is registered answers before the resolver, which keeps every id nothing registered.
+    const named = vi.fn()
+    const forget = mixed.registerAction('go', named)
+    mixed.handle(press(key1))
+    expect(named).toHaveBeenCalledTimes(1)
+    expect(jump).toHaveBeenCalledTimes(5)
+    forget()
+    mixed.handle(press(key1))
+    expect(jump).toHaveBeenCalledTimes(6)
+
+    // Unregistered, the action is gone and its switch does nothing.
+    unregister()
+    surface.handle(cc(cc1, 0))
+    expect(surface.handle(cc(cc1, 127)).applied).toEqual([])
+    expect(jump).toHaveBeenCalledTimes(6)
+  })
+
   it('nudges with relative encoders and applies soft takeover against the live value', () => {
     const { engine } = fixture()
     const pad = engine.addAudioTrack('pad')
@@ -314,6 +386,28 @@ describe('ControlSurface learn', () => {
 
     surface.handle(cc(cc74, 127))
     expect(pad.strip.level).toBe(1.5)
+  })
+
+  it('learns a key onto an action and keeps it through serialising', () => {
+    const surface = new ControlSurface()
+    const fired = vi.fn()
+    surface.registerAction('loop', fired)
+    const loop: ControlTarget = { kind: 'action', id: 'loop' }
+    const keyL: ControlSource = { kind: 'key', code: 'KeyL' }
+    surface.beginLearn(loop)
+    // The key coming up while armed keeps waiting; the press binds and is not dispatched.
+    expect(surface.handle(triggerEvent(keyL, false, 0)).consumed).toBe(false)
+    const learned = surface.handle(press(keyL))
+    expect(learned.consumed).toBe(true)
+    expect(learned.learned).toMatchObject({ source: keyL, target: loop, mode: 'toggle' })
+    expect(fired).not.toHaveBeenCalled()
+    surface.handle(press(keyL))
+    expect(fired).toHaveBeenCalledTimes(1)
+
+    const copy = new ControlSurface()
+    copy.load(surface.serialize())
+    expect(copy.table).toEqual(surface.table)
+    expect(copy.mappingFor(loop)?.source).toEqual(keyL)
   })
 
   it('cancels, forces a mode, and re-learns keeping options', () => {

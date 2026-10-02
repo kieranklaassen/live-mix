@@ -43,6 +43,11 @@ export interface DeviceFrameProps {
   className?: string
   style?: CSSProperties
   'data-testid'?: string
+  /**
+   * The kind of device the frame holds (its `Device.id`), for a host that
+   * maps controllers onto what is on screen. `DevicePanel` sets it.
+   */
+  'data-lm-device'?: string
 }
 
 /** Ableton-style device chrome: title bar with an optional power switch, dense body. */
@@ -58,12 +63,14 @@ export function DeviceFrame({
   className,
   style,
   'data-testid': testId,
+  'data-lm-device': deviceKind,
 }: DeviceFrameProps) {
   return (
     <section
       className={cx('lm-device', !powered && 'lm-device--off', className)}
       style={style}
       data-testid={testId}
+      data-lm-device={deviceKind}
       data-powered={powered ? 'true' : 'false'}
       aria-label={title}
       {...(info ? infoProps(title, info) : {})}
@@ -77,6 +84,7 @@ export function DeviceFrame({
             info={powerInfo}
             onPressedChange={onPowerChange}
             data-testid={testId ? `${testId}-power` : undefined}
+            data-lm-power={deviceKind !== undefined}
           />
         ) : null}
         <h3 className="lm-device__title">{title}</h3>
@@ -114,7 +122,8 @@ export interface DevicePanelProps {
   'data-testid'?: string
 }
 
-function isBipolar(spec: ParamSpec): boolean {
+/** A parameter that rests in the middle of its range: its knob fills from the centre. */
+export function isBipolar(spec: ParamSpec): boolean {
   return spec.min < 0 && spec.max > 0 && spec.default === (spec.min + spec.max) / 2
 }
 
@@ -128,7 +137,8 @@ export function formatDeviceMeter(value: number, unit: string): string {
   return unit ? `${text} ${unit}` : text
 }
 
-function DeviceMeterReadout({
+/** One reading of a device that reports its own, as a number that follows it. */
+export function DeviceMeterReadout({
   device,
   name,
   spec,
@@ -266,6 +276,7 @@ export function DevicePanel({
       className={cx('lm-device--generated', className)}
       style={style}
       data-testid={testId}
+      data-lm-device={device.id}
     >
       {device.notice ? (
         <p
@@ -311,6 +322,7 @@ export function DevicePanel({
               info={paramInfo(spec) ?? `A setting of ${heading}.`}
               className="lm-device__param"
               data-testid={testId ? `${testId}-${name}` : undefined}
+              data-lm-param={name}
             />
           )
         })}

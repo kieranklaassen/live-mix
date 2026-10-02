@@ -1,9 +1,9 @@
 // Where a control change comes from: a MIDI message (note, CC, 14-bit CC
-// pair, pitch bend, channel pressure) on a channel, or one argument of an OSC
-// message at an address pattern. Sources are plain data with a string key, so
-// a mapping can be stored and compared; `sourceMatches` decides whether an
-// incoming event belongs to a source (channel 0 is omni, OSC addresses match
-// as OSC 1.0 patterns).
+// pair, pitch bend, channel pressure) on a channel, one argument of an OSC
+// message at an address pattern, or a key of the computer keyboard. Sources
+// are plain data with a string key, so a mapping can be stored and compared;
+// `sourceMatches` decides whether an incoming event belongs to a source
+// (channel 0 is omni, OSC addresses match as OSC 1.0 patterns).
 
 import { matchOscAddress } from './osc-address'
 
@@ -29,7 +29,17 @@ export interface OscSource {
   arg: number
 }
 
-export type ControlSource = MidiSource | OscSource
+/**
+ * A key of the computer keyboard, named by where it sits (`KeyboardEvent.code`:
+ * `Digit1`, `KeyQ`, `F5`), so a mapping holds on every keyboard layout. A key
+ * is a button: the host feeds a press and a release as trigger events.
+ */
+export interface KeySource {
+  kind: 'key'
+  code: string
+}
+
+export type ControlSource = MidiSource | OscSource | KeySource
 
 export type ControlSourceKind = ControlSource['kind']
 
@@ -47,6 +57,8 @@ export function sourceKey(source: ControlSource): string {
       return `aftertouch:${source.channel}`
     case 'osc':
       return `osc:${source.address}:${source.arg}`
+    case 'key':
+      return `key:${source.code}`
     default: {
       const exhaustive: never = source
       return exhaustive
@@ -60,6 +72,57 @@ export function sameSource(a: ControlSource, b: ControlSource): boolean {
 
 function channelLabel(channel: MidiChannel): string {
   return channel === MIDI_OMNI ? 'any ch' : `ch ${channel}`
+}
+
+/** What the keys that are not a letter, a digit or a function key are called. */
+const KEY_NAMES: Readonly<Record<string, string>> = {
+  Space: 'Space',
+  Enter: 'Enter',
+  Tab: 'Tab',
+  Escape: 'Esc',
+  Backspace: 'Backspace',
+  Delete: 'Delete',
+  Insert: 'Insert',
+  Home: 'Home',
+  End: 'End',
+  PageUp: 'Page Up',
+  PageDown: 'Page Down',
+  ArrowLeft: '←',
+  ArrowRight: '→',
+  ArrowUp: '↑',
+  ArrowDown: '↓',
+  Minus: '-',
+  Equal: '=',
+  BracketLeft: '[',
+  BracketRight: ']',
+  Backslash: '\\',
+  Semicolon: ';',
+  Quote: "'",
+  Backquote: '`',
+  Comma: ',',
+  Period: '.',
+  Slash: '/',
+  NumpadAdd: 'Num +',
+  NumpadSubtract: 'Num -',
+  NumpadMultiply: 'Num *',
+  NumpadDivide: 'Num /',
+  NumpadDecimal: 'Num .',
+  NumpadEnter: 'Num Enter',
+}
+
+/**
+ * What a key is called on a US keyboard, from its `KeyboardEvent.code`:
+ * `Digit1` is `1`, `KeyQ` is `Q`, `Numpad4` is `Num 4`. A code this does not
+ * know is returned as it is.
+ */
+export function keyCodeLabel(code: string): string {
+  const letter = /^Key([A-Z])$/.exec(code)
+  if (letter) return letter[1]
+  const digit = /^Digit([0-9])$/.exec(code)
+  if (digit) return digit[1]
+  const numpad = /^Numpad([0-9])$/.exec(code)
+  if (numpad) return `Num ${numpad[1]}`
+  return KEY_NAMES[code] ?? code
 }
 
 /** Human-readable label, e.g. `CC 74 · ch 1`. */
@@ -77,6 +140,8 @@ export function describeSource(source: ControlSource): string {
       return `Aftertouch · ${channelLabel(source.channel)}`
     case 'osc':
       return `OSC ${source.address}[${source.arg}]`
+    case 'key':
+      return `Key ${keyCodeLabel(source.code)}`
     default: {
       const exhaustive: never = source
       return exhaustive
@@ -85,7 +150,7 @@ export function describeSource(source: ControlSource): string {
 }
 
 export function isMidiSource(source: ControlSource): source is MidiSource {
-  return source.kind !== 'osc'
+  return source.kind !== 'osc' && source.kind !== 'key'
 }
 
 function channelMatches(pattern: MidiChannel, channel: MidiChannel): boolean {
@@ -127,6 +192,8 @@ export function sourceMatches(pattern: ControlSource, actual: ControlSource): bo
         pattern.arg === actual.arg &&
         matchOscAddress(pattern.address, actual.address)
       )
+    case 'key':
+      return actual.kind === 'key' && pattern.code === actual.code
     default: {
       const exhaustive: never = pattern
       return exhaustive
@@ -144,6 +211,11 @@ function isDataByte(value: unknown): value is number {
 
 function isArgIndex(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value >= 0
+}
+
+/** `KeyboardEvent.code` values are short words of letters and digits. */
+function isKeyCode(value: unknown): value is string {
+  return typeof value === 'string' && /^[A-Za-z0-9]{1,32}$/.test(value)
 }
 
 /** Validate an untrusted value (parsed JSON) as a `ControlSource`; null when malformed. */
@@ -173,6 +245,8 @@ export function parseControlSource(value: unknown): ControlSource | null {
         isArgIndex(record.arg)
         ? { kind: 'osc', address: record.address, arg: record.arg }
         : null
+    case 'key':
+      return isKeyCode(record.code) ? { kind: 'key', code: record.code } : null
     default:
       return null
   }

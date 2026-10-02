@@ -7,6 +7,9 @@ import { type PatchCategory } from '../../core/devices/patch'
 import { type PlanarAudio } from '../../core/render/encode'
 import { renderPatch, type RenderPatchOptions } from '../patch-render'
 import { FACTORY_CHAINS } from './chains'
+import { type GeneratedSound } from './generate'
+import { transposePatch, transposePhrase, transposeWords } from './key'
+import { wholeCycles } from './parts'
 import {
   CHAIN_PREVIEW_PATCH,
   CHAIN_PREVIEW_PHRASE,
@@ -27,6 +30,33 @@ export {
 } from './phrases'
 export { FACTORY_PRESETS } from './presets'
 export { FACTORY_SOUNDS } from './sounds'
+export {
+  CHORD_COLOURS,
+  FACTORY_HOME_KEY,
+  FACTORY_MODES,
+  PITCH_CLASS_NAMES,
+  chordName,
+  chordTakes,
+  chordTones,
+  factoryTranspose,
+  keyChord,
+  pitchClassName,
+  relativeMajorRoot,
+  transposePatch,
+  transposePhrase,
+  transposeWords,
+  type ChordColour,
+  type FactoryKey,
+  type FactoryMode,
+  type KeyChord,
+} from './key'
+export {
+  GENERATED_KINDS,
+  generateSound,
+  type GenerateSoundOptions,
+  type GeneratedKind,
+  type GeneratedSound,
+} from './generate'
 export {
   type FactoryChain,
   type FactoryChainCategory,
@@ -81,6 +111,16 @@ export type FactoryRenderOptions = Pick<
 > & {
   /** What a sample instrument plays when the recipe names no source of its own. */
   sample?: PlanarAudio
+}
+
+/** How a factory sound is rendered: where to run the devices, and in which key. */
+export type FactorySoundRenderOptions = FactoryRenderOptions & {
+  /**
+   * Semitones the sound is moved from the bank's own key, as
+   * `factoryTranspose(key)` gives them (default 0: C major and the other
+   * white-key modes).
+   */
+  transpose?: number
 }
 
 /**
@@ -152,18 +192,44 @@ export async function renderChainPreview(
 }
 
 /**
+ * A factory sound moved by `semitones`: its notes, the devices that are set
+ * to a pitch, and its name and description ("Low drone D" is "Low drone F"
+ * three up). Its id and number stay, so it is the same sound to whatever
+ * refers to it. A sound made from another one keeps its own notes, since the
+ * sound it plays is the one that moves.
+ */
+export function transposeFactorySound(sound: FactorySound, semitones: number): FactorySound {
+  if (semitones === 0) return sound
+  const patch = typeof sound.patch === 'string' ? factoryPreset(sound.patch) : sound.patch
+  const name = sound.words ? transposeWords(sound.words.name, semitones) : sound.name
+  const description = sound.words
+    ? transposeWords(sound.words.description, semitones)
+    : sound.description
+  return {
+    ...sound,
+    name,
+    description,
+    ...(patch ? { patch: { ...transposePatch(patch, semitones), name, description } } : {}),
+    phrase: sound.source === undefined ? transposePhrase(sound.phrase, semitones) : sound.phrase,
+  }
+}
+
+/**
  * Render a factory sound: its phrase on its patch, looped without a seam
- * when the recipe asks for it. A sound made from another one (a granular
- * cloud of the piano) renders that one first.
+ * when the recipe asks for it, in the bank's own key or `transpose`
+ * semitones from it. A sound made from another one (a granular cloud of the
+ * piano) renders that one first, in the same key.
  */
 export async function renderFactorySound(
   sound: FactorySound,
-  options: FactoryRenderOptions = {},
+  options: FactorySoundRenderOptions = {},
 ): Promise<PlanarAudio> {
-  const patch = typeof sound.patch === 'string' ? factoryPreset(sound.patch) : sound.patch
+  const { transpose = 0, ...render } = options
+  const inKey = transposeFactorySound(sound, transpose)
+  const patch = typeof inKey.patch === 'string' ? factoryPreset(inKey.patch) : inKey.patch
   if (!patch)
     throw new Error(`live-mix: factory sound "${sound.id}" names a preset that does not exist`)
-  let sample = options.sample
+  let sample = render.sample
   if (sound.source !== undefined) {
     const source = factorySound(sound.source)
     if (!source || source.source !== undefined) {
@@ -171,9 +237,37 @@ export async function renderFactorySound(
     }
     sample = await renderFactorySound(source, options)
   }
+  const phrase =
+    inKey.tuning === 'whole-cycles'
+      ? {
+          notes: inKey.phrase.notes.map((note) => ({
+            ...note,
+            note: wholeCycles(note.note, inKey.durationSec),
+          })),
+        }
+      : inKey.phrase
   return renderPatch(patch, {
-    ...options,
+    ...render,
     sample,
+    phrase,
+    durationSec: inKey.durationSec,
+    skipSec: inKey.skipSec,
+    loopCrossfadeSec: inKey.loopCrossfadeSec,
+    fadeOutSec: inKey.loopCrossfadeSec ? 0 : (inKey.fadeOutSec ?? 0.05),
+    normalizePeakDb: FACTORY_PEAK_DB,
+  })
+}
+
+/**
+ * Render a generated sound (`generateSound`): its phrase on its patch, looped
+ * without a seam when it is one that loops, at the bank's peak level.
+ */
+export function renderGeneratedSound(
+  sound: GeneratedSound,
+  options: FactoryRenderOptions = {},
+): Promise<PlanarAudio> {
+  return renderPatch(sound.patch, {
+    ...options,
     phrase: sound.phrase,
     durationSec: sound.durationSec,
     skipSec: sound.skipSec,

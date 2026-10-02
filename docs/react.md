@@ -136,9 +136,46 @@ function Studio({ engine }: { engine: Engine }) {
 | `MixerView`, `MasterStripView`              | Sections for tracks (+ `inputs`), groups, `returns`, and the master (bus fader + engine meter); lists default to the provided engine's `tracks` / `groups`                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `DevicePanel` (`DeviceView`), `DeviceFrame` | One taper-aware knob per `ParamSpec` (steps derived from unit and range; `choiceLabels` for enumerations), bypass on the power switch, a preset picker from the registry descriptor; the frame alone for custom bodies                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `DeviceChainView`                           | An insert chain as panels with move earlier / later, drag-and-drop reorder (`reorderInserts`), remove (+ dispose) and an add picker over the registry, grouped by category and without instruments. `strip` takes a track, a strip or a bus (`engine.master`); `pinned={n}` hides the first `n` inserts the app owns and keeps them first; `filter` narrows the picker. Under an arbiter, a chain on a strip the score carries (or the master) adds, removes and reorders with `device.add` / `device.remove` / `device.move`, so chain edits are saved and undoable; any other strip is edited on the engine as before |
+| `DevicePlate`                               | The same device as an object of its own, drawn from a skin: plate colour, finish, a picture that follows the settings, knobs with the skin's cap. A few knobs on the face, a cell that opens the rest, a name tag, a lamp for power. `DeviceChainView` draws plates when given `skin` (see Device plates below)                                                                                                                                                                                                                                                                                                         |
 | `TimelineView`, `Waveform`                  | Lanes per clip source with clips placed in seconds, `sounding` / `upcoming` from `useSchedule`, loop region, a frame-sampled playhead, waveforms from decoded peaks; click or arrow the ruler to seek                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `DeviceToggle`, `ToggleButton`              | The squared power switch and the pressed / unpressed button (mute, solo, loop tones)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `GridView`                                  | The session grid over `useSession` / `useSlot`: scenes × audio tracks, a slot button per cell (`data-state` empty / stopped / queued / playing / recording, stopping, `gate` dashed), scene launch per row, per-track stop row and stop-all, the quantise selector (`quantizeKey` / `quantizeLabel`)                                                                                                                                                                                                                                                                                                                    |
+
+### Device plates
+
+A chain of grey panels says nothing about what is in it. `DevicePlate` draws a
+device from a `DeviceSkin`, so each effect is its own object, the way pedals on
+a board are:
+
+```tsx
+import { DeviceChainView, deviceSkin } from '@kieranklaassen/live-mix/react'
+
+;<DeviceChainView strip={track} skin={deviceSkin} />
+```
+
+A skin is five choices and a face:
+
+| Field                    | What it sets                                                                                                                                                                                              |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `plate`, `ink`, `accent` | The plate's colour and its two inks. They reach the plate as `--lm-plate`, `--lm-plate-ink` and `--lm-plate-accent`, and everything on it is drawn in those, so a plate keeps its colours in every theme. |
+| `finish`                 | `matte`, `grain`, `brushed`, `speckle`, `hammered`, `linen`, `fade` or `gloss`: SVG noise or a gradient over the plate, light on a dark plate and dark on a light one. No image files.                    |
+| `cap`                    | The knobs' cap: `disc`, `dot`, `skirt` or `pointer` (`Knob`'s `cap`; `arc` is the kit's own knob).                                                                                                        |
+| `face`, `labels`         | The four knobs on the face and shorter words for them. The rest are behind the `+n` cell, which widens the plate by whole 20 px cells.                                                                    |
+| `picture`                | `{ params, draw(at) }`: SVG in a 240 by 140 box, drawn from the positions (0..1) of the parameters it names and again only when one of them moves. More Feedback on the Tape Echo draws more repeats.     |
+| `name`                   | The word on the tag when the device's own name is too long for it.                                                                                                                                        |
+
+`DEVICE_SKINS` holds the kit's own, for eighteen of the stock effects.
+`deviceSkin(device, skins?)` answers for a chain: the device's skin, else
+`QUIET_SKIN` (the theme's colours, no finish, no picture, eight knobs in two
+rows) so tools sit quietly between the others, and null for a device that
+draws itself (a hosted plug-in), which keeps its `DevicePanel`. Pass your own
+table as the second argument, or your own function as `skin`, to add or
+replace skins. A plate is 140 px high and `plateLayout(knobs, pictured)` gives
+its width.
+
+A plate costs nothing while it sits: the finish and the picture are drawn when
+the device is added or one of its knobs moves, not per frame. The names are the
+devices' own, and no skin borrows a maker's colours or layout.
 
 ### The info view
 

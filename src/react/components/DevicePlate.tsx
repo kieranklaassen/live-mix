@@ -1,0 +1,323 @@
+// A device as a plate: an object of its own in the chain, drawn from a skin
+// (`device-skins.tsx`). The plate has the skin's colour and finish, a picture
+// of what the device does under the knobs, and the knobs wear the skin's cap.
+// A few knobs sit on the face; a cell opens the rest, and the plate widens by
+// whole cells to hold them. The name is on a tag, and the lamp beside it is
+// the power switch. It is the same device as in `DevicePanel`: every knob,
+// the presets and the readings are there, with the same info text.
+
+import { memo, useId, useState, type CSSProperties, type ReactNode } from 'react'
+
+import { type Device, isMeteredDevice, isParamTextDevice } from '../../core/devices/Device'
+import { type DeviceRegistry } from '../../core/devices/registry'
+import { normalizeParam } from '../../core/params'
+import { useDevice } from '../hooks/useParam'
+import { formatParamValue, isChoiceParam, paramStep, paramTaper } from './control-math'
+import { DeviceMeterReadout, isBipolar } from './DevicePanel'
+import {
+  PLATE_PICTURE_HEIGHT,
+  PLATE_PICTURE_WIDTH,
+  PlateFinishLayer,
+  isDarkPlate,
+  type DeviceSkin,
+  type PlatePicture,
+} from './device-skins'
+import { infoProps } from './info'
+import { Knob } from './Knob'
+import { paramInfo } from './param-info'
+import { DeviceToggle } from './Toggle'
+import { cx } from './tokens'
+
+/** The grid a plate sits on: a 20 px cell. */
+const CELL = 20
+const KNOB_SIZE = 30
+/** A knob with its word: 48 px over a picture, 56 px on a plain plate, whose words are longer. */
+const KNOB_COLUMN = 48
+const PLAIN_KNOB_COLUMN = 56
+/** Left of the first knob, and the column at the right that holds the cell opening the rest. */
+const KNOBS_LEFT = 4
+const MORE_COLUMN = 44
+const FACE_PER_ROW = 4
+/** Opened, a pictured plate with more knobs than this lays them in two rows beside the picture. */
+const ONE_ROW_MOST = 12
+
+export interface PlateLayout {
+  rows: number
+  columns: number
+  /** Width of one knob with its word, in px. */
+  column: number
+  /** Width of the plate in px: whole cells. */
+  width: number
+}
+
+/**
+ * Where so many knobs go. Over a picture they sit in one row above it, and
+ * the plate widens with them; past twelve they take two rows and the picture
+ * stands clear at the right. A plate without a picture always has two rows.
+ */
+export function plateLayout(knobs: number, pictured: boolean): PlateLayout {
+  const column = pictured ? KNOB_COLUMN : PLAIN_KNOB_COLUMN
+  const rows = pictured ? (knobs > ONE_ROW_MOST ? 2 : 1) : knobs > FACE_PER_ROW ? 2 : 1
+  const columns = Math.max(FACE_PER_ROW, Math.ceil(knobs / rows))
+  const beside = pictured && rows === 2 ? PLATE_PICTURE_WIDTH : MORE_COLUMN
+  const width = Math.ceil((KNOBS_LEFT + columns * column + beside) / CELL) * CELL
+  return { rows, columns, column, width }
+}
+
+export interface DevicePlateProps {
+  device: Device
+  skin: DeviceSkin
+  /** Where to find the descriptor (name, presets); defaults to the provided engine's registry. */
+  registry?: DeviceRegistry
+  /** The device's full name, for its label and its info text; defaults to the descriptor's. */
+  title?: string
+  /** Labels for choice parameters by name; overrides the labels a spec carries in `choices`. */
+  choiceLabels?: Readonly<Record<string, readonly string[]>>
+  showBypass?: boolean
+  /** Default: when the descriptor has presets. */
+  showPresets?: boolean
+  /** Whether every knob shows from the start (default: only the face). */
+  defaultOpen?: boolean
+  onOpenChange?: (open: boolean) => void
+  /** Extra tools after the preset picker (a chain's move buttons). */
+  actions?: ReactNode
+  onRemove?: () => void
+  className?: string
+  style?: CSSProperties
+  'data-testid'?: string
+}
+
+const PictureLayer = memo(
+  function PictureLayer({
+    picture,
+    at,
+  }: {
+    picture: PlatePicture
+    /** The positions the picture was drawn from, as one string: it is drawn again when this changes. */
+    stamp: string
+    at: (param: string) => number
+  }) {
+    return (
+      <svg
+        className="lm-plate__picture"
+        width={PLATE_PICTURE_WIDTH}
+        height={PLATE_PICTURE_HEIGHT}
+        viewBox={`0 0 ${PLATE_PICTURE_WIDTH} ${PLATE_PICTURE_HEIGHT}`}
+        aria-hidden="true"
+      >
+        {picture.draw(at)}
+      </svg>
+    )
+  },
+  (before, after) => before.picture === after.picture && before.stamp === after.stamp,
+)
+
+/** A device drawn from a skin: plate, finish, picture, its own knobs. */
+export function DevicePlate({
+  device,
+  skin,
+  registry,
+  title,
+  choiceLabels,
+  showBypass = true,
+  showPresets,
+  defaultOpen = false,
+  onOpenChange,
+  actions,
+  onRemove,
+  className,
+  style,
+  'data-testid': testId,
+}: DevicePlateProps) {
+  const d = useDevice(device, registry ? { registry } : {})
+  const [presetName, setPresetName] = useState('')
+  const [open, setOpen] = useState(defaultOpen)
+  const finishId = useId()
+  const all = (device.panelParams ?? Object.keys(d.params)).filter((name) => d.params[name])
+  const onFace = skin.picture ? FACE_PER_ROW : FACE_PER_ROW * 2
+  const face = (skin.face?.filter((name) => all.includes(name)) ?? all).slice(0, onFace)
+  const rest = all.filter((name) => !face.includes(name))
+  const names = open ? [...face, ...rest] : face
+  const layout = plateLayout(names.length, skin.picture !== undefined)
+  const ownText = isParamTextDevice(device) ? device : null
+  const presetsShown = showPresets ?? d.presets.length > 0
+  const heading = title ?? d.descriptor?.name ?? d.id
+  const tag = skin.name ?? heading
+  const about = d.descriptor?.description
+  const powered = !d.bypass
+
+  const at = (param: string): number => {
+    const spec = d.params[param]
+    return spec ? normalizeParam(spec, d.values[param]) : 0
+  }
+  const stamp = skin.picture?.params.map((param) => at(param).toFixed(3)).join(' ') ?? ''
+
+  const toggleOpen = (): void => {
+    setOpen(!open)
+    onOpenChange?.(!open)
+  }
+
+  return (
+    <section
+      className={cx(
+        'lm-plate',
+        !powered && 'lm-plate--off',
+        open && 'lm-plate--open',
+        skin.picture && 'lm-plate--pictured',
+        className,
+      )}
+      style={
+        {
+          '--lm-plate': skin.plate,
+          '--lm-plate-ink': skin.ink,
+          '--lm-plate-accent': skin.accent,
+          '--lm-plate-rows': layout.rows,
+          '--lm-plate-columns': layout.columns,
+          '--lm-plate-column': `${layout.column}px`,
+          width: layout.width,
+          ...style,
+        } as CSSProperties
+      }
+      data-testid={testId}
+      data-powered={powered ? 'true' : 'false'}
+      data-finish={skin.finish}
+      aria-label={heading}
+      {...infoProps(heading, about ?? `${heading}: one of the devices of this chain.`)}
+    >
+      <PlateFinishLayer
+        finish={skin.finish}
+        dark={skin.dark ?? isDarkPlate(skin.plate)}
+        id={`lm-plate-finish-${finishId.replace(/[^a-zA-Z0-9_-]/g, '')}`}
+      />
+      {skin.picture ? <PictureLayer picture={skin.picture} stamp={stamp} at={at} /> : null}
+      <div className="lm-plate__knobs">
+        {names.map((name) => {
+          const spec = d.params[name]
+          const labels = choiceLabels?.[name] ?? (spec.choices?.length ? spec.choices : undefined)
+          const choice = labels !== undefined || isChoiceParam(spec)
+          return (
+            <Knob
+              key={name}
+              label={skin.labels?.[name] ?? (spec.name || name)}
+              value={d.values[name]}
+              defaultValue={spec.default}
+              min={spec.min}
+              max={spec.max}
+              step={choice ? 1 : paramStep(spec)}
+              taper={paramTaper(spec)}
+              unit={spec.unit || 'ratio'}
+              bipolar={isBipolar(spec)}
+              size={KNOB_SIZE}
+              cap={skin.cap}
+              format={
+                labels
+                  ? (value) => labels[Math.round(value) - spec.min] ?? String(Math.round(value))
+                  : choice
+                    ? (value) => String(Math.round(value))
+                    : (value) => ownText?.paramText(name) ?? formatParamValue(spec, value)
+              }
+              onChange={(value) => {
+                d.setParam(name, value)
+                if (presetName) setPresetName('')
+              }}
+              onChangeStart={() => d.touch(name)}
+              onChangeEnd={() => d.release(name)}
+              info={paramInfo(spec) ?? `A setting of ${heading}.`}
+              className="lm-plate__knob"
+              data-testid={testId ? `${testId}-${name}` : undefined}
+            />
+          )
+        })}
+      </div>
+      {rest.length > 0 ? (
+        <button
+          type="button"
+          className="lm-plate__more"
+          aria-expanded={open}
+          aria-label={
+            open
+              ? `Show fewer controls of ${heading}`
+              : `Show ${rest.length} more controls of ${heading}`
+          }
+          {...infoProps(
+            open ? 'Fewer controls' : 'More controls',
+            open
+              ? `Folds ${heading} back to the knobs on its face. The settings stay as they are.`
+              : `Opens ${heading} to every one of its controls: ${rest.length} more than the face shows.`,
+          )}
+          onClick={toggleOpen}
+          data-testid={testId ? `${testId}-more` : undefined}
+        >
+          {open ? '−' : `+${rest.length}`}
+        </button>
+      ) : null}
+      <div className="lm-plate__foot">
+        <h3 className="lm-plate__name" title={heading}>
+          {tag}
+        </h3>
+        {isMeteredDevice(device)
+          ? Object.entries(device.meters).map(([name, spec]) => (
+              <DeviceMeterReadout
+                key={name}
+                device={device}
+                name={name}
+                spec={spec}
+                // A bypassed device does no work, so there is nothing to follow.
+                active={powered}
+                testId={testId}
+              />
+            ))
+          : null}
+        <div className="lm-plate__tools">
+          {presetsShown ? (
+            <select
+              className="lm-device__presets"
+              aria-label={`${heading} preset`}
+              {...infoProps(
+                'Preset',
+                `Sets every knob of ${heading} to one of its ready-made settings. Turning a knob afterwards leaves the preset behind.`,
+              )}
+              value={presetName}
+              onChange={(event) => {
+                const name = event.target.value
+                setPresetName(name)
+                if (name) d.applyPreset(name)
+              }}
+              data-testid={testId ? `${testId}-preset` : undefined}
+            >
+              <option value="">Preset…</option>
+              {d.presets.map((preset) => (
+                <option key={preset.name} value={preset.name}>
+                  {preset.name}
+                </option>
+              ))}
+            </select>
+          ) : null}
+          {actions}
+          {onRemove ? (
+            <button
+              type="button"
+              className="lm-button lm-button--neutral lm-device__remove"
+              aria-label={`Remove ${heading}`}
+              onClick={onRemove}
+              {...infoProps('Remove', `Takes ${heading} out of the chain, with its settings.`)}
+              data-testid={testId ? `${testId}-remove` : undefined}
+            >
+              ×
+            </button>
+          ) : null}
+        </div>
+        {showBypass ? (
+          <DeviceToggle
+            pressed={powered}
+            label={`${heading} power`}
+            info={`Turns ${heading} off and on. Off, the sound passes through unchanged and the settings are kept.`}
+            onPressedChange={(next) => d.setBypass(!next)}
+            className="lm-plate__lamp"
+            data-testid={testId ? `${testId}-power` : undefined}
+          />
+        ) : null}
+      </div>
+    </section>
+  )
+}
