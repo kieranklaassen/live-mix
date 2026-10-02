@@ -110,12 +110,12 @@ int main() {
   spec.mins = p::kParamMin;
   spec.maxs = p::kParamMax;
   spec.defaults = p::kParamDefault;
-  spec.tail_seconds = 95.0f;
+  spec.tail_seconds = 75.0f;
   spec.max_peak = 2.5f;
   check_effect(device, spec, kRate);
 
-  // How long the default patch (Auto, Fade 0.85, a 2 s loop) really rings:
-  // 43 passes to -60 dB, then it is let go. Keeps tail_seconds honest.
+  // How long the default patch (Auto, Fade 0.8, a 2 s loop) really rings:
+  // 32 passes to -60 dB, then it is let go. Keeps tail_seconds honest.
   {
     device.init(kRate);
     rng_state() = 0x1234567u;
@@ -127,7 +127,7 @@ int main() {
     }
     const double seconds = static_cast<double>(last) / kRate;
     std::printf("micro-looper: default patch silent %.1f s after the input stops\n", seconds);
-    EXPECT(seconds > 60.0 && seconds < 95.0, "the default tail is finite and ends within tail_seconds");
+    EXPECT(seconds > 50.0 && seconds < 75.0, "the default tail is finite and ends within tail_seconds");
   }
 
   // Listen is the dry path alone, and Mix 0 is the input bit for bit in
@@ -137,7 +137,7 @@ int main() {
     device.init(kRate);
     device.set_param(p::kState, kListen);
     Stereo listen = run(device, input);
-    const double dry_gain = std::cos(0.25 * kPi);
+    const double dry_gain = std::cos(0.5 * kPi * p::kParamDefault[p::kMix]);
     std::printf("micro-looper: Listen differs from the dry path by %.3g\n",
                 worst_difference(listen.left, input, dry_gain));
     EXPECT(worst_difference(listen.left, input, dry_gain) < 1.0e-6, "Listen passes only the dry signal");

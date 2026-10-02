@@ -23,7 +23,12 @@
 // A key is a small section: a lead player and two or three behind it, each
 // with its own tuning, place across the stereo field, entry (up to 40 ms
 // late), swell, slow level wander and a vibrato that starts late and at its
-// own pace. Section sets how far they differ.
+// own pace. Section sets how far they differ. Players reading one recording
+// a few cents apart drift in and out of step; a leveller takes most of the
+// swell and sink of their sum back out of the key's level (see kLevelling),
+// so a held note breathes by a dB or two while its harmonics keep moving
+// against each other, and the players behind the lead drift slowly around
+// their places so that the breathing has no fixed pace.
 //
 // Every key has its own strip of tape: it sits a few cents off, has its own
 // wow (0.3 to 1 Hz) and flutter (6 to 10 Hz), starts flat and comes up to

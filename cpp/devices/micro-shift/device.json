@@ -126,7 +126,7 @@
       "feedback": 0.62,
       "focus": 300,
       "tone": 5000,
-      "mix": 0.36
+      "mix": 0.35
     },
     "Detune cloud": {
       "detune": 6,
@@ -135,7 +135,7 @@
       "feedback": 0.5,
       "focus": 400,
       "tone": 9000,
-      "mix": 0.34
+      "mix": 0.36
     },
     "Seasick": {
       "detune": 40,
@@ -149,7 +149,7 @@
       "delay": 12,
       "drift": 0.1,
       "width": 0,
-      "mix": 0.3
+      "mix": 0.28
     }
   },
   "origin": {

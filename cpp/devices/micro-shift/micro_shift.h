@@ -15,7 +15,7 @@
 //   Both shifters read the mono sum, so every source gets a sharp copy on
 //   the left and a flat one on the right wherever it sits in the input.
 //
-//   out = dry · cos(mix) + low-passed dry · (1 − cos(mix)) + wet · sin(mix)
+//   out = dry · cos(mix) + low-passed dry · (1 − cos(mix)) + wet · sin(mix) · hold
 //
 // - The shifters are SpliceShifter.h: a single read head that drifts at the
 //   detune ratio and is spliced back, in time with the waveform and away from
@@ -34,6 +34,13 @@
 //   in that path smear each pass a little more, so the repeats of an attack
 //   blur into a wash rather than a flutter; the first copy is never smeared.
 //   The loop is linear up to 0 dBFS and lands on ±2 above it.
+// - Level hold: a copy a few cents off drifts in and out of step with the dry
+//   sound, partial by partial. That beating is the effect; but when most of
+//   a chord's partials fall out of step at once, the whole side sags by 6 to
+//   10 dB for a moment, which reads as tremolo. So each side follows how much
+//   its copy is adding to or cancelling the dry sound as a whole, and while
+//   the copy would pull the whole side down it steps back (and it is trimmed
+//   while the two would swell). The dry sound is never touched.
 // - Mix is equal power: the copies differ from the dry sound in time and in
 //   pitch, so they add in power, not in amplitude.
 

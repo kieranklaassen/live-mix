@@ -228,11 +228,11 @@ class NoiseFloor : public kit::DeviceBase<noise_floor::kNumParams> {
   static constexpr int kTonePoints = 9;
   static constexpr float kToneLevelDb[kTypes][kTonePoints] = {
       {-16.57f, -12.07f, -7.77f, -3.93f, 0.00f, -0.60f, -1.21f, -2.47f, -5.13f},  // Tape hiss
-      {0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f},  // Vinyl
+      {-5.46f, -2.38f, -0.78f, -0.21f, 0.00f, -0.85f, -1.55f, -2.80f, -4.80f},  // Vinyl
       {-4.72f, -2.19f, -0.90f, -0.29f, 0.00f, -1.58f, -2.83f, -4.55f, -6.78f},  // Room
       {0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f},  // Hum 50: its Tone keeps the power itself
       {0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f},  // Hum 60
-      {0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f},  // Static
+      {-4.57f, -2.83f, -1.64f, -0.86f, 0.00f, -1.27f, -1.95f, -2.89f, -4.13f},  // Static
       {-12.54f, -9.05f, -5.96f, -3.27f, 0.00f, -3.00f, -4.15f, -5.74f, -7.95f},  // Air
   };
 

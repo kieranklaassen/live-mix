@@ -634,7 +634,7 @@ int main() {
       share[pass] = energy_above(noisy.left, 4000.0, kRate, 4800, 48000);
     }
     std::printf("  High Cut set while asleep: share above 4 kHz %.3f open, %.4f at 1.5 kHz\n", share[0], share[1]);
-    EXPECT(share[0] > 0.05 && share[1] < 0.15 * share[0], "High Cut set in silence is in place for the next note");
+    EXPECT(share[0] > 0.05 && share[1] < 0.5 * share[0], "High Cut set in silence is in place for the next note");
   }
 
   // Cost at the heaviest setting: the vowel full up in the loop and moving

@@ -52,7 +52,7 @@
       "name": "Fade",
       "min": 0,
       "max": 1,
-      "default": 0.85,
+      "default": 0.8,
       "description": "In Auto, how much of the loop is left after each time round. Low settings give a few fading repeats; at full the loop stays until the next phrase replaces it."
     },
     {
@@ -86,7 +86,7 @@
       "name": "Mix",
       "min": 0,
       "max": 1,
-      "default": 0.5,
+      "default": 0.25,
       "description": "Balance between the dry signal and the loop."
     }
   ],
@@ -97,22 +97,22 @@
       "speed": 4,
       "clock": 0,
       "smear": 0.2,
-      "fade": 0.85,
+      "fade": 0.8,
       "drift": 0.15,
       "tone": 9000,
       "spread": 0.5,
-      "mix": 0.5
+      "mix": 0.25
     },
     "Half speed bed": {
       "state": 2,
       "length": 2.5,
       "speed": 3,
       "smear": 0.35,
-      "fade": 0.8,
+      "fade": 0.65,
       "drift": 0.2,
       "tone": 6000,
       "spread": 0.5,
-      "mix": 0.5
+      "mix": 0.27
     },
     "Lo-fi quarter": {
       "state": 2,
@@ -123,18 +123,18 @@
       "drift": 0.3,
       "tone": 16000,
       "spread": 0.3,
-      "mix": 0.5
+      "mix": 0.27
     },
     "Backwards bed": {
       "state": 2,
       "length": 3,
       "speed": 1,
       "smear": 0.3,
-      "fade": 0.82,
+      "fade": 0.75,
       "drift": 0.15,
       "tone": 7000,
       "spread": 0.5,
-      "mix": 0.5
+      "mix": 0.27
     },
     "Stutter held": {
       "state": 1,
@@ -143,7 +143,7 @@
       "drift": 0,
       "tone": 12000,
       "spread": 0.2,
-      "mix": 0.45
+      "mix": 0.35
     },
     "Octave sparkle": {
       "state": 2,
@@ -154,18 +154,18 @@
       "drift": 0.1,
       "tone": 14000,
       "spread": 0.7,
-      "mix": 0.4
+      "mix": 0.32
     },
     "Drifting memory": {
       "state": 2,
       "length": 4,
       "clock": 1,
       "smear": 0.7,
-      "fade": 0.92,
+      "fade": 0.8,
       "drift": 0.8,
       "tone": 5000,
       "spread": 0.8,
-      "mix": 0.55
+      "mix": 0.27
     },
     "Clean hold": {
       "state": 1,
