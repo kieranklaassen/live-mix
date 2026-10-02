@@ -8,6 +8,12 @@
 //     each factory sound as rendered, measured and classified
 //   FACTORY_REPORT=chains [FACTORY=<part of an id>] pnpm vitest run …
 //     each effect chain on a dry piano phrase, measured against the dry phrase
+//   FACTORY_REPORT=generated [FACTORY=<kind>] [FACTORY_SEEDS=<how many, default 8>] [FACTORY_FROM=<first seed>] pnpm vitest run …
+//     generated sounds, that many seeds of each kind in keys and on chords that go round,
+//     measured and classified; `fold` is the level of the folded start against the same
+//     stretch rendered straight, which a loop that swells at its seam shows as +3 dB
+//   FACTORY_REPORT=keys [FACTORY=<part of an id>] pnpm vitest run …
+//     each factory sound in all twelve keys, measured and classified
 //
 // The report is written to tmp/factory-<mode>-<filter or all>.txt (and printed, when the reporter shows
 // test output). FACTORY_WAV=<dir> also writes what was rendered as WAV files.
@@ -17,18 +23,25 @@ import { join } from 'node:path'
 
 import { describe, it } from 'vitest'
 
-import { analyzeSound } from '../../../core/analysis/sound-kind'
+import { onsetEnvelope } from '../../../core/analysis/onsets'
+import { analyzeSound, soundFeatures } from '../../../core/analysis/sound-kind'
 import { encodeWav, type PlanarAudio } from '../../../core/render/encode'
 import { compileFromDisk, formatMeasurement, measureAudio } from '../../__tests__/render-support'
 import { renderPatch } from '../../patch-render'
 import { STOCK_WASM_DEVICES } from '../../registry'
 import {
   FACTORY_CHAINS,
+  FACTORY_MODES,
   FACTORY_PRESETS,
   FACTORY_SOUNDS,
+  GENERATED_KINDS,
   PREVIEW_SECONDS,
+  generateSound,
   previewPhrase,
   renderFactorySound,
+  renderGeneratedSound,
+  transposeFactorySound,
+  type FactoryMode,
 } from '..'
 import { CHAIN_TEST_PATCH, CHAIN_TEST_PHRASE } from './chain-input'
 
@@ -151,5 +164,96 @@ describe.skipIf(!mode)('factory bench', () => {
       publish()
     },
     600_000,
+  )
+  it.skipIf(mode !== 'generated')(
+    'generated',
+    async () => {
+      const seeds = Number(process.env.FACTORY_SEEDS ?? 8)
+      const from = Number(process.env.FACTORY_FROM ?? 1)
+      const modes = Object.keys(FACTORY_MODES) as FactoryMode[]
+      const rms = (channel: Float32Array, frames: number): number => {
+        let sum = 0
+        for (let i = 0; i < frames; i += 1) sum += channel[i] * channel[i]
+        return Math.sqrt(sum / frames)
+      }
+      for (const kind of GENERATED_KINDS.filter((k) => k.includes(only))) {
+        for (let seed = from; seed < from + seeds; seed += 1) {
+          // Keys and chords go round with the seed, so a run covers all of them.
+          const key = { root: (seed * 7) % 12, mode: modes[seed % modes.length] }
+          const degree = seed % 3 === 0 ? undefined : seed % 7
+          const sound = generateSound({ seed, kind, key, degree })
+          const [audio, cost] = await timed(sound.durationSec, () =>
+            renderGeneratedSound(sound, { compile: compileFromDisk, sliceMs: 0 }),
+          )
+          keep(`${kind}-${seed}`, audio)
+          const analysis = analyzeSound(audio.channels, audio.sampleRate)
+          const envelope = onsetEnvelope(audio.channels, audio.sampleRate)
+          if (!envelope) throw new Error(`${kind} ${seed} is silent`)
+          const features = soundFeatures(
+            envelope.mono,
+            envelope.level,
+            audio.sampleRate,
+            analysis.onsetsSec,
+          )
+          let loop = ''
+          if (sound.loopCrossfadeSec) {
+            const render = { compile: compileFromDisk, sliceMs: 0, phrase: sound.phrase }
+            const folded = await renderPatch(sound.patch, {
+              ...render,
+              durationSec: sound.durationSec,
+              skipSec: sound.skipSec,
+              loopCrossfadeSec: sound.loopCrossfadeSec,
+            })
+            const straight = await renderPatch(sound.patch, {
+              ...render,
+              durationSec: sound.durationSec,
+              skipSec: sound.skipSec,
+            })
+            const frames = Math.round(sound.loopCrossfadeSec * folded.sampleRate)
+            const fold =
+              20 * Math.log10(rms(folded.channels[0], frames) / rms(straight.channels[0], frames))
+            const seam = Math.abs(audio.channels[0][0] - (audio.channels[0].at(-1) ?? 0))
+            loop = `  seam ${seam.toFixed(4)}  fold ${fold >= 0 ? '+' : ''}${fold.toFixed(1)} dB`
+          }
+          say(
+            `${`${kind} ${seed}`.padEnd(12)} ${sound.name.padEnd(30)} ` +
+              `${`${key.root}${key.mode.slice(0, 3)}/${sound.degree}`.padEnd(9)} ` +
+              `${formatMeasurement(measureAudio(audio))}  ` +
+              `kind ${analysis.kind}${analysis.kind === kind ? '' : ' (WRONG)'}  ` +
+              `flat ${features.flatness.toFixed(2)}  tonal ${features.tonality.toFixed(2)}${loop}  ${cost}`,
+          )
+        }
+      }
+      publish()
+    },
+    3_600_000,
+  )
+
+  it.skipIf(mode !== 'keys')(
+    'keys',
+    async () => {
+      for (const sound of FACTORY_SOUNDS.filter((s) => s.id.includes(only))) {
+        for (let transpose = -5; transpose <= 6; transpose += 1) {
+          const audio = await renderFactorySound(sound, {
+            compile: compileFromDisk,
+            sliceMs: 0,
+            transpose,
+          })
+          keep(`${sound.id}_${transpose}`, audio)
+          const analysis = analyzeSound(audio.channels, audio.sampleRate)
+          const seam = sound.loopCrossfadeSec
+            ? `  seam ${Math.abs(audio.channels[0][0] - (audio.channels[0].at(-1) ?? 0)).toFixed(4)}`
+            : ''
+          say(
+            `${sound.id.padEnd(24)} ${String(transpose).padStart(2)} ` +
+              `${transposeFactorySound(sound, transpose).name.padEnd(24)} ` +
+              `${formatMeasurement(measureAudio(audio))}  ` +
+              `kind ${analysis.kind}${analysis.kind === sound.kind ? '' : ' (WRONG)'}${seam}`,
+          )
+        }
+      }
+      publish()
+    },
+    3_600_000,
   )
 })

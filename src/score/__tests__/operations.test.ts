@@ -614,6 +614,7 @@ describe('apply', () => {
       { type: 'transport.loop', enabled: true, lengthSec: 16 },
       { type: 'source.add', source: { id: 'c' } },
       { type: 'track.move', id: 'kick', index: 2 },
+      { type: 'track.loop', id: 'pad', lengthSec: 23.5 },
       { type: 'group.move', id: 'drums', index: 0 },
       { type: 'return.move', id: 'hall', index: 0 },
       { type: 'strip.rename', id: 'kick', name: 'Kick 2' },
@@ -635,6 +636,52 @@ describe('apply', () => {
     }
     expect(score.name).toBe('x')
     expect(score.transport.loop).toEqual({ enabled: true, lengthSec: 16 })
+  })
+
+  it('track.loop gives an audio track a loop length of its own, and takes it away again', () => {
+    const set: Operation = { type: 'track.loop', id: 'pad', lengthSec: 23.5 }
+    const looped = applyWithInverse(base, set)
+    expect(findTrack(looped.score, 'pad')).toMatchObject({ loopLengthSec: 23.5 })
+    expect(looped.inverse).toEqual({ type: 'track.loop', id: 'pad', lengthSec: null })
+    expect(findTrack(looped.score, 'kick')).not.toHaveProperty('loopLengthSec')
+
+    const changed = applyWithInverse(looped.score, { ...set, lengthSec: 25.9 })
+    expect(changed.inverse).toEqual(set)
+
+    const cleared = apply(looped.score, looped.inverse)
+    expect(findTrack(cleared, 'pad')).not.toHaveProperty('loopLengthSec')
+    expect(cleared).toEqual(base)
+  })
+
+  it('track.loop refuses a length that is not above 0, and a track with no clips to loop', () => {
+    for (const lengthSec of [0, -4, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(() => apply(base, { type: 'track.loop', id: 'pad', lengthSec })).toThrow(
+        ScoreOperationError,
+      )
+    }
+    expect(() => apply(base, { type: 'track.loop', id: 'voice', lengthSec: 8 })).toThrow(
+      /live track/,
+    )
+    expect(() => apply(base, { type: 'track.loop', id: 'nobody', lengthSec: 8 })).toThrow(
+      /no track/,
+    )
+    const stretched = apply(base, {
+      type: 'track.add',
+      track: {
+        kind: 'audio',
+        id: 'warp',
+        name: 'Warp',
+        destination: masterDestination(),
+        strip: defaultStrip(),
+        stretch: true,
+        clips: [],
+      },
+    })
+    expect(() => apply(stretched, { type: 'track.loop', id: 'warp', lengthSec: 8 })).toThrow(
+      /stretch track/,
+    )
+    // Taking a length off a track that never had one changes nothing.
+    expect(apply(stretched, { type: 'track.loop', id: 'warp', lengthSec: null })).toEqual(stretched)
   })
 
   it('score.replace swaps the whole document, validates it, and inverts to the previous one', () => {
@@ -837,6 +884,7 @@ function randomOp(random: () => number, score: Score, counter: { n: number }): G
     'track.add',
     'track.remove',
     'track.move',
+    'track.loop',
     'group.add',
     'group.remove',
     'return.add',
@@ -961,6 +1009,12 @@ function randomOp(random: () => number, score: Score, counter: { n: number }): G
             },
           }
         : null
+    case 'track.loop': {
+      const track = someTrack()
+      return track
+        ? { op: { type: 'track.loop', id: track.id, lengthSec: random() < 0.3 ? null : 8 + value } }
+        : null
+    }
     case 'group.add': {
       const id = fresh()
       return {

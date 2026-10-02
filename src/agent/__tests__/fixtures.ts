@@ -59,6 +59,7 @@ export const OPERATION_ARGS: Record<OperationType, Record<string, unknown>> = {
     },
   },
   'track.remove': { id: 'pad' },
+  'track.loop': { id: 'pad', lengthSec: 23.5 },
   'track.move': { id: 'pad', index: 0 },
   'group.add': {
     group: { id: 'beds', name: 'Beds', destination: { kind: 'master' }, strip: defaultStrip() },

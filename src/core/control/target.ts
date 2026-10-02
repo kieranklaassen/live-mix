@@ -1,8 +1,9 @@
 // What a controller can drive (U36, R15): a strip control, a send level, the
-// master fader, one parameter of a device instance, a macro, or a transport
-// action. Targets are plain data keyed by string so a mapping table can be
-// serialised into the score and compared without object identity; the
-// `ControlSurface` resolves them to live objects at dispatch time.
+// master fader, one parameter of a device instance, a macro, a transport
+// action, or an action of the host's own (a button of its page). Targets are
+// plain data keyed by string so a mapping table can be serialised into the
+// score and compared without object identity; the `ControlSurface` resolves
+// them to live objects at dispatch time.
 
 /** Level/pan/mute/solo/trim of a track, return or group strip, by track name. */
 export type StripControl = 'level' | 'pan' | 'mute' | 'solo' | 'inputGain'
@@ -19,6 +20,12 @@ export type ControlTarget =
   /** A `Macro` registered under a name. */
   | { kind: 'macro'; macro: string }
   | { kind: 'transport'; action: TransportAction }
+  /**
+   * Something the host does when asked (`registerAction`, or the resolver's
+   * `action`): a button of its page, a jump to a marker. It has no value;
+   * a press fires it.
+   */
+  | { kind: 'action'; id: string }
 
 export type ControlTargetKind = ControlTarget['kind']
 
@@ -40,6 +47,8 @@ export function controlTargetKey(target: ControlTarget): string {
       return `macro:${target.macro}`
     case 'transport':
       return `transport:${target.action}`
+    case 'action':
+      return `action:${target.id}`
     default: {
       const exhaustive: never = target
       return exhaustive
@@ -66,6 +75,8 @@ export function describeTarget(target: ControlTarget): string {
       return `macro · ${target.macro}`
     case 'transport':
       return `transport · ${target.action}`
+    case 'action':
+      return `action · ${target.id}`
     default: {
       const exhaustive: never = target
       return exhaustive
@@ -82,6 +93,7 @@ export function isBooleanTarget(target: ControlTarget): boolean {
     case 'strip':
       return target.control === 'mute' || target.control === 'solo'
     case 'transport':
+    case 'action':
       return true
     case 'send':
     case 'master':
@@ -95,9 +107,9 @@ export function isBooleanTarget(target: ControlTarget): boolean {
   }
 }
 
-/** A transport target has no value: it only fires. */
+/** A transport target and a host action have no value: they only fire. */
 export function isActionTarget(target: ControlTarget): boolean {
-  return target.kind === 'transport'
+  return target.kind === 'transport' || target.kind === 'action'
 }
 
 function isNonEmptyString(value: unknown): value is string {
@@ -130,6 +142,8 @@ export function parseControlTarget(value: unknown): ControlTarget | null {
       return TRANSPORT_ACTIONS.includes(record.action as TransportAction)
         ? { kind: 'transport', action: record.action as TransportAction }
         : null
+    case 'action':
+      return isNonEmptyString(record.id) ? { kind: 'action', id: record.id } : null
     default:
       return null
   }

@@ -4,6 +4,7 @@ import { soundsOnPass } from '../../clips/chance'
 import { type ClipWindow } from '../../clips/window'
 import { MockAudioContext, advance, configureMocks } from '../../../testing'
 import { scheduleKey, type ScheduledStart, type TransportLoop } from '../anchor'
+import { Cycle } from '../Cycle'
 import { DEFAULT_TICK_MS, REJOIN_FADE_SECONDS, Scheduler, type Schedulable } from '../Scheduler'
 import { Transport } from '../Transport'
 
@@ -574,6 +575,28 @@ describe('Scheduler joins clips the position is inside', () => {
     expect(round(track.handed[0].when)).toBe(100)
   })
 
+  it('joins a clip whose tail runs over the loop end, from the pass it began on', () => {
+    const { ctx, transport, scheduler, track } = buildJoining([
+      { id: 'over', startSec: 30, durationSec: 4 },
+    ])
+    transport.start()
+    // A second into the second pass: three seconds into the clip the first pass began at 30 s.
+    ctx.currentTime = 133
+    transport.seek(1)
+    expect(track.joined()).toEqual(['over:1:30.000'])
+    expect(round(track.handed[0].when)).toBe(130)
+    // Once: later ticks leave it alone.
+    scheduler.tick()
+    expect(track.handed).toHaveLength(1)
+  })
+
+  it('enters no tail on the first counted pass: nothing began before the run', () => {
+    const { transport, track } = buildJoining([{ id: 'over', startSec: 30, durationSec: 4 }])
+    transport.seek(1)
+    transport.start()
+    expect(track.handed).toEqual([])
+  })
+
   it('does not join a clip that starts exactly there, or one that ends exactly there', () => {
     const { transport, track } = buildJoining()
     transport.seek(6.5)
@@ -861,6 +884,437 @@ describe('Scheduler joins clips the position is inside', () => {
       scheduler.refresh()
       expect(track.cancelled).toEqual([])
     })
+  })
+})
+
+describe('Scheduler runs a schedulable on a clock of its own', () => {
+  /** A track on a cycle, which can enter a clip partway and is told when it is asked to. */
+  class CycleTrack extends FakeTrack {
+    readonly joinsLate = true
+    timebase: Cycle | undefined
+    readonly faded: [string, number | undefined][] = []
+    kept: string | null = null
+
+    override schedule(start: ScheduledStart, when: number, joining?: boolean): boolean {
+      if (!super.schedule(start, when)) return false
+      this.handed[this.handed.length - 1].joining = joining === true
+      return true
+    }
+
+    override cancel(key: string, fadeSec?: number): void {
+      super.cancel(key)
+      this.faded.push([key, fadeSec])
+    }
+
+    keeps(key: string): boolean {
+      return key === this.kept
+    }
+
+    whens(): [string, number][] {
+      return this.handed.map((entry) => [entry.key, round(entry.when)])
+    }
+  }
+
+  const tape = [{ id: 'note', startSec: 5, durationSec: 2 }]
+
+  function buildCycles(lengthSec: number | null, loop: TransportLoop = LOOP) {
+    const ctx = new MockAudioContext()
+    ctx.currentTime = 100
+    const transport = new Transport({ now: () => ctx.currentTime, loop })
+    const scheduler = new Scheduler({ transport })
+    const track = new CycleTrack(ctx, 0.2, tape)
+    // The track's own loop; it only runs on it when a length was asked for.
+    const cycle = new Cycle(transport, lengthSec ?? 10)
+    if (lengthSec !== null) track.timebase = cycle
+    const main = new CycleTrack(ctx, 0.2, tape)
+    scheduler.register(track)
+    scheduler.register(main)
+    return { ctx, transport, scheduler, track, main, cycle }
+  }
+
+  it('repeats its clips at the cycle length while the transport loop runs on at its own', async () => {
+    const { ctx, transport, track, main } = buildCycles(10)
+    transport.start()
+    await advance(ctx, 40)
+    expect(track.whens()).toEqual([
+      ['note:0:5.000', 105],
+      ['note:1:5.000', 115],
+      ['note:2:5.000', 125],
+      ['note:3:5.000', 135],
+    ])
+    expect(main.whens()).toEqual([
+      ['note:0:5.000', 105],
+      ['note:1:5.000', 137],
+    ])
+  })
+
+  it('follows the transport\u2019s rate on its own loop: the same passes, at new clock times', async () => {
+    const { ctx, transport, track } = buildCycles(10)
+    transport.setRate(2)
+    transport.start()
+    await advance(ctx, 8)
+    // 10 timeline seconds a pass is 5 on the clock.
+    expect(track.whens()).toEqual([
+      ['note:0:5.000', 102.5],
+      ['note:1:5.000', 107.5],
+    ])
+    // Back to the clock's speed 8 s in, 16 s along the timeline: 1 s past the second note's start.
+    transport.setRate(1)
+    await advance(ctx, 12)
+    expect(track.whens().slice(2)).toEqual([['note:2:5.000', 117]])
+  })
+
+  it('repeats them on a transport that does not loop', async () => {
+    const { ctx, transport, track, main } = buildCycles(10, { enabled: false, lengthSec: Infinity })
+    transport.start()
+    await advance(ctx, 30)
+    expect(track.whens().map(([, when]) => when)).toEqual([105, 115, 125])
+    expect(main.whens().map(([, when]) => when)).toEqual([105])
+  })
+
+  it('enters a clip the cycle is inside when the transport starts, though the transport is not', () => {
+    const { transport, track, main } = buildCycles(10)
+    // 26 s in: position 26 of the transport's pass, 6 of the cycle's third.
+    transport.seekElapsed(26)
+    transport.start()
+    expect(track.handed.map((entry) => [entry.key, round(entry.when), entry.joining])).toEqual([
+      ['note:0:5.000', 99, true],
+    ])
+    expect(main.handed).toEqual([])
+  })
+
+  it('catches up on the cycle after a stalled timer, across its own seams', async () => {
+    const { ctx, transport, scheduler, track } = buildCycles(10)
+    transport.start()
+    await advance(ctx, 1)
+    ctx.currentTime = 127
+    scheduler.tick()
+    expect(track.whens()).toEqual([
+      ['note:0:5.000', 105],
+      ['note:1:5.000', 115],
+      ['note:2:5.000', 125],
+    ])
+  })
+
+  it('rejoins a clip where the cycle is inside it', () => {
+    const { ctx, transport, scheduler, track } = buildCycles(10)
+    transport.start()
+    ctx.currentTime = 116
+    scheduler.tick()
+    scheduler.rejoin(['note'])
+    expect(track.handed.at(-1)).toMatchObject({ key: 'note:1:5.000', when: 115, joining: true })
+  })
+
+  it('moves over when the cycle is given another length: lets go and enters where it now stands', () => {
+    const { ctx, transport, scheduler, track, cycle } = buildCycles(10)
+    transport.start()
+    ctx.currentTime = 105.5
+    scheduler.tick()
+    expect(track.keys()).toEqual(['note:0:5.000'])
+    ctx.currentTime = 112
+    cycle.lengthSec = 6
+    scheduler.refresh()
+    // 12 s in is the start of the 6 s cycle's third pass: nothing under it, the note 5 s off.
+    expect(track.faded).toEqual([['note:0:5.000', REJOIN_FADE_SECONDS]])
+    ctx.currentTime = 116.9
+    scheduler.tick()
+    expect(track.handed.at(-1)).toMatchObject({ when: 117, joining: false })
+    ctx.currentTime = 118
+    cycle.lengthSec = 12
+    scheduler.refresh()
+    // 18 s in is 6 s into the 12 s cycle's second pass: inside the note.
+    expect(track.handed.at(-1)).toMatchObject({ when: 117, joining: true })
+  })
+
+  it('moves over when it is put on a cycle, and when it goes back to the transport', () => {
+    const { ctx, transport, scheduler, track } = buildCycles(null)
+    transport.start()
+    ctx.currentTime = 105.5
+    scheduler.tick()
+    expect(track.keys()).toEqual(['note:0:5.000'])
+    ctx.currentTime = 126
+    track.timebase = new Cycle(transport, 10)
+    scheduler.refresh()
+    expect(track.handed.at(-1)).toMatchObject({ when: 125, joining: true })
+    const onCycle = track.handed.length
+    ctx.currentTime = 137.5
+    track.timebase = undefined
+    scheduler.refresh()
+    expect(track.handed.length).toBe(onCycle + 1)
+    expect(track.handed.at(-1)).toMatchObject({ when: 137, joining: true })
+  })
+
+  it('leaves a clip the schedulable keeps as it sounds when it moves over', () => {
+    const { ctx, transport, scheduler, track, cycle } = buildCycles(10)
+    transport.start()
+    ctx.currentTime = 105.5
+    scheduler.tick()
+    track.kept = 'note:0:5.000'
+    const handed = track.handed.length
+    cycle.lengthSec = 6
+    scheduler.refresh()
+    expect(track.faded).toEqual([])
+    // The new loop stands inside the same clip, which is still sounding: it is not entered twice.
+    expect(track.handed).toHaveLength(handed)
+  })
+
+  it('forgets a kept start once it has sounded out, so its number is free on the new clock', async () => {
+    const { ctx, transport, scheduler, main } = buildCycles(10)
+    transport.start()
+    // Three re-pins on: the transport's pass is number 3.
+    for (let pin = 0; pin < 3; pin += 1) transport.seek(0)
+    ctx.currentTime = 105.5
+    scheduler.tick()
+    expect(main.keys()).toEqual(['note:3:5.000'])
+    main.kept = 'note:3:5.000'
+    // Onto a loop of its own, whose passes are numbered from 0.
+    main.timebase = new Cycle(transport, 10)
+    scheduler.refresh()
+    expect(main.faded).toEqual([])
+    await advance(ctx, 32)
+    // The cycle's own pass 3 is handed over, though the kept start had that name.
+    expect(main.whens().slice(1)).toEqual([
+      ['note:1:5.000', 115],
+      ['note:2:5.000', 125],
+      ['note:3:5.000', 135],
+    ])
+  })
+
+  it('leaves what sounds alone when the transport loop changes length around the position', () => {
+    const { ctx, transport, scheduler, track, main } = buildCycles(10)
+    transport.start()
+    ctx.currentTime = 105.5
+    scheduler.tick()
+    transport.setLoop({ lengthSec: 16 })
+    // 5.5 s fits in 16: nothing moved, on the transport or on the cycle.
+    expect(main.faded).toEqual([])
+    expect(main.keys()).toEqual(['note:0:5.000'])
+    expect(track.faded).toEqual([])
+    expect(track.keys()).toEqual(['note:0:5.000'])
+    expect(track.handed).toHaveLength(1)
+  })
+
+  it('enters the clip a folded transport loop lands in, on the transport and on a cycle', () => {
+    const { ctx, transport, scheduler, track, main } = buildCycles(10)
+    // 22 s in: the cycle is 2 s into its third pass, the transport 22 s into its first. Neither is in the note.
+    transport.seekElapsed(22)
+    transport.start()
+    expect(track.handed).toEqual([])
+    expect(main.handed).toEqual([])
+    // Folded into a 16 s loop the whole run stands at 6: a second into the note, on both.
+    transport.setLoop({ lengthSec: 16 })
+    expect(transport.elapsed()).toBe(6)
+    expect(track.handed).toHaveLength(1)
+    expect(track.handed[0]).toMatchObject({ when: 99, joining: true })
+    expect(main.handed).toHaveLength(1)
+    expect(main.handed[0]).toMatchObject({ when: 99, joining: true })
+    expect(track.faded).toEqual([])
+    expect(main.faded).toEqual([])
+
+    // Once, not on every pass after.
+    ctx.currentTime = 100.5
+    scheduler.tick()
+    expect(track.handed).toHaveLength(1)
+    expect(main.handed).toHaveLength(1)
+  })
+
+  it('leaves a clip that sounds through a fold as it sounds, and does not enter it twice', () => {
+    const { ctx, transport, scheduler, track } = buildCycles(10)
+    // 26.5 s in: the cycle is 1.5 s into the note of its third pass.
+    transport.seekElapsed(26.5)
+    transport.start()
+    expect(track.handed).toHaveLength(1)
+    expect(track.handed[0]).toMatchObject({ when: 98.5, joining: true })
+    // Folded into a 21 s loop the run stands at 5.5: inside the same note, which is still sounding.
+    transport.setLoop({ lengthSec: 21 })
+    expect(track.faded).toEqual([])
+    expect(track.handed).toHaveLength(1)
+
+    // It ends by the clock it was started on; its start next comes round on the cycle's following pass.
+    ctx.currentTime = 100.6
+    scheduler.tick()
+    expect(track.handed).toHaveLength(1)
+    ctx.currentTime = 109.4
+    scheduler.tick()
+    expect(track.handed).toHaveLength(2)
+    expect(round(track.handed[1].when)).toBe(109.5)
+    expect(track.handed[1].joining).toBe(false)
+  })
+
+  /** One track with a clip that runs two seconds over the end of a ten second loop. */
+  function buildOver(chance?: number) {
+    const ctx = new MockAudioContext()
+    ctx.currentTime = 100
+    const transport = new Transport({ now: () => ctx.currentTime, loop: LOOP })
+    const scheduler = new Scheduler({ transport, seed: 7 })
+    const over = {
+      id: 'over',
+      startSec: 8,
+      durationSec: 4,
+      ...(chance === undefined ? {} : { chance }),
+    }
+    const track = new CycleTrack(ctx, 0.2, [over])
+    scheduler.register(track)
+    return { ctx, transport, scheduler, track, over }
+  }
+
+  it('enters a clip that runs over the end of its loop, in its tail, when it is moved onto that loop', () => {
+    const { ctx, transport, scheduler, track } = buildOver()
+    // 21 s in, on the transport: nowhere near the clip.
+    transport.seekElapsed(21)
+    transport.start()
+    expect(track.handed).toEqual([])
+    // On a ten second loop of its own the run stands a second into the third
+    // pass: in the tail of the clip the second pass began at 18 s, three seconds ago.
+    track.timebase = new Cycle(transport, 10)
+    scheduler.refresh()
+    expect(track.handed).toHaveLength(1)
+    expect(track.handed[0]).toMatchObject({ when: 97, joining: true })
+    expect(track.faded).toEqual([])
+
+    // Once: the same clip is not entered again while it sounds, and its start comes round as ever.
+    ctx.currentTime = 100.5
+    scheduler.tick()
+    expect(track.handed).toHaveLength(1)
+    ctx.currentTime = 106.9
+    scheduler.tick()
+    expect(track.handed).toHaveLength(2)
+    expect(round(track.handed[1].when)).toBe(107)
+    expect(track.handed[1].joining).toBe(false)
+  })
+
+  it('enters no tail on the first pass of the run: nothing began before its origin', () => {
+    const { ctx, transport, scheduler, track } = buildOver()
+    // On a twelve second loop of its own, which the clip fits in.
+    const cycle = new Cycle(transport, 12)
+    track.timebase = cycle
+    transport.start()
+    // Put somewhere else in the first pass, twice: its passes now carry higher numbers than 0.
+    transport.seek(0.5)
+    transport.seek(1)
+    ctx.currentTime = 100.2
+    scheduler.tick()
+    expect(cycle.position().iteration).toBeGreaterThan(0)
+    expect(cycle.passOf(cycle.position().iteration)).toBe(0)
+    // Ten seconds long, the loop is 1.2 s into its first pass: where the clip's tail would be, had a pass come before.
+    cycle.lengthSec = 10
+    scheduler.refresh()
+    expect(track.handed).toEqual([])
+  })
+
+  it('draws the tail of such a clip on the pass it began on', () => {
+    const maybe = { id: 'over', chance: 0.5 }
+    // The first counted pass after the first on which the clip sounds, and the first on which it sits out.
+    const passes = Array.from({ length: 40 }, (_, pass) => pass + 1)
+    const sounds = passes.find((pass) => soundsOnPass(maybe, pass, 7)) ?? Number.NaN
+    const sitsOut = passes.find((pass) => !soundsOnPass(maybe, pass, 7)) ?? Number.NaN
+    expect([sounds, sitsOut].every(Number.isFinite)).toBe(true)
+    for (const [began, entered] of [
+      [sounds, 1],
+      [sitsOut, 0],
+    ]) {
+      const { transport, scheduler, track } = buildOver(0.5)
+      // A second into the pass after the one it began on.
+      transport.seekElapsed((began + 1) * 10 + 1)
+      transport.start()
+      track.timebase = new Cycle(transport, 10)
+      scheduler.refresh()
+      expect(track.handed.filter((entry) => entry.joining)).toHaveLength(entered)
+    }
+  })
+
+  it('enters such a clip in its tail when play starts or lands there, on a cycle and on the transport', () => {
+    // On a ten second loop of its own: 21 s in is a second into the third
+    // pass, in the tail of the clip the second pass began three seconds ago.
+    const own = buildOver()
+    own.track.timebase = new Cycle(own.transport, 10)
+    own.transport.seekElapsed(21)
+    own.transport.start()
+    expect(own.track.handed).toHaveLength(1)
+    expect(own.track.handed[0]).toMatchObject({ when: 97, joining: true })
+
+    // The same on a transport whose own loop is ten seconds long.
+    const ctx = new MockAudioContext()
+    ctx.currentTime = 100
+    const transport = new Transport({
+      now: () => ctx.currentTime,
+      loop: { enabled: true, lengthSec: 10 },
+    })
+    const scheduler = new Scheduler({ transport, seed: 7 })
+    const track = new CycleTrack(ctx, 0.2, [{ id: 'over', startSec: 8, durationSec: 4 }])
+    scheduler.register(track)
+    transport.seekElapsed(21)
+    transport.start()
+    expect(track.handed).toHaveLength(1)
+    expect(track.handed[0]).toMatchObject({ when: 97, joining: true })
+
+    // A seek while playing lands in the tail too, once; the start comes round as ever.
+    transport.seekElapsed(41.5)
+    expect(track.handed).toHaveLength(2)
+    expect(track.handed[1]).toMatchObject({ when: 96.5, joining: true })
+    ctx.currentTime = 100.4
+    scheduler.tick()
+    expect(track.handed).toHaveLength(2)
+    ctx.currentTime = 106.4
+    scheduler.tick()
+    expect(track.handed).toHaveLength(3)
+    expect(round(track.handed[2].when)).toBe(106.5)
+    expect(track.handed[2].joining).toBe(false)
+  })
+
+  it('enters no tail when play starts on the first counted pass', () => {
+    const { transport, track } = buildOver()
+    track.timebase = new Cycle(transport, 10)
+    // A second in, where the tail would be had a pass come before.
+    transport.seek(1)
+    transport.start()
+    expect(track.handed).toEqual([])
+  })
+
+  it('draws the tail play starts in on the pass the clip began on', () => {
+    const maybe = { id: 'over', chance: 0.5 }
+    const passes = Array.from({ length: 40 }, (_, pass) => pass + 1)
+    const sounds = passes.find((pass) => soundsOnPass(maybe, pass, 7)) ?? Number.NaN
+    const sitsOut = passes.find((pass) => !soundsOnPass(maybe, pass, 7)) ?? Number.NaN
+    expect([sounds, sitsOut].every(Number.isFinite)).toBe(true)
+    for (const [began, entered] of [
+      [sounds, 1],
+      [sitsOut, 0],
+    ]) {
+      const { transport, track } = buildOver(0.5)
+      track.timebase = new Cycle(transport, 10)
+      // A second into the pass after the one it began on.
+      transport.seekElapsed((began + 1) * 10 + 1)
+      transport.start()
+      expect(track.handed.filter((entry) => entry.joining)).toHaveLength(entered)
+    }
+  })
+
+  it('draws what a clip leaves to chance on the counted passes of its own loop', async () => {
+    const ctx = new MockAudioContext()
+    ctx.currentTime = 100
+    const transport = new Transport({ now: () => ctx.currentTime, loop: LOOP })
+    const scheduler = new Scheduler({ transport, seed: 7 })
+    const maybe = { id: 'maybe', startSec: 5, durationSec: 2, chance: 0.5 }
+    const track = new CycleTrack(ctx, 0.2, [maybe])
+    const cycle = new Cycle(transport, 10)
+    track.timebase = cycle
+    scheduler.register(track)
+
+    transport.start()
+    await advance(ctx, 32)
+    // A pause and a start renumber the passes of both clocks; the cycle's own count goes on.
+    transport.pause()
+    transport.start()
+    await advance(ctx, 208)
+
+    const expected = Array.from({ length: 24 }, (_, pass) => pass).filter((pass) =>
+      soundsOnPass(maybe, pass, 7),
+    )
+    expect(expected.length).toBeGreaterThan(4)
+    expect(expected.length).toBeLessThan(20)
+    // It was handed over on those passes of its ten seconds, five seconds into each.
+    expect(track.whens().map(([, when]) => when)).toEqual(expected.map((pass) => 105 + pass * 10))
   })
 })
 
@@ -1311,6 +1765,47 @@ describe('Scheduler.rescale', () => {
     slower()
     expect(transport.loop.lengthSec).toBe(38.4)
     expect(track.handed).toEqual([])
+    scheduler.dispose()
+  })
+
+  it('takes a track on a loop of its own along, when that loop is stretched with the rest', async () => {
+    /** A rekeying track on a cycle, which can be entered partway. */
+    class LoopingTrack extends RekeyingTrack {
+      readonly joinsLate = true
+      timebase: Cycle | undefined
+    }
+    const ctx = new MockAudioContext()
+    ctx.currentTime = 100
+    const transport = new Transport({ now: () => ctx.currentTime, loop: LOOP })
+    const scheduler = new Scheduler({ transport })
+    const track = new LoopingTrack(ctx, 0.2, [{ id: 'pad', startSec: 4, durationSec: 5 }])
+    const cycle = new Cycle(transport, 10)
+    track.timebase = cycle
+    scheduler.register(track)
+    transport.start()
+    await advance(ctx, 6)
+    expect(track.keys()).toEqual(['pad:0:4.000'])
+    expect(round(cycle.position().positionSec)).toBe(6)
+
+    // 120 bpm to 100 bpm: the transport, the track's own loop and its clip, 1.2 times as long.
+    scheduler.rescale(() => {
+      transport.rescale(1.2, 38.4)
+      cycle.lengthSec = 12
+      track.items = [{ id: 'pad', startSec: 4.8, durationSec: 6 }]
+      scheduler.refresh()
+    })
+
+    // As far into its own pass as it was, in beats; the pad sounds on, and is not entered again.
+    expect(round(cycle.position().positionSec)).toBe(7.2)
+    expect(track.rekeyed).toEqual([['pad:0:4.000', 'pad:0:4.800']])
+    expect(track.cancelled).toEqual([])
+    expect(track.handed).toHaveLength(1)
+
+    // Its next pass starts the pad where it now is on the stretched loop.
+    await advance(ctx, 10)
+    expect(track.handed).toHaveLength(2)
+    expect(track.handed[1].start.startSec).toBe(4.8)
+    expect(round(track.handed[1].when)).toBe(115.6)
     scheduler.dispose()
   })
 })

@@ -60,6 +60,7 @@ import { mirrorSlice } from '../clips/reverse'
 import { type ClipWindow } from '../clips/window'
 import { holdParamAt } from '../automation/scheduled-param'
 import { scheduleKey, type ScheduledStart } from '../transport/anchor'
+import { Cycle, type Timebase } from '../transport/Cycle'
 import { type Schedulable, type Scheduler } from '../transport/Scheduler'
 import {
   ChannelStrip,
@@ -70,7 +71,8 @@ import {
 import { ClipList } from './ClipList'
 import { reversedBuffer } from './reversed-buffer'
 import { type SampleSource, type SampleStore } from './SampleStore'
-import { generateSpaceImpulse } from './space'
+import { SpaceRoom } from './SpaceRoom'
+import { generateSpaceImpulse, spaceColour, type SpaceColour } from './space'
 
 // --- Constants shared with Breathwork Live (re-exported for its adapter) -----
 
@@ -231,12 +233,19 @@ export interface AudioTrackOptions {
   resolveSource?: (clip: Clip) => SampleSource | undefined
   /** Register with this scheduler on construction. */
   scheduler?: Scheduler
+  /** A loop length of the track's own (`AudioTrack.loopLengthSec`). Default: the transport's loop. */
+  loopLengthSec?: number | null
   /**
    * The impulse response of the space this track's clips send into
    * (`Clip.spaceDb`), read when a clip first does. An engine hands every
    * track the same one; without it the track generates the stock room.
    */
   spaceImpulse?: () => AudioBuffer
+  /**
+   * What is done to sound on its way through that space (its drive and
+   * drift), read with the impulse. Without it the space is clean and still.
+   */
+  spaceColour?: () => SpaceColour
 }
 
 export class AudioTrack implements StripHost {
@@ -254,12 +263,16 @@ export class AudioTrack implements StripHost {
   // The clip each scheduled voice plays, so the voice can follow its edits.
   private readonly voiceClips = new Map<string, string>()
   private readonly spaceImpulse: () => AudioBuffer
-  private spaceNode: ConvolverNode | null = null
+  private readonly spaceColour: () => SpaceColour
+  private room: SpaceRoom | null = null
   private scheduler: Scheduler | null = null
   private unregister: (() => void)[] = []
   private disposed = false
   // What each placed voice's nodes were last told.
   private readonly placed = new WeakMap<ClipVoice, PlacedNodes>()
+  private ownLoopSec: number | null = null
+  // The track's own loop on the attached scheduler's transport; null while it follows the transport's.
+  private cycle: Cycle | null = null
   // Timeline seconds per second of the audio clock that voices play at.
   private rateValue = 1
   // How each linear voice is timed, for as long as its envelope is the clip's own.
@@ -284,6 +297,7 @@ export class AudioTrack implements StripHost {
     this.preloadSec = options.preloadSec ?? this.lookaheadSec
     this.resolveSource = options.resolveSource ?? null
     this.spaceImpulse = options.spaceImpulse ?? (() => generateSpaceImpulse(ctx))
+    this.spaceColour = options.spaceColour ?? (() => spaceColour())
     this.clips = new ClipList(() => {
       this.scheduler?.refresh()
       this.followClips()
@@ -304,14 +318,18 @@ export class AudioTrack implements StripHost {
         keeps: (key) => this.keeps(key),
         rekey: (key, to) => this.rekey(key, to),
         retime: (rate, at) => this.setRate(rate, at),
+        timebase: () => this.timebase,
       },
     )
     this.preload = new TrackSchedulable(
       () => this.preloadSec,
       () => this.clips.audible(),
       (start) => this.preloadStart(start),
+      {},
+      { timebase: () => this.timebase },
     )
 
+    if (options.loopLengthSec != null) this.ownLoopSec = validateLoopLength(options.loopLengthSec)
     if (options.scheduler) this.attach(options.scheduler)
   }
 
@@ -320,6 +338,7 @@ export class AudioTrack implements StripHost {
     if (this.scheduler === scheduler) return
     this.detach()
     this.scheduler = scheduler
+    if (this.ownLoopSec !== null) this.cycle = new Cycle(scheduler.transport, this.ownLoopSec)
     this.unregister = [scheduler.register(this.preload), scheduler.register(this.playback)]
   }
 
@@ -327,6 +346,40 @@ export class AudioTrack implements StripHost {
     for (const off of this.unregister) off()
     this.unregister = []
     this.scheduler = null
+    this.cycle = null
+  }
+
+  /**
+   * A loop length of the track's own, in timeline seconds, or null to follow
+   * the transport's loop. A track with one repeats its clips at that length
+   * over the time the transport has run (`Transport.elapsed`), whether or not
+   * the transport loops: a clip at `startSec` sounds at `startSec`, then one
+   * length later, and so on, so tracks of different lengths start together
+   * at the timeline's origin and slide apart. Its lanes can follow
+   * (`Automation.add` with this track's `timebase`). Set while playing, the
+   * track moves over at once: what sounds fades out and the clips the new
+   * loop is inside are entered there. Only a track on a scheduler has a
+   * loop to run on.
+   */
+  get loopLengthSec(): number | null {
+    return this.ownLoopSec
+  }
+
+  set loopLengthSec(lengthSec: number | null) {
+    const next = lengthSec === null ? null : validateLoopLength(lengthSec)
+    if (next === this.ownLoopSec) return
+    this.ownLoopSec = next
+    if (!this.scheduler) return
+    if (next === null) this.cycle = null
+    else if (this.cycle) this.cycle.lengthSec = next
+    else this.cycle = new Cycle(this.scheduler.transport, next)
+    // The scheduler sees the other clock on its next pass; this is that pass.
+    this.scheduler.refresh()
+  }
+
+  /** The clock the track's clips are placed on when it has a loop of its own; undefined on the transport's. */
+  get timebase(): Timebase | undefined {
+    return this.cycle ?? undefined
   }
 
   /** Live voices, in start order. */
@@ -386,7 +439,29 @@ export class AudioTrack implements StripHost {
    * strip; null until a clip first sends there.
    */
   get space(): ConvolverNode | null {
-    return this.spaceNode
+    return this.room?.convolver ?? null
+  }
+
+  /**
+   * The space this track's clips send into has changed (`spaceImpulse`,
+   * `spaceColour`): both are read again. What is sounding sends into the new
+   * space from now on, and what it already sent rings out in the old one. A
+   * track that has sent nothing yet has nothing to change.
+   */
+  refreshSpace(): void {
+    if (this.disposed || !this.room) return
+    const before = this.room.set({ impulse: this.spaceImpulse(), ...this.spaceColour() })
+    if (!before) return
+    for (const voice of this.active.values()) {
+      const send = voice.placement?.send
+      if (!send) continue
+      try {
+        send.disconnect(before)
+      } catch {
+        // Not connected there (a mock that tracks no connections); connect all the same.
+      }
+      send.connect(this.room.entry)
+    }
   }
 
   /**
@@ -533,12 +608,8 @@ export class AudioTrack implements StripHost {
     this.disposed = true
     this.detach()
     this.stopAll()
-    try {
-      this.spaceNode?.disconnect()
-    } catch {
-      // Context may already be closed; ignore.
-    }
-    this.spaceNode = null
+    this.room?.dispose()
+    this.room = null
     this.strip.dispose()
   }
 
@@ -875,15 +946,17 @@ export class AudioTrack implements StripHost {
     return send
   }
 
-  private ensureSpace(): ConvolverNode {
-    if (this.spaceNode) return this.spaceNode
-    const convolver = this.ctx.createConvolver()
-    // The impulse carries its own level; the node's scaling would undo it.
-    convolver.normalize = false
-    convolver.buffer = this.spaceImpulse()
-    this.strip.connectSource(convolver)
-    this.spaceNode = convolver
-    return convolver
+  /** Where a send into the track's space connects; the space is made on first use. */
+  private ensureSpace(): AudioNode {
+    this.room ??= new SpaceRoom(
+      this.ctx,
+      {
+        connect: (node) => this.strip.connectSource(node),
+        forget: (node) => this.strip.forgetSource(node),
+      },
+      { impulse: this.spaceImpulse(), ...this.spaceColour() },
+    )
+    return this.room.entry
   }
 
   private connectThroughTrim(gain: GainNode, gainDb: number | undefined): GainNode | null {
@@ -957,6 +1030,7 @@ function wrapIntoRegion(sourceSec: number, startSec: number, endSec: number): nu
 /** A Schedulable whose lookahead and clips are read live from the track. */
 export class TrackSchedulable implements Schedulable {
   private readonly readLookahead: () => number
+  private readonly readTimebase: () => Timebase | undefined
   readonly joinsLate: boolean
   readonly clips: () => ClipWindow['clips']
   readonly schedule: (start: ScheduledStart, when: number, joining?: boolean) => boolean
@@ -977,9 +1051,11 @@ export class TrackSchedulable implements Schedulable {
       keeps?: (key: string) => boolean
       rekey?: (key: string, to: string) => boolean
       retime?: (rate: number, at: number) => void
+      timebase?: () => Timebase | undefined
     } = {},
   ) {
     this.readLookahead = readLookahead
+    this.readTimebase = options.timebase ?? (() => undefined)
     this.joinsLate = options.joinsLate ?? false
     this.keeps = options.keeps
     this.rekey = options.rekey
@@ -994,6 +1070,17 @@ export class TrackSchedulable implements Schedulable {
   get lookaheadSec(): number {
     return this.readLookahead()
   }
+
+  get timebase(): Timebase | undefined {
+    return this.readTimebase()
+  }
+}
+
+function validateLoopLength(lengthSec: number): number {
+  if (!Number.isFinite(lengthSec) || lengthSec <= 0) {
+    throw new RangeError(`AudioTrack: loopLengthSec must be a positive number, got ${lengthSec}`)
+  }
+  return lengthSec
 }
 
 export type { ClipWindow }

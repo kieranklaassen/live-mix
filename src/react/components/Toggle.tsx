@@ -20,6 +20,8 @@ export interface DeviceToggleProps {
   onPressedChange: (pressed: boolean) => void
   className?: string
   'data-testid'?: string
+  /** Marks the switch as a device's power, for a host that maps controllers onto what is on screen. */
+  'data-lm-power'?: boolean
 }
 
 /** Squared on/off power switch for device title bars (`role="switch"`). */
@@ -31,6 +33,7 @@ export function DeviceToggle({
   onPressedChange,
   className,
   'data-testid': testId,
+  'data-lm-power': power,
 }: DeviceToggleProps) {
   return (
     <button
@@ -40,6 +43,7 @@ export function DeviceToggle({
       aria-label={label}
       disabled={disabled}
       data-testid={testId}
+      data-lm-power={power ? '' : undefined}
       onClick={() => onPressedChange(!pressed)}
       className={cx('lm-toggle', pressed && 'lm-toggle--on', className)}
       {...infoProps(label, info)}

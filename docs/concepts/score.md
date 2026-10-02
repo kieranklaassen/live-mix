@@ -33,6 +33,10 @@ author chooses and double as engine names; `'master'` is reserved. Every
 device reference is `{ kind, id, params, … }` through the registry — a WAM by
 URL through its persisted descriptor.
 
+An audio track may carry `loopLengthSec`, a loop length of its own: its clips
+and the lanes on it repeat at that length over the time the transport has
+run, whatever the transport's loop does ([time](./time.md#loops-of-their-own-length)).
+
 Seconds are the only time unit ([time](./time.md)). The format is bumped with
 a migration whenever a field lands (`1 → 2` added element tracks and the tempo
 map; `2 → 3` scenes, slots and `transport.quantize`); `parseScore` migrates,

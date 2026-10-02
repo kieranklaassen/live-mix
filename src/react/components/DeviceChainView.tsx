@@ -1,15 +1,16 @@
-// An insert chain: one panel per device with move/remove actions and
-// drag-and-drop reordering, plus a picker that instantiates a registry device
-// into the chain. The chain belongs to a channel strip or to a bus (the
-// master); both only append and remove, so a reorder rebuilds the tail of the
-// chain from the first changed slot.
+// An insert chain: one panel per device with move/remove actions, plus a
+// picker that instantiates a registry device into the chain. A device is
+// carried to another place by its title bar (`chain-reorder.ts`). The chain
+// belongs to a channel strip or to a bus (the master); both only append and
+// remove, so a reorder rebuilds the tail of the chain from the first changed
+// slot.
 //
 // Inside a provider with an `arbiter` whose score carries the chain's owner,
 // adding, removing and moving are score operations (`device.add`,
 // `device.remove`, `device.move`) and the renderer changes the chain: the
 // edits are in the document, in the log and on the undo stack.
 
-import { useCallback, useState, type CSSProperties, type DragEvent } from 'react'
+import { useCallback, useState, type CSSProperties, type ReactNode } from 'react'
 
 import { type Device } from '../../core/devices/Device'
 import {
@@ -29,7 +30,10 @@ import {
 } from '../../score/schema'
 import { useMaybeArbiter, useMaybeEngine } from '../hooks/useEngine'
 import { useExternalSnapshot } from '../store'
+import { useChainReorder } from './chain-reorder'
 import { DevicePanel, type DevicePanelProps } from './DevicePanel'
+import { DevicePlate } from './DevicePlate'
+import { type DeviceSkin } from './device-skins'
 import { infoProps } from './info'
 import { cx } from './tokens'
 
@@ -107,6 +111,28 @@ export function groupDevices(
   })).filter((group) => group.devices.length > 0)
 }
 
+/** What the grip at a device's left says in the info view. */
+// A panel is its device's, wherever in the chain the device stands: moved, it
+// is the same panel in a new place, not a new one. Two devices of one kind
+// share an id, so the key is the device itself.
+const deviceKeys = new WeakMap<Device, number>()
+let deviceKeyCount = 0
+
+function deviceKey(device: Device): number {
+  let key = deviceKeys.get(device)
+  if (key === undefined) {
+    key = deviceKeyCount += 1
+    deviceKeys.set(device, key)
+  }
+  return key
+}
+
+const REORDER_INFO =
+  'Drag this grip, or the title bar beside it, sideways to carry the device to another place in the chain. A line shows where it will land; Escape puts it back. The sound runs through the devices from left to right, so their order changes the result.'
+/** The line a device in a chain adds to its own info text. */
+const REORDER_HINT = 'Drag its title bar sideways to move it in the chain.'
+const PLATE_REORDER_HINT = 'Drag it by its face sideways to move it in the chain.'
+
 function sameDevices(a: readonly Device[], b: readonly Device[]): boolean {
   return a.length === b.length && a.every((device, index) => device === b[index])
 }
@@ -145,6 +171,12 @@ export interface DeviceChainViewProps {
   onAdd?: (device: Device) => void
   /** Forwarded to every panel (knob size, choice labels, …). */
   panelProps?: Partial<Omit<DevicePanelProps, 'device' | 'registry' | 'onRemove'>>
+  /**
+   * The skin each device is drawn with, as a plate (`DevicePlate`); a device
+   * it gives none keeps the plain panel. `deviceSkin` is the kit's own answer.
+   * Left out, every device is a panel.
+   */
+  skin?: (device: Device) => DeviceSkin | null | undefined
   className?: string
   style?: CSSProperties
   'data-testid'?: string
@@ -160,6 +192,7 @@ export function DeviceChainView({
   onRemove,
   onAdd,
   panelProps,
+  skin,
   className,
   style,
   'data-testid': testId,
@@ -171,8 +204,6 @@ export function DeviceChainView({
   const inserts = useInserts(strip)
   const owner = scoreOwner(arbiter, strip, engine?.master ?? null)
   const skip = Math.max(0, Math.floor(pinned))
-  const [dragIndex, setDragIndex] = useState<number | null>(null)
-  const [overIndex, setOverIndex] = useState<number | null>(null)
   const [adding, setAdding] = useState(false)
   const addShown = showAdd ?? reg !== null
 
@@ -197,7 +228,7 @@ export function DeviceChainView({
     return id === undefined ? undefined : findDevice(arbiter.score, id)
   }
 
-  /** A drop: the device lands on the slot the one it was dropped on holds, else a rebuild. */
+  /** A device let go: it lands on the slot the one now at that place holds, else a rebuild. */
   const move = (from: number, to: number): void => {
     if (from === to || from < skip || to < skip) return
     if (!arbiter || owner === null) {
@@ -253,71 +284,42 @@ export function DeviceChainView({
     }
   }
 
-  const onDragStart = (index: number) => (event: DragEvent<HTMLElement>) => {
-    setDragIndex(index)
-    event.dataTransfer.effectAllowed = 'move'
-    event.dataTransfer.setData('text/plain', String(index))
-  }
-  const onDragOver = (index: number) => (event: DragEvent<HTMLElement>) => {
-    if (dragIndex === null) return
-    event.preventDefault()
-    event.dataTransfer.dropEffect = 'move'
-    if (overIndex !== index) setOverIndex(index)
-  }
-  const onDrop = (index: number) => (event: DragEvent<HTMLElement>) => {
-    event.preventDefault()
-    const from = dragIndex ?? Number(event.dataTransfer.getData('text/plain'))
-    setDragIndex(null)
-    setOverIndex(null)
-    if (Number.isInteger(from)) move(from, index)
-  }
-  const onDragEnd = (): void => {
-    setDragIndex(null)
-    setOverIndex(null)
-  }
+  // The carry counts among the devices shown; the chain counts the pinned ones too.
+  const reorder = useChainReorder((from, to) => move(from + skip, to + skip))
 
   return (
     <div
-      className={cx('lm-chain', className)}
+      ref={reorder.chainRef}
+      className={cx('lm-chain', reorder.carried !== null && 'lm-chain--reordering', className)}
       style={style}
       role="list"
       aria-label={`${strip.name} devices`}
       data-testid={testId}
+      data-lm-strip={strip.name}
     >
       {inserts.map((device, index) =>
         index < skip ? null : (
           <div
-            key={`${device.id}-${index}`}
+            key={deviceKey(device)}
             role="listitem"
             className={cx(
               'lm-chain__item',
-              dragIndex === index && 'lm-chain__item--dragging',
-              overIndex === index && dragIndex !== index && 'lm-chain__item--over',
+              reorder.carried === index - skip && 'lm-chain__item--dragging',
             )}
-            draggable
-            onDragStart={onDragStart(index)}
-            onDragOver={onDragOver(index)}
-            onDrop={onDrop(index)}
-            onDragEnd={onDragEnd}
+            onPointerDown={reorder.onPointerDown(index - skip)}
             data-testid={testId ? `${testId}-item-${index - skip}` : undefined}
+            data-lm-insert={index}
           >
             <div
               className="lm-chain__handle"
               aria-hidden="true"
               title="Drag to reorder"
-              {...infoProps(
-                'Reorder',
-                'Drag the device onto another to give it that place in the chain. The sound runs through the devices from left to right, so their order changes the result.',
-              )}
+              {...infoProps('Reorder', REORDER_INFO)}
             >
               ⋮⋮
             </div>
-            <DevicePanel
-              {...panelProps}
-              device={device}
-              registry={reg ?? undefined}
-              onRemove={() => remove(device, index)}
-              actions={
+            {((): ReactNode => {
+              const actions = (
                 <>
                   <button
                     type="button"
@@ -349,12 +351,56 @@ export function DeviceChainView({
                   </button>
                   {panelProps?.actions}
                 </>
-              }
-              data-testid={testId ? `${testId}-device-${index - skip}` : undefined}
-            />
+              )
+              const plate = skin?.(device)
+              const id = testId ? `${testId}-device-${index - skip}` : undefined
+              return plate ? (
+                <DevicePlate
+                  device={device}
+                  skin={plate}
+                  registry={reg ?? undefined}
+                  title={panelProps?.title}
+                  choiceLabels={panelProps?.choiceLabels}
+                  showBypass={panelProps?.showBypass}
+                  showPresets={panelProps?.showPresets}
+                  onRemove={() => remove(device, index)}
+                  actions={actions}
+                  hint={PLATE_REORDER_HINT}
+                  data-testid={id}
+                />
+              ) : (
+                <DevicePanel
+                  hint={REORDER_HINT}
+                  {...panelProps}
+                  device={device}
+                  registry={reg ?? undefined}
+                  onRemove={() => remove(device, index)}
+                  actions={actions}
+                  data-testid={id}
+                />
+              )
+            })()}
           </div>
         ),
       )}
+      {reorder.carried !== null ? (
+        <div
+          ref={reorder.labelRef}
+          className="lm-chain__carried"
+          aria-hidden="true"
+          data-testid={testId ? `${testId}-carried` : undefined}
+        >
+          {reorder.label}
+        </div>
+      ) : null}
+      {reorder.marker !== null ? (
+        <div
+          className="lm-chain__marker"
+          style={{ left: reorder.marker }}
+          aria-hidden="true"
+          data-testid={testId ? `${testId}-marker` : undefined}
+        />
+      ) : null}
       {addShown && reg ? (
         <div className="lm-chain__add" role="listitem">
           <select

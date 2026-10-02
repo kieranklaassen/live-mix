@@ -21,7 +21,7 @@ import { type ParamSpec } from '../../core/params'
 import { useDeviceMeter } from '../hooks/useMeter'
 import { useDevice } from '../hooks/useParam'
 import { formatParamValue, isChoiceParam, paramStep, paramTaper } from './control-math'
-import { infoProps } from './info'
+import { infoProps, infoText } from './info'
 import { Knob } from './Knob'
 import { paramInfo } from './param-info'
 import { DeviceToggle } from './Toggle'
@@ -43,6 +43,11 @@ export interface DeviceFrameProps {
   className?: string
   style?: CSSProperties
   'data-testid'?: string
+  /**
+   * The kind of device the frame holds (its `Device.id`), for a host that
+   * maps controllers onto what is on screen. `DevicePanel` sets it.
+   */
+  'data-lm-device'?: string
 }
 
 /** Ableton-style device chrome: title bar with an optional power switch, dense body. */
@@ -58,12 +63,14 @@ export function DeviceFrame({
   className,
   style,
   'data-testid': testId,
+  'data-lm-device': deviceKind,
 }: DeviceFrameProps) {
   return (
     <section
       className={cx('lm-device', !powered && 'lm-device--off', className)}
       style={style}
       data-testid={testId}
+      data-lm-device={deviceKind}
       data-powered={powered ? 'true' : 'false'}
       aria-label={title}
       {...(info ? infoProps(title, info) : {})}
@@ -77,6 +84,7 @@ export function DeviceFrame({
             info={powerInfo}
             onPressedChange={onPowerChange}
             data-testid={testId ? `${testId}-power` : undefined}
+            data-lm-power={deviceKind !== undefined}
           />
         ) : null}
         <h3 className="lm-device__title">{title}</h3>
@@ -108,13 +116,16 @@ export interface DevicePanelProps {
   knobSize?: number
   /** Extra header controls after the preset picker. */
   actions?: ReactNode
+  /** A line added to the panel's info text: how it is worked where it stands (a chain says it can be moved). */
+  hint?: string
   onRemove?: () => void
   className?: string
   style?: CSSProperties
   'data-testid'?: string
 }
 
-function isBipolar(spec: ParamSpec): boolean {
+/** A parameter that rests in the middle of its range: its knob fills from the centre. */
+export function isBipolar(spec: ParamSpec): boolean {
   return spec.min < 0 && spec.max > 0 && spec.default === (spec.min + spec.max) / 2
 }
 
@@ -128,7 +139,8 @@ export function formatDeviceMeter(value: number, unit: string): string {
   return unit ? `${text} ${unit}` : text
 }
 
-function DeviceMeterReadout({
+/** One reading of a device that reports its own, as a number that follows it. */
+export function DeviceMeterReadout({
   device,
   name,
   spec,
@@ -169,6 +181,7 @@ export function DevicePanel({
   showPresets,
   knobSize = 40,
   actions,
+  hint,
   onRemove,
   className,
   style,
@@ -180,7 +193,7 @@ export function DevicePanel({
   const ownText = isParamTextDevice(device) ? device : null
   const presetsShown = showPresets ?? d.presets.length > 0
   const heading = title ?? d.descriptor?.name ?? d.id
-  const about = d.descriptor?.description
+  const about = d.descriptor?.description ?? `${heading}: one of the devices of this chain.`
 
   const header = (
     <>
@@ -261,11 +274,12 @@ export function DevicePanel({
       powered={!d.bypass}
       onPowerChange={showBypass ? (powered) => d.setBypass(!powered) : undefined}
       actions={header}
-      info={about ?? `${heading}: one of the devices of this chain.`}
+      info={infoText(about, hint)}
       powerInfo={`Turns ${heading} off and on. Off, the sound passes through unchanged and the settings are kept.`}
       className={cx('lm-device--generated', className)}
       style={style}
       data-testid={testId}
+      data-lm-device={device.id}
     >
       {device.notice ? (
         <p
@@ -311,6 +325,7 @@ export function DevicePanel({
               info={paramInfo(spec) ?? `A setting of ${heading}.`}
               className="lm-device__param"
               data-testid={testId ? `${testId}-${name}` : undefined}
+              data-lm-param={name}
             />
           )
         })}

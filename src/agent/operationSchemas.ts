@@ -236,6 +236,12 @@ export const OPERATION_DEFS: Record<string, JsonSchema> = {
       strip: ref('Strip'),
       lookaheadSec: number('Audio tracks: scheduler lookahead.', { min: 0 }),
       preloadSec: number('Audio tracks: preload lead.', { min: 0 }),
+      loopLengthSec: {
+        type: 'number',
+        exclusiveMinimum: 0,
+        description:
+          "Audio tracks: a loop length of the track's own in seconds; its clips repeat at it whatever the transport's loop does. Absent = the transport's loop.",
+      },
       clips: { type: 'array', items: ref('Clip'), description: 'Audio tracks only.' },
       device: ref('Device'),
     },
@@ -453,6 +459,10 @@ export const OPERATION_DEFS: Record<string, JsonSchema> = {
       loop: { type: 'boolean', description: 'Loop until stopped.' },
       semitones: number('Pitch shift on a stretch source.'),
       reversed: { type: 'boolean', description: 'Play the slice backwards.' },
+      chance: number('Chance of sounding on each pass, 0 to 1; 1 plays every pass.', {
+        min: 0,
+        max: 1,
+      }),
       pan: number("The clip's own place, −1 left … 1 right, ahead of the track's pan.", {
         min: -1,
         max: 1,
@@ -627,6 +637,15 @@ const OPERATION_SPECS: Record<OperationType, OperationSpec> = {
     description: 'Move a track to another position.',
     properties: { id: id('Track id.'), index: integer('New position.') },
     required: ['id', 'index'],
+  },
+  'track.loop': {
+    description:
+      "Give an audio track a loop length of its own: its clips and lanes repeat at that length over the time the transport has run, so tracks of different lengths slide apart. null follows the transport's loop again.",
+    properties: {
+      id: id('Audio track id.'),
+      lengthSec: nullableNumber("Loop length in seconds, or null for the transport's loop."),
+    },
+    required: ['id', 'lengthSec'],
   },
   'group.add': {
     description: 'Add a summing group.',

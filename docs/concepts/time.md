@@ -30,6 +30,70 @@ start is identified for ever by `clipId:iteration:startSec`. With the loop off
 and a `lengthSec` set, the transport pauses at the end (reason `end`,
 `position().finished`); with no length it runs on.
 
+Beside the position inside a pass, the transport counts **how far the
+timeline has run since its origin**: `t.elapsed()`, in timeline seconds, with
+every pass before the present one counted in, so it does not come back to 0
+when the loop wraps. A pause keeps it. A `seek` moves it by as much as it
+moves the position (a seek is a move within the pass the transport is in);
+`t.seekElapsed(sec)` puts it anywhere on the run, with the position where
+that falls in the loop; `stop()` puts it back to 0. `t.contextTimeAtElapsed`
+is `contextTimeAt` for a point on the run. `Math.floor(t.elapsed() /
+loop.lengthSec)` is the number of passes gone by, a count that survives a
+pause and a seek where `iteration` (a name, not a count) does not.
+
+## Loops of their own length
+
+The transport has one loop. A `Cycle` is another, of any length, on the same
+timeline: where the transport has run `elapsed()` seconds, the cycle is at
+`elapsed() % lengthSec` of its own pass. An audio track follows one when it
+is given a loop length:
+
+```ts
+const a = engine.addAudioTrack('a', { loopLengthSec: 23.5 })
+const b = engine.addAudioTrack('b', { loopLengthSec: 25.9 })
+b.loopLengthSec = 29.9 // while playing: moves over at once
+b.loopLengthSec = null // back on the transport's loop
+```
+
+Such a track repeats its clips at that length over the time the transport has
+run, whether or not the transport loops: a clip at `startSec` sounds at
+`startSec`, one length later, and so on. Tracks of different lengths start
+together at the origin (`elapsed() === 0`, where `stop()` and
+`seekElapsed(0)` put the transport), slide apart, and are all at their starts
+again when the elapsed time is a multiple of every length. That is how tape
+loops of unequal length are made (Brian Eno describes loops of about 23.5,
+25.9 and 29.9 s on _Music for Airports_).
+
+A cycle is the slice of `Transport` the scheduler reads (`Timebase`:
+`position`, `anchor`, `loop`, `contextTimeAt`) and keeps no clock of its own,
+so everything above holds on it as it does on the transport: catch-up after a
+stalled timer, the first window from the anchor, entering what is under the
+position, `rejoin`. Its passes are numbered like the transport's, never
+reused. A schedulable names its clock with `Schedulable.timebase`; when that
+is swapped, or the cycle's length changes, the scheduler lets go of what it
+handed over on the old clock (what sounds fades over 5 ms) and enters the
+clips the new one stands inside. A lane follows a track's loop when
+`Automation.add` is given the track's `timebase`; the score renderer does
+that for every lane on the track's strip, inserts and device. In a score the
+length is the audio track's `loopLengthSec`, set with the `track.loop`
+operation. Stretch tracks and element tracks follow the transport's loop.
+A cycle's length is in timeline seconds, so the transport's rate (below)
+takes every cycle with it: the loops slide against each other exactly as
+they would, only sooner or later by the clock.
+
+A timeline stretched for a tempo change (`Transport.rescale`) stretches
+`elapsed()` by the same ratio. A host that stretches its clips stretches a
+track's `loopLengthSec` with them, and the track then stays where it was in
+its own pass and what it has sounding plays on (`Scheduler.rescale`); a
+length left as it was puts the track somewhere else in its loop.
+
+A transport loop made shorter than where the position is folds the position
+into it, and `elapsed()` moves by as much, so every cycle is somewhere else
+too. As with any loop change, what sounds is left to sound; the scheduler
+then enters the clips the transport and each cycle have landed inside, on a
+track that can be entered partway, rather than waiting for their starts to
+come round.
+
 ## Rate: the timeline against the clock
 
 `transport.rate` is how many timeline seconds pass in one second of the audio
@@ -127,6 +191,13 @@ t.setPass(13) // go to that pass: a seek to where the transport already is
 ```
 
 A pause, a seek and a loop change keep the count; `stop()` goes back to 0.
+The count and `elapsed()` are one run counted two ways: while the loop keeps
+its length `pass()` is `Math.floor(elapsed() / loop.lengthSec)`, `setPass`
+takes `elapsed()` to that pass (so every `Cycle` stands where it does on
+it), and `seekElapsed` lands on the pass its point of the run is in. A track
+on a loop of its own length counts its own passes
+(`track.timebase.passOf(iteration)`: how many of its lengths the run held
+when that pass began), and a clip on it is drawn on those.
 
 A clip can be left to chance: `chance` (0 to 1, absent = 1) is how likely it
 is to sound each time its start comes round. The scheduler draws once per

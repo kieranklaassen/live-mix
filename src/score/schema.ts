@@ -119,6 +119,14 @@ export interface ScoreAudioTrack extends ScoreStripOwner {
    * `createStretch`. Optional field of format 3; absent = buffer voices.
    */
   stretch?: boolean
+  /**
+   * A loop length of the track's own, in seconds (`AudioTrack.loopLengthSec`):
+   * its clips, and the lanes on its strip and its devices, repeat at this
+   * length over the time the transport has run, whatever the transport's
+   * loop does. Buffer tracks only. Optional field of format 3; absent = the
+   * track follows the transport's loop.
+   */
+  loopLengthSec?: number
   clips: Clip[]
 }
 
@@ -773,6 +781,7 @@ function checkSlotClip(raw: unknown, path: string, ctx: Context): void {
   check.number(raw.gainDb, `${path}.gainDb`)
   if (raw.loop !== undefined) check.boolean(raw.loop, `${path}.loop`)
   if (raw.reversed !== undefined) check.boolean(raw.reversed, `${path}.reversed`)
+  if (raw.chance !== undefined) check.number(raw.chance, `${path}.chance`, { min: 0, max: 1 })
   checkPlacement(raw, path, check)
   checkWarp(raw, path, check)
   if (raw.warp !== undefined && check.array(raw.warp, `${path}.warp`)) {
@@ -856,6 +865,14 @@ function checkTrack(raw: unknown, path: string, ctx: Context): void {
       if (raw.preloadSec !== undefined)
         check.number(raw.preloadSec, `${path}.preloadSec`, { min: 0 })
       if (raw.stretch !== undefined) check.boolean(raw.stretch, `${path}.stretch`)
+      if (raw.loopLengthSec !== undefined) {
+        if (!(typeof raw.loopLengthSec === 'number' && raw.loopLengthSec > 0)) {
+          check.fail(`${path}.loopLengthSec`, 'must be a number above 0')
+        } else check.number(raw.loopLengthSec, `${path}.loopLengthSec`)
+        if (raw.stretch === true) {
+          check.fail(`${path}.loopLengthSec`, 'a stretch track has no loop of its own')
+        }
+      }
       if (check.array(raw.clips, `${path}.clips`)) {
         const clipIds = new UniqueIds(check)
         raw.clips.forEach((clip, index) => checkClip(clip, `${path}.clips[${index}]`, ctx, clipIds))
@@ -1285,7 +1302,7 @@ export function normaliseSource(source: ScoreSource): ScoreSource {
   return out
 }
 
-/** Slot clip fields in a fixed order; `loop` and `reversed` only when true, warp, semitones and placement only when set. */
+/** Slot clip fields in a fixed order; `loop` and `reversed` only when true, `chance` only below 1, warp, semitones and placement only when set. */
 export function normaliseSlotClip(clip: SlotClip): SlotClip {
   const out: SlotClip = {
     sourceId: clip.sourceId,
@@ -1301,6 +1318,7 @@ export function normaliseSlotClip(clip: SlotClip): SlotClip {
     out.warp = clip.warp.map((m) => ({ sourceSec: m.sourceSec, beat: m.beat }))
   if (clip.semitones !== undefined) out.semitones = clip.semitones
   if (clip.reversed) out.reversed = true
+  if (clip.chance !== undefined && clip.chance < 1) out.chance = clip.chance
   if (clip.pan !== undefined) out.pan = clip.pan
   if (clip.lowpassHz !== undefined) out.lowpassHz = clip.lowpassHz
   if (clip.spaceDb !== undefined) out.spaceDb = clip.spaceDb
@@ -1343,6 +1361,7 @@ function normaliseTrack(track: ScoreTrack): ScoreTrack {
       if (track.lookaheadSec !== undefined) out.lookaheadSec = track.lookaheadSec
       if (track.preloadSec !== undefined) out.preloadSec = track.preloadSec
       if (track.stretch) out.stretch = true
+      if (track.loopLengthSec !== undefined) out.loopLengthSec = track.loopLengthSec
       return out
     }
     case 'live':

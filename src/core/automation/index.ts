@@ -26,6 +26,7 @@ export {
   type ModRoute,
   type ModRouteOptions,
   type ModTarget,
+  type ModTimebase,
   type ModUpdate,
 } from './ModMatrix'
 export {
@@ -66,5 +67,6 @@ export {
 export {
   Automation,
   DEFAULT_AUTOMATION_LOOKAHEAD_SECONDS,
+  type AutomationLaneOptions,
   type AutomationOptions,
 } from './Automation'

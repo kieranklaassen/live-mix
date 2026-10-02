@@ -105,6 +105,7 @@ hold 8 notes).
 | `lattice`         | Lattice            | kkfonie Lattice     | pitch      | 59     | 34,723 B | 52.7 µs, 1.98 %       | 62.2 µs, 2.33 %            | 0                 | 4           |
 | `modal-bells`     | Bells              | live-mix            | instrument | 12     | 24,210 B | 58.5 µs, 2.20 %       | 40.6 µs, 1.52 %            | 0                 | 4           |
 | `organ`           | Reed Organ         | live-mix            | instrument | 13     | 23,093 B | 127.0 µs, 4.76 %      | 70.4 µs, 2.64 %            | 0                 | 4           |
+| `patina`          | Patina             | live-mix            | texture    | 8      | 36,191 B | 39.8 µs, 1.49 %       | 29.2 µs, 1.10 %            | 271               | 4           |
 | `phaser`          | Phaser             | kkfonie Tatami      | modulation | 9      | 14,298 B | 13.9 µs, 0.52 %       | 10.9 µs, 0.41 %            | 0                 | 4           |
 | `reverse-delay`   | Reverse Delay      | live-mix            | delay      | 8      | 15,057 B | 17.1 µs, 0.64 %       | 13.2 µs, 0.50 %            | 0                 | 20          |
 | `rotary`          | Rotary             | live-mix            | modulation | 9      | 16,495 B | 25.3 µs, 0.95 %       | 27.2 µs, 1.02 %            | 0                 | 4           |
