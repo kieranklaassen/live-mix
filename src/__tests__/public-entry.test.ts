@@ -67,6 +67,7 @@ const coreSymbols = [
   'devices',
   'DeviceRegistry',
   'clampParam',
+  'describeParams',
   'ChannelStrip',
   'SoloInPlace',
   'GroupTrack',
