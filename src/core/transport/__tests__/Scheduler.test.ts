@@ -897,6 +897,12 @@ describe('Scheduler leaves clips to chance', () => {
     return { ctx, transport, scheduler, track }
   }
 
+  /** The first whole number under `count` that `fits`. */
+  function firstOf(count: number, fits: (value: number) => boolean): number {
+    for (let value = 0; value < count; value += 1) if (fits(value)) return value
+    throw new Error('none fits')
+  }
+
   /** The counted passes on which `id` was handed over, in order. */
   function passesOf(track: JoiningTrack, transport: Transport, id: string): number[] {
     return track.handed
@@ -935,12 +941,8 @@ describe('Scheduler leaves clips to chance', () => {
   })
 
   it('does not enter a clip partway on a pass it sits out', () => {
-    const sitsOut = Array.from({ length: 50 }, (_, pass) => pass).find(
-      (pass) => !soundsOnPass(items[1], pass, 7),
-    )!
-    const sounds = Array.from({ length: 50 }, (_, pass) => pass).find((pass) =>
-      soundsOnPass(items[1], pass, 7),
-    )!
+    const sitsOut = firstOf(50, (pass) => !soundsOnPass(items[1], pass, 7))
+    const sounds = firstOf(50, (pass) => soundsOnPass(items[1], pass, 7))
     const { transport, track } = buildChance(7)
     transport.setPass(sitsOut)
     transport.seek(2)
@@ -955,9 +957,8 @@ describe('Scheduler leaves clips to chance', () => {
 
   it('puts the clips left to chance in step with a new seed while playing', () => {
     // Two seeds that disagree about the first pass.
-    const seeds = Array.from({ length: 200 }, (_, seed) => seed)
-    const on = seeds.find((seed) => soundsOnPass(items[1], 0, seed))!
-    const off = seeds.find((seed) => !soundsOnPass(items[1], 0, seed))!
+    const on = firstOf(200, (seed) => soundsOnPass(items[1], 0, seed))
+    const off = firstOf(200, (seed) => !soundsOnPass(items[1], 0, seed))
     const { transport, scheduler, track } = buildChance(on)
     transport.seek(2)
     transport.start()
