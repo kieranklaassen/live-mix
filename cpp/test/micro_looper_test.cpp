@@ -416,11 +416,14 @@ int main() {
     }
     std::printf("micro-looper: largest step moving Speed %.4f, Clock %.4f, Length %.4f, State %.4f (the sine's own %.4f)\n",
                 worst_speed, worst_clock, worst_length, worst_state, natural);
-    // Double speed doubles the sine's own step; a crossfade of two phases adds 41 %.
-    EXPECT(worst_speed < 2.0 * 1.45 * natural, "a Speed change glides like tape, without a click");
-    EXPECT(worst_clock < 1.45 * natural, "a Clock change glides without a click");
-    EXPECT(worst_length < 1.45 * natural, "a Length change cross-fades without a click");
-    EXPECT(worst_state < 1.45 * natural, "a State change fades without a click");
+    // An equal-power fade between two copies of a sine reaches 1.41 times its
+    // level, and a change of deck in the middle of a loop join twice (a hard
+    // splice would be some thirty times the sine's own step). Double speed
+    // doubles the sine's own step.
+    EXPECT(worst_speed < 2.0 * 2.0 * natural, "a Speed change glides like tape, without a click");
+    EXPECT(worst_clock < 2.0 * natural, "a Clock change glides without a click");
+    EXPECT(worst_length < 2.0 * natural, "a Length change cross-fades without a click");
+    EXPECT(worst_state < 2.0 * natural, "a State change fades without a click");
   }
 
   // BEHAVIOUR CHECKS GO HERE

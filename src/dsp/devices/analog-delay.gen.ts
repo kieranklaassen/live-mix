@@ -256,7 +256,7 @@ export const ANALOG_DELAY_DESCRIPTOR = wasmDeviceDescriptor(ANALOG_DELAY_DEVICE,
     },
     Runaway: {
       time: 300,
-      feedback: 1.05,
+      feedback: 1.1,
       modDepth: 0.4,
       tone: 2800,
       age: 0.5,

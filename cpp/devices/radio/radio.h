@@ -292,9 +292,9 @@ class Radio : public kit::DeviceBase<radio::kNumParams> {
     if (glide(&cone_, param(kSpeaker), jump)) {
       cone_high_.set(40.0f * std::pow(9.5f, cone_), 0.7f + 0.7f * cone_, sr);
       cone_peak_.set_peak(1900.0f, 1.2f, 7.0f * cone_, sr);
-      cone_low_.set(16000.0f * std::pow(0.2125f, cone_), 0.8f, sr);
+      cone_low_.set(16000.0f * std::pow(0.1625f, cone_), 0.8f, sr);
     }
-    drive_.aim(1.0f + 2.5f * cone_, inverse, jump);
+    drive_.aim(1.0f + 1.8f * cone_, inverse, jump);
     blend_.aim(cone_, inverse, jump);
 
     float direct, late_re, late_im, delay_s;

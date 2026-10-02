@@ -44,7 +44,7 @@ inline void OctaveBank::init(float rate, float low_hz, float high_hz, int count)
   jump_index_ = 0;
   jump_fall_ = std::exp(-tick_seconds_ / kJumpFall);
   attack_coeff_ = 0.0f;
-  detune_ = 0.0f;
+  set_detune(0.0f);
   for (HalfbandDown<kDownHalf>& d : down_) d.init(kDownBeta);
   for (int b = 0; b < kBuses; ++b) {
     up_half_[b].init(kUpBeta[0]);
@@ -109,11 +109,14 @@ inline void OctaveBank::init(float rate, float low_hz, float high_hz, int count)
       comp_im_[v][k] = static_cast<float>(limit[v] * std::sin(angle));
       det_re_[v][k] = 1.0f;
       det_im_[v][k] = 0.0f;
-      det_cos_[v][k] = 1.0f;
-      det_sin_[v][k] = 0.0f;
       w_re_[v][k] = w_im_[v][k] = 0.0f;
       w_step_re_[v][k] = w_step_im_[v][k] = 0.0f;
       w_target_re_[v][k] = w_target_im_[v][k] = 0.0f;
+    }
+    for (int v = 0; v < 2; ++v) {
+      const double angle = -2.0 * kPiD * kVoiceRatio[v] * hz * (to_output[group] - to_channel[group]) / rate;
+      ahead_re_[v][k] = static_cast<float>(std::cos(angle));
+      ahead_im_[v][k] = static_cast<float>(std::sin(angle));
     }
     delay_slope_[k] = static_cast<float>(2.0 * kPiD * kVoiceRatio[0] * to_output[group] / rate);
     const double skew = 2.0 * kPiD * hz * to_channel[group] / rate;
@@ -397,6 +400,22 @@ inline void OctaveBank::sub_phasors(int k, float* half, float* quarter) const {
   principal_root(half[0], half[1], &quarter[0], &quarter[1]);
   quarter[0] *= sign2_[k];
   quarter[1] *= sign2_[k];
+}
+
+// Where channel k's two sub voices point (sub1 then sub2, as complex
+// numbers), on the clock of the output: the ramped weight, less the part of
+// the group's delay that the voice has not been through yet.
+inline void OctaveBank::sub_outputs(int k, float* out) const {
+  float half[2], quarter[2];
+  sub_phasors(k, half, quarter);
+  const float hr = half[0] * w_target_re_[1][k] - half[1] * w_target_im_[1][k];
+  const float hi = half[0] * w_target_im_[1][k] + half[1] * w_target_re_[1][k];
+  out[0] = hr * ahead_re_[1][k] - hi * ahead_im_[1][k];
+  out[1] = hr * ahead_im_[1][k] + hi * ahead_re_[1][k];
+  const float qr = quarter[0] * w_target_re_[0][k] - quarter[1] * w_target_im_[0][k];
+  const float qi = quarter[0] * w_target_im_[0][k] + quarter[1] * w_target_re_[0][k];
+  out[2] = qr * ahead_re_[0][k] - qi * ahead_im_[0][k];
+  out[3] = qr * ahead_im_[0][k] + qi * ahead_re_[0][k];
 }
 
 inline void OctaveBank::tick() {
@@ -705,32 +724,34 @@ inline void OctaveBank::tick() {
   // the same partial takes that neighbour's, so the sub octaves of one
   // partial add between channels instead of cancelling.
   for (int k = 0; k < bands_; ++k) {
+    if (!live_[k]) continue;
     int j = -1;
     float best = power_[k];
-    if (k > 0 && power_[k - 1] > best && agree_[k - 1] > kAgreeThreshold) {
+    if (k > 0 && live_[k - 1] && power_[k - 1] > best && agree_[k - 1] > kAgreeThreshold) {
       j = k - 1;
       best = power_[k - 1];
     }
-    if (k < bands_ - 1 && power_[k + 1] > best && agree_[k] > kAgreeThreshold) j = k + 1;
+    if (k < bands_ - 1 && live_[k + 1] && power_[k + 1] > best && agree_[k] > kAgreeThreshold) j = k + 1;
     if (j < 0) continue;
-    const float quarter_dot = quarter_re_[k] * quarter_re_[j] + quarter_im_[k] * quarter_im_[j];
-    if (half_re_[k] * half_re_[j] + half_im_[k] * half_im_[j] < -0.2f) {
-      half_re_[k] = -half_re_[k];
+    float mine[4], theirs[4];
+    sub_outputs(k, mine);
+    sub_outputs(j, theirs);
+    const float half_dot = mine[0] * theirs[0] + mine[1] * theirs[1];
+    const float half_size = (mine[0] * mine[0] + mine[1] * mine[1]) * (theirs[0] * theirs[0] + theirs[1] * theirs[1]);
+    bool turned = false;
+    if (half_dot < 0.0f && half_dot * half_dot > 0.04f * half_size) {
+      sign1_[k] = -sign1_[k];
       half_im_[k] = -half_im_[k];
-      // The quarter phasor is a root of the half phasor: a quarter turn,
-      // towards the neighbour's.
-      const float cross = quarter_im_[k] * quarter_re_[j] - quarter_re_[k] * quarter_im_[j];
-      const float qr = quarter_re_[k], qi = quarter_im_[k];
-      if (cross > 0.0f) {  // ahead of the neighbour: turn back
-        quarter_re_[k] = qi;
-        quarter_im_[k] = -qr;
-      } else {
-        quarter_re_[k] = -qi;
-        quarter_im_[k] = qr;
-      }
-    } else if (quarter_dot < -0.2f) {
-      quarter_re_[k] = -quarter_re_[k];
-      quarter_im_[k] = -quarter_im_[k];
+      // The quarter phasor is a root of the half phasor: it has just made
+      // a quarter turn, and takes the sign nearer the neighbour's.
+      sub_outputs(k, mine);
+      turned = true;
+    }
+    const float quarter_dot = mine[2] * theirs[2] + mine[3] * theirs[3];
+    const float quarter_size =
+        (mine[2] * mine[2] + mine[3] * mine[3]) * (theirs[2] * theirs[2] + theirs[3] * theirs[3]);
+    if (quarter_dot < 0.0f && (turned || quarter_dot * quarter_dot > 0.04f * quarter_size)) {
+      sign2_[k] = -sign2_[k];
     }
   }
 }

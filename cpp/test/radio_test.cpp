@@ -464,7 +464,38 @@ int main() {
     }
   }
 
-  // BEHAVIOUR
+  // 15. Levels: a held chord through the default patch comes out within 3 dB
+  // of what went in, and full-scale noise through the worst settings stays
+  // under the amplifier's rails.
+  {
+    std::vector<float> chord(static_cast<size_t>(20.0f * kRate), 0.0f);
+    for (float hz : {220.0f, 277.18f, 329.63f, 440.0f, 659.26f}) {
+      const std::vector<float> note = sine(hz, 20.0f, kRate, 0.1f);
+      for (size_t i = 0; i < chord.size(); ++i) chord[i] += note[i];
+    }
+    device.init(kRate);
+    Stereo out = run(device, chord);
+    const double change = db(rms(out.left, 48000)) - db(rms(chord, 48000));
+    device.init(kRate);
+    set_all(device, p::kParamMax);
+    rng_state() = 0xBEEFu;
+    Stereo loud = run(device, noise(5.0f, kRate, 1.0f));
+    std::printf("levels: default patch %+.1f dB against a dry chord (peak %.1f dBFS); everything at maximum with "
+                "full-scale noise peaks at %.2f\n",
+                change, db(peak(out.left)), std::max(peak(loud.left), peak(loud.right)));
+    EXPECT(change > -3.0 && change < 3.0, "the default patch is within 3 dB of the dry level");
+    EXPECT(peak(loud.left) <= 1.0, "the output never passes the amplifier's rails");
+  }
+
+  // Cost with everything on: full static and interference, deep fading.
+  device.init(kRate);
+  device.set_param(p::kStatic, 1.0f);
+  device.set_param(p::kInterference, 1.0f);
+  device.set_param(p::kFading, 1.0f);
+  device.set_param(p::kDrift, 1.0f);
+  rng_state() = 0xBEEFu;
+  const std::vector<float> load = noise(10.0f, kRate, 0.25f);
+  report_cost("radio", 10.0f, kRate, [&] { run(device, load); });
 
   return finish("radio");
 }

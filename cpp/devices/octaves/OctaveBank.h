@@ -91,15 +91,11 @@ class OctaveBank {
 
   // amount 0..1: voice offsets of up to kDetuneCents, each voice its own way.
   void set_detune(float amount) {
-    if (amount == detune_) return;
     detune_ = amount;
     for (int v = 0; v < kVoices; ++v) {
+      // Radians per tick, per Hz of the partial.
       const double ratio = std::exp2(kDetuneCents[v] * amount / 1200.0) - 1.0;
-      for (int k = 0; k < bands_; ++k) {
-        const double angle = 2.0 * kPiD * ratio * kVoiceRatio[v] * centre_[k] * tick_seconds_;
-        det_cos_[v][k] = static_cast<float>(std::cos(angle));
-        det_sin_[v][k] = static_cast<float>(std::sin(angle));
-      }
+      det_rate_[v] = static_cast<float>(2.0 * kPiD * ratio * kVoiceRatio[v] * tick_seconds_);
     }
   }
 
@@ -214,6 +210,7 @@ class OctaveBank {
   void set_width(int k, float open, bool rescale);
   void run_group(int g, float x, const Want& want, float* bus);
   void sub_phasors(int k, float* half, float* quarter) const;
+  void sub_outputs(int k, float* out) const;
   void tick();
 
   float rate_ = 24000.0f;
@@ -258,6 +255,8 @@ class OctaveBank {
   float comp_re_[kVoices][kMaxBands] = {};
   float comp_im_[kVoices][kMaxBands] = {};
   float delay_slope_[kMaxBands] = {};
+  float ahead_re_[2][kMaxBands] = {};
+  float ahead_im_[2][kMaxBands] = {};
   float unskew_re_[kMaxBands] = {};
   float unskew_im_[kMaxBands] = {};
   // Per channel: the resonators.
@@ -305,8 +304,7 @@ class OctaveBank {
   float half_im_[kMaxBands] = {};
   float det_re_[kVoices][kMaxBands] = {};
   float det_im_[kVoices][kMaxBands] = {};
-  float det_cos_[kVoices][kMaxBands] = {};
-  float det_sin_[kVoices][kMaxBands] = {};
+  float det_rate_[kVoices] = {};
 };
 
 }  // namespace octaves

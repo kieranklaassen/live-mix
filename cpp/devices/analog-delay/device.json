@@ -94,12 +94,7 @@
     {
       "key": "step",
       "name": "Step",
-      "choices": [
-        "1",
-        "2",
-        "4",
-        "8"
-      ],
+      "choices": ["1", "2", "4", "8"],
       "default": 1,
       "description": "How many repeats pass between clock steps. Short steps give a busy sequence of jumping echoes, long ones an occasional lurch."
     },

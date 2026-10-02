@@ -451,7 +451,99 @@ int main() {
     }
   }
 
-  // BEHAVIOUR 8
+  // 8. Moving Level while the noise sounds. The beds are deterministic, so
+  // the same render with and without the move gives the gain the move
+  // applied, sample by sample: it must glide (5 ms), never jump.
+  {
+    still(device, NoiseFloor::kAir, -42.0f);
+    Stereo steady = noise_only(device, 1.0f);
+    still(device, NoiseFloor::kAir, -42.0f);
+    run(device, impulse(0.2f, kRate, 0.001f));
+    Stereo moved = render(device, 0.5f, kRate);
+    device.set_param(p::kLevel, -24.0f);
+    moved = concat(moved, render(device, 0.5f, kRate));
+    const double target = std::pow(10.0, 18.0 / 20.0);
+    double last = 1.0, worst_jump = 0.0, worst_fall = 0.0, before = 0.0;
+    double reached = -1.0;
+    for (size_t i = 0; i < moved.size(); ++i) {
+      if (std::fabs(steady.left[i]) < 1.0e-4f) continue;
+      const double gain = static_cast<double>(moved.left[i]) / steady.left[i];
+      if (i < 24000) before = std::max(before, std::fabs(gain - 1.0));
+      worst_jump = std::max(worst_jump, gain - last);
+      worst_fall = std::max(worst_fall, last - gain);
+      if (reached < 0.0 && gain > 1.0 + 0.9 * (target - 1.0)) reached = static_cast<double>(i - 24000) / kRate;
+      last = gain;
+    }
+    EXPECT(before < 1.0e-6, "before the move both renders are the same");
+    EXPECT_NEAR(last, target, 0.01 * target, "Level up by 18 dB lands on 18 dB");
+    EXPECT(worst_jump < 0.03 * (target - 1.0), "a Level move glides: no step larger than 3 % of the change");
+    EXPECT(worst_fall < 1.0e-3, "a Level move is monotonic");
+    EXPECT(reached > 0.006 && reached < 0.025, "a Level move covers 90 % of the way in 6 to 25 ms");
+    EXPECT(max_step(moved.left, 24000) < 1.02 * target * max_step(steady.left, 24000),
+           "no click when Level moves (largest step no more than the louder noise's own)");
+
+    // Tone and Width moved across their whole range in one go: no step in
+    // the output larger than the steady noise makes by itself.
+    double worst_sweep = 0.0;
+    for (int which : {static_cast<int>(p::kTone), static_cast<int>(p::kWidth)}) {
+      for (int t : {static_cast<int>(NoiseFloor::kTape), static_cast<int>(NoiseFloor::kHum50)}) {
+        still(device, t, -30.0f);
+        device.set_param(which, which == p::kTone ? -1.0f : 0.0f);
+        Stereo calm = noise_only(device, 1.0f);
+        device.set_param(which, 1.0f);
+        Stereo swept = render(device, 0.3f, kRate);
+        Stereo then = render(device, 1.0f, kRate);
+        const double own = std::max(max_step(calm.left), max_step(then.left));
+        worst_sweep = std::max(worst_sweep, max_step(swept.left) / own);
+      }
+    }
+    EXPECT(worst_sweep < 1.25, "Tone and Width sweep without a click");
+    if (verbose) {
+      std::printf("level move: largest step %.2f %% of the change, 90 %% in %.1f ms, lands on %.3f (want %.3f); tone/width sweep step %.2f of steady\n",
+                  100.0 * worst_jump / (target - 1.0), 1000.0 * reached, last, target, worst_sweep);
+    }
+  }
+
+  // 9. The same audio at block sizes of 1, 128 and 2048, with everything
+  // that runs on the control clock in play.
+  {
+    rng_state() = 0x5EEDu;
+    std::vector<float> input = noise(1.5f, kRate, 0.3f);
+    for (size_t i = 24000; i < 48000; ++i) input[i] = 0.0f;
+    Stereo sized[3];
+    const int blocks[3] = {1, 128, 2048};
+    for (int k = 0; k < 3; ++k) {
+      device.init(kRate);
+      device.set_param(p::kType, static_cast<float>(NoiseFloor::kVinyl));
+      device.set_param(p::kLevel, -24.0f);
+      device.set_param(p::kFollow, -0.5f);
+      device.set_param(p::kMovement, 1.0f);
+      device.set_param(p::kTone, 0.4f);
+      sized[k] = run(device, input, blocks[k]);
+    }
+    EXPECT(sized[0].left == sized[1].left && sized[0].right == sized[1].right, "block size 1 gives the same audio as 128");
+    EXPECT(sized[2].left == sized[1].left && sized[2].right == sized[1].right, "block size 2048 gives the same audio as 128");
+  }
+
+  // 10. Bounded at the loudest settings: the noise alone never passes full
+  // scale, whatever the bed throws up.
+  {
+    double worst = 0.0;
+    for (int t = 0; t < kTypes; ++t) {
+      device.init(kRate);
+      device.set_param(p::kType, static_cast<float>(t));
+      device.set_param(p::kLevel, -12.0f);
+      device.set_param(p::kFollow, 1.0f);
+      device.set_param(p::kMovement, 1.0f);
+      device.set_param(p::kTone, 1.0f);
+      rng_state() = 0xF00Du;
+      std::vector<float> loud = noise(10.0f, kRate, 1.0f);
+      Stereo n = minus(run(device, loud), loud, loud);
+      worst = std::max(worst, std::max(peak(n.left), peak(n.right)));
+    }
+    EXPECT(worst <= 1.0 + 1.0e-6, "the noise alone never passes full scale");
+    if (verbose) std::printf("bounded: loudest noise peak at Level -12, Follow +1, full-scale input: %.3f\n", worst);
+  }
 
   still(device, NoiseFloor::kStatic, -30.0f);
   device.set_param(p::kMovement, 1.0f);
