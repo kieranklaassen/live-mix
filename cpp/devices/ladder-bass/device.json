@@ -1,0 +1,168 @@
+{
+  "id": "ladder-bass",
+  "name": "Ladder Bass",
+  "category": "instrument",
+  "description": "One-voice bass in the style of seventies ladder-filter synthesizers: two beating oscillators and a sub through an overdriven four-pole filter, for sequences, pedal drones and sub tones.",
+  "class": "LadderBass",
+  "header": "ladder_bass.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "wave",
+      "name": "Wave",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "Shape of the two oscillators, from a bright buzzing sawtooth to a hollow square."
+    },
+    {
+      "key": "beat",
+      "name": "Beat",
+      "min": 0,
+      "max": 25,
+      "default": 6,
+      "unit": "ct",
+      "description": "How far the two oscillators are tuned apart. A little makes the note swell and fade slowly; more is a thick chorus."
+    },
+    {
+      "key": "sub",
+      "name": "Sub",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Level of a pure tone one octave below the note, for weight under the oscillators."
+    },
+    {
+      "key": "cutoff",
+      "name": "Cutoff",
+      "min": 30,
+      "max": 12000,
+      "default": 500,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "Where the filter starts removing highs. Lower is darker and rounder. Higher notes open it a little so the top of the keyboard keeps its tone."
+    },
+    {
+      "key": "emphasis",
+      "name": "Emphasis",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Resonance at the cutoff: a nasal, whistling peak. As on the original filters, more of it makes the bass thinner and quieter."
+    },
+    {
+      "key": "contour",
+      "name": "Contour",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "How far each note opens the filter above Cutoff before it closes again. With Decay at the top the filter stays open while a key is held."
+    },
+    {
+      "key": "decay",
+      "name": "Decay",
+      "min": 0.03,
+      "max": 10,
+      "default": 0.6,
+      "taper": "log",
+      "unit": "s",
+      "description": "How quickly each note closes and fades, from a short blip to a long fall. At the very top the note holds for as long as the key is down."
+    },
+    {
+      "key": "drive",
+      "name": "Drive",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Pushes the oscillators harder into the filter, which rounds and thickens the tone into warm overdrive without making it much louder."
+    },
+    {
+      "key": "glide",
+      "name": "Glide",
+      "min": 0,
+      "max": 1,
+      "default": 0.08,
+      "unit": "s",
+      "description": "Time the pitch takes to slide to a new key pressed while another is still held. Keys played apart start on pitch."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -9,
+      "unit": "dB",
+      "description": "Output level of the instrument. A soft clip after it catches peaks at high settings."
+    }
+  ],
+  "presets": {
+    "Sequence bass": {
+      "wave": 0,
+      "beat": 6,
+      "sub": 0.3,
+      "cutoff": 500,
+      "emphasis": 0.3,
+      "contour": 0.6,
+      "decay": 0.6,
+      "drive": 0.3,
+      "glide": 0.08
+    },
+    "Pedal drone": {
+      "beat": 9,
+      "sub": 0.6,
+      "cutoff": 350,
+      "emphasis": 0.1,
+      "contour": 0,
+      "decay": 10,
+      "drive": 0.2,
+      "glide": 0.15
+    },
+    "Soft sub": {
+      "wave": 1,
+      "beat": 3,
+      "sub": 1,
+      "cutoff": 120,
+      "emphasis": 0,
+      "contour": 0,
+      "decay": 10,
+      "drive": 0,
+      "glide": 0.1
+    },
+    "Singing lead": {
+      "wave": 0.3,
+      "beat": 5,
+      "sub": 0.2,
+      "cutoff": 1500,
+      "emphasis": 0.45,
+      "contour": 0.3,
+      "decay": 10,
+      "drive": 0.25,
+      "glide": 0.12,
+      "volume": -3
+    },
+    "Slow opener": {
+      "beat": 7,
+      "sub": 0.4,
+      "cutoff": 150,
+      "emphasis": 0.6,
+      "contour": 0.8,
+      "decay": 6,
+      "drive": 0.3
+    },
+    "Rubber pluck": {
+      "wave": 0.6,
+      "beat": 4,
+      "sub": 0.2,
+      "cutoff": 220,
+      "emphasis": 0.55,
+      "contour": 0.75,
+      "decay": 0.9,
+      "drive": 0.5,
+      "volume": -6
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit, grounded in the project's synthesizer research (section 9: the Minimoog Model D, the Moog Taurus bass pedals and the modular sequencer bass of the Berlin school). Modelled in outline: two detuned oscillators that beat, a tone an octave down, a mixer that overdrives a four-pole 24 dB ladder filter (kit::Ladder, run at four times the sample rate) whose resonance takes level from the bass and is not compensated, one contour for filter and loudness with release tied to decay, glide, and one voice with last-note priority. Simplified: one contour instead of two, a pure sine for the sub, saturation in the filter loop only and not in each stage, and at full Emphasis the filter rings at the cutoff when excited but does not start oscillating by itself. Choices of this device, not measurements of an original: the 2 ms strike, release capped at 0.8 s, five octaves of contour, 24 dB of drive with half given back after the filter, the filter following the keyboard by half from C2, drift of under a cent, a 2 Hz DC blocker, and every new key striking a decaying contour again (the originals strike once per legato phrase). The research's figures are from general knowledge and were not checked against a schematic or a recording. Not a circuit or sample emulation, and tuned by measurement only: nobody has listened to it."
+  }
+}

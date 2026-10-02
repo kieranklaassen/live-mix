@@ -1,0 +1,154 @@
+{
+  "id": "mallets",
+  "name": "Mallets",
+  "category": "instrument",
+  "description": "Tuned bars over resonator tubes, in the style of marimba, vibraphone, xylophone, glockenspiel and celesta, with a motor that throbs the low tone and a roll that turns held chords into a soft shimmer.",
+  "class": "Mallets",
+  "header": "mallets.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "instrument",
+      "name": "Instrument",
+      "choices": ["Marimba", "Vibraphone", "Xylophone", "Glockenspiel", "Celesta"],
+      "default": 0,
+      "description": "Which bars are played. Each has its own overtones, its own tube and its own way of dying away. Heard from the next note."
+    },
+    {
+      "key": "mallet",
+      "name": "Mallet",
+      "min": 0,
+      "max": 1,
+      "default": 0.35,
+      "description": "How hard the mallet is. Soft yarn gives a round hum with little attack; hard rubber gives a bright knock. Heard from the next stroke."
+    },
+    {
+      "key": "decay",
+      "name": "Decay",
+      "min": 0.25,
+      "max": 4,
+      "default": 1,
+      "taper": "log",
+      "description": "How long the bars ring. Wood still dies sooner the higher the note and metal still sings for seconds; this stretches or shortens both."
+    },
+    {
+      "key": "resonator",
+      "name": "Resonator",
+      "min": 0,
+      "max": 1,
+      "default": 0.8,
+      "description": "How much of the tube under each bar is heard. More gives a louder, rounder low tone that blooms just after the stroke and dies sooner."
+    },
+    {
+      "key": "motor",
+      "name": "Motor",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "Turns a disc in the top of each tube, so the low tone of every note throbs while its overtones stay still. Heard only with Resonator up."
+    },
+    {
+      "key": "motorRate",
+      "name": "Motor Rate",
+      "min": 1,
+      "max": 12,
+      "default": 4.5,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "How many times a second the motor pulses, from a slow throb to a fast flutter."
+    },
+    {
+      "key": "roll",
+      "name": "Roll",
+      "min": 0,
+      "max": 16,
+      "default": 0,
+      "unit": "Hz",
+      "description": "Keeps striking a held key softly, hands alternating, about this many times a second and faster on high bars, so held chords shimmer. At zero a key is one stroke."
+    },
+    {
+      "key": "damper",
+      "name": "Damper",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "How quickly a note is stopped when its key is let go. At zero it rings on untouched, as bars without a damper do; higher stops it sooner."
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Spreads the keyboard across the speakers, low notes to the left and high notes to the right. At zero every note sits in the middle."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -9,
+      "unit": "dB",
+      "description": "Overall output level of the instrument."
+    }
+  ],
+  "presets": {
+    "Soft marimba": {},
+    "Rolled marimba": {
+      "mallet": 0.2,
+      "resonator": 1,
+      "roll": 11,
+      "width": 0.6,
+      "volume": -12
+    },
+    "Motor vibes": {
+      "instrument": 1,
+      "mallet": 0.45,
+      "resonator": 0.9,
+      "motor": 0.7,
+      "motorRate": 4.5
+    },
+    "Still vibes": {
+      "instrument": 1,
+      "mallet": 0.25,
+      "decay": 1.6,
+      "resonator": 0.7,
+      "damper": 0.45
+    },
+    "Rolled vibes": {
+      "instrument": 1,
+      "mallet": 0.15,
+      "resonator": 1,
+      "motor": 0.35,
+      "motorRate": 2.2,
+      "roll": 9,
+      "damper": 0.3,
+      "width": 0.7,
+      "volume": -12
+    },
+    "Glockenspiel": {
+      "instrument": 3,
+      "mallet": 0.85,
+      "resonator": 0,
+      "width": 0.3
+    },
+    "Celesta": {
+      "instrument": 4,
+      "mallet": 0.3,
+      "resonator": 0.8,
+      "damper": 0.7,
+      "width": 0.4
+    },
+    "Dry xylophone": {
+      "instrument": 2,
+      "mallet": 0.8,
+      "decay": 0.6,
+      "resonator": 0.4,
+      "width": 0.4
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit, a sibling of Bells (modal-bells): each bar mode is a rotating complex one-pole. Modelled after the marimba, vibraphone, xylophone, orchestral glockenspiel and celesta as the acoustics literature describes them (Rossing, The Science of Percussion Instruments; Fletcher and Rossing; the research brief for this instrument): bars carved so their modes sit at 1 : 4 : about 10 (marimba 9.9, vibraphone 10), 1 : 3 : 6 (xylophone) or left uncut at 1 : 2.757 : 5.404 (glockenspiel, celesta); wood whose ring time falls as 1/f and whose upper modes die in a fraction of a second; a quarter-wave tube tuned to the fundamental only, which makes it louder, later and shorter; a motor disc that opens and shuts the tube, so only the fundamental pulses; and the roll, strokes with hands alternating. Simplified: the tube is one resonance fed by the fundamental mode, the motor's slight pitch wobble is left out, mode shapes for the two strike points are those of an uncut bar, and a stroke on a bar that still rings waits up to half a period to go with the bar's swing and tops each mode up to a fresh stroke's level, which stands in for the way a real mallet damps the bar as it lands and makes a roll steadier than a player's. Choices, not measurements of an instrument: every ring time and its base (marimba 2 s and vibraphone 10 s at C4 for the bar alone, glockenspiel 4 s at C6), the upper-mode damping (3 per unit of ratio for wood, 0.4 for aluminium), tube Q (16 for marimba and vibraphone, 12 for xylophone and glockenspiel, 6 for the celesta's box) and strength, mallet contact times (2.5 to 0.25 ms at C4), the roll's rate law, jitter (12 %) and level (4.5 dB under the first stroke), mode ratios above the third, and the motor range. A real glockenspiel has no tubes: Resonator gives it a weak one, as on resonator bells, and its preset leaves it at zero. Not a sample or circuit emulation of any instrument."
+  }
+}

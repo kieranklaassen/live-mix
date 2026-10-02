@@ -4,6 +4,8 @@
 # (native_test).
 
 build_generated_devices() {
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device acoustic-guitar \
+    cpp/devices/acoustic-guitar/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device ambient-comp \
     cpp/devices/ambient-comp/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device ambient-eq \
@@ -16,6 +18,8 @@ build_generated_devices() {
     cpp/devices/analog-drive/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device atmosphere \
     cpp/devices/atmosphere/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device aurora \
+    cpp/devices/aurora/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device auto-filter \
     cpp/devices/auto-filter/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device bloom-reverb \
@@ -26,12 +30,20 @@ build_generated_devices() {
     cpp/devices/bowed-string/device_api.gen.cpp
   MEMORY_BYTES=16777216 EXTRA_EXPORTS="" build_device cascade \
     cpp/devices/cascade/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device chamber-strings \
+    cpp/devices/chamber-strings/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device choir \
     cpp/devices/choir/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device chord-harp \
+    cpp/devices/chord-harp/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device chorus \
     cpp/devices/chorus/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device clarinet \
+    cpp/devices/clarinet/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device drone \
     cpp/devices/drone/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device dusk \
+    cpp/devices/dusk/device_api.gen.cpp
   MEMORY_BYTES=20971520 EXTRA_EXPORTS="" build_device echo-memory \
     cpp/devices/echo-memory/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device ember \
@@ -40,6 +52,8 @@ build_generated_devices() {
     cpp/devices/expanse/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device flanger \
     cpp/devices/flanger/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device flute \
+    cpp/devices/flute/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device fm-glass \
     cpp/devices/fm-glass/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device freq-shifter \
@@ -52,12 +66,24 @@ build_generated_devices() {
     cpp/devices/grain-delay/device_api.gen.cpp
   MEMORY_BYTES=12582912 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_sample_capacity,_device_sample_buffer,_device_sample_commit" build_device grain-synth \
     cpp/devices/grain-synth/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device guitar \
+    cpp/devices/guitar/device_api.gen.cpp
   MEMORY_BYTES=8388608 EXTRA_EXPORTS="" build_device half-speed \
     cpp/devices/half-speed/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device handpan \
+    cpp/devices/handpan/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device harp \
+    cpp/devices/harp/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device horns \
+    cpp/devices/horns/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device ladder-bass \
+    cpp/devices/ladder-bass/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device lattice \
     cpp/devices/lattice/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device low-bitrate \
     cpp/devices/low-bitrate/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device mallets \
+    cpp/devices/mallets/device_api.gen.cpp
   MEMORY_BYTES=16777216 EXTRA_EXPORTS="" build_device micro-looper \
     cpp/devices/micro-looper/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device micro-shift \
@@ -76,6 +102,8 @@ build_generated_devices() {
     cpp/devices/pad-follower/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device patina \
     cpp/devices/patina/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device pedal-steel \
+    cpp/devices/pedal-steel/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device phaser \
     cpp/devices/phaser/device_api.gen.cpp
   MEMORY_BYTES=6291456 EXTRA_EXPORTS="" build_device pitch-shifter \
@@ -111,6 +139,8 @@ build_generated_devices() {
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device sympathetic \
     cpp/devices/sympathetic/device_api.gen.cpp \
     cpp/devices/stereo-widener/StereoWidener.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device tanpura \
+    cpp/devices/tanpura/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device tape \
     cpp/devices/tape/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device tape-echo \
@@ -141,6 +171,8 @@ build_generated_devices() {
 }
 
 test_generated_devices() {
+  native_test acoustic_guitar_test \
+    cpp/test/acoustic_guitar_test.cpp
   native_test ambient_comp_test \
     cpp/test/ambient_comp_test.cpp
   native_test ambient_eq_test \
@@ -153,6 +185,8 @@ test_generated_devices() {
     cpp/test/analog_drive_test.cpp
   native_test atmosphere_test \
     cpp/test/atmosphere_test.cpp
+  native_test aurora_test \
+    cpp/test/aurora_test.cpp
   native_test auto_filter_test \
     cpp/test/auto_filter_test.cpp
   native_test bloom_reverb_test \
@@ -163,12 +197,20 @@ test_generated_devices() {
     cpp/test/bowed_string_test.cpp
   native_test cascade_test \
     cpp/test/cascade_test.cpp
+  native_test chamber_strings_test \
+    cpp/test/chamber_strings_test.cpp
   native_test choir_test \
     cpp/test/choir_test.cpp
+  native_test chord_harp_test \
+    cpp/test/chord_harp_test.cpp
   native_test chorus_test \
     cpp/test/chorus_test.cpp
+  native_test clarinet_test \
+    cpp/test/clarinet_test.cpp
   native_test drone_test \
     cpp/test/drone_test.cpp
+  native_test dusk_test \
+    cpp/test/dusk_test.cpp
   native_test echo_memory_test \
     cpp/test/echo_memory_test.cpp
   native_test ember_test \
@@ -177,6 +219,8 @@ test_generated_devices() {
     cpp/test/expanse_test.cpp
   native_test flanger_test \
     cpp/test/flanger_test.cpp
+  native_test flute_test \
+    cpp/test/flute_test.cpp
   native_test fm_glass_test \
     cpp/test/fm_glass_test.cpp
   native_test freq_shifter_test \
@@ -189,12 +233,24 @@ test_generated_devices() {
     cpp/test/grain_delay_test.cpp
   native_test grain_synth_test \
     cpp/test/grain_synth_test.cpp
+  native_test guitar_test \
+    cpp/test/guitar_test.cpp
   native_test half_speed_test \
     cpp/test/half_speed_test.cpp
+  native_test handpan_test \
+    cpp/test/handpan_test.cpp
+  native_test harp_test \
+    cpp/test/harp_test.cpp
+  native_test horns_test \
+    cpp/test/horns_test.cpp
+  native_test ladder_bass_test \
+    cpp/test/ladder_bass_test.cpp
   native_test lattice_test \
     cpp/test/lattice_test.cpp
   native_test low_bitrate_test \
     cpp/test/low_bitrate_test.cpp
+  native_test mallets_test \
+    cpp/test/mallets_test.cpp
   native_test micro_looper_test \
     cpp/test/micro_looper_test.cpp
   native_test micro_shift_test \
@@ -213,6 +269,8 @@ test_generated_devices() {
     cpp/test/pad_follower_test.cpp
   native_test patina_test \
     cpp/test/patina_test.cpp
+  native_test pedal_steel_test \
+    cpp/test/pedal_steel_test.cpp
   native_test phaser_test \
     cpp/test/phaser_test.cpp
   native_test pitch_shifter_test \
@@ -248,6 +306,8 @@ test_generated_devices() {
   native_test sympathetic_test \
     cpp/test/sympathetic_test.cpp \
     cpp/devices/stereo-widener/StereoWidener.cpp
+  native_test tanpura_test \
+    cpp/test/tanpura_test.cpp
   native_test tape_test \
     cpp/test/tape_test.cpp
   native_test tape_echo_test \

@@ -18,4 +18,5 @@
 #include "pitch.h"
 #include "sample.h"
 #include "smooth.h"
+#include "string.h"
 #include "voices.h"

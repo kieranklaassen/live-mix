@@ -1,0 +1,140 @@
+{
+  "id": "chord-harp",
+  "name": "Chord Harp",
+  "category": "instrument",
+  "description": "Electronic chord harp in the style of the eighties strum-plate instruments: the keys you hold are the chord, and each press sweeps it across several octaves of soft plucked strings.",
+  "class": "ChordHarp",
+  "header": "chord_harp.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "strum",
+      "name": "Strum",
+      "min": 0,
+      "max": 150,
+      "default": 40,
+      "unit": "ms",
+      "description": "Time from one string to the next as the held chord is swept. At zero each key is a single pluck; higher sweeps the chord, slower as it rises."
+    },
+    {
+      "key": "direction",
+      "name": "Direction",
+      "choices": ["Up", "Down", "Up Down", "Random"],
+      "default": 0,
+      "description": "Which way the sweep crosses the strings: up, down, up and back again, or in random order. It does nothing while Strum is at zero."
+    },
+    {
+      "key": "span",
+      "name": "Span",
+      "choices": ["1 octave", "2 octaves", "3 octaves", "4 octaves"],
+      "default": 2,
+      "description": "How many octaves of strings the sweep covers above the lowest held key. It does nothing while Strum is at zero."
+    },
+    {
+      "key": "sustain",
+      "name": "Sustain",
+      "min": 0.2,
+      "max": 8,
+      "default": 3,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long each plucked string rings. Strings keep ringing after the keys are let go."
+    },
+    {
+      "key": "tone",
+      "name": "Tone",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Brightness of the plucks. Low is soft and round; high is bright and glassy."
+    },
+    {
+      "key": "pad",
+      "name": "Pad",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Level of the soft held chord that sounds under the plucks while keys are down. At zero only the plucked strings are heard."
+    },
+    {
+      "key": "spread",
+      "name": "Spread",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "Places the low strings to the left and the high strings to the right. At zero every string is in the centre."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -9,
+      "unit": "dB",
+      "description": "Output level of the instrument. A soft clip after it rounds off the peaks when many strings stack up."
+    }
+  ],
+  "presets": {
+    "Evening strum": {
+      "strum": 40,
+      "direction": 0,
+      "span": 2,
+      "sustain": 3,
+      "tone": 0.5,
+      "pad": 0.3,
+      "spread": 0.6
+    },
+    "Slow cascade": {
+      "strum": 140,
+      "direction": 2,
+      "span": 3,
+      "sustain": 6,
+      "tone": 0.35,
+      "pad": 0.15,
+      "spread": 0.8,
+      "volume": -4
+    },
+    "Single chimes": {
+      "strum": 0,
+      "sustain": 4,
+      "tone": 0.6,
+      "pad": 0,
+      "spread": 0.5,
+      "volume": -13
+    },
+    "Pad and sparkle": {
+      "strum": 25,
+      "direction": 3,
+      "span": 2,
+      "sustain": 2,
+      "tone": 0.6,
+      "pad": 0.7,
+      "spread": 0.9,
+      "volume": -12
+    },
+    "Toy harp": {
+      "strum": 12,
+      "direction": 1,
+      "span": 1,
+      "sustain": 1.2,
+      "tone": 0.8,
+      "pad": 0,
+      "spread": 0.7,
+      "volume": -2
+    },
+    "Brushed chord": {
+      "strum": 4,
+      "direction": 0,
+      "span": 1,
+      "sustain": 5,
+      "tone": 0.25,
+      "pad": 0.3,
+      "spread": 0.5,
+      "volume": -11
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. It follows the behaviour of the Suzuki Omnichord family (1981 on): chord buttons choose a chord, and a touch strip plays only that chord's notes, low to high over about four octaves, as soft electronic plucks with a sustain control over a held organ-like chord. Here the keys held are the chord. Left out: chord buttons, auto bass and the rhythm unit. The voice (a band-limited 30 % pulse with a quieter sine an octave up that dies three times as fast, a two-pole low-pass that follows the key a little, a 2 ms attack and one exponential decay), the unevenness of the strum (gaps within 15 %, levels within 1.5 dB), the 30 ms in which keys pressed together join one sweep and the top edge of the plate at 4.3 kHz are choices, not measurements of the original: the research (synths.md, section 7) marks its waveform, filter and decay figures as unsure. It is not a circuit or sample emulation."
+  }
+}

@@ -271,17 +271,37 @@ test('saves and restores the plug-in state', async () => {
   assert.ok(state.length > 0)
   assert.match(state, /^[A-Za-z0-9+/]+=*$/)
 
+  // The host says what it set on its own timer, which a busy machine runs
+  // late: wait for it to have said so rather than for a length of time, or
+  // the report of this value is counted with those after the restore.
+  const saidOf = async (value) => {
+    for (let waited = 0; waited < 5000; waited += 10) {
+      const said = control.events.some(
+        (entry) =>
+          entry.event === 'params' &&
+          entry.slot === slot.slot &&
+          entry.changes.some(
+            (change) => change.index === 0 && Math.abs(change.value - value) < 1e-4,
+          ),
+      )
+      if (said) return
+      await sleep(10)
+    }
+    assert.fail(`the host never said the parameter was set to ${value}`)
+  }
   control.notify('setParam', { slot: slot.slot, index: 0, value: 0.1 })
-  await sleep(50)
+  await saidOf(0.1)
   const heard = control.events.length
   const restored = await control.call('setState', { slot: slot.slot, state })
   near(restored.params[0].value, 0.75)
   assert.equal(restored.latencySamples, GAIN_DELAY)
   // The answer said where every parameter is: the restore is not told again
   // as the plug-in turning its own knobs, which would arrive after a client
-  // has set its values on top.
+  // has set its values on top. A report of the restore would come no later
+  // than the one of the value set after it.
   control.notify('setParam', { slot: slot.slot, index: 0, value: 0.4 })
-  await sleep(150)
+  await saidOf(0.4)
+  await sleep(100)
   const told = control.events
     .slice(heard)
     .filter((entry) => entry.event === 'params' && entry.slot === slot.slot)

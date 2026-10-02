@@ -84,46 +84,61 @@ hold 8 notes).
 
 | Device id         | Name               | Source              | Kind       | Params | `.wasm`  | Native cost per block | wasm cost per block (Node) | Latency (samples) | Memory (MB) |
 | ----------------- | ------------------ | ------------------- | ---------- | ------ | -------- | --------------------- | -------------------------- | ----------------- | ----------- |
+| `acoustic-guitar` | Acoustic Guitar    | live-mix            | instrument | 10     | 28,418 B | 55.8 µs, 2.09 %       | 32.5 µs, 1.22 %            | 0                 | 4           |
 | `ambient-comp`    | Ambient Compressor | live-mix            | dynamics   | 9      | 11,205 B | 3.8 µs, 0.14 %        | 5.5 µs, 0.21 %             | 0                 | 4           |
 | `ambient-eq`      | Ambient EQ         | live-mix            | eq         | 8      | 27,483 B | 16.3 µs, 0.61 %       | 21.3 µs, 0.80 %            | 0                 | 4           |
 | `ambient-limiter` | Ambient Limiter    | live-mix            | dynamics   | 4      | 8,197 B  | 10.4 µs, 0.39 %       | 12.5 µs, 0.47 %            | 77                | 4           |
-| `atmosphere`      | Atmosphere         | live-mix            | instrument | 10     | 33,549 B | 44.5 µs, 1.67 %       | 34.8 µs, 1.31 %            | 0                 | 4           |
+| `atmosphere`      | Atmosphere         | live-mix            | instrument | 10     | 33,556 B | 44.5 µs, 1.67 %       | 34.8 µs, 1.31 %            | 0                 | 4           |
+| `aurora`          | Aurora             | live-mix            | instrument | 10     | 23,749 B | 34.3 µs, 1.29 %       | 28.9 µs, 1.08 %            | 0                 | 4           |
 | `auto-filter`     | Auto Filter        | kkfonie Tatami      | eq         | 12     | 23,170 B | 21.0 µs, 0.79 %       | 22.8 µs, 0.86 %            | 31                | 4           |
 | `bloom-reverb`    | Bloom              | kkfonie Bloom       | reverb     | 8      | 25,205 B | 68.9 µs, 2.58 %       | 82.4 µs, 3.09 %            | 0                 | 4           |
-| `bowed-string`    | Bow                | live-mix            | instrument | 12     | 34,123 B | 85.8 µs, 3.22 %       | 108.2 µs, 4.06 %           | 0                 | 4           |
-| `choir`           | Choir              | live-mix            | instrument | 12     | 33,135 B | 66.9 µs, 2.51 %       | 46.7 µs, 1.75 %            | 0                 | 4           |
+| `bowed-string`    | Bow                | live-mix            | instrument | 12     | 34,141 B | 85.8 µs, 3.22 %       | 108.2 µs, 4.06 %           | 0                 | 4           |
+| `chamber-strings` | Chamber Strings    | live-mix            | instrument | 10     | 38,707 B | 55.5 µs, 2.08 %       | 44.3 µs, 1.66 %            | 0                 | 4           |
+| `choir`           | Choir              | live-mix            | instrument | 12     | 33,143 B | 66.9 µs, 2.51 %       | 46.7 µs, 1.75 %            | 0                 | 4           |
+| `chord-harp`      | Chord Harp         | live-mix            | instrument | 8      | 28,108 B | 90.2 µs, 3.38 %       | 15.4 µs, 0.58 %            | 0                 | 4           |
 | `chorus`          | Chorus             | kkfonie Tatami      | modulation | 8      | 12,666 B | 24.3 µs, 0.91 %       | 18.7 µs, 0.70 %            | 0                 | 4           |
-| `drone`           | Drone              | live-mix            | instrument | 13     | 32,213 B | 56.1 µs, 2.11 %       | 73.5 µs, 2.75 %            | 0                 | 4           |
+| `clarinet`        | Clarinet           | live-mix            | instrument | 8      | 26,190 B | 86.2 µs, 3.23 %       | 39.6 µs, 1.49 %            | 0                 | 4           |
+| `drone`           | Drone              | live-mix            | instrument | 13     | 32,220 B | 56.1 µs, 2.11 %       | 73.5 µs, 2.75 %            | 0                 | 4           |
+| `dusk`            | Dusk               | live-mix            | instrument | 10     | 23,428 B | 36.8 µs, 1.38 %       | 31.7 µs, 1.19 %            | 0                 | 4           |
 | `ember`           | Ember              | kkfonie Tatami      | instrument | 43     | 37,239 B | 55.8 µs, 2.09 %       | 75.8 µs, 2.84 %            | 16                | 4           |
 | `expanse`         | Expanse            | live-mix            | reverb     | 11     | 31,432 B | 60.4 µs, 2.27 %       | 33.3 µs, 1.25 %            | 0                 | 6           |
 | `flanger`         | Flanger            | kkfonie Tatami      | modulation | 7      | 11,926 B | 11.9 µs, 0.45 %       | 10.4 µs, 0.39 %            | 0                 | 4           |
-| `fm-glass`        | Glass              | live-mix            | instrument | 12     | 26,749 B | 90.2 µs, 3.38 %       | 42.0 µs, 1.57 %            | 0                 | 4           |
+| `flute`           | Flute              | live-mix            | instrument | 9      | 25,369 B | 76.8 µs, 2.88 %       | 44.2 µs, 1.66 %            | 0                 | 4           |
+| `fm-glass`        | Glass              | live-mix            | instrument | 12     | 26,809 B | 90.2 µs, 3.38 %       | 42.0 µs, 1.57 %            | 0                 | 4           |
 | `freq-shifter`    | Frequency Shifter  | live-mix            | pitch      | 10     | 14,333 B | 26.8 µs, 1.01 %       | 18.9 µs, 0.71 %            | 0                 | 4           |
 | `grain-cloud`     | Cloud              | live-mix            | texture    | 12     | 15,870 B | 18.4 µs, 0.69 %       | 23.8 µs, 0.89 %            | 0                 | 10          |
 | `grain-delay`     | Grain Delay        | live-mix            | delay      | 11     | 17,855 B | 27.2 µs, 1.02 %       | 32.8 µs, 1.23 %            | 0                 | 10          |
-| `grain-synth`     | Grain              | live-mix            | instrument | 14     | 32,011 B | 61.6 µs, 2.31 %       | 72.0 µs, 2.70 %            | 0                 | 12          |
+| `grain-synth`     | Grain              | live-mix            | instrument | 14     | 32,018 B | 61.6 µs, 2.31 %       | 72.0 µs, 2.70 %            | 0                 | 12          |
+| `guitar`          | Guitar             | live-mix            | instrument | 10     | 30,037 B | 48.6 µs, 1.82 %       | 27.3 µs, 1.02 %            | 0                 | 4           |
+| `handpan`         | Handpan            | live-mix            | instrument | 9      | 25,680 B | 21.4 µs, 0.80 %       | 10.2 µs, 0.38 %            | 0                 | 4           |
+| `harp`            | Harp               | live-mix            | instrument | 10     | 28,801 B | 14.2 µs, 0.53 %       | 17.1 µs, 0.64 %            | 0                 | 4           |
+| `horns`           | Horns              | live-mix            | instrument | 9      | 34,673 B | 53.2 µs, 2.00 %       | 43.9 µs, 1.64 %            | 0                 | 4           |
+| `ladder-bass`     | Ladder Bass        | live-mix            | instrument | 10     | 19,637 B | 34.0 µs, 1.28 %       | 0.8 µs, 0.03 %             | 0                 | 4           |
 | `lattice`         | Lattice            | kkfonie Lattice     | pitch      | 59     | 34,723 B | 52.7 µs, 1.98 %       | 62.2 µs, 2.33 %            | 0                 | 4           |
+| `mallets`         | Mallets            | live-mix            | instrument | 10     | 27,223 B | 27.3 µs, 1.02 %       | 2.3 µs, 0.09 %             | 0                 | 4           |
 | `modal-bells`     | Bells              | live-mix            | instrument | 12     | 24,210 B | 58.5 µs, 2.20 %       | 40.6 µs, 1.52 %            | 0                 | 4           |
-| `organ`           | Reed Organ         | live-mix            | instrument | 13     | 23,093 B | 127.0 µs, 4.76 %      | 70.4 µs, 2.64 %            | 0                 | 4           |
+| `organ`           | Reed Organ         | live-mix            | instrument | 13     | 23,100 B | 127.0 µs, 4.76 %      | 70.4 µs, 2.64 %            | 0                 | 4           |
 | `patina`          | Patina             | live-mix            | texture    | 8      | 36,191 B | 39.8 µs, 1.49 %       | 29.2 µs, 1.10 %            | 271               | 4           |
+| `pedal-steel`     | Pedal Steel        | live-mix            | instrument | 9      | 31,754 B | 25.7 µs, 0.97 %       | 23.6 µs, 0.88 %            | 0                 | 4           |
 | `phaser`          | Phaser             | kkfonie Tatami      | modulation | 9      | 14,298 B | 13.9 µs, 0.52 %       | 10.9 µs, 0.41 %            | 0                 | 4           |
 | `reverse-delay`   | Reverse Delay      | live-mix            | delay      | 8      | 15,057 B | 17.1 µs, 0.64 %       | 13.2 µs, 0.50 %            | 0                 | 20          |
 | `rotary`          | Rotary             | live-mix            | modulation | 9      | 16,495 B | 25.3 µs, 0.95 %       | 27.2 µs, 1.02 %            | 0                 | 4           |
-| `sampler`         | Sampler            | live-mix            | instrument | 13     | 27,427 B | 46.8 µs, 1.76 %       | 30.9 µs, 1.16 %            | 0                 | 24          |
+| `sampler`         | Sampler            | live-mix            | instrument | 13     | 27,588 B | 46.8 µs, 1.76 %       | 30.9 µs, 1.16 %            | 0                 | 24          |
 | `saturator`       | Saturator          | kkfonie Tatami      | drive      | 9      | 23,626 B | 46.1 µs, 1.73 %       | 40.5 µs, 1.52 %            | 39                | 4           |
 | `shimmer`         | Shimmer            | live-mix            | reverb     | 10     | 26,901 B | 70.4 µs, 2.64 %       | 39.1 µs, 1.47 %            | 0                 | 4           |
 | `spectral-blur`   | Spectral Blur      | live-mix            | texture    | 9      | 17,643 B | 42.8 µs, 1.60 %       | 53.1 µs, 1.99 %            | 2304              | 4           |
 | `spring-reverb`   | Spring             | live-mix            | reverb     | 9      | 22,946 B | 33.2 µs, 1.25 %       | 26.1 µs, 0.98 %            | 0                 | 4           |
-| `string-machine`  | String Machine     | live-mix            | instrument | 10     | 19,106 B | 31.0 µs, 1.16 %       | 22.4 µs, 0.84 %            | 0                 | 4           |
+| `string-machine`  | String Machine     | live-mix            | instrument | 10     | 19,113 B | 31.0 µs, 1.16 %       | 22.4 µs, 0.84 %            | 0                 | 4           |
 | `swell`           | Swell              | live-mix            | dynamics   | 8      | 4,842 B  | 3.9 µs, 0.15 %        | 5.2 µs, 0.20 %             | 960               | 4           |
 | `sympathetic`     | Sympathetic        | kkfonie Sympathetic | reverb     | 7      | 31,992 B | 19.7 µs, 0.74 %       | 23.1 µs, 0.87 %            | 0                 | 4           |
+| `tanpura`         | Tanpura            | live-mix            | instrument | 8      | 30,393 B | 58.6 µs, 2.20 %       | 55.0 µs, 2.06 %            | 0                 | 4           |
 | `tape`            | Tape               | live-mix            | texture    | 10     | 22,263 B | 45.2 µs, 1.70 %       | 33.7 µs, 1.27 %            | 415               | 4           |
 | `tape-echo`       | Tape Echo          | live-mix            | delay      | 10     | 16,147 B | 19.5 µs, 0.73 %       | 18.3 µs, 0.69 %            | 0                 | 4           |
 | `tape-loop`       | Tape Loop          | live-mix            | delay      | 10     | 18,730 B | 19.3 µs, 0.72 %       | 21.3 µs, 0.80 %            | 0                 | 24          |
 | `thesis`          | Thesis             | kkfonie Thesis      | instrument | 15     | 36,421 B | 21.1 µs, 0.79 %       | 19.6 µs, 0.73 %            | 0                 | 4           |
 | `tine-piano`      | Tine               | live-mix            | instrument | 11     | 17,742 B | 76.9 µs, 2.88 %       | 44.9 µs, 1.68 %            | 0                 | 4           |
 | `tremolo`         | Tremolo            | live-mix            | modulation | 9      | 12,884 B | 7.7 µs, 0.29 %        | 8.1 µs, 0.30 %             | 0                 | 4           |
-| `wavetable`       | Wavetable          | live-mix            | instrument | 12     | 25,222 B | 48.4 µs, 1.82 %       | 35.9 µs, 1.34 %            | 0                 | 5           |
+| `wavetable`       | Wavetable          | live-mix            | instrument | 12     | 25,229 B | 48.4 µs, 1.82 %       | 35.9 µs, 1.34 %            | 0                 | 5           |
 
 What the table does not show:
 
@@ -138,6 +153,16 @@ What the table does not show:
   (2.8 % at 4x oversampling), `lattice` (2.7 %; about 70 % of it is the pitch
   tracker's FFT), `thesis` (2.6 %) and `organ` (2.5 %). The worst preset of
   every other device stays under 2.4 %.
+- **The fifteen ambient instruments** (Acoustic Guitar, Aurora, Chamber
+  Strings, Chord Harp, Clarinet, Dusk, Flute, Guitar, Handpan, Harp, Horns,
+  Ladder Bass, Mallets, Pedal Steel, Tanpura) all stay under 2.1 % in wasm
+  with eight notes. Two wasm figures are of notes that have died: Ladder Bass
+  is one voice whose default patch is a pluck, and Mallets' bars ring out and
+  sleep, so read their native figures (a held drone, sixteen bars rolled).
+  Heaviest loads measured natively: all 32 guzheng strings of the Harp with
+  bends and full Halo 3.7 %, Chord Harp sweeping six keys over four octaves
+  3.4 %, twelve Chamber Strings notes of six players each 3.1 %, eight Horns
+  notes of four players with Harmony and Breath 2.8 %.
 - **Memory** is the module's fixed linear memory (`memoryMb`), which holds the
   delay and sample buffers: 20 to 24 MB for the long loops and the sampler.
 - **Levels.** One note at velocity 0.8 peaks between -16 and -22 dBFS on the
@@ -159,6 +184,15 @@ Building these devices on `cpp/kit` turned up the same gaps several times. None 
 - **Small helpers that got copied.** An anti-aliased waveshaper (rotary, tape), a three-multiply band-pass (drone, atmosphere), per-octave band-limited tables (wavetable, drone), a splice-search pitch shifter (shimmer), a seed hash so two generators seeded in sequence do not correlate (drone, atmosphere).
 - **Test kit.** It lacks a power spectrum, a spectral centroid, a fast narrow-band level and pitch measure and an aliasing measure, so harnesses carry their own; `dominant_frequency` takes seconds per call; `check_instrument` has no block-size check.
 - **Generator and smoke test.** `latencySamples` cannot vary with the sample rate; a class constant named like a parameter (`kPartials`) silently shadows the generated enum; the smoke test's cost is wall-clock and swings under load.
+
+Building the fifteen ambient instruments added to the list:
+
+- **Oscillators.** `kit::BlepOsc` cannot give a saw, a pulse and a sub octave from one phase, and its two-sample correction leaves fold-back near -40 dB at C6 with the filters open. Dusk, Aurora, Ladder Bass and Chord Harp each carry their own oscillator (a four-sample PolyBLEP, a closed-form band-limited pulse).
+- **A driven pipe.** Flute, Clarinet and Horns each carry a `driven_pipe.h` (a closed-form harmonic series whose brightness follows breath pressure, with noise through a comb); the three were written apart and want to be one kit block.
+- **A resonator bank.** Chamber Strings (`body.h`), both guitars, Harp and Tanpura each build a bank of fixed body resonances by hand.
+- **Plucked strings.** `kit::PluckedString` cannot make the top of a note die more than about `(high_hz / f0)²` faster than its fundamental, so above about 900 Hz Harp and Guitar set the high decay nearer the fundamental; its pluck comb is whole-sample; and a line too short for the lowest note at the host's rate plays sharp without saying so (`lowest_hz` is there to be asked).
+- **Voices.** Two faults found here are likely in older instruments and were not checked there: a voice whose `level()` is stale until the next control tick is stolen by the second note of a chord (Bells), and a key struck twice inside a steal fade can leave a voice sounding (Bow, Bells). The same goes for smoothers that keep gliding from before a sleep.
+- **Test kit and smoke test.** Every harness carries its own narrow-band level, fine pitch and spectrum helpers; `max_step` does not see a click under a bright tone; the smoke test times a voice that has gone to sleep when the default patch decays; and conformance has no check for a key struck again in phase, which piles a modal note up.
 
 ## spectral-drifter
 

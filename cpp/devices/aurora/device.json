@@ -1,0 +1,164 @@
+{
+  "id": "aurora",
+  "name": "Aurora",
+  "category": "instrument",
+  "description": "Dual-layer brass and string pad in the style of the two-channel polysynths of the late seventies: notes start dark, speak with a filter overshoot and keep swelling while held.",
+  "class": "Aurora",
+  "header": "aurora.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "brilliance",
+      "name": "Brilliance",
+      "min": 100,
+      "max": 16000,
+      "default": 1100,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "Where the low-pass filters of both layers rest. Lower is dark and muted, like brass played softly; higher is bright and buzzing."
+    },
+    {
+      "key": "lowCut",
+      "name": "Low cut",
+      "min": 20,
+      "max": 2000,
+      "default": 40,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "Where the high-pass filters of both layers sit. Raising it thins the body and leaves a nasal, airy band, the way strings and voices are voiced."
+    },
+    {
+      "key": "resonance",
+      "name": "Resonance",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "description": "Emphasis at the corners of both filters. It makes the band between Low cut and Brilliance ring, which turns the tone vocal and horn-like."
+    },
+    {
+      "key": "contour",
+      "name": "Contour",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "How far each note starts below its resting brightness and overshoots above it before settling, the opening of a brass attack. At zero the filter stays still."
+    },
+    {
+      "key": "attack",
+      "name": "Attack",
+      "min": 0.005,
+      "max": 6,
+      "default": 0.4,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long a note takes to speak. The level fades in and the contour reaches its brightest point over this time."
+    },
+    {
+      "key": "swell",
+      "name": "Swell",
+      "min": 0,
+      "max": 1,
+      "default": 0.7,
+      "description": "How much a held note keeps growing louder and brighter after its attack, as if the key were pressed harder. At zero a held note stays as it is."
+    },
+    {
+      "key": "release",
+      "name": "Release",
+      "min": 0.05,
+      "max": 12,
+      "default": 3,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long a note takes to fade after the key is let go. With Contour up, the tone darkens as it fades."
+    },
+    {
+      "key": "detune",
+      "name": "Detune",
+      "min": 0,
+      "max": 30,
+      "default": 8,
+      "unit": "ct",
+      "description": "Tuning gap between the two layers, which sets how fast they beat, and how far each voice sits and wanders from the others. At zero everything is in tune."
+    },
+    {
+      "key": "ring",
+      "name": "Ring",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "Amount of a ring modulator sweep at the start of each note: a metallic, bell-like onset that falls in pitch and melts into the pad. At zero there is none."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -9,
+      "unit": "dB",
+      "description": "Output level of the instrument. A soft clip after it rounds off the peaks when many notes stack up."
+    }
+  ],
+  "presets": {
+    "Slow brass": {
+      "brilliance": 1100,
+      "lowCut": 40,
+      "resonance": 0.25,
+      "contour": 0.6,
+      "attack": 0.4,
+      "swell": 0.7,
+      "release": 3,
+      "detune": 8
+    },
+    "Soft horns": {
+      "brilliance": 800,
+      "lowCut": 180,
+      "resonance": 0.35,
+      "contour": 0.3,
+      "attack": 1.5,
+      "swell": 0.4,
+      "release": 4,
+      "detune": 6
+    },
+    "Wide strings": {
+      "brilliance": 5000,
+      "lowCut": 250,
+      "resonance": 0.1,
+      "contour": 0.1,
+      "attack": 1,
+      "swell": 0.3,
+      "release": 4,
+      "detune": 14
+    },
+    "Night choir": {
+      "brilliance": 1500,
+      "lowCut": 400,
+      "resonance": 0.6,
+      "contour": 0.2,
+      "attack": 2,
+      "swell": 0.5,
+      "release": 5,
+      "detune": 10
+    },
+    "Metal dawn": {
+      "brilliance": 1800,
+      "contour": 0.4,
+      "attack": 0.2,
+      "swell": 0.5,
+      "release": 6,
+      "ring": 0.55
+    },
+    "Slow bloom": {
+      "brilliance": 700,
+      "resonance": 0.3,
+      "contour": 0.8,
+      "attack": 3,
+      "swell": 1,
+      "release": 8,
+      "detune": 10
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit, grounded in the project's research notes on the Yamaha CS-80 (1977). Modelled in outline: two layers per voice, each through a 12 dB high-pass and then a 12 dB low-pass with resonance; a filter contour that starts below the resting cutoff, overshoots it and settles (the IL/AL envelope); layers detuned against each other with a small fixed tuning offset and a slow drift per voice; a ring modulator whose speed is swept by its own decay. Simplified: the wave is fixed (sawtooth on layer I, sawtooth plus a slowly moving pulse on layer II), one set of knobs serves both layers, and Swell stands in for polyphonic aftertouch by letting level and brightness keep rising while a key is held. Left out: the sine that bypasses the filters, noise, the sub oscillator, the ribbon and the chorus. Choices, not measurements of the original: contour depth (three octaves below, two above), contour decay and release times, the swell time constant (1.6 s) and depth, half keyboard tracking on both filters, layer II voiced a fifth brighter and an octave thinner than layer I, the pulse-width rates, the scatter and drift amounts, the ring sweep (1.4 kHz down to 35 Hz), and a low-pass that opens to 16 kHz at most. The oscillators are band-limited by a four-sample PolyBLEP written for this device (layer_osc.h). It is not a circuit or sample emulation."
+  }
+}

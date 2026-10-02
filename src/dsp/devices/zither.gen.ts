@@ -248,10 +248,10 @@ export const ZITHER_DESCRIPTOR = wasmDeviceDescriptor(ZITHER_DEVICE, {
     'Koto pluck': {
       exciter: 1,
       chord: 0,
-      decay: 2.5,
+      decay: 3,
       release: 1.2,
-      brightness: 0.7,
-      position: 0.08,
+      brightness: 0.65,
+      position: 0.11,
       courses: 0,
       sympathy: 0.15,
       body: 3,

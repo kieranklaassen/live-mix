@@ -1,0 +1,171 @@
+{
+  "id": "harp",
+  "name": "Harp",
+  "category": "instrument",
+  "description": "A concert harp with koto and guzheng strings: every note is its own plucked string that rings on after the key is let go, over a soundboard, with the other strings ringing in sympathy.",
+  "class": "Harp",
+  "header": "harp.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "strings",
+      "name": "Strings",
+      "choices": ["Harp", "Koto", "Guzheng"],
+      "default": 0,
+      "description": "The kind of string. Harp is soft gut under a finger; Koto is a dry string under a hard pick; Guzheng is brighter steel that rings longer. Applies from the next note."
+    },
+    {
+      "key": "pluck",
+      "name": "Pluck",
+      "min": 0.04,
+      "max": 0.5,
+      "default": 0.36,
+      "description": "Where along the string it is plucked. Low is near the end: thin, nasal and bright. High is the middle: round and hollow. Applies from the next note."
+    },
+    {
+      "key": "touch",
+      "name": "Touch",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "How hard the finger or pick is. Low is a soft pad with a dark, rounded start; high is a hard edge with a bright attack and a click. Applies from the next note."
+    },
+    {
+      "key": "decay",
+      "name": "Decay",
+      "min": 0.25,
+      "max": 4,
+      "default": 1,
+      "taper": "log",
+      "description": "How long the strings ring. Low strings always ring much longer than high ones. Applies from the next note."
+    },
+    {
+      "key": "damp",
+      "name": "Damp",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "How much letting go of a key stops its string. At zero nothing stops it and notes ring into each other; at full a hand mutes it at once."
+    },
+    {
+      "key": "halo",
+      "name": "Halo",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How much the strings that are already ringing pick up each new note and ring along with it. It needs other notes still sounding to be heard."
+    },
+    {
+      "key": "sweep",
+      "name": "Sweep",
+      "min": 0,
+      "max": 1.5,
+      "default": 0,
+      "unit": "s",
+      "description": "Rolls notes that are played together into a glissando from the lowest to the highest, spread over this time. At zero a chord is plucked together."
+    },
+    {
+      "key": "bend",
+      "name": "Bend",
+      "min": 0,
+      "max": 200,
+      "default": 0,
+      "unit": "ct",
+      "description": "Presses each note sharp a moment after it is plucked, the way a koto player leans on the string behind the bridge. It only ever rises. Applies from the next note."
+    },
+    {
+      "key": "body",
+      "name": "Body",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "How much of the wooden soundboard is heard. Low is the bare strings; high is fuller and woodier, more hollow on Koto and Guzheng."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -6,
+      "unit": "dB",
+      "description": "Output level of the instrument. A soft clip after it rounds off the peaks when many strings ring at once."
+    }
+  ],
+  "presets": {
+    "Concert harp": {
+      "strings": 0,
+      "pluck": 0.36,
+      "touch": 0.4,
+      "decay": 1,
+      "damp": 0,
+      "halo": 0.5,
+      "sweep": 0,
+      "bend": 0,
+      "body": 0.6
+    },
+    "Glissando": {
+      "pluck": 0.3,
+      "touch": 0.6,
+      "halo": 0.8,
+      "sweep": 0.8
+    },
+    "Near the soundboard": {
+      "pluck": 0.08,
+      "touch": 0.55,
+      "decay": 0.5,
+      "halo": 0.3,
+      "body": 0.4
+    },
+    "Long glass ring": {
+      "pluck": 0.45,
+      "touch": 0.15,
+      "decay": 3,
+      "halo": 1,
+      "body": 0.35
+    },
+    "Muted harp": {
+      "pluck": 0.25,
+      "touch": 0.3,
+      "damp": 0.8,
+      "halo": 0.2,
+      "body": 0.8
+    },
+    "Koto": {
+      "strings": 1,
+      "pluck": 0.08,
+      "touch": 0.75,
+      "halo": 0.4,
+      "body": 0.7
+    },
+    "Rising koto": {
+      "strings": 1,
+      "pluck": 0.1,
+      "touch": 0.6,
+      "decay": 1.3,
+      "halo": 0.5,
+      "bend": 100,
+      "body": 0.7
+    },
+    "Guzheng cascade": {
+      "strings": 2,
+      "pluck": 0.1,
+      "touch": 0.7,
+      "halo": 0.7,
+      "sweep": 1,
+      "body": 0.55
+    },
+    "Soft silk": {
+      "strings": 1,
+      "pluck": 0.2,
+      "touch": 0.1,
+      "decay": 1.6,
+      "halo": 0.7,
+      "bend": 50,
+      "body": 0.8
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit, from the plucked-string, concert harp and koto/guzheng sections of the project's string research. What is modelled: one undamped string per pitch on the kit's extended Karplus-Strong loop (Jaffe and Smith 1983; the loop filter of Välimäki et al. 1996) with a pluck-position comb and decay times set per register; the pedal harp's soft finger-pad pluck near the middle of flexible gut and nylon strings; the hard plectrum of the koto and guzheng near the bridge, their upward-only pressed bends and the pitch of a hard pluck settling as the tension relaxes; the guzheng's stiffer wound-steel strings; re-plucking a ringing string as a finger landing on it; sympathetic ringing as feedback between the strings that sound; a shared soundboard of six broad resonances. What is simplified: one polarisation per string (no beating), a soundboard of fixed band-pass resonators instead of a measured body, sympathetic ringing only among strings that have been played (its strength is held under a stability bound, so each string receives less as more ring), no pedals, no diatonic or pentatonic tuning table, no vibrato. Choices, not measurements of any instrument: the decay curves by register (about 7 s at C2, 2.7 s at middle C and 1 s at C6 for the harp; about 2.2 s and 4.5 s at middle C for koto and guzheng), the soundboard frequencies, the bend timing (starts 80 ms after the pluck, about a fifth of a second long), the settling depth (up to 12 cents for koto, 8 for guzheng) and the guzheng's inharmonicity (B = 1.2e-4). The research these come from rests on general acoustics knowledge; nobody has compared the result with a recording by ear. It uses no samples and is not an emulation of any one instrument."
+  }
+}

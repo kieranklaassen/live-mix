@@ -140,18 +140,19 @@ import {
 } from '@kieranklaassen/live-mix/dsp'
 ```
 
-|             | Count | Groups                                                                                                       |
-| ----------- | ----- | ------------------------------------------------------------------------------------------------------------ |
-| **Presets** | 75    | Five for each of the fifteen stock instruments: pads, keys, bells, strings, voices, organs, drones, textures |
-| **Chains**  | 34    | Space, echo, tape, motion, texture, pitch, master; every WASM effect is in at least one                      |
-| **Sounds**  | 34    | Looping drones, pads and textures, one-shots, short phrases, and three made from other sounds                |
+|             | Count | Groups                                                                                                                     |
+| ----------- | ----- | -------------------------------------------------------------------------------------------------------------------------- |
+| **Presets** | 150   | Five for each of the thirty stock instruments: pads, keys, bells, strings, plucked, wind, voices, organs, drones, textures |
+| **Chains**  | 34    | Space, echo, tape, motion, texture, pitch, master; every WASM effect is in at least one                                    |
+| **Sounds**  | 34    | Looping drones, pads and textures, one-shots, short phrases, and three made from other sounds                              |
 
 The bank is data: importing it loads no module and touches no audio. A host
 lists it before audio starts and renders only what someone asks to hear.
 
 - `renderPresetPreview(preset)` plays the preset's phrase (its category's:
-  a held chord for a pad, a broken chord for keys, four strikes for a bell, a
-  low fifth for a drone; `preview` overrides it) for eight seconds with the
+  a held chord for a pad, a broken chord for keys and plucked strings, four
+  strikes for a bell, one moving line for wind, a low fifth for a drone;
+  `preview` overrides it) for eight seconds with the
   tail.
 - `renderChainPreview(chain, { input })` runs the first six seconds of `input`
   through the chain and lets it ring for two more. Without an input a dry
