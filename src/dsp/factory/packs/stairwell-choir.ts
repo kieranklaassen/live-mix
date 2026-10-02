@@ -152,7 +152,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Dark' },
+      { deviceId: 'ambient-eq', preset: 'Dark', params: { highCut: 9000 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { decay: 6, mix: 0.45 } },
     ],
   },
@@ -638,7 +638,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { sub: 0.4, breath: 0.4, attack: 0.5, release: 1.5, tone: 3500, volume: -13 },
     },
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Dark' },
+      { deviceId: 'ambient-eq', preset: 'Dark', params: { highCut: 9000 } },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { lowDecay: 6, mix: 0.45 } },
     ],
   },
@@ -946,7 +946,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { decay: 20, damping: 0.5, hardness: 0.4, brightness: 0.35, volume: -3 },
     },
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Dark' },
+      { deviceId: 'ambient-eq', preset: 'Dark', params: { highCut: 9000 } },
       { deviceId: 'expanse', preset: 'Open space', params: { decay: 16, mix: 0.5 } },
     ],
     preview: 'hold',
@@ -1873,7 +1873,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 3, tone: 2200, width: 0.55, volume: -10 },
     },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master' },
+      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4 } },
       { deviceId: 'expanse', preset: 'Open space', params: { decay: 12, mix: 0.4 } },
     ],
   },

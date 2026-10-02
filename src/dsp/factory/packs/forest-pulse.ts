@@ -40,7 +40,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       {
         deviceId: 'vinyl',
         preset: 'Clean pressing',
-        params: { warp: 0.45, crackle: 0.35, wear: 0.4, tone: -0.3 },
+        params: { surface: 0.2, warp: 0.45, crackle: 0.35, wear: 0.4, tone: -0.3 },
       },
       { deviceId: 'half-speed', preset: 'Continuous octave', params: { highCut: 6000 } },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.35 } },
@@ -298,7 +298,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'expanse', preset: 'Far echoes', params: { mix: 0.4 } },
-      { deviceId: 'ambient-eq', preset: 'Dark' },
+      { deviceId: 'ambient-eq', preset: 'Dark', params: { highCut: 9000 } },
     ],
   },
   {
@@ -354,7 +354,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'grain-delay', preset: 'Falling embers', params: { mix: 0.4 } },
-      { deviceId: 'vinyl', preset: 'Clean pressing', params: { crackle: 0.4 } },
+      { deviceId: 'vinyl', preset: 'Clean pressing', params: { surface: 0.2, crackle: 0.4 } },
       { deviceId: 'bloom-reverb', preset: 'Long dark', params: { mix: 0.4 } },
     ],
   },
@@ -478,7 +478,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         deviceId: 'tremolo',
         params: { mode: 0, rate: 2, depth: 1, shape: 2, drift: 0, smooth: 0.5 },
       },
-      { deviceId: 'saturator', preset: 'Tape Print' },
+      { deviceId: 'saturator', preset: 'Tape Print', params: { outputDb: -2 } },
       { deviceId: 'auto-filter', params: { type: 0, slope: 1, cutoffHz: 130 } },
       { deviceId: 'fdn-reverb', preset: 'Room', params: { mix: 0.12 } },
     ],
@@ -991,7 +991,11 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'micro-looper', preset: 'Half speed bed', params: { length: 3, mix: 0.4 } },
-      { deviceId: 'vinyl', preset: 'Clean pressing', params: { warp: 0.3, crackle: 0.4 } },
+      {
+        deviceId: 'vinyl',
+        preset: 'Clean pressing',
+        params: { surface: 0.2, warp: 0.3, crackle: 0.4 },
+      },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
@@ -1390,7 +1394,11 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { tone: 3500, volume: -18 },
     },
     effects: [
-      { deviceId: 'vinyl', preset: 'Clean pressing', params: { crackle: 0.35, wear: 0.4 } },
+      {
+        deviceId: 'vinyl',
+        preset: 'Clean pressing',
+        params: { surface: 0.2, crackle: 0.35, wear: 0.4 },
+      },
       { deviceId: 'half-speed', preset: 'Fifth down bed' },
       { deviceId: 'expanse', preset: 'Open space', params: { mix: 0.35 } },
     ],
@@ -1461,7 +1469,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     instrument: { deviceId: 'harp', preset: 'Glissando', params: { volume: -0.5 } },
     effects: [
       { deviceId: 'tape-loop', preset: 'Two decks', params: { length: 3, feedback: 0.75 } },
-      { deviceId: 'vinyl', preset: 'Clean pressing', params: { crackle: 0.3 } },
+      { deviceId: 'vinyl', preset: 'Clean pressing', params: { surface: 0.2, crackle: 0.3 } },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
@@ -1637,7 +1645,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     instrument: { deviceId: 'pedal-steel', preset: 'Long slides', params: { volume: -6 } },
     effects: [
       { deviceId: 'half-speed', preset: 'Long drag', params: { mix: 0.6 } },
-      { deviceId: 'vinyl', preset: 'Clean pressing', params: { crackle: 0.35 } },
+      { deviceId: 'vinyl', preset: 'Clean pressing', params: { surface: 0.2, crackle: 0.35 } },
       { deviceId: 'spring-reverb', preset: 'Long three spring', params: { mix: 0.3 } },
     ],
   },
@@ -1655,7 +1663,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 1.5, release: 4, tone: 3000, volume: -20 },
     },
     effects: [
-      { deviceId: 'patina', preset: 'Twelve bit' },
+      { deviceId: 'patina', preset: 'Twelve bit', params: { wear: 0.35 } },
       { deviceId: 'spectral-blur', preset: 'Hanging mist', params: { width: 0.7, mix: 0.5 } },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.35 } },
     ],

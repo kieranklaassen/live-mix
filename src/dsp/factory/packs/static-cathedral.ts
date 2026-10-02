@@ -1092,7 +1092,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'glitch', preset: 'Rare slips', params: { chance: 0.2 } },
-      { deviceId: 'patina', preset: 'Twelve bit' },
+      { deviceId: 'patina', preset: 'Twelve bit', params: { wear: 0.35 } },
       { deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.3 } },
     ],
   },

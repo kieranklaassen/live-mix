@@ -304,7 +304,7 @@ with the preset as it was that day. So a preset that is retuned takes its old
 values along: every factory sound that loads it gets them as `params` beside
 the preset's name, and sounds as it did. Fifteen presets were retuned here
 (up to 14 LU over the dry phrase, 12 LU under it, or too close to it or to a
-sibling); ten of them are loaded by factory sounds, 59 of which pin what they
+sibling); ten of them are loaded by factory sounds, 93 of which pin what they
 had.
 
 The bench the presets were written at prints a line per preset:

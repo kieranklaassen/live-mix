@@ -563,7 +563,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 1.5, release: 5, tone: 1800, volume: -12 },
     },
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Dark' },
+      { deviceId: 'ambient-eq', preset: 'Dark', params: { highCut: 9000 } },
       { deviceId: 'fdn-reverb', preset: 'Breathing', params: { decay: 9, mix: 0.45 } },
     ],
   },
@@ -642,7 +642,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { brilliance: 800, volume: -7.5 },
     },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master' },
+      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.35 } },
     ],
   },
@@ -754,7 +754,11 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'auto-filter', preset: 'Random Steps', params: { resonance: 5, lfoRateHz: 7 } },
+      {
+        deviceId: 'auto-filter',
+        preset: 'Random Steps',
+        params: { mix: 1, resonance: 5, lfoRateHz: 7 },
+      },
       { deviceId: 'tape-echo', params: { time: 280, feedback: 0.4, mix: 0.3 } },
       { deviceId: 'spring-reverb', preset: 'Two spring tank', params: { mix: 0.2 } },
     ],
@@ -820,7 +824,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { decay: 0.5, sustain: 0.3, colour: 0.25, volume: -7.5 },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Tape Print' },
+      { deviceId: 'saturator', preset: 'Tape Print', params: { outputDb: -2 } },
       { deviceId: 'tape-echo', params: { time: 250, feedback: 0.35, mix: 0.3 } },
     ],
     preview: 'line',
@@ -952,7 +956,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'analog-drive', preset: 'Console edge', params: { drive: 0.35 } },
-      { deviceId: 'tape', preset: 'Studio master' },
+      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4 } },
     ],
     preview: 'low',
   },
@@ -1131,7 +1135,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { decay: 6, mix: 0.45 } },
-      { deviceId: 'patina', preset: 'Fresh tape' },
+      { deviceId: 'patina', preset: 'Fresh tape', params: { tone: 0.5 } },
     ],
   },
 
