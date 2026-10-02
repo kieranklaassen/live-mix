@@ -611,7 +611,28 @@ int main() {
     EXPECT(db(folded / 0.25) < -20.0, "Double speed band-limits what would fold back");
   }
 
-  // BEHAVIOUR CHECKS GO HERE
+  // Cost under a realistic load: notes every 0.7 s into the default patch
+  // (Auto keeps taking new loops, so the copy into the store runs too), and
+  // the heaviest setting: double speed, Smear and Spread at full, clock 1/2.
+  {
+    std::vector<float> input(static_cast<size_t>(10.0f * kRate), 0.0f);
+    for (size_t i = 0; i < input.size(); ++i) {
+      const double t = static_cast<double>(i) / kRate;
+      const double since = std::fmod(t, 0.7);
+      const double hz = 220.0 * std::pow(2.0, static_cast<int>(t / 0.7) % 5 / 5.0);
+      input[i] = static_cast<float>(0.3 * std::exp(-since / 0.25) * std::sin(2.0 * kPi * hz * since));
+    }
+    device.init(kRate);
+    run(device, input);
+    report_cost("micro-looper (default)", 10.0f, kRate, [&] { run(device, input); });
+    device.init(kRate);
+    device.set_param(p::kSpeed, kDouble);
+    device.set_param(p::kClock, 3.0f);
+    device.set_param(p::kSmear, 1.0f);
+    device.set_param(p::kSpread, 1.0f);
+    run(device, input);
+    report_cost("micro-looper (heaviest)", 10.0f, kRate, [&] { run(device, input); });
+  }
 
   return finish("micro-looper");
 }

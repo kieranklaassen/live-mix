@@ -131,6 +131,8 @@ class VintageDigital : public kit::DeviceBase<vintage_digital::kNumParams> {
     for (int i = 0; i < frames; ++i) {
       float in[2];
       take_input(i, &in[0], &in[1]);
+      in[0] = sane(in[0]);
+      in[1] = sane(in[1]);
 
       if (!log_rate_.settled() || refresh_) {
         rate_ = std::exp2(log_rate_.next());
@@ -301,6 +303,16 @@ class VintageDigital : public kit::DeviceBase<vintage_digital::kNumParams> {
   // input stage (the input filter rings on a clipped wave) is cut off flat at
   // the sampler, as a converter does.
   static constexpr float kCodeLimit = 1.125f;
+  // A sample that is not a number would lodge in the input filter and leave
+  // the sampler holding a limit for good, and an absurdly large one
+  // overflows the clip's antiderivative. Neither is sound: the first becomes
+  // silence, the second is held to +36 dBFS, on the dry path too.
+  static constexpr float kInputLimit = 64.0f;
+
+  static float sane(float x) {
+    if (x >= -kInputLimit && x <= kInputLimit) return x;
+    return x > kInputLimit ? kInputLimit : (x < -kInputLimit ? -kInputLimit : 0.0f);
+  }
 
   static float residual(float u) {
     const float a = u < 0.0f ? -u : u;

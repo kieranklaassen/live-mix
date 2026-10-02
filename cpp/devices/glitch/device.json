@@ -237,6 +237,6 @@
   },
   "origin": {
     "kind": "new",
-    "note": "Written for live-mix on cpp/kit. Models in outline the faults of a skipping disc player and of a sampler whose buffer misbehaves (repeat, stuck loop, reverse, half speed, tape stop), chosen by a seeded random draw at each slice; it is not taken from a paper or a circuit. Splices are raised-cosine crossfades, double-speed reads go through a Kaiser-windowed half-band FIR (J. F. Kaiser, 'Nonrecursive digital filter design using the I0-sinh window function', 1974), all other reads through Catmull-Rom interpolation."
+    "note": "Written for live-mix on cpp/kit. Models in outline the faults of a skipping disc player and of a sampler whose buffer misbehaves (repeat, stuck loop, reverse, half speed, tape stop), chosen by a seeded random draw at each slice; it is not taken from a paper or a circuit. Splices are raised-cosine crossfades; double-speed reads go through a short half-band low-pass with a Kaiser window (after the approach of J. F. Kaiser, 'Nonrecursive digital filter design using the I0-sinh window function'); all other reads use Catmull-Rom interpolation."
   }
 }

@@ -208,6 +208,22 @@ static void check_pitch() {
     EXPECT(worst < 3.0, label);
   }
 
+  // The same at the other sample rates: times are in seconds, not samples.
+  for (float rate : {44100.0f, 96000.0f}) {
+    device.init(rate);
+    device.set_param(p::kMix, 1.0f);
+    device.set_param(p::kPitchA, 7.0f);
+    Stereo out = run(device, sine(440.0f, 1.5f, rate, 0.5f));
+    const size_t a = static_cast<size_t>(0.75f * rate), b = static_cast<size_t>(1.5f * rate);
+    const double want = 440.0 * std::pow(2.0, 7.0 / 12.0);
+    const double found = dominant_frequency(out.left, rate, want * 0.97, want * 1.03, a, b);
+    const double flutter = flutter_db(out.left, a, b, static_cast<size_t>(0.01f * rate));
+    NOTE("pitch at %.0f Hz: %+.2f cents, flutter %.2f dB, level %.2f dB\n", rate, cents(found, want), flutter,
+         db(rms(out.left, a, b) / (0.5 / std::sqrt(2.0))));
+    std::snprintf(label, sizeof label, "Smooth lands within 3 cents at %.0f Hz (%.2f)", rate, cents(found, want));
+    EXPECT(std::fabs(cents(found, want)) < 3.0 && flutter < 1.0, label);
+  }
+
   for (const Case& c : cases) {
     const double ratio = std::pow(2.0, (c.pitch + c.detune / 100.0) / 12.0);
     double worst = 0.0;

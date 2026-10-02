@@ -21,7 +21,8 @@
 //   starts.
 // - Spread places A to the left and B to the right by the level of B, so a
 //   single voice stays in the middle; a voice keeps the stereo of its input
-//   where it is not moved aside.
+//   where it is not moved aside. In Grain it is also how far Jitter throws
+//   each grain to either side of its voice.
 
 #include "../../kit/kit.h"
 #include "ShiftVoice.h"
@@ -85,6 +86,7 @@ class PitchShifter : public kit::DeviceBase<pitch_shifter::kNumParams> {
       return;
     }
     const double longest = static_cast<double>(kParamMax[kDelay]) * 0.001 * sample_rate();
+    float loudest = 0.0f;  // of the voices, heard or not: the loop runs on at Mix 0
     for (int i = 0; i < frames; ++i) {
       float in[2];
       take_input(i, &in[0], &in[1]);
@@ -124,6 +126,8 @@ class PitchShifter : public kit::DeviceBase<pitch_shifter::kNumParams> {
         const float record = guard_[1][c].lowpass(guard_[0][c].lowpass(in[c] + returned));
         back[c] = flush_denormal(record);
         wet[c] = 2.0f * kit::soft_clip(0.5f * wet[c]);
+        const float size = wet[c] < 0.0f ? -wet[c] : wet[c];
+        if (size > loudest) loudest = size;
       }
       ring_.write(back[0], back[1]);
 
@@ -136,7 +140,7 @@ class PitchShifter : public kit::DeviceBase<pitch_shifter::kNumParams> {
       out_left_[i] = in[0] * dry_gain_ + wet[0] * wet_gain_;
       out_right_[i] = in[1] * dry_gain_ + wet[1] * wet_gain_;
     }
-    idle_.settle(output_peak(frames), frames);
+    idle_.settle(kit::max(output_peak(frames), loudest), frames);
   }
 
  private:
@@ -212,6 +216,7 @@ class PitchShifter : public kit::DeviceBase<pitch_shifter::kNumParams> {
       setup.sample_rate = sr;
       setup.target_ratio = kit::clamp(kit::semitones_to_ratio(pitch_[v].target), 0.25f, 4.0f);
       setup.grain_gain = grain_gain(setup.target_ratio, size_seconds, setup.jitter);
+      setup.grain_width = param(kSpread);
       if (v == 0 || b_active_) fastest = kit::max(fastest, kit::max(next, setup.target_ratio));
     }
 

@@ -177,6 +177,8 @@ class OctaveBank {
   // Power under which a channel is not worth the control rate's attention.
   static constexpr float kQuiet = 1.0e-22f;
 
+  static float pos(float x) { return x > 0.0f ? x : 0.0f; }
+
   static float fade_in(double hz, double from, double to) {
     if (hz <= from) return 0.0f;
     if (hz >= to) return 1.0f;
@@ -221,6 +223,7 @@ class OctaveBank {
 
   void set_width(int k, float open, bool rescale);
   void run_group(int g, float x, const Want& want, float* bus);
+  void leak_floor();
   void sub_phasors(int k, float* half, float* quarter) const;
   void sub_outputs(int k, float* out) const;
   void tick();
@@ -250,6 +253,7 @@ class OctaveBank {
   float half_prev_ = 0.0f;
   float late_half_[kBuses] = {};
   float late_quarter_[kBuses] = {};
+  bool bus_on_[kBuses] = {};
 
   // Per channel: layout.
   float centre_[kMaxBands] = {};
@@ -303,6 +307,7 @@ class OctaveBank {
   float power_[kMaxBands] = {};
   float slow_[kMaxBands] = {};
   float weight_[kMaxBands] = {};
+  float leak_[kMaxBands] = {};
   float agree_[kMaxBands] = {};
   // Per channel, per voice: the complex weight, ramped between ticks.
   bool live_[kMaxBands] = {};

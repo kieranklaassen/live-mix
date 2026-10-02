@@ -65,6 +65,7 @@ struct VoiceSetup {
   float sample_rate = 48000.0f;
   float target_ratio = 1.0f;    // where the ratio is heading (head room for a sweep)
   float grain_gain = 0.5f;      // per-grain gain in Grain mode
+  float grain_width = 0.0f;     // how far Jitter may throw a grain to either side, 0..1
 };
 
 class ShiftVoice {
@@ -269,7 +270,7 @@ class ShiftVoice {
         interval = size * (1.0f / kGrainOverlap) * (1.0f + 0.6f * j * rng_.bipolar());
         scatter = j2 * (size + 0.02f * setup.sample_rate) * rng_.uniform();
         cents = kGrainCents * j2 * rng_.bipolar();
-        pan = 0.8f * j * rng_.bipolar();
+        pan = setup.grain_width * kit::min(1.0f, 2.0f * j) * rng_.bipolar();
         gain = setup.grain_gain;
         break;
       default: {
@@ -299,6 +300,11 @@ class ShiftVoice {
     const float fastest = kit::max(ratio, setup.target_ratio) * detune;
     const float room = fastest > 1.0f ? (fastest - 1.0f) * life : 0.0f;
     double delay = static_cast<double>(floor_delay + room + scatter);
+    // Never past what the ring holds (two octaves up at the longest Size and
+    // Delay at 96 kHz): such a head runs out of room early instead.
+    const double furthest = static_cast<double>(kMaxDelay) - base -
+                            static_cast<double>((kSearchSeconds + kSpanSeconds) * setup.sample_rate + 64.0f);
+    if (delay > furthest) delay = furthest;
 
     const float age = pre_age < 0.0f ? edge : pre_age;
     if (mode_ == kSmooth && pre_age == 0.0f && newest_ >= 0 && heads_[newest_].active &&

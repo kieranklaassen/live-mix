@@ -89,7 +89,7 @@
     },
     "Old record": {
       "type": 1,
-      "level": -36,
+      "level": -38,
       "tone": -0.2,
       "movement": 0.5,
       "width": 0.7,
@@ -147,6 +147,6 @@
   },
   "origin": {
     "kind": "new",
-    "note": "Written for live-mix on cpp/kit. Seven small noise models built from seeded white noise, random event trains and a wavetable; there are no recordings and no one machine is modelled."
+    "note": "Written for live-mix on cpp/kit. Seven small noise models; there are no recordings and no one machine is modelled. Hiss, room tone and air are white noise shaped by filters set in hertz; crackle and static are Poisson event trains with Pareto-distributed sizes, struck into two-pole resonators or pushed through the band of a receiver; mains hum is a wavetable of 40 harmonics. An envelope follower makes the noise ride with the input or duck under it (Follow). No published model is followed; the shelf under the tape hiss is the trapezoidal one-pole of Zavalishin, The Art of VA Filter Design. The noise only runs while something is playing: it carries on for Hold, fades over half a second, and an idle track is exactly silent."
   }
 }

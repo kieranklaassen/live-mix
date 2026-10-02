@@ -64,6 +64,7 @@ inline void OctaveBank::init(float rate, float low_hz, float high_hz, int count)
     up_quarter_[b].init(kUpBeta[1]);
     late_half_[b] = 0.0f;
     late_quarter_[b] = 0.0f;
+    bus_on_[b] = false;
   }
   x_prev_ = 0.0f;
   half_prev_ = 0.0f;
@@ -148,6 +149,7 @@ inline void OctaveBank::init(float rate, float low_hz, float high_hz, int count)
     weight_[k] = 0.0f;
     agree_[k] = 0.0f;
     live_[k] = false;
+    leak_[k] = 0.0f;
     since_[k] = 0;
     sign1_[k] = sign2_[k] = 1.0f;
     half_im_[k] = 0.0f;
@@ -316,21 +318,16 @@ inline void OctaveBank::run_group(int g, float x, const Want& want, float* bus) 
       // The half-angle phasor: the principal square root, times a sign that
       // flips whenever z passes half a turn (its imaginary part changes
       // sign on the far side: turning forwards from above, backwards from
-      // below).
+      // below). Written without branches: which way a phase points is as
+      // good as random from one channel to the next.
       const float a = m2 * inv;
-      float hr = std::sqrt(0.5f * a * std::fabs(a + cr));
-      float hi = std::sqrt(0.5f * a * std::fabs(a - cr));
-      if (ci < 0.0f) hi = -hi;
-      float sign = sign1_[k];
-      if ((ci < 0.0f) != (was_im < 0.0f)) {
-        const float turned = was_re * ci - was_im * cr;
-        if ((turned > 0.0f) == (was_im >= 0.0f)) {
-          sign = -sign;
-          sign1_[k] = sign;
-        }
-      }
-      hr *= sign;
-      hi *= sign;
+      const float up_now = std::copysign(1.0f, ci), up_was = std::copysign(1.0f, was_im);
+      const float turned = std::copysign(1.0f, was_re * ci - was_im * cr);
+      const float crossed = 0.5f * (1.0f - up_now * up_was) * (1.0f + turned * up_was);
+      const float sign = sign1_[k] * (1.0f - crossed);
+      sign1_[k] = sign;
+      const float hr = sign * std::sqrt(0.5f * a * std::fabs(a + cr));
+      const float hi = sign * std::copysign(std::sqrt(0.5f * a * std::fabs(a - cr)), ci);
       if (want.sub1) {
         const float wr = w_re_[1][k], wi = w_im_[1][k];
         w_re_[1][k] = wr + w_step_re_[1][k];
@@ -338,16 +335,16 @@ inline void OctaveBank::run_group(int g, float x, const Want& want, float* bus) 
         sub1 += hr * wr - hi * wi;
       }
       if (want.sub2) {
-        // The same again on the half-angle phasor, which turns half as fast.
-        float qr = std::sqrt(0.5f * a * std::fabs(a + hr));
-        float qi = std::sqrt(0.5f * a * std::fabs(a - hr));
-        if (hi < 0.0f) qi = -qi;
-        float sign_q = sign2_[k];
-        if ((hi < 0.0f) != (half_im_[k] < 0.0f) && hr < 0.0f) {
-          sign_q = -sign_q;
-          sign2_[k] = sign_q;
-        }
+        // The same again on the half-angle phasor, which turns half as
+        // fast: it has passed half a turn when its imaginary part changes
+        // sign on the left.
+        const float h_now = std::copysign(1.0f, hi), h_was = std::copysign(1.0f, half_im_[k]);
+        const float left = 1.0f - std::copysign(1.0f, hr);
+        const float sign_q = sign2_[k] * (1.0f - 0.5f * (1.0f - h_now * h_was) * left);
+        sign2_[k] = sign_q;
         half_im_[k] = hi;
+        const float qr = std::sqrt(0.5f * a * std::fabs(a + hr));
+        const float qi = std::copysign(std::sqrt(0.5f * a * std::fabs(a - hr)), hi);
         const float wr = w_re_[0][k], wi = w_im_[0][k];
         w_re_[0][k] = wr + w_step_re_[0][k];
         w_im_[0][k] = wi + w_step_im_[0][k];
@@ -367,6 +364,18 @@ inline void OctaveBank::run_group(int g, float x, const Want& want, float* bus) 
 // halved input, the bottom one on every fourth; what the lower groups make
 // is interpolated back up and joins the faster group's output.
 inline void OctaveBank::process(float x, const Want& want, Frame* out) {
+  // Only the buses of the voices in use are interpolated; one that goes out
+  // of use is emptied, so it comes back clean.
+  const bool on[kBuses] = {want.sub2, want.sub1, want.up1, want.up1, want.up2, want.up2};
+  for (int b = 0; b < kBuses; ++b) {
+    if (bus_on_[b] && !on[b]) {
+      up_half_[b].reset();
+      up_quarter_[b].reset();
+      late_half_[b] = 0.0f;
+      late_quarter_[b] = 0.0f;
+    }
+    bus_on_[b] = on[b];
+  }
   float bus[kBuses];
   run_group(0, x, want, bus);
   if (call_ & 1) {
@@ -378,6 +387,7 @@ inline void OctaveBank::process(float x, const Want& want, Frame* out) {
       float quarter[kBuses];
       run_group(2, quartered, want, quarter);
       for (int b = 0; b < kBuses; ++b) {
+        if (!on[b]) continue;
         float now;
         up_quarter_[b].up(quarter[b], &now, &late_quarter_[b]);
         half[b] += now;
@@ -387,6 +397,7 @@ inline void OctaveBank::process(float x, const Want& want, Frame* out) {
       half_prev_ = halved;
     }
     for (int b = 0; b < kBuses; ++b) {
+      if (!on[b]) continue;
       float now;
       up_half_[b].up(half[b], &now, &late_half_[b]);
       bus[b] += now;
@@ -406,6 +417,47 @@ inline void OctaveBank::process(float x, const Want& want, Frame* out) {
   if (++tick_counter_ >= tick_period_) {
     tick_counter_ = 0;
     tick();
+  }
+}
+
+// What the loudest partial in the input leaves in every channel that is not
+// its own (power), from the channels' present poles: its tail in a channel
+// several octaves away is small but not nothing, and such a channel would
+// otherwise play that partial's octaves again, faintly, at full cost.
+inline void OctaveBank::leak_floor() {
+  int top = 0;
+  for (int k = 1; k < bands_; ++k) {
+    if (power_[k] > power_[top]) top = k;
+  }
+  const float peak = power_[top];
+  float hz = centre_[top];
+  if (avg_re_[top] > 0.0f) {
+    float x = avg_im_[top] / avg_re_[top];
+    x = x > 3.0f ? 3.0f : (x < -3.0f ? -3.0f : x);
+    hz += x * (narrow_hz_[top] + open_[top] * (wide_hz_[top] - narrow_hz_[top]));
+  }
+  float cs[kGroups], sn[kGroups];
+  for (int g = 0; g < kGroups; ++g) {
+    const float w = 2.0f * static_cast<float>(kPiD) * hz * static_cast<float>(1 << g) / rate_;
+    cs[g] = std::cos(w);
+    sn[g] = std::sin(w);
+  }
+  for (int k = 0; k < bands_; ++k) {
+    const float cutoff = narrow_hz_[k] + open_[k] * (wide_hz_[k] - narrow_hz_[k]);
+    leak_[k] = 0.0f;
+    if (peak < kQuiet || std::fabs(hz - centre_[k]) < 3.0f * cutoff) continue;
+    const int g = group_of(k);
+    // The three stages at the partial's frequency and at its mirror image
+    // (the input is real).
+    float there = 1.0f, mirror = 1.0f;
+    for (int s = 0; s < kStages; ++s) {
+      const float pr = pole_re_[s][k], pi = pole_im_[s][k];
+      const float ar = 1.0f - (pr * cs[g] + pi * sn[g]), ai = pi * cs[g] - pr * sn[g];
+      const float br = 1.0f - (pr * cs[g] - pi * sn[g]), bi = pi * cs[g] + pr * sn[g];
+      there *= ar * ar + ai * ai;
+      mirror *= br * br + bi * bi;
+    }
+    leak_[k] = peak * 0.25f * gain_[k] * gain_[k] * (1.0f / there + 1.0f / mirror);
   }
 }
 
@@ -450,6 +502,7 @@ inline void OctaveBank::tick() {
   // slow matters: every fourth tick.
   slow_count_ = (slow_count_ + 1) & 3;
   const bool slow_tick = slow_count_ == 0;
+  if (slow_tick) leak_floor();
   for (int k = 0; k < bands_; ++k) {
     const float first = yr_[0][k] * yr_[0][k] + yi_[0][k] * yi_[0][k];
     if (first < kQuiet && power_[k] < kQuiet && jump_ref_[k] < kQuiet && age_[k] > 1.0f && !live_[k]) {
@@ -580,6 +633,10 @@ inline void OctaveBank::tick() {
       // or more away) and is left out.
       const float mag = x < 0.0f ? -x : x;
       if (mag > 2.5f) own = (3.0f - mag) * 2.0f;
+      // Far from the loudest partial the estimate above no longer says how
+      // far: there the test is whether the channel holds clearly more than
+      // that partial leaves in it.
+      if (power_[k] < 4.0f * leak_[k]) own *= pos(power_[k] / leak_[k] - 2.0f) * 0.5f;
     }
     offset[k] = x;
     // A channel's weights are worked out on every other tick (odd and even

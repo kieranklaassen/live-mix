@@ -101,7 +101,7 @@ export const MICRO_LOOPER_PARAMS = {
     name: 'Spread',
     min: 0,
     max: 1,
-    default: 0.35,
+    default: 0.5,
     taper: 'linear',
     unit: '',
     description:
@@ -143,7 +143,7 @@ export const MICRO_LOOPER_DESCRIPTOR = wasmDeviceDescriptor(MICRO_LOOPER_DEVICE,
       fade: 0.85,
       drift: 0.15,
       tone: 9000,
-      spread: 0.35,
+      spread: 0.5,
       mix: 0.5,
     },
     'Half speed bed': {

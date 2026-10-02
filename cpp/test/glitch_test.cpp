@@ -576,7 +576,40 @@ int main() {
     EXPECT(match > 0.999, "the slice length follows the sample rate");
   }
 
-  // CHECKS
+  // First impression (the seed matters here): freshly loaded, the default
+  // patch stumbles within a second and has played every kind of event within
+  // ten; a slower, rarer setting (Time 700 ms, Chance 0.35) within four slices.
+  {
+    std::vector<float> tone = sine(220.0f, 10.0f, kRate, 0.3f);
+    tone[0] = 1.0e-3f;
+    for (int pass = 0; pass < 2; ++pass) {
+      device.init(kRate);
+      if (pass == 1) {
+        device.set_param(p::kTime, 700.0f);
+        device.set_param(p::kChance, 0.35f);
+      }
+      double first = -1.0;
+      int kinds = 0;
+      long events = 0;
+      for (size_t done = 0; done + 64 <= tone.size(); done += 64) {
+        for (int i = 0; i < 64; ++i) device.in_left()[i] = device.in_right()[i] = tone[done + i];
+        device.process(64);
+        if (device.event_count() == events) continue;
+        events = device.event_count();
+        if (first < 0.0) first = static_cast<double>(done) / kRate;
+        kinds |= 1 << device.event_kind();
+      }
+      std::printf("glitch: fresh %s: first event after %.2f s, %ld events in 10 s, kinds seen 0x%02X\n",
+                  pass == 0 ? "default patch" : "Time 700 ms, Chance 0.35", first, events, kinds);
+      if (pass == 0) {
+        EXPECT(first > 0.2 && first < 1.0, "default patch: the first event comes within a second of loading");
+        EXPECT(kinds == 0x3E, "default patch: every kind of event is heard in the first ten seconds");
+        EXPECT(events >= 6 && events <= 20, "default patch: a handful of events in ten seconds, not a barrage");
+      } else {
+        EXPECT(first > 0.0 && first < 2.9, "a slow, rarer setting still does something within four slices");
+      }
+    }
+  }
 
   // Cost with an event always playing, long fades (two readers at once, both
   // filtered) and half the fragments read through the half-band filter.

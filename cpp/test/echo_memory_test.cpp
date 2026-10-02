@@ -157,6 +157,36 @@ int main() {
     EXPECT(ratio > 0.38 && ratio < 0.52, "each repeat is scaled by Feedback");
   }
 
+  // A Time reached by turning the knob is the Time set before the first
+  // block: the playback head glides all the way to its target. (Kept as a
+  // float it stopped 45 samples short of four seconds at 48 kHz and 180 at
+  // 96 kHz, where its last steps were smaller than the float could hold.)
+  for (float rate : {48000.0f, 96000.0f}) {
+    std::vector<float> input = silence(10.0f, rate);
+    add_tone(input, 100.0f, 0.0f, 10.0f, 1.0e-4f, rate);  // keeps the device awake
+    const size_t hit = static_cast<size_t>(5.0f * rate);
+    const size_t head = static_cast<size_t>(0.5f * rate);
+    input[hit] += 0.5f;
+    const std::vector<float> first(input.begin(), input.begin() + head);
+    const std::vector<float> rest(input.begin() + head, input.end());
+    size_t landed[2];
+    for (int glided = 0; glided < 2; ++glided) {
+      echo_only(device, rate);
+      device.set_param(p::kFeedback, 0.0f);
+      device.set_param(p::kTime, glided ? 500.0f : 4000.0f);
+      Stereo out = run(device, first);
+      device.set_param(p::kTime, 4000.0f);
+      out = concat(out, run(device, rest));
+      landed[glided] = peak_index(out.left, hit + static_cast<size_t>(3.9f * rate),
+                                  hit + static_cast<size_t>(4.1f * rate)) - hit;
+    }
+    std::printf("time glide at %.0f kHz: repeat %zu samples after the note when set at load, %zu after a glide\n",
+                rate / 1000.0, landed[0], landed[1]);
+    EXPECT(std::llabs(static_cast<long long>(landed[0]) - static_cast<long long>(4.0f * rate)) <= 1,
+           "Time set at load is the gap to the repeat");
+    EXPECT(landed[1] == landed[0], "a Time reached by gliding lands on the same gap");
+  }
+
   // Mix 0 is the input, bit for bit.
   {
     device.init(kRate);

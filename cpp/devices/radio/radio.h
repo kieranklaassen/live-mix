@@ -157,15 +157,19 @@ class Radio : public kit::DeviceBase<radio::kNumParams> {
 
       // The sky wave: the direct path and a late one with a turning phase.
       const float delay = delay_.next();
-      const float echo_re = path_re_.read_hermite(delay);
-      const float echo_im = path_im_.read_hermite(delay);
-      path_re_.write(sent_re);
-      path_im_.write(sent_im);
       const float direct = direct_.next();
       const float late_re = late_re_.next();
       const float late_im = late_im_.next();
-      float re = direct * sent_re + late_re * echo_re - late_im * echo_im;
-      float im = direct * sent_im + late_re * echo_im + late_im * echo_re;
+      const float echo_re = path_re_.read_hermite(delay);
+      path_re_.write(sent_re);
+      float re = direct * sent_re + late_re * echo_re;
+      float im = late_im * echo_re;
+      if (!(band.carrier > 0.0f)) {  // with a carrier the sent signal is real
+        const float echo_im = path_im_.read_hermite(delay);
+        path_im_.write(sent_im);
+        re -= late_im * echo_im;
+        im += direct * sent_im + late_re * echo_im;
+      }
 
       // What else is on the air.
       float noise_re, noise_im;
@@ -296,6 +300,7 @@ class Radio : public kit::DeviceBase<radio::kNumParams> {
     release_ = kit::time_to_coeff(band.agc_release, sr);
     level_ = band.agc_reference;
     hilbert_.reset();
+    path_im_.clear();
     low_hz_ = high_hz_ = -1.0f;  // the filters jump to the new band
   }
 

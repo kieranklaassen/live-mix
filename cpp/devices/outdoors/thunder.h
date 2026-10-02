@@ -15,7 +15,7 @@ namespace outdoors_scene {
 
 struct Thunder {
   static constexpr int kBands = 4;  // crack, body, rumble, sub
-  static constexpr float kGain = 1.0f;
+  static constexpr float kGain = 1.6f;
   static constexpr float kCorner[kBands] = {2800.0f, 420.0f, 130.0f, 48.0f};
   // What makes each band as loud as the others for the same envelope.
   static constexpr float kTrim[kBands] = {0.35f, 1.0f, 2.2f, 4.5f};
@@ -26,6 +26,7 @@ struct Thunder {
   kit::Rng rng;
   kit::Noise noise[2];
   kit::OnePole pole[2][kBands];
+  kit::DcBlocker floor[2];  // nothing under 25 Hz: it only eats headroom
   // Envelopes, stepped on the control clock and ramped between.
   float kick[2][kBands] = {};   // what the arrivals have put in
   float level[2][kBands] = {};  // the smoothed envelope
@@ -56,25 +57,123 @@ struct Thunder {
     for (int ch = 0; ch < 2; ++ch) {
       for (int k = 0; k < kBands; ++k) {
         pole[ch][k].reset();
-        kick[ch][k] = level[ch][k] = gain[ch][k] = step[ch][k] = 0.0f;
+        kick[ch][k] = level[ch][k] = gain[ch][k] = target[ch][k] = step[ch][k] = 0.0f;
       }
+    }
+    for (kit::DcBlocker& f : floor) {
+      f.reset();
+      f.set_cutoff(25.0f, c.sample_rate);
     }
     sounding = false;
     rolling = false;
     wait = 0.05f;  // the key brings the first stroke
+    seen_tone = -1.0f;
     retune(c);
   }
 
+  float fall[kBands] = {}, rise[kBands] = {};
+  float target[2][kBands] = {};
+  float trim = 1.0f;
+  float seen_tone = -1.0f, seen_distance = -1.0f;
+
+  // Coefficients that follow Tone and Distance, redone only when they move.
   void retune(const Controls& c) {
+    if (c.tone == seen_tone && c.distance == seen_distance) return;
+    seen_tone = c.tone;
+    seen_distance = c.distance;
+    const float sr = c.sample_rate;
     tilt = lean * std::exp2(1.2f * (c.tone - 0.5f));
-    for (int ch = 0; ch < 2; ++ch) {
-      for (int k = 0; k < kBands; ++k) {
-        pole[ch][k].set_cutoff(kit::min(kCorner[k] * tilt, 0.4f * c.sample_rate), c.sample_rate);
+    // White noise spreads its power to half the sample rate: keep the level
+    // of what the low-passes leave the same at any rate.
+    trim = kGain * std::sqrt(sr / 48000.0f);
+    for (int k = 0; k < kBands; ++k) {
+      for (int ch = 0; ch < 2; ++ch) {
+        pole[ch][k].set_cutoff(kit::min(kCorner[k] * tilt, 0.4f * sr), sr);
       }
+      fall[k] = std::exp(-c.step_seconds / (kFall[k] * (1.0f + 0.6f * c.distance)));
+      // From far off nothing arrives with an edge.
+      rise[k] = 1.0f - std::exp(-c.step_seconds / (kRise[k] * (1.0f + 9.0f * c.distance)));
     }
   }
 
-  // EVENTS
+  void control(const Controls& c) {
+    const float dt = c.step_seconds;
+    retune(c);
+    wait -= dt;
+    if (wait <= 0.0f) {
+      // A stroke a minute when sparse, one every ten seconds when the storm is overhead.
+      wait = 60.0f * std::pow(1.0f / 6.0f, c.density) * between(rng, 0.5f, 1.5f);
+      strike(c);
+    }
+    if (rolling) {
+      t += dt;
+      lobe += (lobe_target - lobe) * kit::min(1.0f, dt / 0.2f);
+      while (rolling && t >= next) arrive(c);
+    }
+    if (!sounding) return;
+    float total = 0.0f;
+    for (int ch = 0; ch < 2; ++ch) {
+      for (int k = 0; k < kBands; ++k) {
+        kick[ch][k] = flush_denormal(kick[ch][k] * fall[k]);
+        level[ch][k] = flush_denormal(level[ch][k] + (kick[ch][k] - level[ch][k]) * rise[k]);
+        gain[ch][k] = target[ch][k];  // where the last ramp ended
+        target[ch][k] = level[ch][k] * kTrim[k] * trim;
+        step[ch][k] = (target[ch][k] - gain[ch][k]) / static_cast<float>(kControlPeriod);
+        total += level[ch][k] + kick[ch][k];
+      }
+    }
+    if (!rolling && total < 1.0e-7f) {
+      for (int ch = 0; ch < 2; ++ch) {
+        for (int k = 0; k < kBands; ++k) {
+          kick[ch][k] = level[ch][k] = gain[ch][k] = target[ch][k] = step[ch][k] = 0.0f;
+          pole[ch][k].reset();
+        }
+      }
+      sounding = false;
+    }
+  }
+
+  void strike(const Controls& c) {
+    rolling = true;
+    sounding = true;
+    t = 0.0f;
+    next = 0.0f;
+    // Strokes differ more the more the storm moves and the further off it is.
+    const float unlike = kit::min(0.85f, 0.25f + 0.45f * c.movement + 0.25f * c.distance);
+    size = 1.0f - unlike * rng.uniform();
+    length = between(rng, 2.5f, 5.0f) * (1.0f + 1.2f * c.distance);
+    place = 0.8f * c.movement * rng.bipolar();
+    lobe = lobe_target = 1.0f;
+  }
+
+  // One arrival of the roll: kick the envelopes, and draw when the next comes.
+  void arrive(const Controls& c) {
+    const float age = kit::clamp(t / length, 0.0f, 1.0f);
+    if (rng.uniform() < 0.05f) lobe_target = between(rng, 0.2f, 1.5f);  // a lull, or a second wind
+    const float draw = rng.uniform();
+    // Near, the first arrival is the loudest; far, the roll swells in.
+    const float onset = kit::lerp(1.0f, kit::min(1.0f, t / 0.7f), c.distance);
+    const float fading = (1.0f - age) * std::sqrt(1.0f - age);
+    const float amount = size * lobe * (0.3f + 0.7f * draw * draw) * fading * onset;
+    const float clear = (1.0f - c.distance) * std::sqrt(1.0f - c.distance);
+    const float bright = clear * std::exp(-3.0f * age);
+    // Only a near stroke cracks, and only at its very start.
+    const float close = kit::max(0.0f, 1.0f - c.distance / 0.3f);
+    const float crack = t < 0.05f ? 3.0f * size * close * close : 0.6f * amount * bright * bright;
+    const float weight[kBands] = {crack, amount * (0.2f + 0.8f * bright), amount,
+                                  amount * (1.0f - 0.3f * bright)};
+    float pan_left, pan_right;
+    kit::pan_gains(kit::clamp(place + 0.45f * rng.bipolar(), -1.0f, 1.0f), &pan_left, &pan_right);
+    const float gap = 0.02f + 0.10f * age;
+    for (int k = 0; k < kBands; ++k) {
+      // So that a crowd of arrivals adds up to their strength, not their number.
+      const float share = weight[k] * kit::min(1.0f, 1.6f * gap / kFall[k]) * 1.4142f;
+      kick[0][k] += share * pan_left;
+      kick[1][k] += share * pan_right;
+    }
+    next += exp_gap(rng, gap);
+    if (next > length) rolling = false;
+  }
 
   void tick(float& left, float& right) {
     if (!sounding) return;
@@ -89,8 +188,8 @@ struct Thunder {
         out[ch] += x[ch] * gain[ch][k];
       }
     }
-    left += out[0];
-    right += out[1];
+    left += floor[0].process(out[0]);
+    right += floor[1].process(out[1]);
   }
 };
 

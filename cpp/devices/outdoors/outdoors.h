@@ -12,6 +12,7 @@
 #include "../../kit/kit.h"
 #include "birds.h"
 #include "chimes.h"
+#include "thunder.h"
 #include "stream.h"
 #include "frogs.h"
 #include "crickets.h"
@@ -45,6 +46,7 @@ class Outdoors : public kit::DeviceBase<outdoors::kNumParams> {
       voice.crickets.seed(stream + 24);
       voice.frogs.seed(stream + 32);
       voice.stream.seed(stream + 40);
+      voice.thunder.seed(stream + 48);
       stream += 64;
     }
     for (int stage = 0; stage < kStages; ++stage) {
@@ -151,6 +153,9 @@ class Outdoors : public kit::DeviceBase<outdoors::kNumParams> {
           case kStream:
             voice.stream.tick(l, r);
             break;
+          case kThunder:
+            voice.thunder.tick(l, r);
+            break;
           default:
             voice.chimes.tick(l, r);
             break;
@@ -205,6 +210,7 @@ class Outdoors : public kit::DeviceBase<outdoors::kNumParams> {
     kit::LinearRamp swap;  // ducks a stolen voice while its scene is replaced
     scene::Birds birds;
     scene::Chimes chimes;
+    scene::Thunder thunder;
     scene::Stream stream;
     scene::Frogs frogs;
     scene::Crickets crickets;
@@ -247,6 +253,9 @@ class Outdoors : public kit::DeviceBase<outdoors::kNumParams> {
       case kStream:
         voice.stream.start(voice.hz, controls_);
         break;
+      case kThunder:
+        voice.thunder.start(voice.hz, controls_);
+        break;
       default:
         voice.chimes.start(voice.hz, controls_);
         break;
@@ -260,6 +269,16 @@ class Outdoors : public kit::DeviceBase<outdoors::kNumParams> {
     controls_.distance = advance ? distance_.next() : distance_.value;
     controls_.movement = advance ? movement_.next() : movement_.value;
     controls_.tone = advance ? tone_.next() : tone_.value;
+  }
+
+  // Which keys are down, for the scenes that tune to them.
+  void survey() {
+    controls_.held = 0;
+    for (int v = 0; v < kMaxVoices; ++v) {
+      const Voice& voice = pool_.voices[v];
+      if (!voice.env.active() || voice.env.releasing()) continue;
+      controls_.held_hz[controls_.held++] = voice.restart ? voice.next_hz : voice.hz;
+    }
   }
 
   // Air takes the highs first: a one-pole from 20 kHz (near) to 1.2 kHz.
@@ -286,6 +305,7 @@ class Outdoors : public kit::DeviceBase<outdoors::kNumParams> {
         fade_.set_target(0.0f);
       }
     }
+    survey();
     for (int v = 0; v < kMaxVoices; ++v) {
       Voice& voice = pool_.voices[v];
       if (!voice.env.active()) continue;
@@ -302,6 +322,9 @@ class Outdoors : public kit::DeviceBase<outdoors::kNumParams> {
           break;
         case kStream:
           voice.stream.control(controls_);
+          break;
+        case kThunder:
+          voice.thunder.control(controls_);
           break;
         default:
           voice.chimes.control(controls_);

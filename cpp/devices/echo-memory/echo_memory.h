@@ -117,13 +117,25 @@ class EchoMemory : public kit::DeviceBase<echo_memory::kNumParams> {
       // Time is the distance to the playback head: it glides there with a
       // motor's lag, never faster than kMaxSlew, so the repeats bend by at
       // most an octave and a fifth up and never play backwards fast.
+      // The position is a double: the lag's last steps are smaller than a
+      // float of this size can hold, and the head would stop short of Time.
       if (delay_ != delay_target_) {
-        delay_ += kit::clamp((delay_target_ - delay_) * glide_, -kMaxSlew, kMaxSlew);
-        if (std::fabs(delay_target_ - delay_) < 1.0e-3f) delay_ = delay_target_;
+        const double gap = static_cast<double>(delay_target_) - delay_;
+        const double step = gap * glide_;
+        delay_ += step > kMaxSlew ? kMaxSlew : (step < -kMaxSlew ? -kMaxSlew : step);
+        if (std::fabs(static_cast<double>(delay_target_) - delay_) < 1.0e-3) delay_ = delay_target_;
       }
-      const float delay = kit::clamp(delay_, 4.0f, max_delay);
+      // Whole samples and the fraction are split here, so the read is as
+      // fine at four seconds as at fifty milliseconds.
+      const double delay = delay_ < 4.0 ? 4.0 : (delay_ > max_delay ? max_delay : delay_);
+      const int whole = static_cast<int>(delay);
+      const float fraction = static_cast<float>(delay - whole);
       float echo[2];
-      for (int c = 0; c < 2; ++c) echo[c] = echo_tone_[c].lowpass(line_[c].read_hermite(delay));
+      for (int c = 0; c < 2; ++c) {
+        echo[c] = echo_tone_[c].lowpass(
+            kit::hermite(line_[c].read(whole - 1), line_[c].read(whole), line_[c].read(whole + 1),
+                         line_[c].read(whole + 2), fraction));
+      }
       const float feedback = feedback_.next();
       const float spread = spread_.next();
       const float back[2] = {low_cut_[0].highpass(echo[0]), low_cut_[1].highpass(echo[1])};
@@ -499,7 +511,8 @@ class EchoMemory : public kit::DeviceBase<echo_memory::kNumParams> {
   float store_rate_ = 48000.0f;
   float tone_seen_ = -1.0f;
   float mix_seen_ = -1.0f, dry_gain_ = 1.0f, wet_gain_ = 0.0f;
-  float delay_ = 24000.0f, delay_target_ = 24000.0f, glide_ = 0.0f;
+  double delay_ = 24000.0;  // samples to the echo's playback head (double: see process)
+  float delay_target_ = 24000.0f, glide_ = 0.0f;
   long echo_blank_ = 0;
   long echo_hold_ = 216000;
   Snippet snippets_[kNumSnippets];

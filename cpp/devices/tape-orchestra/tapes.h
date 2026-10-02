@@ -64,7 +64,6 @@ struct TapeDef {
   float burst_seconds;    // ... and how long it lasts
   float noise_hz;         // centre of the noise band: this ...
   float noise_track;      // ... plus this many times the note
-  float noise_q;
   float closed_hz;        // brightness low-pass while a player is quiet ...
   float closed_track;     // (hz + track × note)
   float open_hz;          // ... and at full voice
@@ -76,22 +75,22 @@ struct TapeDef {
 // clang-format off
 constexpr TapeDef kTapes[kNumTapes] = {
   // Strings: three violins. A fast bow attack with a scrape, wide vibrato.
-  {3, 0.045f, 0.35f, 0.25f, 24.0f, 5.9f, 0.04f, 9.0f, -31.0f, 17.0f, 0.07f, 3600.0f, 0.0f, 0.7f,
+  {3, 0.045f, 0.35f, 0.25f, 24.0f, 5.9f, 0.04f, 9.0f, -31.0f, 17.0f, 0.07f, 3600.0f, 0.0f,
    1800.0f, 3.0f, 14000.0f, 8.0f, 0.0f, 0.8f},
   // Cellos: slower to speak, darker, slower vibrato.
-  {3, 0.09f, 0.5f, 0.3f, 20.0f, 5.2f, 0.04f, 8.0f, -33.0f, 15.0f, 0.1f, 1900.0f, 0.0f, 0.7f,
+  {3, 0.09f, 0.5f, 0.3f, 20.0f, 5.2f, 0.04f, 8.0f, -33.0f, 15.0f, 0.1f, 1900.0f, 0.0f,
    900.0f, 3.0f, 9000.0f, 8.0f, 0.5f, 0.75f},
   // Flutes: breath that follows the tone, a chiff, vibrato that is mostly level.
-  {3, 0.05f, 0.25f, 0.2f, 9.0f, 5.3f, 0.22f, 2.5f, -25.0f, 13.0f, 0.05f, 900.0f, 2.2f, 1.1f,
+  {3, 0.05f, 0.25f, 0.2f, 9.0f, 5.3f, 0.22f, 2.5f, -25.0f, 13.0f, 0.05f, 900.0f, 2.2f,
    1200.0f, 2.0f, 9000.0f, 6.0f, 2.0f, 0.24f},
   // Horns: a slow rounded attack that opens as it swells, hardly any vibrato.
-  {4, 0.11f, 0.9f, 0.45f, 5.0f, 5.0f, 0.03f, 3.0f, -41.0f, 12.0f, 0.06f, 500.0f, 1.0f, 0.8f,
+  {4, 0.11f, 0.9f, 0.45f, 5.0f, 5.0f, 0.03f, 3.0f, -41.0f, 12.0f, 0.06f, 500.0f, 1.0f,
    100.0f, 0.8f, 2400.0f, 5.0f, 1.2f, 0.24f},
   // Reeds: clarinets and an oboe. Quick to speak, narrow vibrato.
-  {3, 0.035f, 0.3f, 0.2f, 8.0f, 5.6f, 0.08f, 4.0f, -38.0f, 10.0f, 0.04f, 2200.0f, 0.0f, 0.8f,
+  {3, 0.035f, 0.3f, 0.2f, 8.0f, 5.6f, 0.08f, 4.0f, -38.0f, 10.0f, 0.04f, 2200.0f, 0.0f,
    1500.0f, 3.0f, 12000.0f, 8.0f, 0.5f, 0.4f},
   // Choir: four singers a side, slow to arrive, wide slow vibrato.
-  {4, 0.14f, 0.6f, 0.3f, 26.0f, 5.4f, 0.06f, 9.0f, -31.0f, 6.0f, 0.12f, 1700.0f, 0.0f, 0.6f,
+  {4, 0.14f, 0.6f, 0.3f, 26.0f, 5.4f, 0.06f, 9.0f, -31.0f, 6.0f, 0.12f, 1700.0f, 0.0f,
    900.0f, 2.0f, 10000.0f, 6.0f, 1.0f, 0.55f},
 };
 // clang-format on
@@ -279,10 +278,10 @@ class Recorder {
     }
     power = kit::max(power, 1.0e-12f);
     // Then phases. Each harmonic comes a little later than the one below
-    // it, by the share of the power that lies under it (Schroeder's phases
-    // for a low peak factor), so the period is a glide through its own
-    // spectrum instead of one pulse: the tape is driven evenly, not on
-    // peaks, and stacked keys do not pile up. The glide lasts `smear` of the
+    // it, by the share of the power that lies under it (the well-known rule
+    // for a signal with a low peak factor), so the period is a glide through
+    // its own spectrum instead of one pulse: the tape is driven evenly, not
+    // on peaks, and stacked keys do not pile up. The glide lasts `smear` of the
     // period: at most 5 ms, which is what a body and a room do to a
     // waveform, and at most four fifths of it. A little scatter on top.
     const float smear = kit::min(0.8f, 0.005f * f0);

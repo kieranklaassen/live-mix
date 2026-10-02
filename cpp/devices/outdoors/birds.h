@@ -15,7 +15,7 @@ struct Birds {
   static constexpr int kBirds = 6;
   static constexpr int kMotif = 10;
   static constexpr int kSpecies = 8;
-  static constexpr float kGain = 0.5f;
+  static constexpr float kGain = 0.45f;
 
   // One syllable as it is drawn: pitch at its start, middle and end (Hz,
   // before the bird's register), its length and the silence after it.
@@ -217,6 +217,11 @@ struct Birds {
         break;
       }
     }
+    // Fades take about 20 ms whatever the length: a long note gets an edge,
+    // a short chirp is a bell.
+    for (int i = 0; i < n; ++i) {
+      b.motif[i].edge = kit::clamp(b.motif[i].edge * 0.07f / b.motif[i].seconds, 0.06f, 0.5f);
+    }
     b.length = n;
   }
 
@@ -301,12 +306,12 @@ struct Birds {
   void advance(Bird& b, int slot, const Controls& c) {
     const Habit& habit = kHabit[b.species];
     // Sparse scenes leave long gaps; a busy one hardly pauses.
-    const float patience = (2.4f - 2.0f * c.density) / kit::max(activity, 0.05f);
+    const float patience = (2.2f - 2.0f * c.density) / kit::max(activity, 0.05f);
     if (b.repeats <= 0) {
       if (b.phrases <= 0) {
         // The bout is over: a long silence, and after a few bouts another bird.
         b.phrases = draw_int(b.rng, habit.bout_lo, habit.bout_hi);
-        b.wait = (slot == 0 ? between(b.rng, 3.0f, 8.0f) : between(b.rng, 6.0f, 20.0f)) * patience;
+        b.wait = (slot == 0 ? between(b.rng, 3.0f, 8.0f) : between(b.rng, 4.0f, 12.0f)) * patience;
         if (--b.songs <= 0) arrive(b, slot);
         return;
       }

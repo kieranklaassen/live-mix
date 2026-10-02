@@ -20,6 +20,9 @@ struct Controls {
   float distance = 0.4f;
   float movement = 0.5f;
   float tone = 0.5f;
+  // The keys that are down (not yet released), for scenes that tune to them.
+  int held = 0;
+  float held_hz[8] = {};
 };
 
 // An unrelated seed per stream (seeding one xorshift from the output of

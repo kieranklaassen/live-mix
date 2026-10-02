@@ -78,7 +78,7 @@
       "name": "Spread",
       "min": 0,
       "max": 1,
-      "default": 0.35,
+      "default": 0.5,
       "description": "Widens the loop with two more reads from just ahead of and behind the playing point, added on the left and taken away on the right. In mono they cancel and leave the plain loop; the low end stays in the centre."
     },
     {
@@ -100,7 +100,7 @@
       "fade": 0.85,
       "drift": 0.15,
       "tone": 9000,
-      "spread": 0.35,
+      "spread": 0.5,
       "mix": 0.5
     },
     "Half speed bed": {

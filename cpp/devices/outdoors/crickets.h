@@ -13,7 +13,7 @@ namespace outdoors_scene {
 
 struct Crickets {
   static constexpr int kCrickets = 6;
-  static constexpr float kGain = 0.5f;
+  static constexpr float kGain = 0.7f;
   static constexpr float kPulseLevel[4] = {0.5f, 0.85f, 1.0f, 0.95f};
 
   struct Cricket {

@@ -36,6 +36,7 @@ struct Chimes {
   Wander wind;
   float until = 0.0f;  // expected strikes left before the next one lands
   float gust = 0.5f;
+  float base = 440.0f; // pitch of the lowest tube
   int at = 0;          // where on the ring the clapper is
   int sweep = 0;       // which tube is checked for silence this step
 
@@ -54,7 +55,7 @@ struct Chimes {
 
   void start(float hz, const Controls& c) {
     const float sr = c.sample_rate;
-    const float base = root(hz);
+    base = root(hz);
     for (int t = 0; t < kTubes; ++t) {
       Tube& tb = tube[t];
       const float f = base * std::exp2(static_cast<float>(kScale[t]) / 12.0f);
@@ -113,6 +114,21 @@ struct Chimes {
     }
   }
 
+  // With one key down all six tubes sound. With more, a set keeps its root,
+  // fifth and octave and those of its other tubes that are (in any octave)
+  // one of the keys held, so the chimes spell the chord and not five notes
+  // around each of its members.
+  bool fits(int which, const Controls& c) const {
+    if (c.held <= 1 || kScale[which] == 0 || kScale[which] == 7 || kScale[which] == 12) return true;
+    const float hz = base * std::exp2(static_cast<float>(kScale[which]) / 12.0f);
+    for (int k = 0; k < c.held; ++k) {
+      const float octaves = std::log2(hz / kit::max(c.held_hz[k], 1.0f));
+      const float off = octaves - std::floor(octaves + 0.5f);
+      if (std::fabs(off) < 0.3f / 12.0f) return true;
+    }
+    return false;
+  }
+
   void strike(const Controls& c) {
     // The clapper mostly goes on to a neighbour.
     const float turn = rng.uniform();
@@ -126,6 +142,15 @@ struct Chimes {
     int which = 0;
     for (int t = 0; t < kTubes; ++t) {
       if (kRing[t] == at) which = t;
+    }
+    if (!fits(which, c)) {
+      // Not with these keys: the clapper swings on to the next tube that is.
+      for (int tries = 0; tries < kTubes && !fits(which, c); ++tries) {
+        at = (at + 1) % kTubes;
+        for (int t = 0; t < kTubes; ++t) {
+          if (kRing[t] == at) which = t;
+        }
+      }
     }
     Tube& tb = tube[which];
     if (tb.rest < 0.09f) return;  // it is still against the clapper

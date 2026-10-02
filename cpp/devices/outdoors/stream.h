@@ -16,7 +16,7 @@ namespace outdoors_scene {
 struct Stream {
   static constexpr int kBubbles = 12;
   static constexpr int kSites = 4;
-  static constexpr float kGain = 0.5f;
+  static constexpr float kGain = 0.42f;
   static constexpr float kRush = 0.5f;
   // Where each place sheds: bubble pitch (Hz), spread (octaves), pan, share of the flow.
   static constexpr float kCentre[kSites] = {650.0f, 1250.0f, 2300.0f, 4000.0f};

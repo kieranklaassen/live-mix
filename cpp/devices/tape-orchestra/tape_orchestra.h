@@ -10,9 +10,36 @@
 //                                                     ▼
 //   out ◄─ soft clip ◄─ volume ◄─(+ hiss)◄─ tone ◄─ tape band (low cut, roll-off)
 //
-// HEADER COMMENT TO BE COMPLETED
+// Nothing here is sampled. When a key goes down its "recording" is made on
+// the spot (tapes.h): one period of the instrument at that pitch, built from
+// its harmonic levels by an inverse FFT, twice, a little flat and a little
+// sharp of the note. A player reads that period at its own speed and leans
+// from the flat one to the sharp one as its vibrato bends the pitch, so the
+// harmonics move under resonances that stay where they are, as they do in a
+// bowed or blown instrument. The recording depends only on the tape and the
+// key, so a key is the same take every time it is struck.
 //
-// The instrument sleeps when no key sounds.
+// A key is a small section: a lead player and two or three behind it, each
+// with its own tuning, place across the stereo field, entry (up to 40 ms
+// late), swell, slow level wander and a vibrato that starts late and at its
+// own pace. Section sets how far they differ.
+//
+// Every key has its own strip of tape: it sits a few cents off, has its own
+// wow (0.3 to 1 Hz) and flutter (6 to 10 Hz), starts flat and comes up to
+// pitch in 80 ms as the tape is gripped, drops out now and then when worn,
+// and runs out after Length seconds. The tape's speed scales the read rate,
+// so Half lowers the pitch, the resonances and the band together, and
+// stretches everything that was recorded (attack, swell, vibrato, wow,
+// length) to twice as long. What the machine does in real time (the lurch,
+// Attack, Release, the hiss) keeps its own pace.
+//
+// Control values move once every 32 samples and ramp linearly in between.
+// A block is rendered in runs that end on those ticks, so the output does
+// not depend on the host's block size. One recording is made per tick: the
+// last note of a ten-note chord starts 6 ms after the first.
+//
+// The instrument sleeps when no key sounds, and wakes with its shared
+// filters and noise in the same state every time.
 
 #include "../../kit/kit.h"
 #include "params.gen.h"

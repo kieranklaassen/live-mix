@@ -5,6 +5,8 @@
 // stays of aliasing, and that the loudness holds while Drive moves.
 
 #include <complex>
+#include <cstring>
+#include <limits>
 
 #include "../devices/analog-drive/analog_drive.h"
 #include "support/test_kit.h"
@@ -141,11 +143,13 @@ int main() {
   // The DC blocker's 7 Hz corner is the only thing that rings.
   spec.tail_seconds = 1.0f;
   // With Auto Gain on (the default) the driven signal stays near the level
-  // it came in at. The ceiling is for gain the player asked for: Auto Gain
-  // off (a full-scale input then leaves up to 2.7), Output +12 dB (4x) and
-  // Tone and Thump on the edges of a squared wave (2x). The worst
-  // combination, checked below, measures about 26.
-  spec.max_peak = 40.0f;
+  // it came in at. A player can still ask for a great deal of gain: Auto
+  // Gain off (a full-scale input then leaves up to 2.7), Output +12 dB (4x)
+  // and Tone and Thump on the edges of a squared wave (2x) came to 26
+  // together. The safety stage at the end of the driven path (exactly linear
+  // to 1.5, landing on 4; checked below) is what holds every setting under
+  // this.
+  spec.max_peak = 4.0f;
   check_effect(device, spec, kRate);
 
   // The curves themselves: unit slope at zero, monotonic, bounded, and the
@@ -588,7 +592,8 @@ int main() {
 
   // Bounded. With Auto Gain on, a full-scale note with Push on never leaves
   // louder than it came in. The loudest the device can be made is Auto Gain
-  // off with Thump, Tone and Output all up, and that stays under max_peak.
+  // off with Thump, Tone and Output all up: that came to 26 before the
+  // safety stage, and stays under max_peak (4) with it.
   {
     double held = 0.0, loudest = 0.0;
     for (int c = 0; c < kCircuits; ++c) {
@@ -614,6 +619,65 @@ int main() {
                 held, loudest);
     EXPECT(held < 1.0, "Push on a full-scale note stays under full scale with Auto Gain on");
     EXPECT(loudest < spec.max_peak, "the loudest setting stays under the ceiling");
+    EXPECT(loudest > 3.0, "and that setting is one the safety stage has to hold (it measured 26 without it)");
+  }
+
+  // The safety stage that does the holding: exactly its input up to 1.5 on
+  // either side, to the bit; above that it keeps rising, never faster than
+  // the input, leaves the straight part without a corner and never reaches
+  // 4, whatever arrives.
+  {
+    bool exact = true;
+    rng_state() = 0x5AFEu;
+    for (int i = 0; i < 400000; ++i) {
+      const float x = i < 200000 ? -1.5f + 3.0f * static_cast<float>(i) / 199999.0f : 1.5f * white();
+      const float y = AnalogDrive::safety(x);
+      exact = exact && std::memcmp(&x, &y, sizeof x) == 0;
+    }
+    const float edges[] = {1.5f, -1.5f, 0.0f, -0.0f, 1.0e-30f, 1.4999999f};
+    for (float x : edges) {
+      const float y = AnalogDrive::safety(x);
+      exact = exact && std::memcmp(&x, &y, sizeof x) == 0;
+    }
+    EXPECT(exact, "safety stage: every value from -1.5 to 1.5 comes back bit for bit");
+    bool rising = true, gentle = true, odd = true;
+    float last = 1.5f;
+    for (float x = 1.5f; x < 60.0f; x += 0.001f) {
+      const float y = AnalogDrive::safety(x);
+      rising = rising && y >= last && y < 4.0f;
+      gentle = gentle && y <= x;
+      odd = odd && AnalogDrive::safety(-x) == -y;
+      last = y;
+    }
+    const float huge[] = {100.0f, 1.0e6f, 1.0e30f, std::numeric_limits<float>::infinity()};
+    for (float x : huge) rising = rising && AnalogDrive::safety(x) < 4.0f && AnalogDrive::safety(-x) > -4.0f;
+    EXPECT(rising, "safety stage: rises all the way and stays under 4 for any input, infinity included");
+    EXPECT(gentle && odd, "safety stage: never above its input, and the same on both sides");
+    // No corner at 1.5: a hundredth above it the curve is still within a
+    // millionth of the straight line.
+    EXPECT(1.51f - AnalogDrive::safety(1.51f) < 1.0e-6f, "safety stage: leaves the straight part smoothly");
+    EXPECT(AnalogDrive::safety(1.0e30f) > 3.99f, "safety stage: lands on 4");
+
+    // In the device: the same programme with Output raised until it peaks
+    // at about 1.4 is the Output 0 render times that gain, sample for
+    // sample.
+    const std::vector<float> in = pink(1.0f, kRate, 0.1f, 0x5AFE2u);
+    setup(kRate, kTriode, 0.5f);
+    Stereo plain = run(device, in);
+    const float raise = std::min(12.0f, static_cast<float>(db(1.4 / peak(plain.left))));
+    setup(kRate, kTriode, 0.5f);
+    device.set_param(p::kOutput, raise);
+    Stereo raised = run(device, in);
+    const float gain = livemix::kit::db_to_gain(raise);
+    double off = 0.0;
+    for (size_t i = 0; i < in.size(); ++i) {
+      off = std::max(off, std::fabs(static_cast<double>(raised.left[i]) - static_cast<double>(plain.left[i]) * gain));
+    }
+    std::printf("analog-drive safety stage: Output %+.1f dB peaks at %.2f and is the Output 0 render times %.2f to "
+                "within %.1e\n",
+                raise, peak(raised.left), gain, off);
+    EXPECT(peak(raised.left) > 1.2 && peak(raised.left) < 1.5, "that render peaks between 1.2 and 1.5");
+    EXPECT(off < 1.0e-6, "under 1.5 the safety stage changes nothing");
   }
 
   // Levels at the default patch: a sustained tone and pink noise both come

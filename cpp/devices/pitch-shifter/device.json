@@ -45,7 +45,11 @@
     {
       "key": "mode",
       "name": "Mode",
-      "choices": ["Smooth", "Grain", "Vintage"],
+      "choices": [
+        "Smooth",
+        "Grain",
+        "Vintage"
+      ],
       "default": 0,
       "description": "The character of the shift. Smooth lines its splices up with the sound and stays clean, Grain rebuilds it from overlapping grains, Vintage splices blindly and flutters like an early digital pitch changer."
     },
@@ -65,7 +69,7 @@
       "min": 0,
       "max": 1,
       "default": 0,
-      "description": "Scatters each piece in time and pitch. A little loosens the shift like a chorus; a lot turns it into a noisy cloud, widest in Grain, where the grains are also thrown left and right."
+      "description": "Scatters each piece in time and pitch. A little loosens the shift like a chorus; a lot turns it into a noisy cloud, most of all in Grain."
     },
     {
       "key": "delay",
@@ -100,7 +104,7 @@
       "min": 0,
       "max": 1,
       "default": 0.5,
-      "description": "Moves voice A to the left and voice B to the right. A voice on its own stays in the middle."
+      "description": "Moves voice A to the left and voice B to the right; a voice on its own stays in the middle. In Grain it also sets how far Jitter throws the grains to either side."
     },
     {
       "key": "mix",
@@ -235,6 +239,18 @@
       "feedback": 0.4,
       "tone": 6000,
       "spread": 1,
+      "mix": 0.45
+    },
+    "Metal grains": {
+      "pitchA": 7,
+      "levelB": 0,
+      "mode": 1,
+      "size": 16,
+      "jitter": 0.08,
+      "delay": 0,
+      "feedback": 0.25,
+      "tone": 7000,
+      "spread": 0.6,
       "mix": 0.45
     }
   },

@@ -58,7 +58,7 @@ class Glitch : public kit::DeviceBase<glitch::kNumParams> {
     const float sr = this->sample_rate();
     ring_.clear();
     Ring::design_half_band(half_band_);
-    rng_.seed(0x61175C4Du);
+    rng_.seed(0x1D208977u);
     mix_.set_time(kSmoothingSeconds, sr);
     for (Reader& reader : readers_) reader = Reader();
     event_ = Event();

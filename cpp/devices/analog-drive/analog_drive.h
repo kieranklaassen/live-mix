@@ -4,8 +4,8 @@
 //
 //   in ─┬─► low cut ─► Thump ─► [ circuit: emphasis ─► × drive ─► 4x up ─► curve ─► 4x down ─►
 //       │                                  de-emphasis ─► DC block ─► × make-up ] ─► Tone ─►
-//       │                                  high cut ─► × Output ─┐
-//       └─► delay 39 ──────────────────────────────────── dry ─► Mix ─► out
+//       │                                  high cut ─► × Output ─► safety ─┐
+//       └─► delay 39 ────────────────────────────────────────────── dry ─► Mix ─► out
 //
 // - A circuit (circuits.h) is an emphasis filter into a curve and a
 //   de-emphasis filter out of it. What the emphasis lifts saturates first:
@@ -172,13 +172,34 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
           const float cut = high_cut_filter_[c][1].process(high_cut_filter_[c][0].process(y));
           y = cut + (y - cut) * high_cut_open_;
         }
-        wet[c] = dry[c] + (y * output - dry[c]) * mix;
+        wet[c] = dry[c] + (safety(y * output) - dry[c]) * mix;
       }
       out_left_[i] = wet[0];
       out_right_[i] = mono_ ? wet[0] : wet[1];
     }
     idle_.settle(output_peak(frames), frames);
   }
+
+  // The last thing the driven signal passes, after Output and before Mix:
+  // exactly the input up to +-1.5 (so nothing at a sensible level is
+  // touched, to the bit), then a smooth knee that lands on +-4. It is there
+  // for the gain a player can ask for and should not get in headphones: Auto
+  // Gain off, Thump, Tone and Output all up came to 26 without it. The knee
+  // joins the straight part with the same slope and curvature, and it only
+  // works far above full scale, so it runs at the plain rate.
+  static float safety(float x) {
+    const float magnitude = x < 0.0f ? -x : x;
+    if (magnitude <= kSafetyKnee) return x;
+    const float range = kSafetyCeiling - kSafetyKnee;
+    float shaped = kSafetyKnee + range * std::tanh((magnitude - kSafetyKnee) / range);
+    // (tanh rounds to 1 from 24 up, and the Mix arithmetic after this can
+    // round up by a step or two: stop a hair short so nothing is ever 4.)
+    if (shaped > kSafetyTop) shaped = kSafetyTop;
+    return x < 0.0f ? -shaped : shaped;
+  }
+  static constexpr float kSafetyKnee = 1.5f;
+  static constexpr float kSafetyCeiling = 4.0f;
+  static constexpr float kSafetyTop = 3.99999f;
 
  private:
   static constexpr int kControlPeriod = 16;

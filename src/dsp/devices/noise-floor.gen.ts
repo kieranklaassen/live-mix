@@ -121,7 +121,7 @@ export const NOISE_FLOOR_DESCRIPTOR = wasmDeviceDescriptor(NOISE_FLOOR_DEVICE, {
       width: 0.8,
       hold: 6,
     },
-    'Old record': { type: 1, level: -36, tone: -0.2, movement: 0.5, width: 0.7, hold: 8 },
+    'Old record': { type: 1, level: -38, tone: -0.2, movement: 0.5, width: 0.7, hold: 8 },
     'Empty room': { type: 2, level: -34, movement: 0.6, width: 1, hold: 20 },
     'Amp left on': { type: 4, level: -40, tone: 0.2, movement: 0.3, width: 0.3, hold: 30 },
     'Between stations': { type: 5, level: -36, tone: 0.1, movement: 0.6, width: 0.5, hold: 10 },

@@ -80,7 +80,7 @@ export const PITCH_SHIFTER_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Scatters each piece in time and pitch. A little loosens the shift like a chorus; a lot turns it into a noisy cloud, widest in Grain, where the grains are also thrown left and right.',
+      'Scatters each piece in time and pitch. A little loosens the shift like a chorus; a lot turns it into a noisy cloud, most of all in Grain.',
   },
   delay: {
     id: 7,
@@ -123,7 +123,7 @@ export const PITCH_SHIFTER_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Moves voice A to the left and voice B to the right. A voice on its own stays in the middle.',
+      'Moves voice A to the left and voice B to the right; a voice on its own stays in the middle. In Grain it also sets how far Jitter throws the grains to either side.',
   },
   mix: {
     id: 11,
@@ -275,6 +275,18 @@ export const PITCH_SHIFTER_DESCRIPTOR = wasmDeviceDescriptor(PITCH_SHIFTER_DEVIC
       feedback: 0.4,
       tone: 6000,
       spread: 1,
+      mix: 0.45,
+    },
+    'Metal grains': {
+      pitchA: 7,
+      levelB: 0,
+      mode: 1,
+      size: 16,
+      jitter: 0.08,
+      delay: 0,
+      feedback: 0.25,
+      tone: 7000,
+      spread: 0.6,
       mix: 0.45,
     },
   },

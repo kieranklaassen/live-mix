@@ -10,7 +10,14 @@
     {
       "key": "tape",
       "name": "Tape",
-      "choices": ["Strings", "Cellos", "Flutes", "Horns", "Reeds", "Choir"],
+      "choices": [
+        "Strings",
+        "Cellos",
+        "Flutes",
+        "Horns",
+        "Reeds",
+        "Choir"
+      ],
       "default": 0,
       "description": "Which recording is on the tapes: a small violin section, cellos, flutes, French horns, a clarinet and oboe blend, or a mixed choir on ah. Notes already sounding cross over to the new tape."
     },
@@ -41,7 +48,10 @@
     {
       "key": "speed",
       "name": "Speed",
-      "choices": ["Normal", "Half"],
+      "choices": [
+        "Normal",
+        "Half"
+      ],
       "default": 0,
       "description": "Half runs the tapes at half speed: everything sounds an octave lower and darker, with slower attacks, slower vibrato and twice the tape length. Switching while notes sound slows the tape down or brings it back up."
     },
@@ -206,6 +216,6 @@
   },
   "origin": {
     "kind": "new",
-    "note": "Written for live-mix on cpp/kit."
+    "note": "Written for live-mix on cpp/kit. It follows the tape-replay keyboards of the sixties and seventies in outline: a strip of tape under every key that starts when the key goes down, wobbles in its own way, and runs out after about eight seconds. Nothing is sampled. Each key's recording is one period of the instrument built from harmonic levels (a source slope under fixed body resonances or vowel formants) by an inverse FFT, read by three or four players with their own tuning, entry and vibrato, and passed through a tape path of wow, flutter, a start lurch, dropouts, band-limiting, saturation and hiss. The spectra, resonance frequencies and tape figures are set by ear and by measurement; they are not taken from a recording, a circuit or a paper, and it is not a model of any one machine."
   }
 }

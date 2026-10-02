@@ -249,6 +249,10 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
     diffusion_.set_time(0.03f, control_rate);
     depth_.set_time(0.05f, control_rate);
     smear_.set_time(kSmearGlideSeconds, control_rate);
+    high_glide_.set_time(kKnobGlideSeconds, control_rate);
+    low_glide_.set_time(kKnobGlideSeconds, control_rate);
+    tail_glide_.set_time(kKnobGlideSeconds, control_rate);
+    tail_level_.snap(0.0f);
 
     counter_ = 0;
     started_ = false;
@@ -309,6 +313,8 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
   static constexpr float kSmearMin = 0.008f;
   static constexpr float kSmearMax = 0.045f;
   static constexpr float kSmearGlideSeconds = 0.12f;
+  // High Cut, Low Cut and Tail move to a new setting over about this long.
+  static constexpr float kKnobGlideSeconds = 0.03f;
   // Allpass lengths as shares of the smear; each row sums to 1.
   static constexpr float kStageShare[2][kStages] = {{0.137f, 0.163f, 0.191f, 0.227f, 0.282f},
                                                     {0.143f, 0.157f, 0.199f, 0.221f, 0.280f}};
@@ -496,9 +502,13 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
       }
     }
 
-    if (param(kHighCut) != seen_high_ || param(kLowCut) != seen_low_) {
-      seen_high_ = param(kHighCut);
-      seen_low_ = param(kLowCut);
+    // The cut frequencies glide (in octaves), so a jump of either knob, or
+    // a preset that moves them, retunes the filters without a tick.
+    high_glide_.set(std::log(param(kHighCut)), started_);
+    low_glide_.set(std::log(param(kLowCut)), started_);
+    if (!started_ || !high_glide_.settled() || !low_glide_.settled()) {
+      seen_high_ = std::exp(high_glide_.next());
+      seen_low_ = std::exp(low_glide_.next());
       for (int c = 0; c < 2; ++c) {
         high_cut_[c].set(seen_high_, kit::kSqrtHalf, sr);
         low_cut_[c].set(seen_low_, kit::kSqrtHalf, sr);
@@ -506,8 +516,11 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
         loop_low_[c].set_cutoff(seen_low_, sr);
       }
     }
-    if (param(kTail) != seen_tail_) {
-      seen_tail_ = param(kTail);
+    // Tail glides too: its decay and its level move together, a little at
+    // a time, instead of stepping what is already ringing in the network.
+    tail_glide_.set(param(kTail), started_);
+    if (!started_ || !tail_glide_.settled()) {
+      seen_tail_ = tail_glide_.next();
       const float rt60 = 0.6f * std::pow(10.0f, seen_tail_);
       float mean_gain = 0.0f;
       for (int n = 0; n < kTailLines; ++n) {
@@ -519,6 +532,7 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
       // Fed with unit power the network settles at 1 / (4 (1 - g²)) in each
       // output; this brings it back to the level of what feeds it.
       tail_norm_ = 2.0f * std::sqrt(1.0f - mean_gain * mean_gain);
+      tail_level_.set(tail_level_for(seen_tail_) * tail_norm_, started_);
     }
   }
 
@@ -645,7 +659,7 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
         for (int n = 0; n < kTailLines; ++n) {
           v[n] = tail_damp_[n].lowpass(tail_[n].read(tail_length_[n]));
         }
-        const float amount = tail_level * tail_norm_ * 0.5f;
+        const float amount = tail_level * 0.5f;
         // The signs in and out are chosen against the Hadamard matrix: with
         // the same alternating pattern at both ends every pass through one
         // line lined up, and the tail fluttered at that line's length. These
@@ -702,9 +716,6 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
         // Repeats store more energy for the same input; take half of that
         // back (in dB).
         level_.set(std::sqrt(std::sqrt(1.0f - value * value)), primed());
-        break;
-      case kTail:
-        tail_level_.set(tail_level_for(value), primed());
         break;
       case kColour: {
         // A treble shelf on one group: up to 24 dB down above kColourHz.
@@ -776,7 +787,7 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
   bool tail_clear_ = true;
 
   kit::Smoother dry_, wet_, width_, repeat_, level_, tail_level_, colour_early_, colour_late_;
-  kit::Smoother diffusion_, depth_, smear_;
+  kit::Smoother diffusion_, depth_, smear_, high_glide_, low_glide_, tail_glide_;
   float seen_high_ = -1.0f, seen_low_ = -1.0f, seen_tail_ = -1.0f;
   int counter_ = 0;
   bool started_ = false;

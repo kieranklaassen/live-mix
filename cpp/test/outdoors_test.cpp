@@ -34,6 +34,17 @@ int main() {
 
   // BEHAVIOUR
 
-  (void)kNames;
+  // Cost with eight keys held at full Density, per type.
+  for (int type = 0; type < Outdoors::kKinds; ++type) {
+    device.init(kRate);
+    device.set_param(p::kType, static_cast<float>(type));
+    device.set_param(p::kDensity, 1.0f);
+    for (int n = 0; n < 8; ++n) device.note_on(n, 110.0f * std::pow(2.0f, n * 3 / 12.0f), 0.7f);
+    render(device, 2.0f, kRate);
+    char label[64];
+    std::snprintf(label, sizeof label, "outdoors (8 keys, full Density, %s)", kNames[type]);
+    report_cost(label, 10.0f, kRate, [&] { render(device, 10.0f, kRate); });
+  }
+
   return finish("outdoors");
 }

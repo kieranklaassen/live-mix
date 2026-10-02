@@ -29,6 +29,7 @@
 //   generated voices only.
 
 #include "../../kit/kit.h"
+#include "Halfband.h"
 #include "OctaveBank.h"
 #include "params.gen.h"
 
@@ -43,10 +44,11 @@ class Octaves : public kit::DeviceBase<octaves::kNumParams> {
     factor_ = sr >= 60000.0f ? 4 : (sr >= 30000.0f ? 2 : 1);
     const float inner = sr / static_cast<float>(factor_);
     bank_.init(inner, kLowHz, kHighHz, kChannels);
-    for (int stage = 0; stage < 2; ++stage) {
-      down_[stage].init();
-      up_[stage][0].init();
-      up_[stage][1].init();
+    down_.init(kDownBeta);
+    outer_down_.init(kOuterBeta);
+    for (int c = 0; c < 2; ++c) {
+      up_[c].init(kUpBeta);
+      outer_up_[c].init(kOuterBeta);
     }
     phase_ = 0;
     for (int i = 0; i < 4; ++i) {
@@ -83,14 +85,15 @@ class Octaves : public kit::DeviceBase<octaves::kNumParams> {
       float mono = 0.5f * (left + right);
       if (!(mono > -64.0f && mono < 64.0f)) mono = 0.0f;
 
-      // The voices made on the last pass of the bank, at this sample's place.
-      float wet_left = ready_[0][phase_];
-      float wet_right = ready_[1][phase_];
+      // The bank runs when it has a full set of input samples; the first of
+      // what it makes goes out with this sample, the rest with the next ones.
       pending_[phase_] = mono;
       if (++phase_ >= factor_) {
         phase_ = 0;
         run_bank();
       }
+      float wet_left = ready_[0][phase_];
+      float wet_right = ready_[1][phase_];
 
       if (filter_clock_.tick()) {
         const float q = 0.7071f * std::pow(kMaxQ / 0.7071f, resonance_.value);
@@ -111,6 +114,13 @@ class Octaves : public kit::DeviceBase<octaves::kNumParams> {
 
  private:
   static constexpr int kChannels = 55;
+  // The way down to the bank's rate and back (Halfband.h): 15 taps down and
+  // 31 up, 0.46 ms together at 48 kHz, better than 47 dB where it matters
+  // (the bank's channels end at 5.5 kHz, its voices at 10 kHz). From
+  // 88.2 kHz up there is one more, easier, pair outside these.
+  static constexpr double kDownBeta = 6.0;
+  static constexpr double kUpBeta = 4.5;
+  static constexpr double kOuterBeta = 4.5;
   static constexpr float kLowHz = 40.0f;
   static constexpr float kHighHz = 5500.0f;
   static constexpr float kMaxQ = 9.0f;
@@ -124,11 +134,11 @@ class Octaves : public kit::DeviceBase<octaves::kNumParams> {
   void run_bank() {
     float x = pending_[0];
     if (factor_ == 2) {
-      x = down_[0].down(pending_[0], pending_[1]);
+      x = down_.down(pending_[0], pending_[1]);
     } else if (factor_ == 4) {
-      const float a = down_[0].down(pending_[0], pending_[1]);
-      const float b = down_[0].down(pending_[2], pending_[3]);
-      x = down_[1].down(a, b);
+      const float a = outer_down_.down(pending_[0], pending_[1]);
+      const float b = outer_down_.down(pending_[2], pending_[3]);
+      x = down_.down(a, b);
     }
 
     float gain[kNumVoices];
@@ -157,12 +167,12 @@ class Octaves : public kit::DeviceBase<octaves::kNumParams> {
       if (factor_ == 1) {
         ready_[c][0] = wet[c];
       } else if (factor_ == 2) {
-        up_[0][c].up(wet[c], &ready_[c][0], &ready_[c][1]);
+        up_[c].up(wet[c], &ready_[c][0], &ready_[c][1]);
       } else {
         float a, b;
-        up_[1][c].up(wet[c], &a, &b);
-        up_[0][c].up(a, &ready_[c][0], &ready_[c][1]);
-        up_[0][c].up(b, &ready_[c][2], &ready_[c][3]);
+        up_[c].up(wet[c], &a, &b);
+        outer_up_[c].up(a, &ready_[c][0], &ready_[c][1]);
+        outer_up_[c].up(b, &ready_[c][2], &ready_[c][3]);
       }
     }
   }
@@ -207,8 +217,10 @@ class Octaves : public kit::DeviceBase<octaves::kNumParams> {
   }
 
   octaves::OctaveBank bank_;
-  kit::Halfband2x down_[2];
-  kit::Halfband2x up_[2][2];
+  octaves::HalfbandDown<4> down_;
+  octaves::HalfbandUp<8> up_[2];
+  octaves::HalfbandDown<3> outer_down_;
+  octaves::HalfbandUp<3> outer_up_[2];
   int factor_ = 2;
   int phase_ = 0;
   float pending_[4] = {};

@@ -81,14 +81,6 @@ static double mean_of(const std::vector<double>& v, size_t from, size_t to) {
   return to > from ? sum / static_cast<double>(to - from) : 0.0;
 }
 
-static double spread_of(const std::vector<double>& v, size_t from, size_t to) {
-  to = std::min(to, v.size());
-  const double m = mean_of(v, from, to);
-  double sum = 0.0;
-  for (size_t i = from; i < to; ++i) sum += (v[i] - m) * (v[i] - m);
-  return to > from ? std::sqrt(sum / static_cast<double>(to - from)) : 0.0;
-}
-
 // Where the spectrum balances, in Hz, 0.1 s from `from` seconds: the mean of
 // the first forty harmonics of `hz` weighted by their power.
 static double centroid(const Stereo& out, double hz, double from) {
