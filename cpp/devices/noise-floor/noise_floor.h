@@ -228,7 +228,7 @@ class NoiseFloor : public kit::DeviceBase<noise_floor::kNumParams> {
   // Below -74 dBFS nothing is playing: the last of a reverb tail or the
   // hiss of another device does not keep the noise running.
   static constexpr float kQuiet = 2.0e-4f;
-  static constexpr float kInputLimit = 16.0f;  // +24 dBFS
+  static constexpr float kInputLimit = 8.0f;  // +18 dBFS
   static constexpr float kFollowLimit = 2.0f;  // Follow hears nothing louder: a glitch upstream is soon forgotten
   static constexpr float kReference = 0.25f;    // the input level Follow calls "loud": -12 dBFS
   static constexpr float kFollowKnee = 0.5493f;  // atanh(1/2): unity at the reference, a ceiling of 2
