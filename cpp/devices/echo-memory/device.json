@@ -68,7 +68,7 @@
       "default": 3,
       "taper": "log",
       "unit": "s",
-      "description": "How long each recalled moment lasts. Short gives glimpses of single notes, long brings back whole phrases under a slow fade."
+      "description": "How long each recalled moment lasts. Short gives glimpses of single notes, long brings back whole phrases under a slow fade. The more often Wander moves on, the shorter a moment can be."
     },
     {
       "key": "vary",
@@ -218,6 +218,6 @@
   },
   "origin": {
     "kind": "new",
-    "note": "Written for live-mix on cpp/kit. A feedback echo beside a 68-second recording of the input, from which two long-windowed granular voices bring back moments chosen by a seeded random walk weighted by an activity map of the recording; not a model of any unit. The recall is delay-line granulation as in Barry Truax, 'Real-Time Granular Synthesis with a Digital Signal Processor' (Computer Music Journal, 1988); the 16-bit memory uses triangular dither after Lipshitz, Wannamaker and Vanderkooy, 'Quantization and Dither: A Theoretical Survey' (JAES, 1992); half-speed, double-speed and half-rate reads use Kaiser-windowed sinc kernels after Smith and Gossett, 'A Flexible Sampling-Rate Conversion Method' (ICASSP, 1984)."
+    "note": "Written for live-mix on cpp/kit; not a model of any unit. A feedback echo beside a recording of about the last minute of the input, kept as 16-bit stereo with triangular dither and a map of how loud each tenth of a second was. Two snippet voices bring back moments from it, chosen by seeded chance weighted towards where there was sound, each under a slow raised-cosine window: as played, backwards, or at half or double speed through windowed-sinc interpolation. The recall granulates a delay line, after the approach of Barry Truax, 'Real-Time Granular Synthesis with a Digital Signal Processor'; the dither is after the approach of Lipshitz, Wannamaker and Vanderkooy, 'Quantization and Dither: A Theoretical Survey'; the interpolation is after the approach of Smith and Gossett, 'A Flexible Sampling-Rate Conversion Method'."
   }
 }

@@ -61,7 +61,8 @@ class FollowerBank {
       hz_[b] = static_cast<float>(hz);
       pole_r_[b] = static_cast<float>(r * std::cos(w));
       pole_i_[b] = static_cast<float>(r * std::sin(w));
-      in_gain_[b] = static_cast<float>((1.0 - r) * (1.0 - r));
+      // A real sine of amplitude A is two phasors of A/2; the band keeps one.
+      in_gain_[b] = static_cast<float>(2.0 * (1.0 - r) * (1.0 - r));
       centre_r_[b] = static_cast<float>(std::cos(w));
       centre_i_[b] = static_cast<float>(std::sin(w));
       half_r_[b] = static_cast<float>(std::cos(0.5 * w));
@@ -81,6 +82,7 @@ class FollowerBank {
     }
     fast_ = 1.0f - kit::time_to_coeff(kFastSeconds, rate / kTick);
     octave_coeff_ = 1.0f - kit::time_to_coeff(kOctaveSeconds, rate / kTick);
+    trust_decay_ = kit::time_to_coeff(kTrustSeconds, rate / kTick);
     estimate_ = 1.0f - kit::time_to_coeff(kEstimateSeconds, rate / kTick);
     commit_ = 1.0f - kit::time_to_coeff(kCommitSeconds, rate / kTick);
     reset();
@@ -103,6 +105,7 @@ class FollowerBank {
       mag_[b] = level_[b] = 0.0f;
       env1_[b] = env2_[b] = 0.0f;
       dev_est_[b] = dev_[b] = 0.0f;
+      trust_[b] = 0.0f;
     }
     counter_ = 0;
     sounding_ = false;
@@ -189,27 +192,20 @@ class FollowerBank {
     if (mag < 1.0e-10f) mag = 0.0f;
     mag_[b] = mag;
 
-    // The resonator's own response at the tracked detune d is 1/(1 + jt)²
-    // with t = d·r/(1 − r): dividing it out gives the partial itself.
-    const float t = detune_scale_[b] * dev_[b];
-    const float boost = 1.0f + t * t;
-
-    // Is the band hearing a steady partial? Compare the two stages: in a
-    // steady state |s2|·(1 + t²) equals |s1|/(1 − r); the second stage lags
-    // behind on an onset and rings on after the input stops, which shows
-    // here long before the level itself has moved.
+    // What the band hears: the phase z advanced since the last tick, less
+    // what the centre frequency turns in that time, is the detune of the
+    // partial in it. The resonator's own response at a detune d is
+    // 1/(1 + jt)² with t = d·r/(1 − r), which the code below divides out
+    // wherever it needs the partial rather than the filtered partial.
+    //
+    // Is that partial steady? Compare the two stages: in a steady state
+    // |s2|·(1 + t²) equals |s1|/(1 − r). The second stage lags on an onset
+    // and rings on after the input stops, which shows in this ratio long
+    // before the level itself has moved, and before the ringing (which is at
+    // the band centre, not at the played pitch) can pull the estimate.
     float confidence = 0.0f;
+    float measured = 0.0f;
     if (m > 1.0e-7f && first2 > 0.0f) {
-      const float ratio2 = m2 * boost * stage_norm_[b] / first2;
-      const float steady = kit::clamp((ratio2 - 0.45f) * 5.0f, 0.0f, 1.0f) *
-                           kit::clamp((1.7f - ratio2) * 2.5f, 0.0f, 1.0f);
-      const float mag2 = mag * mag;
-      confidence = steady * mag2 / (mag2 + 0.0625f * threshold2_);
-    }
-
-    float pull = 0.0f;
-    if (confidence > 0.0f) {
-      // Phase advanced since the last tick, less what the centre would turn.
       const float dr = zr * last_r_[b] + zi * last_i_[b];
       const float di = zi * last_r_[b] - zr * last_i_[b];
       const float er = dr * unlag_r_[b] - di * unlag_i_[b];
@@ -222,17 +218,38 @@ class FollowerBank {
       } else {
         angle = std::atan2(ei, er);
       }
-      const float measured = kit::clamp(angle * (1.0f / kTick), -max_dev_[b], max_dev_[b]);
-      dev_est_[b] += estimate_ * confidence * (measured - dev_est_[b]);
-      dev_[b] += commit_ * confidence * (dev_est_[b] - dev_[b]);
+      measured = kit::clamp(angle * (1.0f / kTick), -max_dev_[b], max_dev_[b]);
+      const float tm = detune_scale_[b] * measured;
+      const float ratio2 = m2 * (1.0f + tm * tm) * stage_norm_[b] / first2;
+      const float steady = kit::clamp((ratio2 - 0.45f) * 5.0f, 0.0f, 1.0f) *
+                           kit::clamp((1.7f - ratio2) * 2.5f, 0.0f, 1.0f);
+      const float mag2 = mag * mag;
+      confidence = steady * mag2 / (mag2 + 0.0625f * threshold2_);
+    }
+
+    float pull = 0.0f;
+    if (confidence > 0.0f) {
+      if (trust_[b] < 0.05f) {
+        // A band that was not following anything takes the first steady
+        // reading as it is.
+        dev_est_[b] = dev_[b] = measured;
+      } else {
+        dev_est_[b] += estimate_ * confidence * (measured - dev_est_[b]);
+        dev_[b] += commit_ * confidence * (dev_est_[b] - dev_[b]);
+      }
       // Lock: the partial's phase (z with the resonator's shift undone)
       // against the oscillator's.
-      const float cr = 1.0f - t * t, ci = 2.0f * t;
+      const float tl = detune_scale_[b] * dev_[b];
+      const float cr = 1.0f - tl * tl, ci = 2.0f * tl;
       const float pr = zr * cr - zi * ci;
       const float pi = zr * ci + zi * cr;
-      const float error = (pi * ur_[b] - pr * ui_[b]) / (m * boost);
+      const float error = (pi * ur_[b] - pr * ui_[b]) / (m * (1.0f + tl * tl));
       pull = lock_[b] * confidence * error;
     }
+    const float trust = kit::max(confidence, trust_[b] * trust_decay_);
+    trust_[b] = trust < 1.0e-6f ? 0.0f : trust;
+    const float t = detune_scale_[b] * dev_[b];
+    const float boost = 1.0f + t * t;
     last_r_[b] = zr;
     last_i_[b] = zi;
     set_rotation(b, dev_[b] + pull);
@@ -240,7 +257,7 @@ class FollowerBank {
     // Level: the partial's amplitude, shared between the two bands it lies
     // between, through the gate and the slow follower.
     const float share = kit::max(0.0f, 1.0f - std::fabs(dev_[b]) * share_scale_[b]);
-    const float partial = mag * boost * share;
+    const float partial = mag * boost * share * trust_[b];
     const float partial2 = partial * partial;
     const float target = partial2 > 0.0f ? partial * partial2 / (partial2 + threshold2_) : 0.0f;
     float e1 = env1_[b], e2 = env2_[b];
@@ -310,6 +327,7 @@ class FollowerBank {
   static constexpr float kLockFactor = 0.3f;
   static constexpr float kFastSeconds = 0.008f;
   static constexpr float kOctaveSeconds = 0.06f;
+  static constexpr float kTrustSeconds = 0.06f;
   // The second section at full Octaves, against the unshifted pad.
   static constexpr float kOctaveLevel = 0.9f;
   static constexpr float kEstimateSeconds = 0.008f;
@@ -319,7 +337,7 @@ class FollowerBank {
   int counter_ = 0;
   bool sounding_ = false;
   bool down_active_ = false;
-  float fast_ = 0.0f, estimate_ = 0.0f, commit_ = 0.0f, octave_coeff_ = 0.0f;
+  float fast_ = 0.0f, estimate_ = 0.0f, commit_ = 0.0f, octave_coeff_ = 0.0f, trust_decay_ = 0.0f;
   float attack_ = 0.01f, release_ = 0.001f, release_follow_ = 0.01f;
   float threshold2_ = 1.0e-6f;
   float octaves_ = 0.0f, octaves_target_ = 0.0f;
@@ -342,7 +360,7 @@ class FollowerBank {
   float last_r_[kBands] = {}, last_i_[kBands] = {};
   float mag_[kBands] = {}, level_[kBands] = {};
   float env1_[kBands] = {}, env2_[kBands] = {};
-  float dev_est_[kBands] = {}, dev_[kBands] = {};
+  float dev_est_[kBands] = {}, dev_[kBands] = {}, trust_[kBands] = {};
 };
 
 }  // namespace pad_follower

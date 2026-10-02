@@ -20,8 +20,11 @@
 //   and the gain into it sags a little under what leaves it (tape preamp,
 //   transformer, most of all the pentode). The curve's own value at the
 //   working point is taken off again, so silence in is exact silence out.
-// - Drive is 0 to +36 dB into the curve, with full scale a quarter of the
-//   way to its ceiling at Drive 0; Push is another 20 dB.
+// - Drive is 0 to +42 dB into the curve, with full scale a quarter of the
+//   way to its ceiling at Drive 0, on a taper that rises fastest at the
+//   bottom (drive_taper): the clean end stays clean, and a pad at an
+//   ordinary level is clearly in the curve by the middle of the knob. Push
+//   is another 20 dB.
 // - The curve runs at 4x between two linear-phase halfbands (63 and 31
 //   taps) with second-order antiderivative anti-aliasing (adaa.h) on top:
 //   a 5 kHz tone squared off completely at 44.1 kHz leaves nothing that is
@@ -187,6 +190,20 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
   // Gain off, Thump, Tone and Output all up came to 26 without it. The knee
   // joins the straight part with the same slope and curvature, and it only
   // works far above full scale, so it runs at the plain rate.
+  // Where the Drive knob sits in the gain range, 0 to 1: gain in dB into
+  // the curve is this times kMaxDriveDb. It rises fastest at the bottom, so
+  // Drive 0 is still the clean end and the middle of the knob is already
+  // well into the curve for a sound at an ordinary level (a pad at -23 dBFS
+  // RMS): Drive 0.3 is 23 dB up, 0.5 is 31 dB, 1 is 42 dB. Everything inside
+  // (the smoothed value, the working point, the make-up table) works on
+  // this, not on the knob.
+  static float drive_taper(float knob) {
+    return std::log1p(kDriveTaper * kit::clamp(knob, 0.0f, 1.0f)) * (1.0f / kLogDriveTaper);
+  }
+  static constexpr float kDriveTaper = 8.0f;
+  static constexpr float kLogDriveTaper = 2.1972246f;   // ln(1 + kDriveTaper)
+  static constexpr float kMaxDriveDb = 42.0f;
+
   static float safety(float x) {
     const float magnitude = x < 0.0f ? -x : x;
     if (magnitude <= kSafetyKnee) return x;
@@ -206,8 +223,8 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
   // Full scale reaches a quarter of the way to the curve's ceiling at Drive 0.
   static constexpr float kHeadroom = 0.25f;
   static constexpr float kHeadroomDb = -12.0412f;
-  // Drive 1 is +36 dB: ln(10^(36/20)).
-  static constexpr float kLogMaxDrive = 4.1446532f;
+  // Drive 1 is +42 dB (kMaxDriveDb): ln(10^(42/20)).
+  static constexpr float kLogMaxDrive = 4.8354288f;
   static constexpr float kPushGain = 10.0f;
   static constexpr float kFilterGlideSeconds = 0.02f;
   static constexpr float kAutoGainGlideSeconds = 0.03f;
@@ -282,7 +299,7 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
     const float value = param(id);
     switch (id) {
       case kDrive:
-        drive_.set(value, primed());
+        drive_.set(drive_taper(value), primed());
         break;
       case kLowCut:
         low_cut_.set(std::log(value), primed());
