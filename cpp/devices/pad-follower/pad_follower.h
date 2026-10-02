@@ -16,11 +16,15 @@
 // - The bands are dealt in turn to eight register buses. Each bus sits at
 //   its own place across the stereo field and Movement lets its level and
 //   place drift slowly, so a held chord shimmers.
-// - The ensemble (section_chorus.h) is three modulated taps per side.
+// - The ensemble (section_chorus.h) is three modulated taps per side, one
+//   of them the main one, so that a single note keeps a steady level.
 // - Brightness and Low Cut shape the pad only; below 180 Hz the pad is mono.
 // - The pad is synthesised at a quarter or half of the host rate (it has
 //   nothing above 10 kHz) and brought back up by the kit's half-band filter.
 //   The dry signal never leaves the host rate and is not delayed.
+// - The pad alone passes a safety stage (linear up to -4.4 dBFS, a ceiling
+//   of full scale), so the output of a full-scale input stays under +3 dBFS
+//   at any setting. Mix 0 is the input, bit for bit.
 
 #include "../../kit/kit.h"
 #include "follower_bank.h"

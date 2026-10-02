@@ -58,7 +58,7 @@ export const PAD_FOLLOWER_PARAMS = {
     taper: 'log',
     unit: 'Hz',
     description:
-      'Low-pass on the pad. Lower settings push it further behind the instrument; higher ones let its upper partials and the octave above shine. The pad has nothing above 10 kHz.',
+      'How bright the pad is. Lower settings push it further behind the instrument; higher ones let its upper partials and the octave above shine.',
   },
   ensemble: {
     id: 5,
@@ -69,7 +69,7 @@ export const PAD_FOLLOWER_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How many players the pad seems to have. At zero it is one steady voice per note; raising it adds the slow detuned chorus of a string section.',
+      'How many players the pad seems to have. At zero it is one steady voice per note; raising it detunes and spreads the voices into the slow chorus of a string section.',
   },
   movement: {
     id: 6,
@@ -80,7 +80,7 @@ export const PAD_FOLLOWER_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Slow drift in level and position across the registers of the pad, so a held chord keeps shimmering instead of standing still.',
+      'How much the pad moves by itself: every partial and every register drifts slowly in level and position, so a held chord keeps shimmering instead of standing still.',
   },
   lowCut: {
     id: 7,

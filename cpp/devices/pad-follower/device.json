@@ -51,7 +51,7 @@
       "default": 3500,
       "taper": "log",
       "unit": "Hz",
-      "description": "Low-pass on the pad. Lower settings push it further behind the instrument; higher ones let its upper partials and the octave above shine. The pad has nothing above 10 kHz."
+      "description": "How bright the pad is. Lower settings push it further behind the instrument; higher ones let its upper partials and the octave above shine."
     },
     {
       "key": "ensemble",
@@ -59,7 +59,7 @@
       "min": 0,
       "max": 1,
       "default": 0.6,
-      "description": "How many players the pad seems to have. At zero it is one steady voice per note; raising it adds the slow detuned chorus of a string section."
+      "description": "How many players the pad seems to have. At zero it is one steady voice per note; raising it detunes and spreads the voices into the slow chorus of a string section."
     },
     {
       "key": "movement",
@@ -67,7 +67,7 @@
       "min": 0,
       "max": 1,
       "default": 0.3,
-      "description": "Slow drift in level and position across the registers of the pad, so a held chord keeps shimmering instead of standing still."
+      "description": "How much the pad moves by itself: every partial and every register drifts slowly in level and position, so a held chord keeps shimmering instead of standing still."
     },
     {
       "key": "lowCut",
@@ -185,6 +185,6 @@
   },
   "origin": {
     "kind": "new",
-    "note": "Written for live-mix on cpp/kit. A bank of 64 narrow complex resonators from 60 Hz to 6 kHz reads the level and the exact pitch of each partial of the input; each band drives one sine oscillator, locked to the band's phase, through a slow rise-and-fall follower, so the pad plays the harmony without its attacks and holds its pitch while it fades. The octave above and below come from the same oscillators (squared and half-rate phasors), and a three-tap modulated ensemble per side turns them into a section. The filter-bank resynthesis follows the approach of Etienne Thuillier, 'Real-Time Polyphonic Octave Doubling for the Guitar' (Aalto University MSc thesis, 2016), as recalled; the band layout, the phase-locked oscillators and every constant here are this device's own, set by measurement."
+    "note": "Written for live-mix on cpp/kit. A bank of 64 narrow complex resonators from 60 Hz to 6 kHz reads the level and the exact pitch of each partial of the input; each band drives one sine oscillator, locked to the band's phase, through a slow rise-and-fall follower, so the pad plays the harmony without its attacks and holds its pitch while it fades. Noise gets no voice. The octave above and below come from the same oscillators (squared and half-rate phasors). To make it a section rather than an organ stop, every partial's level wanders slowly by itself, the upper partials are slightly rough and swell in after the lower ones, a gentle formant curve stands in for the bodies of the instruments, and an ensemble of three swept delay taps per side (one of them the main one, so that a single note keeps a steady level) spreads the pad across the stereo field. A safety stage on the pad alone keeps the output of a full-scale input under +3 dBFS. Filter-bank resynthesis after the approach of Thuillier, 'Real-Time Polyphonic Octave Doubling for the Guitar'; the band layout, the phase-locked oscillators and every constant here are this device's own."
   }
 }

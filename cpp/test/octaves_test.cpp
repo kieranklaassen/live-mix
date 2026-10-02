@@ -97,6 +97,50 @@ static std::vector<float> chord(const std::vector<double>& notes, int harmonics,
   return x;
 }
 
+// `notes` as a struck string or a soft pad would give them: every harmonic
+// up to 9 kHz, falling faster than 1/h and rolled off above 2.8 kHz. The
+// chord starts within `fade` seconds and is held.
+static std::vector<float> struck(const std::vector<double>& notes, float seconds, float gain, double fade = 0.002) {
+  std::vector<double> x(static_cast<size_t>(seconds * kRate), 0.0);
+  for (size_t n = 0; n < notes.size(); ++n) {
+    for (int h = 1; notes[n] * h < 9000.0; ++h) {
+      const double hz = notes[n] * h, a = std::pow(h, -1.3) * std::exp(-hz / 2800.0);
+      const double phase = 0.7 * static_cast<double>(n) + 1.3 * h;
+      for (size_t i = 0; i < x.size(); ++i) x[i] += a * std::sin(2.0 * kPi * hz * static_cast<double>(i) / kRate + phase);
+    }
+  }
+  double top = 0.0;
+  for (double v : x) top = std::max(top, std::fabs(v));
+  std::vector<float> out(x.size());
+  const double ramp = fade * kRate;
+  for (size_t i = 0; i < x.size(); ++i) {
+    out[i] = static_cast<float>(x[i] * gain / top * std::min(1.0, static_cast<double>(i) / ramp));
+  }
+  return out;
+}
+
+// How far (dB) what is on the multiples of `wanted` (within 25 Hz) stands
+// above everything else, in the 4096 samples of x from `from`.
+static double clean_db(const std::vector<float>& x, size_t from, const std::vector<double>& wanted) {
+  const int n = 4096;
+  double in = 0.0, rest = 0.0;
+  for (int b = 3; b < n * 11000 / static_cast<int>(kRate); ++b) {
+    const double hz = b * static_cast<double>(kRate) / n;
+    double re = 0.0, im = 0.0;
+    for (int i = 0; i < n; ++i) {
+      const double w = 0.5 - 0.5 * std::cos(2.0 * kPi * i / n);
+      re += w * x[from + i] * std::cos(2.0 * kPi * b * i / n);
+      im += w * x[from + i] * std::sin(2.0 * kPi * b * i / n);
+    }
+    bool is_wanted = false;
+    for (double f : wanted) {
+      if (std::fabs(hz - f * std::floor(hz / f + 0.5)) < 25.0) is_wanted = true;
+    }
+    (is_wanted ? in : rest) += re * re + im * im;
+  }
+  return 10.0 * std::log10(in / (rest + 1.0e-30));
+}
+
 static const int kVoiceParam[4] = {p::kSub2, p::kSub1, p::kUp1, p::kUp2};
 static const double kVoiceRatio[4] = {0.25, 0.5, 2.0, 4.0};
 static const char* kVoiceName[4] = {"two down", "one down", "one up", "two up"};
@@ -176,6 +220,48 @@ int main() {
                 db(weakest / other.level));
     EXPECT(db(weakest / other.level) > 10.0, "harmonic-rich chord: intermodulation stays 10 dB under the notes");
   }
+  // Chords as they are played: harmonics that fall away, notes in tune. Held,
+  // the strongest thing that is not an octave of some partial of the chord
+  // stays well under the weakest note's octave.
+  {
+    const std::vector<std::vector<double>> played = {
+        {196.0, 246.94, 293.66}, {220.0, 261.63, 329.63}, {261.63, 329.63, 392.0, 493.88}, {130.81, 164.81, 196.0}};
+    double worst[2] = {1.0e9, 1.0e9};
+    for (const std::vector<double>& chord_notes : played) {
+      const std::vector<float> input = struck(chord_notes, 2.5f, 0.6f);
+      for (int v = 1; v <= 2; ++v) {
+        solo(device, kVoiceParam[v]);
+        Stereo out = run(device, input);
+        std::vector<double> wanted;
+        double weakest = 1.0;
+        for (double hz : chord_notes) {
+          wanted.push_back(hz * kVoiceRatio[v]);
+          weakest = std::min(weakest, tone_level(out.left, hz * kVoiceRatio[v], kRate, out.left.size() - 32768));
+        }
+        const Peak other = strongest_other(out.left, wanted, 80);
+        std::printf("played chord from %.0f Hz, %s: strongest intermodulation %.0f Hz, %.1f dB under the weakest note\n",
+                    chord_notes[0], kVoiceName[v], other.hz, db(weakest / other.level));
+        worst[v - 1] = std::min(worst[v - 1], db(weakest / other.level));
+      }
+    }
+    EXPECT(worst[1] > 18.0, "played chords, one up: intermodulation is 18 dB under the weakest note");
+    EXPECT(worst[0] > 28.0, "played chords, one down: intermodulation is 28 dB under the weakest note");
+  }
+  // Notes a tone apart sit in neighbouring channels and still come out at
+  // their own levels.
+  {
+    solo(device, p::kUp1);
+    const std::vector<double> close = {261.63, 293.66, 329.63};
+    Stereo out = run(device, chord(close, 1, 2.5f, 0.6f));
+    double lo = 1.0e9, hi = -1.0e9;
+    for (double hz : close) {
+      const double level = db(tone_level(out.left, hz * 2.0, kRate, out.left.size() - 32768) / 0.2);
+      lo = std::min(lo, level);
+      hi = std::max(hi, level);
+    }
+    std::printf("three notes a tone apart, one up: their octaves are %+.2f to %+.2f dB against the notes\n", lo, hi);
+    EXPECT(lo > -2.0 && hi < 1.0, "notes a tone apart keep their levels");
+  }
 
   // Nearly latency-free: a note that starts abruptly has its octave at half
   // its final level within 10 ms (a 220 Hz channel is 48 Hz wide when it
@@ -199,6 +285,78 @@ int main() {
       std::snprintf(label, sizeof label, "the octave of a %.0f Hz note starts within 6 ms", hz[n]);
       EXPECT(first > 0.0 && first < 6.0, label);
     }
+  }
+
+  // No hiccup behind the start of a note: once the octave is there it stays,
+  // wherever the note sits among the channels (a channel that opens for the
+  // note and closes again must not drop it on the way).
+  {
+    double deepest = 0.0, slowest = 0.0;
+    for (int semitone = 0; semitone < 24; ++semitone) {
+      const double hz = 130.81 * std::pow(2.0, semitone / 12.0);
+      const std::vector<float> note = struck({hz}, 0.5f, 0.5f);
+      for (int v = 1; v <= 3; ++v) {
+        solo(device, kVoiceParam[v]);
+        Stereo out = run(device, note);
+        const double steady = rms(out.left, 14400, 24000);
+        for (size_t from = 1440; from + 960 <= 9600; from += 240) {
+          deepest = std::min(deepest, db(rms(out.left, from, from + 960) / steady));
+        }
+        if (v != 2) continue;
+        for (size_t from = 0; from + 240 <= 4800; from += 48) {
+          if (rms(out.left, from, from + 240) > 0.5 * steady) {
+            slowest = std::max(slowest, 1000.0 * static_cast<double>(from + 120) / kRate);
+            break;
+          }
+        }
+      }
+    }
+    std::printf("struck notes, C3 to B4, three voices: 20 ms level from 30 to 200 ms dips at most %.2f dB; one up at half level within %.1f ms\n",
+                deepest, slowest);
+    EXPECT(deepest > -2.0, "the octave of a struck note does not dip behind its start");
+    EXPECT(slowest < 14.0, "the octave of every note from C3 up is at half level within 14 ms");
+  }
+
+  // A chord that is struck: while its channels are still wide its notes
+  // share them and intermodulate, but a tenth of a second later the octave
+  // is clean.
+  {
+    double worst = 1.0e9;
+    const std::vector<std::vector<double>> played = {{196.0, 246.94, 293.66}, {261.63, 329.63, 392.0, 493.88}};
+    for (const std::vector<double>& chord_notes : played) {
+      solo(device, p::kUp1);
+      Stereo out = run(device, struck(chord_notes, 0.5f, 0.5f));
+      std::vector<double> wanted;
+      for (double hz : chord_notes) wanted.push_back(2.0 * hz);
+      const double clean = clean_db(out.left, 5280, wanted);
+      std::printf("struck chord from %.0f Hz, one up, 110 to 195 ms: the octaves stand %.1f dB over everything else\n",
+                  chord_notes[0], clean);
+      worst = std::min(worst, clean);
+    }
+    EXPECT(worst > 18.0, "a struck chord's octave is clean a tenth of a second on");
+  }
+
+  // Vibrato and bends: the octave follows a moving pitch without dipping
+  // (two channels that share the note must not cancel while it moves).
+  {
+    std::vector<float> input(static_cast<size_t>(2.0f * kRate));
+    double phase = 0.0;
+    for (size_t i = 0; i < input.size(); ++i) {
+      const double t = static_cast<double>(i) / kRate;
+      const double cents = t < 0.5 ? 0.0 : 40.0 * std::sin(2.0 * kPi * 5.5 * (t - 0.5));
+      phase += 2.0 * kPi * 220.0 * std::pow(2.0, cents / 1200.0) / kRate;
+      input[i] = 0.5f * static_cast<float>(std::sin(phase));
+    }
+    double deepest = 0.0;
+    for (int v = 1; v <= 3; ++v) {
+      solo(device, kVoiceParam[v]);
+      Stereo out = run(device, input);
+      for (size_t from = 24000; from + 960 <= input.size(); from += 240) {
+        deepest = std::min(deepest, db(rms(out.left, from, from + 960) / (0.5 * std::sqrt(0.5))));
+      }
+    }
+    std::printf("vibrato of 40 cents on 220 Hz: the 20 ms level of a voice dips at most %.2f dB\n", deepest);
+    EXPECT(deepest > -4.0, "the voices hold their level under vibrato");
   }
 
   // No warble: on a steady sine every voice holds its level to within
@@ -435,6 +593,65 @@ int main() {
     const double woke = tone_level(woken.left, 440.0, kRate, 4800) + tone_level(woken.right, 440.0, kRate, 4800);
     std::printf("tail: peak %.6f from 50 ms after a chord stops\n", peak(tail.left, 2400));
     EXPECT(woke > 0.45, "wakes on new input");
+  }
+
+  // After a sleep a chord starts as it does after init: the sleeping bank
+  // does not run, and what it remembered of the last notes must not make
+  // the next one start differently.
+  {
+    const std::vector<float> burst = struck({196.0, 246.94, 293.66}, 0.5f, 0.5f);
+    solo(device, p::kUp1);
+    Stereo first = run(device, burst);
+    Stereo gap = render(device, 2.0f, kRate);
+    Stereo second = run(device, burst);
+    double worst = 0.0;
+    for (size_t from = 0; from + 1200 <= burst.size(); from += 1200) {
+      worst = std::max(worst, std::fabs(db(rms(second.left, from, from + 1200) / rms(first.left, from, from + 1200))));
+    }
+    std::printf("after 2 s of silence: the same chord comes out within %.2f dB of the first time (25 ms levels)\n", worst);
+    EXPECT(peak(gap.left, 48000) == 0.0, "asleep between the two chords");
+    EXPECT(worst < 1.0, "a chord after a sleep starts like a chord after init");
+  }
+
+  // Bad input samples (not a number, infinity, 1e30) in the middle of a
+  // chord: the output stays finite and bounded, is back at its level 0.2 s
+  // later, and the device still falls silent and sleeps.
+  {
+    const float patches[3][p::kNumParams] = {
+        {0.0f, 0.5f, 1.0f, 0.5f, 0.0f, 0.0f, 16000.0f, 0.0f, 0.0f, 0.3f},
+        {0.25f, 0.6f, 0.9f, 0.5f, 0.3f, 0.0f, 7000.0f, 0.0f, 0.12f, 0.35f},
+        {0.0f, 0.7f, 0.0f, 0.9f, 0.4f, 0.8f, 3500.0f, 0.2f, 0.4f, 0.7f},
+    };
+    const float bad[3] = {std::nanf(""), HUGE_VALF, 1.0e30f};
+    const std::vector<float> input = struck({196.0, 246.94, 293.66}, 2.0f, 0.5f);
+    bool all_finite = true, asleep = true;
+    double top = 0.0, off = 0.0;
+    for (const float* patch : patches) {
+      device.init(kRate);
+      for (int id = 0; id < p::kNumParams; ++id) device.set_param(id, patch[id]);
+      Stereo clean = run(device, input);
+      for (float value : bad) {
+        device.init(kRate);
+        for (int id = 0; id < p::kNumParams; ++id) device.set_param(id, patch[id]);
+        std::vector<float> left = input, right = input;
+        left[48000] = value;
+        right[48011] = -value;
+        left[48300] = right[48300] = value;
+        Stereo out = run(device, left, right);
+        Stereo tail = render(device, 1.0f, kRate);
+        all_finite = all_finite && finite(out.left) && finite(out.right);
+        top = std::max(top, std::max(peak(out.left), peak(out.right)));
+        for (size_t from = 57900; from + 2400 <= input.size(); from += 2400) {
+          off = std::max(off, std::fabs(db(rms(out.left, from, from + 2400) / rms(clean.left, from, from + 2400))));
+        }
+        asleep = asleep && peak(tail.left, 36000) == 0.0 && peak(tail.right, 36000) == 0.0;
+      }
+    }
+    std::printf("bad input samples: output peak %.1f, level 0.2 s later within %.2f dB of an undisturbed run\n", top, off);
+    EXPECT(all_finite, "bad input samples leave the output finite");
+    EXPECT(top < 70.0, "a wild input sample is held to a bound");
+    EXPECT(off < 0.5, "the level is back 0.2 s after bad input samples");
+    EXPECT(asleep, "the device still falls silent and sleeps after bad input samples");
   }
 
   device.init(kRate);

@@ -591,6 +591,28 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
       { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.3 } },
     ],
   },
+  {
+    id: 'section-behind',
+    name: 'Section behind',
+    category: 'texture',
+    description:
+      'A string section swells in behind each chord and follows the harmony, set in a soft plate.',
+    effects: [
+      { deviceId: 'pad-follower', preset: 'Strings behind' },
+      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.25 } },
+    ],
+  },
+  {
+    id: 'strings-above',
+    name: 'Strings above',
+    category: 'texture',
+    description:
+      'A section an octave above what you play rises slowly over it and drifts off into a hall.',
+    effects: [
+      { deviceId: 'pad-follower', preset: 'Octave halo' },
+      { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.3 } },
+    ],
+  },
   // Pitch: shimmer, harmonizer, frequency shifting.
   {
     id: 'octave-halo',

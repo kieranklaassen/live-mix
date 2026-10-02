@@ -14,7 +14,7 @@ export const OCTAVES_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'The level of the voice two octaves below what you play. It gives the weight of organ pedals. Notes below about 130 Hz are left out of it, because two octaves under them is below hearing.',
+      'The level of the voice two octaves below what you play. It gives the weight of organ pedals. The lowest bass notes are left out of it, because two octaves under them is below hearing.',
   },
   sub1: {
     id: 1,
@@ -25,7 +25,7 @@ export const OCTAVES_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'The level of the voice one octave below what you play. It follows chords note for note, like a bass player doubling every string. Notes below about 65 Hz are left out of it.',
+      'The level of the voice one octave below what you play. It follows chords note for note, like a bass player doubling every string. The very lowest notes are left out of it.',
   },
   dry: {
     id: 2,
@@ -102,7 +102,7 @@ export const OCTAVES_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Pulls each octave voice slightly out of tune, each its own way, by up to 15 cents. It makes the slow beating of a twelve-string or of a rank of organ pipes that are not quite in tune.',
+      'Pulls each octave voice slightly out of tune, each its own way. It makes the slow beating of a twelve-string or of a rank of organ pipes that are not quite in tune.',
   },
   spread: {
     id: 9,
@@ -130,7 +130,7 @@ export const OCTAVES_DESCRIPTOR = wasmDeviceDescriptor(OCTAVES_DEVICE, {
   name: 'Octaves',
   category: 'pitch',
   description:
-    'Adds the notes you play one and two octaves down and up, chords included, with no audible delay and no warble.',
+    'Adds the notes you play one and two octaves down and up, following chords note by note with no audible delay; dense chords come out a little rougher than single notes.',
   presets: {
     Organ: {
       sub2: 0.25,
@@ -221,7 +221,7 @@ export const OCTAVES_DESCRIPTOR = wasmDeviceDescriptor(OCTAVES_DEVICE, {
 
 export type Octaves = WasmDevice<typeof OCTAVES_PARAMS>
 
-/** Adds the notes you play one and two octaves down and up, chords included, with no audible delay and no warble. */
+/** Adds the notes you play one and two octaves down and up, following chords note by note with no audible delay; dense chords come out a little rougher than single notes. */
 export function createOctaves(
   context: BaseAudioContext,
   options: WasmDeviceOptions<typeof OCTAVES_PARAMS> = {},

@@ -15,7 +15,7 @@
 // keeps a partial at a steady level whatever its pitch does, and two lesser
 // ones beside it that give the shimmer; there is no unswept path. The amount
 // sets how far the taps are swept and how strong the lesser ones are: none
-// at all at zero (one steady voice per note), a third of the main tap's
+// at all at zero (one steady voice per note), a fifth of the main tap's
 // level at the default, half of it at full.
 
 #include "../../kit/delay.h"

@@ -2,7 +2,7 @@
   "id": "octaves",
   "name": "Octaves",
   "category": "pitch",
-  "description": "Adds the notes you play one and two octaves down and up, chords included, with no audible delay and no warble.",
+  "description": "Adds the notes you play one and two octaves down and up, following chords note by note with no audible delay; dense chords come out a little rougher than single notes.",
   "class": "Octaves",
   "header": "octaves.h",
   "sources": [],
@@ -13,7 +13,7 @@
       "min": 0,
       "max": 1,
       "default": 0.0,
-      "description": "The level of the voice two octaves below what you play. It gives the weight of organ pedals. Notes below about 130 Hz are left out of it, because two octaves under them is below hearing."
+      "description": "The level of the voice two octaves below what you play. It gives the weight of organ pedals. The lowest bass notes are left out of it, because two octaves under them is below hearing."
     },
     {
       "key": "sub1",
@@ -21,7 +21,7 @@
       "min": 0,
       "max": 1,
       "default": 0.5,
-      "description": "The level of the voice one octave below what you play. It follows chords note for note, like a bass player doubling every string. Notes below about 65 Hz are left out of it."
+      "description": "The level of the voice one octave below what you play. It follows chords note for note, like a bass player doubling every string. The very lowest notes are left out of it."
     },
     {
       "key": "dry",
@@ -80,7 +80,7 @@
       "min": 0,
       "max": 1,
       "default": 0.0,
-      "description": "Pulls each octave voice slightly out of tune, each its own way, by up to 15 cents. It makes the slow beating of a twelve-string or of a rank of organ pipes that are not quite in tune."
+      "description": "Pulls each octave voice slightly out of tune, each its own way. It makes the slow beating of a twelve-string or of a rank of organ pipes that are not quite in tune."
     },
     {
       "key": "spread",
@@ -179,6 +179,6 @@
   },
   "origin": {
     "kind": "new",
-    "note": "Written for live-mix on cpp/kit. The method is filter-bank phase scaling after Etienne Thuillier, 'Real-Time Polyphonic Octave Doubling for the Guitar' (Aalto University MSc thesis, 2016), as also used in Steve Schulteis's open poly octave work: narrow complex band-pass channels, each played back with its phase doubled or halved. The channel shape, the phase equaliser, the channels that widen for a moment at each new note, and the sub-octave phase tracking are this device's own."
+    "note": "Written for live-mix on cpp/kit. A filter-bank octave generator after the approach of Etienne Thuillier, 'Real-Time Polyphonic Octave Doubling for the Guitar': the input is split into narrow complex band-pass channels, and each is played back with its phase doubled or halved and its level kept. The channel shape and layout, the phase equaliser, the channels that open wide for a moment at each new note, the turning down of channels in which two notes collide, and the sub-octave sign tracking are this device's own."
   }
 }

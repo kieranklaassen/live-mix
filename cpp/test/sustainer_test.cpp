@@ -178,6 +178,36 @@ static int ringing_lines(const std::vector<float>& x, size_t from, size_t to, do
   return lines;
 }
 
+// A sung or bowed note: harmonics that fall off, all moving together with a
+// vibrato of `cents` either way at 5.5 Hz.
+static std::vector<float> vibrato_note(float hz, float seconds, float cents, float gain) {
+  std::vector<float> out(static_cast<size_t>(seconds * kRate), 0.0f);
+  double phase = 0.0;
+  for (size_t i = 0; i < out.size(); ++i) {
+    const double t = static_cast<double>(i) / kRate;
+    phase += 2.0 * M_PI * hz * std::pow(2.0, cents * std::sin(2.0 * M_PI * 5.5 * t) / 1200.0) / kRate;
+    double value = 0.0;
+    for (int n = 1; n <= 12; ++n) value += std::sin(n * phase) / n;
+    out[i] = static_cast<float>(gain * std::min(1.0, t / 0.05) * value);
+  }
+  return out;
+}
+
+// How much the level of the tone nearest `hz` swings between windows of
+// 50 ms, in dB, and where that tone is (cents from `hz`).
+static double tone_swing_db(const std::vector<float>& x, double hz, size_t from, size_t to, double* cents) {
+  const double found = dominant_frequency(x, kRate, hz * 0.96, hz * 1.04, from, to);
+  if (cents) *cents = 1200.0 * std::log2(found / hz);
+  const size_t window = static_cast<size_t>(0.05f * kRate);
+  double lowest = 1.0e9, highest = 0.0;
+  for (size_t at = from; at + window <= to; at += window) {
+    const double level = tone_level(x, found, kRate, at, at + window);
+    lowest = std::min(lowest, level);
+    highest = std::max(highest, level);
+  }
+  return db(highest / std::max(lowest, 1.0e-12));
+}
+
 static void check_review_fixes();
 
 int main() {
@@ -857,5 +887,34 @@ static void check_review_fixes() {
     std::printf("sustainer: Latch, Hold On before the note: %d layer, held %.2f dB re the note\n", device.layers(), held);
     EXPECT(peak(quiet.left) == 0.0 && device.layers() == 1, "Latch armed in silence takes the first sound");
     EXPECT_NEAR(held, -2.5, 0.5, "and holds it at level");
+  }
+
+  // A note with vibrato. The second look used to rebuild its low partials
+  // from the long frame, which sees a moving partial as two or three
+  // sidebands: held, they fluttered against each other (up to 30 dB at
+  // twice the vibrato rate), and where the long frame saw one partial it
+  // put it at the average pitch, a quarter tone away from the overtones
+  // caught at an instant. Now the first look stands for such a note. And
+  // the overtones, whose lobes the vibrato widens, are still partials, not
+  // noise.
+  {
+    still(device);
+    device.set_param(p::kDecay, 60.0f);
+    Stereo high = run(device, join(vibrato_note(440.0f, 1.5f, 50.0f, 0.2f), silence(5.0f, kRate)));
+    const double first = tone_swing_db(high.left, 440.0, 5 * s / 2, 6 * s, nullptr);
+    const double second = tone_swing_db(high.left, 880.0, 5 * s / 2, 6 * s, nullptr);
+    still(device);
+    device.set_param(p::kDecay, 60.0f);
+    Stereo low = run(device, join(vibrato_note(220.0f, 1.5f, 40.0f, 0.2f), silence(5.0f, kRate)));
+    double at_first = 0.0, at_fifth = 0.0;
+    const double low_second = tone_swing_db(low.left, 440.0, 5 * s / 2, 6 * s, nullptr);
+    tone_swing_db(low.left, 220.0, 5 * s / 2, 6 * s, &at_first);
+    tone_swing_db(low.left, 1100.0, 5 * s / 2, 6 * s, &at_fifth);
+    std::printf("sustainer: held note with vibrato: 440 Hz note, first partial swings %.2f dB, second %.2f dB; 220 Hz note, "
+                "second partial swings %.2f dB, first partial at %+.1f cents, fifth at %+.1f cents\n",
+                first, second, low_second, at_first, at_fifth);
+    EXPECT(first < 1.0 && low_second < 1.0, "a note with vibrato: the held low partials do not flutter");
+    EXPECT(second < 1.5, "a note with vibrato: its overtones are held as partials, not as noise");
+    EXPECT(std::fabs(at_first - at_fifth) < 5.0, "a note with vibrato: low and high partials are held at one pitch");
   }
 }

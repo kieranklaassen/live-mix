@@ -4,7 +4,7 @@
 // the signal path around it). One real input at the bank's own rate, four
 // octave voices out.
 //
-// The method is filter-bank phase scaling (Thuillier 2016, see octaves.h):
+// The method is filter-bank phase scaling (after Thuillier, see octaves.h):
 // each channel is a narrow complex band-pass giving z = a·e^(jφ); the voices
 // are a·e^(j2φ), a·e^(j4φ), a·e^(jφ/2), a·e^(jφ/4) summed over the channels.
 // What is done here beyond that:
@@ -126,6 +126,18 @@ class OctaveBank {
       // Radians per tick, per Hz of the partial.
       const double ratio = std::exp2(kDetuneCents[v] * amount / 1200.0) - 1.0;
       det_rate_[v] = static_cast<float>(2.0 * kPiD * ratio * kVoiceRatio[v] * tick_seconds_);
+    }
+  }
+
+  // After a pause of unknown length (the device slept and the bank did not
+  // run): the onset detector forgets the levels it remembered, as it would
+  // have in the silence, so the next note starts as a first note does.
+  void rest() {
+    for (int k = 0; k < bands_; ++k) {
+      jump_ref_[k] = 0.0f;
+      jump_fast_[k] = 0.0f;
+      jump_hold_[k] = 0;
+      for (int i = 0; i < kJumpDelay; ++i) jump_ring_[i][k] = 0.0f;
     }
   }
 

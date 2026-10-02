@@ -8,9 +8,9 @@
 //        └► mono ► ÷2 ► channel bank ► phase ×½ ×¼ ×2 ×4 ► levels, ► ×2 ► low-pass ►(+)► out
 //                       (OctaveBank.h)                     spread
 //
-// The method is the filter-bank phase scaling of Etienne Thuillier,
-// "Real-Time Polyphonic Octave Doubling for the Guitar" (Aalto University,
-// 2016): the input is split into narrow complex band-pass channels, each
+// The method is filter-bank phase scaling, after the approach of Etienne
+// Thuillier, "Real-Time Polyphonic Octave Doubling for the Guitar": the
+// input is split into narrow complex band-pass channels, each
 // giving an analytic signal a·e^(jφ), and each channel is played back with
 // its phase multiplied and its amplitude kept. A channel that holds one
 // partial gives an exact octave of it at once: there is no window to wait
@@ -81,10 +81,12 @@ class Octaves : public kit::DeviceBase<octaves::kNumParams> {
 
   void process(int frames) {
     frames = begin_block(frames);
+    const bool slept = idle_.asleep();
     if (!idle_.wake(input_present(frames))) {
       silence_output(frames);
       return;
     }
+    if (slept) bank_.rest();
     for (int i = 0; i < frames; ++i) {
       float left, right;
       take_input(i, &left, &right);

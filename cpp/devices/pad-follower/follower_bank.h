@@ -36,9 +36,15 @@
 //   reading as it stood a moment ago (longer than it takes to notice that the
 //   partial has gone) and stops following when it has: the pad hangs on at
 //   the played pitch.
-// - Not a voice: a band that hears two partials about equally (its reading
-//   swings wildly), noise (the same), or only a far-off neighbour (its first
-//   stage is much louder than its second).
+// - Not a voice: noise, or only a far-off neighbour (the band's first stage
+//   is then much louder than its second). Noise is told by two signs at once:
+//   the reading swings wildly from tick to tick and its average wanders too.
+//   A partial beside a louder neighbour is wild but its average stands
+//   still, a vibrato wanders but calmly, and both keep their voice.
+// - A section, not an organ stop. Every partial's level wanders slowly by
+//   itself, the upper ones are a little rough (the bow) and swell in later
+//   than the lower ones, and a gentle formant curve over the bands stands in
+//   for the body of the instruments.
 // - Octaves. The band's oscillator is a unit phasor u, so the octave above
 //   is Re(u²) exactly, and the octave below is a second phasor turned at half
 //   the rate. No pitch detection and no division by a small envelope.
@@ -421,9 +427,10 @@ class FollowerBank {
     // The oscillator follows the reading as it stood one to two notes ago:
     // by the time a ring is noticed it has not been heard.
     dev_[b] += commit_ * (kept_older_[b] - dev_[b]);
-    // A band in which two partials are about equally strong has no pitch of
-    // its own: its reading swings by bands at a time. So does noise. Neither
-    // gets a voice (each of the two partials has nearer bands that do).
+    // Noise has no pitch: its reading swings by bands at a time and the
+    // average of the reading wanders with it. Only the two together silence
+    // a band. (The swing alone is also what a partial beside a louder note
+    // shows, and the wandering alone a vibrato.)
     const float wild = (jitter_[b] - kJitterFull) * (1.0f / (kJitterMute - kJitterFull));
     const float adrift = (wander_[b] - kWanderFull) * (1.0f / (kWanderMute - kWanderFull));
     const float purity = 1.0f - kit::clamp(wild, 0.0f, 1.0f) * kit::clamp(adrift, 0.0f, 1.0f);
@@ -581,8 +588,10 @@ class FollowerBank {
   // |s1|²/|s2|² (normalised): a full voice up to the first, none from the second.
   static constexpr float kFarFull = 3.2f;
   static constexpr float kFarMute = 4.8f;
-  // Mean swing of the reading, in band spacings: a full voice up to the
-  // first, none from the second.
+  // Mean swing of the reading, in band spacings, and how far its average
+  // strays: each counts from its first figure and fully at its second, and
+  // a band that is fully both has no voice. Both readings are quick to rise
+  // and take kJitterFallSeconds to fall.
   static constexpr float kJitterFull = 0.6f;
   static constexpr float kJitterMute = 0.95f;
   static constexpr float kJitterFallSeconds = 0.2f;
