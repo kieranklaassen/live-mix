@@ -1599,7 +1599,7 @@ export const DEVICE_SKINS: Readonly<Record<string, DeviceSkin>> = {
     finish: 'grain',
     cap: 'skirt',
     face: ['time', 'feedback', 'modDepth', 'mix'],
-    labels: { feedback: 'Repeats', modDepth: 'Mod' },
+    labels: { modDepth: 'Mod' },
     picture: analogDelay,
   },
   'analog-drive': {
@@ -1621,7 +1621,6 @@ export const DEVICE_SKINS: Readonly<Record<string, DeviceSkin>> = {
     finish: 'fade',
     cap: 'disc',
     face: ['time', 'feedback', 'memory', 'mix'],
-    labels: { feedback: 'Repeats' },
     picture: echoMemory,
   },
   glitch: {
@@ -1643,7 +1642,6 @@ export const DEVICE_SKINS: Readonly<Record<string, DeviceSkin>> = {
     finish: 'matte',
     cap: 'dot',
     face: ['loss', 'dropouts', 'smear', 'mix'],
-    labels: { dropouts: 'Drops' },
     picture: lowBitrate,
   },
   'micro-looper': {
