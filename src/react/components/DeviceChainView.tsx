@@ -30,6 +30,7 @@ import {
 import { useMaybeArbiter, useMaybeEngine } from '../hooks/useEngine'
 import { useExternalSnapshot } from '../store'
 import { DevicePanel, type DevicePanelProps } from './DevicePanel'
+import { infoProps } from './info'
 import { cx } from './tokens'
 
 /** What a chain edits: anything with an ordered insert list (`ChannelStrip`, `Bus`). */
@@ -300,7 +301,15 @@ export function DeviceChainView({
             onDragEnd={onDragEnd}
             data-testid={testId ? `${testId}-item-${index - skip}` : undefined}
           >
-            <div className="lm-chain__handle" aria-hidden="true" title="Drag to reorder">
+            <div
+              className="lm-chain__handle"
+              aria-hidden="true"
+              title="Drag to reorder"
+              {...infoProps(
+                'Reorder',
+                'Drag the device onto another to give it that place in the chain. The sound runs through the devices from left to right, so their order changes the result.',
+              )}
+            >
               ⋮⋮
             </div>
             <DevicePanel
@@ -314,6 +323,10 @@ export function DeviceChainView({
                     type="button"
                     className="lm-button lm-button--neutral lm-chain__move"
                     aria-label={`Move ${device.id} earlier`}
+                    {...infoProps(
+                      'Move earlier',
+                      'Moves the device one place towards the start of the chain, so the sound reaches it sooner.',
+                    )}
                     disabled={index === skip}
                     onClick={() => step(index, -1)}
                     data-testid={testId ? `${testId}-earlier-${index - skip}` : undefined}
@@ -324,6 +337,10 @@ export function DeviceChainView({
                     type="button"
                     className="lm-button lm-button--neutral lm-chain__move"
                     aria-label={`Move ${device.id} later`}
+                    {...infoProps(
+                      'Move later',
+                      'Moves the device one place towards the end of the chain, so it works on what the devices before it made.',
+                    )}
                     disabled={index === inserts.length - 1}
                     onClick={() => step(index, 1)}
                     data-testid={testId ? `${testId}-later-${index - skip}` : undefined}
@@ -343,6 +360,10 @@ export function DeviceChainView({
           <select
             className="lm-chain__picker"
             aria-label="Add device"
+            {...infoProps(
+              'Add device',
+              'Puts a new device at the end of this chain. Pick one from the list, sorted by what it does.',
+            )}
             value=""
             disabled={adding}
             onChange={(event) => {

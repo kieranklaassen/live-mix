@@ -5,7 +5,17 @@ import { wasmDeviceDescriptor } from '../descriptor'
 import { defineWasmDevice, WasmDevice, type WasmDeviceOptions } from '../WasmDevice'
 
 export const BLOOM_REVERB_PARAMS = {
-  bloom: { id: 0, name: 'Bloom', min: 0, max: 1, default: 0.5, taper: 'linear', unit: '' },
+  bloom: {
+    id: 0,
+    name: 'Bloom',
+    min: 0,
+    max: 1,
+    default: 0.5,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How far the tail drifts in pitch as it rings, and how much of the shifted sound feeds back. At zero the pitch stays put.',
+  },
   direction: {
     id: 1,
     name: 'Direction',
@@ -15,6 +25,8 @@ export const BLOOM_REVERB_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Up', 'Down', 'Scatter'],
+    description:
+      'Up drifts the tail higher and Down lower. Scatter sends some grains up and others down at the same time.',
   },
   season: {
     id: 2,
@@ -25,8 +37,20 @@ export const BLOOM_REVERB_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Spring', 'Summer', 'Autumn', 'Winter'],
+    description:
+      'Tone of the tail. Spring is the brightest, Summer is full, Autumn rolls off the highs and Winter is the darkest.',
   },
-  decay: { id: 3, name: 'Decay', min: 1, max: 30, default: 5, taper: 'log', unit: 's' },
+  decay: {
+    id: 3,
+    name: 'Decay',
+    min: 1,
+    max: 30,
+    default: 5,
+    taper: 'log',
+    unit: 's',
+    description:
+      'How long the tail rings. Longer settings also make the pitch drift arrive more slowly.',
+  },
   seed: {
     id: 4,
     name: 'Seed',
@@ -36,8 +60,20 @@ export const BLOOM_REVERB_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Fundamental', 'Odd', 'Even'],
+    description:
+      'Subtle colouring of the tail. Fundamental leans on the lows, Odd adds a hollow edge and Even a rounder one.',
   },
-  mix: { id: 5, name: 'Mix', min: 0, max: 1, default: 0.5, taper: 'linear', unit: '' },
+  mix: {
+    id: 5,
+    name: 'Mix',
+    min: 0,
+    max: 1,
+    default: 0.5,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Balance between the dry signal and the reverb. Fully up is the drifting tail alone.',
+  },
   interval: {
     id: 6,
     name: 'Interval',
@@ -47,8 +83,20 @@ export const BLOOM_REVERB_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['5th', 'Octave', '5th+Oct', 'Atonal'],
+    description:
+      'The pitch the tail drifts towards: a fifth, an octave, or both at once. Atonal drifts smoothly with no fixed interval.',
   },
-  width: { id: 7, name: 'Width', min: 0, max: 1, default: 0.5, taper: 'linear', unit: '' },
+  width: {
+    id: 7,
+    name: 'Width',
+    min: 0,
+    max: 1,
+    default: 0.5,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Stereo width of the whole output, dry signal included. Zero is mono, the middle is normal stereo and the top is extra wide.',
+  },
 } as const satisfies Record<string, ParamSpec>
 
 export type BloomReverbParamName = keyof typeof BLOOM_REVERB_PARAMS

@@ -28,7 +28,17 @@ export const DUCKER_REPORT_HZ = 30
 export const DUCKER_BYPASS_RAMP_SECONDS = 0.005
 
 export const DUCKER_PARAMS = {
-  depth: { id: 0, name: 'Depth', min: 0, max: 1, default: DUCK_DEPTH, taper: 'linear', unit: '' },
+  depth: {
+    id: 0,
+    name: 'Depth',
+    min: 0,
+    max: 1,
+    default: DUCK_DEPTH,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How far the signal is turned down when the key is at full strength. Zero leaves it alone; full silences it.',
+  },
   attackMs: {
     id: 1,
     name: 'Attack',
@@ -37,6 +47,8 @@ export const DUCKER_PARAMS = {
     default: ENV_ATTACK_MS,
     taper: 'log',
     unit: 'ms',
+    description:
+      'How quickly the ducking follows the key when it gets louder. Short ducks as soon as a voice starts; long eases down.',
   },
   holdMs: {
     id: 2,
@@ -46,6 +58,8 @@ export const DUCKER_PARAMS = {
     default: DUCK_HOLD_MS,
     taper: 'linear',
     unit: 'ms',
+    description:
+      'How long the duck is held after the key falls before the release starts. It keeps the level from bobbing up in the gaps between words.',
   },
   releaseMs: {
     id: 3,
@@ -55,6 +69,8 @@ export const DUCKER_PARAMS = {
     default: ENV_RELEASE_MS,
     taper: 'log',
     unit: 'ms',
+    description:
+      'How quickly the signal comes back up after the key goes quiet. Long releases keep it down through short pauses.',
   },
   gainScale: {
     id: 4,
@@ -64,6 +80,8 @@ export const DUCKER_PARAMS = {
     default: ENV_GAIN_SCALE,
     taper: 'log',
     unit: '',
+    description:
+      'How strongly the key drives the duck. Higher reaches full depth on a quieter key; lower needs a louder key to duck as far.',
   },
   timeConstant: {
     id: 5,
@@ -73,6 +91,8 @@ export const DUCKER_PARAMS = {
     default: DUCK_TIME_CONSTANT,
     taper: 'log',
     unit: 's',
+    description:
+      'Extra smoothing on the gain itself, after attack and release. Longer makes every move down or up more gradual.',
   },
 } as const satisfies Record<string, ParamSpec>
 

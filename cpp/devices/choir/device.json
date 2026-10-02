@@ -7,19 +7,64 @@
   "header": "choir.h",
   "sources": [],
   "params": [
-    { "key": "vowel", "name": "Vowel", "min": 0, "max": 1, "default": 0.04 },
-    { "key": "voice", "name": "Voice", "min": 0.8, "max": 1.4, "default": 1.16, "unit": "x" },
-    { "key": "motion", "name": "Motion", "min": 0, "max": 1, "default": 0.35 },
-    { "key": "breath", "name": "Breath", "min": 0, "max": 1, "default": 0.3 },
-    { "key": "ensemble", "name": "Ensemble", "min": 0, "max": 1, "default": 0.65 },
-    { "key": "vibrato", "name": "Vibrato", "min": 0, "max": 60, "default": 10, "unit": "ct" },
+    {
+      "key": "vowel",
+      "name": "Vowel",
+      "min": 0,
+      "max": 1,
+      "default": 0.04,
+      "description": "Which vowel the choir sings, morphing from Ah through Eh, Ee and Oh to Oo."
+    },
+    {
+      "key": "voice",
+      "name": "Voice",
+      "min": 0.8,
+      "max": 1.4,
+      "default": 1.16,
+      "unit": "x",
+      "description": "Size of the singers' vocal tract, from basses at the bottom through men and women to children at the top. The pitch stays the same."
+    },
+    {
+      "key": "motion",
+      "name": "Motion",
+      "min": 0,
+      "max": 1,
+      "default": 0.35,
+      "description": "How much the vowel and the size of the voices drift slowly on their own, so a held chord keeps changing colour."
+    },
+    {
+      "key": "breath",
+      "name": "Breath",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "How much breath noise is mixed into the voices. It follows the notes being sung and takes on the vowel."
+    },
+    {
+      "key": "ensemble",
+      "name": "Ensemble",
+      "min": 0,
+      "max": 1,
+      "default": 0.65,
+      "description": "How many singers share each note, from one to three standing left and right, and how far apart they are in pitch and timing."
+    },
+    {
+      "key": "vibrato",
+      "name": "Vibrato",
+      "min": 0,
+      "max": 60,
+      "default": 10,
+      "unit": "ct",
+      "description": "Depth of the singers' vibrato. It arrives a moment after each note starts, the way a singer finds the note first."
+    },
     {
       "key": "vibratoRate",
       "name": "Vibrato Rate",
       "min": 3,
       "max": 8,
       "default": 5.2,
-      "unit": "Hz"
+      "unit": "Hz",
+      "description": "How fast the vibrato wavers. Each singer's rate is slightly different, so a section does not waver in step."
     },
     {
       "key": "attack",
@@ -28,7 +73,8 @@
       "max": 10,
       "default": 0.9,
       "taper": "log",
-      "unit": "s"
+      "unit": "s",
+      "description": "How long each note takes to fade in. Short is a clear entry; long is a slow swell."
     },
     {
       "key": "release",
@@ -37,7 +83,8 @@
       "max": 15,
       "default": 2.8,
       "taper": "log",
-      "unit": "s"
+      "unit": "s",
+      "description": "How long each note takes to fade out after the key is released."
     },
     {
       "key": "tone",
@@ -46,10 +93,26 @@
       "max": 12000,
       "default": 6500,
       "taper": "log",
-      "unit": "Hz"
+      "unit": "Hz",
+      "description": "Low-pass on the voices ahead of the vowel filter. Lower is darker and softer; higher is brighter with more breath and air."
     },
-    { "key": "width", "name": "Width", "min": 0, "max": 1, "default": 0.8 },
-    { "key": "volume", "name": "Volume", "min": -48, "max": 6, "default": -10, "unit": "dB" }
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 0.8,
+      "description": "How far the singers and the breath spread left and right. At zero the choir is mono."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -10,
+      "unit": "dB",
+      "description": "Output level of the instrument. A soft clip after it rounds off the peaks when many notes stack up."
+    }
   ],
   "presets": {
     "Airport ah": {

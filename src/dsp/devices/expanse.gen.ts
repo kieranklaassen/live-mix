@@ -5,14 +5,93 @@ import { wasmDeviceDescriptor } from '../descriptor'
 import { defineWasmDevice, WasmDevice, type WasmDeviceOptions } from '../WasmDevice'
 
 export const EXPANSE_PARAMS = {
-  mix: { id: 0, name: 'Mix', min: 0, max: 1, default: 0.4, taper: 'linear', unit: '' },
-  size: { id: 1, name: 'Size', min: 0, max: 1, default: 0.5, taper: 'linear', unit: '' },
-  decay: { id: 2, name: 'Decay', min: 0.5, max: 60, default: 10, taper: 'log', unit: 's' },
-  gravity: { id: 3, name: 'Gravity', min: 0, max: 1, default: 0, taper: 'linear', unit: '' },
-  density: { id: 4, name: 'Density', min: 0, max: 1, default: 0.8, taper: 'linear', unit: '' },
-  modDepth: { id: 5, name: 'Mod Depth', min: 0, max: 1, default: 0.4, taper: 'linear', unit: '' },
-  modRate: { id: 6, name: 'Mod Rate', min: 0.05, max: 5, default: 0.4, taper: 'log', unit: 'Hz' },
-  lowCut: { id: 7, name: 'Low Cut', min: 20, max: 1000, default: 80, taper: 'log', unit: 'Hz' },
+  mix: {
+    id: 0,
+    name: 'Mix',
+    min: 0,
+    max: 1,
+    default: 0.4,
+    taper: 'linear',
+    unit: '',
+    description: 'Balance between the dry signal and the reverb. Fully up is the reverb alone.',
+  },
+  size: {
+    id: 1,
+    name: 'Size',
+    min: 0,
+    max: 1,
+    default: 0.5,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How big the space is: how soon the first sound comes back and how far apart the echoes are. Moving it bends the pitch of the tail.',
+  },
+  decay: {
+    id: 2,
+    name: 'Decay',
+    min: 0.5,
+    max: 60,
+    default: 10,
+    taper: 'log',
+    unit: 's',
+    description:
+      'How long the tail takes to die away. At the very top the loop stops losing level and the tail hangs on for minutes.',
+  },
+  gravity: {
+    id: 3,
+    name: 'Gravity',
+    min: 0,
+    max: 1,
+    default: 0,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Makes the reverb swell in after the sound instead of answering at once. High settings give a reverse-like bloom.',
+  },
+  density: {
+    id: 4,
+    name: 'Density',
+    min: 0,
+    max: 1,
+    default: 0.8,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How smeared the echoes are. Low answers in separate, distinct echoes; high blurs them into a smooth wash.',
+  },
+  modDepth: {
+    id: 5,
+    name: 'Mod Depth',
+    min: 0,
+    max: 1,
+    default: 0.4,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How far the tail wavers in pitch. A little adds gentle movement; more is closer to a chorus. It also slowly dulls very long tails.',
+  },
+  modRate: {
+    id: 6,
+    name: 'Mod Rate',
+    min: 0.05,
+    max: 5,
+    default: 0.4,
+    taper: 'log',
+    unit: 'Hz',
+    description:
+      'How fast the tail wavers in pitch. Slow is a gentle drift; fast is a quicker, more restless flutter.',
+  },
+  lowCut: {
+    id: 7,
+    name: 'Low Cut',
+    min: 20,
+    max: 1000,
+    default: 80,
+    taper: 'log',
+    unit: 'Hz',
+    description:
+      'Thins the bass of the reverb. It works inside the loop, so the lows below it die away sooner than the rest.',
+  },
   highCut: {
     id: 8,
     name: 'High Cut',
@@ -21,6 +100,8 @@ export const EXPANSE_PARAMS = {
     default: 7000,
     taper: 'log',
     unit: 'Hz',
+    description:
+      'Darkens the reverb. It works inside the loop, so the highs above it die away sooner than the rest.',
   },
   freeze: {
     id: 9,
@@ -31,8 +112,19 @@ export const EXPANSE_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Off', 'On'],
+    description:
+      'On holds what is in the space for as long as you like and shuts out new sound, so you can play over it.',
   },
-  width: { id: 10, name: 'Width', min: 0, max: 1, default: 1, taper: 'linear', unit: '' },
+  width: {
+    id: 10,
+    name: 'Width',
+    min: 0,
+    max: 1,
+    default: 1,
+    taper: 'linear',
+    unit: '',
+    description: 'Stereo width of the reverb only. Zero is a mono tail; full is the widest.',
+  },
 } as const satisfies Record<string, ParamSpec>
 
 export type ExpanseParamName = keyof typeof EXPANSE_PARAMS

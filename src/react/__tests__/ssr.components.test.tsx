@@ -17,6 +17,7 @@ import {
   DevicePanel,
   DeviceToggle,
   Fader,
+  InfoView,
   Knob,
   LiveMixProvider,
   MasterStripView,
@@ -81,6 +82,11 @@ describe('kit components under SSR', () => {
     expect(renderToString(<DeviceToggle pressed onPressedChange={() => {}} />)).toContain(
       'role="switch"',
     )
+
+    // The info view draws its idle line on the server and follows the pointer only in a browser.
+    const info = renderToString(<InfoView />)
+    expect(info).toContain('Point at a control to read what it does.')
+    expect(knob).toContain('data-lm-info-title="Cutoff"')
     expect(
       renderToString(
         <ToggleButton pressed={false} onPressedChange={() => {}} tone="mute">

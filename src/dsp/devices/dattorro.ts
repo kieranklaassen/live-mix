@@ -6,9 +6,38 @@ import { type ParamSpec } from '../../core/params'
 import { defineWasmDevice, WasmDevice, type WasmDeviceOptions } from '../WasmDevice'
 
 export const DATTORRO_PARAMS = {
-  mix: { id: 0, name: 'Mix', min: 0, max: 1, default: 0.35, taper: 'linear', unit: '' },
-  decay: { id: 1, name: 'Decay', min: 0, max: 1, default: 0.7, taper: 'linear', unit: '' },
-  damping: { id: 2, name: 'Damping', min: 0, max: 1, default: 0.3, taper: 'linear', unit: '' },
+  mix: {
+    id: 0,
+    name: 'Mix',
+    min: 0,
+    max: 1,
+    default: 0.35,
+    taper: 'linear',
+    unit: '',
+    description: 'Balance between the dry signal and the plate. Fully up is the plate alone.',
+  },
+  decay: {
+    id: 1,
+    name: 'Decay',
+    min: 0,
+    max: 1,
+    default: 0.7,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How much of the sound goes round the plate again on each pass. Low dies quickly; near the top the tail rings for a long time.',
+  },
+  damping: {
+    id: 2,
+    name: 'Damping',
+    min: 0,
+    max: 1,
+    default: 0.3,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How quickly the highs die out of the tail. Low keeps the plate bright; high makes it dark and soft.',
+  },
   predelayMs: {
     id: 3,
     name: 'Pre-delay',
@@ -17,6 +46,8 @@ export const DATTORRO_PARAMS = {
     default: 20,
     taper: 'linear',
     unit: 'ms',
+    description:
+      'The gap before the plate answers, which keeps the start of the sound clear of its tail.',
   },
 } as const satisfies Record<string, ParamSpec>
 

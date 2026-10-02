@@ -11,26 +11,30 @@
       "key": "root",
       "name": "Root",
       "choices": ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"],
-      "default": 0
+      "default": 0,
+      "description": "The key the strings are tuned in. Match it to the key of the music so the strings ring with the notes you play."
     },
     {
       "key": "mode",
       "name": "Mode",
       "choices": ["Major", "Minor", "Learn"],
-      "default": 0
+      "default": 0,
+      "description": "Major or Minor picks the scale the strings are tuned to. Learn builds the scale from the notes it hears you play."
     },
     {
       "key": "sympathy",
       "name": "Sympathy",
       "min": 0,
       "max": 1,
-      "default": 0.5
+      "default": 0.5,
+      "description": "How hard the input drives the strings. Low is a faint halo behind the notes; high makes the strings ring out loudly."
     },
     {
       "key": "strings",
       "name": "Strings",
       "choices": ["4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16"],
-      "default": 4
+      "default": 4,
+      "description": "How many strings ring. The first few are the root, octave, fifth and third. More add the other scale notes and higher octaves."
     },
     {
       "key": "decay",
@@ -39,21 +43,24 @@
       "max": 10,
       "default": 3,
       "taper": "log",
-      "unit": "s"
+      "unit": "s",
+      "description": "How long the strings ring after the sound that set them off. The highest strings die away sooner."
     },
     {
       "key": "mix",
       "name": "Mix",
       "min": 0,
       "max": 1,
-      "default": 0.5
+      "default": 0.5,
+      "description": "Balance between the dry signal and the ringing strings. Fully up is the strings alone."
     },
     {
       "key": "width",
       "name": "Width",
       "min": 0,
       "max": 1,
-      "default": 0.5
+      "default": 0.5,
+      "description": "Spreads the strings across the stereo field. Zero puts them all in the centre; higher fans them out and widens the result."
     }
   ],
   "presets": {

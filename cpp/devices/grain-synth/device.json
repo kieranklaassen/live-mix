@@ -9,8 +9,22 @@
   "samples": true,
   "memoryMb": 12,
   "params": [
-    { "key": "position", "name": "Position", "min": 0, "max": 1, "default": 0.2 },
-    { "key": "scan", "name": "Scan", "min": -2, "max": 2, "default": 0.1 },
+    {
+      "key": "position",
+      "name": "Position",
+      "min": 0,
+      "max": 1,
+      "default": 0.2,
+      "description": "Where in the loaded sound the grains are taken from. Each key starts here and Scan moves on from it."
+    },
+    {
+      "key": "scan",
+      "name": "Scan",
+      "min": -2,
+      "max": 2,
+      "default": 0.1,
+      "description": "How fast each key travels through the sound, whatever its pitch. Zero freezes a moment, higher moves through it, negative runs backwards."
+    },
     {
       "key": "size",
       "name": "Size",
@@ -18,14 +32,58 @@
       "max": 2000,
       "default": 280,
       "taper": "log",
-      "unit": "ms"
+      "unit": "ms",
+      "description": "Length of each grain. Short grains turn the sound into a grainy texture; long ones let more of the original through."
     },
-    { "key": "density", "name": "Density", "min": 1, "max": 16, "default": 6 },
-    { "key": "spray", "name": "Spray", "min": 0, "max": 1, "default": 0.2 },
-    { "key": "detune", "name": "Detune", "min": 0, "max": 100, "default": 6, "unit": "ct" },
-    { "key": "octaves", "name": "Octaves", "min": 0, "max": 1, "default": 0.08 },
-    { "key": "shape", "name": "Shape", "min": 0, "max": 1, "default": 0 },
-    { "key": "reverse", "name": "Reverse", "min": 0, "max": 1, "default": 0.15 },
+    {
+      "key": "density",
+      "name": "Density",
+      "min": 1,
+      "max": 16,
+      "default": 6,
+      "description": "How many grains overlap at once. Low leaves a pulsing, broken texture; high is a smooth, dense cloud at the same loudness."
+    },
+    {
+      "key": "spray",
+      "name": "Spray",
+      "min": 0,
+      "max": 1,
+      "default": 0.2,
+      "description": "Scatters where each grain starts around the reading point. Low stays on one spot; high pulls grains from all over the sound."
+    },
+    {
+      "key": "detune",
+      "name": "Detune",
+      "min": 0,
+      "max": 100,
+      "default": 6,
+      "unit": "ct",
+      "description": "Random pitch offset for each grain, up or down. A little thickens the cloud; a lot blurs the pitch."
+    },
+    {
+      "key": "octaves",
+      "name": "Octaves",
+      "min": 0,
+      "max": 1,
+      "default": 0.08,
+      "description": "Chance that a grain plays an octave up or down, split evenly. Low adds a few glints; at the top no grain stays at the played pitch."
+    },
+    {
+      "key": "shape",
+      "name": "Shape",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "The fade on each grain. Low is a smooth bell; high is a flat top with quick fades, which sounds harder and choppier."
+    },
+    {
+      "key": "reverse",
+      "name": "Reverse",
+      "min": 0,
+      "max": 1,
+      "default": 0.15,
+      "description": "Chance that a grain plays backwards. At the top every grain is reversed."
+    },
     {
       "key": "attack",
       "name": "Attack",
@@ -33,7 +91,8 @@
       "max": 8,
       "default": 0.5,
       "taper": "log",
-      "unit": "s"
+      "unit": "s",
+      "description": "How long a key takes to fade in. Short speaks at once; long swells in slowly."
     },
     {
       "key": "release",
@@ -42,9 +101,17 @@
       "max": 12,
       "default": 2,
       "taper": "log",
-      "unit": "s"
+      "unit": "s",
+      "description": "How long the cloud rings on after a key is let go."
     },
-    { "key": "spread", "name": "Spread", "min": 0, "max": 1, "default": 0.7 },
+    {
+      "key": "spread",
+      "name": "Spread",
+      "min": 0,
+      "max": 1,
+      "default": 0.7,
+      "description": "How far the grains are scattered between left and right. Zero keeps every grain in the centre."
+    },
     {
       "key": "tone",
       "name": "Tone",
@@ -52,9 +119,18 @@
       "max": 18000,
       "default": 9000,
       "taper": "log",
-      "unit": "Hz"
+      "unit": "Hz",
+      "description": "Low-pass over the whole cloud. Lower is darker and softer; higher lets the full brightness through."
     },
-    { "key": "volume", "name": "Volume", "min": -48, "max": 6, "default": -9, "unit": "dB" }
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -9,
+      "unit": "dB",
+      "description": "Overall output level of the instrument."
+    }
   ],
   "presets": {
     "Cloud": {

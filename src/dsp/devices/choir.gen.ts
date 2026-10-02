@@ -5,12 +5,71 @@ import { wasmDeviceDescriptor } from '../descriptor'
 import { defineWasmDevice, WasmDevice, type WasmDeviceOptions } from '../WasmDevice'
 
 export const CHOIR_PARAMS = {
-  vowel: { id: 0, name: 'Vowel', min: 0, max: 1, default: 0.04, taper: 'linear', unit: '' },
-  voice: { id: 1, name: 'Voice', min: 0.8, max: 1.4, default: 1.16, taper: 'linear', unit: 'x' },
-  motion: { id: 2, name: 'Motion', min: 0, max: 1, default: 0.35, taper: 'linear', unit: '' },
-  breath: { id: 3, name: 'Breath', min: 0, max: 1, default: 0.3, taper: 'linear', unit: '' },
-  ensemble: { id: 4, name: 'Ensemble', min: 0, max: 1, default: 0.65, taper: 'linear', unit: '' },
-  vibrato: { id: 5, name: 'Vibrato', min: 0, max: 60, default: 10, taper: 'linear', unit: 'ct' },
+  vowel: {
+    id: 0,
+    name: 'Vowel',
+    min: 0,
+    max: 1,
+    default: 0.04,
+    taper: 'linear',
+    unit: '',
+    description: 'Which vowel the choir sings, morphing from Ah through Eh, Ee and Oh to Oo.',
+  },
+  voice: {
+    id: 1,
+    name: 'Voice',
+    min: 0.8,
+    max: 1.4,
+    default: 1.16,
+    taper: 'linear',
+    unit: 'x',
+    description:
+      "Size of the singers' vocal tract, from basses at the bottom through men and women to children at the top. The pitch stays the same.",
+  },
+  motion: {
+    id: 2,
+    name: 'Motion',
+    min: 0,
+    max: 1,
+    default: 0.35,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How much the vowel and the size of the voices drift slowly on their own, so a held chord keeps changing colour.',
+  },
+  breath: {
+    id: 3,
+    name: 'Breath',
+    min: 0,
+    max: 1,
+    default: 0.3,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How much breath noise is mixed into the voices. It follows the notes being sung and takes on the vowel.',
+  },
+  ensemble: {
+    id: 4,
+    name: 'Ensemble',
+    min: 0,
+    max: 1,
+    default: 0.65,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How many singers share each note, from one to three standing left and right, and how far apart they are in pitch and timing.',
+  },
+  vibrato: {
+    id: 5,
+    name: 'Vibrato',
+    min: 0,
+    max: 60,
+    default: 10,
+    taper: 'linear',
+    unit: 'ct',
+    description:
+      "Depth of the singers' vibrato. It arrives a moment after each note starts, the way a singer finds the note first.",
+  },
   vibratoRate: {
     id: 6,
     name: 'Vibrato Rate',
@@ -19,12 +78,63 @@ export const CHOIR_PARAMS = {
     default: 5.2,
     taper: 'linear',
     unit: 'Hz',
+    description:
+      "How fast the vibrato wavers. Each singer's rate is slightly different, so a section does not waver in step.",
   },
-  attack: { id: 7, name: 'Attack', min: 0.01, max: 10, default: 0.9, taper: 'log', unit: 's' },
-  release: { id: 8, name: 'Release', min: 0.05, max: 15, default: 2.8, taper: 'log', unit: 's' },
-  tone: { id: 9, name: 'Tone', min: 400, max: 12000, default: 6500, taper: 'log', unit: 'Hz' },
-  width: { id: 10, name: 'Width', min: 0, max: 1, default: 0.8, taper: 'linear', unit: '' },
-  volume: { id: 11, name: 'Volume', min: -48, max: 6, default: -10, taper: 'linear', unit: 'dB' },
+  attack: {
+    id: 7,
+    name: 'Attack',
+    min: 0.01,
+    max: 10,
+    default: 0.9,
+    taper: 'log',
+    unit: 's',
+    description:
+      'How long each note takes to fade in. Short is a clear entry; long is a slow swell.',
+  },
+  release: {
+    id: 8,
+    name: 'Release',
+    min: 0.05,
+    max: 15,
+    default: 2.8,
+    taper: 'log',
+    unit: 's',
+    description: 'How long each note takes to fade out after the key is released.',
+  },
+  tone: {
+    id: 9,
+    name: 'Tone',
+    min: 400,
+    max: 12000,
+    default: 6500,
+    taper: 'log',
+    unit: 'Hz',
+    description:
+      'Low-pass on the voices ahead of the vowel filter. Lower is darker and softer; higher is brighter with more breath and air.',
+  },
+  width: {
+    id: 10,
+    name: 'Width',
+    min: 0,
+    max: 1,
+    default: 0.8,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How far the singers and the breath spread left and right. At zero the choir is mono.',
+  },
+  volume: {
+    id: 11,
+    name: 'Volume',
+    min: -48,
+    max: 6,
+    default: -10,
+    taper: 'linear',
+    unit: 'dB',
+    description:
+      'Output level of the instrument. A soft clip after it rounds off the peaks when many notes stack up.',
+  },
 } as const satisfies Record<string, ParamSpec>
 
 export type ChoirParamName = keyof typeof CHOIR_PARAMS

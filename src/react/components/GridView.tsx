@@ -13,6 +13,7 @@ import { type ScoreScene } from '../../core/session/Scene'
 import { type Session } from '../../core/session/Session'
 import { type ScoreSlot, type SlotState } from '../../core/session/Slot'
 import { useSession, useSlot, type SessionCell } from '../hooks/useSession'
+import { infoProps } from './info'
 import { cx } from './tokens'
 
 export type GridQuantizeChoice = 'none' | 'beat' | 'bar' | 2 | 4 | 8
@@ -66,6 +67,10 @@ export function GridView({
               value={quantizeKey(grid.quantize)}
               onChange={(event) => grid.setQuantize(parseQuantizeKey(event.target.value))}
               aria-label="Launch quantize"
+              {...infoProps(
+                'Launch quantize',
+                'When a clip that was just launched starts: at once, or on the next bar or beat, so clips come in on time with what is playing.',
+              )}
               data-testid={idOf('quantize')}
             >
               {quantizeChoices.map((choice) => (
@@ -86,6 +91,10 @@ export function GridView({
             type="button"
             className="lm-button lm-grid__stop-all"
             onClick={() => grid.stopAll()}
+            {...infoProps(
+              'Stop all',
+              'Stops every clip that is playing, on the next launch point.',
+            )}
             data-testid={idOf('stop-all')}
           >
             Stop all
@@ -127,6 +136,7 @@ export function GridView({
                   type="button"
                   className="lm-button lm-grid__track-stop"
                   aria-label={`Stop ${track.name || track.id}`}
+                  {...infoProps('Stop track', 'Stops whatever clip is playing on this track.')}
                   onClick={() => grid.stopTrack(track.id)}
                   data-testid={idOf(`stop-${track.id}`)}
                 >
@@ -167,6 +177,10 @@ function SceneRow({ session, scene, cells, onLaunch, testId, slotTestId }: Scene
           )}
           onClick={onLaunch}
           aria-label={`Launch scene ${scene.name || scene.id}`}
+          {...infoProps(
+            'Launch scene',
+            'Launches every clip in this row together and stops the tracks whose slot in it is a stop.',
+          )}
           data-testid={testId}
         >
           <span aria-hidden="true" className="lm-grid__scene-icon">
@@ -211,6 +225,14 @@ function SlotCell({ session, slot, testId }: SlotCellProps) {
         )}
         aria-label={label}
         aria-pressed={view.playing || undefined}
+        {...infoProps(
+          isStop ? 'Stop slot' : 'Clip',
+          isStop
+            ? 'Stops whatever is playing on this track when it is launched.'
+            : gate
+              ? 'Plays this clip for as long as it is held down.'
+              : 'Launches this clip on the next launch point; it takes over from whatever its track was playing.',
+        )}
         data-state={isStop ? 'stop' : state}
         data-testid={testId ? `${testId}-${slot.id}` : undefined}
         onPointerDown={(event) => {

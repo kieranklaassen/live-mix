@@ -1570,6 +1570,74 @@
   color: var(--lm-muted);
 }
 
+/* --- Info view -------------------------------------------------------------
+ * A pane that names the control under the pointer and says what it does. It
+ * fills whatever box its host gives it; the text scrolls when the box is
+ * shorter than it. */
+
+.lm-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--lm-panel);
+  color: var(--lm-muted);
+  font-family: var(--lm-font);
+  font-size: var(--lm-font-size);
+  line-height: 1.35;
+}
+
+.lm-info__header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--lm-space-1);
+  min-height: var(--lm-row);
+  padding: 0 6px;
+  border-bottom: 1px solid var(--lm-border);
+}
+
+.lm-info__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--lm-text);
+  font-size: inherit;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lm-info--idle .lm-info__title {
+  color: var(--lm-muted);
+}
+
+.lm-info__actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-self: stretch;
+  align-items: center;
+}
+
+.lm-info__text {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: var(--lm-space-1) 6px;
+  overflow-y: auto;
+  font-size: calc(var(--lm-font-size) - 1px);
+}
+
+.lm-info__text p {
+  margin: 0;
+}
+
+/* What comes after the first paragraph is how the control is worked: set apart. */
+.lm-info__text p + p {
+  margin-top: var(--lm-space-1);
+}
+
 /* --- Sound icon ------------------------------------------------------------ */
 
 .lm-sound-icon {
@@ -1966,6 +2034,16 @@
 
 .lm-dense .lm-knob__label {
   letter-spacing: 0;
+}
+
+.lm-dense .lm-info__header {
+  height: var(--lm-row);
+  min-height: 0;
+  border-bottom-color: var(--lm-grid-line-strong);
+}
+
+.lm-dense .lm-info__title {
+  font-weight: 400;
 }
 
 .lm-dense .lm-button {

@@ -40,6 +40,7 @@ export {
 } from './core/json'
 export {
   clampParam,
+  describeParams,
   denormalizeParam,
   normalizeParam,
   type ParamSpec,

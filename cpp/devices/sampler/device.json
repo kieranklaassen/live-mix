@@ -9,13 +9,63 @@
   "samples": true,
   "memoryMb": 24,
   "params": [
-    { "key": "start", "name": "Start", "min": 0, "max": 1, "default": 0.15 },
-    { "key": "end", "name": "End", "min": 0, "max": 1, "default": 0.85 },
-    { "key": "loop", "name": "Loop", "choices": ["Off", "Forward", "Ping-pong"], "default": 1 },
-    { "key": "crossfade", "name": "Crossfade", "min": 0, "max": 500, "default": 50, "unit": "ms" },
-    { "key": "reverse", "name": "Reverse", "choices": ["Off", "On"], "default": 0 },
-    { "key": "tune", "name": "Tune", "min": -24, "max": 24, "default": 0, "unit": "st" },
-    { "key": "fine", "name": "Fine", "min": -100, "max": 100, "default": 0, "unit": "ct" },
+    {
+      "key": "start",
+      "name": "Start",
+      "min": 0,
+      "max": 1,
+      "default": 0.15,
+      "description": "The front edge of the region the keys play and loop. A later start skips the attack of the recording."
+    },
+    {
+      "key": "end",
+      "name": "End",
+      "min": 0,
+      "max": 1,
+      "default": 0.85,
+      "description": "The back edge of the region the keys play and loop. An earlier end leaves out the tail of the recording."
+    },
+    {
+      "key": "loop",
+      "name": "Loop",
+      "choices": ["Off", "Forward", "Ping-pong"],
+      "default": 1,
+      "description": "Off plays the region once and stops. Forward repeats it from the start, and Ping-pong plays it there and back."
+    },
+    {
+      "key": "crossfade",
+      "name": "Crossfade",
+      "min": 0,
+      "max": 500,
+      "default": 50,
+      "unit": "ms",
+      "description": "Smooths the jump of a Forward loop by blending the end of each pass into the next. Longer hides a rougher loop."
+    },
+    {
+      "key": "reverse",
+      "name": "Reverse",
+      "choices": ["Off", "On"],
+      "default": 0,
+      "description": "On plays the region backwards, so each key starts from the End."
+    },
+    {
+      "key": "tune",
+      "name": "Tune",
+      "min": -24,
+      "max": 24,
+      "default": 0,
+      "unit": "st",
+      "description": "Transposes the whole instrument. Pitch and speed move together, so lower also plays the recording slower."
+    },
+    {
+      "key": "fine",
+      "name": "Fine",
+      "min": -100,
+      "max": 100,
+      "default": 0,
+      "unit": "ct",
+      "description": "A small pitch offset on top of Tune, for matching the recording to other instruments."
+    },
     {
       "key": "attack",
       "name": "Attack",
@@ -23,7 +73,8 @@
       "max": 8,
       "default": 0.06,
       "taper": "log",
-      "unit": "s"
+      "unit": "s",
+      "description": "How long a note takes to fade in. Short keeps the recording's own start; long turns it into a swell."
     },
     {
       "key": "release",
@@ -32,7 +83,8 @@
       "max": 12,
       "default": 0.6,
       "taper": "log",
-      "unit": "s"
+      "unit": "s",
+      "description": "How long a note takes to fade out after the key is let go."
     },
     {
       "key": "tone",
@@ -41,11 +93,34 @@
       "max": 18000,
       "default": 8000,
       "taper": "log",
-      "unit": "Hz"
+      "unit": "Hz",
+      "description": "Low-pass filter on the whole instrument. Lower settings take the top off for a darker, softer sound."
     },
-    { "key": "wobble", "name": "Wobble", "min": 0, "max": 1, "default": 0.2 },
-    { "key": "velocity", "name": "Velocity", "min": 0, "max": 1, "default": 0.6 },
-    { "key": "volume", "name": "Volume", "min": -48, "max": 6, "default": -9, "unit": "dB" }
+    {
+      "key": "wobble",
+      "name": "Wobble",
+      "min": 0,
+      "max": 1,
+      "default": 0.2,
+      "description": "Tape-style pitch wobble shared by all keys: a slow wow with some drift and a trace of flutter. Zero is steady."
+    },
+    {
+      "key": "velocity",
+      "name": "Velocity",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "How much playing harder makes a note louder. At zero every note plays at full level."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -9,
+      "unit": "dB",
+      "description": "Output level of the instrument. Pushed hard, a soft clipper rounds off the peaks."
+    }
   ],
   "presets": {
     "Soft flute": {

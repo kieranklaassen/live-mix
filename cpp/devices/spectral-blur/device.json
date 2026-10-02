@@ -8,10 +8,38 @@
   "sources": [],
   "latencySamples": 2304,
   "params": [
-    { "key": "blur", "name": "Blur", "min": 0, "max": 1, "default": 0.6 },
-    { "key": "smear", "name": "Smear", "min": 0, "max": 1, "default": 0.7 },
-    { "key": "freeze", "name": "Freeze", "choices": ["Off", "On"], "default": 0 },
-    { "key": "tilt", "name": "Tilt", "min": -6, "max": 6, "default": -0.5, "unit": "dB/oct" },
+    {
+      "key": "blur",
+      "name": "Blur",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "How long each frequency hangs after the sound has moved on. Low is a short haze; high sustains it for many seconds."
+    },
+    {
+      "key": "smear",
+      "name": "Smear",
+      "min": 0,
+      "max": 1,
+      "default": 0.7,
+      "description": "Scrambles the phase of every frequency, which dissolves attacks into a diffuse wash. At zero the phases are left as they are."
+    },
+    {
+      "key": "freeze",
+      "name": "Freeze",
+      "choices": ["Off", "On"],
+      "default": 0,
+      "description": "On holds the spectrum of the moment and ignores new input. The held sound keeps drifting a little, so it is a slow drone and not a loop."
+    },
+    {
+      "key": "tilt",
+      "name": "Tilt",
+      "min": -6,
+      "max": 6,
+      "default": -0.5,
+      "unit": "dB/oct",
+      "description": "Leans the tone of the wet signal. Negative values are darker and bassier, positive values brighter and thinner."
+    },
     {
       "key": "lowCut",
       "name": "Low Cut",
@@ -19,7 +47,8 @@
       "max": 2000,
       "default": 20,
       "taper": "log",
-      "unit": "Hz"
+      "unit": "Hz",
+      "description": "Removes lows from the wet signal. At its lowest setting it is off."
     },
     {
       "key": "highCut",
@@ -28,11 +57,33 @@
       "max": 20000,
       "default": 12000,
       "taper": "log",
-      "unit": "Hz"
+      "unit": "Hz",
+      "description": "Removes highs from the wet signal. At its highest setting it is off."
     },
-    { "key": "shimmer", "name": "Shimmer", "min": 0, "max": 1, "default": 0.15 },
-    { "key": "width", "name": "Width", "min": 0, "max": 1, "default": 1 },
-    { "key": "mix", "name": "Mix", "min": 0, "max": 1, "default": 0.5 }
+    {
+      "key": "shimmer",
+      "name": "Shimmer",
+      "min": 0,
+      "max": 1,
+      "default": 0.15,
+      "description": "Adds a copy of the blurred sound an octave higher. Low is a faint halo; high is a bright octave over everything."
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "Makes the smearing differ between left and right, which widens the wash. At zero a mono input stays mono. Needs Smear or Freeze to act."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Balance between the dry signal and the blurred one."
+    }
   ],
   "presets": {
     "Hanging mist": {

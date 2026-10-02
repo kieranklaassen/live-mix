@@ -5,8 +5,28 @@ import { wasmDeviceDescriptor } from '../descriptor'
 import { defineWasmDevice, WasmDevice, type WasmDeviceOptions } from '../WasmDevice'
 
 export const TAPE_LOOP_PARAMS = {
-  length: { id: 0, name: 'Length', min: 1, max: 30, default: 1.8, taper: 'log', unit: 's' },
-  feedback: { id: 1, name: 'Feedback', min: 0, max: 1, default: 0.7, taper: 'linear', unit: '' },
+  length: {
+    id: 0,
+    name: 'Length',
+    min: 1,
+    max: 30,
+    default: 1.8,
+    taper: 'log',
+    unit: 's',
+    description:
+      'How long the loop is, the time before what was played comes round again. Changing it bends the pitch of everything on the loop.',
+  },
+  feedback: {
+    id: 1,
+    name: 'Feedback',
+    min: 0,
+    max: 1,
+    default: 0.7,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How much of each pass is recorded again. Low lets layers fade quickly; at full, with Wear at zero, the loop holds for ever.',
+  },
   speed: {
     id: 2,
     name: 'Speed',
@@ -16,6 +36,8 @@ export const TAPE_LOOP_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Half', 'Normal', 'Double'],
+    description:
+      'How fast the loop is played back. Half is an octave down and twice as long, Double an octave up. What is on the tape does not change.',
   },
   direction: {
     id: 3,
@@ -26,6 +48,8 @@ export const TAPE_LOOP_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Forward', 'Reverse'],
+    description:
+      'Reverse plays the loop backwards. On a change the playback slows to a stop and runs back up the other way.',
   },
   record: {
     id: 4,
@@ -36,12 +60,63 @@ export const TAPE_LOOP_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['On', 'Off'],
+    description:
+      'Off stops new playing from reaching the tape while the loop keeps turning and fading. On lets the input onto the tape again.',
   },
-  wear: { id: 5, name: 'Wear', min: 0, max: 1, default: 0.3, taper: 'linear', unit: '' },
-  wow: { id: 6, name: 'Wow', min: 0, max: 1, default: 0.2, taper: 'linear', unit: '' },
-  lowCut: { id: 7, name: 'Low Cut', min: 20, max: 800, default: 60, taper: 'log', unit: 'Hz' },
-  spread: { id: 8, name: 'Ping Pong', min: 0, max: 1, default: 0.3, taper: 'linear', unit: '' },
-  mix: { id: 9, name: 'Mix', min: 0, max: 1, default: 0.5, taper: 'linear', unit: '' },
+  wear: {
+    id: 5,
+    name: 'Wear',
+    min: 0,
+    max: 1,
+    default: 0.3,
+    taper: 'linear',
+    unit: '',
+    description:
+      'What each pass costs the tape: duller highs, soft saturation and a slow drift that blurs old layers. At zero a pass is an exact copy.',
+  },
+  wow: {
+    id: 6,
+    name: 'Wow',
+    min: 0,
+    max: 1,
+    default: 0.2,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Pitch wobble on playback, a slow drift with a faint flutter. It is not recorded, so it does not build up over passes.',
+  },
+  lowCut: {
+    id: 7,
+    name: 'Low Cut',
+    min: 20,
+    max: 800,
+    default: 60,
+    taper: 'log',
+    unit: 'Hz',
+    description:
+      'Removes lows from what the loop plays back. The tape itself is not filtered, so the cut does not deepen with each pass.',
+  },
+  spread: {
+    id: 8,
+    name: 'Ping Pong',
+    min: 0,
+    max: 1,
+    default: 0.3,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Records the input on the left and crosses the feedback between the sides, so layers change sides on every pass.',
+  },
+  mix: {
+    id: 9,
+    name: 'Mix',
+    min: 0,
+    max: 1,
+    default: 0.5,
+    taper: 'linear',
+    unit: '',
+    description: 'Balance between the dry signal and the loop.',
+  },
 } as const satisfies Record<string, ParamSpec>
 
 export type TapeLoopParamName = keyof typeof TAPE_LOOP_PARAMS

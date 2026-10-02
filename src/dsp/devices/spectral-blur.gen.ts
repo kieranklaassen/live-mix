@@ -5,8 +5,28 @@ import { wasmDeviceDescriptor } from '../descriptor'
 import { defineWasmDevice, WasmDevice, type WasmDeviceOptions } from '../WasmDevice'
 
 export const SPECTRAL_BLUR_PARAMS = {
-  blur: { id: 0, name: 'Blur', min: 0, max: 1, default: 0.6, taper: 'linear', unit: '' },
-  smear: { id: 1, name: 'Smear', min: 0, max: 1, default: 0.7, taper: 'linear', unit: '' },
+  blur: {
+    id: 0,
+    name: 'Blur',
+    min: 0,
+    max: 1,
+    default: 0.6,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How long each frequency hangs after the sound has moved on. Low is a short haze; high sustains it for many seconds.',
+  },
+  smear: {
+    id: 1,
+    name: 'Smear',
+    min: 0,
+    max: 1,
+    default: 0.7,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Scrambles the phase of every frequency, which dissolves attacks into a diffuse wash. At zero the phases are left as they are.',
+  },
   freeze: {
     id: 2,
     name: 'Freeze',
@@ -16,9 +36,30 @@ export const SPECTRAL_BLUR_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Off', 'On'],
+    description:
+      'On holds the spectrum of the moment and ignores new input. The held sound keeps drifting a little, so it is a slow drone and not a loop.',
   },
-  tilt: { id: 3, name: 'Tilt', min: -6, max: 6, default: -0.5, taper: 'linear', unit: 'dB/oct' },
-  lowCut: { id: 4, name: 'Low Cut', min: 20, max: 2000, default: 20, taper: 'log', unit: 'Hz' },
+  tilt: {
+    id: 3,
+    name: 'Tilt',
+    min: -6,
+    max: 6,
+    default: -0.5,
+    taper: 'linear',
+    unit: 'dB/oct',
+    description:
+      'Leans the tone of the wet signal. Negative values are darker and bassier, positive values brighter and thinner.',
+  },
+  lowCut: {
+    id: 4,
+    name: 'Low Cut',
+    min: 20,
+    max: 2000,
+    default: 20,
+    taper: 'log',
+    unit: 'Hz',
+    description: 'Removes lows from the wet signal. At its lowest setting it is off.',
+  },
   highCut: {
     id: 5,
     name: 'High Cut',
@@ -27,10 +68,40 @@ export const SPECTRAL_BLUR_PARAMS = {
     default: 12000,
     taper: 'log',
     unit: 'Hz',
+    description: 'Removes highs from the wet signal. At its highest setting it is off.',
   },
-  shimmer: { id: 6, name: 'Shimmer', min: 0, max: 1, default: 0.15, taper: 'linear', unit: '' },
-  width: { id: 7, name: 'Width', min: 0, max: 1, default: 1, taper: 'linear', unit: '' },
-  mix: { id: 8, name: 'Mix', min: 0, max: 1, default: 0.5, taper: 'linear', unit: '' },
+  shimmer: {
+    id: 6,
+    name: 'Shimmer',
+    min: 0,
+    max: 1,
+    default: 0.15,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Adds a copy of the blurred sound an octave higher. Low is a faint halo; high is a bright octave over everything.',
+  },
+  width: {
+    id: 7,
+    name: 'Width',
+    min: 0,
+    max: 1,
+    default: 1,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Makes the smearing differ between left and right, which widens the wash. At zero a mono input stays mono. Needs Smear or Freeze to act.',
+  },
+  mix: {
+    id: 8,
+    name: 'Mix',
+    min: 0,
+    max: 1,
+    default: 0.5,
+    taper: 'linear',
+    unit: '',
+    description: 'Balance between the dry signal and the blurred one.',
+  },
 } as const satisfies Record<string, ParamSpec>
 
 export type SpectralBlurParamName = keyof typeof SPECTRAL_BLUR_PARAMS

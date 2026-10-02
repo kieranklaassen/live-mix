@@ -14,6 +14,8 @@ export const FM_GLASS_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Bell', 'Glass', 'Mallet', 'Pad'],
+    description:
+      'Bell is two ringing pairs, Glass a bright ping over a pure tone, Mallet a short strike, and in Pad the brightness swells and stays. Applies from the next note.',
   },
   ratio: {
     id: 1,
@@ -24,6 +26,8 @@ export const FM_GLASS_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['0.5', '1', '1.41', '2', '2.76', '3', '3.5', '4', '5', '7', '9', '14'],
+    description:
+      'Pitch of the modulators against the note, which sets the overtones: whole numbers are harmonic, 1.41, 2.76 and 3.5 clang like bells. Applies from the next note.',
   },
   brightness: {
     id: 2,
@@ -33,16 +37,107 @@ export const FM_GLASS_PARAMS = {
     default: 0.45,
     taper: 'linear',
     unit: '',
+    description:
+      'How strongly the modulators colour the tone, from nearly a pure sine to bright, glassy overtones. High notes get less so they stay clean.',
   },
-  decay: { id: 3, name: 'Decay', min: 0.05, max: 20, default: 2.5, taper: 'log', unit: 's' },
-  attack: { id: 4, name: 'Attack', min: 0.001, max: 8, default: 0.003, taper: 'log', unit: 's' },
-  release: { id: 5, name: 'Release', min: 0.02, max: 15, default: 3, taper: 'log', unit: 's' },
-  sustain: { id: 6, name: 'Sustain', min: 0, max: 1, default: 0, taper: 'linear', unit: '' },
-  detune: { id: 7, name: 'Detune', min: 0, max: 30, default: 5, taper: 'linear', unit: 'ct' },
-  feedback: { id: 8, name: 'Feedback', min: 0, max: 1, default: 0.1, taper: 'linear', unit: '' },
-  velocity: { id: 9, name: 'Velocity', min: 0, max: 1, default: 0.6, taper: 'linear', unit: '' },
-  spread: { id: 10, name: 'Spread', min: 0, max: 1, default: 0.6, taper: 'linear', unit: '' },
-  volume: { id: 11, name: 'Volume', min: -48, max: 6, default: -9, taper: 'linear', unit: 'dB' },
+  decay: {
+    id: 3,
+    name: 'Decay',
+    min: 0.05,
+    max: 20,
+    default: 2.5,
+    taper: 'log',
+    unit: 's',
+    description:
+      "How long a note's brightness takes to die away. The note itself rings about four times longer, and low notes longer than high ones.",
+  },
+  attack: {
+    id: 4,
+    name: 'Attack',
+    min: 0.001,
+    max: 8,
+    default: 0.003,
+    taper: 'log',
+    unit: 's',
+    description:
+      'How long a note takes to fade in. Short gives a struck bell or mallet; long gives a pad.',
+  },
+  release: {
+    id: 5,
+    name: 'Release',
+    min: 0.02,
+    max: 15,
+    default: 3,
+    taper: 'log',
+    unit: 's',
+    description: 'How long a note takes to fade out after the key is released.',
+  },
+  sustain: {
+    id: 6,
+    name: 'Sustain',
+    min: 0,
+    max: 1,
+    default: 0,
+    taper: 'linear',
+    unit: '',
+    description:
+      'The level and brightness a held note settles at. At zero the note dies away like a struck bell; higher holds it like a pad.',
+  },
+  detune: {
+    id: 7,
+    name: 'Detune',
+    min: 0,
+    max: 30,
+    default: 5,
+    taper: 'linear',
+    unit: 'ct',
+    description:
+      'Tunes the two halves of each note apart so they beat slowly against each other. More is faster beating; at zero there is none.',
+  },
+  feedback: {
+    id: 8,
+    name: 'Feedback',
+    min: 0,
+    max: 1,
+    default: 0.1,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Makes the modulators modulate themselves, which adds a buzzy, sawtooth-like edge to the overtones.',
+  },
+  velocity: {
+    id: 9,
+    name: 'Velocity',
+    min: 0,
+    max: 1,
+    default: 0.6,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How much playing harder makes a note louder and brighter. At zero every note comes out at full level and brightness.',
+  },
+  spread: {
+    id: 10,
+    name: 'Spread',
+    min: 0,
+    max: 1,
+    default: 0.6,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Pans the two detuned halves of each note apart, so their beating moves between the speakers. At zero both sit in the centre.',
+  },
+  volume: {
+    id: 11,
+    name: 'Volume',
+    min: -48,
+    max: 6,
+    default: -9,
+    taper: 'linear',
+    unit: 'dB',
+    description:
+      'Output level of the instrument. A soft clip after it rounds off the peaks when many notes stack up.',
+  },
 } as const satisfies Record<string, ParamSpec>
 
 export type FmGlassParamName = keyof typeof FM_GLASS_PARAMS

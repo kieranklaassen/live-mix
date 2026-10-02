@@ -9,8 +9,24 @@
   "latencySamples": 77,
   "meters": [{ "key": "reduction", "name": "Gain reduction", "unit": "dB" }],
   "params": [
-    { "key": "ceiling", "name": "Ceiling", "min": -12, "max": 0, "default": -1, "unit": "dBTP" },
-    { "key": "gain", "name": "Gain", "min": -12, "max": 24, "default": 0, "unit": "dB" },
+    {
+      "key": "ceiling",
+      "name": "Ceiling",
+      "min": -12,
+      "max": 0,
+      "default": -1,
+      "unit": "dBTP",
+      "description": "The true-peak level the output never exceeds. Lower it to leave headroom for whatever comes after, such as a streaming encoder."
+    },
+    {
+      "key": "gain",
+      "name": "Gain",
+      "min": -12,
+      "max": 24,
+      "default": 0,
+      "unit": "dB",
+      "description": "Level going into the limiter. Raising it pushes more of the sound into the ceiling, so the result is louder and denser."
+    },
     {
       "key": "release",
       "name": "Release",
@@ -18,9 +34,17 @@
       "max": 10,
       "default": 1.5,
       "taper": "log",
-      "unit": "s"
+      "unit": "s",
+      "description": "How long the slow ride takes to let the level back up after a loud passage. Short recovers soon; long holds a swell down evenly."
     },
-    { "key": "ride", "name": "Ride", "min": 0, "max": 1, "default": 1 }
+    {
+      "key": "ride",
+      "name": "Ride",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "How much of a sustained over is turned down smoothly ahead of the brickwall. At zero only the brickwall works."
+    }
   ],
   "presets": {
     "Master": { "ceiling": -1, "gain": 0, "release": 1.5, "ride": 1 },

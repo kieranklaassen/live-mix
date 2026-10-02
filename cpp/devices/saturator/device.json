@@ -12,16 +12,73 @@
       "key": "curve",
       "name": "Curve",
       "choices": ["Soft", "Hard", "Tube", "Tape", "Fold"],
-      "default": 0
+      "default": 0,
+      "description": "The shape of the distortion. Soft and Tape round off gently, Hard clips flat, Tube is asymmetric for even harmonics, Fold wraps peaks back on themselves."
     },
-    { "key": "driveDb", "name": "Drive", "min": 0, "max": 36, "default": 6, "unit": "dB" },
-    { "key": "bias", "name": "Bias", "min": -1, "max": 1, "default": 0 },
-    { "key": "toneDb", "name": "Tone", "min": -12, "max": 12, "default": 0, "unit": "dB" },
-    { "key": "outputDb", "name": "Output", "min": -24, "max": 24, "default": 0, "unit": "dB" },
-    { "key": "mix", "name": "Mix", "min": 0, "max": 1, "default": 1 },
-    { "key": "dcBlock", "name": "DC Block", "choices": ["Off", "On"], "default": 1 },
-    { "key": "oversample", "name": "Oversampling", "choices": ["1x", "2x", "4x"], "default": 2 },
-    { "key": "adaa", "name": "ADAA", "choices": ["Off", "On"], "default": 0 }
+    {
+      "key": "driveDb",
+      "name": "Drive",
+      "min": 0,
+      "max": 36,
+      "default": 6,
+      "unit": "dB",
+      "description": "Gain into the curve. More drive means more harmonics and compression; with the Tape curve it also dulls the top."
+    },
+    {
+      "key": "bias",
+      "name": "Bias",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "description": "Moves the signal off the centre of the curve so the two halves of the wave distort differently, which adds even harmonics."
+    },
+    {
+      "key": "toneDb",
+      "name": "Tone",
+      "min": -12,
+      "max": 12,
+      "default": 0,
+      "unit": "dB",
+      "description": "Tilts the distorted signal around 1 kHz. Up brightens it and thins the lows; down darkens it and fills them out."
+    },
+    {
+      "key": "outputDb",
+      "name": "Output",
+      "min": -24,
+      "max": 24,
+      "default": 0,
+      "unit": "dB",
+      "description": "Level of the distorted signal after the curve, to make up for what Drive added. The dry part of Mix is not affected."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "Balance between the clean signal and the distorted one. Part way blends grit in under the untouched sound."
+    },
+    {
+      "key": "dcBlock",
+      "name": "DC Block",
+      "choices": ["Off", "On"],
+      "default": 1,
+      "description": "Removes the constant offset an asymmetric curve or Bias leaves in the signal. Leave it on unless the offset is wanted."
+    },
+    {
+      "key": "oversample",
+      "name": "Oversampling",
+      "choices": ["1x", "2x", "4x"],
+      "default": 2,
+      "description": "Runs the curve at a higher rate so its harmonics do not fold back as aliasing. 4x is cleanest; 1x costs least and aliases most."
+    },
+    {
+      "key": "adaa",
+      "name": "ADAA",
+      "choices": ["Off", "On"],
+      "default": 0,
+      "description": "Extra anti-aliasing on the Soft and Hard curves, which cleans up heavy drive further. It does nothing on Tube, Tape or Fold."
+    }
   ],
   "presets": {
     "Init": {

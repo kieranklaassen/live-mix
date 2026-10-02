@@ -21,7 +21,9 @@ import { type ParamSpec } from '../../core/params'
 import { useDeviceMeter } from '../hooks/useMeter'
 import { useDevice } from '../hooks/useParam'
 import { formatParamValue, isChoiceParam, paramStep, paramTaper } from './control-math'
+import { infoProps } from './info'
 import { Knob } from './Knob'
+import { paramInfo } from './param-info'
 import { DeviceToggle } from './Toggle'
 import { cx } from './tokens'
 
@@ -33,6 +35,10 @@ export interface DeviceFrameProps {
   disabled?: boolean
   /** Extra header controls (a preset picker, a remove button). */
   actions?: ReactNode
+  /** What the device is and is for, for the info view: said when its frame is pointed at. */
+  info?: string
+  /** What its power switch says in the info view; the default speaks of a device. */
+  powerInfo?: string
   children?: ReactNode
   className?: string
   style?: CSSProperties
@@ -46,6 +52,8 @@ export function DeviceFrame({
   onPowerChange,
   disabled = false,
   actions,
+  info,
+  powerInfo,
   children,
   className,
   style,
@@ -58,6 +66,7 @@ export function DeviceFrame({
       data-testid={testId}
       data-powered={powered ? 'true' : 'false'}
       aria-label={title}
+      {...(info ? infoProps(title, info) : {})}
     >
       <header className="lm-device__header">
         {onPowerChange ? (
@@ -65,6 +74,7 @@ export function DeviceFrame({
             pressed={powered}
             disabled={disabled}
             label={`${title} power`}
+            info={powerInfo}
             onPressedChange={onPowerChange}
             data-testid={testId ? `${testId}-power` : undefined}
           />
@@ -138,6 +148,10 @@ function DeviceMeterReadout({
       aria-label={spec.name}
       title={spec.name}
       data-testid={testId ? `${testId}-meter-${name}` : undefined}
+      {...infoProps(
+        spec.name,
+        `What the device is doing right now${spec.unit ? `, in ${spec.unit}` : ''}. It reads 0 while the device is off or has nothing to do.`,
+      )}
     >
       {formatDeviceMeter(active ? value : 0, spec.unit)}
     </output>
@@ -166,6 +180,7 @@ export function DevicePanel({
   const ownText = isParamTextDevice(device) ? device : null
   const presetsShown = showPresets ?? d.presets.length > 0
   const heading = title ?? d.descriptor?.name ?? d.id
+  const about = d.descriptor?.description
 
   const header = (
     <>
@@ -186,6 +201,10 @@ export function DevicePanel({
         <select
           className="lm-device__presets"
           aria-label={`${heading} preset`}
+          {...infoProps(
+            'Preset',
+            `Sets every knob of ${heading} to one of its ready-made settings. Turning a knob afterwards leaves the preset behind.`,
+          )}
           value={presetName}
           onChange={(event) => {
             const name = event.target.value
@@ -208,6 +227,10 @@ export function DevicePanel({
           className="lm-button lm-button--neutral lm-device__editor"
           aria-label={`Open ${heading} editor`}
           title="Open the plug-in's own window"
+          {...infoProps(
+            'Edit',
+            `Opens the window ${heading} draws itself, with every control its maker gave it.`,
+          )}
           onClick={() => {
             void device.openEditor().catch(() => {})
           }}
@@ -223,6 +246,7 @@ export function DevicePanel({
           className="lm-button lm-button--neutral lm-device__remove"
           aria-label={`Remove ${heading}`}
           onClick={onRemove}
+          {...infoProps('Remove', `Takes ${heading} out of the chain, with its settings.`)}
           data-testid={testId ? `${testId}-remove` : undefined}
         >
           ×
@@ -237,6 +261,8 @@ export function DevicePanel({
       powered={!d.bypass}
       onPowerChange={showBypass ? (powered) => d.setBypass(!powered) : undefined}
       actions={header}
+      info={about ?? `${heading}: one of the devices of this chain.`}
+      powerInfo={`Turns ${heading} off and on. Off, the sound passes through unchanged and the settings are kept.`}
       className={cx('lm-device--generated', className)}
       style={style}
       data-testid={testId}
@@ -282,6 +308,7 @@ export function DevicePanel({
               }}
               onChangeStart={() => d.touch(name)}
               onChangeEnd={() => d.release(name)}
+              info={paramInfo(spec) ?? `A setting of ${heading}.`}
               className="lm-device__param"
               data-testid={testId ? `${testId}-${name}` : undefined}
             />

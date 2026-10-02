@@ -5,9 +5,38 @@ import { wasmDeviceDescriptor } from '../descriptor'
 import { defineWasmDevice, WasmDevice, type WasmDeviceOptions } from '../WasmDevice'
 
 export const GRAIN_DELAY_PARAMS = {
-  time: { id: 0, name: 'Time', min: 10, max: 2000, default: 350, taper: 'log', unit: 'ms' },
-  spray: { id: 1, name: 'Spray', min: 0, max: 1, default: 0.15, taper: 'linear', unit: '' },
-  pitch: { id: 2, name: 'Pitch', min: -24, max: 24, default: 12, taper: 'linear', unit: 'st' },
+  time: {
+    id: 0,
+    name: 'Time',
+    min: 10,
+    max: 2000,
+    default: 350,
+    taper: 'log',
+    unit: 'ms',
+    description: 'How far behind the input the grains play, which is the delay time of the repeat.',
+  },
+  spray: {
+    id: 1,
+    name: 'Spray',
+    min: 0,
+    max: 1,
+    default: 0.15,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Makes each grain arrive a random amount later than Time. Low keeps the repeat tight; high smears it into a wash.',
+  },
+  pitch: {
+    id: 2,
+    name: 'Pitch',
+    min: -24,
+    max: 24,
+    default: 12,
+    taper: 'linear',
+    unit: 'st',
+    description:
+      'Transposes the repeats. With Feedback each repeat is shifted again, so they climb or fall in steps.',
+  },
   pitchSpray: {
     id: 3,
     name: 'Pitch Spray',
@@ -16,14 +45,85 @@ export const GRAIN_DELAY_PARAMS = {
     default: 0.08,
     taper: 'linear',
     unit: '',
+    description:
+      'Gives each grain its own random detune. Low thickens the repeat; high scatters it across as much as an octave either way.',
   },
-  size: { id: 4, name: 'Size', min: 10, max: 500, default: 120, taper: 'log', unit: 'ms' },
-  density: { id: 5, name: 'Density', min: 1, max: 8, default: 4, taper: 'log', unit: '' },
-  reverse: { id: 6, name: 'Reverse', min: 0, max: 1, default: 0, taper: 'linear', unit: '' },
-  feedback: { id: 7, name: 'Feedback', min: 0, max: 1, default: 0.45, taper: 'linear', unit: '' },
-  tone: { id: 8, name: 'Tone', min: 500, max: 16000, default: 6000, taper: 'log', unit: 'Hz' },
-  spread: { id: 9, name: 'Spread', min: 0, max: 1, default: 0.6, taper: 'linear', unit: '' },
-  mix: { id: 10, name: 'Mix', min: 0, max: 1, default: 0.35, taper: 'linear', unit: '' },
+  size: {
+    id: 4,
+    name: 'Size',
+    min: 10,
+    max: 500,
+    default: 120,
+    taper: 'log',
+    unit: 'ms',
+    description:
+      'How long each grain lasts. Short grains are grainy and tight in time; long grains are smoother and keep more of the phrase.',
+  },
+  density: {
+    id: 5,
+    name: 'Density',
+    min: 1,
+    max: 8,
+    default: 4,
+    taper: 'log',
+    unit: '',
+    description:
+      'How many grains overlap at once. Low lets the repeat pulse with gaps between grains; high is smoother and more even.',
+  },
+  reverse: {
+    id: 6,
+    name: 'Reverse',
+    min: 0,
+    max: 1,
+    default: 0,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Share of grains that play backwards. Zero is all forwards; full is all backwards.',
+  },
+  feedback: {
+    id: 7,
+    name: 'Feedback',
+    min: 0,
+    max: 1,
+    default: 0.45,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Sends the repeats back into the delay. Higher settings give more repeats, each one pitched and scattered again.',
+  },
+  tone: {
+    id: 8,
+    name: 'Tone',
+    min: 500,
+    max: 16000,
+    default: 6000,
+    taper: 'log',
+    unit: 'Hz',
+    description:
+      'Darkens the repeats. It sits in the feedback loop, so each repeat loses more highs than the last.',
+  },
+  spread: {
+    id: 9,
+    name: 'Spread',
+    min: 0,
+    max: 1,
+    default: 0.6,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Throws each grain to a random place between left and right. Higher settings make the repeats wider.',
+  },
+  mix: {
+    id: 10,
+    name: 'Mix',
+    min: 0,
+    max: 1,
+    default: 0.35,
+    taper: 'linear',
+    unit: '',
+    description: 'Balance between the dry signal and the grain repeats.',
+  },
 } as const satisfies Record<string, ParamSpec>
 
 export type GrainDelayParamName = keyof typeof GRAIN_DELAY_PARAMS
