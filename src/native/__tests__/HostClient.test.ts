@@ -93,6 +93,27 @@ describe('NativeHostClient', () => {
     expect((await client.known()).failed).toEqual(['/plugins/Broken.vst3'])
   })
 
+  it('stops a scan that is running, which answers with what it found', async () => {
+    const host = new FakePluginHost({ holdScans: true })
+    const client = await NativeHostClient.connect(FAKE_HOST_ADDRESS, {
+      createSocket: host.createSocket,
+    })
+    expect(await client.stopScan()).toBe(false)
+
+    const scan = client.scan()
+    expect(await client.stopScan()).toBe(true)
+    const result = await scan
+    expect(result.stopped).toBe(true)
+    expect(result.plugins).toHaveLength(2)
+
+    // One left to run says nothing of the kind.
+    const whole = client.scan()
+    await Promise.resolve()
+    expect(host.finishScan()).toBe(true)
+    expect((await whole).stopped).toBeUndefined()
+    expect(host.finishScan()).toBe(false)
+  })
+
   it('reads the list of a host from before it said what it left out', async () => {
     const host = new FakePluginHost()
     const client = await NativeHostClient.connect(FAKE_HOST_ADDRESS, {

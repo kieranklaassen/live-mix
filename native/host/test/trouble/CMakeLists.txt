@@ -20,7 +20,9 @@ juce_add_plugin(LiveMixTestTrouble
 
 target_sources(LiveMixTestTrouble PRIVATE TestTrouble.cpp)
 
+# JUCE_MODAL_LOOPS_PERMITTED: the plug-in serves events itself while its window is up.
 target_compile_definitions(LiveMixTestTrouble PUBLIC
+    JUCE_MODAL_LOOPS_PERMITTED=1
     JUCE_WEB_BROWSER=0
     JUCE_USE_CURL=0
     JUCE_VST3_CAN_REPLACE_VST2=0)

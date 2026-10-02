@@ -1,5 +1,7 @@
 #include "ScanWorker.h"
 
+#include "MacWindows.h"
+
 #include <atomic>
 #include <chrono>
 #include <csignal>
@@ -192,6 +194,11 @@ ScanWorker::ScanWorker (Job jobToRun)
    #if ! JUCE_WINDOWS
     endQuietlyOnACrash();
    #endif
+    // A scan shows nothing: a plug-in that puts a dialog up while it is
+    // looked at would put it over whatever the person is doing. Unless the
+    // dialogs are what someone wants to see.
+    if (juce::SystemStats::getEnvironmentVariable ("LIVE_MIX_SCAN_WINDOWS", {}).isEmpty())
+        keepWindowsOffScreen();
     watchOver (job);
     startThread();
 }
