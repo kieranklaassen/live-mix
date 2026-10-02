@@ -14,7 +14,7 @@ export const ANALOG_DRIVE_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How hard the sound hits the circuit. Low settings add weight and hold the peaks; further up it compresses, thickens and finally squares off.',
+      'How hard the sound hits the circuit. The bottom of the travel adds weight and holds the peaks, the middle is clearly driven, and further up it compresses, thickens and finally squares off.',
   },
   circuit: {
     id: 1,
@@ -26,7 +26,7 @@ export const ANALOG_DRIVE_PARAMS = {
     unit: '',
     choices: ['Tape preamp', 'Console', 'Transformer', 'Triode', 'Pentode'],
     description:
-      'What is being overdriven. Tape preamp is soft and dulls loud highs, Console is brighter with a firm edge, Transformer thickens and breaks up the lows first, Triode is smooth and lopsided, Pentode stays clean and then bites.',
+      'What is being overdriven. Tape preamp is soft, warm and a little dull; Console pushes the mids forward with a firm edge; Transformer is thick in the low mids and breaks up the lows first; Triode is smooth and open and adds an octave-up glow; Pentode is lean and bright, stays clean and then bites.',
   },
   push: {
     id: 2,
@@ -94,7 +94,7 @@ export const ANALOG_DRIVE_PARAMS = {
     unit: '',
     choices: ['Off', 'On'],
     description:
-      "On, the loudness stays about where it was while Drive changes the character. Off, Drive also makes it louder, up to the circuit's ceiling.",
+      "On, the loudness stays about where it was while Drive changes the character; quiet sounds still come up a little as they are driven. Off, Drive also makes it louder, up to the circuit's ceiling.",
   },
   output: {
     id: 8,
@@ -104,7 +104,8 @@ export const ANALOG_DRIVE_PARAMS = {
     default: 0,
     taper: 'linear',
     unit: 'dB',
-    description: 'Level of the driven sound. The clean part of Mix is not affected.',
+    description:
+      'Level of the driven sound. The clean part of Mix is not affected. Very loud settings are held back softly before they reach the output.',
   },
   mix: {
     id: 9,
@@ -133,7 +134,7 @@ export const ANALOG_DRIVE_DESCRIPTOR = wasmDeviceDescriptor(ANALOG_DRIVE_DEVICE,
   name: 'Analog Drive',
   category: 'drive',
   description:
-    'Five circuits to push a sound through (tape preamp, console, transformer, triode, pentode), from weight and glue to a folded-over fuzz, with the loudness held while you turn it up.',
+    'Five circuits to push a sound through (tape preamp, console, transformer, triode, pentode), from weight and glue to a folded-over fuzz, with the level roughly held while you turn it up.',
   presets: {
     'Warm glue': { circuit: 0, drive: 0.36, thump: 0.2, tone: -0.2, output: -2 },
     'Tape weight': { circuit: 0, drive: 0.6, thump: 0.7, tone: -0.4, highCut: 6500, output: -5 },
@@ -165,7 +166,7 @@ export const ANALOG_DRIVE_DESCRIPTOR = wasmDeviceDescriptor(ANALOG_DRIVE_DEVICE,
 
 export type AnalogDrive = WasmDevice<typeof ANALOG_DRIVE_PARAMS>
 
-/** Five circuits to push a sound through (tape preamp, console, transformer, triode, pentode), from weight and glue to a folded-over fuzz, with the loudness held while you turn it up. */
+/** Five circuits to push a sound through (tape preamp, console, transformer, triode, pentode), from weight and glue to a folded-over fuzz, with the level roughly held while you turn it up. */
 export function createAnalogDrive(
   context: BaseAudioContext,
   options: WasmDeviceOptions<typeof ANALOG_DRIVE_PARAMS> = {},
