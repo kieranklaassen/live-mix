@@ -122,7 +122,8 @@ export interface DevicePanelProps {
   'data-testid'?: string
 }
 
-function isBipolar(spec: ParamSpec): boolean {
+/** A parameter that rests in the middle of its range: its knob fills from the centre. */
+export function isBipolar(spec: ParamSpec): boolean {
   return spec.min < 0 && spec.max > 0 && spec.default === (spec.min + spec.max) / 2
 }
 
@@ -136,7 +137,8 @@ export function formatDeviceMeter(value: number, unit: string): string {
   return unit ? `${text} ${unit}` : text
 }
 
-function DeviceMeterReadout({
+/** One reading of a device that reports its own, as a number that follows it. */
+export function DeviceMeterReadout({
   device,
   name,
   spec,
