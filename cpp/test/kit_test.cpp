@@ -270,6 +270,30 @@ void test_lfo_and_env() {
   for (int i = 0; i < 48000; ++i) env.next();
   EXPECT(!env.active() && env.level() == 0.0f, "envelope goes idle at exact zero");
 
+  // A fast release cut short by the next note: that note releases at the set
+  // time. (A voice stolen while it is being faded for a steal.)
+  for (int restart = 0; restart < 2; ++restart) {
+    env.gate_on();
+    for (int i = 0; i < 48000; ++i) env.next();
+    env.fast_release(0.03f);
+    for (int i = 0; i < 48; ++i) env.next();
+    if (restart == 1) env.reset();
+    env.gate_on();
+    for (int i = 0; i < 48000; ++i) env.next();
+    env.gate_off();
+    for (int i = 0; i < static_cast<int>(0.15f * kRate); ++i) env.next();
+    EXPECT_NEAR(db(env.level() / 0.5), -30.0, 0.5,
+                restart == 0 ? "a note after a cut-short fast release keeps the set release"
+                             : "reset clears a fast release");
+    for (int i = 0; i < 48000; ++i) env.next();
+  }
+  env.gate_on();
+  for (int i = 0; i < 48000; ++i) env.next();
+  env.fast_release(0.03f);
+  for (int i = 0; i < static_cast<int>(0.03f * kRate); ++i) env.next();
+  EXPECT_NEAR(db(env.level() / 0.5), -60.0, 0.5, "a fast release covers 60 dB in its own time");
+  for (int i = 0; i < 4800; ++i) env.next();
+
   kit::Follower follower;
   follower.set(0.001f, 0.1f, kRate);
   float level = 0.0f;

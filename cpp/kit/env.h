@@ -29,13 +29,19 @@ class Adsr {
     recompute();
   }
 
-  void gate_on() { stage_ = kAttack; }
+  // A new note releases at the set time, whatever happened to the last one:
+  // a fast release cut short by the next note does not carry over.
+  void gate_on() {
+    stage_ = kAttack;
+    use_fast_ = false;
+  }
   void gate_off() {
     if (stage_ != kIdle) stage_ = kRelease;
   }
   void reset() {
     stage_ = kIdle;
     level_ = 0.0f;
+    use_fast_ = false;
   }
   // A release that completes in `seconds` regardless of the set time (steals).
   void fast_release(float seconds) {
