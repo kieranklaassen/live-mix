@@ -575,6 +575,28 @@ describe('Scheduler joins clips the position is inside', () => {
     expect(round(track.handed[0].when)).toBe(100)
   })
 
+  it('joins a clip whose tail runs over the loop end, from the pass it began on', () => {
+    const { ctx, transport, scheduler, track } = buildJoining([
+      { id: 'over', startSec: 30, durationSec: 4 },
+    ])
+    transport.start()
+    // A second into the second pass: three seconds into the clip the first pass began at 30 s.
+    ctx.currentTime = 133
+    transport.seek(1)
+    expect(track.joined()).toEqual(['over:1:30.000'])
+    expect(round(track.handed[0].when)).toBe(130)
+    // Once: later ticks leave it alone.
+    scheduler.tick()
+    expect(track.handed).toHaveLength(1)
+  })
+
+  it('enters no tail on the first counted pass: nothing began before the run', () => {
+    const { transport, track } = buildJoining([{ id: 'over', startSec: 30, durationSec: 4 }])
+    transport.seek(1)
+    transport.start()
+    expect(track.handed).toEqual([])
+  })
+
   it('does not join a clip that starts exactly there, or one that ends exactly there', () => {
     const { transport, track } = buildJoining()
     transport.seek(6.5)

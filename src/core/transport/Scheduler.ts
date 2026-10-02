@@ -367,12 +367,17 @@ export class Scheduler {
           loop,
         })
         // The transport started, or landed, inside these: they play from
-        // there rather than waiting for their start to come round again.
+        // there rather than waiting for their start to come round again. A
+        // clip that began on the pass before and runs over the loop's end is
+        // one of them, in its tail.
         if (schedulable.joinsLate) {
-          const pass = base.passOf(anchor.iteration)
-          for (const clip of clipsSoundingAt(clips, anchor.positionSec)) {
+          const entered = new Set<string>()
+          for (const { clip, iteration } of soundingUnder(clips, anchor, base)) {
+            if (entered.has(clip.id)) continue
+            const pass = base.passOf(iteration)
             if (!soundsOnPass(clip, pass, this.currentSeed)) continue
-            const start = { clipId: clip.id, iteration: anchor.iteration, startSec: clip.startSec }
+            entered.add(clip.id)
+            const start = { clipId: clip.id, iteration, startSec: clip.startSec }
             const when = base.contextTimeAt(start.startSec, start.iteration)
             joins.push({ ...start, when, pass })
           }
@@ -811,7 +816,7 @@ function soundingRate(schedulable: Schedulable, rate: number): number {
  */
 function soundingUnder(
   clips: ClipWindow['clips'],
-  here: TransportPosition,
+  here: Pick<TransportPosition, 'positionSec' | 'iteration'>,
   base: Timebase,
 ): { clip: WindowClip; iteration: number }[] {
   const loop = base.loop
