@@ -180,6 +180,11 @@ export function nearestDefaultPushColor(color: PushRgb): number {
   return g >= b ? PUSH_DEFAULT_COLORS.green : PUSH_DEFAULT_COLORS.blue
 }
 
+/** Web MIDI's answer to a sysex message from a page without that permission. */
+function isSysexRefusal(error: unknown): boolean {
+  return (error as { name?: unknown } | null)?.name === 'InvalidAccessError'
+}
+
 interface PendingReply {
   matches: (data: readonly number[]) => boolean
   resolve: (data: readonly number[] | null) => void
@@ -254,6 +259,8 @@ export class PushDevice {
   async open(options: PushOpenOptions = {}): Promise<void> {
     if (this.open_) return
     this.open_ = true
+    // A port that refused sysex last time may be a healthy one now.
+    this.sysex = true
     this.input.onmidimessage = (event) => {
       if (event.data) this.receive(event.data)
     }
@@ -293,6 +300,9 @@ export class PushDevice {
     }
     await this.queue.catch(() => undefined)
     this.saved = []
+    // The palette slots are the device's again, so the names no longer name them.
+    this.colors.clear()
+    this.colorValues.clear()
     this.settle(null)
     this.open_ = false
     this.input.onmidimessage = null
@@ -310,6 +320,9 @@ export class PushDevice {
     if (names.length > PUSH_PALETTE_SIZE) {
       throw new RangeError(`live-mix: a Push palette holds ${PUSH_PALETTE_SIZE} app colours`)
     }
+    // These are the app's colours now: a name left out has no index any more.
+    this.colors.clear()
+    this.colorValues.clear()
     const fresh: number[] = []
     names.forEach((name, i) => {
       const index = PUSH_PALETTE_FIRST + i
@@ -464,9 +477,11 @@ export class PushDevice {
     if (!this.open_ || !this.sysex) return
     try {
       this.output.send([...data])
-    } catch {
-      // Web MIDI throws when the page was not granted sysex: carry on without it.
-      this.sysex = false
+    } catch (error) {
+      // Only a page that was not granted sysex gives it up for this session;
+      // a port that went away mid-send is the other throw, and the next
+      // `open` tries sysex again.
+      if (isSysexRefusal(error)) this.sysex = false
     }
   }
 
