@@ -102,8 +102,8 @@ defaults (JAXA-Zen: Paper White `#FDFDFB`, Ceramic Grey `#F4F4F0`, Obsidian
 `#1A1A1A`, Vermillion `#E63946`; `data-lm-theme="dark"` for the same palette
 on Obsidian) or set the tokens yourself — `themeStyle(jaxaZenDark)` returns
 the inline style, `ambientWater` is ambient-live's water/moss palette,
-`graphite` and `paper` are the grid themes below, and `LM_TOKENS` lists every
-variable.
+`graphite`, `paper` and the other grid themes are below, and `LM_TOKENS` lists
+every variable.
 
 ```tsx
 import '@kieranklaassen/live-mix/react/styles.css'
@@ -222,11 +222,25 @@ function Shell() {
 
 ### The paint kit and the grid themes
 
-Three more themes and the pieces a paint-style arranger needs. `graphite`
-(dark), `paper` (light) and `water` (`ambientWater`'s palette) put the kit on a strict module, `--lm-col` ×
-`--lm-row` (40 × 20 px): square controls, 28 px knobs that fill one column, a
-Futura-style sans in a regular weight (`Jost` first in the stack; load it
-yourself). Set them with `data-lm-theme="graphite"` / `"paper"` / `"water"` or
+The grid themes and the pieces a paint-style arranger needs. The grid themes
+put the kit on a strict module, `--lm-col` × `--lm-row` (40 × 20 px): square
+controls, 28 px knobs that fill one column, a Futura-style sans in a regular
+weight (`Jost` first in the stack; load it yourself). They share that geometry
+and differ only in colour:
+
+| Theme       |       | Palette                                                      |
+| ----------- | ----- | ------------------------------------------------------------ |
+| `graphite`  | dark  | green-grey surfaces, mint accent                             |
+| `paper`     | light | off-white paper, ink rules, water-to-grass paint             |
+| `water`     | dark  | `ambientWater`'s deep water and moss                         |
+| `dusk`      | dark  | indigo-grey surfaces, peach accent, paint in dusk colours    |
+| `night`     | dark  | near black with a warm cast, dim amber accent, low chrome    |
+| `sand`      | light | oat surfaces, brown ink, terracotta accent                   |
+| `groovebox` | light | warm grey body, near-black ink, orange accent, primary paint |
+| `chalk`     | light | white surfaces, black ink, grey rules, one blue accent       |
+| `mist`      | light | cool off-white, blue-grey rules, slate ink, lavender accent  |
+
+Set one with `data-lm-theme="graphite"` (or any name above) or
 `themeStyle(graphite)`, and add `className="lm-dense"` on the wrapper for the
 density rules (one-row device title bars, no body padding, sentence-case
 labels). Every theme also carries a six-colour brush palette (`--lm-brush-N`
