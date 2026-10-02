@@ -186,7 +186,8 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
         colour_filter_[c][g].set_cutoff(kColourHz, sr);
       }
       high_cut_[c].reset();
-      low_cut_[c].reset();
+      low_cut_[c][0].reset();
+      low_cut_[c][1].reset();
       loop_high_[c].reset();
       loop_low_[c].reset();
       for (int j = 0; j < kPeriod; ++j) {
@@ -465,7 +466,8 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
       seen_low_ = param(kLowCut);
       for (int c = 0; c < 2; ++c) {
         high_cut_[c].set(seen_high_, kit::kSqrtHalf, sr);
-        low_cut_[c].set(seen_low_, kit::kSqrtHalf, sr);
+        low_cut_[c][0].set_cutoff(seen_low_, sr);
+        low_cut_[c][1].set_cutoff(seen_low_, sr);
         loop_high_[c].set_cutoff(seen_high_, sr);
         loop_low_[c].set_cutoff(seen_low_, sr);
       }
@@ -578,7 +580,9 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
         tail_clear_ = true;
       }
 
-      for (int c = 0; c < 2; ++c) wet[c] = low_cut_[c].highpass(high_cut_[c].lowpass(wet[c]));
+      for (int c = 0; c < 2; ++c) {
+        wet[c] = low_cut_[c][1].highpass(low_cut_[c][0].highpass(high_cut_[c].lowpass(wet[c])));
+      }
 
       const float width = width_.next();
       const float level = level_.next() * wet_.next();
@@ -652,7 +656,10 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
 
   kit::OnePole colour_filter_[2][2];
   kit::Svf high_cut_[2];
-  kit::Svf low_cut_[2];
+  // Two one-poles rather than a kit::Svf: at 20 Hz the Svf's second state
+  // is left decaying for half a minute at 1e-13 once the flush has zeroed
+  // its first, and the shape has to end in exact zeros.
+  kit::OnePole low_cut_[2][2];
   kit::OnePole loop_high_[2];
   kit::OnePole loop_low_[2];
 

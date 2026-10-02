@@ -1,0 +1,106 @@
+{
+  "id": "half-speed",
+  "name": "Half Speed",
+  "category": "pitch",
+  "description": "Plays what you are playing at half speed as you play it: an octave down and twice as slow, in repeating cycles that can chop like a rhythm or run together into one slow, deep bed.",
+  "class": "HalfSpeed",
+  "header": "half_speed.h",
+  "sources": [],
+  "memoryMb": 8,
+  "params": [
+    {
+      "key": "power",
+      "name": "Power",
+      "choices": ["On", "Off"],
+      "default": 0,
+      "description": "Off passes the dry signal. Switching it fades over a moment, and switching On starts a new cycle from the note being played."
+    },
+    {
+      "key": "length",
+      "name": "Length",
+      "min": 50,
+      "max": 4000,
+      "default": 1000,
+      "taper": "log",
+      "unit": "ms",
+      "description": "How long each cycle lasts before the slowed sound jumps forward to catch up with your playing. Short cycles stutter; long ones drag whole phrases out behind you."
+    },
+    {
+      "key": "speed",
+      "name": "Speed",
+      "choices": ["Three quarters", "Two thirds", "Half", "Quarter"],
+      "default": 2,
+      "description": "How slow the playback runs, and so how far the pitch drops: a fourth, a fifth, one octave or two octaves down. A change bends the pitch like a tape machine changing speed."
+    },
+    {
+      "key": "fade",
+      "name": "Fade",
+      "min": 0.01,
+      "max": 0.5,
+      "default": 0.15,
+      "description": "How much of each cycle is spent fading from the old cycle into the new one. Low is a tight cut, high lets the end of one cycle wash over the start of the next."
+    },
+    {
+      "key": "smooth",
+      "name": "Smooth",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "At zero you hear each cycle start, a rhythm of slowed chunks. Turning it up brings in a second playback half a cycle behind, until at full the jumps disappear into one continuous slowed sound."
+    },
+    {
+      "key": "jitter",
+      "name": "Jitter",
+      "min": 0,
+      "max": 1,
+      "default": 0.1,
+      "description": "Makes every cycle a little longer or shorter than the last, so the jumps stop ticking like a machine."
+    },
+    {
+      "key": "lowCut",
+      "name": "Low Cut",
+      "min": 20,
+      "max": 2000,
+      "default": 20,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "Removes lows from the slowed sound, which keeps a thick source from turning to mud an octave down."
+    },
+    {
+      "key": "highCut",
+      "name": "High Cut",
+      "min": 500,
+      "max": 20000,
+      "default": 20000,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "Removes highs from the slowed sound, for a darker bed that sits under the dry signal."
+    },
+    {
+      "key": "spread",
+      "name": "Spread",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Lets the right side run its cycles later than the left, so the jumps land at different moments and the slowed sound widens. The bass stays together."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "Balance between the dry signal and the slowed sound."
+    }
+  ],
+  "presets": {
+    "Half speed": {},
+    "Slow chops": { "length": 500, "smooth": 0, "fade": 0.06, "jitter": 0 },
+    "Continuous octave": { "length": 2400, "smooth": 1 },
+    "Fifth down bed": { "speed": 1, "length": 1600, "smooth": 0.8, "mix": 0.5 }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit."
+  }
+}

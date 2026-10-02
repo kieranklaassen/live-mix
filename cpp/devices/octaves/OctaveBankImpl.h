@@ -107,17 +107,8 @@ inline void OctaveBank::init(float rate, float low_hz, float high_hz, int count)
   up2_bands_ = bands_;
   while (up2_bands_ > 0 && limit_up2_[up2_bands_ - 1] == 0.0f) --up2_bands_;
 
-  for (int z = 0; z < kZones; ++z) {
-    zone_filter_[z].reset();
-    zone_filter_[z].set(80.0f * std::exp2(static_cast<float>(z)), 1.2f, rate);
-    zone_fast_[z] = 0.0f;
-    zone_slow_[z] = 0.0f;
-    zone_armed_[z] = true;
-    zone_fired_[z] = false;
-  }
-  zone_attack_ = std::exp(-1.0f / (0.0005f * rate));
-  zone_release_ = std::exp(-1.0f / (0.004f * rate));
-  zone_slow_coeff_ = 1.0f - std::exp(-1.0f / (0.025f * rate));
+  for (int& size : zone_size_) size = 0;
+  for (int k = 0; k < bands_; ++k) ++zone_size_[zone_of_[k]];
 }
 
 // Move channel k's poles to `open` (0 settled .. 1 just after an onset). The
@@ -168,24 +159,6 @@ inline void OctaveBank::set_width(int k, float open, bool rescale) {
 }
 
 inline void OctaveBank::process(float x, const Want& want, Frame* out) {
-  // Onset zones: a fast envelope against a slow one, per octave.
-  for (int z = 0; z < kZones; ++z) {
-    const float band = zone_filter_[z].bandpass(x);
-    const float magnitude = band < 0.0f ? -band : band;
-    const float coeff = magnitude > zone_fast_[z] ? zone_attack_ : zone_release_;
-    zone_fast_[z] = magnitude + (zone_fast_[z] - magnitude) * coeff;
-    zone_slow_[z] += zone_slow_coeff_ * (zone_fast_[z] - zone_slow_[z]);
-    const float slow = zone_slow_[z] + 1.0e-4f;
-    if (zone_armed_[z]) {
-      if (zone_fast_[z] > 1.8f * slow) {
-        zone_fired_[z] = true;
-        zone_armed_[z] = false;
-      }
-    } else if (zone_fast_[z] < 1.3f * slow) {
-      zone_armed_[z] = true;
-    }
-  }
-
   float sub1 = 0.0f, sub2 = 0.0f;
   float up1[2] = {0.0f, 0.0f};
   float up2[2] = {0.0f, 0.0f};
@@ -325,6 +298,154 @@ inline void OctaveBank::process(float x, const Want& want, Frame* out) {
   if (++tick_counter_ >= tick_period_) {
     tick_counter_ = 0;
     tick();
+  }
+}
+
+inline void OctaveBank::tick() {
+  static_assert(kStages == 3, "the equaliser below is written for three stages");
+  float unit_re[kMaxBands], unit_im[kMaxBands], sharp[kMaxBands], correction[kMaxBands];
+  // Onsets. A channel whose first stage jumps has new energy in it. When a
+  // good share of an octave's channels jump together it is a struck or
+  // picked attack (its click reaches the channels between the partials too),
+  // and the whole octave opens, including channels that already hold a note.
+  bool jumped[kMaxBands];
+  int votes[kZones] = {};
+  for (int k = 0; k < bands_; ++k) {
+    const float first = yr_[0][k] * yr_[0][k] + yi_[0][k] * yi_[0][k];
+    jumped[k] = first > kJump * rise_slow_[k] + 1.0e-30f;
+    if (jumped[k]) ++votes[zone_of_[k]];
+    rise_slow_[k] += rise_coeff_ * (first - rise_slow_[k]);
+  }
+  for (int k = 0; k < bands_; ++k) {
+    // Width: after an onset the channel opens, then narrows as 1 / age.
+    const int zone = zone_of_[k];
+    if (jumped[k] || votes[zone] * 5 >= zone_size_[zone] * 2) age_[k] = 0.0f;
+    age_[k] += tick_seconds_;
+    float cutoff = kOpenProduct / age_[k];
+    if (cutoff > wide_hz_[k]) cutoff = wide_hz_[k];
+    float open = 0.0f;
+    if (cutoff > narrow_hz_[k]) open = (cutoff - narrow_hz_[k]) / (wide_hz_[k] - narrow_hz_[k]);
+    if (open != open_[k]) set_width(k, open, true);
+
+    const float br = yr_[1][k], bi = yi_[1][k];
+    const float cr = yr_[2][k], ci = yi_[2][k];
+    const float now = cr * cr + ci * ci;
+    // Denormals: a channel that has rung out is put to rest.
+    if (now < 1.0e-28f && power_[k] < 1.0e-28f) {
+      for (int s = 0; s < kStages; ++s) {
+        yr_[s][k] = 0.0f;
+        yi_[s][k] = 0.0f;
+      }
+      avg_re_[k] = 0.0f;
+      avg_im_[k] = 0.0f;
+      power_[k] = 0.0f;
+      slow_[k] = 0.0f;
+      rise_slow_[k] = 0.0f;
+    } else {
+      power_[k] += power_coeff_ * (now - power_[k]);
+      // stage 2 × conj(stage 3) points along 1 + j·x, where x is how far the
+      // partial sits from the centre in units of the cutoff.
+      avg_re_[k] += rotor_coeff_ * (br * cr + bi * ci - avg_re_[k]);
+      avg_im_[k] += rotor_coeff_ * (bi * cr - br * ci - avg_im_[k]);
+    }
+
+    // The equaliser: the phase of all three stages at x, and what they took
+    // off the partial's level there.
+    rot_re_[k] = rot_target_re_[k];
+    rot_im_[k] = rot_target_im_[k];
+    float er = 1.0f, ei = 0.0f, gain = 1.0f;
+    const float ar = avg_re_[k], ai = avg_im_[k];
+    if (ar * ar + ai * ai > 1.0e-36f) {
+      float x = ai < 0.0f ? -3.0f : 3.0f;
+      if (ar > 0.0f && ai > -3.0f * ar && ai < 3.0f * ar) x = ai / ar;
+      const float t0 = 2.0f * (x - 0.8660254f), t1 = 2.0f * (x + 0.8660254f);
+      const float pr = 1.0f - t0 * t1, pi = t0 + t1;
+      const float nr = pr - pi * x, ni = pi + pr * x;
+      const float size = std::sqrt(nr * nr + ni * ni);
+      er = nr / size;
+      ei = ni / size;
+      gain = size * 0.25f;
+      if (gain > kMaxCorrection) gain = kMaxCorrection;
+    }
+    correction[k] = gain;
+    rot_target_re_[k] = er;
+    rot_target_im_[k] = ei;
+    rot_step_re_[k] = (er - rot_re_[k]) * inv_period_;
+    rot_step_im_[k] = (ei - rot_im_[k]) * inv_period_;
+    // This sample's equalised unit phasor, for the agreement below.
+    const float zr = cr * rot_re_[k] - ci * rot_im_[k];
+    const float zi = cr * rot_im_[k] + ci * rot_re_[k];
+    const float inv = 1.0f / std::sqrt(zr * zr + zi * zi + 1.0e-30f);
+    unit_re[k] = zr * inv;
+    unit_im[k] = zi * inv;
+    sharp[k] = power_[k] * power_[k];
+  }
+
+  for (int k = 0; k < bands_; ++k) {
+    // How far the channel stands out from its neighbours.
+    const float below = k > 0 ? sharp[k - 1] : 0.0f;
+    const float above = k < bands_ - 1 ? sharp[k + 1] : 0.0f;
+    const float total = below + sharp[k] + above;
+    float target = total > 0.0f ? correction[k] * sharp[k] / total : 0.0f;
+    // Attack: the allowed level rises at the set rate and falls at once.
+    const float level = std::sqrt(power_[k]);
+    if (attack_coeff_ > 0.0f && level > slow_[k]) {
+      slow_[k] += attack_coeff_ * (level - slow_[k]);
+      target *= slow_[k] / level;
+    } else {
+      slow_[k] = level;
+    }
+    weight_[k] = weight_target_[k];
+    weight_target_[k] = target;
+    weight_step_[k] = (target - weight_[k]) * inv_period_;
+    // The detune rotors are multiplied every sample: keep them at length 1.
+    if (detune_ > 0.0f) {
+      for (int v = 0; v < 4; ++v) {
+        const float dr = det_re_[v][k], di = det_im_[v][k];
+        const float fix = 1.5f - 0.5f * (dr * dr + di * di);
+        det_re_[v][k] = dr * fix;
+        det_im_[v][k] = di * fix;
+      }
+    }
+  }
+
+  // Phase agreement of each channel with the one above it: near 1 when both
+  // hold the same partial, near 0 when they hold different ones.
+  for (int k = 0; k < bands_ - 1; ++k) {
+    const float dot = unit_re[k] * unit_re[k + 1] + unit_im[k] * unit_im[k + 1];
+    agree_[k] += agree_coeff_ * (dot - agree_[k]);
+  }
+  // A square root has two signs. A channel beside a stronger one that holds
+  // the same partial takes that neighbour's, so the sub octaves of one
+  // partial add between channels instead of cancelling.
+  for (int k = 0; k < bands_; ++k) {
+    int j = -1;
+    float best = power_[k];
+    if (k > 0 && power_[k - 1] > best && agree_[k - 1] > kAgreeThreshold) {
+      j = k - 1;
+      best = power_[k - 1];
+    }
+    if (k < bands_ - 1 && power_[k + 1] > best && agree_[k] > kAgreeThreshold) j = k + 1;
+    if (j < 0) continue;
+    const float quarter_dot = quarter_re_[k] * quarter_re_[j] + quarter_im_[k] * quarter_im_[j];
+    if (half_re_[k] * half_re_[j] + half_im_[k] * half_im_[j] < -0.2f) {
+      half_re_[k] = -half_re_[k];
+      half_im_[k] = -half_im_[k];
+      // The quarter phasor is a root of the half phasor: a quarter turn,
+      // towards the neighbour's.
+      const float cross = quarter_im_[k] * quarter_re_[j] - quarter_re_[k] * quarter_im_[j];
+      const float qr = quarter_re_[k], qi = quarter_im_[k];
+      if (cross > 0.0f) {  // ahead of the neighbour: turn back
+        quarter_re_[k] = qi;
+        quarter_im_[k] = -qr;
+      } else {
+        quarter_re_[k] = -qi;
+        quarter_im_[k] = qr;
+      }
+    } else if (quarter_dot < -0.2f) {
+      quarter_re_[k] = -quarter_re_[k];
+      quarter_im_[k] = -quarter_im_[k];
+    }
   }
 }
 

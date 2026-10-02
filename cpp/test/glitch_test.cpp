@@ -298,6 +298,168 @@ int main() {
     EXPECT(device.boundary_count() > 100, "enough boundaries to judge the rate");
   }
 
+  // Calm: on a full-scale 200 Hz sine with every kind of event going, Calm 1
+  // leaves the steepest step close to the sine's own, and the splatter above
+  // 10 kHz is far below what the hard cuts of Calm 0 make.
+  {
+    std::vector<float> tone = sine(200.0f, 20.0f, kRate, 1.0f);
+    const double own_step = 2.0 * kPi * 200.0 / kRate;
+    double step[2], high_db[2];
+    for (int pass = 0; pass < 2; ++pass) {
+      device.init(kRate);
+      device.set_param(p::kTime, 120.0f);
+      device.set_param(p::kChance, 1.0f);
+      device.set_param(p::kCalm, pass == 0 ? 0.0f : 1.0f);
+      device.set_param(p::kDecay, 0.0f);
+      device.set_param(p::kSpread, 0.0f);
+      Stereo out = run(device, tone);
+      step[pass] = max_step(out.left);
+      livemix::kit::Biquad high[3];
+      for (auto& stage : high) stage.set_highpass(10000.0f, 0.7071f, kRate);
+      std::vector<float> top(out.left.size());
+      for (size_t i = 0; i < top.size(); ++i) {
+        top[i] = high[2].process(high[1].process(high[0].process(out.left[i])));
+      }
+      high_db[pass] = db(rms(top, 4800));
+      EXPECT(device.event_count() > 40, "Calm: events are happening");
+    }
+    std::printf("glitch: 200 Hz sine, steepest step: Calm 0 %.4f, Calm 1 %.4f (the sine's own %.4f); "
+                "above 10 kHz: Calm 0 %.1f dB, Calm 1 %.1f dB\n",
+                step[0], step[1], own_step, high_db[0], high_db[1]);
+    EXPECT(step[0] > 10.0 * own_step, "Calm 0: events are hard cuts");
+    EXPECT(step[1] < 1.3 * own_step, "Calm 1: no clicks, the steepest step stays close to the sine's own");
+    EXPECT(high_db[1] < high_db[0] - 20.0, "Calm 1: at least 20 dB less energy above 10 kHz than Calm 0");
+  }
+
+  // The same input gives the same output: on a second run, and whatever the
+  // block size (1, 128, 2048), with all kinds of event and octaves going.
+  {
+    rng_state() = 0xFACEu;
+    std::vector<float> input = soft_noise(6.0f, 0.2f);
+    Stereo renders[4];
+    const int blocks[4] = {128, 128, 1, 2048};
+    for (int pass = 0; pass < 4; ++pass) {
+      device.init(kRate);
+      device.set_param(p::kTime, 90.0f);
+      device.set_param(p::kChance, 0.6f);
+      device.set_param(p::kOctaves, 0.5f);
+      device.set_param(p::kBounce, 0.5f);
+      device.set_param(p::kSpread, 1.0f);
+      renders[pass] = run(device, input, input, blocks[pass]);
+    }
+    EXPECT(renders[1].left == renders[0].left && renders[1].right == renders[0].right,
+           "two runs give the same output, bit for bit");
+    const double by_one = std::max(worst_difference(renders[2].left, renders[0].left),
+                                   worst_difference(renders[2].right, renders[0].right));
+    const double by_2048 = std::max(worst_difference(renders[3].left, renders[0].left),
+                                    worst_difference(renders[3].right, renders[0].right));
+    std::printf("glitch: block size 1 against 128: max difference %g; 2048 against 128: %g\n", by_one, by_2048);
+    EXPECT(by_one < 1.0e-6 && by_2048 < 1.0e-6, "the output does not depend on the block size");
+    EXPECT(worst_difference(renders[0].left, input) > 0.05, "and events did happen in it");
+  }
+
+  // After the input stops, the device plays out what it had started and goes
+  // exactly silent: within reach of the last slice plus the longest event.
+  for (float time_ms : {250.0f, 2000.0f}) {
+    device.init(kRate);
+    device.set_param(p::kTime, time_ms);
+    device.set_param(p::kChance, 1.0f);
+    rng_state() = 0x7A11u;
+    run(device, noise(4.0f, kRate, 0.3f));
+    Stereo tail = render(device, 12.0f, kRate);
+    size_t last = 0;
+    for (size_t i = 0; i < tail.size(); ++i) {
+      if (tail.left[i] != 0.0f || tail.right[i] != 0.0f) last = i;
+    }
+    const double seconds = static_cast<double>(last) / kRate;
+    // Reach: Time + 0.3 s. Longest event: 8 repeats, at most 7 s.
+    const double limit = time_ms * 0.001 + 0.3 + std::min(7.0, 8.0 * time_ms * 0.001) + 0.1;
+    std::printf("glitch: Time %.0f ms, Chance 1: silent %.2f s after the input stops (limit %.2f s)\n",
+                time_ms, seconds, limit);
+    EXPECT(seconds > 0.0 && seconds < limit, "the tail ends within the last slice plus the longest event");
+    Stereo woken = run(device, noise(1.0f, kRate, 0.3f));
+    EXPECT(rms(woken.left) > 0.1, "wakes on new input");
+  }
+
+  // Decay: each repeat is quieter and darker than the one before.
+  {
+    only(device, p::kRepeat, 200.0f);
+    device.set_param(p::kDecay, 1.0f);
+    rng_state() = 0xDECAu;
+    std::vector<float> input = noise(20.0f, kRate, 0.2f);
+    // Band the level measurement keeps: below the low-pass of the first repeats.
+    std::vector<float> low = input;
+    std::vector<Span> spans;
+    Stereo out = run_watched(device, input, input, &spans);
+    auto low_rms = [](const std::vector<float>& x, size_t from, size_t to) {
+      const double a = std::exp(-2.0 * kPi * 600.0 / kRate);
+      double s = 0.0, sum = 0.0;
+      for (size_t i = from; i < to; ++i) {
+        s = x[i] + (s - x[i]) * a;
+        sum += s * s;
+      }
+      return std::sqrt(sum / static_cast<double>(to - from));
+    };
+    int judged = 0;
+    double drop1 = 0.0, drop2 = 0.0, bright0 = 0.0, bright2 = 0.0;
+    for (const Span& span : spans) {
+      if (span.to - span.from < 3 * 9600 - 64) continue;
+      const size_t a = span.from + 480, n = 9600 - 960;
+      const double level0 = low_rms(out.left, a, a + n);
+      drop1 += db(low_rms(out.left, a + 9600, a + 9600 + n) / level0);
+      drop2 += db(low_rms(out.left, a + 19200, a + 19200 + n) / level0);
+      bright0 += energy_above(out.left, 4000.0, kRate, a, a + n);
+      bright2 += energy_above(out.left, 4000.0, kRate, a + 19200, a + 19200 + n);
+      ++judged;
+    }
+    drop1 /= judged;
+    drop2 /= judged;
+    std::printf("glitch: Decay 1 over %d events: second repeat %.1f dB, third %.1f dB below the first (under 600 Hz); "
+                "share of energy above 4 kHz %.3f then %.3f\n",
+                judged, drop1, drop2, bright0 / judged, bright2 / judged);
+    EXPECT(judged >= 5, "Decay: events of three repeats or more occur");
+    EXPECT(drop1 < -5.0 && drop1 > -7.5, "Decay 1: each repeat is about 6 dB quieter");
+    EXPECT(drop2 < -11.0 && drop2 > -14.5, "Decay 1: and the next one 6 dB quieter again");
+    EXPECT(bright2 < 0.5 * bright0, "Decay 1: later repeats are darker");
+  }
+
+  // Octaves: every repeat of a 440 Hz tone comes out at 880 or 220 Hz, in
+  // the same time; and a tone in the top octave does not fold down when it
+  // is played at double speed.
+  {
+    only(device, p::kRepeat, 400.0f);
+    device.set_param(p::kOctaves, 1.0f);
+    std::vector<float> tone = sine(440.0f, 30.0f, kRate, 0.5f);
+    std::vector<Span> spans;
+    Stereo out = run_watched(device, tone, tone, &spans);
+    int ups = 0, downs = 0, others = 0;
+    for (const Span& span : spans) {
+      for (size_t at = span.from; at + 19200 <= span.to + 64; at += 19200) {
+        const double hz = dominant_frequency(out.left, kRate, 100.0, 2000.0, at + 480, at + 19200 - 480);
+        if (std::fabs(hz - 880.0) < 3.0) {
+          ++ups;
+        } else if (std::fabs(hz - 220.0) < 3.0) {
+          ++downs;
+        } else {
+          ++others;
+        }
+      }
+    }
+    std::printf("glitch: Octaves 1: %d repeats at 880 Hz, %d at 220 Hz, %d elsewhere\n", ups, downs, others);
+    EXPECT(ups >= 8 && downs >= 8 && others == 0, "Octaves 1: every repeat is an octave up or an octave down");
+
+    only(device, p::kRepeat, 400.0f);
+    device.set_param(p::kOctaves, 1.0f);
+    std::vector<float> top = sine(17000.0f, 30.0f, kRate, 0.5f);
+    out = run(device, top);
+    double folded = 0.0;
+    for (size_t at = 19200; at + 9600 <= out.size(); at += 9600) {
+      folded = std::max(folded, tone_level(out.left, 14000.0, kRate, at, at + 9600));
+    }
+    std::printf("glitch: a 17 kHz tone at double speed folds to 14 kHz at %.1f dB re the tone\n", db(folded / 0.5));
+    EXPECT(db(folded / 0.5) < -40.0, "Octave up: the top octave is filtered out, not aliased");
+  }
+
   // CHECKS
 
   device.init(kRate);

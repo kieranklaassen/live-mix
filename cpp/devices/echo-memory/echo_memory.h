@@ -128,6 +128,168 @@ class EchoMemory : public kit::DeviceBase<echo_memory::kNumParams> {
   static constexpr float kMotorLagSeconds = 0.12f;
   static constexpr float kLowCutHz = 70.0f;
   static constexpr int kControlPeriod = 16;
+  static constexpr int kNumSnippets = 2;
+  // A moment can be recalled once it is this old: nearer than that is the
+  // echo's business.
+  static constexpr float kNearestSeconds = 2.0f;
+  // Below this (-60 dBFS) a stretch of memory counts as silence: it is never
+  // chosen, and it does not keep the device awake.
+  static constexpr float kHeard = 0.001f;
+  // Louder than this (-12 dBFS) a moment is no likelier to be chosen.
+  static constexpr float kLoudEnough = 0.25f;
+  // What Collect records of a recalled moment. With both voices at their
+  // loudest on one side (2 x 1.375) the loop gain is still under one.
+  static constexpr float kCollectGain = 0.33f;
+  // Widest pan of a recalled moment (Spread 1), of a full ±1.
+  static constexpr float kWidestPan = 0.7f;
+  // Share of a moment spent fading in, and again fading out.
+  static constexpr float kEdge = 0.4f;
+  static constexpr float kRetrySeconds = 0.05f;
+  static constexpr float kShortestSeconds = 0.15f;
+
+  struct Snippet {
+    bool active = false;
+    bool decimate = false;
+    long long position_q = 0;  // quarter frames of memory
+    int step_q = 4;
+    int index = 0;             // output samples played
+    int length = 1;
+    float per_length = 1.0f;
+    float gain_left = 0.0f;
+    float gain_right = 0.0f;
+  };
+
+  // Seconds between recalled moments: 20 s at Wander 0, 2 s at the centre,
+  // five a second at 1.
+  static float interval_seconds(float wander) { return 20.0f * std::pow(0.01f, wander); }
+
+  static float window_at(float phase) {
+    if (phase < kEdge) return 0.5f - 0.5f * kit::SineTable::cos_lookup(phase * (0.5f / kEdge));
+    if (phase > 1.0f - kEdge) {
+      return 0.5f - 0.5f * kit::SineTable::cos_lookup((1.0f - phase) * (0.5f / kEdge));
+    }
+    return 1.0f;
+  }
+
+  void remember(float left, float right) {
+    memory_.write(left, right);
+    if (left > kHeard || left < -kHeard || right > kHeard || right < -kHeard) {
+      last_loud_ = memory_.written();
+    }
+  }
+
+  // True while the memory holds something a moment could still be chosen from.
+  bool recallable() const {
+    if (last_loud_ < 0 || param(echo_memory::kMemory) <= 0.0f) return false;
+    const long long reach =
+        static_cast<long long>(param(echo_memory::kReach) * store_rate_) + 2 * memory_.block_frames();
+    return memory_.written() - last_loud_ <= reach;
+  }
+
+  // The memory voice looks for a moment to bring back. It starts one only
+  // when a voice is free and the reachable memory holds sound.
+  void recall() {
+    using namespace echo_memory;
+    const float sr = sample_rate();
+    until_next_ = kRetrySeconds * sr;
+    if (!recallable()) return;
+    Snippet* voice = nullptr;
+    for (Snippet& snippet : snippets_) {
+      if (!snippet.active) {
+        voice = &snippet;
+        break;
+      }
+    }
+    if (voice == nullptr) return;
+
+    // What may be read: no newer than kNearestSeconds, no older than Reach,
+    // nothing from before the device last woke.
+    const long long now = memory_.written();
+    const int block = memory_.block_frames();
+    const long long newest = now - static_cast<long long>(kNearestSeconds * store_rate_);
+    long long oldest = now - static_cast<long long>(param(kReach) * store_rate_);
+    const long long first_kept = memory_.valid_from() + 2 * echo_memory::Memory<kMemoryFrames>::kTaps;
+    if (oldest < first_kept) oldest = first_kept;
+    const long long room = newest - oldest;
+    if (room < static_cast<long long>(kShortestSeconds * store_rate_)) return;
+
+    // Choose a 100 ms block, each weighted by how loud it was.
+    const long long first_block = (oldest + block - 1) / block;
+    const long long last_block = newest / block - 1;
+    float total = 0.0f;
+    for (long long b = first_block; b <= last_block; ++b) total += weight(memory_.level_at_block(b));
+    if (!(total > 0.0f)) return;
+    float pick = rng_.uniform() * total;
+    long long chosen = last_block;
+    for (long long b = first_block; b <= last_block; ++b) {
+      const float w = weight(memory_.level_at_block(b));
+      if (w <= 0.0f) continue;
+      chosen = b;
+      pick -= w;
+      if (pick < 0.0f) break;
+    }
+
+    // How it comes back.
+    float speed = 1.0f;
+    bool reversed = false;
+    const float change = rng_.uniform();
+    const float kind = rng_.uniform();
+    if (change < param(kVary)) {
+      if (kind < 0.45f) {
+        reversed = true;
+      } else if (kind < 0.75f) {
+        speed = 0.5f;
+      } else if (kind < 0.85f) {
+        speed = 0.5f;
+        reversed = true;
+      } else {
+        speed = 2.0f;
+      }
+    }
+
+    // How long: Size, but no longer than two voices can cover at this
+    // Wander, and no more memory than there is to read.
+    const float interval = interval_seconds(param(kWander));
+    float seconds = kit::min(param(kSize), 1.4f * interval);
+    const float room_seconds = static_cast<float>(room) / (store_rate_ * speed);
+    if (seconds > room_seconds) seconds = room_seconds;
+    const long long span = static_cast<long long>(seconds * speed * store_rate_);
+
+    // Centre the moment on the chosen block and keep it inside the room.
+    const long long centre = chosen * block + static_cast<long long>(rng_.uniform() * block);
+    long long from = centre - span / 2;
+    if (from > newest - span) from = newest - span;
+    if (from < oldest) from = oldest;
+
+    const int step_q = static_cast<int>(4.0f * speed * store_rate_ / sr + 0.5f);
+    voice->active = true;
+    voice->decimate = step_q == 8;
+    voice->step_q = reversed ? -step_q : step_q;
+    voice->position_q = 4 * (reversed ? from + span : from);
+    voice->index = 0;
+    voice->length = static_cast<int>(seconds * sr);
+    if (voice->length < 8) voice->length = 8;
+    voice->per_length = 1.0f / static_cast<float>(voice->length);
+    // Constant power, unity in the centre; successive moments change sides.
+    const float pan = side_ * kWidestPan * param(kSpread) * (0.25f + 0.75f * rng_.uniform());
+    side_ = -side_;
+    kit::pan_gains(pan, &voice->gain_left, &voice->gain_right);
+    voice->gain_left *= 2.0f * kit::kSqrtHalf;
+    voice->gain_right *= 2.0f * kit::kSqrtHalf;
+
+    last_recall_.count += 1;
+    last_recall_.age_seconds = static_cast<float>(now - centre) / store_rate_;
+    last_recall_.level = memory_.level_at_block(chosen);
+    last_recall_.seconds = seconds;
+    last_recall_.speed = speed;
+    last_recall_.reversed = reversed;
+    until_next_ = interval * sr * (0.7f + 0.6f * rng_.uniform());
+  }
+
+  static float weight(float level) {
+    if (level <= kHeard) return 0.0f;
+    return level < kLoudEnough ? level : kLoudEnough;
+  }
 
   // Exactly linear up to ±1, never past ±2.
   static float limit(float x) { return 2.0f * kit::soft_clip(0.5f * x); }
@@ -221,7 +383,13 @@ class EchoMemory : public kit::DeviceBase<echo_memory::kNumParams> {
   float tone_seen_ = -1.0f;
   float mix_seen_ = -1.0f, dry_gain_ = 1.0f, wet_gain_ = 0.0f;
   long echo_blank_ = 0;
-  // MEMORY-MEMBERS
+  Snippet snippets_[kNumSnippets];
+  Recall last_recall_;
+  float until_next_ = 0.0f;   // host samples until the memory voice next looks for a moment
+  long long last_loud_ = -1;  // memory frame count just after the last frame above kHeard
+  float held_[2] = {0.0f, 0.0f};  // first frame of the pair when recording at half rate
+  bool second_of_pair_ = false;
+  float side_ = 1.0f;         // recalled moments alternate sides
 };
 
 }  // namespace livemix

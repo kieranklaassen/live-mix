@@ -6,8 +6,6 @@
 
 #include <cmath>
 
-#include "../../kit/filters.h"
-
 namespace livemix {
 namespace octaves {
 
@@ -82,6 +80,8 @@ class OctaveBank {
   static constexpr double kWideErb = 1.0;
   // After an onset the cutoff follows kOpenProduct / age down to the settled one.
   static constexpr float kOpenProduct = 0.35f;
+  // A first-stage power this many times its 30 ms average is an onset.
+  static constexpr float kJump = 3.0f;
   // What the voices leave out: sub octaves that would land under about
   // 30 Hz, and upper octaves that would pass the bank's Nyquist frequency.
   static constexpr double kSub1LowHz = 55.0;
@@ -183,15 +183,8 @@ class OctaveBank {
   float det_im_[4][kMaxBands] = {};
   float det_cos_[4][kMaxBands] = {};
   float det_sin_[4][kMaxBands] = {};
-  // Onset zones: an octave-wide detector each.
-  kit::Svf zone_filter_[kZones];
-  float zone_fast_[kZones] = {};
-  float zone_slow_[kZones] = {};
-  bool zone_armed_[kZones] = {};
-  bool zone_fired_[kZones] = {};
-  float zone_attack_ = 0.0f;
-  float zone_release_ = 0.0f;
-  float zone_slow_coeff_ = 0.0f;
+  // Onset zones (an octave each): how many channels each holds.
+  int zone_size_[kZones] = {};
 };
 
 }  // namespace octaves

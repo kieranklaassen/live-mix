@@ -55,6 +55,8 @@ class PitchShifter : public kit::DeviceBase<pitch_shifter::kNumParams> {
     mix_.set_time(kSmoothingSeconds, sr);
     base_.set_time(kDelayLagSeconds, sr);
     tone_hz_.set_time(kSmoothingSeconds, sr / kControlPeriod);
+    guard_hz_.set_time(0.02f, sr / kControlPeriod);
+    settle_ = true;
     clock_.reset(kControlPeriod);
     mix_seen_ = -1.0f;
     tone_seen_ = -1.0f;
@@ -74,22 +76,179 @@ class PitchShifter : public kit::DeviceBase<pitch_shifter::kNumParams> {
     if (store_param(id, value)) apply(id);
   }
 
-  void process(int frames);
+  void process(int frames) {
+    using namespace pitch_shifter;
+    frames = begin_block(frames);
+    if (!idle_.wake(input_present(frames))) {
+      silence_output(frames);
+      return;
+    }
+    const double longest = static_cast<double>(kParamMax[kDelay]) * 0.001 * sample_rate();
+    for (int i = 0; i < frames; ++i) {
+      float in[2];
+      take_input(i, &in[0], &in[1]);
+
+      pitch_[0].next();
+      pitch_[1].next();
+      if (clock_.tick()) control();
+      double base = static_cast<double>(base_.next());
+      if (base > longest) base = longest;
+
+      // Each voice as mid and side, toned, then placed.
+      float wet[2] = {0.0f, 0.0f};
+      float back[2] = {0.0f, 0.0f};
+      const float level_b = level_b_.next();
+      for (int v = 0; v < (b_active_ ? 2 : 1); ++v) {
+        ratio_[v] += ratio_step_[v];
+        float left, right;
+        voice_[v].render(ring_, setup_[v], base, ratio_[v], &left, &right);
+        left = tone_[v][0].lowpass(left);
+        right = tone_[v][1].lowpass(right);
+        const float level = v == 0 ? 1.0f : level_b;
+        back[0] += level * left;
+        back[1] += level * right;
+        const float mid = 0.5f * level * (left + right);
+        const float side = 0.5f * level * (left - right) * side_[v].next();
+        wet[0] += mid * mid_left_[v].next() + side;
+        wet[1] += mid * mid_right_[v].next() - side;
+      }
+
+      // Feedback: both voices at the power of one, held under full scale.
+      const float feedback = feedback_.next() / std::sqrt(1.0f + level_b * level_b);
+      for (int c = 0; c < 2; ++c) {
+        const float returned = kit::soft_clip(feedback * rumble_[c].highpass(back[c]));
+        const float record = guard_[1][c].lowpass(guard_[0][c].lowpass(in[c] + returned));
+        back[c] = flush_denormal(record);
+        wet[c] = 2.0f * kit::soft_clip(0.5f * wet[c]);
+      }
+      ring_.write(back[0], back[1]);
+
+      const float mix = mix_.next();
+      if (mix != mix_seen_) {
+        mix_seen_ = mix;
+        dry_gain_ = kit::SineTable::cos_lookup(0.25f * mix);
+        wet_gain_ = kit::SineTable::lookup(0.25f * mix);
+      }
+      out_left_[i] = in[0] * dry_gain_ + wet[0] * wet_gain_;
+      out_right_[i] = in[1] * dry_gain_ + wet[1] * wet_gain_;
+    }
+    idle_.settle(output_peak(frames), frames);
+  }
 
  private:
   static constexpr int kControlPeriod = 16;
   static constexpr float kGlideSeconds = 0.012f;
   static constexpr float kDelayLagSeconds = 0.08f;
+  static constexpr float kSqrtTwo = 1.41421356f;
 
-  void apply(int id);
-  void control();
+  void apply(int id) {
+    using namespace pitch_shifter;
+    const float value = param(id);
+    switch (id) {
+      case kPitchA:
+      case kPitchB:
+      case kDetune:
+        pitch_[0].set(param(kPitchA) + 0.01f * param(kDetune), primed());
+        pitch_[1].set(param(kPitchB) - 0.01f * param(kDetune), primed());
+        break;
+      case kLevelB:
+        level_b_.set(value, primed());
+        break;
+      case kDelay:
+        base_.set(value * 0.001f * sample_rate(), primed());
+        break;
+      case kFeedback:
+        feedback_.set(value, primed());
+        break;
+      case kTone:
+        tone_hz_.set(value, primed());
+        break;
+      case kMix:
+        mix_.set(value, primed());
+        break;
+      default:
+        break;  // Mode, Size, Jitter and Spread are read on the control clock
+    }
+  }
+
+  // Per-grain gain in Grain mode. Grains that read the same sound in step
+  // (no shift, no scatter) add in amplitude; otherwise they add in power.
+  // `apart` is how far successive grains slip against each other, in
+  // radians at 500 Hz.
+  float grain_gain(float ratio, float size_seconds, float jitter) const {
+    const float off_speed = ratio > 1.0f ? ratio - 1.0f : 1.0f - ratio;
+    const float j2 = jitter * jitter;
+    const float slip = 0.25f * size_seconds * off_speed + j2 * (size_seconds + 0.02f) +
+                       0.25f * size_seconds * 0.023f * j2;
+    const float apart = kit::kTwoPi * 500.0f * slip;
+    const float together = std::exp(-0.5f * kit::min(apart * apart, 60.0f));
+    return together * 0.5f + (1.0f - together) * 0.8165f;
+  }
+
+  void control() {
+    using namespace pitch_shifter;
+    using namespace pitch_shifter_dsp;
+    const float sr = sample_rate();
+    const float level_b = level_b_.value;
+    const bool want_b = level_b_.target > 0.0f || level_b > 0.0f;
+    if (want_b && !b_active_) voice_[1].restart();
+    b_active_ = want_b;
+
+    const int mode = kit::clamp_int(static_cast<int>(param(kMode) + 0.5f), 0, kNumModes - 1);
+    const float size_seconds = param(kSize) * 0.001f;
+    float fastest = 1.0f;
+    for (int v = 0; v < 2; ++v) {
+      const float next = kit::clamp(kit::semitones_to_ratio(pitch_[v].value), 0.25f, 4.0f);
+      ratio_step_[v] = (next - ratio_[v]) * (1.0f / kControlPeriod);
+      VoiceSetup& setup = setup_[v];
+      setup.mode = mode;
+      setup.size = size_seconds * sr;
+      setup.jitter = param(kJitter);
+      setup.sample_rate = sr;
+      setup.target_ratio = kit::clamp(kit::semitones_to_ratio(pitch_[v].target), 0.25f, 4.0f);
+      setup.grain_gain = grain_gain(setup.target_ratio, size_seconds, setup.jitter);
+      if (v == 0 || b_active_) fastest = kit::max(fastest, kit::max(next, setup.target_ratio));
+    }
+
+    // Record only what the fastest voice can read back below Nyquist.
+    if (settle_) guard_hz_.snap(0.45f * sr / fastest);
+    guard_hz_.set_target(0.45f * sr / fastest);
+    const float guard = guard_hz_.next();
+    if (guard != guard_seen_) {
+      guard_seen_ = guard;
+      for (int c = 0; c < 2; ++c) {
+        guard_[0][c].set(guard, 0.5412f, sr);
+        guard_[1][c].set(guard, 1.3066f, sr);
+      }
+    }
+    const float tone = tone_hz_.next();
+    if (tone != tone_seen_) {
+      tone_seen_ = tone;
+      for (int v = 0; v < 2; ++v) {
+        for (int c = 0; c < 2; ++c) tone_[v][c].set(tone, 0.6f, sr);
+      }
+    }
+
+    // A to the left by as much as B is there to balance it, B to the right.
+    const float spread = param(kSpread);
+    const float pan[2] = {-spread * kit::min(1.0f, level_b), spread};
+    for (int v = 0; v < 2; ++v) {
+      float left, right;
+      kit::pan_gains(pan[v], &left, &right);
+      const float away = pan[v] < 0.0f ? -pan[v] : pan[v];
+      mid_left_[v].set(left * kSqrtTwo, !settle_);
+      mid_right_[v].set(right * kSqrtTwo, !settle_);
+      side_[v].set(1.0f - away, !settle_);
+    }
+    settle_ = false;
+  }
 
   pitch_shifter_dsp::Ring ring_;
   pitch_shifter_dsp::ShiftVoice voice_[2];
   pitch_shifter_dsp::VoiceSetup setup_[2];
   kit::Smoother pitch_[2];  // semitones, detune included
   kit::Smoother mid_left_[2], mid_right_[2], side_[2];
-  kit::Smoother level_b_, feedback_, mix_, base_, tone_hz_;
+  kit::Smoother level_b_, feedback_, mix_, base_, tone_hz_, guard_hz_;
   kit::Svf tone_[2][2];   // [voice][channel]
   kit::Svf guard_[2][2];  // [stage][channel]
   kit::OnePole rumble_[2];
@@ -100,6 +259,7 @@ class PitchShifter : public kit::DeviceBase<pitch_shifter::kNumParams> {
   float mix_seen_ = -1.0f, dry_gain_ = 1.0f, wet_gain_ = 0.0f;
   float tone_seen_ = -1.0f, guard_seen_ = -1.0f;
   bool b_active_ = false;
+  bool settle_ = true;  // the first control tick snaps what later ones glide
 };
 
 }  // namespace livemix

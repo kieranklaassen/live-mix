@@ -420,6 +420,7 @@ int main() {
     device.set_param(p::kMix, 1.0f);
     Stereo steady = run(device, chord(4.0f));
     const double still = max_step(steady.left, 96000);
+    EXPECT(std::fabs(mean(steady.left, 96000)) < 1.0e-4 && std::fabs(mean(steady.right, 96000)) < 1.0e-4, "no DC in the wet signal");
 
     device.init(kRate);
     device.set_param(p::kMix, 1.0f);
@@ -466,11 +467,120 @@ int main() {
     const double plateau = level(env, 0.2, 0.4);
     std::printf("pre-delay 150 ms: first sound at %.1f ms, 20 dB under its level again by %.0f ms\n", 1000.0 * first / kRate,
                 [&] { size_t w = env.size(); while (w > 0 && env[w - 1] < plateau - 20.0) --w; return w * kWindow * 1000.0; }());
-    EXPECT_NEAR(static_cast<double>(first) / kRate, 0.151, 0.002, "the shape starts after the Pre-delay");
-    EXPECT(level(env, 0.46, 0.5) < plateau - 20.0 && level(env, 0.38, 0.42) > plateau - 6.0, "the shape ends at Pre-delay + Time");
+    // The first tap sits somewhere in the first cell of the span (7 ms here).
+    EXPECT(first >= static_cast<size_t>(0.151 * kRate) && first < static_cast<size_t>(0.160 * kRate),
+           "the shape starts after the Pre-delay");
+    EXPECT(level(env, 0.48, 0.52) < plateau - 20.0 && level(env, 0.38, 0.42) > plateau - 6.0, "the shape ends at Pre-delay + Time");
   }
 
-  // CHECKS
+  // Repeat plays the shape again every Time, each pass scaled by Repeat.
+  {
+    bare(device, kGate, 0.3f);
+    device.set_param(p::kRepeat, 0.5f);
+    Stereo out = run(device, impulse(2.0f, kRate, 1.0f));
+    double pass[5];
+    for (int k = 0; k < 5; ++k) {
+      pass[k] = db(rms(out.left, static_cast<size_t>(0.3 * k * kRate), static_cast<size_t>(0.3 * (k + 1) * kRate)));
+    }
+    std::printf("repeat 0.5: passes at %.1f %.1f %.1f %.1f %.1f dB\n", pass[0], pass[1], pass[2], pass[3], pass[4]);
+    for (int k = 1; k < 5; ++k) EXPECT_NEAR(pass[k] - pass[k - 1], -6.0, 1.0, "each repeat is Repeat times the one before");
+  }
+
+  // Repeat at the top, fed for ten seconds with a full-scale tone and then
+  // with full-scale noise, Tail up as well: bounded by the limiters, and it
+  // dies away afterwards.
+  {
+    device.init(kRate);
+    device.set_param(p::kMix, 1.0f);
+    device.set_param(p::kTime, 0.1f);
+    device.set_param(p::kRepeat, 0.9f);
+    device.set_param(p::kTail, 1.0f);
+    Stereo tone = run(device, sine(220.0f, 10.0f, kRate, 1.0f));
+    rng_state() = 0xB16u;
+    Stereo loud = run(device, noise(10.0f, kRate, 1.0f));
+    Stereo rest = render(device, 14.0f, kRate);
+    const double loudest = std::max(std::max(peak(tone.left), peak(tone.right)), std::max(peak(loud.left), peak(loud.right)));
+    std::printf("repeat 0.9, full-scale tone then noise for 10 s each: peak %.2f (noise alone rms %.2f), %.1f dB 12 s after it stops\n",
+                loudest, rms(loud.left, 5 * 48000), db(rms(rest.left, 12 * 48000, 14 * 48000)));
+    EXPECT(finite(tone.left) && finite(loud.left) && finite(loud.right) && loudest < 2.01, "Repeat at 0.9 stays bounded");
+    EXPECT(rms(rest.left, 12 * 48000, 14 * 48000) < 1.0e-3, "Repeat at 0.9 dies away");
+  }
+
+  // Tail: after a gate there is a soft decay instead of silence, quieter
+  // than the gate, and longer the higher Tail is set.
+  {
+    double drop[2], decay[2];
+    const float settings[2] = {0.3f, 0.9f};
+    for (int k = 0; k < 2; ++k) {
+      bare(device, kGate, 0.5f);
+      device.set_param(p::kTail, settings[k]);
+      rng_state() = 0x7A11u;
+      std::vector<float> burst = pink(0.05f, 0.5f);
+      burst.resize(static_cast<size_t>(8.0f * kRate), 0.0f);
+      Stereo out = run(device, burst);
+      const std::vector<double> env = envelope(out.left);
+      drop[k] = level(env, 0.62, 0.72) - level(env, 0.1, 0.5);
+      decay[k] = rt60(out.left, kRate, 0.7, 0.1, -100.0);
+    }
+    std::printf("tail 0.3: %.1f dB under the gate just after it, RT60 %.2f s; tail 0.9: %.1f dB, RT60 %.2f s\n", drop[0],
+                decay[0], drop[1], decay[1]);
+    EXPECT(drop[0] < -8.0 && drop[0] > -30.0, "a low Tail leaves a quiet decay after the gate");
+    EXPECT(drop[1] > drop[0] + 3.0 && drop[1] < -3.0, "a high Tail is louder but still under the gate");
+    EXPECT_NEAR(decay[0], 1.2, 0.4, "Tail 0.3 rings for about 1.2 s");
+    EXPECT(decay[1] > 3.0 * decay[0], "the decay grows with Tail");
+  }
+
+  // Modulation moves the diffuser: a held tone's level in the wash is fixed
+  // without it and wanders with it.
+  {
+    double wander[2];
+    for (int k = 0; k < 2; ++k) {
+      bare(device, kGate, 0.9f);
+      device.set_param(p::kModulation, k == 0 ? 0.0f : 1.0f);
+      Stereo out = run(device, sine(1500.0f, 12.0f, kRate, 0.25f));
+      double lowest = 1.0e9, highest = -1.0e9;
+      for (size_t i = 96000; i + 9600 <= out.left.size(); i += 9600) {
+        const double here = db(rms(out.left, i, i + 9600));
+        lowest = std::min(lowest, here);
+        highest = std::max(highest, here);
+      }
+      wander[k] = highest - lowest;
+    }
+    std::printf("a 1.5 kHz tone's level in the wash over 10 s: moves %.2f dB without Modulation, %.1f dB with\n", wander[0], wander[1]);
+    EXPECT(wander[0] < 0.05, "without Modulation the response is fixed");
+    EXPECT(wander[1] > 1.5, "Modulation keeps the response moving");
+  }
+
+  // The default patch on a mono source: the sides agree more than they
+  // differ and the mono sum loses little.
+  {
+    device.init(kRate);
+    rng_state() = 0x60D0u;
+    std::vector<float> in = pink(6.0f, 0.2f);
+    Stereo out = run(device, in);
+    std::vector<float> mono(out.size());
+    for (size_t i = 0; i < mono.size(); ++i) mono[i] = 0.5f * (out.left[i] + out.right[i]);
+    const double sides = std::sqrt(0.5 * (std::pow(rms(out.left, 48000), 2.0) + std::pow(rms(out.right, 48000), 2.0)));
+    const double agree = correlation(out.left, out.right, 48000);
+    std::printf("default patch on mono pink noise: out %+.2f dB against dry, left/right correlation %.2f, mono sum %+.2f dB\n",
+                db(sides) - db(rms(in, 48000)), agree, db(rms(mono, 48000)) - db(sides));
+    EXPECT(agree > 0.3, "the default patch stays mono compatible");
+    EXPECT(db(rms(mono, 48000)) - db(sides) > -2.0, "the mono sum of the default patch loses less than 2 dB");
+    EXPECT_NEAR(db(sides), db(rms(in, 48000)), 2.0, "the default patch is as loud as its input");
+  }
+
+  // The device sleeps after the shape and its tail, and wakes on new input.
+  {
+    device.init(kRate);
+    run(device, noise(0.2f, kRate, 0.5f));
+    render(device, 12.0f, kRate);
+    Stereo rest = render(device, 1.0f, kRate);
+    EXPECT(peak(rest.left) == 0.0 && peak(rest.right) == 0.0, "asleep after the tail");
+    device.set_param(p::kMix, 1.0f);
+    Stereo woken = run(device, impulse(1.5f, kRate, 0.5f));
+    EXPECT(peak(woken.left, 24000, 48000) > 1.0e-3, "wakes on new input");
+  }
+
 
   device.init(kRate);
   rng_state() = 0xBEEFu;

@@ -1,0 +1,114 @@
+{
+  "id": "sustainer",
+  "name": "Sustain",
+  "category": "texture",
+  "description": "Catches what you play and holds it as an endless, even pad: play a chord and it hangs there, play the next and it glides over.",
+  "class": "Sustainer",
+  "header": "sustainer.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "mode",
+      "name": "Mode",
+      "choices": ["Auto", "Layer", "Latch"],
+      "default": 0,
+      "description": "Auto catches every new note or chord and lets it replace what was held. Layer adds each new one on top of the old ones, so harmony piles up. Latch catches nothing until Hold is switched on."
+    },
+    {
+      "key": "hold",
+      "name": "Hold",
+      "choices": ["Off", "On"],
+      "default": 0,
+      "description": "In Auto and Layer, On keeps what is held and stops listening for new notes, so you can play over it. In Latch, On catches the sound of that moment and Off lets it go."
+    },
+    {
+      "key": "sensitivity",
+      "name": "Sensitivity",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How easily a new note is caught. Low needs a loud, clear attack; high also catches soft notes and gentle changes of harmony."
+    },
+    {
+      "key": "attack",
+      "name": "Attack",
+      "min": 0.01,
+      "max": 5,
+      "default": 0.25,
+      "taper": "log",
+      "unit": "s",
+      "description": "How slowly the held sound rises under the note you played. Short takes over at once; long swells in like bowed strings."
+    },
+    {
+      "key": "decay",
+      "name": "Decay",
+      "min": 0.2,
+      "max": 60,
+      "default": 8,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the held sound takes to die away once you stop playing. All the way up it never fades."
+    },
+    {
+      "key": "glide",
+      "name": "Glide",
+      "min": 0.02,
+      "max": 5,
+      "default": 0.4,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the old held sound takes to give way to a new one. Short changes chord at once; long lets one harmony melt into the next."
+    },
+    {
+      "key": "motion",
+      "name": "Motion",
+      "min": 0,
+      "max": 1,
+      "default": 0.35,
+      "description": "How much the held sound moves. At zero it is perfectly still, like an organ pipe; higher, every overtone drifts and shimmers on its own, differently left and right."
+    },
+    {
+      "key": "ensemble",
+      "name": "Ensemble",
+      "min": 0,
+      "max": 1,
+      "default": 0.2,
+      "description": "Adds two slightly detuned copies of the held sound, one to each side, for the width and slow beating of a string section."
+    },
+    {
+      "key": "tone",
+      "name": "Tone",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "description": "Tilts the held sound. Left of centre is darker and rounder, right is brighter and airier."
+    },
+    {
+      "key": "lowCut",
+      "name": "Low Cut",
+      "min": 20,
+      "max": 500,
+      "default": 60,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "Removes lows from the held sound so it does not cloud the bass of what you play over it."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Balance between what you play and the held sound."
+    }
+  ],
+  "presets": {
+    "Sustain pedal": { "mode": 0 },
+    "Slow strings": { "attack": 2, "ensemble": 0.8 },
+    "Stacked harmony": { "mode": 1, "decay": 20 },
+    "Frozen moment": { "mode": 2 },
+    "Glass organ": { "motion": 0, "tone": 0.5 },
+    "Dark bed": { "tone": -0.7, "decay": 40 }
+  },
+  "origin": { "kind": "new", "note": "Written for live-mix on cpp/kit." }
+}

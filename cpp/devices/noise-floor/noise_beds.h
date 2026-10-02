@@ -165,7 +165,394 @@ struct Air {
   }
 };
 
-// (more beds are appended below)
+// Vinyl: surface hiss (a band from 700 Hz to 4.5 kHz), fine crackle, the odd
+// soft pop, and a low rumble. Crackle is a Poisson stream of ticks with
+// heavy-tailed sizes, each a struck resonator with its own pitch, damping and
+// place between the sides. Movement makes the rumble and the dust come round
+// once per turn of a 33⅓ record.
+struct Vinyl {
+  static constexpr float kNorm = 1.0f;  // set by measurement
+  static constexpr float kHiss = 1.0f;
+  static constexpr float kRumble = 1.0f;
+  static constexpr float kTick = 1.0f;
+  static constexpr float kTicksPerSecond = 16.0f;
+  static constexpr float kPopsPerSecond = 0.22f;
+  static constexpr float kTurnHz = 33.333f / 60.0f;
+
+  Source src[2];
+  kit::OnePole low_cut[2], high_cut[2];
+  kit::Svf rumble[2];
+  Ping tick[2][2], pop[2];
+  kit::Rng events;
+  float tick_wait = 0.0f, pop_wait = 0.0f;
+  float turn = 0.0f;
+  float rumble_gain[2] = {1.0f, 1.0f};
+  float dust = 1.0f;
+  float sr = 48000.0f;
+  int which = 0;
+
+  void init(float sample_rate, uint32_t stream) {
+    sr = sample_rate;
+    for (int c = 0; c < 2; ++c) {
+      src[c].init(stream + c, sr);
+      low_cut[c].reset();
+      low_cut[c].set_cutoff(700.0f, sr);
+      high_cut[c].reset();
+      high_cut[c].set_cutoff(4500.0f, sr);
+      rumble[c].reset();
+      rumble[c].set(42.0f, 0.8f, sr);
+      tick[c][0].reset();
+      tick[c][1].reset();
+      pop[c].reset();
+      rumble_gain[c] = 1.0f;
+    }
+    events.seed(seed_for(stream + 2));
+    tick_wait = poisson_gap(events, kTicksPerSecond, sr);
+    pop_wait = poisson_gap(events, kPopsPerSecond, sr);
+    turn = 0.0f;
+    dust = 1.0f;
+    which = 0;
+  }
+  void control(float movement, int period) {
+    turn += kTurnHz * static_cast<float>(period) / sr;
+    if (turn >= 1.0f) turn -= 1.0f;
+    // The warp reaches the right a quarter of a turn after the left.
+    rumble_gain[0] = 1.0f + 0.6f * movement * kit::SineTable::lookup(turn);
+    rumble_gain[1] = 1.0f + 0.6f * movement * kit::SineTable::lookup(turn + 0.25f);
+    dust = 1.0f + 0.7f * movement * kit::SineTable::lookup(turn + 0.6f);
+  }
+  void render(const float*, float* out) {
+    // The dice are thrown at a fixed pace of their own; `dust` only stretches
+    // or shrinks the wait, so the crackle does not restart when it moves.
+    tick_wait -= dust;
+    if (tick_wait <= 0.0f) {
+      tick_wait += poisson_gap(events, kTicksPerSecond, sr);
+      const float size = kTick * heavy_tail(events, 0.35f, 12.0f);
+      const float hz = 1800.0f * std::exp2(2.0f * events.uniform());
+      const float q = 1.0f + 1.5f * events.uniform();
+      // Anywhere between the sides, and as often out of phase as in: dust
+      // sits on either wall of the groove.
+      const float place = 0.25f * events.uniform();
+      const float flip = (events.next_u32() & 1u) ? 1.0f : -1.0f;
+      tick[0][which].strike(size * kit::SineTable::cos_lookup(place), hz, q, sr);
+      tick[1][which].strike(flip * size * kit::SineTable::lookup(place), hz * (0.9f + 0.2f * events.uniform()),
+                            q, sr);
+      which ^= 1;
+    }
+    pop_wait -= 1.0f;
+    if (pop_wait <= 0.0f) {
+      pop_wait += poisson_gap(events, kPopsPerSecond, sr);
+      const float size = kTick * (5.0f + 6.0f * events.uniform());
+      const float hz = 70.0f * std::exp2(1.5f * events.uniform());
+      const float lean = 0.125f + 0.06f * events.bipolar();
+      pop[0].strike(size * kit::SineTable::cos_lookup(lean), hz, 0.9f, sr);
+      pop[1].strike(size * kit::SineTable::lookup(lean), hz * 1.04f, 0.9f, sr);
+    }
+    for (int c = 0; c < 2; ++c) {
+      const float w = src[c].next();
+      const float hiss = high_cut[c].lowpass(low_cut[c].highpass(w));
+      const float low = rumble[c].bandpass(w);
+      out[c] = kNorm * (kHiss * hiss + kRumble * rumble_gain[c] * low + tick[c][0].next() +
+                        tick[c][1].next() + pop[c].next());
+    }
+  }
+};
+
+// Room: the tone of an empty room. A rumble below 90 Hz, three broad room
+// modes, the band noise of ventilation around 260 Hz and a trace of air.
+// Movement lets each part swell and sink on its own, very slowly.
+struct Room {
+  static constexpr float kNorm = 1.0f;  // set by measurement
+  static constexpr float kRumble = 1.0f;
+  static constexpr float kMode = 1.0f;
+  static constexpr float kVent = 1.0f;
+  static constexpr float kAir = 1.0f;
+  static constexpr int kModes = 3;
+  static constexpr float kModeHz[kModes] = {43.0f, 67.0f, 109.0f};
+  static constexpr float kModeWeight[kModes] = {1.0f, 0.8f, 0.6f};
+
+  Source src[2];
+  kit::OnePole rumble_a[2], rumble_b[2], vent_top[2], air_cut[2];
+  kit::DcBlocker floor_cut[2];
+  kit::Svf mode[2][kModes], vent[2];
+  kit::Drift wander[2 + kModes];
+  float rumble_gain = 1.0f, vent_gain = 1.0f;
+  float mode_gain[kModes] = {1.0f, 1.0f, 1.0f};
+
+  void init(float sr, uint32_t stream) {
+    for (int c = 0; c < 2; ++c) {
+      src[c].init(stream + c, sr);
+      rumble_a[c].reset();
+      rumble_a[c].set_cutoff(90.0f, sr);
+      rumble_b[c].reset();
+      rumble_b[c].set_cutoff(90.0f, sr);
+      floor_cut[c].reset();
+      floor_cut[c].set_cutoff(22.0f, sr);
+      vent[c].reset();
+      vent[c].set(260.0f, 0.5f, sr);
+      vent_top[c].reset();
+      vent_top[c].set_cutoff(700.0f, sr);
+      air_cut[c].reset();
+      air_cut[c].set_cutoff(1500.0f, sr);
+      for (int m = 0; m < kModes; ++m) {
+        mode[c][m].reset();
+        mode[c][m].set(kModeHz[m], 5.0f, sr);
+      }
+    }
+    static constexpr float kRates[2 + kModes] = {0.043f, 0.071f, 0.057f, 0.089f, 0.113f};
+    for (int d = 0; d < 2 + kModes; ++d) {
+      wander[d].seed(seed_for(stream + 2 + d));
+      wander[d].set_rate(kRates[d], sr);
+    }
+    rumble_gain = vent_gain = 1.0f;
+    for (float& g : mode_gain) g = 1.0f;
+  }
+  void control(float movement, int period) {
+    rumble_gain = 1.0f + 0.25f * movement * wander[0].next(period);
+    vent_gain = 1.0f + 0.5f * movement * wander[1].next(period);
+    for (int m = 0; m < kModes; ++m) {
+      mode_gain[m] = kModeWeight[m] * (1.0f + 0.6f * movement * wander[2 + m].next(period));
+    }
+  }
+  void render(const float*, float* out) {
+    for (int c = 0; c < 2; ++c) {
+      const float w = src[c].next();
+      const float low = floor_cut[c].process(rumble_b[c].lowpass(rumble_a[c].lowpass(w)));
+      float modes = 0.0f;
+      for (int m = 0; m < kModes; ++m) modes += mode_gain[m] * mode[c][m].bandpass(w);
+      const float band = vent_top[c].lowpass(vent[c].bandpass(w));
+      out[c] = kNorm * (kRumble * rumble_gain * low + kMode * modes + kVent * vent_gain * band +
+                        kAir * air_cut[c].highpass(w));
+    }
+  }
+};
+
+// Static: a radio between stations. Everything goes through the receiver's
+// band (350 Hz to 3.8 kHz): a sputtering hiss, crackles that come in bursts,
+// and crashes, sudden swells of noise that die away in a fraction of a
+// second and leave a flurry of crackle behind. Both sides hear the same
+// events through noise of their own. Movement is how restless the band is.
+struct Static {
+  static constexpr float kNorm = 1.0f;  // set by measurement
+  static constexpr float kCrackle = 1.0f;
+  static constexpr float kCrash = 1.0f;
+  static constexpr float kCracklesPerSecond = 30.0f;
+  static constexpr float kCrashesPerSecond = 0.45f;
+
+  Source src[2];
+  kit::Svf low_cut[2], high_cut[2];
+  kit::Lfo sputter[2];
+  kit::Drift fading, flurry;
+  kit::Rng events;
+  float bed[2] = {1.0f, 1.0f};
+  float crash[2] = {0.0f, 0.0f};
+  float crash_decay = 0.999f;
+  float crackle_wait = 0.0f, crash_wait = 0.0f;
+  float pace = 1.0f;       // how fast the crackle clock runs
+  float aftermath = 0.0f;  // the flurry a crash leaves behind
+  float aftermath_decay = 0.99f;
+  float restless = 0.0f;
+  float impulse_scale = 1.0f;
+  float sr = 48000.0f;
+
+  void init(float sample_rate, uint32_t stream) {
+    sr = sample_rate;
+    for (int c = 0; c < 2; ++c) {
+      src[c].init(stream + c, sr);
+      low_cut[c].reset();
+      low_cut[c].set(350.0f, 0.7f, sr);
+      high_cut[c].reset();
+      high_cut[c].set(3800.0f, 0.9f, sr);
+      sputter[c].seed(seed_for(stream + 2 + c));
+      sputter[c].reset(c == 0 ? 0.0f : 0.5f);
+      sputter[c].set_rate(c == 0 ? 11.0f : 13.0f, sr);
+      bed[c] = 1.0f;
+      crash[c] = 0.0f;
+    }
+    fading.seed(seed_for(stream + 4));
+    fading.set_rate(0.19f, sr);
+    flurry.seed(seed_for(stream + 5));
+    flurry.set_rate(0.33f, sr);
+    events.seed(seed_for(stream + 6));
+    crackle_wait = poisson_gap(events, kCracklesPerSecond, sr);
+    crash_wait = poisson_gap(events, kCrashesPerSecond, sr);
+    pace = 1.0f;
+    aftermath = 0.0f;
+    restless = 0.0f;
+    crash_decay = 0.999f;
+    // A flurry dies away in a third of a second.
+    aftermath_decay = std::exp(-1.0f / (0.3f * sr));
+    // An impulse through a band set in hertz peaks lower at a higher rate.
+    impulse_scale = sr / 48000.0f;
+  }
+  void control(float movement, int period) {
+    restless = movement;
+    const float fade = 1.0f + 0.45f * movement * fading.next(period);
+    for (int c = 0; c < 2; ++c) {
+      bed[c] = fade * (1.0f + 0.25f * (0.4f + 0.6f * movement) * sputter[c].next_block(kit::Lfo::kSmooth, period));
+    }
+    // Bursts: the crackle rate swings over two octaves either way.
+    pace = std::exp2(2.0f * movement * flurry.next(period));
+  }
+  void render(const float*, float* out) {
+    float hit[2] = {0.0f, 0.0f};
+    crackle_wait -= pace * (1.0f + 8.0f * aftermath);
+    if (crackle_wait <= 0.0f) {
+      crackle_wait += poisson_gap(events, kCracklesPerSecond, sr);
+      const float size = kCrackle * impulse_scale * heavy_tail(events, 0.4f, 15.0f);
+      hit[0] = size * events.bipolar();
+      hit[1] = size * events.bipolar();
+    }
+    crash_wait -= 0.4f + 0.6f * restless + 0.6f * restless * restless;
+    if (crash_wait <= 0.0f) {
+      crash_wait += poisson_gap(events, kCrashesPerSecond, sr);
+      const float size = kCrash * heavy_tail(events, 0.3f, 6.0f);
+      crash[0] += size * (0.7f + 0.6f * events.uniform());
+      crash[1] += size * (0.7f + 0.6f * events.uniform());
+      crash_decay = std::exp(-1.0f / ((0.03f + 0.2f * events.uniform()) * sr));
+      aftermath = 1.0f;
+    }
+    aftermath = flush_denormal(aftermath * aftermath_decay);
+    for (int c = 0; c < 2; ++c) {
+      const float x = src[c].next() * (bed[c] + crash[c]) + hit[c];
+      crash[c] = flush_denormal(crash[c] * crash_decay);
+      out[c] = kNorm * high_cut[c].lowpass(low_cut[c].highpass(x));
+    }
+  }
+};
+
+// One cycle of mains hum as two wavetables per side, both with an RMS of 1:
+// the body (the fundamental, the 100 or 120 Hz of the rectifier and the
+// next few harmonics) and the buzz (harmonics 8 to 40 in phase with each
+// other, which makes the narrow charging pulses of a rectifier, twice a
+// cycle and not quite alike). The right side has every harmonic a quarter
+// of its own cycle later: the same sound, uncorrelated with the left, and
+// the two sum to mono without any harmonic cancelling.
+struct HumTables {
+  static constexpr int kSize = 2048;
+  static constexpr int kBody = 7;
+  static constexpr int kTop = 40;
+
+  // [side][1 + index], with one guard sample before and two after.
+  float body[2][kSize + 3] = {};
+  float buzz[2][kSize + 3] = {};
+
+  void init() {
+    static constexpr float kBodyLevel[kBody] = {1.0f, 0.55f, 0.4f, 0.15f, 0.18f, 0.08f, 0.08f};
+    static constexpr float kBodyPhase[kBody] = {0.0f, 0.15f, 0.4f, 0.3f, 0.7f, 0.1f, 0.55f};
+    float level[kTop + 1] = {};
+    float body_power = 0.0f, buzz_power = 0.0f;
+    for (int n = 1; n <= kTop; ++n) {
+      if (n <= kBody) {
+        level[n] = kBodyLevel[n - 1];
+        body_power += 0.5f * level[n] * level[n];
+      } else {
+        // Even harmonics carry the pulses; the odd ones make them unequal.
+        level[n] = std::pow(8.0f / static_cast<float>(n), 0.9f) * ((n & 1) ? 0.35f : 1.0f);
+        if (n >= 28) {
+          const float taper = kit::SineTable::cos_lookup(0.25f * static_cast<float>(n - 28) / 13.0f);
+          level[n] *= taper * taper;
+        }
+        buzz_power += 0.5f * level[n] * level[n];
+      }
+    }
+    const float body_scale = 1.0f / std::sqrt(body_power);
+    const float buzz_scale = 1.0f / std::sqrt(buzz_power);
+    for (int side = 0; side < 2; ++side) {
+      const float late = side == 0 ? 0.0f : 0.25f;
+      for (int i = -1; i < kSize + 2; ++i) {
+        const float at = static_cast<float>((i + kSize) % kSize) / static_cast<float>(kSize);
+        float b = 0.0f, z = 0.0f;
+        for (int n = 1; n <= kTop; ++n) {
+          if (n <= kBody) {
+            b += level[n] * kit::SineTable::lookup(static_cast<float>(n) * at + kBodyPhase[n - 1] + late);
+          } else {
+            z += level[n] * kit::SineTable::cos_lookup(static_cast<float>(n) * at + late);
+          }
+        }
+        body[side][i + 1] = b * body_scale;
+        buzz[side][i + 1] = z * buzz_scale;
+      }
+    }
+  }
+};
+
+// Mains hum at 50 or 60 Hz, read from the tables, over a trace of amplifier
+// hiss. Tone goes from the body alone to mostly buzz, at constant power.
+// Movement lets the mains frequency drift by a few hundredths of a hertz and
+// the buzz waver.
+struct Hum {
+  static constexpr float kHiss = 1.0f;       // set by measurement: -26 dB under the hum
+  static constexpr float kHissPower = 0.0025f;
+  static constexpr float kDriftHz = 0.04f;
+
+  Source src[2];
+  kit::OnePole hiss_cut[2];
+  kit::Svf hiss_top[2];
+  kit::Drift mains, waver[2];
+  double phase = 0.0;
+  double increment = 0.0;
+  float hz = 50.0f;
+  float body_gain = 1.0f, body_step = 0.0f, body_target = 1.0f;
+  float buzz_gain[2] = {0.0f, 0.0f}, buzz_step[2] = {0.0f, 0.0f}, buzz_target[2] = {0.0f, 0.0f};
+  float hiss_gain = 0.0f;
+  float sr = 48000.0f;
+  bool started = false;
+
+  void init(float sample_rate, uint32_t stream, float mains_hz) {
+    sr = sample_rate;
+    hz = mains_hz;
+    for (int c = 0; c < 2; ++c) {
+      src[c].init(stream + c, sr);
+      hiss_cut[c].reset();
+      hiss_cut[c].set_cutoff(2000.0f, sr);
+      hiss_top[c].reset();
+      hiss_top[c].set(12000.0f, 0.6f, sr);
+      waver[c].seed(seed_for(stream + 2 + c));
+      waver[c].set_rate(c == 0 ? 0.29f : 0.23f, sr);
+    }
+    mains.seed(seed_for(stream + 4));
+    mains.set_rate(0.05f, sr);
+    phase = 0.0;
+    increment = static_cast<double>(hz) / sr;
+    started = false;
+  }
+  void control(float tone, float movement, int period) {
+    // Buzz against body: none at Tone -1, 0.4 in the middle, 1.6 at +1.
+    const float ratio = tone < 0.0f ? 0.4f * (1.0f + tone) : 0.4f * std::exp2(2.0f * tone);
+    const float norm = 1.0f / std::sqrt(1.0f + ratio * ratio + kHissPower);
+    const float per_sample = 1.0f / static_cast<float>(period);
+    body_gain = started ? body_target : norm;
+    body_target = norm;
+    body_step = (body_target - body_gain) * per_sample;
+    for (int c = 0; c < 2; ++c) {
+      const float buzz = norm * ratio * (1.0f + 0.25f * movement * waver[c].next(period));
+      buzz_gain[c] = started ? buzz_target[c] : buzz;
+      buzz_target[c] = buzz;
+      buzz_step[c] = (buzz_target[c] - buzz_gain[c]) * per_sample;
+    }
+    hiss_gain = norm * kHiss;
+    increment = static_cast<double>(hz + kDriftHz * movement * mains.next(period)) / sr;
+    started = true;
+  }
+  void render(const HumTables& tables, float* out) {
+    // In double: a float product could round up to the table's length.
+    const double position = phase * HumTables::kSize;
+    const int index = static_cast<int>(position);
+    const float t = static_cast<float>(position - static_cast<double>(index));
+    phase += increment;
+    if (phase >= 1.0) phase -= 1.0;
+    body_gain += body_step;
+    for (int c = 0; c < 2; ++c) {
+      const float* b = &tables.body[c][index];
+      const float* z = &tables.buzz[c][index];
+      buzz_gain[c] += buzz_step[c];
+      const float hiss = hiss_top[c].lowpass(hiss_cut[c].highpass(src[c].next()));
+      out[c] = body_gain * kit::hermite(b[0], b[1], b[2], b[3], t) +
+               buzz_gain[c] * kit::hermite(z[0], z[1], z[2], z[3], t) + hiss_gain * hiss;
+    }
+  }
+};
 
 }  // namespace noise_beds
 }  // namespace livemix

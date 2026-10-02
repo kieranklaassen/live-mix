@@ -246,10 +246,11 @@ class Glitch : public kit::DeviceBase<glitch::kNumParams> {
     *weight += fade;
   }
 
-  // Fade length in samples at this Calm: 0.25 ms (a hard cut with the edge
-  // taken off) up to 80 ms.
+  // Fade length in samples at this Calm: none at 0 (a hard cut, the click
+  // included), 2 ms at 0.3, 17 ms at 0.6, 80 ms at 1.
   float fade_length() const {
-    return kMinFadeSeconds * std::pow(kFadeRange, param(glitch::kCalm)) * sample_rate();
+    const float calm = param(glitch::kCalm);
+    return kLongestFadeSeconds * calm * calm * calm * sample_rate();
   }
 
   // Let the newest fragment go over `fade` samples.
@@ -258,7 +259,10 @@ class Glitch : public kit::DeviceBase<glitch::kNumParams> {
     Reader& reader = readers_[current_];
     current_ = -1;
     if (!reader.active || reader.releasing) return;
-    if (fade < 1.0f) fade = 1.0f;
+    if (fade < 2.0f) {
+      reader.active = false;  // a hard cut
+      return;
+    }
     reader.releasing = true;
     reader.out_phase = 0.0f;
     reader.out_step = 1.0f / fade;
@@ -284,8 +288,10 @@ class Glitch : public kit::DeviceBase<glitch::kNumParams> {
     reader.rate = rate;
     reader.halved = rate == 2.0f;
     reader.length = length;
-    reader.in_phase = 0.0f;
-    reader.in_step = 1.0f / fade;
+    if (fade >= 2.0f) {
+      reader.in_phase = 0.0f;
+      reader.in_step = 1.0f / fade;
+    }
 
     // Pan by constant power around unity at the centre, narrowing a stereo
     // source towards mono as it moves so the far channel is not lost.
@@ -313,8 +319,7 @@ class Glitch : public kit::DeviceBase<glitch::kNumParams> {
   }
 
   static constexpr float kSqrtTwo = 1.41421356f;
-  static constexpr float kMinFadeSeconds = 0.00025f;
-  static constexpr float kFadeRange = 320.0f;
+  static constexpr float kLongestFadeSeconds = 0.08f;
   static constexpr float kOpenHz = 20000.0f;
   static constexpr float kCalmDarkening = 0.15f;  // Calm 1: a 3 kHz, 12 dB per octave low-pass
   static constexpr float kBypassHz = 18000.0f;

@@ -241,13 +241,38 @@ class LoopBank {
         target_[j] *= wanted[j] / kit::max(magnitude, 1.0e-6f);
       }
     }
-    // The highest point of the sum can sit beside a centre or between two.
+    // The highest point of the sum sits a little to one side of a centre
+    // (the neighbours' skirts lean on it) or between two close ones: search
+    // a grid around each centre and between neighbours, then take the top
+    // of the parabola through the best point and the two beside it.
     float highest = 0.0f;
     for (int j = 0; j < kBands; ++j) {
       const float g = coeff_[j].g;
       const float k = coeff_[j].k;
-      static constexpr float kOffsets[5] = {-0.5f, -0.25f, 0.0f, 0.25f, 0.5f};
-      for (float offset : kOffsets) highest = kit::max(highest, evaluate(target_, g * (1.0f + offset * k)));
+      static constexpr int kPoints = 13;
+      static constexpr float kOffsets[kPoints] = {-0.36f, -0.24f, -0.16f, -0.10f, -0.06f, -0.03f, 0.0f,
+                                                  0.03f,  0.06f,  0.10f,  0.16f,  0.24f,  0.36f};
+      float value[kPoints];
+      int best = 0;
+      for (int i = 0; i < kPoints; ++i) {
+        value[i] = evaluate(target_, g * (1.0f + kOffsets[i] * k));
+        if (value[i] > value[best]) best = i;
+      }
+      float top = value[best];
+      if (best > 0 && best < kPoints - 1) {
+        // Unevenly spaced points: Lagrange's parabola, at its vertex.
+        const float x0 = kOffsets[best - 1], x1 = kOffsets[best], x2 = kOffsets[best + 1];
+        const float d0 = value[best - 1] / ((x0 - x1) * (x0 - x2));
+        const float d1 = value[best] / ((x1 - x0) * (x1 - x2));
+        const float d2 = value[best + 1] / ((x2 - x0) * (x2 - x1));
+        const float a = d0 + d1 + d2;
+        const float b = -(d0 * (x1 + x2) + d1 * (x0 + x2) + d2 * (x0 + x1));
+        if (a < -1.0e-9f) {
+          const float vertex = kit::clamp(-0.5f * b / a, x0, x2);
+          top = kit::max(top, evaluate(target_, g * (1.0f + vertex * k)));
+        }
+      }
+      highest = kit::max(highest, top);
       if (j + 1 < kBands) {
         const float middle = std::sqrt(g * coeff_[j + 1].g);
         highest = kit::max(highest, evaluate(target_, middle));
