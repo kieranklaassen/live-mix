@@ -428,3 +428,27 @@ describe('nearestDefaultPushColor', () => {
     expect(nearestDefaultPushColor({ r: 0, g: 120, b: 255 })).toBe(PUSH_DEFAULT_COLORS.blue)
   })
 })
+
+describe('a Push that is unplugged and plugged back in', () => {
+  it('is found again on the same access and opens as new', async () => {
+    const { push, device: first } = plug({ model: 3 })
+    const access = push.midiAccess()
+    await first.open()
+    first.setPad(0, 0, 5)
+    push.unplug()
+    expect(findPushPorts(access)).toBeNull()
+    await first.close()
+
+    push.plug()
+    expect(push.aftertouchMode).toBe('channel')
+    expect(push.pad(0, 0).color).toBe(0)
+    const ports = findPushPorts(access)
+    if (!ports) throw new Error('no Push among the ports')
+    const second = new PushDevice({ ...ports, replyTimeoutMs: 20 })
+    await second.open()
+    expect(push.aftertouchMode).toBe('poly')
+    second.setPad(0, 0, 7)
+    expect(push.pad(0, 0).color).toBe(7)
+    await second.close()
+  })
+})

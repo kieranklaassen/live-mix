@@ -50,6 +50,11 @@ describe('Push ports', () => {
 
   it('leaves other controllers and the first Push alone', () => {
     expect(parsePushPortName('Ableton Push Live Port')).toBeNull()
+    // What is plugged into a Push 3's MIDI sockets is not the Push.
+    expect(parsePushPortName('Ableton Push 3 External Port')).toBeNull()
+    expect(parsePushPortName('MIDIIN3 (Ableton Push 3)')).toBeNull()
+    expect(parsePushPortName('Ableton Push 3 MIDI 3')).toBeNull()
+    expect(parsePushPortName('Ableton Push 3 28:2')).toBeNull()
     expect(parsePushPortName('Launchpad Pro MK3')).toBeNull()
     expect(parsePushPortName(null)).toBeNull()
   })

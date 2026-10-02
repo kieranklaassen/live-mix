@@ -97,7 +97,9 @@ await display.close()
 
 `findPushPorts(access)` picks the Push among the MIDI ports: the newer model
 first, and the Live port before the User port. `parsePushPortName` reads the
-names macOS, Windows and Linux give the two ports.
+names macOS, Windows and Linux give the two ports. A third port under the
+device's name (what is plugged into a Push 3's MIDI sockets) is not the Push
+and is left for the app to offer as an ordinary MIDI input.
 
 `open(options)` asks the device who it is (`identity`), sets its MIDI mode
 to the port in use, sets the pressure mode (`aftertouch`, default `poly`),
@@ -182,6 +184,10 @@ expect(push.errors).toEqual([]) // nothing outside the documented protocol was s
 does not document, a wrong argument count, display data without its frame
 header, a write before the interface was claimed. The palette entries the
 manual does not list are stand-in values, not the device's.
+
+`unplug()` pulls the cable (the ports report `disconnected`, the display
+stops taking frames) and `plug()` puts it back, with the device as it powers
+up: what an app's reconnect is tested against.
 
 ## Limits
 

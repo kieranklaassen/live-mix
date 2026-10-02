@@ -169,6 +169,13 @@ function defaultPalette(): PushPaletteEntry[] {
 /** The seven brightness steps of the touch strip's own palette. */
 const STRIP_LEVELS = [0, 2, 4, 8, 16, 32, 64, 127] as const
 
+/** A refusal as Web MIDI gives it: the name the spec names, which is what callers read. */
+function midiError(name: string, message: string): Error {
+  const error = new Error(`${name}: ${message}`)
+  error.name = name
+  return error
+}
+
 export class VirtualPush {
   readonly model: PushModel
   /** What a real device would have refused or ignored; empty while the host keeps to the manual. */
@@ -272,7 +279,7 @@ export class VirtualPush {
         this.usbGranted = true
         return Promise.resolve(this.usbDevice)
       },
-      getDevices: () => Promise.resolve(this.usbGranted ? [this.usbDevice] : []),
+      getDevices: () => Promise.resolve(this.usbGranted && this.plugged ? [this.usbDevice] : []),
     }
   }
 
@@ -286,6 +293,23 @@ export class VirtualPush {
     this.plugged = false
     this.usbOpened = false
     this.usbClaimed = false
+  }
+
+  /** Puts the cable back: the same ports are there again, and the device is as it powers up. */
+  plug(): void {
+    this.plugged = true
+    this.mode = 'live'
+    this.aftertouch = 0
+    this.stripFlags = 0x68
+    this.ledColors.clear()
+    this.palette = defaultPalette()
+    this.applied = defaultPalette()
+    this.heldPads.clear()
+    for (const entry of [...this.access.inputs.values(), ...this.access.outputs.values()]) {
+      entry.state = 'connected'
+      this.access.onstatechange?.({ port: entry })
+      for (const listener of this.stateListeners) listener({ port: entry })
+    }
   }
 
   // What the device shows -----------------------------------------------------------
@@ -472,10 +496,10 @@ export class VirtualPush {
   private fromHost(kind: PortKind, data: number[] | Uint8Array): void {
     const bytes = Array.from(data)
     if (this.outputPorts[kind].state !== 'connected') {
-      throw new Error('InvalidStateError: the port is not connected')
+      throw midiError('InvalidStateError', 'the port is not connected')
     }
     if (bytes[0] === 0xf0 && !this.sysexAllowed) {
-      throw new Error('InvalidAccessError: sysex was not allowed for this page')
+      throw midiError('InvalidAccessError', 'sysex was not allowed for this page')
     }
     this.received.push(bytes)
     if (bytes[0] === 0xf0) {

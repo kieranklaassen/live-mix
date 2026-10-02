@@ -38,7 +38,10 @@ export interface PushPortName {
  * The systems name the two ports differently: "… Live Port" and "… User Port"
  * (macOS), "Ableton Push 2" and "MIDIIN2 (Ableton Push 2)" (Windows),
  * "… MIDI 1" and "… MIDI 2" or "…:0" and "…:1" (Linux). The first Push has
- * another protocol and is not matched.
+ * another protocol and is not matched. Neither is a third port: a Push 3 has
+ * MIDI sockets of its own, and a port for what is plugged into them (an
+ * "External Port"; the name is from memory, not read off a device) carries
+ * that instrument's notes, not the pads.
  */
 export function parsePushPortName(name: string | null | undefined): PushPortName | null {
   if (!name) return null
@@ -46,6 +49,7 @@ export function parsePushPortName(name: string | null | undefined): PushPortName
   if (!match) return null
   const model = Number(match[1])
   if (model !== 2 && model !== 3) return null
+  if (/external|MIDI(IN|OUT)[3-9]|MIDI [3-9]\b|:[2-9]\s*$/i.test(name)) return null
   const user = /user port|MIDI(IN|OUT)2|MIDI 2\b|:1\s*$/i.test(name)
   return { model, port: user ? 'user' : 'live' }
 }
