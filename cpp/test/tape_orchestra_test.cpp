@@ -101,6 +101,16 @@ static double centroid(const Stereo& out, double hz, double from) {
   return total > 0.0 ? weighted / total : 0.0;
 }
 
+// Largest second difference: a jump shows here even under a loud low note
+// (a smooth 700 Hz sine of amplitude 0.4 reaches 0.003, a step of 0.05 gives 0.05).
+static double max_bend(const std::vector<float>& x) {
+  double worst = 0.0;
+  for (size_t i = 2; i < x.size(); ++i) {
+    worst = std::max(worst, std::fabs(static_cast<double>(x[i]) - 2.0 * x[i - 1] + x[i - 2]));
+  }
+  return worst;
+}
+
 // Run with any argument to print what each check measured.
 static bool verbose = false;
 #define SHOW(...)                 \
@@ -610,6 +620,100 @@ int main(int argc, char**) {
     Stereo soft = render(device, 1.0f, kRate);
     SHOW("velocity: gain 0.1 is %.1f dB under gain 1", db(rms(hard.left, at(0.5)) / rms(soft.left, at(0.5))));
     EXPECT(rms(soft.left, at(0.5)) < 0.6 * rms(hard.left, at(0.5)), "soft keys are quieter");
+  }
+
+  // No clicks: Tone swept through its range while a chord sounds, Speed
+  // switched, Tape switched, and Volume and Spread thrown about. The largest
+  // sample-to-sample step stays near that of the untouched chord.
+  {
+    auto chord = [&]() {
+      device.init(kRate);
+      device.set_param(p::kHiss, 0.0f);
+      device.note_on(1, 146.83f, 0.8f);
+      device.note_on(2, 220.0f, 0.8f);
+      device.note_on(3, 369.99f, 0.8f);
+      render(device, 1.0f, kRate);
+    };
+    chord();
+    const double still = max_step(render(device, 2.0f, kRate).left);
+    // Tone fully up is brighter, so its steps are larger without any click.
+    device.init(kRate);
+    device.set_param(p::kHiss, 0.0f);
+    device.set_param(p::kTone, 1.0f);
+    device.note_on(1, 146.83f, 0.8f);
+    device.note_on(2, 220.0f, 0.8f);
+    device.note_on(3, 369.99f, 0.8f);
+    render(device, 1.0f, kRate);
+    const double bright = max_step(render(device, 2.0f, kRate).left);
+
+    chord();
+    Stereo swept;
+    for (int i = 0; i < 400; ++i) {
+      // Down and up the whole range four times in two seconds, in steps as a
+      // host sends them.
+      device.set_param(p::kTone, static_cast<float>(std::sin(2.0 * kPi * i / 100.0)));
+      swept = concat(swept, render(device, 0.005f, kRate));
+    }
+    SHOW("clicks: still chord %.4f (%.4f with Tone up), Tone swept %.4f", still, bright, max_step(swept.left));
+    EXPECT(max_step(swept.left) < 1.25 * bright + 0.002, "sweeping Tone makes no clicks");
+
+    chord();
+    Stereo thrown;
+    for (int i = 0; i < 40; ++i) {
+      device.set_param(p::kVolume, (i & 1) ? -9.0f : -20.0f);
+      device.set_param(p::kSpread, (i & 1) ? 0.0f : 1.0f);
+      device.set_param(p::kPlayers, (i & 2) ? 0.1f : 1.0f);
+      device.set_param(p::kAge, (i & 1) ? 0.0f : 1.0f);
+      thrown = concat(thrown, render(device, 0.05f, kRate));
+    }
+    SHOW("clicks: Volume, Spread, Section and Age thrown about %.4f", max_step(thrown.left));
+    EXPECT(max_step(thrown.left) < 2.0 * still + 0.002, "jumping Volume, Spread, Section and Age makes no clicks");
+
+    chord();
+    Stereo slowed;
+    for (int i = 0; i < 6; ++i) {
+      device.set_param(p::kSpeed, (i & 1) ? 0.0f : 1.0f);
+      slowed = concat(slowed, render(device, 0.6f, kRate));
+    }
+    SHOW("clicks: Speed switched %.4f", max_step(slowed.left));
+    EXPECT(max_step(slowed.left) < 2.0 * still + 0.002, "switching Speed makes no clicks");
+
+    chord();
+    Stereo switched;
+    for (int i = 0; i < 12; ++i) {
+      device.set_param(p::kTape, static_cast<float>((i * 5 + 2) % 6));
+      switched = concat(switched, render(device, i < 6 ? 0.3f : 0.013f, kRate));
+    }
+    SHOW("clicks: Tape switched %.4f", max_step(switched.left));
+    EXPECT(max_step(switched.left) < 2.5 * still + 0.002, "switching Tape makes no clicks");
+
+    // More keys than voices, struck fast: stolen voices fade, they do not jump.
+    device.init(kRate);
+    device.set_param(p::kHiss, 0.0f);
+    device.set_param(p::kTape, static_cast<float>(kFlutes));
+    Stereo pile;
+    for (int n = 0; n < 40; ++n) {
+      device.note_on(n, 220.0f * std::pow(2.0f, static_cast<float>(n % 20) / 12.0f), 0.5f);
+      pile = concat(pile, render(device, 0.03f, kRate));
+    }
+    SHOW("clicks: 40 keys on 16 voices, largest bend %.4f (peak %.2f)", max_bend(pile.left), peak(pile.left));
+    EXPECT(max_bend(pile.left) < 0.008, "stealing voices makes no clicks");
+  }
+
+  // A switched tape is the new instrument within a fifth of a second, on
+  // the keys that were already down.
+  {
+    plain(device, kStrings);
+    device.note_on(1, 440.0f, 0.7f);
+    Stereo before = render(device, 1.0f, kRate);
+    device.set_param(p::kTape, static_cast<float>(kFlutes));
+    Stereo after = render(device, 1.0f, kRate);
+    const double strings_third = harmonic_db(before, 440.0, 3, 0.8) - harmonic_db(before, 440.0, 1, 0.8);
+    const double flutes_third = harmonic_db(after, 440.0, 3, 0.2) - harmonic_db(after, 440.0, 1, 0.2);
+    SHOW("tape switch: third harmonic %.1f dB before, %.1f dB 0.2 s after (re the fundamental)", strings_third,
+         flutes_third);
+    EXPECT(flutes_third < strings_third - 8.0 && flutes_third < -15.0, "a held key crosses over to the new tape");
+    EXPECT(rms(after.left, at(0.5), at(1.0)) > 0.3 * rms(before.left, at(0.5), at(1.0)), "and keeps sounding");
   }
 
   // TESTS

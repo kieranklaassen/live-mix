@@ -203,6 +203,7 @@ class PitchShifter : public kit::DeviceBase<pitch_shifter::kNumParams> {
     float fastest = 1.0f;
     for (int v = 0; v < 2; ++v) {
       const float next = kit::clamp(kit::semitones_to_ratio(pitch_[v].value), 0.25f, 4.0f);
+      if (settle_) ratio_[v] = next;  // set before the first block: no glide
       ratio_step_[v] = (next - ratio_[v]) * (1.0f / kControlPeriod);
       VoiceSetup& setup = setup_[v];
       setup.mode = mode;

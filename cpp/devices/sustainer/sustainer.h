@@ -271,13 +271,14 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
 
   void on_sample(uint32_t phase) {
     // Eight steps to a hop (a step is 128 samples at 48 kHz): the detector
-    // on steps 0 and 4, the frame on 1, 2, 3 and 5, a capture on 4.
+    // on steps 0 and 4, the frame on 1, 2, 3 and 5, a capture on any other.
     const uint32_t step = static_cast<uint32_t>(hop_ / 8);
     if ((phase & (step - 1u)) == 0u) {
       const uint32_t ahead = static_cast<uint32_t>(hop_) - phase;
       switch (phase / step) {
         case 0:
           detect();
+          frame_tick();
           break;
         case 1:
           begin_frame();
@@ -297,6 +298,7 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
           finish_channel(1, ahead);
           break;
         default:
+          frame_tick();
           break;
       }
     }
@@ -370,7 +372,7 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     if (mode() == kModeLatch || hold_on()) return;
     // Wait until both frames of the capture lie after the attack. Further
     // onsets (a strum, a roll) push the capture back, but not for ever.
-    const int wait = frame_ + hop_;
+    const int wait = frame_ + hop_ / 2;
     if (capture_due_ < 0) {
       capture_due_ = wait;
       postponed_ = 0.0f;
@@ -453,8 +455,8 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     fft_.forward(scratch_, re, im, frame_);
   }
 
-  // Catch what is sounding now into `slot`, from two frames a hop apart: the
-  // one that ends now and the one before it.
+  // Catch what is sounding now into `slot`, from two frames half a hop apart:
+  // the one that ends now and the one before it.
   //
   // Magnitudes are the mean of the two frames; phases are those of the newer
   // one. The spectrum is cut at the valleys between its peaks, and every
@@ -465,7 +467,7 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
   // (identity phase locking) and its frequency exact.
   void capture(Slot& slot) {
     const float sr = sample_rate();
-    analyse(hop_, last_re_, last_im_);
+    analyse(hop_ / 2, last_re_, last_im_);
     analyse(0, now_re_, now_im_);
     float top = 0.0f;
     for (int k = 0; k <= half_; ++k) {
@@ -516,21 +518,23 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
         tr += now_re_[k] * last_re_[k] + now_im_[k] * last_im_[k];
         ti += now_im_[k] * last_re_[k] - now_re_[k] * last_im_[k];
       }
-      // What a partial exactly on the bin would turn by: p quarter turns.
-      const float centre_angle = kit::kHalfPi * static_cast<float>(p & 3);
+      // What a partial exactly on the bin would turn by in half a hop: p
+      // eighths of a turn.
+      const float centre_angle = 0.5f * kit::kHalfPi * static_cast<float>(p & 7);
       float deviation = 0.0f;
       const float size = tr * tr + ti * ti;
       if (size > 1.0e-30f) {
         deviation = std::atan2(ti, tr) - centre_angle;
         deviation -= kit::kTwoPi * std::floor(deviation / kit::kTwoPi + 0.5f);
       }
-      const float angle = centre_angle + deviation;
+      const float angle = 2.0f * (centre_angle + deviation);  // per hop
       slot.rot_re[r] = std::cos(angle);
       slot.rot_im[r] = std::sin(angle);
       slot.u_re[r] = 1.0f;
       slot.u_im[r] = 0.0f;
-      // hop = frame / 4, so a full turn of deviation is four bins.
-      const float hz = kit::max(0.0f, (static_cast<float>(p) + deviation * (2.0f / kit::kPi)) * bin_hz);
+      // Half a hop is an eighth of the frame, so a full turn of deviation is
+      // eight bins.
+      const float hz = kit::max(0.0f, (static_cast<float>(p) + deviation * (4.0f / kit::kPi)) * bin_hz);
       slot.cent_turn[r] = hz * 0.00057779f * hop_seconds_;
       slot.det_phase[r] = slot.rng.uniform();
       // Left and right stay together below 150 Hz and part freely above 400 Hz.

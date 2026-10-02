@@ -25,13 +25,15 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
 
   void init(float sample_rate) {
     using namespace west_coast;
-    kit::SineTable::init();
     init_base(sample_rate, kParamMin, kParamMax, kParamDefault);
     const float sr = this->sample_rate();
     rate2_ = 2.0f * sr;
     inverse_rate2_ = 1.0f / rate2_;
     dc_coeff_ = 1.0f - kit::time_to_coeff(1.0f / (kit::kTwoPi * kDcBlockHz), rate2_);
     curve_.init();
+    for (int i = 0; i < kSineSize + 2; ++i) {
+      sine_[i] = static_cast<float>(std::sin(2.0 * 3.14159265358979323846 * i / kSineSize));
+    }
     build_tables();
     pool_.reset();
     for (int v = 0; v < kMaxVoices; ++v) {
@@ -240,6 +242,7 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
 
   // Wavefolder. Fold 0 sits inside the folder's linear part (a pure sine);
   // Fold 1 reaches every fold at low notes and fewer the higher the note.
+  static constexpr int kSineSize = 4096;
   static constexpr int kLevelSteps = 96;
   static constexpr int kOffsetSteps = 16;
   static constexpr float kTableLevel = 6.6f;
@@ -450,13 +453,17 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
       // the phase runs backwards when the sum goes negative.
       float step = increment;
       if (deviation != 0.0f) {
-        step += deviation * kit::SineTable::lookup(mod_phase);
+        // The modulator is read without interpolation: its error is 70 dB
+        // down and only ever bends the pitch.
+        step += deviation * sine_[static_cast<int>(mod_phase * kSineSize + 0.5f)];
         mod_phase += mod_increment;
         mod_phase -= std::floor(mod_phase);
       }
       phase += step;
       phase -= std::floor(phase);
-      const float sine = kit::SineTable::lookup(phase);
+      const float position = phase * kSineSize;
+      const int cell = static_cast<int>(position);
+      const float sine = sine_[cell] + (sine_[cell + 1] - sine_[cell]) * (position - static_cast<float>(cell));
       // The folder returns the mean of its curve over the step, so the sine
       // it is compared with is the mean over the same step.
       const float mean_sine = 0.5f * (sine + last_sine);
@@ -552,6 +559,8 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
   float open_coeff_ = 0.004f;
   int hold_samples_ = 96;
   west_coast::FoldCurve curve_;
+  // One cycle of a sine and two points more: a phase that rounds up to 1 still reads inside.
+  float sine_[kSineSize + 2] = {};
   // [offset][level]{fundamental, makeup}
   float table_[kOffsetSteps + 1][kLevelSteps + 1][2] = {};
   float inverse_rate2_ = 1.0f / 96000.0f;

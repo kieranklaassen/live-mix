@@ -2,7 +2,7 @@
   "id": "micro-looper",
   "name": "Micro Looper",
   "category": "delay",
-  "description": "An always-listening short looper: it loops what you just played as a soft bed, renews it as you play on, and can run the loop slower, lower, grainier or backwards.",
+  "description": "An always-listening short looper: it loops what you just played as a soft bed, renews it as you play on, and can run the loop slower, lower, darker or backwards.",
   "class": "MicroLooper",
   "header": "micro_looper.h",
   "sources": [],
@@ -13,7 +13,7 @@
       "name": "State",
       "choices": ["Listen", "Hold", "Auto"],
       "default": 2,
-      "description": "Listen only remembers what you play. Hold loops the last thing you played and keeps it for ever; if nothing was played yet it waits for the next phrase. Auto loops each new phrase in place of the last and lets it die away."
+      "description": "Listen only remembers what you play. Hold loops the last thing you played and keeps it for ever; if nothing was played yet it waits for the next phrase. Auto loops each new phrase in place of the last one and lets it die away."
     },
     {
       "key": "length",
@@ -37,7 +37,7 @@
       "name": "Clock",
       "choices": ["Full", "3/4", "2/3", "1/2", "3/8", "1/3", "1/4", "1/8"],
       "default": 0,
-      "description": "The looper's own sample rate. Lower clocks record darker and grainier, like an old sampler. Moving it while a loop plays drops the loop by a fourth, a fifth or octaves and stretches it to match."
+      "description": "The looper's own sample rate. Lower clocks record with less and less top, like an old sampler. Moving it while a loop plays drops the loop by a fourth, a fifth or octaves and stretches it to match."
     },
     {
       "key": "smear",
@@ -79,7 +79,7 @@
       "min": 0,
       "max": 1,
       "default": 0.35,
-      "description": "Plays the loop from slightly different points on the left and the right, which widens it. The low end stays in the centre."
+      "description": "Widens the loop with two more reads from just ahead of and behind the playing point, added on the left and taken away on the right. In mono they cancel and leave the plain loop; the low end stays in the centre."
     },
     {
       "key": "mix",

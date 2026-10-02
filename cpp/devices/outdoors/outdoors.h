@@ -12,6 +12,8 @@
 #include "../../kit/kit.h"
 #include "birds.h"
 #include "chimes.h"
+#include "stream.h"
+#include "frogs.h"
 #include "crickets.h"
 #include "params.gen.h"
 #include "scene.h"
@@ -41,6 +43,8 @@ class Outdoors : public kit::DeviceBase<outdoors::kNumParams> {
       voice.birds.seed(stream);
       voice.chimes.seed(scene::seed_for(stream + 16), scene::seed_for(stream + 17));
       voice.crickets.seed(stream + 24);
+      voice.frogs.seed(stream + 32);
+      voice.stream.seed(stream + 40);
       stream += 64;
     }
     for (int stage = 0; stage < kStages; ++stage) {
@@ -141,6 +145,12 @@ class Outdoors : public kit::DeviceBase<outdoors::kNumParams> {
           case kCrickets:
             voice.crickets.tick(l, r);
             break;
+          case kFrogs:
+            voice.frogs.tick(l, r);
+            break;
+          case kStream:
+            voice.stream.tick(l, r);
+            break;
           default:
             voice.chimes.tick(l, r);
             break;
@@ -195,6 +205,8 @@ class Outdoors : public kit::DeviceBase<outdoors::kNumParams> {
     kit::LinearRamp swap;  // ducks a stolen voice while its scene is replaced
     scene::Birds birds;
     scene::Chimes chimes;
+    scene::Stream stream;
+    scene::Frogs frogs;
     scene::Crickets crickets;
     float hz = 220.0f, next_hz = 220.0f;
     float gain = 0.0f, next_gain = 0.0f;
@@ -228,6 +240,12 @@ class Outdoors : public kit::DeviceBase<outdoors::kNumParams> {
         break;
       case kCrickets:
         voice.crickets.start(voice.hz, controls_);
+        break;
+      case kFrogs:
+        voice.frogs.start(voice.hz, controls_);
+        break;
+      case kStream:
+        voice.stream.start(voice.hz, controls_);
         break;
       default:
         voice.chimes.start(voice.hz, controls_);
@@ -278,6 +296,12 @@ class Outdoors : public kit::DeviceBase<outdoors::kNumParams> {
           break;
         case kCrickets:
           voice.crickets.control(controls_);
+          break;
+        case kFrogs:
+          voice.frogs.control(controls_);
+          break;
+        case kStream:
+          voice.stream.control(controls_);
           break;
         default:
           voice.chimes.control(controls_);

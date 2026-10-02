@@ -1,0 +1,124 @@
+{
+  "id": "swarm-reverb",
+  "name": "Swarm Reverb",
+  "category": "reverb",
+  "description": "A cavern built from a swarm of short echoes instead of a smooth tail, with a Drag control that stretches the whole cave and bends everything in it in pitch.",
+  "class": "SwarmReverb",
+  "header": "swarm_reverb.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "length",
+      "name": "Length",
+      "min": 0.05,
+      "max": 1.2,
+      "default": 0.5,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the swarm of echoes after each note lasts. Short is a tight cluster close behind the note, long is a slow scatter across a huge cave. Moving it bends what is already ringing."
+    },
+    {
+      "key": "diffuse",
+      "name": "Diffuse",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Blurs the echoes into each other. At zero each one patters separately; turned up they smear into a wash."
+    },
+    {
+      "key": "reflect",
+      "name": "Reflect",
+      "min": 0,
+      "max": 1.05,
+      "default": 0.6,
+      "description": "How much of the swarm is sent round again. Low is one rush of echoes, high is a cave that rings for a long time, and at the very top it never dies and slowly feeds on itself."
+    },
+    {
+      "key": "dampen",
+      "name": "Dampen",
+      "min": 800,
+      "max": 16000,
+      "default": 5000,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "How bright the cave is. Lower settings take the top off the echoes, and more of it each time they go round."
+    },
+    {
+      "key": "drag",
+      "name": "Drag",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Stretches or shrinks every echo at once. While it moves, everything in the cave bends in pitch: down as the cave grows, up as it shrinks. The middle is the size set by Length."
+    },
+    {
+      "key": "dragTime",
+      "name": "Drag Time",
+      "min": 0.02,
+      "max": 8,
+      "default": 0.6,
+      "taper": "log",
+      "unit": "s",
+      "description": "How quickly the cave follows Drag. Fast gives a sharp jump in pitch, slow a long glide."
+    },
+    {
+      "key": "steps",
+      "name": "Steps",
+      "choices": ["Off", "On"],
+      "default": 0,
+      "description": "With Steps on, Drag moves between seven sizes related by octaves, fifths and fourths, so every move is heard as a musical interval instead of a free bend."
+    },
+    {
+      "key": "wander",
+      "name": "Wander",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "Lets Drag drift on its own so the cave keeps shifting. Smooth and seasick with Steps off; occasional interval jumps with Steps on."
+    },
+    {
+      "key": "modulation",
+      "name": "Modulation",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Slow, independent movement of each echo. A little keeps the swarm from ringing like metal; a lot makes it shimmer and detune."
+    },
+    {
+      "key": "lowCut",
+      "name": "Low Cut",
+      "min": 20,
+      "max": 800,
+      "default": 100,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "Removes bass from the echoes, and more of it each time they go round, so the cave does not turn to mud."
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "Stereo width of the echoes only. Zero is a mono cave; full spreads the swarm across both sides."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "Balance between the dry sound and the cave."
+    }
+  ],
+  "presets": {
+    "Cavern": {},
+    "Pattering": { "diffuse": 0, "length": 0.25 },
+    "Endless cave": { "reflect": 1 },
+    "Dark well": { "dampen": 1500, "length": 1 }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit."
+  }
+}

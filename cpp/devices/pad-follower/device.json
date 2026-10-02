@@ -1,0 +1,106 @@
+{
+  "id": "pad-follower",
+  "name": "Pad Follower",
+  "category": "texture",
+  "description": "Grows a soft string-section pad out of whatever you play: the same chord swells in behind you, follows your harmony as it changes and fades when you stop.",
+  "class": "PadFollower",
+  "header": "pad_follower.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "rise",
+      "name": "Rise",
+      "min": 0.02,
+      "max": 6,
+      "default": 0.6,
+      "taper": "log",
+      "unit": "s",
+      "description": "How slowly the pad swells in after you play. Short doubles each note almost at once; long lets the pad arrive well after the chord."
+    },
+    {
+      "key": "fall",
+      "name": "Fall",
+      "min": 0.1,
+      "max": 20,
+      "default": 3,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the pad hangs on after the sound stops. Long settings leave the last chord standing while you play the next."
+    },
+    {
+      "key": "sensitivity",
+      "name": "Sensitivity",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How quiet a sound may be and still become pad. Low settings follow only what is played firmly; high settings pick up soft notes, and with them more noise and ringing."
+    },
+    {
+      "key": "octaves",
+      "name": "Octaves",
+      "min": -1,
+      "max": 1,
+      "default": 0.3,
+      "description": "Adds a second section to the pad: the octave below towards the left, the octave above towards the right. In the middle the pad plays only the pitches you played."
+    },
+    {
+      "key": "brightness",
+      "name": "Brightness",
+      "min": 300,
+      "max": 12000,
+      "default": 3500,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "Low-pass on the pad. Lower settings push it further behind the instrument; higher ones let its upper partials and the octave above shine."
+    },
+    {
+      "key": "ensemble",
+      "name": "Ensemble",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "How many players the pad seems to have. At zero it is one steady voice per note; raising it adds the slow detuned chorus of a string section."
+    },
+    {
+      "key": "movement",
+      "name": "Movement",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Slow drift in level and position across the registers of the pad, so a held chord keeps shimmering instead of standing still."
+    },
+    {
+      "key": "lowCut",
+      "name": "Low Cut",
+      "min": 40,
+      "max": 600,
+      "default": 120,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "Takes the lows out of the pad so it does not cloud the bass of the instrument. The dry signal is not affected."
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "Stereo spread of the pad. Zero puts the whole pad in the centre; full spreads the section across the speakers. The dry signal keeps its own image."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.45,
+      "description": "Balance between the instrument and the pad. Zero is the instrument alone, full is the pad alone."
+    }
+  ],
+  "presets": {
+    "Strings behind": {}
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit."
+  }
+}

@@ -6,7 +6,6 @@
   "class": "PitchShifter",
   "header": "pitch_shifter.h",
   "sources": [],
-  "memoryMb": 8,
   "params": [
     {
       "key": "pitchA",

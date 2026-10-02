@@ -316,8 +316,19 @@ int main() {
     std::printf("sustainer: Attack %.2f s: caught %.2f s after the note began, half level %.2f s later\n", attack,
                 static_cast<double>(begins) / kRate, took);
     EXPECT(took > 0.4 * attack && took < 0.6 * attack + 0.06, "Attack sets the rise time of the held sound");
-    EXPECT(begins > static_cast<size_t>(0.06 * kRate) && begins < static_cast<size_t>(0.2 * kRate),
-           "the catch comes 60 to 200 ms after the note begins");
+  }
+
+  // The catch comes after the attack has passed: the held sound begins 100
+  // to 170 ms after the note does, whatever the block size.
+  {
+    still(device);
+    device.set_param(p::kAttack, 0.01f);
+    Stereo out = run(device, sine(440.0f, 1.0f, kRate, 0.25f));
+    size_t begins = 0;
+    while (begins < out.left.size() && std::fabs(out.left[begins]) < 1.0e-3f) ++begins;
+    std::printf("sustainer: the held sound begins %.0f ms after the note\n", 1000.0 * begins / kRate);
+    EXPECT(begins > static_cast<size_t>(0.10 * kRate) && begins < static_cast<size_t>(0.17 * kRate),
+           "the catch comes 100 to 170 ms after the note begins");
   }
 
   // Latch: silent until Hold goes On, constant while it is On, gone after Off.

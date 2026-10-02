@@ -83,10 +83,10 @@ constexpr TapeDef kTapes[kNumTapes] = {
    900.0f, 3.0f, 9000.0f, 8.0f, 0.5f, 0.75f},
   // Flutes: breath that follows the tone, a chiff, vibrato that is mostly level.
   {3, 0.05f, 0.25f, 0.2f, 9.0f, 5.3f, 0.22f, 2.5f, -25.0f, 13.0f, 0.05f, 900.0f, 2.2f, 1.1f,
-   1200.0f, 2.0f, 9000.0f, 6.0f, 1.5f, 0.24f},
+   1200.0f, 2.0f, 9000.0f, 6.0f, 2.0f, 0.24f},
   // Horns: a slow rounded attack that opens as it swells, hardly any vibrato.
   {4, 0.11f, 0.9f, 0.45f, 5.0f, 5.0f, 0.03f, 3.0f, -41.0f, 12.0f, 0.06f, 500.0f, 1.0f, 0.8f,
-   100.0f, 0.8f, 2400.0f, 5.0f, 2.0f, 0.24f},
+   100.0f, 0.8f, 2400.0f, 5.0f, 1.2f, 0.24f},
   // Reeds: clarinets and an oboe. Quick to speak, narrow vibrato.
   {3, 0.035f, 0.3f, 0.2f, 8.0f, 5.6f, 0.08f, 4.0f, -38.0f, 10.0f, 0.04f, 2200.0f, 0.0f, 0.8f,
    1500.0f, 3.0f, 12000.0f, 8.0f, 0.5f, 0.4f},
@@ -158,8 +158,8 @@ inline float source_gain(int tape, int h, float f0) {
   switch (tape) {
     case kStrings:
       // A bowed string falls 6 dB an octave; the body radiates the upper
-      // harmonics better, which leaves about 3.6.
-      return std::pow(n, -0.6f);
+      // harmonics better, which leaves about 4.5.
+      return std::pow(n, -0.75f);
     case kCellos:
       return std::pow(n, -0.8f);
     case kFlutes: {
@@ -198,7 +198,7 @@ inline float body_gain(int tape, float f0, float hz) {
       // the bridge hill near 3 kHz.
       static constexpr Bell kBody[6] = {{280.0f, 45.0f, 5.0f},   {450.0f, 60.0f, 4.0f},
                                         {700.0f, 110.0f, 3.0f},  {1100.0f, 400.0f, 4.0f},
-                                        {1800.0f, 350.0f, -5.0f}, {2900.0f, 800.0f, 10.0f}};
+                                        {1800.0f, 350.0f, -5.0f}, {2900.0f, 800.0f, 9.0f}};
       const float db = bells_db(kBody, 6, hz) + ripple_db(tape, hz, 3.5f);
       return db_to_linear(db) * low_cut(hz, 190.0f) * high_cut(hz, 5200.0f);
     }
@@ -268,32 +268,41 @@ class Recorder {
     static const float kSharp = std::exp2(kVibratoSpanCents / 1200.0f);
     kit::Rng rng;
     rng.seed(seed);
-    // Up to 5 ms of smear, and at most four fifths of the period.
-    const float smear = kit::min(0.8f, 0.005f * f0);
+    // Levels first: A at re_[h], B at im_[h].
     float power = 0.0f;
     for (int h = 1; h <= harmonics; ++h) {
       const float hz = f0 * static_cast<float>(h);
       const float source = source_gain(tape, h, f0);
-      const float a = source * body_gain(tape, f0, hz * kFlat);
-      const float b = source * body_gain(tape, f0, hz * kSharp);
-      // Phases: each harmonic a little later than the one below it (a
-      // quadratic phase, after Schroeder's low-peak-factor signals), so the
-      // period is spread over `smear` of its length instead of standing up
-      // as one pulse, plus a little scatter. A body and a room do the same
-      // to a waveform, and the tape is driven evenly instead of on peaks.
-      const float n = static_cast<float>(h - 1);
-      const float phase = -0.5f * smear * n * static_cast<float>(h) / static_cast<float>(harmonics) +
-                          0.1f * kit::min(1.0f, 0.25f * n) * rng.bipolar();
-      const float c = kit::SineTable::cos_lookup(phase);
-      const float s = kit::SineTable::lookup(phase);
+      re_[h] = source * body_gain(tape, f0, hz * kFlat);
+      im_[h] = source * body_gain(tape, f0, hz * kSharp);
+      power += 0.25f * (re_[h] * re_[h] + im_[h] * im_[h]);
+    }
+    power = kit::max(power, 1.0e-12f);
+    // Then phases. Each harmonic comes a little later than the one below
+    // it, by the share of the power that lies under it (Schroeder's phases
+    // for a low peak factor), so the period is a glide through its own
+    // spectrum instead of one pulse: the tape is driven evenly, not on
+    // peaks, and stacked keys do not pile up. The glide lasts `smear` of the
+    // period: at most 5 ms, which is what a body and a room do to a
+    // waveform, and at most four fifths of it. A little scatter on top.
+    const float smear = kit::min(0.8f, 0.005f * f0);
+    float phase = 0.0f;
+    float below = 0.0f;
+    for (int h = 1; h <= harmonics; ++h) {
+      const float a = re_[h];
+      const float b = im_[h];
+      phase -= smear * below / power;
+      below += 0.25f * (a * a + b * b);
+      const float turned = phase + 0.06f * rng.bipolar() * (h > 1 ? 1.0f : 0.0f);
+      const float c = kit::SineTable::cos_lookup(turned);
+      const float s = kit::SineTable::lookup(turned);
       re_[h] = 0.5f * (a * s + b * c);
       im_[h] = -0.5f * (a * c - b * s);
       re_[kTableSize - h] = 0.5f * (a * s - b * c);
       im_[kTableSize - h] = 0.5f * (a * c + b * s);
-      power += 0.25f * (a * a + b * b);
     }
     fft_.inverse(re_, im_);
-    const float scale = db_to_linear(kTapes[tape].level_db) / std::sqrt(kit::max(power, 1.0e-12f));
+    const float scale = db_to_linear(kTapes[tape].level_db) / std::sqrt(power);
     for (int i = 0; i < kTableSize; ++i) {
       recording[2 * i] = re_[i] * scale;
       recording[2 * i + 1] = im_[i] * scale;

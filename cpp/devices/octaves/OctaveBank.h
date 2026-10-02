@@ -229,6 +229,7 @@ class OctaveBank {
   int tick_counter_ = 0;
   int call_ = 0;
   int slow_count_ = 0;
+  int parity_ = 0;
   float tick_seconds_ = 0.0f;
   float inv_steps_[kGroups] = {};
   float agree_coeff_ = 0.0f;
@@ -302,6 +303,7 @@ class OctaveBank {
   float agree_[kMaxBands] = {};
   // Per channel, per voice: the complex weight, ramped between ticks.
   bool live_[kMaxBands] = {};
+  int since_[kMaxBands] = {};
   float w_re_[kVoices][kMaxBands] = {};
   float w_im_[kVoices][kMaxBands] = {};
   float w_step_re_[kVoices][kMaxBands] = {};

@@ -15,7 +15,7 @@ export const MICRO_LOOPER_PARAMS = {
     unit: '',
     choices: ['Listen', 'Hold', 'Auto'],
     description:
-      'Listen only remembers what you play. Hold loops the last thing you played and keeps it for ever; if nothing was played yet it waits for the next phrase. Auto loops each new phrase in place of the last and lets it die away.',
+      'Listen only remembers what you play. Hold loops the last thing you played and keeps it for ever; if nothing was played yet it waits for the next phrase. Auto loops each new phrase in place of the last one and lets it die away.',
   },
   length: {
     id: 1,
@@ -50,7 +50,7 @@ export const MICRO_LOOPER_PARAMS = {
     unit: '',
     choices: ['Full', '3/4', '2/3', '1/2', '3/8', '1/3', '1/4', '1/8'],
     description:
-      "The looper's own sample rate. Lower clocks record darker and grainier, like an old sampler. Moving it while a loop plays drops the loop by a fourth, a fifth or octaves and stretches it to match.",
+      "The looper's own sample rate. Lower clocks record with less and less top, like an old sampler. Moving it while a loop plays drops the loop by a fourth, a fifth or octaves and stretches it to match.",
   },
   smear: {
     id: 4,
@@ -105,7 +105,7 @@ export const MICRO_LOOPER_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Plays the loop from slightly different points on the left and the right, which widens it. The low end stays in the centre.',
+      'Widens the loop with two more reads from just ahead of and behind the playing point, added on the left and taken away on the right. In mono they cancel and leave the plain loop; the low end stays in the centre.',
   },
   mix: {
     id: 9,
@@ -132,7 +132,7 @@ export const MICRO_LOOPER_DESCRIPTOR = wasmDeviceDescriptor(MICRO_LOOPER_DEVICE,
   name: 'Micro Looper',
   category: 'delay',
   description:
-    'An always-listening short looper: it loops what you just played as a soft bed, renews it as you play on, and can run the loop slower, lower, grainier or backwards.',
+    'An always-listening short looper: it loops what you just played as a soft bed, renews it as you play on, and can run the loop slower, lower, darker or backwards.',
   presets: {
     'Soft bed': {
       state: 2,
@@ -216,7 +216,7 @@ export const MICRO_LOOPER_DESCRIPTOR = wasmDeviceDescriptor(MICRO_LOOPER_DEVICE,
 
 export type MicroLooper = WasmDevice<typeof MICRO_LOOPER_PARAMS>
 
-/** An always-listening short looper: it loops what you just played as a soft bed, renews it as you play on, and can run the loop slower, lower, grainier or backwards. */
+/** An always-listening short looper: it loops what you just played as a soft bed, renews it as you play on, and can run the loop slower, lower, darker or backwards. */
 export function createMicroLooper(
   context: BaseAudioContext,
   options: WasmDeviceOptions<typeof MICRO_LOOPER_PARAMS> = {},

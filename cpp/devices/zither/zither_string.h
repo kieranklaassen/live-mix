@@ -3,15 +3,18 @@
 // The string and the blow that sets it going, for Zither (zither.h).
 //
 // StringLoop is one plucked-string loop: a delay line closed through a
-// first-order allpass (the fractional part of the tuning), a one-pole
-// low-pass (the string's loss, heavier for the upper partials) and a gain
-// (how long the fundamental rings).
+// first-order allpass (the fractional part of the tuning), a loss filter
+// and a gain (how long the fundamental rings). The loss filter is a
+// one-pole low-pass with a share of the signal passed by it, so the loss
+// grows with frequency up to a ceiling instead of without end: the upper
+// partials die sooner than the lower, but the top of the spectrum is not
+// wiped out in the first tenth of a second.
 //
 //   in ──(+)──────────────────────────────────────────────┬──► out
 //         ▲                                               │
 //         └── gain ◄── low-pass ◄── allpass ◄── delay N ◄─┘
 //
-// The low-pass's own delay at the fundamental is taken off the delay line
+// The loss filter's own delay at the fundamental is taken off the delay line
 // and the allpass coefficient is solved for the exact remainder there, so
 // the pitch holds at any brightness.
 //
@@ -41,6 +44,7 @@ struct StringLoop {
   float eta = 0.0f;     // allpass coefficient
   float ap_x1 = 0.0f, ap_y1 = 0.0f;
   float pole = 0.0f;    // low-pass pole
+  float shelf = 0.0f;   // share of the signal that passes the low-pass by
   float lp = 0.0f;
   float gain = 0.0f;    // loop gain
   float lp_gain0 = 1.0f;  // the low-pass's gain at the fundamental
@@ -57,21 +61,31 @@ struct StringLoop {
     for (int i = 0; i < Size; ++i) buffer[i] = 0.0f;
     write = 0;
     delay = 16;
-    eta = pole = gain = 0.0f;
+    eta = pole = shelf = gain = 0.0f;
     ap_x1 = ap_y1 = lp = 0.0f;
     lp_gain0 = 1.0f;
     hz = 220.0f;
   }
 
-  // Tune to `frequency` with loss pole `p` (0 = no low-pass). Call before
-  // clear(): it moves the delay.
-  void tune(float frequency, float p, float sample_rate) {
+  // The loss filter c + (1 - c)(1 - p)/(1 - p z^-1) at `w`: gain and phase lag.
+  static void loss_response(float p, float c, float w, float* gain, float* lag) {
+    const float re_den = 1.0f - p * std::cos(w), im_den = p * std::sin(w);
+    const float scale = (1.0f - c) * (1.0f - p) / (re_den * re_den + im_den * im_den);
+    const float re = c + scale * re_den, im = -scale * im_den;
+    *gain = std::sqrt(re * re + im * im);
+    *lag = -std::atan2(im, re);
+  }
+
+  // Tune to `frequency` with loss pole `p` (0 = no low-pass) and shelf `c`.
+  // Call before clear(): it moves the delay.
+  void tune(float frequency, float p, float c, float sample_rate) {
     hz = frequency;
     pole = p;
+    shelf = c;
     const float w = kit::kTwoPi * frequency / sample_rate;
-    const float cw = std::cos(w), sw = std::sin(w);
-    const float lp_delay = std::atan2(p * sw, 1.0f - p * cw) / w;
-    lp_gain0 = (1.0f - p) / std::sqrt(kit::max(1.0e-12f, 1.0f - 2.0f * p * cw + p * p));
+    float lag = 0.0f;
+    loss_response(p, c, w, &lp_gain0, &lag);
+    const float lp_delay = lag / w;
     const float total = sample_rate / frequency - lp_delay;
     int whole = static_cast<int>(total - 0.4f);
     whole = kit::clamp_int(whole, 1, Size - 8);
@@ -93,7 +107,7 @@ struct StringLoop {
     ap_x1 = read;
     ap_y1 = through;
     lp = through + (lp - through) * pole;
-    const float out = lp * gain * scale + in;
+    const float out = (lp + (through - lp) * shelf) * gain * scale + in;
     buffer[write] = out;
     write = (write + 1) & kMask;
     return out;
@@ -104,7 +118,7 @@ struct StringLoop {
   void run(const float* in, float in_gain, float scale, float* out, int count) {
     int w = write;
     float x1 = ap_x1, y1 = ap_y1, state = lp;
-    const float e = eta, p = pole, g = gain * scale;
+    const float e = eta, p = pole, c = shelf, g = gain * scale;
     const int d = delay;
     for (int i = 0; i < count; ++i) {
       const float read = buffer[(w - d) & kMask];
@@ -112,7 +126,7 @@ struct StringLoop {
       x1 = read;
       y1 = through;
       state = through + (state - through) * p;
-      const float y = state * g + (in ? in[i] * in_gain : 0.0f);
+      const float y = (state + (through - state) * c) * g + (in ? in[i] * in_gain : 0.0f);
       buffer[w] = y;
       w = (w + 1) & kMask;
       out[i] = y;

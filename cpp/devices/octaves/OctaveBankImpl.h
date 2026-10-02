@@ -8,25 +8,36 @@ namespace octaves {
 namespace layout {
 // Channel density in channels per octave: sparse at the bottom, densest
 // where chords are played (about a semitone and a quarter per channel, so
-// the notes of a close chord fall in different channels), a little sparser
-// above, where the partials of a chord interleave whatever the spacing.
-constexpr double kEdgeHz[2] = {80.0, 900.0};
-constexpr double kPerOctave[3] = {5.0, 9.5, 7.5};
+// the notes of a close chord fall in different channels), sparser above,
+// where the partials of a chord interleave whatever the spacing, and
+// sparser again at the top, where the channels cost the most (they run at
+// the full rate) and a note's partials are far apart or faint.
+constexpr int kEdges = 3;
+constexpr double kEdgeHz[kEdges] = {80.0, 900.0, 1800.0};
+constexpr double kPerOctave[kEdges + 1] = {5.0, 9.5, 7.5, 5.5};
 
 // Position on the channel scale (channels from 1 Hz) and its inverse.
 inline double position(double hz) {
-  const double a = std::log2(kEdgeHz[0]), b = std::log2(kEdgeHz[1]);
   const double x = std::log2(hz);
-  if (x <= a) return kPerOctave[0] * x;
-  if (x <= b) return kPerOctave[0] * a + kPerOctave[1] * (x - a);
-  return kPerOctave[0] * a + kPerOctave[1] * (b - a) + kPerOctave[2] * (x - b);
+  double pos = 0.0, from = 0.0;
+  for (int e = 0; e < kEdges; ++e) {
+    const double edge = std::log2(kEdgeHz[e]);
+    if (x <= edge) return pos + kPerOctave[e] * (x - from);
+    pos += kPerOctave[e] * (edge - from);
+    from = edge;
+  }
+  return pos + kPerOctave[kEdges] * (x - from);
 }
 inline double frequency(double pos) {
-  const double a = std::log2(kEdgeHz[0]), b = std::log2(kEdgeHz[1]);
-  const double pa = kPerOctave[0] * a, pb = pa + kPerOctave[1] * (b - a);
-  if (pos <= pa) return std::exp2(pos / kPerOctave[0]);
-  if (pos <= pb) return std::exp2(a + (pos - pa) / kPerOctave[1]);
-  return std::exp2(b + (pos - pb) / kPerOctave[2]);
+  double at = 0.0, from = 0.0;
+  for (int e = 0; e < kEdges; ++e) {
+    const double edge = std::log2(kEdgeHz[e]);
+    const double next = at + kPerOctave[e] * (edge - from);
+    if (pos <= next) return std::exp2(from + (pos - at) / kPerOctave[e]);
+    at = next;
+    from = edge;
+  }
+  return std::exp2(from + (pos - at) / kPerOctave[kEdges]);
 }
 }  // namespace layout
 
@@ -42,6 +53,7 @@ inline void OctaveBank::init(float rate, float low_hz, float high_hz, int count)
   for (int g = 0; g < kGroups; ++g) inv_steps_[g] = static_cast<float>(1 << g) / static_cast<float>(tick_period_);
   agree_coeff_ = 1.0f - std::exp(-4.0f * tick_seconds_ / kAgreeSeconds);
   slow_count_ = 0;
+  parity_ = 0;
   jump_index_ = 0;
   jump_fall_ = std::exp(-tick_seconds_ / kJumpFall);
   attack_coeff_ = 0.0f;
@@ -136,6 +148,7 @@ inline void OctaveBank::init(float rate, float low_hz, float high_hz, int count)
     weight_[k] = 0.0f;
     agree_[k] = 0.0f;
     live_[k] = false;
+    since_[k] = 0;
     sign1_[k] = sign2_[k] = 1.0f;
     half_im_[k] = 0.0f;
     set_width(k, 0.0f, false);
@@ -430,6 +443,8 @@ inline void OctaveBank::tick() {
   float offset[kMaxBands];
   // Where a channel's sub voices pointed before its width was moved.
   float before[kMaxBands][4];
+  bool due[kMaxBands];
+  parity_ ^= 1;
   jump_index_ = (jump_index_ + 1) % kJumpDelay;
   // The agreement between neighbours and the signs that follow from it are
   // slow matters: every fourth tick.
@@ -465,6 +480,7 @@ inline void OctaveBank::tick() {
       unit_re[k] = 0.0f;
       unit_im[k] = 0.0f;
       sharp[k] = 0.0f;
+      due[k] = false;
       continue;
     }
     // An onset opens the channel: its first stage jumps above its recent
@@ -553,38 +569,57 @@ inline void OctaveBank::tick() {
 
     // The equaliser: the phase of all three stages at x, and what they took
     // off the partial's level there.
-    float er = 1.0f, ei = 0.0f, gain = 1.0f, x = 0.0f, own = 1.0f;
+    float x = 0.0f, own = 1.0f;
     const float ar = avg_re_[k], ai = avg_im_[k];
-    if (ar * ar + ai * ai > 1.0e-36f) {
+    const bool tracking = ar * ar + ai * ai > 1.0e-36f;
+    if (tracking) {
       x = ai < 0.0f ? -3.0f : 3.0f;
       if (ar > 0.0f && ai > -3.0f * ar && ai < 3.0f * ar) x = ai / ar;
-      const float t0 = 2.0f * (x - 0.8660254f), t1 = 2.0f * (x + 0.8660254f);
-      const float pr = 1.0f - t0 * t1, pi = t0 + t1;
-      const float nr = pr - pi * x, ni = pi + pr * x;
-      const float size = std::sqrt(nr * nr + ni * ni);
-      const float inv_size = 1.0f / size;
-      er = nr * inv_size;
-      ei = ni * inv_size;
-      gain = size * 0.25f;
-      if (gain > kMaxCorrection) gain = kMaxCorrection;
       // A channel whose strongest partial lies three cutoffs outside it
       // holds nothing of its own (that partial has a channel of its own, two
       // or more away) and is left out.
       const float mag = x < 0.0f ? -x : x;
       if (mag > 2.5f) own = (3.0f - mag) * 2.0f;
     }
-    correction[k] = gain * own;
     offset[k] = x;
-    rot_re_[k] = er;
-    rot_im_[k] = ei;
+    // A channel's weights are worked out on every other tick (odd and even
+    // channels in turn), and at once when it has just moved or come on.
+    if (since_[k] < 2) ++since_[k];
+    due[k] = moved[k] || ((k ^ parity_) & 1) == 0 || !live_[k];
+    if (due[k] && own > 0.0f) {
+      float er = 1.0f, ei = 0.0f, gain = 1.0f;
+      if (tracking) {
+        const float t0 = 2.0f * (x - 0.8660254f), t1 = 2.0f * (x + 0.8660254f);
+        const float pr = 1.0f - t0 * t1, pi = t0 + t1;
+        const float nr = pr - pi * x, ni = pi + pr * x;
+        const float size = std::sqrt(nr * nr + ni * ni);
+        const float inv_size = 1.0f / size;
+        er = nr * inv_size;
+        ei = ni * inv_size;
+        gain = size * 0.25f;
+        if (gain > kMaxCorrection) gain = kMaxCorrection;
+      }
+      correction[k] = gain * own;
+      rot_re_[k] = er;
+      rot_im_[k] = ei;
+    }
     if (slow_tick) {
       // This sample's equalised unit phasor, at the time the top group is
       // at, for the agreement below.
-      const float zr = cr * er - ci * ei;
-      const float zi = cr * ei + ci * er;
+      const float zr = cr * rot_re_[k] - ci * rot_im_[k];
+      const float zi = cr * rot_im_[k] + ci * rot_re_[k];
       const float inv = 1.0f / std::sqrt(zr * zr + zi * zi + 1.0e-30f);
       unit_re[k] = (zr * unskew_re_[k] - zi * unskew_im_[k]) * inv;
       unit_im[k] = (zr * unskew_im_[k] + zi * unskew_re_[k]) * inv;
+    }
+    if (attack_coeff_ > 0.0f) {
+      // Attack: the allowed level rises at the set rate and falls at once.
+      const float level = std::sqrt(power_[k]);
+      if (level > slow_[k]) {
+        slow_[k] += attack_coeff_ * (level - slow_[k]);
+      } else {
+        slow_[k] = level;
+      }
     }
     // A channel that is sitting out does not compete for weight either.
     sharp[k] = power_[k] * power_[k] * settled[k] * own;
@@ -594,7 +629,7 @@ inline void OctaveBank::tick() {
     // How far the channel stands out from the ones that hold the same
     // partial: the two beside it, and for an open grid channel the settled
     // ones out to the next grid channels.
-    if (sharp[k] == 0.0f && !live_[k]) continue;
+    if (!due[k] || (sharp[k] == 0.0f && !live_[k])) continue;
     float total = sharp[k];
     if (k > 0) total += sharp[k - 1];
     if (k < bands_ - 1) total += sharp[k + 1];
@@ -627,20 +662,20 @@ inline void OctaveBank::tick() {
       }
     }
     float target = total > 0.0f ? share * correction[k] * sharp[k] / total : 0.0f;
-    // Attack: the allowed level rises at the set rate and falls at once.
-    const float level = std::sqrt(power_[k]);
-    if (attack_coeff_ > 0.0f && level > slow_[k]) {
-      slow_[k] += attack_coeff_ * (level - slow_[k]);
-      target *= slow_[k] / level;
-    } else {
-      slow_[k] = level;
+    if (attack_coeff_ > 0.0f) {
+      const float level2 = slow_[k] * slow_[k];
+      if (level2 < power_[k]) target *= std::sqrt(level2 / power_[k]);
     }
     // Too quiet to hear: the channel's voices are switched off (after one
-    // tick's ramp to zero) and run_group skips them.
-    if (target * level < kFloor) target = 0.0f;
+    // ramp to zero) and run_group skips them.
+    if (target * target * power_[k] < kFloor * kFloor) target = 0.0f;
     weight_[k] = target;
     const bool was_live = live_[k];
-    const float steps = inv_steps_[group_of(k)];
+    // The ramp lasts until the channel is due again.
+    const bool on_turn = ((k ^ parity_) & 1) == 0;
+    const float steps = inv_steps_[group_of(k)] * (on_turn ? 0.5f : 1.0f);
+    const float elapsed = static_cast<float>(since_[k]);
+    since_[k] = 0;
     if (target == 0.0f) {
       if (!was_live) continue;
       bool any = false;
@@ -718,7 +753,7 @@ inline void OctaveBank::tick() {
       if (detune_ > 0.0f) {
         // Detune: the voice's phase runs on at its share of the partial's
         // own frequency, so every channel that holds the partial turns alike.
-        const float angle = det_rate_[v] * hz, a2 = angle * angle;
+        const float angle = det_rate_[v] * hz * elapsed, a2 = angle * angle;
         const float cs = 1.0f - a2 * (0.5f - a2 * (1.0f / 24.0f));
         const float sn = angle * (1.0f - a2 * ((1.0f / 6.0f) - a2 * (1.0f / 120.0f)));
         float dr = det_re_[v][k] * cs - det_im_[v][k] * sn;

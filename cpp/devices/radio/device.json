@@ -10,11 +10,7 @@
     {
       "key": "band",
       "name": "Band",
-      "choices": [
-        "Medium wave",
-        "Shortwave",
-        "Sideband"
-      ],
+      "choices": ["Medium wave", "Shortwave", "Sideband"],
       "default": 1,
       "description": "Which kind of reception. Medium wave is the fuller local station that fades slowly. Shortwave is narrower and fades faster and deeper, with the tone hollowing as it goes. Sideband has no carrier: Tuning moves every pitch, and the noise rushes up in the gaps."
     },
@@ -100,10 +96,10 @@
       "tuning": 0,
       "drift": 0.05,
       "fading": 0.1,
-      "static": 0.12,
-      "interference": 0.05,
-      "bandwidth": 0.65,
-      "speaker": 0.75,
+      "static": 0.15,
+      "interference": 0.12,
+      "bandwidth": 0.35,
+      "speaker": 0.9,
       "mix": 1
     },
     "Far station": {
@@ -155,7 +151,7 @@
       "tuning": 0,
       "drift": 0.15,
       "fading": 0.45,
-      "static": 0.75,
+      "static": 0.7,
       "interference": 0.1,
       "bandwidth": 0.7,
       "speaker": 0.3,
@@ -163,7 +159,7 @@
     },
     "Between stations": {
       "band": 1,
-      "tuning": -0.9,
+      "tuning": -0.95,
       "drift": 0.6,
       "fading": 0.7,
       "static": 0.5,
@@ -177,10 +173,10 @@
       "tuning": 0,
       "drift": 0,
       "fading": 0,
-      "static": 0.05,
+      "static": 0.03,
       "interference": 0,
-      "bandwidth": 0.8,
-      "speaker": 0.6,
+      "bandwidth": 0.9,
+      "speaker": 0.45,
       "mix": 1
     }
   },

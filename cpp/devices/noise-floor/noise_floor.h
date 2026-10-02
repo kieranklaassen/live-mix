@@ -66,6 +66,7 @@ class NoiseFloor : public kit::DeviceBase<noise_floor::kNumParams> {
       }
       fade_[t] = 0.0f;
       amp_[t] = 0.0f;
+      prepared_[t] = false;
       comp_[t].set_time(kSmoothingSeconds, sr);
       comp_[t].snap(1.0f);
     }
@@ -129,8 +130,12 @@ class NoiseFloor : public kit::DeviceBase<noise_floor::kNumParams> {
         ++quiet_;
       }
       if (quiet_ < hold_samples_) {
-        // Coming back from silence there is no old bed to fade from.
-        if (gate_ <= 0.0f) snap_types();
+        // Coming back from silence there is no old bed to fade from, and
+        // whatever level the follower held then is long gone.
+        if (gate_ <= 0.0f) {
+          snap_types();
+          envelope_ = smooth_envelope_ = 0.0f;
+        }
         gate_ = kit::min(1.0f, gate_ + gate_rise_);
       } else {
         gate_ = kit::max(0.0f, gate_ - gate_fall_);
@@ -296,8 +301,14 @@ class NoiseFloor : public kit::DeviceBase<noise_floor::kNumParams> {
       thin_.set(kit::clamp(kToneBlend * tone_now, 0.0f, 1.0f), started_);
     }
     for (int t = 0; t < kTypes; ++t) {
-      const bool fresh = fade_[t] <= 0.0f;  // not sounding yet
-      if (fresh && t != type_) continue;
+      if (fade_[t] <= 0.0f && t != type_) {
+        prepared_[t] = false;
+        continue;
+      }
+      // A bed that starts sounding takes the current Tone at once; until
+      // then it has missed every move of it.
+      const bool fresh = !prepared_[t] || fade_[t] <= 0.0f;
+      prepared_[t] = true;
       if (tone_moved || fresh) {
         comp_[t].set(kit::db_to_gain(-tone_level_db(t, tone_now)), !fresh);
         if (t != kHum50 && t != kHum60) {
@@ -379,6 +390,7 @@ class NoiseFloor : public kit::DeviceBase<noise_floor::kNumParams> {
   kit::Smoother comp_[kTypes];
   float fade_[kTypes] = {};
   float amp_[kTypes] = {};
+  bool prepared_[kTypes] = {};
   kit::Smoother level_, follow_, mid_, side_, drift_gain_, dark_, thin_;
   kit::Smoother tone_, movement_;  // advanced on the control clock
   kit::Drift level_drift_, tone_drift_;

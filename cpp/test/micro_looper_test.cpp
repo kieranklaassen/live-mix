@@ -591,6 +591,26 @@ int main() {
     EXPECT(worst < 2.5 * natural, "sweeping the continuous controls does not click");
   }
 
+  // Double speed skips frames: a 20 kHz tone in the capture would come back
+  // folded to 8 kHz. The read is band-limited, so it comes back well down,
+  // while a 3 kHz tone (6 kHz at double speed) keeps its level.
+  {
+    plain(device, 0.5f);
+    device.set_param(p::kSpeed, kDouble);
+    std::vector<float> input = sine(20000.0f, 1.0f, kRate, 0.25f);
+    std::vector<float> low = sine(3000.0f, 1.0f, kRate, 0.25f);
+    for (size_t i = 0; i < input.size(); ++i) input[i] += low[i];
+    run(device, input);
+    device.set_param(p::kState, kHold);
+    Stereo held = render(device, 2.0f, kRate);
+    const double folded = tone_level(held.left, 8000.0, kRate, 24000, 2 * 48000);
+    const double wanted = tone_level(held.left, 6000.0, kRate, 24000, 2 * 48000);
+    std::printf("micro-looper: Double speed: 3 kHz comes back at 6 kHz %+.2f dB, 20 kHz folds to 8 kHz at %.1f dB\n",
+                db(wanted / 0.25), db(folded / 0.25));
+    EXPECT(db(wanted / 0.25) > -1.0, "Double speed keeps what is in band");
+    EXPECT(db(folded / 0.25) < -20.0, "Double speed band-limits what would fold back");
+  }
+
   // BEHAVIOUR CHECKS GO HERE
 
   return finish("micro-looper");

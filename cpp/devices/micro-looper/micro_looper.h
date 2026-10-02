@@ -1,8 +1,49 @@
 #pragma once
 
 // Micro Looper: an always-listening short looper with a variable clock.
-// (Signal path and behaviour notes are at the end of the class comment below
-// once the pieces are in.)
+//
+//   in ─┬──────────────────────────────────────────────────────────► dry ─┐
+//       └─► band-limit ─► ring (written at the clock) ─► store (a held loop)
+//                              │                             │
+//                              └──────────┬──────────────────┘
+//                         two decks: playhead + grains + side reads
+//                                         │
+//                    side (mid/side) ─► band-limit ─► Tone ─► limit ─► wet ─┴─► out
+//
+// - The ring always records. A loop is the most recent Length seconds of it:
+//   Hold takes them at once (or, when nothing was played, waits for the next
+//   phrase and takes that); Auto takes each new phrase one Length after its
+//   attack, once the loop before it has been round (or, for playing without
+//   attacks, after two passes), and lets every pass after the first come
+//   back quieter by Fade until it is 60 dB down and let go.
+// - Clock is the rate the ring is written and read at, as a share of the
+//   host rate. The input is band-limited to it (six poles at 0.34 of the
+//   clock rate, referred to 48 kHz) and resampled with Hermite; the loop is
+//   band-limited the same way on the way out. At Full both are bypassed and
+//   the ring holds the input exactly. Moving the clock while a loop plays
+//   changes its pitch and length together; it glides over 80 ms.
+// - A capture is copied from the ring into the store a few frames per sample
+//   (3 s at 48 kHz, during which the loop plays from the ring), so the ring
+//   can go on listening while a loop is kept for ever. The store always
+//   takes the longest loop there can be, so Length can be moved on a loop
+//   that is already held.
+// - A deck plays its loop as a seamless thing: over the last 4 % of the loop
+//   (3 to 80 ms) it fades, with equal power, into the tape just before the
+//   loop's start, which runs on into the next pass. That holds at any speed
+//   and in either direction, so Speed is a motor with a 60 ms lag and passes
+//   through a stop into reverse. A second deck exists so that a new capture
+//   or a new Length fades in while the old loop fades out.
+// - Above speed 1 the read skips frames; three reads are averaged then (see
+//   source_read) so the top of the capture does not fold back.
+// - Smear blends the playhead (equal power) into grains of 120 to 400 ms
+//   taken from 20 to 300 ms either side of it and moving at its speed.
+// - Spread adds a side signal, the difference of two reads 11 ms ahead of
+//   and behind the playhead, above 250 Hz: plus on the left, minus on the
+//   right. Summed to mono it cancels and leaves the plain loop.
+// - Drift wobbles the speed (+-0.8 % at full, 0.35 Hz, three sines) and
+//   starts each pass up to 3 % of the loop late.
+// - Sleep: with no loop playing or about to and no input, the device stops
+//   after 50 ms and wakes with an empty memory. A held loop keeps it awake.
 
 #include "../../kit/kit.h"
 #include "memory.h"
@@ -215,7 +256,7 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     float gain_step = 0.0f;
     float env = 0.0f;        // fade between decks, 0..1
     float env_step = 0.0f;
-    float blur = 0.0f;       // half the spacing of the two reads above speed 1
+    float blur = 0.0f;       // frames between the three reads above speed 1
     bool stored = false;     // the store holds its capture, complete (control rate)
     float until_grain = 0.0f;  // samples until Smear starts its next grain
     kit::GrainPool<kMaxGrains> grains;
@@ -244,28 +285,31 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
   };
 
   // Both channels of whichever memory holds the deck's capture. Above speed
-  // 1 the read skips frames, so two reads half a step apart are averaged: a
-  // zero at the ring's Nyquist, which is what would fold furthest down.
+  // 1 the read skips frames, which would fold the top of the capture back
+  // down, so three reads `blur` frames apart are averaged (1/4, 1/2, 1/4):
+  // a raised-cosine low-pass with its zero on the ring's Nyquist at double
+  // speed, which is what would fold furthest down.
   void source_read(const Deck& d, double position, float* left, float* right) const {
-    const bool stored = d.stored;
     if (d.blur < 0.01f) {
-      if (stored) {
+      if (d.stored) {
         store_.read(position, left, right);
       } else {
         ring_.read(position, left, right);
       }
       return;
     }
-    float a[2], b[2];
-    if (stored) {
+    float a[2], b[2], c[2];
+    if (d.stored) {
       store_.read(position - d.blur, &a[0], &a[1]);
-      store_.read(position + d.blur, &b[0], &b[1]);
+      store_.read(position, &b[0], &b[1]);
+      store_.read(position + d.blur, &c[0], &c[1]);
     } else {
       ring_.read(position - d.blur, &a[0], &a[1]);
-      ring_.read(position + d.blur, &b[0], &b[1]);
+      ring_.read(position, &b[0], &b[1]);
+      ring_.read(position + d.blur, &c[0], &c[1]);
     }
-    *left = 0.5f * (a[0] + b[0]);
-    *right = 0.5f * (a[1] + b[1]);
+    *left = 0.25f * (a[0] + c[0]) + 0.5f * b[0];
+    *right = 0.25f * (a[1] + c[1]) + 0.5f * b[1];
   }
 
   // The loop as a seamless thing: `q` frames after its start, and over the
@@ -289,9 +333,11 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
   float source_sum(const Deck& d, double position) const {
     if (d.blur < 0.01f) return d.stored ? store_.read_sum(position) : ring_.read_sum(position);
     if (d.stored) {
-      return 0.5f * (store_.read_sum(position - d.blur) + store_.read_sum(position + d.blur));
+      return 0.25f * (store_.read_sum(position - d.blur) + store_.read_sum(position + d.blur)) +
+             0.5f * store_.read_sum(position);
     }
-    return 0.5f * (ring_.read_sum(position - d.blur) + ring_.read_sum(position + d.blur));
+    return 0.25f * (ring_.read_sum(position - d.blur) + ring_.read_sum(position + d.blur)) +
+           0.5f * ring_.read_sum(position);
   }
 
   float loop_sum(const Deck& d, double q, double offset) const {
@@ -463,6 +509,10 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
       wet[0] = cut_left + tone_open_ * (wet[0] - cut_left);
       wet[1] = cut_right + tone_open_ * (wet[1] - cut_right);
     }
+    // Exactly linear up to full scale, never past twice that: two decks, a
+    // join and a pile of grains can coincide.
+    wet[0] = 2.0f * kit::soft_clip(0.5f * wet[0]);
+    wet[1] = 2.0f * kit::soft_clip(0.5f * wet[1]);
   }
 
   // No loop is playing: leave the voice's filters empty for the next one.
@@ -610,7 +660,7 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     const float fade = kit::max(param(kFade), kMinFade);
     for (Deck& d : decks_) {
       if (!d.active) continue;
-      d.blur = 0.5f * kit::clamp(speed - 1.0f, 0.0f, 1.0f);
+      d.blur = kit::clamp(speed - 1.0f, 0.0f, 1.0f);
       float target = d.gain;
       if (state_ == kAuto && d.turns > 1.0 && fade < 1.0f) {
         target *= std::exp(std::log(fade) * speed * kControlPeriod / static_cast<float>(d.length));

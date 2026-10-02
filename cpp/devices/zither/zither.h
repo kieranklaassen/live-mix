@@ -347,8 +347,9 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
   static constexpr float kKeepRollPluck = 0.65f;
   static constexpr float kRingLean = 0.3f;
   static constexpr float kDampHz = 3000.0f;
-  static constexpr float kDarkSeconds = 0.12f;
-  static constexpr float kBrightSeconds = 5.0f;
+  static constexpr float kDarkSeconds = 0.15f;
+  static constexpr float kBrightSeconds = 6.0f;
+  static constexpr float kTopShare = 0.3f;  // the highest partials ring this share of that
   // Release at its top never damps.
   static constexpr float kOpenRelease = 19.5f;
   // A released string that has fallen this far is hurried out.
@@ -412,17 +413,30 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     return found;
   }
 
-  // The loss filter's pole: a partial at the reference frequency rings for
-  // the time Brightness sets, at any pitch.
-  float loss_pole(float hz, float brightness) const {
+  // The loss filter: a partial at the reference frequency rings for the
+  // time Brightness sets, at any pitch, and the highest partials for a
+  // fixed share of that. The shelf follows from the second; the pole is
+  // found for the first by bisection (the loss rises with the pole).
+  void loss_filter(float hz, float brightness, float* pole, float* shelf) const {
     const float sr = sample_rate();
     const float ref = kit::min(kit::max(kDampHz, 3.0f * hz), 0.45f * sr);
     const float seconds = kDarkSeconds * std::pow(kBrightSeconds / kDarkSeconds, brightness);
-    const float m = std::exp(-2.0f * kSixtyDb / (hz * seconds));  // per period, squared
-    if (1.0f - m < 1.0e-6f) return 0.0f;
-    const float b = 1.0f - m * std::cos(kit::kTwoPi * ref / sr);
-    const float p = (b - std::sqrt(kit::max(0.0f, b * b - (1.0f - m) * (1.0f - m)))) / (1.0f - m);
-    return kit::clamp(p, 0.0f, 0.97f);
+    const float wanted = std::exp(-kSixtyDb / (hz * seconds));  // per period, at the reference
+    const float c = std::exp(-kSixtyDb / (hz * seconds * kTopShare));
+    const float w = kit::kTwoPi * ref / sr;
+    float lo = 0.0f, hi = 0.985f;
+    for (int i = 0; i < 20; ++i) {
+      const float mid = 0.5f * (lo + hi);
+      float gain = 1.0f, lag = 0.0f;
+      PlayedString::loss_response(mid, c, w, &gain, &lag);
+      if (gain > wanted) {
+        lo = mid;
+      } else {
+        hi = mid;
+      }
+    }
+    *pole = 0.5f * (lo + hi);
+    *shelf = c;
   }
 
   // How long the string should ring now: Decay while a key holds it, the
@@ -454,12 +468,13 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     voice.chunk_peak = 0.0f;
     voice.two = blow.courses > 0.01f;
     voice.key_scale = kit::clamp(std::pow(220.0f / blow.hz, kRingLean), 0.4f, 1.6f);
-    const float pole = loss_pole(blow.hz, blow.brightness);
+    float pole = 0.0f, shelf = 0.0f;
+    loss_filter(blow.hz, blow.brightness, &pole, &shelf);
     const float beat = voice.two ? course_beat(blow.hz, blow.courses) : 0.0f;
-    voice.strings[0].tune(blow.hz - 0.5f * beat, pole, sr);
+    voice.strings[0].tune(blow.hz - 0.5f * beat, pole, shelf, sr);
     voice.strings[0].clear();
     if (voice.two) {
-      voice.strings[1].tune(blow.hz + 0.5f * beat, pole, sr);
+      voice.strings[1].tune(blow.hz + 0.5f * beat, pole, shelf, sr);
       voice.strings[1].clear();
     }
     set_ring(voice, ring_time(voice));
@@ -660,7 +675,9 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
       SympatheticString& string = sympathetic_[s];
       string.reset();
       const float hz = kit::midi_to_hz(kSympatheticNote[s]);
-      string.tune(hz, loss_pole(hz, kSympatheticBrightness), sr);
+      float pole = 0.0f, shelf = 0.0f;
+      loss_filter(hz, kSympatheticBrightness, &pole, &shelf);
+      string.tune(hz, pole, shelf, sr);
       string.clear();
       // Low and high strings alternate sides, further out toward the treble.
       const float side = (s & 1) ? 1.0f : -1.0f;
