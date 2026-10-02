@@ -6,9 +6,38 @@ import { type ParamSpec } from '../../core/params'
 import { defineWasmDevice, WasmDevice, type WasmDeviceOptions } from '../WasmDevice'
 
 export const FDN_REVERB_PARAMS = {
-  mix: { id: 0, name: 'Mix', min: 0, max: 1, default: 0.5, taper: 'linear', unit: '' },
-  decay: { id: 1, name: 'Decay', min: 0.1, max: 20, default: 5, taper: 'log', unit: 's' },
-  damping: { id: 2, name: 'Damping', min: 0, max: 1, default: 0.4, taper: 'linear', unit: '' },
+  mix: {
+    id: 0,
+    name: 'Mix',
+    min: 0,
+    max: 1,
+    default: 0.5,
+    taper: 'linear',
+    unit: '',
+    description: 'Balance between the dry signal and the reverb. Fully up is the reverb alone.',
+  },
+  decay: {
+    id: 1,
+    name: 'Decay',
+    min: 0.1,
+    max: 20,
+    default: 5,
+    taper: 'log',
+    unit: 's',
+    description:
+      'How long the tail takes to die away. Short is a room; long is a wash that hangs behind the sound.',
+  },
+  damping: {
+    id: 2,
+    name: 'Damping',
+    min: 0,
+    max: 1,
+    default: 0.4,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How quickly the highs die out of the tail. Low keeps it bright and airy; high makes it dark and muffled.',
+  },
   predelayMs: {
     id: 3,
     name: 'Pre-delay',
@@ -17,8 +46,20 @@ export const FDN_REVERB_PARAMS = {
     default: 0,
     taper: 'linear',
     unit: 'ms',
+    description:
+      'The gap before the reverb starts, which keeps the start of the sound clear of its tail.',
   },
-  size: { id: 4, name: 'Size', min: 0.5, max: 2, default: 1, taper: 'linear', unit: '' },
+  size: {
+    id: 4,
+    name: 'Size',
+    min: 0.5,
+    max: 2,
+    default: 1,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How big the space is. Small packs the echoes close together; large spreads them out into a more open tail.',
+  },
   breathRate: {
     id: 5,
     name: 'Breath rate',
@@ -27,6 +68,8 @@ export const FDN_REVERB_PARAMS = {
     default: 0.3,
     taper: 'log',
     unit: 'Hz',
+    description:
+      'How fast the reverb breathes, which is the speed at which the sound going into it swells and fades.',
   },
   breathDepth: {
     id: 6,
@@ -36,6 +79,8 @@ export const FDN_REVERB_PARAMS = {
     default: 0.4,
     taper: 'linear',
     unit: '',
+    description:
+      'How far the breath closes off the sound going into the reverb. Zero is a steady reverb; full lets the input pulse in and out.',
   },
 } as const satisfies Record<string, ParamSpec>
 

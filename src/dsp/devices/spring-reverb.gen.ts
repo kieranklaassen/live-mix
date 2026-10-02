@@ -5,9 +5,38 @@ import { wasmDeviceDescriptor } from '../descriptor'
 import { defineWasmDevice, WasmDevice, type WasmDeviceOptions } from '../WasmDevice'
 
 export const SPRING_REVERB_PARAMS = {
-  mix: { id: 0, name: 'Mix', min: 0, max: 1, default: 0.3, taper: 'linear', unit: '' },
-  decay: { id: 1, name: 'Decay', min: 0.5, max: 6, default: 2.5, taper: 'log', unit: 's' },
-  tension: { id: 2, name: 'Tension', min: 0, max: 1, default: 0.5, taper: 'linear', unit: '' },
+  mix: {
+    id: 0,
+    name: 'Mix',
+    min: 0,
+    max: 1,
+    default: 0.3,
+    taper: 'linear',
+    unit: '',
+    description: 'Balance between the dry signal and the springs. Fully up is the springs alone.',
+  },
+  decay: {
+    id: 1,
+    name: 'Decay',
+    min: 0.5,
+    max: 6,
+    default: 2.5,
+    taper: 'log',
+    unit: 's',
+    description:
+      'How long the springs keep ringing. The top end always dies away a little faster than the rest.',
+  },
+  tension: {
+    id: 2,
+    name: 'Tension',
+    min: 0,
+    max: 1,
+    default: 0.5,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How the springs chirp. Slack makes every echo a long audible sweep; taut gives tight slaps with a short whip at the top.',
+  },
   springs: {
     id: 3,
     name: 'Springs',
@@ -17,12 +46,64 @@ export const SPRING_REVERB_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['One', 'Two', 'Three'],
+    description:
+      'One spring sits in the centre. Two puts a spring on each side, and Three adds a third in the middle for a denser tail.',
   },
-  tone: { id: 4, name: 'Tone', min: 500, max: 6000, default: 3500, taper: 'log', unit: 'Hz' },
-  drip: { id: 5, name: 'Drip', min: 0, max: 1, default: 0.4, taper: 'linear', unit: '' },
-  predelay: { id: 6, name: 'Pre-delay', min: 0, max: 200, default: 0, taper: 'linear', unit: 'ms' },
-  drive: { id: 7, name: 'Drive', min: 0, max: 1, default: 0.25, taper: 'linear', unit: '' },
-  width: { id: 8, name: 'Width', min: 0, max: 1, default: 1, taper: 'linear', unit: '' },
+  tone: {
+    id: 4,
+    name: 'Tone',
+    min: 500,
+    max: 6000,
+    default: 3500,
+    taper: 'log',
+    unit: 'Hz',
+    description:
+      'Low-pass on the spring sound. Lower is darker and softens the chirp; higher lets the splash through.',
+  },
+  drip: {
+    id: 5,
+    name: 'Drip',
+    min: 0,
+    max: 1,
+    default: 0.4,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Feeds extra treble into the springs so attacks splash, as on the classic outboard units.',
+  },
+  predelay: {
+    id: 6,
+    name: 'Pre-delay',
+    min: 0,
+    max: 200,
+    default: 0,
+    taper: 'linear',
+    unit: 'ms',
+    description:
+      'The gap before the springs answer, which keeps the start of the sound clear of the splash.',
+  },
+  drive: {
+    id: 7,
+    name: 'Drive',
+    min: 0,
+    max: 1,
+    default: 0.25,
+    taper: 'linear',
+    unit: '',
+    description:
+      "How hard the input pushes the tank's transformer. Low is clean; high saturates loud passages before they reach the springs.",
+  },
+  width: {
+    id: 8,
+    name: 'Width',
+    min: 0,
+    max: 1,
+    default: 1,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Stereo width of the spring sound only. Zero is mono and full is widest. With one spring there is nothing to widen.',
+  },
 } as const satisfies Record<string, ParamSpec>
 
 export type SpringReverbParamName = keyof typeof SPRING_REVERB_PARAMS

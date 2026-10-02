@@ -5,8 +5,28 @@ import { wasmDeviceDescriptor } from '../descriptor'
 import { defineWasmDevice, WasmDevice, type WasmDeviceOptions } from '../WasmDevice'
 
 export const TAPE_ECHO_PARAMS = {
-  time: { id: 0, name: 'Time', min: 30, max: 2000, default: 380, taper: 'log', unit: 'ms' },
-  feedback: { id: 1, name: 'Feedback', min: 0, max: 1.1, default: 0.45, taper: 'linear', unit: '' },
+  time: {
+    id: 0,
+    name: 'Time',
+    min: 30,
+    max: 2000,
+    default: 380,
+    taper: 'log',
+    unit: 'ms',
+    description:
+      'The gap between repeats. It works like tape speed, so moving it bends the pitch of the repeats already on the tape.',
+  },
+  feedback: {
+    id: 1,
+    name: 'Feedback',
+    min: 0,
+    max: 1.1,
+    default: 0.45,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How much of each echo is recorded again. Near the top the echoes stop dying away and build until the tape saturates.',
+  },
   heads: {
     id: 2,
     name: 'Heads',
@@ -16,11 +36,51 @@ export const TAPE_ECHO_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['One', 'Two', 'Three', 'Dotted'],
+    description:
+      'Which playback heads sound. One is a single echo. Two adds a tap at a third of the time, Dotted one at two thirds, and Three plays all three.',
   },
-  wow: { id: 3, name: 'Wow', min: 0, max: 1, default: 0.25, taper: 'linear', unit: '' },
-  flutter: { id: 4, name: 'Flutter', min: 0, max: 1, default: 0.15, taper: 'linear', unit: '' },
-  drive: { id: 5, name: 'Drive', min: 0, max: 1, default: 0.3, taper: 'linear', unit: '' },
-  lowCut: { id: 6, name: 'Low Cut', min: 20, max: 800, default: 120, taper: 'log', unit: 'Hz' },
+  wow: {
+    id: 3,
+    name: 'Wow',
+    min: 0,
+    max: 1,
+    default: 0.25,
+    taper: 'linear',
+    unit: '',
+    description: 'Slow, wandering pitch drift on the repeats. Zero is a steady transport.',
+  },
+  flutter: {
+    id: 4,
+    name: 'Flutter',
+    min: 0,
+    max: 1,
+    default: 0.15,
+    taper: 'linear',
+    unit: '',
+    description: 'Fast, fine pitch wobble on the repeats. Zero is a steady transport.',
+  },
+  drive: {
+    id: 5,
+    name: 'Drive',
+    min: 0,
+    max: 1,
+    default: 0.3,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How hard the tape is hit. Higher settings saturate sooner, so the repeats get dirtier and more squashed.',
+  },
+  lowCut: {
+    id: 6,
+    name: 'Low Cut',
+    min: 20,
+    max: 800,
+    default: 120,
+    taper: 'log',
+    unit: 'Hz',
+    description:
+      'Takes lows out of the feedback loop, so each repeat comes back thinner. The first echo is not affected.',
+  },
   highCut: {
     id: 7,
     name: 'High Cut',
@@ -29,9 +89,30 @@ export const TAPE_ECHO_PARAMS = {
     default: 4500,
     taper: 'log',
     unit: 'Hz',
+    description:
+      'Takes highs out of the feedback loop, so each repeat comes back darker. The first echo is not affected.',
   },
-  spread: { id: 8, name: 'Ping Pong', min: 0, max: 1, default: 0.3, taper: 'linear', unit: '' },
-  mix: { id: 9, name: 'Mix', min: 0, max: 1, default: 0.35, taper: 'linear', unit: '' },
+  spread: {
+    id: 8,
+    name: 'Ping Pong',
+    min: 0,
+    max: 1,
+    default: 0.3,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Moves the input to the left and crosses the feedback between the sides, so the repeats bounce left and right.',
+  },
+  mix: {
+    id: 9,
+    name: 'Mix',
+    min: 0,
+    max: 1,
+    default: 0.35,
+    taper: 'linear',
+    unit: '',
+    description: 'Balance between the dry signal and the echoes.',
+  },
 } as const satisfies Record<string, ParamSpec>
 
 export type TapeEchoParamName = keyof typeof TAPE_ECHO_PARAMS

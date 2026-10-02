@@ -14,6 +14,8 @@ export const SYMPATHETIC_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'],
+    description:
+      'The key the strings are tuned in. Match it to the key of the music so the strings ring with the notes you play.',
   },
   mode: {
     id: 1,
@@ -24,8 +26,20 @@ export const SYMPATHETIC_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Major', 'Minor', 'Learn'],
+    description:
+      'Major or Minor picks the scale the strings are tuned to. Learn builds the scale from the notes it hears you play.',
   },
-  sympathy: { id: 2, name: 'Sympathy', min: 0, max: 1, default: 0.5, taper: 'linear', unit: '' },
+  sympathy: {
+    id: 2,
+    name: 'Sympathy',
+    min: 0,
+    max: 1,
+    default: 0.5,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How hard the input drives the strings. Low is a faint halo behind the notes; high makes the strings ring out loudly.',
+  },
   strings: {
     id: 3,
     name: 'Strings',
@@ -35,10 +49,42 @@ export const SYMPATHETIC_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16'],
+    description:
+      'How many strings ring. The first few are the root, octave, fifth and third. More add the other scale notes and higher octaves.',
   },
-  decay: { id: 4, name: 'Decay', min: 0.5, max: 10, default: 3, taper: 'log', unit: 's' },
-  mix: { id: 5, name: 'Mix', min: 0, max: 1, default: 0.5, taper: 'linear', unit: '' },
-  width: { id: 6, name: 'Width', min: 0, max: 1, default: 0.5, taper: 'linear', unit: '' },
+  decay: {
+    id: 4,
+    name: 'Decay',
+    min: 0.5,
+    max: 10,
+    default: 3,
+    taper: 'log',
+    unit: 's',
+    description:
+      'How long the strings ring after the sound that set them off. The highest strings die away sooner.',
+  },
+  mix: {
+    id: 5,
+    name: 'Mix',
+    min: 0,
+    max: 1,
+    default: 0.5,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Balance between the dry signal and the ringing strings. Fully up is the strings alone.',
+  },
+  width: {
+    id: 6,
+    name: 'Width',
+    min: 0,
+    max: 1,
+    default: 0.5,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Spreads the strings across the stereo field. Zero puts them all in the centre; higher fans them out and widens the result.',
+  },
 } as const satisfies Record<string, ParamSpec>
 
 export type SympatheticParamName = keyof typeof SYMPATHETIC_PARAMS

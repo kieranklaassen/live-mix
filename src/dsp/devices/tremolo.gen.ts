@@ -14,9 +14,30 @@ export const TREMOLO_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Tremolo', 'Pan', 'Harmonic', 'Vibrato'],
+    description:
+      'Tremolo pulses the volume, Pan moves the sound from side to side, Harmonic rocks between dark and bright, Vibrato bends the pitch.',
   },
-  rate: { id: 1, name: 'Rate', min: 0.05, max: 20, default: 4.5, taper: 'log', unit: 'Hz' },
-  depth: { id: 2, name: 'Depth', min: 0, max: 1, default: 0.55, taper: 'linear', unit: '' },
+  rate: {
+    id: 1,
+    name: 'Rate',
+    min: 0.05,
+    max: 20,
+    default: 4.5,
+    taper: 'log',
+    unit: 'Hz',
+    description: 'How fast the movement cycles. Slow is a sway; fast is a shudder.',
+  },
+  depth: {
+    id: 2,
+    name: 'Depth',
+    min: 0,
+    max: 1,
+    default: 0.55,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How strong the movement is. At full, Tremolo dips to silence and Pan swings hard left and right.',
+  },
   shape: {
     id: 3,
     name: 'Shape',
@@ -26,6 +47,8 @@ export const TREMOLO_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Sine', 'Triangle', 'Square', 'Random'],
+    description:
+      'The curve of the movement. Sine and Triangle are even, Square switches between two levels, Random glides to a new level each cycle.',
   },
   phase: {
     id: 4,
@@ -35,6 +58,8 @@ export const TREMOLO_PARAMS = {
     default: 0,
     taper: 'linear',
     unit: 'deg',
+    description:
+      'Moves the right side out of step with the left, so the pulsing travels across the stereo field. Has no effect in Pan mode.',
   },
   crossover: {
     id: 5,
@@ -44,10 +69,42 @@ export const TREMOLO_PARAMS = {
     default: 700,
     taper: 'log',
     unit: 'Hz',
+    description:
+      'Where Harmonic mode splits the sound into the lows and highs that trade places. The other modes do not use it.',
   },
-  drift: { id: 6, name: 'Drift', min: 0, max: 1, default: 0.15, taper: 'linear', unit: '' },
-  smooth: { id: 7, name: 'Smooth', min: 0, max: 1, default: 0.2, taper: 'linear', unit: '' },
-  mix: { id: 8, name: 'Mix', min: 0, max: 1, default: 1, taper: 'linear', unit: '' },
+  drift: {
+    id: 6,
+    name: 'Drift',
+    min: 0,
+    max: 1,
+    default: 0.15,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Lets the rate wander slowly faster and slower, so the pulse is never perfectly regular. Zero is steady.',
+  },
+  smooth: {
+    id: 7,
+    name: 'Smooth',
+    min: 0,
+    max: 1,
+    default: 0.2,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Rounds off the corners of the shape. Low keeps Square choppy; high softens every shape into a gentler swell.',
+  },
+  mix: {
+    id: 8,
+    name: 'Mix',
+    min: 0,
+    max: 1,
+    default: 1,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Balance between the untouched signal and the moving one. Lower settings make the effect shallower.',
+  },
 } as const satisfies Record<string, ParamSpec>
 
 export type TremoloParamName = keyof typeof TREMOLO_PARAMS

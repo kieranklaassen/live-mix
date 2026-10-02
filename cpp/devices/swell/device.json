@@ -15,7 +15,8 @@
       "max": 5000,
       "default": 400,
       "taper": "log",
-      "unit": "ms"
+      "unit": "ms",
+      "description": "How long each note takes to fade in to full level. Short softens the pick; long gives slow bowed swells."
     },
     {
       "key": "sensitivity",
@@ -23,7 +24,8 @@
       "min": -70,
       "max": -10,
       "default": -40,
-      "unit": "dB"
+      "unit": "dB",
+      "description": "The input level that counts as a note and starts a swell. Lower catches soft playing; raise it if noise or ringing strings set it off."
     },
     {
       "key": "release",
@@ -32,18 +34,49 @@
       "max": 2000,
       "default": 150,
       "taper": "log",
-      "unit": "ms"
+      "unit": "ms",
+      "description": "How long the gain takes to close again after a note ends, ready for the next one. Short re-arms quickly; long lets a tail trail away."
     },
-    { "key": "depth", "name": "Depth", "min": 0, "max": 1, "default": 1 },
-    { "key": "curve", "name": "Curve", "min": 0, "max": 1, "default": 0.5 },
+    {
+      "key": "depth",
+      "name": "Depth",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "How far the attack is turned down before it fades in. At full each note starts from silence; lower leaves some of the pick audible."
+    },
+    {
+      "key": "curve",
+      "name": "Curve",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "The shape of the fade in. Low rises in a straight line; high stays quiet and arrives late, like rocking a volume pedal."
+    },
     {
       "key": "retrigger",
       "name": "Retrigger",
       "choices": ["On new notes", "Only after silence"],
-      "default": 0
+      "default": 0,
+      "description": "On new notes restarts the swell whenever a note is played over a ringing one. Only after silence waits until the sound has stopped."
     },
-    { "key": "lookahead", "name": "Lookahead", "min": 0, "max": 20, "default": 5, "unit": "ms" },
-    { "key": "mix", "name": "Mix", "min": 0, "max": 1, "default": 1 }
+    {
+      "key": "lookahead",
+      "name": "Lookahead",
+      "min": 0,
+      "max": 20,
+      "default": 5,
+      "unit": "ms",
+      "description": "How early the detector sees a note, so the gain is already down when the pick arrives. At zero, a pick over a ringing note leaks through."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "Balance between the untouched signal and the swelled one. Lower settings let some of the original attack back in."
+    }
   ],
   "presets": {
     "Bowed": {

@@ -14,9 +14,31 @@ export const ROTARY_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Slow', 'Fast', 'Brake'],
+    description:
+      'Slow is the gentle chorale, Fast the tremolo. The horn changes speed quickly and the drum lags behind. Brake lets both coast to a stop.',
   },
-  hornDepth: { id: 1, name: 'Horn Depth', min: 0, max: 1, default: 0.6, taper: 'linear', unit: '' },
-  drumDepth: { id: 2, name: 'Drum Depth', min: 0, max: 1, default: 0.5, taper: 'linear', unit: '' },
+  hornDepth: {
+    id: 1,
+    name: 'Horn Depth',
+    min: 0,
+    max: 1,
+    default: 0.6,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How strongly the spinning horn moves the highs, in pitch, level and brightness. At zero the highs stand still.',
+  },
+  drumDepth: {
+    id: 2,
+    name: 'Drum Depth',
+    min: 0,
+    max: 1,
+    default: 0.5,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How strongly the spinning drum moves the lows, mostly in level with a little pitch wobble. At zero the lows stand still.',
+  },
   acceleration: {
     id: 3,
     name: 'Acceleration',
@@ -25,12 +47,64 @@ export const ROTARY_PARAMS = {
     default: 1,
     taper: 'log',
     unit: 'x',
+    description:
+      'How quickly the rotors speed up and slow down when Speed changes. Low is a heavy, slow run-up; high gets there almost at once.',
   },
-  drive: { id: 4, name: 'Drive', min: 0, max: 1, default: 0.25, taper: 'linear', unit: '' },
-  balance: { id: 5, name: 'Balance', min: 0, max: 1, default: 0.5, taper: 'linear', unit: '' },
-  distance: { id: 6, name: 'Distance', min: 0, max: 1, default: 0.3, taper: 'linear', unit: '' },
-  spread: { id: 7, name: 'Spread', min: 0, max: 1, default: 0.7, taper: 'linear', unit: '' },
-  mix: { id: 8, name: 'Mix', min: 0, max: 1, default: 1, taper: 'linear', unit: '' },
+  drive: {
+    id: 4,
+    name: 'Drive',
+    min: 0,
+    max: 1,
+    default: 0.25,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Overdrive from the tube amplifier ahead of the rotors. Zero is clean. Higher settings add growl and even out the level.',
+  },
+  balance: {
+    id: 5,
+    name: 'Balance',
+    min: 0,
+    max: 1,
+    default: 0.5,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Level of the horn against the bass drum. Low settings favour the lows from the drum; high settings favour the highs from the horn.',
+  },
+  distance: {
+    id: 6,
+    name: 'Distance',
+    min: 0,
+    max: 1,
+    default: 0.3,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How far the microphones are from the cabinet. Close pulses strongly as the horn passes; far is smoother and more chorused.',
+  },
+  spread: {
+    id: 7,
+    name: 'Spread',
+    min: 0,
+    max: 1,
+    default: 0.7,
+    taper: 'linear',
+    unit: '',
+    description:
+      'The angle between the two microphones. At zero both hear the same and the cabinet is mono; higher settings widen the movement.',
+  },
+  mix: {
+    id: 8,
+    name: 'Mix',
+    min: 0,
+    max: 1,
+    default: 1,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Balance between the dry signal and the cabinet. The cabinet hears the input summed to mono.',
+  },
 } as const satisfies Record<string, ParamSpec>
 
 export type RotaryParamName = keyof typeof ROTARY_PARAMS

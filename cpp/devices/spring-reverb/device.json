@@ -7,7 +7,14 @@
   "header": "spring_reverb.h",
   "sources": [],
   "params": [
-    { "key": "mix", "name": "Mix", "min": 0, "max": 1, "default": 0.3 },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Balance between the dry signal and the springs. Fully up is the springs alone."
+    },
     {
       "key": "decay",
       "name": "Decay",
@@ -15,10 +22,24 @@
       "max": 6,
       "default": 2.5,
       "taper": "log",
-      "unit": "s"
+      "unit": "s",
+      "description": "How long the springs keep ringing. The top end always dies away a little faster than the rest."
     },
-    { "key": "tension", "name": "Tension", "min": 0, "max": 1, "default": 0.5 },
-    { "key": "springs", "name": "Springs", "choices": ["One", "Two", "Three"], "default": 1 },
+    {
+      "key": "tension",
+      "name": "Tension",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How the springs chirp. Slack makes every echo a long audible sweep; taut gives tight slaps with a short whip at the top."
+    },
+    {
+      "key": "springs",
+      "name": "Springs",
+      "choices": ["One", "Two", "Three"],
+      "default": 1,
+      "description": "One spring sits in the centre. Two puts a spring on each side, and Three adds a third in the middle for a denser tail."
+    },
     {
       "key": "tone",
       "name": "Tone",
@@ -26,12 +47,42 @@
       "max": 6000,
       "default": 3500,
       "taper": "log",
-      "unit": "Hz"
+      "unit": "Hz",
+      "description": "Low-pass on the spring sound. Lower is darker and softens the chirp; higher lets the splash through."
     },
-    { "key": "drip", "name": "Drip", "min": 0, "max": 1, "default": 0.4 },
-    { "key": "predelay", "name": "Pre-delay", "min": 0, "max": 200, "default": 0, "unit": "ms" },
-    { "key": "drive", "name": "Drive", "min": 0, "max": 1, "default": 0.25 },
-    { "key": "width", "name": "Width", "min": 0, "max": 1, "default": 1 }
+    {
+      "key": "drip",
+      "name": "Drip",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "Feeds extra treble into the springs so attacks splash, as on the classic outboard units."
+    },
+    {
+      "key": "predelay",
+      "name": "Pre-delay",
+      "min": 0,
+      "max": 200,
+      "default": 0,
+      "unit": "ms",
+      "description": "The gap before the springs answer, which keeps the start of the sound clear of the splash."
+    },
+    {
+      "key": "drive",
+      "name": "Drive",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "description": "How hard the input pushes the tank's transformer. Low is clean; high saturates loud passages before they reach the springs."
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "Stereo width of the spring sound only. Zero is mono and full is widest. With one spring there is nothing to widen."
+    }
   ],
   "presets": {
     "Two spring tank": {

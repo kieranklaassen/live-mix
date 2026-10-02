@@ -11,7 +11,8 @@
       "key": "root",
       "name": "Root",
       "choices": ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"],
-      "default": 0
+      "default": 0,
+      "description": "The key note the scale is built on. With Scale it decides which notes the voices can land on."
     },
     {
       "key": "scale",
@@ -33,7 +34,8 @@
         "Chromatic",
         "Custom"
       ],
-      "default": 0
+      "default": 0,
+      "description": "The set of steps the voices move on, so a third is major or minor as the scale says. Custom uses the Custom Degree settings."
     },
     {
       "key": "center",
@@ -41,7 +43,8 @@
       "min": 36,
       "max": 84,
       "default": 62,
-      "unit": "note"
+      "unit": "note",
+      "description": "The note the Thesis roles work around: Mirror, Middle, Mirror Middle, Octaflip and Center. Interval voices ignore it."
     },
     {
       "key": "snap",
@@ -49,7 +52,8 @@
       "min": 0,
       "max": 100,
       "default": 0,
-      "unit": "%"
+      "unit": "%",
+      "description": "What the voices tune to. Low follows the played pitch with its vibrato and tuning; high locks the voices onto the scale."
     },
     {
       "key": "glide",
@@ -57,7 +61,8 @@
       "min": 0,
       "max": 300,
       "default": 15,
-      "unit": "ms"
+      "unit": "ms",
+      "description": "How long the voices take to slide to a new harmony note. Short steps cleanly; long turns each change into a slur."
     },
     {
       "key": "window",
@@ -65,13 +70,15 @@
       "min": 10,
       "max": 60,
       "default": 24,
-      "unit": "ms"
+      "unit": "ms",
+      "description": "Length of the pieces the pitch shifter crossfades. Short stays tight to the playing; long splices less often but trails behind."
     },
     {
       "key": "deglitch",
       "name": "De-glitch",
       "choices": ["Off", "On"],
-      "default": 1
+      "default": 1,
+      "description": "Lines each splice up with the pitch of the note, so held notes stay free of flutter and detune. Off is the plain, rougher shifter."
     },
     {
       "key": "mix",
@@ -79,7 +86,8 @@
       "min": 0,
       "max": 100,
       "default": 50,
-      "unit": "%"
+      "unit": "%",
+      "description": "Balance between the dry input and the harmony voices. At the bottom only the input is heard; at the top only the voices."
     },
     {
       "key": "output",
@@ -87,13 +95,15 @@
       "min": -24,
       "max": 12,
       "default": 0,
-      "unit": "dB"
+      "unit": "dB",
+      "description": "Overall level of the input and the voices together, after Mix."
     },
     {
       "key": "v1Role",
       "name": "Voice 1 Role",
       "choices": ["Off", "Interval", "Mirror", "Middle", "Mirror Middle", "Octaflip", "Center"],
-      "default": 2
+      "default": 2,
+      "description": "How the first voice picks its note. Interval follows the line, Center holds the Center Note, the others mirror the line around it or pull it closer."
     },
     {
       "key": "v1Degrees",
@@ -101,7 +111,8 @@
       "min": -14,
       "max": 14,
       "default": 0,
-      "unit": "steps"
+      "unit": "steps",
+      "description": "Scale steps added to the first voice, up or down. In the Interval role this is the harmony: two steps up is a third above."
     },
     {
       "key": "v1Level",
@@ -109,14 +120,16 @@
       "min": -60,
       "max": 6,
       "default": -6,
-      "unit": "dB"
+      "unit": "dB",
+      "description": "How loud the first voice is. The lowest setting mutes it."
     },
     {
       "key": "v1Pan",
       "name": "Voice 1 Pan",
       "min": -100,
       "max": 100,
-      "default": -40
+      "default": -40,
+      "description": "Where the first voice sits between left and right."
     },
     {
       "key": "v1Delay",
@@ -124,7 +137,8 @@
       "min": 0,
       "max": 500,
       "default": 0,
-      "unit": "ms"
+      "unit": "ms",
+      "description": "How long after the played note the first voice sounds. A little loosens the chord; more turns the voice into an echo."
     },
     {
       "key": "v1Feedback",
@@ -132,13 +146,15 @@
       "min": 0,
       "max": 90,
       "default": 0,
-      "unit": "%"
+      "unit": "%",
+      "description": "Feeds the first voice's delay back into itself for repeating echoes. It does nothing until the voice has some Delay."
     },
     {
       "key": "v2Role",
       "name": "Voice 2 Role",
       "choices": ["Off", "Interval", "Mirror", "Middle", "Mirror Middle", "Octaflip", "Center"],
-      "default": 1
+      "default": 1,
+      "description": "How the second voice picks its note. Interval follows the line, Center holds the Center Note, the others mirror the line around it or pull it closer."
     },
     {
       "key": "v2Degrees",
@@ -146,7 +162,8 @@
       "min": -14,
       "max": 14,
       "default": 2,
-      "unit": "steps"
+      "unit": "steps",
+      "description": "Scale steps added to the second voice, up or down. In the Interval role this is the harmony: two steps up is a third above."
     },
     {
       "key": "v2Level",
@@ -154,14 +171,16 @@
       "min": -60,
       "max": 6,
       "default": -6,
-      "unit": "dB"
+      "unit": "dB",
+      "description": "How loud the second voice is. The lowest setting mutes it."
     },
     {
       "key": "v2Pan",
       "name": "Voice 2 Pan",
       "min": -100,
       "max": 100,
-      "default": 40
+      "default": 40,
+      "description": "Where the second voice sits between left and right."
     },
     {
       "key": "v2Delay",
@@ -169,7 +188,8 @@
       "min": 0,
       "max": 500,
       "default": 0,
-      "unit": "ms"
+      "unit": "ms",
+      "description": "How long after the played note the second voice sounds. A little loosens the chord; more turns the voice into an echo."
     },
     {
       "key": "v2Feedback",
@@ -177,13 +197,15 @@
       "min": 0,
       "max": 90,
       "default": 0,
-      "unit": "%"
+      "unit": "%",
+      "description": "Feeds the second voice's delay back into itself for repeating echoes. It does nothing until the voice has some Delay."
     },
     {
       "key": "v3Role",
       "name": "Voice 3 Role",
       "choices": ["Off", "Interval", "Mirror", "Middle", "Mirror Middle", "Octaflip", "Center"],
-      "default": 5
+      "default": 5,
+      "description": "How the third voice picks its note. Interval follows the line, Center holds the Center Note, the others mirror the line around it or pull it closer."
     },
     {
       "key": "v3Degrees",
@@ -191,7 +213,8 @@
       "min": -14,
       "max": 14,
       "default": 0,
-      "unit": "steps"
+      "unit": "steps",
+      "description": "Scale steps added to the third voice, up or down. In the Interval role this is the harmony: two steps up is a third above."
     },
     {
       "key": "v3Level",
@@ -199,14 +222,16 @@
       "min": -60,
       "max": 6,
       "default": -6,
-      "unit": "dB"
+      "unit": "dB",
+      "description": "How loud the third voice is. The lowest setting mutes it."
     },
     {
       "key": "v3Pan",
       "name": "Voice 3 Pan",
       "min": -100,
       "max": 100,
-      "default": -15
+      "default": -15,
+      "description": "Where the third voice sits between left and right."
     },
     {
       "key": "v3Delay",
@@ -214,7 +239,8 @@
       "min": 0,
       "max": 500,
       "default": 0,
-      "unit": "ms"
+      "unit": "ms",
+      "description": "How long after the played note the third voice sounds. A little loosens the chord; more turns the voice into an echo."
     },
     {
       "key": "v3Feedback",
@@ -222,13 +248,15 @@
       "min": 0,
       "max": 90,
       "default": 0,
-      "unit": "%"
+      "unit": "%",
+      "description": "Feeds the third voice's delay back into itself for repeating echoes. It does nothing until the voice has some Delay."
     },
     {
       "key": "v4Role",
       "name": "Voice 4 Role",
       "choices": ["Off", "Interval", "Mirror", "Middle", "Mirror Middle", "Octaflip", "Center"],
-      "default": 0
+      "default": 0,
+      "description": "How the fourth voice picks its note. Interval follows the line, Center holds the Center Note, the others mirror the line around it or pull it closer."
     },
     {
       "key": "v4Degrees",
@@ -236,7 +264,8 @@
       "min": -14,
       "max": 14,
       "default": 0,
-      "unit": "steps"
+      "unit": "steps",
+      "description": "Scale steps added to the fourth voice, up or down. In the Interval role this is the harmony: two steps up is a third above."
     },
     {
       "key": "v4Level",
@@ -244,14 +273,16 @@
       "min": -60,
       "max": 6,
       "default": -6,
-      "unit": "dB"
+      "unit": "dB",
+      "description": "How loud the fourth voice is. The lowest setting mutes it."
     },
     {
       "key": "v4Pan",
       "name": "Voice 4 Pan",
       "min": -100,
       "max": 100,
-      "default": 15
+      "default": 15,
+      "description": "Where the fourth voice sits between left and right."
     },
     {
       "key": "v4Delay",
@@ -259,7 +290,8 @@
       "min": 0,
       "max": 500,
       "default": 0,
-      "unit": "ms"
+      "unit": "ms",
+      "description": "How long after the played note the fourth voice sounds. A little loosens the chord; more turns the voice into an echo."
     },
     {
       "key": "v4Feedback",
@@ -267,7 +299,8 @@
       "min": 0,
       "max": 90,
       "default": 0,
-      "unit": "%"
+      "unit": "%",
+      "description": "Feeds the fourth voice's delay back into itself for repeating echoes. It does nothing until the voice has some Delay."
     },
     {
       "key": "customPeriod",
@@ -275,13 +308,15 @@
       "min": 600,
       "max": 2400,
       "default": 1200,
-      "unit": "ct"
+      "unit": "ct",
+      "description": "The span the Custom scale repeats over. An octave suits ordinary scales; other sizes give scales that do not repeat at the octave."
     },
     {
       "key": "customOn1",
       "name": "Custom Degree 1 On",
       "choices": ["Off", "On"],
-      "default": 1
+      "default": 1,
+      "description": "Includes the first custom degree in the scale. Only heard when Scale is set to Custom."
     },
     {
       "key": "customCents1",
@@ -289,13 +324,15 @@
       "min": 0,
       "max": 1200,
       "default": 0,
-      "unit": "ct"
+      "unit": "ct",
+      "description": "Pitch of the first custom degree above the root. It counts only when that degree is on and Scale is set to Custom."
     },
     {
       "key": "customOn2",
       "name": "Custom Degree 2 On",
       "choices": ["Off", "On"],
-      "default": 0
+      "default": 0,
+      "description": "Includes the second custom degree in the scale. Only heard when Scale is set to Custom."
     },
     {
       "key": "customCents2",
@@ -303,13 +340,15 @@
       "min": 0,
       "max": 1200,
       "default": 100,
-      "unit": "ct"
+      "unit": "ct",
+      "description": "Pitch of the second custom degree above the root. It counts only when that degree is on and Scale is set to Custom."
     },
     {
       "key": "customOn3",
       "name": "Custom Degree 3 On",
       "choices": ["Off", "On"],
-      "default": 1
+      "default": 1,
+      "description": "Includes the third custom degree in the scale. Only heard when Scale is set to Custom."
     },
     {
       "key": "customCents3",
@@ -317,13 +356,15 @@
       "min": 0,
       "max": 1200,
       "default": 200,
-      "unit": "ct"
+      "unit": "ct",
+      "description": "Pitch of the third custom degree above the root. It counts only when that degree is on and Scale is set to Custom."
     },
     {
       "key": "customOn4",
       "name": "Custom Degree 4 On",
       "choices": ["Off", "On"],
-      "default": 0
+      "default": 0,
+      "description": "Includes the fourth custom degree in the scale. Only heard when Scale is set to Custom."
     },
     {
       "key": "customCents4",
@@ -331,13 +372,15 @@
       "min": 0,
       "max": 1200,
       "default": 300,
-      "unit": "ct"
+      "unit": "ct",
+      "description": "Pitch of the fourth custom degree above the root. It counts only when that degree is on and Scale is set to Custom."
     },
     {
       "key": "customOn5",
       "name": "Custom Degree 5 On",
       "choices": ["Off", "On"],
-      "default": 1
+      "default": 1,
+      "description": "Includes the fifth custom degree in the scale. Only heard when Scale is set to Custom."
     },
     {
       "key": "customCents5",
@@ -345,13 +388,15 @@
       "min": 0,
       "max": 1200,
       "default": 400,
-      "unit": "ct"
+      "unit": "ct",
+      "description": "Pitch of the fifth custom degree above the root. It counts only when that degree is on and Scale is set to Custom."
     },
     {
       "key": "customOn6",
       "name": "Custom Degree 6 On",
       "choices": ["Off", "On"],
-      "default": 1
+      "default": 1,
+      "description": "Includes the sixth custom degree in the scale. Only heard when Scale is set to Custom."
     },
     {
       "key": "customCents6",
@@ -359,13 +404,15 @@
       "min": 0,
       "max": 1200,
       "default": 500,
-      "unit": "ct"
+      "unit": "ct",
+      "description": "Pitch of the sixth custom degree above the root. It counts only when that degree is on and Scale is set to Custom."
     },
     {
       "key": "customOn7",
       "name": "Custom Degree 7 On",
       "choices": ["Off", "On"],
-      "default": 0
+      "default": 0,
+      "description": "Includes the seventh custom degree in the scale. Only heard when Scale is set to Custom."
     },
     {
       "key": "customCents7",
@@ -373,13 +420,15 @@
       "min": 0,
       "max": 1200,
       "default": 600,
-      "unit": "ct"
+      "unit": "ct",
+      "description": "Pitch of the seventh custom degree above the root. It counts only when that degree is on and Scale is set to Custom."
     },
     {
       "key": "customOn8",
       "name": "Custom Degree 8 On",
       "choices": ["Off", "On"],
-      "default": 1
+      "default": 1,
+      "description": "Includes the eighth custom degree in the scale. Only heard when Scale is set to Custom."
     },
     {
       "key": "customCents8",
@@ -387,13 +436,15 @@
       "min": 0,
       "max": 1200,
       "default": 700,
-      "unit": "ct"
+      "unit": "ct",
+      "description": "Pitch of the eighth custom degree above the root. It counts only when that degree is on and Scale is set to Custom."
     },
     {
       "key": "customOn9",
       "name": "Custom Degree 9 On",
       "choices": ["Off", "On"],
-      "default": 0
+      "default": 0,
+      "description": "Includes the ninth custom degree in the scale. Only heard when Scale is set to Custom."
     },
     {
       "key": "customCents9",
@@ -401,13 +452,15 @@
       "min": 0,
       "max": 1200,
       "default": 800,
-      "unit": "ct"
+      "unit": "ct",
+      "description": "Pitch of the ninth custom degree above the root. It counts only when that degree is on and Scale is set to Custom."
     },
     {
       "key": "customOn10",
       "name": "Custom Degree 10 On",
       "choices": ["Off", "On"],
-      "default": 1
+      "default": 1,
+      "description": "Includes the tenth custom degree in the scale. Only heard when Scale is set to Custom."
     },
     {
       "key": "customCents10",
@@ -415,13 +468,15 @@
       "min": 0,
       "max": 1200,
       "default": 900,
-      "unit": "ct"
+      "unit": "ct",
+      "description": "Pitch of the tenth custom degree above the root. It counts only when that degree is on and Scale is set to Custom."
     },
     {
       "key": "customOn11",
       "name": "Custom Degree 11 On",
       "choices": ["Off", "On"],
-      "default": 0
+      "default": 0,
+      "description": "Includes the eleventh custom degree in the scale. Only heard when Scale is set to Custom."
     },
     {
       "key": "customCents11",
@@ -429,13 +484,15 @@
       "min": 0,
       "max": 1200,
       "default": 1000,
-      "unit": "ct"
+      "unit": "ct",
+      "description": "Pitch of the eleventh custom degree above the root. It counts only when that degree is on and Scale is set to Custom."
     },
     {
       "key": "customOn12",
       "name": "Custom Degree 12 On",
       "choices": ["Off", "On"],
-      "default": 1
+      "default": 1,
+      "description": "Includes the twelfth custom degree in the scale. Only heard when Scale is set to Custom."
     },
     {
       "key": "customCents12",
@@ -443,13 +500,15 @@
       "min": 0,
       "max": 1200,
       "default": 1100,
-      "unit": "ct"
+      "unit": "ct",
+      "description": "Pitch of the twelfth custom degree above the root. It counts only when that degree is on and Scale is set to Custom."
     },
     {
       "key": "feedbackPath",
       "name": "Feedback Path",
       "choices": ["Echo", "Cascade"],
-      "default": 0
+      "default": 0,
+      "description": "Echo repeats a voice at the same pitch. Cascade shifts every repeat again, so echoes climb or fall by the interval and grow darker."
     }
   ],
   "presets": {

@@ -12,13 +12,15 @@
       "key": "type",
       "name": "Type",
       "choices": ["Lowpass", "Highpass", "Bandpass", "Notch", "Peak"],
-      "default": 0
+      "default": 0,
+      "description": "Lowpass keeps what is below the cutoff, Highpass what is above, Bandpass a band around it. Notch cuts that band and Peak lifts it."
     },
     {
       "key": "slope",
       "name": "Slope",
       "choices": ["12 dB", "24 dB"],
-      "default": 0
+      "default": 0,
+      "description": "How steeply the filter cuts past the cutoff. The steeper setting is a sharper, more obvious filter."
     },
     {
       "key": "cutoffHz",
@@ -27,7 +29,8 @@
       "max": 20000,
       "default": 1000,
       "taper": "log",
-      "unit": "Hz"
+      "unit": "Hz",
+      "description": "The frequency the filter works at, and the point the envelope and the LFO sweep it away from."
     },
     {
       "key": "resonance",
@@ -36,7 +39,8 @@
       "max": 25,
       "default": 0.7071,
       "taper": "log",
-      "unit": "Q"
+      "unit": "Q",
+      "description": "Emphasis right at the cutoff. Low is smooth; high rings and whistles as the filter sweeps."
     },
     {
       "key": "driveDb",
@@ -44,7 +48,8 @@
       "min": 0,
       "max": 24,
       "default": 0,
-      "unit": "dB"
+      "unit": "dB",
+      "description": "Pushes the signal harder into the filter so the filter itself saturates. Adds grit and holds the resonance peak in check."
     },
     {
       "key": "envAmount",
@@ -52,7 +57,8 @@
       "min": -100,
       "max": 100,
       "default": 0,
-      "unit": "%"
+      "unit": "%",
+      "description": "How far louder playing moves the cutoff. Positive values raise the cutoff as you play harder; negative values lower it."
     },
     {
       "key": "envAttackMs",
@@ -61,7 +67,8 @@
       "max": 500,
       "default": 10,
       "taper": "log",
-      "unit": "ms"
+      "unit": "ms",
+      "description": "How quickly the envelope follows a rising level. Short snaps on every note; long eases in."
     },
     {
       "key": "envReleaseMs",
@@ -70,7 +77,8 @@
       "max": 2000,
       "default": 200,
       "taper": "log",
-      "unit": "ms"
+      "unit": "ms",
+      "description": "How quickly the envelope falls back when the level drops. Short follows every note; long glides back slowly."
     },
     {
       "key": "lfoAmount",
@@ -78,7 +86,8 @@
       "min": 0,
       "max": 100,
       "default": 0,
-      "unit": "%"
+      "unit": "%",
+      "description": "How far the LFO sweeps the cutoff above and below its setting. At zero the LFO does nothing."
     },
     {
       "key": "lfoRateHz",
@@ -87,20 +96,23 @@
       "max": 20,
       "default": 1,
       "taper": "log",
-      "unit": "Hz"
+      "unit": "Hz",
+      "description": "How fast the LFO sweeps the cutoff. Slow is a gradual wah; fast is a wobble."
     },
     {
       "key": "lfoShape",
       "name": "LFO Shape",
       "choices": ["Sine", "Triangle", "Saw Up", "Saw Down", "Square", "S&H"],
-      "default": 0
+      "default": 0,
+      "description": "The path of the LFO sweep. Sine and Triangle glide, the saws ramp and snap back, Square steps between two points, S&H to a random one each cycle."
     },
     {
       "key": "mix",
       "name": "Mix",
       "min": 0,
       "max": 1,
-      "default": 1
+      "default": 1,
+      "description": "Balance between the unfiltered and the filtered signal."
     }
   ],
   "presets": {

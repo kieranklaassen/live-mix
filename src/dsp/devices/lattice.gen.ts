@@ -14,6 +14,8 @@ export const LATTICE_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'],
+    description:
+      'The key note the scale is built on. With Scale it decides which notes the voices can land on.',
   },
   scale: {
     id: 1,
@@ -40,6 +42,8 @@ export const LATTICE_PARAMS = {
       'Chromatic',
       'Custom',
     ],
+    description:
+      'The set of steps the voices move on, so a third is major or minor as the scale says. Custom uses the Custom Degree settings.',
   },
   center: {
     id: 2,
@@ -49,9 +53,31 @@ export const LATTICE_PARAMS = {
     default: 62,
     taper: 'linear',
     unit: 'note',
+    description:
+      'The note the Thesis roles work around: Mirror, Middle, Mirror Middle, Octaflip and Center. Interval voices ignore it.',
   },
-  snap: { id: 3, name: 'Snap', min: 0, max: 100, default: 0, taper: 'linear', unit: '%' },
-  glide: { id: 4, name: 'Glide', min: 0, max: 300, default: 15, taper: 'linear', unit: 'ms' },
+  snap: {
+    id: 3,
+    name: 'Snap',
+    min: 0,
+    max: 100,
+    default: 0,
+    taper: 'linear',
+    unit: '%',
+    description:
+      'What the voices tune to. Low follows the played pitch with its vibrato and tuning; high locks the voices onto the scale.',
+  },
+  glide: {
+    id: 4,
+    name: 'Glide',
+    min: 0,
+    max: 300,
+    default: 15,
+    taper: 'linear',
+    unit: 'ms',
+    description:
+      'How long the voices take to slide to a new harmony note. Short steps cleanly; long turns each change into a slur.',
+  },
   window: {
     id: 5,
     name: 'Splice Window',
@@ -60,6 +86,8 @@ export const LATTICE_PARAMS = {
     default: 24,
     taper: 'linear',
     unit: 'ms',
+    description:
+      'Length of the pieces the pitch shifter crossfades. Short stays tight to the playing; long splices less often but trails behind.',
   },
   deglitch: {
     id: 6,
@@ -70,9 +98,30 @@ export const LATTICE_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Off', 'On'],
+    description:
+      'Lines each splice up with the pitch of the note, so held notes stay free of flutter and detune. Off is the plain, rougher shifter.',
   },
-  mix: { id: 7, name: 'Mix', min: 0, max: 100, default: 50, taper: 'linear', unit: '%' },
-  output: { id: 8, name: 'Output', min: -24, max: 12, default: 0, taper: 'linear', unit: 'dB' },
+  mix: {
+    id: 7,
+    name: 'Mix',
+    min: 0,
+    max: 100,
+    default: 50,
+    taper: 'linear',
+    unit: '%',
+    description:
+      'Balance between the dry input and the harmony voices. At the bottom only the input is heard; at the top only the voices.',
+  },
+  output: {
+    id: 8,
+    name: 'Output',
+    min: -24,
+    max: 12,
+    default: 0,
+    taper: 'linear',
+    unit: 'dB',
+    description: 'Overall level of the input and the voices together, after Mix.',
+  },
   v1Role: {
     id: 9,
     name: 'Voice 1 Role',
@@ -82,6 +131,8 @@ export const LATTICE_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Off', 'Interval', 'Mirror', 'Middle', 'Mirror Middle', 'Octaflip', 'Center'],
+    description:
+      'How the first voice picks its note. Interval follows the line, Center holds the Center Note, the others mirror the line around it or pull it closer.',
   },
   v1Degrees: {
     id: 10,
@@ -91,6 +142,8 @@ export const LATTICE_PARAMS = {
     default: 0,
     taper: 'linear',
     unit: 'steps',
+    description:
+      'Scale steps added to the first voice, up or down. In the Interval role this is the harmony: two steps up is a third above.',
   },
   v1Level: {
     id: 11,
@@ -100,6 +153,7 @@ export const LATTICE_PARAMS = {
     default: -6,
     taper: 'linear',
     unit: 'dB',
+    description: 'How loud the first voice is. The lowest setting mutes it.',
   },
   v1Pan: {
     id: 12,
@@ -109,6 +163,7 @@ export const LATTICE_PARAMS = {
     default: -40,
     taper: 'linear',
     unit: '',
+    description: 'Where the first voice sits between left and right.',
   },
   v1Delay: {
     id: 13,
@@ -118,6 +173,8 @@ export const LATTICE_PARAMS = {
     default: 0,
     taper: 'linear',
     unit: 'ms',
+    description:
+      'How long after the played note the first voice sounds. A little loosens the chord; more turns the voice into an echo.',
   },
   v1Feedback: {
     id: 14,
@@ -127,6 +184,8 @@ export const LATTICE_PARAMS = {
     default: 0,
     taper: 'linear',
     unit: '%',
+    description:
+      "Feeds the first voice's delay back into itself for repeating echoes. It does nothing until the voice has some Delay.",
   },
   v2Role: {
     id: 15,
@@ -137,6 +196,8 @@ export const LATTICE_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Off', 'Interval', 'Mirror', 'Middle', 'Mirror Middle', 'Octaflip', 'Center'],
+    description:
+      'How the second voice picks its note. Interval follows the line, Center holds the Center Note, the others mirror the line around it or pull it closer.',
   },
   v2Degrees: {
     id: 16,
@@ -146,6 +207,8 @@ export const LATTICE_PARAMS = {
     default: 2,
     taper: 'linear',
     unit: 'steps',
+    description:
+      'Scale steps added to the second voice, up or down. In the Interval role this is the harmony: two steps up is a third above.',
   },
   v2Level: {
     id: 17,
@@ -155,6 +218,7 @@ export const LATTICE_PARAMS = {
     default: -6,
     taper: 'linear',
     unit: 'dB',
+    description: 'How loud the second voice is. The lowest setting mutes it.',
   },
   v2Pan: {
     id: 18,
@@ -164,6 +228,7 @@ export const LATTICE_PARAMS = {
     default: 40,
     taper: 'linear',
     unit: '',
+    description: 'Where the second voice sits between left and right.',
   },
   v2Delay: {
     id: 19,
@@ -173,6 +238,8 @@ export const LATTICE_PARAMS = {
     default: 0,
     taper: 'linear',
     unit: 'ms',
+    description:
+      'How long after the played note the second voice sounds. A little loosens the chord; more turns the voice into an echo.',
   },
   v2Feedback: {
     id: 20,
@@ -182,6 +249,8 @@ export const LATTICE_PARAMS = {
     default: 0,
     taper: 'linear',
     unit: '%',
+    description:
+      "Feeds the second voice's delay back into itself for repeating echoes. It does nothing until the voice has some Delay.",
   },
   v3Role: {
     id: 21,
@@ -192,6 +261,8 @@ export const LATTICE_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Off', 'Interval', 'Mirror', 'Middle', 'Mirror Middle', 'Octaflip', 'Center'],
+    description:
+      'How the third voice picks its note. Interval follows the line, Center holds the Center Note, the others mirror the line around it or pull it closer.',
   },
   v3Degrees: {
     id: 22,
@@ -201,6 +272,8 @@ export const LATTICE_PARAMS = {
     default: 0,
     taper: 'linear',
     unit: 'steps',
+    description:
+      'Scale steps added to the third voice, up or down. In the Interval role this is the harmony: two steps up is a third above.',
   },
   v3Level: {
     id: 23,
@@ -210,6 +283,7 @@ export const LATTICE_PARAMS = {
     default: -6,
     taper: 'linear',
     unit: 'dB',
+    description: 'How loud the third voice is. The lowest setting mutes it.',
   },
   v3Pan: {
     id: 24,
@@ -219,6 +293,7 @@ export const LATTICE_PARAMS = {
     default: -15,
     taper: 'linear',
     unit: '',
+    description: 'Where the third voice sits between left and right.',
   },
   v3Delay: {
     id: 25,
@@ -228,6 +303,8 @@ export const LATTICE_PARAMS = {
     default: 0,
     taper: 'linear',
     unit: 'ms',
+    description:
+      'How long after the played note the third voice sounds. A little loosens the chord; more turns the voice into an echo.',
   },
   v3Feedback: {
     id: 26,
@@ -237,6 +314,8 @@ export const LATTICE_PARAMS = {
     default: 0,
     taper: 'linear',
     unit: '%',
+    description:
+      "Feeds the third voice's delay back into itself for repeating echoes. It does nothing until the voice has some Delay.",
   },
   v4Role: {
     id: 27,
@@ -247,6 +326,8 @@ export const LATTICE_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Off', 'Interval', 'Mirror', 'Middle', 'Mirror Middle', 'Octaflip', 'Center'],
+    description:
+      'How the fourth voice picks its note. Interval follows the line, Center holds the Center Note, the others mirror the line around it or pull it closer.',
   },
   v4Degrees: {
     id: 28,
@@ -256,6 +337,8 @@ export const LATTICE_PARAMS = {
     default: 0,
     taper: 'linear',
     unit: 'steps',
+    description:
+      'Scale steps added to the fourth voice, up or down. In the Interval role this is the harmony: two steps up is a third above.',
   },
   v4Level: {
     id: 29,
@@ -265,6 +348,7 @@ export const LATTICE_PARAMS = {
     default: -6,
     taper: 'linear',
     unit: 'dB',
+    description: 'How loud the fourth voice is. The lowest setting mutes it.',
   },
   v4Pan: {
     id: 30,
@@ -274,6 +358,7 @@ export const LATTICE_PARAMS = {
     default: 15,
     taper: 'linear',
     unit: '',
+    description: 'Where the fourth voice sits between left and right.',
   },
   v4Delay: {
     id: 31,
@@ -283,6 +368,8 @@ export const LATTICE_PARAMS = {
     default: 0,
     taper: 'linear',
     unit: 'ms',
+    description:
+      'How long after the played note the fourth voice sounds. A little loosens the chord; more turns the voice into an echo.',
   },
   v4Feedback: {
     id: 32,
@@ -292,6 +379,8 @@ export const LATTICE_PARAMS = {
     default: 0,
     taper: 'linear',
     unit: '%',
+    description:
+      "Feeds the fourth voice's delay back into itself for repeating echoes. It does nothing until the voice has some Delay.",
   },
   customPeriod: {
     id: 33,
@@ -301,6 +390,8 @@ export const LATTICE_PARAMS = {
     default: 1200,
     taper: 'linear',
     unit: 'ct',
+    description:
+      'The span the Custom scale repeats over. An octave suits ordinary scales; other sizes give scales that do not repeat at the octave.',
   },
   customOn1: {
     id: 34,
@@ -311,6 +402,8 @@ export const LATTICE_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Off', 'On'],
+    description:
+      'Includes the first custom degree in the scale. Only heard when Scale is set to Custom.',
   },
   customCents1: {
     id: 35,
@@ -320,6 +413,8 @@ export const LATTICE_PARAMS = {
     default: 0,
     taper: 'linear',
     unit: 'ct',
+    description:
+      'Pitch of the first custom degree above the root. It counts only when that degree is on and Scale is set to Custom.',
   },
   customOn2: {
     id: 36,
@@ -330,6 +425,8 @@ export const LATTICE_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Off', 'On'],
+    description:
+      'Includes the second custom degree in the scale. Only heard when Scale is set to Custom.',
   },
   customCents2: {
     id: 37,
@@ -339,6 +436,8 @@ export const LATTICE_PARAMS = {
     default: 100,
     taper: 'linear',
     unit: 'ct',
+    description:
+      'Pitch of the second custom degree above the root. It counts only when that degree is on and Scale is set to Custom.',
   },
   customOn3: {
     id: 38,
@@ -349,6 +448,8 @@ export const LATTICE_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Off', 'On'],
+    description:
+      'Includes the third custom degree in the scale. Only heard when Scale is set to Custom.',
   },
   customCents3: {
     id: 39,
@@ -358,6 +459,8 @@ export const LATTICE_PARAMS = {
     default: 200,
     taper: 'linear',
     unit: 'ct',
+    description:
+      'Pitch of the third custom degree above the root. It counts only when that degree is on and Scale is set to Custom.',
   },
   customOn4: {
     id: 40,
@@ -368,6 +471,8 @@ export const LATTICE_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Off', 'On'],
+    description:
+      'Includes the fourth custom degree in the scale. Only heard when Scale is set to Custom.',
   },
   customCents4: {
     id: 41,
@@ -377,6 +482,8 @@ export const LATTICE_PARAMS = {
     default: 300,
     taper: 'linear',
     unit: 'ct',
+    description:
+      'Pitch of the fourth custom degree above the root. It counts only when that degree is on and Scale is set to Custom.',
   },
   customOn5: {
     id: 42,
@@ -387,6 +494,8 @@ export const LATTICE_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Off', 'On'],
+    description:
+      'Includes the fifth custom degree in the scale. Only heard when Scale is set to Custom.',
   },
   customCents5: {
     id: 43,
@@ -396,6 +505,8 @@ export const LATTICE_PARAMS = {
     default: 400,
     taper: 'linear',
     unit: 'ct',
+    description:
+      'Pitch of the fifth custom degree above the root. It counts only when that degree is on and Scale is set to Custom.',
   },
   customOn6: {
     id: 44,
@@ -406,6 +517,8 @@ export const LATTICE_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Off', 'On'],
+    description:
+      'Includes the sixth custom degree in the scale. Only heard when Scale is set to Custom.',
   },
   customCents6: {
     id: 45,
@@ -415,6 +528,8 @@ export const LATTICE_PARAMS = {
     default: 500,
     taper: 'linear',
     unit: 'ct',
+    description:
+      'Pitch of the sixth custom degree above the root. It counts only when that degree is on and Scale is set to Custom.',
   },
   customOn7: {
     id: 46,
@@ -425,6 +540,8 @@ export const LATTICE_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Off', 'On'],
+    description:
+      'Includes the seventh custom degree in the scale. Only heard when Scale is set to Custom.',
   },
   customCents7: {
     id: 47,
@@ -434,6 +551,8 @@ export const LATTICE_PARAMS = {
     default: 600,
     taper: 'linear',
     unit: 'ct',
+    description:
+      'Pitch of the seventh custom degree above the root. It counts only when that degree is on and Scale is set to Custom.',
   },
   customOn8: {
     id: 48,
@@ -444,6 +563,8 @@ export const LATTICE_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Off', 'On'],
+    description:
+      'Includes the eighth custom degree in the scale. Only heard when Scale is set to Custom.',
   },
   customCents8: {
     id: 49,
@@ -453,6 +574,8 @@ export const LATTICE_PARAMS = {
     default: 700,
     taper: 'linear',
     unit: 'ct',
+    description:
+      'Pitch of the eighth custom degree above the root. It counts only when that degree is on and Scale is set to Custom.',
   },
   customOn9: {
     id: 50,
@@ -463,6 +586,8 @@ export const LATTICE_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Off', 'On'],
+    description:
+      'Includes the ninth custom degree in the scale. Only heard when Scale is set to Custom.',
   },
   customCents9: {
     id: 51,
@@ -472,6 +597,8 @@ export const LATTICE_PARAMS = {
     default: 800,
     taper: 'linear',
     unit: 'ct',
+    description:
+      'Pitch of the ninth custom degree above the root. It counts only when that degree is on and Scale is set to Custom.',
   },
   customOn10: {
     id: 52,
@@ -482,6 +609,8 @@ export const LATTICE_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Off', 'On'],
+    description:
+      'Includes the tenth custom degree in the scale. Only heard when Scale is set to Custom.',
   },
   customCents10: {
     id: 53,
@@ -491,6 +620,8 @@ export const LATTICE_PARAMS = {
     default: 900,
     taper: 'linear',
     unit: 'ct',
+    description:
+      'Pitch of the tenth custom degree above the root. It counts only when that degree is on and Scale is set to Custom.',
   },
   customOn11: {
     id: 54,
@@ -501,6 +632,8 @@ export const LATTICE_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Off', 'On'],
+    description:
+      'Includes the eleventh custom degree in the scale. Only heard when Scale is set to Custom.',
   },
   customCents11: {
     id: 55,
@@ -510,6 +643,8 @@ export const LATTICE_PARAMS = {
     default: 1000,
     taper: 'linear',
     unit: 'ct',
+    description:
+      'Pitch of the eleventh custom degree above the root. It counts only when that degree is on and Scale is set to Custom.',
   },
   customOn12: {
     id: 56,
@@ -520,6 +655,8 @@ export const LATTICE_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Off', 'On'],
+    description:
+      'Includes the twelfth custom degree in the scale. Only heard when Scale is set to Custom.',
   },
   customCents12: {
     id: 57,
@@ -529,6 +666,8 @@ export const LATTICE_PARAMS = {
     default: 1100,
     taper: 'linear',
     unit: 'ct',
+    description:
+      'Pitch of the twelfth custom degree above the root. It counts only when that degree is on and Scale is set to Custom.',
   },
   feedbackPath: {
     id: 58,
@@ -539,6 +678,8 @@ export const LATTICE_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Echo', 'Cascade'],
+    description:
+      'Echo repeats a voice at the same pitch. Cascade shifts every repeat again, so echoes climb or fall by the interval and grow darker.',
   },
 } as const satisfies Record<string, ParamSpec>
 

@@ -1,12 +1,26 @@
 // Zita-Rev1 (cpp/faust/zita-rev1.dsp): Fons Adriaensen's 8×8 FDN reverb via
 // Faust's `re.zita_rev1_stereo`, compiled to C++ at library build time and
 // hosted behind the device ABI like every other stock device. The param table
-// is generated from the .dsp by scripts/build-faust.sh.
+// is generated from the .dsp by scripts/build-faust.sh; what each knob does is
+// said here, because a .dsp cannot carry it.
 
+import { describeParams } from '../../core/params'
 import { defineWasmDevice, WasmDevice, type WasmDeviceOptions } from '../WasmDevice'
-import { ZITA_REV1_PARAMS, type ZitaRev1ParamName } from './faust/zita-rev1'
+import { ZITA_REV1_PARAMS as GENERATED_PARAMS, type ZitaRev1ParamName } from './faust/zita-rev1'
 
-export { ZITA_REV1_PARAMS, type ZitaRev1ParamName }
+/** The generated table, with what each knob does said for the info view. */
+export const ZITA_REV1_PARAMS = describeParams(GENERATED_PARAMS, {
+  preDelay: 'The gap before the reverb starts, which keeps the start of a sound clear of its tail.',
+  crossover:
+    'The frequency that splits the tail into lows and mids. Low decay sets the time below it and Mid decay the time above.',
+  lowDecay:
+    'How long the tail rings below the Crossover. Longer than Mid decay gives a heavier, warmer tail; shorter keeps the low end clear.',
+  midDecay: 'How long the tail rings in the midrange: the main length of the reverb.',
+  damping:
+    'The frequency at which the tail dies twice as fast as in the mids. Lower gives a darker tail; higher keeps it bright.',
+  mix: 'Balance between the dry signal and the reverb. The output is levelled, so it stays as loud as the input wherever the knob stands.',
+})
+export { type ZitaRev1ParamName }
 
 export const ZITA_REV1_DEVICE = defineWasmDevice({
   id: 'zita-rev1',

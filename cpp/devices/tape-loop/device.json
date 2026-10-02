@@ -15,14 +15,54 @@
       "max": 30,
       "default": 1.8,
       "taper": "log",
-      "unit": "s"
+      "unit": "s",
+      "description": "How long the loop is, the time before what was played comes round again. Changing it bends the pitch of everything on the loop."
     },
-    { "key": "feedback", "name": "Feedback", "min": 0, "max": 1, "default": 0.7 },
-    { "key": "speed", "name": "Speed", "choices": ["Half", "Normal", "Double"], "default": 1 },
-    { "key": "direction", "name": "Direction", "choices": ["Forward", "Reverse"], "default": 0 },
-    { "key": "record", "name": "Record", "choices": ["On", "Off"], "default": 0 },
-    { "key": "wear", "name": "Wear", "min": 0, "max": 1, "default": 0.3 },
-    { "key": "wow", "name": "Wow", "min": 0, "max": 1, "default": 0.2 },
+    {
+      "key": "feedback",
+      "name": "Feedback",
+      "min": 0,
+      "max": 1,
+      "default": 0.7,
+      "description": "How much of each pass is recorded again. Low lets layers fade quickly; at full, with Wear at zero, the loop holds for ever."
+    },
+    {
+      "key": "speed",
+      "name": "Speed",
+      "choices": ["Half", "Normal", "Double"],
+      "default": 1,
+      "description": "How fast the loop is played back. Half is an octave down and twice as long, Double an octave up. What is on the tape does not change."
+    },
+    {
+      "key": "direction",
+      "name": "Direction",
+      "choices": ["Forward", "Reverse"],
+      "default": 0,
+      "description": "Reverse plays the loop backwards. On a change the playback slows to a stop and runs back up the other way."
+    },
+    {
+      "key": "record",
+      "name": "Record",
+      "choices": ["On", "Off"],
+      "default": 0,
+      "description": "Off stops new playing from reaching the tape while the loop keeps turning and fading. On lets the input onto the tape again."
+    },
+    {
+      "key": "wear",
+      "name": "Wear",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "What each pass costs the tape: duller highs, soft saturation and a slow drift that blurs old layers. At zero a pass is an exact copy."
+    },
+    {
+      "key": "wow",
+      "name": "Wow",
+      "min": 0,
+      "max": 1,
+      "default": 0.2,
+      "description": "Pitch wobble on playback, a slow drift with a faint flutter. It is not recorded, so it does not build up over passes."
+    },
     {
       "key": "lowCut",
       "name": "Low Cut",
@@ -30,10 +70,25 @@
       "max": 800,
       "default": 60,
       "taper": "log",
-      "unit": "Hz"
+      "unit": "Hz",
+      "description": "Removes lows from what the loop plays back. The tape itself is not filtered, so the cut does not deepen with each pass."
     },
-    { "key": "spread", "name": "Ping Pong", "min": 0, "max": 1, "default": 0.3 },
-    { "key": "mix", "name": "Mix", "min": 0, "max": 1, "default": 0.5 }
+    {
+      "key": "spread",
+      "name": "Ping Pong",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Records the input on the left and crosses the feedback between the sides, so layers change sides on every pass."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Balance between the dry signal and the loop."
+    }
   ],
   "presets": {
     "Slow fade": {

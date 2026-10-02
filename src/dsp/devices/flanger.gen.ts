@@ -5,10 +5,49 @@ import { wasmDeviceDescriptor } from '../descriptor'
 import { defineWasmDevice, WasmDevice, type WasmDeviceOptions } from '../WasmDevice'
 
 export const FLANGER_PARAMS = {
-  delayMs: { id: 0, name: 'Delay', min: 0.5, max: 10, default: 2.5, taper: 'log', unit: 'ms' },
-  rate: { id: 1, name: 'Rate', min: 0.01, max: 10, default: 0.25, taper: 'log', unit: 'Hz' },
-  depth: { id: 2, name: 'Depth', min: 0, max: 100, default: 50, taper: 'linear', unit: '%' },
-  feedback: { id: 3, name: 'Feedback', min: -95, max: 95, default: 30, taper: 'linear', unit: '%' },
+  delayMs: {
+    id: 0,
+    name: 'Delay',
+    min: 0.5,
+    max: 10,
+    default: 2.5,
+    taper: 'log',
+    unit: 'ms',
+    description:
+      'The centre time of the sweep, which sets where the comb sits. Short puts the notches high and far apart; longer brings them lower and closer.',
+  },
+  rate: {
+    id: 1,
+    name: 'Rate',
+    min: 0.01,
+    max: 10,
+    default: 0.25,
+    taper: 'log',
+    unit: 'Hz',
+    description:
+      'How fast the comb sweeps up and down. Slow is a long jet sweep; fast is a warble.',
+  },
+  depth: {
+    id: 2,
+    name: 'Depth',
+    min: 0,
+    max: 100,
+    default: 50,
+    taper: 'linear',
+    unit: '%',
+    description: 'How far the sweep travels either side of Delay. At zero the comb stands still.',
+  },
+  feedback: {
+    id: 3,
+    name: 'Feedback',
+    min: -95,
+    max: 95,
+    default: 30,
+    taper: 'linear',
+    unit: '%',
+    description:
+      'Sends the swept signal back in, which sharpens the comb. Negative values hollow it out instead.',
+  },
   shape: {
     id: 4,
     name: 'Shape',
@@ -18,9 +57,31 @@ export const FLANGER_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Sine', 'Triangle', 'Saw up', 'Saw down', 'Square', 'Random'],
+    description:
+      'The path the sweep follows. Sine and Triangle glide, the saws go one way and snap back, Square and Random jump from point to point.',
   },
-  stereo: { id: 5, name: 'Stereo', min: 0, max: 180, default: 90, taper: 'linear', unit: 'deg' },
-  mix: { id: 6, name: 'Mix', min: 0, max: 1, default: 0.5, taper: 'linear', unit: '' },
+  stereo: {
+    id: 5,
+    name: 'Stereo',
+    min: 0,
+    max: 180,
+    default: 90,
+    taper: 'linear',
+    unit: 'deg',
+    description:
+      'Puts the right side of the sweep ahead of the left. At zero both move together; higher values make the sweep cross the stereo field.',
+  },
+  mix: {
+    id: 6,
+    name: 'Mix',
+    min: 0,
+    max: 1,
+    default: 0.5,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Balance between the dry and the delayed sound. The notches of the comb are deepest in the middle.',
+  },
 } as const satisfies Record<string, ParamSpec>
 
 export type FlangerParamName = keyof typeof FLANGER_PARAMS

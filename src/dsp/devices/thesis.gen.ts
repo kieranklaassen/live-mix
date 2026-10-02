@@ -13,11 +13,52 @@ export const THESIS_PARAMS = {
     default: 62,
     taper: 'linear',
     unit: 'note',
+    description:
+      'The note every chord is reflected around. Notes played far from it spread wide; notes near it draw the bands close together.',
   },
-  resonance: { id: 1, name: 'Resonance', min: 5, max: 100, default: 40, taper: 'log', unit: '' },
-  width: { id: 2, name: 'Width', min: 0, max: 100, default: 50, taper: 'linear', unit: '%' },
-  attack: { id: 3, name: 'Attack', min: 0.01, max: 5, default: 0.5, taper: 'log', unit: 's' },
-  release: { id: 4, name: 'Release', min: 0.1, max: 10, default: 2, taper: 'log', unit: 's' },
+  resonance: {
+    id: 1,
+    name: 'Resonance',
+    min: 5,
+    max: 100,
+    default: 40,
+    taper: 'log',
+    unit: '',
+    description:
+      'How narrow the noise bands are. Low is breathy noise, high rings at a clear pitch. The upper part of the range adds nothing more.',
+  },
+  width: {
+    id: 2,
+    name: 'Width',
+    min: 0,
+    max: 100,
+    default: 50,
+    taper: 'linear',
+    unit: '%',
+    description:
+      'Stereo spread of the chord. It stays mono until the top quarter of the range, where it opens out. Below that only the level changes.',
+  },
+  attack: {
+    id: 3,
+    name: 'Attack',
+    min: 0.01,
+    max: 5,
+    default: 0.5,
+    taper: 'log',
+    unit: 's',
+    description:
+      'How long a note takes to swell to full level. Short speaks at once; long fades the chord in.',
+  },
+  release: {
+    id: 4,
+    name: 'Release',
+    min: 0.1,
+    max: 10,
+    default: 2,
+    taper: 'log',
+    unit: 's',
+    description: 'How long a note takes to fade out after the key is let go.',
+  },
   mode: {
     id: 5,
     name: 'Mode',
@@ -27,9 +68,31 @@ export const THESIS_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Fixed', 'Breathe', 'Drift', 'Gravity'],
+    description:
+      'How the bands move as a note holds. Fixed is still, Breathe swells each in turn, Drift wobbles their pitch, Gravity pulls them up a fifth.',
   },
-  breatheRate: { id: 6, name: 'Rate', min: 0.1, max: 2, default: 0.3, taper: 'linear', unit: 'Hz' },
-  strum: { id: 7, name: 'Strum', min: 0, max: 100, default: 0, taper: 'linear', unit: 'ms' },
+  breatheRate: {
+    id: 6,
+    name: 'Rate',
+    min: 0.1,
+    max: 2,
+    default: 0.3,
+    taper: 'linear',
+    unit: 'Hz',
+    description:
+      'Speed of the swelling in Breathe and of the pitch wobble in Drift. Fixed ignores it.',
+  },
+  strum: {
+    id: 7,
+    name: 'Strum',
+    min: 0,
+    max: 100,
+    default: 0,
+    taper: 'linear',
+    unit: 'ms',
+    description:
+      'Staggers the bands of each note so they enter one after another, like a strummed chord. At zero they all start together.',
+  },
   mirrorEnabled: {
     id: 8,
     name: 'Mirror',
@@ -39,6 +102,8 @@ export const THESIS_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Off', 'On'],
+    description:
+      'Adds a band as far on the other side of the Center Note as the played note is from it, counted in scale steps.',
   },
   octaflipEnabled: {
     id: 9,
@@ -49,6 +114,8 @@ export const THESIS_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Off', 'On'],
+    description:
+      'Adds the played note moved an octave towards the Center Note: down if it is above the centre, up if it is below.',
   },
   middleEnabled: {
     id: 10,
@@ -59,6 +126,8 @@ export const THESIS_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Off', 'On'],
+    description:
+      'Adds a band halfway between the played note and the Center Note, counted in scale steps.',
   },
   mirrorMiddleEnabled: {
     id: 11,
@@ -69,6 +138,7 @@ export const THESIS_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Off', 'On'],
+    description: "Adds the Middle band's reflection on the far side of the Center Note.",
   },
   centerEnabled: {
     id: 12,
@@ -79,6 +149,8 @@ export const THESIS_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Off', 'On'],
+    description:
+      'Adds the Center Note itself to every note played, so all chords share one common tone.',
   },
   scale: {
     id: 13,
@@ -103,6 +175,8 @@ export const THESIS_PARAMS = {
       'Whole Tone',
       'Chromatic',
     ],
+    description:
+      'The scale every band is tuned to. Played notes snap to it and the reflections are counted in its steps.',
   },
   root: {
     id: 14,
@@ -113,6 +187,7 @@ export const THESIS_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'],
+    description: 'The key note the scale is built on.',
   },
 } as const satisfies Record<string, ParamSpec>
 

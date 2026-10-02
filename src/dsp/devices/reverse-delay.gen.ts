@@ -5,7 +5,17 @@ import { wasmDeviceDescriptor } from '../descriptor'
 import { defineWasmDevice, WasmDevice, type WasmDeviceOptions } from '../WasmDevice'
 
 export const REVERSE_DELAY_PARAMS = {
-  time: { id: 0, name: 'Time', min: 50, max: 4000, default: 600, taper: 'log', unit: 'ms' },
+  time: {
+    id: 0,
+    name: 'Time',
+    min: 50,
+    max: 4000,
+    default: 600,
+    taper: 'log',
+    unit: 'ms',
+    description:
+      'Length of each backwards chunk, and how long the wait is to hear it. Short chunks stutter; long ones reverse whole phrases.',
+  },
   feedback: {
     id: 1,
     name: 'Feedback',
@@ -14,6 +24,8 @@ export const REVERSE_DELAY_PARAMS = {
     default: 0.35,
     taper: 'linear',
     unit: '',
+    description:
+      'Sends the chunks back in for more repeats. Each pass is reversed again, so every second repeat plays forwards.',
   },
   pitch: {
     id: 2,
@@ -24,12 +36,63 @@ export const REVERSE_DELAY_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Normal', 'Octave up', 'Octave down'],
+    description:
+      'Octave up plays the chunks at double speed and Octave down at half speed. The chunks stay the same length.',
   },
-  smooth: { id: 3, name: 'Smooth', min: 0, max: 1, default: 0.35, taper: 'linear', unit: '' },
-  tone: { id: 4, name: 'Tone', min: 500, max: 16000, default: 6000, taper: 'log', unit: 'Hz' },
-  spread: { id: 5, name: 'Spread', min: 0, max: 1, default: 0.5, taper: 'linear', unit: '' },
-  mix: { id: 6, name: 'Mix', min: 0, max: 1, default: 0.4, taper: 'linear', unit: '' },
-  lowCut: { id: 7, name: 'Low Cut', min: 20, max: 800, default: 100, taper: 'log', unit: 'Hz' },
+  smooth: {
+    id: 3,
+    name: 'Smooth',
+    min: 0,
+    max: 1,
+    default: 0.35,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How much of each chunk is spent fading in and out. Low splices chunks abruptly; high makes each one swell up and die away.',
+  },
+  tone: {
+    id: 4,
+    name: 'Tone',
+    min: 500,
+    max: 16000,
+    default: 6000,
+    taper: 'log',
+    unit: 'Hz',
+    description:
+      'Darkens the reversed sound. It sits in the feedback loop, so each repeat is darker than the last.',
+  },
+  spread: {
+    id: 5,
+    name: 'Spread',
+    min: 0,
+    max: 1,
+    default: 0.5,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Sends alternate chunks to opposite sides. Zero keeps them all in the centre; full bounces them hard left and right.',
+  },
+  mix: {
+    id: 6,
+    name: 'Mix',
+    min: 0,
+    max: 1,
+    default: 0.4,
+    taper: 'linear',
+    unit: '',
+    description: 'Balance between the dry signal and the reversed chunks.',
+  },
+  lowCut: {
+    id: 7,
+    name: 'Low Cut',
+    min: 20,
+    max: 800,
+    default: 100,
+    taper: 'log',
+    unit: 'Hz',
+    description:
+      'Removes lows from the reversed sound. It sits in the feedback loop, so the repeats thin out and the low end does not build up.',
+  },
 } as const satisfies Record<string, ParamSpec>
 
 export type ReverseDelayParamName = keyof typeof REVERSE_DELAY_PARAMS

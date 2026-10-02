@@ -7,9 +7,31 @@
   "header": "tine_piano.h",
   "sources": [],
   "params": [
-    { "key": "bell", "name": "Bell", "min": 0, "max": 1, "default": 0.45 },
-    { "key": "bark", "name": "Bark", "min": 0, "max": 1, "default": 0.35 },
-    { "key": "decay", "name": "Decay", "min": 0.25, "max": 4, "default": 1, "taper": "log" },
+    {
+      "key": "bell",
+      "name": "Bell",
+      "min": 0,
+      "max": 1,
+      "default": 0.45,
+      "description": "How much of the high bell tone rings at the start of each note. Applies from the next note played."
+    },
+    {
+      "key": "bark",
+      "name": "Bark",
+      "min": 0,
+      "max": 1,
+      "default": 0.35,
+      "description": "Moves the tine closer to the pickup. Low is hollow and pure; high growls on hard notes while soft notes stay clean."
+    },
+    {
+      "key": "decay",
+      "name": "Decay",
+      "min": 0.25,
+      "max": 4,
+      "default": 1,
+      "taper": "log",
+      "description": "How long held notes ring. Bass notes always last longer than treble. Applies from the next note played."
+    },
     {
       "key": "release",
       "name": "Release",
@@ -17,10 +39,25 @@
       "max": 3,
       "default": 0.25,
       "taper": "log",
-      "unit": "s"
+      "unit": "s",
+      "description": "How quickly the damper stops a note after the key is let go. Short is tight; long lets notes hang over."
     },
-    { "key": "hardness", "name": "Hardness", "min": 0, "max": 1, "default": 0.7 },
-    { "key": "tremolo", "name": "Tremolo", "min": 0, "max": 1, "default": 0.3 },
+    {
+      "key": "hardness",
+      "name": "Hardness",
+      "min": 0,
+      "max": 1,
+      "default": 0.7,
+      "description": "How much playing harder changes the tone as well as the loudness. At zero a hard note is a loud soft note."
+    },
+    {
+      "key": "tremolo",
+      "name": "Tremolo",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Depth of the suitcase amplifier's tremolo. Loudness stays the same as the depth goes up."
+    },
     {
       "key": "tremoloRate",
       "name": "Rate",
@@ -28,12 +65,42 @@
       "max": 10,
       "default": 3.2,
       "taper": "log",
-      "unit": "Hz"
+      "unit": "Hz",
+      "description": "How fast the tremolo pulses, or pans when Pan is up."
     },
-    { "key": "pan", "name": "Pan", "min": 0, "max": 1, "default": 1 },
-    { "key": "tone", "name": "Tone", "min": 0, "max": 1, "default": 0.55 },
-    { "key": "drive", "name": "Drive", "min": 0, "max": 1, "default": 0.15 },
-    { "key": "volume", "name": "Volume", "min": -48, "max": 6, "default": -9, "unit": "dB" }
+    {
+      "key": "pan",
+      "name": "Pan",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "Spreads the tremolo across the speakers. At zero both sides pulse together; at full the sound swings from side to side."
+    },
+    {
+      "key": "tone",
+      "name": "Tone",
+      "min": 0,
+      "max": 1,
+      "default": 0.55,
+      "description": "Amplifier tone control. Low settings are dark and muffled; high settings let the bell and bark through."
+    },
+    {
+      "key": "drive",
+      "name": "Drive",
+      "min": 0,
+      "max": 1,
+      "default": 0.15,
+      "description": "How hard the notes push the amplifier. Quiet playing stays clean; loud notes and chords saturate and compress."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -9,
+      "unit": "dB",
+      "description": "Output level of the instrument. Pushed hard, a soft clipper rounds off the peaks."
+    }
   ],
   "presets": {
     "Soft suitcase": {

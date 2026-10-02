@@ -14,7 +14,17 @@ import { type ParamSpec } from '../../core/params'
 import { defineWasmDevice, WasmDevice, type WasmDeviceOptions } from '../WasmDevice'
 
 export const STEREO_WIDENER_PARAMS = {
-  width: { id: 0, name: 'Width', min: 0, max: 1, default: 0.5, taper: 'linear', unit: '' },
+  width: {
+    id: 0,
+    name: 'Width',
+    min: 0,
+    max: 1,
+    default: 0.5,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How wide the stereo image is above the bass. Low folds it to mono, the middle leaves it alone, high pushes the sides out. The bass narrows as it rises.',
+  },
 } as const satisfies Record<string, ParamSpec>
 
 export type StereoWidenerParamName = keyof typeof STEREO_WIDENER_PARAMS

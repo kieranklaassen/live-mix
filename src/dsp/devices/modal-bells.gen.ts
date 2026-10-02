@@ -14,14 +14,86 @@ export const MODAL_BELLS_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Church bell', 'Singing bowl', 'Vibraphone', 'Bar', 'Kalimba', 'Glass', 'Gong'],
+    description:
+      'What is struck: bell, bowl, bar, tine, glass or gong. Each has its own set of overtones. Heard from the next note.',
   },
-  decay: { id: 1, name: 'Decay', min: 0.2, max: 40, default: 12, taper: 'log', unit: 's' },
-  damping: { id: 2, name: 'Damping', min: 0, max: 1, default: 0.4, taper: 'linear', unit: '' },
-  hardness: { id: 3, name: 'Hardness', min: 0, max: 1, default: 0.45, taper: 'linear', unit: '' },
-  position: { id: 4, name: 'Position', min: 0, max: 1, default: 0.15, taper: 'linear', unit: '' },
-  detune: { id: 5, name: 'Detune', min: 0, max: 8, default: 1, taper: 'linear', unit: 'Hz' },
-  stretch: { id: 6, name: 'Stretch', min: 0.5, max: 1.5, default: 1, taper: 'linear', unit: '' },
-  sustain: { id: 7, name: 'Sustain', min: 0, max: 1, default: 0, taper: 'linear', unit: '' },
+  decay: {
+    id: 1,
+    name: 'Decay',
+    min: 0.2,
+    max: 40,
+    default: 12,
+    taper: 'log',
+    unit: 's',
+    description:
+      'How long the lowest tone of a note rings. The overtones above it die sooner, by an amount Damping sets.',
+  },
+  damping: {
+    id: 2,
+    name: 'Damping',
+    min: 0,
+    max: 1,
+    default: 0.4,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How much faster the high overtones die than the low ones. Low rings like metal; high goes dull quickly, like wood.',
+  },
+  hardness: {
+    id: 3,
+    name: 'Hardness',
+    min: 0,
+    max: 1,
+    default: 0.45,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How hard the mallet is. Soft gives a round, muted strike; hard gives a bright attack with more overtones. Heard from the next strike.',
+  },
+  position: {
+    id: 4,
+    name: 'Position',
+    min: 0,
+    max: 1,
+    default: 0.15,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Where the mallet lands, from the edge or rim to the middle. It changes which overtones the next strike brings out.',
+  },
+  detune: {
+    id: 5,
+    name: 'Detune',
+    min: 0,
+    max: 8,
+    default: 1,
+    taper: 'linear',
+    unit: 'Hz',
+    description:
+      'Splits each paired overtone into two a little apart in pitch, which makes the ring beat. Higher beats faster; zero is still.',
+  },
+  stretch: {
+    id: 6,
+    name: 'Stretch',
+    min: 0.5,
+    max: 1.5,
+    default: 1,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Squeezes or widens the gaps between the overtones. The middle is the true spacing; lower crowds them towards the note, higher spreads them.',
+  },
+  sustain: {
+    id: 7,
+    name: 'Sustain',
+    min: 0,
+    max: 1,
+    default: 0,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Rubs the object while a key is held, so its low tones swell and hold instead of dying away. Higher settings also soften the strike.',
+  },
   brightness: {
     id: 8,
     name: 'Brightness',
@@ -30,10 +102,41 @@ export const MODAL_BELLS_PARAMS = {
     default: 0.5,
     taper: 'linear',
     unit: '',
+    description:
+      'Tilts the level of the overtones against the played note. Low is darker and rounder; high brings the upper overtones forward.',
   },
-  release: { id: 9, name: 'Release', min: 0, max: 1, default: 0.25, taper: 'linear', unit: '' },
-  spread: { id: 10, name: 'Spread', min: 0, max: 1, default: 0.6, taper: 'linear', unit: '' },
-  volume: { id: 11, name: 'Volume', min: -48, max: 6, default: -9, taper: 'linear', unit: 'dB' },
+  release: {
+    id: 9,
+    name: 'Release',
+    min: 0,
+    max: 1,
+    default: 0.25,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How quickly a note is damped when its key is let go. At zero it rings on untouched; higher values choke it faster.',
+  },
+  spread: {
+    id: 10,
+    name: 'Spread',
+    min: 0,
+    max: 1,
+    default: 0.6,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Places the overtones across the stereo field. With more of it the beating pairs turn from side to side between the speakers.',
+  },
+  volume: {
+    id: 11,
+    name: 'Volume',
+    min: -48,
+    max: 6,
+    default: -9,
+    taper: 'linear',
+    unit: 'dB',
+    description: 'Overall output level of the instrument.',
+  },
 } as const satisfies Record<string, ParamSpec>
 
 export type ModalBellsParamName = keyof typeof MODAL_BELLS_PARAMS

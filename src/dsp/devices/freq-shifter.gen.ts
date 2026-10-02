@@ -5,8 +5,28 @@ import { wasmDeviceDescriptor } from '../descriptor'
 import { defineWasmDevice, WasmDevice, type WasmDeviceOptions } from '../WasmDevice'
 
 export const FREQ_SHIFTER_PARAMS = {
-  shift: { id: 0, name: 'Shift', min: -1000, max: 1000, default: 0, taper: 'linear', unit: 'Hz' },
-  fine: { id: 1, name: 'Fine', min: -10, max: 10, default: 0.4, taper: 'linear', unit: 'Hz' },
+  shift: {
+    id: 0,
+    name: 'Shift',
+    min: -1000,
+    max: 1000,
+    default: 0,
+    taper: 'linear',
+    unit: 'Hz',
+    description:
+      'Moves every partial by the same amount. Small shifts beat and phase against the dry sound; large ones turn notes into clangy, bell-like tones.',
+  },
+  fine: {
+    id: 1,
+    name: 'Fine',
+    min: -10,
+    max: 10,
+    default: 0.4,
+    taper: 'linear',
+    unit: 'Hz',
+    description:
+      'A small extra shift added to Shift, for setting slow phasing and beating precisely.',
+  },
   mode: {
     id: 2,
     name: 'Mode',
@@ -16,14 +36,85 @@ export const FREQ_SHIFTER_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Up', 'Down', 'Stereo', 'Ring'],
+    description:
+      'Up and Down set the direction of the shift. Stereo shifts the left up and the right down. Ring gives both at once, as a ring modulator does.',
   },
-  feedback: { id: 3, name: 'Feedback', min: 0, max: 0.98, default: 0.5, taper: 'linear', unit: '' },
-  delay: { id: 4, name: 'Delay', min: 1, max: 500, default: 45, taper: 'log', unit: 'ms' },
-  lfoRate: { id: 5, name: 'LFO Rate', min: 0.01, max: 10, default: 0.08, taper: 'log', unit: 'Hz' },
-  lfoDepth: { id: 6, name: 'LFO Depth', min: 0, max: 1, default: 0.08, taper: 'linear', unit: '' },
-  tone: { id: 7, name: 'Tone', min: 200, max: 16000, default: 4500, taper: 'log', unit: 'Hz' },
-  width: { id: 8, name: 'Width', min: 0, max: 1, default: 0.6, taper: 'linear', unit: '' },
-  mix: { id: 9, name: 'Mix', min: 0, max: 1, default: 0.5, taper: 'linear', unit: '' },
+  feedback: {
+    id: 3,
+    name: 'Feedback',
+    min: 0,
+    max: 0.98,
+    default: 0.5,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Sends the shifted sound back through the delay to be shifted again, so each pass climbs or falls further into a spiral.',
+  },
+  delay: {
+    id: 4,
+    name: 'Delay',
+    min: 1,
+    max: 500,
+    default: 45,
+    taper: 'log',
+    unit: 'ms',
+    description:
+      'The time each feedback pass takes. Short gives a rising or falling comb, the barber pole. Long gives echoes that step in pitch.',
+  },
+  lfoRate: {
+    id: 5,
+    name: 'LFO Rate',
+    min: 0.01,
+    max: 10,
+    default: 0.08,
+    taper: 'log',
+    unit: 'Hz',
+    description: 'How fast the LFO sways the amount of shift.',
+  },
+  lfoDepth: {
+    id: 6,
+    name: 'LFO Depth',
+    min: 0,
+    max: 1,
+    default: 0.08,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How far the LFO sways the amount of shift. Low settings give a slow drift in the phasing; high settings a clear wobble.',
+  },
+  tone: {
+    id: 7,
+    name: 'Tone',
+    min: 200,
+    max: 16000,
+    default: 4500,
+    taper: 'log',
+    unit: 'Hz',
+    description:
+      'Darkens the feedback path, so every pass round the loop loses more highs. The first shifted sound is not affected.',
+  },
+  width: {
+    id: 8,
+    name: 'Width',
+    min: 0,
+    max: 1,
+    default: 0.6,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Turns the right side out of step with the left. The sound widens and the beating against the dry signal moves between the sides.',
+  },
+  mix: {
+    id: 9,
+    name: 'Mix',
+    min: 0,
+    max: 1,
+    default: 0.5,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Balance between the dry and the shifted signal. Slow phasing needs both, so it is strongest near the middle.',
+  },
 } as const satisfies Record<string, ParamSpec>
 
 export type FreqShifterParamName = keyof typeof FREQ_SHIFTER_PARAMS

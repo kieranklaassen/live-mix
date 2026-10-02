@@ -5,16 +5,114 @@ import { wasmDeviceDescriptor } from '../descriptor'
 import { defineWasmDevice, WasmDevice, type WasmDeviceOptions } from '../WasmDevice'
 
 export const STRING_MACHINE_PARAMS = {
-  attack: { id: 0, name: 'Attack', min: 0.005, max: 8, default: 0.6, taper: 'log', unit: 's' },
-  release: { id: 1, name: 'Release', min: 0.05, max: 12, default: 1.8, taper: 'log', unit: 's' },
-  low: { id: 2, name: 'Cello', min: 0, max: 1, default: 0.4, taper: 'linear', unit: '' },
-  high: { id: 3, name: 'Violin', min: 0, max: 1, default: 0.35, taper: 'linear', unit: '' },
-  tone: { id: 4, name: 'Tone', min: 200, max: 12000, default: 3200, taper: 'log', unit: 'Hz' },
-  ensemble: { id: 5, name: 'Ensemble', min: 0, max: 1, default: 0.8, taper: 'linear', unit: '' },
-  speed: { id: 6, name: 'Speed', min: 0.25, max: 2, default: 1, taper: 'linear', unit: '' },
-  drift: { id: 7, name: 'Drift', min: 0, max: 1, default: 0.3, taper: 'linear', unit: '' },
-  width: { id: 8, name: 'Width', min: 0, max: 1, default: 0.8, taper: 'linear', unit: '' },
-  volume: { id: 9, name: 'Volume', min: -48, max: 6, default: -9, taper: 'linear', unit: 'dB' },
+  attack: {
+    id: 0,
+    name: 'Attack',
+    min: 0.005,
+    max: 8,
+    default: 0.6,
+    taper: 'log',
+    unit: 's',
+    description:
+      'How long a note takes to fade in. Short starts at once, like an organ; long is a slow string swell.',
+  },
+  release: {
+    id: 1,
+    name: 'Release',
+    min: 0.05,
+    max: 12,
+    default: 1.8,
+    taper: 'log',
+    unit: 's',
+    description: 'How long a note takes to fade out after the key is released.',
+  },
+  low: {
+    id: 2,
+    name: 'Cello',
+    min: 0,
+    max: 1,
+    default: 0.4,
+    taper: 'linear',
+    unit: '',
+    description: 'Level of the sawtooth an octave below the played note, the deep cello register.',
+  },
+  high: {
+    id: 3,
+    name: 'Violin',
+    min: 0,
+    max: 1,
+    default: 0.35,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Level of the sawtooth an octave above the played note, the bright violin register.',
+  },
+  tone: {
+    id: 4,
+    name: 'Tone',
+    min: 200,
+    max: 12000,
+    default: 3200,
+    taper: 'log',
+    unit: 'Hz',
+    description:
+      'Low-pass filter shared by all the notes. Lower is darker and mellower; higher is brighter and buzzier.',
+  },
+  ensemble: {
+    id: 5,
+    name: 'Ensemble',
+    min: 0,
+    max: 1,
+    default: 0.8,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Blend from the dry sawtooths to the three-line chorus that makes them shimmer like a string section. At zero the sound is dry.',
+  },
+  speed: {
+    id: 6,
+    name: 'Speed',
+    min: 0.25,
+    max: 2,
+    default: 1,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How fast the ensemble chorus sweeps, both its slow swell and its quick shimmer. Slower is calmer; faster is more of a wobble.',
+  },
+  drift: {
+    id: 7,
+    name: 'Drift',
+    min: 0,
+    max: 1,
+    default: 0.3,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How far each key wanders slowly out of tune on its own, which keeps held chords from sounding static.',
+  },
+  width: {
+    id: 8,
+    name: 'Width',
+    min: 0,
+    max: 1,
+    default: 0.8,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Stereo width of the ensemble chorus, down to mono at zero. It does nothing while Ensemble is at zero.',
+  },
+  volume: {
+    id: 9,
+    name: 'Volume',
+    min: -48,
+    max: 6,
+    default: -9,
+    taper: 'linear',
+    unit: 'dB',
+    description:
+      'Output level of the instrument. A soft clip after it rounds off the peaks when many notes stack up.',
+  },
 } as const satisfies Record<string, ParamSpec>
 
 export type StringMachineParamName = keyof typeof STRING_MACHINE_PARAMS

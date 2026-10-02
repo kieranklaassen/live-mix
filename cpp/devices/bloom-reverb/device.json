@@ -15,19 +15,22 @@
       "name": "Bloom",
       "min": 0,
       "max": 1,
-      "default": 0.5
+      "default": 0.5,
+      "description": "How far the tail drifts in pitch as it rings, and how much of the shifted sound feeds back. At zero the pitch stays put."
     },
     {
       "key": "direction",
       "name": "Direction",
       "choices": ["Up", "Down", "Scatter"],
-      "default": 0
+      "default": 0,
+      "description": "Up drifts the tail higher and Down lower. Scatter sends some grains up and others down at the same time."
     },
     {
       "key": "season",
       "name": "Season",
       "choices": ["Spring", "Summer", "Autumn", "Winter"],
-      "default": 0
+      "default": 0,
+      "description": "Tone of the tail. Spring is the brightest, Summer is full, Autumn rolls off the highs and Winter is the darkest."
     },
     {
       "key": "decay",
@@ -36,33 +39,38 @@
       "max": 30,
       "default": 5,
       "taper": "log",
-      "unit": "s"
+      "unit": "s",
+      "description": "How long the tail rings. Longer settings also make the pitch drift arrive more slowly."
     },
     {
       "key": "seed",
       "name": "Seed",
       "choices": ["Fundamental", "Odd", "Even"],
-      "default": 0
+      "default": 0,
+      "description": "Subtle colouring of the tail. Fundamental leans on the lows, Odd adds a hollow edge and Even a rounder one."
     },
     {
       "key": "mix",
       "name": "Mix",
       "min": 0,
       "max": 1,
-      "default": 0.5
+      "default": 0.5,
+      "description": "Balance between the dry signal and the reverb. Fully up is the drifting tail alone."
     },
     {
       "key": "interval",
       "name": "Interval",
       "choices": ["5th", "Octave", "5th+Oct", "Atonal"],
-      "default": 1
+      "default": 1,
+      "description": "The pitch the tail drifts towards: a fifth, an octave, or both at once. Atonal drifts smoothly with no fixed interval."
     },
     {
       "key": "width",
       "name": "Width",
       "min": 0,
       "max": 1,
-      "default": 0.5
+      "default": 0.5,
+      "description": "Stereo width of the whole output, dry signal included. Zero is mono, the middle is normal stereo and the top is extra wide."
     }
   ],
   "presets": {

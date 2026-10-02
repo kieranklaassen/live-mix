@@ -13,7 +13,8 @@
       "min": 48,
       "max": 71,
       "default": 62,
-      "unit": "note"
+      "unit": "note",
+      "description": "The note every chord is reflected around. Notes played far from it spread wide; notes near it draw the bands close together."
     },
     {
       "key": "resonance",
@@ -21,7 +22,8 @@
       "min": 5,
       "max": 100,
       "default": 40,
-      "taper": "log"
+      "taper": "log",
+      "description": "How narrow the noise bands are. Low is breathy noise, high rings at a clear pitch. The upper part of the range adds nothing more."
     },
     {
       "key": "width",
@@ -29,7 +31,8 @@
       "min": 0,
       "max": 100,
       "default": 50,
-      "unit": "%"
+      "unit": "%",
+      "description": "Stereo spread of the chord. It stays mono until the top quarter of the range, where it opens out. Below that only the level changes."
     },
     {
       "key": "attack",
@@ -38,7 +41,8 @@
       "max": 5,
       "default": 0.5,
       "taper": "log",
-      "unit": "s"
+      "unit": "s",
+      "description": "How long a note takes to swell to full level. Short speaks at once; long fades the chord in."
     },
     {
       "key": "release",
@@ -47,13 +51,15 @@
       "max": 10,
       "default": 2,
       "taper": "log",
-      "unit": "s"
+      "unit": "s",
+      "description": "How long a note takes to fade out after the key is let go."
     },
     {
       "key": "mode",
       "name": "Mode",
       "choices": ["Fixed", "Breathe", "Drift", "Gravity"],
-      "default": 1
+      "default": 1,
+      "description": "How the bands move as a note holds. Fixed is still, Breathe swells each in turn, Drift wobbles their pitch, Gravity pulls them up a fifth."
     },
     {
       "key": "breatheRate",
@@ -61,7 +67,8 @@
       "min": 0.1,
       "max": 2,
       "default": 0.3,
-      "unit": "Hz"
+      "unit": "Hz",
+      "description": "Speed of the swelling in Breathe and of the pitch wobble in Drift. Fixed ignores it."
     },
     {
       "key": "strum",
@@ -69,37 +76,43 @@
       "min": 0,
       "max": 100,
       "default": 0,
-      "unit": "ms"
+      "unit": "ms",
+      "description": "Staggers the bands of each note so they enter one after another, like a strummed chord. At zero they all start together."
     },
     {
       "key": "mirrorEnabled",
       "name": "Mirror",
       "choices": ["Off", "On"],
-      "default": 1
+      "default": 1,
+      "description": "Adds a band as far on the other side of the Center Note as the played note is from it, counted in scale steps."
     },
     {
       "key": "octaflipEnabled",
       "name": "Octaflip",
       "choices": ["Off", "On"],
-      "default": 1
+      "default": 1,
+      "description": "Adds the played note moved an octave towards the Center Note: down if it is above the centre, up if it is below."
     },
     {
       "key": "middleEnabled",
       "name": "Middle",
       "choices": ["Off", "On"],
-      "default": 0
+      "default": 0,
+      "description": "Adds a band halfway between the played note and the Center Note, counted in scale steps."
     },
     {
       "key": "mirrorMiddleEnabled",
       "name": "Mirror Middle",
       "choices": ["Off", "On"],
-      "default": 0
+      "default": 0,
+      "description": "Adds the Middle band's reflection on the far side of the Center Note."
     },
     {
       "key": "centerEnabled",
       "name": "Center",
       "choices": ["Off", "On"],
-      "default": 0
+      "default": 0,
+      "description": "Adds the Center Note itself to every note played, so all chords share one common tone."
     },
     {
       "key": "scale",
@@ -119,13 +132,15 @@
         "Whole Tone",
         "Chromatic"
       ],
-      "default": 0
+      "default": 0,
+      "description": "The scale every band is tuned to. Played notes snap to it and the reflections are counted in its steps."
     },
     {
       "key": "root",
       "name": "Root",
       "choices": ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"],
-      "default": 0
+      "default": 0,
+      "description": "The key note the scale is built on."
     }
   ],
   "presets": {

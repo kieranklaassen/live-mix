@@ -7,9 +7,29 @@
   "header": "rotary.h",
   "sources": [],
   "params": [
-    { "key": "speed", "name": "Speed", "choices": ["Slow", "Fast", "Brake"], "default": 0 },
-    { "key": "hornDepth", "name": "Horn Depth", "min": 0, "max": 1, "default": 0.6 },
-    { "key": "drumDepth", "name": "Drum Depth", "min": 0, "max": 1, "default": 0.5 },
+    {
+      "key": "speed",
+      "name": "Speed",
+      "choices": ["Slow", "Fast", "Brake"],
+      "default": 0,
+      "description": "Slow is the gentle chorale, Fast the tremolo. The horn changes speed quickly and the drum lags behind. Brake lets both coast to a stop."
+    },
+    {
+      "key": "hornDepth",
+      "name": "Horn Depth",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "How strongly the spinning horn moves the highs, in pitch, level and brightness. At zero the highs stand still."
+    },
+    {
+      "key": "drumDepth",
+      "name": "Drum Depth",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How strongly the spinning drum moves the lows, mostly in level with a little pitch wobble. At zero the lows stand still."
+    },
     {
       "key": "acceleration",
       "name": "Acceleration",
@@ -17,13 +37,49 @@
       "max": 4,
       "default": 1,
       "taper": "log",
-      "unit": "x"
+      "unit": "x",
+      "description": "How quickly the rotors speed up and slow down when Speed changes. Low is a heavy, slow run-up; high gets there almost at once."
     },
-    { "key": "drive", "name": "Drive", "min": 0, "max": 1, "default": 0.25 },
-    { "key": "balance", "name": "Balance", "min": 0, "max": 1, "default": 0.5 },
-    { "key": "distance", "name": "Distance", "min": 0, "max": 1, "default": 0.3 },
-    { "key": "spread", "name": "Spread", "min": 0, "max": 1, "default": 0.7 },
-    { "key": "mix", "name": "Mix", "min": 0, "max": 1, "default": 1 }
+    {
+      "key": "drive",
+      "name": "Drive",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "description": "Overdrive from the tube amplifier ahead of the rotors. Zero is clean. Higher settings add growl and even out the level."
+    },
+    {
+      "key": "balance",
+      "name": "Balance",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Level of the horn against the bass drum. Low settings favour the lows from the drum; high settings favour the highs from the horn."
+    },
+    {
+      "key": "distance",
+      "name": "Distance",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "How far the microphones are from the cabinet. Close pulses strongly as the horn passes; far is smoother and more chorused."
+    },
+    {
+      "key": "spread",
+      "name": "Spread",
+      "min": 0,
+      "max": 1,
+      "default": 0.7,
+      "description": "The angle between the two microphones. At zero both hear the same and the cabinet is mono; higher settings widen the movement."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "Balance between the dry signal and the cabinet. The cabinet hears the input summed to mono."
+    }
   ],
   "presets": {
     "Chorale": {
