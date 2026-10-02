@@ -165,6 +165,13 @@ interface Registration {
   /** The clock the last pass ran on, and its loop length then: a change of either moves the schedulable over. */
   base?: Timebase
   baseLengthSec?: number
+  /**
+   * Set when the whole run of the timeline may have moved under a clock that
+   * did not itself change: a transport loop folded into a shorter one takes
+   * `elapsed()` with it, so a schedulable on a clock of its own stands
+   * somewhere else in its clips, as it would on a clock of another length.
+   */
+  jumped?: boolean
 }
 
 export class Scheduler {
@@ -509,6 +516,8 @@ export class Scheduler {
           registration.windowEndSec = undefined
           // Their pass numbers belong to the anchor that went.
           registration.declined.clear()
+          // A fold moves `elapsed()`, and a clock of its own with it.
+          registration.jumped = true
         }
         this.refresh('loop')
         return
@@ -532,11 +541,13 @@ export class Scheduler {
   }
 
   /**
-   * Null unless `schedulable` is on another clock than its last pass ran on
-   * (a different `timebase`, or a cycle whose length changed). Then what it
-   * was handed is let go and its window starts afresh. Clips it `keeps` are
-   * left sounding as the old clock had them, and their ids are returned:
-   * they are not entered again on the new one while they do.
+   * Null unless `schedulable` stands somewhere else in its clips than its last
+   * pass left it: on another clock (a different `timebase`, or a cycle whose
+   * length changed), or on the same cycle after a transport loop fold moved
+   * the whole run of the timeline under it. Then what it was handed is let go
+   * and its window starts afresh. Clips it `keeps` are left sounding as the
+   * old clock had them, and their ids are returned: they are not entered
+   * again on the new one while they do.
    */
   private movedOver(
     schedulable: Schedulable,
@@ -547,9 +558,11 @@ export class Scheduler {
     const changed =
       registration.base !== undefined &&
       (registration.base !== base ||
-        (base !== this.transport && registration.baseLengthSec !== lengthSec))
+        (base !== this.transport &&
+          (registration.baseLengthSec !== lengthSec || registration.jumped === true)))
     registration.base = base
     registration.baseLengthSec = lengthSec
+    registration.jumped = false
     if (!changed) return null
     const kept = new Set<string>()
     for (const [key, start] of [...registration.scheduled]) {
