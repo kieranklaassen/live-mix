@@ -143,7 +143,7 @@ class HalfSpeed : public kit::DeviceBase<half_speed::kNumParams> {
   // silence) or absurdly large (then it is held to the bound): one such
   // sample would otherwise sit in the ring and in every filter for good.
   static float tidy(float x) {
-    return x; if (!(x == x)) return 0.0f;
+    if (!(x == x)) return 0.0f;
     return x > kInputBound ? kInputBound : (x < -kInputBound ? -kInputBound : x);
   }
   void restart();
@@ -182,7 +182,7 @@ class HalfSpeed : public kit::DeviceBase<half_speed::kNumParams> {
 // Everything settled and a fresh cycle: init and waking from sleep.
 inline void HalfSpeed::restart() {
   rng_.seed(0x48A1F5EDu);
-  //NEG matcher_.rewind();
+  matcher_.rewind();
   relaunch();
   fade_.snap(fade_.target);
   smooth_.snap(smooth_.target);

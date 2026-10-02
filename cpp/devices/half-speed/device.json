@@ -54,7 +54,7 @@
       "min": 0,
       "max": 1,
       "default": 0.1,
-      "description": "Makes every cycle a little longer or shorter than the last, up to a quarter either way, so the jumps stop ticking like a machine."
+      "description": "Makes every cycle a little longer or shorter than the last, so the jumps stop ticking like a machine."
     },
     {
       "key": "lowCut",
@@ -177,6 +177,6 @@
   },
   "origin": {
     "kind": "new",
-    "note": "Written for live-mix on cpp/kit. A live varispeed player in outline: read heads on a delay line that run slower than the input and start again from the present every cycle, with two heads half a cycle apart under windows that sum to one when Smooth is up (a delay-line pitch shifter with a window as long as the cycle); not a model of any product. Each new head is placed by a waveform-similarity search (Verhelst and Roelands, 'An overlap-add technique based on waveform similarity (WSOLA) for high quality time-scale modification of speech', ICASSP 1993), and the cross-fades keep their level with a gain matched to how alike the two sounds are (Fink, Holters and Zölzer, 'Signal-matched power-complementary cross-fading and dry-wet mixing', DAFx-16)."
+    "note": "Written for live-mix on cpp/kit. A live varispeed player in outline: read heads on a delay line that run slower than the input and start again from the present every cycle, with two heads half a cycle apart under windows that sum to one when Smooth is up (a delay-line pitch shifter with a window as long as the cycle). Not a model of any product. Each new head is placed where its waveform lines up with the heads already playing, after the approach of Verhelst and Roelands, 'An overlap-add technique based on waveform similarity (WSOLA) for high quality time-scale modification of speech', and the cross-fades make up their level by how alike the two sounds are, after the approach of Fink, Holters and Zölzer, 'Signal-matched power-complementary cross-fading and dry-wet mixing'. Both are followed in outline only; no constants or details come from either."
   }
 }

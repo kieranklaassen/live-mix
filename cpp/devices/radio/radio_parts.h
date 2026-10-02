@@ -217,7 +217,10 @@ struct Atmospherics {
     crash_ = flush_denormal(crash_ * crash_decay_);
     if (crash_chance < (0.03f + kCrashesPerSecond * amount * amount) * dt && amount > 0.0f) {
       const float size = heavy(crash_size);
-      crash_ = kit::max(crash_, 1.5f + (3.0f + 6.0f * amount) * size);
+      // The largest crash is about 17 dB over the hiss at Static 1 (14 dB at
+      // the default): more than that and, on quiet material, one crash in a
+      // few minutes arrives far louder than the music.
+      crash_ = kit::max(crash_, 1.5f + (2.0f + 4.0f * amount) * size);
       const float seconds = 0.06f + 0.5f * crash_length * crash_length;
       crash_decay_ = std::exp(-dt / seconds);
     }
