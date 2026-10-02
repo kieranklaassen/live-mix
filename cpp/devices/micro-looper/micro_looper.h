@@ -32,7 +32,11 @@
 //   runs on into the next pass. The fade's law follows the measured
 //   correlation of those two pieces of tape: equal power when they have
 //   nothing in common, gains that add up to one when they are alike (a held
-//   chord), so the level does not swell at the join. That holds at any speed
+//   chord), so the level does not swell at the join. Before that the join
+//   is lined up: the tape that fades in is taken from the place, within
+//   12 ms or 1 % of the loop, where it is most like the tape that fades out,
+//   so a held note meets itself in phase instead of cancelling once a pass
+//   (unrelated material stays where it was). That holds at any speed
 //   and in either direction, so Speed is a motor with a 60 ms lag and passes
 //   through a stop into reverse. A second deck exists so that a new capture
 //   or a new Length fades in while the old loop fades out.

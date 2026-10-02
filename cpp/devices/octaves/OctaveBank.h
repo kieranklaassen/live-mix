@@ -189,6 +189,12 @@ class OctaveBank {
   // this share of their cutoff. Two notes a tone apart sit in neighbouring
   // channels and must not take each other's level.
   static constexpr float kSame = 0.6f;
+  // The upper voices leave on two buses for Spread, the channels taking
+  // them in runs of this many. A note in tune lies between two channels
+  // (OctaveBankImpl.h, the layout): with runs of three, of every six
+  // semitones two sit on one side, two on the other and two in the middle,
+  // and notes a third apart come out apart.
+  static constexpr int kSideRun = 3;
   // Voice order here: sub2, sub1, up1, up2.
   static constexpr double kDetuneCents[4] = {5.0, -8.0, 11.0, -15.0};
   static constexpr double kVoiceRatio[4] = {0.25, 0.5, 2.0, 4.0};
@@ -322,6 +328,7 @@ class OctaveBank {
 
   // Per channel: layout.
   float centre_[kMaxBands] = {};
+  int side_[kMaxBands] = {};
   float carrier_re_[kMaxBands] = {};
   float carrier_im_[kMaxBands] = {};
   float narrow_hz_[kMaxBands] = {};

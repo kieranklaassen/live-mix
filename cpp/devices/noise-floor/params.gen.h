@@ -9,7 +9,7 @@
 //    4  tone: -1..1, default 0
 //    5  movement: 0..1, default 0.3
 //    6  width: 0..1, default 0.8
-//    7  hold: 1..60 s, default 6
+//    7  hold: 1..60 s, default 12
 
 #pragma once
 
@@ -30,7 +30,7 @@ enum Param : int {
 
 inline constexpr float kParamMin[kNumParams] = {0.0f, -72.0f, -1.0f, 0.02f, -1.0f, 0.0f, 0.0f, 1.0f};
 inline constexpr float kParamMax[kNumParams] = {6.0f, -12.0f, 1.0f, 4.0f, 1.0f, 1.0f, 1.0f, 60.0f};
-inline constexpr float kParamDefault[kNumParams] = {0.0f, -42.0f, 0.0f, 0.4f, 0.0f, 0.3f, 0.8f, 6.0f};
+inline constexpr float kParamDefault[kNumParams] = {0.0f, -42.0f, 0.0f, 0.4f, 0.0f, 0.3f, 0.8f, 12.0f};
 
 }  // namespace noise_floor
 }  // namespace livemix

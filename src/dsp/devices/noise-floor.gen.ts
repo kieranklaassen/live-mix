@@ -88,7 +88,7 @@ export const NOISE_FLOOR_PARAMS = {
     name: 'Hold',
     min: 1,
     max: 60,
-    default: 6,
+    default: 12,
     taper: 'log',
     unit: 's',
     description:
@@ -119,7 +119,7 @@ export const NOISE_FLOOR_DESCRIPTOR = wasmDeviceDescriptor(NOISE_FLOOR_DEVICE, {
       tone: 0,
       movement: 0.3,
       width: 0.8,
-      hold: 6,
+      hold: 12,
     },
     'Old record': { type: 1, level: -38, movement: 0.5, width: 0.7, hold: 8 },
     'Empty room': { type: 2, level: -34, movement: 0.6, width: 1, hold: 20 },

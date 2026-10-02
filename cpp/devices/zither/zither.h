@@ -375,6 +375,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
   static constexpr float kRollSettleSeconds = 0.035f;
   static constexpr float kRingLean = 0.3f;
   static constexpr float kDampHz = 3000.0f;
+  static constexpr float kBassLean = 0.55f;  // how closely that follows the pitch below 220 Hz
   static constexpr float kDarkSeconds = 0.25f;
   static constexpr float kBrightSeconds = 12.0f;
   static constexpr float kTopShare = 0.5f;  // the highest partials ring this share of that
@@ -447,8 +448,13 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
   // found for the first by bisection (the loss rises with the pole).
   void loss_filter(float hz, float brightness, float* pole, float* shelf) const {
     const float sr = sample_rate();
-    // Thinner, shorter treble strings keep their partials further up.
-    const float ref = kit::min(kDampHz * std::sqrt(kit::max(hz, 220.0f) / 220.0f), 0.4f * sr);
+    // Thinner, shorter treble strings keep their partials further up, and the
+    // long, heavy bass strings lose theirs further down: the reference
+    // follows the pitch below 220 Hz almost in step, so a low string's upper
+    // partials fall two to three times as fast as its fundamental, as they
+    // do from the middle of the instrument up.
+    const float lean = hz < 220.0f ? std::pow(hz / 220.0f, kBassLean) : std::sqrt(hz / 220.0f);
+    const float ref = kit::min(kDampHz * lean, 0.4f * sr);
     const float seconds = kDarkSeconds * std::pow(kBrightSeconds / kDarkSeconds, brightness);
     const float wanted = std::exp(-kSixtyDb / (hz * seconds));  // per period, at the reference
     const float c = std::exp(-kSixtyDb / (hz * seconds * kTopShare));

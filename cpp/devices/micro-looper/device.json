@@ -179,6 +179,6 @@
   },
   "origin": {
     "kind": "new",
-    "note": "Written for live-mix on cpp/kit. In outline a short always-listening looper with a variable sample clock, in the manner of small hold-style looper pedals: a ring buffer written and read at a divided clock with a band-limit that follows it, a loop join whose crossfade follows how alike its two sides are, and overlapping grains read around the loop position, after the approach of Curtis Roads, Microsound. Not a model of any particular unit."
+    "note": "Written for live-mix on cpp/kit. In outline a short always-listening looper with a variable sample clock, in the manner of small hold-style looper pedals: a ring buffer written and read at a divided clock with a band-limit that follows it, a loop join that is lined up where its two sides agree (a short cross-correlation search) and cross-faded by a law that follows how alike they are, and overlapping grains read around the loop position, after the approach of Curtis Roads, Microsound. Not a model of any particular unit."
   }
 }

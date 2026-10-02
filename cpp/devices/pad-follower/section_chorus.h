@@ -94,8 +94,10 @@ class SectionChorus {
   static constexpr int kLineSize = 2048;
   static constexpr float kSlowBend = 0.0052f;  // 9 cents
   static constexpr float kFastBend = 0.0017f;  // 3 cents
-  // Three taps that have drifted apart add in power, not in amplitude.
-  static constexpr float kTapGain = 0.57735f;
+  // Three taps that have drifted apart add in power, not in amplitude:
+  // 0.577 would keep the power of a chord. A little under that, because on
+  // a single pure note the taps do line up from time to time.
+  static constexpr float kTapGain = 0.5f;
   static constexpr float kBaseSeconds[2][kTaps] = {{0.0071f, 0.0113f, 0.0157f},
                                                    {0.0083f, 0.0127f, 0.0179f}};
   static constexpr float kSlowHz[2][kTaps] = {{0.23f, 0.37f, 0.53f}, {0.29f, 0.43f, 0.61f}};

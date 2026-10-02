@@ -111,8 +111,11 @@ class PadFollower : public kit::DeviceBase<pad_follower::kNumParams> {
   // Where each register bus sits (-1 left, 1 right): neighbours in pitch on
   // opposite sides, so no register leans the image one way.
   static constexpr float kSeat[kGroups] = {-0.55f, 0.4f, -0.2f, 0.7f, -0.7f, 0.2f, -0.4f, 0.55f};
-  // Full Movement: each bus drifts ±6 dB in level and ±0.4 in position.
-  static constexpr float kLevelDrift = 1.0f;
+  // Full Movement: each bus drifts between 6 dB down and 3 dB up in level
+  // (more down than up, so that a single held note cannot swell far past
+  // its own level) and ±0.4 in position.
+  static constexpr float kLevelDrift = 0.75f;
+  static constexpr float kLevelRest = 0.25f;
   static constexpr float kSeatDrift = 0.4f;
 
   // One host-rate sample in, one stereo pad sample out, with the bank and
@@ -175,7 +178,8 @@ class PadFollower : public kit::DeviceBase<pad_follower::kNumParams> {
     const int tick = pad_follower::FollowerBank::kTick;
     const float movement = movement_.next();
     for (int g = 0; g < kGroups; ++g) {
-      const float level = std::exp2(movement * kLevelDrift * level_drift_[g].next(tick));
+      const float swing = kLevelDrift * level_drift_[g].next(tick) - kLevelRest;
+      const float level = std::exp2(movement * swing);
       const float seat =
           kit::clamp(kSeat[g] + movement * kSeatDrift * pan_drift_[g].next(tick), -1.0f, 1.0f);
       // Constant-power seat, scaled so the centre is unity on both sides.

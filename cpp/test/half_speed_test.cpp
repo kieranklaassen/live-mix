@@ -135,6 +135,29 @@ static std::vector<float> held_chord(double root) {
   return out;
 }
 
+// Plucked notes at uneven times, low to middle, for 24 s: long enough that
+// two sets of heads playing different moments are equally loud on average.
+static std::vector<float> plucked() {
+  std::vector<float> out(static_cast<size_t>(24.0f * kRate), 0.0f);
+  const double notes[10] = {110.0, 196.0, 329.63, 146.83, 261.63, 98.0, 220.0, 392.0, 164.81, 130.81};
+  double at = 0.1;
+  uint32_t seed = 12345u;
+  for (int k = 0; at < 21.0; ++k) {
+    const size_t start = static_cast<size_t>(at * kRate);
+    for (size_t i = 0; i < static_cast<size_t>(2.5f * kRate) && start + i < out.size(); ++i) {
+      const double t = i / kRate;
+      double v = 0.0;
+      for (int h = 1; h <= 12; ++h) {
+        v += std::sin(2.0 * kPi * notes[(k * 7) % 10] * h * t + 0.7 * h) * std::exp(-t * (1.5 + 0.8 * h)) / h;
+      }
+      out[start + i] += static_cast<float>(0.3 * v * (1.0 - std::exp(-t * 1500.0)));
+    }
+    seed = seed * 1664525u + 1013904223u;
+    at += 0.35 + 0.5 * ((seed >> 8) & 0xFFFF) / 65536.0;
+  }
+  return out;
+}
+
 int main() {
   Conformance spec;
   spec.name = "half-speed";
@@ -612,21 +635,25 @@ int main() {
     EXPECT(hi - lo < 3.0, "defaults: a held chord does not pump");
   }
 
-  // Spread is a knob, not a switch: along its travel the two sides of a
-  // played phrase grow apart step by step (plucked notes and a held chord,
-  // correlation of left and right), the right side keeps its level, and
-  // turning it while a chord is held does not click.
+  // Spread is a knob, not a switch: along its travel the two sides grow
+  // apart step by step (correlation of left and right on 24 s of plucked
+  // notes and on a held chord), the right side keeps its level, and turning
+  // it while a chord is held does not click.
   {
-    const std::vector<float> in = phrase();
-    const size_t pa = 0, pb = 4 * 48000, ca = 5 * 48000, cb = 9 * 48000;
+    const std::vector<float> notes = plucked();
+    const std::vector<float> held = held_chord(196.0);
+    const size_t pa = 48000, pb = 22 * 48000, ca = 2 * 48000, cb = 9 * 48000;
     double plucks[5], chord[5], level[5][2];
     for (int k = 0; k < 5; ++k) {
       device.init(kRate);
       device.set_param(p::kSpread, 0.25f * static_cast<float>(k));
-      Stereo out = run(device, in);
+      Stereo out = run(device, notes);
       plucks[k] = correlation(out.left, out.right, pa, pb);
-      chord[k] = correlation(out.left, out.right, ca, cb);
       level[k][0] = db(rms(out.right, pa, pb));
+      device.init(kRate);
+      device.set_param(p::kSpread, 0.25f * static_cast<float>(k));
+      out = run(device, held);
+      chord[k] = correlation(out.left, out.right, ca, cb);
       level[k][1] = db(rms(out.right, ca, cb));
     }
     std::printf("  Spread 0, 0.25, 0.5, 0.75, 1: correlation on plucks %.2f %.2f %.2f %.2f %.2f, on a chord "
@@ -647,7 +674,6 @@ int main() {
     EXPECT(drift < 0.5, "Spread: the right side keeps its level along the knob");
 
     // Still at three settings, then swept and jumped ten times a second.
-    const std::vector<float> held = held_chord(196.0);
     double still = 0.0, moved = 0.0;
     for (int run_index = 0; run_index < 4; ++run_index) {
       device.init(kRate);
@@ -669,43 +695,61 @@ int main() {
     EXPECT(moved < still * 1.15, "moving Spread on a held chord does not click");
   }
 
-  // Held chords at Smooth 0.5 and 1 with the sides apart (Spread): the left
-  // comes out as loud as it went in and does not pump across the cycle
-  // boundaries (a chord an octave down beats by 1.3 to 2.3 dB on its own in
-  // these 100 ms steps). The right side takes its bass from the first set of
-  // heads and the rest from the second; where the two meet (200 Hz) they are
-  // not in step and lose a little, on average 0.8 dB of the whole chord.
-  // The bounds keep that loss from growing.
+  // Held chords with the sides apart (Spread at its default and at 1) in
+  // both layouts and between: the left comes out as loud as it went in and
+  // does not pump across the cycle boundaries (a chord an octave down beats
+  // by 1.3 to 2.3 dB on its own in these 100 ms steps). The right side takes
+  // its bass from the first set of heads and the rest mostly from the
+  // second, which are not in step where they meet (200 Hz); the trim in
+  // widen() puts back what that loses (0.8 dB on average, 2.3 dB at worst,
+  // without it), so the image does not lean left.
   {
-    double worst_balance = 0.0, worst_left = 0.0, worst_right = 0.0;
+    double worst_balance = 0.0, default_balance = 0.0, worst_left = 0.0, worst_right = 0.0;
     for (double root : {130.81, 196.0, 261.63}) {
       const std::vector<float> in = held_chord(root);
-      for (float smooth : {0.5f, 1.0f}) {
-        device.init(kRate);
-        device.set_param(p::kSmooth, smooth);
-        Stereo out = run(device, in);
-        const size_t a = 2 * 48000, b = 9 * 48000 + 24000;
-        const double left = db(rms(out.left, a, b)), right = db(rms(out.right, a, b));
-        worst_balance = std::max(worst_balance, std::fabs(right - left));
-        EXPECT(std::fabs(left - db(rms(in, a, b))) < 0.5, "a held chord comes out as loud as it went in");
-        double lo[2] = {1.0e9, 1.0e9}, hi[2] = {-1.0e9, -1.0e9};
-        for (size_t at = a; at + 4800 <= b; at += 1200) {
-          const double l = db(rms(out.left, at, at + 4800)), r = db(rms(out.right, at, at + 4800));
-          lo[0] = std::min(lo[0], l);
-          hi[0] = std::max(hi[0], l);
-          lo[1] = std::min(lo[1], r);
-          hi[1] = std::max(hi[1], r);
+      for (int wide = 0; wide < 2; ++wide) {
+        for (float smooth : {0.0f, 0.5f, 1.0f}) {
+          device.init(kRate);
+          device.set_param(p::kSmooth, smooth);
+          if (wide) device.set_param(p::kSpread, 1.0f);
+          Stereo out = run(device, in);
+          const size_t a = 2 * 48000, b = 9 * 48000 + 24000;
+          const double left = db(rms(out.left, a, b)), right = db(rms(out.right, a, b));
+          worst_balance = std::max(worst_balance, std::fabs(right - left));
+          if (!wide && smooth == 0.5f) default_balance = std::max(default_balance, std::fabs(right - left));
+          EXPECT(std::fabs(left - db(rms(in, a, b))) < 0.5, "a held chord comes out as loud as it went in");
+          if (smooth == 0.0f) continue;  // the chop layout has its own rhythm
+          double lo[2] = {1.0e9, 1.0e9}, hi[2] = {-1.0e9, -1.0e9};
+          for (size_t at = a; at + 4800 <= b; at += 1200) {
+            const double l = db(rms(out.left, at, at + 4800)), r = db(rms(out.right, at, at + 4800));
+            lo[0] = std::min(lo[0], l);
+            hi[0] = std::max(hi[0], l);
+            lo[1] = std::min(lo[1], r);
+            hi[1] = std::max(hi[1], r);
+          }
+          worst_left = std::max(worst_left, hi[0] - lo[0]);
+          worst_right = std::max(worst_right, hi[1] - lo[1]);
         }
-        worst_left = std::max(worst_left, hi[0] - lo[0]);
-        worst_right = std::max(worst_right, hi[1] - lo[1]);
       }
     }
-    std::printf("  held chords, Smooth 0.5 and 1, Spread 0.3: right within %.2f dB of left; level in 100 ms "
-                "steps moves %.2f dB (left) %.2f dB (right)\n",
-                worst_balance, worst_left, worst_right);
-    EXPECT(worst_balance < 1.6, "Spread: the right side of a held chord is nearly as loud as the left");
+    // The trim goes by the right channel alone: an input that leans 6 dB
+    // to the left comes out leaning 6 dB to the left.
+    {
+      const std::vector<float> in = held_chord(196.0);
+      std::vector<float> quiet = in;
+      for (float& v : quiet) v *= 0.5f;
+      device.init(kRate);
+      Stereo out = run(device, in, quiet);
+      const double lean = db(rms(out.right, 2 * 48000, 9 * 48000)) - db(rms(out.left, 2 * 48000, 9 * 48000));
+      EXPECT_NEAR(lean, -6.02, 0.3, "a lean in the input is left as it is");
+    }
+    std::printf("  held chords: right within %.2f dB of left at the defaults, %.2f dB at worst; level in "
+                "100 ms steps moves %.2f dB (left) %.2f dB (right)\n",
+                default_balance, worst_balance, worst_left, worst_right);
+    EXPECT(default_balance < 0.3, "defaults: the two sides of a held chord are equally loud");
+    EXPECT(worst_balance < 0.8, "Spread: the right side of a held chord is as loud as the left");
     EXPECT(worst_left < 3.5, "a held chord holds steady on the left across cycles");
-    EXPECT(worst_right < 4.5, "a held chord does not pump on the right across cycles");
+    EXPECT(worst_right < 4.0, "a held chord holds steady on the right across cycles");
   }
 
   // One bad input sample in the middle of a held chord (not a number,

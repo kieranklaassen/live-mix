@@ -367,6 +367,31 @@ int main() {
     EXPECT(together > 0.3, "the default patch keeps left and right in phase");
   }
 
+  // The worst input for level is one pure full-scale note: the ensemble's
+  // taps, a register's drift, its seat and the octave can all line up on it.
+  // Twenty seconds each of a low and a high note.
+  {
+    double usual = 0.0, loudest = 0.0;
+    for (float hz : {220.0f, 1000.0f}) {
+      std::vector<float> x = sine(hz, 20.0f, kRate, 1.0f);
+      device.init(kRate);
+      Stereo out = run(device, x);
+      usual = std::max(usual, static_cast<double>(std::max(peak(out.left), peak(out.right))));
+      device.init(kRate);
+      device.set_param(p::kMix, 1.0f);
+      device.set_param(p::kOctaves, 1.0f);
+      device.set_param(p::kEnsemble, 1.0f);
+      device.set_param(p::kMovement, 1.0f);
+      Stereo all = run(device, x);
+      loudest = std::max(loudest, static_cast<double>(std::max(peak(all.left), peak(all.right))));
+    }
+    NOTE("full-scale pure note: peak %+.1f dBFS on the default patch, %+.1f dBFS with Octaves, "
+         "Ensemble, Movement and Mix at maximum\n",
+         db(usual), db(loudest));
+    EXPECT(usual < 2.2, "a full-scale pure note peaks under +7 dBFS on the default patch");
+    EXPECT(loudest < 4.0, "a full-scale pure note peaks under +12 dBFS at the loudest settings");
+  }
+
   // Moving Octaves, Rise or Fall while a chord sounds neither clicks nor
   // zippers: swept across its whole range in a second, block by block, the
   // largest sample-to-sample step stays what a steady pad has.

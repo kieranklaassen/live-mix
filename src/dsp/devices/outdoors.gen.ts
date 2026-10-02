@@ -175,7 +175,7 @@ export const OUTDOORS_DESCRIPTOR = wasmDeviceDescriptor(OUTDOORS_DEVICE, {
       tone: 0.6,
       attack: 3,
       release: 6,
-      volume: -6,
+      volume: -8,
     },
     'Small stream': {
       type: 3,
@@ -212,7 +212,7 @@ export const OUTDOORS_DESCRIPTOR = wasmDeviceDescriptor(OUTDOORS_DEVICE, {
       tone: 0.55,
       attack: 0.01,
       release: 6,
-      volume: -12,
+      volume: -13,
     },
     'Porch chimes': {
       type: 5,

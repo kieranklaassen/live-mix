@@ -166,9 +166,9 @@
       "brightness": 12000,
       "ensemble": 0.9,
       "movement": 0.6,
-      "lowCut": 300,
+      "lowCut": 250,
       "width": 1,
-      "mix": 0.5
+      "mix": 0.45
     },
     "Barely there": {
       "rise": 2,

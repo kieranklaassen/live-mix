@@ -70,7 +70,7 @@
       "name": "Hold",
       "min": 1,
       "max": 60,
-      "default": 6,
+      "default": 12,
       "taper": "log",
       "unit": "s",
       "description": "How long the noise carries on after the sound stops, before it fades away and the device goes silent."
@@ -85,7 +85,7 @@
       "tone": 0,
       "movement": 0.3,
       "width": 0.8,
-      "hold": 6
+      "hold": 12
     },
     "Old record": {
       "type": 1,

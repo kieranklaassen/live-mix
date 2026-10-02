@@ -249,6 +249,46 @@ static double sharpness(const std::vector<float>& x) {
   return rise / highest(env);
 }
 
+// Spread of a set of readings as a share of their mean.
+static double spread(const std::vector<double>& v) {
+  double m = 0.0, s = 0.0;
+  for (double x : v) m += x / static_cast<double>(v.size());
+  for (double x : v) s += (x - m) * (x - m) / static_cast<double>(v.size());
+  return std::sqrt(s) / m;
+}
+
+// Where the power between lo and hi sits (Hz), by Goertzel every 20 Hz.
+static double band_centre(const std::vector<float>& x, double lo, double hi, size_t from, size_t to) {
+  double weighted = 0.0, total = 0.0;
+  for (double hz = lo; hz <= hi; hz += 20.0) {
+    const double level = tone_level(x, hz, kRate, from, to);
+    weighted += level * level * hz;
+    total += level * level;
+  }
+  return weighted / (total + 1.0e-30);
+}
+
+// Stretches of at least `least` frames above `gate`: [first, last) frame of each.
+static std::vector<std::pair<size_t, size_t>> stretches(const std::vector<float>& env, double gate, size_t least) {
+  std::vector<std::pair<size_t, size_t>> out;
+  size_t start = 0;
+  bool in = false;
+  for (size_t f = 0; f < env.size(); ++f) {
+    const bool on = env[f] > gate;
+    if (on && !in) start = f;
+    if (!on && in && f - start >= least) out.push_back({start, f});
+    in = on;
+  }
+  return out;
+}
+
+// A crude high band for cracks: the second difference (12 dB an octave up to 8 kHz).
+static std::vector<float> edges(const std::vector<float>& x) {
+  std::vector<float> out(x.size(), 0.0f);
+  for (size_t i = 2; i < x.size(); ++i) out[i] = x[i] - 2.0f * x[i - 1] + x[i - 2];
+  return out;
+}
+
 
 int main() {
   Conformance spec;
@@ -434,9 +474,35 @@ int main() {
     std::printf("outdoors: one bird: crest factor of its loud 10 ms frames %.2f (a sine is 1.41), pitch from "
                 "%.0f to %.0f Hz, moving %.3f octaves per frame, sounding %.0f %% of the time\n",
                 crest, lowest_hz, highest_hz, moved, 100.0 * sounding);
-    EXPECT(crest < 1.6, "Birds: one bird is one tone at a time");
+    // (Two tones at once would be 2 or more. A steady sine is 1.41; the notes
+    // waver and carry a little breath, which is where the rest comes from.
+    // The limit was 1.6 before the breath was added in review.)
+    EXPECT(crest < 1.75, "Birds: one bird is one tone at a time");
     EXPECT(highest_hz > 1.5 * lowest_hz && moved > 0.01, "Birds: whose pitch sweeps");
     EXPECT(sounding < 0.3, "Birds: a sparse scene is mostly silence");
+
+    // A note is not a test tone: inside the long ones the level wavers.
+    const std::vector<float> fine = frames(one, 96);  // 2 ms
+    std::vector<double> waver;
+    for (const auto& note : stretches(fine, 0.25 * highest(fine), 40)) {  // 80 ms and longer
+      const size_t n = note.second - note.first, a = note.first + n * 3 / 10, b = note.second - n * 3 / 10;
+      // (The middle of the note, a straight line taken out: what is left is the waver.)
+      double sx = 0.0, sy = 0.0, sxx = 0.0, sxy = 0.0;
+      const double count = static_cast<double>(b - a);
+      for (size_t i = a; i < b; ++i) {
+        const double t = static_cast<double>(i - a);
+        sx += t, sy += fine[i], sxx += t * t, sxy += t * fine[i];
+      }
+      const double slope = (count * sxy - sx * sy) / (count * sxx - sx * sx), base = (sy - slope * sx) / count;
+      double left = 0.0;
+      for (size_t i = a; i < b; ++i) left += std::pow(fine[i] - (base + slope * static_cast<double>(i - a)), 2.0) / count;
+      waver.push_back(std::sqrt(left) / (sy / count));
+    }
+    std::sort(waver.begin(), waver.end());
+    std::printf("outdoors: one bird: inside its %zu long notes the level wavers by %.1f %% (median)\n", waver.size(),
+                100.0 * waver[waver.size() / 2]);
+    EXPECT(waver.size() >= 10 && waver[waver.size() / 2] > 0.03 && waver[waver.size() / 2] < 0.15,
+           "Birds: a held note wavers a little, it is not a steady test tone");
 
     plain(device, Outdoors::kBirds, 0.5f);
     const std::vector<double> power = spectrum(mid(hold(device, 261.63f, 120.0f)));
@@ -480,6 +546,21 @@ int main() {
                 pulse_hz, calls, bouts, 100.0 * duty(env));
     EXPECT(pulse_hz > 55.0 && pulse_hz < 110.0, "Frogs: a croak is 60 to 100 pulses a second");
     EXPECT(bouts >= 4 && calls > 4 * bouts && duty(env) < 0.4, "Frogs: croaks come in bouts with gaps between");
+
+    // No two croaks alike: where the second formant sits and the pulse rate
+    // differ from call to call (they were the same every time before review).
+    std::vector<double> second, pulse;
+    for (const auto& croak : stretches(env, 0.12 * highest(env), 11)) {  // the longer half of each "rib-bit"
+      if (second.size() >= 20) break;
+      second.push_back(band_centre(one, 1150.0, 1850.0, croak.first * 480, croak.second * 480));
+      pulse.push_back(dominant_frequency(rectified, kRate, 50.0, 130.0, croak.first * 480, croak.second * 480));
+    }
+    std::printf("outdoors: one frog, %zu long croaks: the second formant sits within ±%.1f %% from call to call, the "
+                "pulse rate within ±%.1f %%\n",
+                second.size(), 100.0 * spread(second), 100.0 * spread(pulse));
+    EXPECT(second.size() >= 12 && spread(second) > 0.015 && spread(second) < 0.08,
+           "Frogs: the mouth is never shaped quite the same way twice");
+    EXPECT(spread(pulse) > 0.025 && spread(pulse) < 0.12, "Frogs: nor is the pulse rate the same from croak to croak");
 
     plain(device, Outdoors::kFrogs, 0.25f);
     const std::vector<float> two = mid(hold(device, 261.63f, 90.0f));
@@ -527,6 +608,15 @@ int main() {
     EXPECT(octave[1] > 0.08 && octave[2] > 0.08 && octave[3] > 0.08 && octave[1] < 0.65 && octave[2] < 0.65,
            "Stream: a broad band, three octaves each carrying a share");
     EXPECT(slope < 0.03, "Stream: not white: the top is well under the middle");
+
+    // No single bubble is a plop on its own: how often a 5 ms frame peaks 15 dB over the rms.
+    plain(device, Outdoors::kStream, 0.5f);
+    const std::vector<float> wash = mid(hold(device, 261.63f, 60.0f));
+    const double wash_level = rms(wash, 48000);
+    int over = 0;
+    for (size_t at = 48000; at + 240 <= wash.size(); at += 240) over += peak(wash, at, at + 240) > 5.62 * wash_level ? 1 : 0;
+    std::printf("outdoors: stream: %.2f times a second a bubble stands 15 dB over the rms\n", over / 59.0);
+    EXPECT(over / 59.0 < 1.5, "Stream: the strongest bubbles are held back (a soft ceiling)");
 
     plain(device, Outdoors::kStream, 0.5f);
     const double low = centroid(spectrum(mid(hold(device, 65.41f, 30.0f))));
@@ -586,6 +676,20 @@ int main() {
                 100.0 * bright[0], onset[0], 100.0 * bright[1], onset[1]);
     EXPECT(bright[0] > 0.2 && bright[1] < 0.01, "Thunder: a crack only when near");
     EXPECT(onset[0] < 0.06 && onset[1] > 0.2, "Thunder: from far off the roll swells in");
+
+    // Overhead, the crack is over quickly and it leads: how long its high
+    // band stays within 20 dB of its peak, and the first 100 ms against the
+    // loudest of the two seconds from 0.5 s.
+    plain(device, Outdoors::kThunder, 0.5f);
+    const std::vector<float> near = mid(hold(device, 261.63f, 8.0f));
+    const std::vector<float> sharp = frames(edges(near), 96);  // 2 ms
+    int lasting = 0;
+    for (size_t f = 0; f < 500; ++f) lasting += sharp[f] > 0.1 * highest(sharp) ? 1 : 0;
+    const double lead = db(peak(near, 0, 4800) / peak(near, 24000, 120000));
+    std::printf("outdoors: thunder at Distance 0: the crack's high band is within 20 dB of its peak for %d ms; the "
+                "first 100 ms peak %.1f dB over the two seconds from 0.5 s\n",
+                2 * lasting, lead);
+    EXPECT(2 * lasting < 300 && lead > 1.5, "Thunder: overhead, a short bright crack leads the rumble");
   }
 
   // Chimes: six tubes on the major pentatonic of the key, each with partials
@@ -825,6 +929,25 @@ int main() {
       EXPECT(max_step(change.left) <= 1.05 * own && rms(after.left) > 1.0e-5, label);
     }
 
+    // A Type chosen while nothing sounds (the device asleep): the next key
+    // opens the new scene at once, with no blip of the old one before it.
+    // (Stream sounds within a millisecond of the key; Thunder's first stroke
+    // takes 20 ms to rise and comes with the key.)
+    {
+      plain(device, Outdoors::kStream, 1.0f);
+      hold(device, 220.0f, 2.0f);
+      device.note_off(1);
+      render(device, 1.5f, kRate);
+      device.set_param(p::kType, static_cast<float>(Outdoors::kThunder));
+      device.set_param(p::kDistance, 0.4f);
+      Stereo quiet = render(device, 0.5f, kRate);
+      const std::vector<float> first = mid(hold(device, 220.0f, 0.5f));
+      std::printf("outdoors: Stream to Thunder while silent, then a key: first 15 ms rms %.6f, first half second %.4f\n",
+                  rms(first, 0, 720), rms(first));
+      EXPECT(peak(quiet.left) == 0.0 && rms(first, 0, 720) < 3.0e-4, "a Type chosen in silence: nothing of the old scene on the next key");
+      EXPECT(rms(first) > 0.02, "a Type chosen in silence: the new scene starts with the key");
+    }
+
     // Fast envelopes, a restruck key and a stolen voice.
     plain(device, Outdoors::kStream, 1.0f);
     Stereo steady = hold(device, 220.0f, 3.0f);
@@ -902,11 +1025,14 @@ int main() {
   // Levels, as Atmosphere keeps them: one key of each type at velocity 0.7
   // peaks between -24 and -10 dBFS at the default patch; eight keys stay
   // under the clip knee.
+  double quietest = 0.0, loudest = -200.0;
   for (int type = 0; type < Outdoors::kKinds; ++type) {
     device.init(kRate);
     device.set_param(p::kType, static_cast<float>(type));
     device.note_on(1, 220.0f, 0.7f);
     Stereo one = render(device, 90.0f, kRate);
+    quietest = std::min(quietest, db(rms(one.left, 4 * 48000)));
+    loudest = std::max(loudest, db(rms(one.left, 4 * 48000)));
     const double level_db = db(std::max(peak(one.left, 4 * 48000), peak(one.right, 4 * 48000)));
     device.init(kRate);
     device.set_param(p::kType, static_cast<float>(type));
@@ -920,6 +1046,9 @@ int main() {
     std::snprintf(label, sizeof label, "%s: eight keys stay under the clip knee", kNames[type]);
     EXPECT(many < 0.5, label);
   }
+  // (Before review Frogs sat 8 dB under Stream; the scenes' gains were evened out.)
+  std::printf("outdoors: one key, default patch: the six types' rms lie within %.1f dB of each other\n", loudest - quietest);
+  EXPECT(loudest - quietest < 6.5, "the six types are about as loud as each other");
 
   // Cost with eight keys held at full Density, per type.
   for (int type = 0; type < Outdoors::kKinds; ++type) {

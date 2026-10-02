@@ -135,6 +135,13 @@ class Outdoors : public kit::DeviceBase<outdoors::kNumParams> {
     const int held = pool_.find_held(note_id);
     if (held >= 0) pool_.voices[held].env.fast_release(0.05f);
 
+    // A Type chosen while nothing sounds has had no control step to take it
+    // up (the clock stops when the device sleeps): take it up here, so the
+    // key opens the new scene at once and not a blip of the old one first.
+    if (pending_kind_ != kind_ && pool_.count_active() == 0) {
+      kind_ = pending_kind_;
+      fade_.snap(1.0f);
+    }
     read_controls(false);
     survey();
     bool stolen = false;

@@ -129,6 +129,57 @@ static void check_real_fft() {
   }
 }
 
+// A sound with no attack: `hz` partials (each with two weaker overtones)
+// that fade in over `swell` seconds and stay.
+static std::vector<float> swell_chord(std::initializer_list<float> notes, float seconds, float gain, float swell) {
+  std::vector<float> out(static_cast<size_t>(seconds * kRate), 0.0f);
+  int index = 0;
+  for (float hz : notes) {
+    for (int h = 1; h <= 3; ++h) {
+      ++index;
+      for (size_t i = 0; i < out.size(); ++i) {
+        out[i] += static_cast<float>(gain / (h * h) * std::sin(2.0 * kPi * hz * h * i / kRate + 0.7 * index));
+      }
+    }
+  }
+  const size_t fade = static_cast<size_t>(0.2f * kRate);
+  for (size_t i = 0; i < out.size(); ++i) {
+    double env = std::min(1.0, static_cast<double>(i) / (swell * kRate));
+    env = env * env * (3.0 - 2.0 * env);
+    if (out.size() - i < fade) env *= static_cast<double>(out.size() - i) / fade;
+    out[i] *= static_cast<float>(env);
+  }
+  return out;
+}
+
+// How many peaks of the averaged spectrum of x[from, to) stand more than
+// `over_db` above the median of the 24 bins around them (12 Hz bins, 200 Hz
+// to 6 kHz): the lines of a sound that rings. Steady noise has none.
+static int ringing_lines(const std::vector<float>& x, size_t from, size_t to, double over_db) {
+  static livemix::sustainer_detail::RealFft<4096> fft;
+  static float frame[4096], re[2049], im[2049];
+  fft.init();
+  std::vector<double> power(2049, 0.0);
+  for (size_t at = from; at + 4096 <= to && at + 4096 <= x.size(); at += 2048) {
+    for (int n = 0; n < 4096; ++n) frame[n] = x[at + n] * static_cast<float>(0.5 - 0.5 * std::cos(2.0 * kPi * n / 4096.0));
+    fft.forward(frame, re, im, 4096);
+    for (int k = 0; k <= 2048; ++k) power[k] += re[k] * re[k] + im[k] * im[k];
+  }
+  int lines = 0;
+  for (int k = 17; k < 512; ++k) {
+    if (!(power[k] > power[k - 1] && power[k] >= power[k + 1])) continue;
+    std::vector<double> near;
+    for (int j = k - 12; j <= k + 12; ++j) {
+      if (j != k) near.push_back(power[j]);
+    }
+    std::sort(near.begin(), near.end());
+    if (10.0 * std::log10(power[k] / std::max(near[12], 1.0e-30)) > over_db) ++lines;
+  }
+  return lines;
+}
+
+static void check_review_fixes();
+
 int main() {
   check_real_fft();
 
@@ -618,6 +669,8 @@ int main() {
     EXPECT(device.layers() == 1 && rms(woken.left, s / 2, s) > 0.01, "a new note wakes it and is caught");
   }
 
+  check_review_fixes();
+
   // Cost: Layer mode with all six layers sounding, Motion and Ensemble up,
   // and a new chord caught twice a second.
   {
@@ -639,4 +692,168 @@ int main() {
   }
 
   return finish("sustainer");
+}
+
+// Checks added in review, one for each defect that was found and fixed.
+static void check_review_fixes() {
+  const size_t s = static_cast<size_t>(kRate);
+
+  // The held sound adds to the note it was caught from. Three steady
+  // partials (one of them under the 550 Hz crossing, none on a bin), Mix at
+  // the centre, no Motion: each comes out at dry + held in phase, which is
+  // 0.707 x (1 + 0.75) = +1.87 dB re its input. Caught at whatever angle the
+  // delay gave them, they came out anywhere from -15 dB (notched) to +1.87.
+  {
+    device.init(kRate);
+    device.set_param(p::kMotion, 0.0f);
+    device.set_param(p::kEnsemble, 0.0f);
+    device.set_param(p::kLowCut, 20.0f);
+    const float hz[3] = {329.63f, 831.3f, 2217.9f};
+    std::vector<float> chord = silence(3.0f, kRate);
+    for (float f : hz) chord = add(chord, sine(f, 3.0f, kRate, 0.1f));
+    Stereo out = run(device, chord);
+    for (float f : hz) {
+      const double level = db(tone_level(out.left, f, kRate, 3 * s / 2, 3 * s) / 0.1);
+      std::printf("sustainer: dry + held at Mix 0.5, %.1f Hz: %+.2f dB re the dry partial\n", f, level);
+      EXPECT_NEAR(level, 1.87, 0.4, "the held partial is in phase with the note still sounding");
+    }
+  }
+
+  // A long Attack does not leave a hole between chords: with Attack 2 s and
+  // Glide 0.4 s the old note left in 0.4 s while the new one took 2 s to
+  // arrive (a dip of 17 dB). The old layer now leaves no faster than the
+  // new one rises.
+  {
+    still(device);
+    device.set_param(p::kDecay, 60.0f);
+    device.set_param(p::kAttack, 2.0f);
+    device.set_param(p::kGlide, 0.4f);
+    std::vector<float> input = join(sine(440.0f, 4.0f, kRate, 0.25f), sine(660.0f, 4.0f, kRate, 0.25f));
+    Stereo out = run(device, input);
+    const double before = rms(out.left, 3 * s, 4 * s);
+    double lowest = 1.0e9;
+    for (size_t at = 4 * s; at + s / 10 <= 8 * s; at += s / 20) lowest = std::min(lowest, rms(out.left, at, at + s / 10));
+    std::printf("sustainer: Attack 2 s, Glide 0.4 s: the level dips %.1f dB between two notes\n", db(lowest / before));
+    EXPECT(db(lowest / before) > -3.0, "a long Attack leaves no hole between chords");
+  }
+
+  // Sound with no attack is caught too. A chord that swells in over a
+  // second never made an onset, so the default patch did nothing on a pad;
+  // now the layer follows the swell up and ends within a few dB of the
+  // chord at full level. A second chord faded in over the first (no onset
+  // either) takes over. A chord that just stands is caught once and left.
+  {
+    device.init(kRate);
+    device.set_param(p::kMix, 1.0f);
+    device.set_param(p::kMotion, 0.0f);
+    device.set_param(p::kEnsemble, 0.0f);
+    std::vector<float> first = swell_chord({220.0f, 277.18f, 329.63f}, 6.0f, 0.08f, 1.0f);
+    std::vector<float> input = first;
+    mix_at(input, swell_chord({196.0f, 246.94f, 293.66f}, 6.0f, 0.08f, 1.5f), 4.8f);
+    Stereo early = run(device, std::vector<float>(input.begin(), input.begin() + 4 * s));
+    const int catches = device.onsets();
+    const double held_a = db(tone_level(early.left, 220.0, kRate, 3 * s, 4 * s) / 0.08);
+    Stereo late = run(device, std::vector<float>(input.begin() + 4 * s, input.end()));
+    const double a_after = db(tone_level(late.left, 220.0, kRate, 5 * s, 6 * s) / 0.08);
+    const double g_after = db(tone_level(late.left, 196.0, kRate, 5 * s, 6 * s) / 0.08);
+    std::printf("sustainer: a chord swelling in over 1 s: %d catches, held at %.1f dB re the chord; "
+                "after a second chord fades in: %d catches, old %.1f dB, new %.1f dB\n",
+                catches, held_a, device.onsets(), a_after, g_after);
+    EXPECT(catches >= 1 && catches <= 4, "a swell is caught, a few times at most");
+    EXPECT(held_a > -6.5 && held_a < -1.5, "the held swell ends within 4 dB of where a struck chord would be held");
+    EXPECT(a_after < -40.0 && g_after > -8.0, "a chord faded in over the old one takes its place");
+
+    device.init(kRate);
+    device.set_param(p::kMix, 1.0f);
+    run(device, swell_chord({220.0f, 277.18f, 329.63f}, 12.0f, 0.08f, 0.5f));
+    std::printf("sustainer: a chord that stands for 12 s is caught %d times\n", device.onsets());
+    EXPECT(device.onsets() >= 1 && device.onsets() <= 3, "a standing chord is not caught over and over");
+  }
+
+  // Noise is held as noise. A second of noise used to freeze into some
+  // twenty steady lines standing up to 20 dB above their surroundings: a
+  // ringing cluster. Its regions now get a new phase every hop and an
+  // evened level, at the same loudness. A note keeps its lines.
+  {
+    still(device);
+    device.set_param(p::kDecay, 60.0f);
+    rng_state() = 0xA11CEu;
+    std::vector<float> hiss = noise(1.0f, kRate, 0.17f);
+    Stereo out = run(device, join(hiss, silence(8.0f, kRate)));
+    const int lines = ringing_lines(out.left, 3 * s, 8 * s, 12.0);
+    const double level = db(rms(out.left, 3 * s, 8 * s) / rms(hiss, s / 4, s));
+    std::printf("sustainer: held noise: %d lines more than 12 dB above their surroundings, %.1f dB re the noise\n", lines, level);
+    EXPECT(lines <= 3, "held noise does not ring as a cluster of steady lines");
+    EXPECT_NEAR(level, -2.5, 2.0, "held noise is as loud as a held note would be");
+
+    still(device);
+    device.set_param(p::kDecay, 60.0f);
+    rng_state() = 0x51u;
+    Stereo note = run(device, join(pluck(220.0f, 1.5f, 0.3f), silence(8.0f, kRate)));
+    const double first_h = level_spread_db(note.left, 3 * s, 9 * s, s / 4);
+    std::printf("sustainer: a held plucked note: level spread %.3f dB, %d lines\n", first_h, ringing_lines(note.left, 3 * s, 8 * s, 12.0));
+    EXPECT(first_h < 0.3 && ringing_lines(note.left, 3 * s, 8 * s, 12.0) >= 8, "a held note stays a set of steady partials");
+  }
+
+  // Partials near the 550 Hz crossing are held once, not twice. A low note
+  // (55 Hz, partials 55 Hz apart) has several between 450 and 650 Hz; each
+  // used to be held both by the caught frame and by the second look, at two
+  // estimates of its pitch, and beat with itself by up to 12 dB.
+  {
+    still(device);
+    device.set_param(p::kDecay, 60.0f);
+    rng_state() = 0x55u;
+    Stereo out = run(device, join(pluck(55.0f, 3.0f, 0.4f), silence(21.0f, kRate)));
+    double worst = 0.0;
+    for (int h = 8; h <= 12; ++h) {
+      const double f = 55.0 * h * std::sqrt(1.0 + 0.0002 * h * h);
+      double lowest = 1.0e9, highest = 0.0;
+      for (size_t at = 4 * s; at + s / 2 <= 24 * s; at += s / 2) {
+        const double level = tone_level(out.left, f, kRate, at, at + s / 2);
+        lowest = std::min(lowest, level);
+        highest = std::max(highest, level);
+      }
+      worst = std::max(worst, db(highest / std::max(lowest, 1.0e-12)));
+    }
+    std::printf("sustainer: a held 55 Hz note: partials between 440 and 670 Hz swing by at most %.2f dB over 20 s\n", worst);
+    EXPECT(worst < 0.5, "partials near the crossing do not beat with themselves");
+  }
+
+  // Bad input samples do not get through: not-a-number, infinity and 1e30
+  // in the middle of a phrase leave the output finite and bounded, the
+  // level afterwards as it was, and the device still falls asleep.
+  {
+    const float bad[3] = {std::nanf(""), INFINITY, 1.0e30f};
+    for (float value : bad) {
+      device.init(kRate);
+      device.set_param(p::kDecay, 1.0f);
+      rng_state() = 0x99u;
+      std::vector<float> phrase;
+      for (int n = 0; n < 5; ++n) mix_at(phrase, pluck(196.0f * (1.0f + 0.25f * n), 1.0f, 0.3f), 0.6f * n);
+      std::vector<float> clean = phrase;
+      phrase[static_cast<size_t>(1.3f * kRate)] = value;
+      phrase[static_cast<size_t>(1.3f * kRate) + 600] = -value;
+      Stereo out = run(device, phrase);
+      Stereo tail = render(device, 4.0f, kRate);
+      const double after = db(rms(out.left, 2 * s, 3 * s) / rms(clean, 2 * s, 3 * s));
+      EXPECT(finite(out.left) && finite(out.right) && peak(out.left) < 65.0, "a bad input sample leaves the output finite and bounded");
+      EXPECT(std::fabs(after) < 4.0, "the level is back to normal after a bad input sample");
+      EXPECT(peak(tail.left, 3 * s) == 0.0 && device.layers() == 0, "asleep again after a bad input sample");
+    }
+  }
+
+  // Latch with Hold switched On in silence used to stay empty for as long
+  // as Hold stayed On. It now waits and takes the first sound that comes.
+  {
+    still(device);
+    device.set_param(p::kMode, 2.0f);
+    render(device, 0.5f, kRate);
+    device.set_param(p::kHold, 1.0f);
+    Stereo quiet = render(device, 0.5f, kRate);
+    Stereo out = run(device, join(sine(330.0f, 1.0f, kRate, 0.25f), silence(3.0f, kRate)));
+    const double held = db(rms(out.left, 3 * s, 4 * s) / (0.25 / std::sqrt(2.0)));
+    std::printf("sustainer: Latch, Hold On before the note: %d layer, held %.2f dB re the note\n", device.layers(), held);
+    EXPECT(peak(quiet.left) == 0.0 && device.layers() == 1, "Latch armed in silence takes the first sound");
+    EXPECT_NEAR(held, -2.5, 0.5, "and holds it at level");
+  }
 }

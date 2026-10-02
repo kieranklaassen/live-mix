@@ -10,7 +10,7 @@
 //    5  jitter: 0..1, default 0.1
 //    6  lowCut: 20..2000 Hz, default 20
 //    7  highCut: 500..20000 Hz, default 20000
-//    8  spread: 0..1, default 0.3
+//    8  spread: 0..1, default 0.8
 //    9  mix: 0..1, default 1
 
 #pragma once
@@ -34,7 +34,7 @@ enum Param : int {
 
 inline constexpr float kParamMin[kNumParams] = {0.0f, 50.0f, 0.0f, 0.01f, 0.0f, 0.0f, 20.0f, 500.0f, 0.0f, 0.0f};
 inline constexpr float kParamMax[kNumParams] = {1.0f, 4000.0f, 3.0f, 0.5f, 1.0f, 1.0f, 2000.0f, 20000.0f, 1.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {0.0f, 1000.0f, 2.0f, 0.15f, 0.5f, 0.1f, 20.0f, 20000.0f, 0.3f, 1.0f};
+inline constexpr float kParamDefault[kNumParams] = {0.0f, 1000.0f, 2.0f, 0.15f, 0.5f, 0.1f, 20.0f, 20000.0f, 0.8f, 1.0f};
 
 }  // namespace half_speed
 }  // namespace livemix

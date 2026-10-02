@@ -11,10 +11,7 @@
     {
       "key": "power",
       "name": "Power",
-      "choices": [
-        "On",
-        "Off"
-      ],
+      "choices": ["On", "Off"],
       "default": 0,
       "description": "Off passes the dry signal. Switching it fades over a moment, and switching On starts a new cycle from the note being played."
     },
@@ -31,12 +28,7 @@
     {
       "key": "speed",
       "name": "Speed",
-      "choices": [
-        "Three quarters",
-        "Two thirds",
-        "Half",
-        "Quarter"
-      ],
+      "choices": ["Three quarters", "Two thirds", "Half", "Quarter"],
       "default": 2,
       "description": "How slow the playback runs, and so how far the pitch drops: a fourth, a fifth, one octave or two octaves down. A change bends the pitch like a tape machine changing speed."
     },

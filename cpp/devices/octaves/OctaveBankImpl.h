@@ -88,9 +88,16 @@ inline void OctaveBank::init(float rate, float low_hz, float high_hz, int count)
                                       2.0 * kDownHalf - 1.0 + 2.0 * (2.0 * kDownHalf - 1.0)};
 
   if (high_hz > 0.23f * rate) high_hz = 0.23f * rate;
-  const double lo = layout::position(low_hz);
+  // One channel per step of the scale, placed so that the dense channels
+  // lie halfway between the notes of the tempered scale (A = 440 Hz): a note
+  // played in tune is then shared by two channels, and each of the two has
+  // the notes a semitone and a tone away well down its skirt. (Centred on
+  // the notes, a channel would have the next semitone only one channel away.)
   const double hi = layout::position(high_hz);
-  const double step = (hi - lo) / (bands_ - 1);
+  const double anchor = layout::position(440.0 * std::exp2(0.5 / 12.0));
+  const double lo = anchor - std::floor(anchor - layout::position(low_hz) + 0.5);
+  const double step = 1.0;
+  if (bands_ > static_cast<int>(hi - lo) + 1) bands_ = static_cast<int>(hi - lo) + 1;
   const double up1_high = 0.21 * rate, up2_high = 0.105 * rate;
   for (int g = 0; g < kGroups; ++g) first_[g] = 0;
   for (int k = 0; k < bands_; ++k) {
@@ -105,6 +112,7 @@ inline void OctaveBank::init(float rate, float low_hz, float high_hz, int count)
     const double own_rate = rate / (1 << group);
     const double w = 2.0 * kPiD * hz / own_rate;
     centre_[k] = static_cast<float>(hz);
+    side_[k] = (k / kSideRun) & 1;
     carrier_re_[k] = static_cast<float>(std::cos(w));
     carrier_im_[k] = static_cast<float>(std::sin(w));
     // A centred partial leaves stage 1 at (cutoff × 2π / rate)² times its level.
@@ -318,7 +326,7 @@ inline void OctaveBank::run_group(int g, float x, const Want& want, float* bus) 
 
     const float m2 = cr * cr + ci * ci + 1.0e-24f;
     const float inv = 1.0f / std::sqrt(m2);
-    const int side = k & 1;
+    const int side = side_[k];
     if (ups) {
       // z² / |z| and z⁴ / |z|³, each against its complex weight.
       const float z2r = cr * cr - ci * ci, z2i = 2.0f * cr * ci;
@@ -1013,13 +1021,21 @@ inline void OctaveBank::tick() {
   // partial add between channels instead of cancelling.
   for (int k = 0; k < bands_; ++k) {
     if (!live_[k]) continue;
+    // (Stronger in what it holds alone: a channel that beats holds two
+    // partials, its root slips once a beat, and nothing may follow that.)
     int j = -1;
-    float best = power_[k];
-    if (k > 0 && live_[k - 1] && power_[k - 1] > best && agree_[k - 1] > kAgreeThreshold) {
-      j = k - 1;
-      best = power_[k - 1];
+    float best = power_[k] * pure_[k] * pure_[k];
+    if (k > 0 && live_[k - 1] && agree_[k - 1] > kAgreeThreshold) {
+      const float theirs = power_[k - 1] * pure_[k - 1] * pure_[k - 1];
+      if (theirs > best) {
+        j = k - 1;
+        best = theirs;
+      }
     }
-    if (k < bands_ - 1 && live_[k + 1] && power_[k + 1] > best && agree_[k] > kAgreeThreshold) j = k + 1;
+    if (k < bands_ - 1 && live_[k + 1] && agree_[k] > kAgreeThreshold &&
+        power_[k + 1] * pure_[k + 1] * pure_[k + 1] > best) {
+      j = k + 1;
+    }
     if (j < 0) continue;
     float mine[4], theirs[4];
     sub_outputs(k, mine);

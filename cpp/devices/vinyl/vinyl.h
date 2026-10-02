@@ -371,11 +371,11 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
   static constexpr float kRumbleHz = 38.0f;
   static constexpr float kRumbleLowHz = 20.0f;
 
-  // Noise runs while there is signal on the record and for a few seconds
-  // after, so the gaps between notes keep their crackle.
-  static constexpr float kNoiseHoldSeconds = 4.0f;
+  // Noise runs while there is signal on the record and for fourteen seconds
+  // after, so the long gaps of slow playing keep their crackle.
+  static constexpr float kNoiseHoldSeconds = 14.0f;
   static constexpr float kNoiseRiseSeconds = 0.05f;
-  static constexpr float kNoiseFallSeconds = 1.2f;
+  static constexpr float kNoiseFallSeconds = 4.0f;
   static constexpr float kQuiet = 1.0e-6f;
 
   struct Slot {

@@ -205,7 +205,7 @@ int main() {
   spec.mins = p::kParamMin;
   spec.maxs = p::kParamMax;
   spec.defaults = p::kParamDefault;
-  spec.tail_seconds = 7.0f;  // four seconds of surface noise, its fade, and the filters
+  spec.tail_seconds = 20.0f;  // fourteen seconds of surface noise, its fade, and the filters
   spec.max_peak = 4.0f;
   check_effect(device, spec, kRate);
 
@@ -469,7 +469,7 @@ int main() {
   }
 
   // The noise belongs to the record, not the room: it runs while there is
-  // signal and for four seconds after, then fades and the device sleeps.
+  // signal and for fourteen seconds after, then fades and the device sleeps.
   {
     device.init(kRate);
     device.set_param(p::kSurface, 1.0f);
@@ -478,12 +478,14 @@ int main() {
     EXPECT(peak(idle.left) == 0.0 && peak(idle.right) == 0.0, "no input, no noise: an idle track is silent");
 
     std::vector<float> in = sine(440.0f, 0.5f, kRate, 0.2f);
-    in.resize(at(8.0), 0.0f);
+    in.resize(at(22.0), 0.0f);
     Stereo out = run(device, in);
-    EXPECT(rms(out.left, at(3.5), at(4.4)) > 0.003, "3 to 3.9 s after the last note the surface is still there");
-    EXPECT(rms(out.left, at(5.3), at(5.6)) < 0.5 * rms(out.left, at(3.5), at(4.4)), "by 5 s after it, it is fading");
-    EXPECT(peak(out.left, at(6.3)) == 0.0 && peak(out.right, at(6.3)) == 0.0,
-           "5.8 s after it the output is exactly zero");
+    EXPECT(rms(out.left, at(13.0), at(14.4)) > 0.003, "12.5 to 13.9 s after the last note the surface is still there");
+    EXPECT(rms(out.left, at(13.0), at(14.4)) > 0.7 * rms(out.left, at(1.0), at(2.4)),
+           "and as loud as it was just after the note: gaps in slow playing keep their surface");
+    EXPECT(rms(out.left, at(17.3), at(17.6)) < 0.5 * rms(out.left, at(13.0), at(14.4)), "by 17 s after it, it is fading");
+    EXPECT(peak(out.left, at(19.3)) == 0.0 && peak(out.right, at(19.3)) == 0.0,
+           "18.8 s after it the output is exactly zero");
     Stereo woken = run(device, sine(440.0f, 1.0f, kRate, 0.2f));
     EXPECT(tone_level(woken.left, 440.0, kRate, at(0.3)) > 0.1, "wakes on new input");
     EXPECT(rms(minus(woken.left, sine(440.0f, 1.0f, kRate, 0.2f)), at(0.5)) > 0.003, "and the surface comes back with it");

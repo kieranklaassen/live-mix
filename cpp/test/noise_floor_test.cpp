@@ -153,7 +153,7 @@ int main() {
   spec.mins = p::kParamMin;
   spec.maxs = p::kParamMax;
   spec.defaults = p::kParamDefault;
-  spec.tail_seconds = 7.5f;  // the default Hold of 6 s, the half-second fade, and a margin
+  spec.tail_seconds = 13.5f;  // the default Hold of 12 s, the half-second fade, and a margin
   spec.max_peak = 2.0f;      // full-scale input plus noise that is clipped at 1
   check_effect(device, spec, kRate);
 
