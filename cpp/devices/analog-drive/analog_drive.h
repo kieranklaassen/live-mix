@@ -109,6 +109,7 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
         } else if (++fade_position_ >= fade_length_) {
           active_ = 1 - active_;
           phase_ = kSteady;
+          for (Lane::Channel& channel : lanes_[active_].channel) channel.dc.set_cutoff(kDcHz, sample_rate());
         }
       }
 
@@ -135,6 +136,7 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
   static constexpr float kFilterGlideSeconds = 0.02f;
   static constexpr float kAutoGainGlideSeconds = 0.03f;
   static constexpr float kDcHz = 7.0f;
+  static constexpr float kDcFastHz = 40.0f;
   static constexpr float kThumpDb = 9.0f;
   static constexpr float kThumpQ = 1.1f;
   static constexpr float kThumpRatio = 1.6f;
@@ -259,7 +261,164 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
     configure(lanes_[1], want, nullptr);
   }
 
-  // PRIVATE_METHODS_2
+  static void set_eq(kit::Biquad& filter, const analog_drive_dsp::Eq& eq, float sample_rate) {
+    using analog_drive_dsp::Eq;
+    switch (eq.kind) {
+      case Eq::kLowShelf:
+        filter.set_low_shelf(eq.hz, eq.gain_db, sample_rate);
+        break;
+      case Eq::kHighShelf:
+        filter.set_high_shelf(eq.hz, eq.gain_db, sample_rate);
+        break;
+      case Eq::kPeak:
+        filter.set_peak(eq.hz, eq.q, eq.gain_db, sample_rate);
+        break;
+      default:
+        filter.set_identity();
+        break;
+    }
+    filter.reset();
+  }
+
+  // Where the signal sits on the lane's curve for an envelope and a Drive.
+  static float working_point(const Lane& lane, float drive) {
+    return lane.spec->bias + lane.spec->bias_drive * drive + lane.spec->bias_level * lane.envelope;
+  }
+
+  // `from` is the lane this one is about to take over from, if any: the new
+  // one starts from its envelope, and finds its own DC quickly while it is
+  // still faded out.
+  void configure(Lane& lane, const Setup& setup, const Lane* from) {
+    const float sr = sample_rate();
+    lane.setup = setup;
+    lane.spec = &analog_drive_dsp::circuit(setup.circuit);
+    lane.push_gain = setup.push ? kPushGain : 1.0f;
+    lane.attack = 1.0f - kit::time_to_coeff(lane.spec->attack_seconds, sr);
+    lane.release = 1.0f - kit::time_to_coeff(lane.spec->release_seconds, sr);
+    lane.envelope = from != nullptr ? from->envelope : 0.0f;
+    lane.bias = working_point(lane, drive_.value);
+    lane.offset = lane.spec->curve.f(static_cast<double>(lane.bias));
+    lane.makeup.snap(kit::db_to_gain(makeup_db(lane, drive_.value, auto_gain_.value)));
+    for (Lane::Channel& channel : lane.channel) {
+      for (int k = 0; k < analog_drive_dsp::kMaxPre; ++k) set_eq(channel.pre[k], lane.spec->pre[k], sr);
+      for (int k = 0; k < analog_drive_dsp::kMaxPost; ++k) set_eq(channel.post[k], lane.spec->post[k], sr);
+      channel.outer.reset();
+      channel.inner.reset();
+      channel.adaa.reset(lane.spec->curve, static_cast<double>(lane.bias));
+      channel.compensator.reset();
+      channel.dc.reset();
+      channel.dc.set_cutoff(from != nullptr ? kDcFastHz : kDcHz, sr);
+    }
+  }
+
+  // The make-up after a lane's circuit, in dB. With Auto Gain on it is the
+  // measured table; off, it starts where the table does at Drive 0 and gives
+  // back the headroom as Drive rises, so the sound gets louder up to a
+  // ceiling that ends at full scale. Push is compensated either way.
+  static float makeup_db(const Lane& lane, float drive, float auto_gain) {
+#ifdef LIVEMIX_ANALOG_DRIVE_RAW_MAKEUP
+    (void)lane, (void)drive, (void)auto_gain;
+    return -kHeadroomDb;
+#else
+    using namespace analog_drive_dsp;
+    const float position = kit::clamp(drive, 0.0f, 1.0f) * static_cast<float>(kGainPoints - 1);
+    const int index = kit::clamp_int(static_cast<int>(position), 0, kGainPoints - 2);
+    const float fraction = position - static_cast<float>(index);
+    const float (*table)[kGainPoints] = kMakeupDb[lane.setup.circuit];
+    const float plain = kit::lerp(table[0][index], table[0][index + 1], fraction);
+    const float pushed = kit::lerp(table[1][index], table[1][index + 1], fraction);
+    const float on = lane.setup.push ? pushed : plain;
+    const float off = table[0][0] + kHeadroomDb * drive + (lane.setup.push ? pushed - plain : 0.0f);
+    return kit::lerp(off, on, auto_gain);
+#endif
+  }
+
+  // Every kControlPeriod samples: glide the filters and follow Drive with
+  // the make-up.
+  void control() {
+    const float sr = sample_rate();
+    const bool moving =
+        !low_cut_.settled() || !thump_.settled() || !tone_.settled() || !high_cut_.settled();
+    if (moving || filters_dirty_) {
+      filters_dirty_ = false;
+      const float low_hz = std::exp(low_cut_.next());
+      const float thump = thump_.next();
+      const float tone = tone_.next();
+      const float high_hz = std::exp(high_cut_.next());
+      low_cut_amount_ =
+          kit::clamp(std::log(low_hz / kLowCutOutHz) / std::log(kLowCutInHz / kLowCutOutHz), 0.0f, 1.0f);
+      high_cut_open_ =
+          kit::clamp(std::log(high_hz / kHighCutInHz) / std::log(kHighCutOutHz / kHighCutInHz), 0.0f, 1.0f);
+      const float thump_hz = kit::max(kThumpFloorHz, kThumpRatio * low_hz);
+      for (int c = 0; c < 2; ++c) {
+        low_cut_filter_[c].set_highpass(low_hz, kit::kSqrtHalf, sr);
+        thump_filter_[c].set_bell(thump_hz, kThumpQ, kThumpDb * thump, sr);
+        tilt_[c].set(kToneDb * tone, kTonePivotHz, sr);
+        // Fourth-order Butterworth as two sections.
+        high_cut_filter_[c][0].set_lowpass(high_hz, 0.54119610f, sr);
+        high_cut_filter_[c][1].set_lowpass(high_hz, 1.30656296f, sr);
+      }
+    }
+    const float auto_gain = auto_gain_.next();
+    if (drive_.value != makeup_drive_ || auto_gain != makeup_auto_ || phase_ != kSteady) {
+      makeup_drive_ = drive_.value;
+      makeup_auto_ = auto_gain;
+      for (Lane& lane : lanes_) {
+        lane.makeup.set_target(kit::db_to_gain(makeup_db(lane, makeup_drive_, auto_gain)));
+      }
+    }
+  }
+
+  // One frame of both channels through a lane's circuit, at four times the
+  // rate inside. The working point and the gain move with the lane's
+  // envelope, which is taken from what left the curve on the frame before.
+  void run(Lane& lane, const float* pre, float* out) {
+    using namespace analog_drive_dsp;
+    const Circuit& spec = *lane.spec;
+    const float bias = working_point(lane, drive_.value);
+    const double offset = spec.curve.f(static_cast<double>(bias));
+    const float gain = gain_ * lane.push_gain / (1.0f + spec.sag * lane.envelope);
+    const float bias_step = 0.25f * (bias - lane.bias);
+    const double offset_step = 0.25 * (offset - lane.offset);
+    const float makeup = lane.makeup.next();
+    float level = 0.0f;
+    for (int c = 0; c < 2; ++c) {
+      Lane::Channel& channel = lane.channel[c];
+      float x = pre[c];
+      for (int k = 0; k < kMaxPre; ++k) {
+        if (spec.pre[k].kind != Eq::kNone) x = channel.pre[k].process(x);
+      }
+      float pair[2], back[2];
+      channel.outer.up(x * gain, &pair[0], &pair[1]);
+      float b = lane.bias;
+      double o = lane.offset;
+      for (int k = 0; k < 2; ++k) {
+        float sub[2];
+        channel.inner.up(pair[k], &sub[0], &sub[1]);
+        for (int j = 0; j < 2; ++j) {
+          // The working point glides across the four samples of the frame.
+          // Its own value on the curve is taken off again, so the bias adds
+          // asymmetry and no DC: silence in is exact silence out.
+          b += bias_step;
+          o += offset_step;
+          const double shaped = channel.adaa.process(spec.curve, static_cast<double>(sub[j] + b)) - o;
+          sub[j] = channel.compensator.process(static_cast<float>(shaped));
+        }
+        back[k] = channel.inner.down(sub[0], sub[1]);
+      }
+      float y = channel.outer.down(back[0], back[1]);
+      const float magnitude = y < 0.0f ? -y : y;
+      if (magnitude > level) level = magnitude;
+      for (int k = 0; k < kMaxPost; ++k) {
+        if (spec.post[k].kind != Eq::kNone) y = channel.post[k].process(y);
+      }
+      out[c] = channel.dc.process(y) * makeup;
+    }
+    lane.bias = bias;
+    lane.offset = offset;
+    lane.envelope =
+        flush_denormal(lane.envelope + (level > lane.envelope ? lane.attack : lane.release) * (level - lane.envelope));
+  }
 
   kit::DelayLine<64> dry_[2];
   Lane lanes_[2];

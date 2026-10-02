@@ -384,6 +384,92 @@ int main() {
     EXPECT(density[1] > density[0] + 0.2 && density[2] > density[1] + 0.1, "echo density rises with Density");
   }
 
+  // Colour: below the centre the end of the shape is darker than its start,
+  // above the centre the start is darker than the end, and at the centre
+  // they are alike.
+  {
+    double early[3], late[3];
+    const float settings[3] = {-0.7f, 0.0f, 0.7f};
+    for (int k = 0; k < 3; ++k) {
+      bare(device, kGate, 1.2f);
+      device.set_param(p::kColour, settings[k]);
+      Stereo out = run(device, impulse(2.0f, kRate, 1.0f));
+      early[k] = centroid_hz(out.left, 2400, 19200);    // 0.05 to 0.4 s
+      late[k] = centroid_hz(out.left, 38400, 55200);    // 0.8 to 1.15 s
+    }
+    std::printf("spectral centroid, start / end of a gate: Colour -0.7 %.0f / %.0f Hz, 0 %.0f / %.0f Hz, +0.7 %.0f / %.0f Hz\n",
+                early[0], late[0], early[1], late[1], early[2], late[2]);
+    EXPECT(late[0] < 0.6 * early[0], "negative Colour makes the end darker than the start");
+    EXPECT(early[2] < 0.7 * late[2], "positive Colour makes the start darker than the end");
+    EXPECT(std::fabs(late[1] - early[1]) < 0.05 * early[1], "Colour 0 leaves start and end alike");
+  }
+
+  // Moving Time while a chord sounds fades between tap sets: no click, at a
+  // jump or through a sweep.
+  {
+    const auto chord = [](float seconds) {
+      std::vector<float> x(static_cast<size_t>(seconds * kRate));
+      for (size_t i = 0; i < x.size(); ++i) {
+        const double t = static_cast<double>(i) / kRate;
+        x[i] = 0.25f * static_cast<float>(std::sin(2.0 * kPi * 220.0 * t) + 0.5 * std::sin(2.0 * kPi * 330.0 * t) +
+                                           0.3 * std::sin(2.0 * kPi * 554.37 * t));
+      }
+      return x;
+    };
+    device.init(kRate);
+    device.set_param(p::kMix, 1.0f);
+    Stereo steady = run(device, chord(4.0f));
+    const double still = max_step(steady.left, 96000);
+
+    device.init(kRate);
+    device.set_param(p::kMix, 1.0f);
+    run(device, chord(2.0f));
+    device.set_param(p::kTime, 0.3f);
+    Stereo jumped = run(device, chord(1.0f));
+    Stereo swept;
+    const std::vector<float> block = chord(128.0f / kRate);
+    for (int k = 0; k < 375; ++k) {
+      device.set_param(p::kTime, 0.3f * std::pow(10.0f, static_cast<float>(k) / 374.0f));
+      swept = concat(swept, run(device, block));
+    }
+    std::printf("largest sample step in the wet signal on a chord: steady %.4f, Time jump %.4f, Time sweep %.4f\n",
+                still, max_step(jumped.left), max_step(swept.left));
+    // The chord itself steps by 0.016 a sample at its steepest.
+    EXPECT(max_step(jumped.left) < 0.06 && max_step(jumped.right) < 0.06, "a Time jump does not click");
+    EXPECT(max_step(swept.left) < 0.06 && max_step(swept.right) < 0.06, "a Time sweep does not click");
+  }
+
+  // The shape ends: with no Tail and no Repeat the output is exact zeros
+  // well before the device goes to sleep, and stays there.
+  {
+    bare(device, kGate, 0.5f);
+    device.set_param(p::kPreDelay, 100.0f);
+    device.set_param(p::kModulation, 0.3f);
+    rng_state() = 0xA11CEu;
+    std::vector<float> burst = noise(0.1f, kRate, 0.5f);
+    burst.resize(static_cast<size_t>(3.0f * kRate), 0.0f);
+    Stereo out = run(device, burst);
+    // Input 0.1 s + pre-delay 0.1 s + Time 0.5 s = 0.7 s.
+    const double last = static_cast<double>(last_sound(out)) / kRate;
+    std::printf("gate 0.5 s after a 0.1 s burst and 0.1 s of pre-delay: the last non-zero sample is at %.3f s\n", last);
+    EXPECT(last > 0.6 && last < 1.3, "the output is exact zeros within 0.6 s of the end of the shape");
+  }
+
+  // Pre-delay moves the whole shape later and leaves a gap before it.
+  {
+    bare(device, kGate, 0.3f);
+    device.set_param(p::kPreDelay, 150.0f);
+    Stereo out = run(device, impulse(1.0f, kRate, 1.0f));
+    size_t first = 0;
+    while (first < out.size() && out.left[first] == 0.0f && out.right[first] == 0.0f) ++first;
+    const std::vector<double> env = envelope(out.left);
+    const double plateau = level(env, 0.2, 0.4);
+    std::printf("pre-delay 150 ms: first sound at %.1f ms, 20 dB under its level again by %.0f ms\n", 1000.0 * first / kRate,
+                [&] { size_t w = env.size(); while (w > 0 && env[w - 1] < plateau - 20.0) --w; return w * kWindow * 1000.0; }());
+    EXPECT_NEAR(static_cast<double>(first) / kRate, 0.151, 0.002, "the shape starts after the Pre-delay");
+    EXPECT(level(env, 0.46, 0.5) < plateau - 20.0 && level(env, 0.38, 0.42) > plateau - 6.0, "the shape ends at Pre-delay + Time");
+  }
+
   // CHECKS
 
   device.init(kRate);

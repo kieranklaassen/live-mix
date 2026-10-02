@@ -90,7 +90,7 @@ class ShiftVoice {
   void render(const Ring& ring, const VoiceSetup& setup, double base, float ratio, float* left,
               float* right) {
     if (!started_ || (setup.mode != mode_ && blend_ >= 1.0f)) begin_mode(ring, setup, base, ratio);
-    if (until_spawn_ <= 0.0f) spawn(ring, setup, base, ratio, 0.0f);
+    if (until_spawn_ <= 0.0f) until_spawn_ += spawn(ring, setup, base, ratio, 0.0f);
     until_spawn_ -= 1.0f;
 
     float gain[2] = {1.0f, 0.0f};  // this generation, the one before
@@ -159,6 +159,21 @@ class ShiftVoice {
  private:
   static constexpr int kMaxHeads = 12;
   static constexpr float kModeFadeSeconds = 0.04f;
+  static constexpr float kSqrtTwo = 1.41421356f;
+  static constexpr float kFloorSeconds = 0.0015f;   // the closest a head starts to the write point
+  static constexpr int kGrainOverlap = 4;
+  // Smooth: time between splices and length of the join, as shares of Size.
+  static constexpr float kSmoothHop = 0.5f;
+  static constexpr float kSmoothFade = 0.25f;
+  // Jitter at full: each head's own detune, in cents either way.
+  static constexpr float kSmoothCents = 20.0f;
+  static constexpr float kGrainCents = 40.0f;
+  static constexpr float kVintageCents = 30.0f;
+  // The splice search: how far it looks, over what length it compares.
+  static constexpr float kSearchSeconds = 0.02f;
+  static constexpr float kSpanSeconds = 0.012f;
+  static constexpr int kPoints = 72;
+  static constexpr float kNearBias = 0.03f;
 
   struct Head {
     bool active = false;
@@ -171,6 +186,196 @@ class ShiftVoice {
     float edge = 0.5f;        // share of the life each fade takes (0.5 = Hann)
     float gain_left = 1.0f, gain_right = 1.0f;
   };
+
+  // Start (or switch to) the mode in setup, with its heads already in full
+  // swing so the level is there from the first sample.
+  void begin_mode(const Ring& ring, const VoiceSetup& setup, double base, float ratio) {
+    if (started_) {
+      generation_ ^= 1;
+      blend_ = 0.0f;
+      for (Head& head : heads_) {
+        if (head.generation == generation_) {
+          head.active = false;       // silent leftovers of the switch before last
+        } else {
+          head.phase_step = 0.0f;    // holds its weight; the blend fades it out
+        }
+      }
+    }
+    started_ = true;
+    mode_ = setup.mode;
+    newest_ = -1;
+    switch (mode_) {
+      case kGrain:
+        for (int k = kGrainOverlap - 1; k >= 1; --k) {
+          spawn(ring, setup, base, ratio, static_cast<float>(k) / kGrainOverlap);
+        }
+        until_spawn_ = 0.0f;
+        break;
+      case kVintage:
+        spawn(ring, setup, base, ratio, 0.5f);
+        until_spawn_ = 0.0f;
+        break;
+      default: {
+        const float fade = setup.size * kSmoothFade;
+        until_spawn_ = spawn(ring, setup, base, ratio, -1.0f) - fade;
+        break;
+      }
+    }
+  }
+
+  // Start one head; returns the time to the next one in samples. `pre_age`
+  // starts it part-way through its life (negative: at the end of its fade
+  // in), placed where a head of that age would be.
+  float spawn(const Ring& ring, const VoiceSetup& setup, double base, float ratio, float pre_age) {
+    const float j = setup.jitter;
+    const float j2 = j * j;
+    const float size = kit::max(setup.size, 64.0f);
+    float life = size, edge = 0.5f, interval = size, scatter = 0.0f, pan = 0.0f, gain = 1.0f;
+    float cents = 0.0f;
+    switch (mode_) {
+      case kGrain:
+        interval = size * (1.0f / kGrainOverlap) * (1.0f + 0.6f * j * rng_.bipolar());
+        scatter = j2 * (size + 0.02f * setup.sample_rate) * rng_.uniform();
+        cents = kGrainCents * j2 * rng_.bipolar();
+        pan = 0.8f * j * rng_.bipolar();
+        gain = setup.grain_gain;
+        break;
+      case kVintage:
+        interval = 0.5f * size;
+        scatter = j2 * 0.02f * setup.sample_rate * rng_.uniform();
+        cents = kVintageCents * j2 * rng_.bipolar();
+        break;
+      default: {
+        const float fade = size * kSmoothFade;
+        interval = kit::max(fade, size * kSmoothHop * (1.0f + 0.5f * j * rng_.bipolar()));
+        life = interval + fade;
+        edge = fade / life;
+        cents = kSmoothCents * j2 * rng_.bipolar();
+        break;
+      }
+    }
+    Head* head = nullptr;
+    int slot = 0;
+    for (int i = 0; i < kMaxHeads && head == nullptr; ++i) {
+      if (!heads_[i].active) {
+        head = &heads_[i];
+        slot = i;
+      }
+    }
+    if (head == nullptr) return interval;
+
+    const float detune = kit::cents_to_ratio(cents);
+    const float floor_delay = kit::max(kMinDelay, kFloorSeconds * setup.sample_rate);
+    // Shifting up, a head closes on the write point: it starts far enough
+    // back for its whole life at the faster of the ratio now and where the
+    // ratio is heading.
+    const float fastest = kit::max(ratio, setup.target_ratio) * detune;
+    const float room = fastest > 1.0f ? (fastest - 1.0f) * life : 0.0f;
+    double delay = static_cast<double>(floor_delay + room + scatter);
+
+    const float age = pre_age < 0.0f ? edge : pre_age;
+    if (mode_ == kSmooth && pre_age == 0.0f && newest_ >= 0 && heads_[newest_].active &&
+        heads_[newest_].generation == generation_) {
+      delay = find_splice(ring, setup, base, heads_[newest_].delay, delay);
+    } else {
+      match_ = 1.0f;
+      delay += static_cast<double>((1.0f - ratio * detune) * age * life);
+    }
+
+    head->active = true;
+    head->generation = generation_;
+    head->mode = mode_;
+    head->delay = delay;
+    head->detune = detune;
+    head->phase = age;
+    head->phase_step = 1.0f / life;
+    head->edge = edge;
+    // A balance, so a grain leans to one side without leaving the other.
+    kit::pan_gains(pan, &head->gain_left, &head->gain_right);
+    head->gain_left *= gain * kSqrtTwo;
+    head->gain_right *= gain * kSqrtTwo;
+    newest_ = slot;
+    return interval;
+  }
+
+  // Where a new Smooth head should start: at or behind `nominal`, within one
+  // search range, where the ring best matches what the old head (at
+  // `old_delay`) is playing. Both heads then move along the ring at the same
+  // speed, so a match now is a match for the whole join. Sets match_ to the
+  // correlation found (1 = the two are alike). Delays are less the base.
+  double find_splice(const Ring& ring, const VoiceSetup& setup, double base, double old_delay,
+                     double nominal) {
+    const float sr = setup.sample_rate;
+    const int now = ring.now();
+    const int range = static_cast<int>(kSearchSeconds * sr);
+    const float span = kSpanSeconds * sr;
+    const float stride = span / kPoints;
+    // Compared on whole samples; the old head's fraction is given back at the end.
+    const double old_total = base + old_delay;
+    const int old_whole = static_cast<int>(old_total + 0.5);
+    const double residue = old_total - static_cast<double>(old_whole);
+    const int first = static_cast<int>(base + nominal + 0.5);
+    // The comparison straddles the join as far as the ring already holds
+    // what lies ahead of both heads, and looks back for the rest.
+    const float ahead =
+        kit::clamp(static_cast<float>(old_whole < first ? old_whole : first) - 4.0f, 0.0f, 0.5f * span);
+    int offset[kPoints];
+    float reference[kPoints];
+    float energy = 0.0f;
+    for (int i = 0; i < kPoints; ++i) {
+      offset[i] = static_cast<int>(ahead - static_cast<float>(i) * stride);
+      reference[i] = ring.mono.at(now - old_whole + offset[i]);
+      energy += reference[i] * reference[i];
+    }
+    if (energy < 1.0e-14f) {
+      match_ = 1.0f;
+      return nominal;
+    }
+    const float scale = std::sqrt(energy);
+    const auto score = [&](int lag) {
+      const int origin = now - first - lag;
+      float match = 0.0f;
+      float power = 1.0e-20f;
+      for (int i = 0; i < kPoints; ++i) {
+        const float sample = ring.mono.at(origin + offset[i]);
+        match += reference[i] * sample;
+        power += sample * sample;
+      }
+      // Among equal matches (a steady tone gives one per cycle) take the nearest.
+      return match / std::sqrt(power) - kNearBias * scale * static_cast<float>(lag) / static_cast<float>(range);
+    };
+    const int coarse = range / 480 > 1 ? range / 480 : 1;
+    int best = 0;
+    float best_score = -1.0e30f;
+    for (int lag = 0; lag <= range; lag += coarse) {
+      const float value = score(lag);
+      if (value > best_score) {
+        best_score = value;
+        best = lag;
+      }
+    }
+    const int centre = best;
+    for (int lag = centre - coarse + 1; lag < centre + coarse; ++lag) {
+      if (lag < 0 || lag > range || lag == centre) continue;
+      const float value = score(lag);
+      if (value > best_score) {
+        best_score = value;
+        best = lag;
+      }
+    }
+    // The top of the parabola through the best lag and its neighbours: the
+    // fraction of a sample that keeps a pure tone free of sidebands.
+    float fraction = 0.0f;
+    if (best > 0 && best < range) {
+      const float before = score(best - 1);
+      const float after = score(best + 1);
+      const float curve = before - 2.0f * best_score + after;
+      if (curve < -1.0e-12f) fraction = kit::clamp(0.5f * (before - after) / curve, -0.5f, 0.5f);
+    }
+    const float found = best_score + kNearBias * scale * static_cast<float>(best) / static_cast<float>(range);
+    match_ = kit::clamp(found / scale, 0.0f, 1.0f);
+    return static_cast<double>(first + best) + static_cast<double>(fraction) + residue - base;
+  }
 
   static float window_at(float phase, float edge) {
     if (phase < edge) return 0.5f - 0.5f * kit::SineTable::cos_lookup(0.5f * phase / edge);

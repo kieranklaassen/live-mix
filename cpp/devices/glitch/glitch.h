@@ -15,7 +15,8 @@ namespace livemix {
 
 class Glitch : public kit::DeviceBase<glitch::kNumParams> {
  public:
-  enum Kind : int { kNone = 0, kRepeat, kSkip, kReverse, kHalfSpeed, kTapeStop };
+  // Named apart from the parameter ids kRepeat, kSkip, kReverse in params.gen.h.
+  enum Kind : int { kNone = 0, kRepeating, kSkipping, kReversing, kHalfSpeed, kTapeStop };
 
   void init(float sample_rate) {
     using namespace glitch;
@@ -113,7 +114,7 @@ class Glitch : public kit::DeviceBase<glitch::kNumParams> {
   struct Reader {
     bool active = false;
     bool releasing = false;
-    int mode = kRepeat;        // how the speed moves: see render()
+    int mode = kRepeating;        // how the speed moves: see render()
     double position = 0.0;
     float rate = 1.0f;
     bool halved = false;       // rate 2: read through the half-band filter
@@ -375,7 +376,7 @@ class Glitch : public kit::DeviceBase<glitch::kNumParams> {
     switch (choice) {
       case 0: {
         // One to eight repeats, few more likely than many (weight 1/n).
-        event_.kind = kRepeat;
+        event_.kind = kRepeating;
         event_.source = now - static_cast<long long>(slice_);
         float total = 0.0f;
         for (int n = 1; n <= most; ++n) total += 1.0f / static_cast<float>(n);
@@ -395,7 +396,7 @@ class Glitch : public kit::DeviceBase<glitch::kNumParams> {
       case 1: {
         // A fragment of 20 to 120 ms from somewhere in the last slice, three
         // to ten times over.
-        event_.kind = kSkip;
+        event_.kind = kSkipping;
         event_.fragment = std::floor(kSkipShortest * std::pow(kSkipRange, rng_.uniform()) * sr);
         const float many = rng_.uniform();
         const int room = static_cast<int>(kMaxEventSeconds * sr / event_.fragment);
@@ -407,7 +408,7 @@ class Glitch : public kit::DeviceBase<glitch::kNumParams> {
         break;
       }
       case 2:
-        event_.kind = kReverse;
+        event_.kind = kReversing;
         event_.count = 1;
         break;
       default: {
@@ -429,7 +430,7 @@ class Glitch : public kit::DeviceBase<glitch::kNumParams> {
     const long long now = ring_.written() - 1;
     const float decay = param(kDecay);
     const int index = event_.index;
-    const bool more = event_.kind == kRepeat || event_.kind == kSkip ? index < event_.count : index < 1;
+    const bool more = event_.kind == kRepeating || event_.kind == kSkipping ? index < event_.count : index < 1;
     if (!more) {
       event_.active = false;
       boundary();
@@ -437,7 +438,7 @@ class Glitch : public kit::DeviceBase<glitch::kNumParams> {
     }
     const float step = static_cast<float>(index);
     switch (event_.kind) {
-      case kRepeat: {
+      case kRepeating: {
         float length = event_.slice * std::pow(event_.shrink, step);
         length = std::floor(kit::clamp(length, kit::min(kShortestRepeat * sr, event_.slice), event_.slice));
         if (event_.part == 0) event_.rate = octave_rate();
@@ -458,14 +459,14 @@ class Glitch : public kit::DeviceBase<glitch::kNumParams> {
         }
         break;
       }
-      case kSkip: {
+      case kSkipping: {
         const float gain = std::pow(10.0f, -kSkipFade * decay * step);
         const float cutoff = std::pow(0.5f, kSkipDarkening * decay * step);
         start_fragment(static_cast<double>(event_.source), event_.rate, event_.fragment, gain, cutoff);
         ++event_.index;
         break;
       }
-      case kReverse:
+      case kReversing:
         start_fragment(static_cast<double>(now - 1), -1.0f, event_.slice, 1.0f, 1.0f);
         ++event_.index;
         break;
