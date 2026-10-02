@@ -169,11 +169,21 @@ reverbs, delays, tape and modulation, and the ambient ones (Analog Delay,
 Cascade, Glitch, Low Bitrate, Vinyl, Radio, Patina and the rest).
 `deviceSkin(device, skins?)` answers for a chain: the device's skin, else
 `QUIET_SKIN` (the theme's colours, no finish, no picture, eight knobs in two
-rows) so tools sit quietly between the others, and null for a device that
-draws itself (a hosted plug-in), which keeps its `DevicePanel`. Pass your own
-table as the second argument, or your own function as `skin`, to add or
-replace skins. A plate is 140 px high and `plateLayout(knobs, pictured)` gives
-its width.
+rows) so tools sit quietly between the others, and null for a plug-in that is
+missing, which keeps its `DevicePanel` and says there why it did not load.
+Pass your own table as the second argument, or your own function as `skin`, to
+add or replace skins. A plate is 140 px high and `plateLayout(knobs, pictured)`
+gives its width.
+
+A hosted plug-in (a device with `openEditor`) is a plate too, though the kit
+has never seen it. `hostedSkin(device)` picks one of the eight cases in
+`HOSTED_PLATES` by the plug-in's id, with a finish and a knob cap, so the same
+plug-in is the same colour every time and two in a chain are told apart. Its
+first four parameters are the knobs on the face, and the picture is its own
+window drawn small, with three sliders that follow its first three parameters.
+The `Edit` cell at the right opens the real window (`openEditor`), and the
+`+n` cell sits under it. The cases are workshop colours, apart from the plates
+in `PLATE_PALETTES`.
 
 A plate costs nothing while it sits: the finish and the picture are drawn when
 the device is added or one of its knobs moves, not per frame. The names are the
