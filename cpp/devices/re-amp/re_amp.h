@@ -250,11 +250,16 @@ class ReAmp : public kit::DeviceBase<re_amp::kNumParams> {
           for (int k = 0; k < kNumTaps; ++k) tap_[side][k].set(tap_seconds_[side][k] * early);
         }
         pre_tap_.set(kFirstReflectionSeconds[0] * early);
-        for (int k = 0; k < kNumLines; ++k) line_base_[k] = kLineRatio[k] * kLineSeconds * size;
+        for (int k = 0; k < kNumLines; ++k) {
+          line_base_[k] = kLineRatio[k] * kLineSeconds * size;
+          if (!drifting_) line_tap_[k].set(line_base_[k]);
+        }
       }
-      for (int k = 0; k < kNumLines; ++k) {
-        drift_[k] += drift_step_[k];
-        line_tap_[k].set(line_base_[k] + drift_[k]);
+      if (drifting_) {
+        for (int k = 0; k < kNumLines; ++k) {
+          drift_[k] += drift_step_[k];
+          line_tap_[k].set(line_base_[k] + drift_[k]);
+        }
       }
       refresh_ = false;
       const float hiss = glide(hiss_);
@@ -555,13 +560,26 @@ class ReAmp : public kit::DeviceBase<re_amp::kNumParams> {
     const float norm = 1.5f - 0.5f * (hum_cos_ * hum_cos_ + hum_sin_ * hum_sin_);
     hum_cos_ *= norm;
     hum_sin_ *= norm;
-    drift_amount_ += (drift_wanted() - drift_amount_) * drift_glide_;
+    const float wanted = drift_wanted();
+    drift_amount_ += (wanted - drift_amount_) * drift_glide_;
+    if (wanted == 0.0f && drift_amount_ < 1.0e-4f) drift_amount_ = 0.0f;
+    bool moving = drift_amount_ > 0.0f;
     for (int k = 0; k < kNumLines; ++k) {
       drift_phase_[k] += drift_rate_[k];
       if (drift_phase_[k] >= 1.0f) drift_phase_[k] -= 1.0f;
       const float target = drift_depth_ * drift_amount_ * drift_shape(drift_phase_[k]);
       drift_step_[k] = (target - drift_[k]) * (1.0f / static_cast<float>(kControlPeriod));
+      moving = moving || drift_[k] > 1.0e-4f || drift_[k] < -1.0e-4f;
     }
+    if (drifting_ && !moving) {
+      // Home: the lines stand on their own lengths and cost nothing more.
+      for (int k = 0; k < kNumLines; ++k) {
+        drift_[k] = 0.0f;
+        drift_step_[k] = 0.0f;
+        line_tap_[k].set(line_base_[k]);
+      }
+    }
+    drifting_ = moving;
     if (approach(&bass_db_, kToneDb * param(kBass))) {
       for (kit::Biquad& filter : bass_) filter.set_low_shelf(kBassHz, bass_db_, sr);
     }
@@ -652,6 +670,7 @@ class ReAmp : public kit::DeviceBase<re_amp::kNumParams> {
       drift_[k] = drift_depth_ * drift_amount_ * drift_shape(drift_phase_[k]);
       drift_step_[k] = 0.0f;
     }
+    drifting_ = drift_amount_ > 0.0f;
   }
 
   void apply(int id) {
@@ -717,6 +736,7 @@ class ReAmp : public kit::DeviceBase<re_amp::kNumParams> {
   float drift_depth_ = 0.0f;
   float drift_amount_ = 0.0f;
   float drift_glide_ = 1.0f;
+  bool drifting_ = false;
   int diffuse_samples_[2] = {1, 1};
   float glide_ = 0.05f;
   float bass_db_ = 0.0f;

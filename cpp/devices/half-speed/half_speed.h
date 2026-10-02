@@ -145,10 +145,9 @@ class HalfSpeed : public kit::DeviceBase<half_speed::kNumParams> {
   // widen(): how fast the blend's level and the right side's level are
   // followed, and how far each may be corrected.
   static constexpr float kLiftSeconds = 0.1f;
-  static constexpr float kTrimSeconds = 0.3f;
-  static constexpr float kMaxLift = 1.5f;
+  static constexpr float kTrimSeconds = 1.0f;
   static constexpr float kMaxTrim = 1.2589f;  // 2 dB either way
-  static constexpr float kTrimPedestal = 1.0e-2f;
+  static constexpr float kTrimPedestal = 1.0e-4f;
   static constexpr int kControlPeriod = 16;
   static constexpr float kFilterEaseSeconds = 0.008f;
   static constexpr float kSpeeds[4] = {0.75f, 2.0f / 3.0f, 0.5f, 0.25f};
@@ -178,7 +177,7 @@ class HalfSpeed : public kit::DeviceBase<half_speed::kNumParams> {
   bool advance(Timing& timing, double increment, float lose, const Timing* leader);
   void launch(Timing& timing, int head, const Timing* leader);
   float make_up(Timing& timing) const;
-  float widen(float low, float near_high, float far_high, float far, float reference);
+  float widen(float low, float near_high, float far_high, float far);
   void control();
   bool ease(float* value, float target) const;
   void relaunch();
@@ -205,10 +204,11 @@ class HalfSpeed : public kit::DeviceBase<half_speed::kNumParams> {
   // The share of the second set in the right side (the square root of Spread).
   kit::Smoother spread_;
   // Running powers for widen(): the two sets above the split and their
-  // product, then the first set's right channel and the right side as it is.
+  // product; the low half times the first set's upper half and times the
+  // blend; the right side.
   float near_power_ = 0.0f, far_power_ = 0.0f, cross_power_ = 0.0f;
-  float wanted_power_ = 0.0f, right_power_ = 0.0f;
-  float lift_rate_ = 0.0f, trim_rate_ = 0.0f;
+  float low_near_ = 0.0f, low_blend_ = 0.0f, right_power_ = 0.0f;
+  float lift_rate_ = 0.0f, trim_rate_ = 0.0f, alike_ = 1.0f;
   kit::ControlClock clock_;
   float low_hz_ = 20.0f, high_hz_ = 20000.0f, filter_ease_ = 0.05f;
   bool together_ = true;
@@ -259,9 +259,11 @@ inline void HalfSpeed::clear_filters() {
     filter->set(kBassHz, kit::kSqrtHalf, sample_rate());
   }
   near_power_ = far_power_ = cross_power_ = 0.0f;
-  // Both start from the same pedestal, which dies away: the right side's
+  // The right side's power starts from a pedestal, which dies away: its
   // level is only corrected once there is something to go by.
-  wanted_power_ = right_power_ = kTrimPedestal;
+  low_near_ = low_blend_ = 0.0f;
+  alike_ = 1.0f;
+  right_power_ = kTrimPedestal;
   lift_rate_ = 1.0f - std::exp(-1.0f / (kLiftSeconds * sample_rate()));
   trim_rate_ = 1.0f - std::exp(-1.0f / (kTrimSeconds * sample_rate()));
 }
@@ -359,7 +361,7 @@ inline void HalfSpeed::render_frame(const float* in, float* out_left, float* out
   const float near_high = right - 2.0f * split_right_.k * split_right_.band - low;
   const float far_high = split_high_[1].highpass(split_high_[0].highpass(late_right));
   const float far = spread_.next();
-  wet[1] = widen(low, near_high, far_high, far, right);
+  wet[1] = widen(low, near_high, far_high, far);
   for (int c = 0; c < 2; ++c) wet[c] = low_cut_[c].highpass(high_cut_[c].lowpass(wet[c]));
 
   // Cycle clocks. The second one runs a little fast or slow until it is
@@ -519,39 +521,44 @@ inline float HalfSpeed::make_up(Timing& timing) const {
 // - The blend's two gains sum to one. Two sets that are not in step add up
 //   to less than either alone, so the blend is lifted by what is missing,
 //   going by how alike the two have been over the last tenth of a second
-//   (the same idea as make_up(), measured here instead of taken from the
-//   splice search).
+//   (the same law as make_up(), measured here instead of taken from the
+//   splice search). Sets that are out of step count as unrelated: making up
+//   for a cancellation would overshoot as soon as it ended.
 // - Where the low half of one set meets the upper half of the other (around
 //   200 Hz) they are not in step either, and a held chord comes out a little
-//   quieter on the right than on the left; and the second set, playing other
-//   moments, is at times louder or quieter than the first. A slow trim, 2 dB
-//   at most, holds the right side to the level of the first set's right
-//   channel (`reference`), which is what plays there at Spread 0. It goes by
-//   the right channel only, so a lean in the input stays as it is.
-inline float HalfSpeed::widen(float low, float near_high, float far_high, float far,
-                              float reference) {
+//   quieter on the right than on the left. The two halves of one set add
+//   more than their separate powers (they overlap, in phase); the low half
+//   and the second set's upper half do not. A slow trim, 2 dB at most, puts
+//   back what is missing, measured: the product of the low half with the
+//   first set's upper half and with the blend, each followed over a second.
+//   With none of the second set nothing is missing and the trim is one. It
+//   does not compare the sides' levels, which would pump on notes the two
+//   sets play at different moments, and it goes by the right channel only,
+//   so a lean in the input stays as it is.
+inline float HalfSpeed::widen(float low, float near_high, float far_high, float far) {
   const float near = 1.0f - far;
   near_power_ = flush_denormal(near_power_ + (near_high * near_high - near_power_) * lift_rate_);
   far_power_ = flush_denormal(far_power_ + (far_high * far_high - far_power_) * lift_rate_);
   cross_power_ = flush_denormal(cross_power_ + (near_high * far_high - cross_power_) * lift_rate_);
-  const float want = near * near_power_ + far * far_power_;
-  const float have =
-      near * near * near_power_ + far * far * far_power_ + 2.0f * near * far * cross_power_;
-  float lift = 1.0f;
-  if (want > have) lift = have * kMaxLift * kMaxLift > want ? std::sqrt(want / have) : kMaxLift;
-  const float side = low + lift * (near * near_high + far * far_high);
+  // alike_ is how alike the two sets have been (control()): 1 in step, 0
+  // unrelated or out of step.
+  const float lift = 1.0f / std::sqrt(near * near + far * far + 2.0f * near * far * alike_);
+  const float blend = lift * (near * near_high + far * far_high);
+  const float side = low + blend;
 
-  const float full = reference * reference;
-  wanted_power_ = flush_denormal(wanted_power_ + (full - wanted_power_) * trim_rate_);
+  // What the two halves of the split add over their separate powers when
+  // they are one set in step (the first set's own halves), and what they
+  // add as they are here.
+  low_near_ = flush_denormal(low_near_ + (low * near_high - low_near_) * trim_rate_);
+  low_blend_ = flush_denormal(low_blend_ + (low * blend - low_blend_) * trim_rate_);
   right_power_ = flush_denormal(right_power_ + (side * side - right_power_) * trim_rate_);
   float trim = 1.0f;
   if (right_power_ > 1.0e-18f) {
-    trim = kit::clamp(std::sqrt(wanted_power_ / right_power_), 1.0f / kMaxTrim, kMaxTrim);
+    const float missing = 2.0f * (low_near_ - low_blend_);
+    trim = std::sqrt(kit::clamp(1.0f + missing / right_power_, 1.0f / (kMaxTrim * kMaxTrim),
+                                kMaxTrim * kMaxTrim));
   }
-  // With none of the second set the right side is the first set whole,
-  // and is left alone.
-  const float say = far < 0.25f ? 4.0f * far : 1.0f;
-  return side * (1.0f + say * (trim - 1.0f));
+  return side * trim;
 }
 
 // One step of `value` towards `target`; false once it is there.
@@ -563,10 +570,13 @@ inline bool HalfSpeed::ease(float* value, float target) const {
   return true;
 }
 
-// Band filters, eased towards their settings so a sweep does not step.
+// Band filters, eased towards their settings so a sweep does not step, and
+// how alike the two sets of heads are for widen().
 inline void HalfSpeed::control() {
   using namespace half_speed;
   const float sr = sample_rate();
+  const float both = near_power_ * far_power_;
+  alike_ = both > 1.0e-30f ? kit::clamp(cross_power_ / std::sqrt(both), 0.0f, 1.0f) : 1.0f;
   if (ease(&low_hz_, param(kLowCut))) {
     for (kit::Svf& filter : low_cut_) filter.set(low_hz_, kit::kSqrtHalf, sr);
   }

@@ -58,7 +58,7 @@ namespace octaves {
 
 class OctaveBank {
  public:
-  static constexpr int kMaxBands = 64;
+  static constexpr int kMaxBands = 80;
   static constexpr int kStages = 3;
   static constexpr int kGroups = 3;
   static constexpr int kVoices = 4;  // sub2, sub1, up1, up2
@@ -150,9 +150,26 @@ class OctaveBank {
   static constexpr float kJump = 1.3f;
   static constexpr int kJumpDelay = 8;
   static constexpr float kJumpFall = 0.4f;
+  // The hold lasts kJumpHold seconds after the last peak that came within
+  // kJumpNear of it, and only then falls: the peaks of a steady chord's
+  // beats differ, and the smaller ones must not let the hold go.
+  static constexpr float kJumpHold = 0.15f;
+  static constexpr float kJumpNear = 0.8f;
+  // ... except while the input as a whole has just jumped (its peak over
+  // kPeakTicks against the peak over twice as long before that, by
+  // kStrike; the peaks of a held chord's waveform differ by less): a note
+  // struck again while it still rings is a new note, and there the falling
+  // reference decides, as it always did.
+  static constexpr float kStrike = 1.4f;
+  // (and for this long after it: a note's partials do not all rise at once.)
+  static constexpr float kStrikeSeconds = 0.06f;
   // ... and it must exceed what the open channel would collect from the
   // settled notes in the other channels. Opening lets those in; a channel
   // that would mostly hear them stays narrow.
+  // (by kExplained when the input as a whole has not just jumped: those
+  // notes' own levels swell and fall with their slow beats faster than the
+  // averages here follow.)
+  static constexpr float kExplained = 3.0f;
   // What the voices leave out: sub octaves that would land under about
   // 30 Hz, and upper octaves that would pass the bank's Nyquist frequency.
   static constexpr double kSub1LowHz = 55.0;
@@ -167,6 +184,11 @@ class OctaveBank {
   static constexpr float kAgreeSeconds = 0.010f;
   static constexpr float kAgreeThreshold = 0.7f;
   static constexpr float kMaxCorrection = 2.5f;
+  // Neighbouring channels share one weight only as far as they hold the
+  // same partial: as far as the frequencies they measure agree, to within
+  // this share of their cutoff. Two notes a tone apart sit in neighbouring
+  // channels and must not take each other's level.
+  static constexpr float kSame = 0.6f;
   // Voice order here: sub2, sub1, up1, up2.
   static constexpr double kDetuneCents[4] = {5.0, -8.0, 11.0, -15.0};
   static constexpr double kVoiceRatio[4] = {0.25, 0.5, 2.0, 4.0};
@@ -187,11 +209,30 @@ class OctaveBank {
   static constexpr float kReleaseMargin = 4.0f;
   // A channel whose voices would come out under this level is switched off.
   static constexpr float kFloor = 3.0e-6f;
+  // ... and so is one whose voices would come out this far under everything
+  // the bank holds: 60 dB under the rest of the sound it is not heard, and
+  // on a chord that is half the channels.
+  static constexpr float kFloorShare = 1.0e-3f;
   // After an onset a channel's weights are worked out on every tick for
   // this long, then on every other one.
   static constexpr float kFresh = 0.03f;
   // Power under which a channel is not worth the control rate's attention.
   static constexpr float kQuiet = 1.0e-22f;
+  // Collisions. A channel that holds one partial has a steady envelope; one
+  // that holds two beats at their difference, and its voices would be the
+  // products of the two and not their octaves. The depth of the beat is read
+  // from the envelope's turning points (a rise or a fall alone is no beat)
+  // and the channel's voices are turned down as it grows. Beats slower than
+  // kBeatSlowest are the ordinary beating of two close notes and are left.
+  static constexpr float kBeatTurn = 0.94f;
+  static constexpr float kBeatSlowest = 14.0f;
+  static constexpr float kBeatDepth = 0.13f;
+  static constexpr float kPureSeconds = 0.012f;
+  // The products of the top channels land where pitch is no longer heard
+  // (and a single bright note crowds its own harmonics there, harmlessly):
+  // the turning down fades out between these two channel frequencies.
+  static constexpr double kMuteFullHz = 1500.0;
+  static constexpr double kMuteNoneHz = 3000.0;
 
   static float pos(float x) { return x > 0.0f ? x : 0.0f; }
 
@@ -255,6 +296,10 @@ class OctaveBank {
   float tick_peak_ = 0.0f;
   bool attack_fresh_ = false;
   float peak_ring_[kPeakTicks] = {};
+  float recent_ring_[2 * kPeakTicks] = {};
+  int recent_index_ = 0;
+  int strike_left_ = 0;
+  int strike_ticks_ = 0;
   int peak_index_ = 0;
   float tick_seconds_ = 0.0f;
   float inv_steps_[kGroups] = {};
@@ -310,6 +355,9 @@ class OctaveBank {
   float rotor_coeff_[kMaxBands] = {};
   float jump_ref_[kMaxBands] = {};
   float jump_ring_[kJumpDelay][kMaxBands] = {};
+  int jump_hold_[kMaxBands] = {};
+  float jump_fast_[kMaxBands] = {};
+  int jump_hold_ticks_ = 0;
   int jump_index_ = 0;
   float first_scale_[kMaxBands] = {};
   bool grid_[kMaxBands] = {};
@@ -329,6 +377,16 @@ class OctaveBank {
   float weight_[kMaxBands] = {};
   float leak_[kMaxBands] = {};
   float agree_[kMaxBands] = {};
+  // Per channel: the beat of its envelope.
+  float beat_ext_[kMaxBands] = {};
+  float beat_last_[kMaxBands] = {};
+  float beat_dir_[kMaxBands] = {};
+  int beat_since_[kMaxBands] = {};
+  float depth_[kMaxBands] = {};
+  float pure_[kMaxBands] = {};
+  float mute_depth_[kMaxBands] = {};
+  int beat_ticks_ = 0;
+  float pure_coeff_ = 0.0f;
   // Per channel, per voice: the complex weight, ramped between ticks.
   bool live_[kMaxBands] = {};
   int since_[kMaxBands] = {};

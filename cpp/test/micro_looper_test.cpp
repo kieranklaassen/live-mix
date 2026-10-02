@@ -687,6 +687,54 @@ int main() {
     EXPECT(std::fabs(bump[1]) < 1.0, "an unrelated join still keeps its level");
   }
 
+  // A held note whose loop would meet itself out of phase (110 Hz over
+  // 0.523 s is 57.5 periods; 440 Hz over 0.731 s is 321.6): the join is lined
+  // up where its two sides agree, so the note's level does not drop once a
+  // pass (it fell by more than 20 dB at the middle of the join before), in
+  // either direction and at double speed, and the loop is still Length long
+  // to within 1 %.
+  {
+    struct Case {
+      float hz, length;
+      int speed;
+      double ratio;
+    };
+    double deepest = 0.0, highest = 0.0, furthest = 0.0, roughest = 0.0;
+    for (const Case& c : {Case{110.0f, 0.523f, kNormal, 1.0}, Case{110.0f, 0.523f, kRev, 1.0},
+                          Case{440.0f, 0.731f, kNormal, 1.0}, Case{440.0f, 0.731f, kDouble, 2.0}}) {
+      const size_t n = static_cast<size_t>(c.length * kRate / c.ratio);
+      plain(device, c.length);
+      device.set_param(p::kSpeed, static_cast<float>(c.speed));
+      run(device, sine(c.hz, 2.0f, kRate, 0.3f));
+      device.set_param(p::kState, kHold);
+      Stereo held = render(device, 7.0f * c.length, kRate);
+      // The note's amplitude from each sample and the one a quarter period
+      // before it, from the second pass on.
+      const double quarter = kRate / (4.0 * c.hz * c.ratio);
+      std::vector<double> level;
+      for (size_t i = 2 * n; i < held.size(); ++i) {
+        const double at = static_cast<double>(i) - quarter;
+        const size_t whole = static_cast<size_t>(at);
+        const double before = held.left[whole] + (held.left[whole + 1] - held.left[whole]) * (at - whole);
+        level.push_back(std::sqrt(static_cast<double>(held.left[i]) * held.left[i] + before * before));
+      }
+      std::vector<double> sorted = level;
+      std::sort(sorted.begin(), sorted.end());
+      const double median = sorted[sorted.size() / 2];
+      deepest = std::min(deepest, db(sorted.front() / median));
+      highest = std::max(highest, db(sorted.back() / median));
+      const size_t period = period_of(held.left, 2 * n, 4000, n - n / 80, n + n / 80);
+      furthest = std::max(furthest, std::fabs(static_cast<double>(period) / n - 1.0));
+      roughest = std::max(roughest, max_step(held.left, 2 * n) / (0.3 * 2.0 * kPi * c.hz * c.ratio / kRate));
+    }
+    std::printf("micro-looper: a held note across the join: level %+.2f / %+.2f dB, largest step %.2f of its own, loop length within %.2f %%\n",
+                deepest, highest, roughest, 100.0 * furthest);
+    EXPECT(deepest > -1.0, "a held note does not dip at the join");
+    EXPECT(highest < 1.0, "nor swell there");
+    EXPECT(roughest < 1.3, "nor click there");
+    EXPECT(furthest <= 0.01, "and lining the join up moves the loop's length by no more than 1 %");
+  }
+
   // Hold a moment after the playing has stopped: the device must not have
   // gone to sleep on the silence and emptied its memory. Past one Length of
   // silence there is nothing to take, and Hold waits.

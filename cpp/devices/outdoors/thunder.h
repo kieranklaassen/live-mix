@@ -15,7 +15,7 @@ namespace outdoors_scene {
 
 struct Thunder {
   static constexpr int kBands = 4;  // crack, body, rumble, sub
-  static constexpr float kGain = 3.0f;
+  static constexpr float kGain = 2.7f;
   static constexpr float kCrack = 1.6f;
   static constexpr float kClap = 0.7f;   // the thump a clap lands with, against its strength
   static constexpr float kLull = 0.09f;  // what is left of the arrivals between claps

@@ -117,7 +117,7 @@ class Octaves : public kit::DeviceBase<octaves::kNumParams> {
   }
 
  private:
-  static constexpr int kChannels = 55;
+  static constexpr int kChannels = 63;
   // The way down to the bank's rate and back (Halfband.h): 15 taps down and
   // 31 up, 0.46 ms together at 48 kHz, better than 47 dB where it matters
   // (the bank's channels end at 5.5 kHz, its voices at 10 kHz). From

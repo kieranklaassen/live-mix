@@ -12,9 +12,9 @@ namespace layout {
 // where the partials of a chord interleave whatever the spacing, and
 // sparser again at the top, where the channels cost the most (they run at
 // the full rate) and a note's partials are far apart or faint.
-constexpr int kEdges = 3;
-constexpr double kEdgeHz[kEdges] = {80.0, 900.0, 1800.0};
-constexpr double kPerOctave[kEdges + 1] = {5.0, 9.5, 7.5, 5.5};
+constexpr int kEdges = 4;
+constexpr double kEdgeHz[kEdges] = {80.0, 180.0, 1100.0, 2200.0};
+constexpr double kPerOctave[kEdges + 1] = {5.0, 9.5, 12.0, 7.5, 5.5};
 
 // Position on the channel scale (channels from 1 Hz) and its inverse.
 inline double position(double hz) {
@@ -54,12 +54,19 @@ inline void OctaveBank::init(float rate, float low_hz, float high_hz, int count)
   agree_coeff_ = 1.0f - std::exp(-4.0f * tick_seconds_ / kAgreeSeconds);
   slow_count_ = 0;
   parity_ = 0;
+  beat_ticks_ = static_cast<int>(1.0f / (2.0f * kBeatSlowest * tick_seconds_));
+  pure_coeff_ = 1.0f - std::exp(-tick_seconds_ / kPureSeconds);
   tick_peak_ = 0.0f;
   attack_fresh_ = false;
   peak_index_ = 0;
   for (float& v : peak_ring_) v = 0.0f;
+  for (float& v : recent_ring_) v = 0.0f;
+  recent_index_ = 0;
+  strike_left_ = 0;
+  strike_ticks_ = static_cast<int>(kStrikeSeconds / tick_seconds_);
   jump_index_ = 0;
   jump_fall_ = std::exp(-tick_seconds_ / kJumpFall);
+  jump_hold_ticks_ = static_cast<int>(kJumpHold / tick_seconds_);
   attack_coeff_ = 0.0f;
   set_detune(0.0f);
   for (HalfbandDown<kDownHalf>& d : down_) d.init(kDownBeta);
@@ -144,6 +151,8 @@ inline void OctaveBank::init(float rate, float low_hz, float high_hz, int count)
     open_[k] = 0.0f;
     age_[k] = 1.0f;
     jump_ref_[k] = 0.0f;
+    jump_hold_[k] = 0;
+    jump_fast_[k] = 0.0f;
     for (int i = 0; i < kJumpDelay; ++i) jump_ring_[i][k] = 0.0f;
     rot_re_[k] = root1_re_[k] = root2_re_[k] = 1.0f;
     rot_im_[k] = root1_im_[k] = root2_im_[k] = 0.0f;
@@ -152,6 +161,13 @@ inline void OctaveBank::init(float rate, float low_hz, float high_hz, int count)
     slow_[k] = 0.0f;
     weight_[k] = 0.0f;
     agree_[k] = 0.0f;
+    beat_ext_[k] = 0.0f;
+    beat_last_[k] = -1.0f;
+    beat_dir_[k] = 1.0f;
+    beat_since_[k] = 0;
+    depth_[k] = 0.0f;
+    pure_[k] = 1.0f;
+    mute_depth_[k] = 1.0f - fade_in(std::log(hz), std::log(kMuteFullHz), std::log(kMuteNoneHz));
     live_[k] = false;
     leak_[k] = 0.0f;
     since_[k] = 0;
@@ -244,8 +260,11 @@ inline void OctaveBank::set_width(int k, float open, bool rescale) {
     // What is derived from the states moves with them.
     const float last = fr * fr + fi * fi;
     jump_ref_[k] *= first;
+    jump_fast_[k] *= first;
     for (int i = 0; i < kJumpDelay; ++i) jump_ring_[i][k] *= first;
     power_[k] *= last;
+    beat_ext_[k] *= last;
+    if (beat_last_[k] > 0.0f) beat_last_[k] *= last;
     slow_[k] *= std::sqrt(last);
     // The equaliser's average is stage 2 × conj(stage 3).
     const float gr = second_re * fr + second_im * fi;
@@ -502,6 +521,8 @@ inline void OctaveBank::tick() {
   // Where a channel's sub voices pointed before its width was moved.
   float before[kMaxBands][4];
   bool due[kMaxBands];
+  float mute[kMaxBands];
+  float freq[kMaxBands], width[kMaxBands];
   parity_ ^= 1;
   jump_index_ = (jump_index_ + 1) % kJumpDelay;
   // The agreement between neighbours and the signs that follow from it are
@@ -520,13 +541,27 @@ inline void OctaveBank::tick() {
   // own recent peak (recent: half a period of the lowest channel, so a low
   // note's zero crossings do not count as silence).
   peak_ring_[peak_index_] = tick_peak_;
-  peak_index_ = (peak_index_ + 1) % kPeakTicks;
   tick_peak_ = 0.0f;
   float recent = 0.0f, held = 0.0f;
   for (int i = 0; i < kPeakTicks; ++i) recent = recent > peak_ring_[i] ? recent : peak_ring_[i];
+  // (the two slots hold the peaks of the kPeakTicks that ended kPeakTicks
+  // and twice kPeakTicks ago)
+  const float before_a = recent_ring_[recent_index_];
+  const float before_b = recent_ring_[(recent_index_ + kPeakTicks) % (2 * kPeakTicks)];
+  if (recent > kStrike * (before_a > before_b ? before_a : before_b)) {
+    strike_left_ = strike_ticks_;
+  } else if (strike_left_ > 0) {
+    --strike_left_;
+  }
+  const bool strike = strike_left_ > 0;
+  recent_ring_[recent_index_] = recent;
+  recent_index_ = (recent_index_ + 1) % (2 * kPeakTicks);
+  peak_index_ = (peak_index_ + 1) % kPeakTicks;
   for (int k = 0; k < bands_; ++k) held += power_[k];
   const float allowed = kReleaseMargin * recent * recent;
   const float release = allowed >= held ? 1.0f : std::sqrt(allowed / held);
+  float floor2 = kFloorShare * kFloorShare * held;
+  if (floor2 < kFloor * kFloor) floor2 = kFloor * kFloor;
   for (int k = 0; k < bands_; ++k) {
     const float first = yr_[0][k] * yr_[0][k] + yi_[0][k] * yi_[0][k];
     if (first < kQuiet && power_[k] < kQuiet && jump_ref_[k] < kQuiet && age_[k] > 1.0f && !live_[k]) {
@@ -542,13 +577,22 @@ inline void OctaveBank::tick() {
         avg_im_[k] = 0.0f;
         power_[k] = 0.0f;
         jump_ref_[k] = 0.0f;
+        jump_fast_[k] = 0.0f;
       } else {
         power_[k] += power_coeff_[k] * (last - power_[k]);
       }
       const float delayed = jump_ring_[jump_index_][k];
       jump_ring_[jump_index_][k] = first;
-      jump_ref_[k] *= jump_fall_;
-      if (delayed > jump_ref_[k]) jump_ref_[k] = delayed;
+      if (delayed > kJumpNear * jump_ref_[k]) jump_hold_[k] = jump_hold_ticks_;
+      if (delayed > jump_ref_[k]) {
+        jump_ref_[k] = delayed;
+      } else if (jump_hold_[k] > 0) {
+        --jump_hold_[k];
+      } else {
+        jump_ref_[k] *= jump_fall_;
+      }
+      jump_fast_[k] *= jump_fall_;
+      if (delayed > jump_fast_[k]) jump_fast_[k] = delayed;
       slow_[k] = 0.0f;
       settled[k] = 1.0f;
       moved[k] = false;
@@ -557,12 +601,15 @@ inline void OctaveBank::tick() {
       unit_re[k] = 0.0f;
       unit_im[k] = 0.0f;
       sharp[k] = 0.0f;
+      mute[k] = 1.0f;
+      freq[k] = centre_[k];
+      width[k] = narrow_hz_[k];
       due[k] = false;
       continue;
     }
     // An onset opens the channel: its first stage jumps above its recent
     // level, by more than the settled neighbours could account for.
-    if (first > kJump * jump_ref_[k] + 1.0e-30f) {
+    if (first > kJump * (strike ? jump_fast_[k] : jump_ref_[k]) + 1.0e-30f) {
       // It has to be more than the notes held in the other channels can
       // explain: more than the open channel would collect from any of them,
       // and more than all of them together can put into this first stage
@@ -583,10 +630,13 @@ inline void OctaveBank::tick() {
         leak += std::sqrt(power_[j] * 4.0f * half * half / (half * half + away * away));
       }
       if (leak * leak > around) around = leak * leak;
-      if (first * first_scale_[k] > around) {
+      if (first * first_scale_[k] > (strike ? 1.0f : kExplained) * around) {
         const int g = grid_of_[k];
         age_[k] = 0.0f;
         age_[g] = 0.0f;
+        // The rise of a new note is not half a beat.
+        beat_last_[k] = -1.0f;
+        beat_last_[g] = -1.0f;
         if (attack_coeff_ > 0.0f) {
           // Attack: what the two channels hold now (the last stage has not
           // heard the new note yet) stays; what the note adds fades in.
@@ -598,8 +648,16 @@ inline void OctaveBank::tick() {
     }
     const float delayed = jump_ring_[jump_index_][k];
     jump_ring_[jump_index_][k] = first;
-    jump_ref_[k] *= jump_fall_;
-    if (delayed > jump_ref_[k]) jump_ref_[k] = delayed;
+    if (delayed > kJumpNear * jump_ref_[k]) jump_hold_[k] = jump_hold_ticks_;
+    if (delayed > jump_ref_[k]) {
+      jump_ref_[k] = delayed;
+    } else if (jump_hold_[k] > 0) {
+      --jump_hold_[k];
+    } else {
+      jump_ref_[k] *= jump_fall_;
+    }
+    jump_fast_[k] *= jump_fall_;
+    if (delayed > jump_fast_[k]) jump_fast_[k] = delayed;
     age_[k] += tick_seconds_;
     settled[k] = 1.0f;
     moved[k] = false;
@@ -643,6 +701,7 @@ inline void OctaveBank::tick() {
       power_[k] = 0.0f;
       slow_[k] = 0.0f;
       jump_ref_[k] = 0.0f;
+      jump_fast_[k] = 0.0f;
     } else {
       const float rotor_coeff = rotor_coeff_[k];
       power_[k] += power_coeff_[k] * (now - power_[k]);
@@ -650,6 +709,46 @@ inline void OctaveBank::tick() {
       // partial sits from the centre in units of the cutoff.
       avg_re_[k] += rotor_coeff * (br * cr + bi * ci - avg_re_[k]);
       avg_im_[k] += rotor_coeff * (bi * cr - br * ci - avg_im_[k]);
+    }
+
+    // The beat of the envelope: its depth at each turning point, from the
+    // peak and the trough on either side.
+    {
+      float found = -1.0f;
+      const float ext = beat_ext_[k], last = beat_last_[k];
+      if (beat_since_[k] < 30000) ++beat_since_[k];
+      if (beat_dir_[k] > 0.0f) {
+        if (now >= ext) {
+          beat_ext_[k] = now;
+        } else if (now < kBeatTurn * ext) {
+          found = last >= 0.0f && beat_since_[k] <= beat_ticks_ ? (ext - last) / (ext + last + 1.0e-30f) : 0.0f;
+          beat_last_[k] = ext;
+          beat_ext_[k] = now;
+          beat_dir_[k] = -1.0f;
+          beat_since_[k] = 0;
+        }
+      } else {
+        if (now <= ext) {
+          beat_ext_[k] = now;
+        } else if (now * kBeatTurn > ext) {
+          found = last >= 0.0f && beat_since_[k] <= beat_ticks_ ? (last - ext) / (last + ext + 1.0e-30f) : 0.0f;
+          beat_last_[k] = ext;
+          beat_ext_[k] = now;
+          beat_dir_[k] = 1.0f;
+          beat_since_[k] = 0;
+        }
+      }
+      if (found >= 0.0f) {
+        depth_[k] = found;
+      } else if (beat_since_[k] > beat_ticks_) {
+        depth_[k] *= 0.97f;
+      }
+      float clean = 1.0f;
+      if (depth_[k] > kBeatDepth) {
+        clean = kBeatDepth / depth_[k];
+        clean *= clean;
+      }
+      pure_[k] += pure_coeff_ * (clean - pure_[k]);
     }
 
     // The equaliser: the phase of all three stages at x, and what they took
@@ -671,6 +770,8 @@ inline void OctaveBank::tick() {
       if (power_[k] < 4.0f * leak_[k]) own *= pos(power_[k] / leak_[k] - 2.0f) * 0.5f;
     }
     offset[k] = x;
+    width[k] = narrow_hz_[k] + open_[k] * (wide_hz_[k] - narrow_hz_[k]);
+    freq[k] = centre_[k] + x * width[k];
     // A channel's weights are worked out on every other tick (odd and even
     // channels in turn); on every tick just after an onset, and at once
     // when the channel has moved or come on.
@@ -720,7 +821,10 @@ inline void OctaveBank::tick() {
       }
     }
     // A channel that is sitting out does not compete for weight either.
-    sharp[k] = power_[k] * power_[k] * settled[k] * own;
+    // An open channel holds every note near it and is meant to: it is the
+    // settled ones that are turned down for beating.
+    mute[k] = 1.0f - (1.0f - pure_[k]) * (1.0f - open_[k]) * mute_depth_[k];
+    sharp[k] = power_[k] * power_[k] * settled[k] * own * mute[k] * mute[k];
   }
 
   for (int k = 0; k < bands_; ++k) {
@@ -729,8 +833,12 @@ inline void OctaveBank::tick() {
     // ones out to the next grid channels.
     if (!due[k] || (sharp[k] == 0.0f && !live_[k])) continue;
     float total = sharp[k];
-    if (k > 0) total += sharp[k - 1];
-    if (k < bands_ - 1) total += sharp[k + 1];
+    for (int j = k - 1; j <= k + 1; j += 2) {
+      if (j < 0 || j >= bands_) continue;
+      const float d = (freq[k] - freq[j]) / (kSame * 0.5f * (width[k] + width[j]));
+      const float d2 = d * d;
+      total += sharp[j] / (1.0f + d2 * d2);
+    }
     const int below = grid_below_[k], above = grid_above_[k];
     float share = 1.0f;
     // A settled channel between grid channels competes with an open one as
@@ -764,10 +872,10 @@ inline void OctaveBank::tick() {
       const float level2 = slow_[k] * slow_[k];
       if (level2 < power_[k]) target *= std::sqrt(level2 / power_[k]);
     }
-    target *= release;
+    target *= release * mute[k];
     // Too quiet to hear: the channel's voices are switched off (after one
     // ramp to zero) and run_group skips them.
-    if (target * target * power_[k] < kFloor * kFloor) target = 0.0f;
+    if (target * target * power_[k] < floor2) target = 0.0f;
     weight_[k] = target;
     const bool was_live = live_[k];
     // The ramp lasts until the channel is due again.

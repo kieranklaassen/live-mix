@@ -158,13 +158,18 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
   // Lining the join up (see Search): the tape that fades in may start up to
   // 12 ms or 1 % of the loop either side of where it was asked to, at the
   // place where it is most like the tape that fades out. The two are
-  // compared on points about 12 kHz apart; a best place below kAlignFloor
-  // is no better than chance and the join stays where it was asked for.
+  // compared on points about 12 kHz apart. The join moves only for a real
+  // gain: the best place has to be a likeness (kAlignFloor) and better than
+  // the place asked for by kAlignGain, both raised to kAlignChance standard
+  // errors of the measurement when the join is short. Noise, drums and
+  // anything already in step stay exactly where they were.
   static constexpr float kAlignSeconds = 0.012f;
   static constexpr float kAlignShare = 0.01f;
   static constexpr float kAlignRateHz = 12000.0f;
   static constexpr float kAlignFloor = 0.3f;
-  static constexpr float kNudgeCost = 0.03f;   // what the furthest place gives up
+  static constexpr float kAlignGain = 0.15f;
+  static constexpr float kAlignChance = 2.5f;
+  static constexpr float kNudgeCost = 0.05f;   // what the furthest place gives up
   static constexpr int kSearchIn = 10240;      // frames of tape under the search
   static constexpr int kSearchOut = 1536;      // points across the join
   static constexpr int kSearchCopy = 64;       // frames read per control tick
@@ -524,7 +529,9 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     }
     // Take the best place when it is a real likeness and better than the
     // place asked for; otherwise the join stays where it was asked for.
-    const bool worth = s.best_alike >= kAlignFloor && s.best_alike > s.centre_alike + 0.02f;
+    const float chance = kAlignChance / std::sqrt(static_cast<float>(s.points));
+    const bool worth = s.best_alike >= kit::max(kAlignFloor, chance) &&
+                       s.best_alike >= s.centre_alike + kit::max(kAlignGain, chance);
     d.found_offset = static_cast<double>(s.whole + (worth ? s.best_lag : 0));
     d.found_alike = kit::clamp(worth ? s.best_alike : s.centre_alike, kMinAlike, 1.0f);
     d.found = true;

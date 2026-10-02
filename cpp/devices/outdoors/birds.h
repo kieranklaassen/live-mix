@@ -58,7 +58,7 @@ struct Birds {
     // the pitch waver together, and the octave with them) and quickly (a
     // faint hiss around the note).
     kit::Rng air;
-    float slow = 0.0f, fast = 0.0f;
+    float slow = 0.0f, slower = 0.0f, fast = 0.0f;
     float waver = 0.0f, jitter = 0.0f, breath = 0.0f;  // drawn for every syllable
   };
 
@@ -67,7 +67,9 @@ struct Birds {
   float lean = 1.0f;     // register from the key
   float activity = 1.0f; // how keen the whole tree is right now
   int singing = 0;       // how many birds have a syllable sounding
-  // The breath's two one-poles (25 Hz and 800 Hz) and what brings each back to unit level.
+  // The breath's filters (two poles at 25 Hz for the waver, so that it bends
+  // a note and does not roughen it; one at 800 Hz for the hiss) and what
+  // brings each back to unit level.
   float slow_k = 0.0f, slow_norm = 0.0f, fast_k = 0.0f, fast_norm = 0.0f;
 
   void seed(uint32_t base) {
@@ -264,10 +266,12 @@ struct Birds {
   void start(float hz, const Controls& c) {
     lean = key_lean(hz, 0.33f, 0.5f);
     singing = 0;
-    // (Uniform noise has a variance of a third; a one-pole leaves k / (2 - k) of it.)
+    // (Uniform noise has a variance of a third; a one-pole leaves k / (2 - k)
+    // of it, two in a row k^4 (1 + a^2) / (1 - a^2)^3 with a = 1 - k.)
     slow_k = 1.0f - std::exp(-2.0f * kit::kPi * 25.0f / c.sample_rate);
     fast_k = 1.0f - std::exp(-2.0f * kit::kPi * 800.0f / c.sample_rate);
-    slow_norm = std::sqrt(3.0f * (2.0f - slow_k) / slow_k);
+    const float a2 = (1.0f - slow_k) * (1.0f - slow_k), k2 = slow_k * slow_k;
+    slow_norm = std::sqrt(3.0f * (1.0f - a2) * (1.0f - a2) * (1.0f - a2) / (k2 * k2 * (1.0f + a2)));
     fast_norm = std::sqrt(3.0f * (2.0f - fast_k) / fast_k);
     for (int i = 0; i < kBirds; ++i) {
       bird[i].singing = false;
@@ -381,7 +385,7 @@ struct Birds {
     // by a few cents, and a hiss sits about 25 dB under the tone.
     b.waver = between(b.air, 0.05f, 0.16f);
     b.jitter = between(b.air, 0.0015f, 0.0045f);
-    b.breath = between(b.air, 0.04f, 0.10f);
+    b.breath = between(b.air, 0.02f, 0.05f);
     if (!b.singing) ++singing;
     b.singing = true;
   }
@@ -401,8 +405,9 @@ struct Birds {
       if (b.trill_phase >= 1.0f) b.trill_phase -= 1.0f;
       const float white = b.air.bipolar();
       b.slow += (white - b.slow) * slow_k;
+      b.slower += (b.slow - b.slower) * slow_k;
       b.fast += (white - b.fast) * fast_k;
-      const float drift = kit::clamp(b.slow * slow_norm, -2.0f, 2.0f);
+      const float drift = kit::clamp(b.slower * slow_norm, -2.0f, 2.0f);
       b.phase += (b.inc_a + b.u * (b.inc_b + b.u * b.inc_c)) * (1.0f + b.trill_depth * trill) *
                  (1.0f + b.jitter * drift);
       if (b.phase >= 1.0f) b.phase -= 1.0f;

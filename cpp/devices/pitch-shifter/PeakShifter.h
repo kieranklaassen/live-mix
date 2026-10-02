@@ -148,6 +148,7 @@ class PeakShifter {
   static constexpr int kHop = N / 4;
   static constexpr int kVoices = 2;
   static constexpr int kMaxPeaks = N / 6;
+  static constexpr int kWhole = 4;  // shares of the peaks, for work done in pieces
 
   void init() {
     fft_.init();
@@ -167,6 +168,7 @@ class PeakShifter {
     num_peaks_ = 0;
     advance_ = kHop;
     done_ = 0;
+    measured_ = shaped_ = 0;
     loudest_ = 0.0f;
     last_ratio_[0] = last_ratio_[1] = 0.0f;
   }
@@ -217,16 +219,29 @@ class PeakShifter {
   }
 
   void analyse_end() {
+    analyse_find();
+    analyse_measure(kWhole);
+  }
+
+  // analyse_end in pieces: the peaks; then their frequencies, as far as
+  // `share` of kWhole (call again until kWhole).
+  void analyse_find() {
     const float loudest = loudest_;
     num_peaks_ = 0;
+    measured_ = 0;
     const float quiet = 1.0e-6f * static_cast<float>(N / 4);
     if (loudest < quiet * quiet) {  // silence: start afresh so nothing drifts
       for (int k = 0; k <= kHalf; ++k) theta_[0][k] = theta_[1][k] = 0.0f;
       return;
     }
     find_peaks(loudest * kFloor);
-    measure();
-    divide();
+  }
+
+  void analyse_measure(int share) {
+    const int to = share >= kWhole ? num_peaks_ : num_peaks_ * share / kWhole;
+    measure(measured_, to);
+    measured_ = to > measured_ ? to : measured_;
+    if (share >= kWhole) divide();
   }
 
   // Makes voice `v`'s frame for the last analysis, shifted by `ratio` and
@@ -234,27 +249,43 @@ class PeakShifter {
   // frequency (radians per sample) lies in [from, to) are moved; the rest
   // are left out, for another shifter to take.
   void synthesise(int v, float ratio, float from, float to) {
-    shape(v, ratio, from, to);
+    shape_start(v, ratio, from, to);
+    shape_peaks(kWhole);
     finish();
   }
 
-  // The same in pieces: the shifted spectrum; `passes` more of the transform
-  // back (as often as wanted); what is left of it and the window.
-  void shape(int v, float ratio, float from, float to) {
+  // The same in pieces: the shifted spectrum, as far as `share` of kWhole
+  // of the peaks (again until kWhole); `passes` more of the transform back
+  // (as often as wanted); what is left of it and the window.
+  void shape_start(int v, float ratio, float from, float to) {
     done_ = 0;
+    shaped_ = 0;
+    voice_ = v;
+    ratio_ = ratio;
+    from_ = from;
+    to_ = to;
+    // While the ratio moves, the phase runs on at the mean of this frame's
+    // and the last one's, so the two agree halfway between them.
+    run_ = 0.5 * (ratio + (last_ratio_[v] > 0.0f ? last_ratio_[v] : ratio));
+    last_ratio_[v] = ratio;
     for (int n = 0; n < N; ++n) re_[n] = im_[n] = 0.0f;
+  }
+
+  void shape_peaks(int share) {
+    const int v = voice_;
+    const float ratio = ratio_, from = from_, to = to_;
+    const double run = run_;
+    const int last = share >= kWhole ? num_peaks_ : num_peaks_ * share / kWhole;
+    const int first = shaped_;
+    if (last > shaped_) shaped_ = last;
     const float* lr = spectrum_[current_][0];
     const float* li = spectrum_[current_][1];
     const float* rr = spectrum_[current_][2];
     const float* ri = spectrum_[current_][3];
     float* theta = theta_[v];
     const int came = advance_ > 0 ? advance_ : kHop;
-    // While the ratio moves, the phase runs on at the mean of this frame's
-    // and the last one's, so the two agree halfway between them.
-    const double run = 0.5 * (ratio + (last_ratio_[v] > 0.0f ? last_ratio_[v] : ratio));
-    last_ratio_[v] = ratio;
     const float level = 1.0f / (1.5f * N);  // inverse FFT and the squared window at this overlap
-    for (int i = 0; i < num_peaks_; ++i) {
+    for (int i = first; i < last; ++i) {
       const double omega = peak_omega_[i];
       if (omega < from || omega >= to) continue;
       const double target = omega * ratio;
@@ -354,9 +385,9 @@ class PeakShifter {
 
   // The frequency of each peak, from the phase it gained since last frame
   // (left and right together, weighted by their power).
-  void measure() {
+  void measure(int first, int last) {
     const int was = current_ ^ 1;
-    for (int i = 0; i < num_peaks_; ++i) {
+    for (int i = first; i < last; ++i) {
       const int k = peak_bin_[i];
       const double centre = 2.0 * kPi * k / N;
       if (advance_ <= 0) {
@@ -395,6 +426,10 @@ class PeakShifter {
   int num_peaks_ = 0;
   int advance_ = kHop;
   int done_ = 0;          // passes of the transform in hand already made
+  int measured_ = 0, shaped_ = 0;  // peaks already measured, already moved
+  int voice_ = 0;         // the voice being made, and what it was asked for
+  float ratio_ = 1.0f, from_ = 0.0f, to_ = 4.0f;
+  double run_ = 1.0;
   float loudest_ = 0.0f;  // the strongest bin of the frame being analysed
 };
 

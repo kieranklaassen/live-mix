@@ -141,9 +141,11 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     for (int i = 0; i < frames; ++i) {
       float in[2];
       take_input(i, &in[0], &in[1]);
-      const float mono = 0.5f * (in[0] + in[1]);
-      // A NaN or runaway sample must not reach the analysis.
-      input_[position_ & kInputMask] = (mono > -64.0f && mono < 64.0f) ? mono : 0.0f;
+      // A NaN or runaway sample must not reach the analysis, nor pass through
+      // the dry path: not-a-number becomes silence, the rest is held to ±64.
+      in[0] = sane(in[0]);
+      in[1] = sane(in[1]);
+      input_[position_ & kInputMask] = 0.5f * (in[0] + in[1]);
 
       const uint32_t phase = position_ & hop_mask;
       on_sample(phase);
@@ -245,6 +247,12 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
   static constexpr float kProminent = 8.0f;           // ... by this many times in power
   static constexpr float kSmearMakeup = 0.365f;       // frames that no longer add up in phase lose 2.7 dB
   static constexpr int kLobeSteps = 64;
+
+  static constexpr float kInputLimit = 64.0f;
+  static float sane(float v) {
+    if (v > -kInputLimit && v < kInputLimit) return v;
+    return v >= kInputLimit ? kInputLimit : (v <= -kInputLimit ? -kInputLimit : 0.0f);
+  }
 
   int mode() const { return kit::clamp_int(static_cast<int>(param(sustainer::kMode) + 0.5f), 0, 2); }
   bool hold_on() const { return param(sustainer::kHold) >= 0.5f; }
@@ -567,6 +575,9 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     const bool hold = hold_on();
     const bool latch = mode() == kModeLatch;
     if (latch && hold && !hold_seen_) capture_due_ = 0;  // Latch: catch this moment
+    // Latch with Hold switched On in silence caught nothing: it then waits,
+    // and the first sound that comes is the moment (once its attack is over).
+    if (latch && hold && capture_due_ < 0 && loud_ && !engine_busy()) capture_due_ = frame_ + hop_ / 2;
     if (hold && !latch) capture_due_ = -1;               // Auto and Layer: Hold stops listening
     hold_seen_ = hold;
     if (capture_due_ < 0) return;

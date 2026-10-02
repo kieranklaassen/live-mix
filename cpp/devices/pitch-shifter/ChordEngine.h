@@ -221,6 +221,7 @@ class ChordEngine {
   // same amount of work, the transforms cut in two.
   void spread(int piece, const Ring& ring, double base, const float* ratio, bool second) {
     const int all = 12;      // passes of a 4096-point transform
+    const int whole = PeakShifter<kMaxHighSize>::kWhole;
     const float from0 = kit::kTwoPi * split(ratio[0]) / sample_rate_;
     const float from1 = kit::kTwoPi * split(ratio[1]) / sample_rate_;
     switch (piece) {
@@ -231,32 +232,49 @@ class ChordEngine {
       }
       case 1:
         big_.analyse_middle();
-        big_.analyse_end();
+        big_.analyse_find();
+        big_.analyse_measure(whole / 2);
         break;
       case 2:
-        big_.shape(0, ratio[0], from0, 4.0f);
-        big_.turn(all / 6);
+        big_.analyse_measure(whole);
+        big_.shape_start(0, ratio[0], from0, 4.0f);
+        big_.shape_peaks(3 * whole / 4);
         break;
       case 3:
-        big_.finish();
-        add_high(big_, 0);
+        big_.shape_peaks(whole);
+        big_.turn(2 * all / 3);
         break;
       case 4:
+        big_.finish();
+        add_high(big_, 0);
         if (second) {
-          big_.shape(1, ratio[1], from1, 4.0f);
-          big_.turn(all / 6);
+          big_.shape_start(1, ratio[1], from1, 4.0f);
+          big_.shape_peaks(whole / 2);
         }
         break;
       case 5:
         if (second) {
-          big_.finish();
-          add_high(big_, 1);
+          big_.shape_peaks(whole);
+          big_.turn(all / 2);
         }
         break;
       case 6:
-        break;  // spare
+        if (second) {
+          big_.finish();
+          add_high(big_, 1);
+        }
+        if (step_ / hop_ == 1) low_.analyse_measure(whole);  // the long window's frame, finished
+        break;
       default:
-        low_step(base, ratio, second);
+        // The long window's frame is the dearest single step: its peaks are
+        // measured in the next hop's piece 6, before the first voice wants them.
+        if (step_ / hop_ == 0) {
+          low_.analyse_begin(frame_[0], frame_[1], fetch_low(base), 11);
+          low_.analyse_middle();
+          low_.analyse_find();
+        } else {
+          low_step(base, ratio, second);
+        }
         break;
     }
   }
@@ -276,14 +294,18 @@ class ChordEngine {
   static float split(float ratio) { return kit::min(kSplitHz, kLowTopHz / ratio); }
 
   // The long window, at the reduced rate.
-  void hear_low(double base) {
+  void hear_low(double base) { low_.analyse(frame_[0], frame_[1], fetch_low(base)); }
+
+  // A frame of the long window off the reduced-rate copy; returns its
+  // spacing from the last.
+  int fetch_low(double base) {
     const int back = static_cast<int>(base / down_ + 0.5);
     for (int n = 0; n < kLowSize; ++n) {
       frame_[0][n] = slow_[0].read(back + kLowSize - n);
       frame_[1][n] = slow_[1].read(back + kLowSize - n);
     }
-    low_.analyse(frame_[0], frame_[1], spacing(kLowHop, back, &low_base_));
     low_frame_ = low_time_;
+    return spacing(kLowHop, back, &low_base_);
   }
 
   void voice_low(int v, float ratio) {
