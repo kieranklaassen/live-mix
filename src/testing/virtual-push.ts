@@ -305,6 +305,15 @@ export class VirtualPush {
     this.palette = defaultPalette()
     this.applied = defaultPalette()
     this.heldPads.clear()
+    this.stripLedLevels = new Array<number>(PUSH_TOUCH_STRIP_LEDS).fill(0)
+    this.stripPosition = 0.5
+    this.ledBrightnessValue = 127
+    this.displayBrightnessValue = 255
+    this.clockStarted = false
+    // A frame half sent when the cable went is not pixels of the next one.
+    this.frameBuffer = null
+    this.frameFill = 0
+    this.lastFrame = null
     for (const entry of [...this.access.inputs.values(), ...this.access.outputs.values()]) {
       entry.state = 'connected'
       this.access.onstatechange?.({ port: entry })

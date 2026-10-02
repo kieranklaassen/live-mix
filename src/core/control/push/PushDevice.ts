@@ -320,23 +320,24 @@ export class PushDevice {
     if (names.length > PUSH_PALETTE_SIZE) {
       throw new RangeError(`live-mix: a Push palette holds ${PUSH_PALETTE_SIZE} app colours`)
     }
-    // These are the app's colours now: a name left out has no index any more.
-    this.colors.clear()
-    this.colorValues.clear()
     const fresh: number[] = []
-    names.forEach((name, i) => {
+    for (let i = 0; i < names.length; i += 1) {
       const index = PUSH_PALETTE_FIRST + i
       if (!this.saved.some((entry) => entry.index === index)) fresh.push(index)
-      this.colorValues.set(name, colors[name])
-    })
+    }
     for (const index of fresh) {
       if (!this.sysex) break
       const reply = await this.command(PUSH_COMMANDS.getPaletteEntry, [index], true)
       const entry = reply ? parsePushPaletteEntry(reply) : null
       if (entry) this.saved.push(entry)
     }
+    // These are the app's colours now: a name left out has no index any more.
+    // The old names hold until here, so no name is black while the reads run.
+    this.colors.clear()
+    this.colorValues.clear()
     names.forEach((name, i) => {
       const color = colors[name]
+      this.colorValues.set(name, color)
       if (this.sysex) {
         const index = PUSH_PALETTE_FIRST + i
         this.colors.set(name, index)
