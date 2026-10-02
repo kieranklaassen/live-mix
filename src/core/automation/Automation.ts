@@ -9,7 +9,12 @@
 
 import { type Clock, type IntervalId } from '../clock'
 import { type Transport, type TransportChange } from '../transport/Transport'
-import { LaneWriter, laneWindowFrom, type LaneWriterOptions } from './LaneWriter'
+import {
+  LaneWriter,
+  laneWindowFrom,
+  type LaneTransport,
+  type LaneWriterOptions,
+} from './LaneWriter'
 import { ModMatrix, type ModMatrixOptions } from './ModMatrix'
 import { type ParamLane } from './ParamLane'
 import { type ScheduledParam } from './scheduled-param'
@@ -22,6 +27,15 @@ export interface AutomationOptions {
   /** How far ahead lanes are written. Default 0.2 s. */
   lookaheadSec?: number
   modulation?: ModMatrixOptions
+}
+
+export interface AutomationLaneOptions extends LaneWriterOptions {
+  /**
+   * The clock the lane's breakpoints are placed on, read on every pass: a
+   * track's own loop (`AudioTrack.timebase`), so a lane on that track comes
+   * round with its clips. Absent, or returning undefined: the transport.
+   */
+  timebase?: () => LaneTransport | undefined
 }
 
 export const DEFAULT_AUTOMATION_LOOKAHEAD_SECONDS = 0.2
@@ -49,6 +63,8 @@ export class Automation {
   private readonly transport: Transport
   private readonly clock: Clock
   private readonly writerSet = new Set<LaneWriter>()
+  // Writers whose lane runs on a clock of its own rather than the transport's.
+  private readonly timebases = new Map<LaneWriter, () => LaneTransport | undefined>()
   private timer: IntervalId | null = null
   private readonly unsubscribe: () => void
   private disposed = false
@@ -74,16 +90,19 @@ export class Automation {
   }
 
   /** Drive `param` from `lane` while the transport plays. */
-  add(lane: ParamLane, param: ScheduledParam, options: LaneWriterOptions = {}): LaneWriter {
+  add(lane: ParamLane, param: ScheduledParam, options: AutomationLaneOptions = {}): LaneWriter {
     if (this.disposed) throw new Error('live-mix: automation is disposed')
-    const writer = new LaneWriter(lane, param, options)
+    const { timebase, ...writerOptions } = options
+    const writer = new LaneWriter(lane, param, writerOptions)
     this.writerSet.add(writer)
+    if (timebase) this.timebases.set(writer, timebase)
     this.ensureRunning()
     return writer
   }
 
   remove(writer: LaneWriter): void {
     this.writerSet.delete(writer)
+    this.timebases.delete(writer)
   }
 
   /**
@@ -95,7 +114,10 @@ export class Automation {
     const contextTimeSec = this.clock.now()
     if (this.transport.state === 'playing') {
       const window = laneWindowFrom(this.transport, this.lookaheadSec)
-      for (const writer of this.writerSet) writer.tick(window)
+      for (const writer of this.writerSet) {
+        const own = this.timebases.get(writer)?.()
+        writer.tick(own ? laneWindowFrom(own, this.lookaheadSec) : window)
+      }
       this.modulation.update({ playheadSec: window.playheadSec, contextTimeSec })
       return
     }
@@ -111,6 +133,7 @@ export class Automation {
     this.unsubscribe()
     this.stopTimer()
     this.writerSet.clear()
+    this.timebases.clear()
   }
 
   private onTransportChange(change: TransportChange): void {

@@ -283,3 +283,142 @@ describe('Transport change notifications', () => {
     expect(seen).toEqual(['start'])
   })
 })
+
+describe('Transport elapsed: the whole run of the timeline', () => {
+  it('follows the position while the loop is off', () => {
+    const { ctx, transport } = build()
+    expect(transport.elapsed()).toBe(0)
+    ctx.currentTime = 10
+    transport.seek(3)
+    expect(transport.elapsed()).toBe(3)
+    transport.start()
+    ctx.currentTime = 12.5
+    expect(transport.elapsed()).toBe(5.5)
+    expect(transport.elapsed(11)).toBe(4)
+  })
+
+  it('counts every pass in, so it does not come back to 0 when the loop wraps', () => {
+    const { ctx, transport } = build({ enabled: true, lengthSec: 4 })
+    transport.start()
+    ctx.currentTime = 9.5
+    expect(transport.position().positionSec).toBe(1.5)
+    expect(transport.elapsed()).toBe(9.5)
+  })
+
+  it('is kept over a pause, though the pass number is not', () => {
+    const { ctx, transport } = build({ enabled: true, lengthSec: 4 })
+    transport.start()
+    ctx.currentTime = 9.5
+    transport.pause()
+    ctx.currentTime = 60
+    expect(transport.elapsed()).toBe(9.5)
+    transport.start()
+    expect(transport.anchor?.iteration).toBe(3)
+    ctx.currentTime = 61
+    expect(transport.elapsed()).toBe(10.5)
+    expect(transport.position().positionSec).toBe(2.5)
+  })
+
+  it('moves with a seek by as much as the position does: the passes before stay counted', () => {
+    const { ctx, transport } = build({ enabled: true, lengthSec: 4 })
+    transport.start()
+    ctx.currentTime = 9.5
+    transport.seek(3)
+    expect(transport.elapsed()).toBe(11)
+    transport.seek(0.5)
+    expect(transport.elapsed()).toBe(8.5)
+    ctx.currentTime = 10
+    expect(transport.elapsed()).toBe(9)
+    transport.pause()
+    transport.seek(2)
+    expect(transport.elapsed()).toBe(10)
+  })
+
+  it('never goes below 0', () => {
+    const { transport } = build({ enabled: true, lengthSec: 4 })
+    transport.seek(3)
+    transport.seek(1)
+    expect(transport.elapsed()).toBe(1)
+    transport.seek(0)
+    expect(transport.elapsed()).toBe(0)
+  })
+
+  it('goes back to 0 on stop, the origin of the timeline', () => {
+    const { ctx, transport, changes } = build({ enabled: true, lengthSec: 4 })
+    transport.start()
+    ctx.currentTime = 9.5
+    transport.stop()
+    expect(transport.elapsed()).toBe(0)
+    expect(transport.position().positionSec).toBe(0)
+    // Stopped at position 0 a whole number of passes in is still not the origin.
+    transport.seekElapsed(8)
+    expect(transport.position().positionSec).toBe(0)
+    changes.length = 0
+    transport.stop()
+    expect(transport.elapsed()).toBe(0)
+    expect(changes.map((change) => change.reason)).toEqual(['stop'])
+  })
+
+  it('is set by seekElapsed, which puts the position where that falls in the loop', () => {
+    const { ctx, transport, changes } = build({ enabled: true, lengthSec: 4 })
+    transport.seekElapsed(9.5)
+    expect(transport.position().positionSec).toBe(1.5)
+    expect(transport.elapsed()).toBe(9.5)
+    expect(changes.map((change) => change.reason)).toEqual(['seek'])
+    transport.start()
+    ctx.currentTime = 1
+    expect(transport.elapsed()).toBe(10.5)
+    transport.seekElapsed(0)
+    expect(transport.state).toBe('playing')
+    expect(transport.anchor).toEqual({ contextTime: 1, positionSec: 0, iteration: 1 })
+    expect(transport.elapsed()).toBe(0)
+    expect(() => transport.seekElapsed(Number.NaN)).toThrow(RangeError)
+  })
+
+  it('is held to the timeline by seekElapsed while the loop is off', () => {
+    const { transport } = build({ enabled: false, lengthSec: 8 })
+    transport.seekElapsed(20)
+    expect(transport.position().positionSec).toBe(8)
+    expect(transport.elapsed()).toBe(8)
+  })
+
+  it('carries over a loop toggle, and moves with the position when a shorter loop folds it', () => {
+    const { ctx, transport } = build({ enabled: true, lengthSec: 4 })
+    transport.start()
+    ctx.currentTime = 9.5
+    transport.setLoop({ enabled: false, lengthSec: 4 })
+    expect(transport.position().positionSec).toBe(1.5)
+    expect(transport.elapsed()).toBe(9.5)
+    ctx.currentTime = 10
+    expect(transport.elapsed()).toBe(10)
+    transport.setLoop({ enabled: true, lengthSec: 4 })
+    expect(transport.elapsed()).toBe(10)
+    ctx.currentTime = 11
+    // Position 3 of a 4 s loop is position 1 of a 2 s one: two seconds back.
+    transport.setLoop({ lengthSec: 2 })
+    expect(transport.position().positionSec).toBe(1)
+    expect(transport.elapsed()).toBe(9)
+  })
+
+  it('maps a point on the run back to the audio clock', () => {
+    const { ctx, transport } = build({ enabled: true, lengthSec: 4 })
+    ctx.currentTime = 100
+    transport.seekElapsed(9)
+    transport.start()
+    expect(transport.contextTimeAtElapsed(9)).toBe(100)
+    expect(transport.contextTimeAtElapsed(12)).toBe(103)
+    expect(transport.contextTimeAtElapsed(21.5)).toBe(112.5)
+    ctx.currentTime = 107
+    expect(transport.elapsed()).toBe(16)
+    expect(transport.contextTimeAtElapsed(16)).toBe(107)
+  })
+
+  it('maps it with the loop off too, and refuses while not playing', () => {
+    const { ctx, transport } = build()
+    expect(() => transport.contextTimeAtElapsed(0)).toThrow(/not playing/)
+    ctx.currentTime = 50
+    transport.seek(2)
+    transport.start()
+    expect(transport.contextTimeAtElapsed(7.5)).toBe(55.5)
+  })
+})

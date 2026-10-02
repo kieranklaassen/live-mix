@@ -51,6 +51,7 @@ import {
 import { mirrorSlice } from '../clips/reverse'
 import { type ClipWindow } from '../clips/window'
 import { scheduleKey, type ScheduledStart } from '../transport/anchor'
+import { Cycle, type Timebase } from '../transport/Cycle'
 import { type Schedulable, type Scheduler } from '../transport/Scheduler'
 import {
   ChannelStrip,
@@ -202,6 +203,8 @@ export interface AudioTrackOptions {
   resolveSource?: (clip: Clip) => SampleSource | undefined
   /** Register with this scheduler on construction. */
   scheduler?: Scheduler
+  /** A loop length of the track's own (`AudioTrack.loopLengthSec`). Default: the transport's loop. */
+  loopLengthSec?: number | null
   /**
    * The impulse response of the space this track's clips send into
    * (`Clip.spaceDb`), read when a clip first does. An engine hands every
@@ -231,6 +234,9 @@ export class AudioTrack implements StripHost {
   private disposed = false
   // What each placed voice's nodes were last told.
   private readonly placed = new WeakMap<ClipVoice, PlacedNodes>()
+  private ownLoopSec: number | null = null
+  // The track's own loop on the attached scheduler's transport; null while it follows the transport's.
+  private cycle: Cycle | null = null
 
   /** The Schedulable that hands clip starts to the graph. */
   readonly playback: Schedulable
@@ -266,14 +272,17 @@ export class AudioTrack implements StripHost {
         cancelPending: () => this.stopPending(),
         cancelAll: (fadeSec) => this.stopAll(fadeSec > 0 ? { at: this.now() + fadeSec } : {}),
       },
-      { joinsLate: true, keeps: (key) => this.keeps(key) },
+      { joinsLate: true, keeps: (key) => this.keeps(key), timebase: () => this.timebase },
     )
     this.preload = new TrackSchedulable(
       () => this.preloadSec,
       () => this.clips.audible(),
       (start) => this.preloadStart(start),
+      {},
+      { timebase: () => this.timebase },
     )
 
+    if (options.loopLengthSec != null) this.ownLoopSec = validateLoopLength(options.loopLengthSec)
     if (options.scheduler) this.attach(options.scheduler)
   }
 
@@ -282,6 +291,7 @@ export class AudioTrack implements StripHost {
     if (this.scheduler === scheduler) return
     this.detach()
     this.scheduler = scheduler
+    if (this.ownLoopSec !== null) this.cycle = new Cycle(scheduler.transport, this.ownLoopSec)
     this.unregister = [scheduler.register(this.preload), scheduler.register(this.playback)]
   }
 
@@ -289,6 +299,40 @@ export class AudioTrack implements StripHost {
     for (const off of this.unregister) off()
     this.unregister = []
     this.scheduler = null
+    this.cycle = null
+  }
+
+  /**
+   * A loop length of the track's own, in timeline seconds, or null to follow
+   * the transport's loop. A track with one repeats its clips at that length
+   * over the time the transport has run (`Transport.elapsed`), whether or not
+   * the transport loops: a clip at `startSec` sounds at `startSec`, then one
+   * length later, and so on, so tracks of different lengths start together
+   * at the timeline's origin and slide apart. Its lanes can follow
+   * (`Automation.add` with this track's `timebase`). Set while playing, the
+   * track moves over at once: what sounds fades out and the clips the new
+   * loop is inside are entered there. Only a track on a scheduler has a
+   * loop to run on.
+   */
+  get loopLengthSec(): number | null {
+    return this.ownLoopSec
+  }
+
+  set loopLengthSec(lengthSec: number | null) {
+    const next = lengthSec === null ? null : validateLoopLength(lengthSec)
+    if (next === this.ownLoopSec) return
+    this.ownLoopSec = next
+    if (!this.scheduler) return
+    if (next === null) this.cycle = null
+    else if (this.cycle) this.cycle.lengthSec = next
+    else this.cycle = new Cycle(this.scheduler.transport, next)
+    // The scheduler sees the other clock on its next pass; this is that pass.
+    this.scheduler.refresh()
+  }
+
+  /** The clock the track's clips are placed on when it has a loop of its own; undefined on the transport's. */
+  get timebase(): Timebase | undefined {
+    return this.cycle ?? undefined
   }
 
   /** Live voices, in start order. */
@@ -812,6 +856,7 @@ function wrapIntoRegion(sourceSec: number, startSec: number, endSec: number): nu
 /** A Schedulable whose lookahead and clips are read live from the track. */
 export class TrackSchedulable implements Schedulable {
   private readonly readLookahead: () => number
+  private readonly readTimebase: () => Timebase | undefined
   readonly joinsLate: boolean
   readonly clips: () => ClipWindow['clips']
   readonly schedule: (start: ScheduledStart, when: number, joining?: boolean) => boolean
@@ -825,9 +870,14 @@ export class TrackSchedulable implements Schedulable {
     clips: () => ClipWindow['clips'],
     schedule: (start: ScheduledStart, when: number, joining?: boolean) => boolean,
     cancels: Partial<Pick<Schedulable, 'cancel' | 'cancelPending' | 'cancelAll'>> = {},
-    options: { joinsLate?: boolean; keeps?: (key: string) => boolean } = {},
+    options: {
+      joinsLate?: boolean
+      keeps?: (key: string) => boolean
+      timebase?: () => Timebase | undefined
+    } = {},
   ) {
     this.readLookahead = readLookahead
+    this.readTimebase = options.timebase ?? (() => undefined)
     this.joinsLate = options.joinsLate ?? false
     this.keeps = options.keeps
     this.clips = clips
@@ -840,6 +890,17 @@ export class TrackSchedulable implements Schedulable {
   get lookaheadSec(): number {
     return this.readLookahead()
   }
+
+  get timebase(): Timebase | undefined {
+    return this.readTimebase()
+  }
+}
+
+function validateLoopLength(lengthSec: number): number {
+  if (!Number.isFinite(lengthSec) || lengthSec <= 0) {
+    throw new RangeError(`AudioTrack: loopLengthSec must be a positive number, got ${lengthSec}`)
+  }
+  return lengthSec
 }
 
 export type { ClipWindow }

@@ -52,6 +52,12 @@ export class Transport {
   private currentAnchor: TransportAnchor | null = null
   private idlePositionSec = 0
   private idleIteration = 0
+  // How far the timeline has run since its origin, while idle (see `elapsed`).
+  private idleElapsedSec = 0
+  // While playing: what to add to the anchor's own count of the timeline
+  // (passes times the loop length, plus the position) to get `elapsed`. Set
+  // once per pin, so it holds however the anchor is moved along afterwards.
+  private elapsedOffsetSec = 0
   // Loop passes are numbered across anchors so a re-pin cannot reuse a number.
   private nextIteration = 0
   private readonly listeners = new Set<TransportListener>()
@@ -106,6 +112,36 @@ export class Transport {
   }
 
   /**
+   * How far the timeline has run since its origin, in timeline seconds: the
+   * position with every pass before it counted in, so it does not come back
+   * to 0 when the loop wraps. A pause keeps it, a `seek` moves it by as much
+   * as it moves the position (the passes before stay counted), `seekElapsed`
+   * sets it, and `stop` puts it back to 0. With the loop off it follows the
+   * position. It is the clock a `Cycle` (a loop of its own length) runs on,
+   * and `Math.floor(elapsed() / loop.lengthSec)` is how many passes of the
+   * transport's loop have gone by.
+   */
+  elapsed(contextTime = this.clock()): number {
+    if (!this.currentAnchor) return this.idleElapsedSec
+    return this.elapsedOffsetSec + this.counted(this.position(contextTime))
+  }
+
+  /**
+   * Audio-clock time at which `elapsed()` reaches `elapsedSec` under the
+   * current anchor: `contextTimeAt` for a point on the whole run of the
+   * timeline rather than in one pass of the loop.
+   */
+  contextTimeAtElapsed(elapsedSec: number): number {
+    const anchor = this.currentAnchor
+    if (!anchor) throw new Error('Transport.contextTimeAtElapsed: the transport is not playing')
+    const countedSec = elapsedSec - this.elapsedOffsetSec
+    if (!isLooping(this.currentLoop)) return this.contextTimeAt(countedSec)
+    const length = this.currentLoop.lengthSec
+    const iteration = Math.floor(countedSec / length)
+    return this.contextTimeAt(countedSec - iteration * length, iteration)
+  }
+
+  /**
    * Starts playing from the current position, pinning the anchor at `at` on
    * the audio clock (default: now; past times are clamped to now, as in
    * `AudioScheduledSourceNode.start`). No-op while already playing.
@@ -126,11 +162,21 @@ export class Transport {
     this.emit(position.finished ? 'end' : 'pause')
   }
 
-  /** Returns to position 0. `fadeSec` is passed on to listeners for their fade-out. */
+  /**
+   * Returns to position 0, the timeline's origin (`elapsed()` is 0 again).
+   * `fadeSec` is passed on to listeners for their fade-out.
+   */
   stop(options: StopOptions = {}): void {
-    if (this.currentState === 'stopped' && this.idlePositionSec === 0) return
+    if (
+      this.currentState === 'stopped' &&
+      this.idlePositionSec === 0 &&
+      this.idleElapsedSec === 0
+    ) {
+      return
+    }
     if (this.currentAnchor) this.unpin()
     this.idlePositionSec = 0
+    this.idleElapsedSec = 0
     this.currentState = 'stopped'
     this.emit('stop', Math.max(0, options.fadeSec ?? 0))
   }
@@ -138,16 +184,32 @@ export class Transport {
   /**
    * Moves the position. Wraps into the loop when looping, clamps to
    * `[0, lengthSec]` otherwise. While playing the transport is re-pinned to
-   * now with a fresh pass number.
+   * now with a fresh pass number. `elapsed()` moves by as much as the
+   * position does: a seek is a move within the pass the transport is in.
    */
   seek(positionSec: number): void {
     const target = this.normalisePosition(positionSec)
-    if (this.currentAnchor) {
-      this.unpin()
-      this.pin(this.clock(), target)
-    } else {
-      this.idlePositionSec = target
-    }
+    if (this.currentAnchor) this.unpin()
+    this.moveTo(target)
+    if (this.currentState === 'playing') this.pin(this.clock(), target)
+    this.emit('seek')
+  }
+
+  /**
+   * Moves to a point on the whole run of the timeline: `elapsed()` becomes
+   * `elapsedSec`, and the position is where that falls in the loop (or the
+   * same second, clamped to the timeline, with the loop off). `seekElapsed(0)`
+   * is the origin, where every `Cycle` is at its own start. Listeners hear a
+   * `seek`.
+   */
+  seekElapsed(elapsedSec: number): void {
+    if (Number.isNaN(elapsedSec)) throw new RangeError('Transport: elapsed must be a number')
+    const target = this.normalisePosition(Math.max(0, elapsedSec))
+    if (this.currentAnchor) this.unpin()
+    this.idlePositionSec = target
+    // With the loop off the timeline may end short of what was asked for.
+    this.idleElapsedSec = isLooping(this.currentLoop) ? Math.max(0, elapsedSec) : target
+    if (this.currentState === 'playing') this.pin(this.clock(), target)
     this.emit('seek')
   }
 
@@ -160,14 +222,12 @@ export class Transport {
     ) {
       return
     }
-    if (this.currentAnchor) {
-      const position = this.unpin()
-      this.currentLoop = next
-      this.pin(this.clock(), this.normalisePosition(position.positionSec))
-    } else {
-      this.currentLoop = next
-      this.idlePositionSec = this.normalisePosition(this.idlePositionSec)
-    }
+    if (this.currentAnchor) this.unpin()
+    this.currentLoop = next
+    // Folded into a shorter loop, the position moves and `elapsed()` with it.
+    const target = this.normalisePosition(this.idlePositionSec)
+    this.moveTo(target)
+    if (this.currentState === 'playing') this.pin(this.clock(), target)
     this.emit('loop')
   }
 
@@ -181,17 +241,36 @@ export class Transport {
 
   private pin(contextTime: number, positionSec: number): void {
     this.currentAnchor = { contextTime, positionSec, iteration: this.nextIteration }
+    this.elapsedOffsetSec = this.idleElapsedSec - this.counted(this.currentAnchor)
     this.nextIteration += 1
   }
 
   /** Drops the anchor, freezing the position it reported and retiring its pass number. */
   private unpin(): TransportPosition {
-    const position = this.position()
+    const now = this.clock()
+    const position = this.position(now)
+    this.idleElapsedSec = this.elapsed(now)
     this.currentAnchor = null
     this.idlePositionSec = position.positionSec
     this.idleIteration = position.iteration
     this.nextIteration = Math.max(this.nextIteration, position.iteration + 1)
     return position
+  }
+
+  /** Puts the idle position at `positionSec`, carrying `elapsed()` along by the same amount. */
+  private moveTo(positionSec: number): void {
+    this.idleElapsedSec = Math.max(0, this.idleElapsedSec + positionSec - this.idlePositionSec)
+    this.idlePositionSec = positionSec
+  }
+
+  /**
+   * The timeline as the anchor's own numbers count it: every numbered pass a
+   * loop long, plus the position. It differs from `elapsed()` by a constant
+   * while one anchor (or one moved along in place) is pinned.
+   */
+  private counted(at: { positionSec: number; iteration: number }): number {
+    if (!isLooping(this.currentLoop)) return at.positionSec
+    return at.iteration * this.currentLoop.lengthSec + at.positionSec
   }
 
   private normalisePosition(sec: number): number {

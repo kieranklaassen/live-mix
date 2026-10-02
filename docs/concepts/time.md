@@ -29,6 +29,54 @@ start is identified for ever by `clipId:iteration:startSec`. With the loop off
 and a `lengthSec` set, the transport pauses at the end (reason `end`,
 `position().finished`); with no length it runs on.
 
+Beside the position inside a pass, the transport counts **how far the
+timeline has run since its origin**: `t.elapsed()`, in timeline seconds, with
+every pass before the present one counted in, so it does not come back to 0
+when the loop wraps. A pause keeps it. A `seek` moves it by as much as it
+moves the position (a seek is a move within the pass the transport is in);
+`t.seekElapsed(sec)` puts it anywhere on the run, with the position where
+that falls in the loop; `stop()` puts it back to 0. `t.contextTimeAtElapsed`
+is `contextTimeAt` for a point on the run. `Math.floor(t.elapsed() /
+loop.lengthSec)` is the number of passes gone by, a count that survives a
+pause and a seek where `iteration` (a name, not a count) does not.
+
+## Loops of their own length
+
+The transport has one loop. A `Cycle` is another, of any length, on the same
+timeline: where the transport has run `elapsed()` seconds, the cycle is at
+`elapsed() % lengthSec` of its own pass. An audio track follows one when it
+is given a loop length:
+
+```ts
+const a = engine.addAudioTrack('a', { loopLengthSec: 23.5 })
+const b = engine.addAudioTrack('b', { loopLengthSec: 25.9 })
+b.loopLengthSec = 29.9 // while playing: moves over at once
+b.loopLengthSec = null // back on the transport's loop
+```
+
+Such a track repeats its clips at that length over the time the transport has
+run, whether or not the transport loops: a clip at `startSec` sounds at
+`startSec`, one length later, and so on. Tracks of different lengths start
+together at the origin (`elapsed() === 0`, where `stop()` and
+`seekElapsed(0)` put the transport), slide apart, and are all at their starts
+again when the elapsed time is a multiple of every length. That is how tape
+loops of unequal length are made (Brian Eno describes loops of about 23.5,
+25.9 and 29.9 s on _Music for Airports_).
+
+A cycle is the slice of `Transport` the scheduler reads (`Timebase`:
+`position`, `anchor`, `loop`, `contextTimeAt`) and keeps no clock of its own,
+so everything above holds on it as it does on the transport: catch-up after a
+stalled timer, the first window from the anchor, entering what is under the
+position, `rejoin`. Its passes are numbered like the transport's, never
+reused. A schedulable names its clock with `Schedulable.timebase`; when that
+is swapped, or the cycle's length changes, the scheduler lets go of what it
+handed over on the old clock (what sounds fades over 5 ms) and enters the
+clips the new one stands inside. A lane follows a track's loop when
+`Automation.add` is given the track's `timebase`; the score renderer does
+that for every lane on the track's strip, inserts and device. In a score the
+length is the audio track's `loopLengthSec`, set with the `track.loop`
+operation. Stretch tracks and element tracks follow the transport's loop.
+
 ## The scheduler
 
 One `Scheduler` loop runs on a timer (never `requestAnimationFrame`: background

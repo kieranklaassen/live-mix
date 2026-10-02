@@ -650,6 +650,7 @@ export function arbiterTargets(op: Operation): string[] {
       return [`strip:${op.track.id}`]
     case 'track.remove':
     case 'track.move':
+    case 'track.loop':
     case 'group.remove':
     case 'group.move':
     case 'return.remove':

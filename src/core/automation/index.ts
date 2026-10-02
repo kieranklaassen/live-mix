@@ -66,5 +66,6 @@ export {
 export {
   Automation,
   DEFAULT_AUTOMATION_LOOKAHEAD_SECONDS,
+  type AutomationLaneOptions,
   type AutomationOptions,
 } from './Automation'

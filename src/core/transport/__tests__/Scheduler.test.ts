@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { type ClipWindow } from '../../clips/window'
 import { MockAudioContext, advance, configureMocks } from '../../../testing'
 import { scheduleKey, type ScheduledStart, type TransportLoop } from '../anchor'
+import { Cycle } from '../Cycle'
 import { DEFAULT_TICK_MS, REJOIN_FADE_SECONDS, Scheduler, type Schedulable } from '../Scheduler'
 import { Transport } from '../Transport'
 
@@ -860,5 +861,168 @@ describe('Scheduler joins clips the position is inside', () => {
       scheduler.refresh()
       expect(track.cancelled).toEqual([])
     })
+  })
+})
+
+describe('Scheduler runs a schedulable on a clock of its own', () => {
+  /** A track on a cycle, which can enter a clip partway and is told when it is asked to. */
+  class CycleTrack extends FakeTrack {
+    readonly joinsLate = true
+    timebase: Cycle | undefined
+    readonly faded: [string, number | undefined][] = []
+    kept: string | null = null
+
+    override schedule(start: ScheduledStart, when: number, joining?: boolean): boolean {
+      if (!super.schedule(start, when)) return false
+      this.handed[this.handed.length - 1].joining = joining === true
+      return true
+    }
+
+    override cancel(key: string, fadeSec?: number): void {
+      super.cancel(key)
+      this.faded.push([key, fadeSec])
+    }
+
+    keeps(key: string): boolean {
+      return key === this.kept
+    }
+
+    whens(): [string, number][] {
+      return this.handed.map((entry) => [entry.key, round(entry.when)])
+    }
+  }
+
+  const tape = [{ id: 'note', startSec: 5, durationSec: 2 }]
+
+  function buildCycles(lengthSec: number | null, loop: TransportLoop = LOOP) {
+    const ctx = new MockAudioContext()
+    ctx.currentTime = 100
+    const transport = new Transport({ now: () => ctx.currentTime, loop })
+    const scheduler = new Scheduler({ transport })
+    const track = new CycleTrack(ctx, 0.2, tape)
+    // The track's own loop; it only runs on it when a length was asked for.
+    const cycle = new Cycle(transport, lengthSec ?? 10)
+    if (lengthSec !== null) track.timebase = cycle
+    const main = new CycleTrack(ctx, 0.2, tape)
+    scheduler.register(track)
+    scheduler.register(main)
+    return { ctx, transport, scheduler, track, main, cycle }
+  }
+
+  it('repeats its clips at the cycle length while the transport loop runs on at its own', async () => {
+    const { ctx, transport, track, main } = buildCycles(10)
+    transport.start()
+    await advance(ctx, 40)
+    expect(track.whens()).toEqual([
+      ['note:0:5.000', 105],
+      ['note:1:5.000', 115],
+      ['note:2:5.000', 125],
+      ['note:3:5.000', 135],
+    ])
+    expect(main.whens()).toEqual([
+      ['note:0:5.000', 105],
+      ['note:1:5.000', 137],
+    ])
+  })
+
+  it('repeats them on a transport that does not loop', async () => {
+    const { ctx, transport, track, main } = buildCycles(10, { enabled: false, lengthSec: Infinity })
+    transport.start()
+    await advance(ctx, 30)
+    expect(track.whens().map(([, when]) => when)).toEqual([105, 115, 125])
+    expect(main.whens().map(([, when]) => when)).toEqual([105])
+  })
+
+  it('enters a clip the cycle is inside when the transport starts, though the transport is not', () => {
+    const { transport, track, main } = buildCycles(10)
+    // 26 s in: position 26 of the transport's pass, 6 of the cycle's third.
+    transport.seekElapsed(26)
+    transport.start()
+    expect(track.handed.map((entry) => [entry.key, round(entry.when), entry.joining])).toEqual([
+      ['note:0:5.000', 99, true],
+    ])
+    expect(main.handed).toEqual([])
+  })
+
+  it('catches up on the cycle after a stalled timer, across its own seams', async () => {
+    const { ctx, transport, scheduler, track } = buildCycles(10)
+    transport.start()
+    await advance(ctx, 1)
+    ctx.currentTime = 127
+    scheduler.tick()
+    expect(track.whens()).toEqual([
+      ['note:0:5.000', 105],
+      ['note:1:5.000', 115],
+      ['note:2:5.000', 125],
+    ])
+  })
+
+  it('rejoins a clip where the cycle is inside it', () => {
+    const { ctx, transport, scheduler, track } = buildCycles(10)
+    transport.start()
+    ctx.currentTime = 116
+    scheduler.tick()
+    scheduler.rejoin(['note'])
+    expect(track.handed.at(-1)).toMatchObject({ key: 'note:1:5.000', when: 115, joining: true })
+  })
+
+  it('moves over when the cycle is given another length: lets go and enters where it now stands', () => {
+    const { ctx, transport, scheduler, track, cycle } = buildCycles(10)
+    transport.start()
+    ctx.currentTime = 105.5
+    scheduler.tick()
+    expect(track.keys()).toEqual(['note:0:5.000'])
+    ctx.currentTime = 112
+    cycle.lengthSec = 6
+    scheduler.refresh()
+    // 12 s in is the start of the 6 s cycle's third pass: nothing under it, the note 5 s off.
+    expect(track.faded).toEqual([['note:0:5.000', REJOIN_FADE_SECONDS]])
+    ctx.currentTime = 116.9
+    scheduler.tick()
+    expect(track.handed.at(-1)).toMatchObject({ when: 117, joining: false })
+    ctx.currentTime = 118
+    cycle.lengthSec = 12
+    scheduler.refresh()
+    // 18 s in is 6 s into the 12 s cycle's second pass: inside the note.
+    expect(track.handed.at(-1)).toMatchObject({ when: 117, joining: true })
+  })
+
+  it('moves over when it is put on a cycle, and when it goes back to the transport', () => {
+    const { ctx, transport, scheduler, track } = buildCycles(null)
+    transport.start()
+    ctx.currentTime = 105.5
+    scheduler.tick()
+    expect(track.keys()).toEqual(['note:0:5.000'])
+    ctx.currentTime = 126
+    track.timebase = new Cycle(transport, 10)
+    scheduler.refresh()
+    expect(track.handed.at(-1)).toMatchObject({ when: 125, joining: true })
+    const onCycle = track.handed.length
+    ctx.currentTime = 137.5
+    track.timebase = undefined
+    scheduler.refresh()
+    expect(track.handed.length).toBe(onCycle + 1)
+    expect(track.handed.at(-1)).toMatchObject({ when: 137, joining: true })
+  })
+
+  it('leaves a clip the schedulable keeps as it sounds when it moves over', () => {
+    const { ctx, transport, scheduler, track, cycle } = buildCycles(10)
+    transport.start()
+    ctx.currentTime = 105.5
+    scheduler.tick()
+    track.kept = 'note:0:5.000'
+    cycle.lengthSec = 6
+    scheduler.refresh()
+    expect(track.faded).toEqual([])
+  })
+
+  it('leaves a schedulable on the transport alone when the transport loop changes length', () => {
+    const { ctx, transport, scheduler, main } = buildCycles(10)
+    transport.start()
+    ctx.currentTime = 105.5
+    scheduler.tick()
+    transport.setLoop({ lengthSec: 16 })
+    expect(main.faded).toEqual([])
+    expect(main.keys()).toEqual(['note:0:5.000'])
   })
 })

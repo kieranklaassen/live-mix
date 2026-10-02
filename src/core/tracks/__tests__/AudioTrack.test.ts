@@ -1275,3 +1275,133 @@ describe('AudioTrack clips entered partway', () => {
     expect(track.voices()).toHaveLength(0)
   })
 })
+
+describe('AudioTrack with a loop length of its own', () => {
+  function note(id: string, startSec: number, durationSec = 2): Clip {
+    return {
+      id,
+      sourceId: 's',
+      startSec,
+      offsetSec: 0,
+      durationSec,
+      fadeInSec: 0,
+      fadeOutSec: 0,
+      fadeCurve: 'linear',
+      gainDb: 0,
+    }
+  }
+
+  async function looped(loopLengthSec?: number | null) {
+    const ctx = createMockContext({ currentTime: 0, sampleRate: 48000 })
+    const samples = new SampleStore(asAudioContext(ctx))
+    const transport = new Transport({
+      now: () => ctx.currentTime,
+      loop: { enabled: true, lengthSec: 32 },
+    })
+    const scheduler = new Scheduler({ transport, tickMs: 40 })
+    const track = new AudioTrack(asAudioContext(ctx), {
+      name: 'tape',
+      destination: ctx.createGain() as unknown as AudioNode,
+      samples,
+      now: () => ctx.currentTime,
+      lookaheadSec: 0.2,
+      loopLengthSec,
+      scheduler,
+    })
+    await samples.load('s', buffer(ctx, 10))
+    /** Runs the clock to `sec`, ticking as the timer would. */
+    const runTo = (sec: number) => {
+      while (ctx.currentTime < sec) {
+        ctx.currentTime = Math.min(sec, Math.round((ctx.currentTime + 0.1) * 10) / 10)
+        scheduler.tick()
+      }
+    }
+    const starts = () => ctx.sources.map((source) => source.startCalls.calls[0][0])
+    return { ctx, transport, scheduler, track, runTo, starts }
+  }
+
+  it('follows the transport loop until it is given one', async () => {
+    const { track, transport, runTo, starts } = await looped()
+    expect(track.loopLengthSec).toBeNull()
+    expect(track.timebase).toBeUndefined()
+    track.clips.add(note('a', 5))
+    transport.start()
+    runTo(40)
+    expect(starts()).toEqual([5, 37])
+  })
+
+  it('repeats its clips at its own length, on the time the transport has run', async () => {
+    const { track, transport, runTo, starts } = await looped(10)
+    expect(track.loopLengthSec).toBe(10)
+    expect(track.timebase?.loop).toEqual({ enabled: true, lengthSec: 10 })
+    track.clips.add(note('a', 5))
+    transport.start()
+    runTo(40)
+    expect(starts()).toEqual([5, 15, 25, 35])
+    expect(track.voice('a:3:5.000')).toBeDefined()
+  })
+
+  it('takes a length while it plays: what sounds fades, and it is entered where the loop now stands', async () => {
+    const { ctx, track, transport, runTo, starts } = await looped()
+    track.clips.add(note('a', 5, 4))
+    transport.start()
+    runTo(16)
+    expect(starts()).toEqual([5])
+    track.loopLengthSec = 10
+    // 16 s in is 6 s into the 10 s loop's second pass: a second into the clip.
+    expect(ctx.sources).toHaveLength(2)
+    expect(ctx.sources[1].startCalls.calls).toEqual([[16, 1, 3]])
+    const eased = ctx.gains.at(-1)?.gain.events.slice(0, 2)
+    expect(eased).toEqual([
+      { method: 'setValueAtTime', args: [0, 16] },
+      { method: 'linearRampToValueAtTime', args: [1, 16 + JOIN_EASE_SECONDS] },
+    ])
+    runTo(30)
+    expect(starts()).toEqual([5, 16, 25])
+  })
+
+  it('lets a sounding voice go over a few milliseconds when its length changes', async () => {
+    const { ctx, track, transport, runTo } = await looped(10)
+    track.clips.add(note('a', 5, 4))
+    transport.start()
+    runTo(6)
+    const voice = track.voice('a:0:5.000')
+    expect(voice).toBeDefined()
+    track.loopLengthSec = 20
+    expect(track.voice('a:0:5.000')).toBeUndefined()
+    expect(voice?.endTime).toBeCloseTo(6 + REJOIN_FADE_SECONDS)
+    // 6 s in is 6 s into the 20 s loop too: the clip comes straight back from there.
+    expect(ctx.sources[1].startCalls.calls).toEqual([[6, 1, 3]])
+  })
+
+  it('goes back to the transport loop when the length is taken away', async () => {
+    const { track, transport, runTo, starts } = await looped(10)
+    track.clips.add(note('a', 5))
+    transport.start()
+    runTo(16)
+    track.loopLengthSec = null
+    expect(track.timebase).toBeUndefined()
+    runTo(40)
+    expect(starts()).toEqual([5, 15, 37])
+  })
+
+  it('keeps the length when it is moved to another scheduler, and has none to run on without one', async () => {
+    const { ctx, track, transport, scheduler } = await looped(10)
+    const first = track.timebase
+    track.detach()
+    expect(track.loopLengthSec).toBe(10)
+    expect(track.timebase).toBeUndefined()
+    track.loopLengthSec = 12
+    track.attach(new Scheduler({ transport, tickMs: 40 }))
+    expect(track.timebase).not.toBe(first)
+    expect(track.timebase?.loop.lengthSec).toBe(12)
+    expect(ctx.sources).toHaveLength(0)
+    scheduler.dispose()
+  })
+
+  it('refuses a length that is not a positive number', async () => {
+    const { track } = await looped()
+    expect(() => (track.loopLengthSec = 0)).toThrow(RangeError)
+    expect(() => (track.loopLengthSec = Number.NaN)).toThrow(RangeError)
+  })
+})

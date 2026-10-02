@@ -46,6 +46,7 @@ Score
 ├─ tracks[]    kind 'audio' | 'live' | 'instrument'
 │    { id, name, destination, strip, …
 │      audio:      lookaheadSec?, preloadSec?, stretch?, clips: Clip[]   stretch → StretchTrack (needs createStretch)
+│                  loopLengthSec?   the track's own loop: clips and lanes repeat at it, whatever the transport's loop does
 │      live:       (declared only — audio attached by the app)
 │      instrument: device: ScoreDevice (a NoteDevice in the registry) }
 ├─ elementTracks[] { id, name, destination, lookaheadSec?, preloadSec?, clips: Clip[] }
@@ -141,7 +142,7 @@ score throws `ScoreOperationError`, so a failed operation changes nothing.
 | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Document                                                          | `score.rename`, `score.setMeta` (`patch`: a value sets an entry of `meta`, `null` removes it), `transport.loop`                                                                            |
 | Sources                                                           | `source.add`, `source.update` (`url`, `durationSec`, `analysis`, `meta`; `null` clears), `source.remove` (refused while a clip uses it)                                                    |
-| Tracks                                                            | `track.add`, `track.remove`, `track.move`                                                                                                                                                  |
+| Tracks                                                            | `track.add`, `track.remove`, `track.move`, `track.loop` (`lengthSec`: an audio track's own loop length, `null` for the transport's loop)                                                   |
 | Groups                                                            | `group.add`, `group.remove` (members re-route to where it fed), `group.move`                                                                                                               |
 | Returns                                                           | `return.add`, `return.remove` (sends to it are dropped), `return.move`                                                                                                                     |
 | Strips (any track/group/return; `'master'` for level and inserts) | `strip.rename`, `strip.route`, `strip.set` (level/pan/inputGain), `strip.mute`, `strip.solo`, `strip.soloSafe`                                                                             |

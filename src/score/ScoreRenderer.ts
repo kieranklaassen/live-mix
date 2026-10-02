@@ -28,6 +28,7 @@ import { clampParam } from '../core/params'
 import { defaultPreset, presetParams, resolvePreset } from '../core/devices/presets'
 import { type DeviceRegistry } from '../core/devices/registry'
 import { type LaneWriter } from '../core/automation/LaneWriter'
+import { type Timebase } from '../core/transport/Cycle'
 import {
   audioParamTarget,
   deviceParamTarget,
@@ -610,6 +611,11 @@ export class ScoreRenderer {
       if (beforeTrack && live.lookaheadSec !== lookahead) live.lookaheadSec = lookahead
       const preload = track.preloadSec ?? lookahead
       if (beforeTrack && live.preloadSec !== preload) live.preloadSec = preload
+      // Its own loop before its clips, so new clips are placed on the loop they belong to.
+      const loopLength = track.loopLengthSec ?? null
+      if (live instanceof AudioTrack && live.loopLengthSec !== loopLength) {
+        live.loopLengthSec = loopLength
+      }
       if (!beforeTrack || !sameClips(beforeTrack.clips, track.clips)) live.clips.set(track.clips)
     }
 
@@ -773,6 +779,7 @@ export class ScoreRenderer {
           destination,
           lookaheadSec: track.lookaheadSec,
           preloadSec: track.preloadSec,
+          loopLengthSec: track.loopLengthSec,
           resolveSource: (clip) => this.resolveClipSource(clip),
         })
         this.owners.set(track.id, this.newHandle('audio', live, live.strip))
@@ -1124,7 +1131,10 @@ export class ScoreRenderer {
     if (this.bindingKind(spec) === 'writer') {
       if (!lane) throw new ScoreRenderError(`nothing binds ${targetKey(spec.target)}`)
       const param = this.scheduledParamFor(spec.target)
-      const writer = this.engine.automation.add(lane, param)
+      // A lane on a track that loops at its own length comes round with its clips.
+      const writer = this.engine.automation.add(lane, param, {
+        timebase: () => this.timebaseFor(spec.target),
+      })
       return { kind: 'writer', signature, lane, writer }
     }
     const base = lane ?? this.staticValueFor(spec.target, score)
@@ -1141,6 +1151,28 @@ export class ScoreRenderer {
     }
     if (routes.size === 0) this.engine.modulation.attach(target)
     return { kind: 'matrix', signature, target, lane, routes }
+  }
+
+  /**
+   * The clock a lane on `target` runs on: the own loop of the audio track
+   * whose strip, insert or device it is, when that track has one. Read on
+   * every automation pass, so it follows the track's loop and the device's
+   * place as they change.
+   */
+  private timebaseFor(target: ParamTarget): Timebase | undefined {
+    const host = this.owners.get(this.ownerOf(target) ?? '')?.host
+    return host instanceof AudioTrack ? host.timebase : undefined
+  }
+
+  /** The strip owner a target belongs to; undefined for the master's own inserts. */
+  private ownerOf(target: ParamTarget): string | undefined {
+    if (target.kind === 'strip') return target.owner
+    for (const [id, handle] of this.owners) {
+      if (handle.ownInstanceId === target.device || handle.insertIds.includes(target.device)) {
+        return id
+      }
+    }
+    return undefined
   }
 
   private updateBinding(binding: Binding, spec: BindingSpec, score: Score): void {

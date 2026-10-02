@@ -353,6 +353,41 @@ describe('ScoreRenderer: incremental edits', () => {
     expect([bed.lookaheadSec, bed.preloadSec]).toEqual([5, 12])
   })
 
+  it('a track loops at a length of its own when the document gives it one, and stops when it takes it away', async () => {
+    const { renderer, edit, engine, ctx } = await rig()
+    const pad = renderer.audioTrack('pad')
+    expect(pad.loopLengthSec).toBeNull()
+    await edit({ type: 'track.loop', id: 'pad', lengthSec: 10 })
+    expect(renderer.audioTrack('pad')).toBe(pad)
+    expect(pad.loopLengthSec).toBe(10)
+    expect(renderer.audioTrack('kick').loopLengthSec).toBeNull()
+
+    // 21 s in: the pad's clip (at 1 s) starts on its own loop's third pass, with nothing of the kick's near.
+    engine.transport.seekElapsed(21)
+    engine.transport.start()
+    expect(pad.voices().map((voice) => voice.key)).toEqual(['a2:0:1.000'])
+    expect(renderer.audioTrack('kick').voices()).toEqual([])
+    engine.transport.stop()
+
+    await edit({ type: 'track.loop', id: 'pad', lengthSec: null })
+    expect(pad.loopLengthSec).toBeNull()
+
+    await edit({
+      type: 'track.add',
+      track: {
+        kind: 'audio',
+        id: 'tape',
+        name: 'Tape',
+        destination: masterDestination(),
+        strip: defaultStrip(),
+        loopLengthSec: 23.5,
+        clips: [],
+      },
+    })
+    expect(renderer.audioTrack('tape').loopLengthSec).toBe(23.5)
+    expect(ctx.currentTime).toBe(0)
+  })
+
   it('muting a clip reaches the track; an annotation alone never touches it', async () => {
     const { renderer, edit } = await rig()
     const track = renderer.audioTrack('kick')
@@ -482,6 +517,29 @@ describe('ScoreRenderer: lanes, routes and modulators', () => {
     await edit({ type: 'lane.remove', id: 'pad-level' })
     expect(engine.automation.writers.size).toBe(0)
     expect(fader.gain.lastEvent('setTargetAtTime')?.args[0]).toBe(0.6)
+  })
+
+  it('a lane on a track that loops at its own length comes round with that track', async () => {
+    const { ctx, engine, renderer, edit } = await rig()
+    await edit({ type: 'track.loop', id: 'pad', lengthSec: 10 })
+    const fader = gainOf(renderer.audioTrack('pad').strip.fader)
+    const [writer] = engine.automation.writers
+    engine.automation.lookaheadSec = 0.5
+    // 21 s in: the lane (0 s to 4 s) is a second into the pad's third pass.
+    engine.transport.seekElapsed(21)
+    engine.transport.start()
+    const first = fader.gain.events.find((event) => event.method === 'setValueAtTime')
+    expect(first?.args[1]).toBe(ctx.currentTime)
+    expect(first?.args[0]).toBeCloseTo(renderer.lane('pad-level').valueAt(1))
+    expect(writer.writtenUntilSec).not.toBeNull()
+
+    // Taken off its own loop, the lane is back on the transport's timeline: past its end.
+    await edit({ type: 'track.loop', id: 'pad', lengthSec: null })
+    const before = fader.gain.events.length
+    engine.automation.tick()
+    const joined = fader.gain.events.slice(before)
+    expect(joined.at(-1)?.args[0]).toBeCloseTo(0.8)
+    engine.transport.stop()
   })
 
   it('routes update depth in place, and the static value becomes the base', async () => {

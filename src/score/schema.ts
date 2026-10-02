@@ -119,6 +119,14 @@ export interface ScoreAudioTrack extends ScoreStripOwner {
    * `createStretch`. Optional field of format 3; absent = buffer voices.
    */
   stretch?: boolean
+  /**
+   * A loop length of the track's own, in seconds (`AudioTrack.loopLengthSec`):
+   * its clips, and the lanes on its strip and its devices, repeat at this
+   * length over the time the transport has run, whatever the transport's
+   * loop does. Buffer tracks only. Optional field of format 3; absent = the
+   * track follows the transport's loop.
+   */
+  loopLengthSec?: number
   clips: Clip[]
 }
 
@@ -848,6 +856,14 @@ function checkTrack(raw: unknown, path: string, ctx: Context): void {
       if (raw.preloadSec !== undefined)
         check.number(raw.preloadSec, `${path}.preloadSec`, { min: 0 })
       if (raw.stretch !== undefined) check.boolean(raw.stretch, `${path}.stretch`)
+      if (raw.loopLengthSec !== undefined) {
+        if (!(typeof raw.loopLengthSec === 'number' && raw.loopLengthSec > 0)) {
+          check.fail(`${path}.loopLengthSec`, 'must be a number above 0')
+        } else check.number(raw.loopLengthSec, `${path}.loopLengthSec`)
+        if (raw.stretch === true) {
+          check.fail(`${path}.loopLengthSec`, 'a stretch track has no loop of its own')
+        }
+      }
       if (check.array(raw.clips, `${path}.clips`)) {
         const clipIds = new UniqueIds(check)
         raw.clips.forEach((clip, index) => checkClip(clip, `${path}.clips[${index}]`, ctx, clipIds))
@@ -1325,6 +1341,7 @@ function normaliseTrack(track: ScoreTrack): ScoreTrack {
       if (track.lookaheadSec !== undefined) out.lookaheadSec = track.lookaheadSec
       if (track.preloadSec !== undefined) out.preloadSec = track.preloadSec
       if (track.stretch) out.stretch = true
+      if (track.loopLengthSec !== undefined) out.loopLengthSec = track.loopLengthSec
       return out
     }
     case 'live':

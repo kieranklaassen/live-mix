@@ -22,6 +22,7 @@ import {
   type TransportLoop,
   type TransportPosition,
 } from './anchor'
+import type { Timebase } from './Cycle'
 import type { Transport, TransportChange } from './Transport'
 import { startsInWindow } from './window'
 
@@ -56,6 +57,16 @@ export interface Schedulable {
    * and when `rejoin` names one. Its clips need a `durationSec` for that.
    */
   readonly joinsLate?: boolean
+  /**
+   * The clock this schedulable's clips are placed on, read on each tick: a
+   * `Cycle` for a track that loops at a length of its own. Absent: the
+   * transport. When it is swapped for another, or its loop length changes,
+   * the next pass moves the schedulable over: what it was handed belonged to
+   * the old clock and is let go (what sounds fades over a few milliseconds),
+   * and one that `joinsLate` is entered where the new clock stands inside
+   * its clips. `refresh()` makes that pass happen at once.
+   */
+  readonly timebase?: Timebase
   /** Every clip on the timeline. Read on each tick. */
   clips(): ClipWindow['clips']
   /**
@@ -123,11 +134,15 @@ interface Registration {
    * has got to since.
    */
   fromAnchor?: boolean
+  /** The clock the last pass ran on, and its loop length then: a change of either moves the schedulable over. */
+  base?: Timebase
+  baseLengthSec?: number
 }
 
 export class Scheduler {
   readonly tickMs: number
-  private readonly transport: Transport
+  /** The transport every schedulable without a `timebase` of its own runs on. */
+  readonly transport: Transport
   private readonly registrations = new Map<Schedulable, Registration>()
   private readonly tickListeners = new Set<SchedulerTickListener>()
   private timer: ReturnType<typeof setInterval> | null = null
@@ -189,15 +204,28 @@ export class Scheduler {
       this.transport.pause()
       return
     }
-    const loop = this.transport.loop
-    const anchor = this.transport.anchor
-    const nowSec = unwrap(position.positionSec, position.iteration, loop)
+    const nowSec = unwrap(position.positionSec, position.iteration, this.transport.loop)
 
     for (const [schedulable, registration] of this.registrations) {
+      // The clock its clips are on: the transport, or a cycle of its own
+      // length, on which this pass runs exactly as it would on the transport.
+      const base = schedulable.timebase ?? this.transport
+      const movedOver = this.movedOver(schedulable, registration, base)
+      const here = base === this.transport ? position : base.position(contextTime)
+      const loop = base.loop
+      const anchor = base.anchor
+      const hereSec = unwrap(here.positionSec, here.iteration, loop)
       const clips = schedulable.clips()
       let due: ScheduledClip[]
       // Clips to enter partway: the position is already inside them.
       const joins: Handover[] = []
+      if (movedOver && schedulable.joinsLate && !registration.fromAnchor) {
+        // On another clock now: it plays from where that one stands in its clips.
+        for (const clip of clipsSoundingAt(clips, here.positionSec)) {
+          const start = { clipId: clip.id, iteration: here.iteration, startSec: clip.startSec }
+          joins.push({ ...start, when: base.contextTimeAt(start.startSec, start.iteration) })
+        }
+      }
       if (registration.fromAnchor && anchor) {
         // The audio clock can move between the pin and this pass (a render
         // quantum ends, a listener ahead of this one takes its time). The
@@ -220,7 +248,7 @@ export class Scheduler {
         if (schedulable.joinsLate) {
           for (const clip of clipsSoundingAt(clips, anchor.positionSec)) {
             const start = { clipId: clip.id, iteration: anchor.iteration, startSec: clip.startSec }
-            const when = this.transport.contextTimeAt(start.startSec, start.iteration)
+            const when = base.contextTimeAt(start.startSec, start.iteration)
             joins.push({ ...start, when })
           }
         }
@@ -231,18 +259,18 @@ export class Scheduler {
         const catchUpSec =
           registration.windowEndSec === undefined
             ? 0
-            : Math.max(0, nowSec - registration.windowEndSec)
+            : Math.max(0, hereSec - registration.windowEndSec)
         due = startsInWindow({
           clips,
-          positionSec: position.positionSec,
+          positionSec: here.positionSec,
           lookaheadSec: schedulable.lookaheadSec,
-          iteration: position.iteration,
+          iteration: here.iteration,
           loop,
           catchUpSec,
         })
       }
       registration.fromAnchor = false
-      registration.windowEndSec = nowSec + schedulable.lookaheadSec
+      registration.windowEndSec = hereSec + schedulable.lookaheadSec
 
       for (const hit of due) {
         const clip = clips.find((candidate) => candidate.id === hit.clipId)
@@ -254,7 +282,7 @@ export class Scheduler {
         }
         const key = scheduleKey(start)
         if (registration.scheduled.has(key)) continue
-        const when = this.transport.contextTimeAt(start.startSec, start.iteration)
+        const when = base.contextTimeAt(start.startSec, start.iteration)
         if (!schedulable.schedule(start, when)) {
           if (schedulable.joinsLate) registration.declined.set(key, { ...start, when })
           continue
@@ -286,7 +314,7 @@ export class Scheduler {
       // from it (it runs over the loop's end, or a loop change gave the
       // transport a new pass under it): `refresh` and `rejoin` must find that one.
       for (const [key, start] of registration.scheduled) {
-        if (start.iteration >= position.iteration) continue
+        if (start.iteration >= here.iteration) continue
         const sounding =
           schedulable.joinsLate === true && soundsOn(clips, start, start.when, contextTime)
         if (!sounding) registration.scheduled.delete(key)
@@ -360,11 +388,12 @@ export class Scheduler {
     const ids = new Set(clipIds)
     if (ids.size === 0) return
     const contextTime = this.transport.now()
-    const position = this.transport.position(contextTime)
-    if (position.finished) return
+    if (this.transport.position(contextTime).finished) return
 
     for (const [schedulable, registration] of this.registrations) {
       if (!schedulable.joinsLate) continue
+      const base = schedulable.timebase ?? this.transport
+      const position = base.position(contextTime)
       // Clips sounding in a way that cannot be entered again at once stay as they are.
       const kept = new Set<string>()
       for (const [key, start] of registration.scheduled) {
@@ -385,7 +414,7 @@ export class Scheduler {
       const joins = new Map<string, Handover>()
       for (const clip of clipsSoundingAt(named, position.positionSec)) {
         const start = { clipId: clip.id, iteration: position.iteration, startSec: clip.startSec }
-        const when = this.transport.contextTimeAt(start.startSec, start.iteration)
+        const when = base.contextTimeAt(start.startSec, start.iteration)
         joins.set(clip.id, { ...start, when })
       }
       // Failing that, the start just let go, if by the clock it would still be
@@ -452,6 +481,31 @@ export class Scheduler {
       default:
         return assertNever(change.reason)
     }
+  }
+
+  /**
+   * True when `schedulable` is on another clock than its last pass ran on (a
+   * different `timebase`, or a cycle whose length changed). What it was
+   * handed is then let go, apart from clips it `keeps`, and its window starts
+   * afresh.
+   */
+  private movedOver(schedulable: Schedulable, registration: Registration, base: Timebase): boolean {
+    const lengthSec = base.loop.lengthSec
+    const changed =
+      registration.base !== undefined &&
+      (registration.base !== base ||
+        (base !== this.transport && registration.baseLengthSec !== lengthSec))
+    registration.base = base
+    registration.baseLengthSec = lengthSec
+    if (!changed) return false
+    for (const key of [...registration.scheduled.keys()]) {
+      if (schedulable.keeps?.(key)) continue
+      schedulable.cancel(key, REJOIN_FADE_SECONDS)
+      registration.scheduled.delete(key)
+    }
+    registration.declined.clear()
+    registration.windowEndSec = undefined
+    return true
   }
 
   private silence(fadeSec: number): void {

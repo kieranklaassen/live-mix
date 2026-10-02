@@ -129,6 +129,8 @@ export type Operation =
   | { type: 'track.add'; track: ScoreTrack; index?: number }
   | { type: 'track.remove'; id: string }
   | { type: 'track.move'; id: string; index: number }
+  /** Give an audio track a loop length of its own, or null to follow the transport's loop again. */
+  | { type: 'track.loop'; id: string; lengthSec: number | null }
   | { type: 'elementTrack.add'; track: ScoreElementTrack; index?: number }
   | { type: 'elementTrack.remove'; id: string }
   | { type: 'elementTrack.route'; id: string; destination: ScoreDestination }
@@ -238,6 +240,7 @@ export const OPERATION_TYPES: readonly OperationType[] = [
   'track.add',
   'track.remove',
   'track.move',
+  'track.loop',
   'elementTrack.add',
   'elementTrack.remove',
   'elementTrack.route',
@@ -346,6 +349,8 @@ export function coalesceKey(op: Operation): string | null {
       return `route.update|${op.id}|${routeKeys(op).join(',')}`
     case 'score.setMeta':
       return `score.setMeta|${metaKeys(op).join(',')}`
+    case 'track.loop':
+      return `track.loop|${op.id}`
     case 'score.rename':
     case 'transport.loop':
     case 'tempo.set':
@@ -479,6 +484,19 @@ function requireAudioTrack(
 ): Extract<ScoreTrack, { kind: 'audio' }> {
   const track = requireTrack(score, op, id)
   if (track.kind !== 'audio') fail(op, `track "${id}" is a ${track.kind} track and has no clips`)
+  return track
+}
+
+/** The track a `track.loop` names: only an audio track has clips to loop. */
+function requireLoopTrack(
+  score: Score,
+  op: Operation,
+  id: string,
+): Extract<ScoreTrack, { kind: 'audio' }> {
+  const track = requireTrack(score, op, id)
+  if (track.kind !== 'audio') {
+    fail(op, `track "${id}" is a ${track.kind} track and has no loop of its own`)
+  }
   return track
 }
 
@@ -1034,6 +1052,20 @@ export function apply(score: Score, op: Operation): Score {
       const from = score.returns.findIndex((ret) => ret.id === op.id)
       if (from === -1) fail(op, `no return "${op.id}"`)
       return { ...score, returns: moveTo(op, score.returns, from, op.index) }
+    }
+
+    case 'track.loop': {
+      const track = requireLoopTrack(score, op, op.id)
+      if (op.lengthSec !== null && !(Number.isFinite(op.lengthSec) && op.lengthSec > 0)) {
+        fail(op, 'lengthSec must be > 0 or null')
+      }
+      if (op.lengthSec !== null && track.stretch) {
+        fail(op, `track "${op.id}" is a stretch track and has no loop of its own`)
+      }
+      const next = { ...track }
+      if (op.lengthSec === null) delete next.loopLengthSec
+      else next.loopLengthSec = op.lengthSec
+      return replaceHost(score, op.id, next)
     }
 
     case 'strip.rename': {
@@ -1637,6 +1669,13 @@ export function invert(score: Score, op: Operation): Operation {
       return { type: 'return.move', id: op.id, index }
     }
 
+    case 'track.loop':
+      return {
+        type: 'track.loop',
+        id: op.id,
+        lengthSec: requireLoopTrack(score, op, op.id).loopLengthSec ?? null,
+      }
+
     case 'strip.rename':
       return { type: 'strip.rename', id: op.id, name: requireHost(score, op, op.id).name }
 
@@ -2024,6 +2063,10 @@ export function describeOperation(op: Operation): string {
       return `remove return ${op.id}`
     case 'return.move':
       return `move return ${op.id}`
+    case 'track.loop':
+      return op.lengthSec === null
+        ? `${op.id} follows the loop`
+        : `${op.id} loops at ${op.lengthSec} s`
     case 'strip.rename':
       return `rename ${op.id} to "${op.name}"`
     case 'strip.route':
