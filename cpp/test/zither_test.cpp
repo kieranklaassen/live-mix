@@ -580,6 +580,75 @@ int main() {
     EXPECT(apart < 1.0e-6, "taking strings does not depend on the block size");
   }
 
+  // 10e. Low strings lose their upper partials first, like the rest of the
+  // instrument: at 65, 98 and 131 Hz partials 6 to 12 fall two to three
+  // times as fast as the fundamental over the first second, and the
+  // centroid comes down. (The fundamental's own time and the tuning are
+  // held by checks 1 and 3.)
+  {
+    for (double f0 : {65.41, 98.0, 130.81}) {
+      plain(device);
+      device.note_on(1, static_cast<float>(f0), 0.8f);
+      const std::vector<float> x = mono(render(device, 1.5f, kRate));
+      auto fall = [&](int h) {
+        return db(tone_level(x, h * f0, kRate, at(1.1), at(1.4))) - db(tone_level(x, h * f0, kRate, at(0.1), at(0.4)));
+      };
+      double upper = 0.0;
+      int counted = 0;
+      for (int h = 6; h <= 12; ++h) {
+        if (db(tone_level(x, h * f0, kRate, at(0.1), at(0.4))) < -75.0) continue;  // a node of the pluck
+        upper += fall(h);
+        ++counted;
+      }
+      upper /= std::max(counted, 1);
+      const double early = spectral_centroid(x, at(0.05), at(0.15)), late = spectral_centroid(x, at(1.0), at(1.1));
+      std::printf("bass loss, %.0f Hz: fundamental %.1f dB/s, partials 6-12 %.1f dB/s (%.2f times), centroid %.0f to %.0f Hz\n", f0,
+                  fall(1), upper, upper / fall(1), early, late);
+      EXPECT(upper / fall(1) > 1.8 && upper / fall(1) < 3.4, "a low string's upper partials fall two to three times as fast");
+      EXPECT(late < 0.85 * early, "and its centroid comes down over the first second");
+    }
+  }
+
+  // 10f. The touch: a finger or a pick leaves a few milliseconds of noise
+  // beside the pluck, so the first 20 ms carry more above 2 kHz than the
+  // next 20 ms (some 3 to 6 dB for a finger on the harp; a bare pluck gave
+  // about 2.5), and it is noise, not a click: no sample step in it much
+  // over the pluck's own later edges. A hammer has none.
+  {
+    auto top = [&](const std::vector<float>& x, size_t from) {  // energy above 2 kHz over 20 ms, four one-poles
+      const double k = std::exp(-2.0 * kPi * 2000.0 / kRate);
+      double low[4] = {0.0, 0.0, 0.0, 0.0}, energy = 0.0;
+      for (size_t i = 0; i < from + at(0.02) && i < x.size(); ++i) {
+        double v = x[i];
+        for (double& l : low) {
+          l = v + (l - v) * k;
+          v -= l;
+        }
+        if (i >= from) energy += v * v;
+      }
+      return energy;
+    };
+    double more[2] = {0.0, 0.0}, steps = 0.0;
+    for (int exciter = 0; exciter < 2; ++exciter) {
+      for (float hz : {98.0f, 220.0f, 440.0f}) {
+        plain(device);
+        device.set_param(p::kExciter, static_cast<float>(exciter));
+        device.set_param(p::kBody, 0.0f);
+        device.set_param(p::kBrightness, 0.6f);
+        device.set_param(p::kPosition, 0.3f);
+        device.note_on(1, hz, 0.8f);
+        const std::vector<float> x = mono(render(device, 0.1f, kRate));
+        more[exciter] += 10.0 * std::log10(top(x, 0) / top(x, at(0.02))) / 3.0;
+        steps = std::max(steps, max_step(x, 0, at(0.02)) / max_step(x, at(0.02), at(0.04)));
+      }
+    }
+    std::printf("touch: first 20 ms against the next above 2 kHz: finger %+.1f dB, pick %+.1f dB (mean of 98, 220, 440 Hz); largest step %.2f times the later edges'\n",
+                more[0], more[1], steps);
+    EXPECT(more[0] > 3.0 && more[0] < 6.5, "a finger's touch is heard in the first 20 ms");
+    EXPECT(more[1] > more[0], "a pick's more so");
+    EXPECT(steps < 1.8, "and it is not a click");
+  }
+
   // 11. Moving the controls under a ringing chord does not click: Decay,
   // Release, Sympathy, Volume and Body all act on what is sounding.
   {
@@ -651,7 +720,8 @@ int main() {
     }
     std::printf("bodies (harp, zither, dulcimer, koto): share of energy above 1.5 kHz %.1f, %.1f, %.1f, %.1f dB; above 300 Hz %.1f, %.1f, %.1f, %.1f dB\n",
                 top[0], top[1], top[2], top[3], thin[0], thin[1], thin[2], thin[3]);
-    EXPECT(top[1] > top[0] + 3.0, "the zither is brighter than the harp");
+    // 2.5 dB, where it was 3 before the touch gave the body a knock: the knock is low, and this is a share.
+    EXPECT(top[1] > top[0] + 2.5, "the zither is brighter than the harp");
     EXPECT(thin[3] > thin[1] + 1.5 && thin[3] > thin[0] + 3.0, "the koto is the thinnest below");
     EXPECT(std::fabs(top[2] - top[1]) + std::fabs(thin[2] - thin[1]) > 1.0, "and the dulcimer is not the zither");
   }
