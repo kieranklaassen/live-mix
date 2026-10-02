@@ -10,6 +10,7 @@ import { EMBER_PRESETS } from './ember'
 import { FELT_PIANO_PRESETS } from './felt-piano'
 import { FM_GLASS_PRESETS } from './fm-glass'
 import { GRAIN_SYNTH_PRESETS } from './grain-synth'
+import { HANDPAN_PRESETS } from './handpan'
 import { MODAL_BELLS_PRESETS } from './modal-bells'
 import { ORGAN_PRESETS } from './organ'
 import { SAMPLER_PRESETS } from './sampler'
@@ -34,4 +35,5 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...SAMPLER_PRESETS,
   ...GRAIN_SYNTH_PRESETS,
   ...ATMOSPHERE_PRESETS,
+  ...HANDPAN_PRESETS,
 ]

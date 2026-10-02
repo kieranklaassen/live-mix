@@ -42,6 +42,8 @@ build_generated_devices() {
     cpp/devices/grain-delay/device_api.gen.cpp
   MEMORY_BYTES=12582912 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_sample_capacity,_device_sample_buffer,_device_sample_commit" build_device grain-synth \
     cpp/devices/grain-synth/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device handpan \
+    cpp/devices/handpan/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device lattice \
     cpp/devices/lattice/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device modal-bells \
@@ -127,6 +129,8 @@ test_generated_devices() {
     cpp/test/grain_delay_test.cpp
   native_test grain_synth_test \
     cpp/test/grain_synth_test.cpp
+  native_test handpan_test \
+    cpp/test/handpan_test.cpp
   native_test lattice_test \
     cpp/test/lattice_test.cpp
   native_test modal_bells_test \

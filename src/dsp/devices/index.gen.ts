@@ -20,6 +20,7 @@ import { FREQ_SHIFTER_DESCRIPTOR, FREQ_SHIFTER_DEVICE } from './freq-shifter.gen
 import { GRAIN_CLOUD_DESCRIPTOR, GRAIN_CLOUD_DEVICE } from './grain-cloud.gen'
 import { GRAIN_DELAY_DESCRIPTOR, GRAIN_DELAY_DEVICE } from './grain-delay.gen'
 import { GRAIN_SYNTH_DESCRIPTOR, GRAIN_SYNTH_DEVICE } from './grain-synth.gen'
+import { HANDPAN_DESCRIPTOR, HANDPAN_DEVICE } from './handpan.gen'
 import { LATTICE_DESCRIPTOR, LATTICE_DEVICE } from './lattice.gen'
 import { MODAL_BELLS_DESCRIPTOR, MODAL_BELLS_DEVICE } from './modal-bells.gen'
 import { ORGAN_DESCRIPTOR, ORGAN_DEVICE } from './organ.gen'
@@ -60,6 +61,7 @@ export * from './freq-shifter.gen'
 export * from './grain-cloud.gen'
 export * from './grain-delay.gen'
 export * from './grain-synth.gen'
+export * from './handpan.gen'
 export * from './lattice.gen'
 export * from './modal-bells.gen'
 export * from './organ.gen'
@@ -102,6 +104,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   GRAIN_CLOUD_DESCRIPTOR,
   GRAIN_DELAY_DESCRIPTOR,
   GRAIN_SYNTH_DESCRIPTOR,
+  HANDPAN_DESCRIPTOR,
   LATTICE_DESCRIPTOR,
   MODAL_BELLS_DESCRIPTOR,
   ORGAN_DESCRIPTOR,
@@ -145,6 +148,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   GRAIN_CLOUD_DEVICE,
   GRAIN_DELAY_DEVICE,
   GRAIN_SYNTH_DEVICE,
+  HANDPAN_DEVICE,
   LATTICE_DEVICE,
   MODAL_BELLS_DEVICE,
   ORGAN_DEVICE,
@@ -188,6 +192,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'grain-cloud', instrument: false, samples: false, meters: 0, memoryMb: 10 },
   { id: 'grain-delay', instrument: false, samples: false, meters: 0, memoryMb: 10 },
   { id: 'grain-synth', instrument: true, samples: true, meters: 0, memoryMb: 12 },
+  { id: 'handpan', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'lattice', instrument: false, samples: false, meters: 0, memoryMb: 4 },
   { id: 'modal-bells', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'organ', instrument: true, samples: false, meters: 0, memoryMb: 4 },
