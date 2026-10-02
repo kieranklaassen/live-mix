@@ -1,0 +1,190 @@
+{
+  "id": "pad-follower",
+  "name": "Pad Follower",
+  "category": "texture",
+  "description": "Grows a soft string-section pad out of whatever you play: the same chord swells in behind you, follows your harmony as it changes and fades when you stop.",
+  "class": "PadFollower",
+  "header": "pad_follower.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "rise",
+      "name": "Rise",
+      "min": 0.02,
+      "max": 6,
+      "default": 0.6,
+      "taper": "log",
+      "unit": "s",
+      "description": "How slowly the pad swells in after you play. Short doubles each note almost at once; long lets the pad arrive well after the chord."
+    },
+    {
+      "key": "fall",
+      "name": "Fall",
+      "min": 0.1,
+      "max": 20,
+      "default": 4,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the pad hangs on after the sound stops. Long settings leave the last chord standing while you play the next."
+    },
+    {
+      "key": "sensitivity",
+      "name": "Sensitivity",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How quiet a sound may be and still become pad. Low settings follow only what is played firmly; high settings pick up soft notes, and with them more noise and ringing."
+    },
+    {
+      "key": "octaves",
+      "name": "Octaves",
+      "min": -1,
+      "max": 1,
+      "default": 0.3,
+      "description": "Adds a second section to the pad: below zero the octave under what you play, above zero the octave over it, stronger the further from zero. At zero there is none."
+    },
+    {
+      "key": "brightness",
+      "name": "Brightness",
+      "min": 300,
+      "max": 12000,
+      "default": 3500,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "How bright the pad is. Lower settings push it further behind the instrument; higher ones let its upper partials and the octave above shine."
+    },
+    {
+      "key": "ensemble",
+      "name": "Ensemble",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "How many players the pad seems to have. At zero it is one steady voice per note; raising it detunes and spreads the voices into the slow chorus of a string section."
+    },
+    {
+      "key": "movement",
+      "name": "Movement",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "How much the pad moves by itself: every partial and every register drifts slowly in level and position, so a held chord keeps shimmering instead of standing still."
+    },
+    {
+      "key": "lowCut",
+      "name": "Low Cut",
+      "min": 40,
+      "max": 600,
+      "default": 120,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "Takes the lows out of the pad so it does not cloud the bass of the instrument. The dry signal is not affected."
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "Stereo spread of the pad. Zero puts the whole pad in the centre; full spreads the section across the speakers. The dry signal keeps its own image."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.45,
+      "description": "Balance between the instrument and the pad. Zero is the instrument alone, full is the pad alone."
+    }
+  ],
+  "presets": {
+    "Strings behind": {},
+    "Slow swell": {
+      "rise": 4,
+      "fall": 7,
+      "sensitivity": 0.55,
+      "octaves": 0,
+      "brightness": 2800,
+      "ensemble": 0.7,
+      "movement": 0.45,
+      "lowCut": 120,
+      "width": 1,
+      "mix": 0.5
+    },
+    "Long shadow": {
+      "rise": 1.2,
+      "fall": 18,
+      "sensitivity": 0.45,
+      "octaves": 0,
+      "brightness": 1600,
+      "ensemble": 0.75,
+      "movement": 0.5,
+      "lowCut": 150,
+      "width": 1,
+      "mix": 0.4
+    },
+    "Octave halo": {
+      "rise": 0.9,
+      "fall": 5,
+      "sensitivity": 0.5,
+      "octaves": 0.85,
+      "brightness": 6000,
+      "ensemble": 0.8,
+      "movement": 0.4,
+      "lowCut": 200,
+      "width": 1,
+      "mix": 0.45
+    },
+    "Low section": {
+      "rise": 0.8,
+      "fall": 5,
+      "sensitivity": 0.5,
+      "octaves": -1,
+      "brightness": 1100,
+      "ensemble": 0.5,
+      "movement": 0.25,
+      "lowCut": 50,
+      "width": 0.6,
+      "mix": 0.4
+    },
+    "Tight double": {
+      "rise": 0.05,
+      "fall": 0.8,
+      "sensitivity": 0.5,
+      "octaves": 0,
+      "brightness": 5000,
+      "ensemble": 0.45,
+      "movement": 0.15,
+      "lowCut": 100,
+      "width": 0.8,
+      "mix": 0.4
+    },
+    "Glass section": {
+      "rise": 0.15,
+      "fall": 2.5,
+      "sensitivity": 0.6,
+      "octaves": 1,
+      "brightness": 12000,
+      "ensemble": 0.9,
+      "movement": 0.6,
+      "lowCut": 250,
+      "width": 1,
+      "mix": 0.45
+    },
+    "Barely there": {
+      "rise": 2,
+      "fall": 7,
+      "sensitivity": 0.35,
+      "octaves": 0.4,
+      "brightness": 4000,
+      "ensemble": 0.4,
+      "movement": 0.2,
+      "lowCut": 220,
+      "width": 0.7,
+      "mix": 0.2
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. A bank of 64 narrow complex resonators from 60 Hz to 6 kHz reads the level and the exact pitch of each partial of the input; each band drives one sine oscillator, locked to the band's phase, through a slow rise-and-fall follower, so the pad plays the harmony without its attacks and holds its pitch while it fades. Noise gets no voice. The octave above and below come from the same oscillators (squared and half-rate phasors). To make it a section rather than an organ stop, every partial's level wanders slowly by itself, the upper partials are slightly rough and swell in after the lower ones, a gentle formant curve stands in for the bodies of the instruments, and an ensemble of three swept delay taps per side (one of them the main one, so that a single note keeps a steady level) spreads the pad across the stereo field. A safety stage on the pad alone keeps the output of a full-scale input under +3 dBFS. Filter-bank resynthesis after the approach of Thuillier, 'Real-Time Polyphonic Octave Doubling for the Guitar'; the band layout, the phase-locked oscillators and every constant here are this device's own."
+  }
+}

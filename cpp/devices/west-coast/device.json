@@ -1,0 +1,212 @@
+{
+  "id": "west-coast",
+  "name": "West Coast",
+  "category": "instrument",
+  "description": "A pure tone made richer by frequency modulation and wavefolding, then struck through a low-pass gate that darkens as it fades: woody plucks, soft mallets and slowly folding drones.",
+  "class": "WestCoast",
+  "header": "west_coast.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "fold",
+      "name": "Fold",
+      "min": 0,
+      "max": 1,
+      "default": 0.35,
+      "description": "How hard the tone is driven into the wavefolder. At zero it is a pure sine; turned up, the wave folds over itself again and again and overtones bloom on the note."
+    },
+    {
+      "key": "symmetry",
+      "name": "Symmetry",
+      "min": 0,
+      "max": 1,
+      "default": 0.1,
+      "description": "Pushes the wave off centre before it is folded, so the two halves fold differently. That adds even overtones: hollow and woody at zero, fuller and reedier as it rises."
+    },
+    {
+      "key": "fm",
+      "name": "FM",
+      "min": 0,
+      "max": 1,
+      "default": 0.15,
+      "description": "How far a second oscillator bends the pitch of the tone at audio rate. A little adds a metallic edge; a lot makes it clang and growl."
+    },
+    {
+      "key": "ratio",
+      "name": "Ratio",
+      "choices": ["1:2", "1:1", "3:2", "2:1", "3:1", "7:2", "5:1"],
+      "default": 3,
+      "description": "Pitch of the modulator against the note. 1:1, 2:1, 3:1 and 5:1 stay in tune, 1:2 adds the octave below, 3:2 is hollow and 7:2 clangs. Applies from the next note."
+    },
+    {
+      "key": "timbreEnv",
+      "name": "Timbre Env",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "How much each strike also pushes Fold up, so a note starts rich and mellows as it rings."
+    },
+    {
+      "key": "attack",
+      "name": "Attack",
+      "min": 0.001,
+      "max": 4,
+      "default": 0.001,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the gate takes to open. At its shortest the note is struck like a drum or a plucked string; longer settings swell in."
+    },
+    {
+      "key": "decay",
+      "name": "Decay",
+      "min": 0.05,
+      "max": 8,
+      "default": 1.4,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the gate takes to close after a strike or a released key. The sound falls quickly at first and then lingers, growing duller as it fades."
+    },
+    {
+      "key": "sustain",
+      "name": "Sustain",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "How far the gate stays open while a key is held. At zero every note is a pluck that dies away on its own; at full it rings for as long as the key is down."
+    },
+    {
+      "key": "colour",
+      "name": "Colour",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "How far the gate opens. Low is dark and soft, a thump with little overtone; high lets the whole folded tone through, bright and open."
+    },
+    {
+      "key": "chance",
+      "name": "Chance",
+      "min": 0,
+      "max": 1,
+      "default": 0.15,
+      "description": "How much each new note differs from the last in brightness, edge, length and place between the speakers, like a random voltage. At zero every note is the same."
+    },
+    {
+      "key": "drift",
+      "name": "Drift",
+      "min": 0,
+      "max": 1,
+      "default": 0.2,
+      "description": "How far each voice slowly wanders in pitch and in timbre while it sounds, which keeps held notes and drones alive."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -9,
+      "unit": "dB",
+      "description": "Output level of the instrument. A soft clip after it rounds off the peaks when many notes stack up."
+    }
+  ],
+  "presets": {
+    "Wooden pluck": {},
+    "Soft mallet": {
+      "fold": 0.15,
+      "symmetry": 0,
+      "fm": 0.05,
+      "ratio": 1,
+      "timbreEnv": 0.25,
+      "attack": 0.004,
+      "decay": 1.6,
+      "colour": 0.4,
+      "chance": 0.1
+    },
+    "Hollow bongo": {
+      "fold": 0.2,
+      "symmetry": 0,
+      "fm": 0.45,
+      "ratio": 2,
+      "timbreEnv": 0.5,
+      "decay": 0.2,
+      "colour": 0.5,
+      "chance": 0.3,
+      "drift": 0.1,
+      "volume": -7
+    },
+    "Folding drone": {
+      "fold": 0.7,
+      "symmetry": 0.4,
+      "fm": 0.1,
+      "ratio": 0,
+      "timbreEnv": 0.3,
+      "attack": 2.5,
+      "decay": 4,
+      "sustain": 1,
+      "colour": 0.7,
+      "chance": 0.2,
+      "drift": 0.8,
+      "volume": -10
+    },
+    "Glass bell": {
+      "fold": 0.1,
+      "symmetry": 0,
+      "fm": 0.6,
+      "ratio": 5,
+      "timbreEnv": 0.3,
+      "decay": 6,
+      "colour": 0.9,
+      "chance": 0.1,
+      "drift": 0.3
+    },
+    "Rain on wood": {
+      "fold": 0.5,
+      "symmetry": 0.3,
+      "fm": 0.2,
+      "ratio": 4,
+      "timbreEnv": 0.6,
+      "decay": 0.12,
+      "colour": 0.7,
+      "chance": 1,
+      "volume": -7
+    },
+    "Deep pulse": {
+      "fold": 0.25,
+      "symmetry": 0.5,
+      "fm": 0.1,
+      "ratio": 0,
+      "timbreEnv": 0.2,
+      "attack": 0.01,
+      "decay": 1,
+      "sustain": 0.6,
+      "colour": 0.2,
+      "chance": 0.05,
+      "drift": 0.3
+    },
+    "Bright harp": {
+      "fold": 0.55,
+      "symmetry": 0.2,
+      "fm": 0.1,
+      "timbreEnv": 0.7,
+      "decay": 3,
+      "colour": 0.9,
+      "chance": 0.2
+    },
+    "Slow bloom": {
+      "fold": 0.3,
+      "symmetry": 0.3,
+      "fm": 0.2,
+      "ratio": 1,
+      "timbreEnv": 1,
+      "attack": 2,
+      "decay": 3.5,
+      "sustain": 0.8,
+      "colour": 0.8,
+      "drift": 0.5,
+      "volume": -10
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. A sine oscillator with through-zero frequency modulation, a wavefolder and a low-pass gate, in the manner of the west coast school of analogue synthesis; not a model of any one instrument or circuit. The folder is five parallel folding cells with rounded corners, read through first-order antiderivative anti-aliasing (the mean of the curve over each step) at twice the sample rate, with a fold limit that follows the note. The gate is a vactrol-style control, quick to open and slow to close, that drives the cutoff of a low-pass and a gain so that the two close together and a note dulls as it fades. The multi-cell folder is after the approach of Esqueda, Pöntynen, Parker, Välimäki and Bilbao, and the gate after the approach of Parker and D'Angelo, in outline only: thresholds, slopes, time constants and all other numbers were chosen here by measurement."
+  }
+}

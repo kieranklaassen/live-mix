@@ -1,0 +1,153 @@
+{
+  "id": "vintage-digital",
+  "name": "Vintage Digital",
+  "category": "texture",
+  "description": "The converters of an early sampler: a sample rate reducer and bit crusher with true aliasing, hold images, companding and clock jitter, from a soft twelve-bit glaze to folded metal.",
+  "class": "VintageDigital",
+  "header": "vintage_digital.h",
+  "sources": [],
+  "latencySamples": 129,
+  "params": [
+    {
+      "key": "rate",
+      "name": "Rate",
+      "min": 1000,
+      "max": 48000,
+      "default": 9000,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "The sample rate of the old converter. Lower is duller and grittier and brings ringing copies of the sound down into hearing. All the way up switches resampling off."
+    },
+    {
+      "key": "bits",
+      "name": "Bits",
+      "min": 4,
+      "max": 16,
+      "default": 12,
+      "unit": "bit",
+      "description": "How finely the level is measured. Fewer bits add a grain that follows the sound, and quiet tails break up and then cut off."
+    },
+    {
+      "key": "companding",
+      "name": "Companding",
+      "choices": ["Linear", "Mu-law"],
+      "default": 0,
+      "description": "How the steps are spaced. Linear has the same grain at every level, so quiet sounds suffer most. Mu-law packs the steps near silence, so quiet stays clean."
+    },
+    {
+      "key": "aliasing",
+      "name": "Aliasing",
+      "min": 0,
+      "max": 1,
+      "default": 0.35,
+      "description": "How much of the sound above half the Rate gets past the input filter. At zero the result is clean and dull. Turned up, those highs fold down as out-of-tune tones."
+    },
+    {
+      "key": "filter",
+      "name": "Filter",
+      "choices": ["None", "Soft", "Steep"],
+      "default": 1,
+      "description": "The filter after the converter. None leaves every stair step in, bright and glassy. Soft rounds them off. Steep removes everything above half the Rate, smooth and dull."
+    },
+    {
+      "key": "jitter",
+      "name": "Jitter",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "Unsteadiness in the converter clock. It adds a hiss that rides on the sound, more on high notes than low ones, and none in silence."
+    },
+    {
+      "key": "drive",
+      "name": "Drive",
+      "min": 0,
+      "max": 24,
+      "default": 0,
+      "unit": "dB",
+      "description": "Level into the converter. More uses more of its range, so the grain drops away, until peaks hit the top and clip flat. The output is turned down to match."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "Balance between the clean signal and the converted one. Part way layers the grit under the untouched sound."
+    }
+  ],
+  "presets": {
+    "Twelve bit": {
+      "rate": 9000,
+      "bits": 12,
+      "companding": 0,
+      "aliasing": 0.35,
+      "filter": 1,
+      "jitter": 0.4,
+      "drive": 0,
+      "mix": 1
+    },
+    "Soft glaze": {
+      "rate": 16000,
+      "aliasing": 0.35,
+      "filter": 1,
+      "jitter": 0.1
+    },
+    "Eight bit toy": {
+      "rate": 7000,
+      "bits": 8,
+      "companding": 1,
+      "aliasing": 0.7,
+      "filter": 1,
+      "jitter": 0.25
+    },
+    "Dusty sampler": {
+      "rate": 7500,
+      "bits": 10,
+      "aliasing": 0.5,
+      "filter": 2,
+      "jitter": 0.9,
+      "drive": 9
+    },
+    "Glass images": {
+      "rate": 8000,
+      "bits": 12,
+      "aliasing": 0.1,
+      "filter": 0,
+      "jitter": 0.05
+    },
+    "Folded metal": {
+      "rate": 6000,
+      "bits": 10,
+      "aliasing": 1,
+      "filter": 1,
+      "jitter": 0.1
+    },
+    "Telephone exchange": {
+      "rate": 8000,
+      "bits": 8,
+      "companding": 1,
+      "aliasing": 0,
+      "filter": 2,
+      "jitter": 0.3
+    },
+    "Worn converter": {
+      "rate": 12000,
+      "bits": 9,
+      "aliasing": 0.5,
+      "filter": 1,
+      "jitter": 0.85
+    },
+    "Crushed": {
+      "rate": 12000,
+      "bits": 5,
+      "aliasing": 0.3,
+      "filter": 1,
+      "jitter": 0.1,
+      "drive": 12
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. Models a sampling converter pair in outline (an input stage that clips, an anti-alias filter that can be taken away, a sampler on a jittery clock, a linear or mu-law quantiser, a zero-order hold and a reconstruction filter), not any one machine. The input is read between host samples with a 32-point windowed sinc and each change of the held value is drawn as a band-limited step from a table (the idea behind the kit's PolyBLEP oscillators), so the hold's images are kept and next to nothing folds back that a converter would not make. The steep filters are a ninth-order elliptic low-pass built as two allpass chains; its poles were computed for this device. No dither and no noise floor: silence in is exact silence out. Reports 129 samples of latency: 33 for the clip, the interpolation and the band-limited step, and 96 so the converted signal's low end can be lined up with the dry signal, so a part-way Mix does not comb below the converter's band (a narrow dip remains at the band's edge)."
+  }
+}

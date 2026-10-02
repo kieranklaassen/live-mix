@@ -1,0 +1,215 @@
+{
+  "id": "tape-orchestra",
+  "name": "Tape Orchestra",
+  "category": "instrument",
+  "description": "Orchestral sections played from a strip of worn tape under every key: strings, cellos, flutes, horns, reeds and a choir that wobble, lurch, hiss and run out.",
+  "class": "TapeOrchestra",
+  "header": "tape_orchestra.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "tape",
+      "name": "Tape",
+      "choices": ["Strings", "Cellos", "Flutes", "Horns", "Reeds", "Choir"],
+      "default": 0,
+      "description": "Which recording is on the tapes: violins, cellos, flutes, French horns, a clarinet and oboe blend, or a choir on ah. Notes already sounding cross over to the new tape."
+    },
+    {
+      "key": "age",
+      "name": "Age",
+      "min": 0,
+      "max": 1,
+      "default": 0.35,
+      "description": "How worn the tapes and the machine are. More gives each key its own wobble and lurch, keys a little out of tune, a narrower, grittier sound and, near the top, dropouts."
+    },
+    {
+      "key": "hiss",
+      "name": "Hiss",
+      "min": 0,
+      "max": 1,
+      "default": 0.2,
+      "description": "Tape hiss under the notes. It is only there while keys sound and grows as more of them are held."
+    },
+    {
+      "key": "tone",
+      "name": "Tone",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "description": "Tilts the playback from dark and muffled, through the plain tape in the middle, to open and airy."
+    },
+    {
+      "key": "speed",
+      "name": "Speed",
+      "choices": ["Normal", "Half"],
+      "default": 0,
+      "description": "Half runs the tapes at half speed: an octave lower and darker, with slower attacks and vibrato and twice the tape length. Switched while notes sound, the tape bends."
+    },
+    {
+      "key": "length",
+      "name": "Length",
+      "min": 2,
+      "max": 9,
+      "default": 9,
+      "unit": "s",
+      "description": "How much tape each key has. A held note fades out over its last half second when the tape runs out and has to be struck again. Fully up, the tape never ends."
+    },
+    {
+      "key": "attack",
+      "name": "Attack",
+      "min": 0.005,
+      "max": 4,
+      "default": 0.06,
+      "taper": "log",
+      "unit": "s",
+      "description": "Fades each note in, on top of the start that is recorded on the tape. Short lets the bow scrape or breath through; long is a swell."
+    },
+    {
+      "key": "release",
+      "name": "Release",
+      "min": 0.02,
+      "max": 6,
+      "default": 0.4,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long a note takes to fade out after the key is let go."
+    },
+    {
+      "key": "players",
+      "name": "Section",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "How different the players on each tape are. At zero they play as one; higher they drift apart in tuning, come in at different moments and swell on their own."
+    },
+    {
+      "key": "vibrato",
+      "name": "Vibrato",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How much vibrato the players use. Each one starts it a little after the note begins and at a rate of their own."
+    },
+    {
+      "key": "spread",
+      "name": "Spread",
+      "min": 0,
+      "max": 1,
+      "default": 0.7,
+      "description": "How far the players of each key sit apart between left and right. At zero the instrument is mono."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -9,
+      "unit": "dB",
+      "description": "Output level of the instrument. A soft clip after it rounds off the peaks when many notes stack up."
+    }
+  ],
+  "presets": {
+    "Three violins": {
+      "tape": 0,
+      "length": 8,
+      "attack": 0.01,
+      "release": 0.12,
+      "players": 0.45,
+      "vibrato": 0.55,
+      "hiss": 0.35,
+      "age": 0.5,
+      "spread": 0.3,
+      "tone": -0.1
+    },
+    "Slow strings": {
+      "tape": 0,
+      "attack": 0.9,
+      "release": 1.8,
+      "players": 0.85,
+      "vibrato": 0.4,
+      "tone": -0.15,
+      "age": 0.3,
+      "spread": 0.9
+    },
+    "Horn chorale": {
+      "tape": 3,
+      "attack": 0.12,
+      "release": 0.7,
+      "vibrato": 0.25,
+      "age": 0.3,
+      "tone": 0.1
+    },
+    "Half-speed horns": {
+      "tape": 3,
+      "speed": 1,
+      "attack": 0.3,
+      "release": 2.0,
+      "age": 0.5,
+      "hiss": 0.3,
+      "tone": 0.3,
+      "players": 0.75
+    },
+    "Flutes on tape": {
+      "tape": 2,
+      "length": 8,
+      "attack": 0.02,
+      "release": 0.3,
+      "vibrato": 0.6,
+      "age": 0.4,
+      "hiss": 0.25
+    },
+    "Orchestra reeds": {
+      "tape": 4,
+      "attack": 0.03,
+      "release": 0.35,
+      "players": 0.5,
+      "vibrato": 0.35,
+      "age": 0.25,
+      "tone": 0.15
+    },
+    "Tape choir": {
+      "tape": 5,
+      "attack": 0.15,
+      "release": 0.9,
+      "vibrato": 0.45,
+      "age": 0.2,
+      "spread": 1
+    },
+    "Worn choir": {
+      "tape": 5,
+      "age": 0.85,
+      "hiss": 0.5,
+      "attack": 0.3,
+      "release": 1.4,
+      "vibrato": 0.6,
+      "players": 0.8,
+      "tone": -0.35,
+      "length": 8
+    },
+    "Cello bed": {
+      "tape": 1,
+      "speed": 1,
+      "attack": 0.6,
+      "release": 2.5,
+      "players": 0.8,
+      "vibrato": 0.4,
+      "tone": 0.2,
+      "age": 0.4,
+      "spread": 0.85
+    },
+    "Lost reel": {
+      "tape": 2,
+      "speed": 1,
+      "age": 1,
+      "hiss": 0.7,
+      "tone": -0.3,
+      "attack": 0.05,
+      "release": 0.8,
+      "length": 6
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. It follows the tape-replay keyboards of the sixties and seventies in outline: a strip of tape under every key that starts when the key goes down, wobbles in its own way, and runs out after about eight seconds. Nothing is sampled. Each key's recording is one period of the instrument built from harmonic levels (a source slope under fixed body resonances or vowel formants) by an inverse FFT, read by three or four players with their own tuning, entry and vibrato (the level of their sum is partly steadied, so a held note breathes instead of pumping), and passed through a tape path of wow, flutter, a start lurch, dropouts, band-limiting, saturation and hiss. The spectra, resonance frequencies and tape figures are set by measurement and judgement, nobody having listened yet; they are not taken from a recording, a circuit or a paper, and it is not a model of any one machine."
+  }
+}

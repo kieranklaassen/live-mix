@@ -1,0 +1,260 @@
+{
+  "id": "zither",
+  "name": "Zither",
+  "category": "instrument",
+  "description": "A box of open strings to pluck, strum and hammer: harp, chord zither and hammered dulcimer, with twelve sympathetic strings that ring on behind what is played.",
+  "class": "Zither",
+  "header": "zither.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "exciter",
+      "name": "Exciter",
+      "choices": ["Finger", "Pick", "Hammer"],
+      "default": 0,
+      "description": "What sets the strings going. A fingertip is soft and round, a pick bright and thin, a felt hammer a wider, softer blow with a small bounce. Applies from the next string."
+    },
+    {
+      "key": "chord",
+      "name": "Chord",
+      "choices": [
+        "Single",
+        "Octave",
+        "Fifth and octave",
+        "Major",
+        "Minor",
+        "Sus 2",
+        "Sus 4",
+        "Add 9"
+      ],
+      "default": 0,
+      "description": "Which open strings one key plays: a single string, or a chord laid out over two octaves above the note, like a chord zither. Applies from the next key."
+    },
+    {
+      "key": "strum",
+      "name": "Strum",
+      "min": 0,
+      "max": 600,
+      "default": 120,
+      "unit": "ms",
+      "description": "How long the hand takes to cross the strings of a chord. At zero they sound together; short is a strum, long is a slow harp glissando."
+    },
+    {
+      "key": "direction",
+      "name": "Direction",
+      "choices": ["Up", "Down", "Alternate"],
+      "default": 0,
+      "description": "Which way a chord is strummed and rolled: from the low string up, from the high string down, or the other way round on every new key."
+    },
+    {
+      "key": "roll",
+      "name": "Roll",
+      "min": 0,
+      "max": 16,
+      "default": 0,
+      "unit": "Hz",
+      "description": "While a key is held, goes on striking its strings softly this many times a second, a little uneven like a hand: the hammered tremolo. Off at zero."
+    },
+    {
+      "key": "decay",
+      "name": "Decay",
+      "min": 0.5,
+      "max": 20,
+      "default": 6,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long a string rings while its key is held. Low strings ring somewhat longer than this and high strings shorter, as on a real instrument."
+    },
+    {
+      "key": "release",
+      "name": "Release",
+      "min": 0.05,
+      "max": 20,
+      "default": 3,
+      "taper": "log",
+      "unit": "s",
+      "description": "How quickly a hand damps the strings when the key is let go. Short stops them at once; at the top the strings are never damped and ring out on their own, as on a harp."
+    },
+    {
+      "key": "brightness",
+      "name": "Brightness",
+      "min": 0,
+      "max": 1,
+      "default": 0.55,
+      "description": "How hard and narrow the finger, pick or hammer is and how long the upper partials ring. Low is soft and soon mellow; high is glassy. Applies from the next string."
+    },
+    {
+      "key": "position",
+      "name": "Position",
+      "min": 0.05,
+      "max": 0.5,
+      "default": 0.2,
+      "description": "Where along the string it is played. Near the bridge is thin and nasal; toward the middle is hollow and round. Applies from the next string that is played."
+    },
+    {
+      "key": "courses",
+      "name": "Courses",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Gives every note a second string tuned slightly apart, one to each side, so the pair beats and shimmers. Further up the detuning widens. Applies from the next string."
+    },
+    {
+      "key": "sympathy",
+      "name": "Sympathy",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "How strongly twelve undamped strings, one for each note of the scale, pick up what is played. They answer notes in tune with them and ring on after the others stop."
+    },
+    {
+      "key": "body",
+      "name": "Body",
+      "choices": ["Harp", "Zither", "Dulcimer", "Koto"],
+      "default": 1,
+      "description": "The soundbox under the strings: the warm board of a harp, the bright flat box of a zither, the ringing box of a hammered dulcimer or the hollow, nasal body of a koto."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -12,
+      "unit": "dB",
+      "description": "Output level of the instrument. A soft clip after it rounds off the peaks when many strings stack up."
+    }
+  ],
+  "presets": {
+    "Open zither": {
+      "exciter": 1,
+      "chord": 2,
+      "strum": 150,
+      "decay": 8,
+      "release": 6,
+      "brightness": 0.5,
+      "position": 0.25,
+      "courses": 0.45,
+      "sympathy": 0.55,
+      "volume": -8.5
+    },
+    "Concert harp": {
+      "exciter": 0,
+      "chord": 0,
+      "decay": 9,
+      "release": 20,
+      "brightness": 0.6,
+      "position": 0.3,
+      "courses": 0,
+      "sympathy": 0.2,
+      "body": 0,
+      "volume": -13
+    },
+    "Harp glissando": {
+      "exciter": 0,
+      "chord": 7,
+      "strum": 480,
+      "direction": 2,
+      "decay": 8,
+      "release": 20,
+      "brightness": 0.6,
+      "position": 0.28,
+      "courses": 0,
+      "sympathy": 0.35,
+      "body": 0,
+      "volume": -12
+    },
+    "Hammered shimmer": {
+      "exciter": 2,
+      "chord": 1,
+      "strum": 60,
+      "roll": 9,
+      "decay": 8,
+      "release": 4,
+      "brightness": 0.6,
+      "position": 0.14,
+      "courses": 0.4,
+      "sympathy": 0.7,
+      "body": 2,
+      "volume": -13
+    },
+    "Chord zither major": {
+      "exciter": 1,
+      "chord": 3,
+      "strum": 90,
+      "decay": 5,
+      "release": 2,
+      "brightness": 0.65,
+      "position": 0.18,
+      "courses": 0.25,
+      "sympathy": 0.3,
+      "volume": -8.5
+    },
+    "Chord zither minor": {
+      "exciter": 1,
+      "chord": 4,
+      "strum": 90,
+      "decay": 5,
+      "release": 2,
+      "brightness": 0.65,
+      "position": 0.18,
+      "courses": 0.25,
+      "sympathy": 0.3,
+      "volume": -8.5
+    },
+    "Koto pluck": {
+      "exciter": 1,
+      "chord": 0,
+      "decay": 3,
+      "release": 1.2,
+      "brightness": 0.65,
+      "position": 0.11,
+      "courses": 0,
+      "sympathy": 0.15,
+      "body": 3,
+      "volume": -7
+    },
+    "Twelve-string haze": {
+      "exciter": 1,
+      "chord": 1,
+      "strum": 40,
+      "decay": 12,
+      "release": 8,
+      "brightness": 0.6,
+      "position": 0.2,
+      "courses": 0.85,
+      "sympathy": 0.5,
+      "volume": -8
+    },
+    "Single felt string": {
+      "exciter": 2,
+      "chord": 0,
+      "decay": 5,
+      "release": 2,
+      "brightness": 0.4,
+      "position": 0.35,
+      "courses": 0,
+      "sympathy": 0.25,
+      "body": 0,
+      "volume": -11
+    },
+    "Slow sus arpeggio": {
+      "exciter": 0,
+      "chord": 5,
+      "strum": 360,
+      "direction": 2,
+      "roll": 3,
+      "decay": 10,
+      "release": 20,
+      "brightness": 0.5,
+      "position": 0.25,
+      "courses": 0.2,
+      "sympathy": 0.45,
+      "body": 0,
+      "volume": -12
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. Plucked strings after the approach of Karplus and Strong, 'Digital Synthesis of Plucked-String and Drum Timbres', and of Jaffe and Smith, 'Extensions of the Karplus-Strong Plucked-String Algorithm': a delay loop per string, closed through a loss filter and a first-order allpass for the fractional tuning. The strings are exactly harmonic (no stiffness). A pluck is the rectangular wave of an ideal pluck with softened edges, a hammer a half-sine blow with its reflection and a bounce; both are added to the loop, so they can land on a moving string. Strings asked for in the same instant are spread over a few milliseconds, as a hand would. The way a roll settles at a level is a stylisation, not physics. Below 220 Hz the loss filter is set so that the upper partials of a string die two to three times as fast as its fundamental. A finger or a pick also adds a few milliseconds of seeded noise, kept about as steep as the pluck's own edge, and a soft knock into the body; both are stylised. Twelve fixed sympathetic strings are driven one way from the bridge; the body is four resonances and two shelves, and the resonances ring on for about 0.05 to 0.15 s after a damped note (the koto's hardly at all). All constants were chosen here and checked by measurement; it is not a model of a particular instrument."
+  }
+}

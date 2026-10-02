@@ -1,0 +1,150 @@
+{
+  "id": "low-bitrate",
+  "name": "Low Bitrate",
+  "category": "texture",
+  "description": "What a starving audio stream does to sound: quiet detail is thrown away until the rest swirls and warbles as if behind glass, with lost and stuck packets on top.",
+  "class": "LowBitrate",
+  "header": "low_bitrate.h",
+  "sources": [],
+  "latencySamples": 4096,
+  "params": [
+    {
+      "key": "loss",
+      "name": "Loss",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How much of the sound is thrown away. A little puts it behind glass; more makes it watery and hollow; at the top only a few warbling partials are left."
+    },
+    {
+      "key": "mode",
+      "name": "Mode",
+      "choices": ["Kept", "Residue", "Scattered"],
+      "default": 0,
+      "description": "Kept plays what survives the loss. Residue plays only what was thrown away, a thin ghost of the sound. Scattered scrambles the timing and smears attacks into a haze."
+    },
+    {
+      "key": "frame",
+      "name": "Frame",
+      "choices": ["Short", "Medium", "Long"],
+      "default": 1,
+      "description": "The size of the pieces the sound is cut into. Short is gritty and rough around attacks; Long is the most watery and smears each attack forwards and backwards."
+    },
+    {
+      "key": "dropouts",
+      "name": "Dropouts",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "How much of the stream goes missing. Lost packets leave soft-edged holes of silence in the sound."
+    },
+    {
+      "key": "stutter",
+      "name": "Stutter",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "How often the stream sticks. A stuck packet repeats as a short buzzing loop that dulls to a hum and fades until the stream catches up."
+    },
+    {
+      "key": "burst",
+      "name": "Burst",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "How long each dropout or stutter lasts. Low gives many short ticks and gaps; high gives fewer, longer holes and held loops."
+    },
+    {
+      "key": "smear",
+      "name": "Smear",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "Lets each frequency hang on as a grainy wash after the sound has moved on. At the top the wash never fades and keeps collecting what is played into it."
+    },
+    {
+      "key": "stereo",
+      "name": "Stereo",
+      "min": 0,
+      "max": 1,
+      "default": 0.7,
+      "description": "How much of the stereo image survives the loss. Lower settings fold the highs, then everything, into the middle as Loss rises."
+    },
+    {
+      "key": "highCut",
+      "name": "High Cut",
+      "min": 1000,
+      "max": 20000,
+      "default": 20000,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "Removes everything above this frequency from the processed sound, like a stream at a low sample rate. At its highest setting it is off."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "Balance between the untouched signal and the processed one. Both are kept in time with each other, so in between they blend without hollowing."
+    }
+  ],
+  "presets": {
+    "Behind glass": {
+      "loss": 0.45
+    },
+    "Underwater": {
+      "loss": 0.7,
+      "frame": 2,
+      "smear": 0.2,
+      "stereo": 0.5,
+      "highCut": 4000
+    },
+    "Dial-up": {
+      "loss": 0.7,
+      "frame": 0,
+      "stereo": 0,
+      "highCut": 3400
+    },
+    "Ghost": {
+      "loss": 0.55,
+      "mode": 1
+    },
+    "Smeared phases": {
+      "loss": 0.6,
+      "mode": 2,
+      "frame": 2
+    },
+    "Bad connection": {
+      "loss": 0.5,
+      "dropouts": 0.35,
+      "stutter": 0.35,
+      "burst": 0.4
+    },
+    "Stuck stream": {
+      "loss": 0.4,
+      "stutter": 0.6,
+      "burst": 0.85
+    },
+    "Frozen stream": {
+      "loss": 0.6,
+      "frame": 2,
+      "smear": 0.85
+    },
+    "Thin air": {
+      "loss": 0.42,
+      "mode": 1,
+      "frame": 2,
+      "smear": 0.4
+    },
+    "Few partials": {
+      "loss": 1,
+      "frame": 2,
+      "stereo": 1
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix. Models a low-bitrate perceptual transform codec in outline, without a bitstream and without any real codec's psychoacoustic model: a lapped cosine transform (MDCT) filter bank, bins kept or dropped against thresholds per critical band, coarse power-law quantisation of what is kept, a falling bandwidth, joint stereo, and lost or repeated packets. The filter bank is after the approach of J. Princen and A. Bradley, 'Analysis/synthesis filter bank design based on time domain aliasing cancellation'. Scattered and Smear treat the cosine and sine transforms together as a complex spectrum, after the approach of H. Malvar, 'A modulated complex lapped transform and its applications to audio processing'. The bands follow the critical-band (Bark) scale and the quantiser is a three-quarter-power law of the kind such codecs use, both written from memory of the general literature and not checked against any text; the thresholds, margins and slopes were tuned by measurement for this device. Not a port of any codec or plug-in."
+  }
+}

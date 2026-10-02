@@ -1,0 +1,110 @@
+#pragma once
+
+#include "curve.h"
+
+// The five circuits as data. Each is an equaliser into its curve and another
+// out of it, plus how its working point moves with level:
+//
+//   emphasis ─► × drive ─► curve(v + bias) − curve(bias) ─► de-emphasis
+//
+// What the emphasis lifts saturates first. The de-emphasis undoes most of it
+// and leaves each circuit a voicing of its own, two or three dB at most and
+// there at any Drive (a quiet tone at Drive 0, against 500 Hz; the harness
+// asserts these): the tape preamp warm and dull (100 Hz up 1.7 dB, 8 kHz
+// down 2.4), the console forward in the mids (1.6 dB at 2 kHz), the
+// transformer thick (3 dB at 240 Hz), the triode flat within a dB with a
+// little air, the pentode lean and bright (100 Hz down 1.2 dB, 2 kHz up 2.2,
+// the top up 1.3). So the circuits differ in
+// tone, in which part of the spectrum distorts and in the harmonics they
+// make, not only in the curve.
+
+namespace livemix {
+namespace analog_drive_dsp {
+
+constexpr int kNumCircuits = 5;
+constexpr int kMaxPre = 2;
+constexpr int kMaxPost = 3;
+
+struct Eq {
+  enum Kind : int { kNone = 0, kLowShelf, kHighShelf, kPeak };
+  Kind kind;
+  float hz;
+  float gain_db;
+  float q;  // peaks only
+};
+
+struct Circuit {
+  Curve curve;
+  // Where the signal sits on the curve: bias + bias_drive × Drive, plus a
+  // shift that follows the level arriving at the curve and tends to
+  // bias_level: bias_level × e / (e + bias_knee) for an envelope e.
+  float bias;
+  float bias_drive;
+  float bias_level;
+  float bias_knee;
+  // Gain into the curve falls to 1 / (1 + sag) when what leaves it has an
+  // envelope of 1 (its ceiling).
+  float sag;
+  float attack_seconds;
+  float release_seconds;
+  Eq pre[kMaxPre];
+  Eq post[kMaxPost];
+};
+
+inline const Circuit& circuit(int index) {
+  static const Circuit table[kNumCircuits] = {
+      // Tape preamp: all soft knee, a little lopsided. Treble is lifted on
+      // the way in and cut by a little more on the way out, so loud highs
+      // saturate first and come back duller still, and the lows are left a
+      // little full. A slow, slight sag is the compression.
+      {Curve(1.0, 1.0, 1.3, 0.0, 1.0, 0.0, 1.0),
+       0.05f, 0.08f, 0.0f, 1.0f, 0.2f, 0.012f, 0.14f,
+       {{Eq::kHighShelf, 3200.0f, 8.0f, 0.0f}, {Eq::kNone, 0.0f, 0.0f, 0.0f}},
+       {{Eq::kHighShelf, 3200.0f, -10.5f, 0.0f},
+        {Eq::kLowShelf, 120.0f, 1.8f, 0.0f},
+        {Eq::kNone, 0.0f, 0.0f, 0.0f}}},
+      // Console: a symmetric knee, half soft and half firm (odd harmonics),
+      // reached first by the mids, with half of that lift and a little air
+      // left in afterwards.
+      {Curve(0.45, 1.0, 1.0, 0.55, 0.9, 0.0, 1.0),
+       0.01f, 0.01f, 0.0f, 1.0f, 0.0f, 0.005f, 0.08f,
+       {{Eq::kPeak, 1800.0f, 4.0f, 0.5f}, {Eq::kNone, 0.0f, 0.0f, 0.0f}},
+       {{Eq::kPeak, 1800.0f, -1.8f, 0.5f},
+        {Eq::kHighShelf, 9000.0f, 0.8f, 0.0f},
+        {Eq::kNone, 0.0f, 0.0f, 0.0f}}},
+      // Transformer: the core saturates on flux, which is the integral of
+      // the signal, so the curve sees the lows 8.5 dB up and the exact
+      // inverse follows it. Low notes distort long before high ones, and
+      // the low mids are left thick.
+      {Curve(0.65, 1.0, 1.06, 0.35, 1.0, 0.0, 1.0),
+       0.03f, 0.03f, 0.0f, 1.0f, 0.08f, 0.03f, 0.25f,
+       {{Eq::kLowShelf, 160.0f, 8.5f, 0.0f}, {Eq::kNone, 0.0f, 0.0f, 0.0f}},
+       {{Eq::kLowShelf, 160.0f, -8.5f, 0.0f},
+        {Eq::kPeak, 240.0f, 3.0f, 0.7f},
+        {Eq::kNone, 0.0f, 0.0f, 0.0f}}},
+      // Triode: one soft knee far earlier on one side than the other, and a
+      // working point that sits off centre and moves further as the level
+      // rises: second harmonic first, growing gradually. The top is left
+      // open.
+      {Curve(1.0, 0.7, 1.6, 0.0, 1.0, 0.0, 1.0),
+       0.14f, 0.15f, 1.2f, 1.5f, 0.0f, 0.02f, 0.2f,
+       {{Eq::kLowShelf, 150.0f, 2.0f, 0.0f}, {Eq::kNone, 0.0f, 0.0f, 0.0f}},
+       {{Eq::kLowShelf, 150.0f, -1.2f, 0.0f},
+        {Eq::kHighShelf, 6000.0f, 1.2f, 0.0f},
+        {Eq::kNone, 0.0f, 0.0f, 0.0f}}},
+      // Pentode: mostly hard clip with a firm knee over it and no soft part,
+      // so it stays clean and then bites; lows held back from the curve and
+      // left lean, upper mids pushed at it and left forward, the top lifted;
+      // the supply sags under a sustained load and recovers.
+      {Curve(0.0, 1.0, 1.0, 0.35, 0.75, 0.65, 0.55),
+       0.02f, 0.02f, 0.0f, 1.0f, 0.5f, 0.015f, 0.18f,
+       {{Eq::kPeak, 2000.0f, 3.5f, 0.6f}, {Eq::kLowShelf, 150.0f, -4.0f, 0.0f}},
+       {{Eq::kPeak, 2000.0f, -1.0f, 0.6f},
+        {Eq::kLowShelf, 150.0f, 2.0f, 0.0f},
+        {Eq::kHighShelf, 4500.0f, 1.5f, 0.0f}}},
+  };
+  return table[index < 0 ? 0 : (index >= kNumCircuits ? kNumCircuits - 1 : index)];
+}
+
+}  // namespace analog_drive_dsp
+}  // namespace livemix

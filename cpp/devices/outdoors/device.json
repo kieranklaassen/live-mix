@@ -1,0 +1,205 @@
+{
+  "id": "outdoors",
+  "name": "Outdoors",
+  "category": "instrument",
+  "description": "Birds at dawn, crickets, a frog pond, a stream, distant thunder and wind chimes, synthesised live: hold a key to open the scene, more keys layer more of it, and the key's pitch tunes what is pitched.",
+  "class": "Outdoors",
+  "header": "outdoors.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "type",
+      "name": "Type",
+      "choices": ["Birds", "Crickets", "Frogs", "Stream", "Thunder", "Chimes"],
+      "default": 5,
+      "description": "Which scene plays: songbirds at dawn, a field of crickets, frogs across a pond, a running stream, a distant thunderstorm or wind chimes tuned to the keys you hold."
+    },
+    {
+      "key": "density",
+      "name": "Density",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How much is going on: how many birds, crickets or frogs are calling and how often, how fast the water runs, how often thunder rolls or the chimes are struck."
+    },
+    {
+      "key": "distance",
+      "name": "Distance",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "How far away the scene is. Near is bright, dry and distinct; far is duller, softer at the edges and more uneven in level, as if heard across a field."
+    },
+    {
+      "key": "movement",
+      "name": "Movement",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How much the scene changes over time: gusts in the chimes, waves of activity among the animals, surges in the stream. Turned right down, the scene holds steady."
+    },
+    {
+      "key": "tone",
+      "name": "Tone",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Colour of the scene, from dark and mellow to bright. The key's pitch leans it as well: low keys give bigger, lower creatures and deeper water."
+    },
+    {
+      "key": "attack",
+      "name": "Attack",
+      "min": 0.01,
+      "max": 20,
+      "default": 2,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the scene takes to fade in when a key is pressed."
+    },
+    {
+      "key": "release",
+      "name": "Release",
+      "min": 0.05,
+      "max": 30,
+      "default": 4,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the scene takes to fade out after the key is released."
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "How far the sources spread across the stereo field. Fully open, every creature and chime has its own place; fully closed, the scene folds to mono."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -9,
+      "unit": "dB",
+      "description": "Output level of the instrument. A soft clip after it rounds off the peaks when many keys stack up."
+    }
+  ],
+  "presets": {
+    "Dawn chorus": {
+      "type": 0,
+      "density": 0.65,
+      "distance": 0.4,
+      "movement": 0.5,
+      "tone": 0.5,
+      "attack": 3,
+      "release": 5
+    },
+    "One blackbird": {
+      "type": 0,
+      "density": 0,
+      "distance": 0.12,
+      "movement": 0.2,
+      "tone": 0.45,
+      "attack": 0.5,
+      "release": 3,
+      "width": 0.7
+    },
+    "Summer night": {
+      "type": 1,
+      "density": 0.6,
+      "distance": 0.35,
+      "movement": 0.4,
+      "tone": 0.5,
+      "attack": 2,
+      "release": 4
+    },
+    "Evening field": {
+      "type": 1,
+      "density": 1,
+      "distance": 0.85,
+      "movement": 0.7,
+      "tone": 0.4,
+      "attack": 4,
+      "release": 6,
+      "volume": -5
+    },
+    "Pond at dusk": {
+      "type": 2,
+      "density": 0.6,
+      "distance": 0.4,
+      "movement": 0.6,
+      "tone": 0.5,
+      "attack": 2,
+      "release": 4
+    },
+    "Spring pond": {
+      "type": 2,
+      "density": 1,
+      "distance": 0.7,
+      "movement": 0.8,
+      "tone": 0.6,
+      "attack": 3,
+      "release": 6,
+      "volume": -8
+    },
+    "Small stream": {
+      "type": 3,
+      "density": 0.45,
+      "distance": 0.2,
+      "movement": 0.5,
+      "tone": 0.55,
+      "attack": 2,
+      "release": 4
+    },
+    "Fast water": {
+      "type": 3,
+      "density": 0.95,
+      "distance": 0.5,
+      "movement": 0.7,
+      "tone": 0.4,
+      "attack": 3,
+      "release": 5
+    },
+    "Far storm": {
+      "type": 4,
+      "density": 0.5,
+      "distance": 0.8,
+      "movement": 0.6,
+      "tone": 0.4,
+      "attack": 0.5,
+      "release": 8
+    },
+    "Storm overhead": {
+      "type": 4,
+      "density": 0.9,
+      "distance": 0.05,
+      "movement": 0.8,
+      "tone": 0.55,
+      "attack": 0.01,
+      "release": 6,
+      "volume": -13
+    },
+    "Porch chimes": {
+      "type": 5,
+      "density": 0.4,
+      "distance": 0.15,
+      "movement": 0.4,
+      "tone": 0.5,
+      "attack": 0.01,
+      "release": 6
+    },
+    "Chimes in a breeze": {
+      "type": 5,
+      "density": 0.7,
+      "distance": 0.4,
+      "movement": 1,
+      "tone": 0.6,
+      "attack": 0.01,
+      "release": 8
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit: six procedural scenes, no recordings. Birds are chirped tones with a little breath, arranged by a phrase grammar; crickets are pulsed tones; frogs are pulse trains through formant resonators; thunder is many delayed and filtered arrivals of noise; chimes are the struck partials of a free-free bar: procedural audio after the approach of Farnell, 'Designing Sound'. The stream is a population of bubbles, damped sines whose pitch rises as they decay, after the approach of van den Doel, 'Physically Based Models for Liquid Sounds'. No constants were taken from either: the values here were set from measurements of the device's own output."
+  }
+}

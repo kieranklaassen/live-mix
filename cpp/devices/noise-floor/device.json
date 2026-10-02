@@ -1,0 +1,151 @@
+{
+  "id": "noise-floor",
+  "name": "Noise Floor",
+  "category": "texture",
+  "description": "The sound of the medium under whatever is playing: tape hiss, record crackle, room rumble, mains hum, radio static or microphone air, steady, riding with the sound, or swelling up in the gaps.",
+  "class": "NoiseFloor",
+  "header": "noise_floor.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "type",
+      "name": "Type",
+      "choices": ["Tape hiss", "Vinyl", "Room", "Hum 50", "Hum 60", "Static", "Air"],
+      "default": 0,
+      "description": "Which medium is heard: tape hiss, the surface and crackle of a record, the rumble of an empty room, mains hum at 50 or 60 hertz, radio static or microphone air."
+    },
+    {
+      "key": "level",
+      "name": "Level",
+      "min": -72,
+      "max": -12,
+      "default": -42,
+      "unit": "dB",
+      "description": "How loud the noise is. It is added under the sound; the sound itself is never changed. Ticks and crackles stay close to this level and never jump far out of it."
+    },
+    {
+      "key": "follow",
+      "name": "Follow",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "description": "Ties the noise to the playing. Turned up, it rides with the sound and dies with it. Turned down, it ducks under the sound and swells in the gaps. The middle is steady."
+    },
+    {
+      "key": "response",
+      "name": "Response",
+      "min": 0.02,
+      "max": 4,
+      "default": 0.4,
+      "taper": "log",
+      "unit": "s",
+      "description": "How quickly the noise reacts when Follow is away from the middle. Short settings track every note; long ones swell and sink slowly."
+    },
+    {
+      "key": "tone",
+      "name": "Tone",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "description": "Colour of the noise, from dark and muffled to bright and thin. For Hum it goes from a pure low hum to a rasping buzz."
+    },
+    {
+      "key": "movement",
+      "name": "Movement",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "How much the noise wanders on its own: slow drift in level and colour, and each medium's own unsteadiness. At zero it is perfectly even."
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 0.8,
+      "description": "Stereo spread of the noise. At full the two sides are independent, at zero it is mono. Hum stays mostly in the middle however wide."
+    },
+    {
+      "key": "hold",
+      "name": "Hold",
+      "min": 1,
+      "max": 60,
+      "default": 12,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the noise carries on after the sound stops, before it fades away and the device goes silent."
+    }
+  ],
+  "presets": {
+    "Tape floor": {
+      "type": 0,
+      "level": -42,
+      "follow": 0,
+      "response": 0.4,
+      "tone": 0,
+      "movement": 0.3,
+      "width": 0.8,
+      "hold": 12
+    },
+    "Old record": {
+      "type": 1,
+      "level": -38,
+      "movement": 0.5,
+      "width": 0.7,
+      "hold": 8
+    },
+    "Empty room": {
+      "type": 2,
+      "level": -34,
+      "movement": 0.6,
+      "width": 1,
+      "hold": 20
+    },
+    "Amp left on": {
+      "type": 4,
+      "level": -40,
+      "tone": 0.2,
+      "movement": 0.3,
+      "width": 0.3,
+      "hold": 30
+    },
+    "Between stations": {
+      "type": 5,
+      "level": -36,
+      "tone": 0.1,
+      "movement": 0.6,
+      "width": 0.5,
+      "hold": 10
+    },
+    "Breathing recorder": {
+      "type": 0,
+      "level": -28,
+      "follow": -1,
+      "response": 0.9,
+      "tone": -0.2,
+      "movement": 0.4,
+      "hold": 15
+    },
+    "Rides the sound": {
+      "type": 0,
+      "level": -30,
+      "follow": 1,
+      "response": 0.15,
+      "tone": 0.1,
+      "movement": 0.2,
+      "hold": 2
+    },
+    "Close microphone": {
+      "type": 6,
+      "level": -40,
+      "follow": 0.3,
+      "movement": 0.4,
+      "width": 1,
+      "hold": 10
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. Seven small noise models; there are no recordings and no one machine is modelled. Hiss, room tone and air are white noise shaped by filters set in hertz; a record is a dull surface noise with bright ticks struck into two-pole resonators, and static is a darkened hiss with crackles and swells in the band of a receiver, both driven by Poisson event trains whose sizes have a heavy but bounded tail, so that no tick or crackle peaks more than 14 dB over the level set; mains hum is a wavetable of 40 harmonics. An envelope follower makes the noise ride with the input or duck under it (Follow). No published model is followed; the one-pole filter under the tape hiss is integrated by the trapezoidal rule, after the approach of Vadim Zavalishin, The Art of VA Filter Design. The noise only runs while something is playing (an input above -74 dBFS): it carries on for Hold, fades over half a second, and an idle track is exactly silent."
+  }
+}

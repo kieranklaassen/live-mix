@@ -1,0 +1,182 @@
+{
+  "id": "vinyl",
+  "name": "Vinyl",
+  "category": "texture",
+  "description": "Puts the sound on a record: the slow pitch warp of a disc that is not flat, crackle, pops and a scratch that comes round once a turn, surface hiss and rumble, a worn groove, and a platter you can stop and start.",
+  "class": "Vinyl",
+  "header": "vinyl.h",
+  "sources": [],
+  "memoryMb": 8,
+  "params": [
+    {
+      "key": "speed",
+      "name": "Speed",
+      "choices": ["33", "45", "78"],
+      "default": 0,
+      "description": "How fast the record turns, and so how fast the warp and the scratch come round. 78 is shellac: nearly mono, a narrow band with no deep bass or top, and a noisier surface."
+    },
+    {
+      "key": "warp",
+      "name": "Warp",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "description": "How far the pitch rises and falls once per turn. Low is a good pressing with a little life; high is a badly warped disc that sways."
+    },
+    {
+      "key": "crackle",
+      "name": "Crackle",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Dust in the groove. Low down it is a fine, even frying under the music; further up, ticks stand out of it, closer together and louder."
+    },
+    {
+      "key": "pops",
+      "name": "Pops",
+      "min": 0,
+      "max": 1,
+      "default": 0.1,
+      "description": "Bigger clicks with a low thump under them, rare and soft low down, frequent and loud at the top. Some belong to a scratch that returns on every turn for a while."
+    },
+    {
+      "key": "surface",
+      "name": "Surface",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "description": "The steady hiss of the groove, which swishes gently once per turn, and the low rumble of the turntable under it."
+    },
+    {
+      "key": "wear",
+      "name": "Wear",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "How played the record is. More wear dulls the top, smears loud highs with a soft fuzz, narrows the stereo image and pulls the bass to the middle."
+    },
+    {
+      "key": "tone",
+      "name": "Tone",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "description": "A broad tilt over the whole playback, noise included: down for a dark, warm cartridge, up for a bright, thin one."
+    },
+    {
+      "key": "platter",
+      "name": "Platter",
+      "choices": ["Play", "Stop"],
+      "default": 0,
+      "description": "Stop lets the record slow to a halt, pitch and level falling together into silence. Play spins it back up to speed and back to the live sound."
+    },
+    {
+      "key": "spin",
+      "name": "Spin Time",
+      "min": 0.2,
+      "max": 6,
+      "default": 1.5,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the platter takes to slow to a halt. It comes back up to speed in half that time."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "Balance between the dry signal and the record. Part way, the warped record against the steady dry signal makes a slow chorus."
+    }
+  ],
+  "presets": {
+    "Clean pressing": {
+      "speed": 0,
+      "warp": 0.15,
+      "crackle": 0.22,
+      "pops": 0.05,
+      "surface": 0.2,
+      "wear": 0.1,
+      "tone": 0,
+      "platter": 0,
+      "spin": 1.5,
+      "mix": 1
+    },
+    "Charity shop find": {
+      "speed": 0,
+      "warp": 0.4,
+      "crackle": 0.4,
+      "pops": 0.3,
+      "surface": 0.5,
+      "wear": 0.6,
+      "tone": -0.2
+    },
+    "Ballroom 78": {
+      "speed": 2,
+      "warp": 0.4,
+      "crackle": 0.5,
+      "pops": 0.3,
+      "surface": 0.6,
+      "wear": 0.6,
+      "tone": -0.2
+    },
+    "Jukebox single": {
+      "speed": 1,
+      "warp": 0.3,
+      "crackle": 0.35,
+      "pops": 0.2,
+      "surface": 0.35,
+      "wear": 0.35,
+      "tone": 0.6
+    },
+    "Warped": {
+      "speed": 0,
+      "warp": 0.85,
+      "crackle": 0.25,
+      "pops": 0.05,
+      "surface": 0.2,
+      "wear": 0.2
+    },
+    "Dust and scratches": {
+      "speed": 0,
+      "warp": 0.2,
+      "crackle": 0.9,
+      "pops": 0.6,
+      "surface": 0.3,
+      "wear": 0.3,
+      "tone": 0.1
+    },
+    "Inner groove": {
+      "speed": 0,
+      "warp": 0.2,
+      "crackle": 0.3,
+      "pops": 0.1,
+      "surface": 0.3,
+      "wear": 1,
+      "tone": 0.2
+    },
+    "Locked scratch": {
+      "speed": 0,
+      "warp": 0.3,
+      "crackle": 0.25,
+      "pops": 1,
+      "surface": 0.3,
+      "wear": 0.5,
+      "tone": -0.1
+    },
+    "Slow platter": {
+      "speed": 0,
+      "warp": 0.55,
+      "crackle": 0.25,
+      "pops": 0.1,
+      "surface": 0.3,
+      "wear": 0.25,
+      "tone": -0.5,
+      "spin": 5
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. A behavioural sketch of a record and its turntable, not a model of any one deck, cartridge or pressing, and no constant in it is taken from a source. The warp is a delay read (a twelve-tap windowed-sinc interpolator) whose position moves once per turn, with a second harmonic and a slow drift. Tracing distortion is after the approach of the classical analysis of a round stylus tip in a modulated groove: each wall lifts the tip in proportion to the square of the groove's slope, which for the two walls of a stereo groove puts a second harmonic on the difference channel (the pinch effect) and leaves third order in the middle; here both terms are scaled by measurement, and the middle one is made larger than that analysis gives. Crackle is a Poisson stream with Pareto-distributed sizes, cut off at a ceiling that opens with the control so that low settings are an even bed, whose rate follows a map of dust round the disc; a scratch is a pop repeated at one turn phase. Surface noise, the sizes and rates of ticks and pops, shellac's band and the platter curves are tuned by measurement, not by ear and not from a reference recording. The platter is a varispeed read that falls behind the input while it slows and while it starts, and cross-fades to the live input once it is back at speed. Noise is only made while the device is awake: it carries on for fourteen seconds after the input stops, so the gaps in slow playing keep their surface, fades over four, and an idle track is exactly silent."
+  }
+}

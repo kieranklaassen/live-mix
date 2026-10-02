@@ -1,0 +1,187 @@
+{
+  "id": "re-amp",
+  "name": "Re-amp",
+  "category": "drive",
+  "description": "Plays the sound through an amplifier and one of five loudspeakers in a room and records it again with a microphone you can pull back and turn away.",
+  "class": "ReAmp",
+  "header": "re_amp.h",
+  "sources": [],
+  "latencySamples": 39,
+  "params": [
+    {
+      "key": "speaker",
+      "name": "Speaker",
+      "choices": ["Small", "Combo", "Stack", "Horn", "Full range"],
+      "default": 1,
+      "description": "Which loudspeaker plays the sound. Small is a boxy radio speaker, Combo an open cabinet with presence, Stack closed and scooped, Horn honky, Full range nearly flat."
+    },
+    {
+      "key": "drive",
+      "name": "Drive",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "description": "How hard the amplifier is pushed. Low stays clean; higher rounds the peaks, adds valve harmonics and squashes the dynamics, so quiet playing and the amp's noise come up."
+    },
+    {
+      "key": "bass",
+      "name": "Bass",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "description": "The amplifier's bass control, ahead of the valves. Up makes the breakup thicker and the cabinet thump; down keeps it tight."
+    },
+    {
+      "key": "treble",
+      "name": "Treble",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "description": "The amplifier's treble control, ahead of the valves. Up adds bite and fizz to the breakup; down makes it rounder."
+    },
+    {
+      "key": "distance",
+      "name": "Distance",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "How far the microphone is from the speaker. On the cone the sound is dry and close. Pulling it back lets in the room until the speaker is heard from the far side."
+    },
+    {
+      "key": "room",
+      "name": "Room",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "The size of the room the speaker stands in, from a cupboard to a hall. Bigger rooms have later reflections and a longer tail. Heard once Distance pulls the mic back."
+    },
+    {
+      "key": "angle",
+      "name": "Angle",
+      "min": 0,
+      "max": 1,
+      "default": 0.2,
+      "description": "Turns the microphone away from the centre of the cone. Off to the side the direct sound is duller and the speaker's presence peak softens."
+    },
+    {
+      "key": "noise",
+      "name": "Noise",
+      "min": 0,
+      "max": 1,
+      "default": 0.1,
+      "description": "The amplifier's own hiss and a faint mains hum, louder when Drive is up. It sounds only while signal is passing and for a moment after, so silence stays silent."
+    },
+    {
+      "key": "output",
+      "name": "Output",
+      "min": -24,
+      "max": 12,
+      "default": 0,
+      "unit": "dB",
+      "description": "Level of the recorded sound. The dry part of Mix is not affected."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "Balance between the untouched signal and the re-amped one. Part way layers the speaker in the room under the clean sound."
+    }
+  ],
+  "presets": {
+    "Combo in a room": {
+      "speaker": 1,
+      "drive": 0.25,
+      "bass": 0,
+      "treble": 0,
+      "distance": 0.3,
+      "room": 0.4,
+      "angle": 0.2,
+      "noise": 0.1,
+      "output": 0,
+      "mix": 1
+    },
+    "Bedside radio": {
+      "speaker": 0,
+      "drive": 0.35,
+      "bass": 0.2,
+      "treble": 0.2,
+      "distance": 0.25,
+      "room": 0.25,
+      "angle": 0.1,
+      "noise": 0.2,
+      "output": 0
+    },
+    "Down the hall": {
+      "speaker": 1,
+      "drive": 0.3,
+      "bass": 0,
+      "treble": 0,
+      "distance": 0.85,
+      "room": 0.9,
+      "angle": 0.3,
+      "noise": 0.1,
+      "output": 0
+    },
+    "Station platform": {
+      "speaker": 3,
+      "drive": 0.45,
+      "bass": 0,
+      "treble": 0,
+      "distance": 0.7,
+      "room": 0.8,
+      "angle": 0.1,
+      "noise": 0.15,
+      "output": 2
+    },
+    "Warm stack": {
+      "speaker": 2,
+      "drive": 0.5,
+      "bass": 0.3,
+      "treble": -0.3,
+      "distance": 0.2,
+      "room": 0.35,
+      "angle": 0.4,
+      "noise": 0.1,
+      "output": -1.5
+    },
+    "Speaker on the edge": {
+      "speaker": 1,
+      "drive": 0.8,
+      "bass": 0.5,
+      "treble": 0.2,
+      "distance": 0.1,
+      "room": 0.3,
+      "angle": 0,
+      "noise": 0.12,
+      "output": 0
+    },
+    "Just the room": {
+      "speaker": 4,
+      "drive": 0,
+      "bass": 0,
+      "treble": 0,
+      "distance": 0.75,
+      "room": 0.6,
+      "angle": 0,
+      "noise": 0,
+      "output": -2
+    },
+    "Pillow speaker": {
+      "speaker": 0,
+      "drive": 0.1,
+      "bass": 0.5,
+      "treble": -0.8,
+      "distance": 0,
+      "room": 0.1,
+      "angle": 1,
+      "noise": 0.05,
+      "output": 0
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. Models re-amping in outline: one valve-like amplifier stage with bass and treble controls and supply sag, five loudspeakers built from second-order filter sections (cabinet resonance, driver peaks and dips, cone breakup, a fourth-order roll-off) with a motor that weakens with cone excursion, and a microphone that moves from the cone into a room made of a seeded early-reflection pattern and an eight-line feedback delay network with a Hadamard matrix, whose line lengths drift slowly when it is heard from far off so that its resonances do not stand on the same notes. The speakers are filter sets written for this device: it is not a circuit model of any amplifier and nothing is measured from any real speaker or room. The valve curve runs at four times the sample rate and is anti-aliased with a first-order antiderivative, after the approach of Parker, Zavalishin and Le Bivic, 'Reducing the aliasing of nonlinear waveshaping using continuous-time convolution'; the room's tail is after the approach of Jot and Chaigne, 'Digital delay networks for designing artificial reverberators'. The half-band filter of the oversampler is the design in cpp/devices/saturator/halfband.h, copied into this directory."
+  }
+}

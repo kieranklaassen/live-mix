@@ -1,0 +1,223 @@
+{
+  "id": "echo-memory",
+  "name": "Echo Memory",
+  "category": "delay",
+  "description": "An echo with a long memory: under the repeats, moments from the last minute of playing drift back, sometimes backwards or at half speed.",
+  "class": "EchoMemory",
+  "header": "echo_memory.h",
+  "sources": [],
+  "memoryMb": 20,
+  "params": [
+    {
+      "key": "time",
+      "name": "Time",
+      "min": 50,
+      "max": 4000,
+      "default": 500,
+      "taper": "log",
+      "unit": "ms",
+      "description": "The gap between the echo's repeats. Moving it bends the pitch of the repeats that are already sounding."
+    },
+    {
+      "key": "feedback",
+      "name": "Feedback",
+      "min": 0,
+      "max": 0.95,
+      "default": 0.35,
+      "description": "How much of each echo is repeated again. Low gives one or two repeats, high a long trail that slowly darkens."
+    },
+    {
+      "key": "echo",
+      "name": "Echo",
+      "min": 0,
+      "max": 1,
+      "default": 0.7,
+      "description": "Level of the ordinary echo. At zero only the recalled moments are heard."
+    },
+    {
+      "key": "memory",
+      "name": "Memory",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "Level of the moments brought back from earlier in the performance. At zero the device is a plain echo."
+    },
+    {
+      "key": "reach",
+      "name": "Reach",
+      "min": 4,
+      "max": 60,
+      "default": 20,
+      "taper": "log",
+      "unit": "s",
+      "description": "How far back the memory can go. Short keeps to what was just played; long lets a phrase from a minute ago return, fainter the older it is."
+    },
+    {
+      "key": "wander",
+      "name": "Wander",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How often the memory goes somewhere new. Low recalls a moment now and then with silence between; high flickers between short glimpses several times a second."
+    },
+    {
+      "key": "size",
+      "name": "Size",
+      "min": 0.2,
+      "max": 8,
+      "default": 3,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long each recalled moment lasts. Short gives glimpses of single notes, long brings back whole phrases under a slow fade. A busy Wander cuts moments shorter."
+    },
+    {
+      "key": "vary",
+      "name": "Vary",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "The chance that a moment comes back changed: backwards, an octave down at half speed, or an octave up at double speed. At zero everything returns as it was played."
+    },
+    {
+      "key": "buildUp",
+      "name": "Build Up",
+      "choices": ["Off", "On"],
+      "default": 0,
+      "description": "On records what the memory plays back into the memory, quieter each time, so memories of memories build up and slowly fade."
+    },
+    {
+      "key": "tone",
+      "name": "Tone",
+      "min": 800,
+      "max": 16000,
+      "default": 6000,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "Rolls the highs off the echoes and the recalled moments. Lower is darker and further away, and each echo repeat is darker than the last."
+    },
+    {
+      "key": "spread",
+      "name": "Spread",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "How wide the recalled moments are placed, each at its own position. It also bounces the echo's repeats from side to side."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "Balance between the dry signal and the echoes and memories."
+    }
+  ],
+  "presets": {
+    "Remembering": {
+      "time": 500,
+      "feedback": 0.35,
+      "echo": 0.7,
+      "memory": 0.6,
+      "reach": 20,
+      "wander": 0.5,
+      "size": 3,
+      "vary": 0.3,
+      "buildUp": 0,
+      "tone": 6000,
+      "spread": 0.6,
+      "mix": 0.4
+    },
+    "Long memory": {
+      "time": 750,
+      "feedback": 0.4,
+      "echo": 0.5,
+      "memory": 0.7,
+      "reach": 60,
+      "wander": 0.35,
+      "size": 6,
+      "vary": 0.2,
+      "tone": 5000,
+      "spread": 0.7,
+      "mix": 0.45
+    },
+    "Flickers": {
+      "time": 330,
+      "feedback": 0.3,
+      "echo": 0.4,
+      "memory": 0.8,
+      "reach": 12,
+      "wander": 0.9,
+      "size": 0.25,
+      "vary": 0.35,
+      "tone": 9000,
+      "spread": 1,
+      "mix": 0.4
+    },
+    "Backwards glances": {
+      "time": 600,
+      "feedback": 0.3,
+      "echo": 0.45,
+      "memory": 0.75,
+      "reach": 15,
+      "wander": 0.55,
+      "size": 1.5,
+      "vary": 0.9,
+      "tone": 7000,
+      "spread": 0.8,
+      "mix": 0.4
+    },
+    "Half-remembered": {
+      "time": 1000,
+      "feedback": 0.5,
+      "echo": 0.3,
+      "memory": 0.8,
+      "reach": 40,
+      "wander": 0.4,
+      "size": 4,
+      "vary": 0.8,
+      "tone": 1600,
+      "spread": 0.5,
+      "mix": 0.5
+    },
+    "Plain echo": {
+      "time": 380,
+      "feedback": 0.45,
+      "echo": 1,
+      "memory": 0,
+      "tone": 5000,
+      "spread": 0.3,
+      "mix": 0.35
+    },
+    "Gathering": {
+      "time": 700,
+      "feedback": 0.3,
+      "echo": 0.35,
+      "memory": 0.8,
+      "reach": 24,
+      "wander": 0.45,
+      "size": 3.5,
+      "vary": 0.5,
+      "buildUp": 1,
+      "tone": 4500,
+      "spread": 0.8,
+      "mix": 0.45
+    },
+    "Distant minute": {
+      "time": 1500,
+      "feedback": 0.5,
+      "echo": 0.6,
+      "memory": 0.5,
+      "reach": 60,
+      "wander": 0.2,
+      "size": 8,
+      "vary": 0.15,
+      "tone": 3000,
+      "spread": 0.8,
+      "mix": 0.35
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit; not a model of any unit. A feedback echo beside a recording of about the last minute of the input, kept as 16-bit stereo with triangular dither and a map of how loud each tenth of a second was. Two snippet voices bring back moments from it, chosen by seeded chance weighted towards where there was sound, each under a slow raised-cosine window: as played, backwards, or at half or double speed through windowed-sinc interpolation. The recall granulates a delay line, after the approach of Barry Truax, 'Real-Time Granular Synthesis with a Digital Signal Processor'; the dither is after the approach of Lipshitz, Wannamaker and Vanderkooy, 'Quantization and Dither: A Theoretical Survey'; the interpolation is after the approach of Smith and Gossett, 'A Flexible Sampling-Rate Conversion Method'."
+  }
+}

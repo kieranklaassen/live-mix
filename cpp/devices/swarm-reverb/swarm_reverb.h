@@ -1,0 +1,620 @@
+#pragma once
+
+// Swarm Reverb: a cavern made of a swarm of short echoes, on a delay line
+// whose clock speed can be changed.
+//
+//   in ─►(+)─► high cut ─► low cut ─► 4 allpasses ─► line ─┬─ 14 taps ─► width ─► wet
+//         ▲                             (Blur)             └─ end of the line ─┐
+//         └── limit ◄── Feedback, eased as the cave fills ◄── rotate L/R ◄─────┘
+//
+// - Two lines, one per side. Each is read by fourteen taps at uneven, seeded
+//   times between a few hundredths of Length and Length itself: a hit comes
+//   back as a rush of separate reflections. The left and right lines have
+//   different tap times, so the swarm is decorrelated without any polarity
+//   trick.
+// - Feedback sends the end of each line back in through a rotation that mixes
+//   left and right. The rotation loses nothing, so the gain round the loop is
+//   Feedback at every frequency (no one resonance takes over), and each trip
+//   doubles the number of echo paths: the swarm piles up into a cave. High Cut
+//   and Low Cut are second-order filters on the way in and on the return, so
+//   each trip is a little darker and thinner. From Feedback 0.9 to 1 the
+//   pair on the return opens up, so that at 1 the cave holds what it was
+//   given for minutes instead of narrowing to a band. Past 1 the loop grows until the return is eased back: a slow
+//   ride on the level in the lines rather than a clipper, so a chord left
+//   to regenerate stays a chord. A soft limiter behind it catches peaks.
+// - Every delay in the device (taps, loop reads, allpass lengths) is a
+//   distance on one tape whose speed is 1 / (Length x Stretch). The device keeps
+//   the history of the tape position and, for each read, finds when the
+//   sample now under it was written. So when the speed changes from v1 to
+//   v2, everything already on the tape plays back at v2 / v1 until it has
+//   passed its tap, exactly as on a delay whose clock is turned: Stretch bends
+//   the whole cave by one ratio. With Steps on, the speeds are related by
+//   octaves, fifths and fourths, so the bend is a musical interval. What has
+//   been bent and goes round again stays bent.
+// - Wander moves Stretch on its own: a slow seeded drift, or with Steps on a
+//   seeded walk between neighbouring steps.
+// - Every other tap is also swept a little by its own slow sine, so the
+//   cluster's comb keeps moving, and both loop reads are swept more the
+//   closer Feedback is to 1, so no single frequency of the loop builds up
+//   under a held note. Every
+//   read that nothing is moving settles on a whole sample, where it is exact
+//   and costs one load; moving reads are Hermite-interpolated.
+
+#include "../../kit/kit.h"
+#include "params.gen.h"
+
+namespace livemix {
+
+class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
+ public:
+  void init(float sample_rate) {
+    using namespace swarm_reverb;
+    kit::SineTable::init();
+    init_base(sample_rate, kParamMin, kParamMax, kParamDefault);
+    const float sr = this->sample_rate();
+
+    for (int c = 0; c < 2; ++c) {
+      line_[c].clear();
+      for (int a = 0; a < kStages; ++a) allpass_[c][a].clear();
+      high_cut_[c].reset();
+      low_cut_[c].reset();
+      loop_high_cut_[c].reset();
+      loop_low_cut_[c].reset();
+    }
+    side_low_.reset();
+    side_low_.set_cutoff(kBassMonoHz, sr);
+    for (int i = 0; i < kHistory; ++i) history_[i] = 0.0;
+    position_ = 0.0;
+    tick_ = 0;
+    for (int c = 0; c < 2; ++c) {
+      for (int j = 0; j < kControlPeriod; ++j) {
+        swarm_chunk_[c][j] = 0.0f;
+        back_chunk_[c][j] = 0.0f;
+      }
+    }
+    chunk_at_ = 0;
+    build_swarm();
+
+    feedback_.set_time(kSmoothingSeconds, sr);
+    blur_.set_time(kSmoothingSeconds, sr);
+    dry_.set_time(kSmoothingSeconds, sr);
+    wet_.set_time(kSmoothingSeconds, sr);
+    width_.set_time(kSmoothingSeconds, sr);
+    level_.set_time(0.03f, sr);
+    const float control_rate = sr / kControlPeriod;
+    length_.set_time(kLengthGlideSeconds, control_rate);
+    depth_.set_time(0.05f, control_rate);
+    wander_.set_time(0.05f, control_rate);
+    high_cut_hz_.set_time(0.02f, control_rate);
+    low_cut_hz_.set_time(0.02f, control_rate);
+    stretch_ = 0.0f;
+    fill_ = 0.0f;
+    loop_peak_ = 0.0f;
+    fill_coeff_ = kit::time_to_coeff(kFillSeconds, sr);
+
+    wander_drift_.seed(0x3C6EF372u);
+    wander_drift_.set_rate(kWanderHz, sr);
+    step_rng_.seed(0xA54FF53Au);
+    step_offset_ = 0;
+    step_wait_ = 0;
+    step_armed_ = false;
+
+    clock_.reset(kControlPeriod);
+    // The longest silent gap is the longest tap: Length x Stretch at their tops.
+    idle_.reset(sr, kParamMax[kLength] * 2.0f + 0.6f);
+    started_ = false;
+    for (int id = 0; id < kNumParams; ++id) apply(id);
+  }
+
+  void set_param(int id, float value) {
+    if (store_param(id, value)) apply(id);
+  }
+
+  void process(int frames) {
+    frames = begin_block(frames);
+    if (!idle_.wake(input_present(frames))) {
+      silence_output(frames);
+      return;
+    }
+    loop_peak_ = 0.0f;
+    for (int i = 0; i < frames; ++i) render(i);
+    // Quiet means the lines as well as the output: with Mix at 0 the output
+    // is silent while the cave still rings, and a device that slept then
+    // would wake later with that old sound still in it.
+    idle_.settle(kit::max(output_peak(frames), loop_peak_), frames);
+  }
+
+ private:
+  static constexpr int kTaps = 14;
+  static constexpr int kStages = 4;
+  static constexpr int kLineSize = 262144;  // 2.4 s at 96 kHz and room to sweep
+  static constexpr int kAllpassSize = 4096;
+  static constexpr int kHistory = 16384;    // control ticks: 2.7 s at 96 kHz
+  static constexpr int kControlPeriod = 16;
+  static constexpr int kStepCount = 7;
+  // The shortest a tap may be: a control period and the interpolator's reach.
+  static constexpr float kLeastTap = kControlPeriod + 4.0f;
+  // A read point that the tape moves by less than this per control period
+  // counts as at rest.
+  static constexpr double kStillSamples = 1.0e-6;
+
+  // Allpass lengths as shares of Length. Their sum is the earliest a sound
+  // can come back; the tap distances are shortened by it so the arrivals
+  // land where the swarm table says.
+  static constexpr float kAllpassSpan[2][kStages] = {{0.0037f, 0.0059f, 0.0083f, 0.0113f},
+                                                     {0.0041f, 0.0061f, 0.0079f, 0.0121f}};
+  // Where each line is read for the loop, as a share of Length.
+  static constexpr float kLoopSpan[2] = {1.0f, 0.887f};
+  static constexpr float kFirstArrival = 0.035f;
+  static constexpr float kSwarmCurve = 1.25f;    // above 1: denser at the front
+  static constexpr float kSwarmTiltDb = 6.0f;    // the last tap against the first
+  static constexpr float kMaxBlur = 0.7f;
+  // How far a swept tap moves at Modulation 1. The depth follows the cube of
+  // the knob: a held note is a sum of taps whose phases the sweep moves, so
+  // the swarm's level on it wanders once the sweep nears the note's period.
+  // At the default (about 30 microseconds) that is a decibel or so; the top
+  // of the knob is where notes swell and fade.
+  static constexpr float kSweepSeconds = 0.0012f;
+  // The loop reads are stirred for another reason. A loop that hardly loses
+  // anything rings at frequencies about a hertz apart, and a held note that
+  // sits on one of them builds up far above the notes beside it (at Feedback
+  // 1, without end). Moving the loop reads keeps those frequencies from
+  // staying put. The sweep follows Modulation directly and comes in with the
+  // square of Feedback's distance past kStirFrom: next to nothing at the
+  // default, where it would only make held notes waver, all of it at 1.
+  static constexpr float kLoopSweepSeconds = 0.0024f;
+  static constexpr float kStirFrom = 0.5f;
+  static constexpr float kLengthGlideSeconds = 0.08f;
+  static constexpr float kWanderHz = 0.05f;
+  static constexpr float kWanderOctaves = 0.6f;
+  static constexpr float kBassMonoHz = 160.0f;
+  static constexpr float kWetGain = 1.0f;
+  // RMS at the end of the lines where the return starts to give, and how
+  // slowly that level is followed.
+  static constexpr float kFullLevel = 0.4f;
+  static constexpr float kFillSeconds = 0.25f;
+  static constexpr float kAntiDenormal = 1.0e-18f;
+  static constexpr float kInputBound = 4.0f;
+  // Above this Feedback the return's filters open, by this much at 1.
+  static constexpr float kOpenFrom = 0.9f;
+  static constexpr float kOpenLowOctaves = 1.5f;
+  static constexpr float kOpenHighOctaves = 0.75f;
+  // Stretch positions with Steps on, in octaves of time: 1/2, 2/3, 3/4, 1, 4/3,
+  // 3/2 and 2 times Length.
+  static constexpr float kStepOctaves[kStepCount] = {-1.0f,     -0.5849625f, -0.4150375f, 0.0f,
+                                                 0.4150375f, 0.5849625f,  1.0f};
+
+  // A read point on the tape.
+  struct Read {
+    double span = 0.5;    // distance behind the write point, in Lengths
+    double delay = 16.0;  // in samples, now
+    double from = 16.0;   // where it was a control period ago
+    long long at = 0;     // position on the line as 32.32 fixed point, and
+    long long advance = 0;  // how far it moves per sample
+    double exact = 0.0;   // where the tape alone puts it, before any sweep
+    float least = 3.0f;
+    bool swept = false;   // has its own slow sine
+    bool whole = false;   // sitting on a whole sample: no interpolation needed
+    long long index = 0;  // the history segment the read point is in
+    float limit = 64.0f;
+    float phase = 0.0f;   // its own slow sweep
+    float rate = 0.0f;
+    float gain = 0.0f;
+
+    // Ramp from `from` to `delay` over one control period: the absolute
+    // position of the first read and how far it moves per sample.
+    void ramp(int write_position, int size) {
+      const double step = (delay - from) * (1.0 / kControlPeriod);
+      at = static_cast<long long>(
+          (static_cast<double>(write_position + size) - (from + step)) * 4294967296.0);
+      advance = static_cast<long long>((1.0 - step) * 4294967296.0);
+      whole = step == 0.0 && static_cast<unsigned int>(at) == 0u;
+    }
+  };
+
+  // Hermite read at a 32.32 fixed-point position on a line.
+  template <int Size>
+  static float read_at(const kit::DelayLine<Size>& line, long long at) {
+    const int index = static_cast<int>(at >> 32);
+    const float t = static_cast<float>(static_cast<unsigned int>(at)) * (1.0f / 4294967296.0f);
+    return kit::hermite(line.at(index - 1), line.at(index), line.at(index + 1), line.at(index + 2),
+                        t);
+  }
+
+  // The tap table: where each echo arrives (a share of Length), how loud and
+  // which way up. Seeded, so it is the same swarm every time; left and right
+  // draw different numbers.
+  void build_swarm() {
+    kit::Rng rng;
+    rng.seed(0x1F83D9ABu);
+    for (int c = 0; c < 2; ++c) {
+      float allpass_span = 0.0f;
+      for (int a = 0; a < kStages; ++a) {
+        Read& stage = stage_[c][a];
+        stage = Read();
+        stage.span = kAllpassSpan[c][a];
+        stage.limit = static_cast<float>(kAllpassSize - 16);
+        allpass_span += kAllpassSpan[c][a];
+      }
+      float energy = 0.0f;
+      for (int k = 0; k < kTaps; ++k) {
+        // One tap per fourteenth of the way, moved about inside its slot.
+        float u = (static_cast<float>(k) + 0.5f + 0.7f * (rng.uniform() - 0.5f)) / kTaps;
+        if (k == kTaps - 1) u = 1.0f;
+        const float arrival = kFirstArrival + (1.0f - kFirstArrival) * std::pow(u, kSwarmCurve);
+        Read& tap = tap_[c][k];
+        tap = Read();
+        tap.span = arrival - allpass_span;
+        tap.limit = static_cast<float>(kLineSize - 16);
+        tap.least = kLeastTap;
+        tap.swept = ((k + c) & 1) != 0;
+        tap.phase = rng.uniform();
+        tap.rate = 0.15f + 0.6f * rng.uniform();
+        const float sign = rng.uniform() < 0.5f ? -1.0f : 1.0f;
+        tap.gain = sign * kit::db_to_gain(-kSwarmTiltDb * arrival);
+        energy += tap.gain * tap.gain;
+      }
+      // Unit energy: the swarm is as loud as the sound that made it.
+      const float scale = 1.0f / std::sqrt(energy);
+      for (int k = 0; k < kTaps; ++k) tap_[c][k].gain *= scale;
+
+      Read& loop = loop_[c];
+      loop = Read();
+      loop.span = kLoopSpan[c] - allpass_span;
+      loop.limit = static_cast<float>(kLineSize - 16);
+      loop.least = kLeastTap;
+      loop.swept = true;
+      loop.phase = rng.uniform();
+      loop.rate = 0.11f + 0.2f * rng.uniform();
+    }
+  }
+  static void copy_tuning(const kit::Svf& from, kit::Svf* to) {
+    to->g = from.g;
+    to->k = from.k;
+    to->a1 = from.a1;
+    to->a2 = from.a2;
+    to->a3 = from.a3;
+  }
+
+  static float glide(kit::Smoother& s) { return s.value == s.target ? s.value : s.next(); }
+
+  // What may come in: a sample that is not a number is silence, and nothing
+  // is larger than kInputBound. One such sample would otherwise sit in the
+  // filters and the lines for good.
+  static float sane(float x) {
+    if (!(x == x)) return 0.0f;
+    return kit::clamp(x, -kInputBound, kInputBound);
+  }
+
+  // Exact to ±1, landing on ±2: the ceiling on the swarm.
+  static float limit(float x) { return 2.0f * kit::soft_clip(0.5f * x); }
+  // Exact to ±2, landing on ±4: the ceiling on the return. The ride on the
+  // level holds a cave that feeds on itself near kFullLevel, whose peaks stay
+  // under ±2, so the return is not bent on every trip (what a clipper adds
+  // would go round with the rest and pile up).
+  static float limit_return(float x) { return 4.0f * kit::soft_clip(0.25f * x); }
+
+  // One control period of a tap, added to `out`: the read point ramps from
+  // where it was to where control() aimed it. Every tap is at least a period
+  // and a few samples long, so what it reads in this period is already on
+  // the line; reading it in one run is the same audio as reading it sample
+  // by sample, at a fraction of the cost. Positions are 32.32 fixed point.
+  static void sweep(const kit::DelayLine<kLineSize>& line, Read& read, float gain, float* out) {
+    read.ramp(line.write_position(), kLineSize);
+    long long at = read.at;
+    if (read.whole) {
+      // At rest on a whole sample the interpolator returns the stored sample.
+      const int index = static_cast<int>(at >> 32);
+      for (int j = 0; j < kControlPeriod; ++j) out[j] += gain * line.at(index + j);
+      return;
+    }
+    for (int j = 0; j < kControlPeriod; ++j) {
+      out[j] += gain * read_at(line, at);
+      at += read.advance;
+    }
+  }
+
+  // The swarm and the loop reads for the coming control period.
+  void gather() {
+    for (int c = 0; c < 2; ++c) {
+      for (int j = 0; j < kControlPeriod; ++j) {
+        swarm_chunk_[c][j] = 0.0f;
+        back_chunk_[c][j] = 0.0f;
+      }
+      for (int k = 0; k < kTaps; ++k) sweep(line_[c], tap_[c][k], tap_[c][k].gain, swarm_chunk_[c]);
+      sweep(line_[c], loop_[c], 1.0f, back_chunk_[c]);
+    }
+  }
+
+  void render(int i) {
+    float in[2];
+    take_input(i, &in[0], &in[1]);
+    in[0] = sane(in[0]);
+    in[1] = sane(in[1]);
+    if (clock_.tick()) {
+      control();
+      gather();
+      started_ = true;
+      chunk_at_ = 0;
+    }
+    const float feedback = glide(feedback_);
+    const float blur = glide(blur_);
+    const float back[2] = {back_chunk_[0][chunk_at_], back_chunk_[1][chunk_at_]};
+    const float swarm[2] = {swarm_chunk_[0][chunk_at_], swarm_chunk_[1][chunk_at_]};
+    ++chunk_at_;
+    loop_peak_ = kit::max(loop_peak_, kit::max(std::fabs(back[0]), std::fabs(back[1])));
+
+    // The return: a quarter-turn rotation between the sides, then the limiter.
+    const float turned[2] = {(back[0] + back[1]) * kit::kSqrtHalf,
+                             (back[1] - back[0]) * kit::kSqrtHalf};
+    // What holds the loop when Feedback is past 1: the return is turned down
+    // as the cave fills (half the excess, in dB, over kFullLevel). It rides
+    // the level slowly instead of clipping the waveform, so a chord left to
+    // regenerate stays a chord and does not collapse onto its loudest note.
+    // The limiter after it only catches peaks.
+    const float power = 0.5f * (back[0] * back[0] + back[1] * back[1]);
+    fill_ = flush_denormal(power + (fill_ - power) * fill_coeff_);
+    float hold = feedback;
+    if (fill_ > kFullLevel * kFullLevel) hold *= std::sqrt(kFullLevel / std::sqrt(fill_));
+    for (int c = 0; c < 2; ++c) {
+      // The same two filters on the way in and on the return. With equal
+      // tuning (Feedback up to 0.9) the sum is one filter on both.
+      float x = low_cut_[c].highpass(high_cut_[c].lowpass(in[c]));
+      x += loop_low_cut_[c].highpass(loop_high_cut_[c].lowpass(limit_return(hold * turned[c])));
+      // A constant far below hearing keeps the four recursions out of the
+      // denormal range while a tail dies away.
+      x += kAntiDenormal;
+      for (int a = 0; a < kStages; ++a) {
+        Read& stage = stage_[c][a];
+        const float delayed = stage.whole
+                                  ? allpass_[c][a].at(static_cast<int>(stage.at >> 32))
+                                  : read_at(allpass_[c][a], stage.at);
+        stage.at += stage.advance;
+        const float v = x + blur * delayed;
+        allpass_[c][a].write(v);
+        x = delayed - blur * v;
+      }
+      line_[c].write(flush_denormal(x));
+    }
+
+    // Width on the swarm only; below kBassMonoHz the difference between the
+    // sides is dropped so the bass stays in the middle.
+    const float mid = 0.5f * (swarm[0] + swarm[1]);
+    float side = 0.5f * (swarm[0] - swarm[1]);
+    side = (side - side_low_.lowpass(side)) * glide(width_);
+    const float wet = glide(wet_) * glide(level_);
+    const float dry = glide(dry_);
+    out_left_[i] = in[0] * dry + limit((mid + side) * wet);
+    out_right_[i] = in[1] * dry + limit((mid - side) * wet);
+  }
+
+  // Find where a read point will be one control period on, and ramp to it.
+  // `position_` is then the tape position at that time and the history holds
+  // the position at every control tick before it: the sample `span` behind
+  // the write point was written when the tape was at position_ - span.
+  void aim(Read& read, float sweep, float turn) {
+    const long long ahead = tick_ + 1;
+    const double wanted = position_ - read.span;
+    if (!started_) read.index = ahead - kHistory + 2;
+    if (read.index < ahead - kHistory + 2) read.index = ahead - kHistory + 2;
+    while (read.index + 1 < ahead && history_[(read.index + 1) & (kHistory - 1)] <= wanted) {
+      ++read.index;
+    }
+    const double lo = history_[read.index & (kHistory - 1)];
+    const double hi = history_[(read.index + 1) & (kHistory - 1)];
+    double fraction = hi > lo ? (wanted - lo) / (hi - lo) : 0.0;
+    if (fraction < 0.0) fraction = 0.0;
+    if (fraction > 1.0) fraction = 1.0;
+    double target =
+        (static_cast<double>(ahead - read.index) - fraction) * static_cast<double>(kControlPeriod);
+    const double moved = target - read.exact;
+    const bool still = !started_ || (moved < kStillSamples && moved > -kStillSamples);
+    read.exact = target;
+    read.phase += read.rate * turn;
+    if (read.phase >= 1.0f) read.phase -= 1.0f;
+    if (read.swept && sweep > 0.0f) {
+      // Never sweep a short tap by more than a quarter of its own length.
+      const float reach = kit::min(sweep, 0.25f * static_cast<float>(target));
+      target += static_cast<double>(reach * kit::SineTable::lookup(read.phase));
+    } else if (still) {
+      // Nothing is moving it: sit on the nearest whole sample, where the
+      // read is exact and costs one load. It slides the last fraction of a
+      // sample over one control period.
+      target = std::floor(target + 0.5);
+    }
+    if (target < read.least) target = read.least;
+    if (target > read.limit) target = read.limit;
+    if (!started_) {
+      read.from = target;
+    } else {
+      read.from = read.delay;
+    }
+    read.delay = target;
+  }
+
+  // With Steps on, Wander is a walk: every few seconds Stretch jumps to another
+  // step within reach. More Wander reaches further and jumps more often.
+  int walk(float wander) {
+    if (wander < 0.005f) {
+      step_offset_ = 0;
+      step_armed_ = false;
+      return 0;
+    }
+    const float ticks_per_second = sample_rate() / kControlPeriod;
+    if (!step_armed_) {
+      step_armed_ = true;
+      step_wait_ = static_cast<int>(1.5f * ticks_per_second);
+    }
+    if (--step_wait_ <= 0) {
+      const int reach = 1 + static_cast<int>(wander * 2.99f);
+      int next = step_offset_;
+      while (next == step_offset_) {
+        next = static_cast<int>(step_rng_.uniform() * static_cast<float>(2 * reach + 1)) - reach;
+      }
+      step_offset_ = next;
+      const float seconds = kit::lerp(9.0f, 2.0f, wander) * (0.6f + 0.8f * step_rng_.uniform());
+      step_wait_ = static_cast<int>(seconds * ticks_per_second);
+    }
+    return step_offset_;
+  }
+
+  // Every 16 samples: where Stretch is, how fast the tape runs, where every
+  // read point is going, and the loop filters.
+  void control() {
+    using namespace swarm_reverb;
+    const float sr = sample_rate();
+    const float knob = 2.0f * param(kStretch) - 1.0f;
+    const float wander = wander_.next();
+    const float drift = wander_drift_.next(kControlPeriod);
+    float target = knob;
+    float free = wander * kWanderOctaves * drift;
+    if (param(kSteps) >= 0.5f) {
+      int nearest = 0;
+      for (int s = 1; s < kStepCount; ++s) {
+        const float distance = std::fabs(kStepOctaves[s] - knob);
+        if (distance < std::fabs(kStepOctaves[nearest] - knob)) nearest = s;
+      }
+      const int offset = walk(wander);
+      int index = nearest + offset;
+      if (index < 0 || index >= kStepCount) index = nearest - offset;  // bounce off the ends
+      target = kStepOctaves[kit::clamp_int(index, 0, kStepCount - 1)];
+      free = 0.0f;
+    } else {
+      step_offset_ = 0;
+      step_armed_ = false;
+    }
+    if (!started_) {
+      stretch_ = target;
+    } else {
+      // Glide is the time to cover 95 % of a move.
+      const float coeff = kit::time_to_coeff(param(kGlide) * (1.0f / 3.0f), sr / kControlPeriod);
+      stretch_ = flush_denormal(target + (stretch_ - target) * coeff);
+    }
+    const float octaves = kit::clamp(stretch_ + free, -1.0f, 1.0f);
+    const float seconds = std::exp2(length_.next() + octaves);
+    const double speed = 1.0 / (static_cast<double>(seconds) * sr);  // Lengths per sample
+
+    if (!started_) {
+      // As if the tape had always run at this speed.
+      for (int n = 0; n < kHistory; ++n) {
+        history_[(kHistory - n) & (kHistory - 1)] = -speed * kControlPeriod * n;
+      }
+      position_ = 0.0;
+    }
+    position_ += speed * kControlPeriod;
+    history_[(tick_ + 1) & (kHistory - 1)] = position_;
+
+    const float depth = depth_.next();
+    const float sweep = depth * depth * depth * kSweepSeconds * sr;
+    const float stir = kit::clamp((feedback_.value - kStirFrom) / (1.0f - kStirFrom), 0.0f, 1.0f);
+    const float loop_sweep = depth * stir * stir * kLoopSweepSeconds * sr;
+    const float turn = kControlPeriod / sr;
+    for (int c = 0; c < 2; ++c) {
+      for (int k = 0; k < kTaps; ++k) aim(tap_[c][k], sweep, turn);
+      aim(loop_[c], loop_sweep, turn);
+      for (int a = 0; a < kStages; ++a) {
+        aim(stage_[c][a], 0.0f, turn);
+        stage_[c][a].ramp(allpass_[c][a].write_position(), kAllpassSize);
+      }
+    }
+    ++tick_;
+
+    // Both second-order Butterworth: next to no loss between the corners,
+    // while the edges fall away a little more on every trip.
+    const float high_hz = high_cut_hz_.next(), low_hz = low_cut_hz_.next();
+    high_cut_[0].set(high_hz, kit::kSqrtHalf, sr);
+    low_cut_[0].set(low_hz, kit::kSqrtHalf, sr);
+    copy_tuning(high_cut_[0], &high_cut_[1]);
+    copy_tuning(low_cut_[0], &low_cut_[1]);
+    // The return has its own pair. Up to Feedback 0.9 it is tuned like the
+    // pair on the way in. From there to 1 its corners move outwards, because
+    // a filter passed hundreds of times keeps only what it loses nothing of:
+    // left at the knobs, a cave that never dies thins to a narrow band within
+    // a minute. Opened, it holds the chord it was given.
+    float open = kit::clamp((feedback_.value - kOpenFrom) / (1.0f - kOpenFrom), 0.0f, 1.0f);
+    open = open * open * (3.0f - 2.0f * open);
+    loop_high_cut_[0].set(kit::min(high_hz * std::exp2(kOpenHighOctaves * open), 0.45f * sr),
+                          kit::kSqrtHalf, sr);
+    loop_low_cut_[0].set(low_hz * std::exp2(-kOpenLowOctaves * open), kit::kSqrtHalf, sr);
+    copy_tuning(loop_high_cut_[0], &loop_high_cut_[1]);
+    copy_tuning(loop_low_cut_[0], &loop_low_cut_[1]);
+  }
+  void apply(int id) {
+    using namespace swarm_reverb;
+    const float value = param(id);
+    switch (id) {
+      case kLength:
+        length_.set(std::log2(value), primed());
+        break;
+      case kBlur:
+        blur_.set(value * kMaxBlur, primed());
+        break;
+      case kFeedback:
+        feedback_.set(value, primed());
+        // A long decay stores more energy for the same input; take half of
+        // that back (in dB) so Feedback is not also a volume knob.
+        level_.set(kWetGain * std::sqrt(std::sqrt(kit::max(1.0f - value * value, 0.04f))),
+                   primed());
+        break;
+      case kHighCut:
+        high_cut_hz_.set(value, primed());
+        break;
+      case kLowCut:
+        low_cut_hz_.set(value, primed());
+        break;
+      case kWander:
+        wander_.set(value, primed());
+        break;
+      case kModulation:
+        depth_.set(value, primed());
+        break;
+      case kWidth:
+        width_.set(value, primed());
+        break;
+      case kMix: {
+        float dry, wet;
+        kit::equal_power(value, &dry, &wet);
+        if (value >= 1.0f) dry = 0.0f;  // cos(pi/2) in floats is not quite 0
+        dry_.set(dry, primed());
+        wet_.set(wet, primed());
+        break;
+      }
+      default:
+        break;  // Stretch, Glide and Steps are read on the control clock
+    }
+  }
+
+  kit::DelayLine<kLineSize> line_[2];
+  kit::DelayLine<kAllpassSize> allpass_[2][kStages];
+  double history_[kHistory];
+  double position_ = 0.0;
+  long long tick_ = 0;
+  float swarm_chunk_[2][kControlPeriod] = {};
+  float back_chunk_[2][kControlPeriod] = {};
+  int chunk_at_ = 0;
+  Read tap_[2][kTaps];
+  Read loop_[2];
+  Read stage_[2][kStages];
+
+  kit::Svf high_cut_[2];
+  kit::Svf low_cut_[2];
+  kit::Svf loop_high_cut_[2];  // the same two on the return
+  kit::Svf loop_low_cut_[2];
+  kit::OnePole side_low_;
+  kit::Smoother feedback_, blur_, dry_, wet_, width_, level_;
+  kit::Smoother length_, depth_, wander_, high_cut_hz_, low_cut_hz_;
+  float stretch_ = 0.0f;  // where Stretch is now, in octaves of time
+  float fill_ = 0.0f;  // mean square at the end of the lines
+  float fill_coeff_ = 0.0f;
+  float loop_peak_ = 0.0f;  // largest sample at the end of the lines in this block
+  kit::Drift wander_drift_;
+  kit::Rng step_rng_;
+  int step_offset_ = 0;
+  int step_wait_ = 0;
+  bool step_armed_ = false;
+  kit::ControlClock clock_;
+  kit::IdleGate idle_;
+  bool started_ = false;
+};
+
+}  // namespace livemix

@@ -1,0 +1,176 @@
+{
+  "id": "swarm-reverb",
+  "name": "Swarm Reverb",
+  "category": "reverb",
+  "description": "A cavern built from a swarm of short echoes instead of a smooth tail, with a Stretch control that resizes the whole cave and bends everything in it in pitch.",
+  "class": "SwarmReverb",
+  "header": "swarm_reverb.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "length",
+      "name": "Length",
+      "min": 0.05,
+      "max": 1.2,
+      "default": 0.5,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the swarm of echoes after each note lasts. Short is a tight cluster behind the note, long a slow scatter across a huge cave. Moving it bends what is ringing."
+    },
+    {
+      "key": "blur",
+      "name": "Blur",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Smears the echoes into each other. At zero each one patters separately; turned up they run together into a wash."
+    },
+    {
+      "key": "feedback",
+      "name": "Feedback",
+      "min": 0,
+      "max": 1.05,
+      "default": 0.6,
+      "description": "How much of the swarm is sent round again. Low is one rush of echoes, high a cave that rings for a long time. At the very top it never dies and feeds on itself."
+    },
+    {
+      "key": "highCut",
+      "name": "High Cut",
+      "min": 800,
+      "max": 16000,
+      "default": 5000,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "How bright the cave is. Lower settings take the top off the echoes, and more of it each time they go round."
+    },
+    {
+      "key": "stretch",
+      "name": "Stretch",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Stretches or shrinks every echo at once. While it moves, everything in the cave bends in pitch: down as it grows, up as it shrinks. The middle is the size Length sets."
+    },
+    {
+      "key": "glide",
+      "name": "Glide",
+      "min": 0.02,
+      "max": 8,
+      "default": 0.6,
+      "taper": "log",
+      "unit": "s",
+      "description": "How quickly the cave follows Stretch. Fast gives a sharp jump in pitch, slow a long slide."
+    },
+    {
+      "key": "steps",
+      "name": "Steps",
+      "choices": ["Off", "On"],
+      "default": 0,
+      "description": "With Steps on, Stretch moves between seven sizes related by octaves, fifths and fourths, so every move is heard as a musical interval instead of a free bend."
+    },
+    {
+      "key": "wander",
+      "name": "Wander",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "Lets Stretch drift on its own so the cave keeps shifting. Smooth and seasick with Steps off; occasional interval jumps with Steps on."
+    },
+    {
+      "key": "modulation",
+      "name": "Modulation",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Slow movement of single echoes, each at its own rate. A little keeps the swarm from sounding fixed and metallic; a lot makes it shimmer, and held notes swell and fade."
+    },
+    {
+      "key": "lowCut",
+      "name": "Low Cut",
+      "min": 20,
+      "max": 800,
+      "default": 100,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "Removes bass from the echoes, and more of it each time they go round, so the cave does not turn to mud."
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "Stereo width of the echoes only. Zero is a mono cave; full spreads the swarm across both sides."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "Balance between the dry sound and the cave."
+    }
+  ],
+  "presets": {
+    "Cavern": {},
+    "Pattering": {
+      "length": 0.35,
+      "blur": 0,
+      "feedback": 0.35,
+      "highCut": 8000,
+      "modulation": 0.1,
+      "mix": 0.35
+    },
+    "Endless cave": {
+      "length": 0.8,
+      "blur": 0.8,
+      "feedback": 1.0,
+      "highCut": 4000,
+      "lowCut": 150,
+      "mix": 0.35
+    },
+    "Bending walls": {
+      "blur": 0.7,
+      "feedback": 0.75,
+      "glide": 2,
+      "wander": 0.5,
+      "modulation": 0.4
+    },
+    "Interval ghosts": {
+      "length": 0.6,
+      "blur": 0.6,
+      "feedback": 0.75,
+      "glide": 0.05,
+      "steps": 1,
+      "wander": 0.45
+    },
+    "Dark well": {
+      "length": 1.1,
+      "blur": 0.9,
+      "feedback": 0.6,
+      "highCut": 1400,
+      "lowCut": 60,
+      "mix": 0.45
+    },
+    "Small swarm": {
+      "length": 0.1,
+      "blur": 0.3,
+      "feedback": 0.45,
+      "modulation": 0.4,
+      "mix": 0.3
+    },
+    "Slow stretch": {
+      "length": 0.7,
+      "blur": 0.85,
+      "feedback": 0.8,
+      "glide": 5,
+      "steps": 1,
+      "wander": 0.3,
+      "highCut": 6000
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit; no published design is followed. A multi-tap cluster reverb on a delay line whose clock speed can be changed. Two cross-coupled delay lines are each read by fourteen uneven, seeded taps, with allpass diffusion in front and a filtered regeneration loop; every delay is a distance on one tape whose speed Length and Stretch set, and the read points are found from the history of the tape position, so a speed change bends everything on the line by one ratio, as a variable-clock delay does."
+  }
+}

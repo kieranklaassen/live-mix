@@ -25,13 +25,17 @@ import { LADDER_BASS_PRESETS } from './ladder-bass'
 import { MALLETS_PRESETS } from './mallets'
 import { MODAL_BELLS_PRESETS } from './modal-bells'
 import { ORGAN_PRESETS } from './organ'
+import { OUTDOORS_PRESETS } from './outdoors'
 import { PEDAL_STEEL_PRESETS } from './pedal-steel'
 import { SAMPLER_PRESETS } from './sampler'
 import { STRING_MACHINE_PRESETS } from './string-machine'
 import { TANPURA_PRESETS } from './tanpura'
+import { TAPE_ORCHESTRA_PRESETS } from './tape-orchestra'
 import { THESIS_PRESETS } from './thesis'
 import { TINE_PIANO_PRESETS } from './tine-piano'
 import { WAVETABLE_PRESETS } from './wavetable'
+import { WEST_COAST_PRESETS } from './west-coast'
+import { ZITHER_PRESETS } from './zither'
 
 export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...EMBER_PRESETS,
@@ -64,4 +68,8 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...PEDAL_STEEL_PRESETS,
   ...TANPURA_PRESETS,
   ...GUITAR_PRESETS,
+  ...TAPE_ORCHESTRA_PRESETS,
+  ...WEST_COAST_PRESETS,
+  ...ZITHER_PRESETS,
+  ...OUTDOORS_PRESETS,
 ]
