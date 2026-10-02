@@ -6,7 +6,7 @@
   "class": "VintageDigital",
   "header": "vintage_digital.h",
   "sources": [],
-  "latencySamples": 32,
+  "latencySamples": 129,
   "params": [
     {
       "key": "rate",
@@ -30,7 +30,10 @@
     {
       "key": "companding",
       "name": "Companding",
-      "choices": ["Linear", "Mu-law"],
+      "choices": [
+        "Linear",
+        "Mu-law"
+      ],
       "default": 0,
       "description": "How the steps are spaced. Linear has the same grain at every level, so quiet sounds suffer most. Mu-law packs the steps near silence, so quiet passages stay clean and loud ones get grainy."
     },
@@ -45,7 +48,11 @@
     {
       "key": "filter",
       "name": "Filter",
-      "choices": ["None", "Soft", "Steep"],
+      "choices": [
+        "None",
+        "Soft",
+        "Steep"
+      ],
       "default": 1,
       "description": "The filter after the converter. None leaves every stair step in, bright and glassy. Soft rounds them off. Steep removes everything above half the Rate, smooth and dull like the better old samplers."
     },
@@ -117,7 +124,7 @@
       "jitter": 0.1
     },
     "Telephone exchange": {
-      "rate": 4000,
+      "rate": 8000,
       "bits": 8,
       "companding": 1,
       "aliasing": 0,
@@ -137,7 +144,7 @@
       "aliasing": 0.3,
       "filter": 1,
       "jitter": 0.1,
-      "drive": 6
+      "drive": 12
     }
   },
   "origin": {

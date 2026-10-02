@@ -44,8 +44,9 @@ namespace livemix {
 namespace micro_shift_parts {
 
 // Windowed-sinc fractional-delay kernel, shared by every shifter instance.
-// Rows are phases 0..kPhases (inclusive) of the fractional position; a read
-// interpolates linearly between two neighbouring rows.
+// One row per phase of the fractional position: the kTaps weights at that
+// phase, then the kTaps differences to the next phase, so a read between two
+// phases is weight + difference * blend.
 class SincTable {
  public:
   static constexpr int kTaps = 16;
@@ -55,6 +56,7 @@ class SincTable {
   static void init() {
     if (ready()) return;
     float* table = data();
+    static float taps_at[(kPhases + 1) * kTaps];
     const double pi = 3.14159265358979323846;
     const double beta = 7.5;
     const double cutoff = 0.92;
@@ -76,13 +78,20 @@ class SincTable {
       }
       // Unity gain at DC for every phase.
       for (int k = 0; k < kTaps; ++k) {
-        table[phase * kTaps + k] = static_cast<float>(taps[k] / sum);
+        taps_at[phase * kTaps + k] = static_cast<float>(taps[k] / sum);
+      }
+    }
+    for (int phase = 0; phase < kPhases; ++phase) {
+      for (int k = 0; k < kTaps; ++k) {
+        const float here = taps_at[phase * kTaps + k];
+        table[phase * 2 * kTaps + k] = here;
+        table[phase * 2 * kTaps + kTaps + k] = taps_at[(phase + 1) * kTaps + k] - here;
       }
     }
     ready() = true;
   }
 
-  static const float* row(int phase) { return data() + phase * kTaps; }
+  static const float* row(int phase) { return data() + phase * 2 * kTaps; }
 
  private:
   static double bessel_i0(double x) {
@@ -95,7 +104,7 @@ class SincTable {
     return sum;
   }
   static float* data() {
-    static float table[(kPhases + 1) * kTaps];
+    static float table[kPhases * 2 * kTaps];
     return table;
   }
   static bool& ready() {
@@ -361,12 +370,17 @@ class SpliceShifter {
     int phase = static_cast<int>(scaled);
     if (phase >= SincTable::kPhases) phase = SincTable::kPhases - 1;
     const float blend = scaled - static_cast<float>(phase);
-    const float* a = SincTable::row(phase);
-    const float* b = a + SincTable::kTaps;
-    const int first = index - (SincTable::kHalf - 1);
+    const float* weight = SincTable::row(phase);
+    const float* step = weight + SincTable::kTaps;
+    const int first = (index - (SincTable::kHalf - 1)) & kMask;
     float sum = 0.0f;
-    for (int k = 0; k < SincTable::kTaps; ++k) {
-      sum += buffer_[(first + k) & kMask] * (a[k] + (b[k] - a[k]) * blend);
+    if (first + SincTable::kTaps <= kSize) {
+      const float* x = buffer_ + first;
+      for (int k = 0; k < SincTable::kTaps; ++k) sum += x[k] * (weight[k] + step[k] * blend);
+    } else {
+      for (int k = 0; k < SincTable::kTaps; ++k) {
+        sum += buffer_[(first + k) & kMask] * (weight[k] + step[k] * blend);
+      }
     }
     return sum;
   }

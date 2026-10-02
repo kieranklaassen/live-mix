@@ -81,6 +81,41 @@ inline void formants_at(float vowel, float voice, Formants* out) {
   }
 }
 
+// 10^(dB/20) for levels from 0 down to -72 dB, from a table: the banks ask
+// for thirteen of these every time the vowel moves, and std::pow is slow in
+// WASM. Linear interpolation between half-decibel steps is within 0.05 %.
+class LevelTable {
+ public:
+  static constexpr int kSize = 144;
+
+  static void init() {
+    if (ready()) return;
+    float* table = data();
+    for (int i = 0; i <= kSize; ++i) {
+      table[i] = static_cast<float>(std::pow(10.0, -0.5 * static_cast<double>(i) / 20.0));
+    }
+    ready() = true;
+  }
+
+  static float lookup(float db) {
+    const float position = kit::clamp(-2.0f * db, 0.0f, static_cast<float>(kSize) - 0.001f);
+    const int index = static_cast<int>(position);
+    const float fraction = position - static_cast<float>(index);
+    const float* table = data();
+    return table[index] + (table[index + 1] - table[index]) * fraction;
+  }
+
+ private:
+  static float* data() {
+    static float table[kSize + 1];
+    return table;
+  }
+  static bool& ready() {
+    static bool is_ready = false;
+    return is_ready;
+  }
+};
+
 // A trapezoidal state-variable band-pass (as kit::Svf), split into
 // coefficients and state so many channels can share one tuning. Unity gain
 // and zero phase at the centre.
@@ -128,6 +163,17 @@ struct BandState {
 // the unfiltered signal cannot dig a notch.
 class OutputBank {
  public:
+  // The table's narrowest first formants (40 Hz) are a closed throat; a
+  // resonance that sharp picks single notes out of a chord and whistles.
+  static constexpr float kMinBandwidth = 70.0f;
+  static constexpr float kReferenceHz = 400.0f;
+  // The table's levels are those of the formants in a sung voice, so they
+  // include the fall of the voice's own source towards the highs. What goes
+  // through a reverb has a falling spectrum of its own; with the full
+  // figures the upper formants, which tell the vowels apart, would be
+  // counted down twice. This share of each level (in dB) is used.
+  static constexpr float kLevelScale = 0.7f;
+
   void reset() {
     for (int k = 0; k < kFormants; ++k) {
       state_[k].reset();
@@ -144,12 +190,13 @@ class OutputBank {
   void set(const Formants& formants, float widen, float sample_rate, int period) {
     float power = 0.0f;
     for (int k = 0; k < kFormants; ++k) {
-      const float bandwidth = formants.bandwidth[k] * widen;
+      const float bandwidth = kit::max(formants.bandwidth[k] * widen, kMinBandwidth);
       coeff_[k].set(formants.hz[k], bandwidth, sample_rate);
-      const float level = std::exp2(formants.db[k] * 0.16609640f);  // 10^(dB/20)
-      // What pink noise comes out with: level² times the band's width in
-      // octaves (a resonator of width B passes a band pi/2·B wide).
-      power += level * level * kit::kHalfPi * bandwidth / formants.hz[k];
+      const float level = LevelTable::lookup(formants.db[k] * kLevelScale);
+      // What music comes out with, roughly: level² times the band's width
+      // in octaves (a resonator of width B passes a band pi/2·B wide), for
+      // an input that falls 3 dB per octave faster than pink noise.
+      power += level * level * kit::kHalfPi * bandwidth * kReferenceHz / (formants.hz[k] * formants.hz[k]);
       if (tuned_) {
         step_[k] = (level - gain_[k]) / static_cast<float>(period);
       } else {
@@ -162,7 +209,7 @@ class OutputBank {
     tuned_ = true;
   }
 
-  // The power of pink noise through the bank, per octave-unit of input.
+  // The power of that input through the bank (arbitrary unit).
   float pink_power() const { return power_; }
 
   float process(float x) {
@@ -196,7 +243,7 @@ class OutputBank {
 //   at most). A loop multiplies its filter by itself on every pass, so a
 //   narrow one would whittle the tail down to a whistle on each formant.
 // - the weights are solved so that the summed response (magnitude, with the
-//   neighbours' skirts and phases counted) is level^0.15 at each centre: the
+//   neighbours' skirts and phases counted) is level^0.05 at each centre: the
 //   first formant rings for the whole decay, weaker ones for a little less.
 // - then the whole bank is scaled so its largest magnitude, searched over a
 //   grid around and between the centres, is under 1. The real part of the
@@ -208,7 +255,7 @@ class LoopBank {
   static constexpr int kBands = 3;
   static constexpr float kWiden = 3.0f;
   static constexpr float kMaxQ = 4.0f;
-  static constexpr float kLevelPower = 0.15f;
+  static constexpr float kLevelPower = 0.05f;
   static constexpr float kCeiling = 0.997f;
 
   void reset() {
@@ -221,6 +268,7 @@ class LoopBank {
       step_[k] = 0.0f;
     }
     remaining_ = 0;
+    points_ = 0;
     tuned_ = false;
   }
 
@@ -230,7 +278,7 @@ class LoopBank {
       const float bandwidth =
           kit::max(formants.bandwidth[k] * kWiden, formants.hz[k] * (1.0f / kMaxQ));
       coeff_[k].set(formants.hz[k], bandwidth, sample_rate);
-      wanted[k] = std::exp2(formants.db[k] * kLevelPower * 0.16609640f);
+      wanted[k] = LevelTable::lookup(formants.db[k] * kLevelPower);
       target_[k] = wanted[k];
     }
     // Each band's weight is corrected by what the sum reads at its centre;
@@ -242,45 +290,47 @@ class LoopBank {
       }
     }
     // The highest point of the sum sits a little to one side of a centre
-    // (the neighbours' skirts lean on it) or between two close ones: search
-    // a grid around each centre and between neighbours, then take the top
-    // of the parabola through the best point and the two beside it.
-    float highest = 0.0f;
+    // (the neighbours' skirts lean on it) or between two close ones: sample
+    // it around each centre and between neighbours, and add the top of the
+    // parabola through the best point of each centre and the two beside it.
+    points_ = 0;
     for (int j = 0; j < kBands; ++j) {
       const float g = coeff_[j].g;
       const float k = coeff_[j].k;
-      static constexpr int kPoints = 13;
-      static constexpr float kOffsets[kPoints] = {-0.36f, -0.24f, -0.16f, -0.10f, -0.06f, -0.03f, 0.0f,
+      static constexpr int kAround = 13;
+      static constexpr float kOffsets[kAround] = {-0.36f, -0.24f, -0.16f, -0.10f, -0.06f, -0.03f, 0.0f,
                                                   0.03f,  0.06f,  0.10f,  0.16f,  0.24f,  0.36f};
-      float value[kPoints];
-      int best = 0;
-      for (int i = 0; i < kPoints; ++i) {
-        value[i] = evaluate(target_, g * (1.0f + kOffsets[i] * k));
-        if (value[i] > value[best]) best = i;
+      const int first = points_;
+      int best = first;
+      for (int i = 0; i < kAround; ++i) {
+        sample(g * (1.0f + kOffsets[i] * k));
+        if (square_[points_ - 1] > square_[best]) best = points_ - 1;
       }
-      float top = value[best];
-      if (best > 0 && best < kPoints - 1) {
+      if (best > first && best < points_ - 1) {
         // Unevenly spaced points: Lagrange's parabola, at its vertex.
-        const float x0 = kOffsets[best - 1], x1 = kOffsets[best], x2 = kOffsets[best + 1];
-        const float d0 = value[best - 1] / ((x0 - x1) * (x0 - x2));
-        const float d1 = value[best] / ((x1 - x0) * (x1 - x2));
-        const float d2 = value[best + 1] / ((x2 - x0) * (x2 - x1));
+        const float x0 = kOffsets[best - first - 1], x1 = kOffsets[best - first], x2 = kOffsets[best - first + 1];
+        const float d0 = square_[best - 1] / ((x0 - x1) * (x0 - x2));
+        const float d1 = square_[best] / ((x1 - x0) * (x1 - x2));
+        const float d2 = square_[best + 1] / ((x2 - x0) * (x2 - x1));
         const float a = d0 + d1 + d2;
         const float b = -(d0 * (x1 + x2) + d1 * (x0 + x2) + d2 * (x0 + x1));
-        if (a < -1.0e-9f) {
-          const float vertex = kit::clamp(-0.5f * b / a, x0, x2);
-          top = kit::max(top, evaluate(target_, g * (1.0f + vertex * k)));
-        }
+        if (a < -1.0e-9f) sample(g * (1.0f + kit::clamp(-0.5f * b / a, x0, x2) * k));
       }
-      highest = kit::max(highest, top);
       if (j + 1 < kBands) {
         const float middle = std::sqrt(g * coeff_[j + 1].g);
-        highest = kit::max(highest, evaluate(target_, middle));
-        highest = kit::max(highest, evaluate(target_, std::sqrt(g * middle)));
-        highest = kit::max(highest, evaluate(target_, std::sqrt(middle * coeff_[j + 1].g)));
+        sample(middle);
+        sample(std::sqrt(g * middle));
+        sample(std::sqrt(middle * coeff_[j + 1].g));
       }
     }
+    float highest = 0.0f;
+    for (int i = 0; i < points_; ++i) highest = kit::max(highest, square_[i]);
+    highest = std::sqrt(highest);
     const float scale = kCeiling / kit::max(highest, 1.0f);
+    for (int i = 0; i < points_; ++i) {
+      real_[i] *= scale;
+      square_[i] *= scale * scale;
+    }
     for (int k = 0; k < kBands; ++k) {
       target_[k] *= scale;
       if (tuned_) {
@@ -308,23 +358,56 @@ class LoopBank {
     return sum;
   }
 
+  // The largest gain of x + amount · (bank(x) - x) over frequency, as last
+  // tuned: what the loop has to be divided by for its slowest-decaying
+  // frequency to decay at exactly the wanted rate. (At that frequency the
+  // bank's phase is not quite zero, so this is a little under the ceiling.)
+  float peak_gain(float amount) const {
+    const float through = 1.0f - amount;
+    float highest = through * through;
+    for (int i = 0; i < points_; ++i) {
+      highest = kit::max(highest, through * through + 2.0f * amount * through * real_[i] +
+                                      amount * amount * square_[i]);
+    }
+    return std::sqrt(highest);
+  }
+
   // Magnitude of the bank at `hz` as last tuned (for the harness).
   float magnitude(float hz, float sample_rate) const {
     return evaluate(target_, kit::tan_prewarp(kit::kPi * hz / sample_rate));
   }
 
  private:
-  float evaluate(const float* weights, float gf) const {
-    float re = 0.0f, im = 0.0f;
+  void respond(const float* weights, float gf, float* re, float* im) const {
+    *re = 0.0f;
+    *im = 0.0f;
     for (int k = 0; k < kBands; ++k) {
       float r, i;
       coeff_[k].response(gf, &r, &i);
-      re += weights[k] * r;
-      im += weights[k] * i;
+      *re += weights[k] * r;
+      *im += weights[k] * i;
     }
+  }
+
+  float evaluate(const float* weights, float gf) const {
+    float re, im;
+    respond(weights, gf, &re, &im);
     return std::sqrt(re * re + im * im);
   }
 
+  // Keep the bank's response at `gf` among the points peak_gain looks at.
+  void sample(float gf) {
+    float re, im;
+    respond(target_, gf, &re, &im);
+    real_[points_] = re;
+    square_[points_] = re * re + im * im;
+    ++points_;
+  }
+
+  static constexpr int kMaxPoints = kBands * 17;
+  float real_[kMaxPoints] = {};
+  float square_[kMaxPoints] = {};
+  int points_ = 0;
   BandCoeff coeff_[kBands];
   BandState state_[Lines][kBands];
   float weight_[kBands] = {};

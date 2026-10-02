@@ -37,6 +37,13 @@ class StereoRing {
                           buffer_[i[3] + 1], t);
   }
 
+  // The mean of both channels a whole number of frames back.
+  float mono(int delay) const {
+    int at = head_ - delay;
+    if (at < 0) at += Frames;
+    return 0.5f * (buffer_[2 * at] + buffer_[2 * at + 1]);
+  }
+
   // One channel only (0 left, 1 right).
   float read_one(double delay, int channel) const {
     int i[4];

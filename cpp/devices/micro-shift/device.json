@@ -74,7 +74,7 @@
       "name": "Mix",
       "min": 0,
       "max": 1,
-      "default": 0.5,
+      "default": 0.4,
       "description": "Balance between the dry sound and the two copies. The sound below Focus stays at full level wherever this is set."
     }
   ],

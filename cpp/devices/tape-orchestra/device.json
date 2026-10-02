@@ -10,7 +10,14 @@
     {
       "key": "tape",
       "name": "Tape",
-      "choices": ["Strings", "Cellos", "Flutes", "Horns", "Reeds", "Choir"],
+      "choices": [
+        "Strings",
+        "Cellos",
+        "Flutes",
+        "Horns",
+        "Reeds",
+        "Choir"
+      ],
       "default": 0,
       "description": "Which recording is on the tapes: a small violin section, cellos, flutes, French horns, a clarinet and oboe blend, or a mixed choir on ah. Notes already sounding cross over to the new tape."
     },
@@ -41,7 +48,10 @@
     {
       "key": "speed",
       "name": "Speed",
-      "choices": ["Normal", "Half"],
+      "choices": [
+        "Normal",
+        "Half"
+      ],
       "default": 0,
       "description": "Half runs the tapes at half speed: everything sounds an octave lower and darker, with slower attacks, slower vibrato and twice the tape length. Switching while notes sound slows the tape down or brings it back up."
     },
@@ -109,10 +119,100 @@
     }
   ],
   "presets": {
-    "Three violins": { "tape": 0, "length": 8 },
-    "Slow strings": { "tape": 0, "attack": 0.9, "release": 1.6 },
-    "Horn chorale": { "tape": 3 },
-    "Flutes on tape": { "tape": 2 }
+    "Three violins": {
+      "tape": 0,
+      "length": 8,
+      "attack": 0.02,
+      "release": 0.25,
+      "players": 0.6,
+      "vibrato": 0.55,
+      "hiss": 0.25
+    },
+    "Slow strings": {
+      "tape": 0,
+      "attack": 0.9,
+      "release": 1.8,
+      "players": 0.85,
+      "vibrato": 0.4,
+      "tone": -0.15,
+      "age": 0.3,
+      "spread": 0.9
+    },
+    "Horn chorale": {
+      "tape": 3,
+      "attack": 0.12,
+      "release": 0.7,
+      "vibrato": 0.25,
+      "age": 0.3,
+      "tone": 0.1
+    },
+    "Half-speed horns": {
+      "tape": 3,
+      "speed": 1,
+      "attack": 0.3,
+      "release": 2.0,
+      "age": 0.5,
+      "hiss": 0.3,
+      "tone": 0.3,
+      "players": 0.75
+    },
+    "Flutes on tape": {
+      "tape": 2,
+      "length": 8,
+      "attack": 0.02,
+      "release": 0.3,
+      "vibrato": 0.6,
+      "age": 0.4,
+      "hiss": 0.25
+    },
+    "Orchestra reeds": {
+      "tape": 4,
+      "attack": 0.03,
+      "release": 0.35,
+      "players": 0.5,
+      "vibrato": 0.35,
+      "age": 0.25,
+      "tone": 0.15
+    },
+    "Tape choir": {
+      "tape": 5,
+      "attack": 0.15,
+      "release": 0.9,
+      "vibrato": 0.45,
+      "age": 0.2,
+      "spread": 1
+    },
+    "Worn choir": {
+      "tape": 5,
+      "age": 0.75,
+      "hiss": 0.4,
+      "attack": 0.25,
+      "release": 1.2,
+      "vibrato": 0.6,
+      "players": 0.8,
+      "tone": -0.1
+    },
+    "Cello bed": {
+      "tape": 1,
+      "speed": 1,
+      "attack": 0.6,
+      "release": 2.5,
+      "players": 0.8,
+      "vibrato": 0.4,
+      "tone": 0.2,
+      "age": 0.4,
+      "spread": 0.85
+    },
+    "Lost reel": {
+      "tape": 2,
+      "speed": 1,
+      "age": 1,
+      "hiss": 0.7,
+      "tone": -0.3,
+      "attack": 0.05,
+      "release": 0.8,
+      "length": 6
+    }
   },
   "origin": {
     "kind": "new",

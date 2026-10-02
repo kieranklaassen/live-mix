@@ -25,6 +25,84 @@ static std::vector<float> add(std::vector<float> a, const std::vector<float>& b)
   return a;
 }
 
+// The held sound alone and at rest: wet only, no motion, no ensemble, flat,
+// quick to rise.
+static void still(Sustainer& d) {
+  d.init(kRate);
+  d.set_param(p::kMix, 1.0f);
+  d.set_param(p::kMotion, 0.0f);
+  d.set_param(p::kEnsemble, 0.0f);
+  d.set_param(p::kTone, 0.0f);
+  d.set_param(p::kLowCut, 20.0f);
+  d.set_param(p::kAttack, 0.05f);
+}
+
+// Spread of the RMS level over consecutive windows of `window` samples, in dB.
+static double level_spread_db(const std::vector<float>& x, size_t from, size_t to, size_t window) {
+  double lowest = 1.0e9, highest = 0.0;
+  for (size_t at = from; at + window <= to; at += window) {
+    const double level = rms(x, at, at + window);
+    lowest = std::min(lowest, level);
+    highest = std::max(highest, level);
+  }
+  return db(highest / std::max(lowest, 1.0e-12));
+}
+
+// A plucked or struck note: decaying harmonics (the higher ones die sooner)
+// behind a short burst of noise for the pick or hammer.
+static std::vector<float> pluck(float hz, float seconds, float gain) {
+  std::vector<float> out(static_cast<size_t>(seconds * kRate), 0.0f);
+  for (int h = 1; h <= 14; ++h) {
+    const double f = hz * h * std::sqrt(1.0 + 0.0002 * h * h);
+    if (f > 0.45 * kRate) break;
+    const double amp = gain * 0.6 * std::pow(h, -1.1);
+    const double tau = 2.2 / std::pow(h, 0.8);
+    for (size_t i = 0; i < out.size(); ++i) {
+      const double t = static_cast<double>(i) / kRate;
+      out[i] += static_cast<float>(amp * (1.0 - std::exp(-t / 0.0015)) * std::exp(-t / tau) *
+                                   std::sin(2.0 * kPi * f * t + h));
+    }
+  }
+  const size_t fade = static_cast<size_t>(0.05 * kRate);
+  for (size_t i = 0; i < fade && i < out.size(); ++i) out[out.size() - 1 - i] *= static_cast<float>(i) / fade;
+  double low = 0.0;
+  for (size_t i = 0; i < out.size() && i < static_cast<size_t>(0.03 * kRate); ++i) {
+    const double n = white();
+    low = 0.7 * low + 0.3 * n;
+    out[i] += static_cast<float>(gain * 0.5 * (n - low) * std::exp(-static_cast<double>(i) / (0.006 * kRate)));
+  }
+  return out;
+}
+
+// Add `src` into `dest` starting at `at_seconds`, growing `dest` as needed.
+static void mix_at(std::vector<float>& dest, const std::vector<float>& src, float at_seconds) {
+  const size_t at = static_cast<size_t>(at_seconds * kRate);
+  if (dest.size() < at + src.size()) dest.resize(at + src.size(), 0.0f);
+  for (size_t i = 0; i < src.size(); ++i) dest[at + i] += src[i];
+}
+
+// RMS of what lies above `hz` in x[from, to): four second-order highpasses in
+// a row (48 dB per octave), so that strong low partials do not leak into the
+// reading the way they do through energy_above's single pole.
+static double rms_above(const std::vector<float>& x, double hz, size_t from, size_t to) {
+  const double w = 2.0 * kPi * hz / kRate, alpha = std::sin(w) / std::sqrt(2.0), c = std::cos(w);
+  const double b0 = (1.0 + c) / 2.0 / (1.0 + alpha), b1 = -(1.0 + c) / (1.0 + alpha), b2 = b0;
+  const double a1 = -2.0 * c / (1.0 + alpha), a2 = (1.0 - alpha) / (1.0 + alpha);
+  double z1[4] = {0, 0, 0, 0}, z2[4] = {0, 0, 0, 0}, sum = 0.0;
+  to = std::min(to, x.size());
+  for (size_t i = from; i < to; ++i) {
+    double v = x[i];
+    for (int stage = 0; stage < 4; ++stage) {
+      const double y = b0 * v + z1[stage];
+      z1[stage] = b1 * v - a1 * y + z2[stage];
+      z2[stage] = b2 * v - a2 * y;
+      v = y;
+    }
+    sum += v * v;
+  }
+  return to > from ? std::sqrt(sum / static_cast<double>(to - from)) : 0.0;
+}
+
 // The real FFT helper against a direct DFT, and forward + inverse = N/2 × x.
 static void check_real_fft() {
   static livemix::sustainer_detail::RealFft<8192> fft;
@@ -75,7 +153,195 @@ int main() {
     EXPECT(worst == 0.0, "Mix 0 passes the input through bit for bit, with no latency");
   }
 
-  (void)join;
-  (void)add;
+  // A 440 Hz tone for 1 s, then nothing. With Decay at the top the held tone
+  // goes on at 440 Hz, at the level it was caught at, for as long as you like.
+  {
+    still(device);
+    device.set_param(p::kDecay, 60.0f);
+    Stereo out = run(device, join(sine(440.0f, 1.0f, kRate, 0.25f), silence(21.0f, kRate)));
+    const size_t s = static_cast<size_t>(kRate);
+    const double hz = dominant_frequency(out.left, kRate, 400.0, 480.0, 19 * s, 21 * s);
+    const double early = db(tone_level(out.left, 440.0, kRate, 2 * s, 3 * s) / 0.25);
+    const double late = db(tone_level(out.left, 440.0, kRate, 20 * s, 21 * s) / 0.25);
+    std::printf("sustainer: held 440 Hz tone: %.3f Hz after 20 s, level %.2f dB at 2 s and %.2f dB at 20 s re the input\n",
+                hz, early, late);
+    EXPECT_NEAR(hz, 440.0, 0.2, "the held tone stays at 440 Hz");
+    EXPECT_NEAR(early, -2.5, 0.5, "the held tone sits 2.5 dB under the tone it caught");
+    EXPECT_NEAR(late, early, 0.1, "held for ever: no fade and no growth over 20 s");
+    EXPECT(device.layers() == 1, "one layer is held and keeps the device awake");
+    // No pumping at the frame rate (47 Hz) or anywhere else: the level of the
+    // held sine, taken over one period of 440 Hz at a time, is flat.
+    const double pump = level_spread_db(out.left, 2 * s, 20 * s, 1200);
+    std::printf("sustainer: level spread of the held sine %.3f dB\n", pump);
+    EXPECT(pump < 0.2, "the held sine has a constant envelope (under 0.2 dB)");
+    // And nothing else in it: the strongest component away from 440 Hz.
+    double spur = 0.0;
+    for (double q = 30.0; q < 20000.0; q *= 1.01) {
+      if (std::fabs(q - 440.0) < 60.0) continue;
+      spur = std::max(spur, tone_level(out.left, q, kRate, 4 * s, 6 * s));
+    }
+    std::printf("sustainer: strongest spurious component %.1f dB re the held tone\n", db(spur / 0.25) - early);
+    EXPECT(db(spur / 0.25) - early < -70.0, "no spurious component above -70 dB");
+  }
+
+  // Decay is the time the held sound takes to fall 60 dB once the playing
+  // has stopped (counted from the end of the input; the device takes 0.15 s
+  // to decide that it has stopped).
+  for (float decay : {1.0f, 2.0f, 4.0f}) {
+    still(device);
+    device.set_param(p::kDecay, decay);
+    Stereo out = run(device, join(sine(440.0f, 1.0f, kRate, 0.25f), silence(decay * 2.0f + 2.0f, kRate)));
+    const size_t s = static_cast<size_t>(kRate);
+    const double held = rms(out.left, s / 2, s);
+    double fell = 0.0;
+    for (size_t at = s; at + 480 <= out.left.size(); at += 480) {
+      if (rms(out.left, at, at + 480) < held * 1.0e-3) {
+        fell = static_cast<double>(at - s) / kRate;
+        break;
+      }
+    }
+    std::printf("sustainer: Decay %.0f s: 60 dB down %.2f s after the input stops\n", decay, fell);
+    EXPECT(fell > decay * 0.95 && fell < decay * 1.05 + 0.3, "Decay sets the time to fall 60 dB");
+    Stereo rest = render(device, decay + 1.0f, kRate);
+    EXPECT(peak(rest.left, rest.left.size() - 4800) == 0.0, "after the decay the output is exact silence");
+  }
+
+  // A chord is held as it was: three notes at different levels, none of them
+  // on a bin centre, keep their pitch to 2 cents and their balance to 2 dB.
+  {
+    still(device);
+    device.set_param(p::kDecay, 60.0f);
+    const float hz[3] = {220.0f, 277.18f, 329.63f};
+    const float gain[3] = {0.2f, 0.12f, 0.08f};
+    std::vector<float> chord = silence(1.0f, kRate);
+    for (int n = 0; n < 3; ++n) chord = add(chord, sine(hz[n], 1.0f, kRate, gain[n]));
+    Stereo out = run(device, join(chord, silence(7.0f, kRate)));
+    const size_t s = static_cast<size_t>(kRate);
+    double level[3];
+    for (int n = 0; n < 3; ++n) {
+      const double found = dominant_frequency(out.left, kRate, hz[n] * 0.97, hz[n] * 1.03, 2 * s, 8 * s);
+      const double cents = 1200.0 * std::log2(found / hz[n]);
+      level[n] = db(tone_level(out.left, found, kRate, 2 * s, 8 * s) / gain[n]);
+      std::printf("sustainer: chord note %.2f Hz held at %.3f Hz (%+.2f cents), %.2f dB re its input level\n", hz[n],
+                  found, cents, level[n]);
+      EXPECT(std::fabs(cents) < 2.0, "each note of a held chord is within 2 cents of its pitch");
+    }
+    EXPECT(std::fabs(level[1] - level[0]) < 2.0 && std::fabs(level[2] - level[0]) < 2.0,
+           "the notes of a held chord keep their balance to 2 dB");
+  }
+
+  // Auto: a new note takes over, and the old one is 30 dB down within three
+  // Glide times. Layer: both stay.
+  for (int mode = 0; mode < 2; ++mode) {
+    still(device);
+    device.set_param(p::kMode, static_cast<float>(mode));
+    device.set_param(p::kDecay, 60.0f);
+    device.set_param(p::kGlide, 0.3f);
+    Stereo out = run(device, join(join(sine(440.0f, 1.5f, kRate, 0.25f), sine(660.0f, 1.5f, kRate, 0.25f)),
+                                  silence(2.0f, kRate)));
+    const size_t s = static_cast<size_t>(kRate);
+    const double before = tone_level(out.left, 440.0, kRate, s, s + s / 2);
+    // The second note is caught about 0.15 s after it starts.
+    const size_t later = static_cast<size_t>((1.5 + 0.15 + 3 * 0.3) * kRate);
+    const double old_note = db(tone_level(out.left, 440.0, kRate, later, later + s / 4) / before);
+    const double new_note = db(tone_level(out.left, 660.0, kRate, 4 * s, 5 * s) / before);
+    const double old_at_end = db(tone_level(out.left, 440.0, kRate, 4 * s, 5 * s) / before);
+    std::printf("sustainer: %s: old note %.1f dB after three Glide times, %.1f dB at the end; new note %.1f dB\n",
+                mode == 0 ? "Auto" : "Layer", old_note, old_at_end, new_note);
+    EXPECT(std::fabs(new_note) < 1.0, "the new note is held at the level the old one was");
+    if (mode == 0) {
+      EXPECT(old_note < -30.0, "Auto: the old note is 30 dB down within three Glide times");
+      EXPECT(old_at_end < -90.0 && device.layers() == 1, "Auto: the old layer has gone");
+    } else {
+      EXPECT(std::fabs(old_at_end) < 1.0 && device.layers() == 2, "Layer: the old note stays under the new one");
+    }
+  }
+
+  // Sensitivity: at the default, room noise at -50 dBFS is never caught and a
+  // note at -20 dBFS is. A quiet note needs more Sensitivity.
+  {
+    still(device);
+    device.set_param(p::kSensitivity, 0.5f);
+    rng_state() = 0xA5A5u;
+    Stereo hiss = run(device, noise(4.0f, kRate, 0.00548f));  // -50 dBFS rms
+    EXPECT(device.onsets() == 0 && device.layers() == 0 && peak(hiss.left) < 1.0e-8,
+           "noise at -50 dBFS is not caught at the default Sensitivity");
+    still(device);
+    run(device, sine(330.0f, 1.0f, kRate, 0.1414f));  // -20 dBFS rms
+    EXPECT(device.layers() == 1, "a note at -20 dBFS is caught at the default Sensitivity");
+    for (float sensitivity : {0.0f, 1.0f}) {
+      still(device);
+      device.set_param(p::kSensitivity, sensitivity);
+      run(device, sine(330.0f, 1.0f, kRate, 0.0056f));  // -48 dBFS rms
+      EXPECT(device.layers() == (sensitivity > 0.5f ? 1 : 0),
+             "a note at -48 dBFS is caught at full Sensitivity and ignored at none");
+    }
+  }
+
+  // The attack is not caught: the pick noise of a plucked note is in its
+  // first 30 ms, and the held sound has none of it.
+  {
+    still(device);
+    device.set_param(p::kDecay, 60.0f);
+    rng_state() = 0x9001u;
+    std::vector<float> note = pluck(196.0f, 2.0f, 0.4f);
+    Stereo out = run(device, join(note, silence(2.0f, kRate)));
+    const size_t s = static_cast<size_t>(kRate);
+    const double pick_level = rms_above(note, 5000.0, 0, static_cast<size_t>(0.03 * kRate));
+    const double held_level = rms_above(out.left, 5000.0, 2 * s, 4 * s);
+    std::printf("sustainer: above 5 kHz: the pick is at %.1f dBFS, the held sound at %.1f dBFS\n", db(pick_level),
+                db(held_level));
+    EXPECT(rms(out.left, 2 * s, 4 * s) > 0.01, "the plucked note is held");
+    EXPECT(db(held_level) < db(pick_level) - 25.0, "the pick noise is not in the held sound (25 dB down above 5 kHz)");
+  }
+
+  // Attack is the time the held sound takes to rise: half way after half the
+  // Attack time (plus the 40 ms the overlapping frames need).
+  for (float attack : {0.25f, 1.0f, 3.0f}) {
+    still(device);
+    device.set_param(p::kDecay, 60.0f);
+    device.set_param(p::kAttack, attack);
+    Stereo out = run(device, sine(440.0f, attack + 2.0f, kRate, 0.25f));
+    const double full = rms(out.left, out.left.size() - 9600);
+    size_t begins = 0, half = 0;
+    for (size_t at = 0; at + 480 <= out.left.size(); at += 480) {
+      const double level = rms(out.left, at, at + 480);
+      if (begins == 0 && level > full * 0.01) begins = at;
+      if (level > full * 0.5) {
+        half = at;
+        break;
+      }
+    }
+    const double took = static_cast<double>(half - begins) / kRate;
+    std::printf("sustainer: Attack %.2f s: caught %.2f s after the note began, half level %.2f s later\n", attack,
+                static_cast<double>(begins) / kRate, took);
+    EXPECT(took > 0.4 * attack && took < 0.6 * attack + 0.06, "Attack sets the rise time of the held sound");
+    EXPECT(begins > static_cast<size_t>(0.06 * kRate) && begins < static_cast<size_t>(0.2 * kRate),
+           "the catch comes 60 to 200 ms after the note begins");
+  }
+
+  // Latch: silent until Hold goes On, constant while it is On, gone after Off.
+  {
+    still(device);
+    device.set_param(p::kMode, 2.0f);
+    device.set_param(p::kDecay, 1.0f);
+    std::vector<float> tone = sine(523.25f, 2.0f, kRate, 0.25f);
+    const size_t s = static_cast<size_t>(kRate);
+    Stereo before = run(device, std::vector<float>(tone.begin(), tone.begin() + s));
+    EXPECT(peak(before.left) < 1.0e-7 && device.layers() == 0, "Latch: nothing is caught while Hold is Off");
+    device.set_param(p::kHold, 1.0f);
+    run(device, std::vector<float>(tone.begin() + s, tone.end()));
+    Stereo held = render(device, 10.0f, kRate);
+    const double first = rms(held.left, s, 2 * s), last = rms(held.left, 9 * s, 10 * s);
+    std::printf("sustainer: Latch: held %.2f dB re the tone, %.3f dB change over 9 s\n", db(first * std::sqrt(2.0) / 0.25),
+                db(last / first));
+    EXPECT(first > 0.1 && std::fabs(db(last / first)) < 0.05, "Latch: the moment is held, unchanged, while Hold is On");
+    device.set_param(p::kHold, 0.0f);
+    Stereo released = render(device, 3.0f, kRate);
+    EXPECT(rms(released.left, s + s / 2, 2 * s) < first * 1.0e-3, "Latch: Hold Off lets it go over the Decay time");
+    EXPECT(peak(released.left, 2 * s + s / 2) == 0.0 && device.layers() == 0, "Latch: then silence");
+  }
+
+  // (more checks are added above this line)
   return finish("sustainer");
 }

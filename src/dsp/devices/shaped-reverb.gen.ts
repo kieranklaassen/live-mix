@@ -15,7 +15,7 @@ export const SHAPED_REVERB_PARAMS = {
     unit: '',
     choices: ['Gate', 'Reverse', 'Bloom', 'Fall', 'Pulse'],
     description:
-      'The outline the reverb follows. Gate holds its level and stops dead. Reverse grows louder and cuts off. Bloom swells in and fades away. Fall drops in a straight line. Pulse breathes in three waves.',
+      "The outline the reverb's level follows. Gate holds steady and stops dead. Reverse grows louder and cuts off. Bloom swells in and fades away. Fall drops in a straight line. Pulse breathes in three waves.",
   },
   time: {
     id: 1,
@@ -26,7 +26,7 @@ export const SHAPED_REVERB_PARAMS = {
     taper: 'log',
     unit: 's',
     description:
-      'How long the shape lasts from the note to its end. Short settings are a burst behind the note; long ones are a slow cloud.',
+      'How long the shape lasts, from the note to its end. Short settings are a burst behind the note; long ones are a slow cloud. With Repeat up it is also the gap between repeats.',
   },
   density: {
     id: 2,
@@ -103,7 +103,7 @@ export const SHAPED_REVERB_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Plays the shape again and again, each time quieter, darker and more blurred. High settings pulse for a long time.',
+      'Plays the whole shape again and again, each pass quieter, darker and more blurred. High settings pulse for a long time.',
   },
   tail: {
     id: 9,
@@ -114,7 +114,7 @@ export const SHAPED_REVERB_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Adds an ordinary fading reverb behind the shape, so the end is not dead silence. Higher settings are louder and ring for longer; at zero the shape ends in nothing.',
+      'Adds an ordinary fading reverb behind the shape, so its end is not dead silence. Higher settings are louder and ring for longer; at zero the shape ends in nothing.',
   },
   width: {
     id: 10,
@@ -152,20 +152,114 @@ export const SHAPED_REVERB_DESCRIPTOR = wasmDeviceDescriptor(SHAPED_REVERB_DEVIC
   name: 'Shaped Reverb',
   category: 'reverb',
   description:
-    'A reverb whose tail follows a drawn shape instead of dying away: it can hold level and stop dead, rise backwards into a cut, swell and fade, or pulse.',
+    'A reverb whose level follows a drawn shape instead of dying away: it can hold and stop dead, rise backwards into a cut, swell and fade, fall in a straight line or breathe in waves.',
   presets: {
-    'Backwards cloud': { shape: 1, time: 1.2 },
-    'Gated room': { shape: 0, time: 0.35 },
-    'Slow bloom': { shape: 2, time: 2.5 },
-    'Straight fall': { shape: 3, time: 1.4 },
-    'Breathing pulses': { shape: 4, time: 1.8, repeat: 0.5 },
-    Ghost: { shape: 1, time: 1.6, colour: -0.7, tail: 0.6 },
+    'Backwards cloud': {
+      shape: 1,
+      time: 1.2,
+      density: 0.9,
+      colour: 0.3,
+      modulation: 0.35,
+      tail: 0.3,
+      mix: 0.45,
+    },
+    'Gated room': {
+      shape: 0,
+      time: 0.35,
+      density: 1,
+      colour: -0.15,
+      highCut: 8000,
+      lowCut: 100,
+      modulation: 0.15,
+      tail: 0,
+      mix: 0.4,
+    },
+    'Slow bloom': {
+      shape: 2,
+      time: 2.5,
+      density: 1,
+      colour: -0.4,
+      highCut: 7000,
+      lowCut: 150,
+      modulation: 0.5,
+      tail: 0.45,
+      mix: 0.5,
+    },
+    'Straight fall': {
+      shape: 3,
+      time: 1.6,
+      density: 0.85,
+      preDelay: 20,
+      colour: -0.5,
+      tail: 0.2,
+      mix: 0.35,
+    },
+    'Breathing pulses': {
+      shape: 4,
+      time: 1.8,
+      density: 0.9,
+      colour: -0.3,
+      modulation: 0.4,
+      repeat: 0.55,
+      tail: 0.3,
+      mix: 0.45,
+    },
+    Ghost: {
+      shape: 1,
+      time: 2,
+      density: 1,
+      preDelay: 60,
+      colour: -0.8,
+      highCut: 3500,
+      lowCut: 200,
+      modulation: 0.6,
+      tail: 0.7,
+      mix: 0.5,
+    },
+    'Short halo': {
+      shape: 2,
+      time: 0.3,
+      density: 1,
+      colour: 0,
+      highCut: 12000,
+      modulation: 0.2,
+      tail: 0.15,
+      mix: 0.3,
+    },
+    'Long reverse': {
+      shape: 1,
+      time: 4,
+      density: 1,
+      colour: 0.5,
+      modulation: 0.5,
+      tail: 0.5,
+      mix: 0.55,
+    },
+    'Scattered echoes': {
+      shape: 3,
+      time: 2.2,
+      density: 0.15,
+      colour: -0.4,
+      repeat: 0.3,
+      tail: 0.4,
+      mix: 0.4,
+    },
+    'Stepped gate': {
+      shape: 0,
+      time: 0.25,
+      density: 0.95,
+      colour: -0.2,
+      modulation: 0.2,
+      repeat: 0.7,
+      tail: 0.1,
+      mix: 0.5,
+    },
   },
 })
 
 export type ShapedReverb = WasmDevice<typeof SHAPED_REVERB_PARAMS>
 
-/** A reverb whose tail follows a drawn shape instead of dying away: it can hold level and stop dead, rise backwards into a cut, swell and fade, or pulse. */
+/** A reverb whose level follows a drawn shape instead of dying away: it can hold and stop dead, rise backwards into a cut, swell and fade, fall in a straight line or breathe in waves. */
 export function createShapedReverb(
   context: BaseAudioContext,
   options: WasmDeviceOptions<typeof SHAPED_REVERB_PARAMS> = {},

@@ -17,9 +17,12 @@ namespace echo_memory {
 // - Reads are on a quarter-frame grid. The memory voice only ever plays at a
 //   quarter, a half, one or two frames per output sample, from a whole frame,
 //   so four fixed polyphase kernels (a 24-tap Kaiser-windowed sinc at each
-//   quarter) reconstruct every position it can ask for, and a fifth (a
-//   half-band low-pass) band-limits the two-frames-per-sample read. A whole
-//   position at one frame per sample is the stored frame itself.
+//   quarter) reconstruct every position it can ask for: images are more than
+//   70 dB down. The two-frames-per-sample read goes through a 47-tap
+//   half-band low-pass instead (stopband from 0.3 of the rate), so only
+//   what was recorded between 0.25 and 0.3 of the rate can fold, and it
+//   lands above 0.4. A whole position at one frame per sample is the stored
+//   frame itself.
 // - `forget()` makes everything written so far unrecallable without touching
 //   the memory: a blank memory when the device wakes from sleep.
 template <int Frames>
@@ -28,6 +31,9 @@ class Memory {
   static constexpr int kFrames = Frames;
   static constexpr int kTaps = 24;
   static constexpr int kBefore = 11;    // taps before the frame a read sits on
+  static constexpr int kHalfPairs = 12;   // the half-band's non-zero taps each side
+  static constexpr int kHalfReach = 2 * kHalfPairs - 1;
+  static constexpr int kGuard = 2 * kHalfReach + 2;  // frames mirrored past the end
   static constexpr int kMapBlocks = 720;  // 72 s of 100 ms blocks
   static constexpr float kScale = 32767.0f;
 
@@ -38,11 +44,24 @@ class Memory {
     const double pi = 3.14159265358979323846;
     const double beta = 7.0;
     const double i0_beta = bessel_i0(beta);
-    for (int phase = 0; phase < 5; ++phase) {
-      // Kernels 0..3 interpolate at phase/4 with the cutoff at Nyquist;
-      // kernel 4 is the half-band low-pass, centred on the frame.
-      const double offset = phase < 4 ? phase * 0.25 : 0.0;
-      const double cutoff = phase < 4 ? 1.0 : 0.5;
+    // The half-band low-pass: 0.5 at the centre, zero at the other even
+    // offsets, these at the odd ones.
+    {
+      double sum = 0.0;
+      double taps[kHalfPairs];
+      for (int k = 0; k < kHalfPairs; ++k) {
+        const double n = 2.0 * k + 1.0;
+        const double r = n / (kHalfReach + 1.0);
+        taps[k] = std::sin(pi * n / 2.0) / (pi * n) * bessel_i0(beta * std::sqrt(1.0 - r * r)) / i0_beta;
+        sum += taps[k];
+      }
+      // Unity at DC: 0.5 + 2 x the sum of the odd taps.
+      for (int k = 0; k < kHalfPairs; ++k) half_[k] = static_cast<float>(taps[k] * 0.25 / sum / kScale);
+    }
+    for (int phase = 0; phase < 4; ++phase) {
+      // Interpolation at phase/4, cutoff at Nyquist.
+      const double offset = phase * 0.25;
+      const double cutoff = 1.0;
       double sum = 0.0;
       double taps[kTaps];
       for (int k = 0; k < kTaps; ++k) {
@@ -62,7 +81,7 @@ class Memory {
   }
 
   void clear() {
-    for (int i = 0; i < 2 * (Frames + kTaps); ++i) buffer_[i] = 0;
+    for (int i = 0; i < 2 * (Frames + kGuard); ++i) buffer_[i] = 0;
     for (float& level : map_) level = 0.0f;
     written_ = 0;
     valid_from_ = 0;
@@ -92,7 +111,7 @@ class Memory {
     const int16_t r = quantise(right);
     buffer_[2 * head_] = l;
     buffer_[2 * head_ + 1] = r;
-    if (head_ < kTaps) {
+    if (head_ < kGuard) {
       buffer_[2 * (Frames + head_)] = l;
       buffer_[2 * (Frames + head_) + 1] = r;
     }
@@ -117,10 +136,23 @@ class Memory {
 
   // The frame at quarter-frame position `position_q` (4 per frame). `decimate`
   // selects the half-band kernel (whole positions only). The caller keeps
-  // reads at least kTaps frames inside what the ring holds.
+  // reads at least kGuard frames inside what the ring holds.
   void read(long long position_q, bool decimate, float* left, float* right) const {
     const long long whole = position_q >> 2;
-    const int phase = decimate ? 4 : static_cast<int>(position_q & 3);
+    if (decimate) {
+      const int16_t* centre = buffer_ + 2 * (slot(whole - kHalfReach) + kHalfReach);
+      float sum_left = 0.0f;
+      float sum_right = 0.0f;
+      for (int k = 0; k < kHalfPairs; ++k) {
+        const int offset = 2 * (2 * k + 1);
+        sum_left += half_[k] * static_cast<float>(centre[-offset] + centre[offset]);
+        sum_right += half_[k] * static_cast<float>(centre[1 - offset] + centre[1 + offset]);
+      }
+      *left = sum_left + static_cast<float>(centre[0]) * (0.5f / kScale);
+      *right = sum_right + static_cast<float>(centre[1]) * (0.5f / kScale);
+      return;
+    }
+    const int phase = static_cast<int>(position_q & 3);
     if (phase == 0) {
       const int at = 2 * slot(whole);
       *left = static_cast<float>(buffer_[at]) * (1.0f / kScale);
@@ -168,9 +200,10 @@ class Memory {
     return static_cast<int16_t>(std::lrintf(scaled));
   }
 
-  int16_t buffer_[2 * (Frames + kTaps)] = {};
+  int16_t buffer_[2 * (Frames + kGuard)] = {};
   float map_[kMapBlocks] = {};
-  float kernel_[5][kTaps] = {};
+  float kernel_[4][kTaps] = {};
+  float half_[kHalfPairs] = {};
   kit::Rng rng_;
   long long written_ = 0;
   long long valid_from_ = 0;

@@ -8,7 +8,7 @@
 //    │                                                      ▼         │
 //    └─► is anything playing? ─► hold, then fade ─────────► × ─► soft clip
 //                                                           ▲
-//   bed (Type, cross-faded) ─► tilt (Tone) ─► width ─► × Level, drift (Movement)
+//   bed (Type, cross-faded) ─► filters (Tone) ─► width ─► × Level, drift (Movement)
 //
 // - The dry signal is never touched: the output is the input plus the noise.
 // - Seven beds (noise_beds.h): tape hiss, vinyl, room, hum at 50 and 60 Hz,
@@ -21,9 +21,11 @@
 //   under the input by 1 / (1 + 4·level) and comes back up in the gaps, as
 //   the automatic level of a cheap recorder does. The follower rises in a
 //   tenth of Response and falls in Response.
-// - Tone tilts the bed around a pivot of its own (first order, ±9 dB) and a
-//   table per type takes the change of loudness back out, so Tone changes
-//   the colour and not the level. For hum it is the balance of body and buzz.
+// - Tone: below the middle a low-pass closes over the bed (to a dark
+//   frequency of its own: 2.5 kHz for tape hiss, 80 Hz for the room); above
+//   it a first-order high-pass thins the bed out from underneath. A table
+//   per type takes the change of level back out, so Tone changes the colour
+//   and Level still reads the level. For hum it is the balance of body and buzz.
 // - Movement: a slow drift of level (±2.5 dB) and tone shared by both sides,
 //   and whatever is unsteady in the chosen bed.
 // - An idle device is silent, so the noise only runs while something is
@@ -57,8 +59,10 @@ class NoiseFloor : public kit::DeviceBase<noise_floor::kNumParams> {
     air_.init(sr, 60);
     for (int t = 0; t < kTypes; ++t) {
       for (int c = 0; c < 2; ++c) {
-        tilt_[t][c].reset();
-        tilt_[t][c].set_cutoff(kPivotHz[t], sr);
+        dark_lp_[t][c].reset();
+        dark_lp_[t][c].set(kDarkOpenHz[t], kDarkQ, sr);
+        thin_lp_[t][c].reset();
+        thin_lp_[t][c].set_cutoff(kThinOpenHz[t], sr);
       }
       fade_[t] = 0.0f;
       amp_[t] = 0.0f;
@@ -73,8 +77,8 @@ class NoiseFloor : public kit::DeviceBase<noise_floor::kNumParams> {
     mid_.set_time(kSmoothingSeconds, sr);
     side_.set_time(kSmoothingSeconds, sr);
     drift_gain_.set_time(kSmoothingSeconds, sr);
-    tilt_low_.set_time(kSmoothingSeconds, sr);
-    tilt_high_.set_time(kSmoothingSeconds, sr);
+    dark_.set_time(kSmoothingSeconds, sr);
+    thin_.set_time(kSmoothingSeconds, sr);
     const float control_rate = sr / static_cast<float>(kControlPeriod);
     tone_.set_time(0.03f, control_rate);
     movement_.set_time(0.03f, control_rate);
@@ -146,8 +150,8 @@ class NoiseFloor : public kit::DeviceBase<noise_floor::kNumParams> {
         follow_gain -= follow * (1.0f / (1.0f + kDuck * loud) - 1.0f);
       }
 
-      const float tilt_low = tilt_low_.next();
-      const float tilt_high = tilt_high_.next();
+      const float dark = dark_.next();
+      const float thin = thin_.next();
       float bed[2] = {0.0f, 0.0f};
       if (gate_ > 0.0f) {
         for (int t = 0; t < kTypes; ++t) {
@@ -166,8 +170,10 @@ class NoiseFloor : public kit::DeviceBase<noise_floor::kNumParams> {
             bed[1] += out[1] * gain;
           } else {
             for (int c = 0; c < 2; ++c) {
-              const float low = tilt_[t][c].lowpass(out[c]);
-              bed[c] += (low * tilt_low + (out[c] - low) * tilt_high) * gain;
+              float y = out[c];
+              if (dark > 0.0f) y += dark * (dark_lp_[t][c].lowpass(y) - y);
+              if (thin > 0.0f) y -= thin * thin_lp_[t][c].lowpass(y);
+              bed[c] += y * gain;
             }
           }
         }
@@ -193,17 +199,28 @@ class NoiseFloor : public kit::DeviceBase<noise_floor::kNumParams> {
   static constexpr float kQuiet = 1.0e-6f;      // -120 dBFS: below this nothing is playing
   static constexpr float kReference = 0.25f;    // the input level Follow calls "loud": -12 dBFS
   static constexpr float kDuck = 4.0f;
-  static constexpr float kTiltDb = 9.0f;
+  static constexpr float kDarkQ = 0.6f;
+  static constexpr float kToneBlend = 4.0f;  // the tone filters are fully in by Tone ±0.25
   static constexpr float kLevelDriftDb = 2.5f;
   static constexpr float kToneDrift = 0.3f;
-  // Where each bed's tilt pivots (hum has no tilt: Tone is its buzz).
-  static constexpr float kPivotHz[kTypes] = {2500.0f, 1500.0f, 150.0f, 300.0f, 300.0f, 1200.0f, 8000.0f};
-  // The change of level, in dB, that the tilt makes at Tone -1, -0.5, 0, 0.5
-  // and 1, by measurement; it is taken back out.
-  static constexpr float kToneLevelDb[kTypes][5] = {
-      {0.0f, 0.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f},
-      {0.0f, 0.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f},
-      {0.0f, 0.0f, 0.0f, 0.0f, 0.0f},
+  // Tone, per bed (hum has none of this: Tone is its buzz). Going down, a
+  // low-pass closes from the open frequency to the dark one; going up, a
+  // high-pass rises from its open frequency to the thin one.
+  static constexpr float kDarkOpenHz[kTypes] = {18000.0f, 9000.0f, 2000.0f, 1.0f, 1.0f, 5000.0f, 18000.0f};
+  static constexpr float kDarkHz[kTypes] = {2500.0f, 1200.0f, 80.0f, 1.0f, 1.0f, 900.0f, 5000.0f};
+  static constexpr float kThinOpenHz[kTypes] = {500.0f, 100.0f, 30.0f, 1.0f, 1.0f, 300.0f, 3000.0f};
+  static constexpr float kThinHz[kTypes] = {6000.0f, 2500.0f, 300.0f, 1.0f, 1.0f, 2200.0f, 9000.0f};
+  // The change of level, in dB, that Tone makes from -1 to 1 in steps of a
+  // quarter, by measurement; it is taken back out.
+  static constexpr int kTonePoints = 9;
+  static constexpr float kToneLevelDb[kTypes][kTonePoints] = {
+      {-16.57f, -12.07f, -7.77f, -3.93f, 0.00f, -0.60f, -1.21f, -2.47f, -5.13f},  // Tape hiss
+      {-7.24f, -4.97f, -2.97f, -1.49f, 0.00f, -0.48f, -0.90f, -1.97f, -4.43f},  // Vinyl
+      {-4.72f, -2.19f, -0.90f, -0.29f, 0.00f, -1.58f, -2.83f, -4.55f, -6.78f},  // Room
+      {0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f},  // Hum 50: its Tone keeps the power itself
+      {0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f},  // Hum 60
+      {-9.82f, -7.04f, -4.67f, -2.77f, 0.00f, -0.70f, -1.29f, -2.32f, -4.02f},  // Static
+      {-12.54f, -9.05f, -5.96f, -3.27f, 0.00f, -3.00f, -4.15f, -5.74f, -7.95f},  // Air
   };
 
   void snap_types() {
@@ -239,10 +256,10 @@ class NoiseFloor : public kit::DeviceBase<noise_floor::kNumParams> {
     }
   }
 
-  // The level the tilt adds at `tone`, in dB, between the measured points.
+  // The level Tone adds at `tone`, in dB, between the measured points.
   static float tone_level_db(int type, float tone) {
-    const float at = (kit::clamp(tone, -1.0f, 1.0f) + 1.0f) * 2.0f;
-    const int index = kit::clamp_int(static_cast<int>(at), 0, 3);
+    const float at = (kit::clamp(tone, -1.0f, 1.0f) + 1.0f) * (0.5f * static_cast<float>(kTonePoints - 1));
+    const int index = kit::clamp_int(static_cast<int>(at), 0, kTonePoints - 2);
     return kit::lerp(kToneLevelDb[type][index], kToneLevelDb[type][index + 1],
                      at - static_cast<float>(index));
   }
@@ -274,14 +291,23 @@ class NoiseFloor : public kit::DeviceBase<noise_floor::kNumParams> {
     const bool tone_moved = tone_now != tone_now_ || !started_;
     if (tone_moved) {
       tone_now_ = tone_now;
-      tilt_low_.set(kit::db_to_gain(-kTiltDb * tone_now), started_);
-      tilt_high_.set(kit::db_to_gain(kTiltDb * tone_now), started_);
+      dark_.set(kit::clamp(-kToneBlend * tone_now, 0.0f, 1.0f), started_);
+      thin_.set(kit::clamp(kToneBlend * tone_now, 0.0f, 1.0f), started_);
     }
     for (int t = 0; t < kTypes; ++t) {
       const bool fresh = fade_[t] <= 0.0f;  // not sounding yet
       if (fresh && t != type_) continue;
       if (tone_moved || fresh) {
         comp_[t].set(kit::db_to_gain(-tone_level_db(t, tone_now)), !fresh);
+        if (t != kHum50 && t != kHum60) {
+          const float down = kit::max(0.0f, -tone_now), up = kit::max(0.0f, tone_now);
+          const float dark_hz = kDarkOpenHz[t] * std::pow(kDarkHz[t] / kDarkOpenHz[t], down);
+          const float thin_hz = kThinOpenHz[t] * std::pow(kThinHz[t] / kThinOpenHz[t], up);
+          for (int c = 0; c < 2; ++c) {
+            dark_lp_[t][c].set(dark_hz, kDarkQ, sr);
+            thin_lp_[t][c].set_cutoff(thin_hz, sr);
+          }
+        }
       }
       switch (t) {
         case kTape:
@@ -347,11 +373,12 @@ class NoiseFloor : public kit::DeviceBase<noise_floor::kNumParams> {
   noise_beds::Hum hum_[2];
   noise_beds::Static static_;
   noise_beds::Air air_;
-  kit::OnePole tilt_[kTypes][2];
+  kit::Svf dark_lp_[kTypes][2];
+  kit::OnePole thin_lp_[kTypes][2];
   kit::Smoother comp_[kTypes];
   float fade_[kTypes] = {};
   float amp_[kTypes] = {};
-  kit::Smoother level_, follow_, mid_, side_, drift_gain_, tilt_low_, tilt_high_;
+  kit::Smoother level_, follow_, mid_, side_, drift_gain_, dark_, thin_;
   kit::Smoother tone_, movement_;  // advanced on the control clock
   kit::Drift level_drift_, tone_drift_;
   kit::ControlClock clock_;

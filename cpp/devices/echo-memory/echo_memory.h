@@ -10,7 +10,41 @@
 //          ▲                                                         │
 //          └────────────── Collect (-9 dB per generation) ◄──────────┘
 //
-// HEADER-NOTES
+// - The echo voice is an ordinary feedback delay on its own float line. Time
+//   is the distance to the playback head and glides (a 120 ms motor lag, at
+//   most two samples a sample), so moving it bends the repeats. Tone is a
+//   low-pass on the playback, so every repeat is darker than the last; the
+//   loop also loses its lows below 70 Hz and is limited (exactly linear up
+//   to ±1). Spread records the input on the left and crosses the feedback.
+// - The memory is everything that came in, kept for 68 s as 16-bit stereo
+//   with TPDF dither, at no more than 48 kHz: at 88.2 and 96 kHz it is
+//   recorded through a half-band filter at half rate (memory_store.h). A map
+//   of the peak level of every 100 ms goes with it.
+// - The memory voice is two snippet voices. Every so often (Wander: 20 s
+//   down to 0.2 s, each wait jittered ±30 %) it looks for a moment: a 100 ms
+//   block between two seconds and Reach ago, chosen with a probability
+//   proportional to its level (silence, below -60 dBFS, is never chosen). It
+//   plays Size seconds centred there under a raised-cosine window (40 %
+//   fade each end), as it was or, with a chance of Vary, backwards (45 %),
+//   at half speed (30 %), backwards at half speed (10 %) or at double speed
+//   (15 %). Successive moments sit on opposite sides (Spread), and older
+//   ones are fainter (down to -8 dB at the end of Reach). A moment is never
+//   longer than 1.4 waits, so two voices are always enough, and never longer
+//   than the memory it may read.
+// - Speeds are exact powers of two and a moment starts on a whole frame, so
+//   every read falls on a quarter frame and is reconstructed by a fixed
+//   24-tap windowed-sinc kernel; the double-speed read goes through a
+//   half-band kernel so nothing above a quarter of the rate folds back.
+// - Collect adds what the memory voice plays (after Tone) to what the memory
+//   records, 9.6 dB down, so each generation is quieter and duller.
+// - Rest: a moment can start only while something above -60 dBFS lies within
+//   Reach, and lasts at most Size, so with Collect off the output is exact
+//   zero within Reach + Size of the input stopping (22 s at the defaults;
+//   the echo's own tail is shorter). With Collect on at most seven
+//   generations fit between full scale and -60 dB: 8 x (Reach + Size). The
+//   device then sleeps, once the echo line has been blank for its whole
+//   length, and wakes with a blank memory: what was played before a sleep is
+//   never recalled.
 
 #include "../../kit/kit.h"
 #include "memory_store.h"
@@ -34,7 +68,7 @@ class EchoMemory : public kit::DeviceBase<echo_memory::kNumParams> {
       line_[c].clear();
       down_[c].init();
     }
-    time_.set_time(kMotorLagSeconds, sr);
+    glide_ = 1.0f - std::exp(-1.0f / (kMotorLagSeconds * sr));
     feedback_.set_time(kSmoothingSeconds, sr);
     echo_level_.set_time(kSmoothingSeconds, sr);
     memory_level_.set_time(kSmoothingSeconds, sr);
@@ -43,6 +77,11 @@ class EchoMemory : public kit::DeviceBase<echo_memory::kNumParams> {
     collect_.set_time(0.03f, sr);
     tone_.set_time(0.02f, sr / kControlPeriod);
     rng_.seed(0x3C6EF372u);
+    last_recall_ = Recall();
+    side_ = 1.0f;
+    // The echo line is blank once nothing above the floor has been written
+    // for the longest Time plus the motor lag.
+    echo_hold_ = static_cast<long>((kParamMax[kTime] * 0.001f + 0.5f) * sr);
     asleep_ = true;
     for (int id = 0; id < kNumParams; ++id) apply(id);
     restart();
@@ -75,7 +114,14 @@ class EchoMemory : public kit::DeviceBase<echo_memory::kNumParams> {
       if (clock_.tick()) control();
 
       // --- echo voice ---
-      const float delay = kit::clamp(time_.next(), 4.0f, max_delay);
+      // Time is the distance to the playback head: it glides there with a
+      // motor's lag, never faster than kMaxSlew, so the repeats bend by at
+      // most an octave and a fifth up and never play backwards fast.
+      if (delay_ != delay_target_) {
+        delay_ += kit::clamp((delay_target_ - delay_) * glide_, -kMaxSlew, kMaxSlew);
+        if (std::fabs(delay_target_ - delay_) < 1.0e-3f) delay_ = delay_target_;
+      }
+      const float delay = kit::clamp(delay_, 4.0f, max_delay);
       float echo[2];
       for (int c = 0; c < 2; ++c) echo[c] = echo_tone_[c].lowpass(line_[c].read_hermite(delay));
       const float feedback = feedback_.next();
@@ -96,10 +142,36 @@ class EchoMemory : public kit::DeviceBase<echo_memory::kNumParams> {
 
       // --- memory voice ---
       float recalled[2] = {0.0f, 0.0f};
-      // MEMORY-VOICE
+      until_next_ -= 1.0f;
+      if (until_next_ <= 0.0f) recall();
+      for (Snippet& snippet : snippets_) {
+        if (!snippet.active) continue;
+        float left, right;
+        memory_.read(snippet.position_q, snippet.decimate, &left, &right);
+        const float window = window_at(static_cast<float>(snippet.index) * snippet.per_length);
+        recalled[0] += left * window * snippet.gain_left;
+        recalled[1] += right * window * snippet.gain_right;
+        snippet.position_q += snippet.step_q;
+        if (++snippet.index >= snippet.length) snippet.active = false;
+      }
+      recalled[0] = memory_tone_[0].lowpass(recalled[0]);
+      recalled[1] = memory_tone_[1].lowpass(recalled[1]);
 
       // --- record into the memory ---
-      // MEMORY-RECORD
+      // What Collect adds is quieter and duller on every generation, so
+      // memories of memories always die away.
+      const float collect = collect_.next() * kCollectGain;
+      const float keep[2] = {in[0] + collect * recalled[0], in[1] + collect * recalled[1]};
+      if (!halved_) {
+        remember(keep[0], keep[1]);
+      } else if (second_of_pair_) {
+        remember(down_[0].down(held_[0], keep[0]), down_[1].down(held_[1], keep[1]));
+        second_of_pair_ = false;
+      } else {
+        held_[0] = keep[0];
+        held_[1] = keep[1];
+        second_of_pair_ = true;
+      }
 
       const float echo_level = echo_level_.next();
       const float memory_level = memory_level_.next();
@@ -114,9 +186,29 @@ class EchoMemory : public kit::DeviceBase<echo_memory::kNumParams> {
       out_left_[i] = in[0] * dry_gain_ + wet_left * wet_gain_;
       out_right_[i] = in[1] * dry_gain_ + wet_right * wet_gain_;
     }
-    // SLEEP-CHECK
-    if (!excited && echo_blank_ > kLineSize && output_peak(frames) <= kFloor) asleep_ = true;
+    // Asleep once nothing is coming in, no moment is playing or could still
+    // be chosen, the whole echo line is blank and the output has died away.
+    bool playing = false;
+    for (const Snippet& snippet : snippets_) playing = playing || snippet.active;
+    if (!excited && !playing && !recallable() && echo_blank_ > echo_hold_ &&
+        output_peak(frames) <= kFloor) {
+      asleep_ = true;
+    }
   }
+
+  // What the memory voice last chose, for meters and the harness.
+  struct Recall {
+    int count = 0;              // moments started since init
+    float age_seconds = 0.0f;   // how long ago the middle of the moment was played
+    float start_age_seconds = 0.0f;  // how long ago the first frame it plays was recorded
+    float level = 0.0f;         // how loud the memory was there (peak)
+    float seconds = 0.0f;       // how long it plays for
+    float speed = 1.0f;
+    float gain = 1.0f;          // how much fainter it plays for being old
+    bool reversed = false;
+  };
+  const Recall& last_recall() const { return last_recall_; }
+  bool asleep() const { return asleep_; }
 
  private:
   // 4 s at 96 kHz plus the motor lag's overshoot room.
@@ -126,6 +218,8 @@ class EchoMemory : public kit::DeviceBase<echo_memory::kNumParams> {
   static constexpr long kLongEnough = 1L << 30;
   static constexpr float kFloor = kit::IdleGate::kFloor;
   static constexpr float kMotorLagSeconds = 0.12f;
+  // Fastest the echo's playback head moves, in samples per sample.
+  static constexpr float kMaxSlew = 2.0f;
   static constexpr float kLowCutHz = 70.0f;
   static constexpr int kControlPeriod = 16;
   static constexpr int kNumSnippets = 2;
@@ -144,6 +238,8 @@ class EchoMemory : public kit::DeviceBase<echo_memory::kNumParams> {
   static constexpr float kWidestPan = 0.7f;
   // Share of a moment spent fading in, and again fading out.
   static constexpr float kEdge = 0.4f;
+  // Level of a moment recalled from the far end of Reach (-8 dB).
+  static constexpr float kOldestGain = 0.4f;
   static constexpr float kRetrySeconds = 0.05f;
   static constexpr float kShortestSeconds = 0.15f;
 
@@ -208,7 +304,7 @@ class EchoMemory : public kit::DeviceBase<echo_memory::kNumParams> {
     const int block = memory_.block_frames();
     const long long newest = now - static_cast<long long>(kNearestSeconds * store_rate_);
     long long oldest = now - static_cast<long long>(param(kReach) * store_rate_);
-    const long long first_kept = memory_.valid_from() + 2 * echo_memory::Memory<kMemoryFrames>::kTaps;
+    const long long first_kept = memory_.valid_from() + echo_memory::Memory<kMemoryFrames>::kGuard;
     if (oldest < first_kept) oldest = first_kept;
     const long long room = newest - oldest;
     if (room < static_cast<long long>(kShortestSeconds * store_rate_)) return;
@@ -274,11 +370,19 @@ class EchoMemory : public kit::DeviceBase<echo_memory::kNumParams> {
     const float pan = side_ * kWidestPan * param(kSpread) * (0.25f + 0.75f * rng_.uniform());
     side_ = -side_;
     kit::pan_gains(pan, &voice->gain_left, &voice->gain_right);
-    voice->gain_left *= 2.0f * kit::kSqrtHalf;
-    voice->gain_right *= 2.0f * kit::kSqrtHalf;
+    // Older is fainter: full level for what was just played, kOldestGain
+    // for a moment at the far end of Reach. The memory voice therefore
+    // thins out as the last sound ages instead of stopping at full level.
+    const float age = static_cast<float>(now - centre) / (param(kReach) * store_rate_);
+    const float fade = 1.0f - (1.0f - kOldestGain) * kit::clamp(age * age, 0.0f, 1.0f);
+    voice->gain_left *= fade * 2.0f * kit::kSqrtHalf;
+    voice->gain_right *= fade * 2.0f * kit::kSqrtHalf;
+    last_recall_.gain = fade;
 
     last_recall_.count += 1;
     last_recall_.age_seconds = static_cast<float>(now - centre) / store_rate_;
+    last_recall_.start_age_seconds =
+        static_cast<float>(now - (reversed ? from + span : from)) / store_rate_;
     last_recall_.level = memory_.level_at_block(chosen);
     last_recall_.seconds = seconds;
     last_recall_.speed = speed;
@@ -304,7 +408,7 @@ class EchoMemory : public kit::DeviceBase<echo_memory::kNumParams> {
       down_[c].reset();
     }
     clock_.reset(kControlPeriod);
-    time_.snap(time_.target);
+    delay_ = delay_target_;
     feedback_.snap(feedback_.target);
     echo_level_.snap(echo_level_.target);
     memory_level_.snap(memory_level_.target);
@@ -315,7 +419,12 @@ class EchoMemory : public kit::DeviceBase<echo_memory::kNumParams> {
     tone_seen_ = -1.0f;
     mix_seen_ = -1.0f;
     echo_blank_ = 0;
-    // RESTART-MEMORY
+    for (Snippet& snippet : snippets_) snippet.active = false;
+    last_loud_ = -1;
+    second_of_pair_ = false;
+    held_[0] = held_[1] = 0.0f;
+    until_next_ = interval_seconds(param(echo_memory::kWander)) * sample_rate() *
+                  (0.7f + 0.6f * rng_.uniform());
   }
 
   void control() {
@@ -329,7 +438,9 @@ class EchoMemory : public kit::DeviceBase<echo_memory::kNumParams> {
         memory_tone_[c].set(hz, 0.6f, sample_rate());
       }
     }
-    // CONTROL-MEMORY
+    // Wander is followed at once instead of after a long wait has run out.
+    const float longest = 1.3f * interval_seconds(param(kWander)) * sample_rate();
+    if (until_next_ > longest) until_next_ = longest;
   }
 
   void apply(int id) {
@@ -339,7 +450,8 @@ class EchoMemory : public kit::DeviceBase<echo_memory::kNumParams> {
     const bool glide = primed() && !asleep_;
     switch (id) {
       case kTime:
-        time_.set(value * 0.001f * sample_rate(), glide);
+        delay_target_ = value * 0.001f * sample_rate();
+        if (!glide) delay_ = delay_target_;
         break;
       case kFeedback:
         feedback_.set(value, glide);
@@ -373,7 +485,7 @@ class EchoMemory : public kit::DeviceBase<echo_memory::kNumParams> {
   kit::Svf echo_tone_[2];
   kit::Svf memory_tone_[2];
   kit::OnePole low_cut_[2];
-  kit::Smoother time_, feedback_, echo_level_, memory_level_, spread_, mix_, tone_;
+  kit::Smoother feedback_, echo_level_, memory_level_, spread_, mix_, tone_;
   kit::LinearRamp collect_;
   kit::ControlClock clock_;
   kit::Rng rng_;
@@ -382,7 +494,9 @@ class EchoMemory : public kit::DeviceBase<echo_memory::kNumParams> {
   float store_rate_ = 48000.0f;
   float tone_seen_ = -1.0f;
   float mix_seen_ = -1.0f, dry_gain_ = 1.0f, wet_gain_ = 0.0f;
+  float delay_ = 24000.0f, delay_target_ = 24000.0f, glide_ = 0.0f;
   long echo_blank_ = 0;
+  long echo_hold_ = 216000;
   Snippet snippets_[kNumSnippets];
   Recall last_recall_;
   float until_next_ = 0.0f;   // host samples until the memory voice next looks for a moment

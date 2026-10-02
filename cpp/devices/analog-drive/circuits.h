@@ -28,12 +28,15 @@ struct Eq {
 
 struct Circuit {
   Curve curve;
-  // Where the signal sits on the curve: bias + bias_drive × Drive, and
-  // bias_level more for an envelope of 1 (the level-dependent shift).
+  // Where the signal sits on the curve: bias + bias_drive × Drive, plus a
+  // shift that follows the level arriving at the curve and tends to
+  // bias_level: bias_level × e / (e + bias_knee) for an envelope e.
   float bias;
   float bias_drive;
   float bias_level;
-  // Gain into the curve falls to 1 / (1 + sag) for an envelope of 1.
+  float bias_knee;
+  // Gain into the curve falls to 1 / (1 + sag) when what leaves it has an
+  // envelope of 1 (its ceiling).
   float sag;
   float attack_seconds;
   float release_seconds;
@@ -48,7 +51,7 @@ inline const Circuit& circuit(int index) {
       // saturate first and come back duller; quiet ones pass. A slow, slight
       // sag is the compression.
       {{1.0, 1.0, 1.15, 0.0, 1.0, 0.0, 1.0},
-       0.05f, 0.07f, 0.0f, 0.18f, 0.012f, 0.14f,
+       0.05f, 0.07f, 0.0f, 1.0f, 0.18f, 0.012f, 0.14f,
        {{Eq::kHighShelf, 3200.0f, 8.0f, 0.0f}, {Eq::kNone, 0.0f, 0.0f, 0.0f}},
        {{Eq::kHighShelf, 3200.0f, -8.0f, 0.0f},
         {Eq::kLowShelf, 110.0f, 1.2f, 0.0f},
@@ -57,26 +60,26 @@ inline const Circuit& circuit(int index) {
       // first by the upper mids, with some of that lift and a little air
       // left in afterwards.
       {{0.2, 1.0, 1.0, 0.8, 1.0, 0.0, 1.0},
-       0.02f, 0.02f, 0.04f, 0.0f, 0.005f, 0.08f,
+       0.01f, 0.01f, 0.0f, 1.0f, 0.0f, 0.005f, 0.08f,
        {{Eq::kPeak, 2800.0f, 4.0f, 0.5f}, {Eq::kNone, 0.0f, 0.0f, 0.0f}},
        {{Eq::kPeak, 2800.0f, -2.8f, 0.5f},
         {Eq::kHighShelf, 9000.0f, 1.2f, 0.0f},
         {Eq::kNone, 0.0f, 0.0f, 0.0f}}},
       // Transformer: the core saturates on flux, which is the integral of
-      // the signal, so the curve sees the lows 11 dB up and the exact
+      // the signal, so the curve sees the lows 10 dB up and the exact
       // inverse follows it. Low notes distort long before high ones, and
       // the low mids are left a little thick.
       {{0.65, 1.0, 1.06, 0.35, 1.0, 0.0, 1.0},
-       0.03f, 0.03f, 0.0f, 0.08f, 0.03f, 0.25f,
-       {{Eq::kLowShelf, 240.0f, 11.0f, 0.0f}, {Eq::kNone, 0.0f, 0.0f, 0.0f}},
-       {{Eq::kLowShelf, 240.0f, -11.0f, 0.0f},
-        {Eq::kPeak, 170.0f, 1.6f, 0.7f},
+       0.03f, 0.03f, 0.0f, 1.0f, 0.08f, 0.03f, 0.25f,
+       {{Eq::kLowShelf, 160.0f, 10.0f, 0.0f}, {Eq::kNone, 0.0f, 0.0f, 0.0f}},
+       {{Eq::kLowShelf, 160.0f, -10.0f, 0.0f},
+        {Eq::kPeak, 200.0f, 1.5f, 0.7f},
         {Eq::kHighShelf, 11000.0f, -1.2f, 0.0f}}},
       // Triode: one soft knee far earlier on one side than the other, and a
       // working point that sits off centre and moves further as the level
       // rises: second harmonic first, growing gradually.
       {{1.0, 0.7, 1.6, 0.0, 1.0, 0.0, 1.0},
-       0.1f, 0.2f, 0.22f, 0.0f, 0.02f, 0.2f,
+       0.1f, 0.15f, 1.2f, 1.5f, 0.0f, 0.02f, 0.2f,
        {{Eq::kLowShelf, 150.0f, 2.0f, 0.0f}, {Eq::kNone, 0.0f, 0.0f, 0.0f}},
        {{Eq::kLowShelf, 150.0f, -1.3f, 0.0f},
         {Eq::kHighShelf, 8000.0f, -0.8f, 0.0f},
@@ -84,8 +87,8 @@ inline const Circuit& circuit(int index) {
       // Pentode: half hard clip, half firm knee, so it stays clean and then
       // bites; lows held back from the curve, upper mids pushed at it; the
       // supply sags under a sustained load and recovers.
-      {{0.0, 1.0, 1.0, 0.5, 1.0, 0.5, 1.0},
-       0.04f, 0.04f, 0.05f, 0.5f, 0.015f, 0.18f,
+      {{0.0, 1.0, 1.0, 0.65, 0.75, 0.35, 0.6},
+       0.02f, 0.02f, 0.0f, 1.0f, 0.5f, 0.015f, 0.18f,
        {{Eq::kPeak, 2000.0f, 3.0f, 0.6f}, {Eq::kLowShelf, 120.0f, -3.0f, 0.0f}},
        {{Eq::kPeak, 2000.0f, -1.5f, 0.6f},
         {Eq::kLowShelf, 120.0f, 2.0f, 0.0f},

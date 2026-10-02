@@ -72,7 +72,7 @@ inline constexpr SpeakerModel kSpeakers[kNumSpeakers] = {
       {kLowpass, 3900.0f, 0.6f, 0.0f}},
      110.0f, 1.6f, 1800.0f, -0.5f},
     {{{kHighpass, 100.0f, 1.3f, 0.0f},
-      {kHighpass, 70.0f, 0.7f, 0.0f},
+      {kHighpass, 82.0f, 0.7f, 0.0f},
       {kPeak, 550.0f, 0.8f, -6.0f},
       {kPeak, 2200.0f, 5.0f, -4.0f},
       {kPeak, 3000.0f, 1.8f, 4.0f},
@@ -122,8 +122,10 @@ class SpeakerBank {
   }
 
   // Build speaker `model` (0..kNumSpeakers-1) at `sample_rate`. State is
-  // left alone: reset() first when the bank is not sounding.
-  void design(int model, float sample_rate) {
+  // left alone: reset() first when the bank is not sounding. The loudness
+  // match is a few thousand sines and cosines, so it is worked out when no
+  // `gain` is given (at init) and handed back in on the audio thread.
+  void design(int model, float sample_rate, float gain = -1.0f) {
     model_ = kit::clamp_int(model, 0, kNumSpeakers - 1);
     const SpeakerModel& speaker = kSpeakers[model_];
     count_ = 0;
@@ -147,7 +149,9 @@ class SpeakerBank {
     }
     for (int c = 0; c < 2; ++c) excursion_[c].set(speaker.excursion_hz, 0.7f, sample_rate);
     k_ = speaker.excursion;
-    gain_ = kit::db_to_gain(speaker.trim_db) / std::sqrt(static_cast<float>(loudness(sample_rate)));
+    gain_ = gain > 0.0f ? gain
+                        : kit::db_to_gain(speaker.trim_db) /
+                              std::sqrt(static_cast<float>(loudness(sample_rate)));
   }
 
   int model() const { return model_; }

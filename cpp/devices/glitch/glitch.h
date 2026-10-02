@@ -2,10 +2,43 @@
 
 // Glitch: a buffer that misbehaves by chance.
 //
-//   in ──┬──────────────────────────────── × (1 - w) ──┐
-//        └─► ring (10 s) ─► two readers ─► tone ─► pan ─┴─► out      w = the readers' fade gains
+//   in ──┬──────────────────────────────────── × room ──┐
+//        └─► ring (10 s) ─► two readers ─► tone ─► pan ─┴─► out
 //
-// (header comment completed below)
+// - The input is always recorded and, while nothing is happening, passed
+//   through bit for bit. A slice clock (Time) divides it; when a slice ends
+//   with nothing playing, a seeded random draw decides with probability
+//   Chance whether an event starts, and which kind, weighted by Repeat, Skip,
+//   Reverse and Slow. When an event ends the draw is made again at once.
+// - Repeat plays the slice that just ended again, one to eight times (few
+//   more likely than many). Decay makes each repeat 6 dB quieter and an
+//   octave darker at full; Bounce makes each one shorter than the last by a
+//   fixed ratio, down to 8 ms.
+// - Skip jumps back to somewhere in the last slice and loops a fragment of
+//   20 to 120 ms three to ten times: a stuck disc.
+// - Reverse plays the slice that just ended backwards, starting from the
+//   present, so it leaves the input without a jump.
+// - Slow takes hold of the input where it is and either drops to half speed
+//   for one or two slices, or slows linearly to a stop and spins back up in
+//   a third of the time. A stopped tape fades out; it does not hold a sample.
+// - Octaves: a repeat or a stuck fragment may play at double speed (a repeat
+//   then plays twice, so it keeps its time) or at half speed. Double-speed
+//   reads go through a half-band filter, so the top octave of the recording
+//   is removed instead of folding down.
+// - An event is a chain of fragments, each played by a reader; a fragment
+//   fades in while the one before it (or the input) fades out. Calm sets the
+//   fade, from none at all (a hard cut and its click) to 80 ms, never more
+//   than half of either fragment, and closes a 12 dB per octave low-pass on
+//   the readers from open to 4 kHz. `room` is what the fade leaves the input.
+// - Spread throws each event to a random pan position, narrowing a stereo
+//   source towards mono as it goes so neither channel is lost.
+// - Everything but Mix is read when a slice ends or a fragment starts, so no
+//   control can click. Mix is a linear crossfade against the input: between
+//   events both sides of it are the same signal.
+// - Sleep: once the ring holds nothing but exact silence as far back as a new
+//   event could reach (Time + 0.3 s) and nothing is playing, the device stops
+//   and writes zeros. This is decided per sample, so it does not depend on the
+//   block size. The first sound after that starts the slice clock afresh.
 
 #include "../../kit/kit.h"
 #include "params.gen.h"
@@ -87,13 +120,18 @@ class Glitch : public kit::DeviceBase<glitch::kNumParams> {
       }
 
       if (readers_[0].active || readers_[1].active) {
+        // The input keeps what a lone reader's fade leaves it; two readers
+        // are one fragment handing over to the next, with no input at all.
         float wet[2] = {0.0f, 0.0f};
-        float weight = 0.0f;
-        for (Reader& reader : readers_) {
-          if (reader.active) render(reader, wet, &weight);
+        float room = 0.0f;
+        if (readers_[0].active && readers_[1].active) {
+          render(readers_[0], wet);
+          render(readers_[1], wet);
+        } else {
+          room = render(readers_[readers_[0].active ? 0 : 1], wet);
         }
-        out_left_[i] = in[0] + mix * (wet[0] - weight * in[0]);
-        out_right_[i] = in[1] + mix * (wet[1] - weight * in[1]);
+        out_left_[i] = in[0] + mix * (wet[0] - (1.0f - room) * in[0]);
+        out_right_[i] = in[1] + mix * (wet[1] - (1.0f - room) * in[1]);
       } else {
         // Nothing is happening: the input itself, bit for bit.
         out_left_[i] = in[0];
@@ -114,13 +152,14 @@ class Glitch : public kit::DeviceBase<glitch::kNumParams> {
   struct Reader {
     bool active = false;
     bool releasing = false;
-    int mode = kRepeating;        // how the speed moves: see render()
+    int mode = kRepeating;     // how the speed moves: see render()
     double position = 0.0;
     float rate = 1.0f;
     bool halved = false;       // rate 2: read through the half-band filter
     float length = 1.0f;       // nominal length in output samples
     float age = 0.0f;          // output samples played
     float in_phase = 1.0f, in_step = 0.0f;
+    bool linear_in = false;    // fading in over the input it starts on
     float out_phase = 0.0f, out_step = 0.0f;
     // out_left = ll·L + lr·R, out_right = rl·L + rr·R (gain, pan and narrowing)
     float ll = 1.0f, lr = 0.0f, rl = 0.0f, rr = 1.0f;
@@ -176,6 +215,7 @@ class Glitch : public kit::DeviceBase<glitch::kNumParams> {
   // slice grid here.
   void wake() {
     dormant_ = false;
+    mix_.snap(mix_.target);
     ring_.forget();
     quiet_ = 0;
     until_boundary_ = static_cast<long>(slice_);
@@ -185,16 +225,33 @@ class Glitch : public kit::DeviceBase<glitch::kNumParams> {
     for (Reader& reader : readers_) reader.active = false;
   }
 
-  // One output frame of a reader, added to wet[] under its fade gain; the
-  // gain is added to *weight so the input can make room for it.
-  void render(Reader& reader, float* wet, float* weight) {
+  // The gain of each side half way through a splice: 0.5^0.75 = 0.59. Linear
+  // (0.5) would dip 3 dB where the two sides are unrelated, equal power
+  // (0.71) would swell 3 dB where they happen to be in phase; this is 1.5 dB
+  // either way.
+  static float splice_gain(float ramp) {
+    const float root = std::sqrt(ramp);
+    return root * std::sqrt(root);
+  }
+
+  // One output frame of a reader, added to wet[] under its fade gain.
+  // Returns the gain that is left for the input while this reader is the
+  // only one playing: the other side of its fade.
+  float render(Reader& reader, float* wet) {
     float fade = 1.0f;
+    float other = 0.0f;
     if (reader.in_phase < 1.0f) {
-      fade = 0.5f - 0.5f * kit::SineTable::cos_lookup(0.5f * reader.in_phase);
+      const float ramp = 0.5f - 0.5f * kit::SineTable::cos_lookup(0.5f * reader.in_phase);
+      // A reader that starts on the input itself fades in over the same
+      // audio, so its fade is linear.
+      fade = reader.linear_in ? ramp : splice_gain(ramp);
+      other = reader.linear_in ? 1.0f - ramp : splice_gain(1.0f - ramp);
       reader.in_phase += reader.in_step;
     }
     if (reader.releasing) {
-      fade *= 0.5f + 0.5f * kit::SineTable::cos_lookup(0.5f * reader.out_phase);
+      const float ramp = 0.5f - 0.5f * kit::SineTable::cos_lookup(0.5f * reader.out_phase);
+      fade *= splice_gain(1.0f - ramp);
+      other = splice_gain(ramp);
       reader.out_phase += reader.out_step;
       if (reader.out_phase >= 1.0f) reader.active = false;
     }
@@ -243,7 +300,7 @@ class Glitch : public kit::DeviceBase<glitch::kNumParams> {
     const float gain = fade * level;
     wet[0] += gain * (reader.ll * left + reader.lr * right);
     wet[1] += gain * (reader.rl * left + reader.rr * right);
-    *weight += fade;
+    return other;
   }
 
   // Fade length in samples at this Calm: none at 0 (a hard cut, the click
@@ -321,7 +378,7 @@ class Glitch : public kit::DeviceBase<glitch::kNumParams> {
   static constexpr float kSqrtTwo = 1.41421356f;
   static constexpr float kLongestFadeSeconds = 0.08f;
   static constexpr float kOpenHz = 20000.0f;
-  static constexpr float kCalmDarkening = 0.15f;  // Calm 1: a 3 kHz, 12 dB per octave low-pass
+  static constexpr float kCalmDarkening = 0.2f;   // Calm 1: a 4 kHz, 12 dB per octave low-pass
   static constexpr float kBypassHz = 18000.0f;
   static constexpr float kFloorHz = 300.0f;
   static constexpr float kStopFadeRate = 0.12f;   // tape speed under which a stopping tape fades out
@@ -442,6 +499,7 @@ class Glitch : public kit::DeviceBase<glitch::kNumParams> {
       return;
     }
     const float step = static_cast<float>(index);
+    const bool from_input = current_ < 0;
     switch (event_.kind) {
       case kRepeating: {
         float length = event_.slice * std::pow(event_.shrink, step);
@@ -480,6 +538,7 @@ class Glitch : public kit::DeviceBase<glitch::kNumParams> {
         const float length = event_.slice * static_cast<float>(event_.count);
         Reader& reader = start_fragment(static_cast<double>(now - 2), 1.0f, length, 1.0f, 1.0f);
         reader.mode = kHalfSpeed;
+        reader.linear_in = from_input;
         reader.glide = 0.5f;
         reader.glide_coeff = std::exp(-1.0f / kit::max(1.0f, 0.5f * fade_length()));
         ++event_.index;
@@ -491,6 +550,7 @@ class Glitch : public kit::DeviceBase<glitch::kNumParams> {
         const float spin = std::floor(kSpinUp * stop);
         Reader& reader = start_fragment(static_cast<double>(now - 2), 1.0f, stop + spin, 1.0f, 1.0f);
         reader.mode = kTapeStop;
+        reader.linear_in = from_input;
         reader.stop_length = stop;
         reader.spin_length = kit::max(1.0f, spin);
         ++event_.index;

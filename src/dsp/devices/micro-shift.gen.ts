@@ -19,7 +19,7 @@ export const MICRO_SHIFT_PARAMS = {
   delay: {
     id: 1,
     name: 'Delay',
-    min: 10,
+    min: 12,
     max: 60,
     default: 14,
     taper: 'linear',
@@ -87,7 +87,7 @@ export const MICRO_SHIFT_PARAMS = {
     name: 'Mix',
     min: 0,
     max: 1,
-    default: 0.5,
+    default: 0.4,
     taper: 'linear',
     unit: '',
     description:
@@ -120,7 +120,7 @@ export const MICRO_SHIFT_DESCRIPTOR = wasmDeviceDescriptor(MICRO_SHIFT_DEVICE, {
       width: 1,
       mix: 0.5,
     },
-    'Subtle halo': { detune: 4, delay: 11, drift: 0.1, tone: 7000, mix: 0.35 },
+    'Subtle halo': { detune: 4, delay: 12, drift: 0.1, tone: 7000, mix: 0.35 },
     'Thick double': { detune: 20, delay: 32, drift: 0.25, tone: 8000, mix: 0.5 },
     'Treated piano': { detune: 12, delay: 18, drift: 0.45, focus: 250, tone: 3500, mix: 0.55 },
     Spiral: {

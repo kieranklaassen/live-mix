@@ -19,14 +19,23 @@
     {
       "key": "circuit",
       "name": "Circuit",
-      "choices": ["Tape preamp", "Console", "Transformer", "Triode", "Pentode"],
+      "choices": [
+        "Tape preamp",
+        "Console",
+        "Transformer",
+        "Triode",
+        "Pentode"
+      ],
       "default": 0,
       "description": "What is being overdriven. Tape preamp is soft and dulls loud highs, Console is brighter with a firm edge, Transformer thickens and breaks up the lows first, Triode is smooth and lopsided, Pentode stays clean and then bites."
     },
     {
       "key": "push",
       "name": "Push",
-      "choices": ["Off", "On"],
+      "choices": [
+        "Off",
+        "On"
+      ],
       "default": 0,
       "description": "Sends the sound into the circuit far hotter, past anything Drive reaches alone, with the level brought back down after it. This is the setting that goes too far."
     },
@@ -69,7 +78,10 @@
     {
       "key": "autoGain",
       "name": "Auto Gain",
-      "choices": ["Off", "On"],
+      "choices": [
+        "Off",
+        "On"
+      ],
       "default": 1,
       "description": "On, the loudness stays about where it was while Drive changes the character. Off, Drive also makes it louder, up to the circuit's ceiling."
     },
@@ -92,15 +104,71 @@
     }
   ],
   "presets": {
-    "Warm glue": { "circuit": 0, "drive": 0.3 },
-    "Tape weight": { "circuit": 0, "drive": 0.55, "thump": 0.4, "tone": -0.15 },
-    "Console edge": { "circuit": 1, "drive": 0.5, "tone": 0.15 },
-    "Iron lows": { "circuit": 2, "drive": 0.5, "thump": 0.3 },
-    "Glowing triode": { "circuit": 3, "drive": 0.45 },
-    "Bite": { "circuit": 4, "drive": 0.6, "lowCut": 90 }
+    "Warm glue": {
+      "circuit": 0,
+      "drive": 0.42,
+      "thump": 0.15,
+      "tone": -0.1
+    },
+    "Tape weight": {
+      "circuit": 0,
+      "drive": 0.6,
+      "thump": 0.4,
+      "tone": -0.2,
+      "output": -1.5
+    },
+    "Console edge": {
+      "circuit": 1,
+      "drive": 0.55,
+      "lowCut": 45,
+      "tone": 0.2
+    },
+    "Iron lows": {
+      "circuit": 2,
+      "drive": 0.5,
+      "thump": 0.35,
+      "output": -1.5
+    },
+    "Glowing triode": {
+      "circuit": 3,
+      "drive": 0.6,
+      "tone": -0.15
+    },
+    "Bite": {
+      "circuit": 4,
+      "drive": 0.75,
+      "lowCut": 90,
+      "highCut": 9000
+    },
+    "Crushed piano": {
+      "circuit": 1,
+      "drive": 0.35,
+      "push": 1,
+      "lowCut": 60,
+      "highCut": 4200,
+      "mix": 0.5
+    },
+    "Dark fuzz bed": {
+      "circuit": 3,
+      "drive": 0.7,
+      "push": 1,
+      "lowCut": 50,
+      "tone": -0.7,
+      "highCut": 2400,
+      "output": -3
+    },
+    "Parallel grit": {
+      "circuit": 4,
+      "drive": 0.9,
+      "lowCut": 220,
+      "tone": 0.3,
+      "highCut": 10000,
+      "output": 5,
+      "mix": 0.3
+    }
   },
   "origin": {
     "kind": "new",
-    "note": "placeholder"
+    "note": "Written for live-mix on cpp/kit. Models five overdriven gain stages in outline (a tape machine's record amplifier, a discrete transistor console channel, an iron-cored class A stage, a triode and a pentode), not a circuit emulation of any unit. Each circuit is an emphasis filter into a static curve at a level-dependent working point and a de-emphasis filter out of it, so the circuits differ in which part of the spectrum saturates as well as in the curve; the transformer saturates on a low-shelved (flux-like) copy of the signal. The curve runs at four times the sample rate between linear-phase halfband filters with second-order antiderivative anti-aliasing on top (Parker, Zavalishin and Le Bivic, 'Reducing the aliasing of nonlinear waveshaping using continuous-time convolution', DAFx 2016; Bilbao, Esqueda, Parker and Valimaki, 'Antiderivative antialiasing for memoryless nonlinearities', IEEE Signal Processing Letters 2017). The low cut, Thump bell and high cut are trapezoidal state-variable filters (Simper, 'Solving the continuous SVF equations using trapezoidal integration and equivalent currents', Cytomic 2013). Auto Gain is a static table per circuit measured on pink noise at -18 dBFS RMS, not a gain rider."
   }
 }

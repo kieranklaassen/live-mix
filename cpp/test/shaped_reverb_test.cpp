@@ -582,10 +582,73 @@ int main() {
   }
 
 
-  device.init(kRate);
+  // Block-size independence while everything is in motion: repeats, tail,
+  // and a tap-set fade started in mid-stream, in blocks of 128 and of 37.
+  {
+    rng_state() = 0x5EEDu;
+    const std::vector<float> first = noise(0.5f, kRate, 0.4f), second = noise(0.75f, kRate, 0.4f);
+    Stereo rendered[2];
+    const int blocks[2] = {128, 37};
+    for (int k = 0; k < 2; ++k) {
+      device.init(kRate);
+      device.set_param(p::kRepeat, 0.6f);
+      device.set_param(p::kTail, 0.8f);
+      device.set_param(p::kModulation, 1.0f);
+      Stereo a = run(device, first, first, blocks[k]);
+      device.set_param(p::kTime, 0.3f);
+      device.set_param(p::kShape, static_cast<float>(kPulse));
+      device.set_param(p::kDensity, 0.4f);
+      device.set_param(p::kColour, 0.8f);
+      rendered[k] = concat(a, run(device, second, second, blocks[k]));
+    }
+    double worst = 0.0;
+    for (size_t i = 0; i < rendered[0].size(); ++i) {
+      worst = std::max(worst, std::fabs(static_cast<double>(rendered[0].left[i]) - rendered[1].left[i]));
+      worst = std::max(worst, std::fabs(static_cast<double>(rendered[0].right[i]) - rendered[1].right[i]));
+    }
+    std::printf("blocks of 128 against blocks of 37 through a fade between tap sets: largest difference %.2g\n", worst);
+    EXPECT(worst < 1.0e-5, "the output does not depend on block size while tap sets fade");
+  }
+
+
+  // Times are in seconds at every sample rate: a 0.5 s Gate with 50 ms of
+  // pre-delay is the same shape at 44.1 and 96 kHz.
+  for (float rate : {44100.0f, 96000.0f}) {
+    device.init(rate);
+    device.set_param(p::kMix, 1.0f);
+    device.set_param(p::kShape, static_cast<float>(kGate));
+    device.set_param(p::kTime, 0.5f);
+    device.set_param(p::kPreDelay, 50.0f);
+    device.set_param(p::kTail, 0.0f);
+    device.set_param(p::kColour, 0.0f);
+    Stereo out = run(device, impulse(1.5f, rate, 1.0f));
+    double total = 0.0, weighted = 0.0;
+    for (size_t i = 0; i < out.left.size(); ++i) {
+      const double e = static_cast<double>(out.left[i]) * out.left[i];
+      total += e;
+      weighted += e * static_cast<double>(i) / rate;
+    }
+    const double inside = rms(out.left, static_cast<size_t>(0.1 * rate), static_cast<size_t>(0.5 * rate));
+    const double after = rms(out.left, static_cast<size_t>(0.62 * rate), static_cast<size_t>(0.7 * rate));
+    std::printf("%.1f kHz: gate 0.5 s + 50 ms centred at %.3f s, %.1f dB down 70 ms after its end\n", rate / 1000.0,
+                weighted / total, db(after) - db(inside));
+    EXPECT_NEAR(weighted / total, 0.3, 0.02, "the shape sits at the same time at every sample rate");
+    EXPECT(db(after) - db(inside) < -40.0, "the shape ends at the same time at every sample rate");
+  }
+
+  // Cost at the default patch, and at the heaviest sensible setting: the
+  // most taps (Density 1 at 4 s), the tail, repeats and full modulation.
   rng_state() = 0xBEEFu;
   std::vector<float> input = noise(10.0f, kRate, 0.25f);
-  report_cost("shaped-reverb", 10.0f, kRate, [&] { run(device, input); });
+  device.init(kRate);
+  report_cost("shaped-reverb (default patch)", 10.0f, kRate, [&] { run(device, input); });
+  device.init(kRate);
+  device.set_param(p::kDensity, 1.0f);
+  device.set_param(p::kTime, 4.0f);
+  device.set_param(p::kTail, 1.0f);
+  device.set_param(p::kRepeat, 0.5f);
+  device.set_param(p::kModulation, 1.0f);
+  report_cost("shaped-reverb (heaviest: 256 taps a side, tail, repeats)", 10.0f, kRate, [&] { run(device, input); });
 
   return finish("shaped-reverb");
 }

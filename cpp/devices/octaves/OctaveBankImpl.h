@@ -38,10 +38,11 @@ inline void OctaveBank::init(float rate, float low_hz, float high_hz, int count)
   tick_counter_ = 0;
   inv_period_ = 1.0f / static_cast<float>(tick_period_);
   tick_seconds_ = static_cast<float>(tick_period_) / rate;
-  power_coeff_ = 1.0f - std::exp(-tick_seconds_ / kPowerSeconds);
-  rotor_coeff_ = 1.0f - std::exp(-tick_seconds_ / kRotorSeconds);
   agree_coeff_ = 1.0f - std::exp(-tick_seconds_ / kAgreeSeconds);
-  rise_coeff_ = 1.0f - std::exp(-tick_seconds_ / 0.03f);
+  jump_index_ = 0;
+  // A centred partial leaves stage 1 at (cutoff × 2π / rate)² times its level.
+  first_unit_ = static_cast<float>(std::pow(2.0 * kPiD / rate, 4.0));
+  jump_fall_ = std::exp(-tick_seconds_ / kJumpFall);
   attack_coeff_ = 0.0f;
   detune_ = 0.0f;
 
@@ -77,12 +78,11 @@ inline void OctaveBank::init(float rate, float low_hz, float high_hz, int count)
     limit_sub2_[k] = fade_in(hz, kSub2LowHz, kSub2LowHz * 1.4);
     limit_up1_[k] = 1.0f - fade_in(hz, up1_high * 0.8, up1_high);
     limit_up2_[k] = 1.0f - fade_in(hz, up2_high * 0.8, up2_high);
-    int zone = static_cast<int>(std::floor(std::log2(hz / 80.0) + 0.5));
-    zone_of_[k] = zone < 0 ? 0 : (zone >= kZones ? kZones - 1 : zone);
 
     open_[k] = 0.0f;
     age_[k] = 1.0f;
-    rise_slow_[k] = 0.0f;
+    jump_ref_[k] = 0.0f;
+    for (int i = 0; i < kJumpDelay; ++i) jump_ring_[i][k] = 0.0f;
     rot_re_[k] = rot_target_re_[k] = 1.0f;
     rot_im_[k] = rot_target_im_[k] = 0.0f;
     rot_step_re_[k] = rot_step_im_[k] = 0.0f;
@@ -102,60 +102,105 @@ inline void OctaveBank::init(float rate, float low_hz, float high_hz, int count)
     }
     set_width(k, 0.0f, false);
   }
+  // The grid: the next grid channel is the first one most of an open
+  // bandwidth above the last. The others belong to the nearest grid channel.
+  int last = 0;
+  for (int k = 0; k < bands_; ++k) {
+    grid_[k] = k == 0 || centre_[k] >= centre_[last] + 0.9f * wide_hz_[last];
+    if (grid_[k]) last = k;
+  }
+  for (int k = 0; k < bands_; ++k) {
+    int best = 0;
+    for (int g = 0; g < bands_; ++g) {
+      if (!grid_[g]) continue;
+      if (std::fabs(centre_[g] - centre_[k]) < std::fabs(centre_[best] - centre_[k])) best = g;
+    }
+    grid_of_[k] = best;
+    grid_below_[k] = -1;
+    grid_above_[k] = -1;
+    for (int g = k - 1; g >= 0 && grid_below_[k] < 0; --g) {
+      if (grid_[g]) grid_below_[k] = g;
+    }
+    for (int g = k + 1; g < bands_ && grid_above_[k] < 0; ++g) {
+      if (grid_[g]) grid_above_[k] = g;
+    }
+  }
   up1_bands_ = bands_;
   while (up1_bands_ > 0 && limit_up1_[up1_bands_ - 1] == 0.0f) --up1_bands_;
   up2_bands_ = bands_;
   while (up2_bands_ > 0 && limit_up2_[up2_bands_ - 1] == 0.0f) --up2_bands_;
 
-  for (int& size : zone_size_) size = 0;
-  for (int k = 0; k < bands_; ++k) ++zone_size_[zone_of_[k]];
 }
 
-// Move channel k's poles to `open` (0 settled .. 1 just after an onset). The
-// input gain keeps a centred partial at unity; the two inner states are
-// rescaled so that partial does not notice the move.
+// Move channel k's poles to `open` (0 settled .. 1 just after an onset) and
+// put every state where the partial the channel is tracking would have it at
+// the new width, so that partial does not notice the move. In units of the
+// cutoff the partial sits x from the centre; stage i then has the response
+// 1 / (cutoff · sigma_i · (1 + j·t_i)) with t_i = (x - nu_i) / sigma_i.
 inline void OctaveBank::set_width(int k, float open, bool rescale) {
   const float cr = carrier_re_[k], ci = carrier_im_[k];
-  float old_re[kStages], old_im[kStages], new_re[kStages], new_im[kStages];
   float product = 1.0f;
   for (int s = 0; s < kStages; ++s) {
-    // d = 1 - pole × conj(carrier): the stage's inverse gain at the centre.
-    old_re[s] = 1.0f - (pole_re_[s][k] * cr + pole_im_[s][k] * ci);
-    old_im[s] = -(pole_im_[s][k] * cr - pole_re_[s][k] * ci);
     const float pr = narrow_re_[s][k] + open * (wide_re_[s][k] - narrow_re_[s][k]);
     const float pi = narrow_im_[s][k] + open * (wide_im_[s][k] - narrow_im_[s][k]);
     pole_re_[s][k] = pr;
     pole_im_[s][k] = pi;
-    new_re[s] = 1.0f - (pr * cr + pi * ci);
-    new_im[s] = -(pi * cr - pr * ci);
-    product *= new_re[s] * new_re[s] + new_im[s] * new_im[s];
+    // 1 - pole × conj(carrier): the stage's inverse gain at the centre.
+    const float dr = 1.0f - (pr * cr + pi * ci);
+    const float di = -(pi * cr - pr * ci);
+    product *= dr * dr + di * di;
   }
-  const float gain = 2.0f * std::sqrt(product);
-  if (rescale && gain_[k] > 0.0f) {
-    // Stage s settles at (gain × input) / (d0 … ds): scale each by new / old.
-    float fr = gain / gain_[k], fi = 0.0f;
-    for (int s = 0; s < kStages - 1; ++s) {
-      // f *= old_d / new_d
-      const float inv = 1.0f / (new_re[s] * new_re[s] + new_im[s] * new_im[s]);
-      const float qr = (old_re[s] * new_re[s] + old_im[s] * new_im[s]) * inv;
-      const float qi = (old_im[s] * new_re[s] - old_re[s] * new_im[s]) * inv;
+  // The input gain that keeps a centred partial at unity.
+  gain_[k] = 2.0f * std::sqrt(product);
+  const float cutoff = narrow_hz_[k] + open * (wide_hz_[k] - narrow_hz_[k]);
+  if (rescale) {
+    const float q = cutoff / (narrow_hz_[k] + open_[k] * (wide_hz_[k] - narrow_hz_[k]));
+    float x = 0.0f;
+    const float ar = avg_re_[k], ai = avg_im_[k];
+    if (ar > 0.0f) x = ai > 3.0f * ar ? 3.0f : (ai < -3.0f * ar ? -3.0f : ai / ar);
+    const float x_new = x / q;
+    // f = q^(2 - s) × product over the stages so far of (1 + j·t) / (1 + j·t').
+    float fr = q * q, fi = 0.0f;
+    float first = 1.0f, second_re = 1.0f, second_im = 0.0f;
+    for (int s = 0; s < kStages; ++s) {
+      const float nu = static_cast<float>(kNu[s]), inv_sigma = 1.0f / static_cast<float>(kSigma[s]);
+      const float t_old = (x - nu) * inv_sigma, t_new = (x_new - nu) * inv_sigma;
+      // (1 + j·t_old) / (1 + j·t_new)
+      const float inv = 1.0f / (1.0f + t_new * t_new);
+      const float qr = (1.0f + t_old * t_new) * inv;
+      const float qi = (t_old - t_new) * inv;
       const float tr = fr * qr - fi * qi;
       fi = fr * qi + fi * qr;
       fr = tr;
       const float yr = yr_[s][k], yi = yi_[s][k];
       yr_[s][k] = yr * fr - yi * fi;
       yi_[s][k] = yr * fi + yi * fr;
-      if (s == 0) rise_slow_[k] *= fr * fr + fi * fi;
+      if (s == 0) first = fr * fr + fi * fi;
       if (s == kStages - 2) {
-        // The equaliser's average is stage 2 × conj(stage 3).
-        const float ar = avg_re_[k], ai = avg_im_[k];
-        avg_re_[k] = ar * fr - ai * fi;
-        avg_im_[k] = ar * fi + ai * fr;
+        second_re = fr;
+        second_im = fi;
       }
+      fr /= q;
+      fi /= q;
     }
+    fr *= q;
+    fi *= q;
+    // What is derived from the states moves with them.
+    const float last = fr * fr + fi * fi;
+    jump_ref_[k] *= first;
+    for (int i = 0; i < kJumpDelay; ++i) jump_ring_[i][k] *= first;
+    power_[k] *= last;
+    slow_[k] *= std::sqrt(last);
+    // The equaliser's average is stage 2 × conj(stage 3).
+    const float gr = second_re * fr + second_im * fi;
+    const float gi = second_im * fr - second_re * fi;
+    avg_re_[k] = ar * gr - ai * gi;
+    avg_im_[k] = ar * gi + ai * gr;
   }
-  gain_[k] = gain;
   open_[k] = open;
+  // First-stage power in the units of the last stage's (a centred partial).
+  first_scale_[k] = 1.0f / (cutoff * cutoff * cutoff * cutoff * first_unit_);
+  follow_[k] = tick_seconds_ * 2.0f * static_cast<float>(kPiD) * cutoff;
 }
 
 inline void OctaveBank::process(float x, const Want& want, Frame* out) {
@@ -243,7 +288,7 @@ inline void OctaveBank::process(float x, const Want& want, Frame* out) {
       float n = half_norm_[k];
       n *= 1.5f - 0.5f * m2 * n * n;
       float check = m2 * n * n;
-      if (!(check > 0.98f && check < 1.02f)) n = m2 > 1.0e-6f ? 1.0f / std::sqrt(m2) : 0.0f;
+      if (!(check > 0.98f && check < 1.02f)) n = exact_norm(m2);
       if (n > 0.0f) {
         half_norm_[k] = n;
         hr = vr * n;
@@ -269,7 +314,7 @@ inline void OctaveBank::process(float x, const Want& want, Frame* out) {
         n = quarter_norm_[k];
         n *= 1.5f - 0.5f * m2 * n * n;
         check = m2 * n * n;
-        if (!(check > 0.98f && check < 1.02f)) n = m2 > 1.0e-6f ? 1.0f / std::sqrt(m2) : 0.0f;
+        if (!(check > 0.98f && check < 1.02f)) n = exact_norm(m2);
         if (n > 0.0f) {
           quarter_norm_[k] = n;
           qr = vr * n;
@@ -304,28 +349,64 @@ inline void OctaveBank::process(float x, const Want& want, Frame* out) {
 inline void OctaveBank::tick() {
   static_assert(kStages == 3, "the equaliser below is written for three stages");
   float unit_re[kMaxBands], unit_im[kMaxBands], sharp[kMaxBands], correction[kMaxBands];
-  // Onsets. A channel whose first stage jumps has new energy in it. When a
-  // good share of an octave's channels jump together it is a struck or
-  // picked attack (its click reaches the channels between the partials too),
-  // and the whole octave opens, including channels that already hold a note.
-  bool jumped[kMaxBands];
-  int votes[kZones] = {};
+  float settled[kMaxBands];
+  bool moved[kMaxBands];
+  float offset[kMaxBands];
+  jump_index_ = (jump_index_ + 1) % kJumpDelay;
   for (int k = 0; k < bands_; ++k) {
+    // An onset opens the channel: its first stage jumps above its recent
+    // level, by more than the settled neighbours could account for.
     const float first = yr_[0][k] * yr_[0][k] + yi_[0][k] * yi_[0][k];
-    jumped[k] = first > kJump * rise_slow_[k] + 1.0e-30f;
-    if (jumped[k]) ++votes[zone_of_[k]];
-    rise_slow_[k] += rise_coeff_ * (first - rise_slow_[k]);
-  }
-  for (int k = 0; k < bands_; ++k) {
-    // Width: after an onset the channel opens, then narrows as 1 / age.
-    const int zone = zone_of_[k];
-    if (jumped[k] || votes[zone] * 5 >= zone_size_[zone] * 2) age_[k] = 0.0f;
+    if (first > kJump * jump_ref_[k] + 1.0e-30f) {
+      // It has to be more than the notes held in the other channels can
+      // explain: more than the open channel would collect from any of them,
+      // and more than all of them together can put into this first stage
+      // when their beats line up.
+      float around = 0.0f, leak = 0.0f;
+      const float inv_wide = 1.0f / wide_hz_[k];
+      const float half = static_cast<float>(kSigma[0]) * narrow_hz_[k];
+      const float offset = static_cast<float>(kNu[0]) * narrow_hz_[k];
+      for (int j = 0; j < bands_; ++j) {
+        if (j == k) continue;
+        const float distance = centre_[j] - centre_[k];
+        const float x = distance * inv_wide;
+        const float x2 = x * x;
+        const float held = power_[j] / (1.0f + x2 * x2 * x2);
+        if (held > around) around = held;
+        const float away = distance - offset;
+        // (the first stage alone: 1 at the centre, 2 on its own pole)
+        leak += std::sqrt(power_[j] * 4.0f * half * half / (half * half + away * away));
+      }
+      if (leak * leak > around) around = leak * leak;
+      if (first * first_scale_[k] > around) {
+        age_[k] = 0.0f;
+        age_[grid_of_[k]] = 0.0f;
+      }
+    }
+    const float delayed = jump_ring_[jump_index_][k];
+    jump_ring_[jump_index_][k] = first;
+    jump_ref_[k] *= jump_fall_;
+    if (delayed > jump_ref_[k]) jump_ref_[k] = delayed;
     age_[k] += tick_seconds_;
-    float cutoff = kOpenProduct / age_[k];
-    if (cutoff > wide_hz_[k]) cutoff = wide_hz_[k];
-    float open = 0.0f;
-    if (cutoff > narrow_hz_[k]) open = (cutoff - narrow_hz_[k]) / (wide_hz_[k] - narrow_hz_[k]);
-    if (open != open_[k]) set_width(k, open, true);
+    settled[k] = 1.0f;
+    moved[k] = false;
+    if (grid_[k]) {
+      // Open through the hold, then close exponentially.
+      float open = 0.0f;
+      const float cycles = age_[k] * narrow_hz_[k];
+      if (cycles < kHold) {
+        open = 1.0f;
+      } else if (cycles < kHold + 12.0f * kClose) {
+        open = std::exp(-(cycles - kHold) / kClose);
+      }
+      if (open != open_[k]) {
+        set_width(k, open, true);
+        moved[k] = true;
+      }
+    } else {
+      const float t = (age_[k] * narrow_hz_[k] - kSettle[0]) / (kSettle[1] - kSettle[0]);
+      settled[k] = t <= 0.0f ? 0.0f : (t >= 1.0f ? 1.0f : t * t * (3.0f - 2.0f * t));
+    }
 
     const float br = yr_[1][k], bi = yi_[1][k];
     const float cr = yr_[2][k], ci = yi_[2][k];
@@ -340,23 +421,26 @@ inline void OctaveBank::tick() {
       avg_im_[k] = 0.0f;
       power_[k] = 0.0f;
       slow_[k] = 0.0f;
-      rise_slow_[k] = 0.0f;
+      jump_ref_[k] = 0.0f;
     } else {
-      power_[k] += power_coeff_ * (now - power_[k]);
+      const float power_step = kPowerFollow * follow_[k], rotor_step = kRotorFollow * follow_[k];
+      const float power_coeff = power_step / (1.0f + power_step);
+      const float rotor_coeff = rotor_step / (1.0f + rotor_step);
+      power_[k] += power_coeff * (now - power_[k]);
       // stage 2 × conj(stage 3) points along 1 + j·x, where x is how far the
       // partial sits from the centre in units of the cutoff.
-      avg_re_[k] += rotor_coeff_ * (br * cr + bi * ci - avg_re_[k]);
-      avg_im_[k] += rotor_coeff_ * (bi * cr - br * ci - avg_im_[k]);
+      avg_re_[k] += rotor_coeff * (br * cr + bi * ci - avg_re_[k]);
+      avg_im_[k] += rotor_coeff * (bi * cr - br * ci - avg_im_[k]);
     }
 
     // The equaliser: the phase of all three stages at x, and what they took
     // off the partial's level there.
     rot_re_[k] = rot_target_re_[k];
     rot_im_[k] = rot_target_im_[k];
-    float er = 1.0f, ei = 0.0f, gain = 1.0f;
+    float er = 1.0f, ei = 0.0f, gain = 1.0f, x = 0.0f;
     const float ar = avg_re_[k], ai = avg_im_[k];
     if (ar * ar + ai * ai > 1.0e-36f) {
-      float x = ai < 0.0f ? -3.0f : 3.0f;
+      x = ai < 0.0f ? -3.0f : 3.0f;
       if (ar > 0.0f && ai > -3.0f * ar && ai < 3.0f * ar) x = ai / ar;
       const float t0 = 2.0f * (x - 0.8660254f), t1 = 2.0f * (x + 0.8660254f);
       const float pr = 1.0f - t0 * t1, pi = t0 + t1;
@@ -368,8 +452,14 @@ inline void OctaveBank::tick() {
       if (gain > kMaxCorrection) gain = kMaxCorrection;
     }
     correction[k] = gain;
+    offset[k] = x;
     rot_target_re_[k] = er;
     rot_target_im_[k] = ei;
+    if (moved[k]) {
+      // The states have just been moved to the new width: so is the rotor.
+      rot_re_[k] = er;
+      rot_im_[k] = ei;
+    }
     rot_step_re_[k] = (er - rot_re_[k]) * inv_period_;
     rot_step_im_[k] = (ei - rot_im_[k]) * inv_period_;
     // This sample's equalised unit phasor, for the agreement below.
@@ -378,15 +468,46 @@ inline void OctaveBank::tick() {
     const float inv = 1.0f / std::sqrt(zr * zr + zi * zi + 1.0e-30f);
     unit_re[k] = zr * inv;
     unit_im[k] = zi * inv;
-    sharp[k] = power_[k] * power_[k];
+    // A channel that is sitting out does not compete for weight either.
+    sharp[k] = power_[k] * power_[k] * settled[k];
   }
 
   for (int k = 0; k < bands_; ++k) {
-    // How far the channel stands out from its neighbours.
-    const float below = k > 0 ? sharp[k - 1] : 0.0f;
-    const float above = k < bands_ - 1 ? sharp[k + 1] : 0.0f;
-    const float total = below + sharp[k] + above;
-    float target = total > 0.0f ? correction[k] * sharp[k] / total : 0.0f;
+    // How far the channel stands out from the ones that hold the same
+    // partial: the two beside it, and for an open grid channel the settled
+    // ones out to the next grid channels.
+    float total = sharp[k];
+    if (k > 0) total += sharp[k - 1];
+    if (k < bands_ - 1) total += sharp[k + 1];
+    const int below = grid_below_[k], above = grid_above_[k];
+    float share = 1.0f;
+    // A settled channel between grid channels competes with an open one as
+    // far as that one's passband reaches it, and the other way round.
+    const float closed = 1.0f - open_[k];
+    if (below >= 0 && below < k - 1 && open_[below] > 0.0f) {
+      total += closed * reach(below, k) * sharp[below];
+    }
+    if (above >= 0 && above > k + 1 && open_[above] > 0.0f) {
+      total += closed * reach(above, k) * sharp[above];
+    }
+    if (open_[k] > 0.0f) {
+      for (int j = (below < 0 ? 0 : below + 1); j < k - 1; ++j) total += reach(k, j) * sharp[j];
+      for (int j = k + 2; j < (above < 0 ? bands_ : above); ++j) total += reach(k, j) * sharp[j];
+      // Open grid channels overlap, so the one next door on the partial's
+      // side holds it too, and until both have settled they disagree about
+      // its phase. The one it is nearer to carries it.
+      const int other = offset[k] > 0.0f ? above : below;
+      if (other >= 0 && open_[other] > 0.0f) {
+        const float cutoff = narrow_hz_[other] + open_[other] * (wide_hz_[other] - narrow_hz_[other]);
+        const float mine = offset[k] * (narrow_hz_[k] + open_[k] * (wide_hz_[k] - narrow_hz_[k]));
+        const float theirs = offset[other] * cutoff;
+        // ... as long as the neighbour's passband still takes the partial in.
+        const float x = (centre_[k] + mine - centre_[other]) / (1.5f * cutoff);
+        const float x2 = x * x;
+        share = 1.0f - yield(mine, theirs) / (1.0f + x2 * x2 * x2);
+      }
+    }
+    float target = total > 0.0f ? share * correction[k] * sharp[k] / total : 0.0f;
     // Attack: the allowed level rises at the set rate and falls at once.
     const float level = std::sqrt(power_[k]);
     if (attack_coeff_ > 0.0f && level > slow_[k]) {
@@ -395,7 +516,7 @@ inline void OctaveBank::tick() {
     } else {
       slow_[k] = level;
     }
-    weight_[k] = weight_target_[k];
+    weight_[k] = moved[k] ? target : weight_target_[k];
     weight_target_[k] = target;
     weight_step_[k] = (target - weight_[k]) * inv_period_;
     // The detune rotors are multiplied every sample: keep them at length 1.

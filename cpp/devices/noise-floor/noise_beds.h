@@ -51,6 +51,26 @@ inline float heavy_tail(kit::Rng& rng, float tail, float ceiling) {
   return kit::min(std::exp(-tail * std::log(u)), ceiling);
 }
 
+// One-pole lowpass by the trapezoidal rule. Unlike kit::OnePole it reaches
+// zero at Nyquist as the analogue filter does at infinity, so a shelf built
+// on it has the same shape at every sample rate.
+struct TrapezoidPole {
+  float state = 0.0f;
+  float g = 0.0f;
+
+  void reset() { state = 0.0f; }
+  void set_cutoff(float hz, float sample_rate) {
+    const float t = kit::tan_prewarp(kit::kPi * kit::clamp(hz, 1.0f, 0.49f * sample_rate) / sample_rate);
+    g = t / (1.0f + t);
+  }
+  float lowpass(float x) {
+    const float v = (x - state) * g;
+    const float y = v + state;
+    state = flush_denormal(y + v);
+    return y;
+  }
+};
+
 // A struck two-pole resonator: `strike` starts amp·rⁿ·sin(n·w) on top of
 // whatever is still ringing. A tick, a click or a pop, depending on pitch and
 // damping; at rest it costs one comparison.
@@ -87,12 +107,14 @@ struct Ping {
 // the passing signal multiplied by low-passed noise, so loud passages are
 // rougher than quiet ones, as on tape.
 struct TapeHiss {
-  static constexpr float kNorm = 1.0f;       // set by measurement, see the harness
+  static constexpr float kNorm = 2.008f;     // by measurement: one side has an RMS of 1
   static constexpr float kShelf = 0.875f;
-  static constexpr float kModulation = 1.0f;  // set by measurement
+  // Under a signal at -12 dBFS RMS the modulation noise is 6 dB below the hiss.
+  static constexpr float kModulation = 3.56f;
 
   Source src[2];
-  kit::OnePole shelf[2], rough[2];
+  TrapezoidPole shelf[2];
+  kit::OnePole rough[2];
   kit::Svf top[2];
   kit::Drift shimmer[2];
   kit::Lfo flutter[2];
@@ -134,7 +156,7 @@ struct TapeHiss {
 // above 5 kHz, with a soft knee into the band and a faint flat floor under
 // it. Movement lets each side breathe a little.
 struct Air {
-  static constexpr float kNorm = 1.0f;  // set by measurement
+  static constexpr float kNorm = 1.816f;  // by measurement
   static constexpr float kFloor = 0.05f;
 
   Source src[2];
@@ -165,23 +187,24 @@ struct Air {
   }
 };
 
-// Vinyl: surface hiss (a band from 700 Hz to 4.5 kHz), fine crackle, the odd
+// Vinyl: surface hiss (a band from 500 Hz to 5 kHz), fine crackle, the odd
 // soft pop, and a low rumble. Crackle is a Poisson stream of ticks with
 // heavy-tailed sizes, each a struck resonator with its own pitch, damping and
 // place between the sides. Movement makes the rumble and the dust come round
 // once per turn of a 33⅓ record.
 struct Vinyl {
-  static constexpr float kNorm = 1.0f;  // set by measurement
-  static constexpr float kHiss = 1.0f;
-  static constexpr float kRumble = 1.0f;
-  static constexpr float kTick = 1.0f;
+  static constexpr float kNorm = 2.439f;  // by measurement
+  static constexpr float kRumble = 2.0f;  // 10 dB under the hiss
+  // A typical tick peaks 10 dB over the hiss's RMS, the largest 23 dB over.
+  static constexpr float kTick = 1.5f;
+  static constexpr float kTickCeiling = 6.0f;
   static constexpr float kTicksPerSecond = 16.0f;
   static constexpr float kPopsPerSecond = 0.22f;
   static constexpr float kTurnHz = 33.333f / 60.0f;
 
   Source src[2];
-  kit::OnePole low_cut[2], high_cut[2];
-  kit::Svf rumble[2];
+  kit::OnePole low_cut[2];
+  kit::Svf high_cut[2], rumble[2];
   Ping tick[2][2], pop[2];
   kit::Rng events;
   float tick_wait = 0.0f, pop_wait = 0.0f;
@@ -196,9 +219,9 @@ struct Vinyl {
     for (int c = 0; c < 2; ++c) {
       src[c].init(stream + c, sr);
       low_cut[c].reset();
-      low_cut[c].set_cutoff(700.0f, sr);
+      low_cut[c].set_cutoff(500.0f, sr);
       high_cut[c].reset();
-      high_cut[c].set_cutoff(4500.0f, sr);
+      high_cut[c].set(5000.0f, 0.6f, sr);
       rumble[c].reset();
       rumble[c].set(42.0f, 0.8f, sr);
       tick[c][0].reset();
@@ -227,7 +250,7 @@ struct Vinyl {
     tick_wait -= dust;
     if (tick_wait <= 0.0f) {
       tick_wait += poisson_gap(events, kTicksPerSecond, sr);
-      const float size = kTick * heavy_tail(events, 0.35f, 12.0f);
+      const float size = kTick * heavy_tail(events, 0.35f, kTickCeiling);
       const float hz = 1800.0f * std::exp2(2.0f * events.uniform());
       const float q = 1.0f + 1.5f * events.uniform();
       // Anywhere between the sides, and as often out of phase as in: dust
@@ -242,7 +265,7 @@ struct Vinyl {
     pop_wait -= 1.0f;
     if (pop_wait <= 0.0f) {
       pop_wait += poisson_gap(events, kPopsPerSecond, sr);
-      const float size = kTick * (5.0f + 6.0f * events.uniform());
+      const float size = kTick * (2.5f + 2.5f * events.uniform());
       const float hz = 70.0f * std::exp2(1.5f * events.uniform());
       const float lean = 0.125f + 0.06f * events.bipolar();
       pop[0].strike(size * kit::SineTable::cos_lookup(lean), hz, 0.9f, sr);
@@ -252,24 +275,25 @@ struct Vinyl {
       const float w = src[c].next();
       const float hiss = high_cut[c].lowpass(low_cut[c].highpass(w));
       const float low = rumble[c].bandpass(w);
-      out[c] = kNorm * (kHiss * hiss + kRumble * rumble_gain[c] * low + tick[c][0].next() +
+      out[c] = kNorm * (hiss + kRumble * rumble_gain[c] * low + tick[c][0].next() +
                         tick[c][1].next() + pop[c].next());
     }
   }
 };
 
 // Room: the tone of an empty room. A rumble below 90 Hz, three broad room
-// modes, the band noise of ventilation around 260 Hz and a trace of air.
+// modes, the band noise of ventilation around 220 Hz and a trace of air.
 // Movement lets each part swell and sink on its own, very slowly.
 struct Room {
-  static constexpr float kNorm = 1.0f;  // set by measurement
-  static constexpr float kRumble = 1.0f;
-  static constexpr float kMode = 1.0f;
-  static constexpr float kVent = 1.0f;
-  static constexpr float kAir = 1.0f;
+  static constexpr float kNorm = 9.189f;  // by measurement
+  // Each mode stands about 5 dB out of the rumble around it; the ventilation
+  // band is 5 dB under the lows and the air 26 dB under.
+  static constexpr float kMode = 1.44f;
+  static constexpr float kVent = 0.42f;
+  static constexpr float kAir = 0.0047f;
   static constexpr int kModes = 3;
   static constexpr float kModeHz[kModes] = {43.0f, 67.0f, 109.0f};
-  static constexpr float kModeWeight[kModes] = {1.0f, 0.8f, 0.6f};
+  static constexpr float kModeWeight[kModes] = {1.0f, 0.8f, 0.5f};
 
   Source src[2];
   kit::OnePole rumble_a[2], rumble_b[2], vent_top[2], air_cut[2];
@@ -289,9 +313,9 @@ struct Room {
       floor_cut[c].reset();
       floor_cut[c].set_cutoff(22.0f, sr);
       vent[c].reset();
-      vent[c].set(260.0f, 0.5f, sr);
+      vent[c].set(220.0f, 0.7f, sr);
       vent_top[c].reset();
-      vent_top[c].set_cutoff(700.0f, sr);
+      vent_top[c].set_cutoff(450.0f, sr);
       air_cut[c].reset();
       air_cut[c].set_cutoff(1500.0f, sr);
       for (int m = 0; m < kModes; ++m) {
@@ -321,7 +345,7 @@ struct Room {
       float modes = 0.0f;
       for (int m = 0; m < kModes; ++m) modes += mode_gain[m] * mode[c][m].bandpass(w);
       const float band = vent_top[c].lowpass(vent[c].bandpass(w));
-      out[c] = kNorm * (kRumble * rumble_gain * low + kMode * modes + kVent * vent_gain * band +
+      out[c] = kNorm * (rumble_gain * low + kMode * modes + kVent * vent_gain * band +
                         kAir * air_cut[c].highpass(w));
     }
   }
@@ -333,9 +357,13 @@ struct Room {
 // second and leave a flurry of crackle behind. Both sides hear the same
 // events through noise of their own. Movement is how restless the band is.
 struct Static {
-  static constexpr float kNorm = 1.0f;  // set by measurement
-  static constexpr float kCrackle = 1.0f;
-  static constexpr float kCrash = 1.0f;
+  static constexpr float kNorm = 2.087f;  // by measurement
+  // A typical crackle peaks 8 dB over the hiss's RMS, the largest 18 dB over;
+  // a typical crash is a swell of 6 dB, the largest 12 dB.
+  static constexpr float kCrackle = 4.8f;
+  static constexpr float kCrackleCeiling = 4.0f;
+  static constexpr float kCrash = 0.8f;
+  static constexpr float kCrashCeiling = 2.75f;
   static constexpr float kCracklesPerSecond = 30.0f;
   static constexpr float kCrashesPerSecond = 0.45f;
 
@@ -399,14 +427,14 @@ struct Static {
     crackle_wait -= pace * (1.0f + 8.0f * aftermath);
     if (crackle_wait <= 0.0f) {
       crackle_wait += poisson_gap(events, kCracklesPerSecond, sr);
-      const float size = kCrackle * impulse_scale * heavy_tail(events, 0.4f, 15.0f);
+      const float size = kCrackle * impulse_scale * heavy_tail(events, 0.4f, kCrackleCeiling);
       hit[0] = size * events.bipolar();
       hit[1] = size * events.bipolar();
     }
     crash_wait -= 0.4f + 0.6f * restless + 0.6f * restless * restless;
     if (crash_wait <= 0.0f) {
       crash_wait += poisson_gap(events, kCrashesPerSecond, sr);
-      const float size = kCrash * heavy_tail(events, 0.3f, 6.0f);
+      const float size = kCrash * heavy_tail(events, 0.3f, kCrashCeiling);
       crash[0] += size * (0.7f + 0.6f * events.uniform());
       crash[1] += size * (0.7f + 0.6f * events.uniform());
       crash_decay = std::exp(-1.0f / ((0.03f + 0.2f * events.uniform()) * sr));
@@ -438,7 +466,7 @@ struct HumTables {
   float buzz[2][kSize + 3] = {};
 
   void init() {
-    static constexpr float kBodyLevel[kBody] = {1.0f, 0.55f, 0.4f, 0.15f, 0.18f, 0.08f, 0.08f};
+    static constexpr float kBodyLevel[kBody] = {1.0f, 0.8f, 0.45f, 0.2f, 0.2f, 0.1f, 0.1f};
     static constexpr float kBodyPhase[kBody] = {0.0f, 0.15f, 0.4f, 0.3f, 0.7f, 0.1f, 0.55f};
     float level[kTop + 1] = {};
     float body_power = 0.0f, buzz_power = 0.0f;
@@ -482,8 +510,8 @@ struct HumTables {
 // Movement lets the mains frequency drift by a few hundredths of a hertz and
 // the buzz waver.
 struct Hum {
-  static constexpr float kHiss = 1.0f;       // set by measurement: -26 dB under the hum
-  static constexpr float kHissPower = 0.0025f;
+  static constexpr float kHiss = 0.1005f;  // by measurement: 26 dB under the hum
+  static constexpr float kHissPower = 0.00251f;
   static constexpr float kDriftHz = 0.04f;
 
   Source src[2];
@@ -518,8 +546,9 @@ struct Hum {
     started = false;
   }
   void control(float tone, float movement, int period) {
-    // Buzz against body: none at Tone -1, 0.4 in the middle, 1.6 at +1.
-    const float ratio = tone < 0.0f ? 0.4f * (1.0f + tone) : 0.4f * std::exp2(2.0f * tone);
+    // Buzz against body: none at Tone -1, 0.15 in the middle (the ear hears
+    // it far better than the hum under it), 1.2 at +1.
+    const float ratio = tone < 0.0f ? 0.15f * (1.0f + tone) : 0.15f * std::exp2(3.0f * tone);
     const float norm = 1.0f / std::sqrt(1.0f + ratio * ratio + kHissPower);
     const float per_sample = 1.0f / static_cast<float>(period);
     body_gain = started ? body_target : norm;

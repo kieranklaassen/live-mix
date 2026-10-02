@@ -7,7 +7,37 @@
 //       │                                  high cut ─► × Output ─┐
 //       └─► delay 39 ──────────────────────────────────── dry ─► Mix ─► out
 //
-// HEADER_NOTES
+// - A circuit (circuits.h) is an emphasis filter into a curve and a
+//   de-emphasis filter out of it. What the emphasis lifts saturates first:
+//   the tape preamp's treble, the console's upper mids, the transformer's
+//   lows (its curve sees a low-shelved, flux-like copy of the signal). The
+//   de-emphasis is the inverse or nearly, so a quiet signal passes close to
+//   flat and each circuit keeps a small voicing of its own.
+// - The curve (curve.h) is a sum of three kernels, soft, firm and hard,
+//   weighted per circuit, at a working point that sits off centre (even
+//   harmonics) and moves: with Drive, with the level arriving at the curve
+//   (the triode, whose second harmonic then keeps leading as it is pushed),
+//   and the gain into it sags a little under what leaves it (tape preamp,
+//   transformer, most of all the pentode). The curve's own value at the
+//   working point is taken off again, so silence in is exact silence out.
+// - Drive is 0 to +36 dB into the curve, with full scale a quarter of the
+//   way to its ceiling at Drive 0; Push is another 20 dB.
+// - The curve runs at 4x between two linear-phase halfbands (63 and 31
+//   taps) with second-order antiderivative anti-aliasing (adaa.h) on top:
+//   a 5 kHz tone squared off completely at 44.1 kHz leaves nothing that is
+//   not a harmonic above -90 dBFS below 18 kHz. The round trip is 39
+//   samples (31 + 8: the second stage's 15 at 2x plus two at 4x for the
+//   anti-aliasing and its compensator), reported as latency; the dry path
+//   is delayed to match, so Mix is a linear, phase-aligned crossfade.
+// - Auto Gain (gain_table.h) is a static make-up per circuit, Drive and
+//   Push, measured on pink noise at -18 dBFS. It moves with Drive sample
+//   for sample. Off, the make-up starts at unity and gives back the 12 dB of
+//   headroom as Drive rises: louder, up to a ceiling that ends at full scale.
+// - Circuit and Push switch by running the new setting beside the old one
+//   for 5 ms (to fill its filters) and crossfading over 20 ms.
+// - Low Cut and Thump are before the circuit, Tone and High Cut after it.
+//   Each is skipped while it is out of the path (Low Cut and High Cut fade
+//   out over the last part of their travel, so both ends are a clean bypass).
 
 #include "../../kit/kit.h"
 #include "adaa.h"
@@ -40,7 +70,7 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
     for (Lane& lane : lanes_) {
       lane.makeup.set_time(kSmoothingSeconds, sr);
       for (Lane::Channel& channel : lane.channel) {
-        channel.outer.init();
+        channel.outer.init(kOuterBeta);
         channel.inner.init(kInnerBeta);
         channel.dc.set_cutoff(kDcHz, sr);
       }
@@ -73,7 +103,16 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
       float in[2];
       take_input(i, &in[0], &in[1]);
       if (clock_.tick()) control();
-      if (!drive_.settled()) set_gain(drive_.next());
+      if (!drive_.settled()) {
+        // The make-up moves with the gain it answers, sample for sample, so
+        // a jump in Drive passes through the calibrated levels in between
+        // instead of arriving before its make-up does.
+        set_gain(drive_.next());
+        for (Lane& lane : lanes_) {
+          lane.makeup.snap(kit::db_to_gain(makeup_db(lane, drive_.value, auto_gain_.value)));
+        }
+        makeup_drive_ = drive_.value;
+      }
       const float output = output_.next();
       const float mix = mix_.next();
 
@@ -88,8 +127,11 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
       for (int c = 0; c < 2; ++c) {
         dry[c] = dry_[c].read(kLatency);
         dry_[c].write(in[c]);
-        const float cut = low_cut_filter_[c].process(in[c]);
-        pre[c] = thump_filter_[c].process(in[c] + (cut - in[c]) * low_cut_amount_);
+        // Each of the four tone-shaping filters is skipped while it is out
+        // of the path; it comes back in from rest with its share at zero.
+        pre[c] = in[c];
+        if (low_cut_on_) pre[c] += (low_cut_filter_[c].process(in[c]) - in[c]) * low_cut_amount_;
+        if (thump_on_) pre[c] = thump_filter_[c].process(pre[c]);
       }
 
       float wet[2];
@@ -114,10 +156,13 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
       }
 
       for (int c = 0; c < 2; ++c) {
-        float y = tilt_[c].process(wet[c]);
-        const float cut = high_cut_filter_[c][1].process(high_cut_filter_[c][0].process(y));
-        y = (cut + (y - cut) * high_cut_open_) * output;
-        wet[c] = dry[c] + (y - dry[c]) * mix;
+        float y = wet[c];
+        if (tone_on_) y = tilt_[c].process(y);
+        if (high_cut_on_) {
+          const float cut = high_cut_filter_[c][1].process(high_cut_filter_[c][0].process(y));
+          y = cut + (y - cut) * high_cut_open_;
+        }
+        wet[c] = dry[c] + (y * output - dry[c]) * mix;
       }
       out_left_[i] = wet[0];
       out_right_[i] = wet[1];
@@ -149,7 +194,11 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
   static constexpr float kLowCutInHz = 30.0f;
   static constexpr float kHighCutInHz = 16000.0f;
   static constexpr float kHighCutOutHz = 20000.0f;
-  // Kaiser beta of the 31-tap second stage: -98 dB from 0.355 of its rate.
+  // Kaiser betas of the two halfbands. The 63-tap first stage is flat to
+  // 0.42 of the sample rate and 80 dB down from 0.58 (the response of
+  // kit::Halfband2x, in halfband.h's cheaper structure); the 31-tap second
+  // stage is 98 dB down from 0.355 of its rate.
+  static constexpr double kOuterBeta = 8.0;
   static constexpr double kInnerBeta = 10.0;
   static constexpr float kFadeSeconds = 0.02f;
   static constexpr float kWarmUpSeconds = 0.005f;
@@ -169,8 +218,8 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
     struct Channel {
       kit::Biquad pre[analog_drive_dsp::kMaxPre];
       kit::Biquad post[analog_drive_dsp::kMaxPost];
-      kit::Halfband2x outer;
-      analog_drive_dsp::Halfband<8> inner;
+      analog_drive_dsp::Halfband<16> outer;   // 63 taps: 1x to 2x and back
+      analog_drive_dsp::Halfband<8> inner;    // 31 taps: 2x to 4x and back
       analog_drive_dsp::Adaa2 adaa;
       analog_drive_dsp::Compensator compensator;
       analog_drive_dsp::DcBlock dc;
@@ -179,6 +228,7 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
     const analog_drive_dsp::Circuit* spec = nullptr;
     float push_gain = 1.0f;
     float envelope = 0.0f;   // of what leaves the curve, both channels
+    float arriving = 0.0f;   // and of what goes into it
     float attack = 0.0f;
     float release = 0.0f;
     float bias = 0.0f;       // last frame's working point
@@ -255,6 +305,7 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
     fade_position_ = 0;
     clock_.reset(kControlPeriod);
     filters_dirty_ = true;
+    low_cut_on_ = thump_on_ = tone_on_ = high_cut_on_ = false;
     makeup_drive_ = -1.0f;
     const Setup want = wanted();
     configure(lanes_[0], want, nullptr);
@@ -280,9 +331,11 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
     filter.reset();
   }
 
-  // Where the signal sits on the lane's curve for an envelope and a Drive.
+  // Where the signal sits on the lane's curve for its envelope and a Drive.
   static float working_point(const Lane& lane, float drive) {
-    return lane.spec->bias + lane.spec->bias_drive * drive + lane.spec->bias_level * lane.envelope;
+    const analog_drive_dsp::Circuit& spec = *lane.spec;
+    return spec.bias + spec.bias_drive * drive +
+           spec.bias_level * lane.arriving / (lane.arriving + spec.bias_knee);
   }
 
   // `from` is the lane this one is about to take over from, if any: the new
@@ -296,6 +349,7 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
     lane.attack = 1.0f - kit::time_to_coeff(lane.spec->attack_seconds, sr);
     lane.release = 1.0f - kit::time_to_coeff(lane.spec->release_seconds, sr);
     lane.envelope = from != nullptr ? from->envelope : 0.0f;
+    lane.arriving = from != nullptr ? from->arriving * lane.push_gain / from->push_gain : 0.0f;
     lane.bias = working_point(lane, drive_.value);
     lane.offset = lane.spec->curve.f(static_cast<double>(lane.bias));
     lane.makeup.snap(kit::db_to_gain(makeup_db(lane, drive_.value, auto_gain_.value)));
@@ -350,7 +404,18 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
       high_cut_open_ =
           kit::clamp(std::log(high_hz / kHighCutInHz) / std::log(kHighCutOutHz / kHighCutInHz), 0.0f, 1.0f);
       const float thump_hz = kit::max(kThumpFloorHz, kThumpRatio * low_hz);
+      const bool low_cut_on = low_cut_amount_ > 0.0f;
+      const bool thump_on = thump > 0.0f;
+      const bool tone_on = tone != 0.0f;
+      const bool high_cut_on = high_cut_open_ < 1.0f;
       for (int c = 0; c < 2; ++c) {
+        if (low_cut_on && !low_cut_on_) low_cut_filter_[c].reset();
+        if (thump_on && !thump_on_) thump_filter_[c].reset();
+        if (tone_on && !tone_on_) tilt_[c].reset();
+        if (high_cut_on && !high_cut_on_) {
+          high_cut_filter_[c][0].reset();
+          high_cut_filter_[c][1].reset();
+        }
         low_cut_filter_[c].set_highpass(low_hz, kit::kSqrtHalf, sr);
         thump_filter_[c].set_bell(thump_hz, kThumpQ, kThumpDb * thump, sr);
         tilt_[c].set(kToneDb * tone, kTonePivotHz, sr);
@@ -358,6 +423,10 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
         high_cut_filter_[c][0].set_lowpass(high_hz, 0.54119610f, sr);
         high_cut_filter_[c][1].set_lowpass(high_hz, 1.30656296f, sr);
       }
+      low_cut_on_ = low_cut_on;
+      thump_on_ = thump_on;
+      tone_on_ = tone_on;
+      high_cut_on_ = high_cut_on;
     }
     const float auto_gain = auto_gain_.next();
     if (drive_.value != makeup_drive_ || auto_gain != makeup_auto_ || phase_ != kSteady) {
@@ -382,14 +451,18 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
     const double offset_step = 0.25 * (offset - lane.offset);
     const float makeup = lane.makeup.next();
     float level = 0.0f;
+    float arriving = 0.0f;
     for (int c = 0; c < 2; ++c) {
       Lane::Channel& channel = lane.channel[c];
       float x = pre[c];
       for (int k = 0; k < kMaxPre; ++k) {
         if (spec.pre[k].kind != Eq::kNone) x = channel.pre[k].process(x);
       }
+      x *= gain;
+      const float size = x < 0.0f ? -x : x;
+      if (size > arriving) arriving = size;
       float pair[2], back[2];
-      channel.outer.up(x * gain, &pair[0], &pair[1]);
+      channel.outer.up(x, &pair[0], &pair[1]);
       float b = lane.bias;
       double o = lane.offset;
       for (int k = 0; k < 2; ++k) {
@@ -399,9 +472,11 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
           // The working point glides across the four samples of the frame.
           // Its own value on the curve is taken off again, so the bias adds
           // asymmetry and no DC: silence in is exact silence out.
+          // (The anti-aliasing answers one sample late, so the value taken
+          // off is the one for the sample before.)
           b += bias_step;
-          o += offset_step;
           const double shaped = channel.adaa.process(spec.curve, static_cast<double>(sub[j] + b)) - o;
+          o += offset_step;
           sub[j] = channel.compensator.process(static_cast<float>(shaped));
         }
         back[k] = channel.inner.down(sub[0], sub[1]);
@@ -418,6 +493,8 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
     lane.offset = offset;
     lane.envelope =
         flush_denormal(lane.envelope + (level > lane.envelope ? lane.attack : lane.release) * (level - lane.envelope));
+    lane.arriving = flush_denormal(lane.arriving +
+                                   (arriving > lane.arriving ? lane.attack : lane.release) * (arriving - lane.arriving));
   }
 
   kit::DelayLine<64> dry_[2];
@@ -437,6 +514,10 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
   float makeup_drive_ = -1.0f;
   float makeup_auto_ = -1.0f;
   bool filters_dirty_ = true;
+  bool low_cut_on_ = false;
+  bool thump_on_ = false;
+  bool tone_on_ = false;
+  bool high_cut_on_ = false;
   int active_ = 0;
   int phase_ = kSteady;
   int countdown_ = 0;

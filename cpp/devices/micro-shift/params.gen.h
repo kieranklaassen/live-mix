@@ -3,13 +3,13 @@
 // Parameter ids and ranges of Micro Shift, shared with
 // src/dsp/devices/micro-shift.gen.ts:
 //    0  detune: 0..50 ct, default 9
-//    1  delay: 10..60 ms, default 14
+//    1  delay: 12..60 ms, default 14
 //    2  drift: 0..1, default 0.15
 //    3  feedback: 0..0.7, default 0
 //    4  focus: 20..1000 Hz, default 180
 //    5  tone: 1000..18000 Hz, default 10000
 //    6  width: 0..1, default 1
-//    7  mix: 0..1, default 0.5
+//    7  mix: 0..1, default 0.4
 
 #pragma once
 
@@ -28,9 +28,9 @@ enum Param : int {
   kNumParams = 8,
 };
 
-inline constexpr float kParamMin[kNumParams] = {0.0f, 10.0f, 0.0f, 0.0f, 20.0f, 1000.0f, 0.0f, 0.0f};
+inline constexpr float kParamMin[kNumParams] = {0.0f, 12.0f, 0.0f, 0.0f, 20.0f, 1000.0f, 0.0f, 0.0f};
 inline constexpr float kParamMax[kNumParams] = {50.0f, 60.0f, 1.0f, 0.7f, 1000.0f, 18000.0f, 1.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {9.0f, 14.0f, 0.15f, 0.0f, 180.0f, 10000.0f, 1.0f, 0.5f};
+inline constexpr float kParamDefault[kNumParams] = {9.0f, 14.0f, 0.15f, 0.0f, 180.0f, 10000.0f, 1.0f, 0.4f};
 
 }  // namespace micro_shift
 }  // namespace livemix

@@ -387,8 +387,6 @@ int main() {
     device.set_param(p::kDecay, 1.0f);
     rng_state() = 0xDECAu;
     std::vector<float> input = noise(20.0f, kRate, 0.2f);
-    // Band the level measurement keeps: below the low-pass of the first repeats.
-    std::vector<float> low = input;
     std::vector<Span> spans;
     Stereo out = run_watched(device, input, input, &spans);
     auto low_rms = [](const std::vector<float>& x, size_t from, size_t to) {
@@ -460,9 +458,134 @@ int main() {
     EXPECT(db(folded / 0.5) < -40.0, "Octave up: the top octave is filtered out, not aliased");
   }
 
+  // Spread: with a mono input, Spread 0 keeps the two channels identical;
+  // Spread 1 lands events on both sides; the default patch stays well
+  // correlated and loses little when summed to mono.
+  {
+    rng_state() = 0x5EAu;
+    std::vector<float> input = soft_noise(30.0f, 0.15f);
+    only(device, p::kRepeat, 200.0f);
+    Stereo centred = run(device, input);
+    EXPECT(centred.left == centred.right, "Spread 0: a mono input stays mono");
+
+    only(device, p::kRepeat, 200.0f);
+    device.set_param(p::kSpread, 1.0f);
+    std::vector<Span> spans;
+    Stereo wide = run_watched(device, input, input, &spans);
+    int lefts = 0, rights = 0;
+    double furthest = 0.0, nearest = 100.0;
+    for (const Span& span : spans) {
+      const double tilt = db(rms(wide.right, span.from + 96, span.to - 96) / rms(wide.left, span.from + 96, span.to - 96));
+      (tilt < 0.0 ? lefts : rights) += 1;
+      furthest = std::max(furthest, std::fabs(tilt));
+      nearest = std::min(nearest, std::fabs(tilt));
+    }
+    std::printf("glitch: Spread 1: %d events to the left, %d to the right, level difference %.1f to %.1f dB\n",
+                lefts, rights, nearest, furthest);
+    EXPECT(lefts >= 10 && rights >= 10, "Spread 1: events land on both sides");
+    EXPECT(nearest > 3.0 && furthest > 20.0, "Spread 1: from clearly off centre to hard over");
+
+    device.init(kRate);
+    Stereo normal = run(device, input);
+    std::vector<float> mono(input.size());
+    for (size_t i = 0; i < mono.size(); ++i) mono[i] = 0.5f * (normal.left[i] + normal.right[i]);
+    const double together = correlation(normal.left, normal.right);
+    const double mono_db = db(rms(mono) / rms(input));
+    const double side_db = db(rms(normal.left) / rms(input));
+    std::printf("glitch: default patch on a mono input: L/R correlation %.3f, left %.2f dB, mono sum %.2f dB re input\n",
+                together, side_db, mono_db);
+    EXPECT(together > 0.8, "default patch: the channels stay correlated");
+    EXPECT(mono_db > -3.0 && mono_db < 1.0, "default patch: little is lost in mono");
+    EXPECT(side_db > -3.0 && side_db < 3.0, "default patch: within 3 dB of the dry level");
+  }
+
+  // Bounce: each repeat is shorter than the last by the same ratio. A click
+  // near the start of every slice comes back at shrinking intervals.
+  {
+    only(device, p::kRepeat, 400.0f);
+    device.set_param(p::kBounce, 1.0f);
+    std::vector<float> clicks(static_cast<size_t>(40.0f * kRate), 0.0f);
+    clicks[0] = 1.0e-3f;  // starts the slice grid
+    for (size_t at = 100; at < clicks.size(); at += 19200) clicks[at] = 0.5f;
+    std::vector<Span> spans;
+    Stereo out = run_watched(device, clicks, clicks, &spans);
+    int judged = 0;
+    double low = 10.0, high = 0.0;
+    for (const Span& span : spans) {
+      std::vector<size_t> hits;
+      for (size_t i = span.from > 16 ? span.from - 16 : 0; i < span.to && i < out.size(); ++i) {
+        if (std::fabs(out.left[i]) > 0.25f) hits.push_back(i);
+      }
+      // Gaps follow 0.55 until the repeats reach their 8 ms floor.
+      for (size_t k = 2; k < hits.size(); ++k) {
+        const double before = static_cast<double>(hits[k - 1] - hits[k - 2]);
+        const double gap = static_cast<double>(hits[k] - hits[k - 1]);
+        if (gap < 0.012 * kRate) break;
+        low = std::min(low, gap / before);
+        high = std::max(high, gap / before);
+        ++judged;
+      }
+    }
+    std::printf("glitch: Bounce 1: %d gaps between repeats, each %.3f to %.3f of the one before\n", judged, low, high);
+    EXPECT(judged >= 15, "Bounce: runs of shrinking repeats occur");
+    EXPECT(low > 0.53 && high < 0.57, "Bounce 1: each repeat is 0.55 of the last");
+  }
+
+  // Moving Mix or Time while events play does not click (Calm 1, 200 Hz sine).
+  {
+    std::vector<float> tone = sine(200.0f, 0.25f, kRate, 1.0f);
+    const double own_step = 2.0 * kPi * 200.0 / kRate;
+    device.init(kRate);
+    device.set_param(p::kTime, 120.0f);
+    device.set_param(p::kChance, 1.0f);
+    device.set_param(p::kCalm, 1.0f);
+    device.set_param(p::kSpread, 0.0f);
+    Stereo all = run(device, sine(200.0f, 1.0f, kRate, 1.0f));
+    double phase = 2.0 * kPi * 200.0;  // the tone carries on in phase
+    for (int move = 0; move < 60; ++move) {
+      device.set_param(p::kMix, move % 2 == 0 ? 0.0f : 1.0f);
+      device.set_param(p::kTime, move % 3 == 0 ? 40.0f : (move % 3 == 1 ? 700.0f : 150.0f));
+      for (size_t i = 0; i < tone.size(); ++i) {
+        tone[i] = static_cast<float>(std::sin(phase));
+        phase += 2.0 * kPi * 200.0 / kRate;
+      }
+      all = concat(all, run(device, tone));
+    }
+    std::printf("glitch: Mix and Time jumping every 250 ms, Calm 1: steepest step %.4f (the sine's own %.4f)\n",
+                max_step(all.left), own_step);
+    EXPECT(max_step(all.left) < 1.5 * own_step, "Mix and Time changes do not click");
+    EXPECT(device.event_count() > 30, "events were playing while the controls moved");
+  }
+
+  // Times are in seconds, not samples: at 44.1 and 96 kHz a 250 ms slice
+  // comes back 250 ms later, and a tape stop takes as long.
+  for (float rate : {44100.0f, 96000.0f}) {
+    const long slice = static_cast<long>(0.25f * rate + 0.5f);
+    device.init(rate);
+    for (int kind : {p::kSkip, p::kReverse, p::kSlow}) device.set_param(kind, 0.0f);
+    device.set_param(p::kChance, 1.0f);
+    device.set_param(p::kCalm, 0.0f);
+    device.set_param(p::kDecay, 0.0f);
+    device.set_param(p::kSpread, 0.0f);
+    rng_state() = 0x96000u;
+    std::vector<float> input = noise(1.0f, rate, 0.2f);
+    Stereo out = run(device, input);
+    const double match = lagged_correlation(out.left, input, slice + 64, 2 * slice - 64, slice);
+    std::printf("glitch: at %.1f kHz the first repeat matches the input %ld samples earlier: %.5f\n",
+                rate / 1000.0f, slice, match);
+    EXPECT(match > 0.999, "the slice length follows the sample rate");
+  }
+
   // CHECKS
 
+  // Cost with an event always playing, long fades (two readers at once, both
+  // filtered) and half the fragments read through the half-band filter.
   device.init(kRate);
+  device.set_param(p::kTime, 60.0f);
+  device.set_param(p::kChance, 1.0f);
+  device.set_param(p::kCalm, 1.0f);
+  device.set_param(p::kOctaves, 1.0f);
+  device.set_param(p::kSpread, 1.0f);
   rng_state() = 0xBEEFu;
   std::vector<float> input = noise(10.0f, kRate, 0.25f);
   report_cost("glitch", 10.0f, kRate, [&] { run(device, input); });

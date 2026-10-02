@@ -25,6 +25,7 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
   void init(float sample_rate) {
     using namespace vowel_reverb;
     kit::SineTable::init();
+    vowel_dsp::LevelTable::init();
     init_base(sample_rate, kParamMin, kParamMax, kParamDefault);
     const float sr = this->sample_rate();
     const float scale = sr / 48000.0f;
@@ -44,14 +45,23 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
       }
     }
     side_bass_.reset();
-    side_bass_.set_cutoff(kSideBassHz, sr);
+    side_bass_.set(kSideBassHz, kit::kSqrtHalf, sr);
     loop_bank_.reset();
     for (int n = 0; n < kLines; ++n) {
       line_[n].clear();
       damping_[n].reset();
+      loop_delay_[n] = 0;
+      for (int a = 0; a < kLoopStages; ++a) {
+        loop_allpass_[n][a].clear();
+        loop_length_[n][a] =
+            kit::clamp_int(static_cast<int>(kLoopAllpassSeconds[n][a] * sr), 1, kSmallSize - 1);
+        loop_delay_[n] += loop_length_[n][a];
+      }
       length_[n] = kLineSeconds[n] * sr;
       gain_[n] = 0.0f;
+      decay_gain_[n] = 0.0f;
       amount_[n] = 0.0f;
+      damp_[n] = 0.0f;
       lfo_phase_[n] = static_cast<float>(n) / kLines;
       lfo_increment_[n] = kLfoHz[n] * kControlPeriod / sr;
       sweep_[n] = 0.0f;
@@ -91,6 +101,7 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
     // The longest silent gap: the pre-delay plus the longest line.
     idle_.reset(sr, kParamMax[kPreDelay] * 0.001f + 0.6f);
     started_ = false;
+    tune_turn_ = false;
     last_decay_ = last_size_ = last_resonance_ = -1.0f;
     for (float& v : last_tuning_) v = -1.0e9f;
     for (int id = 0; id < kNumParams; ++id) apply(id);
@@ -133,12 +144,17 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
       // The room.
       const float size = glide(size_);
       float v[kLines];
+      float tap[kLines];
       for (int n = 0; n < kLines; ++n) {
         sweep_[n] += sweep_step_[n];
-        v[n] = line_[n].read_hermite(kit::clamp(length_[n] * size + sweep_[n], 4.0f, max_line));
+        const float delay = kit::clamp(length_[n] * size + sweep_[n], 4.0f, max_line);
+        v[n] = line_[n].read_hermite(delay);
+        // What is heard is taken part of the way down each line, so the
+        // room starts to answer well before its first full pass.
+        tap[n] = line_[n].read_linear(kit::max(delay * kTapPosition[n], 2.0f));
       }
-      float wet[2] = {0.5f * (v[0] - v[2] + v[4] - v[6]) + kEarlyGain * feed[0],
-                      0.5f * (v[1] - v[3] + v[5] - v[7]) + kEarlyGain * feed[1]};
+      float wet[2] = {0.5f * (tap[0] - tap[2] + tap[4] - tap[6]) + kEarlyGain * feed[0],
+                      0.5f * (tap[1] - tap[3] + tap[5] - tap[7]) + kEarlyGain * feed[1]};
 
       hadamard8(v);
       loop_bank_.tick();
@@ -146,10 +162,18 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
         float x = v[n];
         // The vowel inside the loop: unity at the formants, 1 - amount in
         // the valleys between them.
-        x += amount_[n] * (loop_bank_.process(n, x) - x);
-        x = damping_[n].lowpass(x * gain_[n]) + ((n & 2) ? -feed[n & 1] : feed[n & 1]);
+        if ((n & 2) == 0) x += amount_[n] * (loop_bank_.process((n >> 1) | (n & 1), x) - x);
+        x *= gain_[n];
+        // Above High Cut the room loses a fixed share more per pass.
+        x += damp_[n] * (damping_[n].lowpass(x) - x);
+        x += (n & 2) ? -feed[n & 1] : feed[n & 1];
         // Linear to ±2, landing on ±4: out of the way of any normal level.
-        line_[n].write(flush_denormal(4.0f * kit::soft_clip(0.25f * x)));
+        x = 4.0f * kit::soft_clip(0.25f * x);
+        // Two allpasses in each loop: every pass multiplies the echoes.
+        for (int a = 0; a < kLoopStages; ++a) {
+          x = loop_allpass_[n][a].process(x, loop_length_[n][a], kLoopDiffusion);
+        }
+        line_[n].write(flush_denormal(x));
       }
 
       // The vowel on the way out, a little different on each side.
@@ -180,6 +204,13 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
   static constexpr int kSmallSize = 2048;
   static constexpr int kInputStages = 4;
   static constexpr int kControlPeriod = 32;
+  // The vowel sits in every other pair of lines (0, 1, 4 and 5), twice as
+  // deep: the Hadamard matrix shares each line's loss with all the others
+  // on the next pass, so the room decays as if every line carried it, for
+  // half the filters. Each side of the output hears two lines of each kind.
+  static constexpr int kVowelLines = 4;
+  // The vowel moves slowly: the banks are retuned every other control tick.
+  static constexpr int kTunePeriod = 2 * kControlPeriod;
 
   // Line lengths at a Size scale of 1, spread geometrically with no simple
   // ratios between them; Size scales them from 0.4 to 1.6 times.
@@ -195,16 +226,25 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
   // so a centred source still spreads.
   static constexpr float kInputAllpass[2][kInputStages] = {{229.0f, 173.0f, 611.0f, 447.0f},
                                                            {241.0f, 181.0f, 631.0f, 463.0f}};
+  // Where each line is tapped for the output, as a share of its length: the
+  // left side hears the even lines, the right side the odd ones.
+  static constexpr float kTapPosition[kLines] = {0.31f, 0.37f, 0.83f, 0.79f, 0.52f, 0.47f, 0.67f, 0.71f};
+  // The two allpasses in each loop, in seconds (they do not scale with Size).
+  static constexpr int kLoopStages = 1;
+  static constexpr float kLoopAllpassSeconds[kLines][kLoopStages] = {
+      {0.008938f}, {0.010354f}, {0.011896f}, {0.009729f}, {0.012729f}, {0.008354f}, {0.011313f}, {0.010938f}};
+  static constexpr float kLoopDiffusion = 0.6f;
   static constexpr float kEarlyGain = 1.0f;
-  static constexpr float kWetGain = 1.7f;
-  static constexpr float kSideBassHz = 140.0f;
+  static constexpr float kWetGain = 1.3f;
+  static constexpr float kSideBassHz = 160.0f;
 
   // TUNING-CONSTANTS
   static constexpr float kValleyDepth = 3.0f;
   static constexpr float kValleySlowest = 0.2f;
+  static constexpr float kHighDamping = 3.0f;
   static constexpr float kOutputWiden = 1.3f;
-  static constexpr float kPinkReference = 1.0f;
-  static constexpr float kMaxMakeup = 2.8f;
+  static constexpr float kPinkReference = 1.6f;
+  static constexpr float kMaxMakeup = 4.0f;
   static constexpr float kMotionVowel = 1.0f;
   static constexpr float kMotionSpread = 0.5f;
   static constexpr float kMotionVoice = 0.08f;
@@ -247,7 +287,43 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
     const float decay = decay_.next();
     const float size = size_.value;
     const float resonance = resonance_.next();
-    if (decay != last_decay_ || size != last_size_ || resonance != last_resonance_) {
+    // The vowel: the knob through an S-shaped glide, plus Motion's drift. The
+    // room drifts as one; the two sides of the output lean away from each
+    // other and are sung by slightly different sizes of voice.
+    if (started_) {
+      vowel_glide_.set_target(vowel_.next());
+      voice_glide_.set_target(voice_.next());
+    } else {
+      vowel_glide_.snap(vowel_.value);
+      voice_glide_.snap(voice_.value);
+    }
+    const float vowel = vowel_glide_.next();
+    const float voice = voice_glide_.next();
+    const float motion = motion_.next();
+    const float wander = motion * kMotionVowel * vowel_drift_.next(kControlPeriod);
+    const float lean = motion * kMotionVowel * kMotionSpread * spread_drift_.next(kControlPeriod);
+    const float build = motion * kMotionVoice * voice_drift_.next(kControlPeriod);
+    const float tuning[4] = {vowel + wander, lean, voice, build};
+    tune_turn_ = !tune_turn_;
+    bool retuned = false;
+    if (tune_turn_ || !started_) {
+      for (int k = 0; k < 4; ++k) {
+        if (tuning[k] != last_tuning_[k]) retuned = true;
+        last_tuning_[k] = tuning[k];
+      }
+    }
+    if (retuned) {
+      vowel_dsp::Formants formants;
+      vowel_dsp::formants_at(fold(vowel + wander), voice, &formants);
+      loop_bank_.set(formants, sr, kTunePeriod);
+      vowel_dsp::formants_at(fold(vowel + wander + lean), voice + build, &formants);
+      bank_[0].set(formants, kOutputWiden, sr, kTunePeriod);
+      vowel_dsp::formants_at(fold(vowel + wander - lean), voice - build, &formants);
+      bank_[1].set(formants, kOutputWiden, sr, kTunePeriod);
+    }
+
+    const bool changed = decay != last_decay_ || size != last_size_ || resonance != last_resonance_;
+    if (changed) {
       last_decay_ = decay;
       last_size_ = size;
       last_resonance_ = resonance;
@@ -255,18 +331,40 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
       const float rate = -6.9077553f / decay;
       // How much faster than the formants the valleys between them decay,
       // as a rate (1/s): at Resonance 1 they last a quarter as long, and
-      // never more than five seconds.
-      const float extra = -6.9077553f * resonance * resonance *
+      // never more than five seconds. Half the lines carry the vowel, so
+      // each of those takes twice its share.
+      const float extra = -6.9077553f * resonance * resonance * (static_cast<float>(kLines) / kVowelLines) *
                           kit::max(kValleyDepth / decay, kValleySlowest - 1.0f / decay);
+      const float inverse_rate = 1.0f / sr;
       for (int n = 0; n < kLines; ++n) {
-        const float seconds = kLineSeconds[n] * size;
-        gain_[n] = std::exp(rate * seconds);
-        amount_[n] = 1.0f - std::exp(extra * seconds);
+        // A pass takes the line and its two allpasses (an allpass delays
+        // energy by its length on average).
+        const float seconds = kLineSeconds[n] * size +
+                              static_cast<float>(loop_delay_[n]) * inverse_rate;
+        decay_gain_[n] = std::exp(rate * seconds);
+        amount_[n] = (n & 2) == 0 ? 1.0f - std::exp(extra * seconds) : 0.0f;
+        // Highs last a quarter as long as the rest, whatever the Decay: a
+        // shelf, so the upper formants are not worn away in a long tail.
+        damp_[n] = 1.0f - std::exp(rate * kHighDamping * seconds);
       }
       // A long decay stores more energy for the same input; take half of
       // that back (in dB) so the Decay knob is not also a volume knob.
-      const float middle = gain_[kLines / 2] * gain_[kLines / 2];
+      const float middle = decay_gain_[kLines / 2] * decay_gain_[kLines / 2];
       level_.set(kWetGain * std::sqrt(std::sqrt(kit::max(1.0f - middle, 1.0e-4f))), started_);
+    }
+    if (changed || retuned) {
+      for (int n = 0; n < kLines; ++n) {
+        // The vowel takes a little even from the frequency it favours most
+        // (the bank stops just under 1, and its phase there is not quite
+        // zero). Give that back, so the slowest-decaying frequency, on the
+        // first formant, loses only the decay gain. The loop's largest gain
+        // is then the decay gain itself; the bound keeps it under 1 even if
+        // the search for that frequency were a little off.
+        const float bound = 1.0f - amount_[n] * (1.0f - vowel_dsp::LoopBank<kVowelLines>::kCeiling);
+        gain_[n] = amount_[n] > 0.0f
+                       ? kit::min(decay_gain_[n] / loop_bank_.peak_gain(amount_[n]), 0.9999f / bound)
+                       : decay_gain_[n];
+      }
     }
     level_.next();
 
@@ -288,38 +386,6 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
         low_cut_[c].set(low, kit::kSqrtHalf, sr);
         high_cut_[c].a = damping_[0].a;
       }
-    }
-
-    // The vowel: the knob through an S-shaped glide, plus Motion's drift. The
-    // room drifts as one; the two sides of the output lean away from each
-    // other and are sung by slightly different sizes of voice.
-    if (started_) {
-      vowel_glide_.set_target(vowel_.next());
-      voice_glide_.set_target(voice_.next());
-    } else {
-      vowel_glide_.snap(vowel_.value);
-      voice_glide_.snap(voice_.value);
-    }
-    const float vowel = vowel_glide_.next();
-    const float voice = voice_glide_.next();
-    const float motion = motion_.next();
-    const float wander = motion * kMotionVowel * vowel_drift_.next(kControlPeriod);
-    const float lean = motion * kMotionVowel * kMotionSpread * spread_drift_.next(kControlPeriod);
-    const float build = motion * kMotionVoice * voice_drift_.next(kControlPeriod);
-    const float tuning[5] = {vowel + wander, lean, voice, build, 0.0f};
-    bool moved = false;
-    for (int k = 0; k < 4; ++k) {
-      if (tuning[k] != last_tuning_[k]) moved = true;
-      last_tuning_[k] = tuning[k];
-    }
-    if (moved) {
-      vowel_dsp::Formants formants;
-      vowel_dsp::formants_at(fold(vowel + wander), voice, &formants);
-      loop_bank_.set(formants, sr, kControlPeriod);
-      vowel_dsp::formants_at(fold(vowel + wander + lean), voice + build, &formants);
-      bank_[0].set(formants, kOutputWiden, sr, kControlPeriod);
-      vowel_dsp::formants_at(fold(vowel + wander - lean), voice - build, &formants);
-      bank_[1].set(formants, kOutputWiden, sr, kControlPeriod);
     }
 
     // The output blend: flat at Resonance 0, the five formants alone at 1,
@@ -393,10 +459,15 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
   int input_length_[2][kInputStages] = {};
   kit::DelayLine<kLineSize> line_[kLines];
   kit::OnePole damping_[kLines];
-  vowel_dsp::LoopBank<kLines> loop_bank_;
+  kit::AllpassDelay<kSmallSize> loop_allpass_[kLines][kLoopStages];
+  int loop_length_[kLines][kLoopStages] = {};
+  int loop_delay_[kLines] = {};
+  vowel_dsp::LoopBank<kVowelLines> loop_bank_;
   float length_[kLines] = {};
   float gain_[kLines] = {};
+  float decay_gain_[kLines] = {};
   float amount_[kLines] = {};
+  float damp_[kLines] = {};
   float lfo_phase_[kLines] = {};
   float lfo_increment_[kLines] = {};
   float sweep_[kLines] = {};
@@ -407,7 +478,7 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
   float vowel_gain_[2] = {}, vowel_step_[2] = {};
   kit::Svf low_cut_[2];
   kit::OnePole high_cut_[2];
-  kit::OnePole side_bass_;
+  kit::Svf side_bass_;
   kit::Drift vowel_drift_, spread_drift_, voice_drift_;
 
   kit::Smoother dry_, wet_, width_, size_, predelay_time_;
@@ -416,7 +487,8 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
   kit::ControlClock clock_;
   kit::IdleGate idle_;
   float last_decay_ = -1.0f, last_size_ = -1.0f, last_resonance_ = -1.0f;
-  float last_tuning_[5] = {};
+  float last_tuning_[4] = {};
+  bool tune_turn_ = false;
   bool started_ = false;  // the first control tick snaps what later ones glide
 };
 

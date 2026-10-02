@@ -23,8 +23,14 @@
 //   the level it came in, so Drive changes the texture and the dynamics, not
 //   the volume.
 // - Sag: the supply droops when the amplifier is hit hard. A follower on the
-//   driven signal (5 ms up, 100 ms down) takes up to 3 dB off the gain and
-//   1 dB off the ceiling, so a struck chord gives a little and blooms back.
+//   driven signal (30 ms up, 120 ms down) takes up to 3.7 dB off the gain and
+//   1.9 dB off the ceiling, so a struck chord gives a little over its first
+//   tenth of a second and the amplifier has recovered by the next one.
+// - Each speaker's motor weakens as its cone travels (gain 1 / (1 + k·e²),
+//   e the signal under the cone's resonance), so loud lows modulate the
+//   highs: a lot in the small speaker, hardly at all in the monitor.
+// - Output is followed by a limiter that is exactly linear up to ±2 and
+//   lands on ±4 (kit::soft_clip scaled), so no setting can run away.
 // - Bass and Treble are shelves ahead of the curve, as in an amplifier: they
 //   change what breaks up, not only the balance.
 // - The speakers are in speakers.h. Each channel has its own amplifier and
@@ -97,8 +103,12 @@ class ReAmp : public kit::DeviceBase<re_amp::kNumParams> {
     wanted_speaker_ = kit::clamp_int(static_cast<int>(param(kSpeaker) + 0.5f), 0,
                                      re_amp_dsp::kNumSpeakers - 1);
     active_ = 0;
-    bank_[0].design(wanted_speaker_, sr);
-    bank_[1].design(wanted_speaker_, sr);
+    for (int model = 0; model < re_amp_dsp::kNumSpeakers; ++model) {
+      bank_[0].design(model, sr);
+      speaker_gain_[model] = bank_[0].gain();
+    }
+    bank_[0].design(wanted_speaker_, sr, speaker_gain_[wanted_speaker_]);
+    bank_[1].design(wanted_speaker_, sr, speaker_gain_[wanted_speaker_]);
     fading_ = false;
     fade_position_ = 0;
     fade_length_ = static_cast<int>(kSpeakerFadeSeconds * sr);
@@ -263,7 +273,7 @@ class ReAmp : public kit::DeviceBase<re_amp::kNumParams> {
       // Speaker change: the new one fades in beside the old.
       if (!fading_ && wanted_speaker_ != bank_[active_].model()) {
         bank_[1 - active_].reset();
-        bank_[1 - active_].design(wanted_speaker_, sr);
+        bank_[1 - active_].design(wanted_speaker_, sr, speaker_gain_[wanted_speaker_]);
         fading_ = true;
         fade_position_ = 0;
       }
@@ -546,7 +556,7 @@ class ReAmp : public kit::DeviceBase<re_amp::kNumParams> {
     fading_ = false;
     if (wanted_speaker_ != bank_[active_].model()) {
       bank_[active_].reset();
-      bank_[active_].design(wanted_speaker_, sr);
+      bank_[active_].design(wanted_speaker_, sr, speaker_gain_[wanted_speaker_]);
     }
     clock_.reset(kControlPeriod);
   }
@@ -586,6 +596,7 @@ class ReAmp : public kit::DeviceBase<re_amp::kNumParams> {
   kit::ControlClock clock_;
   kit::IdleGate idle_;
 
+  float speaker_gain_[re_amp_dsp::kNumSpeakers] = {};
   float held_[2] = {0.0f, 0.0f};
   float last_u_[2] = {0.0f, 0.0f};
   float last_root_[2] = {1.0f, 1.0f};

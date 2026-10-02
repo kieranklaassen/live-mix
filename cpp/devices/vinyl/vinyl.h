@@ -23,6 +23,8 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
 
   // Events per second of the crackle stream at a Crackle setting (33 or 45).
   static float crackle_rate(float crackle) { return kCrackleRate * crackle * std::sqrt(crackle); }
+  // The size of its smallest events: most of the stream sits just above this.
+  static float crackle_floor(float crackle) { return kCrackleFloor * std::sqrt(crackle); }
 
   void init(float sample_rate) {
     using namespace vinyl;
@@ -59,11 +61,13 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
       rumble_b_[c].set_cutoff(kRumbleHz, sr);
       rumble_low_[c].reset();
       rumble_low_[c].set_cutoff(kRumbleLowHz, sr);
-      dust_[c].reset();
-      dust_[c].set(4200.0f, 0.5f, sr);
+      for (int band = 0; band < 2; ++band) {
+        dust_[band][c].reset();
+        dust_[band][c].set(kDustHz[band], 0.5f, sr);
+        dust_hit_[band][c] = 0.0f;
+      }
       thump_[c].reset();
       thump_[c].set(kThumpHz, 0.9f, sr);
-      dust_hit_[c] = 0.0f;
       thump_hit_[c] = 0.0f;
       swish_[c] = 1.0f;
     }
@@ -105,11 +109,13 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
     lag_ = 0.0;
     old_lag_ = 0.0;
     spin_ = 1.0f;
+    turning_ = 1.0;
     old_spin_ = 1.0f;
     head_fade_ = 0.0f;
     head_fade_step_ = 1.0f / (kHeadFadeSeconds * sr);
-    start_rate_ = 0.0f;
-    stop_a_ = stop_b_ = 0.0f;
+    start_rate_ = 0.0;
+    max_lag_ = static_cast<double>(kMaxLagSeconds * sr);
+    stop_a_ = stop_b_ = 0.0;
     subsonic_ = 0.0f;
     playing_ = true;
     valid_ = 0;
@@ -117,6 +123,7 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
     warp_drift_.seed(0x51ED270Bu);
     warp_drift_.set_rate(kDriftHz, sr);
     turn_phase_ = 0.0f;
+    shelf_glide_ = 1.0f - std::exp(-static_cast<float>(kControlPeriod) / (kShelfGlideSeconds * sr));
     warp_glide_ = 1.0f - std::exp(-static_cast<float>(kControlPeriod) / (kWarpGlideSeconds * sr));
     warp_amp_[0] = warp_amp_[1] = warp_amp_[2] = 0.0f;
     warp_ = 0.0f;
@@ -129,7 +136,8 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
     tone_flat_ = true;
     wear_live_ = false;
     shellac_live_ = false;
-    crackle_rate_ = pop_rate_ = 0.0f;
+    crackle_rate_ = pop_rate_ = pop_base_ = 0.0f;
+    pops_seen_ = -1.0f;
     crackle_floor_ = crackle_ceiling_ = pop_level_ = 0.0f;
 
     noise_gate_ = 0.0f;
@@ -138,6 +146,7 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
     hold_samples_ = static_cast<long>(kNoiseHoldSeconds * sr);
     // Hold, fade, and a little for the filters to empty.
     drain_samples_ = hold_samples_ + static_cast<long>((kNoiseFallSeconds + 0.3f) * sr);
+    drain_now_ = drain_samples_;
     quiet_ = drain_samples_;
 
     started_ = false;
@@ -156,9 +165,10 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
     const bool was_asleep = idle_.asleep();
     // Awake while there is input, and until the noise has faded and the
     // filters have emptied, whatever Mix lets through.
-    if (!idle_.wake(input_present(frames) || quiet_ < drain_samples_)) {
+    if (!idle_.wake(input_present(frames) || quiet_ < drain_now_)) {
       // Nothing is sounding: the platter is simply where its switch says.
       spin_ = playing_ ? 1.0f : 0.0f;
+      turning_ = spin_;
       lag_ = 0.0;
       head_fade_ = 0.0f;
       silence_output(frames);
@@ -205,6 +215,8 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
   // kit::Drift's three sines have a combined peak slope of 1.032 x 2π·rate.
   static constexpr float kDriftSlope = 1.032f;
   static constexpr float kWarpGlideSeconds = 0.08f;
+  // The shelves move slowly enough that a jump of Tone is a swell, not a thump.
+  static constexpr float kShelfGlideSeconds = 0.02f;
 
   // Platter. Slowing: ds/dt = -(a + b·s), friction that eases off as the
   // disc slows and still stops in finite time. Starting: ds/dt = c·(1 + m - s),
@@ -212,8 +224,10 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
   static constexpr float kStopCurve = 1.5f;  // b / a
   static constexpr float kStopLog = 0.9162907f;  // ln(1 + b / a)
   static constexpr float kStartOvershoot = 0.25f;  // m
+  static constexpr float kStartLog = 1.6094379f;  // ln((1 + m) / m)
+  static constexpr float kMaxLagSeconds = 5.0f;
   static constexpr float kStartShare = 0.5f;  // start-up time as a share of Spin Time
-  static constexpr float kHeadFadeSeconds = 0.03f;
+  static constexpr float kHeadFadeSeconds = 0.05f;
   static constexpr float kSubsonicHz = 24.0f;
 
   // Wear.
@@ -232,6 +246,7 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
   static constexpr float kShellacPeakHz = 1100.0f;
   static constexpr float kShellacPeakDb = 3.0f;
   static constexpr float kShellacWidth = 0.25f;
+  static constexpr float kShellacTrim = 0.89f;  // -1 dB: the peak and the folded image add level
   static constexpr float kShellacNoise = 2.2387f;  // +7 dB of hiss
   static constexpr float kShellacCrackle = 1.5f;
 
@@ -247,22 +262,23 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
   static constexpr int kDustMap = 16;
   static constexpr float kCrackleRate = 500.0f;  // events a second at Crackle 1
   static constexpr float kCrackleAlpha = 1.3f;  // Pareto tail exponent
-  static constexpr float kCrackleFloor = 8.4e-4f;  // smallest event at Crackle 1
+  static constexpr float kCrackleFloor = 2.0e-3f;  // smallest event at Crackle 1
   static constexpr float kCrackleCeiling = 0.35f;  // largest at Crackle 1
   static constexpr float kTickRatio = 6.0f;  // events this far above the floor get their own colour
   static constexpr int kTickSlots = 4;
   static constexpr int kPopSlots = 2;
-  static constexpr float kPopRate = 2.5f;  // a second at Pops 1
-  static constexpr float kPopCeiling = 0.28f;  // the largest pop at Pops 1
+  static constexpr float kPopRate = 1.2f;  // a second at Pops 1
+  static constexpr float kPopCeiling = 0.2f;  // the largest pop at Pops 1
   static constexpr int kScratches = 3;
   static constexpr float kThumpHz = 75.0f;
+  static constexpr float kDustHz[2] = {2800.0f, 6500.0f};
   static constexpr float kTickFloor = 1.0e-7f;
 
   // Surface. RMS at Surface 1, at 33.
   static constexpr float kHissLevel = 0.0100f;  // -40 dBFS
-  static constexpr float kRumbleLevel = 0.0090f;
-  static constexpr float kHissLowHz = 500.0f;
-  static constexpr float kHissNorm = 6.5f;  // brings the high-passed pink noise to unit RMS
+  static constexpr float kRumbleLevel = 0.0060f;
+  static constexpr float kHissLowHz = 200.0f;
+  static constexpr float kHissNorm = 5.6f;  // brings the high-passed pink noise to unit RMS
   static constexpr float kSwish = 0.3f;
   static constexpr float kRumbleHz = 38.0f;
   static constexpr float kRumbleLowHz = 20.0f;
@@ -274,16 +290,34 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
   static constexpr float kNoiseFallSeconds = 1.2f;
   static constexpr float kQuiet = 1.0e-6f;
 
+  struct Slot {
+    kit::Svf filter[2];
+    float hit[2] = {0.0f, 0.0f};  // what strikes it on the next sample
+    bool low = false;  // pops read the low-pass, ticks the band-pass
+  };
+
+  // A scratch across the grooves: the same tick at the same place on the
+  // disc, once per turn, swelling and fading as the stylus crosses it.
+  struct Scratch {
+    float angle = 0.0f;  // turn phase where it lies
+    int turns = 0;       // how many turns it lasts; 0 is a free slot
+    int turn = 0;        // turns played so far
+    float level = 0.0f;
+    float hz = 2000.0f;
+    float q = 1.0f;
+    float lean[2] = {1.0f, 1.0f};
+  };
+
   static double clamp_double(double x, double lo, double hi) { return x < lo ? lo : (x > hi ? hi : x); }
 
   // A draw from the unit exponential: the wait, in expected events, until
   // the next event of a Poisson stream.
   static float exponential(kit::Rng& rng) { return -std::log(rng.uniform() + 1.0e-7f); }
 
-  // Move towards a target a twentieth of the way per control tick.
-  static bool glide(float* value, float target, bool snap) {
+  // Move towards a target by `share` of the way per control tick.
+  static bool glide(float* value, float target, bool snap, float share) {
     if (*value == target) return false;
-    const float step = (target - *value) * 0.05f;
+    const float step = (target - *value) * share;
     const float close = 1.0e-4f * (target < 0.0f ? -target : target) + 1.0e-6f;
     if (snap || (step < close && step > -close)) {
       *value = target;
@@ -293,43 +327,21 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
     return true;
   }
 
-  // What the start-up curve still has to make up from speed `s`:
-  // the integral of (1 - s) dt along ds/dt = c·(1 + m - s), times c.
-  static float start_deficit(float s) {
-    const float m = kStartOvershoot;
-    return (1.0f - s) + m * std::log(m / (1.0f + m - s));
-  }
-
-  // Per-sample rate c of the start-up curve that reaches speed in `seconds`.
-  float start_rate(float seconds) const {
-    return std::log((1.0f + kStartOvershoot) / kStartOvershoot) / (seconds * sample_rate());
-  }
-
   void set_playing(bool playing) {
-    using namespace vinyl;
     if (!primed() || idle_.asleep()) {
       // Nothing is sounding: the platter is simply in its new state.
       playing_ = playing;
       spin_ = playing ? 1.0f : 0.0f;
+      turning_ = spin_;
       lag_ = 0.0;
       head_fade_ = 0.0f;
       return;
     }
     if (playing == playing_) return;
     playing_ = playing;
-    if (!playing) return;  // slowing carries on from wherever the head is
-    // Starting: put the head just far enough back that it lands on the live
-    // input at the moment the platter reaches speed. The head it leaves
-    // keeps turning at the old speed while it fades out.
-    const float rate = start_rate(kStartShare * param(kSpin));
-    const double needed = static_cast<double>(start_deficit(spin_) / rate);
-    if (spin_ > 0.0f) {
-      old_lag_ = lag_;
-      old_spin_ = spin_;
-      head_fade_ = 1.0f;
-    }
-    lag_ = needed;
-    start_rate_ = rate;
+    // A record started from rest picks up what is being played now. One
+    // caught while still turning speeds up again from where its head is.
+    if (playing && spin_ <= 0.0f) lag_ = 0.0;
   }
 
   // The disc `delay` samples back from the sample just written: Hermite, or
@@ -359,7 +371,7 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
     // A slowing platter drags every click down with it.
     hz = kit::clamp(hz * (0.3f + 0.7f * spin_), 40.0f, 0.4f * sr);
     const float w = kit::kTwoPi * hz / sr;
-    const float size = low ? level / (0.6f * w) : level * q * 1.2f / w;
+    const float size = low ? level / (0.8f * w) : level * q * 1.2f / w;
     slot.low = low;
     for (int c = 0; c < 2; ++c) {
       slot.filter[c].set(hz, q, sr);
@@ -381,14 +393,16 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
     // vertical (the walls against each other).
     const float lean[2] = {kit::SineTable::cos_lookup(angle), kit::SineTable::lookup(angle)};
     if (level < kTickRatio * crackle_floor_) {
-      const float w = kit::kTwoPi * 4200.0f / sample_rate();
-      dust_hit_[0] += level * lean[0] * 0.6f / w;
-      dust_hit_[1] += level * lean[1] * 0.6f / w;
+      const int band = colour < 0.5f ? 0 : 1;
+      const float w = kit::kTwoPi * kDustHz[band] / sample_rate();
+      dust_hit_[band][0] += level * lean[0] * 0.6f / w;
+      dust_hit_[band][1] += level * lean[1] * 0.6f / w;
       return;
     }
     Slot& slot = slots_[next_tick_];
     next_tick_ = (next_tick_ + 1) % kTickSlots;
-    ring(slot, 1800.0f * std::exp2(2.2f * colour), 0.6f + 1.6f * sharp, false, level, lean);
+    // Mostly dull and short; now and then one that rings for a cycle.
+    ring(slot, 1500.0f * std::exp2(2.6f * colour), 0.5f + 0.8f * sharp * sharp, false, level, lean);
   }
 
   // A pop: a duller, larger click with a thump under it.
@@ -458,23 +472,38 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
     }
   }
 
+  void jump_to_live() {
+    if (lag_ <= 0.0) return;
+    old_lag_ = lag_;
+    old_spin_ = spin_;
+    lag_ = 0.0;
+    head_fade_ = 1.0f;
+  }
+
   // The platter and the read head: one sample off the disc into `wet`.
   // Returns the level the platter's speed leaves (1 at speed, 0 stopped).
+  //
+  // A head reading slower than the input arrives can only fall behind, both
+  // while the platter slows and while it comes back up. So once it is back
+  // at speed, a second head on the live input fades in over the late one.
   float play_disc(float* wet) {
     if (playing_) {
       if (spin_ < 1.0f) {
-        spin_ += start_rate_ * (1.0f + kStartOvershoot - spin_);
-        lag_ -= 1.0 - static_cast<double>(spin_);
-        if (spin_ >= 1.0f || lag_ <= 0.0) {
-          spin_ = 1.0f;
-          lag_ = 0.0;
-        }
+        turning_ += start_rate_ * (1.0 + kStartOvershoot - turning_);
+        if (turning_ >= 1.0) turning_ = 1.0;
+        spin_ = static_cast<float>(turning_);
+        lag_ += 1.0 - turning_;
+        if (spin_ >= 1.0f) jump_to_live();
       }
     } else if (spin_ > 0.0f) {
-      spin_ -= stop_a_ + stop_b_ * spin_;
-      if (spin_ < 0.0f) spin_ = 0.0f;
-      lag_ += 1.0 - static_cast<double>(spin_);
+      turning_ -= stop_a_ + stop_b_ * turning_;
+      if (turning_ < 0.0) turning_ = 0.0;
+      spin_ = static_cast<float>(turning_);
+      lag_ += 1.0 - turning_;
     }
+    // Switched back and forth without ever reaching speed, the head would
+    // run off the end of the disc: it skips to the live input first.
+    if (lag_ > max_lag_ && head_fade_ <= 0.0f) jump_to_live();
     warp_ += warp_step_;
     const double reach = static_cast<double>(kDiscSize - 8);
     const double delay = clamp_double(lag_ + static_cast<double>(warp_), 0.0, reach);
@@ -558,7 +587,7 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
   void noise(float* wet, float level, bool sounding) {
     if (sounding) {
       quiet_ = 0;
-    } else if (quiet_ < drain_samples_) {
+    } else if (quiet_ < drain_now_) {
       ++quiet_;
     }
     if (quiet_ < hold_samples_) {
@@ -601,7 +630,8 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
       pop_wait_ += exponential(event_rng_);
     }
     for (int c = 0; c < 2; ++c) {
-      float clicks = sound(dust_[c], &dust_hit_[c], false) + sound(thump_[c], &thump_hit_[c], false);
+      float clicks = sound(dust_[0][c], &dust_hit_[0][c], false) + sound(dust_[1][c], &dust_hit_[1][c], false) +
+                     sound(thump_[c], &thump_hit_[c], false);
       for (Slot& slot : slots_) clicks += sound(slot.filter[c], &slot.hit[c], slot.low);
       wet[c] += gate * (added[c] + clicks);
     }
@@ -615,7 +645,7 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
       for (int c = 0; c < 2; ++c) {
         const float band = shellac_peak_[c].process(shellac_lp2_[c].process(
             shellac_lp_[c].process(shellac_hp_[c].process(wet[c]))));
-        wet[c] += shellac * (band - wet[c]);
+        wet[c] += shellac * (kShellacTrim * band - wet[c]);
       }
     } else if (shellac_live_) {
       shellac_live_ = false;
@@ -641,8 +671,12 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
     const float turn_hz = kTurnHz[speed_];
     const bool shellac = speed_ == kNumSpeeds - 1;
     const float pops = param(kPops);
-    pop_rate_ = kPopRate * pops * std::sqrt(pops) * spin_ / sr;
-    pop_level_ = kPopCeiling * std::sqrt(pops * std::sqrt(pops));
+    if (pops != pops_seen_) {
+      pops_seen_ = pops;
+      pop_base_ = kPopRate * std::pow(pops, 1.2f) / sr;
+      pop_level_ = kPopCeiling * std::sqrt(pops * std::sqrt(pops));
+    }
+    pop_rate_ = pop_base_ * spin_;
 
     // The record turns at the platter's speed.
     const float before = turn_phase_;
@@ -676,29 +710,26 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
     if (snap) warp_ = target;
     warp_step_ = (target - warp_) * (1.0f / kControlPeriod);
 
-    // Platter: friction for the chosen Spin Time, and the start-up rate
-    // that lands the head on the live input from wherever it is now.
-    stop_b_ = kStopLog / (param(kSpin) * sr);
+    // Platter: friction and motor for the chosen Spin Time.
+    stop_b_ = static_cast<double>(kStopLog) / (static_cast<double>(param(kSpin)) * sr);
     stop_a_ = stop_b_ / kStopCurve;
-    if (playing_ && spin_ < 1.0f) {
-      start_rate_ = lag_ > 1.0e-3 ? start_deficit(spin_) / static_cast<float>(lag_) : 1.0f;
-    }
+    start_rate_ = static_cast<double>(kStartLog) / (static_cast<double>(kStartShare * param(kSpin)) * sr);
 
     // Wear.
     const float wear = param(kWear);
     const float worn = wear * std::sqrt(wear);
-    bass_.set(kit::min(1.0f, 2.0f * wear), started_);
+    bass_.set(wear, started_);
     width_.set((1.0f - kWearNarrow * wear) * (shellac ? kShellacWidth : 1.0f), started_);
-    pinch_.set(kTracePinch * worn * sr, started_);
-    cubic_.set(kTraceCubic * worn * sr, started_);
-    if (glide(&wear_db_, kWearShelfDb * worn, snap)) {
+    pinch_.set(kTracePinch * wear * sr, started_);
+    cubic_.set(kTraceCubic * wear * sr, started_);
+    if (glide(&wear_db_, kWearShelfDb * worn, snap, shelf_glide_)) {
       shelf_flat_ = wear_db_ == 0.0f;
       for (int c = 0; c < 2; ++c) {
         wear_shelf_[c].set_high_shelf(kWearShelfHz, wear_db_, sr);
         if (shelf_flat_) wear_shelf_[c].reset();
       }
     }
-    if (glide(&tone_, param(kTone), snap)) {
+    if (glide(&tone_, param(kTone), snap, shelf_glide_)) {
       tone_flat_ = tone_ == 0.0f;
       for (int c = 0; c < 2; ++c) {
         tone_low_[c].set_low_shelf(kToneLowHz, kToneLowDb * tone_, sr);
@@ -727,8 +758,10 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
                                     place - std::floor(place));
     crackle_rate_ = crackle_rate(crackle) * (shellac ? kShellacCrackle : 1.0f) *
                     (0.35f + 1.3f * density) * spin_ / sr;
-    crackle_floor_ = kCrackleFloor * std::sqrt(crackle);
+    crackle_floor_ = crackle_floor(crackle);
     crackle_ceiling_ = kCrackleCeiling * crackle;
+    const bool silent_surface = crackle <= 0.0f && pops <= 0.0f && surface <= 0.0f;
+    drain_now_ = silent_surface ? static_cast<long>(0.3f * sr) : drain_samples_;
     started_ = true;
   }
 
@@ -749,24 +782,6 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
     }
   }
 
-  struct Slot {
-    kit::Svf filter[2];
-    float hit[2] = {0.0f, 0.0f};  // what strikes it on the next sample
-    bool low = false;  // pops read the low-pass, ticks the band-pass
-  };
-
-  // A scratch across the grooves: the same tick at the same place on the
-  // disc, once per turn, swelling and fading as the stylus crosses it.
-  struct Scratch {
-    float angle = 0.0f;  // turn phase where it lies
-    int turns = 0;       // how many turns it lasts; 0 is a free slot
-    int turn = 0;        // turns played so far
-    float level = 0.0f;
-    float hz = 2000.0f;
-    float q = 1.0f;
-    float lean[2] = {1.0f, 1.0f};
-  };
-
   kit::DelayLine<kDiscSize> disc_[2];
   kit::ControlClock clock_;
   kit::IdleGate idle_;
@@ -776,11 +791,13 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
   double lag_ = 0.0;       // samples the platter has put the head behind
   double old_lag_ = 0.0;   // the head being faded out after a restart
   float spin_ = 1.0f;      // platter speed, 0..1
+  double turning_ = 1.0;   // the same, integrated in double: a slow stop moves it a millionth a sample
   float old_spin_ = 1.0f;
   float head_fade_ = 0.0f;  // 1..0: weight of the old head
   float head_fade_step_ = 0.0f;
-  float start_rate_ = 0.0f;
-  float stop_a_ = 0.0f, stop_b_ = 0.0f;
+  double start_rate_ = 0.0;
+  double max_lag_ = 0.0;
+  double stop_a_ = 0.0, stop_b_ = 0.0;
   float subsonic_ = 0.0f;
   bool playing_ = true;
   long valid_ = 0;  // samples written since the device last woke
@@ -790,6 +807,7 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
   kit::Drift warp_drift_;
   float turn_phase_ = 0.0f;
   float warp_glide_ = 1.0f;
+  float shelf_glide_ = 1.0f;
   float warp_amp_[3] = {0.0f, 0.0f, 0.0f};  // seconds of read-point travel
   float warp_ = 0.0f;  // samples
   float warp_step_ = 0.0f;
@@ -815,15 +833,17 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
   kit::OnePole hiss_low_[2];
   kit::OnePole rumble_a_[2], rumble_b_[2], rumble_low_[2];
   Slot slots_[kTickSlots + kPopSlots];
-  kit::Svf dust_[2], thump_[2];
+  kit::Svf dust_[2][2], thump_[2];  // dust: two bands, two walls
   Scratch scratches_[kScratches];
   float dust_map_[kDustMap] = {};
-  float dust_hit_[2] = {0.0f, 0.0f};
+  float dust_hit_[2][2] = {};
   float thump_hit_[2] = {0.0f, 0.0f};
   float crackle_wait_ = 1.0f;  // expected events until the next one
   float pop_wait_ = 1.0f;
   float crackle_rate_ = 0.0f;  // events per sample, now
   float pop_rate_ = 0.0f;
+  float pop_base_ = 0.0f;
+  float pops_seen_ = -1.0f;
   float crackle_floor_ = 0.0f;
   float crackle_ceiling_ = 0.0f;
   float pop_level_ = 0.0f;
@@ -836,6 +856,7 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
   float noise_fall_ = 0.0f;
   long hold_samples_ = 1;
   long drain_samples_ = 1;
+  long drain_now_ = 1;  // shorter when the surface is silent: there is nothing to wait for
   long quiet_ = 1;
   bool started_ = false;
 };

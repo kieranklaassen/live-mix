@@ -7,7 +7,7 @@
 //    2  repeat: 0..1, default 0.7
 //    3  skip: 0..1, default 0.4
 //    4  reverse: 0..1, default 0.3
-//    5  slow: 0..1, default 0.25
+//    5  slow: 0..1, default 0.2
 //    6  calm: 0..1, default 0.6
 //    7  decay: 0..1, default 0.3
 //    8  bounce: 0..1, default 0
@@ -38,7 +38,7 @@ enum Param : int {
 
 inline constexpr float kParamMin[kNumParams] = {20.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 inline constexpr float kParamMax[kNumParams] = {2000.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {250.0f, 0.25f, 0.7f, 0.4f, 0.3f, 0.25f, 0.6f, 0.3f, 0.0f, 0.0f, 0.3f, 1.0f};
+inline constexpr float kParamDefault[kNumParams] = {250.0f, 0.25f, 0.7f, 0.4f, 0.3f, 0.2f, 0.6f, 0.3f, 0.0f, 0.0f, 0.3f, 1.0f};
 
 }  // namespace glitch
 }  // namespace livemix

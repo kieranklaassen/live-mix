@@ -13,7 +13,6 @@ class OctaveBank {
  public:
   static constexpr int kMaxBands = 64;
   static constexpr int kStages = 3;
-  static constexpr int kZones = 7;
 
   // Voice outputs for one sample. The up voices come out on two buses
   // (alternate channels) so the device can spread them across the stereo
@@ -39,6 +38,7 @@ class OctaveBank {
   int bands() const { return bands_; }
   int tick_period() const { return tick_period_; }
   float centre(int band) const { return centre_[band]; }
+  bool is_grid(int band) const { return grid_[band]; }
 
   // Time for a new note's voices to reach nine tenths of their level; 0 is off.
   void set_attack(float seconds) {
@@ -66,6 +66,15 @@ class OctaveBank {
 
   void process(float x, const Want& want, Frame* out);
 
+  // For the harness: channel k's state.
+  struct Probe {
+    float open, power, weight, offset, age;
+  };
+  Probe probe(int k) const {
+    return {open_[k], power_[k], weight_target_[k], avg_re_[k] > 0.0f ? avg_im_[k] / avg_re_[k] : 99.0f,
+            age_[k]};
+  }
+
  private:
   // --- design ---------------------------------------------------------------
   static constexpr double kPiD = 3.14159265358979323846;
@@ -78,17 +87,35 @@ class OctaveBank {
   static constexpr double kNarrow = 0.55;
   // Cutoff just after an onset: this many ERB at the channel centre.
   static constexpr double kWideErb = 1.0;
-  // After an onset the cutoff follows kOpenProduct / age down to the settled one.
-  static constexpr float kOpenProduct = 0.35f;
-  // A first-stage power this many times its 30 ms average is an onset.
-  static constexpr float kJump = 3.0f;
+  // Only every few channels open (the "grid": about one per open
+  // bandwidth). The ones between stay narrow and sit out the kSettle[0] to
+  // kSettle[1] cycles of their cutoff that their own rise takes; the open
+  // grid channel carries the note meanwhile. It stays open for kHold cycles
+  // of its settled cutoff, then closes with a time constant of kClose cycles.
+  static constexpr float kSettle[2] = {0.25f, 0.6f};
+  static constexpr float kHold = 0.6f;
+  static constexpr float kClose = 0.25f;
+  // An onset: first-stage power this many times its highest level of the
+  // recent past (a peak hold that falls in kJumpFall seconds and is fed
+  // kJumpDelay ticks late, so it does not yet know about the jump). The beat
+  // between two steady notes never passes: its last peak is still held.
+  static constexpr float kJump = 1.3f;
+  static constexpr int kJumpDelay = 8;
+  static constexpr float kJumpFall = 0.4f;
+  // ... and it must exceed what the open channel would collect from the
+  // settled notes in the other channels. Opening lets those in; a channel
+  // that would mostly hear them stays narrow.
   // What the voices leave out: sub octaves that would land under about
   // 30 Hz, and upper octaves that would pass the bank's Nyquist frequency.
   static constexpr double kSub1LowHz = 55.0;
   static constexpr double kSub2LowHz = 110.0;
   static constexpr float kTickHz = 1500.0f;
-  static constexpr float kPowerSeconds = 0.004f;
-  static constexpr float kRotorSeconds = 0.004f;
+  // The power and equaliser averages follow at these multiples of the
+  // channel's present cutoff: fast while it is open, slow once settled, so
+  // the beat of a neighbouring note against the channel's own is averaged
+  // out instead of modulating the voice.
+  static constexpr float kPowerFollow = 1.0f;
+  static constexpr float kRotorFollow = 0.4f;
   static constexpr float kAgreeSeconds = 0.010f;
   static constexpr float kAgreeThreshold = 0.7f;
   static constexpr float kMaxCorrection = 2.5f;
@@ -103,6 +130,36 @@ class OctaveBank {
     if (hz >= to) return 1.0f;
     const double t = (hz - from) / (to - from);
     return static_cast<float>(t * t * (3.0 - 2.0 * t));
+  }
+
+  // The normaliser from scratch, for the rare sample where the running one
+  // is off (an onset, noise). Kept out of line so the common path does not
+  // pay for a square root and a division it does not use.
+#if defined(__GNUC__)
+  __attribute__((noinline))
+#endif
+  static float exact_norm(float m2) {
+#ifdef OCT_COUNT
+    ++g_norm;
+#endif
+    return m2 > 1.0e-6f ? 1.0f / std::sqrt(m2) : 0.0f;
+  }
+
+  // How much of a partial at channel j's centre channel k passes at its
+  // present width (power).
+  float reach(int k, int j) const {
+    const float x = (centre_[j] - centre_[k]) / (narrow_hz_[k] + open_[k] * (wide_hz_[k] - narrow_hz_[k]));
+    const float x2 = x * x;
+    return 1.0f / (1.0f + x2 * x2 * x2);
+  }
+
+  // How much of a shared partial a channel that sees it `mine` from its
+  // centre gives up to a neighbour that sees it `theirs` away (0..1).
+  static float yield(float mine, float theirs) {
+    float a = mine * mine, b = theirs * theirs;
+    a *= a * a;
+    b *= b * b;
+    return a / (a + b + 1.0e-20f);
   }
 
   // Advance voice v's detune rotor in channel k and return it.
@@ -124,10 +181,9 @@ class OctaveBank {
   int tick_counter_ = 0;
   float tick_seconds_ = 0.0f;
   float inv_period_ = 1.0f / 16.0f;
-  float power_coeff_ = 0.0f;
-  float rotor_coeff_ = 0.0f;
   float agree_coeff_ = 0.0f;
-  float rise_coeff_ = 0.0f;
+  float jump_fall_ = 0.0f;
+  float first_unit_ = 1.0f;
   float attack_coeff_ = 0.0f;
   float detune_ = 0.0f;
   int up1_bands_ = 0;
@@ -147,7 +203,6 @@ class OctaveBank {
   float limit_sub2_[kMaxBands] = {};
   float limit_up1_[kMaxBands] = {};
   float limit_up2_[kMaxBands] = {};
-  int zone_of_[kMaxBands] = {};
   // Per channel: the resonators.
   float pole_re_[kStages][kMaxBands] = {};
   float pole_im_[kStages][kMaxBands] = {};
@@ -157,7 +212,15 @@ class OctaveBank {
   // Per channel: width, equaliser, weight.
   float open_[kMaxBands] = {};
   float age_[kMaxBands] = {};
-  float rise_slow_[kMaxBands] = {};
+  float follow_[kMaxBands] = {};
+  float jump_ref_[kMaxBands] = {};
+  float jump_ring_[kJumpDelay][kMaxBands] = {};
+  int jump_index_ = 0;
+  float first_scale_[kMaxBands] = {};
+  bool grid_[kMaxBands] = {};
+  int grid_of_[kMaxBands] = {};
+  int grid_below_[kMaxBands] = {};
+  int grid_above_[kMaxBands] = {};
   float rot_re_[kMaxBands] = {};
   float rot_im_[kMaxBands] = {};
   float rot_step_re_[kMaxBands] = {};
@@ -183,8 +246,6 @@ class OctaveBank {
   float det_im_[4][kMaxBands] = {};
   float det_cos_[4][kMaxBands] = {};
   float det_sin_[4][kMaxBands] = {};
-  // Onset zones (an octave each): how many channels each holds.
-  int zone_size_[kZones] = {};
 };
 
 }  // namespace octaves

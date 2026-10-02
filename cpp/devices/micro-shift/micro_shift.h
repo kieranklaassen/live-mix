@@ -5,13 +5,15 @@
 // making a single source wide and thick without the sweep of a chorus: the
 // detune is static, so nothing cycles.
 //
-//                 ┌─ low-pass (Focus) ──────────────────────────────┐ fills the dry
-//   in L ─┬───────┤                                                 │ lows back in
-//         │       └─ high-pass (Focus) ─(+)─► shifter UP ─► tone ─┬─┼─► pan ─┐
-//         │                              ▲                        │ │        ├─ mix ─► out L
-//         │                              └── soft limit ◄─ fb ────┘ │        │
-//         └─────────────────────────────────────────────────────────┴─ dry ──┘
-//   in R: the same with shifter DOWN and 1.4 times the delay.
+//   in L ─┬─ low-pass (Focus) ─────────────────────────────────────┐ fills the dry
+//         │                                                         │ lows back in
+//   L + R ┼─ high-pass (Focus) ─(+)─► shifter UP ─► tone ─┬─► pan ──┼─┐
+//         │                      ▲                        │         │ ├─ mix ─► out L
+//         │                      └── soft limit ◄─ fb ────┘         │ │
+//         └─────────────────────────────────────────────────────────┴─┘ dry
+//   out R: the same from in R, with shifter DOWN at 1.4 times the delay.
+//   Both shifters read the mono sum, so every source gets a sharp copy on
+//   the left and a flat one on the right wherever it sits in the input.
 //
 //   out = dry · cos(mix) + low-passed dry · (1 − cos(mix)) + wet · sin(mix)
 //
@@ -52,8 +54,10 @@ class MicroShift : public kit::DeviceBase<micro_shift::kNumParams> {
     for (int c = 0; c < 2; ++c) {
       shifter_[c].prepare(sr);
       low_[c].reset();
-      high_a_[c].reset();
-      high_b_[c].reset();
+      diffuser_a_[c].clear();
+      diffuser_b_[c].clear();
+      diffusion_a_[c] = kit::clamp_int(static_cast<int>(kDiffusionSeconds[c][0] * sr), 1, kDiffuserSize - 1);
+      diffusion_b_[c] = kit::clamp_int(static_cast<int>(kDiffusionSeconds[c][1] * sr), 1, kDiffuserSize - 1);
       tone_filter_[c].reset();
       last_wet_[c] = 0.0f;
       increment_[c].set_time(kDetuneGlideSeconds, sr);
@@ -61,6 +65,8 @@ class MicroShift : public kit::DeviceBase<micro_shift::kNumParams> {
       detune_drift_[c].seed(c == 0 ? 0x3C6EF372u : 0xA54FF53Au);
       delay_drift_[c].seed(c == 0 ? 0x510E527Fu : 0x9B05688Cu);
     }
+    high_a_.reset();
+    high_b_.reset();
     feedback_.set_time(kSmoothingSeconds, sr);
     width_.set_time(kSmoothingSeconds, sr);
     mix_.set_time(kSmoothingSeconds, sr);
@@ -96,12 +102,21 @@ class MicroShift : public kit::DeviceBase<micro_shift::kNumParams> {
       if (clock_.tick()) control(false);
 
       const float feedback = feedback_.next();
+      // Both copies are made from the mono sum, so every source gets one of
+      // each wherever it sits in the input's stereo field.
+      const float high = high_b_.highpass(high_a_.highpass(0.5f * (in[0] + in[1])));
       float wet[2];
       float low[2];
       for (int c = 0; c < 2; ++c) {
         low[c] = low_[c].lowpass(in[c]);
-        const float high = high_b_[c].highpass(high_a_[c].highpass(in[c]));
-        shifter_[c].write(flush_denormal(high + loop_limit(feedback * last_wet_[c])));
+        // What goes round again is smeared a little more on every pass, so
+        // the repeats of an attack melt into a wash instead of a flutter.
+        float back = last_wet_[c];
+#ifndef MS_NO_DIFFUSION
+        back = diffuser_a_[c].process(back, diffusion_a_[c], kDiffusionGain);
+        back = diffuser_b_[c].process(back, diffusion_b_[c], kDiffusionGain);
+#endif
+        shifter_[c].write(flush_denormal(high + loop_limit(feedback * back)));
         const float shifted = shifter_[c].read(increment_[c].next(), wander_[c].next());
         wet[c] = tone_filter_[c].lowpass(shifted);
         last_wet_[c] = wet[c];
@@ -146,6 +161,12 @@ class MicroShift : public kit::DeviceBase<micro_shift::kNumParams> {
   static constexpr float kButterworthQ1 = 0.54119610f;
   static constexpr float kButterworthQ2 = 1.30656296f;
 
+  // Two allpasses per side in the feedback path only (the first copy is
+  // never smeared), with lengths that share no factor between the sides.
+  static constexpr int kDiffuserSize = 1024;
+  static constexpr float kDiffusionGain = 0.5f;
+  static constexpr float kDiffusionSeconds[2][2] = {{0.00311f, 0.00523f}, {0.00397f, 0.00641f}};
+
   // Linear up to ±1, a smooth knee to ±2.
   static float loop_limit(float x) { return 2.0f * kit::soft_clip(0.5f * x); }
 
@@ -164,11 +185,9 @@ class MicroShift : public kit::DeviceBase<micro_shift::kNumParams> {
     if (focus != filters_focus_) {
       filters_focus_ = focus;
       const float hz = std::exp2(focus);
-      for (int c = 0; c < 2; ++c) {
-        low_[c].set(hz, kit::kSqrtHalf, sr);
-        high_a_[c].set(hz * kWetCornerRatio, kButterworthQ1, sr);
-        high_b_[c].set(hz * kWetCornerRatio, kButterworthQ2, sr);
-      }
+      for (int c = 0; c < 2; ++c) low_[c].set(hz, kit::kSqrtHalf, sr);
+      high_a_.set(hz * kWetCornerRatio, kButterworthQ1, sr);
+      high_b_.set(hz * kWetCornerRatio, kButterworthQ2, sr);
     }
     const float tone = tone_.next();
     if (tone != filters_tone_) {
@@ -237,8 +256,12 @@ class MicroShift : public kit::DeviceBase<micro_shift::kNumParams> {
 
   micro_shift_parts::SpliceShifter shifter_[2];
   kit::Svf low_[2];
-  kit::Svf high_a_[2];
-  kit::Svf high_b_[2];
+  kit::AllpassDelay<kDiffuserSize> diffuser_a_[2];
+  kit::AllpassDelay<kDiffuserSize> diffuser_b_[2];
+  int diffusion_a_[2] = {149, 190};
+  int diffusion_b_[2] = {251, 307};
+  kit::Svf high_a_;
+  kit::Svf high_b_;
   kit::Svf tone_filter_[2];
   kit::Smoother increment_[2];
   kit::Smoother wander_[2];

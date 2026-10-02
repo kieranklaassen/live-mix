@@ -98,6 +98,7 @@
       "surface": 0.2,
       "wear": 0.1,
       "tone": 0,
+      "platter": 0,
       "spin": 1.5,
       "mix": 1
     },
@@ -109,6 +110,67 @@
       "surface": 0.45,
       "wear": 0.55,
       "tone": -0.15
+    },
+    "Ballroom 78": {
+      "speed": 2,
+      "warp": 0.45,
+      "crackle": 0.55,
+      "pops": 0.3,
+      "surface": 0.6,
+      "wear": 0.6,
+      "tone": -0.2
+    },
+    "Jukebox single": {
+      "speed": 1,
+      "warp": 0.3,
+      "crackle": 0.4,
+      "pops": 0.25,
+      "surface": 0.35,
+      "wear": 0.45,
+      "tone": 0.35
+    },
+    "Warped": {
+      "speed": 0,
+      "warp": 0.8,
+      "crackle": 0.25,
+      "pops": 0.1,
+      "surface": 0.25,
+      "wear": 0.3
+    },
+    "Dust and scratches": {
+      "speed": 0,
+      "warp": 0.3,
+      "crackle": 0.9,
+      "pops": 0.65,
+      "surface": 0.4,
+      "wear": 0.45
+    },
+    "Inner groove": {
+      "speed": 0,
+      "warp": 0.2,
+      "crackle": 0.3,
+      "pops": 0.1,
+      "surface": 0.3,
+      "wear": 1,
+      "tone": 0.2
+    },
+    "Locked scratch": {
+      "speed": 1,
+      "warp": 0.3,
+      "crackle": 0.35,
+      "pops": 1,
+      "surface": 0.35,
+      "wear": 0.4
+    },
+    "Slow platter": {
+      "speed": 0,
+      "warp": 0.5,
+      "crackle": 0.3,
+      "pops": 0.15,
+      "surface": 0.35,
+      "wear": 0.4,
+      "tone": -0.4,
+      "spin": 5
     }
   },
   "origin": {

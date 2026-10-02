@@ -31,11 +31,17 @@
 //   shape comes round again, quieter and (through the allpasses and the cut
 //   filters) more blurred and darker each time. The loop gain is the Repeat
 //   setting at every frequency, so it cannot ring.
+// - The two sides are unrelated above 160 Hz; below that the difference
+//   between them is rolled off, so the bottom of the wash is mono.
 // - Tail is a small feedback delay network fed by the shaped signal: what is
 //   left in it when the shape stops is the soft decay after a gate.
-// - The taps are summed a control period (32 samples) at a time, one tap
-//   after another, which is several times cheaper than visiting every tap
-//   for every sample. No tap is closer than a period, so the result does not
+// - Modulation sweeps each allpass length on its own slow LFO. The lengths
+//   are read through first-order allpass interpolators, so the diffuser
+//   stays flat while it moves; taps at different delays hear it at different
+//   moments, which is what keeps a held note from sitting on one fixed comb.
+// - The taps are summed a control period (32 samples) at a time, eight taps
+//   to a pass, which is several times cheaper than visiting every tap for
+//   every sample. No tap is closer than a period, so the result does not
 //   depend on where the host's blocks fall.
 //
 // After velvet-noise reverberation: Karjalainen and Järveläinen,
@@ -59,43 +65,40 @@ constexpr int kStageSize = 2048;
 constexpr int kTailLines = 8;
 constexpr int kTailSize = 16384;
 
-// The delay line the taps read. `add_tap` adds `gain` times the sample
-// `delay` behind each of the next `frames` writes, before any of them has
-// been made: delay must be at least `frames`.
+// The delay line the taps read. Its first kPeriod samples are kept a second
+// time past the end, so the samples one tap needs for a whole control period
+// are always in one run: `behind(delay)` points at the sample `delay` behind
+// the next write, and the kPeriod samples from there on are that tap's input
+// for the next kPeriod writes (delay must be at least kPeriod).
 class TapLine {
  public:
   static constexpr int kMask = kLineSize - 1;
 
   void clear() {
-    for (int i = 0; i < kLineSize; ++i) buffer_[i] = 0.0f;
+    for (int i = 0; i < kLineSize + kPeriod; ++i) buffer_[i] = 0.0f;
     write_ = 0;
   }
   void write(float x) {
     buffer_[write_] = x;
+    if (write_ < kPeriod) buffer_[write_ + kLineSize] = x;
     write_ = (write_ + 1) & kMask;
   }
-  void add_tap(float* sum, int frames, int delay, float gain) const {
-    const int start = (write_ - delay) & kMask;
-    int first = kLineSize - start;
-    if (first > frames) first = frames;
-    const float* source = buffer_ + start;
-    for (int j = 0; j < first; ++j) sum[j] += gain * source[j];
-    for (int j = first; j < frames; ++j) sum[j] += gain * buffer_[j - first];
-  }
+  const float* behind(int delay) const { return buffer_ + ((write_ - delay) & kMask); }
 
  private:
-  float buffer_[kLineSize] = {};
+  float buffer_[kLineSize + kPeriod] = {};
   int write_ = 0;
 };
 
-// One side's taps: where each reads, how loud, from which line and into
-// which colour group.
+// One side's taps: where each reads, how loud and from which line. The
+// first `early` of them belong to the early colour group, the rest to the
+// late one.
 struct Taps {
   int count = 0;
+  int early = 0;
   int delay[kMaxTaps] = {};
   float gain[kMaxTaps] = {};
   unsigned char line[kMaxTaps] = {};
-  unsigned char group[kMaxTaps] = {};
 };
 
 struct TapSet {
@@ -110,7 +113,9 @@ struct TapSet {
 // samples the read is exact. The length moves at most one sample per control
 // period.
 struct Stage {
-  kit::DelayLine<kStageSize> line;
+  static constexpr int kMask = kStageSize - 1;
+  float buffer[kStageSize] = {};
+  int write = 0;
   float length = 8.0f;
   int whole = 7;
   float eta = 0.0f;
@@ -121,7 +126,8 @@ struct Stage {
   float rate = 0.5f;   // Hz
 
   void reset() {
-    line.clear();
+    for (int i = 0; i < kStageSize; ++i) buffer[i] = 0.0f;
+    write = 0;
     length = 8.0f;
     whole = 7;
     eta = eta_step = state = 0.0f;
@@ -141,14 +147,24 @@ struct Stage {
     length = to;
   }
 
-  float process(float x, float gain) {
-    eta += eta_step;
-    const float newer = line.read(whole);
-    const float older = line.read(whole + 1);
-    state = flush_denormal(older + eta * (newer - state));
-    const float v = flush_denormal(x + gain * state);
-    line.write(v);
-    return state - gain * v;
+  // Run `frames` samples of `x` through the stage, in place.
+  void process(float* x, int frames, float gain) {
+    float e = eta;
+    float held = state;
+    int w = write;
+    for (int j = 0; j < frames; ++j) {
+      e += eta_step;
+      const float newer = buffer[(w - whole) & kMask];
+      const float older = buffer[(w - whole - 1) & kMask];
+      held = older + e * (newer - held);
+      const float v = flush_denormal(x[j] + gain * held);
+      buffer[w] = v;
+      w = (w + 1) & kMask;
+      x[j] = held - gain * v;
+    }
+    eta = e;
+    state = held;
+    write = w;
   }
 };
 
@@ -186,8 +202,7 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
         colour_filter_[c][g].set_cutoff(kColourHz, sr);
       }
       high_cut_[c].reset();
-      low_cut_[c][0].reset();
-      low_cut_[c][1].reset();
+      low_cut_[c].reset();
       loop_high_[c].reset();
       loop_low_[c].reset();
       for (int j = 0; j < kPeriod; ++j) {
@@ -196,6 +211,8 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
         loop_[c][j] = 0.0f;
       }
     }
+    side_cut_.reset();
+    side_cut_.set_cutoff(kSideCutHz, sr);
     sets_[0] = TapSet();
     sets_[1] = TapSet();
     current_ = 0;
@@ -210,11 +227,9 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
 
     int lengths[kTailLines];
     kit::spread_lengths<kTailLines>(kTailShortest * sr, kTailLongest * sr, lengths);
-    tail_mean_ = 0.0f;
     for (int n = 0; n < kTailLines; ++n) {
       tail_[n].clear();
       tail_length_[n] = kit::clamp_int(lengths[n], 8, kTailSize - 8);
-      tail_mean_ += static_cast<float>(tail_length_[n]) / kTailLines;
       tail_damp_[n].reset();
       tail_damp_[n].set_cutoff(kTailDampHz, sr);
       tail_gain_[n] = 0.0f;
@@ -304,6 +319,7 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
   static constexpr float kTailLongest = 0.1373f;
   static constexpr float kTailDampHz = 5200.0f;
   static constexpr float kColourHz = 900.0f;
+  static constexpr float kSideCutHz = 160.0f;
 
   // The Shape as an amplitude at `u` in [0, 1] along the span.
   static float shape_gain(int shape, float u) {
@@ -352,19 +368,26 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
     for (int c = 0; c < 2; ++c) {
       Taps& taps = set.side[c];
       taps.count = count;
+      taps.early = 0;
       float energy = 0.0f;
-      for (int k = 0; k < count; ++k) {
-        const float u = (static_cast<float>(k) + jitter_[c][k]) / static_cast<float>(count);
-        const float gain = shape_gain(shape, u);
-        taps.delay[k] = kit::clamp_int(static_cast<int>(base + u * span + 0.5f), floor_delay, limit);
-        taps.gain[k] = sign_[c][k] * gain;
-        taps.line[k] = static_cast<unsigned char>(cross_[c][k] ? 1 - c : c);
-        // The odds of the late group: none in the first tenth, all in the
-        // last, a smooth step between.
-        const float along = kit::clamp((u - 0.1f) * 1.25f, 0.0f, 1.0f);
-        const float late = along * along * (3.0f - 2.0f * along);
-        taps.group[k] = static_cast<unsigned char>(dither_[c][k] < late ? 1 : 0);
-        energy += gain * gain;
+      int filled = 0;
+      // Two passes: the early group's taps first, then the late group's.
+      for (int group = 0; group < 2; ++group) {
+        for (int k = 0; k < count; ++k) {
+          const float u = (static_cast<float>(k) + jitter_[c][k]) / static_cast<float>(count);
+          // The odds of the late group: none in the first tenth, all in the
+          // last, a smooth step between.
+          const float along = kit::clamp((u - 0.1f) * 1.25f, 0.0f, 1.0f);
+          const float late = along * along * (3.0f - 2.0f * along);
+          if ((dither_[c][k] < late ? 1 : 0) != group) continue;
+          const float gain = shape_gain(shape, u);
+          taps.delay[filled] = kit::clamp_int(static_cast<int>(base + u * span + 0.5f), floor_delay, limit);
+          taps.gain[filled] = sign_[c][k] * gain;
+          taps.line[filled] = static_cast<unsigned char>(cross_[c][k] ? 1 - c : c);
+          energy += gain * gain;
+          ++filled;
+        }
+        if (group == 0) taps.early = filled;
       }
       const float scale = energy > 0.0f ? 1.0f / std::sqrt(energy) : 0.0f;
       for (int k = 0; k < count; ++k) taps.gain[k] *= scale;
@@ -461,13 +484,24 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
       }
     }
 
+    // A kit::Svf set to a few tens of Hz does not ring out to zero: once the
+    // flush has zeroed its first state the second is left at 1e-13, decaying
+    // for half a minute. Finish it by hand at -200 dB, so that the shape ends
+    // in exact zeros.
+    for (int c = 0; c < 2; ++c) {
+      kit::Svf& cut = low_cut_[c];
+      if (cut.ic1 > -1.0e-10f && cut.ic1 < 1.0e-10f && cut.ic2 > -1.0e-10f && cut.ic2 < 1.0e-10f) {
+        cut.ic1 = 0.0f;
+        cut.ic2 = 0.0f;
+      }
+    }
+
     if (param(kHighCut) != seen_high_ || param(kLowCut) != seen_low_) {
       seen_high_ = param(kHighCut);
       seen_low_ = param(kLowCut);
       for (int c = 0; c < 2; ++c) {
         high_cut_[c].set(seen_high_, kit::kSqrtHalf, sr);
-        low_cut_[c][0].set_cutoff(seen_low_, sr);
-        low_cut_[c][1].set_cutoff(seen_low_, sr);
+        low_cut_[c].set(seen_low_, kit::kSqrtHalf, sr);
         loop_high_[c].set_cutoff(seen_high_, sr);
         loop_low_[c].set_cutoff(seen_low_, sr);
       }
@@ -477,53 +511,80 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
       const float rt60 = 0.6f * std::pow(10.0f, seen_tail_);
       float mean_gain = 0.0f;
       for (int n = 0; n < kTailLines; ++n) {
-        tail_gain_[n] = kit::rt60_gain(static_cast<float>(tail_length_[n]), rt60, sr);
-        mean_gain += tail_gain_[n] / kTailLines;
+        const float gain = kit::rt60_gain(static_cast<float>(tail_length_[n]), rt60, sr);
+        mean_gain += gain / kTailLines;
+        // hadamard8 leaves out its 1/sqrt(8); it is folded in here.
+        tail_gain_[n] = gain * 0.35355339f;
       }
-      // A network fed with unit power settles at 1 / (4 (1 - g²)) per output.
+      // Fed with unit power the network settles at 1 / (4 (1 - g²)) in each
+      // output; this brings it back to the level of what feeds it.
       tail_norm_ = 2.0f * std::sqrt(1.0f - mean_gain * mean_gain);
     }
   }
 
-  // Sum the taps (and the Repeat tap) for the next `frames` samples.
-  void read_taps(int frames) {
-    for (int c = 0; c < 2; ++c) {
+  // Add taps [from, to) of one side into `sum`, eight taps to a pass (then
+  // four, then one): the fewer trips through `sum`, the cheaper each tap.
+  void add_taps(const Taps& taps, int from, int to, int frames, float* sum) const {
+    const float* x[8];
+    float g[8];
+    int k = from;
+    for (; k + 8 <= to; k += 8) {
+      for (int t = 0; t < 8; ++t) {
+        x[t] = line_[taps.line[k + t]].behind(taps.delay[k + t]);
+        g[t] = taps.gain[k + t];
+      }
       for (int j = 0; j < frames; ++j) {
-        early_[c][j] = 0.0f;
-        late_[c][j] = 0.0f;
-        loop_[c][j] = 0.0f;
+        sum[j] += (g[0] * x[0][j] + g[1] * x[1][j] + g[2] * x[2][j] + g[3] * x[3][j]) +
+                  (g[4] * x[4][j] + g[5] * x[5][j] + g[6] * x[6][j] + g[7] * x[7][j]);
       }
     }
-    if (!fading_) {
-      const TapSet& set = sets_[current_];
-      for (int c = 0; c < 2; ++c) {
-        const Taps& taps = set.side[c];
-        float* sums[2] = {early_[c], late_[c]};
-        for (int k = 0; k < taps.count; ++k) {
-          line_[taps.line[k]].add_tap(sums[taps.group[k]], frames, taps.delay[k], taps.gain[k]);
-        }
-        line_[c].add_tap(loop_[c], frames, set.loop, 1.0f);
+    for (; k + 4 <= to; k += 4) {
+      for (int t = 0; t < 4; ++t) {
+        x[t] = line_[taps.line[k + t]].behind(taps.delay[k + t]);
+        g[t] = taps.gain[k + t];
       }
-      return;
+      for (int j = 0; j < frames; ++j) {
+        sum[j] += g[0] * x[0][j] + g[1] * x[1][j] + g[2] * x[2][j] + g[3] * x[3][j];
+      }
     }
+    for (; k < to; ++k) {
+      const float* a = line_[taps.line[k]].behind(taps.delay[k]);
+      const float ga = taps.gain[k];
+      for (int j = 0; j < frames; ++j) sum[j] += ga * a[j];
+    }
+  }
+
+  // Sum the taps (and read the Repeat tap) for the next `frames` samples.
+  void read_taps(int frames) {
+    const bool fading = fading_;
     const float ramp = 1.0f / kPeriod;
-    for (int which = 0; which < 2; ++which) {
+    for (int which = 0; which < (fading ? 2 : 1); ++which) {
       const TapSet& set = sets_[which == 0 ? current_ : current_ ^ 1];
-      const float from = which == 0 ? old_from_ : new_from_;
-      const float to = which == 0 ? old_to_ : new_to_;
       for (int c = 0; c < 2; ++c) {
         const Taps& taps = set.side[c];
-        float part[3][kPeriod];
-        for (int j = 0; j < frames; ++j) part[0][j] = part[1][j] = part[2][j] = 0.0f;
-        for (int k = 0; k < taps.count; ++k) {
-          line_[taps.line[k]].add_tap(part[taps.group[k]], frames, taps.delay[k], taps.gain[k]);
+        float early[kPeriod], late[kPeriod];
+        for (int j = 0; j < frames; ++j) early[j] = late[j] = 0.0f;
+        add_taps(taps, 0, taps.early, frames, early);
+        add_taps(taps, taps.early, taps.count, frames, late);
+        const float* loop = line_[c].behind(set.loop);
+        if (!fading) {
+          for (int j = 0; j < frames; ++j) {
+            early_[c][j] = early[j];
+            late_[c][j] = late[j];
+            loop_[c][j] = loop[j];
+          }
+          continue;
         }
-        line_[c].add_tap(part[2], frames, set.loop, 1.0f);
+        // Mid-fade: each set by its gain, which moves in a straight line
+        // over the control period.
+        const float from = which == 0 ? old_from_ : new_from_;
+        const float to = which == 0 ? old_to_ : new_to_;
         for (int j = 0; j < frames; ++j) {
           const float weight = from + (to - from) * static_cast<float>(counter_ + j + 1) * ramp;
-          early_[c][j] += weight * part[0][j];
-          late_[c][j] += weight * part[1][j];
-          loop_[c][j] += weight * part[2][j];
+          if (which == 0) early_[c][j] = late_[c][j] = loop_[c][j] = 0.0f;
+          early_[c][j] += weight * early[j];
+          late_[c][j] += weight * late[j];
+          loop_[c][j] += weight * loop[j];
         }
       }
     }
@@ -531,33 +592,54 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
 
   void render(int offset, int frames) {
     const float diffusion = diffusion_.value;
+    // What goes into the line: the input plus the Repeat tap, through the
+    // allpasses, a channel and a stage at a time.
+    float dry_in[2][kPeriod];
+    float feed[2][kPeriod];
     for (int j = 0; j < frames; ++j) {
-      float in[2];
-      take_input(offset + j, &in[0], &in[1]);
-
-      const float repeat = repeat_.next();
+      take_input(offset + j, &dry_in[0][j], &dry_in[1][j]);
+      const float repeat = glide(repeat_);
+      if (repeat == 0.0f) {
+        // No loop: its filters rest, empty.
+        for (int c = 0; c < 2; ++c) {
+          loop_high_[c].state = 0.0f;
+          loop_low_[c].state = 0.0f;
+          feed[c][j] = 2.0f * kit::soft_clip(0.5f * dry_in[c][j]);
+        }
+        continue;
+      }
       for (int c = 0; c < 2; ++c) {
         const float back = loop_low_[c].highpass(loop_high_[c].lowpass(loop_[c][j]));
         // Exactly linear to ±1, landing on ±2: what bounds the loop when a
         // held tone lines up with its own repeats.
-        float x = 2.0f * kit::soft_clip(0.5f * (in[c] + repeat * back));
-        for (int s = 0; s < kStages; ++s) x = diffuser_[c][s].process(x, diffusion);
-        line_[c].write(flush_denormal(x));
+        feed[c][j] = 2.0f * kit::soft_clip(0.5f * (dry_in[c][j] + repeat * back));
       }
+    }
+    for (int c = 0; c < 2; ++c) {
+      for (int s = 0; s < kStages; ++s) diffuser_[c][s].process(feed[c], frames, diffusion);
+      for (int j = 0; j < frames; ++j) line_[c].write(flush_denormal(feed[c][j]));
+    }
 
-      const float early_mix = colour_early_.next();
-      const float late_mix = colour_late_.next();
+    for (int j = 0; j < frames; ++j) {
+      const float in[2] = {dry_in[0][j], dry_in[1][j]};
+
+      const float early_mix = glide(colour_early_);
+      const float late_mix = glide(colour_late_);
       float shaped[2];
       for (int c = 0; c < 2; ++c) {
         float early = early_[c][j];
         float late = late_[c][j];
-        early += early_mix * (colour_filter_[c][0].lowpass(early) - early);
-        late += late_mix * (colour_filter_[c][1].lowpass(late) - late);
+        // Each shelf follows its group all the time, so it has no start-up
+        // step when Colour brings it in; at 0 it is exactly out of the path.
+        const float early_low = colour_filter_[c][0].lowpass(early);
+        const float late_low = colour_filter_[c][1].lowpass(late);
+        early += early_mix * (early_low - early);
+        late += late_mix * (late_low - late);
         shaped[c] = early + late;
       }
 
       float wet[2] = {shaped[0], shaped[1]};
-      const float tail_level = tail_level_.next();
+      const float tail_level = glide(tail_level_);
       if (tail_level != 0.0f || tail_level_.target != 0.0f) {
         float v[kTailLines];
         for (int n = 0; n < kTailLines; ++n) {
@@ -566,10 +648,10 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
         const float amount = tail_level * tail_norm_ * 0.5f;
         wet[0] += amount * (v[0] - v[2] + v[4] - v[6]);
         wet[1] += amount * (v[1] - v[3] + v[5] - v[7]);
-        kit::hadamard<kTailLines>(v);
+        hadamard8(v);
         for (int n = 0; n < kTailLines; ++n) {
-          const float feed = 0.5f * shaped[n & 1];
-          tail_[n].write(flush_denormal(v[n] * tail_gain_[n] + ((n & 2) ? -feed : feed)));
+          const float inject = 0.5f * shaped[n & 1];
+          tail_[n].write(flush_denormal(v[n] * tail_gain_[n] + ((n & 2) ? -inject : inject)));
         }
         tail_clear_ = false;
       } else if (!tail_clear_) {
@@ -580,15 +662,15 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
         tail_clear_ = true;
       }
 
-      for (int c = 0; c < 2; ++c) {
-        wet[c] = low_cut_[c][1].highpass(low_cut_[c][0].highpass(high_cut_[c].lowpass(wet[c])));
-      }
+      for (int c = 0; c < 2; ++c) wet[c] = low_cut_[c].highpass(high_cut_[c].lowpass(wet[c]));
 
-      const float width = width_.next();
-      const float level = level_.next() * wet_.next();
+      const float width = glide(width_);
+      const float level = glide(level_) * glide(wet_);
       const float mid = 0.5f * (wet[0] + wet[1]);
-      const float side = 0.5f * (wet[0] - wet[1]) * width;
-      const float dry = dry_.next();
+      // The bottom of the wash stays in the middle: what differs between
+      // the sides is kept only above kSideCutHz.
+      const float side = side_cut_.highpass(0.5f * (wet[0] - wet[1])) * width;
+      const float dry = glide(dry_);
       // The wet signal is exact up to ±1 and lands on ±2.
       out_left_[offset + j] = in[0] * dry + 2.0f * kit::soft_clip(0.5f * (mid + side) * level);
       out_right_[offset + j] = in[1] * dry + 2.0f * kit::soft_clip(0.5f * (mid - side) * level);
@@ -631,6 +713,26 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
     }
   }
 
+  // The 8-point Walsh-Hadamard transform without its 1/sqrt(8) scale, written
+  // out (the kit's loop form costs four times as much here).
+  static void hadamard8(float* v) {
+    const float a0 = v[0] + v[1], a1 = v[0] - v[1], a2 = v[2] + v[3], a3 = v[2] - v[3];
+    const float a4 = v[4] + v[5], a5 = v[4] - v[5], a6 = v[6] + v[7], a7 = v[6] - v[7];
+    const float b0 = a0 + a2, b1 = a1 + a3, b2 = a0 - a2, b3 = a1 - a3;
+    const float b4 = a4 + a6, b5 = a5 + a7, b6 = a4 - a6, b7 = a5 - a7;
+    v[0] = b0 + b4;
+    v[1] = b1 + b5;
+    v[2] = b2 + b6;
+    v[3] = b3 + b7;
+    v[4] = b0 - b4;
+    v[5] = b1 - b5;
+    v[6] = b2 - b6;
+    v[7] = b3 - b7;
+  }
+
+  // A smoother that is at rest costs one comparison.
+  static float glide(kit::Smoother& s) { return s.value == s.target ? s.value : s.next(); }
+
   static float tail_level_for(float tail) { return tail <= 0.0f ? 0.0f : 0.75f * std::sqrt(tail); }
 
   TapLine line_[2];
@@ -656,18 +758,15 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
 
   kit::OnePole colour_filter_[2][2];
   kit::Svf high_cut_[2];
-  // Two one-poles rather than a kit::Svf: at 20 Hz the Svf's second state
-  // is left decaying for half a minute at 1e-13 once the flush has zeroed
-  // its first, and the shape has to end in exact zeros.
-  kit::OnePole low_cut_[2][2];
+  kit::Svf low_cut_[2];
   kit::OnePole loop_high_[2];
   kit::OnePole loop_low_[2];
+  kit::OnePole side_cut_;
 
   kit::DelayLine<kTailSize> tail_[kTailLines];
   kit::OnePole tail_damp_[kTailLines];
   int tail_length_[kTailLines] = {};
   float tail_gain_[kTailLines] = {};
-  float tail_mean_ = 0.0f;
   float tail_norm_ = 0.0f;
   bool tail_clear_ = true;
 

@@ -18,6 +18,8 @@
 // and read with linear interpolation between neighbouring positions.
 
 #include <cmath>
+#include <cstdint>
+#include <cstring>
 
 namespace livemix {
 namespace vintage_digital_detail {
@@ -55,7 +57,8 @@ class Kernels {
         row[k] = fine[(k + 1) * kFine - p * stride];
         sum += row[k];
       }
-      for (int k = 0; k < kTaps; ++k) sinc()[p][k] = static_cast<float>(row[k] / sum);
+      // Stored oldest tap first, so a read is one forward pass over memory.
+      for (int k = 0; k < kTaps; ++k) sinc()[p][kTaps - 1 - k] = static_cast<float>(row[k] / sum);
       // The step landed d before sample n; output index n + k is at
       // t = k - kHalf + d on the (delayed) step's own clock.
       for (int k = 0; k < kTaps; ++k) {
@@ -63,17 +66,47 @@ class Kernels {
         step()[p][k] = static_cast<float>(band_limited - (k >= kHalf ? 1.0 : 0.0));
       }
     }
+    for (int i = 0; i <= kCurve; ++i) {
+      log_table()[i] = static_cast<float>(std::log2(1.0 + static_cast<double>(i) / kCurve));
+      exp_table()[i] = static_cast<float>(std::exp2(static_cast<double>(i) / kCurve));
+    }
     ready() = true;
   }
 
-  // Weights for a read `fraction` (0..1) of a sample before the newest tap.
+  // log2(x) for x in [1, 2^24) and 2^y for y in [0, 30], from 256-step
+  // tables read with linear interpolation: within 3e-6 and 1e-6 (relative),
+  // exact at x = 1 and y = 0, and several times cheaper than the library's.
+  // The mu-law pair is built on them.
+  static float log2_from_one(float x) {
+    uint32_t bits;
+    std::memcpy(&bits, &x, sizeof bits);
+    const int exponent = static_cast<int>(bits >> 23) - 127;
+    const uint32_t mantissa = bits & 0x7FFFFFu;
+    const int index = static_cast<int>(mantissa >> 15);
+    const float t = static_cast<float>(mantissa & 0x7FFFu) * (1.0f / 32768.0f);
+    const float* table = log_table();
+    return static_cast<float>(exponent) + table[index] + (table[index + 1] - table[index]) * t;
+  }
+  static float exp2_small(float y) {
+    const int whole = static_cast<int>(y);
+    const float position = (y - static_cast<float>(whole)) * kCurve;
+    const int index = static_cast<int>(position);
+    const float t = position - static_cast<float>(index);
+    const float* table = exp_table();
+    return (table[index] + (table[index + 1] - table[index]) * t) * static_cast<float>(1u << whole);
+  }
+
+  // Weights for a read `fraction` (0..1) of a sample before the centre of the
+  // window, for kTaps consecutive samples, oldest first: out[j] weighs
+  // x[newest - (kTaps - 1 - j)].
   static void sinc_weights(float fraction, float* out) { blend(sinc(), fraction, out); }
   // What to add to the next kTaps outputs for a unit step that happened
   // `fraction` (0..1) of a sample before the current one.
   static void step_weights(float fraction, float* out) { blend(step(), fraction, out); }
 
  private:
-  static constexpr int kFine = 512;
+  static constexpr int kFine = 256;
+  static constexpr int kCurve = 256;
   static constexpr double kCutoff = 0.46;
   static constexpr double kBeta = 8.0;
 
@@ -114,6 +147,14 @@ class Kernels {
   }
   static Table& step() {
     static Table table;
+    return table;
+  }
+  static float* log_table() {
+    static float table[kCurve + 2];
+    return table;
+  }
+  static float* exp_table() {
+    static float table[kCurve + 2];
     return table;
   }
   static bool& ready() {

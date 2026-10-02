@@ -2,7 +2,7 @@
   "id": "shaped-reverb",
   "name": "Shaped Reverb",
   "category": "reverb",
-  "description": "A reverb whose tail follows a drawn shape instead of dying away: it can hold level and stop dead, rise backwards into a cut, swell and fade, or pulse.",
+  "description": "A reverb whose level follows a drawn shape instead of dying away: it can hold and stop dead, rise backwards into a cut, swell and fade, fall in a straight line or breathe in waves.",
   "class": "ShapedReverb",
   "header": "shaped_reverb.h",
   "sources": [],
@@ -13,7 +13,7 @@
       "name": "Shape",
       "choices": ["Gate", "Reverse", "Bloom", "Fall", "Pulse"],
       "default": 1,
-      "description": "The outline the reverb follows. Gate holds its level and stops dead. Reverse grows louder and cuts off. Bloom swells in and fades away. Fall drops in a straight line. Pulse breathes in three waves."
+      "description": "The outline the reverb's level follows. Gate holds steady and stops dead. Reverse grows louder and cuts off. Bloom swells in and fades away. Fall drops in a straight line. Pulse breathes in three waves."
     },
     {
       "key": "time",
@@ -23,7 +23,7 @@
       "default": 0.9,
       "taper": "log",
       "unit": "s",
-      "description": "How long the shape lasts from the note to its end. Short settings are a burst behind the note; long ones are a slow cloud."
+      "description": "How long the shape lasts, from the note to its end. Short settings are a burst behind the note; long ones are a slow cloud. With Repeat up it is also the gap between repeats."
     },
     {
       "key": "density",
@@ -84,7 +84,7 @@
       "min": 0,
       "max": 0.9,
       "default": 0,
-      "description": "Plays the shape again and again, each time quieter, darker and more blurred. High settings pulse for a long time."
+      "description": "Plays the whole shape again and again, each pass quieter, darker and more blurred. High settings pulse for a long time."
     },
     {
       "key": "tail",
@@ -92,7 +92,7 @@
       "min": 0,
       "max": 1,
       "default": 0.25,
-      "description": "Adds an ordinary fading reverb behind the shape, so the end is not dead silence. Higher settings are louder and ring for longer; at zero the shape ends in nothing."
+      "description": "Adds an ordinary fading reverb behind the shape, so its end is not dead silence. Higher settings are louder and ring for longer; at zero the shape ends in nothing."
     },
     {
       "key": "width",
@@ -112,15 +112,109 @@
     }
   ],
   "presets": {
-    "Backwards cloud": { "shape": 1, "time": 1.2 },
-    "Gated room": { "shape": 0, "time": 0.35 },
-    "Slow bloom": { "shape": 2, "time": 2.5 },
-    "Straight fall": { "shape": 3, "time": 1.4 },
-    "Breathing pulses": { "shape": 4, "time": 1.8, "repeat": 0.5 },
-    "Ghost": { "shape": 1, "time": 1.6, "colour": -0.7, "tail": 0.6 }
+    "Backwards cloud": {
+      "shape": 1,
+      "time": 1.2,
+      "density": 0.9,
+      "colour": 0.3,
+      "modulation": 0.35,
+      "tail": 0.3,
+      "mix": 0.45
+    },
+    "Gated room": {
+      "shape": 0,
+      "time": 0.35,
+      "density": 1,
+      "colour": -0.15,
+      "highCut": 8000,
+      "lowCut": 100,
+      "modulation": 0.15,
+      "tail": 0,
+      "mix": 0.4
+    },
+    "Slow bloom": {
+      "shape": 2,
+      "time": 2.5,
+      "density": 1,
+      "colour": -0.4,
+      "highCut": 7000,
+      "lowCut": 150,
+      "modulation": 0.5,
+      "tail": 0.45,
+      "mix": 0.5
+    },
+    "Straight fall": {
+      "shape": 3,
+      "time": 1.6,
+      "density": 0.85,
+      "preDelay": 20,
+      "colour": -0.5,
+      "tail": 0.2,
+      "mix": 0.35
+    },
+    "Breathing pulses": {
+      "shape": 4,
+      "time": 1.8,
+      "density": 0.9,
+      "colour": -0.3,
+      "modulation": 0.4,
+      "repeat": 0.55,
+      "tail": 0.3,
+      "mix": 0.45
+    },
+    "Ghost": {
+      "shape": 1,
+      "time": 2,
+      "density": 1,
+      "preDelay": 60,
+      "colour": -0.8,
+      "highCut": 3500,
+      "lowCut": 200,
+      "modulation": 0.6,
+      "tail": 0.7,
+      "mix": 0.5
+    },
+    "Short halo": {
+      "shape": 2,
+      "time": 0.3,
+      "density": 1,
+      "colour": 0,
+      "highCut": 12000,
+      "modulation": 0.2,
+      "tail": 0.15,
+      "mix": 0.3
+    },
+    "Long reverse": {
+      "shape": 1,
+      "time": 4,
+      "density": 1,
+      "colour": 0.5,
+      "modulation": 0.5,
+      "tail": 0.5,
+      "mix": 0.55
+    },
+    "Scattered echoes": {
+      "shape": 3,
+      "time": 2.2,
+      "density": 0.15,
+      "colour": -0.4,
+      "repeat": 0.3,
+      "tail": 0.4,
+      "mix": 0.4
+    },
+    "Stepped gate": {
+      "shape": 0,
+      "time": 0.25,
+      "density": 0.95,
+      "colour": -0.2,
+      "modulation": 0.2,
+      "repeat": 0.7,
+      "tail": 0.1,
+      "mix": 0.5
+    }
   },
   "origin": {
     "kind": "new",
-    "note": "Written for live-mix on cpp/kit."
+    "note": "Written for live-mix on cpp/kit. Models in outline the nonlinear programs of early digital reverberators (gated and reverse reverbs) and their descendants, not any one unit: a diffused signal read from a long delay line by sparse taps at pseudo-random positions with random signs, whose gains follow the chosen shape. The tap layout is velvet noise, after Karjalainen and Järveläinen, \"Reverberation Modeling Using Velvet Noise\" (AES 30th International Conference, 2007) and Välimäki, Holm-Rasmussen, Alary and Lehtonen, \"Late Reverberation Synthesis Using Filtered Velvet Noise\" (Applied Sciences 7(5), 2017). The diffuser is a series of Schroeder allpasses whose moving lengths are read through first-order allpass interpolators; the tail is an eight-line feedback delay network with a Hadamard matrix."
   }
 }

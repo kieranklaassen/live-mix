@@ -15,8 +15,11 @@
 //   Grain    four-fold overlapping Hann grains at regular intervals; Jitter
 //            scatters their spacing, their place in time, their pitch and
 //            their pan.
-//   Vintage  two Hann heads half a window apart on a fixed grid with no
-//            alignment: the plain delay-line shifter and its flutter.
+//   Vintage  two heads half a window apart sweeping a fixed stretch of the
+//            ring under Hann gains, with no alignment: the plain delay-line
+//            shifter. It splices once per window divided by the pitch
+//            offset, so a small detune is nearly seamless and a wide
+//            interval flutters.
 //
 // A change of mode starts a new generation of heads, already in full swing,
 // and crossfades the generations with equal power.
@@ -75,6 +78,16 @@ class ShiftVoice {
     newest_ = -1;
     started_ = false;
     mode_ = -1;
+    sweeping_ = false;
+    sweep_generation_ = 0;
+    sweep_phase_ = 0.0f;
+    sweep_window_ = 0.0f;
+    sweep_lag_ = 1.0f - kit::time_to_coeff(0.05f, sample_rate);
+    for (int k = 0; k < 2; ++k) {
+      sweep_offset_[k] = 0.0f;
+      sweep_stretch_[k] = 1.0f;
+      sweep_seen_[k] = 0.5f * static_cast<float>(k);
+    }
   }
 
   // Drop every head; the next render starts the mode again in full swing.
@@ -83,6 +96,8 @@ class ShiftVoice {
     blend_ = 1.0f;
     started_ = false;
     newest_ = -1;
+    sweeping_ = false;
+    sweep_window_ = 0.0f;
   }
 
   // One output frame. `base` is the extra delay (the Delay control) in
@@ -101,6 +116,7 @@ class ShiftVoice {
         for (Head& head : heads_) {
           if (head.generation != generation_) head.active = false;
         }
+        if (sweep_generation_ != generation_) sweeping_ = false;
       }
       gain[0] = kit::SineTable::lookup(0.25f * blend_);
       gain[1] = kit::SineTable::cos_lookup(0.25f * blend_);
@@ -149,6 +165,10 @@ class ShiftVoice {
       sum_left += lift * join_left;
       sum_right += lift * join_right;
     }
+    if (sweeping_) {
+      const float g = gain[sweep_generation_ == generation_ ? 0 : 1];
+      sweep(ring, setup, origin, limit, ratio, g, &sum_left, &sum_right);
+    }
     *left = sum_left;
     *right = sum_right;
   }
@@ -163,16 +183,30 @@ class ShiftVoice {
   static constexpr float kFloorSeconds = 0.0015f;   // the closest a head starts to the write point
   static constexpr int kGrainOverlap = 4;
   // Smooth: time between splices and length of the join, as shares of Size.
-  static constexpr float kSmoothHop = 0.5f;
-  static constexpr float kSmoothFade = 0.25f;
+#ifndef PS_HOP
+#define PS_HOP 0.5f
+#define PS_FADE 0.5f
+#define PS_SPAN 0.016f
+#endif
+#ifndef PS_SEARCH
+#define PS_SEARCH 0.02f
+#endif
+  static constexpr float kSmoothHop = PS_HOP;
+  static constexpr float kSmoothFade = PS_FADE;
   // Jitter at full: each head's own detune, in cents either way.
   static constexpr float kSmoothCents = 20.0f;
   static constexpr float kGrainCents = 40.0f;
-  static constexpr float kVintageCents = 30.0f;
+  // Vintage: the stretch of ring a head sweeps, as a share of Size; at full
+  // Jitter each pass starts up to this much later and sweeps this much more
+  // or less (its pitch offset is that much wide or narrow).
+  static constexpr float kSweepShare = 0.5f;
+  static constexpr float kSweepScatterSeconds = 0.02f;
+  static constexpr float kSweepStretch = 0.03f;
   // The splice search: how far it looks, over what length it compares.
-  static constexpr float kSearchSeconds = 0.02f;
-  static constexpr float kSpanSeconds = 0.012f;
+  static constexpr float kSearchSeconds = PS_SEARCH;
+  static constexpr float kSpanSeconds = PS_SPAN;
   static constexpr int kPoints = 72;
+  static constexpr int kMaxScan = 1024;  // lags tried in the first pass
   static constexpr float kNearBias = 0.03f;
 
   struct Head {
@@ -201,6 +235,7 @@ class ShiftVoice {
         }
       }
     }
+    if (sweeping_ && sweep_generation_ == generation_) sweeping_ = false;
     started_ = true;
     mode_ = setup.mode;
     newest_ = -1;
@@ -212,8 +247,9 @@ class ShiftVoice {
         until_spawn_ = 0.0f;
         break;
       case kVintage:
-        spawn(ring, setup, base, ratio, 0.5f);
-        until_spawn_ = 0.0f;
+        sweeping_ = true;
+        sweep_generation_ = generation_;
+        until_spawn_ = 1.0e30f;  // the sweep has no heads to start
         break;
       default: {
         const float fade = setup.size * kSmoothFade;
@@ -239,11 +275,6 @@ class ShiftVoice {
         cents = kGrainCents * j2 * rng_.bipolar();
         pan = 0.8f * j * rng_.bipolar();
         gain = setup.grain_gain;
-        break;
-      case kVintage:
-        interval = 0.5f * size;
-        scatter = j2 * 0.02f * setup.sample_rate * rng_.uniform();
-        cents = kVintageCents * j2 * rng_.bipolar();
         break;
       default: {
         const float fade = size * kSmoothFade;
@@ -298,6 +329,44 @@ class ShiftVoice {
     return interval;
   }
 
+  // Vintage: two heads half a window apart sweep the same stretch of ring,
+  // towards the write point to shift up and away from it to shift down, and
+  // jump back to the other end where their Hann gain is zero. The gains
+  // always add to one.
+  void sweep(const Ring& ring, const VoiceSetup& setup, double origin, double limit, float ratio,
+             float gain, float* left, float* right) {
+    const float target = kit::max(64.0f, kSweepShare * setup.size);
+    if (sweep_window_ <= 0.0f) sweep_window_ = target;
+    sweep_window_ += (target - sweep_window_) * sweep_lag_;  // a Size change bends, it does not jump
+    sweep_phase_ += (1.0f - ratio) / sweep_window_;
+    sweep_phase_ -= std::floor(sweep_phase_);
+    const float floor_delay = kit::max(kMinDelay, kFloorSeconds * setup.sample_rate);
+    for (int k = 0; k < 2; ++k) {
+      float phase = sweep_phase_ + 0.5f * static_cast<float>(k);
+      if (phase >= 1.0f) phase -= 1.0f;
+      const float jump = phase - sweep_seen_[k];
+      sweep_seen_[k] = phase;
+      if (jump > 0.5f || jump < -0.5f) {
+        // A new pass, silent at this moment: Jitter moves it and bends it.
+        const float j2 = setup.jitter * setup.jitter;
+        sweep_offset_[k] = j2 * kSweepScatterSeconds * setup.sample_rate * rng_.uniform();
+        sweep_stretch_[k] = 1.0f + kSweepStretch * j2 * rng_.bipolar();
+      }
+      const float weight = gain * (0.5f - 0.5f * kit::SineTable::cos_lookup(phase));
+      double delay = static_cast<double>(floor_delay + sweep_offset_[k] +
+                                         phase * sweep_window_ * sweep_stretch_[k]);
+      if (delay > limit) delay = limit;
+      const double position = origin - delay;
+      const double floored = std::floor(position);
+      const int index = static_cast<int>(static_cast<long long>(floored) & kRingMask);
+      const float t = static_cast<float>(position - floored);
+      *left += weight * kit::hermite(ring.left.at(index - 1), ring.left.at(index),
+                                     ring.left.at(index + 1), ring.left.at(index + 2), t);
+      *right += weight * kit::hermite(ring.right.at(index - 1), ring.right.at(index),
+                                      ring.right.at(index + 1), ring.right.at(index + 2), t);
+    }
+  }
+
   // Where a new Smooth head should start: at or behind `nominal`, within one
   // search range, where the ring best matches what the old head (at
   // `old_delay`) is playing. Both heads then move along the ring at the same
@@ -314,18 +383,26 @@ class ShiftVoice {
     const double old_total = base + old_delay;
     const int old_whole = static_cast<int>(old_total + 0.5);
     const double residue = old_total - static_cast<double>(old_whole);
-    const int first = static_cast<int>(base + nominal + 0.5);
+    const int coarse = range / kMaxScan + 1;
+    // Lag 0 sits one coarse step behind the nominal start, so the step
+    // before it can be looked at too.
+    const int first = static_cast<int>(base + nominal + 0.5) + coarse + 1;
     // The comparison straddles the join as far as the ring already holds
     // what lies ahead of both heads, and looks back for the rest.
     const float ahead =
         kit::clamp(static_cast<float>(old_whole < first ? old_whole : first) - 4.0f, 0.0f, 0.5f * span);
+    // Points are weighted by a Hann bell: with a hard-edged comparison the
+    // best lag of a steady tone leans by where the edges fall in its cycle.
     int offset[kPoints];
     float reference[kPoints];
+    float weight[kPoints];
     float energy = 0.0f;
     for (int i = 0; i < kPoints; ++i) {
       offset[i] = static_cast<int>(ahead - static_cast<float>(i) * stride);
-      reference[i] = ring.mono.at(now - old_whole + offset[i]);
-      energy += reference[i] * reference[i];
+      weight[i] = 0.5f - 0.5f * kit::SineTable::cos_lookup((static_cast<float>(i) + 0.5f) / kPoints);
+      const float sample = ring.mono.at(now - old_whole + offset[i]);
+      reference[i] = weight[i] * sample;
+      energy += reference[i] * sample;
     }
     if (energy < 1.0e-14f) {
       match_ = 1.0f;
@@ -339,24 +416,33 @@ class ShiftVoice {
       for (int i = 0; i < kPoints; ++i) {
         const float sample = ring.mono.at(origin + offset[i]);
         match += reference[i] * sample;
-        power += sample * sample;
+        power += weight[i] * sample * sample;
       }
       // Among equal matches (a steady tone gives one per cycle) take the nearest.
       return match / std::sqrt(power) - kNearBias * scale * static_cast<float>(lag) / static_cast<float>(range);
     };
-    const int coarse = range / 480 > 1 ? range / 480 : 1;
-    int best = 0;
+    // Scan the range (one step beyond each end, so an end can be told from
+    // a peak) and take the best lag that is a peak: the highest point at an
+    // end is the side of a peak outside the range, and splicing there would
+    // be off by part of a sample.
+    const int count = range / coarse;
+    float scores[kMaxScan + 2];
+    for (int i = 0; i <= count + 2; ++i) scores[i] = score((i - 1) * coarse);
+    int best = -1;
     float best_score = -1.0e30f;
-    for (int lag = 0; lag <= range; lag += coarse) {
-      const float value = score(lag);
-      if (value > best_score) {
-        best_score = value;
-        best = lag;
+    for (int i = 1; i <= count + 1; ++i) {
+      if (scores[i] > best_score && scores[i] >= scores[i - 1] && scores[i] >= scores[i + 1]) {
+        best_score = scores[i];
+        best = (i - 1) * coarse;
       }
+    }
+    if (best < 0) {
+      best = 0;
+      best_score = scores[1];
     }
     const int centre = best;
     for (int lag = centre - coarse + 1; lag < centre + coarse; ++lag) {
-      if (lag < 0 || lag > range || lag == centre) continue;
+      if (lag == centre) continue;
       const float value = score(lag);
       if (value > best_score) {
         best_score = value;
@@ -366,7 +452,7 @@ class ShiftVoice {
     // The top of the parabola through the best lag and its neighbours: the
     // fraction of a sample that keeps a pure tone free of sidebands.
     float fraction = 0.0f;
-    if (best > 0 && best < range) {
+    {
       const float before = score(best - 1);
       const float after = score(best + 1);
       const float curve = before - 2.0f * best_score + after;
@@ -374,6 +460,9 @@ class ShiftVoice {
     }
     const float found = best_score + kNearBias * scale * static_cast<float>(best) / static_cast<float>(range);
     match_ = kit::clamp(found / scale, 0.0f, 1.0f);
+#ifdef PS_DEBUG
+    std::printf("splice old %.3f first %d best %d frac %.3f res %.3f match %.5f ahead %.0f\n", old_total, first, best, fraction, residue, match_, ahead);
+#endif
     return static_cast<double>(first + best) + static_cast<double>(fraction) + residue - base;
   }
 
@@ -392,6 +481,15 @@ class ShiftVoice {
   float until_spawn_ = 0.0f;
   float match_ = 1.0f;
   bool started_ = false;
+  // Vintage: one phase for the pair of heads, and per head what Jitter drew
+  // for its current pass.
+  bool sweeping_ = false;
+  int sweep_generation_ = 0;
+  float sweep_phase_ = 0.0f;
+  float sweep_window_ = 0.0f, sweep_lag_ = 0.0f;
+  float sweep_offset_[2] = {0.0f, 0.0f};
+  float sweep_stretch_[2] = {1.0f, 1.0f};
+  float sweep_seen_[2] = {0.0f, 0.5f};
 };
 
 }  // namespace pitch_shifter_dsp

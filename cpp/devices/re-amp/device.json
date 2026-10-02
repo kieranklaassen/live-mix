@@ -93,35 +93,47 @@
     "Combo in a room": {
       "speaker": 1,
       "drive": 0.25,
+      "bass": 0,
+      "treble": 0,
       "distance": 0.3,
       "room": 0.4,
       "angle": 0.2,
-      "noise": 0.1
+      "noise": 0.1,
+      "output": 0,
+      "mix": 1
     },
     "Bedside radio": {
       "speaker": 0,
       "drive": 0.35,
       "bass": 0.2,
-      "distance": 0.08,
-      "room": 0.2,
+      "treble": 0.2,
+      "distance": 0.25,
+      "room": 0.25,
       "angle": 0.1,
-      "noise": 0.2
+      "noise": 0.2,
+      "output": 0
     },
     "Down the hall": {
       "speaker": 1,
       "drive": 0.3,
+      "bass": 0,
+      "treble": 0,
       "distance": 0.85,
       "room": 0.9,
       "angle": 0.3,
-      "noise": 0.1
+      "noise": 0.1,
+      "output": 2
     },
-    "Tannoy": {
+    "Station platform": {
       "speaker": 3,
       "drive": 0.45,
+      "bass": 0,
+      "treble": 0,
       "distance": 0.7,
       "room": 0.8,
       "angle": 0.1,
-      "noise": 0.15
+      "noise": 0.15,
+      "output": 3
     },
     "Warm stack": {
       "speaker": 2,
@@ -131,39 +143,45 @@
       "distance": 0.2,
       "room": 0.35,
       "angle": 0.4,
-      "noise": 0.1
+      "noise": 0.1,
+      "output": -1.5
     },
     "Speaker on the edge": {
       "speaker": 1,
-      "drive": 0.85,
-      "bass": 0.2,
-      "treble": 0.1,
-      "distance": 0.15,
+      "drive": 0.8,
+      "bass": 0.5,
+      "treble": 0.2,
+      "distance": 0.1,
       "room": 0.3,
-      "angle": 0.15,
-      "noise": 0.25
+      "angle": 0,
+      "noise": 0.25,
+      "output": 0
     },
     "Just the room": {
       "speaker": 4,
       "drive": 0,
+      "bass": 0,
+      "treble": 0,
       "distance": 0.75,
       "room": 0.6,
       "angle": 0,
-      "noise": 0
+      "noise": 0,
+      "output": -2
     },
     "Pillow speaker": {
       "speaker": 0,
-      "drive": 0.15,
-      "bass": 0.4,
-      "treble": -0.6,
+      "drive": 0.1,
+      "bass": 0.5,
+      "treble": -0.8,
       "distance": 0,
       "room": 0.1,
       "angle": 1,
-      "noise": 0.05
+      "noise": 0.05,
+      "output": 0
     }
   },
   "origin": {
     "kind": "new",
-    "note": "placeholder"
+    "note": "Written for live-mix on cpp/kit. Models re-amping in outline: one valve-like amplifier stage with a tone stack and supply sag, five loudspeakers built from second-order filter sections (cabinet resonance, driver peaks and dips, cone breakup, a fourth-order roll-off) with a motor that weakens with cone excursion, and a microphone that moves from the cone into a room made of a seeded early-reflection pattern and an eight-line feedback delay network. Not a circuit model of any amplifier and not measured from any speaker. The saturator is anti-aliased with first-order antiderivative anti-aliasing (Parker, Zavalishin and Le Bivic, 'Reducing the aliasing of nonlinear waveshaping using continuous-time convolution', DAFx 2016) inside 4x oversampling; the room's tail follows Jot and Chaigne, 'Digital delay networks for designing artificial reverberators' (AES 1991), with a Hadamard feedback matrix. The second half-band stage is the design in cpp/devices/saturator/halfband.h, copied into this directory."
   }
 }

@@ -87,29 +87,63 @@
       "width": 0.8,
       "hold": 6
     },
-    "Old record": { "type": 1, "level": -36, "tone": -0.2, "movement": 0.5, "width": 0.7, "hold": 8 },
-    "Empty room": { "type": 2, "level": -34, "movement": 0.6, "width": 1, "hold": 20 },
-    "Amp left on": { "type": 4, "level": -40, "tone": 0.2, "movement": 0.3, "width": 0.3, "hold": 30 },
-    "Between stations": { "type": 5, "level": -32, "tone": 0.1, "movement": 0.8, "width": 0.5, "hold": 10 },
+    "Old record": {
+      "type": 1,
+      "level": -36,
+      "tone": -0.2,
+      "movement": 0.5,
+      "width": 0.7,
+      "hold": 8
+    },
+    "Empty room": {
+      "type": 2,
+      "level": -34,
+      "movement": 0.6,
+      "width": 1,
+      "hold": 20
+    },
+    "Amp left on": {
+      "type": 4,
+      "level": -40,
+      "tone": 0.2,
+      "movement": 0.3,
+      "width": 0.3,
+      "hold": 30
+    },
+    "Between stations": {
+      "type": 5,
+      "level": -36,
+      "tone": 0.1,
+      "movement": 0.6,
+      "width": 0.5,
+      "hold": 10
+    },
     "Breathing recorder": {
       "type": 0,
-      "level": -30,
-      "follow": -0.8,
-      "response": 1.2,
+      "level": -28,
+      "follow": -1,
+      "response": 0.9,
       "tone": -0.2,
       "movement": 0.4,
       "hold": 15
     },
     "Rides the sound": {
       "type": 0,
-      "level": -26,
+      "level": -30,
       "follow": 1,
       "response": 0.15,
       "tone": 0.1,
       "movement": 0.2,
       "hold": 2
     },
-    "Close microphone": { "type": 6, "level": -40, "follow": 0.3, "movement": 0.4, "width": 1, "hold": 10 }
+    "Close microphone": {
+      "type": 6,
+      "level": -40,
+      "follow": 0.3,
+      "movement": 0.4,
+      "width": 1,
+      "hold": 10
+    }
   },
   "origin": {
     "kind": "new",

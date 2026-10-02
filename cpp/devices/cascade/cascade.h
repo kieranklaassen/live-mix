@@ -57,6 +57,8 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
     preroll_ = static_cast<int>(kPrerollSeconds * sr);
     fade_step_ = 1.0f / (kStealSeconds * sr);
     slice_count_ = 0;
+    step_ = 0;
+    cycle_ = 480.0f;
     restart_slots();
     for (int c = 0; c < 2; ++c) tone_[c].reset();
     tone_hz_.set_time(0.01f, sr / kControlPeriod);
@@ -66,7 +68,10 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
     trim_.set_time(0.02f, sr);
     mix_.set_time(kSmoothingSeconds, sr);
     mix_seen_ = -1.0f;
-    clock_.reset(kControlPeriod);
+    held_ = 0.0f;
+    hold_attack_ = kit::time_to_coeff(0.002f, sr);
+    hold_release_ = kit::time_to_coeff(0.25f, sr);
+    control_left_ = 0;
     idle_.reset(sr, 0.05f);
     for (int id = 0; id < kNumParams; ++id) apply(id);
   }
@@ -85,53 +90,20 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
     }
     // The ring was not written while asleep: a slot must not span the gap.
     if (was_asleep) restart_slots();
-    const float sr = sample_rate();
-    for (int i = 0; i < frames; ++i) {
-      float in[2];
-      take_input(i, &in[0], &in[1]);
-
-      if (clock_.tick()) {
-        const float hz = tone_hz_.next();
-        for (int c = 0; c < 2; ++c) tone_[c].set(hz, 0.6f, sr);
-        trim_.set_target(wet_trim());
-        slot_samples_ = static_cast<long long>(param(kTime) * 0.001f * sr);
+    int done = 0;
+    while (done < frames) {
+      if (control_left_ == 0) {
+        control();
+        control_left_ = kControlPeriod;
       }
-
-      const float x = dc_.process(0.5f * (in[0] + in[1]));
-      if (!slot_has_sound_ && (x > kThreshold || x < -kThreshold)) {
-        slot_has_sound_ = true;
-        if (written_ - preroll_ > slot_begin_) slot_begin_ = written_ - preroll_;
-      }
-      record(x);
-      const long long elapsed = written_ - slot_begin_;
-      if (elapsed >= slot_samples_) {
-        const float length = static_cast<float>(elapsed - guard_);
-        if (slot_has_sound_ && length >= 0.02f * sr) {
-          capture(slot_begin_, length, static_cast<float>(elapsed));
-        }
-        slot_begin_ = written_;
-        slot_has_sound_ = false;
-      }
-
-      const float role_gain[kNumRoles] = {1.0f, high_.next(), low_.next()};
-      const float spread = spread_.next();
-      const float trim = trim_.next();
-      float mid = 0.0f;
-      float side = 0.0f;
-      if (active_ > 0) render(role_gain, &mid, &side);
-      float wet[2] = {(mid - spread * side) * trim, (mid + spread * side) * trim};
-      for (int c = 0; c < 2; ++c) {
-        // Linear up to full scale: only a pile-up of loud voices is held.
-        wet[c] = 2.0f * kit::soft_clip(0.5f * tone_[c].lowpass(wet[c]));
-      }
-
-      const float mix = mix_.next();
-      if (mix != mix_seen_) {
-        mix_seen_ = mix;
-        kit::equal_power(mix, &dry_gain_, &wet_gain_);
-      }
-      out_left_[i] = in[0] * dry_gain_ + wet[0] * wet_gain_;
-      out_right_[i] = in[1] * dry_gain_ + wet[1] * wet_gain_;
+      // A chunk ends at the next control tick or at the end of the slot,
+      // whichever is first, wherever the host's blocks fall.
+      int count = frames - done < control_left_ ? frames - done : control_left_;
+      const long long until = slot_begin_ + slot_samples_ - written_;
+      if (until >= 1 && until < count) count = static_cast<int>(until);
+      chunk(done, count);
+      done += count;
+      control_left_ -= count;
     }
     idle_.settle(output_peak(frames), frames);
   }
@@ -161,8 +133,10 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
   static constexpr float kAttackSeconds = 0.002f;
   // -60 dBFS: what counts as sound in a slot.
   static constexpr float kThreshold = 0.001f;
+  // -2 dBFS: where the wet level starts to be held down.
+  static constexpr float kCeiling = 0.8f;
 
-  enum Role : int { kMain = 0, kHigh, kLow, kNumRoles };
+  enum Role : int { kRoleMain = 0, kRoleHigh, kRoleLow, kNumRoles };
   enum Pattern : int { kMosaic = 0, kStrum, kTunnel, kSteps };
 
   struct Voice {
@@ -174,11 +148,14 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
     int part = 0;
     bool fifths = false;
     bool flip = false;
+    int first_step = 0;
     double slice_start = 0.0;
     float slice_len = 0.0f;
     float period = 0.0f;
     int repeats = 1;
     float trim = 1.0f;
+    float cycle = 480.0f;
+    kit::Rng rng;
     // Where it is in its schedule.
     int pass = 0;
     float elapsed = 0.0f;
@@ -195,7 +172,7 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
     float shape = 0.5f;
     float gain = 0.0f;
     float pan = 0.0f;
-    int role = kMain;
+    int role = kRoleMain;
     float lp_a = 0.0f;
     float lp1 = 0.0f;
     float lp2 = 0.0f;
@@ -263,13 +240,6 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
                         ring[(whole + 2) & mask], t);
   }
 
-  float read(const Voice& voice) const {
-    const float* ring = voice.level == 0 ? ring0_ : (voice.level == 1 ? ring1_ : ring2_);
-    const int mask = (kRing0 >> voice.level) - 1;
-    if (voice.exact) return ring[static_cast<long long>(voice.position) & mask];
-    return hermite_at(ring, mask, voice.position);
-  }
-
   // Work out pass number `voice.pass` of a voice: what stretch of the slice
   // it reads, how fast, how loud, where, and how long until the next pass.
   // False when the voice has nothing left to play.
@@ -287,14 +257,15 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
     float pan = 0.0f;
     float age = voice.elapsed / period;
     float extra_dark = 0.0f;
+    int direction = 0;
+    float swell = 0.5f;
     switch (voice.pattern) {
       case kStrum:
         if (!strum_pass(voice, &speed, &length, &grid, &pan)) return false;
         age = static_cast<float>(k);
         break;
       case kTunnel:
-        if (!tunnel_pass(voice, &speed, &offset, &length, &pan)) return false;
-        grid = length / speed;
+        if (!tunnel_pass(voice, &speed, &offset, &length, &grid, &pan, &direction, &swell)) return false;
         extra_dark = 0.3f;
         break;
       case kSteps:
@@ -304,8 +275,9 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
           grid = 2.0f * period;
         } else {
           if (k >= count) return false;
-          speed = voice.fifths ? kStepsFifths[k & 7] : kStepsOctaves[k & 3];
-          if (speed > 1.0f) pan = ((k & 1) ? 1.0f : -1.0f) * (0.3f + 0.7f * (speed - 1.0f) / 3.0f);
+          const int step = voice.first_step + k;
+          speed = voice.fifths ? kStepsFifths[step & 7] : kStepsOctaves[step & 3];
+          if (speed > 1.0f) pan = ((step & 1) ? 1.0f : -1.0f) * (0.4f + 0.6f * (speed - 1.0f) / 3.0f);
         }
         break;
       case kMosaic:
@@ -316,7 +288,7 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
     const float run = length / speed;
     if (voice.elapsed + run > kMaxLifeSeconds * sr) return false;
 
-    voice.role = speed > 1.0f ? kHigh : (speed < 1.0f ? kLow : kMain);
+    voice.role = speed > 1.0f ? kRoleHigh : (speed < 1.0f ? kRoleLow : kRoleMain);
     const float placed = pan * param(kSpread);
     voice.pan = pan;
     voice.gain = std::pow(repeat_gain(), age) * accent * voice.trim / std::sqrt(1.0f + placed * placed);
@@ -329,7 +301,8 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
       voice.lp_a = std::exp(-kit::kTwoPi * hz / sr);
     }
 
-    const bool reversed = rng_.uniform() < param(kReverse);
+    const bool chance = voice.rng.uniform() < param(kReverse);
+    const bool reversed = direction < 0 || (direction == 0 && chance);
     voice.level = speed > 2.0f ? 2 : (speed > 1.0f ? 1 : 0);
     const double scale = static_cast<double>(1 << voice.level);
     const double lag = voice.level == 0 ? 0.0 : (voice.level == 1 ? kLag1 : kLag2);
@@ -351,7 +324,7 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
     voice.phase = 0.0f;
     voice.phase_step = 1.0f / static_cast<float>(samples);
     voice.shape = param(kShape);
-    voice.attack = kit::lerp(kit::min(0.5f, kAttackSeconds * sr * voice.phase_step), 0.5f, voice.shape);
+    voice.attack = kit::lerp(kit::min(swell, kAttackSeconds * sr * voice.phase_step), swell, voice.shape);
     voice.inv_attack = 1.0f / voice.attack;
     voice.inv_release = 1.0f / (1.0f - voice.attack);
     voice.elapsed += grid;
@@ -363,9 +336,9 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
   // so a x2 part comes round twice and a x4 part four times in one Time.
   // Parts: 0 = x1, 1 = x2, 2 = x4, 3 = x1/2, 4 = x3/2, 5 = x3.
   static constexpr float kMosaicSpeed[6] = {1.0f, 2.0f, 4.0f, 0.5f, 1.5f, 3.0f};
-  static constexpr float kPanFour[4] = {-1.0f, 0.4f, -0.4f, 1.0f};
-  static constexpr float kAccentFour[4] = {0.6f, 1.0f, 0.8f, 0.9f};
-  static constexpr float kPanThree[3] = {0.55f, -0.55f, 0.0f};
+  static constexpr float kPanFour[4] = {-0.9f, 0.5f, -0.5f, 0.9f};
+  static constexpr float kAccentFour[4] = {0.7f, 1.0f, 0.85f, 0.95f};
+  static constexpr float kPanThree[3] = {0.65f, -0.65f, 0.0f};
   static constexpr float kAccentThree[3] = {0.8f, 1.0f, 0.9f};
   static constexpr float kStepsOctaves[4] = {1.0f, 2.0f, 4.0f, 2.0f};
   static constexpr float kStepsFifths[8] = {1.0f, 1.5f, 2.0f, 3.0f, 4.0f, 3.0f, 2.0f, 1.5f};
@@ -379,11 +352,11 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
     if (k >= passes) return false;
     switch (voice.part) {
       case 0:
-        *pan = (k & 1) ? 0.25f : -0.25f;
+        *pan = (k & 1) ? 0.3f : -0.3f;
         break;
       case 1:
-        *pan = (k & 1) ? -0.7f : 0.7f;
-        *accent = (k & 1) ? 1.0f : 0.75f;
+        *pan = (k & 1) ? -1.0f : 1.0f;
+        *accent = (k & 1) ? 1.0f : 0.8f;
         break;
       case 2:
         *pan = kPanFour[k & 3];
@@ -437,33 +410,131 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
     return true;
   }
 
-  // Tunnel: a short piece of the slice, past its attack, looped until
-  // Repeats x Time has gone by. Each pass takes in 12 % more of the slice.
-  // Parts 0 and 1 are the same loop half a pass apart (part 1's passes are
-  // the mean of part 0's neighbours, so it stays half a pass behind): under
-  // a full swell they add up to a steady drone. 2 = above, 3 = x1/2.
-  bool tunnel_pass(const Voice& voice, float* speed, float* offset, float* length, float* pan) const {
+  // How unlike itself the ring is `lag` samples on: the squared difference
+  // between `points` samples from `at` (every `stride`-th) and the same
+  // samples `lag` later, over the energy of both. 0 is a perfect repeat, 1
+  // unrelated sound. (The difference function of de Cheveigné and Kawahara's
+  // YIN, normalised.)
+  static float unlikeness(const float* ring, int mask, long long at, long long lag, int points, int stride) {
+    float difference = 0.0f;
+    float energy = 1.0e-12f;
+    for (int n = 0; n < points; ++n) {
+      const float a = ring[(at + n * stride) & mask];
+      const float b = ring[(at + n * stride + lag) & mask];
+      difference += (a - b) * (a - b);
+      energy += a * a + b * b;
+    }
+    return difference / energy;
+  }
+
+  // The lag, in input samples, at which the slice is most like itself from
+  // `from` on: its period if it is one note, the common period if it is a
+  // chord. Searched from 2.5 to 25 ms on the x4 ring, then to the sample (and
+  // a fraction, by a parabola through the minimum) on the full one.
+  float find_cycle(double from, float room) const {
+    const float sr = sample_rate();
+    const float longest = kit::min(0.025f * sr, room / 3.0f);
+    const float shortest = kit::min(0.0025f * sr, 0.5f * longest);
+    const float span = kit::min(0.03f * sr, room - longest);
+    const long long at4 = static_cast<long long>((from + kLag2) * 0.25);
+    const int points4 = static_cast<int>(span * 0.125f);
+    int best4 = static_cast<int>(shortest * 0.25f) + 1;
+    float lowest = 1.0e9f;
+    for (int lag = best4; lag <= static_cast<int>(longest * 0.25f); ++lag) {
+      const float value = unlikeness(ring2_, kRing2 - 1, at4, lag, points4, 2);
+      if (value < lowest) {
+        lowest = value;
+        best4 = lag;
+      }
+    }
+    const long long at = static_cast<long long>(from);
+    const int points = static_cast<int>(span * 0.25f);
+    float around[11];
+    int best = 5;
+    for (int i = 0; i < 11; ++i) {
+      around[i] = unlikeness(ring0_, kRing0 - 1, at, 4 * best4 - 5 + i, points, 4);
+      if (around[i] < around[best]) best = i;
+    }
+    float fraction = 0.0f;
+    if (best > 0 && best < 10) {
+      const float curve = around[best - 1] - 2.0f * around[best] + around[best + 1];
+      if (curve > 1.0e-9f) fraction = kit::clamp(0.5f * (around[best - 1] - around[best + 1]) / curve, -0.5f, 0.5f);
+    }
+    return static_cast<float>(4 * best4 - 5 + best) + fraction;
+  }
+
+  // Tunnel: a piece of the slice, past its attack, looped until Repeats x
+  // Time has gone by, each pass 12 % of the first piece longer. Parts 0 and 1
+  // play the same piece half a pass apart, and the piece is cut to a whole
+  // number of the slice's cycles on each side of its middle, so wherever the
+  // two overlap they are playing the same phase of the sound: under a full
+  // swell they join into one unbroken drone instead of beating against each
+  // other. Parts 2 (above) and 3 (x1/2) loop the same piece alone.
+  float tunnel_start(const Voice& voice) const {
+    return kit::min(0.1f * voice.slice_len, 0.02f * sample_rate());
+  }
+
+  // Half the length of pass k's piece in input samples: the wanted length as
+  // a whole number of cycles, then moved a few samples to where the slice
+  // repeats best.
+  int tunnel_half(const Voice& voice, int k) const {
+    const float sr = sample_rate();
+    const float start = tunnel_start(voice);
+    const float most = 0.5f * (voice.slice_len - start) - 8.0f;
+    const float wanted = kit::min(
+        kit::max(0.125f * voice.period, 0.015f * sr) * (1.0f + 0.12f * static_cast<float>(k)), most);
+    int cycles = static_cast<int>(wanted / voice.cycle + 0.5f);
+    if (cycles < 1) cycles = 1;
+    while (cycles > 1 && static_cast<float>(cycles) * voice.cycle > most) --cycles;
+    const int centre = static_cast<int>(kit::min(static_cast<float>(cycles) * voice.cycle, most) + 0.5f);
+    const int reach = cycles >= 48 ? 8 : 2 + cycles / 8;
+    const int stride = 1 + static_cast<int>(kit::min(static_cast<float>(centre), 0.03f * sr)) / 256;
+    const int points = static_cast<int>(kit::min(static_cast<float>(centre), 0.03f * sr)) / stride;
+    const long long at = static_cast<long long>(voice.slice_start + start);
+    int best = centre;
+    float lowest = 1.0e9f;
+    for (int lag = centre - reach; lag <= centre + reach; ++lag) {
+      if (lag < 16 || static_cast<float>(lag) > most) continue;
+      // Ties (silence) go to the wanted length.
+      const float value = unlikeness(ring0_, kRing0 - 1, at, lag, points, stride) +
+                          1.0e-6f * static_cast<float>(lag > centre ? lag - centre : centre - lag);
+      if (value < lowest) {
+        lowest = value;
+        best = lag;
+      }
+    }
+    return best < 16 ? 16 : best;
+  }
+
+  bool tunnel_pass(const Voice& voice, float* speed, float* offset, float* length, float* grid,
+                   float* pan, int* direction, float* swell) const {
     const int k = voice.pass;
     if (voice.elapsed >= static_cast<float>(voice.repeats) * voice.period) return false;
-    *offset = 0.1f * voice.slice_len;
-    const float room = voice.slice_len - *offset;
-    const float first = tunnel_piece(voice);
-    const float grown = first * std::pow(1.12f, static_cast<float>(k));
-    float piece = kit::min(grown, room);
-    if (voice.part == 1) piece = 0.5f * (piece + kit::min(grown * 1.12f, room));
-    *length = piece;
+    const float half = static_cast<float>(tunnel_half(voice, k));
+    *offset = tunnel_start(voice);
     *speed = voice.part == 3 ? 0.5f : (voice.part == 2 ? (voice.fifths ? 1.5f : 2.0f) : 1.0f);
-    *pan = voice.part == 0 ? -0.5f : (voice.part == 1 ? 0.5f : (voice.part == 2 ? ((k & 1) ? 0.8f : -0.8f) : 0.0f));
+    if (voice.part == 1) {
+      // From the middle of part 0's pass k to the middle of its pass k + 1.
+      const float next = static_cast<float>(tunnel_half(voice, k + 1));
+      *length = half + next;
+      *swell = half / (half + next);
+      *direction = 1;
+      *pan = 0.5f;
+    } else {
+      *length = 2.0f * half;
+      if (voice.part == 0) {
+        *direction = 1;
+        *pan = -0.5f;
+      } else if (voice.part == 2) {
+        *pan = (k & 1) ? 0.8f : -0.8f;
+      }
+    }
+    *grid = *length / *speed;
     return true;
   }
 
-  float tunnel_piece(const Voice& voice) const {
-    const float room = 0.9f * voice.slice_len;
-    return kit::min(kit::max(0.25f * voice.period, 0.03f * sample_rate()), 0.5f * room);
-  }
-
   float role_level(int role) const {
-    return role == kHigh ? high_.value : (role == kLow ? low_.value : 1.0f);
+    return role == kRoleHigh ? high_.value : (role == kRoleLow ? low_.value : 1.0f);
   }
 
   // Start one part of a slice. With the pool full the quietest voice that
@@ -494,12 +565,15 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
       voice.part = part;
       voice.fifths = param(kInterval) > 0.5f;
       voice.flip = (slice_count_ & 1) != 0;
+      voice.first_step = step_;
       voice.slice_start = start;
       voice.slice_len = length;
       voice.period = period;
       voice.repeats = repeats();
       voice.trim = trim;
+      voice.cycle = cycle_;
       voice.wait = delay;
+      voice.rng.seed(rng_.next_u32());
       ++live_;
       ++active_;
       return;
@@ -514,6 +588,15 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
     const bool high = param(kHigh) > 0.001f;
     const bool low = param(kLow) > 0.001f;
     const double at = static_cast<double>(start);
+    Voice probe;
+    if (pattern == kTunnel) {
+      probe.slice_start = at;
+      probe.slice_len = length;
+      probe.period = period;
+      const float start = tunnel_start(probe);
+      cycle_ = find_cycle(at + start, length - start);
+      probe.cycle = cycle_;
+    }
     add(pattern, 0, at, length, period, 1.0f, 0);
     switch (pattern) {
       case kStrum:
@@ -521,10 +604,8 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
         if (low) add(pattern, 2, at, length, period, 1.0f, 0);
         break;
       case kTunnel: {
-        Voice probe;
-        probe.slice_len = length;
-        probe.period = period;
-        add(pattern, 1, at, length, period, 1.0f, static_cast<int>(0.5f * tunnel_piece(probe)));
+        // Part 1 starts in the middle of part 0's first pass.
+        add(pattern, 1, at, length, period, 1.0f, tunnel_half(probe, 0));
         if (high) add(pattern, 2, at, length, period, 1.0f, 0);
         if (low) add(pattern, 3, at, length, period, 1.0f, 0);
         break;
@@ -594,56 +675,156 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
     --active_;
   }
 
-  // One output frame of every voice, as a centre sum and a left/right
-  // difference (a voice at `pan` adds pan times its signal to the latter).
-  void render(const float* role_gain, float* mid, float* side) {
-    float sum = 0.0f;
-    float difference = 0.0f;
-    for (Voice& voice : voices_) {
-      if (!voice.active) continue;
+  void control() {
+    using namespace cascade;
+    const float sr = sample_rate();
+    const float hz = tone_hz_.next();
+    for (int c = 0; c < 2; ++c) tone_[c].set(hz, 0.6f, sr);
+    trim_.set_target(wet_trim());
+    slot_samples_ = static_cast<long long>(param(kTime) * 0.001f * sr);
+  }
+
+  // `count` output frames of one voice, added per role to a centre sum and
+  // a left/right difference (a voice at `pan` adds pan times its signal to
+  // the latter).
+  void render(Voice& voice, int count, float (*mid)[kControlPeriod], float (*side)[kControlPeriod]) {
+    int at = 0;
+    while (at < count) {
       if (voice.remaining == 0) {
         if (voice.fading) {
           release(voice);
-          continue;
+          return;
         }
         if (voice.wait > 0) {
-          --voice.wait;
+          const int skip = voice.wait < count - at ? voice.wait : count - at;
+          voice.wait -= skip;
+          at += skip;
           continue;
         }
         if (!start_pass(voice)) {
           release(voice);
-          continue;
+          return;
         }
       }
-      float window;
-      if (voice.phase < voice.attack) {
-        window = 0.5f - 0.5f * kit::SineTable::cos_lookup(0.5f * voice.phase * voice.inv_attack);
-      } else {
-        const float fall =
-            0.5f + 0.5f * kit::SineTable::cos_lookup(0.5f * (voice.phase - voice.attack) * voice.inv_release);
-        const float steep = fall * fall * fall * fall;
-        window = steep + voice.shape * (fall - steep);
+      const int run = voice.remaining < count - at ? voice.remaining : count - at;
+      float* centre = mid[voice.role] + at;
+      float* across = side[voice.role] + at;
+      const float* ring = voice.level == 0 ? ring0_ : (voice.level == 1 ? ring1_ : ring2_);
+      const int mask = (kRing0 >> voice.level) - 1;
+      const float a = voice.lp_a;
+      const float fade_step = voice.fading ? fade_step_ : 0.0f;
+      float phase = voice.phase;
+      float lp1 = voice.lp1;
+      float lp2 = voice.lp2;
+      float fade = voice.fade;
+      long long whole = static_cast<long long>(voice.position);
+      const int direction = voice.step < 0.0 ? -1 : 1;
+      for (int i = 0; i < run; ++i) {
+        float window;
+        if (phase < voice.attack) {
+          const float t = phase * voice.inv_attack;
+          window = t * t * (3.0f - 2.0f * t);
+        } else {
+          const float t = (phase - voice.attack) * voice.inv_release;
+          const float fall = 1.0f - t * t * (3.0f - 2.0f * t);
+          const float steep = fall * fall * fall * fall;
+          window = steep + voice.shape * (fall - steep);
+        }
+        phase += voice.phase_step;
+        float sample;
+        if (voice.exact) {
+          sample = ring[whole & mask];
+          whole += direction;
+        } else {
+          sample = hermite_at(ring, mask, voice.position);
+          voice.position += voice.step;
+        }
+        if (a > 0.0f) {
+          lp1 = sample + (lp1 - sample) * a;
+          lp2 = lp1 + (lp2 - lp1) * a;
+          sample = lp2;
+        }
+        sample *= window * voice.gain * fade;
+        fade -= fade_step;
+        if (fade < 0.0f) fade = 0.0f;
+        centre[i] += sample;
+        across[i] += sample * voice.pan;
       }
-      float sample = read(voice);
-      voice.position += voice.step;
-      voice.phase += voice.phase_step;
-      if (voice.lp_a > 0.0f) {
-        voice.lp1 = flush_denormal(sample + (voice.lp1 - sample) * voice.lp_a);
-        voice.lp2 = flush_denormal(voice.lp1 + (voice.lp2 - voice.lp1) * voice.lp_a);
-        sample = voice.lp2;
-      }
-      sample *= window * voice.gain * role_gain[voice.role];
-      if (voice.fading) {
-        sample *= voice.fade;
-        voice.fade -= fade_step_;
-        if (voice.fade <= 0.0f) voice.remaining = 1;
-      }
-      sum += sample;
-      difference += sample * voice.pan;
-      --voice.remaining;
+      if (voice.exact) voice.position = static_cast<double>(whole);
+      voice.phase = phase;
+      voice.lp1 = flush_denormal(lp1);
+      voice.lp2 = flush_denormal(lp2);
+      voice.fade = fade;
+      voice.remaining -= run;
+      at += run;
+      if (voice.fading && fade <= 0.0f) voice.remaining = 0;
     }
-    *mid = sum;
-    *side = difference;
+  }
+
+  // Up to kControlPeriod frames: record the input, render the voices, mix.
+  void chunk(int offset, int count) {
+    using namespace cascade;
+    const float sr = sample_rate();
+    float dry[2][kControlPeriod];
+    for (int i = 0; i < count; ++i) {
+      take_input(offset + i, &dry[0][i], &dry[1][i]);
+      const float x = dc_.process(0.5f * (dry[0][i] + dry[1][i]));
+      if (!slot_has_sound_ && (x > kThreshold || x < -kThreshold)) {
+        slot_has_sound_ = true;
+        if (written_ - preroll_ > slot_begin_) slot_begin_ = written_ - preroll_;
+      }
+      record(x);
+    }
+
+    float mid[kNumRoles][kControlPeriod] = {};
+    float side[kNumRoles][kControlPeriod] = {};
+    if (active_ > 0) {
+      for (Voice& voice : voices_) {
+        if (voice.active) render(voice, count, mid, side);
+      }
+    }
+
+    for (int i = 0; i < count; ++i) {
+      const float high = high_.next();
+      const float low = low_.next();
+      const float centre = mid[kRoleMain][i] + high * mid[kRoleHigh][i] + low * mid[kRoleLow][i];
+      const float across =
+          spread_.next() * (side[kRoleMain][i] + high * side[kRoleHigh][i] + low * side[kRoleLow][i]);
+      const float trim = trim_.next();
+      float wet[2] = {tone_[0].lowpass((centre - across) * trim), tone_[1].lowpass((centre + across) * trim)};
+      // A held tone whose period divides Time comes back in phase with itself
+      // once per repeat and adds up in amplitude. Past kCeiling the wet level
+      // is turned down (2 ms to act, 250 ms to let go) rather than clipped;
+      // the clipper after it only catches what gets through while it acts.
+      const float left = wet[0] < 0.0f ? -wet[0] : wet[0];
+      const float right = wet[1] < 0.0f ? -wet[1] : wet[1];
+      const float loudest = left > right ? left : right;
+      held_ = flush_denormal(loudest + (held_ - loudest) * (loudest > held_ ? hold_attack_ : hold_release_));
+      const float hold = held_ > kCeiling ? kCeiling / held_ : 1.0f;
+      for (int c = 0; c < 2; ++c) wet[c] = 2.0f * kit::soft_clip(0.5f * wet[c] * hold);
+      const float mix = mix_.next();
+      if (mix != mix_seen_) {
+        mix_seen_ = mix;
+        kit::equal_power(mix, &dry_gain_, &wet_gain_);
+      }
+      out_left_[offset + i] = dry[0][i] * dry_gain_ + wet[0] * wet_gain_;
+      out_right_[offset + i] = dry[1][i] * dry_gain_ + wet[1] * wet_gain_;
+    }
+
+    const long long elapsed = written_ - slot_begin_;
+    if (elapsed >= slot_samples_) {
+      const float length = static_cast<float>(elapsed - guard_);
+      // Steps counts slots from the first one after a silence, so that
+      // everything sounding moves to the next speed together.
+      if (slot_has_sound_ && length >= 0.02f * sr) {
+        capture(slot_begin_, length, static_cast<float>(elapsed));
+        ++step_;
+      } else {
+        step_ = 0;
+      }
+      slot_begin_ = written_;
+      slot_has_sound_ = false;
+    }
   }
 
   float ring0_[kRing0];
@@ -655,11 +836,11 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
   kit::Rng rng_;
   kit::Svf tone_[2];
   kit::Smoother tone_hz_, high_, low_, spread_, trim_, mix_;
-  kit::ControlClock clock_;
   kit::IdleGate idle_;
   long long written_ = 0;
   float held1_ = 0.0f;
   float held2_ = 0.0f;
+  int control_left_ = 0;
   int live_ = 0;
   int active_ = 0;
   int guard_ = 0;
@@ -670,6 +851,9 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
   long long slot_samples_ = 0;
   bool slot_has_sound_ = false;
   long long slice_count_ = 0;
+  int step_ = 0;
+  float cycle_ = 480.0f;
+  float held_ = 0.0f, hold_attack_ = 0.0f, hold_release_ = 0.0f;
   float mix_seen_ = -1.0f, dry_gain_ = 1.0f, wet_gain_ = 0.0f;
 };
 

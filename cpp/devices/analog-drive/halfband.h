@@ -3,11 +3,13 @@
 #include <cmath>
 
 // 2x up and down through a linear-phase halfband FIR of 4·Half − 1 taps
-// (Kaiser window), the second stage of the 4x path. kit::Halfband2x is the
-// first stage; it has to be steep (63 taps) because the audio band ends just
-// under its transition. The second stage works on a signal that already has
-// an octave of headroom, so 31 taps reach -98 dB with a transition four times
-// as wide, at a quarter of the arithmetic per output sample.
+// (Kaiser window). The device uses two: Half = 16 (63 taps) between the
+// sample rate and twice it, which has to be steep because the audio band
+// ends just under its transition, and Half = 8 (31 taps) between twice and
+// four times, which works on a signal that already has an octave of headroom
+// and so reaches -98 dB with a transition four times as wide at a quarter of
+// the arithmetic per output sample. (The structure is the saturator's second
+// stage, cpp/devices/saturator/halfband.h, copied here.)
 //
 // Both directions read one contiguous window: every other tap of a halfband
 // is zero, so upsampling needs only the input history, and downsampling only
