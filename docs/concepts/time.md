@@ -21,13 +21,46 @@ t.pause() // keeps the position; start() re-pins there
 t.seek(42) // re-pins; sounding clips are re-evaluated by the scheduler
 t.setLoop({ enabled: true, lengthSec: 32 }) // numbered passes: iteration 0, 1, 2 …
 t.stop({ fadeSec: 0.75 }) // ramps sounding audio down over fadeSec, then position 0
-t.onChange(({ reason, state, position, fadeSec }) => …) // reason: start | pause | stop | seek | loop | end
+t.setRate(0.98) // the timeline runs 2% slow against the clock from here on
+t.onChange(({ reason, state, position, fadeSec }) => …) // reason: start | pause | stop | seek | loop | end | rate
 ```
 
 Loop passes are **numbered** and never reused across re-pins, so a scheduled
 start is identified for ever by `clipId:iteration:startSec`. With the loop off
 and a `lengthSec` set, the transport pauses at the end (reason `end`,
 `position().finished`); with no length it runs on.
+
+## Rate: the timeline against the clock
+
+`transport.rate` is how many timeline seconds pass in one second of the audio
+clock: 1 by default, and `setRate` changes it while the transport plays, the
+way a hand on a tape reel does. The transport re-pins where it is, on the pass
+it is in, so the position carries on without a jump and no pass is renumbered;
+`position()` and `contextTimeAt()` take the rate into account, and listeners
+hear reason `rate`.
+
+Everything positioned on the timeline stays in timeline seconds (clip starts
+and lengths, fades, lane breakpoints, the loop). What changes is how far apart
+those fall on the clock:
+
+- The **scheduler** looks the same clock time ahead, so further along a faster
+  timeline. On a change it cancels starts that have not begun and hands them
+  over again at their new clock times, and tells each schedulable the rate
+  (`Schedulable.retime`).
+- An **audio track** plays its linear clips at the rate as tape would: the
+  buffer is read that much faster or slower (`playbackRate`), so a clip sounds
+  higher and shorter or lower and longer, and what is left of a sounding
+  clip's fades and its end are written again where the clip now reaches them.
+  `track.setRate(rate, at)` does the same for a track played by hand.
+- **Lane automation** writes its breakpoints at the clock times the rate gives
+  them and, on a change, holds and ramps back onto the lane like after a seek.
+
+What does not follow: equal-power clips (Breathwork Live's, which runs on the
+clock alone) play at the clock's speed; stretch and element tracks start their
+clips at the right moment but play them at the clock's speed; instruments,
+live input and device tails are not on the tape at all. The rate is a live
+control, not part of the score, and `renderOffline` renders at whatever rate
+the engine's transport has (1 unless the host set one).
 
 ## The scheduler
 

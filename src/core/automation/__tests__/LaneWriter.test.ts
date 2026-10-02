@@ -403,4 +403,84 @@ describe('LaneWriter', () => {
       ])
     })
   })
+
+  describe('at another rate', () => {
+    it('writes a lane drawn on the timeline that much further apart on the clock', () => {
+      const param = new MockAudioParam()
+      const writer = new LaneWriter(swell(), param)
+      // Half speed: a second of lane takes two of clock, and 1 s of lookahead reaches 0.5 s of lane.
+      writer.tick({ playheadSec: 1, lookaheadSec: 1, contextTimeSec: 10, rate: 0.5 })
+      expect(calls(param)).toEqual([
+        ['setValueAtTime', 0.5, 10],
+        ['linearRampToValueAtTime', 1, 12],
+      ])
+      expect(writer.writtenUntilSec).toBe(2)
+      writer.tick({ playheadSec: 1.75, lookaheadSec: 1, contextTimeSec: 11.5, rate: 0.5 })
+      expect(calls(param).slice(2)).toEqual([['linearRampToValueAtTime', 0, 16]])
+    })
+
+    it('holds where it is and ramps back onto the lane when the rate changes', () => {
+      const param = new MockAudioParam()
+      const writer = new LaneWriter(swell(), param, { joinRampSec: 0.1 })
+      writer.tick({ playheadSec: 0, lookaheadSec: 0.2, contextTimeSec: 100 })
+      writer.tick({ playheadSec: 1, lookaheadSec: 0.2, contextTimeSec: 101 })
+      param.events.length = 0
+      // Twice as fast from here: the rest of the rise is over in half the clock time.
+      writer.tick({ playheadSec: 1, lookaheadSec: 0.2, contextTimeSec: 101, rate: 2 })
+      expect(rounded(param)).toEqual([
+        ['cancelAndHoldAtTime', 101],
+        ['linearRampToValueAtTime', 0.55, 101.05],
+        ['linearRampToValueAtTime', 1, 101.5],
+      ])
+      // The same rate again is not a change.
+      writer.tick({ playheadSec: 1.2, lookaheadSec: 0.2, contextTimeSec: 101.1, rate: 2 })
+      expect(param.events).toHaveLength(3)
+    })
+
+    it('holds an overridden param at the lane value the rate has reached', () => {
+      const param = firefoxParam()
+      const writer = new LaneWriter(swell(), param)
+      writer.tick({ playheadSec: 0, lookaheadSec: 1, contextTimeSec: 10, rate: 0.5 })
+      writer.override(12)
+      expect(calls(param).slice(-2)).toEqual([
+        ['cancelScheduledValues', 12],
+        ['setValueAtTime', 0.5, 12],
+      ])
+    })
+
+    it('reads the rate off the transport and rejoins as it changes', () => {
+      const ctx = createMockContext()
+      const transport = new Transport({ now: () => ctx.currentTime })
+      const param = new MockAudioParam()
+      const writer = new LaneWriter(swell(), param, { joinRampSec: 0.1 })
+      ctx.currentTime = 50
+      transport.start()
+      writer.tick(laneWindowFrom(transport, 0.2))
+      ctx.currentTime = 51
+      transport.setRate(0.5)
+      param.events.length = 0
+      writer.tick(laneWindowFrom(transport, 0.2))
+      // The join's 0.1 s of lane is 0.2 s of clock at half speed.
+      expect(rounded(param)).toEqual([
+        ['cancelAndHoldAtTime', 51],
+        ['linearRampToValueAtTime', 0.55, 51.2],
+      ])
+      ctx.currentTime = 51.1
+      writer.tick(laneWindowFrom(transport, 0.2))
+      expect(rounded(param).slice(2)).toEqual([['linearRampToValueAtTime', 1, 53]])
+    })
+
+    it('wraps the loop where the timeline does on the clock', () => {
+      const param = new MockAudioParam()
+      const writer = new LaneWriter(swell(), param, { joinRampSec: 0 })
+      const window = { lookaheadSec: 1, loopEnabled: true, loopLengthSec: 4, rate: 2 }
+      writer.tick({ ...window, playheadSec: 3, contextTimeSec: 20, iteration: 0 })
+      // 1 s of clock is 2 s of lane: through the loop's end and a second into the next pass.
+      expect(calls(param)).toEqual([
+        ['setValueAtTime', 0.5, 20],
+        ['linearRampToValueAtTime', 0, 20.5],
+        ['linearRampToValueAtTime', 1, 21.5],
+      ])
+    })
+  })
 })
