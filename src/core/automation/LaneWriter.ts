@@ -167,7 +167,7 @@ export class LaneWriter {
   private laneValueAt(unwrappedSec: number): number {
     const length = this.loopLengthSec
     const local =
-      length > 0 ? unwrappedSec - Math.floor(unwrappedSec / length) * length : unwrappedSec
+      length > 0 ? Math.max(0, unwrappedSec - passAt(unwrappedSec, length) * length) : unwrappedSec
     return this.lane.valueAt(local)
   }
 

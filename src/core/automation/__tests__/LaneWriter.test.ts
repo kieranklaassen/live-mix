@@ -413,6 +413,30 @@ describe('LaneWriter', () => {
       )
     })
 
+    it('reads the start of a pass whose length a float cannot hold exactly', () => {
+      // Twenty-nine passes of 35.765 s divided back by the length lands a hair
+      // under 29, so folding the playhead with a bare floor read the lane at
+      // the end of pass twenty-eight and anchored on the end-of-loop value.
+      const lengthSec = 35.765
+      const lane = new ParamLane({
+        breakpoints: [
+          { timeSec: 0, value: 0 },
+          { timeSec: lengthSec, value: 1 },
+        ],
+      })
+      const param = new MockAudioParam()
+      const writer = new LaneWriter(lane, param, { joinRampSec: 0 })
+      writer.tick({
+        playheadSec: 0,
+        lookaheadSec: 1,
+        contextTimeSec: 29 * lengthSec,
+        loopEnabled: true,
+        loopLengthSec: lengthSec,
+        iteration: 29,
+      })
+      expect(calls(param)[0]).toEqual(['setValueAtTime', 0, 29 * lengthSec])
+    })
+
     it('writes the wrap once when a window ends exactly on the loop boundary', () => {
       const param = new MockAudioParam()
       const lane = new ParamLane({
