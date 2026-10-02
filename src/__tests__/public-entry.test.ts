@@ -328,8 +328,6 @@ const coreSymbols = [
   'isStatefulDevice',
   'patchInstrumentOps',
   'DEFAULT_INSTRUMENT_TAIL_SECONDS',
-  // Devices that report what they are doing
-  'isMeteredDevice',
 ] as const
 
 const dspSymbols = [
