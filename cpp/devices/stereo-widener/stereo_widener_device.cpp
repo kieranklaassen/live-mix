@@ -47,6 +47,14 @@ void StereoWidenerDevice::set_param(StereoWidenerParam param, float value) {
 void StereoWidenerDevice::process(int frames) {
   if (frames > kMaxBlockFrames) frames = kMaxBlockFrames;
 
+  if (asleep() && !block_present(in_left_, in_right_, frames)) {
+    for (int i = 0; i < frames; ++i) {
+      out_left_[i] = 0.0f;
+      out_right_[i] = 0.0f;
+    }
+    return;
+  }
+
   for (int i = 0; i < frames; ++i) {
     float left = in_left_[i];
     float right = in_right_[i];

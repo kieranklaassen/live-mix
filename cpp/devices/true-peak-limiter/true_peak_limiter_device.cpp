@@ -2,6 +2,8 @@
 
 #include <cmath>
 
+#include "../../common/dsp_util.h"
+
 namespace livemix {
 
 namespace {
@@ -26,6 +28,10 @@ void TruePeakLimiterDevice::init(float sample_rate) {
   limiter_.setReleaseMs(TruePeakLimiter::kDefaultReleaseMs);
   limiter_.setInputGainDb(TruePeakLimiter::kDefaultInputGainDb);
   limiter_.prepare(sample_rate);
+  idle_.reset(sample_rate, kIdleHoldSeconds);
+  // Awake to begin with: once a block has run, a new ceiling or gain ramps
+  // instead of snapping, whether or not the block carried sound.
+  idle_.wake(true);
 }
 
 void TruePeakLimiterDevice::set_param(TruePeakLimiterParam param, float value) {
@@ -59,6 +65,14 @@ float TruePeakLimiterDevice::param_value(TruePeakLimiterParam param) const {
 
 void TruePeakLimiterDevice::process(int frames) {
   if (frames > kMaxBlockFrames) frames = kMaxBlockFrames;
+  const bool excited = !limiter_.settled() || block_present(in_left_, in_right_, frames);
+  if (!idle_.wake(excited)) {
+    for (int i = 0; i < frames; ++i) {
+      out_left_[i] = 0.0f;
+      out_right_[i] = 0.0f;
+    }
+    return;
+  }
   for (int i = 0; i < frames; ++i) {
     float left = in_left_[i];
     float right = in_right_[i];
@@ -69,6 +83,8 @@ void TruePeakLimiterDevice::process(int frames) {
     out_left_[i] = left;
     out_right_[i] = right;
   }
+  // While excited the gate is awake whatever comes out: no need to look.
+  if (!excited) idle_.settle(block_peak(out_left_, out_right_, frames), frames);
 }
 
 }  // namespace livemix

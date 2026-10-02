@@ -121,6 +121,8 @@ export class NodeDevice<
   private readonly wet: GainNode
   private readonly values = new Map<string, number>()
   private readonly changes = new Emitter<DeviceChange>()
+  // AudioParams outside the graph that are written along with a parameter's own (`follow`).
+  private readonly followers = new Map<string, Set<AudioParam>>()
   private bypassed = false
   private disposed = false
 
@@ -162,7 +164,7 @@ export class NodeDevice<
     if (!spec) throw new Error(`live-mix: ${this.id} has no parameter "${name}"`)
     const clamped = clampParam(spec, value)
     this.values.set(name, clamped)
-    if (!this.disposed) this.graph.apply[name](clamped, this.ramp)
+    if (!this.disposed) this.apply(name, clamped, this.ramp)
     this.changes.emit({ type: 'param', name, value: clamped })
   }
 
@@ -185,7 +187,50 @@ export class NodeDevice<
     const spec = this.params[name]
     if (!spec) throw new Error(`live-mix: ${this.id} has no parameter "${name}"`)
     if (this.disposed) return
-    this.graph.apply[name](clampParam(spec, value), write)
+    this.apply(name, clampParam(spec, value), write)
+  }
+
+  /**
+   * Keep an AudioParam outside the device in step with a parameter: `param`
+   * starts where the AudioParam the parameter's applier writes first stands
+   * now, and from then on is written whenever that one is, with the same
+   * value in the same way (a knob's ramp, a lane scheduled ahead, a cancel).
+   * For a gain elsewhere in the graph that has to move as this device's does
+   * (`SharedSpace`). Returns the function that lets go of it.
+   */
+  follow(name: keyof P & string, param: AudioParam): () => void {
+    if (!this.params[name]) throw new Error(`live-mix: ${this.id} has no parameter "${name}"`)
+    if (this.disposed) return () => undefined
+    let first: AudioParam | null = null
+    this.graph.apply[name](this.getParam(name), (own) => {
+      first ??= own
+    })
+    // (The cast: assigned in the callback above, which the compiler does not follow.)
+    const led = first as AudioParam | null
+    if (led) param.value = led.value
+    const followers = this.followers.get(name) ?? new Set<AudioParam>()
+    this.followers.set(name, followers)
+    followers.add(param)
+    return () => {
+      followers.delete(param)
+      if (followers.size === 0) this.followers.delete(name)
+    }
+  }
+
+  /** Runs a parameter's applier, and writes its followers what its first AudioParam is written. */
+  private apply(name: keyof P & string, value: number, write: ParamRamp): void {
+    const followers = this.followers.get(name)
+    if (!followers) {
+      this.graph.apply[name](value, write)
+      return
+    }
+    let led = false
+    this.graph.apply[name](value, (param, converted, rampSec) => {
+      write(param, converted, rampSec)
+      if (led) return
+      led = true
+      for (const follower of followers) write(follower, converted, rampSec)
+    })
   }
 
   get bypass(): boolean {
@@ -211,6 +256,7 @@ export class NodeDevice<
     if (this.disposed) return
     this.disposed = true
     this.changes.clear()
+    this.followers.clear()
     for (const node of [this.input, this.dry, this.wet, this.output, ...this.graph.nodes]) {
       node.disconnect()
     }

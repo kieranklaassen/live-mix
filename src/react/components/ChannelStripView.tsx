@@ -80,9 +80,10 @@ export function readSends(strip: ChannelStrip): readonly Send[] {
 }
 
 /**
- * An analyser tapped off the strip output, created in an effect (never during
- * render or on the server) and disposed on unmount. Null until mounted. The
- * context comes from the provided engine, else from the output node.
+ * An analyser tapped off the strip output (`ChannelStrip.tap`), created in an
+ * effect (never during render or on the server) and disposed on unmount.
+ * Null until mounted. The context comes from the provided engine, else from
+ * the output node.
  */
 export function useStripMeter(
   strip: ChannelStrip,
@@ -95,22 +96,18 @@ export function useStripMeter(
   useEffect(() => {
     if (!enabled) return
     let tap: AnalyserMeter
-    let output: AudioNode
+    let untap: () => void
     try {
-      output = strip.output
-      tap = new AnalyserMeter(ctx ?? output.context)
-      output.connect(tap.input)
+      tap = new AnalyserMeter(ctx ?? strip.output.context)
+      // The output, and what a track sends into a room it shares.
+      untap = strip.tap(tap.input)
     } catch {
       return
     }
     setMeter(tap)
     return () => {
       setMeter(null)
-      try {
-        output.disconnect(tap.input)
-      } catch {
-        // The strip may be disposed already.
-      }
+      untap()
       tap.dispose()
     }
   }, [strip, enabled, ctx])

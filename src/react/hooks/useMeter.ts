@@ -66,10 +66,12 @@ const SILENT: MeterSnapshot = {
 export function readMeter(source: MeterSource): MeterSnapshot {
   const { meter, lufs } = resolve(source)
   if (!meter && !lufs) return SILENT
-  const peak = meter ? meter.peak() : lufs ? lufs.peak : 0
+  // One read of the analyser for both figures.
+  const levels = meter ? meter.levels() : null
+  const peak = levels ? levels.peak : lufs ? lufs.peak : 0
   return {
     peak,
-    rms: meter ? meter.rms() : 0,
+    rms: levels ? levels.rms : 0,
     peakDb: gainToDb(peak),
     lufs: lufs ? lufs.reading : null,
     lufsShortTerm: lufs ? lufs.lufsShortTerm : -Infinity,

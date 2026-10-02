@@ -146,7 +146,9 @@ artefact, exactly like `createDattorroReverb`; `ZITA_REV1_DEVICE` /
 2. Add `build_device <name> <ClassName>` to `scripts/build-faust.sh` and run
    `pnpm build:faust` (the first run builds the compiler into `tmp/`).
 3. Write `cpp/faust/<name>.device.cpp` by copying `zita-rev1.device.cpp` and
-   changing the include and class name.
+   changing the include, the class name and the idle hold (how long the
+   device waits in silence before it sleeps; `faust_device.h` says what it
+   has to cover).
 4. Add `build_device <name> cpp/faust/<name>.device.cpp` to
    `scripts/build-wasm.sh`, run `pnpm build:wasm` (Emscripten 4.0.15) and
    commit `src/dsp/wasm/<name>.wasm`. Check the module memory still fits:

@@ -74,7 +74,9 @@ export {
   UTILITY_DEVICE,
   UTILITY_PARAMS,
   createUtility,
+  isUtility,
   utilityGain,
+  utilityIsLevelOnly,
   type Utility,
   type UtilityParamName,
 } from './Utility'

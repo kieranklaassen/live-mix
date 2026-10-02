@@ -401,6 +401,88 @@ void test_fft() {
   EXPECT(worst < 1.0e-5, "forward then inverse returns the signal");
 }
 
+// forward_real against forward on one real signal, every bin from 0 to N/2.
+// `worst` is the largest difference as a fraction of the largest bin;
+// `unequal` counts the bins that are not the same floats.
+enum RealFftSignal { kNoiseSignal, kTonesSignal, kOffsetSignal, kBinToneSignal, kClicksSignal };
+
+template <int N>
+void compare_real_fft(RealFftSignal signal, double* worst, int* unequal, int* bins) {
+  static kit::Fft<N> fft;
+  static float x[N], re[N], im[N], packed[N];
+  fft.init();
+  rng_state() = 0x5EEDu + static_cast<uint32_t>(N);
+  for (int n = 0; n < N; ++n) {
+    if (signal == kNoiseSignal) {
+      x[n] = white();
+    } else if (signal == kTonesSignal || signal == kBinToneSignal) {
+      // Two tones under a Hann window, so most bins hold leakage far below
+      // the peaks: both between bins, or the stronger one on a bin.
+      const double hann = 0.5 - 0.5 * std::cos(2.0 * kPi * n / N);
+      const double bin = signal == kBinToneSignal ? N / 8 : N / 8 + 0.31;
+      x[n] = static_cast<float>(
+          hann * (std::sin(2.0 * kPi * bin * n / N) + 0.3 * std::sin(2.0 * kPi * 2.37 * n / N + 0.4)));
+    } else if (signal == kOffsetSignal) {
+      x[n] = 0.25f + ((n & 1) ? -0.5f : 0.5f) + 0.01f * white();  // bins 0 and N/2
+    } else {
+      x[n] = n == 5 ? -0.5f : (n == N / 2 + 3 ? 1.0f : 0.0f);  // two clicks in silence
+    }
+    re[n] = x[n];
+    im[n] = 0.0f;
+  }
+  fft.forward(re, im);
+  fft.forward_real([](int n) { return x[n]; }, packed);
+  double largest = 0.0;
+  for (int k = 0; k <= N / 2; ++k) {
+    largest = std::max(largest, std::hypot(static_cast<double>(re[k]), static_cast<double>(im[k])));
+  }
+  for (int k = 0; k <= N / 2; ++k) {
+    const float real_re = packed[k];
+    const float real_im = (k == 0 || k == N / 2) ? 0.0f : packed[N - k];
+    const double off_re = std::fabs(static_cast<double>(real_re) - re[k]);
+    const double off_im = std::fabs(static_cast<double>(real_im) - im[k]);
+    *worst = std::max(*worst, std::max(off_re, off_im) / largest);
+    if (real_re != re[k] || real_im != im[k]) ++*unequal;
+    ++*bins;
+  }
+}
+
+void test_real_fft() {
+  // The tone on a bin and the clicks cancel exactly in places, the other
+  // signals nowhere.
+  double worst = 0.0, worst_exact = 0.0;
+  int unequal = 0, unequal_exact = 0, bins = 0, bins_exact = 0;
+  for (RealFftSignal signal : {kNoiseSignal, kTonesSignal, kOffsetSignal, kBinToneSignal, kClicksSignal}) {
+    const bool exact = signal == kBinToneSignal || signal == kClicksSignal;
+    double* w = exact ? &worst_exact : &worst;
+    int* u = exact ? &unequal_exact : &unequal;
+    int* b = exact ? &bins_exact : &bins;
+    // 8, 32 and 2048 have an odd number of stages after the first pass, the
+    // others an even one; 4096 is the frame of the analysers.
+    compare_real_fft<8>(signal, w, u, b);
+    compare_real_fft<16>(signal, w, u, b);
+    compare_real_fft<32>(signal, w, u, b);
+    compare_real_fft<64>(signal, w, u, b);
+    compare_real_fft<1024>(signal, w, u, b);
+    compare_real_fft<2048>(signal, w, u, b);
+    compare_real_fft<4096>(signal, w, u, b);
+    compare_real_fft<8192>(signal, w, u, b);
+  }
+  std::printf("  real fft: %d of %d bins differ from forward() on noise and tones (worst %.3g of the largest bin),"
+              " %d of %d on a tone on a bin and on clicks (worst %.3g)\n",
+              unequal, bins, worst, unequal_exact, bins_exact, worst_exact);
+  EXPECT(worst < 1.0e-6, "forward_real matches forward on a real signal in every bin");
+  // Where a real part cancels exactly, all that is left of it is the 6e-17
+  // the table holds for the cosine of a quarter turn, and forward() carries
+  // that into its mirrored half with the other sign.
+  EXPECT(worst_exact < 1.0e-12, "forward_real matches forward where the signal cancels exactly");
+#if !defined(__FP_FAST_FMAF) && !defined(FP_FAST_FMAF)
+  // With no fused multiply-add for the compiler to contract into (x86-64,
+  // WASM) the two do the same arithmetic, so the floats are the same.
+  EXPECT(unequal == 0, "forward_real gives the floats forward gives");
+#endif
+}
+
 void test_pitch_shifter() {
   kit::SineTable::init();
   static kit::DelayPitchShifter<8192> shifter;
@@ -831,6 +913,7 @@ int main() {
   test_fdn();
   test_hilbert();
   test_fft();
+  test_real_fft();
   test_pitch_shifter();
   test_oversampler();
   test_grains();

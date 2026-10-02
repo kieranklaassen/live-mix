@@ -11,6 +11,7 @@ void DattorroDevice::init(float sample_rate) {
     out_right_[i] = 0.0f;
   }
   reverb_.init(sample_rate);
+  idle_.reset(sample_rate, kIdleHoldSeconds);
 }
 
 void DattorroDevice::set_param(DattorroParam param, float value) {
@@ -32,7 +33,16 @@ void DattorroDevice::set_param(DattorroParam param, float value) {
 
 void DattorroDevice::process(int frames) {
   if (frames > kMaxBlockFrames) frames = kMaxBlockFrames;
+  if (!idle_.wake(block_present(in_left_, in_right_, frames))) {
+    reverb_.advance_modulators(frames);
+    for (int i = 0; i < frames; ++i) {
+      out_left_[i] = 0.0f;
+      out_right_[i] = 0.0f;
+    }
+    return;
+  }
   const float dry_gain = 1.0f - mix_;
+  bool ringing = false;
 
   for (int i = 0; i < frames; ++i) {
     const float dry_left = in_left_[i];
@@ -44,10 +54,13 @@ void DattorroDevice::process(int frames) {
     float wet_left = 0.0f;
     float wet_right = 0.0f;
     reverb_.process((dry_left + dry_right) * 0.5f, &wet_left, &wet_right);
+    if (wet_left != 0.0f || wet_right != 0.0f) ringing = true;
 
     out_left_[i] = dry_left * dry_gain + wet_left * mix_;
     out_right_[i] = dry_right * dry_gain + wet_right * mix_;
   }
+  // Exact silence, not the gate's floor: only then is the tank empty.
+  idle_.settle(ringing ? 1.0f : 0.0f, frames);
 }
 
 }  // namespace livemix

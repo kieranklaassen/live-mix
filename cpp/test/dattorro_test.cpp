@@ -27,6 +27,9 @@ constexpr int kBlock = 128;
 constexpr float kTwoPi = 6.28318530717958647692f;
 
 livemix::DattorroDevice g_test_device;
+// A plate on its own, run for every sample whether or not anything is in it:
+// what the device did before it could sleep.
+livemix::DattorroReverb g_awake_reverb;
 
 // Renders `seconds` of silence input, returning the peak absolute output and
 // optionally the left-channel RMS. NaN/inf poison the peak so callers notice.
@@ -222,6 +225,68 @@ void test_mix_law_matches_ambient_live() {
          "right dry scaled by (1 - mix) before the tail arrives");
 }
 
+void test_sleeps_when_empty_and_wakes_unchanged() {
+  livemix::DattorroDevice& device = g_test_device;
+  livemix::DattorroReverb& awake = g_awake_reverb;
+  device.init(kSampleRate);
+  awake.init(kSampleRate);
+  // Fully wet, so the device's output is the plate's and nothing else.
+  device.set_param(livemix::DattorroParam::kMix, 1.0f);
+  device.set_param(livemix::DattorroParam::kDecay, 0.3f);
+  awake.set_decay(0.3f);
+
+  // Feeds both `seconds` of the same tone (silence at gain 0), counting the
+  // samples that differ and keeping the device's peak over the stretch.
+  float phase = 0.0f;
+  float peak = 0.0f;
+  int mismatches = 0;
+  const auto run = [&](float seconds, float gain) {
+    const int total_frames = static_cast<int>(seconds * kSampleRate);
+    peak = 0.0f;
+    for (int rendered = 0; rendered < total_frames; rendered += kBlock) {
+      float wet_left[kBlock];
+      float wet_right[kBlock];
+      for (int i = 0; i < kBlock; ++i) {
+        const float value = gain * std::sin(phase);
+        phase += kTwoPi * 330.0f / kSampleRate;
+        if (phase >= kTwoPi) phase -= kTwoPi;
+        device.in_left()[i] = value;
+        device.in_right()[i] = value;
+        awake.process((value + value) * 0.5f, &wet_left[i], &wet_right[i]);
+      }
+      device.process(kBlock);
+      for (int i = 0; i < kBlock; ++i) {
+        if (device.out_left()[i] != wet_left[i] || device.out_right()[i] != wet_right[i]) {
+          ++mismatches;
+        }
+        peak = std::max(peak, std::max(std::fabs(device.out_left()[i]),
+                                       std::fabs(device.out_right()[i])));
+      }
+    }
+  };
+
+  EXPECT(device.asleep(), "a device nothing has reached yet is asleep");
+  run(1.0f, 0.0f);
+  EXPECT(device.asleep() && peak == 0.0f, "silence leaves it asleep, writing exact zeros");
+
+  run(0.25f, 0.5f);
+  EXPECT(!device.asleep() && peak > 0.01f, "input wakes it");
+  run(2.0f * livemix::DattorroDevice::kIdleHoldSeconds, 0.0f);
+  EXPECT(!device.asleep() && peak > 0.0f, "a ringing plate stays awake");
+
+  run(20.0f, 0.0f);
+  EXPECT(device.asleep(), "asleep once the tail has been exact silence for the hold");
+  EXPECT(device.reverb().is_silent_state(), "it only sleeps on an empty plate");
+  run(5.0f, 0.0f);
+  EXPECT(device.asleep() && peak == 0.0f, "asleep it writes exact zeros");
+
+  run(0.25f, 0.5f);
+  EXPECT(!device.asleep() && peak > 0.01f, "the next sound wakes it");
+  run(1.0f, 0.0f);
+  EXPECT(mismatches == 0,
+         "asleep or awake, every sample is the one a plate that never sleeps puts out");
+}
+
 }  // namespace
 
 int main() {
@@ -231,6 +296,7 @@ int main() {
   test_denormals_flush_to_silence();
   test_input_bus_passthrough_and_clear();
   test_mix_law_matches_ambient_live();
+  test_sleeps_when_empty_and_wakes_unchanged();
 
   if (g_failures == 0) {
     std::printf("dattorro device tests: all passed\n");

@@ -26,6 +26,10 @@ class StereoWidenerDevice {
   // forever and every block would run denormal-speed math. By 100 ms the
   // decayed state is far below that floor and every FIR buffer (512 samples)
   // holds only zeros, so the reset is exact apart from the denormal residue.
+  //
+  // From that reset until the next sound, and once a width ramp has landed,
+  // a block changes nothing and comes out as zeros: process() writes them
+  // and leaves the widener alone.
   static constexpr float kSilenceResetSeconds = 0.1f;
   static constexpr int kMinSilenceResetFrames = 1024;
 
@@ -44,6 +48,8 @@ class StereoWidenerDevice {
   const float* out_right() const { return out_right_; }
 
   StereoWidener& widener() { return widener_; }
+  // Reset and not ramping: a silent block is only cleared. Also a test hook.
+  bool asleep() const { return silent_frames_ == silence_reset_frames_ && ramp_remaining_ == 0; }
 
  private:
   float target_width_ = kDefaultWidth;

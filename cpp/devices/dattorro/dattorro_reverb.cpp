@@ -190,6 +190,23 @@ void DattorroReverb::process(float in, float* wet_left, float* wet_right) {
   *wet_right = out_r;
 }
 
+void DattorroReverb::advance_modulators(int frames) {
+  // The same additions process() makes, one per sample: a single step of
+  // `frames` increments rounds differently and would drift away from them.
+  float left = left_decay_diffusion_1_.lfo_phase;
+  float right = right_decay_diffusion_1_.lfo_phase;
+  const float left_increment = left_decay_diffusion_1_.lfo_increment;
+  const float right_increment = right_decay_diffusion_1_.lfo_increment;
+  for (int i = 0; i < frames; ++i) {
+    left += left_increment;
+    if (left >= kTwoPi) left -= kTwoPi;
+    right += right_increment;
+    if (right >= kTwoPi) right -= kTwoPi;
+  }
+  left_decay_diffusion_1_.lfo_phase = left;
+  right_decay_diffusion_1_.lfo_phase = right;
+}
+
 bool DattorroReverb::is_silent_state() const {
   const auto buffer_silent = [](const float* data, int n) {
     for (int i = 0; i < n; ++i) {

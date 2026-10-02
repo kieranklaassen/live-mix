@@ -56,7 +56,9 @@ enum class FeltPianoParam : int {
 // cleared every block); after the bus has been exactly silent and the output
 // below 1e-9 for kIdleFlushSeconds, the room, sympathetic strings, widener,
 // damper-noise filters and grit envelope are reset once so no feedback path
-// idles on denormals (Felt relies on ScopedNoDenormals; WASM has no FTZ). The
+// idles on denormals (Felt relies on ScopedNoDenormals; WASM has no FTZ), and
+// from then until a note or a parameter arrives process() only clears its
+// buffers: the room's modulators and the grit noise stop where they are. The
 // output is Felt's: soft-limited to |x| <= 1.
 class FeltPianoDevice {
  public:

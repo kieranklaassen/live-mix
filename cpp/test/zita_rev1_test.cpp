@@ -25,7 +25,7 @@ int g_failures = 0;
     }                                                                 \
   } while (0)
 
-using Device = livemix::faust::FaustDevice<livemix::faust::ZitaRev1>;
+using Device = livemix::faust::FaustDevice<livemix::faust::ZitaRev1, 20>;
 
 constexpr float kSampleRate = 48000.0f;
 constexpr int kBlock = 128;
@@ -35,6 +35,10 @@ constexpr float kTwoPi = 6.28318530717958647692f;
 enum Param : int { kPreDelay = 0, kCrossover, kLowDecay, kMidDecay, kDamping, kMix };
 
 Device g_test_device;
+// The same DSP behind an hour's hold: it runs every block, as the wrapper did
+// before it could sleep.
+using AwakeDevice = livemix::faust::FaustDevice<livemix::faust::ZitaRev1, 3600>;
+AwakeDevice g_awake_device;
 
 // Renders `seconds` of silence, returning the peak absolute output and
 // optionally the left-channel RMS. NaN/inf poison the peak so callers notice.
@@ -341,6 +345,87 @@ void test_frames_are_clamped_to_max_block() {
          "oversized frame counts are clamped, never read past the buffers");
 }
 
+void test_sleeps_after_the_hold_and_wakes_unchanged() {
+  Device& device = g_test_device;
+  AwakeDevice& awake = g_awake_device;
+  device.init(kSampleRate);
+  awake.init(kSampleRate);
+  EXPECT(!device.asleep(), "a new device is awake: the DSP's smoothers start from 0");
+
+  // Feeds both `seconds` of the same tone (silence at gain 0). Where the
+  // device ran the block, counts the samples that differ and keeps the
+  // largest difference; where it slept through it, keeps what the reference
+  // put out and anything the device did.
+  float phase = 0.0f;
+  int mismatches = 0;
+  float difference = 0.0f;
+  float left_out = 0.0f;
+  float asleep_peak = 0.0f;
+  float peak = 0.0f;
+  const auto run = [&](float seconds, float gain) {
+    const int total_frames = static_cast<int>(seconds * kSampleRate);
+    peak = 0.0f;
+    for (int rendered = 0; rendered < total_frames; rendered += kBlock) {
+      for (int i = 0; i < kBlock; ++i) {
+        const float value = gain * std::sin(phase);
+        phase += kTwoPi * 330.0f / kSampleRate;
+        if (phase >= kTwoPi) phase -= kTwoPi;
+        device.in_left()[i] = value;
+        device.in_right()[i] = value;
+        awake.in_left()[i] = value;
+        awake.in_right()[i] = value;
+      }
+      const bool slept = device.asleep() && gain == 0.0f;
+      device.process(kBlock);
+      awake.process(kBlock);
+      for (int i = 0; i < kBlock; ++i) {
+        const float level =
+            std::max(std::fabs(device.out_left()[i]), std::fabs(device.out_right()[i]));
+        peak = std::max(peak, level);
+        if (slept) {
+          asleep_peak = std::max(asleep_peak, level);
+          left_out = std::max(left_out, std::max(std::fabs(awake.out_left()[i]),
+                                                 std::fabs(awake.out_right()[i])));
+          continue;
+        }
+        if (device.out_left()[i] != awake.out_left()[i] ||
+            device.out_right()[i] != awake.out_right()[i]) {
+          ++mismatches;
+        }
+        difference = std::max(difference, std::fabs(device.out_left()[i] - awake.out_left()[i]));
+        difference = std::max(difference, std::fabs(device.out_right()[i] - awake.out_right()[i]));
+      }
+    }
+  };
+
+  run(0.25f, 0.5f);
+  run(10.0f, 0.0f);
+  EXPECT(!device.asleep(), "ten seconds after the sound the hold has not run out");
+  run(25.0f, 0.0f);
+  EXPECT(device.asleep(), "asleep once the output has been under the floor for the hold");
+  run(5.0f, 0.0f);
+  EXPECT(device.asleep() && asleep_peak == 0.0f, "asleep it writes exact zeros");
+  EXPECT(left_out <= livemix::kit::IdleGate::kFloor,
+         "what the sleep leaves out is under the gate's floor");
+  EXPECT(mismatches == 0,
+         "until it sleeps, every sample is the one a device that never sleeps puts out");
+
+  // The tail's last residue stays where it was instead of fading on: the
+  // next sound is the same to well under the floor.
+  run(0.25f, 0.5f);
+  EXPECT(!device.asleep() && peak > 0.01f, "input wakes it");
+  run(2.0f, 0.0f);
+  EXPECT(difference <= livemix::kit::IdleGate::kFloor,
+         "after a sleep the output is the one a device that never slept puts out");
+
+  run(30.0f, 0.0f);
+  EXPECT(device.asleep(), "asleep again after the second sound");
+  device.set_param(kMix, device.param_value(kMix));
+  EXPECT(device.asleep(), "a parameter set to the value it has leaves it asleep");
+  device.set_param(kMix, 0.8f);
+  EXPECT(!device.asleep(), "a parameter that moves wakes it");
+}
+
 }  // namespace
 
 int main() {
@@ -354,6 +439,7 @@ int main() {
   test_sample_rate_independence();
   test_stability_under_load();
   test_frames_are_clamped_to_max_block();
+  test_sleeps_after_the_hold_and_wakes_unchanged();
 
   if (g_failures == 0) {
     std::printf("zita-rev1 device tests: all passed\n");

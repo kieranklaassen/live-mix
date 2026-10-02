@@ -35,6 +35,8 @@ using livemix::SpectralDrifterDevice;
 using livemix::SpectralDrifterParam;
 
 SpectralDrifterDevice g_test_device;
+// A second device for the test that needs one beside g_test_device.
+SpectralDrifterDevice g_other_device;
 
 // 100 % wet, full bloom, manual age 1: the shift under test unless a test
 // says otherwise.
@@ -377,6 +379,116 @@ void test_shift_is_sample_rate_independent() {
          "octave up at 96 kHz");
 }
 
+void test_sleeps_when_silent_and_wakes_where_it_was() {
+  SpectralDrifterDevice& device = g_test_device;
+  // Kept up by setting Mix to what it already is before every block (a
+  // parameter that is set wakes the device), so it runs the drifters for
+  // every sample: what the device did before it could sleep.
+  SpectralDrifterDevice& awake = g_other_device;
+  device.init(kSampleRate);
+  EXPECT(device.asleep(), "a device nothing has reached yet is asleep");
+  init_wet(device);
+  init_wet(awake);
+
+  // Feeds both `seconds` of the same tone (or silence). Where the device ran
+  // the block, counts the samples that differ; where it slept through it,
+  // keeps what the reference put out and anything the device did.
+  Tone tone(440.0f, 0.5f);
+  int mismatches = 0;
+  float left_out = 0.0f;
+  float asleep_peak = 0.0f;
+  float peak = 0.0f;
+  float reference_peak = 0.0f;
+  const auto run_both = [&](bool sound, float seconds) {
+    const int total = static_cast<int>(seconds * kSampleRate);
+    peak = 0.0f;
+    reference_peak = 0.0f;
+    for (int rendered = 0; rendered < total; rendered += kBlock) {
+      awake.set_param(SpectralDrifterParam::kMix, 1.0f);
+      for (int i = 0; i < kBlock; ++i) {
+        const float value = sound ? tone.next() : 0.0f;
+        for (SpectralDrifterDevice* each : {&device, &awake}) {
+          each->in_left()[i] = value;
+          each->in_right()[i] = value;
+        }
+      }
+      const bool slept = device.asleep() && !sound;
+      device.process(kBlock);
+      awake.process(kBlock);
+      for (int i = 0; i < kBlock; ++i) {
+        const float level =
+            std::max(std::fabs(device.out_left()[i]), std::fabs(device.out_right()[i]));
+        const float reference =
+            std::max(std::fabs(awake.out_left()[i]), std::fabs(awake.out_right()[i]));
+        peak = std::max(peak, level);
+        reference_peak = std::max(reference_peak, reference);
+        if (slept) {
+          asleep_peak = std::max(asleep_peak, level);
+          left_out = std::max(left_out, reference);
+        } else if (device.out_left()[i] != awake.out_left()[i] ||
+                   device.out_right()[i] != awake.out_right()[i]) {
+          ++mismatches;
+        }
+      }
+    }
+  };
+
+  run_both(true, 0.5f);
+  EXPECT(!device.asleep() && peak > 0.01f, "input wakes it");
+  run_both(false, 0.2f);
+  EXPECT(!device.asleep() && peak > 0.001f, "grains still sounding keep it awake");
+  run_both(false, 3.0f);
+  EXPECT(device.asleep(), "asleep once the drifters have been silent for the hold");
+  EXPECT(mismatches == 0,
+         "until it sleeps, every sample is the one a device that never sleeps puts out");
+  EXPECT(asleep_peak == 0.0f, "asleep it writes exact zeros");
+  EXPECT(left_out <= livemix::kit::IdleGate::kFloor,
+         "what the sleep leaves out is under the gate's floor");
+
+  run_both(true, 0.5f);
+  EXPECT(!device.asleep(), "the next sound wakes it");
+  EXPECT(peak > 0.5f * reference_peak && peak < 2.0f * reference_peak,
+         "and it comes back as loud as a device that never slept");
+
+  // The grains stay where they were: two devices that fell asleep after the
+  // same sound play the next one alike, however long each then slept.
+  SpectralDrifterDevice& other = g_other_device;
+  for (SpectralDrifterDevice* each : {&device, &other}) {
+    init_wet(*each);
+    Tone first(440.0f, 0.5f);
+    run(*each, &first, 0.5f, kSampleRate);
+    for (int block = 0; block < 4000 && !each->asleep(); ++block) each->process(kBlock);
+    EXPECT(each->asleep(), "asleep after the first sound");
+  }
+  EXPECT(run(other, nullptr, 5.0f, kSampleRate) == 0.0f && other.asleep(),
+         "five more seconds asleep are exact zeros");
+  std::vector<float> rested;
+  std::vector<float> slept;
+  Tone second(660.0f, 0.5f);
+  Tone second_again(660.0f, 0.5f);
+  run(device, &second, 0.5f, kSampleRate, &rested);
+  run(other, &second_again, 0.5f, kSampleRate, &slept);
+  EXPECT(rested == slept, "a longer sleep changes nothing in what the next sound meets");
+
+  run(device, nullptr, 3.0f, kSampleRate);
+  EXPECT(device.asleep(), "asleep after the second sound");
+  device.set_param(SpectralDrifterParam::kBloom, 0.5f);
+  EXPECT(!device.asleep(), "a parameter that is set wakes it");
+  EXPECT(run(device, nullptr, 2.0f, kSampleRate) <= livemix::kit::IdleGate::kFloor &&
+             device.asleep(),
+         "asleep again once the smoothers have landed, with nothing heard meanwhile");
+
+  // Bloom's age tracker falls for seconds after the input stops, and the
+  // next onset starts from wherever it has got to: no sleep until it is 0.
+  device.init(kSampleRate);
+  Tone aged(440.0f, 0.5f);
+  run(device, &aged, 0.5f, kSampleRate);
+  run(device, nullptr, 3.0f, kSampleRate);
+  EXPECT(device.age_left() > 0.0f && !device.asleep(), "a falling age keeps it awake");
+  run(device, nullptr, 10.0f, kSampleRate);
+  EXPECT(device.age_left() == 0.0f && device.asleep(), "asleep once the age is back at zero");
+}
+
 void report_cpu_cost() {
   SpectralDrifterDevice& device = g_test_device;
   init_wet(device);
@@ -407,6 +519,7 @@ int main() {
   test_stability_under_loud_input();
   test_denormals_flush_to_silence();
   test_shift_is_sample_rate_independent();
+  test_sleeps_when_silent_and_wakes_where_it_was();
   report_cpu_cost();
 
   if (g_failures == 0) {

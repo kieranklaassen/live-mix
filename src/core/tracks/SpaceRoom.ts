@@ -53,6 +53,8 @@ export class SpaceRoom {
   private readonly clearTimeoutFn: (handle: unknown) => void
   // One table for every saturator this room ever makes.
   private curve: Float32Array<ArrayBuffer> | null = null
+  // True once the nodes in use have been left to ring out, or taken down.
+  private left = false
 
   constructor(
     private readonly ctx: BaseAudioContext,
@@ -98,13 +100,25 @@ export class SpaceRoom {
     return nodes.entry
   }
 
+  /**
+   * Nothing will be sent into this room again: it stays until its tail is
+   * over and then takes itself down, as an old set of nodes does after
+   * `set`. `dispose` still takes down at once whatever is left.
+   */
+  leave(): void {
+    if (this.left) return
+    this.left = true
+    this.retire(this.nodes)
+  }
+
   dispose(): void {
     for (const [nodes, timer] of this.retired) {
       if (timer !== null) this.clearTimeoutFn(timer)
       this.takeDown(nodes)
     }
     this.retired.clear()
-    this.takeDown(this.nodes)
+    if (!this.left) this.takeDown(this.nodes)
+    this.left = true
   }
 
   private build(settings: SpaceRoomSettings): RoomNodes {

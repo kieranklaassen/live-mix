@@ -28,6 +28,8 @@ constexpr int kBlock = 128;
 constexpr float kTwoPi = 6.28318530717958647692f;
 
 livemix::FdnReverbDevice g_test_device;
+// A second device for the test that needs one beside g_test_device.
+livemix::FdnReverbDevice g_awake_device;
 
 // 100 % wet, no breathing: the plain FDN under test unless a test says so.
 void init_wet(livemix::FdnReverbDevice& device, float sample_rate = kSampleRate) {
@@ -434,6 +436,81 @@ void test_mix_law_matches_tides() {
          "right dry scaled by cos(mix * pi/2) before the tail arrives");
 }
 
+void test_sleeps_when_empty_and_wakes_unchanged() {
+  livemix::FdnReverbDevice& device = g_test_device;
+  // Kept up by setting Mix to what it already is before every block (a
+  // parameter that is set wakes the device), so it runs the network for every
+  // sample: what the device did before it could sleep.
+  livemix::FdnReverbDevice& awake = g_awake_device;
+  for (livemix::FdnReverbDevice* each : {&device, &awake}) {
+    each->init(kSampleRate);
+    each->set_param(livemix::FdnReverbParam::kDecay, 0.5f);
+  }
+
+  // Feeds both `seconds` of the same tone (silence at gain 0), counting the
+  // samples that differ and keeping the device's peak over the stretch.
+  float phase = 0.0f;
+  float peak = 0.0f;
+  int mismatches = 0;
+  bool reference_slept = false;
+  const auto run = [&](float seconds, float gain) {
+    const int total_frames = static_cast<int>(seconds * kSampleRate);
+    peak = 0.0f;
+    for (int rendered = 0; rendered < total_frames; rendered += kBlock) {
+      awake.set_param(livemix::FdnReverbParam::kMix, livemix::FdnReverbDevice::kDefaultMix);
+      for (int i = 0; i < kBlock; ++i) {
+        const float value = gain * std::sin(phase);
+        phase += kTwoPi * 330.0f / kSampleRate;
+        if (phase >= kTwoPi) phase -= kTwoPi;
+        for (livemix::FdnReverbDevice* each : {&device, &awake}) {
+          each->in_left()[i] = value;
+          each->in_right()[i] = value;
+        }
+      }
+      device.process(kBlock);
+      awake.process(kBlock);
+      if (awake.asleep()) reference_slept = true;
+      for (int i = 0; i < kBlock; ++i) {
+        if (device.out_left()[i] != awake.out_left()[i] ||
+            device.out_right()[i] != awake.out_right()[i]) {
+          ++mismatches;
+        }
+        peak = std::max(peak, std::max(std::fabs(device.out_left()[i]),
+                                       std::fabs(device.out_right()[i])));
+      }
+    }
+  };
+
+  EXPECT(!device.asleep(), "a new device is awake: its first block primes the smoothers");
+  run(1.5f * livemix::FdnReverbDevice::kIdleHoldSeconds, 0.0f);
+  EXPECT(device.asleep() && peak == 0.0f, "asleep after one hold of silence, writing exact zeros");
+
+  run(0.25f, 0.5f);
+  EXPECT(!device.asleep() && peak > 0.01f, "input wakes it");
+  run(1.5f * livemix::FdnReverbDevice::kIdleHoldSeconds, 0.0f);
+  EXPECT(!device.asleep() && peak > 0.0f, "a ringing network stays awake");
+
+  run(20.0f, 0.0f);
+  EXPECT(device.asleep(), "asleep once the tail has been exact silence for the hold");
+  EXPECT(device.reverb().is_silent_state(), "it only sleeps on empty lines");
+  run(5.0f, 0.0f);
+  EXPECT(device.asleep() && peak == 0.0f, "asleep it writes exact zeros");
+
+  for (livemix::FdnReverbDevice* each : {&device, &awake}) {
+    each->set_param(livemix::FdnReverbParam::kSize, 1.6f);
+  }
+  EXPECT(!device.asleep(), "a parameter that is set wakes it");
+  run(1.5f * livemix::FdnReverbDevice::kIdleHoldSeconds, 0.0f);
+  EXPECT(device.asleep() && peak == 0.0f, "asleep again once the smoothers have landed");
+
+  run(0.25f, 0.5f);
+  EXPECT(!device.asleep() && peak > 0.01f, "the next sound wakes it");
+  run(1.0f, 0.0f);
+  EXPECT(!reference_slept, "the reference never slept");
+  EXPECT(mismatches == 0,
+         "asleep or awake, every sample is the one a device that never sleeps puts out");
+}
+
 }  // namespace
 
 int main() {
@@ -448,6 +525,7 @@ int main() {
   test_denormals_flush_to_silence();
   test_input_bus_passthrough_and_clear();
   test_mix_law_matches_tides();
+  test_sleeps_when_empty_and_wakes_unchanged();
 
   if (g_failures == 0) {
     std::printf("fdn-reverb device tests: all passed\n");

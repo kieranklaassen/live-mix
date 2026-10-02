@@ -35,6 +35,8 @@ constexpr float kTwoPi = 6.28318530717958647692f;
 constexpr float kDefaultCeiling = 0.891250938f;  // -1 dBTP
 
 TruePeakLimiterDevice g_test_device;
+// A second device for the test that needs one beside g_test_device.
+TruePeakLimiterDevice g_other_device;
 
 float db_to_gain(float db) { return std::pow(10.0f, db / 20.0f); }
 float gain_to_db(float gain) { return 20.0f * std::log10(gain); }
@@ -437,6 +439,48 @@ void test_silence_and_stability() {
   EXPECT(loud.peak(4800) > kDefaultCeiling * 0.7f, "the limiter is working, not muting");
 }
 
+void test_sleeps_when_settled_and_wakes_unchanged() {
+  // Two devices limit the same hot burst and fall silent. One hears the next
+  // sound the moment its gain has recovered; the other after five more
+  // seconds asleep, where process() only clears the output.
+  TruePeakLimiterDevice& rested = g_test_device;
+  TruePeakLimiterDevice& slept = g_other_device;
+  for (TruePeakLimiterDevice* device : {&rested, &slept}) {
+    device->init(kSampleRate);
+    EXPECT(!device->asleep(), "a new device runs its first block");
+    Rendered burst;
+    render(*device, burst, 0.25f, sine(997.0f, 2.0f));
+    EXPECT(device->limiter().envelope() < 0.9f, "the burst is being limited");
+    int blocks = 0;
+    while (!device->limiter().settled() && blocks < 10000) {
+      device->process(kBlock);
+      ++blocks;
+    }
+    EXPECT(blocks > 1 && !device->asleep(), "a recovering gain keeps it awake");
+  }
+  Rendered quiet;
+  render(slept, quiet, 5.0f, silence());
+  EXPECT(slept.asleep() && quiet.peak() == 0.0f,
+         "asleep once the gain is back and the lookahead is empty, writing exact zeros");
+
+  Rendered after_rest;
+  Rendered after_sleep;
+  render(rested, after_rest, 0.25f, sine(997.0f, 2.0f));
+  render(slept, after_sleep, 0.25f, sine(997.0f, 2.0f));
+  EXPECT(!slept.asleep() && after_sleep.peak() > 0.5f, "input wakes it");
+  EXPECT(after_sleep.out_left == after_rest.out_left &&
+             after_sleep.out_right == after_rest.out_right,
+         "the sleep changed nothing: both devices play the same samples");
+
+  render(slept, quiet, 2.0f, silence());
+  EXPECT(slept.asleep(), "asleep again after the sound");
+  slept.set_param(TruePeakLimiterParam::kInputGainDb, 6.0f);
+  slept.process(kBlock);
+  EXPECT(!slept.asleep(), "a gain ramp wakes it");
+  render(slept, quiet, 0.5f, silence());
+  EXPECT(slept.asleep(), "asleep again once the ramp has landed");
+}
+
 }  // namespace
 
 int main() {
@@ -451,6 +495,7 @@ int main() {
   test_ceiling_parameter();
   test_input_bus_clears_between_blocks();
   test_silence_and_stability();
+  test_sleeps_when_settled_and_wakes_unchanged();
 
   if (g_failures == 0) {
     std::printf("true-peak-limiter device tests: all passed\n");

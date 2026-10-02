@@ -27,21 +27,30 @@ export class Meter {
 
   /** Peak absolute level of the current window, 0..1. */
   peak(): number {
-    this.node.getFloatTimeDomainData(this.buffer)
-    let peak = 0
-    for (const value of this.buffer) {
-      const magnitude = Math.abs(value)
-      if (magnitude > peak) peak = magnitude
-    }
-    return Math.min(peak, 1)
+    return this.levels().peak
   }
 
   /** RMS level of the current window, 0..1. */
   rms(): number {
-    this.node.getFloatTimeDomainData(this.buffer)
+    return this.levels().rms
+  }
+
+  /**
+   * Peak and RMS of the current window, both 0..1, from one read of the
+   * analyser and one pass over it: what a meter drawn on every frame asks
+   * for, at half the work of `peak()` and then `rms()`.
+   */
+  levels(): { peak: number; rms: number } {
+    const buffer = this.buffer
+    this.node.getFloatTimeDomainData(buffer)
+    let peak = 0
     let sum = 0
-    for (const value of this.buffer) sum += value * value
-    return Math.min(Math.sqrt(sum / this.buffer.length), 1)
+    for (const value of buffer) {
+      const magnitude = value < 0 ? -value : value
+      if (magnitude > peak) peak = magnitude
+      sum += value * value
+    }
+    return { peak: Math.min(peak, 1), rms: Math.min(Math.sqrt(sum / buffer.length), 1) }
   }
 
   dispose(): void {

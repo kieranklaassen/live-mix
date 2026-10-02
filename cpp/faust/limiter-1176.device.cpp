@@ -7,7 +7,11 @@
 #include "generated/limiter-1176.h"
 
 namespace {
-livemix::faust::FaustDevice<livemix::faust::Limiter1176> g_device;
+// The hold: the output is silent as soon as the input is, while the level
+// detector takes its 0.5 s release to come back. After 8 s it is 139 dB down:
+// from full scale under all 40 dB of drive that is 87 dB below the threshold,
+// where the next note can no longer tell it from a detector at rest.
+livemix::faust::FaustDevice<livemix::faust::Limiter1176, 8> g_device;
 }
 
 extern "C" {

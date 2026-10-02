@@ -71,6 +71,8 @@ import {
 import { ClipList } from './ClipList'
 import { reversedBuffer } from './reversed-buffer'
 import { type SampleSource, type SampleStore } from './SampleStore'
+import { isObservableDevice } from '../devices/Device'
+import { SpaceFeed, stripOnlySetsLevel, type SharedSpaces } from './SharedSpace'
 import { SpaceRoom } from './SpaceRoom'
 import { generateSpaceImpulse, spaceColour, type SpaceColour } from './space'
 
@@ -246,6 +248,12 @@ export interface AudioTrackOptions {
    * drift), read with the impulse. Without it the space is clean and still.
    */
   spaceColour?: () => SpaceColour
+  /**
+   * An engine's shared rooms (`EngineOptions.sharedSpace`). With them the
+   * track sends into the room of whatever it feeds for as long as its strip
+   * only sets a level, and into a room of its own otherwise.
+   */
+  sharedSpaces?: SharedSpaces
 }
 
 export class AudioTrack implements StripHost {
@@ -265,6 +273,14 @@ export class AudioTrack implements StripHost {
   private readonly spaceImpulse: () => AudioBuffer
   private readonly spaceColour: () => SpaceColour
   private room: SpaceRoom | null = null
+  private readonly sharedSpaces: SharedSpaces | null
+  // The track's way into a shared room, and what that room feeds; null while it has a room of its own, or none.
+  private feed: { nodes: SpaceFeed; into: AudioNode } | null = null
+  // Rooms of its own the track has moved out of, still ringing.
+  private readonly leftRooms: SpaceRoom[] = []
+  // Ends the watch on the strip and on its inserts, which say when the track can share a room.
+  private unwatchStrip: (() => void) | null = null
+  private unwatchInserts: (() => void)[] = []
   private scheduler: Scheduler | null = null
   private unregister: (() => void)[] = []
   private disposed = false
@@ -298,6 +314,7 @@ export class AudioTrack implements StripHost {
     this.resolveSource = options.resolveSource ?? null
     this.spaceImpulse = options.spaceImpulse ?? (() => generateSpaceImpulse(ctx))
     this.spaceColour = options.spaceColour ?? (() => spaceColour())
+    this.sharedSpaces = options.sharedSpaces ?? null
     this.clips = new ClipList(() => {
       this.scheduler?.refresh()
       this.followClips()
@@ -439,7 +456,7 @@ export class AudioTrack implements StripHost {
    * strip; null until a clip first sends there.
    */
   get space(): ConvolverNode | null {
-    return this.room?.convolver ?? null
+    return this.room?.convolver ?? this.feed?.nodes.room.convolver ?? null
   }
 
   /**
@@ -449,18 +466,25 @@ export class AudioTrack implements StripHost {
    * track that has sent nothing yet has nothing to change.
    */
   refreshSpace(): void {
-    if (this.disposed || !this.room) return
+    if (this.disposed) return
+    // A shared room was told by the engine; the feed follows it.
+    this.feed?.nodes.set(this.spaceColour())
+    if (!this.room) return
     const before = this.room.set({ impulse: this.spaceImpulse(), ...this.spaceColour() })
-    if (!before) return
+    if (before) this.moveSends(before, this.room.entry)
+  }
+
+  /** What sounds sends into `to` from now on instead of `from`. */
+  private moveSends(from: AudioNode, to: AudioNode): void {
     for (const voice of this.active.values()) {
       const send = voice.placement?.send
       if (!send) continue
       try {
-        send.disconnect(before)
+        send.disconnect(from)
       } catch {
         // Not connected there (a mock that tracks no connections); connect all the same.
       }
-      send.connect(this.room.entry)
+      send.connect(to)
     }
   }
 
@@ -608,8 +632,15 @@ export class AudioTrack implements StripHost {
     this.disposed = true
     this.detach()
     this.stopAll()
+    this.unwatchStrip?.()
+    this.unwatchStrip = null
+    for (const unwatch of this.unwatchInserts) unwatch()
+    this.unwatchInserts = []
     this.room?.dispose()
     this.room = null
+    for (const room of this.leftRooms) room.dispose()
+    this.leftRooms.length = 0
+    this.leaveShared()
     this.strip.dispose()
   }
 
@@ -946,9 +977,29 @@ export class AudioTrack implements StripHost {
     return send
   }
 
-  /** Where a send into the track's space connects; the space is made on first use. */
+  /**
+   * Where a send into the track's space connects; the space is made on first
+   * use. That is a room the track shares when the engine has them and the
+   * strip only sets a level, and a room of the track's own otherwise.
+   */
   private ensureSpace(): AudioNode {
-    this.room ??= new SpaceRoom(
+    if (this.feed) return this.feed.nodes.entry
+    if (this.room) return this.room.entry
+    const spaces = this.sharedSpaces
+    if (spaces) this.watchStrip()
+    if (spaces && stripOnlySetsLevel(this.strip)) {
+      const into = this.strip.destination
+      const nodes = new SpaceFeed(
+        this.ctx,
+        spaces,
+        spaces.join(into),
+        this.strip,
+        this.spaceColour(),
+      )
+      this.feed = { nodes, into }
+      return nodes.entry
+    }
+    this.room = new SpaceRoom(
       this.ctx,
       {
         connect: (node) => this.strip.connectSource(node),
@@ -957,6 +1008,70 @@ export class AudioTrack implements StripHost {
       { impulse: this.spaceImpulse(), ...this.spaceColour() },
     )
     return this.room.entry
+  }
+
+  /**
+   * The strip, or one of its inserts, has changed: the track's space is put
+   * where it now belongs. A track that could share a room and no longer can
+   * gets one of its own, and the other way round; one that feeds something
+   * else, or has other inserts to follow, gets a new way into the shared
+   * room. What sounds sends there from now on, and what it sent before
+   * rings out where it is.
+   */
+  private placeSpace(): void {
+    if (this.disposed) return
+    const before = this.feed?.nodes.entry ?? this.room?.entry
+    if (!before) return
+    const share = stripOnlySetsLevel(this.strip)
+    if (this.feed) {
+      const { nodes, into } = this.feed
+      const sameInserts =
+        nodes.follows.length === this.strip.inserts.length &&
+        nodes.follows.every((device, index) => device === this.strip.inserts[index])
+      if (share && into === this.strip.destination && sameInserts) return
+    } else if (!share) {
+      return
+    }
+    if (this.room) {
+      this.room.leave()
+      this.leftRooms.push(this.room)
+      this.room = null
+    }
+    const feed = this.feed
+    this.feed = null
+    const entry = this.ensureSpace()
+    this.moveSends(before, entry)
+    // After the sends have moved, so they never feed a node that is already taken out.
+    if (feed) {
+      feed.nodes.dispose()
+      this.sharedSpaces?.leave(feed.into)
+    }
+  }
+
+  private leaveShared(): void {
+    const feed = this.feed
+    this.feed = null
+    if (!feed) return
+    feed.nodes.dispose()
+    this.sharedSpaces?.leave(feed.into)
+  }
+
+  /** Follows what decides whether the track can share a room: its strip, and what its inserts are set to. */
+  private watchStrip(): void {
+    if (this.unwatchStrip) return
+    const watchInserts = (): void => {
+      for (const unwatch of this.unwatchInserts) unwatch()
+      this.unwatchInserts = this.strip.inserts
+        .filter(isObservableDevice)
+        .map((device) => device.onChange(() => this.placeSpace()))
+    }
+    watchInserts()
+    this.unwatchStrip = this.strip.onChange(({ kind }) => {
+      if (kind === 'inserts') watchInserts()
+      if (kind === 'inserts' || kind === 'pan' || kind === 'inputGain' || kind === 'routing') {
+        this.placeSpace()
+      }
+    })
   }
 
   private connectThroughTrim(gain: GainNode, gainDb: number | undefined): GainNode | null {

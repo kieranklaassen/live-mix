@@ -3,6 +3,7 @@
 #include <cmath>
 
 #include "../../common/dsp_util.h"
+#include "../../kit/idle.h"
 #include "SpectralDrifter.h"
 
 namespace livemix {
@@ -39,6 +40,13 @@ enum class SpectralDrifterParam : int {
 // Not reproduced: Bloom feeds 25 % of the drifted signal back into its FDN so
 // the shift compounds per recirculation; an insert has no loop to feed.
 // Statically allocated; process() is allocation-free.
+//
+// Sleep: with no input, the drifters' own output (before Mix) under -140 dBFS
+// for the hold, and the age tracker back at exactly 0 (it falls for some
+// eight seconds after the input stops, and the next note starts from wherever
+// it has got to), process() only clears its output. The grains stay where
+// they are in their cycle. A parameter that is set wakes the device for one
+// hold, so every smoothed value lands as it did when the device never slept.
 class SpectralDrifterDevice {
  public:
   static constexpr int kMaxBlockFrames = 2048;
@@ -93,6 +101,8 @@ class SpectralDrifterDevice {
 
   SpectralDrifter& drifter_left() { return drifters_[0]; }
   SpectralDrifter& drifter_right() { return drifters_[1]; }
+  // Test hook: true while process() only clears the output.
+  bool asleep() const { return idle_.asleep(); }
 
  private:
   static constexpr float kHalfPi = 1.57079632679489661923f;
@@ -108,6 +118,7 @@ class SpectralDrifterDevice {
 
   Smoother mix_;
   Smoother bloom_;
+  kit::IdleGate idle_;
   float decay_seconds_ = kDefaultDecaySeconds;
   bool manual_age_ = false;
   float manual_age_value_ = kDefaultAge;

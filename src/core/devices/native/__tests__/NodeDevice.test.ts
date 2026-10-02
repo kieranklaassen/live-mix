@@ -180,4 +180,31 @@ describe('NodeDevice', () => {
     expect(stage.gain.events).toEqual([])
     expect(dry.gain.events).toEqual([])
   })
+
+  it('follow keeps an outside AudioParam in step with the first one a parameter writes', () => {
+    const ctx = createMockContext()
+    const { device, stage } = build(ctx, { level: 0.5 })
+    const outside = ctx.createGain()
+    const release = device.follow('level', outside.gain as unknown as AudioParam)
+    // It starts where the device's own param stands.
+    expect(outside.gain.value).toBe(0.5)
+    expect(outside.gain.events).toEqual([])
+
+    device.setParam('level', 1.5)
+    expect(outside.gain.events).toEqual(stage.gain.events)
+
+    // A lane's write ahead reaches it the same way, and another parameter's does not.
+    device.applyParam('level', 2, (param, value) => param.setValueAtTime(value, 7))
+    expect(outside.gain.lastEvent('setValueAtTime')?.args).toEqual([2, 7])
+    device.setParam('tilt', 1)
+    expect(outside.gain.events).toEqual(stage.gain.events)
+
+    release()
+    const before = outside.gain.events.length
+    device.setParam('level', 0)
+    expect(outside.gain.events).toHaveLength(before)
+    expect(() => device.follow('nope' as 'level', outside.gain as unknown as AudioParam)).toThrow(
+      'no parameter "nope"',
+    )
+  })
 })

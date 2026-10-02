@@ -106,6 +106,7 @@ export {
   type StripChangeListener,
   type StripDestination,
   type StripHost,
+  type StripShadow,
 } from './core/tracks/ChannelStrip'
 export { GroupTrack, type GroupTrackOptions } from './core/tracks/GroupTrack'
 export {
@@ -211,6 +212,12 @@ export {
   type SpaceOptions,
 } from './core/tracks/space'
 export { SpaceRoom, type SpaceRoomHost, type SpaceRoomSettings } from './core/tracks/SpaceRoom'
+export {
+  SharedSpaces,
+  SpaceFeed,
+  stripOnlySetsLevel,
+  type SharedSpacesOptions,
+} from './core/tracks/SharedSpace'
 export * from './core/transport'
 export {
   DEFAULT_BEATS_PER_BAR,
@@ -379,7 +386,9 @@ export {
   filterTypeAt,
   filterTypeIndex,
   gainToDb,
+  isUtility,
   utilityGain,
+  utilityIsLevelOnly,
   type CompressorParamName,
   type Delay,
   type DelayParamName,
