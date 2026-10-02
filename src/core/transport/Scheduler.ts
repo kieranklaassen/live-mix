@@ -285,17 +285,13 @@ export class Scheduler {
         }
       }
 
-      // A handover from a pass behind is forgotten, unless its clip can still
-      // be sounding: a loop change re-pins with a fresh pass number, and that
-      // voice is the one `refresh` fades when the clip is cut short and
-      // `rejoin` lets go of or keeps.
+      // A handover of a pass gone by is forgotten, unless its clip still sounds
+      // from it (it runs over the loop's end, or a loop change gave the
+      // transport a new pass under it): `refresh` and `rejoin` must find that one.
       for (const [key, start] of registration.scheduled) {
         if (start.iteration >= position.iteration) continue
-        const clip = clips.find((candidate) => candidate.id === start.clipId)
         const sounding =
-          schedulable.joinsLate === true &&
-          clip?.durationSec !== undefined &&
-          contextTime < start.when + clip.durationSec
+          schedulable.joinsLate === true && soundsOn(clips, start, start.when, contextTime)
         if (!sounding) registration.scheduled.delete(key)
       }
     }
@@ -353,9 +349,10 @@ export class Scheduler {
    * the same turn, on every schedulable that `joinsLate`: whatever a clip has
    * sounding or pending is let go (a sounding one fading over `fadeSec`), and
    * a clip the position is inside is handed over again from that point in it,
-   * as it now is. So a clip moved, stretched or dropped under the playhead is
-   * heard at once instead of when its start next comes round, and one whose
-   * fades, slice or direction changed is heard changed. A clip the
+   * as it now is (one still sounding over the loop's end from the pass before,
+   * under the start it had). So a clip moved, stretched or dropped under the
+   * playhead is heard at once instead of when its start next comes round, and
+   * one whose fades, slice or direction changed is heard changed. A clip the
    * schedulable `keeps` is left exactly as it sounds: letting it go would
    * silence it until its start came round. `refresh` alone keeps what sounds
    * and waits for starts; a host calls this for the clips an edit touched
@@ -376,23 +373,33 @@ export class Scheduler {
       for (const [key, start] of registration.scheduled) {
         if (ids.has(start.clipId) && schedulable.keeps?.(key)) kept.add(start.clipId)
       }
+      const released: Handover[] = []
       for (const [key, start] of registration.scheduled) {
         if (!ids.has(start.clipId) || kept.has(start.clipId)) continue
         schedulable.cancel(key, fadeSec)
         registration.scheduled.delete(key)
+        released.push(start)
       }
       for (const [key, start] of registration.declined) {
         if (ids.has(start.clipId) && !kept.has(start.clipId)) registration.declined.delete(key)
       }
       const named = schedulable.clips().filter((clip) => ids.has(clip.id) && !kept.has(clip.id))
+      // One way in per clip: where the position is inside it on this pass.
+      const joins = new Map<string, Handover>()
       for (const clip of clipsSoundingAt(named, position.positionSec)) {
-        const start: ScheduledStart = {
-          clipId: clip.id,
-          iteration: position.iteration,
-          startSec: clip.startSec,
-        }
-        const key = scheduleKey(start)
+        const start = { clipId: clip.id, iteration: position.iteration, startSec: clip.startSec }
         const when = this.transport.contextTimeAt(start.startSec, start.iteration)
+        joins.set(clip.id, { ...start, when })
+      }
+      // Failing that, the start just let go, if by the clock it would still be
+      // sounding: a clip that runs over the loop's end, heard from the pass
+      // before. It comes back under the start it had.
+      for (const start of released.sort((a, b) => b.when - a.when)) {
+        if (joins.has(start.clipId) || start.when >= contextTime) continue
+        if (soundsOn(named, start, start.when, contextTime)) joins.set(start.clipId, start)
+      }
+      for (const { when, ...start } of joins.values()) {
+        const key = scheduleKey(start)
         if (schedulable.schedule(start, when, true)) {
           registration.scheduled.set(key, { ...start, when })
         } else {
@@ -474,6 +481,24 @@ export class Scheduler {
     this.clearIntervalFn(this.timer)
     this.timer = null
   }
+}
+
+/**
+ * Whether the clip `start` names is still where that start was drawn and, begun
+ * at `when` on the audio clock, not yet over at `contextTime`.
+ */
+function soundsOn(
+  clips: ClipWindow['clips'],
+  start: ScheduledStart,
+  when: number,
+  contextTime: number,
+): boolean {
+  const clip = clips.find((candidate) => candidate.id === start.clipId)
+  return (
+    clip?.durationSec !== undefined &&
+    scheduleKey({ ...start, startSec: clip.startSec }) === scheduleKey(start) &&
+    contextTime < when + clip.durationSec
+  )
 }
 
 /** Timeline seconds since pass 0 began — a monotonic coordinate across loop wraps. */

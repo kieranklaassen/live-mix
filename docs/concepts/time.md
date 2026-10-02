@@ -72,7 +72,10 @@ and hands each one to the graph exactly once, keyed by
   after the edit: what those clips have sounding fades out over 5 ms, and each
   one the playhead is inside is entered again as it now is (moved under the
   playhead, lengthened over it, new fades, another slice, reversed). A clip
-  that is sounding but could not come back at once is left as it sounds
+  still sounding over the loop's end from the pass before comes back under
+  the start it had; the scheduler remembers a handover until its clip is
+  over, through a loop change too, so the old voice is always the one let go.
+  A clip that is sounding but could not come back at once is left as it sounds
   (`Schedulable.keeps`): an equal-power clip, and any clip on a stretch
   track, whose source takes time to build. A host decides which edits ask for
   this; the library does not rejoin by itself, because a host may already be
