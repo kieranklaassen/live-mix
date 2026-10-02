@@ -323,6 +323,8 @@ const coreSymbols = [
   'pushTouchAt',
   'pushTouchStripFlags',
   'pushWhiteFor',
+  // Devices that report what they are doing
+  'isMeteredDevice',
 ] as const
 
 const dspSymbols = [

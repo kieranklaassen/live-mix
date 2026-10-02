@@ -113,6 +113,8 @@ describe('entries', () => {
     'paper',
     'water',
     'BRUSH_COUNT',
+    // Device meters
+    'useDeviceMeter',
   ] as const)('`./react` exports %s', (name) => {
     expect((react as Record<string, unknown>)[name]).toBeDefined()
   })
