@@ -58,7 +58,7 @@
       "default": 9000,
       "taper": "log",
       "unit": "Hz",
-      "description": "Takes the top off the whole reverb. Lower settings are darker and sit further back."
+      "description": "Takes the top off the whole reverb, and makes the tail lose its brightness sooner as it fades. Lower settings are darker and sit further back."
     },
     {
       "key": "lowCut",
@@ -215,6 +215,6 @@
   },
   "origin": {
     "kind": "new",
-    "note": "Written for live-mix on cpp/kit. Models in outline the gated and reverse programs of early digital reverberators and their descendants, not any one unit: a diffused signal is read from a long delay line by sparse taps at pseudo-random positions with random signs, and the tap gains follow the chosen shape. The sparse tap layout is after the approach of Karjalainen and Järveläinen, \"Reverberation Modeling Using Velvet Noise\", and of Välimäki, Holm-Rasmussen, Alary and Lehtonen, \"Late Reverberation Synthesis Using Filtered Velvet Noise\"; no constants or details were taken from either. The diffuser is a series of Schroeder allpasses whose moving lengths are read through first-order allpass interpolators; the tail is an eight-line feedback delay network with a Hadamard matrix."
+    "note": "Written for live-mix on cpp/kit. Models in outline the gated and reverse programs of early digital reverberators and their descendants, not any one unit: a diffused signal is read from a long delay line by sparse taps at pseudo-random positions with random signs, and the tap gains follow the chosen shape. The sparse tap layout is after the approach of Karjalainen and Järveläinen, \"Reverberation Modeling Using Velvet Noise\", and of Välimäki, Holm-Rasmussen, Alary and Lehtonen, \"Late Reverberation Synthesis Using Filtered Velvet Noise\"; no constants or details were taken from either. The diffuser is a series of Schroeder allpasses whose moving lengths are read through first-order allpass interpolators; the tail is an eight-line feedback delay network with a Hadamard matrix, four of whose lines drift slowly."
   }
 }

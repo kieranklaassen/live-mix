@@ -33,8 +33,11 @@
 //   setting at every frequency, so it cannot ring.
 // - The two sides are unrelated above 160 Hz; below that the difference
 //   between them is rolled off, so the bottom of the wash is mono.
-// - Tail is a small feedback delay network fed by the shaped signal: what is
-//   left in it when the shape stops is the soft decay after a gate.
+// - Tail is a feedback delay network fed by the shaped signal: what is
+//   left in it when the shape stops is the soft decay after a gate. Its
+//   eight lines are prime lengths that add up to 1.5 s, four of them drift
+//   with Modulation, it loses treble above half of High Cut on each pass,
+//   and what feeds it is thinned below 140 Hz.
 // - Modulation sweeps each allpass length on its own slow LFO. The lengths
 //   are read through first-order allpass interpolators, so the diffuser
 //   stays flat while it moves; taps at different delays hear it at different

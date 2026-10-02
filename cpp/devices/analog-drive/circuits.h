@@ -9,11 +9,12 @@
 //
 // What the emphasis lifts saturates first. The de-emphasis undoes most of it
 // and leaves each circuit a voicing of its own, two or three dB at most and
-// there at any Drive (measured on a held chord at Drive 0, against 500 Hz):
-// the tape preamp warm and dull (lows up, top down 2 dB), the console
-// forward in the mids (2 dB around 2 kHz), the transformer thick (2.5 dB
-// around 250 Hz), the triode close to flat with a little air, the pentode
-// lean and bright (lows down, 2 kHz and up lifted). So the circuits differ in
+// there at any Drive (a quiet tone at Drive 0, against 500 Hz; the harness
+// asserts these): the tape preamp warm and dull (100 Hz up 1.7 dB, 8 kHz
+// down 2.4), the console forward in the mids (1.6 dB at 2 kHz), the
+// transformer thick (3 dB at 240 Hz), the triode flat within a dB with a
+// little air, the pentode lean and bright (100 Hz down 1.2 dB, 2 kHz up 2.2,
+// the top up 1.3). So the circuits differ in
 // tone, in which part of the spectrum distorts and in the harmonics they
 // make, not only in the curve.
 

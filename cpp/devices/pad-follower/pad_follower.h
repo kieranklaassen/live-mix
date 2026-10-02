@@ -43,6 +43,7 @@ class PadFollower : public kit::DeviceBase<pad_follower::kNumParams> {
     }
     for (int k = 0; k < 4; ++k) hold_[k] = pending_[0][k] = pending_[1][k] = 0.0f;
     phase_ = 0;
+    mix_now_ = -1.0f;
     bank_.prepare(rate_);
     chorus_.prepare(rate_);
     for (int c = 0; c < 2; ++c) {
@@ -89,11 +90,14 @@ class PadFollower : public kit::DeviceBase<pad_follower::kNumParams> {
       push(0.5f * (left + right), &wet_left, &wet_right);
       // Equal power: the pad is a new voice, not a copy of the input. From
       // the table so that Mix 0 is exactly the input.
-      const float angle = 0.25f * mix_.next();
-      const float dry_gain = kit::SineTable::cos_lookup(angle);
-      const float wet_gain = kit::SineTable::lookup(angle);
-      out_left_[i] = left * dry_gain + wet_left * wet_gain;
-      out_right_[i] = right * dry_gain + wet_right * wet_gain;
+      const float mix = mix_.next();
+      if (mix != mix_now_) {
+        mix_now_ = mix;
+        dry_gain_ = kit::SineTable::cos_lookup(0.25f * mix);
+        wet_gain_ = kit::SineTable::lookup(0.25f * mix);
+      }
+      out_left_[i] = left * dry_gain_ + wet_left * wet_gain_;
+      out_right_[i] = right * dry_gain_ + wet_right * wet_gain_;
     }
     idle_.settle(output_peak(frames), frames);
   }
@@ -240,6 +244,7 @@ class PadFollower : public kit::DeviceBase<pad_follower::kNumParams> {
   float gain_left_[kGroups] = {}, gain_right_[kGroups] = {};
   float hold_[4] = {}, pending_[2][4] = {};
   float rate_ = 24000.0f;
+  float mix_now_ = -1.0f, dry_gain_ = 1.0f, wet_gain_ = 0.0f;
   int factor_ = 2;
   int phase_ = 0;
 };

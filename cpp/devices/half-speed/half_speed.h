@@ -168,7 +168,23 @@ class HalfSpeed : public kit::DeviceBase<half_speed::kNumParams> {
   double cycle_frames_ = 48000.0;
   float jitter_factor_ = 1.0f;
   float mix_seen_ = -1.0f, dry_gain_ = 1.0f, wet_gain_ = 0.0f;
-  kit::Svf low_cut_[2], high_cut_[2], split_left_, split_low_[2], split_high_[2];
+  // One pole with the same frequency warping as kit::Svf, so that with a
+  // Svf of Q 1 it makes an exact third-order Butterworth pair.
+  struct Pole {
+    float state = 0.0f;
+    float gain = 0.0f;
+    void reset() { state = 0.0f; }
+    void set(const kit::Svf& like) { gain = like.g / (1.0f + like.g); }
+    float lowpass(float x) {
+      const float v = (x - state) * gain;
+      const float low = v + state;
+      state = flush_denormal(low + v);
+      return low;
+    }
+    float highpass(float x) { return x - lowpass(x); }
+  };
+  kit::Svf low_cut_[2], high_cut_[2], split_left_, split_low_, split_high_;
+  Pole split_pole_[2];
   kit::ControlClock clock_;
   float low_hz_ = 20.0f, high_hz_ = 20000.0f, filter_ease_ = 0.05f;
   bool together_ = true;
@@ -182,6 +198,7 @@ class HalfSpeed : public kit::DeviceBase<half_speed::kNumParams> {
 // Everything settled and a fresh cycle: init and waking from sleep.
 inline void HalfSpeed::restart() {
   rng_.seed(0x48A1F5EDu);
+  matcher_.rewind();
   relaunch();
   fade_.snap(fade_.target);
   smooth_.snap(smooth_.target);
@@ -206,11 +223,14 @@ inline void HalfSpeed::clear_filters() {
     low_cut_[c].reset();
     high_cut_[c].reset();
   }
-  kit::Svf* split[5] = {&split_left_, &split_low_[0], &split_low_[1], &split_high_[0],
-                        &split_high_[1]};
+  kit::Svf* split[3] = {&split_left_, &split_low_, &split_high_};
   for (kit::Svf* filter : split) {
     filter->reset();
-    filter->set(kBassHz, kit::kSqrtHalf, sample_rate());
+    filter->set(kBassHz, 1.0f, sample_rate());
+  }
+  for (Pole& pole : split_pole_) {
+    pole.reset();
+    pole.set(split_low_);
   }
 }
 
@@ -300,8 +320,8 @@ inline void HalfSpeed::render_frame(const float* in, float* out_left, float* out
   // allpass, which the left side gets too, so the sides stay in phase.
   split_left_.process(left);
   wet[0] = left - 2.0f * split_left_.k * split_left_.band;
-  wet[1] = split_low_[1].lowpass(split_low_[0].lowpass(right)) +
-           split_high_[1].highpass(split_high_[0].highpass(late_right));
+  wet[1] = split_pole_[0].lowpass(split_low_.lowpass(right)) +
+           split_pole_[1].highpass(split_high_.highpass(late_right));
   for (int c = 0; c < 2; ++c) wet[c] = low_cut_[c].highpass(high_cut_[c].lowpass(wet[c]));
 
   // Cycle clocks. The second one runs a little fast or slow until it is

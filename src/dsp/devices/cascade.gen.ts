@@ -48,7 +48,7 @@ export const CASCADE_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How much quieter and darker each repeat is than the one before. At zero every repeat is as loud and as bright as the first.',
+      'How much quieter and darker each repeat is than the one before. Fully down, every repeat is as loud and as bright as the first.',
   },
   high: {
     id: 4,
@@ -104,7 +104,7 @@ export const CASCADE_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'The chance that a replay runs backwards. Zero is all forwards; full is all backwards.',
+      'The chance that a replay runs backwards. Fully down everything runs forwards; fully up everything runs backwards.',
   },
   spread: {
     id: 9,

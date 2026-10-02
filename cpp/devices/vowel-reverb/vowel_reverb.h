@@ -96,6 +96,13 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
     }
     flat_gain_ = 1.0f;
     flat_step_ = 0.0f;
+    for (int c = 0; c < 2; ++c) {
+      wet_power_[c] = feed_power_[c] = 0.0f;
+      wet_level_[c] = feed_level_[c] = 0.0f;
+      trim_[c] = 1.0f;
+      trim_step_[c] = 0.0f;
+    }
+    balance_pole_ = 1.0f - std::exp(-1.0f / (kBalanceSeconds * control_rate));
 
     vowel_drift_.seed(0x243F6A88u);
     vowel_drift_.set_rate(kMotionHz, sr);
@@ -219,9 +226,19 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
       const float side = side_bass_.highpass(0.5f * (wet[0] - wet[1])) * width;
       const float level = glide(wet_) * level_.value;
       const float dry = glide(dry_);
+      // The balance trim (see control): what each side carries, and what
+      // went into the room on each side, summed for the control clock.
+      const float left = mid + side;
+      const float right = mid - side;
+      wet_power_[0] += left * left;
+      wet_power_[1] += right * right;
+      feed_power_[0] += feed[0] * feed[0];
+      feed_power_[1] += feed[1] * feed[1];
+      trim_[0] += trim_step_[0];
+      trim_[1] += trim_step_[1];
       // Exact up to ±1, landing on ±2.
-      out_left_[i] = in[0] * dry + 2.0f * kit::soft_clip(0.5f * (mid + side) * level);
-      out_right_[i] = in[1] * dry + 2.0f * kit::soft_clip(0.5f * (mid - side) * level);
+      out_left_[i] = in[0] * dry + 2.0f * kit::soft_clip(0.5f * left * trim_[0] * level);
+      out_right_[i] = in[1] * dry + 2.0f * kit::soft_clip(0.5f * right * trim_[1] * level);
     }
     idle_.settle(output_peak(frames), frames);
   }
@@ -293,6 +310,12 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
   // The mouth takes about a tenth of a second to get to a new vowel (two
   // of these in series: an S-shaped glide).
   static constexpr float kVowelGlideSeconds = 0.03f;
+  // The balance trim follows the two sides over a tenth of a second, takes
+  // out four fifths of a lean, and moves each side by 3 dB at most.
+  static constexpr float kBalanceSeconds = 0.1f;
+  static constexpr float kBalanceShare = 0.8f;
+  static constexpr float kBalanceLimit = 0.3454f;
+  static constexpr float kBalanceFloor = 1.0e-9f * kControlPeriod;
 
   // kit::hadamard<8> written out: the loop form costs six times as much
   // without unrolling, and this runs every sample.
@@ -411,6 +434,7 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
       }
     }
     level_.next();
+    balance();
 
     // Each line's read point heads for where its LFO will be one period on.
     const float depth = modulation_.next() * kModulationSeconds * sr;
@@ -446,6 +470,34 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
       vowel_step_[c] = started_ ? (target - vowel_gain_[c]) * ramp : 0.0f;
       if (!started_) vowel_gain_[c] = target;
     }
+  }
+
+  // The balance trim. A held chord is a handful of steady partials, and in a
+  // modulated room each of them fades on the left and on the right
+  // separately; when the vowel leaves only a few of them, the whole tail
+  // leans to one side and back. So the short-term level of the two sides is
+  // followed, and most of the lean is taken out again with a small opposite
+  // gain on each side, at most kBalanceLimit either way. Only a lean the
+  // room made is corrected: where the sound going in leans the same way (a
+  // source on one side), that much is left alone.
+  void balance() {
+    for (int c = 0; c < 2; ++c) {
+      wet_level_[c] = flush_denormal(wet_level_[c] + balance_pole_ * (wet_power_[c] - wet_level_[c]));
+      feed_level_[c] = flush_denormal(feed_level_[c] + balance_pole_ * (feed_power_[c] - feed_level_[c]));
+      wet_power_[c] = 0.0f;
+      feed_power_[c] = 0.0f;
+    }
+    // Half the level difference of the two sides, in nepers; under the
+    // floor (about -90 dBFS) both read as equal and the trim lets go.
+    const float lean = 0.25f * std::log((wet_level_[0] + kBalanceFloor) / (wet_level_[1] + kBalanceFloor));
+    const float given = 0.25f * std::log((feed_level_[0] + kBalanceFloor) / (feed_level_[1] + kBalanceFloor));
+    float excess = lean;
+    if (lean > 0.0f && given > 0.0f) excess = kit::max(lean - given, 0.0f);
+    if (lean < 0.0f && given < 0.0f) excess = kit::min(lean - given, 0.0f);
+    const float trim = kit::clamp(-kBalanceShare * excess, -kBalanceLimit, kBalanceLimit);
+    const float gain = std::exp(trim);
+    trim_step_[0] = (gain - trim_[0]) * (1.0f / kControlPeriod);
+    trim_step_[1] = (1.0f / gain - trim_[1]) * (1.0f / kControlPeriod);
   }
 
   void apply(int id) {
@@ -520,6 +572,10 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
   vowel_dsp::OutputBank bank_[2];
   float flat_gain_ = 1.0f, flat_step_ = 0.0f;
   float vowel_gain_[2] = {}, vowel_step_[2] = {};
+  float wet_power_[2] = {}, feed_power_[2] = {};  // sums over one control period
+  float wet_level_[2] = {}, feed_level_[2] = {};
+  float trim_[2] = {1.0f, 1.0f}, trim_step_[2] = {};
+  float balance_pole_ = 0.0f;
   kit::Svf low_cut_[2];
   kit::OnePole high_cut_[2];
   kit::Svf side_bass_;

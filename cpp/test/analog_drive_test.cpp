@@ -225,6 +225,95 @@ int main() {
     EXPECT(second[kTape] > -50.0 && second[kTape] < -25.0, "Tape preamp: a gentle second harmonic");
   }
 
+  // The Drive knob's taper and what it is for: a held chord at an ordinary
+  // level (six sines, -23 dBFS RMS, peaks at -13) is clean at Drive 0 and
+  // clearly driven by the middle of the knob in every circuit, and the
+  // default patch is not a clean one. "Added" is everything in the output
+  // that is not one of the six sines, against the six.
+  {
+    EXPECT(AnalogDrive::drive_taper(0.0f) == 0.0f, "Drive taper starts at 0");
+    EXPECT_NEAR(AnalogDrive::drive_taper(1.0f), 1.0, 1.0e-6, "Drive taper ends at 1");
+    bool rising = true;
+    for (int k = 1; k <= 100; ++k) {
+      rising = rising && AnalogDrive::drive_taper(k / 100.0f) > AnalogDrive::drive_taper((k - 1) / 100.0f);
+    }
+    EXPECT(rising, "Drive taper rises all the way");
+    EXPECT_NEAR(AnalogDrive::kMaxDriveDb * AnalogDrive::drive_taper(0.3f), 23.4, 0.2, "Drive 0.3 is 23.4 dB into the curve");
+    EXPECT_NEAR(AnalogDrive::kMaxDriveDb * AnalogDrive::drive_taper(0.5f), 30.8, 0.2, "Drive 0.5 is 30.8 dB into the curve");
+
+    const double notes[6] = {110.0, 164.81, 220.0, 277.18, 329.63, 493.88};
+    std::vector<float> chord(static_cast<size_t>(3.0f * kRate));
+    for (size_t i = 0; i < chord.size(); ++i) {
+      const double t = static_cast<double>(i) / kRate;
+      double v = 0.0;
+      for (int n = 0; n < 6; ++n) v += std::sin(2.0 * kPi * notes[n] * t + 1.3 * n);
+      chord[i] = static_cast<float>(0.04 * v * std::min(1.0, t / 0.05));
+    }
+    auto added_db = [&](const std::vector<float>& x) {
+      const std::vector<double> spectrum = spectrum_db(x, 48000);
+      const double bin = kRate / 65536.0;
+      double made = 0.0, played = 0.0;
+      for (size_t i = static_cast<size_t>(20.0 / bin); i < static_cast<size_t>(20000.0 / bin); ++i) {
+        bool note = false;
+        for (double hz : notes) note = note || std::fabs(i * bin - hz) < 8.0 * bin;
+        (note ? played : made) += std::pow(10.0, spectrum[i] / 10.0);
+      }
+      return 10.0 * std::log10(std::max(made, 1.0e-30) / played);
+    };
+    for (int c = 0; c < kCircuits; ++c) {
+      double added[3];
+      const float drives[3] = {0.0f, 0.5f, 1.0f};
+      for (int k = 0; k < 3; ++k) {
+        setup(kRate, c, drives[k]);
+        added[k] = added_db(run(device, chord).left);
+      }
+      std::printf("analog-drive %s on a chord at -23 dBFS: added %.1f dB at Drive 0, %.1f dB at 0.5, %.1f dB at 1\n",
+                  kNames[c], added[0], added[1], added[2]);
+      char label[128];
+      std::snprintf(label, sizeof label, "%s: a quiet chord is clean at Drive 0 (%.1f dB)", kNames[c], added[0]);
+      EXPECT(added[0] < -50.0, label);
+      std::snprintf(label, sizeof label, "%s: and clearly driven at Drive 0.5 (%.1f dB)", kNames[c], added[1]);
+      EXPECT(added[1] > -24.0 && added[1] < -12.0, label);
+      std::snprintf(label, sizeof label, "%s: and fuzz at Drive 1 (%.1f dB)", kNames[c], added[2]);
+      EXPECT(added[2] > -13.0, label);
+    }
+    device.init(kRate);
+    const double at_defaults = added_db(run(device, chord).left);
+    std::printf("analog-drive defaults on that chord: added %.1f dB\n", at_defaults);
+    EXPECT(at_defaults > -35.0 && at_defaults < -25.0, "the default patch is audibly driven, and gently");
+  }
+
+  // Each circuit's own voicing, there at any Drive: a quiet tone at Drive 0
+  // against 500 Hz. The tape preamp is full below and dull above, the console
+  // forward in the mids, the transformer thick in the low mids (its hump
+  // takes 500 Hz up with it, so the rest reads a dB low), the triode close
+  // to flat, the pentode lean and bright.
+  {
+    double tone[kCircuits][6];
+    const float hz[6] = {100.0f, 240.0f, 500.0f, 2000.0f, 4000.0f, 8000.0f};
+    for (int c = 0; c < kCircuits; ++c) {
+      for (int k = 0; k < 6; ++k) {
+        setup(kRate, c, 0.0f);
+        tone[c][k] = small_signal_db(hz[k]);
+      }
+      for (int k = 5; k >= 0; --k) tone[c][k] -= tone[c][2];
+      std::printf("analog-drive %s voicing against 500 Hz: %+.1f dB at 100 Hz, %+.1f at 240 Hz, %+.1f at 2 kHz, %+.1f at "
+                  "4 kHz, %+.1f at 8 kHz\n",
+                  kNames[c], tone[c][0], tone[c][1], tone[c][3], tone[c][4], tone[c][5]);
+    }
+    EXPECT(tone[kTape][0] > 0.7 && tone[kTape][5] < -1.5 && tone[kTape][5] > -3.5, "Tape preamp: lows full, top 2 dB down");
+    EXPECT(tone[kConsole][3] > 1.2 && tone[kConsole][3] < 3.0 && std::fabs(tone[kConsole][0]) < 0.7,
+           "Console: 2 kHz forward by 1.5 to 2 dB, lows left alone");
+    EXPECT(tone[kTransformer][1] > 2.0 && tone[kTransformer][1] < 4.0 &&
+               tone[kTransformer][1] - tone[kTransformer][4] > 3.5 && tone[kTransformer][5] > tone[kTransformer][3] - 0.5,
+           "Transformer: 240 Hz stands 3 dB over 500 Hz and 4 dB over a level top");
+    bool flat = true;
+    for (int k = 0; k < 5; ++k) flat = flat && std::fabs(tone[kTriode][k]) < 1.0;
+    EXPECT(flat && tone[kTriode][5] > 0.3 && tone[kTriode][5] < 1.5, "Triode: flat within 1 dB, a little air at 8 kHz");
+    EXPECT(tone[kPentode][0] < -1.0 && tone[kPentode][3] > 1.5 && tone[kPentode][5] > 1.0,
+           "Pentode: lows lean, 2 kHz and the top lifted");
+  }
+
   // Where in the spectrum each circuit gives way. The transformer saturates
   // on its lows: 60 Hz distorts several times more than 2 kHz at the same
   // level. The tape preamp gives up its highs as the level rises: a 9 kHz

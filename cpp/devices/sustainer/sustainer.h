@@ -813,7 +813,10 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
       slot.gain = 0.0f;
       return 0.0f;
     }
-    slot.gain = slot.rise * slot.fall * kit::SineTable::lookup(0.25f * slot.leave);
+    // The rise is an S-curve (half way at half the Attack time), the leave a
+    // quarter sine.
+    const float swell = slot.rise * slot.rise * (3.0f - 2.0f * slot.rise);
+    slot.gain = swell * slot.fall * kit::SineTable::lookup(0.25f * slot.leave);
     return slot.gain;
   }
 

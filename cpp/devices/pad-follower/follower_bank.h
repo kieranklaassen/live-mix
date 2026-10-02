@@ -190,6 +190,22 @@ class FollowerBank {
     sounding_ = any;
   }
 
+  // atan2 to about 1e-5 rad (a minimax polynomial on the first octant), for
+  // the readings too wild for the series in steer().
+  static float fast_atan2(float y, float x) {
+    const float ax = std::fabs(x), ay = std::fabs(y);
+    const float hi = ax > ay ? ax : ay;
+    if (!(hi > 0.0f)) return 0.0f;
+    const float q = (ax > ay ? ay : ax) / hi;
+    const float q2 = q * q;
+    float a = q * (0.99997726f +
+                   q2 * (-0.33262347f +
+                         q2 * (0.19354346f + q2 * (-0.11643287f + q2 * (0.05265332f - 0.01172120f * q2)))));
+    if (ay > ax) a = kit::kHalfPi - a;
+    if (x < 0.0f) a = kit::kPi - a;
+    return y < 0.0f ? -a : a;
+  }
+
   // One band, one tick. Returns whether its oscillator is audible.
   bool steer(int b, float up, float down, float trim) {
     const float zr = s2r_[b], zi = s2i_[b];
@@ -223,7 +239,7 @@ class FollowerBank {
         const float q2 = q * q;
         angle = q * (1.0f - q2 * ((1.0f / 3.0f) - q2 * (0.2f - q2 * (1.0f / 7.0f))));
       } else {
-        angle = std::atan2(ei, er);
+        angle = fast_atan2(ei, er);
       }
       measured = angle * (1.0f / kTick);
     }
@@ -343,16 +359,17 @@ class FollowerBank {
     const float s = angle * (1.0f - a2 * ((1.0f / 6.0f) - a2 * (1.0f / 120.0f)));
     rot_r_[b] = centre_r_[b] * c - centre_i_[b] * s;
     rot_i_[b] = centre_r_[b] * s + centre_i_[b] * c;
+    // One Newton step back to unit length undoes the rounding of a tick.
+    const float fix = 1.5f - 0.5f * (ur_[b] * ur_[b] + ui_[b] * ui_[b]);
+    ur_[b] *= fix;
+    ui_[b] *= fix;
+    if (!down_active_) return;
     const float h = 0.5f * angle + half_extra;
     const float h2 = h * h;
     const float hc = 1.0f - h2 * (0.5f - h2 * (1.0f / 24.0f));
     const float hs = h * (1.0f - h2 * ((1.0f / 6.0f) - h2 * (1.0f / 120.0f)));
     hrot_r_[b] = half_r_[b] * hc - half_i_[b] * hs;
     hrot_i_[b] = half_r_[b] * hs + half_i_[b] * hc;
-    // One Newton step back to unit length undoes the rounding of a tick.
-    const float fix = 1.5f - 0.5f * (ur_[b] * ur_[b] + ui_[b] * ui_[b]);
-    ur_[b] *= fix;
-    ui_[b] *= fix;
     const float half_fix = 1.5f - 0.5f * (hr_[b] * hr_[b] + hi_[b] * hi_[b]);
     hr_[b] *= half_fix;
     hi_[b] *= half_fix;
@@ -395,8 +412,8 @@ class FollowerBank {
   static constexpr float kPeakSeconds = 0.15f;
   // Mean swing of the reading, in band spacings: a full voice up to the
   // first, none from the second.
-  static constexpr float kJitterFull = 1.0f;
-  static constexpr float kJitterMute = 1.8f;
+  static constexpr float kJitterFull = 0.6f;
+  static constexpr float kJitterMute = 1.1f;
   // The second section at full Octaves, against the unshifted pad.
   static constexpr float kOctaveLevel = 0.9f;
   static constexpr float kCommitSeconds = 0.025f;

@@ -44,11 +44,14 @@ inline float poisson_gap(kit::Rng& rng, float per_second, float sample_rate) {
   return kit::max(gap, 1.0f);
 }
 
-// A heavy-tailed size: most draws sit just above 1, a few are many times
-// larger (a Pareto tail, index 1 / `tail`), never more than `ceiling`.
+// A heavy-tailed size: most draws sit just above 1 and a few are larger (a
+// Pareto tail, index 1 / `tail`), but the tail bends over smoothly towards
+// `ceiling`: nothing reaches it, and no pile of events sits exactly on it.
 inline float heavy_tail(kit::Rng& rng, float tail, float ceiling) {
   const float u = kit::max(rng.uniform(), 1.0e-6f);
-  return kit::min(std::exp(-tail * std::log(u)), ceiling);
+  const float over = std::exp(-tail * std::log(u)) - 1.0f;
+  const float span = kit::max(ceiling - 1.0f, 1.0e-3f);
+  return 1.0f + span * over / (over + span);
 }
 
 // One-pole lowpass by the trapezoidal rule. Unlike kit::OnePole it reaches
@@ -195,9 +198,24 @@ struct Air {
 struct Vinyl {
   static constexpr float kNorm = 2.402f;  // by measurement
   static constexpr float kRumble = 2.0f;  // 10 dB under the hiss
-  // A typical tick peaks 16 dB over the hiss's RMS, the largest 25 dB over.
-  static constexpr float kTick = 3.0f;
-  static constexpr float kTickCeiling = 3.0f;
+  // Crackle that sits in the bed instead of jumping out of it: a tick is
+  // struck at 1 to 1.6 times kTick, so with its damping and its place between
+  // the sides most ticks peak 3 to 8 dB over the bed's RMS and the largest in
+  // several minutes, hiss included, about 13 dB over. A pop is a soft thump
+  // of 3 to 7 dB over.
+  static constexpr float kTick = 1.0f;
+  static constexpr float kTickCeiling = 1.6f;
+  static constexpr float kPop = 1.35f;
+#ifndef NF_TOP
+#define NF_TOP 5000.0f
+#define NF_HZ 1800.0f
+#define NF_OCT 2.0f
+#define NF_Q 1.0f
+#endif
+  static constexpr float kHissTopHz = NF_TOP;
+  static constexpr float kTickHz = NF_HZ;
+  static constexpr float kTickOctaves = NF_OCT;
+  static constexpr float kTickQ = NF_Q;
   static constexpr float kTicksPerSecond = 16.0f;
   static constexpr float kPopsPerSecond = 0.22f;
   static constexpr float kTurnHz = 33.333f / 60.0f;
@@ -221,7 +239,7 @@ struct Vinyl {
       low_cut[c].reset();
       low_cut[c].set_cutoff(500.0f, sr);
       high_cut[c].reset();
-      high_cut[c].set(5000.0f, 0.6f, sr);
+      high_cut[c].set(kHissTopHz, 0.6f, sr);
       rumble[c].reset();
       rumble[c].set(42.0f, 0.8f, sr);
       tick[c][0].reset();
@@ -251,8 +269,8 @@ struct Vinyl {
     if (tick_wait <= 0.0f) {
       tick_wait += poisson_gap(events, kTicksPerSecond, sr);
       const float size = kTick * heavy_tail(events, 0.35f, kTickCeiling);
-      const float hz = 1800.0f * std::exp2(2.0f * events.uniform());
-      const float q = 1.0f + 1.5f * events.uniform();
+      const float hz = kTickHz * std::exp2(kTickOctaves * events.uniform());
+      const float q = kTickQ + 1.5f * events.uniform();
       // Anywhere between the sides, and as often out of phase as in: dust
       // sits on either wall of the groove.
       const float place = 0.25f * events.uniform();
@@ -269,7 +287,7 @@ struct Vinyl {
       pop_wait += poisson_gap(events, kPopsPerSecond, sr);
       // Either way up, so the thumps leave no offset behind.
       const float way = (events.next_u32() & 0x100u) ? 1.0f : -1.0f;
-      const float size = way * kTick * (1.5f + 1.5f * events.uniform());
+      const float size = way * kPop * (1.0f + 0.6f * events.uniform());
       const float hz = 70.0f * std::exp2(1.5f * events.uniform());
       const float lean = 0.125f + 0.06f * events.bipolar();
       pop[0].strike(size * kit::SineTable::cos_lookup(lean), hz, 0.9f, sr);

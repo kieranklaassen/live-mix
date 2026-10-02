@@ -36,6 +36,8 @@ struct Chimes {
   Wander wind;
   float until = 0.0f;  // expected strikes left before the next one lands
   float gust = 0.5f;
+  float pace = 1.0f;   // strikes a second for the Density
+  float seen_density = -1.0f;
   float base = 440.0f; // pitch of the lowest tube
   int at = 0;          // where on the ring the clapper is
   int sweep = 0;       // which tube is checked for silence this step
@@ -89,8 +91,11 @@ struct Chimes {
     gust = wind.next(0.25f, dt);
     // Strikes a second: one every seven seconds to six a second, bunched
     // into the gusts as Movement rises.
-    const float base = 0.15f * std::pow(40.0f, c.density);
-    const float rate = base * kit::lerp(1.0f, 4.0f * gust * gust * gust, c.movement);
+    if (c.density != seen_density) {
+      seen_density = c.density;
+      pace = 0.15f * std::pow(40.0f, c.density);
+    }
+    const float rate = pace * kit::lerp(1.0f, 4.0f * gust * gust * gust, c.movement);
     for (Tube& tb : tube) tb.rest += dt;
     until -= rate * dt;
     if (until <= 0.0f) {

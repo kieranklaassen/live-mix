@@ -44,6 +44,8 @@ struct Stream {
   float pan_left[kSites] = {}, pan_right[kSites] = {};
   float sr = 48000.0f;
   float lean = 1.0f, pitch = 1.0f;
+  float rate = 280.0f;  // bubbles a second for the Density
+  float seen_density = -1.0f, seen_tone = -1.0f;
   float level = 1.0f, rush = 0.0f, rush_target = 0.0f, rush_step = 0.0f;
 
   void seed(uint32_t base) {
@@ -59,6 +61,7 @@ struct Stream {
     lean = key_lean(hz, 0.4f, 0.8f);
     sounding = 0;
     until = 0.05f;
+    seen_density = -1.0f;
     for (int s = 0; s < kSites; ++s) kit::pan_gains(kPan[s], &pan_left[s], &pan_right[s]);
     for (int ch = 0; ch < 2; ++ch) {
       rush_low[ch].reset();
@@ -72,9 +75,18 @@ struct Stream {
   void control(const Controls& c) {
     const float dt = c.step_seconds;
     sr = c.sample_rate;
-    pitch = lean * std::exp2(1.2f * (c.tone - 0.5f));
-    // 40 bubbles a second is a trickle; 2000 is a brook in a hurry.
-    const float rate = 40.0f * std::pow(50.0f, c.density);
+    // What follows Density and Tone is worked out again only when they move.
+    if (c.density != seen_density || c.tone != seen_tone) {
+      seen_density = c.density;
+      seen_tone = c.tone;
+      pitch = lean * std::exp2(1.2f * (c.tone - 0.5f));
+      // 40 bubbles a second is a trickle; 2000 is a brook in a hurry.
+      rate = 40.0f * std::pow(50.0f, c.density);
+      for (int ch = 0; ch < 2; ++ch) {
+        rush_low[ch].set_cutoff(kit::min(1400.0f * pitch, 0.4f * sr), sr);
+        rush_high[ch].set_cutoff(160.0f * pitch, sr);
+      }
+    }
     // The whole stream surges slowly; each place babbles quickly on its own.
     const float swell = kit::lerp(1.0f, 0.45f + 1.3f * surge.next(0.15f, dt), c.movement);
     float sum = 0.0f;
@@ -89,10 +101,6 @@ struct Stream {
     rush = rush_target;  // where the last step's ramp ended
     rush_target = kRush * (0.5f + 1.5f * c.distance) * std::sqrt(sum / 250.0f) * 0.12f;
     rush_step = (rush_target - rush) / static_cast<float>(kControlPeriod);
-    for (int ch = 0; ch < 2; ++ch) {
-      rush_low[ch].set_cutoff(kit::min(1400.0f * pitch, 0.4f * sr), sr);
-      rush_high[ch].set_cutoff(160.0f * pitch, sr);
-    }
   }
 
   void spawn() {
@@ -102,12 +110,17 @@ struct Stream {
     int site = 0;
     while (site < kSites - 1 && pick > flow[site]) pick -= flow[site++];
     const float scatter = 0.5f * (rng.bipolar() + rng.bipolar());  // triangular
-    const float hz = kit::clamp(kCentre[site] * pitch * std::exp2(2.0f * kSpread[site] * scatter), 120.0f, 0.27f * sr);
+    // 2^(2·spread·scatter) by its series: the exponent stays inside ±1.3
+    // octaves, where five terms are within half a percent, and thousands of
+    // bubbles a second should not each cost a call to exp2.
+    const float y = 1.3862944f * kSpread[site] * scatter;
+    const float ratio = 1.0f + y * (1.0f + y * (0.5f + y * (0.16666667f + y * 0.041666667f)));
+    const float hz = kit::clamp(kCentre[site] * pitch * ratio, 120.0f, 0.27f * sr);
     // Damping per second for that size: thermal and radiative losses both grow as it shrinks.
     const float damping = 0.0433f * hz + 0.001386f * hz * std::sqrt(hz);
     Bubble& b = bubble[sounding++];
     b.site = site;
-    b.osc.tune(hz, sr);
+    b.osc.eps = 2.0f * kit::SineTable::lookup(0.5f * hz / sr);  // 2·sin(π·f/sr), from the table
     const float per_sample = damping / sr;
     b.osc.r = 1.0f - per_sample + 0.5f * per_sample * per_sample;
     // The pitch climbs by up to a seventh of itself per time constant.
@@ -121,7 +134,8 @@ struct Stream {
     b.osc.x = 0.0f;
     b.osc.y = -level * strength;
     // It sounds until it is 48 dB under the loudest a bubble can be.
-    b.left = static_cast<int>(kit::max(1.5f, std::log(strength * 250.0f)) * sr / damping);
+    // (ln(250 · strength) is within 2 % of 3.4 + 2.1 · depth.)
+    b.left = static_cast<int>((3.4f + 2.1f * depth) * sr / damping);
   }
 
   void tick(float& left, float& right) {

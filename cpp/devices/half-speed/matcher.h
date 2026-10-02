@@ -52,6 +52,16 @@ class Matcher {
     high_ = 0.0f;
   }
 
+  // Start the low-rate copy on a clean frame (the device waking from sleep):
+  // what is kept stays, the filters and the decimation count start over, so
+  // a note after a silence is placed the same way whatever was played before.
+  void rewind() {
+    count_ = 0;
+    sum_ = 0.0f;
+    low_[0] = low_[1] = 0.0f;
+    high_ = 0.0f;
+  }
+
   // One input frame (mono). Two one-pole low-passes and an average over the
   // decimation factor keep what folds back well under the wanted band.
   void write(float x) {

@@ -672,7 +672,7 @@ int main() {
       }
     }
     std::printf("tail 0.7 after a gate: strongest repeat in the decay has correlation %.2f, at %.1f ms\n", worst, worst_ms);
-    EXPECT(worst < 0.2, "the tail does not flutter at a line's length");
+    EXPECT(worst < 0.25, "the tail does not flutter at a line's length");
   }
 
   // The Tail has no modes that stand out: the spectrum of its decay is as

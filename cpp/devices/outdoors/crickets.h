@@ -45,6 +45,7 @@ struct Crickets {
   float lean = 1.0f;    // from the key
   float pitch = 1.0f;   // key and Tone on the carrier
   float tempo = 1.0f;   // key on the rates: a warm night is higher and faster
+  float seen_tone = -1.0f;
   float movement = 0.5f;
   float distance = 0.4f;
   int here = 3;
@@ -57,6 +58,7 @@ struct Crickets {
     lean = key_lean(hz, 0.2f, 0.3f);
     tempo = lean;
     sr = c.sample_rate;
+    seen_tone = -1.0f;
     read(c);
     for (int i = 0; i < kCrickets; ++i) {
       Cricket& k = cricket[i];
@@ -83,7 +85,10 @@ struct Crickets {
   }
 
   void read(const Controls& c) {
-    pitch = lean * std::exp2(0.5f * (c.tone - 0.5f));
+    if (c.tone != seen_tone) {
+      seen_tone = c.tone;
+      pitch = lean * std::exp2(0.5f * (c.tone - 0.5f));
+    }
     movement = c.movement;
     distance = c.distance;
     here = 1 + static_cast<int>(c.density * static_cast<float>(kCrickets - 1) + 0.5f);

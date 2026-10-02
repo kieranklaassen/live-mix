@@ -22,6 +22,8 @@ class SectionChorus {
   // `rate` is the rate process() is called at. Clears the lines.
   void prepare(float rate) {
     rate_ = rate;
+    counter_ = 0;
+    amount_ = -1.0f;
     for (int side = 0; side < 2; ++side) {
       line_[side].clear();
       for (int tap = 0; tap < kTaps; ++tap) {
@@ -32,6 +34,8 @@ class SectionChorus {
         // Depth in seconds for the wanted pitch bend: bend = 2π · rate · depth.
         slow_depth_[side][tap] = kSlowBend / (kit::kTwoPi * kSlowHz[side][tap]);
         fast_depth_[side][tap] = kFastBend / (kit::kTwoPi * kFastHz[side][tap]);
+        delay_[side][tap] = position(side, tap);
+        delay_step_[side][tap] = 0.0f;
       }
     }
   }
@@ -40,30 +44,52 @@ class SectionChorus {
   // between the two cross by equal power, as the taps are decorrelated.
   void process(float* left, float* right, float amount) {
     float* channel[2] = {left, right};
-    const float angle = kit::clamp(amount, 0.0f, 1.0f) * kit::kHalfPi * (1.0f / kit::kTwoPi);
-    const float direct_gain = kit::SineTable::cos_lookup(angle);
-    const float tap_gain = kit::SineTable::lookup(angle) * kTapGain;
+    if (amount != amount_) {
+      amount_ = amount;
+      const float angle = kit::clamp(amount, 0.0f, 1.0f) * 0.25f;
+      direct_gain_ = kit::SineTable::cos_lookup(angle);
+      tap_gain_ = kit::SineTable::lookup(angle) * kTapGain;
+    }
+    if (counter_ == 0) sweep();
+    if (++counter_ >= kSweepPeriod) counter_ = 0;
     for (int side = 0; side < 2; ++side) {
       const float x = *channel[side];
       line_[side].write(x);
       float sum = 0.0f;
       for (int tap = 0; tap < kTaps; ++tap) {
-        float& slow = slow_phase_[side][tap];
-        float& fast = fast_phase_[side][tap];
-        slow += slow_step_[side][tap];
-        if (slow >= 1.0f) slow -= 1.0f;
-        fast += fast_step_[side][tap];
-        if (fast >= 1.0f) fast -= 1.0f;
-        const float seconds = kBaseSeconds[side][tap] +
-                              slow_depth_[side][tap] * kit::SineTable::lookup(slow) +
-                              fast_depth_[side][tap] * kit::SineTable::lookup(fast);
-        sum += line_[side].read_hermite(seconds * rate_);
+        delay_[side][tap] += delay_step_[side][tap];
+        sum += line_[side].read_hermite(delay_[side][tap]);
       }
-      *channel[side] = x * direct_gain + sum * tap_gain;
+      *channel[side] = x * direct_gain_ + sum * tap_gain_;
     }
   }
 
  private:
+  // Every kSweepPeriod samples: where each tap will be one period from now.
+  // The taps move in straight lines in between, which at these rates is the
+  // sine to within a ten-thousandth of a sample.
+  void sweep() {
+    for (int side = 0; side < 2; ++side) {
+      for (int tap = 0; tap < kTaps; ++tap) {
+        float& slow = slow_phase_[side][tap];
+        float& fast = fast_phase_[side][tap];
+        slow += slow_step_[side][tap] * kSweepPeriod;
+        if (slow >= 1.0f) slow -= 1.0f;
+        fast += fast_step_[side][tap] * kSweepPeriod;
+        if (fast >= 1.0f) fast -= 1.0f;
+        const float next = position(side, tap);
+        delay_step_[side][tap] = (next - delay_[side][tap]) * (1.0f / kSweepPeriod);
+      }
+    }
+  }
+
+  float position(int side, int tap) const {
+    return rate_ * (kBaseSeconds[side][tap] +
+                    slow_depth_[side][tap] * kit::SineTable::lookup(slow_phase_[side][tap]) +
+                    fast_depth_[side][tap] * kit::SineTable::lookup(fast_phase_[side][tap]));
+  }
+
+  static constexpr int kSweepPeriod = 16;
   // Longest read: 19 ms + 3.6 ms + margin, at an internal rate up to 48 kHz.
   static constexpr int kLineSize = 2048;
   static constexpr float kSlowBend = 0.0052f;  // 9 cents
@@ -81,6 +107,9 @@ class SectionChorus {
   float slow_phase_[2][kTaps] = {}, fast_phase_[2][kTaps] = {};
   float slow_step_[2][kTaps] = {}, fast_step_[2][kTaps] = {};
   float slow_depth_[2][kTaps] = {}, fast_depth_[2][kTaps] = {};
+  float delay_[2][kTaps] = {}, delay_step_[2][kTaps] = {};
+  int counter_ = 0;
+  float amount_ = -1.0f, direct_gain_ = 1.0f, tap_gain_ = 0.0f;
 };
 
 }  // namespace pad_follower

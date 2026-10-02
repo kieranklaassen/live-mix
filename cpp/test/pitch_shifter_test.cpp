@@ -18,7 +18,7 @@ namespace p = livemix::pitch_shifter;
 static PitchShifter device;
 
 static const float kRate = 48000.0f;
-enum { kSmooth = 0, kGrain = 1, kVintage = 2 };
+enum { kSmooth = 0, kGrain = 1, kVintage = 2, kChords = 3 };
 
 static bool verbose() {
   static const bool on = std::getenv("PITCH_SHIFTER_VERBOSE") != nullptr;
@@ -155,7 +155,93 @@ static void add_burst(std::vector<float>& x, size_t at, size_t length, float hz,
   }
 }
 
+// A line-spectrum meter for chords: 65536 samples from `from` under a
+// Blackman-Harris window (lines 3 Hz wide at 48 kHz, skirts below -90 dB).
+// For every frequency in `expected`, how far off the nearest line is and how
+// loud; then the loudest thing more than 4 Hz from all of them, against the
+// loudest expected line.
+struct Lines {
+  double worst_cents = 0.0;  // largest pitch error among the expected lines
+  double weakest_db = 0.0;   // quietest expected line against the loudest
+  double other_db = -300.0;  // loudest thing that is not an expected line
+  double other_hz = 0.0;
+};
+
+static Lines measure_lines(const std::vector<float>& x, size_t from, double rate, const std::vector<double>& expected) {
+  static const int kPoints = 65536;
+  static livemix::kit::Fft<kPoints> fft;
+  static std::vector<float> re(kPoints), im(kPoints);
+  static bool ready = false;
+  if (!ready) {
+    fft.init();
+    ready = true;
+  }
+  for (int i = 0; i < kPoints; ++i) {
+    const double t = 2.0 * kPi * i / kPoints;
+    const double w = 0.35875 - 0.48829 * std::cos(t) + 0.14128 * std::cos(2.0 * t) - 0.01168 * std::cos(3.0 * t);
+    re[i] = static_cast<float>(x[from + i] * w);
+    im[i] = 0.0f;
+  }
+  fft.forward(re.data(), im.data());
+  std::vector<double> level(kPoints / 2);
+  for (int k = 0; k < kPoints / 2; ++k) level[k] = 10.0 * std::log10(re[k] * re[k] + im[k] * im[k] + 1.0e-30);
+  const double bin = rate / kPoints;
+  const int guard = static_cast<int>(4.0 / bin + 0.5);
+  std::vector<char> owned(level.size(), 0);
+  double top = -300.0, weakest = 300.0;
+  Lines out;
+  for (double hz : expected) {
+    const int centre = static_cast<int>(hz / bin + 0.5);
+    int best = centre;
+    for (int k = centre - 6; k <= centre + 6; ++k) {
+      if (k > 0 && k < kPoints / 2 - 1 && level[k] > level[best]) best = k;
+    }
+    const double a = level[best - 1], b = level[best], c = level[best + 1];
+    const double found = (best + 0.5 * (a - c) / (a - 2.0 * b + c)) * bin;
+    const double error = cents(found, hz);
+    if (std::fabs(error) > std::fabs(out.worst_cents)) out.worst_cents = error;
+    top = std::max(top, b);
+    weakest = std::min(weakest, b);
+    for (int k = centre - guard; k <= centre + guard; ++k) {
+      if (k >= 0 && k < kPoints / 2) owned[k] = 1;
+    }
+  }
+  for (size_t k = 20; k < level.size(); ++k) {
+    if (!owned[k] && level[k] - top > out.other_db) {
+      out.other_db = level[k] - top;
+      out.other_hz = k * bin;
+    }
+  }
+  out.weakest_db = weakest - top;
+  return out;
+}
+
+// Notes as steady tones with their octave at half the level.
+static std::vector<float> held_notes(const std::vector<double>& notes, float seconds, double rate) {
+  std::vector<float> x(static_cast<size_t>(seconds * rate), 0.0f);
+  for (size_t n = 0; n < notes.size(); ++n) {
+    for (int h = 1; h <= 2; ++h) {
+      for (size_t i = 0; i < x.size(); ++i) {
+        x[i] += static_cast<float>(0.15 / h * std::sin(2.0 * kPi * notes[n] * h * i / rate + 0.7 * n + 1.3 * h));
+      }
+    }
+  }
+  return x;
+}
+
+static std::vector<double> shifted_lines(const std::vector<double>& notes, double ratio) {
+  std::vector<double> hz;
+  for (double note : notes) {
+    hz.push_back(note * ratio);
+    hz.push_back(2.0 * note * ratio);
+  }
+  return hz;
+}
+
 static void check_pitch();
+static void check_chords();
+static void check_chords_fit();
+static void check_chords_moves();
 static void check_character();
 static void check_chord_and_voices();
 static void check_feedback_and_delay();
@@ -173,6 +259,9 @@ int main() {
   check_effect(device, spec, kRate);
 
   check_pitch();
+  check_chords();
+  check_chords_fit();
+  check_chords_moves();
   check_character();
   check_chord_and_voices();
   check_feedback_and_delay();
@@ -535,7 +624,7 @@ static void check_feedback_and_delay() {
 
   // Maximum feedback, full-scale input, both voices, every mode: bounded,
   // and it dies away once the input stops.
-  for (int mode : {kSmooth, kGrain, kVintage}) {
+  for (int mode : {kSmooth, kGrain, kVintage, kChords}) {
     for (float pitch : {0.0f, 12.0f}) {
       device.init(kRate);
       device.set_param(p::kMode, static_cast<float>(mode));
@@ -656,5 +745,231 @@ static void check_moves() {
     NOTE("default patch on a chord: %.2f dB re input, L/R correlation %.3f, peak %.2f\n", level, together, peak(out.left));
     EXPECT(std::fabs(level) < 3.0, "the default patch is within 3 dB of the input level");
     EXPECT(together > 0.99, "the default patch keeps a mono source mono");
+  }
+}
+
+// Chords mode on what it is for: every note of a chord lands on its own
+// shifted pitch and nothing else is there, where Smooth, splicing the sum,
+// wavers. Printed side by side, always, so the difference can be read.
+static void check_chords() {
+  char label[200];
+  const std::vector<double> c_major = {261.626, 329.628, 391.995};
+  const std::vector<double> low_e = {82.407, 103.826, 123.471, 164.814};
+  struct Case {
+    const char* name;
+    const std::vector<double>* notes;
+    float pitch;
+  };
+  const Case cases[] = {{"C major", &c_major, 7.0f}, {"C major", &c_major, 12.0f}, {"low E major", &low_e, 7.0f}, {"low E major", &low_e, 12.0f}};
+  for (const Case& c : cases) {
+    const double ratio = std::pow(2.0, c.pitch / 12.0);
+    const std::vector<float> in = held_notes(*c.notes, 3.5f, kRate);
+    Lines found[2];
+    for (int k = 0; k < 2; ++k) {
+      wet_only(device, k == 0 ? kChords : kSmooth, c.pitch);
+      Stereo out = run(device, in);
+      found[k] = measure_lines(out.left, 96000, kRate, shifted_lines(*c.notes, ratio));
+    }
+    std::printf("chords: %s %+.0f st: Chords notes within %.2f ct, everything else %.1f dB | Smooth %.2f ct, %.1f dB\n", c.name,
+                c.pitch, std::fabs(found[0].worst_cents), found[0].other_db, std::fabs(found[1].worst_cents), found[1].other_db);
+    std::snprintf(label, sizeof label, "Chords: every note of %s %+.0f st within 3 cents (%.2f)", c.name, c.pitch, found[0].worst_cents);
+    EXPECT(std::fabs(found[0].worst_cents) < 3.0 && found[0].weakest_db > -9.5, label);
+    std::snprintf(label, sizeof label, "Chords: nothing but the shifted notes within 40 dB, %s %+.0f st (%.1f dB at %.0f Hz)", c.name,
+                  c.pitch, found[0].other_db, found[0].other_hz);
+    EXPECT(found[0].other_db < -40.0, label);
+  }
+}
+
+static std::vector<float> pink_noise(float seconds, float rate, float gain) {
+  std::vector<float> x = noise(seconds, rate, gain);
+  double b0 = 0.0, b1 = 0.0, b2 = 0.0;
+  for (float& v : x) {
+    b0 = 0.99765 * b0 + v * 0.0990460;
+    b1 = 0.96300 * b1 + v * 0.2965164;
+    b2 = 0.57000 * b2 + v * 1.0526913;
+    v = static_cast<float>(0.3 * (b0 + b1 + b2 + v * 0.1848));
+  }
+  return x;
+}
+
+// Chords on plain material and as part of the device: one note, the other
+// sample rates, level, an attack, moves, Delay and Feedback, the second
+// voice, silence and block sizes.
+static void check_chords_fit() {
+  char label[200];
+
+  // One steady note, below and above the split between its two windows.
+  for (float pitch : {-12.0f, 7.0f, 12.0f}) {
+    const double ratio = std::pow(2.0, pitch / 12.0);
+    double worst = 0.0, flutter = 0.0, level = 0.0;
+    for (float hz : {440.0f, 1000.0f, 3000.0f}) {
+      wet_only(device, kChords, pitch);
+      Stereo out = run(device, sine(hz, 2.0f, kRate, 0.5f));
+      const double found = frequency_near(out.left, hz * ratio, kRate, 48000, 96000);
+      worst = std::max(worst, found > 0.0 ? std::fabs(cents(found, hz * ratio)) : 1200.0);
+      flutter = std::max(flutter, flutter_db(out.left, 48000, 96000, 1200));
+      const double off = db(rms(out.left, 48000, 96000) / (0.5 / std::sqrt(2.0)));
+      if (std::fabs(off) > std::fabs(level)) level = off;
+    }
+    NOTE("chords: one note %+.0f st: worst error %.3f cents, flutter %.2f dB, level %+.2f dB\n", pitch, worst, flutter, level);
+    std::snprintf(label, sizeof label, "Chords: one note lands within 1 cent at %+.0f st (%.3f)", pitch, worst);
+    EXPECT(worst < 1.0, label);
+    std::snprintf(label, sizeof label, "Chords: one note is steady at %+.0f st (flutter %.2f dB, level %+.2f dB)", pitch, flutter, level);
+    EXPECT(flutter < 0.5 && std::fabs(level) < 0.5, label);
+  }
+
+  // The other sample rates: the windows are the same length in time.
+  for (float rate : {44100.0f, 96000.0f}) {
+    double worst = 0.0;
+    for (float hz : {440.0f, 2000.0f}) {
+      device.init(rate);
+      device.set_param(p::kMix, 1.0f);
+      device.set_param(p::kMode, kChords);
+      device.set_param(p::kPitchA, 7.0f);
+      device.set_param(p::kTone, 18000.0f);
+      Stereo out = run(device, sine(hz, 2.0f, rate, 0.5f));
+      const double want = hz * std::pow(2.0, 7.0 / 12.0);
+      const double found = frequency_near(out.left, want, rate, static_cast<size_t>(rate), static_cast<size_t>(2.0f * rate));
+      worst = std::max(worst, found > 0.0 ? std::fabs(cents(found, want)) : 1200.0);
+    }
+    NOTE("chords: at %.0f Hz: worst error %.3f cents\n", rate, worst);
+    std::snprintf(label, sizeof label, "Chords: within 1 cent at %.0f Hz (%.3f)", rate, worst);
+    EXPECT(worst < 1.0, label);
+  }
+
+  // Level against what went in: a held chord, and pink noise (which no
+  // phase vocoder keeps whole: its frames stop agreeing where there is no
+  // steady partial to follow, and at +12 the top octave has nowhere to go).
+  {
+    const std::vector<float> held = held_notes({130.81, 164.81, 196.0, 261.63, 329.63}, 3.0f, kRate);
+    rng_state() = 0xC0FFEEu;
+    const std::vector<float> pink = pink_noise(4.0f, kRate, 0.25f);
+    double chord_off = 0.0, pink_off[3] = {0.0, 0.0, 0.0};
+    int k = 0;
+    for (float pitch : {7.0f, 12.0f, -12.0f}) {
+      wet_only(device, kChords, pitch);
+      Stereo a = run(device, held);
+      const double off = db(rms(a.left, 72000, held.size()) / rms(held, 72000, held.size()));
+      if (std::fabs(off) > std::fabs(chord_off)) chord_off = off;
+      wet_only(device, kChords, pitch);
+      Stereo b = run(device, pink);
+      pink_off[k++] = db(rms(b.left, 72000, pink.size()) / rms(pink, 72000, pink.size()));
+    }
+    NOTE("chords: level re input: held chord %+.2f dB; pink noise %+.2f dB at +7, %+.2f at +12, %+.2f at -12\n", chord_off,
+         pink_off[0], pink_off[1], pink_off[2]);
+    std::snprintf(label, sizeof label, "Chords: a held chord comes out at its own level (%+.2f dB)", chord_off);
+    EXPECT(std::fabs(chord_off) < 0.5, label);
+    std::snprintf(label, sizeof label, "Chords: pink noise within 1.5 dB at +7 st (%+.2f dB)", pink_off[0]);
+    EXPECT(std::fabs(pink_off[0]) < 1.5, label);
+    std::snprintf(label, sizeof label, "Chords: pink noise within 2.5 dB an octave either way (%+.2f, %+.2f dB)", pink_off[1], pink_off[2]);
+    EXPECT(std::fabs(pink_off[1]) < 2.5 && std::fabs(pink_off[2]) < 2.5, label);
+  }
+
+  // A plucked note (3 ms attack, eight harmonics): it arrives once, about
+  // 190 ms late, with next to nothing ahead of it. "Arrives" is where the
+  // 5 ms level first reaches half its peak; what is ahead is the 30 ms
+  // before that, less the last 5 ms, which are the attack itself.
+  {
+    struct Pluck {
+      float hz, pitch;
+    };
+    double worst_ahead = -200.0, earliest = 1.0e9, latest = 0.0;
+    for (const Pluck& n : {Pluck{220.0f, 7.0f}, Pluck{110.0f, 12.0f}, Pluck{880.0f, -12.0f}, Pluck{329.63f, 12.0f}}) {
+      std::vector<float> in(static_cast<size_t>(1.5f * kRate), 0.0f);
+      const size_t onset = 24000;
+      for (size_t i = onset; i < in.size(); ++i) {
+        const double t = static_cast<double>(i - onset) / kRate;
+        double v = 0.0;
+        for (int h = 1; h <= 8; ++h) v += std::sin(2.0 * kPi * n.hz * h * t + 0.7 * h) / h;
+        in[i] = static_cast<float>(0.2 * std::min(1.0, t / 0.003) * std::exp(-t / 0.9) * v);
+      }
+      wet_only(device, kChords, n.pitch);
+      Stereo out = run(device, in);
+      double top = 0.0;
+      for (size_t a = onset; a + 240 <= out.left.size(); a += 48) top = std::max(top, rms(out.left, a, a + 240));
+      size_t arrival = onset;
+      while (arrival + 240 < out.left.size() && rms(out.left, arrival, arrival + 240) < 0.5 * top) arrival += 48;
+      const double ahead = db(rms(out.left, arrival - 1680, arrival - 240) / rms(out.left, arrival, arrival + 1440));
+      const double late = static_cast<double>(arrival - onset) / kRate * 1000.0;
+      NOTE("chords: pluck %.0f Hz %+.0f st: arrives %.1f ms late, the 30 ms ahead of it %.1f dB under\n", n.hz, n.pitch, late, ahead);
+      worst_ahead = std::max(worst_ahead, ahead);
+      earliest = std::min(earliest, late);
+      latest = std::max(latest, late);
+    }
+    std::snprintf(label, sizeof label, "Chords: an attack arrives once, the 30 ms before it 25 dB down (%.1f dB)", worst_ahead);
+    EXPECT(worst_ahead < -25.0, label);
+    std::snprintf(label, sizeof label, "Chords: answers between 180 and 200 ms late (%.1f to %.1f ms)", earliest, latest);
+    EXPECT(earliest > 180.0 && latest < 200.0, label);
+  }
+}
+
+// Chords with the rest of the device: Delay, Feedback, the second voice,
+// and moving Mode or Pitch while it sounds.
+static void check_chords_moves() {
+  char label[200];
+
+  // Delay moves the voice later by its setting.
+  {
+    std::vector<float> in(static_cast<size_t>(1.5f * kRate), 0.0f);
+    add_burst(in, 4800, 960, 1000.0f, 0.5f);
+    wet_only(device, kChords, 7.0f);
+    Stereo near = run(device, in);
+    wet_only(device, kChords, 7.0f);
+    device.set_param(p::kDelay, 250.0f);
+    Stereo far = run(device, in);
+    const double behind = (energy_centre(near.left, 0, near.left.size()) - energy_centre(in, 0, in.size())) / kRate * 1000.0;
+    const double moved = (energy_centre(far.left, 0, far.left.size()) - energy_centre(near.left, 0, near.left.size())) / kRate * 1000.0;
+    NOTE("chords: a burst comes out %.1f ms late; Delay 250 ms moves it by %.2f ms\n", behind, moved);
+    EXPECT_NEAR(moved, 250.0, 2.0, "Chords: Delay makes the shifted voice arrive that much later");
+  }
+
+  // Feedback: every repeat one interval further on and quieter.
+  for (float pitch : {12.0f, -7.0f}) {
+    wet_only(device, kChords, pitch);
+    device.set_param(p::kDelay, 300.0f);
+    device.set_param(p::kFeedback, 0.7f);
+    const float start = pitch < 0.0f ? 1760.0f : 220.0f;
+    std::vector<float> in(static_cast<size_t>(2.7f * kRate), 0.0f);
+    add_burst(in, 0, 9600, start, 0.5f);
+    Stereo out = run(device, in);
+    double worst = 0.0, previous = 1.0e9;
+    bool falling = true;
+    for (int k = 1; k <= 4; ++k) {
+      const size_t centre = static_cast<size_t>((0.1 + k * 0.492) * kRate);
+      double loudest = 0.0;
+      size_t at = centre;
+      for (size_t a = centre - 4800; a < centre + 4800; a += 240) {
+        const double level = rms(out.left, a - 2400, a + 2400);
+        if (level > loudest) {
+          loudest = level;
+          at = a;
+        }
+      }
+      const double want = start * std::pow(2.0, k * pitch / 12.0);
+      const double found = dominant_frequency(out.left, kRate, want * 0.8, want * 1.25, at - 2400, at + 2400);
+      worst = std::max(worst, std::fabs(cents(found, want)));
+      if (loudest >= previous) falling = false;
+      previous = loudest;
+    }
+    NOTE("chords: feedback %+.0f st: repeats 1..4 within %.1f cents of one more interval each\n", pitch, worst);
+    std::snprintf(label, sizeof label, "Chords: each repeat is one more %+.0f st (worst %.1f cents)", pitch, worst);
+    EXPECT(worst < 15.0 && falling, label);
+  }
+
+  // The second voice and Spread.
+  {
+    wet_only(device, kChords, 12.0f);
+    device.set_param(p::kPitchB, -12.0f);
+    device.set_param(p::kLevelB, 1.0f);
+    device.set_param(p::kSpread, 1.0f);
+    device.set_param(p::kDetune, 10.0f);
+    Stereo out = run(device, sine(440.0f, 2.5f, kRate, 0.4f));
+    const double up = 880.0 * std::pow(2.0, 10.0 / 1200.0), down = 220.0 * std::pow(2.0, -10.0 / 1200.0);
+    const double up_left = tone_level(out.left, up, kRate, 72000, 120000), up_right = tone_level(out.right, up, kRate, 72000, 120000);
+    const double down_left = tone_level(out.left, down, kRate, 72000, 120000), down_right = tone_level(out.right, down, kRate, 72000, 120000);
+    NOTE("chords: voices at Spread 1, Detune 10: A %.1f dB re input, L/R %.1f dB; B %.1f dB, R/L %.1f dB\n", db(up_left / 0.4),
+         db(up_left / std::max(up_right, 1e-9)), db(down_right / 0.4), db(down_right / std::max(down_left, 1e-9)));
+    EXPECT(up_left > 0.9 * 0.4 && up_left > 30.0 * up_right, "Chords: voice A, detuned up, on the left");
+    EXPECT(down_right > 0.9 * 0.4 && down_right > 30.0 * down_left, "Chords: voice B, detuned down, on the right");
   }
 }

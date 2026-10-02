@@ -83,6 +83,7 @@ class Outdoors : public kit::DeviceBase<outdoors::kNumParams> {
     idle_.reset(sr, 0.3f);
     for (int id = 0; id < kNumParams; ++id) apply(id);
     read_controls(false);
+    air_distance_ = -1.0f;
     aim_air();
   }
 
@@ -279,6 +280,8 @@ class Outdoors : public kit::DeviceBase<outdoors::kNumParams> {
 
   // Air takes the highs first: a one-pole from 20 kHz (near) to 2 kHz.
   void aim_air() {
+    if (controls_.distance == air_distance_) return;
+    air_distance_ = controls_.distance;
     const float cutoff = 20000.0f * std::pow(0.1f, controls_.distance);
     for (int c = 0; c < 2; ++c) air_[c].set_cutoff(cutoff, sample_rate());
   }
@@ -378,6 +381,7 @@ class Outdoors : public kit::DeviceBase<outdoors::kNumParams> {
   kit::ControlClock clock_;
   kit::IdleGate idle_;
   scene::Controls controls_;
+  float air_distance_ = -1.0f;
   int kind_ = 0;
   int pending_kind_ = 0;
 };

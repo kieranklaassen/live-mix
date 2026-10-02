@@ -41,6 +41,9 @@ constexpr float kRecordedBandHz = 10500.0f;
 // Half the distance in pitch between the two periods of a key.
 constexpr float kVibratoSpanCents = 30.0f;
 constexpr int kMaxPlayers = 4;
+// How many of a recording's lowest harmonics the section's leveller follows
+// (tape_orchestra.h): the ones that can carry most of a note's power.
+constexpr int kLevelHarmonics = 12;
 
 // A resonance of a body: a bell `db` high and `width` Hz to its half height.
 struct Bell {
@@ -255,8 +258,9 @@ class Recorder {
 
   // `seed` fixes the phases of the harmonics, so a key is always the same
   // recording. Harmonics above `band` Hz are left out. Both periods come
-  // out at unit RMS (times the tape's trim).
-  void record(int tape, float f0, float band, uint32_t seed, float* recording) {
+  // out at unit RMS (times the tape's trim). `shares` gets the share of the
+  // recording's power that each of its first kLevelHarmonics harmonics holds.
+  void record(int tape, float f0, float band, uint32_t seed, float* recording, float* shares) {
     tape = kit::clamp_int(tape, 0, kNumTapes - 1);
     for (int i = 0; i < kTableSize; ++i) {
       re_[i] = 0.0f;
@@ -288,11 +292,13 @@ class Recorder {
     const float smear = kit::min(0.8f, 0.005f * f0);
     float phase = 0.0f;
     float below = 0.0f;
+    for (int h = 0; h < kLevelHarmonics; ++h) shares[h] = 0.0f;
     for (int h = 1; h <= harmonics; ++h) {
       const float a = re_[h];
       const float b = im_[h];
       phase -= smear * below / power;
       below += 0.25f * (a * a + b * b);
+      if (h <= kLevelHarmonics) shares[h - 1] = 0.25f * (a * a + b * b) / power;
       const float turned = phase + 0.06f * rng.bipolar() * (h > 1 ? 1.0f : 0.0f);
       const float c = kit::SineTable::cos_lookup(turned);
       const float s = kit::SineTable::lookup(turned);

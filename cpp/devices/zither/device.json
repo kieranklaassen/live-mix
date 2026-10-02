@@ -10,11 +10,7 @@
     {
       "key": "exciter",
       "name": "Exciter",
-      "choices": [
-        "Finger",
-        "Pick",
-        "Hammer"
-      ],
+      "choices": ["Finger", "Pick", "Hammer"],
       "default": 0,
       "description": "What sets the strings going. A fingertip is soft and round, a pick is bright and thin, and a felt hammer strikes with a wider, softer blow and a small bounce. Applies from the next string that is played."
     },
@@ -46,11 +42,7 @@
     {
       "key": "direction",
       "name": "Direction",
-      "choices": [
-        "Up",
-        "Down",
-        "Alternate"
-      ],
+      "choices": ["Up", "Down", "Alternate"],
       "default": 0,
       "description": "Which way a chord is strummed and rolled: from the low string up, from the high string down, or the other way round on every new key."
     },
@@ -118,12 +110,7 @@
     {
       "key": "body",
       "name": "Body",
-      "choices": [
-        "Harp",
-        "Zither",
-        "Dulcimer",
-        "Koto"
-      ],
+      "choices": ["Harp", "Zither", "Dulcimer", "Koto"],
       "default": 1,
       "description": "The soundbox the strings are mounted on: the warm board of a harp, the bright flat box of a zither, the ringing box of a hammered dulcimer or the hollow, nasal body of a koto."
     },
@@ -144,7 +131,8 @@
       "strum": 110,
       "brightness": 0.6,
       "position": 0.16,
-      "sympathy": 0.4
+      "sympathy": 0.4,
+      "volume": -7
     },
     "Concert harp": {
       "exciter": 0,
@@ -183,7 +171,8 @@
       "position": 0.14,
       "courses": 0.4,
       "sympathy": 0.7,
-      "body": 2
+      "body": 2,
+      "volume": -7.5
     },
     "Autoharp major": {
       "exciter": 1,
@@ -194,7 +183,8 @@
       "brightness": 0.65,
       "position": 0.18,
       "courses": 0.25,
-      "sympathy": 0.3
+      "sympathy": 0.3,
+      "volume": -7
     },
     "Autoharp minor": {
       "exciter": 1,
@@ -205,7 +195,8 @@
       "brightness": 0.65,
       "position": 0.18,
       "courses": 0.25,
-      "sympathy": 0.3
+      "sympathy": 0.3,
+      "volume": -7
     },
     "Koto pluck": {
       "exciter": 1,
@@ -217,7 +208,7 @@
       "courses": 0,
       "sympathy": 0.15,
       "body": 3,
-      "volume": -3
+      "volume": -2.5
     },
     "Twelve-string haze": {
       "exciter": 1,
@@ -228,7 +219,8 @@
       "brightness": 0.6,
       "position": 0.2,
       "courses": 0.85,
-      "sympathy": 0.5
+      "sympathy": 0.5,
+      "volume": -7.5
     },
     "Single felt string": {
       "exciter": 2,

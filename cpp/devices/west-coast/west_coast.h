@@ -7,7 +7,42 @@
 //                                                   │             │
 //   key ─► strike / swell ─► vactrol (fast up, slow down)   (up to 8 voices, at 2× rate)
 //
-// HEADER_NOTES
+// Oscillator. A sine at the note, its frequency pushed up and down by a
+// second sine at Ratio times the note: linear FM through zero (when the
+// sum goes negative the phase runs backwards), so the pitch stays where it
+// is however deep the modulation. FM is the depth.
+//
+// Wavefolder (wavefolder.h). Five dead-zone cells side by side. Fold is the
+// level the sine enters at, Symmetry an offset added before it, Timbre Env
+// how much the gate's own movement adds to Fold. What goes on to the gate is
+// a steady sine as the body with the folder's overtones on top: the
+// folder's own fundamental, which swells and dips as each fold comes in, is
+// taken out again (a table knows how much there is), and the sum is scaled
+// to the same loudness at every setting.
+//
+// Low-pass gate. A vactrol, the lamp and photocell at the heart of such
+// gates, follows the key: up in a millisecond, down fast at first and
+// slower the further it has closed. It sets the gain of the voice and, by
+// its square, the cutoff of a two-pole low-pass, which Colour opens up to
+// 18 kHz and which never closes below the note itself. So a note is struck
+// bright, dulls quickly and rings on as a bare sine. Decay is the time it
+// takes to fall 60 dB. Sustain is where the gate stays while a key is held;
+// Attack ramps the key's drive instead of striking.
+//
+// Aliasing. The voices run at twice the sample rate (one shared half-band
+// decimator per channel). The folder returns the mean of its curve over
+// each step instead of a point on it. And Fold reaches less far the higher
+// the note and the deeper the FM, so that what the folder adds stays under
+// the top of the band: at 1760 Hz and 44.1 kHz nothing inharmonic stands
+// above -66 dB with Fold at 1, and about -60 dB with full FM as well.
+//
+// Chance draws, per note, an offset to Fold, to the FM depth, to the decay
+// and to the place between the speakers, from a seeded generator (four
+// draws a note whatever the setting, so a sequence repeats exactly after
+// init). Drift moves each voice's pitch and Fold slowly.
+//
+// Velocity is how hard the gate is struck: louder and, because the cutoff
+// goes with the square, brighter.
 //
 // The instrument sleeps when no voice sounds.
 
@@ -319,7 +354,7 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
   static constexpr float kChanceFold = 0.25f;
   static constexpr float kChanceFm = 0.5f;
   static constexpr float kChanceDecayOctaves = 0.8f;
-  static constexpr float kChancePan = 0.6f;
+  static constexpr float kChancePan = 0.9f;
   static constexpr float kPitchDriftHz = 0.23f;
   static constexpr float kTimbreDriftHz = 0.13f;
   static constexpr float kMaxDriftCents = 7.0f;
@@ -327,8 +362,8 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
 
   // For a sine of every input level and offset: how much of the folder's
   // output is the fundamental (so it can be taken out and replaced by a
-  // steady one), and the gain that keeps the loudness of body plus
-  // overtones constant. With an offset the output is still made of sines of
+  // steady one), the gain that keeps the loudness of body plus overtones
+  // constant, and the DC the voice will have to block. With an offset the output is still made of sines of
   // the odd and cosines of the even harmonics, so the fundamental stays in
   // phase with the input.
   void build_tables() {
@@ -355,6 +390,7 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
         table_[j][i][0] = static_cast<float>(first);
         table_[j][i][1] = static_cast<float>(
             1.0 / std::sqrt(1.0 + kOvertoneGain * kOvertoneGain * (overtones > 0.0 ? overtones : 0.0)));
+        table_[j][i][2] = static_cast<float>(kOvertoneGain * mean);
       }
     }
   }
@@ -384,7 +420,7 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
   // that level (two table reads). Worked out every kSlowPeriod samples and
   // ramped in between.
   struct FoldPoint {
-    float level, offset, fundamental, makeup;
+    float level, offset, fundamental, makeup, dc;
   };
 
   FoldPoint aim(const Voice& voice, float fold, float symmetry, float index, float timbre_env,
@@ -407,14 +443,15 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
     const int j = kit::clamp_int(static_cast<int>(y), 0, kOffsetSteps - 1);
     const float fx = x - static_cast<float>(i);
     const float fy = y - static_cast<float>(j);
-    float read[2];
-    for (int t = 0; t < 2; ++t) {
+    float read[3];
+    for (int t = 0; t < 3; ++t) {
       const float low = table_[j][i][t] + (table_[j][i + 1][t] - table_[j][i][t]) * fx;
       const float high = table_[j + 1][i][t] + (table_[j + 1][i + 1][t] - table_[j + 1][i][t]) * fx;
       read[t] = low + (high - low) * fy;
     }
     point.fundamental = read[0];
     point.makeup = read[1];
+    point.dc = read[2];
     return point;
   }
 
@@ -428,6 +465,9 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
     voice.fundamental = point.fundamental;
     voice.makeup = point.makeup;
     voice.last_drive = point.level;
+    // The DC blocker starts where Symmetry's offset will put it, so a note
+    // does not begin with a thump.
+    voice.dc = point.dc;
     voice.drive_step = voice.offset_step = voice.fundamental_step = voice.makeup_step = 0.0f;
     voice.steer_in = 0;
     voice.open_hz = voice.open_target;
@@ -671,8 +711,8 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
   float colour_coeff_ = 0.02f;
   int hold_samples_ = 96;
   west_coast::FoldCurve curve_;
-  // [offset][level]{fundamental, makeup}
-  float table_[kOffsetSteps + 1][kLevelSteps + 1][2] = {};
+  // [offset][level]{fundamental, makeup, DC}
+  float table_[kOffsetSteps + 1][kLevelSteps + 1][3] = {};
   float inverse_rate2_ = 1.0f / 96000.0f;
   float dc_coeff_ = 0.001f;
 };

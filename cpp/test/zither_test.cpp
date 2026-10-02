@@ -234,9 +234,11 @@ int main() {
       device.set_param(p::kExciter, static_cast<float>(exciter));
       device.set_param(p::kBrightness, 0.25f);  // wide enough blows to time at 48 kHz
       device.note_on(1, 220.0f, 0.8f);
-      Stereo out = render(device, 0.5f, kRate);
-      rise[exciter] = rise_ms(out.left);
-      bright[exciter] = spectral_centroid(out.left, 0, at(0.4));
+      rise[exciter] = rise_ms(render(device, 0.1f, kRate).left);
+      plain(device);
+      device.set_param(p::kExciter, static_cast<float>(exciter));
+      device.note_on(1, 220.0f, 0.8f);
+      bright[exciter] = spectral_centroid(render(device, 0.5f, kRate).left, 0, at(0.4));
     }
     std::printf("finger / pick / hammer: rise %.2f / %.2f / %.2f ms, centroid %.0f / %.0f / %.0f Hz\n", rise[0], rise[1],
                 rise[2], bright[0], bright[1], bright[2]);

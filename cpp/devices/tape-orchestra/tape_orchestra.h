@@ -105,6 +105,14 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
   // One key at full velocity peaks near -12 dBFS before Volume, which
   // leaves ten held keys under the knee of the output clipper.
   static constexpr float kVoiceGain = 0.122f;
+  // The section's leveller. Players who read one recording a few cents
+  // apart drift in and out of step, and where one harmonic carries the note
+  // (high keys, flutes, reeds) the whole note would swell and sink by many
+  // dB with them. Each tick the power of their sum is worked out from where
+  // they are in the period, and this share of its swing (in dB) is taken
+  // back out of the key's level. The harmonics still move against each other
+  // and across the image; the note keeps a breath of level and no more.
+  static constexpr float kLevelling = 0.7f;
   // Hiss at Hiss 1 with one key down, RMS.
   static constexpr float kHissGain = 0.012f;
 
@@ -133,6 +141,7 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
       voice.cut = Ramp();
       voice.gain = Ramp();
       for (float& value : voice.recording) value = 0.0f;
+      for (float& value : voice.share) value = 0.0f;
     }
     for (int c = 0; c < 2; ++c) {
       low_cut_[c].reset();
@@ -378,6 +387,8 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
     float drop_at = 0.0f, drop_until = 0.0f, drop_depth = 0.0f, drop = 0.0f;
     Player player[kMaxPlayers];
     float recording[tape_orchestra_dsp::kRecordingFloats] = {};
+    // The share of the recording's power in each of its lowest harmonics.
+    float share[tape_orchestra_dsp::kLevelHarmonics] = {};
 
     bool waiting() const { return need_record && cut.value <= 0.0f; }
     bool active() const { return on; }
@@ -685,6 +696,39 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
     return 1.0f + x + 0.5f * x * x;
   }
 
+  // The leveller's gain for a key this tick. The power of the players' sum
+  // over both channels is that of each alone plus, for every pair, what
+  // they add or cancel: their levels, how close they sit in the image, and
+  // how far in step they are, harmonic by harmonic (the harmonics above
+  // the ones followed are many and average out). `played` and `placed` are
+  // each player's level and pan angle in turns; `apart` is 0 when the
+  // section plays as one, where there is nothing to level.
+  float steady(const Voice& voice, const float* played, const float* placed, float apart) const {
+    using namespace tape_orchestra_dsp;
+    float alone = 0.0f, paired = 0.0f;
+    for (int p = 0; p < kMaxPlayers; ++p) {
+      if (played[p] == 0.0f) continue;
+      alone += played[p] * played[p];
+      for (int q = p + 1; q < kMaxPlayers; ++q) {
+        if (played[q] == 0.0f) continue;
+        // The sum over harmonics h of share[h] * cos(h x), by
+        // cos(h x) = 2 cos(x) cos((h-1) x) - cos((h-2) x).
+        const float c1 = kit::SineTable::cos_lookup(voice.player[p].phase - voice.player[q].phase);
+        float before = 1.0f, now = c1, in_step = voice.share[0] * c1;
+        for (int h = 1; h < kLevelHarmonics; ++h) {
+          const float next = 2.0f * c1 * now - before;
+          before = now;
+          now = next;
+          in_step += voice.share[h] * next;
+        }
+        paired += played[p] * played[q] * kit::SineTable::cos_lookup(placed[p] - placed[q]) * in_step;
+      }
+    }
+    if (!(alone > 1.0e-12f)) return 1.0f;
+    const float power = kit::clamp(1.0f + 2.0f * paired / alone, 0.1f, 4.0f);
+    return std::exp(-0.5f * kLevelling * apart * std::log(power));
+  }
+
   // Give a waiting voice its recording. A new note also gets its players
   // and its tape, all fixed by the key: the same key is the same take.
   void start(Voice& voice) {
@@ -699,7 +743,7 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
         kit::clamp_int(static_cast<int>(std::floor(kit::hz_to_midi(voice.frequency) + 0.5f)), 0, 140);
     const uint32_t seed = scramble(static_cast<uint32_t>(key * 8 + tape + 1));
     recorder_.record(tape, voice.frequency, kit::min(kRecordedBandHz, 0.4f * engine_rate_), seed,
-                     voice.recording);
+                     voice.recording, voice.share);
     voice.tape = tape;
     voice.need_record = false;
     {
@@ -860,6 +904,9 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
     const float swell_x = tape_dt / (def.swell * 0.35f);
     const float swell_coeff = swell_x / (1.0f + swell_x);
     float open = 0.0f;
+    // For the leveller: each player's level and place, 0 when not playing.
+    float played[kMaxPlayers] = {0.0f, 0.0f, 0.0f, 0.0f};
+    float placed[kMaxPlayers] = {0.0f, 0.0f, 0.0f, 0.0f};
     for (int p = 0; p < kMaxPlayers; ++p) {
       Player& player = voice.player[p];
       const bool in = p < players && voice.tape_time >= player.onset * 0.04f * section;
@@ -901,11 +948,14 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
       player.increment.aim(base * ratio(bend), snap);
       player.fade.aim(kit::clamp(0.5f + bend * (0.5f / kVibratoSpanCents), 0.0f, 1.0f), snap);
       const float angle = (player.pan * spread + 1.0f) * 0.125f;
+      played[p] = level;
+      placed[p] = angle;
       player.left.aim(level * kit::SineTable::cos_lookup(angle), snap);
       player.right.aim(level * kit::SineTable::lookup(angle), snap);
     }
     open *= 1.0f / static_cast<float>(players);
     voice.open = open;
+    const float steadied = steady(voice, played, placed, apart);
 
     // Brightness opens as the players come in; a dropout dulls it.
     const float closed = def.closed_hz + def.closed_track * voice.frequency;
@@ -923,7 +973,9 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
       voice.noise_high_coeff = pole(kit::kTwoPi * centre * 1.6f / sr);
       voice.retune = false;
     }
-    voice.noise.aim(voice.noise_level * noise_speed_ * open * (1.0f + voice.burst), snap);
+    // (The bow and breath are not the players' sum: the leveller's gain is
+    // taken back out of them.)
+    voice.noise.aim(voice.noise_level * noise_speed_ * open * (1.0f + voice.burst) / steadied, snap);
     voice.burst *= 1.0f / (1.0f + tape_dt / def.burst_seconds);
 
     // e^y to second order: the key's level is within a few dB of the rest.
@@ -943,7 +995,7 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
     const float level_before = voice.env.level();
     const float level = voice.env.next();
     const float rest = kVoiceGain * voice.velocity * (1.0f + y + 0.5f * y * y) * run_out *
-                       (1.0f - voice.drop) / voice.pre;
+                       (1.0f - voice.drop) * steadied / voice.pre;
     if (snap) voice.gain.value = level_before * cut_before * rest;
     voice.gain.aim(level * voice.cut.value * rest, false);
     voice.tape_time += tape_dt;

@@ -62,6 +62,7 @@ struct Frogs {
   float lean = 1.0f;
   float tune = 1.0f;      // key and Tone on the formants
   float bright = 1.0f;    // Tone on the upper formants
+  float seen_tone = -1.0f;
   float activity = 1.0f;
   bool answering = false; // the second croaker has taken up the first one's bout
 
@@ -99,10 +100,13 @@ struct Frogs {
       // The nearest answers the key; the second croaker waits to be called.
       f.wait = i == 0 ? 0.03f : (i == 1 ? 1.0e9f : between(rng, 1.0f, 3.0f + 2.0f * static_cast<float>(i)));
     }
+    seen_tone = -1.0f;
     retune(c);
   }
 
   void retune(const Controls& c) {
+    if (c.tone == seen_tone) return;
+    seen_tone = c.tone;
     tune = lean * std::exp2(0.5f * (c.tone - 0.5f));
     bright = 0.5f + c.tone;
   }

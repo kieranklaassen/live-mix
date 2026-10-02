@@ -179,9 +179,14 @@ class AnalogDelay : public kit::DeviceBase<analog_delay::kNumParams> {
   // The line's headroom is 1 when new (a full-scale sine reaches half of it
   // after the compressor) and falls by this much at Age 1.
   static constexpr float kHeadroomLoss = 0.6f;
-  // The line's hiss is switched off under -100 dBFS so the device can sleep.
+  // The line's hiss fades out with the loop's level, from all of it at
+  // -54 dBFS to none at -100 dBFS, so the device can sleep. The top of that
+  // range has to sit above the level the hiss alone reaches going round the
+  // loop (about -66 dBFS peak at Age 1, Time 1.2 s, Feedback 0.9): a gate
+  // that the hiss can hold open by itself never closes, and the device would
+  // hiss for ever after the last echo.
   static constexpr float kGateFloor = 1.0e-5f;
-  static constexpr float kGateSlope = 1.0e4f;
+  static constexpr float kGateSlope = 500.0f;
   // Peak of the noise each stage adds, against a headroom of 1: about 80 dB
   // under it when new, 50 dB when worn.
   static constexpr float kNoiseNew = 0.0001f;

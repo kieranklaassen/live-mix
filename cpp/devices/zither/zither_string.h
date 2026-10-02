@@ -87,7 +87,9 @@ struct StringLoop {
     loss_response(p, c, w, &lp_gain0, &lag);
     const float lp_delay = lag / w;
     const float total = sample_rate / frequency - lp_delay;
-    int whole = static_cast<int>(total - 0.4f);
+    // The allpass takes 0.6 to 1.6 samples: near one sample it bends the
+    // upper partials least.
+    int whole = static_cast<int>(total - 0.6f);
     whole = kit::clamp_int(whole, 1, Size - 8);
     const float tau = kit::clamp(total - static_cast<float>(whole), 0.05f, 1.95f);
     delay = whole;

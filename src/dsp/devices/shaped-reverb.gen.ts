@@ -70,7 +70,7 @@ export const SHAPED_REVERB_PARAMS = {
     taper: 'log',
     unit: 'Hz',
     description:
-      'Takes the top off the whole reverb. Lower settings are darker and sit further back.',
+      'Takes the top off the whole reverb, and makes the tail lose its brightness sooner as it fades. Lower settings are darker and sit further back.',
   },
   lowCut: {
     id: 6,
