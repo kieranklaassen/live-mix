@@ -48,4 +48,4 @@ Also:
 
 - The noise of Vinyl, Radio and Noise Floor carries on through gaps of about fourteen seconds, so slow playing keeps its bed; after that it fades and an idle track is exactly silent.
 - Every effect cleans its input on entry: one not-a-number or infinite sample no longer lodges in a filter.
-- The factory bank gains chains for every new effect and five presets for each new instrument.
+- The factory bank gains 42 chains, two for each new effect, and five presets for each new instrument: it now holds 170 presets for thirty-four instruments and 76 chains.
