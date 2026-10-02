@@ -381,6 +381,17 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
       { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.25 } },
     ],
   },
+  {
+    id: 'night-shortwave',
+    name: 'Night shortwave',
+    category: 'tape',
+    description:
+      'A distant station heard at night: thin, slowly fading, with static rising as it sinks, in a soft hall.',
+    effects: [
+      { deviceId: 'radio', preset: 'Night shortwave' },
+      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.25 } },
+    ],
+  },
   // Motion: modulation.
   {
     id: 'slow-chorus',
@@ -555,6 +566,22 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'cascade', preset: 'Long drone', params: { mix: 0.5 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.3 } },
+    ],
+  },
+  {
+    id: 'sideband-ghosts',
+    name: 'Sideband ghosts',
+    category: 'texture',
+    description:
+      'Every pitch shifted off its harmony on a drifting sideband set, repeated on worn tape and left in a plate.',
+    effects: [
+      {
+        deviceId: 'radio',
+        preset: 'Sideband voices',
+        params: { tuning: 0.25, interference: 0.1, mix: 0.8 },
+      },
+      { deviceId: 'tape-echo', preset: 'Worn tape', params: { feedback: 0.45, mix: 0.3 } },
+      { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.3 } },
     ],
   },
   // Pitch: shimmer, harmonizer, frequency shifting.

@@ -186,7 +186,7 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
   static constexpr float kSoundFloor = 0.001f;   // -60 dBFS: something was played
   static constexpr float kOnsetFloor = 0.004f;   // -48 dBFS
   static constexpr float kOnsetRatio = 1.7f;     // fast over slow envelope
-  static constexpr float kStruckRatio = 1.3f;    // fast over its own slow envelope: a note really struck
+  static constexpr float kStruckRatio = 1.4f;    // fast over its own slow envelope: a note really struck
   static constexpr double kRenewTurns = 2.0;
   static constexpr float kMinFade = 0.003f;
   // A loop that Fade has taken 60 dB off is let go.
@@ -826,6 +826,8 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     if (level > kSoundFloor) loud_at_ = ring_.written();
     if (state_ != state_seen_) enter_state();
     if (wait_ > 0) {
+      // Anything struck while the loop is played in, and it is taken up as an attack's is.
+      if (fast > kStruckRatio * held) soft_ = false;
       if (--wait_ == 0) {
         request_capture();
         if (soft_) start_swap();
@@ -841,7 +843,7 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
         // A new attack once the loop has been round, or playing that goes
         // on without one (a held chord) once it has been round twice.
         wait_ = wait_samples();
-        soft_ = fast < kStruckRatio * held;
+        soft_ = true;
       }
     }
     if (pending_ != kNone && !swap_.active && !decks_[current_ ^ 1].active) begin_pending();
@@ -1220,7 +1222,7 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
   float grain_overlap_ = 3.0f, grain_level_ = 1.0f;
   Search search_;
   Swap swap_;
-  bool soft_ = false;        // the capture being waited for was asked without an attack
+  bool soft_ = false;        // nothing has been struck while the loop being waited for was played in
   float last_step_ = 0.0f;   // tape frames per sample, as last played
   float search_in_[kSearchIn] = {};
   float search_out_[kSearchOut] = {};
