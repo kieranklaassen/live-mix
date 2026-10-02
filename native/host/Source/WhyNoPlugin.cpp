@@ -8,6 +8,10 @@
  #include <dlfcn.h>
 #endif
 
+#if JUCE_LINUX || JUCE_BSD
+ #include <sys/utsname.h>
+#endif
+
 namespace livemix
 {
 
@@ -104,11 +108,15 @@ namespace
     {
         if (! file.isDirectory())
             return file;
-        const auto name = file.getFileNameWithoutExtension() + ".so";
-        for (const auto& folder : file.getChildFile ("Contents").findChildFiles (juce::File::findDirectories, false, "*-linux"))
-            if (folder.getChildFile (name).existsAsFile())
-                return folder.getChildFile (name);
-        return {};
+        // The machine the folder is named after is the one `uname` gives, the
+        // same as the scan looks for: a bundle built for more than one machine
+        // holds programs this system cannot load beside the one it can.
+        utsname machine;
+        if (uname (&machine) != 0)
+            return {};
+        return file.getChildFile ("Contents")
+                   .getChildFile (juce::String::fromUTF8 (machine.machine) + "-linux")
+                   .getChildFile (file.getFileNameWithoutExtension() + ".so");
     }
    #endif
 }
