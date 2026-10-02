@@ -533,6 +533,66 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     voice.strikes[0].active = voice.strikes[1].active = false;
     voice.next_strike = 0;
     set_strike(voice, blow, blow.wait);
+    set_touch(voice, blow);
+  }
+
+  // The touch: a finger or a pick leaving the string makes a short noise of
+  // its own beside the pluck, a few milliseconds of it, duller and longer
+  // for a fingertip, brighter and shorter for a pick, softer and duller for
+  // a soft touch. It is heard directly and knocks on the body (kKnock), but
+  // does not go round the string. The hammer has its blow and needs none.
+  static constexpr float kTouchFinger = 0.3f, kTouchPick = 0.45f;  // level against the pluck's step
+  static constexpr float kFingerCutSoft = 1200.0f, kFingerCutHard = 4800.0f;  // its top, Hz
+  static constexpr float kPickCutSoft = 3000.0f, kPickCutHard = 9000.0f;
+  static constexpr float kFingerFloorHz = 150.0f, kPickFloorHz = 400.0f;      // and its bottom
+  static constexpr float kFingerTouchSeconds = 0.004f, kPickTouchSeconds = 0.0013f;
+  static constexpr float kTouchRise = 0.15f;  // of that
+
+  void set_touch(Voice& voice, const Blow& blow) {
+    voice.touch_gain = 0.0f;
+    if (blow.soft || blow.exciter == kHammer) return;
+    const float sr = sample_rate();
+    const bool pick = blow.exciter == kPick;
+    const float hard = kit::clamp(blow.brightness + 0.35f * (blow.level - 0.6f), 0.0f, 1.0f);
+    const float cut = kit::min(pick ? kPickCutSoft * std::pow(kPickCutHard / kPickCutSoft, hard)
+                                    : kFingerCutSoft * std::pow(kFingerCutHard / kFingerCutSoft, hard),
+                               0.2f * sr);
+    const float a = 1.0f - std::exp(-kit::kTwoPi * cut / sr), r = 1.0f - a;
+    // What two one-poles in a row leave of white noise: taken out again, so
+    // the level is the same at any cut and any sample rate.
+    const float kept = a * a * a * a * (1.0f + r * r) / ((1.0f - r * r) * (1.0f - r * r) * (1.0f - r * r));
+    const float level = kStringLevel * (0.08f + 0.92f * std::pow(blow.level, 1.5f)) * std::pow(220.0f / voice.hz, kLevelLean);
+    voice.touch_gain = level * (pick ? kTouchPick : kTouchFinger) * (0.5f + 0.5f * hard) / std::sqrt(kept);
+    const float seconds = (pick ? kPickTouchSeconds : kFingerTouchSeconds) * (1.3f - 0.6f * hard);
+    voice.touch_slow_step = std::exp(-1.0f / (seconds * sr));
+    voice.touch_fast_step = std::exp(-1.0f / (kTouchRise * seconds * sr));
+    voice.touch_slow = voice.touch_fast = 1.0f;
+    voice.touch_cut = a;
+    voice.touch_floor = 1.0f - std::exp(-kit::kTwoPi * (pick ? kPickFloorHz : kFingerFloorHz) / sr);
+    voice.touch_lp1 = voice.touch_lp2 = voice.touch_low = 0.0f;
+    voice.touch_wait = static_cast<int>(blow.wait + 0.5f);
+    // Its own noise for every note, and the same again after init().
+    voice.touch_seed = voice.stamp * 2654435761u + 0x9E3779B9u;
+  }
+
+  void render_touch(Voice& voice, float* out, int n) {
+    for (int i = 0; i < n; ++i) {
+      out[i] = 0.0f;
+      if (voice.touch_gain == 0.0f) continue;
+      if (voice.touch_wait > 0) {
+        --voice.touch_wait;
+        continue;
+      }
+      voice.touch_seed = voice.touch_seed * 1664525u + 1013904223u;
+      const float white = static_cast<float>(voice.touch_seed >> 8) * (2.0f / 16777216.0f) - 1.0f;
+      voice.touch_lp1 += voice.touch_cut * (white - voice.touch_lp1);
+      voice.touch_lp2 += voice.touch_cut * (voice.touch_lp1 - voice.touch_lp2);
+      voice.touch_low += voice.touch_floor * (voice.touch_lp2 - voice.touch_low);
+      voice.touch_slow *= voice.touch_slow_step;
+      voice.touch_fast *= voice.touch_fast_step;
+      out[i] = voice.touch_gain * (voice.touch_slow - voice.touch_fast) * (voice.touch_lp2 - voice.touch_low);
+      if (voice.touch_slow < 1.0e-4f) voice.touch_gain = 0.0f;  // it has passed
+    }
   }
 
   // The two strings of a course are tuned this many hertz apart.
