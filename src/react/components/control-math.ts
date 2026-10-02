@@ -212,6 +212,21 @@ export function levelToMeterPosition(level: number, floorDb = METER_FLOOR_DB): n
   return dbToMeterPosition(gainToDb(level), floorDb, 0)
 }
 
+/** A held peak: its level in dB and when it was taken (ms on any one clock). */
+export interface HeldPeak {
+  db: number
+  at: number
+}
+
+/**
+ * The peak a meter holds after a new reading: a reading as high as the held
+ * one takes its place at once, and a lower one only after the held one has
+ * stood for longer than `holdMs`. Start from `{ db: -Infinity, at: 0 }`.
+ */
+export function heldPeak(previous: HeldPeak, db: number, now: number, holdMs: number): HeldPeak {
+  return db >= previous.db || now - previous.at > holdMs ? { db, at: now } : previous
+}
+
 // --- Formatting ----------------------------------------------------------------
 
 function formatHz(value: number, digits?: number, sp = ' '): string {
