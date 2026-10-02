@@ -7,9 +7,15 @@
 //
 //   emphasis ─► × drive ─► curve(v + bias) − curve(bias) ─► de-emphasis
 //
-// What the emphasis lifts saturates first, and the de-emphasis puts the
-// quiet signal back (nearly) flat, so the circuits differ in which part of
-// the spectrum distorts and how, not only in the curve.
+// What the emphasis lifts saturates first. The de-emphasis undoes most of it
+// and leaves each circuit a voicing of its own, two or three dB at most and
+// there at any Drive (measured on a held chord at Drive 0, against 500 Hz):
+// the tape preamp warm and dull (lows up, top down 2 dB), the console
+// forward in the mids (2 dB around 2 kHz), the transformer thick (2.5 dB
+// around 250 Hz), the triode close to flat with a little air, the pentode
+// lean and bright (lows down, 2 kHz and up lifted). So the circuits differ in
+// tone, in which part of the spectrum distorts and in the harmonics they
+// make, not only in the curve.
 
 namespace livemix {
 namespace analog_drive_dsp {
@@ -47,17 +53,17 @@ struct Circuit {
 inline const Circuit& circuit(int index) {
   static const Circuit table[kNumCircuits] = {
       // Tape preamp: all soft knee, a little lopsided. Treble is lifted on
-      // the way in and cut by the same amount on the way out, so loud highs
-      // saturate first and come back duller; quiet ones pass. A slow, slight
-      // sag is the compression.
+      // the way in and cut by a little more on the way out, so loud highs
+      // saturate first and come back duller still, and the lows are left a
+      // little full. A slow, slight sag is the compression.
       {Curve(1.0, 1.0, 1.3, 0.0, 1.0, 0.0, 1.0),
        0.05f, 0.08f, 0.0f, 1.0f, 0.2f, 0.012f, 0.14f,
        {{Eq::kHighShelf, 3200.0f, 8.0f, 0.0f}, {Eq::kNone, 0.0f, 0.0f, 0.0f}},
        {{Eq::kHighShelf, 3200.0f, -10.5f, 0.0f},
         {Eq::kLowShelf, 120.0f, 1.8f, 0.0f},
         {Eq::kNone, 0.0f, 0.0f, 0.0f}}},
-      // Console: a firm, nearly symmetric knee (odd harmonics), reached
-      // first by the upper mids, with some of that lift and a little air
+      // Console: a symmetric knee, half soft and half firm (odd harmonics),
+      // reached first by the mids, with half of that lift and a little air
       // left in afterwards.
       {Curve(0.45, 1.0, 1.0, 0.55, 0.9, 0.0, 1.0),
        0.01f, 0.01f, 0.0f, 1.0f, 0.0f, 0.005f, 0.08f,
@@ -66,28 +72,29 @@ inline const Circuit& circuit(int index) {
         {Eq::kHighShelf, 9000.0f, 0.8f, 0.0f},
         {Eq::kNone, 0.0f, 0.0f, 0.0f}}},
       // Transformer: the core saturates on flux, which is the integral of
-      // the signal, so the curve sees the lows 10 dB up and the exact
+      // the signal, so the curve sees the lows 8.5 dB up and the exact
       // inverse follows it. Low notes distort long before high ones, and
-      // the low mids are left a little thick.
+      // the low mids are left thick.
       {Curve(0.65, 1.0, 1.06, 0.35, 1.0, 0.0, 1.0),
        0.03f, 0.03f, 0.0f, 1.0f, 0.08f, 0.03f, 0.25f,
        {{Eq::kLowShelf, 160.0f, 8.5f, 0.0f}, {Eq::kNone, 0.0f, 0.0f, 0.0f}},
        {{Eq::kLowShelf, 160.0f, -8.5f, 0.0f},
-        {Eq::kPeak, 240.0f, 2.5f, 0.7f},
-        {Eq::kHighShelf, 5000.0f, 1.5f, 0.0f}}},
+        {Eq::kPeak, 240.0f, 3.0f, 0.7f},
+        {Eq::kNone, 0.0f, 0.0f, 0.0f}}},
       // Triode: one soft knee far earlier on one side than the other, and a
       // working point that sits off centre and moves further as the level
-      // rises: second harmonic first, growing gradually.
+      // rises: second harmonic first, growing gradually. The top is left
+      // open.
       {Curve(1.0, 0.7, 1.6, 0.0, 1.0, 0.0, 1.0),
        0.14f, 0.15f, 1.2f, 1.5f, 0.0f, 0.02f, 0.2f,
        {{Eq::kLowShelf, 150.0f, 2.0f, 0.0f}, {Eq::kNone, 0.0f, 0.0f, 0.0f}},
        {{Eq::kLowShelf, 150.0f, -1.2f, 0.0f},
         {Eq::kHighShelf, 6000.0f, 1.2f, 0.0f},
         {Eq::kNone, 0.0f, 0.0f, 0.0f}}},
-      // Pentode: a firm knee with a hard clip under it and no soft part, so
-      // it stays clean and then bites; lows held back from the curve, upper
-      // mids pushed at it; the supply sags under a sustained load and
-      // recovers.
+      // Pentode: mostly hard clip with a firm knee over it and no soft part,
+      // so it stays clean and then bites; lows held back from the curve and
+      // left lean, upper mids pushed at it and left forward, the top lifted;
+      // the supply sags under a sustained load and recovers.
       {Curve(0.0, 1.0, 1.0, 0.35, 0.75, 0.65, 0.55),
        0.02f, 0.02f, 0.0f, 1.0f, 0.5f, 0.015f, 0.18f,
        {{Eq::kPeak, 2000.0f, 3.5f, 0.6f}, {Eq::kLowShelf, 150.0f, -4.0f, 0.0f}},

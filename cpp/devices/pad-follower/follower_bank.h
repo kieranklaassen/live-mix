@@ -59,6 +59,7 @@ class FollowerBank {
       const double w = two_pi * hz / rate;
       const double r = std::exp(-3.141592653589793 * kBandwidthFactor * spacing / rate);
       hz_[b] = static_cast<float>(hz);
+      omega_[b] = static_cast<float>(w);
       pole_r_[b] = static_cast<float>(r * std::cos(w));
       pole_i_[b] = static_cast<float>(r * std::sin(w));
       // A real sine of amplitude A is two phasors of A/2; the band keeps one.
@@ -294,7 +295,17 @@ class FollowerBank {
     }
     last_r_[b] = zr;
     last_i_[b] = zi;
-    set_rotation(b, dev_[b] + pull);
+    // The octave below has a phase of its own. Where two neighbouring bands
+    // follow the same partial, the upper one's is pulled to the lower one's,
+    // or the two halves of that note could cancel.
+    float half_pull = 0.0f;
+    if (down_active_ && b > 0 && follow > 0.0f && trust_[b - 1] > 0.5f) {
+      const float apart = (omega_[b] + dev_[b]) - (omega_[b - 1] + dev_[b - 1]);
+      if (std::fabs(apart) * share_scale_[b] < 0.15f) {
+        half_pull = lock_[b] * follow * (hi_[b - 1] * hr_[b] - hr_[b - 1] * hi_[b]);
+      }
+    }
+    set_rotation(b, dev_[b] + pull, half_pull);
 
     // Level: the partial's amplitude, shared between the two bands it lies
     // between, through the gate and the slow follower.
@@ -319,13 +330,13 @@ class FollowerBank {
 
   // oscillator rotation of band b for a detune of `angle` radians per sample
   // from the band centre (small-angle series, far below float noise here).
-  void set_rotation(int b, float angle) {
+  void set_rotation(int b, float angle, float half_extra) {
     const float a2 = angle * angle;
     const float c = 1.0f - a2 * (0.5f - a2 * (1.0f / 24.0f));
     const float s = angle * (1.0f - a2 * ((1.0f / 6.0f) - a2 * (1.0f / 120.0f)));
     rot_r_[b] = centre_r_[b] * c - centre_i_[b] * s;
     rot_i_[b] = centre_r_[b] * s + centre_i_[b] * c;
-    const float h = 0.5f * angle;
+    const float h = 0.5f * angle + half_extra;
     const float h2 = h * h;
     const float hc = 1.0f - h2 * (0.5f - h2 * (1.0f / 24.0f));
     const float hs = h * (1.0f - h2 * ((1.0f / 6.0f) - h2 * (1.0f / 120.0f)));
@@ -390,7 +401,7 @@ class FollowerBank {
   float octaves_ = 0.0f, octaves_target_ = 0.0f;
 
   // Fixed per band.
-  float hz_[kBands] = {};
+  float hz_[kBands] = {}, omega_[kBands] = {};
   float pole_r_[kBands] = {}, pole_i_[kBands] = {}, in_gain_[kBands] = {};
   float centre_r_[kBands] = {}, centre_i_[kBands] = {};
   float half_r_[kBands] = {}, half_i_[kBands] = {};

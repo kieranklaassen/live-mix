@@ -448,5 +448,9 @@ int main() {
   std::vector<float> input = noise(10.0f, kRate, 0.25f);
   report_cost("octaves (all four voices, detuned, noise)", 10.0f, kRate, [&] { run(device, input); });
 
+  device.init(kRate);
+  std::vector<float> held = sine(330.0f, 10.0f, kRate, 0.3f);
+  report_cost("octaves (default settings, 330 Hz sine)", 10.0f, kRate, [&] { run(device, held); });
+
   return finish("octaves");
 }

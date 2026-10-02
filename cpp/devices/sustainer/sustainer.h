@@ -457,12 +457,11 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     // The first frame built from it is the caught frame one hop on.
     slot.delay = static_cast<float>(static_cast<int32_t>(next_landing() - position_)) - static_cast<float>(hop_) +
                  static_cast<float>(frame_) - 1.0f;
-    // Look again at the lows once a long frame of the note has gone by (in
-    // Latch at once: the moment is whatever has been sounding).
+    // Look again at the lows once a long frame of the note has gone by.
     refine_slot_ = chosen;
     refine_stage_ = 0;
-    const int since = static_cast<int>(since_onset_ * sample_rate());
-    refine_due_ = mode() == kModeLatch ? 0 : (long_frame_ + hop_ > since ? long_frame_ + hop_ - since : 0);
+    const int since = static_cast<int>(kit::min(since_onset_, 10.0f) * sample_rate());
+    refine_due_ = long_frame_ + hop_ > since ? long_frame_ + hop_ - since : 0;
     slot.newest = true;
     slot.rise = 0.0f;
     slot.fall = 1.0f;
@@ -508,8 +507,7 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
   void refine_step(int stage) {
     if (refine_slot_ < 0) return;
     Slot& slot = slots_[refine_slot_];
-    const bool latch = mode() == kModeLatch;
-    if (slot.state != kHeld || (!latch && (slot.serial != onsets_ || !playing_))) {
+    if (slot.state != kHeld || slot.serial != onsets_ || !playing_) {
       refine_slot_ = -1;
       return;
     }

@@ -37,6 +37,17 @@
 // - Per channel, per voice, everything slow (weight, equaliser, the phase
 //   for the delay, detune) is one complex number, set at the control rate
 //   and ramped: a voice costs a square or a square root and one product.
+// - Channels with nothing of their own are left out: a channel whose power
+//   is no more than what its filter lets through of the loudest partial
+//   elsewhere (worked out exactly from its poles) makes no voice, which is
+//   both the purity of a single note and most of the saving on sparse input.
+// - Detune turns each channel's voice by a rotor whose rate follows the
+//   partial's measured frequency, so the offset is the same number of cents
+//   for every partial and every channel.
+// - Attack is a ceiling per channel that rises from the level at the note's
+//   onset; Release: when the input stops, the narrow channels would ring on
+//   for a tenth of a second and more, so the voices are held to what the
+//   input's recent peak can account for.
 
 #include <cmath>
 
@@ -102,7 +113,7 @@ class OctaveBank {
 
   void process(float x, const Want& want, Frame* out);
 
-  // For the harness: channel k's state.
+  // For measurements: channel k's state.
   struct Probe {
     float open, power, weight, offset, age;
     bool live;

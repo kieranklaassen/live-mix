@@ -113,12 +113,64 @@
   ],
   "presets": {
     "Cavern": {},
-    "Pattering": { "diffuse": 0, "length": 0.25 },
-    "Endless cave": { "reflect": 1 },
-    "Dark well": { "dampen": 1500, "length": 1 }
+    "Pattering": {
+      "length": 0.35,
+      "diffuse": 0,
+      "reflect": 0.35,
+      "dampen": 8000,
+      "modulation": 0.1,
+      "mix": 0.35
+    },
+    "Endless cave": {
+      "length": 0.8,
+      "diffuse": 0.8,
+      "reflect": 1.0,
+      "dampen": 4000,
+      "lowCut": 150,
+      "mix": 0.35
+    },
+    "Bending walls": {
+      "diffuse": 0.7,
+      "reflect": 0.75,
+      "dragTime": 2,
+      "wander": 0.5,
+      "modulation": 0.4
+    },
+    "Interval ghosts": {
+      "length": 0.6,
+      "diffuse": 0.6,
+      "reflect": 0.8,
+      "dragTime": 0.05,
+      "steps": 1,
+      "wander": 0.45
+    },
+    "Dark well": {
+      "length": 1.1,
+      "diffuse": 0.9,
+      "reflect": 0.8,
+      "dampen": 1400,
+      "lowCut": 60,
+      "mix": 0.45
+    },
+    "Small swarm": {
+      "length": 0.1,
+      "diffuse": 0.3,
+      "reflect": 0.45,
+      "modulation": 0.5,
+      "mix": 0.3
+    },
+    "Slow drag": {
+      "length": 0.7,
+      "diffuse": 0.85,
+      "reflect": 0.8,
+      "dragTime": 5,
+      "steps": 1,
+      "wander": 0.3,
+      "dampen": 6000
+    }
   },
   "origin": {
     "kind": "new",
-    "note": "Written for live-mix on cpp/kit."
+    "note": "Written for live-mix on cpp/kit. A multi-tap cluster reverb on a delay whose clock can be dragged, in the family of the swarm-of-short-delays ambient reverb pedals in outline only and not a model of any of them. Two cross-coupled delay lines are each read by fourteen uneven, seeded taps, with allpass diffusion and a damped regeneration loop; every delay is a distance on one tape whose speed Length and Drag set, and the read points are found from the history of the tape position, so a speed change bends everything on the line by one ratio, as a variable-clock delay does."
   }
 }

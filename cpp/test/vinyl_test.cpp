@@ -323,9 +323,12 @@ int main() {
                     Vinyl::crackle_rate(crackle));
       EXPECT_NEAR(counted[which], Vinyl::crackle_rate(crackle), 0.15 * Vinyl::crackle_rate(crackle), label);
       if (crackle == 0.5f) {
-        // Heavy tailed: the median event is near the floor, the loudest 30 dB above it.
-        EXPECT(peak(left, at(1.0)) > 30.0 * Vinyl::crackle_floor(crackle),
-               "the loudest tick is 30 dB above the dust");
+        // Heavy tailed: the median event is near the floor, the loudest 20 dB above it
+        // (30 dB at Crackle 1, below: the spread opens with the control).
+        EXPECT(peak(left, at(1.0)) > 10.0 * Vinyl::crackle_floor(crackle),
+               "the loudest tick is 20 dB above the dust");
+        EXPECT(std::max(peak(left, at(1.0)), peak(right, at(1.0))) < 1.15 * Vinyl::crackle_ceiling(crackle),
+               "and none is over the ceiling for that setting");
         EXPECT(rms(left, at(1.0)) < 2.0 * Vinyl::crackle_floor(crackle),
                "and most of the time there is almost nothing: the level is under twice the smallest tick");
         EXPECT(peak(left, at(1.0)) < 0.2, "the loudest tick at Crackle 0.5 stays under -14 dBFS");
@@ -343,6 +346,29 @@ int main() {
     EXPECT(rms(left, at(1.0)) > 0.3 * rms(right, at(1.0)) && rms(right, at(1.0)) > 0.3 * rms(left, at(1.0)),
            "and both sides get their share");
     EXPECT(peak(left) < 0.5 && peak(right) < 0.5, "Crackle 1: no tick over -6 dBFS");
+    EXPECT(peak(left, at(1.0)) > 30.0 * Vinyl::crackle_floor(1.0f), "Crackle 1: the loudest tick is 30 dB above the dust");
+
+    // Low on the control the crackle is a bed, not a string of loud ticks:
+    // at the default setting nothing is over -37 dBFS, and the sizes thin
+    // out towards the largest instead of piling up there.
+    {
+      const float stock = p::kParamDefault[p::kCrackle];
+      bare(device);
+      device.set_param(p::kCrackle, stock);
+      Stereo bed = run(device, in);
+      const std::vector<float> bed_left = minus(bed.left, in), bed_right = minus(bed.right, in);
+      const double ceiling = Vinyl::crackle_ceiling(stock);
+      const double loudest = std::max(peak(bed_left, at(1.0)), peak(bed_right, at(1.0)));
+      note("default Crackle: loudest tick in 39 s (dB)", db(loudest));
+      EXPECT(ceiling < 0.0142 && loudest < 1.15 * ceiling, "default Crackle: no tick over -37 dBFS");
+      EXPECT(loudest > 4.0 * Vinyl::crackle_floor(stock), "default Crackle: but some stand 12 dB over the dust");
+      const int near_top = count_events(bed_left, bed_right, 0.8 * ceiling, 12, at(1.0));
+      const int upper = count_events(bed_left, bed_right, 0.4 * ceiling, 12, at(1.0));
+      note("default Crackle: events over 0.8 of the ceiling", near_top);
+      note("default Crackle: events over 0.4 of the ceiling", upper);
+      EXPECT(upper > 40 && near_top < 0.25 * upper,
+             "default Crackle: the largest ticks are the rarest (no pile of them at one size)");
+    }
     EXPECT(energy_above(left, 1000.0, kRate, at(1.0)) > 0.7, "ticks are short: their energy is above 1 kHz");
 
     bare(device);
@@ -796,7 +822,28 @@ int main() {
     note("default patch: loudest tick in a gap (dB)", db(peak(gap.left, at(1.0), at(4.0))));
     EXPECT(db(rms(gap.left, at(1.0), at(4.0))) > -72.0 && db(rms(gap.left, at(1.0), at(4.0))) < -56.0,
            "default: the surface sits between -72 and -56 dBFS");
-    EXPECT(peak(gap.left, at(1.0), at(4.0)) < 0.1, "default: no tick over -20 dBFS");
+    EXPECT(peak(gap.left, at(1.0), at(4.0)) < 0.025, "default: no tick over -32 dBFS");
+
+    // Two minutes of the default surface under music too quiet to hide it
+    // (the carrier is at -80 dBFS): a bed, with nothing that jumps out.
+    device.init(kRate);
+    Stereo bed = run(device, carrier(120.0f));
+    const double loudest = std::max(peak(bed.left, at(1.0)), peak(bed.right, at(1.0)));
+    note("default patch: loudest event in two minutes (dB)", db(loudest));
+    note("default patch: surface over two minutes (dB RMS)", db(rms(bed.left, at(1.0))));
+    EXPECT(loudest < 0.025, "default: nothing over -32 dBFS in two minutes");
+    EXPECT(db(loudest / rms(bed.left, at(1.0))) < 36.0,
+           "default: the loudest event stands less than 36 dB over the bed");
+    // Pops at the default are rare: a few a minute, scratch included.
+    bare(device);
+    device.set_param(p::kPops, p::kParamDefault[p::kPops]);
+    const std::vector<float> under = carrier(120.0f);
+    Stereo pops = run(device, under);
+    const int popped = count_events(minus(pops.left, under), minus(pops.right, under), 0.002, at(0.2), at(1.0));
+    note("default Pops: pops in two minutes", popped);
+    EXPECT(popped >= 2 && popped <= 24, "default Pops: between one and twelve a minute");
+    EXPECT(std::max(peak(minus(pops.left, under)), peak(minus(pops.right, under))) < 0.025,
+           "default Pops: none over -32 dBFS");
   }
 
   // Everything on, the platter switched part way: the same audio whatever

@@ -1,5 +1,6 @@
 // Native harness for West Coast (cpp/devices/west-coast).
 
+#include <algorithm>
 #include <complex>
 #include <cstdlib>
 
@@ -424,6 +425,61 @@ static void check_clicks() {
   EXPECT(max_step(out.left) <= 1.25 * chord, "a ninth note takes a voice without a click");
 }
 
+// Four notes on one key, each left to die before the next.
+static Stereo four_notes(float chance) {
+  plain(kRate);
+  device.set_param(p::kChance, chance);
+  device.set_param(p::kDecay, 0.3f);
+  Stereo out;
+  for (int n = 0; n < 4; ++n) {
+    device.note_on(1, 220.0f, 0.8f);
+    out = n == 0 ? render(device, 1.0f, kRate) : concat(out, render(device, 1.0f, kRate));
+    device.note_off(1);
+  }
+  return out;
+}
+
+// Chance makes every note a little different (brightness, edge, length,
+// place) from a seeded source: the same notes after init come out the same
+// every time. At zero all notes are alike and dead centre.
+static void check_chance() {
+  const Stereo fixed = four_notes(0.0f);
+  double difference = 0.0;
+  for (size_t i = 0; i < 48000; ++i) {
+    for (size_t n = 1; n < 4; ++n) {
+      difference = std::max(difference, std::fabs(static_cast<double>(fixed.left[i] - fixed.left[n * 48000 + i])));
+    }
+  }
+  EXPECT(difference == 0.0, "with Chance 0 every note is the same");
+  bool centred = true;
+  for (size_t i = 0; i < fixed.size(); ++i) centred = centred && fixed.left[i] == fixed.right[i];
+  EXPECT(centred, "with Chance 0 the output is mono (left equals right)");
+
+  const Stereo varied = four_notes(1.0f);
+  double brightness[4] = {}, balance[4] = {}, length[4] = {};
+  for (size_t n = 0; n < 4; ++n) {
+    const std::vector<float> left(varied.left.begin() + n * 48000, varied.left.begin() + (n + 1) * 48000);
+    const std::vector<float> right(varied.right.begin() + n * 48000, varied.right.begin() + (n + 1) * 48000);
+    brightness[n] = Spectrum(left, 0, 2048, kRate).centroid();
+    balance[n] = db(rms(left)) - db(rms(right));
+    length[n] = fall_time(left, kRate, 60.0);
+    NOTE("chance 1, note %zu: centroid %.0f Hz, left-right %+.1f dB, -60 dB after %.3f s\n", n + 1, brightness[n],
+         balance[n], length[n]);
+  }
+  const auto spread = [](const double* v) { return *std::max_element(v, v + 4) - *std::min_element(v, v + 4); };
+  EXPECT(spread(brightness) > 60.0, "Chance varies the brightness from note to note");
+  EXPECT(spread(balance) > 3.0, "Chance places notes apart between the speakers");
+  EXPECT(spread(length) > 0.05, "Chance varies the length from note to note");
+  const double together = correlation(varied.left, varied.right);
+  NOTE("chance 1: left/right correlation %.2f\n", together);
+  EXPECT(together > 0.3, "a varied sequence still sums to mono without holes");
+
+  const Stereo again = four_notes(1.0f);
+  bool same = again.size() == varied.size();
+  for (size_t i = 0; same && i < again.size(); ++i) same = again.left[i] == varied.left[i] && again.right[i] == varied.right[i];
+  EXPECT(same, "the same notes after init give the same sound, sample for sample");
+}
+
 // CHECKS
 
 int main() {
@@ -444,6 +500,7 @@ int main() {
   check_fm();
   check_envelope();
   check_clicks();
+  check_chance();
   // BEHAVIOUR
 
   // Cost with every voice sounding at the heaviest setting: eight held

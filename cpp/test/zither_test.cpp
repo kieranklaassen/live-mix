@@ -348,22 +348,23 @@ int main() {
     const double average = mean(envelope);
     for (float& value : envelope) value -= static_cast<float>(average);
     const double wobble = dominant_frequency(envelope, kRate / hop, 2.0, 20.0);
-    const double early = rms(out.left, at(1.0), at(2.0)), mid = rms(out.left, at(4.0), at(5.0)),
-                 late = rms(out.left, at(7.0), at(8.0));
-    std::printf("roll 8 Hz: %zu strikes in 7.5 s, %.2f a second, jitter %.1f %%, envelope at %.2f Hz; level %.1f, %.1f, %.1f dB at 1.5, 4.5, 7.5 s\n",
-                strikes.size(), gap > 0.0 ? 1.0 / gap : 0.0, 100.0 * jitter, wobble, db(early), db(mid), db(late));
-    EXPECT_NEAR(1.0 / gap, 8.0, 0.4, "the roll strikes at the stated rate");
-    EXPECT_NEAR(wobble, 8.0, 0.5, "which is the rate the level moves at");
-    EXPECT(jitter > 0.01 && jitter < 0.2, "the strokes are uneven by less than a fifth");
-    EXPECT(std::fabs(db(late / mid)) < 1.0 && std::fabs(db(mid / early)) < 2.0, "the level settles instead of growing");
-
+    const double early = rms(out.left, at(1.0), at(3.0)), mid = rms(out.left, at(3.0), at(5.5)),
+                 late = rms(out.left, at(5.5), at(8.0));
     plain(device);
     device.set_param(p::kExciter, 2.0f);
     device.set_param(p::kDecay, 12.0f);
     device.note_on(1, 220.0f, 0.8f);
     Stereo once = render(device, 2.0f, kRate);
+    std::printf("roll 8 Hz: %zu strikes in 7.5 s, %.2f a second, jitter %.1f %%, envelope at %.2f Hz; level %.1f, %.1f, %.1f dB over 1-3, 3-5.5, 5.5-8 s (one blow: %.1f dB at once, %.1f dB at 1.5 s)\n",
+                strikes.size(), gap > 0.0 ? 1.0 / gap : 0.0, 100.0 * jitter, wobble, db(early), db(mid), db(late),
+                db(rms(once.left, 0, at(0.5))), db(rms(once.left, at(1.0), at(2.0))));
+    EXPECT_NEAR(1.0 / gap, 8.0, 0.4, "the roll strikes at the stated rate");
+    EXPECT_NEAR(wobble, 8.0, 0.5, "which is the rate the level moves at");
+    EXPECT(jitter > 0.01 && jitter < 0.2, "the strokes are uneven by less than a fifth");
+    EXPECT(std::fabs(db(late / mid)) < 1.5 && std::fabs(db(mid / early)) < 1.5, "the level settles instead of growing");
+
     EXPECT(late > 1.5 * rms(once.left, at(1.0), at(2.0)), "a rolled string is kept louder than one struck once");
-    EXPECT(late < 3.0 * rms(once.left, 0, at(0.5)), "but not much louder than the first blow");
+    EXPECT(late < 1.5 * rms(once.left, 0, at(0.5)), "but no louder than the first blow");
   }
 
   // 8. Sympathetic strings: after a short note is damped they ring on at its

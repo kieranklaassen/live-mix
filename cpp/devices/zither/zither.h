@@ -160,7 +160,8 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     float second = 0.0f;      // share of the blow the second string takes
     float left[2] = {0.0f, 0.0f}, right[2] = {0.0f, 0.0f};
     float absorb = 1.0f;      // what the string keeps under a new blow
-    int absorb_left = 0;      // samples of the period still to pass
+    int absorb_left = 0;      // samples of that still to pass
+    int roll_turn = 0;
     bool sounding = false, two = false, fading = false, pending = false;
   };
 
@@ -195,6 +196,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     voice.fade = 1.0f;
     voice.absorb = 1.0f;
     voice.absorb_left = 0;
+    voice.roll_turn = 0;
     voice.left[0] = voice.left[1] = voice.right[0] = voice.right[1] = 0.0f;
     voice.sounding = voice.two = voice.fading = voice.pending = false;
   }
@@ -213,8 +215,8 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
       {0, 7, 14, 16, 19, 24},  // Add 9
   };
   // A stroke of the roll against the first blow, and how much it varies.
-  static constexpr float kRollLevel = 0.8f;
-  static constexpr float kRollLevelSpread = 0.2f;
+  static constexpr float kRollLevel = 0.9f;
+  static constexpr float kRollLevelSpread = 0.1f;
   static constexpr float kRollTimeSpread = 0.1f;
   static constexpr float kMinRollHz = 2.0f;
 
@@ -347,9 +349,10 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
   // leans with pitch, and how long a partial near 3 kHz (higher for the
   // treble strings) rings from Brightness 0 to 1.
   static constexpr float kKeepHammer = 0.45f;
-  static constexpr float kKeepRollHammer = 0.55f;
+  static constexpr float kKeepRollHammer = 0.6f;
   static constexpr float kKeepRollPluck = 0.5f;
-  static constexpr float kRollPhaseNear = 0.05f, kRollPhaseFar = 0.125f;  // of a period
+  static constexpr int kRollPhases = 6;
+  static constexpr float kRollPhase[kRollPhases] = {0.05f, -0.09f, 0.125f, -0.05f, 0.09f, -0.125f};  // of a period
   static constexpr float kRollSettleSeconds = 0.035f;
   static constexpr float kRingLean = 0.3f;
   static constexpr float kDampHz = 3000.0f;
@@ -472,6 +475,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     voice.fading = voice.pending = false;
     voice.fade = 1.0f;
     voice.absorb_left = 0;
+    voice.roll_turn = 0;
     voice.follow = 1.0f;
     voice.chunk_peak = 0.0f;
     voice.two = blow.courses > 0.01f;
@@ -520,7 +524,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
   // - A key struck again (the hammer): the string keeps part of what it had
   //   for the period the blow takes to go round, and the blow lands on that.
   // - A stroke of the roll waits for the wave of the first blow to come
-  //   round (less than a period), give or take an eighth of a period: it
+  //   round (less than a period), give or take up to an eighth of it: it
   //   pushes the string the way it is going, so the fundamental steps up
   //   with every stroke while the upper partials meet it in a different
   //   phase each time and glitter. Over the next few hundredths of a second
@@ -536,10 +540,11 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
       return;
     }
     float wait = period - static_cast<float>(std::fmod(now_ - voice.origin, static_cast<double>(period)));
-    // Early or late by a twentieth to an eighth of a period, never dead on:
-    // two blows exactly on top of each other would stand out as an accent.
-    const float off = kRollPhaseNear + (kRollPhaseFar - kRollPhaseNear) * rng_.uniform();
-    wait += period * (rng_.uniform() < 0.5f ? -off : off);
+    // Early or late by up to an eighth of a period, by turns, and never
+    // where one of the last few strokes still is: two blows exactly on top
+    // of each other would stand out as an accent.
+    wait += period * kRollPhase[voice.roll_turn];
+    voice.roll_turn = (voice.roll_turn + 1) % kRollPhases;
     if (wait > period) wait -= period;
     const float keep = blow.exciter == kHammer ? kKeepRollHammer : kKeepRollPluck;
     const float turns = kit::max(2.0f, std::ceil(kRollSettleSeconds * voice.hz));

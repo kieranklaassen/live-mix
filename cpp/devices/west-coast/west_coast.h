@@ -53,6 +53,7 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
     rise_coeff_ = 1.0f - kit::time_to_coeff(kVactrolRiseSeconds, sr);
     open_coeff_ = 1.0f - kit::time_to_coeff(kSmoothingSeconds, sr / kSlowPeriod);
     hold_samples_ = static_cast<int>(kStrikeHoldSeconds * sr) + 1;
+    colour_coeff_ = 1.0f - kit::time_to_coeff(kColourSeconds, sr / kControlPeriod);
     until_control_ = 0;
     // Nothing outlives the gate but the decimator's 63 taps.
     idle_.reset(sr, 0.1f);
@@ -79,7 +80,10 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
     }
     // The control clock starts with the first note out of silence, so what
     // is played does not depend on how long the instrument sat idle.
-    if (pool_.count_active() == 0) until_control_ = 0;
+    if (pool_.count_active() == 0) {
+      until_control_ = 0;
+      colour_ = param(kColour);
+    }
     bool fresh = false;
     if (slot < 0) {
       bool stolen = false;
@@ -288,6 +292,7 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
   static constexpr float kDarkFloorHz = 150.0f;
   static constexpr float kDarkCeilingHz = 6000.0f;
   static constexpr float kQuickAttackSeconds = 0.02f;
+  static constexpr float kColourSeconds = 0.03f;
   static constexpr float kGateDamping = 1.25f;  // 1 / Q
   static constexpr float kGateLimit = 0.2f;     // of the 2x rate
   static constexpr int kSlowPeriod = 4;
@@ -582,6 +587,8 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
   void control() {
     using namespace west_coast;
     const float drift = param(kDrift);
+    // Colour moves the gate over six octaves: it glides, in octaves.
+    colour_ += (param(kColour) - colour_) * colour_coeff_;
     for (int v = 0; v < kMaxVoices; ++v) {
       Voice& voice = pool_.voices[v];
       if (!voice.active()) continue;
@@ -598,7 +605,7 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
     // Colour 0 opens the gate to just above the note; Colour 1 opens it
     // all the way whatever the note.
     const float dark = kit::clamp(kDarkRatio * voice.frequency, kDarkFloorHz, kDarkCeilingHz);
-    voice.open_target = dark * std::pow(kGateCeilingHz / dark, param(kColour));
+    voice.open_target = dark * std::pow(kGateCeilingHz / dark, colour_);
   }
 
   void apply(int id) {
@@ -623,6 +630,9 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
       case kVolume:
         volume_.set(kit::db_to_gain(value), primed());
         break;
+      case kColour:
+        if (!primed()) colour_ = value;
+        break;
       default:
         break;  // read at note-on or on the control clock
     }
@@ -641,6 +651,8 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
   float rate2_ = 96000.0f;
   float rise_coeff_ = 0.02f;
   float open_coeff_ = 0.004f;
+  float colour_ = 0.6f;
+  float colour_coeff_ = 0.02f;
   int hold_samples_ = 96;
   west_coast::FoldCurve curve_;
   // [offset][level]{fundamental, makeup}

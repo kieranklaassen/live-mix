@@ -127,11 +127,11 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
   // Allpass lengths as shares of Length. Their sum is the earliest a sound
   // can come back; the tap distances are shortened by it so the arrivals
   // land where the swarm table says.
-  static constexpr float kAllpassSpan[2][kStages] = {{0.0071f, 0.0113f, 0.0173f, 0.0243f},
-                                                     {0.0077f, 0.0121f, 0.0163f, 0.0257f}};
+  static constexpr float kAllpassSpan[2][kStages] = {{0.0037f, 0.0059f, 0.0083f, 0.0113f},
+                                                     {0.0041f, 0.0061f, 0.0079f, 0.0121f}};
   // Where each line is read for the loop, as a share of Length.
   static constexpr float kLoopSpan[2] = {1.0f, 0.887f};
-  static constexpr float kFirstArrival = 0.075f;
+  static constexpr float kFirstArrival = 0.035f;
   static constexpr float kSwarmCurve = 1.25f;    // above 1: denser at the front
   static constexpr float kSwarmTiltDb = 6.0f;    // the last tap against the first
   static constexpr float kMaxDiffusion = 0.7f;

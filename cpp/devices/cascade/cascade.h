@@ -514,6 +514,22 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
     return difference / energy;
   }
 
+  // The correlation of the same samples with those `lag` later, whatever
+  // their levels: 1 for a perfect repeat, 0 for unrelated sound (or less).
+  static float likeness(const float* ring, int mask, long long at, long long lag, int points, int stride) {
+    float both = 0.0f;
+    float first = 1.0e-12f;
+    float second = 1.0e-12f;
+    for (int n = 0; n < points; ++n) {
+      const float a = ring[(at + n * stride) & mask];
+      const float b = ring[(at + n * stride + lag) & mask];
+      both += a * b;
+      first += a * a;
+      second += b * b;
+    }
+    return kit::clamp(both / std::sqrt(first * second), 0.0f, 1.0f);
+  }
+
   // The lag, in input samples, at which the slice is most like itself from
   // `from` on: its period if it is one note, the common period if it is a
   // chord. Searched from 2.5 to 25 ms on the x4 ring, then to the sample (and
@@ -592,9 +608,10 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
         best = lag;
       }
     }
-    // How well the loop closes there: near 0 for a note, near 1 for noise or
-    // a dense chord, which have no cycle to cut on.
-    if (unlike) *unlike = lowest < 1.0f ? (lowest > 0.0f ? lowest : 0.0f) : 1.0f;
+    // How well the loop closes there: near 0 for a note (whether it holds its
+    // level or dies away), near 1 for noise or a dense chord, which have no
+    // cycle to cut on.
+    if (unlike) *unlike = 1.0f - likeness(ring0_, kRing0 - 1, at, best < 16 ? 16 : best, points, stride);
     return best < 16 ? 16 : best;
   }
 
@@ -890,6 +907,10 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
     }
   }
 
+  // +30 dBFS: nothing a mixer passes on is louder. (NaN fails both tests.)
+  static constexpr float kMaxInput = 32.0f;
+  static float sane(float x) { return (x > -kMaxInput && x < kMaxInput) ? x : 0.0f; }
+
   // Up to kControlPeriod frames: record the input, render the voices, mix.
   // Returns how many it did (fewer than asked when a new note cut the slot).
   int chunk(int offset, int count) {
@@ -902,6 +923,12 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
     int cut_delay = 0;
     for (int i = 0; i < count; ++i) {
       take_input(offset + i, &dry[0][i], &dry[1][i]);
+      // A sample that is not a number, or is far beyond any audio level, is
+      // dropped (from the dry path too): recorded, it would sit in the DC
+      // blocker and the followers, come back with every repeat of its slice
+      // and hold the wet level down long after.
+      dry[0][i] = sane(dry[0][i]);
+      dry[1][i] = sane(dry[1][i]);
       const float x = dc_.process(0.5f * (dry[0][i] + dry[1][i]));
       if (!slot_has_sound_ && (x > kThreshold || x < -kThreshold)) {
         slot_has_sound_ = true;

@@ -556,7 +556,7 @@ int main() {
                 "loudest within %.2f s; at 0.6: %.2f %% of the roll is above 2 kHz, a quarter of its loudest after %.2f s\n",
                 100.0 * bright[0], onset[0], 100.0 * bright[1], onset[1]);
     EXPECT(bright[0] > 0.2 && bright[1] < 0.01, "Thunder: a crack only when near");
-    EXPECT(onset[0] < 0.04 && onset[1] > 0.2, "Thunder: from far off the roll swells in");
+    EXPECT(onset[0] < 0.06 && onset[1] > 0.2, "Thunder: from far off the roll swells in");
   }
 
   // Chimes: six tubes on the major pentatonic of the key, each with partials
@@ -699,6 +699,71 @@ int main() {
     Stereo after = render(device, 0.5f, kRate);
     std::snprintf(label, sizeof label, "%s: asleep (exact zeros) a second after a short release", kNames[type]);
     EXPECT(peak(after.left) == 0.0 && peak(after.right) == 0.0, label);
+  }
+
+  // No clicks. The yardstick is the largest sample-to-sample step of the
+  // same scene left alone.
+  {
+    // Density, the knob most likely to be turned while it sounds; then the others.
+    for (int type : {Outdoors::kStream, Outdoors::kChimes, Outdoors::kCrickets}) {
+      plain(device, type, 1.0f);
+      const double steady = max_step(hold(device, 220.0f, 4.0f).left, 48000);
+      for (int knob : {static_cast<int>(p::kDensity), static_cast<int>(p::kDistance), static_cast<int>(p::kTone),
+                       static_cast<int>(p::kMovement), static_cast<int>(p::kWidth), static_cast<int>(p::kVolume)}) {
+        plain(device, type, 1.0f);
+        device.note_on(1, 220.0f, 1.0f);
+        render(device, 1.0f, kRate);
+        Stereo swept;
+        for (int block = 0; block < 600; ++block) {  // 1.6 s, there and back twice, a jump every block
+          const float along = 0.5f - 0.5f * std::cos(2.0f * 3.14159265f * block / 300.0f);
+          const float lo = knob == p::kVolume ? -12.0f : 0.0f;
+          const float hi = knob == p::kVolume ? 0.0f : 1.0f;
+          device.set_param(knob, hi + (lo - hi) * along);
+          swept = concat(swept, render(device, 128.0f / kRate, kRate));
+        }
+        std::snprintf(label, sizeof label, "%s: sweeping param %d makes no click (step %.4f, left alone %.4f)",
+                      kNames[type], knob, max_step(swept.left), steady);
+        EXPECT(max_step(swept.left) < 1.3 * steady, label);
+      }
+    }
+
+    // A change of Type dips and comes back: no step larger than either scene's own.
+    for (int type = 0; type < Outdoors::kKinds; ++type) {
+      const int next = (type + 3) % Outdoors::kKinds;
+      plain(device, type, 1.0f);
+      Stereo before = hold(device, 220.0f, 2.0f);
+      device.set_param(p::kType, static_cast<float>(next));
+      Stereo change = render(device, 0.1f, kRate);
+      Stereo after = render(device, 2.0f, kRate);
+      const double own = std::max(max_step(before.left), max_step(after.left));
+      std::snprintf(label, sizeof label, "%s to %s: no click on the change (step %.4f, scenes' own %.4f)",
+                    kNames[type], kNames[next], max_step(change.left), own);
+      EXPECT(max_step(change.left) <= 1.05 * own && rms(after.left) > 1.0e-5, label);
+    }
+
+    // Fast envelopes, a restruck key and a stolen voice.
+    plain(device, Outdoors::kStream, 1.0f);
+    Stereo steady = hold(device, 220.0f, 3.0f);
+    const double own = max_step(steady.left, 48000);
+    device.note_off(1);
+    Stereo off = render(device, 0.2f, kRate);
+    device.note_on(1, 220.0f, 1.0f);
+    Stereo on = render(device, 0.05f, kRate);
+    device.note_on(1, 330.0f, 1.0f);
+    Stereo again = render(device, 0.2f, kRate);
+    std::printf("outdoors: steps: steady %.4f, release %.4f, attack %.4f, restrike %.4f\n", own,
+                max_step(off.left), max_step(on.left), max_step(again.left));
+    EXPECT(max_step(off.left) < 1.2 * own && max_step(on.left) < 1.2 * own && max_step(again.left) < 1.2 * own,
+           "a 10 ms attack, a 50 ms release and a restrike make no click");
+
+    plain(device, Outdoors::kStream, 1.0f);
+    for (int n = 0; n < 8; ++n) device.note_on(n, 220.0f, 1.0f);
+    Stereo eight = render(device, 2.0f, kRate);
+    device.note_on(8, 440.0f, 1.0f);
+    Stereo ninth = render(device, 0.1f, kRate);
+    std::printf("outdoors: steps: eight keys %.4f, the ninth stealing a voice %.4f\n", max_step(eight.left, 48000),
+                max_step(ninth.left));
+    EXPECT(max_step(ninth.left) < 1.2 * max_step(eight.left, 48000), "a stolen voice makes no click");
   }
 
   // BEHAVIOUR

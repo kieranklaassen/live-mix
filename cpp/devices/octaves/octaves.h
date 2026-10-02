@@ -20,6 +20,10 @@
 // - The bank runs at half the sample rate (a quarter from 88.2 kHz up): its
 //   channels end at 5.5 kHz and the highest voice it makes stays under
 //   10 kHz. The dry signal never passes through any of it.
+// - Latency: the way down to the bank's rate and back is 0.46 ms at 48 kHz,
+//   and that is all the fixed delay there is. What is heard as the start of
+//   a voice is the rise of its channel: a few milliseconds, longer for low
+//   notes (the harness measures it).
 // - There is no Mix: Dry is the balance. With the four voices at 0 the
 //   output is the input, bit for bit.
 // - Spread sends alternate channels of the two upper voices left and right

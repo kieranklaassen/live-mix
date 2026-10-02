@@ -276,9 +276,9 @@ class Outdoors : public kit::DeviceBase<outdoors::kNumParams> {
     }
   }
 
-  // Air takes the highs first: a one-pole from 20 kHz (near) to 1.2 kHz.
+  // Air takes the highs first: a one-pole from 20 kHz (near) to 2 kHz.
   void aim_air() {
-    const float cutoff = 20000.0f * std::pow(0.06f, controls_.distance);
+    const float cutoff = 20000.0f * std::pow(0.1f, controls_.distance);
     for (int c = 0; c < 2; ++c) air_[c].set_cutoff(cutoff, sample_rate());
   }
 

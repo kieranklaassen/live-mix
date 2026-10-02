@@ -148,7 +148,7 @@ class NoiseFloor : public kit::DeviceBase<noise_floor::kNumParams> {
       envelope_ = flush_denormal(magnitude + (envelope_ - magnitude) * coeff);
       smooth_envelope_ = flush_denormal(envelope_ + (smooth_envelope_ - envelope_) * settle_);
       const float loud = smooth_envelope_ * (1.0f / kReference);
-      const float follow = follow_.next();
+      const float follow = glide(follow_);
       float follow_gain = 1.0f;
       if (follow > 0.0f) {
         follow_gain += follow * (2.0f * kit::fast_tanh(kFollowKnee * loud) - 1.0f);
@@ -156,8 +156,8 @@ class NoiseFloor : public kit::DeviceBase<noise_floor::kNumParams> {
         follow_gain -= follow * (1.0f / (1.0f + kDuck * loud) - 1.0f);
       }
 
-      const float dark = dark_.next();
-      const float thin = thin_.next();
+      const float dark = glide(dark_);
+      const float thin = glide(thin_);
       float bed[2] = {0.0f, 0.0f};
       if (gate_ > 0.0f) {
         for (int t = 0; t < kTypes; ++t) {
@@ -170,7 +170,7 @@ class NoiseFloor : public kit::DeviceBase<noise_floor::kNumParams> {
           if (fade_[t] <= 0.0f) continue;
           float out[2];
           render_bed(t, in, out);
-          const float gain = amp_[t] * comp_[t].next();
+          const float gain = amp_[t] * glide(comp_[t]);
           if (t == kHum50 || t == kHum60) {
             bed[0] += out[0] * gain;
             bed[1] += out[1] * gain;
@@ -187,9 +187,9 @@ class NoiseFloor : public kit::DeviceBase<noise_floor::kNumParams> {
 
       // The fade behind the last note is a smooth step, level at both ends.
       const float shape = gate_ * gate_ * (3.0f - 2.0f * gate_);
-      const float gain = level_.next() * drift_gain_.next() * follow_gain * shape;
-      const float mid = (bed[0] + bed[1]) * 0.5f * mid_.next();
-      const float side = (bed[0] - bed[1]) * 0.5f * side_.next();
+      const float gain = glide(level_) * glide(drift_gain_) * follow_gain * shape;
+      const float mid = (bed[0] + bed[1]) * 0.5f * glide(mid_);
+      const float side = (bed[0] - bed[1]) * 0.5f * glide(side_);
       out_left_[i] = in[0] + kit::soft_clip((mid + side) * gain);
       out_right_[i] = in[1] + kit::soft_clip((mid - side) * gain);
     }
@@ -229,6 +229,11 @@ class NoiseFloor : public kit::DeviceBase<noise_floor::kNumParams> {
       {-9.82f, -7.04f, -4.68f, -2.77f, 0.00f, -0.71f, -1.30f, -2.33f, -4.03f},  // Static
       {-12.54f, -9.05f, -5.96f, -3.27f, 0.00f, -3.00f, -4.15f, -5.74f, -7.95f},  // Air
   };
+
+  // A smoother's next value; at rest it costs one comparison.
+  static float glide(kit::Smoother& smoother) {
+    return smoother.settled() ? smoother.value : smoother.next();
+  }
 
   void snap_types() {
     for (int t = 0; t < kTypes; ++t) {

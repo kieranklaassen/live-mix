@@ -87,7 +87,7 @@ class MicroShift : public kit::DeviceBase<micro_shift::kNumParams> {
     filters_focus_ = -1.0f;
     filters_tone_ = -1.0f;
     // The longest silent gap is the longest head position, under 100 ms.
-    hold_coeff_ = kit::time_to_coeff(kHoldSeconds, sr);
+    hold_coeff_ = kit::time_to_coeff(kHoldFastSeconds, sr);
     hold_control_coeff_ = kit::time_to_coeff(kHoldSeconds, control_rate);
     idle_.reset(sr, 0.3f);
     for (int id = 0; id < kNumParams; ++id) apply(id);
@@ -185,13 +185,18 @@ class MicroShift : public kit::DeviceBase<micro_shift::kNumParams> {
   static constexpr float kDetuneGlideSeconds = 0.02f;
   // Level hold: how long the measurement looks back, and how fast the gain moves.
   #ifndef HOLD_SECONDS
-#define HOLD_SECONDS 0.0075f
+#define HOLD_SECONDS 0.009f
 #endif
 #ifndef HOLD_GLIDE
 #define HOLD_GLIDE 0.003f
 #endif
   static constexpr float kHoldSeconds = HOLD_SECONDS;
   static constexpr int kHoldStages = 3;
+#ifndef HOLD_ATTACK
+#define HOLD_ATTACK 1.5f
+#endif
+  static constexpr float kHoldFastSeconds = 0.003f;
+  static constexpr float kHoldAttack = HOLD_ATTACK;
   static constexpr float kHoldGlideSeconds = HOLD_GLIDE;
   // The wet high-pass sits a little under the dry low-pass so the two meet
   // level at the Focus frequency (they add in power).
@@ -246,6 +251,13 @@ class MicroShift : public kit::DeviceBase<micro_shift::kNumParams> {
     //   lift^2 * shared^2 + 2 * lift * sum*shared + 2 * dry*copy = 0
     for (int c = 0; c < 2; ++c) {
       float lift = 0.0f;
+      // An attack: the averages start again from what is sounding now, so
+      // the lift worked out for the old sound is not laid on the new note.
+      if (hold_fast_[c][2] > kHoldAttack * hold_slow_[c][2][kHoldStages - 1] + 1.0e-10f) {
+        for (int k = 0; k < 3; ++k) {
+          for (float& stage : hold_slow_[c][k]) stage = hold_fast_[c][k];
+        }
+      }
       for (int k = 0; k < 3; ++k) {
         float value = hold_fast_[c][k];
         for (int stage = 0; stage < kHoldStages; ++stage) {
