@@ -87,3 +87,101 @@ export class ParamRamper {
     this.segment = null
   }
 }
+
+/** A point a glide passes through: the value it has reached by `atSec`. */
+export interface GlidePoint {
+  value: number
+  atSec: number
+}
+
+/** Two points of a glide are never closer than this, so each ramp has a length. */
+const MIN_GLIDE_LEG_SECONDS = 0.001
+/** An exponential ramp cannot start or end on zero: a glide stays at or above this (-120 dB). */
+const MIN_GLIDE_VALUE = 1e-6
+/** After this many time constants an approach has arrived, as near as matters (within 0.25 %). */
+const APPROACH_SETTLE_TIME_CONSTANTS = 6
+
+/**
+ * Moves a gain between levels along a straight line in dB (an exponential
+ * ramp), and remembers what it wrote. Two gains glided over the same times
+ * to reciprocal levels are reciprocal all the way, which a `setTargetAtTime`
+ * approach is not: so one can be turned down and the other up by as much
+ * without their product moving. The values have to stay above zero; a level
+ * that is, or becomes, silence is approached with `approach`.
+ */
+export class ParamGlide {
+  // Where the glide starts, and each point it ramps to after that.
+  private points: GlidePoint[]
+  // When the last write was an approach: the time it has arrived by.
+  private settlesAt: number | null = null
+
+  constructor(
+    readonly param: ScheduledParam,
+    value: number,
+  ) {
+    this.points = [{ value, atSec: -Infinity }]
+  }
+
+  /** The value the last write ends on. */
+  get target(): number {
+    return this.points[this.points.length - 1].value
+  }
+
+  /** When the last glide ends. */
+  get endSec(): number {
+    return this.points[this.points.length - 1].atSec
+  }
+
+  /**
+   * False while an approach is on its way: there the param is somewhere
+   * between two levels that only the browser knows, and a glide from it
+   * cannot be matched by another.
+   */
+  isSettled(atSec: number): boolean {
+    return this.settlesAt === null || atSec >= this.settlesAt
+  }
+
+  /** The value the param holds at `atSec` according to what was written. */
+  valueAt(atSec: number): number {
+    const points = this.points
+    for (let index = 1; index < points.length; index += 1) {
+      const to = points[index]
+      if (atSec >= to.atSec) continue
+      const from = points[index - 1]
+      if (atSec <= from.atSec) return from.value
+      const along = (atSec - from.atSec) / (to.atSec - from.atSec)
+      return from.value * (to.value / from.value) ** along
+    }
+    return this.target
+  }
+
+  /**
+   * From wherever the param is at `atSec`, glide to each point in turn. A
+   * glide or approach that is still running is held where it is, so the new
+   * one starts from there.
+   */
+  along(atSec: number, ...through: GlidePoint[]): void {
+    const current = Math.max(MIN_GLIDE_VALUE, this.valueAt(atSec))
+    if (this.settlesAt !== null || atSec < this.endSec) holdParamAt(this.param, atSec, current)
+    else this.param.setValueAtTime(current, atSec)
+    this.settlesAt = null
+    const points: GlidePoint[] = [{ value: current, atSec }]
+    let last = atSec
+    for (const point of through) {
+      const value = Math.max(MIN_GLIDE_VALUE, point.value)
+      last = Math.max(point.atSec, last + MIN_GLIDE_LEG_SECONDS)
+      this.param.exponentialRampToValueAtTime(value, last)
+      points.push({ value, atSec: last })
+    }
+    this.points = points
+  }
+
+  /** Approach `value` from `atSec` with a time constant: for a level that is, or becomes, zero. */
+  approach(value: number, atSec: number, timeConstantSec: number): void {
+    // A glide still on its way would run on underneath the approach.
+    if (atSec < this.endSec) holdParamAt(this.param, atSec, this.valueAt(atSec))
+    this.param.setTargetAtTime(value, atSec, timeConstantSec)
+    this.points = [{ value, atSec: -Infinity }]
+    this.settlesAt = atSec + APPROACH_SETTLE_TIME_CONSTANTS * timeConstantSec
+  }
+}

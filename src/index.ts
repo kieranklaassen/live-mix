@@ -179,6 +179,7 @@ export {
   JOIN_EASE_SECONDS,
   MAX_CLIP_GAIN_DB,
   MIN_PLACED_GAIN_DB,
+  PLACEMENT_GLIDE_SECONDS,
   PLACEMENT_RAMP_SECONDS,
   STEER_CROSSFADE_SECONDS,
   STOP_FADE_SECONDS,
@@ -211,7 +212,13 @@ export {
   type SpaceColour,
   type SpaceOptions,
 } from './core/tracks/space'
-export { SpaceRoom, type SpaceRoomHost, type SpaceRoomSettings } from './core/tracks/SpaceRoom'
+export {
+  MIN_SPACE_TILT,
+  SPACE_TILT_RETURN_DB_PER_SECOND,
+  SpaceRoom,
+  type SpaceRoomHost,
+  type SpaceRoomSettings,
+} from './core/tracks/SpaceRoom'
 export {
   SharedSpaces,
   SpaceFeed,

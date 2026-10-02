@@ -18,6 +18,7 @@ import {
   JOIN_EASE_SECONDS,
   MAX_CLIP_GAIN_DB,
   MIN_PLACED_GAIN_DB,
+  PLACEMENT_GLIDE_SECONDS,
   PLACEMENT_RAMP_SECONDS,
   STEER_CROSSFADE_SECONDS,
   STOP_FADE_SECONDS,
@@ -914,7 +915,11 @@ describe('AudioTrack placed clips', () => {
     expect(lowpass.frequency.events).toEqual([
       { method: 'setTargetAtTime', args: [2000, 2, PLACEMENT_RAMP_SECONDS] },
     ])
-    expect(trim.gain.lastEvent('setTargetAtTime')?.args[0]).toBeCloseTo(10 ** (-9 / 20))
+    // The level glides: a straight line in dB from where it stood.
+    expect(trim.gain.events[0]).toEqual({ method: 'setValueAtTime', args: [1, 2] })
+    const [level, at] = trim.gain.lastEvent('exponentialRampToValueAtTime')?.args as number[]
+    expect(level).toBeCloseTo(10 ** (-9 / 20))
+    expect(at).toBe(2 + PLACEMENT_GLIDE_SECONDS)
     // The send did not exist: it is made silent and comes up beside the dry path.
     const send = played?.placement?.send as unknown as (typeof ctx.gains)[number]
     expect(send.gain.value).toBe(0)
@@ -924,14 +929,211 @@ describe('AudioTrack placed clips', () => {
     track.place('k', { gainDb: -9, pan: -0.6, lowpassHz: 2000 })
     expect(send.gain.lastEvent('setTargetAtTime')?.args[0]).toBe(0)
     expect(ctx.convolvers).toHaveLength(1)
+    // Nothing was ringing in a room that was not there: it is left as it is.
+    expect(track.strip.sourceNodes).toContain(ctx.convolvers[0])
   })
 
-  it('place leaves a voice that was started unplaced, and one that is gone, alone', () => {
-    const { ctx, track } = setup()
-    track.play('k', { ...voice, buffer: buffer(ctx, 10), gainDb: -6 }, 1)
-    expect(track.place('k', { gainDb: 0, pan: 0.5 })).toBe(false)
-    expect(track.place('missing', { gainDb: 0, pan: 0.5 })).toBe(false)
-    expect(ctx.panners).toHaveLength(0)
+  it('a send that is already open glides to its new level, once it has arrived', () => {
+    const { ctx, track } = setup({ currentTime: 2 })
+    const played = track.play('k', { ...voice, buffer: buffer(ctx, 10), pan: 0, spaceDb: -6 }, 1)
+    const send = played?.placement?.send as unknown as (typeof ctx.gains)[number]
+    track.place('k', { gainDb: 0, pan: 0, spaceDb: 0 })
+    expect(send.gain.events).toEqual([
+      { method: 'setValueAtTime', args: [10 ** (-6 / 20), 2] },
+      { method: 'exponentialRampToValueAtTime', args: [1, 2 + PLACEMENT_GLIDE_SECONDS] },
+    ])
+    // Closed and opened again it approaches, and glides once that has settled.
+    track.place('k', { gainDb: 0, pan: 0 })
+    ctx.currentTime = 3
+    track.place('k', { gainDb: 0, pan: 0, spaceDb: -6 })
+    track.place('k', { gainDb: 0, pan: 0, spaceDb: -12 })
+    expect(send.gain.events.slice(-2).map((event) => event.method)).toEqual([
+      'setTargetAtTime',
+      'setTargetAtTime',
+    ])
+    ctx.currentTime = 4
+    track.place('k', { gainDb: 0, pan: 0, spaceDb: -18 })
+    expect(send.gain.lastEvent('exponentialRampToValueAtTime')?.args[1]).toBe(
+      4 + PLACEMENT_GLIDE_SECONDS,
+    )
+  })
+
+  describe('the room behind a voice that is turned down', () => {
+    type MockGain = MockAudioContext['gains'][number]
+    const ramps = (gain: MockGain): number[][] =>
+      gain.gain.eventsFor('exponentialRampToValueAtTime').map((event) => event.args as number[])
+    /** The gains a tilted room has: one ahead of the convolver, one after it. */
+    function tilted(ctx: MockAudioContext, dest: MockGain): { pre: MockGain; post: MockGain } {
+      const [room] = ctx.convolvers
+      const pre = ctx.gains.find((gain) => gain.isConnectedTo(room))
+      const post = ctx.gains.find((gain) => gain !== dest && room.isConnectedTo(gain))
+      if (!pre || !post) throw new Error('the room has not been tilted')
+      return { pre, post }
+    }
+
+    it('comes down with it, and what the voice sends from then on goes in as loud as before', () => {
+      const { ctx, dest, track } = setup({ currentTime: 2 })
+      const played = track.play('k', { ...voice, buffer: buffer(ctx, 10), pan: 0, spaceDb: -6 }, 1)
+      const [room] = ctx.convolvers
+      const send = played?.placement?.send as unknown as MockGain
+      const trim = played?.trim as unknown as MockGain
+      expect(track.place('k', { gainDb: -12, pan: 0, spaceDb: -6 })).toBe(true)
+      const { pre, post } = tilted(ctx, dest)
+      const down = 10 ** (-12 / 20)
+      const reached = 2 + PLACEMENT_GLIDE_SECONDS
+      expect(ramps(trim)[0][0]).toBeCloseTo(down, 12)
+      expect(ramps(trim)[0][1]).toBe(reached)
+      // After the room: what rings is as far down as the voice, by the same moment.
+      expect(ramps(post)[0][0]).toBeCloseTo(down, 12)
+      expect(ramps(post)[0][1]).toBe(reached)
+      // Ahead of it: up by as much, so the trim and this gain cancel on the way in.
+      expect(ramps(pre)[0][0] * ramps(trim)[0][0]).toBeCloseTo(1, 12)
+      expect(ramps(pre)[0][1]).toBe(reached)
+      // Both come back to 1 together, long after.
+      expect(ramps(post)[1][0]).toBe(1)
+      expect(ramps(pre)[1]).toEqual(ramps(post)[1])
+      expect(ramps(post)[1][1]).toBeGreaterThan(reached + 5)
+      // The send goes in ahead of the new gain, and the strip hears the room through the other.
+      expect(send.isConnectedTo(pre)).toBe(true)
+      expect(send.isConnectedTo(room)).toBe(false)
+      expect(post.isConnectedTo(dest)).toBe(true)
+      expect(room.isConnectedTo(dest)).toBe(false)
+      expect(track.strip.sourceNodes).toContain(post)
+      expect(track.strip.sourceNodes).not.toContain(room)
+      expect(track.space).toBe(room)
+      // A voice that starts afterwards sends in at the same place.
+      const next = track.play('n', { ...voice, buffer: buffer(ctx, 10), pan: 0, spaceDb: -6 }, 2)
+      expect((next?.placement?.send as unknown as MockGain).isConnectedTo(pre)).toBe(true)
+    })
+
+    it('comes down by the voice’s share of what is sent into it', () => {
+      const { ctx, dest, track } = setup({ currentTime: 2 })
+      track.play('a', { ...voice, buffer: buffer(ctx, 10), pan: 0, spaceDb: -6 }, 1)
+      track.play('b', { ...voice, buffer: buffer(ctx, 10), pan: 0, spaceDb: -6 }, 1)
+      track.place('a', { gainDb: -20, pan: 0, spaceDb: -6 })
+      const { post } = tilted(ctx, dest)
+      // Two equal voices, one down 20 dB: the power sent falls from 2 to 1.01.
+      expect(ramps(post)[0][0]).toBeCloseTo(Math.sqrt(1.01 / 2), 12)
+    })
+
+    it('comes down when a send is turned down, as it does for the level', () => {
+      const { ctx, dest, track } = setup({ currentTime: 2 })
+      track.play('k', { ...voice, buffer: buffer(ctx, 10), pan: 0, spaceDb: 0 }, 1)
+      track.place('k', { gainDb: 0, pan: 0, spaceDb: -12 })
+      expect(ramps(tilted(ctx, dest).post)[0][0]).toBeCloseTo(10 ** (-12 / 20), 12)
+    })
+
+    it('is left alone when the voice is turned up, when it has not started, and when its send closes', () => {
+      const { ctx, dest, track } = setup({ currentTime: 2 })
+      track.play('k', { ...voice, buffer: buffer(ctx, 10), gainDb: -12, pan: 0, spaceDb: -6 }, 1)
+      track.play('later', { ...voice, buffer: buffer(ctx, 10), pan: 0, spaceDb: -6 }, 3)
+      const gains = ctx.gains.length
+      track.place('k', { gainDb: 0, pan: 0, spaceDb: -6 })
+      track.place('later', { gainDb: -30, pan: 0, spaceDb: -6 })
+      track.place('k', { gainDb: 0, pan: 0 })
+      expect(ctx.gains).toHaveLength(gains)
+      expect(ctx.convolvers[0].isConnectedTo(dest)).toBe(true)
+    })
+
+    it('follows a scheduled clip that is turned down, once for the edit', async () => {
+      const { ctx, dest, samples, track } = setup({ lookaheadSec: 1 })
+      const transport = new Transport({ now: () => ctx.currentTime })
+      const scheduler = new Scheduler({ transport, tickMs: 40 })
+      track.attach(scheduler)
+      await samples.load('s', buffer(ctx, 10))
+      const clip: Clip = {
+        id: 'a',
+        sourceId: 's',
+        startSec: 0.5,
+        offsetSec: 0,
+        durationSec: 4,
+        fadeInSec: 0,
+        fadeOutSec: 0,
+        fadeCurve: 'linear',
+        gainDb: 0,
+        pan: 0,
+        spaceDb: -6,
+      }
+      track.clips.add(clip)
+      track.clips.add({ ...clip, id: 'b' })
+      transport.start()
+      scheduler.tick()
+      ctx.currentTime = 1
+      track.clips.update('a', { gainDb: -20 })
+      const { post } = tilted(ctx, dest)
+      expect(ramps(post)).toHaveLength(2)
+      expect(ramps(post)[0][0]).toBeCloseTo(Math.sqrt(1.01 / 2), 12)
+      scheduler.dispose()
+    })
+  })
+
+  describe('a voice that was started without a place', () => {
+    type MockGain = MockAudioContext['gains'][number]
+
+    it('follows its level through the trim it has', () => {
+      const { ctx, track } = setup({ currentTime: 2 })
+      const played = track.play('k', { ...voice, buffer: buffer(ctx, 10), gainDb: -6 }, 1)
+      const trim = played?.trim as unknown as MockGain
+      expect(track.place('k', { gainDb: -12 })).toBe(true)
+      expect(trim.gain.events).toEqual([
+        { method: 'setValueAtTime', args: [trimGain(-6), 2] },
+        {
+          method: 'exponentialRampToValueAtTime',
+          args: [trimGain(-12), 2 + PLACEMENT_GLIDE_SECONDS],
+        },
+      ])
+      // The same level again sends nothing.
+      track.place('k', { gainDb: -12 })
+      expect(trim.gain.events).toHaveLength(2)
+      expect(ctx.panners).toHaveLength(0)
+    })
+
+    it('is given a trim when it was started at unity, and loses it with the voice', () => {
+      const { ctx, dest, track } = setup({ currentTime: 2 })
+      const played = track.play('k', { ...voice, buffer: buffer(ctx, 10) }, 1)
+      const envelope = played?.gain as unknown as MockGain
+      expect(played?.trim).toBeNull()
+      expect(envelope.isConnectedTo(dest)).toBe(true)
+      // Nothing to move: nothing is made.
+      expect(track.place('k', { gainDb: 0 })).toBe(true)
+      expect(played?.trim).toBeNull()
+      expect(track.place('k', { gainDb: -6 })).toBe(true)
+      const trim = played?.trim as unknown as MockGain
+      expect(trim).not.toBeNull()
+      expect(envelope.isConnectedTo(trim)).toBe(true)
+      expect(envelope.isConnectedTo(dest)).toBe(false)
+      expect(trim.isConnectedTo(dest)).toBe(true)
+      expect(track.strip.sourceNodes).toEqual([trim])
+      expect(trim.gain.lastEvent('exponentialRampToValueAtTime')?.args[0]).toBeCloseTo(trimGain(-6))
+      track.stop('k')
+      expect(trim.isConnectedTo(dest)).toBe(false)
+      expect(track.strip.sourceNodes).toEqual([])
+    })
+
+    it('goes as far down as a placed clip once its clip names the middle', () => {
+      const { ctx, track } = setup({ currentTime: 2 })
+      const played = track.play('k', { ...voice, buffer: buffer(ctx, 10), gainDb: -6 }, 1)
+      const trim = played?.trim as unknown as MockGain
+      const last = (): number =>
+        trim.gain.lastEvent('exponentialRampToValueAtTime')?.args[0] as number
+      track.place('k', { gainDb: -40 })
+      expect(last()).toBeCloseTo(trimGain(-MAX_CLIP_GAIN_DB))
+      expect(track.place('k', { gainDb: -40, pan: 0 })).toBe(true)
+      expect(last()).toBeCloseTo(placedTrimGain(-40))
+    })
+
+    it('takes the level and says so when it is asked for a place it has no nodes for', () => {
+      const { ctx, track } = setup({ currentTime: 2 })
+      const played = track.play('k', { ...voice, buffer: buffer(ctx, 10), gainDb: -6 }, 1)
+      const trim = played?.trim as unknown as MockGain
+      expect(track.place('k', { gainDb: -9, pan: 0.5 })).toBe(false)
+      expect(track.place('k', { gainDb: -9, lowpassHz: 2000 })).toBe(false)
+      expect(track.place('k', { gainDb: -9, spaceDb: -6 })).toBe(false)
+      expect(track.place('missing', { gainDb: 0, pan: 0.5 })).toBe(false)
+      expect(trim.gain.eventsFor('exponentialRampToValueAtTime')).toHaveLength(1)
+      expect(ctx.panners).toHaveLength(0)
+      expect(ctx.convolvers).toHaveLength(0)
+    })
   })
 
   it('an equal-power voice is placed the same way', () => {
@@ -1173,7 +1375,7 @@ describe('AudioTrack placed clips', () => {
     expect(
       (
         live?.trim as never as { gain: { lastEvent(m: string): { args: number[] } } }
-      ).gain.lastEvent('setTargetAtTime').args[0],
+      ).gain.lastEvent('exponentialRampToValueAtTime').args[0],
     ).toBeCloseTo(10 ** (-6 / 20))
     expect(live?.placement?.send).not.toBeNull()
     // An edit of another clip sends this one nothing new.
