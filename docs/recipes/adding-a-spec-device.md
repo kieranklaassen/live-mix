@@ -8,7 +8,7 @@ cpp/devices/<id>/<snake_id>.h     the DSP: one class on cpp/kit (add .cpp files 
 cpp/test/<snake_id>_test.cpp      the native harness
 ```
 
-Reference devices to read first, in full: `cpp/devices/tape-echo/` (effect) and `cpp/devices/string-machine/` (instrument), with their harnesses in `cpp/test/`. The kit is `cpp/kit/*.h` (about 2,400 lines, every block documented at its definition); the test helpers are `cpp/test/support/test_kit.h`.
+Reference devices to read first, in full: `cpp/devices/tape-echo/` (effect) and `cpp/devices/string-machine/` (instrument), with their harnesses in `cpp/test/`. The kit is `cpp/kit/*.h` (about 2,200 lines, every block documented at its definition; a plucked string starts from `kit::PluckedString` in `cpp/kit/string.h`, as `cpp/devices/guitar/` and `cpp/devices/harp/` do); the test helpers are `cpp/test/support/test_kit.h`.
 
 ## The loop
 
@@ -93,6 +93,14 @@ The rules every device keeps (the conformance pass checks most of them):
 9. **Levels.** Effects are unity gain for the dry path and do not get louder than their input by more than a few dB at defaults. One instrument note at gain 0.7 peaks between -24 and -10 dBFS at the default volume; ten held notes stay under the clip knee.
 10. **Bad input is survivable**: NaN, infinite and out-of-range parameter values (`store_param` clamps), unknown ids, NaN or absurd note frequencies and gains (ignore or clamp), `note_off` for notes that are not playing.
 11. **Defaults sound good.** The default patch is what someone hears first.
+
+Faults the conformance pass does not see, each found while building a device and written up under `docs/solutions/`:
+
+- **A voice's `level()` is true from the moment it is taken.** `kit::VoicePool` steals by level; a level written only on the control clock lets the second note of a chord steal the first ([write-up](../solutions/logic-errors/voice-level-must-be-valid-when-a-voice-is-taken.md)). A key struck twice inside a steal fade must not leave a voice sounding ([write-up](../solutions/logic-errors/stolen-voice-pending-note-restrike-stuck-voice.md)).
+- **Knobs moved while the device sleeps snap on the next note.** A smoother that keeps its old value through a sleep glides under the first note ([write-up](../solutions/logic-errors/knob-moved-while-device-sleeps-glides-under-first-note.md)), and anything free-running (an LFO, a chorus) must restart the same way whatever the block size ([write-up](../solutions/logic-errors/device-output-depends-on-block-size-across-a-silence.md)).
+- **Noise is scaled by `sqrt(sample_rate / 48000)`**, or it drops 3 dB against the tone at 96 kHz ([write-up](../solutions/logic-errors/noise-level-falls-with-sample-rate.md)).
+- **`kit::BlepOsc` folds more than its comment says at the top of the keyboard**: measure fold-back at C6 with the filters open, and use a closed-form band-limited wave or a longer correction where it matters ([write-up](../solutions/design-patterns/polyblep-folded-energy-and-closed-form-pulse.md)).
+- **A click check needs a reference with no event in it**, and a harness is only worth what it fails on: break the device on purpose and see which checks notice ([click checks](../solutions/best-practices/click-checks-need-an-event-free-reference.md), [mutation checks](../solutions/best-practices/mutation-check-a-measuring-harness.md)).
 
 ## The harness
 

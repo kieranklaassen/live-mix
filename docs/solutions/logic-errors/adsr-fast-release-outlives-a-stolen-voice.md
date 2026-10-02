@@ -56,3 +56,7 @@ A default-constructed `Adsr` has the flag clear, so the next note releases at th
 - A harness check, in `cpp/test/flute_test.cpp` ("a key struck again with every voice busy keeps its release"): fill every voice, put the test key far below the others in pitch so its level can be read alone, strike it again, let it go, and read its level a quarter of the release time later.
 - Other instruments take the same path and were not run against this check. `cpp/devices/organ/organ.h` calls `fast_release()` on a re-struck key and then `gate_on()` on whichever voice the pool returns, with no new envelope. Choir, String Machine, Atmosphere, Drone, Wavetable, Grain Synth and Sampler also call `fast_release()` on a re-struck key. Each needs the check before it is called affected or clear.
 - The fix that covers all of them is in the kit: clear `use_fast_` in `Adsr::gate_on()`. That changes shared code, so it belongs to whoever owns `cpp/kit`, with every instrument's harness run after it.
+
+## Fixed in the kit
+
+`kit::Adsr::gate_on()` and `reset()` now clear the flag (`cpp/kit/env.h`), with a check in `cpp/test/kit_test.cpp` that fails on the old envelope. The new envelope per note in Flute and Clarinet is no longer needed and does no harm; the other instruments named above were rebuilt with the fix and none was run against the restrike check itself.
