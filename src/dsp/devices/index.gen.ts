@@ -12,6 +12,7 @@ import { AUTO_FILTER_DESCRIPTOR, AUTO_FILTER_DEVICE } from './auto-filter.gen'
 import { BLOOM_REVERB_DESCRIPTOR, BLOOM_REVERB_DEVICE } from './bloom-reverb.gen'
 import { BOWED_STRING_DESCRIPTOR, BOWED_STRING_DEVICE } from './bowed-string.gen'
 import { CHOIR_DESCRIPTOR, CHOIR_DEVICE } from './choir.gen'
+import { CHORD_HARP_DESCRIPTOR, CHORD_HARP_DEVICE } from './chord-harp.gen'
 import { CHORUS_DESCRIPTOR, CHORUS_DEVICE } from './chorus.gen'
 import { CLARINET_DESCRIPTOR, CLARINET_DEVICE } from './clarinet.gen'
 import { DRONE_DESCRIPTOR, DRONE_DEVICE } from './drone.gen'
@@ -61,6 +62,7 @@ export * from './auto-filter.gen'
 export * from './bloom-reverb.gen'
 export * from './bowed-string.gen'
 export * from './choir.gen'
+export * from './chord-harp.gen'
 export * from './chorus.gen'
 export * from './clarinet.gen'
 export * from './drone.gen'
@@ -112,6 +114,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   BLOOM_REVERB_DESCRIPTOR,
   BOWED_STRING_DESCRIPTOR,
   CHOIR_DESCRIPTOR,
+  CHORD_HARP_DESCRIPTOR,
   CHORUS_DESCRIPTOR,
   CLARINET_DESCRIPTOR,
   DRONE_DESCRIPTOR,
@@ -164,6 +167,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   BLOOM_REVERB_DEVICE,
   BOWED_STRING_DEVICE,
   CHOIR_DEVICE,
+  CHORD_HARP_DEVICE,
   CHORUS_DEVICE,
   CLARINET_DEVICE,
   DRONE_DEVICE,
@@ -216,6 +220,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'bloom-reverb', instrument: false, samples: false, meters: 0, memoryMb: 4 },
   { id: 'bowed-string', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'choir', instrument: true, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'chord-harp', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'chorus', instrument: false, samples: false, meters: 0, memoryMb: 4 },
   { id: 'clarinet', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'drone', instrument: true, samples: false, meters: 0, memoryMb: 4 },

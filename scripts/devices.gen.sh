@@ -26,6 +26,8 @@ build_generated_devices() {
     cpp/devices/bowed-string/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device choir \
     cpp/devices/choir/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device chord-harp \
+    cpp/devices/chord-harp/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device chorus \
     cpp/devices/chorus/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device clarinet \
@@ -129,6 +131,8 @@ test_generated_devices() {
     cpp/test/bowed_string_test.cpp
   native_test choir_test \
     cpp/test/choir_test.cpp
+  native_test chord_harp_test \
+    cpp/test/chord_harp_test.cpp
   native_test chorus_test \
     cpp/test/chorus_test.cpp
   native_test clarinet_test \
