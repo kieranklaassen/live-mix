@@ -249,6 +249,8 @@ export class NativeDevice
   private knownState: string | undefined
   // How many restores were asked for, so a read can tell one happened meanwhile.
   private stateRestores = 0
+  // How many `setState` loads are in flight.
+  private stateLoads = 0
   private editorShown = false
   private readonly notes = new Map<number, number>()
   private readonly unsubscribe: (() => void)[] = []
@@ -609,12 +611,17 @@ export class NativeDevice
   async setState(state: string): Promise<boolean> {
     if (this.disposed || state === this.knownState) return false
     this.stateRestores += 1
-    const { params, latencySamples } = await this.client.setState(this.slot.slot, state)
-    this.mirror(params)
-    this.setPluginLatency(latencySamples)
-    this.knownState = state
-    for (const [name, value] of this.values) this.changes.emit({ type: 'param', name, value })
-    return true
+    this.stateLoads += 1
+    try {
+      const { params, latencySamples } = await this.client.setState(this.slot.slot, state)
+      this.mirror(params)
+      this.setPluginLatency(latencySamples)
+      this.knownState = state
+      for (const [name, value] of this.values) this.changes.emit({ type: 'param', name, value })
+      return true
+    } finally {
+      this.stateLoads -= 1
+    }
   }
 
   /**
@@ -707,8 +714,12 @@ export class NativeDevice
       this.values.set(key, value)
       this.changes.emit({ type: 'param', name: key, value })
       // A plug-in that changes program reports every parameter, most of
-      // them where they already were: only a value that moved is an edit.
-      if (change.origin === 'plugin' && previous !== value) this.edits.emit({ name: key, value })
+      // them where they already were: only a value that moved is an edit. What
+      // an older host reports while a state we gave it lands came from that
+      // state, not from its user, and the values kept beside the state go on
+      // top of it.
+      if (change.origin === 'plugin' && previous !== value && this.stateLoads === 0)
+        this.edits.emit({ name: key, value })
     }
   }
 

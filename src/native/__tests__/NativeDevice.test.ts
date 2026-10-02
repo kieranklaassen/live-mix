@@ -389,6 +389,36 @@ describe('NativeDevice parameters', () => {
     expect(edits).toEqual([{ name: 'p7', value: 0.9 }])
   })
 
+  it('what the plug-in reports while a state lands in it is no edit', async () => {
+    const { device, host } = await makeDevice()
+    const edits: NativeParamEdit[] = []
+    device.onEdit((edit) => edits.push(edit))
+    const loading = device.setState('bmV3')
+    // Where the state put the plug-in's parameters, said before the load answers.
+    host.emit('params', {
+      slot: 's1',
+      changes: [{ index: 1, value: 0.9, text: '90', origin: 'plugin' }],
+    })
+    expect(await loading).toBe(true)
+    expect(edits).toEqual([])
+  })
+
+  it('a state read answered after a restore does not stand for the newer one', async () => {
+    const { device, client, host } = await makeDevice()
+    let answer: (state: string) => void = () => {}
+    const reading = vi
+      .spyOn(client, 'getState')
+      .mockReturnValue(new Promise<string>((resolve) => (answer = resolve)))
+    const read = device.getState()
+    reading.mockRestore()
+    expect(await device.setState('bmV3')).toBe(true)
+    // The host answers the earlier read with the chunk from before the restore.
+    answer('c3RhdGU=')
+    expect(await read).toBe('c3RhdGU=')
+    expect(await device.setState('c3RhdGU=')).toBe(true)
+    expect(host.calls('setState')).toHaveLength(2)
+  })
+
   it('knows its window is open through a late close report and a failed open', async () => {
     const { device, host } = await makeDevice()
     await device.openEditor()
