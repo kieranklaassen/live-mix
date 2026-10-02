@@ -32,7 +32,7 @@ Score (format 3)
                                                 one per audio track × scene
 
 SlotClip         Clip without `id` and `startSec`: sourceId, offsetSec, durationSec, fades,
-                 fadeCurve, gainDb, loop?, warp?, semitones?, reversed?, pan?, lowpassHz?, spaceDb?
+                 fadeCurve, gainDb, loop?, warp?, semitones?, reversed?, chance?, pan?, lowpassHz?, spaceDb?
 LaunchQuantize   'none' | 'bar' | 'beat' | n (bars) | { seconds }
 LaunchMode       'trigger' | 'gate' | 'toggle'
 ScoreFollowAction { a, b: FollowActionKind, chance (P of A), time?: { unit: 'bars' | 'seconds', value } }
