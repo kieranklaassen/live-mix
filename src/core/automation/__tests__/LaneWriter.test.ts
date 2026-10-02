@@ -379,6 +379,40 @@ describe('LaneWriter', () => {
       ])
     })
 
+    it('gets past the end of a pass whose length a float cannot hold exactly', () => {
+      // Five passes of 35.765 s plus one more is a hair under six passes in
+      // floats. A cursor left there read as the end of pass five for ever, and
+      // the writer never came back from this tick.
+      const lengthSec = 35.765
+      const param = new MockAudioParam()
+      const writer = new LaneWriter(swell(), param, { joinRampSec: 0 })
+      const window = { lookaheadSec: 2, loopEnabled: true, loopLengthSec: lengthSec }
+      writer.tick({ ...window, playheadSec: 35, contextTimeSec: 5 * lengthSec + 35, iteration: 5 })
+      // To the end of pass five, the wrap, and the first segment of pass six whole.
+      expect(rounded(param)).toEqual([
+        ['setValueAtTime', 0, 213.825],
+        ['setValueAtTime', 0, 214.59],
+        ['linearRampToValueAtTime', 1, 216.59],
+      ])
+      expect(writer.writtenUntilSec).toBe(6 * lengthSec + 2)
+
+      // And on through the passes after it, each wrap written once at its own start.
+      for (let pass = 6; pass < 60; pass += 1) {
+        writer.tick({
+          ...window,
+          playheadSec: 35,
+          contextTimeSec: pass * lengthSec + 35,
+          iteration: pass,
+        })
+      }
+      const wraps = param.events.filter(
+        (event) => event.method === 'linearRampToValueAtTime' && event.args[0] === 1,
+      )
+      expect(wraps.map((event) => Number((event.args[1] as number).toFixed(6)))).toEqual(
+        Array.from({ length: 55 }, (_, index) => Number(((index + 6) * lengthSec + 2).toFixed(6))),
+      )
+    })
+
     it('writes the wrap once when a window ends exactly on the loop boundary', () => {
       const param = new MockAudioParam()
       const lane = new ParamLane({
