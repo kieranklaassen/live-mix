@@ -107,12 +107,32 @@ engine.master.addInsert(reverb)
 ```
 
 `client.plugins()` returns the list the host already knows without scanning;
-`client.scan({ paths, defaultPaths, rescan })` searches the format's standard
-folders (and `paths`), reports each file on `scanProgress`, and answers with
-`{ plugins, failed }`. With `defaultPaths: false` only `paths` are searched,
-and Audio Units are left out: the system lists them, not a folder. A plug-in
-that crashes the host during a scan is skipped by the next one; `rescan: true`
-forgets that along with the list.
+`client.scan({ paths, defaultPaths, rescan, idle, timeout, perProcess })` searches the format's
+standard folders (and `paths`), reports each file on `scanProgress`, and
+answers with `{ plugins, failed, crashed, names }`. With `defaultPaths: false`
+only `paths` are searched, and Audio Units are left out: the system lists
+them, not a folder.
+
+A scan runs outside the host, in a second process the host starts for it. A
+plug-in that crashes while it is scanned ends that process and not the host:
+the scan leaves the plug-in out and goes on with the rest. So does a plug-in
+that keeps the scan waiting for `idle` seconds without using the processor
+(10 unless you say: it waits for something that never comes), and one that
+takes longer than `timeout` seconds in all (120). What a scan left out is in
+`crashed`, and later scans do not try it again; `rescan: true` forgets that
+along with the list. `names` has what to call each entry of `failed` and
+`crashed`: an Audio Unit is listed by a code, not a file.
+
+One scan process takes `perProcess` plug-ins (40) and the next carries on
+where it stopped, because plug-ins leave threads and memory behind in the
+process that loaded them and enough of them end it. A crash after other
+plug-ins in the same process may be their doing, so that plug-in gets a
+process to itself before it is left out.
+
+The list is saved while the scan runs, so a host that is quit half way does
+not start from nothing: `client.info.scanUnfinished` is true on the next
+start, `client.plugins()` has what was found until then, and another scan
+carries on from there.
 
 `registerNativeDevices(client, plugins, { registry, defaults })` is the
 registration without the scan. Each plug-in registers as:
@@ -295,8 +315,9 @@ devices again.
 - The play head carries tempo and a running flag (`client.setTransport({ bpm,
 playing })`), not a song position.
 - The sample rate and largest block are fixed when the plug-in is loaded.
-- Plug-ins are scanned and run inside the one host process: a plug-in that
-  crashes takes the others down with it (and is skipped by the next scan).
+- Loaded plug-ins run inside the one host process: a plug-in that crashes
+  while it plays takes the others down with it. Only the scan has a process
+  of its own.
 - Windows builds are untested.
 
 ## What has been checked, and where
@@ -345,24 +366,24 @@ A request without `id` gets no answer. A frame with an `event` field is a
 notification from the host. Closing the connection unloads every plug-in it
 loaded.
 
-| Method         | Params                                                           | Result                               |
-| -------------- | ---------------------------------------------------------------- | ------------------------------------ |
-| `hello`        |                                                                  | `NativeHostInfo` (protocol, formats) |
-| `plugins`      |                                                                  | `{ plugins }`, the cached list       |
-| `scan`         | `{ paths?, defaultPaths?, rescan? }`                             | `{ plugins, failed }`                |
-| `load`         | `{ plugin \| file, name?, sampleRate, blockSize, state? }`       | `NativeSlotInfo` (slot, params)      |
-| `unload`       | `{ slot }`                                                       | `{}`                                 |
-| `setParam`     | `{ slot, index, value }` (normalised; usually sent without `id`) | `{}`                                 |
-| `getParams`    | `{ slot }`                                                       | `{ params }`                         |
-| `getState`     | `{ slot }`                                                       | `{ state }` (base64)                 |
-| `setState`     | `{ slot, state }`                                                | `{ params, latencySamples }`         |
-| `showEditor`   | `{ slot }`                                                       | `{ showing }`                        |
-| `hideEditor`   | `{ slot }`                                                       | `{}`                                 |
-| `setTransport` | `{ bpm?, playing? }` (a field left out keeps its value)          | `{}`                                 |
+| Method         | Params                                                             | Result                                |
+| -------------- | ------------------------------------------------------------------ | ------------------------------------- |
+| `hello`        |                                                                    | `NativeHostInfo` (protocol, formats)  |
+| `plugins`      |                                                                    | `{ plugins }`, the cached list        |
+| `scan`         | `{ paths?, defaultPaths?, rescan?, idle?, timeout?, perProcess? }` | `{ plugins, failed, crashed, names }` |
+| `load`         | `{ plugin \| file, name?, sampleRate, blockSize, state? }`         | `NativeSlotInfo` (slot, params)       |
+| `unload`       | `{ slot }`                                                         | `{}`                                  |
+| `setParam`     | `{ slot, index, value }` (normalised; usually sent without `id`)   | `{}`                                  |
+| `getParams`    | `{ slot }`                                                         | `{ params }`                          |
+| `getState`     | `{ slot }`                                                         | `{ state }` (base64)                  |
+| `setState`     | `{ slot, state }`                                                  | `{ params, latencySamples }`          |
+| `showEditor`   | `{ slot }`                                                         | `{ showing }`                         |
+| `hideEditor`   | `{ slot }`                                                         | `{}`                                  |
+| `setTransport` | `{ bpm?, playing? }` (a field left out keeps its value)            | `{}`                                  |
 
 | Event          | Fields                                                                                                                                                   |
 | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `scanProgress` | `format`, `file`, `progress` (0..1 within the format)                                                                                                    |
+| `scanProgress` | `format`, `file`, `name`, `progress` (0..1 within the format)                                                                                            |
 | `params`       | `slot`, `changes: [{ index, value, text, origin }]`; `origin` is `client` (the echo of a `setParam`) or `plugin` (its editor, a preset, a state restore) |
 | `latency`      | `slot`, `latencySamples`: the plug-in changed its latency                                                                                                |
 | `editorClosed` | `slot`: the person closed the window                                                                                                                     |

@@ -36,6 +36,11 @@ export function pluginHostTestPluginsDir(buildDir) {
   return join(buildDir, 'test', 'plugins')
 }
 
+/** Where a build with `testPlugins` puts the plug-in that goes wrong on purpose (the scan tests). */
+export function pluginHostTroublePluginDir(buildDir) {
+  return join(buildDir, 'test', 'trouble')
+}
+
 /** Where a build with `testPlugins` puts the second Link peer the host's tests talk to. */
 export function pluginHostLinkPeerPath(buildDir, { platform = process.platform } = {}) {
   return join(buildDir, 'test', 'link', `live-mix-link-peer${platform === 'win32' ? '.exe' : ''}`)

@@ -15,6 +15,9 @@ export declare function pluginHostBinaryPath(
 /** Where a build with `testPlugins` puts the two VST3 plug-ins the host's tests load. */
 export declare function pluginHostTestPluginsDir(buildDir: string): string
 
+/** Where a build with `testPlugins` puts the plug-in that goes wrong on purpose (the scan tests). */
+export declare function pluginHostTroublePluginDir(buildDir: string): string
+
 /** Where a build with `testPlugins` puts the second Link peer the host's tests talk to. */
 export declare function pluginHostLinkPeerPath(
   buildDir: string,

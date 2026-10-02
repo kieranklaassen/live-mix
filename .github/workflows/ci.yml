@@ -201,7 +201,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: tmp/plugin-host
-          key: plugin-host-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('native/host/CMakeLists.txt', 'native/host/cmake/**', 'native/host/Source/**', 'native/host/test/plugins/**', 'native/host/test/link/**', 'native/shell.mjs') }}
+          key: plugin-host-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('native/host/CMakeLists.txt', 'native/host/cmake/**', 'native/host/Source/**', 'native/host/test/plugins/**', 'native/host/test/trouble/**', 'native/host/test/link/**', 'native/shell.mjs') }}
           restore-keys: plugin-host-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Build the host and its test plug-ins

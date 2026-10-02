@@ -61,6 +61,10 @@ private:
     juce::var pluginList() const;
     void startScan (const Connection& connection, const juce::var& id, const juce::var& params);
     void stepScan();
+    bool startScanWorker();
+    void takeScanResults();
+    /** What a person calls the plug-in a scan knows by its file or its code. */
+    juce::String pluginName (const juce::String& identifier) const;
     void load (const Connection& connection, const juce::var& id, const juce::var& params);
     void unload (const juce::String& slotId);
     std::shared_ptr<PluginSlot> findSlot (const juce::String& slotId) const;
@@ -80,6 +84,8 @@ private:
     juce::AudioPluginFormatManager formats;
     juce::KnownPluginList knownPlugins;
     std::unique_ptr<ScanJob> scan;
+    /** A scan was started and has not run to its end: the list may be part of what there is. */
+    bool scanUnfinished = false;
 
     juce::CriticalSection slotLock;
     std::map<juce::String, std::shared_ptr<PluginSlot>> slots;

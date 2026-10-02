@@ -7,8 +7,12 @@
 //
 // Without --stay-alive the host exits when its standard input closes, so it
 // never outlives the shell that started it.
+//
+// The host starts itself a second time with --scan-worker to scan plug-ins
+// outside its own process (ScanWorker.h).
 
 #include "HostServer.h"
+#include "ScanWorker.h"
 
 #include <juce_gui_basics/juce_gui_basics.h>
 
@@ -65,6 +69,12 @@ public:
 
         const auto arguments = getCommandLineParameterArray();
 
+        if (auto job = ScanWorker::Job::fromCommandLine (arguments))
+        {
+            scanWorker = std::make_unique<ScanWorker> (std::move (*job));
+            return;
+        }
+
         // `--name value` or `--name=value`; empty when the option is absent.
         const auto valueOf = [&arguments] (const juce::String& name) -> juce::String
         {
@@ -115,6 +125,7 @@ public:
 
     void shutdown() override
     {
+        scanWorker.reset();
         server.reset();
     }
 
@@ -123,6 +134,7 @@ public:
 
 private:
     std::unique_ptr<HostServer> server;
+    std::unique_ptr<ScanWorker> scanWorker;
 };
 
 } // namespace livemix
