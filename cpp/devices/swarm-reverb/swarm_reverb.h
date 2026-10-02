@@ -33,8 +33,10 @@
 //   been bent and goes round again stays bent.
 // - Wander moves Stretch on its own: a slow seeded drift, or with Steps on a
 //   seeded walk between neighbouring steps.
-// - Every other tap, and both loop reads, are also swept a little by their
-//   own slow sines, which keeps the cluster from ringing like a comb. Every
+// - Every other tap is also swept a little by its own slow sine, so the
+//   cluster's comb keeps moving, and both loop reads are swept more the
+//   closer Feedback is to 1, so no single frequency of the loop builds up
+//   under a held note. Every
 //   read that nothing is moving settles on a whole sample, where it is exact
 //   and costs one load; moving reads are Hermite-interpolated.
 
@@ -146,10 +148,17 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
   // the knob: a held note is a sum of taps whose phases the sweep moves, so
   // the swarm's level on it wanders once the sweep nears the note's period.
   // At the default (about 30 microseconds) that is a decibel or so; the top
-  // of the knob is where notes swell and fade. The loop reads move half as
-  // far: what they do adds up on every trip.
+  // of the knob is where notes swell and fade.
   static constexpr float kSweepSeconds = 0.0012f;
-  static constexpr float kLoopSweepShare = 0.5f;
+  // The loop reads are stirred for another reason. A loop that hardly loses
+  // anything rings at frequencies about a hertz apart, and a held note that
+  // sits on one of them builds up far above the notes beside it (at Feedback
+  // 1, without end). Moving the loop reads keeps those frequencies from
+  // staying put. The sweep follows Modulation directly and comes in with the
+  // square of Feedback's distance past kStirFrom: next to nothing at the
+  // default, where it would only make held notes waver, all of it at 1.
+  static constexpr float kLoopSweepSeconds = 0.0024f;
+  static constexpr float kStirFrom = 0.5f;
   static constexpr float kLengthGlideSeconds = 0.08f;
   static constexpr float kWanderHz = 0.05f;
   static constexpr float kWanderOctaves = 0.6f;
@@ -162,8 +171,8 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
   static constexpr float kAntiDenormal = 1.0e-18f;
   // Above this Feedback the return's filters open, by this much at 1.
   static constexpr float kOpenFrom = 0.9f;
-  static constexpr float kOpenLowOctaves = 2.5f;
-  static constexpr float kOpenHighOctaves = 1.5f;
+  static constexpr float kOpenLowOctaves = 1.5f;
+  static constexpr float kOpenHighOctaves = 0.75f;
   // Stretch positions with Steps on, in octaves of time: 1/2, 2/3, 3/4, 1, 4/3,
   // 3/2 and 2 times Length.
   static constexpr float kStepOctaves[kStepCount] = {-1.0f,     -0.5849625f, -0.4150375f, 0.0f,
@@ -263,8 +272,13 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
 
   static float glide(kit::Smoother& s) { return s.value == s.target ? s.value : s.next(); }
 
-  // Exact to ±1, landing on ±2: the ceiling on the return and on the swarm.
+  // Exact to ±1, landing on ±2: the ceiling on the swarm.
   static float limit(float x) { return 2.0f * kit::soft_clip(0.5f * x); }
+  // Exact to ±2, landing on ±4: the ceiling on the return. The ride on the
+  // level holds a cave that feeds on itself near kFullLevel, whose peaks stay
+  // under ±2, so the return is not bent on every trip (what a clipper adds
+  // would go round with the rest and pile up).
+  static float limit_return(float x) { return 4.0f * kit::soft_clip(0.25f * x); }
 
   // One control period of a tap, added to `out`: the read point ramps from
   // where it was to where control() aimed it. Every tap is at least a period
@@ -329,7 +343,7 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
       // The same two filters on the way in and on the return. With equal
       // tuning (Feedback up to 0.9) the sum is one filter on both.
       float x = low_cut_[c].highpass(high_cut_[c].lowpass(in[c]));
-      x += loop_low_cut_[c].highpass(loop_high_cut_[c].lowpass(limit(hold * turned[c])));
+      x += loop_low_cut_[c].highpass(loop_high_cut_[c].lowpass(limit_return(hold * turned[c])));
       // A constant far below hearing keeps the four recursions out of the
       // denormal range while a tail dies away.
       x += kAntiDenormal;
@@ -475,10 +489,12 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
 
     const float depth = depth_.next();
     const float sweep = depth * depth * depth * kSweepSeconds * sr;
+    const float stir = kit::clamp((feedback_.value - kStirFrom) / (1.0f - kStirFrom), 0.0f, 1.0f);
+    const float loop_sweep = depth * stir * stir * kLoopSweepSeconds * sr;
     const float turn = kControlPeriod / sr;
     for (int c = 0; c < 2; ++c) {
       for (int k = 0; k < kTaps; ++k) aim(tap_[c][k], sweep, turn);
-      aim(loop_[c], sweep * kLoopSweepShare, turn);
+      aim(loop_[c], loop_sweep, turn);
       for (int a = 0; a < kStages; ++a) {
         aim(stage_[c][a], 0.0f, turn);
         stage_[c][a].ramp(allpass_[c][a].write_position(), kAllpassSize);

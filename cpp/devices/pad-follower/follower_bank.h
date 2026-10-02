@@ -130,6 +130,7 @@ class FollowerBank {
     trust_fall_ = 1.0f - kit::time_to_coeff(kTrustFallSeconds, rate / kTick);
     peak_decay_ = kit::time_to_coeff(kPeakSeconds, rate / kTick);
     commit_ = 1.0f - kit::time_to_coeff(kCommitSeconds, rate / kTick);
+    jitter_fall_ = 1.0f - kit::time_to_coeff(kJitterFallSeconds, rate / kTick);
     reset();
   }
 
@@ -355,7 +356,7 @@ class FollowerBank {
         // From then on two poles, so the beat against a neighbouring partial
         // does not reach the oscillator.
         const float off = kit::min(std::fabs(measured - estimate_[b]) * share_scale_[b], 4.0f);
-        jitter_[b] += estimate_coeff_[b] * (off - jitter_[b]);
+        jitter_[b] += (off > jitter_[b] ? estimate_coeff_[b] : jitter_fall_) * (off - jitter_[b]);
         estimate_[b] += estimate_coeff_[b] * (measured - estimate_[b]);
         estimate_[b] = kit::clamp(estimate_[b], -max_dev_[b], max_dev_[b]);
         average_[b] += estimate_coeff_[b] * (estimate_[b] - average_[b]);
@@ -371,7 +372,7 @@ class FollowerBank {
       // such a band as impure) and note nothing until it is back.
       ++doubt_[b];
       const float off = kit::min(std::fabs(measured - estimate_[b]) * share_scale_[b], 4.0f);
-      jitter_[b] += estimate_coeff_[b] * (off - jitter_[b]);
+      jitter_[b] += (off > jitter_[b] ? estimate_coeff_[b] : jitter_fall_) * (off - jitter_[b]);
       estimate_[b] += estimate_coeff_[b] * (measured - estimate_[b]);
       estimate_[b] = kit::clamp(estimate_[b], -max_dev_[b], max_dev_[b]);
       average_[b] += estimate_coeff_[b] * (estimate_[b] - average_[b]);
@@ -513,8 +514,9 @@ class FollowerBank {
   static constexpr float kFarMute = 4.8f;
   // Mean swing of the reading, in band spacings: a full voice up to the
   // first, none from the second.
-  static constexpr float kJitterFull = 0.6f;
-  static constexpr float kJitterMute = 1.1f;
+  static constexpr float kJitterFull = 0.7f;
+  static constexpr float kJitterMute = 1.0f;
+  static constexpr float kJitterFallSeconds = 0.4f;
   // The second section at full Octaves, against the unshifted pad.
   static constexpr float kOctaveLevel = 0.9f;
 
@@ -534,7 +536,7 @@ class FollowerBank {
   bool sounding_ = false;
   bool down_active_ = false;
   float fast_ = 0.0f, peak_decay_ = 0.0f, commit_ = 0.0f, octave_coeff_ = 0.0f;
-  float trust_rise_ = 0.0f, trust_fall_ = 0.0f;
+  float trust_rise_ = 0.0f, trust_fall_ = 0.0f, jitter_fall_ = 0.0f;
   float attack_ = 0.01f, release_ = 0.001f, release_follow_ = 0.01f;
   float threshold2_ = 1.0e-6f;
   float octaves_ = 0.0f, octaves_target_ = 0.0f;
