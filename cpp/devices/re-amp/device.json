@@ -21,7 +21,7 @@
       "min": 0,
       "max": 1,
       "default": 0.25,
-      "description": "How hard the amplifier is pushed. Low settings stay clean; higher ones round the peaks off, add valve harmonics and squash the dynamics, with the level held about where it was."
+      "description": "How hard the amplifier is pushed. Low settings stay clean; higher ones round the peaks off, add valve harmonics and squash the dynamics: loud playing is held about where it was, quiet playing and the amplifier's noise come up."
     },
     {
       "key": "bass",
@@ -45,7 +45,7 @@
       "min": 0,
       "max": 1,
       "default": 0.3,
-      "description": "How far the microphone is from the speaker. At zero it is right on the cone, dry and close with a little extra bass. Pulling it back lets in the reflections and the tail of the room until the speaker is heard from the far side."
+      "description": "How far the microphone is from the speaker. Right on the cone the sound is dry and close with a little extra bass. Pulling it back lets in the reflections and the tail of the room until the speaker is heard from the far side."
     },
     {
       "key": "room",
@@ -53,7 +53,7 @@
       "min": 0,
       "max": 1,
       "default": 0.4,
-      "description": "The size of the room the speaker stands in, from a cupboard through a living room to a hall. Bigger rooms have later reflections and a longer tail. It is heard only once Distance is above zero."
+      "description": "The size of the room the speaker stands in, from a cupboard through a living room to a hall. Bigger rooms have later reflections and a longer tail. It is heard only once Distance has pulled the microphone back from the cone."
     },
     {
       "key": "angle",
@@ -122,7 +122,7 @@
       "room": 0.9,
       "angle": 0.3,
       "noise": 0.1,
-      "output": 2
+      "output": 1
     },
     "Station platform": {
       "speaker": 3,
@@ -154,7 +154,7 @@
       "distance": 0.1,
       "room": 0.3,
       "angle": 0,
-      "noise": 0.25,
+      "noise": 0.12,
       "output": 0
     },
     "Just the room": {
@@ -182,6 +182,6 @@
   },
   "origin": {
     "kind": "new",
-    "note": "Written for live-mix on cpp/kit. Models re-amping in outline: one valve-like amplifier stage with a tone stack and supply sag, five loudspeakers built from second-order filter sections (cabinet resonance, driver peaks and dips, cone breakup, a fourth-order roll-off) with a motor that weakens with cone excursion, and a microphone that moves from the cone into a room made of a seeded early-reflection pattern and an eight-line feedback delay network. Not a circuit model of any amplifier and not measured from any speaker. The saturator is anti-aliased with first-order antiderivative anti-aliasing (Parker, Zavalishin and Le Bivic, 'Reducing the aliasing of nonlinear waveshaping using continuous-time convolution', DAFx 2016) inside 4x oversampling; the room's tail follows Jot and Chaigne, 'Digital delay networks for designing artificial reverberators' (AES 1991), with a Hadamard feedback matrix. The second half-band stage is the design in cpp/devices/saturator/halfband.h, copied into this directory."
+    "note": "Written for live-mix on cpp/kit. Models re-amping in outline: one valve-like amplifier stage with bass and treble controls and supply sag, five loudspeakers built from second-order filter sections (cabinet resonance, driver peaks and dips, cone breakup, a fourth-order roll-off) with a motor that weakens with cone excursion, and a microphone that moves from the cone into a room made of a seeded early-reflection pattern and an eight-line feedback delay network with a Hadamard matrix. The speakers are filter sets written for this device: it is not a circuit model of any amplifier and nothing is measured from any real speaker or room. The valve curve runs at four times the sample rate and is anti-aliased with a first-order antiderivative, after the approach of Parker, Zavalishin and Le Bivic, 'Reducing the aliasing of nonlinear waveshaping using continuous-time convolution'; the room's tail is after the approach of Jot and Chaigne, 'Digital delay networks for designing artificial reverberators'. The half-band filter of the oversampler is the design in cpp/devices/saturator/halfband.h, copied into this directory."
   }
 }

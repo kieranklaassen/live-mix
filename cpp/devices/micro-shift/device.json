@@ -14,7 +14,7 @@
       "max": 50,
       "default": 9,
       "unit": "ct",
-      "description": "How far the two copies are tuned away from the dry sound: the left one sharp, the right one flat. A few cents is a soft widening; more beats against the dry sound and turns sour."
+      "description": "How far the two copies are tuned away from the dry sound: the left one sharp, the right one flat. Small amounts widen softly; larger ones beat against the dry sound and turn sour."
     },
     {
       "key": "delay",
@@ -49,7 +49,7 @@
       "default": 180,
       "taper": "log",
       "unit": "Hz",
-      "description": "Everything below this stays dry and in the centre, so the bass keeps its weight. Raise it to widen only the upper part of the sound."
+      "description": "Everything below this stays dry and where it was, so the bass keeps its weight. Raise it to widen only the upper part of the sound."
     },
     {
       "key": "tone",
@@ -154,6 +154,6 @@
   },
   "origin": {
     "kind": "new",
-    "note": "Written for live-mix on cpp/kit. Models the micro pitch shift treatment of studio harmonizers in outline (a slightly sharp copy on one side and a slightly flat copy on the other, each a few milliseconds late, made from the mono sum of the input), not any unit. Each copy is a delay-line pitch shifter with a single read head. The head is spliced where normalised cross-correlation says the waveform repeats, as in the autocorrelation splice of US patent 4,464,784 (expired) and in Verhelst and Roelands, 'An overlap-add technique based on waveform similarity (WSOLA) for high quality time-scale modification of speech' (ICASSP 1993), and only when no attack lies between the two read points. Reads use a 16-tap Kaiser-windowed sinc; the feedback path passes through two Schroeder allpasses per side."
+    "note": "Written for live-mix on cpp/kit. Models the studio micro pitch shift treatment in outline (a slightly sharp copy on one side and a slightly flat copy on the other, each a few milliseconds late, made from the mono sum of the input), not any particular unit. Each copy is a delay-line pitch shifter with a single read head, which is spliced back where normalised cross-correlation says the waveform repeats (after the approach of Verhelst and Roelands, 'An overlap-add technique based on waveform similarity (WSOLA) for high quality time-scale modification of speech') and only when no attack lies between the two read points. Reads use a 16-tap Kaiser-windowed sinc; the feedback path passes through two short allpass filters per side. All constants were set by measurement for this device, not taken from any source."
   }
 }

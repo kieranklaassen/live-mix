@@ -675,34 +675,38 @@ int main() {
   }
 
   // High Cut, Low Cut and Tail glide to a new setting: a jump of any of them
-  // while a chord sounds (a preset change makes all three at once) does not
-  // tick. Unsmoothed, each of these jumps stepped three to four times as far
-  // as the chord itself.
+  // from one end of its range to the other while a chord sounds does not
+  // tick. Each jump is held against the chord's own steepest step just
+  // before it and once it has settled. (Unsmoothed, these jumps stepped
+  // three to four times as far as the chord.)
   {
-    std::vector<float> held(static_cast<size_t>(3.0f * kRate));
+    std::vector<float> held(static_cast<size_t>(4.0f * kRate));
     for (size_t i = 0; i < held.size(); ++i) {
       const double t = static_cast<double>(i) / kRate;
-      held[i] = 0.25f * static_cast<float>(std::sin(2.0 * kPi * 220.0 * t) + 0.5 * std::sin(2.0 * kPi * 330.0 * t) +
-                                           0.3 * std::sin(2.0 * kPi * 554.37 * t));
+      double sum = 0.0;
+      for (int h = 1; h <= 6; ++h) sum += (std::sin(2.0 * kPi * 130.81 * h * t) + std::sin(2.0 * kPi * 196.0 * h * t + 1.0)) / (h * h);
+      held[i] = 0.2f * static_cast<float>(sum);
     }
     const std::vector<float> before(held.begin(), held.begin() + 96000);
     const std::vector<float> during(held.begin() + 96000, held.end());
-    const int ids[4] = {-1, p::kHighCut, p::kLowCut, p::kTail};
-    const float to[4] = {0.0f, 1000.0f, 800.0f, 1.0f};
-    double step[4];
-    for (int k = 0; k < 4; ++k) {
+    const int ids[6] = {p::kHighCut, p::kHighCut, p::kLowCut, p::kLowCut, p::kTail, p::kTail};
+    const float from[6] = {1000.0f, 18000.0f, 20.0f, 800.0f, 0.0f, 1.0f};
+    const float to[6] = {18000.0f, 1000.0f, 800.0f, 20.0f, 1.0f, 0.0f};
+    double worst = 0.0;
+    for (int k = 0; k < 6; ++k) {
       device.init(kRate);
       device.set_param(p::kMix, 1.0f);
-      run(device, before);
-      if (ids[k] >= 0) device.set_param(ids[k], to[k]);
+      device.set_param(ids[k], from[k]);
+      Stereo lead = run(device, before);
+      device.set_param(ids[k], to[k]);
       Stereo out = run(device, during);
-      step[k] = std::max(max_step(out.left), max_step(out.right));
+      const double still = std::max(std::max(max_step(lead.left, 72000), max_step(lead.right, 72000)),
+                                    std::max(max_step(out.left, 72000), max_step(out.right, 72000)));
+      const double jump = std::max(max_step(out.left, 0, 24000), max_step(out.right, 0, 24000));
+      worst = std::max(worst, jump / still);
     }
-    std::printf("largest sample step on a chord: steady %.4f, High Cut jump %.4f, Low Cut jump %.4f, Tail jump %.4f\n", step[0],
-                step[1], step[2], step[3]);
-    EXPECT(step[1] < 1.3 * step[0], "a High Cut jump does not click");
-    EXPECT(step[2] < 1.3 * step[0], "a Low Cut jump does not click");
-    EXPECT(step[3] < 1.3 * step[0], "a Tail jump does not click");
+    std::printf("High Cut, Low Cut and Tail jumped end to end on a chord: largest step %.2f times the chord's own\n", worst);
+    EXPECT(worst < 1.5, "a High Cut, Low Cut or Tail jump does not click");
   }
 
   // With Mix at zero the output is silent while repeats still go round. The

@@ -520,11 +520,11 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
   // Exciters. Widths are for a string at 220 Hz, from the softest to the
   // hardest touch, and grow toward the bass by the power given.
   static constexpr float kFingerSoft = 0.0009f, kFingerHard = 0.00004f, kFingerLean = 0.5f;
-  static constexpr float kPickSoft = 0.00045f, kPickHard = 0.00007f, kPickLean = 0.25f;
+  static constexpr float kPickSoft = 0.0002f, kPickHard = 0.00003f, kPickLean = 0.25f;
   static constexpr float kHammerSoft = 0.0026f, kHammerHard = 0.00045f, kHammerLean = 0.5f;
   static constexpr float kPickStep = 0.55f;     // the pick's share of pluck: thin
   static constexpr float kPickClick = 0.8f;     // and of click: bright
-  static constexpr float kHammerLevel = 0.75f;
+  static constexpr float kHammerLevel = 0.6f;
   static constexpr float kBounce = 0.28f;       // the hammer's second, softer contact
   static constexpr float kBounceSeconds = 0.011f;
 
@@ -546,7 +546,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     strike.split = kit::clamp(blow.position, 0.02f, 0.5f) * period;
     if (blow.exciter == kHammer) {
       float width = kHammerSoft * std::pow(kHammerHard / kHammerSoft, hard) * std::pow(lean, kHammerLean) * sr;
-      width = kit::clamp(width, 2.5f, 0.7f * period);
+      width = kit::clamp(width, 2.5f, 0.35f * period);
       strike.blow = 1.0f / width;
       // Level by the fundamental the blow leaves on the string, eased toward
       // the bass where that would make a tall narrow spike.

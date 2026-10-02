@@ -44,10 +44,10 @@
 //   every sample. No tap is closer than a period, so the result does not
 //   depend on where the host's blocks fall.
 //
-// After velvet-noise reverberation: Karjalainen and Järveläinen,
-// "Reverberation Modeling Using Velvet Noise" (AES 30th Conference, 2007);
-// Välimäki, Holm-Rasmussen, Alary and Lehtonen, "Late Reverberation
-// Synthesis Using Filtered Velvet Noise" (Applied Sciences, 2017).
+// The sparse tap layout is after the approach of Karjalainen and
+// Järveläinen, "Reverberation Modeling Using Velvet Noise", and of Välimäki,
+// Holm-Rasmussen, Alary and Lehtonen, "Late Reverberation Synthesis Using
+// Filtered Velvet Noise". No constants or details were taken from either.
 
 #include "../../kit/kit.h"
 #include "params.gen.h"
@@ -759,7 +759,9 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
   // A smoother that is at rest costs one comparison.
   static float glide(kit::Smoother& s) { return s.value == s.target ? s.value : s.next(); }
 
-  static float tail_level_for(float tail) { return tail <= 0.0f ? 0.0f : 0.75f * std::sqrt(tail); }
+  // (0.92: what rings on after a gate is as loud as it was before the
+  // network's signs were changed, when the gain here was 0.75.)
+  static float tail_level_for(float tail) { return tail <= 0.0f ? 0.0f : 0.92f * std::sqrt(tail); }
 
   TapLine line_[2];
   Stage diffuser_[2][kStages];

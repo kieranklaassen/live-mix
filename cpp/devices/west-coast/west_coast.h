@@ -99,13 +99,12 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
     voice.frequency = frequency;
     voice.increment = frequency / rate2_;
     voice.ratio = kRatios[kit::clamp_int(static_cast<int>(param(kRatio) + 0.5f), 0, kNumRatios - 1)];
-    // Keep what FM and the folder add under the top of the band: high notes
-    // get a smaller index and fewer folds, and tend to a sine.
+    // Keep FM's sidebands under the top of the band: high notes get a
+    // smaller index. (The folder's own limit is in aim().)
     voice.index_limit = kit::max(0.0f, (kFmLimitHz / frequency - 1.0f) / voice.ratio - 2.0f);
-    voice.level_limit =
-        kStartLevel + (FoldCurve::kFullLevel - kStartLevel) *
-                          kit::min(1.0f, kFoldLimitHz / frequency) *
-                          kit::clamp((kFoldEndHz - frequency) / (kFoldEndHz - kFoldFadeHz), 0.0f, 1.0f);
+    voice.fold_reach = frequency / kFoldLimitHz;
+    voice.fold_span = (FoldCurve::kFullLevel - kStartLevel) *
+                      kit::clamp((kFoldEndHz - frequency) / (kFoldEndHz - kFoldFadeHz), 0.0f, 1.0f);
 
     // Chance: four draws per note whatever the setting, so a sequence is
     // the same every time after init.
@@ -222,7 +221,8 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
     // Per note.
     float frequency = 220.0f;
     float strike = 1.0f;
-    float level_limit = 1.0f;
+    float fold_span = 1.0f;
+    float fold_reach = 1.0f;
     float index_limit = 0.0f;
     float fold_chance = 0.0f;
     float fm_chance = 1.0f;
@@ -264,7 +264,9 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
   static constexpr float kDcBlockHz = 15.0f;
 
   // FM: index in radians at FM 1, and how high its sidebands may reach.
-  static constexpr float kMaxIndex = 5.0f;
+  static constexpr float kMaxIndex = 4.0f;
+  // How much of FM's frequency swing counts against the folder's level.
+  static constexpr float kFmReach = 1.0f;
   static constexpr float kFmLimitHz = 14000.0f;
 
   // Low-pass gate.
@@ -291,7 +293,7 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
 
   // Chance and drift.
   static constexpr float kChanceFold = 0.25f;
-  static constexpr float kChanceFm = 0.6f;
+  static constexpr float kChanceFm = 0.5f;
   static constexpr float kChanceDecayOctaves = 0.8f;
   static constexpr float kChancePan = 0.8f;
   static constexpr float kPitchDriftHz = 0.23f;
@@ -361,12 +363,19 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
     float level, offset, fundamental, makeup;
   };
 
-  FoldPoint aim(const Voice& voice, float fold, float symmetry, float timbre_env, float vactrol) const {
+  FoldPoint aim(const Voice& voice, float fold, float symmetry, float index, float timbre_env,
+                float vactrol) const {
     const float amount = kit::clamp(
         fold + voice.fold_chance + voice.fold_drift + timbre_env * kTimbreEnvRange * vactrol, 0.0f, 1.0f);
+    // What the folder adds reaches as far up as the note is high, the sine
+    // is driven hard and FM swings its frequency: the level Fold 1 stands
+    // for shrinks with the first and the last, so high notes and deep FM
+    // get fewer folds and nothing lands above the band.
+    const float swing = 1.0f + kFmReach * voice.ratio * kit::min(index * voice.fm_chance, voice.index_limit);
+    const float span = voice.fold_span / kit::max(1.0f, voice.fold_reach * swing);
     FoldPoint point;
     // Fold to the power 1.5: the first half of the knob is the first two folds.
-    point.level = kStartLevel + amount * std::sqrt(amount) * (voice.level_limit - kStartLevel);
+    point.level = kStartLevel + amount * std::sqrt(amount) * span;
     point.offset = symmetry * (kSymmetryBase + kSymmetrySlope * point.level);
     const float x = point.level * (kLevelSteps / kTableLevel);
     const float y = point.offset * (kOffsetSteps / kTableOffset);
@@ -387,7 +396,9 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
 
   // A new voice starts on its point instead of gliding to it.
   void snap(Voice& voice) {
-    const FoldPoint point = aim(voice, fold_.value, symmetry_.value, timbre_env_.value, voice.vactrol);
+    const float fm = fm_.value;
+    const FoldPoint point =
+        aim(voice, fold_.value, symmetry_.value, kMaxIndex * fm * std::sqrt(fm), timbre_env_.value, voice.vactrol);
     voice.drive = point.level;
     voice.offset = point.offset;
     voice.fundamental = point.fundamental;
@@ -460,7 +471,7 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
       }
 
       if (steer_in <= 0) {
-        const FoldPoint point = aim(voice, fold_buf_[i], symmetry_buf_[i], timbre_buf_[i], vactrol);
+        const FoldPoint point = aim(voice, fold_buf_[i], symmetry_buf_[i], index_buf_[i], timbre_buf_[i], vactrol);
         const float per_sample = 1.0f / kSlowPeriod;
         drive_step = (point.level - drive) * per_sample;
         offset_step = (point.offset - offset) * per_sample;

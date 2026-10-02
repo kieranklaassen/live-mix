@@ -1,7 +1,7 @@
 #pragma once
 
 // A field of crickets: up to six a key. Five chirp: a tone near 4.5 kHz in
-// pulses of about 11 ms, three or four to a chirp, two to four chirps a
+// pulses of about 13 ms, three or four to a chirp, two to four chirps a
 // second, every individual with its own pitch and rate, so they drift in and
 // out of step. The sixth is another kind further off that trills on without
 // grouping. Timing is counted in samples, so a pulse train is exact.
@@ -55,7 +55,7 @@ struct Crickets {
 
   void start(float hz, const Controls& c) {
     lean = key_lean(hz, 0.2f, 0.3f);
-    tempo = std::pow(lean, 1.5f);
+    tempo = lean;
     sr = c.sample_rate;
     read(c);
     for (int i = 0; i < kCrickets; ++i) {
@@ -63,9 +63,9 @@ struct Crickets {
       kit::Rng& rng = k.rng;
       k.triller = i == kCrickets - 1;
       k.carrier = k.triller ? between(rng, 3500.0f, 3900.0f) : between(rng, 4250.0f, 4950.0f);
-      k.chirp_seconds = 1.0f / between(rng, 2.2f, 3.8f);
-      k.pulse_seconds = k.triller ? 1.0f / between(rng, 38.0f, 52.0f) : between(rng, 0.017f, 0.023f);
-      k.length = k.triller ? 0.009f : between(rng, 0.0095f, 0.0125f);
+      k.chirp_seconds = 1.0f / between(rng, 2.6f, 3.8f);
+      k.pulse_seconds = k.triller ? 1.0f / between(rng, 38.0f, 52.0f) : between(rng, 0.021f, 0.027f);
+      k.length = k.triller ? 0.009f : between(rng, 0.012f, 0.015f);
       k.pulses = rng.uniform() < 0.55f ? 3 : 4;
       k.near = i == 0 ? 1.0f : (k.triller ? between(rng, 0.10f, 0.2f) : between_log(rng, 0.12f, 0.6f));
       const float side = rng.bipolar();

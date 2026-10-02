@@ -92,6 +92,10 @@ class ReAmp : public kit::DeviceBase<re_amp::kNumParams> {
       hiss_low_[c].reset();
       hiss_low_[c].set_cutoff(kHissTiltHz, sr);
     }
+    // White noise of a given peak spreads over the whole band, so the part
+    // that is heard would thin out as the rate goes up; this keeps its
+    // density, and so the hiss, the same at every rate.
+    hiss_rate_ = std::sqrt(sr / kHissReferenceRate);
     hiss_rng_[0].seed(0x3C6EF372u);
     hiss_rng_[1].seed(0xA54FF53Au);
     hum_cos_ = 1.0f;
@@ -364,8 +368,10 @@ class ReAmp : public kit::DeviceBase<re_amp::kNumParams> {
   static constexpr float kTrebleHz = 2800.0f;
   static constexpr float kToneDb = 10.0f;
 
-  // Noise, as peak values at Noise 1 referred to the amplifier's input.
+  // Noise, as peak values at Noise 1 referred to the amplifier's input (the
+  // hiss at 48 kHz).
   static constexpr float kHissLevel = 0.012f;
+  static constexpr float kHissReferenceRate = 48000.0f;
   static constexpr float kHumLevel = 0.004f;
   static constexpr float kHissTiltHz = 1500.0f;
   static constexpr float kHissTilt = 0.6f;
@@ -541,7 +547,7 @@ class ReAmp : public kit::DeviceBase<re_amp::kNumParams> {
 
     const float noise = param(kNoise);
     const float amount = noise * std::sqrt(noise);
-    hiss_.set(amount * kHissLevel, started_);
+    hiss_.set(amount * kHissLevel * hiss_rate_, started_);
     hum_.set(amount * kHumLevel, started_);
     output_.set(kit::db_to_gain(param(kOutput)), started_);
     if (!started_) refresh_ = true;
@@ -612,6 +618,7 @@ class ReAmp : public kit::DeviceBase<re_amp::kNumParams> {
   float hum_sin_ = 0.0f;
   float hum_turn_cos_ = 1.0f;
   float hum_turn_sin_ = 0.0f;
+  float hiss_rate_ = 1.0f;
   float tap_seconds_[2][kNumTaps] = {};
   float tap_gain_[2][kNumTaps] = {};
   Tap tap_[2][kNumTaps];

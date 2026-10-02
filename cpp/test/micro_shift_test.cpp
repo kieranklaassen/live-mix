@@ -99,7 +99,7 @@ static double worst_spur_db(const std::vector<float>& x, size_t from, int guard)
   return 10.0 * std::log10(std::max(spur_power, 1.0e-30) / carrier_power);
 }
 
-// Pink noise (Paul Kellet's filter), RMS near 0.1.
+// Pink noise (white noise through three one-pole filters), RMS near 0.1.
 static std::vector<float> pink_noise(float seconds) {
   std::vector<float> out(static_cast<size_t>(seconds * kRate));
   double b0 = 0.0, b1 = 0.0, b2 = 0.0;

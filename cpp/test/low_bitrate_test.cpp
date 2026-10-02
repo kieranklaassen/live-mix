@@ -393,7 +393,8 @@ int main() {
           repeat = r;
           other = correlation(a, c);
           // The level per round is read under 200 Hz, where the low-pass
-          // that closes over a held loop does not reach; the top falls faster.
+          // that closes over a held loop does not reach (the top is printed
+          // beside it and checked further down).
           ratio = band_db(b, rate, 40.0, 200.0, 0, span) - band_db(a, rate, 40.0, 200.0, 0, span);
           top = band_db(b, rate, 4000.0, 16000.0, 0, span) - band_db(a, rate, 4000.0, 16000.0, 0, span);
         }
@@ -403,11 +404,10 @@ int main() {
                   rate, frame, packet, repeat, other, ratio, top);
       EXPECT(repeat > 0.98 && std::fabs(other) < 0.5, "a stuck stream repeats with the period of one packet");
       EXPECT(ratio < -0.3 && ratio > -0.8, "each replay of a stuck packet is half a decibel quieter");
-      EXPECT(top < ratio - 0.5, "a held loop loses its top faster than its body");
     }
   }
 
-  // A held loop dulls: a low-pass closes over it (10 octaves a second, in
+  // A held loop dulls: a low-pass closes over it (14 octaves a second, in
   // seconds and hertz at every rate), so the first packets of a stutter keep
   // their edge and a long hold ends as a hum, not as a buzz.
   for (float rate : {48000.0f, 96000.0f}) {
@@ -419,8 +419,9 @@ int main() {
     device.set_param(p::kBurst, 1.0f);
     Stereo out = run(device, in);
     const double flowing = band_db(in, rate, 2000.0, 8000.0, 0, in.size());
+    const double flowing_body = band_db(in, rate, 40.0, 400.0, 0, in.size());
     const size_t late_at = static_cast<size_t>(0.3f * rate);
-    double early = 0.0, late = 0.0;
+    double early = 0.0, late = 0.0, body = 0.0;
     int early_runs = 0, late_runs = 0;
     size_t run_start = 0;
     bool inside = false;
@@ -431,7 +432,8 @@ int main() {
         error += d * d;
         reference += static_cast<double>(in[i]) * in[i];
       }
-      const bool stuck = error > reference;
+      // Flowing, the output is the input; stuck, it is something else, however quiet.
+      const bool stuck = error > 0.25 * reference;
       if (stuck && !inside) run_start = at;
       if (!stuck && inside) {
         const size_t from = run_start + kLatency, length = at - run_start;
@@ -441,6 +443,7 @@ int main() {
         }
         if (length >= late_at + window) {
           late += band_db(out.left, rate, 2000.0, 8000.0, from + late_at, from + late_at + window) - flowing;
+          body += band_db(out.left, rate, 40.0, 400.0, from + late_at, from + late_at + window) - flowing_body;
           ++late_runs;
         }
       }
@@ -448,12 +451,14 @@ int main() {
     }
     early /= std::max(1, early_runs);
     late /= std::max(1, late_runs);
+    body /= std::max(1, late_runs);
     std::printf("low-bitrate: %.0f Hz: 2 to 8 kHz of a held loop is %+.1f dB re the stream in its first 85 ms (%d holds), "
-                "%+.1f dB from 0.3 s on (%d holds)\n",
-                rate, early, early_runs, late, late_runs);
+                "%+.1f dB from 0.3 s on (%d holds), where 40 to 400 Hz is %+.1f dB\n",
+                rate, early, early_runs, late, late_runs, body);
     EXPECT(early_runs >= 10 && late_runs >= 5, "long holds to measure");
-    EXPECT(early > -4.0, "a stutter starts as bright as the stream");
-    EXPECT(late < -15.0 && late > -40.0, "a long hold has lost its top: a hum, not a buzz");
+    EXPECT(early > -3.0, "a stutter starts as bright as the stream");
+    EXPECT(late < -25.0, "a long hold has lost its top: a hum, not a buzz");
+    EXPECT(body > -13.0, "and has kept its body");
   }
 
   // A steady tone through every mode and frame size: no click where frames

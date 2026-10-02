@@ -295,7 +295,145 @@ int main() {
     EXPECT(std::fabs(half - 5.5) < 0.5, "half Detune is half as far");
   }
 
-  // MORE CHECKS
+  // There is no Mix: with the four voices at 0 and Dry at 1 the output is
+  // the input, in stereo, sample for sample.
+  {
+    device.init(kRate);
+    for (int v = 0; v < 4; ++v) device.set_param(kVoiceParam[v], 0.0f);
+    rng_state() = 0x1234u;
+    std::vector<float> left = noise(1.0f, kRate, 0.5f), right = noise(1.0f, kRate, 0.5f);
+    Stereo out = run(device, left, right);
+    double worst = 0.0;
+    for (size_t i = 0; i < left.size(); ++i) {
+      worst = std::max(worst, std::fabs(static_cast<double>(out.left[i]) - left[i]));
+      worst = std::max(worst, std::fabs(static_cast<double>(out.right[i]) - right[i]));
+    }
+    EXPECT(worst == 0.0, "voices at 0, Dry at 1: the output is the input exactly");
+  }
+
+  // The voices are made from the mono sum; the dry signal stays in stereo.
+  {
+    device.init(kRate);
+    device.set_param(p::kSpread, 0.0f);
+    std::vector<float> left = sine(220.0f, 1.0f, kRate, 0.4f), right = sine(330.0f, 1.0f, kRate, 0.4f);
+    Stereo out = run(device, left, right);
+    const size_t from = 24000;
+    EXPECT(tone_level(out.left, 220.0, kRate, from) > 0.39 && tone_level(out.left, 330.0, kRate, from) < 0.001,
+           "the left dry signal stays on the left");
+    EXPECT(tone_level(out.right, 330.0, kRate, from) > 0.39 && tone_level(out.right, 220.0, kRate, from) < 0.001,
+           "the right dry signal stays on the right");
+    const double a = tone_level(out.left, 440.0, kRate, from), b = tone_level(out.right, 440.0, kRate, from);
+    EXPECT(a > 0.05 && std::fabs(db(a / b)) < 0.1, "the octave of a left-only note sits in the middle");
+  }
+
+  // Spread places the notes of the upper voices across the field and leaves
+  // the lower ones in the middle; the mono sum does not change.
+  {
+    std::vector<float> input = chord({196.0, 246.94, 293.66, 392.0}, 6, 2.0f, 0.6f);
+    solo(device, p::kSub1);
+    device.set_param(p::kSub2, 1.0f);
+    device.set_param(p::kSpread, 1.0f);
+    Stereo subs = run(device, input);
+    const double sub_corr = correlation(subs.left, subs.right, 24000);
+    solo(device, p::kUp1);
+    device.set_param(p::kUp2, 1.0f);
+    Stereo narrow = run(device, input);
+    solo(device, p::kUp1);
+    device.set_param(p::kUp2, 1.0f);
+    device.set_param(p::kSpread, 1.0f);
+    Stereo wide = run(device, input);
+    const double up_corr = correlation(wide.left, wide.right, 24000);
+    double difference = 0.0, size = 0.0;
+    for (size_t i = 24000; i < input.size(); ++i) {
+      const double a = wide.left[i] + wide.right[i], b = narrow.left[i] + narrow.right[i];
+      difference += (a - b) * (a - b);
+      size += b * b;
+    }
+    std::printf("spread 1: left/right correlation %.3f for the sub octaves, %.3f for the upper ones; mono sum moves %.1f dB under itself\n",
+                sub_corr, up_corr, -10.0 * std::log10(difference / size + 1.0e-20));
+    EXPECT(sub_corr > 0.9999, "the sub octaves stay mono at full Spread");
+    EXPECT(up_corr < 0.7, "full Spread decorrelates the upper voices on a chord");
+    EXPECT(correlation(narrow.left, narrow.right, 24000) > 0.9999, "Spread 0 is mono");
+    EXPECT(difference < 1.0e-6 * size, "Spread does not change the mono sum");
+  }
+
+  // Moving a voice level while a chord sounds does not click: the largest
+  // sample-to-sample step is no larger than the chord's own.
+  {
+    std::vector<float> input = chord({196.0, 246.94, 293.66}, 6, 1.0f, 0.5f);
+    solo(device, p::kUp1, 1.0f);
+    device.set_param(p::kDry, 1.0f);
+    run(device, input);
+    Stereo steady = run(device, input);
+    device.set_param(p::kUp1, 0.0f);
+    Stereo down = run(device, input);
+    device.set_param(p::kUp1, 1.0f);
+    Stereo up = run(device, input);
+    device.set_param(p::kDry, 0.0f);
+    Stereo dry_off = run(device, input);
+    const double reference = max_step(steady.left);
+    std::printf("click test: largest step %.4f steady, %.4f turning One up off, %.4f on, %.4f turning Dry off\n", reference,
+                max_step(down.left), max_step(up.left), max_step(dry_off.left));
+    EXPECT(max_step(down.left) < 1.1 * reference, "turning a voice down does not click");
+    EXPECT(max_step(up.left) < 1.1 * reference, "turning a voice up does not click");
+    EXPECT(max_step(dry_off.left) < 1.1 * reference, "turning Dry down does not click");
+  }
+
+  // A second note does not disturb the first: while 196 Hz is held and
+  // 294 Hz comes in on top, the octave of 196 Hz keeps its level.
+  {
+    solo(device, p::kUp1);
+    std::vector<float> input = sine(196.0f, 2.0f, kRate, 0.3f);
+    std::vector<float> second = sine(293.66f, 1.0f, kRate, 0.3f);
+    for (size_t i = 0; i < second.size(); ++i) input[48000 + i] += second[i];
+    Stereo out = run(device, input);
+    const double before = tone_level(out.left, 392.0, kRate, 38400, 48000);
+    double lo = 1.0e9, hi = 0.0;
+    for (size_t from = 48000; from + 2400 <= 62400; from += 480) {
+      const double level = tone_level(out.left, 392.0, kRate, from, from + 2400);
+      lo = std::min(lo, level);
+      hi = std::max(hi, level);
+    }
+    std::printf("held note while another starts: its octave moves between %+.2f and %+.2f dB\n", db(lo / before),
+                db(hi / before));
+    EXPECT(db(lo / before) > -1.5 && db(hi / before) < 1.5, "a new note leaves a held note's octave alone");
+  }
+
+  // Levels. At the default settings a chord comes out a little louder than
+  // it went in, within 3 dB; with everything at full and a full-scale chord
+  // the output stays bounded (the voices have a soft ceiling of their own).
+  {
+    std::vector<float> input = chord({196.0, 246.94, 293.66}, 8, 2.0f, 0.5f);
+    device.init(kRate);
+    Stereo out = run(device, input);
+    const double gain = db(rms(out.left, 24000) / rms(input, 24000));
+    std::printf("level: the default settings on a chord are %+.2f dB against the input\n", gain);
+    EXPECT(gain > 0.0 && gain < 3.0, "the default is within 3 dB of the dry level");
+    EXPECT(std::fabs(mean(out.left, 24000)) < 1.0e-3, "no DC at the default");
+
+    device.init(kRate);
+    for (int v = 0; v < 4; ++v) device.set_param(kVoiceParam[v], 1.0f);
+    device.set_param(p::kResonance, 1.0f);
+    device.set_param(p::kFilter, 600.0f);
+    device.set_param(p::kDetune, 1.0f);
+    Stereo loud = run(device, chord({196.0, 246.94, 293.66}, 8, 2.0f, 1.0f));
+    std::printf("level: everything at full on a full-scale chord peaks at %.2f\n",
+                std::max(peak(loud.left), peak(loud.right)));
+    EXPECT(finite(loud.left) && peak(loud.left) < 3.2 && peak(loud.right) < 3.2, "everything at full stays bounded");
+  }
+
+  // The device sleeps: after the short tail it does no work and returns
+  // exact zero, and it wakes on new input.
+  {
+    device.init(kRate);
+    run(device, chord({196.0, 246.94, 293.66}, 8, 0.5f, 0.5f));
+    Stereo tail = render(device, 1.5f, kRate);
+    Stereo rest = render(device, 0.5f, kRate);
+    EXPECT(peak(tail.left, 4800) < 1.0e-3, "the voices stop with the input (nothing rings on past 100 ms)");
+    EXPECT(peak(rest.left) == 0.0 && peak(rest.right) == 0.0, "asleep after the tail");
+    Stereo woken = run(device, sine(220.0f, 0.2f, kRate, 0.5f));
+    EXPECT(tone_level(woken.left, 440.0, kRate, 4800) > 0.2, "wakes on new input");
+  }
 
   device.init(kRate);
   device.set_param(p::kSub2, 1.0f);

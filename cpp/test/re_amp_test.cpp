@@ -606,6 +606,89 @@ int main() {
     device.set_param(p::kNoise, 1.0f);
     Stereo untouched = render(device, 1.0f, kRate);
     CHECK(peak(untouched.left) == 0.0 && peak(untouched.right) == 0.0, "no noise before anything is played");
+
+    // The hiss is as loud at every sample rate (through the small speaker,
+    // which leaves the hum out).
+    auto hiss_at = [&](float rate) {
+      close_clean(kSmall, rate);
+      device.set_param(p::kNoise, 1.0f);
+      device.set_param(p::kDrive, 0.25f);
+      run(device, sine(330.0f, 0.5f, rate, 0.1f));
+      Stereo out = render(device, 0.9f, rate);
+      return db(rms(out.left, static_cast<size_t>(0.2f * rate), static_cast<size_t>(0.83f * rate)));
+    };
+    const double hiss_48 = hiss_at(48000.0f);
+    CHECK_NEAR(hiss_at(44100.0f), hiss_48, 0.7, "the hiss is as loud at 44.1 kHz");
+    CHECK_NEAR(hiss_at(96000.0f), hiss_48, 0.7, "the hiss is as loud at 96 kHz");
+  }
+
+  // Quiet ambient material through the default patch: a soft chord near
+  // -30 dBFS and then a gap, and one long decaying note. The amplifier's noise
+  // stays far under the chord and is no louder in the gap; the note dies away
+  // without swelling and without its tail being lifted.
+  {
+    auto soft_chord = [&](float seconds) {
+      std::vector<float> x(static_cast<size_t>(seconds * kRate), 0.0f);
+      for (double hz : {130.8, 196.0, 329.6, 493.9}) {
+        const std::vector<float> partial = sine(static_cast<float>(hz), seconds, kRate, 1.0f);
+        for (size_t i = 0; i < x.size(); ++i) x[i] += partial[i];
+      }
+      const size_t fade = 9600;
+      for (size_t i = 0; i < fade; ++i) {
+        const float g = static_cast<float>(i) / fade;
+        x[i] *= g;
+        x[x.size() - 1 - i] *= g;
+      }
+      const double scale = 0.0316 / rms(x, fade, x.size() - fade);
+      for (float& v : x) v = static_cast<float>(v * scale);
+      return x;
+    };
+    const std::vector<float> chord = soft_chord(2.0f);
+    auto gap_after = [&](float drive, double* chord_db, double* hum_db) {
+      device.init(kRate);
+      device.set_param(p::kDrive, drive);
+      Stereo out = run(device, chord);
+      Stereo gap = render(device, 1.0f, kRate);
+      *chord_db = db(rms(out.left, 24000, 72000));
+      *hum_db = db(tone_level(gap.left, 100.0, kRate, 24000, 45600));
+      return db(rms(gap.left, 24000, 45600));  // the room has gone, the noise is still held
+    };
+    double chord_db, hum_db, driven_db, driven_hum;
+    const double gap_db = gap_after(p::kParamDefault[p::kDrive], &chord_db, &hum_db);
+    char label[200];
+    std::snprintf(label, sizeof label,
+                  "default patch, chord at -30 dBFS: out %.1f dBFS, noise in the gap %.1f dBFS, hum %.1f dBFS",
+                  chord_db, gap_db, hum_db);
+    CHECK(std::fabs(chord_db + 30.0) < 1.5 && gap_db < chord_db - 45.0 && gap_db < -76.0 && hum_db < -80.0, label);
+    const double driven_gap = gap_after(1.0f, &driven_db, &driven_hum);
+    std::snprintf(label, sizeof label, "Drive 1 lifts the quiet chord by %.1f dB and the noise in the gap by %.1f dB",
+                  driven_db - chord_db, driven_gap - gap_db);
+    CHECK(driven_db - chord_db < 8.0 && driven_gap - gap_db < 10.0 && driven_gap < driven_db - 44.0, label);
+
+    // The note: three partials, the fundamental falling 8.7 dB a second.
+    std::vector<float> note(static_cast<size_t>(5.0f * kRate));
+    for (size_t i = 0; i < note.size(); ++i) {
+      const double t = static_cast<double>(i) / kRate;
+      const double attack = t < 0.003 ? t / 0.003 : 1.0;
+      note[i] = static_cast<float>(attack * (0.25 * std::exp(-t / 1.0) * std::sin(2.0 * kPi * 220.0 * t) +
+                                             0.12 * std::exp(-t / 0.6) * std::sin(2.0 * kPi * 440.0 * t) +
+                                             0.06 * std::exp(-t / 0.4) * std::sin(2.0 * kPi * 660.0 * t)));
+    }
+    device.init(kRate);
+    Stereo out = run(device, note);
+    double worst_rise = -100.0, last = 0.0, early_gain = 0.0, late_gain = 0.0;
+    for (size_t k = 2; k < 45; ++k) {  // 100 ms windows from 0.2 s to 4.5 s: the dry note is above -52 dBFS
+      const double level = db(rms(out.left, k * 4800, (k + 1) * 4800));
+      if (k > 2) worst_rise = std::max(worst_rise, level - last);
+      last = level;
+      const double gain = level - db(rms(note, k * 4800, (k + 1) * 4800));
+      if (k == 2) early_gain = gain;
+      if (k == 44) late_gain = gain;
+    }
+    std::snprintf(label, sizeof label,
+                  "default patch, a decaying note: never rises (%+.2f dB at most), gain %+.1f dB early, %+.1f dB late",
+                  worst_rise, early_gain, late_gain);
+    CHECK(worst_rise < 0.2 && std::fabs(late_gain - early_gain) < 1.5, label);
   }
 
   // Nothing clicks: changing Speaker under a note, and throwing each knob

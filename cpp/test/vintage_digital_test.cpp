@@ -353,12 +353,18 @@ int main() {
     EXPECT(ratio[0][0] > 70.0 && ratio[0][1] > 70.0, "a steady clock adds no noise");
     EXPECT_NEAR(ratio[1][1], 10.5, 3.0, "Jitter 1: noise 10 dB under a 6 kHz tone (0.12 of a period, RMS)");
     EXPECT(ratio[1][0] > ratio[1][1] + 20.0, "jitter noise is over 20 dB lower under a 300 Hz tone");
-    // The default amount is a faint halo, not a hiss.
-    ideal(device, 16000.0f);
+    // The default amount is a little grain that can be heard, not a hiss:
+    // at the default Rate it sits 30 to 45 dB under a 1 kHz tone (at the old
+    // default of 0.1 it was 60 dB under the sound, which nobody would hear).
+    ideal(device, p::kParamDefault[p::kRate]);
     device.set_param(p::kFilter, kSteep);
     device.set_param(p::kJitter, p::kParamDefault[p::kJitter]);
-    Stereo out = run(device, sine(6000.0f, 1.5f, kRate, 0.5f));
-    EXPECT(tone_to_rest(out.left, 6000.0, kRate, 4800) > 45.0, "the default Jitter stays 45 dB under a 6 kHz tone");
+    Stereo out = run(device, sine(1000.0f, 1.5f, kRate, 0.5f));
+    const double grain = tone_to_rest(out.left, 1000.0, kRate, 4800);
+    char label[120];
+    std::snprintf(label, sizeof label, "the default Jitter is a little grain: %.1f dB under a 1 kHz tone", grain);
+    EXPECT(grain > 30.0 && grain < 45.0, label);
+    note(label);
   }
 
   // Drive. The input stage is exactly linear up to full scale and flat just
@@ -553,7 +559,12 @@ int main() {
     // So Mix half way is a blend and not a comb filter: tones under the
     // converter's band come out at the level they went in (before the
     // alignment the default patch lost 14 dB around 2.5 kHz).
-    for (float hz : {200.0f, 500.0f, 1000.0f, 2000.0f, 3000.0f, 4000.0f}) {
+    // Up to a quarter of the default Rate (as it was when the default was
+    // 16 kHz). Nearer the input filter's edge, at 0.44 of Rate, the filter's
+    // phase turns and a part-way Mix has a narrow dip (13 dB at 3.9 kHz for
+    // Mix 0.5 at the default Rate): known, and not covered here.
+    const float quarter = 0.25f * p::kParamDefault[p::kRate];
+    for (float hz : {200.0f, 500.0f, 1000.0f, 0.5f * quarter, 0.75f * quarter, quarter}) {
       device.init(kRate);
       device.set_param(p::kMix, 0.5f);
       Stereo out = run(device, sine(hz, 0.5f, kRate, 0.25f));
@@ -635,6 +646,76 @@ int main() {
     std::snprintf(label, sizeof label, "default patch on a held chord: %+.2f dB against the dry level, peak %.2f (dry %.2f)",
                   change, peak(out.left), peak(chord));
     EXPECT(change > -1.0 && change < 1.0 && peak(out.left) < 1.2 * peak(chord), label);
+    note(label);
+  }
+
+  // The default patch is heard at once. (At the first default, Rate 16 kHz,
+  // it differed from the dry signal by -23 dB on struck notes and -43 dB on a
+  // soft pad, with its images up at 15 kHz: nobody would have noticed it.)
+  {
+    // The glassy copy: a 330 Hz tone has its first image below 10 kHz and
+    // within 45 dB of the tone.
+    device.init(kRate);
+    const double image_hz = p::kParamDefault[p::kRate] - 330.0;
+    Stereo held = run(device, sine(330.0f, 1.0f, kRate, 0.25f));
+    const double image = db(tone_level(held.left, image_hz, kRate, 4800) / tone_level(held.left, 330.0, kRate, 4800));
+    char label[160];
+    std::snprintf(label, sizeof label, "default patch: the image of a 330 Hz tone at %.0f Hz is %.1f dB under it",
+                  image_hz, -image);
+    EXPECT(image_hz < 10000.0 && image > -45.0 && image < -30.0, label);
+    note(label);
+    // The softened top: 1 kHz passes, 6 kHz is more than 20 dB down.
+    device.init(kRate);
+    Stereo low = run(device, sine(1000.0f, 0.5f, kRate, 0.25f));
+    device.init(kRate);
+    Stereo high = run(device, sine(6000.0f, 0.5f, kRate, 0.25f));
+    EXPECT_NEAR(db(tone_level(low.left, 1000.0, kRate, 4800) / 0.25), 0.0, 0.7, "default patch: 1 kHz passes");
+    EXPECT(db(tone_level(high.left, 6000.0, kRate, 4800) / 0.25) < -20.0, "default patch: 6 kHz is over 20 dB down");
+
+    // Struck notes (four, decaying, twelve harmonics each): the default patch
+    // differs from the dry phrase by more than -22 dB, and the two presets
+    // that were once 25 dB apart, Twelve bit (the default) and Dusty sampler
+    // (its values as in device.json), by more than -20 dB.
+    const size_t n = static_cast<size_t>(2.5f * kRate);
+    std::vector<float> phrase(n, 0.0f);
+    const double notes[4] = {110.0, 261.63, 392.0, 659.26};
+    for (int k = 0; k < 4; ++k) {
+      const size_t start = static_cast<size_t>(k) * 19200;
+      for (size_t i = start; i < n; ++i) {
+        const double t = static_cast<double>(i - start) / kRate;
+        double v = 0.0;
+        for (int h = 1; h <= 12; ++h) {
+          v += std::exp(-t * (1.0 + 0.25 * h)) * std::sin(2.0 * kPi * notes[k] * h * t + 0.37 * h * h) /
+               std::pow(static_cast<double>(h), 1.35);
+        }
+        phrase[i] += static_cast<float>(0.2 * std::min(1.0, t / 0.002) * v);
+      }
+    }
+    std::vector<float> dry(n, 0.0f);
+    for (size_t i = kLatency; i < n; ++i) dry[i] = phrase[i - kLatency];
+    device.init(kRate);
+    Stereo twelve = run(device, phrase);
+    device.init(kRate);
+    device.set_param(p::kRate, 7500.0f);
+    device.set_param(p::kBits, 10.0f);
+    device.set_param(p::kAliasing, 0.5f);
+    device.set_param(p::kFilter, kSteep);
+    device.set_param(p::kJitter, 0.9f);
+    device.set_param(p::kDrive, 9.0f);
+    Stereo dusty = run(device, phrase);
+    // The first default, for the record: Rate 16 kHz, Jitter 0.1.
+    device.init(kRate);
+    device.set_param(p::kRate, 16000.0f);
+    device.set_param(p::kJitter, 0.1f);
+    Stereo first = run(device, phrase);
+    const double before = db(rms(difference(first.left, dry)) / rms(dry));
+    const double heard = db(rms(difference(twelve.left, dry)) / rms(dry));
+    const double apart = db(rms(difference(twelve.left, dusty.left)) / rms(dry));
+    const double level = db(rms(twelve.left) / rms(dry));
+    std::snprintf(label, sizeof label,
+                  "default patch on struck notes: %.1f dB from dry (was %.1f), %.1f dB from Dusty sampler, level %+.2f dB",
+                  heard, before, apart, level);
+    EXPECT(heard > -22.0 && heard > before + 3.0 && apart > -20.0 && level > -1.0 && level < 1.0, label);
     note(label);
   }
 

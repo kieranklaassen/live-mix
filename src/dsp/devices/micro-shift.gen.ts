@@ -14,7 +14,7 @@ export const MICRO_SHIFT_PARAMS = {
     taper: 'linear',
     unit: 'ct',
     description:
-      'How far the two copies are tuned away from the dry sound: the left one sharp, the right one flat. A few cents is a soft widening; more beats against the dry sound and turns sour.',
+      'How far the two copies are tuned away from the dry sound: the left one sharp, the right one flat. Small amounts widen softly; larger ones beat against the dry sound and turn sour.',
   },
   delay: {
     id: 1,
@@ -58,7 +58,7 @@ export const MICRO_SHIFT_PARAMS = {
     taper: 'log',
     unit: 'Hz',
     description:
-      'Everything below this stays dry and in the centre, so the bass keeps its weight. Raise it to widen only the upper part of the sound.',
+      'Everything below this stays dry and where it was, so the bass keeps its weight. Raise it to widen only the upper part of the sound.',
   },
   tone: {
     id: 5,

@@ -596,8 +596,8 @@ int main(int argc, char**) {
       }
       device.init(kRate);
       device.set_param(p::kTape, static_cast<float>(tape));
-      for (int n = 0; n < 10; ++n) device.note_on(n, 110.0f * std::pow(2.0f, n * 3 / 12.0f), 0.8f);
-      Stereo pile = render(device, 4.0f, kRate);
+      for (int n = 0; n < 10; ++n) device.note_on(n, 110.0f * std::pow(2.0f, n * 3 / 12.0f), 0.7f);
+      Stereo pile = render(device, 6.0f, kRate);
       tallest = std::max(tallest, std::max(peak(pile.left), peak(pile.right)));
     }
     SHOW("one key at gain 0.7 peaks between %.1f and %.1f dBFS; ten keys peak at %.2f", quietest, loudest, tallest);

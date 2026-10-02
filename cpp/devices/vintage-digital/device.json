@@ -54,7 +54,7 @@
       "name": "Jitter",
       "min": 0,
       "max": 1,
-      "default": 0.35,
+      "default": 0.4,
       "description": "Unsteadiness in the converter clock. It adds a hiss that rides on the sound, more on high notes than low ones, and none in silence."
     },
     {
@@ -82,7 +82,7 @@
       "companding": 0,
       "aliasing": 0.35,
       "filter": 1,
-      "jitter": 0.35,
+      "jitter": 0.4,
       "drive": 0,
       "mix": 1
     },
@@ -101,12 +101,12 @@
       "jitter": 0.25
     },
     "Dusty sampler": {
-      "rate": 10000,
+      "rate": 7500,
       "bits": 10,
-      "aliasing": 0.25,
+      "aliasing": 0.5,
       "filter": 2,
-      "jitter": 0.8,
-      "drive": 6
+      "jitter": 0.9,
+      "drive": 9
     },
     "Glass images": {
       "rate": 8000,
@@ -148,6 +148,6 @@
   },
   "origin": {
     "kind": "new",
-    "note": "Written for live-mix on cpp/kit. Models a sampling converter pair in outline (an input stage that clips, an anti-alias filter that can be taken away, a sampler on a jittery clock, a linear or mu-law quantiser, a zero-order hold and a reconstruction filter), not any one machine. The input is read between host samples with a 32-point windowed sinc and each change of the held value is drawn as a band-limited step from a table (the idea behind the kit's PolyBLEP oscillators), so the hold's images are kept and nothing folds back that a converter would not make. The steep filters are a ninth-order elliptic low-pass built as two allpass chains; its poles were computed for this device. No dither and no noise floor: silence in is exact silence out. Reports 129 samples of latency: 33 for the clip, the interpolation and the band-limited step, and 96 so the converted signal's low end can be lined up with the dry signal and Mix does not comb."
+    "note": "Written for live-mix on cpp/kit. Models a sampling converter pair in outline (an input stage that clips, an anti-alias filter that can be taken away, a sampler on a jittery clock, a linear or mu-law quantiser, a zero-order hold and a reconstruction filter), not any one machine. The input is read between host samples with a 32-point windowed sinc and each change of the held value is drawn as a band-limited step from a table (the idea behind the kit's PolyBLEP oscillators), so the hold's images are kept and next to nothing folds back that a converter would not make. The steep filters are a ninth-order elliptic low-pass built as two allpass chains; its poles were computed for this device. No dither and no noise floor: silence in is exact silence out. Reports 129 samples of latency: 33 for the clip, the interpolation and the band-limited step, and 96 so the converted signal's low end can be lined up with the dry signal and Mix does not comb."
   }
 }

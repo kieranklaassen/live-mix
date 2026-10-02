@@ -26,7 +26,7 @@ export const RE_AMP_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How hard the amplifier is pushed. Low settings stay clean; higher ones round the peaks off, add valve harmonics and squash the dynamics, with the level held about where it was.',
+      "How hard the amplifier is pushed. Low settings stay clean; higher ones round the peaks off, add valve harmonics and squash the dynamics: loud playing is held about where it was, quiet playing and the amplifier's noise come up.",
   },
   bass: {
     id: 2,
@@ -59,7 +59,7 @@ export const RE_AMP_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How far the microphone is from the speaker. At zero it is right on the cone, dry and close with a little extra bass. Pulling it back lets in the reflections and the tail of the room until the speaker is heard from the far side.',
+      'How far the microphone is from the speaker. Right on the cone the sound is dry and close with a little extra bass. Pulling it back lets in the reflections and the tail of the room until the speaker is heard from the far side.',
   },
   room: {
     id: 5,
@@ -70,7 +70,7 @@ export const RE_AMP_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'The size of the room the speaker stands in, from a cupboard through a living room to a hall. Bigger rooms have later reflections and a longer tail. It is heard only once Distance is above zero.',
+      'The size of the room the speaker stands in, from a cupboard through a living room to a hall. Bigger rooms have later reflections and a longer tail. It is heard only once Distance has pulled the microphone back from the cone.',
   },
   angle: {
     id: 6,
@@ -165,7 +165,7 @@ export const RE_AMP_DESCRIPTOR = wasmDeviceDescriptor(RE_AMP_DEVICE, {
       room: 0.9,
       angle: 0.3,
       noise: 0.1,
-      output: 2,
+      output: 1,
     },
     'Station platform': {
       speaker: 3,
@@ -197,7 +197,7 @@ export const RE_AMP_DESCRIPTOR = wasmDeviceDescriptor(RE_AMP_DEVICE, {
       distance: 0.1,
       room: 0.3,
       angle: 0,
-      noise: 0.25,
+      noise: 0.12,
       output: 0,
     },
     'Just the room': {

@@ -89,9 +89,9 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
   static constexpr float kStealSeconds = 0.004f;
   // Changing Tape: sounding notes dip for this long each way.
   static constexpr float kSwapSeconds = 0.03f;
-  // One key at full velocity peaks near -11 dBFS before Volume, which
+  // One key at full velocity peaks near -12 dBFS before Volume, which
   // leaves ten held keys under the knee of the output clipper.
-  static constexpr float kVoiceGain = 0.138f;
+  static constexpr float kVoiceGain = 0.122f;
   // Hiss at Hiss 1 with one key down, RMS.
   static constexpr float kHissGain = 0.012f;
 

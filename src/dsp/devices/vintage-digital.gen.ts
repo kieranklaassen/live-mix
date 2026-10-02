@@ -10,7 +10,7 @@ export const VINTAGE_DIGITAL_PARAMS = {
     name: 'Rate',
     min: 1000,
     max: 48000,
-    default: 16000,
+    default: 9000,
     taper: 'log',
     unit: 'Hz',
     description:
@@ -67,7 +67,7 @@ export const VINTAGE_DIGITAL_PARAMS = {
     name: 'Jitter',
     min: 0,
     max: 1,
-    default: 0.1,
+    default: 0.4,
     taper: 'linear',
     unit: '',
     description:
@@ -114,17 +114,18 @@ export const VINTAGE_DIGITAL_DESCRIPTOR = wasmDeviceDescriptor(VINTAGE_DIGITAL_D
     'The converters of an early sampler: a sample rate reducer and bit crusher with true aliasing, hold images, companding and clock jitter, from a soft twelve-bit glaze to folded metal.',
   presets: {
     'Twelve bit': {
-      rate: 16000,
+      rate: 9000,
       bits: 12,
       companding: 0,
       aliasing: 0.35,
       filter: 1,
-      jitter: 0.1,
+      jitter: 0.4,
       drive: 0,
       mix: 1,
     },
-    'Eight bit toy': { rate: 10000, bits: 8, companding: 1, aliasing: 0.6, filter: 1, jitter: 0.2 },
-    'Dusty sampler': { rate: 22000, bits: 12, aliasing: 0.25, filter: 2, jitter: 0.4, drive: 6 },
+    'Soft glaze': { rate: 16000, aliasing: 0.35, filter: 1, jitter: 0.1 },
+    'Eight bit toy': { rate: 7000, bits: 8, companding: 1, aliasing: 0.7, filter: 1, jitter: 0.25 },
+    'Dusty sampler': { rate: 7500, bits: 10, aliasing: 0.5, filter: 2, jitter: 0.9, drive: 9 },
     'Glass images': { rate: 8000, bits: 12, aliasing: 0.1, filter: 0, jitter: 0.05 },
     'Folded metal': { rate: 6000, bits: 10, aliasing: 1, filter: 1, jitter: 0.1 },
     'Telephone exchange': {

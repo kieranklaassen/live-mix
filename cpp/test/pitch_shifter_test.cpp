@@ -42,12 +42,25 @@ static void wet_only(PitchShifter& d, int mode, float pitch, float size = 60.0f)
   d.set_param(p::kSpread, 0.0f);
 }
 
+// The frequency of a steady tone known to lie within a few hertz of `hz`:
+// how fast its phase against `hz` turns between the two halves of
+// [from, to). Returns 0 when there is no such tone to speak of.
+static double frequency_near(const std::vector<float>& x, double hz, double rate, size_t from, size_t to) {
+  const size_t middle = (from + to) / 2;
+  if (tone_level(x, hz, rate, from, to) < 0.05) return 0.0;
+  double turn = tone_phase(x, hz, rate, middle, to) - tone_phase(x, hz, rate, from, middle);
+  while (turn > kPi) turn -= 2.0 * kPi;
+  while (turn < -kPi) turn += 2.0 * kPi;
+  return hz + turn / (2.0 * kPi) * rate / static_cast<double>(middle - from);
+}
+
 // Power-weighted mean frequency within `span` Hz of `centre`: where the
 // pitch sits when a mode spreads a tone into a cluster of lines.
-static double centroid(const std::vector<float>& x, double centre, double span, size_t from, size_t to) {
+static double centroid(const std::vector<float>& x, double centre, double span, size_t from, size_t to,
+                       int steps) {
   double power = 0.0, weighted = 0.0;
-  for (int i = -40; i <= 40; ++i) {
-    const double hz = centre + span * i / 40.0;
+  for (int i = -steps; i <= steps; ++i) {
+    const double hz = centre + span * i / steps;
     const double level = tone_level(x, hz, kRate, from, to);
     power += level * level;
     weighted += level * level * hz;
@@ -199,8 +212,8 @@ static void check_pitch() {
       wet_only(device, kSmooth, c.pitch);
       device.set_param(p::kDetune, c.detune);
       Stereo out = run(device, sine(hz, 1.5f, kRate, 0.5f));
-      const double found = dominant_frequency(out.left, kRate, hz * ratio * 0.97, hz * ratio * 1.03, from, to);
-      worst = std::max(worst, std::fabs(cents(found, hz * ratio)));
+      const double found = frequency_near(out.left, hz * ratio, kRate, from, to);
+      worst = std::max(worst, found > 0.0 ? std::fabs(cents(found, hz * ratio)) : 1200.0);
     }
     NOTE("pitch: Smooth %+.0f st %+.0f ct: worst error %.2f cents\n", c.pitch, c.detune, worst);
     std::snprintf(label, sizeof label, "Smooth lands within 3 cents at %+.0f st %+.0f ct (worst %.2f)", c.pitch,
@@ -216,7 +229,7 @@ static void check_pitch() {
     Stereo out = run(device, sine(440.0f, 1.5f, rate, 0.5f));
     const size_t a = static_cast<size_t>(0.75f * rate), b = static_cast<size_t>(1.5f * rate);
     const double want = 440.0 * std::pow(2.0, 7.0 / 12.0);
-    const double found = dominant_frequency(out.left, rate, want * 0.97, want * 1.03, a, b);
+    const double found = frequency_near(out.left, want, rate, a, b);
     const double flutter = flutter_db(out.left, a, b, static_cast<size_t>(0.01f * rate));
     NOTE("pitch at %.0f Hz: %+.2f cents, flutter %.2f dB, level %.2f dB\n", rate, cents(found, want), flutter,
          db(rms(out.left, a, b) / (0.5 / std::sqrt(2.0))));
@@ -234,7 +247,7 @@ static void check_pitch() {
       device.set_param(p::kDetune, c.detune);
       device.set_param(p::kJitter, 0.3f);
       Stereo out = run(device, sine(hz, 6.0f, kRate, 0.5f));
-      const double found = centroid(out.left, hz * ratio, 40.0, 48000, 288000);
+      const double found = centroid(out.left, hz * ratio, 40.0, 24000, 288000, 20);
       worst = std::max(worst, std::fabs(cents(found, hz * ratio)));
     }
     NOTE("pitch: Grain (Jitter 0.3) %+.0f st %+.0f ct: centre off by %.2f cents\n", c.pitch, c.detune, worst);
@@ -254,7 +267,7 @@ static void check_pitch() {
       Stereo out = run(device, sine(hz, 3.0f, kRate, 0.5f));
       const double found = c.detune > 0.0f
                                ? dominant_frequency(out.left, kRate, hz * ratio * 0.97, hz * ratio * 1.03, 48000, 96000)
-                               : centroid(out.left, hz * ratio, 60.0, 48000, 144000);
+                               : centroid(out.left, hz * ratio, 60.0, 48000, 72000, 30);
       const double error = std::fabs(cents(found, hz * ratio));
       const double limit = c.detune > 0.0f ? 3.0 : cents(hz * ratio + spacing, hz * ratio);
       if (error / limit > worst / std::max(allowed, 1.0e-9) || allowed == 0.0) {
@@ -413,8 +426,8 @@ static void check_chord_and_voices() {
     device.set_param(p::kDetune, 20.0f);
     device.set_param(p::kSpread, 1.0f);
     Stereo out = run(device, sine(1000.0f, 2.0f, kRate, 0.4f));
-    const double sharp = dominant_frequency(out.left, kRate, 980.0, 1020.0, from, to);
-    const double flat = dominant_frequency(out.right, kRate, 980.0, 1020.0, from, to);
+    const double sharp = frequency_near(out.left, 1000.0 * std::pow(2.0, 20.0 / 1200.0), kRate, from, to);
+    const double flat = frequency_near(out.right, 1000.0 * std::pow(2.0, -20.0 / 1200.0), kRate, from, to);
     NOTE("detune 20 ct: A %+.2f ct, B %+.2f ct, L/R correlation %.2f\n", cents(sharp, 1000.0), cents(flat, 1000.0),
          correlation(out.left, out.right, from, to));
     EXPECT_NEAR(cents(sharp, 1000.0), 20.0, 1.0, "Detune raises voice A");

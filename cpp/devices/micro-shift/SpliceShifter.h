@@ -15,11 +15,10 @@
 //     between the signal at the head and the signal at each candidate
 //     landing point (a coarse pass on a decimated copy, then a fine pass at
 //     full rate with a parabolic peak), so both heads read the same waveform
-//     through the crossfade. This is the autocorrelation splice of the
-//     second-generation studio harmonizers (US 4,464,784, expired) and the
-//     waveform-similarity rule of WSOLA (Verhelst and Roelands, "An
-//     overlap-add technique based on waveform similarity (WSOLA) for high
-//     quality time-scale modification of speech", ICASSP 1993).
+//     through the crossfade. This is the waveform-similarity rule, after
+//     the approach of Verhelst and Roelands, "An overlap-add technique
+//     based on waveform similarity (WSOLA) for high quality time-scale
+//     modification of speech".
 //   - WHEN: an onset detector remembers where recent attacks sit in the
 //     line; a splice waits until the stretch between the two heads holds no
 //     attack, so a transient is neither played twice nor skipped. If the

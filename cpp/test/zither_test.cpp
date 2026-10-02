@@ -30,9 +30,32 @@ static std::vector<float> mono(const Stereo& s) {
 
 static size_t at(double seconds, double rate = kRate) { return static_cast<size_t>(seconds * rate); }
 
+// Amplitude-weighted mean frequency of x[from, to), by Goertzel on a 20 Hz grid up to 12 kHz.
+static double spectral_centroid(const std::vector<float>& x, size_t from, size_t to) {
+  double weighted = 0.0, total = 0.0;
+  for (double hz = 40.0; hz <= 12000.0; hz += 20.0) {
+    const double level = tone_level(x, hz, kRate, from, to);
+    weighted += hz * level * level;
+    total += level * level;
+  }
+  return total > 0.0 ? weighted / total : 0.0;
+}
+
+// How long the first edge of a blow takes from 5 % to 50 % of the largest sample, in ms.
+static double rise_ms(const std::vector<float>& x) {
+  const double most = peak(x);
+  double start = -1.0;
+  for (size_t i = 0; i < x.size(); ++i) {
+    const double size = std::fabs(static_cast<double>(x[i]));
+    if (start < 0.0 && size > 0.05 * most) start = static_cast<double>(i);
+    if (size > 0.5 * most) return (static_cast<double>(i) - start) * 1000.0 / kRate;
+  }
+  return 0.0;
+}
+
 // When the component at `hz` first reaches a third of the most it reaches, in seconds.
 static double onset(const std::vector<float>& x, double hz, double rate = kRate) {
-  const size_t window = at(0.03, rate), hop = at(0.002, rate);
+  const size_t window = at(0.06, rate), hop = at(0.002, rate);
   std::vector<double> level;
   double most = 0.0;
   for (size_t from = 0; from + window <= x.size(); from += hop) {
@@ -161,6 +184,120 @@ int main() {
     const double let_go = rms(open.left, at(1.5), at(2.0)), down = rms(kept.left, at(2.0), at(2.5));
     std::printf("release at its top: %.2f dB against a held key two seconds on\n", db(let_go / down));
     EXPECT(std::fabs(db(let_go / down)) < 0.5, "at the top of Release the string rings on as if held");
+  }
+
+  // 5. Where and with what the string is played. In the middle of the
+  // string every second partial is missing; Brightness raises the centroid;
+  // the three exciters differ in how fast the blow rises and how bright it is.
+  {
+    plain(device);
+    device.set_param(p::kPosition, 0.5f);
+    device.note_on(1, 220.0f, 0.8f);
+    Stereo middle = render(device, 0.6f, kRate);
+    double worst = 1.0e9;
+    for (int even = 2; even <= 8; even += 2) {
+      const double odd = std::min(tone_level(middle.left, 220.0 * (even - 1), kRate, at(0.05), at(0.45)),
+                                  tone_level(middle.left, 220.0 * (even + 1), kRate, at(0.05), at(0.45)));
+      worst = std::min(worst, db(odd / tone_level(middle.left, 220.0 * even, kRate, at(0.05), at(0.45))));
+    }
+    std::printf("position 0.5: even partials at least %.1f dB under their odd neighbours\n", worst);
+    EXPECT(worst > 20.0, "played in the middle, the even partials are missing");
+
+    plain(device);
+    device.set_param(p::kPosition, 0.2f);
+    device.note_on(1, 220.0f, 0.8f);
+    Stereo fifth = render(device, 0.6f, kRate);
+    const double null5 = db(tone_level(fifth.left, 880.0, kRate, at(0.05), at(0.45)) /
+                            tone_level(fifth.left, 1100.0, kRate, at(0.05), at(0.45)));
+    std::printf("position 0.2: partial 5 is %.1f dB under partial 4\n", null5);
+    EXPECT(null5 > 20.0, "played a fifth of the way along, the fifth partial is missing");
+
+    double centre[3];
+    const float settings[3] = {0.1f, 0.55f, 0.95f};
+    for (int n = 0; n < 3; ++n) {
+      plain(device);
+      device.set_param(p::kBrightness, settings[n]);
+      device.note_on(1, 220.0f, 0.8f);
+      Stereo out = render(device, 0.5f, kRate);
+      centre[n] = spectral_centroid(out.left, 0, at(0.4));
+    }
+    std::printf("brightness 0.1 / 0.55 / 0.95: centroid %.0f / %.0f / %.0f Hz\n", centre[0], centre[1], centre[2]);
+    EXPECT(centre[1] > 1.3 * centre[0] && centre[2] > 1.3 * centre[1], "Brightness raises the centroid");
+
+    double rise[3], bright[3];
+    for (int exciter = 0; exciter < 3; ++exciter) {
+      plain(device);
+      device.set_param(p::kExciter, static_cast<float>(exciter));
+      device.set_param(p::kBrightness, 0.25f);  // wide enough blows to time at 48 kHz
+      device.note_on(1, 220.0f, 0.8f);
+      Stereo out = render(device, 0.5f, kRate);
+      rise[exciter] = rise_ms(out.left);
+      bright[exciter] = spectral_centroid(out.left, 0, at(0.4));
+    }
+    std::printf("finger / pick / hammer: rise %.2f / %.2f / %.2f ms, centroid %.0f / %.0f / %.0f Hz\n", rise[0], rise[1],
+                rise[2], bright[0], bright[1], bright[2]);
+    EXPECT(rise[1] < 0.6 * rise[0], "a pick rises faster than a finger");
+    EXPECT(rise[2] > 2.0 * rise[0], "a hammer's blow is the widest");
+    EXPECT(bright[1] > 1.25 * bright[0], "a pick is brighter than a finger");
+    EXPECT(bright[2] < bright[1], "a hammer is rounder than a pick");
+  }
+
+  // 6. Chord and strum. One key at 110 Hz: the chord's own strings are
+  // there (and the other chord's third is not), and a strum crosses them in
+  // the stated time and direction.
+  {
+    const double fifth = 164.81, major = 277.18, minor = 261.63;
+    auto chord = [&](int which) {
+      plain(device);
+      device.set_param(p::kChord, static_cast<float>(which));
+      device.set_param(p::kStrum, 0.0f);
+      device.note_on(1, 110.0f, 0.8f);
+      return mono(render(device, 0.6f, kRate));
+    };
+    auto level = [&](const std::vector<float>& x, double hz) { return db(tone_level(x, hz, kRate, at(0.1), at(0.5))); };
+    const std::vector<float> one = chord(0), open = chord(2), maj = chord(3), min = chord(4);
+    std::printf("chord: fifth %.0f dB (single %.0f), major third %.0f / minor third %.0f dB in Major, %.0f / %.0f in Minor, %.0f / %.0f in Fifth and octave\n",
+                level(open, fifth), level(one, fifth), level(maj, major), level(maj, minor), level(min, major),
+                level(min, minor), level(open, major), level(open, minor));
+    EXPECT(level(one, fifth) < -80.0 && level(open, fifth) > -45.0, "Fifth and octave adds the fifth");
+    EXPECT(level(open, major) < -80.0 && level(open, minor) < -80.0, "and no third");
+    EXPECT(level(maj, major) > -45.0 && level(maj, minor) < level(maj, major) - 30.0, "Major has the major third");
+    EXPECT(level(min, minor) > -45.0 && level(min, major) < level(min, minor) - 30.0, "Minor has the minor third");
+    EXPECT(level(maj, 440.0) > level(one, 440.0) + 10.0, "and the chord reaches two octaves up");
+
+    // Strings 0, 1 and 3 of the six (the others share partials with them).
+    auto strum = [&](int direction, int keys, double* first, double* second, double* fourth) {
+      plain(device);
+      device.set_param(p::kChord, 3.0f);
+      device.set_param(p::kStrum, 300.0f);
+      device.set_param(p::kDirection, static_cast<float>(direction));
+      for (int k = 1; k < keys; ++k) {  // earlier keys, to turn Alternate round
+        device.note_on(k, 110.0f, 0.8f);
+        render(device, 0.4f, kRate);
+        device.note_off(k);
+        device.set_param(p::kRelease, 0.05f);
+        render(device, 1.0f, kRate);
+      }
+      device.note_on(9, 110.0f, 0.8f);
+      const std::vector<float> x = mono(render(device, 0.8f, kRate));
+      *first = onset(x, 110.0);
+      *second = onset(x, fifth);
+      *fourth = onset(x, major);
+    };
+    double a, b, c;
+    strum(0, 1, &a, &b, &c);
+    std::printf("strum 300 ms up: strings 1, 2, 4 of 6 at %.0f, %.0f, %.0f ms\n", a * 1000, b * 1000, c * 1000);
+    EXPECT(a < b && b < c, "an upward strum sounds the low string first");
+    EXPECT_NEAR(b - a, 0.06, 0.015, "a 300 ms strum reaches the second of six strings after 60 ms");
+    EXPECT_NEAR(c - a, 0.18, 0.02, "and the fourth after 180 ms");
+    strum(1, 1, &a, &b, &c);
+    std::printf("strum 300 ms down: strings 1, 2, 4 of 6 at %.0f, %.0f, %.0f ms\n", a * 1000, b * 1000, c * 1000);
+    EXPECT(c < b && b < a, "a downward strum sounds the high strings first");
+    EXPECT_NEAR(a - c, 0.18, 0.02, "over the same time");
+    strum(2, 1, &a, &b, &c);
+    const bool first_up = a < c;
+    strum(2, 2, &a, &b, &c);
+    EXPECT(first_up && c < a, "Alternate strums up on one key and down on the next");
   }
 
   // CHECKS

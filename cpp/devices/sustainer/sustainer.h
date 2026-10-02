@@ -19,6 +19,11 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
   static constexpr int kMaxLongFrame = 32768;  // the long frame for the lows at 96 kHz
   static constexpr int kSlots = 6;
   static constexpr int kMaxRegions = 1400;  // peaks are at least three bins apart
+  static constexpr int kMaxLow = 96;        // partials below the crossover, from the long frame
+  static constexpr int kLobe = 9;           // bins a rebuilt partial covers
+  static constexpr int kLowBins = 320;      // bins of the long frame that are kept
+  static constexpr int kPool = kMaxHalf + 1 + kMaxLow * kLobe;
+  static constexpr int kAllRegions = kMaxRegions + kMaxLow;
 
   void init(float sample_rate) {
     using namespace sustainer;
@@ -199,18 +204,22 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
   // regions (one per spectral peak) that each turn as a rigid whole.
   enum SlotState : int { kFree = 0, kHeld, kLeaving };
   struct Slot {
-    float c_re[kMaxHalf + 1], c_im[kMaxHalf + 1];
-    uint16_t start[kMaxRegions + 1];                 // region r is bins [start[r], start[r+1])
-    float u_re[kMaxRegions], u_im[kMaxRegions];      // running phase of the region
-    float rot_re[kMaxRegions], rot_im[kMaxRegions];  // its turn per hop
-    float cent_turn[kMaxRegions];                    // cycles per hop that one cent of detune adds
-    float det_phase[kMaxRegions];                    // phase of the detuned pair, cycles
-    float part[kMaxRegions];                         // how far left and right may part (0 in the bass)
-    float drift_v[kMaxRegions], drift[kMaxRegions];  // common phase wander: velocity, phase (cycles)
-    float side_a[kMaxRegions], side[kMaxRegions];    // left/right phase difference (two-pole noise)
-    float swell_a[kMaxRegions], swell[kMaxRegions];  // slow level wander (two-pole noise)
+    // The spectrum of the caught frame, and behind it the lobes of the
+    // partials rebuilt from the long frame.
+    float c_re[kPool], c_im[kPool];
+    uint16_t start[kAllRegions + 1];                 // region r is c[start[r], start[r+1])
+    int16_t shift[kAllRegions];                      // ... and lands on bins start + shift
+    float u_re[kAllRegions], u_im[kAllRegions];      // running phase of the region
+    float rot_re[kAllRegions], rot_im[kAllRegions];  // its turn per hop
+    float cent_turn[kAllRegions];                    // cycles per hop that one cent of detune adds
+    float det_phase[kAllRegions];                    // phase of the detuned pair, cycles
+    float part[kAllRegions];                         // how far left and right may part (0 in the bass)
+    float drift_v[kAllRegions], drift[kAllRegions];  // common phase wander: velocity, phase (cycles)
+    float side_a[kAllRegions], side[kAllRegions];    // left/right phase difference (two-pole noise)
+    float swell_a[kAllRegions], swell[kAllRegions];  // slow level wander (two-pole noise)
     int regions;
     int state;
+    int serial;      // the onset count when it was caught
     bool newest;     // the layer the player's last note made
     float rise;      // 0..1 along the attack
     float fall;      // 1..0: the decay
@@ -225,6 +234,7 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     for (int s = 0; s < kSlots; ++s) {
       Slot& slot = slots_[s];
       slot.regions = 0;
+      slot.serial = 0;
       slot.state = kFree;
       slot.newest = false;
       slot.rise = 0.0f;
@@ -458,6 +468,140 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     fft_.forward(scratch_, re, im, frame_);
   }
 
+  // The transform of the Blackman window about its middle, per sample of the
+  // frame, x bins from its centre: 0.42 at 0, the main lobe out to ±3.
+  static float lobe(float x) {
+    auto sinc = [](float v) {
+      return v > -1.0e-4f && v < 1.0e-4f ? 1.0f : std::sin(kit::kPi * v) / (kit::kPi * v);
+    };
+    return 0.42f * sinc(x) + 0.25f * (sinc(x - 1.0f) + sinc(x + 1.0f)) + 0.04f * (sinc(x - 2.0f) + sinc(x + 2.0f));
+  }
+
+  // Where the lows are handed from the caught frame to the rebuilt partials:
+  // 0 below 450 Hz, 1 above 650 Hz.
+  static float crossover(float hz) {
+    const float x = kit::clamp((hz - kCrossLowHz) / (kCrossHighHz - kCrossLowHz), 0.0f, 1.0f);
+    return x * x * (3.0f - 2.0f * x);
+  }
+
+  // The long frame (four times the usual one, 341 ms at 48 kHz): the
+  // `long_frame_` samples that end `back` samples ago, under a Blackman
+  // window, and only its lowest bins.
+  void analyse_long(int back, int which) {
+    const uint32_t first = position_ + 1u - static_cast<uint32_t>(long_frame_ + back);
+    for (int n = 0; n < long_frame_; ++n) {
+      // The window is the short one stretched by four.
+      const int at = n >> 2;
+      const float a = analysis_window_[at];
+      const float b = at + 1 < frame_ ? analysis_window_[at + 1] : 0.0f;
+      const float w = a + (b - a) * 0.25f * static_cast<float>(n & 3);
+      long_scratch_[n] = input_[(first + static_cast<uint32_t>(n)) & kInputMask] * w;
+    }
+    fft_.forward(long_scratch_, long_re_[which], long_im_[which], long_frame_, kLowBins + 1);
+  }
+
+  // The second look at a layer, a third of a second after the first. A frame
+  // of 85 ms cannot tell two partials apart that are closer than 35 Hz: the
+  // notes of a low chord, or a semitone anywhere below 600 Hz, come out as
+  // one partial at the wrong pitch. The long frame can (down to 9 Hz), so
+  // once enough of the note has gone by, every partial under the crossover
+  // is measured again from two long frames a hop apart (frequency from the
+  // phase turn, level from the peak, phase from the newer frame) and rebuilt
+  // as a clean lobe of its own; the caught frame gives up its bins there.
+  // `end` is the position at which the newer long frame ended.
+  void refine(Slot& slot, uint32_t end) {
+    const float sr = sample_rate();
+    const float long_bin = sr / static_cast<float>(long_frame_);
+    const float short_bin = sr / static_cast<float>(frame_);
+    const int top = kit::clamp_int(static_cast<int>(kCrossHighHz / long_bin), 8, kLowBins - 3);
+    const float* now_re = long_re_[1];
+    const float* now_im = long_im_[1];
+    const float* last_re = long_re_[0];
+    const float* last_im = long_im_[0];
+    float strongest = 0.0f;
+    for (int k = 0; k <= top + 2; ++k) {
+      mag_[k] = std::sqrt(now_re[k] * now_re[k] + now_im[k] * now_im[k]);
+      if (mag_[k] > strongest) strongest = mag_[k];
+    }
+    // The frame that will be built next lands where the hop after it begins;
+    // the layer's phase starts one hop behind that frame's middle.
+    const uint32_t phase = position_ & static_cast<uint32_t>(hop_ - 1);
+    const uint32_t lands = position_ - phase + static_cast<uint32_t>(phase < static_cast<uint32_t>(hop_ / 8) ? hop_ : 2 * hop_);
+    const double from_middle =
+        static_cast<double>(static_cast<int32_t>(lands - end)) + 0.5 * frame_ - hop_ - 1.0 + 0.5 * long_frame_;
+    const float floor = kit::max(strongest * 1.0e-3f, 1.0e-9f);
+    int r = slot.regions;
+    int pool = half_ + 1;
+    for (int k = 2; k <= top && r < slot.regions + kMaxLow; ++k) {
+      const float m = mag_[k];
+      if (!(m > floor && m > mag_[k - 1] && m >= mag_[k + 1] && m > mag_[k - 2] && m >= mag_[k + 2])) continue;
+      float tr = 0.0f, ti = 0.0f;
+      for (int j = k - 1; j <= k + 1; ++j) {
+        tr += now_re[j] * last_re[j] + now_im[j] * last_im[j];
+        ti += now_im[j] * last_re[j] - now_re[j] * last_im[j];
+      }
+      // The frames are a hop apart, a sixteenth of the long frame.
+      float deviation = std::atan2(ti, tr) - 0.25f * kit::kHalfPi * static_cast<float>(k & 15);
+      deviation -= kit::kTwoPi * std::floor(deviation / kit::kTwoPi + 0.5f);
+      const float offset = deviation * (8.0f / kit::kPi);  // bins of the long frame
+      if (offset < -1.5f || offset > 1.5f) continue;       // not a steady partial
+      const float hz = (static_cast<float>(k) + offset) * long_bin;
+      const float weight = 1.0f - crossover(hz);
+      if (hz < 15.0f || weight < 1.0e-3f) continue;
+      // A partial of amplitude A puts A/2 × N × lobe(k - b) into bin k, with
+      // its phase at the middle of the frame and a sign that alternates.
+      const float amplitude = 2.0f * m / (static_cast<float>(long_frame_) * lobe(-offset));
+      double turns = std::atan2(now_im[k], now_re[k]) / (2.0 * 3.14159265358979323846) + ((k & 1) ? 0.5 : 0.0);
+      turns += static_cast<double>(hz) * from_middle / sr;
+      turns -= std::floor(turns);
+      const float pr = kit::SineTable::cos_lookup(static_cast<float>(turns));
+      const float pi = kit::SineTable::lookup(static_cast<float>(turns));
+      const float position = hz / short_bin;
+      const int nearest = static_cast<int>(position + 0.5f);
+      const float scale = 0.5f * amplitude * weight * static_cast<float>(frame_);
+      for (int j = 0; j < kLobe; ++j) {
+        const int bin = nearest - kLobe / 2 + j;
+        const float value = bin < 1 ? 0.0f : scale * lobe(static_cast<float>(bin) - position) * ((bin & 1) ? -1.0f : 1.0f);
+        slot.c_re[pool + j] = value * pr;
+        slot.c_im[pool + j] = value * pi;
+      }
+      slot.start[r] = static_cast<uint16_t>(pool);
+      slot.shift[r] = static_cast<int16_t>(nearest - kLobe / 2 - pool);
+      start_region(slot, r, kit::kTwoPi * hz * hop_seconds_, hz);
+      pool += kLobe;
+      ++r;
+    }
+    slot.start[r] = static_cast<uint16_t>(pool);
+    slot.regions = r;
+    for (int k = 0; k <= half_; ++k) {
+      const float hz = static_cast<float>(k) * short_bin;
+      if (hz >= kCrossHighHz) break;
+      const float keep = crossover(hz);
+      slot.c_re[k] *= keep;
+      slot.c_im[k] *= keep;
+    }
+  }
+
+  // A region begins: its turn per hop (radians), its frequency, and its
+  // motion at rest.
+  void start_region(Slot& slot, int r, float angle, float hz) {
+    slot.rot_re[r] = std::cos(angle);
+    slot.rot_im[r] = std::sin(angle);
+    slot.u_re[r] = 1.0f;
+    slot.u_im[r] = 0.0f;
+    slot.cent_turn[r] = hz * 0.00057779f * hop_seconds_;
+    slot.det_phase[r] = slot.rng.uniform();
+    // Left and right stay together below 150 Hz and part freely above 400 Hz.
+    const float x = kit::clamp(std::log2(kit::max(hz, 1.0f) / 150.0f) / 1.415f, 0.0f, 1.0f);
+    slot.part[r] = x * x * (3.0f - 2.0f * x);
+    slot.drift_v[r] = 0.0f;
+    slot.drift[r] = 0.0f;
+    slot.side_a[r] = 0.0f;
+    slot.side[r] = 0.0f;
+    slot.swell_a[r] = 0.0f;
+    slot.swell[r] = 0.0f;
+  }
+
   // Catch what is sounding now into `slot`, from two frames half a hop apart:
   // the one that ends now and the one before it.
   //
@@ -531,24 +675,11 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
         deviation -= kit::kTwoPi * std::floor(deviation / kit::kTwoPi + 0.5f);
       }
       const float angle = 2.0f * (centre_angle + deviation);  // per hop
-      slot.rot_re[r] = std::cos(angle);
-      slot.rot_im[r] = std::sin(angle);
-      slot.u_re[r] = 1.0f;
-      slot.u_im[r] = 0.0f;
       // Half a hop is an eighth of the frame, so a full turn of deviation is
       // eight bins.
       const float hz = kit::max(0.0f, (static_cast<float>(p) + deviation * (4.0f / kit::kPi)) * bin_hz);
-      slot.cent_turn[r] = hz * 0.00057779f * hop_seconds_;
-      slot.det_phase[r] = slot.rng.uniform();
-      // Left and right stay together below 150 Hz and part freely above 400 Hz.
-      const float x = kit::clamp(std::log2(kit::max(hz, 1.0f) / 150.0f) / 1.415f, 0.0f, 1.0f);
-      slot.part[r] = x * x * (3.0f - 2.0f * x);
-      slot.drift_v[r] = 0.0f;
-      slot.drift[r] = 0.0f;
-      slot.side_a[r] = 0.0f;
-      slot.side[r] = 0.0f;
-      slot.swell_a[r] = 0.0f;
-      slot.swell[r] = 0.0f;
+      slot.shift[r] = 0;
+      start_region(slot, r, angle, hz);
     }
     double sum = 0.0;
     for (int k = 0; k <= half_; ++k) sum += static_cast<double>(mag_[k]) * mag_[k];
@@ -671,9 +802,11 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
           w_im[c] = tr * o + ti * even;
         }
         const int end = slot.start[r + 1];
-        for (int k = slot.start[r]; k < end; ++k) {
-          const float cr = slot.c_re[k];
-          const float ci = slot.c_im[k];
+        const int shift = slot.shift[r];
+        for (int i = slot.start[r]; i < end; ++i) {
+          const float cr = slot.c_re[i];
+          const float ci = slot.c_im[i];
+          const int k = i + shift;
           acc_re_[0][k] += cr * w_re[0] - ci * w_im[0];
           acc_im_[0][k] += cr * w_im[0] + ci * w_re[0];
           acc_re_[1][k] += cr * w_re[1] - ci * w_im[1];

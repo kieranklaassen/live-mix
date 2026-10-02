@@ -45,8 +45,9 @@
 //   Loss × (1 - Stereo) says. High Cut is a cut on the wet signal.
 // - Packets are 21 ms whatever the frame. Dropouts and Stutter set the share
 //   of packets that are lost (silence) or stuck (the last good packet is
-//   replayed, half a decibel quieter each time); Burst sets how long an
-//   event lasts (20 ms to half a second).
+//   replayed, half a decibel quieter each time, under a low-pass that closes
+//   from 20 kHz at 14 octaves a second, so a long hold dulls from a buzz to
+//   a hum); Burst sets how long an event lasts (20 ms to half a second).
 //
 // A change of Frame starts a second engine at the new size and crossfades to
 // it once its output is whole, so the latency stays 4096 samples (the Long
@@ -224,7 +225,7 @@ class LowBitrate : public kit::DeviceBase<low_bitrate::kNumParams> {
   // stuck, so a short stutter keeps its edge and a long one dulls to a hum.
   static constexpr float kStuckOpenHz = 20000.0f;
   static constexpr float kStuckFloorHz = 400.0f;
-  static constexpr float kStuckOctavesPerSecond = 10.0f;
+  static constexpr float kStuckOctavesPerSecond = 14.0f;
   static constexpr float kDropFadeSeconds = 0.008f;
   static constexpr float kMaxSmearSeconds = 30.0f;  // RT60 of a held bin = 30 s × Smear³
   static constexpr float kSmearFrozen = 0.999f;     // from here up nothing fades
@@ -518,7 +519,8 @@ class LowBitrate : public kit::DeviceBase<low_bitrate::kNumParams> {
 
   // A lost packet is silence (faded over 8 ms where a frame is shorter than
   // that); a stuck stream replays the last packet that arrived, a little
-  // quieter each time round.
+  // quieter and a little duller each time round. Each join of the loop is
+  // already a crossfade: the frames' own overlap.
   void packets(Engine& engine, int n) {
     const Layout& layout = layout_[engine.frame];
     const int offset = static_cast<int>(position_ & static_cast<uint32_t>(packet_size_ - 1));

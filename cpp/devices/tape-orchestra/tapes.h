@@ -82,7 +82,7 @@ constexpr TapeDef kTapes[kNumTapes] = {
    900.0f, 3.0f, 9000.0f, 8.0f, 0.5f, 0.75f},
   // Flutes: breath that follows the tone, a chiff, vibrato that is mostly level.
   {3, 0.05f, 0.25f, 0.2f, 9.0f, 5.3f, 0.22f, 2.5f, -25.0f, 13.0f, 0.05f, 900.0f, 2.2f,
-   1200.0f, 2.0f, 9000.0f, 6.0f, 2.0f, 0.24f},
+   1200.0f, 2.0f, 9000.0f, 6.0f, 1.3f, 0.24f},
   // Horns: a slow rounded attack that opens as it swells, hardly any vibrato.
   {4, 0.11f, 0.9f, 0.45f, 5.0f, 5.0f, 0.03f, 3.0f, -41.0f, 12.0f, 0.06f, 500.0f, 1.0f,
    100.0f, 0.8f, 2400.0f, 5.0f, 1.2f, 0.24f},

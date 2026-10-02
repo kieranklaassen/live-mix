@@ -70,6 +70,8 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
     dampen_hz_.set_time(0.02f, control_rate);
     low_cut_hz_.set_time(0.02f, control_rate);
     drag_ = 0.0f;
+    fill_ = 0.0f;
+    fill_coeff_ = kit::time_to_coeff(kFillSeconds, sr);
 
     wander_drift_.seed(0x3C6EF372u);
     wander_drift_.set_rate(kWanderHz, sr);
@@ -130,6 +132,8 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
   static constexpr float kWanderOctaves = 0.6f;
   static constexpr float kBassMonoHz = 160.0f;
   static constexpr float kWetGain = 1.0f;
+  static constexpr float kFullLevel = 0.3f;        // RMS in the line where the return starts to give
+  static constexpr float kFillSeconds = 0.25f;
   // Drag positions with Steps on, in octaves of time: 1/2, 2/3, 3/4, 1, 4/3,
   // 3/2 and 2 times Length.
   static constexpr float kStepOctaves[kSteps] = {-1.0f,     -0.5849625f, -0.4150375f, 0.0f,
@@ -205,7 +209,7 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
   }
   static float glide(kit::Smoother& s) { return s.value == s.target ? s.value : s.next(); }
 
-  // Exact to ±1, landing on ±2: the ceiling on the swarm at the output.
+  // Exact to ±1, landing on ±2: the ceiling on the return and on the swarm.
   static float limit(float x) { return 2.0f * kit::soft_clip(0.5f * x); }
 
   void render(int i) {
@@ -233,10 +237,17 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
     // The return: a quarter-turn rotation between the sides, then the limiter.
     const float turned[2] = {(back[0] + back[1]) * kit::kSqrtHalf,
                              (back[1] - back[0]) * kit::kSqrtHalf};
+    // What holds the loop when Reflect is past 1: the return is turned down
+    // as the cave fills (half the excess, in dB, over kFullLevel). It rides
+    // the level slowly instead of clipping the waveform, so a chord left to
+    // regenerate stays a chord and does not collapse onto its loudest note.
+    // The limiter after it only catches peaks.
+    const float power = 0.5f * (back[0] * back[0] + back[1] * back[1]);
+    fill_ = flush_denormal(power + (fill_ - power) * fill_coeff_);
+    float hold = reflect;
+    if (fill_ > kFullLevel * kFullLevel) hold *= std::sqrt(kFullLevel / std::sqrt(fill_));
     for (int c = 0; c < 2; ++c) {
-      // The return is exact to ±0.5 and lands on ±1: what holds the loop
-      // when Reflect is past 1.
-      float x = in[c] + kit::soft_clip(reflect * turned[c]);
+      float x = in[c] + limit(hold * turned[c]);
       x = low_cut_[c].highpass(dampen_[c].lowpass(x));
       for (int a = 0; a < kStages; ++a) {
         const float delayed = read_at(allpass_[c][a], stage_[c][a].next());
@@ -444,6 +455,8 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
   kit::Smoother reflect_, diffuse_, dry_, wet_, width_, level_;
   kit::Smoother length_, depth_, wander_, dampen_hz_, low_cut_hz_;
   float drag_ = 0.0f;  // where Drag is now, in octaves of time
+  float fill_ = 0.0f;  // mean square at the end of the lines
+  float fill_coeff_ = 0.0f;
   kit::Drift wander_drift_;
   kit::Rng step_rng_;
   int step_offset_ = 0;

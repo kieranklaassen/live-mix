@@ -78,9 +78,9 @@ struct Birds {
         n = draw_int(rng, 3, 6);
         for (int i = 0; i < n; ++i) {
           Syllable& s = b.motif[i];
-          s.f0 = between_log(rng, 1900.0f, 3400.0f);
-          s.fm = s.f0 * octaves(rng, 0.22f);
-          s.f1 = s.fm * octaves(rng, 0.16f);
+          s.f0 = between_log(rng, 2000.0f, 3500.0f);
+          s.fm = s.f0 * octaves(rng, 0.18f);
+          s.f1 = s.fm * octaves(rng, 0.12f);
           s.seconds = between(rng, 0.11f, 0.28f);
           s.gap = between(rng, 0.02f, 0.10f);
           s.edge = between(rng, 0.2f, 0.4f);

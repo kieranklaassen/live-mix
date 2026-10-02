@@ -44,7 +44,7 @@
       "min": 0,
       "max": 1,
       "default": 0,
-      "description": "How often the stream sticks. A stuck packet repeats as a short buzzing loop that fades until the stream catches up."
+      "description": "How often the stream sticks. A stuck packet repeats as a short buzzing loop that dulls to a hum and fades until the stream catches up."
     },
     {
       "key": "burst",

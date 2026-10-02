@@ -51,10 +51,10 @@ inline const Circuit& circuit(int index) {
       // saturate first and come back duller; quiet ones pass. A slow, slight
       // sag is the compression.
       {Curve(1.0, 1.0, 1.3, 0.0, 1.0, 0.0, 1.0),
-       0.06f, 0.10f, 0.0f, 1.0f, 0.2f, 0.012f, 0.14f,
+       0.05f, 0.08f, 0.0f, 1.0f, 0.2f, 0.012f, 0.14f,
        {{Eq::kHighShelf, 3200.0f, 8.0f, 0.0f}, {Eq::kNone, 0.0f, 0.0f, 0.0f}},
        {{Eq::kHighShelf, 3200.0f, -10.0f, 0.0f},
-        {Eq::kLowShelf, 110.0f, 1.5f, 0.0f},
+        {Eq::kLowShelf, 180.0f, 2.0f, 0.0f},
         {Eq::kNone, 0.0f, 0.0f, 0.0f}}},
       // Console: a firm, nearly symmetric knee (odd harmonics), reached
       // first by the upper mids, with some of that lift and a little air
@@ -79,7 +79,7 @@ inline const Circuit& circuit(int index) {
       // working point that sits off centre and moves further as the level
       // rises: second harmonic first, growing gradually.
       {Curve(1.0, 0.7, 1.6, 0.0, 1.0, 0.0, 1.0),
-       0.1f, 0.15f, 1.2f, 1.5f, 0.0f, 0.02f, 0.2f,
+       0.14f, 0.15f, 1.2f, 1.5f, 0.0f, 0.02f, 0.2f,
        {{Eq::kLowShelf, 150.0f, 2.0f, 0.0f}, {Eq::kNone, 0.0f, 0.0f, 0.0f}},
        {{Eq::kLowShelf, 150.0f, -0.7f, 0.0f},
         {Eq::kHighShelf, 8000.0f, -0.3f, 0.0f},
