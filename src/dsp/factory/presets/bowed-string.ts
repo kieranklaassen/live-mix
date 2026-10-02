@@ -2,11 +2,11 @@ import { type FactoryPreset } from '../types'
 
 export const BOWED_STRING_PRESETS: readonly FactoryPreset[] = [
   {
-    id: 'ebow-octave-line',
-    name: 'Ebow at the octave',
+    id: 'sustained-octave-line',
+    name: 'Sustainer at the octave',
     category: 'string',
     description:
-      'A guitar string held by an ebow pressed hard, so each note blooms and tips into its octave.',
+      'A guitar string held by a magnetic sustainer pressed hard, so each note blooms and tips into its octave.',
     instrument: { deviceId: 'bowed-string', preset: 'Octave feedback', params: { volume: -5 } },
     effects: [
       { deviceId: 'tape-echo', preset: 'Space echo', params: { mix: 0.25 } },

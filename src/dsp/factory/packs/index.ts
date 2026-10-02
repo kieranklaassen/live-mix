@@ -24,6 +24,13 @@ export const FACTORY_PACKS: readonly FactoryPack[] = [
     count: FACTORY_PACK_SIZE,
   },
   {
+    id: 'slow-brass',
+    name: 'Austin Slow Brass',
+    description:
+      'Horns and strings that take half a minute to arrive and longer to leave, made by two patient people with guitars: no beat, no hurry, one chord.',
+    count: FACTORY_PACK_SIZE,
+  },
+  {
     id: 'oxide',
     name: 'Shedding Oxide',
     description:
@@ -42,6 +49,13 @@ export const FACTORY_PACKS: readonly FactoryPack[] = [
     name: 'Cornish Lucid Dreams',
     description:
       'Pads and bells remembered from sleep on the far south-west coast of England: soft, dark, a little out of tune and oddly moving.',
+    count: FACTORY_PACK_SIZE,
+  },
+  {
+    id: 'static-cathedral',
+    name: 'Static Cathedral',
+    description:
+      'Organ, piano and guitar pushed through broken digital gear until the church fills with warm static. Loud things made distant.',
     count: FACTORY_PACK_SIZE,
   },
   {
@@ -87,6 +101,13 @@ export const FACTORY_PACKS: readonly FactoryPack[] = [
     count: FACTORY_PACK_SIZE,
   },
   {
+    id: 'forest-pulse',
+    name: 'Pulse under the Forest',
+    description:
+      "Old orchestral strings looped and blurred into fog between the trees near Cologne, with a kick drum's heartbeat somewhere far below.",
+    count: FACTORY_PACK_SIZE,
+  },
+  {
     id: 'far-north',
     name: 'Far North Bowed Guitar',
     description:
@@ -126,6 +147,41 @@ export const FACTORY_PACKS: readonly FactoryPack[] = [
     name: 'Ashram Harp and Organ',
     description:
       'Harp glissandi, a swirling organ, a drone of strings and tanpura: spiritual jazz that left the clubs for an ashram in California.',
+    count: FACTORY_PACK_SIZE,
+  },
+  {
+    id: 'sequencer-1974',
+    name: 'Berlin Sequencer, 1974',
+    description:
+      'A bass sequence running through the night under tape-replay flutes and choirs, phased strings and an organ, in West Berlin in the mid seventies.',
+    count: FACTORY_PACK_SIZE,
+  },
+  {
+    id: 'neon-rain',
+    name: 'Neon Rain, 2019',
+    description:
+      'Brass swells from a huge polysynth, electric piano through chorus and a digital hall the size of a city: Los Angeles in the rain, as 1982 imagined it.',
+    count: FACTORY_PACK_SIZE,
+  },
+  {
+    id: 'six-squared',
+    name: 'Six Squared',
+    description:
+      'Short sad synth loops layered until they glow, pressed hard into hiss and left in a long dark reverb: night music from England with rave in its memory.',
+    count: FACTORY_PACK_SIZE,
+  },
+  {
+    id: 'reel-room',
+    name: 'Indiana Reel Room',
+    description:
+      'Slow orchestral swells run through tape until they blur, over a drone low enough to feel: steep darkness, hiss and fades that take minutes.',
+    count: FACTORY_PACK_SIZE,
+  },
+  {
+    id: 'stairwell-choir',
+    name: 'Stairwell Choir of One',
+    description:
+      'One voice sung into a looper again and again until it is a choir, in the kind of reverb a stairwell or a church gives you for nothing.',
     count: FACTORY_PACK_SIZE,
   },
 ]
