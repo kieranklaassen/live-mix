@@ -117,6 +117,7 @@ struct Stage {
   float buffer[kStageSize] = {};
   int write = 0;
   float length = 8.0f;
+  float rest = 8.0f;  // the length without the Modulation sweep
   int whole = 7;
   float eta = 0.0f;
   float eta_step = 0.0f;
@@ -129,6 +130,7 @@ struct Stage {
     for (int i = 0; i < kStageSize; ++i) buffer[i] = 0.0f;
     write = 0;
     length = 8.0f;
+    rest = 8.0f;
     whole = 7;
     eta = eta_step = state = 0.0f;
   }
@@ -324,6 +326,9 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
   static constexpr float kStageShare[2][kStages] = {{0.137f, 0.163f, 0.191f, 0.227f, 0.282f},
                                                     {0.143f, 0.157f, 0.199f, 0.221f, 0.280f}};
   static constexpr float kDiffusion = 0.66f;
+  // The most an allpass's resting length moves in one control period, in
+  // samples: 0.25 % of the period, 4 cents of pitch for each stage.
+  static constexpr float kDriftSamples = 0.08f;
   // Peak sweep of an allpass length at Modulation 1.
   static constexpr float kSweepSeconds = 0.0005f;
   static constexpr float kTailShortest = 0.0431f;
@@ -487,10 +492,20 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
         if (stage.phase >= 1.0f) stage.phase -= 1.0f;
         // Whole samples at rest, so an unmodulated stage is exact.
         const float base = std::floor(stage.share * smear + 0.5f);
+        // A new length is approached slowly: a moving allpass bends the pitch
+        // of what is in it, and at full speed a turn of Density or Time
+        // dipped the whole wash by two semitones for half a second. At this
+        // rate the five stages together stay within a fifth of a semitone.
+        const float gap = base - stage.rest;
+        if (!started_ || (gap <= kDriftSamples && gap >= -kDriftSamples)) {
+          stage.rest = base;
+        } else {
+          stage.rest += gap > 0.0f ? kDriftSamples : -kDriftSamples;
+        }
         // A short stage sweeps less, so the pitch change stays even.
-        const float sweep = kit::min(depth, 0.2f * base);
+        const float sweep = kit::min(depth, 0.2f * stage.rest);
         const float wanted =
-            kit::clamp(base + sweep * kit::SineTable::lookup(stage.phase), 3.0f, longest);
+            kit::clamp(stage.rest + sweep * kit::SineTable::lookup(stage.phase), 3.0f, longest);
         stage.aim(wanted, !started_);
       }
     }

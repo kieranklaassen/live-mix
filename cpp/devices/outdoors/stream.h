@@ -19,10 +19,10 @@ struct Stream {
   static constexpr float kGain = 0.42f;
   static constexpr float kRush = 0.5f;
   // Where each place sheds: bubble pitch (Hz), spread (octaves), pan, share of the flow.
-  static constexpr float kCentre[kSites] = {650.0f, 1250.0f, 2300.0f, 4000.0f};
+  static constexpr float kCentre[kSites] = {600.0f, 1300.0f, 2500.0f, 4500.0f};
   static constexpr float kSpread[kSites] = {0.45f, 0.55f, 0.6f, 0.65f};
   static constexpr float kPan[kSites] = {0.25f, -0.6f, 0.7f, -0.2f};
-  static constexpr float kShare[kSites] = {0.08f, 0.2f, 0.32f, 0.4f};
+  static constexpr float kShare[kSites] = {0.05f, 0.15f, 0.32f, 0.48f};
 
   struct Bubble {
     Ringer osc;
@@ -114,9 +114,10 @@ struct Stream {
     // (Held short of where the oscillator would stop being one.)
     const float room = kit::max(0.0f, 1.9f / b.osc.eps - 1.0f) * 0.2f;
     b.rise = b.osc.eps * kit::min(between(rng, 0.0f, 0.14f), room) * per_sample;
-    // Bigger is louder; most start shallow and weak, a few deep and strong.
+    // Most start shallow and weak, a few deep and strong. (A big bubble is
+    // already the louder for ringing ten times as long as a small one.)
     const float depth = rng.uniform();
-    const float strength = (0.12f + 0.88f * depth * depth) * kit::min(2.0f, std::pow(1000.0f / hz, 0.35f));
+    const float strength = 0.12f + 0.88f * depth * depth;
     b.osc.x = 0.0f;
     b.osc.y = -level * strength;
     // It sounds until it is 48 dB under the loudest a bubble can be.

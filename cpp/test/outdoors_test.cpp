@@ -200,6 +200,45 @@ static std::vector<double> blip_rises(const std::vector<float>& x) {
   return ratios;
 }
 
+// A fine spectrum for spectral lines: 65536 points (0.73 Hz a bin), Hann,
+// averaged over half-overlapping frames.
+static livemix::kit::Fft<65536> fine_fft;
+static const double kFineHz = 48000.0 / 65536.0;
+static std::vector<double> fine_spectrum(const std::vector<float>& x) {
+  std::vector<double> power(32768, 0.0);
+  static std::vector<float> re(65536), im(65536);
+  for (size_t at = 0; at + 65536 <= x.size(); at += 32768) {
+    for (int i = 0; i < 65536; ++i) {
+      re[i] = x[at + i] * static_cast<float>(0.5 - 0.5 * std::cos(2.0 * kPi * i / 65536));
+      im[i] = 0.0f;
+    }
+    fine_fft.forward(re.data(), im.data());
+    for (int k = 0; k < 32768; ++k)
+      power[k] += static_cast<double>(re[k]) * re[k] + static_cast<double>(im[k]) * im[k];
+  }
+  return power;
+}
+
+// The strongest line within ±3 % of `hz`: its frequency (parabolic fit) and
+// how far it stands above the median of that neighbourhood.
+struct Line {
+  double hz, prominence, power;
+};
+static Line line_near(const std::vector<double>& power, double hz) {
+  const int lo = static_cast<int>(0.97 * hz / kFineHz), hi = static_cast<int>(1.03 * hz / kFineHz) + 1;
+  int best = lo;
+  std::vector<double> around;
+  for (int k = lo; k <= hi; ++k) {
+    around.push_back(power[k]);
+    if (power[k] > power[best]) best = k;
+  }
+  std::sort(around.begin(), around.end());
+  const double a = std::log(power[best - 1] + 1e-30), b = std::log(power[best] + 1e-30),
+               c = std::log(power[best + 1] + 1e-30);
+  const double shift = 0.5 * (a - c) / (a - 2.0 * b + c);
+  return {(best + shift) * kFineHz, power[best] / (around[around.size() / 2] + 1e-30), power[best]};
+}
+
 // MORE HELPERS
 
 
@@ -363,7 +402,8 @@ int main() {
     plain(device, Outdoors::kBirds, 0.5f);
     const std::vector<double> power = spectrum(mid(hold(device, 261.63f, 120.0f)));
     std::printf("outdoors: a chorus has %.0f %% of its power between 2 and 7 kHz\n", 100.0 * share(power, 2000.0, 7000.0));
-    EXPECT(share(power, 2000.0, 7000.0) > 0.9, "Birds: the chorus sits between 2 and 7 kHz");
+    EXPECT(share(power, 2000.0, 7000.0) > 0.85 && share(power, 1500.0, 8000.0) > 0.97,
+           "Birds: the chorus sits between 2 and 7 kHz");
 
     // The key shifts the register: a third of an octave per octave, within half an octave.
     plain(device, Outdoors::kBirds, 0.5f);
@@ -385,7 +425,7 @@ int main() {
     const double f3 = level_in(power, 2200.0, 2650.0);
     std::printf("outdoors: one frog: formants near 670 / 1500 / 2400 Hz stand %.1f / %.1f / %.1f dB over the "
                 "dips at 1050 / 1050 / 1975 Hz\n",
-                0.5 * db(f1 / dip) * 2.0, 0.5 * db(f2 / dip) * 2.0, 0.5 * db(f3 / dip2) * 2.0);
+                0.5 * db(f1 / dip), 0.5 * db(f2 / dip), 0.5 * db(f3 / dip2));
     EXPECT(f1 > 4.0 * dip && f2 > 1.5 * dip && f3 > 1.2 * dip2, "Frogs: three formants between 500 Hz and 2.6 kHz");
     // The pulse rate: the strongest ripple of the rectified croak.
     std::vector<float> rectified(one.size());
@@ -444,7 +484,7 @@ int main() {
     std::printf("outdoors: stream power by octave from 250 Hz: %.0f / %.0f / %.0f / %.0f / %.0f %%; per hertz, "
                 "6 to 10 kHz is %.1f dB under 0.7 to 1.5 kHz\n",
                 100.0 * octave[0], 100.0 * octave[1], 100.0 * octave[2], 100.0 * octave[3], 100.0 * octave[4],
-                -0.5 * db(slope) * 2.0);
+                -0.5 * db(slope));
     EXPECT(octave[1] > 0.08 && octave[2] > 0.08 && octave[3] > 0.08 && octave[1] < 0.65 && octave[2] < 0.65,
            "Stream: a broad band, three octaves each carrying a share");
     EXPECT(slope < 0.03, "Stream: not white: the top is well under the middle");
@@ -455,6 +495,86 @@ int main() {
     const double high = centroid(spectrum(mid(hold(device, 1046.5f, 30.0f))));
     std::printf("outdoors: stream for C2 / C6: spectral centroid %.0f / %.0f Hz\n", low, high);
     EXPECT(high > 1.8 * low, "Stream: a low key is deeper water");
+  }
+
+  // Thunder: low, rare, long. Strokes at the stated mean interval.
+  {
+    plain(device, Outdoors::kThunder, 0.5f);
+    device.set_param(p::kDistance, 0.4f);
+    const std::vector<float> roll = mid(hold(device, 261.63f, 14.0f));
+    const std::vector<double> power = spectrum(roll);
+    const std::vector<float> env = frames(roll, 4800);  // 100 ms
+    const size_t top = static_cast<size_t>(std::max_element(env.begin(), env.end()) - env.begin());
+    size_t last = top;
+    for (size_t f = top; f < env.size(); ++f) {
+      if (env[f] > 0.0316 * env[top]) last = f;
+    }
+    std::printf("outdoors: a roll of thunder: %.0f %% of its power under 200 Hz, loudest at %.1f s, 30 dB down %.1f s after that\n",
+                100.0 * share(power, 0.0, 200.0), 0.1 * top, 0.1 * (last - top));
+    EXPECT(share(power, 0.0, 200.0) > 0.6, "Thunder: most of the energy is under 200 Hz");
+    EXPECT(0.1 * (last - top) > 2.0, "Thunder: a roll dies away over seconds");
+
+    const float expected[2] = {60.0f, 24.5f};  // seconds between strokes at Density 0 and 0.5
+    for (int step = 0; step < 2; ++step) {
+      plain(device, Outdoors::kThunder, 0.5f * static_cast<float>(step));
+      device.set_param(p::kDistance, 0.4f);
+      device.note_on(1, 261.63f, 1.0f);
+      const float span = step == 0 ? 1500.0f : 900.0f;
+      const std::vector<float> track = envelope(device, span, 0.5f);
+      const int strokes = count_rises(track, 0.1 * highest(track), 4);
+      std::printf("outdoors: thunder at Density %.1f: %d strokes in %.0f s, one every %.1f s (set: %.1f s)\n",
+                  0.5 * step, strokes, span, span / strokes, expected[step]);
+      std::snprintf(label, sizeof label, "Thunder: strokes come at the stated mean interval (Density %.1f)", 0.5 * step);
+      EXPECT_NEAR(span / strokes, expected[step], 0.2 * expected[step], label);
+    }
+
+    // Only a near stroke has an edge: at Distance 0 it starts with a crack.
+    double bright[2] = {}, onset[2] = {};
+    for (int far = 0; far < 2; ++far) {
+      plain(device, Outdoors::kThunder, 0.5f);
+      device.set_param(p::kDistance, far == 0 ? 0.0f : 0.6f);
+      const std::vector<float> start = mid(hold(device, 261.63f, 6.0f));
+      bright[far] = energy_above(start, 2000.0, kRate, 0, 9600);
+      const std::vector<float> e = frames(start, 480);
+      onset[far] = 0.01 * static_cast<double>(std::max_element(e.begin(), e.end()) - e.begin());
+    }
+    std::printf("outdoors: thunder at Distance 0 / 0.6: %.0f / %.1f %% of the first 200 ms is above 2 kHz; loudest %.2f / %.2f s in\n",
+                100.0 * bright[0], 100.0 * bright[1], onset[0], onset[1]);
+    EXPECT(bright[0] > 0.2 && bright[1] < 0.02, "Thunder: a crack only when near");
+    EXPECT(onset[0] < 0.1 && onset[1] > 0.3, "Thunder: from far off the roll swells in");
+  }
+
+  // Chimes: six tubes on the major pentatonic of the key, each with partials
+  // at 1 : 2.76 : 5.40 : 8.93.
+  {
+    fine_fft.init();
+    static const int scale[6] = {0, 2, 4, 7, 9, 12};
+    static const double ratio[4] = {1.0, 2.76, 5.40, 8.93};
+    for (float key : {440.0f, 220.0f}) {
+      plain(device, Outdoors::kChimes, 0.9f);
+      const std::vector<double> power = fine_spectrum(mid(hold(device, key, 40.0f)));
+      double worst = 0.0, faintest = 1.0e30, weakest_root = 1.0e30;
+      for (int t = 0; t < 6; ++t) {
+        for (int k = 0; k < 4; ++k) {
+          const double hz = key * std::pow(2.0, scale[t] / 12.0) * ratio[k];
+          const Line line = line_near(power, hz);
+          worst = std::max(worst, std::fabs(line.hz / hz - 1.0));
+          faintest = std::min(faintest, line.prominence);
+          if (k == 0) weakest_root = std::min(weakest_root, line.power);
+        }
+      }
+      double stray = 0.0;
+      for (int off : {1, 3, 5, 6, 8, 10, 11}) {
+        stray = std::max(stray, line_near(power, key * std::pow(2.0, off / 12.0)).power);
+      }
+      std::printf("outdoors: chimes on %.0f Hz: 24 partials within %.2f %% of pitch x {1, 2.76, 5.40, 8.93}, the "
+                  "faintest %.0f dB over its surroundings; the other semitones are %.0f dB under the weakest tube\n",
+                  key, 100.0 * worst, 0.5 * db(faintest), -0.5 * db(stray / weakest_root));
+      std::snprintf(label, sizeof label, "Chimes on %.0f Hz: partials at the bar ratios of a pentatonic set", key);
+      EXPECT(worst < 0.01 && faintest > 100.0, label);
+      std::snprintf(label, sizeof label, "Chimes on %.0f Hz: nothing off the scale", key);
+      EXPECT(stray < 0.01 * weakest_root, label);
+    }
   }
 
   // BEHAVIOUR

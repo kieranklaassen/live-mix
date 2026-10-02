@@ -329,8 +329,8 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     *right = *right * out_gain + next[1] * in_gain;
   }
 
-  // The same loop, both channels summed and read more cheaply: what the
-  // side signal is made from.
+  // The same loop with both channels summed before the interpolation: what
+  // the side signal is made from.
   float source_sum(const Deck& d, double position) const {
     if (d.blur < 0.01f) return d.stored ? store_.read_sum(position) : ring_.read_sum(position);
     if (d.stored) {

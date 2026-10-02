@@ -141,6 +141,9 @@ int main() {
     std::printf("micro-looper: Listen differs from the dry path by %.3g\n",
                 worst_difference(listen.left, input, dry_gain));
     EXPECT(worst_difference(listen.left, input, dry_gain) < 1.0e-6, "Listen passes only the dry signal");
+    render(device, 0.2f, kRate);
+    Stereo rest = render(device, 0.2f, kRate);
+    EXPECT(peak(rest.left) == 0.0 && peak(rest.right) == 0.0, "Listen sleeps as soon as the input stops");
     for (int state : {kListen, kHold, kAuto}) {
       device.init(kRate);
       device.set_param(p::kState, static_cast<float>(state));

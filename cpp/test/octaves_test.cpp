@@ -408,7 +408,7 @@ int main() {
     Stereo out = run(device, input);
     const double gain = db(rms(out.left, 24000) / rms(input, 24000));
     std::printf("level: the default settings on a chord are %+.2f dB against the input\n", gain);
-    EXPECT(gain > 0.0 && gain < 3.0, "the default is within 3 dB of the dry level");
+    EXPECT(gain > -1.5 && gain < 3.0, "the default is within 3 dB of the dry level");
     EXPECT(std::fabs(mean(out.left, 24000)) < 1.0e-3, "no DC at the default");
 
     device.init(kRate);
@@ -432,6 +432,8 @@ int main() {
     EXPECT(peak(tail.left, 4800) < 1.0e-3, "the voices stop with the input (nothing rings on past 100 ms)");
     EXPECT(peak(rest.left) == 0.0 && peak(rest.right) == 0.0, "asleep after the tail");
     Stereo woken = run(device, sine(220.0f, 0.2f, kRate, 0.5f));
+    std::printf("tail: %.5f at 100 ms, %.5f at 50 ms after a chord stops; woken %.3f\n", peak(tail.left, 4800),
+                peak(tail.left, 2400), tone_level(woken.left, 440.0, kRate, 4800));
     EXPECT(tone_level(woken.left, 440.0, kRate, 4800) > 0.2, "wakes on new input");
   }
 

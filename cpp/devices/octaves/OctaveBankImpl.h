@@ -54,6 +54,9 @@ inline void OctaveBank::init(float rate, float low_hz, float high_hz, int count)
   agree_coeff_ = 1.0f - std::exp(-4.0f * tick_seconds_ / kAgreeSeconds);
   slow_count_ = 0;
   parity_ = 0;
+  tick_peak_ = 0.0f;
+  peak_index_ = 0;
+  for (float& v : peak_ring_) v = 0.0f;
   jump_index_ = 0;
   jump_fall_ = std::exp(-tick_seconds_ / kJumpFall);
   attack_coeff_ = 0.0f;
@@ -376,6 +379,8 @@ inline void OctaveBank::process(float x, const Want& want, Frame* out) {
     }
     bus_on_[b] = on[b];
   }
+  const float size = std::fabs(x);
+  if (size > tick_peak_) tick_peak_ = size;
   float bus[kBuses];
   run_group(0, x, want, bus);
   if (call_ & 1) {
@@ -503,6 +508,19 @@ inline void OctaveBank::tick() {
   slow_count_ = (slow_count_ + 1) & 3;
   const bool slow_tick = slow_count_ == 0;
   if (slow_tick) leak_floor();
+  // Release. A narrow channel rings on after its note has stopped, for a
+  // third of a second at the bottom of the range; the input itself says
+  // when to stop. The voices may hold no more than a few times the input's
+  // own recent peak (recent: half a period of the lowest channel, so a low
+  // note's zero crossings do not count as silence).
+  peak_ring_[peak_index_] = tick_peak_;
+  peak_index_ = (peak_index_ + 1) % kPeakTicks;
+  tick_peak_ = 0.0f;
+  float recent = 0.0f, held = 0.0f;
+  for (int i = 0; i < kPeakTicks; ++i) recent = recent > peak_ring_[i] ? recent : peak_ring_[i];
+  for (int k = 0; k < bands_; ++k) held += power_[k];
+  const float allowed = kReleaseMargin * recent * recent;
+  const float release = allowed >= held ? 1.0f : std::sqrt(allowed / held);
   for (int k = 0; k < bands_; ++k) {
     const float first = yr_[0][k] * yr_[0][k] + yi_[0][k] * yi_[0][k];
     if (first < kQuiet && power_[k] < kQuiet && jump_ref_[k] < kQuiet && age_[k] > 1.0f && !live_[k]) {
@@ -731,6 +749,7 @@ inline void OctaveBank::tick() {
       const float level2 = slow_[k] * slow_[k];
       if (level2 < power_[k]) target *= std::sqrt(level2 / power_[k]);
     }
+    target *= release;
     // Too quiet to hear: the channel's voices are switched off (after one
     // ramp to zero) and run_group skips them.
     if (target * target * power_[k] < kFloor * kFloor) target = 0.0f;

@@ -169,6 +169,10 @@ class OctaveBank {
   static constexpr double kUpBeta[2] = {5.0, 4.5};
   static constexpr int kDownHalf = 2;
   static constexpr int kUpHalf[2] = {5, 3};
+  // Release: the voices may hold kReleaseMargin times the square of the
+  // input's peak over the last kPeakTicks ticks (16 ms).
+  static constexpr int kPeakTicks = 24;
+  static constexpr float kReleaseMargin = 4.0f;
   // A channel whose voices would come out under this level is switched off.
   static constexpr float kFloor = 3.0e-6f;
   // After an onset a channel's weights are worked out on every tick for
@@ -236,6 +240,9 @@ class OctaveBank {
   int call_ = 0;
   int slow_count_ = 0;
   int parity_ = 0;
+  float tick_peak_ = 0.0f;
+  float peak_ring_[kPeakTicks] = {};
+  int peak_index_ = 0;
   float tick_seconds_ = 0.0f;
   float inv_steps_[kGroups] = {};
   float agree_coeff_ = 0.0f;

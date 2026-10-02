@@ -31,6 +31,7 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     init_base(sample_rate, kParamMin, kParamMax, kParamDefault);
     const float sr = this->sample_rate();
     frame_ = sr > 64000.0f ? 8192 : 4096;
+    long_frame_ = 4 * frame_;
     half_ = frame_ / 2;
     hop_ = frame_ / 4;
     hop_seconds_ = static_cast<float>(hop_) / sr;
@@ -154,6 +155,8 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
   static constexpr float kSideCycles = 0.18f;   // Motion 1: left/right phase difference (rms)
   static constexpr float kSwellDepth = 0.3f;    // Motion 1: level wander of a partial (rms)
   static constexpr float kTiltPivotHz = 600.0f;
+  static constexpr float kCrossLowHz = 450.0f;  // the long frame takes over below here ...
+  static constexpr float kCrossHighHz = 650.0f; // ... and has no part above here
   static constexpr float kFluxAtZero = 20.0f;   // fixed part of the onset threshold at Sensitivity 0 ...
   static constexpr float kFluxAtOne = 9.0f;     // ... and at 1
   static constexpr float kFluxAdapt = 2.0f;     // plus this many times the recent average flux
@@ -220,6 +223,7 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     int regions;
     int state;
     int serial;      // the onset count when it was caught
+    float delay;     // samples by which the held sound runs behind the input
     bool newest;     // the layer the player's last note made
     float rise;      // 0..1 along the attack
     float fall;      // 1..0: the decay
@@ -235,6 +239,7 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
       Slot& slot = slots_[s];
       slot.regions = 0;
       slot.serial = 0;
+      slot.delay = 0.0f;
       slot.state = kFree;
       slot.newest = false;
       slot.rise = 0.0f;
@@ -254,6 +259,9 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     playing_ = false;
     capture_due_ = -1;
     hold_seen_ = false;
+    refine_slot_ = -1;
+    refine_stage_ = 0;
+    refine_due_ = 0;
     frame_any_ = false;
     for (int s = 0; s < kSlots; ++s) frame_gain_[s] = 0.0f;
     flux_ = 0.0f;
@@ -284,7 +292,8 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
 
   void on_sample(uint32_t phase) {
     // Eight steps to a hop (a step is 128 samples at 48 kHz): the detector
-    // on steps 0 and 4, the frame on 1, 2, 3 and 5, a capture on any other.
+    // on steps 0 and 4, the frame on 1, 2, 3 and 5, a capture on 0, 4, 6 or
+    // 7, the second look at the lows on 6 and 7.
     const uint32_t step = static_cast<uint32_t>(hop_ / 8);
     if ((phase & (step - 1u)) == 0u) {
       const uint32_t ahead = static_cast<uint32_t>(hop_) - phase;
@@ -310,12 +319,20 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
         case 5:
           finish_channel(1, ahead);
           break;
-        default:
+        case 6:
           frame_tick();
+          refine_step(0);
+          break;
+        case 7:
+          frame_tick();
+          refine_step(1);
+          break;
+        default:
           break;
       }
     }
     if (capture_due_ > 0) --capture_due_;
+    if (refine_due_ > 0) --refine_due_;
   }
 
   // log2 to about 0.005, for x > 0 (the detector's level compression): the
@@ -436,6 +453,16 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
       if (other.state == kHeld) ++held;
     }
     slot.state = kHeld;
+    slot.serial = onsets_;
+    // The first frame built from it is the caught frame one hop on.
+    slot.delay = static_cast<float>(static_cast<int32_t>(next_landing() - position_)) - static_cast<float>(hop_) +
+                 static_cast<float>(frame_) - 1.0f;
+    // Look again at the lows once a long frame of the note has gone by (in
+    // Latch at once: the moment is whatever has been sounding).
+    refine_slot_ = chosen;
+    refine_stage_ = 0;
+    const int since = static_cast<int>(since_onset_ * sample_rate());
+    refine_due_ = mode() == kModeLatch ? 0 : (long_frame_ + hop_ > since ? long_frame_ + hop_ - since : 0);
     slot.newest = true;
     slot.rise = 0.0f;
     slot.fall = 1.0f;
@@ -466,6 +493,36 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
       scratch_[n] = input_[(first + static_cast<uint32_t>(n)) & kInputMask] * analysis_window_[n];
     }
     fft_.forward(scratch_, re, im, frame_);
+  }
+
+  // Where the frame that is built next will be added to the output: the
+  // start of the hop after the one it is built in (step 1 of each hop).
+  uint32_t next_landing() const {
+    const uint32_t phase = position_ & static_cast<uint32_t>(hop_ - 1);
+    return position_ - phase + static_cast<uint32_t>(phase < static_cast<uint32_t>(hop_ / 8) ? hop_ : 2 * hop_);
+  }
+
+  // The second look comes due: the older long frame on one step, the newer
+  // one and the rebuild on the next. It is dropped when the layer has been
+  // replaced, the note has ended, or a newer note has begun since.
+  void refine_step(int stage) {
+    if (refine_slot_ < 0) return;
+    Slot& slot = slots_[refine_slot_];
+    const bool latch = mode() == kModeLatch;
+    if (slot.state != kHeld || (!latch && (slot.serial != onsets_ || !playing_))) {
+      refine_slot_ = -1;
+      return;
+    }
+    if (stage == 0) {
+      if (refine_due_ > 0) return;
+      // This frame ends a hop before the one the next step takes.
+      analyse_long(hop_ - hop_ / 8, 0);
+      refine_stage_ = 1;
+    } else if (refine_stage_ == 1) {
+      analyse_long(0, 1);
+      refine(slot, position_);
+      refine_slot_ = -1;
+    }
   }
 
   // The transform of the Blackman window about its middle, per sample of the
@@ -525,10 +582,9 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     }
     // The frame that will be built next lands where the hop after it begins;
     // the layer's phase starts one hop behind that frame's middle.
-    const uint32_t phase = position_ & static_cast<uint32_t>(hop_ - 1);
-    const uint32_t lands = position_ - phase + static_cast<uint32_t>(phase < static_cast<uint32_t>(hop_ / 8) ? hop_ : 2 * hop_);
-    const double from_middle =
-        static_cast<double>(static_cast<int32_t>(lands - end)) + 0.5 * frame_ - hop_ - 1.0 + 0.5 * long_frame_;
+    // The held sound runs `delay` samples behind the input, and so must they.
+    const double from_middle = static_cast<double>(static_cast<int32_t>(next_landing() - end)) + 0.5 * frame_ - hop_ -
+                               1.0 + 0.5 * long_frame_ - slot.delay;
     const float floor = kit::max(strongest * 1.0e-3f, 1.0e-9f);
     int r = slot.regions;
     int pool = half_ + 1;
@@ -559,14 +615,15 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
       const float position = hz / short_bin;
       const int nearest = static_cast<int>(position + 0.5f);
       const float scale = 0.5f * amplitude * weight * static_cast<float>(frame_);
+      const int lowest = nearest - kLobe / 2 < 0 ? 0 : nearest - kLobe / 2;
       for (int j = 0; j < kLobe; ++j) {
-        const int bin = nearest - kLobe / 2 + j;
+        const int bin = lowest + j;
         const float value = bin < 1 ? 0.0f : scale * lobe(static_cast<float>(bin) - position) * ((bin & 1) ? -1.0f : 1.0f);
         slot.c_re[pool + j] = value * pr;
         slot.c_im[pool + j] = value * pi;
       }
       slot.start[r] = static_cast<uint16_t>(pool);
-      slot.shift[r] = static_cast<int16_t>(nearest - kLobe / 2 - pool);
+      slot.shift[r] = static_cast<int16_t>(lowest - pool);
       start_region(slot, r, kit::kTwoPi * hz * hop_seconds_, hz);
       pool += kLobe;
       ++r;
@@ -842,6 +899,11 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
   float last_re_[kMaxHalf + 1], last_im_[kMaxHalf + 1]; // the one a hop before it
   float acc_re_[2][kMaxHalf + 1], acc_im_[2][kMaxHalf + 1];
   float scratch_[kMaxFrame];
+  float long_scratch_[kMaxLongFrame];
+  float long_re_[2][kLowBins + 1], long_im_[2][kLowBins + 1];
+  int refine_slot_ = -1;   // the layer waiting for its second look
+  int refine_stage_ = 0;
+  int refine_due_ = 0;
   float shape_tone_ = 0.0f;
   float shape_low_cut_ = 0.0f;
   float drift_a_ = 0.0f, side_a_ = 0.0f, swell_a_ = 0.0f;
@@ -874,6 +936,7 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
   float hop_seconds_ = 0.0f;
   uint32_t position_ = 0;
   int frame_ = 4096;
+  int long_frame_ = 16384;
   int half_ = 2048;
   int hop_ = 1024;
 };

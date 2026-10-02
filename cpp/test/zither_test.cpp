@@ -53,17 +53,21 @@ static double rise_ms(const std::vector<float>& x) {
   return 0.0;
 }
 
-// When the component at `hz` first reaches a third of the most it reaches, in seconds.
+// When the component at `hz` first reaches a third of the most it reaches, in
+// seconds (the window puts every onset early by the same few milliseconds).
 static double onset(const std::vector<float>& x, double hz, double rate = kRate) {
   const size_t window = at(0.06, rate), hop = at(0.002, rate);
+  // Silence in front, so a string that starts at once is timed like the others.
+  std::vector<float> padded(window, 0.0f);
+  padded.insert(padded.end(), x.begin(), x.end());
   std::vector<double> level;
   double most = 0.0;
-  for (size_t from = 0; from + window <= x.size(); from += hop) {
-    level.push_back(tone_level(x, hz, rate, from, from + window));
+  for (size_t from = 0; from + window <= padded.size(); from += hop) {
+    level.push_back(tone_level(padded, hz, rate, from, from + window));
     most = std::max(most, level.back());
   }
   for (size_t i = 0; i < level.size(); ++i) {
-    if (level[i] > most / 3.0) return static_cast<double>(i * hop + window / 2) / rate;
+    if (level[i] > most / 3.0) return (static_cast<double>(i * hop + window / 2) - static_cast<double>(window)) / rate;
   }
   return -1.0;
 }
@@ -263,7 +267,9 @@ int main() {
     EXPECT(level(open, major) < -80.0 && level(open, minor) < -80.0, "and no third");
     EXPECT(level(maj, major) > -45.0 && level(maj, minor) < level(maj, major) - 30.0, "Major has the major third");
     EXPECT(level(min, minor) > -45.0 && level(min, major) < level(min, minor) - 30.0, "Minor has the minor third");
-    EXPECT(level(maj, 440.0) > level(one, 440.0) + 10.0, "and the chord reaches two octaves up");
+    EXPECT(level(chord(5), 246.94) > -45.0 && level(chord(7), 246.94) > -45.0 && level(maj, 246.94) < -80.0,
+           "Sus 2 and Add 9 have the ninth");
+    EXPECT(level(chord(6), 293.66) > -45.0 && level(maj, 293.66) < -80.0, "Sus 4 has the fourth");
 
     // Strings 0, 1 and 3 of the six (the others share partials with them).
     auto strum = [&](int direction, int keys, double* first, double* second, double* fourth) {

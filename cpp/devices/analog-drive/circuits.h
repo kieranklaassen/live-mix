@@ -54,7 +54,7 @@ inline const Circuit& circuit(int index) {
        0.05f, 0.08f, 0.0f, 1.0f, 0.2f, 0.012f, 0.14f,
        {{Eq::kHighShelf, 3200.0f, 8.0f, 0.0f}, {Eq::kNone, 0.0f, 0.0f, 0.0f}},
        {{Eq::kHighShelf, 3200.0f, -10.0f, 0.0f},
-        {Eq::kLowShelf, 180.0f, 2.0f, 0.0f},
+        {Eq::kLowShelf, 120.0f, 1.8f, 0.0f},
         {Eq::kNone, 0.0f, 0.0f, 0.0f}}},
       // Console: a firm, nearly symmetric knee (odd harmonics), reached
       // first by the upper mids, with some of that lift and a little air

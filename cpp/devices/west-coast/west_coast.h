@@ -30,6 +30,7 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
     rate2_ = 2.0f * sr;
     inverse_rate2_ = 1.0f / rate2_;
     dc_coeff_ = 1.0f - kit::time_to_coeff(1.0f / (kit::kTwoPi * kDcBlockHz), rate2_);
+    kit::SineTable::init();  // for kit::Drift
     curve_.init();
     build_tables();
     pool_.reset();
