@@ -24,6 +24,8 @@ build_generated_devices() {
     cpp/devices/stereo-widener/StereoWidener.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device bowed-string \
     cpp/devices/bowed-string/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device chamber-strings \
+    cpp/devices/chamber-strings/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device choir \
     cpp/devices/choir/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device chord-harp \
@@ -58,6 +60,8 @@ build_generated_devices() {
     cpp/devices/handpan/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device harp \
     cpp/devices/harp/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device horns \
+    cpp/devices/horns/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device ladder-bass \
     cpp/devices/ladder-bass/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device lattice \
@@ -70,6 +74,8 @@ build_generated_devices() {
     cpp/devices/organ/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device patina \
     cpp/devices/patina/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device pedal-steel \
+    cpp/devices/pedal-steel/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device phaser \
     cpp/devices/phaser/device_api.gen.cpp
   MEMORY_BYTES=20971520 EXTRA_EXPORTS="" build_device reverse-delay \
@@ -131,6 +137,8 @@ test_generated_devices() {
     cpp/devices/stereo-widener/StereoWidener.cpp
   native_test bowed_string_test \
     cpp/test/bowed_string_test.cpp
+  native_test chamber_strings_test \
+    cpp/test/chamber_strings_test.cpp
   native_test choir_test \
     cpp/test/choir_test.cpp
   native_test chord_harp_test \
@@ -165,6 +173,8 @@ test_generated_devices() {
     cpp/test/handpan_test.cpp
   native_test harp_test \
     cpp/test/harp_test.cpp
+  native_test horns_test \
+    cpp/test/horns_test.cpp
   native_test ladder_bass_test \
     cpp/test/ladder_bass_test.cpp
   native_test lattice_test \
@@ -177,6 +187,8 @@ test_generated_devices() {
     cpp/test/organ_test.cpp
   native_test patina_test \
     cpp/test/patina_test.cpp
+  native_test pedal_steel_test \
+    cpp/test/pedal_steel_test.cpp
   native_test phaser_test \
     cpp/test/phaser_test.cpp
   native_test reverse_delay_test \

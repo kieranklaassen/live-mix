@@ -6,6 +6,7 @@ import { ACOUSTIC_GUITAR_PRESETS } from './acoustic-guitar'
 import { ATMOSPHERE_PRESETS } from './atmosphere'
 import { AURORA_PRESETS } from './aurora'
 import { BOWED_STRING_PRESETS } from './bowed-string'
+import { CHAMBER_STRINGS_PRESETS } from './chamber-strings'
 import { CHOIR_PRESETS } from './choir'
 import { CHORD_HARP_PRESETS } from './chord-harp'
 import { CLARINET_PRESETS } from './clarinet'
@@ -18,10 +19,12 @@ import { FM_GLASS_PRESETS } from './fm-glass'
 import { GRAIN_SYNTH_PRESETS } from './grain-synth'
 import { HANDPAN_PRESETS } from './handpan'
 import { HARP_PRESETS } from './harp'
+import { HORNS_PRESETS } from './horns'
 import { LADDER_BASS_PRESETS } from './ladder-bass'
 import { MALLETS_PRESETS } from './mallets'
 import { MODAL_BELLS_PRESETS } from './modal-bells'
 import { ORGAN_PRESETS } from './organ'
+import { PEDAL_STEEL_PRESETS } from './pedal-steel'
 import { SAMPLER_PRESETS } from './sampler'
 import { STRING_MACHINE_PRESETS } from './string-machine'
 import { THESIS_PRESETS } from './thesis'
@@ -54,4 +57,7 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...ACOUSTIC_GUITAR_PRESETS,
   ...CHORD_HARP_PRESETS,
   ...HARP_PRESETS,
+  ...CHAMBER_STRINGS_PRESETS,
+  ...HORNS_PRESETS,
+  ...PEDAL_STEEL_PRESETS,
 ]

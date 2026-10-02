@@ -11,6 +11,7 @@ import { AURORA_DESCRIPTOR, AURORA_DEVICE } from './aurora.gen'
 import { AUTO_FILTER_DESCRIPTOR, AUTO_FILTER_DEVICE } from './auto-filter.gen'
 import { BLOOM_REVERB_DESCRIPTOR, BLOOM_REVERB_DEVICE } from './bloom-reverb.gen'
 import { BOWED_STRING_DESCRIPTOR, BOWED_STRING_DEVICE } from './bowed-string.gen'
+import { CHAMBER_STRINGS_DESCRIPTOR, CHAMBER_STRINGS_DEVICE } from './chamber-strings.gen'
 import { CHOIR_DESCRIPTOR, CHOIR_DEVICE } from './choir.gen'
 import { CHORD_HARP_DESCRIPTOR, CHORD_HARP_DEVICE } from './chord-harp.gen'
 import { CHORUS_DESCRIPTOR, CHORUS_DEVICE } from './chorus.gen'
@@ -28,12 +29,14 @@ import { GRAIN_DELAY_DESCRIPTOR, GRAIN_DELAY_DEVICE } from './grain-delay.gen'
 import { GRAIN_SYNTH_DESCRIPTOR, GRAIN_SYNTH_DEVICE } from './grain-synth.gen'
 import { HANDPAN_DESCRIPTOR, HANDPAN_DEVICE } from './handpan.gen'
 import { HARP_DESCRIPTOR, HARP_DEVICE } from './harp.gen'
+import { HORNS_DESCRIPTOR, HORNS_DEVICE } from './horns.gen'
 import { LADDER_BASS_DESCRIPTOR, LADDER_BASS_DEVICE } from './ladder-bass.gen'
 import { LATTICE_DESCRIPTOR, LATTICE_DEVICE } from './lattice.gen'
 import { MALLETS_DESCRIPTOR, MALLETS_DEVICE } from './mallets.gen'
 import { MODAL_BELLS_DESCRIPTOR, MODAL_BELLS_DEVICE } from './modal-bells.gen'
 import { ORGAN_DESCRIPTOR, ORGAN_DEVICE } from './organ.gen'
 import { PATINA_DESCRIPTOR, PATINA_DEVICE } from './patina.gen'
+import { PEDAL_STEEL_DESCRIPTOR, PEDAL_STEEL_DEVICE } from './pedal-steel.gen'
 import { PHASER_DESCRIPTOR, PHASER_DEVICE } from './phaser.gen'
 import { REVERSE_DELAY_DESCRIPTOR, REVERSE_DELAY_DEVICE } from './reverse-delay.gen'
 import { ROTARY_DESCRIPTOR, ROTARY_DEVICE } from './rotary.gen'
@@ -62,6 +65,7 @@ export * from './aurora.gen'
 export * from './auto-filter.gen'
 export * from './bloom-reverb.gen'
 export * from './bowed-string.gen'
+export * from './chamber-strings.gen'
 export * from './choir.gen'
 export * from './chord-harp.gen'
 export * from './chorus.gen'
@@ -79,12 +83,14 @@ export * from './grain-delay.gen'
 export * from './grain-synth.gen'
 export * from './handpan.gen'
 export * from './harp.gen'
+export * from './horns.gen'
 export * from './ladder-bass.gen'
 export * from './lattice.gen'
 export * from './mallets.gen'
 export * from './modal-bells.gen'
 export * from './organ.gen'
 export * from './patina.gen'
+export * from './pedal-steel.gen'
 export * from './phaser.gen'
 export * from './reverse-delay.gen'
 export * from './rotary.gen'
@@ -115,6 +121,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   AUTO_FILTER_DESCRIPTOR,
   BLOOM_REVERB_DESCRIPTOR,
   BOWED_STRING_DESCRIPTOR,
+  CHAMBER_STRINGS_DESCRIPTOR,
   CHOIR_DESCRIPTOR,
   CHORD_HARP_DESCRIPTOR,
   CHORUS_DESCRIPTOR,
@@ -132,12 +139,14 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   GRAIN_SYNTH_DESCRIPTOR,
   HANDPAN_DESCRIPTOR,
   HARP_DESCRIPTOR,
+  HORNS_DESCRIPTOR,
   LADDER_BASS_DESCRIPTOR,
   LATTICE_DESCRIPTOR,
   MALLETS_DESCRIPTOR,
   MODAL_BELLS_DESCRIPTOR,
   ORGAN_DESCRIPTOR,
   PATINA_DESCRIPTOR,
+  PEDAL_STEEL_DESCRIPTOR,
   PHASER_DESCRIPTOR,
   REVERSE_DELAY_DESCRIPTOR,
   ROTARY_DESCRIPTOR,
@@ -169,6 +178,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   AUTO_FILTER_DEVICE,
   BLOOM_REVERB_DEVICE,
   BOWED_STRING_DEVICE,
+  CHAMBER_STRINGS_DEVICE,
   CHOIR_DEVICE,
   CHORD_HARP_DEVICE,
   CHORUS_DEVICE,
@@ -186,12 +196,14 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   GRAIN_SYNTH_DEVICE,
   HANDPAN_DEVICE,
   HARP_DEVICE,
+  HORNS_DEVICE,
   LADDER_BASS_DEVICE,
   LATTICE_DEVICE,
   MALLETS_DEVICE,
   MODAL_BELLS_DEVICE,
   ORGAN_DEVICE,
   PATINA_DEVICE,
+  PEDAL_STEEL_DEVICE,
   PHASER_DEVICE,
   REVERSE_DELAY_DEVICE,
   ROTARY_DEVICE,
@@ -223,6 +235,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'auto-filter', instrument: false, samples: false, meters: 0, memoryMb: 4 },
   { id: 'bloom-reverb', instrument: false, samples: false, meters: 0, memoryMb: 4 },
   { id: 'bowed-string', instrument: true, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'chamber-strings', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'choir', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'chord-harp', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'chorus', instrument: false, samples: false, meters: 0, memoryMb: 4 },
@@ -240,12 +253,14 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'grain-synth', instrument: true, samples: true, meters: 0, memoryMb: 12 },
   { id: 'handpan', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'harp', instrument: true, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'horns', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'ladder-bass', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'lattice', instrument: false, samples: false, meters: 0, memoryMb: 4 },
   { id: 'mallets', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'modal-bells', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'organ', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'patina', instrument: false, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'pedal-steel', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'phaser', instrument: false, samples: false, meters: 0, memoryMb: 4 },
   { id: 'reverse-delay', instrument: false, samples: false, meters: 0, memoryMb: 20 },
   { id: 'rotary', instrument: false, samples: false, meters: 0, memoryMb: 4 },

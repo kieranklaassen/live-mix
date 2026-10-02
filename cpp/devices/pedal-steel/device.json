@@ -1,0 +1,158 @@
+{
+  "id": "pedal-steel",
+  "name": "Pedal Steel",
+  "category": "instrument",
+  "description": "Pedal and lap steel guitar: long-ringing strings where an overlapping neighbour note bends the held one, with a shared bar vibrato and a volume-pedal swell on every note.",
+  "class": "PedalSteel",
+  "header": "pedal_steel.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "swell",
+      "name": "Swell",
+      "min": 0,
+      "max": 2,
+      "default": 0.4,
+      "unit": "s",
+      "description": "Fades each picked note in, as a volume pedal does, so the pick is hidden. At zero the pick is heard as it is."
+    },
+    {
+      "key": "sustain",
+      "name": "Sustain",
+      "min": 2,
+      "max": 40,
+      "default": 14,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long a held note keeps its level before it dies away. Longer rings on for many seconds, like a foot slowly opening the pedal."
+    },
+    {
+      "key": "glide",
+      "name": "Glide",
+      "min": 20,
+      "max": 800,
+      "default": 180,
+      "taper": "log",
+      "unit": "ms",
+      "description": "How long a bend from one note to the next takes. It does nothing while Range is at zero."
+    },
+    {
+      "key": "range",
+      "name": "Range",
+      "min": 0,
+      "max": 12,
+      "default": 2,
+      "unit": "st",
+      "description": "The widest interval that bends a held note instead of picking a new string, when the two keys overlap. At zero every note is picked."
+    },
+    {
+      "key": "vibrato",
+      "name": "Vibrato",
+      "min": 0,
+      "max": 40,
+      "default": 8,
+      "unit": "ct",
+      "description": "Depth of the bar vibrato that every string shares. It fades in a moment after each pick, so notes start still and then sing."
+    },
+    {
+      "key": "rate",
+      "name": "Rate",
+      "min": 3,
+      "max": 7,
+      "default": 5,
+      "unit": "Hz",
+      "description": "How fast the bar vibrato turns. It does nothing while Vibrato is at zero."
+    },
+    {
+      "key": "pick",
+      "name": "Pick",
+      "min": 0,
+      "max": 1,
+      "default": 0.45,
+      "description": "How hard and where the string is picked: low is soft and over the neck, round and mellow; high is hard and by the bridge, bright as a bell. Applies from the next pick."
+    },
+    {
+      "key": "tone",
+      "name": "Tone",
+      "min": 1500,
+      "max": 6000,
+      "default": 3200,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "Brightness of the pickup and amplifier. Lower is dark and woolly; higher is glassy with more bite."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -9,
+      "unit": "dB",
+      "description": "Output level of the instrument. A soft clip after it rounds off the peaks when many notes stack up."
+    }
+  ],
+  "presets": {
+    "Slow steel": {
+      "swell": 0.4,
+      "sustain": 14,
+      "glide": 180,
+      "range": 2,
+      "vibrato": 8,
+      "rate": 5,
+      "pick": 0.45,
+      "tone": 3200
+    },
+    "Still glass": {
+      "swell": 1.5,
+      "sustain": 40,
+      "glide": 300,
+      "range": 2,
+      "vibrato": 0,
+      "pick": 0.25,
+      "tone": 2000
+    },
+    "Long slides": {
+      "swell": 0.6,
+      "sustain": 20,
+      "glide": 500,
+      "range": 12,
+      "vibrato": 6,
+      "rate": 4.5,
+      "pick": 0.4,
+      "tone": 2800
+    },
+    "Lap slide": {
+      "swell": 0,
+      "sustain": 8,
+      "glide": 220,
+      "range": 12,
+      "vibrato": 10,
+      "rate": 5.5,
+      "pick": 0.8,
+      "tone": 4500
+    },
+    "Singing lead": {
+      "swell": 0.9,
+      "sustain": 25,
+      "glide": 150,
+      "range": 5,
+      "vibrato": 25,
+      "rate": 4.2,
+      "pick": 0.5,
+      "tone": 3000
+    },
+    "Picked bell": {
+      "swell": 0,
+      "sustain": 6,
+      "glide": 90,
+      "range": 2,
+      "vibrato": 4,
+      "pick": 1,
+      "tone": 5500
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit, after the pedal steel and lap steel guitar as described in the project's string research notes (strings.md, sections 0, 1.3, 1.4 and 3: the legato rule, the shared bar vibrato, the volume-pedal swell, the pickup comb). Modelled: one kit plucked-string loop per string, read with an interpolator so the pitch can move; a pedal bend as a smoothed pitch change of the voice that is already sounding, with no new pick; one bar vibrato with one phase for every string; a per-note volume pedal that hides the pick and then rides the decay; a magnetic pickup as a second reading point on the string, followed by a resonant low-pass, a clean amplifier with a soft ceiling and a guitar speaker's band limits. Simplified: one polarisation per string, no stiffness, no bar or finger noise, no pitch wheel (the device interface carries none, so a slide is two overlapping keys), a fixed damping at key up and a mono output. Figures chosen here rather than measured: keys within 50 ms of a string's pick, or of the key that last bent it, count as struck together and are each picked, the pickup at 1/15 of the open string, an E9 neck played no lower than the third fret, a vibrato that waits 0.35 s after a pick and returns over half a second, a pedal ride that makes good seven tenths of the string's decay up to 12 dB, the upper partials ringing about a fifth as long as the fundamental, key-up damping of 0.6 s, and a speaker corner at 6 kHz. It uses no samples and is not a circuit model of any instrument, pickup or amplifier."
+  }
+}
