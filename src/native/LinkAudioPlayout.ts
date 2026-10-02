@@ -138,12 +138,15 @@ export class LinkAudioPlayout {
     if (this.nextCount < 0) {
       this.begin(contextTime)
       start = 0
-    } else if (count < this.nextCount) {
-      // Older than what has been taken: it came the long way round.
-      return
     } else {
-      if (count > this.nextCount) this.lost += count - this.nextCount
       const byTime = Math.round((contextTime - this.origin) * this.rate)
+      if (count < this.nextCount && byTime < this.written) {
+        // Behind in its count and in its moment both: it came the long way
+        // round. A count alone says nothing, since a sender that begins again
+        // counts from nought.
+        return
+      }
+      if (count > this.nextCount) this.lost += count - this.nextCount
       const follows =
         count === this.nextCount && Math.abs(byTime - this.written) <= DISCONTINUITY_SEC * this.rate
       if (follows) {

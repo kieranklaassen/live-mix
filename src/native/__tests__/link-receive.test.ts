@@ -280,7 +280,7 @@ describe('LinkAudioPlayout', () => {
     const playout = new LinkAudioPlayout({ sampleRate: CONTEXT_RATE }, emit)
     const out = play(playout, { rate: 48000, blockFrames: 480, sample: clicks(4800) }, 1)
     // The sender stops for a second and begins again, counting from nought.
-    play(
+    const again = play(
       playout,
       {
         rate: 48000,
@@ -298,6 +298,11 @@ describe('LinkAudioPlayout', () => {
     // The delay it had is the delay it keeps: nothing is listened to again first.
     expect(delays()).toHaveLength(1)
     expect(loud(out.left).length).toBeGreaterThan(5)
+    // Its counts begin at nought again, below any the first run reached, and
+    // every click of it is heard all the same, the first as soon as its moment.
+    const after = loud(again.left).filter((frame) => frame > frameAt(3))
+    expect(after).toHaveLength(15)
+    expect(after[0] / CONTEXT_RATE - delays()[0]).toBeCloseTo(3, 3)
   })
 
   it('picks a stream up where its moments say after a pause in the sending', () => {
