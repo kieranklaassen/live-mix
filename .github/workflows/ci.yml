@@ -148,7 +148,7 @@ jobs:
           test -f node_modules/@kieranklaassen/live-mix/dist/index.js
           test -f node_modules/@kieranklaassen/live-mix/dist/wam/index.js
           for wasm in "$GITHUB_WORKSPACE"/src/dsp/wasm/*.wasm; do test -f "node_modules/@kieranklaassen/live-mix/dist/wasm/$(basename "$wasm")"; done
-          for worklet in wasm-device ducker meter recorder native-bridge native-pump; do test -f "node_modules/@kieranklaassen/live-mix/dist/worklets/$worklet.js"; done
+          for worklet in wasm-device ducker meter recorder native-bridge native-pump load-sampler; do test -f "node_modules/@kieranklaassen/live-mix/dist/worklets/$worklet.js"; done
           test -f node_modules/@kieranklaassen/live-mix/dist/native/index.js
           test -f node_modules/@kieranklaassen/live-mix/native/host/CMakeLists.txt
           node --input-type=module -e "
