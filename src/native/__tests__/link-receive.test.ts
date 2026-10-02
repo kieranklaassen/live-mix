@@ -279,8 +279,9 @@ describe('LinkAudioPlayout', () => {
     const { emit, delays } = collect()
     const playout = new LinkAudioPlayout({ sampleRate: CONTEXT_RATE }, emit)
     const out = play(playout, { rate: 48000, blockFrames: 480, sample: clicks(4800) }, 1)
+    expect(loud(out.left).length).toBeGreaterThan(5)
     // The sender stops for a second and begins again, counting from nought.
-    play(
+    const again = play(
       playout,
       {
         rate: 48000,
@@ -297,7 +298,46 @@ describe('LinkAudioPlayout', () => {
     )
     // The delay it had is the delay it keeps: nothing is listened to again first.
     expect(delays()).toHaveLength(1)
-    expect(loud(out.left).length).toBeGreaterThan(5)
+    const [delay] = delays()
+    // And the new run is heard, every click its delay after its moment.
+    const heard = loud(again.left)
+    expect(heard.length).toBeGreaterThanOrEqual(14)
+    for (const frame of heard) {
+      const moment = frame / CONTEXT_RATE - delay
+      expect(moment).toBeGreaterThanOrEqual(3 - 1 / CONTEXT_RATE)
+      expect(Math.abs(moment * 10 - Math.round(moment * 10)) / 10).toBeLessThan(1 / CONTEXT_RATE)
+    }
+  })
+
+  it('leaves out a block that comes after the ones that followed it', () => {
+    const playout = new LinkAudioPlayout({ sampleRate: CONTEXT_RATE, delaySec: 0.05 }, () => {})
+    const block = (count: number, value: number): LinkReceivedBlock => ({
+      frames: 480,
+      channels: 1,
+      sampleRate: 48000,
+      count,
+      contextTime: 1 + count * 0.01,
+      samples: new Float32Array(480).fill(value),
+    })
+    playout.push(block(0, 0.25), 1.005)
+    playout.push(block(2, 0.25), 1.025)
+    // Block 1 took the long way round: its place has been left silent and stays so.
+    playout.push(block(1, 1), 1.03)
+    playout.push(block(3, 0.25), 1.035)
+    const left = new Float32Array(CONTEXT_RATE * 1.1)
+    const right = new Float32Array(left.length)
+    for (let frame = frameAt(1); frame + QUANTUM <= left.length; frame += QUANTUM) {
+      playout.process(
+        left.subarray(frame, frame + QUANTUM),
+        right.subarray(frame, frame + QUANTUM),
+        frame,
+      )
+    }
+    expect(loud(left)).toHaveLength(0)
+    expect(left[frameAt(1.055)]).toBeCloseTo(0.25, 3)
+    expect(left[frameAt(1.065)]).toBe(0)
+    expect(left[frameAt(1.075)]).toBeCloseTo(0.25, 3)
+    expect(playout.takeStats().lost).toBe(1)
   })
 
   it('picks a stream up where its moments say after a pause in the sending', () => {
