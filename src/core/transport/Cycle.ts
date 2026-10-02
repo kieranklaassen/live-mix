@@ -30,6 +30,12 @@ export interface Timebase {
   position(contextTime?: number): TransportPosition
   /** Audio-clock time at which `positionSec` of pass `iteration` is reached. */
   contextTimeAt(positionSec: number, iteration?: number): number
+  /**
+   * The counted pass that pass `iteration` is: how many times this clock had
+   * come round before it, which a pause and a seek keep. What a clip leaves
+   * to chance is drawn per counted pass of the clock it is on.
+   */
+  passOf(iteration: number): number
 }
 
 /** The slice of `Transport` a cycle is derived from; `Transport` satisfies it. */
@@ -95,7 +101,7 @@ export class Cycle implements Timebase {
     const anchor = this.transport.anchor
     if (!anchor) return null
     const elapsedSec = this.transport.elapsed(anchor.contextTime)
-    const pass = this.passOf(elapsedSec)
+    const pass = this.passAt(elapsedSec)
     return {
       contextTime: anchor.contextTime,
       positionSec: elapsedSec - pass * this.length,
@@ -109,7 +115,7 @@ export class Cycle implements Timebase {
    */
   position(contextTime = this.transport.now()): TransportPosition {
     const elapsedSec = this.transport.elapsed(contextTime)
-    const pass = this.passOf(elapsedSec)
+    const pass = this.passAt(elapsedSec)
     return {
       positionSec: elapsedSec - pass * this.length,
       iteration: this.numberOf(pass),
@@ -123,14 +129,25 @@ export class Cycle implements Timebase {
     this.follow(anchor)
     const pass =
       iteration === undefined
-        ? this.passOf(this.transport.elapsed(anchor.contextTime))
+        ? this.passAt(this.transport.elapsed(anchor.contextTime))
         : iteration - this.numberOffset
     // A start handed over ahead of the cycle can be on a pass it has not reached.
     if (iteration !== undefined && iteration > this.highest) this.highest = iteration
     return this.transport.contextTimeAtElapsed(pass * this.length + positionSec)
   }
 
-  private passOf(elapsedSec: number): number {
+  /**
+   * The counted pass of the cycle's pass `iteration`: how many of its own
+   * lengths the timeline had run from its origin when that pass began.
+   */
+  passOf(iteration: number): number {
+    const anchor = this.transport.anchor
+    if (!anchor) return Math.max(0, this.passAt(this.transport.elapsed()))
+    this.follow(anchor)
+    return Math.max(0, iteration - this.numberOffset)
+  }
+
+  private passAt(elapsedSec: number): number {
     return Math.floor(elapsedSec / this.length)
   }
 
@@ -156,7 +173,7 @@ export class Cycle implements Timebase {
     if (this.seen?.anchor === anchor) return
     const elapsedSec = this.transport.elapsed(anchor.contextTime)
     if (!this.seen || !this.carriesOn(this.seen, anchor, elapsedSec)) {
-      this.numberOffset = this.highest + 1 - this.passOf(elapsedSec)
+      this.numberOffset = this.highest + 1 - this.passAt(elapsedSec)
     }
     this.seen = { anchor, elapsedSec }
   }

@@ -139,6 +139,38 @@ describe('Cycle', () => {
   })
 })
 
+describe('Cycle counted pass', () => {
+  it('counts its own passes from the origin of the timeline, whatever number a pass goes by', () => {
+    const { ctx, transport, cycle } = build(10)
+    transport.start()
+    ctx.currentTime = 125
+    expect(cycle.passOf(cycle.position().iteration)).toBe(2)
+
+    // A pause and a start give every pass a new number; the count is kept.
+    transport.pause()
+    transport.start()
+    const here = cycle.position()
+    expect(here.iteration).toBeGreaterThan(2)
+    expect(cycle.passOf(here.iteration)).toBe(2)
+    expect(cycle.passOf(here.iteration + 3)).toBe(5)
+
+    transport.pause()
+    expect(cycle.passOf(here.iteration)).toBe(2)
+    transport.stop()
+    expect(cycle.passOf(0)).toBe(0)
+  })
+
+  it('goes where the transport is put on the whole run', () => {
+    const { transport, cycle } = build(10)
+    transport.seekElapsed(47)
+    transport.start()
+    expect(cycle.passOf(cycle.position().iteration)).toBe(4)
+    // Pass 3 of a 32 s loop, 15 s in: 111 s of the run.
+    transport.setPass(3)
+    expect(cycle.passOf(cycle.position().iteration)).toBe(11)
+  })
+})
+
 describe('Cycle on a transport that changes speed', () => {
   it('runs at the transport\u2019s rate: its length is timeline seconds', () => {
     const { ctx, transport, cycle } = build(10)

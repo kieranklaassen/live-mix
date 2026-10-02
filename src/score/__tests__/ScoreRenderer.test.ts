@@ -106,6 +106,38 @@ describe('ScoreRenderer: first render', () => {
     engine.dispose()
   })
 
+  it("gives the scheduler the score's seed, and a clip its chance", async () => {
+    const score = demoScore()
+    score.transport.seed = 7
+    const { engine, renderer } = await rig(score)
+    expect(engine.scheduler.seed).toBe(7)
+    await renderer.render({ ...score, transport: { ...score.transport, seed: 9 } })
+    expect(engine.scheduler.seed).toBe(9)
+    const unseeded = { loop: score.transport.loop, quantize: score.transport.quantize }
+    await renderer.render({ ...score, transport: unseeded })
+    expect(engine.scheduler.seed).toBe(0)
+
+    const track = score.tracks.find((candidate) => candidate.kind === 'audio')
+    if (track?.kind !== 'audio') throw new Error('demoScore has an audio track')
+    const [first] = track.clips
+    const drawn = {
+      ...score,
+      tracks: score.tracks.map((candidate) =>
+        candidate === track
+          ? { ...track, clips: [{ ...first, chance: 0.5 }, ...track.clips.slice(1)] }
+          : candidate,
+      ),
+    }
+    await renderer.render(drawn)
+    expect(
+      renderer
+        .audioTrack(track.id)
+        .clips.all()
+        .find((clip) => clip.id === first.id)?.chance,
+    ).toBe(0.5)
+    engine.dispose()
+  })
+
   it('renders the transport loop and a live track the app attaches to', async () => {
     const score = demoScore()
     score.transport.loop = { enabled: true, lengthSec: 8 }

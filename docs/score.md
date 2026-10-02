@@ -40,6 +40,7 @@ Score
 ├─ meta?       JsonObject                              the host application's own annotations
 ├─ transport.loop { enabled, lengthSec | null }       null = no end
 ├─ transport.quantize: LaunchQuantize                 session launch grid (U31), default 'bar'
+├─ transport.seed?: number                            what every clip chance is drawn from; absent = 0
 ├─ tempo[]     TempoSegment { atSec, bpm, beatsPerBar? }  ascending, first at 0 → engine.tempo (TempoMap)
 ├─ master { level, inserts: ScoreDevice[] }
 ├─ sources[]   { id, url?, durationSec?, analysis?, meta? }  what clips reference
@@ -65,7 +66,7 @@ ScoreDevice       { id, deviceId (registry id), preset?, params: { name: number 
 ScoreSend         { target: returnId, level: number | null }   null = direct connection
 ParamTarget       { kind: 'strip', owner: id | 'master', param: 'level' | 'pan' | 'inputGain' }
                 | { kind: 'device', device: instanceId, param: name }
-Clip              the core `Clip` record (id, sourceId, startSec, offsetSec, durationSec, fades, gainDb, loop?, loopStartSec?, loopEndSec?, warp?, semitones?, muted?, reversed?, pan?, lowpassHz?, spaceDb?, meta?)
+Clip              the core `Clip` record (id, sourceId, startSec, offsetSec, durationSec, fades, gainDb, loop?, loopStartSec?, loopEndSec?, warp?, semitones?, muted?, reversed?, chance?, pan?, lowpassHz?, spaceDb?, meta?)
 Breakpoint        the core `Breakpoint` (timeSec, value, curve?)
 ```
 
@@ -76,7 +77,9 @@ devices })`, which the renderer runs before touching the graph) reports
 them.
 
 A clip with `muted: true` keeps its place in the document and is never
-started; muting one that is sounding stops it. A clip with `reversed: true`
+started; muting one that is sounding stops it. A clip with a `chance` below 1
+sounds on that share of the loop's passes, the same ones every time for one
+`transport.seed` ([time](./concepts/time.md)). A clip with `reversed: true`
 plays its slice of the source backwards on an audio track: one pass reads
 from the far end of the slice back to `offsetSec`, and a looping clip cycles
 backwards over its region. `mirrorSlice` and `reversedSourceSec` are that
@@ -140,7 +143,7 @@ score throws `ScoreOperationError`, so a failed operation changes nothing.
 
 | Group                                                             | Operations                                                                                                                                                                                 |
 | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Document                                                          | `score.rename`, `score.setMeta` (`patch`: a value sets an entry of `meta`, `null` removes it), `transport.loop`                                                                            |
+| Document                                                          | `score.rename`, `score.setMeta` (`patch`: a value sets an entry of `meta`, `null` removes it), `transport.loop`, `transport.seed`                                                          |
 | Sources                                                           | `source.add`, `source.update` (`url`, `durationSec`, `analysis`, `meta`; `null` clears), `source.remove` (refused while a clip uses it)                                                    |
 | Tracks                                                            | `track.add`, `track.remove`, `track.move`, `track.loop` (`lengthSec`: an audio track's own loop length, `null` for the transport's loop)                                                   |
 | Groups                                                            | `group.add`, `group.remove` (members re-route to where it fed), `group.move`                                                                                                               |

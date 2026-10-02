@@ -32,6 +32,7 @@ import {
   findSlot,
   findStripHost,
   findTrack,
+  isSeed,
   normaliseClip,
   normaliseScore,
   normaliseSlot,
@@ -121,6 +122,8 @@ export type Operation =
   | { type: 'score.rename'; name: string }
   | { type: 'score.setMeta'; patch: ScoreMetaPatch }
   | { type: 'transport.loop'; enabled?: boolean; lengthSec?: number | null }
+  /** What every chance in the piece is drawn from: a whole number, 0 to 4294967295. */
+  | { type: 'transport.seed'; seed: number }
   /** Replace the tempo map (segments are sorted; the first must start at 0). */
   | { type: 'tempo.set'; segments: TempoSegment[] }
   | { type: 'source.add'; source: ScoreSource; index?: number }
@@ -233,6 +236,7 @@ export const OPERATION_TYPES: readonly OperationType[] = [
   'score.rename',
   'score.setMeta',
   'transport.loop',
+  'transport.seed',
   'tempo.set',
   'source.add',
   'source.remove',
@@ -353,6 +357,7 @@ export function coalesceKey(op: Operation): string | null {
       return `track.loop|${op.id}`
     case 'score.rename':
     case 'transport.loop':
+    case 'transport.seed':
     case 'tempo.set':
     case 'elementTrack.add':
     case 'elementTrack.remove':
@@ -861,6 +866,14 @@ export function apply(score: Score, op: Operation): Score {
         loop.lengthSec = op.lengthSec
       }
       return { ...score, transport: { ...score.transport, loop } }
+    }
+
+    case 'transport.seed': {
+      if (!isSeed(op.seed)) fail(op, 'seed must be a whole number from 0 to 4294967295')
+      const transport = { ...score.transport }
+      if (op.seed === 0) delete transport.seed
+      else transport.seed = op.seed
+      return { ...score, transport }
     }
 
     case 'tempo.set': {
@@ -1499,6 +1512,9 @@ function patchClip(
   ) {
     fail(op, `no source "${patch.sourceId}"`)
   }
+  if (patch.chance !== undefined && !(patch.chance >= 0 && patch.chance <= 1)) {
+    fail(op, 'chance must be from 0 to 1')
+  }
   const merged: Record<string, unknown> = { ...clip, ...patch }
   for (const key of CLIP_PLACEMENT_KEYS) if (merged[key] === null) delete merged[key]
   const next = checkedClip(op, merged as unknown as Clip)
@@ -1532,6 +1548,9 @@ export function invert(score: Score, op: Operation): Operation {
       if (op.lengthSec !== undefined) inverse.lengthSec = score.transport.loop.lengthSec
       return inverse
     }
+
+    case 'transport.seed':
+      return { type: 'transport.seed', seed: score.transport.seed ?? 0 }
 
     case 'tempo.set':
       return { type: 'tempo.set', segments: score.tempo.map((segment) => ({ ...segment })) }
@@ -1752,11 +1771,13 @@ export function invert(score: Score, op: Operation): Operation {
         patch[key] =
           key === 'loop' || key === 'muted' || key === 'reversed'
             ? (clip[key] ?? false)
-            : key === 'meta'
-              ? (clip.meta ?? {})
-              : isPlacementKey(key)
-                ? (clip[key] ?? null)
-                : clip[key]
+            : key === 'chance'
+              ? (clip.chance ?? 1)
+              : key === 'meta'
+                ? (clip.meta ?? {})
+                : isPlacementKey(key)
+                  ? (clip[key] ?? null)
+                  : clip[key]
       }
       return { type: 'clip.update', track: op.track, id: op.id, patch: patch }
     }
@@ -2029,6 +2050,8 @@ export function describeOperation(op: Operation): string {
       return `set score meta ${metaKeys(op).join(', ')}`
     case 'transport.loop':
       return 'change loop'
+    case 'transport.seed':
+      return `seed ${op.seed}`
     case 'tempo.set':
       return 'set tempo'
     case 'elementTrack.add':

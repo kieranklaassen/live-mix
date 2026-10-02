@@ -177,6 +177,13 @@ export interface ScoreTransport {
   }
   /** Global launch quantisation for the session grid; a slot may override it. */
   quantize: LaunchQuantize
+  /**
+   * What every chance in the piece is drawn from (`Clip.chance`): a whole
+   * number a Uint32 holds. One seed always plays the same passes; another
+   * is another take of the same piece. Optional field of format 3; absent
+   * and 0 mean the same.
+   */
+  seed?: number
 }
 
 export type StripParam = 'level' | 'pan' | 'inputGain'
@@ -715,6 +722,7 @@ function checkClip(raw: unknown, path: string, ctx: Context, clipIds: UniqueIds)
   if (raw.loop !== undefined) check.boolean(raw.loop, `${path}.loop`)
   if (raw.muted !== undefined) check.boolean(raw.muted, `${path}.muted`)
   if (raw.reversed !== undefined) check.boolean(raw.reversed, `${path}.reversed`)
+  if (raw.chance !== undefined) check.number(raw.chance, `${path}.chance`, { min: 0, max: 1 })
   checkPlacement(raw, path, check)
   checkMeta(raw.meta, `${path}.meta`, check)
   if (raw.loopStartSec !== undefined)
@@ -1109,6 +1117,9 @@ export function validateScore(input: unknown, options: ValidateScoreOptions = {}
       }
     }
     checkQuantize(raw.transport.quantize, 'transport.quantize', check)
+    if (raw.transport.seed !== undefined && !isSeed(raw.transport.seed)) {
+      check.fail('transport.seed', 'expected a whole number from 0 to 4294967295')
+    }
   }
   if (check.record(raw.master, 'master')) {
     check.number(raw.master.level, 'master.level', { min: 0 })
@@ -1235,8 +1246,9 @@ function normaliseDestination(destination: ScoreDestination): ScoreDestination {
 
 /**
  * Clip fields in a fixed order; `loop`, `muted` and `reversed` only when true
- * (absent and `false` mean the same). The placement fields are kept as given:
- * a `pan` of 0 still says the clip is placed.
+ * (absent and `false` mean the same), `chance` only below 1 (absent and 1
+ * mean the same). The placement fields are kept as given: a `pan` of 0 still
+ * says the clip is placed.
  */
 export function normaliseClip(clip: Clip): Clip {
   const out: Clip = {
@@ -1258,12 +1270,18 @@ export function normaliseClip(clip: Clip): Clip {
   if (clip.semitones !== undefined) out.semitones = clip.semitones
   if (clip.muted) out.muted = true
   if (clip.reversed) out.reversed = true
+  if (clip.chance !== undefined && clip.chance < 1) out.chance = clip.chance
   if (clip.pan !== undefined) out.pan = clip.pan
   if (clip.lowpassHz !== undefined) out.lowpassHz = clip.lowpassHz
   if (clip.spaceDb !== undefined) out.spaceDb = clip.spaceDb
   const meta = normaliseMeta(clip.meta)
   if (meta) out.meta = meta
   return out
+}
+
+/** A seed as a score holds it: a whole number a Uint32 holds. */
+export function isSeed(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 0xffffffff
 }
 
 /** A `meta` with its keys in order; an empty one is the same as none. */
@@ -1457,6 +1475,7 @@ export function normaliseScore(score: Score): Score {
     transport: {
       loop: { enabled: score.transport.loop.enabled, lengthSec: score.transport.loop.lengthSec },
       quantize: normaliseQuantize(score.transport.quantize),
+      ...(score.transport.seed ? { seed: score.transport.seed } : {}),
     },
     tempo: normaliseTempo(score.tempo),
     master: { level: score.master.level, inserts: score.master.inserts.map(normaliseDevice) },

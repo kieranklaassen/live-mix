@@ -136,6 +136,10 @@ export const OPERATION_DEFS: Record<string, JsonSchema> = {
       semitones: number('Pitch shift on a stretch source.'),
       muted: { type: 'boolean', description: 'Keep the clip on the track without playing it.' },
       reversed: { type: 'boolean', description: "Play the clip's slice of the source backwards." },
+      chance: number(
+        "How likely the clip is to sound on each pass of the loop, drawn from the score's seed; absent or 1 plays every pass.",
+        { min: 0, max: 1 },
+      ),
       pan: number("This clip's own place, −1 left … 1 right, ahead of the track's pan.", {
         min: -1,
         max: 1,
@@ -175,6 +179,10 @@ export const OPERATION_DEFS: Record<string, JsonSchema> = {
       semitones: number('Pitch shift on a stretch source.'),
       muted: { type: 'boolean' },
       reversed: { type: 'boolean' },
+      chance: number('Chance of sounding on each pass, 0 to 1; 1 plays every pass.', {
+        min: 0,
+        max: 1,
+      }),
       pan: nullableNumber('−1 left … 1 right; null takes it off the clip.', -1, 1),
       lowpassHz: nullableNumber('Low-pass cutoff in Hz; null takes it off the clip.', 20),
       spaceDb: nullableNumber("Send into the track's space in dB; null takes it off the clip."),
@@ -562,6 +570,14 @@ const OPERATION_SPECS: Record<OperationType, OperationSpec> = {
       lengthSec: nullableNumber('Loop length in seconds, or null for no end.'),
     },
     required: [],
+  },
+  'transport.seed': {
+    description:
+      'Set the seed every chance in the piece is drawn from (a clip with a `chance`): the same seed plays the same passes every time, another seed is another take.',
+    properties: {
+      seed: { type: 'integer', minimum: 0, maximum: 4294967295, description: 'The seed.' },
+    },
+    required: ['seed'],
   },
   'tempo.set': {
     description: 'Replace the tempo map (segments ascending from 0).',

@@ -423,6 +423,166 @@ describe('Transport elapsed: the whole run of the timeline', () => {
   })
 })
 
+describe('Transport counted pass', () => {
+  const LOOP = { enabled: true, lengthSec: 4 }
+
+  it('starts at 0 and counts each time the loop comes round', () => {
+    const { ctx, transport } = build(LOOP)
+    expect(transport.pass()).toBe(0)
+    transport.start()
+    ctx.currentTime = 3.9
+    expect(transport.pass()).toBe(0)
+    ctx.currentTime = 9.5
+    expect(transport.pass()).toBe(2)
+    expect(transport.pass(4.5)).toBe(1)
+    expect(transport.passOf(transport.position().iteration + 1)).toBe(3)
+  })
+
+  it('keeps the count through a pause, a seek and a loop change, where the iteration moves on', () => {
+    const { ctx, transport } = build(LOOP)
+    transport.start()
+    ctx.currentTime = 9.5
+    transport.pause()
+    expect(transport.pass()).toBe(2)
+    transport.seek(1)
+    expect(transport.pass()).toBe(2)
+    transport.start()
+    expect(transport.pass()).toBe(2)
+    ctx.currentTime = 10
+    transport.seek(3.5)
+    expect(transport.pass()).toBe(2)
+    transport.setLoop({ enabled: false })
+    transport.setLoop({ enabled: true })
+    expect(transport.pass()).toBe(2)
+    // Each re-pin took a fresh iteration; the count did not follow it.
+    expect(transport.position().iteration).toBeGreaterThan(2)
+    ctx.currentTime = 11
+    expect(transport.pass()).toBe(3)
+  })
+
+  it('goes back to 0 on stop, also from a stop at 0', () => {
+    const { ctx, transport, changes } = build(LOOP)
+    transport.start()
+    ctx.currentTime = 9.5
+    transport.stop()
+    expect(transport.pass()).toBe(0)
+    transport.setPass(5)
+    expect(transport.pass()).toBe(5)
+    changes.length = 0
+    transport.stop()
+    expect(transport.pass()).toBe(0)
+    expect(changes.map((change) => change.reason)).toEqual(['stop'])
+    // Nothing left to go back from.
+    transport.stop()
+    expect(changes).toHaveLength(1)
+  })
+
+  it('setPass puts the count anywhere, as a seek to where the transport is', () => {
+    const { ctx, transport, changes } = build(LOOP)
+    transport.start()
+    ctx.currentTime = 5.5
+    const before = transport.position()
+    changes.length = 0
+    transport.setPass(13)
+    expect(transport.pass()).toBe(13)
+    expect(changes.map((change) => change.reason)).toEqual(['seek'])
+    expect(transport.position().positionSec).toBe(before.positionSec)
+    expect(transport.position().iteration).toBeGreaterThan(before.iteration)
+    ctx.currentTime = 8.5
+    expect(transport.pass()).toBe(14)
+    // The same pass again is no change; below 0 is 0; a fraction is its whole pass.
+    changes.length = 0
+    transport.setPass(14)
+    expect(changes).toEqual([])
+    transport.setPass(-3)
+    expect(transport.pass()).toBe(0)
+    transport.setPass(2.9)
+    expect(transport.pass()).toBe(2)
+    expect(() => transport.setPass(Number.NaN)).toThrow(RangeError)
+  })
+
+  it('stays where it is with the loop off', () => {
+    const { ctx, transport } = build({ enabled: false, lengthSec: 4 })
+    transport.setPass(3)
+    transport.start()
+    ctx.currentTime = 3
+    expect(transport.pass()).toBe(3)
+  })
+
+  it('keeps counting through a change of rate, at the speed the loop now comes round', () => {
+    const { ctx, transport } = build(LOOP)
+    transport.setPass(5)
+    transport.start()
+    // Two times round at the clock's speed, then half speed from the middle of the third.
+    ctx.currentTime = 10
+    expect(transport.pass()).toBe(7)
+    transport.setRate(0.5)
+    expect(transport.pass()).toBe(7)
+    expect(transport.passOf(transport.position().iteration + 1)).toBe(8)
+    // 2 s of timeline left in the pass: 4 s of clock at half speed.
+    ctx.currentTime = 13.9
+    expect(transport.pass()).toBe(7)
+    ctx.currentTime = 14.1
+    expect(transport.pass()).toBe(8)
+    transport.setRate(2)
+    ctx.currentTime = 20
+    // 0.05 s into pass 8, then 5.9 s of clock at double speed: 11.85 s of timeline on.
+    expect(transport.pass()).toBe(10)
+    transport.pause()
+    expect(transport.pass()).toBe(10)
+  })
+})
+
+describe('Transport elapsed and the counted pass', () => {
+  const LOOP = { enabled: true, lengthSec: 4 }
+
+  it('count the same passes while the loop comes round', () => {
+    const { ctx, transport } = build(LOOP)
+    transport.start()
+    for (const at of [0, 3.9, 4, 9.5, 23.25]) {
+      ctx.currentTime = at
+      expect(Math.floor(transport.elapsed() / 4)).toBe(transport.pass())
+    }
+  })
+
+  it('setPass takes the run of the timeline to that pass, playing or not', () => {
+    const { ctx, transport } = build(LOOP)
+    transport.start()
+    ctx.currentTime = 9.5
+    expect(transport.elapsed()).toBe(9.5)
+    transport.setPass(7)
+    expect(transport.pass()).toBe(7)
+    expect(transport.position().positionSec).toBe(1.5)
+    expect(transport.elapsed()).toBe(29.5)
+    ctx.currentTime = 12.5
+    expect(transport.pass()).toBe(8)
+    expect(transport.elapsed()).toBe(32.5)
+
+    transport.pause()
+    transport.setPass(0)
+    expect(transport.elapsed()).toBe(0.5)
+  })
+
+  it('setPass leaves the run alone with the loop off, where there are no passes', () => {
+    const { ctx, transport } = build()
+    transport.start()
+    ctx.currentTime = 6
+    transport.setPass(3)
+    expect(transport.elapsed()).toBe(6)
+  })
+
+  it('seekElapsed lands on the counted pass that point of the run is in', () => {
+    const { ctx, transport } = build(LOOP)
+    transport.seekElapsed(18.5)
+    expect(transport.pass()).toBe(4)
+    transport.start()
+    ctx.currentTime = 2
+    expect(transport.pass()).toBe(5)
+    transport.seekElapsed(1)
+    expect(transport.pass()).toBe(0)
+  })
+})
+
 describe('Transport rate', () => {
   it('runs at the clock by default and takes a rate on construction', () => {
     expect(build().transport.rate).toBe(1)

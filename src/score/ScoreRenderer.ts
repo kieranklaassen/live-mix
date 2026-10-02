@@ -483,6 +483,10 @@ export class ScoreRenderer {
       })
     }
 
+    // What every chance is drawn from. While playing, the clips left to
+    // chance are put in step with a new seed at once.
+    this.engine.scheduler.setSeed(next.transport.seed ?? 0)
+
     if (!sameTempo(prev.tempo, next.tempo) || this.renderedScore === null) {
       this.engine.tempo = new TempoMap(next.tempo)
     }
@@ -1444,6 +1448,7 @@ function sameClips(a: readonly Clip[], b: readonly Clip[]): boolean {
       clip.loopEndSec === other.loopEndSec &&
       (clip.muted ?? false) === (other.muted ?? false) &&
       (clip.reversed ?? false) === (other.reversed ?? false) &&
+      (clip.chance ?? 1) === (other.chance ?? 1) &&
       clip.pan === other.pan &&
       clip.lowpassHz === other.lowpassHz &&
       clip.spaceDb === other.spaceDb
