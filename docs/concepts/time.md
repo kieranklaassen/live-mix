@@ -51,6 +51,35 @@ and hands each one to the graph exactly once, keyed by
   to, so a clip that starts exactly where you pressed Play is handed over
   (and joined a few milliseconds late) rather than left until the loop comes
   round.
+- **What is under the playhead sounds.** A track that can enter a clip
+  partway (`joinsLate`: audio and stretch tracks) is also handed the clips
+  the position is already inside, so pressing Play in the middle of a clip,
+  or seeking into one while playing, plays it from that point in it instead
+  of leaving it silent until its start comes round. The same goes for a start
+  the track declined (its sample was still decoding when the playhead reached
+  it): it comes in where the clip has got to as soon as it can be taken. A
+  clip entered this way eases in over 5 ms (`JOIN_EASE_SECONDS`), since there
+  is no silence before it to hide a cut. Equal-power clips are the exception:
+  their envelope is written from the start, so they wait for it. So is the
+  far side of the loop: a clip that runs past the loop's end keeps sounding
+  into the next pass when the loop comes round by itself, but a start or a
+  jump enters only what is drawn under the playhead, not what would have
+  carried over from a pass that was never played.
+- **Edits while playing.** `refresh()` (which every clip-list change calls)
+  keeps what is sounding and re-derives what is pending; a clip cut short of
+  the playhead stops. It does not start anything whose start has passed. To
+  hear an edited clip at once, call `engine.scheduler.rejoin([clipId, …])`
+  after the edit: what those clips have sounding fades out over 5 ms, and each
+  one the playhead is inside is entered again as it now is (moved under the
+  playhead, lengthened over it, new fades, another slice, reversed). A clip
+  still sounding over the loop's end from the pass before comes back under
+  the start it had; the scheduler remembers a handover until its clip is
+  over, through a loop change too, so the old voice is always the one let go.
+  A clip that is sounding but could not come back at once is left as it sounds
+  (`Schedulable.keeps`): an equal-power clip, and any clip on a stretch
+  track, whose source takes time to build. A host decides which edits ask for
+  this; the library does not rejoin by itself, because a host may already be
+  playing that pass of a clip by other means.
 
 Per track, `lookaheadSec` is how far ahead starts are handed to the graph and
 `preloadSec` how far ahead decoding begins (Breathwork Live: 5 s and 12 s).

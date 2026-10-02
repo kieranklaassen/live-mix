@@ -48,6 +48,8 @@ interface Hold {
 }
 
 export class SampleRetainer implements Schedulable {
+  /** A clip the track enters partway needs its sample held as much as one played from its start. */
+  readonly joinsLate = true
   private readonly samples: SampleStore
   private readonly track: RetainedTrack
   private readonly now: () => number

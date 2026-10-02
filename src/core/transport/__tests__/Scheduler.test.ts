@@ -3,10 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { type ClipWindow } from '../../clips/window'
 import { MockAudioContext, advance, configureMocks } from '../../../testing'
 import { scheduleKey, type ScheduledStart, type TransportLoop } from '../anchor'
-import { DEFAULT_TICK_MS, Scheduler, type Schedulable } from '../Scheduler'
+import { DEFAULT_TICK_MS, REJOIN_FADE_SECONDS, Scheduler, type Schedulable } from '../Scheduler'
 import { Transport } from '../Transport'
 
-type Handoff = { key: string; start: ScheduledStart; when: number; at: number }
+type Handoff = { key: string; start: ScheduledStart; when: number; at: number; joining?: boolean }
 
 /** Rounds away float noise from `anchor + offset` sums so lists compare with `toEqual`. */
 const round = (sec: number) => Math.round(sec * 1e6) / 1e6
@@ -513,5 +513,352 @@ describe('Scheduler timer', () => {
     expect(track.handed).toEqual([])
     expect(track.cancelAllCalls).toEqual([])
     expect(vi.getTimerCount()).toBe(0)
+  })
+})
+
+describe('Scheduler joins clips the position is inside', () => {
+  /** A track that can enter a clip partway, like an AudioTrack: it is told when it is asked to. */
+  class JoiningTrack extends FakeTrack {
+    readonly joinsLate = true
+    readonly faded: [string, number | undefined][] = []
+
+    override schedule(start: ScheduledStart, when: number, joining?: boolean): boolean {
+      if (!super.schedule(start, when)) return false
+      this.handed[this.handed.length - 1].joining = joining === true
+      return true
+    }
+
+    override cancel(key: string, fadeSec?: number): void {
+      super.cancel(key)
+      this.faded.push([key, fadeSec])
+    }
+
+    joined(): string[] {
+      return this.handed.filter((entry) => entry.joining).map((entry) => entry.key)
+    }
+  }
+
+  const strokes = [
+    { id: 'pad', startSec: 2, durationSec: 16 },
+    { id: 'hit', startSec: 6, durationSec: 0.5 },
+    { id: 'tail', startSec: 20, durationSec: 4 },
+  ]
+
+  function buildJoining(items: ClipWindow['clips'] = strokes, loop: TransportLoop = LOOP) {
+    const ctx = new MockAudioContext()
+    ctx.currentTime = 100
+    const transport = new Transport({ now: () => ctx.currentTime, loop })
+    const scheduler = new Scheduler({ transport })
+    const track = new JoiningTrack(ctx, 0.2, items)
+    scheduler.register(track)
+    return { ctx, transport, scheduler, track }
+  }
+
+  it('hands over a clip the transport is started inside, with the clock time its start had', () => {
+    const { transport, track } = buildJoining()
+    transport.seek(6.25)
+    transport.start()
+    // The pad began 4.25 s ago and the hit a quarter of a second ago; the tail is still ahead.
+    expect(track.joined()).toEqual(['pad:0:2.000', 'hit:0:6.000'])
+    expect(track.handed.map((entry) => round(entry.when))).toEqual([95.75, 99.75])
+  })
+
+  it('does the same where a seek lands while playing, under the new pass', () => {
+    const { ctx, transport, track } = buildJoining()
+    transport.start()
+    ctx.currentTime = 101
+    transport.seek(21)
+    expect(track.cancelAllCalls).toEqual([0])
+    expect(track.joined()).toEqual(['tail:1:20.000'])
+    expect(round(track.handed[0].when)).toBe(100)
+  })
+
+  it('does not join a clip that starts exactly there, or one that ends exactly there', () => {
+    const { transport, track } = buildJoining()
+    transport.seek(6.5)
+    transport.start()
+    // The hit ends at 6.5 and is over; only the pad is entered partway.
+    expect(track.joined()).toEqual(['pad:0:2.000'])
+    transport.seek(20)
+    expect(track.joined()).toEqual(['pad:0:2.000'])
+    expect(track.keys()).toEqual(['pad:0:2.000', 'tail:1:20.000'])
+  })
+
+  it('joins once: later ticks and the timer leave what it joined alone', async () => {
+    const { ctx, transport, scheduler, track } = buildJoining()
+    transport.seek(10)
+    transport.start()
+    scheduler.tick()
+    await advance(ctx, 1)
+    expect(track.keys()).toEqual(['pad:0:2.000'])
+  })
+
+  it('leaves a schedulable that cannot join, and a clip with no length, to wait for their starts', () => {
+    const { ctx, transport, scheduler, track } = buildJoining([{ id: 'bare', startSec: 2 }])
+    const plain = new FakeTrack(ctx, 0.2, strokes)
+    scheduler.register(plain)
+    transport.seek(10)
+    transport.start()
+    expect(track.handed).toEqual([])
+    expect(plain.handed).toEqual([])
+  })
+
+  it('offers a declined start again once it has passed, as a join, until its clip is over', () => {
+    const { ctx, transport, scheduler, track } = buildJoining([
+      { id: 'short', startSec: 0.1, durationSec: 1 },
+      { id: 'long', startSec: 0.1, durationSec: 8 },
+    ])
+    track.accept = false
+    transport.start()
+    ctx.currentTime = 101.5
+    scheduler.tick()
+    expect(track.handed).toEqual([])
+
+    // Decoded at last: the short one is over, the long one comes in where it has got to.
+    track.accept = true
+    ctx.currentTime = 102
+    scheduler.tick()
+    expect(track.joined()).toEqual(['long:0:0.100'])
+    expect(round(track.handed[0].when)).toBe(100.1)
+    scheduler.tick()
+    expect(track.handed).toHaveLength(1)
+  })
+
+  it('does not join a declined start whose clip has moved or gone', () => {
+    const { ctx, transport, scheduler, track } = buildJoining([
+      { id: 'moved', startSec: 0.1, durationSec: 8 },
+      { id: 'gone', startSec: 0.1, durationSec: 8 },
+    ])
+    track.accept = false
+    transport.start()
+    track.accept = true
+    ctx.currentTime = 101
+    track.items = [{ id: 'moved', startSec: 5, durationSec: 8 }]
+    scheduler.refresh()
+    expect(track.handed).toEqual([])
+  })
+
+  it('joins a clip declined at the start of the transport once it can be taken', () => {
+    const { ctx, transport, scheduler, track } = buildJoining()
+    track.accept = false
+    transport.seek(10)
+    transport.start()
+    track.accept = true
+    ctx.currentTime = 100.3
+    scheduler.tick()
+    expect(track.joined()).toEqual(['pad:0:2.000'])
+    expect(round(track.handed[0].when)).toBe(92)
+  })
+
+  describe('rejoin', () => {
+    it('enters a clip moved or dropped under the playhead, in the same turn', () => {
+      const { ctx, transport, scheduler, track } = buildJoining()
+      transport.start()
+      ctx.currentTime = 101
+      scheduler.tick()
+      // Nothing sounds at 1 s. The tail is dragged back over the playhead and a new clip dropped there.
+      track.items = [
+        strokes[0],
+        strokes[1],
+        { id: 'tail', startSec: 0.5, durationSec: 4 },
+        { id: 'new', startSec: 0, durationSec: 2 },
+      ]
+      scheduler.refresh()
+      expect(track.handed).toEqual([])
+      scheduler.rejoin(['tail', 'new'])
+      expect(track.joined()).toEqual(['new:0:0.000', 'tail:0:0.500'])
+      expect(track.handed.map((entry) => round(entry.when))).toEqual([100, 100.5])
+    })
+
+    it('lets a sounding clip go with a short fade and enters it again as it now is', () => {
+      const { ctx, transport, scheduler, track } = buildJoining()
+      transport.seek(1.9)
+      transport.start()
+      ctx.currentTime = 103
+      scheduler.tick()
+      expect(track.keys()).toEqual(['pad:0:2.000'])
+
+      // Its fades changed: same place, so the same key, played afresh from where the transport is.
+      scheduler.rejoin(['pad'])
+      expect(track.faded).toEqual([['pad:0:2.000', REJOIN_FADE_SECONDS]])
+      expect(track.keys()).toEqual(['pad:0:2.000', 'pad:0:2.000'])
+      expect(track.handed[1].joining).toBe(true)
+      expect(round(track.handed[1].when)).toBe(100.1)
+    })
+
+    it('lets a clip sounding across a loop change go rather than doubling it', () => {
+      const { ctx, transport, scheduler, track } = buildJoining()
+      transport.seek(10)
+      transport.start()
+      expect(track.keys()).toEqual(['pad:0:2.000'])
+
+      // The re-pin numbers a fresh pass; the pad is still sounding under the old one.
+      ctx.currentTime = 101
+      transport.setLoop({ enabled: false })
+      scheduler.rejoin(['pad'])
+      expect(track.faded).toEqual([['pad:0:2.000', REJOIN_FADE_SECONDS]])
+      expect(track.keys()).toEqual(['pad:0:2.000', 'pad:1:2.000'])
+    })
+
+    it('leaves clips it was not given alone, and a named clip the position is outside', () => {
+      const { ctx, transport, scheduler, track } = buildJoining()
+      transport.seek(10)
+      transport.start()
+      ctx.currentTime = 101
+      scheduler.rejoin(['tail', 'hit'])
+      expect(track.cancelled).toEqual([])
+      expect(track.keys()).toEqual(['pad:0:2.000'])
+    })
+
+    it('re-derives a pending start of a named clip inside the window', () => {
+      const { ctx, transport, scheduler, track } = buildJoining()
+      transport.seek(19.9)
+      transport.start()
+      expect(track.keys()).toEqual(['tail:0:20.000'])
+      ctx.currentTime = 100.05
+      scheduler.rejoin(['tail'])
+      expect(track.cancelled).toEqual(['tail:0:20.000'])
+      expect(track.keys()).toEqual(['tail:0:20.000', 'tail:0:20.000'])
+      expect(track.handed[1].joining).toBe(false)
+      expect(round(track.handed[1].when)).toBe(100.1)
+    })
+
+    it('leaves a clip the schedulable keeps exactly as it sounds', () => {
+      const { ctx, transport, scheduler, track } = buildJoining()
+      transport.seek(1.9)
+      transport.start()
+      ctx.currentTime = 103
+      scheduler.tick()
+      // The pad's voice could not be entered again at once if it were let go.
+      const kept = Object.assign(track, { keeps: (key: string): boolean => key === 'pad:0:2.000' })
+      const handed = kept.handed.length
+      kept.items = [{ id: 'pad', startSec: 2, durationSec: 12 }, strokes[1], strokes[2]]
+      scheduler.rejoin(['pad'])
+      expect(kept.cancelled).toEqual([])
+      expect(kept.faded).toEqual([])
+      expect(kept.handed).toHaveLength(handed)
+      // Once it no longer holds on to it, the same call lets it go and enters it again.
+      kept.keeps = () => false
+      scheduler.rejoin(['pad'])
+      expect(kept.faded).toEqual([['pad:0:2.000', REJOIN_FADE_SECONDS]])
+      expect(kept.joined()).toEqual(['pad:0:2.000'])
+    })
+
+    it('after a loop change, still lets go of what a clip has sounding before entering it again', () => {
+      const { ctx, transport, scheduler, track } = buildJoining()
+      transport.seek(10)
+      transport.start()
+      ctx.currentTime = 101
+      // The transport re-pins under a new pass number; the pad sounds on, handed over under the old one.
+      transport.setLoop({ enabled: true, lengthSec: 24 })
+      scheduler.tick()
+      scheduler.rejoin(['pad'])
+      // One voice, not two: the old one fades as the new one comes in.
+      expect(track.faded).toEqual([['pad:0:2.000', REJOIN_FADE_SECONDS]])
+      expect(track.joined()).toEqual(['pad:0:2.000', 'pad:1:2.000'])
+      expect(round(track.handed[1].when)).toBe(92)
+    })
+
+    it('enters a clip again that is sounding over the loop end from the pass before, under the start it had', () => {
+      const { ctx, transport, scheduler, track } = buildJoining([
+        { id: 'drone', startSec: 24, durationSec: 16 },
+      ])
+      transport.seek(23.9)
+      transport.start()
+      expect(track.keys()).toEqual(['drone:0:24.000'])
+      // Two seconds into the next pass the drone still has six to run.
+      ctx.currentTime = 110.1
+      scheduler.tick()
+      scheduler.rejoin(['drone'])
+      expect(track.faded).toEqual([['drone:0:24.000', REJOIN_FADE_SECONDS]])
+      expect(track.joined()).toEqual(['drone:0:24.000'])
+      expect(round(track.handed[1].when)).toBe(100.1)
+
+      // Once it is over, the pass before is forgotten and there is nothing to enter.
+      ctx.currentTime = 116.2
+      scheduler.tick()
+      scheduler.rejoin(['drone'])
+      expect(track.handed).toHaveLength(2)
+    })
+
+    it('offers a declined re-entry again at the clock time it had, whatever pass the transport is on by then', () => {
+      const { ctx, transport, scheduler, track } = buildJoining([
+        { id: 'pad', startSec: 10, durationSec: 12 },
+      ])
+      transport.seek(15)
+      transport.start()
+      expect(round(track.handed[0].when)).toBe(95)
+      // A shorter loop: the transport wraps to 0 under a new pass, the pad sounds on by the clock.
+      ctx.currentTime = 101
+      transport.setLoop({ enabled: true, lengthSec: 8 })
+      scheduler.tick()
+      track.accept = false
+      scheduler.rejoin(['pad'])
+      expect(track.faded).toEqual([['pad:0:10.000', REJOIN_FADE_SECONDS]])
+      expect(track.handed).toHaveLength(1)
+
+      // Ready now: it comes back six and a half seconds in, not at a time worked out from the new pass.
+      track.accept = true
+      ctx.currentTime = 101.5
+      scheduler.tick()
+      expect(track.joined()).toEqual(['pad:0:10.000', 'pad:0:10.000'])
+      expect(round(track.handed[1].when)).toBe(95)
+    })
+
+    it('does nothing while not playing, or for a schedulable that cannot join', () => {
+      const { ctx, transport, scheduler, track } = buildJoining()
+      scheduler.rejoin(['pad'])
+      const plain = new FakeTrack(ctx, 0.2, strokes)
+      scheduler.register(plain)
+      transport.seek(1.9)
+      transport.start()
+      ctx.currentTime = 103
+      scheduler.tick()
+      scheduler.rejoin(['pad'])
+      expect(plain.cancelled).toEqual([])
+      expect(plain.keys()).toEqual(['pad:0:2.000'])
+      expect(track.handed).toHaveLength(2)
+    })
+  })
+
+  describe('refresh', () => {
+    it('fades a sounding clip that was cut short of where the transport is', () => {
+      const { ctx, transport, scheduler, track } = buildJoining()
+      transport.seek(10)
+      transport.start()
+      ctx.currentTime = 101
+      track.items = [{ id: 'pad', startSec: 2, durationSec: 8.5 }, strokes[1], strokes[2]]
+      scheduler.refresh()
+      expect(track.faded).toEqual([['pad:0:2.000', REJOIN_FADE_SECONDS]])
+
+      // Drawn out again past the playhead: it waits for `rejoin`, or for its start.
+      track.items = strokes
+      scheduler.refresh()
+      expect(track.keys()).toEqual(['pad:0:2.000'])
+    })
+
+    it('fades a sounding clip cut short after a loop change gave the transport a new pass', () => {
+      const { ctx, transport, scheduler, track } = buildJoining()
+      transport.seek(10)
+      transport.start()
+      ctx.currentTime = 101
+      transport.setLoop({ enabled: true, lengthSec: 24 })
+      scheduler.tick()
+      track.items = [{ id: 'pad', startSec: 2, durationSec: 8.5 }, strokes[1], strokes[2]]
+      scheduler.refresh()
+      expect(track.faded).toEqual([['pad:0:2.000', REJOIN_FADE_SECONDS]])
+    })
+
+    it('keeps a sounding clip that still reaches the transport, through a loop change too', () => {
+      const { ctx, transport, scheduler, track } = buildJoining()
+      transport.seek(10)
+      transport.start()
+      ctx.currentTime = 101
+      track.items = [{ id: 'pad', startSec: 2, durationSec: 12 }, strokes[1], strokes[2]]
+      scheduler.refresh()
+      transport.setLoop({ enabled: false })
+      scheduler.refresh()
+      expect(track.cancelled).toEqual([])
+    })
   })
 })

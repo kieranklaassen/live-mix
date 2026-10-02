@@ -135,10 +135,14 @@ export class StretchTrack implements StripHost {
       () => this.clips.audible(),
       (start, when) => this.scheduleStart(start, when),
       {
-        cancel: (key) => this.stop(key),
+        cancel: (key, fadeSec) => (fadeSec ? this.release(key, fadeSec) : this.stop(key)),
         cancelPending: () => this.stopPending(),
         cancelAll: (fadeSec) => this.stopAll(fadeSec > 0 ? { at: this.now() + fadeSec } : {}),
       },
+      // `play` enters the stretch source where the clip has got to. A stretch
+      // source takes time to build, so a voice that is sounding cannot be let
+      // go and entered again at once: a rejoin keeps it.
+      { joinsLate: true, keeps: (key) => this.sounding(key) },
     )
     this.preload = new TrackSchedulable(
       () => this.preloadSec,
@@ -221,6 +225,23 @@ export class StretchTrack implements StripHost {
     this.armEnd(voice)
   }
 
+  /**
+   * Let the voice under `key` go for another that takes its place: one that is
+   * sounding fades out over `seconds` from now; one that has not started is
+   * dropped outright, since a stop scheduled on its stretch node would leave
+   * its queued start to fire.
+   */
+  release(key: string, seconds: number): void {
+    const voice = this.active.get(key)
+    if (!voice) return
+    const at = this.now()
+    if (seconds <= 0 || voice.startTime > at || at >= voice.endTime) {
+      this.silence(voice)
+      return
+    }
+    this.fadeOutVoice(key, at, seconds)
+  }
+
   /** Silence every voice that has not started yet; returns their keys. */
   stopPending(): string[] {
     const now = this.now()
@@ -251,6 +272,13 @@ export class StretchTrack implements StripHost {
   }
 
   // --- Schedulable hooks --------------------------------------------------------------------
+
+  private sounding(key: string): boolean {
+    const voice = this.active.get(key)
+    if (!voice) return false
+    const now = this.now()
+    return voice.startTime <= now && now < voice.endTime
+  }
 
   private scheduleStart(start: ScheduledStart, when: number): boolean {
     const clip = this.clips.get(start.clipId)
