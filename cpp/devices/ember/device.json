@@ -814,7 +814,9 @@
         "path": "Tatami/Source/Shared/DSP/PolyBlepOsc.h",
         "sha256": "28e644e643d2738e868bd71f99a668dc675d0bc898babc75b47409dda8366ebd",
         "portedTo": "cpp/devices/ember/PolyBlepOsc.h",
-        "deviations": []
+        "deviations": [
+          "The pulse is centred on zero at every width: 2 pw - 1 is subtracted from it. The source's pulse is +-1 whatever the width, which carries that much DC (the presets Glass pad and Dark drone left -0.045 and -0.027 of it on the output) and turns into a sub-audio swing when an LFO moves the width. The audible wave is the same."
+        ]
       },
       {
         "path": "Tatami/Source/Shared/DSP/SvfTptSynth.h",

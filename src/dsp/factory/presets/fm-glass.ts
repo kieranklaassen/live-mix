@@ -18,7 +18,7 @@ export const FM_GLASS_PRESETS: readonly FactoryPreset[] = [
     name: 'Ice chime crystals',
     category: 'bell',
     description: 'Short bright chimes whose echoes come back an octave higher each time.',
-    instrument: { deviceId: 'fm-glass', preset: 'Ice chimes', params: { volume: 0 } },
+    instrument: { deviceId: 'fm-glass', preset: 'Ice chimes', params: { volume: -3 } },
     effects: [
       { deviceId: 'grain-delay', preset: 'Crystals', params: { mix: 0.3 } },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
@@ -43,7 +43,7 @@ export const FM_GLASS_PRESETS: readonly FactoryPreset[] = [
     name: 'Water garden mallets',
     category: 'bell',
     description: 'Soft FM mallets with dotted tape echoes, for slow repeating patterns.',
-    instrument: { deviceId: 'fm-glass', preset: 'Vibes', params: { volume: -4 } },
+    instrument: { deviceId: 'fm-glass', preset: 'Vibes', params: { volume: -7 } },
     effects: [
       { deviceId: 'tape-echo', preset: 'Space echo', params: { heads: 3, time: 450, mix: 0.3 } },
       { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.3 } },

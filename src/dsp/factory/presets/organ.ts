@@ -8,7 +8,7 @@ export const ORGAN_PRESETS: readonly FactoryPreset[] = [
     description: 'A reedy pump organ with an uneven bellows, close up in a small room on old tape.',
     instrument: { deviceId: 'organ', preset: 'Pump organ', params: { celeste: 0.5, volume: -10 } },
     effects: [
-      { deviceId: 'tape', preset: 'Cassette four-track', params: { hiss: 0.25 } },
+      { deviceId: 'tape', preset: 'Cassette four-track', params: { hiss: 0.25, output: -3.5 } },
       { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.35 } },
       { deviceId: 'stereo-widener', preset: 'Wide' },
     ],
@@ -18,7 +18,7 @@ export const ORGAN_PRESETS: readonly FactoryPreset[] = [
     name: 'Chapel flutes',
     category: 'organ',
     description: 'Stopped flutes with no reed at all, speaking quickly into a long stone nave.',
-    instrument: { deviceId: 'organ', preset: 'Chapel flutes' },
+    instrument: { deviceId: 'organ', preset: 'Chapel flutes', params: { volume: -14 } },
     effects: [{ deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.4 } }],
   },
   {

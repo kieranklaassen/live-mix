@@ -211,32 +211,59 @@ it is made. No artist names, trademarks or praise.
 ## What the bench found in the devices
 
 Writing the bank meant measuring every device and most of their presets.
-These came up and are not fixed here (a fix changes a committed module and its
-parity goldens). The first group was re-measured after it was reported; the
-second is as the bench reported it.
+The first group below was re-measured after it was reported and has since been
+fixed in the devices; each entry says what the fault was, what the device does
+now and what is left. The second group is as the bench reported it and is not
+fixed.
 
-Re-measured:
+Fixed:
 
-- **`ether-reverb` preset "Frozen" is silent.** Freeze mutes the input and the
-  dry signal, so loaded with freeze on there is nothing to hold. `expanse`,
-  `grain-cloud` and `spectral-blur` loaded with freeze on pass only the dry
-  signal for the same reason. Freeze is a switch to throw while something is
-  ringing; no factory chain loads with it on.
-- **`limiter-1176` passes single transients.** A click at −6 dBFS leaves at
-  +6 dBFS with 12 dB of input gain and at +18 dBFS with 24 dB; a steady tone
-  is held (−7 and −4 dBFS). It is a levelling stage, not a brick wall: the
-  true-peak limiter on the master is the safety.
-- **`saturator` on its Hard curve overshoots full scale** by 0.3 to 1.1 dB at
-  6 to 24 dB of drive with `outputDb` 0.
-- **`ember`'s pulse oscillator carries DC** when its width is off centre: the
-  stock presets "Glass pad" (offset −0.045) and "Dark drone" (−0.027) do. The
-  factory presets keep the pulse at 0.5 or use other shapes.
-- **`grain-synth`'s built-in sound is out of phase in its middle.** With
-  Spread 0 the side signal is 4 to 5 dB above the mid at positions 0.3 to 0.6
-  (−5 dB near the ends), so the stock presets that sit there collapse in mono
-  until a sample is loaded. The factory presets sit at 0.1 to 0.2.
-- **`zita-rev1` loses level as mix rises**: its presets come out 2.4 to 4.5 LU
-  below the dry signal.
+- **`ether-reverb` preset "Frozen" was silent.** Freeze muted the input and
+  the dry signal, so loaded with freeze on there was nothing to hold and
+  nothing could get in. A freeze with nothing ringing now waits: the first
+  sound gets in, and the room is held once its tail has passed its top. On
+  the chain phrase "Frozen" comes out at −17.2 LUFS and is still there at
+  the end (the last half second 1.6 dB under the loudest part). `expanse`,
+  `grain-cloud` and `spectral-blur` are not changed: loaded with freeze on
+  they still pass only the dry signal and hold nothing. No factory chain
+  loads with a freeze on.
+- **`limiter-1176` passed single transients.** A click at −6 dBFS left at
+  +6 dBFS with 12 dB of input gain and at +18 dBFS with 24 dB, because the
+  0.8 ms attack never sees it. A ceiling now follows the compressor (a wire
+  to half scale, a tanh knee from there to full scale): the same clicks
+  leave at 0.0 dBFS, and a steady tone is where it was (−7 and −4 dBFS).
+- **`saturator` overshot full scale** with `outputDb` 0, on every curve and
+  not only Hard. Most of it was the DC blocker tilting the flat top of a
+  clipped low note: 3.7 dB over on a 41 Hz tone, 0.1 to 1.2 dB on the chain
+  phrase at 12 to 36 dB of drive. The blocker now works under the curve's
+  ceiling and that part is gone (41 Hz: 0.0 dB; the phrase: under 0.1 dB up
+  to 24 dB of drive, 0.3 dB on Hard at 36). What is left is what
+  band-limiting a squared wave adds, on a pure tone 0.1 dB at 12 dB of drive
+  and up to 1.5 dB at 36: holding that would put back the aliasing the
+  oversampling removes (−86 dBFS became −40 when it was tried), so it stays.
+  At `oversample` 1x the output is the curve exactly.
+- **`ember`'s pulse oscillator carried DC** when its width was off centre
+  (the stock presets "Glass pad" and "Dark drone" by −0.045 and −0.027 at
+  the oscillator). The pulse is now centred on zero at every width; both
+  presets measure 0.000.
+- **`grain-synth`'s built-in sound was out of phase in its middle.** With
+  Spread 0 the side signal was 4 to 5 dB above the mid at positions 0.3 to
+  0.6, so the stock presets there collapsed in mono until a sample was
+  loaded. Its stereo is now made of each partial leaning a little from side
+  to side, which sums to the plain partials in mono: the side is 5.6 to
+  12.5 dB under the mid at every position.
+- **`zita-rev1` lost level as mix rose**: its presets came out 2.4 to 4.5 LU
+  below the dry signal, and 7 dB fully wet. The balance is now levelled
+  (`docs/faust-devices.md`): the presets are within 0.9 LU of the dry phrase
+  and steady sound within 0.2 dB at any mix. The nineteen factory presets
+  that end in it had been turned up to make good the loss, so each was
+  trimmed by what it gained (2.4 to 4.1 dB, at the instrument's volume or at
+  the output of a tape, saturator or limiter standing before the reverb) and
+  measures within 0.3 LU of where it was. Seven factory sounds struck at
+  time zero are 0.7 to 2.6 LU louder at the same −6 dBFS peak: Mix glides up
+  from zero in the first 20 ms after loading, which used to let the strike
+  through 3.7 dB above the rest of the note and now lets it through 0.2 dB
+  above.
 
 As reported:
 
@@ -262,7 +289,8 @@ As reported:
   25 to 30 dB crest factor and sit far below the other sounds at default
   volume; `tape` hiss keeps running after the notes stop, by design.
 - Wet levels differ widely between reverbs fully wet: `dattorro` "Long plate"
-  +6.5 LU, `spectral-blur` "Slow dissolve" +5 LU, `zita-rev1` "Hall" −7 LU.
+  +6.5 LU, `spectral-blur` "Slow dissolve" +5 LU (`zita-rev1` "Hall" was
+  −7 LU and is levelled now, see above).
 - `choir` with `ensemble` above 0, or any vibrato, beats deeply enough for
   `analyzeSound` to count notes (27 onsets on one held note at `ensemble` 1);
   `organ` does the same at `celeste` 0.9. The factory sounds made from them

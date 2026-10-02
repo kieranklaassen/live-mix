@@ -378,6 +378,20 @@ static void check_oscillators() {
     SHOW("pulse 25%%: h2/h1 %.4f h4/h1 %.5f\n", h2 / h1, h4 / h1);
     EXPECT_NEAR(h2 / h1, 0.7071, 0.01, "a 25 % pulse has a strong second harmonic");
     EXPECT(h4 < 0.003 * h1, "and no fourth");
+
+    // Off centre the pulse is still centred on zero. The source's sits at
+    // 2 pw - 1 on average: half the pulse's height of DC at 25 %, more than
+    // the fundamental at 10 %.
+    const double offset_25 = mean(out.left, at(0.5), at(1.5));
+    clean(1);
+    device.set_param(p::kOsc1Pw, 0.1f);
+    device.note_on(1, 220.0f, 1.0f);
+    Stereo thin = render(device, 2.0f, kRate);
+    const double thin_h1 = tone_level(thin.left, 220.0, kRate, at(0.5));
+    const double offset_10 = mean(thin.left, at(0.5), at(1.5));
+    SHOW("pulse DC over the fundamental: %.5f at 25 %%, %.5f at 10 %%\n", offset_25 / h1, offset_10 / thin_h1);
+    EXPECT(std::fabs(offset_25) < 0.005 * h1, "a 25 % pulse carries no DC");
+    EXPECT(std::fabs(offset_10) < 0.005 * thin_h1, "a 10 % pulse carries no DC");
   }
 
   // Oscillator 2: Mix crossfades, Coarse and Fine tune it.

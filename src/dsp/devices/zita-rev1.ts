@@ -18,10 +18,14 @@ export const ZITA_REV1_DEVICE = defineWasmDevice({
 export type ZitaReverb = WasmDevice<typeof ZITA_REV1_PARAMS>
 
 /**
- * Stereo in → stereo FDN reverb → `dry·(1−mix) + wet·mix`, the same law as
- * the Dattorro device. `lowDecay`/`midDecay` are T60s below and above
- * `crossover`; `damping` is the frequency where the mid T60 has halved.
- * Parameter moves are smoothed over 5 ms inside the DSP.
+ * Stereo in → stereo FDN reverb → `dry·(1−mix) + wet·mix`, the Dattorro
+ * device's balance, then levelled: the sum is divided by
+ * `√((1−mix)² + 0.2·mix²)`, what the dry signal and a reverb 7 dB under it
+ * add up to, so the output stays as loud as the input wherever `mix` stands
+ * (fully wet is 7 dB of make-up; at 0 the gain is exactly 1).
+ * `lowDecay`/`midDecay` are T60s below and above `crossover`; `damping` is
+ * the frequency where the mid T60 has halved. Parameter moves are smoothed
+ * over 5 ms inside the DSP.
  */
 export function createZitaReverb(
   context: BaseAudioContext,

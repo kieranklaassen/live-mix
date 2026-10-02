@@ -90,17 +90,33 @@ compiler's `-json` description of the same tree, so the C++ ids and the
 | Device         | Artefact                     | Source                                  | Params (id order)                                                                                                                                             |
 | -------------- | ---------------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `zita-rev1`    | `zita-rev1.wasm` (17.7 KB)   | `re.zita_rev1_stereo`, `fsmax = 96 kHz` | `preDelay` 20–100 ms (60), `crossover` 50–1000 Hz log (200), `lowDecay` 1–8 s (3), `midDecay` 1–8 s (2), `damping` 1.5–23.52 kHz log (6000), `mix` 0–1 (0.35) |
-| `limiter-1176` | `limiter-1176.wasm` (6.2 KB) | `co.limiter_1176_R4_stereo`             | `inputGain` 0–40 dB (0), `outputGain` −24–24 dB (0)                                                                                                           |
+| `limiter-1176` | `limiter-1176.wasm` (7.1 KB) | `co.limiter_1176_R4_stereo`, a ceiling  | `inputGain` 0–40 dB (0), `outputGain` −24–24 dB (0)                                                                                                           |
 
-`zita-rev1` applies `dry*(1-mix) + wet*mix`, the Dattorro device's law. Its
-delay lines are sized for 96 kHz (about 1.9 MB of static state inside the 4 MB
-module memory); higher context rates run but clamp the longest delays.
+`zita-rev1` balances `dry*(1-mix) + wet*mix`, the Dattorro device's law, and
+levels the sum. The reverb's own output runs about 7 dB under what goes into
+it, so the plain balance lost level as `mix` rose (4 dB at 0.35, 7 dB fully
+wet; the three presets came out 2.4 to 4.5 LU under the dry signal). Dry and
+tail add in power, so the sum is `sqrt((1-mix)^2 + 0.2*mix^2)` of the input,
+and the device divides by that: the balance at every `mix` is where it was,
+the output is within 0.2 dB of the input level on steady sound, and at
+`mix` 0 the gain is exactly 1. Its delay lines are sized for 96 kHz (about
+1.9 MB of static state inside the 4 MB module memory); higher context rates
+run but clamp the longest delays.
 
 `limiter-1176` keeps the library's fixed 1176 "R4" law: 4:1 above −6 dB,
 0.8 ms attack, 0.5 s release, level detected on `|L| + |R|`. Input gain
 drives that threshold like the hardware's INPUT knob; output gain is make-up.
 A full-scale sine in both channels sits 12 dB over the detector's threshold
 and comes out 9 dB down.
+
+That compressor alone is a levelling stage: its 0.8 ms attack never sees a
+click, which left at whatever height the input gain gave it (+18 dBFS for a
+click at −6 dBFS with 24 dB of drive). So a ceiling follows it, ahead of the
+output gain: a wire up to half scale, which is where the compressor holds a
+steady signal, then a tanh knee that approaches full scale and never passes
+it (`0.5 + 0.5·tanh((|x| − 0.5) / 0.5)`). With output gain at 0 dB nothing
+leaves above 0 dBFS. The knee is a waveshaper without oversampling; it only
+works on what outruns the attack.
 
 From `@kieranklaassen/live-mix/dsp`: `createZitaReverb(ctx, options)` and
 `createLimiter1176(ctx, options)` return a `WasmDevice` over the committed
@@ -115,8 +131,9 @@ artefact, exactly like `createDattorroReverb`; `ZITA_REV1_DEVICE` /
   system compiler and check the parameter contract (labels, ranges, defaults,
   clamping), the bus contract (pass-through, input cleared), impulse and step
   behaviour (tail exists and decays; T60 tracks the decay params; onset moves
-  with pre-delay; 4:1 law within 0.4 dB; attack lets the onset through;
-  release recovers), sample-rate independence (44.1/48/96 kHz) and stability
+  with pre-delay; the level holds within 2.5 dB of the dry signal at every
+  mix; 4:1 law within 0.4 dB; attack lets the onset through; a click stops at
+  full scale; release recovers), sample-rate independence (44.1/48/96 kHz) and stability
   (30 s at maximum decay or 40 dB of drive: bounded, no NaN).
 - WASM (`pnpm test`): `src/dsp/__tests__/{zita-rev1,limiter-1176}-wasm.test.ts`
   instantiate the committed artefacts in Node with an empty import object and

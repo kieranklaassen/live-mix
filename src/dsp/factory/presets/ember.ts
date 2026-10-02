@@ -38,6 +38,7 @@ export const EMBER_PRESETS: readonly FactoryPreset[] = [
         ampRelease: 5,
         unisonVoices: 2,
         unisonSpread: 0.6,
+        volume: -8,
       },
     },
     effects: [{ deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } }],
