@@ -124,6 +124,8 @@ export class ChannelStrip {
   private nodes: StripNodes | null = null
   // The fader and gate each shadow keeps in step with the strip's.
   private readonly shadows = new Set<{ fader: GainNode; gate: GainNode }>()
+  // Nodes that hear the strip's output and every shadow's (`tap`).
+  private readonly taps = new Set<AudioNode>()
 
   private inputGainValue = 1
   private levelValue: number
@@ -410,6 +412,7 @@ export class ChannelStrip {
     if (fader.gain.value !== this.levelValue) this.approach(fader.gain, this.levelValue, {})
     if (gate.gain.value !== this.gateCommand) this.approach(gate.gain, this.gateCommand, {})
     fader.connect(gate)
+    for (const tap of this.taps) gate.connect(tap)
     const pair = { fader, gate }
     this.shadows.add(pair)
     return {
@@ -424,6 +427,29 @@ export class ChannelStrip {
           // Context may already be closed; ignore.
         }
       },
+    }
+  }
+
+  /**
+   * Let `node` hear all the track puts out at its level: the strip's output,
+   * and whatever leaves through a shadow, now or later. A meter on a track
+   * that shares its room (`SharedSpace`) then still moves with what the
+   * track sends there, though not with the room's tail. Creates the strip's
+   * nodes. Returns the function that takes the node off again.
+   */
+  tap(node: AudioNode): () => void {
+    const output = this.output
+    output.connect(node)
+    for (const shadow of this.shadows) shadow.gate.connect(node)
+    this.taps.add(node)
+    return () => {
+      if (!this.taps.delete(node)) return
+      try {
+        output.disconnect(node)
+        for (const shadow of this.shadows) shadow.gate.disconnect(node)
+      } catch {
+        // The strip may be disposed already.
+      }
     }
   }
 
@@ -499,6 +525,7 @@ export class ChannelStrip {
       }
     }
     this.shadows.clear()
+    this.taps.clear()
     try {
       this.nodes?.inputGain.disconnect()
       for (const device of this.insertList) device.output.disconnect()

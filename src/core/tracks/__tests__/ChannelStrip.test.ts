@@ -438,6 +438,24 @@ describe('ChannelStrip.shadow', () => {
     expect((shadow.input as unknown as MockGainNode).outputs.size).toBe(0)
   })
 
+  it('tap hears the output and every shadow, the ones made later too', () => {
+    const ctx = createMockContext()
+    const s = strip(ctx, 'a')
+    const before = s.shadow()
+    const meter = ctx.createGain()
+    const untap = s.tap(asAudioNode(meter))
+    const after = s.shadow()
+    expect(asMock(s.output).isConnectedTo(meter)).toBe(true)
+    expect(asMock(before.output).isConnectedTo(meter)).toBe(true)
+    expect(asMock(after.output).isConnectedTo(meter)).toBe(true)
+
+    untap()
+    expect(asMock(s.output).isConnectedTo(meter)).toBe(false)
+    expect(asMock(before.output).isConnectedTo(meter)).toBe(false)
+    const later = s.shadow()
+    expect(asMock(later.output).isConnectedTo(meter)).toBe(false)
+  })
+
   it('says whether it has a send without making one', () => {
     const ctx = createMockContext()
     const s = strip(ctx, 'a')
