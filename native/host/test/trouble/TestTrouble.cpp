@@ -1,8 +1,10 @@
 // Test effect that goes wrong when it is told to. With LIVE_MIX_TEST_TROUBLE
 // set to "abort" it ends the process that makes it; with "hang" it never
 // comes back from being made, sitting still; with "spin" it never comes back
-// either, and keeps a processor busy. The three ways a plug-in spoils a scan.
-// Without the variable it passes its input through.
+// either, and keeps a processor busy; with "window" it puts a dialog up and
+// waits there for an answer that never comes, as a plug-in asking for its
+// licence does. The ways a plug-in spoils a scan. Without the variable it
+// passes its input through.
 
 #include <juce_audio_utils/juce_audio_utils.h>
 
@@ -29,6 +31,23 @@ public:
             std::this_thread::sleep_for (std::chrono::seconds (1));
         for (std::atomic<int> turns { 0 }; trouble == "spin";)
             ++turns;
+        if (trouble == "window")
+            waitInAWindow();
+    }
+
+    /**
+        A dialog of the system's own, waiting for an answer that never comes:
+        what a plug-in asking for its licence puts up. Its thread sits in the
+        dialog's event loop, which is not the same as sitting still.
+    */
+    [[noreturn]] static void waitInAWindow()
+    {
+        juce::NativeMessageBox::showMessageBox (juce::MessageBoxIconType::WarningIcon,
+                                                "Authorization Required",
+                                                "LiveMix Test Trouble");
+        // Answered after all, or a system without such a dialog: still never back.
+        for (;;)
+            std::this_thread::sleep_for (std::chrono::seconds (1));
     }
 
     const juce::String getName() const override { return "LiveMix Test Trouble"; }

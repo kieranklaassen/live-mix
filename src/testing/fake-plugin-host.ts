@@ -161,6 +161,11 @@ export interface FakePluginHostOptions {
   crashed?: readonly string[]
   /** Files no plug-in could be loaded from before this host started. Default none. */
   failed?: readonly string[]
+  /**
+   * A scan does not answer by itself: it runs until `finishScan()` is called
+   * or the page stops it. Default false, a scan that is over at once.
+   */
+  holdScans?: boolean
   /** False for a host built without Ableton Link. Default true. */
   link?: boolean
   /** The fake session's clock. */
@@ -179,6 +184,8 @@ export class FakePluginHost {
   /** What scans have left out so far; a scan asked to `retry` one takes it off. */
   private failed: string[]
   private crashed: string[]
+  /** Ends the scan that is held, as stopped or as through. */
+  private endScan: ((stopped: boolean) => void) | null = null
 
   constructor(options: FakePluginHostOptions = {}) {
     this.options = options
@@ -204,6 +211,13 @@ export class FakePluginHost {
 
   get socket(): FakeSocket {
     return this.sockets[this.sockets.length - 1]
+  }
+
+  /** Lets a held scan (`holdScans`) run to its end; false when none is running. */
+  finishScan(): boolean {
+    const running = this.endScan
+    running?.(false)
+    return running !== null
   }
 
   /** Requests of one method, in order. */
@@ -299,8 +313,25 @@ export class FakePluginHost {
         if (!this.failed.includes(FAKE_BROKEN_FILE) && !this.crashed.includes(FAKE_BROKEN_FILE)) {
           this.failed.push(FAKE_BROKEN_FILE)
         }
+        if (this.options.holdScans) {
+          this.endScan = (stopped) => {
+            this.endScan = null
+            reply({
+              ...this.known(this.options.plugins ?? plugins),
+              ...(stopped ? { stopped } : {}),
+            })
+          }
+          break
+        }
         reply(this.known(plugins))
         break
+      case 'stopScan': {
+        // A scan that is not held is over at once: there is none to stop.
+        const running = this.endScan
+        running?.(true)
+        reply({ stopped: running !== null })
+        break
+      }
       case 'load': {
         const plugin = plugins.find((candidate) => candidate.id === request.params.plugin)
         if (!plugin) {
