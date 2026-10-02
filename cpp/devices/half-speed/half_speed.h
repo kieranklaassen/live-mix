@@ -168,7 +168,7 @@ class HalfSpeed : public kit::DeviceBase<half_speed::kNumParams> {
 
 // --- implementation -------------------------------------------------------------------------
 
-// Every head at the present, on a fresh cycle: init, waking and switching on.
+// Everything settled and a fresh cycle: init and waking from sleep.
 inline void HalfSpeed::restart() {
   rng_.seed(0x48A1F5EDu);
   relaunch();
@@ -190,9 +190,6 @@ inline void HalfSpeed::restart() {
   blank_ = 0;
 }
 
-// A fresh cycle with all three heads at the present. They read the same
-// place and their gains sum to one, so the slowed sound is there in full
-// from the first sample instead of fading in.
 inline void HalfSpeed::clear_filters() {
   for (int c = 0; c < 2; ++c) {
     low_cut_[c].reset();
@@ -206,6 +203,9 @@ inline void HalfSpeed::clear_filters() {
   }
 }
 
+// A fresh cycle with all three heads at the present. They read the same
+// place and their gains sum to one, so the slowed sound is there in full
+// from the first sample instead of fading in.
 inline void HalfSpeed::relaunch() {
   for (Timing& timing : timing_) {
     timing.phase = 0.0;

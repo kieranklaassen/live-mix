@@ -10,7 +10,11 @@
     {
       "key": "band",
       "name": "Band",
-      "choices": ["Medium wave", "Shortwave", "Sideband"],
+      "choices": [
+        "Medium wave",
+        "Shortwave",
+        "Sideband"
+      ],
       "default": 1,
       "description": "Which kind of reception. Medium wave is the fuller local station that fades slowly. Shortwave is narrower and fades faster and deeper, with the tone hollowing as it goes. Sideband has no carrier: Tuning moves every pitch, and the noise rushes up in the gaps."
     },
@@ -182,6 +186,6 @@
   },
   "origin": {
     "kind": "new",
-    "note": "Written for live-mix on cpp/kit."
+    "note": "Written for live-mix on cpp/kit. Models a radio link in outline, as the complex envelope of the signal around the station's carrier, so each stage is the physical one at audio rate: an AM or upper-sideband transmitter, a two-path sky wave (a slow flat fade plus a late path 0.5 to 2 ms behind with a turning carrier phase, after the tapped-delay-line channel of Watterson, Juroshek and Bensema, 'Experimental Confirmation of an HF Ionospheric Channel Model', 1970, with seeded smooth movements in place of its Gaussian taps), static and neighbouring signals added at the aerial, tuning, an eighth-order IF filter, an envelope or product detector, a square-root automatic gain and a small loudspeaker. The off-tune whistle is the beat against a little of the receiver's own frequency at the detector, as in an oscillating detector. Sideband uses the phasing method on kit::Hilbert (Olli Niemitalo's allpass pair). Not a model of any one receiver. The receiver is only on while the device is awake: static carries on for four seconds after the input stops, fades over a second and a half, and an idle track is exactly silent. Output is mono."
   }
 }

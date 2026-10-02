@@ -479,13 +479,13 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     const float width = 0.1f + 0.5f * kit::clamp((note - 40.0f) / 44.0f, 0.0f, 1.0f);
     const float pan = width * kit::SineTable::lookup(note * 0.381966f);
     if (voice.two) {
-      kit::pan_gains(pan - 0.12f, &voice.left[0], &voice.right[0]);
-      kit::pan_gains(pan + 0.12f, &voice.left[1], &voice.right[1]);
+      kit::pan_gains(pan - kCourseSplit, &voice.left[0], &voice.right[0]);
+      kit::pan_gains(pan + kCourseSplit, &voice.left[1], &voice.right[1]);
       for (int s = 0; s < 2; ++s) {
         voice.left[s] *= kCourseGain;
         voice.right[s] *= kCourseGain;
       }
-      voice.second = 0.9f;
+      voice.second = kCourseSecond;
     } else {
       kit::pan_gains(pan, &voice.left[0], &voice.right[0]);
       voice.left[1] = voice.right[1] = 0.0f;
@@ -503,7 +503,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
 
   // Exciters. Widths are for a string at 220 Hz, from the softest to the
   // hardest touch, and grow toward the bass by the power given.
-  static constexpr float kFingerSoft = 0.0018f, kFingerHard = 0.00022f, kFingerLean = 0.35f;
+  static constexpr float kFingerSoft = 0.0014f, kFingerHard = 0.00013f, kFingerLean = 0.5f;
   static constexpr float kPickSoft = 0.00045f, kPickHard = 0.00007f, kPickLean = 0.25f;
   static constexpr float kHammerSoft = 0.0032f, kHammerHard = 0.0006f, kHammerLean = 0.5f;
   static constexpr float kPickStep = 0.45f;     // the pick's share of pluck: thin
@@ -522,7 +522,10 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     const float lean = 220.0f / voice.hz;
     // A harder touch is a narrower one.
     const float hard = kit::clamp(blow.brightness + 0.35f * (blow.level - 0.6f), 0.0f, 1.0f);
-    const float level = kStringLevel * (0.08f + 0.92f * std::pow(blow.level, 1.5f));
+    // Neighbouring strings are pulled opposite ways, so the first edges of
+    // a handful of strings struck together do not pile up.
+    const float way = kit::SineTable::lookup(kit::hz_to_midi(voice.hz) * 0.7548777f) < 0.0f ? -1.0f : 1.0f;
+    const float level = way * kStringLevel * (0.08f + 0.92f * std::pow(blow.level, 1.5f));
     strike.period = period;
     strike.split = kit::clamp(blow.position, 0.02f, 0.5f) * period;
     if (blow.exciter == kHammer) {
@@ -544,7 +547,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
       strike.pulse = level * kPickClick;
     } else {
       float width = kFingerSoft * std::pow(kFingerHard / kFingerSoft, hard) * std::pow(lean, kFingerLean) * sr;
-      width = kit::clamp(width, 1.5f, 0.45f * period);
+      width = kit::clamp(width, 1.5f, 0.35f * period);
       strike.edge = 1.0f / width;
       strike.step = level;
     }
@@ -584,7 +587,11 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
   // Levels: the step a full-velocity pluck puts on a string, and each string
   // of a course against a single one.
   static constexpr float kStringLevel = 0.5f;
-  static constexpr float kCourseGain = 0.62f;
+  static constexpr float kCourseGain = 0.68f;
+  // The second string of a course is plucked a little less than the first,
+  // so the pair never beats down to nothing, and lies to the other side.
+  static constexpr float kCourseSecond = 0.7f;
+  static constexpr float kCourseSplit = 0.25f;
 
   void render_voice(Voice& voice, int n, float* left, float* right, float* bridge) {
     float in[kChunk];
@@ -755,7 +762,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
   };
   static constexpr float kBodySkew[kBodyModes] = {1.045f, 0.96f, 1.035f, 0.955f};
   static constexpr float kBodyFadeSeconds = 0.04f;
-  static constexpr float kOutGain = 0.5f;
+  static constexpr float kOutGain = 2.0f;
 
   struct Body {
     kit::Svf mode[2][kBodyModes];
