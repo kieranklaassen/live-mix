@@ -249,8 +249,6 @@ static double sharpness(const std::vector<float>& x) {
   return rise / highest(env);
 }
 
-// MORE HELPERS
-
 
 int main() {
   Conformance spec;
@@ -922,8 +920,6 @@ int main() {
     std::snprintf(label, sizeof label, "%s: eight keys stay under the clip knee", kNames[type]);
     EXPECT(many < 0.5, label);
   }
-
-  // BEHAVIOUR
 
   // Cost with eight keys held at full Density, per type.
   for (int type = 0; type < Outdoors::kKinds; ++type) {

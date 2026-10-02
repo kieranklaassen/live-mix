@@ -2,7 +2,7 @@
   "id": "zither",
   "name": "Zither",
   "category": "instrument",
-  "description": "A box of open strings to pluck, strum and hammer: harp, zither, autoharp and hammered dulcimer, with twelve sympathetic strings that ring on behind what is played.",
+  "description": "A box of open strings to pluck, strum and hammer: harp, chord zither and hammered dulcimer, with twelve sympathetic strings that ring on behind what is played.",
   "class": "Zither",
   "header": "zither.h",
   "sources": [],
@@ -177,7 +177,7 @@
       "body": 2,
       "volume": -11.5
     },
-    "Autoharp major": {
+    "Chord zither major": {
       "exciter": 1,
       "chord": 3,
       "strum": 90,
@@ -189,7 +189,7 @@
       "sympathy": 0.3,
       "volume": -7
     },
-    "Autoharp minor": {
+    "Chord zither minor": {
       "exciter": 1,
       "chord": 4,
       "strum": 90,
