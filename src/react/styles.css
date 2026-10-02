@@ -687,6 +687,87 @@
   --lm-transition: 80ms;
 }
 
+/* --- Grounds and depth -------------------------------------------------------
+ * Tokens derived from a theme's own: three grounds (`bar` under `pane` under
+ * `head`), two lines (`edge` around a block, `line` and `hair` inside one), the
+ * parts of a console fader and meter (`slot`, `well`, `cap`, `meter-warm`),
+ * and light and shade for a little depth. They are formulas, so they are
+ * declared again on every element that carries a theme: a formula is worked
+ * out where it is declared, from the tokens that element has. An element that
+ * sets the tokens through `themeStyle` takes the class `lm-root` or a
+ * `data-lm-theme` to get them.
+ */
+
+:root,
+.lm-root,
+[data-lm-theme] {
+  --lm-edge: var(--lm-rule);
+  --lm-bar: color-mix(in srgb, var(--lm-panel) 84%, var(--lm-rule));
+  --lm-pane: color-mix(in srgb, var(--lm-panel) 96%, var(--lm-text));
+  --lm-head: color-mix(in srgb, var(--lm-pane) 40%, var(--lm-raised));
+  --lm-line: color-mix(in srgb, var(--lm-border) 34%, var(--lm-pane));
+  --lm-line-strong: color-mix(in srgb, var(--lm-grid-line-strong) 30%, transparent);
+  --lm-hair: color-mix(in srgb, var(--lm-hairline) 45%, var(--lm-pane));
+  --lm-slot: color-mix(in srgb, var(--lm-text) 22%, var(--lm-sunken));
+  --lm-well: color-mix(in srgb, var(--lm-sunken) 70%, var(--lm-bar));
+  --lm-cap: color-mix(in srgb, var(--lm-text) 78%, var(--lm-panel));
+  --lm-cap-edge: color-mix(in srgb, var(--lm-text) 40%, var(--lm-panel));
+  --lm-meter-warm: color-mix(in srgb, var(--lm-meter-hot) 45%, #e8c14a);
+  --lm-shade: rgb(0 0 0 / 0.14);
+  --lm-shade-in: rgb(0 0 0 / 0.1);
+  --lm-light: rgb(255 255 255 / 0.7);
+}
+
+/* A dark rule cannot show on a dark pane: the edge is a light line, and the
+ * bar and the slot go towards black. */
+[data-lm-theme='dark'],
+[data-lm-theme='graphite'],
+[data-lm-theme='water'],
+[data-lm-theme='dusk'],
+[data-lm-theme='night'],
+.lm-dark {
+  --lm-edge: color-mix(in srgb, var(--lm-text) 24%, var(--lm-panel));
+  --lm-bar: color-mix(in srgb, var(--lm-panel) 74%, #000);
+  --lm-pane: var(--lm-panel);
+  --lm-head: color-mix(in srgb, var(--lm-pane) 55%, var(--lm-raised));
+  --lm-slot: color-mix(in srgb, var(--lm-bar) 55%, #000);
+  --lm-shade: rgb(0 0 0 / 0.45);
+  --lm-shade-in: rgb(0 0 0 / 0.4);
+  --lm-light: color-mix(in srgb, var(--lm-text) 11%, transparent);
+}
+
+/* Night's panel is close to black, so its pane is lifted a step to stand off the bar. */
+[data-lm-theme='night'] {
+  --lm-pane: color-mix(in srgb, var(--lm-panel) 95%, var(--lm-text));
+}
+
+/* A pane: the kit inside it stands on the pane's ground and draws its lines
+ * quieter. It must be inside the element that carries the theme, never that
+ * element itself: the derived tokens read the tokens this replaces. */
+.lm-pane {
+  --lm-panel: var(--lm-pane);
+  --lm-border: var(--lm-line);
+  --lm-hairline: var(--lm-hair);
+  --lm-grid-line-strong: var(--lm-line-strong);
+  background: var(--lm-pane);
+}
+
+/* A pane that stands up from the bar: lit along the top, a soft shade under it. */
+.lm-pane--raised {
+  box-shadow:
+    inset 0 1px 0 var(--lm-light),
+    0 1px 2px var(--lm-shade);
+}
+
+/* A well goes in: what holds a scale, a fader and a meter. */
+.lm-well {
+  border: 1px solid var(--lm-hairline);
+  background: var(--lm-well);
+  box-shadow:
+    inset 0 1px 3px var(--lm-shade-in),
+    inset 0 0 0 1px var(--lm-shade-in);
+}
+
 /* --- Shared ------------------------------------------------------------------ */
 
 [class^='lm-'],
@@ -924,6 +1005,97 @@
   text-align: right;
 }
 
+/* The cap look (`look="cap"`): a console fader. The track is a lane with a
+ * slot down its middle, and the thumb is a cap that rides it, with grip lines
+ * and a centre line at the value. No fill and no ticks: a scale is drawn
+ * beside it. The lane keeps the track's 1 px border, unseen, so a value sits
+ * where it does in the bar look; the slot runs over it to the lane's ends. */
+.lm-fader--cap .lm-fader__track {
+  border-color: transparent;
+  border-radius: 0;
+  background: transparent;
+}
+
+/* The lane is wide enough for a cap to be taken hold of. A rule of the
+ * caller's own on the track sets another width. */
+:where(.lm-fader--cap).lm-fader--vertical .lm-fader__track {
+  width: max(var(--lm-fader-width), 24px);
+}
+
+:where(.lm-fader--cap).lm-fader--horizontal .lm-fader__track {
+  height: max(var(--lm-fader-width), 24px);
+}
+
+.lm-fader--cap .lm-fader__track::before {
+  position: absolute;
+  border: 1px solid var(--lm-edge);
+  background: var(--lm-slot);
+  content: '';
+}
+
+.lm-fader--cap.lm-fader--vertical .lm-fader__track::before {
+  top: -1px;
+  bottom: -1px;
+  left: calc(50% - 3px);
+  width: 6px;
+}
+
+.lm-fader--cap.lm-fader--horizontal .lm-fader__track::before {
+  left: -1px;
+  right: -1px;
+  top: calc(50% - 3px);
+  height: 6px;
+}
+
+/* The cap is centred on the value by a margin, where the bar look's thumb is
+ * moved by a transform: the centre is the same, and a box placed by layout is
+ * drawn on whole pixels, so the grip lines stay sharp wherever the cap stands. */
+.lm-fader--cap .lm-fader__thumb {
+  border-color: var(--lm-cap-edge);
+  border-radius: 1px;
+  box-shadow:
+    0 1px 0 rgb(0 0 0 / 0.35),
+    0 2px 3px rgb(0 0 0 / 0.25);
+}
+
+.lm-fader--cap.lm-fader--vertical .lm-fader__thumb {
+  height: 15px;
+  background:
+    linear-gradient(var(--lm-accent), var(--lm-accent)) center / 100% 1px no-repeat,
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0 2px,
+      color-mix(in srgb, var(--lm-cap-edge) 55%, transparent) 2px 3px
+    ),
+    var(--lm-cap);
+  margin-bottom: -7.5px;
+  transform: none;
+}
+
+.lm-fader--cap.lm-fader--horizontal .lm-fader__thumb {
+  width: 15px;
+  background:
+    linear-gradient(var(--lm-accent), var(--lm-accent)) center / 1px 100% no-repeat,
+    repeating-linear-gradient(
+      to right,
+      transparent 0 2px,
+      color-mix(in srgb, var(--lm-cap-edge) 55%, transparent) 2px 3px
+    ),
+    var(--lm-cap);
+  margin-left: -7.5px;
+  transform: none;
+}
+
+/* In hand, the cap takes the edge of the accent its centre line is drawn in. */
+.lm-fader--cap.lm-fader--active .lm-fader__thumb {
+  border-color: var(--lm-accent);
+}
+
+/* Switched off, the cap lies flat: no shade under it. */
+.lm-fader--cap.lm-fader--disabled .lm-fader__thumb {
+  box-shadow: none;
+}
+
 /* --- Toggles and buttons ------------------------------------------------- */
 
 .lm-toggle {
@@ -1129,6 +1301,89 @@
 
 .lm-meter--clip .lm-meter__readout {
   color: var(--lm-meter-hot);
+}
+
+/* The segments look (`look="segments"`): a console meter. Each fill is drawn
+ * the whole length of its bar and cut to the level by a `clip-path` the
+ * component sets, so the three zones stay where they are on the scale:
+ * `--lm-meter` up to `--lm-meter-warm-at`, `--lm-meter-warm` from there to
+ * `--lm-meter-hot-at`, and `--lm-meter-hot` above. A mask cuts the bar into
+ * segments, 2 px lit and 1 px dark. */
+.lm-meter--segments .lm-meter__bars {
+  position: relative;
+  gap: 1px;
+}
+
+.lm-meter--segments .lm-meter__bar {
+  border: 0;
+  border-radius: 0;
+  background: var(--lm-slot);
+}
+
+.lm-meter--segments .lm-meter__fill {
+  inset: 0;
+  border-radius: 0;
+}
+
+.lm-meter--segments.lm-meter--vertical .lm-meter__fill {
+  background: linear-gradient(
+    to top,
+    var(--lm-meter) 0 var(--lm-meter-warm-at),
+    var(--lm-meter-warm) var(--lm-meter-warm-at) var(--lm-meter-hot-at),
+    var(--lm-meter-hot) var(--lm-meter-hot-at)
+  );
+  -webkit-mask: repeating-linear-gradient(to top, #000 0 2px, transparent 2px 3px);
+  mask: repeating-linear-gradient(to top, #000 0 2px, transparent 2px 3px);
+}
+
+.lm-meter--segments.lm-meter--horizontal .lm-meter__fill {
+  background: linear-gradient(
+    to right,
+    var(--lm-meter) 0 var(--lm-meter-warm-at),
+    var(--lm-meter-warm) var(--lm-meter-warm-at) var(--lm-meter-hot-at),
+    var(--lm-meter-hot) var(--lm-meter-hot-at)
+  );
+  -webkit-mask: repeating-linear-gradient(to right, #000 0 2px, transparent 2px 3px);
+  mask: repeating-linear-gradient(to right, #000 0 2px, transparent 2px 3px);
+}
+
+.lm-meter--segments .lm-meter__fill--rms {
+  opacity: 0.55;
+}
+
+/* Loudness is on a scale of its own, so its bar keeps its one colour. */
+.lm-meter--segments .lm-meter__bar .lm-meter__fill--lufs {
+  background: var(--lm-meter-lufs);
+}
+
+.lm-meter--segments .lm-meter__hold {
+  background: var(--lm-text);
+}
+
+/* The clip lamp, past the far end of the scale: dim until the signal clips,
+ * then lit until the meter is clicked. It stands 6 px beyond the bars, which
+ * keep their whole length, so leave it that room (the padding of a well). */
+.lm-meter__clip {
+  position: absolute;
+  background: color-mix(in srgb, var(--lm-meter-hot) 25%, var(--lm-slot));
+}
+
+.lm-meter--vertical .lm-meter__clip {
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 2px);
+  height: 4px;
+}
+
+.lm-meter--horizontal .lm-meter__clip {
+  top: 0;
+  bottom: 0;
+  left: calc(100% + 2px);
+  width: 4px;
+}
+
+.lm-meter__clip[data-on] {
+  background: var(--lm-meter-hot);
 }
 
 .lm-meter__readout {

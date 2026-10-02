@@ -17,6 +17,7 @@ export {
   formatControlValue,
   formatParamValue,
   formatTimeSec,
+  heldPeak,
   isChoiceParam,
   KNOB_START_DEG,
   KNOB_SWEEP_DEG,
@@ -37,6 +38,7 @@ export {
   type ControlTaper,
   type ControlUnit,
   type FormatControlValueOptions,
+  type HeldPeak,
   type KnownControlUnit,
 } from './control-math'
 export {
@@ -71,7 +73,7 @@ export {
   type ParamControlOptions,
 } from './useParamControl'
 export { Knob, type KnobCap, type KnobProps } from './Knob'
-export { Fader, type FaderOrientation, type FaderProps } from './Fader'
+export { Fader, type FaderLook, type FaderOrientation, type FaderProps } from './Fader'
 export {
   DEVICE_POWER_INFO,
   DeviceToggle,
@@ -84,6 +86,7 @@ export {
   Meter,
   meterInfo,
   type MeterBarKind,
+  type MeterLook,
   type MeterOrientation,
   type MeterProps,
 } from './Meter'
