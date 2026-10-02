@@ -172,10 +172,13 @@ export const ZITHER_DESCRIPTOR = wasmDeviceDescriptor(ZITHER_DEVICE, {
     'Open zither': {
       exciter: 1,
       chord: 2,
-      strum: 110,
-      brightness: 0.6,
-      position: 0.16,
-      sympathy: 0.4,
+      strum: 150,
+      decay: 8,
+      release: 6,
+      brightness: 0.5,
+      position: 0.25,
+      courses: 0.45,
+      sympathy: 0.55,
       volume: -7,
     },
     'Concert harp': {
@@ -216,7 +219,7 @@ export const ZITHER_DESCRIPTOR = wasmDeviceDescriptor(ZITHER_DEVICE, {
       courses: 0.4,
       sympathy: 0.7,
       body: 2,
-      volume: -7.5,
+      volume: -11.5,
     },
     'Autoharp major': {
       exciter: 1,
@@ -252,7 +255,7 @@ export const ZITHER_DESCRIPTOR = wasmDeviceDescriptor(ZITHER_DEVICE, {
       courses: 0,
       sympathy: 0.15,
       body: 3,
-      volume: -2.5,
+      volume: -4.5,
     },
     'Twelve-string haze': {
       exciter: 1,

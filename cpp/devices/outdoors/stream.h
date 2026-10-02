@@ -16,7 +16,7 @@ namespace outdoors_scene {
 struct Stream {
   static constexpr int kBubbles = 12;
   static constexpr int kSites = 4;
-  static constexpr float kGain = 0.5f;
+  static constexpr float kGain = 0.42f;
   static constexpr float kRush = 0.5f;
   // Where each place sheds: bubble pitch (Hz), spread (octaves), pan, share of the flow.
   static constexpr float kCentre[kSites] = {600.0f, 1300.0f, 2500.0f, 4500.0f};
@@ -130,12 +130,12 @@ struct Stream {
     // Most start shallow and weak, a few deep and strong. (A big bubble is
     // already the louder for ringing ten times as long as a small one.)
     const float depth = rng.uniform();
-    const float strength = 0.12f + 0.88f * depth * depth;
+    const float strength = 0.2f + 0.8f * depth * depth;
     b.osc.x = 0.0f;
     b.osc.y = -level * strength;
     // It sounds until it is 48 dB under the loudest a bubble can be.
-    // (ln(250 · strength) is within 2 % of 3.4 + 2.1 · depth.)
-    b.left = static_cast<int>((3.4f + 2.1f * depth) * sr / damping);
+    // (ln(250 · strength) is within 3 % of 3.9 + 1.6 · depth.)
+    b.left = static_cast<int>((3.9f + 1.6f * depth) * sr / damping);
   }
 
   void tick(float& left, float& right) {

@@ -96,7 +96,10 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     // 4 x turn bins off centre.
     for (int i = 0; i <= kCompSteps; ++i) {
       const double x = 4.0 * kMaxDetuneTurn * i / kCompSteps;
-      auto sinc = [](double v) { return std::fabs(v) < 1.0e-9 ? 1.0 : std::sin(3.14159265358979323846 * v) / (3.14159265358979323846 * v); };
+      auto sinc = [](double v) {
+        const double pv = 3.14159265358979323846 * v;
+        return std::fabs(v) < 1.0e-9 ? 1.0 : std::sin(pv) / pv;
+      };
       const double g = 0.335 * sinc(x) + 0.24 * (sinc(x - 1) + sinc(x + 1)) + 0.0825 * (sinc(x - 2) + sinc(x + 2)) +
                        0.01 * (sinc(x - 3) + sinc(x + 3));
       comp_[i] = static_cast<float>(0.335 / g);
@@ -196,7 +199,7 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
   // capped instead.
   static constexpr float kMaxDetuneTurn = 0.19f;
   static constexpr int kCompSteps = 32;
-  static constexpr float kPanNear = 0.9239f;    // each copy sits 45° off centre
+  static constexpr float kPanNear = 0.9239f;    // each copy leans to its side: 7.7 dB louder there
   static constexpr float kPanFar = 0.3827f;
   static constexpr float kDriftCents = 3.0f;    // Motion 1: pitch wander of a partial (rms) ...
   static constexpr float kDriftMaxHz = 1.5f;    // ... but no more than this
@@ -484,7 +487,8 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     capture(slot);
     // A capture that finds nothing (the click of a note being cut off, a
     // touch on the strings) must not push out what is held.
-    if (mode() != kModeLatch && slot.power < gate_ * gate_) return;
+    // (Latch takes whatever there is, but not plain silence.)
+    if (slot.power < (mode() == kModeLatch ? 1.0e-12f : gate_ * gate_)) return;
     const bool layering = mode() == kModeLayer;
     const float glide_rate = hop_seconds_ / param(kGlide);
     int held = 0;

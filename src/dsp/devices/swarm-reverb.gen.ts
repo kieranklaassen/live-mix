@@ -103,7 +103,7 @@ export const SWARM_REVERB_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Slow, independent movement of each echo. A little keeps the swarm from ringing like metal; a lot makes it shimmer and detune.',
+      'Slow movement of individual echoes, each at its own rate. A little keeps the swarm from ringing like metal; a lot makes it shimmer and detune.',
   },
   lowCut: {
     id: 9,

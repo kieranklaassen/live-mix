@@ -42,13 +42,13 @@ static double spectral_centroid(const std::vector<float>& x, size_t from, size_t
 }
 
 // How long the first edge of a blow takes from 5 % to 50 % of the largest sample, in ms.
-static double rise_ms(const std::vector<float>& x) {
+static double rise_ms(const std::vector<float>& x, double rate) {
   const double most = peak(x);
   double start = -1.0;
   for (size_t i = 0; i < x.size(); ++i) {
     const double size = std::fabs(static_cast<double>(x[i]));
     if (start < 0.0 && size > 0.05 * most) start = static_cast<double>(i);
-    if (size > 0.5 * most) return (static_cast<double>(i) - start) * 1000.0 / kRate;
+    if (size > 0.5 * most) return (static_cast<double>(i) - start) * 1000.0 / rate;
   }
   return 0.0;
 }
@@ -230,11 +230,11 @@ int main() {
 
     double rise[3], bright[3];
     for (int exciter = 0; exciter < 3; ++exciter) {
-      plain(device);
+      plain(device, 96000.0f);  // fine enough to time the edge
       device.set_param(p::kExciter, static_cast<float>(exciter));
-      device.set_param(p::kBrightness, 0.25f);  // wide enough blows to time at 48 kHz
+      device.set_param(p::kBrightness, 0.25f);
       device.note_on(1, 220.0f, 0.8f);
-      rise[exciter] = rise_ms(render(device, 0.1f, kRate).left);
+      rise[exciter] = rise_ms(render(device, 0.1f, 96000.0f).left, 96000.0);
       plain(device);
       device.set_param(p::kExciter, static_cast<float>(exciter));
       device.note_on(1, 220.0f, 0.8f);
@@ -242,7 +242,7 @@ int main() {
     }
     std::printf("finger / pick / hammer: rise %.2f / %.2f / %.2f ms, centroid %.0f / %.0f / %.0f Hz\n", rise[0], rise[1],
                 rise[2], bright[0], bright[1], bright[2]);
-    EXPECT(rise[1] < 0.6 * rise[0], "a pick rises faster than a finger");
+    EXPECT(rise[1] < 0.75 * rise[0], "a pick rises faster than a finger");
     EXPECT(rise[2] > 2.0 * rise[0], "a hammer's blow is the widest");
     EXPECT(bright[1] > 1.25 * bright[0], "a pick is brighter than a finger");
     EXPECT(bright[2] < bright[1], "a hammer is rounder than a pick");

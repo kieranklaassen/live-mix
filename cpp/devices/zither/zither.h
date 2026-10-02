@@ -748,6 +748,11 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
       const float pan = side * (0.25f + 0.04f * static_cast<float>(s));
       kit::pan_gains(pan, &sympathetic_left_[s], &sympathetic_right_[s]);
     }
+    sympathetic_left_sum_ = sympathetic_right_sum_ = 0.0f;
+    for (int s = 0; s < kSympathetic; ++s) {
+      sympathetic_left_sum_ += sympathetic_left_[s];
+      sympathetic_right_sum_ += sympathetic_right_[s];
+    }
     set_sympathetic_ring(false);
     bridge_highpass_.reset();
     bridge_highpass_.set_cutoff(kSympatheticHighpass, sr);
@@ -791,18 +796,25 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
       for (int i = 0; i < n; ++i) bridge_highpass_.highpass(bridge[i]);
       return;
     }
-    float drive[kChunk], out[kChunk];
+    float drive[kChunk], out[kChunk], sum_left[kChunk] = {}, sum_right[kChunk] = {};
     for (int i = 0; i < n; ++i) drive[i] = bridge_highpass_.highpass(bridge[i]) * coupling_.next();
-    float peak = sympathetic_peak_;
     for (int s = 0; s < kSympathetic; ++s) {
       sympathetic_[s].run(drive, 1.0f, 1.0f, out, n);
       const float gl = sympathetic_left_[s], gr = sympathetic_right_[s];
       for (int i = 0; i < n; ++i) {
-        const float ring = out[i] - drive[i];  // the string without what drives it
-        peak = kit::max(peak, std::fabs(ring));
-        left[i] += ring * gl;
-        right[i] += ring * gr;
+        sum_left[i] += out[i] * gl;
+        sum_right[i] += out[i] * gr;
       }
+    }
+    // Each string's output carries what drives it: take that out again, so
+    // only the ringing is heard.
+    float peak = sympathetic_peak_;
+    for (int i = 0; i < n; ++i) {
+      const float l = sum_left[i] - drive[i] * sympathetic_left_sum_;
+      const float r = sum_right[i] - drive[i] * sympathetic_right_sum_;
+      peak = kit::max(peak, kit::max(std::fabs(l), std::fabs(r)));
+      left[i] += l;
+      right[i] += r;
     }
     sympathetic_peak_ = peak;
   }
@@ -819,7 +831,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
   }
 
   // Bodies: four resonances beside the direct sound, then a low and a high
-  // shelf. The right channel's resonances sit a few percent off the left's
+  // shelf (first order, a gentle contour). The right channel's resonances sit a few percent off the left's
   // (two places on one soundboard).
   static constexpr int kBodyModes = 4;
   struct BodySpec {
@@ -844,9 +856,31 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
   static constexpr float kBodyFadeSeconds = 0.04f;
   static constexpr float kOutGain = 1.7f;
 
+  // One body resonance: a two-pole band-pass, unity at its centre. Its
+  // state is flushed on the control clock, not per sample.
+  struct Mode {
+    float b0 = 0.0f, a1 = 0.0f, a2 = 0.0f, z1 = 0.0f, z2 = 0.0f;
+
+    void set(float hz, float q, float sr) {
+      const float w = kit::kTwoPi * kit::clamp(hz, 20.0f, 0.45f * sr) / sr;
+      const float alpha = std::sin(w) / (2.0f * q);
+      b0 = alpha / (1.0f + alpha);
+      a1 = -2.0f * std::cos(w) / (1.0f + alpha);
+      a2 = (1.0f - alpha) / (1.0f + alpha);
+      z1 = z2 = 0.0f;
+    }
+    float process(float x) {
+      const float y = b0 * x + z1;
+      z1 = z2 - a1 * y;
+      z2 = -b0 * x - a2 * y;
+      return y;
+    }
+  };
+
   struct Body {
-    kit::Svf mode[2][kBodyModes];
-    kit::Biquad low[2], high[2];
+    Mode mode[2][kBodyModes];
+    float low[2] = {0.0f, 0.0f}, high[2] = {0.0f, 0.0f};  // one-pole states of the two shelves
+    float low_pole = 0.0f, high_pole = 0.0f, low_gain = 0.0f, high_gain = 0.0f;
     int spec = -1;
 
     void load(int which, float sr) {
@@ -854,21 +888,38 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
       const BodySpec& body = kBodies[which];
       for (int c = 0; c < 2; ++c) {
         for (int m = 0; m < kBodyModes; ++m) {
-          mode[c][m].reset();
           mode[c][m].set(body.hz[m] * (c == 1 ? kBodySkew[m] : 1.0f), body.q[m], sr);
         }
-        low[c].reset();
-        low[c].set_low_shelf(body.low_hz, body.low_db, sr);
-        high[c].reset();
-        high[c].set_high_shelf(body.high_hz, body.high_db, sr);
+        low[c] = high[c] = 0.0f;
       }
+      low_pole = std::exp(-kit::kTwoPi * body.low_hz / sr);
+      high_pole = std::exp(-kit::kTwoPi * kit::min(body.high_hz, 0.45f * sr) / sr);
+      low_gain = kit::db_to_gain(body.low_db) - 1.0f;
+      high_gain = kit::db_to_gain(body.high_db) - 1.0f;
     }
 
     float process(int c, float x) {
       const BodySpec& body = kBodies[spec];
       float y = body.direct * x;
-      for (int m = 0; m < kBodyModes; ++m) y += body.gain[m] * mode[c][m].bandpass(x);
-      return high[c].process(low[c].process(y)) * body.makeup;
+      for (int m = 0; m < kBodyModes; ++m) y += body.gain[m] * mode[c][m].process(x);
+      // First-order shelves: what lies under the low corner, and what lies
+      // over the high one, scaled and added back.
+      low[c] = y + (low[c] - y) * low_pole;
+      y += low_gain * low[c];
+      high[c] = y + (high[c] - y) * high_pole;
+      y += high_gain * (y - high[c]);
+      return y * body.makeup;
+    }
+
+    void flush() {
+      for (int c = 0; c < 2; ++c) {
+        for (Mode& filter : mode[c]) {
+          filter.z1 = flush_denormal(filter.z1);
+          filter.z2 = flush_denormal(filter.z2);
+        }
+        low[c] = flush_denormal(low[c]);
+        high[c] = flush_denormal(high[c]);
+      }
     }
   };
 
@@ -886,6 +937,8 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
 
   // A new Body is loaded beside the old one and faded to.
   void control_body() {
+    bodies_[0].flush();
+    bodies_[1].flush();
     const int wanted = choice(zither::kBody, kNumBodies);
     if (body_mix_ < 1.0f || wanted == bodies_[body_now_].spec) return;
     body_now_ = 1 - body_now_;
@@ -930,6 +983,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
   float fade_step_ = 0.01f;
   SympatheticString sympathetic_[kSympathetic];
   float sympathetic_left_[kSympathetic] = {}, sympathetic_right_[kSympathetic] = {};
+  float sympathetic_left_sum_ = 0.0f, sympathetic_right_sum_ = 0.0f;
   float sympathetic_follow_ = 0.0f, sympathetic_peak_ = 0.0f;
   bool sympathetic_live_ = false, sympathetic_hurried_ = false;
   kit::OnePole bridge_highpass_;

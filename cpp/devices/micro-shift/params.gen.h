@@ -9,7 +9,7 @@
 //    4  focus: 20..1000 Hz, default 180
 //    5  tone: 1000..18000 Hz, default 10000
 //    6  width: 0..1, default 1
-//    7  mix: 0..1, default 0.4
+//    7  mix: 0..1, default 0.36
 
 #pragma once
 
@@ -30,7 +30,7 @@ enum Param : int {
 
 inline constexpr float kParamMin[kNumParams] = {0.0f, 12.0f, 0.0f, 0.0f, 20.0f, 1000.0f, 0.0f, 0.0f};
 inline constexpr float kParamMax[kNumParams] = {50.0f, 60.0f, 1.0f, 0.7f, 1000.0f, 18000.0f, 1.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {9.0f, 14.0f, 0.15f, 0.0f, 180.0f, 10000.0f, 1.0f, 0.4f};
+inline constexpr float kParamDefault[kNumParams] = {9.0f, 14.0f, 0.15f, 0.0f, 180.0f, 10000.0f, 1.0f, 0.36f};
 
 }  // namespace micro_shift
 }  // namespace livemix

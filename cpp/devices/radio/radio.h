@@ -134,6 +134,10 @@ class Radio : public kit::DeviceBase<radio::kNumParams> {
     for (int i = 0; i < frames; ++i) {
       float left, right;
       take_input(i, &left, &right);
+      // A sample that is not a number, or far beyond any audio level, would
+      // otherwise reach the output through the dry side of Mix: it is dropped.
+      if (!(left > -kSane && left < kSane)) left = 0.0f;
+      if (!(right > -kSane && right < kSane)) right = 0.0f;
       if (clock_.tick()) control(sr);
       const BandSpec& band = kBandSpec[band_];
 
@@ -248,6 +252,7 @@ class Radio : public kit::DeviceBase<radio::kNumParams> {
  private:
   static constexpr int kControlPeriod = 32;
   static constexpr float kQuiet = 1.0e-6f;
+  static constexpr float kSane = 64.0f;  // +36 dBFS: nothing real is louder
   // The oscillating detector of a simple set: a little of the receiver's own
   // frequency at the detector, which beats with an off-tune carrier.
   static constexpr float kRegeneration = 0.05f;
@@ -374,6 +379,8 @@ class Radio : public kit::DeviceBase<radio::kNumParams> {
       neighbour.tick(param(kInterference), !carrier, high_hz_, kControlPeriod, sr, inverse, snap);
     }
 
+    if (jump) settle(sr);
+
     // Automatic gain: weak signals are pulled most of the way back up, and
     // the noise that came in with them comes up too.
     // A square-root law: a fade of 20 dB leaves the programme 10 dB down
@@ -381,6 +388,42 @@ class Radio : public kit::DeviceBase<radio::kNumParams> {
     const float wanted = std::sqrt(band.agc_reference / (level_ + 1.0e-4f));
     agc_gain_.aim(kit::min(wanted, band.agc_max), inverse, jump);
     started_ = true;
+  }
+
+  // Start, and change band, as a set that has been on for a while: the
+  // carrier already through the path, the filter, the detector and the
+  // automatic gain, and nothing in the loudspeaker. Otherwise the first sound
+  // after loading (and every change to or from Sideband) arrives on the thump
+  // of a carrier switching on or off under the audio high-pass. Called on the
+  // control clock when the filters have just jumped, after the path and the
+  // dial have been set.
+  void settle(float sr) {
+    const BandSpec& band = kBandSpec[band_];
+    for (int i = 0; i < kPathSize; ++i) path_re_.write(band.carrier);
+    path_im_.clear();
+    cone_high_.reset();
+    cone_peak_.reset();
+    cone_low_.reset();
+    dc_.reset();
+    if (!(band.carrier > 0.0f)) {  // no carrier: silence is nothing at all
+      if_re_.reset();
+      if_im_.reset();
+      audio_low_.reset();
+      audio_high_.reset();
+      return;
+    }
+    // The carrier as it arrives over both paths, turned to where the dial is:
+    // a phasor that keeps turning by the dial's offset.
+    const float carrier_re = band.carrier * (direct_.value + late_re_.value);
+    const float carrier_im = band.carrier * late_im_.value;
+    const float angle = kit::kTwoPi * static_cast<float>(tune_phase_);
+    const float cosine = std::cos(angle), sine = std::sin(angle);
+    float re = carrier_re * cosine - carrier_im * sine;
+    float im = carrier_re * sine + carrier_im * cosine;
+    radio_parts::settle_phasor(if_re_, if_im_, -kit::kTwoPi * shift_.value / sr, &re, &im);
+    level_ = std::sqrt(re * re + im * im);
+    const float with_own = re + kRegeneration;
+    audio_high_.settle(audio_low_.settle(std::sqrt(with_own * with_own + im * im) / band.depth));
   }
 
   void apply(int id) {
@@ -403,7 +446,8 @@ class Radio : public kit::DeviceBase<radio::kNumParams> {
 
   radio_parts::Cascade<2> transmit_;
   kit::Hilbert hilbert_;
-  kit::DelayLine<512> path_re_, path_im_;  // 2.2 ms at 96 kHz and room for the read
+  static constexpr int kPathSize = 512;  // 2.2 ms at 96 kHz and room for the read
+  kit::DelayLine<kPathSize> path_re_, path_im_;
   radio_parts::Cascade<4> if_re_, if_im_;
   radio_parts::Cascade<3> audio_high_;
   radio_parts::Cascade<2> audio_low_;

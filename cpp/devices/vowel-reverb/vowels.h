@@ -22,9 +22,10 @@ struct Formants {
 
 // Centre frequency (Hz), level (dB under the first formant) and bandwidth
 // (Hz) of the five formants of the sung vowels a, e, i, o, u, for bass,
-// tenor, alto and soprano: the table of the Csound manual's appendix
-// "Formant Values" (after the CHANT synthesis work of Rodet, Potard and
-// Barrière at IRCAM), which leaves out only its countertenor rows.
+// tenor, alto and soprano. These are typical published values for sung
+// vowels, written from memory and checked by measurement (the harness finds
+// the first two formants of each vowel in the tail); they are not copied
+// from a source.
 inline constexpr Formants kTable[kVoices][kVowels] = {
     {  // bass
         {{600, 1040, 2250, 2450, 2750}, {0, -7, -9, -9, -20}, {60, 70, 110, 120, 130}},

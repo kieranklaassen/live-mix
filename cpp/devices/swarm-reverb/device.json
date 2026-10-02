@@ -82,7 +82,7 @@
       "min": 0,
       "max": 1,
       "default": 0.3,
-      "description": "Slow, independent movement of each echo. A little keeps the swarm from ringing like metal; a lot makes it shimmer and detune."
+      "description": "Slow movement of individual echoes, each at its own rate. A little keeps the swarm from ringing like metal; a lot makes it shimmer and detune."
     },
     {
       "key": "lowCut",

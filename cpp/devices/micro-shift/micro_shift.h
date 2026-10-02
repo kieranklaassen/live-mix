@@ -64,7 +64,7 @@ class MicroShift : public kit::DeviceBase<micro_shift::kNumParams> {
           kit::clamp_int(static_cast<int>(kDiffusionSeconds[c][1] * sr), 1, kDiffuserSize - 1);
       tone_filter_[c].reset();
       last_wet_[c] = 0.0f;
-      for (int k = 0; k < 3; ++k) {
+      for (int k = 0; k < kHoldSignals; ++k) {
         hold_fast_[c][k] = 0.0f;
         for (float& stage : hold_slow_[c][k]) stage = 0.0f;
       }
@@ -185,6 +185,7 @@ class MicroShift : public kit::DeviceBase<micro_shift::kNumParams> {
   // catch a sag as it forms, slow enough that the difference tones of a
   // chord do not reach the gain.
   static constexpr int kHoldStages = 3;
+  static constexpr int kHoldSignals = 3;
   static constexpr float kHoldFastSeconds = 0.003f;
   static constexpr float kHoldSeconds = 0.009f;
   static constexpr float kHoldGlideSeconds = 0.003f;
@@ -219,15 +220,16 @@ class MicroShift : public kit::DeviceBase<micro_shift::kNumParams> {
     return t * t * (3.0f - 2.0f * t);
   }
 
-  // Level hold: the gain for the copy on side `c`. The dry sound and the copy
-  // add up to more or less than their two levels put together as their
-  // partials drift in and out of step. When the whole side would swell past
-  // kHoldHigh of that, the copy is turned down until it does not; when the
-  // whole side would sag under kHoldLow of it and the dry sound alone is
-  // louder than the two together, the copy steps back and lets the dry sound
-  // through. Single partials still beat; the whole does not sag.
-  float hold_target(int c, bool snap) {
-    for (int k = 0; k < 3; ++k) {
+  // Level hold for side `c`. The dry sound and the copy add up to more or
+  // less than their two levels put together as their partials drift in and
+  // out of step. When the whole side would swell past kHoldHigh of that, the
+  // copy is turned down until it does not. When the whole side would sag
+  // under kHoldLow of it, and the dry sound alone is louder than the two
+  // together, the copy steps back and lets the dry sound through. Single
+  // partials still beat; the whole does not sag. The dry sound is never
+  // touched, so an attack is never coloured by what came before it.
+  void hold(int c, bool snap) {
+    for (int k = 0; k < kHoldSignals; ++k) {
       float value = hold_fast_[c][k];
       for (int stage = 0; stage < kHoldStages; ++stage) {
         track(hold_slow_[c][k][stage], value, snap ? 0.0f : hold_control_coeff_);
@@ -237,18 +239,23 @@ class MicroShift : public kit::DeviceBase<micro_shift::kNumParams> {
     const float cross = hold_slow_[c][0][kHoldStages - 1];
     const float copy = hold_slow_[c][1][kHoldStages - 1];
     const float dry = hold_slow_[c][2][kHoldStages - 1];
-    if (copy < 1.0e-12f) return 1.0f;
-    const float apart = dry + copy;
-    const float together = apart + 2.0f * cross;
-    if (cross >= 0.0f) {
+    float gain = 1.0f;
+    if (copy > 1.0e-12f) {
+      const float apart = dry + copy;
+      const float together = apart + 2.0f * cross;
       const float ceiling = kHoldHigh * apart;
-      if (together <= ceiling) return 1.0f;
-      // dry + gain^2 * copy + 2 * gain * cross = ceiling
-      return (std::sqrt(cross * cross + copy * (ceiling - dry)) - cross) / copy;
+      if (cross >= 0.0f) {
+        // dry + gain^2 * copy + 2 * gain * cross = ceiling
+        if (together > ceiling) {
+          gain = (std::sqrt(cross * cross + copy * (ceiling - dry)) - cross) / copy;
+        }
+      } else {
+        const float sagging = (kHoldLow * apart - together) / (kHoldSagWidth * apart);
+        const float better_alone = (dry - together) / (kHoldAloneWidth * copy);
+        gain = 1.0f - smooth_step(sagging) * smooth_step(better_alone);
+      }
     }
-    const float sagging = (kHoldLow * apart - together) / (kHoldSagWidth * apart);
-    const float better_alone = (dry - together) / (kHoldAloneWidth * copy);
-    return 1.0f - smooth_step(sagging) * smooth_step(better_alone);
+    hold_gain_[c].set(gain, !snap);
   }
 
   // Linear up to ±1, a smooth knee to ±2.
@@ -280,7 +287,7 @@ class MicroShift : public kit::DeviceBase<micro_shift::kNumParams> {
       for (int c = 0; c < 2; ++c) tone_filter_[c].set(hz, kit::kSqrtHalf, sr);
     }
 
-    for (int c = 0; c < 2; ++c) hold_gain_[c].set(hold_target(c, snap), !snap);
+    for (int c = 0; c < 2; ++c) hold(c, snap);
 
     const float drift = drift_.next();
     const float detune = param(kDetune);
@@ -360,8 +367,8 @@ class MicroShift : public kit::DeviceBase<micro_shift::kNumParams> {
   float last_wet_[2] = {0.0f, 0.0f};
   // Level hold, per side: dry*copy, copy*copy and dry*dry, averaged per
   // sample and then kHoldStages more times on the control clock.
-  float hold_fast_[2][3] = {};
-  float hold_slow_[2][3][kHoldStages] = {};
+  float hold_fast_[2][kHoldSignals] = {};
+  float hold_slow_[2][kHoldSignals][kHoldStages] = {};
   float hold_coeff_ = 0.0f;
   float hold_control_coeff_ = 0.0f;
   kit::Smoother hold_gain_[2];

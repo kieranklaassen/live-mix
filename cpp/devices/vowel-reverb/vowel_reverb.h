@@ -18,7 +18,7 @@
 //   line read at a slowly drifting point (Hermite), which is the ensemble.
 //   What is heard is tapped part of the way down the lines, so the room
 //   answers before its first full pass.
-// - The vowel is the Csound manual's formant table (vowels.h): five
+// - The vowel is a table of typical sung-vowel formants (vowels.h): five
 //   formants, for a, e, i, o, u and for bass, tenor, alto and soprano,
 //   interpolated along Vowel and across Voice.
 // - It acts twice. On the way out, five band-passes in parallel at the
@@ -40,6 +40,10 @@
 // - High Cut is a shelf in the loop (above it the room lasts a quarter as
 //   long, whatever the Decay) and a 6 dB per octave low-pass on the output.
 //   Low Cut is on the output only. The side signal carries no bass.
+// - A slow balance trim keeps the two sides of the tail level with each
+//   other: a held chord is a few steady partials, each fading on its own
+//   on each side of a modulated room, and without the trim the tail leans
+//   left and right by several dB (see balance()).
 
 #include "../../kit/kit.h"
 #include "params.gen.h"
@@ -148,10 +152,14 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
   void process(int frames) {
     using namespace vowel_reverb;
     frames = begin_block(frames);
+    const bool was_asleep = idle_.asleep();
     if (!idle_.wake(input_present(frames))) {
       silence_output(frames);
       return;
     }
+    // Waking is a fresh start for the controls: the first control tick puts
+    // everything that glides where it now belongs (see apply), as after init.
+    if (was_asleep) started_ = false;
     const float max_line = kit::DelayLine<kLineSize>::max_delay() - 2.0f;
     const float max_predelay = kit::DelayLine<kPredelaySize>::max_delay() - 2.0f;
     for (int i = 0; i < frames; ++i) {
@@ -275,8 +283,9 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
   // Modulation 1 is about ±12 cents on the fastest line.
   static constexpr float kLfoHz[kLines] = {0.31f, 0.43f, 0.23f, 0.57f, 0.37f, 0.67f, 0.29f, 0.49f};
   static constexpr float kModulationSeconds = 0.0016f;
-  // Dattorro's input diffuser lengths at 48 kHz; the right side is offset
-  // so a centred source still spreads.
+  // Input diffuser lengths at 48 kHz, in the proportions usual for a plate
+  // reverb's input stage; the right side is offset so a centred source
+  // still spreads.
   static constexpr float kInputAllpass[2][kInputStages] = {{229.0f, 173.0f, 611.0f, 447.0f},
                                                            {241.0f, 181.0f, 631.0f, 463.0f}};
   // The left side hears the even lines and the right side the odd ones.
@@ -518,46 +527,52 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
   void apply(int id) {
     using namespace vowel_reverb;
     const float value = param(id);
+    // A control moved while something sounds glides to its new place. One
+    // moved while the device sleeps (nothing in the room) is there at once,
+    // and the first control tick after waking snaps what depends on it:
+    // otherwise the next note would start with Size and Pre-delay still on
+    // their way, and its reverb would begin out of tune.
+    const bool glide = primed() && !idle_.asleep();
     switch (id) {
       case kVowel:
-        vowel_.set(value, primed());
+        vowel_.set(value, glide);
         break;
       case kResonance:
-        resonance_.set(value, primed());
+        resonance_.set(value, glide);
         break;
       case kVoice:
-        voice_.set(value, primed());
+        voice_.set(value, glide);
         break;
       case kMotion:
-        motion_.set(value, primed());
+        motion_.set(value, glide);
         break;
       case kDecay:
-        decay_.set(value, primed());
+        decay_.set(value, glide);
         break;
       case kSize:
-        size_.set(kMinScale * std::pow(kMaxScale / kMinScale, value), primed());
+        size_.set(kMinScale * std::pow(kMaxScale / kMinScale, value), glide);
         break;
       case kPreDelay:
-        predelay_time_.set(value * 0.001f * sample_rate(), primed());
+        predelay_time_.set(value * 0.001f * sample_rate(), glide);
         break;
       case kModulation:
-        modulation_.set(value, primed());
+        modulation_.set(value, glide);
         break;
       case kLowCut:
-        low_cut_hz_.set(value, primed());
+        low_cut_hz_.set(value, glide);
         break;
       case kHighCut:
-        high_cut_hz_.set(value, primed());
+        high_cut_hz_.set(value, glide);
         break;
       case kWidth:
-        width_.set(value, primed());
+        width_.set(value, glide);
         break;
       case kMix: {
         float dry, wet;
         kit::equal_power(value, &dry, &wet);
         if (value >= 1.0f) dry = 0.0f;  // cos(pi/2) in floats is -4e-8, not 0
-        dry_.set(dry, primed());
-        wet_.set(wet, primed());
+        dry_.set(dry, glide);
+        wet_.set(wet, glide);
         break;
       }
       default:

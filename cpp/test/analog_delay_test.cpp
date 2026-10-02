@@ -411,6 +411,44 @@ int main() {
     EXPECT(bright < 0.02, "runaway feedback stays dark");
   }
 
+  // 11b. Runaway is bounded at both ends of Time and of Age, under a
+  // full-scale input, and the way back down is smooth: with Feedback pulled
+  // back to 0.4 the drone falls away repeat by repeat, with no step larger
+  // than it had while it ran and no rise on the way.
+  for (float ms : {20.0f, 380.0f, 1200.0f}) {
+    for (float age : {0.0f, 1.0f}) {
+      device.init(kRate);
+      device.set_param(p::kFeedback, 1.1f);
+      device.set_param(p::kTime, ms);
+      device.set_param(p::kAge, age);
+      device.set_param(p::kModDepth, 1.0f);
+      device.set_param(p::kMix, 1.0f);
+      Stereo driven = run(device, sine(220.0f, 2.0f, kRate, 1.0f));
+      Stereo running = render(device, 25.0f, kRate);
+      const double ceiling = std::max(peak(driven.left), peak(driven.right));
+      const double level = rms(running.left, at(24.0), at(25.0));
+      const double step = max_step(running.left, at(20.0), at(25.0));
+      device.set_param(p::kFeedback, 0.4f);
+      Stereo down = render(device, 12.0f, kRate);
+      const size_t window = at(ms * 0.001);
+      double before = rms(running.left, running.size() - window, running.size());
+      double rise = 0.0;
+      for (size_t s = 0; s + window <= down.size(); s += window) {
+        const double now = rms(down.left, s, s + window);
+        if (before > 1.0e-4) rise = std::max(rise, now / before);
+        before = now;
+      }
+      std::printf("runaway at %4.0f ms, Age %.0f: peak %.2f driven, %.2f settled, %.1f dBFS running; back down: "
+                  "step %.4f (%.4f running), largest rise x%.3f, %.1e left after 11 s\n",
+                  ms, age, ceiling, peak(running.left, at(15.0)), db(level), max_step(down.left), step, rise,
+                  peak(down.left, at(11.0)));
+      EXPECT(finite(driven.left) && finite(running.left) && ceiling <= 2.0, "runaway never passes the ceiling");
+      EXPECT(peak(running.left, at(15.0)) < 1.5 && level > 0.02, "it settles into a bounded drone");
+      EXPECT(max_step(down.left) < 1.1 * step + 1.0e-3 && rise < 1.02, "coming back down is smooth");
+      EXPECT(peak(down.left, at(11.0)) < 1.0e-3, "and it does come down");
+    }
+  }
+
   // 12. Sweeping Time while a note and its repeats sound bends them and
   // never clicks: the line is read stage by stage, not by a moving pointer.
   {

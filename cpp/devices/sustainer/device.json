@@ -19,7 +19,7 @@
       "name": "Hold",
       "choices": ["Off", "On"],
       "default": 0,
-      "description": "In Auto and Layer, On keeps what is held and stops listening for new notes, so you can play over it. In Latch, On catches the sound of that moment and Off lets it go."
+      "description": "In Auto and Layer, On keeps what is held for as long as it stays on and stops listening for new notes, so you can play over it. In Latch, On catches the sound of that moment and Off lets it go."
     },
     {
       "key": "sensitivity",
@@ -37,7 +37,7 @@
       "default": 0.25,
       "taper": "log",
       "unit": "s",
-      "description": "How slowly the held sound rises under the note you played. Short takes over at once; long swells in like bowed strings."
+      "description": "How slowly the held sound rises under the note you played. Short takes over almost at once; long swells in like bowed strings."
     },
     {
       "key": "decay",
@@ -47,7 +47,7 @@
       "default": 8,
       "taper": "log",
       "unit": "s",
-      "description": "How long the held sound takes to die away once you stop playing. All the way up it never fades."
+      "description": "How long the held sound takes to die away once you stop playing, or in Latch once Hold is switched off. All the way up it never fades."
     },
     {
       "key": "glide",
@@ -65,7 +65,7 @@
       "min": 0,
       "max": 1,
       "default": 0.35,
-      "description": "How much the held sound moves. At zero it is perfectly still, like an organ pipe; higher, every overtone drifts and shimmers on its own, differently left and right."
+      "description": "How much the held sound moves. At zero it is perfectly still, like an organ pipe; higher, every overtone drifts in pitch and level on its own, differently left and right."
     },
     {
       "key": "ensemble",
@@ -81,7 +81,7 @@
       "min": -1,
       "max": 1,
       "default": 0,
-      "description": "Tilts the held sound. Left of centre is darker and rounder, right is brighter and airier."
+      "description": "Colours the held sound. Left of centre takes the top off for a dark, round pad; right of centre leans it brighter and thinner."
     },
     {
       "key": "lowCut",
@@ -103,12 +103,139 @@
     }
   ],
   "presets": {
-    "Sustain pedal": { "mode": 0 },
-    "Slow strings": { "attack": 2, "ensemble": 0.8 },
-    "Stacked harmony": { "mode": 1, "decay": 20 },
-    "Frozen moment": { "mode": 2 },
-    "Glass organ": { "motion": 0, "tone": 0.5 },
-    "Dark bed": { "tone": -0.7, "decay": 40 }
+    "Sustain pedal": {
+      "mode": 0,
+      "hold": 0,
+      "sensitivity": 0.5,
+      "attack": 0.25,
+      "decay": 8,
+      "glide": 0.4,
+      "motion": 0.35,
+      "ensemble": 0.2,
+      "tone": 0,
+      "lowCut": 60,
+      "mix": 0.5
+    },
+    "Slow strings": {
+      "mode": 0,
+      "hold": 0,
+      "sensitivity": 0.5,
+      "attack": 2,
+      "decay": 12,
+      "glide": 1.5,
+      "motion": 0.5,
+      "ensemble": 0.8,
+      "tone": -0.15,
+      "lowCut": 90,
+      "mix": 0.55
+    },
+    "Stacked harmony": {
+      "mode": 1,
+      "hold": 0,
+      "sensitivity": 0.5,
+      "attack": 0.6,
+      "decay": 20,
+      "glide": 0.8,
+      "motion": 0.4,
+      "ensemble": 0.35,
+      "tone": 0,
+      "lowCut": 80,
+      "mix": 0.5
+    },
+    "Frozen moment": {
+      "mode": 2,
+      "hold": 0,
+      "sensitivity": 0.5,
+      "attack": 0.05,
+      "decay": 3,
+      "glide": 0.4,
+      "motion": 0.2,
+      "ensemble": 0.1,
+      "tone": 0,
+      "lowCut": 60,
+      "mix": 0.6
+    },
+    "Glass organ": {
+      "mode": 0,
+      "hold": 0,
+      "sensitivity": 0.5,
+      "attack": 0.08,
+      "decay": 60,
+      "glide": 0.15,
+      "motion": 0,
+      "ensemble": 0,
+      "tone": 0.6,
+      "lowCut": 120,
+      "mix": 0.45
+    },
+    "Dark bed": {
+      "mode": 0,
+      "hold": 0,
+      "sensitivity": 0.5,
+      "attack": 1.2,
+      "decay": 40,
+      "glide": 2.5,
+      "motion": 0.6,
+      "ensemble": 0.5,
+      "tone": -0.7,
+      "lowCut": 40,
+      "mix": 0.6
+    },
+    "Quick catch": {
+      "mode": 0,
+      "hold": 0,
+      "sensitivity": 0.65,
+      "attack": 0.02,
+      "decay": 2.5,
+      "glide": 0.05,
+      "motion": 0.15,
+      "ensemble": 0,
+      "tone": 0,
+      "lowCut": 60,
+      "mix": 0.4
+    },
+    "Long glide": {
+      "mode": 0,
+      "hold": 0,
+      "sensitivity": 0.5,
+      "attack": 1.5,
+      "decay": 15,
+      "glide": 5,
+      "motion": 0.5,
+      "ensemble": 0.4,
+      "tone": 0,
+      "lowCut": 60,
+      "mix": 0.5
+    },
+    "Shimmer cloud": {
+      "mode": 1,
+      "hold": 0,
+      "sensitivity": 0.6,
+      "attack": 1,
+      "decay": 30,
+      "glide": 1,
+      "motion": 1,
+      "ensemble": 1,
+      "tone": 0.35,
+      "lowCut": 200,
+      "mix": 0.6
+    },
+    "Endless drone": {
+      "mode": 0,
+      "hold": 0,
+      "sensitivity": 0.3,
+      "attack": 3,
+      "decay": 60,
+      "glide": 4,
+      "motion": 0.8,
+      "ensemble": 0.6,
+      "tone": -0.3,
+      "lowCut": 30,
+      "mix": 0.7
+    }
   },
-  "origin": { "kind": "new", "note": "Written for live-mix on cpp/kit." }
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. An automatic sustain (freeze) effect in outline: onsets are found by spectral flux with a maximum filter (Boeck and Widmer, 'Maximum filter vibrato suppression for onset detection', 2013); after the attack the spectrum is cut at its peaks, each peak's frequency is taken from its phase advance (the phase vocoder of Flanagan and Golden, 1966) and its whole region is turned rigidly from then on (identity phase locking: Laroche and Dolson, 'Improved phase vocoder time-scale modification of audio', 1999); partials under 650 Hz are measured again from a frame four times as long and rebuilt as window lobes (Rodet and Depalle, 'Spectral envelopes and inverse FFT synthesis', 1992). Not a model or port of any product."
+  }
 }

@@ -25,7 +25,7 @@ export const VOWEL_REVERB_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How strongly the vowel is pressed onto the reverb. At zero it is a plain hall; higher settings make the tail more vocal, and the vowel grows clearer the longer it rings.',
+      'How strongly the vowel is pressed onto the reverb. Turned right down it is a plain hall; higher settings make the tail more vocal, and the vowel grows clearer the longer it rings.',
   },
   voice: {
     id: 2,
@@ -123,7 +123,8 @@ export const VOWEL_REVERB_PARAMS = {
     default: 1,
     taper: 'linear',
     unit: '',
-    description: 'Stereo width of the reverb only. Zero is a mono tail; full is the widest.',
+    description:
+      'Stereo width of the reverb only, from a mono tail in the middle to the widest spread. The dry signal keeps its own width.',
   },
   mix: {
     id: 11,

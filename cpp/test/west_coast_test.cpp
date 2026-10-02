@@ -549,6 +549,30 @@ static void check_headroom_and_blocks() {
   }
 }
 
+// The instrument is the same at every sample rate: pitch, level and decay.
+static void check_rates() {
+  double level[3] = {};
+  const float rates[3] = {48000.0f, 44100.0f, 96000.0f};
+  for (int n = 0; n < 3; ++n) {
+    plain(rates[n]);
+    device.set_param(p::kSustain, 1.0f);
+    device.note_on(1, 440.0f, 0.8f);
+    Stereo out = render(device, 1.5f, rates[n]);
+    const size_t half = static_cast<size_t>(0.5f * rates[n]);
+    const double found = dominant_frequency(out.left, rates[n], 415.0, 466.0, half, 3 * half);
+    level[n] = db(rms(out.left, half));
+    plain(rates[n]);
+    device.note_on(1, 220.0f, 0.8f);
+    out = render(device, 2.0f, rates[n]);
+    const double t60 = fall_time(out.left, rates[n], 60.0);
+    NOTE("rate %.0f: 440 Hz -> %+.2f cents, held level %.2f dB, Decay 0.6 s -> -60 dB after %.3f s\n", rates[n],
+         cents(found, 440.0), level[n], t60);
+    EXPECT_NEAR(cents(found, 440.0), 0.0, 3.0, "in tune at every sample rate");
+    EXPECT(t60 > 0.45 && t60 < 0.75, "Decay means the same at every sample rate");
+    EXPECT_NEAR(level[n], level[0], 0.5, "the same level at every sample rate");
+  }
+}
+
 int main() {
   Conformance spec;
   spec.name = "west-coast";
@@ -570,6 +594,7 @@ int main() {
   check_chance();
   check_velocity();
   check_headroom_and_blocks();
+  check_rates();
 
   // Cost with every voice sounding at the heaviest setting: eight held
   // notes, full fold with the timbre envelope and symmetry, deep FM.

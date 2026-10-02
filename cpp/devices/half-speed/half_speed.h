@@ -121,7 +121,6 @@ class HalfSpeed : public kit::DeviceBase<half_speed::kNumParams> {
   // Spread at 1 holds the right side a quarter of a cycle behind the left.
   static constexpr float kSpreadCycles = 0.25f;
   static constexpr float kSpreadPull = 4.0f;
-  static constexpr float kLeadPull = 1.0f;
   // Below this both sides play the same head, so the bass stays in step.
   static constexpr float kBassHz = 200.0f;
   static constexpr int kControlPeriod = 16;
@@ -169,23 +168,7 @@ class HalfSpeed : public kit::DeviceBase<half_speed::kNumParams> {
   double cycle_frames_ = 48000.0;
   float jitter_factor_ = 1.0f;
   float mix_seen_ = -1.0f, dry_gain_ = 1.0f, wet_gain_ = 0.0f;
-  // One pole with the same frequency warping as kit::Svf, so that with a
-  // Svf of Q 1 it makes an exact third-order Butterworth pair.
-  struct Pole {
-    float state = 0.0f;
-    float gain = 0.0f;
-    void reset() { state = 0.0f; }
-    void set(const kit::Svf& like) { gain = like.g / (1.0f + like.g); }
-    float lowpass(float x) {
-      const float v = (x - state) * gain;
-      const float low = v + state;
-      state = flush_denormal(low + v);
-      return low;
-    }
-    float highpass(float x) { return x - lowpass(x); }
-  };
-  kit::Svf low_cut_[2], high_cut_[2], split_left_, split_low_, split_high_;
-  Pole split_pole_[2];
+  kit::Svf low_cut_[2], high_cut_[2], split_left_, split_low_[2], split_high_[2];
   kit::ControlClock clock_;
   float low_hz_ = 20.0f, high_hz_ = 20000.0f, filter_ease_ = 0.05f;
   bool together_ = true;
@@ -224,14 +207,11 @@ inline void HalfSpeed::clear_filters() {
     low_cut_[c].reset();
     high_cut_[c].reset();
   }
-  kit::Svf* split[3] = {&split_left_, &split_low_, &split_high_};
+  kit::Svf* split[5] = {&split_left_, &split_low_[0], &split_low_[1], &split_high_[0],
+                        &split_high_[1]};
   for (kit::Svf* filter : split) {
     filter->reset();
-    filter->set(kBassHz, 1.0f, sample_rate());
-  }
-  for (Pole& pole : split_pole_) {
-    pole.reset();
-    pole.set(split_low_);
+    filter->set(kBassHz, kit::kSqrtHalf, sample_rate());
   }
 }
 
@@ -321,8 +301,8 @@ inline void HalfSpeed::render_frame(const float* in, float* out_left, float* out
   // allpass, which the left side gets too, so the sides stay in phase.
   split_left_.process(left);
   wet[0] = left - 2.0f * split_left_.k * split_left_.band;
-  wet[1] = split_pole_[0].lowpass(split_low_.lowpass(right)) +
-           split_pole_[1].highpass(split_high_.highpass(late_right));
+  wet[1] = split_low_[1].lowpass(split_low_[0].lowpass(right)) +
+           split_high_[1].highpass(split_high_[0].highpass(late_right));
   for (int c = 0; c < 2; ++c) wet[c] = low_cut_[c].highpass(high_cut_[c].lowpass(wet[c]));
 
   // Cycle clocks. The second one runs a little fast or slow until it is
@@ -424,24 +404,14 @@ inline void HalfSpeed::launch(Timing& timing, int head, const Timing* leader) {
   const float smooth = smooth_.value;
   if (head == kMid && smooth <= 0.0f) return;  // silent in the chop layout
   weigh(timing, fade_.value, smooth);
-  double delays[2 + kNumHeads];
-  float weights[2 + kNumHeads];
+  double delays[2];
+  float weights[2];
   int others = 0;
   for (int h = 0; h < kNumHeads; ++h) {
     if (h == head || (head == kMid && h == kPrev)) continue;
     delays[others] = timing.delay[h];
     weights[others] = timing.weight[h];
     ++others;
-  }
-  // The second set also lines up with what the first is playing: the right
-  // side is made of both (bass from the first, the rest from the second),
-  // and where the two meet they must not cancel.
-  if (&timing == &timing_[1]) {
-    for (int h = 0; h < kNumHeads; ++h) {
-      delays[others] = timing_[0].delay[h];
-      weights[others] = kLeadPull * timing_[0].weight[h];
-      ++others;
-    }
   }
   const half_speed::Matcher::Match rough = matcher_.coarse(delays, weights, others, kStartDelay);
   const half_speed::Matcher::Match found =

@@ -32,8 +32,10 @@
 //   been bent and goes round again stays bent.
 // - Wander moves Drag on its own: a slow seeded drift, or with Steps on a
 //   seeded walk between neighbouring steps.
-// - Each tap is also swept a little by its own slow sine, which keeps the
-//   cluster from ringing like a comb.
+// - Every other tap, and both loop reads, are also swept a little by their
+//   own slow sines, which keeps the cluster from ringing like a comb. Every
+//   read that nothing is moving settles on a whole sample, where it is exact
+//   and costs one load; moving reads are Hermite-interpolated.
 
 #include "../../kit/kit.h"
 #include "params.gen.h"
@@ -122,6 +124,9 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
   static constexpr int kStepCount = 7;
   // The shortest a tap may be: a control period and the interpolator's reach.
   static constexpr float kLeastTap = kControlPeriod + 4.0f;
+  // A read point that the tape moves by less than this per control period
+  // counts as at rest.
+  static constexpr double kStillSamples = 1.0e-6;
 
   // Allpass lengths as shares of Length. Their sum is the earliest a sound
   // can come back; the tap distances are shortened by it so the arrivals
@@ -134,7 +139,7 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
   static constexpr float kSwarmCurve = 1.25f;    // above 1: denser at the front
   static constexpr float kSwarmTiltDb = 6.0f;    // the last tap against the first
   static constexpr float kMaxDiffusion = 0.7f;
-  static constexpr float kSweepSeconds = 0.0018f;  // per tap at Modulation 1
+  static constexpr float kSweepSeconds = 0.0024f;  // per swept tap at Modulation 1
   static constexpr float kLengthGlideSeconds = 0.08f;
   static constexpr float kWanderHz = 0.05f;
   static constexpr float kWanderOctaves = 0.6f;
@@ -155,9 +160,12 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
     double span = 0.5;    // distance behind the write point, in Lengths
     double delay = 16.0;  // in samples, now
     double from = 16.0;   // where it was a control period ago
-    long long at = 0;     // allpass reads: where on the line, 32.32 fixed point
-    long long advance = 0;
+    long long at = 0;     // position on the line as 32.32 fixed point, and
+    long long advance = 0;  // how far it moves per sample
+    double exact = 0.0;   // where the tape alone puts it, before any sweep
     float least = 3.0f;
+    bool swept = false;   // has its own slow sine
+    bool whole = false;   // sitting on a whole sample: no interpolation needed
     long long index = 0;  // the history segment the read point is in
     float limit = 64.0f;
     float phase = 0.0f;   // its own slow sweep
@@ -171,6 +179,7 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
       at = static_cast<long long>(
           (static_cast<double>(write_position + size) - (from + step)) * 4294967296.0);
       advance = static_cast<long long>((1.0 - step) * 4294967296.0);
+      whole = step == 0.0 && static_cast<unsigned int>(at) == 0u;
     }
   };
 
@@ -209,6 +218,7 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
         tap.span = arrival - diffusers;
         tap.limit = static_cast<float>(kLineSize - 16);
         tap.least = kLeastTap;
+        tap.swept = ((k + c) & 1) != 0;
         tap.phase = rng.uniform();
         tap.rate = 0.15f + 0.6f * rng.uniform();
         const float sign = rng.uniform() < 0.5f ? -1.0f : 1.0f;
@@ -224,6 +234,7 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
       loop.span = kLoopSpan[c] - diffusers;
       loop.limit = static_cast<float>(kLineSize - 16);
       loop.least = kLeastTap;
+      loop.swept = true;
       loop.phase = rng.uniform();
       loop.rate = 0.11f + 0.2f * rng.uniform();
     }
@@ -249,6 +260,12 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
   static void sweep(const kit::DelayLine<kLineSize>& line, Read& read, float gain, float* out) {
     read.ramp(line.write_position(), kLineSize);
     long long at = read.at;
+    if (read.whole) {
+      // At rest on a whole sample the interpolator returns the stored sample.
+      const int index = static_cast<int>(at >> 32);
+      for (int j = 0; j < kControlPeriod; ++j) out[j] += gain * line.at(index + j);
+      return;
+    }
     for (int j = 0; j < kControlPeriod; ++j) {
       out[j] += gain * read_at(line, at);
       at += read.advance;
@@ -301,7 +318,9 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
       x = low_cut_[c].highpass(dampen_[c].lowpass(x)) + kAntiDenormal;
       for (int a = 0; a < kStages; ++a) {
         Read& stage = stage_[c][a];
-        const float delayed = read_at(allpass_[c][a], stage.at);
+        const float delayed = stage.whole
+                                  ? allpass_[c][a].at(static_cast<int>(stage.at >> 32))
+                                  : read_at(allpass_[c][a], stage.at);
         stage.at += stage.advance;
         const float v = x + diffusion * delayed;
         allpass_[c][a].write(v);
@@ -340,12 +359,20 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
     if (fraction > 1.0) fraction = 1.0;
     double target =
         (static_cast<double>(ahead - read.index) - fraction) * static_cast<double>(kControlPeriod);
-    if (sweep > 0.0f) {
-      read.phase += read.rate * turn;
-      if (read.phase >= 1.0f) read.phase -= 1.0f;
+    const double moved = target - read.exact;
+    const bool still = !started_ || (moved < kStillSamples && moved > -kStillSamples);
+    read.exact = target;
+    read.phase += read.rate * turn;
+    if (read.phase >= 1.0f) read.phase -= 1.0f;
+    if (read.swept && sweep > 0.0f) {
       // Never sweep a short tap by more than a quarter of its own length.
       const float reach = kit::min(sweep, 0.25f * static_cast<float>(target));
       target += static_cast<double>(reach * kit::SineTable::lookup(read.phase));
+    } else if (still) {
+      // Nothing is moving it: sit on the nearest whole sample, where the
+      // read is exact and costs one load. It slides the last fraction of a
+      // sample over one control period.
+      target = std::floor(target + 0.5);
     }
     if (target < read.least) target = read.least;
     if (target > read.limit) target = read.limit;

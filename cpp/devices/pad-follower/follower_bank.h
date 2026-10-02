@@ -43,7 +43,8 @@ class FollowerBank {
  public:
   static constexpr int kBands = 64;
   static constexpr int kGroups = 8;
-  static constexpr int kTick = 16;
+  // Samples per control tick; a multiple of four (see analyse).
+  static constexpr int kTick = 24;
   static constexpr float kLowestHz = 60.0f;
   static constexpr float kHighestHz = 6000.0f;
 
@@ -87,7 +88,8 @@ class FollowerBank {
       // The lock pulls in over about a third of the band's own width, and
       // the tracked frequency may leave the centre by two band spacings.
       lock_[b] = static_cast<float>(two_pi * kLockFactor * spacing / rate);
-      max_dev_[b] = static_cast<float>(two_pi * 2.0 * spacing / rate);
+      // (and no further than the phase step between two ticks can tell apart).
+      max_dev_[b] = kit::min(static_cast<float>(two_pi * 2.0 * spacing / rate), 2.8f / kTick);
       detune_scale_[b] = static_cast<float>(divisor * r / (1.0 - r));
       share_scale_[b] = static_cast<float>(rate / (two_pi * spacing));
       // Times, in ticks. The resonator pair settles in about three of its
@@ -160,7 +162,10 @@ class FollowerBank {
   void set_times(float rise_seconds, float fall_seconds) {
     const float ticks = rate_ / kTick;
     // Two equal poles in a row reach 90 % after 3.89 time constants.
-    attack_ = 1.0f - kit::time_to_coeff(rise_seconds / 3.89f, ticks);
+    // The follower starts once a band has settled on its partial, which
+    // takes about 70 ms in the middle of the range; that is part of the rise.
+    const float swell = kit::max(0.3f * rise_seconds, rise_seconds - 0.07f);
+    attack_ = 1.0f - kit::time_to_coeff(swell / 3.89f, ticks);
     const float fall_tau = fall_seconds / 6.908f;
     release_ = 1.0f - kit::time_to_coeff(fall_tau, ticks);
     release_follow_ = 1.0f - kit::time_to_coeff(kit::min(0.03f, fall_tau * 0.25f), ticks);
@@ -222,6 +227,20 @@ class FollowerBank {
       s2r_[b] = b_r;
       s2i_[b] = b_i;
     }
+  }
+
+  // Control rate: measure every band and steer its oscillator.
+  void tick() {
+    octaves_ += (octaves_target_ - octaves_) * octave_coeff_;
+    if (std::fabs(octaves_target_ - octaves_) < 1.0e-4f) octaves_ = octaves_target_;
+    const float up = octaves_ > 0.0f ? octaves_ * kOctaveLevel : 0.0f;
+    const float down = octaves_ < 0.0f ? -octaves_ * kOctaveLevel : 0.0f;
+    // Keep the pad's power about level as the second section comes in.
+    const float trim = 1.0f / std::sqrt(1.0f + up * up + down * down);
+    down_active_ = down > 0.0f;
+    bool any = false;
+    for (int b = 0; b < kBands; ++b) any = steer(b, up, down, trim) || any;
+    sounding_ = any;
   }
 
   // atan2 to about 1e-5 rad (a minimax polynomial on the first octant), for

@@ -7,9 +7,10 @@
 //   ring ─► low-pass ─► every 4th sample                                (+)─► voice
 //             └─► frames of 171 ms ─► partials below the split ─► x4 ───┘
 //
-// - Notes of a chord lie closer together than a 43 ms window can tell apart
-//   below about 700 Hz, and a shifter that cannot tell two partials apart
-//   moves them as one, to the wrong places. So everything below the split is
+// - Partials a semitone apart (the notes of a close chord, and their
+//   overtones against each other) lie closer than a 43 ms window can tell
+//   apart below about 1.3 kHz, and a shifter that cannot tell two partials
+//   apart moves them as one, to the wrong places. So everything below the split is
 //   shifted from a window four times as long, taken from the same sound at a
 //   quarter of the rate (an eighth at 88.2 kHz and above), which costs no
 //   more than the short one. The price is time: the mode answers about
@@ -35,7 +36,8 @@ class ChordEngine {
   static constexpr int kMaxHighSize = 4096;
   static constexpr int kTaps = 12;      // of the x4 / x8 interpolator, per phase
   static constexpr int kMaxDown = 8;
-  static constexpr float kSplitHz = 718.9f;  // between two notes (F5 and F#5), where few partials sit
+  static constexpr float kSplitHz = 1357.0f;  // between two notes (E6 and F6), where few partials sit
+  static constexpr float kLowTopHz = 3000.0f; // the highest the reduced rate carries cleanly
 
   void init(float sample_rate) {
     sample_rate_ = sample_rate;
@@ -47,8 +49,8 @@ class ChordEngine {
     big_.init();
     low_.init();
     for (int c = 0; c < 2; ++c) {
-      lowpass_[0][c].set(2000.0f, 0.5412f, sample_rate);
-      lowpass_[1][c].set(2000.0f, 1.3066f, sample_rate);
+      lowpass_[0][c].set(2400.0f, 0.5412f, sample_rate);
+      lowpass_[1][c].set(2400.0f, 1.3066f, sample_rate);
     }
     design_interpolator();
     reset();
@@ -84,7 +86,7 @@ class ChordEngine {
   // window, the wait for its second voice, the interpolator and the low-pass
   // before it. The short window is read that much later to arrive with it.
   int latency() const {
-    return (kLowSize + kLowWait) * down_ + (kTaps * down_) / 2 + static_cast<int>(0.00021f * sample_rate_);
+    return (kLowSize + kLowWait) * down_ + (kTaps * down_) / 2 + static_cast<int>(0.00017f * sample_rate_);
   }
 
   // One sample of each voice (`out[voice][channel]`), read `base` samples
@@ -188,7 +190,7 @@ class ChordEngine {
   template <class Shifter>
   void voice_high(Shifter& shifter, int v, float ratio) {
     const int size = Shifter::kSize;
-    shifter.synthesise(v, ratio, kit::kTwoPi * kSplitHz / sample_rate_, 4.0f);
+    shifter.synthesise(v, ratio, kit::kTwoPi * split(ratio) / sample_rate_, 4.0f);
     const float* left = shifter.frame_left();
     const float* right = shifter.frame_right();
     const unsigned from = high_frame_ - static_cast<unsigned>(size);
@@ -198,6 +200,11 @@ class ChordEngine {
       high_sum_[v][1][at] += right[n];
     }
   }
+
+  // Where the two windows divide the work, for a voice: lower when it
+  // shifts far up, so what the long window makes stays within what the
+  // reduced rate can carry.
+  static float split(float ratio) { return kit::min(kSplitHz, kLowTopHz / ratio); }
 
   // The long window, at the reduced rate.
   void hear_low(double base) {
@@ -211,7 +218,7 @@ class ChordEngine {
   }
 
   void voice_low(int v, float ratio) {
-    low_.synthesise(v, ratio, 0.0f, kit::kTwoPi * kSplitHz * down_ / sample_rate_);
+    low_.synthesise(v, ratio, 0.0f, kit::kTwoPi * split(ratio) * down_ / sample_rate_);
     const float* left = low_.frame_left();
     const float* right = low_.frame_right();
     const unsigned from = low_frame_ - static_cast<unsigned>(kLowSize);

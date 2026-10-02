@@ -920,6 +920,18 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
     // For the leveller: each player's level and place, 0 when not playing.
     float played[kMaxPlayers] = {0.0f, 0.0f, 0.0f, 0.0f};
     float placed[kMaxPlayers] = {0.0f, 0.0f, 0.0f, 0.0f};
+    // The slow drift of the players behind the lead, less their mean: they
+    // move against each other and the key stays where it is in pitch.
+    float drifted[kMaxPlayers] = {0.0f, 0.0f, 0.0f, 0.0f};
+    {
+      float sum = 0.0f, weight = 0.0f;
+      for (int p = 1; p < players; ++p) {
+        drifted[p] = kit::SineTable::lookup(voice.player[p].drift_phase);
+        sum += kPlayerLevel[p] * drifted[p];
+        weight += kPlayerLevel[p];
+      }
+      for (int p = 1; p < players; ++p) drifted[p] -= sum / weight;
+    }
     for (int p = 0; p < kMaxPlayers; ++p) {
       Player& player = voice.player[p];
       const bool in = p < players && voice.tape_time >= player.onset * 0.04f * section;
@@ -944,7 +956,6 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
         player.wander_phase[w] += player.wander_rate[w] * tape_dt;
         player.wander_phase[w] = wrap(player.wander_phase[w]);
       }
-      const float drift = kit::SineTable::lookup(player.drift_phase);
       const float drift_level = kit::SineTable::cos_lookup(player.drift_phase);
       player.drift_phase = wrap(player.drift_phase + player.drift_rate * tape_dt);
       level *= 1.0f + 0.12f * section * (0.7f * loud + 0.5f * drift_level);
@@ -957,7 +968,7 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
       player.vibrato_phase +=
           def.vibrato_hz * (1.0f + 0.12f * section * player.vibrato_pace) * tape_dt;
       player.vibrato_phase -= std::floor(player.vibrato_phase);
-      const float place = player.detune + (p == 0 ? 0.0f : kDrift * drift);
+      const float place = player.detune + kDrift * drifted[p];
       const float bend = def.detune_cents * section * voice.tight * place +
                          3.0f * section * voice.tight * tuning +
                          def.vibrato_cents * shake;

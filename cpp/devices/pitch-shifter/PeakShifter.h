@@ -213,8 +213,14 @@ class PeakShifter {
       const float real = lr * plr + li * pli + rr * prr + ri * pri;
       const float imag = li * plr - lr * pli + ri * prr - rr * pri;
       const double gained = std::atan2(static_cast<double>(imag), static_cast<double>(real));
-      const double off = wrap(gained - centre * advance_);
-      peak_omega_[i] = static_cast<float>(centre + off / advance_);
+      // One steady partial lies within half a bin of its peak. A reading
+      // further out comes from two partials too close to tell apart,
+      // beating in one peak, and is held to the edge of the bin.
+      const double edge = 0.55 * 2.0 * kPi / N;
+      double off = wrap(gained - centre * advance_) / advance_;
+      if (off > edge) off = edge;
+      if (off < -edge) off = -edge;
+      peak_omega_[i] = static_cast<float>(centre + off);
     }
   }
 

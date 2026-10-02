@@ -43,7 +43,9 @@
 // - Drift wobbles the speed (+-0.8 % at full, 0.35 Hz, three sines) and
 //   starts each pass up to 3 % of the loop late.
 // - Sleep: with no loop playing or about to and no input, the device stops
-//   after 50 ms and wakes with an empty memory. A held loop keeps it awake.
+//   once the last thing played is further back than the longest Length (so
+//   Hold can still take it until then), and wakes with an empty memory. A
+//   held loop keeps it awake.
 
 #include "../../kit/kit.h"
 #include "memory.h"
@@ -73,6 +75,7 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     drift_.set_rate(kWobbleHz, sr);
     rng_.seed(0xA341316Cu);
     fast_.set(0.0005f, 0.04f, sr);
+    alike_coeff_ = 1.0f - kit::time_to_coeff(kAlikeSeconds, sr / kControlPeriod);
     slow_.set(0.08f, 0.4f, sr);
     write_phase_ = 0.0f;
     mix_seen_ = -1.0f;
@@ -100,6 +103,8 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     for (int i = 0; i < frames; ++i) {
       float in[2];
       take_input(i, &in[0], &in[1]);
+      in[0] = safe(in[0]);
+      in[1] = safe(in[1]);
       const float clock = clock_.next();
       record(in, clock);
       sequence(in);
@@ -145,6 +150,12 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
   // The join across the loop point: 4 % of the loop, within these bounds.
   static constexpr float kMinJoinSeconds = 0.003f;
   static constexpr float kMaxJoinSeconds = 0.08f;
+  // The join's law follows how alike its two sides are (see join_gains).
+  // Their correlation is measured this many frames per control tick and
+  // taken up over a few milliseconds; below this floor it is not followed.
+  static constexpr int kProbeFrames = 16;
+  static constexpr float kAlikeSeconds = 0.008f;
+  static constexpr float kMinAlike = -0.5f;
   // A capture starts this long before the onset that asked for it.
   static constexpr float kLeadSeconds = 0.008f;
   static constexpr float kSoundFloor = 0.001f;   // -60 dBFS: something was played
@@ -156,6 +167,7 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
   static constexpr float kGoneGain = 0.001f;
   static constexpr float kGoneSeconds = 0.5f;
   static constexpr float kSleepSeconds = 0.05f;
+  static constexpr float kInputBound = 4.0f;   // +12 dBFS
   // The band-limit's corner as a share of the clock rate (Nyquist is 0.5).
   static constexpr float kBandShare = 0.34f;
   static constexpr int kBandSections = 3;
@@ -257,6 +269,13 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     float env = 0.0f;        // fade between decks, 0..1
     float env_step = 0.0f;
     float blur = 0.0f;       // low-pass in the read above speed 1: 0 to 1/4
+    float alike = 0.0f;      // correlation of the join's two sides, as the reads use it
+    float alike_step = 0.0f;
+    float alike_aim = 0.0f;  // as last measured
+    long probe_at = 0;       // frames of the join measured so far
+    long probe_frames = 0;   // frames to measure (none: nothing to do)
+    double probe_offset = 0.0;
+    float probe_xy = 0.0f, probe_xx = 0.0f, probe_yy = 0.0f;
     bool linear = false;     // fades linearly: the other deck is on the same tape
     bool stored = false;     // the store holds its capture, complete (control rate)
     float until_grain = 0.0f;  // samples until Smear starts its next grain
@@ -304,8 +323,24 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     }
   }
 
+  // The gains of the fade across the join, `w` of the way through it. Two
+  // sides that have nothing in common want equal power (cos, sin); two that
+  // are alike (a held chord against itself one loop earlier) would swell by
+  // up to 3 dB under it, every pass, and want gains that add up to one. With
+  // the measured correlation r of the two sides the power of the sum is
+  // 1 + r sin(2 angle), so dividing it out keeps the level through the join
+  // for anything in between. Sides in opposite phase still dip: no pair of
+  // gains can save what cancels, and r is not followed below kMinAlike.
+  static void join_gains(const Deck& d, float w, float* out_gain, float* in_gain) {
+    const float fall = kit::SineTable::cos_lookup(0.25f * w);
+    const float rise = kit::SineTable::lookup(0.25f * w);
+    const float level = 1.0f / std::sqrt(1.0f + 2.0f * d.alike * fall * rise);
+    *out_gain = fall * level;
+    *in_gain = rise * level;
+  }
+
   // The loop as a seamless thing: `q` frames after its start, and over the
-  // last `join` frames an equal-power fade into the tape just before the
+  // last `join` frames a fade (join_gains) into the tape just before the
   // start (shifted by `offset`), which runs straight on into the next pass.
   void loop_read(const Deck& d, double q, double offset, float* left, float* right) const {
     source_read(d, d.start + q, left, right);
@@ -313,9 +348,8 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     if (into <= 0.0) return;
     float next[2];
     source_read(d, d.start + q - d.length + offset, &next[0], &next[1]);
-    const float w = kit::min(1.0f, static_cast<float>(into / d.join));
-    const float out_gain = kit::SineTable::cos_lookup(0.25f * w);
-    const float in_gain = kit::SineTable::lookup(0.25f * w);
+    float out_gain, in_gain;
+    join_gains(d, kit::min(1.0f, static_cast<float>(into / d.join)), &out_gain, &in_gain);
     *left = *left * out_gain + next[0] * in_gain;
     *right = *right * out_gain + next[1] * in_gain;
   }
@@ -338,8 +372,41 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     const double into = q - (d.length - d.join);
     if (into <= 0.0) return sum;
     const float next = source_sum(d, d.start + q - d.length + offset);
-    const float w = kit::min(1.0f, static_cast<float>(into / d.join));
-    return sum * kit::SineTable::cos_lookup(0.25f * w) + next * kit::SineTable::lookup(0.25f * w);
+    float out_gain, in_gain;
+    join_gains(d, kit::min(1.0f, static_cast<float>(into / d.join)), &out_gain, &in_gain);
+    return sum * out_gain + next * in_gain;
+  }
+
+  // Start measuring how alike the two sides of the join are, for the pass
+  // offset the deck has now.
+  static void start_probe(Deck& d) {
+    d.probe_at = 0;
+    d.probe_frames = static_cast<long>(d.join);
+    d.probe_offset = d.offset;
+    d.probe_xy = 0.0f;
+    d.probe_xx = 0.0f;
+    d.probe_yy = 0.0f;
+  }
+
+  // A few more frames of that measurement (control rate): the loop's last
+  // `join` frames against the tape that fades in over them.
+  void probe(Deck& d) const {
+    const double out_from = d.start + d.length - d.join;
+    const double in_from = d.start - d.join + d.probe_offset;
+    long to = d.probe_at + kProbeFrames;
+    if (to > d.probe_frames) to = d.probe_frames;
+    for (long k = d.probe_at; k < to; ++k) {
+      const double at = static_cast<double>(k);
+      const float a = d.stored ? store_.read_sum(out_from + at) : ring_.read_sum(out_from + at);
+      const float b = d.stored ? store_.read_sum(in_from + at) : ring_.read_sum(in_from + at);
+      d.probe_xy += a * b;
+      d.probe_xx += a * a;
+      d.probe_yy += b * b;
+    }
+    d.probe_at = to;
+    if (to < d.probe_frames) return;
+    const float power = d.probe_xx * d.probe_yy;
+    d.alike_aim = power > 1.0e-18f ? kit::clamp(d.probe_xy / std::sqrt(power), kMinAlike, 1.0f) : 0.0f;
   }
 
   // Loop bounds from Length: the most recent `Length` seconds of the capture.
@@ -403,6 +470,10 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     d.until_grain = 0.0f;
     d.gain_step = 0.0f;
     d.blur = 0.0f;
+    d.alike = 0.0f;
+    d.alike_step = 0.0f;
+    d.alike_aim = 0.0f;
+    start_probe(d);
     d.active = true;
     d.releasing = false;
     d.env = 0.0f;
@@ -566,10 +637,13 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     } else if (low != (d.place < half)) {
       // Mid-loop, away from both ends: choose where the next pass starts.
       const double most = kit::min(0.03f * static_cast<float>(d.length), kMaxOffsetSeconds * d.rate);
+      const double before = d.offset;
       d.offset = param(micro_looper::kDrift) * rng_.uniform() * most;
+      if (d.offset != before) start_probe(d);
     }
     d.turns += (step < 0.0 ? -step : step) / d.length;
     d.gain += d.gain_step;
+    d.alike += d.alike_step;
     d.env += d.env_step;
     if (d.env >= 1.0f) {
       d.env = 1.0f;
@@ -666,6 +740,10 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
         target *= std::exp(std::log(fade) * speed * kControlPeriod / static_cast<float>(d.length));
       }
       d.gain_step = (target - d.gain) * (1.0f / kControlPeriod);
+      if (d.probe_at < d.probe_frames) probe(d);
+      const float apart = d.alike_aim - d.alike;
+      const float closer = (apart > -1.0e-4f && apart < 1.0e-4f) ? apart : apart * alike_coeff_;
+      d.alike_step = closer * (1.0f / kControlPeriod);
       if (d.gain < kGoneGain && !d.releasing) retire(d, kGoneSeconds);
       // Never read tape the record head is about to reach (the copy into
       // the store finishes long before; this is the safety net).
@@ -676,6 +754,15 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
         retire(d, 0.02f);
       }
     }
+  }
+
+  // The input as everything here sees it, the dry path too: a sample that
+  // is not a number is silence and nothing is beyond +-kInputBound, so one
+  // bad sample can neither reach the output nor lodge in the onset detector
+  // or the clock's filters. Anything a host sends in earnest passes untouched.
+  static float safe(float x) {
+    if (x > -kInputBound) return x < kInputBound ? x : kInputBound;
+    return x <= -kInputBound ? -kInputBound : 0.0f;
   }
 
   // A NaN or a runaway input must not sit in the memory for seconds.
@@ -724,11 +811,17 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     quiet_ = 0;
   }
 
-  // Sleep once nothing is coming in, nothing is looping or about to, and the
-  // output has been below the floor for a little while.
+  // Sleep once nothing is coming in, nothing is looping or about to, the
+  // output has been below the floor for a little while, and the memory holds
+  // nothing a Hold could still take: sleep empties it, and a player presses
+  // Hold after the phrase, often after the last of it has died to nothing.
+  // (With no loop playing the output is exact zeros awake or asleep.)
   void settle(bool excited, int frames) {
     const bool busy = decks_[0].active || decks_[1].active || wait_ > 0 || pending_ != kNone;
-    if (excited || busy || output_peak(frames) > kit::IdleGate::kFloor) {
+    const double longest =
+        static_cast<double>(micro_looper::kParamMax[micro_looper::kLength]) * clock_.value * sample_rate();
+    const bool remembering = static_cast<double>(ring_.written() - loud_at_) < longest;
+    if (excited || busy || remembering || output_peak(frames) > kit::IdleGate::kFloor) {
       quiet_ = 0;
       return;
     }
@@ -799,6 +892,7 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
   float width_seen_ = -1.0f, centre_gain_ = 1.0f;
   float smear_seen_ = -1.0f, plain_gain_ = 1.0f, grain_gain_ = 0.0f, grain_interval_ = 1200.0f;
   float grain_overlap_ = 3.0f, grain_level_ = 1.0f;
+  float alike_coeff_ = 0.04f;
   kit::ControlClock control_;
   float history_[2][4] = {};
   float write_phase_ = 0.0f;

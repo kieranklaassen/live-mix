@@ -190,42 +190,32 @@ struct Air {
   }
 };
 
-#ifndef NF_LOW
-#define NF_LOW 500.0f
-#endif
-#ifndef NF_TICK
-#define NF_TICK 1.0f
-#endif
-#ifndef NF_TOP
-#define NF_TOP 5000.0f
-#define NF_HZ 1800.0f
-#define NF_OCT 2.0f
-#define NF_Q 1.0f
-#endif
-// Vinyl: surface hiss (a band from 500 Hz to 5 kHz), fine crackle, the odd
-// soft pop, and a low rumble. Crackle is a Poisson stream of ticks with
+// Vinyl: a dull surface noise (a band from 200 Hz to 1 kHz, falling away
+// above it), fine bright crackle, the odd soft pop, and a low rumble. Crackle is a Poisson stream of ticks with
 // heavy-tailed sizes, each a struck resonator with its own pitch, damping and
 // place between the sides. Movement makes the rumble and the dust come round
 // once per turn of a 33⅓ record.
 struct Vinyl {
-  static constexpr float kNorm = 2.402f;  // by measurement
-  static constexpr float kRumble = 2.0f;  // 10 dB under the hiss
-  // Crackle that sits in the bed instead of jumping out of it: a tick is
-  // struck at 1 to 1.6 times kTick, so with its damping and its place between
-  // the sides most ticks peak 3 to 8 dB over the bed's RMS and the largest in
-  // several minutes, hiss included, about 13 dB over. A pop is a soft thump
-  // of 3 to 7 dB over.
-  static constexpr float kTick = NF_TICK;
+  static constexpr float kNorm = 5.508f;   // by measurement
+  static constexpr float kRumble = 0.85f;  // 10 dB under the surface noise
+  static constexpr float kSurfaceLowHz = 200.0f;
+  static constexpr float kSurfaceTopHz = 1000.0f;
+  // The surface noise is held to this many times the bed's RMS: its own rare
+  // peaks would otherwise use up the room the ticks need.
+  static constexpr float kSurfacePeak = 2.8f;
+  // Ticks and pops are sized in multiples of the bed's RMS, and kept small:
+  // a tick is struck at 1 to 1.6 times kTick, and its damping and its place
+  // between the sides take some of that away again, so the largest in several
+  // minutes, surface noise included, peaks about 14 dB over the bed's RMS.
+  // They are heard because they are bright and the surface noise is dull,
+  // not because they are loud. A pop is a soft thump of 3 to 6 dB over.
+  static constexpr float kTick = 2.3f;
   static constexpr float kTickCeiling = 1.6f;
-  static constexpr float kPop = 1.35f;
-  static constexpr float kHissTopHz = NF_TOP;
-  static constexpr float kTickHz = NF_HZ;
-  static constexpr float kTickOctaves = NF_OCT;
-  static constexpr float kTickQ = NF_Q;
-#ifndef NF_RATE
-#define NF_RATE 16.0f
-#endif
-  static constexpr float kTicksPerSecond = NF_RATE;
+  static constexpr float kTickHz = 3500.0f;
+  static constexpr float kTickOctaves = 1.4f;
+  static constexpr float kTickQ = 1.5f;
+  static constexpr float kPop = 3.0f;
+  static constexpr float kTicksPerSecond = 16.0f;
   static constexpr float kPopsPerSecond = 0.22f;
   static constexpr float kTurnHz = 33.333f / 60.0f;
 
@@ -246,9 +236,9 @@ struct Vinyl {
     for (int c = 0; c < 2; ++c) {
       src[c].init(stream + c, sr);
       low_cut[c].reset();
-      low_cut[c].set_cutoff(NF_LOW, sr);
+      low_cut[c].set_cutoff(kSurfaceLowHz, sr);
       high_cut[c].reset();
-      high_cut[c].set(kHissTopHz, 0.6f, sr);
+      high_cut[c].set(kSurfaceTopHz, 0.6f, sr);
       rumble[c].reset();
       rumble[c].set(42.0f, 0.8f, sr);
       tick[c][0].reset();
@@ -306,8 +296,8 @@ struct Vinyl {
       const float w = src[c].next();
       const float hiss = high_cut[c].lowpass(low_cut[c].highpass(w));
       const float low = rumble[c].bandpass(w);
-      out[c] = kNorm * (hiss + kRumble * rumble_gain[c] * low + tick[c][0].next() +
-                        tick[c][1].next() + pop[c].next());
+      const float surface = kit::clamp(kNorm * (hiss + kRumble * rumble_gain[c] * low), -kSurfacePeak, kSurfacePeak);
+      out[c] = surface + tick[c][0].next() + tick[c][1].next() + pop[c].next();
     }
   }
 };
@@ -388,18 +378,23 @@ struct Room {
 // second and leave a flurry of crackle behind. Both sides hear the same
 // events through noise of their own. Movement is how restless the band is.
 struct Static {
-  static constexpr float kNorm = 2.036f;  // by measurement
-  // A typical crackle peaks 14 dB over the hiss's RMS, the largest 23 dB over;
-  // a typical crash is a swell of 6 dB, the largest 12 dB.
-  static constexpr float kCrackle = 9.6f;
-  static constexpr float kCrackleCeiling = 3.0f;
-  static constexpr float kCrash = 0.8f;
-  static constexpr float kCrashCeiling = 2.75f;
+  static constexpr float kNorm = 5.80f;  // by measurement
+  // The hiss is tilted down above this, so the crackle is the bright part.
+  static constexpr float kHissDarkHz = 700.0f;
+  // Events that sit in the bed instead of jumping out of it: the largest
+  // crackle peaks about 14 dB over the bed's RMS and most are far smaller; a
+  // crash is a swell of 3 to 5 dB. (The device shaves the few peaks that
+  // would pass 14 dB over the RMS.)
+  static constexpr float kCrackle = 2.4f;
+  static constexpr float kCrackleCeiling = 1.6f;
+  static constexpr float kCrash = 0.45f;
+  static constexpr float kCrashCeiling = 1.6f;
   static constexpr float kCracklesPerSecond = 30.0f;
   static constexpr float kCrashesPerSecond = 0.45f;
 
   Source src[2];
   kit::Svf low_cut[2], high_cut[2];
+  TrapezoidPole dark[2];
   kit::Lfo sputter[2];
   kit::Drift fading, flurry;
   kit::Rng events;
@@ -422,6 +417,8 @@ struct Static {
       low_cut[c].set(350.0f, 0.7f, sr);
       high_cut[c].reset();
       high_cut[c].set(3800.0f, 0.9f, sr);
+      dark[c].reset();
+      dark[c].set_cutoff(kHissDarkHz, sr);
       sputter[c].seed(seed_for(stream + 2 + c));
       sputter[c].reset(c == 0 ? 0.0f : 0.5f);
       sputter[c].set_rate(c == 0 ? 11.0f : 13.0f, sr);
@@ -466,14 +463,14 @@ struct Static {
     if (crash_wait <= 0.0f) {
       crash_wait += poisson_gap(events, kCrashesPerSecond, sr);
       const float size = kCrash * heavy_tail(events, 0.3f, kCrashCeiling);
-      crash[0] += size * (0.7f + 0.6f * events.uniform());
-      crash[1] += size * (0.7f + 0.6f * events.uniform());
+      crash[0] = kit::min(crash[0] + size * (0.8f + 0.4f * events.uniform()), kCrash * kCrashCeiling);
+      crash[1] = kit::min(crash[1] + size * (0.8f + 0.4f * events.uniform()), kCrash * kCrashCeiling);
       crash_decay = std::exp(-1.0f / ((0.03f + 0.2f * events.uniform()) * sr));
       aftermath = 1.0f;
     }
     aftermath = flush_denormal(aftermath * aftermath_decay);
     for (int c = 0; c < 2; ++c) {
-      const float x = src[c].next() * (bed[c] + crash[c]) + hit[c];
+      const float x = dark[c].lowpass(src[c].next()) * (bed[c] + crash[c]) + hit[c];
       crash[c] = flush_denormal(crash[c] * crash_decay);
       out[c] = kNorm * high_cut[c].lowpass(low_cut[c].highpass(x));
     }

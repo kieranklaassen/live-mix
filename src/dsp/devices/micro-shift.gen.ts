@@ -87,7 +87,7 @@ export const MICRO_SHIFT_PARAMS = {
     name: 'Mix',
     min: 0,
     max: 1,
-    default: 0.4,
+    default: 0.36,
     taper: 'linear',
     unit: '',
     description:
@@ -118,7 +118,7 @@ export const MICRO_SHIFT_DESCRIPTOR = wasmDeviceDescriptor(MICRO_SHIFT_DEVICE, {
       focus: 180,
       tone: 10000,
       width: 1,
-      mix: 0.4,
+      mix: 0.36,
     },
     'Subtle halo': { detune: 4, delay: 12, drift: 0.1, tone: 6000, mix: 0.28 },
     'Thick double': { detune: 20, delay: 32, drift: 0.25, tone: 8000, mix: 0.5 },

@@ -190,8 +190,13 @@ class NoiseFloor : public kit::DeviceBase<noise_floor::kNumParams> {
       const float gain = glide(level_) * glide(drift_gain_) * follow_gain * shape;
       const float mid = (bed[0] + bed[1]) * 0.5f * glide(mid_);
       const float side = (bed[0] - bed[1]) * 0.5f * glide(side_);
-      out_left_[i] = in[0] + kit::soft_clip((mid + side) * gain);
-      out_right_[i] = in[1] + kit::soft_clip((mid - side) * gain);
+      // No bed passes kCeiling times its RMS (14 dB over Level), whatever
+      // Tone and Width have made of its ticks: the few peaks that would are
+      // shaved here. The steady beds never come near it.
+      const float noise_left = kit::clamp(mid + side, -kCeiling, kCeiling);
+      const float noise_right = kit::clamp(mid - side, -kCeiling, kCeiling);
+      out_left_[i] = in[0] + kit::soft_clip(noise_left * gain);
+      out_right_[i] = in[1] + kit::soft_clip(noise_right * gain);
     }
     idle_.settle(output_peak(frames), frames);
   }
@@ -206,6 +211,7 @@ class NoiseFloor : public kit::DeviceBase<noise_floor::kNumParams> {
   static constexpr float kReference = 0.25f;    // the input level Follow calls "loud": -12 dBFS
   static constexpr float kFollowKnee = 0.5493f;  // atanh(1/2): unity at the reference, a ceiling of 2
   static constexpr float kDuck = 4.0f;
+  static constexpr float kCeiling = 5.0f;  // the largest tick or crackle, in multiples of the bed's RMS
   static constexpr float kDarkQ = 0.6f;
   static constexpr float kToneBlend = 4.0f;  // the tone filters are fully in by Tone ±0.25
   static constexpr float kLevelDriftDb = 2.5f;
@@ -214,19 +220,19 @@ class NoiseFloor : public kit::DeviceBase<noise_floor::kNumParams> {
   // low-pass closes from the open frequency to the dark one; going up, a
   // high-pass rises from its open frequency to the thin one.
   static constexpr float kDarkOpenHz[kTypes] = {18000.0f, 9000.0f, 2000.0f, 1.0f, 1.0f, 5000.0f, 18000.0f};
-  static constexpr float kDarkHz[kTypes] = {2500.0f, 1200.0f, 80.0f, 1.0f, 1.0f, 900.0f, 5000.0f};
+  static constexpr float kDarkHz[kTypes] = {2500.0f, 450.0f, 80.0f, 1.0f, 1.0f, 900.0f, 5000.0f};
   static constexpr float kThinOpenHz[kTypes] = {500.0f, 100.0f, 30.0f, 1.0f, 1.0f, 300.0f, 3000.0f};
-  static constexpr float kThinHz[kTypes] = {6000.0f, 2500.0f, 300.0f, 1.0f, 1.0f, 2200.0f, 9000.0f};
+  static constexpr float kThinHz[kTypes] = {6000.0f, 900.0f, 300.0f, 1.0f, 1.0f, 1200.0f, 9000.0f};
   // The change of level, in dB, that Tone makes from -1 to 1 in steps of a
   // quarter, by measurement; it is taken back out.
   static constexpr int kTonePoints = 9;
   static constexpr float kToneLevelDb[kTypes][kTonePoints] = {
       {-16.57f, -12.07f, -7.77f, -3.93f, 0.00f, -0.60f, -1.21f, -2.47f, -5.13f},  // Tape hiss
-      {-7.21f, -4.95f, -2.96f, -1.49f, 0.00f, -0.50f, -0.92f, -1.98f, -4.45f},  // Vinyl
+      {0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f},  // Vinyl
       {-4.72f, -2.19f, -0.90f, -0.29f, 0.00f, -1.58f, -2.83f, -4.55f, -6.78f},  // Room
       {0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f},  // Hum 50: its Tone keeps the power itself
       {0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f},  // Hum 60
-      {-9.82f, -7.04f, -4.68f, -2.77f, 0.00f, -0.71f, -1.30f, -2.33f, -4.03f},  // Static
+      {0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f},  // Static
       {-12.54f, -9.05f, -5.96f, -3.27f, 0.00f, -3.00f, -4.15f, -5.74f, -7.95f},  // Air
   };
 

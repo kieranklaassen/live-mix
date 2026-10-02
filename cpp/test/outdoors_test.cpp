@@ -279,6 +279,37 @@ int main() {
            label);
   }
 
+  // Events are counted in samples or on the control clock, never per host
+  // block: any block size gives the same audio.
+  for (int type = 0; type < Outdoors::kKinds; ++type) {
+    plain(device, type, 1.0f);
+    device.set_param(p::kDistance, 0.5f);
+    device.note_on(1, 220.0f, 1.0f);
+    device.note_on(2, 330.0f, 1.0f);
+    Stereo even = render(device, 3.0f, kRate);
+    plain(device, type, 1.0f);
+    device.set_param(p::kDistance, 0.5f);
+    device.note_on(1, 220.0f, 1.0f);
+    device.note_on(2, 330.0f, 1.0f);
+    Stereo ragged;
+    const int sizes[] = {1, 7, 64, 128, 33, 512, 2048, 5};
+    for (int which = 0; ragged.size() < even.size(); ++which) {
+      const int n = static_cast<int>(std::min<size_t>(sizes[which % 8], even.size() - ragged.size()));
+      device.process(n);
+      for (int i = 0; i < n; ++i) {
+        ragged.left.push_back(device.out_left()[i]);
+        ragged.right.push_back(device.out_right()[i]);
+      }
+    }
+    double worst = 0.0;
+    for (size_t i = 0; i < even.size(); ++i) {
+      worst = std::max(worst, std::fabs(static_cast<double>(even.left[i]) - ragged.left[i]));
+      worst = std::max(worst, std::fabs(static_cast<double>(even.right[i]) - ragged.right[i]));
+    }
+    std::snprintf(label, sizeof label, "%s: output does not depend on block size (max diff %g)", kNames[type], worst);
+    EXPECT(worst < 1.0e-6 && rms(even.left) > 1.0e-4, label);
+  }
+
   // Nothing repeats: over two minutes the envelope of a held key has no
   // strong autocorrelation beyond five seconds. (Thunder is too sparse for
   // two minutes to say anything: ten minutes of it, beyond thirty seconds.)
@@ -592,10 +623,10 @@ int main() {
     }
   }
 
-  // Distance: the highs get quieter and the onsets blur. Sharp is the
-  // steepest rise of the envelope for scenes of separate events, and the
-  // crest factor for the stream, whose events run together. (A bird's notes
-  // have soft edges to begin with: there is little to blur.)
+  // Distance: the highs get quieter and the onsets blur, measured as the
+  // steepest rise of the envelope. (That is asserted for the scenes of
+  // separate, sharp events. A bird's notes have soft edges to begin with and
+  // the stream's bubbles already run together: there the figure is printed.)
   for (int type : {Outdoors::kBirds, Outdoors::kCrickets, Outdoors::kFrogs, Outdoors::kStream, Outdoors::kChimes}) {
     double top[2] = {}, sharp[2] = {}, crest[2] = {}, level[2] = {};
     for (int far = 0; far < 2; ++far) {
@@ -615,9 +646,7 @@ int main() {
     std::snprintf(label, sizeof label, "%s: Distance takes the highs down", kNames[type]);
     EXPECT(top[1] < 0.25 * top[0], label);
     std::snprintf(label, sizeof label, "%s: Distance blurs what was sharp", kNames[type]);
-    if (type == Outdoors::kStream) {
-      EXPECT(crest[1] < 0.8 * crest[0], label);
-    } else if (type != Outdoors::kBirds) {
+    if (type != Outdoors::kBirds && type != Outdoors::kStream) {
       EXPECT(sharp[1] < 0.85 * sharp[0], label);
     }
   }

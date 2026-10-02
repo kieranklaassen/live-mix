@@ -219,11 +219,11 @@ static Lines measure_lines(const std::vector<float>& x, size_t from, double rate
   return out;
 }
 
-// Notes as steady tones with their octave at half the level.
-static std::vector<float> held_notes(const std::vector<double>& notes, float seconds, double rate) {
+// Notes as steady tones with `harmonics` partials each, the h-th at 1/h.
+static std::vector<float> held_notes(const std::vector<double>& notes, float seconds, double rate, int harmonics = 2) {
   std::vector<float> x(static_cast<size_t>(seconds * rate), 0.0f);
   for (size_t n = 0; n < notes.size(); ++n) {
-    for (int h = 1; h <= 2; ++h) {
+    for (int h = 1; h <= harmonics; ++h) {
       for (size_t i = 0; i < x.size(); ++i) {
         x[i] += static_cast<float>(0.15 / h * std::sin(2.0 * kPi * notes[n] * h * i / rate + 0.7 * n + 1.3 * h));
       }
@@ -232,11 +232,10 @@ static std::vector<float> held_notes(const std::vector<double>& notes, float sec
   return x;
 }
 
-static std::vector<double> shifted_lines(const std::vector<double>& notes, double ratio) {
+static std::vector<double> shifted_lines(const std::vector<double>& notes, double ratio, int harmonics = 2) {
   std::vector<double> hz;
   for (double note : notes) {
-    hz.push_back(note * ratio);
-    hz.push_back(2.0 * note * ratio);
+    for (int h = 1; h <= harmonics; ++h) hz.push_back(h * note * ratio);
   }
   return hz;
 }
@@ -798,6 +797,32 @@ static void check_chords() {
     std::snprintf(label, sizeof label, "Chords: nothing but the shifted notes within 40 dB, %s %+.0f st (%.1f dB at %.0f Hz)", c.name,
                   c.pitch, found[0].other_db, found[0].other_hz);
     EXPECT(found[0].other_db < -40.0, label);
+  }
+
+  // Fuller sounds: four partials a note, so overtones of different notes
+  // fall a semitone apart or nearly on top of each other (in the seventh
+  // chord two of them lie 1 Hz apart and beat; Chords moves such a pair as
+  // one, and what is left over sits beside it). A close seventh chord and
+  // a cluster of seconds.
+  const std::vector<double> seventh = {261.626, 329.628, 391.995, 493.883};
+  const std::vector<double> cluster = {293.665, 329.628, 349.228};
+  const Case fuller[] = {{"Cmaj7 with overtones", &seventh, 7.0f},  {"Cmaj7 with overtones", &seventh, 12.0f},
+                         {"Cmaj7 with overtones", &seventh, -12.0f}, {"D E F cluster", &cluster, 7.0f},
+                         {"D E F cluster", &cluster, 12.0f}};
+  for (const Case& c : fuller) {
+    const double ratio = std::pow(2.0, c.pitch / 12.0);
+    const std::vector<float> in = held_notes(*c.notes, 3.5f, kRate, 4);
+    double other[2];
+    for (int k = 0; k < 2; ++k) {
+      wet_only(device, k == 0 ? kChords : kSmooth, c.pitch);
+      Stereo out = run(device, in);
+      other[k] = measure_lines(out.left, 96000, kRate, shifted_lines(*c.notes, ratio, 4)).other_db;
+    }
+    std::printf("chords: %s %+.0f st: everything but the shifted partials: Chords %.1f dB | Smooth %.1f dB\n", c.name, c.pitch,
+                other[0], other[1]);
+    std::snprintf(label, sizeof label, "Chords: %s %+.0f st: nothing but the shifted partials within 30 dB (%.1f dB)", c.name, c.pitch,
+                  other[0]);
+    EXPECT(other[0] < -30.0, label);
   }
 }
 

@@ -461,6 +461,49 @@ int main() {
     EXPECT(std::fabs(mean(out.left, from, to)) < 1.0e-3, "no DC in the output");
   }
 
+  // A held chord does not lurch from side to side. Its few steady partials
+  // fade on each side separately in a modulated room; the balance trim
+  // keeps the short-term level of the two sides together (200 ms windows
+  // over 20 s, wet only), at the default patch and with the vowel full up.
+  {
+    const auto steadiness = [&](float resonance, double* worst_lean, double* deviation) {
+      device.init(kRate);
+      device.set_param(p::kMix, 1.0f);
+      device.set_param(p::kResonance, resonance);
+      Stereo out = run(device, chord(22.0f));
+      double sum = 0.0, squares = 0.0;
+      int windows = 0;
+      *worst_lean = 0.0;
+      for (size_t s = 2 * 48000; s + 9600 <= 21 * 48000; s += 9600) {
+        const double left = rms(out.left, s, s + 9600), right = rms(out.right, s, s + 9600);
+        const double level = db(std::sqrt(0.5 * (left * left + right * right)));
+        *worst_lean = std::max(*worst_lean, std::fabs(db(left) - db(right)));
+        sum += level;
+        squares += level * level;
+        ++windows;
+      }
+      *deviation = std::sqrt(std::max(0.0, squares / windows - sum * sum / windows / windows));
+    };
+    double lean, deviation, full_lean, full_deviation;
+    steadiness(p::kParamDefault[p::kResonance], &lean, &deviation);
+    steadiness(1.0f, &full_lean, &full_deviation);
+    std::printf("  held chord, wet only: largest left/right lean %.1f dB, level deviation %.2f dB; at Resonance 1: %.1f dB, %.2f dB\n",
+                lean, deviation, full_lean, full_deviation);
+    EXPECT(lean < 4.0, "default patch: the two sides of a held chord stay within 4 dB of each other");
+    EXPECT(deviation < 1.6, "default patch: the level of a held chord wanders by about 1 dB");
+    EXPECT(full_lean < 6.0, "Resonance 1: the two sides of a held chord stay within 6 dB of each other");
+
+    // The trim takes out only what the room added: a source on the left
+    // keeps the tail leaning left.
+    device.init(kRate);
+    device.set_param(p::kMix, 1.0f);
+    std::vector<float> held = chord(6.0f);
+    Stereo sided = run(device, held, std::vector<float>(held.size(), 0.0f));
+    const double side_lean = db(rms(sided.left, 48000, 5 * 48000)) - db(rms(sided.right, 48000, 5 * 48000));
+    std::printf("  a chord on the left only: the tail leans %+.1f dB to the left\n", side_lean);
+    EXPECT(side_lean > 1.5, "a source on one side keeps its tail leaning that way");
+  }
+
   // Pre-delay holds the whole wet signal back by its setting.
   {
     still(device);
@@ -521,6 +564,77 @@ int main() {
     EXPECT(peak(rest.left) == 0.0 && peak(rest.right) == 0.0, "asleep after the tail");
     Stereo woken = run(device, impulse(1.0f, kRate, 0.5f));
     EXPECT(peak(woken.left, 2000, 20000) > 0.001, "wakes on new input");
+  }
+
+  // With Mix at 0 the output is silent but the room still rings: it must
+  // not be put to sleep with a tail in it, or the next note lets the old
+  // tail out. Raising Mix in the silence finds the tail still decaying; and
+  // once it has rung out, a quiet click brings back only its own reverb.
+  {
+    device.init(kRate);
+    device.set_param(p::kDecay, 20.0f);
+    device.set_param(p::kMix, 0.0f);
+    run(device, chord(1.0f));
+    Stereo unheard = render(device, 3.0f, kRate);
+    device.set_param(p::kMix, 1.0f);
+    Stereo heard = render(device, 1.0f, kRate);
+    EXPECT(peak(unheard.left) == 0.0, "Mix 0 with no input is silent");
+    EXPECT(rms(heard.left) > 1.0e-3, "the room rang on while Mix was at 0");
+
+    std::vector<float> click = impulse(1.0f, kRate, 0.001f);
+    device.init(kRate);
+    device.set_param(p::kMix, 0.0f);
+    run(device, chord(1.0f));
+    render(device, 16.0f, kRate);
+    device.set_param(p::kMix, 1.0f);
+    Stereo after = run(device, click);
+    device.init(kRate);
+    device.set_param(p::kMix, 1.0f);
+    Stereo alone = run(device, click);
+    std::printf("  a quiet click after a chord rang out unheard at Mix 0: %.1f dB (the click alone: %.1f dB)\n",
+                db(rms(after.left)), db(rms(alone.left)));
+    EXPECT(db(rms(after.left)) < db(rms(alone.left)) + 3.0, "no old tail is let out after Mix 0");
+  }
+
+  // Controls moved while the device sleeps are in place before the next
+  // note: with Size and Pre-delay still gliding, the reverb of that note
+  // would start out of tune (a moving read point bends the pitch).
+  {
+    device.init(kRate);
+    device.set_param(p::kMix, 1.0f);
+    device.set_param(p::kModulation, 0.0f);
+    device.set_param(p::kDecay, 0.5f);
+    std::vector<float> tone = sine(1000.0f, 0.5f, kRate, 0.3f);
+    run(device, tone);
+    Stereo rest = render(device, 5.0f, kRate);
+    EXPECT(peak(rest.left, 4 * 48000, 5 * 48000) == 0.0, "asleep before the controls are moved");
+    device.set_param(p::kSize, 0.15f);
+    device.set_param(p::kPreDelay, 120.0f);
+    Stereo out = run(device, tone);
+    const double early = dominant_frequency(out.left, kRate, 700.0, 1400.0, 4800, 9600);
+    const double later = dominant_frequency(out.left, kRate, 700.0, 1400.0, 9600, 14400);
+    std::printf("  Size and Pre-delay moved while asleep, then a 1 kHz tone: the reverb starts at %.0f Hz, then %.0f Hz\n",
+                early, later);
+    EXPECT_NEAR(early, 1000.0, 10.0, "the first note after a change made in silence starts in tune");
+    EXPECT_NEAR(later, 1000.0, 10.0, "and stays in tune");
+
+    // The cut filters set in silence are the ones the next note gets.
+    double share[2];
+    for (int pass = 0; pass < 2; ++pass) {
+      device.init(kRate);
+      device.set_param(p::kMix, 1.0f);
+      device.set_param(p::kResonance, 0.0f);
+      device.set_param(p::kDecay, 0.5f);
+      rng_state() = 0xC0FFEEu;
+      run(device, burst(0.2f, 0.5f));
+      render(device, 5.0f, kRate);
+      device.set_param(p::kHighCut, pass == 0 ? 18000.0f : 1500.0f);
+      rng_state() = 0xC0FFEEu;
+      Stereo noisy = run(device, burst(0.2f, 1.0f));
+      share[pass] = energy_above(noisy.left, 4000.0, kRate, 4800, 48000);
+    }
+    std::printf("  High Cut set while asleep: share above 4 kHz %.3f open, %.4f at 1.5 kHz\n", share[0], share[1]);
+    EXPECT(share[0] > 0.05 && share[1] < 0.15 * share[0], "High Cut set in silence is in place for the next note");
   }
 
   // Cost at the heaviest setting: the vowel full up in the loop and moving

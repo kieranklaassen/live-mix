@@ -21,7 +21,7 @@
       "min": 0,
       "max": 1,
       "default": 0.6,
-      "description": "How strongly the vowel is pressed onto the reverb. At zero it is a plain hall; higher settings make the tail more vocal, and the vowel grows clearer the longer it rings."
+      "description": "How strongly the vowel is pressed onto the reverb. Turned right down it is a plain hall; higher settings make the tail more vocal, and the vowel grows clearer the longer it rings."
     },
     {
       "key": "voice",
@@ -100,7 +100,7 @@
       "min": 0,
       "max": 1,
       "default": 1,
-      "description": "Stereo width of the reverb only. Zero is a mono tail; full is the widest."
+      "description": "Stereo width of the reverb only, from a mono tail in the middle to the widest spread. The dry signal keeps its own width."
     },
     {
       "key": "mix",
@@ -202,6 +202,6 @@
   },
   "origin": {
     "kind": "new",
-    "note": "Written for live-mix on cpp/kit. A choral reverb in outline: an eight-line feedback delay network (Jot and Chaigne, \"Digital delay networks for designing artificial reverberators\", AES 1991) with Hadamard mixing and modulated lines, whose output passes through five parallel formant band-passes and whose feedback passes through a broad, gain-bounded version of the first three, so the tail decays slowest on the vowel. Formant frequencies, levels and bandwidths are the table of the Csound manual appendix \"Formant Values\" (bass, tenor, alto and soprano; after the CHANT work of Rodet, Potard and Barriere, \"The CHANT project: from the synthesis of the singing voice to synthesis in general\", Computer Music Journal 1984). Not a model of any product."
+    "note": "Written for live-mix on cpp/kit. A choral reverb in outline: an eight-line feedback delay network with Hadamard mixing and slowly modulated lines (after the approach of Jot and Chaigne, \"Digital delay networks for designing artificial reverberators\"), whose output passes through five parallel formant band-passes and whose feedback passes through a broad, gain-bounded version of the first three, so the tail decays slowest on the vowel. A slow trim keeps the two sides of the tail level with each other on held notes. The formant frequencies, levels and widths (five formants for the vowels a, e, i, o, u in bass, tenor, alto and soprano voices) are typical published values for sung vowels, written from memory and tuned by measurement, not copied from a source. Not a model of any product."
   }
 }

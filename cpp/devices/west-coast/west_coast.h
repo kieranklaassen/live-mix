@@ -368,9 +368,9 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
   // For a sine of every input level and offset: how much of the folder's
   // output is the fundamental (so it can be taken out and replaced by a
   // steady one), the gain that keeps the loudness of body plus overtones
-  // constant, and the DC the voice will have to block. With an offset the output is still made of sines of
-  // the odd and cosines of the even harmonics, so the fundamental stays in
-  // phase with the input.
+  // constant, and the DC the voice will have to block. With an offset the
+  // output is still made of sines of the odd and cosines of the even
+  // harmonics, so the fundamental stays in phase with the input.
   void build_tables() {
     static constexpr int kSteps = 128;
     double sines[kSteps];

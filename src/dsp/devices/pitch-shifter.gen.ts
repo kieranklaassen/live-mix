@@ -188,14 +188,14 @@ export const PITCH_SHIFTER_DESCRIPTOR = wasmDeviceDescriptor(PITCH_SHIFTER_DEVIC
     'Octaves both': {
       pitchA: 12,
       pitchB: -12,
-      levelB: 0.9,
+      levelB: 0.8,
       detune: 0,
       mode: 3,
       delay: 0,
       feedback: 0,
       tone: 8000,
       spread: 0.6,
-      mix: 0.5,
+      mix: 0.45,
     },
     'Pad fifth above': {
       pitchA: 7,

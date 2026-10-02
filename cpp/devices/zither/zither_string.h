@@ -116,24 +116,49 @@ struct StringLoop {
   }
 
   // `count` samples at once: out[i] is the loop with in[i] * in_gain added
-  // (`in` may be null). `scale` as in tick().
+  // (`in` may be null). `scale` as in tick(). The work is done in runs
+  // over which neither the read nor the write position wraps, so the inner
+  // loops carry no index arithmetic.
   void run(const float* in, float in_gain, float scale, float* out, int count) {
-    int w = write;
     float x1 = ap_x1, y1 = ap_y1, state = lp;
-    const float e = eta, p = pole, c = shelf, g = gain * scale;
-    const int d = delay;
-    for (int i = 0; i < count; ++i) {
-      const float read = buffer[(w - d) & kMask];
-      const float through = e * (read - y1) + x1;
-      x1 = read;
-      y1 = through;
-      state = through + (state - through) * p;
-      const float y = (state + (through - state) * c) * g + (in ? in[i] * in_gain : 0.0f);
-      buffer[w] = y;
-      w = (w + 1) & kMask;
-      out[i] = y;
+    // (state + (through - state) c) g, as two products.
+    const float e = eta, p = pole, direct = shelf * gain * scale, damped = (1.0f - shelf) * gain * scale;
+    int done = 0;
+    while (done < count) {
+      const int from = (write - delay) & kMask;
+      int span = count - done;
+      if (span > Size - write) span = Size - write;
+      if (span > Size - from) span = Size - from;
+      const float* reader = buffer + from;
+      float* writer = buffer + write;
+      float* result = out + done;
+      if (in) {
+        const float* source = in + done;
+        for (int i = 0; i < span; ++i) {
+          const float read = reader[i];
+          const float through = e * (read - y1) + x1;
+          x1 = read;
+          y1 = through;
+          state = through + (state - through) * p;
+          const float y = state * damped + through * direct + source[i] * in_gain;
+          writer[i] = y;
+          result[i] = y;
+        }
+      } else {
+        for (int i = 0; i < span; ++i) {
+          const float read = reader[i];
+          const float through = e * (read - y1) + x1;
+          x1 = read;
+          y1 = through;
+          state = through + (state - through) * p;
+          const float y = state * damped + through * direct;
+          writer[i] = y;
+          result[i] = y;
+        }
+      }
+      write = (write + span) & kMask;
+      done += span;
     }
-    write = w;
     ap_x1 = x1;
     ap_y1 = y1;
     lp = state;

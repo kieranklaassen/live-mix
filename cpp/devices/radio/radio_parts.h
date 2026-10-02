@@ -59,7 +59,50 @@ struct Cascade {
     for (int i = 0; i < N; ++i) x = section[i].process(x);
     return x;
   }
+  // Put the cascade in the state it has after a constant input `x` has been
+  // running for a long time; returns its (constant) output.
+  float settle(float x) {
+    for (kit::Biquad& s : section) {
+      const float y = x * (s.b0 + s.b1 + s.b2) / (1.0f + s.a1 + s.a2);
+      s.z1 = y - s.b0 * x;
+      s.z2 = s.b2 * x - s.a2 * y;
+      x = y;
+    }
+    return x;
+  }
 };
+
+// The same for two identical cascades that filter the real and imaginary
+// parts of one complex signal, when that signal is a phasor turning by `step`
+// radians a sample and standing at (re, im) on the sample just gone. Leaves
+// the cascades' output for that sample in (re, im).
+template <int N>
+inline void settle_phasor(Cascade<N>& real, Cascade<N>& imag, float step, float* re, float* im) {
+  // The sample before is this one times r = e^(-j step).
+  const float rr = std::cos(step), ri = -std::sin(step);
+  const float r2r = rr * rr - ri * ri, r2i = 2.0f * rr * ri;
+  float xr = *re, xi = *im;
+  for (int i = 0; i < N; ++i) {
+    const kit::Biquad& s = real.section[i];
+    // H(r) = (b0 + b1 r + b2 r^2) / (1 + a1 r + a2 r^2)
+    const float nr = s.b0 + s.b1 * rr + s.b2 * r2r, ni = s.b1 * ri + s.b2 * r2i;
+    const float dr = 1.0f + s.a1 * rr + s.a2 * r2r, di = s.a1 * ri + s.a2 * r2i;
+    const float dd = dr * dr + di * di;
+    const float hr = (nr * dr + ni * di) / dd, hi = (ni * dr - nr * di) / dd;
+    const float yr = hr * xr - hi * xi, yi = hr * xi + hi * xr;
+    // The input and output one sample earlier.
+    const float pxr = xr * rr - xi * ri, pxi = xr * ri + xi * rr;
+    const float pyr = yr * rr - yi * ri, pyi = yr * ri + yi * rr;
+    real.section[i].z2 = s.b2 * xr - s.a2 * yr;
+    imag.section[i].z2 = s.b2 * xi - s.a2 * yi;
+    real.section[i].z1 = s.b1 * xr - s.a1 * yr + s.b2 * pxr - s.a2 * pyr;
+    imag.section[i].z1 = s.b1 * xi - s.a1 * yi + s.b2 * pxi - s.a2 * pyi;
+    xr = yr;
+    xi = yi;
+  }
+  *re = xr;
+  *im = xi;
+}
 
 // Sky-wave propagation as two paths. Both ride one slow flat fade (the
 // absorption that comes and goes over seconds, now and then dropping deep);

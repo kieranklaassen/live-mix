@@ -92,7 +92,7 @@ export const WEST_COAST_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How far the gate stays open while a key is held. At zero every note is a pluck that dies away on its own; at full it holds like an organ.',
+      'How far the gate stays open while a key is held. At zero every note is a pluck that dies away on its own; at full it rings on for as long as the key is down, settling just under the strike that started it.',
   },
   colour: {
     id: 8,
@@ -177,7 +177,7 @@ export const WEST_COAST_DESCRIPTOR = wasmDeviceDescriptor(WEST_COAST_DEVICE, {
       colour: 0.5,
       chance: 0.3,
       drift: 0.1,
-      volume: -5,
+      volume: -7,
     },
     'Folding drone': {
       fold: 0.7,
@@ -188,10 +188,10 @@ export const WEST_COAST_DESCRIPTOR = wasmDeviceDescriptor(WEST_COAST_DEVICE, {
       attack: 2.5,
       decay: 4,
       sustain: 1,
-      colour: 0.55,
+      colour: 0.7,
       chance: 0.2,
       drift: 0.8,
-      volume: -12,
+      volume: -10,
     },
     'Glass bell': {
       fold: 0.1,
@@ -213,7 +213,7 @@ export const WEST_COAST_DESCRIPTOR = wasmDeviceDescriptor(WEST_COAST_DEVICE, {
       decay: 0.12,
       colour: 0.7,
       chance: 1,
-      volume: -5,
+      volume: -7,
     },
     'Deep pulse': {
       fold: 0.25,
@@ -246,9 +246,9 @@ export const WEST_COAST_DESCRIPTOR = wasmDeviceDescriptor(WEST_COAST_DEVICE, {
       attack: 2,
       decay: 3.5,
       sustain: 0.8,
-      colour: 0.7,
+      colour: 0.8,
       drift: 0.5,
-      volume: -12,
+      volume: -10,
     },
   },
 })
