@@ -17,6 +17,7 @@ import { FELT_PIANO_PRESETS } from './felt-piano'
 import { FLUTE_PRESETS } from './flute'
 import { FM_GLASS_PRESETS } from './fm-glass'
 import { GRAIN_SYNTH_PRESETS } from './grain-synth'
+import { GUITAR_PRESETS } from './guitar'
 import { HANDPAN_PRESETS } from './handpan'
 import { HARP_PRESETS } from './harp'
 import { HORNS_PRESETS } from './horns'
@@ -27,6 +28,7 @@ import { ORGAN_PRESETS } from './organ'
 import { PEDAL_STEEL_PRESETS } from './pedal-steel'
 import { SAMPLER_PRESETS } from './sampler'
 import { STRING_MACHINE_PRESETS } from './string-machine'
+import { TANPURA_PRESETS } from './tanpura'
 import { THESIS_PRESETS } from './thesis'
 import { TINE_PIANO_PRESETS } from './tine-piano'
 import { WAVETABLE_PRESETS } from './wavetable'
@@ -60,4 +62,6 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...CHAMBER_STRINGS_PRESETS,
   ...HORNS_PRESETS,
   ...PEDAL_STEEL_PRESETS,
+  ...TANPURA_PRESETS,
+  ...GUITAR_PRESETS,
 ]

@@ -56,6 +56,8 @@ build_generated_devices() {
     cpp/devices/grain-delay/device_api.gen.cpp
   MEMORY_BYTES=12582912 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_sample_capacity,_device_sample_buffer,_device_sample_commit" build_device grain-synth \
     cpp/devices/grain-synth/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device guitar \
+    cpp/devices/guitar/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device handpan \
     cpp/devices/handpan/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device harp \
@@ -99,6 +101,8 @@ build_generated_devices() {
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device sympathetic \
     cpp/devices/sympathetic/device_api.gen.cpp \
     cpp/devices/stereo-widener/StereoWidener.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device tanpura \
+    cpp/devices/tanpura/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device tape \
     cpp/devices/tape/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device tape-echo \
@@ -169,6 +173,8 @@ test_generated_devices() {
     cpp/test/grain_delay_test.cpp
   native_test grain_synth_test \
     cpp/test/grain_synth_test.cpp
+  native_test guitar_test \
+    cpp/test/guitar_test.cpp
   native_test handpan_test \
     cpp/test/handpan_test.cpp
   native_test harp_test \
@@ -212,6 +218,8 @@ test_generated_devices() {
   native_test sympathetic_test \
     cpp/test/sympathetic_test.cpp \
     cpp/devices/stereo-widener/StereoWidener.cpp
+  native_test tanpura_test \
+    cpp/test/tanpura_test.cpp
   native_test tape_test \
     cpp/test/tape_test.cpp
   native_test tape_echo_test \

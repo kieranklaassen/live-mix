@@ -27,6 +27,7 @@ import { FREQ_SHIFTER_DESCRIPTOR, FREQ_SHIFTER_DEVICE } from './freq-shifter.gen
 import { GRAIN_CLOUD_DESCRIPTOR, GRAIN_CLOUD_DEVICE } from './grain-cloud.gen'
 import { GRAIN_DELAY_DESCRIPTOR, GRAIN_DELAY_DEVICE } from './grain-delay.gen'
 import { GRAIN_SYNTH_DESCRIPTOR, GRAIN_SYNTH_DEVICE } from './grain-synth.gen'
+import { GUITAR_DESCRIPTOR, GUITAR_DEVICE } from './guitar.gen'
 import { HANDPAN_DESCRIPTOR, HANDPAN_DEVICE } from './handpan.gen'
 import { HARP_DESCRIPTOR, HARP_DEVICE } from './harp.gen'
 import { HORNS_DESCRIPTOR, HORNS_DEVICE } from './horns.gen'
@@ -48,6 +49,7 @@ import { SPRING_REVERB_DESCRIPTOR, SPRING_REVERB_DEVICE } from './spring-reverb.
 import { STRING_MACHINE_DESCRIPTOR, STRING_MACHINE_DEVICE } from './string-machine.gen'
 import { SWELL_DESCRIPTOR, SWELL_DEVICE } from './swell.gen'
 import { SYMPATHETIC_DESCRIPTOR, SYMPATHETIC_DEVICE } from './sympathetic.gen'
+import { TANPURA_DESCRIPTOR, TANPURA_DEVICE } from './tanpura.gen'
 import { TAPE_DESCRIPTOR, TAPE_DEVICE } from './tape.gen'
 import { TAPE_ECHO_DESCRIPTOR, TAPE_ECHO_DEVICE } from './tape-echo.gen'
 import { TAPE_LOOP_DESCRIPTOR, TAPE_LOOP_DEVICE } from './tape-loop.gen'
@@ -81,6 +83,7 @@ export * from './freq-shifter.gen'
 export * from './grain-cloud.gen'
 export * from './grain-delay.gen'
 export * from './grain-synth.gen'
+export * from './guitar.gen'
 export * from './handpan.gen'
 export * from './harp.gen'
 export * from './horns.gen'
@@ -102,6 +105,7 @@ export * from './spring-reverb.gen'
 export * from './string-machine.gen'
 export * from './swell.gen'
 export * from './sympathetic.gen'
+export * from './tanpura.gen'
 export * from './tape.gen'
 export * from './tape-echo.gen'
 export * from './tape-loop.gen'
@@ -137,6 +141,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   GRAIN_CLOUD_DESCRIPTOR,
   GRAIN_DELAY_DESCRIPTOR,
   GRAIN_SYNTH_DESCRIPTOR,
+  GUITAR_DESCRIPTOR,
   HANDPAN_DESCRIPTOR,
   HARP_DESCRIPTOR,
   HORNS_DESCRIPTOR,
@@ -158,6 +163,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   STRING_MACHINE_DESCRIPTOR,
   SWELL_DESCRIPTOR,
   SYMPATHETIC_DESCRIPTOR,
+  TANPURA_DESCRIPTOR,
   TAPE_DESCRIPTOR,
   TAPE_ECHO_DESCRIPTOR,
   TAPE_LOOP_DESCRIPTOR,
@@ -194,6 +200,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   GRAIN_CLOUD_DEVICE,
   GRAIN_DELAY_DEVICE,
   GRAIN_SYNTH_DEVICE,
+  GUITAR_DEVICE,
   HANDPAN_DEVICE,
   HARP_DEVICE,
   HORNS_DEVICE,
@@ -215,6 +222,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   STRING_MACHINE_DEVICE,
   SWELL_DEVICE,
   SYMPATHETIC_DEVICE,
+  TANPURA_DEVICE,
   TAPE_DEVICE,
   TAPE_ECHO_DEVICE,
   TAPE_LOOP_DEVICE,
@@ -251,6 +259,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'grain-cloud', instrument: false, samples: false, meters: 0, memoryMb: 10 },
   { id: 'grain-delay', instrument: false, samples: false, meters: 0, memoryMb: 10 },
   { id: 'grain-synth', instrument: true, samples: true, meters: 0, memoryMb: 12 },
+  { id: 'guitar', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'handpan', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'harp', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'horns', instrument: true, samples: false, meters: 0, memoryMb: 4 },
@@ -272,6 +281,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'string-machine', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'swell', instrument: false, samples: false, meters: 0, memoryMb: 4 },
   { id: 'sympathetic', instrument: false, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'tanpura', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'tape', instrument: false, samples: false, meters: 0, memoryMb: 4 },
   { id: 'tape-echo', instrument: false, samples: false, meters: 0, memoryMb: 4 },
   { id: 'tape-loop', instrument: false, samples: false, meters: 0, memoryMb: 24 },
