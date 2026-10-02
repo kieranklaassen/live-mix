@@ -3,21 +3,56 @@
 // Outdoors: living things and small events as an instrument.
 //
 //   per key (up to 8): one scene of the chosen type, with its own random
-//   streams, places in the stereo field and register (from the key)
+//   streams, its own places in the stereo field and a register from the key
 //                         │
 //   out ◄─ soft clip ◄─ volume ◄─ width ◄─ spread ◄─ blur ◄─ air low-pass ◄─ envelope
 //
-// The scenes are in their own headers, one each.
+// The scenes, one header each:
+//
+//   Birds     up to six birds a key, of eight species: a tone that sweeps and
+//             trills in syllables, arranged by a grammar (motif, repeats,
+//             pauses, long silences, another bird). The key shifts the
+//             register by a third of an octave per octave.
+//   Crickets  up to six a key: pulses of a 4.5 kHz tone, three or four to a
+//             chirp, each individual at its own pitch and rate. A higher key
+//             is a warmer night: higher and quicker.
+//   Frogs     up to five a key: pulse trains through three formants; two
+//             croakers that call and answer, a peeper, a triller, a deep one.
+//             A lower key is a bigger frog.
+//   Stream    bubbles: damped sines whose pitch rises as they decay, shed at
+//             four places, over a soft rush of noise. A lower key is deeper
+//             water.
+//   Thunder   a stroke every 10 to 60 s: hundreds of arrivals kicking the
+//             envelopes of four bands of noise. A lower key is a deeper storm.
+//   Chimes    six tubes on the major pentatonic of the key, four bar partials
+//             each, struck by a clapper that the wind swings. With several
+//             keys down the tubes that would clash with the chord stay quiet.
+//
+// - Density is how many sources a key has and how often they sound; Movement
+//   is how far a slow random wave (never a cycle) takes the scene up and
+//   down; Tone leans the colour of whatever the scene is made of.
+// - Sources are panned, not doubled: left and right are in phase and the sum
+//   of the two is always the whole scene. Distance closes a one-pole low-pass
+//   (20 kHz near, 2 kHz far), raises the feedback of five allpass stages that
+//   are the same on both sides (the blur), and feeds a second, different
+//   allpass pair of the middle into the difference only (the spread: what
+//   comes back off the ground arrives from elsewhere, and mono never hears
+//   it). The stages are always in the path, so nothing jumps as it turns.
+// - Every random source is seeded in init(), each from its own hashed seed;
+//   a key's scene carries on from where its voice's streams are, so no two
+//   presses and no two keys play the same thing.
+// - Changing Type while keys are down dips the output for 20 ms around the
+//   switch. A stolen voice ducks for 5 ms while its scene is replaced.
 
 #include "../../kit/kit.h"
 #include "birds.h"
 #include "chimes.h"
-#include "thunder.h"
-#include "stream.h"
-#include "frogs.h"
 #include "crickets.h"
+#include "frogs.h"
 #include "params.gen.h"
 #include "scene.h"
+#include "stream.h"
+#include "thunder.h"
 
 namespace livemix {
 
@@ -211,11 +246,11 @@ class Outdoors : public kit::DeviceBase<outdoors::kNumParams> {
     kit::Adsr env;
     kit::LinearRamp swap;  // ducks a stolen voice while its scene is replaced
     scene::Birds birds;
-    scene::Chimes chimes;
-    scene::Thunder thunder;
-    scene::Stream stream;
-    scene::Frogs frogs;
     scene::Crickets crickets;
+    scene::Frogs frogs;
+    scene::Stream stream;
+    scene::Thunder thunder;
+    scene::Chimes chimes;
     float hz = 220.0f, next_hz = 220.0f;
     float gain = 0.0f, next_gain = 0.0f;
     bool restart = false;

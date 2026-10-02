@@ -19,9 +19,9 @@
     {
       "key": "mode",
       "name": "Mode",
-      "choices": ["Standard", "Inverse", "Jitter"],
+      "choices": ["Kept", "Residue", "Scattered"],
       "default": 0,
-      "description": "Standard plays what survives the loss. Inverse plays only what was thrown away, a thin ghost of the sound. Jitter keeps every frequency but scrambles its timing, which smears attacks into a diffuse haze."
+      "description": "Kept plays what survives the loss. Residue plays only what was thrown away, a thin ghost of the sound. Scattered keeps every frequency but scrambles its timing, which smears attacks into a diffuse haze."
     },
     {
       "key": "frame",
@@ -145,6 +145,6 @@
   },
   "origin": {
     "kind": "new",
-    "note": "Written for live-mix. Models a low-bitrate perceptual transform codec in outline, without a bitstream and without any real codec's psychoacoustic model: a lapped cosine transform (MDCT) filter bank, bins kept or dropped against thresholds per critical band, coarse power-law quantisation of what is kept, a falling bandwidth, joint stereo, and lost or repeated packets. The filter bank is after the approach of J. Princen and A. Bradley, 'Analysis/synthesis filter bank design based on time domain aliasing cancellation'. Jitter and Smear treat the cosine and sine transforms together as a complex spectrum, after the approach of H. Malvar, 'A modulated complex lapped transform and its applications to audio processing'. The bands follow the critical-band (Bark) scale and the quantiser is a three-quarter-power law of the kind such codecs use, both written from memory of the general literature and not checked against any text; the thresholds, margins and slopes were tuned by measurement for this device. Not a port of any codec or plug-in."
+    "note": "Written for live-mix. Models a low-bitrate perceptual transform codec in outline, without a bitstream and without any real codec's psychoacoustic model: a lapped cosine transform (MDCT) filter bank, bins kept or dropped against thresholds per critical band, coarse power-law quantisation of what is kept, a falling bandwidth, joint stereo, and lost or repeated packets. The filter bank is after the approach of J. Princen and A. Bradley, 'Analysis/synthesis filter bank design based on time domain aliasing cancellation'. Scattered and Smear treat the cosine and sine transforms together as a complex spectrum, after the approach of H. Malvar, 'A modulated complex lapped transform and its applications to audio processing'. The bands follow the critical-band (Bark) scale and the quantiser is a three-quarter-power law of the kind such codecs use, both written from memory of the general literature and not checked against any text; the thresholds, margins and slopes were tuned by measurement for this device. Not a port of any codec or plug-in."
   }
 }

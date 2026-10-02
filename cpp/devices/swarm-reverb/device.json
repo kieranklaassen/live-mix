@@ -2,7 +2,7 @@
   "id": "swarm-reverb",
   "name": "Swarm Reverb",
   "category": "reverb",
-  "description": "A cavern built from a swarm of short echoes instead of a smooth tail, with a Drag control that stretches the whole cave and bends everything in it in pitch.",
+  "description": "A cavern built from a swarm of short echoes instead of a smooth tail, with a Stretch control that resizes the whole cave and bends everything in it in pitch.",
   "class": "SwarmReverb",
   "header": "swarm_reverb.h",
   "sources": [],
@@ -18,24 +18,24 @@
       "description": "How long the swarm of echoes after each note lasts. Short is a tight cluster close behind the note, long is a slow scatter across a huge cave. Moving it bends what is already ringing."
     },
     {
-      "key": "diffuse",
-      "name": "Diffuse",
+      "key": "blur",
+      "name": "Blur",
       "min": 0,
       "max": 1,
       "default": 0.5,
-      "description": "Blurs the echoes into each other. At zero each one patters separately; turned up they smear into a wash."
+      "description": "Smears the echoes into each other. At zero each one patters separately; turned up they run together into a wash."
     },
     {
-      "key": "reflect",
-      "name": "Reflect",
+      "key": "feedback",
+      "name": "Feedback",
       "min": 0,
       "max": 1.05,
       "default": 0.6,
       "description": "How much of the swarm is sent round again. Low is one rush of echoes, high is a cave that rings for a long time, and at the very top it never dies and slowly feeds on itself."
     },
     {
-      "key": "dampen",
-      "name": "Dampen",
+      "key": "highCut",
+      "name": "High Cut",
       "min": 800,
       "max": 16000,
       "default": 5000,
@@ -44,29 +44,29 @@
       "description": "How bright the cave is. Lower settings take the top off the echoes, and more of it each time they go round."
     },
     {
-      "key": "drag",
-      "name": "Drag",
+      "key": "stretch",
+      "name": "Stretch",
       "min": 0,
       "max": 1,
       "default": 0.5,
       "description": "Stretches or shrinks every echo at once. While it moves, everything in the cave bends in pitch: down as the cave grows, up as it shrinks. The middle is the size set by Length."
     },
     {
-      "key": "dragTime",
-      "name": "Drag Time",
+      "key": "glide",
+      "name": "Glide",
       "min": 0.02,
       "max": 8,
       "default": 0.6,
       "taper": "log",
       "unit": "s",
-      "description": "How quickly the cave follows Drag. Fast gives a sharp jump in pitch, slow a long glide."
+      "description": "How quickly the cave follows Stretch. Fast gives a sharp jump in pitch, slow a long slide."
     },
     {
       "key": "steps",
       "name": "Steps",
       "choices": ["Off", "On"],
       "default": 0,
-      "description": "With Steps on, Drag moves between seven sizes related by octaves, fifths and fourths, so every move is heard as a musical interval instead of a free bend."
+      "description": "With Steps on, Stretch moves between seven sizes related by octaves, fifths and fourths, so every move is heard as a musical interval instead of a free bend."
     },
     {
       "key": "wander",
@@ -74,7 +74,7 @@
       "min": 0,
       "max": 1,
       "default": 0,
-      "description": "Lets Drag drift on its own so the cave keeps shifting. Smooth and seasick with Steps off; occasional interval jumps with Steps on."
+      "description": "Lets Stretch drift on its own so the cave keeps shifting. Smooth and seasick with Steps off; occasional interval jumps with Steps on."
     },
     {
       "key": "modulation",
@@ -115,62 +115,62 @@
     "Cavern": {},
     "Pattering": {
       "length": 0.35,
-      "diffuse": 0,
-      "reflect": 0.35,
-      "dampen": 8000,
+      "blur": 0,
+      "feedback": 0.35,
+      "highCut": 8000,
       "modulation": 0.1,
       "mix": 0.35
     },
     "Endless cave": {
       "length": 0.8,
-      "diffuse": 0.8,
-      "reflect": 1.0,
-      "dampen": 4000,
+      "blur": 0.8,
+      "feedback": 1.0,
+      "highCut": 4000,
       "lowCut": 150,
       "mix": 0.35
     },
     "Bending walls": {
-      "diffuse": 0.7,
-      "reflect": 0.75,
-      "dragTime": 2,
+      "blur": 0.7,
+      "feedback": 0.75,
+      "glide": 2,
       "wander": 0.5,
       "modulation": 0.4
     },
     "Interval ghosts": {
       "length": 0.6,
-      "diffuse": 0.6,
-      "reflect": 0.75,
-      "dragTime": 0.05,
+      "blur": 0.6,
+      "feedback": 0.75,
+      "glide": 0.05,
       "steps": 1,
       "wander": 0.45
     },
     "Dark well": {
       "length": 1.1,
-      "diffuse": 0.9,
-      "reflect": 0.6,
-      "dampen": 1400,
+      "blur": 0.9,
+      "feedback": 0.6,
+      "highCut": 1400,
       "lowCut": 60,
       "mix": 0.45
     },
     "Small swarm": {
       "length": 0.1,
-      "diffuse": 0.3,
-      "reflect": 0.45,
+      "blur": 0.3,
+      "feedback": 0.45,
       "modulation": 0.5,
       "mix": 0.3
     },
-    "Slow drag": {
+    "Slow stretch": {
       "length": 0.7,
-      "diffuse": 0.85,
-      "reflect": 0.8,
-      "dragTime": 5,
+      "blur": 0.85,
+      "feedback": 0.8,
+      "glide": 5,
       "steps": 1,
       "wander": 0.3,
-      "dampen": 6000
+      "highCut": 6000
     }
   },
   "origin": {
     "kind": "new",
-    "note": "Written for live-mix on cpp/kit. A multi-tap cluster reverb on a delay whose clock can be dragged, in the family of the swarm-of-short-delays ambient reverb pedals in outline only and not a model of any of them. Two cross-coupled delay lines are each read by fourteen uneven, seeded taps, with allpass diffusion and a damped regeneration loop; every delay is a distance on one tape whose speed Length and Drag set, and the read points are found from the history of the tape position, so a speed change bends everything on the line by one ratio, as a variable-clock delay does."
+    "note": "Written for live-mix on cpp/kit; no published design is followed. A multi-tap cluster reverb on a delay line whose clock speed can be changed. Two cross-coupled delay lines are each read by fourteen uneven, seeded taps, with allpass diffusion in front and a filtered regeneration loop; every delay is a distance on one tape whose speed Length and Stretch set, and the read points are found from the history of the tape position, so a speed change bends everything on the line by one ratio, as a variable-clock delay does."
   }
 }

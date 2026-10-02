@@ -78,6 +78,7 @@ class NoiseFloor : public kit::DeviceBase<noise_floor::kNumParams> {
     follow_.set_time(kSmoothingSeconds, sr);
     mid_.set_time(kSmoothingSeconds, sr);
     side_.set_time(kSmoothingSeconds, sr);
+    hum_mid_.set_time(kSmoothingSeconds, sr);
     drift_gain_.set_time(kSmoothingSeconds, sr);
     dark_.set_time(kSmoothingSeconds, sr);
     thin_.set_time(kSmoothingSeconds, sr);
@@ -118,6 +119,13 @@ class NoiseFloor : public kit::DeviceBase<noise_floor::kNumParams> {
     for (int i = 0; i < frames; ++i) {
       float in[2];
       take_input(i, &in[0], &in[1]);
+      // A sample that is not a number becomes silence and an absurd one is
+      // held to kInputLimit, so one bad sample from upstream cannot lodge in
+      // the follower. Anything a mix can really hold passes bit for bit.
+      for (int c = 0; c < 2; ++c) {
+        if (!(in[c] == in[c])) in[c] = 0.0f;
+        in[c] = kit::clamp(in[c], -kInputLimit, kInputLimit);
+      }
       if (clock_.tick()) control();
 
       const float left = in[0] < 0.0f ? -in[0] : in[0];
@@ -158,6 +166,7 @@ class NoiseFloor : public kit::DeviceBase<noise_floor::kNumParams> {
 
       const float dark = glide(dark_);
       const float thin = glide(thin_);
+      const float hum_mid = glide(hum_mid_);
       float bed[2] = {0.0f, 0.0f};
       if (gate_ > 0.0f) {
         for (int t = 0; t < kTypes; ++t) {
@@ -170,16 +179,23 @@ class NoiseFloor : public kit::DeviceBase<noise_floor::kNumParams> {
           if (fade_[t] <= 0.0f) continue;
           float out[2];
           render_bed(t, in, out);
-          const float gain = amp_[t] * glide(comp_[t]);
+          const float level = glide(comp_[t]);
           if (t == kHum50 || t == kHum60) {
-            bed[0] += out[0] * gain;
-            bed[1] += out[1] * gain;
+            // Hum is the same on both sides of a real system. Its two sides
+            // are a quarter of a cycle apart, which between the ears sounds
+            // hollow, so they are brought most of the way together: at full
+            // Width they still correlate by 0.7. The mid gain makes up what
+            // the Width law, written for unrelated sides, would lose.
+            const float hum_centre = 0.5f * (out[0] + out[1]) * hum_mid * level * amp_[t];
+            const float hum_side = 0.5f * (out[0] - out[1]) * kHumSide * level * amp_[t];
+            bed[0] += hum_centre + hum_side;
+            bed[1] += hum_centre - hum_side;
           } else {
             for (int c = 0; c < 2; ++c) {
               float y = out[c];
               if (dark > 0.0f) y += dark * (dark_lp_[t][c].lowpass(y) - y);
               if (thin > 0.0f) y -= thin * thin_lp_[t][c].lowpass(y);
-              bed[c] += y * gain;
+              bed[c] += y * level * amp_[t];
             }
           }
         }
@@ -187,16 +203,17 @@ class NoiseFloor : public kit::DeviceBase<noise_floor::kNumParams> {
 
       // The fade behind the last note is a smooth step, level at both ends.
       const float shape = gate_ * gate_ * (3.0f - 2.0f * gate_);
-      const float gain = glide(level_) * glide(drift_gain_) * follow_gain * shape;
-      const float mid = (bed[0] + bed[1]) * 0.5f * glide(mid_);
-      const float side = (bed[0] - bed[1]) * 0.5f * glide(side_);
-      // No bed passes kCeiling times its RMS (14 dB over Level), whatever
-      // Tone and Width have made of its ticks: the few peaks that would are
-      // shaved here. The steady beds never come near it.
-      const float noise_left = kit::clamp(mid + side, -kCeiling, kCeiling);
-      const float noise_right = kit::clamp(mid - side, -kCeiling, kCeiling);
-      out_left_[i] = in[0] + kit::soft_clip(noise_left * gain);
-      out_right_[i] = in[1] + kit::soft_clip(noise_right * gain);
+      const float gain = glide(level_) * follow_gain * shape;
+      const float drift = glide(drift_gain_);
+      const float mid = (bed[0] + bed[1]) * 0.5f * drift * glide(mid_);
+      const float side = (bed[0] - bed[1]) * 0.5f * drift * glide(side_);
+      // No tick, crackle, crash or swell passes kCeiling times the RMS that
+      // Level sets (14 dB over it), whatever Tone, Width and Movement have
+      // made of it: the few peaks that would are shaved here. Steady hiss
+      // never reaches it, and hum, whose buzz is all peaks, is left alone.
+      const float ceiling = kCeiling * (1.0f + 2.0f * (amp_[kHum50] + amp_[kHum60]));
+      out_left_[i] = in[0] + kit::soft_clip(kit::clamp(mid + side, -ceiling, ceiling) * gain);
+      out_right_[i] = in[1] + kit::soft_clip(kit::clamp(mid - side, -ceiling, ceiling) * gain);
     }
     idle_.settle(output_peak(frames), frames);
   }
@@ -207,11 +224,15 @@ class NoiseFloor : public kit::DeviceBase<noise_floor::kNumParams> {
   static constexpr float kTypeFadeSeconds = 0.15f;
   static constexpr float kGateRiseSeconds = 0.04f;
   static constexpr float kGateFallSeconds = 0.5f;
-  static constexpr float kQuiet = 1.0e-6f;      // -120 dBFS: below this nothing is playing
+  // Below -74 dBFS nothing is playing: the last of a reverb tail or the
+  // hiss of another device does not keep the noise running.
+  static constexpr float kQuiet = 2.0e-4f;
+  static constexpr float kInputLimit = 16.0f;  // +24 dBFS
   static constexpr float kReference = 0.25f;    // the input level Follow calls "loud": -12 dBFS
   static constexpr float kFollowKnee = 0.5493f;  // atanh(1/2): unity at the reference, a ceiling of 2
   static constexpr float kDuck = 4.0f;
-  static constexpr float kCeiling = 5.0f;  // the largest tick or crackle, in multiples of the bed's RMS
+  static constexpr float kHumSide = 0.55f;  // hum at full Width: a correlation of 1 - 0.55² = 0.7
+  static constexpr float kCeiling = 5.0f;  // the largest peak, in multiples of the RMS that Level sets
   static constexpr float kDarkQ = 0.6f;
   static constexpr float kToneBlend = 4.0f;  // the tone filters are fully in by Tone ±0.25
   static constexpr float kLevelDriftDb = 2.5f;
@@ -384,6 +405,7 @@ class NoiseFloor : public kit::DeviceBase<noise_floor::kNumParams> {
         // Constant power for two unrelated sides.
         mid_.set(std::sqrt(2.0f - value * value), primed());
         side_.set(value, primed());
+        hum_mid_.set(std::sqrt((2.0f - kHumSide * kHumSide * value * value) / (2.0f - value * value)), primed());
         break;
       default:
         break;  // Response and Hold are read on the control clock
@@ -403,7 +425,7 @@ class NoiseFloor : public kit::DeviceBase<noise_floor::kNumParams> {
   float fade_[kTypes] = {};
   float amp_[kTypes] = {};
   bool prepared_[kTypes] = {};
-  kit::Smoother level_, follow_, mid_, side_, drift_gain_, dark_, thin_;
+  kit::Smoother level_, follow_, mid_, side_, hum_mid_, drift_gain_, dark_, thin_;
   kit::Smoother tone_, movement_;  // advanced on the control clock
   kit::Drift level_drift_, tone_drift_;
   kit::ControlClock clock_;

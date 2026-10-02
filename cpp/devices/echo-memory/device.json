@@ -79,8 +79,8 @@
       "description": "The chance that a moment comes back changed: backwards, an octave down at half speed, or an octave up at double speed. At zero everything returns as it was played."
     },
     {
-      "key": "collect",
-      "name": "Collect",
+      "key": "buildUp",
+      "name": "Build Up",
       "choices": ["Off", "On"],
       "default": 0,
       "description": "On records what the memory plays back into the memory, quieter each time, so memories of memories build up and slowly fade."
@@ -122,7 +122,7 @@
       "wander": 0.5,
       "size": 3,
       "vary": 0.3,
-      "collect": 0,
+      "buildUp": 0,
       "tone": 6000,
       "spread": 0.6,
       "mix": 0.4
@@ -197,7 +197,7 @@
       "wander": 0.45,
       "size": 3.5,
       "vary": 0.5,
-      "collect": 1,
+      "buildUp": 1,
       "tone": 4500,
       "spread": 0.8,
       "mix": 0.45

@@ -51,9 +51,9 @@ export const ANALOG_DRIVE_PARAMS = {
     description:
       'Takes the lows out before the circuit, so the bass stops driving it and the distortion gets tighter and thinner. At the bottom it is out of the path.',
   },
-  thump: {
+  lowBump: {
     id: 4,
-    name: 'Thump',
+    name: 'Low Bump',
     min: 0,
     max: 1,
     default: 0,
@@ -136,10 +136,10 @@ export const ANALOG_DRIVE_DESCRIPTOR = wasmDeviceDescriptor(ANALOG_DRIVE_DEVICE,
   description:
     'Five circuits to push a sound through (tape preamp, console, transformer, triode, pentode), from weight and glue to a folded-over fuzz, with the level roughly held while you turn it up.',
   presets: {
-    'Warm glue': { circuit: 0, drive: 0.36, thump: 0.2, tone: -0.2, output: -2 },
-    'Tape weight': { circuit: 0, drive: 0.6, thump: 0.7, tone: -0.4, highCut: 6500, output: -5 },
+    'Warm glue': { circuit: 0, drive: 0.36, lowBump: 0.2, tone: -0.2, output: -2 },
+    'Tape weight': { circuit: 0, drive: 0.6, lowBump: 0.7, tone: -0.4, highCut: 6500, output: -5 },
     'Console edge': { circuit: 1, drive: 0.45, lowCut: 45, tone: 0.2 },
-    'Iron lows': { circuit: 2, drive: 0.5, lowCut: 40, thump: 0.5, tone: -0.1, output: -4 },
+    'Iron lows': { circuit: 2, drive: 0.5, lowCut: 40, lowBump: 0.5, tone: -0.1, output: -4 },
     'Glowing triode': { circuit: 3, drive: 0.5, output: -1 },
     Bite: { circuit: 4, drive: 0.55, lowCut: 90, highCut: 9000 },
     'Crushed piano': { circuit: 1, drive: 0.2, push: 1, lowCut: 60, highCut: 4200, mix: 0.5 },

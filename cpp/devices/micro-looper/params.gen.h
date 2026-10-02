@@ -7,11 +7,11 @@
 //    2  speed: 0 Reverse 2x, 1 Reverse, 2 Reverse half, 3 Half, 4 Normal, 5 Double, default 4
 //    3  clock: 0 Full, 1 3/4, 2 2/3, 3 1/2, 4 3/8, 5 1/3, 6 1/4, 7 1/8, default 0
 //    4  smear: 0..1, default 0.2
-//    5  fade: 0..1, default 0.85
+//    5  fade: 0..1, default 0.8
 //    6  drift: 0..1, default 0.15
 //    7  tone: 500..16000 Hz, default 9000
 //    8  spread: 0..1, default 0.5
-//    9  mix: 0..1, default 0.5
+//    9  mix: 0..1, default 0.25
 
 #pragma once
 
@@ -34,7 +34,7 @@ enum Param : int {
 
 inline constexpr float kParamMin[kNumParams] = {0.0f, 0.1f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 500.0f, 0.0f, 0.0f};
 inline constexpr float kParamMax[kNumParams] = {2.0f, 8.0f, 5.0f, 7.0f, 1.0f, 1.0f, 1.0f, 16000.0f, 1.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {2.0f, 2.0f, 4.0f, 0.0f, 0.2f, 0.85f, 0.15f, 9000.0f, 0.5f, 0.5f};
+inline constexpr float kParamDefault[kNumParams] = {2.0f, 2.0f, 4.0f, 0.0f, 0.2f, 0.8f, 0.15f, 9000.0f, 0.5f, 0.25f};
 
 }  // namespace micro_looper
 }  // namespace livemix

@@ -482,33 +482,33 @@ int main() {
     EXPECT(old < 0.4 * 1.0e-2, "wakes with a blank memory");
   }
 
-  // Collect records what the memory voice plays back into the memory, 9.6 dB
+  // Build Up records what the memory voice plays back into the memory, 9.6 dB
   // down a generation. Loud input stays bounded; afterwards memories of
   // memories outlast Reach + Size (5 s here) and then die: at most seven
   // generations fit between full scale and the -60 dB that counts as silence,
   // so the output is exact zero within 8 x (Reach + Size) = 40 s.
   {
     double tails[2], peaks[2];
-    for (int collect = 0; collect < 2; ++collect) {
+    for (int build_up = 0; build_up < 2; ++build_up) {
       memory_only(device);
       device.set_param(p::kReach, 4.0f);
       device.set_param(p::kSize, 1.0f);
       device.set_param(p::kWander, 0.8f);
       device.set_param(p::kSpread, 1.0f);
-      device.set_param(p::kCollect, static_cast<float>(collect));
+      device.set_param(p::kBuildUp, static_cast<float>(build_up));
       rng_state() = 0xABCDu;
       std::vector<float> input = noise(10.0f, kRate, 0.9f);
       input.resize(static_cast<size_t>(60.0f * kRate), 0.0f);
       Stereo out = run(device, input);
-      tails[collect] = rings_for(out, static_cast<size_t>(10.0f * kRate));
-      peaks[collect] = std::max(peak(out.left), peak(out.right));
+      tails[build_up] = rings_for(out, static_cast<size_t>(10.0f * kRate));
+      peaks[build_up] = std::max(peak(out.left), peak(out.right));
     }
-    std::printf("collect: rings %.2f s with Collect off, %.2f s with it on; peaks %.2f and %.2f\n",
+    std::printf("build_up: rings %.2f s with Build Up off, %.2f s with it on; peaks %.2f and %.2f\n",
                 tails[0], tails[1], peaks[0], peaks[1]);
-    EXPECT(tails[0] <= 5.3, "Collect off: silent within Reach + Size");
-    EXPECT(tails[1] > tails[0] + 2.0, "Collect on: memories of memories ring on");
-    EXPECT(tails[1] <= 40.0, "Collect on still dies away within its bound");
-    EXPECT(peaks[1] < 2.01, "Collect on stays bounded with full-scale input");
+    EXPECT(tails[0] <= 5.3, "Build Up off: silent within Reach + Size");
+    EXPECT(tails[1] > tails[0] + 2.0, "Build Up on: memories of memories ring on");
+    EXPECT(tails[1] <= 40.0, "Build Up on still dies away within its bound");
+    EXPECT(peaks[1] < 2.01, "Build Up on stays bounded with full-scale input");
   }
 
   // 96 kHz: the memory is kept at 48 kHz. A recalled 440 Hz tone comes back
@@ -665,7 +665,7 @@ int main() {
   }
 
   // Handling it while it sounds. Mix, Echo, Memory, Tone, Feedback, Spread
-  // and Collect move without a click (the reference is the same render with
+  // and Build Up move without a click (the reference is the same render with
   // nothing moved); Time glides, bending the repeats by no more than the
   // head's top speed allows (3 x 110 Hz at twice the tone's level).
   {
@@ -688,7 +688,7 @@ int main() {
           device.set_param(p::kTone, n % 2 ? 900.0f : 12000.0f);
           device.set_param(p::kFeedback, n % 2 ? 0.9f : 0.0f);
           device.set_param(p::kSpread, n % 2 ? 1.0f : 0.0f);
-          device.set_param(p::kCollect, static_cast<float>(n % 2));
+          device.set_param(p::kBuildUp, static_cast<float>(n % 2));
         }
         std::vector<float> part(input.begin() + done, input.begin() + done + chunk);
         out = concat(out, run(device, part));
@@ -703,7 +703,7 @@ int main() {
   }
 
   // Cost: the default patch, then the heaviest sensible one (both voices
-  // always busy with long moments at changed speeds, Collect on).
+  // always busy with long moments at changed speeds, Build Up on).
   {
     rng_state() = 0xBEEFu;
     std::vector<float> input = noise(20.0f, kRate, 0.25f);
@@ -714,7 +714,7 @@ int main() {
     device.set_param(p::kWander, 0.6f);
     device.set_param(p::kSize, 8.0f);
     device.set_param(p::kVary, 1.0f);
-    device.set_param(p::kCollect, 1.0f);
+    device.set_param(p::kBuildUp, 1.0f);
     device.set_param(p::kReach, 60.0f);
     run(device, input);
     report_cost("echo-memory (heaviest)", 20.0f, kRate, [&] { run(device, input); });

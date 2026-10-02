@@ -8,7 +8,7 @@
 //       │               └──── feedback ◄─ low cut ◄──────┘            │
 //       └─(+)─► memory (16-bit, 68 s) ─► two snippet voices ─► tone ─┬┴─ × Memory
 //          ▲                                                         │
-//          └────────────── Collect (-9 dB per generation) ◄──────────┘
+//          └────────────── Build Up (-9 dB per generation) ◄──────────┘
 //
 // - The echo voice is an ordinary feedback delay on its own float line. Time
 //   is the distance to the playback head and glides (a 120 ms motor lag, at
@@ -38,12 +38,12 @@
 //   every read falls on a quarter frame and is reconstructed by a fixed
 //   24-tap windowed-sinc kernel; the double-speed read goes through a
 //   half-band kernel so nothing above a quarter of the rate folds back.
-// - Collect adds what the memory voice plays (after Tone) to what the memory
+// - Build Up adds what the memory voice plays (after Tone) to what the memory
 //   records, 9.6 dB down, so each generation is quieter and duller.
 // - Rest: a moment can start only while something above -60 dBFS lies within
-//   Reach, and lasts at most Size, so with Collect off the output is exact
+//   Reach, and lasts at most Size, so with Build Up off the output is exact
 //   zero within Reach + Size of the input stopping (23 s at the defaults;
-//   the echo's own tail is shorter). With Collect on at most seven
+//   the echo's own tail is shorter). With Build Up on at most seven
 //   generations fit between full scale and -60 dB: 8 x (Reach + Size). The
 //   device then sleeps, once the echo line has been blank for its whole
 //   length, and wakes with a blank memory: what was played before a sleep is
@@ -77,7 +77,7 @@ class EchoMemory : public kit::DeviceBase<echo_memory::kNumParams> {
     memory_level_.set_time(kSmoothingSeconds, sr);
     spread_.set_time(kSmoothingSeconds, sr);
     mix_.set_time(kSmoothingSeconds, sr);
-    collect_.set_time(0.03f, sr);
+    build_up_.set_time(0.03f, sr);
     tone_.set_time(0.02f, sr / kControlPeriod);
     rng_.seed(0x3C6EF372u);
     last_recall_ = Recall();
@@ -173,10 +173,10 @@ class EchoMemory : public kit::DeviceBase<echo_memory::kNumParams> {
       recalled[1] = memory_tone_[1].lowpass(recalled[1]);
 
       // --- record into the memory ---
-      // What Collect adds is quieter and duller on every generation, so
+      // What Build Up adds is quieter and duller on every generation, so
       // memories of memories always die away.
-      const float collect = collect_.next() * kCollectGain;
-      const float keep[2] = {in[0] + collect * recalled[0], in[1] + collect * recalled[1]};
+      const float build_up = build_up_.next() * kBuildUpGain;
+      const float keep[2] = {in[0] + build_up * recalled[0], in[1] + build_up * recalled[1]};
       if (!halved_) {
         remember(keep[0], keep[1]);
       } else if (second_of_pair_) {
@@ -246,9 +246,9 @@ class EchoMemory : public kit::DeviceBase<echo_memory::kNumParams> {
   static constexpr float kHeard = 0.001f;
   // Louder than this (-12 dBFS) a moment is no likelier to be chosen.
   static constexpr float kLoudEnough = 0.25f;
-  // What Collect records of a recalled moment. With both voices at their
+  // What Build Up records of a recalled moment. With both voices at their
   // loudest on one side (2 x 1.375) the loop gain is still under one.
-  static constexpr float kCollectGain = 0.33f;
+  static constexpr float kBuildUpGain = 0.33f;
   // Widest pan of a recalled moment (Spread 1), of a full ±1.
   static constexpr float kWidestPan = 0.7f;
   // Share of a moment spent fading in, and again fading out.
@@ -436,7 +436,7 @@ class EchoMemory : public kit::DeviceBase<echo_memory::kNumParams> {
     memory_level_.snap(memory_level_.target);
     spread_.snap(spread_.target);
     mix_.snap(mix_.target);
-    collect_.snap(collect_.target);
+    build_up_.snap(build_up_.target);
     tone_.snap(tone_.target);
     tone_seen_ = -1.0f;
     mix_seen_ = -1.0f;
@@ -484,8 +484,8 @@ class EchoMemory : public kit::DeviceBase<echo_memory::kNumParams> {
       case kMemory:
         memory_level_.set(value, glide);
         break;
-      case kCollect:
-        collect_.set(value >= 0.5f ? 1.0f : 0.0f, glide);
+      case kBuildUp:
+        build_up_.set(value >= 0.5f ? 1.0f : 0.0f, glide);
         break;
       case kTone:
         tone_.set(std::log(value), glide);
@@ -508,7 +508,7 @@ class EchoMemory : public kit::DeviceBase<echo_memory::kNumParams> {
   kit::Svf memory_tone_[2];
   kit::OnePole low_cut_[2];
   kit::Smoother feedback_, echo_level_, memory_level_, spread_, mix_, tone_;
-  kit::LinearRamp collect_;
+  kit::LinearRamp build_up_;
   kit::ControlClock clock_;
   kit::Rng rng_;
   bool halved_ = false;

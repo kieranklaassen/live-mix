@@ -1013,7 +1013,13 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
 
     // e^y to second order: the key's level is within a few dB of the rest.
     const float y = 0.1151293f * voice.key_level * (kKeyLevelDb + kKeyLevelDbAge * age);
-    voice.pre = kTapeLevel + kTapeLevelAge * age;
+    // The level into the tape glides to where Age puts it, and the level
+    // out of the tape takes the opposite step on the spot: a jump of Age
+    // changes only how hard the tape is driven, a little at a time.
+    const float pre_goal = kTapeLevel + kTapeLevelAge * age;
+    const float pre_before = voice.pre;
+    voice.pre = snap ? pre_goal : pre_before + (pre_goal - pre_before) * band_coeff_;
+    if (!snap) voice.gain.value *= pre_before / voice.pre;
     // Steal and tape-change fades, a step a tick.
     const float cut_before = voice.cut.value;
     voice.cut.value += voice.cut.step;

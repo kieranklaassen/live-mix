@@ -3,11 +3,11 @@
 // Parameter ids and ranges of Swarm Reverb, shared with
 // src/dsp/devices/swarm-reverb.gen.ts:
 //    0  length: 0.05..1.2 s, default 0.5
-//    1  diffuse: 0..1, default 0.5
-//    2  reflect: 0..1.05, default 0.6
-//    3  dampen: 800..16000 Hz, default 5000
-//    4  drag: 0..1, default 0.5
-//    5  dragTime: 0.02..8 s, default 0.6
+//    1  blur: 0..1, default 0.5
+//    2  feedback: 0..1.05, default 0.6
+//    3  highCut: 800..16000 Hz, default 5000
+//    4  stretch: 0..1, default 0.5
+//    5  glide: 0.02..8 s, default 0.6
 //    6  steps: 0 Off, 1 On, default 0
 //    7  wander: 0..1, default 0
 //    8  modulation: 0..1, default 0.3
@@ -22,11 +22,11 @@ namespace swarm_reverb {
 
 enum Param : int {
   kLength = 0,
-  kDiffuse = 1,
-  kReflect = 2,
-  kDampen = 3,
-  kDrag = 4,
-  kDragTime = 5,
+  kBlur = 1,
+  kFeedback = 2,
+  kHighCut = 3,
+  kStretch = 4,
+  kGlide = 5,
   kSteps = 6,
   kWander = 7,
   kModulation = 8,

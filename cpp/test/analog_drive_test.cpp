@@ -145,7 +145,7 @@ int main() {
   // With Auto Gain on (the default) the driven signal stays near the level
   // it came in at. A player can still ask for a great deal of gain: Auto
   // Gain off (a full-scale input then leaves up to 2.7), Output +12 dB (4x)
-  // and Tone and Thump on the edges of a squared wave (2x) came to 26
+  // and Tone and Low Bump on the edges of a squared wave (2x) came to 26
   // together. The safety stage at the end of the driven path (exactly linear
   // to 1.5, landing on 4; checked below) is what holds every setting under
   // this.
@@ -467,16 +467,16 @@ int main() {
     EXPECT_NEAR(cut_low, -24.1, 1.0, "Low Cut 200 Hz: 50 Hz is 24 dB down");
     EXPECT_NEAR(cut_corner, -3.0, 0.5, "Low Cut 200 Hz: -3 dB at the corner");
     EXPECT_NEAR(cut_pass, 0.0, 0.1, "Low Cut 200 Hz: 2 kHz untouched");
-    // Thump: a 9 dB bell at 1.6 times the Low Cut.
-    const double bump = gain(160.0f, p::kThump, 1.0f, p::kLowCut, 100.0f) - gain(160.0f, p::kLowCut, 100.0f);
-    const double bump_far = gain(2000.0f, p::kThump, 1.0f, p::kLowCut, 100.0f);
-    const double bump_floor = gain(60.0f, p::kThump, 1.0f);
-    std::printf("analog-drive Thump 1: %+.1f dB at 160 Hz with Low Cut 100 Hz, %+.2f dB at 2 kHz; %+.1f dB at 60 Hz with "
+    // Low Bump: a 9 dB bell at 1.6 times the Low Cut.
+    const double bump = gain(160.0f, p::kLowBump, 1.0f, p::kLowCut, 100.0f) - gain(160.0f, p::kLowCut, 100.0f);
+    const double bump_far = gain(2000.0f, p::kLowBump, 1.0f, p::kLowCut, 100.0f);
+    const double bump_floor = gain(60.0f, p::kLowBump, 1.0f);
+    std::printf("analog-drive Low Bump 1: %+.1f dB at 160 Hz with Low Cut 100 Hz, %+.2f dB at 2 kHz; %+.1f dB at 60 Hz with "
                 "Low Cut out\n",
                 bump, bump_far, bump_floor);
-    EXPECT_NEAR(bump, 9.0, 0.5, "Thump: 9 dB just above the Low Cut");
-    EXPECT_NEAR(bump_far, 0.0, 0.3, "Thump: nothing at 2 kHz");
-    EXPECT_NEAR(bump_floor, 9.0, 0.5, "Thump: sits at 60 Hz when the Low Cut is out");
+    EXPECT_NEAR(bump, 9.0, 0.5, "Low Bump: 9 dB just above the Low Cut");
+    EXPECT_NEAR(bump_far, 0.0, 0.3, "Low Bump: nothing at 2 kHz");
+    EXPECT_NEAR(bump_floor, 9.0, 0.5, "Low Bump: sits at 60 Hz when the Low Cut is out");
     // Tone: a tilt about 800 Hz.
     const double tilt_low = gain(60.0f, p::kTone, 1.0f);
     const double tilt_pivot = gain(800.0f, p::kTone, 1.0f);
@@ -605,7 +605,7 @@ int main() {
     for (int swapped = 0; swapped < 2; ++swapped) {
       setup(kRate, kTriode, 0.6f);
       device.set_param(p::kLowCut, 80.0f);
-      device.set_param(p::kThump, 0.5f);
+      device.set_param(p::kLowBump, 0.5f);
       device.set_param(p::kTone, 0.4f);
       device.set_param(p::kHighCut, 6000.0f);
       const std::vector<float> first_x(x.begin(), x.begin() + 24000), rest_x(x.begin() + 24000, x.end());
@@ -685,7 +685,7 @@ int main() {
 
   // Bounded. With Auto Gain on, a full-scale note with Push on never leaves
   // louder than it came in. The loudest the device can be made is Auto Gain
-  // off with Thump, Tone and Output all up: that came to 26 before the
+  // off with Low Bump, Tone and Output all up: that came to 26 before the
   // safety stage, and stays under max_peak (4) with it.
   {
     double held = 0.0, loudest = 0.0;
@@ -697,7 +697,7 @@ int main() {
         for (int push = 0; push < 2; ++push) {
           setup(kRate, c, drive, push);
           device.set_param(p::kAutoGain, 0.0f);
-          device.set_param(p::kThump, 1.0f);
+          device.set_param(p::kLowBump, 1.0f);
           device.set_param(p::kTone, 1.0f);
           device.set_param(p::kOutput, 12.0f);
           rng_state() = 0xD1CEu;
@@ -707,7 +707,7 @@ int main() {
         }
       }
     }
-    std::printf("analog-drive full scale with Push, Auto Gain on: peak %.2f; loudest setting (Auto Gain off, Thump, Tone "
+    std::printf("analog-drive full scale with Push, Auto Gain on: peak %.2f; loudest setting (Auto Gain off, Low Bump, Tone "
                 "and Output up, full-scale noise): %.5f\n",
                 held, loudest);
     EXPECT(held < 1.0, "Push on a full-scale note stays under full scale with Auto Gain on");
@@ -861,10 +861,10 @@ int main() {
   }
 
   // Cost with everything in the path: the transformer (two kernels, four
-  // filters around the curve), Low Cut, Thump, Tone and High Cut all in.
+  // filters around the curve), Low Cut, Low Bump, Tone and High Cut all in.
   setup(kRate, kTransformer, 0.6f);
   device.set_param(p::kLowCut, 80.0f);
-  device.set_param(p::kThump, 0.5f);
+  device.set_param(p::kLowBump, 0.5f);
   device.set_param(p::kTone, 0.3f);
   device.set_param(p::kHighCut, 8000.0f);
   // A stereo source, so both channels are worked out (a mono one costs half).

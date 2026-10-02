@@ -3,7 +3,7 @@
 #include "../../kit/filters.h"
 
 // The device's own small filters: a state-variable section with output mix
-// coefficients (so one structure is the low cut, the Thump bell and the high
+// coefficients (so one structure is the low cut, the Low Bump bell and the high
 // cut, and all three can be retuned while sounding), a first-order tilt and a
 // DC blocker whose state does not stall.
 

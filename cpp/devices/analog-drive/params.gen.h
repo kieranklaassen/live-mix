@@ -6,7 +6,7 @@
 //    1  circuit: 0 Tape preamp, 1 Console, 2 Transformer, 3 Triode, 4 Pentode, default 0
 //    2  push: 0 Off, 1 On, default 0
 //    3  lowCut: 20..1000 Hz, default 20
-//    4  thump: 0..1, default 0
+//    4  lowBump: 0..1, default 0
 //    5  tone: -1..1, default 0
 //    6  highCut: 1000..20000 Hz, default 20000
 //    7  autoGain: 0 Off, 1 On, default 1
@@ -23,7 +23,7 @@ enum Param : int {
   kCircuit = 1,
   kPush = 2,
   kLowCut = 3,
-  kThump = 4,
+  kLowBump = 4,
   kTone = 5,
   kHighCut = 6,
   kAutoGain = 7,

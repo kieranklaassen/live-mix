@@ -1,7 +1,7 @@
 // Native harness for Swarm Reverb (cpp/devices/swarm-reverb). The conformance
 // pass covers stability, silence when idle, block-size independence and
 // parameter abuse; the rest asserts what makes it a swarm of echoes on a
-// tape whose speed can be dragged.
+// tape whose speed can be changed.
 
 #include "../devices/swarm-reverb/swarm_reverb.h"
 #include "support/test_kit.h"
@@ -18,10 +18,10 @@ static const float kRate = 48000.0f;
 static void bare(SwarmReverb& d, float rate = kRate) {
   d.init(rate);
   d.set_param(p::kMix, 1.0f);
-  d.set_param(p::kReflect, 0.0f);
-  d.set_param(p::kDiffuse, 0.0f);
+  d.set_param(p::kFeedback, 0.0f);
+  d.set_param(p::kBlur, 0.0f);
   d.set_param(p::kModulation, 0.0f);
-  d.set_param(p::kDampen, 16000.0f);
+  d.set_param(p::kHighCut, 16000.0f);
   d.set_param(p::kLowCut, 20.0f);
 }
 
@@ -69,14 +69,14 @@ int main() {
   spec.max_peak = 4.0f;
   check_effect(device, spec, kRate);
 
-  // At Diffuse 0 an impulse comes back as fourteen separate arrivals per
-  // side, the last one at Length x the Drag scale; left and right differ.
+  // At Blur 0 an impulse comes back as fourteen separate arrivals per
+  // side, the last one at Length x the Stretch scale; left and right differ.
   {
     bare(device);
     Stereo out = run(device, impulse(1.0f, kRate, 1.0f));
     std::vector<size_t> left = arrivals(out.left, 0.02);
     std::vector<size_t> right = arrivals(out.right, 0.02);
-    EXPECT(left.size() == 14 && right.size() == 14, "Diffuse 0: fourteen arrivals on each side");
+    EXPECT(left.size() == 14 && right.size() == 14, "Blur 0: fourteen arrivals on each side");
     EXPECT_NEAR(left.back() / kRate, 0.5, 0.001, "the last arrival is at Length");
     EXPECT(left.front() / kRate > 0.02 && left.front() / kRate < 0.08,
            "the first arrival is a few hundredths of Length in");
@@ -86,47 +86,47 @@ int main() {
     }
     EXPECT(shared <= 2, "left and right taps sit at different times");
 
-    // Drag scales every arrival together: a quarter of the way down is half
+    // Stretch scales every arrival together: a quarter of the way down is half
     // an octave of time, three quarters up is half an octave the other way.
     bare(device);
-    device.set_param(p::kDrag, 0.25f);
+    device.set_param(p::kStretch, 0.25f);
     Stereo shorter = run(device, impulse(1.5f, kRate, 1.0f));
     std::vector<size_t> near = arrivals(shorter.left, 0.02);
     bare(device);
-    device.set_param(p::kDrag, 1.0f);
+    device.set_param(p::kStretch, 1.0f);
     Stereo longer = run(device, impulse(1.5f, kRate, 1.0f));
     std::vector<size_t> far = arrivals(longer.left, 0.02);
-    EXPECT(near.size() == 14 && far.size() == 14, "Drag keeps the fourteen arrivals");
-    EXPECT_NEAR(near.back() / kRate, 0.5 * std::pow(2.0, -0.5), 0.001, "Drag 0.25: last arrival at Length / sqrt 2");
-    EXPECT_NEAR(far.back() / kRate, 1.0, 0.001, "Drag 1: last arrival at twice Length");
+    EXPECT(near.size() == 14 && far.size() == 14, "Stretch keeps the fourteen arrivals");
+    EXPECT_NEAR(near.back() / kRate, 0.5 * std::pow(2.0, -0.5), 0.001, "Stretch 0.25: last arrival at Length / sqrt 2");
+    EXPECT_NEAR(far.back() / kRate, 1.0, 0.001, "Stretch 1: last arrival at twice Length");
     EXPECT_NEAR(static_cast<double>(near[3]) / left[3], std::pow(2.0, -0.5), 0.005,
-                "Drag moves the inner arrivals by the same ratio");
-    std::printf("arrivals: 14 + 14, first %.1f ms, last %.1f ms; Drag 0.25 last %.1f ms, Drag 1 last %.1f ms\n",
+                "Stretch moves the inner arrivals by the same ratio");
+    std::printf("arrivals: 14 + 14, first %.1f ms, last %.1f ms; Stretch 0.25 last %.1f ms, Stretch 1 last %.1f ms\n",
                 1000.0 * left.front() / kRate, 1000.0 * left.back() / kRate, 1000.0 * near.back() / kRate,
                 1000.0 * far.back() / kRate);
   }
 
-  // Diffuse blurs the swarm: more of the time between the first and the last
+  // Blur smears the swarm: more of the time between the first and the last
   // arrival carries sound, and the response is less spiky.
   {
     double filled[3], spikiness[3];
     const float settings[3] = {0.0f, 0.5f, 1.0f};
     for (int k = 0; k < 3; ++k) {
       bare(device);
-      device.set_param(p::kDiffuse, settings[k]);
+      device.set_param(p::kBlur, settings[k]);
       Stereo out = run(device, impulse(1.0f, kRate, 1.0f));
       filled[k] = occupied(out.left, 0.03, 0.5);
       spikiness[k] = peak(out.left) / rms(out.left, 1440, 24000);
     }
     EXPECT(filled[0] < 0.2 && filled[1] > 2.0 * filled[0] && filled[2] >= filled[1] && filled[2] > 0.8,
-           "echo density rises with Diffuse");
-    EXPECT(spikiness[2] < 0.6 * spikiness[0], "Diffuse turns separate echoes into a wash");
-    std::printf("diffuse 0 / 0.5 / 1: occupied %.2f / %.2f / %.2f, peak over rms %.1f / %.1f / %.1f\n",
+           "echo density rises with Blur");
+    EXPECT(spikiness[2] < 0.6 * spikiness[0], "Blur turns separate echoes into a wash");
+    std::printf("blur 0 / 0.5 / 1: occupied %.2f / %.2f / %.2f, peak over rms %.1f / %.1f / %.1f\n",
                 filled[0], filled[1], filled[2], spikiness[0], spikiness[1], spikiness[2]);
   }
 
-  // Reflect sets the decay: the loop takes about 0.47 s at the default
-  // Length (0.5 s on the left line, 0.44 s on the right) and loses Reflect on
+  // Feedback sets the decay: the loop takes about 0.47 s at the default
+  // Length (0.5 s on the left line, 0.44 s on the right) and loses Feedback on
   // every trip.
   {
     const float settings[3] = {0.3f, 0.6f, 0.9f};
@@ -134,7 +134,7 @@ int main() {
     for (int k = 0; k < 3; ++k) {
       device.init(kRate);
       device.set_param(p::kMix, 1.0f);
-      device.set_param(p::kReflect, settings[k]);
+      device.set_param(p::kFeedback, settings[k]);
       rng_state() = 0x5EEDu;
       std::vector<float> burst = noise(0.1f, kRate, 0.5f);
       burst.resize(static_cast<size_t>(kRate * 30.0f), 0.0f);
@@ -142,37 +142,37 @@ int main() {
       decay[k] = rt60(out.left, kRate, 0.7, 0.2, -80.0);
       const double expected = -3.0 * 0.47 / std::log10(settings[k]);
       char label[96];
-      std::snprintf(label, sizeof label, "Reflect %.1f: RT60 %.2f s, expected about %.2f s", settings[k],
+      std::snprintf(label, sizeof label, "Feedback %.1f: RT60 %.2f s, expected about %.2f s", settings[k],
                     decay[k], expected);
       EXPECT(decay[k] > 0.75 * expected && decay[k] < 1.3 * expected, label);
     }
-    EXPECT(decay[0] < decay[1] && decay[1] < decay[2], "the decay time rises with Reflect");
-    std::printf("RT60 at Reflect 0.3 / 0.6 / 0.9: %.2f / %.2f / %.2f s\n", decay[0], decay[1], decay[2]);
+    EXPECT(decay[0] < decay[1] && decay[1] < decay[2], "the decay time rises with Feedback");
+    std::printf("RT60 at Feedback 0.3 / 0.6 / 0.9: %.2f / %.2f / %.2f s\n", decay[0], decay[1], decay[2]);
   }
 
-  // Reflect at its top: the cave feeds on itself, holds a steady level and
+  // Feedback at its top: the cave feeds on itself, holds a steady level and
   // stays dark (the loop's own filters decide what survives).
   {
     device.init(kRate);
     device.set_param(p::kMix, 1.0f);
-    device.set_param(p::kReflect, 1.05f);
+    device.set_param(p::kFeedback, 1.05f);
     run(device, sine(330.0f, 1.0f, kRate, 0.5f));
     Stereo late = render(device, 60.0f, kRate);
     const size_t n = late.left.size();
     const double level = rms(late.left, n - 96000, n);
     const double earlier = rms(late.left, n - 480000, n - 384000);
     const double top = energy_above(late.left, 4000.0, kRate, n - 96000, n);
-    EXPECT(finite(late.left) && finite(late.right), "Reflect 1.05 stays finite");
-    EXPECT(peak(late.left) < 1.5 && peak(late.right) < 1.5, "Reflect 1.05 is bounded");
-    EXPECT(level > 0.03, "Reflect 1.05 sustains on its own");
-    EXPECT(level < 2.0 * earlier, "Reflect 1.05 settles at a level instead of climbing");
-    EXPECT(top < 0.02, "Reflect 1.05 is not harsh: under 2 % of its energy above 4 kHz");
-    std::printf("Reflect 1.05 after 60 s: rms %.1f dB, peak %.2f, energy above 4 kHz %.4f\n", db(level),
+    EXPECT(finite(late.left) && finite(late.right), "Feedback 1.05 stays finite");
+    EXPECT(peak(late.left) < 1.5 && peak(late.right) < 1.5, "Feedback 1.05 is bounded");
+    EXPECT(level > 0.03, "Feedback 1.05 sustains on its own");
+    EXPECT(level < 2.0 * earlier, "Feedback 1.05 settles at a level instead of climbing");
+    EXPECT(top < 0.02, "Feedback 1.05 is not harsh: under 2 % of its energy above 4 kHz");
+    std::printf("Feedback 1.05 after 60 s: rms %.1f dB, peak %.2f, energy above 4 kHz %.4f\n", db(level),
                 std::max(peak(late.left), peak(late.right)), top);
   }
 
-  // Drag bends pitch. A 440 Hz tone rings in the swarm; the input stops and
-  // Drag moves down, so the tape speeds up and what is on it comes back
+  // Stretch bends pitch. A 440 Hz tone rings in the swarm; the input stops and
+  // Stretch moves down, so the tape speeds up and what is on it comes back
   // higher by the ratio of the speeds. The faster the move, the larger the
   // bend heard in the first quarter second.
   {
@@ -180,35 +180,35 @@ int main() {
     double bent[3];
     for (int k = 0; k < 3; ++k) {
       bare(device);
-      device.set_param(p::kDragTime, times[k]);
+      device.set_param(p::kGlide, times[k]);
       run(device, sine(440.0f, 2.0f, kRate, 0.25f));
-      device.set_param(p::kDrag, 0.25f);
+      device.set_param(p::kStretch, 0.25f);
       Stereo out = render(device, 0.5f, kRate);
       bent[k] = dominant_frequency(out.left, kRate, 400.0, 700.0, 2400, 12000);
     }
     EXPECT_NEAR(bent[0] / 440.0, std::sqrt(2.0), 0.02 * std::sqrt(2.0),
-                "a fast Drag move of half an octave bends the swarm up by half an octave");
+                "a fast Stretch move of half an octave bends the swarm up by half an octave");
     EXPECT(bent[0] > bent[1] + 20.0 && bent[1] > bent[2] + 5.0 && bent[2] > 441.0,
-           "the bend is smaller the slower Drag Time is");
-    std::printf("Drag 0.5 -> 0.25, wet pitch in the next 250 ms at Drag Time 0.02 / 0.6 / 3 s: %.1f / %.1f / %.1f Hz\n",
+           "the bend is smaller the slower Glide is");
+    std::printf("Stretch 0.5 -> 0.25, wet pitch in the next 250 ms at Glide 0.02 / 0.6 / 3 s: %.1f / %.1f / %.1f Hz\n",
                 bent[0], bent[1], bent[2]);
 
     // With the tone still playing the pitch comes back to 440 Hz once the old
     // sound has left the line.
     bare(device);
-    device.set_param(p::kDragTime, 0.02f);
+    device.set_param(p::kGlide, 0.02f);
     run(device, sine(440.0f, 2.0f, kRate, 0.25f));
-    device.set_param(p::kDrag, 0.25f);
+    device.set_param(p::kStretch, 0.25f);
     Stereo out = run(device, sine(440.0f, 3.0f, kRate, 0.25f));
     const double after = dominant_frequency(out.left, kRate, 300.0, 700.0, 96000, 144000);
     EXPECT_NEAR(after, 440.0, 0.5, "the pitch returns to 440 Hz after the move");
   }
 
-  // Steps: Drag lands on sizes a fourth, a fifth or an octave apart, and a
+  // Steps: Stretch lands on sizes a fourth, a fifth or an octave apart, and a
   // move between them is heard as that interval.
   {
     struct Move {
-      float drag;
+      float stretch;
       double ratio;
       const char* name;
     };
@@ -219,23 +219,23 @@ int main() {
     for (const Move& move : moves) {
       bare(device);
       device.set_param(p::kSteps, 1.0f);
-      device.set_param(p::kDragTime, 0.02f);
+      device.set_param(p::kGlide, 0.02f);
       run(device, sine(440.0f, 2.0f, kRate, 0.25f));
-      device.set_param(p::kDrag, move.drag);
+      device.set_param(p::kStretch, move.stretch);
       Stereo out = render(device, 0.4f, kRate);
       const double heard = dominant_frequency(out.left, kRate, 250.0, 1000.0, 2400, 9600);
       char label[96];
       std::snprintf(label, sizeof label, "Steps: %s, heard %.2f Hz", move.name, heard);
       EXPECT_NEAR(heard / 440.0, move.ratio, 0.02 * move.ratio, label);
-      std::printf("Steps, Drag to %.2f: %.2f Hz, ratio %.4f (expected %.4f)\n", move.drag, heard,
+      std::printf("Steps, Stretch to %.2f: %.2f Hz, ratio %.4f (expected %.4f)\n", move.stretch, heard,
                   heard / 440.0, move.ratio);
     }
     // And the knob snaps: anywhere near the middle is the nominal size.
     bare(device);
     device.set_param(p::kSteps, 1.0f);
-    device.set_param(p::kDrag, 0.56f);
+    device.set_param(p::kStretch, 0.56f);
     Stereo out = run(device, impulse(1.0f, kRate, 1.0f));
-    EXPECT_NEAR(arrivals(out.left, 0.02).back() / kRate, 0.5, 0.001, "Steps snaps Drag to the nearest size");
+    EXPECT_NEAR(arrivals(out.left, 0.02).back() / kRate, 0.5, 0.001, "Steps snaps Stretch to the nearest size");
   }
 
   // Wander moves the echo times on its own. One impulse every 1.5 s for a
@@ -245,7 +245,7 @@ int main() {
       bare(device);
       device.set_param(p::kSteps, steps);
       device.set_param(p::kWander, wander);
-      device.set_param(p::kDragTime, 0.02f);
+      device.set_param(p::kGlide, 0.02f);
       std::vector<double> found;
       const size_t hop = static_cast<size_t>(1.5f * kRate);
       std::vector<float> train(hop * 40, 0.0f);
@@ -303,14 +303,14 @@ int main() {
                 range(smooth), largest_change(smooth), landed, on, kinds, largest_change(stepped));
   }
 
-  // Dampen takes the top off the echoes and Low Cut the bottom, and each
+  // High Cut takes the top off the echoes and Low Cut the bottom, and each
   // trip round the loop takes more.
   {
-    const auto wet_noise = [&](float dampen, float low_cut, float reflect) {
+    const auto wet_noise = [&](float high_cut, float low_cut, float feedback) {
       device.init(kRate);
       device.set_param(p::kMix, 1.0f);
-      device.set_param(p::kReflect, reflect);
-      device.set_param(p::kDampen, dampen);
+      device.set_param(p::kFeedback, feedback);
+      device.set_param(p::kHighCut, high_cut);
       device.set_param(p::kLowCut, low_cut);
       rng_state() = 0xD00Du;
       std::vector<float> burst = noise(0.3f, kRate, 0.3f);
@@ -322,20 +322,20 @@ int main() {
     const double bright_top = energy_above(bright.left, 3000.0, kRate, 4800, 28800);
     const double dark_top = energy_above(dark.left, 3000.0, kRate, 4800, 28800);
     const double dark_later = energy_above(dark.left, 3000.0, kRate, 120000, 168000);
-    EXPECT(dark_top < 0.25 * bright_top, "Dampen removes treble from the swarm");
+    EXPECT(dark_top < 0.25 * bright_top, "High Cut removes treble from the swarm");
     EXPECT(dark_later < 0.5 * dark_top, "each trip round the loop is duller");
 
     const auto low_tone = [&](float low_cut) {
       device.init(kRate);
       device.set_param(p::kMix, 1.0f);
-      device.set_param(p::kReflect, 0.0f);
+      device.set_param(p::kFeedback, 0.0f);
       device.set_param(p::kLowCut, low_cut);
       Stereo out = run(device, sine(80.0f, 3.0f, kRate, 0.5f));
       return rms(out.left, 96000, 144000) + rms(out.right, 96000, 144000);
     };
     const double open = low_tone(20.0f), cut = low_tone(400.0f);
     EXPECT(db(cut / open) < -24.0, "Low Cut 400 Hz takes an 80 Hz tone down by more than 24 dB");
-    std::printf("energy above 3 kHz: Dampen 16 kHz %.3f, 1 kHz %.4f, later %.4f; 80 Hz at Low Cut 400 Hz: %.1f dB\n",
+    std::printf("energy above 3 kHz: High Cut 16 kHz %.3f, 1 kHz %.4f, later %.4f; 80 Hz at Low Cut 400 Hz: %.1f dB\n",
                 bright_top, dark_top, dark_later, db(cut / open));
   }
 
@@ -387,43 +387,43 @@ int main() {
     EXPECT(out.left == input && out.right == input, "Mix 0 passes the input through untouched");
   }
 
-  // Moving Drag while the cave rings bends it without a click, at the
-  // fastest Drag Time, free or stepped; so do Length, Diffuse and Steps.
+  // Moving Stretch while the cave rings bends it without a click, at the
+  // fastest Glide, free or stepped; so do Length, Blur and Steps.
   {
     std::vector<float> tone = sine(220.0f, 0.25f, kRate, 0.25f);
     const auto worst_step = [&](int moving) {
       device.init(kRate);
-      device.set_param(p::kDragTime, 0.02f);
+      device.set_param(p::kGlide, 0.02f);
       run(device, sine(220.0f, 2.0f, kRate, 0.25f));
-      const float drags[8] = {0.1f, 0.9f, 0.35f, 0.0f, 1.0f, 0.5f, 0.75f, 0.2f};
+      const float stretches[8] = {0.1f, 0.9f, 0.35f, 0.0f, 1.0f, 0.5f, 0.75f, 0.2f};
       double worst = 0.0;
       for (int k = 0; k < 16; ++k) {
-        if (moving == 1) device.set_param(p::kDrag, drags[k % 8]);
+        if (moving == 1) device.set_param(p::kStretch, stretches[k % 8]);
         if (moving == 2) {
           device.set_param(p::kSteps, 1.0f);
-          device.set_param(p::kDrag, drags[k % 8]);
+          device.set_param(p::kStretch, stretches[k % 8]);
         }
         if (moving == 3) device.set_param(p::kLength, k % 2 ? 0.05f : 1.2f);
-        if (moving == 4) device.set_param(p::kDiffuse, k % 2 ? 0.0f : 1.0f);
-        if (moving == 5) device.set_param(p::kSteps, k % 2 ? 0.0f : 1.0f), device.set_param(p::kDrag, 0.4f);
-        if (moving == 6) device.set_param(p::kReflect, k % 2 ? 0.0f : 1.05f);
+        if (moving == 4) device.set_param(p::kBlur, k % 2 ? 0.0f : 1.0f);
+        if (moving == 5) device.set_param(p::kSteps, k % 2 ? 0.0f : 1.0f), device.set_param(p::kStretch, 0.4f);
+        if (moving == 6) device.set_param(p::kFeedback, k % 2 ? 0.0f : 1.05f);
         Stereo out = run(device, tone);
         worst = std::max(worst, std::max(max_step(out.left), max_step(out.right)));
       }
       return worst;
     };
     const double resting = worst_step(0);
-    const double free_drag = worst_step(1), stepped_drag = worst_step(2), length = worst_step(3);
-    const double diffuse = worst_step(4), steps = worst_step(5), reflect = worst_step(6);
-    EXPECT(free_drag < 0.08, "Drag moves glide without a click");
-    EXPECT(stepped_drag < 0.08, "stepped Drag moves glide without a click");
+    const double free_stretch = worst_step(1), stepped_stretch = worst_step(2), length = worst_step(3);
+    const double blur = worst_step(4), steps = worst_step(5), feedback = worst_step(6);
+    EXPECT(free_stretch < 0.08, "Stretch moves glide without a click");
+    EXPECT(stepped_stretch < 0.08, "stepped Stretch moves glide without a click");
     EXPECT(length < 0.08, "Length moves glide without a click");
-    EXPECT(diffuse < 2.0 * resting + 0.01, "Diffuse moves without a click");
+    EXPECT(blur < 2.0 * resting + 0.01, "Blur moves without a click");
     EXPECT(steps < 0.08, "switching Steps does not click");
-    EXPECT(reflect < 2.0 * resting + 0.01, "Reflect moves without a click");
-    std::printf("largest sample step on a 220 Hz tone: at rest %.4f, Drag %.4f, stepped Drag %.4f, Length %.4f, "
-                "Diffuse %.4f, Steps switch %.4f, Reflect %.4f\n",
-                resting, free_drag, stepped_drag, length, diffuse, steps, reflect);
+    EXPECT(feedback < 2.0 * resting + 0.01, "Feedback moves without a click");
+    std::printf("largest sample step on a 220 Hz tone: at rest %.4f, Stretch %.4f, stepped Stretch %.4f, Length %.4f, "
+                "Blur %.4f, Steps switch %.4f, Feedback %.4f\n",
+                resting, free_stretch, stepped_stretch, length, blur, steps, feedback);
   }
 
   // The same audio whatever the block size, with everything moving.
@@ -432,8 +432,8 @@ int main() {
       device.init(kRate);
       device.set_param(p::kWander, 0.7f);
       device.set_param(p::kModulation, 1.0f);
-      device.set_param(p::kReflect, 0.9f);
-      device.set_param(p::kDrag, 0.3f);
+      device.set_param(p::kFeedback, 0.9f);
+      device.set_param(p::kStretch, 0.3f);
       rng_state() = 0x7777u;
       return run(device, noise(3.0f, kRate, 0.3f), block);
     };
@@ -459,7 +459,7 @@ int main() {
   }
 
   // Levels: the default patch sits within 3 dB of the dry signal on a held
-  // chord, and a long Reflect is not much louder than a short one.
+  // chord, and a long Feedback is not much louder than a short one.
   {
     const size_t n = static_cast<size_t>(6.0f * kRate);
     std::vector<float> held(n, 0.0f);
@@ -477,17 +477,17 @@ int main() {
     const double patch = std::sqrt(0.5 * (std::pow(rms(out.left, 96000, n), 2) + std::pow(rms(out.right, 96000, n), 2)));
     EXPECT(std::fabs(db(patch / dry)) < 3.0, "default patch within 3 dB of dry on a held chord");
     double wet_level[2];
-    const float reflects[2] = {0.2f, 0.95f};
+    const float feedbacks[2] = {0.2f, 0.95f};
     for (int k = 0; k < 2; ++k) {
       device.init(kRate);
       device.set_param(p::kMix, 1.0f);
-      device.set_param(p::kReflect, reflects[k]);
+      device.set_param(p::kFeedback, feedbacks[k]);
       Stereo wet = run(device, held);
       wet_level[k] = rms(wet.left, 192000, n);
     }
-    EXPECT(std::fabs(db(wet_level[1] / wet_level[0])) < 7.0, "Reflect is not a volume knob");
+    EXPECT(std::fabs(db(wet_level[1] / wet_level[0])) < 7.0, "Feedback is not a volume knob");
     EXPECT(peak(out.left) < 1.0 && peak(out.right) < 1.0, "default patch does not clip on a held chord");
-    std::printf("held chord: default patch %+.2f dB re dry, peak %.2f; wet at Reflect 0.95 against 0.2: %+.2f dB\n",
+    std::printf("held chord: default patch %+.2f dB re dry, peak %.2f; wet at Feedback 0.95 against 0.2: %+.2f dB\n",
                 db(patch / dry), std::max(peak(out.left), peak(out.right)), db(wet_level[1] / wet_level[0]));
   }
 
@@ -508,14 +508,14 @@ int main() {
     burst.resize(static_cast<size_t>(rate * 12.0f), 0.0f);
     Stereo tail = run(device, burst);
     const double decay = rt60(tail.left, rate, 0.7, 0.2, -80.0);
-    std::snprintf(label, sizeof label, "%.0f Hz: RT60 at the default Reflect is %.2f s", rate, decay);
+    std::snprintf(label, sizeof label, "%.0f Hz: RT60 at the default Feedback is %.2f s", rate, decay);
     EXPECT(decay > 5.2 && decay < 7.0, label);
 
     bare(device, rate);
     device.set_param(p::kSteps, 1.0f);
-    device.set_param(p::kDragTime, 0.02f);
+    device.set_param(p::kGlide, 0.02f);
     run(device, sine(440.0f, 2.0f, rate, 0.25f));
-    device.set_param(p::kDrag, 0.3f);
+    device.set_param(p::kStretch, 0.3f);
     Stereo bent = render(device, 0.4f, rate);
     const double heard = dominant_frequency(bent.left, rate, 250.0, 1000.0, static_cast<size_t>(0.05f * rate),
                                             static_cast<size_t>(0.2f * rate));
@@ -526,10 +526,10 @@ int main() {
   }
 
   device.init(kRate);
-  device.set_param(p::kReflect, 0.9f);
+  device.set_param(p::kFeedback, 0.9f);
   device.set_param(p::kWander, 0.5f);
   device.set_param(p::kModulation, 1.0f);
-  device.set_param(p::kDiffuse, 1.0f);
+  device.set_param(p::kBlur, 1.0f);
   rng_state() = 0xBEEFu;
   std::vector<float> input = noise(10.0f, kRate, 0.25f);
   report_cost("swarm-reverb", 10.0f, kRate, [&] { run(device, input); });

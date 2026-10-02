@@ -3,7 +3,7 @@
 // Parameter ids and ranges of Low Bitrate, shared with
 // src/dsp/devices/low-bitrate.gen.ts:
 //    0  loss: 0..1, default 0.5
-//    1  mode: 0 Standard, 1 Inverse, 2 Jitter, default 0
+//    1  mode: 0 Kept, 1 Residue, 2 Scattered, default 0
 //    2  frame: 0 Short, 1 Medium, 2 Long, default 1
 //    3  dropouts: 0..1, default 0
 //    4  stutter: 0..1, default 0

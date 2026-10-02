@@ -661,6 +661,29 @@ int main(int argc, char**) {
     SHOW("clicks: Volume, Spread, Section and Age thrown about %.4f", max_step(thrown.left));
     EXPECT(max_step(thrown.left) < 2.0 * still + 0.002, "jumping Volume, Spread, Section and Age makes no clicks");
 
+    // Age sets how hard the tape is driven. Under a chord of strings a step
+    // of that hides; on one clean, dark flute note it was a bump of 1 to 2 dB
+    // and a tick (2.7 times the note's own second difference) until the
+    // drive glided. Measured the same way here.
+    {
+      auto clean = [&](int mode) {
+        plain(device, kFlutes);
+        device.set_param(p::kTone, -1.0f);
+        device.note_on(1, 220.0f, 1.0f);
+        render(device, 1.0f, kRate);
+        Stereo out;
+        for (int i = 0; i < 30; ++i) {
+          device.set_param(p::kAge, mode == 0 ? 0.0f : (mode == 1 ? 1.0f : ((i & 1) ? 1.0f : 0.0f)));
+          out = concat(out, render(device, 0.1f, kRate));
+        }
+        return max_bend(std::vector<float>(out.left.begin() + at(0.1), out.left.end()));
+      };
+      const double steady = std::max(clean(0), clean(1));
+      const double jumped = clean(2);
+      SHOW("clicks: Age jumped on a clean flute note: bend %.5f against %.5f held", jumped, steady);
+      EXPECT(jumped < 1.5 * steady, "jumping Age on a clean note makes no tick");
+    }
+
     chord();
     Stereo slowed;
     for (int i = 0; i < 6; ++i) {

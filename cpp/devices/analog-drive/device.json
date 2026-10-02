@@ -41,8 +41,8 @@
       "description": "Takes the lows out before the circuit, so the bass stops driving it and the distortion gets tighter and thinner. At the bottom it is out of the path."
     },
     {
-      "key": "thump",
-      "name": "Thump",
+      "key": "lowBump",
+      "name": "Low Bump",
       "min": 0,
       "max": 1,
       "default": 0,
@@ -95,14 +95,14 @@
     "Warm glue": {
       "circuit": 0,
       "drive": 0.36,
-      "thump": 0.2,
+      "lowBump": 0.2,
       "tone": -0.2,
       "output": -2
     },
     "Tape weight": {
       "circuit": 0,
       "drive": 0.6,
-      "thump": 0.7,
+      "lowBump": 0.7,
       "tone": -0.4,
       "highCut": 6500,
       "output": -5
@@ -117,7 +117,7 @@
       "circuit": 2,
       "drive": 0.5,
       "lowCut": 40,
-      "thump": 0.5,
+      "lowBump": 0.5,
       "tone": -0.1,
       "output": -4
     },
@@ -161,6 +161,6 @@
   },
   "origin": {
     "kind": "new",
-    "note": "Written for live-mix on cpp/kit. Models five overdriven gain stages in outline (a tape machine's record amplifier, a discrete transistor console channel, an iron-cored class A stage, a triode and a pentode), not a circuit emulation of any unit. Each circuit is an emphasis filter into a static curve at a level-dependent working point and a de-emphasis filter out of it, so the circuits differ in tone and in which part of the spectrum saturates as well as in the curve; the transformer saturates on a low-shelved (flux-like) copy of the signal. The Drive knob is tapered so that the clean end stays clean and the middle is already well into the curve. The curve runs at four times the sample rate between linear-phase halfband filters, with second-order antiderivative anti-aliasing on top, after the approach of Parker, Zavalishin and Le Bivic, 'Reducing the aliasing of nonlinear waveshaping using continuous-time convolution', and of Bilbao, Esqueda, Parker and Valimaki, 'Antiderivative antialiasing for memoryless nonlinearities'. The low cut, Thump bell and high cut are trapezoidal state-variable filters, after the approach of Simper, 'Solving the continuous SVF equations using trapezoidal integration and equivalent currents'. Auto Gain is a static table per circuit measured on pink noise at -18 dBFS RMS, not a gain rider. The driven signal ends in a safety stage that is exactly linear up to 1.5 and lands softly on 4. All constants were set by measurement and judgement in this project, none taken from a source."
+    "note": "Written for live-mix on cpp/kit. Models five overdriven gain stages in outline (a tape machine's record amplifier, a discrete transistor console channel, an iron-cored class A stage, a triode and a pentode), not a circuit emulation of any unit. Each circuit is an emphasis filter into a static curve at a level-dependent working point and a de-emphasis filter out of it, so the circuits differ in tone and in which part of the spectrum saturates as well as in the curve; the transformer saturates on a low-shelved (flux-like) copy of the signal. The Drive knob is tapered so that the clean end stays clean and the middle is already well into the curve. The curve runs at four times the sample rate between linear-phase halfband filters, with second-order antiderivative anti-aliasing on top, after the approach of Parker, Zavalishin and Le Bivic, 'Reducing the aliasing of nonlinear waveshaping using continuous-time convolution', and of Bilbao, Esqueda, Parker and Valimaki, 'Antiderivative antialiasing for memoryless nonlinearities'. The low cut, Low Bump bell and high cut are trapezoidal state-variable filters, after the approach of Simper, 'Solving the continuous SVF equations using trapezoidal integration and equivalent currents'. Auto Gain is a static table per circuit measured on pink noise at -18 dBFS RMS, not a gain rider. The driven signal ends in a safety stage that is exactly linear up to 1.5 and lands softly on 4. All constants were set by measurement and judgement in this project, none taken from a source."
   }
 }

@@ -10,7 +10,7 @@
 //       └─► mid/side ─► sine window ─► MDCT ─► per frame ─► IMDCT ─► sine window
 //                                              │                 ─► overlap-add ─► limit ─► wet ─┘
 //                                              │
-//             Standard / Inverse / Jitter ─► Smear ─► joint stereo, High Cut ─► packets
+//             Kept / Residue / Scattered ─► Smear ─► joint stereo, High Cut ─► packets
 //
 // The transform is the MDCT of Princen and Bradley (mdct.h) with the sine
 // window at both ends: frames one hop apart add up to the input, so with
@@ -25,7 +25,7 @@
 //
 // Per frame, for mid and side (cpp comments at each stage say more):
 //
-// - Standard. Bins are grouped into the critical bands. A bin is kept when it
+// - Kept. Bins are grouped into the critical bands. A bin is kept when it
 //   is within a margin of the loudest bin of its band, of the loud bands
 //   beside it (masking spreads 8 dB per band upwards, 16 downwards) and of
 //   the recent peak of the whole stream; the margins shrink as Loss rises
@@ -34,9 +34,9 @@
 //   kept goes through a power-law quantiser (as transform codecs use) with a
 //   step tied to its band's peak (80 → 1.5 steps). The energy thrown away is
 //   given back as gain (up to 6 dB), so Loss changes character, not level.
-// - Inverse plays the input minus what Standard keeps: the residue. It has
+// - Residue plays the input minus what Kept keeps: the residue. It has
 //   its own make-up (up to 18 dB), because at low Loss little is discarded.
-// - Jitter keeps every magnitude and turns each bin's phase by a random
+// - Scattered keeps every magnitude and turns each bin's phase by a random
 //   angle of up to ±Loss × 180°, new every frame (the MDST supplies the
 //   other half of the complex spectrum). No bin is dropped.
 // - Smear holds each bin's magnitude and lets it fall over 30 s × Smear³; at
@@ -194,7 +194,7 @@ class LowBitrate : public kit::DeviceBase<low_bitrate::kNumParams> {
       1270.0f, 1480.0f, 1720.0f, 2000.0f, 2320.0f, 2700.0f, 3150.0f, 3700.0f, 4400.0f,
       5300.0f, 6400.0f, 7700.0f, 9500.0f, 12000.0f, 15500.0f, 20000.0f};
   static constexpr int kMinBandBins = 4;
-  enum Mode : int { kStandard = 0, kInverse = 1, kJitter = 2 };
+  enum Mode : int { kKept = 0, kResidue = 1, kScattered = 2 };
   static constexpr float kLossOff = 1.0e-4f;  // under this the codec is out of circuit
   static constexpr float kSideTopOctave = 14.2877f;    // log2(20000)
   static constexpr float kSideBottomOctave = 2.3219f;  // log2(5): under every bin
@@ -232,9 +232,9 @@ class LowBitrate : public kit::DeviceBase<low_bitrate::kNumParams> {
   static constexpr float kHeldFloor = 1.0e-9f;      // per coefficient of frame length: under -170 dBFS
   static constexpr float kMaxPhaseLift = 16.0f;     // cosine coefficient to complex magnitude, at most
   static constexpr float kCarryRatio = 0.25f;       // the stream still feeds a bin above this share of its hold
-  static constexpr float kMaxMakeUp = 2.0f;                  // Standard: up to 6 dB
+  static constexpr float kMaxMakeUp = 2.0f;                  // Kept: up to 6 dB
   static constexpr float kMaxFoldMakeUp = 1.4142f;           // joint stereo: up to 3 dB
-  static constexpr float kMaxGhostMakeUp = 8.0f;             // Inverse: up to 18 dB
+  static constexpr float kMaxGhostMakeUp = 8.0f;             // Residue: up to 18 dB
 
   // What a frame size fixes: where the bands lie and how long a hop lasts.
   struct Layout {
@@ -356,7 +356,7 @@ class LowBitrate : public kit::DeviceBase<low_bitrate::kNumParams> {
     }
   }
 
-  // Standard and Inverse: decide what is kept, then play that or the rest.
+  // Kept and Residue: decide what is kept, then play that or the rest.
   void code(Engine& engine, int n, float loss, bool inverse) {
     const Layout& layout = layout_[engine.frame];
     const Severity s = severity(loss);
@@ -399,7 +399,7 @@ class LowBitrate : public kit::DeviceBase<low_bitrate::kNumParams> {
     }
   }
 
-  // Jitter: every bin keeps its magnitude and has its phase turned by a
+  // Scattered: every bin keeps its magnitude and has its phase turned by a
   // random angle of up to ±Loss × 180°, new every frame. Mid and side turn
   // together, so the image stays where it was.
   void jitter(int n, float loss) {
@@ -426,7 +426,7 @@ class LowBitrate : public kit::DeviceBase<low_bitrate::kNumParams> {
                             ? 1.0f
                             : (seconds > 0.0f ? std::exp(-6.9077553f * layout.hop_seconds / seconds) : 0.0f);
     const float floor = kHeldFloor * static_cast<float>(n);
-    // Inverse: what passes is the residue, and where a bin was kept that is
+    // Residue: what passes is the residue, and where a bin was kept that is
     // its rounding error, which does not turn with the input's phase. Lifting
     // it by the input's phase (below) then reads a loud partial whose cosine
     // coefficient happens to cross zero as a loud residue, and the hold would
@@ -681,26 +681,26 @@ class LowBitrate : public kit::DeviceBase<low_bitrate::kNumParams> {
         time_[k] = (0.5f * input_[0][at] + sign * input_[1][at]) * window[k];
       }
       plan.forward(time_, cosine_[c]);
-      if (mode == kJitter || smear > 0.0f) plan.forward_sine(time_, sine_[c]);
+      if (mode == kScattered || smear > 0.0f) plan.forward_sine(time_, sine_[c]);
       if (smear > 0.0f) {
         for (int k = 0; k < n; ++k) source_[c][k] = cosine_[c][k];
       }
     }
     const float loss = loss_.value;
     if (loss > kLossOff) {
-      if (mode == kJitter) {
+      if (mode == kScattered) {
         jitter(n, loss);
       } else {
-        code(engine, n, loss, mode == kInverse);
+        code(engine, n, loss, mode == kResidue);
       }
-    } else if (mode == kInverse) {
+    } else if (mode == kResidue) {
       // Nothing is thrown away, so there is nothing to hear.
       for (int c = 0; c < 2; ++c) {
         for (int k = 0; k < n; ++k) cosine_[c][k] = 0.0f;
       }
     }
     if (smear > 0.0f) {
-      hang(engine, n, smear, mode == kJitter, mode == kInverse && loss > kLossOff);
+      hang(engine, n, smear, mode == kScattered, mode == kResidue && loss > kLossOff);
     } else if (engine.alive) {
       let_go(engine);
     }

@@ -269,7 +269,9 @@ int main() {
 
   // Below Focus the sound is left alone: a 60 Hz tone at the default patch
   // comes out the same on both sides and equal to the dry tone, while a tone
-  // well above Focus is spread.
+  // well above Focus is spread (less than noise or a chord is: on one bare
+  // tone the level hold has only that tone to go by, and steps the copy back
+  // for a third of every beat).
   {
     device.init(kRate);
     std::vector<float> low = sine(60.0f, 4.0f, kRate, 0.5f);
@@ -287,7 +289,7 @@ int main() {
     Stereo high = run(device, sine(1500.0f, 4.0f, kRate, 0.5f));
     const double spread = correlation(high.left, high.right, from, to);
     std::snprintf(label, sizeof label, "1500 Hz above Focus: sides correlate only %.2f", spread);
-    EXPECT(spread < 0.8, label);
+    EXPECT(spread < 0.9, label);
   }
 
   // Default patch on pink noise: each side as loud as the dry sound, wide but
@@ -329,6 +331,37 @@ int main() {
                   "copies), level %+.2f dB",
                   white_sides, white_level);
     EXPECT(white_sides > 0.3 && white_sides < 0.7 && std::fabs(white_level) < 1.0, label);
+  }
+
+  // A held chord through the default patch keeps its level: single partials
+  // beat against their copies, but the whole chord does not sag on either
+  // side (without the level hold the deepest dip here is 8 to 10 dB).
+  for (float root : {220.0f, 261.63f}) {
+    device.init(kRate);
+    std::vector<float> chord(static_cast<size_t>(12.0f * kRate), 0.0f);
+    for (float ratio : {1.0f, 1.2599f, 1.4983f, 2.0f}) {
+      for (int k = 1; k <= 8; ++k) {
+        for (size_t i = 0; i < chord.size(); ++i) {
+          chord[i] += static_cast<float>(
+              0.1 / (k * k) *
+              std::sin(2.0 * kPi * root * ratio * k * static_cast<double>(i) / kRate + 0.5 * k));
+        }
+      }
+    }
+    Stereo out = run(device, chord);
+    const size_t window = static_cast<size_t>(0.1f * kRate);
+    const double level = rms(chord, window, chord.size());
+    double dip[2] = {0.0, 0.0};
+    for (size_t at = static_cast<size_t>(kRate); at + window <= chord.size(); at += window / 2) {
+      dip[0] = std::min(dip[0], db(rms(out.left, at, at + window) / level));
+      dip[1] = std::min(dip[1], db(rms(out.right, at, at + window) / level));
+    }
+    const double sides = correlation(out.left, out.right, static_cast<size_t>(kRate), out.size());
+    std::snprintf(label, sizeof label,
+                  "held chord on %.0f Hz at defaults: deepest dip of the whole chord %.2f dB left, "
+                  "%.2f dB right; sides correlate %.2f",
+                  root, dip[0], dip[1], sides);
+    EXPECT(dip[0] > -3.0 && dip[1] > -3.0 && sides < 0.82, label);
   }
 
   // Mix 0 is the input, bit for bit.

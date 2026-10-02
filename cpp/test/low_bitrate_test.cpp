@@ -197,7 +197,7 @@ int main() {
       std::printf("low-bitrate: Loss %.1f: %4.1f %% of bins empty, energy above 4.5/8/14 kHz %6.1f %6.1f %6.1f dB, "
                   "level %+.2f dB\n",
                   settings[k], 100.0 * empty[k], upper[k], above[k], top[k], level[k]);
-      EXPECT(std::fabs(level[k]) < 3.0, "Standard: the level of a sustained chord stays within 3 dB at every Loss");
+      EXPECT(std::fabs(level[k]) < 3.0, "Kept: the level of a sustained chord stays within 3 dB at every Loss");
       if (k > 0) {
         EXPECT(empty[k] > empty[k - 1], "more Loss leaves more of the spectrum empty");
         EXPECT(above[k] < above[k - 1] + 1.0 && top[k] < top[k - 1] + 1.0 && upper[k] < upper[k - 1] + 1.0,
@@ -228,8 +228,8 @@ int main() {
     EXPECT(std::fabs(level) < 3.0, "the level holds at every sample rate");
   }
 
-  // Standard and Inverse split the stream between them: Inverse is the input
-  // minus what Standard keeps (quantised), before each mode's own make-up
+  // Kept and Residue split the stream between them: Residue is the input
+  // minus what Kept keeps (quantised), before each mode's own make-up
   // gain. On a steady sound those gains are steady, so two fitted scalars
   // make the two outputs add up to the input.
   {
@@ -256,18 +256,18 @@ int main() {
       error += d * d;
     }
     const double overlap = si / std::sqrt(ss * ii);
-    std::printf("low-bitrate: Standard/%.3f + Inverse/%.3f = input to %.1f dB; the two correlate by %+.3f\n",
+    std::printf("low-bitrate: Kept/%.3f + Residue/%.3f = input to %.1f dB; the two correlate by %+.3f\n",
                 1.0 / a, 1.0 / b, 10.0 * std::log10(error / xx), overlap);
-    EXPECT(10.0 * std::log10(error / xx) < -40.0, "Standard plus Inverse, each without its make-up gain, is the input");
+    EXPECT(10.0 * std::log10(error / xx) < -40.0, "Kept plus Residue, each without its make-up gain, is the input");
     EXPECT(1.0 / a >= 0.99 && 1.0 / a <= 2.01 && 1.0 / b >= 0.99 && 1.0 / b <= 8.01, "make-up gains are within their limits");
-    EXPECT(rms(part[1].left, from) > 0.1 * rms(in.left, from), "Inverse is audible at Loss 0.6");
+    EXPECT(rms(part[1].left, from) > 0.1 * rms(in.left, from), "Residue is audible at Loss 0.6");
     clean(device);
     device.set_param(p::kMode, 1.0f);
     Stereo nothing = run(device, in.left, in.right);
-    EXPECT(peak(nothing.left) == 0.0 && peak(nothing.right) == 0.0, "Inverse at Loss 0: nothing is thrown away, silence");
+    EXPECT(peak(nothing.left) == 0.0 && peak(nothing.right) == 0.0, "Residue at Loss 0: nothing is thrown away, silence");
   }
 
-  // Jitter: every third octave keeps its level while the waveform stops
+  // Scattered: every third octave keeps its level while the waveform stops
   // resembling the input.
   {
     rng_state() = 0x1177u;
@@ -288,15 +288,15 @@ int main() {
                               band_db(in, kRate, hz, hi, 24000, late.size());
         if (std::fabs(change) > std::fabs(worst)) worst = change;
       }
-      std::printf("low-bitrate: Jitter at Loss %.2f: correlation with the input %.3f, worst third octave %+.2f dB\n",
+      std::printf("low-bitrate: Scattered at Loss %.2f: correlation with the input %.3f, worst third octave %+.2f dB\n",
                   settings[k], alike[k], worst);
-      EXPECT(std::fabs(worst) < 2.0, "Jitter keeps the long-term spectrum within 2 dB per third octave");
-      EXPECT(correlation(out.left, out.right, 24000) > 0.999, "Jitter keeps a mono input mono");
+      EXPECT(std::fabs(worst) < 2.0, "Scattered keeps the long-term spectrum within 2 dB per third octave");
+      EXPECT(correlation(out.left, out.right, 24000) > 0.999, "Scattered keeps a mono input mono");
     }
-    EXPECT(alike[0] > 0.9999, "Jitter at Loss 0 is the input");
+    EXPECT(alike[0] > 0.9999, "Scattered at Loss 0 is the input");
     EXPECT(alike[1] < 0.97 && alike[2] < alike[1] - 0.1 && alike[3] < alike[2] - 0.1,
-           "Jitter: the correlation with the input falls as Loss rises");
-    EXPECT(std::fabs(alike[3]) < 0.1, "Jitter at full Loss has nothing of the input's waveform left");
+           "Scattered: the correlation with the input falls as Loss rises");
+    EXPECT(std::fabs(alike[3]) < 0.1, "Scattered at full Loss has nothing of the input's waveform left");
   }
 
   // Dropouts: the share of the stream that goes missing is 0.5 × Dropouts^1.5,
@@ -477,7 +477,7 @@ int main() {
         const double step = max_step(out.left, from), dc = mean(out.left, from);
         std::printf("low-bitrate: 440 Hz, mode %d, frame %d: largest step %.4f (tone %.4f), DC %+.5f, level %+.1f dB\n",
                     mode, frame, step, own_step, dc, db(rms(out.left, from) / 0.3536));
-        // Standard leaves the tone a tone. Inverse and Jitter turn it into
+        // Kept leaves the tone a tone. Residue and Scattered turn it into
         // something broader, whose own steps are steeper; a click where two
         // frames fail to join would be a jump of the tone's amplitude.
         EXPECT(step < (mode == 0 ? 1.5 * own_step : 0.2 * 0.5), "no click at frame boundaries on a steady tone");
@@ -574,7 +574,7 @@ int main() {
     EXPECT(peak(gone.left) == 0.0 && peak(gone.right) == 0.0, "Smear back to 0: the wash is let go, then silence");
   }
 
-  // Inverse with Smear: the wash hangs at the level of the residue it holds.
+  // Residue with Smear: the wash hangs at the level of the residue it holds.
   // (The residue of a kept bin is its rounding error; read through the
   // input's phase it came out many times too loud, and the hold kept that:
   // struck notes at 0.6 peaked at 1.8.)
@@ -606,11 +606,11 @@ int main() {
       device.set_param(p::kSmear, 0.4f);
       Stereo out = run(device, plucks);
       const double level = db(rms(out.left) / rms(plucks)), top = db(loudest(out.left) / loudest(plucks));
-      std::printf("low-bitrate: Inverse with Smear 0.4 at Loss %.1f on struck notes: level %+.1f dB, loudest 50 ms %+.1f dB, "
+      std::printf("low-bitrate: Residue with Smear 0.4 at Loss %.1f on struck notes: level %+.1f dB, loudest 50 ms %+.1f dB, "
                   "peak %.2f (dry %.2f)\n",
                   loss, level, top, peak(out.left), peak(plucks));
       EXPECT(level < 3.0 && top < 4.0 && peak(out.left) < 2.0 * peak(plucks),
-             "Inverse with Smear is no louder than the sound it is the residue of");
+             "Residue with Smear is no louder than the sound it is the residue of");
     }
   }
 
@@ -621,7 +621,7 @@ int main() {
     const std::vector<float> left = noise(4.0f, kRate, 0.3f), right = noise(4.0f, kRate, 0.3f);
     auto side_db = [&](float stereo, float loss, double lo, double hi) {
       clean(device);
-      device.set_param(p::kMode, 2.0f);  // Jitter: all magnitudes kept, so only the collapse acts
+      device.set_param(p::kMode, 2.0f);  // Scattered: all magnitudes kept, so only the collapse acts
       device.set_param(p::kLoss, loss);
       device.set_param(p::kStereo, stereo);
       Stereo out = run(device, left, right);
@@ -768,7 +768,7 @@ int main() {
     EXPECT(rms(still.left) > 0.1, "a frozen wash keeps the device awake");
   }
 
-  // With everything on (packet events, Smear, Jitter's random angles), the
+  // With everything on (packet events, Smear, Scattered's random angles), the
   // output is the same for blocks of 1, 128 and 2048 frames and after a
   // second init.
   {

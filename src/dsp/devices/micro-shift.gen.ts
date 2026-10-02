@@ -121,9 +121,9 @@ export const MICRO_SHIFT_DESCRIPTOR = wasmDeviceDescriptor(MICRO_SHIFT_DEVICE, {
       mix: 0.36,
     },
     'Subtle halo': { detune: 4, delay: 12, drift: 0.1, tone: 6000, mix: 0.28 },
-    'Thick double': { detune: 20, delay: 32, drift: 0.25, tone: 8000, mix: 0.5 },
-    'Treated piano': { detune: 12, delay: 18, drift: 0.45, focus: 250, tone: 3500, mix: 0.55 },
-    'Wide open': { detune: 14, delay: 20, drift: 0.2, focus: 120, tone: 18000, mix: 0.65 },
+    'Thick double': { detune: 20, delay: 32, drift: 0.25, tone: 8000, mix: 0.38 },
+    'Treated piano': { detune: 12, delay: 18, drift: 0.45, focus: 250, tone: 3500, mix: 0.38 },
+    'Wide open': { detune: 14, delay: 20, drift: 0.2, focus: 120, tone: 18000, mix: 0.43 },
     Spiral: {
       detune: 14,
       delay: 45,
@@ -131,7 +131,7 @@ export const MICRO_SHIFT_DESCRIPTOR = wasmDeviceDescriptor(MICRO_SHIFT_DEVICE, {
       feedback: 0.62,
       focus: 300,
       tone: 5000,
-      mix: 0.45,
+      mix: 0.35,
     },
     'Detune cloud': {
       detune: 6,
@@ -140,10 +140,10 @@ export const MICRO_SHIFT_DESCRIPTOR = wasmDeviceDescriptor(MICRO_SHIFT_DEVICE, {
       feedback: 0.5,
       focus: 400,
       tone: 9000,
-      mix: 0.45,
+      mix: 0.36,
     },
-    Seasick: { detune: 40, delay: 24, drift: 0.9, tone: 6000, mix: 0.5 },
-    'Centre thickener': { detune: 7, delay: 12, drift: 0.1, width: 0, mix: 0.45 },
+    Seasick: { detune: 40, delay: 24, drift: 0.9, tone: 6000, mix: 0.4 },
+    'Centre thickener': { detune: 7, delay: 12, drift: 0.1, width: 0, mix: 0.28 },
   },
 })
 

@@ -385,7 +385,7 @@ struct Static {
   // crackle peaks about 14 dB over the bed's RMS and most are far smaller; a
   // crash is a swell of 3 to 5 dB. (The device shaves the few peaks that
   // would pass 14 dB over the RMS.)
-  static constexpr float kCrackle = 2.4f;
+  static constexpr float kCrackle = 2.0f;
   static constexpr float kCrackleCeiling = 1.6f;
   static constexpr float kCrash = 0.45f;
   static constexpr float kCrashCeiling = 1.6f;

@@ -5,6 +5,8 @@
 #include "../devices/half-speed/half_speed.h"
 #include "support/test_kit.h"
 
+#include <limits>
+
 using namespace testkit;
 using livemix::HalfSpeed;
 namespace p = livemix::half_speed;
@@ -645,6 +647,80 @@ int main() {
     EXPECT(worst_balance < 1.6, "Spread: the right side of a held chord is nearly as loud as the left");
     EXPECT(worst_left < 3.5, "a held chord holds steady on the left across cycles");
     EXPECT(worst_right < 4.5, "a held chord does not pump on the right across cycles");
+  }
+
+  // One bad input sample in the middle of a held chord (not a number,
+  // infinite, absurdly large), at the defaults and at two other patches: the
+  // output stays finite and bounded, is back at its level within a second,
+  // ends in exact zeros, and the next phrase plays as on a fresh device.
+  {
+    const std::vector<float> in = phrase();
+    const float bad[3] = {std::numeric_limits<float>::quiet_NaN(),
+                          std::numeric_limits<float>::infinity(), -1.0e30f};
+    auto patch = [](int which) {
+      device.init(kRate);
+      if (which == 1) {
+        device.set_param(p::kLength, 450.0f);
+        device.set_param(p::kFade, 0.5f);
+        device.set_param(p::kJitter, 1.0f);
+        device.set_param(p::kHighCut, 5000.0f);
+        device.set_param(p::kSpread, 1.0f);
+      } else if (which == 2) {
+        device.set_param(p::kLength, 1200.0f);
+        device.set_param(p::kSmooth, 1.0f);
+        device.set_param(p::kLowCut, 60.0f);
+        device.set_param(p::kHighCut, 2500.0f);
+        device.set_param(p::kMix, 0.3f);
+      }
+    };
+    double worst_peak = 0.0, worst_later = 0.0;
+    for (int which = 0; which < 3; ++which) {
+      patch(which);
+      const Stereo clean = run(device, in);
+      for (float value : bad) {
+        std::vector<float> spoiled = in;
+        spoiled[6 * 48000] = value;
+        patch(which);
+        const Stereo out = run(device, spoiled);
+        EXPECT(finite(out.left) && finite(out.right), "a bad input sample: the output stays finite");
+        if (!finite(out.left) || !finite(out.right)) continue;
+        worst_peak = std::max(worst_peak, std::max(peak(out.left), peak(out.right)));
+        // A different splice may follow, so compare levels, not samples.
+        const size_t a = 7 * 48000, b = 9 * 48000;
+        worst_later = std::max(worst_later, std::fabs(db(rms(out.left, a, b)) - db(rms(clean.left, a, b))));
+        worst_later = std::max(worst_later, std::fabs(db(rms(out.right, a, b)) - db(rms(clean.right, a, b))));
+        const Stereo rest = render(device, 1.0f, kRate);
+        EXPECT(peak(rest.left) == 0.0 && peak(rest.right) == 0.0, "a bad input sample: asleep afterwards");
+        const Stereo again = run(device, in);
+        EXPECT(again.left == clean.left && again.right == clean.right,
+               "a bad input sample: the next phrase plays as on a fresh device");
+      }
+    }
+    std::printf("  one bad input sample (NaN, infinity, 1e30): peak %.2f, level from one second later "
+                "within %.2f dB of the clean render\n",
+                worst_peak, worst_later);
+    EXPECT(worst_peak < 8.0, "a bad input sample: the output stays bounded");
+    EXPECT(worst_later < 0.75, "a bad input sample: the level is back to normal within a second");
+  }
+
+  // Waking from sleep is a fresh start at every rate: a chord played after
+  // a burst and a silence comes out as it does from a device just made. (At
+  // 44.1 kHz the splice search's low-rate copy takes one frame in seven, and
+  // used to wake part of the way through its count.)
+  for (float rate : {44100.0f, 48000.0f}) {
+    std::vector<float> in = held_chord(196.0);
+    in.resize(static_cast<size_t>(3.0f * rate));
+    device.init(rate);
+    device.set_param(p::kSmooth, 1.0f);
+    const Stereo fresh = run(device, in);
+    device.init(rate);
+    device.set_param(p::kSmooth, 1.0f);
+    run(device, sine(330.0f, 1.0f, rate, 0.4f), 100);
+    const Stereo rest = render(device, 4.0f, rate, 100);
+    EXPECT(rest.left.back() == 0.0f && rest.right.back() == 0.0f, "asleep after a burst and a silence");
+    const Stereo woken = run(device, in);
+    EXPECT(woken.left == fresh.left && woken.right == fresh.right,
+           "waking from sleep plays like a fresh device");
   }
 
   // Worst case for level: full-scale noise, heads that share nothing, the

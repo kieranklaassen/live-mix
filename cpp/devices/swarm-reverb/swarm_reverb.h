@@ -1,36 +1,36 @@
 #pragma once
 
 // Swarm Reverb: a cavern made of a swarm of short echoes, on a delay line
-// whose clock can be dragged.
+// whose clock speed can be changed.
 //
-//   in ─►(+)─► dampen ─► low cut ─► 4 allpasses ─► line ─┬─ 14 taps ─► width ─► wet
-//         ▲                         (Diffuse)            └─ end of the line ─┐
-//         └── limit ◄── Reflect, eased as the cave fills ◄── rotate L/R ◄────┘
+//   in ─►(+)─► high cut ─► low cut ─► 4 allpasses ─► line ─┬─ 14 taps ─► width ─► wet
+//         ▲                             (Blur)             └─ end of the line ─┐
+//         └── limit ◄── Feedback, eased as the cave fills ◄── rotate L/R ◄─────┘
 //
 // - Two lines, one per side. Each is read by fourteen taps at uneven, seeded
 //   times between a few hundredths of Length and Length itself: a hit comes
 //   back as a rush of separate reflections. The left and right lines have
 //   different tap times, so the swarm is decorrelated without any polarity
 //   trick.
-// - Reflect sends the end of each line back in through a rotation that mixes
+// - Feedback sends the end of each line back in through a rotation that mixes
 //   left and right. The rotation loses nothing, so the gain round the loop is
-//   Reflect at every frequency (no one resonance takes over), and each trip
-//   doubles the number of echo paths: the swarm piles up into a cave. Dampen
+//   Feedback at every frequency (no one resonance takes over), and each trip
+//   doubles the number of echo paths: the swarm piles up into a cave. High Cut
 //   and Low Cut are second-order filters in the loop, so between their
-//   corners almost nothing is lost and at Reflect 1 the cave hangs for
+//   corners almost nothing is lost and at Feedback 1 the cave hangs for
 //   minutes. Past 1 the loop grows until the return is eased back: a slow
 //   ride on the level in the lines rather than a clipper, so a chord left
 //   to regenerate stays a chord. A soft limiter behind it catches peaks.
 // - Every delay in the device (taps, loop reads, allpass lengths) is a
-//   distance on one tape whose speed is 1 / (Length x Drag). The device keeps
+//   distance on one tape whose speed is 1 / (Length x Stretch). The device keeps
 //   the history of the tape position and, for each read, finds when the
 //   sample now under it was written. So when the speed changes from v1 to
 //   v2, everything already on the tape plays back at v2 / v1 until it has
-//   passed its tap, exactly as on a delay whose clock is turned: Drag bends
+//   passed its tap, exactly as on a delay whose clock is turned: Stretch bends
 //   the whole cave by one ratio. With Steps on, the speeds are related by
 //   octaves, fifths and fourths, so the bend is a musical interval. What has
 //   been bent and goes round again stays bent.
-// - Wander moves Drag on its own: a slow seeded drift, or with Steps on a
+// - Wander moves Stretch on its own: a slow seeded drift, or with Steps on a
 //   seeded walk between neighbouring steps.
 // - Every other tap, and both loop reads, are also swept a little by their
 //   own slow sines, which keeps the cluster from ringing like a comb. Every
@@ -53,7 +53,7 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
     for (int c = 0; c < 2; ++c) {
       line_[c].clear();
       for (int a = 0; a < kStages; ++a) allpass_[c][a].clear();
-      dampen_[c].reset();
+      high_cut_[c].reset();
       low_cut_[c].reset();
     }
     side_low_.reset();
@@ -70,8 +70,8 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
     chunk_at_ = 0;
     build_swarm();
 
-    reflect_.set_time(kSmoothingSeconds, sr);
-    diffuse_.set_time(kSmoothingSeconds, sr);
+    feedback_.set_time(kSmoothingSeconds, sr);
+    blur_.set_time(kSmoothingSeconds, sr);
     dry_.set_time(kSmoothingSeconds, sr);
     wet_.set_time(kSmoothingSeconds, sr);
     width_.set_time(kSmoothingSeconds, sr);
@@ -80,9 +80,9 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
     length_.set_time(kLengthGlideSeconds, control_rate);
     depth_.set_time(0.05f, control_rate);
     wander_.set_time(0.05f, control_rate);
-    dampen_hz_.set_time(0.02f, control_rate);
+    high_cut_hz_.set_time(0.02f, control_rate);
     low_cut_hz_.set_time(0.02f, control_rate);
-    drag_ = 0.0f;
+    stretch_ = 0.0f;
     fill_ = 0.0f;
     fill_coeff_ = kit::time_to_coeff(kFillSeconds, sr);
 
@@ -94,7 +94,7 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
     step_armed_ = false;
 
     clock_.reset(kControlPeriod);
-    // The longest silent gap is the longest tap: Length x Drag at their tops.
+    // The longest silent gap is the longest tap: Length x Stretch at their tops.
     idle_.reset(sr, kParamMax[kLength] * 2.0f + 0.6f);
     started_ = false;
     for (int id = 0; id < kNumParams; ++id) apply(id);
@@ -150,7 +150,7 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
   static constexpr float kFullLevel = 0.4f;
   static constexpr float kFillSeconds = 0.25f;
   static constexpr float kAntiDenormal = 1.0e-18f;
-  // Drag positions with Steps on, in octaves of time: 1/2, 2/3, 3/4, 1, 4/3,
+  // Stretch positions with Steps on, in octaves of time: 1/2, 2/3, 3/4, 1, 4/3,
   // 3/2 and 2 times Length.
   static constexpr float kStepOctaves[kStepCount] = {-1.0f,     -0.5849625f, -0.4150375f, 0.0f,
                                                  0.4150375f, 0.5849625f,  1.0f};
@@ -293,8 +293,8 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
       started_ = true;
       chunk_at_ = 0;
     }
-    const float reflect = glide(reflect_);
-    const float diffusion = glide(diffuse_);
+    const float feedback = glide(feedback_);
+    const float diffusion = glide(blur_);
     const float back[2] = {back_chunk_[0][chunk_at_], back_chunk_[1][chunk_at_]};
     const float swarm[2] = {swarm_chunk_[0][chunk_at_], swarm_chunk_[1][chunk_at_]};
     ++chunk_at_;
@@ -302,20 +302,20 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
     // The return: a quarter-turn rotation between the sides, then the limiter.
     const float turned[2] = {(back[0] + back[1]) * kit::kSqrtHalf,
                              (back[1] - back[0]) * kit::kSqrtHalf};
-    // What holds the loop when Reflect is past 1: the return is turned down
+    // What holds the loop when Feedback is past 1: the return is turned down
     // as the cave fills (half the excess, in dB, over kFullLevel). It rides
     // the level slowly instead of clipping the waveform, so a chord left to
     // regenerate stays a chord and does not collapse onto its loudest note.
     // The limiter after it only catches peaks.
     const float power = 0.5f * (back[0] * back[0] + back[1] * back[1]);
     fill_ = flush_denormal(power + (fill_ - power) * fill_coeff_);
-    float hold = reflect;
+    float hold = feedback;
     if (fill_ > kFullLevel * kFullLevel) hold *= std::sqrt(kFullLevel / std::sqrt(fill_));
     for (int c = 0; c < 2; ++c) {
       float x = in[c] + limit(hold * turned[c]);
       // A constant far below hearing keeps the four recursions out of the
       // denormal range while a tail dies away, for less than flushing each.
-      x = low_cut_[c].highpass(dampen_[c].lowpass(x)) + kAntiDenormal;
+      x = low_cut_[c].highpass(high_cut_[c].lowpass(x)) + kAntiDenormal;
       for (int a = 0; a < kStages; ++a) {
         Read& stage = stage_[c][a];
         const float delayed = stage.whole
@@ -384,7 +384,7 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
     read.delay = target;
   }
 
-  // With Steps on, Wander is a walk: every few seconds Drag jumps to another
+  // With Steps on, Wander is a walk: every few seconds Stretch jumps to another
   // step within reach. More Wander reaches further and jumps more often.
   int walk(float wander) {
     if (wander < 0.005f) {
@@ -410,12 +410,12 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
     return step_offset_;
   }
 
-  // Every 16 samples: where Drag is, how fast the tape runs, where every
+  // Every 16 samples: where Stretch is, how fast the tape runs, where every
   // read point is going, and the loop filters.
   void control() {
     using namespace swarm_reverb;
     const float sr = sample_rate();
-    const float knob = 2.0f * param(kDrag) - 1.0f;
+    const float knob = 2.0f * param(kStretch) - 1.0f;
     const float wander = wander_.next();
     const float drift = wander_drift_.next(kControlPeriod);
     float target = knob;
@@ -436,13 +436,13 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
       step_armed_ = false;
     }
     if (!started_) {
-      drag_ = target;
+      stretch_ = target;
     } else {
-      // Drag Time is the time to cover 95 % of a move.
-      const float coeff = kit::time_to_coeff(param(kDragTime) * (1.0f / 3.0f), sr / kControlPeriod);
-      drag_ = flush_denormal(target + (drag_ - target) * coeff);
+      // Glide is the time to cover 95 % of a move.
+      const float coeff = kit::time_to_coeff(param(kGlide) * (1.0f / 3.0f), sr / kControlPeriod);
+      stretch_ = flush_denormal(target + (stretch_ - target) * coeff);
     }
-    const float octaves = kit::clamp(drag_ + free, -1.0f, 1.0f);
+    const float octaves = kit::clamp(stretch_ + free, -1.0f, 1.0f);
     const float seconds = std::exp2(length_.next() + octaves);
     const double speed = 1.0 / (static_cast<double>(seconds) * sr);  // Lengths per sample
 
@@ -469,11 +469,11 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
     ++tick_;
 
     // Both second-order Butterworth: next to no loss between the corners, so
-    // at the top of Reflect the middle of the spectrum hangs while the edges
+    // at the top of Feedback the middle of the spectrum hangs while the edges
     // fall away a little more on every trip.
-    dampen_[0].set(dampen_hz_.next(), kit::kSqrtHalf, sr);
+    high_cut_[0].set(high_cut_hz_.next(), kit::kSqrtHalf, sr);
     low_cut_[0].set(low_cut_hz_.next(), kit::kSqrtHalf, sr);
-    copy_tuning(dampen_[0], &dampen_[1]);
+    copy_tuning(high_cut_[0], &high_cut_[1]);
     copy_tuning(low_cut_[0], &low_cut_[1]);
   }
   void apply(int id) {
@@ -483,18 +483,18 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
       case kLength:
         length_.set(std::log2(value), primed());
         break;
-      case kDiffuse:
-        diffuse_.set(value * kMaxDiffusion, primed());
+      case kBlur:
+        blur_.set(value * kMaxDiffusion, primed());
         break;
-      case kReflect:
-        reflect_.set(value, primed());
+      case kFeedback:
+        feedback_.set(value, primed());
         // A long decay stores more energy for the same input; take half of
-        // that back (in dB) so Reflect is not also a volume knob.
+        // that back (in dB) so Feedback is not also a volume knob.
         level_.set(kWetGain * std::sqrt(std::sqrt(kit::max(1.0f - value * value, 0.04f))),
                    primed());
         break;
-      case kDampen:
-        dampen_hz_.set(value, primed());
+      case kHighCut:
+        high_cut_hz_.set(value, primed());
         break;
       case kLowCut:
         low_cut_hz_.set(value, primed());
@@ -517,7 +517,7 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
         break;
       }
       default:
-        break;  // Drag, Drag Time and Steps are read on the control clock
+        break;  // Stretch, Glide and Steps are read on the control clock
     }
   }
 
@@ -533,12 +533,12 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
   Read loop_[2];
   Read stage_[2][kStages];
 
-  kit::Svf dampen_[2];
+  kit::Svf high_cut_[2];
   kit::Svf low_cut_[2];
   kit::OnePole side_low_;
-  kit::Smoother reflect_, diffuse_, dry_, wet_, width_, level_;
-  kit::Smoother length_, depth_, wander_, dampen_hz_, low_cut_hz_;
-  float drag_ = 0.0f;  // where Drag is now, in octaves of time
+  kit::Smoother feedback_, blur_, dry_, wet_, width_, level_;
+  kit::Smoother length_, depth_, wander_, high_cut_hz_, low_cut_hz_;
+  float stretch_ = 0.0f;  // where Stretch is now, in octaves of time
   float fill_ = 0.0f;  // mean square at the end of the lines
   float fill_coeff_ = 0.0f;
   kit::Drift wander_drift_;

@@ -24,9 +24,9 @@ export const LOW_BITRATE_PARAMS = {
     default: 0,
     taper: 'linear',
     unit: '',
-    choices: ['Standard', 'Inverse', 'Jitter'],
+    choices: ['Kept', 'Residue', 'Scattered'],
     description:
-      'Standard plays what survives the loss. Inverse plays only what was thrown away, a thin ghost of the sound. Jitter keeps every frequency but scrambles its timing, which smears attacks into a diffuse haze.',
+      'Kept plays what survives the loss. Residue plays only what was thrown away, a thin ghost of the sound. Scattered keeps every frequency but scrambles its timing, which smears attacks into a diffuse haze.',
   },
   frame: {
     id: 2,

@@ -2,7 +2,7 @@
 
 // Analog Drive: a sound pushed through one of five circuits.
 //
-//   in ─┬─► low cut ─► Thump ─► [ circuit: emphasis ─► × drive ─► 4x up ─► curve ─► 4x down ─►
+//   in ─┬─► low cut ─► Low Bump ─► [ circuit: emphasis ─► × drive ─► 4x up ─► curve ─► 4x down ─►
 //       │                                  de-emphasis ─► DC block ─► × make-up ] ─► Tone ─►
 //       │                                  high cut ─► × Output ─► safety ─┐
 //       └─► delay 39 ────────────────────────────────────────────── dry ─► Mix ─► out
@@ -42,7 +42,7 @@
 //   is worked out and copied to the other, which halves the cost; the first
 //   frame that differs gives the right channel a copy of every state, so the
 //   result is the same to the last bit either way.
-// - Low Cut and Thump are before the circuit, Tone and High Cut after it.
+// - Low Cut and Low Bump are before the circuit, Tone and High Cut after it.
 //   Each is skipped while it is out of the path (Low Cut and High Cut fade
 //   out over the last part of their travel, so both ends are a clean bypass).
 
@@ -70,7 +70,7 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
     output_.set_time(kSmoothingSeconds, sr);
     mix_.set_time(kSmoothingSeconds, sr);
     low_cut_.set_time(kFilterGlideSeconds, control_rate);
-    thump_.set_time(kFilterGlideSeconds, control_rate);
+    low_bump_.set_time(kFilterGlideSeconds, control_rate);
     tone_.set_time(kFilterGlideSeconds, control_rate);
     high_cut_.set_time(kFilterGlideSeconds, control_rate);
     auto_gain_.set_time(kAutoGainGlideSeconds, control_rate);
@@ -151,7 +151,7 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
         // of the path; it comes back in from rest with its share at zero.
         pre[c] = in[c];
         if (low_cut_on_) pre[c] += (low_cut_filter_[c].process(in[c]) - in[c]) * low_cut_amount_;
-        if (thump_on_) pre[c] = thump_filter_[c].process(pre[c]);
+        if (low_bump_on_) pre[c] = low_bump_filter_[c].process(pre[c]);
       }
 
       float wet[2];
@@ -193,7 +193,7 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
   // exactly the input up to +-1.5 (so nothing at a sensible level is
   // touched, to the bit), then a smooth knee that lands on +-4. It is there
   // for the gain a player can ask for and should not get in headphones: Auto
-  // Gain off, Thump, Tone and Output all up came to 26 without it. The knee
+  // Gain off, Low Bump, Tone and Output all up came to 26 without it. The knee
   // joins the straight part with the same slope and curvature, and it only
   // works far above full scale, so it runs at the plain rate.
   // Where the Drive knob sits in the gain range, 0 to 1: gain in dB into
@@ -242,10 +242,10 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
   static constexpr float kAutoGainGlideSeconds = 0.03f;
   static constexpr float kDcHz = 7.0f;
   static constexpr float kDcFastHz = 40.0f;
-  static constexpr float kThumpDb = 9.0f;
-  static constexpr float kThumpQ = 1.1f;
-  static constexpr float kThumpRatio = 1.6f;
-  static constexpr float kThumpFloorHz = 60.0f;
+  static constexpr float kLowBumpDb = 9.0f;
+  static constexpr float kLowBumpQ = 1.1f;
+  static constexpr float kLowBumpRatio = 1.6f;
+  static constexpr float kLowBumpFloorHz = 60.0f;
   static constexpr float kToneDb = 6.0f;
   static constexpr float kTonePivotHz = 800.0f;
   // Low Cut fades out of the path over its bottom 10 Hz, High Cut over its
@@ -317,8 +317,8 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
         low_cut_.set(std::log(value), primed());
         filters_dirty_ = true;
         break;
-      case kThump:
-        thump_.set(value, primed());
+      case kLowBump:
+        low_bump_.set(value, primed());
         filters_dirty_ = true;
         break;
       case kTone:
@@ -348,13 +348,13 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
   // Jump to the current targets with clean state everywhere. Only called
   // when the signal path is empty (init, waking from sleep).
   void settle() {
-    kit::Smoother* smoothers[] = {&drive_, &output_, &mix_, &low_cut_, &thump_, &tone_, &high_cut_, &auto_gain_};
+    kit::Smoother* smoothers[] = {&drive_, &output_, &mix_, &low_cut_, &low_bump_, &tone_, &high_cut_, &auto_gain_};
     for (kit::Smoother* smoother : smoothers) smoother->snap(smoother->target);
     set_gain(drive_.value);
     for (int c = 0; c < 2; ++c) {
       dry_[c].clear();
       low_cut_filter_[c].reset();
-      thump_filter_[c].reset();
+      low_bump_filter_[c].reset();
       high_cut_filter_[c][0].reset();
       high_cut_filter_[c][1].reset();
       tilt_[c].reset();
@@ -366,7 +366,7 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
     fade_position_ = 0;
     clock_.reset(kControlPeriod);
     filters_dirty_ = true;
-    low_cut_on_ = thump_on_ = tone_on_ = high_cut_on_ = false;
+    low_cut_on_ = low_bump_on_ = tone_on_ = high_cut_on_ = false;
     makeup_drive_ = -1.0f;
     const Setup want = wanted();
     configure(lanes_[0], want, nullptr);
@@ -404,7 +404,7 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
     mono_ = false;
     dry_[1] = dry_[0];
     low_cut_filter_[1] = low_cut_filter_[0];
-    thump_filter_[1] = thump_filter_[0];
+    low_bump_filter_[1] = low_bump_filter_[0];
     high_cut_filter_[1][0] = high_cut_filter_[0][0];
     high_cut_filter_[1][1] = high_cut_filter_[0][1];
     tilt_[1] = tilt_[0];
@@ -465,11 +465,11 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
   void control() {
     const float sr = sample_rate();
     const bool moving =
-        !low_cut_.settled() || !thump_.settled() || !tone_.settled() || !high_cut_.settled();
+        !low_cut_.settled() || !low_bump_.settled() || !tone_.settled() || !high_cut_.settled();
     if (moving || filters_dirty_) {
       filters_dirty_ = false;
       const float low_hz = std::exp(low_cut_.next());
-      const float thump = thump_.next();
+      const float low_bump = low_bump_.next();
       const float tone = tone_.next();
       const float high_hz = std::exp(high_cut_.next());
       // (A hair of margin, so the ends of the travel land on 0 and 1
@@ -478,28 +478,28 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
           1.01f * std::log(low_hz / kLowCutOutHz) / std::log(kLowCutInHz / kLowCutOutHz) - 0.01f, 0.0f, 1.0f);
       high_cut_open_ = kit::clamp(
           1.01f * std::log(high_hz / kHighCutInHz) / std::log(kHighCutOutHz / kHighCutInHz), 0.0f, 1.0f);
-      const float thump_hz = kit::max(kThumpFloorHz, kThumpRatio * low_hz);
+      const float low_bump_hz = kit::max(kLowBumpFloorHz, kLowBumpRatio * low_hz);
       const bool low_cut_on = low_cut_amount_ > 0.0f;
-      const bool thump_on = thump > 0.0f;
+      const bool low_bump_on = low_bump > 0.0f;
       const bool tone_on = tone != 0.0f;
       const bool high_cut_on = high_cut_open_ < 1.0f;
       for (int c = 0; c < 2; ++c) {
         if (low_cut_on && !low_cut_on_) low_cut_filter_[c].reset();
-        if (thump_on && !thump_on_) thump_filter_[c].reset();
+        if (low_bump_on && !low_bump_on_) low_bump_filter_[c].reset();
         if (tone_on && !tone_on_) tilt_[c].reset();
         if (high_cut_on && !high_cut_on_) {
           high_cut_filter_[c][0].reset();
           high_cut_filter_[c][1].reset();
         }
         low_cut_filter_[c].set_highpass(low_hz, kit::kSqrtHalf, sr);
-        thump_filter_[c].set_bell(thump_hz, kThumpQ, kThumpDb * thump, sr);
+        low_bump_filter_[c].set_bell(low_bump_hz, kLowBumpQ, kLowBumpDb * low_bump, sr);
         tilt_[c].set(kToneDb * tone, kTonePivotHz, sr);
         // Fourth-order Butterworth as two sections.
         high_cut_filter_[c][0].set_lowpass(high_hz, 0.54119610f, sr);
         high_cut_filter_[c][1].set_lowpass(high_hz, 1.30656296f, sr);
       }
       low_cut_on_ = low_cut_on;
-      thump_on_ = thump_on;
+      low_bump_on_ = low_bump_on;
       tone_on_ = tone_on;
       high_cut_on_ = high_cut_on;
     }
@@ -575,12 +575,12 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
   kit::DelayLine<64> dry_[2];
   Lane lanes_[2];
   analog_drive_dsp::Section low_cut_filter_[2];
-  analog_drive_dsp::Section thump_filter_[2];
+  analog_drive_dsp::Section low_bump_filter_[2];
   analog_drive_dsp::Section high_cut_filter_[2][2];
   analog_drive_dsp::Tilt tilt_[2];
   kit::Smoother drive_, output_, mix_;
   // Stepped on the control clock.
-  kit::Smoother low_cut_, thump_, tone_, high_cut_, auto_gain_;
+  kit::Smoother low_cut_, low_bump_, tone_, high_cut_, auto_gain_;
   kit::ControlClock clock_;
   kit::IdleGate idle_;
   float gain_ = 1.0f;
@@ -591,7 +591,7 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
   bool filters_dirty_ = true;
   bool mono_ = true;
   bool low_cut_on_ = false;
-  bool thump_on_ = false;
+  bool low_bump_on_ = false;
   bool tone_on_ = false;
   bool high_cut_on_ = false;
   int active_ = 0;

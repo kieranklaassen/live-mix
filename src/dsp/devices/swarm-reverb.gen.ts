@@ -16,20 +16,20 @@ export const SWARM_REVERB_PARAMS = {
     description:
       'How long the swarm of echoes after each note lasts. Short is a tight cluster close behind the note, long is a slow scatter across a huge cave. Moving it bends what is already ringing.',
   },
-  diffuse: {
+  blur: {
     id: 1,
-    name: 'Diffuse',
+    name: 'Blur',
     min: 0,
     max: 1,
     default: 0.5,
     taper: 'linear',
     unit: '',
     description:
-      'Blurs the echoes into each other. At zero each one patters separately; turned up they smear into a wash.',
+      'Smears the echoes into each other. At zero each one patters separately; turned up they run together into a wash.',
   },
-  reflect: {
+  feedback: {
     id: 2,
-    name: 'Reflect',
+    name: 'Feedback',
     min: 0,
     max: 1.05,
     default: 0.6,
@@ -38,9 +38,9 @@ export const SWARM_REVERB_PARAMS = {
     description:
       'How much of the swarm is sent round again. Low is one rush of echoes, high is a cave that rings for a long time, and at the very top it never dies and slowly feeds on itself.',
   },
-  dampen: {
+  highCut: {
     id: 3,
-    name: 'Dampen',
+    name: 'High Cut',
     min: 800,
     max: 16000,
     default: 5000,
@@ -49,9 +49,9 @@ export const SWARM_REVERB_PARAMS = {
     description:
       'How bright the cave is. Lower settings take the top off the echoes, and more of it each time they go round.',
   },
-  drag: {
+  stretch: {
     id: 4,
-    name: 'Drag',
+    name: 'Stretch',
     min: 0,
     max: 1,
     default: 0.5,
@@ -60,16 +60,16 @@ export const SWARM_REVERB_PARAMS = {
     description:
       'Stretches or shrinks every echo at once. While it moves, everything in the cave bends in pitch: down as the cave grows, up as it shrinks. The middle is the size set by Length.',
   },
-  dragTime: {
+  glide: {
     id: 5,
-    name: 'Drag Time',
+    name: 'Glide',
     min: 0.02,
     max: 8,
     default: 0.6,
     taper: 'log',
     unit: 's',
     description:
-      'How quickly the cave follows Drag. Fast gives a sharp jump in pitch, slow a long glide.',
+      'How quickly the cave follows Stretch. Fast gives a sharp jump in pitch, slow a long slide.',
   },
   steps: {
     id: 6,
@@ -81,7 +81,7 @@ export const SWARM_REVERB_PARAMS = {
     unit: '',
     choices: ['Off', 'On'],
     description:
-      'With Steps on, Drag moves between seven sizes related by octaves, fifths and fourths, so every move is heard as a musical interval instead of a free bend.',
+      'With Steps on, Stretch moves between seven sizes related by octaves, fifths and fourths, so every move is heard as a musical interval instead of a free bend.',
   },
   wander: {
     id: 7,
@@ -92,7 +92,7 @@ export const SWARM_REVERB_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Lets Drag drift on its own so the cave keeps shifting. Smooth and seasick with Steps off; occasional interval jumps with Steps on.',
+      'Lets Stretch drift on its own so the cave keeps shifting. Smooth and seasick with Steps off; occasional interval jumps with Steps on.',
   },
   modulation: {
     id: 8,
@@ -152,44 +152,37 @@ export const SWARM_REVERB_DESCRIPTOR = wasmDeviceDescriptor(SWARM_REVERB_DEVICE,
   name: 'Swarm Reverb',
   category: 'reverb',
   description:
-    'A cavern built from a swarm of short echoes instead of a smooth tail, with a Drag control that stretches the whole cave and bends everything in it in pitch.',
+    'A cavern built from a swarm of short echoes instead of a smooth tail, with a Stretch control that resizes the whole cave and bends everything in it in pitch.',
   presets: {
     Cavern: {},
-    Pattering: {
-      length: 0.35,
-      diffuse: 0,
-      reflect: 0.35,
-      dampen: 8000,
-      modulation: 0.1,
-      mix: 0.35,
-    },
-    'Endless cave': { length: 0.8, diffuse: 0.8, reflect: 1, dampen: 4000, lowCut: 150, mix: 0.35 },
-    'Bending walls': { diffuse: 0.7, reflect: 0.75, dragTime: 2, wander: 0.5, modulation: 0.4 },
+    Pattering: { length: 0.35, blur: 0, feedback: 0.35, highCut: 8000, modulation: 0.1, mix: 0.35 },
+    'Endless cave': { length: 0.8, blur: 0.8, feedback: 1, highCut: 4000, lowCut: 150, mix: 0.35 },
+    'Bending walls': { blur: 0.7, feedback: 0.75, glide: 2, wander: 0.5, modulation: 0.4 },
     'Interval ghosts': {
       length: 0.6,
-      diffuse: 0.6,
-      reflect: 0.75,
-      dragTime: 0.05,
+      blur: 0.6,
+      feedback: 0.75,
+      glide: 0.05,
       steps: 1,
       wander: 0.45,
     },
-    'Dark well': { length: 1.1, diffuse: 0.9, reflect: 0.6, dampen: 1400, lowCut: 60, mix: 0.45 },
-    'Small swarm': { length: 0.1, diffuse: 0.3, reflect: 0.45, modulation: 0.5, mix: 0.3 },
-    'Slow drag': {
+    'Dark well': { length: 1.1, blur: 0.9, feedback: 0.6, highCut: 1400, lowCut: 60, mix: 0.45 },
+    'Small swarm': { length: 0.1, blur: 0.3, feedback: 0.45, modulation: 0.5, mix: 0.3 },
+    'Slow stretch': {
       length: 0.7,
-      diffuse: 0.85,
-      reflect: 0.8,
-      dragTime: 5,
+      blur: 0.85,
+      feedback: 0.8,
+      glide: 5,
       steps: 1,
       wander: 0.3,
-      dampen: 6000,
+      highCut: 6000,
     },
   },
 })
 
 export type SwarmReverb = WasmDevice<typeof SWARM_REVERB_PARAMS>
 
-/** A cavern built from a swarm of short echoes instead of a smooth tail, with a Drag control that stretches the whole cave and bends everything in it in pitch. */
+/** A cavern built from a swarm of short echoes instead of a smooth tail, with a Stretch control that resizes the whole cave and bends everything in it in pitch. */
 export function createSwarmReverb(
   context: BaseAudioContext,
   options: WasmDeviceOptions<typeof SWARM_REVERB_PARAMS> = {},

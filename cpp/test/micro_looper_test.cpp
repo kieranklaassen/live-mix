@@ -143,7 +143,7 @@ int main() {
     EXPECT(worst_difference(listen.left, input, dry_gain) < 1.0e-6, "Listen passes only the dry signal");
     render(device, 0.2f, kRate);
     Stereo rest = render(device, 0.2f, kRate);
-    EXPECT(peak(rest.left) == 0.0 && peak(rest.right) == 0.0, "Listen sleeps as soon as the input stops");
+    EXPECT(peak(rest.left) == 0.0 && peak(rest.right) == 0.0, "Listen is silent as soon as the input stops");
     for (int state : {kListen, kHold, kAuto}) {
       device.init(kRate);
       device.set_param(p::kState, static_cast<float>(state));
@@ -651,6 +651,121 @@ int main() {
     const double level = tone_level(after.left, 440.0, kRate, 24000, 24000 + 12000);
     std::printf("micro-looper: Hold from empty, phrase starting at full level: loop at %.4f\n", level);
     EXPECT(level > 0.2, "Hold from empty takes the phrase, not the silence before it");
+  }
+
+  // The join follows how alike its two sides are. A held tone that meets
+  // itself in phase at the loop point (200 Hz, 0.5 s: 100 whole periods)
+  // must pass through the join at its own level; under an equal-power fade
+  // it swelled by 3 dB on every pass. Noise, whose two sides have nothing in
+  // common, must still keep its level (equal power).
+  {
+    const float length = 0.5f;
+    const size_t n = static_cast<size_t>(length * kRate);
+    const size_t join = n / 25;  // 4 % of the loop
+    rng_state() = 0x701Eu;
+    const std::vector<float> inputs[2] = {sine(200.0f, 1.5f, kRate, 0.3f), noise(1.5f, kRate, 0.2f)};
+    double bump[2] = {0.0, 0.0};
+    for (int k = 0; k < 2; ++k) {
+      plain(device, length);
+      run(device, inputs[k]);
+      device.set_param(p::kState, kHold);
+      Stereo held = render(device, 5.0f, kRate);
+      double inside = 0.0, outside = 0.0;
+      for (size_t pass = 2; pass < 8; ++pass) {
+        // The middle half of the join (whole periods of the tone) against
+        // the middle of the loop.
+        const double a = rms(held.left, pass * n - join + join / 4, pass * n - join / 4);
+        const double b = rms(held.left, pass * n - n / 2, pass * n - n / 2 + 4800);
+        inside += a * a;
+        outside += b * b;
+      }
+      bump[k] = 10.0 * std::log10(inside / outside);
+    }
+    std::printf("micro-looper: level through the join: a tone in phase with itself %+.2f dB, noise %+.2f dB\n",
+                bump[0], bump[1]);
+    EXPECT(std::fabs(bump[0]) < 0.5, "a loop that meets itself in phase does not swell at the join");
+    EXPECT(std::fabs(bump[1]) < 1.0, "an unrelated join still keeps its level");
+  }
+
+  // Hold a moment after the playing has stopped: the device must not have
+  // gone to sleep on the silence and emptied its memory. Past one Length of
+  // silence there is nothing to take, and Hold waits.
+  {
+    const float length = 1.0f;
+    std::vector<float> input = phrase(1.0f, 330.0f, 0x6A9u);
+    double level[2] = {0.0, 0.0};
+    int k = 0;
+    for (float gap : {0.3f, 1.5f}) {
+      plain(device, length);
+      run(device, input);
+      render(device, gap, kRate);
+      device.set_param(p::kState, kHold);
+      Stereo held = render(device, 4.0f, kRate);
+      level[k++] = rms(held.left, 48000, 3 * 48000);
+    }
+    std::printf("micro-looper: Hold 0.3 s after the playing stopped: loop at %.1f dB (the phrase %.1f dB); 1.5 s after: %.1f dB\n",
+                db(level[0]), db(rms(input)), db(level[1]));
+    EXPECT(level[0] > 0.5 * rms(input), "Hold just after the playing stopped still takes what was played");
+    EXPECT(level[1] == 0.0, "Hold after more than a Length of silence has nothing to take");
+  }
+
+  // The default patch as a first impression: one phrase, and its first pass
+  // comes back as a bed 5 to 10 dB under the level it was played at.
+  {
+    device.init(kRate);
+    std::vector<float> input = phrase(1.0f, 330.0f, 0xBEDu);
+    input.resize(4 * 48000, 0.0f);
+    Stereo out = run(device, input);
+    const double played = std::cos(0.5 * kPi * p::kParamDefault[p::kMix]) * rms(input, 0, 48000);
+    const double bed = rms(out.left, 2 * 48000, 3 * 48000);
+    std::printf("micro-looper: default patch: the bed's first pass is %+.1f dB against the phrase as played\n",
+                db(bed / played));
+    EXPECT(db(bed / played) < -5.0 && db(bed / played) > -10.0, "the default bed sits 5 to 10 dB under the playing");
+  }
+
+  // One bad input sample in the middle of a phrase (not a number, infinite,
+  // absurdly large), at full clock and through the clock's filters: the
+  // output stays finite and bounded, the next phrase is looped as if nothing
+  // had happened, and the device still dies away to exact zeros.
+  {
+    const size_t second = 48000;
+    std::vector<float> input = phrase(0.6f, 300.0f, 0xBADu);
+    input.resize(3 * second, 0.0f);
+    std::vector<float> next = phrase(0.6f, 500.0f, 0xBAD2u);
+    input.insert(input.end(), next.begin(), next.end());
+    input.resize(6 * second, 0.0f);
+    bool all_finite = true, all_asleep = true;
+    double highest = 0.0, furthest = 0.0;
+    for (int clock : {0, 3}) {
+      Stereo clean;
+      for (float bad : {0.0f, std::nanf(""), HUGE_VALF, -1.0e30f}) {
+        device.init(kRate);
+        device.set_param(p::kLength, 0.5f);
+        device.set_param(p::kFade, 0.3f);
+        device.set_param(p::kClock, static_cast<float>(clock));
+        std::vector<float> dirty = input;
+        if (bad != 0.0f) dirty[second / 4] = bad;
+        Stereo out = run(device, dirty);
+        Stereo rest = render(device, 12.0f, kRate);
+        Stereo after = render(device, 0.5f, kRate);
+        if (bad == 0.0f) {
+          clean = out;
+          continue;
+        }
+        all_finite = all_finite && finite(out.left) && finite(out.right) && finite(rest.left);
+        all_asleep = all_asleep && peak(after.left) == 0.0 && peak(after.right) == 0.0;
+        highest = std::max(highest, std::max(peak(out.left), peak(out.right)));
+        // The second phrase and its loop, against the run without the bad sample.
+        furthest = std::max(furthest, std::fabs(db(rms(out.left, 3 * second, 6 * second) /
+                                                   rms(clean.left, 3 * second, 6 * second))));
+      }
+    }
+    std::printf("micro-looper: one bad input sample: peak %.2f, the next phrase within %.3f dB of a clean run\n",
+                highest, furthest);
+    EXPECT(all_finite, "a NaN, infinite or huge input sample never reaches the output");
+    EXPECT(highest < 4.0, "and is held to a sane level");
+    EXPECT(furthest < 0.5, "and the looper carries on as before: nothing stays lodged in it");
+    EXPECT(all_asleep, "and it still dies away to exact zeros");
   }
 
   // Cost under a realistic load: notes every 0.7 s into the default patch

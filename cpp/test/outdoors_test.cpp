@@ -693,6 +693,53 @@ int main() {
     EXPECT(same && sum[0] > 1.05 && sum[0] < 1.15 && sum[1] > 1.05 && sum[1] < 1.15, label);
   }
 
+  // Chimes follow the chord: with C and E down, each set keeps its root,
+  // fifth and octave and the tubes that are one of the held notes; the D and
+  // A of the C set and the F#, G# and C# of the E set stay quiet.
+  {
+    plain(device, Outdoors::kChimes, 0.9f);
+    device.note_on(1, 261.63f, 1.0f);
+    device.note_on(2, 329.63f, 1.0f);
+    const std::vector<double> power = fine_spectrum(mid(render(device, 40.0f, kRate)));
+    double kept = 1.0e30, dropped = 0.0;
+    for (double hz : {261.63, 329.63, 392.0, 493.88, 523.25, 659.26}) kept = std::min(kept, line_near(power, hz).power);
+    for (double hz : {293.66, 440.0, 369.99, 415.30, 554.37}) dropped = std::max(dropped, line_near(power, hz).power);
+    std::printf("outdoors: chimes for C and E: the tubes left out are %.0f dB under the weakest one kept\n",
+                -0.5 * db(dropped / kept));
+    EXPECT(dropped < 0.01 * kept, "Chimes: with a chord down, the tubes that clash with it stay quiet");
+  }
+
+  // Movement: the chimes are struck in gusts, the stream surges. How much
+  // the level of two-second windows varies, steady against moving.
+  for (int type : {Outdoors::kChimes, Outdoors::kStream, Outdoors::kBirds}) {
+    double uneven[2] = {};
+    for (int moving = 0; moving < 2; ++moving) {
+      plain(device, type, 0.6f);
+      device.set_param(p::kMovement, static_cast<float>(moving));
+      device.note_on(1, 261.63f, 1.0f);
+      const std::vector<float> env = envelope(device, 300.0f, 2.0f);
+      const double m = mean(env);
+      for (float v : env) uneven[moving] += (v - m) * (v - m) / static_cast<double>(env.size());
+      uneven[moving] = std::sqrt(uneven[moving]) / m;
+    }
+    std::printf("outdoors: %s: the level of 2 s windows varies by %.0f %% at Movement 0, %.0f %% at 1\n", kNames[type],
+                100.0 * uneven[0], 100.0 * uneven[1]);
+    std::snprintf(label, sizeof label, "%s: Movement makes the scene rise and fall", kNames[type]);
+    EXPECT(uneven[1] > 1.25 * uneven[0], label);
+  }
+
+  // The key leans the storm as well: a low key is a deeper one.
+  {
+    plain(device, Outdoors::kThunder, 1.0f);
+    device.set_param(p::kDistance, 0.4f);
+    const double low = centroid(spectrum(mid(hold(device, 65.41f, 30.0f))));
+    plain(device, Outdoors::kThunder, 1.0f);
+    device.set_param(p::kDistance, 0.4f);
+    const double high = centroid(spectrum(mid(hold(device, 1046.5f, 30.0f))));
+    std::printf("outdoors: thunder for C2 / C6: spectral centroid %.0f / %.0f Hz\n", low, high);
+    EXPECT(high > 1.5 * low, "Thunder: a low key is a deeper storm");
+  }
+
   // Velocity is the level; Volume is in decibels; keys add up.
   {
     plain(device, Outdoors::kStream);
