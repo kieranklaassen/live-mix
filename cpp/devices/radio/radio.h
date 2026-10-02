@@ -217,7 +217,12 @@ class Radio : public kit::DeviceBase<radio::kNumParams> {
       }
       // The detector's own filter: an envelope has corners where the carrier
       // is lost, and they are not programme.
-      audio = audio_high_.process(audio_low_.process(audio)) * agc_gain_.next();
+      // The gain glides between control ticks, but it comes down with the
+      // signal at once: a tick's lag on the attack of a note after a silence
+      // (where the Sideband gain has risen all the way) is a full-scale spike.
+      const float gain =
+          kit::min(agc_gain_.next(), std::sqrt(band.agc_reference / (level_ + 1.0e-4f)));
+      audio = audio_high_.process(audio_low_.process(audio)) * gain;
 
       // The loudspeaker.
       float cone = cone_peak_.process(cone_high_.highpass(audio));
