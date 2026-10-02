@@ -51,7 +51,7 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
     sustain_.set_time(kSmoothingSeconds, sr);
     volume_.set_time(kSmoothingSeconds, sr);
     rise_coeff_ = 1.0f - kit::time_to_coeff(kVactrolRiseSeconds, sr);
-    open_coeff_ = 1.0f - kit::time_to_coeff(kSmoothingSeconds, sr);
+    open_coeff_ = 1.0f - kit::time_to_coeff(kSmoothingSeconds, sr / kSlowPeriod);
     hold_samples_ = static_cast<int>(kStrikeHoldSeconds * sr) + 1;
     clock_.reset(32);
     // Nothing outlives the gate but the decimator's 63 taps.
@@ -352,6 +352,10 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
       voice.makeup = read[1];
       voice.last_drive = level;
     }
+    // Colour, and level and pan after a second strike, glide in 5 ms.
+    voice.open_hz += (voice.open_target - voice.open_hz) * open_coeff_;
+    voice.gain_left += (voice.target_left - voice.gain_left) * open_coeff_;
+    voice.gain_right += (voice.target_right - voice.gain_right) * open_coeff_;
     const float per_sample = 1.0f / kSlowPeriod;
     voice.drive_step = (level - voice.drive) * per_sample;
     voice.offset_step = (offset - voice.offset) * per_sample;
@@ -412,7 +416,6 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
     // falls with the square, so the tone dulls before it fades) and the
     // gain. A trapezoidal state-variable low-pass, its tangent by the same
     // Padé form as kit::tan_prewarp, with one division for all of it.
-    voice.open_hz += (voice.open_target - voice.open_hz) * open_coeff_;
     const float cutoff = kit::min(voice.open_hz * vactrol * vactrol, kGateLimit * rate2_);
     const float w = kit::kPi * cutoff * inverse_rate2_;
     const float w2 = w * w;
@@ -423,8 +426,6 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
     const float a2 = n * d * scale;
     const float a3 = n * n * scale;
     const float gain = vactrol * voice.makeup;
-    voice.gain_left += (voice.target_left - voice.gain_left) * open_coeff_;
-    voice.gain_right += (voice.target_right - voice.gain_right) * open_coeff_;
 
     const float increment = voice.increment * voice.detune;
     const float mod_increment = increment * voice.ratio;

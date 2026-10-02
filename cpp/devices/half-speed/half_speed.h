@@ -378,7 +378,6 @@ inline bool HalfSpeed::advance(Timing& timing, double increment, float lose,
   return true;
 }
 
-// Put a head back at the present.
 // Put a head back at the present, or up to 26 ms before it: at the place
 // where it lines up best with the heads it is about to fade in against.
 inline void HalfSpeed::launch(Timing& timing, int head, const Timing* leader) {

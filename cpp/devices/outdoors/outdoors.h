@@ -12,6 +12,7 @@
 #include "../../kit/kit.h"
 #include "birds.h"
 #include "chimes.h"
+#include "crickets.h"
 #include "params.gen.h"
 #include "scene.h"
 
@@ -39,6 +40,7 @@ class Outdoors : public kit::DeviceBase<outdoors::kNumParams> {
       voice.swap.snap(1.0f);
       voice.birds.seed(stream);
       voice.chimes.seed(scene::seed_for(stream + 16), scene::seed_for(stream + 17));
+      voice.crickets.seed(stream + 24);
       stream += 64;
     }
     for (int stage = 0; stage < kStages; ++stage) {
@@ -136,6 +138,9 @@ class Outdoors : public kit::DeviceBase<outdoors::kNumParams> {
           case kBirds:
             voice.birds.tick(l, r);
             break;
+          case kCrickets:
+            voice.crickets.tick(l, r);
+            break;
           default:
             voice.chimes.tick(l, r);
             break;
@@ -190,6 +195,7 @@ class Outdoors : public kit::DeviceBase<outdoors::kNumParams> {
     kit::LinearRamp swap;  // ducks a stolen voice while its scene is replaced
     scene::Birds birds;
     scene::Chimes chimes;
+    scene::Crickets crickets;
     float hz = 220.0f, next_hz = 220.0f;
     float gain = 0.0f, next_gain = 0.0f;
     bool restart = false;
@@ -219,6 +225,9 @@ class Outdoors : public kit::DeviceBase<outdoors::kNumParams> {
     switch (kind_) {
       case kBirds:
         voice.birds.start(voice.hz, controls_);
+        break;
+      case kCrickets:
+        voice.crickets.start(voice.hz, controls_);
         break;
       default:
         voice.chimes.start(voice.hz, controls_);
@@ -266,6 +275,9 @@ class Outdoors : public kit::DeviceBase<outdoors::kNumParams> {
       switch (kind_) {
         case kBirds:
           voice.birds.control(controls_);
+          break;
+        case kCrickets:
+          voice.crickets.control(controls_);
           break;
         default:
           voice.chimes.control(controls_);

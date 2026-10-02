@@ -157,7 +157,7 @@ export const HALF_SPEED_DESCRIPTOR = wasmDeviceDescriptor(HALF_SPEED_DEVICE, {
       mix: 0.4,
     },
     'Long drag': { length: 4000, fade: 0.3, smooth: 0.6, jitter: 0.2, spread: 0.6 },
-    'Blurred half': { length: 320, fade: 0.5, smooth: 0.7, jitter: 1, spread: 1 },
+    'Blurred half': { length: 450, fade: 0.5, smooth: 0.4, jitter: 1, highCut: 5000, spread: 1 },
     'Under the mix': { length: 1200, smooth: 1, lowCut: 60, highCut: 2500, spread: 0.5, mix: 0.3 },
     'Short stutter': { length: 110, fade: 0.08, smooth: 0, jitter: 0.3, spread: 0.15 },
     'Fourth down drift': {

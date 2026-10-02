@@ -42,6 +42,7 @@ struct Crickets {
   Cricket cricket[kCrickets];
   // What the control step leaves for the sample loop.
   float sr = 48000.0f;
+  float lean = 1.0f;    // from the key
   float pitch = 1.0f;   // key and Tone on the carrier
   float tempo = 1.0f;   // key on the rates: a warm night is higher and faster
   float movement = 0.5f;
@@ -53,10 +54,10 @@ struct Crickets {
   }
 
   void start(float hz, const Controls& c) {
-    const float lean = key_lean(hz, 0.2f, 0.3f);
+    lean = key_lean(hz, 0.2f, 0.3f);
     tempo = std::pow(lean, 1.5f);
     sr = c.sample_rate;
-    read(c, lean);
+    read(c);
     for (int i = 0; i < kCrickets; ++i) {
       Cricket& k = cricket[i];
       kit::Rng& rng = k.rng;
@@ -72,7 +73,7 @@ struct Crickets {
       // The nearest starts with the key; the rest fall in over a second.
       k.until = (i == 0 ? 0.02f : between(rng, 0.1f, 1.2f)) * sr;
       k.index = 0;
-      k.count = k.pulses;
+      k.count = k.triller ? draw_run(k) : k.pulses;
       k.pace = 1.0f;
       k.fade = 1.0f;
       k.run = between(rng, 6.0f, 30.0f);
@@ -81,7 +82,7 @@ struct Crickets {
     }
   }
 
-  void read(const Controls& c, float lean) {
+  void read(const Controls& c) {
     pitch = lean * std::exp2(0.5f * (c.tone - 0.5f));
     movement = c.movement;
     distance = c.distance;
@@ -90,11 +91,8 @@ struct Crickets {
 
   void control(const Controls& c) {
     sr = c.sample_rate;
-    read(c, pitch_lean());
+    read(c);
   }
-
-  // The key's lean, back out of the stored tempo (start() set both).
-  float pitch_lean() const { return std::pow(tempo, 1.0f / 1.5f); }
 
   // A pulse begins: set it sounding and decide when the next one comes.
   void pulse(Cricket& k, int slot) {
