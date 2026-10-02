@@ -122,7 +122,7 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
   // Spread: the side reads sit this far either side of the playhead, and
   // the side signal is kept above this corner so the low end stays central.
   static constexpr float kSideSeconds = 0.011f;
-  static constexpr float kSideCutHz = 160.0f;
+  static constexpr float kSideCutHz = 250.0f;
   static constexpr float kMaxWidth = 0.75f;
   // Above this the Tone filter is blended out, so its top is no filter.
   static constexpr float kToneOpenFromHz = 11000.0f;

@@ -40,7 +40,8 @@ inline void OctaveBank::init(float rate, float low_hz, float high_hz, int count)
   call_ = 0;
   tick_seconds_ = static_cast<float>(tick_period_) / rate;
   for (int g = 0; g < kGroups; ++g) inv_steps_[g] = static_cast<float>(1 << g) / static_cast<float>(tick_period_);
-  agree_coeff_ = 1.0f - std::exp(-tick_seconds_ / kAgreeSeconds);
+  agree_coeff_ = 1.0f - std::exp(-4.0f * tick_seconds_ / kAgreeSeconds);
+  slow_count_ = 0;
   jump_index_ = 0;
   jump_fall_ = std::exp(-tick_seconds_ / kJumpFall);
   attack_coeff_ = 0.0f;
@@ -236,7 +237,10 @@ inline void OctaveBank::set_width(int k, float open, bool rescale) {
   open_[k] = open;
   // First-stage power in the units of the last stage's (a centred partial).
   first_scale_[k] = 1.0f / (cutoff * cutoff * cutoff * cutoff * first_unit_[k]);
-  follow_[k] = tick_seconds_ * 2.0f * static_cast<float>(kPiD) * cutoff;
+  // The averages follow at a multiple of the cutoff.
+  const float follow = tick_seconds_ * 2.0f * static_cast<float>(kPiD) * cutoff;
+  power_coeff_[k] = kPowerFollow * follow / (1.0f + kPowerFollow * follow);
+  rotor_coeff_[k] = kRotorFollow * follow / (1.0f + kRotorFollow * follow);
 }
 
 // One sample of group g's channels: the filters, then the voices of the
@@ -427,10 +431,44 @@ inline void OctaveBank::tick() {
   // Where a channel's sub voices pointed before its width was moved.
   float before[kMaxBands][4];
   jump_index_ = (jump_index_ + 1) % kJumpDelay;
+  // The agreement between neighbours and the signs that follow from it are
+  // slow matters: every fourth tick.
+  slow_count_ = (slow_count_ + 1) & 3;
+  const bool slow_tick = slow_count_ == 0;
   for (int k = 0; k < bands_; ++k) {
+    const float first = yr_[0][k] * yr_[0][k] + yi_[0][k] * yi_[0][k];
+    if (first < kQuiet && power_[k] < kQuiet && jump_ref_[k] < kQuiet && age_[k] > 1.0f && !live_[k]) {
+      // Nothing in the channel and nothing recent: only the onset
+      // detector's memory moves on.
+      const float last = yr_[2][k] * yr_[2][k] + yi_[2][k] * yi_[2][k];
+      if (last < 1.0e-28f && power_[k] < 1.0e-28f && first < 1.0e-28f) {
+        for (int s = 0; s < kStages; ++s) {
+          yr_[s][k] = 0.0f;
+          yi_[s][k] = 0.0f;
+        }
+        avg_re_[k] = 0.0f;
+        avg_im_[k] = 0.0f;
+        power_[k] = 0.0f;
+        jump_ref_[k] = 0.0f;
+      } else {
+        power_[k] += power_coeff_[k] * (last - power_[k]);
+      }
+      const float delayed = jump_ring_[jump_index_][k];
+      jump_ring_[jump_index_][k] = first;
+      jump_ref_[k] *= jump_fall_;
+      if (delayed > jump_ref_[k]) jump_ref_[k] = delayed;
+      slow_[k] = 0.0f;
+      settled[k] = 1.0f;
+      moved[k] = false;
+      correction[k] = 1.0f;
+      offset[k] = 0.0f;
+      unit_re[k] = 0.0f;
+      unit_im[k] = 0.0f;
+      sharp[k] = 0.0f;
+      continue;
+    }
     // An onset opens the channel: its first stage jumps above its recent
     // level, by more than the settled neighbours could account for.
-    const float first = yr_[0][k] * yr_[0][k] + yi_[0][k] * yi_[0][k];
     if (first > kJump * jump_ref_[k] + 1.0e-30f) {
       // It has to be more than the notes held in the other channels can
       // explain: more than the open channel would collect from any of them,
@@ -505,10 +543,8 @@ inline void OctaveBank::tick() {
       slow_[k] = 0.0f;
       jump_ref_[k] = 0.0f;
     } else {
-      const float power_step = kPowerFollow * follow_[k], rotor_step = kRotorFollow * follow_[k];
-      const float power_coeff = power_step / (1.0f + power_step);
-      const float rotor_coeff = rotor_step / (1.0f + rotor_step);
-      power_[k] += power_coeff * (now - power_[k]);
+      const float rotor_coeff = rotor_coeff_[k];
+      power_[k] += power_coeff_[k] * (now - power_[k]);
       // stage 2 × conj(stage 3) points along 1 + j·x, where x is how far the
       // partial sits from the centre in units of the cutoff.
       avg_re_[k] += rotor_coeff * (br * cr + bi * ci - avg_re_[k]);
@@ -517,7 +553,7 @@ inline void OctaveBank::tick() {
 
     // The equaliser: the phase of all three stages at x, and what they took
     // off the partial's level there.
-    float er = 1.0f, ei = 0.0f, gain = 1.0f, x = 0.0f;
+    float er = 1.0f, ei = 0.0f, gain = 1.0f, x = 0.0f, own = 1.0f;
     const float ar = avg_re_[k], ai = avg_im_[k];
     if (ar * ar + ai * ai > 1.0e-36f) {
       x = ai < 0.0f ? -3.0f : 3.0f;
@@ -526,30 +562,39 @@ inline void OctaveBank::tick() {
       const float pr = 1.0f - t0 * t1, pi = t0 + t1;
       const float nr = pr - pi * x, ni = pi + pr * x;
       const float size = std::sqrt(nr * nr + ni * ni);
-      er = nr / size;
-      ei = ni / size;
+      const float inv_size = 1.0f / size;
+      er = nr * inv_size;
+      ei = ni * inv_size;
       gain = size * 0.25f;
       if (gain > kMaxCorrection) gain = kMaxCorrection;
+      // A channel whose strongest partial lies three cutoffs outside it
+      // holds nothing of its own (that partial has a channel of its own, two
+      // or more away) and is left out.
+      const float mag = x < 0.0f ? -x : x;
+      if (mag > 2.5f) own = (3.0f - mag) * 2.0f;
     }
-    correction[k] = gain;
+    correction[k] = gain * own;
     offset[k] = x;
     rot_re_[k] = er;
     rot_im_[k] = ei;
-    // This sample's equalised unit phasor, at the time the top group is at,
-    // for the agreement below.
-    const float zr = cr * er - ci * ei;
-    const float zi = cr * ei + ci * er;
-    const float inv = 1.0f / std::sqrt(zr * zr + zi * zi + 1.0e-30f);
-    unit_re[k] = (zr * unskew_re_[k] - zi * unskew_im_[k]) * inv;
-    unit_im[k] = (zr * unskew_im_[k] + zi * unskew_re_[k]) * inv;
+    if (slow_tick) {
+      // This sample's equalised unit phasor, at the time the top group is
+      // at, for the agreement below.
+      const float zr = cr * er - ci * ei;
+      const float zi = cr * ei + ci * er;
+      const float inv = 1.0f / std::sqrt(zr * zr + zi * zi + 1.0e-30f);
+      unit_re[k] = (zr * unskew_re_[k] - zi * unskew_im_[k]) * inv;
+      unit_im[k] = (zr * unskew_im_[k] + zi * unskew_re_[k]) * inv;
+    }
     // A channel that is sitting out does not compete for weight either.
-    sharp[k] = power_[k] * power_[k] * settled[k];
+    sharp[k] = power_[k] * power_[k] * settled[k] * own;
   }
 
   for (int k = 0; k < bands_; ++k) {
     // How far the channel stands out from the ones that hold the same
     // partial: the two beside it, and for an open grid channel the settled
     // ones out to the next grid channels.
+    if (sharp[k] == 0.0f && !live_[k]) continue;
     float total = sharp[k];
     if (k > 0) total += sharp[k - 1];
     if (k < bands_ - 1) total += sharp[k + 1];
@@ -628,14 +673,14 @@ inline void OctaveBank::tick() {
     // its square roots (the ones nearest the last tick's).
     const float er = rot_re_[k], ei = rot_im_[k];
     float pr[kVoices], pi[kVoices];
-    principal_root(er, ei, &pr[1], &pi[1]);
+    unit_root(er, ei, &pr[1], &pi[1]);
     if (pr[1] * root1_re_[k] + pi[1] * root1_im_[k] < 0.0f) {
       pr[1] = -pr[1];
       pi[1] = -pi[1];
     }
     root1_re_[k] = pr[1];
     root1_im_[k] = pi[1];
-    principal_root(pr[1], pi[1], &pr[0], &pi[0]);
+    unit_root(pr[1], pi[1], &pr[0], &pi[0]);
     if (pr[0] * root2_re_[k] + pi[0] * root2_im_[k] < 0.0f) {
       pr[0] = -pr[0];
       pi[0] = -pi[0];
@@ -716,6 +761,7 @@ inline void OctaveBank::tick() {
 
   // Phase agreement of each channel with the one above it: near 1 when both
   // hold the same partial, near 0 when they hold different ones.
+  if (!slow_tick) return;
   for (int k = 0; k < bands_ - 1; ++k) {
     const float dot = unit_re[k] * unit_re[k + 1] + unit_im[k] * unit_im[k + 1];
     agree_[k] += agree_coeff_ * (dot - agree_[k]);

@@ -515,6 +515,82 @@ int main() {
     EXPECT(spans[1] > 3.0, "Drift moves the loop's pitch");
   }
 
+  // The same loop at every sample rate: a 0.5 s capture of 440 Hz repeats
+  // every half second at 440 Hz, and clock 1/2 puts it at 220 Hz.
+  for (float rate : {44100.0f, 96000.0f}) {
+    plain(device, 0.5f, rate);
+    run(device, phrase(1.0f, 440.0f, 0x7A7Eu, rate));
+    device.set_param(p::kState, kHold);
+    Stereo held = render(device, 3.0f, rate);
+    const size_t n = static_cast<size_t>(0.5f * rate);
+    const size_t second = static_cast<size_t>(rate);
+    const size_t period = period_of(held.left, second, 4000, n - 300, n + 300);
+    const double hz = dominant_frequency(held.left, rate, 400.0, 480.0, second, 3 * second);
+    device.set_param(p::kClock, 3.0f);
+    render(device, 0.5f, rate);
+    Stereo slow = render(device, 3.0f, rate);
+    const double slow_hz = dominant_frequency(slow.left, rate, 200.0, 240.0, second, 3 * second);
+    std::printf("micro-looper at %.0f Hz: period %zu (%zu), tone %.2f Hz, at clock 1/2 %.2f Hz\n", rate,
+                period, n, hz, slow_hz);
+    EXPECT(period == n, "the loop is Length long at every sample rate");
+    EXPECT_NEAR(hz, 440.0, 0.5, "and at pitch");
+    EXPECT_NEAR(slow_hz, 220.0, 0.5, "and the clock's ratios hold");
+  }
+
+  // Auto keeps up with playing that has no attacks: a held tone that slides
+  // to another is in the loop within two passes and a Length.
+  {
+    const float length = 0.5f;
+    plain(device, length);
+    device.set_param(p::kState, kAuto);
+    device.set_param(p::kFade, 1.0f);
+    std::vector<float> input(static_cast<size_t>(8.0f * kRate), 0.0f);
+    for (size_t i = 0; i < input.size(); ++i) {
+      const double t = static_cast<double>(i) / kRate;
+      const double to_second = std::min(1.0, std::max(0.0, (t - 3.0) / 1.0));
+      const double in = std::min(1.0, t / 0.3) * std::min(1.0, (8.0 - t) / 0.3);
+      input[i] = static_cast<float>(0.3 * in * ((1.0 - to_second) * std::sin(2.0 * kPi * 300.0 * t) +
+                                                  to_second * std::sin(2.0 * kPi * 700.0 * t)));
+    }
+    run(device, input);
+    Stereo after = render(device, 4.0f, kRate);
+    const double first = tone_level(after.left, 300.0, kRate, 48000, 3 * 48000);
+    const double second = tone_level(after.left, 700.0, kRate, 48000, 3 * 48000);
+    std::printf("micro-looper: Auto on a held tone that slid from 300 to 700 Hz: loop has %.4f of 700, %.5f of 300\n",
+                second, first);
+    EXPECT(second > 0.15 && first < 0.05 * second, "Auto renews the loop from playing without attacks");
+  }
+
+  // Sweeping the continuous controls through their whole range while a loop
+  // plays does not click or zip.
+  {
+    const float hz = 220.0f, gain = 0.5f;
+    const double natural = gain * 2.0 * kPi * hz / kRate;
+    device.init(kRate);
+    device.set_param(p::kState, kListen);
+    device.set_param(p::kLength, 1.0f);
+    device.set_param(p::kMix, 1.0f);
+    run(device, sine(hz, 2.0f, kRate, gain));
+    device.set_param(p::kState, kHold);
+    render(device, 0.5f, kRate);
+    double worst = 0.0;
+    for (int param : {p::kMix, p::kTone, p::kSmear, p::kSpread, p::kDrift, p::kFade}) {
+      for (int step = 0; step <= 40; ++step) {
+        const float t = static_cast<float>(step) / 40.0f;
+        const float lo = p::kParamMin[param], hi = p::kParamMax[param];
+        device.set_param(param, param == p::kTone ? lo * std::pow(hi / lo, 1.0f - t) : hi + (lo - hi) * t);
+        Stereo out = render(device, 0.02f, kRate);
+        worst = std::max(worst, std::max(max_step(out.left), max_step(out.right)));
+      }
+      device.set_param(param, p::kParamDefault[param]);
+      device.set_param(p::kMix, 1.0f);
+      render(device, 0.3f, kRate);
+    }
+    std::printf("micro-looper: largest step while sweeping Mix, Tone, Smear, Spread, Drift, Fade: %.4f (the sine's own %.4f)\n",
+                worst, natural);
+    EXPECT(worst < 2.5 * natural, "sweeping the continuous controls does not click");
+  }
+
   // BEHAVIOUR CHECKS GO HERE
 
   return finish("micro-looper");

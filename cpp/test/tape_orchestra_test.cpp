@@ -33,9 +33,16 @@ static void plain(TapeOrchestra& d, int tape) {
 
 static size_t at(double seconds) { return static_cast<size_t>(seconds * kRate); }
 
-// Level in dB of harmonic `h` of `hz` over [from, to) seconds.
-static double harmonic_db(const Stereo& out, double hz, int h, double from, double to) {
-  return db(tone_level(out.left, hz * h, kRate, at(from), at(to)));
+// Level of the component at `hz` in the 0.1 s from `from` seconds. The
+// window is short on purpose: a key sits a cent or two from its note, and a
+// long window would miss its upper harmonics.
+static double partial(const Stereo& out, double hz, double from) {
+  return tone_level(out.left, hz, kRate, at(from), at(from + 0.1));
+}
+
+// Level in dB of harmonic `h` of `hz`, 0.1 s from `from` seconds.
+static double harmonic_db(const Stereo& out, double hz, int h, double from) {
+  return db(partial(out, hz * h, from));
 }
 
 // Pitch against `hz` in cents, one value per 5 ms, by the phase advance of
@@ -82,12 +89,12 @@ static double spread_of(const std::vector<double>& v, size_t from, size_t to) {
   return to > from ? std::sqrt(sum / static_cast<double>(to - from)) : 0.0;
 }
 
-// Where the spectrum balances, in Hz, over [from, to) seconds: the mean of
+// Where the spectrum balances, in Hz, 0.1 s from `from` seconds: the mean of
 // the first forty harmonics of `hz` weighted by their power.
-static double centroid(const Stereo& out, double hz, double from, double to) {
+static double centroid(const Stereo& out, double hz, double from) {
   double weighted = 0.0, total = 0.0;
   for (int h = 1; h <= 40 && hz * h < 12000.0; ++h) {
-    const double level = tone_level(out.left, hz * h, kRate, at(from), at(to));
+    const double level = partial(out, hz * h, from);
     weighted += hz * h * level * level;
     total += level * level;
   }
@@ -171,9 +178,9 @@ int main(int argc, char**) {
     plain(device, kFlutes);
     device.note_on(1, 440.0f, 0.7f);
     Stereo out = render(device, 2.0f, kRate);
-    const double h1 = harmonic_db(out, 440.0, 1, 1.0, 2.0);
-    const double h2 = harmonic_db(out, 440.0, 2, 1.0, 2.0);
-    const double h3 = harmonic_db(out, 440.0, 3, 1.0, 2.0);
+    const double h1 = harmonic_db(out, 440.0, 1, 1.0);
+    const double h2 = harmonic_db(out, 440.0, 2, 1.0);
+    const double h3 = harmonic_db(out, 440.0, 3, 1.0);
     SHOW("flutes at 440 Hz: h2 %.1f dB, h3 %.1f dB under the fundamental", h1 - h2, h1 - h3);
     EXPECT(h1 - h3 > 15.0, "flutes: the fundamental is 15 dB over the third harmonic");
     EXPECT(h1 - h2 > 10.0, "flutes: the second harmonic is weak");
@@ -184,10 +191,10 @@ int main(int argc, char**) {
     plain(device, kReeds);
     device.note_on(1, 146.83f, 0.7f);
     Stereo out = render(device, 2.0f, kRate);
-    const double h2 = harmonic_db(out, 146.83, 2, 1.0, 2.0);
-    const double h3 = harmonic_db(out, 146.83, 3, 1.0, 2.0);
-    const double h4 = harmonic_db(out, 146.83, 4, 1.0, 2.0);
-    const double h5 = harmonic_db(out, 146.83, 5, 1.0, 2.0);
+    const double h2 = harmonic_db(out, 146.83, 2, 1.0);
+    const double h3 = harmonic_db(out, 146.83, 3, 1.0);
+    const double h4 = harmonic_db(out, 146.83, 4, 1.0);
+    const double h5 = harmonic_db(out, 146.83, 5, 1.0);
     SHOW("reeds at 147 Hz: h3 over h2 by %.1f dB, h5 over h4 by %.1f dB", h3 - h2, h5 - h4);
     EXPECT(h3 - h2 > 8.0 && h5 - h4 > 6.0 && h3 - h4 > 8.0,
            "reeds: odd harmonics well over even in the low register");
@@ -195,8 +202,8 @@ int main(int argc, char**) {
     plain(device, kReeds);
     device.note_on(1, 587.33f, 0.7f);
     Stereo high = render(device, 2.0f, kRate);
-    const double up2 = harmonic_db(high, 587.33, 2, 1.0, 2.0);
-    const double up3 = harmonic_db(high, 587.33, 3, 1.0, 2.0);
+    const double up2 = harmonic_db(high, 587.33, 2, 1.0);
+    const double up3 = harmonic_db(high, 587.33, 3, 1.0);
     SHOW("reeds at 587 Hz: h2 over h3 by %.1f dB", up2 - up3);
     EXPECT(up2 > up3 - 6.0, "reeds: even harmonics return in the upper register");
   }
@@ -211,12 +218,12 @@ int main(int argc, char**) {
     auto region = [&](int from, int to) {
       double sum = 0.0;
       for (int h = from; h <= to; ++h) {
-        const double level = tone_level(out.left, 196.0 * h, kRate, at(1.0), at(2.0));
+        const double level = partial(out, 196.0 * h, 1.0);
         sum += level * level;
       }
       return 10.0 * std::log10(sum / (to - from + 1));
     };
-    const double fundamental = harmonic_db(out, 196.0, 1, 1.0, 2.0);
+    const double fundamental = harmonic_db(out, 196.0, 1, 1.0);
     const double dip = region(9, 10);      // 1.76 .. 1.96 kHz
     const double hill = region(14, 16);    // 2.74 .. 3.14 kHz
     const double above = region(23, 25);   // 4.5 .. 4.9 kHz
@@ -235,9 +242,9 @@ int main(int argc, char**) {
     plain(device, kHorns);
     device.note_on(1, 220.0f, 0.7f);
     Stereo horns = render(device, 3.0f, kRate);
-    const double strings_centre = centroid(strings, 220.0, 2.0, 3.0);
-    const double horns_centre = centroid(horns, 220.0, 2.0, 3.0);
-    const double horns_early = centroid(horns, 220.0, 0.02, 0.12);
+    const double strings_centre = centroid(strings, 220.0, 2.0);
+    const double horns_centre = centroid(horns, 220.0, 2.0);
+    const double horns_early = centroid(horns, 220.0, 0.02);
     SHOW("centroid at 220 Hz: strings %.0f Hz, horns %.0f Hz (%.0f Hz in the first 0.1 s)",
          strings_centre, horns_centre, horns_early);
     EXPECT(horns_centre < 0.6 * strings_centre, "horns: the spectrum sits far below the strings'");
@@ -257,12 +264,12 @@ int main(int argc, char**) {
     plain(device, kCellos);
     device.note_on(1, 146.83f, 0.7f);
     Stereo cellos = render(device, 2.0f, kRate);
-    const double strings_centre = centroid(strings, 146.83, 1.0, 2.0);
-    const double cellos_centre = centroid(cellos, 146.83, 1.0, 2.0);
+    const double strings_centre = centroid(strings, 146.83, 1.0);
+    const double cellos_centre = centroid(cellos, 146.83, 1.0);
     auto share_below = [&](const Stereo& out, double hz) {
       double low = 0.0, all = 0.0;
       for (int h = 1; h <= 40; ++h) {
-        const double level = tone_level(out.left, 146.83 * h, kRate, at(1.0), at(2.0));
+        const double level = partial(out, 146.83 * h, 1.0);
         all += level * level;
         if (146.83 * h < hz) low += level * level;
       }
@@ -295,7 +302,7 @@ int main(int argc, char**) {
       double best = -200.0;
       for (int h = 1; h <= 60; ++h) {
         if (110.0 * h < from || 110.0 * h > to) continue;
-        best = std::max(best, db(tone_level(out.left, 110.0 * h, kRate, at(1.0), at(2.0))));
+        best = std::max(best, db(partial(out, 110.0 * h, 1.0)));
       }
       return best;
     };
@@ -312,7 +319,7 @@ int main(int argc, char**) {
     Stereo other = render(device, 2.0f, kRate);
     double best = 0.0, best_hz = 0.0;
     for (int h = 1; h <= 20; ++h) {
-      const double level = tone_level(other.left, 164.81 * h, kRate, at(1.0), at(2.0));
+      const double level = partial(other, 164.81 * h, 1.0);
       if (level > best) {
         best = level;
         best_hz = 164.81 * h;
@@ -458,20 +465,17 @@ int main(int argc, char**) {
     const double pitch = mean_of(cents_track(half.left, 220.0), 200, 560);
     SHOW("half speed: the 440 Hz key sounds %.1f cents from 220 Hz", pitch);
     EXPECT(std::fabs(pitch) < 12.0, "Half: the key sounds one octave lower");
-    EXPECT(tone_level(half.left, 440.0 * 3, kRate, at(1.0), at(3.0)) <
-               0.1 * tone_level(half.left, 220.0 * 3, kRate, at(1.0), at(3.0)) ||
-               tone_level(half.left, 220.0, kRate, at(1.0), at(3.0)) >
-                   10.0 * tone_level(normal.left, 220.0, kRate, at(1.0), at(3.0)),
-           "Half: nothing is left at the old pitch that was not there before");
+    EXPECT(partial(half, 220.0, 1.0) > 20.0 * partial(normal, 220.0, 1.0),
+           "Half: the octave below was not there at full speed");
     // The highest harmonic within 40 dB of the strongest.
     auto reach = [&](const Stereo& out, double hz) {
       double strongest = 0.0;
       for (int h = 1; h * hz < 16000.0; ++h) {
-        strongest = std::max(strongest, tone_level(out.left, hz * h, kRate, at(1.0), at(3.0)));
+        strongest = std::max(strongest, partial(out, hz * h, 1.0));
       }
       double top = 0.0;
       for (int h = 1; h * hz < 16000.0; ++h) {
-        if (tone_level(out.left, hz * h, kRate, at(1.0), at(3.0)) > 0.01 * strongest) top = hz * h;
+        if (partial(out, hz * h, 1.0) > 0.01 * strongest) top = hz * h;
       }
       return top;
     };
@@ -529,6 +533,83 @@ int main(int argc, char**) {
     EXPECT(rms(slow.left, at(2.5), at(2.9)) > 0.5 * rms(slow.left, at(1.5), at(2.0)),
            "Half: two seconds of tape are still playing after 2.5 s");
     EXPECT(peak(slow.left, at(4.3), at(5.0)) == 0.0, "Half: and have run out by 4 s");
+  }
+
+  // Hiss: only while notes sound, more with more keys down, and exact
+  // silence once they are gone. Measured above 11 kHz, where the tape has
+  // nothing of its own.
+  {
+    auto air = [&](const Stereo& out, double from) {
+      double sum = 0.0;
+      for (double hz = 11000.0; hz < 15000.0; hz += 250.0) {
+        const double level = tone_level(out.left, hz, kRate, at(from), at(from + 0.5));
+        sum += level * level;
+      }
+      return std::sqrt(sum);
+    };
+    auto take = [&](float hiss, int keys) {
+      plain(device, kFlutes);
+      device.set_param(p::kHiss, hiss);
+      for (int n = 0; n < keys; ++n) device.note_on(n, 220.0f * std::pow(2.0f, n * 4 / 12.0f), 0.7f);
+      Stereo out = render(device, 2.0f, kRate);
+      for (int n = 0; n < keys; ++n) device.note_off(n);
+      return concat(out, render(device, 1.5f, kRate));
+    };
+    Stereo clean = take(0.0f, 1);
+    Stereo hissy = take(1.0f, 1);
+    Stereo chord = take(1.0f, 4);
+    Stereo some = take(0.2f, 1);
+    SHOW("hiss above 11 kHz: %.1f dB over a clean note at Hiss 1, %.1f dB at 0.2; four keys add %.1f dB",
+         db(air(hissy, 1.0) / air(clean, 1.0)), db(air(some, 1.0) / air(clean, 1.0)),
+         db(air(chord, 1.0) / air(hissy, 1.0)));
+    SHOW("hiss level at Hiss 1: %.1f dB under the note", db(rms(clean.left, at(1.0), at(2.0)) /
+         std::sqrt(std::max(1e-20, rms(hissy.left, at(1.0), at(2.0)) * rms(hissy.left, at(1.0), at(2.0)) -
+                                   rms(clean.left, at(1.0), at(2.0)) * rms(clean.left, at(1.0), at(2.0))))));
+    EXPECT(air(hissy, 1.0) > 10.0 * air(clean, 1.0), "Hiss 1: clearly there while a note sounds");
+    EXPECT(air(some, 1.0) > 1.5 * air(clean, 1.0) && air(some, 1.0) < 0.3 * air(hissy, 1.0),
+           "Hiss follows its knob");
+    const double grown = air(chord, 1.0) / air(hissy, 1.0);
+    EXPECT(grown > 1.5 && grown < 2.6, "four keys hiss about 6 dB more than one");
+    EXPECT(peak(hissy.left, at(3.0), at(3.5)) == 0.0 && peak(hissy.right, at(3.0), at(3.5)) == 0.0,
+           "no hiss once the notes are gone: exact silence");
+    device.init(kRate);
+    device.set_param(p::kHiss, 1.0f);
+    Stereo idle = render(device, 0.5f, kRate);
+    EXPECT(peak(idle.left) == 0.0, "no hiss before a note is played");
+  }
+
+  // Levels: one key sits at a sane level on every tape, velocity changes
+  // it, and ten held keys stay under the knee of the clipper.
+  {
+    double quietest = 0.0, loudest = -200.0, tallest = 0.0;
+    for (int tape = 0; tape < 6; ++tape) {
+      for (float hz : {110.0f, 261.63f, 523.25f}) {
+        device.init(kRate);
+        device.set_param(p::kTape, static_cast<float>(tape));
+        device.note_on(1, hz, 0.7f);
+        Stereo out = render(device, 3.0f, kRate);
+        const double level = db(std::max(peak(out.left), peak(out.right)));
+        quietest = std::min(quietest, level);
+        loudest = std::max(loudest, level);
+      }
+      device.init(kRate);
+      device.set_param(p::kTape, static_cast<float>(tape));
+      for (int n = 0; n < 10; ++n) device.note_on(n, 110.0f * std::pow(2.0f, n * 3 / 12.0f), 0.8f);
+      Stereo pile = render(device, 4.0f, kRate);
+      tallest = std::max(tallest, std::max(peak(pile.left), peak(pile.right)));
+    }
+    SHOW("one key at gain 0.7 peaks between %.1f and %.1f dBFS; ten keys peak at %.2f", quietest, loudest, tallest);
+    EXPECT(quietest > -24.0 && loudest < -10.0, "one key at gain 0.7 peaks between -24 and -10 dBFS on every tape");
+    EXPECT(tallest < 0.5, "ten held keys stay under the clip knee on every tape");
+
+    plain(device, kStrings);
+    device.note_on(1, 220.0f, 1.0f);
+    Stereo hard = render(device, 1.0f, kRate);
+    plain(device, kStrings);
+    device.note_on(1, 220.0f, 0.1f);
+    Stereo soft = render(device, 1.0f, kRate);
+    SHOW("velocity: gain 0.1 is %.1f dB under gain 1", db(rms(hard.left, at(0.5)) / rms(soft.left, at(0.5))));
+    EXPECT(rms(soft.left, at(0.5)) < 0.6 * rms(hard.left, at(0.5)), "soft keys are quieter");
   }
 
   // TESTS

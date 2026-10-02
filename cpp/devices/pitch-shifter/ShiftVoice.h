@@ -462,6 +462,9 @@ class ShiftVoice {
     }
     const float found = best_score + kNearBias * scale * static_cast<float>(best) / static_cast<float>(range);
     match_ = kit::clamp(found / scale, 0.0f, 1.0f);
+#ifdef PS_DEBUG
+    std::printf("splice now %d old %.2f first %d best %d frac %.3f match %.4f energy %g\n", now, old_total, first, best, fraction, match_, energy);
+#endif
     return static_cast<double>(first + best) + static_cast<double>(fraction) + residue - base;
   }
 

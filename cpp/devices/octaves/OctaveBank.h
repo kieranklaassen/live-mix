@@ -171,6 +171,8 @@ class OctaveBank {
   static constexpr int kUpHalf[2] = {5, 3};
   // A channel whose voices would come out under this level is switched off.
   static constexpr float kFloor = 3.0e-6f;
+  // Power under which a channel is not worth the control rate's attention.
+  static constexpr float kQuiet = 1.0e-22f;
 
   static float fade_in(double hz, double from, double to) {
     if (hz <= from) return 0.0f;
@@ -207,6 +209,13 @@ class OctaveBank {
     *out_im *= scale;
   }
 
+  // The same for a phasor of length 1.
+  static void unit_root(float re, float im, float* out_re, float* out_im) {
+    *out_re = std::sqrt(0.5f * std::fabs(1.0f + re));
+    const float other = std::sqrt(0.5f * std::fabs(1.0f - re));
+    *out_im = im < 0.0f ? -other : other;
+  }
+
   void set_width(int k, float open, bool rescale);
   void run_group(int g, float x, const Want& want, float* bus);
   void sub_phasors(int k, float* half, float* quarter) const;
@@ -219,6 +228,7 @@ class OctaveBank {
   int tick_period_ = 16;
   int tick_counter_ = 0;
   int call_ = 0;
+  int slow_count_ = 0;
   float tick_seconds_ = 0.0f;
   float inv_steps_[kGroups] = {};
   float agree_coeff_ = 0.0f;
@@ -268,7 +278,8 @@ class OctaveBank {
   // Per channel: width, equaliser, weight.
   float open_[kMaxBands] = {};
   float age_[kMaxBands] = {};
-  float follow_[kMaxBands] = {};
+  float power_coeff_[kMaxBands] = {};
+  float rotor_coeff_[kMaxBands] = {};
   float jump_ref_[kMaxBands] = {};
   float jump_ring_[kJumpDelay][kMaxBands] = {};
   int jump_index_ = 0;

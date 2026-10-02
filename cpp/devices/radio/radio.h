@@ -12,7 +12,48 @@
 // Everything between the modulator and the detector is the complex envelope
 // of the radio signal around the station's carrier, so each stage is the
 // physical one at audio rate.
-// PROCESS_NOTES
+//
+// - Medium wave and Shortwave are amplitude modulation: a carrier of 1 with
+//   the programme on it at a depth of 0.8, after the station's limiter. The
+//   receiver's filter is a low-pass on that envelope (eighth-order
+//   Butterworth each on the real and imaginary parts), so its half-width is
+//   the audio bandwidth. The detector is the magnitude.
+// - Tuning turns the signal before the filter. Off-tune, one sideband runs
+//   out of the filter before the other and, far enough off, the carrier
+//   slides down the skirt: the programme thins, sinks and breaks up, and
+//   what is left is noise and the neighbours. The detector also sees a
+//   little of the receiver's own frequency (as an oscillating detector
+//   does), which beats with the carrier: a whistle at exactly the offset,
+//   down to zero beat when tuned in. The dial is square-law, ±5.5 kHz.
+// - Sideband has no carrier. The station sends the analytic programme (the
+//   upper sideband, kit::Hilbert); the filter sits beside where the carrier
+//   would be, from the low edge to the high edge; the detector multiplies by
+//   the receiver's own oscillator. Tuning (±400 Hz, linear) moves that
+//   oscillator, so every frequency comes out shifted by the same number of
+//   hertz and the other sideband is rejected by the filter, as in a real
+//   set.
+// - The sky wave is two paths (radio_parts::Propagation): a flat fade over
+//   seconds on both, and a late path 0.5 to 2 ms behind whose carrier phase
+//   keeps turning, which walks a comb of notches through the audio. The late
+//   path is strongest when the flat fade is deepest: a strong signal is
+//   clean, a sinking one hollows.
+// - Static and the neighbours are added at the aerial, before the filter and
+//   the gain. The automatic gain follows the signal strength after the
+//   filter with a square-root law (a 20 dB fade leaves the programme 10 dB
+//   down and brings the noise 10 dB up), up to +15 dB with a carrier and
+//   +12 dB on Sideband, where it follows the programme itself (fast attack,
+//   1.4 s release) and so lets the noise rush up in the gaps.
+// - The loudspeaker is a resonant high-pass (40 to 380 Hz), a presence peak
+//   at 1.9 kHz, a soft off-centre overload and a low-pass (16 to 2.6 kHz).
+//   The programme is band-limited before it, so the overload's harmonics
+//   stay under the low-pass and no oversampling is needed.
+// - Output is mono, as one loudspeaker is; Mix is a linear crossfade against
+//   the stereo input.
+// - The receiver is only on while the device is awake: it stays on for 4 s
+//   after the input stops (carrier, static, neighbours), fades over 1.5 s,
+//   and the device then sleeps with exactly zero output. Changing Band dips
+//   the output for a few milliseconds around the switch.
+// - Every random source is seeded in init().
 
 #include "../../kit/kit.h"
 #include "params.gen.h"

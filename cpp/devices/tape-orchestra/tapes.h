@@ -268,16 +268,22 @@ class Recorder {
     static const float kSharp = std::exp2(kVibratoSpanCents / 1200.0f);
     kit::Rng rng;
     rng.seed(seed);
+    // Up to 5 ms of smear, and at most four fifths of the period.
+    const float smear = kit::min(0.8f, 0.005f * f0);
     float power = 0.0f;
     for (int h = 1; h <= harmonics; ++h) {
       const float hz = f0 * static_cast<float>(h);
       const float source = source_gain(tape, h, f0);
       const float a = source * body_gain(tape, f0, hz * kFlat);
       const float b = source * body_gain(tape, f0, hz * kSharp);
-      // Phases: the fundamental as it is, the rest scattered more the higher
-      // they are, as a body and a room do to a waveform.
-      const float scatter = kit::min(0.5f, 0.13f * std::sqrt(static_cast<float>(h - 1)));
-      const float phase = scatter * rng.bipolar();
+      // Phases: each harmonic a little later than the one below it (a
+      // quadratic phase, after Schroeder's low-peak-factor signals), so the
+      // period is spread over `smear` of its length instead of standing up
+      // as one pulse, plus a little scatter. A body and a room do the same
+      // to a waveform, and the tape is driven evenly instead of on peaks.
+      const float n = static_cast<float>(h - 1);
+      const float phase = -0.5f * smear * n * static_cast<float>(h) / static_cast<float>(harmonics) +
+                          0.1f * kit::min(1.0f, 0.25f * n) * rng.bipolar();
       const float c = kit::SineTable::cos_lookup(phase);
       const float s = kit::SineTable::lookup(phase);
       re_[h] = 0.5f * (a * s + b * c);

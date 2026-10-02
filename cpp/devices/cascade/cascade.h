@@ -181,6 +181,7 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
     int repeats = 1;
     float trim = 1.0f;
     float cycle = 480.0f;
+    int next_half = 0;
     kit::Rng rng;
     // Where it is in its schedule.
     int pass = 0;
@@ -518,11 +519,13 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
     const float shortest = kit::min(0.0025f * sr, 0.5f * longest);
     const float span = kit::min(0.03f * sr, room - longest);
     const long long at4 = static_cast<long long>((from + kLag2) * 0.25);
-    const int points4 = static_cast<int>(span * 0.125f);
+    // Every lag and every other sample at 48 kHz; half as many of both at 96.
+    const int skip = sr > 60000.0f ? 2 : 1;
+    const int points4 = static_cast<int>(span * 0.125f) / skip;
     int best4 = static_cast<int>(shortest * 0.25f) + 1;
     float lowest = 1.0e9f;
-    for (int lag = best4; lag <= static_cast<int>(longest * 0.25f); ++lag) {
-      const float value = unlikeness(ring2_, kRing2 - 1, at4, lag, points4, 2);
+    for (int lag = best4; lag <= static_cast<int>(longest * 0.25f); lag += skip) {
+      const float value = unlikeness(ring2_, kRing2 - 1, at4, lag, points4, 2 * skip);
       if (value < lowest) {
         lowest = value;
         best4 = lag;
@@ -530,18 +533,18 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
     }
     const long long at = static_cast<long long>(from);
     const int points = static_cast<int>(span * 0.25f);
-    float around[11];
-    int best = 5;
-    for (int i = 0; i < 11; ++i) {
-      around[i] = unlikeness(ring0_, kRing0 - 1, at, 4 * best4 - 5 + i, points, 4);
+    float around[19];
+    int best = 9;
+    for (int i = 0; i < 19; ++i) {
+      around[i] = unlikeness(ring0_, kRing0 - 1, at, 4 * best4 - 9 + i, points, 4);
       if (around[i] < around[best]) best = i;
     }
     float fraction = 0.0f;
-    if (best > 0 && best < 10) {
+    if (best > 0 && best < 18) {
       const float curve = around[best - 1] - 2.0f * around[best] + around[best + 1];
       if (curve > 1.0e-9f) fraction = kit::clamp(0.5f * (around[best - 1] - around[best + 1]) / curve, -0.5f, 0.5f);
     }
-    return static_cast<float>(4 * best4 - 5 + best) + fraction;
+    return static_cast<float>(4 * best4 - 9 + best) + fraction;
   }
 
   // Tunnel: a piece of the slice, past its attack, looped until Repeats x
@@ -587,16 +590,19 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
     return best < 16 ? 16 : best;
   }
 
-  bool tunnel_pass(const Voice& voice, float* speed, float* offset, float* length, float* grid,
+  bool tunnel_pass(Voice& voice, float* speed, float* offset, float* length, float* grid,
                    float* pan, int* direction, float* swell) const {
     const int k = voice.pass;
     if (voice.elapsed >= static_cast<float>(voice.repeats) * voice.period) return false;
-    const float half = static_cast<float>(tunnel_half(voice, k));
+    const float half =
+        static_cast<float>(voice.part == 1 && k > 0 ? voice.next_half : tunnel_half(voice, k));
     *offset = tunnel_start(voice);
     *speed = voice.part == 3 ? 0.5f : (voice.part == 2 ? (voice.fifths ? 1.5f : 2.0f) : 1.0f);
     if (voice.part == 1) {
-      // From the middle of part 0's pass k to the middle of its pass k + 1.
-      const float next = static_cast<float>(tunnel_half(voice, k + 1));
+      // From the middle of part 0's pass k to the middle of its pass k + 1
+      // (whose half this voice needs again for its own next pass).
+      voice.next_half = tunnel_half(voice, k + 1);
+      const float next = static_cast<float>(voice.next_half);
       *length = half + next;
       *swell = half / (half + next);
       *direction = 1;

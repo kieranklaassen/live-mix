@@ -143,10 +143,11 @@
       "spread": 0.6
     },
     "Blurred half": {
-      "length": 320,
+      "length": 450,
       "fade": 0.5,
-      "smooth": 0.7,
+      "smooth": 0.4,
       "jitter": 1,
+      "highCut": 5000,
       "spread": 1
     },
     "Under the mix": {

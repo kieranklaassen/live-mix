@@ -52,6 +52,7 @@ struct Birds {
     float phase = 0.0f;
     float trill_phase = 0.0f, trill_inc = 0.0f, trill_depth = 0.0f;
     float amp = 0.0f, amp_slope = 0.0f, edge = 0.25f, rough = 0.0f;
+    float flutter = 0.0f;  // how far the trill also pulls the level down
   };
 
   Bird bird[kBirds];
@@ -65,7 +66,159 @@ struct Birds {
     mood.seed(seed_for(base + kBirds));
   }
 
-  // SPECIES
+  static float octaves(kit::Rng& rng, float span) { return std::exp2(span * rng.bipolar()); }
+
+  // Draw a motif for the bird's species.
+  void compose(Bird& b) {
+    kit::Rng& rng = b.rng;
+    for (Syllable& s : b.motif) s = Syllable();
+    int n = 1;
+    switch (b.species) {
+      case 0: {  // thrush: a few slow fluty notes, sometimes a thin twitter to finish
+        n = draw_int(rng, 3, 6);
+        for (int i = 0; i < n; ++i) {
+          Syllable& s = b.motif[i];
+          s.f0 = between_log(rng, 1900.0f, 3400.0f);
+          s.fm = s.f0 * octaves(rng, 0.22f);
+          s.f1 = s.fm * octaves(rng, 0.16f);
+          s.seconds = between(rng, 0.11f, 0.28f);
+          s.gap = between(rng, 0.02f, 0.10f);
+          s.edge = between(rng, 0.2f, 0.4f);
+          s.level = between(rng, 0.7f, 1.0f);
+          if (rng.uniform() < 0.3f) {
+            s.trill_hz = between(rng, 22.0f, 32.0f);
+            s.trill_depth = between(rng, 0.008f, 0.02f);
+          }
+        }
+        if (rng.uniform() < 0.5f) {
+          const int extra = draw_int(rng, 2, 3);
+          for (int i = n; i < n + extra; ++i) {
+            Syllable& s = b.motif[i];
+            s.f0 = between_log(rng, 4500.0f, 7000.0f);
+            s.fm = s.f0 * octaves(rng, 0.3f);
+            s.f1 = s.f0 * octaves(rng, 0.3f);
+            s.seconds = between(rng, 0.04f, 0.075f);
+            s.gap = between(rng, 0.015f, 0.04f);
+            s.level = between(rng, 0.3f, 0.5f);
+          }
+          n += extra;
+        }
+        break;
+      }
+      case 1: {  // tit: high, low, high, low
+        n = rng.uniform() < 0.25f ? 3 : 2;
+        const float high = between_log(rng, 4000.0f, 5600.0f);
+        const float low = high * between(rng, 0.70f, 0.82f);
+        for (int i = 0; i < n; ++i) {
+          Syllable& s = b.motif[i];
+          s.f0 = i == 0 ? high : (i == 1 ? low : 0.5f * (high + low));
+          s.fm = s.f0 * 0.99f;
+          s.f1 = s.f0 * between(rng, 0.95f, 0.99f);
+          s.seconds = between(rng, 0.08f, 0.125f);
+          s.gap = between(rng, 0.03f, 0.065f);
+          s.edge = 0.22f;
+          s.rough = 0.05f;
+        }
+        break;
+      }
+      case 2: {  // wren: one short falling chirp, many times a second
+        Syllable& s = b.motif[0];
+        s.f0 = between_log(rng, 5500.0f, 7500.0f);
+        s.f1 = s.f0 * between(rng, 0.55f, 0.7f);
+        s.fm = 0.5f * (s.f0 + s.f1) * between(rng, 0.92f, 1.0f);
+        s.seconds = between(rng, 0.028f, 0.045f);
+        s.gap = 1.0f / between(rng, 13.0f, 24.0f) - s.seconds;
+        s.edge = 0.3f;
+        s.level = 0.8f;
+        break;
+      }
+      case 3: {  // sparrow: a cheep that rises and falls
+        n = draw_int(rng, 1, 2);
+        for (int i = 0; i < n; ++i) {
+          Syllable& s = b.motif[i];
+          s.f0 = between_log(rng, 3200.0f, 4500.0f);
+          s.fm = s.f0 * between(rng, 1.25f, 1.5f);
+          s.f1 = s.f0 * between(rng, 0.9f, 1.1f);
+          s.seconds = between(rng, 0.05f, 0.09f);
+          s.gap = between(rng, 0.12f, 0.4f);
+          s.rough = between(rng, 0.15f, 0.3f);
+          s.edge = 0.3f;
+        }
+        break;
+      }
+      case 4: {  // warbler: a hurried run of unlike notes
+        n = draw_int(rng, 5, 9);
+        for (int i = 0; i < n; ++i) {
+          Syllable& s = b.motif[i];
+          s.f0 = between_log(rng, 2600.0f, 6800.0f);
+          s.fm = s.f0 * octaves(rng, 0.4f);
+          s.f1 = s.fm * octaves(rng, 0.3f);
+          s.seconds = between(rng, 0.04f, 0.11f);
+          s.gap = between(rng, 0.012f, 0.05f);
+          s.level = between(rng, 0.6f, 1.0f);
+          s.edge = between(rng, 0.2f, 0.45f);
+        }
+        break;
+      }
+      case 5: {  // finch: a run that falls and speeds up, then a flourish
+        n = draw_int(rng, 7, kMotif);
+        const float top = between_log(rng, 5200.0f, 6500.0f);
+        const float bottom = top * between(rng, 0.48f, 0.58f);
+        for (int i = 0; i < n - 1; ++i) {
+          const float along = static_cast<float>(i) / static_cast<float>(n - 2);
+          Syllable& s = b.motif[i];
+          s.f0 = top * std::pow(bottom / top, along);
+          s.fm = s.f0 * 0.93f;
+          s.f1 = s.f0 * 0.84f;
+          s.seconds = kit::lerp(0.055f, 0.034f, along);
+          s.gap = kit::lerp(0.075f, 0.02f, along);
+          s.level = kit::lerp(0.6f, 1.0f, along);
+          s.edge = 0.3f;
+        }
+        Syllable& last = b.motif[n - 1];
+        last.f0 = bottom * 1.2f;
+        last.fm = bottom * between(rng, 1.7f, 2.0f);
+        last.f1 = bottom * between(rng, 0.9f, 1.1f);
+        last.seconds = between(rng, 0.13f, 0.19f);
+        last.gap = 0.1f;
+        break;
+      }
+      case 6: {  // whistler: one or two long slurs
+        n = draw_int(rng, 1, 2);
+        const bool up = rng.uniform() < 0.65f;
+        for (int i = 0; i < n; ++i) {
+          Syllable& s = b.motif[i];
+          const float low = between_log(rng, 1900.0f, 2600.0f);
+          const float high = low * between(rng, 1.3f, 1.8f);
+          s.f0 = up ? low : high;
+          s.f1 = up ? high : low;
+          s.fm = kit::lerp(s.f0, s.f1, between(rng, 0.2f, 0.7f));
+          s.seconds = between(rng, 0.22f, 0.45f);
+          s.gap = between(rng, 0.15f, 0.35f);
+          s.edge = 0.18f;
+          s.tilt = between(rng, -0.4f, 0.3f);
+          s.trill_hz = between(rng, 24.0f, 34.0f);
+          s.trill_depth = between(rng, 0.0f, 0.012f);
+        }
+        break;
+      }
+      default: {  // buzzer: a long dry note that rattles
+        Syllable& s = b.motif[0];
+        s.f0 = between_log(rng, 3800.0f, 5200.0f);
+        s.fm = s.f0 * between(rng, 0.96f, 1.02f);
+        s.f1 = s.f0 * between(rng, 0.88f, 1.0f);
+        s.seconds = between(rng, 0.35f, 0.7f);
+        s.gap = between(rng, 0.25f, 0.5f);
+        s.trill_hz = between(rng, 55.0f, 110.0f);
+        s.trill_depth = between(rng, 0.04f, 0.09f);
+        s.rough = 0.2f;
+        s.edge = 0.12f;
+        s.level = 0.7f;
+        break;
+      }
+    }
+    b.length = n;
+  }
 
   // How a species uses its motif: repeats of it in a phrase, the pause
   // between phrases (seconds), phrases in a bout, and the chance that a
@@ -179,7 +332,8 @@ struct Birds {
   void sing(Bird& b, const Syllable& s, const Controls& c) {
     const float sr = c.sample_rate;
     // Tone moves the register by a third either way and adds the octave.
-    const float reg = lean * b.own * b.shift * std::exp2(0.6f * (c.tone - 0.5f)) / sr;
+    // No bird sings a note twice quite alike.
+    const float reg = lean * b.own * b.shift * std::exp2(0.6f * (c.tone - 0.5f) + 0.012f * b.rng.bipolar()) / sr;
     const float top = 9500.0f / sr, bottom = 500.0f / sr;
     const float i0 = kit::clamp(s.f0 * reg, bottom, top);
     const float im = kit::clamp(s.fm * reg, bottom, top);
@@ -193,9 +347,11 @@ struct Birds {
     b.trill_phase = 0.0f;
     b.trill_inc = s.trill_hz / sr;
     b.trill_depth = s.trill_depth;
+    b.flutter = kit::min(0.75f, 8.0f * s.trill_depth);
     b.edge = s.edge;
     b.rough = kit::min(0.45f, s.rough + 0.25f * c.tone * c.tone);
-    const float level = kGain * s.level * b.near * b.fade * b.swell / (1.0f + b.rough);
+    const float level = kGain * s.level * b.near * b.fade * b.swell * std::exp2(0.25f * b.rng.bipolar() - 0.25f) /
+                        (1.0f + b.rough);
     b.amp = level * (1.0f - kit::max(0.0f, s.tilt));
     b.amp_slope = level * s.tilt;
     b.phase = 0.0f;
@@ -221,7 +377,8 @@ struct Birds {
       const float s = kit::SineTable::lookup(b.phase);
       // 2s² - 1 is the octave above, for nothing.
       const float tone = s + b.rough * (2.0f * s * s - 1.0f);
-      const float out = tone * window(b.u, b.edge) * (b.amp + b.amp_slope * b.u);
+      const float out = tone * window(b.u, b.edge) * (b.amp + b.amp_slope * b.u) *
+                        (1.0f - b.flutter * (0.5f - 0.5f * trill));
       left += out * b.pan_left;
       right += out * b.pan_right;
     }

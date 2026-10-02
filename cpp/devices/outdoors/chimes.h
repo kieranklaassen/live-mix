@@ -15,7 +15,7 @@ struct Chimes {
   static constexpr int kTubes = 6;
   static constexpr int kPartials = 4;
   static constexpr float kRatio[kPartials] = {1.0f, 2.76f, 5.40f, 8.93f};
-  static constexpr float kWeight[kPartials] = {1.0f, 0.62f, 0.30f, 0.14f};
+  static constexpr float kWeight[kPartials] = {1.0f, 0.8f, 0.45f, 0.2f};
   // Semitones above the key: a major pentatonic scale and the octave.
   static constexpr int kScale[kTubes] = {0, 2, 4, 7, 9, 12};
   // Where each tube hangs on the ring (neighbours are a third or more apart).

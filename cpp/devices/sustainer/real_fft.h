@@ -41,7 +41,7 @@ class RealFft {
     }
   }
 
-  // n: a power of two, 8 <= n <= MaxN.
+  // n: a power of two, 16 <= n <= MaxN.
   void forward(const float* x, float* re, float* im, int n) {
     const int m = n / 2;
     for (int i = 0; i < m; ++i) {
@@ -108,21 +108,40 @@ class RealFft {
         zi_[j] = ti;
       }
     }
-    for (int size = 2; size <= m; size <<= 1) {
+    const float sign = inverse ? 1.0f : -1.0f;
+    // The first two stages together: their twiddles are 1 and ±j.
+    for (int i = 0; i + 3 < m; i += 4) {
+      const float ar = zr_[i] + zr_[i + 1], ai = zi_[i] + zi_[i + 1];
+      const float br = zr_[i] - zr_[i + 1], bi = zi_[i] - zi_[i + 1];
+      const float cr = zr_[i + 2] + zr_[i + 3], ci = zi_[i + 2] + zi_[i + 3];
+      const float dr = zr_[i + 2] - zr_[i + 3], di = zi_[i + 2] - zi_[i + 3];
+      const float xr = -sign * di, xi = sign * dr;  // ±j × d
+      zr_[i] = ar + cr;
+      zi_[i] = ai + ci;
+      zr_[i + 2] = ar - cr;
+      zi_[i + 2] = ai - ci;
+      zr_[i + 1] = br + xr;
+      zi_[i + 1] = bi + xi;
+      zr_[i + 3] = br - xr;
+      zi_[i + 3] = bi - xi;
+    }
+    for (int size = 8; size <= m; size <<= 1) {
       const int half = size >> 1;
       const int stride = MaxN / size;  // e^(-j 2 pi k / size)
       for (int start = 0; start < m; start += size) {
+        float* ar = zr_ + start;
+        float* ai = zi_ + start;
+        float* br = ar + half;
+        float* bi = ai + half;
         for (int k = 0; k < half; ++k) {
           const float wr = cos_[k * stride];
-          const float wi = inverse ? sin_[k * stride] : -sin_[k * stride];
-          const int a = start + k;
-          const int b = a + half;
-          const float xr = zr_[b] * wr - zi_[b] * wi;
-          const float xi = zr_[b] * wi + zi_[b] * wr;
-          zr_[b] = zr_[a] - xr;
-          zi_[b] = zi_[a] - xi;
-          zr_[a] += xr;
-          zi_[a] += xi;
+          const float wi = sign * sin_[k * stride];
+          const float xr = br[k] * wr - bi[k] * wi;
+          const float xi = br[k] * wi + bi[k] * wr;
+          br[k] = ar[k] - xr;
+          bi[k] = ai[k] - xi;
+          ar[k] += xr;
+          ai[k] += xi;
         }
       }
     }

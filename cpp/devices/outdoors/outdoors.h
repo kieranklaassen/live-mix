@@ -5,11 +5,12 @@
 //   per key (up to 8): one scene of the chosen type, with its own random
 //   streams, places in the stereo field and register (from the key)
 //                         │
-//   out ◄─ soft clip ◄─ volume ◄─ width ◄─ diffusion ◄─ air low-pass ◄─ envelope
+//   out ◄─ soft clip ◄─ volume ◄─ width ◄─ spread ◄─ blur ◄─ air low-pass ◄─ envelope
 //
 // The scenes are in their own headers, one each.
 
 #include "../../kit/kit.h"
+#include "birds.h"
 #include "chimes.h"
 #include "params.gen.h"
 #include "scene.h"
@@ -36,24 +37,30 @@ class Outdoors : public kit::DeviceBase<outdoors::kNumParams> {
       voice.env.set_sample_rate(sr);
       voice.swap.set_time(0.005f, sr);
       voice.swap.snap(1.0f);
-      voice.chimes.seed(scene::seed_for(stream), scene::seed_for(stream + 1));
-      stream += 16;
+      voice.birds.seed(stream);
+      voice.chimes.seed(scene::seed_for(stream + 16), scene::seed_for(stream + 17));
+      stream += 64;
     }
-    for (int c = 0; c < 2; ++c) {
-      air_[c].reset();
-      for (int stage = 0; stage < kStages; ++stage) {
-        diffuser_[c][stage].clear();
-        diffuser_length_[c][stage] =
-            kit::clamp_int(static_cast<int>(kDiffuserSeconds[c][stage] * sr), 1, kDiffuserSize - 4);
-      }
+    for (int stage = 0; stage < kStages; ++stage) {
+      blur_line_[0][stage].clear();
+      blur_line_[1][stage].clear();
+      blur_length_[stage] = kit::clamp_int(static_cast<int>(kBlurSeconds[stage] * sr), 1, kLineSize - 4);
     }
+    for (int stage = 0; stage < kSpreadStages; ++stage) {
+      spread_line_[stage].clear();
+      spread_length_[stage] =
+          kit::clamp_int(static_cast<int>(kSpreadSeconds[stage] * sr), 1, kLineSize - 4);
+    }
+    air_[0].reset();
+    air_[1].reset();
     clock_.reset(scene::kControlPeriod);
     const float control_rate = sr / static_cast<float>(scene::kControlPeriod);
     density_.set_time(0.03f, control_rate);
     distance_.set_time(0.03f, control_rate);
     movement_.set_time(0.03f, control_rate);
     tone_.set_time(0.03f, control_rate);
-    diffusion_.set_time(0.02f, sr);
+    blur_.set_time(0.02f, sr);
+    spread_.set_time(0.02f, sr);
     mid_.set_time(kSmoothingSeconds, sr);
     side_.set_time(kSmoothingSeconds, sr);
     volume_.set_time(kSmoothingSeconds, sr);
@@ -64,7 +71,7 @@ class Outdoors : public kit::DeviceBase<outdoors::kNumParams> {
     controls_ = scene::Controls();
     controls_.sample_rate = sr;
     controls_.step_seconds = static_cast<float>(scene::kControlPeriod) / sr;
-    // The diffusers hold 37 ms; the hold has to outlast them.
+    // The allpass chains hold 62 ms between them; the hold has to outlast them.
     idle_.reset(sr, 0.3f);
     for (int id = 0; id < kNumParams; ++id) apply(id);
     read_controls(false);
@@ -126,6 +133,9 @@ class Outdoors : public kit::DeviceBase<outdoors::kNumParams> {
         if (!voice.env.active()) continue;
         float l = 0.0f, r = 0.0f;
         switch (kind) {
+          case kBirds:
+            voice.birds.tick(l, r);
+            break;
           default:
             voice.chimes.tick(l, r);
             break;
@@ -145,18 +155,28 @@ class Outdoors : public kit::DeviceBase<outdoors::kNumParams> {
 
       // The dip around a type change happens here, ahead of the delays, so
       // the new type fades in at its source. Then distance: the air's
-      // low-pass and the allpass chain.
+      // low-pass, and the same allpass chain on both sides, which blurs every
+      // onset without moving it in the image.
       const float fade = fade_.next();
       left = air_[0].lowpass(left * fade);
       right = air_[1].lowpass(right * fade);
-      const float diffusion = diffusion_.next();
+      const float blur = blur_.next();
       for (int stage = 0; stage < kStages; ++stage) {
-        left = diffuser_[0][stage].process(left, diffuser_length_[0][stage], diffusion);
-        right = diffuser_[1][stage].process(right, diffuser_length_[1][stage], diffusion);
+        left = blur_line_[0][stage].process(left, blur_length_[stage], blur);
+        right = blur_line_[1][stage].process(right, blur_length_[stage], blur);
       }
-
-      const float mid = (left + right) * 0.5f * mid_.next();
-      const float side = (left - right) * 0.5f * side_.next();
+      // What the ground and the trees send back arrives from somewhere else:
+      // a second, different chain of the middle goes into the difference
+      // only, so the sum of left and right never hears it.
+      float mid = (left + right) * 0.5f;
+      float side = (left - right) * 0.5f;
+      float echo = mid;
+      for (int stage = 0; stage < kSpreadStages; ++stage) {
+        echo = spread_line_[stage].process(echo, spread_length_[stage], kSpreadGain);
+      }
+      side += echo * spread_.next();
+      mid *= mid_.next();
+      side *= side_.next();
       const float volume = volume_.next();
       out_left_[i] = kit::soft_clip((mid + side) * volume);
       out_right_[i] = kit::soft_clip((mid - side) * volume);
@@ -168,6 +188,7 @@ class Outdoors : public kit::DeviceBase<outdoors::kNumParams> {
   struct Voice {
     kit::Adsr env;
     kit::LinearRamp swap;  // ducks a stolen voice while its scene is replaced
+    scene::Birds birds;
     scene::Chimes chimes;
     float hz = 220.0f, next_hz = 220.0f;
     float gain = 0.0f, next_gain = 0.0f;
@@ -185,14 +206,20 @@ class Outdoors : public kit::DeviceBase<outdoors::kNumParams> {
   };
 
   static constexpr int kStages = 3;
-  static constexpr int kDiffuserSize = 4096;
-  static constexpr float kDiffuserSeconds[2][kStages] = {{0.0043f, 0.0101f, 0.0227f},
-                                                         {0.0053f, 0.0119f, 0.0197f}};
-  static constexpr float kDiffuserGain = 0.62f;
+  static constexpr int kSpreadStages = 2;
+  static constexpr int kLineSize = 4096;
+  static constexpr float kBlurSeconds[kStages] = {0.0043f, 0.0101f, 0.0227f};
+  static constexpr float kSpreadSeconds[kSpreadStages] = {0.0079f, 0.0171f};
+  static constexpr float kBlurGain = 0.62f;
+  static constexpr float kSpreadGain = 0.55f;
+  static constexpr float kSpread = 0.45f;
 
   // Put a voice at the start of the current type for its key.
   void begin(Voice& voice) {
     switch (kind_) {
+      case kBirds:
+        voice.birds.start(voice.hz, controls_);
+        break;
       default:
         voice.chimes.start(voice.hz, controls_);
         break;
@@ -237,6 +264,9 @@ class Outdoors : public kit::DeviceBase<outdoors::kNumParams> {
       if (!voice.env.active()) continue;
       if (restart) begin(voice);
       switch (kind_) {
+        case kBirds:
+          voice.birds.control(controls_);
+          break;
         default:
           voice.chimes.control(controls_);
           break;
@@ -258,7 +288,8 @@ class Outdoors : public kit::DeviceBase<outdoors::kNumParams> {
         break;
       case kDistance:
         distance_.set(value, primed());
-        diffusion_.set(kDiffuserGain * std::sqrt(value), primed());
+        blur_.set(kBlurGain * std::sqrt(value), primed());
+        spread_.set(kSpread * value, primed());
         break;
       case kMovement:
         movement_.set(value, primed());
@@ -282,10 +313,12 @@ class Outdoors : public kit::DeviceBase<outdoors::kNumParams> {
 
   kit::VoicePool<Voice, kMaxVoices> pool_;
   kit::OnePole air_[2];
-  kit::AllpassDelay<kDiffuserSize> diffuser_[2][kStages];
-  int diffuser_length_[2][kStages] = {};
+  kit::AllpassDelay<kLineSize> blur_line_[2][kStages];
+  kit::AllpassDelay<kLineSize> spread_line_[kSpreadStages];
+  int blur_length_[kStages] = {};
+  int spread_length_[kSpreadStages] = {};
   kit::Smoother density_, distance_, movement_, tone_;  // advanced on the control clock
-  kit::Smoother diffusion_, mid_, side_, volume_;
+  kit::Smoother blur_, spread_, mid_, side_, volume_;
   kit::LinearRamp fade_;
   kit::ControlClock clock_;
   kit::IdleGate idle_;
