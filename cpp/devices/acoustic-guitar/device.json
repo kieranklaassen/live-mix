@@ -1,0 +1,149 @@
+{
+  "id": "acoustic-guitar",
+  "name": "Acoustic Guitar",
+  "category": "instrument",
+  "description": "A steel-string, nylon-string or twelve-string acoustic guitar: plucked strings heard through a wooden body, played with a fingertip, a nail or a pick.",
+  "class": "AcousticGuitar",
+  "header": "acoustic_guitar.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "type",
+      "name": "Type",
+      "choices": ["Steel", "Nylon", "Twelve string"],
+      "default": 0,
+      "description": "Which guitar is played: bright steel strings, round nylon strings, or twelve strings in octave and unison pairs. It changes from the next note."
+    },
+    {
+      "key": "body",
+      "name": "Body",
+      "min": 0,
+      "max": 1,
+      "default": 0.75,
+      "description": "How much of the wooden box is heard, from the bare string to the full body with its low thump at every pluck."
+    },
+    {
+      "key": "position",
+      "name": "Position",
+      "min": 0.06,
+      "max": 0.4,
+      "default": 0.18,
+      "description": "Where the string is plucked, from close to the bridge, thin and nasal, to over the soundhole, round and hollow. It changes from the next note."
+    },
+    {
+      "key": "nail",
+      "name": "Nail",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "What plucks the string, from the soft pad of a finger to a nail to a hard pick. Higher is brighter, with a click at the start of each note."
+    },
+    {
+      "key": "sustain",
+      "name": "Sustain",
+      "min": 0.5,
+      "max": 12,
+      "default": 5,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long a held note rings. Low notes ring longer than high ones, and nylon dies away sooner than steel. It changes from the next note."
+    },
+    {
+      "key": "release",
+      "name": "Release",
+      "min": 0.05,
+      "max": 10,
+      "default": 1.5,
+      "taper": "log",
+      "unit": "s",
+      "description": "How a note ends when the key is let go. Short is a finger stopping the string; long lets it ring on until it dies by itself."
+    },
+    {
+      "key": "tone",
+      "name": "Tone",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "The brightness of the whole instrument, from dark and woody to bright and glassy."
+    },
+    {
+      "key": "shimmer",
+      "name": "Shimmer",
+      "min": 0,
+      "max": 1.5,
+      "default": 0.3,
+      "unit": "Hz",
+      "description": "How fast each note slowly beats against itself, as a real string does. On twelve strings it is how far the paired strings are out of tune."
+    },
+    {
+      "key": "strum",
+      "name": "Strum",
+      "min": 0,
+      "max": 120,
+      "default": 15,
+      "unit": "ms",
+      "description": "How far the notes of a chord are spread in time, low string first, like a hand moving across the strings. Single notes are never delayed."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -9,
+      "unit": "dB",
+      "description": "Output level of the instrument. A soft clip after it rounds off the peaks when many notes stack up."
+    }
+  ],
+  "presets": {
+    "Steel fingerstyle": {},
+    "Nylon dusk": {
+      "type": 1,
+      "body": 0.9,
+      "position": 0.3,
+      "nail": 0.2,
+      "sustain": 6,
+      "release": 2.5,
+      "tone": 0.5,
+      "shimmer": 0.25,
+      "strum": 20
+    },
+    "Twelve string": {
+      "type": 2,
+      "position": 0.14,
+      "nail": 0.75,
+      "sustain": 6,
+      "tone": 0.65,
+      "shimmer": 0.6,
+      "strum": 30
+    },
+    "Let ring": {
+      "body": 0.8,
+      "nail": 0.4,
+      "sustain": 10,
+      "release": 8,
+      "shimmer": 0.4
+    },
+    "Muted pattern": {
+      "body": 0.6,
+      "position": 0.09,
+      "nail": 0.6,
+      "sustain": 0.8,
+      "release": 0.08,
+      "tone": 0.5,
+      "strum": 0
+    },
+    "Soft thumb": {
+      "body": 1,
+      "position": 0.36,
+      "nail": 0,
+      "sustain": 4,
+      "release": 1.2,
+      "tone": 0.45,
+      "strum": 45
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. A signal model of a flat-top acoustic guitar; it uses no samples and is not a model of any one instrument. Modelled: each note is two of the kit's plucked-string loops (extended Karplus-Strong, Jaffe-Smith lineage) for the string's two polarisations, one louder and shorter lived, one quieter and longer lived, which gives the two-stage decay and the slow beat of a real note; stiff steel against nylon that loses its highs sooner; the pluck point; a body of fixed resonances with the air mode near 100 Hz and the main top mode near 200 Hz; a knock into the body at every pluck. Simplified: one body for all three types, eight parallel resonances beside the direct string; the kit's one-pole string loss; polarisations that do not exchange energy; no string or fret assignment, no sympathetic strings; release is a fade behind a closing low-pass; a twelve-string course is one extra loop, an octave up below B3 and a unison above. Choices, not measurements: the six upper body modes, every Q and gain, the sustain law, the shares of the two polarisations, the inharmonicity, the damping exponents, the knock level, the strum step and the pluck-to-pluck variation."
+  }
+}

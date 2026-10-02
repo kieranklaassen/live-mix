@@ -4,6 +4,8 @@
 # (native_test).
 
 build_generated_devices() {
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device acoustic-guitar \
+    cpp/devices/acoustic-guitar/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device ambient-comp \
     cpp/devices/ambient-comp/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device ambient-eq \
@@ -105,6 +107,8 @@ build_generated_devices() {
 }
 
 test_generated_devices() {
+  native_test acoustic_guitar_test \
+    cpp/test/acoustic_guitar_test.cpp
   native_test ambient_comp_test \
     cpp/test/ambient_comp_test.cpp
   native_test ambient_eq_test \
