@@ -94,18 +94,18 @@
   "presets": {
     "Warm glue": {
       "circuit": 0,
-      "drive": 0.4,
-      "thump": 0.3,
-      "tone": -0.35,
-      "output": -2.5
+      "drive": 0.36,
+      "thump": 0.2,
+      "tone": -0.2,
+      "output": -2
     },
     "Tape weight": {
       "circuit": 0,
-      "drive": 0.55,
-      "thump": 0.6,
-      "tone": -0.3,
-      "highCut": 8000,
-      "output": -4.5
+      "drive": 0.6,
+      "thump": 0.7,
+      "tone": -0.4,
+      "highCut": 6500,
+      "output": -5
     },
     "Console edge": {
       "circuit": 1,
@@ -124,7 +124,6 @@
     "Glowing triode": {
       "circuit": 3,
       "drive": 0.5,
-      "tone": 0.2,
       "output": -1
     },
     "Bite": {
