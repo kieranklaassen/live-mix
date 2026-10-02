@@ -781,6 +781,7 @@ function checkSlotClip(raw: unknown, path: string, ctx: Context): void {
   check.number(raw.gainDb, `${path}.gainDb`)
   if (raw.loop !== undefined) check.boolean(raw.loop, `${path}.loop`)
   if (raw.reversed !== undefined) check.boolean(raw.reversed, `${path}.reversed`)
+  if (raw.chance !== undefined) check.number(raw.chance, `${path}.chance`, { min: 0, max: 1 })
   checkPlacement(raw, path, check)
   checkWarp(raw, path, check)
   if (raw.warp !== undefined && check.array(raw.warp, `${path}.warp`)) {
@@ -1301,7 +1302,7 @@ export function normaliseSource(source: ScoreSource): ScoreSource {
   return out
 }
 
-/** Slot clip fields in a fixed order; `loop` and `reversed` only when true, warp, semitones and placement only when set. */
+/** Slot clip fields in a fixed order; `loop` and `reversed` only when true, `chance` only below 1, warp, semitones and placement only when set. */
 export function normaliseSlotClip(clip: SlotClip): SlotClip {
   const out: SlotClip = {
     sourceId: clip.sourceId,
@@ -1317,6 +1318,7 @@ export function normaliseSlotClip(clip: SlotClip): SlotClip {
     out.warp = clip.warp.map((m) => ({ sourceSec: m.sourceSec, beat: m.beat }))
   if (clip.semitones !== undefined) out.semitones = clip.semitones
   if (clip.reversed) out.reversed = true
+  if (clip.chance !== undefined && clip.chance < 1) out.chance = clip.chance
   if (clip.pan !== undefined) out.pan = clip.pan
   if (clip.lowpassHz !== undefined) out.lowpassHz = clip.lowpassHz
   if (clip.spaceDb !== undefined) out.spaceDb = clip.spaceDb

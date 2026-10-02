@@ -459,6 +459,10 @@ export const OPERATION_DEFS: Record<string, JsonSchema> = {
       loop: { type: 'boolean', description: 'Loop until stopped.' },
       semitones: number('Pitch shift on a stretch source.'),
       reversed: { type: 'boolean', description: 'Play the slice backwards.' },
+      chance: number('Chance of sounding on each pass, 0 to 1; 1 plays every pass.', {
+        min: 0,
+        max: 1,
+      }),
       pan: number("The clip's own place, −1 left … 1 right, ahead of the track's pan.", {
         min: -1,
         max: 1,

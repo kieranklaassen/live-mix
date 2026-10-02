@@ -150,6 +150,21 @@ describe('score format 3: session grid', () => {
     ])
   })
 
+  it('a slot clip keeps a `chance` below 1 and only then, and it has to be within 0 and 1', () => {
+    const score = gridScore()
+    score.slots[0].clip = slotClip('a', { chance: 0.25 })
+    score.slots[1].clip = slotClip('b', { chance: 1 })
+    expect(validateScore(score)).toEqual([])
+    const parsed = parseScore(serializeScore(score))
+    expect(parsed.slots[0].clip).toMatchObject({ chance: 0.25 })
+    expect(parsed.slots[1].clip).not.toHaveProperty('chance')
+    const raw = JSON.parse(serializeScore(score)) as { slots: { clip: Record<string, unknown> }[] }
+    raw.slots[0].clip.chance = 1.5
+    expect(validateScore(raw).map((issue) => `${issue.path}: ${issue.message}`)).toEqual([
+      expect.stringContaining('slots[0].clip.chance'),
+    ])
+  })
+
   it('reports every structural and referential problem in the grid', () => {
     const score = gridScore()
     const raw = JSON.parse(serializeScore(score)) as Record<string, unknown>
