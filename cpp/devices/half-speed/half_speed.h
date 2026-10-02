@@ -16,6 +16,7 @@ class HalfSpeed : public kit::DeviceBase<half_speed::kNumParams> {
   void init(float sample_rate) {
     using namespace half_speed;
     kit::SineTable::init();
+    half_speed::SincTable::init();
     init_base(sample_rate, kParamMin, kParamMax, kParamDefault);
     const float sr = this->sample_rate();
     ring_.clear();
@@ -67,7 +68,8 @@ class HalfSpeed : public kit::DeviceBase<half_speed::kNumParams> {
   // sample per sample at the fastest speed... (see reach()); plus margin.
   static constexpr int kRingFrames = 560000;
   static constexpr long kLongEnough = 1L << 30;
-  static constexpr double kStartDelay = 3.0;
+  // Where a head starts: as close to the present as the read kernel allows.
+  static constexpr double kStartDelay = 6.0;
   static constexpr float kSpeedGlideSeconds = 0.06f;
   static constexpr float kMatchGlideSeconds = 0.02f;
   static constexpr float kPowerFadeSeconds = 0.03f;
@@ -89,7 +91,7 @@ class HalfSpeed : public kit::DeviceBase<half_speed::kNumParams> {
   struct Timing {
     double phase = 0.0;
     bool mid_done = false;
-    double delay[kNumHeads] = {3.0, 3.0, 3.0};
+    double delay[kNumHeads] = {kStartDelay, kStartDelay, kStartDelay};
     float weight[kNumHeads] = {1.0f, 0.0f, 0.0f};
     // How alike the heads' waveforms are (Matcher), glided between cycles.
     kit::Smoother match;

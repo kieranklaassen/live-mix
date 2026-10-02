@@ -300,7 +300,6 @@ class LowBitrate : public kit::DeviceBase<low_bitrate::kNumParams> {
 
   static Severity severity(float loss) {
     const float keep = 1.0f - loss;
-    const float eased = keep * std::sqrt(keep);
     const float squared = keep * keep;
     Severity s;
     s.margin = kit::db_to_gain(-(kMarginAtFullDb + kMarginRangeDb * squared));

@@ -60,7 +60,7 @@ class Radio : public kit::DeviceBase<radio::kNumParams> {
     tune_phase_ = 0.0;
     centre_phase_ = 0.0;
     level_ = 1.0f;
-    low_hz_ = high_hz_ = cone_ = -1.0f;
+    low_hz_ = high_hz_ = cone_ = fading_ = -1.0f;
     gate_ = 0.0f;
     gate_rise_ = 1.0f / (0.003f * sr);
     gate_fall_ = 1.0f / (kFallSeconds * sr);
@@ -298,7 +298,8 @@ class Radio : public kit::DeviceBase<radio::kNumParams> {
     blend_.aim(cone_, inverse, jump);
 
     float direct, late_re, late_im, delay_s;
-    propagation_.tick(param(kFading), kControlPeriod, sr, &direct, &late_re, &late_im, &delay_s);
+    glide(&fading_, param(kFading), snap);
+    propagation_.tick(fading_, kControlPeriod, sr, &direct, &late_re, &late_im, &delay_s);
     direct_.aim(direct, inverse, jump);
     late_re_.aim(late_re, inverse, jump);
     late_im_.aim(late_im, inverse, jump);
@@ -361,7 +362,7 @@ class Radio : public kit::DeviceBase<radio::kNumParams> {
   double tune_phase_ = 0.0;
   double centre_phase_ = 0.0;
   float level_ = 1.0f;
-  float low_hz_ = -1.0f, high_hz_ = -1.0f, cone_ = -1.0f;
+  float low_hz_ = -1.0f, high_hz_ = -1.0f, cone_ = -1.0f, fading_ = 0.0f;
   float gate_ = 0.0f, gate_rise_ = 0.0f, gate_fall_ = 0.0f;
   long hold_samples_ = 1, drain_samples_ = 1, quiet_ = 1;
   float attack_ = 0.0f, release_ = 0.0f;
