@@ -93,6 +93,8 @@ private:
         licence dialog up every time it is looked at.
     */
     juce::StringArray couldNotLoad;
+    /** What is wrong with each of them, where a scan could tell: file to words. */
+    juce::StringPairArray whyNotLoaded;
     std::unique_ptr<ScanJob> scan;
     /** A scan was started and has not run to its end: the list may be part of what there is. */
     bool scanUnfinished = false;

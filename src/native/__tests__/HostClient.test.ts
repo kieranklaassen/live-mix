@@ -6,6 +6,7 @@ import {
   FAKE_REVERB,
   FAKE_SYNTH,
   FakePluginHost,
+  FAKE_BROKEN_REASON,
 } from '../../testing/fake-plugin-host'
 
 async function connect(host = new FakePluginHost()) {
@@ -68,6 +69,7 @@ describe('NativeHostClient', () => {
     expect(result.failed).toEqual(['/plugins/Broken.vst3'])
     expect(result.crashed).toEqual([])
     expect(result.names).toEqual({ '/plugins/Broken.vst3': 'Broken' })
+    expect(result.reasons).toEqual({ '/plugins/Broken.vst3': FAKE_BROKEN_REASON })
     off()
     await client.scan()
     expect(seen).toHaveLength(1)
@@ -134,6 +136,7 @@ describe('NativeHostClient', () => {
       failed: [],
       crashed: [],
       names: {},
+      reasons: {},
     })
   })
 

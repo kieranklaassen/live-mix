@@ -688,6 +688,7 @@ void HostServer::startScan (const Connection& connection, const juce::var& id, c
         knownPlugins.clear();
         knownPlugins.clearBlacklistedFiles();
         couldNotLoad.clear();
+        whyNotLoaded.clear();
     }
 
     // Plug-ins to give another go: no longer held against them, so this scan
@@ -698,6 +699,7 @@ void HostServer::startScan (const Connection& connection, const juce::var& id, c
         {
             knownPlugins.removeFromBlacklist (entry.toString());
             couldNotLoad.removeString (entry.toString());
+            whyNotLoaded.remove (juce::StringRef (entry.toString()));
         }
     }
 
@@ -834,10 +836,14 @@ void HostServer::describeKnown (juce::DynamicObject& result) const
     juce::Array<juce::var> crashed;
     // What to call each of them: an Audio Unit is found by a code, not a file.
     auto* names = new juce::DynamicObject();
+    // And what is wrong with a file no plug-in loaded from, where a scan could tell.
+    auto* reasons = new juce::DynamicObject();
     for (const auto& file : couldNotLoad)
     {
         failed.add (file);
         names->setProperty (file, pluginName (file));
+        if (whyNotLoaded.containsKey (file))
+            reasons->setProperty (file, whyNotLoaded[file]);
     }
     for (const auto& file : knownPlugins.getBlacklistedFiles())
     {
@@ -848,6 +854,7 @@ void HostServer::describeKnown (juce::DynamicObject& result) const
     result.setProperty ("failed", failed);
     result.setProperty ("crashed", crashed);
     result.setProperty ("names", juce::var (names));
+    result.setProperty ("reasons", juce::var (reasons));
 }
 
 juce::String HostServer::pluginName (const juce::String& identifier) const
@@ -936,7 +943,11 @@ void HostServer::takeScanResults()
         for (const auto* type : line->types)
             knownPlugins.addType (*type);
         if (line->types.isEmpty())
+        {
             couldNotLoad.addIfNotAlreadyThere (identifier);
+            if (line->why.isNotEmpty())
+                whyNotLoaded.set (identifier, line->why);
+        }
         job.settled = line->index + 1;
         job.current = -1;
         ++job.workerDone;
@@ -1066,18 +1077,29 @@ void HostServer::loadPluginCache()
         knownPlugins.recreateFromXml (*xml);
         scanUnfinished = xml->getBoolAttribute ("scanUnfinished");
         couldNotLoad.clear();
+        whyNotLoaded.clear();
         for (auto* entry : xml->getChildWithTagNameIterator ("COULDNOTLOAD"))
-            couldNotLoad.addIfNotAlreadyThere (entry->getStringAttribute ("id"));
+        {
+            const auto file = entry->getStringAttribute ("id");
+            couldNotLoad.addIfNotAlreadyThere (file);
+            if (entry->hasAttribute ("why"))
+                whyNotLoaded.set (file, entry->getStringAttribute ("why"));
+        }
     }
 
     // A host from before scans had a process of their own noted here which
-    // plug-in it was in, and that plug-in took it down. Those stay left out.
+    // plug-in it was in, and that plug-in took it down. Those stay left out,
+    // and the scan they ended is not finished. A scan that reached its end
+    // left the note behind with nothing in it, which says nothing of the kind.
     const auto noted = options.dataDirectory.getChildFile ("scan-in-progress.txt");
     if (noted.existsAsFile())
     {
-        juce::PluginDirectoryScanner::applyBlacklistingsFromDeadMansPedal (knownPlugins, noted);
-        scanUnfinished = true;
-        savePluginCache();
+        if (noted.loadFileAsString().trim().isNotEmpty())
+        {
+            juce::PluginDirectoryScanner::applyBlacklistingsFromDeadMansPedal (knownPlugins, noted);
+            scanUnfinished = true;
+            savePluginCache();
+        }
         noted.deleteFile();
     }
 }
@@ -1094,7 +1116,12 @@ void HostServer::savePluginCache() const
             xml->setAttribute ("scanUnfinished", true);
         // Beside the list's own entries, which is all the list reads back.
         for (const auto& file : couldNotLoad)
-            xml->createNewChildElement ("COULDNOTLOAD")->setAttribute ("id", file);
+        {
+            auto* entry = xml->createNewChildElement ("COULDNOTLOAD");
+            entry->setAttribute ("id", file);
+            if (whyNotLoaded.containsKey (file))
+                entry->setAttribute ("why", whyNotLoaded[file]);
+        }
         xml->writeTo (options.dataDirectory.getChildFile ("plugins.xml"));
     }
 }

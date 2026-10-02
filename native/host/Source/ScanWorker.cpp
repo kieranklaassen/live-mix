@@ -1,6 +1,7 @@
 #include "ScanWorker.h"
 
 #include "MacWindows.h"
+#include "WhyNoPlugin.h"
 
 #include <atomic>
 #include <chrono>
@@ -225,7 +226,8 @@ void ScanWorker::run()
         write (juce::var (begin));
 
         juce::OwnedArray<juce::PluginDescription> found;
-        scan (identifier, found, index);
+        juce::String why;
+        scan (identifier, found, why, index);
 
         juce::Array<juce::var> types;
         for (const auto* type : found)
@@ -235,6 +237,8 @@ void ScanWorker::run()
         auto* done = new juce::DynamicObject();
         done->setProperty ("done", index);
         done->setProperty ("types", types);
+        if (types.isEmpty() && why.isNotEmpty())
+            done->setProperty ("why", why);
         write (juce::var (done));
     }
 
@@ -244,7 +248,7 @@ void ScanWorker::run()
     std::_Exit (0);
 }
 
-void ScanWorker::scan (const juce::String& identifier, juce::OwnedArray<juce::PluginDescription>& found, int index)
+void ScanWorker::scan (const juce::String& identifier, juce::OwnedArray<juce::PluginDescription>& found, juce::String& why, int index)
 {
     juce::PluginDescription probe;
     probe.fileOrIdentifier = identifier;
@@ -254,7 +258,7 @@ void ScanWorker::scan (const juce::String& identifier, juce::OwnedArray<juce::Pl
     // answers on it, so it has to be asked from another thread.
     const auto asynchronous = format->requiresUnblockedMessageThreadDuringCreation (probe);
 
-    const auto find = [this, &identifier, &found, index, asynchronous]
+    const auto find = [this, &identifier, &found, &why, index, asynchronous]
     {
         noteScanThread (! asynchronous);
         scanning = index;
@@ -266,6 +270,10 @@ void ScanWorker::scan (const juce::String& identifier, juce::OwnedArray<juce::Pl
         {
             // A plug-in that throws has nothing to offer; the scan goes on.
         }
+        // Nothing in it: what is the matter with the file, asked where the
+        // plug-in was, while it still counts as the one being scanned.
+        if (found.isEmpty())
+            why = whyNoPlugin (identifier);
         scanning = -1;
     };
 
@@ -301,6 +309,7 @@ std::optional<ScanWorker::Line> ScanWorker::parse (const juce::String& text)
 
     line.index = static_cast<int> (parsed["done"]);
     line.done = true;
+    line.why = parsed["why"].toString();
     if (const auto* types = parsed["types"].getArray())
     {
         for (const auto& type : *types)
