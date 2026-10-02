@@ -109,11 +109,12 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
       }
       const int n = kit::clamp_int(frames - done, 1, chunk_left_);
       float left[kChunk] = {}, right[kChunk] = {}, bridge[kChunk] = {};
+      float knock_left[kChunk] = {}, knock_right[kChunk] = {};
       for (Voice& voice : voices_) {
-        if (voice.sounding) render_voice(voice, n, left, right, bridge);
+        if (voice.sounding) render_voice(voice, n, left, right, bridge, knock_left, knock_right);
       }
       render_sympathetic(n, left, right, bridge);
-      finish_chunk(left, right, n, done);
+      finish_chunk(left, right, knock_left, knock_right, n, done);
       chunk_left_ -= n;
       done += n;
       now_ += n;
@@ -775,7 +776,8 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
   static constexpr float kCourseSecond = 0.7f;
   static constexpr float kCourseSplit = 0.4f;
 
-  void render_voice(Voice& voice, int count, float* left, float* right, float* bridge) {
+  void render_voice(Voice& voice, int count, float* left, float* right, float* bridge, float* knock_left,
+                    float* knock_right) {
     // A string that is fading out ends on its own sample, and the blow that
     // waits for it begins on the next, wherever the host cuts its blocks.
     int n = count;
@@ -824,6 +826,9 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     if (!voice.two) {
       for (int i = 0; i < n; ++i) b[i] = 0.0f;
     }
+    float touch[kChunk];
+    const bool touched = voice.touch_gain != 0.0f;
+    if (touched) render_touch(voice, touch, n);
     float peak = voice.chunk_peak;
     if (voice.fading) {
       float fade = voice.fade;
@@ -832,8 +837,16 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
         const float gain = fade * fade * (3.0f - 2.0f * fade);
         a[i] *= gain;
         b[i] *= gain;
+        if (touched) touch[i] *= gain;
       }
       voice.fade = fade;
+    }
+    if (touched) {
+      const float l0 = voice.left[0], r0 = voice.right[0];
+      for (int i = 0; i < n; ++i) {
+        knock_left[i] += touch[i] * l0;
+        knock_right[i] += touch[i] * r0;
+      }
     }
     if (voice.two) {
       const float l0 = voice.left[0], l1 = voice.left[1], r0 = voice.right[0], r1 = voice.right[1];
@@ -857,7 +870,9 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     if (voice.fading && voice.fade <= 0.0f) {
       if (voice.pending) {
         start(voice, voice.pending_blow, now_ + static_cast<double>(n));
-        if (n < count) render_voice(voice, count - n, left + n, right + n, bridge + n);
+        if (n < count) {
+          render_voice(voice, count - n, left + n, right + n, bridge + n, knock_left + n, knock_right + n);
+        }
       } else {
         voice.sounding = voice.fading = false;
       }
@@ -957,11 +972,17 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     sympathetic_peak_ = peak;
   }
 
-  void finish_chunk(const float* left, const float* right, int n, int at) {
+  // The touch is heard beside the strings and knocks on the body's
+  // resonances harder than a string does (a real box answers a knock with
+  // far more than four of them).
+  static constexpr float kKnock = 3.0f;
+
+  void finish_chunk(const float* left, const float* right, const float* knock_left, const float* knock_right, int n,
+                    int at) {
     for (int i = 0; i < n; ++i) {
-      float l = rumble_[0].process(left[i]);
-      float r = rumble_[1].process(right[i]);
-      body(&l, &r);
+      float l = rumble_[0].process(left[i] + knock_left[i]);
+      float r = rumble_[1].process(right[i] + knock_right[i]);
+      body(&l, &r, kKnock * knock_left[i], kKnock * knock_right[i]);
       const float volume = volume_.next() * kOutGain;
       out_left_[at + i] = kit::soft_clip(l * volume);
       out_right_[at + i] = kit::soft_clip(r * volume);
@@ -1036,10 +1057,12 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
       high_gain = kit::db_to_gain(body.high_db) - 1.0f;
     }
 
-    float process(int c, float x) {
+    // `knock` reaches the resonances only, on top of `x`.
+    float process(int c, float x, float knock) {
       const BodySpec& body = kBodies[spec];
       float y = body.direct * x;
-      for (int m = 0; m < kBodyModes; ++m) y += body.gain[m] * mode[c][m].process(x);
+      const float drive = x + knock;
+      for (int m = 0; m < kBodyModes; ++m) y += body.gain[m] * mode[c][m].process(drive);
       // First-order shelves: what lies under the low corner, and what lies
       // over the high one, scaled and added back.
       low[c] = y + (low[c] - y) * low_pole;
@@ -1084,13 +1107,13 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     body_mix_ = 0.0f;
   }
 
-  void body(float* left, float* right) {
-    float l = bodies_[body_now_].process(0, *left);
-    float r = bodies_[body_now_].process(1, *right);
+  void body(float* left, float* right, float knock_left, float knock_right) {
+    float l = bodies_[body_now_].process(0, *left, knock_left);
+    float r = bodies_[body_now_].process(1, *right, knock_right);
     if (body_mix_ < 1.0f) {
       body_mix_ = kit::min(1.0f, body_mix_ + body_step_);
-      l = kit::lerp(bodies_[1 - body_now_].process(0, *left), l, body_mix_);
-      r = kit::lerp(bodies_[1 - body_now_].process(1, *right), r, body_mix_);
+      l = kit::lerp(bodies_[1 - body_now_].process(0, *left, knock_left), l, body_mix_);
+      r = kit::lerp(bodies_[1 - body_now_].process(1, *right, knock_right), r, body_mix_);
     }
     *left = l;
     *right = r;
