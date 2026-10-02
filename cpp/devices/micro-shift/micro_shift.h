@@ -88,6 +88,12 @@ class MicroShift : public kit::DeviceBase<micro_shift::kNumParams> {
     filters_tone_ = -1.0f;
     // The longest silent gap is the longest head position, under 100 ms.
     hold_coeff_ = kit::time_to_coeff(kHoldFastSeconds, sr);
+    attack_rise_ = kit::time_to_coeff(0.0003f, sr);
+    attack_fall_ = kit::time_to_coeff(0.020f, sr);
+    attack_average_ = kit::time_to_coeff(0.030f, sr);
+    attack_fast_ = attack_slow_ = 0.0f;
+    attack_seen_ = false;
+    attack_ticks_ = 0;
     hold_control_coeff_ = kit::time_to_coeff(kHoldSeconds, control_rate);
     idle_.reset(sr, 0.3f);
     for (int id = 0; id < kNumParams; ++id) apply(id);
@@ -150,6 +156,13 @@ class MicroShift : public kit::DeviceBase<micro_shift::kNumParams> {
       const float dry_gain = kit::SineTable::cos_lookup(quarter);
       const float wet_gain = kit::SineTable::lookup(quarter);
       const float fill = 1.0f - dry_gain;
+      // Attacks, for the level hold: a fast peak follower well ahead of its
+      // own average.
+      const float size = high < 0.0f ? -high : high;
+      attack_fast_ = flush_denormal(
+          size + (attack_fast_ - size) * (size > attack_fast_ ? attack_rise_ : attack_fall_));
+      if (attack_fast_ > kHoldAttack * attack_slow_ + 1.0e-4f) attack_seen_ = true;
+      attack_slow_ = flush_denormal(attack_fast_ + (attack_slow_ - attack_fast_) * attack_average_);
       const float dry_high = high * dry_gain;
       const float sides[2] = {wet_left * wet_gain, wet_right * wet_gain};
       float out[2];
@@ -193,10 +206,11 @@ class MicroShift : public kit::DeviceBase<micro_shift::kNumParams> {
   static constexpr float kHoldSeconds = HOLD_SECONDS;
   static constexpr int kHoldStages = 3;
 #ifndef HOLD_ATTACK
-#define HOLD_ATTACK 1.5f
+#define HOLD_ATTACK 1.6f
 #endif
   static constexpr float kHoldFastSeconds = 0.003f;
   static constexpr float kHoldAttack = HOLD_ATTACK;
+  static constexpr float kHoldAttackSeconds = 0.012f;
   static constexpr float kHoldGlideSeconds = HOLD_GLIDE;
   // The wet high-pass sits a little under the dry low-pass so the two meet
   // level at the Focus frequency (they add in power).
@@ -249,11 +263,15 @@ class MicroShift : public kit::DeviceBase<micro_shift::kNumParams> {
     // the copy) to add so that the whole is as loud as the dry sound and the
     // copy would be if they neither added nor cancelled:
     //   lift^2 * shared^2 + 2 * lift * sum*shared + 2 * dry*copy = 0
+    if (attack_seen_) {
+      attack_seen_ = false;
+      attack_ticks_ = static_cast<int>(kHoldAttackSeconds * sr / static_cast<float>(control_period_));
+    }
     for (int c = 0; c < 2; ++c) {
       float lift = 0.0f;
       // An attack: the averages start again from what is sounding now, so
       // the lift worked out for the old sound is not laid on the new note.
-      if (hold_fast_[c][2] > kHoldAttack * hold_slow_[c][2][kHoldStages - 1] + 1.0e-10f) {
+      if (attack_ticks_ > 0) {
         for (int k = 0; k < 3; ++k) {
           for (float& stage : hold_slow_[c][k]) stage = hold_fast_[c][k];
         }
@@ -277,6 +295,7 @@ class MicroShift : public kit::DeviceBase<micro_shift::kNumParams> {
 #endif
       hold_lift_[c].set(lift, !snap);
     }
+    if (attack_ticks_ > 0) --attack_ticks_;
 
     const float drift = drift_.next();
     const float detune = param(kDetune);
@@ -360,6 +379,10 @@ class MicroShift : public kit::DeviceBase<micro_shift::kNumParams> {
   float hold_slow_[2][3][kHoldStages] = {};
   float hold_coeff_ = 0.0f;
   float hold_control_coeff_ = 0.0f;
+  float attack_fast_ = 0.0f, attack_slow_ = 0.0f;
+  float attack_rise_ = 0.0f, attack_fall_ = 0.0f, attack_average_ = 0.0f;
+  bool attack_seen_ = false;
+  int attack_ticks_ = 0;
   kit::Smoother hold_lift_[2];
   float filters_focus_ = -1.0f;
   float filters_tone_ = -1.0f;

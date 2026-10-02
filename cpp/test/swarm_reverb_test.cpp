@@ -238,7 +238,156 @@ int main() {
     EXPECT_NEAR(arrivals(out.left, 0.02).back() / kRate, 0.5, 0.001, "Steps snaps Drag to the nearest size");
   }
 
-  // BEHAVIOUR CHECKS 3
+  // Wander moves the echo times on its own. One impulse every 1.5 s for a
+  // minute; the last arrival after each is the size of the cave then.
+  {
+    const auto sizes = [&](float steps, float wander) {
+      bare(device);
+      device.set_param(p::kSteps, steps);
+      device.set_param(p::kWander, wander);
+      device.set_param(p::kDragTime, 0.02f);
+      std::vector<double> found;
+      const size_t hop = static_cast<size_t>(1.5f * kRate);
+      std::vector<float> train(hop * 40, 0.0f);
+      for (int k = 0; k < 40; ++k) train[k * hop] = 1.0f;
+      Stereo out = run(device, train);
+      for (int k = 0; k < 40; ++k) {
+        std::vector<float> slice(out.left.begin() + k * hop, out.left.begin() + (k + 1) * hop);
+        std::vector<size_t> hits = arrivals(slice, 0.03);
+        found.push_back(hits.empty() ? 0.0 : hits.back() / kRate);
+      }
+      return found;
+    };
+    const auto range = [](const std::vector<double>& v) {
+      return *std::max_element(v.begin(), v.end()) / *std::min_element(v.begin(), v.end());
+    };
+    const auto largest_change = [](const std::vector<double>& v) {
+      double worst = 1.0;
+      for (size_t i = 1; i < v.size(); ++i) worst = std::max(worst, std::max(v[i] / v[i - 1], v[i - 1] / v[i]));
+      return worst;
+    };
+    const double grid[7] = {0.5, 2.0 / 3.0, 0.75, 1.0, 4.0 / 3.0, 1.5, 2.0};
+    const auto on_grid = [&](double seconds) {
+      for (int g = 0; g < 7; ++g) {
+        if (std::fabs(seconds / (0.5 * grid[g]) - 1.0) < 0.01) return g;
+      }
+      return -1;
+    };
+
+    std::vector<double> still = sizes(0.0f, 0.0f);
+    EXPECT(range(still) < 1.001, "Wander 0: the echo times stay where they are");
+
+    std::vector<double> smooth = sizes(0.0f, 0.5f);
+    EXPECT(range(smooth) > 1.2, "Wander moves the echo times (Steps off)");
+    EXPECT(largest_change(smooth) < 1.15, "Steps off: the echo times drift smoothly");
+    int landed = 0;
+    for (double s : smooth) landed += on_grid(s) >= 0;
+    EXPECT(landed < 12, "Steps off: the drift does not sit on the step sizes");
+
+    std::vector<double> stepped = sizes(1.0f, 0.6f);
+    bool visited[7] = {};
+    int on = 0, kinds = 0;
+    for (double s : stepped) {
+      const int g = on_grid(s);
+      if (g >= 0) {
+        ++on;
+        visited[g] = true;
+      }
+    }
+    for (bool v : visited) kinds += v;
+    EXPECT(on >= 34, "Steps on: the echo times sit on the step sizes between jumps");
+    EXPECT(kinds >= 3, "Steps on: Wander visits several sizes");
+    EXPECT(largest_change(stepped) > 1.1, "Steps on: the echo times jump");
+    std::printf("Wander over 60 s: smooth range x%.2f, largest change in 1.5 s x%.3f, %d of 40 on a step size; "
+                "stepped %d of 40 on a step size, %d sizes visited, largest jump x%.2f\n",
+                range(smooth), largest_change(smooth), landed, on, kinds, largest_change(stepped));
+  }
+
+  // Dampen takes the top off the echoes and Low Cut the bottom, and each
+  // trip round the loop takes more.
+  {
+    const auto wet_noise = [&](float dampen, float low_cut, float reflect) {
+      device.init(kRate);
+      device.set_param(p::kMix, 1.0f);
+      device.set_param(p::kReflect, reflect);
+      device.set_param(p::kDampen, dampen);
+      device.set_param(p::kLowCut, low_cut);
+      rng_state() = 0xD00Du;
+      std::vector<float> burst = noise(0.3f, kRate, 0.3f);
+      burst.resize(static_cast<size_t>(kRate * 4.0f), 0.0f);
+      return run(device, burst);
+    };
+    Stereo bright = wet_noise(16000.0f, 20.0f, 0.8f);
+    Stereo dark = wet_noise(1000.0f, 20.0f, 0.8f);
+    const double bright_top = energy_above(bright.left, 3000.0, kRate, 4800, 28800);
+    const double dark_top = energy_above(dark.left, 3000.0, kRate, 4800, 28800);
+    const double dark_later = energy_above(dark.left, 3000.0, kRate, 120000, 168000);
+    EXPECT(dark_top < 0.25 * bright_top, "Dampen removes treble from the swarm");
+    EXPECT(dark_later < 0.5 * dark_top, "each trip round the loop is duller");
+
+    const auto low_tone = [&](float low_cut) {
+      device.init(kRate);
+      device.set_param(p::kMix, 1.0f);
+      device.set_param(p::kReflect, 0.0f);
+      device.set_param(p::kLowCut, low_cut);
+      Stereo out = run(device, sine(80.0f, 3.0f, kRate, 0.5f));
+      return rms(out.left, 96000, 144000) + rms(out.right, 96000, 144000);
+    };
+    const double open = low_tone(20.0f), cut = low_tone(400.0f);
+    EXPECT(db(cut / open) < -24.0, "Low Cut 400 Hz takes an 80 Hz tone down by more than 24 dB");
+    std::printf("energy above 3 kHz: Dampen 16 kHz %.3f, 1 kHz %.4f, later %.4f; 80 Hz at Low Cut 400 Hz: %.1f dB\n",
+                bright_top, dark_top, dark_later, db(cut / open));
+  }
+
+  // Stereo: from a mono input the swarm is decorrelated at Width 1 and exactly
+  // mono at Width 0; the bass stays in the middle at any Width.
+  {
+    device.init(kRate);
+    device.set_param(p::kMix, 1.0f);
+    rng_state() = 0xFACEu;
+    std::vector<float> input = noise(6.0f, kRate, 0.2f);
+    Stereo wide = run(device, input);
+    const double wide_corr = correlation(wide.left, wide.right, 48000, wide.size());
+    EXPECT(std::fabs(wide_corr) < 0.4, "Width 1: left and right are decorrelated");
+    const double balance = db(rms(wide.left, 48000, wide.size()) / rms(wide.right, 48000, wide.size()));
+    EXPECT(std::fabs(balance) < 1.5, "Width 1: the two sides are equally loud");
+
+    device.init(kRate);
+    device.set_param(p::kMix, 1.0f);
+    device.set_param(p::kWidth, 0.0f);
+    Stereo mono = run(device, input);
+    double apart = 0.0;
+    for (size_t i = 0; i < mono.size(); ++i) apart = std::max(apart, std::fabs(static_cast<double>(mono.left[i]) - mono.right[i]));
+    EXPECT(apart < 1.0e-6, "Width 0: the swarm is mono");
+    EXPECT(db(rms(mono.left, 48000, mono.size()) / rms(wide.left, 48000, wide.size())) > -6.0,
+           "Width 0 keeps the swarm's level (within 6 dB)");
+
+    device.init(kRate);
+    device.set_param(p::kMix, 1.0f);
+    Stereo bass = run(device, sine(55.0f, 4.0f, kRate, 0.3f));
+    const double bass_corr = correlation(bass.left, bass.right, 96000, bass.size());
+    EXPECT(bass_corr > 0.85, "the bass of the swarm stays in the middle");
+
+    // The default patch (dry and wet) keeps a mono input mostly in phase.
+    device.init(kRate);
+    Stereo patch = run(device, input);
+    const double patch_corr = correlation(patch.left, patch.right, 48000, patch.size());
+    EXPECT(patch_corr > 0.3, "default patch: positive correlation on mono input");
+    std::printf("correlation: wet at Width 1 %+.3f (balance %+.2f dB), 55 Hz %+.3f, default patch %+.3f; Width 0 L-R %.1e\n",
+                wide_corr, balance, bass_corr, patch_corr, apart);
+  }
+
+  // Mix 0 is the input, bit for bit.
+  {
+    device.init(kRate);
+    device.set_param(p::kMix, 0.0f);
+    rng_state() = 0xABCDu;
+    std::vector<float> input = noise(1.0f, kRate, 0.5f);
+    Stereo out = run(device, input);
+    EXPECT(out.left == input && out.right == input, "Mix 0 passes the input through untouched");
+  }
+
+  // BEHAVIOUR CHECKS 5
 
   device.init(kRate);
   device.set_param(p::kReflect, 0.9f);

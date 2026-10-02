@@ -94,43 +94,44 @@
   "presets": {
     "Warm glue": {
       "circuit": 0,
-      "drive": 0.38,
-      "thump": 0.25,
-      "tone": -0.15,
-      "output": -1.5
+      "drive": 0.4,
+      "thump": 0.3,
+      "tone": -0.35,
+      "output": -2.5
     },
     "Tape weight": {
       "circuit": 0,
-      "drive": 0.5,
-      "thump": 0.5,
-      "tone": -0.25,
-      "output": -3
+      "drive": 0.55,
+      "thump": 0.6,
+      "tone": -0.3,
+      "highCut": 8000,
+      "output": -4.5
     },
     "Console edge": {
       "circuit": 1,
       "drive": 0.45,
       "lowCut": 45,
-      "tone": 0.2,
-      "output": -1
+      "tone": 0.2
     },
     "Iron lows": {
       "circuit": 2,
-      "drive": 0.4,
-      "thump": 0.35,
-      "output": -3
+      "drive": 0.5,
+      "lowCut": 40,
+      "thump": 0.5,
+      "tone": -0.1,
+      "output": -4
     },
     "Glowing triode": {
       "circuit": 3,
-      "drive": 0.42,
-      "tone": -0.1,
+      "drive": 0.5,
+      "tone": 0.2,
       "output": -1
     },
     "Bite": {
       "circuit": 4,
       "drive": 0.55,
       "lowCut": 90,
-      "highCut": 9000,
-      "output": -1.5
+      "highCut": 9000
     },
     "Crushed piano": {
       "circuit": 1,
@@ -147,7 +148,7 @@
       "lowCut": 50,
       "tone": -0.7,
       "highCut": 2400,
-      "output": -4
+      "output": -4.5
     },
     "Parallel grit": {
       "circuit": 4,
@@ -155,7 +156,7 @@
       "lowCut": 220,
       "tone": 0.3,
       "highCut": 10000,
-      "output": 3,
+      "output": 4,
       "mix": 0.3
     }
   },

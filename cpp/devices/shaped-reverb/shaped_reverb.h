@@ -382,6 +382,9 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
     }
   }
 
+  // The tail lines that move: 2, 3, 6 and 7, two on each side.
+  static int swept_line(int m) { return 2 + (m & 1) + 4 * (m >> 1); }
+
   static bool is_prime(int n) {
     if (n < 4) return n > 1;
     if ((n & 1) == 0) return false;
@@ -567,7 +570,32 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
         loop_high_[c].set_cutoff(seen_high_, sr);
         loop_low_[c].set_cutoff(seen_low_, sr);
       }
+      // The tail's damping follows High Cut: a bright setting leaves air in
+      // the decay, a dark one closes it quickly.
+      tail_damp_[0].set_cutoff(kTailDampShare * seen_high_, sr);
+      for (int n = 1; n < kTailLines; ++n) tail_damp_[n].a = tail_damp_[0].a;
     }
+
+    // Four of the tail's lines drift a little, each on its own slow LFO,
+    // which keeps a long decay from settling on a few fixed modes. With
+    // Modulation at zero they stand still and are read on whole samples.
+    const float tail_depth = depth_.value * kTailSweepSeconds * sr;
+    bool still = true;
+    for (int m = 0; m < kTailSwept; ++m) {
+      tail_phase_[m] += turn * tail_rate_[m];
+      if (tail_phase_[m] >= 1.0f) tail_phase_[m] -= 1.0f;
+      const float rest = static_cast<float>(tail_length_[swept_line(m)]);
+      const float wanted = rest + tail_depth * kit::SineTable::lookup(tail_phase_[m]);
+      const float gap = wanted - tail_delay_[m];
+      if (!started_ || (gap < 1.0e-3f && gap > -1.0e-3f)) {
+        tail_delay_[m] = wanted;
+        tail_delay_step_[m] = 0.0f;
+      } else {
+        tail_delay_step_[m] = gap * (1.0f / kPeriod);
+      }
+      if (tail_delay_step_[m] != 0.0f || tail_delay_[m] != rest) still = false;
+    }
+    tail_still_ = still;
     // Tail glides too: its decay and its level move together, a little at
     // a time, instead of stepping what is already ringing in the network.
     tail_glide_.set(param(kTail), started_);
@@ -689,6 +717,10 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
     for (int j = 0; j < frames; ++j) {
       const float in[2] = {dry_in[0][j], dry_in[1][j]};
 
+      if (!tail_still_) {
+        for (int m = 0; m < kTailSwept; ++m) tail_delay_[m] += tail_delay_step_[m];
+      }
+
       const float early_mix = glide(colour_early_);
       const float late_mix = glide(colour_late_);
       float shaped[2];
@@ -708,9 +740,11 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
       const float tail_level = glide(tail_level_);
       if (tail_level != 0.0f || tail_level_.target != 0.0f) {
         float v[kTailLines];
-        for (int n = 0; n < kTailLines; ++n) {
-          v[n] = tail_damp_[n].lowpass(tail_[n].read(tail_length_[n]));
+        for (int n = 0; n < kTailLines; ++n) v[n] = tail_[n].read(tail_length_[n]);
+        if (!tail_still_) {
+          for (int m = 0; m < kTailSwept; ++m) v[swept_line(m)] = tail_[swept_line(m)].read_hermite(tail_delay_[m]);
         }
+        for (int n = 0; n < kTailLines; ++n) v[n] = tail_damp_[n].lowpass(v[n]);
         const float amount = tail_level * 0.5f;
         // The signs in and out are chosen against the Hadamard matrix: with
         // the same alternating pattern at both ends every pass through one
@@ -720,8 +754,9 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
         wet[0] += amount * (v[0] + v[2] + v[4] - v[6]);
         wet[1] += amount * (v[1] + v[3] + v[5] - v[7]);
         hadamard8(v);
+        const float thinned[2] = {0.5f * tail_low_[0].highpass(shaped[0]), 0.5f * tail_low_[1].highpass(shaped[1])};
         for (int n = 0; n < kTailLines; ++n) {
-          const float inject = 0.5f * shaped[n & 1];
+          const float inject = thinned[n & 1];
           tail_[n].write(flush_denormal(v[n] * tail_gain_[n] + (n < 2 ? -inject : inject)));
         }
         tail_clear_ = false;
@@ -730,6 +765,8 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
           tail_[n].clear();
           tail_damp_[n].reset();
         }
+        tail_low_[0].reset();
+        tail_low_[1].reset();
         tail_clear_ = true;
       }
 

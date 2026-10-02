@@ -414,11 +414,12 @@ int main() {
     Stereo one = render(device, 1.0f, kRate);
     const double reference = std::max(max_step(one.left), max_step(one.right));
 
-    // Fourteen chords a minor third apart, 70 ms apart: far more pitches than strings.
+    // Fourteen chords a semitone apart, 70 ms apart, none above the first
+    // strum's top string: 38 pitches for 24 strings.
     soft();
     Stereo pile;
     for (int k = 0; k < 14; ++k) {
-      device.note_on(k, 98.0f * std::pow(2.0f, static_cast<float>(k) / 4.0f), 0.8f);
+      device.note_on(k, 110.0f * std::pow(2.0f, static_cast<float>(k - 13) / 12.0f), 0.8f);
       pile = concat(pile, render(device, 0.07f, kRate));
     }
     pile = concat(pile, render(device, 0.5f, kRate));
