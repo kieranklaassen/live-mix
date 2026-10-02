@@ -63,7 +63,7 @@ export {
   type ParamControlHandlers,
   type ParamControlOptions,
 } from './useParamControl'
-export { Knob, type KnobProps } from './Knob'
+export { Knob, type KnobCap, type KnobProps } from './Knob'
 export { Fader, type FaderOrientation, type FaderProps } from './Fader'
 export {
   DEVICE_POWER_INFO,
@@ -112,6 +112,21 @@ export {
   type DeviceFrameProps,
   type DevicePanelProps,
 } from './DevicePanel'
+export { DevicePlate, plateLayout, type DevicePlateProps, type PlateLayout } from './DevicePlate'
+export {
+  DEVICE_SKINS,
+  deviceSkin,
+  isDarkPlate,
+  PLATE_FINISHES,
+  PLATE_PICTURE_HEIGHT,
+  PLATE_PICTURE_WIDTH,
+  PlateFinishLayer,
+  QUIET_SKIN,
+  type DeviceSkin,
+  type PlateFinish,
+  type PlatePicture,
+} from './device-skins'
+export { PLATE_PALETTES, type PlatePalette } from './plate-palettes'
 export {
   DeviceChainView,
   freshDeviceId,

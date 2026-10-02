@@ -9,7 +9,7 @@
 // `device.remove`, `device.move`) and the renderer changes the chain: the
 // edits are in the document, in the log and on the undo stack.
 
-import { useCallback, useState, type CSSProperties, type DragEvent } from 'react'
+import { useCallback, useState, type CSSProperties, type DragEvent, type ReactNode } from 'react'
 
 import { type Device } from '../../core/devices/Device'
 import {
@@ -30,6 +30,8 @@ import {
 import { useMaybeArbiter, useMaybeEngine } from '../hooks/useEngine'
 import { useExternalSnapshot } from '../store'
 import { DevicePanel, type DevicePanelProps } from './DevicePanel'
+import { DevicePlate } from './DevicePlate'
+import { type DeviceSkin } from './device-skins'
 import { infoProps } from './info'
 import { cx } from './tokens'
 
@@ -145,6 +147,12 @@ export interface DeviceChainViewProps {
   onAdd?: (device: Device) => void
   /** Forwarded to every panel (knob size, choice labels, …). */
   panelProps?: Partial<Omit<DevicePanelProps, 'device' | 'registry' | 'onRemove'>>
+  /**
+   * The skin each device is drawn with, as a plate (`DevicePlate`); a device
+   * it gives none keeps the plain panel. `deviceSkin` is the kit's own answer.
+   * Left out, every device is a panel.
+   */
+  skin?: (device: Device) => DeviceSkin | null | undefined
   className?: string
   style?: CSSProperties
   'data-testid'?: string
@@ -160,6 +168,7 @@ export function DeviceChainView({
   onRemove,
   onAdd,
   panelProps,
+  skin,
   className,
   style,
   'data-testid': testId,
@@ -312,12 +321,8 @@ export function DeviceChainView({
             >
               ⋮⋮
             </div>
-            <DevicePanel
-              {...panelProps}
-              device={device}
-              registry={reg ?? undefined}
-              onRemove={() => remove(device, index)}
-              actions={
+            {((): ReactNode => {
+              const actions = (
                 <>
                   <button
                     type="button"
@@ -349,9 +354,33 @@ export function DeviceChainView({
                   </button>
                   {panelProps?.actions}
                 </>
-              }
-              data-testid={testId ? `${testId}-device-${index - skip}` : undefined}
-            />
+              )
+              const plate = skin?.(device)
+              const id = testId ? `${testId}-device-${index - skip}` : undefined
+              return plate ? (
+                <DevicePlate
+                  device={device}
+                  skin={plate}
+                  registry={reg ?? undefined}
+                  title={panelProps?.title}
+                  choiceLabels={panelProps?.choiceLabels}
+                  showBypass={panelProps?.showBypass}
+                  showPresets={panelProps?.showPresets}
+                  onRemove={() => remove(device, index)}
+                  actions={actions}
+                  data-testid={id}
+                />
+              ) : (
+                <DevicePanel
+                  {...panelProps}
+                  device={device}
+                  registry={reg ?? undefined}
+                  onRemove={() => remove(device, index)}
+                  actions={actions}
+                  data-testid={id}
+                />
+              )
+            })()}
           </div>
         ),
       )}
