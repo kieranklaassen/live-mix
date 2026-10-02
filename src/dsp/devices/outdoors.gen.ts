@@ -48,7 +48,7 @@ export const OUTDOORS_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How much the scene changes over time: gusts in the chimes, waves of activity among the animals, surges in the stream. At zero it holds steady.',
+      'How much the scene changes over time: gusts in the chimes, waves of activity among the animals, surges in the stream. Turned right down, the scene holds steady.',
   },
   tone: {
     id: 4,
@@ -90,7 +90,7 @@ export const OUTDOORS_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How far the sources spread across the stereo field. At full every creature and chime has its own place; at zero the scene folds to mono.',
+      'How far the sources spread across the stereo field. Fully open, every creature and chime has its own place; fully closed, the scene folds to mono.',
   },
   volume: {
     id: 8,
@@ -118,7 +118,7 @@ export const OUTDOORS_DESCRIPTOR = wasmDeviceDescriptor(OUTDOORS_DEVICE, {
   name: 'Outdoors',
   category: 'instrument',
   description:
-    "Living things and small events to play: birds at dawn, crickets, a frog pond, a stream, distant thunder and wind chimes, synthesised live. Hold a key to open the scene; more keys layer more of it, and the key's pitch tunes what is pitched.",
+    "Birds at dawn, crickets, a frog pond, a stream, distant thunder and wind chimes, synthesised live: hold a key to open the scene, more keys layer more of it, and the key's pitch tunes what is pitched.",
   presets: {
     'Dawn chorus': {
       type: 0,
@@ -237,7 +237,7 @@ export const OUTDOORS_DESCRIPTOR = wasmDeviceDescriptor(OUTDOORS_DEVICE, {
 
 export type Outdoors = WasmDevice<typeof OUTDOORS_PARAMS>
 
-/** Living things and small events to play: birds at dawn, crickets, a frog pond, a stream, distant thunder and wind chimes, synthesised live. Hold a key to open the scene; more keys layer more of it, and the key's pitch tunes what is pitched. Play it through `NoteDevice`: `noteOn(id, frequency, gain)` / `noteOff(id)`. */
+/** Birds at dawn, crickets, a frog pond, a stream, distant thunder and wind chimes, synthesised live: hold a key to open the scene, more keys layer more of it, and the key's pitch tunes what is pitched. Play it through `NoteDevice`: `noteOn(id, frequency, gain)` / `noteOff(id)`. */
 export function createOutdoors(
   context: BaseAudioContext,
   options: WasmDeviceOptions<typeof OUTDOORS_PARAMS> = {},
