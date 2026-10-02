@@ -166,6 +166,14 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     float absorb_now = 1.0f;  // what it keeps at this moment: eases to `absorb` and back to all
     float absorb_slew = 0.0f; // how far that moves every four samples
     int absorb_pos = 0;       // samples since the blow asked for it
+    // The touch: the short noise of a finger or pick leaving the string.
+    uint32_t touch_seed = 1u;
+    int touch_wait = 0;        // samples before it begins
+    float touch_gain = 0.0f;   // level; 0 when there is none
+    float touch_slow = 0.0f, touch_fast = 0.0f;         // its envelope is their difference
+    float touch_slow_step = 0.0f, touch_fast_step = 0.0f;
+    float touch_cut = 0.0f, touch_floor = 0.0f;         // low-pass and high-pass coefficients
+    float touch_lp1 = 0.0f, touch_lp2 = 0.0f, touch_low = 0.0f;
     int roll_turn = 0;
     bool sounding = false, two = false, fading = false, pending = false;
   };
@@ -204,6 +212,11 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     voice.absorb_now = 1.0f;
     voice.absorb_slew = 0.0f;
     voice.absorb_pos = 0;
+    voice.touch_seed = 1u;
+    voice.touch_wait = 0;
+    voice.touch_gain = voice.touch_slow = voice.touch_fast = 0.0f;
+    voice.touch_slow_step = voice.touch_fast_step = voice.touch_cut = voice.touch_floor = 0.0f;
+    voice.touch_lp1 = voice.touch_lp2 = voice.touch_low = 0.0f;
     voice.roll_turn = 0;
     voice.left[0] = voice.left[1] = voice.right[0] = voice.right[1] = 0.0f;
     voice.sounding = voice.two = voice.fading = voice.pending = false;
@@ -905,16 +918,16 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
   };
   static constexpr BodySpec kBodies[kNumBodies] = {
       // Harp: a wide warm board, soft on top.
-      {{165.0f, 260.0f, 440.0f, 780.0f}, {5.0f, 6.0f, 6.0f, 5.0f}, {0.6f, 0.5f, 0.4f, 0.3f},
+      {{165.0f, 260.0f, 440.0f, 780.0f}, {11.0f, 14.0f, 18.0f, 21.0f}, {0.6f, 0.5f, 0.4f, 0.3f},
        200.0f, 2.0f, 3000.0f, 0.0f, 0.8f, 0.9f},
       // Zither: a shallow box, bright.
-      {{210.0f, 345.0f, 590.0f, 1150.0f}, {7.0f, 8.0f, 8.0f, 6.0f}, {0.4f, 0.45f, 0.4f, 0.3f},
+      {{210.0f, 345.0f, 590.0f, 1150.0f}, {10.5f, 14.0f, 19.0f, 26.0f}, {0.4f, 0.45f, 0.4f, 0.3f},
        160.0f, -3.0f, 2500.0f, 4.5f, 0.8f, 1.0f},
       // Dulcimer: a ringing trapezoid, brighter still.
-      {{185.0f, 300.0f, 520.0f, 930.0f}, {14.0f, 16.0f, 16.0f, 12.0f}, {0.6f, 0.6f, 0.55f, 0.45f},
+      {{185.0f, 300.0f, 520.0f, 930.0f}, {12.5f, 17.5f, 23.5f, 29.5f}, {0.6f, 0.6f, 0.55f, 0.45f},
        180.0f, -2.0f, 2000.0f, 4.0f, 0.65f, 1.25f},
       // Koto: a long hollow body, thin below and nasal.
-      {{140.0f, 310.0f, 620.0f, 1350.0f}, {4.0f, 5.0f, 3.5f, 3.0f}, {0.2f, 0.4f, 0.8f, 1.2f},
+      {{140.0f, 310.0f, 620.0f, 1350.0f}, {4.0f, 6.5f, 3.5f, 3.0f}, {0.2f, 0.4f, 0.8f, 1.2f},
        250.0f, -7.0f, 4500.0f, 1.0f, 0.5f, 1.2f},
   };
   static constexpr float kBodySkew[kBodyModes] = {1.045f, 0.96f, 1.035f, 0.955f};

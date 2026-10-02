@@ -204,7 +204,9 @@ struct Atmospherics {
   }
 
   // Advance by `frames` samples; returns the noise gain to ramp towards.
-  float tick(float amount, int frames, float sample_rate) {
+  // `scale` multiplies everything made here (the device sets it from how loud
+  // the part is, so Static is a balance against the music, not a fixed level).
+  float tick(float amount, float scale, int frames, float sample_rate) {
     const float dt = static_cast<float>(frames) / sample_rate;
     const float hiss = kHiss * amount * std::sqrt(amount);
     const float ragged = ragged_.next_block(kit::Lfo::kSmooth, frames);
@@ -227,12 +229,13 @@ struct Atmospherics {
       crash_decay_ = std::exp(-dt / seconds);
     }
     if (click_chance < (0.4f + kClicksPerSecond * amount * amount) * dt && amount > 0.0f) {
-      const float size = hiss * rate_scale_ * rate_scale_ * (3.0f + (8.0f + 16.0f * amount) * heavy(click_size));
+      const float size =
+          scale * hiss * rate_scale_ * rate_scale_ * (3.0f + (8.0f + 16.0f * amount) * heavy(click_size));
       click_re_ = size * kit::SineTable::cos_lookup(click_angle);
       click_im_ = size * kit::SineTable::lookup(click_angle);
     }
     const float storm = crash_ * (0.25f + 0.75f * (ragged < 0.0f ? -ragged : ragged));
-    return hiss * rate_scale_ * (1.0f + storm);
+    return scale * hiss * rate_scale_ * (1.0f + storm);
   }
 
   void sample(float gain, float* re, float* im) {
@@ -291,9 +294,10 @@ struct Interferer {
   bool active() const { return kind_ != kIdle; }
   int kind() const { return kind_; }
 
-  // `amount` is the Interference control; `passband_hz` the top of the audio
-  // band, so events land where they can be heard.
-  void tick(float amount, bool sideband, float passband_hz, int frames, float sample_rate,
+  // `amount` is the Interference control; `scale` multiplies the event's
+  // level (how loud the part is); `passband_hz` is the top of the audio band,
+  // so events land where they can be heard.
+  void tick(float amount, float scale, bool sideband, float passband_hz, int frames, float sample_rate,
             float inverse_period, bool snap) {
     const float dt = static_cast<float>(frames) / sample_rate;
     if (kind_ == kIdle) {
@@ -315,7 +319,7 @@ struct Interferer {
     float along = kit::min(age_, length_ - age_) / fade_;
     along = kit::clamp(along, 0.0f, 1.0f);
     const float envelope = along * along * (3.0f - 2.0f * along);
-    amp_.aim(level_ * envelope * (0.3f + 0.7f * amount), inverse_period, snap);
+    amp_.aim(scale * level_ * envelope * (0.3f + 0.7f * amount), inverse_period, snap);
 
     if (kind_ == kWhistle) {
       hz_ += glide_ * dt;

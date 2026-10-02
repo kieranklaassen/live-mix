@@ -68,8 +68,10 @@ class Radio : public kit::DeviceBase<radio::kNumParams> {
  public:
   enum Band : int { kMediumWave = 0, kShortwave, kSideband, kBands };
   // Seconds the receiver stays on after the input stops, and its fade.
-  static constexpr float kHoldSeconds = 4.0f;
-  static constexpr float kFallSeconds = 1.5f;
+  // Long enough that slow playing (notes many seconds apart) keeps one
+  // unbroken bed of static instead of a set that switches off between notes.
+  static constexpr float kHoldSeconds = 14.0f;
+  static constexpr float kFallSeconds = 4.0f;
 
   void init(float sample_rate) {
     using namespace radio;
@@ -104,6 +106,11 @@ class Radio : public kit::DeviceBase<radio::kNumParams> {
     tune_phase_ = 0.0;
     centre_phase_ = 0.0;
     level_ = 1.0f;
+    heard_ = heard_slow_ = part_ = 0.0f;
+    heard_coeff_ = kit::time_to_coeff(0.05f, sr);
+    const float tick_seconds = static_cast<float>(kControlPeriod) / sr;
+    slow_step_ = 1.0f - std::exp(-tick_seconds / 0.5f);
+    part_step_ = 1.0f - std::exp(-tick_seconds / kPartSeconds);
     low_hz_ = high_hz_ = cone_ = fading_ = width_ = -1.0f;
     gate_ = 0.0f;
     gate_rise_ = 1.0f / (0.003f * sr);
@@ -147,6 +154,8 @@ class Radio : public kit::DeviceBase<radio::kNumParams> {
       // The station: band-limited, limited, and put on its carrier.
       float programme = 0.5f * (left + right);
       if (!(programme > -64.0f && programme < 64.0f)) programme = 0.0f;
+      const float power = programme * programme;
+      heard_ = flush_denormal(power + (heard_ - power) * heard_coeff_);
       programme = kit::soft_clip(transmit_.process(programme));
       // With a carrier the programme rides on it, in phase. Without one the
       // station sends the upper sideband alone: kit::Hilbert's quadrature
@@ -210,7 +219,7 @@ class Radio : public kit::DeviceBase<radio::kNumParams> {
       // the receiver's own oscillator where there is none.
       float audio;
       if (band.carrier > 0.0f) {
-        const float with_own = if_re + kRegeneration;
+        const float with_own = if_re + own_.next();
         audio = std::sqrt(with_own * with_own + if_im * if_im) / band.depth;
       } else {
         centre_phase_ += static_cast<double>(centre) * inverse_sr;
@@ -263,6 +272,15 @@ class Radio : public kit::DeviceBase<radio::kNumParams> {
   static constexpr float kQuiet = 1.0e-6f;
   static constexpr float kSane = 64.0f;  // +36 dBFS: nothing real is louder
   static constexpr float kAttackMargin = 1.06f;
+  // The part's level at which Static and Interference were tuned (-16 dBFS
+  // RMS), how fast the follower moves, the level under which the input is
+  // silence to it (-70 dBFS), and how far it may scale what is added: quiet
+  // playing down to -40 dBFS keeps its balance, and nothing vanishes.
+  static constexpr float kPartReference = 0.158f;
+  static constexpr float kPartSeconds = 1.0f;
+  static constexpr float kPartFloor = 1.0e-7f;
+  static constexpr float kScaleMin = 0.063f;  // -24 dB
+  static constexpr float kScaleMax = 2.82f;   // +9 dB
   // The oscillating detector of a simple set: a little of the receiver's own
   // frequency at the detector, which beats with an off-tune carrier.
   static constexpr float kRegeneration = 0.05f;
@@ -384,9 +402,23 @@ class Radio : public kit::DeviceBase<radio::kNumParams> {
     shift_.set(band.tune_hz * off + band.drift_hz * param(kDrift) * wander_.next(kControlPeriod),
                started_ && !jump);
 
-    noise_gain_.aim(atmospherics_.tick(param(kStatic), kControlPeriod, sr), inverse, snap);
+    // How loud the part is. What is added at the aerial (static, crashes,
+    // neighbours, the receiver's own whistle) is set against it, so Static
+    // and Interference are a balance with the music whether it is played
+    // quietly or loudly. It rises with the short-term level; it comes down
+    // only while that level is holding or rising (a quieter passage), never
+    // down a decaying note or into a silence, so the bed stays where it was
+    // between slow notes.
+    heard_slow_ = flush_denormal(heard_slow_ + (heard_ - heard_slow_) * slow_step_);
+    if (heard_ > part_ || (heard_ >= heard_slow_ && heard_ > kPartFloor)) {
+      part_ += (heard_ - part_) * part_step_;
+    }
+    const float scale = kit::clamp(std::sqrt(part_) / kPartReference, kScaleMin, kScaleMax);
+    own_.aim(kRegeneration * scale, inverse, jump);
+
+    noise_gain_.aim(atmospherics_.tick(param(kStatic), scale, kControlPeriod, sr), inverse, snap);
     for (radio_parts::Interferer& neighbour : neighbour_) {
-      neighbour.tick(param(kInterference), !carrier, high_hz_, kControlPeriod, sr, inverse, snap);
+      neighbour.tick(param(kInterference), scale, !carrier, high_hz_, kControlPeriod, sr, inverse, snap);
     }
 
     if (jump) settle(sr);
@@ -432,7 +464,7 @@ class Radio : public kit::DeviceBase<radio::kNumParams> {
     float im = carrier_re * sine + carrier_im * cosine;
     radio_parts::settle_phasor(if_re_, if_im_, -kit::kTwoPi * shift_.value / sr, &re, &im);
     level_ = std::sqrt(re * re + im * im);
-    const float with_own = re + kRegeneration;
+    const float with_own = re + own_.value;
     audio_high_.settle(audio_low_.settle(std::sqrt(with_own * with_own + im * im) / band.depth));
   }
 
@@ -470,12 +502,14 @@ class Radio : public kit::DeviceBase<radio::kNumParams> {
   kit::Drift wander_;
   kit::Smoother shift_, mix_, fade_;
   radio_parts::Glide direct_, late_re_, late_im_, delay_, noise_gain_, agc_gain_, centre_, drive_,
-      blend_;
+      blend_, own_;
   kit::ControlClock clock_;
   kit::IdleGate idle_;
   double tune_phase_ = 0.0;
   double centre_phase_ = 0.0;
   float level_ = 1.0f;
+  float heard_ = 0.0f, heard_slow_ = 0.0f, part_ = 0.0f;  // programme power: 50 ms, 0.5 s, the part
+  float heard_coeff_ = 0.0f, slow_step_ = 0.0f, part_step_ = 0.0f;
   float low_hz_ = -1.0f, high_hz_ = -1.0f, cone_ = -1.0f, fading_ = 0.0f;
   float width_ = -1.0f, low_target_ = 0.0f, high_target_ = 0.0f;
   float gate_ = 0.0f, gate_rise_ = 0.0f, gate_fall_ = 0.0f;
