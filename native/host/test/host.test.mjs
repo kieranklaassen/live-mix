@@ -8,7 +8,7 @@
 
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { after, before, test } from 'node:test'
@@ -886,6 +886,40 @@ test('says what is wrong with a file that holds no plug-in, and keeps saying it'
     rmSync(folder, { recursive: true, force: true })
   }
 })
+
+// A Linux bundle may hold a program for more than one machine. The reason is
+// about the one a scan loads here, not the first one that happens to be found.
+test(
+  'looks at the program for this machine in a bundle that has several',
+  { skip: process.platform !== 'linux' },
+  async () => {
+    const folder = mkdtempSync(join(tmpdir(), 'live-mix-host-machines-'))
+    const plugins = join(folder, 'plugins')
+    // Any library that loads and is no plug-in will do for this machine's.
+    const library = process.report
+      .getReport()
+      .sharedObjects.find((path) => /\/libm\.so[.\d]*$/.test(path))
+    assert.ok(library, 'no system library to stand in for a program')
+    const own = process.arch === 'arm64' ? 'aarch64' : 'x86_64'
+    const others = ['aarch64', 'armv7l', 'i386', 'riscv64', 'x86_64'].filter((it) => it !== own)
+    const contents = join(plugins, 'Twice.vst3', 'Contents')
+    for (const machine of others) {
+      mkdirSync(join(contents, `${machine}-linux`), { recursive: true })
+      writeFileSync(join(contents, `${machine}-linux`, 'Twice.so'), 'not a program\n')
+    }
+    mkdirSync(join(contents, `${own}-linux`), { recursive: true })
+    copyFileSync(library, join(contents, `${own}-linux`, 'Twice.so'))
+    try {
+      await withTrouble(null, join(folder, 'data'), async (connection) => {
+        const scan = await connection.call('scan', { paths: [plugins], defaultPaths: false })
+        assert.equal(scan.failed.length, 1)
+        assert.equal(scan.reasons[scan.failed[0]], 'It loads, and gave the scan no plug-in.')
+      })
+    } finally {
+      rmSync(folder, { recursive: true, force: true })
+    }
+  },
+)
 
 // What an old plug-in is to a Mac with Apple silicon: the commonest reason a
 // plug-in folder full of working plug-ins has some a host cannot read.
