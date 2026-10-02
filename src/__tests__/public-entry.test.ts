@@ -334,6 +334,8 @@ const testingSymbols = [
   'FAKE_STATE',
   'FAKE_SYNTH',
   'fakeReverbParams',
+  // A Push with no hardware
+  'VirtualPush',
 ] as const
 
 // What ambient-live's desktop app imports from `./native`.

@@ -151,6 +151,31 @@ int main() {
       std::printf("built-in store: rms %.3f peak %.3f\n", rms(stored), peak(stored));
     }
 
+    // It folds to mono anywhere in it: with Spread 0 a held moment has more
+    // mid than side at every Position. (Its channels used to drift a whole
+    // turn apart over the loop, so its middle was out of phase: 4 to 5 dB
+    // more side than mid from 0.3 to 0.6.)
+    double widest_db = -200.0, narrowest_db = 200.0;
+    for (int step = 0; step <= 20; ++step) {
+      plain(device);
+      device.set_param(p::kSize, 400.0f);
+      device.set_param(p::kPosition, 0.05f * static_cast<float>(step));
+      device.note_on(1, kMiddleC, 1.0f);
+      Stereo held = render(device, 2.0f, kRate);
+      std::vector<float> mid(held.size()), side(held.size());
+      for (size_t i = 0; i < held.size(); ++i) {
+        mid[i] = 0.5f * (held.left[i] + held.right[i]);
+        side[i] = 0.5f * (held.left[i] - held.right[i]);
+      }
+      const double width_db = db(rms(side, 24000) / rms(mid, 24000));
+      widest_db = std::max(widest_db, width_db);
+      narrowest_db = std::min(narrowest_db, width_db);
+    }
+    std::printf("grain-synth built-in sound, side over mid along Position: %.1f to %.1f dB\n", narrowest_db,
+                widest_db);
+    EXPECT(widest_db < -3.0, "the built-in sound keeps its mid above its side at every Position");
+    EXPECT(narrowest_db > -20.0, "and is stereo all along");
+
     device.init(kRate);
     device.note_on(1, 220.0f, 0.7f);
     Stereo note = render(device, 3.0f, kRate);

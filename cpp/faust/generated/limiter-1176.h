@@ -17,6 +17,7 @@ Compilation options: -lang cpp -fpga-mem-th 4 -nvi -ct 1 -cn Limiter1176 -scn Fa
 #define FAUSTFLOAT float
 #endif 
 
+/* link with : "" */
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -209,8 +210,12 @@ class Limiter1176 final : public FaustDsp {
 			float fTemp7 = fConst5 * fRec1[1] - fConst6 * std::max<float>(6.0f + 2e+01f * std::log10(std::max<float>(1.1754944e-38f, fRec2[0])), 0.0f);
 			fRec1[0] = ((std::fabs(fTemp7) > 1.1754944e-38f) ? fTemp7 : 0.0f);
 			float fTemp8 = std::pow(1e+01f, 0.05f * fRec1[0]);
-			output0[i0] = static_cast<FAUSTFLOAT>(fTemp3 * fTemp8 * fRec0[0]);
-			output1[i0] = static_cast<FAUSTFLOAT>(fTemp2 * fTemp8 * fRec0[0]);
+			float fTemp9 = fTemp3 * fTemp8;
+			float fTemp10 = std::fabs(fTemp9);
+			output0[i0] = static_cast<FAUSTFLOAT>(((fTemp10 > 0.5f) ? 0.5f * static_cast<float>((fTemp9 > 0.0f) - (fTemp9 < 0.0f)) * (1.0f + tanhf(2.0f * (-0.5f + fTemp10))) : fTemp9) * fRec0[0]);
+			float fTemp11 = fTemp2 * fTemp8;
+			float fTemp12 = std::fabs(fTemp11);
+			output1[i0] = static_cast<FAUSTFLOAT>(fRec0[0] * ((fTemp12 > 0.5f) ? 0.5f * static_cast<float>((fTemp11 > 0.0f) - (fTemp11 < 0.0f)) * (1.0f + tanhf(2.0f * (-0.5f + fTemp12))) : fTemp11));
 			fRec0[1] = fRec0[0];
 			fRec3[1] = fRec3[0];
 			fRec2[1] = fRec2[0];

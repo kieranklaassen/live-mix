@@ -70,3 +70,12 @@ export {
   fakeReverbParams,
   type FakePluginHostOptions,
 } from './fake-plugin-host'
+export {
+  VirtualPush,
+  type VirtualMidiAccess,
+  type VirtualPushInput,
+  type VirtualPushLed,
+  type VirtualPushOptions,
+  type VirtualPushOutput,
+  type VirtualPushSystem,
+} from './virtual-push'

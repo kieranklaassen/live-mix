@@ -369,6 +369,55 @@ int main() {
     EXPECT(silent, "a bias puts no DC on the output when nothing is playing");
   }
 
+  // DC Block works under the curve's ceiling. A plain blocker after the curve
+  // tilts the flat top of a squared-off low note, and each edge then starts
+  // from further away: a clipped 41 Hz left 3.7 dB over full scale. With the
+  // blocker following what leaves under the ceiling, the wet signal stays at
+  // the curve's own +-1; all that is left is what band-limiting a squared
+  // wave adds, which is small this low.
+  {
+    double worst = 0.0;
+    for (int curve = kSoft; curve <= kTape; ++curve) {
+      for (int os = k1x; os <= k4x; ++os) {
+        setup(kRate, curve, 24.0f, os);
+        device.set_param(p::kDcBlock, 1.0f);
+        Stereo out = run(device, sine(41.0f, 2.0f, kRate, 0.9f));
+        const double top = peak(out.left, 24000);
+        worst = std::max(worst, top);
+        char label[96];
+        std::snprintf(label, sizeof label, "curve %d at %dx: a clipped low note stays at the ceiling (%.2f dBFS)",
+                      curve, 1 << os, db(top));
+        EXPECT(top < (os == k1x ? 1.0 + 1.0e-6 : 1.01), label);
+        EXPECT(std::fabs(mean(out.left, 48000, 96000)) < 1.0e-3, "and stays centred");
+      }
+    }
+    std::printf("saturator, clipped 41 Hz with DC Block on: %.2f dBFS at most\n", db(worst));
+
+    // An asymmetric operating point driven into the ceiling: the blocker
+    // still centres what leaves, and what leaves is still under the ceiling.
+    setup(kRate, kTube, 24.0f);
+    device.set_param(p::kBias, 0.5f);
+    device.set_param(p::kDcBlock, 1.0f);
+    Stereo biased = run(device, sine(100.0f, 3.0f, kRate, 0.5f));
+    std::printf("saturator, Tube with Bias 0.5 at +24 dB, DC Block on: peak %.2f dBFS, DC %.1f dBFS\n",
+                db(peak(biased.left, 96000)), db(std::fabs(mean(biased.left, 96000, 144000))));
+    EXPECT(peak(biased.left, 96000) < 1.01, "a biased curve under DC Block stays at the ceiling");
+    EXPECT(std::fabs(mean(biased.left, 96000, 144000)) < 2.0e-3, "and has no DC left");
+
+    // DC Block off: a biased curve keeps the range its bias gave it, full
+    // scale less curve(bias), and nothing is cut off it.
+    setup(kRate, kHard, 24.0f, k1x);
+    device.set_param(p::kBias, 0.5f);
+    Stereo shifted = run(device, sine(100.0f, 1.0f, kRate, 0.5f));
+    double low = 0.0, high = 0.0;
+    for (size_t i = 24000; i < shifted.size(); ++i) {
+      low = std::min(low, static_cast<double>(shifted.left[i]));
+      high = std::max(high, static_cast<double>(shifted.left[i]));
+    }
+    EXPECT_NEAR(high, 0.5, 1.0e-4, "DC Block off, Bias 0.5, Hard: the top is 1 - bias");
+    EXPECT_NEAR(low, -1.5, 1.0e-4, "and the bottom -1 - bias");
+  }
+
   // Latency (kkfonie: "reports its latency exactly and keeps the dry path
   // aligned"): every Oversampling setting delays by the same 39 samples.
   {

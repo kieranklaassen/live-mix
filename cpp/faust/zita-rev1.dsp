@@ -1,6 +1,14 @@
 // Zita-Rev1 stereo reverb (Fons Adriaensen's FDN design, Faust port by Julius
-// O. Smith III) as a live-mix device: stereo in, stereo out, dry/wet mix with
-// the same law as the Dattorro device (`dry*(1-mix) + wet*mix`).
+// O. Smith III) as a live-mix device: stereo in, stereo out, a linear dry/wet
+// balance (`dry*(1-mix) + wet*mix`, the Dattorro device's) that is then
+// levelled so the output stays as loud as the input wherever Mix stands.
+//
+// The reverb's own output runs about 7 dB under what goes in, so the plain
+// balance lost level as Mix rose: 4 dB at 0.35, 7 dB fully wet. Dry and wet
+// add in power (the tail is not correlated with the note that made it), which
+// makes the sum `sqrt((1-mix)^2 + wetPower * mix^2)` of the input; dividing by
+// that leaves the balance at every Mix value where it was and takes the level
+// drop out. At Mix 0 the gain is exactly 1.
 //
 // scripts/build-faust.sh compiles this to cpp/faust/generated/zita-rev1.h and
 // src/dsp/devices/faust/zita-rev1.ts. Parameter ids are the `[N]` order below.
@@ -27,4 +35,10 @@ mix = hslider("[5] Mix", 0.35, 0, 1, 0.001) : smooth;
 
 wet = re.zita_rev1_stereo(preDelay, crossover, damping, lowDecay, midDecay, fsmax);
 
-process = _,_ <: (wet : *(mix), *(mix)), (*(1 - mix), *(1 - mix)) :> _,_;
+// Power of the fully wet signal over the dry one: -7 dB.
+wetPower = 0.2;
+level = 1 / sqrt((1 - mix) * (1 - mix) + wetPower * mix * mix);
+wetGain = mix * level;
+dryGain = (1 - mix) * level;
+
+process = _,_ <: (wet : *(wetGain), *(wetGain)), (*(dryGain), *(dryGain)) :> _,_;
