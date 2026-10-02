@@ -60,8 +60,10 @@ export {
 } from './ParamLane'
 export {
   DEFAULT_RAMP_SECONDS,
+  ParamGlide,
   ParamRamper,
   holdParamAt,
+  type GlidePoint,
   type ScheduledParam,
 } from './scheduled-param'
 export {

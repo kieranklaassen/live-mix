@@ -111,6 +111,8 @@ const coreSymbols = [
   'spaceDriveGains',
   'spaceDrift',
   'SpaceRoom',
+  'ParamGlide',
+  'PLACEMENT_GLIDE_SECONDS',
   'SharedSpaces',
   'SpaceFeed',
   'stripOnlySetsLevel',

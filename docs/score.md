@@ -126,11 +126,28 @@ a test needs. An offline engine takes the same options, so a render is in
 the same room.
 
 A change to a placed clip's `pan`, `lowpassHz`, `spaceDb` or
-`gainDb` is heard while the clip sounds (`AudioTrack.place`); a clip that
-names none of them is wired as before and takes the change at its next
-start. In a `clip.update`, `null` takes a placement field off the clip; a
-`pan` of 0 is kept, because it still says the clip is placed. Stretch and
-element tracks play placed clips unplaced.
+`gainDb` is heard while the clip sounds (`AudioTrack.place`): the level and
+the send glide there in 40 ms, the pan and the low-pass approach. A clip
+that names none of them is wired as before, and while it sounds it follows
+its `gainDb` and nothing else: one that comes to name a place takes it at
+its next start (`place` returns false, for a host that would rather enter
+it afresh, `Scheduler.rejoin`). In a `clip.update`, `null` takes a placement
+field off the clip; a `pan` of 0 is kept, because it still says the clip is
+placed. Stretch and element tracks play placed clips unplaced.
+
+A clip that is turned down has already filled the room at its old level,
+and the room rings for seconds: left at that, the clip is heard to fade
+with the room and not with the edit. So a track's own room is turned down
+with what its sounding clips send into it (`SpaceRoom.tilt`): a gain after
+the convolver comes down by the change, weighed by each clip's share of
+what the track sends, and a gain ahead of it goes up by as much, so what is
+ringing drops at once and what is sent from then on comes back as loud as
+it should. Both gains return to 1 over the following seconds, far slower
+than the room dies away. A clip that is turned up fills the room as fast as
+the room fills, and no faster. A room shared between tracks
+(`sharedSpace`) holds the other tracks' sound too and is not turned: there
+a clip, a fader or a mute that comes down leaves its room ringing, which is
+the price of the one convolver.
 
 `meta` on a clip, a source or the
 document itself is the host application's own annotation: any plain JSON

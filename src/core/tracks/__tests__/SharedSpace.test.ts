@@ -51,6 +51,19 @@ function gainsBetween(ctx: MockAudioContext, from: MockAudioNode, to: MockAudioN
 }
 
 describe('Engine with sharedSpace', () => {
+  it('leaves the room alone when a sharing track’s voice is turned down: others ring in it too', () => {
+    const { ctx, engine, voice, master } = setup()
+    const a = engine.addAudioTrack('a')
+    const b = engine.addAudioTrack('b')
+    a.play('k', voice(), 0)
+    b.play('k', voice(), 0)
+    const [room] = ctx.convolvers
+    const gains = ctx.gains.length
+    expect(a.place('k', { gainDb: -30, spaceDb: -6 })).toBe(true)
+    expect(ctx.gains).toHaveLength(gains)
+    expect(room.isConnectedTo(master)).toBe(true)
+  })
+
   it('sends every plain track that feeds one destination into one room, which feeds that destination', () => {
     const { ctx, engine, voice, master } = setup()
     const a = engine.addAudioTrack('a')

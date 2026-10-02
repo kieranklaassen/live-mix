@@ -11,6 +11,7 @@ import { createDattorroReverb } from '@kieranklaassen/live-mix/dsp'
 import type { ScheduleSnapshot } from '@kieranklaassen/live-mix/testing'
 import { DEFAULT_SESSION, buildSession, type SessionDeps, type SessionSpec } from '../session'
 import { fingerprint, type Fingerprint } from './fingerprint'
+import { measureLevelFollow } from './level-follow'
 import { measurePlacements } from './placement'
 import { installWebAudioRecorder } from './record-web-audio'
 import { measureRooms } from './room'
@@ -99,6 +100,7 @@ declare global {
       run: typeof run
       renderOffline: typeof renderOfflineSession
       captureLive: typeof captureLiveSession
+      measureLevelFollow: typeof measureLevelFollow
       measurePlacements: typeof measurePlacements
       measureRooms: typeof measureRooms
       measureSharedRooms: typeof measureSharedRooms
@@ -111,6 +113,7 @@ window.liveMixHarness = {
   run,
   renderOffline: renderOfflineSession,
   captureLive: captureLiveSession,
+  measureLevelFollow,
   measurePlacements,
   measureRooms,
   measureSharedRooms,

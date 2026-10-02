@@ -58,7 +58,7 @@ import {
 } from '../clips/placement'
 import { mirrorSlice } from '../clips/reverse'
 import { type ClipWindow } from '../clips/window'
-import { holdParamAt } from '../automation/scheduled-param'
+import { ParamGlide, holdParamAt } from '../automation/scheduled-param'
 import { scheduleKey, type ScheduledStart } from '../transport/anchor'
 import { Cycle, type Timebase } from '../transport/Cycle'
 import { type Schedulable, type Scheduler } from '../transport/Scheduler'
@@ -94,8 +94,14 @@ export const JOIN_EASE_SECONDS = 0.005
 
 /** How far down a placed clip's trim reaches: sitting far back costs more than the ±12 dB of a loudness trim. */
 export const MIN_PLACED_GAIN_DB = -60
-/** Time constant of the approach when a sounding clip's placement or trim changes. */
+/** Time constant of the approach when a sounding clip's pan or low-pass changes, or its send comes or goes. */
 export const PLACEMENT_RAMP_SECONDS = 0.03
+/**
+ * How long a sounding clip's trim and send take to reach a new level: a
+ * straight line in dB, so the track's room can be tilted in step with them
+ * (`SpaceRoom.tilt`).
+ */
+export const PLACEMENT_GLIDE_SECONDS = 0.04
 /**
  * Resonance of a placed clip's low-pass, in dB as a Web Audio low-pass takes
  * it: 3 dB down at the cutoff with no bump ahead of it.
@@ -172,6 +178,15 @@ interface PlacedNodes extends VoicePlacement {
   pan: number
   lowpassHz: number
   space: number
+  /** What moves the trim, and the send once there is one. */
+  readonly trimGlide: ParamGlide
+  sendGlide: ParamGlide | null
+}
+
+/** What an unplaced voice's trim was last told, and what moves it once it has been moved. */
+interface UnplacedTrim {
+  trim: number
+  glide: ParamGlide | null
 }
 
 /**
@@ -204,7 +219,8 @@ export interface ClipVoice {
   readonly key: string
   readonly source: AudioBufferSourceNode
   readonly gain: GainNode
-  readonly trim: GainNode | null
+  /** Null while an unplaced voice plays at unity; it is given one when its level is first moved. */
+  trim: GainNode | null
   /** The voice's own low-pass, panner and space send; null for a clip that names no placement. */
   readonly placement: VoicePlacement | null
   readonly fadeCurve: FadeCurve
@@ -286,6 +302,8 @@ export class AudioTrack implements StripHost {
   private disposed = false
   // What each placed voice's nodes were last told.
   private readonly placed = new WeakMap<ClipVoice, PlacedNodes>()
+  // The same for the trim of each voice that names no place.
+  private readonly unplaced = new WeakMap<ClipVoice, UnplacedTrim>()
   private ownLoopSec: number | null = null
   // The track's own loop on the attached scheduler's transport; null while it follows the transport's.
   private cycle: Cycle | null = null
@@ -489,24 +507,42 @@ export class AudioTrack implements StripHost {
   }
 
   /**
-   * Move the voice under `key` to another place while it sounds: its trim,
-   * pan, low-pass and space send approach the new values over a few
-   * milliseconds. Only a voice that was started placed can follow; the track
-   * does this itself for scheduled clips whenever its clip list changes.
-   * Returns whether the voice could be moved.
+   * Move the voice under `key` to another place while it sounds: its trim
+   * and space send glide to the new levels and its pan and low-pass approach
+   * theirs, over a few milliseconds. A voice that was started unplaced has
+   * only a trim, and takes the level alone. The track does this itself for
+   * scheduled clips whenever its clip list changes. Returns whether the
+   * voice could take everything `to` names.
+   *
+   * A voice that is turned down has already filled the track's room at its
+   * old level, and a room rings for seconds. Where the room is the track's
+   * own, what rings in it is turned down with the voice (`SpaceRoom.tilt`),
+   * so the change is heard at once and not as the room dies away. A room
+   * the track shares holds other tracks' sound too, and is left to ring.
    */
   place(key: string, to: VoicePlace): boolean {
-    const voice = this.active.get(key)
-    const nodes = voice ? this.placed.get(voice) : undefined
-    if (!voice?.trim || !nodes) return false
     const at = this.ctx.currentTime
+    const sent = this.sentToRoom(at)
+    const moved = this.move(key, to, at)
+    this.tiltRoom(sent, at)
+    return moved
+  }
+
+  private move(key: string, to: VoicePlace, at: number): boolean {
+    const voice = this.active.get(key)
+    if (!voice) return false
+    const nodes = this.placed.get(voice)
+    if (!nodes) return this.retrim(voice, to, at)
     const approach = (param: AudioParam, value: number): void => {
       param.setTargetAtTime(value, at, PLACEMENT_RAMP_SECONDS)
+    }
+    const glide = (param: ParamGlide, value: number): void => {
+      param.along(at, { value, atSec: at + PLACEMENT_GLIDE_SECONDS })
     }
     const trim = placedTrimGain(to.gainDb) * nodes.makeup
     if (trim !== nodes.trim) {
       nodes.trim = trim
-      approach(voice.trim.gain, trim)
+      glide(nodes.trimGlide, trim)
     }
     const pan = clipPan(to.pan)
     if (pan !== nodes.pan) {
@@ -520,12 +556,76 @@ export class AudioTrack implements StripHost {
     }
     const space = spaceSendGain(to.spaceDb) / nodes.makeup
     if (space !== nodes.space) {
+      const sending = nodes.space > 0
       nodes.space = space
       // A send that did not exist comes up from silence beside the dry path.
-      if (nodes.send) approach(nodes.send.gain, space)
-      else approach(this.sendToSpace(nodes, 0).gain, space)
+      if (!nodes.send) this.sendToSpace(nodes, 0)
+      const send = nodes.sendGlide
+      // A line in dB has no way to or from silence: there the send approaches.
+      if (send && sending && space > 0 && send.isSettled(at)) glide(send, space)
+      else send?.approach(space, at, PLACEMENT_RAMP_SECONDS)
     }
     return true
+  }
+
+  /**
+   * A voice that was started without a place has no panner, low-pass or send
+   * to move, only a trim: it takes its clip's level and nothing else. One
+   * that started at unity is given its trim now.
+   */
+  private retrim(voice: ClipVoice, to: VoicePlace, at: number): boolean {
+    const told = this.unplaced.get(voice)
+    if (!told) return false
+    // A clip that has come to name a place has the range of one.
+    const trim = isPlacedClip(to) ? placedTrimGain(to.gainDb) : trimGain(to.gainDb)
+    if (trim !== told.trim) {
+      told.glide ??= new ParamGlide(this.trimOf(voice).gain, told.trim)
+      told.trim = trim
+      told.glide.along(at, { value: trim, atSec: at + PLACEMENT_GLIDE_SECONDS })
+    }
+    return clipPan(to.pan) === 0 && to.lowpassHz === undefined && spaceSendGain(to.spaceDb) === 0
+  }
+
+  /** A voice's trim, put between its envelope and the strip when it had none. */
+  private trimOf(voice: ClipVoice): GainNode {
+    if (voice.trim) return voice.trim
+    const trim = this.ctx.createGain()
+    this.strip.disconnectSource(voice.gain)
+    voice.gain.connect(trim)
+    this.strip.connectSource(trim)
+    voice.trim = trim
+    return trim
+  }
+
+  /**
+   * The power the sounding voices send into the track's own room, as their
+   * levels now stand: each voice's trim times its send, squared. 0 while the
+   * track has no room of its own.
+   */
+  private sentToRoom(at: number): number {
+    if (!this.room) return 0
+    let power = 0
+    for (const voice of this.active.values()) {
+      if (voice.startTime > at || at >= voice.endTime) continue
+      const nodes = this.placed.get(voice)
+      if (nodes?.send) power += (nodes.trim * nodes.space) ** 2
+    }
+    return power
+  }
+
+  /**
+   * The sounding voices sent `before` into the track's own room and send
+   * another amount now: what rings in the room is turned by the difference.
+   * Weighed by power, so one voice of several turned down takes the room
+   * down by its share of it.
+   */
+  private tiltRoom(before: number, at: number): void {
+    const room = this.room
+    if (!room || before <= 0) return
+    const now = this.sentToRoom(at)
+    if (now <= 0 || now === before) return
+    const entry = room.tilt(Math.sqrt(now / before), at, PLACEMENT_GLIDE_SECONDS)
+    if (entry) this.moveSends(entry, room.entry)
   }
 
   /**
@@ -709,12 +809,15 @@ export class AudioTrack implements StripHost {
     return true
   }
 
-  /** Every scheduled voice that is placed takes its clip's current place and trim. */
+  /** Every scheduled voice takes its clip's current place and trim, and the track's own room what that changes in it. */
   private followClips(): void {
+    const at = this.ctx.currentTime
+    const sent = this.sentToRoom(at)
     for (const [key, clipId] of this.voiceClips) {
       const clip = this.clips.get(clipId)
-      if (clip) this.place(key, clip)
+      if (clip) this.move(key, clip, at)
     }
+    this.tiltRoom(sent, at)
   }
 
   private preloadStart(start: ScheduledStart): boolean {
@@ -808,6 +911,7 @@ export class AudioTrack implements StripHost {
       endTime: end,
     }
     if (placement) this.placed.set(voice, placement)
+    else this.unplaced.set(voice, { trim: trimGain(playback.gainDb), glide: null })
     this.timings.set(voice, {
       when,
       rate,
@@ -927,6 +1031,7 @@ export class AudioTrack implements StripHost {
       endTime: startAt + playback.durationSec,
     }
     if (placement) this.placed.set(voice, placement)
+    else this.unplaced.set(voice, { trim: trimGain(playback.gainDb), glide: null })
     this.stopSource(voice, startAt + playback.durationSec)
     source.onended = () => this.forget(voice)
     return voice
@@ -953,6 +1058,8 @@ export class AudioTrack implements StripHost {
       pan: clipPan(playback.pan),
       lowpassHz: clipLowpassHz(playback.lowpassHz, this.ctx.sampleRate),
       space: spaceSendGain(playback.spaceDb) / makeup,
+      trimGlide: new ParamGlide(trim.gain, placedTrimGain(playback.gainDb) * makeup),
+      sendGlide: null,
     }
     trim.gain.value = placement.trim
     lowpass.type = 'lowpass'
@@ -974,6 +1081,7 @@ export class AudioTrack implements StripHost {
     placement.lowpass.connect(send)
     send.connect(this.ensureSpace())
     placement.send = send
+    placement.sendGlide = new ParamGlide(send.gain, level)
     return send
   }
 

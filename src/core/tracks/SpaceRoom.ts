@@ -11,7 +11,22 @@
 // changed, the nodes that are there take the new values. Otherwise a second
 // set of nodes is made: the sends move over to it at once, and what was
 // already in the old room rings out there before it is taken down.
+//
+// What is ringing in a room can be turned down while it rings (`tilt`). A
+// room is a convolution, so a gain ahead of it and the same gain after it
+// sound the same, except to what is already inside: that only meets the one
+// after. So a gain after the convolver comes down and one ahead of it goes up
+// by as much, both at once and in step:
+//
+//   sends ─► [ saturator ] ─► × 1/k ─► convolver ─► [ delay ] ─► × k ─► strip
+//
+// What is sent from then on comes back as loud as it would have, and what
+// was sent before comes back `k` times as loud. The two gains then return to
+// 1 slowly, far slower than the room dies away, so the room is plain again
+// by the time anything could be heard of it. The gains are only there once a
+// room has been tilted.
 
+import { ParamGlide } from '../automation/scheduled-param'
 import { spaceDrift, spaceDriveCurve, spaceDriveGains, type SpaceColour } from './space'
 
 /** A room as a track plays it: the impulse and what is done on the way through. */
@@ -23,6 +38,14 @@ export interface SpaceRoomSettings extends SpaceColour {
 export const SPACE_COLOUR_RAMP_SECONDS = 0.2
 /** How long past its impulse an old room is kept, so its tail is not cut. */
 export const SPACE_RETIRE_MARGIN_SECONDS = 0.5
+/** The furthest down what rings in a room is turned (`SpaceRoom.tilt`): −60 dB. */
+export const MIN_SPACE_TILT = 0.001
+/**
+ * How fast a tilted room comes back to level, in dB a second. What is sent
+ * in meanwhile comes back that much louder for every second it rings, so
+ * this stays well under the 12 dB a second the stock room dies away at.
+ */
+export const SPACE_TILT_RETURN_DB_PER_SECOND = 2
 
 interface RoomNodes {
   /** Where sends go in. */
@@ -32,6 +55,15 @@ interface RoomNodes {
   convolver: ConvolverNode
   drive: { into: GainNode; outOf: GainNode } | null
   drift: { delay: DelayNode; oscillators: OscillatorNode[]; depths: GainNode[] } | null
+  /** The gains either side of the convolver once the room has been tilted: `post` is k, `pre` 1/k. */
+  tilt: {
+    pre: ParamGlide
+    post: ParamGlide
+    nodes: [GainNode, GainNode]
+    /** The level the last tilt goes down to, and when it gets there. */
+    level: number
+    reachedAt: number
+  } | null
 }
 
 export interface SpaceRoomHost {
@@ -101,6 +133,44 @@ export class SpaceRoom {
   }
 
   /**
+   * What is ringing in the room is `ratio` times as loud from `at` on,
+   * reached over `rampSec`, and what is sent in from then on comes back as
+   * loud as it would have: for a sound whose level was just changed, so the
+   * room it has already filled changes with it. A room is only ever turned
+   * down this way: a `ratio` above 1 gives back what an earlier one took, and
+   * no more. Left alone, the room returns to level by itself, slowly.
+   *
+   * Returns the node sends connected to before when they have to move to
+   * `entry` (the first tilt of a room that is not driven puts a gain ahead
+   * of its convolver), or null when they can stay where they are.
+   */
+  tilt(ratio: number, at: number, rampSec: number): AudioNode | null {
+    if (this.left || !Number.isFinite(ratio) || ratio < 0) return null
+    const nodes = this.nodes
+    const was = nodes.tilt
+    // A tilt still on its way is taken from where it was going.
+    const base = was ? (at < was.reachedAt ? was.level : was.post.valueAt(at)) : 1
+    const level = Math.min(1, Math.max(MIN_SPACE_TILT, base * ratio))
+    if (level === base) return null
+    const before = nodes.tilt ? null : this.addTilt(nodes)
+    const tilt = nodes.tilt
+    if (!tilt) return before
+    const reachedAt = at + Math.max(0, rampSec)
+    tilt.level = level
+    tilt.reachedAt = reachedAt
+    const levelAt = { value: level, atSec: reachedAt }
+    const restAt = reachedAt + (-20 * Math.log10(level)) / SPACE_TILT_RETURN_DB_PER_SECOND
+    if (level < 1) {
+      tilt.post.along(at, levelAt, { value: 1, atSec: restAt })
+      tilt.pre.along(at, { value: 1 / level, atSec: reachedAt }, { value: 1, atSec: restAt })
+    } else {
+      tilt.post.along(at, levelAt)
+      tilt.pre.along(at, levelAt)
+    }
+    return before
+  }
+
+  /**
    * Nothing will be sent into this room again: it stays until its tail is
    * over and then takes itself down, as an old set of nodes does after
    * `set`. `dispose` still takes down at once whatever is left.
@@ -132,6 +202,7 @@ export class SpaceRoom {
       convolver,
       drive: null,
       drift: null,
+      tilt: null,
     }
     if (settings.driveDb > 0) {
       const gains = spaceDriveGains(settings.driveDb)
@@ -174,6 +245,39 @@ export class SpaceRoom {
     }
     this.host.connect(nodes.exit)
     return nodes
+  }
+
+  /**
+   * Puts a gain either side of the convolver, both at 1. Returns where sends
+   * went in before when that is no longer where they go in.
+   */
+  private addTilt(nodes: RoomNodes): AudioNode | null {
+    const pre = this.ctx.createGain()
+    const post = this.ctx.createGain()
+    // After everything else, so what the strip hears is the tilted room.
+    const exit = nodes.exit
+    exit.disconnect()
+    this.host.forget(exit)
+    exit.connect(post)
+    this.host.connect(post)
+    nodes.exit = post
+    // Ahead of the convolver and after the saturator, which is not linear.
+    const before = nodes.entry
+    pre.connect(nodes.convolver)
+    if (nodes.drive) {
+      nodes.drive.outOf.disconnect()
+      nodes.drive.outOf.connect(pre)
+    } else {
+      nodes.entry = pre
+    }
+    nodes.tilt = {
+      pre: new ParamGlide(pre.gain, 1),
+      post: new ParamGlide(post.gain, 1),
+      nodes: [pre, post],
+      level: 1,
+      reachedAt: -Infinity,
+    }
+    return nodes.drive ? null : before
   }
 
   /** The same nodes take another drive and drift. */
@@ -228,6 +332,7 @@ export class SpaceRoom {
       }
       for (const depth of nodes.drift?.depths ?? []) depth.disconnect()
       nodes.drift?.delay.disconnect()
+      for (const node of nodes.tilt?.nodes ?? []) node.disconnect()
     } catch {
       // Context may already be closed; ignore.
     }
