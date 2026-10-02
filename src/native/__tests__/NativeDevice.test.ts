@@ -369,6 +369,27 @@ describe('NativeDevice parameters', () => {
     expect(edits).toEqual([{ name: 'p7', value: 0.9 }])
   })
 
+  it('knows its window is open through a late close report and a failed open', async () => {
+    const { device, host } = await makeDevice()
+    await device.openEditor()
+    // The person closes the window and opens it again at once: the host says
+    // the first one closed while the second is opening.
+    const opening = device.openEditor()
+    expect(device.editorOpen).toBe(true)
+    host.emit('editorClosed', { slot: 's1' })
+    expect(device.editorOpen).toBe(false)
+    await opening
+    expect(device.editorOpen).toBe(true)
+    // Closed after it was up: that is this window.
+    host.emit('editorClosed', { slot: 's1' })
+    expect(device.editorOpen).toBe(false)
+
+    // A window that could not be shown is not open.
+    host.socket.close()
+    await expect(device.openEditor()).rejects.toThrow()
+    expect(device.editorOpen).toBe(false)
+  })
+
   it('follows a latency change the plug-in announces', async () => {
     const { device, host, ctx } = await makeDevice()
     host.emit('latency', { slot: 's1', latencySamples: 1024 })

@@ -189,6 +189,36 @@ describe('patchInstrumentOps', () => {
     expect(document.score.lanes.map((lane) => lane.id)).toEqual(['wet', 'keys-level'])
   })
 
+  it('keeps what the kept instance holds besides its parameters, and gives another instrument none of it', () => {
+    const score = scoreWithKeys()
+    const track = score.tracks.find((candidate) => candidate.id === 'keys')
+    if (track?.kind !== 'instrument') throw new Error('no keys')
+    track.device.state = 'a sample it loaded'
+    const document = new ScoreDocument(score)
+    document.apply(
+      batch(
+        patchInstrumentOps(document.score, 'keys', {
+          instrument: { deviceId: 'sine', params: { level: 0.9 } },
+          effects: [],
+        }),
+      ),
+    )
+    // A patch says nothing of it, and the instance that stays still holds it.
+    expect(keys(document.score).device).toEqual({
+      id: 'keys-synth',
+      deviceId: 'sine',
+      params: { level: 0.9 },
+      bypass: false,
+      state: 'a sample it loaded',
+    })
+
+    document.apply(batch(patchInstrumentOps(document.score, 'keys', PRESET)))
+    expect(keys(document.score).device.state).toBeUndefined()
+    // Undo brings the instrument back with what it held.
+    document.undo()
+    expect(keys(document.score).device.state).toBe('a sample it loaded')
+  })
+
   it('leaves pinned inserts where they are', () => {
     const document = new ScoreDocument(scoreWithKeys())
     document.apply(batch(patchInstrumentOps(document.score, 'keys', PRESET, { pinned: 1 })))

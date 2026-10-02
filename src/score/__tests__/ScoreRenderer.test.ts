@@ -841,6 +841,8 @@ describe('ScoreRenderer: device state', () => {
     const loads: string[] = []
     const sets: [string, number][] = []
     let held: string | undefined
+    // What a load waits for, when a test wants it to take a while.
+    let gate: Promise<void> = Promise.resolve()
     const registry = new DeviceRegistry(NODE_DEVICES)
     registry.register({
       id: 'sampler',
@@ -877,9 +879,11 @@ describe('ScoreRenderer: device state', () => {
             if (state === 'broken') return Promise.reject(new Error('cannot read that'))
             held = state
             loads.push(state)
-            // Loading a state puts the parameter wherever the state had it.
-            values.set('gain', 0.1)
-            return Promise.resolve(true)
+            return gate.then(() => {
+              // Loading a state puts the parameter wherever the state had it.
+              values.set('gain', 0.1)
+              return true
+            })
           },
           dispose: () => node.disconnect(),
         }
@@ -894,7 +898,13 @@ describe('ScoreRenderer: device state', () => {
       bypass: false,
       state: 'first',
     })
-    return { registry, score, created, loads, sets, hold: (state: string) => (held = state) }
+    /** Loads wait from here on; the function returned lets them land. */
+    const slow = (): (() => void) => {
+      let release = (): void => {}
+      gate = new Promise((resolve) => (release = resolve))
+      return release
+    }
+    return { registry, score, created, loads, sets, slow, hold: (state: string) => (held = state) }
   }
 
   it('a device is created from the state the document holds, with its parameters on top', async () => {
@@ -945,6 +955,25 @@ describe('ScoreRenderer: device state', () => {
     expect(errors).toEqual([])
     expect(loads).toEqual([])
     expect(sets).toEqual([['gain', 0.4]])
+  })
+
+  it('a knob turned while a state is still loading is what the device ends on', async () => {
+    const { registry, score, loads, sets, slow } = stateful()
+    const { renderer, document, errors } = await rig(score, registry)
+    const land = slow()
+    document.apply({ type: 'device.setState', device: 'sampler-1', state: 'second' })
+    await vi.waitFor(() => expect(loads).toEqual(['second']))
+    // The next edit arrives before the plug-in has taken the state.
+    document.apply({ type: 'device.setParam', device: 'sampler-1', param: 'gain', value: 0.4 })
+    land()
+    await renderer.whenIdle()
+    expect(errors).toEqual([])
+    // The values the state was restored under first, then the knob: not the other way round.
+    expect(sets).toEqual([
+      ['gain', 0.7],
+      ['gain', 0.4],
+    ])
+    expect(renderer.device('sampler-1').getParam('gain')).toBe(0.4)
   })
 
   it('a state the device cannot take is a render error and the device stays', async () => {

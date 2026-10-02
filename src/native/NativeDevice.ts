@@ -569,6 +569,10 @@ export class NativeDevice
       this.editorShown = false
       throw error
     }
+    // The host answers once the window is up, and says a window closed a
+    // moment after the fact: a close heard while this one was opening was the
+    // window before it.
+    if (!this.disposed) this.editorShown = true
   }
 
   async closeEditor(): Promise<void> {
