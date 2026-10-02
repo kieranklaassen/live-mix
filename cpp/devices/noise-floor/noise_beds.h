@@ -200,6 +200,7 @@ struct Vinyl {
   static constexpr float kRumble = 0.85f;  // 10 dB under the surface noise
   static constexpr float kSurfaceLowHz = 200.0f;
   static constexpr float kSurfaceTopHz = 1000.0f;
+  static constexpr float kAir = 0.0115f;   // a trace of hiss over the whole band, 24 dB under the bed
   // The surface noise is held to this many times the bed's RMS: its own rare
   // peaks would otherwise use up the room the ticks need.
   static constexpr float kSurfacePeak = 2.8f;
@@ -294,7 +295,7 @@ struct Vinyl {
     }
     for (int c = 0; c < 2; ++c) {
       const float w = src[c].next();
-      const float hiss = high_cut[c].lowpass(low_cut[c].highpass(w));
+      const float hiss = high_cut[c].lowpass(low_cut[c].highpass(w)) + kAir * w;
       const float low = rumble[c].bandpass(w);
       const float surface = kit::clamp(kNorm * (hiss + kRumble * rumble_gain[c] * low), -kSurfacePeak, kSurfacePeak);
       out[c] = surface + tick[c][0].next() + tick[c][1].next() + pop[c].next();
