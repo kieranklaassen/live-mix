@@ -29,6 +29,7 @@ export {
   previewPhrase,
 } from './phrases'
 export { FACTORY_PRESETS } from './presets'
+export { FACTORY_PACKS, FACTORY_PACK_SIZE, factoryPack, loadFactoryPacks } from './packs'
 export { FACTORY_SOUNDS } from './sounds'
 export {
   CHORD_COLOURS,
@@ -60,6 +61,7 @@ export {
 export {
   type FactoryChain,
   type FactoryChainCategory,
+  type FactoryPack,
   type FactoryPhraseName,
   type FactoryPreset,
   type FactoryPresetCategory,

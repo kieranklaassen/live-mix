@@ -129,6 +129,74 @@ describe('Fader', () => {
     expect(onChange).toHaveBeenLastCalledWith(0)
   })
 
+  it('draws a cap on a slot with `look="cap"`: no fill, no ticks, the thumb where it was', () => {
+    const fader = (look?: 'bar' | 'cap', orientation: 'vertical' | 'horizontal' = 'vertical') => (
+      <Fader
+        label="Level"
+        look={look}
+        orientation={orientation}
+        defaultValue={-12}
+        min={FADER_MIN_DB}
+        max={FADER_MAX_DB}
+        taper="fader"
+        unit="dB"
+        ticks={[0.5, 0.8]}
+      />
+    )
+    const thumbStyle = (container: HTMLElement) =>
+      container.querySelector('.lm-fader__thumb')?.getAttribute('style')
+    const at = `${normalizeValue(-12, FADER_MIN_DB, FADER_MAX_DB, 'fader') * 100}%`
+
+    const bar = render(fader())
+    expect(bar.container.firstChild).not.toHaveClass('lm-fader--cap')
+    expect(bar.container.querySelector('.lm-fader__fill')).not.toBeNull()
+    const barThumb = thumbStyle(bar.container)
+    expect(render(fader('bar')).container.innerHTML).toBe(bar.container.innerHTML)
+    cleanup()
+
+    const cap = render(fader('cap'))
+    expect(cap.container.firstChild).toHaveClass('lm-fader', 'lm-fader--vertical', 'lm-fader--cap')
+    expect(cap.container.querySelector('.lm-fader__fill')).toBeNull()
+    expect(cap.container.querySelectorAll('.lm-fader__tick')).toHaveLength(0)
+    expect(cap.container.querySelector<HTMLElement>('.lm-fader__thumb')?.style.bottom).toBe(at)
+    expect(thumbStyle(cap.container)).toBe(barThumb)
+    expect(screen.getByRole('slider')).toHaveAttribute('aria-valuenow', '-12')
+    cleanup()
+
+    const flatBar = thumbStyle(render(fader('bar', 'horizontal')).container)
+    cleanup()
+    const flat = render(fader('cap', 'horizontal'))
+    expect(flat.container.firstChild).toHaveClass('lm-fader--horizontal', 'lm-fader--cap')
+    expect(flat.container.querySelector<HTMLElement>('.lm-fader__thumb')?.style.left).toBe(at)
+    expect(thumbStyle(flat.container)).toBe(flatBar)
+  })
+
+  it('a cap fader is worked like any other, and says when it is in hand or switched off', () => {
+    const onChange = vi.fn()
+    const { container, rerender } = render(
+      <Fader
+        label="Level"
+        look="cap"
+        defaultValue={0.5}
+        min={0}
+        max={1}
+        step={0.01}
+        sensitivityPx={100}
+        onChange={onChange}
+      />,
+    )
+    const track = screen.getByRole('slider')
+    fireEvent.pointerDown(track, { pointerId: 1, button: 0, clientX: 0, clientY: 100 })
+    expect(container.firstChild).toHaveClass('lm-fader--cap', 'lm-fader--active')
+    fireEvent.pointerMove(track, { pointerId: 1, clientX: 0, clientY: 75 })
+    fireEvent.pointerUp(track, { pointerId: 1 })
+    expect(onChange).toHaveBeenLastCalledWith(0.75)
+    expect(container.querySelector<HTMLElement>('.lm-fader__thumb')?.style.bottom).toBe('75%')
+    expect(container.firstChild).not.toHaveClass('lm-fader--active')
+    rerender(<Fader label="Level" look="cap" defaultValue={0.5} min={0} max={1} disabled />)
+    expect(container.firstChild).toHaveClass('lm-fader--cap', 'lm-fader--disabled')
+  })
+
   it('supports a custom formatter and a disabled state', () => {
     render(
       <Fader

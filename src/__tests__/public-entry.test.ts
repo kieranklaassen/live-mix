@@ -409,6 +409,11 @@ const dspSymbols = [
   'renderPresetPreview',
   'renderChainPreview',
   'renderFactorySound',
+  // The packs: listed with the bank, their presets fetched apart from it
+  'FACTORY_PACKS',
+  'FACTORY_PACK_SIZE',
+  'factoryPack',
+  'loadFactoryPacks',
   // The bank in any key, and new sounds from a seed (ambient-live's master key and Generate)
   'FACTORY_MODES',
   'FACTORY_HOME_KEY',
