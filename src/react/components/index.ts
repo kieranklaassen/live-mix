@@ -113,6 +113,13 @@ export {
   type DevicePanelProps,
 } from './DevicePanel'
 export {
+  landingIndex,
+  markerPosition,
+  useChainReorder,
+  type ChainReorder,
+  type ItemSpan,
+} from './chain-reorder'
+export {
   DeviceChainView,
   freshDeviceId,
   groupDevices,

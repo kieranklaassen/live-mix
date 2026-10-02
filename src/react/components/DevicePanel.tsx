@@ -21,7 +21,7 @@ import { type ParamSpec } from '../../core/params'
 import { useDeviceMeter } from '../hooks/useMeter'
 import { useDevice } from '../hooks/useParam'
 import { formatParamValue, isChoiceParam, paramStep, paramTaper } from './control-math'
-import { infoProps } from './info'
+import { infoProps, infoText } from './info'
 import { Knob } from './Knob'
 import { paramInfo } from './param-info'
 import { DeviceToggle } from './Toggle'
@@ -108,6 +108,8 @@ export interface DevicePanelProps {
   knobSize?: number
   /** Extra header controls after the preset picker. */
   actions?: ReactNode
+  /** A line added to the panel's info text: how it is worked where it stands (a chain says it can be moved). */
+  hint?: string
   onRemove?: () => void
   className?: string
   style?: CSSProperties
@@ -169,6 +171,7 @@ export function DevicePanel({
   showPresets,
   knobSize = 40,
   actions,
+  hint,
   onRemove,
   className,
   style,
@@ -180,7 +183,7 @@ export function DevicePanel({
   const ownText = isParamTextDevice(device) ? device : null
   const presetsShown = showPresets ?? d.presets.length > 0
   const heading = title ?? d.descriptor?.name ?? d.id
-  const about = d.descriptor?.description
+  const about = d.descriptor?.description ?? `${heading}: one of the devices of this chain.`
 
   const header = (
     <>
@@ -261,7 +264,7 @@ export function DevicePanel({
       powered={!d.bypass}
       onPowerChange={showBypass ? (powered) => d.setBypass(!powered) : undefined}
       actions={header}
-      info={about ?? `${heading}: one of the devices of this chain.`}
+      info={infoText(about, hint)}
       powerInfo={`Turns ${heading} off and on. Off, the sound passes through unchanged and the settings are kept.`}
       className={cx('lm-device--generated', className)}
       style={style}

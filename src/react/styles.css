@@ -1271,6 +1271,7 @@
 /* --- Device chain --------------------------------------------------------- */
 
 .lm-chain {
+  position: relative;
   display: flex;
   align-items: stretch;
   gap: var(--lm-space-1);
@@ -1285,12 +1286,74 @@
   border-radius: var(--lm-radius);
 }
 
-.lm-chain__item--dragging {
-  opacity: 0.5;
+/* A device is taken by its grip or its title bar and carried along the chain. */
+.lm-chain__handle,
+.lm-chain__item .lm-device__header {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
-.lm-chain__item--over {
-  outline: 1px dashed var(--lm-accent);
+/* The device being carried stays where it was, dimmed, until it is let go. */
+.lm-chain__item--dragging {
+  opacity: 0.35;
+}
+
+/* Its name rides the title row under the pointer; the carry moves it with a transform. */
+.lm-chain__carried {
+  position: absolute;
+  top: var(--lm-space-1);
+  left: 0;
+  z-index: 3;
+  max-width: 220px;
+  padding: 2px 8px;
+  overflow: hidden;
+  border-radius: var(--lm-radius);
+  background: var(--lm-accent);
+  color: var(--lm-bg);
+  font-size: var(--lm-label-size);
+  line-height: 1.6;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.lm-chain--reordering,
+.lm-chain--reordering .lm-chain__handle,
+.lm-chain--reordering .lm-device__header {
+  cursor: grabbing;
+}
+
+/* Where the carried device lands: a line in the gap, with a bar at each end. */
+.lm-chain__marker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 3;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--lm-accent);
+  pointer-events: none;
+}
+
+.lm-chain__marker::before,
+.lm-chain__marker::after {
+  content: '';
+  position: absolute;
+  left: -3px;
+  width: 8px;
+  height: 2px;
+  background: var(--lm-accent);
+}
+
+.lm-chain__marker::before {
+  top: 0;
+}
+
+.lm-chain__marker::after {
+  bottom: 0;
 }
 
 .lm-chain__handle {
@@ -1298,10 +1361,8 @@
   align-items: center;
   padding: 0 2px;
   color: var(--lm-dim);
-  cursor: grab;
   font-size: 10px;
   letter-spacing: -2px;
-  user-select: none;
 }
 
 .lm-chain__move {
@@ -2067,6 +2128,14 @@
 
 .lm-dense .lm-chain__item {
   border-radius: 0;
+}
+
+.lm-dense .lm-chain__carried {
+  top: 0;
+  height: var(--lm-row);
+  padding: 0 8px;
+  border-radius: 0;
+  line-height: var(--lm-row);
 }
 
 .lm-dense .lm-chain__handle {
