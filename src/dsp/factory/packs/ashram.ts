@@ -281,7 +281,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       {
         deviceId: 'tremolo',
         preset: 'Tape vibrato',
-        params: { rate: 1.3, depth: 0.55, drift: 0.7 },
+        params: { phase: 0, rate: 1.3, depth: 0.55, drift: 0.7 },
       },
       { deviceId: 'rotary', preset: 'Chorale', params: { drive: 0.45 } },
       { deviceId: 'tape-echo', params: { time: 420, mix: 0.25 } },
@@ -311,7 +311,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       'A slow cycle on long strings with the bridge wide open, on master tape in a long plate.',
     instrument: { deviceId: 'tanpura', preset: 'Slow wall', params: { speed: 8, volume: -5 } },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master' },
+      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4 } },
       { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.35 } },
     ],
   },
@@ -495,7 +495,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 0.08, bow: 0.8, air: 0.5, vibrato: 20, scatter: 0.6, volume: -12 },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Tape Print', params: { driveDb: 6 } },
+      { deviceId: 'saturator', preset: 'Tape Print', params: { outputDb: -2, driveDb: 6 } },
       { deviceId: 'spring-reverb', preset: 'Two spring tank', params: { mix: 0.28 } },
     ],
     preview: 'line',
@@ -875,7 +875,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { brilliance: 950, swell: 0.6, release: 5, volume: -13 },
     },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master' },
+      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4 } },
       { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.32 } },
     ],
   },
@@ -1129,7 +1129,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'spring-reverb', preset: 'Two spring tank', params: { decay: 2, mix: 0.22 } },
-      { deviceId: 'vinyl', preset: 'Clean pressing', params: { warp: 0.2 } },
+      { deviceId: 'vinyl', preset: 'Clean pressing', params: { surface: 0.2, warp: 0.2 } },
     ],
   },
   {
@@ -1366,7 +1366,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { strum: 420, brightness: 0.65, sympathy: 0.5, body: 1, volume: -11 },
     },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master' },
+      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4 } },
       { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.3 } },
     ],
   },
@@ -1408,7 +1408,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Tape Print', params: { driveDb: 6 } },
+      { deviceId: 'saturator', preset: 'Tape Print', params: { outputDb: -2, driveDb: 6 } },
       { deviceId: 'fdn-reverb', preset: 'Room', params: { mix: 0.25 } },
     ],
     preview: 'low',
@@ -1515,7 +1515,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { blow: 0.75, vibrato: 0.3, attack: 0.04, release: 0.4, volume: -5 },
     },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master', params: { hiss: 0.15 } },
+      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4, hiss: 0.15 } },
       { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.3 } },
     ],
   },

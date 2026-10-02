@@ -391,7 +391,11 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'auto-filter', preset: 'Random Steps', params: { resonance: 5, lfoAmount: 85 } },
+      {
+        deviceId: 'auto-filter',
+        preset: 'Random Steps',
+        params: { mix: 1, resonance: 5, lfoAmount: 85 },
+      },
       { deviceId: 'tremolo', preset: 'Slow pan', params: { rate: 2, shape: 3, depth: 0.4 } },
       {
         deviceId: 'analog-delay',
@@ -1486,7 +1490,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       {
         deviceId: 'auto-filter',
         preset: 'Auto-Wah',
-        params: { type: 0, cutoffHz: 450, resonance: 4, envAmount: 75, envReleaseMs: 180 },
+        params: { mix: 1, type: 0, cutoffHz: 450, resonance: 4, envAmount: 75, envReleaseMs: 180 },
       },
       { deviceId: 'analog-delay', preset: 'Chorus echo', params: { time: 375, mix: 0.3 } },
       { deviceId: 'spring-reverb', preset: 'Two spring tank', params: { mix: 0.2 } },

@@ -2217,13 +2217,13 @@
 
 /* A host's own preset picker: on the foot beside the name, in view whether or
    not the pointer is on the plate. It asks for no room of its own and takes
-   what the name leaves, so the name is cut short only where even its smallest
-   form does not fit; it is a container, so the picker can drop to that form. */
+   what the name leaves, a cell at the least, so the name is cut short only
+   where even that does not fit; it is a container, so the picker can fold. */
 .lm-plate__presets {
   display: flex;
   flex: 1 1 0;
   justify-content: flex-end;
-  min-width: 18px;
+  min-width: 20px;
   height: 20px;
   color: var(--lm-plate-ink);
   container: lm-plate-presets / inline-size;
@@ -2243,32 +2243,32 @@
   display: flex;
 }
 
-/* Beside a host's picker the tools take no room of their own. They come up
-   over the end of the name, so the picker under the pointer keeps its place
-   and its size as they appear. */
-.lm-plate__foot--picker .lm-plate__presets {
-  order: 1;
-}
+/* Beside a host's picker, under a pointer, the tools take no room of their
+   own. They come up over the end of the name, so the picker under the pointer
+   keeps its place and its size as they appear. Where nothing hovers the tools
+   are there or not for good, and keep their room. */
+@media (hover: hover) {
+  .lm-plate__foot--picker .lm-plate__presets {
+    order: 1;
+  }
 
-.lm-plate__foot--picker .lm-plate__lamp {
-  order: 2;
-}
+  .lm-plate__foot--picker .lm-plate__lamp {
+    order: 2;
+  }
 
-.lm-plate__foot--picker .lm-plate__tools {
-  flex: 0 0 0;
-  justify-content: flex-end;
-  width: 0;
-  margin-left: -4px;
-}
+  .lm-plate__foot--picker .lm-plate__tools {
+    flex: 0 0 0;
+    gap: 0;
+    justify-content: flex-end;
+    width: 0;
+    margin-left: -4px;
+  }
 
-.lm-plate__foot--picker .lm-plate__tools {
-  gap: 0;
-}
-
-/* A hairline of the plate's own colour cuts each tool from the name under it. */
-.lm-plate__foot--picker .lm-plate__tools > * {
-  flex-shrink: 0;
-  box-shadow: -1px 0 0 var(--lm-plate);
+  /* A hairline of the plate's own colour cuts each tool from the name under it. */
+  .lm-plate__foot--picker .lm-plate__tools > * {
+    flex-shrink: 0;
+    box-shadow: -1px 0 0 var(--lm-plate);
+  }
 }
 
 .lm-plate__tools .lm-button,

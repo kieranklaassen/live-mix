@@ -624,7 +624,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'fdn-reverb', preset: 'Room', params: { mix: 0.25 } },
-      { deviceId: 'tape', preset: 'Studio master', params: { hiss: 0.05 } },
+      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4, hiss: 0.05 } },
     ],
   },
   {
@@ -1381,7 +1381,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       {
         deviceId: 'vinyl',
         preset: 'Clean pressing',
-        params: { warp: 0.1, crackle: 0.1, pops: 0.02 },
+        params: { surface: 0.2, warp: 0.1, crackle: 0.1, pops: 0.02 },
       },
       { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.15 } },
     ],
@@ -1704,7 +1704,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { crossfade: 120, attack: 0.12, release: 1, wobble: 0.1, volume: -17 },
     },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master', params: { hiss: 0.05 } },
+      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4, hiss: 0.05 } },
       { deviceId: 'fdn-reverb', preset: 'Room', params: { mix: 0.2 } },
     ],
   },
@@ -1747,7 +1747,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'patina', preset: 'Fresh tape' },
+      { deviceId: 'patina', preset: 'Fresh tape', params: { tone: 0.5 } },
       { deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.2 } },
     ],
   },

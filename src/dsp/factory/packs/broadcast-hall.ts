@@ -80,7 +80,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 're-amp', preset: 'Just the room', params: { distance: 0.45, room: 0.8 } },
-      { deviceId: 'tape', preset: 'Studio master' },
+      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4 } },
     ],
   },
   {
@@ -319,7 +319,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { wave: 3, sub: 0.3, cutoff: 2400, attack: 0.05, release: 1.2, volume: -15 },
     },
     effects: [
-      { deviceId: 'patina', preset: 'Fresh tape' },
+      { deviceId: 'patina', preset: 'Fresh tape', params: { tone: 0.5 } },
       { deviceId: 'spring-reverb', preset: 'Two spring tank', params: { mix: 0.3 } },
     ],
   },
@@ -795,7 +795,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { mallet: 0.2, decay: 1.5, resonator: 1, width: 0.6, volume: -15 },
     },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master' },
+      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4 } },
       { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.25 } },
     ],
     preview: 'low',
@@ -985,7 +985,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { pressure: 0.5, vibrato: 0.3, volume: -9 },
     },
     effects: [
-      { deviceId: 'patina', preset: 'Fresh tape' },
+      { deviceId: 'patina', preset: 'Fresh tape', params: { tone: 0.5 } },
       { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.3 } },
     ],
     preview: 'line',
@@ -1764,7 +1764,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       'Single strings struck with a soft hammer, like a piano with its case taken away, on tape in the wooden room.',
     instrument: { deviceId: 'zither', preset: 'Single felt string', params: { volume: -8.5 } },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master' },
+      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4 } },
       { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.25 } },
     ],
   },

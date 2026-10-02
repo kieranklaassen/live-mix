@@ -469,7 +469,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'swarm-reverb', preset: 'Dark well', params: { mix: 0.4 } },
-      { deviceId: 'ambient-eq', preset: 'Dark' },
+      { deviceId: 'ambient-eq', preset: 'Dark', params: { highCut: 9000 } },
     ],
     preview: 'low',
   },
@@ -928,7 +928,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Octave down',
         params: { mode: 2, size: 140, detune: 14, mix: 0.7 },
       },
-      { deviceId: 'patina', preset: 'Twelve bit' },
+      { deviceId: 'patina', preset: 'Twelve bit', params: { wear: 0.35 } },
       { deviceId: 'dattorro', preset: 'Long plate', params: { damping: 0.6, mix: 0.4 } },
     ],
   },
@@ -1216,7 +1216,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'chorus', preset: 'Wide Chorus', params: { rate: 0.4, mix: 0.4 } },
-      { deviceId: 'patina', preset: 'Twelve bit', params: { wobble: 0.3 } },
+      { deviceId: 'patina', preset: 'Twelve bit', params: { wear: 0.35, wobble: 0.3 } },
       { deviceId: 'dattorro', preset: 'Long plate', params: { damping: 0.5, mix: 0.4 } },
     ],
   },
@@ -1615,7 +1615,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { chiff: 0.6, release: 1.2, scoop: 40, volume: -11.5 },
     },
     effects: [
-      { deviceId: 'patina', preset: 'Twelve bit', params: { wobble: 0.35 } },
+      { deviceId: 'patina', preset: 'Twelve bit', params: { wear: 0.35, wobble: 0.35 } },
       { deviceId: 'analog-delay', preset: 'Dark repeats', params: { mix: 0.3 } },
       { deviceId: 'ether-reverb', preset: 'Room', params: { decay: 2.5, mix: 0.3 } },
     ],
@@ -2030,7 +2030,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { tune: -12, fine: -22, attack: 0.8, release: 3, tone: 2600, volume: -19.5 },
     },
     effects: [
-      { deviceId: 'patina', preset: 'Twelve bit' },
+      { deviceId: 'patina', preset: 'Twelve bit', params: { wear: 0.35 } },
       { deviceId: 'shimmer', preset: 'Undertow', params: { shimmer: 0.3, mix: 0.35 } },
     ],
   },
@@ -2304,7 +2304,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { decay: 8, release: 5, brightness: 0.3, sympathy: 0.6, volume: -11 },
     },
     effects: [
-      { deviceId: 'tremolo', preset: 'Tape vibrato', params: { rate: 1.2, depth: 0.5 } },
+      { deviceId: 'tremolo', preset: 'Tape vibrato', params: { phase: 0, rate: 1.2, depth: 0.5 } },
       { deviceId: 'spring-reverb', preset: 'Slack and strange', params: { mix: 0.35 } },
     ],
   },

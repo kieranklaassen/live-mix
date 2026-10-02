@@ -519,7 +519,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master', params: { wow: 0.15 } },
+      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4, wow: 0.15 } },
       { deviceId: 'expanse', preset: 'Open space', params: { decay: 14, mix: 0.35, width: 0.8 } },
     ],
   },

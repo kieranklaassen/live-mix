@@ -132,7 +132,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Long horizon',
         params: { length: 6, feedback: 0.6, mix: 0.4 },
       },
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { lowCut: 40 } },
+      { deviceId: 'ambient-eq', preset: 'Dark', params: { highCut: 9000, lowCut: 40 } },
     ],
   },
   {
@@ -474,7 +474,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Tape Print' },
+      { deviceId: 'saturator', preset: 'Tape Print', params: { outputDb: -2 } },
       { deviceId: 'expanse', preset: 'Small dark room', params: { mix: 0.3 } },
     ],
     preview: 'low',
@@ -607,7 +607,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       {
         deviceId: 'vinyl',
         preset: 'Clean pressing',
-        params: { crackle: 0.35, wear: 0.4, tone: -0.3 },
+        params: { surface: 0.2, crackle: 0.35, wear: 0.4, tone: -0.3 },
       },
       { deviceId: 'fdn-reverb', preset: 'Room', params: { mix: 0.25 } },
     ],
@@ -1455,7 +1455,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { cutoff: 400, envelope: 0.6, attack: 2.5, release: 6, volume: -10 },
     },
     effects: [
-      { deviceId: 'patina', preset: 'Twelve bit', params: { noise: 0.1 } },
+      { deviceId: 'patina', preset: 'Twelve bit', params: { wear: 0.35, noise: 0.1 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.35 } },
     ],
   },
@@ -1708,7 +1708,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { decay: 1.5, damp: 0.6, volume: -0.5 },
     },
     effects: [
-      { deviceId: 'vinyl', preset: 'Clean pressing', params: { crackle: 0.3 } },
+      { deviceId: 'vinyl', preset: 'Clean pressing', params: { surface: 0.2, crackle: 0.3 } },
       { deviceId: 'glitch', preset: 'Skipping disc', params: { time: 140, chance: 0.2 } },
       { deviceId: 'fdn-reverb', preset: 'Room', params: { mix: 0.25 } },
     ],
