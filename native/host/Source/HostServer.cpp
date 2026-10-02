@@ -3,8 +3,12 @@
 #include "ScanWorker.h"
 
 #include <cmath>
+#include <condition_variable>
 #include <cstring>
+#include <deque>
+#include <mutex>
 #include <optional>
+#include <thread>
 
 #if ! JUCE_WINDOWS
  #include <unistd.h>
@@ -18,9 +22,14 @@ namespace
     constexpr uint32_t messageProcess = 1;
     constexpr uint32_t messageMidi = 2;
     constexpr uint32_t messageLinkAudio = 3;
+    constexpr uint32_t messageLinkAudioIn = 4;
     constexpr size_t audioHeaderBytes = 16;
     /** A Link Audio block: the 16 bytes above (type, frames, channels, sample rate), then when it is heard. */
     constexpr size_t linkAudioHeaderBytes = audioHeaderBytes + sizeof (double);
+    /** A received Link Audio block: the same, then the sender's count of the block. */
+    constexpr size_t linkAudioInHeaderBytes = linkAudioHeaderBytes + sizeof (double);
+    /** Received blocks waiting for the page above which new ones are dropped: about a second. */
+    constexpr size_t linkAudioInMaxQueued = 128;
     constexpr uint32_t maxFramesPerMessage = 16384;
     constexpr uint32_t maxChannels = 8;
     constexpr int changeTimerHz = 30;
@@ -168,6 +177,8 @@ void HostServer::serve (Connection connection, const juce::String& path, const j
         serveAudio (std::move (connection), query["slot"], juce::jlimit (1, static_cast<int> (maxChannels), query.getValue ("out", "2").getIntValue()));
     else if (path == "/link-audio")
         serveLinkAudio (std::move (connection), query.getValue ("name", "Main"));
+    else if (path == "/link-audio-in")
+        serveLinkAudioIn (std::move (connection), query["channel"]);
     else
         connection->close();
 }
@@ -326,6 +337,88 @@ void HostServer::serveLinkAudio (Connection connection, const juce::String& chan
     }
 }
 
+void HostServer::serveLinkAudioIn (Connection connection, const juce::String& channelId)
+{
+    if (! LinkSession::available())
+    {
+        connection->close();
+        return;
+    }
+
+    // Blocks arrive on Link's thread, which must not wait for a page that is
+    // slow to read: they are queued here and written by a thread of their own.
+    struct Outbox
+    {
+        std::mutex lock;
+        std::condition_variable ready;
+        std::deque<juce::MemoryBlock> blocks;
+        bool finished = false;
+    };
+    const auto outbox = std::make_shared<Outbox>();
+
+    auto source = linkSession().openSource (channelId, [outbox] (const float* interleaved, uint32_t frames, uint32_t channels,
+                                                                  uint32_t sampleRate, int64_t atMicros, uint64_t count)
+    {
+        const auto sampleBytes = static_cast<size_t> (frames) * channels * sizeof (float);
+        juce::MemoryBlock block (linkAudioInHeaderBytes + sampleBytes);
+        const uint32_t header[4] = { messageLinkAudioIn, frames, channels, sampleRate };
+        const double times[2] = { static_cast<double> (atMicros), static_cast<double> (count) };
+        auto* bytes = static_cast<uint8_t*> (block.getData());
+        std::memcpy (bytes, header, audioHeaderBytes);
+        std::memcpy (bytes + audioHeaderBytes, times, sizeof (times));
+        std::memcpy (bytes + linkAudioInHeaderBytes, interleaved, sampleBytes);
+
+        {
+            const std::lock_guard<std::mutex> lock (outbox->lock);
+            // A page that has stopped reading gets what is new when it reads again, not a backlog.
+            if (outbox->finished || outbox->blocks.size() >= linkAudioInMaxQueued)
+                return;
+            outbox->blocks.push_back (std::move (block));
+        }
+        outbox->ready.notify_one();
+    });
+
+    // No such channel in the session (it went, or Link Audio is off).
+    if (source == nullptr)
+    {
+        connection->close();
+        return;
+    }
+
+    std::thread writer ([outbox, connection]
+    {
+        for (;;)
+        {
+            juce::MemoryBlock block;
+            {
+                std::unique_lock<std::mutex> lock (outbox->lock);
+                outbox->ready.wait (lock, [&outbox] { return outbox->finished || ! outbox->blocks.empty(); });
+                if (outbox->finished)
+                    return;
+                block = std::move (outbox->blocks.front());
+                outbox->blocks.pop_front();
+            }
+            if (! connection->sendBinary (block.getData(), block.getSize()))
+                return;
+        }
+    });
+
+    // The page says nothing on this connection; reading it is how its going is noticed.
+    WsMessage message;
+    while (connection->read (message))
+    {
+    }
+
+    // The peer is told nobody listens before the queue is let go.
+    source.reset();
+    {
+        const std::lock_guard<std::mutex> lock (outbox->lock);
+        outbox->finished = true;
+    }
+    outbox->ready.notify_one();
+    writer.join();
+}
+
 //==============================================================================
 void HostServer::reply (const Connection& connection, const juce::var& id, const juce::var& result)
 {
@@ -373,7 +466,11 @@ juce::var HostServer::hello() const
     result->setProperty ("scanUnfinished", scanUnfinished);
     result->setProperty ("link", LinkSession::available());
     if (LinkSession::available())
+    {
         result->setProperty ("linkVersion", LinkSession::version());
+        // A page can listen to a peer's Link Audio channel (`/link-audio-in`).
+        result->setProperty ("linkAudioReceive", true);
+    }
    #if JUCE_MAC
     result->setProperty ("platform", "mac");
    #elif JUCE_WINDOWS

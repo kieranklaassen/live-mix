@@ -4,7 +4,8 @@
 (optionally) start and stop of every Link program on a local network together:
 Live, hardware, phone apps, another copy of yours. Link Audio, part of the same
 library since Link 4, carries audio between them on that beat grid, so a
-program can show up in Live as a channel to record.
+program can show up in Live as a channel to record, and a track of Live's can
+come out of a node in your graph.
 
 live-mix joins a Link session through the plug-in host
 ([native.md](./native.md)). The host is built with Ableton's own library, so
@@ -16,7 +17,7 @@ protocol.
 | Tempo, beat and bar with the session | no          | yes                                 |
 | Start/stop sync                      | no          | yes                                 |
 | Sending audio to peers (Link Audio)  | no          | yes                                 |
-| Receiving audio from peers           | no          | not yet (see [Limits](#limits))     |
+| Receiving audio from peers           | no          | yes                                 |
 
 **Why not in a browser tab.** Link peers find each other by multicast UDP
 (`224.76.78.75:20808`) and talk over UDP after that. A page has no UDP: not
@@ -30,6 +31,8 @@ hosted plug-ins.
    beat ⇄ performance.now() ⇄ AudioContext     (Ableton's library)
  LinkAudioSender
    tap worklet ─► pump worker ── float32, …/link-audio ──►  a Link Audio channel
+ LinkAudioReceiver
+   playout worklet ◄─ intake worker ◄── float32, …/link-audio-in ──  a peer's channel
 ```
 
 ## Joining a session
@@ -65,7 +68,7 @@ an application needs no second code path.
 | `playing`        | The shared transport, between peers that have start/stop sync on           |
 | `startStopSync`  | Whether this program shares start and stop                                 |
 | `audio`          | Link Audio is on: channels are announced and listed                        |
-| `channels`       | Every Link Audio channel in the session (`name`, `peerName`), ours as well |
+| `channels`       | The Link Audio channels peers send (`id`, `name`, `peerName`); not our own |
 
 Peers share the **tempo** and the **place in the bar** (the beat modulo the
 quantum). They do not share the beat count: your beat 64 and Live's bar 9 can
@@ -199,12 +202,75 @@ receiver can line it up with its own timeline.
   `worklets/link-audio.js` in the package. Unlike hosted plug-ins this path
   shares no memory, so it does not need a cross-origin isolated page.
 
+## Receiving audio: Link Audio in
+
+```ts
+import { LinkAudioReceiver } from '@kieranklaassen/live-mix/native'
+
+await link.set({ audio: true }) // peers' channels are listed while Link Audio is on
+const channel = link.state.channels.find((entry) => entry.name === 'Drums')
+const drums = await LinkAudioReceiver.create(audioContext, client, link, { channel: channel.id })
+drums.output.connect(track.input) // or wherever a microphone would go
+```
+
+`state.channels` is every channel the session's other peers send, each with an
+`id` (for `create`), its `name` and its `peerName`. An id lasts as long as the
+channel does; the two names are what a person recognises it by from one
+session to the next. This program's own channels are not in the list.
+
+`drums.output` is a stereo source node (a mono channel comes out of both
+sides). The peer sends the channel for as long as some receiver in the session
+lives; `dispose()` ends this one. `client.info.linkAudioReceive` says whether
+the host can do this at all: a host built before it could cannot, and `create`
+says so.
+
+**On the beat, a fixed delay late.** Every block a peer sends says the beat
+its first frame was heard on there, which is a moment on the clock all peers
+share. The receiver plays each sample a fixed delay after its moment:
+
+```
+ heard at the sender at T   ─►   leaves `output` at the context time heard here at T + delaySec
+```
+
+A delay there has to be: the block has to cross the network, and what a
+context renders now is only heard after its output latency. `delaySec` is
+what covers both. The receiver listens to the first quarter second of the
+channel, takes the latest block it saw plus a margin, and holds that; it is
+`null` until then and `onDelay` says when it is known. Between two programs
+on one machine it comes to the output latency plus about 25 ms (65 ms in
+headless Chromium, whose stand-in audio device is slow). It grows when blocks
+keep arriving too late for it (`onDelay` again) and never shrinks. Pass
+`delayMs` to hold a figure of your own instead: the same on every run, at the
+price of silence whenever a block is later than that.
+
+So monitoring a channel is `delaySec` behind the peer's own speakers, always
+by the same amount. A **recording** of `output` can be put exactly where it
+was played: move it earlier by `delaySec`, plus whatever lies between your
+transport and the output (a master chain's latency) if, as above, you keep
+the transport in step by where it is _heard_.
+
+**Two sample clocks.** The peer's audio device and yours count their own
+samples, at another rate (44.1 against 48 kHz) or at the same rate a few
+parts in a million apart. The playout reads the stream between its samples at
+whatever speed keeps every block on its moment, so it neither runs dry nor
+piles up, and a channel at another rate plays at its own pitch.
+
+- 16-bit on the wire (Link Audio's format), mono or stereo, at the sender's
+  sample rate.
+- A block the network loses is silence for its length; what follows is still
+  on its moment. `drums.onStats` reports, once a second, the blocks that
+  arrived, the ones that were lost and the frames played as silence because
+  their sound had not arrived (`starvedFrames`; a peer that sends nothing
+  counts here too).
+- `offsetMs`, as on the sender, shifts when the context is said to be heard,
+  for an output whose latency the browser cannot see.
+- The playout worklet and the intake worker are `worklets/link-source.js` and
+  `worklets/link-receive.js` in the package. No shared memory, so no
+  cross-origin isolation is needed for this either.
+
 ## Limits
 
 - **Desktop only**, for the reason at the top.
-- **Sending only.** The host can announce channels and send; receiving a
-  peer's channel into the page (`LinkAudioSource` in Ableton's library) is not
-  wired up. The session's channels are listed in `state.channels`.
 - **One tempo.** Link has no tempo map and no time signature: one tempo for
   everyone, and a quantum each peer picks for itself.
 - **Timing rests on what the browser reports** about its output latency. Where
@@ -225,15 +291,22 @@ Ableton's library and nothing else (`native/host/test/link/LinkPeer.cpp`):
   platforms): finds the peer; tempo both ways; both read the same place in the
   bar at the same moment; a start with peers waits for its place in the bar;
   start/stop both ways; a Link Audio channel is announced with its names, and
-  impulses sent on beats 2 and 3 arrive at the peer on those beats; the host
-  leaves the session when the page goes.
+  impulses sent on beats 2 and 3 arrive at the peer on those beats; a channel
+  the peer sends is listed, and listened to it arrives whole and in order,
+  each click the peer puts on a beat stamped within one of its frames of that
+  beat (0.02 ms measured); the host leaves the session when the page goes.
 - `browser-tests/specs/native-link.spec.ts`, a page in Chromium with a real
   `AudioContext` (Linux): the same for tempo, bar and start/stop through
   `NativeLink`, and clicks scheduled on a beat with `OutputClock` reach the
   peer over Link Audio within a millisecond of that beat (0.01 to 0.15 ms
-  measured).
+  measured). The other way round, a channel the peer sends at 44.1 kHz comes
+  out of a `LinkAudioReceiver` in the page's 48 kHz context with its clicks
+  within 0.04 ms of their beat, nothing lost and nothing starved.
 - Unit tests for the clock arithmetic, `NativeLink` against `FakePluginHost`,
-  the tap, the pump, the sender, and the timeline stretch.
+  the tap, the pump, the sender, the timeline stretch, and the receiving side:
+  the playout against a simulated sender (another sample rate, a clock that
+  runs fast, lost and late blocks, a sender that stops and starts), the intake
+  and the receiver.
 
 Not checked: Ableton Live itself or any other real Link program, two machines
 on a real network, a real audio output (the tests have none, so the latency a
@@ -270,6 +343,9 @@ On `/control`, next to the ones in [native.md](./native.md#the-protocol-version-
 | `linkStart` | `beat`, `atMicros?`, `playing?`, or `follow: true`    | the state, plus `atMicros`: when `beat` falls             |
 | `linkStop`  | `atMicros?`                                           | the state                                                 |
 
+`hello` also gains `linkAudioReceive` (true where the host can serve
+`/link-audio-in`).
+
 A `link` event carries the state whenever it changes by more than time passing
 (tempo, peers, start/stop, channels, the beat moving as a session is joined),
 to every connection that has used Link.
@@ -278,6 +354,16 @@ to every connection that has used Link.
 long as the connection lives. Binary frames, little-endian: `uint32` type
 (`3`), frames, channels (1 or 2), sample rate; `float64` host microseconds at
 which the first frame is heard; then interleaved `float32` samples.
+
+`/link-audio-in?token=…&channel=…` listens to the channel with that `id` (from
+`channels`) for as long as the connection lives; the host closes it at once
+when the session has no such channel. The host writes binary frames,
+little-endian: `uint32` type (`4`), frames, channels (1 or 2), sample rate;
+`float64` host microseconds at which the first frame was heard at the sender;
+`float64` the sender's count of the block (up by one each; a gap is a block
+the network lost); then interleaved `float32` samples. Blocks are as long as
+the pieces Link sends (about 128 frames). A page that stops reading is not
+sent a backlog: past about a second of blocks, new ones are dropped.
 
 ## Building
 

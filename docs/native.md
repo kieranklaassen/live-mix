@@ -398,7 +398,7 @@ loaded.
 
 The types are in `src/native/protocol.ts`. The Ableton Link messages (`link`,
 `linkPing`, `linkStart`, `linkStop`, the `link` event and the `/link-audio`
-path) are in [link.md](./link.md#the-messages).
+and `/link-audio-in` paths) are in [link.md](./link.md#the-messages).
 
 ### `/audio?token=…&slot=…&out=2`: binary frames
 

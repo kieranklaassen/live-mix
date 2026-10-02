@@ -12,6 +12,11 @@
 //   audio 0|1         Link Audio
 //   listen <name>     receive the channel called <name>
 //   unlisten          stop receiving
+//   send <rate> <channels> <name>
+//                     announce a channel called <name> and send it: silence,
+//                     with one sample at 0.9 on the left on every beat and one
+//                     at -0.9 on the right (stereo) on the first beat of a bar
+//   unsend            stop sending
 //   state             print the state now
 //   quit
 //
@@ -22,6 +27,7 @@
 
 #include <ableton/LinkAudio.hpp>
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cmath>
@@ -33,6 +39,8 @@
 #include <optional>
 #include <sstream>
 #include <string>
+#include <thread>
+#include <vector>
 
 namespace
 {
@@ -64,6 +72,83 @@ std::string quoted (const std::string& text)
     return out.str();
 }
 
+/**
+    A channel this peer sends, in step with the clock as an audio device
+    would ask for it: blocks of a hundredth of a second, each stamped with the
+    beat its first frame is heard on.
+*/
+class Sender
+{
+public:
+    Sender (ableton::LinkAudio& linkToUse, const std::string& name, std::uint32_t sampleRateToUse, std::size_t channelsToUse)
+        : link (linkToUse),
+          sampleRate (sampleRateToUse),
+          channels (channelsToUse),
+          frames (sampleRateToUse / 100),
+          sink (linkToUse, name, frames * channelsToUse),
+          thread ([this] { run(); })
+    {
+    }
+
+    ~Sender()
+    {
+        running = false;
+        thread.join();
+    }
+
+private:
+    void run()
+    {
+        using Micros = std::chrono::microseconds;
+        const auto start = link.clock().micros();
+        std::vector<std::int16_t> samples (frames * channels);
+        auto previous = std::floor (link.captureAppSessionState().beatAtTime (start, quantum));
+
+        for (std::uint64_t block = 0; running; ++block)
+        {
+            const auto microsAt = [&] (std::uint64_t frame)
+            {
+                return start + Micros (std::llround (1.0e6 * static_cast<double> (block * frames + frame) / sampleRate));
+            };
+
+            const auto begins = microsAt (0);
+            const auto wait = begins - link.clock().micros();
+            if (wait.count() > 0)
+                std::this_thread::sleep_for (wait);
+
+            const auto state = link.captureAppSessionState();
+            std::fill (samples.begin(), samples.end(), std::int16_t { 0 });
+            for (std::size_t frame = 0; frame < frames; ++frame)
+            {
+                // The first frame at or past a beat carries it.
+                const auto beat = std::floor (state.beatAtTime (microsAt (frame), quantum));
+                if (beat != previous)
+                {
+                    samples[frame * channels] = 29491;
+                    if (channels > 1 && std::fmod (std::fmod (beat, quantum) + quantum, quantum) == 0.0)
+                        samples[frame * channels + 1] = -29491;
+                }
+                previous = beat;
+            }
+
+            // Nobody listening: nothing to write into, and the clock goes on.
+            ableton::LinkAudioSink::BufferHandle buffer (sink);
+            if (! buffer || buffer.maxNumSamples < samples.size())
+                continue;
+            std::copy (samples.begin(), samples.end(), buffer.samples);
+            buffer.commit (state, state.beatAtTime (begins, quantum), quantum, frames, channels, sampleRate);
+        }
+    }
+
+    ableton::LinkAudio& link;
+    const std::uint32_t sampleRate;
+    const std::size_t channels;
+    const std::size_t frames;
+    ableton::LinkAudioSink sink;
+    std::atomic<bool> running { true };
+    std::thread thread;
+};
+
 struct Peer
 {
     explicit Peer (const std::string& name) : link (120.0, name)
@@ -76,6 +161,7 @@ struct Peer
 
     ~Peer()
     {
+        sender.reset();
         source.reset();
         link.setNumPeersCallback ([] (std::size_t) {});
         link.setTempoCallback ([] (double) {});
@@ -177,6 +263,7 @@ struct Peer
 
     ableton::LinkAudio link;
     std::unique_ptr<ableton::LinkAudioSource> source;
+    std::unique_ptr<Sender> sender;
     // Touched on Link's thread only.
     std::uint64_t buffers = 0;
     std::uint64_t frames = 0;
@@ -249,6 +336,21 @@ int main (int argc, char** argv)
         else if (command == "unlisten")
         {
             peer.source.reset();
+        }
+        else if (command == "send")
+        {
+            std::uint32_t sampleRate = 48000;
+            std::size_t channels = 2;
+            std::string name;
+            words >> sampleRate >> channels;
+            std::getline (words >> std::ws, name);
+            peer.sender.reset();
+            if (sampleRate >= 8000 && (channels == 1 || channels == 2) && ! name.empty())
+                peer.sender = std::make_unique<Sender> (peer.link, name, sampleRate, channels);
+        }
+        else if (command == "unsend")
+        {
+            peer.sender.reset();
         }
 
         peer.printState();
