@@ -365,6 +365,12 @@ describe('slotClipOf', () => {
     expect(slotClipOf({ ...placed, reversed: false })).not.toHaveProperty('reversed')
   })
 
+  it('keeps a chance below 1, which is the only chance there is to keep', () => {
+    const placed = { id: 'c', startSec: 12, ...slotClip('a', { chance: 0.25 }) }
+    expect(slotClipOf(placed)).toEqual(slotClip('a', { chance: 0.25 }))
+    expect(slotClipOf({ ...placed, chance: 1 })).not.toHaveProperty('chance')
+  })
+
   it('keeps where the clip sits in the mix, a pan of 0 included', () => {
     const place = { pan: 0, lowpassHz: 2400, spaceDb: -9 }
     const placed = { id: 'c', startSec: 12, ...slotClip('a', place) }
@@ -476,6 +482,19 @@ describe('Session: one clip per track, legato, launch modes', () => {
     const kick = document.score.tracks.find((track) => track.id === 'kick')
     expect(kick?.kind === 'audio' && kick.clips).toEqual([
       expect.objectContaining({ id: 'kick-chorus@1', pan: -0.4, lowpassHz: 3000, spaceDb: -6 }),
+    ])
+  })
+
+  it("a slot clip's chance goes onto the clip the launch places", async () => {
+    const { engine, session, advance, document } = await rig({}, (score) => {
+      score.slots[1].clip = slotClip('b', { chance: 0.5 })
+    })
+    engine.transport.start()
+    await advance(7.9)
+    session.launchSlot('kick-chorus') // at 8
+    const kick = document.score.tracks.find((track) => track.id === 'kick')
+    expect(kick?.kind === 'audio' && kick.clips).toEqual([
+      expect.objectContaining({ id: 'kick-chorus@1', chance: 0.5 }),
     ])
   })
 

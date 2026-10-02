@@ -480,6 +480,9 @@ export class Session {
     if (slot.clip.warp !== undefined) clip.warp = slot.clip.warp
     if (slot.clip.semitones !== undefined) clip.semitones = slot.clip.semitones
     if (slot.clip.reversed) clip.reversed = true
+    // What the slot leaves to chance is left to chance on the track too: the
+    // placed clip sits out the passes the seed gives it.
+    if (slot.clip.chance !== undefined) clip.chance = slot.clip.chance
     // Where the slot's clip sits in the mix goes onto the track with it.
     if (slot.clip.pan !== undefined) clip.pan = slot.clip.pan
     if (slot.clip.lowpassHz !== undefined) clip.lowpassHz = slot.clip.lowpassHz
