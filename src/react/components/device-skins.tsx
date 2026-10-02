@@ -636,6 +636,830 @@ const rotary: PlatePicture = {
   },
 }
 
+/** Which of `count` choices a position names. */
+const choice = (position: number, count: number): number =>
+  Math.min(count - 1, Math.max(0, Math.round(position * (count - 1))))
+
+/** A wave along the picture: `y` for each `x` from `from` to `to`. */
+function wave(from: number, to: number, y: (x: number) => number, step = 2): string {
+  const points: [number, number][] = []
+  for (let x = from; x <= to; x += step) points.push([x, y(x)])
+  return path(points)
+}
+
+/**
+ * A picture drawn ten up, so that the line it stands on is clear of the name
+ * tag along the plate's foot.
+ */
+const lifted = (picture: PlatePicture): PlatePicture => ({
+  params: picture.params,
+  draw: (at) => <g transform="translate(0 -10)">{picture.draw(at)}</g>,
+})
+
+/** A row of buckets handing the sound on: Feedback fills more of them, Time sets them apart. */
+const analogDelay: PlatePicture = lifted({
+  params: ['time', 'feedback'],
+  draw: (at) => {
+    const buckets = 3 + Math.round(at('feedback') * 5)
+    const gap = lerp(21, 27, at('time'))
+    return (
+      <>
+        {range(buckets).map((k) => {
+          const x = r1(14 + k * gap)
+          const level = r1(26 * 0.8 ** k)
+          return (
+            <g key={k}>
+              <rect
+                x={x}
+                y={r1(116 - level)}
+                width={13}
+                height={level}
+                fill={k === 0 ? ACCENT : INK}
+                opacity={k === 0 ? 1 : r1(0.75 - k * 0.07)}
+              />
+              <path
+                d={`M${x} 84V116H${r1(x + 13)}V84`}
+                fill="none"
+                stroke={INK}
+                strokeWidth={1.2}
+              />
+            </g>
+          )
+        })}
+        <path d="M10 78H230" stroke={INK} strokeWidth={0.8} strokeDasharray="2 4" opacity={0.6} />
+      </>
+    )
+  },
+})
+
+/** What goes in against what comes out: Drive bends the line, Circuit leans it. */
+const analogDrive: PlatePicture = lifted({
+  params: ['drive', 'circuit'],
+  draw: (at) => {
+    const gain = lerp(1, 7, at('drive'))
+    const lean = [0, 0.08, 0.2, 0.34, -0.3][choice(at('circuit'), 5)]
+    const curve = (v: number): number => Math.tanh(gain * (v + lean)) - Math.tanh(gain * lean)
+    const scale = 22 / Math.max(Math.abs(curve(1)), Math.abs(curve(-1)), 0.001)
+    return (
+      <>
+        <path d="M126 98H226M176 74V122" stroke={INK} strokeWidth={0.8} opacity={0.5} />
+        <path
+          d="M128 122L224 74"
+          stroke={INK}
+          strokeWidth={1}
+          strokeDasharray="2 4"
+          opacity={0.7}
+        />
+        <path
+          d={wave(128, 224, (x) => 98 - scale * curve((x - 176) / 48), 3)}
+          fill="none"
+          stroke={ACCENT}
+          strokeWidth={2.4}
+        />
+        <rect x={126} y={72} width={100} height={52} fill="none" stroke={INK} strokeWidth={1.2} />
+      </>
+    )
+  },
+})
+
+/** Loops stacked at octave speeds: Repeats adds to each row, High adds the rows above. */
+const cascade: PlatePicture = lifted({
+  params: ['repeats', 'high', 'time'],
+  draw: (at) => {
+    const repeats = 2 + Math.round(at('repeats') * 5)
+    const rows = 1 + Math.round(at('high') * 2)
+    const gap = lerp(24, 31, at('time'))
+    return range(rows).map((row) => {
+      const step = gap / 2 ** row
+      return range(repeats * 2 ** row).map((k) => (
+        <rect
+          key={`${row} ${k}`}
+          x={r1(12 + k * step)}
+          y={110 - row * 16}
+          width={r1(step - 2)}
+          height={10}
+          fill={row === 0 && k === 0 ? ACCENT : INK}
+          opacity={r1(Math.max(0.12, (row === 0 ? 1 : 0.8) - (k / (repeats * 2 ** row)) * 0.75))}
+        />
+      ))
+    })
+  },
+})
+
+/** Repeats that die away, and pieces of earlier playing drifting back over them. */
+const echoMemory: PlatePicture = lifted({
+  params: ['time', 'feedback', 'memory'],
+  draw: (at) => {
+    const repeats = 2 + Math.round(at('feedback') * 6)
+    const gap = lerp(16, 27, at('time'))
+    const memories = Math.round(at('memory') * 7)
+    return (
+      <>
+        {range(memories).map((k) => {
+          const x = 44 + scatter(k, 51) * 150
+          const y = 76 + scatter(k, 52) * 16
+          const turned = scatter(k, 53) < 0.4 ? -1 : 1
+          return (
+            <path
+              key={k}
+              d={wave(
+                x,
+                x + 22,
+                (px) => y + 4 * turned * Math.sin((px - x) / 2.4) * (1 - (px - x) / 26),
+              )}
+              fill="none"
+              stroke={ACCENT}
+              strokeWidth={1.2}
+              opacity={r1(0.35 + 0.5 * scatter(k, 54))}
+            />
+          )
+        })}
+        {range(repeats).map((k) => (
+          <rect
+            key={k}
+            x={r1(16 + k * gap)}
+            y={r1(120 - 40 * 0.76 ** k)}
+            width={5}
+            height={r1(40 * 0.76 ** k)}
+            fill={INK}
+            opacity={r1(1 - k * 0.09)}
+          />
+        ))}
+        <path d="M10 120H230" stroke={INK} strokeWidth={0.8} opacity={0.5} />
+      </>
+    )
+  },
+})
+
+/** A wave cut in slices, some of them out of place: Chance is how many. */
+const glitch: PlatePicture = lifted({
+  params: ['time', 'chance', 'repeat'],
+  draw: (at) => {
+    const slices = Math.round(lerp(20, 9, at('time')))
+    const width = 224 / slices
+    const chance = 0.08 + at('chance') * 0.8
+    const again = at('repeat')
+    return range(slices).map((k) => {
+      const off = k > 0 && scatter(k, 61) < chance
+      // A slice that sticks plays the one before it again.
+      const from = off && scatter(k, 62) < again ? k - 1 : k
+      const shift = off ? (scatter(k, 63) < 0.5 ? -9 : 9) : 0
+      const left = 8 + k * width
+      return (
+        <g key={k}>
+          <path
+            d={wave(
+              left,
+              left + width - 1.5,
+              (x) => 98 + shift + 11 * Math.sin((x - (k - from) * width) / 11),
+              1.5,
+            )}
+            fill="none"
+            stroke={off ? ACCENT : INK}
+            strokeWidth={off ? 2 : 1.3}
+          />
+          {off ? (
+            <path
+              d={`M${r1(left)} 76V120`}
+              stroke={INK}
+              strokeWidth={0.8}
+              strokeDasharray="1 3"
+              opacity={0.7}
+            />
+          ) : null}
+        </g>
+      )
+    })
+  },
+})
+
+/** The same wave under itself, slower and deeper: Speed stretches it, Length sets the cycles. */
+const halfSpeed: PlatePicture = lifted({
+  params: ['speed', 'length'],
+  draw: (at) => {
+    const ratio = [0.75, 2 / 3, 0.5, 0.25][choice(at('speed'), 4)]
+    const cycles = Math.round(lerp(6, 2, at('length')))
+    return (
+      <>
+        {range(cycles + 1).map((k) => (
+          <path
+            key={k}
+            d={`M${r1(12 + (k * 216) / cycles)} 72V122`}
+            stroke={INK}
+            strokeWidth={0.8}
+            strokeDasharray="2 4"
+            opacity={0.55}
+          />
+        ))}
+        <path
+          d={wave(12, 228, (x) => 82 + 6 * Math.sin((x / 216) * Math.PI * 2 * 12))}
+          fill="none"
+          stroke={INK}
+          strokeWidth={1.2}
+          opacity={0.75}
+        />
+        <path
+          d={wave(12, 228, (x) => 106 + 10 * Math.sin((x / 216) * Math.PI * 2 * 12 * ratio))}
+          fill="none"
+          stroke={ACCENT}
+          strokeWidth={2}
+        />
+      </>
+    )
+  },
+})
+
+/** A stream in blocks: Loss throws the quiet ones away, top first; Dropouts lose whole packets. */
+const lowBitrate: PlatePicture = lifted({
+  params: ['loss', 'dropouts'],
+  draw: (at) => {
+    const loss = at('loss')
+    const dropped = at('dropouts') * 0.5
+    return range(24).map((column) => {
+      const x = r1(10 + column * 9.2)
+      if (scatter(column, 71) < dropped)
+        return <rect key={column} x={x} y={117} width={7.2} height={2} fill={ACCENT} />
+      return (
+        <g key={column}>
+          {range(6).map((row) =>
+            scatter(column, 80 + row) < 0.04 + loss * (0.25 + 0.14 * row) ? null : (
+              <rect
+                key={row}
+                x={x}
+                y={112 - row * 8}
+                width={7.2}
+                height={6}
+                fill={(column + row * 3) % 11 === 0 ? ACCENT : INK}
+                opacity={r1(0.95 - row * 0.11)}
+              />
+            ),
+          )}
+        </g>
+      )
+    })
+  },
+})
+
+/** A loop going round: Length is how much of what was played it holds, Fade how long older loops stay. */
+const microLooper: PlatePicture = lifted({
+  params: ['length', 'fade', 'speed'],
+  draw: (at) => {
+    const held = lerp(22, 86, at('length'))
+    const sweep = lerp(0.9, 5.6, at('length'))
+    const older = Math.round(at('fade') * 3)
+    const backwards = choice(at('speed'), 6) < 3
+    const on = (r: number, angle: number): string =>
+      `${r1(184 + r * Math.cos(angle))} ${r1(98 + r * Math.sin(angle))}`
+    const start = -Math.PI / 2
+    return (
+      <>
+        <path
+          d={wave(12, 126, (x) => 98 + 9 * Math.sin(x / 7) * Math.sin(x / 23))}
+          fill="none"
+          stroke={INK}
+          strokeWidth={1.2}
+          opacity={0.75}
+        />
+        <path
+          d={`M${r1(126 - held)} 82V114H126V82`}
+          fill="none"
+          stroke={ACCENT}
+          strokeWidth={1.6}
+        />
+        {range(older).map((k) => (
+          <circle
+            key={k}
+            cx={184}
+            cy={98}
+            r={15 - k * 5}
+            fill="none"
+            stroke={INK}
+            strokeWidth={1}
+            opacity={r1(0.6 - k * 0.17)}
+          />
+        ))}
+        <circle cx={184} cy={98} r={22} fill="none" stroke={INK} strokeWidth={1} opacity={0.4} />
+        <path
+          d={`M${on(22, start)}A22 22 0 ${sweep > Math.PI ? 1 : 0} 1 ${on(22, start + sweep)}`}
+          fill="none"
+          stroke={INK}
+          strokeWidth={4}
+        />
+        <circle
+          cx={r1(184 + 22 * Math.cos(backwards ? start : start + sweep))}
+          cy={r1(98 + 22 * Math.sin(backwards ? start : start + sweep))}
+          r={4}
+          fill={ACCENT}
+        />
+      </>
+    )
+  },
+})
+
+/** What lies under the sound: Level raises the bed, Movement makes it swell. */
+const noiseFloor: PlatePicture = lifted({
+  params: ['level', 'movement'],
+  draw: (at) => {
+    const specks = 50 + Math.round(at('level') * 170)
+    const depth = lerp(7, 40, at('level'))
+    const swell = at('movement')
+    return (
+      <>
+        {range(specks).map((k) => {
+          const x = 8 + scatter(k, 91) * 224
+          const lift = 1 - swell * 0.6 * (0.5 + 0.5 * Math.sin((x / 240) * Math.PI * 5))
+          return (
+            <circle
+              key={k}
+              cx={r1(x)}
+              cy={r1(118 - scatter(k, 92) ** 1.6 * depth * lift)}
+              r={r1(0.6 + 0.9 * scatter(k, 93))}
+              fill={k % 8 === 0 ? ACCENT : INK}
+              opacity={r1(0.45 + 0.5 * scatter(k, 94))}
+            />
+          )
+        })}
+        <path d="M8 120H232" stroke={INK} strokeWidth={1.4} />
+      </>
+    )
+  },
+})
+
+/** The note and its octaves, two below to two above: each line swings as far as its level. */
+const octaves: PlatePicture = lifted({
+  params: ['sub2', 'sub1', 'dry', 'up1', 'up2'],
+  draw: (at) =>
+    (['sub2', 'sub1', 'dry', 'up1', 'up2'] as const).map((name, row) => {
+      const level = at(name)
+      const dry = name === 'dry'
+      return (
+        <path
+          key={name}
+          d={wave(
+            10,
+            230,
+            (x) =>
+              120 -
+              row * 11.5 -
+              4.6 * level * Math.sin(((x - 10) / 220) * Math.PI * 2 * 1.5 * 2 ** row),
+            1.5,
+          )}
+          fill="none"
+          stroke={dry ? ACCENT : INK}
+          strokeWidth={dry ? 2 : 1.3}
+          opacity={r1(dry ? 1 : 0.3 + 0.7 * level)}
+        />
+      )
+    }),
+})
+
+/** Notes played, and the pad that swells in behind them: Rise is how fast, Fall how long it stays. */
+const padFollower: PlatePicture = lifted({
+  params: ['rise', 'fall'],
+  draw: (at) => {
+    const top = 26 + lerp(10, 70, at('rise'))
+    const end = 136 + lerp(16, 92, at('fall'))
+    const points: [number, number][] = []
+    for (let x = 26; x <= end; x += 3) {
+      const t = x < top ? (x - 26) / (top - 26) : x < 136 ? 1 : 1 - (x - 136) / (end - 136)
+      points.push([x, 120 - 34 * t * t * (3 - 2 * t)])
+    }
+    const line = path(points)
+    return (
+      <>
+        <path d={`${line}L${r1(end)} 120L26 120Z`} fill={ACCENT} opacity={0.4} />
+        <path d={line} fill="none" stroke={ACCENT} strokeWidth={1.6} />
+        {[
+          [26, 40],
+          [62, 30],
+          [98, 36],
+          [136, 26],
+        ].map(([x, height]) => (
+          <path key={x} d={`M${x} 120V${120 - height}`} stroke={INK} strokeWidth={2} />
+        ))}
+        <path d="M10 120H230" stroke={INK} strokeWidth={0.8} opacity={0.6} />
+      </>
+    )
+  },
+})
+
+/** The medium and what it does to a steady line: Wobble bends it, Wear narrows the band, Noise specks it. */
+const patina: PlatePicture = lifted({
+  params: ['medium', 'wobble', 'wear', 'noise'],
+  draw: (at) => {
+    const swing = lerp(0.6, 9, at('wobble'))
+    const band = lerp(24, 11, at('wear'))
+    const specks = Math.round(at('noise') * 44)
+    const medium = [
+      // Reel, cassette, record, radio, sampler, valve.
+      'M18 98a12 12 0 1 0 24 0a12 12 0 1 0 -24 0M27 98a3 3 0 1 0 6 0a3 3 0 1 0 -6 0',
+      'M16 88H44V108H16ZM22 98a3 3 0 1 0 6 0a3 3 0 1 0 -6 0M32 98a3 3 0 1 0 6 0a3 3 0 1 0 -6 0',
+      'M18 98a12 12 0 1 0 24 0a12 12 0 1 0 -24 0M23 98a7 7 0 1 0 14 0a7 7 0 1 0 -14 0M29 98h2',
+      'M30 110V88M24 92a8 8 0 0 1 0 -10M36 92a8 8 0 0 0 0 -10M20 96a14 14 0 0 1 0 -18M40 96a14 14 0 0 0 0 -18',
+      'M22 90H38V106H22ZM18 94h4M18 102h4M38 94h4M38 102h4M26 86v4M34 86v4M26 106v4M34 106v4',
+      'M24 110V96a6 10 0 0 1 12 0V110ZM27 110v4M33 110v4M27 99h6',
+    ][choice(at('medium'), 6)]
+    return (
+      <>
+        <path d={medium} fill="none" stroke={ACCENT} strokeWidth={1.6} />
+        <path
+          d={`M56 ${r1(98 - band)}H232M56 ${r1(98 + band)}H232`}
+          stroke={INK}
+          strokeWidth={0.8}
+          strokeDasharray="2 4"
+          opacity={0.7}
+        />
+        {range(specks).map((k) => (
+          <circle
+            key={k}
+            cx={r1(58 + scatter(k, 101) * 172)}
+            cy={r1(98 + (scatter(k, 102) * 2 - 1) * (band - 2))}
+            r={0.9}
+            fill={INK}
+            opacity={0.6}
+          />
+        ))}
+        <path
+          d={wave(56, 232, (x) => 98 + swing * Math.sin((x / 240) * Math.PI * 5))}
+          fill="none"
+          stroke={INK}
+          strokeWidth={1.8}
+        />
+      </>
+    )
+  },
+})
+
+/** Two voices stepping away from the note: Pitch sets how far, Feedback makes each repeat climb again. */
+const pitchShifter: PlatePicture = lifted({
+  params: ['pitchA', 'pitchB', 'feedback'],
+  draw: (at) => {
+    const steps = 1 + Math.round(at('feedback') * 4)
+    const stairs = (pitch: number): string => {
+      const rise = ((pitch - 0.5) * 2 * 26) / steps
+      const run = 196 / steps
+      let d = 'M10 98H24'
+      for (let k = 1; k <= steps; k += 1) d += `V${r1(98 - rise * k)}H${r1(24 + run * k)}`
+      return d
+    }
+    return (
+      <>
+        <path d="M10 98H230" stroke={INK} strokeWidth={0.8} strokeDasharray="2 4" opacity={0.7} />
+        <path d={stairs(at('pitchB'))} fill="none" stroke={INK} strokeWidth={1.4} />
+        <path d={stairs(at('pitchA'))} fill="none" stroke={ACCENT} strokeWidth={2} />
+        <circle cx={10} cy={98} r={3} fill={INK} />
+      </>
+    )
+  },
+})
+
+/** A dial and the station on it: Tuning moves the needle, Fading sinks the signal, Static specks it. */
+const radio: PlatePicture = lifted({
+  params: ['tuning', 'fading', 'static'],
+  draw: (at) => {
+    const needle = r1(lerp(22, 218, at('tuning')))
+    const fade = at('fading') * 0.85
+    const specks = Math.round(at('static') * 60)
+    const ticks = range(21)
+      .map((k) => `M${20 + k * 10} 118V${k % 5 === 0 ? 110 : 114}`)
+      .join('')
+    return (
+      <>
+        <path
+          d={wave(
+            12,
+            228,
+            (x) =>
+              90 +
+              11 *
+                (1 - fade * (0.5 + 0.5 * Math.sin((x / 240) * Math.PI * 3 + 1))) *
+                Math.sin(x / 2.6),
+            1.5,
+          )}
+          fill="none"
+          stroke={INK}
+          strokeWidth={1.1}
+        />
+        {range(specks).map((k) => (
+          <circle
+            key={k}
+            cx={r1(12 + scatter(k, 111) * 216)}
+            cy={r1(74 + scatter(k, 112) * 32)}
+            r={0.9}
+            fill={INK}
+            opacity={0.7}
+          />
+        ))}
+        <path d={`M20 118H220${ticks}`} fill="none" stroke={INK} strokeWidth={1} />
+        <path d={`M${needle} 72V120`} stroke={ACCENT} strokeWidth={2} />
+      </>
+    )
+  },
+})
+
+/** A speaker and the microphone in front of it: Distance pulls it back, Angle turns it away, Room answers. */
+const reAmp: PlatePicture = lifted({
+  params: ['distance', 'angle', 'room'],
+  draw: (at) => {
+    const mic = lerp(84, 196, at('distance'))
+    const turn = at('angle') * 1.1
+    const walls = Math.round(at('room') * 3)
+    const waves = Math.max(1, Math.floor((mic - 70) / 16))
+    return (
+      <>
+        <path
+          d="M18 86H30V110H18ZM30 86L50 72V124L30 110"
+          fill="none"
+          stroke={INK}
+          strokeWidth={1.4}
+        />
+
+        {range(waves).map((k) => {
+          const r = 14 + k * 16
+          // An arc of the wave front, never taller than the speaker.
+          const half = Math.min(r * 0.6, 24)
+          const x = r1(52 + Math.sqrt(r * r - half * half))
+          return (
+            <path
+              key={k}
+              d={`M${x} ${r1(98 - half)}A${r} ${r} 0 0 1 ${x} ${r1(98 + half)}`}
+              fill="none"
+              stroke={INK}
+              strokeWidth={1.1}
+              opacity={r1(0.85 - k * 0.1)}
+            />
+          )
+        })}
+        {range(walls).map((k) => (
+          <path
+            key={k}
+            d={`M${224 - k * 7} ${78 + k * 4}A30 30 0 0 0 ${224 - k * 7} ${118 - k * 4}`}
+            fill="none"
+            stroke={INK}
+            strokeWidth={1}
+            strokeDasharray="2 3"
+            opacity={r1(0.7 - k * 0.18)}
+          />
+        ))}
+        <path d="M232 70V126" stroke={INK} strokeWidth={1.6} opacity={0.7} />
+        <path
+          d={`M${r1(mic)} 98L${r1(mic + 16 * Math.cos(turn))} ${r1(98 + 16 * Math.sin(turn))}`}
+          stroke={INK}
+          strokeWidth={2}
+        />
+        <circle cx={r1(mic)} cy={98} r={5.5} fill={ACCENT} />
+      </>
+    )
+  },
+})
+
+/** The shape the reverb is held to: a gate, a rise into a cut, a bloom, a fall, or waves. */
+const shapedReverb: PlatePicture = lifted({
+  params: ['shape', 'time', 'tail'],
+  draw: (at) => {
+    const shape = choice(at('shape'), 5)
+    const length = lerp(86, 170, at('time'))
+    const tail = at('tail')
+    const level = (t: number): number =>
+      [
+        1,
+        t * t,
+        Math.sin(t * Math.PI) ** 1.4,
+        1 - t,
+        (0.55 + 0.45 * Math.sin(t * Math.PI * 7 - Math.PI / 2)) * (1 - t * 0.6),
+      ][shape]
+    const points: [number, number][] = [[28, 120]]
+    for (let x = 0; x <= length; x += 2) points.push([28 + x, 120 - 44 * level(x / length)])
+    const end = 28 + length
+    const last = 44 * level(1)
+    // What rings on after the shape ends.
+    for (let x = 2; x <= 30; x += 2)
+      points.push([end + x, 120 - Math.max(last, 12) * tail * Math.exp(-x / 9)])
+    points.push([end + 30, 120])
+    const line = path(points)
+    return (
+      <>
+        <path d={`${line}Z`} fill={ACCENT} opacity={0.45} />
+        <path d={line} fill="none" stroke={ACCENT} strokeWidth={1.8} />
+        <path d="M22 70V120" stroke={INK} strokeWidth={2.4} />
+        <path d="M10 120H230" stroke={INK} strokeWidth={0.8} opacity={0.6} />
+      </>
+    )
+  },
+})
+
+/** One wave and its two copies, one sharp and one flat: Detune pulls their pitch apart, Width their place. */
+const stereoDetune: PlatePicture = lifted({
+  params: ['detune', 'delay', 'width'],
+  draw: (at) => {
+    const apart = lerp(4, 15, at('width'))
+    const cents = at('detune') * 0.22
+    const late = lerp(2, 12, at('delay'))
+    const copy = (shift: number, pitch: number) =>
+      wave(
+        10 + late,
+        230,
+        (x) => 95 + shift + 6 * Math.sin(((x - late) / 220) * Math.PI * 2 * 7 * pitch),
+      )
+    return (
+      <>
+        <path
+          d={wave(10, 230, (x) => 95 + 6 * Math.sin((x / 220) * Math.PI * 2 * 7))}
+          fill="none"
+          stroke={INK}
+          strokeWidth={1}
+          opacity={0.45}
+        />
+        <path d={copy(-apart, 1 + cents)} fill="none" stroke={ACCENT} strokeWidth={1.8} />
+        <path d={copy(apart, 1 - cents)} fill="none" stroke={INK} strokeWidth={1.8} />
+      </>
+    )
+  },
+})
+
+/** A note that would have died, held: Attack is how it comes in, Decay how long it hangs, Motion stirs it. */
+const sustainer: PlatePicture = lifted({
+  params: ['attack', 'decay', 'motion'],
+  draw: (at) => {
+    const full = 30 + lerp(6, 56, at('attack'))
+    const hangs = lerp(120, 300, at('decay'))
+    const stir = at('motion') * 3.2
+    const top: [number, number][] = []
+    for (let x = 30; x <= 232; x += 2) {
+      const rise = Math.min(1, (x - 30) / (full - 30))
+      const hold = x < hangs - 60 ? 1 : Math.max(0, (hangs - x) / 60)
+      top.push([x, 108 - (20 * rise * hold + stir * Math.sin(x / 9) * rise * hold)])
+    }
+    const line = path(top)
+    return (
+      <>
+        <path d={`${line}L232 120L30 120Z`} fill={ACCENT} opacity={0.42} />
+        <path d={line} fill="none" stroke={ACCENT} strokeWidth={1.8} />
+        <path
+          d={wave(30, 110, (x) => 120 - 46 * Math.exp(-(x - 30) / 16))}
+          fill="none"
+          stroke={INK}
+          strokeWidth={1.4}
+        />
+        <path d="M30 120V74" stroke={INK} strokeWidth={1.4} />
+        <path d="M10 120H232" stroke={INK} strokeWidth={0.8} opacity={0.6} />
+      </>
+    )
+  },
+})
+
+/** A cave of short echoes: Length is how deep, Blur how they smear, Stretch leans the lot. */
+const swarmReverb: PlatePicture = lifted({
+  params: ['length', 'blur', 'stretch'],
+  draw: (at) => {
+    const deep = lerp(80, 212, at('length'))
+    const smear = lerp(1, 3.4, at('blur'))
+    const lean = (at('stretch') - 0.5) * 16
+    return range(64).map((k) => {
+      const far = scatter(k, 121) ** 1.3
+      const x = 14 + far * deep
+      const height = (8 + 36 * scatter(k, 122)) * (1 - far * 0.8)
+      return (
+        <path
+          key={k}
+          d={`M${r1(x)} 120L${r1(x + (lean * height) / 44)} ${r1(120 - height)}`}
+          stroke={k % 7 === 0 ? ACCENT : INK}
+          strokeWidth={r1(smear)}
+          opacity={r1((0.9 - far * 0.55) / Math.sqrt(smear))}
+        />
+      )
+    })
+  },
+})
+
+/** A wave as an early converter holds it: Rate is how often it looks, Bits how many heights it knows. */
+const vintageDigital: PlatePicture = lifted({
+  params: ['rate', 'bits'],
+  draw: (at) => {
+    const samples = Math.round(lerp(9, 54, at('rate')))
+    const heights = Math.round(lerp(3, 17, at('bits')))
+    const smooth = (x: number): number => Math.sin((x / 220) * Math.PI * 2 * 1.5)
+    const step = 220 / samples
+    let held = ''
+    for (let k = 0; k < samples; k += 1) {
+      const x = 10 + k * step
+      const y = r1(
+        97 - 22 * (Math.round(smooth(k * step) * ((heights - 1) / 2)) / ((heights - 1) / 2)),
+      )
+      held += `${k ? 'V' + y : `M${r1(x)} ${y}`}H${r1(x + step)}`
+    }
+    return (
+      <>
+        <path
+          d={wave(10, 230, (x) => 97 - 22 * smooth(x - 10))}
+          fill="none"
+          stroke={ACCENT}
+          strokeWidth={1.2}
+          opacity={0.8}
+        />
+        <path d={held} fill="none" stroke={INK} strokeWidth={1.7} />
+      </>
+    )
+  },
+})
+
+/** A record and what its groove gives back: Warp bends the disc, Crackle specks the groove. */
+const vinyl: PlatePicture = lifted({
+  params: ['warp', 'crackle'],
+  draw: (at) => {
+    const bend = at('warp') * 3.4
+    const ticks = Math.round(at('crackle') * 26)
+    const groove = (r: number): string => {
+      const points: [number, number][] = []
+      for (let a = 0; a <= 64; a += 1) {
+        const angle = (a / 64) * Math.PI * 2
+        const out = r + bend * Math.sin(angle * 2 + r / 5)
+        points.push([180 + out * Math.cos(angle), 98 + out * Math.sin(angle) * 0.72])
+      }
+      return `${path(points)}Z`
+    }
+    return (
+      <>
+        <path
+          d={wave(10, 132, (x) => 98 + bend * 1.6 * Math.sin(x / 18))}
+          fill="none"
+          stroke={INK}
+          strokeWidth={1.2}
+        />
+        {range(ticks).map((k) => {
+          const x = 12 + scatter(k, 131) * 118
+          const y = 98 + bend * 1.6 * Math.sin(x / 18)
+          const height = 3 + 11 * scatter(k, 132) ** 2
+          return (
+            <path
+              key={k}
+              d={`M${r1(x)} ${r1(y - height)}V${r1(y + height * 0.4)}`}
+              stroke={k % 5 === 0 ? ACCENT : INK}
+              strokeWidth={1}
+            />
+          )
+        })}
+        {[34, 28, 22, 16].map((r) => (
+          <path key={r} d={groove(r)} fill="none" stroke={INK} strokeWidth={1} opacity={0.8} />
+        ))}
+        <ellipse cx={180} cy={98} rx={10} ry={7.2} fill={ACCENT} />
+        <circle cx={180} cy={98} r={1.6} fill={PLATE} />
+      </>
+    )
+  },
+})
+
+/** The mouth the hall sings with: Vowel moves its peaks, Resonance sharpens them, Decay lets them ring on. */
+const vowelReverb: PlatePicture = lifted({
+  params: ['vowel', 'resonance', 'decay'],
+  draw: (at) => {
+    // Where the three peaks of A, E, I, O and U sit along the picture.
+    const mouths = [
+      [78, 122, 190],
+      [56, 160, 196],
+      [36, 184, 210],
+      [56, 96, 186],
+      [38, 80, 180],
+    ]
+    const place = at('vowel') * 4
+    const from = mouths[Math.min(3, Math.floor(place))]
+    const to = mouths[Math.min(3, Math.floor(place)) + 1]
+    const mix = place - Math.min(3, Math.floor(place))
+    const peaks = from.map((x, k) => lerp(x, to[k], mix))
+    const sharp = lerp(26, 11, at('resonance'))
+    const rings = Math.round(at('decay') * 3)
+    const curve = (lift: number): string =>
+      wave(
+        8,
+        232,
+        (x) =>
+          120 -
+          lift -
+          peaks.reduce(
+            (sum, peak, k) => sum + [36, 28, 16][k] * Math.exp(-(((x - peak) / sharp) ** 2)),
+            0,
+          ),
+        3,
+      )
+    return (
+      <>
+        {range(rings).map((k) => (
+          <path
+            key={k}
+            d={curve((rings - k) * 5)}
+            fill="none"
+            stroke={INK}
+            strokeWidth={1}
+            opacity={r1(0.2 + (0.45 * (k + 1)) / (rings + 1))}
+          />
+        ))}
+        <path d={`${curve(0)}L232 120L8 120Z`} fill={ACCENT} opacity={0.4} />
+        <path d={curve(0)} fill="none" stroke={INK} strokeWidth={1.8} />
+      </>
+    )
+  },
+})
+
 /** The skins the kit ships, by device id. */
 export const DEVICE_SKINS: Readonly<Record<string, DeviceSkin>> = {
   'fdn-reverb': {
@@ -769,6 +1593,165 @@ export const DEVICE_SKINS: Readonly<Record<string, DeviceSkin>> = {
     face: ['speed', 'hornDepth', 'drumDepth', 'drive'],
     labels: { hornDepth: 'Horn', drumDepth: 'Drum' },
     picture: rotary,
+  },
+  'analog-delay': {
+    ...PLATE_PALETTES['analog-delay'],
+    finish: 'grain',
+    cap: 'skirt',
+    face: ['time', 'feedback', 'modDepth', 'mix'],
+    labels: { modDepth: 'Mod' },
+    picture: analogDelay,
+  },
+  'analog-drive': {
+    ...PLATE_PALETTES['analog-drive'],
+    finish: 'brushed',
+    cap: 'pointer',
+    face: ['drive', 'circuit', 'tone', 'output'],
+    picture: analogDrive,
+  },
+  cascade: {
+    ...PLATE_PALETTES.cascade,
+    finish: 'gloss',
+    cap: 'dot',
+    face: ['time', 'repeats', 'decay', 'mix'],
+    picture: cascade,
+  },
+  'echo-memory': {
+    ...PLATE_PALETTES['echo-memory'],
+    finish: 'fade',
+    cap: 'disc',
+    face: ['time', 'feedback', 'memory', 'mix'],
+    picture: echoMemory,
+  },
+  glitch: {
+    ...PLATE_PALETTES.glitch,
+    finish: 'speckle',
+    cap: 'pointer',
+    face: ['time', 'chance', 'repeat', 'mix'],
+    picture: glitch,
+  },
+  'half-speed': {
+    ...PLATE_PALETTES['half-speed'],
+    finish: 'linen',
+    cap: 'disc',
+    face: ['length', 'speed', 'smooth', 'mix'],
+    picture: halfSpeed,
+  },
+  'low-bitrate': {
+    ...PLATE_PALETTES['low-bitrate'],
+    finish: 'matte',
+    cap: 'dot',
+    face: ['loss', 'dropouts', 'smear', 'mix'],
+    picture: lowBitrate,
+  },
+  'micro-looper': {
+    ...PLATE_PALETTES['micro-looper'],
+    finish: 'grain',
+    cap: 'skirt',
+    face: ['length', 'speed', 'fade', 'mix'],
+    picture: microLooper,
+  },
+  'noise-floor': {
+    ...PLATE_PALETTES['noise-floor'],
+    finish: 'speckle',
+    cap: 'disc',
+    face: ['type', 'level', 'follow', 'tone'],
+    picture: noiseFloor,
+  },
+  octaves: {
+    ...PLATE_PALETTES.octaves,
+    finish: 'matte',
+    cap: 'pointer',
+    face: ['sub2', 'sub1', 'up1', 'up2'],
+    labels: { sub2: '−2', sub1: '−1', up1: '+1', up2: '+2' },
+    picture: octaves,
+  },
+  'pad-follower': {
+    ...PLATE_PALETTES['pad-follower'],
+    finish: 'fade',
+    cap: 'disc',
+    face: ['rise', 'fall', 'brightness', 'mix'],
+    labels: { brightness: 'Bright' },
+    picture: padFollower,
+  },
+  patina: {
+    ...PLATE_PALETTES.patina,
+    finish: 'hammered',
+    cap: 'skirt',
+    face: ['medium', 'drive', 'wobble', 'wear'],
+    picture: patina,
+  },
+  'pitch-shifter': {
+    ...PLATE_PALETTES['pitch-shifter'],
+    finish: 'gloss',
+    cap: 'pointer',
+    face: ['pitchA', 'pitchB', 'levelB', 'mix'],
+    picture: pitchShifter,
+  },
+  radio: {
+    ...PLATE_PALETTES.radio,
+    finish: 'linen',
+    cap: 'skirt',
+    face: ['tuning', 'fading', 'static', 'bandwidth'],
+    labels: { bandwidth: 'Width' },
+    picture: radio,
+  },
+  're-amp': {
+    ...PLATE_PALETTES['re-amp'],
+    finish: 'brushed',
+    cap: 'pointer',
+    face: ['speaker', 'drive', 'distance', 'room'],
+    picture: reAmp,
+  },
+  'shaped-reverb': {
+    ...PLATE_PALETTES['shaped-reverb'],
+    finish: 'fade',
+    cap: 'dot',
+    face: ['shape', 'time', 'tail', 'mix'],
+    picture: shapedReverb,
+  },
+  'stereo-detune': {
+    ...PLATE_PALETTES['stereo-detune'],
+    finish: 'gloss',
+    cap: 'disc',
+    face: ['detune', 'delay', 'width', 'mix'],
+    picture: stereoDetune,
+  },
+  sustainer: {
+    ...PLATE_PALETTES.sustainer,
+    finish: 'linen',
+    cap: 'dot',
+    face: ['attack', 'decay', 'motion', 'mix'],
+    picture: sustainer,
+  },
+  'swarm-reverb': {
+    ...PLATE_PALETTES['swarm-reverb'],
+    finish: 'grain',
+    cap: 'skirt',
+    face: ['length', 'blur', 'stretch', 'mix'],
+    picture: swarmReverb,
+  },
+  'vintage-digital': {
+    ...PLATE_PALETTES['vintage-digital'],
+    finish: 'speckle',
+    cap: 'pointer',
+    face: ['rate', 'bits', 'aliasing', 'jitter'],
+    picture: vintageDigital,
+  },
+  vinyl: {
+    ...PLATE_PALETTES.vinyl,
+    finish: 'gloss',
+    cap: 'disc',
+    face: ['warp', 'crackle', 'wear', 'mix'],
+    picture: vinyl,
+  },
+  'vowel-reverb': {
+    ...PLATE_PALETTES['vowel-reverb'],
+    finish: 'fade',
+    cap: 'skirt',
+    face: ['vowel', 'resonance', 'decay', 'mix'],
+    labels: { resonance: 'Reso' },
+    picture: vowelReverb,
   },
 }
 

@@ -164,7 +164,9 @@ A skin is five choices and a face:
 | `picture`                | `{ params, draw(at) }`: SVG in a 240 by 140 box, drawn from the positions (0..1) of the parameters it names and again only when one of them moves. More Feedback on the Tape Echo draws more repeats.     |
 | `name`                   | The word on the tag when the device's own name is too long for it.                                                                                                                                        |
 
-`DEVICE_SKINS` holds the kit's own, for eighteen of the stock effects.
+`DEVICE_SKINS` holds the kit's own, for forty of the stock effects: the
+reverbs, delays, tape and modulation, and the ambient ones (Analog Delay,
+Cascade, Glitch, Low Bitrate, Vinyl, Radio, Patina and the rest).
 `deviceSkin(device, skins?)` answers for a chain: the device's skin, else
 `QUIET_SKIN` (the theme's colours, no finish, no picture, eight knobs in two
 rows) so tools sit quietly between the others, and null for a device that

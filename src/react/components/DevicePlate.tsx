@@ -38,6 +38,12 @@ const PLAIN_KNOB_COLUMN = 56
 const KNOBS_LEFT = 4
 const MORE_COLUMN = 44
 const FACE_PER_ROW = 4
+/** A word under a knob with more letters than this is set tighter, so none is cut short. */
+const TIGHT_OVER = 7
+const PLAIN_TIGHT_OVER = 8
+
+const longestWord = (words: string): number =>
+  Math.max(...words.split(/\s+/).map((word) => word.length))
 /** Opened, a pictured plate with more knobs than this lays them in two rows beside the picture. */
 const ONE_ROW_MOST = 12
 
@@ -155,6 +161,9 @@ export function DevicePlate({
   }
   const stamp = skin.picture?.params.map((param) => at(param).toFixed(3)).join(' ') ?? ''
 
+  // The letters a knob's column holds at the word's usual size; a longer word is set tighter.
+  const roomy = skin.picture ? TIGHT_OVER : PLAIN_TIGHT_OVER
+
   const toggleOpen = (): void => {
     setOpen(!open)
     onOpenChange?.(!open)
@@ -201,10 +210,11 @@ export function DevicePlate({
           const spec = d.params[name]
           const labels = choiceLabels?.[name] ?? (spec.choices?.length ? spec.choices : undefined)
           const choice = labels !== undefined || isChoiceParam(spec)
+          const label = skin.labels?.[name] ?? (spec.name || name)
           return (
             <Knob
               key={name}
-              label={skin.labels?.[name] ?? (spec.name || name)}
+              label={label}
               value={d.values[name]}
               defaultValue={spec.default}
               min={spec.min}
@@ -229,7 +239,10 @@ export function DevicePlate({
               onChangeStart={() => d.touch(name)}
               onChangeEnd={() => d.release(name)}
               info={paramInfo(spec) ?? `A setting of ${heading}.`}
-              className="lm-plate__knob"
+              className={cx(
+                'lm-plate__knob',
+                longestWord(label) > roomy && 'lm-plate__knob--tight',
+              )}
               data-testid={testId ? `${testId}-${name}` : undefined}
             />
           )
