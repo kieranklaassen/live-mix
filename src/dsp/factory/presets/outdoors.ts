@@ -50,7 +50,7 @@ export const OUTDOORS_PRESETS: readonly FactoryPreset[] = [
     category: 'texture',
     description:
       'Thunder from far off: the first roll comes with the key, then one about every half minute.',
-    instrument: { deviceId: 'outdoors', preset: 'Far storm', params: { volume: -5 } },
+    instrument: { deviceId: 'outdoors', preset: 'Far storm', params: { volume: -2 } },
     effects: [
       { deviceId: 'expanse', preset: 'Open space', params: { mix: 0.3, decay: 8, lowCut: 30 } },
     ],
@@ -65,7 +65,7 @@ export const OUTDOORS_PRESETS: readonly FactoryPreset[] = [
     instrument: {
       deviceId: 'outdoors',
       preset: 'Porch chimes',
-      params: { density: 0.55, volume: -6 },
+      params: { density: 0.55, volume: -7.5 },
     },
     effects: [
       { deviceId: 'tape-echo', preset: 'Discreet', params: { time: 420, mix: 0.2 } },

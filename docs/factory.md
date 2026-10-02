@@ -140,11 +140,11 @@ import {
 } from '@kieranklaassen/live-mix/dsp'
 ```
 
-|             | Count | Groups                                                                                                                     |
-| ----------- | ----- | -------------------------------------------------------------------------------------------------------------------------- |
-| **Presets** | 150   | Five for each of the thirty stock instruments: pads, keys, bells, strings, plucked, wind, voices, organs, drones, textures |
-| **Chains**  | 34    | Space, echo, tape, motion, texture, pitch, master; every WASM effect is in at least one                                    |
-| **Sounds**  | 34    | Looping drones, pads and textures, one-shots, short phrases, and three made from other sounds                              |
+|             | Count | Groups                                                                                                                          |
+| ----------- | ----- | ------------------------------------------------------------------------------------------------------------------------------- |
+| **Presets** | 170   | Five for each of the thirty-four stock instruments: pads, keys, bells, strings, plucked, wind, voices, organs, drones, textures |
+| **Chains**  | 76    | Space, echo, tape, motion, texture, pitch, master; every WASM effect is in at least one                                         |
+| **Sounds**  | 34    | Looping drones, pads and textures, one-shots, short phrases, and three made from other sounds                                   |
 
 The bank is data: importing it loads no module and touches no audio. A host
 lists it before audio starts and renders only what someone asks to hear.
@@ -257,7 +257,8 @@ committed modules and fails the build when one leaves these limits:
 
 The bank as written sits well inside them: preset previews have their loudest
 400 ms between about −31 and −23 dBFS with peaks under −9, chains stay within
-3 LU of the dry input, stereo width (side over mid) is between about −12 and
+4 LU of the dry input (but for Night shortwave, a narrow radio band that fades
+by design and sits 6 LU under it), stereo width (side over mid) is between about −12 and
 −2 dB, and a whole patch costs under about 12 % of real time on the bench.
 
 ### The bench

@@ -8,7 +8,7 @@ export const ZITHER_PRESETS: readonly FactoryPreset[] = [
     preview: 'chord',
     description:
       'A picked chord zither strummed across open fifths and octaves, on tape, in a plain hall.',
-    instrument: { deviceId: 'zither', preset: 'Open zither' },
+    instrument: { deviceId: 'zither', preset: 'Open zither', params: { volume: -9.5 } },
     effects: [
       { deviceId: 'tape', preset: 'Quarter inch' },
       { deviceId: 'shimmer', preset: 'Plain hall', params: { mix: 0.3 } },
@@ -21,7 +21,7 @@ export const ZITHER_PRESETS: readonly FactoryPreset[] = [
     preview: 'hold',
     description:
       'Every key sweeps a harp slowly across an added-ninth chord into a very large space.',
-    instrument: { deviceId: 'zither', preset: 'Harp glissando', params: { volume: -9 } },
+    instrument: { deviceId: 'zither', preset: 'Harp glissando', params: { volume: -5 } },
     effects: [{ deviceId: 'expanse', preset: 'Open space', params: { mix: 0.35 } }],
   },
   {
@@ -43,7 +43,7 @@ export const ZITHER_PRESETS: readonly FactoryPreset[] = [
     category: 'pad',
     description:
       'Wide double strings in octaves that beat slowly, through a drifting chorus into a long dark reverb.',
-    instrument: { deviceId: 'zither', preset: 'Twelve-string haze' },
+    instrument: { deviceId: 'zither', preset: 'Twelve-string haze', params: { volume: -4 } },
     effects: [
       { deviceId: 'chorus', preset: 'Slow Drift' },
       { deviceId: 'bloom-reverb', preset: 'Long dark', params: { mix: 0.4 } },
@@ -56,7 +56,7 @@ export const ZITHER_PRESETS: readonly FactoryPreset[] = [
     preview: 'bells',
     description:
       'A dry, nasal string plucked near the bridge, answered by three tape heads in a small dark room.',
-    instrument: { deviceId: 'zither', preset: 'Koto pluck' },
+    instrument: { deviceId: 'zither', preset: 'Koto pluck', params: { volume: -2 } },
     effects: [
       { deviceId: 'tape-echo', preset: 'Three heads', params: { mix: 0.35 } },
       { deviceId: 'expanse', preset: 'Small dark room', params: { mix: 0.3 } },

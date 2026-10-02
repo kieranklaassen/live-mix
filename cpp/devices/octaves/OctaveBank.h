@@ -208,10 +208,12 @@ class OctaveBank {
   // ... and it must exceed what the open channel would collect from the
   // settled notes in the other channels. Opening lets those in; a channel
   // that would mostly hear them stays narrow.
-  // (by kExplained when the input as a whole has not just jumped: those
-  // notes' own levels swell and fall with their slow beats faster than the
-  // averages here follow.)
-  static constexpr float kExplained = 3.0f;
+  // (kExplained times that when the input as a whole has not just jumped.
+  // It is 1: a larger margin keeps the channels shut when one note takes
+  // over from another at the same level, where what the neighbours "hold"
+  // is only the ringing of the note that has just stopped, and the new
+  // note's octave then comes in a tenth of a second late.)
+  static constexpr float kExplained = 1.0f;
   // What the voices leave out: sub octaves that would land under about
   // 30 Hz, and upper octaves that would pass the bank's Nyquist frequency.
   static constexpr double kSub1LowHz = 55.0;

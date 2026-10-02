@@ -155,7 +155,7 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
     description:
       'Dark recollections from up to a minute ago, some backwards or an octave down, blurred in a hall.',
     effects: [
-      { deviceId: 'echo-memory', preset: 'Half-remembered', params: { reach: 60, mix: 0.45 } },
+      { deviceId: 'echo-memory', preset: 'Half-remembered', params: { reach: 60, mix: 0.38 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
@@ -395,7 +395,7 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
     description:
       'A distant station heard at night: thin, slowly fading, with static rising as it sinks, in a soft hall.',
     effects: [
-      { deviceId: 'radio', preset: 'Night shortwave' },
+      { deviceId: 'radio', preset: 'Night shortwave', params: { fading: 0.45, bandwidth: 0.62 } },
       { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.25 } },
     ],
   },
@@ -613,6 +613,28 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
+  {
+    id: 'sustain-pedal',
+    name: 'Sustain pedal',
+    category: 'texture',
+    description:
+      'Holds each note or chord as an even pad that glides to the next, with a little room around it.',
+    effects: [
+      { deviceId: 'sustainer', preset: 'Sustain pedal', params: { mix: 0.4 } },
+      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.25 } },
+    ],
+  },
+  {
+    id: 'held-strings',
+    name: 'Held strings',
+    category: 'texture',
+    description:
+      'Every chord you play is caught and swells in behind you as a slow string section in a long plate.',
+    effects: [
+      { deviceId: 'sustainer', preset: 'Slow strings', params: { mix: 0.45 } },
+      { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.25 } },
+    ],
+  },
   // Pitch: shimmer, harmonizer, frequency shifting.
   {
     id: 'octave-halo',
@@ -746,6 +768,27 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'swarm-reverb', preset: 'Interval ghosts', params: { mix: 0.35 } },
       { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.25 } },
+    ],
+  },
+  {
+    id: 'chord-organ',
+    name: 'Chord organ',
+    category: 'pitch',
+    description:
+      'Every note of a chord doubled an octave and two below and above, like drawbars, in a plate.',
+    effects: [
+      { deviceId: 'octaves', preset: 'Organ' },
+      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.25 } },
+    ],
+  },
+  {
+    id: 'octave-swell',
+    name: 'Octave swell',
+    category: 'pitch',
+    description: 'The playing disappears and its octaves fade in after each note, held in a hall.',
+    effects: [
+      { deviceId: 'octaves', preset: 'Swell pad' },
+      { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
   // Master: last on the mix.

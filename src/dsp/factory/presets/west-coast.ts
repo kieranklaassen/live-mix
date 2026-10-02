@@ -4,7 +4,7 @@ export const WEST_COAST_PRESETS: readonly FactoryPreset[] = [
   {
     id: 'wooden-plucks-echo',
     name: 'Wooden plucks and echo',
-    category: 'keys',
+    category: 'plucked',
     description:
       'Woody plucks through a low-pass gate, with a quiet tape echo behind them and a small dark room.',
     instrument: { deviceId: 'west-coast', preset: 'Wooden pluck', params: { volume: -1.5 } },
@@ -19,7 +19,7 @@ export const WEST_COAST_PRESETS: readonly FactoryPreset[] = [
     category: 'bell',
     description:
       'Clangorous bell strikes that dull to a pure ring, widened a little and left in a still room.',
-    instrument: { deviceId: 'west-coast', preset: 'Glass bell', params: { volume: -4 } },
+    instrument: { deviceId: 'west-coast', preset: 'Glass bell', params: { volume: -1 } },
     effects: [
       { deviceId: 'chorus', preset: 'Subtle Widener' },
       { deviceId: 'bloom-reverb', preset: 'Still room', params: { mix: 0.35 } },
@@ -52,10 +52,11 @@ export const WEST_COAST_PRESETS: readonly FactoryPreset[] = [
   {
     id: 'bright-gate-harp',
     name: 'Bright gate harp',
-    category: 'string',
+    category: 'plucked',
+    preview: 'chord',
     description:
       'A bright strummed chord, each string a little different from the last, ringing into a plain hall.',
-    instrument: { deviceId: 'west-coast', preset: 'Bright harp', params: { volume: -6 } },
+    instrument: { deviceId: 'west-coast', preset: 'Bright harp', params: { volume: -8.5 } },
     effects: [
       { deviceId: 'tape-echo', preset: 'Discreet' },
       { deviceId: 'shimmer', preset: 'Plain hall', params: { mix: 0.3 } },

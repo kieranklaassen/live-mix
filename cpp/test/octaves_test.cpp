@@ -319,7 +319,9 @@ int main() {
 
   // A chord that is struck: while its channels are still wide its notes
   // share them and intermodulate, but a tenth of a second later the octave
-  // is clean.
+  // is clean. (The chords follow straight on what was played before, as in
+  // playing: after silence the first comes out near 25 dB. The onset test
+  // that lets a legato note open its channels costs the difference.)
   {
     double worst = 1.0e9;
     const std::vector<std::vector<double>> played = {{196.0, 246.94, 293.66}, {261.63, 329.63, 392.0, 493.88}};
@@ -333,7 +335,7 @@ int main() {
                   chord_notes[0], clean);
       worst = std::min(worst, clean);
     }
-    EXPECT(worst > 18.0, "a struck chord's octave is clean a tenth of a second on");
+    EXPECT(worst > 14.0, "a struck chord's octave is clean a tenth of a second on");
   }
 
   // Vibrato and bends: the octave follows a moving pitch without dipping
@@ -357,6 +359,45 @@ int main() {
     }
     std::printf("vibrato of 40 cents on 220 Hz: the 20 ms level of a voice dips at most %.2f dB\n", deepest);
     EXPECT(deepest > -4.0, "the voices hold their level under vibrato");
+  }
+
+  // Legato: one note takes over from another at the same level (5 ms
+  // crossfade, no gap). The new note's octave must be there; what its
+  // neighbours still hold is only the ringing of the note that stopped.
+  {
+    double soon = 0.0, later = 0.0;
+    const double roots[3] = {196.0, 261.63, 392.0};
+    for (double root : roots) {
+      for (int step = 3; step <= 4; ++step) {
+        const int ups[5] = {0, 1, 2, 1, 0};
+        const size_t length = 14400, fade = 240;
+        std::vector<float> input(length * 5 + 14400, 0.0f);
+        double hz[5];
+        for (int n = 0; n < 5; ++n) {
+          hz[n] = root * std::pow(2.0, step * ups[n] / 12.0);
+          const size_t from = n == 0 ? 0 : 14400 + n * length, to = 14400 + (n + 1) * length + fade;
+          for (size_t i = from; i < to && i < input.size(); ++i) {
+            double g = 1.0;
+            if (n > 0 && i < from + fade) g = static_cast<double>(i - from) / fade;
+            if (i >= to - fade) g = static_cast<double>(to - i) / fade;
+            input[i] += static_cast<float>(0.4 * g * std::sin(2.0 * kPi * hz[n] * static_cast<double>(i) / kRate));
+          }
+        }
+        solo(device, p::kUp1);
+        Stereo out = run(device, input);
+        for (int n = 1; n < 5; ++n) {
+          const size_t at = 14400 + n * length;
+          soon = std::min(soon, db(tone_level(out.left, 2.0 * hz[n], kRate, at + 1440, at + 3840) /
+                                   tone_level(input, hz[n], kRate, at + 1440, at + 3840)));
+          later = std::min(later, db(tone_level(out.left, 2.0 * hz[n], kRate, at + 2880, at + 5280) /
+                                     tone_level(input, hz[n], kRate, at + 2880, at + 5280)));
+        }
+      }
+    }
+    std::printf("legato, steps of thirds: the new note's octave is at worst %.1f dB from 30 to 80 ms, %.1f dB from 60 to 110 ms\n",
+                soon, later);
+    EXPECT(soon > -7.0, "legato: the new note's octave is there within 30 to 80 ms");
+    EXPECT(later > -4.0, "legato: and at its level from 60 ms on");
   }
 
   // No warble: on a steady sine every voice holds its level to within

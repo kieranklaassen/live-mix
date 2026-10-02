@@ -18,7 +18,11 @@ export const TAPE_ORCHESTRA_PRESETS: readonly FactoryPreset[] = [
     category: 'pad',
     description:
       'French horns on tape slowed to half speed, an octave down, in a very large space.',
-    instrument: { deviceId: 'tape-orchestra', preset: 'Half-speed horns', params: { volume: -7 } },
+    instrument: {
+      deviceId: 'tape-orchestra',
+      preset: 'Half-speed horns',
+      params: { volume: -11.5 },
+    },
     effects: [
       { deviceId: 'tape', preset: 'Quarter inch' },
       { deviceId: 'expanse', preset: 'Open space', params: { mix: 0.4 } },
@@ -38,7 +42,8 @@ export const TAPE_ORCHESTRA_PRESETS: readonly FactoryPreset[] = [
   {
     id: 'eight-second-flutes',
     name: 'Eight-second flutes',
-    category: 'keys',
+    category: 'wind',
+    preview: 'keys',
     description:
       'Breathy flutes with eight seconds of tape under each key, an echo and a small plate.',
     instrument: { deviceId: 'tape-orchestra', preset: 'Flutes on tape', params: { volume: -6 } },
@@ -53,7 +58,7 @@ export const TAPE_ORCHESTRA_PRESETS: readonly FactoryPreset[] = [
     category: 'texture',
     description:
       'A ruined flute tape at half speed: hiss, dropouts and seasick pitch in a long dark tail.',
-    instrument: { deviceId: 'tape-orchestra', preset: 'Lost reel', params: { volume: -5 } },
+    instrument: { deviceId: 'tape-orchestra', preset: 'Lost reel', params: { volume: -6.5 } },
     effects: [
       { deviceId: 'tape-echo', preset: 'Worn tape', params: { mix: 0.35 } },
       { deviceId: 'bloom-reverb', preset: 'Long dark', params: { mix: 0.45 } },
