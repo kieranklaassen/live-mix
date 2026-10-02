@@ -151,7 +151,10 @@ process to itself before it is left out.
 The list is saved while the scan runs, so a host that is quit half way does
 not start from nothing: `client.info.scanUnfinished` is true on the next
 start, `client.plugins()` has what was found until then, and another scan
-carries on from there.
+carries on from there. A `scan-in-progress.txt` left in the data directory by
+a host from before scans had a process of their own counts the same way when
+it names the plug-in that host ended in, which stays left out; left empty, by
+a scan that reached its end, it is removed and means nothing.
 
 `registerNativeDevices(client, plugins, { registry, defaults })` is the
 registration without the scan. Each plug-in registers as:

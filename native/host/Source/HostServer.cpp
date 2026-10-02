@@ -1088,13 +1088,18 @@ void HostServer::loadPluginCache()
     }
 
     // A host from before scans had a process of their own noted here which
-    // plug-in it was in, and that plug-in took it down. Those stay left out.
+    // plug-in it was in, and that plug-in took it down. Those stay left out,
+    // and the scan they ended is not finished. A scan that reached its end
+    // left the note behind with nothing in it, which says nothing of the kind.
     const auto noted = options.dataDirectory.getChildFile ("scan-in-progress.txt");
     if (noted.existsAsFile())
     {
-        juce::PluginDirectoryScanner::applyBlacklistingsFromDeadMansPedal (knownPlugins, noted);
-        scanUnfinished = true;
-        savePluginCache();
+        if (noted.loadFileAsString().trim().isNotEmpty())
+        {
+            juce::PluginDirectoryScanner::applyBlacklistingsFromDeadMansPedal (knownPlugins, noted);
+            scanUnfinished = true;
+            savePluginCache();
+        }
         noted.deleteFile();
     }
 }

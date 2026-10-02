@@ -774,6 +774,37 @@ test('keeps out a plug-in an earlier host noted as the one it ended in', async (
   }
 })
 
+test('a note an earlier host left empty does not make its scan unfinished', async () => {
+  const folder = mkdtempSync(join(tmpdir(), 'live-mix-host-note-'))
+  try {
+    // An earlier host wrote the plug-in it was in to the note and took it
+    // out again after it, so a scan that reached its end left an empty one.
+    const file = await withTrouble(null, folder, async (connection) => {
+      const scan = await scanWithTrouble(connection)
+      return scan.plugins.find((plugin) => plugin.name === 'LiveMix Test Trouble').file
+    })
+    for (const left of ['', '\n']) {
+      writeFileSync(join(folder, 'scan-in-progress.txt'), left)
+      await withTrouble(null, folder, async (connection) => {
+        assert.equal((await connection.call('hello')).scanUnfinished, false)
+        const known = await connection.call('plugins')
+        assert.equal(known.plugins.length, 3)
+        assert.deepEqual(known.crashed, [])
+        assert.ok(!existsSync(join(folder, 'scan-in-progress.txt')))
+      })
+    }
+
+    // One that names a plug-in was left by a host that ended in it.
+    writeFileSync(join(folder, 'scan-in-progress.txt'), file)
+    await withTrouble(null, folder, async (connection) => {
+      assert.equal((await connection.call('hello')).scanUnfinished, true)
+      assert.deepEqual((await connection.call('plugins')).crashed, [file])
+    })
+  } finally {
+    rmSync(folder, { recursive: true, force: true })
+  }
+})
+
 test('a scan nobody waits for any more ends its scanner and keeps what it found', async () => {
   const folder = mkdtempSync(join(tmpdir(), 'live-mix-host-gone-'))
   try {
