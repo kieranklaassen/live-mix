@@ -16,8 +16,9 @@ namespace outdoors_scene {
 struct Stream {
   static constexpr int kBubbles = 12;
   static constexpr int kSites = 4;
-  static constexpr float kGain = 0.42f;
+  static constexpr float kGain = 0.50f;
   static constexpr float kRush = 0.5f;
+  static constexpr float kCeiling = 0.5f;   // bubble strength above which it is held back
   // Where each place sheds: bubble pitch (Hz), spread (octaves), pan, share of the flow.
   static constexpr float kCentre[kSites] = {600.0f, 1300.0f, 2500.0f, 4500.0f};
   static constexpr float kSpread[kSites] = {0.45f, 0.55f, 0.6f, 0.65f};
@@ -132,7 +133,10 @@ struct Stream {
     // Most start shallow and weak, a few deep and strong. (A big bubble is
     // already the louder for ringing ten times as long as a small one.)
     const float depth = rng.uniform();
-    const float strength = 0.2f + 0.8f * depth * depth;
+    float strength = 0.2f + 0.8f * depth * depth;
+    // A soft ceiling: the strongest keep their rank but stand less far out
+    // of the rest, so no single bubble is a plop on its own.
+    if (strength > kCeiling) strength = kCeiling + 0.3f * (strength - kCeiling);
     b.osc.x = 0.0f;
     b.osc.y = -level * strength;
     // It sounds until it is 48 dB under the loudest a bubble can be.

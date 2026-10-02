@@ -61,7 +61,7 @@
       "name": "Decay",
       "min": 0.05,
       "max": 8,
-      "default": 0.6,
+      "default": 1.4,
       "taper": "log",
       "unit": "s",
       "description": "How long the gate takes to close after a strike or a released key. The sound falls quickly at first and then lingers, growing duller as it fades."

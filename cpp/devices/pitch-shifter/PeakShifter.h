@@ -65,7 +65,9 @@ class StagedFft {
         }
       }
     }
-    for (int pass = from; pass < to; ++pass) {
+    int pass = from;
+    for (; pass + 1 < to; pass += 2) pair(re, im, inverse, pass);
+    for (; pass < to; ++pass) {
       const int size = 2 << pass;
       const int half = size >> 1;
       const int stride = N / size;
@@ -87,6 +89,51 @@ class StagedFft {
   }
 
  private:
+  // Passes `pass` and `pass + 1` in one sweep over the data: the same
+  // butterflies with the same operands as one pass after the other (so the
+  // same result to the last bit), each sample fetched and stored once
+  // instead of twice.
+  void pair(float* re, float* im, bool inverse, int pass) const {
+    const int half = 1 << pass;
+    const int size = half << 1;
+    const int stride = N / size;
+    const int wide = stride >> 1;
+    for (int start = 0; start < N; start += 2 * size) {
+      for (int k = 0; k < half; ++k) {
+        const float ur = cos_[k * stride];
+        const float ui = inverse ? -sin_[k * stride] : sin_[k * stride];
+        const float vr = cos_[k * wide];
+        const float vi = inverse ? -sin_[k * wide] : sin_[k * wide];
+        const float wr = cos_[(k + half) * wide];
+        const float wi = inverse ? -sin_[(k + half) * wide] : sin_[(k + half) * wide];
+        const int a = start + k;
+        const int b = a + half;
+        const int c = a + size;
+        const int d = c + half;
+        float xr = re[b] * ur - im[b] * ui;
+        float xi = re[b] * ui + im[b] * ur;
+        const float br = re[a] - xr, bi = im[a] - xi;
+        const float ar = re[a] + xr, ai = im[a] + xi;
+        xr = re[d] * ur - im[d] * ui;
+        xi = re[d] * ui + im[d] * ur;
+        const float dr = re[c] - xr, di = im[c] - xi;
+        const float cr = re[c] + xr, ci = im[c] + xi;
+        xr = cr * vr - ci * vi;
+        xi = cr * vi + ci * vr;
+        re[c] = ar - xr;
+        im[c] = ai - xi;
+        re[a] = ar + xr;
+        im[a] = ai + xi;
+        xr = dr * wr - di * wi;
+        xi = dr * wi + di * wr;
+        re[d] = br - xr;
+        im[d] = bi - xi;
+        re[b] = br + xr;
+        im[b] = bi + xi;
+      }
+    }
+  }
+
   int passes_ = 0;
   int reverse_[N] = {};
   float cos_[N / 2] = {};

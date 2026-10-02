@@ -34,7 +34,7 @@
 //   product Blackman × Hann still overlap-adds to an exact constant at 75 %.
 // - The second look. 85 ms cannot separate partials closer than 35 Hz, which
 //   is every low chord. A third of a second into the note, the partials
-//   under 650 Hz are measured again from frames four times as long and
+//   under 550 Hz are measured again from frames four times as long and
 //   rebuilt as clean lobes of their own (the inverse-FFT synthesis of Rodet
 //   and Depalle, "Spectral envelopes and inverse FFT synthesis", 1992); the
 //   caught frame hands its low bins over. If the note has ended or another
@@ -240,9 +240,9 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
   static constexpr float kNoisySpanDb = 1.0f;
   static constexpr float kNoisyOwnSpanDb = 3.0f;      // ... more gently for a peak that stands alone
   static constexpr int kNoisyBlock = 32;              // peaks that are judged together
-  static constexpr int kNoisyReach = 4;               // peaks either side that a partial must stand above
+  static constexpr int kNoisyReach = 2;               // peaks either side that a partial must stand above
   static constexpr int kMaxBlocks = (kMaxRegions + kNoisyBlock - 1) / kNoisyBlock;
-  static constexpr float kProminent = 8.0f;           // a peak this many times the middle one is a partial
+  static constexpr float kProminent = 8.0f;           // ... by this many times in power
   static constexpr float kSmearMakeup = 0.365f;       // frames that no longer add up in phase lose 2.7 dB
   static constexpr int kLobeSteps = 64;
 
@@ -824,7 +824,6 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
       slot.c_im[k] = 0.0f;
     }
   }
-  }
 
   // A region begins: its turn per hop (radians), its frequency, and its
   // motion at rest.
@@ -935,8 +934,8 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
       weight_[r] = mag_[p] * mag_[p];
     }
     // Partial or noise, region by region. A peak that stands far above the
-    // peaks beside it (the middle one of the four either side) is a partial
-    // in its own right (a note in breath) and goes by its own fit. The rest
+    // two peaks either side of it is a partial in its own right (a note in
+    // breath, or over the hiss of a recording) and goes by its own fit. The rest
     // go by the fit of the block and its two neighbours as a whole, so a
     // chance fit among noise is still noise and a poor fit in a close chord
     // is still a partial.
@@ -944,20 +943,12 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     const int blocks = (regions + kNoisyBlock - 1) / kNoisyBlock;
     float block_power[kMaxBlocks], block_misfit[kMaxBlocks];
     for (int r = 0; r < regions; ++r) {
-      // The middle one of the four peaks either side.
-      float sorted[2 * kNoisyReach];
-      int count = 0;
+      float tallest = 0.0f;
       const int to = r + kNoisyReach < regions ? r + kNoisyReach : regions - 1;
       for (int i = r - kNoisyReach < 0 ? 0 : r - kNoisyReach; i <= to; ++i) {
-        if (i == r) continue;
-        int at = count++;
-        while (at > 0 && sorted[at - 1] > weight_[i]) {
-          sorted[at] = sorted[at - 1];
-          --at;
-        }
-        sorted[at] = weight_[i];
+        if (i != r && weight_[i] > tallest) tallest = weight_[i];
       }
-      stands_[r] = count > 0 && weight_[r] > kProminent * sorted[count / 2];
+      stands_[r] = weight_[r] > kProminent * tallest;
     }
     for (int b = 0; b < blocks; ++b) {
       const int from = b * kNoisyBlock;

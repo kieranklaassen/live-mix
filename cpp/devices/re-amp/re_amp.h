@@ -45,7 +45,11 @@
 //   network with a Hadamard matrix (Jot and Chaigne, "Digital delay networks
 //   for designing artificial reverberators", AES 1991), fed through two
 //   allpass diffusers. Room scales every length in it and the decay together,
-//   from a cupboard (0.12 s) to a hall (1.2 s). Angle turns the microphone
+//   from a cupboard (0.12 s) to a hall (1.2 s). From Distance 0.3 outwards
+//   the eight line lengths drift, each on its own slow seeded curve (0.9 ms
+//   either way at 0.23 to 0.31 Hz, full from Distance 0.7), so the room's
+//   modes move instead of standing on the same notes; near the cone they
+//   stand still. Angle turns the microphone
 //   off the axis: a shelf from where the cone starts to beam and a low-pass
 //   that closes on the direct sound; the room hears the speaker's power
 //   response whatever the angle.

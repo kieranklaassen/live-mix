@@ -696,7 +696,14 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
   static constexpr float kCourseSecond = 0.7f;
   static constexpr float kCourseSplit = 0.4f;
 
-  void render_voice(Voice& voice, int n, float* left, float* right, float* bridge) {
+  void render_voice(Voice& voice, int count, float* left, float* right, float* bridge) {
+    // A string that is fading out ends on its own sample, and the blow that
+    // waits for it begins on the next, wherever the host cuts its blocks.
+    int n = count;
+    if (voice.fading) {
+      float fade = voice.fade;
+      for (n = 0; n < count && fade > 0.0f; ++n) fade -= fade_step_;
+    }
     float in[kChunk];
     bool struck = false;
     for (zither::Strike& strike : voice.strikes) {
@@ -771,6 +778,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     if (voice.fading && voice.fade <= 0.0f) {
       if (voice.pending) {
         start(voice, voice.pending_blow, now_ + static_cast<double>(n));
+        if (n < count) render_voice(voice, count - n, left + n, right + n, bridge + n);
       } else {
         voice.sounding = voice.fading = false;
       }

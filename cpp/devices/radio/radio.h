@@ -52,7 +52,10 @@
 // - The receiver is only on while the device is awake: it stays on for 4 s
 //   after the input stops (carrier, static, neighbours), fades over 1.5 s,
 //   and the device then sleeps with exactly zero output. Changing Band dips
-//   the output for a few milliseconds around the switch.
+//   the output for a few milliseconds around the switch. At both moments
+//   (the first sound after init, a new band) the receiver is put in the state
+//   of one that has been on for a while (settle()), so no carrier is heard
+//   switching on or off.
 // - Every random source is seeded in init().
 
 #include "../../kit/kit.h"

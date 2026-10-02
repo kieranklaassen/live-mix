@@ -8,7 +8,7 @@
 //    3  ratio: 0 1:2, 1 1:1, 2 3:2, 3 2:1, 4 3:1, 5 7:2, 6 5:1, default 3
 //    4  timbreEnv: 0..1, default 0.4
 //    5  attack: 0.001..4 s, default 0.001
-//    6  decay: 0.05..8 s, default 0.6
+//    6  decay: 0.05..8 s, default 1.4
 //    7  sustain: 0..1, default 0
 //    8  colour: 0..1, default 0.6
 //    9  chance: 0..1, default 0.15
@@ -38,7 +38,7 @@ enum Param : int {
 
 inline constexpr float kParamMin[kNumParams] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.001f, 0.05f, 0.0f, 0.0f, 0.0f, 0.0f, -48.0f};
 inline constexpr float kParamMax[kNumParams] = {1.0f, 1.0f, 1.0f, 6.0f, 1.0f, 4.0f, 8.0f, 1.0f, 1.0f, 1.0f, 1.0f, 6.0f};
-inline constexpr float kParamDefault[kNumParams] = {0.35f, 0.1f, 0.15f, 3.0f, 0.4f, 0.001f, 0.6f, 0.0f, 0.6f, 0.15f, 0.2f, -9.0f};
+inline constexpr float kParamDefault[kNumParams] = {0.35f, 0.1f, 0.15f, 3.0f, 0.4f, 0.001f, 1.4f, 0.0f, 0.6f, 0.15f, 0.2f, -9.0f};
 
 }  // namespace west_coast
 }  // namespace livemix

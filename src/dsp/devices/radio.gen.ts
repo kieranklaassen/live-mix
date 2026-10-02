@@ -48,7 +48,7 @@ export const RADIO_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How unsteady the path through the air is. The signal sinks and returns over seconds, and a hollow, phasing notch sweeps through the tone as it goes. Zero is a steady signal.',
+      'How unsteady the path through the air is. The signal sinks and returns over seconds, and a hollow, phasing notch sweeps through the tone as it goes. At its lowest the signal is steady.',
   },
   static: {
     id: 4,
@@ -92,7 +92,7 @@ export const RADIO_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'The size of the loudspeaker. Zero is a clean line output; higher settings shrink it to a small boxy speaker with a honk in the middle that rasps when pushed.',
+      'The size of the loudspeaker. At its lowest it is a clean line output; turning it up shrinks it to a small boxy speaker with a honk in the middle that rasps when pushed.',
   },
   mix: {
     id: 8,

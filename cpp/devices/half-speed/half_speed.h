@@ -5,7 +5,7 @@
 //   in ─┬─────────────────────────────────────────────────────────── dry ─┐
 //       ├─► ring ─► first set of heads (L, R) ──────────► L ─┐            (+)─► out
 //       │      └──► second set (R only, held behind) ─┐      ├─► low cut ─► high cut ─► wet ─┘
-//       │              first set R ─► below 200 Hz ──(+)─► R ─┘
+//       │    first set R ─► below 200 Hz, and above ─(+)─► R ─┘   (Spread blends the two above)
 //       └─► mono, 6 kHz copy ─► splice search (matcher.h)
 //
 // - Sound cannot be slowed without falling behind, so it runs in cycles of
@@ -28,10 +28,11 @@
 // - Speed glides over 60 ms and every head follows it, so a change bends
 //   like a tape machine. Length sets how fast the cycle clock turns and
 //   acts at once; Jitter draws a new clock rate for every cycle.
-// - Spread: a second set of heads on its own clock, held up to a quarter of
-//   a cycle behind the first, plays the right side above 200 Hz. Left and
-//   bass stay on the first set, so the low end is one signal on both sides.
-//   The second clock runs a little fast or slow to reach its place; with no
+// - Spread: a second set of heads on its own clock, a quarter of a cycle
+//   behind the first, is blended into the right side above 200 Hz: none of
+//   it at 0 (both sides the same), all of it at 1 (widen()). Left and bass
+//   stay on the first set, so the low end is one signal on both sides. The
+//   second clock runs a little fast or slow to reach its place; with no
 //   Spread it locks to the first and the sets become one.
 // - Power fades between dry and the mix; switching on from off starts a new
 //   cycle at that moment, as does the first sound after a silence, with all
@@ -133,7 +134,7 @@ class HalfSpeed : public kit::DeviceBase<half_speed::kNumParams> {
   static constexpr float kQuietSeconds = 0.05f;
   // Jitter at 1 makes a cycle up to a quarter longer or shorter.
   static constexpr float kJitterRange = 0.25f;
-  // Spread at 1 holds the right side a quarter of a cycle behind the left.
+  // With any Spread the second set runs a quarter of a cycle behind the first.
   static constexpr float kSpreadCycles = 0.25f;
   static constexpr float kSpreadPull = 4.0f;
   // The second set's share of the right side is Spread to this power, so
@@ -177,8 +178,7 @@ class HalfSpeed : public kit::DeviceBase<half_speed::kNumParams> {
   bool advance(Timing& timing, double increment, float lose, const Timing* leader);
   void launch(Timing& timing, int head, const Timing* leader);
   float make_up(Timing& timing) const;
-  float widen(float low, float near_high, float far_high, float far, float near_full,
-              float far_full);
+  float widen(float low, float near_high, float far_high, float far, float reference);
   void control();
   bool ease(float* value, float target) const;
   void relaunch();
@@ -205,7 +205,7 @@ class HalfSpeed : public kit::DeviceBase<half_speed::kNumParams> {
   // The share of the second set in the right side (the square root of Spread).
   kit::Smoother spread_;
   // Running powers for widen(): the two sets above the split and their
-  // product, then the right side as it should be and as it is.
+  // product, then the first set's right channel and the right side as it is.
   float near_power_ = 0.0f, far_power_ = 0.0f, cross_power_ = 0.0f;
   float wanted_power_ = 0.0f, right_power_ = 0.0f;
   float lift_rate_ = 0.0f, trim_rate_ = 0.0f;
@@ -359,7 +359,7 @@ inline void HalfSpeed::render_frame(const float* in, float* out_left, float* out
   const float near_high = right - 2.0f * split_right_.k * split_right_.band - low;
   const float far_high = split_high_[1].highpass(split_high_[0].highpass(late_right));
   const float far = spread_.next();
-  wet[1] = widen(low, near_high, far_high, far, right, late_right);
+  wet[1] = widen(low, near_high, far_high, far, right);
   for (int c = 0; c < 2; ++c) wet[c] = low_cut_[c].highpass(high_cut_[c].lowpass(wet[c]));
 
   // Cycle clocks. The second one runs a little fast or slow until it is
@@ -523,11 +523,13 @@ inline float HalfSpeed::make_up(Timing& timing) const {
 //   splice search).
 // - Where the low half of one set meets the upper half of the other (around
 //   200 Hz) they are not in step either, and a held chord comes out a little
-//   quieter on the right than on the left. A slow trim, 2 dB at most, holds
-//   the right side to the level its two sets have by themselves. It goes by
+//   quieter on the right than on the left; and the second set, playing other
+//   moments, is at times louder or quieter than the first. A slow trim, 2 dB
+//   at most, holds the right side to the level of the first set's right
+//   channel (`reference`), which is what plays there at Spread 0. It goes by
 //   the right channel only, so a lean in the input stays as it is.
 inline float HalfSpeed::widen(float low, float near_high, float far_high, float far,
-                              float near_full, float far_full) {
+                              float reference) {
   const float near = 1.0f - far;
   near_power_ = flush_denormal(near_power_ + (near_high * near_high - near_power_) * lift_rate_);
   far_power_ = flush_denormal(far_power_ + (far_high * far_high - far_power_) * lift_rate_);
@@ -539,7 +541,7 @@ inline float HalfSpeed::widen(float low, float near_high, float far_high, float 
   if (want > have) lift = have * kMaxLift * kMaxLift > want ? std::sqrt(want / have) : kMaxLift;
   const float side = low + lift * (near * near_high + far * far_high);
 
-  const float full = near * near_full * near_full + far * far_full * far_full;
+  const float full = reference * reference;
   wanted_power_ = flush_denormal(wanted_power_ + (full - wanted_power_) * trim_rate_);
   right_power_ = flush_denormal(right_power_ + (side * side - right_power_) * trim_rate_);
   float trim = 1.0f;

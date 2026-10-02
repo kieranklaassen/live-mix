@@ -14,7 +14,7 @@ namespace outdoors_scene {
 struct Frogs {
   static constexpr int kFrogs = 5;
   static constexpr int kFormants = 3;
-  static constexpr float kGain = 0.63f;
+  static constexpr float kGain = 0.89f;
   enum Kind : int { kCroak = 0, kPeep, kTrill, kDeep, kKinds };
   // Which kind sits in which slot: slots fill in this order as Density rises.
   static constexpr int kSlot[kFrogs] = {kCroak, kCroak, kPeep, kTrill, kDeep};

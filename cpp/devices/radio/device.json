@@ -36,7 +36,7 @@
       "min": 0,
       "max": 1,
       "default": 0.6,
-      "description": "How unsteady the path through the air is. The signal sinks and returns over seconds, and a hollow, phasing notch sweeps through the tone as it goes. Zero is a steady signal."
+      "description": "How unsteady the path through the air is. The signal sinks and returns over seconds, and a hollow, phasing notch sweeps through the tone as it goes. At its lowest the signal is steady."
     },
     {
       "key": "static",
@@ -68,7 +68,7 @@
       "min": 0,
       "max": 1,
       "default": 0.4,
-      "description": "The size of the loudspeaker. Zero is a clean line output; higher settings shrink it to a small boxy speaker with a honk in the middle that rasps when pushed."
+      "description": "The size of the loudspeaker. At its lowest it is a clean line output; turning it up shrinks it to a small boxy speaker with a honk in the middle that rasps when pushed."
     },
     {
       "key": "mix",
@@ -182,6 +182,6 @@
   },
   "origin": {
     "kind": "new",
-    "note": "Written for live-mix on cpp/kit. Models a radio link in outline, as the complex envelope of the signal around the station's carrier, so each stage is the physical one at audio rate: an AM or upper-sideband transmitter, a two-path sky wave (a slow flat fade plus a late path 0.5 to 2 ms behind with a turning carrier phase, after the tapped-delay-line channel of Watterson, Juroshek and Bensema, 'Experimental Confirmation of an HF Ionospheric Channel Model', 1970, with seeded smooth movements in place of its Gaussian taps), static and neighbouring signals added at the aerial, tuning, an eighth-order IF filter, an envelope or product detector, a square-root automatic gain and a small loudspeaker. The off-tune whistle is the beat against a little of the receiver's own frequency at the detector, as in an oscillating detector. Sideband uses the phasing method on kit::Hilbert (Olli Niemitalo's allpass pair). Not a model of any one receiver. The receiver is only on while the device is awake: static carries on for four seconds after the input stops, fades over a second and a half, and an idle track is exactly silent. Output is mono."
+    "note": "Written for live-mix on cpp/kit. Models a radio link in outline, as the complex envelope of the signal around the station's carrier, so each stage is the physical one at audio rate: an AM or upper-sideband transmitter, a two-path sky wave (a slow flat fade plus a late path 0.5 to 2 ms behind with a turning carrier phase: a two-tap delay line with fading taps, after the approach of Watterson, Juroshek and Bensema, 'Experimental Confirmation of an HF Ionospheric Channel Model', here with seeded smooth movements), static and neighbouring signals added at the aerial, tuning, an eighth-order IF filter, an envelope or product detector, a square-root automatic gain and a small loudspeaker. The off-tune whistle is the beat against a little of the receiver's own frequency at the detector, as in an oscillating detector. Sideband uses the phasing method on kit::Hilbert. Not a model of any one receiver, and no constants come from a source: levels, rates and depths were set by measurement on played material. The receiver starts settled, with the carrier already through its filters, so the first sound does not arrive on a thump. It is only on while the device is awake: static carries on for four seconds after the input stops, fades over a second and a half, and an idle track is exactly silent. Output is mono."
   }
 }

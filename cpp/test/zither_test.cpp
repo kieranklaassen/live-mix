@@ -522,6 +522,64 @@ int main() {
     EXPECT(last - first < 0.015, "and a chord with no strum still sounds together");  // the detector steps by 2 ms
   }
 
+  // 10c. A stroke of the roll puts no edge of its own on the string. With
+  // a soft, dark touch the pluck has no fast edges, so a stroke that began
+  // part way through its rise (an early turn that fell before now), or a
+  // sudden cut in what comes round, shows as a larger sample-to-sample
+  // step than the first pluck's own. Four seconds at 12 Hz is some fifty
+  // strokes, every turn of the phase table several times over.
+  {
+    double worst = 0.0;
+    for (float exciter : {0.0f, 2.0f}) {
+      plain(device);
+      device.set_param(p::kBrightness, 0.2f);
+      device.set_param(p::kExciter, exciter);
+      device.set_param(p::kRoll, 12.0f);
+      device.note_on(1, 110.0f, 0.8f);
+      const std::vector<float> rolled = mono(render(device, 4.0f, kRate));
+      plain(device);
+      device.set_param(p::kBrightness, 0.2f);
+      device.set_param(p::kExciter, exciter);
+      device.note_on(1, 110.0f, 0.8f);
+      const std::vector<float> plucked = mono(render(device, 0.5f, kRate));
+      const double ratio = max_step(rolled, at(0.05)) / max_step(plucked);
+      std::printf("roll edges, %s: largest step %.4f against the first pluck's %.4f\n", exciter == 0.0f ? "finger" : "hammer",
+                  max_step(rolled, at(0.05)), max_step(plucked));
+      worst = std::max(worst, ratio);
+    }
+    EXPECT(worst < 1.3, "a stroke of the roll puts no edge of its own on the string");
+  }
+
+  // 10d. The output does not depend on the host's block size when strings
+  // are taken from one another either (the conformance pass plays one key,
+  // which never runs out of strings): five six-string chords at once want
+  // thirty strings, with a hammer and a roll on top. A taken string ends on
+  // its own sample and the waiting blow begins on the next.
+  {
+    auto crowded = [&](int block) {
+      device.init(kRate);
+      device.set_param(p::kChord, 3.0f);
+      device.set_param(p::kStrum, 0.0f);
+      device.set_param(p::kExciter, 2.0f);
+      device.set_param(p::kRoll, 12.0f);
+      device.set_param(p::kSympathy, 1.0f);
+      // A semitone apart, so that no two keys share a string.
+      for (int k = 0; k < 5; ++k) device.note_on(k, 110.0f * std::pow(2.0f, static_cast<float>(k) / 12.0f), 0.9f);
+      return render(device, 1.0f, kRate, block);
+    };
+    const Stereo usual = crowded(kBlock);
+    double apart = 0.0;
+    for (int block : {1, 100, 2048}) {
+      const Stereo other = crowded(block);
+      for (size_t i = 0; i < usual.size(); ++i) {
+        apart = std::max(apart, std::fabs(static_cast<double>(other.left[i]) - usual.left[i]));
+        apart = std::max(apart, std::fabs(static_cast<double>(other.right[i]) - usual.right[i]));
+      }
+    }
+    std::printf("block size: thirty strings wanted at once, blocks of 1, 100 and 2048 frames differ from 128 by at most %g\n", apart);
+    EXPECT(apart < 1.0e-6, "taking strings does not depend on the block size");
+  }
+
   // 11. Moving the controls under a ringing chord does not click: Decay,
   // Release, Sympathy, Volume and Body all act on what is sounding.
   {

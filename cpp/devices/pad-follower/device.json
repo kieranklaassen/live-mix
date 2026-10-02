@@ -41,7 +41,7 @@
       "min": -1,
       "max": 1,
       "default": 0.3,
-      "description": "Adds a second section to the pad: the octave below towards the left, the octave above towards the right. In the middle the pad plays only the pitches you played."
+      "description": "Adds a second section to the pad: below zero the octave under what you play, above zero the octave over it, stronger the further from zero. At zero the pad plays only the pitches you played."
     },
     {
       "key": "brightness",
@@ -51,7 +51,7 @@
       "default": 3500,
       "taper": "log",
       "unit": "Hz",
-      "description": "Low-pass on the pad. Lower settings push it further behind the instrument; higher ones let its upper partials and the octave above shine."
+      "description": "Low-pass on the pad. Lower settings push it further behind the instrument; higher ones let its upper partials and the octave above shine. The pad has nothing above 10 kHz."
     },
     {
       "key": "ensemble",
@@ -99,10 +99,10 @@
   "presets": {
     "Strings behind": {},
     "Slow swell": {
-      "rise": 3,
-      "fall": 6,
+      "rise": 4,
+      "fall": 7,
       "sensitivity": 0.55,
-      "octaves": 0.2,
+      "octaves": 0,
       "brightness": 2800,
       "ensemble": 0.7,
       "movement": 0.45,
@@ -112,10 +112,10 @@
     },
     "Long shadow": {
       "rise": 1.2,
-      "fall": 15,
+      "fall": 18,
       "sensitivity": 0.45,
       "octaves": 0,
-      "brightness": 2200,
+      "brightness": 1600,
       "ensemble": 0.75,
       "movement": 0.5,
       "lowCut": 150,
@@ -127,10 +127,10 @@
       "fall": 5,
       "sensitivity": 0.5,
       "octaves": 0.85,
-      "brightness": 7000,
+      "brightness": 6000,
       "ensemble": 0.8,
       "movement": 0.4,
-      "lowCut": 250,
+      "lowCut": 200,
       "width": 1,
       "mix": 0.45
     },
@@ -159,32 +159,32 @@
       "mix": 0.4
     },
     "Glass section": {
-      "rise": 0.4,
-      "fall": 5,
+      "rise": 0.15,
+      "fall": 2.5,
       "sensitivity": 0.6,
       "octaves": 1,
-      "brightness": 11000,
-      "ensemble": 0.7,
+      "brightness": 12000,
+      "ensemble": 0.9,
       "movement": 0.6,
-      "lowCut": 350,
+      "lowCut": 300,
       "width": 1,
-      "mix": 0.45
+      "mix": 0.5
     },
     "Barely there": {
-      "rise": 1.5,
-      "fall": 12,
-      "sensitivity": 0.4,
-      "octaves": 0.15,
-      "brightness": 2500,
-      "ensemble": 0.6,
-      "movement": 0.35,
-      "lowCut": 180,
-      "width": 1,
+      "rise": 2,
+      "fall": 7,
+      "sensitivity": 0.35,
+      "octaves": 0.4,
+      "brightness": 4000,
+      "ensemble": 0.4,
+      "movement": 0.2,
+      "lowCut": 220,
+      "width": 0.7,
       "mix": 0.2
     }
   },
   "origin": {
     "kind": "new",
-    "note": "Written for live-mix on cpp/kit."
+    "note": "Written for live-mix on cpp/kit. A bank of 64 narrow complex resonators from 60 Hz to 6 kHz reads the level and the exact pitch of each partial of the input; each band drives one sine oscillator, locked to the band's phase, through a slow rise-and-fall follower, so the pad plays the harmony without its attacks and holds its pitch while it fades. The octave above and below come from the same oscillators (squared and half-rate phasors), and a three-tap modulated ensemble per side turns them into a section. The filter-bank resynthesis follows the approach of Etienne Thuillier, 'Real-Time Polyphonic Octave Doubling for the Guitar' (Aalto University MSc thesis, 2016), as recalled; the band layout, the phase-locked oscillators and every constant here are this device's own, set by measurement."
   }
 }

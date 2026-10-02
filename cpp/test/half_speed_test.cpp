@@ -646,20 +646,27 @@ int main() {
     EXPECT(plucks[4] < 0.85, "Spread 1: plucked notes are wide");
     EXPECT(drift < 0.5, "Spread: the right side keeps its level along the knob");
 
+    // Still at three settings, then swept and jumped ten times a second.
     const std::vector<float> held = held_chord(196.0);
-    double step[2];
-    for (int moving = 0; moving < 2; ++moving) {
+    double still = 0.0, moved = 0.0;
+    for (int run_index = 0; run_index < 4; ++run_index) {
       device.init(kRate);
+      if (run_index < 3) device.set_param(p::kSpread, 0.5f * static_cast<float>(run_index));
       Stereo out;
       for (size_t at = 0; at + 4800 <= held.size(); at += 4800) {
-        const double turn = 0.5 - 0.5 * std::cos(2.0 * kPi * static_cast<double>(at) / 48000.0 / 0.9);
-        if (moving) device.set_param(p::kSpread, at % 19200 == 0 ? (at % 38400 == 0 ? 0.0f : 1.0f) : static_cast<float>(turn));
+        if (run_index == 3) {
+          const double turn = 0.5 - 0.5 * std::cos(2.0 * kPi * static_cast<double>(at) / 48000.0 / 0.9);
+          const bool jump = at % 19200 == 0;
+          device.set_param(p::kSpread, jump ? (at % 38400 == 0 ? 0.0f : 1.0f) : static_cast<float>(turn));
+        }
         out = concat(out, run(device, std::vector<float>(held.begin() + at, held.begin() + at + 4800)));
       }
-      step[moving] = std::max(max_step(out.left, 4800), max_step(out.right, 4800));
+      const double step = std::max(max_step(out.left, 4800), max_step(out.right, 4800));
+      if (run_index < 3) still = std::max(still, step);
+      else moved = step;
     }
-    std::printf("  Spread swept and jumped on a held chord: largest step %.4f (still %.4f)\n", step[1], step[0]);
-    EXPECT(step[1] < step[0] * 1.15, "moving Spread on a held chord does not click");
+    std::printf("  Spread swept and jumped on a held chord: largest step %.4f (still %.4f)\n", moved, still);
+    EXPECT(moved < still * 1.15, "moving Spread on a held chord does not click");
   }
 
   // Held chords at Smooth 0.5 and 1 with the sides apart (Spread): the left

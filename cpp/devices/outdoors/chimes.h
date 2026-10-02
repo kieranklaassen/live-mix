@@ -20,7 +20,7 @@ struct Chimes {
   static constexpr int kScale[kTubes] = {0, 2, 4, 7, 9, 12};
   // Where each tube hangs on the ring (neighbours are a third or more apart).
   static constexpr int kRing[kTubes] = {0, 3, 1, 4, 2, 5};
-  static constexpr float kGain = 0.16f;
+  static constexpr float kGain = 0.225f;
 
   struct Tube {
     Ringer partial[kPartials];

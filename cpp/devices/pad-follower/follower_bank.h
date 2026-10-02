@@ -208,10 +208,11 @@ class FollowerBank {
   // The resonators, in three tiers. A band far below the Nyquist frequency
   // does not need every sample, so the lower bands are fed a half-band
   // filtered copy of the input at half or a quarter of the rate and run only
-  // when it has a new sample: about a third of the work for the same bands. The copies arrive late by the filters' delay (32 and 96
-  // samples), so the faster tiers wait for them and every band hears the
-  // same instant; the oscillators of neighbouring bands in different tiers
-  // then lock to the same phase.
+  // when it has a new sample: about a third of the work for the same bands.
+  // The copies arrive late by the filters' delay (32 and 96 samples), so the
+  // faster tiers wait for them and every band hears the same instant; the
+  // oscillators of neighbouring bands in different tiers then lock to the
+  // same phase.
   void analyse(float x) {
     wait_full_[write_full_] = x;
     resonate(mid_end_, kBands, wait_full_[(write_full_ - kWaitFull) & (kWaitSize - 1)]);
@@ -265,9 +266,9 @@ class FollowerBank {
     if (!(hi > 0.0f)) return 0.0f;
     const float q = (ax > ay ? ay : ax) / hi;
     const float q2 = q * q;
-    float a = q * (0.99997726f +
-                   q2 * (-0.33262347f +
-                         q2 * (0.19354346f + q2 * (-0.11643287f + q2 * (0.05265332f - 0.01172120f * q2)))));
+    float a = 0.05265332f - 0.01172120f * q2;
+    a = 0.19354346f + q2 * (-0.11643287f + q2 * a);
+    a = q * (0.99997726f + q2 * (-0.33262347f + q2 * a));
     if (ay > ax) a = kit::kHalfPi - a;
     if (x < 0.0f) a = kit::kPi - a;
     return y < 0.0f ? -a : a;
@@ -330,7 +331,8 @@ class FollowerBank {
     // one and a quarter band spacings the band is only hearing a neighbour.
     const float first = first_[b] + (first2 * stage_scale_[b] - first_[b]) * fast_;
     first_[b] = first < 1.0e-20f ? 0.0f : first;
-    presence *= kit::clamp((kFarMute * mag2 - first) / ((kFarMute - kFarFull) * mag2 + 1.0e-30f), 0.0f, 1.0f);
+    const float inside = (kFarMute * mag2 - first) / ((kFarMute - kFarFull) * mag2 + 1.0e-30f);
+    presence *= kit::clamp(inside, 0.0f, 1.0f);
     bool settled = false;
     if (presence > 0.0f) {
       doubt_[b] = 0;
@@ -385,9 +387,11 @@ class FollowerBank {
     // A band in which two partials are about equally strong has no pitch of
     // its own: its reading swings by bands at a time. So does noise. Neither
     // gets a voice (each of the two partials has nearer bands that do).
-    const float purity = kit::clamp((kJitterMute - jitter_[b]) * (1.0f / (kJitterMute - kJitterFull)), 0.0f, 1.0f);
+    const float calm = (kJitterMute - jitter_[b]) * (1.0f / (kJitterMute - kJitterFull));
+    const float purity = kit::clamp(calm, 0.0f, 1.0f);
     const float follow = settled ? presence * purity : 0.0f;
-    const float trust = trust_[b] + (follow - trust_[b]) * (follow > trust_[b] ? trust_rise_ : trust_fall_);
+    const float pace = follow > trust_[b] ? trust_rise_ : trust_fall_;
+    const float trust = trust_[b] + (follow - trust_[b]) * pace;
     trust_[b] = trust < 1.0e-6f ? 0.0f : trust;
 
     // The resonator's own response at a detune d is 1/(1 + jt)² with

@@ -751,6 +751,112 @@ int main() {
     CHECK_NEAR(db(tone_level(woken.left, 1000.0, kRate, 2400)), -20.0, 0.5, "wakes on new input with the new settings");
   }
 
+  // The room's lines drift when it is heard from far off, so its modes do not
+  // stand on the same notes: held notes from A2 to A4 through the hall come
+  // out at about one level (measured over 2 s once each has settled), and the
+  // drift does not bend a held tone's pitch. Near the cone nothing drifts.
+  {
+    auto far_hall = [&](float distance) {
+      close_clean(kFullRange);
+      device.set_param(p::kDistance, distance);
+      device.set_param(p::kRoom, 0.9f);
+    };
+    double sum[3] = {0.0, 0.0, 0.0}, squares[3] = {0.0, 0.0, 0.0}, top[3] = {-200.0, -200.0, -200.0};
+    for (int n = 0; n <= 24; ++n) {
+      far_hall(0.85f);
+      const Stereo out = run(device, sine(110.0f * std::pow(2.0f, static_cast<float>(n) / 12.0f), 3.5f, kRate, 0.1f));
+      const double l = rms(out.left, 72000, 168000), r = rms(out.right, 72000, 168000);
+      const double level[3] = {db(l), db(r), db(std::sqrt(0.5 * (l * l + r * r)))};
+      for (int c = 0; c < 3; ++c) {
+        sum[c] += level[c];
+        squares[c] += level[c] * level[c];
+        top[c] = std::max(top[c], level[c]);
+      }
+    }
+    double sd[3], over[3];
+    for (int c = 0; c < 3; ++c) {
+      const double m = sum[c] / 25.0;
+      sd[c] = std::sqrt(squares[c] / 25.0 - m * m);
+      over[c] = top[c] - m;
+    }
+    char label[220];
+    std::snprintf(label, sizeof label,
+                  "far hall, held notes A2 to A4: spread %.2f dB left, %.2f dB right, %.2f dB both; loudest note %+.1f, %+.1f, %+.1f dB over the mean",
+                  sd[0], sd[1], sd[2], over[0], over[1], over[2]);
+    CHECK(sd[0] < 3.6 && sd[1] < 3.6 && sd[2] < 3.0 && over[0] < 7.0 && over[1] < 7.0 && over[2] < 5.0, label);
+
+    // Pitch of a held 440 Hz tone, in 50 ms frames every 10 ms.
+    far_hall(0.85f);
+    const Stereo held = run(device, sine(440.0f, 3.0f, kRate, 0.1f));
+    std::vector<double> phase, level;
+    for (size_t at = 48000; at + 2400 <= held.size(); at += 480) {
+      phase.push_back(tone_phase(held.left, 440.0, kRate, at, at + 2400));
+      level.push_back(tone_level(held.left, 440.0, kRate, at, at + 2400));
+    }
+    double mean_level = 0.0, weighted = 0.0, weight = 0.0, worst = 0.0;
+    for (double v : level) mean_level += v / static_cast<double>(level.size());
+    for (size_t f = 0; f + 1 < phase.size(); ++f) {
+      double turn = phase[f + 1] - phase[f];  // against a steady 440 Hz
+      turn -= 2.0 * kPi * std::round(turn / (2.0 * kPi));
+      const double cents = 1200.0 * std::log2(1.0 + turn / (2.0 * kPi * 0.01) / 440.0);
+      weighted += cents * cents * level[f] * level[f];
+      weight += level[f] * level[f];
+      if (std::min(level[f], level[f + 1]) > 0.5 * mean_level) worst = std::max(worst, std::fabs(cents));
+    }
+    std::snprintf(label, sizeof label, "far hall, held 440 Hz: pitch moves %.1f cents rms, %.1f cents at most while the tone is up",
+                  std::sqrt(weighted / weight), worst);
+    CHECK(std::sqrt(weighted / weight) < 2.0 && worst < 6.0, label);
+
+    // The default patch: a held note keeps its level.
+    device.init(kRate);
+    device.set_param(p::kNoise, 0.0f);
+    const Stereo near = run(device, sine(220.0f, 3.5f, kRate, 0.1f));
+    double lowest = 200.0, highest = -200.0;
+    for (size_t at = 72000; at + 12000 <= near.size(); at += 12000) {
+      const double v = db(rms(near.left, at, at + 12000));
+      lowest = std::min(lowest, v);
+      highest = std::max(highest, v);
+    }
+    CHECK(highest - lowest < 0.05, "default patch: the room stands still, a held note keeps its level");
+  }
+
+  // Bad input: one sample that is not a number, one infinite and one absurdly
+  // large, in the middle of a note, at the default patch and at the two far
+  // presets (Down the hall, Just the room). The output stays finite, comes
+  // back to the level it had, and the device still falls silent and sleeps.
+  {
+    const float patches[3][7] = {  // speaker, drive, distance, room, angle, noise, output
+        {1.0f, 0.25f, 0.3f, 0.4f, 0.2f, 0.1f, 0.0f},
+        {1.0f, 0.3f, 0.85f, 0.9f, 0.3f, 0.1f, 0.0f},
+        {4.0f, 0.0f, 0.75f, 0.6f, 0.0f, 0.0f, -2.0f}};
+    const int ids[7] = {p::kSpeaker, p::kDrive, p::kDistance, p::kRoom, p::kAngle, p::kNoise, p::kOutput};
+    const char* const names[3] = {"default patch", "Down the hall", "Just the room"};
+    const std::vector<float> good = sine(330.0f, 2.5f, kRate, 0.2f);
+    std::vector<float> bad = good;
+    bad[24000] = std::nanf("");
+    bad[24010] = HUGE_VALF;
+    bad[24020] = -HUGE_VALF;
+    bad[24030] = 1.0e30f;
+    char label[200];
+    for (int k = 0; k < 3; ++k) {
+      Stereo out[2];
+      for (int which = 0; which < 2; ++which) {
+        device.init(kRate);
+        for (int i = 0; i < 7; ++i) device.set_param(ids[i], patches[k][i]);
+        out[which] = run(device, which ? bad : good);
+      }
+      const Stereo rest = render(device, 7.0f, kRate);
+      const double after = db(rms(out[1].left, 96000, 120000) / rms(out[0].left, 96000, 120000));
+      std::snprintf(label, sizeof label,
+                    "%s: NaN, infinity and 1e30 in the input: finite, peak %.2f, level back within %.2f dB, then silent",
+                    names[k], std::max(peak(out[1].left), peak(out[1].right)), after);
+      CHECK(finite(out[1].left) && finite(out[1].right) && finite(rest.left) && finite(rest.right) &&
+                peak(out[1].left) < 4.5 && peak(out[1].right) < 4.5 && std::fabs(after) < 0.5 &&
+                peak(rest.left, 288000) == 0.0 && peak(rest.right, 288000) == 0.0,
+            label);
+    }
+  }
+
   // Loud input at every extreme is held by the limiter after Output.
   {
     device.init(kRate);

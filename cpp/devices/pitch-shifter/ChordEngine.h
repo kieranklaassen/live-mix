@@ -83,7 +83,6 @@ class ChordEngine {
       }
     }
     step_ = 0;
-    spread_advance_ = 0;
     high_time_ = 0;
     high_base_ = low_base_ = -1;
   }
@@ -218,41 +217,44 @@ class ChordEngine {
 
   // The hop's work at 88.2 kHz and above, where a frame is 4096 points and
   // one transform of it alone would be most of what a block of 128 frames
-  // may cost: eight pieces an eighth of a hop (128 samples) apart, each
-  // about the same amount of work, the transforms cut in two.
+  // may cost: pieces an eighth of a hop (128 samples) apart, each about the
+  // same amount of work, the transforms cut in two.
   void spread(int piece, const Ring& ring, double base, const float* ratio, bool second) {
     const int all = 12;      // passes of a 4096-point transform
     const float from0 = kit::kTwoPi * split(ratio[0]) / sample_rate_;
     const float from1 = kit::kTwoPi * split(ratio[1]) / sample_rate_;
     switch (piece) {
-      case 0:
-        spread_advance_ = fetch(ring, base, kMaxHighSize);
-        big_.analyse_begin(frame_[0], frame_[1], spread_advance_, all / 2);
+      case 0: {
+        const int advance = fetch(ring, base, kMaxHighSize);
+        big_.analyse_begin(frame_[0], frame_[1], advance, 2 * all / 3);
         break;
+      }
       case 1:
         big_.analyse_middle();
+        big_.analyse_end();
         break;
       case 2:
-        big_.analyse_end();
         big_.shape(0, ratio[0], from0, 4.0f);
+        big_.turn(all / 6);
         break;
       case 3:
-        big_.turn(2 * all / 3);
-        break;
-      case 4:
         big_.finish();
         add_high(big_, 0);
-        if (second) big_.shape(1, ratio[1], from1, 4.0f);
+        break;
+      case 4:
+        if (second) {
+          big_.shape(1, ratio[1], from1, 4.0f);
+          big_.turn(all / 6);
+        }
         break;
       case 5:
-        if (second) big_.turn(2 * all / 3);
-        break;
-      case 6:
         if (second) {
           big_.finish();
           add_high(big_, 1);
         }
         break;
+      case 6:
+        break;  // spare
       default:
         low_step(base, ratio, second);
         break;
@@ -317,7 +319,6 @@ class ChordEngine {
   unsigned low_time_ = 0, low_frame_ = 0;
   int tick_ = 0;                       // position between two reduced-rate samples
   int high_base_ = -1, low_base_ = -1; // where the last frames were read, to know their spacing
-  int spread_advance_ = 0;
 };
 
 }  // namespace pitch_shifter_dsp

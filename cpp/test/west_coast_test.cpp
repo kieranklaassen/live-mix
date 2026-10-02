@@ -293,6 +293,7 @@ static void check_gate() {
 static void check_body() {
   const float hz = 261.63f;
   plain(kRate);
+  device.set_param(p::kDecay, 0.6f);
   device.note_on(1, hz, 0.7f);
   const Stereo out = render(device, 1.0f, kRate);
   // Every 2 ms: the level of what lies above the fundamental, and how far
@@ -319,6 +320,18 @@ static void check_body() {
   EXPECT(lasting_ms >= 75.0, "the overtones of a pluck take at least 75 ms to fall 20 dB");
   EXPECT(against[25] > against[0] - 6.0, "50 ms into a pluck its overtones are still there");
   EXPECT(against[100] < against[0] - 8.0, "the tone of a pluck still dulls as it fades");
+
+  // The default patch rings on: struck at once, 20 dB down after about
+  // 300 ms, and silent again on its own.
+  plain(kRate);
+  device.note_on(1, hz, 0.7f);
+  const Stereo ring = render(device, 4.0f, kRate);
+  const double t10 = fall_time(ring.left, kRate, 10.0), t20 = fall_time(ring.left, kRate, 20.0);
+  NOTE("default pluck: -10 dB after %.3f s, -20 dB after %.3f s, -60 dB after %.3f s\n", t10, t20,
+       fall_time(ring.left, kRate, 60.0));
+  EXPECT(t20 > 0.24 && t20 < 0.36, "the default pluck takes about 300 ms to fall 20 dB");
+  EXPECT(t10 < 0.5 * t20, "the default pluck still falls fastest at first");
+  EXPECT(peak(ring.left, 3 * 48000) == 0.0, "the default pluck dies away on its own");
 }
 
 // What is set while the instrument is silent is what the next note is made
@@ -387,13 +400,16 @@ static void check_fm() {
 // the accent of the strike has settled) until the key goes up and then
 // closes like any other note, without a click. A long Attack swells in.
 static void check_envelope() {
+  // (Decay 0.6 s throughout: the times below are set for it.)
   plain(kRate);
+  device.set_param(p::kDecay, 0.6f);
   device.note_on(1, 220.0f, 0.8f);
   Stereo out = render(device, 3.0f, kRate);
   EXPECT(peak(out.left, 0, 4800) > 0.05, "a pluck sounds");
   EXPECT(peak(out.left, 96000) == 0.0, "with Sustain 0 a held note dies away on its own");
 
   plain(kRate);
+  device.set_param(p::kDecay, 0.6f);
   device.set_param(p::kSustain, 1.0f);
   device.note_on(1, 220.0f, 0.8f);
   out = render(device, 3.0f, kRate);
@@ -412,6 +428,7 @@ static void check_envelope() {
   EXPECT(peak(tail.left, 72000) == 0.0, "a released note ends in silence");
 
   plain(kRate);
+  device.set_param(p::kDecay, 0.6f);
   device.set_param(p::kSustain, 0.5f);
   device.note_on(1, 220.0f, 0.8f);
   out = render(device, 3.0f, kRate);
@@ -420,6 +437,7 @@ static void check_envelope() {
   EXPECT(half < held_late - 4.0 && half > held_late - 20.0, "Sustain 0.5 holds a quieter, darker note");
 
   plain(kRate);
+  device.set_param(p::kDecay, 0.6f);
   device.set_param(p::kSustain, 1.0f);
   device.set_param(p::kAttack, 1.0f);
   device.note_on(1, 220.0f, 0.8f);
@@ -553,6 +571,7 @@ static void check_velocity() {
   const float gains[3] = {0.25f, 0.7f, 1.0f};
   for (int n = 0; n < 3; ++n) {
     plain(kRate);
+    device.set_param(p::kDecay, 0.6f);  // the brightness of the first 43 ms is compared at this Decay
     device.note_on(1, 220.0f, gains[n]);
     const Stereo out = render(device, 1.0f, kRate);
     level[n] = db(peak(out.left));
@@ -561,8 +580,13 @@ static void check_velocity() {
   }
   EXPECT(level[1] > level[0] + 3.0 && level[2] > level[1] + 1.0, "a harder strike is louder");
   EXPECT(brightness[1] > 1.15 * brightness[0] && brightness[2] > 1.05 * brightness[1], "a harder strike is brighter");
-  // One note at gain 0.7 sits where the house level wants it.
-  EXPECT(level[1] > -24.0 && level[1] < -10.0, "one note peaks between -24 and -10 dBFS at the default volume");
+  // One note at gain 0.7 sits where the house level wants it (the default
+  // patch as it is, at its own Decay).
+  plain(kRate);
+  device.note_on(1, 220.0f, 0.7f);
+  const double house = db(peak(render(device, 1.0f, kRate).left));
+  NOTE("default patch, one note at gain 0.7: peak %.1f dBFS\n", house);
+  EXPECT(house > -24.0 && house < -10.0, "one note peaks between -24 and -10 dBFS at the default volume");
 }
 
 // Eight notes held at once, at the default volume and as hard as they go,
@@ -629,6 +653,7 @@ static void check_rates() {
     const double found = dominant_frequency(out.left, rates[n], 415.0, 466.0, half, 3 * half);
     level[n] = db(rms(out.left, half));
     plain(rates[n]);
+    device.set_param(p::kDecay, 0.6f);
     device.note_on(1, 220.0f, 0.8f);
     out = render(device, 2.0f, rates[n]);
     const double t60 = fall_time(out.left, rates[n], 60.0);

@@ -165,7 +165,7 @@ export const RE_AMP_DESCRIPTOR = wasmDeviceDescriptor(RE_AMP_DEVICE, {
       room: 0.9,
       angle: 0.3,
       noise: 0.1,
-      output: 1,
+      output: 0,
     },
     'Station platform': {
       speaker: 3,
@@ -176,7 +176,7 @@ export const RE_AMP_DESCRIPTOR = wasmDeviceDescriptor(RE_AMP_DEVICE, {
       room: 0.8,
       angle: 0.1,
       noise: 0.15,
-      output: 3,
+      output: 2,
     },
     'Warm stack': {
       speaker: 2,

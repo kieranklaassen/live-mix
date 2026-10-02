@@ -77,7 +77,7 @@ export const WEST_COAST_PARAMS = {
     name: 'Decay',
     min: 0.05,
     max: 8,
-    default: 0.6,
+    default: 1.4,
     taper: 'log',
     unit: 's',
     description:
