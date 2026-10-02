@@ -1,0 +1,151 @@
+{
+  "id": "micro-shift",
+  "name": "Micro Shift",
+  "category": "spatial",
+  "description": "A copy a few cents sharp on the left and a few cents flat on the right, each a few milliseconds late: makes one source wide and thick with no chorus sweep.",
+  "class": "MicroShift",
+  "header": "micro_shift.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "detune",
+      "name": "Detune",
+      "min": 0,
+      "max": 50,
+      "default": 9,
+      "unit": "ct",
+      "description": "How far the two copies are tuned away from the dry sound: the left one sharp, the right one flat. A few cents is a soft widening; higher settings beat against the dry sound and turn sour."
+    },
+    {
+      "key": "delay",
+      "name": "Delay",
+      "min": 12,
+      "max": 60,
+      "default": 14,
+      "unit": "ms",
+      "description": "How far behind the dry sound the copies sit, the right one a little later than the left. Short settings fuse with the source; long ones are heard as a doubled take."
+    },
+    {
+      "key": "drift",
+      "name": "Drift",
+      "min": 0,
+      "max": 1,
+      "default": 0.15,
+      "description": "Lets the tuning and timing of each copy wander slowly and at random. At zero the copies hold perfectly still; higher settings sway like a worn tape."
+    },
+    {
+      "key": "feedback",
+      "name": "Feedback",
+      "min": 0,
+      "max": 0.7,
+      "default": 0,
+      "description": "Feeds each copy back into itself, so it is detuned again on every pass: the left side climbs and the right side sinks as the repeats fade."
+    },
+    {
+      "key": "focus",
+      "name": "Focus",
+      "min": 20,
+      "max": 1000,
+      "default": 180,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "Everything below this stays dry and in the centre, so the bass keeps its weight. Raise it to widen only the upper part of the sound."
+    },
+    {
+      "key": "tone",
+      "name": "Tone",
+      "min": 1000,
+      "max": 18000,
+      "default": 10000,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "Rolls the treble off the two copies. Lower settings tuck them behind the dry sound as a soft halo; with Feedback up, each repeat gets darker."
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "How far apart the two copies sit. At full they are hard left and right; at zero both are in the centre and the effect thickens without widening."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Balance between the dry sound and the two copies. The sound below Focus stays at full level wherever this is set."
+    }
+  ],
+  "presets": {
+    "Classic wide": {
+      "detune": 9,
+      "delay": 14,
+      "drift": 0.15,
+      "feedback": 0,
+      "focus": 180,
+      "tone": 10000,
+      "width": 1,
+      "mix": 0.5
+    },
+    "Subtle halo": {
+      "detune": 4,
+      "delay": 12,
+      "drift": 0.1,
+      "tone": 7000,
+      "mix": 0.35
+    },
+    "Thick double": {
+      "detune": 20,
+      "delay": 32,
+      "drift": 0.25,
+      "tone": 8000,
+      "mix": 0.5
+    },
+    "Treated piano": {
+      "detune": 12,
+      "delay": 18,
+      "drift": 0.45,
+      "focus": 250,
+      "tone": 3500,
+      "mix": 0.55
+    },
+    "Spiral": {
+      "detune": 14,
+      "delay": 45,
+      "drift": 0.2,
+      "feedback": 0.62,
+      "focus": 300,
+      "tone": 5000,
+      "mix": 0.45
+    },
+    "Seasick": {
+      "detune": 40,
+      "delay": 24,
+      "drift": 0.9,
+      "tone": 6000,
+      "mix": 0.5
+    },
+    "Centre thickener": {
+      "detune": 7,
+      "delay": 12,
+      "drift": 0.1,
+      "width": 0,
+      "mix": 0.45
+    },
+    "Still shimmer": {
+      "detune": 6,
+      "delay": 22,
+      "drift": 0,
+      "feedback": 0.45,
+      "focus": 400,
+      "tone": 12000,
+      "mix": 0.4
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. Models the micro pitch shift treatment of studio harmonizers in outline (a slightly sharp copy on one side, a slightly flat copy on the other, each a few milliseconds late), not any unit. Each copy is a delay-line pitch shifter with a single read head, spliced by normalised cross-correlation as in the autocorrelation splice of US patent 4,464,784 (expired) and in Verhelst and Roelands, 'An overlap-add technique based on waveform similarity (WSOLA) for high quality time-scale modification of speech' (ICASSP 1993); splices also wait for a stretch of the line with no attack in it. Reads use a 16-tap Kaiser-windowed sinc."
+  }
+}

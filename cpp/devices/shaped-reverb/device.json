@@ -1,0 +1,126 @@
+{
+  "id": "shaped-reverb",
+  "name": "Shaped Reverb",
+  "category": "reverb",
+  "description": "A reverb whose tail follows a drawn shape instead of dying away: it can hold level and stop dead, rise backwards into a cut, swell and fade, or pulse.",
+  "class": "ShapedReverb",
+  "header": "shaped_reverb.h",
+  "sources": [],
+  "memoryMb": 6,
+  "params": [
+    {
+      "key": "shape",
+      "name": "Shape",
+      "choices": ["Gate", "Reverse", "Bloom", "Fall", "Pulse"],
+      "default": 1,
+      "description": "The outline the reverb follows. Gate holds its level and stops dead. Reverse grows louder and cuts off. Bloom swells in and fades away. Fall drops in a straight line. Pulse breathes in three waves."
+    },
+    {
+      "key": "time",
+      "name": "Time",
+      "min": 0.1,
+      "max": 4,
+      "default": 0.9,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the shape lasts from the note to its end. Short settings are a burst behind the note; long ones are a slow cloud."
+    },
+    {
+      "key": "density",
+      "name": "Density",
+      "min": 0,
+      "max": 1,
+      "default": 0.8,
+      "description": "How many reflections make up the shape and how blurred they are. Low settings are a handful of separate echoes; high settings are a smooth wash."
+    },
+    {
+      "key": "preDelay",
+      "name": "Pre-delay",
+      "min": 0,
+      "max": 250,
+      "default": 0,
+      "unit": "ms",
+      "description": "A gap of silence between the note and the start of the shape, which keeps the note clear of the reverb."
+    },
+    {
+      "key": "colour",
+      "name": "Colour",
+      "min": -1,
+      "max": 1,
+      "default": -0.2,
+      "description": "Changes the tone along the shape. Below the centre the reverb gets darker as it goes on; above the centre it starts dark and opens up towards the end."
+    },
+    {
+      "key": "highCut",
+      "name": "High Cut",
+      "min": 1000,
+      "max": 18000,
+      "default": 9000,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "Takes the top off the whole reverb. Lower settings are darker and sit further back."
+    },
+    {
+      "key": "lowCut",
+      "name": "Low Cut",
+      "min": 20,
+      "max": 800,
+      "default": 120,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "Takes the bottom out of the reverb so low notes do not turn to mud. Higher settings are thinner and lighter."
+    },
+    {
+      "key": "modulation",
+      "name": "Modulation",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Slow movement inside the reverb. A little keeps held notes from sounding fixed; more adds a gentle detuned shimmer."
+    },
+    {
+      "key": "repeat",
+      "name": "Repeat",
+      "min": 0,
+      "max": 0.9,
+      "default": 0,
+      "description": "Plays the shape again and again, each time quieter, darker and more blurred. High settings pulse for a long time."
+    },
+    {
+      "key": "tail",
+      "name": "Tail",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "description": "Adds an ordinary fading reverb behind the shape, so the end is not dead silence. Higher settings are louder and ring for longer; at zero the shape ends in nothing."
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "How far the reverb spreads between the speakers. At zero it is mono; fully up the two sides are unrelated."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "Balance between the dry signal and the reverb. Fully up is the reverb alone."
+    }
+  ],
+  "presets": {
+    "Backwards cloud": { "shape": 1, "time": 1.2 },
+    "Gated room": { "shape": 0, "time": 0.35 },
+    "Slow bloom": { "shape": 2, "time": 2.5 },
+    "Straight fall": { "shape": 3, "time": 1.4 },
+    "Breathing pulses": { "shape": 4, "time": 1.8, "repeat": 0.5 },
+    "Ghost": { "shape": 1, "time": 1.6, "colour": -0.7, "tail": 0.6 }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit."
+  }
+}

@@ -1,0 +1,257 @@
+#pragma once
+
+// Micro Shift: one copy of the sound a few cents sharp on the left, one a few
+// cents flat on the right, each a few milliseconds late. The studio way of
+// making a single source wide and thick without the sweep of a chorus: the
+// detune is static, so nothing cycles.
+//
+//                 ┌─ low-pass (Focus) ──────────────────────────────┐ fills the dry
+//   in L ─┬───────┤                                                 │ lows back in
+//         │       └─ high-pass (Focus) ─(+)─► shifter UP ─► tone ─┬─┼─► pan ─┐
+//         │                              ▲                        │ │        ├─ mix ─► out L
+//         │                              └── soft limit ◄─ fb ────┘ │        │
+//         └─────────────────────────────────────────────────────────┴─ dry ──┘
+//   in R: the same with shifter DOWN and 1.4 times the delay.
+//
+//   out = dry · cos(mix) + low-passed dry · (1 − cos(mix)) + wet · sin(mix)
+//
+// - The shifters are SpliceShifter.h: a single read head that drifts at the
+//   detune ratio and is spliced back, in time with the waveform and away from
+//   attacks, every few seconds. A held note comes back as a steady note at
+//   the new pitch, not a tremolo.
+// - Delay is where each head lives; the head sweeps a few milliseconds either
+//   side of it as it drifts. The right side sits 1.4 times as far back as
+//   the left so the two never comb alike.
+// - Focus splits the sound: only what is above it is shifted, and the dry
+//   sound below it is kept at full level whatever Mix says (the second term
+//   above), so the bass stays where it was, in the centre and in phase.
+// - Drift wanders each side's detune (up to ±8 cents) and delay (up to
+//   ±1.5 ms) on its own slow, seeded, sine-sum curve.
+// - Feedback sends each side back into its own shifter, so every pass is
+//   detuned again: the left spirals up, the right down. The loop is linear
+//   up to 0 dBFS and lands on ±2 above it.
+// - Mix is equal power: the copies differ from the dry sound in time and in
+//   pitch, so they add in power, not in amplitude.
+
+#include "../../kit/kit.h"
+#include "SpliceShifter.h"
+#include "params.gen.h"
+
+namespace livemix {
+
+class MicroShift : public kit::DeviceBase<micro_shift::kNumParams> {
+ public:
+  void init(float sample_rate) {
+    using namespace micro_shift;
+    kit::SineTable::init();
+    init_base(sample_rate, kParamMin, kParamMax, kParamDefault);
+    const float sr = this->sample_rate();
+    control_period_ = kit::clamp_int(static_cast<int>(sr / 3000.0f + 0.5f), 8, 64);
+    clock_.reset(control_period_);
+    const float control_rate = sr / static_cast<float>(control_period_);
+    for (int c = 0; c < 2; ++c) {
+      shifter_[c].prepare(sr);
+      low_[c].reset();
+      high_a_[c].reset();
+      high_b_[c].reset();
+      tone_filter_[c].reset();
+      last_wet_[c] = 0.0f;
+      increment_[c].set_time(kDetuneGlideSeconds, sr);
+      wander_[c].set_time(kSmoothingSeconds, sr);
+      detune_drift_[c].seed(c == 0 ? 0x3C6EF372u : 0xA54FF53Au);
+      delay_drift_[c].seed(c == 0 ? 0x510E527Fu : 0x9B05688Cu);
+    }
+    feedback_.set_time(kSmoothingSeconds, sr);
+    width_.set_time(kSmoothingSeconds, sr);
+    mix_.set_time(kSmoothingSeconds, sr);
+    // Filter corners glide in pitch on the control clock.
+    focus_.set_time(0.02f, control_rate);
+    tone_.set_time(0.02f, control_rate);
+    drift_.set_time(0.05f, control_rate);
+    filters_focus_ = -1.0f;
+    filters_tone_ = -1.0f;
+    // The longest silent gap is the longest head position, under 100 ms.
+    idle_.reset(sr, 0.3f);
+    for (int id = 0; id < kNumParams; ++id) apply(id);
+    control(true);
+  }
+
+  void set_param(int id, float value) {
+    if (store_param(id, value)) apply(id);
+  }
+
+  void process(int frames) {
+    using namespace micro_shift;
+    if (!primed()) control(true);  // parameters set since init() snap
+    frames = begin_block(frames);
+    if (!idle_.wake(input_present(frames))) {
+      silence_output(frames);
+      return;
+    }
+    float wet_peak = 0.0f;
+    for (int i = 0; i < frames; ++i) {
+      float in[2];
+      take_input(i, &in[0], &in[1]);
+
+      if (clock_.tick()) control(false);
+
+      const float feedback = feedback_.next();
+      float wet[2];
+      float low[2];
+      for (int c = 0; c < 2; ++c) {
+        low[c] = low_[c].lowpass(in[c]);
+        const float high = high_b_[c].highpass(high_a_[c].highpass(in[c]));
+        shifter_[c].write(flush_denormal(high + loop_limit(feedback * last_wet_[c])));
+        const float shifted = shifter_[c].read(increment_[c].next(), wander_[c].next());
+        wet[c] = tone_filter_[c].lowpass(shifted);
+        last_wet_[c] = wet[c];
+        const float magnitude = wet[c] < 0.0f ? -wet[c] : wet[c];
+        if (magnitude > wet_peak) wet_peak = magnitude;
+      }
+
+      // Width: the sharp copy pans left, the flat copy right, equal power.
+      // An eighth of a turn is the centre.
+      const float turn = 0.125f * (1.0f - width_.next());
+      const float near = kit::SineTable::cos_lookup(turn);
+      const float far = kit::SineTable::lookup(turn);
+      const float wet_left = wet[0] * near + wet[1] * far;
+      const float wet_right = wet[1] * near + wet[0] * far;
+
+      const float quarter = 0.25f * mix_.next();
+      const float dry_gain = kit::SineTable::cos_lookup(quarter);
+      const float wet_gain = kit::SineTable::lookup(quarter);
+      const float fill = 1.0f - dry_gain;
+      out_left_[i] = in[0] * dry_gain + low[0] * fill + wet_left * wet_gain;
+      out_right_[i] = in[1] * dry_gain + low[1] * fill + wet_right * wet_gain;
+    }
+    // The wet path counts too: at Mix 0 the loop still rings out of earshot.
+    idle_.settle(kit::max(output_peak(frames), wet_peak), frames);
+  }
+
+  // For the harness: the shifters themselves.
+  const micro_shift_parts::SpliceShifter& shifter(int side) const { return shifter_[side & 1]; }
+
+ private:
+  // The right side's delay as a multiple of the left's.
+  static constexpr float kRightDelayRatio = 1.4f;
+  // What Drift at full adds: ± this many cents and milliseconds per side.
+  static constexpr float kDriftCents = 8.0f;
+  static constexpr float kDriftDelayMs = 1.5f;
+  // Detune changes glide for 20 ms so a knob turn bends rather than steps.
+  static constexpr float kDetuneGlideSeconds = 0.02f;
+  // The wet high-pass sits a little under the dry low-pass so the two meet
+  // level at the Focus frequency (they add in power).
+  static constexpr float kWetCornerRatio = 0.85f;
+  // Fourth-order Butterworth as two second-order sections.
+  static constexpr float kButterworthQ1 = 0.54119610f;
+  static constexpr float kButterworthQ2 = 1.30656296f;
+
+  // Linear up to ±1, a smooth knee to ±2.
+  static float loop_limit(float x) { return 2.0f * kit::soft_clip(0.5f * x); }
+
+  // Control-rate work: filter corners, drift curves, pitch ratios, splices.
+  void control(bool snap) {
+    using namespace micro_shift;
+    const float sr = sample_rate();
+
+    if (snap) {
+      focus_.snap(focus_.target);
+      tone_.snap(tone_.target);
+      drift_.snap(drift_.target);
+    }
+    // Corners move as pitch (the smoothers hold log2 of the frequency).
+    const float focus = focus_.next();
+    if (focus != filters_focus_) {
+      filters_focus_ = focus;
+      const float hz = std::exp2(focus);
+      for (int c = 0; c < 2; ++c) {
+        low_[c].set(hz, kit::kSqrtHalf, sr);
+        high_a_[c].set(hz * kWetCornerRatio, kButterworthQ1, sr);
+        high_b_[c].set(hz * kWetCornerRatio, kButterworthQ2, sr);
+      }
+    }
+    const float tone = tone_.next();
+    if (tone != filters_tone_) {
+      filters_tone_ = tone;
+      const float hz = std::exp2(tone);
+      for (int c = 0; c < 2; ++c) tone_filter_[c].set(hz, kit::kSqrtHalf, sr);
+    }
+
+    const float drift = drift_.next();
+    const float detune = param(kDetune);
+    for (int c = 0; c < 2; ++c) {
+      // Faster curves as Drift rises: 0.1 Hz barely moves, 0.4 Hz sways.
+      detune_drift_[c].set_rate((c == 0 ? 0.11f : 0.13f) + 0.3f * drift, sr);
+      delay_drift_[c].set_rate((c == 0 ? 0.07f : 0.083f) + 0.15f * drift, sr);
+      const float pitch_wander = detune_drift_[c].next(snap ? 0 : control_period_);
+      const float delay_wander = delay_drift_[c].next(snap ? 0 : control_period_);
+
+      const float cents = (c == 0 ? detune : -detune) + kDriftCents * drift * pitch_wander;
+      const float increment = 1.0f - kit::cents_to_ratio(cents);
+      increment_[c].set(increment, !snap);
+
+      // The shifter keeps room under its lowest head position for this.
+      wander_[c].set(drift * kDriftDelayMs * delay_wander * 0.001f * sr, !snap);
+
+      if (snap) {
+        shifter_[c].snap_to_landing(static_cast<double>(increment));
+      } else {
+        shifter_[c].tick(control_period_);
+      }
+    }
+  }
+
+  void apply(int id) {
+    using namespace micro_shift;
+    const bool ramp = primed() && !idle_.asleep();
+    const float value = param(id);
+    switch (id) {
+      case kDelay:
+        for (int c = 0; c < 2; ++c) {
+          const float ms = value * (c == 0 ? 1.0f : kRightDelayRatio);
+          shifter_[c].set_centre(ms * 0.001f * sample_rate(), !primed());
+        }
+        break;
+      case kDrift:
+        drift_.set(value, primed());
+        break;
+      case kFeedback:
+        feedback_.set(value, ramp);
+        break;
+      case kFocus:
+        focus_.set(std::log2(value), primed());
+        break;
+      case kTone:
+        tone_.set(std::log2(value), primed());
+        break;
+      case kWidth:
+        width_.set(value, ramp);
+        break;
+      case kMix:
+        mix_.set(value, ramp);
+        break;
+      default:
+        break;  // Detune is read on the control clock
+    }
+  }
+
+  micro_shift_parts::SpliceShifter shifter_[2];
+  kit::Svf low_[2];
+  kit::Svf high_a_[2];
+  kit::Svf high_b_[2];
+  kit::Svf tone_filter_[2];
+  kit::Smoother increment_[2];
+  kit::Smoother wander_[2];
+  kit::Smoother feedback_, width_, mix_;
+  kit::Smoother focus_, tone_, drift_;
+  kit::Drift detune_drift_[2];
+  kit::Drift delay_drift_[2];
+  kit::ControlClock clock_;
+  kit::IdleGate idle_;
+  float last_wet_[2] = {0.0f, 0.0f};
+  float filters_focus_ = -1.0f;
+  float filters_tone_ = -1.0f;
+  int control_period_ = 16;
+};
+
+}  // namespace livemix

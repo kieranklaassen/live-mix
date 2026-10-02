@@ -1,0 +1,118 @@
+{
+  "id": "vinyl",
+  "name": "Vinyl",
+  "category": "texture",
+  "description": "Puts the sound on a record: the slow pitch warp of a disc that is not flat, crackle, pops and a scratch that comes round once a turn, surface hiss and rumble, a worn groove, and a platter you can stop and start.",
+  "class": "Vinyl",
+  "header": "vinyl.h",
+  "sources": [],
+  "memoryMb": 8,
+  "params": [
+    {
+      "key": "speed",
+      "name": "Speed",
+      "choices": ["33", "45", "78"],
+      "default": 0,
+      "description": "How fast the record turns, which sets how fast the pitch warp and the scratch come round. 78 is shellac: nearly mono, a narrow band without deep bass or top, and a noisier surface."
+    },
+    {
+      "key": "warp",
+      "name": "Warp",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "description": "How far the pitch rises and falls once per turn. Low is a good pressing with a little life; high is a badly warped disc that sways."
+    },
+    {
+      "key": "crackle",
+      "name": "Crackle",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Dust in the groove: a fine frying bed with ticks standing out of it. More brings them closer together and louder."
+    },
+    {
+      "key": "pops",
+      "name": "Pops",
+      "min": 0,
+      "max": 1,
+      "default": 0.15,
+      "description": "Bigger clicks with a low thump under them. Some belong to a scratch that returns at the same place on every turn for a while, then fades."
+    },
+    {
+      "key": "surface",
+      "name": "Surface",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "description": "The steady hiss of the groove, which swishes gently once per turn, and the low rumble of the turntable under it."
+    },
+    {
+      "key": "wear",
+      "name": "Wear",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "How played the record is. More wear dulls the top, smears loud highs with a soft fuzz, narrows the stereo image and pulls the bass to the middle."
+    },
+    {
+      "key": "tone",
+      "name": "Tone",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "description": "A broad tilt over the whole playback, noise included: down for a dark, warm cartridge, up for a bright, thin one."
+    },
+    {
+      "key": "platter",
+      "name": "Platter",
+      "choices": ["Play", "Stop"],
+      "default": 0,
+      "description": "Stop lets the record slow to a halt, pitch and level falling together into silence. Play spins it back up to speed and back to the live sound."
+    },
+    {
+      "key": "spin",
+      "name": "Spin Time",
+      "min": 0.2,
+      "max": 6,
+      "default": 1.5,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the platter takes to slow to a halt. It comes back up to speed in half that time."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "Balance between the dry signal and the record. Part way, the warped record against the steady dry signal makes a slow chorus."
+    }
+  ],
+  "presets": {
+    "Clean pressing": {
+      "speed": 0,
+      "warp": 0.15,
+      "crackle": 0.15,
+      "pops": 0.05,
+      "surface": 0.2,
+      "wear": 0.1,
+      "tone": 0,
+      "spin": 1.5,
+      "mix": 1
+    },
+    "Charity shop find": {
+      "speed": 0,
+      "warp": 0.4,
+      "crackle": 0.5,
+      "pops": 0.35,
+      "surface": 0.45,
+      "wear": 0.55,
+      "tone": -0.15
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "placeholder"
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "id": "vowel-reverb",
+  "name": "Vowel Reverb",
+  "category": "reverb",
+  "description": "A hall whose tail sings: the reverb is shaped by the formants of a sung vowel, so what goes in comes back as a soft wordless choir.",
+  "class": "VowelReverb",
+  "header": "vowel_reverb.h",
+  "sources": [],
+  "params": [
+    { "key": "vowel", "name": "Vowel", "min": 0, "max": 4, "default": 0,
+      "description": "Which vowel the tail sings, from Ah through Eh, Ee and Oh to Oo. Settings in between are a mouth halfway from one vowel to the next." },
+    { "key": "resonance", "name": "Resonance", "min": 0, "max": 1, "default": 0.6,
+      "description": "How strongly the vowel is pressed onto the reverb. At zero it is a plain hall; higher settings make the tail more vocal, and the vowel grows clearer the longer it rings." },
+    { "key": "voice", "name": "Voice", "min": 0, "max": 1, "default": 0.4,
+      "description": "The size of the singers, from a deep bass choir through tenor and alto to a bright soprano one." },
+    { "key": "motion", "name": "Motion", "min": 0, "max": 1, "default": 0.3,
+      "description": "Lets the vowel wander slowly towards its neighbours on its own, a little differently on each side, so the tail sounds like people singing instead of a fixed filter." },
+    { "key": "decay", "name": "Decay", "min": 0.5, "max": 40, "default": 6, "taper": "log", "unit": "s",
+      "description": "How long the sung notes of the tail take to die away. The sound between the vowel's resonances fades sooner as Resonance goes up." },
+    { "key": "size", "name": "Size", "min": 0, "max": 1, "default": 0.6,
+      "description": "How big the room is, from a small chapel to a cathedral. Larger rooms answer later and more slowly. Moving it bends the pitch of the tail." },
+    { "key": "preDelay", "name": "Pre-delay", "min": 0, "max": 200, "default": 20, "unit": "ms",
+      "description": "The gap before the reverb starts, which keeps the start of the sound clear of the choir behind it." },
+    { "key": "modulation", "name": "Modulation", "min": 0, "max": 1, "default": 0.4,
+      "description": "Slow pitch drift inside the reverb. A little makes the tail an ensemble of voices that are never quite in unison; a lot is a wide chorus." },
+    { "key": "lowCut", "name": "Low Cut", "min": 20, "max": 800, "default": 100, "taper": "log", "unit": "Hz",
+      "description": "Removes lows from the reverb so it does not cloud the bass. The dry signal is not touched." },
+    { "key": "highCut", "name": "High Cut", "min": 1500, "max": 18000, "default": 9000, "taper": "log", "unit": "Hz",
+      "description": "Darkens the reverb. It also works inside the room, so the highs die away sooner than the rest." },
+    { "key": "width", "name": "Width", "min": 0, "max": 1, "default": 1,
+      "description": "Stereo width of the reverb only. Zero is a mono tail; full is the widest." },
+    { "key": "mix", "name": "Mix", "min": 0, "max": 1, "default": 0.4,
+      "description": "Balance between the dry signal and the reverb. Fully up is the reverb alone." }
+  ],
+  "presets": {
+    "Choir of ah": { "vowel": 0 },
+    "Low monks": { "vowel": 3.5, "voice": 0 },
+    "High ee": { "vowel": 2, "voice": 1 },
+    "Moving vowels": { "motion": 1 }
+  },
+  "origin": { "kind": "new", "note": "placeholder" }
+}
