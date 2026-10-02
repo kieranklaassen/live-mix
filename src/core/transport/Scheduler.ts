@@ -338,10 +338,13 @@ export class Scheduler {
       if (keptOver && schedulable.joinsLate && !registration.fromAnchor) {
         // Somewhere else now: it plays from where its clock stands in its
         // clips, apart from one still sounding as it was left.
-        const pass = base.passOf(here.iteration)
-        for (const clip of clipsSoundingAt(clips, here.positionSec)) {
-          if (keptOver.has(clip.id) || !soundsOnPass(clip, pass, this.currentSeed)) continue
-          const start = { clipId: clip.id, iteration: here.iteration, startSec: clip.startSec }
+        const entered = new Set(keptOver)
+        for (const { clip, iteration } of soundingUnder(clips, here, loop)) {
+          if (entered.has(clip.id)) continue
+          const pass = base.passOf(iteration)
+          if (!soundsOnPass(clip, pass, this.currentSeed)) continue
+          entered.add(clip.id)
+          const start = { clipId: clip.id, iteration, startSec: clip.startSec }
           const when = base.contextTimeAt(start.startSec, start.iteration)
           joins.push({ ...start, when, pass })
         }
@@ -797,6 +800,27 @@ export class Scheduler {
  */
 function soundingRate(schedulable: Schedulable, rate: number): number {
   return schedulable.retime ? rate : 1
+}
+
+/**
+ * The clips the position stands inside, each with the pass of the clock it
+ * began on: those begun earlier in this pass, then those that run over the
+ * loop's end and are still in their tail here, from the pass before.
+ */
+function soundingUnder(
+  clips: ClipWindow['clips'],
+  here: TransportPosition,
+  loop: TransportLoop,
+): { clip: WindowClip; iteration: number }[] {
+  const under = clipsSoundingAt(clips, here.positionSec).map((clip) => ({
+    clip,
+    iteration: here.iteration,
+  }))
+  if (!isLooping(loop) || here.iteration <= 0) return under
+  for (const clip of clipsSoundingAt(clips, here.positionSec + loop.lengthSec)) {
+    under.push({ clip, iteration: here.iteration - 1 })
+  }
+  return under
 }
 
 /** The clips with a start handed over that is still sounding. */

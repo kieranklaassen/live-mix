@@ -10,6 +10,7 @@
 
 import {
   isLooping,
+  passAt,
   positionFromAnchor,
   wrapPosition,
   type TransportAnchor,
@@ -182,8 +183,11 @@ export class Transport {
    * as it moves the position (the passes before stay counted), `seekElapsed`
    * sets it, and `stop` puts it back to 0. With the loop off it follows the
    * position. It is the clock a `Cycle` (a loop of its own length) runs on,
-   * and while the loop keeps its length `Math.floor(elapsed() /
-   * loop.lengthSec)` is the counted pass (`pass()`); `setPass` moves both.
+   * and while the loop keeps its length the counted pass (`pass()`) is the
+   * pass `elapsed()` falls in, as a `Cycle` of that length reads it:
+   * `Math.floor(elapsed() / loop.lengthSec)`, except that a whole number of
+   * lengths a float cannot hold exactly opens its own pass rather than ending
+   * the one before. `setPass` moves both.
    */
   elapsed(contextTime = this.clock()): number {
     if (!this.currentAnchor) return this.idleElapsedSec
@@ -272,15 +276,22 @@ export class Transport {
    */
   seekElapsed(elapsedSec: number): void {
     if (Number.isNaN(elapsedSec)) throw new RangeError('Transport: elapsed must be a number')
-    const target = this.normalisePosition(Math.max(0, elapsedSec))
+    const runSec = Math.max(0, elapsedSec)
+    const looping = isLooping(this.currentLoop)
+    // The pass that point of the run is in, and how far into it, as a `Cycle`
+    // of this length reads them: with a length a float cannot hold exactly, a
+    // whole number of them divides back a hair short, and would otherwise land
+    // on the last instant of the pass before the one it opens.
+    const pass = looping ? passAt(runSec, this.currentLoop.lengthSec) : 0
+    const target = looping
+      ? Math.max(0, runSec - pass * this.currentLoop.lengthSec)
+      : this.normalisePosition(runSec)
     if (this.currentAnchor) this.unpin()
     this.idlePositionSec = target
     // With the loop off the timeline may end short of what was asked for.
-    this.idleElapsedSec = isLooping(this.currentLoop) ? Math.max(0, elapsedSec) : target
+    this.idleElapsedSec = looping ? runSec : target
     // The counted pass is the one that point of the run is in.
-    if (isLooping(this.currentLoop)) {
-      this.idlePass = Math.floor(this.idleElapsedSec / this.currentLoop.lengthSec)
-    }
+    if (looping) this.idlePass = pass
     if (this.currentState === 'playing') this.pin(this.clock(), target)
     this.emit('seek')
   }

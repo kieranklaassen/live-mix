@@ -1190,6 +1190,8 @@ export class ScoreRenderer {
     }
     const base = lane ?? this.staticValueFor(spec.target, score)
     const target = this.modTargetFor(spec.target, base)
+    // A lane under modulation comes round with its track's own loop too.
+    if (lane) target.timebase = () => this.timebaseFor(spec.target)
     const routes = new Map<string, ModRoute>()
     for (const route of spec.routes) {
       routes.set(

@@ -26,6 +26,7 @@ export {
   type ModRoute,
   type ModRouteOptions,
   type ModTarget,
+  type ModTimebase,
   type ModUpdate,
 } from './ModMatrix'
 export {
