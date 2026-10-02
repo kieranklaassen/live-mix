@@ -1844,6 +1844,20 @@
   white-space: nowrap;
 }
 
+/* A name of two words takes two lines, and a long word is set tighter: none is cut short. */
+.lm-plate .lm-knob__label {
+  max-height: 18px;
+  line-height: 9px;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.lm-plate .lm-plate__knob--tight .lm-knob__label {
+  padding: 0;
+  font-size: 7px;
+  letter-spacing: 0;
+}
+
 .lm-plate .lm-knob__value {
   display: none;
   letter-spacing: 0;

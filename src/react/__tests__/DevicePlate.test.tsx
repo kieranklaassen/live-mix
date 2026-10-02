@@ -59,6 +59,41 @@ describe('device skins', () => {
     }
   })
 
+  it('has a skin for every effect that colours the sound, the ambient ones included', () => {
+    const skinned = [
+      'analog-delay',
+      'analog-drive',
+      'cascade',
+      'echo-memory',
+      'glitch',
+      'half-speed',
+      'low-bitrate',
+      'micro-looper',
+      'noise-floor',
+      'octaves',
+      'pad-follower',
+      'patina',
+      'pitch-shifter',
+      'radio',
+      're-amp',
+      'shaped-reverb',
+      'stereo-detune',
+      'sustainer',
+      'swarm-reverb',
+      'vintage-digital',
+      'vinyl',
+      'vowel-reverb',
+    ]
+    for (const id of skinned) {
+      expect(stock.get(id)?.category, `${id} is a stock effect`).not.toBe('instrument')
+      expect(stock.has(id), `${id} is a stock device`).toBe(true)
+      expect(DEVICE_SKINS[id]?.picture, `${id} has a plate with a picture`).toBeDefined()
+    }
+    // No two plates share a colour: each is told apart at a glance.
+    const plates = Object.values(DEVICE_SKINS).map((skin) => skin.plate)
+    expect(new Set(plates).size).toBe(plates.length)
+  })
+
   it('draws every picture at any setting, and differently as the settings move', () => {
     for (const [id, skin] of Object.entries(DEVICE_SKINS)) {
       const drawn = [0, 0.4, 1].map((position) =>
@@ -223,6 +258,22 @@ describe('DevicePlate', () => {
     for (const knob of plate.querySelectorAll('.lm-knob'))
       expect(knob.getAttribute('data-lm-info')).toBeTruthy()
     expect(plate.getAttribute('data-lm-info')).toBeTruthy()
+  })
+
+  it('sets a long word under a knob tighter, so no name is cut short', async () => {
+    const fixture = createTestEngine()
+    const device = await make(fixture)
+    render(
+      <DevicePlate
+        device={device}
+        skin={{ ...SKIN, labels: { frequency: 'Interference', q: 'Low cut' } }}
+        data-testid="plate"
+      />,
+      { wrapper: fixture.wrapper },
+    )
+    expect(screen.getByTestId('plate-frequency')).toHaveClass('lm-plate__knob--tight')
+    // Two short words take two lines at the usual size.
+    expect(screen.getByTestId('plate-q')).not.toHaveClass('lm-plate__knob--tight')
   })
 
   it('has no cell to open when the face holds everything', async () => {
