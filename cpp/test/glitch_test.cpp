@@ -231,16 +231,17 @@ int main() {
         const size_t stop = static_cast<size_t>(static_cast<double>(length) / 1.3);
         early = dominant_frequency(out.left, kRate, 50.0, 1000.0, span.from, span.from + stop / 4);
         late = dominant_frequency(out.left, kRate, 50.0, 1000.0, span.from + stop / 2, span.from + 3 * stop / 4);
-        stopped = rms(out.left, span.from + stop - stop / 50, span.from + stop);
-        recovered = tone_level(out.left, 440.0, kRate, span.to + 480, span.to + 2880);
+        stopped = rms(out.left, span.from + stop - stop / 100, span.from + stop);
+        recovered = dominant_frequency(out.left, kRate, 50.0, 1000.0, span.to - length / 40, span.to);
         ++stops;
         EXPECT(early > 340.0 && early < 430.0, "Slow: a tape stop starts just under pitch");
         EXPECT(late > 120.0 && late < 220.0, "Slow: a tape stop is more than an octave down past half way");
-        EXPECT(stopped < 0.005, "Slow: a stopped tape is silent, not a held sample");
+        EXPECT(stopped < 0.003, "Slow: a stopped tape is silent, not a held sample");
+        EXPECT(recovered > 400.0 && recovered < 445.0, "Slow: the tape is back up to speed when the event ends");
       }
     }
     std::printf("glitch: slow only: %d half-speed events at %.1f..%.1f Hz for a 440 Hz tone; %d tape stops, "
-                "last one %.0f Hz then %.0f Hz, %.1f dBFS when stopped, %.3f at 440 Hz after\n",
+                "last one %.0f Hz then %.0f Hz, %.1f dBFS when stopped, %.0f Hz at the end of the spin-up\n",
                 halves, half_low, half_high, stops, early, late, db(stopped), recovered);
     EXPECT(halves >= 3 && stops >= 3, "Slow: both half speed and tape stop occur");
     EXPECT(half_low > 217.0 && half_high < 223.0, "Slow: a half-speed event plays the tone an octave down");

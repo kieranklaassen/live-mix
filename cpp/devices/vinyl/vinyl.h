@@ -285,19 +285,127 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
   // linear inside the last sample, where there is no newer point to lean on
   // (a delay of exactly zero is the input itself).
   float read_disc(int c, double delay) const {
-    if (delay + 4.0 > static_cast<double>(valid_)) return 0.0f;
     const int whole = static_cast<int>(delay);
     const float t = static_cast<float>(delay - static_cast<double>(whole));
     const kit::DelayLine<kDiscSize>& disc = disc_[c];
     if (whole < 1) {
       const float now = disc.read(1);
-      return now + (disc.read(2) - now) * t;
+      const float before = valid_ > 1 ? disc.read(2) : 0.0f;
+      return now + (before - now) * t;
     }
+    // Nothing older than the last wake is played: what lies there is from
+    // before the device slept.
+    if (whole + 3 > valid_) return 0.0f;
     return kit::hermite(disc.read(whole), disc.read(whole + 1), disc.read(whole + 2),
                         disc.read(whole + 3), t);
   }
 
-  // [[EVENTS]]
+  // One impulse into a resonator, sized so that its output peaks near
+  // `level` whatever the tuning and the sample rate. `lean` is how the kick
+  // divides between the two groove walls.
+  void ring(Slot& slot, float hz, float q, bool low, float level, const float* lean) {
+    const float sr = sample_rate();
+    // A slowing platter drags every click down with it.
+    hz = kit::clamp(hz * (0.3f + 0.7f * spin_), 40.0f, 0.4f * sr);
+    const float w = kit::kTwoPi * hz / sr;
+    const float size = low ? level / (0.6f * w) : level * q * 1.2f / w;
+    slot.low = low;
+    for (int c = 0; c < 2; ++c) {
+      slot.filter[c].set(hz, q, sr);
+      slot.hit[c] += size * lean[c];
+    }
+  }
+
+  // The next event of the crackle stream. Its size is Pareto: most are dust
+  // and go to one shared band; the few that stand out get a slot and a
+  // colour of their own.
+  void crackle() {
+    const float size = event_rng_.uniform();
+    const float angle = event_rng_.uniform();
+    const float colour = event_rng_.uniform();
+    const float sharp = event_rng_.uniform();
+    float level = crackle_floor_ * std::exp(-std::log(size + 1.0e-7f) * (1.0f / kCrackleAlpha));
+    if (level > crackle_ceiling_) level = crackle_ceiling_;
+    // Anywhere from lateral (both walls together) through one wall alone to
+    // vertical (the walls against each other).
+    const float lean[2] = {kit::SineTable::cos_lookup(angle), kit::SineTable::lookup(angle)};
+    if (level < kTickRatio * crackle_floor_) {
+      const float w = kit::kTwoPi * 4200.0f / sample_rate();
+      dust_hit_[0] += level * lean[0] * 0.6f / w;
+      dust_hit_[1] += level * lean[1] * 0.6f / w;
+      return;
+    }
+    Slot& slot = slots_[next_tick_];
+    next_tick_ = (next_tick_ + 1) % kTickSlots;
+    ring(slot, 1800.0f * std::exp2(2.2f * colour), 0.6f + 1.6f * sharp, false, level, lean);
+  }
+
+  // A pop: a duller, larger click with a thump under it.
+  void pop(float level, float hz, float q, const float* lean, float thump) {
+    Slot& slot = slots_[kTickSlots + next_pop_];
+    next_pop_ = (next_pop_ + 1) % kPopSlots;
+    ring(slot, hz, q, true, level, lean);
+    const float w = kit::kTwoPi * kThumpHz / sample_rate();
+    // The thump is mostly lateral: it stays in the middle.
+    const float mid = 0.5f * (lean[0] + lean[1]);
+    for (int c = 0; c < 2; ++c) {
+      thump_hit_[c] += thump * level * (0.7f * mid + 0.3f * lean[c]) * 1.3f / w;
+    }
+  }
+
+  void random_pop() {
+    const float size = event_rng_.uniform();
+    const float angle = event_rng_.uniform();
+    const float colour = event_rng_.uniform();
+    const float lean[2] = {kit::SineTable::cos_lookup(angle), kit::SineTable::lookup(angle)};
+    pop(pop_level_ * (0.35f + 0.65f * size * size), 900.0f * std::exp2(1.5f * colour), 0.8f, lean,
+        0.9f);
+  }
+
+  // Once per turn: scratches end, new ones may begin, and a little of the
+  // dust moves.
+  void new_turn(float pops) {
+    const float chance = kit::min(1.0f, 1.2f * pops * pops);
+    for (Scratch& scratch : scratches_) {
+      const float dice = dust_rng_.uniform();
+      const float where = dust_rng_.uniform();
+      const float length = dust_rng_.uniform();
+      const float size = dust_rng_.uniform();
+      const float colour = dust_rng_.uniform();
+      const float angle = dust_rng_.uniform();
+      if (scratch.turns > 0 || dice >= chance) continue;
+      scratch.angle = where;
+      scratch.turns = 5 + static_cast<int>(length * (8.0f + 24.0f * pops));
+      scratch.turn = 0;
+      scratch.level = 0.5f + 0.4f * size;
+      scratch.hz = 1300.0f * std::exp2(1.6f * colour);
+      scratch.q = 0.9f;
+      // Scratches cut across both walls: lateral, leaning a little.
+      scratch.lean[0] = 0.45f + 0.5f * angle;
+      scratch.lean[1] = 0.95f - 0.5f * angle;
+    }
+    for (int i = 0; i < 2; ++i) {
+      const int index = static_cast<int>(dust_rng_.uniform() * kDustMap) % kDustMap;
+      dust_map_[index] = dust_rng_.uniform();
+    }
+  }
+
+  // The stylus has moved from `before` to `after` (turn phase): play any
+  // scratch it crossed.
+  void cross_scratches(float before, float after) {
+    for (Scratch& scratch : scratches_) {
+      if (scratch.turns <= 0) continue;
+      const bool crossed = after >= before ? (scratch.angle > before && scratch.angle <= after)
+                                           : (scratch.angle > before || scratch.angle <= after);
+      if (!crossed) continue;
+      // It swells over its first quarter and fades over its last two fifths.
+      const float along = (static_cast<float>(scratch.turn) + 0.5f) / static_cast<float>(scratch.turns);
+      const float swell = kit::min(1.0f, 4.0f * along) * kit::min(1.0f, 2.5f * (1.0f - along));
+      const float waver = 0.85f + 0.3f * event_rng_.uniform();
+      pop(pop_level_ * scratch.level * swell * waver, scratch.hz, scratch.q, scratch.lean, 0.5f);
+      if (++scratch.turn >= scratch.turns) scratch.turns = 0;
+    }
+  }
 
   // [[CONTROL]]
 
