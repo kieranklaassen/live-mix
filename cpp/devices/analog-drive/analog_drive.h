@@ -35,6 +35,10 @@
 //   headroom as Drive rises: louder, up to a ceiling that ends at full scale.
 // - Circuit and Push switch by running the new setting beside the old one
 //   for 5 ms (to fill its filters) and crossfading over 20 ms.
+// - While the two sides carry the same signal (a mono source) one channel
+//   is worked out and copied to the other, which halves the cost; the first
+//   frame that differs gives the right channel a copy of every state, so the
+//   result is the same to the last bit either way.
 // - Low Cut and Thump are before the circuit, Tone and High Cut after it.
 //   Each is skipped while it is out of the path (Low Cut and High Cut fade
 //   out over the last part of their travel, so both ends are a clean bypass).

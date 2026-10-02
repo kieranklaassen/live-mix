@@ -495,6 +495,36 @@ int main() {
     EXPECT(peak(sided.right) < 1.0e-5, "Triode: a left-only source leaves under -100 dBFS on the right");
   }
 
+  // A mono source is worked out once and copied; when the sides part, the
+  // right takes over a copy of the left's state. Nothing may depend on which
+  // side that happens to: the same programme with its sides swapped gives
+  // the same audio with its sides swapped, bit for bit, including through a
+  // Circuit change.
+  {
+    const std::vector<float> x = pink(1.0f, kRate, 0.125893f, 0x0DD5u);
+    std::vector<float> y = pink(1.0f, kRate, 0.2f, 0xE7E5u);
+    for (size_t i = 0; i < 14400; ++i) y[i] = x[i];   // the same for 0.3 s, then different
+    Stereo out[2];
+    for (int swapped = 0; swapped < 2; ++swapped) {
+      setup(kRate, kTriode, 0.6f);
+      device.set_param(p::kLowCut, 80.0f);
+      device.set_param(p::kThump, 0.5f);
+      device.set_param(p::kTone, 0.4f);
+      device.set_param(p::kHighCut, 6000.0f);
+      const std::vector<float> first_x(x.begin(), x.begin() + 24000), rest_x(x.begin() + 24000, x.end());
+      const std::vector<float> first_y(y.begin(), y.begin() + 24000), rest_y(y.begin() + 24000, y.end());
+      Stereo a = swapped ? run(device, first_y, first_x) : run(device, first_x, first_y);
+      device.set_param(p::kCircuit, static_cast<float>(kPentode));
+      Stereo b = swapped ? run(device, rest_y, rest_x) : run(device, rest_x, rest_y);
+      out[swapped] = concat(a, b);
+    }
+    EXPECT(out[0].left == out[1].right && out[0].right == out[1].left,
+           "a source that starts mono and parts gives the same audio whichever side moves");
+    bool together = true;
+    for (size_t i = 0; i < 14400; ++i) together = together && out[0].left[i] == out[0].right[i];
+    EXPECT(together && rms(out[0].left, 0, 14400) > 0.01, "and both sides are identical while it is mono");
+  }
+
   // Moving things while sounding. Drive swept end to end, a jump in Drive,
   // every change of Circuit and the Push switch: none makes a step larger
   // than the waveform itself has.
