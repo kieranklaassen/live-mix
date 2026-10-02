@@ -283,3 +283,57 @@ describe('Transport change notifications', () => {
     expect(seen).toEqual(['start'])
   })
 })
+
+describe('Transport.nudge', () => {
+  it('slides the position without re-pinning or announcing', () => {
+    const { ctx, transport, changes } = build({ enabled: true, lengthSec: 8 })
+    ctx.currentTime = 10
+    transport.start()
+    ctx.currentTime = 13
+    const before = changes.length
+    transport.nudge(0.004)
+    expect(transport.position().positionSec).toBeCloseTo(3.004, 9)
+    expect(transport.position().iteration).toBe(0)
+    expect(transport.anchor?.iteration).toBe(0)
+    expect(changes).toHaveLength(before)
+    transport.nudge(-0.01)
+    expect(transport.position().positionSec).toBeCloseTo(2.994, 9)
+  })
+
+  it('moves when later starts fall on the audio clock, by the same amount', () => {
+    const { ctx, transport } = build({ enabled: true, lengthSec: 8 })
+    ctx.currentTime = 10
+    transport.start()
+    expect(transport.contextTimeAt(4)).toBe(14)
+    transport.nudge(0.25)
+    // The timeline is a quarter second further on, so 4 s comes that much sooner.
+    expect(transport.contextTimeAt(4)).toBeCloseTo(13.75, 9)
+    expect(transport.contextTimeAt(4, 1)).toBeCloseTo(21.75, 9)
+  })
+
+  it('keeps the pass numbers across the loop end', () => {
+    const { ctx, transport } = build({ enabled: true, lengthSec: 8 })
+    transport.start()
+    ctx.currentTime = 7.999
+    transport.nudge(0.002)
+    expect(transport.position().iteration).toBe(1)
+    expect(transport.position().positionSec).toBeCloseTo(0.001, 9)
+    transport.nudge(-0.002)
+    expect(transport.position().iteration).toBe(0)
+    expect(transport.position().positionSec).toBeCloseTo(7.999, 9)
+  })
+
+  it('does nothing while stopped or paused, or with no real amount', () => {
+    const { ctx, transport } = build()
+    transport.nudge(1)
+    expect(transport.position().positionSec).toBe(0)
+    transport.start()
+    ctx.currentTime = 2
+    transport.nudge(Number.NaN)
+    transport.nudge(0)
+    expect(transport.position().positionSec).toBe(2)
+    transport.pause()
+    transport.nudge(1)
+    expect(transport.position().positionSec).toBe(2)
+  })
+})

@@ -23,6 +23,9 @@ const worklets = {
   // Not a worklet but a worker; it ships next to them as one more
   // self-contained script a host page loads by URL.
   'native-pump': 'src/native/worklets/native-pump.worker.ts',
+  // Link Audio: the tap is a worklet, its pump a worker.
+  'link-tap': 'src/native/worklets/link-tap.processor.ts',
+  'link-audio': 'src/native/worklets/link-audio.worker.ts',
 }
 
 async function main() {

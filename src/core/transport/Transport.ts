@@ -151,6 +151,25 @@ export class Transport {
     this.emit('seek')
   }
 
+  /**
+   * Slides a playing transport `deltaSec` along the timeline (forwards when
+   * positive) without re-pinning it: for keeping step with a clock the audio
+   * clock drifts against, such as an Ableton Link session or a MIDI clock.
+   * Nothing is announced and nothing sounding is touched. Starts already
+   * handed to the audio graph keep their time; later ones are timed from the
+   * moved anchor, on the same pass numbers. It is for the fraction of a
+   * millisecond two clocks part by in a second: a start inside a larger jump
+   * is passed over or met twice with nobody told, which is what `seek` is
+   * for. No-op unless playing.
+   */
+  nudge(deltaSec: number): void {
+    if (!this.currentAnchor || !Number.isFinite(deltaSec) || deltaSec === 0) return
+    this.currentAnchor = {
+      ...this.currentAnchor,
+      contextTime: this.currentAnchor.contextTime - deltaSec,
+    }
+  }
+
   /** Changes the loop. While playing the transport is re-pinned so the position carries over. */
   setLoop(loop: Partial<TransportLoop>): void {
     const next = validateLoop({ ...this.currentLoop, ...loop })

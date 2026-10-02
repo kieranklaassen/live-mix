@@ -70,6 +70,7 @@ export {
   fakeReverbParams,
   type FakePluginHostOptions,
 } from './fake-plugin-host'
+export { FAKE_LINK_CLOCK_SKEW_MICROS, FakeLinkSession, type FakeLinkOptions } from './fake-link'
 export {
   VirtualPush,
   type VirtualMidiAccess,

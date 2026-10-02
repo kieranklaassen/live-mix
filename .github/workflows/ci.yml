@@ -148,7 +148,7 @@ jobs:
           test -f node_modules/@kieranklaassen/live-mix/dist/index.js
           test -f node_modules/@kieranklaassen/live-mix/dist/wam/index.js
           for wasm in "$GITHUB_WORKSPACE"/src/dsp/wasm/*.wasm; do test -f "node_modules/@kieranklaassen/live-mix/dist/wasm/$(basename "$wasm")"; done
-          for worklet in wasm-device ducker meter recorder native-bridge native-pump; do test -f "node_modules/@kieranklaassen/live-mix/dist/worklets/$worklet.js"; done
+          for worklet in wasm-device ducker meter recorder native-bridge native-pump link-tap link-audio; do test -f "node_modules/@kieranklaassen/live-mix/dist/worklets/$worklet.js"; done
           test -f node_modules/@kieranklaassen/live-mix/dist/native/index.js
           test -f node_modules/@kieranklaassen/live-mix/native/host/CMakeLists.txt
           node --input-type=module -e "
@@ -201,18 +201,24 @@ jobs:
         uses: actions/cache@v4
         with:
           path: tmp/plugin-host
-          key: plugin-host-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('native/host/CMakeLists.txt', 'native/host/cmake/**', 'native/host/Source/**', 'native/host/test/plugins/**', 'native/shell.mjs') }}
+          key: plugin-host-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('native/host/CMakeLists.txt', 'native/host/cmake/**', 'native/host/Source/**', 'native/host/test/plugins/**', 'native/host/test/link/**', 'native/shell.mjs') }}
           restore-keys: plugin-host-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Build the host and its test plug-ins
         run: pnpm host:build
 
       # The host over its own protocol: scan, load, audio, MIDI, parameters,
-      # state, editors, and on macOS one of Apple's Audio Units.
+      # state, editors, and on macOS one of Apple's Audio Units. Then Ableton
+      # Link against a second peer on the same machine; the two find each other
+      # by multicast, which the Linux runner has to carry (elsewhere the
+      # session tests skip when it does not).
       - name: Host protocol tests
         run: pnpm test:host
+        env:
+          LIVE_MIX_REQUIRE_LINK_SESSION: ${{ runner.os == 'Linux' && '1' || '' }}
 
-      # A hosted plug-in behind a real AudioContext and OfflineAudioContext.
+      # A hosted plug-in behind a real AudioContext and OfflineAudioContext, and
+      # a page in a Link session through the host, sending Link Audio.
       - name: Install Chromium
         if: runner.os == 'Linux'
         run: pnpm exec playwright install --with-deps chromium
@@ -222,10 +228,11 @@ jobs:
         run: |
           pnpm build
           node browser-tests/build-harness.mjs
-          pnpm exec playwright test -c browser-tests/playwright.config.ts native-host
+          pnpm exec playwright test -c browser-tests/playwright.config.ts native-host native-link
         env:
           LIVE_MIX_BROWSER: chromium
           LIVE_MIX_REQUIRE_PLUGIN_HOST: '1'
+          LIVE_MIX_REQUIRE_LINK_SESSION: '1'
 
       - uses: actions/upload-artifact@v4
         if: failure()

@@ -36,6 +36,11 @@ export function pluginHostTestPluginsDir(buildDir) {
   return join(buildDir, 'test', 'plugins')
 }
 
+/** Where a build with `testPlugins` puts the second Link peer the host's tests talk to. */
+export function pluginHostLinkPeerPath(buildDir, { platform = process.platform } = {}) {
+  return join(buildDir, 'test', 'link', `live-mix-link-peer${platform === 'win32' ? '.exe' : ''}`)
+}
+
 function hasCommand(command) {
   const probe = spawnSync(command, ['--version'], { stdio: 'ignore' })
   return !probe.error && probe.status === 0
@@ -52,13 +57,17 @@ function run(command, args, stdio) {
 /**
  * Configure and build the host with CMake (and Ninja where it is installed).
  * Needs a C++20 compiler; JUCE comes from `juceDir`, `$JUCE_DIR`, `~/JUCE` or
- * is fetched at the pinned version. Returns the path of the binary.
+ * is fetched at the pinned version; Ableton Link comes from `linkDir`,
+ * `$LINK_DIR` or is fetched too, unless `link` is false. Returns the path of
+ * the binary.
  */
 export function buildPluginHost({
   buildDir,
   config = 'Release',
   juceDir,
   testPlugins = false,
+  link = true,
+  linkDir,
   jobs,
   stdio = 'inherit',
 } = {}) {
@@ -71,6 +80,8 @@ export function buildPluginHost({
     configure.push('-G', 'Ninja')
   if (juceDir) configure.push(`-DJUCE_DIR=${juceDir}`)
   configure.push(`-DLIVE_MIX_HOST_BUILD_TEST_PLUGINS=${testPlugins ? 'ON' : 'OFF'}`)
+  configure.push(`-DLIVE_MIX_HOST_LINK=${link ? 'ON' : 'OFF'}`)
+  if (link && linkDir) configure.push(`-DLINK_DIR=${linkDir}`)
   run('cmake', configure, stdio)
 
   const build = ['--build', buildDir, '--config', config, '--target', 'LiveMixPluginHost']

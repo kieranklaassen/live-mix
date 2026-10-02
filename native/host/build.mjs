@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Builds the plug-in host.
 //
-//   node native/host/build.mjs [--out DIR] [--debug] [--test-plugins] [--juce DIR]
+//   node native/host/build.mjs [--out DIR] [--debug] [--test-plugins] [--no-link] [--juce DIR] [--link DIR]
 //
 // Prints the path of the binary on its last line. The default build directory
 // is tmp/plugin-host under the current directory.
@@ -16,7 +16,9 @@ const { values } = parseArgs({
     out: { type: 'string', default: 'tmp/plugin-host' },
     debug: { type: 'boolean', default: false },
     'test-plugins': { type: 'boolean', default: false },
+    'no-link': { type: 'boolean', default: false },
     juce: { type: 'string' },
+    link: { type: 'string' },
     jobs: { type: 'string' },
   },
 })
@@ -27,6 +29,8 @@ try {
     config: values.debug ? 'Debug' : 'Release',
     juceDir: values.juce ? resolve(values.juce) : undefined,
     testPlugins: values['test-plugins'],
+    link: !values['no-link'],
+    linkDir: values.link ? resolve(values.link) : undefined,
     jobs: values.jobs ? Number(values.jobs) : undefined,
   })
   console.log(binary)

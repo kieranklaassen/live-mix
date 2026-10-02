@@ -16,13 +16,19 @@ import {
   unloadScore,
 } from '@kieranklaassen/live-mix'
 import {
+  LinkAudioSender,
   NativeDevice,
   NativeHostClient,
+  NativeLink,
   captureNativeState,
   followNativeEdits,
+  linkPhase,
   nativeDeviceId,
+  nextBeatInPhase,
   scanNativeDevices,
   type NativeHostAddress,
+  type NativeLinkSettings,
+  type NativeLinkState,
 } from '@kieranklaassen/live-mix/native'
 
 const SAMPLE_RATE = 48000
@@ -532,9 +538,154 @@ async function hostLoss(args: NativeHarnessArgs): Promise<HostLossResult> {
   return { before, after, dryPeak: peakOf(b, 2400) }
 }
 
+// --- Ableton Link ---------------------------------------------------------
+//
+// The page as a Link peer through the host. The spec runs a second peer (the
+// host's own test peer, Ableton's library) and asks each side what it sees.
+
+export interface LinkPageState extends NativeLinkState {
+  /** This page's beat right now, and its place in the bar. */
+  beatNow: number
+  phaseNow: number
+  /** The host's clock right now, as the page works it out. */
+  hostMicrosNow: number
+  /** Host microseconds minus page microseconds, and the round trip that rests on (ms). */
+  clockOffsetMicros: number
+  clockTripMs: number
+  /** Page milliseconds minus context milliseconds for what is heard now. */
+  outputOffsetMs: number
+  audioStatus: string
+}
+
+export interface LinkClickResult {
+  /** The page's beat the click was put on, and that beat's place in the bar. */
+  beat: number
+  phase: number
+  /** How far ahead of now the click was scheduled, in milliseconds. */
+  aheadMs: number
+  /** `outputOffsetMs` and the clock offset the click was scheduled by. */
+  outputOffsetMs: number
+  clockOffsetMicros: number
+}
+
+let linkPage:
+  | { client: NativeHostClient; link: NativeLink; ctx: AudioContext; sender: LinkAudioSender }
+  | undefined
+
+function linkOf() {
+  if (!linkPage) throw new Error('linkOpen was not called')
+  return linkPage
+}
+
+function linkPageState(): LinkPageState {
+  const { link, sender } = linkOf()
+  const beatNow = link.beatAt()
+  return {
+    ...link.state,
+    beatNow,
+    phaseNow: linkPhase(beatNow, link.state.quantum),
+    hostMicrosNow: link.hostMicrosAt(performance.now()),
+    clockOffsetMicros: link.clock.offsetMicros,
+    clockTripMs: link.clock.tripMs,
+    outputOffsetMs: sender.outputClock.offsetMs,
+    audioStatus: sender.status,
+  }
+}
+
+/** Joins the session as `name` and announces one Link Audio channel, `channel`. */
+async function linkOpen(
+  args: NativeHarnessArgs,
+  name: string,
+  channel: string,
+): Promise<LinkPageState> {
+  const client = await NativeHostClient.connect(args.host)
+  const link = await NativeLink.open(client)
+  const ctx = new AudioContext({ sampleRate: SAMPLE_RATE, latencyHint: 'interactive' })
+  await ctx.resume()
+  await link.set({ enabled: true, name, audio: true })
+  const sender = await LinkAudioSender.create(ctx, client, link, { name: channel })
+  linkPage = { client, link, ctx, sender }
+  for (let i = 0; i < 300 && sender.status === 'connecting'; i += 1) await sleep(10)
+  // A few readings of when the context is heard, so the clock has settled.
+  for (let i = 0; i < 15; i += 1) {
+    sender.outputClock.sample()
+    await sleep(20)
+  }
+  return linkPageState()
+}
+
+async function linkSet(settings: NativeLinkSettings): Promise<LinkPageState> {
+  await linkOf().link.set(settings)
+  return linkPageState()
+}
+
+/**
+ * Plays one click into the channel on the next beat that sits at `phase` in
+ * the bar, at least `leadBeats` from now: scheduled on the audio clock from
+ * the session's beat, the way a transport would be.
+ */
+function linkClick(phase: number, leadBeats = 1): LinkClickResult {
+  const { link, ctx, sender } = linkOf()
+  const beat = nextBeatInPhase(link.beatAt() + leadBeats, phase, link.state.quantum)
+  const atMs = link.localMsAtBeat(beat)
+  const click = ctx.createBuffer(1, 1, ctx.sampleRate)
+  click.getChannelData(0)[0] = 0.9
+  const source = ctx.createBufferSource()
+  source.buffer = click
+  source.connect(sender.input)
+  source.start(sender.outputClock.contextTimeAt(atMs))
+  return {
+    beat,
+    phase: linkPhase(beat, link.state.quantum),
+    aheadMs: atMs - performance.now(),
+    outputOffsetMs: sender.outputClock.offsetMs,
+    clockOffsetMicros: link.clock.offsetMicros,
+  }
+}
+
+/** Starts the page's transport at `beat`; returns how long until it falls, and the state. */
+async function linkStart(
+  beat: number,
+  playing: boolean,
+): Promise<{ waitMs: number; beatThen: number; state: LinkPageState }> {
+  const { link } = linkOf()
+  const asked = performance.now()
+  const atMs = await link.start(beat, { atMs: asked, playing })
+  return { waitMs: atMs - asked, beatThen: link.beatAt(atMs), state: linkPageState() }
+}
+
+/** After a peer started the shared transport: where the page's `beat` falls for it. */
+async function linkFollowStart(beat: number): Promise<{ waitMs: number; state: LinkPageState }> {
+  const { link } = linkOf()
+  const atMs = await link.followStart(beat)
+  return { waitMs: atMs - performance.now(), state: linkPageState() }
+}
+
+async function linkStop(): Promise<LinkPageState> {
+  await linkOf().link.stop()
+  return linkPageState()
+}
+
+async function linkClose(): Promise<void> {
+  const { client, link, ctx, sender } = linkOf()
+  linkPage = undefined
+  sender.dispose()
+  link.dispose()
+  client.close()
+  await ctx.close()
+}
+
 declare global {
   interface Window {
     nativeHarness?: {
+      linkOpen: typeof linkOpen
+      linkState: typeof linkPageState
+      linkSet: typeof linkSet
+      linkClick: typeof linkClick
+      linkStart: typeof linkStart
+      linkFollowStart: typeof linkFollowStart
+      linkStop: typeof linkStop
+      linkClose: typeof linkClose
       live: typeof live
       offline: typeof offline
       instrument: typeof instrument
@@ -545,4 +696,19 @@ declare global {
   }
 }
 
-window.nativeHarness = { live, offline, instrument, instrumentOffline, scoreState, hostLoss }
+window.nativeHarness = {
+  live,
+  offline,
+  instrument,
+  instrumentOffline,
+  scoreState,
+  hostLoss,
+  linkOpen,
+  linkState: linkPageState,
+  linkSet,
+  linkClick,
+  linkStart,
+  linkFollowStart,
+  linkStop,
+  linkClose,
+}
