@@ -686,6 +686,20 @@ describe('Scheduler joins clips the position is inside', () => {
       expect(round(track.handed[1].when)).toBe(100.1)
     })
 
+    it('lets a clip sounding across a loop change go rather than doubling it', () => {
+      const { ctx, transport, scheduler, track } = buildJoining()
+      transport.seek(10)
+      transport.start()
+      expect(track.keys()).toEqual(['pad:0:2.000'])
+
+      // The re-pin numbers a fresh pass; the pad is still sounding under the old one.
+      ctx.currentTime = 101
+      transport.setLoop({ enabled: false })
+      scheduler.rejoin(['pad'])
+      expect(track.faded).toEqual([['pad:0:2.000', REJOIN_FADE_SECONDS]])
+      expect(track.keys()).toEqual(['pad:0:2.000', 'pad:1:2.000'])
+    })
+
     it('leaves clips it was not given alone, and a named clip the position is outside', () => {
       const { ctx, transport, scheduler, track } = buildJoining()
       transport.seek(10)

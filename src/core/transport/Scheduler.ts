@@ -285,8 +285,18 @@ export class Scheduler {
         }
       }
 
+      // A handover from a pass behind is forgotten, unless its clip can still
+      // be sounding: a loop change re-pins with a fresh pass number, and that
+      // voice is the one `refresh` fades when the clip is cut short and
+      // `rejoin` lets go of or keeps.
       for (const [key, start] of registration.scheduled) {
-        if (start.iteration < position.iteration) registration.scheduled.delete(key)
+        if (start.iteration >= position.iteration) continue
+        const clip = clips.find((candidate) => candidate.id === start.clipId)
+        const sounding =
+          schedulable.joinsLate === true &&
+          clip?.durationSec !== undefined &&
+          contextTime < start.when + clip.durationSec
+        if (!sounding) registration.scheduled.delete(key)
       }
     }
 
