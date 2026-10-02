@@ -101,7 +101,30 @@ engine reads the same impulse (`createEngine({ space })`,
 `engine.spaceImpulse()`), so they sound as if they shared one room. The
 room's level is set in the low mids (150 Hz to 1.5 kHz): a steady sound
 there sent at 0 dB comes back as loud as it went in, and hiss comes back
-quieter, since the room's top end is gone early. A change to a placed clip's `pan`, `lowpassHz`, `spaceDb` or
+quieter, since the room's top end is gone early.
+
+The room has a character, and it can change while it sounds. Beyond its
+length and colour (`decaySec`, `predelaySec`, `attackSec`, `brightHz`,
+`darkHz`, `lowCutHz`), `SpaceOptions` takes `levelDb` (how loud it comes
+back, −24 to 12 dB, so a room can be put nearer or further without touching
+any clip), `grain` (0 smooth … 1 rough: the tail thins from dense noise to
+separate echoes, about 120 a second at 1, with the same loudness),
+`driveDb` (0 to 36 dB of drive into a saturator ahead of the room, so what
+is sent there goes in distorted; the level is held for a steady sound at
+−18 dBFS, and at 0 there is no saturator in the path) and `driftCents` with
+`driftHz` (the tail's pitch wanders by up to that much either way, from a
+short delay after the room moved by two slow sines that never line up; at 0
+there is no delay). `engine.setSpace(options)` puts every audio track in
+another room: what only changes the level, the drive or the drift is ramped
+in place, and a room with another impulse, or one that gains or loses its
+saturator or its drift, takes over the sends at once while the old room
+rings out and is then taken down, so nothing is cut off and nothing clicks.
+`engine.space` is the room as it stands, and `spaceColour`, `spaceDrift`,
+`spaceDriveGains` and `grainEchoesPerSec` give the same numbers a drawing or
+a test needs. An offline engine takes the same options, so a render is in
+the same room.
+
+A change to a placed clip's `pan`, `lowpassHz`, `spaceDb` or
 `gainDb` is heard while the clip sounds (`AudioTrack.place`); a clip that
 names none of them is wired as before and takes the change at its next
 start. In a `clip.update`, `null` takes a placement field off the clip; a

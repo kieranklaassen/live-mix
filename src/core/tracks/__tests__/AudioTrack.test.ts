@@ -24,6 +24,7 @@ import {
   trimGain,
 } from '../AudioTrack'
 import { SampleStore } from '../SampleStore'
+import { spaceDrift, spaceDriveGains } from '../space'
 
 function setup(options: { currentTime?: number; lookaheadSec?: number; preloadSec?: number } = {}) {
   const ctx = createMockContext({ currentTime: options.currentTime ?? 0, sampleRate: 48000 })
@@ -38,6 +39,13 @@ function setup(options: { currentTime?: number; lookaheadSec?: number; preloadSe
     preloadSec: options.preloadSec,
   })
   return { ctx, dest, samples, track }
+}
+
+/** The gain that feeds a room's saturator: where a driven room's sends go. */
+function gainInto(ctx: MockAudioContext, shaper: MockAudioContext['shapers'][number]) {
+  const into = ctx.gains.find((gain) => gain.isConnectedTo(shaper))
+  if (!into) throw new Error('nothing feeds the saturator')
+  return into
 }
 
 function buffer(ctx: MockAudioContext, seconds: number): AudioBuffer {
@@ -959,6 +967,139 @@ describe('AudioTrack placed clips', () => {
     track.dispose()
     expect(ctx.convolvers[0].isConnectedTo(dest)).toBe(false)
     expect(track.space).toBeNull()
+  })
+
+  it('a driven, drifting room is a saturator ahead of the convolver and a moving delay after it', () => {
+    const ctx = createMockContext({ sampleRate: 48000 })
+    const dest = ctx.createGain()
+    const track = new AudioTrack(asAudioContext(ctx), {
+      name: 'music',
+      destination: dest as unknown as AudioNode,
+      samples: new SampleStore(asAudioContext(ctx)),
+      now: () => ctx.currentTime,
+      spaceImpulse: () => buffer(ctx, 2),
+      spaceColour: () => ({ driveDb: 12, driftCents: 10, driftHz: 0.5 }),
+    })
+    const played = track.play('k', { ...voice, buffer: buffer(ctx, 10), spaceDb: 0 }, 1)
+    const send = played?.placement?.send as unknown as (typeof ctx.gains)[number]
+    const [room] = ctx.convolvers
+    const [shaper] = ctx.shapers
+    const [delay] = ctx.delays
+    const gains = spaceDriveGains(12)
+    const into = gainInto(ctx, shaper)
+    const outOf = [...shaper.outputs][0] as (typeof ctx.gains)[number]
+    expect(send.isConnectedTo(into)).toBe(true)
+    expect(send.isConnectedTo(room)).toBe(false)
+    expect(into.gain.value).toBeCloseTo(gains.into)
+    expect(outOf.gain.value).toBeCloseTo(gains.outOf)
+    expect(outOf.isConnectedTo(room)).toBe(true)
+    expect(shaper.oversample).toBe('2x')
+    expect(shaper.curve?.length).toBeGreaterThan(1000)
+    // The room comes back through the delay, and only the delay feeds the strip.
+    expect(room.isConnectedTo(delay)).toBe(true)
+    expect(room.isConnectedTo(dest)).toBe(false)
+    expect(delay.isConnectedTo(dest)).toBe(true)
+    expect(track.strip.sourceNodes).toContain(delay)
+    const drift = spaceDrift({ driftCents: 10, driftHz: 0.5 })
+    expect(delay.delayTime.value).toBeCloseTo(drift.delaySec)
+    expect(ctx.oscillators).toHaveLength(2)
+    expect(ctx.oscillators.map((oscillator) => oscillator.frequency.value)).toEqual(drift.rates)
+    expect(ctx.oscillators.every((oscillator) => oscillator.startCalls.count === 1)).toBe(true)
+    expect(track.space).toBe(room)
+  })
+
+  it('refreshSpace on the same impulse moves the drive and drift of the nodes that are there', () => {
+    const ctx = createMockContext({ sampleRate: 48000, currentTime: 3 })
+    const dest = ctx.createGain()
+    const impulse = buffer(ctx, 2)
+    let colour = { driveDb: 6, driftCents: 5, driftHz: 0.5 }
+    const track = new AudioTrack(asAudioContext(ctx), {
+      name: 'music',
+      destination: dest as unknown as AudioNode,
+      samples: new SampleStore(asAudioContext(ctx)),
+      now: () => ctx.currentTime,
+      spaceImpulse: () => impulse,
+      spaceColour: () => colour,
+    })
+    // Nothing has been sent yet: there is no room to change.
+    track.refreshSpace()
+    expect(ctx.convolvers).toHaveLength(0)
+    track.play('k', { ...voice, buffer: buffer(ctx, 10), spaceDb: 0 }, 1)
+    const [shaper] = ctx.shapers
+    const into = gainInto(ctx, shaper)
+    colour = { driveDb: 18, driftCents: 20, driftHz: 1 }
+    track.refreshSpace()
+    expect(ctx.convolvers).toHaveLength(1)
+    expect(into.gain.lastEvent('setTargetAtTime')?.args[0]).toBeCloseTo(spaceDriveGains(18).into)
+    expect(into.gain.lastEvent('setTargetAtTime')?.args[1]).toBe(3)
+    const drift = spaceDrift({ driftCents: 20, driftHz: 1 })
+    expect(ctx.delays[0].delayTime.lastEvent('setTargetAtTime')?.args[0]).toBeCloseTo(
+      drift.delaySec,
+    )
+    expect(ctx.oscillators[1].frequency.lastEvent('setTargetAtTime')?.args[0]).toBeCloseTo(
+      drift.rates[1],
+    )
+  })
+
+  it('refreshSpace on another impulse moves what sounds to a new room and lets the old one ring out', () => {
+    vi.useFakeTimers()
+    try {
+      const ctx = createMockContext({ sampleRate: 48000 })
+      const dest = ctx.createGain()
+      let impulse = buffer(ctx, 2)
+      let colour = { driveDb: 0, driftCents: 0, driftHz: 0.5 }
+      const track = new AudioTrack(asAudioContext(ctx), {
+        name: 'music',
+        destination: dest as unknown as AudioNode,
+        samples: new SampleStore(asAudioContext(ctx)),
+        now: () => ctx.currentTime,
+        spaceImpulse: () => impulse,
+        spaceColour: () => colour,
+      })
+      const a = track.play('a', { ...voice, buffer: buffer(ctx, 10), spaceDb: 0 }, 1)
+      const b = track.play('b', { ...voice, buffer: buffer(ctx, 10), pan: 0.2 }, 1)
+      const send = a?.placement?.send as unknown as (typeof ctx.gains)[number]
+      const [old] = ctx.convolvers
+      impulse = buffer(ctx, 4)
+      track.refreshSpace()
+      const [, next] = ctx.convolvers
+      expect(next.buffer).toBe(impulse)
+      expect(track.space).toBe(next)
+      expect(send.isConnectedTo(next)).toBe(true)
+      expect(send.isConnectedTo(old)).toBe(false)
+      // A voice that sends nothing has nothing to move.
+      expect(b?.placement?.send).toBeNull()
+      // The old room still feeds the strip, so what was in it is heard to its end.
+      expect(old.isConnectedTo(dest)).toBe(true)
+      vi.advanceTimersByTime(1900)
+      expect(old.isConnectedTo(dest)).toBe(true)
+      vi.advanceTimersByTime(700)
+      expect(old.isConnectedTo(dest)).toBe(false)
+      expect(track.strip.sourceNodes).not.toContain(old)
+      expect(next.isConnectedTo(dest)).toBe(true)
+
+      // A clean room that becomes a driven one is a new set of nodes too, on the same impulse.
+      colour = { driveDb: 9, driftCents: 0, driftHz: 0.5 }
+      track.refreshSpace()
+      expect(ctx.convolvers).toHaveLength(3)
+      expect(ctx.convolvers[2].buffer).toBe(impulse)
+      expect(send.isConnectedTo(next)).toBe(false)
+      const into = gainInto(ctx, ctx.shapers[0])
+      expect(send.isConnectedTo(into)).toBe(true)
+      // A voice started now sends straight into the room as it is.
+      const c = track.play('c', { ...voice, buffer: buffer(ctx, 10), spaceDb: -6 }, 1)
+      expect(
+        (c?.placement?.send as unknown as (typeof ctx.gains)[number]).isConnectedTo(into),
+      ).toBe(true)
+
+      // Disposing takes down the room and the one still ringing out.
+      track.dispose()
+      expect(next.isConnectedTo(dest)).toBe(false)
+      expect(ctx.convolvers[2].outputs.size).toBe(0)
+      expect(vi.getTimerCount()).toBe(0)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('a scheduled clip that is moved while it sounds follows without starting again', async () => {

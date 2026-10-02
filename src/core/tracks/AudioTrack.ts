@@ -70,7 +70,8 @@ import {
 import { ClipList } from './ClipList'
 import { reversedBuffer } from './reversed-buffer'
 import { type SampleSource, type SampleStore } from './SampleStore'
-import { generateSpaceImpulse } from './space'
+import { SpaceRoom } from './SpaceRoom'
+import { generateSpaceImpulse, spaceColour, type SpaceColour } from './space'
 
 // --- Constants shared with Breathwork Live (re-exported for its adapter) -----
 
@@ -237,6 +238,11 @@ export interface AudioTrackOptions {
    * track the same one; without it the track generates the stock room.
    */
   spaceImpulse?: () => AudioBuffer
+  /**
+   * What is done to sound on its way through that space (its drive and
+   * drift), read with the impulse. Without it the space is clean and still.
+   */
+  spaceColour?: () => SpaceColour
 }
 
 export class AudioTrack implements StripHost {
@@ -254,7 +260,8 @@ export class AudioTrack implements StripHost {
   // The clip each scheduled voice plays, so the voice can follow its edits.
   private readonly voiceClips = new Map<string, string>()
   private readonly spaceImpulse: () => AudioBuffer
-  private spaceNode: ConvolverNode | null = null
+  private readonly spaceColour: () => SpaceColour
+  private room: SpaceRoom | null = null
   private scheduler: Scheduler | null = null
   private unregister: (() => void)[] = []
   private disposed = false
@@ -284,6 +291,7 @@ export class AudioTrack implements StripHost {
     this.preloadSec = options.preloadSec ?? this.lookaheadSec
     this.resolveSource = options.resolveSource ?? null
     this.spaceImpulse = options.spaceImpulse ?? (() => generateSpaceImpulse(ctx))
+    this.spaceColour = options.spaceColour ?? (() => spaceColour())
     this.clips = new ClipList(() => {
       this.scheduler?.refresh()
       this.followClips()
@@ -386,7 +394,29 @@ export class AudioTrack implements StripHost {
    * strip; null until a clip first sends there.
    */
   get space(): ConvolverNode | null {
-    return this.spaceNode
+    return this.room?.convolver ?? null
+  }
+
+  /**
+   * The space this track's clips send into has changed (`spaceImpulse`,
+   * `spaceColour`): both are read again. What is sounding sends into the new
+   * space from now on, and what it already sent rings out in the old one. A
+   * track that has sent nothing yet has nothing to change.
+   */
+  refreshSpace(): void {
+    if (this.disposed || !this.room) return
+    const before = this.room.set({ impulse: this.spaceImpulse(), ...this.spaceColour() })
+    if (!before) return
+    for (const voice of this.active.values()) {
+      const send = voice.placement?.send
+      if (!send) continue
+      try {
+        send.disconnect(before)
+      } catch {
+        // Not connected there (a mock that tracks no connections); connect all the same.
+      }
+      send.connect(this.room.entry)
+    }
   }
 
   /**
@@ -533,12 +563,8 @@ export class AudioTrack implements StripHost {
     this.disposed = true
     this.detach()
     this.stopAll()
-    try {
-      this.spaceNode?.disconnect()
-    } catch {
-      // Context may already be closed; ignore.
-    }
-    this.spaceNode = null
+    this.room?.dispose()
+    this.room = null
     this.strip.dispose()
   }
 
@@ -875,15 +901,17 @@ export class AudioTrack implements StripHost {
     return send
   }
 
-  private ensureSpace(): ConvolverNode {
-    if (this.spaceNode) return this.spaceNode
-    const convolver = this.ctx.createConvolver()
-    // The impulse carries its own level; the node's scaling would undo it.
-    convolver.normalize = false
-    convolver.buffer = this.spaceImpulse()
-    this.strip.connectSource(convolver)
-    this.spaceNode = convolver
-    return convolver
+  /** Where a send into the track's space connects; the space is made on first use. */
+  private ensureSpace(): AudioNode {
+    this.room ??= new SpaceRoom(
+      this.ctx,
+      {
+        connect: (node) => this.strip.connectSource(node),
+        forget: (node) => this.strip.forgetSource(node),
+      },
+      { impulse: this.spaceImpulse(), ...this.spaceColour() },
+    )
+    return this.room.entry
   }
 
   private connectThroughTrim(gain: GainNode, gainDb: number | undefined): GainNode | null {

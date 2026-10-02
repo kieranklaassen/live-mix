@@ -20,6 +20,7 @@ import {
   MockMediaStreamSource,
   MockOscillatorNode,
   MockStereoPannerNode,
+  MockWaveShaperNode,
 } from './mock-nodes'
 
 export interface MockAudioContextOptions {
@@ -53,6 +54,7 @@ export class MockAudioContext {
   readonly convolvers: MockConvolverNode[] = []
   readonly filters: MockBiquadFilterNode[] = []
   readonly delays: MockDelayNode[] = []
+  readonly shapers: MockWaveShaperNode[] = []
   readonly compressors: MockDynamicsCompressorNode[] = []
   readonly panners: MockStereoPannerNode[] = []
   readonly streamDestinations: MockMediaStreamDestination[] = []
@@ -114,6 +116,10 @@ export class MockAudioContext {
 
   createDelay(_maxDelayTime?: number): MockDelayNode {
     return this.track(this.delays, new MockDelayNode())
+  }
+
+  createWaveShaper(): MockWaveShaperNode {
+    return this.track(this.shapers, new MockWaveShaperNode())
   }
 
   createDynamicsCompressor(): MockDynamicsCompressorNode {

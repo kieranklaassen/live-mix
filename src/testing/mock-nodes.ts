@@ -202,6 +202,14 @@ export class MockBiquadFilterNode extends MockAudioNode {
   }
 }
 
+export class MockWaveShaperNode extends MockAudioNode {
+  curve: Float32Array | null = null
+  oversample: 'none' | '2x' | '4x' = 'none'
+  constructor() {
+    super('waveshaper')
+  }
+}
+
 export class MockDelayNode extends MockAudioNode {
   readonly delayTime = new MockAudioParam(0)
   constructor() {
