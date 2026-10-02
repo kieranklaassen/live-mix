@@ -48,6 +48,9 @@ export function scheduleKey(start: ScheduledStart): string {
   return `${start.clipId}:${start.iteration}:${start.startSec.toFixed(3)}`
 }
 
+// A second this close under a pass's start is that start, worked out with another rounding.
+const PASS_EPSILON_SEC = 1e-9
+
 /** A loop only wraps when it is on and has a finite, positive length. */
 export function isLooping(loop: TransportLoop): boolean {
   return loop.enabled && Number.isFinite(loop.lengthSec) && loop.lengthSec > 0
@@ -79,6 +82,18 @@ export function positionFromAnchor(
     iteration: anchor.iteration + passes,
     finished: false,
   }
+}
+
+/**
+ * The pass of a loop `loopLengthSec` long that unwrapped second `sec` is in.
+ * The start of a pass belongs to it however it was worked out: with a length a
+ * float cannot hold exactly (35.765), a whole number of them divided by one
+ * comes out a hair under, and would read as the last instant of the pass
+ * before.
+ */
+export function passAt(sec: number, loopLengthSec: number): number {
+  const pass = Math.floor(sec / loopLengthSec)
+  return (pass + 1) * loopLengthSec - sec <= PASS_EPSILON_SEC ? pass + 1 : pass
 }
 
 /** Wraps a timeline position into `[0, loopLengthSec)`. */

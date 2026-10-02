@@ -22,6 +22,7 @@ const coreSymbols = [
   'Meter',
   'Transport',
   'Scheduler',
+  'Cycle',
   'SampleStore',
   'AudioTrack',
   'LiveInputTrack',

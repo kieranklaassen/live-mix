@@ -14,11 +14,23 @@ import { DEFAULT_RAMP_SECONDS, ParamRamper, type ScheduledParam } from './schedu
 /** `unipolar` adds 0..depth of the range; `bipolar` swings ±depth around the base. */
 export type ModPolarity = 'unipolar' | 'bipolar'
 
+/** The slice of a clock a lane base is read on; `Transport` and `Cycle` satisfy it. */
+export interface ModTimebase {
+  position(): { positionSec: number }
+}
+
 export interface ModTarget {
   readonly min: number
   readonly max: number
   /** The value with no modulation: a number, or a lane read at the timeline playhead. */
   base: number | ParamLane
+  /**
+   * The clock a lane base is read on, read on every control-rate pass: a
+   * track's own loop (`AudioTrack.timebase`), so a modulated lane on that
+   * track comes round with its clips. Absent, or returning undefined: the
+   * playhead `update` is given.
+   */
+  timebase?: () => ModTimebase | undefined
   /** Write the modulated value, moving from the previous one over `rampSec`. */
   apply(value: number, contextTimeSec: number, rampSec: number): void
 }
@@ -217,11 +229,9 @@ export class ModMatrix {
   /** Control-rate tick: write every target's current value. */
   update({ playheadSec, contextTimeSec }: ModUpdate): void {
     for (const target of this.targetSet) {
-      target.apply(
-        this.modulatedValue(target, playheadSec, contextTimeSec),
-        contextTimeSec,
-        this.rampSec,
-      )
+      // A lane on a clock of its own is read where that clock stands.
+      const here = target.timebase?.()?.position().positionSec ?? playheadSec
+      target.apply(this.modulatedValue(target, here, contextTimeSec), contextTimeSec, this.rampSec)
     }
   }
 }

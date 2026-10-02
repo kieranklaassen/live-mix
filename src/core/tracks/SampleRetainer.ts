@@ -12,6 +12,7 @@
 import { type Clip } from '../clips/Clip'
 import { type ClipWindow } from '../clips/window'
 import { scheduleKey, type ScheduledStart } from '../transport/anchor'
+import { type Timebase } from '../transport/Cycle'
 import { type Schedulable, type Scheduler } from '../transport/Scheduler'
 import { type SampleStore } from './SampleStore'
 
@@ -20,6 +21,8 @@ export interface RetainedTrack {
   clips: { all(): readonly Clip[]; get(id: string): Clip | undefined }
   lookaheadSec: number
   preloadSec: number
+  /** The track's own clock, when it loops at a length of its own. */
+  readonly timebase?: Timebase
 }
 
 export interface SampleRetainerOptions {
@@ -68,6 +71,11 @@ export class SampleRetainer implements Schedulable {
   /** As far ahead as the track decodes, so a hold exists before the sample does. */
   get lookaheadSec(): number {
     return Math.max(this.track.lookaheadSec, this.track.preloadSec)
+  }
+
+  /** Holds follow the clock the track's starts are on. */
+  get timebase(): Timebase | undefined {
+    return this.track.timebase
   }
 
   /** Read on every scheduler tick — which is when expired holds are let go. */

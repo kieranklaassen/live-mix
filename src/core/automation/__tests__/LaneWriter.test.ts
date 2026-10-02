@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { MockAudioParam, createMockContext } from '../../../testing'
-import { Transport } from '../../transport'
+import { Cycle, Transport } from '../../transport'
 import { LaneWriter, laneWindowFrom } from '../LaneWriter'
 import { ParamLane } from '../ParamLane'
 
@@ -379,6 +379,64 @@ describe('LaneWriter', () => {
       ])
     })
 
+    it('gets past the end of a pass whose length a float cannot hold exactly', () => {
+      // Five passes of 35.765 s plus one more is a hair under six passes in
+      // floats. A cursor left there read as the end of pass five for ever, and
+      // the writer never came back from this tick.
+      const lengthSec = 35.765
+      const param = new MockAudioParam()
+      const writer = new LaneWriter(swell(), param, { joinRampSec: 0 })
+      const window = { lookaheadSec: 2, loopEnabled: true, loopLengthSec: lengthSec }
+      writer.tick({ ...window, playheadSec: 35, contextTimeSec: 5 * lengthSec + 35, iteration: 5 })
+      // To the end of pass five, the wrap, and the first segment of pass six whole.
+      expect(rounded(param)).toEqual([
+        ['setValueAtTime', 0, 213.825],
+        ['setValueAtTime', 0, 214.59],
+        ['linearRampToValueAtTime', 1, 216.59],
+      ])
+      expect(writer.writtenUntilSec).toBe(6 * lengthSec + 2)
+
+      // And on through the passes after it, each wrap written once at its own start.
+      for (let pass = 6; pass < 60; pass += 1) {
+        writer.tick({
+          ...window,
+          playheadSec: 35,
+          contextTimeSec: pass * lengthSec + 35,
+          iteration: pass,
+        })
+      }
+      const wraps = param.events.filter(
+        (event) => event.method === 'linearRampToValueAtTime' && event.args[0] === 1,
+      )
+      expect(wraps.map((event) => Number((event.args[1] as number).toFixed(6)))).toEqual(
+        Array.from({ length: 55 }, (_, index) => Number(((index + 6) * lengthSec + 2).toFixed(6))),
+      )
+    })
+
+    it('reads the start of a pass whose length a float cannot hold exactly', () => {
+      // Twenty-nine passes of 35.765 s divided back by the length lands a hair
+      // under 29, so folding the playhead with a bare floor read the lane at
+      // the end of pass twenty-eight and anchored on the end-of-loop value.
+      const lengthSec = 35.765
+      const lane = new ParamLane({
+        breakpoints: [
+          { timeSec: 0, value: 0 },
+          { timeSec: lengthSec, value: 1 },
+        ],
+      })
+      const param = new MockAudioParam()
+      const writer = new LaneWriter(lane, param, { joinRampSec: 0 })
+      writer.tick({
+        playheadSec: 0,
+        lookaheadSec: 1,
+        contextTimeSec: 29 * lengthSec,
+        loopEnabled: true,
+        loopLengthSec: lengthSec,
+        iteration: 29,
+      })
+      expect(calls(param)[0]).toEqual(['setValueAtTime', 0, 29 * lengthSec])
+    })
+
     it('writes the wrap once when a window ends exactly on the loop boundary', () => {
       const param = new MockAudioParam()
       const lane = new ParamLane({
@@ -468,6 +526,25 @@ describe('LaneWriter', () => {
       ctx.currentTime = 51.1
       writer.tick(laneWindowFrom(transport, 0.2))
       expect(rounded(param).slice(2)).toEqual([['linearRampToValueAtTime', 1, 53]])
+    })
+
+    it('reads the rate off a loop of its own length too', () => {
+      const ctx = createMockContext()
+      const transport = new Transport({ now: () => ctx.currentTime, rate: 0.5 })
+      const cycle = new Cycle(transport, 4)
+      ctx.currentTime = 50
+      transport.start()
+      // 10 s of the clock is 5 s of the timeline: 1 s into the cycle's second pass.
+      ctx.currentTime = 60
+      expect(laneWindowFrom(cycle, 0.2)).toEqual({
+        playheadSec: 1,
+        iteration: 1,
+        lookaheadSec: 0.2,
+        contextTimeSec: 60,
+        loopEnabled: true,
+        loopLengthSec: 4,
+        rate: 0.5,
+      })
     })
 
     it('wraps the loop where the timeline does on the clock', () => {

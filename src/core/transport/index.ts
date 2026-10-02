@@ -11,6 +11,7 @@ export {
   type TransportLoop,
   type TransportPosition,
 } from './anchor'
+export { Cycle, type CycleTransport, type Timebase } from './Cycle'
 export { startsInWindow, type ScheduleWindow } from './window'
 export {
   Transport,

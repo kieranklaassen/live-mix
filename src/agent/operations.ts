@@ -58,6 +58,7 @@ const ARRANGE: ReadonlySet<OperationType> = new Set<OperationType>([
   'score.setMeta',
   'transport.loop',
   'transport.seed',
+  'track.loop',
   'transport.quantize',
   'tempo.set',
   'elementTrack.setClips',
