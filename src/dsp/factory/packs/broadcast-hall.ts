@@ -998,7 +998,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       'A low string held singing with no bow or pick, two seconds to fade in, while tuned strings answer in the hall.',
     instrument: {
       deviceId: 'bowed-string',
-      preset: 'Ebow swell',
+      preset: 'Sustained swell',
       params: { attack: 2, release: 4, brightness: 0.35, body: 0.6, vibrato: 0, volume: -12.5 },
     },
     effects: [

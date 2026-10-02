@@ -130,7 +130,7 @@ export const STRING_MACHINE_DESCRIPTOR = wasmDeviceDescriptor(STRING_MACHINE_DEV
   description:
     'Seventies string ensemble: three octaves of sawtooth per key through a tone filter and a three-phase bucket-brigade ensemble chorus.',
   presets: {
-    Solina: {
+    'Ensemble strings': {
       attack: 0.6,
       release: 1.8,
       low: 0.4,
@@ -181,6 +181,7 @@ export const STRING_MACHINE_DESCRIPTOR = wasmDeviceDescriptor(STRING_MACHINE_DEV
       width: 0,
     },
   },
+  formerPresets: { Solina: 'Ensemble strings' },
 })
 
 export type StringMachine = WasmDevice<typeof STRING_MACHINE_PARAMS>

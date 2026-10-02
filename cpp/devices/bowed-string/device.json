@@ -2,7 +2,7 @@
   "id": "bowed-string",
   "name": "Bow",
   "category": "instrument",
-  "description": "One string, three ways to play it: plucked, held singing by an ebow, or bowed. Sustained guitar swells and cello-like drones from a waveguide string with a resonant body.",
+  "description": "One string, three ways to play it: plucked, held singing by a sustainer, or bowed. Sustained guitar swells and cello-like drones from a waveguide string with a resonant body.",
   "class": "BowedString",
   "header": "bowed_string.h",
   "sources": [],
@@ -11,9 +11,9 @@
     {
       "key": "mode",
       "name": "Mode",
-      "choices": ["Pluck", "Ebow", "Bow"],
+      "choices": ["Pluck", "Sustain", "Bow"],
       "default": 1,
-      "description": "How the string is played: plucked and left to ring, held singing by an ebow, or bowed with a rosin edge. Applies from the next note."
+      "description": "How the string is played: plucked and left to ring, held singing by a magnetic sustainer, or bowed with a rosin edge. Applies from the next note."
     },
     {
       "key": "attack",
@@ -23,7 +23,7 @@
       "default": 1.2,
       "taper": "log",
       "unit": "s",
-      "description": "How long an ebowed or bowed note takes to bloom. On Pluck it is a volume swell over the pick, switched off at the shortest setting."
+      "description": "How long a sustained or bowed note takes to bloom. On Pluck it is a volume swell over the pick, switched off at the shortest setting."
     },
     {
       "key": "release",
@@ -41,7 +41,7 @@
       "min": 0,
       "max": 1,
       "default": 0.5,
-      "description": "How long the upper partials ring, from a dull, damped string to a bright, wiry one. It also brightens the pick, the ebow and the bow."
+      "description": "How long the upper partials ring, from a dull, damped string to a bright, wiry one. It also brightens the pick, the sustainer and the bow."
     },
     {
       "key": "decay",
@@ -67,7 +67,7 @@
       "min": 0,
       "max": 1,
       "default": 0.4,
-      "description": "How hard the ebow or bow presses: the ebow moves towards the octave, the bow from flute-like to raspy. Pluck ignores it."
+      "description": "How hard the sustainer or bow presses: the sustainer moves towards the octave, the bow from flute-like to raspy. Pluck ignores it."
     },
     {
       "key": "body",
@@ -114,7 +114,7 @@
     }
   ],
   "presets": {
-    "Ebow swell": {},
+    "Sustained swell": {},
     "Cello drone": {
       "mode": 2,
       "attack": 0.6,
@@ -175,6 +175,7 @@
       "detune": 8
     }
   },
+  "formerPresets": { "Ebow swell": "Sustained swell" },
   "origin": {
     "kind": "new",
     "note": "Written for live-mix on cpp/kit. A two-segment digital waveguide string (Karplus-Strong and Jaffe-Smith lineage) with the excitation at the junction. The ebow and the bow share one driver: it reads the string's own fundamental, pushes in phase with it to hold a set level, and adds upper partials from a table read at the string's phase (the octave for a hard-driven ebow, a slipping-string ramp plus rosin noise for the bow). A friction-junction bow was tried and dropped because it fell into double-slip and whistling regimes. Not a model of a particular instrument."

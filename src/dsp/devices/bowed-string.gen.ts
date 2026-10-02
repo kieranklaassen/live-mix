@@ -13,9 +13,9 @@ export const BOWED_STRING_PARAMS = {
     default: 1,
     taper: 'linear',
     unit: '',
-    choices: ['Pluck', 'Ebow', 'Bow'],
+    choices: ['Pluck', 'Sustain', 'Bow'],
     description:
-      'How the string is played: plucked and left to ring, held singing by an ebow, or bowed with a rosin edge. Applies from the next note.',
+      'How the string is played: plucked and left to ring, held singing by a magnetic sustainer, or bowed with a rosin edge. Applies from the next note.',
   },
   attack: {
     id: 1,
@@ -26,7 +26,7 @@ export const BOWED_STRING_PARAMS = {
     taper: 'log',
     unit: 's',
     description:
-      'How long an ebowed or bowed note takes to bloom. On Pluck it is a volume swell over the pick, switched off at the shortest setting.',
+      'How long a sustained or bowed note takes to bloom. On Pluck it is a volume swell over the pick, switched off at the shortest setting.',
   },
   release: {
     id: 2,
@@ -48,7 +48,7 @@ export const BOWED_STRING_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How long the upper partials ring, from a dull, damped string to a bright, wiry one. It also brightens the pick, the ebow and the bow.',
+      'How long the upper partials ring, from a dull, damped string to a bright, wiry one. It also brightens the pick, the sustainer and the bow.',
   },
   decay: {
     id: 4,
@@ -81,7 +81,7 @@ export const BOWED_STRING_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How hard the ebow or bow presses: the ebow moves towards the octave, the bow from flute-like to raspy. Pluck ignores it.',
+      'How hard the sustainer or bow presses: the sustainer moves towards the octave, the bow from flute-like to raspy. Pluck ignores it.',
   },
   body: {
     id: 7,
@@ -151,10 +151,10 @@ export const BOWED_STRING_DESCRIPTOR = wasmDeviceDescriptor(BOWED_STRING_DEVICE,
   name: 'Bow',
   category: 'instrument',
   description:
-    'One string, three ways to play it: plucked, held singing by an ebow, or bowed. Sustained guitar swells and cello-like drones from a waveguide string with a resonant body.',
+    'One string, three ways to play it: plucked, held singing by a sustainer, or bowed. Sustained guitar swells and cello-like drones from a waveguide string with a resonant body.',
   experimental: true,
   presets: {
-    'Ebow swell': {},
+    'Sustained swell': {},
     'Cello drone': {
       mode: 2,
       attack: 0.6,
@@ -215,11 +215,12 @@ export const BOWED_STRING_DESCRIPTOR = wasmDeviceDescriptor(BOWED_STRING_DEVICE,
       detune: 8,
     },
   },
+  formerPresets: { 'Ebow swell': 'Sustained swell' },
 })
 
 export type BowedString = WasmDevice<typeof BOWED_STRING_PARAMS>
 
-/** One string, three ways to play it: plucked, held singing by an ebow, or bowed. Sustained guitar swells and cello-like drones from a waveguide string with a resonant body. Play it through `NoteDevice`: `noteOn(id, frequency, gain)` / `noteOff(id)`. */
+/** One string, three ways to play it: plucked, held singing by a sustainer, or bowed. Sustained guitar swells and cello-like drones from a waveguide string with a resonant body. Play it through `NoteDevice`: `noteOn(id, frequency, gain)` / `noteOff(id)`. */
 export function createBowedString(
   context: BaseAudioContext,
   options: WasmDeviceOptions<typeof BOWED_STRING_PARAMS> = {},
