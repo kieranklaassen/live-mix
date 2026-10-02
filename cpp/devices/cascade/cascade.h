@@ -182,6 +182,7 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
     float trim = 1.0f;
     float cycle = 480.0f;
     int next_half = 0;
+    float next_unlike = 0.0f;
     kit::Rng rng;
     // Where it is in its schedule.
     int pass = 0;
@@ -199,6 +200,10 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
     float inv_attack = 2.0f;
     float inv_release = 2.0f;
     float shape = 0.5f;
+    // Tunnel: how unlike each other the two voices are where this pass fades
+    // in and where it fades out (0 = the same sound, 1 = unrelated).
+    float unlike_in = 0.0f;
+    float unlike_out = 0.0f;
     float gain = 0.0f;
     float pan = 0.0f;
     int role = kRoleMain;
@@ -561,7 +566,7 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
   // Half the length of pass k's piece in input samples: the wanted length as
   // a whole number of cycles, then moved a few samples to where the slice
   // repeats best.
-  int tunnel_half(const Voice& voice, int k) const {
+  int tunnel_half(const Voice& voice, int k, float* unlike = nullptr) const {
     const float sr = sample_rate();
     const float start = tunnel_start(voice);
     const float most = 0.5f * (voice.slice_len - start) - 8.0f;
@@ -587,6 +592,9 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
         best = lag;
       }
     }
+    // How well the loop closes there: near 0 for a note, near 1 for noise or
+    // a dense chord, which have no cycle to cut on.
+    if (unlike) *unlike = lowest < 1.0f ? (lowest > 0.0f ? lowest : 0.0f) : 1.0f;
     return best < 16 ? 16 : best;
   }
 
@@ -594,14 +602,24 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
                    float* pan, int* direction, float* swell) const {
     const int k = voice.pass;
     if (voice.elapsed >= static_cast<float>(voice.repeats) * voice.period) return false;
-    const float half =
-        static_cast<float>(voice.part == 1 && k > 0 ? voice.next_half : tunnel_half(voice, k));
+    // Parts 0 and 1 cross over each other at a lag of this pass's half (part
+    // 0 fades in at the lag of the pass before). Where the slice does not
+    // repeat at that lag the two are unrelated sounds, and a crossfade whose
+    // gains add up to one would dip 3 dB at every crossing: the window is
+    // bent towards equal power by how unlike they are (see render).
+    float unlike = voice.next_unlike;
+    const float half = static_cast<float>(voice.part == 1 && k > 0 ? voice.next_half
+                                                                   : tunnel_half(voice, k, &unlike));
+    if (voice.part <= 1) {
+      voice.unlike_in = (voice.part == 0 && k > 0) ? voice.unlike_out : unlike;
+      voice.unlike_out = unlike;
+    }
     *offset = tunnel_start(voice);
     *speed = voice.part == 3 ? 0.5f : (voice.part == 2 ? (voice.fifths ? 1.5f : 2.0f) : 1.0f);
     if (voice.part == 1) {
       // From the middle of part 0's pass k to the middle of its pass k + 1
       // (whose half this voice needs again for its own next pass).
-      voice.next_half = tunnel_half(voice, k + 1);
+      voice.next_half = tunnel_half(voice, k + 1, &voice.next_unlike);
       const float next = static_cast<float>(voice.next_half);
       *length = half + next;
       *swell = half / (half + next);
@@ -812,6 +830,8 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
       const int mask = (kRing0 >> voice.level) - 1;
       const float a = voice.lp_a;
       const float fade_step = voice.fading ? fade_step_ : 0.0f;
+      const float unlike_in = voice.unlike_in;
+      const float unlike_out = voice.unlike_out;
       float phase = voice.phase;
       float lp1 = voice.lp1;
       float lp2 = voice.lp2;
@@ -823,9 +843,11 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
         if (phase < voice.attack) {
           const float t = phase * voice.inv_attack;
           window = t * t * (3.0f - 2.0f * t);
+          if (unlike_in > 0.0f) window += unlike_in * (std::sqrt(window) - window);
         } else {
           const float t = (phase - voice.attack) * voice.inv_release;
-          const float fall = 1.0f - t * t * (3.0f - 2.0f * t);
+          float fall = 1.0f - t * t * (3.0f - 2.0f * t);
+          if (unlike_out > 0.0f) fall += unlike_out * ((fall > 0.0f ? std::sqrt(fall) : 0.0f) - fall);
           const float steep = fall * fall * fall * fall;
           window = steep + voice.shape * (fall - steep);
         }

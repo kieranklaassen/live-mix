@@ -120,7 +120,7 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
   static constexpr int kAllpassSize = 8192;
   static constexpr int kHistory = 16384;    // control ticks: 2.7 s at 96 kHz
   static constexpr int kControlPeriod = 16;
-  static constexpr int kSteps = 7;
+  static constexpr int kStepCount = 7;
   // The shortest a tap may be: a control period and the interpolator's reach.
   static constexpr float kLeastTap = kControlPeriod + 4.0f;
 
@@ -143,9 +143,10 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
   static constexpr float kWetGain = 1.0f;
   static constexpr float kFullLevel = 0.3f;        // RMS in the line where the return starts to give
   static constexpr float kFillSeconds = 0.25f;
+  static constexpr float kAntiDenormal = 1.0e-18f;
   // Drag positions with Steps on, in octaves of time: 1/2, 2/3, 3/4, 1, 4/3,
   // 3/2 and 2 times Length.
-  static constexpr float kStepOctaves[kSteps] = {-1.0f,     -0.5849625f, -0.4150375f, 0.0f,
+  static constexpr float kStepOctaves[kStepCount] = {-1.0f,     -0.5849625f, -0.4150375f, 0.0f,
                                                  0.4150375f, 0.5849625f,  1.0f};
 
   // A read point on the tape.
@@ -153,7 +154,8 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
     double span = 0.5;    // distance behind the write point, in Lengths
     double delay = 16.0;  // in samples, now
     double from = 16.0;   // where it was a control period ago
-    double step = 0.0;
+    long long at = 0;     // allpass reads: where on the line, 32.32 fixed point
+    long long advance = 0;
     float least = 3.0f;
     long long index = 0;  // the history segment the read point is in
     float limit = 64.0f;
@@ -161,18 +163,23 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
     float rate = 0.0f;
     float gain = 0.0f;
 
-    double next() {
-      delay += step;
-      return delay;
+    // Ramp from `from` to `delay` over one control period: the absolute
+    // position of the first read and how far it moves per sample.
+    void ramp(int write_position, int size) {
+      const double step = (delay - from) * (1.0 / kControlPeriod);
+      at = static_cast<long long>(
+          (static_cast<double>(write_position + size) - (from + step)) * 4294967296.0);
+      advance = static_cast<long long>((1.0 - step) * 4294967296.0);
     }
   };
 
+  // Hermite read at a 32.32 fixed-point position on a line.
   template <int Size>
-  static float read_at(const kit::DelayLine<Size>& line, double delay) {
-    const int whole = static_cast<int>(delay);
-    const float fraction = static_cast<float>(delay - static_cast<double>(whole));
-    const int at = line.write_position() - whole;
-    return kit::hermite(line.at(at + 1), line.at(at), line.at(at - 1), line.at(at - 2), fraction);
+  static float read_at(const kit::DelayLine<Size>& line, long long at) {
+    const int index = static_cast<int>(at >> 32);
+    const float t = static_cast<float>(static_cast<unsigned int>(at)) * (1.0f / 4294967296.0f);
+    return kit::hermite(line.at(index - 1), line.at(index), line.at(index + 1), line.at(index + 2),
+                        t);
   }
 
   // The tap table: where each echo arrives (a share of Length), how loud and
@@ -230,18 +237,12 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
   // and a few samples long, so what it reads in this period is already on
   // the line; reading it in one run is the same audio as reading it sample
   // by sample, at a fraction of the cost. Positions are 32.32 fixed point.
-  static void sweep(const kit::DelayLine<kLineSize>& line, const Read& read, float gain,
-                    float* out) {
-    const double step = (read.delay - read.from) * (1.0 / kControlPeriod);
-    const double first = static_cast<double>(line.write_position() + kLineSize) - (read.from + step);
-    long long at = static_cast<long long>(first * 4294967296.0);
-    const long long advance = static_cast<long long>((1.0 - step) * 4294967296.0);
+  static void sweep(const kit::DelayLine<kLineSize>& line, Read& read, float gain, float* out) {
+    read.ramp(line.write_position(), kLineSize);
+    long long at = read.at;
     for (int j = 0; j < kControlPeriod; ++j) {
-      const int index = static_cast<int>(at >> 32);
-      const float t = static_cast<float>(static_cast<unsigned int>(at)) * (1.0f / 4294967296.0f);
-      out[j] += gain * kit::hermite(line.at(index - 1), line.at(index), line.at(index + 1),
-                                    line.at(index + 2), t);
-      at += advance;
+      out[j] += gain * read_at(line, at);
+      at += read.advance;
     }
   }
 
@@ -286,10 +287,14 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
     if (fill_ > kFullLevel * kFullLevel) hold *= std::sqrt(kFullLevel / std::sqrt(fill_));
     for (int c = 0; c < 2; ++c) {
       float x = in[c] + limit(hold * turned[c]);
-      x = low_cut_[c].highpass(dampen_[c].lowpass(x));
+      // A constant far below hearing keeps the four recursions out of the
+      // denormal range while a tail dies away, for less than flushing each.
+      x = low_cut_[c].highpass(dampen_[c].lowpass(x)) + kAntiDenormal;
       for (int a = 0; a < kStages; ++a) {
-        const float delayed = read_at(allpass_[c][a], stage_[c][a].next());
-        const float v = flush_denormal(x + diffusion * delayed);
+        Read& stage = stage_[c][a];
+        const float delayed = read_at(allpass_[c][a], stage.at);
+        stage.at += stage.advance;
+        const float v = x + diffusion * delayed;
         allpass_[c][a].write(v);
         x = delayed - diffusion * v;
       }
@@ -337,14 +342,10 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
     if (target > read.limit) target = read.limit;
     if (!started_) {
       read.from = target;
-      read.delay = target;
-      read.step = 0.0;
-    } else if (read.least > 3.0f) {
-      read.from = read.delay;  // a tap: sweep() ramps it
-      read.delay = target;
     } else {
-      read.step = (target - read.delay) * (1.0 / kControlPeriod);  // an allpass: ramps per sample
+      read.from = read.delay;
     }
+    read.delay = target;
   }
 
   // With Steps on, Wander is a walk: every few seconds Drag jumps to another
@@ -385,13 +386,13 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
     float free = wander * kWanderOctaves * drift;
     if (param(kSteps) >= 0.5f) {
       int nearest = 0;
-      for (int s = 1; s < kSteps; ++s) {
+      for (int s = 1; s < kStepCount; ++s) {
         if (std::fabs(kStepOctaves[s] - knob) < std::fabs(kStepOctaves[nearest] - knob)) nearest = s;
       }
       const int offset = walk(wander);
       int index = nearest + offset;
-      if (index < 0 || index >= kSteps) index = nearest - offset;  // bounce off the ends
-      target = kStepOctaves[kit::clamp_int(index, 0, kSteps - 1)];
+      if (index < 0 || index >= kStepCount) index = nearest - offset;  // bounce off the ends
+      target = kStepOctaves[kit::clamp_int(index, 0, kStepCount - 1)];
       free = 0.0f;
     } else {
       step_offset_ = 0;
@@ -423,7 +424,10 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
     for (int c = 0; c < 2; ++c) {
       for (int k = 0; k < kTaps; ++k) aim(tap_[c][k], sweep, turn);
       aim(loop_[c], sweep, turn);
-      for (int a = 0; a < kStages; ++a) aim(stage_[c][a], 0.0f, turn);
+      for (int a = 0; a < kStages; ++a) {
+        aim(stage_[c][a], 0.0f, turn);
+        stage_[c][a].ramp(allpass_[c][a].write_position(), kAllpassSize);
+      }
     }
     ++tick_;
 

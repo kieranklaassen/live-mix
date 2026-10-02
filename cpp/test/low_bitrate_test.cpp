@@ -574,6 +574,46 @@ int main() {
     EXPECT(peak(gone.left) == 0.0 && peak(gone.right) == 0.0, "Smear back to 0: the wash is let go, then silence");
   }
 
+  // Inverse with Smear: the wash hangs at the level of the residue it holds.
+  // (The residue of a kept bin is its rounding error; read through the
+  // input's phase it came out many times too loud, and the hold kept that:
+  // struck notes at 0.6 peaked at 1.8.)
+  {
+    const size_t n = static_cast<size_t>(5.0f * kRate);
+    std::vector<float> plucks(n, 0.0f);
+    const double hz[8] = {261.63, 392.0, 329.63, 196.0, 523.25, 440.0, 293.66, 349.23};
+    for (int note = 0; note < 8; ++note) {
+      const size_t start = static_cast<size_t>((0.1 + 0.55 * note) * kRate);
+      for (int h = 1; h <= 10; ++h) {
+        const double amp = 0.25 / std::pow(h, 1.3), rate = 1.0 + 0.4 * h;
+        for (size_t i = start; i < n; ++i) {
+          const double t = static_cast<double>(i - start) / kRate;
+          plucks[i] += static_cast<float>(amp * std::exp(-t * rate) * std::min(1.0, t / 0.002) *
+                                          std::sin(2.0 * kPi * hz[note] * h * t + 0.7 * h));
+        }
+      }
+    }
+    auto loudest = [](const std::vector<float>& x) {
+      double most = 0.0;
+      for (size_t at = 0; at + 2400 <= x.size(); at += 1200) most = std::max(most, rms(x, at, at + 2400));
+      return most;
+    };
+    for (float loss : {0.3f, 0.5f, 0.8f}) {
+      clean(device);
+      device.set_param(p::kMode, 1.0f);
+      device.set_param(p::kFrame, 2.0f);
+      device.set_param(p::kLoss, loss);
+      device.set_param(p::kSmear, 0.4f);
+      Stereo out = run(device, plucks);
+      const double level = db(rms(out.left) / rms(plucks)), top = db(loudest(out.left) / loudest(plucks));
+      std::printf("low-bitrate: Inverse with Smear 0.4 at Loss %.1f on struck notes: level %+.1f dB, loudest 50 ms %+.1f dB, "
+                  "peak %.2f (dry %.2f)\n",
+                  loss, level, top, peak(out.left), peak(plucks));
+      EXPECT(level < 3.0 && top < 4.0 && peak(out.left) < 2.0 * peak(plucks),
+             "Inverse with Smear is no louder than the sound it is the residue of");
+    }
+  }
+
   // Stereo: as Loss rises the side signal is dropped from the top down, as
   // far as Stereo allows; a mono input stays mono; bass keeps its place.
   {

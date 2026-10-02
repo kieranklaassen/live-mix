@@ -79,7 +79,7 @@ class Outdoors : public kit::DeviceBase<outdoors::kNumParams> {
     controls_ = scene::Controls();
     controls_.sample_rate = sr;
     controls_.step_seconds = static_cast<float>(scene::kControlPeriod) / sr;
-    // The allpass chains hold 62 ms between them; the hold has to outlast them.
+    // The allpass chains hold 57 ms between them; the hold has to outlast them.
     idle_.reset(sr, 0.3f);
     for (int id = 0; id < kNumParams; ++id) apply(id);
     read_controls(false);
@@ -223,10 +223,11 @@ class Outdoors : public kit::DeviceBase<outdoors::kNumParams> {
     float level() const { return env.level(); }
   };
 
-  static constexpr int kStages = 3;
+  static constexpr int kStages = 5;
   static constexpr int kSpreadStages = 2;
-  static constexpr int kLineSize = 4096;
-  static constexpr float kBlurSeconds[kStages] = {0.0043f, 0.0101f, 0.0227f};
+  static constexpr int kLineSize = 2048;
+  // Short and unrelated, so a pulse smears into a wash, not into echoes.
+  static constexpr float kBlurSeconds[kStages] = {0.0019f, 0.0031f, 0.0053f, 0.0083f, 0.0131f};
   static constexpr float kSpreadSeconds[kSpreadStages] = {0.0079f, 0.0171f};
   static constexpr float kBlurGain = 0.62f;
   static constexpr float kSpreadGain = 0.55f;

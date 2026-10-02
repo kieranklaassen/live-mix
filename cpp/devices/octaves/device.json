@@ -13,7 +13,7 @@
       "min": 0,
       "max": 1,
       "default": 0.0,
-      "description": "The level of the voice two octaves below what you play. It gives the weight of organ pedals; notes below about the A at 110 Hz are left out of it because they would land under hearing."
+      "description": "The level of the voice two octaves below what you play. It gives the weight of organ pedals. Notes below about 130 Hz are left out of it, because two octaves under them is below hearing."
     },
     {
       "key": "sub1",
@@ -21,7 +21,7 @@
       "min": 0,
       "max": 1,
       "default": 0.5,
-      "description": "The level of the voice one octave below what you play. It follows chords note for note, like a bass player doubling every string."
+      "description": "The level of the voice one octave below what you play. It follows chords note for note, like a bass player doubling every string. Notes below about 65 Hz are left out of it."
     },
     {
       "key": "dry",
@@ -93,11 +93,11 @@
   ],
   "presets": {
     "Organ": {
-      "sub2": 0.3,
-      "sub1": 0.7,
-      "dry": 1.0,
-      "up1": 0.6,
-      "up2": 0.35,
+      "sub2": 0.25,
+      "sub1": 0.6,
+      "dry": 0.9,
+      "up1": 0.5,
+      "up2": 0.3,
       "attack": 0.0,
       "filter": 7000,
       "resonance": 0.0,
@@ -111,7 +111,7 @@
       "up1": 0.0,
       "up2": 0.0,
       "attack": 0.0,
-      "filter": 900,
+      "filter": 1200,
       "resonance": 0.0,
       "detune": 0.0,
       "spread": 0.0
@@ -141,36 +141,36 @@
       "spread": 0.85
     },
     "Cathedral": {
-      "sub2": 0.5,
-      "sub1": 0.6,
-      "dry": 1.0,
-      "up1": 0.5,
-      "up2": 0.3,
-      "attack": 0.15,
-      "filter": 5000,
+      "sub2": 0.6,
+      "sub1": 0.5,
+      "dry": 0.8,
+      "up1": 0.45,
+      "up2": 0.4,
+      "attack": 0.3,
+      "filter": 3500,
       "resonance": 0.0,
-      "detune": 0.25,
-      "spread": 0.5
+      "detune": 0.3,
+      "spread": 0.6
     },
     "Deep": {
-      "sub2": 0.7,
-      "sub1": 0.7,
+      "sub2": 1.0,
+      "sub1": 0.45,
       "dry": 0.8,
       "up1": 0.0,
       "up2": 0.0,
       "attack": 0.0,
-      "filter": 400,
+      "filter": 350,
       "resonance": 0.0,
       "detune": 0.0,
       "spread": 0.0
     },
     "Swell pad": {
       "sub2": 0.0,
-      "sub1": 0.6,
+      "sub1": 0.7,
       "dry": 0.0,
-      "up1": 0.7,
-      "up2": 0.3,
-      "attack": 1.2,
+      "up1": 0.9,
+      "up2": 0.4,
+      "attack": 0.8,
       "filter": 3500,
       "resonance": 0.2,
       "detune": 0.4,

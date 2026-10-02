@@ -229,7 +229,6 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
     float fm_chance = 1.0f;
     float decay_chance = 1.0f;
     float fold_drift = 0.0f;
-    float off_level = 0.01f;
     // Smoothed per voice: how far the gate opens, and level times pan.
     float open_hz = 1000.0f, open_target = 1000.0f;
     float gain_left = 0.0f, gain_right = 0.0f;
@@ -278,9 +277,12 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
   static constexpr float kSlowShare = 0.25f;
   // Sets the vactrol's fall rate so that Decay is the time a mid-keyboard
   // note takes to fall 60 dB.
-  static constexpr float kDecayScale = 5.4f;
-  // A voice stops once its gate has closed this far below its open level.
-  static constexpr float kOffGain = 3.0e-6f;
+  static constexpr float kDecayScale = 21.0f;
+  // A voice stops once its gate has closed this far (-72 dB).
+  static constexpr float kOffLevel = 2.5e-4f;
+  // The gate never closes below the note itself: the tail of a note is its
+  // bare sine, fading.
+  static constexpr float kGateFloor = 1.0f;
   static constexpr float kGateCeilingHz = 18000.0f;
   static constexpr float kDarkRatio = 2.0f;
   static constexpr float kDarkFloorHz = 150.0f;
@@ -433,7 +435,7 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
     west_coast::Wavefolder folder = voice.folder;
     const float strike = voice.strike;
     const float fall = voice.fall;
-    const float off_level = voice.off_level;
+    const float floor_hz = kGateFloor * voice.frequency;
     const float increment = voice.increment * voice.detune;
     const float mod_increment = increment * voice.ratio;
     const float fm_scale = voice.fm_chance * mod_increment;
@@ -465,7 +467,7 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
       } else {
         vactrol -= (vactrol - control) * fall * (kSlowShare + (1.0f - kSlowShare) * vactrol);
       }
-      if (vactrol < off_level && control < off_level && stage >= kStageSustain) {
+      if (vactrol < kOffLevel && control < kOffLevel && stage >= kStageSustain) {
         stage = kStageOff;
         voice.key_down = false;
         break;
@@ -494,7 +496,7 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
       // falls with the square, so the tone dulls before it fades) and the
       // gain. A trapezoidal state-variable low-pass, its tangent by the
       // same Padé form as kit::tan_prewarp, with one division for all of it.
-      const float w = w_scale * kit::min(open_hz * vactrol * vactrol, gate_limit);
+      const float w = w_scale * kit::min(floor_hz + open_hz * vactrol * vactrol, gate_limit);
       const float w2 = w * w;
       const float n = w * (15.0f - w2);
       const float d = 15.0f - 6.0f * w2;
@@ -502,7 +504,8 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
       const float a1 = d * d * scale;
       const float a2 = n * d * scale;
       const float a3 = n * n * scale;
-      const float gain = vactrol * makeup;
+      // (Less kOffLevel, so a voice lands on silence when it stops.)
+      const float gain = kit::max(0.0f, vactrol - kOffLevel) * makeup;
 
       const float deviation = kit::min(index_buf_[i] * fm_scale, fm_limit);
       const float level_step = 0.5f * (drive - last_drive);
@@ -596,10 +599,6 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
     // all the way whatever the note.
     const float dark = kit::clamp(kDarkRatio * voice.frequency, kDarkFloorHz, kDarkCeilingHz);
     voice.open_target = dark * std::pow(kGateCeilingHz / dark, param(kColour));
-    // The closed gate passes the note at about (open·v²/f)² · v: stop the
-    // voice when that is kOffGain.
-    const float ratio = voice.frequency / voice.open_target;
-    voice.off_level = kit::clamp(std::pow(kOffGain * ratio * ratio, 0.2f), 1.0e-3f, 0.05f);
   }
 
   void apply(int id) {

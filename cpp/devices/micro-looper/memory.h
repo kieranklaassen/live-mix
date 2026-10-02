@@ -21,6 +21,27 @@ namespace micro_looper {
 // listening. The device copies a capture into it a few frames per sample
 // (never a block copy on the audio thread) and plays from the ring until the
 // copy is complete; both hold the same frames, so the change is inaudible.
+// Six weights for one read that interpolates (Catmull-Rom, as kit::hermite)
+// and low-passes at once: the Hermite kernel at fraction `t` convolved with
+// (a, 1 - 2a, a) one frame apart. They apply to frames whole - 2 .. whole + 3.
+// a = 0 is the plain Hermite read; a = 1/4 is a raised cosine with its zero
+// on Nyquist.
+inline void wide_weights(float t, float a, float* w) {
+  const float t2 = t * t;
+  const float t3 = t2 * t;
+  const float c0 = -0.5f * t3 + t2 - 0.5f * t;
+  const float c1 = 1.5f * t3 - 2.5f * t2 + 1.0f;
+  const float c2 = -1.5f * t3 + 2.0f * t2 + 0.5f * t;
+  const float c3 = 0.5f * t3 - 0.5f * t2;
+  const float b = 1.0f - 2.0f * a;
+  w[0] = a * c0;
+  w[1] = b * c0 + a * c1;
+  w[2] = a * c0 + b * c1 + a * c2;
+  w[3] = a * c1 + b * c2 + a * c3;
+  w[4] = a * c2 + b * c3;
+  w[5] = a * c3;
+}
+
 template <int Frames>
 class Ring {
  public:
@@ -89,6 +110,30 @@ class Ring {
       sum[k] = left + right;
     }
     return kit::hermite(sum[0], sum[1], sum[2], sum[3], t);
+  }
+
+  // Both channels through wide_weights: the read for speeds above 1.
+  void read_wide(double position, float a, float* left, float* right) const {
+    const long long whole = static_cast<long long>(position);
+    float w[6];
+    wide_weights(static_cast<float>(position - static_cast<double>(whole)), a, w);
+    float l = 0.0f, r = 0.0f;
+    if (whole - 2 >= valid_from_ && whole + 3 < written_ && written_ - whole < Frames - 3) {
+      for (int k = 0; k < 6; ++k) {
+        const int at = static_cast<int>((whole - 2 + k) & kMask) * 2;
+        l += w[k] * buffer_[at];
+        r += w[k] * buffer_[at + 1];
+      }
+    } else {
+      for (int k = 0; k < 6; ++k) {
+        float fl, fr;
+        frame(whole - 2 + k, &fl, &fr);
+        l += w[k] * fl;
+        r += w[k] * fr;
+      }
+    }
+    *left = l;
+    *right = r;
   }
 
   // Hermite read of both channels. A whole position returns the stored frame.
@@ -163,6 +208,30 @@ class Store {
       sum[k] = (index >= 0 && index < count_) ? buffer_[2 * index] + buffer_[2 * index + 1] : 0.0f;
     }
     return kit::hermite(sum[0], sum[1], sum[2], sum[3], t);
+  }
+
+  void read_wide(double position, float a, float* left, float* right) const {
+    const long long floored = static_cast<long long>(position);
+    const long long whole = floored - base_;
+    float w[6];
+    wide_weights(static_cast<float>(position - static_cast<double>(floored)), a, w);
+    float l = 0.0f, r = 0.0f;
+    if (whole >= 2 && whole + 3 < count_) {
+      const float* p = buffer_ + 2 * (whole - 2);
+      for (int k = 0; k < 6; ++k) {
+        l += w[k] * p[2 * k];
+        r += w[k] * p[2 * k + 1];
+      }
+    } else {
+      for (int k = 0; k < 6; ++k) {
+        const long long index = whole - 2 + k;
+        if (index < 0 || index >= count_) continue;
+        l += w[k] * buffer_[2 * index];
+        r += w[k] * buffer_[2 * index + 1];
+      }
+    }
+    *left = l;
+    *right = r;
   }
 
   void read(double position, float* left, float* right) const {

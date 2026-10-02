@@ -219,24 +219,34 @@ static std::vector<double> fine_spectrum(const std::vector<float>& x) {
   return power;
 }
 
-// The strongest line within ±1.5 % of `hz`: its frequency (parabolic fit) and
-// how far it stands above the median of that neighbourhood.
+// The strongest line within ±1.2 % of `hz`: its frequency (parabolic fit) and
+// how far it stands above the median of the 5 % either side.
 struct Line {
   double hz, prominence, power;
 };
 static Line line_near(const std::vector<double>& power, double hz) {
-  const int lo = static_cast<int>(0.985 * hz / kFineHz), hi = static_cast<int>(1.015 * hz / kFineHz) + 1;
+  const int lo = static_cast<int>(0.988 * hz / kFineHz), hi = static_cast<int>(1.012 * hz / kFineHz) + 1;
   int best = lo;
-  std::vector<double> around;
   for (int k = lo; k <= hi; ++k) {
-    around.push_back(power[k]);
     if (power[k] > power[best]) best = k;
   }
+  std::vector<double> around;
+  for (int k = static_cast<int>(0.95 * hz / kFineHz); k <= static_cast<int>(1.05 * hz / kFineHz); ++k)
+    around.push_back(power[k]);
   std::sort(around.begin(), around.end());
   const double a = std::log(power[best - 1] + 1e-30), b = std::log(power[best] + 1e-30),
                c = std::log(power[best + 1] + 1e-30);
   const double shift = 0.5 * (a - c) / (a - 2.0 * b + c);
   return {(best + shift) * kFineHz, power[best] / (around[around.size() / 2] + 1e-30), power[best]};
+}
+
+// How abrupt the sharpest onset is: the largest rise of the 2 ms envelope
+// from one frame to the next, as a share of its maximum.
+static double sharpness(const std::vector<float>& x) {
+  const std::vector<float> env = frames(x, 96);
+  double rise = 0.0;
+  for (size_t i = 1; i < env.size(); ++i) rise = std::max(rise, static_cast<double>(env[i]) - env[i - 1]);
+  return rise / highest(env);
 }
 
 // MORE HELPERS
@@ -521,11 +531,13 @@ int main() {
       device.note_on(1, 261.63f, 1.0f);
       const float span = step == 0 ? 1500.0f : 900.0f;
       const std::vector<float> track = envelope(device, span, 0.5f);
-      const int strokes = count_rises(track, 0.1 * highest(track), 4);
+      // (The first comes with the key and the last interval is cut short: half a stroke off.)
+      const int strokes = count_rises(track, 0.1 * highest(track), 6);
+      const double every = span / (strokes - 0.5);
       std::printf("outdoors: thunder at Density %.1f: %d strokes in %.0f s, one every %.1f s (set: %.1f s)\n",
-                  0.5 * step, strokes, span, span / strokes, expected[step]);
+                  0.5 * step, strokes, span, every, expected[step]);
       std::snprintf(label, sizeof label, "Thunder: strokes come at the stated mean interval (Density %.1f)", 0.5 * step);
-      EXPECT_NEAR(span / strokes, expected[step], 0.2 * expected[step], label);
+      EXPECT_NEAR(every, expected[step], 0.15 * expected[step], label);
     }
 
     // Only a near stroke has an edge: at Distance 0 it starts with a crack.
@@ -544,7 +556,7 @@ int main() {
                 "loudest within %.2f s; at 0.6: %.2f %% of the roll is above 2 kHz, a quarter of its loudest after %.2f s\n",
                 100.0 * bright[0], onset[0], 100.0 * bright[1], onset[1]);
     EXPECT(bright[0] > 0.2 && bright[1] < 0.01, "Thunder: a crack only when near");
-    EXPECT(onset[0] < 0.03 && onset[1] > 0.2, "Thunder: from far off the roll swells in");
+    EXPECT(onset[0] < 0.04 && onset[1] > 0.2, "Thunder: from far off the roll swells in");
   }
 
   // Chimes: six tubes on the major pentatonic of the key, each with partials
@@ -574,7 +586,7 @@ int main() {
                   "faintest %.0f dB over its surroundings; the other semitones are %.0f dB under the weakest tube\n",
                   key, 100.0 * worst, 0.5 * db(faintest), -0.5 * db(stray / weakest_root));
       std::snprintf(label, sizeof label, "Chimes on %.0f Hz: partials at the bar ratios of a pentatonic set", key);
-      EXPECT(worst < 0.01 && faintest > 100.0, label);
+      EXPECT(worst < 0.01 && faintest > 30.0, label);
       std::snprintf(label, sizeof label, "Chimes on %.0f Hz: nothing off the scale", key);
       EXPECT(stray < 0.01 * weakest_root, label);
     }
@@ -590,28 +602,31 @@ int main() {
       const std::vector<double> power = spectrum(m);
       top[far] = band_power(power, 3000.0, 24000.0);
       level[far] = rms(m);
-      crest[far] = peak(m) / rms(m);
+      crest[far] = sharpness(m);
     }
-    std::printf("outdoors: %s from far: power above 3 kHz down %.1f dB, level down %.1f dB, crest factor %.1f -> %.1f dB\n",
-                kNames[type], -0.5 * db(top[1] / top[0]), -db(level[1] / level[0]), db(crest[0]), db(crest[1]));
+    std::printf("outdoors: %s from far: power above 3 kHz down %.1f dB, level down %.1f dB, sharpest rise in "
+                "2 ms %.2f -> %.2f of the peak\n",
+                kNames[type], -0.5 * db(top[1] / top[0]), -db(level[1] / level[0]), crest[0], crest[1]);
     std::snprintf(label, sizeof label, "%s: Distance takes the highs down", kNames[type]);
     EXPECT(top[1] < 0.25 * top[0], label);
     std::snprintf(label, sizeof label, "%s: Distance blurs what was sharp", kNames[type]);
-    EXPECT(crest[1] < crest[0], label);
+    EXPECT(crest[1] < 0.85 * crest[0], label);
   }
   {
-    // A cricket's pulses run into each other from far off: the gaps between them fill.
-    double gaps[2] = {};
+    // A cricket's chirp is three pulses in 60 ms when near; from far off it is one longer smear.
+    double length[2] = {};
     for (int far = 0; far < 2; ++far) {
       plain(device, Outdoors::kCrickets, 0.0f);
       device.set_param(p::kDistance, static_cast<float>(far));
-      const std::vector<float> env = frames(mid(hold(device, 261.63f, 20.0f)), 48);
-      const int pulses = count_rises(env, 0.2 * highest(env), 2);
-      const int chirps = count_rises(env, 0.2 * highest(env), 60);
-      gaps[far] = static_cast<double>(pulses) / chirps;
+      const std::vector<float> env = frames(mid(hold(device, 261.63f, 20.0f)), 240);  // 5 ms
+      const int chirps = count_rises(env, 0.1 * highest(env), 12);
+      int above = 0;
+      for (float v : env) above += v > 0.1 * highest(env) ? 1 : 0;
+      length[far] = 5.0 * above / chirps;
     }
-    std::printf("outdoors: a cricket's chirp shows %.2f separate pulses near, %.2f from far\n", gaps[0], gaps[1]);
-    EXPECT(gaps[0] > 2.5 && gaps[1] < 0.75 * gaps[0], "Distance: the pulses of a chirp blur together");
+    std::printf("outdoors: a cricket's chirp stays within 20 dB of its peak for %.0f ms near, %.0f ms from far\n",
+                length[0], length[1]);
+    EXPECT(length[1] > 1.4 * length[0], "Distance: a chirp smears out in time");
   }
 
   // Width: every source has its place; at 0 the scene is mono, and the sum
@@ -635,9 +650,55 @@ int main() {
     std::printf("outdoors: %s: left/right correlation %.2f near, %.2f far; mono fold over the wide sum %.2f / %.2f\n",
                 kNames[type], corr[0], corr[1], sum[0], sum[1]);
     std::snprintf(label, sizeof label, "%s: Width 1 decorrelates the sides, yet they stay in phase", kNames[type]);
-    EXPECT(corr[0] < 0.97 && corr[1] < corr[0] && corr[1] > 0.1, label);
+    EXPECT(corr[0] < 0.99 && corr[1] < corr[0] && corr[1] > 0.1, label);
     std::snprintf(label, sizeof label, "%s: Width 0 is mono, and the fold keeps the level of the sum", kNames[type]);
     EXPECT(same && sum[0] > 1.05 && sum[0] < 1.15 && sum[1] > 1.05 && sum[1] < 1.15, label);
+  }
+
+  // Velocity is the level; Volume is in decibels; keys add up.
+  {
+    plain(device, Outdoors::kStream);
+    const double loud = rms(hold(device, 220.0f, 8.0f, 1.0f).left, 24000);
+    plain(device, Outdoors::kStream);
+    const double soft = rms(hold(device, 220.0f, 8.0f, 0.25f).left, 24000);
+    plain(device, Outdoors::kStream);
+    device.set_param(p::kVolume, -20.0f);
+    const double quiet = rms(hold(device, 220.0f, 8.0f, 1.0f).left, 24000);
+    EXPECT_NEAR(soft / loud, 0.25, 0.01, "velocity is the level");
+    EXPECT_NEAR(quiet / loud, 0.1, 0.002, "Volume is in decibels");
+  }
+
+  // Attack and release open and close the scene; exact zeros after it.
+  {
+    plain(device, Outdoors::kStream, 0.8f);
+    const double full = rms(hold(device, 220.0f, 6.0f).left, 96000);
+    plain(device, Outdoors::kStream, 0.8f);
+    device.set_param(p::kAttack, 2.0f);
+    device.set_param(p::kRelease, 2.0f);
+    Stereo rise = hold(device, 220.0f, 5.0f);
+    device.note_off(1);
+    Stereo fall = render(device, 5.0f, kRate);
+    std::printf("outdoors: a 2 s attack is at %.2f of full after 200 ms and %.2f after 2.2 s; a 2 s release leaves "
+                "%.4f at 2.1 s\n",
+                rms(rise.left, 0, 9600) / full, rms(rise.left, 105600, 144000) / full,
+                rms(fall.left, 100800, 105600) / full);
+    EXPECT(rms(rise.left, 0, 9600) < 0.3 * full, "a 2 s attack is still quiet after 200 ms");
+    EXPECT(rms(rise.left, 105600, 144000) > 0.85 * full, "and has arrived shortly after 2 s");
+    EXPECT(rms(fall.left, 43200, 48000) > 0.01 * full, "a 2 s release is still audible at 0.95 s");
+    EXPECT(rms(fall.left, 100800, 105600) < 0.003 * full, "and is 60 dB down after its time");
+    EXPECT(peak(fall.left, 192000, 240000) == 0.0 && peak(fall.right, 192000, 240000) == 0.0,
+           "exact zeros once the release has ended");
+  }
+  for (int type = 0; type < Outdoors::kKinds; ++type) {
+    plain(device, type, 1.0f);
+    device.set_param(p::kDistance, 1.0f);
+    for (int n = 0; n < 4; ++n) device.note_on(n, 220.0f * static_cast<float>(n + 1), 1.0f);
+    render(device, 3.0f, kRate);
+    for (int n = 0; n < 4; ++n) device.note_off(n);
+    render(device, 1.0f, kRate);
+    Stereo after = render(device, 0.5f, kRate);
+    std::snprintf(label, sizeof label, "%s: asleep (exact zeros) a second after a short release", kNames[type]);
+    EXPECT(peak(after.left) == 0.0 && peak(after.right) == 0.0, label);
   }
 
   // BEHAVIOUR

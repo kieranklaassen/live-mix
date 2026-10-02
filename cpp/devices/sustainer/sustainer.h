@@ -153,7 +153,7 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
   static constexpr float kDriftCents = 3.0f;    // Motion 1: pitch wander of a partial (rms) ...
   static constexpr float kDriftMaxHz = 1.5f;    // ... but no more than this
   static constexpr float kSideCycles = 0.18f;   // Motion 1: left/right phase difference (rms)
-  static constexpr float kSwellDepth = 0.3f;    // Motion 1: level wander of a partial (rms)
+  static constexpr float kSwellDepth = 0.22f;   // Motion 1: level wander of a partial (rms, in nepers: 1.9 dB)
   static constexpr float kTiltPivotHz = 600.0f;
   static constexpr float kCrossLowHz = 450.0f;  // the long frame takes over below here ...
   static constexpr float kCrossHighHz = 650.0f; // ... and has no part above here
@@ -585,7 +585,10 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     // The held sound runs `delay` samples behind the input, and so must they.
     const double from_middle = static_cast<double>(static_cast<int32_t>(next_landing() - end)) + 0.5 * frame_ - hop_ -
                                1.0 + 0.5 * long_frame_ - slot.delay;
-    const float floor = kit::max(strongest * 1.0e-3f, 1.0e-9f);
+    // A partial counts when it is within 60 dB of the strongest low one and
+    // within 80 dB of the level of the whole layer.
+    const float whole = std::sqrt(slot.power) * 0.21f * static_cast<float>(long_frame_);
+    const float floor = kit::max(kit::max(strongest * 1.0e-3f, whole * 1.0e-4f), 1.0e-9f);
     int r = slot.regions;
     int pool = half_ + 1;
     for (int k = 2; k <= top && r < slot.regions + kMaxLow; ++k) {
@@ -835,7 +838,9 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
         drift -= std::floor(drift);
         slot.drift[r] = drift;
         const float side = side_depth * slot.part[r] * slot.side[r];
-        const float level = gain * kit::clamp(1.0f + swell_depth * slot.swell[r], 0.25f, 2.0f);
+        // exp(y) for |y| < 0.8 by its series: the wander is even in dB.
+        const float y = kit::clamp(swell_depth * slot.swell[r], -0.8f, 0.8f);
+        const float level = gain * (1.0f + y * (1.0f + y * (0.5f + y * (1.0f / 6.0f))));
         // The detuned pair: one copy up, one down, by the same amount.
         const float turn = kit::min(slot.cent_turn[r] * cents, kMaxDetuneTurn);
         float det = slot.det_phase[r] + turn;

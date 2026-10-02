@@ -230,6 +230,44 @@ int main() {
            "the notes of a held chord keep their balance to 2 dB");
   }
 
+  // A low, close chord: C3 E3 G3 B3 C4, whose notes are 15 to 50 Hz apart.
+  // The 85 ms frame cannot separate them; the second look with the long
+  // frame, a third of a second into the chord, can. Every note is then held
+  // at its pitch and level, with nothing at the frame rate beside it.
+  {
+    still(device);
+    device.set_param(p::kDecay, 60.0f);
+    const float hz[5] = {130.81f, 164.81f, 196.0f, 246.94f, 261.63f};
+    const float gain[5] = {0.12f, 0.08f, 0.1f, 0.06f, 0.1f};
+    std::vector<float> chord = silence(1.5f, kRate);
+    for (int n = 0; n < 5; ++n) chord = add(chord, sine(hz[n], 1.5f, kRate, gain[n]));
+    Stereo out = run(device, join(chord, silence(8.5f, kRate)));
+    const size_t s = static_cast<size_t>(kRate);
+    double worst_cents = 0.0, worst_level = 0.0, worst_side = -200.0;
+    for (int n = 0; n < 5; ++n) {
+      const double found = dominant_frequency(out.left, kRate, hz[n] - 4.0, hz[n] + 4.0, 2 * s, 10 * s);
+      const double cents = 1200.0 * std::log2(found / hz[n]);
+      const double level = db(tone_level(out.left, found, kRate, 2 * s, 10 * s) / gain[n]);
+      double side = 0.0;
+      for (int m = -2; m <= 2; ++m) {
+        if (m != 0) side = std::max(side, tone_level(out.left, found + 46.875 * m, kRate, 2 * s, 10 * s));
+      }
+      std::printf("sustainer: close chord: %.2f Hz held at %.3f Hz (%+.2f cents), %.2f dB re its input, frame-rate "
+                  "sidebands %.1f dB\n",
+                  hz[n], found, cents, level, db(side / gain[n]) - level);
+      worst_cents = std::max(worst_cents, std::fabs(cents));
+      worst_level = std::max(worst_level, std::fabs(level + 2.5));
+      worst_side = std::max(worst_side, db(side / gain[n]) - level);
+    }
+    EXPECT(worst_cents < 2.0, "close chord: every note within 2 cents");
+    EXPECT(worst_level < 2.0, "close chord: every note within 2 dB of its level");
+    EXPECT(worst_side < -50.0, "close chord: nothing at the frame rate above -50 dB");
+    // The hand-over from the first look to the second is smooth.
+    const double before = rms(out.left, static_cast<size_t>(0.25 * kRate), static_cast<size_t>(0.33 * kRate));
+    const double after = rms(out.left, static_cast<size_t>(0.6 * kRate), static_cast<size_t>(1.4 * kRate));
+    std::printf("sustainer: close chord: level %.2f dB before the second look, %.2f dB after (dBFS)\n", db(before), db(after));
+  }
+
   // Auto: a new note takes over, and the old one is 30 dB down within three
   // Glide times. Layer: both stay.
   for (int mode = 0; mode < 2; ++mode) {
@@ -385,7 +423,7 @@ int main() {
                 "centre %.2f Hz, frame-rate sidebands %.1f dB\n",
                 apart, wander, level, hz, flutter_db);
     EXPECT(apart < 0.4, "Motion 1 decorrelates left and right");
-    EXPECT(wander > 3.0 && wander < 14.0, "Motion 1: the level of a partial wanders by some dB, slowly");
+    EXPECT(wander > 2.0 && wander < 12.0, "Motion 1: the level of a partial wanders by some dB, slowly");
     EXPECT(std::fabs(level) < 1.0, "Motion does not change the mean level");
     EXPECT_NEAR(hz, 1000.0, 2.0, "Motion 1: the partial stays at its pitch");
     EXPECT(flutter_db < -50.0, "Motion 1: nothing at the frame rate (sidebands under -50 dB)");

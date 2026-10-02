@@ -76,7 +76,7 @@ struct TapeDef {
 constexpr TapeDef kTapes[kNumTapes] = {
   // Strings: three violins. A fast bow attack with a scrape, wide vibrato.
   {3, 0.045f, 0.35f, 0.25f, 24.0f, 5.9f, 0.04f, 9.0f, -31.0f, 17.0f, 0.07f, 3600.0f, 0.0f,
-   1800.0f, 3.0f, 14000.0f, 8.0f, 0.0f, 0.8f},
+   1800.0f, 3.0f, 14000.0f, 8.0f, 1.0f, 0.8f},
   // Cellos: slower to speak, darker, slower vibrato.
   {3, 0.09f, 0.5f, 0.3f, 20.0f, 5.2f, 0.04f, 8.0f, -33.0f, 15.0f, 0.1f, 1900.0f, 0.0f,
    900.0f, 3.0f, 9000.0f, 8.0f, 0.5f, 0.75f},

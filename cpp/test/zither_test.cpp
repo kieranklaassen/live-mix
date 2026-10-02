@@ -318,7 +318,7 @@ int main() {
     // A blow brings fresh upper partials: it shows as a jump in the level of
     // the sample-to-sample difference, taken over two periods at a time.
     const double hop = 2.0 * kRate / 220.0;
-    std::vector<float> edge, jump;
+    std::vector<float> edge;
     for (size_t k = 0; at((k + 1) * hop, 1.0) <= out.left.size(); ++k) {
       double sum = 0.0;
       const size_t from = std::max<size_t>(1, at(k * hop, 1.0)), to = at((k + 1) * hop, 1.0);
@@ -327,17 +327,16 @@ int main() {
         sum += step * step;
       }
       edge.push_back(static_cast<float>(std::sqrt(sum / (to - from))));
-      jump.push_back(k == 0 ? 0.0f : std::max(0.0f, edge[k] - edge[k - 1]));
     }
+    // A stroke is a peak of that level standing over the hops around it.
     std::vector<double> strikes;
     const size_t skip = static_cast<size_t>(0.5 * kRate / hop);  // from 0.5 s: the roll alone
-    const double threshold = 0.25 * peak(jump, skip);
-    for (size_t i = skip; i + 1 < jump.size(); ++i) {
-      const double when = i * hop / kRate;
-      if (jump[i] > threshold && jump[i] >= jump[i - 1] && jump[i] > jump[i + 1] &&
-          (strikes.empty() || when - strikes.back() > 0.04)) {
-        strikes.push_back(when);
-      }
+    for (size_t i = skip; i + 3 < edge.size(); ++i) {
+      bool top = true;
+      float floor = edge[i];
+      for (int j = -3; j <= 3; ++j) top = top && edge[i + j] <= edge[i];
+      for (int j = 1; j <= 6; ++j) floor = std::min(floor, edge[i - j]);
+      if (top && edge[i] > 1.1f * floor) strikes.push_back(i * hop / kRate);
     }
     double total = 0.0, squares = 0.0;
     const size_t gaps = strikes.size() > 1 ? strikes.size() - 1 : 0;

@@ -291,7 +291,10 @@ int main() {
   // 20 kHz, in any circuit, with Push on as well (it squares the wave off
   // completely). The loudest stray is the fifth harmonic at 25 kHz folding
   // to 19.1 kHz through the transition band of the first halfband; below
-  // 18 kHz nothing reaches -90 dBFS.
+  // 18 kHz nothing reaches -90 dBFS. (Full Drive is 42 dB into the curve.
+  // At 36 dB, where the range ended before the knob was given its taper,
+  // the worst below 18 kHz measured -105 dBFS; the last 6 dB cost 6 dB of
+  // that, hence -95 here and not -100.)
   {
     double worst[2] = {-300.0, -300.0}, worst_low[2] = {-300.0, -300.0};
     for (int push = 0; push < 2; ++push) {
@@ -306,7 +309,7 @@ int main() {
                 "(%.1f to 18 kHz); Push on %.1f dBFS (%.1f to 18 kHz)\n",
                 worst[0], worst_low[0], worst[1], worst_low[1]);
     EXPECT(worst[0] < -70.0, "aliasing stays under -70 dBFS at full Drive");
-    EXPECT(worst_low[0] < -100.0, "and under -100 dBFS below 18 kHz");
+    EXPECT(worst_low[0] < -95.0, "and under -95 dBFS below 18 kHz");
     EXPECT(worst[1] < -70.0, "Push on: aliasing stays under -70 dBFS (the brief asks -60)");
     EXPECT(worst_low[1] < -90.0, "Push on: under -90 dBFS below 18 kHz");
   }
@@ -616,7 +619,7 @@ int main() {
       }
     }
     std::printf("analog-drive full scale with Push, Auto Gain on: peak %.2f; loudest setting (Auto Gain off, Thump, Tone "
-                "and Output up, full-scale noise): %.3f\n",
+                "and Output up, full-scale noise): %.5f\n",
                 held, loudest);
     EXPECT(held < 1.0, "Push on a full-scale note stays under full scale with Auto Gain on");
     EXPECT(loudest < spec.max_peak, "the loudest setting stays under the ceiling");

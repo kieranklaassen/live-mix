@@ -213,7 +213,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
       {0, 7, 14, 16, 19, 24},  // Add 9
   };
   // A stroke of the roll against the first blow, and how much it varies.
-  static constexpr float kRollLevel = 0.65f;
+  static constexpr float kRollLevel = 0.8f;
   static constexpr float kRollLevelSpread = 0.2f;
   static constexpr float kRollTimeSpread = 0.1f;
   static constexpr float kMinRollHz = 2.0f;
@@ -347,9 +347,10 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
   // leans with pitch, and how long a partial near 3 kHz (higher for the
   // treble strings) rings from Brightness 0 to 1.
   static constexpr float kKeepHammer = 0.45f;
-  static constexpr float kKeepRollHammer = 0.6f;
+  static constexpr float kKeepRollHammer = 0.55f;
   static constexpr float kKeepRollPluck = 0.5f;
-  static constexpr float kRollPhaseSpread = 0.25f;  // of a period
+  static constexpr float kRollPhaseNear = 0.05f, kRollPhaseFar = 0.125f;  // of a period
+  static constexpr float kRollSettleSeconds = 0.035f;
   static constexpr float kRingLean = 0.3f;
   static constexpr float kDampHz = 3000.0f;
   static constexpr float kDarkSeconds = 0.25f;
@@ -515,23 +516,35 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     }
   }
 
-  // A blow on a string that is already moving. A stroke of the roll waits
-  // for the wave of the first blow to come round (less than a period), give
-  // or take an eighth of a period: it pushes the string the way it is
-  // going, so the fundamental holds its level from stroke to stroke, while
-  // the upper partials meet it in a different phase every time and glitter.
-  // A key struck again does not wait, and the string keeps less of itself.
+  // A blow on a string that is already moving.
+  // - A key struck again (the hammer): the string keeps part of what it had
+  //   for the period the blow takes to go round, and the blow lands on that.
+  // - A stroke of the roll waits for the wave of the first blow to come
+  //   round (less than a period), give or take an eighth of a period: it
+  //   pushes the string the way it is going, so the fundamental steps up
+  //   with every stroke while the upper partials meet it in a different
+  //   phase each time and glitter. Over the next few hundredths of a second
+  //   the string then gives part of the sum back (the hammer leaving it), so
+  //   each stroke is heard and the roll settles at a level.
   void add_blow(Voice& voice, const Blow& blow) {
-    voice.absorb = blow.soft ? (blow.exciter == kHammer ? kKeepRollHammer : kKeepRollPluck) : kKeepHammer;
     const float period = sample_rate() / voice.hz;
-    voice.absorb_left = static_cast<int>(period + 0.5f);
     voice.follow = kit::max(voice.follow, 0.1f);
-    float wait = 0.0f;
-    if (blow.soft) {
-      wait = period - static_cast<float>(std::fmod(now_ - voice.origin, static_cast<double>(period)));
-      wait += period * (kRollPhaseSpread * rng_.uniform() - 0.5f * kRollPhaseSpread);
-      if (wait > period) wait -= period;
+    if (!blow.soft) {
+      voice.absorb = kKeepHammer;
+      voice.absorb_left = static_cast<int>(period + 0.5f);
+      set_strike(voice, blow, 0.0f);
+      return;
     }
+    float wait = period - static_cast<float>(std::fmod(now_ - voice.origin, static_cast<double>(period)));
+    // Early or late by a twentieth to an eighth of a period, never dead on:
+    // two blows exactly on top of each other would stand out as an accent.
+    const float off = kRollPhaseNear + (kRollPhaseFar - kRollPhaseNear) * rng_.uniform();
+    wait += period * (rng_.uniform() < 0.5f ? -off : off);
+    if (wait > period) wait -= period;
+    const float keep = blow.exciter == kHammer ? kKeepRollHammer : kKeepRollPluck;
+    const float turns = kit::max(2.0f, std::ceil(kRollSettleSeconds * voice.hz));
+    voice.absorb = std::pow(keep, 1.0f / turns);
+    voice.absorb_left = static_cast<int>(wait + turns * period + 0.5f);
     set_strike(voice, blow, wait);
   }
 
@@ -640,7 +653,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
       for (int i = 0; i < n && strike.active; ++i) in[i] += strike.next();
     }
     // Under a new blow the moving string keeps only part of itself: scale
-    // what comes round for one period.
+    // what comes round while that lasts.
     const int kept = kit::clamp_int(voice.absorb_left, 0, n);
     voice.absorb_left -= kept;
     float a[kChunk], b[kChunk];

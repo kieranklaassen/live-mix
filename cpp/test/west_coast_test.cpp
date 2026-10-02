@@ -267,10 +267,9 @@ static void check_gate() {
     const double t20 = fall_time(out.left, kRate, 20.0), t60 = fall_time(out.left, kRate, 60.0);
     NOTE("gate: Decay %.2f s -> -20 dB after %.3f s, -60 dB after %.3f s\n", decay, t20, t60);
     EXPECT(t60 > 0.75 * decay && t60 < 1.25 * decay, "a note takes about Decay to fall 60 dB");
-    // An exponential would take a third of the time for the first 20 dB;
-    // this takes longer over the first part than a straight line in dB
-    // from its fast start would suggest, but the last 40 dB are the slow end.
-    EXPECT(t20 > 0.0 && t60 - t20 > 0.0, "the decay is measurable");
+    // A plain exponential spends a third of the time on the first 20 dB;
+    // the vactrol lets go fast and then lingers.
+    EXPECT(t20 > 0.0 && t20 < 0.3 * t60, "the decay starts fast and ends slow");
     EXPECT(peak(out.left, out.size() - 4800) == 0.0, "the voice ends in true silence");
   }
 
@@ -278,11 +277,151 @@ static void check_gate() {
   device.set_param(p::kDecay, 0.6f);
   device.note_on(1, 220.0f, 0.8f);
   out = render(device, 0.5f, kRate);
-  const double early = Spectrum(out.left, 0, 2048, kRate).centroid();
-  const double middle = Spectrum(out.left, 4096, 2048, kRate).centroid();
-  const double late = Spectrum(out.left, 10240, 2048, kRate).centroid();
-  NOTE("gate: centroid %.0f Hz at the strike, %.0f Hz after 85 ms, %.0f Hz after 213 ms\n", early, middle, late);
-  EXPECT(early > 1.5 * middle && middle > 1.2 * late, "the tone darkens as the gate closes");
+  double centroid[4] = {};
+  const size_t starts[4] = {0, 1536, 4096, 12288};
+  for (int i = 0; i < 4; ++i) centroid[i] = Spectrum(out.left, starts[i], 1024, kRate).centroid();
+  NOTE("gate: centroid %.0f Hz at the strike, %.0f Hz after 32 ms, %.0f Hz after 85 ms, %.0f Hz after 256 ms\n",
+       centroid[0], centroid[1], centroid[2], centroid[3]);
+  EXPECT(centroid[0] > 1.3 * centroid[1] && centroid[1] > 1.3 * centroid[2], "the tone darkens as the gate closes");
+  EXPECT_NEAR(centroid[3], 220.0, 30.0, "the tail of a note is its bare fundamental");
+}
+
+// FM puts sidebands at the note plus and minus multiples of the modulator:
+// on the harmonics at 2:1, between them at 7:2. (Fold 0, so the folder adds
+// nothing of its own.)
+static void check_fm() {
+  const float hz = 220.0f;
+  double levels[3][4] = {};  // [off, 2:1, 7:2][3f, 5f, 2.5f, 4.5f] re the carrier
+  const float fm[3] = {0.0f, 0.5f, 0.5f};
+  const float ratio[3] = {3.0f, 3.0f, 5.0f};
+  for (int n = 0; n < 3; ++n) {
+    steady(kRate);
+    device.set_param(p::kFold, 0.0f);
+    device.set_param(p::kFm, fm[n]);
+    device.set_param(p::kRatio, ratio[n]);
+    device.note_on(1, hz, 0.8f);
+    const Stereo out = render(device, 2.0f, kRate);
+    const Spectrum spectrum(out.left, 16384, 65536, kRate);
+    const double carrier = spectrum.at(hz);
+    const float partials[4] = {3.0f, 5.0f, 2.5f, 4.5f};
+    for (int k = 0; k < 4; ++k) levels[n][k] = db(spectrum.at(partials[k] * hz) / carrier);
+    NOTE("fm %.1f ratio %s: 3f %6.1f dB, 5f %6.1f dB, 2.5f %6.1f dB, 4.5f %6.1f dB re carrier\n", fm[n],
+         ratio[n] == 3.0f ? "2:1" : "7:2", levels[n][0], levels[n][1], levels[n][2], levels[n][3]);
+  }
+  EXPECT(levels[0][0] < -80.0 && levels[0][2] < -80.0, "no sidebands without FM");
+  EXPECT(levels[1][0] > -20.0 && levels[1][1] > -40.0, "FM at 2:1 adds the third and fifth harmonics");
+  EXPECT(levels[1][2] < -80.0 && levels[1][3] < -80.0, "FM at 2:1 stays harmonic");
+  EXPECT(levels[2][2] > -20.0 && levels[2][3] > -20.0, "FM at 7:2 adds partials between the harmonics");
+  EXPECT(levels[2][0] < -60.0, "FM at 7:2 leaves the third harmonic alone");
+}
+
+// Sustain 0 is a pluck that dies under a held key; Sustain 1 holds until the
+// key goes up and then closes like any other note, without a click. A long
+// Attack swells in.
+static void check_envelope() {
+  plain(kRate);
+  device.note_on(1, 220.0f, 0.8f);
+  Stereo out = render(device, 3.0f, kRate);
+  EXPECT(peak(out.left, 0, 4800) > 0.1, "a pluck sounds");
+  EXPECT(peak(out.left, 96000) == 0.0, "with Sustain 0 a held note dies away on its own");
+
+  plain(kRate);
+  device.set_param(p::kSustain, 1.0f);
+  device.note_on(1, 220.0f, 0.8f);
+  out = render(device, 3.0f, kRate);
+  const double held_early = db(rms(out.left, 9600, 19200)), held_late = db(rms(out.left, 134400));
+  NOTE("envelope: Sustain 1 holds %.2f dB at 0.2 s and %.2f dB at 2.8 s\n", held_early, held_late);
+  EXPECT_NEAR(held_late, held_early, 0.5, "with Sustain 1 a held note keeps its level");
+  // The steepest step of the held tone is the yardstick for a click.
+  const double held_step = max_step(out.left, 96000);
+  device.note_off(1);
+  const Stereo tail = render(device, 2.0f, kRate);
+  const double release_step = max_step(tail.left);
+  const double t60 = fall_time(tail.left, kRate, 60.0);
+  NOTE("envelope: release step %.5f against %.5f held, -60 dB after %.3f s\n", release_step, held_step, t60);
+  EXPECT(release_step <= 1.05 * held_step, "a released note closes without a click");
+  EXPECT(t60 > 0.3 && t60 < 0.9, "a released note closes over Decay");
+  EXPECT(peak(tail.left, 72000) == 0.0, "a released note ends in silence");
+
+  plain(kRate);
+  device.set_param(p::kSustain, 0.5f);
+  device.note_on(1, 220.0f, 0.8f);
+  out = render(device, 3.0f, kRate);
+  const double half = db(rms(out.left, 134400));
+  NOTE("envelope: Sustain 0.5 holds %.2f dB\n", half);
+  EXPECT(half < held_late - 4.0 && half > held_late - 20.0, "Sustain 0.5 holds a quieter, darker note");
+
+  plain(kRate);
+  device.set_param(p::kSustain, 1.0f);
+  device.set_param(p::kAttack, 1.0f);
+  device.note_on(1, 220.0f, 0.8f);
+  out = render(device, 2.0f, kRate);
+  const double start = db(rms(out.left, 2400, 7200)), half_way = db(rms(out.left, 21600, 26400));
+  const double arrived = db(rms(out.left, 57600, 62400));
+  NOTE("envelope: Attack 1 s: %.1f dB at 0.1 s, %.1f dB at 0.5 s, %.1f dB at 1.25 s\n", start, half_way, arrived);
+  EXPECT(start < arrived - 12.0 && half_way < arrived - 3.0 && half_way > start + 6.0, "a long Attack swells in");
+  EXPECT_NEAR(arrived, held_late, 0.5, "a swell arrives at the held level");
+}
+
+// The steepest sample-to-sample step of a held 110 Hz note at one setting.
+static double held_step(int id, float value) {
+  steady(kRate);
+  device.set_param(p::kFold, 0.3f);
+  device.set_param(id, value);
+  device.note_on(1, 110.0f, 0.8f);
+  const Stereo out = render(device, 1.0f, kRate);
+  return std::max(max_step(out.left, 24000), max_step(out.right, 24000));
+}
+
+// A control thrown from one end to the other while a note sounds must not
+// click: no step in the output steeper than the steepest the tone has
+// anyway on the way (give or take a quarter).
+static void check_clicks() {
+  const int ids[6] = {p::kFold, p::kSymmetry, p::kFm, p::kTimbreEnv, p::kColour, p::kVolume};
+  const char* names[6] = {"Fold", "Symmetry", "FM", "Timbre Env", "Colour", "Volume"};
+  for (int n = 0; n < 6; ++n) {
+    const float low = p::kParamMin[ids[n]], high = ids[n] == p::kVolume ? 0.0f : p::kParamMax[ids[n]];
+    double yardstick = 0.0;
+    for (int k = 0; k <= 4; ++k) yardstick = std::max(yardstick, held_step(ids[n], low + (high - low) * 0.25f * k));
+    for (int direction = 0; direction < 2; ++direction) {
+      steady(kRate);
+      device.set_param(p::kFold, 0.3f);
+      device.set_param(ids[n], direction == 0 ? low : high);
+      device.note_on(1, 110.0f, 0.8f);
+      render(device, 0.5f, kRate);
+      device.set_param(ids[n], direction == 0 ? high : low);
+      const Stereo out = render(device, 0.5f, kRate);
+      const double step = std::max(max_step(out.left), max_step(out.right));
+      NOTE("clicks: %s %s: step %.5f against %.5f held\n", names[n], direction == 0 ? "up" : "down", step, yardstick);
+      EXPECT(step <= 1.25 * yardstick, "a control thrown across its range does not click");
+    }
+  }
+
+  // The same key struck again while it rings, and a ninth note that has to
+  // take a sounding voice.
+  plain(kRate);
+  device.set_param(p::kSustain, 1.0f);
+  device.note_on(1, 220.0f, 1.0f);
+  Stereo out = render(device, 0.5f, kRate);
+  const double single = max_step(out.left, 12000);
+  plain(kRate);
+  device.set_param(p::kSustain, 1.0f);
+  device.note_on(1, 220.0f, 0.4f);
+  render(device, 0.3f, kRate);
+  device.note_on(1, 220.0f, 1.0f);
+  out = render(device, 0.3f, kRate);
+  NOTE("clicks: second strike on a ringing key: step %.5f against %.5f held\n", max_step(out.left), single);
+  EXPECT(max_step(out.left) <= 1.25 * single, "striking a ringing key again does not click");
+
+  plain(kRate);
+  device.set_param(p::kSustain, 1.0f);
+  for (int n = 0; n < 8; ++n) device.note_on(n, 110.0f * std::pow(2.0f, n * 4 / 12.0f), 0.7f);
+  out = render(device, 0.5f, kRate);
+  const double chord = max_step(out.left, 12000);
+  device.note_on(8, 311.0f, 0.7f);
+  out = render(device, 0.5f, kRate);
+  NOTE("clicks: ninth note: step %.5f against %.5f for the chord\n", max_step(out.left), chord);
+  EXPECT(max_step(out.left) <= 1.25 * chord, "a ninth note takes a voice without a click");
 }
 
 // CHECKS
@@ -302,6 +441,9 @@ int main() {
   check_fold();
   check_aliasing();
   check_gate();
+  check_fm();
+  check_envelope();
+  check_clicks();
   // BEHAVIOUR
 
   // Cost with every voice sounding at the heaviest setting: eight held

@@ -200,6 +200,20 @@ int main() {
     EXPECT(at_600 < 0.5 * at_100, "a 600 ms echo is darker than a 100 ms one");
     EXPECT(at_1200 < 0.1 * at_600, "a 1.2 s echo is darker again");
     EXPECT(dark < 0.1 * mid && mid < 0.5 * at_100, "Tone moves the corner of the echo");
+
+    // Dark, not muffled: the clock leaves Tone its whole range at the default
+    // Time, and the longest echoes still carry the band a pad or a piano is
+    // heard by (to about 2.9 kHz at 900 ms and 2.2 kHz at 1.2 s).
+    const double open_380 = brightness(380.0f, 8000.0f);
+    const double shut_380 = brightness(380.0f, 3200.0f);
+    const double long_900 = brightness(900.0f, 8000.0f, 2000.0f);
+    const double long_1200 = brightness(1200.0f, 8000.0f, 1500.0f);
+    std::printf("share above 4 kHz at 380 ms: %.4f at Tone 8 kHz, %.4f at 3.2 kHz; "
+                "above 2 kHz at 900 ms %.3f, above 1.5 kHz at 1.2 s %.3f\n",
+                open_380, shut_380, long_900, long_1200);
+    EXPECT(open_380 > 10.0 * shut_380, "Tone is not held down by the clock at the default Time");
+    EXPECT(long_900 > 0.15, "a 900 ms echo keeps its band up to 2 kHz and beyond");
+    EXPECT(long_1200 > 0.15, "a 1.2 s echo keeps its band up to 1.5 kHz and beyond");
   }
 
   // 5. Pitch follows the clock. Halve Time under a 440 Hz tone: what is in

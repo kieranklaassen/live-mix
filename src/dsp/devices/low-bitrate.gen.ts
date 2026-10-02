@@ -60,7 +60,7 @@ export const LOW_BITRATE_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How often the stream sticks. A stuck packet repeats as a short buzzing loop that fades until the stream catches up.',
+      'How often the stream sticks. A stuck packet repeats as a short buzzing loop that dulls to a hum and fades until the stream catches up.',
   },
   burst: {
     id: 5,
@@ -135,7 +135,7 @@ export const LOW_BITRATE_DESCRIPTOR = wasmDeviceDescriptor(LOW_BITRATE_DEVICE, {
   description:
     'What a starving audio stream does to sound: quiet detail is thrown away until the rest swirls and warbles as if behind glass, with lost and stuck packets on top.',
   presets: {
-    'Behind glass': { loss: 0.35 },
+    'Behind glass': { loss: 0.45 },
     Underwater: { loss: 0.7, frame: 2, smear: 0.2, stereo: 0.5, highCut: 4000 },
     'Dial-up': { loss: 0.7, frame: 0, stereo: 0, highCut: 3400 },
     Ghost: { loss: 0.55, mode: 1 },
@@ -143,7 +143,7 @@ export const LOW_BITRATE_DESCRIPTOR = wasmDeviceDescriptor(LOW_BITRATE_DEVICE, {
     'Bad connection': { loss: 0.5, dropouts: 0.35, stutter: 0.35, burst: 0.4 },
     'Stuck stream': { loss: 0.4, stutter: 0.6, burst: 0.85 },
     'Frozen stream': { loss: 0.6, frame: 2, smear: 0.85 },
-    'Thin air': { loss: 0.3, mode: 1, frame: 2, smear: 0.4 },
+    'Thin air': { loss: 0.42, mode: 1, frame: 2, smear: 0.4 },
     'Few partials': { loss: 1, frame: 2, stereo: 1 },
   },
 })

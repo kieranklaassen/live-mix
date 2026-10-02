@@ -16,6 +16,8 @@ namespace outdoors_scene {
 struct Thunder {
   static constexpr int kBands = 4;  // crack, body, rumble, sub
   static constexpr float kGain = 1.6f;
+  static constexpr float kCrack = 4.0f;
+  static constexpr float kLull = 0.09f;  // what is left of the arrivals between claps
   // The chain of one-poles, and after which of them each band is taken:
   // the body has gone through two at 420 Hz, so it carries no hiss.
   static constexpr int kPoles = 5;
@@ -24,7 +26,7 @@ struct Thunder {
   // What makes each band as loud as the others for the same envelope.
   static constexpr float kTrim[kBands] = {0.35f, 1.4f, 2.4f, 4.8f};
   // Seconds to fall to 1/e after an arrival, and to rise to it.
-  static constexpr float kFall[kBands] = {0.07f, 0.28f, 0.7f, 1.3f};
+  static constexpr float kFall[kBands] = {0.07f, 0.16f, 0.3f, 0.45f};
   static constexpr float kRise[kBands] = {0.002f, 0.012f, 0.04f, 0.09f};
 
   kit::Rng rng;
@@ -44,8 +46,7 @@ struct Thunder {
   float length = 4.0f;     // how long arrivals keep coming
   float size = 1.0f;       // this stroke's strength
   float place = 0.0f;      // where in the image it is, and it drifts
-  float lobe = 1.0f;       // slow swell of the arrivals' strength
-  float lobe_target = 1.0f;
+  float lobe = 1.0f;       // strength of the arrivals now: up with a clap, then down
   float wait = 0.0f;       // seconds to the next stroke
   float lean = 1.0f;
   float tilt = 1.0f;
@@ -70,7 +71,7 @@ struct Thunder {
     }
     sounding = false;
     rolling = false;
-    wait = 0.05f;  // the key brings the first stroke
+    wait = 0.01f;  // the key brings the first stroke
     seen_tone = -1.0f;
     retune(c);
   }
@@ -113,7 +114,9 @@ struct Thunder {
     }
     if (rolling) {
       t += dt;
-      lobe += (lobe_target - lobe) * kit::min(1.0f, dt / 0.2f);
+      // Every clap dies back into the murmur, and the murmur itself thins out.
+      const float left = 1.0f - kit::min(1.0f, t / length);
+      lobe += (kLull * left - lobe) * kit::min(1.0f, dt / 0.3f);
       while (rolling && t >= next) arrive(c);
     }
     if (!sounding) return;
@@ -149,33 +152,38 @@ struct Thunder {
     size = 1.0f - unlike * rng.uniform();
     length = between(rng, 2.5f, 5.0f) * (1.0f + 1.2f * c.distance);
     place = 0.8f * c.movement * rng.bipolar();
-    lobe = lobe_target = 1.0f;
+    lobe = 1.0f;
   }
 
   // One arrival of the roll: kick the envelopes, and draw when the next comes.
   void arrive(const Controls& c) {
     const float age = kit::clamp(t / length, 0.0f, 1.0f);
-    if (rng.uniform() < 0.05f) lobe_target = between(rng, 0.2f, 1.5f);  // a lull, or a second wind
+    const float gap = 0.02f + 0.10f * age;
+    // Now and then another length of the channel reports: a clap, weaker the later it comes.
+    if (rng.uniform() < gap / 1.6f) lobe = kit::max(lobe, between(rng, 0.5f, 1.5f) * (1.0f - 0.5f * age));
     const float draw = rng.uniform();
     // Near, the first arrival is the loudest; far, the roll swells in.
     const float onset = kit::lerp(1.0f, kit::min(1.0f, t / 0.7f), c.distance);
-    const float fading = (1.0f - age) * std::sqrt(1.0f - age);
-    const float amount = size * lobe * (0.3f + 0.7f * draw * draw) * fading * onset;
+    const float amount = size * lobe * (0.3f + 0.7f * draw * draw) * onset;
     const float clear = (1.0f - c.distance) * std::sqrt(1.0f - c.distance);
     const float bright = clear * std::exp(-3.0f * age);
-    // Only a near stroke cracks, and only at its very start.
-    const float close = kit::max(0.0f, 1.0f - c.distance / 0.3f);
-    const float crack = t < 0.05f ? 0.9f * size * close * close : 0.6f * amount * bright * bright;
+    const float crack = 0.6f * amount * bright * bright;
     const float weight[kBands] = {crack, amount * (0.2f + 0.8f * bright), amount,
                                   amount * (1.0f - 0.3f * bright)};
     float pan_left, pan_right;
     kit::pan_gains(kit::clamp(place + 0.45f * rng.bipolar(), -1.0f, 1.0f), &pan_left, &pan_right);
-    const float gap = 0.02f + 0.10f * age;
     for (int k = 0; k < kBands; ++k) {
       // So that a crowd of arrivals adds up to their strength, not their number.
       const float share = weight[k] * kit::min(1.0f, 1.6f * gap / kFall[k]) * 1.4142f;
       kick[0][k] += share * pan_left;
       kick[1][k] += share * pan_right;
+    }
+    if (next == 0.0f) {
+      // Only a near stroke cracks, and only at its very start.
+      const float close = kit::max(0.0f, 1.0f - c.distance / 0.3f);
+      const float snap = kCrack * size * close * close;
+      kick[0][0] += snap * pan_left;
+      kick[1][0] += snap * pan_right;
     }
     next += exp_gap(rng, gap);
     if (next > length) rolling = false;

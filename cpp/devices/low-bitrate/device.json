@@ -19,22 +19,14 @@
     {
       "key": "mode",
       "name": "Mode",
-      "choices": [
-        "Standard",
-        "Inverse",
-        "Jitter"
-      ],
+      "choices": ["Standard", "Inverse", "Jitter"],
       "default": 0,
       "description": "Standard plays what survives the loss. Inverse plays only what was thrown away, a thin ghost of the sound. Jitter keeps every frequency but scrambles its timing, which smears attacks into a diffuse haze."
     },
     {
       "key": "frame",
       "name": "Frame",
-      "choices": [
-        "Short",
-        "Medium",
-        "Long"
-      ],
+      "choices": ["Short", "Medium", "Long"],
       "default": 1,
       "description": "The size of the pieces the sound is cut into. Short is gritty and rough around attacks; Long is the most watery and smears each attack forwards and backwards."
     },
@@ -140,7 +132,7 @@
       "smear": 0.85
     },
     "Thin air": {
-      "loss": 0.3,
+      "loss": 0.42,
       "mode": 1,
       "frame": 2,
       "smear": 0.4

@@ -360,6 +360,7 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
     bool retune = false;       // the noise band has to be set
     // This key's tape (set in start_voice).
     float key_cents = 0.0f, key_level = 0.0f;  // -1..1
+    float tight = 1.0f;  // how much of the section's detuning this key keeps
     float wow_phase = 0.0f, wow_rate = 0.0f, sway_phase = 0.0f;
     float flutter_phase = 0.0f, flutter_rate = 0.0f;
     kit::Rng drop_rng;
@@ -660,6 +661,9 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
     voice.burst = burst_gain_[tape];
     voice.noise_rng.seed(scramble(seed ^ 0x51ED270Bu));
     voice.key_cents = rng.bipolar();
+    // Players are a few cents apart, but above the middle of the keyboard
+    // that many cents would beat faster and faster: the top keys sit closer.
+    voice.tight = kit::min(1.0f, std::sqrt(350.0f / voice.frequency));
     voice.key_level = rng.bipolar();
     voice.wow_phase = rng.uniform();
     voice.wow_rate = 0.3f + 0.7f * rng.uniform();
@@ -812,7 +816,8 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
       player.vibrato_phase +=
           def.vibrato_hz * (1.0f + 0.12f * section * player.vibrato_pace) * tape_dt;
       player.vibrato_phase -= std::floor(player.vibrato_phase);
-      const float bend = def.detune_cents * section * player.detune + 3.0f * section * tuning +
+      const float bend = def.detune_cents * section * voice.tight * player.detune +
+                         3.0f * section * voice.tight * tuning +
                          def.vibrato_cents * shake;
       level *= (1.0f + def.tremolo * shake) * norm * (p == 0 ? 1.0f : def.blend * kPlayerLevel[p]);
       player.increment.aim(base * ratio(bend), snap);

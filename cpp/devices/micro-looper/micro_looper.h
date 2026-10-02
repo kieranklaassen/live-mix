@@ -33,8 +33,8 @@
 //   and in either direction, so Speed is a motor with a 60 ms lag and passes
 //   through a stop into reverse. A second deck exists so that a new capture
 //   or a new Length fades in while the old loop fades out.
-// - Above speed 1 the read skips frames; three reads are averaged then (see
-//   source_read) so the top of the capture does not fold back.
+// - Above speed 1 the read skips frames; it low-passes as it interpolates
+//   then (see source_read) so the top of the capture does not fold back.
 // - Smear blends the playhead (equal power) into grains of 120 to 400 ms
 //   taken from 20 to 300 ms either side of it and moving at its speed.
 // - Spread adds a side signal, the difference of two reads 11 ms ahead of
@@ -256,7 +256,7 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     float gain_step = 0.0f;
     float env = 0.0f;        // fade between decks, 0..1
     float env_step = 0.0f;
-    float blur = 0.0f;       // frames between the three reads above speed 1
+    float blur = 0.0f;       // low-pass in the read above speed 1: 0 to 1/4
     bool linear = false;     // fades linearly: the other deck is on the same tape
     bool stored = false;     // the store holds its capture, complete (control rate)
     float until_grain = 0.0f;  // samples until Smear starts its next grain
@@ -287,30 +287,21 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
 
   // Both channels of whichever memory holds the deck's capture. Above speed
   // 1 the read skips frames, which would fold the top of the capture back
-  // down, so three reads `blur` frames apart are averaged (1/4, 1/2, 1/4):
-  // a raised-cosine low-pass with its zero on the ring's Nyquist at double
-  // speed, which is what would fold furthest down.
+  // down, so the read low-passes as it interpolates (wide_weights in
+  // memory.h): at double speed a raised cosine with its zero on the ring's
+  // Nyquist, which is what would fold furthest down.
   void source_read(const Deck& d, double position, float* left, float* right) const {
-    if (d.blur < 0.01f) {
+    if (d.blur < 0.002f) {
       if (d.stored) {
         store_.read(position, left, right);
       } else {
         ring_.read(position, left, right);
       }
-      return;
-    }
-    float a[2], b[2], c[2];
-    if (d.stored) {
-      store_.read(position - d.blur, &a[0], &a[1]);
-      store_.read(position, &b[0], &b[1]);
-      store_.read(position + d.blur, &c[0], &c[1]);
+    } else if (d.stored) {
+      store_.read_wide(position, d.blur, left, right);
     } else {
-      ring_.read(position - d.blur, &a[0], &a[1]);
-      ring_.read(position, &b[0], &b[1]);
-      ring_.read(position + d.blur, &c[0], &c[1]);
+      ring_.read_wide(position, d.blur, left, right);
     }
-    *left = 0.25f * (a[0] + c[0]) + 0.5f * b[0];
-    *right = 0.25f * (a[1] + c[1]) + 0.5f * b[1];
   }
 
   // The loop as a seamless thing: `q` frames after its start, and over the
@@ -332,13 +323,14 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
   // The same loop with both channels summed before the interpolation: what
   // the side signal is made from.
   float source_sum(const Deck& d, double position) const {
-    if (d.blur < 0.01f) return d.stored ? store_.read_sum(position) : ring_.read_sum(position);
+    if (d.blur < 0.002f) return d.stored ? store_.read_sum(position) : ring_.read_sum(position);
+    float left, right;
     if (d.stored) {
-      return 0.25f * (store_.read_sum(position - d.blur) + store_.read_sum(position + d.blur)) +
-             0.5f * store_.read_sum(position);
+      store_.read_wide(position, d.blur, &left, &right);
+    } else {
+      ring_.read_wide(position, d.blur, &left, &right);
     }
-    return 0.25f * (ring_.read_sum(position - d.blur) + ring_.read_sum(position + d.blur)) +
-           0.5f * ring_.read_sum(position);
+    return left + right;
   }
 
   float loop_sum(const Deck& d, double q, double offset) const {
@@ -668,7 +660,7 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     const float fade = kit::max(param(kFade), kMinFade);
     for (Deck& d : decks_) {
       if (!d.active) continue;
-      d.blur = kit::clamp(speed - 1.0f, 0.0f, 1.0f);
+      d.blur = 0.25f * kit::clamp(speed - 1.0f, 0.0f, 1.0f);
       float target = d.gain;
       if (state_ == kAuto && d.turns > 1.0 && fade < 1.0f) {
         target *= std::exp(std::log(fade) * speed * kControlPeriod / static_cast<float>(d.length));

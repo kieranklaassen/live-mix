@@ -5,7 +5,7 @@
 //    0  speed: 0 33, 1 45, 2 78, default 0
 //    1  warp: 0..1, default 0.25
 //    2  crackle: 0..1, default 0.3
-//    3  pops: 0..1, default 0.15
+//    3  pops: 0..1, default 0.1
 //    4  surface: 0..1, default 0.25
 //    5  wear: 0..1, default 0.3
 //    6  tone: -1..1, default 0
@@ -34,7 +34,7 @@ enum Param : int {
 
 inline constexpr float kParamMin[kNumParams] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.2f, 0.0f};
 inline constexpr float kParamMax[kNumParams] = {2.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 6.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {0.0f, 0.25f, 0.3f, 0.15f, 0.25f, 0.3f, 0.0f, 0.0f, 1.5f, 1.0f};
+inline constexpr float kParamDefault[kNumParams] = {0.0f, 0.25f, 0.3f, 0.1f, 0.25f, 0.3f, 0.0f, 0.0f, 1.5f, 1.0f};
 
 }  // namespace vinyl
 }  // namespace livemix

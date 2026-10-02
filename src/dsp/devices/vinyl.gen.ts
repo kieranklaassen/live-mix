@@ -37,18 +37,18 @@ export const VINYL_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Dust in the groove: a fine frying bed with ticks standing out of it. More brings them closer together and louder.',
+      'Dust in the groove. Low down it is a fine, even frying under the music; further up, ticks stand out of it, closer together and louder.',
   },
   pops: {
     id: 3,
     name: 'Pops',
     min: 0,
     max: 1,
-    default: 0.15,
+    default: 0.1,
     taper: 'linear',
     unit: '',
     description:
-      'Bigger clicks with a low thump under them. Some belong to a scratch that returns at the same place on every turn for a while, then fades.',
+      'Bigger clicks with a low thump under them, rare and soft low down, frequent and loud at the top. Some belong to a scratch that returns at the same place on every turn for a while, then fades.',
   },
   surface: {
     id: 4,
@@ -137,7 +137,7 @@ export const VINYL_DESCRIPTOR = wasmDeviceDescriptor(VINYL_DEVICE, {
     'Clean pressing': {
       speed: 0,
       warp: 0.15,
-      crackle: 0.15,
+      crackle: 0.22,
       pops: 0.05,
       surface: 0.2,
       wear: 0.1,
@@ -173,7 +173,7 @@ export const VINYL_DESCRIPTOR = wasmDeviceDescriptor(VINYL_DEVICE, {
       wear: 0.35,
       tone: 0.6,
     },
-    Warped: { speed: 0, warp: 0.85, crackle: 0.2, pops: 0.05, surface: 0.2, wear: 0.2 },
+    Warped: { speed: 0, warp: 0.85, crackle: 0.25, pops: 0.05, surface: 0.2, wear: 0.2 },
     'Dust and scratches': {
       speed: 0,
       warp: 0.2,
@@ -195,7 +195,7 @@ export const VINYL_DESCRIPTOR = wasmDeviceDescriptor(VINYL_DEVICE, {
     'Locked scratch': {
       speed: 0,
       warp: 0.3,
-      crackle: 0.2,
+      crackle: 0.25,
       pops: 1,
       surface: 0.3,
       wear: 0.5,
@@ -204,7 +204,7 @@ export const VINYL_DESCRIPTOR = wasmDeviceDescriptor(VINYL_DEVICE, {
     'Slow platter': {
       speed: 0,
       warp: 0.55,
-      crackle: 0.2,
+      crackle: 0.25,
       pops: 0.1,
       surface: 0.3,
       wear: 0.25,

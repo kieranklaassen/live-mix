@@ -84,7 +84,7 @@ class FollowerBank {
       const double average = kit::clamp(static_cast<float>(1.0 / spacing), 0.012f, 0.08f);
       estimate_coeff_[b] = static_cast<float>(1.0 - std::exp(-1.0 / (average * ticks)));
       warm_[b] = 2 + static_cast<int>(3.0 * ring * ticks);
-      settle_[b] = warm_[b] + 1 + static_cast<int>(0.3 * average * ticks);
+      settle_[b] = warm_[b] + 2 + static_cast<int>(average * ticks);
       keep_[b] = 2 + static_cast<int>((2.5 * ring + 0.012) * ticks);
       // The octave above fades out before it would reach the internal Nyquist.
       const double doubled = 2.0 * hz / rate;
@@ -116,7 +116,7 @@ class FollowerBank {
       mag_[b] = level_[b] = 0.0f;
       env1_[b] = env2_[b] = 0.0f;
       dev_[b] = 0.0f;
-      trust_[b] = estimate_[b] = peak_[b] = 0.0f;
+      trust_[b] = estimate_[b] = average_[b] = peak_[b] = 0.0f;
       kept_[b] = kept_older_[b] = 0.0f;
       age_[b] = 0;
     }
@@ -240,17 +240,30 @@ class FollowerBank {
     }
     bool settled = false;
     if (presence > 0.0f) {
-      if (age_[b] == 0 || age_[b] == warm_[b]) estimate_[b] = measured;
-      estimate_[b] += estimate_coeff_[b] * (measured - estimate_[b]);
-      estimate_[b] = kit::clamp(estimate_[b], -max_dev_[b], max_dev_[b]);
       if (age_[b] < 30000) ++age_[b];
-      if (age_[b] == settle_[b]) {
-        // A band that starts to follow takes the settled reading as it is.
-        kept_[b] = kept_older_[b] = estimate_[b];
-        if (level_[b] < 1.0e-4f) dev_[b] = estimate_[b];
-      } else if (age_[b] > settle_[b] && (age_[b] - settle_[b]) % keep_[b] == 0) {
-        kept_older_[b] = kept_[b];
-        kept_[b] = estimate_[b];
+      if (age_[b] <= warm_[b]) {
+        // The resonators are still settling on the new sound.
+        estimate_[b] = 0.0f;
+      } else if (age_[b] < settle_[b]) {
+        // First reading: a plain mean over one averaging time.
+        estimate_[b] += measured;
+      } else if (age_[b] == settle_[b]) {
+        const float first = kit::clamp(
+            (estimate_[b] + measured) / static_cast<float>(settle_[b] - warm_[b]), -max_dev_[b],
+            max_dev_[b]);
+        estimate_[b] = average_[b] = kept_[b] = kept_older_[b] = first;
+        // A band whose oscillator is silent takes it as it is.
+        if (level_[b] < 1.0e-4f) dev_[b] = first;
+      } else {
+        // From then on two poles, so the beat against a neighbouring partial
+        // does not reach the oscillator.
+        estimate_[b] += estimate_coeff_[b] * (measured - estimate_[b]);
+        estimate_[b] = kit::clamp(estimate_[b], -max_dev_[b], max_dev_[b]);
+        average_[b] += estimate_coeff_[b] * (estimate_[b] - average_[b]);
+        if ((age_[b] - settle_[b]) % keep_[b] == 0) {
+          kept_older_[b] = kept_[b];
+          kept_[b] = average_[b];
+        }
       }
       settled = age_[b] >= settle_[b];
     } else {
@@ -395,7 +408,7 @@ class FollowerBank {
   float last_r_[kBands] = {}, last_i_[kBands] = {};
   float mag_[kBands] = {}, level_[kBands] = {};
   float env1_[kBands] = {}, env2_[kBands] = {};
-  float estimate_[kBands] = {}, dev_[kBands] = {}, trust_[kBands] = {}, peak_[kBands] = {};
+  float estimate_[kBands] = {}, average_[kBands] = {}, dev_[kBands] = {}, trust_[kBands] = {}, peak_[kBands] = {};
   float kept_[kBands] = {}, kept_older_[kBands] = {};
   int age_[kBands] = {};
 };

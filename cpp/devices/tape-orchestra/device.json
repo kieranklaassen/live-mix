@@ -112,11 +112,14 @@
     "Three violins": {
       "tape": 0,
       "length": 8,
-      "attack": 0.02,
-      "release": 0.25,
-      "players": 0.6,
+      "attack": 0.01,
+      "release": 0.12,
+      "players": 0.45,
       "vibrato": 0.55,
-      "hiss": 0.25
+      "hiss": 0.35,
+      "age": 0.5,
+      "spread": 0.3,
+      "tone": -0.1
     },
     "Slow strings": {
       "tape": 0,
@@ -174,13 +177,14 @@
     },
     "Worn choir": {
       "tape": 5,
-      "age": 0.75,
-      "hiss": 0.4,
-      "attack": 0.25,
-      "release": 1.2,
+      "age": 0.85,
+      "hiss": 0.5,
+      "attack": 0.3,
+      "release": 1.4,
       "vibrato": 0.6,
       "players": 0.8,
-      "tone": -0.1
+      "tone": -0.35,
+      "length": 8
     },
     "Cello bed": {
       "tape": 1,

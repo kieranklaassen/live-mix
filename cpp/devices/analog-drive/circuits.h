@@ -53,7 +53,7 @@ inline const Circuit& circuit(int index) {
       {Curve(1.0, 1.0, 1.3, 0.0, 1.0, 0.0, 1.0),
        0.05f, 0.08f, 0.0f, 1.0f, 0.2f, 0.012f, 0.14f,
        {{Eq::kHighShelf, 3200.0f, 8.0f, 0.0f}, {Eq::kNone, 0.0f, 0.0f, 0.0f}},
-       {{Eq::kHighShelf, 3200.0f, -10.0f, 0.0f},
+       {{Eq::kHighShelf, 3200.0f, -10.5f, 0.0f},
         {Eq::kLowShelf, 120.0f, 1.8f, 0.0f},
         {Eq::kNone, 0.0f, 0.0f, 0.0f}}},
       // Console: a firm, nearly symmetric knee (odd harmonics), reached
@@ -61,9 +61,9 @@ inline const Circuit& circuit(int index) {
       // left in afterwards.
       {Curve(0.45, 1.0, 1.0, 0.55, 0.9, 0.0, 1.0),
        0.01f, 0.01f, 0.0f, 1.0f, 0.0f, 0.005f, 0.08f,
-       {{Eq::kPeak, 3200.0f, 4.5f, 0.5f}, {Eq::kNone, 0.0f, 0.0f, 0.0f}},
-       {{Eq::kPeak, 3200.0f, -2.0f, 0.5f},
-        {Eq::kHighShelf, 9000.0f, 1.5f, 0.0f},
+       {{Eq::kPeak, 1800.0f, 4.0f, 0.5f}, {Eq::kNone, 0.0f, 0.0f, 0.0f}},
+       {{Eq::kPeak, 1800.0f, -1.8f, 0.5f},
+        {Eq::kHighShelf, 9000.0f, 0.8f, 0.0f},
         {Eq::kNone, 0.0f, 0.0f, 0.0f}}},
       // Transformer: the core saturates on flux, which is the integral of
       // the signal, so the curve sees the lows 10 dB up and the exact
@@ -73,27 +73,27 @@ inline const Circuit& circuit(int index) {
        0.03f, 0.03f, 0.0f, 1.0f, 0.08f, 0.03f, 0.25f,
        {{Eq::kLowShelf, 160.0f, 8.5f, 0.0f}, {Eq::kNone, 0.0f, 0.0f, 0.0f}},
        {{Eq::kLowShelf, 160.0f, -8.5f, 0.0f},
-        {Eq::kPeak, 200.0f, 1.5f, 0.7f},
-        {Eq::kHighShelf, 11000.0f, -1.2f, 0.0f}}},
+        {Eq::kPeak, 240.0f, 2.5f, 0.7f},
+        {Eq::kHighShelf, 5000.0f, 1.5f, 0.0f}}},
       // Triode: one soft knee far earlier on one side than the other, and a
       // working point that sits off centre and moves further as the level
       // rises: second harmonic first, growing gradually.
       {Curve(1.0, 0.7, 1.6, 0.0, 1.0, 0.0, 1.0),
        0.14f, 0.15f, 1.2f, 1.5f, 0.0f, 0.02f, 0.2f,
        {{Eq::kLowShelf, 150.0f, 2.0f, 0.0f}, {Eq::kNone, 0.0f, 0.0f, 0.0f}},
-       {{Eq::kLowShelf, 150.0f, -0.7f, 0.0f},
-        {Eq::kHighShelf, 8000.0f, -0.3f, 0.0f},
+       {{Eq::kLowShelf, 150.0f, -1.2f, 0.0f},
+        {Eq::kHighShelf, 6000.0f, 1.2f, 0.0f},
         {Eq::kNone, 0.0f, 0.0f, 0.0f}}},
       // Pentode: a firm knee with a hard clip under it and no soft part, so
       // it stays clean and then bites; lows held back from the curve, upper
       // mids pushed at it; the supply sags under a sustained load and
       // recovers.
-      {Curve(0.0, 1.0, 1.0, 0.5, 0.75, 0.5, 0.55),
+      {Curve(0.0, 1.0, 1.0, 0.35, 0.75, 0.65, 0.55),
        0.02f, 0.02f, 0.0f, 1.0f, 0.5f, 0.015f, 0.18f,
        {{Eq::kPeak, 2000.0f, 3.5f, 0.6f}, {Eq::kLowShelf, 150.0f, -4.0f, 0.0f}},
-       {{Eq::kPeak, 2000.0f, -0.5f, 0.6f},
-        {Eq::kLowShelf, 150.0f, 1.5f, 0.0f},
-        {Eq::kHighShelf, 7000.0f, 1.0f, 0.0f}}},
+       {{Eq::kPeak, 2000.0f, -1.0f, 0.6f},
+        {Eq::kLowShelf, 150.0f, 2.0f, 0.0f},
+        {Eq::kHighShelf, 4500.0f, 1.5f, 0.0f}}},
   };
   return table[index < 0 ? 0 : (index >= kNumCircuits ? kNumCircuits - 1 : index)];
 }

@@ -198,19 +198,19 @@ int main() {
   // 3. Each bed's spectrum is what it claims.
   {
     // Tape hiss rises to about 8 kHz and is level above it.
-    std::vector<float> hiss = bed(NoiseFloor::kTape, -30.0f, 20.0f);
+    std::vector<float> hiss = bed(NoiseFloor::kTape, -30.0f, 10.0f);
     const double rise = density_db(hiss, 6000.0, 9000.0) - density_db(hiss, 500.0, 1000.0);
     const double flat = density_db(hiss, 11000.0, 14000.0) - density_db(hiss, 8000.0, 11000.0);
     EXPECT(rise > 10.0, "tape hiss rises by more than 10 dB from 700 Hz to 7.5 kHz");
     EXPECT(std::fabs(flat) < 3.0, "tape hiss is level from 8 to 14 kHz");
 
     // Room: most of the energy is below 300 Hz.
-    std::vector<float> room = bed(NoiseFloor::kRoom, -30.0f, 30.0f);
+    std::vector<float> room = bed(NoiseFloor::kRoom, -30.0f, 15.0f);
     const double room_low = band_power(room, 0.0, 300.0) / band_power(room, 0.0, 24000.0);
     EXPECT(room_low > 0.7, "room: most of the energy is below 300 Hz");
 
     // Air: most of the energy is above 4 kHz.
-    std::vector<float> air = bed(NoiseFloor::kAir, -30.0f, 20.0f);
+    std::vector<float> air = bed(NoiseFloor::kAir, -30.0f, 10.0f);
     const double air_high = band_power(air, 4000.0, 24000.0) / band_power(air, 0.0, 24000.0);
     EXPECT(air_high > 0.8, "air: most of the energy is above 4 kHz");
 
@@ -219,7 +219,7 @@ int main() {
     double hum_hz[2], hum_drift_hz[2], hum_second[2], hum_between[2];
     for (int k = 0; k < 2; ++k) {
       const double mains = k == 0 ? 50.0 : 60.0;
-      std::vector<float> hum = bed(NoiseFloor::kHum50 + k, -30.0f, 20.0f);
+      std::vector<float> hum = bed(NoiseFloor::kHum50 + k, -30.0f, 6.0f);
       hum_hz[k] = dominant_frequency(hum, kRate, 30.0, 80.0);
       const double first = tone_level(hum, mains, kRate);
       hum_second[k] = db(tone_level(hum, 2.0 * mains, kRate) / first);
@@ -231,12 +231,12 @@ int main() {
       EXPECT(hum_between[k] < -40.0, "hum: nothing between the lines");
       still(device, NoiseFloor::kHum50 + k, -30.0f);
       device.set_param(p::kMovement, 1.0f);
-      hum_drift_hz[k] = dominant_frequency(noise_only(device, 20.0f).left, kRate, 30.0, 80.0);
+      hum_drift_hz[k] = dominant_frequency(noise_only(device, 6.0f).left, kRate, 30.0, 80.0);
       EXPECT_NEAR(hum_drift_hz[k], mains, 0.1, "hum: Movement drifts the mains by less than 0.1 Hz");
       // Tone at the top is mostly buzz: energy moves above 400 Hz.
       still(device, NoiseFloor::kHum50 + k, -30.0f);
       device.set_param(p::kTone, 1.0f);
-      std::vector<float> buzz = noise_only(device, 10.0f).left;
+      std::vector<float> buzz = noise_only(device, 6.0f).left;
       EXPECT(band_power(buzz, 400.0, 4000.0) > 4.0 * band_power(hum, 400.0, 4000.0),
              "hum: Tone brings up the buzz");
       EXPECT_NEAR(db(rms(buzz)), -30.0, 0.5, "hum: Tone keeps the level");
@@ -244,8 +244,8 @@ int main() {
 
     // Vinyl and static are made of events: a crest factor far above the
     // steady beds, and ticks at a countable rate.
-    std::vector<float> vinyl = bed(NoiseFloor::kVinyl, -42.0f, 40.0f);
-    std::vector<float> crackle = bed(NoiseFloor::kStatic, -42.0f, 40.0f);
+    std::vector<float> vinyl = bed(NoiseFloor::kVinyl, -42.0f, 30.0f);
+    std::vector<float> crackle = bed(NoiseFloor::kStatic, -42.0f, 30.0f);
     const double steady_crest = std::max(db(peak(hiss) / rms(hiss)), db(peak(air) / rms(air)));
     const double vinyl_crest = db(peak(vinyl) / rms(vinyl));
     const double static_crest = db(peak(crackle) / rms(crackle));

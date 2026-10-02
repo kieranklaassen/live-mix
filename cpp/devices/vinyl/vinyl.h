@@ -72,6 +72,12 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
   static float crackle_rate(float crackle) { return kCrackleRate * crackle * std::sqrt(crackle); }
   // The size of its smallest events: most of the stream sits just above this.
   static float crackle_floor(float crackle) { return kCrackleFloor * std::sqrt(crackle); }
+  // The size of its largest. Low settings are an even bed of dust, twice the
+  // floor at most; the spread opens with the square of the control, to 42 dB
+  // at Crackle 1, so the ticks that stand out arrive only when asked for.
+  static float crackle_ceiling(float crackle) {
+    return kit::max(kCrackleCeiling * crackle * crackle * std::sqrt(crackle), 2.0f * crackle_floor(crackle));
+  }
 
   void init(float sample_rate) {
     using namespace vinyl;
@@ -187,6 +193,8 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
     crackle_rate_ = pop_rate_ = pop_base_ = 0.0f;
     pops_seen_ = -1.0f;
     crackle_floor_ = crackle_ceiling_ = pop_level_ = 0.0f;
+    crackle_seen_ = -1.0f;
+    crackle_cut_ = 1.0f;
 
     noise_gate_ = 0.0f;
     noise_rise_ = 1.0f / (kNoiseRiseSeconds * sr);
@@ -222,14 +230,29 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
       silence_output(frames);
       return;
     }
+    const float sr = sample_rate();
     if (asleep_) {
       asleep_ = false;
-      valid_ = 0;
+      // What is on the disc is from before the sleep and is not to be
+      // played. The platter's lag grows no faster than the input arrives,
+      // so the head never reaches further back from the moment of waking
+      // than the warp does: that much silence laid ahead of the new input
+      // means every read is of silence or of what has been played since,
+      // and a note that starts the instant the device wakes keeps its
+      // first samples.
+      const int lead = static_cast<int>(kWakeLeadSeconds * sr) + 2 * vinyl_detail::SincRead::kTaps;
+      for (int i = 0; i < lead; ++i) {
+        disc_[0].write(0.0f);
+        disc_[1].write(0.0f);
+      }
+      valid_ = lead;
     }
-    const float sr = sample_rate();
     for (int i = 0; i < frames; ++i) {
       float in[2];
       take_input(i, &in[0], &in[1]);
+      // A NaN or an infinity would stay in the filters for good.
+      in[0] = sane(in[0]);
+      in[1] = sane(in[1]);
       if (clock_.tick()) control(sr);
       disc_[0].write(in[0]);
       disc_[1].write(in[1]);
@@ -278,6 +301,10 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
   static constexpr float kStartOvershoot = 0.25f;  // m
   static constexpr float kStartLog = 1.6094379f;  // ln((1 + m) / m)
   static constexpr float kMaxLagSeconds = 5.0f;
+  // Longer than the warp's furthest reach (22 ms at 33, Warp 1).
+  static constexpr float kWakeLeadSeconds = 0.025f;
+  // +60 dBFS: nothing real is louder, and its square and cube stay finite.
+  static constexpr float kInputLimit = 1.0e3f;
   static constexpr float kStartShare = 0.5f;  // start-up time as a share of Spin Time
   static constexpr float kHeadFadeSeconds = 0.05f;
   static constexpr float kSubsonicHz = 24.0f;
@@ -362,6 +389,13 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
 
   static double clamp_double(double x, double lo, double hi) { return x < lo ? lo : (x > hi ? hi : x); }
 
+  // The input as it is, unless it is absurdly large (held at the limit) or
+  // not a number (dropped).
+  static float sane(float x) {
+    if (x > -kInputLimit && x < kInputLimit) return x;
+    return x >= kInputLimit ? kInputLimit : (x <= -kInputLimit ? -kInputLimit : 0.0f);
+  }
+
   // A draw from the unit exponential: the wait, in expected events, until
   // the next event of a Poisson stream.
   static float exponential(kit::Rng& rng) { return -std::log(rng.uniform() + 1.0e-7f); }
@@ -445,7 +479,10 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
     const float angle = event_rng_.uniform();
     const float colour = event_rng_.uniform();
     const float sharp = event_rng_.uniform();
-    float level = crackle_floor_ * std::exp(-std::log(size + 1.0e-7f) * (1.0f / kCrackleAlpha));
+    // The Pareto law cut off at the ceiling, not clipped to it: clipping
+    // piles every large event up at one size, the loudest there is.
+    float level = crackle_floor_ * std::exp(-std::log(crackle_cut_ + (1.0f - crackle_cut_) * size) *
+                                            (1.0f / kCrackleAlpha));
     if (level > crackle_ceiling_) level = crackle_ceiling_;
     // Anywhere from lateral (both walls together) through one wall alone to
     // vertical (the walls against each other).
@@ -731,8 +768,9 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
     const float pops = param(kPops);
     if (pops != pops_seen_) {
       pops_seen_ = pops;
-      pop_base_ = kPopRate * std::pow(pops, 1.2f) / sr;
-      pop_level_ = kPopCeiling * std::sqrt(pops * std::sqrt(pops));
+      // Rare and small low on the control: one every half minute at 0.1.
+      pop_base_ = kPopRate * pops * std::sqrt(pops) / sr;
+      pop_level_ = kPopCeiling * pops;
     }
     pop_rate_ = pop_base_ * spin_;
 
@@ -816,8 +854,13 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
                                     place - std::floor(place));
     crackle_rate_ = crackle_rate(crackle) * (shellac ? kShellacCrackle : 1.0f) *
                     (0.35f + 1.3f * density) * spin_ / sr;
-    crackle_floor_ = crackle_floor(crackle);
-    crackle_ceiling_ = kCrackleCeiling * crackle;
+    if (crackle != crackle_seen_) {
+      crackle_seen_ = crackle;
+      crackle_floor_ = crackle_floor(crackle);
+      crackle_ceiling_ = crackle_ceiling(crackle);
+      // The share of an uncut Pareto law that lies above the ceiling.
+      crackle_cut_ = crackle > 0.0f ? std::pow(crackle_floor_ / crackle_ceiling_, kCrackleAlpha) : 1.0f;
+    }
     const bool silent_surface = crackle <= 0.0f && pops <= 0.0f && surface <= 0.0f;
     drain_now_ = silent_surface ? static_cast<long>(0.3f * sr) : drain_samples_;
     started_ = true;
@@ -904,6 +947,8 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
   float pops_seen_ = -1.0f;
   float crackle_floor_ = 0.0f;
   float crackle_ceiling_ = 0.0f;
+  float crackle_seen_ = -1.0f;
+  float crackle_cut_ = 1.0f;  // (floor / ceiling)^alpha
   float pop_level_ = 0.0f;
   float swish_[2] = {1.0f, 1.0f};
   float rumble_norm_ = 1.0f;
