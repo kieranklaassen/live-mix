@@ -1254,6 +1254,44 @@ describe('AudioTrack clips entered partway', () => {
     scheduler.dispose()
   })
 
+  it('a stretched timeline keeps its sounding voices: retime takes them along to where their clips now are', async () => {
+    const { ctx, track, transport, scheduler } = await scheduled()
+    track.clips.add(clip('pad', 2))
+    transport.start()
+    ctx.currentTime = 104
+    scheduler.tick()
+    expect(ctx.sources).toHaveLength(1)
+    const voice = track.voice('pad:0:2.000')
+    expect(voice).toBeDefined()
+
+    // 120 bpm to 96 bpm: every position 1.25 times as far along.
+    scheduler.retime(() => {
+      transport.rescale(1.25, 40)
+      track.clips.update('pad', { startSec: 2.5 })
+    })
+
+    // The same voice, untouched, under its clip's new start.
+    expect(ctx.sources).toHaveLength(1)
+    expect(ctx.sources[0].stopCalls.count).toBe(0)
+    expect(track.voice('pad:0:2.000')).toBeUndefined()
+    expect(track.voice('pad:0:2.500')).toBe(voice)
+    expect(voice?.key).toBe('pad:0:2.500')
+
+    // It still follows its clip, and still ends as a voice does.
+    track.clips.update('pad', { gainDb: -6 })
+    ctx.sources[0].finish()
+    expect(track.voices()).toHaveLength(0)
+
+    // And the same edits outside retime cut it, as a moved clip is.
+    track.clips.add(clip('drone', 1))
+    scheduler.rejoin(['drone'])
+    expect(ctx.sources).toHaveLength(2)
+    transport.rescale(0.8, 32)
+    track.clips.update('drone', { startSec: 0.8 })
+    expect(ctx.sources[1].stopCalls.count).toBe(1)
+    scheduler.dispose()
+  })
+
   it('release silences a voice that has not started, and one with no fade asked for', () => {
     const { ctx, track } = setup()
     const opts = {

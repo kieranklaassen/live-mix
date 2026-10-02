@@ -404,6 +404,53 @@ describe('ScoreRenderer: incremental edits', () => {
     expect(track.clips.get('a1')?.pan).toBeUndefined()
   })
 
+  it('a stretched timeline moves the transport with its clips and leaves what sounds sounding', async () => {
+    const score = demoScore()
+    score.transport.loop = { enabled: true, lengthSec: 32 }
+    const { ctx, engine, renderer, document, edit } = await rig(score)
+    const track = renderer.audioTrack('kick')
+    ctx.currentTime = 100
+    engine.transport.start()
+    ctx.currentTime = 105
+    engine.scheduler.tick()
+    // b1 (4 s to 8 s) is sounding, a second in.
+    const voice = track.voice('b1:0:4.000')
+    expect(voice).toBeDefined()
+
+    // 120 bpm to 100 bpm: the loop and every start 1.2 times as long, in one edit.
+    const slower: Operation = {
+      type: 'batch',
+      ops: [
+        { type: 'transport.loop', lengthSec: 38.4 },
+        { type: 'clip.update', track: 'kick', id: 'b1', patch: { startSec: 4.8 } },
+      ],
+    }
+    renderer.stretchTimeline(1.2)
+    await edit(slower)
+
+    expect(engine.transport.loop).toEqual({ enabled: true, lengthSec: 38.4 })
+    // Bar for bar where it was: 5 s of 32 is 6 s of 38.4.
+    expect(engine.transport.position().positionSec).toBeCloseTo(6, 9)
+    expect(track.voice('b1:0:4.800')).toBe(voice)
+    expect(track.voices()).toHaveLength(1)
+
+    // The same edit back, unannounced, is a loop change and a moved clip:
+    // the position stays in seconds and the voice is let go.
+    document.apply({
+      type: 'batch',
+      ops: [
+        { type: 'transport.loop', lengthSec: 32 },
+        { type: 'clip.update', track: 'kick', id: 'b1', patch: { startSec: 4 } },
+      ],
+    })
+    await renderer.whenIdle()
+    expect(engine.transport.position().positionSec).toBeCloseTo(6, 9)
+    expect(track.voice('b1:0:4.800')).toBeUndefined()
+
+    // One announcement covers one render.
+    expect(() => renderer.stretchTimeline(0)).toThrow(RangeError)
+  })
+
   it('a source update that only renames or annotates leaves the tracks alone', async () => {
     const { renderer, document, edit } = await rig()
     const set = vi.spyOn(renderer.audioTrack('kick').clips, 'set')

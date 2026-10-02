@@ -170,6 +170,44 @@ export class Transport {
     }
   }
 
+  /**
+   * Stretches the timeline under the transport by `ratio`: the position and
+   * the loop length are multiplied by it, and the moment on the audio clock
+   * stays. This is a tempo change for a host whose clips keep their beat: at
+   * 120/100 (slower) everything that was at 10 s is at 12 s, the transport
+   * included, so it is in the same bar as before. `lengthSec` gives the new
+   * loop length exactly, where the host has it without the rounding of a
+   * multiplication.
+   *
+   * Loop passes keep their numbers, so starts already handed over still
+   * belong to the pass they were handed over for; `Scheduler.retime` is what
+   * moves them along with their clips. Announced as a `loop` change.
+   */
+  rescale(ratio: number, lengthSec: number = this.currentLoop.lengthSec * ratio): void {
+    if (!Number.isFinite(ratio) || ratio <= 0) {
+      throw new RangeError(`Transport: rescale ratio must be positive, got ${ratio}`)
+    }
+    const next = validateLoop({ ...this.currentLoop, lengthSec })
+    if (ratio === 1 && next.lengthSec === this.currentLoop.lengthSec) return
+    if (this.currentAnchor) {
+      const now = this.clock()
+      const position = this.position(now)
+      // A start still pinned in the future keeps its moment.
+      const contextTime = Math.max(now, this.currentAnchor.contextTime)
+      this.currentLoop = next
+      this.currentAnchor = {
+        contextTime,
+        positionSec: this.normalisePosition(position.positionSec * ratio),
+        iteration: position.iteration,
+      }
+      this.nextIteration = Math.max(this.nextIteration, position.iteration + 1)
+    } else {
+      this.currentLoop = next
+      this.idlePositionSec = this.normalisePosition(this.idlePositionSec * ratio)
+    }
+    this.emit('loop')
+  }
+
   /** Changes the loop. While playing the transport is re-pinned so the position carries over. */
   setLoop(loop: Partial<TransportLoop>): void {
     const next = validateLoop({ ...this.currentLoop, ...loop })

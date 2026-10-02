@@ -337,3 +337,74 @@ describe('Transport.nudge', () => {
     expect(transport.position().positionSec).toBe(2)
   })
 })
+
+describe('Transport.rescale', () => {
+  it('stretches the position and the loop and keeps the moment', () => {
+    const { ctx, transport, changes } = build({ enabled: true, lengthSec: 32 })
+    ctx.currentTime = 100
+    transport.start()
+    ctx.currentTime = 110
+    // 120 bpm to 100 bpm: everything is 1.2 times as far along in seconds.
+    transport.rescale(1.2, 38.4)
+    expect(transport.loop).toEqual({ enabled: true, lengthSec: 38.4 })
+    expect(transport.position().positionSec).toBeCloseTo(12, 9)
+    expect(transport.position().iteration).toBe(0)
+    expect(transport.anchor?.contextTime).toBe(110)
+    expect(changes.at(-1)?.reason).toBe('loop')
+    expect(transport.state).toBe('playing')
+    // From here it runs a second a second, to the new loop end.
+    ctx.currentTime = 111
+    expect(transport.position().positionSec).toBeCloseTo(13, 9)
+    expect(transport.contextTimeAt(0, 1)).toBeCloseTo(110 + 26.4, 9)
+  })
+
+  it('keeps the pass it is on, and hands out later passes after it', () => {
+    const { ctx, transport } = build({ enabled: true, lengthSec: 8 })
+    transport.start()
+    ctx.currentTime = 20
+    expect(transport.position().iteration).toBe(2)
+    transport.rescale(0.5)
+    expect(transport.loop.lengthSec).toBe(4)
+    expect(transport.position()).toMatchObject({ positionSec: 2, iteration: 2 })
+    transport.seek(1)
+    expect(transport.anchor?.iteration).toBe(3)
+  })
+
+  it('moves a transport that is not playing', () => {
+    const { transport, changes } = build({ enabled: true, lengthSec: 32 })
+    transport.seek(10)
+    transport.rescale(0.5)
+    expect(transport.position().positionSec).toBe(5)
+    expect(transport.loop.lengthSec).toBe(16)
+    expect(transport.state).toBe('stopped')
+    expect(changes.at(-1)?.reason).toBe('loop')
+  })
+
+  it('leaves a start pinned in the future at its moment', () => {
+    const { ctx, transport } = build({ enabled: true, lengthSec: 32 })
+    ctx.currentTime = 50
+    transport.seek(8)
+    transport.start(51.5)
+    transport.rescale(2)
+    expect(transport.anchor).toEqual({ contextTime: 51.5, positionSec: 16, iteration: 0 })
+    ctx.currentTime = 52
+    expect(transport.position().positionSec).toBe(16.5)
+  })
+
+  it('does nothing for a ratio of one, and refuses one that is not a size', () => {
+    const { transport, changes } = build({ enabled: true, lengthSec: 32 })
+    transport.rescale(1)
+    expect(changes).toHaveLength(0)
+    expect(() => transport.rescale(0)).toThrow(RangeError)
+    expect(() => transport.rescale(Number.NaN)).toThrow(RangeError)
+  })
+
+  it('leaves an endless timeline endless', () => {
+    const { ctx, transport } = build()
+    transport.start()
+    ctx.currentTime = 6
+    transport.rescale(1.5)
+    expect(transport.loop.lengthSec).toBe(Infinity)
+    expect(transport.position().positionSec).toBe(9)
+  })
+})

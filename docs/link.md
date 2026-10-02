@@ -138,6 +138,34 @@ later ones start by the new position. Use it for corrections of a few
 milliseconds. A large difference (a peer joined with a tempo of its own and
 the session jumped) is a `seek`.
 
+## When the tempo changes
+
+Link has one tempo, and any peer can move it. What that means for clips on a
+timeline is the application's choice. live-mix keeps time in seconds, so there
+are two:
+
+- **Clips keep their second.** Nothing to do but show the new tempo; the
+  timeline no longer lines up with the session's bars.
+- **Clips keep their beat.** The timeline is stretched: every `startSec` and
+  the loop length are multiplied by `oldBpm / newBpm`, while each clip's audio
+  plays at its own speed and pitch (as unwarped clips do in Live).
+
+For the second, three calls keep a playing transport in its bar and keep what
+is sounding sounding:
+
+```ts
+renderer.stretchTimeline(oldBpm / newBpm) // ScoreRenderer: announce the next edit
+document.apply({ type: 'batch', ops: [loopLengthOp, ...clipStartOps] })
+```
+
+The renderer then stretches the transport with the clips
+(`Transport.rescale`) and moves the clips under `Scheduler.retime`, which takes
+every start already handed over along to its clip's new position. Without the
+announcement the same edit is a loop change and a field of moved clips: the
+transport lands in another bar and sounding clips are cut. Without a score
+document, call `scheduler.retime(() => { transport.rescale(ratio); /* move the clips */ })`
+yourself.
+
 ## Sending audio: Link Audio
 
 ```ts
@@ -183,25 +211,26 @@ receiver can line it up with its own timeline.
 
 ## What has been checked, and where
 
-All of it on Linux, in CI, against a second peer on the same machine that is
+In CI on Linux and macOS, against a second peer on the same machine that is
 Ableton's library and nothing else (`native/host/test/link/LinkPeer.cpp`):
 
-- `native/host/test/link.test.mjs`, the host over its protocol: finds the
-  peer; tempo both ways; both read the same place in the bar at the same
-  moment; a start with peers waits for its place in the bar; start/stop both
-  ways; a Link Audio channel is announced with its names, and impulses sent on
-  beats 2 and 3 arrive at the peer on those beats; the host leaves the session
-  when the page goes.
+- `native/host/test/link.test.mjs`, the host over its protocol (both
+  platforms): finds the peer; tempo both ways; both read the same place in the
+  bar at the same moment; a start with peers waits for its place in the bar;
+  start/stop both ways; a Link Audio channel is announced with its names, and
+  impulses sent on beats 2 and 3 arrive at the peer on those beats; the host
+  leaves the session when the page goes.
 - `browser-tests/specs/native-link.spec.ts`, a page in Chromium with a real
-  `AudioContext`: the same for tempo, bar and start/stop through `NativeLink`,
-  and clicks scheduled on a beat with `OutputClock` reach the peer over Link
-  Audio within a millisecond of that beat (0.01 to 0.15 ms measured).
+  `AudioContext` (Linux): the same for tempo, bar and start/stop through
+  `NativeLink`, and clicks scheduled on a beat with `OutputClock` reach the
+  peer over Link Audio within a millisecond of that beat (0.01 to 0.15 ms
+  measured).
 - Unit tests for the clock arithmetic, `NativeLink` against `FakePluginHost`,
-  the tap, the pump and the sender.
+  the tap, the pump, the sender, and the timeline stretch.
 
 Not checked: Ableton Live itself or any other real Link program, two machines
 on a real network, a real audio output (the tests have none, so the latency a
-browser reports was never compared with sound), macOS and Windows.
+browser reports was never compared with sound), and Windows.
 
 ## Testing an application without the host
 
