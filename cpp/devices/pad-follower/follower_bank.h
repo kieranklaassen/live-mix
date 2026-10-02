@@ -91,6 +91,7 @@ class FollowerBank {
       // (and no further than the phase step between two ticks can tell apart).
       max_dev_[b] = kit::min(static_cast<float>(two_pi * 2.0 * spacing / rate), 2.8f / kTick);
       detune_scale_[b] = static_cast<float>(divisor * r / (1.0 - r));
+      stage_scale_[b] = static_cast<float>(1.0 / ((1.0 - r) * (1.0 - r)));
       share_scale_[b] = static_cast<float>(rate / (two_pi * spacing));
       // Times, in ticks. The resonator pair settles in about three of its
       // time constants; the reading is averaged over a beat against a
@@ -136,7 +137,7 @@ class FollowerBank {
       mag_[b] = level_[b] = 0.0f;
       env1_[b] = env2_[b] = 0.0f;
       dev_[b] = 0.0f;
-      trust_[b] = estimate_[b] = average_[b] = peak_[b] = jitter_[b] = 0.0f;
+      trust_[b] = estimate_[b] = average_[b] = peak_[b] = jitter_[b] = first_[b] = 0.0f;
       kept_[b] = kept_older_[b] = 0.0f;
       age_[b] = 0;
     }
@@ -308,6 +309,14 @@ class FollowerBank {
       presence = kit::clamp((mag / recent - kGoneRatio) * 5.0f, 0.0f, 1.0f) * mag2 /
                  (mag2 + 0.0625f * threshold2_);
     }
+    // How far off is the partial? The phase step between two ticks cannot
+    // tell a partial inside the band from one a whole tick rate away, but the
+    // two stages can: the first is the less selective, so far-off sound is
+    // stronger there (|s1|²/|s2|² is 1 + t² in a steady state). Past about
+    // one and a quarter band spacings the band is only hearing a neighbour.
+    const float first = first_[b] + (first2 * stage_scale_[b] - first_[b]) * fast_;
+    first_[b] = first < 1.0e-20f ? 0.0f : first;
+    presence *= kit::clamp((kFarMute * mag2 - first) / ((kFarMute - kFarFull) * mag2 + 1.0e-30f), 0.0f, 1.0f);
     bool settled = false;
     if (presence > 0.0f) {
       if (age_[b] < 30000) ++age_[b];
@@ -466,6 +475,9 @@ class FollowerBank {
   static constexpr float kPeakSeconds = 0.15f;
   // Mean swing of the reading, in band spacings: a full voice up to the
   // first, none from the second.
+  // |s1|²/|s2|² (normalised): a full voice up to the first, none from the second.
+  static constexpr float kFarFull = 3.2f;
+  static constexpr float kFarMute = 4.8f;
   static constexpr float kJitterFull = 0.6f;
   static constexpr float kJitterMute = 1.1f;
   // The second section at full Octaves, against the unshifted pad.
@@ -501,6 +513,7 @@ class FollowerBank {
   float unlag_r_[kBands] = {}, unlag_i_[kBands] = {};
   float lock_[kBands] = {}, max_dev_[kBands] = {}, up_taper_[kBands] = {};
   float detune_scale_[kBands] = {}, share_scale_[kBands] = {}, estimate_coeff_[kBands] = {};
+  float stage_scale_[kBands] = {};
   int warm_[kBands] = {}, settle_[kBands] = {}, keep_[kBands] = {};
   // Audio-rate state.
   float s1r_[kBands] = {}, s1i_[kBands] = {}, s2r_[kBands] = {}, s2i_[kBands] = {};
@@ -513,7 +526,7 @@ class FollowerBank {
   float mag_[kBands] = {}, level_[kBands] = {};
   float env1_[kBands] = {}, env2_[kBands] = {};
   float estimate_[kBands] = {}, average_[kBands] = {}, dev_[kBands] = {}, trust_[kBands] = {}, peak_[kBands] = {};
-  float kept_[kBands] = {}, kept_older_[kBands] = {}, jitter_[kBands] = {};
+  float kept_[kBands] = {}, kept_older_[kBands] = {}, jitter_[kBands] = {}, first_[kBands] = {};
   int age_[kBands] = {};
 };
 

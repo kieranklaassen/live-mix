@@ -433,8 +433,8 @@ class ReAmp : public kit::DeviceBase<re_amp::kNumParams> {
   static constexpr float kOutRight[kNumLines] = {1.0f, 1.0f, -1.0f, -1.0f, 1.0f, 1.0f, -1.0f, -1.0f};
   static constexpr float kInSign[kNumLines] = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
   // How far each line's length drifts either way, and how fast.
-  static constexpr float kDriftSeconds = 0.0006f;
-  static constexpr float kDriftHz[kNumLines] = {0.23f, 0.41f, 0.29f, 0.47f, 0.26f, 0.37f, 0.33f, 0.44f};
+  static constexpr float kDriftSeconds = 0.0009f;
+  static constexpr float kDriftHz[kNumLines] = {0.23f, 0.29f, 0.25f, 0.31f, 0.24f, 0.28f, 0.26f, 0.30f};
   static constexpr float kDampHz = 5500.0f;
   // The damping shortens what a broadband burst measures; this puts it back.
   static constexpr float kDecayTrim = 1.1f;
@@ -550,7 +550,7 @@ class ReAmp : public kit::DeviceBase<re_amp::kNumParams> {
     for (int k = 0; k < kNumLines; ++k) {
       drift_phase_[k] += drift_rate_[k];
       if (drift_phase_[k] >= 1.0f) drift_phase_[k] -= 1.0f;
-      const float target = drift_depth_ * kit::SineTable::lookup(drift_phase_[k]);
+      const float target = drift_depth_ * drift_shape(drift_phase_[k]);
       drift_step_[k] = (target - drift_[k]) * (1.0f / static_cast<float>(kControlPeriod));
     }
     if (approach(&bass_db_, kToneDb * param(kBass))) {
@@ -617,12 +617,19 @@ class ReAmp : public kit::DeviceBase<re_amp::kNumParams> {
     restart_drift();
   }
 
+  // A sine with its third harmonic taken out of the crossings: nearly a
+  // triangle, so the length moves at an even pace and the pitch it bends is
+  // 40 % less than a sine's for the same travel.
+  static float drift_shape(float phase) {
+    return 0.9f * (kit::SineTable::lookup(phase) - (1.0f / 9.0f) * kit::SineTable::lookup(3.0f * phase));
+  }
+
   // The drift starts from its seeded phases at init and on every waking, so
   // the same input gives the same output after any rest.
   void restart_drift() {
     for (int k = 0; k < kNumLines; ++k) {
       drift_phase_[k] = drift_start_[k];
-      drift_[k] = drift_depth_ * kit::SineTable::lookup(drift_phase_[k]);
+      drift_[k] = drift_depth_ * drift_shape(drift_phase_[k]);
       drift_step_[k] = 0.0f;
     }
   }

@@ -287,6 +287,73 @@ static void check_gate() {
   EXPECT_NEAR(centroid[3], 220.0, 30.0, "the tail of a note is its bare fundamental");
 }
 
+// A pluck has a body: at the default patch the overtones of a middle C last
+// through the part of the note that is heard (not a click and then a sine),
+// and the tone still dulls as it fades.
+static void check_body() {
+  const float hz = 261.63f;
+  plain(kRate);
+  device.note_on(1, hz, 0.7f);
+  const Stereo out = render(device, 1.0f, kRate);
+  // Every 2 ms: the level of what lies above the fundamental, and how far
+  // that is below the fundamental itself (43 ms windows).
+  std::vector<double> overtones, against;
+  for (int ms = 0; ms <= 300; ms += 2) {
+    const Spectrum spectrum(out.left, static_cast<size_t>(ms * 0.001 * kRate), 2048, kRate);
+    double low = 0.0, high = 0.0;
+    for (size_t i = 0; i < spectrum.bins.size(); ++i) {
+      const double f = static_cast<double>(i) * spectrum.bin_hz;
+      if (f >= 0.5 * hz && f < 1.5 * hz) low += spectrum.bins[i] * spectrum.bins[i];
+      if (f >= 1.5 * hz && f < 20000.0) high += spectrum.bins[i] * spectrum.bins[i];
+    }
+    overtones.push_back(10.0 * std::log10(high + 1.0e-30));
+    against.push_back(10.0 * std::log10((high + 1.0e-30) / (low + 1.0e-30)));
+  }
+  const size_t top = static_cast<size_t>(std::max_element(overtones.begin(), overtones.end()) - overtones.begin());
+  size_t gone = top;
+  while (gone + 1 < overtones.size() && overtones[gone] > overtones[top] - 20.0) ++gone;
+  const double lasting_ms = 2.0 * static_cast<double>(gone - top);
+  NOTE("body: overtones fall 20 dB in %.0f ms; against the fundamental %.1f dB at the strike, %.1f dB at 50 ms, "
+       "%.1f dB at 100 ms, %.1f dB at 200 ms\n",
+       lasting_ms, against[0], against[25], against[50], against[100]);
+  EXPECT(lasting_ms >= 75.0, "the overtones of a pluck take at least 75 ms to fall 20 dB");
+  EXPECT(against[25] > against[0] - 6.0, "50 ms into a pluck its overtones are still there");
+  EXPECT(against[100] < against[0] - 8.0, "the tone of a pluck still dulls as it fades");
+}
+
+// What is set while the instrument is silent is what the next note is made
+// of from its first sample: it does not glide there from the old setting
+// through its strike.
+static void check_silent_changes() {
+  const auto set = [] {
+    device.set_param(p::kChance, 0.0f);
+    device.set_param(p::kDrift, 0.0f);
+    device.set_param(p::kFold, 0.8f);
+    device.set_param(p::kSymmetry, 0.6f);
+    device.set_param(p::kFm, 0.7f);
+    device.set_param(p::kTimbreEnv, 0.9f);
+    device.set_param(p::kColour, 0.95f);
+    device.set_param(p::kVolume, 0.0f);
+  };
+  device.init(kRate);
+  set();
+  device.note_on(1, 220.0f, 0.8f);
+  const Stereo fresh = render(device, 0.5f, kRate);
+  device.init(kRate);
+  device.note_on(7, 330.0f, 0.6f);  // the default patch sounds, dies and the instrument sleeps
+  render(device, 3.0f, kRate);
+  set();
+  device.note_on(1, 220.0f, 0.8f);
+  const Stereo late = render(device, 0.5f, kRate);
+  double difference = 0.0;
+  for (size_t i = 0; i < fresh.size(); ++i) {
+    difference = std::max(difference, std::fabs(static_cast<double>(fresh.left[i] - late.left[i])));
+    difference = std::max(difference, std::fabs(static_cast<double>(fresh.right[i] - late.right[i])));
+  }
+  NOTE("silent changes: a note after them differs from the same patch after init by %.2e\n", difference);
+  EXPECT(difference == 0.0, "settings changed in silence are in place at the next note's first sample");
+}
+
 // FM puts sidebands at the note plus and minus multiples of the modulator:
 // on the harmonics at 2:1, between them at 7:2. (Fold 0, so the folder adds
 // nothing of its own.)
@@ -588,6 +655,8 @@ int main() {
   check_fold();
   check_aliasing();
   check_gate();
+  check_body();
+  check_silent_changes();
   check_fm();
   check_envelope();
   check_clicks();

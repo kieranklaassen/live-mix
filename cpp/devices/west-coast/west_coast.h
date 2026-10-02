@@ -125,9 +125,12 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
     if (pool_.count_active() == 0) {
       until_control_ = 0;
       colour_ = param(kColour);
-      for (kit::Smoother* control : {&fold_, &symmetry_, &fm_, &timbre_env_, &sustain_, &volume_}) {
-        control->snap(control->target);
-      }
+      fold_.snap(fold_.target);
+      symmetry_.snap(symmetry_.target);
+      fm_.snap(fm_.target);
+      timbre_env_.snap(timbre_env_.target);
+      sustain_.snap(sustain_.target);
+      volume_.snap(volume_.target);
     }
     bool fresh = false;
     if (slot < 0) {
