@@ -74,10 +74,15 @@ export const AMBIENT_LIMITER_DESCRIPTOR = wasmDeviceDescriptor(AMBIENT_LIMITER_D
     'A true-peak ceiling for the master that turns a sustained swell down smoothly first, so a drone leaning on it stays clean and one loud moment is soon over.',
   presets: {
     Master: { ceiling: -1, gain: 0, release: 1.5, ride: 1 },
-    Louder: { gain: 6, release: 2.5 },
+    Louder: { gain: 5, release: 2.5 },
     Streaming: { ceiling: -2 },
     'Slow tide': { release: 6 },
     'Wall only': { ride: 0 },
+    Headroom: { ceiling: -6 },
+    Pinned: { ceiling: -12, gain: 12 },
+    'Late night': { ceiling: -9, gain: 2, release: 4 },
+    'Pull back': { gain: -3 },
+    Breathing: { ceiling: -9, gain: 4, release: 0.3 },
   },
 })
 

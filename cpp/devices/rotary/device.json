@@ -145,6 +145,85 @@
       "distance": 0.5,
       "spread": 1,
       "mix": 0.7
+    },
+    "Faint motion": {
+      "speed": 0,
+      "hornDepth": 0.25,
+      "drumDepth": 0.15,
+      "drive": 0,
+      "distance": 0.5,
+      "spread": 0.6,
+      "mix": 0.6
+    },
+    "Soft blend": {
+      "speed": 0,
+      "hornDepth": 0.5,
+      "drumDepth": 0.4,
+      "drive": 0,
+      "distance": 0.6,
+      "spread": 1,
+      "mix": 0.45
+    },
+    "Mono cabinet": {
+      "speed": 0,
+      "hornDepth": 0.7,
+      "drumDepth": 0.5,
+      "drive": 0.25,
+      "distance": 0.3,
+      "spread": 0
+    },
+    "Dark drum": {
+      "speed": 0,
+      "hornDepth": 0.4,
+      "drumDepth": 1,
+      "drive": 0,
+      "balance": 0.2,
+      "distance": 0.3,
+      "spread": 0.9
+    },
+    "Bright horn": {
+      "speed": 1,
+      "hornDepth": 0.8,
+      "drumDepth": 0.3,
+      "drive": 0.2,
+      "balance": 0.72,
+      "distance": 0.25,
+      "spread": 0.8
+    },
+    "Far shimmer": {
+      "speed": 1,
+      "hornDepth": 1,
+      "drumDepth": 0.3,
+      "drive": 0,
+      "balance": 0.6,
+      "distance": 1,
+      "spread": 1
+    },
+    "Close pulse": {
+      "speed": 1,
+      "hornDepth": 1,
+      "drumDepth": 1,
+      "drive": 0.2,
+      "distance": 0,
+      "spread": 0.5
+    },
+    "Slow burn": {
+      "speed": 0,
+      "hornDepth": 0.7,
+      "drumDepth": 0.6,
+      "drive": 1,
+      "balance": 0.5,
+      "distance": 0.2,
+      "spread": 0.7
+    },
+    "Parked growl": {
+      "speed": 2,
+      "hornDepth": 0.5,
+      "drumDepth": 0.5,
+      "drive": 0.75,
+      "balance": 0.55,
+      "distance": 0.5,
+      "spread": 0.3
     }
   },
   "origin": {

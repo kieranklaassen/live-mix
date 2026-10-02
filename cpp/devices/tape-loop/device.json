@@ -149,12 +149,97 @@
       "mix": 0.5
     },
     "Hold forever": {
-      "length": 8,
+      "length": 7,
       "feedback": 1,
       "wear": 0,
       "wow": 0.1,
       "lowCut": 40,
       "spread": 0,
+      "mix": 0.5
+    },
+    "One second round": {
+      "length": 1,
+      "feedback": 0.55,
+      "wear": 0.2,
+      "wow": 0.15,
+      "lowCut": 80,
+      "spread": 0.2,
+      "mix": 0.35
+    },
+    "Octave up ghosts": {
+      "length": 3,
+      "feedback": 0.6,
+      "speed": 2,
+      "wear": 0.15,
+      "wow": 0.1,
+      "lowCut": 120,
+      "spread": 0.5,
+      "mix": 0.4
+    },
+    "Slow and backwards": {
+      "length": 4,
+      "feedback": 0.7,
+      "speed": 0,
+      "direction": 1,
+      "wear": 0.3,
+      "wow": 0.25,
+      "lowCut": 50,
+      "spread": 0.4,
+      "mix": 0.45
+    },
+    "Fast backwards": {
+      "length": 2,
+      "feedback": 0.6,
+      "speed": 2,
+      "direction": 1,
+      "wear": 0.1,
+      "wow": 0.1,
+      "lowCut": 150,
+      "spread": 0.6,
+      "mix": 0.35
+    },
+    "Clean layers": {
+      "length": 2.6,
+      "feedback": 0.85,
+      "wear": 0,
+      "wow": 0,
+      "lowCut": 30,
+      "spread": 0,
+      "mix": 0.4
+    },
+    "Crossing sides": {
+      "length": 1.4,
+      "feedback": 0.78,
+      "wear": 0.2,
+      "wow": 0.2,
+      "spread": 1,
+      "mix": 0.45
+    },
+    "Thin and distant": {
+      "length": 2.2,
+      "feedback": 0.8,
+      "wear": 0.7,
+      "wow": 0.3,
+      "lowCut": 550,
+      "spread": 0.5,
+      "mix": 0.36
+    },
+    "Faint afterimage": {
+      "length": 3.4,
+      "feedback": 0.6,
+      "wear": 0.35,
+      "wow": 0.2,
+      "lowCut": 100,
+      "spread": 0.5,
+      "mix": 0.18
+    },
+    "Dark dissolve": {
+      "length": 5,
+      "feedback": 0.92,
+      "wear": 0.85,
+      "wow": 0.15,
+      "lowCut": 30,
+      "spread": 0.3,
       "mix": 0.5
     }
   },

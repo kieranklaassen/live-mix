@@ -272,6 +272,61 @@ None of these twenty-five has been listened to. Each was built by one worker and
 | `zither`          | No stiffness, so partials are exactly harmonic; the finger and body detail is subtle; ten loud keys reach the limiter on three presets                                                                                                                | A strummed chord on the chord zither presets                                                   |
 | `outdoors`        | Birds are whistled syllables and frogs a formant buzz, so both may read as synthetic                                                                                                                                                                  | Birds, the frog buzz, the near crack of thunder                                                |
 
+## Effect presets
+
+Every effect comes with presets of its own: sixteen each, fewer for the eight
+that say why not in `FEWER_PRESETS` (`src/dsp/__tests__/effect-preset-support.ts`),
+824 over the 54 effects. A preset lists only what it changes and, loaded by
+name, puts the rest back where the effect starts, so what it sounds like does
+not depend on the preset that was on before.
+
+Each is rendered alone on two things and measured
+(`src/dsp/__tests__/effect-presets*.test.ts`, in `pnpm test`): the dry electric
+piano a chain preview plays, and that piano under a swell of bright saws, 4 dB
+over full scale, for the presets that only bite on a loud or bright signal. A
+preset passes when it
+
+- puts out numbers, peaks under -1 dBFS on the piano and leaves no offset;
+- is within 12 LU under and 6 LU over the dry phrase;
+- is told from the dry phrase, unless it is the effect as it starts;
+- is told from every sibling.
+
+"Told from" is a distance between two sounds as grids of level, eighteen bands
+by 43 ms frames, for the middle and the sides, over the cells within 50 dB of
+the loudest: 1 is about the least a listener notices and the bar, 3 is plainly
+another sound. A delay of a few samples does not count, as it would sample by
+sample. The presets named in `QUIET_PRESETS` are let off the last two rules:
+the settings a host's mixer starts a channel's EQ and compressor on, and the
+limiter's ways of doing one job.
+
+The bench the presets were written at prints a line per preset:
+
+```sh
+EFFECT_PRESETS=tape-echo,chorus pnpm vitest run src/dsp/__tests__/effect-presets.test.ts
+EFFECT_PRESETS=all pnpm vitest run src/dsp/__tests__/effect-presets.test.ts   # tmp/effect-presets-all.txt
+```
+
+None of them has been listened to. What the bench does not show, for the first
+listen:
+
+- **Latency.** `low-bitrate` and `spectral-blur` are not compensated in the
+  render, so even a transparent setting reads 4 to 5.5 from the dry phrase.
+  Their subtle presets ("Watery trace", "Faint haze") were measured against a
+  transparent setting of the same effect instead.
+- **Anything longer than the render.** A loop of 8 s or more never returns
+  inside it ("Hold forever" on `tape-loop` is 7 s for that reason), and the
+  rotary's rotors start at speed, so its acceleration does not show.
+- **A pitch wobble in mono.** "Tape vibrato" on `tremolo` passes by a slight
+  left and right offset, not by more wobble.
+- **Freeze and Hold.** No preset loads frozen or held: nothing has been played
+  at that moment, so the wet side would be silent (`expanse`, `grain-cloud`,
+  `spectral-blur`, `sustainer`).
+- **Level where there is no trim.** `swell`, `lattice`, `flanger`, `phaser`,
+  `tremolo`, `radio` and `vinyl` have no output control, so some of their
+  presets sit 3 to 6 LU under the dry phrase; "Piano to pad" on `swell` is
+  8.6 LU under. The presets with "alone" or "only" in the name are all wet,
+  for a send.
+
 ## spectral-drifter
 
 Bloom's granular pitch drifter (`Bloom/Source/SpectralDrifter.{h,cpp}` at

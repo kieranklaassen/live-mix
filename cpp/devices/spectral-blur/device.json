@@ -155,6 +155,96 @@
       "shimmer": 0.3,
       "width": 1,
       "mix": 0.75
+    },
+    "Faint haze": {
+      "blur": 0.3,
+      "smear": 0.5,
+      "tilt": 0,
+      "lowCut": 20,
+      "highCut": 12000,
+      "shimmer": 0,
+      "width": 1,
+      "mix": 0.12
+    },
+    "Softened attacks": {
+      "blur": 0,
+      "smear": 0.5,
+      "tilt": 0,
+      "lowCut": 20,
+      "highCut": 20000,
+      "shimmer": 0,
+      "width": 0.5,
+      "mix": 1
+    },
+    "Diffuse room": {
+      "blur": 0.45,
+      "smear": 1,
+      "tilt": -1,
+      "lowCut": 100,
+      "highCut": 6000,
+      "shimmer": 0,
+      "width": 1,
+      "mix": 0.3
+    },
+    "Long clean hold": {
+      "blur": 0.92,
+      "smear": 0,
+      "tilt": 0,
+      "lowCut": 20,
+      "highCut": 20000,
+      "shimmer": 0,
+      "width": 0,
+      "mix": 0.22
+    },
+    "Band of fog": {
+      "blur": 0.8,
+      "smear": 0.9,
+      "tilt": 0,
+      "lowCut": 300,
+      "highCut": 3000,
+      "shimmer": 0,
+      "width": 1,
+      "mix": 0.5
+    },
+    "Sub bed": {
+      "blur": 0.88,
+      "smear": 1,
+      "tilt": -2,
+      "lowCut": 20,
+      "highCut": 500,
+      "shimmer": 0,
+      "width": 0.6,
+      "mix": 0.25
+    },
+    "High air": {
+      "blur": 0.75,
+      "smear": 1,
+      "tilt": 3,
+      "lowCut": 1200,
+      "highCut": 20000,
+      "shimmer": 0.4,
+      "width": 1,
+      "mix": 0.35
+    },
+    "Bright octave cloud": {
+      "blur": 0.8,
+      "smear": 0.9,
+      "tilt": 2,
+      "lowCut": 400,
+      "highCut": 20000,
+      "shimmer": 1,
+      "width": 1,
+      "mix": 0.4
+    },
+    "Pad from anything": {
+      "blur": 0.7,
+      "smear": 1,
+      "tilt": 0.5,
+      "lowCut": 150,
+      "highCut": 14000,
+      "shimmer": 0.35,
+      "width": 1,
+      "mix": 1
     }
   },
   "origin": {

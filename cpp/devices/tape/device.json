@@ -103,7 +103,7 @@
       "mix": 1
     },
     "Studio master": {
-      "drive": 0.4,
+      "drive": 0.55,
       "wow": 0.05,
       "flutter": 0.05,
       "speed": 0,
@@ -162,6 +162,103 @@
       "hiss": 0.7,
       "bump": 0.2,
       "tone": 0.3
+    },
+    "Clean transfer": {
+      "drive": 0,
+      "wow": 0,
+      "flutter": 0,
+      "speed": 0,
+      "age": 0,
+      "hiss": 0,
+      "bump": 0.2,
+      "tone": 0.6
+    },
+    "Warm thump": {
+      "drive": 0.5,
+      "wow": 0.15,
+      "flutter": 0.1,
+      "speed": 3,
+      "age": 0.1,
+      "hiss": 0.1,
+      "bump": 1,
+      "tone": 0.35,
+      "output": -1
+    },
+    "Under a blanket": {
+      "drive": 0.4,
+      "wow": 0.3,
+      "flutter": 0.15,
+      "speed": 3,
+      "age": 0.5,
+      "hiss": 0.15,
+      "bump": 0.7,
+      "tone": 0.15
+    },
+    "Needles pinned": {
+      "drive": 1,
+      "wow": 0.15,
+      "flutter": 0.1,
+      "speed": 1,
+      "age": 0.1,
+      "hiss": 0.15,
+      "bump": 0.5,
+      "tone": 0.5,
+      "output": -5
+    },
+    "Drifting chorus": {
+      "drive": 0.3,
+      "wow": 0.9,
+      "flutter": 0.3,
+      "speed": 1,
+      "age": 0.2,
+      "hiss": 0.1,
+      "bump": 0.5,
+      "tone": 0.55,
+      "output": -3,
+      "mix": 0.5
+    },
+    "Flutter shimmer": {
+      "drive": 0.35,
+      "wow": 0.2,
+      "flutter": 1,
+      "speed": 2,
+      "age": 0.4,
+      "hiss": 0.15,
+      "bump": 0.4,
+      "tone": 0.8,
+      "output": -4,
+      "mix": 0.6
+    },
+    "Hiss and air": {
+      "drive": 0.2,
+      "wow": 0.15,
+      "flutter": 0.1,
+      "speed": 1,
+      "age": 0,
+      "hiss": 1,
+      "bump": 0.4,
+      "tone": 0.9
+    },
+    "Crumbling oxide": {
+      "drive": 0.3,
+      "wow": 0.4,
+      "flutter": 0.2,
+      "speed": 1,
+      "age": 1,
+      "hiss": 0.4,
+      "bump": 0.3,
+      "tone": 1
+    },
+    "Chewed cassette": {
+      "drive": 0.8,
+      "wow": 1,
+      "flutter": 1,
+      "speed": 3,
+      "age": 1,
+      "hiss": 0.55,
+      "bump": 0.8,
+      "tone": 0.7,
+      "output": -2
     }
   },
   "origin": {

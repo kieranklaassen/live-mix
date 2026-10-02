@@ -19,7 +19,8 @@ export const CHAMBER_STRINGS_PRESETS: readonly FactoryPreset[] = [
       'Muted strings without vibrato that take seconds to arrive, on tape, in a very large room.',
     instrument: { deviceId: 'chamber-strings', preset: 'Muted swell' },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master' },
+      // The drive the preset had when this was tuned.
+      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4 } },
       { deviceId: 'expanse', preset: 'Open space', params: { mix: 0.4 } },
     ],
     preview: 'chord',

@@ -115,7 +115,75 @@
       "mix": 0.5
     },
     "Keys": { "threshold": -22, "ratio": 2.5, "attack": 120, "release": 1.5 },
-    "Mic": { "threshold": -26, "ratio": 3, "attack": 60, "release": 1, "scLowCut": 120 }
+    "Mic": { "threshold": -26, "ratio": 3, "attack": 60, "release": 1, "scLowCut": 120 },
+    "Drone bed": {
+      "threshold": -45,
+      "ratio": 2,
+      "attack": 700,
+      "release": 10,
+      "knee": 24,
+      "makeup": 10
+    },
+    "Slow fader": { "threshold": -30, "ratio": 3, "attack": 3000, "release": 20, "makeup": 3 },
+    "Dense pad": {
+      "threshold": -38,
+      "ratio": 10,
+      "attack": 10,
+      "release": 3,
+      "knee": 6,
+      "makeup": 14
+    },
+    "Pluck tamer": {
+      "threshold": -24,
+      "ratio": 4,
+      "attack": 10,
+      "release": 0.15,
+      "knee": 4,
+      "tails": 1
+    },
+    "Pump": {
+      "threshold": -36,
+      "ratio": 10,
+      "attack": 10,
+      "release": 0.5,
+      "knee": 0,
+      "tails": 1,
+      "makeup": 13
+    },
+    "Long sustain": {
+      "threshold": -45,
+      "ratio": 3,
+      "attack": 200,
+      "release": 0.8,
+      "tails": 1,
+      "makeup": 13
+    },
+    "Peak stop": {
+      "threshold": -20,
+      "ratio": 10,
+      "attack": 10,
+      "release": 0.2,
+      "knee": 4,
+      "makeup": 2
+    },
+    "Raise the quiet": {
+      "threshold": -55,
+      "ratio": 1.6,
+      "attack": 100,
+      "release": 1,
+      "knee": 24,
+      "tails": 1,
+      "makeup": 14
+    },
+    "Ride the mids": {
+      "threshold": -38,
+      "ratio": 6,
+      "attack": 60,
+      "release": 0.6,
+      "scLowCut": 300,
+      "makeup": 8
+    },
+    "Sit back": { "threshold": -30, "ratio": 2, "attack": 100, "release": 2, "makeup": 1.5 }
   },
   "origin": {
     "kind": "new",

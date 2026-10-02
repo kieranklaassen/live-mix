@@ -165,6 +165,90 @@
       "modRate": 1.6,
       "lowCut": 200,
       "highCut": 8000
+    },
+    "Bright chamber": {
+      "mix": 0.3,
+      "size": 0.25,
+      "decay": 2.5,
+      "density": 1,
+      "modDepth": 0.25,
+      "modRate": 0.6,
+      "lowCut": 150,
+      "highCut": 14000
+    },
+    "Hard echoes": {
+      "mix": 0.26,
+      "size": 0.4,
+      "decay": 4,
+      "density": 0,
+      "modDepth": 0,
+      "highCut": 9000
+    },
+    "Narrow tunnel": {
+      "mix": 0.35,
+      "size": 0.35,
+      "decay": 6,
+      "density": 0.7,
+      "lowCut": 100,
+      "highCut": 2500,
+      "width": 0
+    },
+    "Thin air": {
+      "mix": 0.35,
+      "size": 0.65,
+      "decay": 12,
+      "density": 1,
+      "modDepth": 0.5,
+      "modRate": 0.2,
+      "lowCut": 700,
+      "highCut": 16000
+    },
+    "Low cathedral": {
+      "mix": 0.45,
+      "size": 1,
+      "decay": 30,
+      "density": 1,
+      "modDepth": 0.2,
+      "modRate": 0.1,
+      "lowCut": 20,
+      "highCut": 900
+    },
+    "Fast flutter": {
+      "mix": 0.35,
+      "size": 0.3,
+      "decay": 5,
+      "density": 0.85,
+      "modDepth": 0.8,
+      "modRate": 5
+    },
+    "Faint air": {
+      "mix": 0.12,
+      "size": 0.45,
+      "decay": 3,
+      "highCut": 5000
+    },
+    "Quick swell": {
+      "mix": 0.45,
+      "size": 0.35,
+      "decay": 2,
+      "gravity": 1,
+      "density": 1
+    },
+    "Wash alone": {
+      "mix": 1,
+      "size": 0.8,
+      "decay": 40,
+      "gravity": 0.8,
+      "density": 1,
+      "modDepth": 0.7,
+      "modRate": 0.1
+    },
+    "Small box": {
+      "mix": 0.35,
+      "size": 0,
+      "decay": 0.5,
+      "density": 0.6,
+      "highCut": 6000
     }
   },
   "origin": {

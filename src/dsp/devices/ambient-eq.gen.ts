@@ -132,7 +132,15 @@ export const AMBIENT_EQ_DESCRIPTOR = wasmDeviceDescriptor(AMBIENT_EQ_DEVICE, {
     Keys: { lowCut: 40, presence: 1, clear: 0.2 },
     Voice: { lowCut: 80, body: -2, presence: 1.5, highCut: 14000, clear: 0.3 },
     Master: { lowCut: 25, clear: 0.3, clearTime: 3 },
-    Dark: { air: -4, highCut: 9000 },
+    Dark: { air: -4, highCut: 4000 },
+    Warm: { low: 4, body: 2, presence: -3, air: -4, highCut: 12000 },
+    Bright: { presence: 7, air: 8, clear: 0.6, clearTime: 0.6 },
+    Thin: { lowCut: 280, presence: 3, highCut: 3500 },
+    Deep: { low: 10, presence: -1.5, clear: 0.6, clearTime: 3 },
+    Distant: { lowCut: 120, presence: -8, air: -8, highCut: 6000 },
+    Muffled: { low: 3, highCut: 1200 },
+    Hollow: { low: 5, body: -4, presence: 4, air: 4 },
+    Forward: { lowCut: 60, low: -6, body: 3, presence: 2, air: -6, highCut: 8000 },
   },
 })
 

@@ -179,6 +179,66 @@
       "feedback": 0,
       "hpHz": 20,
       "mix": 0.5
+    },
+    "Faint Air": {
+      "voices": 0,
+      "rate": 0.25,
+      "depth": 30,
+      "delayMs": 10,
+      "spread": 100,
+      "feedback": 0,
+      "hpHz": 500,
+      "mix": 0.2
+    },
+    "Loose Double": {
+      "voices": 0,
+      "rate": 0.2,
+      "depth": 12,
+      "delayMs": 30,
+      "spread": 100,
+      "feedback": 0,
+      "hpHz": 20,
+      "mix": 0.5
+    },
+    "Hollow Swell": {
+      "voices": 1,
+      "rate": 0.1,
+      "depth": 85,
+      "delayMs": 9,
+      "spread": 60,
+      "feedback": -60,
+      "hpHz": 20,
+      "mix": 0.5
+    },
+    "Fast Flutter": {
+      "voices": 1,
+      "rate": 6.5,
+      "depth": 10,
+      "delayMs": 7,
+      "spread": 100,
+      "feedback": 0,
+      "hpHz": 150,
+      "mix": 0.45
+    },
+    "Voices Only": {
+      "voices": 1,
+      "rate": 0.35,
+      "depth": 70,
+      "delayMs": 16,
+      "spread": 100,
+      "feedback": 0,
+      "hpHz": 20,
+      "mix": 1
+    },
+    "Warped Tape": {
+      "voices": 0,
+      "rate": 1.3,
+      "depth": 90,
+      "delayMs": 26,
+      "spread": 0,
+      "feedback": 35,
+      "hpHz": 20,
+      "mix": 0.75
     }
   },
   "origin": {
