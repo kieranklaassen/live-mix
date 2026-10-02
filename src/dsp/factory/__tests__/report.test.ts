@@ -14,6 +14,11 @@
 //     stretch rendered straight, which a loop that swells at its seam shows as +3 dB
 //   FACTORY_REPORT=keys [FACTORY=<part of an id>] pnpm vitest run …
 //     each factory sound in all twelve keys, measured and classified
+//   FACTORY_REPORT=packs FACTORY_PACK=<pack id> [FACTORY=<part of an id>] pnpm vitest run …
+//     each preset of one pack as it leaves the patch, with its instrument, its cost, and in
+//     capitals where it leaves a pack's limits (PEAK, LOUD, QUIET, DC; SLOW over 12 % of real
+//     time); then what the pack still lacks: its count, instruments short of two, names and
+//     settings that come twice. Written to tmp/factory-packs-<pack id>.txt
 //
 // The report is written to tmp/factory-<mode>-<filter or all>.txt (and printed, when the reporter shows
 // test output). FACTORY_WAV=<dir> also writes what was rendered as WAV files.
@@ -43,11 +48,21 @@ import {
   transposeFactorySound,
   type FactoryMode,
 } from '..'
+import { FACTORY_PACK_SIZE } from '../packs'
+import {
+  PACK_INSTRUMENTS,
+  PACK_LIMITS,
+  levelProblems,
+  renderPackPreset,
+  repeatedSettings,
+} from '../packs/__tests__/support'
+import { type FactoryPreset } from '../types'
 import { CHAIN_TEST_PATCH, CHAIN_TEST_PHRASE } from './chain-input'
 
 const mode = process.env.FACTORY_REPORT
 const only = process.env.FACTORY ?? ''
 const onlyDevice = process.env.FACTORY_DEVICE
+const onlyPack = process.env.FACTORY_PACK
 const wavDir = process.env.FACTORY_WAV
 const lines: string[] = []
 const say = (line: string) => lines.push(line)
@@ -55,7 +70,7 @@ const say = (line: string) => lines.push(line)
 function publish(): void {
   mkdirSync('tmp', { recursive: true })
   writeFileSync(
-    join('tmp', `factory-${mode}-${onlyDevice ?? (only || 'all')}.txt`),
+    join('tmp', `factory-${mode}-${onlyPack ?? onlyDevice ?? (only || 'all')}.txt`),
     `${lines.join('\n')}\n`,
   )
   console.log(lines.join('\n'))
@@ -114,6 +129,44 @@ describe.skipIf(!mode)('factory bench', () => {
       publish()
     },
     600_000,
+  )
+
+  it.skipIf(mode !== 'packs')(
+    'packs',
+    async () => {
+      if (!onlyPack) throw new Error('FACTORY_REPORT=packs needs FACTORY_PACK=<pack id>')
+      // Its own module and no other, so one pack is measured while another is being written.
+      // eslint-disable-next-line no-restricted-syntax -- which pack is asked for is only known when the bench runs
+      const module = (await import(`../packs/${onlyPack}.ts`)) as {
+        PRESETS: readonly FactoryPreset[]
+      }
+      const presets = module.PRESETS
+      for (const preset of presets.filter((p) => p.id.includes(only))) {
+        const start = performance.now()
+        const audio = await renderPackPreset(preset)
+        const cost = (performance.now() - start) / (PREVIEW_SECONDS * 10)
+        keep(preset.id, audio)
+        const measured = measureAudio(audio)
+        const problems = [...levelProblems(measured), ...(cost > 12 ? ['SLOW'] : [])]
+        say(
+          `${preset.id.padEnd(44)} ${preset.instrument.deviceId.padEnd(16)} ` +
+            `${formatMeasurement(measured)}  ${cost.toFixed(1)}% rt` +
+            (problems.length > 0 ? `  ${problems.join(' ')}` : ''),
+        )
+      }
+      say(`\n${presets.length} of ${FACTORY_PACK_SIZE} presets`)
+      for (const id of PACK_INSTRUMENTS) {
+        const count = presets.filter((preset) => preset.instrument.deviceId === id).length
+        if (count < PACK_LIMITS.perInstrument) say(`SHORT ${id}: ${count}`)
+      }
+      const names = presets.map((preset) => preset.name)
+      for (const name of new Set(names.filter((n, index) => names.indexOf(n) !== index))) {
+        say(`TWICE name "${name}"`)
+      }
+      for (const repeat of repeatedSettings(presets)) say(`SAME settings ${repeat}`)
+      publish()
+    },
+    1_800_000,
   )
 
   it.skipIf(mode !== 'sounds')(

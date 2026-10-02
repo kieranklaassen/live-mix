@@ -149,6 +149,9 @@ import {
 The bank is data: importing it loads no module and touches no audio. A host
 lists it before audio starts and renders only what someone asks to hear.
 
+Beside the bank are the packs, a hundred presets each, which are fetched
+apart from it: see [Packs](#packs).
+
 - `renderPresetPreview(preset)` plays the preset's phrase (its category's:
   a held chord for a pad, a broken chord for keys and plucked strings, four
   strikes for a bell, one moving line for wind, a low fifth for a drone;
@@ -296,6 +299,99 @@ and the last column the render cost.
 Words are part of the entry: a name says what the sound is in two or three
 plain words, a description says in one sentence what it sounds like and how
 it is made. No artist names, trademarks or praise.
+
+## Packs
+
+A pack is a hundred presets that share one idea of sound: a room, a way of
+working, a kind of tape. Every pack has at least two presets for each of the
+thirty-four instruments and gives the rest to the instruments its idea turns
+on, so whatever instrument is loaded, every pack has something for it.
+
+```ts
+import {
+  FACTORY_PACKS, // FactoryPack[]: id, name, description, count
+  FACTORY_PACK_SIZE, // 100
+  factoryPack,
+  loadFactoryPacks, // () => Promise<readonly FactoryPreset[]>
+} from '@kieranklaassen/live-mix/dsp'
+
+const presets = await loadFactoryPacks()
+const mine = presets.filter((preset) => preset.pack === FACTORY_PACKS[0].id)
+```
+
+`FACTORY_PACKS` is a few lines of names and comes with the bank. The presets
+do not: all 1,700 of them are a module of their own
+(`src/dsp/factory/packs/all.ts`) behind a dynamic `import()`, which a bundler
+keeps out of the script a page starts with. `loadFactoryPacks()` fetches them
+once and hands back the same list from then on; a fetch that fails is tried
+again by the next call. Each preset it gives carries the `pack` it belongs
+to. A pack preset is an ordinary `FactoryPreset`: `renderPresetPreview`,
+`patchInKey` and `loadPatch` take it as they take the bank's, and its id
+starts with its pack's (`<pack id>-...`), so the ids of the bank, the chains
+and the packs never meet.
+
+| Pack                                         | What it is                                                                                                                                                           |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Empty Concourse** (`concourse`)            | Piano notes, glassy bells and sung vowels on loops of unequal length that never meet the same way twice: music for the hours between flights.                        |
+| **Soft Pedal** (`soft-pedal`)                | A piano played with the soft pedal down and left to hang in a very long, slightly detuned room. Few notes, slow, with the lid nearly closed.                         |
+| **Shedding Oxide** (`oxide`)                 | Short orchestral loops on tape so old it sheds a little more each time round, until the tune is mostly the gaps.                                                     |
+| **Faded Nature Film** (`nature-film`)        | Detuned synthesizers off a wobbling reel, as heard under a 1970s wildlife documentary in a Scottish classroom.                                                       |
+| **Cornish Lucid Dreams** (`lucid`)           | Pads and bells remembered from sleep on the far south-west coast of England: soft, dark, a little out of tune and oddly moving.                                      |
+| **Coast Fog Four-Track** (`four-track`)      | A voice, a guitar and an old electric piano recorded to cassette by the Pacific, with the reverb up until the words are gone.                                        |
+| **Museum Window Garden** (`window-garden`)   | A few bright notes on an electric piano, with water and birds outside: Japanese environmental music of the early eighties, written for a room with a view of trees.  |
+| **Rosewood Circles** (`rosewood`)            | Marimba patterns that turn slowly round each other, with gongs and bowls between: percussion minimalism from Tokyo, played with soft mallets.                        |
+| **Park Bench Zither** (`park-zither`)        | An open-tuned zither struck with hammers and brushed by hand through a phaser and an echo, bright as a laugh, first heard busking in a New York park.                |
+| **Sonoran Night Air** (`sonoran`)            | Analogue pads that breathe as slowly as a sleeper, over the Arizona desert after dark. Open sky, long reverb, an hour without an edge.                               |
+| **Polar Night Signal** (`polar-signal`)      | Cold loops and far-off radio from above the Arctic Circle: a town in the dark for two months, snow, a foghorn, a signal fading in and out.                           |
+| **Far North Bowed Guitar** (`far-north`)     | An electric guitar played with a cello bow, a falsetto, a pump organ and a glockenspiel, rising very slowly over an island of lava and moss.                         |
+| **Steel in Slow Orbit** (`orbit-steel`)      | Pedal steel that slides instead of twangs, and guitars with all the attack taken off: country instruments sent up to circle the moon.                                |
+| **Old Broadcast Hall** (`broadcast-hall`)    | A felt-damped upright with its mechanism in the microphone, a chorus polysynth and a tape echo, in a wooden radio hall by the river in Berlin.                       |
+| **Sunburnt Laptop Guitar** (`laptop-guitar`) | A guitar fed through a laptop until the chords melt into grain and glitter: beach pop remembered through a broken summer in Vienna.                                  |
+| **Island Patch Cables** (`patch-cables`)     | A voltage-controlled synthesizer with no keyboard habits, woodwinds and a voice folded into it: bubbling, bright and green, from an island in the Pacific Northwest. |
+| **Ashram Harp and Organ** (`ashram`)         | Harp glissandi, a swirling organ, a drone of strings and tanpura: spiritual jazz that left the clubs for an ashram in California.                                    |
+
+### What a pack is held to
+
+`src/dsp/factory/packs/__tests__/<pack id>.pack.test.ts` renders every preset
+of its pack, and `packs.test.ts` reads across them:
+
+| Entry  | Rule                                                                                                                                              |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pack   | Exactly 100 presets, at least two for each instrument, a kebab-case id, a name of at most 24 characters, a one-sentence description               |
+| Preset | The bank's rules, and tighter levels: raw preview peak at or below −8 dBFS, loudest 400 ms between −30 and −22 dBFS, no DC offset, 1 to 4 effects |
+| Words  | A name of 3 to 24 characters that does not end in a digit, a description of at most 140 characters, an id that starts with its pack's             |
+| Across | No id twice among bank, chains and packs; no name twice among bank and packs; no two presets with the same devices set to the same values         |
+
+The levels are narrower than the bank's so that a list of thousands plays at
+one loudness. As with the bank, nothing here has been heard by the tests:
+they hold a preset to what can be measured.
+
+### Writing a pack
+
+1. Add its `{ id, name, description }` to `FACTORY_PACKS` in
+   `packs/index.ts`, its presets as `packs/<pack id>.ts` (which exports
+   `PRESETS`, a `readonly FactoryPreset[]`), an import and a line in
+   `packs/all.ts`, and a `<pack id>.pack.test.ts` beside the others.
+2. Measure it as you write:
+
+   ```bash
+   FACTORY_REPORT=packs FACTORY_PACK=<pack id> pnpm vitest run src/dsp/factory/__tests__/report.test.ts
+   cat tmp/factory-packs-<pack id>.txt
+   ```
+
+   One line a preset, as for the bank, ending in capitals where it leaves
+   the limits (`PEAK`, `LOUD`, `QUIET`, `DC`, `SLOW` over 12 % of real time),
+   and at the foot what the pack still lacks: an instrument short of two, a
+   name twice, two presets set alike. `FACTORY=<part of an id>` narrows it.
+
+3. `pnpm vitest run src/dsp/factory/packs` must pass.
+
+A pack may take after a way of making music; it never says whose. Names,
+descriptions and ids hold no artist, record, track, label or maker's name:
+they hint by sound, place, weather and hour. Each preset is written by hand
+as a designed sound, starting from the instrument and not only from its
+effects, and a description says only what its chain and its measurements
+bear out.
 
 ## What the bench found in the devices
 

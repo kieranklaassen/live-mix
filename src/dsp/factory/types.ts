@@ -19,6 +19,23 @@ export interface FactoryPreset extends Patch {
   instrument: PatchDevice
   /** What its preview plays; the category decides when absent. */
   preview?: FactoryPhraseName
+  /** The id of the pack it belongs to (./packs); absent for a preset of the bank itself. */
+  pack?: string
+}
+
+/**
+ * A pack: a hundred presets across every instrument that share one idea of
+ * sound. Its name and description say what that is by a sound, a place or a
+ * mood; a host lists the packs before any of their presets are loaded.
+ */
+export interface FactoryPack {
+  /** Stable id; every preset of the pack has an id that starts with it. */
+  id: string
+  name: string
+  /** What the pack sounds like and where its idea comes from, in a sentence or two. */
+  description: string
+  /** How many presets it holds, known before they are loaded. */
+  count: number
 }
 
 /** What an effect chain is for; also where a browser lists it. */
