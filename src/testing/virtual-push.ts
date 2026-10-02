@@ -272,7 +272,7 @@ export class VirtualPush {
         this.usbGranted = true
         return Promise.resolve(this.usbDevice)
       },
-      getDevices: () => Promise.resolve(this.usbGranted ? [this.usbDevice] : []),
+      getDevices: () => Promise.resolve(this.usbGranted && this.plugged ? [this.usbDevice] : []),
     }
   }
 
@@ -286,6 +286,23 @@ export class VirtualPush {
     this.plugged = false
     this.usbOpened = false
     this.usbClaimed = false
+  }
+
+  /** Puts the cable back: the same ports are there again, and the device is as it powers up. */
+  plug(): void {
+    this.plugged = true
+    this.mode = 'live'
+    this.aftertouch = 0
+    this.stripFlags = 0x68
+    this.ledColors.clear()
+    this.palette = defaultPalette()
+    this.applied = defaultPalette()
+    this.heldPads.clear()
+    for (const entry of [...this.access.inputs.values(), ...this.access.outputs.values()]) {
+      entry.state = 'connected'
+      this.access.onstatechange?.({ port: entry })
+      for (const listener of this.stateListeners) listener({ port: entry })
+    }
   }
 
   // What the device shows -----------------------------------------------------------
