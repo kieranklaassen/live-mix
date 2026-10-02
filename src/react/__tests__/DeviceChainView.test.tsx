@@ -193,6 +193,10 @@ describe('DeviceChainView', () => {
     })
     expect(panels()).toEqual(['Filter', 'EQ Three'])
     expect(screen.getByTestId('chain-item-0')).toHaveTextContent('Filter')
+    // Each item says where its device sits in the strip's own chain, pinned ones counted.
+    expect(screen.getByTestId('chain')).toHaveAttribute('data-lm-strip', 'pad')
+    expect(screen.getByTestId('chain-item-0')).toHaveAttribute('data-lm-insert', '1')
+    expect(screen.getByTestId('chain-item-1')).toHaveAttribute('data-lm-insert', '2')
     expect(screen.getByRole('button', { name: 'Move filter earlier' })).toBeDisabled()
     fireEvent.click(screen.getByRole('button', { name: 'Move eq3 earlier' }))
     expect(pad.strip.inserts).toEqual([trim, eq, filter])

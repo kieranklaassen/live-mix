@@ -42,10 +42,20 @@ devices and macros through `surface.registerDevice(id, device)` /
 `registerMacro(name, macro)`; anything can be overridden with
 `ControlSurfaceOptions.resolve`.
 
+An **action** is something the host does when asked: a button of its page, a
+jump to a marker. `surface.registerAction(id, run)` (or the resolver's
+`action(id)`) says what; a press fires it, like a transport target, and it
+has no value to read. An id nothing answers to is not an error: the mapping
+waits, consuming its source, until something registers.
+
 **`ControlSource`** — `note`, `cc`, `cc14` (MSB 0–31 + LSB 32–63),
-`pitchbend`, `aftertouch` with a channel (1–16; `0` = omni), or
+`pitchbend`, `aftertouch` with a channel (1–16; `0` = omni),
 `{ kind: 'osc', address, arg }` where `address` may be an OSC 1.0 pattern
-(`?`, `*`, `[a-c]`, `[!x]`, `{a,b}`; none cross `/`).
+(`?`, `*`, `[a-c]`, `[!x]`, `{a,b}`; none cross `/`), or
+`{ kind: 'key', code }`: a key of the computer keyboard, named by where it
+sits (`KeyboardEvent.code`, so `Digit1`, `KeyQ`, `F5`) and therefore the same
+key on every layout. `describeSource` calls it what a US keyboard prints on
+it (`Key 1`; `keyCodeLabel(code)` alone gives `1`).
 
 **`ControlEvent`** — what decoders emit and the table consumes:
 `{ kind: 'absolute', value, raw? }` (MIDI normalised to 0..1 with the wire
@@ -133,6 +143,25 @@ dropped, counted (`dropped`) and reported (`onError`). `encodeOscMessage` /
 Both are `ControlInput`s: `surface.connect(input)` routes their events into
 `handle`; the disconnect function or `surface.dispose()` detaches.
 
+There is no adapter for the computer keyboard: a page has its own key
+listener and its own rules for when a key is a shortcut, a note or text being
+typed. It hands the surface the keys it wants mapped:
+
+```ts
+window.addEventListener('keydown', (event) => {
+  if (event.repeat || typing(event.target)) return
+  const taken = surface.handle(triggerEvent({ kind: 'key', code: event.code }, true))
+  if (taken.consumed) event.preventDefault()
+})
+```
+
+A key is a button: a press toggles an on/off target, fires an action, and
+sets a continuous target to the top of its span (learn it with
+`beginLearn(target, { mode: 'toggle' })` to flip between the two ends, as
+Ableton Live's Key Map does). Keep keys and controllers in two surfaces over
+the same resolver when a target should answer to one of each: a table holds
+one source per target.
+
 ## React (`./react`)
 
 - `useControlSurface(surface, { events })` → `{ mappings, learning,
@@ -144,6 +173,13 @@ cancel, toggle, unmap }` — one panel row: `label` is `describeSource` of
   the binding (`CC 74 · ch 1`), `toggle` is the Learn/Cancel button.
 
 Both render on the server from the table.
+
+The kit's device views say what each part is, so a host can draw a mapping
+overlay over what is on screen and work out a target from the element that
+was clicked: `DeviceChainView` writes `data-lm-strip` (the strip's name) on
+its list and `data-lm-insert` (the place in the strip's chain) on each item;
+`DevicePanel` writes `data-lm-device` (the `Device.id`) on its frame,
+`data-lm-param` on each knob and `data-lm-power` on its power switch.
 
 ## Migration path for ambient-live (U27 → library)
 

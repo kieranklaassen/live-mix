@@ -56,6 +56,8 @@ export interface KnobProps {
   style?: CSSProperties
   id?: string
   'data-testid'?: string
+  /** The parameter this knob sets, by name, for a host that maps controllers onto what is on screen. */
+  'data-lm-param'?: string
 }
 
 export function Knob({
@@ -87,6 +89,7 @@ export function Knob({
   style,
   id,
   'data-testid': testId,
+  'data-lm-param': param,
 }: KnobProps) {
   const control = useParamControl({
     value,
@@ -143,6 +146,7 @@ export function Knob({
       )}
       style={style}
       data-testid={testId}
+      data-lm-param={param}
       {...infoProps(label, infoText(info, gesture))}
     >
       {hideLabel ? null : (
