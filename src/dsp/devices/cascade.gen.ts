@@ -15,7 +15,7 @@ export const CASCADE_PARAMS = {
     unit: '',
     choices: ['Mosaic', 'Strum', 'Tunnel', 'Steps'],
     description:
-      'How each captured slice is replayed. Mosaic stacks loops at several speeds at once. Strum retriggers the start of the slice in a quickening or slowing run. Tunnel loops a short piece of it into a drone that grows longer and darker. Steps plays each repeat at the next speed, like an arpeggio of the note.',
+      'How each captured slice is replayed. Mosaic loops it at several speeds at once. Strum strikes the start of it again and again in a run that quickens or slows. Tunnel loops a short piece of it into a steady drone that grows longer and darker. Steps plays each repeat at the next speed, like an arpeggio of the note.',
   },
   time: {
     id: 1,
@@ -26,7 +26,7 @@ export const CASCADE_PARAMS = {
     taper: 'log',
     unit: 'ms',
     description:
-      'The length of each captured slice and the pulse the replays fall on. Short times give a fast glittering stutter; long times replay whole phrases.',
+      'How long after a note it first comes back, and the pulse its repeats fall on. Short times give a fast glittering stutter; long times replay whole phrases.',
   },
   repeats: {
     id: 2,
@@ -37,7 +37,7 @@ export const CASCADE_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How many times each slice comes back before it stops, which is how long the cascade lasts after you stop playing.',
+      'How many times each slice comes back before it stops, which sets how long the cascade goes on after you stop playing.',
   },
   decay: {
     id: 3,
@@ -48,7 +48,7 @@ export const CASCADE_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How much quieter and darker each repeat is than the one before. At zero every repeat is as loud and bright as the first.',
+      'How much quieter and darker each repeat is than the one before. At zero every repeat is as loud and as bright as the first.',
   },
   high: {
     id: 4,
@@ -59,7 +59,7 @@ export const CASCADE_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Level of the replays that run faster than you played, so they sound an octave or more above and repeat in the gaps.',
+      'Level of the replays that run faster than you played. They sound an octave or more above and come round two or four times in the space of one slower repeat.',
   },
   low: {
     id: 5,
@@ -70,7 +70,7 @@ export const CASCADE_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Level of a half-speed replay: the slice an octave down and twice as long, underneath the rest.',
+      'Level of a half-speed replay: the slice an octave down and twice as long, underneath the rest and in the middle of the stereo picture.',
   },
   interval: {
     id: 6,
@@ -82,7 +82,7 @@ export const CASCADE_PARAMS = {
     unit: '',
     choices: ['Octaves', 'Octaves and fifths'],
     description:
-      'Which speeds the faster replays use. Octaves keeps everything on the note you played; Octaves and fifths adds replays a fifth above, which also fall in a three against two rhythm.',
+      'Which speeds the faster replays use. Octaves keeps everything on the note you played. Octaves and fifths adds replays a fifth above, which also fall three against two with the rest.',
   },
   shape: {
     id: 7,
@@ -93,7 +93,7 @@ export const CASCADE_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'The envelope of every replay. Low gives sharp plucked fronts that die away; high makes each one swell in and out so the pattern blurs into a wash.',
+      'The envelope of every replay. Low gives sharp plucked fronts that die away; high makes each one swell in and out, so the pattern blurs into a wash.',
   },
   reverse: {
     id: 8,
@@ -115,7 +115,7 @@ export const CASCADE_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How far the replays are placed to the left and right. The faster ones sit furthest out and alternate sides; the half-speed one stays in the middle.',
+      'How far the replays are placed to the left and right. The faster ones sit furthest out and swap sides as they repeat.',
   },
   tone: {
     id: 10,
@@ -195,7 +195,7 @@ export const CASCADE_DESCRIPTOR = wasmDeviceDescriptor(CASCADE_DEVICE, {
       low: 1,
       shape: 0.6,
       reverse: 1,
-      spread: 0.5,
+      spread: 0.8,
       tone: 3500,
     },
     'Sparkle bed': {

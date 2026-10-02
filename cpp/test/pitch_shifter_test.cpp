@@ -179,7 +179,6 @@ int main() {
   return finish("pitch-shifter");
 }
 
-static void check_feedback_and_delay() {}
 static void check_moves() {}
 
 // The output pitch. Smooth and a small detune land on the frequency itself.
@@ -405,5 +404,127 @@ static void check_chord_and_voices() {
          correlation(out.left, out.right, from, to));
     EXPECT_NEAR(cents(sharp, 1000.0), 20.0, 1.0, "Detune raises voice A");
     EXPECT_NEAR(cents(flat, 1000.0), -20.0, 1.0, "Detune lowers voice B");
+  }
+}
+
+// Delay, Feedback and Tone: the shifted voice arrives late by Delay, each
+// repeat is one interval further on and darker, and the loop stays bounded
+// and dies away at its maximum.
+static void check_feedback_and_delay() {
+  char label[160];
+
+  // Latency of the shifted voice (Smooth, default Size): where the energy
+  // of a 20 ms burst comes out, against where it went in.
+  double latency[3] = {0.0, 0.0, 0.0};
+  {
+    const float pitches[3] = {12.0f, 7.0f, -12.0f};
+    for (int k = 0; k < 3; ++k) {
+      for (int trial = 0; trial < 6; ++trial) {
+        std::vector<float> in = sine(1000.0f, 1.5f, kRate, 0.002f);
+        const size_t at = 48000 + static_cast<size_t>(trial) * 517;
+        add_burst(in, at, 960, 1000.0f, 0.5f);
+        wet_only(device, kSmooth, pitches[k], p::kParamDefault[p::kSize]);
+        Stereo out = run(device, in);
+        const double late = (energy_centre(out.left, at - 480, at + 12000) - energy_centre(in, at - 480, at + 12000)) / kRate;
+        latency[k] = std::max(latency[k], late * 1000.0);
+      }
+    }
+    NOTE("latency (Smooth, Size %.0f ms): +12 st %.1f ms, +7 st %.1f ms, -12 st %.1f ms\n", p::kParamDefault[p::kSize],
+         latency[0], latency[1], latency[2]);
+    std::snprintf(label, sizeof label, "Smooth: an octave up arrives within 35 ms at the default Size (%.1f ms)", latency[0]);
+    EXPECT(latency[0] < 35.0, label);
+    EXPECT(latency[1] < 25.0 && latency[2] < 30.0, "Smooth: a fifth up and an octave down arrive sooner still");
+  }
+
+  // Delay moves the voice later by its setting.
+  {
+    std::vector<float> in(static_cast<size_t>(1.0f * kRate), 0.0f);
+    add_burst(in, 4800, 960, 1000.0f, 0.5f);
+    wet_only(device, kSmooth, 7.0f);
+    Stereo near = run(device, in);
+    wet_only(device, kSmooth, 7.0f);
+    device.set_param(p::kDelay, 250.0f);
+    Stereo far = run(device, in);
+    const double moved = (energy_centre(far.left, 0, far.left.size()) - energy_centre(near.left, 0, near.left.size())) / kRate * 1000.0;
+    NOTE("delay 250 ms: the voice moves by %.2f ms\n", moved);
+    EXPECT_NEAR(moved, 250.0, 2.0, "Delay makes the shifted voice arrive that much later");
+  }
+
+  // Feedback through the delay: every repeat one interval further on and
+  // quieter than the last.
+  for (float pitch : {12.0f, 7.0f, -12.0f}) {
+    wet_only(device, kSmooth, pitch);
+    device.set_param(p::kDelay, 300.0f);
+    device.set_param(p::kFeedback, 0.7f);
+    const float start = pitch < 0.0f ? 1760.0f : 220.0f;
+    std::vector<float> in(static_cast<size_t>(1.9f * kRate), 0.0f);
+    add_burst(in, 0, 9600, start, 0.5f);
+    Stereo out = run(device, in);
+    double worst = 0.0, previous = 1.0e9;
+    bool falling = true;
+    for (int k = 1; k <= 4; ++k) {
+      const size_t centre = static_cast<size_t>((0.1 + k * 0.33) * kRate);
+      double loudest = 0.0;
+      size_t at = centre;
+      for (size_t a = centre - 4800; a < centre + 4800; a += 240) {
+        const double level = rms(out.left, a - 2400, a + 2400);
+        if (level > loudest) {
+          loudest = level;
+          at = a;
+        }
+      }
+      const double want = start * std::pow(2.0, k * pitch / 12.0);
+      const double found = dominant_frequency(out.left, kRate, want * 0.8, want * 1.25, at - 2400, at + 2400);
+      worst = std::max(worst, std::fabs(cents(found, want)));
+      if (loudest >= previous) falling = false;
+      previous = loudest;
+    }
+    NOTE("feedback %+.0f st: repeats 1..4 within %.1f cents of one more interval each\n", pitch, worst);
+    std::snprintf(label, sizeof label, "each repeat is one more %+.0f st (worst %.1f cents)", pitch, worst);
+    EXPECT(worst < 15.0, label);
+    EXPECT(falling, "each repeat is quieter than the last");
+  }
+
+  // Tone darkens the voice.
+  {
+    rng_state() = 0x5EEDu;
+    const std::vector<float> hiss = noise(1.5f, kRate, 0.3f);
+    wet_only(device, kSmooth, 7.0f);
+    Stereo bright = run(device, hiss);
+    wet_only(device, kSmooth, 7.0f);
+    device.set_param(p::kTone, 1500.0f);
+    Stereo dark = run(device, hiss);
+    const double open = energy_above(bright.left, 5000.0, kRate, 24000, 72000);
+    const double shut = energy_above(dark.left, 5000.0, kRate, 24000, 72000);
+    NOTE("tone: share of energy above 5 kHz %.3f open, %.3f at 1.5 kHz; level on noise %.1f dB re input\n", open, shut,
+         db(rms(bright.left, 24000, 72000) / rms(hiss, 24000, 72000)));
+    EXPECT(shut < 0.2 * open, "Tone takes the highs off the shifted voice");
+  }
+
+  // Maximum feedback, full-scale input, both voices, every mode: bounded,
+  // and it dies away once the input stops.
+  for (int mode : {kSmooth, kGrain, kVintage}) {
+    for (float pitch : {0.0f, 12.0f}) {
+      device.init(kRate);
+      device.set_param(p::kMode, static_cast<float>(mode));
+      device.set_param(p::kFeedback, 0.95f);
+      device.set_param(p::kDelay, 60.0f);
+      device.set_param(p::kPitchA, pitch);
+      device.set_param(p::kPitchB, -pitch);
+      device.set_param(p::kLevelB, 1.0f);
+      device.set_param(p::kMix, 1.0f);
+      device.set_param(p::kTone, 18000.0f);
+      std::vector<float> in = sine(330.0f, 5.0f, kRate, 1.0f);
+      rng_state() = 0xFEEDu;
+      for (float& v : in) v = std::max(-1.0f, std::min(1.0f, v + 0.3f * white()));
+      Stereo out = run(device, in);
+      Stereo tail = render(device, 8.0f, kRate);
+      const double top = std::max(peak(out.left), peak(out.right));
+      const double left_over = rms(tail.left, 7 * 48000, 8 * 48000);
+      NOTE("max feedback mode %d pitch %+.0f/%+.0f: peak %.2f, 7 s after the input %.1f dB\n", mode, pitch, -pitch, top, db(left_over));
+      std::snprintf(label, sizeof label, "maximum feedback stays bounded in mode %d at %+.0f st (peak %.2f)", mode, pitch, top);
+      EXPECT(finite(out.left) && finite(out.right) && top <= 2.01, label);
+      EXPECT(left_over < 0.02, "maximum feedback dies away after the input stops");
+    }
   }
 }

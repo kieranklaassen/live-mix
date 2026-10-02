@@ -86,7 +86,7 @@ constexpr TapeDef kTapes[kNumTapes] = {
    1200.0f, 2.0f, 9000.0f, 6.0f, 1.5f, 0.24f},
   // Horns: a slow rounded attack that opens as it swells, hardly any vibrato.
   {4, 0.11f, 0.9f, 0.45f, 5.0f, 5.0f, 0.03f, 3.0f, -41.0f, 12.0f, 0.06f, 500.0f, 1.0f, 0.8f,
-   260.0f, 1.3f, 2400.0f, 5.0f, 2.0f, 0.24f},
+   100.0f, 0.8f, 2400.0f, 5.0f, 2.0f, 0.24f},
   // Reeds: clarinets and an oboe. Quick to speak, narrow vibrato.
   {3, 0.035f, 0.3f, 0.2f, 8.0f, 5.6f, 0.08f, 4.0f, -38.0f, 10.0f, 0.04f, 2200.0f, 0.0f, 0.8f,
    1500.0f, 3.0f, 12000.0f, 8.0f, 0.5f, 0.4f},
@@ -146,7 +146,7 @@ inline float formant(float hz, float centre, float bandwidth) {
 
 inline float vowel_ah(float hz, float scale) {
   static constexpr float kCentre[5] = {730.0f, 1090.0f, 2440.0f, 3400.0f, 4300.0f};
-  static constexpr float kBand[5] = {150.0f, 170.0f, 250.0f, 340.0f, 400.0f};
+  static constexpr float kBand[5] = {120.0f, 140.0f, 210.0f, 320.0f, 400.0f};
   float gain = 1.0f;
   for (int i = 0; i < 5; ++i) gain *= formant(hz, kCentre[i] * scale, kBand[i] * scale);
   return gain;
@@ -198,7 +198,7 @@ inline float body_gain(int tape, float f0, float hz) {
       // the bridge hill near 3 kHz.
       static constexpr Bell kBody[6] = {{280.0f, 45.0f, 5.0f},   {450.0f, 60.0f, 4.0f},
                                         {700.0f, 110.0f, 3.0f},  {1100.0f, 400.0f, 4.0f},
-                                        {1800.0f, 350.0f, -3.0f}, {2900.0f, 800.0f, 10.0f}};
+                                        {1800.0f, 350.0f, -5.0f}, {2900.0f, 800.0f, 10.0f}};
       const float db = bells_db(kBody, 6, hz) + ripple_db(tape, hz, 3.5f);
       return db_to_linear(db) * low_cut(hz, 190.0f) * high_cut(hz, 5200.0f);
     }
@@ -216,7 +216,7 @@ inline float body_gain(int tape, float f0, float hz) {
     case kHorns: {
       static constexpr Bell kBody[1] = {{450.0f, 300.0f, 6.0f}};
       const float db = bells_db(kBody, 1, hz) + ripple_db(tape, hz, 1.5f);
-      return db_to_linear(db) * low_cut(hz, 70.0f) * high_cut(hz, 1500.0f);
+      return db_to_linear(db) * low_cut(hz, 70.0f) * high_cut(hz, 1800.0f);
     }
     case kReeds: {
       // The nasal formant of the oboe comes in up the keyboard.
@@ -232,7 +232,7 @@ inline float body_gain(int tape, float f0, float hz) {
       const float scale = 0.97f + 0.15f * smoothstep((f0 - 130.0f) / 300.0f);
       const float men = vowel_ah(hz, scale);
       const float women = vowel_ah(hz, scale * 1.18f);
-      const float r = hz / 2200.0f;
+      const float r = hz / 3500.0f;
       const float tilt = 1.0f / std::sqrt(1.0f + r * r);
       return std::sqrt(0.5f * (men * men + women * women)) * tilt * low_cut(hz, 90.0f) *
              db_to_linear(ripple_db(tape, hz, 1.5f));

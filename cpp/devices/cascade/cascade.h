@@ -754,6 +754,11 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
   static constexpr float kFullPower = 0.6f;
   static constexpr float kTrimSlope = 0.3f;
 
+  // A smoother's next value, without the arithmetic once it has arrived.
+  static float glide(kit::Smoother& smoother) {
+    return smoother.value == smoother.target ? smoother.value : smoother.next();
+  }
+
   void release(Voice& voice) {
     if (!voice.fading) --live_;
     voice.active = false;
@@ -823,9 +828,14 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
           whole += direction;
         } else {
           const float* taps = kernel_[voice.quarter & 3];
-          const long long first = (voice.quarter >> 2) - 7;
+          const int first = static_cast<int>(((voice.quarter >> 2) - 7) & mask);
           sample = 0.0f;
-          for (int t = 0; t < kTaps; ++t) sample += taps[t] * ring[(first + t) & mask];
+          if (first + kTaps <= mask) {
+            const float* x = ring + first;
+            for (int t = 0; t < kTaps; ++t) sample += taps[t] * x[t];
+          } else {
+            for (int t = 0; t < kTaps; ++t) sample += taps[t] * ring[(first + t) & mask];
+          }
           voice.quarter += voice.quarter_step;
         }
         if (a > 0.0f) {
@@ -899,12 +909,12 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
     }
 
     for (int i = 0; i < count; ++i) {
-      const float high = high_.next();
-      const float low = low_.next();
+      const float high = glide(high_);
+      const float low = glide(low_);
       const float centre = mid[kRoleMain][i] + high * mid[kRoleHigh][i] + low * mid[kRoleLow][i];
       const float across =
-          spread_.next() * (side[kRoleMain][i] + high * side[kRoleHigh][i] + low * side[kRoleLow][i]);
-      const float trim = trim_.next();
+          glide(spread_) * (side[kRoleMain][i] + high * side[kRoleHigh][i] + low * side[kRoleLow][i]);
+      const float trim = glide(trim_);
       float wet[2] = {tone_[0].lowpass((centre - across) * trim), tone_[1].lowpass((centre + across) * trim)};
       // A held tone whose period divides Time comes back in phase with itself
       // once per repeat and adds up in amplitude. Past kCeiling the wet level
@@ -916,7 +926,7 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
       held_ = flush_denormal(loudest + (held_ - loudest) * (loudest > held_ ? hold_attack_ : hold_release_));
       const float hold = held_ > kCeiling ? kCeiling / held_ : 1.0f;
       for (int c = 0; c < 2; ++c) wet[c] = 2.0f * kit::soft_clip(0.5f * wet[c] * hold);
-      const float mix = mix_.next();
+      const float mix = glide(mix_);
       if (mix != mix_seen_) {
         mix_seen_ = mix;
         kit::equal_power(mix, &dry_gain_, &wet_gain_);

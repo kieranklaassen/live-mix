@@ -16,6 +16,8 @@
 
 namespace livemix {
 
+namespace scene = outdoors_scene;
+
 class Outdoors : public kit::DeviceBase<outdoors::kNumParams> {
  public:
   static constexpr int kMaxVoices = 8;
@@ -65,7 +67,7 @@ class Outdoors : public kit::DeviceBase<outdoors::kNumParams> {
     // The diffusers hold 37 ms; the hold has to outlast them.
     idle_.reset(sr, 0.3f);
     for (int id = 0; id < kNumParams; ++id) apply(id);
-    read_controls(true);
+    read_controls(false);
     aim_air();
   }
 
@@ -82,6 +84,7 @@ class Outdoors : public kit::DeviceBase<outdoors::kNumParams> {
     const int held = pool_.find_held(note_id);
     if (held >= 0) pool_.voices[held].env.fast_release(0.05f);
 
+    read_controls(false);
     bool stolen = false;
     Voice& voice = pool_.voices[pool_.note_on(note_id, &stolen)];
     if (stolen) {
@@ -162,9 +165,120 @@ class Outdoors : public kit::DeviceBase<outdoors::kNumParams> {
   }
 
  private:
-  // SCENES
+  struct Voice {
+    kit::Adsr env;
+    kit::LinearRamp swap;  // ducks a stolen voice while its scene is replaced
+    scene::Chimes chimes;
+    float hz = 220.0f, next_hz = 220.0f;
+    float gain = 0.0f, next_gain = 0.0f;
+    bool restart = false;
 
-  // DEVICE
+    void reset() {
+      env.reset();
+      hz = next_hz = 220.0f;
+      gain = next_gain = 0.0f;
+      restart = false;
+    }
+    bool active() const { return env.active(); }
+    bool releasing() const { return env.releasing(); }
+    float level() const { return env.level(); }
+  };
+
+  static constexpr int kStages = 3;
+  static constexpr int kDiffuserSize = 4096;
+  static constexpr float kDiffuserSeconds[2][kStages] = {{0.0043f, 0.0101f, 0.0227f},
+                                                         {0.0053f, 0.0119f, 0.0197f}};
+  static constexpr float kDiffuserGain = 0.62f;
+
+  // Put a voice at the start of the current type for its key.
+  void begin(Voice& voice) {
+    switch (kind_) {
+      default:
+        voice.chimes.start(voice.hz, controls_);
+        break;
+    }
+  }
+
+  // The four scene knobs as they stand, stepped once (on the control clock)
+  // or only read (a note that arrives between steps).
+  void read_controls(bool advance) {
+    controls_.density = advance ? density_.next() : density_.value;
+    controls_.distance = advance ? distance_.next() : distance_.value;
+    controls_.movement = advance ? movement_.next() : movement_.value;
+    controls_.tone = advance ? tone_.next() : tone_.value;
+  }
+
+  // Air takes the highs first: a one-pole from 20 kHz (near) to 1.2 kHz.
+  void aim_air() {
+    const float cutoff = 20000.0f * std::pow(0.06f, controls_.distance);
+    for (int c = 0; c < 2; ++c) air_[c].set_cutoff(cutoff, sample_rate());
+  }
+
+  // Every 32 samples.
+  void control() {
+    using namespace outdoors;
+    read_controls(true);
+    aim_air();
+
+    // A type change waits for the dip to reach silence, then every sounding
+    // voice starts the new type.
+    bool restart = false;
+    if (pending_kind_ != kind_) {
+      if (fade_.value <= 0.0f && fade_.remaining == 0) {
+        kind_ = pending_kind_;
+        fade_.set_target(1.0f);
+        restart = true;
+      } else {
+        fade_.set_target(0.0f);
+      }
+    }
+    for (int v = 0; v < kMaxVoices; ++v) {
+      Voice& voice = pool_.voices[v];
+      if (!voice.env.active()) continue;
+      if (restart) begin(voice);
+      switch (kind_) {
+        default:
+          voice.chimes.control(controls_);
+          break;
+      }
+      voice.env.set(param(kAttack), 0.01f, 1.0f, param(kRelease));
+    }
+  }
+
+  void apply(int id) {
+    using namespace outdoors;
+    const float value = param(id);
+    switch (id) {
+      case kType:
+        pending_kind_ = kit::clamp_int(static_cast<int>(value + 0.5f), 0, kKinds - 1);
+        if (!primed()) kind_ = pending_kind_;
+        break;
+      case kDensity:
+        density_.set(value, primed());
+        break;
+      case kDistance:
+        distance_.set(value, primed());
+        diffusion_.set(kDiffuserGain * std::sqrt(value), primed());
+        break;
+      case kMovement:
+        movement_.set(value, primed());
+        break;
+      case kTone:
+        tone_.set(value, primed());
+        break;
+      case kWidth:
+        // Sources are panned, so the fold to mono loses a little: make it up.
+        mid_.set(std::sqrt(1.0f + 0.22f * (1.0f - value * value)), primed());
+        side_.set(value, primed());
+        break;
+      case kVolume:
+        volume_.set(kit::db_to_gain(value), primed());
+        break;
+      default:
+        break;  // read on the control clock
+    }
+  }
+
 
   kit::VoicePool<Voice, kMaxVoices> pool_;
   kit::OnePole air_[2];

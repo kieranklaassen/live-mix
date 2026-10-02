@@ -426,6 +426,82 @@ int main() {
     EXPECT(worst_state < 2.0 * natural, "a State change fades without a click");
   }
 
+  // Spread widens the loop with a side signal that cancels in mono: left
+  // and right decorrelate, their sum is still the plain loop, and the low
+  // end stays in the centre.
+  {
+    const float length = 1.0f;
+    std::vector<float> input = phrase(1.5f, 330.0f, 0x51DEu);
+    Stereo narrow, wide;
+    for (int pass = 0; pass < 2; ++pass) {
+      plain(device, length);
+      device.set_param(p::kSpread, pass ? 1.0f : 0.0f);
+      run(device, input);
+      device.set_param(p::kState, kHold);
+      (pass ? wide : narrow) = render(device, 4.0f, kRate);
+    }
+    std::vector<float> mono(wide.size());
+    for (size_t i = 0; i < mono.size(); ++i) mono[i] = 0.5f * (wide.left[i] + wide.right[i]);
+    const double narrow_corr = correlation(narrow.left, narrow.right, 48000);
+    const double wide_corr = correlation(wide.left, wide.right, 48000);
+    const double fold = match(mono, 48000, narrow.left, 48000, 2 * 48000);
+    const double level = db(rms(wide.left, 48000) / rms(narrow.left, 48000));
+    std::printf("micro-looper: Spread 0 -> 1: L/R correlation %.3f -> %.3f, mono sum matches the plain loop %.5f, level %+.2f dB\n",
+                narrow_corr, wide_corr, fold, level);
+    EXPECT(narrow_corr > 0.999, "Spread 0 leaves a mono loop mono");
+    EXPECT(wide_corr < 0.35 && wide_corr > -0.2, "Spread 1 decorrelates left and right");
+    EXPECT(fold > 0.999, "the widened loop folds to mono as the plain loop");
+    EXPECT(std::fabs(level) < 1.0, "Spread does not change the loop's level");
+
+    plain(device, length);
+    device.set_param(p::kSpread, 1.0f);
+    run(device, sine(70.0f, 1.5f, kRate, 0.4f));
+    device.set_param(p::kState, kHold);
+    Stereo low = render(device, 4.0f, kRate);
+    std::printf("micro-looper: Spread 1 on a 70 Hz loop: L/R correlation %.3f\n",
+                correlation(low.left, low.right, 48000));
+    EXPECT(correlation(low.left, low.right, 48000) > 0.9, "the low end stays in the centre");
+
+    // The default patch on a mono source keeps a positive correlation.
+    device.init(kRate);
+    std::vector<float> long_input = phrase(2.0f, 330.0f, 0x51DEu);
+    long_input.resize(8 * 48000, 0.0f);
+    Stereo normal = run(device, long_input);
+    std::printf("micro-looper: default patch, mono in: L/R correlation %.3f\n",
+                correlation(normal.left, normal.right, 2 * 48000));
+    EXPECT(correlation(normal.left, normal.right, 2 * 48000) > 0.3, "the default patch is mono compatible");
+  }
+
+  // Drift: the loop's pitch wanders slowly, by less than a fifth of a
+  // semitone, and with Drift at zero it does not move at all.
+  {
+    double spans[2] = {0.0, 0.0};
+    for (int drifting = 0; drifting < 2; ++drifting) {
+      plain(device, 1.0f);
+      device.set_param(p::kDrift, drifting ? 1.0f : 0.0f);
+      run(device, sine(1000.0f, 1.5f, kRate, 0.4f));
+      device.set_param(p::kState, kHold);
+      Stereo held = render(device, 12.0f, kRate);
+      double lowest = 1.0e9, highest = 0.0;
+      for (int w = 4; w < 46; ++w) {
+        // Away from the loop join, where two phases of the sine overlap.
+        if (w % 4 == 3 || w % 4 == 0) continue;
+        const double hz =
+            dominant_frequency(held.left, kRate, 970.0, 1030.0, w * 12000, (w + 1) * 12000);
+        lowest = std::min(lowest, hz);
+        highest = std::max(highest, hz);
+      }
+      spans[drifting] = highest - lowest;
+      if (drifting) {
+        std::printf("micro-looper: Drift 1: a 1 kHz loop wanders between %.2f and %.2f Hz\n", lowest, highest);
+        EXPECT(lowest > 988.0 && highest < 1012.0, "Drift stays within a fifth of a semitone");
+      }
+    }
+    std::printf("micro-looper: pitch span with Drift 0: %.3f Hz, with Drift 1: %.3f Hz\n", spans[0], spans[1]);
+    EXPECT(spans[0] < 0.2, "without Drift the loop's pitch is steady");
+    EXPECT(spans[1] > 3.0, "Drift moves the loop's pitch");
+  }
+
   // BEHAVIOUR CHECKS GO HERE
 
   return finish("micro-looper");
