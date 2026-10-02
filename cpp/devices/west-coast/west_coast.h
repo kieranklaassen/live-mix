@@ -118,9 +118,16 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
     }
     // The control clock starts with the first note out of silence, so what
     // is played does not depend on how long the instrument sat idle.
+    // Nor on what was set while it was silent: with nothing sounding there
+    // is nothing a jump could click on, so the controls are where they were
+    // last put and the note starts on the patch as it stands, instead of
+    // gliding there from the old one through its strike.
     if (pool_.count_active() == 0) {
       until_control_ = 0;
       colour_ = param(kColour);
+      for (kit::Smoother* control : {&fold_, &symmetry_, &fm_, &timbre_env_, &sustain_, &volume_}) {
+        control->snap(control->target);
+      }
     }
     bool fresh = false;
     if (slot < 0) {

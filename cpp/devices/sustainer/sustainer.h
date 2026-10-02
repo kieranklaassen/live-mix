@@ -334,9 +334,10 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     onsets_ = 0;
     gate_ = 0.0f;
     for (int k = 0; k <= kMaxFrame / 8; ++k) det_a_[k] = det_b_[k] = 0.0f;
-    for (int k = 0; k <= kMaxFrame / 8; ++k) slow_[k] = ref_[k] = 0.0f;
-    soft_a_ = 1.0f - std::exp(-static_cast<float>(frame_ / 8) / (sample_rate() * kSoftSmoothSeconds));
+    for (int k = 0; k <= kMaxHalf / 2; ++k) slow_[k] = ref_[k] = 0.0f;
+    soft_a_ = 1.0f - std::exp(-2.0f * hop_seconds_ / kSoftSmoothSeconds);
     soft_for_ = 0.0f;
+    loud_ = false;
     settle_ = 0.0f;
     soft_capture_ = false;
     for (int k = 0; k <= kMaxHalf; ++k) mag_[k] = 0.0f;
@@ -375,6 +376,7 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
           break;
         case 2:
           build_layers(kSlots / 2, kSlots);
+          if (((position_ / static_cast<uint32_t>(hop_)) & 1u) == 0u) watch();
           break;
         case 3:
           finish_channel(0, ahead);
@@ -482,13 +484,12 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
   }
 
   // The second way in, for sound that has no attack. The averaged spectrum
-  // is held against what it was when the newest layer was caught (each bin
-  // against the largest of three, so vibrato does not count, and scaled by
-  // how far that layer has since died away). True once a good share of the
-  // power has stood above that reference for a moment. A decaying note never
-  // does; a swell does again and again, so the layer follows it up; a new
-  // chord faded in over the old one does; steady noise does not, because
-  // the reference took in its scatter while it settled.
+  // is held against what it was when the newest layer was caught (scaled by
+  // how far that layer has since died away), and a catch is asked for once
+  // a good share of the power has stood above that reference for a moment.
+  // A decaying note never does; a swell does again and again, so the layer
+  // follows it up; a new chord faded in over the old one does; steady noise
+  // does not, because the reference took in its scatter while it settled.
   //
   // It looks every other hop (43 ms) through the long frame, whose bins are
   // 12 Hz apart: the detector's short frame cannot tell a chord from the
@@ -1072,8 +1073,9 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
   uint16_t peak_[kMaxRegions];
   float det_a_[kMaxFrame / 8 + 1], det_b_[kMaxFrame / 8 + 1];  // the detector's last two frames
   float det_re_[kMaxFrame / 8 + 1], det_im_[kMaxFrame / 8 + 1];
-  float slow_[kMaxFrame / 8 + 1];  // the detector's power spectrum, averaged over a tenth of a second
-  float ref_[kMaxFrame / 8 + 1];   // ... and what it was when the newest layer was caught
+  float slow_[kMaxHalf / 2 + 1];   // the power spectrum of the input, averaged over a tenth of a second
+  float ref_[kMaxHalf / 2 + 1];    // ... and what it was when the newest layer was caught
+  bool loud_ = false;              // the detector's last frame was above the gate
   float soft_a_ = 0.1f;
   float soft_for_ = 0.0f;          // how long new sound has stood above the reference
   float settle_ = 0.0f;            // what is left of the settling time after a catch
