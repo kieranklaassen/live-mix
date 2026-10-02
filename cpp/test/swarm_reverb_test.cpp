@@ -150,7 +150,95 @@ int main() {
     std::printf("RT60 at Reflect 0.3 / 0.6 / 0.9: %.2f / %.2f / %.2f s\n", decay[0], decay[1], decay[2]);
   }
 
-  // BEHAVIOUR CHECKS 2
+  // Reflect at its top: the cave feeds on itself, holds a steady level and
+  // stays dark (the loop's own filters decide what survives).
+  {
+    device.init(kRate);
+    device.set_param(p::kMix, 1.0f);
+    device.set_param(p::kReflect, 1.05f);
+    run(device, sine(330.0f, 1.0f, kRate, 0.5f));
+    Stereo late = render(device, 60.0f, kRate);
+    const size_t n = late.left.size();
+    const double level = rms(late.left, n - 96000, n);
+    const double earlier = rms(late.left, n - 480000, n - 384000);
+    const double top = energy_above(late.left, 4000.0, kRate, n - 96000, n);
+    EXPECT(finite(late.left) && finite(late.right), "Reflect 1.05 stays finite");
+    EXPECT(peak(late.left) < 1.5 && peak(late.right) < 1.5, "Reflect 1.05 is bounded");
+    EXPECT(level > 0.03, "Reflect 1.05 sustains on its own");
+    EXPECT(level < 2.0 * earlier, "Reflect 1.05 settles at a level instead of climbing");
+    EXPECT(top < 0.02, "Reflect 1.05 is not harsh: under 2 % of its energy above 4 kHz");
+    std::printf("Reflect 1.05 after 60 s: rms %.1f dB, peak %.2f, energy above 4 kHz %.4f\n", db(level),
+                std::max(peak(late.left), peak(late.right)), top);
+  }
+
+  // Drag bends pitch. A 440 Hz tone rings in the swarm; the input stops and
+  // Drag moves down, so the tape speeds up and what is on it comes back
+  // higher by the ratio of the speeds. The faster the move, the larger the
+  // bend heard in the first quarter second.
+  {
+    const float times[3] = {0.02f, 0.6f, 3.0f};
+    double bent[3];
+    for (int k = 0; k < 3; ++k) {
+      bare(device);
+      device.set_param(p::kDragTime, times[k]);
+      run(device, sine(440.0f, 2.0f, kRate, 0.25f));
+      device.set_param(p::kDrag, 0.25f);
+      Stereo out = render(device, 0.5f, kRate);
+      bent[k] = dominant_frequency(out.left, kRate, 400.0, 700.0, 2400, 12000);
+    }
+    EXPECT_NEAR(bent[0] / 440.0, std::sqrt(2.0), 0.02 * std::sqrt(2.0),
+                "a fast Drag move of half an octave bends the swarm up by half an octave");
+    EXPECT(bent[0] > bent[1] + 20.0 && bent[1] > bent[2] + 5.0 && bent[2] > 441.0,
+           "the bend is smaller the slower Drag Time is");
+    std::printf("Drag 0.5 -> 0.25, wet pitch in the next 250 ms at Drag Time 0.02 / 0.6 / 3 s: %.1f / %.1f / %.1f Hz\n",
+                bent[0], bent[1], bent[2]);
+
+    // With the tone still playing the pitch comes back to 440 Hz once the old
+    // sound has left the line.
+    bare(device);
+    device.set_param(p::kDragTime, 0.02f);
+    run(device, sine(440.0f, 2.0f, kRate, 0.25f));
+    device.set_param(p::kDrag, 0.25f);
+    Stereo out = run(device, sine(440.0f, 3.0f, kRate, 0.25f));
+    const double after = dominant_frequency(out.left, kRate, 300.0, 700.0, 96000, 144000);
+    EXPECT_NEAR(after, 440.0, 0.5, "the pitch returns to 440 Hz after the move");
+  }
+
+  // Steps: Drag lands on sizes a fourth, a fifth or an octave apart, and a
+  // move between them is heard as that interval.
+  {
+    struct Move {
+      float drag;
+      double ratio;
+      const char* name;
+    };
+    const Move moves[4] = {{0.3f, 4.0 / 3.0, "a fourth up (size 3/4)"},
+                           {0.2f, 3.0 / 2.0, "a fifth up (size 2/3)"},
+                           {0.0f, 2.0, "an octave up (size 1/2)"},
+                           {0.72f, 3.0 / 4.0, "a fourth down (size 4/3)"}};
+    for (const Move& move : moves) {
+      bare(device);
+      device.set_param(p::kSteps, 1.0f);
+      device.set_param(p::kDragTime, 0.02f);
+      run(device, sine(440.0f, 2.0f, kRate, 0.25f));
+      device.set_param(p::kDrag, move.drag);
+      Stereo out = render(device, 0.4f, kRate);
+      const double heard = dominant_frequency(out.left, kRate, 250.0, 1000.0, 2400, 9600);
+      char label[96];
+      std::snprintf(label, sizeof label, "Steps: %s, heard %.2f Hz", move.name, heard);
+      EXPECT_NEAR(heard / 440.0, move.ratio, 0.02 * move.ratio, label);
+      std::printf("Steps, Drag to %.2f: %.2f Hz, ratio %.4f (expected %.4f)\n", move.drag, heard,
+                  heard / 440.0, move.ratio);
+    }
+    // And the knob snaps: anywhere near the middle is the nominal size.
+    bare(device);
+    device.set_param(p::kSteps, 1.0f);
+    device.set_param(p::kDrag, 0.56f);
+    Stereo out = run(device, impulse(1.0f, kRate, 1.0f));
+    EXPECT_NEAR(arrivals(out.left, 0.02).back() / kRate, 0.5, 0.001, "Steps snaps Drag to the nearest size");
+  }
+
+  // BEHAVIOUR CHECKS 3
 
   device.init(kRate);
   device.set_param(p::kReflect, 0.9f);

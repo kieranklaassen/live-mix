@@ -525,7 +525,9 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
   // Once per turn: scratches end, new ones may begin, and a little of the
   // dust moves.
   void new_turn(float pops) {
-    const float chance = kit::min(1.0f, 1.2f * pops * pops);
+    // Rare low on the control (one every couple of minutes at 0.1), a
+    // certainty at the top.
+    const float chance = kit::min(1.0f, 1.2f * pops * pops * std::sqrt(pops));
     for (Scratch& scratch : scratches_) {
       const float dice = dust_rng_.uniform();
       const float where = dust_rng_.uniform();

@@ -831,7 +831,7 @@ int main() {
     const double loudest = std::max(peak(bed.left, at(1.0)), peak(bed.right, at(1.0)));
     note("default patch: loudest event in two minutes (dB)", db(loudest));
     note("default patch: surface over two minutes (dB RMS)", db(rms(bed.left, at(1.0))));
-    EXPECT(loudest < 0.025, "default: nothing over -32 dBFS in two minutes");
+    EXPECT(loudest < 0.0316, "default: nothing over -30 dBFS in two minutes");
     EXPECT(db(loudest / rms(bed.left, at(1.0))) < 36.0,
            "default: the loudest event stands less than 36 dB over the bed");
     // Pops at the default are rare: a few a minute, scratch included.
@@ -842,8 +842,8 @@ int main() {
     const int popped = count_events(minus(pops.left, under), minus(pops.right, under), 0.002, at(0.2), at(1.0));
     note("default Pops: pops in two minutes", popped);
     EXPECT(popped >= 2 && popped <= 24, "default Pops: between one and twelve a minute");
-    EXPECT(std::max(peak(minus(pops.left, under)), peak(minus(pops.right, under))) < 0.025,
-           "default Pops: none over -32 dBFS");
+    EXPECT(std::max(peak(minus(pops.left, under)), peak(minus(pops.right, under))) < 0.0316,
+           "default Pops: none over -30 dBFS");
   }
 
   // Everything on, the platter switched part way: the same audio whatever

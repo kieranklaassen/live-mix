@@ -94,43 +94,47 @@
   "presets": {
     "Warm glue": {
       "circuit": 0,
-      "drive": 0.42,
-      "thump": 0.15,
-      "tone": -0.1
+      "drive": 0.38,
+      "thump": 0.25,
+      "tone": -0.15,
+      "output": -1.5
     },
     "Tape weight": {
       "circuit": 0,
-      "drive": 0.6,
-      "thump": 0.4,
-      "tone": -0.2,
-      "output": -1.5
+      "drive": 0.5,
+      "thump": 0.5,
+      "tone": -0.25,
+      "output": -3
     },
     "Console edge": {
       "circuit": 1,
-      "drive": 0.55,
+      "drive": 0.45,
       "lowCut": 45,
-      "tone": 0.2
+      "tone": 0.2,
+      "output": -1
     },
     "Iron lows": {
       "circuit": 2,
-      "drive": 0.5,
+      "drive": 0.4,
       "thump": 0.35,
-      "output": -1.5
+      "output": -3
     },
     "Glowing triode": {
       "circuit": 3,
-      "drive": 0.6,
-      "tone": -0.15
+      "drive": 0.42,
+      "tone": -0.1,
+      "output": -1
     },
     "Bite": {
       "circuit": 4,
-      "drive": 0.75,
+      "drive": 0.55,
       "lowCut": 90,
-      "highCut": 9000
+      "highCut": 9000,
+      "output": -1.5
     },
     "Crushed piano": {
       "circuit": 1,
-      "drive": 0.35,
+      "drive": 0.2,
       "push": 1,
       "lowCut": 60,
       "highCut": 4200,
@@ -138,20 +142,20 @@
     },
     "Dark fuzz bed": {
       "circuit": 3,
-      "drive": 0.7,
+      "drive": 0.45,
       "push": 1,
       "lowCut": 50,
       "tone": -0.7,
       "highCut": 2400,
-      "output": -3
+      "output": -4
     },
     "Parallel grit": {
       "circuit": 4,
-      "drive": 0.9,
+      "drive": 0.7,
       "lowCut": 220,
       "tone": 0.3,
       "highCut": 10000,
-      "output": 5,
+      "output": 3,
       "mix": 0.3
     }
   },

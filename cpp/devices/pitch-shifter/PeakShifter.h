@@ -45,6 +45,7 @@ class PeakShifter {
     for (int k = 0; k <= kHalf; ++k) {
       for (int part = 0; part < 4; ++part) spectrum_[0][part][k] = spectrum_[1][part][k] = 0.0f;
       theta_[0][k] = theta_[1][k] = 0.0f;
+      shift_[0][k] = shift_[1][k] = 0;
     }
     current_ = 0;
     num_peaks_ = 0;
@@ -88,11 +89,11 @@ class PeakShifter {
     measure();
   }
 
-  // Adds voice `v`'s frame for the last analysis, shifted by `ratio`, into
-  // left/right (N samples each, windowed for a hop of N/4). Only peaks whose
+  // Makes voice `v`'s frame for the last analysis, shifted by `ratio` and
+  // windowed for overlapping at a hop of N/4. Only peaks whose
   // frequency (radians per sample) lies in [from, to) are moved; the rest
   // are left out, for another shifter to take.
-  void synthesise(int v, float ratio, float from, float to, float* left, float* right) {
+  void synthesise(int v, float ratio, float from, float to) {
     for (int n = 0; n < N; ++n) re_[n] = im_[n] = 0.0f;
     const float* lr = spectrum_[current_][0];
     const float* li = spectrum_[current_][1];
@@ -110,10 +111,14 @@ class PeakShifter {
       // on at the target frequency from frame to frame, and is set so the
       // partial is exactly right at the middle of the frame.
       const double move = (target - omega) * N / (2.0 * kPi);
-      const double whole = std::floor(move + 0.5);
+      // The whole part stays what it was last frame while that is within
+      // 0.6 of a bin, so a move that sits between two bins does not flicker.
+      const int bin = peak_bin_[i];
+      double whole = shift_[v][bin];
+      if (move - whole > kHold || whole - move > kHold) whole = std::floor(move + 0.5);
       const float rest = static_cast<float>(move - whole);
       const int shift = static_cast<int>(whole);
-      const double turned = wrap(theta[peak_bin_[i]] + target * kHop - omega * came);
+      const double turned = wrap(theta[bin] + target * kHop - omega * came);
       const float angle = static_cast<float>(turned) + rest * static_cast<float>(kPi);
       const float gain = level / (1.0f - 0.38f * rest * rest);  // a bin's slope off centre
       const float c = gain * std::cos(angle);
@@ -121,6 +126,7 @@ class PeakShifter {
       const float kept = static_cast<float>(turned);
       for (int k = peak_from_[i]; k < peak_to_[i]; ++k) {
         theta[k] = kept;
+        shift_[v][k] = static_cast<short>(shift);
         const int j = k + shift;
         if (j < 1 || j >= kHalf) continue;
         const float a = lr[k] * c - li[k] * s;
@@ -135,13 +141,17 @@ class PeakShifter {
     }
     fft_.inverse(re_, im_);
     for (int n = 0; n < N; ++n) {
-      left[n] += re_[n] * window_[n];
-      right[n] += im_[n] * window_[n];
+      re_[n] *= window_[n];
+      im_[n] *= window_[n];
     }
   }
+  // The frame just made, until the next call.
+  const float* frame_left() const { return re_; }
+  const float* frame_right() const { return im_; }
 
  private:
   static constexpr double kPi = 3.14159265358979323846;
+  static constexpr double kHold = 0.6;
   static constexpr float kFloor = 1.0e-10f;  // peaks this far under the loudest bin are left alone
 
   static double wrap(double phase) { return phase - 2.0 * kPi * std::floor(phase / (2.0 * kPi) + 0.5); }
@@ -201,6 +211,7 @@ class PeakShifter {
   float spectrum_[2][4][kHalf + 1];      // [frame][left re, left im, right re, right im]
   float power_[kHalf + 1];
   float theta_[kVoices][kHalf + 1];      // rotation each bin's region had last frame
+  short shift_[kVoices][kHalf + 1];      // whole bins each bin's region moved last frame
   int peak_bin_[kMaxPeaks], peak_from_[kMaxPeaks], peak_to_[kMaxPeaks];
   float peak_omega_[kMaxPeaks];          // radians per sample
   int current_ = 0;
