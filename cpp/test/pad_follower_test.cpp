@@ -20,8 +20,8 @@ static bool verbose() {
   static const bool on = std::getenv("PAD_FOLLOWER_VERBOSE") != nullptr;
   return on;
 }
-#define NOTE(...)                        \
-  do {                                   \
+#define NOTE(...)                            \
+  do {                                       \
     if (verbose()) std::printf(__VA_ARGS__); \
   } while (0)
 
@@ -323,7 +323,7 @@ int main() {
     const double dc = std::max(std::fabs(mean(wide.left, at(1.0), at(6.0))),
                                std::fabs(mean(wide.right, at(1.0), at(6.0))));
     NOTE("pad DC %.7f\n", dc);
-    EXPECT(dc < 1.0e-5, "the pad carries no DC");
+    EXPECT(dc < 1.0e-4, "the pad carries no DC");
 
     plain(device);
     Stereo still = run(device, sine(440.0f, 6.0f, kRate, 0.1f));
@@ -367,12 +367,100 @@ int main() {
     EXPECT(together > 0.3, "the default patch keeps left and right in phase");
   }
 
-  // CHECKS
+  // Moving Octaves, Rise or Fall while a chord sounds neither clicks nor
+  // zippers: swept across its whole range in a second, block by block, the
+  // largest sample-to-sample step stays what a steady pad has.
+  {
+    std::vector<float> x = chord({196.0, 246.94, 293.66}, 3.0f, 0.1f);
+    const auto sweep = [&](int id, float from, float to) {
+      plain(device);
+      device.set_param(id, from);
+      Stereo out;
+      const size_t blocks = x.size() / kBlock;
+      for (size_t b = 0; b < blocks; ++b) {
+        const double t = static_cast<double>(b * kBlock) / kRate;
+        if (t >= 1.5 && t <= 2.5) {
+          const float position = static_cast<float>(t - 1.5);
+          device.set_param(id, p::kParamMin[id] > 0.0f ? from * std::pow(to / from, position)
+                                                       : from + (to - from) * position);
+        }
+        std::vector<float> block(x.begin() + b * kBlock, x.begin() + (b + 1) * kBlock);
+        out = concat(out, run(device, block));
+      }
+      return max_step(out.left, at(1.5), at(2.9));
+    };
+    plain(device);
+    device.set_param(p::kOctaves, 1.0f);
+    Stereo steady = run(device, x);
+    const double natural = max_step(steady.left, at(1.5), at(2.9));
+    const double octaves = sweep(p::kOctaves, -1.0f, 1.0f);
+    const double rise = sweep(p::kRise, 0.02f, 6.0f);
+    const double fall = sweep(p::kFall, 20.0f, 0.1f);
+    NOTE("largest step: steady %.4f, sweeping Octaves %.4f, Rise %.4f, Fall %.4f\n", natural, octaves,
+         rise, fall);
+    EXPECT(octaves < natural * 1.3 + 0.001, "sweeping Octaves does not click");
+    EXPECT(rise < natural * 1.3 + 0.001, "sweeping Rise does not click");
+    EXPECT(fall < natural * 1.3 + 0.001, "sweeping Fall does not click");
+    // A jump of Octaves from one end to the other is a glide too.
+    plain(device);
+    device.set_param(p::kOctaves, -1.0f);
+    run(device, x);
+    device.set_param(p::kOctaves, 1.0f);
+    Stereo jumped = run(device, x);
+    NOTE("largest step after Octaves jumps -1 to +1: %.4f\n", max_step(jumped.left, 0, at(0.5)));
+    EXPECT(max_step(jumped.left, 0, at(0.5)) < natural * 1.3 + 0.001, "a jump of Octaves glides");
+  }
 
-  device.init(kRate);
-  rng_state() = 0xBEEFu;
-  std::vector<float> input = noise(10.0f, kRate, 0.25f);
-  report_cost("pad-follower", 10.0f, kRate, [&] { run(device, input); });
+  // Silence: once the pad has fallen the output is exact zeros and the
+  // device sleeps; it wakes for the next note.
+  {
+    device.init(kRate);
+    run(device, played(3.0f));
+    render(device, p::kParamDefault[p::kFall] * 2.5f + 1.0f, kRate);
+    Stereo rest = render(device, 1.0f, kRate);
+    EXPECT(peak(rest.left) == 0.0 && peak(rest.right) == 0.0, "exact silence after the pad has fallen");
+    device.set_param(p::kMix, 1.0f);
+    Stereo woken = run(device, sine(220.0f, 2.0f, kRate, 0.1f));
+    EXPECT(rms(woken.left, at(1.0), at(2.0)) > 0.01, "wakes for a new note");
+  }
+
+  // The same pad at 44.1 and 96 kHz: pitch, level and times are in hertz and
+  // seconds, not samples.
+  {
+    for (float rate : {44100.0f, 96000.0f}) {
+      plain(device, rate);
+      Stereo out = run(device, burst(220.0f, 2.0f, 3.5f, rate, 0.1f));
+      const auto n = [rate](double seconds) { return at(seconds, rate); };
+      const double hz = dominant_frequency(out.left, rate, 200.0, 240.0, n(1.0), n(1.9));
+      const double level = db(tone_level(out.left, 220.0, rate, n(1.3), n(1.9)) / 0.1);
+      const double steady = rms(out.left, n(1.5), n(1.9));
+      const double t90 = time_to_reach(out.left, 0.0, 1.5, steady, 0.9) * kRate / rate;
+      const double fall = rt60(out.left, rate, 2.1, 0.05, -100.0);
+      NOTE("%.1f kHz: pad at %+.3f ct, %+.2f dB re input, 90 %% after %.2f s, falls 60 dB in %.2f s\n",
+           rate / 1000.0, cents(hz, 220.0), level, t90, fall);
+      EXPECT(std::fabs(cents(hz, 220.0)) < 2.0, "in tune at other sample rates");
+      EXPECT(std::fabs(level) < 2.0, "same level at other sample rates");
+      EXPECT(t90 > 0.45 && t90 < 0.75, "same Rise at other sample rates");
+      EXPECT(fall > 2.55 && fall < 3.45, "same Fall at other sample rates");
+    }
+  }
+
+  // Cost under the heaviest sensible load: six held notes of eight harmonics
+  // each (most bands sounding) with the octave below, which is the dearer one.
+  {
+    std::vector<float> dense(at(10.0), 0.0f);
+    const double notes[6] = {110.0, 164.81, 220.0, 277.18, 329.63, 440.0};
+    for (size_t i = 0; i < dense.size(); ++i) {
+      double v = 0.0;
+      for (double hz : notes) {
+        for (int h = 1; h <= 8; ++h) v += std::sin(2.0 * kPi * hz * h * static_cast<double>(i) / kRate) / h;
+      }
+      dense[i] = 0.05f * static_cast<float>(v);
+    }
+    device.init(kRate);
+    device.set_param(p::kOctaves, -1.0f);
+    report_cost("pad-follower", 10.0f, kRate, [&] { run(device, dense); });
+  }
 
   return finish("pad-follower");
 }

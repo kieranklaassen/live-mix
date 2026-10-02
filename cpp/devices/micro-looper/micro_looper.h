@@ -334,10 +334,13 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
   // 1 + r sin(2 angle), so dividing it out keeps the level through the join
   // for anything in between. Sides in opposite phase still dip: no pair of
   // gains can save what cancels, and r is not followed below kMinAlike.
-  static void join_gains(const Deck& d, float w, float* out_gain, float* in_gain) {
+  // r was measured for one pass offset (the playhead's); a read at another
+  // (a grain, while Drift moves the offset) gets equal power.
+  static void join_gains(const Deck& d, float w, double offset, float* out_gain, float* in_gain) {
     const float fall = kit::SineTable::cos_lookup(0.25f * w);
     const float rise = kit::SineTable::lookup(0.25f * w);
-    const float level = 1.0f / std::sqrt(1.0f + 2.0f * d.alike * fall * rise);
+    const float alike = offset == d.probe_offset ? d.alike : 0.0f;
+    const float level = 1.0f / std::sqrt(1.0f + 2.0f * alike * fall * rise);
     *out_gain = fall * level;
     *in_gain = rise * level;
   }
@@ -352,7 +355,7 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     float next[2];
     source_read(d, d.start + q - d.length + offset, &next[0], &next[1]);
     float out_gain, in_gain;
-    join_gains(d, kit::min(1.0f, static_cast<float>(into / d.join)), &out_gain, &in_gain);
+    join_gains(d, kit::min(1.0f, static_cast<float>(into / d.join)), offset, &out_gain, &in_gain);
     *left = *left * out_gain + next[0] * in_gain;
     *right = *right * out_gain + next[1] * in_gain;
   }
@@ -376,7 +379,7 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     if (into <= 0.0) return sum;
     const float next = source_sum(d, d.start + q - d.length + offset);
     float out_gain, in_gain;
-    join_gains(d, kit::min(1.0f, static_cast<float>(into / d.join)), &out_gain, &in_gain);
+    join_gains(d, kit::min(1.0f, static_cast<float>(into / d.join)), offset, &out_gain, &in_gain);
     return sum * out_gain + next * in_gain;
   }
 

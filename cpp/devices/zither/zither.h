@@ -60,6 +60,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     rng_.seed(0x5EED2171u);
     stamp_ = 0;
     flip_ = false;
+    together_ = 0;
     chunk_left_ = 0;
     now_ = 0.0;
     fade_step_ = 1.0f / (kFadeSeconds * sr);
@@ -140,6 +141,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     float position = 0.2f;
     float courses = 0.0f;
     bool soft = false;       // a stroke of the roll: lands on the moving string
+    float wait = 0.0f;       // samples before it lands (the hand's spread over keys pressed together)
   };
 
   // One pitch: a course of one or two strings.
@@ -277,10 +279,19 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     return sample_rate() / rate * (1.0f + kRollTimeSpread * rng_.bipolar());
   }
 
+  // Strings that are asked for in the same instant (keys pressed together,
+  // a chord with no strum) are not plucked in the same sample: no hand does
+  // that, and their first edges would pile into one tall spike. Each takes
+  // its turn within a few milliseconds, which the ear still hears as together.
+  static constexpr int kHandTurns = 8;
+  static constexpr float kHandSeconds[kHandTurns] = {0.0f,     0.0019f,  0.0009f, 0.0028f,
+                                                     0.00045f, 0.00235f, 0.0014f, 0.0033f};
+
   // Strum and roll, once per control period.
   void play_keys() {
     using namespace zither;
     const float sr = sample_rate();
+    together_ = 0;
     const bool rolling = param(kRoll) >= 0.5f;
     for (Key& key : keys_) {
       if (!key.used) continue;
@@ -337,6 +348,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     blow.position = param(kPosition);
     blow.courses = param(kCourses);
     blow.soft = soft;
+    if (!soft) blow.wait = kHandSeconds[together_++ % kHandTurns] * sample_rate();
     const int index = strike(blow);
     Voice& voice = voices_[index];
     if (key.down && !(key.voice[tone] == index && key.generation[tone] == voice.generation)) {
@@ -471,7 +483,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
   void start(Voice& voice, const Blow& blow, double when) {
     const float sr = sample_rate();
     voice.hz = blow.hz;
-    voice.origin = when;
+    voice.origin = when + static_cast<double>(blow.wait);
     voice.sounding = true;
     voice.fading = voice.pending = false;
     voice.fade = 1.0f;
@@ -494,7 +506,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     place(voice);
     voice.strikes[0].active = voice.strikes[1].active = false;
     voice.next_strike = 0;
-    set_strike(voice, blow, 0.0f);
+    set_strike(voice, blow, blow.wait);
   }
 
   // The two strings of a course are tuned this many hertz apart.
@@ -978,6 +990,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
   kit::Rng rng_;
   uint32_t stamp_ = 0;
   bool flip_ = false;
+  int together_ = 0;  // blows asked for in this control period so far
   int chunk_left_ = 0;
   double now_ = 0.0;  // samples rendered since init
   float fade_step_ = 0.01f;

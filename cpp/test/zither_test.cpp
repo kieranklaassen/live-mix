@@ -469,7 +469,57 @@ int main() {
     for (int n = 0; n < 10; ++n) device.note_on(n, 110.0f * std::pow(2.0f, n * 3 / 12.0f), 0.8f);
     Stereo ten = render(device, 3.0f, kRate);
     std::printf("level: ten held keys peak at %.2f\n", std::max(peak(ten.left), peak(ten.right)));
-    EXPECT(peak(ten.left) < 0.9 && peak(ten.right) < 0.9, "ten keys stay under the clip knee region");
+    EXPECT(peak(ten.left) < 0.5 && peak(ten.right) < 0.5, "ten keys stay under the clip knee");
+  }
+
+  // 10b. Keys pressed in the same instant are spread over a few
+  // milliseconds like a hand, so their first edges do not pile into one
+  // spike: on the spikiest setting (a pick near the bridge, the koto body)
+  // four keys at full velocity peak well under four times one key and stay
+  // under the clip knee at that preset's volume, and the strings of a chord
+  // with no strum still begin within a few milliseconds of each other.
+  {
+    const float low_chord[4] = {65.406f, 97.999f, 130.813f, 164.814f};
+    auto spiky = [&](int keys, float volume) {
+      plain(device);
+      device.set_param(p::kExciter, 1.0f);
+      device.set_param(p::kPosition, 0.08f);
+      device.set_param(p::kBrightness, 0.7f);
+      device.set_param(p::kBody, 3.0f);
+      device.set_param(p::kVolume, volume);
+      for (int k = 0; k < keys; ++k) device.note_on(k, low_chord[k], 1.0f);
+      Stereo out = render(device, 1.0f, kRate);
+      return std::max(peak(out.left), peak(out.right));
+    };
+    double single = 0.0;
+    for (int k = 0; k < 4; ++k) {
+      plain(device);
+      device.set_param(p::kExciter, 1.0f);
+      device.set_param(p::kPosition, 0.08f);
+      device.set_param(p::kBrightness, 0.7f);
+      device.set_param(p::kBody, 3.0f);
+      device.set_param(p::kVolume, -20.0f);
+      device.note_on(k, low_chord[k], 1.0f);
+      Stereo out = render(device, 1.0f, kRate);
+      single = std::max(single, std::max(peak(out.left), peak(out.right)));
+    }
+    const double four = spiky(4, -20.0f), loud = spiky(4, -7.0f);
+    plain(device);
+    device.set_param(p::kChord, 3.0f);
+    device.set_param(p::kStrum, 0.0f);
+    device.note_on(1, 220.0f, 0.8f);
+    const std::vector<float> chord = mono(render(device, 0.5f, kRate));
+    double first = 1.0e9, last = -1.0e9;
+    for (float semis : {0.0f, 7.0f, 12.0f, 16.0f, 19.0f, 24.0f}) {
+      const double when = onset(chord, 220.0 * std::pow(2.0, semis / 12.0));
+      first = std::min(first, when);
+      last = std::max(last, when);
+    }
+    std::printf("together: four full-velocity keys peak at %.2f times one key (%.2f at the koto preset's volume); a chord with no strum starts within %.1f ms\n",
+                four / single, loud, (last - first) * 1000.0);
+    EXPECT(four < 2.2 * single, "keys pressed together do not pile into one spike");
+    EXPECT(loud < 0.5, "four full-velocity keys on the spikiest preset stay under the clip knee");
+    EXPECT(last - first < 0.008, "and a chord with no strum still sounds together");
   }
 
   // 11. Moving the controls under a ringing chord does not click: Decay,
@@ -489,7 +539,7 @@ int main() {
         const float there_and_back = t < 0.5f ? 2.0f * t : 2.0f - 2.0f * t;
         if (sweep == 1) device.set_param(p::kDecay, 20.0f * std::pow(0.5f / 20.0f, there_and_back));
         if (sweep == 2) device.set_param(p::kSympathy, there_and_back);
-        if (sweep == 3) device.set_param(p::kVolume, -9.0f - 30.0f * there_and_back);
+        if (sweep == 3) device.set_param(p::kVolume, p::kParamDefault[p::kVolume] - 30.0f * there_and_back);
         if (sweep == 4 && b % 40 == 0) device.set_param(p::kBody, static_cast<float>((b / 40) % 4));
         if (sweep == 5 && b == 10) device.note_off(1);
         if (sweep == 5) device.set_param(p::kRelease, 20.0f * std::pow(0.05f / 20.0f, there_and_back));

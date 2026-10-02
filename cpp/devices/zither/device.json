@@ -119,7 +119,7 @@
       "name": "Volume",
       "min": -48,
       "max": 6,
-      "default": -9,
+      "default": -12,
       "unit": "dB",
       "description": "Output level of the instrument. A soft clip after it rounds off the peaks when many strings stack up."
     }
@@ -135,7 +135,7 @@
       "position": 0.25,
       "courses": 0.45,
       "sympathy": 0.55,
-      "volume": -7
+      "volume": -8.5
     },
     "Concert harp": {
       "exciter": 0,
@@ -175,7 +175,7 @@
       "courses": 0.4,
       "sympathy": 0.7,
       "body": 2,
-      "volume": -11.5
+      "volume": -13
     },
     "Chord zither major": {
       "exciter": 1,
@@ -187,7 +187,7 @@
       "position": 0.18,
       "courses": 0.25,
       "sympathy": 0.3,
-      "volume": -7
+      "volume": -8.5
     },
     "Chord zither minor": {
       "exciter": 1,
@@ -199,7 +199,7 @@
       "position": 0.18,
       "courses": 0.25,
       "sympathy": 0.3,
-      "volume": -7
+      "volume": -8.5
     },
     "Koto pluck": {
       "exciter": 1,
@@ -211,7 +211,7 @@
       "courses": 0,
       "sympathy": 0.15,
       "body": 3,
-      "volume": -4.5
+      "volume": -7
     },
     "Twelve-string haze": {
       "exciter": 1,
@@ -223,7 +223,7 @@
       "position": 0.2,
       "courses": 0.85,
       "sympathy": 0.5,
-      "volume": -7.5
+      "volume": -8
     },
     "Single felt string": {
       "exciter": 2,

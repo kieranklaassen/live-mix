@@ -216,6 +216,15 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
   static constexpr float kRefractorySeconds = 0.05f;
   static constexpr float kPlayingHangSeconds = 0.15f;
   static constexpr float kMaxPostponeSeconds = 0.2f;
+  // Sound that arrives without an attack (a pad that swells in, a bowed or
+  // sung note, a chord faded in) never makes an onset. It is caught when a
+  // good share of what sounds now is not in what was caught last ...
+  static constexpr float kSoftSmoothSeconds = 0.1f;   // the spectrum is averaged over this long
+  static constexpr float kSoftMargin = 1.26f;         // a bin is new when it is 1 dB over the reference
+  static constexpr float kSoftShare = 0.25f;          // ... and this share of the power is new
+  static constexpr float kSoftSeconds = 0.1f;         // ... for this long, with no onset
+  static constexpr float kSoftSpacingSeconds = 0.3f;  // and no more often than this
+  static constexpr float kSettleSeconds = 0.2f;       // after a catch the reference takes in what still rises
 
   int mode() const { return kit::clamp_int(static_cast<int>(param(sustainer::kMode) + 0.5f), 0, 2); }
   bool hold_on() const { return param(sustainer::kHold) >= 0.5f; }
@@ -277,6 +286,7 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     int serial;      // the onset count when it was caught
     float delay;     // samples by which the held sound runs behind the input
     bool newest;     // the layer the player's last note made
+    bool soft;       // caught without an onset (a swell)
     float rise;      // 0..1 along the attack
     float fall;      // 1..0: the decay
     float leave;     // 1..0: giving way to a newer layer
@@ -294,6 +304,7 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
       slot.delay = 0.0f;
       slot.state = kFree;
       slot.newest = false;
+      slot.soft = false;
       slot.rise = 0.0f;
       slot.fall = 1.0f;
       slot.leave = 1.0f;
@@ -323,6 +334,11 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     onsets_ = 0;
     gate_ = 0.0f;
     for (int k = 0; k <= kMaxFrame / 8; ++k) det_a_[k] = det_b_[k] = 0.0f;
+    for (int k = 0; k <= kMaxFrame / 8; ++k) slow_[k] = ref_[k] = 0.0f;
+    soft_a_ = 1.0f - std::exp(-static_cast<float>(frame_ / 8) / (sample_rate() * kSoftSmoothSeconds));
+    soft_for_ = 0.0f;
+    settle_ = 0.0f;
+    soft_capture_ = false;
     for (int k = 0; k <= kMaxHalf; ++k) mag_[k] = 0.0f;
     drift_a_ = hop_seconds_ / 1.0f;
     side_a_ = hop_seconds_ / 0.8f;
@@ -446,10 +462,13 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     // "Playing" lasts a little past the last frame above half the gate level.
     quiet_for_ = level > 0.5f * gate ? 0.0f : kit::min(quiet_for_ + step, 100.0f);
     playing_ = quiet_for_ < kPlayingHangSeconds;
+    loud_ = level > gate;
     if (!onset) return;
     since_onset_ = 0.0f;
+    soft_for_ = 0.0f;
     ++onsets_;
     if (mode() == kModeLatch || hold_on()) return;
+    soft_capture_ = false;
     // Wait until both frames of the capture lie after the attack. Further
     // onsets (a strum, a roll) push the capture back, but not for ever.
     const int wait = frame_ + hop_ / 2;
@@ -460,6 +479,63 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
       postponed_ += static_cast<float>(wait - capture_due_) / sample_rate();
       capture_due_ = wait;
     }
+  }
+
+  // The second way in, for sound that has no attack. The averaged spectrum
+  // is held against what it was when the newest layer was caught (each bin
+  // against the largest of three, so vibrato does not count, and scaled by
+  // how far that layer has since died away). True once a good share of the
+  // power has stood above that reference for a moment. A decaying note never
+  // does; a swell does again and again, so the layer follows it up; a new
+  // chord faded in over the old one does; steady noise does not, because
+  // the reference took in its scatter while it settled.
+  //
+  // It looks every other hop (43 ms) through the long frame, whose bins are
+  // 12 Hz apart: the detector's short frame cannot tell a chord from the
+  // one a tone below it.
+  void watch() {
+    if (mode() == kModeLatch || hold_on()) {
+      soft_for_ = 0.0f;
+      return;
+    }
+    const float step = 2.0f * hop_seconds_;
+    analyse(0, now_re_, now_im_);
+    float held = 0.0f;
+    for (int s = 0; s < kSlots; ++s) {
+      if (slots_[s].state == kHeld && slots_[s].newest) held = slots_[s].fall * slots_[s].fall;
+    }
+    const bool settling = settle_ > 0.0f;
+    settle_ = kit::max(0.0f, settle_ - step);
+    const float covered = kSoftMargin * held;
+    const int bins = half_ / 2;
+    float fresh = 0.0f, total = 0.0f;
+    for (int k = 1; k <= bins; ++k) {
+      const float now = slow_[k] + soft_a_ * (now_re_[k] * now_re_[k] + now_im_[k] * now_im_[k] - slow_[k]);
+      slow_[k] = now;
+      if (settling && now > ref_[k]) ref_[k] = now;
+      total += now;
+      const float known = covered * ref_[k];
+      if (now > known) fresh += now - known;
+    }
+    soft_for_ = (loud_ && fresh > kSoftShare * total) ? soft_for_ + step : 0.0f;
+    if (soft_for_ < kSoftSeconds || capture_due_ >= 0 || since_onset_ < kSoftSpacingSeconds) return;
+    // Caught like a note, but there is no attack to wait out.
+    since_onset_ = 0.0f;
+    soft_for_ = 0.0f;
+    ++onsets_;
+    soft_capture_ = true;
+    capture_due_ = hop_ / 2;
+    postponed_ = 0.0f;
+  }
+
+  // A layer has been caught: the reference is the spectrum as it is now. A
+  // catch without an onset continues the sound before it, so half of the
+  // old reference stands: partials that beat (a detuned pad) are then
+  // caught near their loudest and, after a few catches, left alone.
+  void mark_reference(bool soft) {
+    const int bins = half_ / 2;
+    for (int k = 0; k <= bins; ++k) ref_[k] = soft ? kit::max(0.5f * ref_[k], slow_[k]) : slow_[k];
+    settle_ = kSettleSeconds;
   }
 
   // Once per analysis frame: act on Hold and on a capture that has come due.
@@ -486,10 +562,14 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     if (chosen < 0) return;
     Slot& slot = slots_[chosen];
     capture(slot);
+    const bool soft = soft_capture_;
+    soft_capture_ = false;
     // A capture that finds nothing (the click of a note being cut off, a
     // touch on the strings) must not push out what is held.
     // (Latch takes whatever there is, but not plain silence.)
     if (slot.power < (mode() == kModeLatch ? 1.0e-12f : gate_ * gate_)) return;
+    mark_reference(soft);
+    slot.soft = soft;
     const bool layering = mode() == kModeLayer;
     // The old layer gives way over Glide, but never faster than the new one
     // rises (Attack): otherwise a long Attack leaves a hole between chords.
@@ -497,9 +577,12 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     int held = 0;
     for (int s = 0; s < kSlots; ++s) {
       Slot& other = slots_[s];
-      if (other.state == kFree) continue;
+      if (other.state == kFree || s == chosen) continue;
+      // In Layer, a swell that is caught again replaces its own earlier
+      // catch instead of piling up on it.
+      const bool same_swell = soft && other.newest && other.soft;
       other.newest = false;
-      if (other.state == kHeld && !layering) {
+      if (other.state == kHeld && (!layering || same_swell)) {
         other.state = kLeaving;
         other.leave_rate = glide_rate;
       }
@@ -989,6 +1072,12 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
   uint16_t peak_[kMaxRegions];
   float det_a_[kMaxFrame / 8 + 1], det_b_[kMaxFrame / 8 + 1];  // the detector's last two frames
   float det_re_[kMaxFrame / 8 + 1], det_im_[kMaxFrame / 8 + 1];
+  float slow_[kMaxFrame / 8 + 1];  // the detector's power spectrum, averaged over a tenth of a second
+  float ref_[kMaxFrame / 8 + 1];   // ... and what it was when the newest layer was caught
+  float soft_a_ = 0.1f;
+  float soft_for_ = 0.0f;          // how long new sound has stood above the reference
+  float settle_ = 0.0f;            // what is left of the settling time after a catch
+  bool soft_capture_ = false;      // the capture that is waiting was asked for without an onset
   float frame_gain_[kSlots] = {};
   bool frame_any_ = false;
   float flux_mean_ = 0.0f;

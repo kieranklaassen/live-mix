@@ -15,7 +15,7 @@ export const NOISE_FLOOR_PARAMS = {
     unit: '',
     choices: ['Tape hiss', 'Vinyl', 'Room', 'Hum 50', 'Hum 60', 'Static', 'Air'],
     description:
-      "Which medium is heard: tape hiss, a record's surface and crackle, the rumble of an empty room, mains hum at 50 or 60 hertz, radio static, or the soft hiss of a microphone preamp.",
+      'Which medium is heard: tape hiss, the dull surface and fine crackle of a record, the rumble of an empty room, mains hum at 50 or 60 hertz, radio static, or the soft hiss of a microphone preamp.',
   },
   level: {
     id: 1,
@@ -26,7 +26,7 @@ export const NOISE_FLOOR_PARAMS = {
     taper: 'linear',
     unit: 'dB',
     description:
-      'How loud the noise is. It is added under the sound; the sound itself is never changed.',
+      'How loud the noise is. It is added under the sound; the sound itself is never changed. Ticks and crackles stay close to this level and never jump far out of it.',
   },
   follow: {
     id: 2,
@@ -37,7 +37,7 @@ export const NOISE_FLOOR_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Ties the noise to the playing. To the right it rides with the sound and dies away with it. To the left it ducks under the sound and swells up in the gaps, like a recorder with automatic level. In the middle it is constant.',
+      'Ties the noise to the playing. Turned up, it rides with the sound and dies away with it. Turned down, it ducks under the sound and swells up in the gaps, like a recorder with automatic level. In the middle it is constant.',
   },
   response: {
     id: 3,
@@ -81,7 +81,7 @@ export const NOISE_FLOOR_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Stereo spread of the noise. At full the two sides are independent; at zero it is mono.',
+      'Stereo spread of the noise. At full the two sides are independent, at zero it is mono. Hum stays mostly in the middle however wide.',
   },
   hold: {
     id: 7,
@@ -121,7 +121,7 @@ export const NOISE_FLOOR_DESCRIPTOR = wasmDeviceDescriptor(NOISE_FLOOR_DEVICE, {
       width: 0.8,
       hold: 6,
     },
-    'Old record': { type: 1, level: -38, tone: -0.2, movement: 0.5, width: 0.7, hold: 8 },
+    'Old record': { type: 1, level: -38, movement: 0.5, width: 0.7, hold: 8 },
     'Empty room': { type: 2, level: -34, movement: 0.6, width: 1, hold: 20 },
     'Amp left on': { type: 4, level: -40, tone: 0.2, movement: 0.3, width: 0.3, hold: 30 },
     'Between stations': { type: 5, level: -36, tone: 0.1, movement: 0.6, width: 0.5, hold: 10 },

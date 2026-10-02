@@ -5,7 +5,7 @@
 //    0  band: 0 Medium wave, 1 Shortwave, 2 Sideband, default 1
 //    1  tuning: -1..1, default 0
 //    2  drift: 0..1, default 0.2
-//    3  fading: 0..1, default 0.4
+//    3  fading: 0..1, default 0.6
 //    4  static: 0..1, default 0.3
 //    5  interference: 0..1, default 0.15
 //    6  bandwidth: 0..1, default 0.5
@@ -32,7 +32,7 @@ enum Param : int {
 
 inline constexpr float kParamMin[kNumParams] = {0.0f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 inline constexpr float kParamMax[kNumParams] = {2.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {1.0f, 0.0f, 0.2f, 0.4f, 0.3f, 0.15f, 0.5f, 0.4f, 1.0f};
+inline constexpr float kParamDefault[kNumParams] = {1.0f, 0.0f, 0.2f, 0.6f, 0.3f, 0.15f, 0.5f, 0.4f, 1.0f};
 
 }  // namespace radio
 }  // namespace livemix

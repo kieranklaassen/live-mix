@@ -14,7 +14,7 @@
 //    9  courses: 0..1, default 0.3
 //   10  sympathy: 0..1, default 0.3
 //   11  body: 0 Harp, 1 Zither, 2 Dulcimer, 3 Koto, default 1
-//   12  volume: -48..6 dB, default -9
+//   12  volume: -48..6 dB, default -12
 
 #pragma once
 
@@ -40,7 +40,7 @@ enum Param : int {
 
 inline constexpr float kParamMin[kNumParams] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.5f, 0.05f, 0.0f, 0.05f, 0.0f, 0.0f, 0.0f, -48.0f};
 inline constexpr float kParamMax[kNumParams] = {2.0f, 7.0f, 600.0f, 2.0f, 16.0f, 20.0f, 20.0f, 1.0f, 0.5f, 1.0f, 1.0f, 3.0f, 6.0f};
-inline constexpr float kParamDefault[kNumParams] = {0.0f, 0.0f, 120.0f, 0.0f, 0.0f, 6.0f, 3.0f, 0.55f, 0.2f, 0.3f, 0.3f, 1.0f, -9.0f};
+inline constexpr float kParamDefault[kNumParams] = {0.0f, 0.0f, 120.0f, 0.0f, 0.0f, 6.0f, 3.0f, 0.55f, 0.2f, 0.3f, 0.3f, 1.0f, -12.0f};
 
 }  // namespace zither
 }  // namespace livemix

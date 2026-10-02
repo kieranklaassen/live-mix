@@ -10,15 +10,7 @@
     {
       "key": "type",
       "name": "Type",
-      "choices": [
-        "Tape hiss",
-        "Vinyl",
-        "Room",
-        "Hum 50",
-        "Hum 60",
-        "Static",
-        "Air"
-      ],
+      "choices": ["Tape hiss", "Vinyl", "Room", "Hum 50", "Hum 60", "Static", "Air"],
       "default": 0,
       "description": "Which medium is heard: tape hiss, the dull surface and fine crackle of a record, the rumble of an empty room, mains hum at 50 or 60 hertz, radio static, or the soft hiss of a microphone preamp."
     },

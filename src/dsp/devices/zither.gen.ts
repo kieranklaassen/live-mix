@@ -146,7 +146,7 @@ export const ZITHER_PARAMS = {
     name: 'Volume',
     min: -48,
     max: 6,
-    default: -9,
+    default: -12,
     taper: 'linear',
     unit: 'dB',
     description:
@@ -167,7 +167,7 @@ export const ZITHER_DESCRIPTOR = wasmDeviceDescriptor(ZITHER_DEVICE, {
   name: 'Zither',
   category: 'instrument',
   description:
-    'A box of open strings to pluck, strum and hammer: harp, zither, autoharp and hammered dulcimer, with twelve sympathetic strings that ring on behind what is played.',
+    'A box of open strings to pluck, strum and hammer: harp, chord zither and hammered dulcimer, with twelve sympathetic strings that ring on behind what is played.',
   presets: {
     'Open zither': {
       exciter: 1,
@@ -179,7 +179,7 @@ export const ZITHER_DESCRIPTOR = wasmDeviceDescriptor(ZITHER_DEVICE, {
       position: 0.25,
       courses: 0.45,
       sympathy: 0.55,
-      volume: -7,
+      volume: -8.5,
     },
     'Concert harp': {
       exciter: 0,
@@ -219,9 +219,9 @@ export const ZITHER_DESCRIPTOR = wasmDeviceDescriptor(ZITHER_DEVICE, {
       courses: 0.4,
       sympathy: 0.7,
       body: 2,
-      volume: -11.5,
+      volume: -13,
     },
-    'Autoharp major': {
+    'Chord zither major': {
       exciter: 1,
       chord: 3,
       strum: 90,
@@ -231,9 +231,9 @@ export const ZITHER_DESCRIPTOR = wasmDeviceDescriptor(ZITHER_DEVICE, {
       position: 0.18,
       courses: 0.25,
       sympathy: 0.3,
-      volume: -7,
+      volume: -8.5,
     },
-    'Autoharp minor': {
+    'Chord zither minor': {
       exciter: 1,
       chord: 4,
       strum: 90,
@@ -243,7 +243,7 @@ export const ZITHER_DESCRIPTOR = wasmDeviceDescriptor(ZITHER_DEVICE, {
       position: 0.18,
       courses: 0.25,
       sympathy: 0.3,
-      volume: -7,
+      volume: -8.5,
     },
     'Koto pluck': {
       exciter: 1,
@@ -255,7 +255,7 @@ export const ZITHER_DESCRIPTOR = wasmDeviceDescriptor(ZITHER_DEVICE, {
       courses: 0,
       sympathy: 0.15,
       body: 3,
-      volume: -4.5,
+      volume: -7,
     },
     'Twelve-string haze': {
       exciter: 1,
@@ -267,7 +267,7 @@ export const ZITHER_DESCRIPTOR = wasmDeviceDescriptor(ZITHER_DEVICE, {
       position: 0.2,
       courses: 0.85,
       sympathy: 0.5,
-      volume: -7.5,
+      volume: -8,
     },
     'Single felt string': {
       exciter: 2,
@@ -301,7 +301,7 @@ export const ZITHER_DESCRIPTOR = wasmDeviceDescriptor(ZITHER_DEVICE, {
 
 export type Zither = WasmDevice<typeof ZITHER_PARAMS>
 
-/** A box of open strings to pluck, strum and hammer: harp, zither, autoharp and hammered dulcimer, with twelve sympathetic strings that ring on behind what is played. Play it through `NoteDevice`: `noteOn(id, frequency, gain)` / `noteOff(id)`. */
+/** A box of open strings to pluck, strum and hammer: harp, chord zither and hammered dulcimer, with twelve sympathetic strings that ring on behind what is played. Play it through `NoteDevice`: `noteOn(id, frequency, gain)` / `noteOff(id)`. */
 export function createZither(
   context: BaseAudioContext,
   options: WasmDeviceOptions<typeof ZITHER_PARAMS> = {},

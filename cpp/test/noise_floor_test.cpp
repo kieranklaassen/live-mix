@@ -690,6 +690,25 @@ int main() {
     }
   }
 
+  // 12b. Tone keeps the level at every sample rate too (the bright beds
+  // were 2 to 3 dB louder at 96 kHz with Tone up, from a filter whose shape
+  // depended on the rate).
+  {
+    double worst = 0.0;
+    for (float rate : {44100.0f, 96000.0f}) {
+      for (int t : {static_cast<int>(NoiseFloor::kTape), static_cast<int>(NoiseFloor::kAir)}) {
+        for (float tone : {-1.0f, 0.5f, 1.0f}) {
+          still(device, t, -42.0f, rate);
+          device.set_param(p::kTone, tone);
+          const double error = db(rms(noise_only(device, 8.0f, rate).left)) + 42.0;
+          if (std::fabs(error) > std::fabs(worst)) worst = error;
+        }
+      }
+    }
+    EXPECT(std::fabs(worst) < 1.0, "Tone keeps the level within 1 dB at 44.1 and 96 kHz");
+    if (verbose) std::printf("tone at other rates: worst level error %+.2f dB\n", worst);
+  }
+
   // 13. What counts as playing. Below -74 dBFS nothing is: an input at
   // -80 dBFS passes untouched and starts no noise, and behind a reverb-like
   // tail (60 dB down in 3 s) the noise stops Hold and the fade after the tail

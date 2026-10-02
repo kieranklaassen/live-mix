@@ -94,10 +94,12 @@ class PitchShifter : public kit::DeviceBase<pitch_shifter::kNumParams> {
   void process(int frames) {
     using namespace pitch_shifter;
     frames = begin_block(frames);
+    const bool slept = idle_.asleep();
     if (!idle_.wake(input_present(frames))) {
       silence_output(frames);
       return;
     }
+    if (slept && !settle_) rouse();
     const double longest = static_cast<double>(kParamMax[kDelay]) * 0.001 * sample_rate();
     float loudest = 0.0f;  // of the voices, heard or not: the loop runs on at Mix 0
     for (int i = 0; i < frames; ++i) {
@@ -188,6 +190,22 @@ class PitchShifter : public kit::DeviceBase<pitch_shifter::kNumParams> {
     return 0.0f;
   }
 
+  // Waking from sleep: nothing is sounding, so what was set meanwhile takes
+  // hold at once, as before the first block. Otherwise the first note after
+  // a turn to Chords would be played by the old mode and then again by
+  // Chords, and a moved Delay or Pitch would bend it.
+  void rouse() {
+    pitch_[0].snap(pitch_[0].target);
+    pitch_[1].snap(pitch_[1].target);
+    level_b_.snap(level_b_.target);
+    feedback_.snap(feedback_.target);
+    mix_.snap(mix_.target);
+    base_.snap(base_.target);
+    tone_hz_.snap(tone_hz_.target);
+    clock_.reset(kControlPeriod);
+    settle_ = true;
+  }
+
   void apply(int id) {
     using namespace pitch_shifter;
     const float value = param(id);
@@ -273,6 +291,11 @@ class PitchShifter : public kit::DeviceBase<pitch_shifter::kNumParams> {
     if (!want_chords_) voice_mode_ = choice;
     const int mode = voice_mode_;
     if (settle_) {
+      if (want_chords_ && !chords_on_) chords_.reset();
+      if (!want_chords_ && !voices_on_) {
+        voice_[0].restart();
+        voice_[1].restart();
+      }
       chords_on_ = want_chords_;
       voices_on_ = !want_chords_;
       blend_ = want_chords_ ? 1.0f : 0.0f;
