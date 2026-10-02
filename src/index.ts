@@ -190,13 +190,26 @@ export {
 } from './core/tracks/AudioTrack'
 export {
   DEFAULT_SPACE,
+  GRAIN_ECHOES_PER_SEC,
+  MAX_SPACE_DRIFT_CENTS,
+  MAX_SPACE_DRIVE_DB,
+  MAX_SPACE_LEVEL_DB,
+  MIN_SPACE_LEVEL_DB,
+  SPACE_DRIVE_LEVEL_DB,
   SPACE_LEVEL_HIGH_HZ,
   SPACE_LEVEL_LOW_HZ,
   generateSpaceImpulse,
+  grainEchoesPerSec,
   resolveSpace,
+  sameSpaceImpulse,
+  spaceColour,
+  spaceDrift,
+  spaceDriveGains,
   spaceImpulseChannel,
+  type SpaceColour,
   type SpaceOptions,
 } from './core/tracks/space'
+export { SpaceRoom, type SpaceRoomHost, type SpaceRoomSettings } from './core/tracks/SpaceRoom'
 export * from './core/transport'
 export {
   DEFAULT_BEATS_PER_BAR,

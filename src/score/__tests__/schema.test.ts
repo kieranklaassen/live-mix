@@ -114,6 +114,36 @@ describe('serializeScore / parseScore', () => {
   })
 })
 
+describe('a track with a loop length of its own', () => {
+  function withLoop(loopLengthSec: unknown, stretch?: boolean): ReturnType<typeof demoScore> {
+    const score = demoScore()
+    const pad = score.tracks[1]
+    if (pad.kind !== 'audio') throw new Error('fixture')
+    Object.assign(pad, { loopLengthSec })
+    if (stretch) pad.stretch = true
+    return score
+  }
+
+  it('is valid, and survives a round trip through text', () => {
+    const score = withLoop(23.5)
+    expect(validateScore(score)).toEqual([])
+    const parsed = parseScore(serializeScore(score))
+    expect(parsed.tracks[1]).toMatchObject({ id: 'pad', loopLengthSec: 23.5 })
+    expect(parsed.tracks[0]).not.toHaveProperty('loopLengthSec')
+  })
+
+  it('must be a number above 0, on a track that plays buffers', () => {
+    for (const bad of [0, -1, '8', null]) {
+      expect(validateScore(withLoop(bad)).map((issue) => issue.path)).toEqual([
+        'tracks[1].loopLengthSec',
+      ])
+    }
+    expect(validateScore(withLoop(8, true))).toEqual([
+      { path: 'tracks[1].loopLengthSec', message: 'a stretch track has no loop of its own' },
+    ])
+  })
+})
+
 describe('validateScore', () => {
   it('reports every dangling reference with a path', () => {
     const score = demoScore()

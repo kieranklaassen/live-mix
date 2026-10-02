@@ -160,6 +160,17 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
       { deviceId: 'tape', preset: 'Quarter inch', params: { output: 3.5 } },
     ],
   },
+  {
+    id: 'worn-tape-wash',
+    name: 'Worn tape wash',
+    category: 'tape',
+    description:
+      'An old reel that drifts, dulls and hisses under the sound, left to ring in a long plate.',
+    effects: [
+      { deviceId: 'patina', preset: 'Quarter inch reel', params: { wobble: 0.4, wear: 0.5 } },
+      { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.3 } },
+    ],
+  },
 
   // Motion: modulation.
   {

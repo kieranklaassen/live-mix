@@ -38,6 +38,7 @@ export {
   MockMessagePort,
   MockOscillatorNode,
   MockStereoPannerNode,
+  MockWaveShaperNode,
 } from './mock-nodes'
 export {
   MockAudioContext,

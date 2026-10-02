@@ -72,6 +72,8 @@ export const DEFAULT_JOIN_RAMP_SECONDS = 0.05
  * the clock time of timeline second 0 at the window's rate.
  */
 const SEEK_EPSILON_SEC = 0.001
+// A second this close under a pass's start is that start, written with another rounding.
+const PASS_EPSILON_SEC = 1e-9
 
 interface Written {
   value: number
@@ -165,7 +167,7 @@ export class LaneWriter {
   private laneValueAt(unwrappedSec: number): number {
     const length = this.loopLengthSec
     const local =
-      length > 0 ? unwrappedSec - Math.floor(unwrappedSec / length) * length : unwrappedSec
+      length > 0 ? Math.max(0, unwrappedSec - passAt(unwrappedSec, length) * length) : unwrappedSec
     return this.lane.valueAt(local)
   }
 
@@ -257,10 +259,11 @@ export class LaneWriter {
     }
     let cursor = fromSec
     while (cursor < toSec) {
-      const pass = Math.floor(cursor / loopLengthSec)
+      const pass = passAt(cursor, loopLengthSec)
       const passStart = pass * loopLengthSec
-      let localFrom = cursor - passStart
-      const wrapsHere = cursor === passStart && !(cursor === fromSec && this.cursorAnchored)
+      let localFrom = Math.max(0, cursor - passStart)
+      const wrapsHere =
+        localFrom <= PASS_EPSILON_SEC && !(cursor === fromSec && this.cursorAnchored)
       if (wrapsHere) localFrom = this.wrap(passStart, offsetSec, loopLengthSec)
       const localTo = Math.min(toSec - passStart, loopLengthSec)
       const localWriteTo = Math.min(segmentEndAfter(this.lane, localTo), loopLengthSec)
@@ -272,7 +275,11 @@ export class LaneWriter {
         passStart,
         offsetSec,
       )
-      cursor = passStart + localWriteTo
+      // A pass written to its end hands over to the start of the next one, as
+      // that pass counts it: with a length a float cannot hold exactly (35.765),
+      // this pass's start plus one length can fall a hair short of it, and a
+      // cursor left there would be read as the end of this pass for ever.
+      cursor = reachesEnd ? (pass + 1) * loopLengthSec : Math.max(toSec, passStart + localWriteTo)
     }
     return cursor
   }
@@ -335,4 +342,15 @@ export class LaneWriter {
       }
     }
   }
+}
+
+/**
+ * The pass of a loop `lengthSec` long that unwrapped second `sec` is in. The
+ * start of a pass belongs to it however it was worked out: `(k - 1) * length +
+ * length` is not always `k * length` in floats, and dividing it back can land
+ * under `k`.
+ */
+function passAt(sec: number, lengthSec: number): number {
+  const pass = Math.floor(sec / lengthSec)
+  return (pass + 1) * lengthSec - sec <= PASS_EPSILON_SEC ? pass + 1 : pass
 }

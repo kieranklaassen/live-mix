@@ -1,8 +1,9 @@
 // The styled kit (U25, R32): primitives and composite views over the U24
 // hooks, themed through `--lm-*` CSS variables. Import
 // `@kieranklaassen/live-mix/react/styles.css` for the defaults, or set the
-// tokens yourself (`themeStyle`, `jaxaZenLight`, `jaxaZenDark`, `graphite`,
-// `paper`, `water`).
+// tokens yourself (`themeStyle`, `jaxaZenLight`, `jaxaZenDark`, and the grid
+// themes `graphite`, `paper`, `water`, `dusk`, `night`, `sand`, `groovebox`,
+// `chalk`, `mist`).
 
 export {
   clamp,
@@ -41,12 +42,18 @@ export {
 export {
   ambientWater,
   BRUSH_COUNT,
+  chalk,
   cx,
+  dusk,
   graphite,
+  groovebox,
   jaxaZenDark,
   jaxaZenLight,
   LM_TOKENS,
+  mist,
+  night,
   paper,
+  sand,
   themes,
   themeStyle,
   tokenRef,
@@ -127,6 +134,13 @@ export {
   type PlatePicture,
 } from './device-skins'
 export { PLATE_PALETTES, type PlatePalette } from './plate-palettes'
+export {
+  landingIndex,
+  markerPosition,
+  useChainReorder,
+  type ChainReorder,
+  type ItemSpan,
+} from './chain-reorder'
 export {
   DeviceChainView,
   freshDeviceId,

@@ -46,7 +46,14 @@ import { LiveInputTrack, type LiveInputTrackOptions } from './tracks/LiveInputTr
 import { ReturnTrack, type ReturnTrackOptions } from './tracks/ReturnTrack'
 import { SampleRetainer } from './tracks/SampleRetainer'
 import { SampleStore, type SampleStoreOptions } from './tracks/SampleStore'
-import { generateSpaceImpulse, type SpaceOptions } from './tracks/space'
+import {
+  generateSpaceImpulse,
+  resolveSpace,
+  sameSpaceImpulse,
+  spaceColour,
+  type SpaceColour,
+  type SpaceOptions,
+} from './tracks/space'
 import { ElementTrack, type ElementTrackOptions } from './sources/ElementTrack'
 import { EngineStats, type EngineStatsOptions } from './stats'
 import { TempoMap } from './time/TempoMap'
@@ -81,6 +88,7 @@ export interface EngineOptions extends ClockOptions {
    * The room placed clips send into (`Clip.spaceDb`): its decay and colour.
    * One impulse is generated for the engine on first use and every audio
    * track convolves with it, so the tracks sound as if they shared a room.
+   * `Engine.setSpace` changes it while the engine runs.
    */
   space?: SpaceOptions
 }
@@ -250,13 +258,13 @@ export class Engine {
   private readonly duckers = new Set<SidechainDucker>()
   private readonly alignmentDelays = new Map<ChannelStrip, AlignmentDelay>()
   private readonly disposeListeners = new Set<() => void>()
-  private readonly space: SpaceOptions
+  private spaceValue: Required<SpaceOptions>
   private spaceBuffer: AudioBuffer | null = null
   private disposed = false
 
   constructor(options: EngineOptions) {
     this.context = options.context
-    this.space = options.space ?? {}
+    this.spaceValue = resolveSpace(options.space)
     this.clock = createClock(options.context, options)
     this.output = new OutputRouter(options.context, options.output)
     this.master = new MasterBus(options.context, this.output, options.master)
@@ -325,8 +333,33 @@ export class Engine {
    * on first use: what every audio track's placed clips are convolved with.
    */
   spaceImpulse(): AudioBuffer {
-    this.spaceBuffer ??= generateSpaceImpulse(this.context, this.space)
+    this.spaceBuffer ??= generateSpaceImpulse(this.context, this.spaceValue)
     return this.spaceBuffer
+  }
+
+  /** The engine's space as it is now, with every setting filled in. */
+  get space(): Required<SpaceOptions> {
+    return this.spaceValue
+  }
+
+  /** What the engine's space does to sound on its way through: its drive and drift. */
+  spaceColour(): SpaceColour {
+    return spaceColour(this.spaceValue)
+  }
+
+  /**
+   * Another room for placed clips to send into, from now on: every setting
+   * left out is the stock room's. Each audio track that has a room moves its
+   * sends over, and what was ringing in the old room rings out there. A new
+   * impulse is generated only when a setting it is made from changed; a
+   * change of drive or drift alone is taken by the nodes that are there.
+   */
+  setSpace(options: SpaceOptions = {}): void {
+    this.assertLive()
+    const next = resolveSpace(options)
+    if (!sameSpaceImpulse(this.spaceValue, next)) this.spaceBuffer = null
+    this.spaceValue = next
+    for (const track of this.trackMap.values()) track.refreshSpace()
   }
 
   /** Create a clip track feeding the master (or a bus), registered with the scheduler. */
@@ -337,6 +370,7 @@ export class Engine {
     }
     const track = new AudioTrack(this.context, {
       spaceImpulse: () => this.spaceImpulse(),
+      spaceColour: () => this.spaceColour(),
       ...options,
       name,
       destination: options.destination ?? this.master,

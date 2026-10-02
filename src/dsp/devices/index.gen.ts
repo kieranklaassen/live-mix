@@ -25,6 +25,7 @@ import { HANDPAN_DESCRIPTOR, HANDPAN_DEVICE } from './handpan.gen'
 import { LATTICE_DESCRIPTOR, LATTICE_DEVICE } from './lattice.gen'
 import { MODAL_BELLS_DESCRIPTOR, MODAL_BELLS_DEVICE } from './modal-bells.gen'
 import { ORGAN_DESCRIPTOR, ORGAN_DEVICE } from './organ.gen'
+import { PATINA_DESCRIPTOR, PATINA_DEVICE } from './patina.gen'
 import { PHASER_DESCRIPTOR, PHASER_DEVICE } from './phaser.gen'
 import { REVERSE_DELAY_DESCRIPTOR, REVERSE_DELAY_DEVICE } from './reverse-delay.gen'
 import { ROTARY_DESCRIPTOR, ROTARY_DEVICE } from './rotary.gen'
@@ -67,6 +68,7 @@ export * from './handpan.gen'
 export * from './lattice.gen'
 export * from './modal-bells.gen'
 export * from './organ.gen'
+export * from './patina.gen'
 export * from './phaser.gen'
 export * from './reverse-delay.gen'
 export * from './rotary.gen'
@@ -111,6 +113,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   LATTICE_DESCRIPTOR,
   MODAL_BELLS_DESCRIPTOR,
   ORGAN_DESCRIPTOR,
+  PATINA_DESCRIPTOR,
   PHASER_DESCRIPTOR,
   REVERSE_DELAY_DESCRIPTOR,
   ROTARY_DESCRIPTOR,
@@ -156,6 +159,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   LATTICE_DEVICE,
   MODAL_BELLS_DEVICE,
   ORGAN_DEVICE,
+  PATINA_DEVICE,
   PHASER_DEVICE,
   REVERSE_DELAY_DEVICE,
   ROTARY_DEVICE,
@@ -201,6 +205,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'lattice', instrument: false, samples: false, meters: 0, memoryMb: 4 },
   { id: 'modal-bells', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'organ', instrument: true, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'patina', instrument: false, samples: false, meters: 0, memoryMb: 4 },
   { id: 'phaser', instrument: false, samples: false, meters: 0, memoryMb: 4 },
   { id: 'reverse-delay', instrument: false, samples: false, meters: 0, memoryMb: 20 },
   { id: 'rotary', instrument: false, samples: false, meters: 0, memoryMb: 4 },

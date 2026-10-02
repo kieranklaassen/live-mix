@@ -261,4 +261,45 @@ describe('DeviceChainView with skins', () => {
     fireEvent.click(screen.getByTestId('chain-device-1-remove'))
     expect(pad.strip.inserts).toEqual([delay])
   })
+
+  it('carries a plate by its face, under its full name, and leaves its knobs to themselves', async () => {
+    const fixture = createTestEngine()
+    const pad = fixture.engine.addAudioTrack('pad')
+    const filter = await make(fixture)
+    const delay = await make(fixture, 'delay')
+    pad.strip.addInsert(filter)
+    pad.strip.addInsert(delay)
+    render(<DeviceChainView strip={pad} skin={() => SKIN} data-testid="chain" />, {
+      wrapper: fixture.wrapper,
+    })
+    // jsdom lays nothing out: two plates, 200 wide each.
+    const items = [0, 1].map((index) => screen.getByTestId(`chain-item-${index}`))
+    items.forEach((item, index) => {
+      item.getBoundingClientRect = () =>
+        ({ left: index * 200, right: index * 200 + 200, top: 0, bottom: 140 }) as DOMRect
+    })
+    const plate = screen.getByTestId('chain-device-0')
+    expect(plate.dataset.lmInfo).toContain('Drag it by its face')
+
+    // A knob on the face is turned, not carried by.
+    fireEvent.pointerDown(screen.getByTestId('chain-device-0-frequency'), {
+      pointerId: 1,
+      button: 0,
+      clientX: 40,
+    })
+    fireEvent.pointerMove(window, { pointerId: 1, clientX: 380 })
+    fireEvent.pointerUp(window, { pointerId: 1 })
+    expect(screen.queryByTestId('chain-carried')).toBeNull()
+    expect(pad.strip.inserts).toEqual([filter, delay])
+
+    // The face is: the name tag shows the skin's name, the carried name is the device's.
+    fireEvent.pointerDown(plate, { pointerId: 2, button: 0, clientX: 40 })
+    fireEvent.pointerMove(window, { pointerId: 2, clientX: 380 })
+    expect(screen.getByTestId('chain-carried')).toHaveTextContent('Filter')
+    expect(screen.getByTestId('chain-marker')).toBeInTheDocument()
+    fireEvent.pointerUp(window, { pointerId: 2 })
+    expect(pad.strip.inserts).toEqual([delay, filter])
+    // It is the same plate in its new place.
+    expect(screen.getByTestId('chain-device-1')).toBe(plate)
+  })
 })

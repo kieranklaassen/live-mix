@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { asAudioContext, createMockContext, type MockAudioNode } from '../../testing'
 import { createEngine } from '../Engine'
+import { DEFAULT_SPACE } from '../tracks/space'
 import * as core from '../../index'
 
 describe('createEngine', () => {
@@ -117,6 +118,73 @@ describe('Engine space', () => {
     expect(ctx.convolvers).toHaveLength(2)
     expect(a.space?.buffer).toBe(impulse)
     expect(b.space?.buffer).toBe(impulse)
+  })
+})
+
+describe('Engine.setSpace', () => {
+  const voice = (ctx: ReturnType<typeof createMockContext>) => ({
+    buffer: ctx.createBuffer(2, 48000, 48000) as unknown as AudioBuffer,
+    offsetSec: 0,
+    durationSec: 1,
+    fadeInSec: 0,
+    fadeOutSec: 0,
+    fadeCurve: 'linear' as const,
+    spaceDb: -6,
+  })
+
+  it('reports the room with every setting filled in', () => {
+    const ctx = createMockContext({ sampleRate: 48000 })
+    const engine = createEngine({ context: asAudioContext(ctx), space: { decaySec: 1.5 } })
+    expect(engine.space).toEqual({ ...DEFAULT_SPACE, decaySec: 1.5 })
+    expect(engine.spaceColour()).toEqual({ driveDb: 0, driftCents: 0, driftHz: 0.5 })
+    engine.setSpace({ decaySec: 9, driveDb: 12 })
+    expect(engine.space).toEqual({ ...DEFAULT_SPACE, decaySec: 9, driveDb: 12 })
+    // Every setting left out is the stock room's again.
+    engine.setSpace()
+    expect(engine.space).toEqual(DEFAULT_SPACE)
+  })
+
+  it('makes a new impulse only when the room itself changed, and moves every sounding track', () => {
+    vi.useFakeTimers()
+    try {
+      const ctx = createMockContext({ sampleRate: 48000 })
+      const engine = createEngine({ context: asAudioContext(ctx) })
+      const a = engine.addAudioTrack('a')
+      const b = engine.addAudioTrack('b')
+      const quiet = engine.addAudioTrack('quiet')
+      a.play('k', voice(ctx), 0)
+      b.play('k', voice(ctx), 0)
+      const stock = engine.spaceImpulse()
+      expect(ctx.convolvers).toHaveLength(2)
+
+      // Drive alone: the same impulse, and a saturator in front of each room that sounds.
+      engine.setSpace({ driveDb: 12 })
+      expect(engine.spaceImpulse()).toBe(stock)
+      expect(ctx.shapers).toHaveLength(2)
+      expect(a.space?.buffer).toBe(stock)
+
+      // A longer room: one new impulse, shared again.
+      engine.setSpace({ driveDb: 12, decaySec: 8 })
+      const long = engine.spaceImpulse()
+      expect(long).not.toBe(stock)
+      expect(long.duration).toBeCloseTo(8.02, 2)
+      expect(a.space?.buffer).toBe(long)
+      expect(b.space?.buffer).toBe(long)
+      // A track that has sent nothing made nothing; it takes the room as it is when it first does.
+      expect(quiet.space).toBeNull()
+      quiet.play('k', voice(ctx), 0)
+      expect(quiet.space?.buffer).toBe(long)
+      engine.dispose()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('refuses once the engine is disposed', () => {
+    const ctx = createMockContext({ sampleRate: 48000 })
+    const engine = createEngine({ context: asAudioContext(ctx) })
+    engine.dispose()
+    expect(() => engine.setSpace({ decaySec: 2 })).toThrow()
   })
 })
 

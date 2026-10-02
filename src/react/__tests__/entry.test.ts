@@ -91,6 +91,7 @@ describe('entries', () => {
     'useParamControl',
     'useStripMeter',
     'reorderInserts',
+    'useChainReorder',
     'freshDeviceId',
     'normalizeValue',
     'denormalizeValue',
@@ -112,6 +113,12 @@ describe('entries', () => {
     'graphite',
     'paper',
     'water',
+    'dusk',
+    'night',
+    'sand',
+    'groovebox',
+    'chalk',
+    'mist',
     'BRUSH_COUNT',
     // Device meters
     'useDeviceMeter',
@@ -134,7 +141,17 @@ describe('entries', () => {
     expect(react.jaxaZenDark.text.toLowerCase()).toBe('#fdfdfb')
   })
 
-  it.each(['graphite', 'paper', 'water'] as const)(
+  it.each([
+    'graphite',
+    'paper',
+    'water',
+    'dusk',
+    'night',
+    'sand',
+    'groovebox',
+    'chalk',
+    'mist',
+  ] as const)(
     'the stylesheet carries the %s theme exactly as the tokens module does',
     async (name) => {
       const css = await readFile(join(src, 'react/styles.css'), 'utf8')
