@@ -3,12 +3,13 @@
 // reading. Both are pulled at the frame rate rather than pushed per message,
 // so a 20 Hz meter and a 60 Hz display never fight.
 
-import { useCallback } from 'react'
+import { useCallback, useEffect } from 'react'
 
 import { type MeterReading } from '../../core/analysis/loudness'
 import { LufsMeter } from '../../core/analysis/LufsMeter'
 import { Meter } from '../../core/analysis/Meter'
 import { type MasterBus } from '../../core/buses/MasterBus'
+import { type Device, isMeteredDevice } from '../../core/devices/Device'
 import { gainToDb } from '../../core/devices/native/units'
 import { frameIntervalMs, useFrameSampled } from '../frame'
 import { useEnginePart, useFrameScheduler } from './useEngine'
@@ -88,4 +89,26 @@ export function useMeter(source?: MeterSource, options: UseMeterOptions = {}): M
   const frame = useFrameScheduler()
   const sample = useCallback(() => readMeter(target), [target])
   return useFrameSampled(options.active ?? true, frameIntervalMs(options.fps), sample, frame)
+}
+
+/**
+ * One of a device's own readings (a compressor's gain reduction), sampled on
+ * frames. The device is watched while the hook is mounted and `active`, so it
+ * reports nothing for a view nobody is looking at. 0 for a device without
+ * that meter, and until the first reading arrives.
+ */
+export function useDeviceMeter(
+  device: Device | null | undefined,
+  name: string,
+  options: UseMeterOptions = {},
+): number {
+  const frame = useFrameScheduler()
+  const active = options.active ?? true
+  const metered = device && isMeteredDevice(device) && name in device.meters ? device : null
+  useEffect(() => {
+    if (!metered || !active) return
+    return metered.watchMeters()
+  }, [metered, active])
+  const sample = useCallback(() => (metered ? metered.meter(name) : 0), [metered, name])
+  return useFrameSampled(active && metered !== null, frameIntervalMs(options.fps), sample, frame)
 }

@@ -87,6 +87,38 @@ export function isParamTextDevice(device: Device): device is ParamTextDevice {
   return typeof (device as Partial<ParamTextDevice>).paramText === 'function'
 }
 
+/** One reading a device reports about its own work, such as a compressor's gain reduction. */
+export interface DeviceMeterSpec {
+  /** Position in the device's own list of meters. */
+  id: number
+  name: string
+  unit: string
+}
+
+/**
+ * A device that reports readings a meter beside its knobs can show. Readings
+ * are pulled: `meter(name)` is the latest, and it is only kept fresh while
+ * someone watches, so a device nobody looks at posts nothing.
+ */
+export interface MeteredDevice extends Device {
+  /** Static meter descriptions by name. */
+  readonly meters: Readonly<Record<string, DeviceMeterSpec>>
+  /** The latest reading; 0 until the first arrives. */
+  meter(name: string): number
+  /** Keep the readings fresh until the returned function is called. */
+  watchMeters(): () => void
+}
+
+export function isMeteredDevice(device: Device): device is MeteredDevice {
+  const candidate = device as Partial<MeteredDevice>
+  return (
+    typeof candidate.meter === 'function' &&
+    typeof candidate.watchMeters === 'function' &&
+    candidate.meters !== undefined &&
+    Object.keys(candidate.meters).length > 0
+  )
+}
+
 /** What a device reports after `setParam` or a bypass change (U24: UI subscriptions). */
 export type DeviceChange =
   { type: 'param'; name: string; value: number } | { type: 'bypass'; bypass: boolean }

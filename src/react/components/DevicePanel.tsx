@@ -2,13 +2,23 @@
 // `DeviceFrame` is ambient-live's `device-panel.tsx` (U25): title bar, power
 // switch, dense body. `DevicePanel` fills it from `useDevice`: one
 // taper-aware knob per `ParamSpec`, bypass on the power switch, and a preset
-// picker from the registry descriptor. `DeviceView` is the plan's name for it.
+// picker from the registry descriptor. A device that reports readings of its
+// own (a compressor's gain reduction) shows them in the title bar while it is
+// on. `DeviceView` is the plan's name for it.
 
 import { useState, type CSSProperties, type ReactNode } from 'react'
 
-import { type Device, isEditorDevice, isParamTextDevice } from '../../core/devices/Device'
+import {
+  type Device,
+  type DeviceMeterSpec,
+  type MeteredDevice,
+  isEditorDevice,
+  isMeteredDevice,
+  isParamTextDevice,
+} from '../../core/devices/Device'
 import { type DeviceRegistry } from '../../core/devices/registry'
 import { type ParamSpec } from '../../core/params'
+import { useDeviceMeter } from '../hooks/useMeter'
 import { useDevice } from '../hooks/useParam'
 import { formatParamValue, isChoiceParam, paramStep, paramTaper } from './control-math'
 import { Knob } from './Knob'
@@ -98,6 +108,42 @@ function isBipolar(spec: ParamSpec): boolean {
   return spec.min < 0 && spec.max > 0 && spec.default === (spec.min + spec.max) / 2
 }
 
+/** Readings move slowly enough to be read as numbers at this rate. */
+const METER_READOUT_FPS = 10
+
+/** A reading as the title bar writes it: one decimal and its unit, with a real minus. */
+export function formatDeviceMeter(value: number, unit: string): string {
+  // "-0.0" is not a reading: within half a tenth of zero it is zero.
+  const text = Math.abs(value) < 0.05 ? '0.0' : value.toFixed(1).replace(/^-/, '−')
+  return unit ? `${text} ${unit}` : text
+}
+
+function DeviceMeterReadout({
+  device,
+  name,
+  spec,
+  active,
+  testId,
+}: {
+  device: MeteredDevice
+  name: string
+  spec: DeviceMeterSpec
+  active: boolean
+  testId?: string
+}) {
+  const value = useDeviceMeter(device, name, { active, fps: METER_READOUT_FPS })
+  return (
+    <output
+      className="lm-device__meter"
+      aria-label={spec.name}
+      title={spec.name}
+      data-testid={testId ? `${testId}-meter-${name}` : undefined}
+    >
+      {formatDeviceMeter(active ? value : 0, spec.unit)}
+    </output>
+  )
+}
+
 /** A device's parameters as knobs, its bypass and its presets. */
 export function DevicePanel({
   device,
@@ -123,6 +169,19 @@ export function DevicePanel({
 
   const header = (
     <>
+      {isMeteredDevice(device)
+        ? Object.entries(device.meters).map(([name, spec]) => (
+            <DeviceMeterReadout
+              key={name}
+              device={device}
+              name={name}
+              spec={spec}
+              // A bypassed device does no work, so there is nothing to follow.
+              active={!d.bypass}
+              testId={testId}
+            />
+          ))
+        : null}
       {presetsShown ? (
         <select
           className="lm-device__presets"

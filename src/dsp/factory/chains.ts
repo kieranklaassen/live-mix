@@ -367,4 +367,16 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
       { deviceId: 'limiter-1176', preset: 'Safety' },
     ],
   },
+  {
+    id: 'ambient-master',
+    name: 'Ambient master',
+    category: 'master',
+    description:
+      'Made for long layered sound: what rings on is eased, swells are ridden over seconds, and a true-peak ceiling holds.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Master' },
+      { deviceId: 'ambient-comp', preset: 'Glue' },
+      { deviceId: 'ambient-limiter', preset: 'Master' },
+    ],
+  },
 ]

@@ -50,6 +50,7 @@ export function wasmDeviceDescriptor<P extends Record<string, ParamSpec>>(
     ...(meta.description ? { description: meta.description } : {}),
     version: meta.version ?? 1,
     params: definition.params,
+    ...(definition.meters ? { meters: definition.meters } : {}),
     presets: meta.presets,
     ...(meta.experimental ? { experimental: true } : {}),
     create: (context, options) =>

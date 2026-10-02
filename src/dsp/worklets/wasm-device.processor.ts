@@ -35,6 +35,10 @@ class WasmDeviceProcessor extends AudioWorkletProcessor {
   private bypassMix = 0
   private bypassTarget = 0
   private readonly bypassStep: number
+  // Meters are reported only while the main thread watches them.
+  private meterCount = 0
+  private meterInterval = 0
+  private meterElapsed = 0
 
   constructor(options?: AudioWorkletNodeOptions) {
     super()
@@ -80,6 +84,12 @@ class WasmDeviceProcessor extends AudioWorkletProcessor {
       case 'sample':
         this.loadSample(message.channels, message.sampleRate)
         break
+      case 'meters':
+        this.meterCount = this.device.device_meter ? Math.max(0, Math.floor(message.count)) : 0
+        this.meterInterval = Math.max(1, Math.floor(message.intervalFrames))
+        // The first report goes out with the next block.
+        this.meterElapsed = this.meterInterval
+        break
       default: {
         const unhandled: never = message
         throw new Error(`live-mix: unhandled device message ${JSON.stringify(unhandled)}`)
@@ -102,6 +112,18 @@ class WasmDeviceProcessor extends AudioWorkletProcessor {
       store.set(channels[channel].subarray(0, frames), channel * capacity)
     }
     device_sample_commit(frames, count, rate)
+  }
+
+  // Read the device's meters and post them, once every `meterInterval` frames.
+  private reportMeters(frames: number): void {
+    this.meterElapsed += frames
+    if (this.meterElapsed < this.meterInterval) return
+    this.meterElapsed = 0
+    const read = this.device.device_meter
+    if (!read) return
+    const values: number[] = []
+    for (let index = 0; index < this.meterCount; index += 1) values.push(read(index))
+    this.port.postMessage({ type: 'meters', values } satisfies DeviceHostMessage)
   }
 
   process(inputs: Float32Array[][], outputs: Float32Array[][]): boolean {
@@ -136,6 +158,7 @@ class WasmDeviceProcessor extends AudioWorkletProcessor {
     }
 
     this.device.device_process(frames)
+    if (this.meterCount > 0) this.reportMeters(frames)
 
     const outLeft = output[0]
     const outRight = output.length > 1 ? output[1] : null

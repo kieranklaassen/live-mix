@@ -13,13 +13,16 @@ export * from './core/clips'
 export * from './core/automation'
 export {
   isEditorDevice,
+  isMeteredDevice,
   isNoteDevice,
   isObservableDevice,
   isParamTextDevice,
   type Device,
   type DeviceChange,
   type DeviceChangeListener,
+  type DeviceMeterSpec,
   type EditorDevice,
+  type MeteredDevice,
   type NoteDevice,
   type ObservableDevice,
   type ParamTextDevice,

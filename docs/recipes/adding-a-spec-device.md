@@ -54,6 +54,7 @@ The `.wasm` must come from Emscripten 4.0.15 (CI rebuilds it and compares bytes)
 - `presets`: at least four, named in plain words, each a sound someone would want. A preset lists only what it changes.
 - `sources`: extra `.cpp` files, repo-relative. Prefer header-only.
 - `memoryMb` (default 4): raise it when the static storage needs it (the linker says so). `samples: true` adds the sample entry points (see `cpp/kit/sample.h`). `experimental: true` marks a device over the CPU budget. `latencySamples` when the device delays its output by a fixed count.
+- `meters`: readings the device reports about its own work, for a meter beside its knobs: `[{ "key": "reduction", "name": "Gain reduction", "unit": "dB" }]`. Array order is the meter id. A device with meters adds `float meter(int index) const` to its class; it is called on the audio thread after `process`, about 30 times a second and only while someone is watching, so it returns a value the device already has (no work, no state change). At rest and asleep a meter reads its resting value (0 dB of reduction). On the web side the device is a `MeteredDevice` (`meters`, `meter(name)`, `watchMeters()`), `useDeviceMeter(device, name)` follows one reading, and the generated `DevicePanel` shows each in its title bar.
 - `origin`: `{ "kind": "new", "note": … }`, or for a port `{ "kind": "port", "repository": "kieranklaassen/kkfonie", "commit": "<sha>", "files": [{ "path", "sha256", "portedTo", "deviations": [...] }], "note": … }`. A port records every deviation from the source.
 
 ## The class
@@ -73,6 +74,8 @@ class TapeEcho : public kit::DeviceBase<tape_echo::kNumParams> {
   void note_off(int note_id);
   // samples: true
   int sample_capacity(); float* sample_buffer(); void sample_commit(int frames, int channels, float rate);
+  // meters:
+  float meter(int index) const;
 };
 }
 ```

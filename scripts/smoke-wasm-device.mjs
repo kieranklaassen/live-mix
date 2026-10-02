@@ -92,6 +92,17 @@ const params = manifest.params.map((param, index) => ({
     exported.includes('device_sample_commit') === (manifest.samples === true),
     'sample exports must match "samples" in the manifest',
   )
+  const meters = manifest.meters ?? []
+  expect(
+    exported.includes('device_meter') === meters.length > 0,
+    'the meter export must match "meters" in the manifest',
+  )
+  for (let index = 0; index < meters.length; index += 1) {
+    expect(
+      Number.isFinite(host.device.device_meter(index)),
+      `meter ${meters[index].key} must read a finite value at rest`,
+    )
+  }
   expect(
     host.device.memory.buffer.byteLength === (manifest.memoryMb ?? 4) * 1024 * 1024,
     'memory size must match memoryMb',

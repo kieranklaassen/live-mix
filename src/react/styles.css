@@ -350,6 +350,7 @@
 .lm-knob__value,
 .lm-fader__value,
 .lm-meter__readout,
+.lm-device__meter,
 .lm-transport__time,
 .lm-transport__loop-length {
   font-family: var(--lm-font-mono);
@@ -1201,6 +1202,14 @@
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+/* A device's own reading (gain reduction): fixed width, so the bar does not shift as it moves. */
+.lm-device__meter {
+  flex: 0 0 auto;
+  min-width: 7ch;
+  text-align: right;
+  white-space: nowrap;
 }
 
 .lm-device__body {

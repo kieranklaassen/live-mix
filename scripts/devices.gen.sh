@@ -4,6 +4,12 @@
 # (native_test).
 
 build_generated_devices() {
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device ambient-comp \
+    cpp/devices/ambient-comp/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device ambient-eq \
+    cpp/devices/ambient-eq/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device ambient-limiter \
+    cpp/devices/ambient-limiter/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device atmosphere \
     cpp/devices/atmosphere/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device auto-filter \
@@ -83,6 +89,12 @@ build_generated_devices() {
 }
 
 test_generated_devices() {
+  native_test ambient_comp_test \
+    cpp/test/ambient_comp_test.cpp
+  native_test ambient_eq_test \
+    cpp/test/ambient_eq_test.cpp
+  native_test ambient_limiter_test \
+    cpp/test/ambient_limiter_test.cpp
   native_test atmosphere_test \
     cpp/test/atmosphere_test.cpp
   native_test auto_filter_test \

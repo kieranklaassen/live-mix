@@ -8,6 +8,7 @@ import { beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { type MockMessagePort } from '../../testing'
 import { type DeviceHostMessage, type DeviceMessage } from '../abi'
+import { AMBIENT_COMP_PARAMS } from '../devices/ambient-comp.gen'
 import { DATTORRO_PARAMS } from '../devices/dattorro'
 // Registers the processor into the shimmed `registerProcessor`.
 import '../worklets/wasm-device.processor'
@@ -42,17 +43,26 @@ const registry = vi.hoisted(() => {
   return processors
 })
 
-const wasmPath = join(dirname(fileURLToPath(import.meta.url)), '../wasm/dattorro.wasm')
+const wasmDir = join(dirname(fileURLToPath(import.meta.url)), '../wasm')
 let module: WebAssembly.Module
+// A device with a meter: the compressor reports its gain reduction.
+let compModule: WebAssembly.Module
 
 beforeAll(async () => {
-  module = await WebAssembly.compile(await readFile(wasmPath))
+  ;[module, compModule] = await Promise.all(
+    ['dattorro.wasm', 'ambient-comp.wasm'].map(async (file) =>
+      WebAssembly.compile(await readFile(join(wasmDir, file))),
+    ),
+  )
 })
 
-function construct(params?: (readonly [number, number])[]) {
+function construct(
+  params?: (readonly [number, number])[],
+  device: { module: WebAssembly.Module; deviceId: string } = { module, deviceId: 'dattorro' },
+) {
   const Processor = registry.get('live-mix-wasm-device') as ProcessorCtor
   const processor = new Processor({
-    processorOptions: { module, deviceId: 'dattorro', params },
+    processorOptions: { ...device, params },
   })
   const port = processor.port as unknown as {
     posted: unknown[]
@@ -132,6 +142,70 @@ describe('WasmDeviceProcessor', () => {
     const out = outputs()
     processor.process(block(0.25), out)
     expect(out[0][0][0]).toBeCloseTo(0.25, 6)
+  })
+
+  describe('meters', () => {
+    const P = AMBIENT_COMP_PARAMS
+    /** The compressor set to bite at once: everything over −60 dB, ten to one, 10 ms. */
+    const fast: (readonly [number, number])[] = [
+      [P.threshold.id, -60],
+      [P.ratio.id, 10],
+      [P.attack.id, 10],
+      [P.knee.id, 0],
+    ]
+    const comp = () => construct(fast, { module: compModule, deviceId: 'ambient-comp' })
+    const meters = (port: { posted: unknown[] }) =>
+      (port.posted as DeviceHostMessage[]).filter((message) => message.type === 'meters')
+
+    /** Blocks of a 1 kHz sine at half scale, continuous from one block to the next. */
+    function tone(processor: { process: ProcessorCtor['prototype']['process'] }, blocks: number) {
+      for (let index = 0; index < blocks; index += 1) {
+        const samples = Float32Array.from(
+          { length: 128 },
+          (_, frame) => 0.5 * Math.sin((2 * Math.PI * 1000 * (index * 128 + frame)) / 48000),
+        )
+        processor.process([[samples, samples.slice()]], outputs())
+      }
+    }
+
+    it('posts nothing until the meters are asked for', () => {
+      const { processor, port } = comp()
+      tone(processor, 40)
+      expect(meters(port)).toEqual([])
+    })
+
+    it('reports the device meters once every interval while they are watched', () => {
+      const { processor, port } = comp()
+      port.receive({ type: 'meters', count: 1, intervalFrames: 256 })
+      // The first report goes out with the next block, then one every two blocks.
+      tone(processor, 1)
+      expect(meters(port)).toHaveLength(1)
+      tone(processor, 4)
+      expect(meters(port)).toHaveLength(3)
+
+      // A third of a second in, the compressor is well into the tone.
+      tone(processor, 120)
+      const reports = meters(port)
+      const last = reports[reports.length - 1]
+      expect(last.values).toHaveLength(1)
+      expect(last.values[0]).toBeLessThan(-20)
+      expect(last.values[0]).toBeGreaterThan(-60)
+      // It got there by degrees: one block in, it had only begun.
+      expect(reports[0].values[0]).toBeGreaterThan(-6)
+      expect(reports[0].values[0]).toBeLessThanOrEqual(0)
+
+      port.receive({ type: 'meters', count: 0, intervalFrames: 256 })
+      tone(processor, 20)
+      expect(meters(port)).toHaveLength(reports.length)
+    })
+
+    it('reports nothing for a module without meters, however many are asked for', () => {
+      const { processor, port } = construct()
+      port.receive({ type: 'meters', count: 2, intervalFrames: 128 })
+      processor.process(block(0.25), outputs())
+      processor.process(block(0.25), outputs())
+      expect(meters(port)).toEqual([])
+    })
   })
 
   it('throws on an unknown message', () => {

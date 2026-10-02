@@ -55,6 +55,7 @@ export {
 } from './hooks/useTrack'
 export {
   readMeter,
+  useDeviceMeter,
   useMeter,
   type MeterSnapshot,
   type MeterSource,
