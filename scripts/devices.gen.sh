@@ -26,6 +26,8 @@ build_generated_devices() {
     cpp/devices/choir/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device chorus \
     cpp/devices/chorus/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device clarinet \
+    cpp/devices/clarinet/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device drone \
     cpp/devices/drone/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device dusk \
@@ -123,6 +125,8 @@ test_generated_devices() {
     cpp/test/choir_test.cpp
   native_test chorus_test \
     cpp/test/chorus_test.cpp
+  native_test clarinet_test \
+    cpp/test/clarinet_test.cpp
   native_test drone_test \
     cpp/test/drone_test.cpp
   native_test dusk_test \

@@ -1,0 +1,158 @@
+{
+  "id": "clarinet",
+  "name": "Clarinet",
+  "category": "instrument",
+  "description": "A soft reed in the style of a clarinet, bass clarinet, subtone saxophone or duduk: hollow and woody, breathy when quiet and brighter the harder it is blown.",
+  "class": "Clarinet",
+  "header": "clarinet.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "bore",
+      "name": "Bore",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "The shape of the pipe. Low is a clarinet's cylinder, hollow with every other overtone missing; high is a saxophone's cone, fuller and more vocal."
+    },
+    {
+      "key": "blow",
+      "name": "Blow",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "How hard the reed is blown. Low is a pure, soft hum; high is a bright, reedy tone that opens up as each note swells."
+    },
+    {
+      "key": "breath",
+      "name": "Breath",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "Air heard under the tone, coloured by the pipe. High with Blow low is a subtone, more breath than note."
+    },
+    {
+      "key": "attack",
+      "name": "Attack",
+      "min": 0.015,
+      "max": 4,
+      "default": 0.1,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long a note takes to speak. Short is a tongued start; long fades in from nothing, air first. Low notes always speak a little later than high ones."
+    },
+    {
+      "key": "release",
+      "name": "Release",
+      "min": 0.03,
+      "max": 5,
+      "default": 0.3,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long a note takes to fade once the key is let go. The tone darkens as it goes and the air lingers a moment after it."
+    },
+    {
+      "key": "vibrato",
+      "name": "Vibrato",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "Depth of a slow pitch vibrato that arrives a moment after the note starts. At zero the note is held straight."
+    },
+    {
+      "key": "growl",
+      "name": "Growl",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "A fast flutter in the breath that makes the tone rasp. At zero the tone is smooth."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -6,
+      "unit": "dB",
+      "description": "Output level of the instrument. A soft clip after it rounds off the peaks when many notes stack up."
+    }
+  ],
+  "presets": {
+    "Warm clarinet": {
+      "bore": 0,
+      "blow": 0.6,
+      "breath": 0.4,
+      "attack": 0.1,
+      "release": 0.3,
+      "vibrato": 0,
+      "growl": 0
+    },
+    "Bass clarinet": {
+      "bore": 0.05,
+      "blow": 0.45,
+      "breath": 0.5,
+      "attack": 0.25,
+      "release": 0.8,
+      "vibrato": 0,
+      "growl": 0
+    },
+    "Subtone tenor": {
+      "bore": 1,
+      "blow": 0.2,
+      "breath": 0.85,
+      "attack": 0.18,
+      "release": 0.5,
+      "vibrato": 0.3,
+      "growl": 0
+    },
+    "From nothing": {
+      "bore": 0,
+      "blow": 0.5,
+      "breath": 0.45,
+      "attack": 2.2,
+      "release": 3,
+      "vibrato": 0,
+      "growl": 0
+    },
+    "Hollow section": {
+      "bore": 0.1,
+      "blow": 0.55,
+      "breath": 0.25,
+      "attack": 0.25,
+      "release": 0.6,
+      "vibrato": 0,
+      "growl": 0
+    },
+    "Duduk": {
+      "bore": 0.3,
+      "blow": 0.4,
+      "breath": 0.55,
+      "attack": 0.2,
+      "release": 0.5,
+      "vibrato": 0.55,
+      "growl": 0
+    },
+    "Bright soprano": {
+      "bore": 1,
+      "blow": 0.7,
+      "breath": 0.25,
+      "attack": 0.05,
+      "release": 0.3,
+      "vibrato": 0.2,
+      "growl": 0
+    },
+    "Growling tenor": {
+      "bore": 1,
+      "blow": 0.7,
+      "breath": 0.5,
+      "attack": 0.06,
+      "release": 0.25,
+      "vibrato": 0.25,
+      "growl": 0.6
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit, after the single-reed family (B flat and bass clarinet, tenor and alto saxophone, duduk) as described in the acoustic research for this instrument. It is an open-loop driven pipe: one phase per voice drives a closed-form harmonic series whose brightness is proportional to the level of the tone (Worman's power law for reed instruments), Bore runs from the odd harmonics of a cylinder to the full series of a cone, and breath noise passes a feedback comb that stands in for the passive pipe. Simplified: no reed and no bore are simulated, there is no register key, and the body is a fixed equaliser. Choices, not measurements of an instrument: the 1.5 kHz tone-hole cutoff above which the even harmonics return, the tone following the square of the breath while the noise follows the breath itself, the 6 cent lean of pitch against level, the speech time of eight periods, the 5 Hz vibrato, the 28 Hz growl and the body curve. Not a circuit or sample emulation."
+  }
+}
