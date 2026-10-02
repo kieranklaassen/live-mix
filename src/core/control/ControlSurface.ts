@@ -166,7 +166,13 @@ export class ControlSurface {
       action: (id) => this.actionMap.get(id),
       ...(engine ? engineResolver(engine) : {}),
     }
-    this.resolver = { ...base, ...stripUndefined(options.resolve ?? {}) }
+    const supplied = stripUndefined(options.resolve ?? {})
+    this.resolver = {
+      ...base,
+      ...supplied,
+      // What was registered answers first; the host's own lookup takes the ids nothing registered.
+      action: (id) => this.actionMap.get(id) ?? supplied.action?.(id),
+    }
   }
 
   // --- State -------------------------------------------------------------------

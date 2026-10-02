@@ -43,8 +43,9 @@ devices and macros through `surface.registerDevice(id, device)` /
 `ControlSurfaceOptions.resolve`.
 
 An **action** is something the host does when asked: a button of its page, a
-jump to a marker. `surface.registerAction(id, run)` (or the resolver's
-`action(id)`) says what; a press fires it, like a transport target, and it
+jump to a marker. `surface.registerAction(id, run)` says what, and the
+resolver's `action(id)` answers for any id nothing registered (a host that
+works actions out from the id itself); a press fires it, like a transport target, and it
 has no value to read. An id nothing answers to is not an error: the mapping
 waits, consuming its source, until something registers.
 

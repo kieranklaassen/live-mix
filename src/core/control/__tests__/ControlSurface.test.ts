@@ -262,12 +262,21 @@ describe('ControlSurface dispatch', () => {
     mixed.handle(press(key1))
     expect(jump).toHaveBeenCalledTimes(5)
     expect(pad.strip.mute).toBe(false)
+    // What is registered answers before the resolver, which keeps every id nothing registered.
+    const named = vi.fn()
+    const forget = mixed.registerAction('go', named)
+    mixed.handle(press(key1))
+    expect(named).toHaveBeenCalledTimes(1)
+    expect(jump).toHaveBeenCalledTimes(5)
+    forget()
+    mixed.handle(press(key1))
+    expect(jump).toHaveBeenCalledTimes(6)
 
     // Unregistered, the action is gone and its switch does nothing.
     unregister()
     surface.handle(cc(cc1, 0))
     expect(surface.handle(cc(cc1, 127)).applied).toEqual([])
-    expect(jump).toHaveBeenCalledTimes(5)
+    expect(jump).toHaveBeenCalledTimes(6)
   })
 
   it('nudges with relative encoders and applies soft takeover against the live value', () => {
