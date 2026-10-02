@@ -92,9 +92,9 @@ export const ECHO_MEMORY_PARAMS = {
     description:
       'The chance that a moment comes back changed: backwards, an octave down at half speed, or an octave up at double speed. At zero everything returns as it was played.',
   },
-  collect: {
+  buildUp: {
     id: 8,
-    name: 'Collect',
+    name: 'Build Up',
     min: 0,
     max: 1,
     default: 0,
@@ -162,7 +162,7 @@ export const ECHO_MEMORY_DESCRIPTOR = wasmDeviceDescriptor(ECHO_MEMORY_DEVICE, {
       wander: 0.5,
       size: 3,
       vary: 0.3,
-      collect: 0,
+      buildUp: 0,
       tone: 6000,
       spread: 0.6,
       mix: 0.4,
@@ -237,7 +237,7 @@ export const ECHO_MEMORY_DESCRIPTOR = wasmDeviceDescriptor(ECHO_MEMORY_DEVICE, {
       wander: 0.45,
       size: 3.5,
       vary: 0.5,
-      collect: 1,
+      buildUp: 1,
       tone: 4500,
       spread: 0.8,
       mix: 0.45,

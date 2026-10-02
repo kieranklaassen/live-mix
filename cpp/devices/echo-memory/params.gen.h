@@ -10,7 +10,7 @@
 //    5  wander: 0..1, default 0.5
 //    6  size: 0.2..8 s, default 3
 //    7  vary: 0..1, default 0.3
-//    8  collect: 0 Off, 1 On, default 0
+//    8  buildUp: 0 Off, 1 On, default 0
 //    9  tone: 800..16000 Hz, default 6000
 //   10  spread: 0..1, default 0.6
 //   11  mix: 0..1, default 0.4
@@ -29,7 +29,7 @@ enum Param : int {
   kWander = 5,
   kSize = 6,
   kVary = 7,
-  kCollect = 8,
+  kBuildUp = 8,
   kTone = 9,
   kSpread = 10,
   kMix = 11,
