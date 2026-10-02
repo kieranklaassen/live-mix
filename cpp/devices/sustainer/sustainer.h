@@ -227,6 +227,7 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
   static constexpr float kTiltPivotHz = 600.0f;
   static constexpr float kCrossHz = 550.0f;     // the long frame takes over the regions caught below here
   static constexpr float kCrossHighHz = 650.0f; // ... and is not searched above here
+  static constexpr float kMovedCents = 4.0f;    // the two looks disagree by this much: the pitch is moving
   static constexpr float kFluxAtZero = 20.0f;   // fixed part of the onset threshold at Sensitivity 0 ...
   static constexpr float kFluxAtOne = 9.0f;     // ... and at 1
   static constexpr float kFluxAdapt = 2.0f;     // plus this many times the recent average flux
@@ -325,6 +326,7 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     float side_a[kAllRegions], side[kAllRegions];    // left/right phase difference (two-pole noise)
     float swell_a[kAllRegions], swell[kAllRegions];  // slow level wander (two-pole noise)
     float noisy[kAllRegions];                        // 0 a partial .. 1 noise, whose phase is redrawn every hop
+    bool stood[kMaxRegions];                         // caught as a peak that had its neighbourhood to itself
     bool low_noisy;  // the lows are noise: no second look
     int regions;
     int state;
@@ -806,6 +808,8 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     }
     int r = slot.regions;
     int pool = half_ + 1;
+    int at = 0;
+    float moved = 0.0f, weighed = 0.0f;
     for (int k = 2; k <= top && r < slot.regions + kMaxLow; ++k) {
       const float m = mag_[k];
       if (!(m > floor && m > mag_[k - 1] && m >= mag_[k + 1] && m > mag_[k - 2] && m >= mag_[k + 2])) continue;
@@ -821,6 +825,14 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
       if (offset < -1.5f || offset > 1.5f) continue;       // not a steady partial
       const float hz = (static_cast<float>(k) + offset) * long_bin;
       if (hz < 15.0f || hz >= (static_cast<float>(edge) - 0.5f) * short_bin) continue;
+      // Where the first look had the partial clearly to itself, the two
+      // looks must agree on its pitch.
+      while (at + 1 < slot.regions && static_cast<float>(slot.start[at + 1]) * short_bin <= hz) ++at;
+      const float first = slot.cent_turn[at] / (kTurnPerCentHz * hop_seconds_);
+      if (slot.stood[at] && first > 15.0f) {
+        moved += m * m * kit::min(std::fabs(first / hz - 1.0f) / kTurnPerCentHz, 50.0f);
+        weighed += m * m;
+      }
       // A partial of amplitude A puts A/2 × N × lobe(k - b) into bin k, with
       // its phase at the middle of the frame and a sign that alternates.
       const float amplitude = 2.0f * m / (static_cast<float>(long_frame_) * lobe(-offset));
@@ -845,6 +857,12 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
       pool += kLobe;
       ++r;
     }
+    // A note whose pitch moves (vibrato, a bend) reads differently in the
+    // long frame, which averages a third of a second, than in the short one,
+    // which caught an instant. Rebuilding its lows from the long frame would
+    // leave them some tens of cents away from their own overtones: then the
+    // first look stands, and the held note is at least in tune with itself.
+    if (moved > kMovedCents * weighed) return;
     slot.start[r] = static_cast<uint16_t>(pool);
     slot.regions = r;
     for (int k = 0; k < edge && k <= half_; ++k) {
@@ -977,6 +995,7 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
         if (i != r && weight_[i] > tallest) tallest = weight_[i];
       }
       stands_[r] = weight_[r] > kProminent * tallest;
+      slot.stood[r] = stands_[r];
     }
     for (int b = 0; b < blocks; ++b) {
       const int from = b * kNoisyBlock;

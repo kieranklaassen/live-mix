@@ -114,6 +114,7 @@ class FollowerBank {
       const double ring = 1.0 / (3.141592653589793 * kBandwidthFactor * spacing);
       const double average = kit::clamp(static_cast<float>(1.0 / spacing), 0.012f, 0.08f);
       estimate_coeff_[b] = static_cast<float>(1.0 - std::exp(-1.0 / (average * ticks)));
+      wander_rise_[b] = static_cast<float>(1.0 - std::exp(-4.0 / (average * ticks)));
       warm_[b] = 2 + static_cast<int>(3.0 * ring * ticks);
       settle_[b] = warm_[b] + 2 + static_cast<int>(average * ticks);
       keep_[b] = 2 + static_cast<int>((2.5 * ring + 0.012) * ticks);
@@ -151,7 +152,7 @@ class FollowerBank {
       mag_[b] = level_[b] = 0.0f;
       env1_[b] = env2_[b] = 0.0f;
       dev_[b] = 0.0f;
-      trust_[b] = estimate_[b] = average_[b] = peak_[b] = jitter_[b] = first_[b] = 0.0f;
+      trust_[b] = estimate_[b] = average_[b] = peak_[b] = jitter_[b] = wander_[b] = first_[b] = 0.0f;
       kept_[b] = kept_older_[b] = 0.0f;
       age_[b] = 0;
       doubt_[b] = 0;
@@ -349,7 +350,7 @@ class FollowerBank {
             (estimate_[b] + measured) / static_cast<float>(settle_[b] - warm_[b]), -max_dev_[b],
             max_dev_[b]);
         estimate_[b] = average_[b] = kept_[b] = kept_older_[b] = first;
-        jitter_[b] = 0.0f;
+        jitter_[b] = wander_[b] = 0.0f;
         // A band whose oscillator is silent takes it as it is.
         if (level_[b] < 1.0e-4f) dev_[b] = first;
       } else {
@@ -360,6 +361,7 @@ class FollowerBank {
         estimate_[b] += estimate_coeff_[b] * (measured - estimate_[b]);
         estimate_[b] = kit::clamp(estimate_[b], -max_dev_[b], max_dev_[b]);
         average_[b] += estimate_coeff_[b] * (estimate_[b] - average_[b]);
+        note_wander(b);
         if ((age_[b] - settle_[b]) % keep_[b] == 0) {
           kept_older_[b] = kept_[b];
           kept_[b] = average_[b];
@@ -376,6 +378,7 @@ class FollowerBank {
       estimate_[b] += estimate_coeff_[b] * (measured - estimate_[b]);
       estimate_[b] = kit::clamp(estimate_[b], -max_dev_[b], max_dev_[b]);
       average_[b] += estimate_coeff_[b] * (estimate_[b] - average_[b]);
+      note_wander(b);
     } else {
       // Gone. The newer note of the reading may already be bent by the ring.
       age_[b] = 0;
@@ -388,8 +391,9 @@ class FollowerBank {
     // A band in which two partials are about equally strong has no pitch of
     // its own: its reading swings by bands at a time. So does noise. Neither
     // gets a voice (each of the two partials has nearer bands that do).
-    const float calm = (kJitterMute - jitter_[b]) * (1.0f / (kJitterMute - kJitterFull));
-    const float purity = kit::clamp(calm, 0.0f, 1.0f);
+    const float wild = (jitter_[b] - kJitterFull) * (1.0f / (kJitterMute - kJitterFull));
+    const float adrift = (wander_[b] - kWanderFull) * (1.0f / (kWanderMute - kWanderFull));
+    const float purity = 1.0f - kit::clamp(wild, 0.0f, 1.0f) * kit::clamp(adrift, 0.0f, 1.0f);
     const float follow = settled ? presence * purity : 0.0f;
     const float pace = follow > trust_[b] ? trust_rise_ : trust_fall_;
     const float trust = trust_[b] + (follow - trust_[b]) * pace;
@@ -447,6 +451,13 @@ class FollowerBank {
     up_[b] = up * up_taper_[b];
     down_[b] = down;
     return level > 0.0f || gain_[b] > 0.0f;
+  }
+
+  // How far the averaged reading strays from its own longer average, in band
+  // spacings: quick to rise, slow to fall, like the jitter.
+  void note_wander(int b) {
+    const float off = std::fabs(estimate_[b] - average_[b]) * share_scale_[b];
+    wander_[b] += (off > wander_[b] ? wander_rise_[b] : jitter_fall_) * (off - wander_[b]);
   }
 
   // oscillator rotation of band b for a detune of `angle` radians per sample
@@ -521,6 +532,8 @@ class FollowerBank {
   static constexpr float kJitterFull = 0.6f;
   static constexpr float kJitterMute = 0.95f;
   static constexpr float kJitterFallSeconds = 0.2f;
+  static constexpr float kWanderFull = 0.05f;
+  static constexpr float kWanderMute = 0.13f;
   // The second section at full Octaves, against the unshifted pad.
   static constexpr float kOctaveLevel = 0.9f;
 
@@ -553,7 +566,7 @@ class FollowerBank {
   float unlag_r_[kBands] = {}, unlag_i_[kBands] = {};
   float lock_[kBands] = {}, max_dev_[kBands] = {}, up_taper_[kBands] = {};
   float detune_scale_[kBands] = {}, share_scale_[kBands] = {}, estimate_coeff_[kBands] = {};
-  float stage_scale_[kBands] = {};
+  float stage_scale_[kBands] = {}, wander_rise_[kBands] = {};
   int warm_[kBands] = {}, settle_[kBands] = {}, keep_[kBands] = {};
   // Audio-rate state.
   float s1r_[kBands] = {}, s1i_[kBands] = {}, s2r_[kBands] = {}, s2i_[kBands] = {};
@@ -568,6 +581,7 @@ class FollowerBank {
   float estimate_[kBands] = {}, average_[kBands] = {}, dev_[kBands] = {};
   float trust_[kBands] = {}, peak_[kBands] = {};
   float kept_[kBands] = {}, kept_older_[kBands] = {}, jitter_[kBands] = {}, first_[kBands] = {};
+  float wander_[kBands] = {};
   int age_[kBands] = {}, doubt_[kBands] = {};
 };
 

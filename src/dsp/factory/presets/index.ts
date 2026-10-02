@@ -35,6 +35,7 @@ import { THESIS_PRESETS } from './thesis'
 import { TINE_PIANO_PRESETS } from './tine-piano'
 import { WAVETABLE_PRESETS } from './wavetable'
 import { WEST_COAST_PRESETS } from './west-coast'
+import { ZITHER_PRESETS } from './zither'
 
 export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...EMBER_PRESETS,
@@ -69,5 +70,6 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...GUITAR_PRESETS,
   ...TAPE_ORCHESTRA_PRESETS,
   ...WEST_COAST_PRESETS,
+  ...ZITHER_PRESETS,
   ...OUTDOORS_PRESETS,
 ]
