@@ -117,6 +117,8 @@ class AmbientEq : public kit::DeviceBase<ambient_eq::kNumParams> {
       silence_output(frames);
       return;
     }
+    // What is in circuit changes between blocks or at a tone control tick.
+    bool shaping = in_circuit();
     for (int i = 0; i < frames; ++i) {
       float x[2];
       take_input(i, &x[0], &x[1]);
@@ -125,37 +127,42 @@ class AmbientEq : public kit::DeviceBase<ambient_eq::kNumParams> {
         if (!(x[c] > -kSaneInput && x[c] < kSaneInput)) x[c] = 0.0f;
       }
 
-      if (eq_clock_.tick()) update_tone();
+      if ((position_ & (kEqPeriod - 1)) == 0) {
+        update_tone();
+        shaping = in_circuit();
+      }
 
-      if (low_cut_in_) {
-        const float mix = low_cut_mix_.next();
-        for (int c = 0; c < 2; ++c) {
-          const float cut = low_cut_[c][1].highpass(low_cut_[c][0].highpass(x[c]));
-          x[c] += mix * (cut - x[c]);
-        }
-        if (mix == 0.0f && low_cut_mix_.target == 0.0f) {
-          low_cut_in_ = false;
+      if (shaping) {
+        if (low_cut_in_) {
+          const float mix = low_cut_mix_.next();
           for (int c = 0; c < 2; ++c) {
-            low_cut_[c][0].reset();
-            low_cut_[c][1].reset();
+            const float cut = low_cut_[c][1].highpass(low_cut_[c][0].highpass(x[c]));
+            x[c] += mix * (cut - x[c]);
+          }
+          if (mix == 0.0f && low_cut_mix_.target == 0.0f) {
+            low_cut_in_ = false;
+            for (int c = 0; c < 2; ++c) {
+              low_cut_[c][0].reset();
+              low_cut_[c][1].reset();
+            }
           }
         }
-      }
-      for (int s = 0; s < kStages; ++s) {
-        if (!tone_live_[s]) continue;
-        x[0] = tone_[0][s].process(x[0]);
-        x[1] = tone_[1][s].process(x[1]);
-      }
-      if (high_cut_in_) {
-        const float mix = high_cut_mix_.next();
-        for (int c = 0; c < 2; ++c) {
-          const float cut = high_cut_[c].lowpass(x[c]);
-          x[c] += mix * (cut - x[c]);
+        for (int s = 0; s < kStages; ++s) {
+          if (!tone_live_[s]) continue;
+          x[0] = tone_[0][s].process(x[0]);
+          x[1] = tone_[1][s].process(x[1]);
         }
-        if (mix == 0.0f && high_cut_mix_.target == 0.0f) {
-          high_cut_in_ = false;
-          high_cut_[0].reset();
-          high_cut_[1].reset();
+        if (high_cut_in_) {
+          const float mix = high_cut_mix_.next();
+          for (int c = 0; c < 2; ++c) {
+            const float cut = high_cut_[c].lowpass(x[c]);
+            x[c] += mix * (cut - x[c]);
+          }
+          if (mix == 0.0f && high_cut_mix_.target == 0.0f) {
+            high_cut_in_ = false;
+            high_cut_[0].reset();
+            high_cut_[1].reset();
+          }
         }
       }
 
@@ -165,7 +172,7 @@ class AmbientEq : public kit::DeviceBase<ambient_eq::kNumParams> {
       const uint32_t phase = position_ & (kHop - 1);
       if (phase == 0) analyse(0);
       if (phase == static_cast<uint32_t>(kStagger)) analyse(1);
-      if (clear_clock_.tick()) update_bands();
+      if ((position_ & (kClearPeriod - 1)) == 0) update_bands();
       for (int n = 0; n < live_count_; ++n) {
         const int k = live_bands_[n];
         x[0] = band_[0][k].process(x[0]);
@@ -187,6 +194,9 @@ class AmbientEq : public kit::DeviceBase<ambient_eq::kNumParams> {
   static constexpr int kEqPeriod = 16;     // samples between tone control updates
   static constexpr int kClearPeriod = 64;  // samples between band filter updates
   static constexpr int kTicksPerFrame = kHop / kClearPeriod;
+  // Both are counted on position_, like the hop.
+  static_assert((kEqPeriod & (kEqPeriod - 1)) == 0 && (kClearPeriod & (kClearPeriod - 1)) == 0,
+                "the control periods must be powers of two");
   static constexpr int kHalfOctaveBands = 4;
   static constexpr float kFirstEdgeHz = 45.0f;
   static constexpr float kThirdsFromHz = 180.0f;
@@ -218,6 +228,13 @@ class AmbientEq : public kit::DeviceBase<ambient_eq::kNumParams> {
     to->b2 = from.b2;
     to->a1 = from.a1;
     to->a2 = from.a2;
+  }
+
+  // True while the signal has a cut or a tone stage to go through.
+  bool in_circuit() const {
+    bool any = low_cut_in_ || high_cut_in_;
+    for (int s = 0; s < kStages; ++s) any = any || tone_live_[s];
+    return any;
   }
 
   // True when a new value should glide: once a block has run and while the
@@ -340,10 +357,9 @@ class AmbientEq : public kit::DeviceBase<ambient_eq::kNumParams> {
       band_live_[k] = false;
     }
     live_count_ = 0;
+    bands_at_rest_ = true;
     deepest_ = 0.0f;
     position_ = 0;
-    eq_clock_.reset(kEqPeriod);
-    clear_clock_.reset(kClearPeriod);
   }
 
   void tune_low_cut(float hz) {
@@ -373,7 +389,8 @@ class AmbientEq : public kit::DeviceBase<ambient_eq::kNumParams> {
       if (hz != high_cut_set_) tune_high_cut(hz);
     }
     for (int s = 0; s < kStages; ++s) {
-      const float db = tone_db_[s].next();
+      // A settled value has nothing left to smooth.
+      const float db = tone_db_[s].settled() ? tone_db_[s].value : tone_db_[s].next();
       if (db != tone_set_[s]) {
         tone_set_[s] = db;
         design_tone(s, db);
@@ -406,8 +423,10 @@ class AmbientEq : public kit::DeviceBase<ambient_eq::kNumParams> {
   }
 
   // Every 64 samples: step each moving band's gain along its ramp, redesign
-  // its filter, and note which bands still have work to do.
+  // its filter, and note which bands still have work to do. With none, there
+  // is nothing to do until the next frame has set its cuts.
   void update_bands() {
+    if (bands_at_rest_) return;
     const float sr = sample_rate();
     float deepest = 0.0f;
     int live = 0;
@@ -432,21 +451,24 @@ class AmbientEq : public kit::DeviceBase<ambient_eq::kNumParams> {
     }
     live_count_ = live;
     deepest_ = deepest;
+    bands_at_rest_ = live == 0;
   }
 
   // One transform of one channel: the last 4096 samples under a Hann window,
   // summed into bands. The right channel's completes the frame.
   void analyse(int c) {
     const uint32_t start = position_ + 1;  // the oldest sample in the ring
-    for (int n = 0; n < kFrame; ++n) {
-      re_[n] = ring_[c][(start + n) & kRingMask] * window_[n];
-      im_[n] = 0.0f;
-    }
-    fft_.forward(re_, im_);
+    const float* ring = ring_[c];
+    const float* window = window_;
+    fft_.forward_real(
+        [ring, window, start](int n) { return ring[(start + n) & kRingMask] * window[n]; },
+        spectrum_);
     for (int k = 0; k < num_bands_; ++k) {
       float sum = 0.0f;
       for (int bin = first_bin_[k]; bin <= last_bin_[k]; ++bin) {
-        sum += re_[bin] * re_[bin] + im_[bin] * im_[bin];
+        const float re = spectrum_[bin];
+        const float im = spectrum_[kFrame - bin];
+        sum += re * re + im * im;
       }
       sum *= band_scale_[k];
       frame_power_[k] = c == 0 ? sum : frame_power_[k] + sum;
@@ -524,13 +546,13 @@ class AmbientEq : public kit::DeviceBase<ambient_eq::kNumParams> {
       cut_[k] = cut;
       gain_[k].set_target(cut);
     }
+    bands_at_rest_ = false;
   }
 
   kit::Fft<kFrame> fft_;
   float window_[kFrame];
   float ring_[2][kFrame];  // what Clear hears, per channel
-  float re_[kFrame];
-  float im_[kFrame];
+  float spectrum_[kFrame];  // of one channel's frame, as kit::Fft::forward_real packs it
 
   kit::Svf low_cut_[2][2];
   kit::Svf high_cut_[2];
@@ -540,7 +562,6 @@ class AmbientEq : public kit::DeviceBase<ambient_eq::kNumParams> {
   kit::Smoother low_cut_hz_, high_cut_hz_;
   kit::Smoother tone_db_[kStages];
   kit::LinearRamp low_cut_mix_, high_cut_mix_;  // 0 out of circuit, 1 in
-  kit::ControlClock eq_clock_, clear_clock_;
   kit::IdleGate idle_;
   float low_cut_set_ = 0.0f;   // the frequency the filters are designed for
   float high_cut_set_ = 0.0f;
@@ -564,9 +585,10 @@ class AmbientEq : public kit::DeviceBase<ambient_eq::kNumParams> {
   bool band_live_[kBands] = {};
   int live_bands_[kBands] = {};
   int live_count_ = 0;
+  bool bands_at_rest_ = true;  // no band live and no gain on its way
   float power_coeff_ = 0.0f;
   float deepest_ = 0.0f;
-  uint32_t position_ = 0;  // samples since waking; schedules the transforms
+  uint32_t position_ = 0;  // samples since waking; every period is counted from it
 };
 
 }  // namespace livemix

@@ -236,11 +236,12 @@ class SpectralBlur : public kit::DeviceBase<spectral_blur::kNumParams> {
     }
 
     const uint32_t start = position_ - offset - kFrame;
-    for (int n = 0; n < kFrame; ++n) {
-      re_[n] = channel.input[(start + n) & kRingMask] * window_[n];
-      im_[n] = 0.0f;
-    }
-    fft_.forward(re_, im_);
+    const float* input = channel.input;
+    const float* window = window_;
+    // The frame is real, so half a transform does: bins 0..kHalf, the
+    // imaginary parts packed from the top of re_ down (kit::Fft::forward_real).
+    fft_.forward_real(
+        [input, window, start](int n) { return input[(start + n) & kRingMask] * window[n]; }, re_);
 
     const bool frozen = param(kFreeze) >= 0.5f;
     const float blur = param(kBlur);
@@ -280,7 +281,7 @@ class SpectralBlur : public kit::DeviceBase<spectral_blur::kNumParams> {
     bool alive = false;
     for (int k = 0; k <= kHalf; ++k) {
       const float xr = re_[k];
-      const float xi = im_[k];
+      const float xi = (k == 0 || k == kHalf) ? 0.0f : re_[kFrame - k];
       const float lr = channel.last_re[k];
       const float li = channel.last_im[k];
       const float power = xr * xr + xi * xi;
