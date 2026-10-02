@@ -52,6 +52,8 @@ build_generated_devices() {
     cpp/devices/grain-synth/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device handpan \
     cpp/devices/handpan/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device ladder-bass \
+    cpp/devices/ladder-bass/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device lattice \
     cpp/devices/lattice/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device mallets \
@@ -151,6 +153,8 @@ test_generated_devices() {
     cpp/test/grain_synth_test.cpp
   native_test handpan_test \
     cpp/test/handpan_test.cpp
+  native_test ladder_bass_test \
+    cpp/test/ladder_bass_test.cpp
   native_test lattice_test \
     cpp/test/lattice_test.cpp
   native_test mallets_test \
