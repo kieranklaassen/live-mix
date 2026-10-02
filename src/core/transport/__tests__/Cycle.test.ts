@@ -125,6 +125,18 @@ describe('Cycle', () => {
     expect(cycle.position().positionSec).toBe(2)
   })
 
+  it('is at its own start at a multiple of a length a float cannot hold exactly', () => {
+    const { transport, cycle } = build(25.9)
+    // Three lengths of 25.9 s is 77.69999999999999 in floats, and dividing that
+    // back lands under three: the cycle read it as a hair under the end of its
+    // third pass instead of the start of its fourth, and missed the downbeat.
+    transport.seekElapsed(3 * 25.9)
+    transport.start()
+    expect(cycle.position().positionSec).toBe(0)
+    expect(cycle.anchor?.positionSec).toBe(0)
+    expect(cycle.passOf(cycle.position().iteration)).toBe(3)
+  })
+
   it('moves to where a new length puts it, with fresh pass numbers', () => {
     const { ctx, transport, cycle } = build(10)
     transport.start()

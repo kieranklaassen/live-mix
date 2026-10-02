@@ -50,6 +50,9 @@ export interface CycleTransport {
   contextTimeAtElapsed(elapsedSec: number): number
 }
 
+// A second this close under a pass's start is that start, written with another rounding.
+const PASS_EPSILON_SEC = 1e-9
+
 /** What a cycle remembers of the transport anchor its pass numbers were last worked out under. */
 interface SeenAnchor {
   anchor: Readonly<TransportAnchor>
@@ -104,7 +107,7 @@ export class Cycle implements Timebase {
     const pass = this.passAt(elapsedSec)
     return {
       contextTime: anchor.contextTime,
-      positionSec: elapsedSec - pass * this.length,
+      positionSec: this.positionAt(elapsedSec, pass),
       iteration: this.numberOf(pass),
     }
   }
@@ -117,7 +120,7 @@ export class Cycle implements Timebase {
     const elapsedSec = this.transport.elapsed(contextTime)
     const pass = this.passAt(elapsedSec)
     return {
-      positionSec: elapsedSec - pass * this.length,
+      positionSec: this.positionAt(elapsedSec, pass),
       iteration: this.numberOf(pass),
       finished: this.transport.position(contextTime).finished,
     }
@@ -147,8 +150,21 @@ export class Cycle implements Timebase {
     return Math.max(0, iteration - this.numberOffset)
   }
 
+  /**
+   * The pass of the cycle that elapsed second `elapsedSec` is in. The start of
+   * a pass belongs to it however it was worked out: `(k - 1) * length + length`
+   * is not always `k * length` in floats, and dividing such a second back can
+   * land under `k`, which would put the cycle a hair under the end of the pass
+   * before instead of at the start of this one.
+   */
   private passAt(elapsedSec: number): number {
-    return Math.floor(elapsedSec / this.length)
+    const pass = Math.floor(elapsedSec / this.length)
+    return (pass + 1) * this.length - elapsedSec <= PASS_EPSILON_SEC ? pass + 1 : pass
+  }
+
+  /** Where elapsed second `elapsedSec` stands in pass `pass`, never under its start. */
+  private positionAt(elapsedSec: number, pass: number): number {
+    return Math.max(0, elapsedSec - pass * this.length)
   }
 
   /** The number of one of the cycle's passes, counted from the timeline's origin. */
