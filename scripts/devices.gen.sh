@@ -12,6 +12,8 @@ build_generated_devices() {
     cpp/devices/ambient-limiter/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device atmosphere \
     cpp/devices/atmosphere/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device aurora \
+    cpp/devices/aurora/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device auto-filter \
     cpp/devices/auto-filter/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device bloom-reverb \
@@ -99,6 +101,8 @@ test_generated_devices() {
     cpp/test/ambient_limiter_test.cpp
   native_test atmosphere_test \
     cpp/test/atmosphere_test.cpp
+  native_test aurora_test \
+    cpp/test/aurora_test.cpp
   native_test auto_filter_test \
     cpp/test/auto_filter_test.cpp
   native_test bloom_reverb_test \

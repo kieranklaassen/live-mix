@@ -3,6 +3,7 @@
 
 import { type FactoryPreset } from '../types'
 import { ATMOSPHERE_PRESETS } from './atmosphere'
+import { AURORA_PRESETS } from './aurora'
 import { BOWED_STRING_PRESETS } from './bowed-string'
 import { CHOIR_PRESETS } from './choir'
 import { DRONE_PRESETS } from './drone'
@@ -36,4 +37,5 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...GRAIN_SYNTH_PRESETS,
   ...ATMOSPHERE_PRESETS,
   ...HANDPAN_PRESETS,
+  ...AURORA_PRESETS,
 ]
