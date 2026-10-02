@@ -142,6 +142,8 @@ interface Request {
 
 /** The file every scan of a fake host fails to load a plug-in from. */
 export const FAKE_BROKEN_FILE = '/plugins/Broken.vst3'
+/** What the fake says is wrong with every file it could load no plug-in from. */
+export const FAKE_BROKEN_REASON = 'The bundle holds no program for this system.'
 
 /** The state a fake plug-in has until it is given another. */
 export const FAKE_STATE = 'c3RhdGU='
@@ -240,6 +242,7 @@ export class FakePluginHost {
       failed,
       crashed,
       names: Object.fromEntries([...failed, ...crashed].map((file) => [file, name(file)])),
+      reasons: Object.fromEntries(failed.map((file) => [file, FAKE_BROKEN_REASON])),
     }
   }
 

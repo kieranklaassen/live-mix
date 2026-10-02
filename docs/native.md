@@ -128,7 +128,11 @@ run: a plug-in that crashes, or one that asks for its licence in a dialog, is
 met once. `retry: [entries]` gives the named ones another go in a scan that
 otherwise only looks at what is new, and `rescan: true` forgets both along
 with the list. `names` has what to call each entry of `failed` and `crashed`:
-an Audio Unit is listed by a code, not a file.
+an Audio Unit is listed by a code, not a file. `reasons` says what is wrong
+with an entry of `failed`, where the scan could tell: the bundle holds no
+program, the program is built for another processor ("It is built for Intel
+only, and this app runs as Apple silicon…"), or what the system said when it
+was asked to load it. It is kept with the list.
 
 `client.stopScan()` ends a scan that is running: its `scan()` resolves with
 what was found until then and `stopped: true`, and the next scan carries on
@@ -381,21 +385,21 @@ A request without `id` gets no answer. A frame with an `event` field is a
 notification from the host. Closing the connection unloads every plug-in it
 loaded.
 
-| Method         | Params                                                                     | Result                                             |
-| -------------- | -------------------------------------------------------------------------- | -------------------------------------------------- |
-| `hello`        |                                                                            | `NativeHostInfo` (protocol, formats)               |
-| `plugins`      |                                                                            | `{ plugins, failed, crashed, names }`, as kept     |
-| `scan`         | `{ paths?, defaultPaths?, rescan?, retry?, idle?, timeout?, perProcess? }` | `{ plugins, failed, crashed, names }`              |
-| `stopScan`     |                                                                            | `{ stopped }`; the scan answers with what it found |
-| `load`         | `{ plugin \| file, name?, sampleRate, blockSize, state? }`                 | `NativeSlotInfo` (slot, params)                    |
-| `unload`       | `{ slot }`                                                                 | `{}`                                               |
-| `setParam`     | `{ slot, index, value }` (normalised; usually sent without `id`)           | `{}`                                               |
-| `getParams`    | `{ slot }`                                                                 | `{ params }`                                       |
-| `getState`     | `{ slot }`                                                                 | `{ state }` (base64)                               |
-| `setState`     | `{ slot, state }`                                                          | `{ params, latencySamples }`                       |
-| `showEditor`   | `{ slot }`                                                                 | `{ showing }`                                      |
-| `hideEditor`   | `{ slot }`                                                                 | `{}`                                               |
-| `setTransport` | `{ bpm?, playing? }` (a field left out keeps its value)                    | `{}`                                               |
+| Method         | Params                                                                     | Result                                                  |
+| -------------- | -------------------------------------------------------------------------- | ------------------------------------------------------- |
+| `hello`        |                                                                            | `NativeHostInfo` (protocol, formats)                    |
+| `plugins`      |                                                                            | `{ plugins, failed, crashed, names, reasons }`, as kept |
+| `scan`         | `{ paths?, defaultPaths?, rescan?, retry?, idle?, timeout?, perProcess? }` | `{ plugins, failed, crashed, names, reasons }`          |
+| `stopScan`     |                                                                            | `{ stopped }`; the scan answers with what it found      |
+| `load`         | `{ plugin \| file, name?, sampleRate, blockSize, state? }`                 | `NativeSlotInfo` (slot, params)                         |
+| `unload`       | `{ slot }`                                                                 | `{}`                                                    |
+| `setParam`     | `{ slot, index, value }` (normalised; usually sent without `id`)           | `{}`                                                    |
+| `getParams`    | `{ slot }`                                                                 | `{ params }`                                            |
+| `getState`     | `{ slot }`                                                                 | `{ state }` (base64)                                    |
+| `setState`     | `{ slot, state }`                                                          | `{ params, latencySamples }`                            |
+| `showEditor`   | `{ slot }`                                                                 | `{ showing }`                                           |
+| `hideEditor`   | `{ slot }`                                                                 | `{}`                                                    |
+| `setTransport` | `{ bpm?, playing? }` (a field left out keeps its value)                    | `{}`                                                    |
 
 | Event          | Fields                                                                                                                                                   |
 | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |

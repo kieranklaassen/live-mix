@@ -177,8 +177,9 @@ export class NativeHostClient {
 
   /**
    * What the host already knows, without scanning: its list, and what its
-   * scans left out of it (`failed`, `crashed`, and their `names`), which it
-   * keeps between runs. An older host says only the list.
+   * scans left out of it (`failed`, `crashed`, their `names`, and the
+   * `reasons` a file failed for), which it keeps between runs. An older host
+   * says only the list.
    */
   async known(): Promise<NativeScanResult> {
     const known = await this.call<Partial<NativeScanResult>>('plugins')
@@ -187,6 +188,7 @@ export class NativeHostClient {
       failed: known.failed ?? [],
       crashed: known.crashed ?? [],
       names: known.names ?? {},
+      reasons: known.reasons ?? {},
     }
   }
 

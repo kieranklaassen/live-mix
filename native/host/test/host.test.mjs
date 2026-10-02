@@ -24,6 +24,8 @@ const buildDir = resolve(process.env.LIVE_MIX_PLUGIN_HOST_BUILD ?? 'tmp/plugin-h
 const binary = pluginHostBinaryPath(buildDir)
 const testPlugins = pluginHostTestPluginsDir(buildDir)
 const troublePlugin = pluginHostTroublePluginDir(buildDir)
+// A folder with a VST3 bundle built for Intel processors only; built on a Mac only.
+const intelOnly = join(buildDir, 'test', 'intel')
 // How many windows a process has on the screen; built on a Mac only.
 const windowCount = join(buildDir, 'test', 'windows', 'live-mix-window-count')
 const wrapper = process.platform === 'linux' && !process.env.DISPLAY ? ['xvfb-run', '-a'] : []
@@ -806,6 +808,75 @@ test('a scan nobody waits for any more ends its scanner and keeps what it found'
     rmSync(folder, { recursive: true, force: true })
   }
 })
+
+test('says what is wrong with a file that holds no plug-in, and keeps saying it', async () => {
+  const folder = mkdtempSync(join(tmpdir(), 'live-mix-host-why-'))
+  const plugins = join(folder, 'plugins')
+  const data = join(folder, 'data')
+  // A bundle with nothing in it, and one whose program is no program.
+  mkdirSync(join(plugins, 'Broken.vst3'), { recursive: true })
+  const programs =
+    process.platform === 'darwin'
+      ? join(plugins, 'Garbled.vst3', 'Contents', 'MacOS')
+      : join(
+          plugins,
+          'Garbled.vst3',
+          'Contents',
+          `${process.arch === 'arm64' ? 'aarch64' : 'x86_64'}-linux`,
+        )
+  mkdirSync(programs, { recursive: true })
+  writeFileSync(
+    join(programs, process.platform === 'darwin' ? 'Garbled' : 'Garbled.so'),
+    'not a program\n',
+  )
+  const why = (known, name) =>
+    known.reasons[known.failed.find((file) => file.endsWith(`${name}.vst3`))]
+  try {
+    await withTrouble(null, data, async (connection) => {
+      const scan = await connection.call('scan', { paths: [plugins], defaultPaths: false })
+      assert.equal(scan.failed.length, 2)
+      assert.equal(why(scan, 'Broken'), 'The bundle holds no program for this system.')
+      assert.match(why(scan, 'Garbled'), /^The system would not load it: ./)
+    })
+    // A host started later says the same, with no scan run,
+    await withTrouble(null, data, async (connection) => {
+      const known = await connection.call('plugins')
+      assert.equal(why(known, 'Broken'), 'The bundle holds no program for this system.')
+      assert.match(why(known, 'Garbled'), /^The system would not load it: ./)
+      // and a file given another go is asked again.
+      const again = await connection.call('scan', {
+        paths: [plugins],
+        defaultPaths: false,
+        retry: known.failed,
+      })
+      assert.match(why(again, 'Garbled'), /^The system would not load it: ./)
+    })
+  } finally {
+    rmSync(folder, { recursive: true, force: true })
+  }
+})
+
+// What an old plug-in is to a Mac with Apple silicon: the commonest reason a
+// plug-in folder full of working plug-ins has some a host cannot read.
+test(
+  'says a plug-in is built for another processor',
+  { skip: process.platform !== 'darwin' || process.arch !== 'arm64' },
+  async () => {
+    const folder = mkdtempSync(join(tmpdir(), 'live-mix-host-intel-'))
+    try {
+      await withTrouble(null, folder, async (connection) => {
+        const scan = await connection.call('scan', { paths: [intelOnly], defaultPaths: false })
+        assert.equal(scan.failed.length, 1)
+        assert.equal(
+          scan.reasons[scan.failed[0]],
+          'It is built for Intel only, and this app runs as Apple silicon. It needs a version of the plug-in for Apple silicon.',
+        )
+      })
+    } finally {
+      rmSync(folder, { recursive: true, force: true })
+    }
+  },
+)
 
 test('stops a scan when asked, keeping what it found', async () => {
   const folder = mkdtempSync(join(tmpdir(), 'live-mix-host-stop-'))
