@@ -47,6 +47,7 @@ export interface SpaceRoomHost {
 export class SpaceRoom {
   private nodes: RoomNodes
   private settings: SpaceRoomSettings
+  // Each old room with the timer that takes it down, or null where there is no clock to time it by.
   private readonly retired = new Map<RoomNodes, unknown>()
   private readonly setTimeoutFn: (callback: () => void, ms: number) => unknown
   private readonly clearTimeoutFn: (handle: unknown) => void
@@ -99,7 +100,7 @@ export class SpaceRoom {
 
   dispose(): void {
     for (const [nodes, timer] of this.retired) {
-      this.clearTimeoutFn(timer)
+      if (timer !== null) this.clearTimeoutFn(timer)
       this.takeDown(nodes)
     }
     this.retired.clear()
@@ -183,8 +184,17 @@ export class SpaceRoom {
     }
   }
 
-  /** Nothing is sent to these nodes any more: they stay until their tail is over. */
+  /**
+   * Nothing is sent to these nodes any more: they stay until their tail is
+   * over. A render that is not on the clock has no real time to count that
+   * in, and may run slower than a timer would: there the old room is kept
+   * until the track goes.
+   */
   private retire(nodes: RoomNodes): void {
+    if (typeof (this.ctx as Partial<OfflineAudioContext>).startRendering === 'function') {
+      this.retired.set(nodes, null)
+      return
+    }
     const tailSec = (nodes.convolver.buffer?.duration ?? 0) + SPACE_RETIRE_MARGIN_SECONDS
     const timer = this.setTimeoutFn(() => {
       this.retired.delete(nodes)

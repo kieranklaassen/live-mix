@@ -4,6 +4,7 @@ import {
   MockAudioBuffer,
   asAudioContext,
   createMockContext,
+  createMockOfflineContext,
   type MockAudioContext,
 } from '../../../testing'
 import { equalPowerFadeIn, equalPowerFadeOut } from '../../clips/curves'
@@ -1097,6 +1098,40 @@ describe('AudioTrack placed clips', () => {
       expect(next.isConnectedTo(dest)).toBe(false)
       expect(ctx.convolvers[2].outputs.size).toBe(0)
       expect(vi.getTimerCount()).toBe(0)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('refreshSpace in a render that is not on the clock keeps the old room until the track goes', () => {
+    vi.useFakeTimers()
+    try {
+      // A render can run slower than real time: a timer would cut the tail.
+      const ctx = createMockOfflineContext({ sampleRate: 48000, length: 48000 * 20 })
+      const dest = ctx.createGain()
+      let impulse = buffer(ctx, 2)
+      const track = new AudioTrack(asAudioContext(ctx), {
+        name: 'music',
+        destination: dest as unknown as AudioNode,
+        samples: new SampleStore(asAudioContext(ctx)),
+        now: () => ctx.currentTime,
+        spaceImpulse: () => impulse,
+      })
+      const a = track.play('a', { ...voice, buffer: buffer(ctx, 10), spaceDb: 0 }, 1)
+      const send = a?.placement?.send as unknown as (typeof ctx.gains)[number]
+      const [old] = ctx.convolvers
+      impulse = buffer(ctx, 4)
+      track.refreshSpace()
+      const [, next] = ctx.convolvers
+      expect(send.isConnectedTo(next)).toBe(true)
+      expect(vi.getTimerCount()).toBe(0)
+      vi.advanceTimersByTime(60_000)
+      expect(old.isConnectedTo(dest)).toBe(true)
+      expect(next.isConnectedTo(dest)).toBe(true)
+
+      track.dispose()
+      expect(old.isConnectedTo(dest)).toBe(false)
+      expect(next.isConnectedTo(dest)).toBe(false)
     } finally {
       vi.useRealTimers()
     }
