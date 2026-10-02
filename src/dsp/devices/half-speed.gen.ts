@@ -71,7 +71,7 @@ export const HALF_SPEED_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Makes every cycle a little longer or shorter than the last, up to a quarter either way, so the jumps stop ticking like a machine.',
+      'Makes every cycle a little longer or shorter than the last, so the jumps stop ticking like a machine.',
   },
   lowCut: {
     id: 6,
