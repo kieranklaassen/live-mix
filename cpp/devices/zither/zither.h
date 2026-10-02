@@ -171,6 +171,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     uint32_t touch_seed = 1u;
     int touch_wait = 0;        // samples before it begins
     float touch_gain = 0.0f;   // level; 0 when there is none
+    float touch_knock = 0.0f;  // level of the knock it gives the body
     float touch_slow = 0.0f, touch_fast = 0.0f;         // its envelope is their difference
     float touch_slow_step = 0.0f, touch_fast_step = 0.0f;
     float touch_cut = 0.0f, touch_floor = 0.0f;         // low-pass and high-pass coefficients
@@ -215,7 +216,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     voice.absorb_pos = 0;
     voice.touch_seed = 1u;
     voice.touch_wait = 0;
-    voice.touch_gain = voice.touch_slow = voice.touch_fast = 0.0f;
+    voice.touch_gain = voice.touch_knock = voice.touch_slow = voice.touch_fast = 0.0f;
     voice.touch_slow_step = voice.touch_fast_step = voice.touch_cut = voice.touch_floor = 0.0f;
     voice.touch_lp1 = voice.touch_lp2 = voice.touch_low = 0.0f;
     voice.roll_turn = 0;
@@ -540,13 +541,17 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
   // The touch: a finger or a pick leaving the string makes a short noise of
   // its own beside the pluck, a few milliseconds of it, duller and longer
   // for a fingertip, brighter and shorter for a pick, softer and duller for
-  // a soft touch. It is heard directly and knocks on the body (kKnock), but
-  // does not go round the string. The hammer has its blow and needs none.
-  static constexpr float kTouchFinger = 0.3f, kTouchPick = 0.45f;  // level against the pluck's step
-  static constexpr float kFingerCutSoft = 1200.0f, kFingerCutHard = 4800.0f;  // its top, Hz
-  static constexpr float kPickCutSoft = 3000.0f, kPickCutHard = 9000.0f;
-  static constexpr float kFingerFloorHz = 150.0f, kPickFloorHz = 400.0f;      // and its bottom
-  static constexpr float kFingerTouchSeconds = 0.004f, kPickTouchSeconds = 0.0013f;
+  // a soft touch. It is heard directly and with it the body gets a knock
+  // (kKnock); neither goes round the string. The hammer has its blow and
+  // needs none.
+  // Its level is set by its fastest movement against the pluck's own edge
+  // (kTouch*, a share of that), so a soft, dark touch has a soft, dull noise
+  // and it never adds an edge sharper than the pluck's.
+  static constexpr float kTouchFinger = 0.35f, kTouchPick = 0.8f;
+  static constexpr float kFingerCutSoft = 2500.0f, kFingerCutHard = 4500.0f;  // its top, Hz
+  static constexpr float kPickCutSoft = 3500.0f, kPickCutHard = 7000.0f;
+  static constexpr float kTouchFloor = 0.4f;  // its bottom, as a share of the top
+  static constexpr float kFingerTouchSeconds = 0.010f, kPickTouchSeconds = 0.0025f;
   static constexpr float kTouchRise = 0.15f;  // of that
 
   void set_touch(Voice& voice, const Blow& blow) {
@@ -562,23 +567,34 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     // What two one-poles in a row leave of white noise: taken out again, so
     // the level is the same at any cut and any sample rate.
     const float kept = a * a * a * a * (1.0f + r * r) / ((1.0f - r * r) * (1.0f - r * r) * (1.0f - r * r));
-    const float level = kStringLevel * (0.08f + 0.92f * std::pow(blow.level, 1.5f)) * std::pow(220.0f / voice.hz, kLevelLean);
-    voice.touch_gain = level * (pick ? kTouchPick : kTouchFinger) * (0.5f + 0.5f * hard) / std::sqrt(kept);
+    const float lean = 220.0f / voice.hz, period = sr / voice.hz;
+    const float level = kStringLevel * (0.08f + 0.92f * std::pow(blow.level, 1.5f)) * std::pow(lean, kLevelLean);
+    // The pluck's edge, as set_strike() draws it, and the largest step it takes.
+    const float width = pick ? kit::clamp(kPickSoft * std::pow(kPickHard / kPickSoft, hard) * std::pow(lean, kPickLean) * sr, 1.5f, 0.3f * period)
+                             : kit::clamp(kFingerSoft * std::pow(kFingerHard / kFingerSoft, hard) * std::pow(lean, kFingerLean) * sr, 1.5f, 0.35f * period);
+    const float edge = level * 0.5f * kit::kPi / width;
+    // Noise of this band moves about this far from one sample to the next, for a level of one.
+    const float moves = 2.0f * std::sin(0.7f * kit::kPi * cut / sr);
+    voice.touch_gain = (pick ? kTouchPick : kTouchFinger) * edge / (moves * std::sqrt(kept));
+    voice.touch_knock = kKnock * level;
     const float seconds = (pick ? kPickTouchSeconds : kFingerTouchSeconds) * (1.3f - 0.6f * hard);
     voice.touch_slow_step = std::exp(-1.0f / (seconds * sr));
     voice.touch_fast_step = std::exp(-1.0f / (kTouchRise * seconds * sr));
     voice.touch_slow = voice.touch_fast = 1.0f;
     voice.touch_cut = a;
-    voice.touch_floor = 1.0f - std::exp(-kit::kTwoPi * (pick ? kPickFloorHz : kFingerFloorHz) / sr);
+    voice.touch_floor = 1.0f - std::exp(-kit::kTwoPi * kTouchFloor * cut / sr);
     voice.touch_lp1 = voice.touch_lp2 = voice.touch_low = 0.0f;
     voice.touch_wait = static_cast<int>(blow.wait + 0.5f);
     // Its own noise for every note, and the same again after init().
     voice.touch_seed = voice.stamp * 2654435761u + 0x9E3779B9u;
   }
 
-  void render_touch(Voice& voice, float* out, int n) {
+  // `out` is the noise, heard beside the strings; `thump` is the push the
+  // release gives the bridge, a rounded pulse as long as the noise's rise,
+  // which only the body's resonances receive: the knock.
+  void render_touch(Voice& voice, float* out, float* thump, int n) {
     for (int i = 0; i < n; ++i) {
-      out[i] = 0.0f;
+      out[i] = thump[i] = 0.0f;
       if (voice.touch_gain == 0.0f) continue;
       if (voice.touch_wait > 0) {
         --voice.touch_wait;
@@ -591,7 +607,9 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
       voice.touch_low += voice.touch_floor * (voice.touch_lp2 - voice.touch_low);
       voice.touch_slow *= voice.touch_slow_step;
       voice.touch_fast *= voice.touch_fast_step;
-      out[i] = voice.touch_gain * (voice.touch_slow - voice.touch_fast) * (voice.touch_lp2 - voice.touch_low);
+      const float level = voice.touch_gain * (voice.touch_slow - voice.touch_fast);
+      out[i] = level * (voice.touch_lp2 - voice.touch_low);
+      thump[i] = voice.touch_knock * (voice.touch_fast - voice.touch_fast * voice.touch_fast);
       if (voice.touch_slow < 1.0e-4f) voice.touch_gain = 0.0f;  // it has passed
     }
   }
@@ -826,9 +844,9 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     if (!voice.two) {
       for (int i = 0; i < n; ++i) b[i] = 0.0f;
     }
-    float touch[kChunk];
+    float touch[kChunk], thump[kChunk];
     const bool touched = voice.touch_gain != 0.0f;
-    if (touched) render_touch(voice, touch, n);
+    if (touched) render_touch(voice, touch, thump, n);
     float peak = voice.chunk_peak;
     if (voice.fading) {
       float fade = voice.fade;
@@ -837,15 +855,20 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
         const float gain = fade * fade * (3.0f - 2.0f * fade);
         a[i] *= gain;
         b[i] *= gain;
-        if (touched) touch[i] *= gain;
+        if (touched) {
+          touch[i] *= gain;
+          thump[i] *= gain;
+        }
       }
       voice.fade = fade;
     }
     if (touched) {
       const float l0 = voice.left[0], r0 = voice.right[0];
       for (int i = 0; i < n; ++i) {
-        knock_left[i] += touch[i] * l0;
-        knock_right[i] += touch[i] * r0;
+        left[i] += touch[i] * l0;
+        right[i] += touch[i] * r0;
+        knock_left[i] += thump[i] * l0;
+        knock_right[i] += thump[i] * r0;
       }
     }
     if (voice.two) {
@@ -972,17 +995,16 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     sympathetic_peak_ = peak;
   }
 
-  // The touch is heard beside the strings and knocks on the body's
-  // resonances harder than a string does (a real box answers a knock with
-  // far more than four of them).
-  static constexpr float kKnock = 3.0f;
+  // The knock: how hard a touch pushes the body's resonances, against the
+  // step the pluck puts on the string.
+  static constexpr float kKnock = 7.0f;
 
   void finish_chunk(const float* left, const float* right, const float* knock_left, const float* knock_right, int n,
                     int at) {
     for (int i = 0; i < n; ++i) {
-      float l = rumble_[0].process(left[i] + knock_left[i]);
-      float r = rumble_[1].process(right[i] + knock_right[i]);
-      body(&l, &r, kKnock * knock_left[i], kKnock * knock_right[i]);
+      float l = rumble_[0].process(left[i]);
+      float r = rumble_[1].process(right[i]);
+      body(&l, &r, knock_left[i], knock_right[i]);
       const float volume = volume_.next() * kOutGain;
       out_left_[at + i] = kit::soft_clip(l * volume);
       out_right_[at + i] = kit::soft_clip(r * volume);
@@ -990,26 +1012,32 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
   }
 
   // Bodies: four resonances beside the direct sound, then a low and a high
-  // shelf (first order, a gentle contour). The right channel's resonances sit a few percent off the left's
+  // shelf (first order, a gentle contour). Each resonance has a Q that lets
+  // it ring for a time of its own (2.2 Q / Hz seconds to -60 dB): about 150
+  // down to 60 ms on the harp, 80 to 40 ms on the zither, 150 to 90 ms on
+  // the dulcimer; the koto's two low ones 60 and 45 ms, its two formants
+  // wide and short. So a touch gives a knock and a damped note leaves a
+  // little of the box behind. The right channel's resonances sit a few percent off the left's
   // (two places on one soundboard).
   static constexpr int kBodyModes = 4;
   struct BodySpec {
     float hz[kBodyModes], q[kBodyModes], gain[kBodyModes];
     float low_hz, low_db, high_hz, high_db, direct, makeup;
+    float knock;  // how much of a touch's push this box takes up
   };
   static constexpr BodySpec kBodies[kNumBodies] = {
       // Harp: a wide warm board, soft on top.
       {{165.0f, 260.0f, 440.0f, 780.0f}, {11.0f, 14.0f, 18.0f, 21.0f}, {0.6f, 0.5f, 0.4f, 0.3f},
-       200.0f, 2.0f, 3000.0f, 0.0f, 0.8f, 0.9f},
+       200.0f, 2.0f, 3000.0f, 0.0f, 0.8f, 0.9f, 1.0f},
       // Zither: a shallow box, bright.
-      {{210.0f, 345.0f, 590.0f, 1150.0f}, {10.5f, 14.0f, 19.0f, 26.0f}, {0.4f, 0.45f, 0.4f, 0.3f},
-       160.0f, -3.0f, 2500.0f, 4.5f, 0.8f, 1.0f},
+      {{210.0f, 345.0f, 590.0f, 1150.0f}, {7.5f, 10.0f, 13.5f, 21.0f}, {0.4f, 0.45f, 0.4f, 0.3f},
+       160.0f, -3.0f, 2500.0f, 4.5f, 0.8f, 1.0f, 1.6f},
       // Dulcimer: a ringing trapezoid, brighter still.
-      {{185.0f, 300.0f, 520.0f, 930.0f}, {12.5f, 17.5f, 23.5f, 29.5f}, {0.6f, 0.6f, 0.55f, 0.45f},
-       180.0f, -2.0f, 2000.0f, 4.0f, 0.65f, 1.25f},
+      {{185.0f, 300.0f, 520.0f, 930.0f}, {12.5f, 19.0f, 28.0f, 38.0f}, {0.6f, 0.6f, 0.55f, 0.45f},
+       180.0f, -2.0f, 2000.0f, 4.0f, 0.65f, 1.25f, 1.0f},
       // Koto: a long hollow body, thin below and nasal.
       {{140.0f, 310.0f, 620.0f, 1350.0f}, {4.0f, 6.5f, 3.5f, 3.0f}, {0.2f, 0.4f, 0.8f, 1.2f},
-       250.0f, -7.0f, 4500.0f, 1.0f, 0.5f, 1.2f},
+       250.0f, -7.0f, 4500.0f, 1.0f, 0.5f, 1.2f, 0.4f},
   };
   static constexpr float kBodySkew[kBodyModes] = {1.045f, 0.96f, 1.035f, 0.955f};
   static constexpr float kBodyFadeSeconds = 0.04f;
@@ -1061,7 +1089,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     float process(int c, float x, float knock) {
       const BodySpec& body = kBodies[spec];
       float y = body.direct * x;
-      const float drive = x + knock;
+      const float drive = x + body.knock * knock;
       for (int m = 0; m < kBodyModes; ++m) y += body.gain[m] * mode[c][m].process(drive);
       // First-order shelves: what lies under the low corner, and what lies
       // over the high one, scaled and added back.

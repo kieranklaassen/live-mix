@@ -116,7 +116,7 @@ int main() {
   spec.mins = p::kParamMin;
   spec.maxs = p::kParamMax;
   spec.defaults = p::kParamDefault;
-  spec.tail_seconds = 7.0f;
+  spec.tail_seconds = 20.0f;
   spec.max_peak = 2.0f;
   check_effect(device, spec, kRate);
 
@@ -378,25 +378,29 @@ int main() {
     EXPECT(correlation(out.left, out.right) > 0.999, "Mix 1: mono compatible");
   }
 
-  // 12. The receiver stays on for four seconds after the input stops (the
-  // static carries on), fades over a second and a half, and is then asleep.
+  // 12. The receiver stays on for fourteen seconds after the input stops (the
+  // static carries on at the level it had), fades over four, and is then
+  // asleep.
   {
     device.init(kRate);
     device.set_param(p::kStatic, 0.6f);
     run(device, sine(440.0f, 1.0f, kRate, 0.3f));
-    Stereo after = render(device, 7.0f, kRate);
+    Stereo after = render(device, 20.0f, kRate);
     const double held = db(rms(after.left, 1 * 48000, 3 * 48000));
-    const double fading_out = db(rms(after.left, 4 * 48000 + 36000, 5 * 48000));
+    const double late = db(rms(after.left, 11 * 48000, 13 * 48000));
+    const double fading_out = db(rms(after.left, 16 * 48000, 17 * 48000));
     size_t last = 0;
     for (size_t i = 0; i < after.size(); ++i) {
       if (after.left[i] != 0.0f) last = i;
     }
-    std::printf("tail: static %.1f dB one to three seconds after the input stops, %.1f dB at 4.75 to 5 s, "
-                "exact silence from %.2f s\n",
-                held, fading_out, static_cast<double>(last + 1) / kRate);
+    std::printf("tail: static %.1f dB one to three seconds after the input stops, %.1f dB at 11 to 13 s, %.1f dB "
+                "at 16 to 17 s, exact silence from %.2f s\n",
+                held, late, fading_out, static_cast<double>(last + 1) / kRate);
     EXPECT(held > -50.0, "the static carries on after the input stops");
-    EXPECT(fading_out < held - 6.0, "then it fades");
-    EXPECT(static_cast<double>(last) / kRate < 5.6, "silent 5.6 s after the input stops");
+    EXPECT(late > held - 6.0, "and is still there twelve seconds on");
+    EXPECT(fading_out < late - 6.0, "then it fades");
+    EXPECT(static_cast<double>(last) / kRate > 17.5 && static_cast<double>(last) / kRate < 18.5,
+           "silent about 18 s after the input stops");
     Stereo rest = render(device, 1.0f, kRate);
     EXPECT(peak(rest.left) == 0.0 && peak(rest.right) == 0.0, "asleep after the tail");
     Stereo woken = run(device, sine(440.0f, 0.5f, kRate, 0.3f));
@@ -538,7 +542,7 @@ int main() {
       device.set_param(p::kBand, static_cast<float>(band));
       device.set_param(p::kMix, 0.7f);
       const Stereo bad = run(device, left, right);
-      const Stereo tail = render(device, 6.0f, kRate);
+      const Stereo tail = render(device, 19.0f, kRate);
       const Stereo rest = render(device, 0.5f, kRate);
       EXPECT(finite(bad.left) && finite(bad.right) && finite(tail.left) && finite(tail.right),
              "bad input samples: the output stays finite");
@@ -644,6 +648,93 @@ int main() {
     const double attack = peak(out.left, at, at + 960), body = peak(out.left, at + 960, at + 9600);
     std::printf("sideband, a note after 6 s of silence: attack peaks at %.3f, the body at %.3f\n", attack, body);
     EXPECT(attack < 1.25 * body && attack < 0.9, "Sideband: the attack after a silence does not spike");
+  }
+
+  // 21. Static, neighbours and the off-tune whistle are a balance against
+  // the music, not a fixed level: a chord played at -30, -17 and -8 dBFS RMS
+  // keeps the same distance to each of them, within 2 dB.
+  {
+    auto chord_at = [&](float level_db, float seconds) {
+      std::vector<float> chord(static_cast<size_t>(seconds * kRate), 0.0f);
+      const float each = static_cast<float>(std::pow(10.0, level_db / 20.0) / std::sqrt(1.5));
+      for (float hz : {330.0f, 440.0f, 660.0f}) {
+        const std::vector<float> note = sine(hz, seconds, kRate, each);
+        for (size_t i = 0; i < chord.size(); ++i) chord[i] += note[i];
+      }
+      return chord;
+    };
+    // Programme over what `id` at `value` adds, in dB, from 5 s on.
+    auto balance = [&](int id, float value, float level_db, float seconds) {
+      const std::vector<float> chord = chord_at(level_db, seconds);
+      clean(device, Radio::kShortwave);
+      device.set_param(id, value);
+      const Stereo full = run(device, chord);
+      clean(device, Radio::kShortwave);
+      const Stereo programme = run(device, chord);
+      std::vector<float> added(chord.size());
+      for (size_t i = 0; i < added.size(); ++i) added[i] = full.left[i] - programme.left[i];
+      return db(rms(programme.left, 240000)) - db(rms(added, 240000));
+    };
+    const float levels[3] = {-30.0f, -17.0f, -8.0f};
+    double hiss[3], neighbours[3], whistle[3];
+    for (int k = 0; k < 3; ++k) {
+      hiss[k] = balance(p::kStatic, 0.3f, levels[k], 20.0f);
+      neighbours[k] = balance(p::kInterference, 1.0f, levels[k], 40.0f);
+      whistle[k] = balance(p::kTuning, 0.3f, levels[k], 10.0f);
+    }
+    std::printf("balance at -30 / -17 / -8 dBFS: music over static %.1f / %.1f / %.1f dB, over neighbours %.1f / "
+                "%.1f / %.1f dB, over the whistle %.1f / %.1f / %.1f dB\n",
+                hiss[0], hiss[1], hiss[2], neighbours[0], neighbours[1], neighbours[2], whistle[0], whistle[1],
+                whistle[2]);
+    for (int k = 0; k < 3; ++k) {
+      EXPECT_NEAR(hiss[k], hiss[1], 2.0, "Static keeps its balance with the music at any playing level");
+      EXPECT_NEAR(neighbours[k], neighbours[1], 2.0, "Interference keeps its balance at any playing level");
+      EXPECT_NEAR(whistle[k], whistle[1], 2.0, "the off-tune whistle keeps its balance at any playing level");
+    }
+  }
+
+  // 22. Slow playing: with notes 8 and 12 seconds apart the static is one
+  // unbroken bed. Its level in the gaps is within 1 dB of its level under the
+  // notes (medians of 50 ms windows, so a crash does not count; fading off,
+  // since a fade moves the static on purpose), once the first notes have told
+  // the receiver how loud the part is.
+  {
+    const float at[5] = {1.0f, 9.0f, 21.0f, 29.0f, 41.0f};
+    std::vector<float> notes(static_cast<size_t>(53.0f * kRate), 0.0f);
+    for (float start : at) {
+      const size_t from = static_cast<size_t>(start * kRate);
+      for (size_t i = 0; i < 144000; ++i) {
+        const double t = static_cast<double>(i) / kRate;
+        notes[from + i] += static_cast<float>(0.3 * std::min(1.0, t / 0.003) * std::exp(-t / 0.5) *
+                                              std::sin(2.0 * kPi * 440.0 * t));
+      }
+    }
+    clean(device, Radio::kShortwave);
+    device.set_param(p::kStatic, 0.3f);
+    const Stereo full = run(device, notes);
+    clean(device, Radio::kShortwave);
+    const Stereo programme = run(device, notes);
+    std::vector<float> bed(notes.size());
+    for (size_t i = 0; i < bed.size(); ++i) bed[i] = full.left[i] - programme.left[i];
+    auto level = [&](float from, float to) {
+      std::vector<double> w;
+      for (size_t s = static_cast<size_t>(from * kRate); s + 2400 <= static_cast<size_t>(to * kRate); s += 2400) {
+        w.push_back(db(rms(bed, s, s + 2400)));
+      }
+      std::sort(w.begin(), w.end());
+      return w[w.size() / 2];
+    };
+    const double under_c = level(21.0f, 23.0f), gap_c = level(24.0f, 29.0f);
+    const double under_d = level(29.0f, 31.0f), gap_d = level(33.0f, 41.0f);
+    const double under_e = level(41.0f, 43.0f), gap_e = level(46.0f, 53.0f);
+    std::printf("slow notes: static under / between, third note %.1f / %.1f dB, fourth %.1f / %.1f dB, fifth %.1f / "
+                "%.1f dB; in the first gap %.1f dB\n",
+                under_c, gap_c, under_d, gap_d, under_e, gap_e, level(4.0f, 9.0f));
+    EXPECT_NEAR(gap_c, under_c, 1.0, "slow notes: the static does not drop in an 8 s gap");
+    EXPECT_NEAR(gap_d, under_d, 1.0, "slow notes: the static does not drop in a 12 s gap");
+    EXPECT_NEAR(gap_e, under_e, 1.0, "slow notes: the static holds after the last note");
+    EXPECT_NEAR(under_e, under_d, 1.0, "slow notes: no step in the static when a note arrives");
+    EXPECT(level(4.0f, 9.0f) > under_d - 8.0, "slow notes: the bed is there from the first gap on");
   }
 
   // Cost with everything on: full static and interference, deep fading.

@@ -49,8 +49,16 @@
 //   stay under the low-pass and no oversampling is needed.
 // - Output is mono, as one loudspeaker is; Mix is a linear crossfade against
 //   the stereo input.
-// - The receiver is only on while the device is awake: it stays on for 4 s
-//   after the input stops (carrier, static, neighbours), fades over 1.5 s,
+// - What is added at the aerial (static, crashes, neighbours) and the
+//   receiver's own whistle are scaled by how loud the part is: a follower of
+//   the input's short-term power, about a second up, down only while the
+//   level holds or rises (not down a decaying note or into a silence), held
+//   between -24 and +9 dB around the level the controls were tuned at. So
+//   Static and Interference set a balance with the music at any playing
+//   level. The rise of static as the station fades is the receiver's gain,
+//   not this.
+// - The receiver is only on while the device is awake: it stays on for 14 s
+//   after the input stops (carrier, static, neighbours), fades over 4 s,
 //   and the device then sleeps with exactly zero output. Changing Band dips
 //   the output for a few milliseconds around the switch. At both moments
 //   (the first sound after init, a new band) the receiver is put in the state
@@ -272,11 +280,11 @@ class Radio : public kit::DeviceBase<radio::kNumParams> {
   static constexpr float kQuiet = 1.0e-6f;
   static constexpr float kSane = 64.0f;  // +36 dBFS: nothing real is louder
   static constexpr float kAttackMargin = 1.06f;
-  // The part's level at which Static and Interference were tuned (-16 dBFS
+  // The part's level at which Static and Interference were tuned (-15 dBFS
   // RMS), how fast the follower moves, the level under which the input is
   // silence to it (-70 dBFS), and how far it may scale what is added: quiet
   // playing down to -40 dBFS keeps its balance, and nothing vanishes.
-  static constexpr float kPartReference = 0.158f;
+  static constexpr float kPartReference = 0.18f;
   static constexpr float kPartSeconds = 1.0f;
   static constexpr float kPartFloor = 1.0e-7f;
   static constexpr float kScaleMin = 0.063f;  // -24 dB

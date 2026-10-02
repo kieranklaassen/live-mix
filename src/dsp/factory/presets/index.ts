@@ -14,9 +14,11 @@ import { MODAL_BELLS_PRESETS } from './modal-bells'
 import { ORGAN_PRESETS } from './organ'
 import { SAMPLER_PRESETS } from './sampler'
 import { STRING_MACHINE_PRESETS } from './string-machine'
+import { TAPE_ORCHESTRA_PRESETS } from './tape-orchestra'
 import { THESIS_PRESETS } from './thesis'
 import { TINE_PIANO_PRESETS } from './tine-piano'
 import { WAVETABLE_PRESETS } from './wavetable'
+import { WEST_COAST_PRESETS } from './west-coast'
 
 export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...EMBER_PRESETS,
@@ -34,4 +36,6 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...SAMPLER_PRESETS,
   ...GRAIN_SYNTH_PRESETS,
   ...ATMOSPHERE_PRESETS,
+  ...TAPE_ORCHESTRA_PRESETS,
+  ...WEST_COAST_PRESETS,
 ]

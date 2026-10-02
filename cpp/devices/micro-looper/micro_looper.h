@@ -116,6 +116,8 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
       sequence(in);
 
       const float step = clock * speed_.next() * (1.0f + wobble_.next());
+      last_step_ = step;
+      if (swap_.active) swap_.travel += step < 0.0f ? -step : step;
       if (control_.tick()) control(step, clock);
       float wet[2] = {0.0f, 0.0f};
       const float smear = smear_.next();
@@ -300,6 +302,7 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     bool aligned = false;    // the first result is in: grains may start
     double grain_offset = 0.0;  // the join the grains read through, fixed from then on
     float grain_alike = 0.0f;
+    float swap_alike = 0.0f;  // likeness of the two decks while one takes over from the other
     bool linear = false;     // fades linearly: the other deck is on the same tape
     bool stored = false;     // the store holds its capture, complete (control rate)
     float until_grain = 0.0f;  // samples until Smear starts its next grain
@@ -416,6 +419,7 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
   struct Search {
     enum Stage : int { kCopyIn = 0, kCopyOut, kCoarse, kFine };
     int deck = -1;           // the deck it works for, -1 when idle
+    bool swap = false;       // it lines a new loop up with that deck (see Swap)
     int stage = kCopyIn;
     double target = 0.0;     // the offset asked for
     long whole = 0;          // ... as whole frames
@@ -435,22 +439,51 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     float centre_alike = 0.0f;
   };
 
+  // Lining a new loop up with the one it replaces. When Auto renews the
+  // loop of playing that goes on without an attack, the old and the new
+  // loop are two recordings of the same held note at unrelated phase, and
+  // fading one into the other could cancel it or swell it by 3 dB. So the
+  // change waits for a search: the old deck's signal a little way ahead of
+  // where it is now, against the new loop's tape from each place in the
+  // same small window; the new deck then starts at the place that agrees
+  // (carried on by however far the old deck has really moved), and the fade
+  // between them follows their likeness. A new loop that is unlike the old
+  // one starts at its beginning as ever, and a loop taken on an attack or
+  // by Hold never waits.
+  struct Swap {
+    bool active = false;
+    bool done = false;       // the search is over
+    bool worth = false;      // and found a place that agrees
+    double from = 0.0;       // the old deck's place when it began
+    double ahead = 0.0;      // how far on from there the two are compared
+    double travel = 0.0;     // how far the old deck has moved since
+    float step = 0.0f;       // its speed then, frames per sample
+    double direction = 1.0;  // +1 forwards, -1 backwards
+    double start = 0.0;      // the new loop's first frame on the tape
+    double base = 0.0;       // the place in the new loop the window starts at
+    double lag = 0.0;        // frames into the window that agree
+    float alike = 0.0f;
+  };
+
+  // `by` frames along a deck's loop from `place`, round its ends.
+  static double walk(const Deck& d, double place, double by) {
+    const double span = d.length - d.offset;
+    double q = place + by;
+    while (q >= d.length) q -= span;
+    while (q < d.offset) q += span;
+    return q;
+  }
+
   float tape_sum(const Deck& d, double position) const {
     return d.stored ? store_.read_sum(position) : ring_.read_sum(position);
   }
 
-  void start_search(int index) {
+  // How finely and how far a search looks, from the loop `d` it is for.
+  static void size_search(Search& s, const Deck& d) {
     static constexpr long kHops[9] = {0, 0, 1, 2, 3, 2, 5, 3, 5};
-    const Deck& d = decks_[index];
-    Search& s = search_;
-    s = Search();
-    s.deck = index;
-    s.target = d.target;
-    s.whole = static_cast<long>(d.target + 0.5);
-    const long join = static_cast<long>(d.join);
     s.step = kit::clamp_int(static_cast<int>(d.rate / kAlignRateHz + 0.5f), 1, 8);
     s.hop = kHops[s.step];
-    s.points = join / s.step;
+    s.points = static_cast<long>(d.join) / s.step;
     if (s.points > kSearchOut) s.points = kSearchOut;
     if (s.points < 1) s.points = 1;
     const double window = kit::min(kAlignSeconds * d.rate, kAlignShare * static_cast<float>(d.length));
@@ -458,6 +491,17 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     const long room = (kSearchIn - s.step * s.points) / 2;
     if (s.half > room) s.half = room > 0 ? (room / s.step) * s.step : 0;
     s.in_count = 2 * s.half + s.step * s.points;
+  }
+
+  void start_search(int index) {
+    const Deck& d = decks_[index];
+    Search& s = search_;
+    s = Search();
+    s.deck = index;
+    s.target = d.target;
+    s.whole = static_cast<long>(d.target + 0.5);
+    const long join = static_cast<long>(d.join);
+    size_search(s, d);
     s.out_from = d.start + d.length - static_cast<double>(join);
     s.in_from = d.start - static_cast<double>(join) + static_cast<double>(s.whole - s.half);
   }
@@ -493,7 +537,11 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     if (s.stage == Search::kCopyIn) {
       long to = s.at + kSearchCopy;
       if (to > s.in_count) to = s.in_count;
-      for (long n = s.at; n < to; ++n) search_in_[n] = tape_sum(d, s.in_from + static_cast<double>(n));
+      for (long n = s.at; n < to; ++n) {
+        const double m = static_cast<double>(n);
+        search_in_[n] = s.swap ? ring_.read_sum(swap_.start + swap_.base + swap_.direction * m)
+                               : tape_sum(d, s.in_from + m);
+      }
       s.at = to;
       if (to == s.in_count) {
         s.stage = Search::kCopyOut;
@@ -506,7 +554,10 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
       if (to > s.points) to = s.points;
       for (long k = s.at; k < to; ++k) {
         const long frame = s.step * k + (s.hop * k) % s.step;
-        const float x = tape_sum(d, s.out_from + static_cast<double>(frame));
+        const double m = static_cast<double>(frame);
+        const float x =
+            s.swap ? loop_sum(d, walk(d, swap_.from, swap_.direction * (swap_.ahead + m)), d.offset, d.alike)
+                   : tape_sum(d, s.out_from + m);
         search_out_[k] = x;
         s.out_power += x * x;
       }
@@ -534,6 +585,14 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     // Take the best place when it is a real likeness and better than the
     // place asked for; otherwise the join stays where it was asked for.
     const float chance = kAlignChance / std::sqrt(static_cast<float>(s.points));
+    if (s.swap) {
+      swap_.worth = s.best_alike >= kit::max(kAlignFloor, chance);
+      swap_.lag = static_cast<double>(s.best_lag + s.half);
+      swap_.alike = kit::clamp(s.best_alike, kMinAlike, 1.0f);
+      swap_.done = true;
+      s.deck = -1;
+      return;
+    }
     const bool worth = s.best_alike >= kit::max(kAlignFloor, chance) &&
                        s.best_alike >= s.centre_alike + kit::max(kAlignGain, chance);
     d.found_offset = static_cast<double>(s.whole + (worth ? s.best_lag : 0));
@@ -541,6 +600,68 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     d.found = true;
     d.searching = false;
     s.deck = -1;
+  }
+
+  // Begin lining the loop just asked for up with the one that is playing.
+  // Nothing to line up, or nothing steady to line it up with: the loop is
+  // taken at once, as an attack's is.
+  void start_swap() {
+    const Deck& old = decks_[current_];
+    const float speed = last_step_ < 0.0f ? -last_step_ : last_step_;
+    if (state_ != kAuto || !old.active || old.releasing || decks_[current_ ^ 1].active || speed < 0.1f) return;
+    Deck fresh;
+    fresh.end = pending_end_;
+    fresh.rate = pending_rate_;
+    set_bounds(fresh);
+    Search& s = search_;
+    s = Search();
+    s.swap = true;
+    s.deck = current_;
+    size_search(s, fresh);
+    swap_ = Swap();
+    swap_.active = true;
+    swap_.from = old.place;
+    swap_.step = speed;
+    swap_.direction = last_step_ < 0.0f ? -1.0 : 1.0;
+    swap_.start = fresh.start;
+    // Backwards a loop is entered below its join, so that it starts on plain tape.
+    swap_.base = last_step_ < 0.0f ? fresh.length - fresh.join - 2.0 : 0.0;
+    // Compare where the old deck will be when the search is over (ticks it
+    // takes, generously); the start is corrected by where it really is.
+    const long each = (kSearchWork + s.points - 1) / s.points;
+    const long ticks = (s.in_count + kSearchCopy - 1) / kSearchCopy + (s.points + kSearchCopy - 1) / kSearchCopy +
+                       (2 * s.half / s.step + each) / each + (2 * s.step - 2 + each) / each + 2;
+    swap_.ahead = static_cast<double>(speed) * kControlPeriod * static_cast<double>(ticks);
+  }
+
+  // One control tick of that: the search, then the wait for the old deck
+  // to reach the place it was compared at, then the change of loop.
+  void serve_swap() {
+    Deck& old = decks_[current_];
+    if (!swap_.done) {
+      if (search_.swap && search_.deck == current_ && old.active && !old.releasing) {
+        search_step(old);
+        return;
+      }
+      swap_.done = true;
+      swap_.worth = false;
+    }
+    if (swap_.worth && swap_.travel < swap_.ahead) return;
+    swap_.active = false;
+    if (search_.swap) search_.deck = -1;
+    // sequence() takes the loop up as it always has when this cannot.
+    if (pending_ != kCapture || decks_[current_ ^ 1].active) return;
+    const float speed = last_step_ < 0.0f ? -last_step_ : last_step_;
+    const bool steady = (last_step_ < 0.0f) == (swap_.direction < 0.0) && speed > 0.98f * swap_.step &&
+                        speed < 1.02f * swap_.step && old.active && !old.releasing;
+    const int fresh = current_ ^ 1;
+    begin_pending();
+    Deck& d = decks_[fresh];
+    const double place = swap_.base + swap_.direction * (swap_.lag + swap_.travel - swap_.ahead);
+    if (!swap_.worth || !steady || !d.active || place < 0.0 || place >= d.length - d.join) return;
+    d.place = place;
+    d.swap_alike = swap_.alike;
+    decks_[fresh ^ 1].swap_alike = swap_.alike;
   }
 
   // Who the search works for (control rate): the deck it has, while that
@@ -596,6 +717,7 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
   void retire(Deck& d, float seconds) {
     if (!d.active) return;
     d.releasing = true;
+    d.swap_alike = 0.0f;
     d.env_step = -1.0f / kit::max(1.0f, seconds * sample_rate());
   }
 
@@ -649,6 +771,7 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     d.aligned = false;
     d.grain_offset = 0.0;
     d.grain_alike = 0.0f;
+    d.swap_alike = 0.0f;
     d.active = true;
     d.releasing = false;
     d.env = 0.0f;
@@ -662,6 +785,8 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     using namespace micro_looper;
     state_seen_ = state_;
     wait_ = 0;
+    swap_.active = false;
+    if (search_.swap) search_.deck = -1;
     if (pending_ == kCapture) pending_ = kNone;
     Deck& now = decks_[current_];
     if (state_ == kListen) {
@@ -698,20 +823,25 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     if (level > kSoundFloor) loud_at_ = ring_.written();
     if (state_ != state_seen_) enter_state();
     if (wait_ > 0) {
-      if (--wait_ == 0) request_capture();
+      if (--wait_ == 0) {
+        request_capture();
+        if (soft_) start_swap();
+      }
     } else if (state_ != kListen && pending_ == kNone && fast > kOnsetFloor) {
       const Deck& now = decks_[current_];
       const bool playing = now.active && !now.releasing;
       if (!playing) {
         wait_ = wait_samples();
+        soft_ = false;
       } else if (state_ == kAuto && ((now.turns >= 1.0 && fast > kOnsetRatio * slow) ||
                                     now.turns >= kRenewTurns)) {
         // A new attack once the loop has been round, or playing that goes
         // on without one (a held chord) once it has been round twice.
         wait_ = wait_samples();
+        soft_ = !(fast > kOnsetRatio * slow);
       }
     }
-    if (pending_ != kNone && !decks_[current_ ^ 1].active) begin_pending();
+    if (pending_ != kNone && !swap_.active && !decks_[current_ ^ 1].active) begin_pending();
   }
 
   // Everything the loop is heard through: both decks, the side signal, the
@@ -775,7 +905,13 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     float loop[2];
     loop_read(d, d.place, d.offset, d.alike, &loop[0], &loop[1]);
     float gain = d.gain;
-    if (d.env < 1.0f) gain *= d.linear ? d.env : kit::SineTable::lookup(0.25f * d.env);
+    if (d.env < 1.0f) {
+      // Between two decks that are alike the fade follows their likeness,
+      // as the join's does (join_gains); both see the same divisor.
+      gain *= d.linear ? d.env
+                       : kit::SineTable::lookup(0.25f * d.env) /
+                             std::sqrt(1.0f + d.swap_alike * kit::SineTable::lookup(0.5f * d.env));
+    }
     // Smear: grains from around the playhead, moving at the loop's speed.
     if (grain_gain_ > 0.0f && !d.releasing && d.aligned) {
       d.until_grain -= 1.0f;
@@ -908,7 +1044,11 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     wobble_.aim(param(kDrift) * kWobbleDepth * drift_.next(kControlPeriod), !moving_);
     moving_ = true;
     keep();
-    serve_search();
+    if (swap_.active) {
+      serve_swap();
+    } else {
+      serve_search();
+    }
 
     const float speed = step < 0.0f ? -step : step;
     const float fade = kit::max(param(kFade), kMinFade);
@@ -951,6 +1091,9 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     ring_.forget();
     for (Deck& d : decks_) d = Deck();
     search_ = Search();
+    swap_ = Swap();
+    soft_ = false;
+    last_step_ = 0.0f;
     current_ = 0;
     // Nothing to take yet: Hold and Auto both wait for the first phrase.
     state_seen_ = state_;
@@ -1071,6 +1214,9 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
   float smear_seen_ = -1.0f, plain_gain_ = 1.0f, grain_gain_ = 0.0f, grain_interval_ = 1200.0f;
   float grain_overlap_ = 3.0f, grain_level_ = 1.0f;
   Search search_;
+  Swap swap_;
+  bool soft_ = false;        // the capture being waited for was asked without an attack
+  float last_step_ = 0.0f;   // tape frames per sample, as last played
   float search_in_[kSearchIn] = {};
   float search_out_[kSearchOut] = {};
   kit::ControlClock control_;

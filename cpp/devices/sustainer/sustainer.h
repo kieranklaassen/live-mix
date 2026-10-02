@@ -19,6 +19,9 @@
 //   detection", 2013), against a threshold that rises with the recent
 //   average. Sensitivity sets the level below which nothing counts and the
 //   fixed part of the threshold.
+//   Sound with no attack (a pad that swells in, a chord faded in over the
+//   last) makes no onset: it is caught when a good share of the averaged
+//   spectrum has stood above what was caught last for a moment (watch()).
 // - Catching. Once an onset is 96 ms old, two Blackman-windowed frames of
 //   85 ms that both lie after the attack are transformed. Each spectral peak
 //   becomes a region that reaches to the valleys beside it; the phase the
@@ -28,7 +31,13 @@
 //   piece (identity phase locking: Laroche and Dolson, "Improved phase
 //   vocoder time-scale modification of audio", 1999). A partial's lobe is
 //   therefore replayed exactly, which is why a held sine has no sideband at
-//   the frame rate and no amplitude ripple. Blackman, not Hann: its side
+//   the frame rate and no amplitude ripple. Each region starts in step with
+//   the note it was caught from, so the held partial adds to the one still
+//   ringing in the dry signal instead of meeting it at a chance angle.
+//   Where the peaks do not have a partial's shape the sound is noise
+//   (breath, hiss): those regions get a new random phase every hop and an
+//   evened level, and are held as noise instead of ringing as chance notes.
+//   Blackman, not Hann: its side
 //   lobes are 58 dB down, so what one partial leaks into its neighbours'
 //   regions (where it turns at the wrong rate) stays inaudible; and the
 //   product Blackman × Hann still overlap-adds to an exact constant at 75 %.
@@ -37,8 +46,8 @@
 //   under 550 Hz are measured again from frames four times as long and
 //   rebuilt as clean lobes of their own (the inverse-FFT synthesis of Rodet
 //   and Depalle, "Spectral envelopes and inverse FFT synthesis", 1992); the
-//   caught frame hands its low bins over. If the note has ended or another
-//   has begun by then, the first look stands.
+//   regions caught below 550 Hz hand all their bins over. If the note has
+//   ended or another has begun by then, the first look stands.
 // - Holding. Every hop (21 ms) each region's phase is turned and its bins
 //   are added to one spectrum per channel; one inverse transform per channel
 //   and a Hann window give the next frame. Motion adds to each region a slow
@@ -46,7 +55,8 @@
 //   (none below 150 Hz). Ensemble adds two copies turning a few cents faster
 //   and slower, panned apart. Tone and Low Cut are gains per bin. Layers are
 //   scaled by their envelopes here, so fades are as smooth as the window.
-// - Modes. Auto: a new catch replaces the layer over Glide; it stays while
+// - Modes. Auto: a new catch replaces the layer over Glide (or over Attack
+//   when that is longer, so no hole opens between chords); it stays while
 //   you play and falls by 60 dB per Decay time once you stop. Layer: a new
 //   catch is added and the older ones fall. Latch: Hold catches and lets go.
 //
@@ -231,6 +241,8 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
   static constexpr float kSoftMargin = 1.26f;         // a bin is new when it is 1 dB over the reference
   static constexpr float kSoftShare = 0.25f;          // ... and this share of the power is new
   static constexpr float kSoftSeconds = 0.1f;         // ... for this long, with no onset
+  static constexpr float kSoftOverGate = 2.0f;        // ... and the level is this far over the gate (6 dB):
+                                                      // a steady hiss just above it is not a pad
   static constexpr float kSoftSpacingSeconds = 0.3f;  // and no more often than this
   static constexpr float kSettleSeconds = 0.2f;       // after a catch the reference takes in what still rises
   // Breath, hiss and other noise have no partials to hold: frozen as it was
@@ -371,7 +383,7 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     for (int k = 0; k <= kMaxHalf / 2; ++k) slow_[k] = ref_[k] = 0.0f;
     soft_a_ = 1.0f - std::exp(-2.0f * hop_seconds_ / kSoftSmoothSeconds);
     soft_for_ = 0.0f;
-    loud_ = false;
+    level_ = 0.0f;
     settle_ = 0.0f;
     soft_capture_ = false;
     for (int k = 0; k <= kMaxHalf; ++k) mag_[k] = 0.0f;
@@ -394,8 +406,9 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
 
   void on_sample(uint32_t phase) {
     // Eight steps to a hop (a step is 128 samples at 48 kHz): the detector
-    // on steps 0 and 4, the frame on 1, 2, 3 and 5, a capture on 0, 4, 6 or
-    // 7, the second look at the lows on 6 and 7.
+    // on steps 0 and 4, the frame on 1, 2, 3 and 5, the watch for sound
+    // without an attack on step 2 of every other hop, a capture on 0, 4, 6
+    // or 7, the second look at the lows on 6 and 7.
     const uint32_t step = static_cast<uint32_t>(hop_ / 8);
     if ((phase & (step - 1u)) == 0u) {
       const uint32_t ahead = static_cast<uint32_t>(hop_) - phase;
@@ -498,7 +511,7 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     // "Playing" lasts a little past the last frame above half the gate level.
     quiet_for_ = level > 0.5f * gate ? 0.0f : kit::min(quiet_for_ + step, 100.0f);
     playing_ = quiet_for_ < kPlayingHangSeconds;
-    loud_ = level > gate;
+    level_ = level;
     if (!onset) return;
     since_onset_ = 0.0f;
     soft_for_ = 0.0f;
@@ -552,7 +565,8 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
       const float known = covered * ref_[k];
       if (now > known) fresh += now - known;
     }
-    soft_for_ = (loud_ && fresh > kSoftShare * total) ? soft_for_ + step : 0.0f;
+    const bool loud = level_ > kSoftOverGate * gate_;
+    soft_for_ = (loud && fresh > kSoftShare * total) ? soft_for_ + step : 0.0f;
     if (soft_for_ < kSoftSeconds || capture_due_ >= 0 || since_onset_ < kSoftSpacingSeconds) return;
     // Caught like a note, but there is no attack to wait out.
     since_onset_ = 0.0f;
@@ -580,7 +594,7 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     if (latch && hold && !hold_seen_) capture_due_ = 0;  // Latch: catch this moment
     // Latch with Hold switched On in silence caught nothing: it then waits,
     // and the first sound that comes is the moment (once its attack is over).
-    if (latch && hold && capture_due_ < 0 && loud_ && !engine_busy()) capture_due_ = frame_ + hop_ / 2;
+    if (latch && hold && capture_due_ < 0 && level_ > gate_ && !engine_busy()) capture_due_ = frame_ + hop_ / 2;
     if (hold && !latch) capture_due_ = -1;               // Auto and Layer: Hold stops listening
     hold_seen_ = hold;
     if (capture_due_ < 0) return;
@@ -1217,7 +1231,7 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
   float det_re_[kMaxFrame / 8 + 1], det_im_[kMaxFrame / 8 + 1];
   float slow_[kMaxHalf / 2 + 1];   // the power spectrum of the input, averaged over a tenth of a second
   float ref_[kMaxHalf / 2 + 1];    // ... and what it was when the newest layer was caught
-  bool loud_ = false;              // the detector's last frame was above the gate
+  float level_ = 0.0f;             // the level of the detector's last frame
   float soft_a_ = 0.1f;
   float soft_for_ = 0.0f;          // how long new sound has stood above the reference
   float settle_ = 0.0f;            // what is left of the settling time after a catch
