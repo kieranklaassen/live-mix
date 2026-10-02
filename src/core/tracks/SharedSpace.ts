@@ -178,6 +178,9 @@ export class SpaceFeed {
   private readonly levels: { gain: GainNode; release: () => void }[] = []
   private readonly shadow: StripShadow
   private drive: { into: GainNode; shaper: WaveShaperNode; outOf: GainNode } | null = null
+  // Where the shadow's gate sends now, so rewiring leaves its other outgoing
+  // connections (a meter's tap, `ChannelStrip.tap`) alone.
+  private sendsTo: AudioNode | null = null
 
   constructor(
     private readonly ctx: BaseAudioContext,
@@ -198,7 +201,6 @@ export class SpaceFeed {
     const chain = [...this.levels.map((level) => level.gain), this.shadow.input]
     for (let index = 0; index + 1 < chain.length; index += 1) chain[index].connect(chain[index + 1])
     this.entry.connect(chain[0])
-    this.shadow.output.connect(room.entry)
     this.set(colour)
   }
 
@@ -235,8 +237,11 @@ export class SpaceFeed {
       this.entry.connect(this.level())
       this.dropDrive()
     }
-    this.shadow.output.disconnect()
-    this.shadow.output.connect(this.room.entry)
+    if (this.sendsTo !== this.room.entry) {
+      if (this.sendsTo) this.shadow.output.disconnect(this.sendsTo)
+      this.shadow.output.connect(this.room.entry)
+      this.sendsTo = this.room.entry
+    }
   }
 
   dispose(): void {
