@@ -272,6 +272,54 @@ describe('StretchTrack scheduling', () => {
     expect(track.voices()).toHaveLength(1)
   })
 
+  it('rejoin keeps a sounding voice, which could not be built again in time, and enters a clip that is not sounding', async () => {
+    const { ctx, nodes, samples, track, transport, scheduler } = setup()
+    await samples.load('s-a', buffer(ctx, 10))
+    await samples.load('s-b', buffer(ctx, 10))
+    track.clips.add(clip('a', 0, { durationSec: 6 }))
+    transport.start(0)
+    scheduler.tick()
+    await track.settled()
+    scheduler.tick()
+    ctx.currentTime = 2
+    const [voice] = track.voices()
+    const told = nodes[0].scheduled.length
+
+    track.clips.update('a', { fadeOutSec: 1 })
+    scheduler.rejoin(['a'])
+    expect(track.voices()).toEqual([voice])
+    expect(nodes[0].scheduled).toHaveLength(told)
+    expect(nodes).toHaveLength(1)
+
+    // A clip dropped under the playhead has nothing sounding to keep: it is built and entered.
+    track.clips.add(clip('b', 1, { durationSec: 6 }))
+    scheduler.rejoin(['b'])
+    await track.settled()
+    ctx.currentTime = 2.1
+    scheduler.tick()
+    expect(track.voice('b:0:1.000')?.startTime).toBe(2.1)
+    expect(nodes[1].scheduled[0]).toMatchObject({ output: 2.1, input: 1.1 })
+    expect(track.voices()).toContain(voice)
+  })
+
+  it('a sounding clip cut short of the playhead fades out instead of stopping dead', async () => {
+    const { ctx, nodes, samples, track, transport, scheduler } = setup()
+    await samples.load('s-a', buffer(ctx, 10))
+    track.clips.add(clip('a', 0, { durationSec: 6 }))
+    transport.start(0)
+    scheduler.tick()
+    await track.settled()
+    scheduler.tick()
+    ctx.currentTime = 2
+    const [voice] = track.voices()
+    track.clips.update('a', { durationSec: 1 })
+    const events = (
+      voice.gain as unknown as { gain: { events: { method: string; args: number[] }[] } }
+    ).gain.events
+    expect(events.at(-1)).toEqual({ method: 'linearRampToValueAtTime', args: [0, 2.005] })
+    expect(nodes[0].scheduled.at(-1)).toEqual({ output: 2.005, active: false })
+  })
+
   it('fadeOutVoice anchors, ramps out and stops the source; equal-power uses the curve', async () => {
     const { ctx, nodes, samples, track, transport, scheduler } = setup()
     await samples.load('s-a', buffer(ctx, 10))

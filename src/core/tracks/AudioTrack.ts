@@ -266,7 +266,7 @@ export class AudioTrack implements StripHost {
         cancelPending: () => this.stopPending(),
         cancelAll: (fadeSec) => this.stopAll(fadeSec > 0 ? { at: this.now() + fadeSec } : {}),
       },
-      { joinsLate: true },
+      { joinsLate: true, keeps: (key) => this.keeps(key) },
     )
     this.preload = new TrackSchedulable(
       () => this.preloadSec,
@@ -486,6 +486,19 @@ export class AudioTrack implements StripHost {
   }
 
   // --- Schedulable hooks ------------------------------------------------------
+
+  /**
+   * A sounding voice whose clip is equal-power: let go, the clip could not be
+   * entered again partway, so a rejoin leaves it as it sounds.
+   */
+  private keeps(key: string): boolean {
+    const voice = this.active.get(key)
+    const clipId = this.voiceClips.get(key)
+    if (!voice || clipId === undefined) return false
+    const now = this.now()
+    if (now < voice.startTime || now >= voice.endTime) return false
+    return this.clips.get(clipId)?.fadeCurve === 'equalPower'
+  }
 
   private scheduleStart(start: ScheduledStart, when: number, joining = false): boolean {
     const clip = this.clips.get(start.clipId)
@@ -803,6 +816,7 @@ export class TrackSchedulable implements Schedulable {
   readonly clips: () => ClipWindow['clips']
   readonly schedule: (start: ScheduledStart, when: number, joining?: boolean) => boolean
   readonly cancel: (key: string, fadeSec?: number) => void
+  readonly keeps?: (key: string) => boolean
   readonly cancelPending: () => string[]
   readonly cancelAll: (fadeSec: number) => void
 
@@ -811,10 +825,11 @@ export class TrackSchedulable implements Schedulable {
     clips: () => ClipWindow['clips'],
     schedule: (start: ScheduledStart, when: number, joining?: boolean) => boolean,
     cancels: Partial<Pick<Schedulable, 'cancel' | 'cancelPending' | 'cancelAll'>> = {},
-    options: { joinsLate?: boolean } = {},
+    options: { joinsLate?: boolean; keeps?: (key: string) => boolean } = {},
   ) {
     this.readLookahead = readLookahead
     this.joinsLate = options.joinsLate ?? false
+    this.keeps = options.keeps
     this.clips = clips
     this.schedule = schedule
     this.cancel = cancels.cancel ?? (() => {})

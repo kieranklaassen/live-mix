@@ -1169,6 +1169,37 @@ describe('AudioTrack clips entered partway', () => {
     scheduler.dispose()
   })
 
+  it('rejoin leaves a sounding equal-power clip as it sounds: let go, it could not come back partway', async () => {
+    const { ctx, track, transport, scheduler } = await scheduled()
+    track.clips.add(
+      clip('section', 2, {
+        fadeCurve: 'equalPower',
+        fadeInSec: CROSSFADE_SECONDS,
+        fadeOutSec: CROSSFADE_SECONDS,
+      }),
+    )
+    transport.seek(1.9)
+    transport.start()
+    ctx.currentTime = 104.1
+    scheduler.tick()
+    expect(ctx.sources).toHaveLength(1)
+    const voice = track.voice('section:0:2.000')
+
+    track.clips.update('section', { offsetSec: 2 })
+    scheduler.rejoin(['section'])
+    expect(ctx.sources).toHaveLength(1)
+    expect(ctx.sources[0].stopCalls.calls).toEqual([[100.1 + 16]])
+    expect(track.voice('section:0:2.000')).toBe(voice)
+
+    // Made linear, it can be entered partway, so it is let go and comes back as it now is.
+    track.clips.update('section', { fadeCurve: 'linear', fadeInSec: 0, fadeOutSec: 0 })
+    scheduler.rejoin(['section'])
+    expect(ctx.sources).toHaveLength(2)
+    expect(ctx.sources[0].stopCalls.last).toEqual([104.1 + REJOIN_FADE_SECONDS])
+    expect(ctx.sources[1].startCalls.calls[0][0]).toBe(104.1)
+    scheduler.dispose()
+  })
+
   it('rejoin fades the voice of an edited clip out and plays the clip as it now is from the same point', async () => {
     const { ctx, track, transport, scheduler } = await scheduled()
     track.clips.add(clip('pad', 2))

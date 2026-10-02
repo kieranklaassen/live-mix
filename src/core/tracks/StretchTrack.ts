@@ -135,12 +135,15 @@ export class StretchTrack implements StripHost {
       () => this.clips.audible(),
       (start, when) => this.scheduleStart(start, when),
       {
-        cancel: (key) => this.stop(key),
+        cancel: (key, fadeSec) =>
+          fadeSec ? this.fadeOut(key, this.now(), fadeSec) : this.stop(key),
         cancelPending: () => this.stopPending(),
         cancelAll: (fadeSec) => this.stopAll(fadeSec > 0 ? { at: this.now() + fadeSec } : {}),
       },
-      // `play` enters the stretch source where the clip has got to.
-      { joinsLate: true },
+      // `play` enters the stretch source where the clip has got to. A stretch
+      // source takes time to build, so a voice that is sounding cannot be let
+      // go and entered again at once: a rejoin keeps it.
+      { joinsLate: true, keeps: (key) => this.sounding(key) },
     )
     this.preload = new TrackSchedulable(
       () => this.preloadSec,
@@ -253,6 +256,13 @@ export class StretchTrack implements StripHost {
   }
 
   // --- Schedulable hooks --------------------------------------------------------------------
+
+  private sounding(key: string): boolean {
+    const voice = this.active.get(key)
+    if (!voice) return false
+    const now = this.now()
+    return voice.startTime <= now && now < voice.endTime
+  }
 
   private scheduleStart(start: ScheduledStart, when: number): boolean {
     const clip = this.clips.get(start.clipId)

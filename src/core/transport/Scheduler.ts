@@ -74,6 +74,13 @@ export interface Schedulable {
    * forgotten, so the same key can be handed over again at once.
    */
   cancel(key: string, fadeSec?: number): void
+  /**
+   * True when the start under `key` is sounding and could not be entered
+   * again at once if it were let go: its voice takes time to build, or its
+   * envelope has no way in partway. `rejoin` leaves such a clip as it sounds
+   * rather than silence it. Absent: nothing is kept.
+   */
+  keeps?(key: string): boolean
   /** Silence every start that has not begun yet and return their keys, so they can be re-derived. */
   cancelPending(): string[]
   /** Silence everything, begun or not, fading over `fadeSec` (0 = immediately). */
@@ -338,9 +345,11 @@ export class Scheduler {
    * a clip the position is inside is handed over again from that point in it,
    * as it now is. So a clip moved, stretched or dropped under the playhead is
    * heard at once instead of when its start next comes round, and one whose
-   * fades, slice or direction changed is heard changed. `refresh` alone keeps
-   * what sounds and waits for starts; a host calls this for the clips an edit
-   * touched once the edit has reached its tracks. No-op while not playing.
+   * fades, slice or direction changed is heard changed. A clip the
+   * schedulable `keeps` is left exactly as it sounds: letting it go would
+   * silence it until its start came round. `refresh` alone keeps what sounds
+   * and waits for starts; a host calls this for the clips an edit touched
+   * once the edit has reached its tracks. No-op while not playing.
    */
   rejoin(clipIds: Iterable<string>, fadeSec = REJOIN_FADE_SECONDS): void {
     if (this.transport.state !== 'playing') return
@@ -352,15 +361,20 @@ export class Scheduler {
 
     for (const [schedulable, registration] of this.registrations) {
       if (!schedulable.joinsLate) continue
+      // Clips sounding in a way that cannot be entered again at once stay as they are.
+      const kept = new Set<string>()
       for (const [key, start] of registration.scheduled) {
-        if (!ids.has(start.clipId)) continue
+        if (ids.has(start.clipId) && schedulable.keeps?.(key)) kept.add(start.clipId)
+      }
+      for (const [key, start] of registration.scheduled) {
+        if (!ids.has(start.clipId) || kept.has(start.clipId)) continue
         schedulable.cancel(key, fadeSec)
         registration.scheduled.delete(key)
       }
       for (const [key, start] of registration.declined) {
-        if (ids.has(start.clipId)) registration.declined.delete(key)
+        if (ids.has(start.clipId) && !kept.has(start.clipId)) registration.declined.delete(key)
       }
-      const named = schedulable.clips().filter((clip) => ids.has(clip.id))
+      const named = schedulable.clips().filter((clip) => ids.has(clip.id) && !kept.has(clip.id))
       for (const clip of clipsSoundingAt(named, position.positionSec)) {
         const start: ScheduledStart = {
           clipId: clip.id,

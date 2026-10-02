@@ -709,6 +709,27 @@ describe('Scheduler joins clips the position is inside', () => {
       expect(round(track.handed[1].when)).toBe(100.1)
     })
 
+    it('leaves a clip the schedulable keeps exactly as it sounds', () => {
+      const { ctx, transport, scheduler, track } = buildJoining()
+      transport.seek(1.9)
+      transport.start()
+      ctx.currentTime = 103
+      scheduler.tick()
+      // The pad's voice could not be entered again at once if it were let go.
+      const kept = Object.assign(track, { keeps: (key: string): boolean => key === 'pad:0:2.000' })
+      const handed = kept.handed.length
+      kept.items = [{ id: 'pad', startSec: 2, durationSec: 12 }, strokes[1], strokes[2]]
+      scheduler.rejoin(['pad'])
+      expect(kept.cancelled).toEqual([])
+      expect(kept.faded).toEqual([])
+      expect(kept.handed).toHaveLength(handed)
+      // Once it no longer holds on to it, the same call lets it go and enters it again.
+      kept.keeps = () => false
+      scheduler.rejoin(['pad'])
+      expect(kept.faded).toEqual([['pad:0:2.000', REJOIN_FADE_SECONDS]])
+      expect(kept.joined()).toEqual(['pad:0:2.000'])
+    })
+
     it('does nothing while not playing, or for a schedulable that cannot join', () => {
       const { ctx, transport, scheduler, track } = buildJoining()
       scheduler.rejoin(['pad'])
