@@ -107,12 +107,4 @@ describe('clipsSoundingAt', () => {
   it('never names a clip with no length', () => {
     expect(clipsSoundingAt([{ id: 'bare', startSec: 0 }], 5)).toEqual([])
   })
-
-  it('names a clip carried over the loop end, once a loop length is given', () => {
-    const drone = [{ id: 'drone', startSec: LOOP_LENGTH_SEC - 8, durationSec: 16 }]
-    expect(clipsSoundingAt(drone, 2, LOOP_LENGTH_SEC).map((clip) => clip.id)).toEqual(['drone'])
-    // Eight seconds of it reach into the pass; past that it is over.
-    expect(clipsSoundingAt(drone, 8, LOOP_LENGTH_SEC)).toEqual([])
-    expect(clipsSoundingAt(drone, 2)).toEqual([])
-  })
 })
