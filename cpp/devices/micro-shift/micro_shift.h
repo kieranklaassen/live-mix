@@ -255,7 +255,12 @@ class MicroShift : public kit::DeviceBase<micro_shift::kNumParams> {
     }
     const float sagging = (kHoldLow * apart - together) / (HOLD_W1 * apart);
     const float better_alone = (dry - together) / (HOLD_W2 * copy);
-    return 1.0f - smooth_step(sagging) * smooth_step(better_alone);
+#ifndef HOLD_TURN
+#define HOLD_TURN 0.0f
+#endif
+    const float ratio = -cross / copy;
+    const float turned = -HOLD_TURN * (std::sqrt(ratio * ratio + 1.0f) - ratio);
+    return 1.0f + (turned - 1.0f) * smooth_step(sagging) * smooth_step(better_alone);
   }
 
   // Linear up to ±1, a smooth knee to ±2.

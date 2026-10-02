@@ -61,7 +61,7 @@ export const ZITHER_PARAMS = {
     taper: 'linear',
     unit: 'Hz',
     description:
-      'While a key is held, strikes its strings softly again and again, one after another, this many times a second: the hammered tremolo that keeps a string shimmering. Off at zero; the slowest roll is two strikes a second.',
+      'While a key is held, goes on striking its strings softly, one after another, this many times a second: the hammered tremolo that keeps a string shimmering, a little uneven like a hand. Off at zero; the slowest roll is two strokes a second.',
   },
   decay: {
     id: 5,
@@ -72,7 +72,7 @@ export const ZITHER_PARAMS = {
     taper: 'log',
     unit: 's',
     description:
-      'How long a string rings while its key is held. Low strings ring a little longer than this and high strings a little shorter, as on a real instrument.',
+      'How long a string rings while its key is held. Low strings ring somewhat longer than this and high strings shorter, as on a real instrument.',
   },
   release: {
     id: 6,
@@ -116,7 +116,7 @@ export const ZITHER_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Gives every note a second string tuned slightly apart from the first, so the pair beats and shimmers; further up the detuning is wider. At zero each note is a single string. Applies from the next string that is played.',
+      'Gives every note a second string tuned slightly apart from the first, one a little to each side, so the pair beats and shimmers; further up the detuning is wider. At zero each note is a single string. Applies from the next string that is played.',
   },
   sympathy: {
     id: 10,
@@ -127,7 +127,7 @@ export const ZITHER_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How strongly twelve undamped strings, one for every note of the scale, pick up what is played and ring on after the played strings are damped.',
+      'How strongly twelve undamped strings, one for every note of the scale, pick up what is played. They answer only to notes that are in tune with them, and ring on after the played strings are damped.',
   },
   body: {
     id: 11,
@@ -167,7 +167,7 @@ export const ZITHER_DESCRIPTOR = wasmDeviceDescriptor(ZITHER_DEVICE, {
   name: 'Zither',
   category: 'instrument',
   description:
-    'A box of open strings to pluck, strum and hammer: harp, zither, autoharp and hammered dulcimer, with a set of sympathetic strings that ring on behind what is played.',
+    'A box of open strings to pluck, strum and hammer: harp, zither, autoharp and hammered dulcimer, with twelve sympathetic strings that ring on behind what is played.',
   presets: {
     'Open zither': {
       exciter: 1,
@@ -298,7 +298,7 @@ export const ZITHER_DESCRIPTOR = wasmDeviceDescriptor(ZITHER_DEVICE, {
 
 export type Zither = WasmDevice<typeof ZITHER_PARAMS>
 
-/** A box of open strings to pluck, strum and hammer: harp, zither, autoharp and hammered dulcimer, with a set of sympathetic strings that ring on behind what is played. Play it through `NoteDevice`: `noteOn(id, frequency, gain)` / `noteOff(id)`. */
+/** A box of open strings to pluck, strum and hammer: harp, zither, autoharp and hammered dulcimer, with twelve sympathetic strings that ring on behind what is played. Play it through `NoteDevice`: `noteOn(id, frequency, gain)` / `noteOff(id)`. */
 export function createZither(
   context: BaseAudioContext,
   options: WasmDeviceOptions<typeof ZITHER_PARAMS> = {},

@@ -103,8 +103,10 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
   // Changing Tape: sounding notes dip for this long each way.
   static constexpr float kSwapSeconds = 0.03f;
   // One key at full velocity peaks near -12 dBFS before Volume, which
-  // leaves ten held keys under the knee of the output clipper.
-  static constexpr float kVoiceGain = 0.122f;
+  // leaves ten held keys under the knee of the output clipper. (The
+  // leveller takes the tops off a key's swells, so this sits a little
+  // higher than it would without it.)
+  static constexpr float kVoiceGain = 0.132f;
   // The section's leveller. Players who read one recording a few cents
   // apart drift in and out of step, and where one harmonic carries the note
   // (high keys, flutes, reeds) the whole note would swell and sink by many

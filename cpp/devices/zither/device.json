@@ -10,11 +10,7 @@
     {
       "key": "exciter",
       "name": "Exciter",
-      "choices": [
-        "Finger",
-        "Pick",
-        "Hammer"
-      ],
+      "choices": ["Finger", "Pick", "Hammer"],
       "default": 0,
       "description": "What sets the strings going. A fingertip is soft and round, a pick is bright and thin, and a felt hammer strikes with a wider, softer blow and a small bounce. Applies from the next string that is played."
     },
@@ -46,11 +42,7 @@
     {
       "key": "direction",
       "name": "Direction",
-      "choices": [
-        "Up",
-        "Down",
-        "Alternate"
-      ],
+      "choices": ["Up", "Down", "Alternate"],
       "default": 0,
       "description": "Which way a chord is strummed and rolled: from the low string up, from the high string down, or the other way round on every new key."
     },
@@ -118,12 +110,7 @@
     {
       "key": "body",
       "name": "Body",
-      "choices": [
-        "Harp",
-        "Zither",
-        "Dulcimer",
-        "Koto"
-      ],
+      "choices": ["Harp", "Zither", "Dulcimer", "Koto"],
       "default": 1,
       "description": "The soundbox the strings are mounted on: the warm board of a harp, the bright flat box of a zither, the ringing box of a hammered dulcimer or the hollow, nasal body of a koto."
     },
