@@ -1,18 +1,18 @@
-// Native harness for Micro Shift (cpp/devices/micro-shift). The conformance
+// Native harness for Stereo Detune (cpp/devices/stereo-detune). The conformance
 // pass covers stability, silence when idle, block-size independence and
 // parameter abuse; the rest asserts what makes it a micro pitch shift: two
 // copies at exact, opposite detunes, each a steady note (no tremolo, no
 // sidebands), late by what Delay says, with the bass left alone.
 
-#include "../devices/micro-shift/micro_shift.h"
+#include "../devices/stereo-detune/stereo_detune.h"
 
 #include "support/test_kit.h"
 
 using namespace testkit;
-using livemix::MicroShift;
-namespace p = livemix::micro_shift;
+using livemix::StereoDetune;
+namespace p = livemix::stereo_detune;
 
-static MicroShift device;
+static StereoDetune device;
 static livemix::kit::Fft<32768> fft;
 static float fft_re[32768];
 static float fft_im[32768];
@@ -20,7 +20,7 @@ static float fft_im[32768];
 static const float kRate = 48000.0f;
 
 // Only the copies: no drift, nothing held back as bass, no treble cut.
-static void wet_only(MicroShift& d, float detune) {
+static void wet_only(StereoDetune& d, float detune) {
   d.init(kRate);
   d.set_param(p::kDetune, detune);
   d.set_param(p::kDrift, 0.0f);
@@ -136,7 +136,7 @@ int main() {
   fft.init();
 
   Conformance spec;
-  spec.name = "micro-shift";
+  spec.name = "stereo-detune";
   spec.num_params = p::kNumParams;
   spec.mins = p::kParamMin;
   spec.maxs = p::kParamMax;
@@ -661,7 +661,7 @@ int main() {
   device.set_param(p::kDelay, 60.0f);
   rng_state() = 0xBEEFu;
   std::vector<float> input = pink_noise(10.0f);
-  report_cost("micro-shift", 10.0f, kRate, [&] { run(device, input); });
+  report_cost("stereo-detune", 10.0f, kRate, [&] { run(device, input); });
 
-  return finish("micro-shift");
+  return finish("stereo-detune");
 }

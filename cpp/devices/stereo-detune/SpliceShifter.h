@@ -1,6 +1,6 @@
 #pragma once
 
-// The pitch shifter inside Micro Shift: one read head on a delay line,
+// The pitch shifter inside Stereo Detune: one read head on a delay line,
 // moving at (1 - ratio) samples per sample, that is spliced back whenever it
 // has drifted too far from where the Delay control wants it.
 //
@@ -40,7 +40,7 @@
 #include "../../kit/math.h"
 
 namespace livemix {
-namespace micro_shift_parts {
+namespace stereo_detune_parts {
 
 // Windowed-sinc fractional-delay kernel, shared by every shifter instance.
 // One row per phase of the fractional position: the kTaps weights at that
@@ -608,5 +608,5 @@ class SpliceShifter {
   bool fading_ = false;
 };
 
-}  // namespace micro_shift_parts
+}  // namespace stereo_detune_parts
 }  // namespace livemix

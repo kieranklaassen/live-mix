@@ -1,10 +1,10 @@
 {
-  "id": "micro-shift",
-  "name": "Micro Shift",
+  "id": "stereo-detune",
+  "name": "Stereo Detune",
   "category": "spatial",
   "description": "A copy a few cents sharp on the left and a few cents flat on the right, each a few milliseconds late: makes one source wide and thick with no chorus sweep.",
-  "class": "MicroShift",
-  "header": "micro_shift.h",
+  "class": "StereoDetune",
+  "header": "stereo_detune.h",
   "sources": [],
   "params": [
     {

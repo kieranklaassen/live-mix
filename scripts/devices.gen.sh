@@ -86,8 +86,6 @@ build_generated_devices() {
     cpp/devices/mallets/device_api.gen.cpp
   MEMORY_BYTES=16777216 EXTRA_EXPORTS="" build_device micro-looper \
     cpp/devices/micro-looper/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device micro-shift \
-    cpp/devices/micro-shift/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device modal-bells \
     cpp/devices/modal-bells/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device noise-floor \
@@ -128,6 +126,8 @@ build_generated_devices() {
     cpp/devices/spectral-blur/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device spring-reverb \
     cpp/devices/spring-reverb/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device stereo-detune \
+    cpp/devices/stereo-detune/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device string-machine \
     cpp/devices/string-machine/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device sustainer \
@@ -253,8 +253,6 @@ test_generated_devices() {
     cpp/test/mallets_test.cpp
   native_test micro_looper_test \
     cpp/test/micro_looper_test.cpp
-  native_test micro_shift_test \
-    cpp/test/micro_shift_test.cpp
   native_test modal_bells_test \
     cpp/test/modal_bells_test.cpp
   native_test noise_floor_test \
@@ -295,6 +293,8 @@ test_generated_devices() {
     cpp/test/spectral_blur_test.cpp
   native_test spring_reverb_test \
     cpp/test/spring_reverb_test.cpp
+  native_test stereo_detune_test \
+    cpp/test/stereo_detune_test.cpp
   native_test string_machine_test \
     cpp/test/string_machine_test.cpp
   native_test sustainer_test \

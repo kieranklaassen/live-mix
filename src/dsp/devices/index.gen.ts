@@ -42,7 +42,6 @@ import { LATTICE_DESCRIPTOR, LATTICE_DEVICE } from './lattice.gen'
 import { LOW_BITRATE_DESCRIPTOR, LOW_BITRATE_DEVICE } from './low-bitrate.gen'
 import { MALLETS_DESCRIPTOR, MALLETS_DEVICE } from './mallets.gen'
 import { MICRO_LOOPER_DESCRIPTOR, MICRO_LOOPER_DEVICE } from './micro-looper.gen'
-import { MICRO_SHIFT_DESCRIPTOR, MICRO_SHIFT_DEVICE } from './micro-shift.gen'
 import { MODAL_BELLS_DESCRIPTOR, MODAL_BELLS_DEVICE } from './modal-bells.gen'
 import { NOISE_FLOOR_DESCRIPTOR, NOISE_FLOOR_DEVICE } from './noise-floor.gen'
 import { OCTAVES_DESCRIPTOR, OCTAVES_DEVICE } from './octaves.gen'
@@ -63,6 +62,7 @@ import { SHAPED_REVERB_DESCRIPTOR, SHAPED_REVERB_DEVICE } from './shaped-reverb.
 import { SHIMMER_DESCRIPTOR, SHIMMER_DEVICE } from './shimmer.gen'
 import { SPECTRAL_BLUR_DESCRIPTOR, SPECTRAL_BLUR_DEVICE } from './spectral-blur.gen'
 import { SPRING_REVERB_DESCRIPTOR, SPRING_REVERB_DEVICE } from './spring-reverb.gen'
+import { STEREO_DETUNE_DESCRIPTOR, STEREO_DETUNE_DEVICE } from './stereo-detune.gen'
 import { STRING_MACHINE_DESCRIPTOR, STRING_MACHINE_DEVICE } from './string-machine.gen'
 import { SUSTAINER_DESCRIPTOR, SUSTAINER_DEVICE } from './sustainer.gen'
 import { SWARM_REVERB_DESCRIPTOR, SWARM_REVERB_DEVICE } from './swarm-reverb.gen'
@@ -123,7 +123,6 @@ export * from './lattice.gen'
 export * from './low-bitrate.gen'
 export * from './mallets.gen'
 export * from './micro-looper.gen'
-export * from './micro-shift.gen'
 export * from './modal-bells.gen'
 export * from './noise-floor.gen'
 export * from './octaves.gen'
@@ -144,6 +143,7 @@ export * from './shaped-reverb.gen'
 export * from './shimmer.gen'
 export * from './spectral-blur.gen'
 export * from './spring-reverb.gen'
+export * from './stereo-detune.gen'
 export * from './string-machine.gen'
 export * from './sustainer.gen'
 export * from './swarm-reverb.gen'
@@ -206,7 +206,6 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   LOW_BITRATE_DESCRIPTOR,
   MALLETS_DESCRIPTOR,
   MICRO_LOOPER_DESCRIPTOR,
-  MICRO_SHIFT_DESCRIPTOR,
   MODAL_BELLS_DESCRIPTOR,
   NOISE_FLOOR_DESCRIPTOR,
   OCTAVES_DESCRIPTOR,
@@ -227,6 +226,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   SHIMMER_DESCRIPTOR,
   SPECTRAL_BLUR_DESCRIPTOR,
   SPRING_REVERB_DESCRIPTOR,
+  STEREO_DETUNE_DESCRIPTOR,
   STRING_MACHINE_DESCRIPTOR,
   SUSTAINER_DESCRIPTOR,
   SWARM_REVERB_DESCRIPTOR,
@@ -290,7 +290,6 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   LOW_BITRATE_DEVICE,
   MALLETS_DEVICE,
   MICRO_LOOPER_DEVICE,
-  MICRO_SHIFT_DEVICE,
   MODAL_BELLS_DEVICE,
   NOISE_FLOOR_DEVICE,
   OCTAVES_DEVICE,
@@ -311,6 +310,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   SHIMMER_DEVICE,
   SPECTRAL_BLUR_DEVICE,
   SPRING_REVERB_DEVICE,
+  STEREO_DETUNE_DEVICE,
   STRING_MACHINE_DEVICE,
   SUSTAINER_DEVICE,
   SWARM_REVERB_DEVICE,
@@ -374,7 +374,6 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'low-bitrate', instrument: false, samples: false, meters: 0, memoryMb: 4 },
   { id: 'mallets', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'micro-looper', instrument: false, samples: false, meters: 0, memoryMb: 16 },
-  { id: 'micro-shift', instrument: false, samples: false, meters: 0, memoryMb: 4 },
   { id: 'modal-bells', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'noise-floor', instrument: false, samples: false, meters: 0, memoryMb: 4 },
   { id: 'octaves', instrument: false, samples: false, meters: 0, memoryMb: 4 },
@@ -395,6 +394,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'shimmer', instrument: false, samples: false, meters: 0, memoryMb: 4 },
   { id: 'spectral-blur', instrument: false, samples: false, meters: 0, memoryMb: 4 },
   { id: 'spring-reverb', instrument: false, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'stereo-detune', instrument: false, samples: false, meters: 0, memoryMb: 4 },
   { id: 'string-machine', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'sustainer', instrument: false, samples: false, meters: 0, memoryMb: 4 },
   { id: 'swarm-reverb', instrument: false, samples: false, meters: 0, memoryMb: 4 },

@@ -231,8 +231,8 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
   static constexpr float kMovedTogether = 0.7f; // ... and this much of it is one way: the pitch is moving
   static constexpr float kDeepFromDb = 20.0f;   // valleys this deep on both sides: less likely noise ...
   static constexpr float kDeepToDb = 30.0f;     // ... and this deep: a partial for certain
-  static constexpr float kUnsteady = 1.035f;    // partials of one region change this unlike in a hop (0.3 dB) ...
-  static constexpr float kWobbleShare = 0.25f;  // ... in this much of the low power: the pitch is moving
+  static constexpr float kUnsteady = 1.035f;    // partials of one region change this unlike in a hop (0.3 dB)
+  static constexpr float kMovingShare = 0.6f;   // this much of the low power shows such signs: the pitch is moving
   static constexpr float kFluxAtZero = 20.0f;   // fixed part of the onset threshold at Sensitivity 0 ...
   static constexpr float kFluxAtOne = 9.0f;     // ... and at 1
   static constexpr float kFluxAdapt = 2.0f;     // plus this many times the recent average flux
@@ -897,11 +897,10 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     // Then the lows are not rebuilt: they would end up some tens of cents
     // away from their own overtones, or flutter as a pair of sidebands. The
     // first look stands, and the held note is at least in tune with itself.
-#ifdef RV_DEBUG
-    std::fprintf(stderr, "  moved %+.2f cents, apart %.2f, singles share %.2f, wobble share %.2f\n", moved / (weighed + 1e-20f), apart / (weighed + 1e-20f), weighed / (low_power + 1e-20f), wobble / (low_power + 1e-20f));
-#endif
-    if (std::fabs(moved) > kMovedCents * weighed && std::fabs(moved) > kMovedTogether * apart) return;
-    if (wobble > kWobbleShare * low_power) return;
+    // (Only when most of the low power says so: in a big steady chord a
+    // few partials that nearly coincide beat slowly and show the same signs.)
+    const bool together = std::fabs(moved) > kMovedCents * weighed && std::fabs(moved) > kMovedTogether * apart;
+    if ((together ? weighed : 0.0f) + wobble > kMovingShare * low_power) return;
     slot.start[r] = static_cast<uint16_t>(pool);
     slot.regions = r;
     for (int k = 0; k < edge && k <= half_; ++k) {

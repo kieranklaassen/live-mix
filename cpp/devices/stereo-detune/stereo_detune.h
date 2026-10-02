@@ -1,6 +1,6 @@
 #pragma once
 
-// Micro Shift: one copy of the sound a few cents sharp on the left, one a few
+// Stereo Detune: one copy of the sound a few cents sharp on the left, one a few
 // cents flat on the right, each a few milliseconds late. The studio way of
 // making a single source wide and thick without the sweep of a chorus: the
 // detune is static, so nothing cycles.
@@ -50,10 +50,10 @@
 
 namespace livemix {
 
-class MicroShift : public kit::DeviceBase<micro_shift::kNumParams> {
+class StereoDetune : public kit::DeviceBase<stereo_detune::kNumParams> {
  public:
   void init(float sample_rate) {
-    using namespace micro_shift;
+    using namespace stereo_detune;
     kit::SineTable::init();
     init_base(sample_rate, kParamMin, kParamMax, kParamDefault);
     const float sr = this->sample_rate();
@@ -106,7 +106,7 @@ class MicroShift : public kit::DeviceBase<micro_shift::kNumParams> {
   }
 
   void process(int frames) {
-    using namespace micro_shift;
+    using namespace stereo_detune;
     if (!primed()) control(true);  // parameters set since init() snap
     frames = begin_block(frames);
     if (!idle_.wake(input_present(frames))) {
@@ -177,7 +177,7 @@ class MicroShift : public kit::DeviceBase<micro_shift::kNumParams> {
   }
 
   // For the harness: the shifters themselves.
-  const micro_shift_parts::SpliceShifter& shifter(int side) const { return shifter_[side & 1]; }
+  const stereo_detune_parts::SpliceShifter& shifter(int side) const { return shifter_[side & 1]; }
 
  private:
   // The right side's delay as a multiple of the left's.
@@ -270,7 +270,7 @@ class MicroShift : public kit::DeviceBase<micro_shift::kNumParams> {
 
   // Control-rate work: filter corners, drift curves, pitch ratios, splices.
   void control(bool snap) {
-    using namespace micro_shift;
+    using namespace stereo_detune;
     const float sr = sample_rate();
 
     if (snap) {
@@ -321,7 +321,7 @@ class MicroShift : public kit::DeviceBase<micro_shift::kNumParams> {
   }
 
   void apply(int id) {
-    using namespace micro_shift;
+    using namespace stereo_detune;
     const bool ramp = primed() && !idle_.asleep();
     const float value = param(id);
     switch (id) {
@@ -354,7 +354,7 @@ class MicroShift : public kit::DeviceBase<micro_shift::kNumParams> {
     }
   }
 
-  micro_shift_parts::SpliceShifter shifter_[2];
+  stereo_detune_parts::SpliceShifter shifter_[2];
   kit::Svf low_[2];
   kit::AllpassDelay<kDiffuserSize> diffuser_a_[2];
   kit::AllpassDelay<kDiffuserSize> diffuser_b_[2];

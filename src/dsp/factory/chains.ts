@@ -681,7 +681,7 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
     description:
       'A sharp copy on the left and a flat copy on the right, darkened and hung in a plate.',
     effects: [
-      { deviceId: 'micro-shift', preset: 'Treated piano' },
+      { deviceId: 'stereo-detune', preset: 'Treated piano' },
       { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.25 } },
     ],
   },
@@ -691,7 +691,7 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
     category: 'pitch',
     description: 'Repeats that climb on the left and sink on the right as they blur into a hall.',
     effects: [
-      { deviceId: 'micro-shift', preset: 'Spiral', params: { feedback: 0.55 } },
+      { deviceId: 'stereo-detune', preset: 'Spiral', params: { feedback: 0.55 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
