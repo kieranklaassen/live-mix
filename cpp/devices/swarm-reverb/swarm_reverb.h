@@ -16,9 +16,10 @@
 //   left and right. The rotation loses nothing, so the gain round the loop is
 //   Feedback at every frequency (no one resonance takes over), and each trip
 //   doubles the number of echo paths: the swarm piles up into a cave. High Cut
-//   and Low Cut are second-order filters in the loop, so between their
-//   corners almost nothing is lost and at Feedback 1 the cave hangs for
-//   minutes. Past 1 the loop grows until the return is eased back: a slow
+//   and Low Cut are second-order filters on the way in and on the return, so
+//   each trip is a little darker and thinner. From Feedback 0.9 to 1 the
+//   pair on the return opens up, so that at 1 the cave holds what it was
+//   given for minutes instead of narrowing to a band. Past 1 the loop grows until the return is eased back: a slow
 //   ride on the level in the lines rather than a clipper, so a chord left
 //   to regenerate stays a chord. A soft limiter behind it catches peaks.
 // - Every delay in the device (taps, loop reads, allpass lengths) is a
@@ -55,6 +56,8 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
       for (int a = 0; a < kStages; ++a) allpass_[c][a].clear();
       high_cut_[c].reset();
       low_cut_[c].reset();
+      loop_high_cut_[c].reset();
+      loop_low_cut_[c].reset();
     }
     side_low_.reset();
     side_low_.set_cutoff(kBassMonoHz, sr);
@@ -139,7 +142,14 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
   static constexpr float kSwarmCurve = 1.25f;    // above 1: denser at the front
   static constexpr float kSwarmTiltDb = 6.0f;    // the last tap against the first
   static constexpr float kMaxDiffusion = 0.7f;
-  static constexpr float kSweepSeconds = 0.0024f;  // per swept tap at Modulation 1
+  // How far a swept tap moves at Modulation 1. The depth follows the cube of
+  // the knob: a held note is a sum of taps whose phases the sweep moves, so
+  // the swarm's level on it wanders once the sweep nears the note's period.
+  // At the default (about 30 microseconds) that is a decibel or so; the top
+  // of the knob is where notes swell and fade. The loop reads move half as
+  // far: what they do adds up on every trip.
+  static constexpr float kSweepSeconds = 0.0012f;
+  static constexpr float kLoopSweepShare = 0.5f;
   static constexpr float kLengthGlideSeconds = 0.08f;
   static constexpr float kWanderHz = 0.05f;
   static constexpr float kWanderOctaves = 0.6f;
@@ -150,6 +160,10 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
   static constexpr float kFullLevel = 0.4f;
   static constexpr float kFillSeconds = 0.25f;
   static constexpr float kAntiDenormal = 1.0e-18f;
+  // Above this Feedback the return's filters open, by this much at 1.
+  static constexpr float kOpenFrom = 0.9f;
+  static constexpr float kOpenLowOctaves = 2.5f;
+  static constexpr float kOpenHighOctaves = 1.5f;
   // Stretch positions with Steps on, in octaves of time: 1/2, 2/3, 3/4, 1, 4/3,
   // 3/2 and 2 times Length.
   static constexpr float kStepOctaves[kStepCount] = {-1.0f,     -0.5849625f, -0.4150375f, 0.0f,
@@ -312,10 +326,13 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
     float hold = feedback;
     if (fill_ > kFullLevel * kFullLevel) hold *= std::sqrt(kFullLevel / std::sqrt(fill_));
     for (int c = 0; c < 2; ++c) {
-      float x = in[c] + limit(hold * turned[c]);
+      // The same two filters on the way in and on the return. With equal
+      // tuning (Feedback up to 0.9) the sum is one filter on both.
+      float x = low_cut_[c].highpass(high_cut_[c].lowpass(in[c]));
+      x += loop_low_cut_[c].highpass(loop_high_cut_[c].lowpass(limit(hold * turned[c])));
       // A constant far below hearing keeps the four recursions out of the
-      // denormal range while a tail dies away, for less than flushing each.
-      x = low_cut_[c].highpass(high_cut_[c].lowpass(x)) + kAntiDenormal;
+      // denormal range while a tail dies away.
+      x += kAntiDenormal;
       for (int a = 0; a < kStages; ++a) {
         Read& stage = stage_[c][a];
         const float delayed = stage.whole
@@ -456,11 +473,12 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
     position_ += speed * kControlPeriod;
     history_[(tick_ + 1) & (kHistory - 1)] = position_;
 
-    const float sweep = depth_.next() * kSweepSeconds * sr;
+    const float depth = depth_.next();
+    const float sweep = depth * depth * depth * kSweepSeconds * sr;
     const float turn = kControlPeriod / sr;
     for (int c = 0; c < 2; ++c) {
       for (int k = 0; k < kTaps; ++k) aim(tap_[c][k], sweep, turn);
-      aim(loop_[c], sweep, turn);
+      aim(loop_[c], sweep * kLoopSweepShare, turn);
       for (int a = 0; a < kStages; ++a) {
         aim(stage_[c][a], 0.0f, turn);
         stage_[c][a].ramp(allpass_[c][a].write_position(), kAllpassSize);
@@ -468,13 +486,25 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
     }
     ++tick_;
 
-    // Both second-order Butterworth: next to no loss between the corners, so
-    // at the top of Feedback the middle of the spectrum hangs while the edges
-    // fall away a little more on every trip.
-    high_cut_[0].set(high_cut_hz_.next(), kit::kSqrtHalf, sr);
-    low_cut_[0].set(low_cut_hz_.next(), kit::kSqrtHalf, sr);
+    // Both second-order Butterworth: next to no loss between the corners,
+    // while the edges fall away a little more on every trip.
+    const float high_hz = high_cut_hz_.next(), low_hz = low_cut_hz_.next();
+    high_cut_[0].set(high_hz, kit::kSqrtHalf, sr);
+    low_cut_[0].set(low_hz, kit::kSqrtHalf, sr);
     copy_tuning(high_cut_[0], &high_cut_[1]);
     copy_tuning(low_cut_[0], &low_cut_[1]);
+    // The return has its own pair. Up to Feedback 0.9 it is tuned like the
+    // pair on the way in. From there to 1 its corners move outwards, because
+    // a filter passed hundreds of times keeps only what it loses nothing of:
+    // left at the knobs, a cave that never dies thins to a narrow band within
+    // a minute. Opened, it holds the chord it was given.
+    float open = kit::clamp((feedback_.value - kOpenFrom) / (1.0f - kOpenFrom), 0.0f, 1.0f);
+    open = open * open * (3.0f - 2.0f * open);
+    loop_high_cut_[0].set(kit::min(high_hz * std::exp2(kOpenHighOctaves * open), 0.45f * sr),
+                          kit::kSqrtHalf, sr);
+    loop_low_cut_[0].set(low_hz * std::exp2(-kOpenLowOctaves * open), kit::kSqrtHalf, sr);
+    copy_tuning(loop_high_cut_[0], &loop_high_cut_[1]);
+    copy_tuning(loop_low_cut_[0], &loop_low_cut_[1]);
   }
   void apply(int id) {
     using namespace swarm_reverb;
@@ -535,6 +565,8 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
 
   kit::Svf high_cut_[2];
   kit::Svf low_cut_[2];
+  kit::Svf loop_high_cut_[2];  // the same two on the return
+  kit::Svf loop_low_cut_[2];
   kit::OnePole side_low_;
   kit::Smoother feedback_, blur_, dry_, wet_, width_, level_;
   kit::Smoother length_, depth_, wander_, high_cut_hz_, low_cut_hz_;
