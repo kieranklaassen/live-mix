@@ -60,12 +60,12 @@ export const PLATE_PALETTES = {
  * in a chain are told apart. Workshop colours, none of them a maker's own.
  */
 export const HOSTED_PLATES = [
-  { plate: '#3b3f46', ink: '#eef0f2', accent: '#ffd166' },
-  { plate: '#c9c3b4', ink: '#26231d', accent: '#b5371f' },
-  { plate: '#6e7f73', ink: '#f2f6ef', accent: '#ffe9a8' },
-  { plate: '#8a6f5c', ink: '#fbf3e9', accent: '#ffd9a0' },
-  { plate: '#2c3a4a', ink: '#e9f0f7', accent: '#7fe0c8' },
-  { plate: '#d8d2c2', ink: '#2a2620', accent: '#1f6f8a' },
-  { plate: '#7a7f8c', ink: '#f6f7fa', accent: '#ffcf8a' },
-  { plate: '#4a3f3a', ink: '#f4ebe2', accent: '#f08a5d' },
+  { plate: '#2e3136', ink: '#eef0f2', accent: '#ffd166' },
+  { plate: '#bfbdb6', ink: '#26231d', accent: '#a82f18' },
+  { plate: '#4f6b58', ink: '#f2f6ef', accent: '#ffe9a8' },
+  { plate: '#7f5640', ink: '#fbf3e9', accent: '#ffd9a0' },
+  { plate: '#174756', ink: '#e9f0f7', accent: '#7fe0c8' },
+  { plate: '#a6b9cb', ink: '#17242a', accent: '#8a2a18' },
+  { plate: '#875266', ink: '#fbf3f4', accent: '#ffcf8a' },
+  { plate: '#bf9230', ink: '#231a08', accent: '#5c1407' },
 ] as const satisfies readonly PlatePalette[]

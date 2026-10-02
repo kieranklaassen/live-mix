@@ -1778,7 +1778,8 @@ function textHash(text: string): number {
 /**
  * A plug-in's own window, small: a title bar and three sliders, each at the
  * place of one of the plug-in's first parameters. It says what the plate
- * cannot show, that the rest is in a window of the plug-in's own.
+ * cannot show, that the rest is in a window of the plug-in's own. It stands
+ * under a knob's name of two lines and above the name tag.
  */
 function windowPicture(params: readonly string[]): PlatePicture {
   const shown = params.slice(0, 3)
@@ -1786,17 +1787,24 @@ function windowPicture(params: readonly string[]): PlatePicture {
     params: shown,
     draw: (at) => (
       <g fill="none" stroke={INK} strokeWidth={1}>
-        <rect x={70} y={52} width={100} height={52} />
-        <path d="M70 62H170" />
+        <rect x={70} y={66} width={100} height={40} />
+        <path d="M70 74H170" />
         {range(3).map((i) => (
-          <circle key={i} cx={76 + i * 6} cy={57} r={1.5} fill={INK} stroke="none" />
+          <circle key={i} cx={76 + i * 6} cy={70} r={1.5} fill={INK} stroke="none" />
         ))}
         {shown.map((param, i) => {
-          const y = 72 + i * 11
+          const y = 81 + i * 9
           return (
             <g key={param}>
               <path d={`M80 ${y}H160`} opacity={0.45} />
-              <rect x={r1(80 + at(param) * 76)} y={y - 3} width={4} height={6} fill={ACCENT} stroke="none" />
+              <rect
+                x={r1(80 + at(param) * 76)}
+                y={y - 3}
+                width={4}
+                height={6}
+                fill={ACCENT}
+                stroke="none"
+              />
             </g>
           )
         })}
@@ -1820,7 +1828,9 @@ export function hostedSkin(device: Device): DeviceSkin {
   if (kept) return kept
   const hash = textHash(device.id)
   const palette = HOSTED_PLATES[hash % HOSTED_PLATES.length]
-  const params = (device.panelParams ?? Object.keys(device.params)).filter((name) => device.params[name])
+  const params = (device.panelParams ?? Object.keys(device.params)).filter(
+    (name) => device.params[name],
+  )
   const skin: DeviceSkin = {
     ...palette,
     finish: HOSTED_FINISHES[(hash >>> 8) % HOSTED_FINISHES.length],

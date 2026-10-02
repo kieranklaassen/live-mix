@@ -4,7 +4,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { type Device } from '../../core/devices/Device'
+import { type Device, type EditorDevice } from '../../core/devices/Device'
 import { STOCK_WASM_DEVICES } from '../../dsp'
 import { DeviceChainView } from '../components/DeviceChainView'
 import { DevicePlate, plateLayout } from '../components/DevicePlate'
@@ -14,10 +14,12 @@ import {
   PlateFinishLayer,
   QUIET_SKIN,
   deviceSkin,
+  hostedSkin,
   isDarkPlate,
   type DeviceSkin,
 } from '../components/device-skins'
 import { Knob, type KnobCap } from '../components/Knob'
+import { HOSTED_PLATES, PLATE_PALETTES } from '../components/plate-palettes'
 import { MissingNativeDevice } from '../../native/missing'
 import { createTestEngine, type TestEngine } from './harness'
 
@@ -25,6 +27,14 @@ afterEach(cleanup)
 
 async function make(fixture: TestEngine, id = 'filter'): Promise<Device> {
   return fixture.engine.devices.create(id, fixture.engine.context)
+}
+
+/** A stock device with a window of its own, the way a hosted plug-in has one. */
+async function makeHosted(fixture: TestEngine, id = 'filter'): Promise<EditorDevice> {
+  return Object.assign(await make(fixture, id), {
+    openEditor: vi.fn().mockResolvedValue(undefined),
+    closeEditor: vi.fn().mockResolvedValue(undefined),
+  })
 }
 
 /** A skin for the stock filter: two knobs on the face and a picture that follows the frequency. */
@@ -107,7 +117,7 @@ describe('device skins', () => {
     }
   })
 
-  it('gives a device its own skin, else the quiet one, and none to a device that draws itself', async () => {
+  it('gives a device its own skin, else the quiet one, and none to a plug-in that is missing', async () => {
     const fixture = createTestEngine()
     const filter = await make(fixture)
     expect(deviceSkin(filter)).toBe(QUIET_SKIN)
@@ -115,6 +125,62 @@ describe('device skins', () => {
     // A name every object has is not a skin.
     expect(deviceSkin(Object.assign(filter, { id: 'toString' }))).toBe(QUIET_SKIN)
     expect(deviceSkin(new MissingNativeDevice(fixture.engine.context, 'plugin:gone'))).toBeNull()
+  })
+
+  it('gives a hosted plug-in a case by its id: the same one every time, and all eight in use', async () => {
+    const fixture = createTestEngine()
+    const hosted = await makeHosted(fixture)
+    const skin = deviceSkin(hosted)
+    expect(skin).not.toBeNull()
+    expect(skin).not.toBe(QUIET_SKIN)
+    expect(deviceSkin(hosted)).toBe(skin)
+    expect(hostedSkin(hosted)).toBe(skin)
+    expect(skin?.picture).toBeDefined()
+    expect(PLATE_FINISHES).toContain(skin?.finish)
+    // A table of skins does not reach it: its id is not the kit's to know.
+    expect(deviceSkin(hosted, { filter: SKIN })).toBe(skin)
+
+    const another = (id: string): Device => Object.assign(Object.create(hosted) as Device, { id })
+    const plates = new Set<string>()
+    for (let n = 0; n < 200; n++) {
+      const id = `vst3:Plug-in ${n}`
+      const plate = hostedSkin(another(id)).plate
+      // Another instance of the same plug-in is the same colour.
+      expect(hostedSkin(another(id)).plate).toBe(plate)
+      plates.add(plate)
+    }
+    expect([...plates].sort()).toEqual(HOSTED_PLATES.map((palette) => palette.plate).sort())
+  })
+
+  it("keeps the hosted cases apart from each other and from the kit's own plates", () => {
+    const hosted: string[] = HOSTED_PLATES.map((palette) => palette.plate)
+    expect(hosted).toHaveLength(8)
+    expect(new Set(hosted).size).toBe(8)
+    const own: string[] = Object.values(PLATE_PALETTES).map((palette) => palette.plate)
+    for (const plate of hosted) expect(own, plate).not.toContain(plate)
+  })
+
+  it("draws a plug-in's window at any setting, and for a plug-in with no parameters", async () => {
+    const fixture = createTestEngine()
+    const hosted = await makeHosted(fixture)
+    const picture = hostedSkin(hosted).picture
+    // A slider for each of its first three parameters.
+    expect(picture?.params).toEqual(Object.keys(hosted.params).slice(0, 3))
+    const drawn = [0, 0.4, 1].map((position) =>
+      renderToStaticMarkup(<svg>{picture?.draw(() => position)}</svg>),
+    )
+    for (const markup of drawn) {
+      expect(markup.length).toBeGreaterThan(40)
+      expect(markup).not.toMatch(/NaN|undefined|Infinity/)
+    }
+    expect(new Set(drawn).size).toBe(3)
+
+    const bare = Object.assign(await makeHosted(fixture), { params: {}, panelParams: undefined })
+    const empty = hostedSkin(bare).picture
+    expect(empty?.params).toEqual([])
+    const window = renderToStaticMarkup(<svg>{empty?.draw(() => 0.5)}</svg>)
+    expect(window).toContain('<rect')
+    expect(window).not.toMatch(/NaN|undefined|Infinity/)
   })
 
   it('reads a hex plate as dark or light, and anything else as light', () => {
@@ -276,6 +342,45 @@ describe('DevicePlate', () => {
     expect(screen.getByTestId('plate-q')).not.toHaveClass('lm-plate__knob--tight')
   })
 
+  it("opens a hosted plug-in's own window from a cell, and has no such cell for any other device", async () => {
+    const fixture = createTestEngine()
+    const hosted = await makeHosted(fixture, 'parametric-eq')
+    const { unmount } = render(
+      <DevicePlate device={hosted} skin={hostedSkin(hosted)} data-testid="plate" />,
+      { wrapper: fixture.wrapper },
+    )
+    const heading = screen.getByTestId('plate').getAttribute('aria-label')
+    const edit = screen.getByRole('button', { name: `Open ${heading} editor` })
+    expect(edit).toBe(screen.getByTestId('plate-editor'))
+    expect(edit).toHaveTextContent('Edit')
+    expect(edit).toHaveAttribute('data-lm-info')
+    // The cell that opens the rest of the knobs stands under it.
+    expect(screen.getAllByRole('slider')).toHaveLength(4)
+    expect(screen.getByTestId('plate-more')).toHaveClass('lm-plate__more--second')
+    expect(screen.getByTestId('plate').querySelector('.lm-plate__picture')).not.toBeNull()
+    fireEvent.click(edit)
+    expect(hosted.openEditor).toHaveBeenCalledTimes(1)
+    expect(hosted.closeEditor).not.toHaveBeenCalled()
+
+    // A plug-in that cannot show its window: the plate stays, and nothing is thrown.
+    vi.mocked(hosted.openEditor).mockRejectedValueOnce(new Error('no window'))
+    fireEvent.click(edit)
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(hosted.openEditor).toHaveBeenCalledTimes(2)
+    expect(screen.getByTestId('plate-editor')).toBeInTheDocument()
+    unmount()
+
+    const plain = await make(fixture, 'parametric-eq')
+    render(<DevicePlate device={plain} skin={SKIN} data-testid="plate" />, {
+      wrapper: fixture.wrapper,
+    })
+    expect(screen.queryByRole('button', { name: /editor$/ })).toBeNull()
+    expect(screen.queryByTestId('plate-editor')).toBeNull()
+    expect(screen.getByTestId('plate-more')).not.toHaveClass('lm-plate__more--second')
+  })
+
   it('has no cell to open when the face holds everything', async () => {
     const fixture = createTestEngine()
     const device = await make(fixture)
@@ -311,6 +416,25 @@ describe('DeviceChainView with skins', () => {
     expect(screen.getByTestId('chain-device-1')).toHaveClass('lm-plate')
     fireEvent.click(screen.getByTestId('chain-device-1-remove'))
     expect(pad.strip.inserts).toEqual([delay])
+  })
+
+  it('draws a hosted plug-in as a plate too, with the cell that opens its window', async () => {
+    const fixture = createTestEngine()
+    const pad = fixture.engine.addAudioTrack('pad')
+    const hosted = await makeHosted(fixture)
+    const gone = new MissingNativeDevice(fixture.engine.context, 'plugin:gone')
+    pad.strip.addInsert(hosted)
+    pad.strip.addInsert(gone)
+    render(<DeviceChainView strip={pad} skin={deviceSkin} data-testid="chain" />, {
+      wrapper: fixture.wrapper,
+    })
+    const plate = screen.getByTestId('chain-device-0')
+    expect(plate).toHaveClass('lm-plate')
+    expect(plate.style.getPropertyValue('--lm-plate')).toBe(hostedSkin(hosted).plate)
+    fireEvent.click(screen.getByTestId('chain-device-0-editor'))
+    expect(hosted.openEditor).toHaveBeenCalledTimes(1)
+    // A plug-in that is missing keeps the panel, which says why.
+    expect(screen.getByTestId('chain-device-1')).toHaveClass('lm-device')
   })
 
   it('carries a plate by its face, under its full name, and leaves its knobs to themselves', async () => {
