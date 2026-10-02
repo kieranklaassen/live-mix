@@ -534,6 +534,7 @@ int main() {
     device.init(kRate);
     Stereo hurt = run(device, bad);
     EXPECT(finite(hurt.left) && finite(hurt.right), "a NaN, infinities and 1e30 in the input: the output stays finite");
+    EXPECT(peak(hurt.left) < 16.0 && peak(hurt.right) < 16.0, "and bounded: nothing louder than the limit on the input comes out");
     EXPECT(worst_difference(hurt.left, clean.left, at(1.0)) < 1.0e-3 &&
                worst_difference(hurt.right, clean.right, at(1.0)) < 1.0e-3,
            "and half a second later the record plays as if nothing had happened");

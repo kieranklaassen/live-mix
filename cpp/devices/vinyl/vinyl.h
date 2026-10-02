@@ -312,8 +312,9 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
   static constexpr float kMaxLagSeconds = 5.0f;
   // Longer than the warp's furthest reach (22 ms at 33, Warp 1).
   static constexpr float kWakeLeadSeconds = 0.025f;
-  // +60 dBFS: nothing real is louder, and its square and cube stay finite.
-  static constexpr float kInputLimit = 1.0e3f;
+  // +18 dBFS: nothing real is louder, and the worn groove's curve keeps
+  // what comes out of such a sample small.
+  static constexpr float kInputLimit = 8.0f;
   static constexpr float kStartShare = 0.5f;  // start-up time as a share of Spin Time
   static constexpr float kHeadFadeSeconds = 0.05f;
   static constexpr float kSubsonicHz = 24.0f;

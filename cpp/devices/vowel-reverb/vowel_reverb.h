@@ -165,6 +165,9 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
     for (int i = 0; i < frames; ++i) {
       float in[2];
       take_input(i, &in[0], &in[1]);
+      // A sample that is not a number would go round the room for good.
+      in[0] = sane(in[0]);
+      in[1] = sane(in[1]);
       if (clock_.tick()) {
         control();
         started_ = true;
@@ -257,6 +260,14 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
   }
 
  private:
+  // The input as it is, unless it is absurdly large (held at the limit) or
+  // not a number (dropped).
+  static constexpr float kInputLimit = 8.0f;  // +18 dBFS
+  static float sane(float x) {
+    if (x > -kInputLimit && x < kInputLimit) return x;
+    return x >= kInputLimit ? kInputLimit : (x <= -kInputLimit ? -kInputLimit : 0.0f);
+  }
+
   static constexpr int kLines = 8;
   static constexpr int kLineSize = 32768;      // 210 ms at 96 kHz plus modulation
   static constexpr int kPredelaySize = 32768;  // 200 ms at 96 kHz

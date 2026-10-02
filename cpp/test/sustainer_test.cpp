@@ -917,4 +917,35 @@ static void check_review_fixes() {
     EXPECT(second < 1.5, "a note with vibrato: its overtones are held as partials, not as noise");
     EXPECT(std::fabs(at_first - at_fifth) < 5.0, "a note with vibrato: low and high partials are held at one pitch");
   }
+
+  // That guard must not take a big steady chord for a moving note. In one,
+  // partials of different notes nearly coincide and beat slowly, and hiss
+  // puts small peaks beside the partials; both look like movement to a
+  // careless test, and then the low notes stay merged as the first look
+  // had them (C2 with G2, B3 with C4).
+  {
+    still(device);
+    device.set_param(p::kDecay, 60.0f);
+    const int midi[10] = {36, 43, 48, 52, 55, 59, 60, 64, 67, 72};
+    std::vector<float> chord = noise(2.0f, kRate, 0.01f);
+    for (int note : midi) {
+      const double base = 440.0 * std::pow(2.0, (note - 69) / 12.0);
+      for (int n = 1; n <= 40; ++n) {
+        const double hz = base * n * std::sqrt(1.0 + 0.0004 * n * n);  // stretched, as on a piano
+        if (hz > 6000.0) break;
+        const double seconds = 3.0 / (1.0 + 0.25 * n);
+        for (size_t i = 0; i < chord.size(); ++i) {
+          const double t = static_cast<double>(i) / kRate;
+          chord[i] += static_cast<float>(0.05 / n * (1.0 - std::exp(-t / 0.002)) * std::exp(-t / seconds) * std::sin(2.0 * M_PI * hz * t + n));
+        }
+      }
+    }
+    Stereo out = run(device, join(chord, silence(6.0f, kRate)));
+    const double c2 = 440.0 * std::pow(2.0, (36 - 69) / 12.0) * std::sqrt(1.0004);
+    const double b3 = 440.0 * std::pow(2.0, (59 - 69) / 12.0) * std::sqrt(1.0004);
+    const double low = db(tone_level(out.left, c2, kRate, 3 * s, 8 * s) / tone_level(chord, c2, kRate, s / 4, s / 2));
+    const double mid = db(tone_level(out.left, b3, kRate, 3 * s, 8 * s) / tone_level(chord, b3, kRate, s / 4, s / 2));
+    std::printf("sustainer: ten-note chord with hiss: C2 held at %.2f dB, B3 at %.2f dB re the notes\n", low, mid);
+    EXPECT(low > -6.0 && low < 1.0 && mid > -6.0 && mid < 1.0, "a big steady chord still gets its second look: the low notes are held apart");
+  }
 }

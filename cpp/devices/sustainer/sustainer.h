@@ -231,8 +231,10 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
   static constexpr float kMovedTogether = 0.7f; // ... and this much of it is one way: the pitch is moving
   static constexpr float kDeepFromDb = 20.0f;   // valleys this deep on both sides: less likely noise ...
   static constexpr float kDeepToDb = 30.0f;     // ... and this deep: a partial for certain
+  static constexpr int kGroup = 8;              // partials of the long frame judged together
+  static constexpr float kMember = 0.1f;        // ... those within 20 dB of the tallest of them
   static constexpr float kUnsteady = 1.035f;    // partials of one region change this unlike in a hop (0.3 dB)
-  static constexpr float kMovingShare = 0.6f;   // this much of the low power shows such signs: the pitch is moving
+  static constexpr float kMovingShare = 10.0f;   // this much of the low power shows such signs: the pitch is moving
   static constexpr float kFluxAtZero = 20.0f;   // fixed part of the onset threshold at Sensitivity 0 ...
   static constexpr float kFluxAtOne = 9.0f;     // ... and at 1
   static constexpr float kFluxAdapt = 2.0f;     // plus this many times the recent average flux
@@ -823,23 +825,36 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     // sidebands of a vibrato if, from one long frame to the next, some grow
     // while others shrink; the partials of close notes keep their levels,
     // or fall together.
+    // (Small peaks beside a partial, the hiss of a recording, are left out.)
+    float group_m[kGroup], group_hz[kGroup], group_change[kGroup];
     int group = 0, group_at = -1;
-    float group_hz = 0.0f, group_power = 0.0f, least = 0.0f, most = 0.0f;
     float moved = 0.0f, apart = 0.0f, weighed = 0.0f, wobble = 0.0f, low_power = 0.0f;
     const auto close_group = [&]() {
-      if (group == 1) {
+      int tallest = 0, members = 0;
+      for (int g = 1; g < group; ++g) {
+        if (group_m[g] > group_m[tallest]) tallest = g;
+      }
+      float least = 0.0f, most = 0.0f, power = 0.0f;
+      for (int g = 0; g < group; ++g) {
+        if (group_m[g] < kMember * group_m[tallest]) continue;
+        if (members == 0 || group_change[g] < least) least = group_change[g];
+        if (members == 0 || group_change[g] > most) most = group_change[g];
+        power += group_m[g] * group_m[g];
+        ++members;
+      }
+      if (members == 1) {
         const float first = slot.cent_turn[group_at] / (kTurnPerCentHz * hop_seconds_);
         if (slot.clear[group_at] && first > 15.0f) {
-          const float cents = group_power * kit::clamp((first / group_hz - 1.0f) / kTurnPerCentHz, -50.0f, 50.0f);
+          const float cents = power * kit::clamp((first / group_hz[tallest] - 1.0f) / kTurnPerCentHz, -50.0f, 50.0f);
           moved += cents;
           apart += std::fabs(cents);
-          weighed += group_power;
+          weighed += power;
         }
-      } else if (group > 1 && most > kUnsteady * least) {
-        wobble += group_power;
+      } else if (members > 1 && most > kUnsteady * least) {
+        wobble += power;
       }
+      low_power += power;
       group = 0;
-      group_power = 0.0f;
     };
     for (int k = 2; k <= top && r < slot.regions + kMaxLow; ++k) {
       const float m = mag_[k];
@@ -862,13 +877,21 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
         close_group();
         group_at = at;
       }
-      const float change = m / (std::sqrt(last_re[k] * last_re[k] + last_im[k] * last_im[k]) + 1.0e-30f);
-      if (group == 0 || change < least) least = change;
-      if (group == 0 || change > most) most = change;
-      if (group == 0) group_hz = hz;
-      group_power += m * m;
-      ++group;
-      low_power += m * m;
+      int place = group;
+      if (group == kGroup) {  // full: the smallest so far makes room
+        place = 0;
+        for (int g = 1; g < kGroup; ++g) {
+          if (group_m[g] < group_m[place]) place = g;
+        }
+        if (group_m[place] >= m) place = -1;
+      } else {
+        ++group;
+      }
+      if (place >= 0) {
+        group_m[place] = m;
+        group_hz[place] = hz;
+        group_change[place] = m / (std::sqrt(last_re[k] * last_re[k] + last_im[k] * last_im[k]) + 1.0e-30f);
+      }
       // A partial of amplitude A puts A/2 × N × lobe(k - b) into bin k, with
       // its phase at the middle of the frame and a sign that alternates.
       const float amplitude = 2.0f * m / (static_cast<float>(long_frame_) * lobe(-offset));

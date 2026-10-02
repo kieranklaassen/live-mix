@@ -637,6 +637,35 @@ int main() {
     EXPECT(share[0] > 0.05 && share[1] < 0.5 * share[0], "High Cut set in silence is in place for the next note");
   }
 
+  // Bad input: one sample that is not a number would go round the loop for
+  // good. It is dropped, an absurd one is held to a bound, and the room
+  // carries on, ends and sleeps as it would have.
+  {
+    const auto at = [](double seconds) { return static_cast<size_t>(seconds * kRate); };
+    std::vector<float> good = sine(330.0f, 2.0f, kRate, 0.25f);
+    good.resize(at(2.0) + at(14.0), 0.0f);
+    std::vector<float> bad = good;
+    bad[at(0.5)] = std::nanf("");
+    bad[at(0.5) + 1] = INFINITY;
+    bad[at(0.5) + 2] = -INFINITY;
+    bad[at(0.5) + 3] = 1.0e30f;
+    for (int resonance = 0; resonance < 2; ++resonance) {
+      device.init(kRate);
+      if (resonance == 1) device.set_param(p::kResonance, 1.0f);
+      Stereo clean = run(device, good);
+      device.init(kRate);
+      if (resonance == 1) device.set_param(p::kResonance, 1.0f);
+      Stereo hurt = run(device, bad);
+      const double level = 20.0 * std::log10(rms(hurt.left, at(1.5), at(2.0)) / rms(clean.left, at(1.5), at(2.0)));
+      std::printf("  bad input, Resonance %d: peak %.2f, level a second later %+.2f dB against clean, last second peak %.2g\n",
+                  resonance, std::max(peak(hurt.left), peak(hurt.right)), level, peak(hurt.left, at(15.0)));
+      EXPECT(finite(hurt.left) && finite(hurt.right), "a NaN, infinities and 1e30 in the input: the output stays finite");
+      EXPECT(peak(hurt.left) < 16.0 && peak(hurt.right) < 16.0, "and bounded");
+      EXPECT(std::fabs(level) < 1.5, "a second later the room is back at its level");
+      EXPECT(peak(hurt.left, at(15.0)) == 0.0 && peak(hurt.right, at(15.0)) == 0.0, "and it still ends in exact silence");
+    }
+  }
+
   // Cost at the heaviest setting: the vowel full up in the loop and moving
   // (so every filter is retuned all the time), under continuous input.
   device.init(kRate);
