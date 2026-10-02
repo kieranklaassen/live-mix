@@ -710,10 +710,11 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
       sympathetic_[s].run(drive, 1.0f, 1.0f, out, n);
       const float gl = sympathetic_left_[s], gr = sympathetic_right_[s];
       for (int i = 0; i < n; ++i) {
-        const float size = out[i] < 0.0f ? -out[i] : out[i];
+        const float ring = out[i] - drive[i];  // the string without what drives it
+        const float size = ring < 0.0f ? -ring : ring;
         if (size > peak) peak = size;
-        left[i] += out[i] * gl;
-        right[i] += out[i] * gr;
+        left[i] += ring * gl;
+        right[i] += ring * gr;
       }
     }
     sympathetic_peak_ = peak;
@@ -824,6 +825,9 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
       case kVolume:
         volume_.set(kit::db_to_gain(value), primed());
         break;
+      case kSympathy:
+        coupling_.set(value * value * kSympatheticGain, primed());
+        break;
       default:
         break;  // read at the strike or on the control clock
     }
@@ -836,6 +840,16 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
   bool flip_ = false;
   int chunk_left_ = 0;
   float fade_step_ = 0.01f;
+  SympatheticString sympathetic_[kSympathetic];
+  float sympathetic_left_[kSympathetic] = {}, sympathetic_right_[kSympathetic] = {};
+  float sympathetic_follow_ = 0.0f, sympathetic_peak_ = 0.0f;
+  bool sympathetic_live_ = false, sympathetic_hurried_ = false;
+  kit::OnePole bridge_highpass_;
+  kit::Smoother coupling_;
+  Body bodies_[2];
+  int body_now_ = 0;
+  float body_mix_ = 1.0f, body_step_ = 0.001f;
+  kit::DcBlocker rumble_[2];
   kit::Smoother volume_;
   kit::IdleGate idle_;
 };

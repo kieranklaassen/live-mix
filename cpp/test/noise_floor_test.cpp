@@ -395,8 +395,7 @@ int main() {
         worst_dip = std::min(worst_dip, level + 30.0);
         worst_bump = std::max(worst_bump, level + 30.0);
       }
-      // 0.2 s on, the output is the new bed alone: the same as that bed
-      // reached from silence would have... in level and in colour.
+      // 0.2 s on, the output is the new bed alone.
       EXPECT_NEAR(db(rms(after.left)), -30.0, 1.0, "after the cross-fade the new bed is at Level");
     }
     EXPECT(worst_dip > -3.0 && worst_bump < 3.0, "the cross-fade holds the level (40 ms windows within 3 dB)");

@@ -177,7 +177,8 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
         v[n] = line_[n].read_hermite(delay);
         // Half of what is heard is taken part of the way down a line, so
         // the room starts to answer well before its first full pass.
-        tap[n] = (n & 2) ? v[n] : line_[n].read_linear(kit::max(delay * kTapPosition[n >> 1 | (n & 1)], 2.0f));
+        const int slot = kVowelSlot[n];
+        tap[n] = slot < 0 ? v[n] : line_[n].read_linear(kit::max(delay * kTapPosition[slot], 2.0f));
       }
       float wet[2] = {0.5f * (tap[0] - tap[2] + tap[4] - tap[6]) + kEarlyGain * feed[0],
                       0.5f * (tap[1] - tap[3] + tap[5] - tap[7]) + kEarlyGain * feed[1]};
@@ -185,11 +186,10 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
       hadamard8(v);
       loop_bank_.tick();
       for (int n = 0; n < kLines; ++n) {
-        float x = v[n];
-        // The vowel inside the loop: unity at the formants, 1 - amount in
-        // the valleys between them. (At Resonance 0 there is none.)
-        x *= gain_[n];
+        float x = v[n] * gain_[n];
         if (kVowelSlot[n] >= 0) {
+          // The vowel inside the loop: unity at the formants, 1 - amount in
+          // the valleys between them. (At Resonance 0 there is none.)
           if (amount_[n] > 0.0f) x += amount_[n] * (loop_bank_.process(kVowelSlot[n], x) - x);
         } else {
           // Above High Cut the room loses a fixed share more per pass.
@@ -258,8 +258,8 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
   static constexpr float kInputAllpass[2][kInputStages] = {{229.0f, 173.0f, 611.0f, 447.0f},
                                                            {241.0f, 181.0f, 631.0f, 463.0f}};
   // The left side hears the even lines and the right side the odd ones.
-  // Lines 0, 1, 4 and 5 are tapped at this share of their length; the other
-  // four are heard at their ends.
+  // Lines 0, 1, 4 and 5 (the ones with the vowel) are tapped at this share
+  // of their length; the other four are heard at their ends.
   static constexpr float kTapPosition[4] = {0.31f, 0.37f, 0.52f, 0.47f};
   // The allpass in each loop, in seconds (it does not scale with Size).
   static constexpr int kLoopStages = 1;
