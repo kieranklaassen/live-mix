@@ -507,13 +507,13 @@ export const sand: Required<LiveMixTheme> = {
   'brush-2': '#d0aa58',
   'brush-3': '#a2b389',
   'brush-4': '#8ba8be',
-  'brush-5': '#c6a09c',
+  'brush-5': '#c29fbf',
   'brush-6': '#b3a999',
   'brush-ink-1': '#4f2613',
   'brush-ink-2': '#4a3608',
   'brush-ink-3': '#2e3b1c',
   'brush-ink-4': '#1d3546',
-  'brush-ink-5': '#4b2622',
+  'brush-ink-5': '#4e264b',
   'brush-ink-6': '#3a342a',
 }
 
@@ -558,13 +558,13 @@ export const groovebox: Required<LiveMixTheme> = {
   'brush-2': '#4a86d8',
   'brush-3': '#e6c02e',
   'brush-4': '#55a862',
-  'brush-5': '#e0655a',
+  'brush-5': '#dc5c6d',
   'brush-6': '#9c9992',
   'brush-ink-1': '#4a1d00',
   'brush-ink-2': '#081a3d',
   'brush-ink-3': '#4d3d00',
   'brush-ink-4': '#0e3316',
-  'brush-ink-5': '#400a06',
+  'brush-ink-5': '#3b0a11',
   'brush-ink-6': '#262522',
 }
 
