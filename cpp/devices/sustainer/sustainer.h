@@ -213,8 +213,8 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
   static constexpr float kSideCycles = 0.18f;   // Motion 1: left/right phase difference (rms)
   static constexpr float kSwellDepth = 0.22f;   // Motion 1: level wander of a partial (rms, in nepers: 1.9 dB)
   static constexpr float kTiltPivotHz = 600.0f;
-  static constexpr float kCrossLowHz = 450.0f;  // the long frame takes over below here ...
-  static constexpr float kCrossHighHz = 650.0f; // ... and has no part above here
+  static constexpr float kCrossHz = 550.0f;     // the long frame takes over the regions caught below here
+  static constexpr float kCrossHighHz = 650.0f; // ... and is not searched above here
   static constexpr float kFluxAtZero = 20.0f;   // fixed part of the onset threshold at Sensitivity 0 ...
   static constexpr float kFluxAtOne = 9.0f;     // ... and at 1
   static constexpr float kFluxAdapt = 2.0f;     // plus this many times the recent average flux
@@ -715,13 +715,6 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     return lobe_db_[index] + (lobe_db_[index + 1] - lobe_db_[index]) * (at - static_cast<float>(index));
   }
 
-  // Where the lows are handed from the caught frame to the rebuilt partials:
-  // 0 below 450 Hz, 1 above 650 Hz.
-  static float crossover(float hz) {
-    const float x = kit::clamp((hz - kCrossLowHz) / (kCrossHighHz - kCrossLowHz), 0.0f, 1.0f);
-    return x * x * (3.0f - 2.0f * x);
-  }
-
   // The long frame (four times the usual one, 341 ms at 48 kHz): the
   // `long_frame_` samples that end `back` samples ago, under a Blackman
   // window, and only its lowest bins.
@@ -771,6 +764,18 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     // within 80 dB of the level of the whole layer.
     const float whole = std::sqrt(slot.power) * 0.21f * static_cast<float>(long_frame_);
     const float floor = kit::max(kit::max(strongest * 1.0e-3f, whole * 1.0e-4f), 1.0e-9f);
+    // The hand-over is by whole regions: those caught below the crossing
+    // give up all their bins, and partials are rebuilt only where they
+    // stood. Shared out bin by bin instead, a partial near the crossing was
+    // held twice, at two estimates of its pitch that could differ by a
+    // fraction of a hertz, and beat with itself (up to 12 dB, slowly).
+    int edge = half_ + 1;
+    for (int i = 0; i < slot.regions; ++i) {
+      if (slot.cent_turn[i] >= kCrossHz * kTurnPerCentHz * hop_seconds_) {
+        edge = slot.start[i];
+        break;
+      }
+    }
     int r = slot.regions;
     int pool = half_ + 1;
     for (int k = 2; k <= top && r < slot.regions + kMaxLow; ++k) {
@@ -787,8 +792,7 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
       const float offset = deviation * (8.0f / kit::kPi);  // bins of the long frame
       if (offset < -1.5f || offset > 1.5f) continue;       // not a steady partial
       const float hz = (static_cast<float>(k) + offset) * long_bin;
-      const float weight = 1.0f - crossover(hz);
-      if (hz < 15.0f || weight < 1.0e-3f) continue;
+      if (hz < 15.0f || hz >= (static_cast<float>(edge) - 0.5f) * short_bin) continue;
       // A partial of amplitude A puts A/2 × N × lobe(k - b) into bin k, with
       // its phase at the middle of the frame and a sign that alternates.
       const float amplitude = 2.0f * m / (static_cast<float>(long_frame_) * lobe(-offset));
@@ -799,7 +803,7 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
       const float pi = kit::SineTable::lookup(static_cast<float>(turns));
       const float position = hz / short_bin;
       const int nearest = static_cast<int>(position + 0.5f);
-      const float scale = 0.5f * amplitude * weight * static_cast<float>(frame_);
+      const float scale = 0.5f * amplitude * static_cast<float>(frame_);
       const int lowest = nearest - kLobe / 2 < 0 ? 0 : nearest - kLobe / 2;
       for (int j = 0; j < kLobe; ++j) {
         const int bin = lowest + j;
@@ -815,13 +819,11 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     }
     slot.start[r] = static_cast<uint16_t>(pool);
     slot.regions = r;
-    for (int k = 0; k <= half_; ++k) {
-      const float hz = static_cast<float>(k) * short_bin;
-      if (hz >= kCrossHighHz) break;
-      const float keep = crossover(hz);
-      slot.c_re[k] *= keep;
-      slot.c_im[k] *= keep;
+    for (int k = 0; k < edge && k <= half_; ++k) {
+      slot.c_re[k] = 0.0f;
+      slot.c_im[k] = 0.0f;
     }
+  }
   }
 
   // A region begins: its turn per hop (radians), its frequency, and its

@@ -17,6 +17,7 @@ struct Thunder {
   static constexpr int kBands = 4;  // crack, body, rumble, sub
   static constexpr float kGain = 3.0f;
   static constexpr float kCrack = 1.6f;
+  static constexpr float kClap = 0.7f;   // the thump a clap lands with, against its strength
   static constexpr float kLull = 0.09f;  // what is left of the arrivals between claps
   // The chain of one-poles, and after which of them each band is taken:
   // the body has gone through two at 420 Hz, so it carries no hiss.
@@ -172,7 +173,15 @@ struct Thunder {
     const float age = kit::clamp(t / length, 0.0f, 1.0f);
     const float gap = 0.02f + 0.10f * age;
     // Now and then another length of the channel reports: a clap, weaker the later it comes.
-    if (rng.uniform() < gap / 1.6f) lobe = kit::max(lobe, between(rng, 0.5f, 1.5f) * (1.0f - 0.5f * age));
+    float clap = 0.0f;
+    if (rng.uniform() < gap / 1.6f) {
+      const float report = between(rng, 0.5f, 1.5f) * (1.0f - 0.5f * age);
+      // It lands as a thump of its own in the body and the rumble, not only
+      // as stronger arrivals after it. (From far off the slow rise of the
+      // bands rounds it into a swell.)
+      if (report > lobe) clap = kClap * size * (report - lobe);
+      lobe = kit::max(lobe, report);
+    }
     const float draw = rng.uniform();
     // Near, the first arrival is the loudest; far, the roll swells in.
     const float onset = kit::lerp(1.0f, kit::min(1.0f, t / 0.7f), c.distance);
@@ -192,6 +201,10 @@ struct Thunder {
       kick[0][k] += share * pan_left;
       kick[1][k] += share * pan_right;
     }
+    kick[0][1] += clap * pan_left;
+    kick[1][1] += clap * pan_right;
+    kick[0][2] += clap * pan_left;
+    kick[1][2] += clap * pan_right;
     if (next == 0.0f) {
       // Only a near stroke cracks, and only at its very start.
       const float snap = kCrack * size * close * close * (1.0f + 0.8f * close);
