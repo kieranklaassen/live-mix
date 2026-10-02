@@ -216,7 +216,10 @@ struct Vinyl {
   static constexpr float kTickHz = NF_HZ;
   static constexpr float kTickOctaves = NF_OCT;
   static constexpr float kTickQ = NF_Q;
-  static constexpr float kTicksPerSecond = 16.0f;
+#ifndef NF_RATE
+#define NF_RATE 16.0f
+#endif
+  static constexpr float kTicksPerSecond = NF_RATE;
   static constexpr float kPopsPerSecond = 0.22f;
   static constexpr float kTurnHz = 33.333f / 60.0f;
 

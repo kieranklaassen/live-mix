@@ -11,9 +11,9 @@
     {
       "key": "pattern",
       "name": "Pattern",
-      "choices": ["Mosaic", "Strum", "Tunnel", "Steps"],
+      "choices": ["Stack", "Restrike", "Drone", "Steps"],
       "default": 0,
-      "description": "How each captured slice is replayed. Mosaic loops it at several speeds at once. Strum strikes the start of it again and again in a run that quickens or slows. Tunnel loops a short piece of it into a steady drone that grows longer and darker. Steps plays each repeat at the next speed, like an arpeggio of the note."
+      "description": "How each captured slice is replayed. Stack loops it at several speeds at once. Restrike strikes the start of it again and again in a run that quickens or slows. Drone loops a short piece of it into a steady drone that grows longer and darker. Steps plays each repeat at the next speed, like an arpeggio of the note."
     },
     {
       "key": "time",
@@ -108,7 +108,7 @@
     }
   ],
   "presets": {
-    "Mosaic": {},
+    "Octave stack": {},
     "Glass rain": {
       "time": 140,
       "repeats": 8,
@@ -127,7 +127,7 @@
       "shape": 1,
       "tone": 6500
     },
-    "Strummed": {
+    "Restruck": {
       "pattern": 1,
       "time": 500,
       "repeats": 7,
@@ -136,7 +136,7 @@
       "shape": 0.15,
       "spread": 0.9
     },
-    "Long tunnel": {
+    "Long drone": {
       "pattern": 2,
       "time": 900,
       "repeats": 14,
@@ -182,6 +182,6 @@
   },
   "origin": {
     "kind": "new",
-    "note": "Written for live-mix on cpp/kit. In outline: the input is cut into slices on a clock that restarts at note onsets, and each slice is replayed by a pool of windowed loop voices at speeds of 1/2, 1, 3/2, 2, 3 and 4, in one of four patterns. Replaying windowed fragments of sound at other speeds is after the approach of Curtis Roads, 'Microsound'. The faster voices read half-band decimated copies of the buffer so that they do not alias: pre-filtered copies at halved resolutions, after the approach of Lance Williams, 'Pyramidal Parametrics', applied to audio. The Tunnel drone cuts its loop to a whole number of cycles found with a normalised difference function, after the approach of A. de Cheveigne and H. Kawahara, 'YIN, a fundamental frequency estimator for speech and music'; where the sound has no cycle to cut on, the two voices that hand the loop to each other cross over at equal power instead. The sources are cited from memory and no constants or details were taken from them. Not a model of any particular unit."
+    "note": "Written for live-mix on cpp/kit. In outline: the input is cut into slices on a clock that restarts at note onsets, and each slice is replayed by a pool of windowed loop voices at speeds of 1/2, 1, 3/2, 2, 3 and 4, in one of four patterns. Replaying windowed fragments of sound at other speeds is after the approach of Curtis Roads, 'Microsound'. The faster voices read half-band decimated copies of the buffer so that they do not alias: pre-filtered copies at halved resolutions, after the approach of Lance Williams, 'Pyramidal Parametrics', applied to audio. The Drone pattern cuts its loop to a whole number of cycles found with a normalised difference function, after the approach of A. de Cheveigne and H. Kawahara, 'YIN, a fundamental frequency estimator for speech and music'; where the sound has no cycle to cut on, the two voices that hand the loop to each other cross over at equal power instead. The sources are cited from memory and no constants or details were taken from them. Not a model of any particular unit."
   }
 }

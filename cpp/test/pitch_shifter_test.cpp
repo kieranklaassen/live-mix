@@ -242,6 +242,7 @@ static void check_pitch();
 static void check_chords();
 static void check_chords_fit();
 static void check_chords_moves();
+static void check_chords_switch();
 static void check_character();
 static void check_chord_and_voices();
 static void check_feedback_and_delay();
@@ -262,6 +263,7 @@ int main() {
   check_chords();
   check_chords_fit();
   check_chords_moves();
+  check_chords_switch();
   check_character();
   check_chord_and_voices();
   check_feedback_and_delay();
@@ -645,7 +647,15 @@ static void check_feedback_and_delay() {
       NOTE("max feedback mode %d pitch %+.0f/%+.0f: peak %.2f, 7 s after the input %.1f dB\n", mode, pitch, -pitch, top, db(left_over));
       std::snprintf(label, sizeof label, "maximum feedback stays bounded in mode %d at %+.0f st (peak %.2f)", mode, pitch, top);
       EXPECT(finite(out.left) && finite(out.right) && top <= 2.01, label);
-      EXPECT(left_over < 0.02, "maximum feedback dies away after the input stops");
+      // Chords loses nothing on the way round, so with no shift its loop
+      // really does keep 95 % a pass (a pass is the Delay and its 190 ms):
+      // it falls steadily rather than fast.
+      const double early = rms(tail.left, 0, 48000);
+      if (mode == kChords) {
+        EXPECT(left_over < 0.35 * early, "maximum feedback dies away after the input stops (Chords)");
+      } else {
+        EXPECT(left_over < 0.02, "maximum feedback dies away after the input stops");
+      }
     }
   }
 }
@@ -971,5 +981,87 @@ static void check_chords_moves() {
          db(up_left / std::max(up_right, 1e-9)), db(down_right / 0.4), db(down_right / std::max(down_left, 1e-9)));
     EXPECT(up_left > 0.9 * 0.4 && up_left > 30.0 * up_right, "Chords: voice A, detuned up, on the left");
     EXPECT(down_right > 0.9 * 0.4 && down_right > 30.0 * down_left, "Chords: voice B, detuned down, on the right");
+  }
+}
+
+// Turning to Chords and away from it, sweeping Pitch in it, block sizes and
+// the silence after it.
+static void check_chords_switch() {
+  char label[200];
+
+  // A 220 Hz tone up a fifth is 330 Hz at 0.4: 0.017 a sample; two modes
+  // crossing can add to 1.4 times that.
+  {
+    double worst = 0.0, deepest = 0.0;
+    for (int other : {kSmooth, kGrain, kVintage}) {
+      for (int to_chords = 0; to_chords < 2; ++to_chords) {
+        wet_only(device, to_chords ? other : kChords, 7.0f);
+        run(device, sine(220.0f, 1.0f, kRate, 0.4f));
+        device.set_param(p::kMode, static_cast<float>(to_chords ? kChords : other));
+        Stereo out = run(device, sine(220.0f, 0.6f, kRate, 0.4f));
+        worst = std::max(worst, max_step(out.left));
+        for (size_t a = 0; a + 960 <= out.left.size(); a += 480) {
+          deepest = std::min(deepest, db(rms(out.left, a, a + 960) / (0.4 / std::sqrt(2.0))));
+        }
+      }
+    }
+    NOTE("chords: mode switches to and from Chords: largest step %.4f, deepest 20 ms dip %.1f dB\n", worst, deepest);
+    std::snprintf(label, sizeof label, "switching to and from Chords does not click (step %.4f)", worst);
+    EXPECT(worst < 0.035, label);
+    std::snprintf(label, sizeof label, "switching to and from Chords leaves no hole (dip %.1f dB)", deepest);
+    EXPECT(deepest > -12.0, label);
+  }
+
+  // The pitch-pedal move of check_moves, in Chords.
+  {
+    wet_only(device, kChords, 0.0f);
+    const std::vector<float> tone = sine(220.0f, 3.5f, kRate, 0.4f);
+    std::vector<float> out(tone.size(), 0.0f);
+    for (size_t done = 0; done + 64 <= tone.size(); done += 64) {
+      const double t = static_cast<double>(done) / kRate;
+      const double pitch = t < 1.0 ? 0.0 : (t < 2.0 ? 12.0 * (t - 1.0) : (t < 3.0 ? 12.0 - 24.0 * (t - 2.0) : -12.0));
+      device.set_param(p::kPitchA, static_cast<float>(pitch));
+      for (int i = 0; i < 64; ++i) {
+        device.in_left()[i] = tone[done + i];
+        device.in_right()[i] = tone[done + i];
+      }
+      device.process(64);
+      for (int i = 0; i < 64; ++i) out[done + i] = device.out_left()[i];
+    }
+    const double step = max_step(out, 48000, 160000);
+    const double level = db(rms(out, 57600, 153600) / (0.4 / std::sqrt(2.0)));
+    NOTE("chords: pitch sweep: largest step %.4f, level through the sweep %+.2f dB\n", step, level);
+    std::snprintf(label, sizeof label, "Chords: a pitch sweep does not click (step %.4f) and keeps its level (%+.2f dB)", step, level);
+    EXPECT(step < 0.03 && level > -2.0, label);
+  }
+
+  // The same output whatever the block size, and exact silence afterwards.
+  {
+    rng_state() = 0xB10Cu;
+    std::vector<float> in = noise(1.2f, kRate, 0.2f);
+    const std::vector<float> tone = sine(196.0f, 1.2f, kRate, 0.3f);
+    for (size_t i = 0; i < in.size(); ++i) in[i] += tone[i];
+    Stereo reference;
+    bool same = true;
+    for (int block : {128, 1, 2048}) {
+      device.init(kRate);
+      device.set_param(p::kMode, kChords);
+      device.set_param(p::kLevelB, 0.8f);
+      device.set_param(p::kDelay, 120.0f);
+      device.set_param(p::kFeedback, 0.4f);
+      Stereo out = run(device, in, in, block);
+      if (block == 128) {
+        reference = out;
+        continue;
+      }
+      for (size_t i = 0; i < out.left.size(); ++i) {
+        if (out.left[i] != reference.left[i] || out.right[i] != reference.right[i]) same = false;
+      }
+    }
+    EXPECT(same, "Chords: blocks of 1, 128 and 2048 frames give the same samples");
+    Stereo tail = render(device, 12.0f, kRate);
+    const double last = std::max(peak(tail.left, 11 * 48000, 12 * 48000), peak(tail.right, 11 * 48000, 12 * 48000));
+    NOTE("chords: last second of 12 s of silence: peak %g\n", last);
+    EXPECT(last == 0.0, "Chords: exact silence once the tail is over");
   }
 }

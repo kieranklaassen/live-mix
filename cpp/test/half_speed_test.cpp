@@ -115,6 +115,24 @@ static std::vector<float> phrase() {
   return out;
 }
 
+// A held four-note chord of soft sawtooths (C, E, G, B from `root` up), with
+// a short attack: 10 s, mono.
+static std::vector<float> held_chord(double root) {
+  const double ratios[4] = {1.0, 1.25992, 1.49831, 1.88775};
+  std::vector<float> out(static_cast<size_t>(10.0f * kRate));
+  for (size_t i = 0; i < out.size(); ++i) {
+    const double t = i / kRate;
+    double v = 0.0;
+    for (int k = 0; k < 4; ++k) {
+      for (int h = 1; h <= 14; ++h) {
+        v += std::sin(2.0 * kPi * root * ratios[k] * h * t + 1.3 * h + k) / (h * (1.0 + 0.12 * h));
+      }
+    }
+    out[i] = static_cast<float>(0.06 * v * (1.0 - std::exp(-t / 0.03)));
+  }
+  return out;
+}
+
 int main() {
   Conformance spec;
   spec.name = "half-speed";
@@ -588,6 +606,41 @@ int main() {
     }
     std::printf("  default patch: held chord level stays within %.2f dB\n", hi - lo);
     EXPECT(hi - lo < 3.0, "defaults: a held chord does not pump");
+  }
+
+  // Held chords with the sides apart (Spread): the right side, which takes
+  // its bass from the first set of heads and the rest from the second, is as
+  // loud as the left, and neither side pumps across the cycle boundaries.
+  {
+    double worst_balance = 0.0, worst_left = 0.0, worst_right = 0.0;
+    for (double root : {130.81, 196.0, 261.63}) {
+      const std::vector<float> in = held_chord(root);
+      for (float smooth : {0.5f, 1.0f}) {
+        device.init(kRate);
+        device.set_param(p::kSmooth, smooth);
+        Stereo out = run(device, in);
+        const size_t a = 2 * 48000, b = 9 * 48000 + 24000;
+        const double left = db(rms(out.left, a, b)), right = db(rms(out.right, a, b));
+        worst_balance = std::max(worst_balance, std::fabs(right - left));
+        EXPECT(std::fabs(left - db(rms(in, a, b))) < 0.5, "a held chord comes out as loud as it went in");
+        double lo[2] = {1.0e9, 1.0e9}, hi[2] = {-1.0e9, -1.0e9};
+        for (size_t at = a; at + 4800 <= b; at += 1200) {
+          const double l = db(rms(out.left, at, at + 4800)), r = db(rms(out.right, at, at + 4800));
+          lo[0] = std::min(lo[0], l);
+          hi[0] = std::max(hi[0], l);
+          lo[1] = std::min(lo[1], r);
+          hi[1] = std::max(hi[1], r);
+        }
+        worst_left = std::max(worst_left, hi[0] - lo[0]);
+        worst_right = std::max(worst_right, hi[1] - lo[1]);
+      }
+    }
+    std::printf("  held chords, Smooth 0.5 and 1, Spread 0.3: right within %.2f dB of left; level in 100 ms "
+                "steps moves %.2f dB (left) %.2f dB (right)\n",
+                worst_balance, worst_left, worst_right);
+    EXPECT(worst_balance < 1.0, "Spread: the right side of a held chord is as loud as the left");
+    EXPECT(worst_left < 3.2, "a held chord holds steady on the left across cycles");
+    EXPECT(worst_right < 4.5, "a held chord does not pump on the right across cycles");
   }
 
   // Worst case for level: full-scale noise, heads that share nothing, the

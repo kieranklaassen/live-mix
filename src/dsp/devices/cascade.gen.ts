@@ -13,9 +13,9 @@ export const CASCADE_PARAMS = {
     default: 0,
     taper: 'linear',
     unit: '',
-    choices: ['Mosaic', 'Strum', 'Tunnel', 'Steps'],
+    choices: ['Stack', 'Restrike', 'Drone', 'Steps'],
     description:
-      'How each captured slice is replayed. Mosaic loops it at several speeds at once. Strum strikes the start of it again and again in a run that quickens or slows. Tunnel loops a short piece of it into a steady drone that grows longer and darker. Steps plays each repeat at the next speed, like an arpeggio of the note.',
+      'How each captured slice is replayed. Stack loops it at several speeds at once. Restrike strikes the start of it again and again in a run that quickens or slows. Drone loops a short piece of it into a steady drone that grows longer and darker. Steps plays each repeat at the next speed, like an arpeggio of the note.',
   },
   time: {
     id: 1,
@@ -155,10 +155,10 @@ export const CASCADE_DESCRIPTOR = wasmDeviceDescriptor(CASCADE_DEVICE, {
   description:
     'Replays little loops of what you just played, stacked at octave (and fifth) speeds in a pattern you can hear, so one note comes back as a shimmering, rhythmic cascade of itself.',
   presets: {
-    Mosaic: {},
+    'Octave stack': {},
     'Glass rain': { time: 140, repeats: 8, decay: 0.3, high: 1, shape: 0, spread: 1, tone: 14000 },
     'Slow tiles': { time: 1100, repeats: 6, decay: 0.3, high: 0.5, low: 0.3, shape: 1, tone: 6500 },
-    Strummed: {
+    Restruck: {
       pattern: 1,
       time: 500,
       repeats: 7,
@@ -167,7 +167,7 @@ export const CASCADE_DESCRIPTOR = wasmDeviceDescriptor(CASCADE_DEVICE, {
       shape: 0.15,
       spread: 0.9,
     },
-    'Long tunnel': {
+    'Long drone': {
       pattern: 2,
       time: 900,
       repeats: 14,

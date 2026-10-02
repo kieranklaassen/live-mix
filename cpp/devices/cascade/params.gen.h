@@ -2,7 +2,7 @@
 //
 // Parameter ids and ranges of Cascade, shared with
 // src/dsp/devices/cascade.gen.ts:
-//    0  pattern: 0 Mosaic, 1 Strum, 2 Tunnel, 3 Steps, default 0
+//    0  pattern: 0 Stack, 1 Restrike, 2 Drone, 3 Steps, default 0
 //    1  time: 60..2000 ms, default 400
 //    2  repeats: 1..16, default 5
 //    3  decay: 0..1, default 0.4

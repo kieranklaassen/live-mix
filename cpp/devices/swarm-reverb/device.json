@@ -139,7 +139,7 @@
     "Interval ghosts": {
       "length": 0.6,
       "diffuse": 0.6,
-      "reflect": 0.8,
+      "reflect": 0.75,
       "dragTime": 0.05,
       "steps": 1,
       "wander": 0.45
@@ -147,7 +147,7 @@
     "Dark well": {
       "length": 1.1,
       "diffuse": 0.9,
-      "reflect": 0.8,
+      "reflect": 0.6,
       "dampen": 1400,
       "lowCut": 60,
       "mix": 0.45

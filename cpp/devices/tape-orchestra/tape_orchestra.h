@@ -113,6 +113,9 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
   // back out of the key's level. The harmonics still move against each other
   // and across the image; the note keeps a breath of level and no more.
   static constexpr float kLevelling = 0.7f;
+  // How far a player behind the lead drifts from its place in the section's
+  // tuning, as a share of the section's spread.
+  static constexpr float kDrift = 0.45f;
   // Hiss at Hiss 1 with one key down, RMS.
   static constexpr float kHissGain = 0.012f;
 
@@ -341,6 +344,10 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
     float vibrato_phase = 0.0f;
     float wander_phase[2] = {0.0f, 0.0f};  // tuning, level
     float wander_rate[2] = {0.0f, 0.0f};
+    // A much slower drift (a turn in 11 to 33 s): of the tuning of the
+    // players behind the lead, so that they do not come back into step at a
+    // fixed pace, and of every player's level.
+    float drift_phase = 0.0f, drift_rate = 0.0f;
     // State.
     float speak = 0.0f, voice = 0.0f;  // the attack, two poles
     float swell = 0.0f;
@@ -801,6 +808,8 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
     const float side = rng.uniform() < 0.5f ? -1.0f : 1.0f;
     const float apart = kit::clamp(param(kPlayers) * 5.0f, 0.0f, 1.0f);
     const float vibrato_phase = rng.uniform();
+    kit::Rng slow;
+    slow.seed(scramble(seed ^ 0x2C1B3C6Du));
     for (int p = 0; p < kMaxPlayers; ++p) {
       Player& player = voice.player[p];
       player = Player();
@@ -816,6 +825,8 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
       player.wander_rate[0] = 0.17f + 0.3f * rng.uniform();
       player.wander_rate[1] = 0.11f + 0.25f * rng.uniform();
       player.phase = apart * rng.uniform();
+      player.drift_phase = slow.uniform();
+      player.drift_rate = 0.03f + 0.06f * slow.uniform();
     }
 
     voice.env.reset();
@@ -931,7 +942,10 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
         player.wander_phase[w] += player.wander_rate[w] * tape_dt;
         player.wander_phase[w] = wrap(player.wander_phase[w]);
       }
-      level *= 1.0f + 0.12f * section * loud;
+      const float drift = kit::SineTable::lookup(player.drift_phase);
+      const float drift_level = kit::SineTable::cos_lookup(player.drift_phase);
+      player.drift_phase = wrap(player.drift_phase + player.drift_rate * tape_dt);
+      level *= 1.0f + 0.12f * section * (0.7f * loud + 0.5f * drift_level);
 
       // Vibrato arrives late and at the player's own rate.
       const float since = voice.tape_time - (0.3f + 0.2f * section * player.vibrato_wait);
@@ -941,7 +955,8 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
       player.vibrato_phase +=
           def.vibrato_hz * (1.0f + 0.12f * section * player.vibrato_pace) * tape_dt;
       player.vibrato_phase -= std::floor(player.vibrato_phase);
-      const float bend = def.detune_cents * section * voice.tight * player.detune +
+      const float place = player.detune + (p == 0 ? 0.0f : kDrift * drift);
+      const float bend = def.detune_cents * section * voice.tight * place +
                          3.0f * section * voice.tight * tuning +
                          def.vibrato_cents * shake;
       level *= (1.0f + def.tremolo * shake) * norm * (p == 0 ? 1.0f : def.blend * kPlayerLevel[p]);

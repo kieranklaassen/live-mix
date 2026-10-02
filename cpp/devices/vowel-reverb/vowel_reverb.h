@@ -103,6 +103,7 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
       trim_step_[c] = 0.0f;
     }
     balance_pole_ = 1.0f - std::exp(-1.0f / (kBalanceSeconds * control_rate));
+    wet_activity_ = 0.0f;
 
     vowel_drift_.seed(0x243F6A88u);
     vowel_drift_.set_rate(kMotionHz, sr);
@@ -240,7 +241,11 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
       out_left_[i] = in[0] * dry + 2.0f * kit::soft_clip(0.5f * left * trim_[0] * level);
       out_right_[i] = in[1] * dry + 2.0f * kit::soft_clip(0.5f * right * trim_[1] * level);
     }
-    idle_.settle(output_peak(frames), frames);
+    // The room keeps the device awake for as long as it rings, heard or not:
+    // with Mix at 0 the output is silent while the tail is still there, and
+    // a tail put to sleep would be let out again by the next note.
+    idle_.settle(kit::max(output_peak(frames), std::sqrt(wet_activity_ * (1.0f / kControlPeriod))), frames);
+    wet_activity_ = 0.0f;
   }
 
  private:
@@ -484,6 +489,7 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
     for (int c = 0; c < 2; ++c) {
       wet_level_[c] = flush_denormal(wet_level_[c] + balance_pole_ * (wet_power_[c] - wet_level_[c]));
       feed_level_[c] = flush_denormal(feed_level_[c] + balance_pole_ * (feed_power_[c] - feed_level_[c]));
+      wet_activity_ = kit::max(wet_activity_, wet_power_[c]);
       wet_power_[c] = 0.0f;
       feed_power_[c] = 0.0f;
     }
@@ -576,6 +582,7 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
   float wet_level_[2] = {}, feed_level_[2] = {};
   float trim_[2] = {1.0f, 1.0f}, trim_step_[2] = {};
   float balance_pole_ = 0.0f;
+  float wet_activity_ = 0.0f;  // the loudest control period of the wet signal in this block
   kit::Svf low_cut_[2];
   kit::OnePole high_cut_[2];
   kit::Svf side_bass_;

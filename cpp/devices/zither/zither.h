@@ -22,14 +22,14 @@
 // - `chord` lays open strings over two octaves above the key; `strum` is
 //   the time the hand takes to cross them, and `roll` goes on striking them
 //   one after another while the key is down.
-// - Twelve sympathetic strings, one per pitch class and laid out so that
-//   neighbours are a major ninth apart (A2 B2 C#3 D#3 F3 G3, then A#3 C4 D4
-//   E4 F#4 G#4), are driven by the bridge and never damped. They are fixed
+// - Twelve sympathetic strings, one per pitch class in two whole-tone rows
+//   (A2 B2 C#3 D#3 F3 G3 and A#3 C4 D4 E4 F#4 G#4, so no two lie a semitone
+//   apart), are driven by the bridge and never damped. They are fixed
 //   rather than retuned to what is played: a string only takes up what
 //   falls on its own partials, so whatever the key, the ones that ring are
 //   the ones in tune with it, and nothing glides.
-// - The body is four resonances and a shelf per channel, a little apart
-//   left and right; changing it crossfades.
+// - The body is four resonances and two shelves per channel, a little
+//   apart left and right; changing it crossfades.
 //
 // Brightness, position, courses and the exciter are read when a string is
 // struck; decay, release, sympathy, body and volume act on what is ringing.
@@ -716,7 +716,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     }
   }
 
-  // Sympathetic strings: every pitch class once, neighbours a ninth apart.
+  // Sympathetic strings: every pitch class once, in two whole-tone rows.
   static constexpr float kSympatheticNote[kSympathetic] = {45.0f, 58.0f, 47.0f, 60.0f, 49.0f, 62.0f,
                                                            51.0f, 64.0f, 53.0f, 66.0f, 55.0f, 68.0f};
   static constexpr float kSympatheticSeconds = 9.0f;     // ring of the lowest, at its fundamental
@@ -833,7 +833,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
   };
   static constexpr float kBodySkew[kBodyModes] = {1.045f, 0.96f, 1.035f, 0.955f};
   static constexpr float kBodyFadeSeconds = 0.04f;
-  static constexpr float kOutGain = 2.0f;
+  static constexpr float kOutGain = 1.7f;
 
   struct Body {
     kit::Svf mode[2][kBodyModes];

@@ -5,7 +5,7 @@
 //
 //   in ─►(+)─► dampen ─► low cut ─► 4 allpasses ─► line ─┬─ 14 taps ─► swarm ─► width ─► wet
 //         ▲              (Diffuse)                       └─ end of the line ─┐
-//         └── limit ◄── Reflect ◄── rotate left/right ◄─────────────────────┘
+//         └── limit ◄── Reflect, eased as the cave fills ◄── rotate L/R ◄────┘
 //
 // - Two lines, one per side. Each is read by fourteen taps at uneven, seeded
 //   times between a few hundredths of Length and Length itself: a hit comes
@@ -15,8 +15,12 @@
 // - Reflect sends the end of each line back in through a rotation that mixes
 //   left and right. The rotation loses nothing, so the gain round the loop is
 //   Reflect at every frequency (no one resonance takes over), and each trip
-//   doubles the number of echo paths: the swarm piles up into a cave. Past 1
-//   the loop grows until a soft limiter on the return holds it.
+//   doubles the number of echo paths: the swarm piles up into a cave. Dampen
+//   and Low Cut are second-order filters in the loop, so between their
+//   corners almost nothing is lost and at Reflect 1 the cave hangs for
+//   minutes. Past 1 the loop grows until the return is eased back: a slow
+//   ride on the level in the lines rather than a clipper, so a chord left
+//   to regenerate stays a chord. A soft limiter behind it catches peaks.
 // - Every delay in the device (taps, loop reads, allpass lengths) is a
 //   distance on one tape whose speed is 1 / (Length x Drag). The device keeps
 //   the history of the tape position and, for each read, finds when the

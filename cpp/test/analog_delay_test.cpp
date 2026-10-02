@@ -477,6 +477,24 @@ int main() {
     EXPECT(peak(woken.left, at(1.3), at(3.0)) > 0.01, "wakes on new input");
   }
 
+  // 14a. The hiss cannot keep itself going round the loop. Worn, at the
+  // longest Time and with Feedback high, the echoes of a phrase are gone in
+  // under a minute and the device then sleeps (a hiss gate that the hiss
+  // itself could hold open left -83 dBFS of noise for ever).
+  {
+    device.init(kRate);
+    device.set_param(p::kAge, 1.0f);
+    device.set_param(p::kTime, 1200.0f);
+    device.set_param(p::kFeedback, 0.8f);
+    device.set_param(p::kMix, 1.0f);
+    run(device, burst(300.0f, 0.5f, 3.0f, kRate, 0.5f));
+    Stereo tail = render(device, 70.0f, kRate);
+    const double late = std::max(peak(tail.left, at(69.0)), peak(tail.right, at(69.0)));
+    std::printf("worn, 1.2 s, Feedback 0.8: %.1f dBFS 30 s after a burst, peak %.1e in the 70th second\n",
+                db(rms(tail.left, at(29.0), at(30.0))), late);
+    EXPECT(late == 0.0, "the hiss dies with the echoes and the device sleeps");
+  }
+
   // 14b. Knobs turned while the device sleeps are in place when the next
   // note arrives, exactly as if they had been set at load: no glide of the
   // clock left over to bend the front of the first echo.

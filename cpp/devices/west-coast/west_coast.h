@@ -33,8 +33,10 @@
 // decimator per channel). The folder returns the mean of its curve over
 // each step instead of a point on it. And Fold reaches less far the higher
 // the note and the deeper the FM, so that what the folder adds stays under
-// the top of the band: at 1760 Hz and 44.1 kHz nothing inharmonic stands
-// above -66 dB with Fold at 1, and about -60 dB with full FM as well.
+// the top of the band. Measured at 44.1 kHz with Fold at 1: nothing
+// inharmonic above -66 dB at any note without FM, about -60 dB with full
+// FM at 2:1, and -50 dB in the worst corner found (full FM at 1:1 on a
+// 1760 Hz note).
 //
 // Chance draws, per note, an offset to Fold, to the FM depth, to the decay
 // and to the place between the speakers, from a seeded generator (four
@@ -252,7 +254,7 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
     // DC blocker and the gate's low-pass (two integrator states).
     float dc = 0.0f;
     float ic1 = 0.0f, ic2 = 0.0f;
-    // Fold, ramped between the points steer() sets.
+    // Fold, ramped between the points aim() finds.
     int steer_in = 0;
     float drive = 0.42f, drive_step = 0.0f;
     float offset = 0.0f, offset_step = 0.0f;
@@ -294,10 +296,11 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
     float level() const { return vactrol; }
   };
 
-  // One note at gain 0.7 peaks near -23 dBFS at the default volume, which
-  // is as loud as it can be if eight held ones are to stay under the knee
-  // of the clip: steady sines sooner or later crest together.
-  static constexpr float kVoiceGain = 0.21f;
+  // One struck note at gain 0.7 peaks near -20 dBFS at the default volume.
+  // That is as loud as it can be if eight notes, struck together or held,
+  // are to stay under the knee of the clip: steady sines sooner or later
+  // crest together.
+  static constexpr float kVoiceGain = 0.30f;
 
   // Wavefolder. Fold 0 sits inside the folder's linear part (a pure sine);
   // Fold 1 reaches every fold at low notes and fewer the higher the note.
@@ -349,6 +352,8 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
   static constexpr int kSlowPeriod = 4;
   static constexpr int kControlPeriod = 32;
   static constexpr float kSoftStrike = 0.55f;
+  // Where a held key keeps the gate, against the strike that opened it.
+  static constexpr float kHoldLevel = 0.7f;
 
   // Chance and drift.
   static constexpr float kChanceFold = 0.25f;
@@ -494,7 +499,11 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
     float phase = voice.phase, mod_phase = voice.mod_phase, last_sine = voice.last_sine;
     float dc = voice.dc, ic1 = voice.ic1, ic2 = voice.ic2;
     west_coast::Wavefolder folder = voice.folder;
-    const float strike = voice.strike;
+    // A strike drives the gate harder than a held key does: every struck
+    // note has an accent and then settles. A swell goes straight to the
+    // held level.
+    const float held = voice.strike * kHoldLevel;
+    const float ramp_to = voice.quick ? voice.strike : held;
     const float fall = voice.fall;
     const float floor_hz = kGateFloor * voice.frequency;
     const float increment = voice.increment * voice.detune;
@@ -508,7 +517,7 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
       // Where the key drives the gate.
       float control = 0.0f;
       if (stage == kStageSustain) {
-        control = strike * sustain_buf_[i];
+        control = held * sustain_buf_[i];
       } else if (stage == kStageStrike) {
         ramp += voice.ramp_step;
         if (ramp >= 1.0f) {
@@ -516,9 +525,9 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
           stage = kStageHold;
           hold_left = hold_samples_;
         }
-        control = voice.ramp_from + (strike - voice.ramp_from) * ramp;
+        control = voice.ramp_from + (ramp_to - voice.ramp_from) * ramp;
       } else if (stage == kStageHold) {
-        control = strike;
+        control = ramp_to;
         if (--hold_left <= 0) stage = voice.key_down ? kStageSustain : kStageRelease;
       }
       // The vactrol follows: up in a millisecond, down fast at first and

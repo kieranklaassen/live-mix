@@ -34,6 +34,7 @@
 // 4, near 24 kHz), with control-rate work every kTick samples.
 
 #include "../../kit/math.h"
+#include "../../kit/oversample.h"
 
 namespace livemix {
 namespace pad_follower {
@@ -52,16 +53,29 @@ class FollowerBank {
     const double two_pi = 6.283185307179586;
     const double top = kHighestHz < 0.27f * rate ? kHighestHz : 0.27f * rate;
     const double span = std::log((top + kMapOffsetHz) / (kLowestHz + kMapOffsetHz));
+    slow_end_ = 0;
+    mid_end_ = 0;
     for (int b = 0; b < kBands; ++b) {
       const double position = static_cast<double>(b) / (kBands - 1);
       const double hz = (kLowestHz + kMapOffsetHz) * std::exp(span * position) - kMapOffsetHz;
       const double spacing = (hz + kMapOffsetHz) * span / (kBands - 1);
       const double w = two_pi * hz / rate;
-      const double r = std::exp(-3.141592653589793 * kBandwidthFactor * spacing / rate);
+      // The resonators of the lower bands run on every second or fourth
+      // sample (see analyse), so their poles are laid out for that rate.
+      int divisor = 1;
+      if (hz + spacing <= kHalfbandFlat * rate / 4.0) {
+        divisor = 4;
+        slow_end_ = b + 1;
+      }
+      if (divisor == 1 && hz + spacing <= kHalfbandFlat * rate / 2.0) {
+        divisor = 2;
+        mid_end_ = b + 1;
+      }
+      const double r = std::exp(-3.141592653589793 * kBandwidthFactor * spacing * divisor / rate);
       hz_[b] = static_cast<float>(hz);
       omega_[b] = static_cast<float>(w);
-      pole_r_[b] = static_cast<float>(r * std::cos(w));
-      pole_i_[b] = static_cast<float>(r * std::sin(w));
+      pole_r_[b] = static_cast<float>(r * std::cos(w * divisor));
+      pole_i_[b] = static_cast<float>(r * std::sin(w * divisor));
       // A real sine of amplitude A is two phasors of A/2; the band keeps one.
       in_gain_[b] = static_cast<float>(2.0 * (1.0 - r) * (1.0 - r));
       centre_r_[b] = static_cast<float>(std::cos(w));
@@ -74,7 +88,7 @@ class FollowerBank {
       // the tracked frequency may leave the centre by two band spacings.
       lock_[b] = static_cast<float>(two_pi * kLockFactor * spacing / rate);
       max_dev_[b] = static_cast<float>(two_pi * 2.0 * spacing / rate);
-      detune_scale_[b] = static_cast<float>(r / (1.0 - r));
+      detune_scale_[b] = static_cast<float>(divisor * r / (1.0 - r));
       share_scale_[b] = static_cast<float>(rate / (two_pi * spacing));
       // Times, in ticks. The resonator pair settles in about three of its
       // time constants; the reading is averaged over a beat against a
@@ -91,6 +105,9 @@ class FollowerBank {
       const double doubled = 2.0 * hz / rate;
       up_taper_[b] = kit::clamp(static_cast<float>((0.44 - doubled) / 0.10), 0.0f, 1.0f);
     }
+    if (mid_end_ < slow_end_) mid_end_ = slow_end_;
+    halve_[0].init();
+    halve_[1].init();
     fast_ = 1.0f - kit::time_to_coeff(kFastSeconds, rate / kTick);
     octave_coeff_ = 1.0f - kit::time_to_coeff(kOctaveSeconds, rate / kTick);
     trust_rise_ = 1.0f - kit::time_to_coeff(kTrustRiseSeconds, rate / kTick);
@@ -121,6 +138,13 @@ class FollowerBank {
       kept_[b] = kept_older_[b] = 0.0f;
       age_[b] = 0;
     }
+    halve_[0].reset();
+    halve_[1].reset();
+    for (float& v : wait_full_) v = 0.0f;
+    for (float& v : wait_half_) v = 0.0f;
+    pair_[0] = pair_[1] = quad_[0] = quad_[1] = 0.0f;
+    write_full_ = write_half_ = 0;
+    step_ = 0;
     counter_ = 0;
     sounding_ = false;
     down_active_ = false;
@@ -161,9 +185,33 @@ class FollowerBank {
   }
 
  private:
-  // The resonators: s1 = s1·p + g·x, s2 = s2·p + s1, unity gain at the centre.
+  // The resonators, in three tiers. Nothing below a quarter of the rate can
+  // be in a band under an eighth of it, so the lower bands are fed a
+  // half-band-filtered copy of the input at half or a quarter of the rate
+  // and run only when it has a new sample: about a third of the work for
+  // the same bands. The copies arrive late by the filters' delay (32 and 96
+  // samples), so the faster tiers wait for them and every band hears the
+  // same instant; the oscillators of neighbouring bands in different tiers
+  // then lock to the same phase.
   void analyse(float x) {
-    for (int b = 0; b < kBands; ++b) {
+    wait_full_[write_full_] = x;
+    resonate(mid_end_, kBands, wait_full_[(write_full_ - kWaitFull) & (kWaitSize - 1)]);
+    write_full_ = (write_full_ + 1) & (kWaitSize - 1);
+    pair_[step_ & 1] = x;
+    if (step_ & 1) {
+      const float half = halve_[0].down(pair_[0], pair_[1]);
+      wait_half_[write_half_] = half;
+      resonate(slow_end_, mid_end_, wait_half_[(write_half_ - kWaitHalf) & (kWaitSize - 1)]);
+      write_half_ = (write_half_ + 1) & (kWaitSize - 1);
+      quad_[step_ >> 1] = half;
+      if (step_ == 3) resonate(0, slow_end_, halve_[1].down(quad_[0], quad_[1]));
+    }
+    step_ = (step_ + 1) & 3;
+  }
+
+  // s1 = s1·p + g·x, s2 = s2·p + s1: unity gain at the band centre.
+  void resonate(int from, int to, float x) {
+    for (int b = from; b < to; ++b) {
       const float pr = pole_r_[b], pi = pole_i_[b];
       const float a_r = s1r_[b] * pr - s1i_[b] * pi + x * in_gain_[b];
       const float a_i = s1r_[b] * pi + s1i_[b] * pr;
@@ -174,20 +222,6 @@ class FollowerBank {
       s2r_[b] = b_r;
       s2i_[b] = b_i;
     }
-  }
-
-  // Control rate: measure every band and steer its oscillator.
-  void tick() {
-    octaves_ += (octaves_target_ - octaves_) * octave_coeff_;
-    if (std::fabs(octaves_target_ - octaves_) < 1.0e-4f) octaves_ = octaves_target_;
-    const float up = octaves_ > 0.0f ? octaves_ * kOctaveLevel : 0.0f;
-    const float down = octaves_ < 0.0f ? -octaves_ * kOctaveLevel : 0.0f;
-    // Keep the pad's power about level as the second section comes in.
-    const float trim = 1.0f / std::sqrt(1.0f + up * up + down * down);
-    down_active_ = down > 0.0f;
-    bool any = false;
-    for (int b = 0; b < kBands; ++b) any = steer(b, up, down, trim) || any;
-    sounding_ = any;
   }
 
   // atan2 to about 1e-5 rad (a minimax polynomial on the first octant), for
@@ -418,6 +452,17 @@ class FollowerBank {
   static constexpr float kOctaveLevel = 0.9f;
   static constexpr float kCommitSeconds = 0.025f;
 
+  // The kit's half-band filter is flat to 0.42 of its output rate.
+  static constexpr float kHalfbandFlat = 0.42f;
+  static constexpr int kWaitSize = 128;
+  static constexpr int kWaitFull = 96;  // samples
+  static constexpr int kWaitHalf = 32;  // samples at half the rate
+
+  kit::Halfband2x halve_[2];
+  float wait_full_[kWaitSize] = {}, wait_half_[kWaitSize] = {};
+  float pair_[2] = {}, quad_[2] = {};
+  int write_full_ = 0, write_half_ = 0, step_ = 0;
+  int slow_end_ = 0, mid_end_ = 0;
   float rate_ = 24000.0f;
   int counter_ = 0;
   bool sounding_ = false;

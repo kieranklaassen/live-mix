@@ -2,7 +2,7 @@
   "id": "zither",
   "name": "Zither",
   "category": "instrument",
-  "description": "A box of open strings to pluck, strum and hammer: harp, zither, autoharp and hammered dulcimer, with a set of sympathetic strings that ring on behind what is played.",
+  "description": "A box of open strings to pluck, strum and hammer: harp, zither, autoharp and hammered dulcimer, with twelve sympathetic strings that ring on behind what is played.",
   "class": "Zither",
   "header": "zither.h",
   "sources": [],
@@ -10,7 +10,11 @@
     {
       "key": "exciter",
       "name": "Exciter",
-      "choices": ["Finger", "Pick", "Hammer"],
+      "choices": [
+        "Finger",
+        "Pick",
+        "Hammer"
+      ],
       "default": 0,
       "description": "What sets the strings going. A fingertip is soft and round, a pick is bright and thin, and a felt hammer strikes with a wider, softer blow and a small bounce. Applies from the next string that is played."
     },
@@ -42,7 +46,11 @@
     {
       "key": "direction",
       "name": "Direction",
-      "choices": ["Up", "Down", "Alternate"],
+      "choices": [
+        "Up",
+        "Down",
+        "Alternate"
+      ],
       "default": 0,
       "description": "Which way a chord is strummed and rolled: from the low string up, from the high string down, or the other way round on every new key."
     },
@@ -53,7 +61,7 @@
       "max": 16,
       "default": 0,
       "unit": "Hz",
-      "description": "While a key is held, strikes its strings softly again and again, one after another, this many times a second: the hammered tremolo that keeps a string shimmering. Off at zero; the slowest roll is two strikes a second."
+      "description": "While a key is held, goes on striking its strings softly, one after another, this many times a second: the hammered tremolo that keeps a string shimmering, a little uneven like a hand. Off at zero; the slowest roll is two strokes a second."
     },
     {
       "key": "decay",
@@ -63,7 +71,7 @@
       "default": 6,
       "taper": "log",
       "unit": "s",
-      "description": "How long a string rings while its key is held. Low strings ring a little longer than this and high strings a little shorter, as on a real instrument."
+      "description": "How long a string rings while its key is held. Low strings ring somewhat longer than this and high strings shorter, as on a real instrument."
     },
     {
       "key": "release",
@@ -97,7 +105,7 @@
       "min": 0,
       "max": 1,
       "default": 0.3,
-      "description": "Gives every note a second string tuned slightly apart from the first, so the pair beats and shimmers; further up the detuning is wider. At zero each note is a single string. Applies from the next string that is played."
+      "description": "Gives every note a second string tuned slightly apart from the first, one a little to each side, so the pair beats and shimmers; further up the detuning is wider. At zero each note is a single string. Applies from the next string that is played."
     },
     {
       "key": "sympathy",
@@ -105,12 +113,17 @@
       "min": 0,
       "max": 1,
       "default": 0.3,
-      "description": "How strongly twelve undamped strings, one for every note of the scale, pick up what is played and ring on after the played strings are damped."
+      "description": "How strongly twelve undamped strings, one for every note of the scale, pick up what is played. They answer only to notes that are in tune with them, and ring on after the played strings are damped."
     },
     {
       "key": "body",
       "name": "Body",
-      "choices": ["Harp", "Zither", "Dulcimer", "Koto"],
+      "choices": [
+        "Harp",
+        "Zither",
+        "Dulcimer",
+        "Koto"
+      ],
       "default": 1,
       "description": "The soundbox the strings are mounted on: the warm board of a harp, the bright flat box of a zither, the ringing box of a hammered dulcimer or the hollow, nasal body of a koto."
     },
@@ -252,6 +265,6 @@
   },
   "origin": {
     "kind": "new",
-    "note": "Written for live-mix on cpp/kit."
+    "note": "Written for live-mix on cpp/kit. Plucked-string synthesis in the Karplus-Strong and Jaffe-Smith lineage: each string is a delay loop closed through a loss filter (a one-pole low-pass with a share passed by it) and a first-order allpass that sets the fractional part of the tuning, with the loss filter's own delay taken off the line. The blow is a function of time added to the loop, so it can land on a string that is already moving: for a pluck, the rectangular wave an ideal pluck sends down a string, its duty set by the plucking position and its edges as wide as the fingertip; for the hammer, a half-sine blow, its reflection from the near end and a softer bounce. There is one string per pitch; chords are laid over two octaves, strummed across in a set time and rolled stroke by stroke. Twelve fixed, undamped sympathetic strings, one per pitch class, are driven by the bridge (one way, so nothing feeds back), and the body is four resonances and two shelves per channel. All constants were set by ear and measurement here; it is not a model of a particular instrument."
   }
 }
