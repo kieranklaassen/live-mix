@@ -139,9 +139,6 @@ class OctaveBank {
   __attribute__((noinline))
 #endif
   static float exact_norm(float m2) {
-#ifdef OCT_COUNT
-    ++g_norm;
-#endif
     return m2 > 1.0e-6f ? 1.0f / std::sqrt(m2) : 0.0f;
   }
 

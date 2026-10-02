@@ -39,7 +39,7 @@
 //   records, 9.6 dB down, so each generation is quieter and duller.
 // - Rest: a moment can start only while something above -60 dBFS lies within
 //   Reach, and lasts at most Size, so with Collect off the output is exact
-//   zero within Reach + Size of the input stopping (22 s at the defaults;
+//   zero within Reach + Size of the input stopping (23 s at the defaults;
 //   the echo's own tail is shorter). With Collect on at most seven
 //   generations fit between full scale and -60 dB: 8 x (Reach + Size). The
 //   device then sleeps, once the echo line has been blank for its whole
@@ -306,6 +306,11 @@ class EchoMemory : public kit::DeviceBase<echo_memory::kNumParams> {
     long long oldest = now - static_cast<long long>(param(kReach) * store_rate_);
     const long long first_kept = memory_.valid_from() + echo_memory::Memory<kMemoryFrames>::kGuard;
     if (oldest < first_kept) oldest = first_kept;
+    // The oldest frame must still be in the ring when the moment ends (only
+    // above 96 kHz can Reach + Size ask for more than the ring holds).
+    const long long kept = kMemoryFrames - echo_memory::Memory<kMemoryFrames>::kGuard - 64 -
+                           static_cast<long long>(param(kSize) * store_rate_);
+    if (oldest < now - kept) oldest = now - kept;
     const long long room = newest - oldest;
     if (room < static_cast<long long>(kShortestSeconds * store_rate_)) return;
 

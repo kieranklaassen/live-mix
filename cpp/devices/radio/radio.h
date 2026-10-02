@@ -39,6 +39,7 @@ class Radio : public kit::DeviceBase<radio::kNumParams> {
     if_re_.reset();
     if_im_.reset();
     audio_high_.reset();
+    audio_low_.reset();
     cone_high_.reset();
     cone_peak_.reset();
     cone_peak_.set_identity();
@@ -157,7 +158,9 @@ class Radio : public kit::DeviceBase<radio::kNumParams> {
         const float beat = static_cast<float>(centre_phase_);
         audio = if_re * kit::SineTable::cos_lookup(beat) - if_im * kit::SineTable::lookup(beat);
       }
-      audio = audio_high_.highpass(audio) * agc_gain_.next();
+      // The detector's own filter: an envelope has corners where the carrier
+      // is lost, and they are not programme.
+      audio = audio_high_.highpass(audio_low_.lowpass(audio)) * agc_gain_.next();
 
       // The loudspeaker.
       float cone = cone_peak_.process(cone_high_.highpass(audio));
@@ -214,9 +217,9 @@ class Radio : public kit::DeviceBase<radio::kNumParams> {
     float trim;
   };
   static constexpr BandSpec kBandSpec[kBands] = {
-      {110.0f, 60.0f, 2800.0f, 6000.0f, 6500.0f, 1.0f, 0.8f, 4500.0f, true, 250.0f,
+      {110.0f, 60.0f, 2800.0f, 6000.0f, 6500.0f, 1.0f, 0.8f, 5500.0f, true, 250.0f,
        {24.0f, 0.06f, 0.14f, 0.3f, 0.12f, 0.0005f}, 0.5f, 6.0f, 1.0f, 0.04f, 0.3f, 1.12f},
-      {330.0f, 155.0f, 2400.0f, 5000.0f, 5500.0f, 1.0f, 0.8f, 4500.0f, true, 250.0f,
+      {330.0f, 155.0f, 2400.0f, 5000.0f, 5500.0f, 1.0f, 0.8f, 5500.0f, true, 250.0f,
        {40.0f, 0.13f, 0.31f, 0.7f, 0.35f, 0.001f}, 0.5f, 6.0f, 1.0f, 0.04f, 0.3f, 1.26f},
       {350.0f, 180.0f, 2200.0f, 3200.0f, 3400.0f, 0.0f, 1.0f, 400.0f, false, 50.0f,
        {40.0f, 0.13f, 0.31f, 0.7f, 0.35f, 0.001f}, 0.5f, 4.0f, 0.3f, 0.006f, 1.4f, 1.41f},
@@ -281,6 +284,7 @@ class Radio : public kit::DeviceBase<radio::kNumParams> {
       if_re_.set(half, sr, radio_parts::kButter8);
       if_im_.set(half, sr, radio_parts::kButter8);
       audio_high_.set(low_hz_, sr, radio_parts::kButter6);
+      audio_low_.set(kit::min(1.25f * high_hz_, 0.45f * sr), kit::kSqrtHalf, sr);
     }
     centre_.aim(carrier ? 0.0f : 0.5f * (high_hz_ + low_hz_), inverse, jump);
 
@@ -341,7 +345,7 @@ class Radio : public kit::DeviceBase<radio::kNumParams> {
   kit::DelayLine<512> path_re_, path_im_;  // 2.2 ms at 96 kHz and room for the read
   radio_parts::Cascade<4> if_re_, if_im_;
   radio_parts::Cascade<3> audio_high_;
-  kit::Svf cone_high_, cone_low_;
+  kit::Svf audio_low_, cone_high_, cone_low_;
   kit::Biquad cone_peak_;
   kit::DcBlocker dc_;
   radio_parts::Propagation propagation_;

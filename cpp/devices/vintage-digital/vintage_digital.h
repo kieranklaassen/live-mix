@@ -101,10 +101,13 @@ class VintageDigital : public kit::DeviceBase<vintage_digital::kNumParams> {
         // How late the converted signal's low end is on its own: the input
         // filter, half a period of hold, and the output filter. The sampler
         // reads that much less far back, so it meets the dry signal in time.
-        const float steep_delay = BandSplit::kLowDelay / (2.0f * std::tan(kit::kPi * kit::min(edge, 0.47f * sr) / sr));
+        const float per_unit = 0.5f / std::tan(kit::kPi * kit::min(edge, 0.47f * sr) / sr);
+        const float input_delay = BandSplit::low_delay(stop_gain_.value) * per_unit;
+        const float steep_delay = BandSplit::low_delay(0.0f) * per_unit;
         const float soft_delay =
             1.41421356f / (2.0f * std::tan(kit::kPi * kit::min(kSoftRatio * rate_, 0.49f * sr) / sr));
-        const float own = steep_delay * (1.0f + steep_.value) + soft_delay * soft_.value + 0.5f / increment_;
+        const float own =
+            input_delay + steep_delay * steep_.value + soft_delay * soft_.value + 0.5f / increment_;
         const float spread = 3.5f * jitter_.value * kJitterPeriods / increment_;
         pad_.set(kit::max(spread, static_cast<float>(kPad) - own) , started_);
         started_ = true;

@@ -402,7 +402,7 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
     Slot& slot = slots_[next_tick_];
     next_tick_ = (next_tick_ + 1) % kTickSlots;
     // Mostly dull and short; now and then one that rings for a cycle.
-    ring(slot, 1500.0f * std::exp2(2.6f * colour), 0.5f + 0.8f * sharp * sharp, false, level, lean);
+    ring(slot, 1500.0f * std::exp2(2.2f * colour), 0.5f + 0.8f * sharp * sharp, false, level, lean);
   }
 
   // A pop: a duller, larger click with a thump under it.

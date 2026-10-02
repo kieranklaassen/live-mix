@@ -1,0 +1,184 @@
+{
+  "id": "octaves",
+  "name": "Octaves",
+  "category": "pitch",
+  "description": "Adds the notes you play one and two octaves down and up, chords included, with no audible delay and no warble.",
+  "class": "Octaves",
+  "header": "octaves.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "sub2",
+      "name": "Two down",
+      "min": 0,
+      "max": 1,
+      "default": 0.0,
+      "description": "The level of the voice two octaves below what you play. It gives the weight of organ pedals; notes below about the A at 110 Hz are left out of it because they would land under hearing."
+    },
+    {
+      "key": "sub1",
+      "name": "One down",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "The level of the voice one octave below what you play. It follows chords note for note, like a bass player doubling every string."
+    },
+    {
+      "key": "dry",
+      "name": "Dry",
+      "min": 0,
+      "max": 1,
+      "default": 1.0,
+      "description": "The level of your own sound, passed through untouched and in stereo. Turn it down to hear only the octaves."
+    },
+    {
+      "key": "up1",
+      "name": "One up",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "The level of the voice one octave above what you play. It adds the shimmer of a second, higher set of strings."
+    },
+    {
+      "key": "up2",
+      "name": "Two up",
+      "min": 0,
+      "max": 1,
+      "default": 0.0,
+      "description": "The level of the voice two octaves above what you play. Thin and bright, like the top stop of an organ."
+    },
+    {
+      "key": "attack",
+      "name": "Attack",
+      "min": 0,
+      "max": 2,
+      "default": 0.0,
+      "unit": "s",
+      "description": "How long the octaves take to fade in after each new note. At zero they start with the note; longer times let the pick or hammer through alone and bring the octaves in behind it like a bowed pad."
+    },
+    {
+      "key": "filter",
+      "name": "Filter",
+      "min": 100,
+      "max": 16000,
+      "default": 16000,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "A low-pass on the octave voices only. Turn it down to round off the upper octaves or to leave the low ones as a soft bass."
+    },
+    {
+      "key": "resonance",
+      "name": "Resonance",
+      "min": 0,
+      "max": 1,
+      "default": 0.0,
+      "description": "A peak at the filter frequency, on the octave voices only. A little gives them a vocal, nasal edge; a lot makes the filter ring."
+    },
+    {
+      "key": "detune",
+      "name": "Detune",
+      "min": 0,
+      "max": 1,
+      "default": 0.0,
+      "description": "Pulls each octave voice slightly out of tune, each its own way, by up to 15 cents. It makes the slow beating of a twelve-string or of a rank of organ pipes that are not quite in tune."
+    },
+    {
+      "key": "spread",
+      "name": "Spread",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Places the notes of the two upper voices at different points between left and right. The lower octaves stay in the middle, and the sound sums to mono without loss."
+    }
+  ],
+  "presets": {
+    "Organ": {
+      "sub2": 0.3,
+      "sub1": 0.7,
+      "dry": 1.0,
+      "up1": 0.6,
+      "up2": 0.35,
+      "attack": 0.0,
+      "filter": 7000,
+      "resonance": 0.0,
+      "detune": 0.12,
+      "spread": 0.35
+    },
+    "Sub octave": {
+      "sub2": 0.0,
+      "sub1": 0.8,
+      "dry": 1.0,
+      "up1": 0.0,
+      "up2": 0.0,
+      "attack": 0.0,
+      "filter": 900,
+      "resonance": 0.0,
+      "detune": 0.0,
+      "spread": 0.0
+    },
+    "Twelve string": {
+      "sub2": 0.0,
+      "sub1": 0.0,
+      "dry": 1.0,
+      "up1": 0.65,
+      "up2": 0.0,
+      "attack": 0.0,
+      "filter": 16000,
+      "resonance": 0.0,
+      "detune": 0.5,
+      "spread": 0.6
+    },
+    "Glass octaves": {
+      "sub2": 0.0,
+      "sub1": 0.0,
+      "dry": 0.8,
+      "up1": 0.5,
+      "up2": 0.5,
+      "attack": 0.06,
+      "filter": 9000,
+      "resonance": 0.3,
+      "detune": 0.2,
+      "spread": 0.85
+    },
+    "Cathedral": {
+      "sub2": 0.5,
+      "sub1": 0.6,
+      "dry": 1.0,
+      "up1": 0.5,
+      "up2": 0.3,
+      "attack": 0.15,
+      "filter": 5000,
+      "resonance": 0.0,
+      "detune": 0.25,
+      "spread": 0.5
+    },
+    "Deep": {
+      "sub2": 0.7,
+      "sub1": 0.7,
+      "dry": 0.8,
+      "up1": 0.0,
+      "up2": 0.0,
+      "attack": 0.0,
+      "filter": 400,
+      "resonance": 0.0,
+      "detune": 0.0,
+      "spread": 0.0
+    },
+    "Swell pad": {
+      "sub2": 0.0,
+      "sub1": 0.6,
+      "dry": 0.0,
+      "up1": 0.7,
+      "up2": 0.3,
+      "attack": 1.2,
+      "filter": 3500,
+      "resonance": 0.2,
+      "detune": 0.4,
+      "spread": 0.7
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. The method is filter-bank phase scaling after Etienne Thuillier, 'Real-Time Polyphonic Octave Doubling for the Guitar' (Aalto University MSc thesis, 2016), as also used in Steve Schulteis's open poly octave work: narrow complex band-pass channels, each played back with its phase doubled or halved. The channel shape, the phase equaliser, the channels that widen for a moment at each new note, and the sub-octave phase tracking are this device's own."
+  }
+}

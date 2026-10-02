@@ -10,14 +10,7 @@
     {
       "key": "tape",
       "name": "Tape",
-      "choices": [
-        "Strings",
-        "Cellos",
-        "Flutes",
-        "Horns",
-        "Reeds",
-        "Choir"
-      ],
+      "choices": ["Strings", "Cellos", "Flutes", "Horns", "Reeds", "Choir"],
       "default": 0,
       "description": "Which recording is on the tapes: a small violin section, cellos, flutes, French horns, a clarinet and oboe blend, or a mixed choir on ah. Notes already sounding cross over to the new tape."
     },
@@ -48,10 +41,7 @@
     {
       "key": "speed",
       "name": "Speed",
-      "choices": [
-        "Normal",
-        "Half"
-      ],
+      "choices": ["Normal", "Half"],
       "default": 0,
       "description": "Half runs the tapes at half speed: everything sounds an octave lower and darker, with slower attacks, slower vibrato and twice the tape length. Switching while notes sound slows the tape down or brings it back up."
     },

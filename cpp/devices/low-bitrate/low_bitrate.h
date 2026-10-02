@@ -145,7 +145,7 @@ class LowBitrate : public kit::DeviceBase<low_bitrate::kNumParams> {
   enum Mode : int { kStandard = 0, kInverse = 1, kJitter = 2 };
   static constexpr float kLossOff = 1.0e-4f;  // under this the codec is out of circuit
   static constexpr float kSideTopOctave = 14.2877f;    // log2(20000)
-  static constexpr float kSideBottomOctave = 4.3219f;  // log2(20)
+  static constexpr float kSideBottomOctave = 2.3219f;  // log2(5): under every bin
   // Loss 0 → 1: the margin under a band's peak goes from 62 to 2 dB, the
   // floor under the stream's recent peak from 96 to 14 dB, the quantiser
   // from 200 steps to one and a half, the bandwidth from 22 kHz to 3.5 kHz.
@@ -491,7 +491,8 @@ class LowBitrate : public kit::DeviceBase<low_bitrate::kNumParams> {
     const Layout& layout = layout_[engine.frame];
     const float collapse = loss * (1.0f - stereo_.value);
     if (collapse > 0.0f) {
-      // The side signal is dropped from the top down: 20 kHz at none, 20 Hz at all.
+      // The side signal is dropped from the top down: from 20 kHz at none to
+      // under the lowest bin at all, over an octave.
       const float cut = kSideTopOctave + (kSideBottomOctave - kSideTopOctave) * collapse;
       for (int k = 0; k < n; ++k) {
         const float keep = kit::clamp(cut - layout.octave[k] + 0.5f, 0.0f, 1.0f);

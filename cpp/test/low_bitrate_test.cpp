@@ -515,10 +515,10 @@ int main() {
     };
     const double kept_high = side_db(1.0f, 1.0f, 6000.0, 12000.0);
     const double default_high = side_db(0.7f, 0.5f, 9000.0, 16000.0), default_mid = side_db(0.7f, 0.5f, 300.0, 3000.0);
-    const double half_high = side_db(0.5f, 1.0f, 2000.0, 12000.0), half_low = side_db(0.5f, 1.0f, 50.0, 300.0);
+    const double half_high = side_db(0.5f, 1.0f, 2000.0, 12000.0), half_low = side_db(0.5f, 1.0f, 40.0, 150.0);
     const double none = side_db(0.0f, 1.0f, 20.0, 20000.0);
     std::printf("low-bitrate: side re mid: Stereo 1 %+.1f dB (6 to 12 kHz); defaults %+.1f dB above 9 kHz, %+.1f dB "
-                "at 0.3 to 3 kHz; Stereo 0.5 at full Loss %+.1f dB above 2 kHz, %+.1f dB under 300 Hz; Stereo 0 %+.1f dB\n",
+                "at 0.3 to 3 kHz; Stereo 0.5 at full Loss %+.1f dB above 2 kHz, %+.1f dB under 150 Hz; Stereo 0 %+.1f dB\n",
                 kept_high, default_high, default_mid, half_high, half_low, none);
     EXPECT(std::fabs(kept_high) < 1.0, "Stereo 1 keeps the image at any Loss");
     EXPECT(default_high < -20.0 && std::fabs(default_mid) < 1.0, "defaults: the top is folded to mono, the middle is not");

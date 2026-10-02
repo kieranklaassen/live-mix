@@ -194,14 +194,12 @@ inline float source_gain(int tape, int h, float f0) {
 inline float body_gain(int tape, float f0, float hz) {
   switch (tape) {
     case kStrings: {
-      // Air and wood resonances, a broad rise through the middle, and the
-      // bridge hill near 3 kHz.
-      static constexpr Bell kBody[5] = {{280.0f, 45.0f, 5.0f},
-                                        {450.0f, 60.0f, 4.0f},
-                                        {700.0f, 110.0f, 3.0f},
-                                        {1500.0f, 900.0f, 5.0f},
-                                        {2900.0f, 900.0f, 9.0f}};
-      const float db = bells_db(kBody, 5, hz) + ripple_db(tape, hz, 3.5f);
+      // Air and wood resonances, the nasal region above them, a dip, and
+      // the bridge hill near 3 kHz.
+      static constexpr Bell kBody[6] = {{280.0f, 45.0f, 5.0f},   {450.0f, 60.0f, 4.0f},
+                                        {700.0f, 110.0f, 3.0f},  {1100.0f, 400.0f, 4.0f},
+                                        {1800.0f, 350.0f, -3.0f}, {2900.0f, 800.0f, 10.0f}};
+      const float db = bells_db(kBody, 6, hz) + ripple_db(tape, hz, 3.5f);
       return db_to_linear(db) * low_cut(hz, 190.0f) * high_cut(hz, 5200.0f);
     }
     case kCellos: {

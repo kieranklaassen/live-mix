@@ -352,7 +352,7 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
     if (k >= passes) return false;
     switch (voice.part) {
       case 0:
-        *pan = (k & 1) ? 0.3f : -0.3f;
+        *pan = (k & 1) ? 0.6f : -0.6f;
         break;
       case 1:
         *pan = (k & 1) ? -1.0f : 1.0f;

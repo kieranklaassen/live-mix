@@ -136,8 +136,8 @@ int main() {
   spec.mins = p::kParamMin;
   spec.maxs = p::kParamMax;
   spec.defaults = p::kParamDefault;
-  // Default Reach (20 s) plus Size (2 s) plus a block of the activity map.
-  spec.tail_seconds = 23.0f;
+  // Default Reach (20 s) plus Size (3 s) plus two blocks of the activity map.
+  spec.tail_seconds = 24.0f;
   spec.max_peak = 3.0f;
   check_effect(device, spec, kRate);
 
@@ -393,7 +393,7 @@ int main() {
 
   // It comes to rest. At the defaults nothing can start later than Reach
   // after the last sound and nothing lasts longer than Size, so the output is
-  // exact zero within Reach + Size (22 s) of the input stopping, and the
+  // exact zero within Reach + Size (23 s) of the input stopping, and the
   // device is asleep.
   {
     device.init(kRate);
@@ -404,7 +404,7 @@ int main() {
     const double tail = rings_for(out, static_cast<size_t>(8.0f * kRate));
     std::printf("rest: default patch rings for %.2f s after the input stops\n", tail);
     EXPECT(tail > 10.0, "the memory keeps bringing moments back long after the echo has gone");
-    EXPECT(tail <= 22.3, "exact silence within Reach + Size of the input stopping");
+    EXPECT(tail <= 23.3, "exact silence within Reach + Size of the input stopping");
     EXPECT(device.asleep(), "asleep once it has come to rest");
 
     // It wakes with a blank memory: what was played before the sleep is not

@@ -172,7 +172,7 @@ class OutputBank {
   // through a reverb has a falling spectrum of its own; with the full
   // figures the upper formants, which tell the vowels apart, would be
   // counted down twice. This share of each level (in dB) is used.
-  static constexpr float kLevelScale = 0.7f;
+  static constexpr float kLevelScale = 0.5f;
 
   void reset() {
     for (int k = 0; k < kFormants; ++k) {

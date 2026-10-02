@@ -25,9 +25,10 @@ namespace vintage_digital_detail {
 
 class BandSplit {
  public:
-  // Group delay of the low-pass at low frequencies, in units of 1 / (the
-  // edge in radians): the mean of the two chains'.
-  static constexpr float kLowDelay = 5.568f;
+  // Group delay of low + stop_gain * high at low frequencies, in units of
+  // 1 / tan(pi * edge / sample rate) half-samples: the two chains' delays
+  // there (6.654 and 4.483) weighted as the output weighs the chains.
+  static constexpr float low_delay(float stop_gain) { return 5.5685f + 1.0852f * stop_gain; }
 
   void reset() {
     first_ = 0.0f;

@@ -30,7 +30,19 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     hop_seconds_ = static_cast<float>(hop_) / sr;
     fft_.init();
     for (int n = 0; n < frame_; ++n) {
-      window_[n] = 0.5f - 0.5f * static_cast<float>(std::cos(2.0 * 3.14159265358979323846 * n / frame_));
+      const double angle = 2.0 * 3.14159265358979323846 * n / frame_;
+      window_[n] = static_cast<float>(0.5 - 0.5 * std::cos(angle));
+      analysis_window_[n] = static_cast<float>(0.42 - 0.5 * std::cos(angle) + 0.08 * std::cos(2.0 * angle));
+    }
+    // What a copy loses when it turns `turn` cycles per hop away from the
+    // lobe it is built from: the transform of the product of the two windows,
+    // 0.335 - 0.48 cos + 0.165 cos 2 - 0.02 cos 3, read 4 x turn bins off centre.
+    for (int i = 0; i <= kCompSteps; ++i) {
+      const double x = 4.0 * kMaxDetuneTurn * i / kCompSteps;
+      auto sinc = [](double v) { return std::fabs(v) < 1.0e-9 ? 1.0 : std::sin(3.14159265358979323846 * v) / (3.14159265358979323846 * v); };
+      const double g = 0.335 * sinc(x) - 0.24 * (sinc(x - 1) + sinc(x + 1)) + 0.0825 * (sinc(x - 2) + sinc(x + 2)) -
+                       0.01 * (sinc(x - 3) + sinc(x + 3));
+      comp_[i] = static_cast<float>(0.335 / g);
     }
     for (int i = 0; i < kRing; ++i) {
       input_[i] = 0.0f;
@@ -126,6 +138,7 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
   // would stop adding up evenly, so the beating of the highest partials is
   // capped instead.
   static constexpr float kMaxDetuneTurn = 0.19f;
+  static constexpr int kCompSteps = 32;
   static constexpr float kPanNear = 0.9239f;    // each copy sits 45° off centre
   static constexpr float kPanFar = 0.3827f;
   static constexpr float kDriftCents = 3.0f;    // Motion 1: pitch wander of a partial (rms) ...
@@ -253,6 +266,7 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
       analyse();
       frame_tick();
     }
+    if (capture_due_ > 0) --capture_due_;
     const uint32_t detector_hop = static_cast<uint32_t>(frame_ / 8);
     if ((position_ & (detector_hop - 1u)) == detector_hop / 4u) detect();
   }
@@ -342,7 +356,6 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     if (hold && !latch) capture_due_ = -1;               // Auto and Layer: Hold stops listening
     hold_seen_ = hold;
     if (capture_due_ < 0) return;
-    capture_due_ -= hop_;
     if (capture_due_ > 0) return;
     capture_due_ = -1;
     start_layer();
@@ -407,7 +420,7 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     }
     const uint32_t first = position_ + 1u - static_cast<uint32_t>(frame_);
     for (int n = 0; n < frame_; ++n) {
-      scratch_[n] = input_[(first + static_cast<uint32_t>(n)) & kRingMask] * window_[n];
+      scratch_[n] = input_[(first + static_cast<uint32_t>(n)) & kRingMask] * analysis_window_[n];
     }
     fft_.forward(scratch_, now_re_, now_im_, frame_);
   }
@@ -427,7 +440,9 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     for (int k = 0; k <= half_; ++k) {
       const float now = std::sqrt(now_re_[k] * now_re_[k] + now_im_[k] * now_im_[k]);
       const float last = std::sqrt(last_re_[k] * last_re_[k] + last_im_[k] * last_im_[k]);
-      const float mean = 0.5f * (now + last);
+      // The mean of the two, but never more than the newer frame has: what
+      // is dying away fast (the attack) is not part of the held sound.
+      const float mean = 0.5f * (now + kit::min(now, last));
       mag_[k] = mean;
       const float scale = now > 1.0e-20f ? mean / now : 0.0f;
       slot.c_re[k] = now_re_[k] * scale;
@@ -499,8 +514,9 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     }
     double sum = 0.0;
     for (int k = 0; k <= half_; ++k) sum += static_cast<double>(mag_[k]) * mag_[k];
-    // A sine of amplitude A leaves 3 N² A² / 32 in the positive bins.
-    slot.power = static_cast<float>(sum * 16.0 / (3.0 * static_cast<double>(frame_) * frame_));
+    // The positive bins hold N²/2 × 0.3046 × the mean square (0.3046 is the
+    // mean of the squared Blackman window).
+    slot.power = static_cast<float>(sum * 2.0 / (0.3046 * static_cast<double>(frame_) * frame_));
   }
 
   // One step of a layer's envelope (once per hop); returns its gain, and
@@ -592,7 +608,9 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
         det -= std::floor(det);
         slot.det_phase[r] = det;
         // A copy turning `turn` away from its lobe adds up a little low; undo it.
-        const float pair = copies * 1.5f / (1.0f + 0.5f * kit::SineTable::cos_lookup(turn));
+        const float at = turn * (static_cast<float>(kCompSteps) / kMaxDetuneTurn);
+        const int index = kit::clamp_int(static_cast<int>(at), 0, kCompSteps - 1);
+        const float pair = copies * (comp_[index] + (comp_[index + 1] - comp_[index]) * (at - static_cast<float>(index)));
         const float even = centre + pair * (kPanNear + kPanFar) * kit::SineTable::cos_lookup(det);
         const float odd = pair * (kPanNear - kPanFar) * kit::SineTable::lookup(det);
         float w_re[2], w_im[2];
@@ -617,8 +635,9 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
         }
       }
     }
-    // Hann² frames at 75 % overlap sum to 1.5; the inverse returns N/2 × x.
-    const float scale = kHeldGain * 4.0f / (3.0f * static_cast<float>(frame_));
+    // Blackman x Hann frames at 75 % overlap sum to exactly 1.34 (the product
+    // has no component past the third harmonic); the inverse returns N/2 × x.
+    const float scale = kHeldGain * 2.0f / (1.34f * static_cast<float>(frame_));
     for (int c = 0; c < 2; ++c) {
       for (int k = 0; k <= half_; ++k) {
         acc_re_[c][k] *= shape_[k];
@@ -655,7 +674,9 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
   float gate_ = 0.0f;      // the level under which nothing counts as playing
 
   sustainer_detail::RealFft<kMaxFrame> fft_;
-  float window_[kMaxFrame];
+  float window_[kMaxFrame];           // Hann: synthesis, and the detector's frame
+  float analysis_window_[kMaxFrame];  // Blackman: the capture's frames
+  float comp_[kCompSteps + 1];
   float input_[kRing];
   float output_[2][kRing];
   kit::Smoother mix_;

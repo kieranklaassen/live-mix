@@ -38,7 +38,6 @@ class Octaves : public kit::DeviceBase<octaves::kNumParams> {
  public:
   void init(float sample_rate) {
     using namespace octaves;
-    kit::SineTable::init();
     init_base(sample_rate, kParamMin, kParamMax, kParamDefault);
     const float sr = this->sample_rate();
     factor_ = sr >= 60000.0f ? 4 : (sr >= 30000.0f ? 2 : 1);

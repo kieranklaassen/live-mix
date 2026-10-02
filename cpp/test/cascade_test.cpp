@@ -503,7 +503,73 @@ int main() {
     }
   }
 
-  // CASCADE-TEST-CHECKS-6
+  // Levels. The default patch on held material stays within 3 dB of the dry
+  // level; everything at its loudest with a full-scale input stays bounded.
+  {
+    std::vector<float> chord(static_cast<size_t>(8.0f * kRate), 0.0f);
+    for (size_t i = 0; i < chord.size(); ++i) {
+      const double t = i / static_cast<double>(kRate);
+      double v = 0.0;
+      for (double hz : {220.0, 277.18, 329.63}) {
+        for (int h = 1; h <= 4; ++h) v += std::sin(2.0 * kPi * hz * h * t + h) / (h * h);
+      }
+      chord[i] = static_cast<float>(0.1 * std::min(1.0, t / 0.25) * v);
+    }
+    device.init(kRate);
+    Stereo out = run(device, chord);
+    const size_t from = static_cast<size_t>(3.0f * kRate);
+    const double dry = db(rms(chord, from));
+    const double wet = db(std::sqrt(0.5 * (rms(out.left, from) * rms(out.left, from) +
+                                           rms(out.right, from) * rms(out.right, from))));
+    std::printf("level: default patch on a held chord %.1f dB against the dry %.1f dB (%+.1f dB), peak %.2f\n",
+                wet, dry, wet - dry, std::max(peak(out.left), peak(out.right)));
+    EXPECT_NEAR(wet, dry, 3.0, "default patch within 3 dB of the dry level on held material");
+
+    double worst = 0.0;
+    for (int pattern = 0; pattern < 4; ++pattern) {
+      device.init(kRate);
+      device.set_param(p::kPattern, static_cast<float>(pattern));
+      device.set_param(p::kRepeats, 16.0f);
+      device.set_param(p::kDecay, 0.0f);
+      device.set_param(p::kHigh, 1.0f);
+      device.set_param(p::kLow, 1.0f);
+      device.set_param(p::kInterval, 1.0f);
+      device.set_param(p::kTime, 100.0f);
+      device.set_param(p::kTone, 18000.0f);
+      device.set_param(p::kSpread, 1.0f);
+      device.set_param(p::kMix, 1.0f);
+      // 100 Hz at full scale: ten whole cycles a slot, so every repeat adds in phase.
+      Stereo loud = run(device, sine(100.0f, 4.0f, kRate, 1.0f));
+      worst = std::max(worst, std::max(peak(loud.left), peak(loud.right)));
+      EXPECT(finite(loud.left) && finite(loud.right), "worst case stays finite");
+    }
+    std::printf("level: sixteen repeats that never fade, every part up, a full-scale tone in step with Time, "
+                "wet only: peak %.2f over the four patterns\n", worst);
+    EXPECT(worst < 2.0, "worst case stays under +6 dBFS");
+  }
+
+  // No aliasing. A 9 kHz burst sped up x4 would land on 36 kHz and fold back
+  // to 12 kHz; the x4 loop reads a copy of the buffer that was low-passed
+  // first, so it is not there.
+  {
+    plain(device);
+    device.set_param(p::kHigh, 1.0f);
+    Stereo out = run(device, tone_burst(9000.0f, 0.3f, 3.0f));
+    const size_t from = static_cast<size_t>(0.4f * kRate), to = static_cast<size_t>(2.4f * kRate);
+    const double root = tone_level(out.left, 9000.0, kRate, from, to);
+    const double octave = tone_level(out.left, 18000.0, kRate, from, to);
+    const double folded = tone_level(out.left, 12000.0, kRate, from, to);
+    double worst = 0.0;
+    for (double hz = 500.0; hz < 8500.0; hz += 250.0) worst = std::max(worst, tone_level(out.left, hz, kRate, from, to));
+    std::printf("aliasing, 9 kHz burst: 9 kHz %.1f dB, 18 kHz (x2) %.1f dB, 12 kHz (x4 folded) %.1f dB, "
+                "strongest below 8.5 kHz %.1f dB\n",
+                db(root), db(octave), db(folded), db(worst));
+    EXPECT(root > 0.02, "the burst comes back");
+    EXPECT(folded < root * 0.001, "the x4 loop does not fold back");
+    EXPECT(worst < root * 0.003, "nothing appears below the burst");
+  }
+
+  // CASCADE-TEST-CHECKS-7
 
   device.init(kRate);
   rng_state() = 0xBEEFu;
