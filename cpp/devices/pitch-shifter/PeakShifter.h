@@ -24,6 +24,75 @@
 namespace livemix {
 namespace pitch_shifter_dsp {
 
+// The kit's radix-2 transform (same tables, same arithmetic, same result),
+// able to stop between two passes and go on later: at 4096 points one
+// transform is more work than a block of 128 frames should carry at once.
+template <int N>
+class StagedFft {
+ public:
+  void init() {
+    passes_ = 0;
+    while ((1 << passes_) < N) ++passes_;
+    for (int i = 0; i < N; ++i) {
+      int reversed = 0;
+      for (int b = 0; b < passes_; ++b) {
+        if (i & (1 << b)) reversed |= 1 << (passes_ - 1 - b);
+      }
+      reverse_[i] = reversed;
+    }
+    for (int i = 0; i < N / 2; ++i) {
+      const double angle = -2.0 * 3.14159265358979323846 * i / N;
+      cos_[i] = static_cast<float>(std::cos(angle));
+      sin_[i] = static_cast<float>(std::sin(angle));
+    }
+  }
+
+  int passes() const { return passes_; }
+
+  // Passes [from, to) of the transform; the reordering comes with pass 0.
+  // run(re, im, inverse, 0, passes()) is the whole transform, unscaled.
+  void run(float* re, float* im, bool inverse, int from, int to) const {
+    if (from == 0) {
+      for (int i = 0; i < N; ++i) {
+        const int j = reverse_[i];
+        if (j > i) {
+          const float tr = re[i];
+          re[i] = re[j];
+          re[j] = tr;
+          const float ti = im[i];
+          im[i] = im[j];
+          im[j] = ti;
+        }
+      }
+    }
+    for (int pass = from; pass < to; ++pass) {
+      const int size = 2 << pass;
+      const int half = size >> 1;
+      const int stride = N / size;
+      for (int start = 0; start < N; start += size) {
+        for (int k = 0; k < half; ++k) {
+          const float wr = cos_[k * stride];
+          const float wi = inverse ? -sin_[k * stride] : sin_[k * stride];
+          const int a = start + k;
+          const int b = a + half;
+          const float xr = re[b] * wr - im[b] * wi;
+          const float xi = re[b] * wi + im[b] * wr;
+          re[b] = re[a] - xr;
+          im[b] = im[a] - xi;
+          re[a] += xr;
+          im[a] += xi;
+        }
+      }
+    }
+  }
+
+ private:
+  int passes_ = 0;
+  int reverse_[N] = {};
+  float cos_[N / 2] = {};
+  float sin_[N / 2] = {};
+};
+
 template <int N>
 class PeakShifter {
  public:

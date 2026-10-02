@@ -285,7 +285,7 @@ class Radio : public kit::DeviceBase<radio::kNumParams> {
       {330.0f, 155.0f, 2400.0f, 5000.0f, 5500.0f, 1.0f, 0.8f, 5500.0f, true, 250.0f,
        {40.0f, 0.13f, 0.31f, 0.7f, 0.35f, 0.001f}, 6.0f, 1.0f, 0.04f, 0.3f, 1.38f},
       {350.0f, 180.0f, 2200.0f, 3200.0f, 3400.0f, 0.0f, 1.0f, 400.0f, false, 50.0f,
-       {40.0f, 0.13f, 0.31f, 0.7f, 0.35f, 0.001f}, 4.0f, 0.3f, 0.0015f, 1.4f, 1.41f},
+       {40.0f, 0.13f, 0.31f, 0.7f, 0.35f, 0.001f}, 4.0f, 0.3f, 0.003f, 1.4f, 1.41f},
   };
 
   // Move towards a target a twentieth of the way per control tick.
