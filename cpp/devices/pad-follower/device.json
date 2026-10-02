@@ -127,12 +127,12 @@
       "fall": 5,
       "sensitivity": 0.5,
       "octaves": 0.85,
-      "brightness": 6000,
+      "brightness": 7000,
       "ensemble": 0.8,
       "movement": 0.4,
-      "lowCut": 300,
+      "lowCut": 250,
       "width": 1,
-      "mix": 0.35
+      "mix": 0.45
     },
     "Low section": {
       "rise": 0.8,
@@ -166,9 +166,9 @@
       "brightness": 11000,
       "ensemble": 0.7,
       "movement": 0.6,
-      "lowCut": 400,
+      "lowCut": 350,
       "width": 1,
-      "mix": 0.4
+      "mix": 0.45
     },
     "Barely there": {
       "rise": 1.5,

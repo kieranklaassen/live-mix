@@ -54,6 +54,11 @@ struct Frogs {
     int part = 0;            // which half of a two-part croak comes next
     float pace = 0.6f;       // seconds from call to call in a bout
     float fade = 1.0f;
+    // No frog shapes its mouth the same way twice: every call draws where
+    // each formant sits and how far it moves while the call lasts.
+    kit::Rng throat;
+    float set[kFormants] = {1.0f, 1.0f, 1.0f};   // this call's formants against the body's
+    float bend[kFormants] = {0.0f, 0.0f, 0.0f};  // how far each moves from start to end
   };
 
   Frog frog[kFrogs];
@@ -67,7 +72,10 @@ struct Frogs {
   bool answering = false; // the second croaker has taken up the first one's bout
 
   void seed(uint32_t base) {
-    for (int i = 0; i < kFrogs; ++i) frog[i].rng.seed(seed_for(base + static_cast<uint32_t>(i)));
+    for (int i = 0; i < kFrogs; ++i) {
+      frog[i].rng.seed(seed_for(base + static_cast<uint32_t>(i)));
+      frog[i].throat.seed(seed_for(base + 0x1000u + static_cast<uint32_t>(i)));
+    }
     mood.seed(seed_for(base + kFrogs));
   }
 
@@ -120,9 +128,13 @@ struct Frogs {
     const int here = 1 + static_cast<int>(c.density * static_cast<float>(kFrogs - 1) + 0.5f);
     for (int i = 0; i < kFrogs; ++i) {
       Frog& f = frog[i];
-      if (f.calling && f.kind == kCroak) {
-        // The mouth opens through a croak: the first formant rises.
-        f.formant[0].tune(kBody[kCroak].hz[0] * f.size * tune * (1.0f + 0.18f * f.u), c.sample_rate);
+      if (f.calling && f.kind != kPeep) {
+        // The mouth opens through a croak: the first formant rises, and the
+        // others go their own way, by this call's amounts.
+        for (int k = 0; k < kFormants; ++k) {
+          const float hz = kBody[f.kind].hz[k] * f.size * tune * f.set[k] * (1.0f + f.bend[k] * f.u);
+          f.formant[k].eps = 2.0f * kit::SineTable::lookup(0.5f * kit::min(hz, 0.45f * c.sample_rate) / c.sample_rate);
+        }
       }
       if (f.ringing && !f.calling &&
           f.formant[0].size() + f.formant[1].size() + f.formant[2].size() < 1.0e-7f) {
@@ -216,14 +228,25 @@ struct Frogs {
         f.edge = 0.3f;
         break;
     }
-    const float speed = std::sqrt(f.size * lean);  // a bigger frog pulses slower
+    kit::Rng& throat = f.throat;
+    // A bigger frog pulses slower; and no call at quite the pace of the last,
+    // nor speeding up by quite as much.
+    const float speed = std::sqrt(f.size * lean) * std::exp2(0.11f * throat.bipolar());
+    rate_b *= std::exp2(0.09f * throat.bipolar());
     f.period_a = sr / (rate_a * speed + 1.0e-3f);
     f.period_b = sr / (rate_b * speed + 1.0e-3f);
+    static constexpr float kSet[kFormants] = {0.045f, 0.08f, 0.08f};  // octaves either way
+    f.bend[0] = f.kind == kCroak ? between(throat, 0.10f, 0.26f) : between(throat, 0.0f, 0.08f);
+    f.bend[1] = between(throat, -0.08f, 0.12f);
+    f.bend[2] = between(throat, -0.06f, 0.06f);
     for (int k = 0; k < kFormants; ++k) {
-      const float hz = body.hz[k] * f.size * tune;
-      f.formant[k].tune(hz, sr);
+      f.set[k] = std::exp2(kSet[k] * throat.bipolar());
+      const float hz = body.hz[k] * f.size * tune * f.set[k];
+      f.formant[k].tune(kit::min(hz, 0.45f * sr), sr);
       f.formant[k].decay(kit::max(body.ring[k], 1.0e-3f), sr);
-      f.gain[k] = hz < 0.45f * sr ? body.gain[k] * (k == 0 ? 1.0f : bright) : 0.0f;
+      // The upper formants are a little stronger or weaker each time too.
+      const float colour = k == 0 ? 1.0f : bright * std::exp2(0.4f * throat.bipolar());
+      f.gain[k] = hz * 1.2f < 0.45f * sr ? body.gain[k] * colour : 0.0f;
     }
     const float pitch = kit::min(body.hz[0] * f.size * tune, 0.4f * sr) / sr;
     f.inc_a = pitch * 0.95f;

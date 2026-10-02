@@ -1,8 +1,9 @@
 #pragma once
 
 // Pieces of the Radio device that are not in the kit: a ramp between control
-// ticks, Butterworth cascades, the two-path propagation model,
-// the atmospheric noise source and the interference events.
+// ticks, Butterworth cascades (and their settled state for a carrier), the
+// two-path propagation model, the atmospheric noise source and the
+// interference events.
 
 #include "../../kit/kit.h"
 
@@ -63,7 +64,8 @@ struct Cascade {
   // running for a long time; returns its (constant) output.
   float settle(float x) {
     for (kit::Biquad& s : section) {
-      const float y = x * (s.b0 + s.b1 + s.b2) / (1.0f + s.a1 + s.a2);
+      const float poles = 1.0f + s.a1 + s.a2;  // above zero for any stable section
+      const float y = poles > 1.0e-9f ? x * (s.b0 + s.b1 + s.b2) / poles : 0.0f;
       s.z1 = y - s.b0 * x;
       s.z2 = s.b2 * x - s.a2 * y;
       x = y;
@@ -87,7 +89,7 @@ inline void settle_phasor(Cascade<N>& real, Cascade<N>& imag, float step, float*
     // H(r) = (b0 + b1 r + b2 r^2) / (1 + a1 r + a2 r^2)
     const float nr = s.b0 + s.b1 * rr + s.b2 * r2r, ni = s.b1 * ri + s.b2 * r2i;
     const float dr = 1.0f + s.a1 * rr + s.a2 * r2r, di = s.a1 * ri + s.a2 * r2i;
-    const float dd = dr * dr + di * di;
+    const float dd = kit::max(dr * dr + di * di, 1.0e-18f);  // above zero for any stable section
     const float hr = (nr * dr + ni * di) / dd, hi = (ni * dr - nr * di) / dd;
     const float yr = hr * xr - hi * xi, yi = hr * xi + hi * xr;
     // The input and output one sample earlier.

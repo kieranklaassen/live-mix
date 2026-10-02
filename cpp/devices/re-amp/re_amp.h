@@ -151,6 +151,7 @@ class ReAmp : public kit::DeviceBase<re_amp::kNumParams> {
     // Each line's length drifts on its own slow sine, so the room's modes
     // move instead of standing on the same notes.
     drift_depth_ = kDriftSeconds * sr;
+    drift_glide_ = 1.0f - std::exp(-static_cast<float>(kControlPeriod) / (kDriftLagSeconds * sr));
     for (int i = 0; i < kNumLines; ++i) {
       drift_start_[i] = rng.uniform();
       drift_rate_[i] = kDriftHz[i] * static_cast<float>(kControlPeriod) / sr;
@@ -434,6 +435,9 @@ class ReAmp : public kit::DeviceBase<re_amp::kNumParams> {
   static constexpr float kInSign[kNumLines] = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
   // How far each line's length drifts either way, and how fast.
   static constexpr float kDriftSeconds = 0.0009f;
+  static constexpr float kDriftFromDistance = 0.3f;
+  static constexpr float kDriftFullDistance = 0.7f;
+  static constexpr float kDriftLagSeconds = 0.3f;
   static constexpr float kDriftHz[kNumLines] = {0.23f, 0.29f, 0.25f, 0.31f, 0.24f, 0.28f, 0.26f, 0.30f};
   static constexpr float kDampHz = 5500.0f;
   // The damping shortens what a broadband burst measures; this puts it back.
@@ -547,10 +551,11 @@ class ReAmp : public kit::DeviceBase<re_amp::kNumParams> {
     const float norm = 1.5f - 0.5f * (hum_cos_ * hum_cos_ + hum_sin_ * hum_sin_);
     hum_cos_ *= norm;
     hum_sin_ *= norm;
+    drift_amount_ += (drift_wanted() - drift_amount_) * drift_glide_;
     for (int k = 0; k < kNumLines; ++k) {
       drift_phase_[k] += drift_rate_[k];
       if (drift_phase_[k] >= 1.0f) drift_phase_[k] -= 1.0f;
-      const float target = drift_depth_ * drift_shape(drift_phase_[k]);
+      const float target = drift_depth_ * drift_amount_ * drift_shape(drift_phase_[k]);
       drift_step_[k] = (target - drift_[k]) * (1.0f / static_cast<float>(kControlPeriod));
     }
     if (approach(&bass_db_, kToneDb * param(kBass))) {
@@ -624,12 +629,23 @@ class ReAmp : public kit::DeviceBase<re_amp::kNumParams> {
     return 0.9f * (kit::SineTable::lookup(phase) - (1.0f / 9.0f) * kit::SineTable::lookup(3.0f * phase));
   }
 
+  // The drift is for the room heard from a distance, where a standing mode
+  // makes one note boom and its neighbour vanish. Near the cone the direct
+  // sound carries the note and a drifting room would only make its level
+  // wander against it, so there the lines stand still.
+  float drift_wanted() const {
+    const float pull =
+        kit::clamp((param(re_amp::kDistance) - kDriftFromDistance) / (kDriftFullDistance - kDriftFromDistance), 0.0f, 1.0f);
+    return pull * pull * (3.0f - 2.0f * pull);
+  }
+
   // The drift starts from its seeded phases at init and on every waking, so
   // the same input gives the same output after any rest.
   void restart_drift() {
+    drift_amount_ = drift_wanted();
     for (int k = 0; k < kNumLines; ++k) {
       drift_phase_[k] = drift_start_[k];
-      drift_[k] = drift_depth_ * drift_shape(drift_phase_[k]);
+      drift_[k] = drift_depth_ * drift_amount_ * drift_shape(drift_phase_[k]);
       drift_step_[k] = 0.0f;
     }
   }
@@ -695,6 +711,8 @@ class ReAmp : public kit::DeviceBase<re_amp::kNumParams> {
   float drift_start_[kNumLines] = {};
   float drift_rate_[kNumLines] = {};
   float drift_depth_ = 0.0f;
+  float drift_amount_ = 0.0f;
+  float drift_glide_ = 1.0f;
   int diffuse_samples_[2] = {1, 1};
   float glide_ = 0.05f;
   float bass_db_ = 0.0f;

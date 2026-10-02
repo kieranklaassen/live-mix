@@ -589,7 +589,7 @@ int main() {
                 "default %+.1f dB (%.1f), Storm coming %+.1f dB (%.1f), Far station %+.1f dB (%.1f)\n",
                 usual, bed_usual, storm, bed_storm, far, bed_far);
     EXPECT(usual < 0.0, "default patch: no crash is louder than the music");
-    EXPECT(storm < 7.5 && far < 7.5, "heavy static presets: the loudest crash is within about 6 dB of the music");
+    EXPECT(storm < 6.5 && far < 6.5, "heavy static presets: the loudest crash is within about 6 dB of the music");
     EXPECT(storm > bed_storm + 6.0, "Storm coming still has crashes well over its hiss");
   }
 
@@ -643,7 +643,7 @@ int main() {
     const size_t at = 9 * 48000;
     const double attack = peak(out.left, at, at + 960), body = peak(out.left, at + 960, at + 9600);
     std::printf("sideband, a note after 6 s of silence: attack peaks at %.3f, the body at %.3f\n", attack, body);
-    EXPECT(attack < 1.6 * body && attack < 0.9, "Sideband: the attack after a silence does not spike");
+    EXPECT(attack < 1.25 * body && attack < 0.9, "Sideband: the attack after a silence does not spike");
   }
 
   // Cost with everything on: full static and interference, deep fading.

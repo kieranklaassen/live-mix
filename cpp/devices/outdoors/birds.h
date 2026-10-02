@@ -381,7 +381,7 @@ struct Birds {
     // by a few cents, and a hiss sits about 25 dB under the tone.
     b.waver = between(b.air, 0.05f, 0.16f);
     b.jitter = between(b.air, 0.0015f, 0.0045f);
-    b.breath = between(b.air, 0.05f, 0.12f);
+    b.breath = between(b.air, 0.04f, 0.10f);
     if (!b.singing) ++singing;
     b.singing = true;
   }

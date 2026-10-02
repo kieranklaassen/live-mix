@@ -1229,8 +1229,9 @@ static void check_spread_work() {
   const double want_a = 440.0 * std::pow(2.0, 7.0 / 12.0), want_b = 440.0 * std::pow(2.0, -5.0 / 12.0);
   const double found_a = frequency_near(out.left, want_a, rate, a, b);
   const double found_b = frequency_near(out.right, want_b, rate, a, b);
-  const double flutter_a = flutter_db(out.left, a, b, static_cast<size_t>(0.01f * rate));
-  const double flutter_b = flutter_db(out.right, a, b, static_cast<size_t>(0.01f * rate));
+  // Windows of 100 ms: shorter ones ripple by themselves on the lower tone.
+  const double flutter_a = flutter_db(out.left, a, b, static_cast<size_t>(0.1f * rate));
+  const double flutter_b = flutter_db(out.right, a, b, static_cast<size_t>(0.1f * rate));
   const double level_a = db(rms(out.left, a, b) / rms(tone, a, b)), level_b = db(rms(out.right, a, b) / rms(tone, a, b));
   NOTE("96 kHz, two Chords voices: A %+.3f ct, flutter %.3f dB, level %+.2f dB | B %+.3f ct, flutter %.3f dB, level %+.2f dB\n",
        cents(found_a, want_a), flutter_a, level_a, cents(found_b, want_b), flutter_b, level_b);

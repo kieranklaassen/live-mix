@@ -93,17 +93,25 @@ struct Thunder {
     // White noise spreads its power to half the sample rate: keep the level
     // of what the low-passes leave the same at any rate.
     trim = kGain * std::sqrt(sr / 48000.0f);
+    // Overhead (the nearest third of Distance) the crack is brighter and
+    // over sooner: the top band opens up and falls in half the time.
+    const float close = nearness(c);
     for (int q = 0; q < kPoles; ++q) {
+      const float open = q == 0 ? 1.0f + 1.5f * close : 1.0f;
       for (int ch = 0; ch < 2; ++ch) {
-        pole[ch][q].set_cutoff(kit::min(kCorner[q] * tilt, 0.4f * sr), sr);
+        pole[ch][q].set_cutoff(kit::min(kCorner[q] * tilt * open, 0.4f * sr), sr);
       }
     }
     for (int k = 0; k < kBands; ++k) {
-      fall[k] = std::exp(-c.step_seconds / (kFall[k] * (1.0f + 0.6f * c.distance)));
+      const float quick = k == 0 ? 1.0f - 0.5f * close : 1.0f;
+      fall[k] = std::exp(-c.step_seconds / (kFall[k] * quick * (1.0f + 0.6f * c.distance)));
       // From far off nothing arrives with an edge.
       rise[k] = 1.0f - std::exp(-c.step_seconds / (kRise[k] * (1.0f + 9.0f * c.distance)));
     }
   }
+
+  // 1 with the storm overhead, 0 from Distance 0.3 outwards.
+  static float nearness(const Controls& c) { return kit::max(0.0f, 1.0f - c.distance / 0.3f); }
 
   void control(const Controls& c) {
     const float dt = c.step_seconds;
@@ -152,7 +160,9 @@ struct Thunder {
     // Strokes differ more the more the storm moves and the further off it is.
     const float unlike = kit::min(0.85f, 0.25f + 0.45f * c.movement + 0.25f * c.distance);
     size = 1.0f - unlike * rng.uniform();
-    length = between(rng, 2.5f, 5.0f) * (1.0f + 1.2f * c.distance);
+    // (Overhead, the whole length of the channel is heard: the rumble after
+    // the crack goes on for longer than from the middle distance.)
+    length = between(rng, 2.5f, 5.0f) * (1.0f + 1.2f * c.distance) * (1.0f + 0.6f * nearness(c));
     place = 0.8f * c.movement * rng.bipolar();
     lobe = 1.0f;
   }
@@ -169,7 +179,9 @@ struct Thunder {
     const float amount = size * lobe * (0.3f + 0.7f * draw * draw) * onset;
     const float clear = (1.0f - c.distance) * std::sqrt(1.0f - c.distance);
     const float bright = clear * std::exp(-3.0f * age);
-    const float crack = 0.6f * amount * bright * bright;
+    // Overhead the edge is in the first tenth of a second; what follows is mostly body.
+    const float close = nearness(c);
+    const float crack = 0.6f * amount * bright * bright * (1.0f - 0.75f * close * (1.0f - std::exp(-t / 0.15f)));
     const float weight[kBands] = {crack, amount * (0.2f + 0.8f * bright), amount,
                                   amount * (1.0f - 0.3f * bright)};
     float pan_left, pan_right;
@@ -182,8 +194,7 @@ struct Thunder {
     }
     if (next == 0.0f) {
       // Only a near stroke cracks, and only at its very start.
-      const float close = kit::max(0.0f, 1.0f - c.distance / 0.3f);
-      const float snap = kCrack * size * close * close;
+      const float snap = kCrack * size * close * close * (1.0f + 0.8f * close);
       kick[0][0] += snap * pan_left;
       kick[1][0] += snap * pan_right;
     }

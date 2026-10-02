@@ -78,7 +78,6 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     drift_.set_rate(kWobbleHz, sr);
     rng_.seed(0xA341316Cu);
     fast_.set(0.0005f, 0.04f, sr);
-    alike_coeff_ = 1.0f - kit::time_to_coeff(kAlikeSeconds, sr / kControlPeriod);
     slow_.set(0.08f, 0.4f, sr);
     write_phase_ = 0.0f;
     mix_seen_ = -1.0f;
@@ -347,13 +346,11 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
   // the measured correlation r of the two sides the power of the sum is
   // 1 + r sin(2 angle), so dividing it out keeps the level through the join
   // for anything in between. Sides in opposite phase still dip: no pair of
-  // gains can save what cancels, and r is not followed below kMinAlike.
-  // r was measured for one pass offset (the playhead's); a read at another
-  // (a grain, while Drift moves the offset) gets equal power.
-  static void join_gains(const Deck& d, float w, double offset, float* out_gain, float* in_gain) {
+  // gains can save what cancels, and r is not followed below kMinAlike;
+  // which is why the join is first lined up where its sides agree (Search).
+  static void join_gains(float alike, float w, float* out_gain, float* in_gain) {
     const float fall = kit::SineTable::cos_lookup(0.25f * w);
     const float rise = kit::SineTable::lookup(0.25f * w);
-    const float alike = offset == d.probe_offset ? d.alike : 0.0f;
     const float level = 1.0f / std::sqrt(1.0f + 2.0f * alike * fall * rise);
     *out_gain = fall * level;
     *in_gain = rise * level;
@@ -362,14 +359,15 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
   // The loop as a seamless thing: `q` frames after its start, and over the
   // last `join` frames a fade (join_gains) into the tape just before the
   // start (shifted by `offset`), which runs straight on into the next pass.
-  void loop_read(const Deck& d, double q, double offset, float* left, float* right) const {
+  // `alike` is the correlation of the two sides at that offset.
+  void loop_read(const Deck& d, double q, double offset, float alike, float* left, float* right) const {
     source_read(d, d.start + q, left, right);
     const double into = q - (d.length - d.join);
     if (into <= 0.0) return;
     float next[2];
     source_read(d, d.start + q - d.length + offset, &next[0], &next[1]);
     float out_gain, in_gain;
-    join_gains(d, kit::min(1.0f, static_cast<float>(into / d.join)), offset, &out_gain, &in_gain);
+    join_gains(alike, kit::min(1.0f, static_cast<float>(into / d.join)), &out_gain, &in_gain);
     *left = *left * out_gain + next[0] * in_gain;
     *right = *right * out_gain + next[1] * in_gain;
   }
@@ -387,46 +385,189 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     return left + right;
   }
 
-  float loop_sum(const Deck& d, double q, double offset) const {
+  float loop_sum(const Deck& d, double q, double offset, float alike) const {
     const float sum = source_sum(d, d.start + q);
     const double into = q - (d.length - d.join);
     if (into <= 0.0) return sum;
     const float next = source_sum(d, d.start + q - d.length + offset);
     float out_gain, in_gain;
-    join_gains(d, kit::min(1.0f, static_cast<float>(into / d.join)), offset, &out_gain, &in_gain);
+    join_gains(alike, kit::min(1.0f, static_cast<float>(into / d.join)), &out_gain, &in_gain);
     return sum * out_gain + next * in_gain;
   }
 
-  // Start measuring how alike the two sides of the join are, for the pass
-  // offset the deck has now.
-  static void start_probe(Deck& d) {
-    d.probe_at = 0;
-    d.probe_frames = static_cast<long>(d.join);
-    d.probe_offset = d.offset;
-    d.probe_xy = 0.0f;
-    d.probe_xx = 0.0f;
-    d.probe_yy = 0.0f;
+  // Lining a join up. A held note that meets itself out of phase at the
+  // loop point cancels there once a pass, whatever the fade's gains, so the
+  // tape that fades in is taken from where it agrees with the tape that
+  // fades out: the offset within +-`half` frames of the one asked for at
+  // which the two are most alike (normalised correlation of the channel
+  // sum over the join). The work is spread over control ticks: the tape is
+  // copied out a few frames at a time, then one place is tried per tick on
+  // points `step` frames apart (staggered, so a tone cannot hide between
+  // them), then every frame around the best. One search runs at a time.
+  struct Search {
+    enum Stage : int { kCopyIn = 0, kCopyOut, kCoarse, kFine };
+    int deck = -1;           // the deck it works for, -1 when idle
+    int stage = kCopyIn;
+    double target = 0.0;     // the offset asked for
+    long whole = 0;          // ... as whole frames
+    long step = 1;
+    long hop = 0;            // stagger of the points within a step
+    long half = 0;
+    long points = 0;
+    long in_count = 0;
+    double in_from = 0.0;    // tape position of search_in_[0]
+    double out_from = 0.0;   // tape position of the join's first frame
+    long at = 0;             // progress of a copy
+    long lag = 0, lag_end = 0, lag_step = 1;
+    float out_power = 0.0f;
+    float best = -4.0f;      // best score: correlation less the cost of the nudge
+    float best_alike = 0.0f;
+    long best_lag = 0;
+    float centre_alike = 0.0f;
+  };
+
+  float tape_sum(const Deck& d, double position) const {
+    return d.stored ? store_.read_sum(position) : ring_.read_sum(position);
   }
 
-  // A few more frames of that measurement (control rate): the loop's last
-  // `join` frames against the tape that fades in over them.
-  void probe(Deck& d) const {
-    const double out_from = d.start + d.length - d.join;
-    const double in_from = d.start - d.join + d.probe_offset;
-    long to = d.probe_at + kProbeFrames;
-    if (to > d.probe_frames) to = d.probe_frames;
-    for (long k = d.probe_at; k < to; ++k) {
-      const double at = static_cast<double>(k);
-      const float a = d.stored ? store_.read_sum(out_from + at) : ring_.read_sum(out_from + at);
-      const float b = d.stored ? store_.read_sum(in_from + at) : ring_.read_sum(in_from + at);
-      d.probe_xy += a * b;
-      d.probe_xx += a * a;
-      d.probe_yy += b * b;
+  void start_search(int index) {
+    static constexpr long kHops[9] = {0, 0, 1, 2, 3, 2, 5, 3, 5};
+    const Deck& d = decks_[index];
+    Search& s = search_;
+    s = Search();
+    s.deck = index;
+    s.target = d.target;
+    s.whole = static_cast<long>(d.target + 0.5);
+    const long join = static_cast<long>(d.join);
+    s.step = kit::clamp_int(static_cast<int>(d.rate / kAlignRateHz + 0.5f), 1, 8);
+    s.hop = kHops[s.step];
+    s.points = join / s.step;
+    if (s.points > kSearchOut) s.points = kSearchOut;
+    if (s.points < 1) s.points = 1;
+    const double window = kit::min(kAlignSeconds * d.rate, kAlignShare * static_cast<float>(d.length));
+    s.half = (static_cast<long>(window) / s.step) * s.step;
+    const long room = (kSearchIn - s.step * s.points) / 2;
+    if (s.half > room) s.half = room > 0 ? (room / s.step) * s.step : 0;
+    s.in_count = 2 * s.half + s.step * s.points;
+    s.out_from = d.start + d.length - static_cast<double>(join);
+    s.in_from = d.start - static_cast<double>(join) + static_cast<double>(s.whole - s.half);
+  }
+
+  // The correlation of the join's two sides with the incoming one `lag`
+  // frames from the offset asked for.
+  void try_lag(Search& s, long lag) const {
+    const float* in = search_in_ + (lag + s.half);
+    float xy = 0.0f, yy = 0.0f;
+    long stagger = 0;
+    for (long k = 0; k < s.points; ++k) {
+      const float y = in[s.step * k + stagger];
+      xy += search_out_[k] * y;
+      yy += y * y;
+      stagger += s.hop;
+      if (stagger >= s.step) stagger -= s.step;
     }
-    d.probe_at = to;
-    if (to < d.probe_frames) return;
-    const float power = d.probe_xx * d.probe_yy;
-    d.alike_aim = power > 1.0e-18f ? kit::clamp(d.probe_xy / std::sqrt(power), kMinAlike, 1.0f) : 0.0f;
+    const float power = s.out_power * yy;
+    const float alike = power > 1.0e-18f ? xy / std::sqrt(power) : 0.0f;
+    if (lag == 0) s.centre_alike = alike;
+    const float away = static_cast<float>(lag < 0 ? -lag : lag);
+    const float score = alike - (s.half > 0 ? kNudgeCost * away / static_cast<float>(s.half) : 0.0f);
+    if (score > s.best) {
+      s.best = score;
+      s.best_alike = alike;
+      s.best_lag = lag;
+    }
+  }
+
+  // One control tick of the search for deck `d`.
+  void search_step(Deck& d) {
+    Search& s = search_;
+    if (s.stage == Search::kCopyIn) {
+      long to = s.at + kSearchCopy;
+      if (to > s.in_count) to = s.in_count;
+      for (long n = s.at; n < to; ++n) search_in_[n] = tape_sum(d, s.in_from + static_cast<double>(n));
+      s.at = to;
+      if (to == s.in_count) {
+        s.stage = Search::kCopyOut;
+        s.at = 0;
+      }
+      return;
+    }
+    if (s.stage == Search::kCopyOut) {
+      long to = s.at + kSearchCopy;
+      if (to > s.points) to = s.points;
+      for (long k = s.at; k < to; ++k) {
+        const long frame = s.step * k + (s.hop * k) % s.step;
+        const float x = tape_sum(d, s.out_from + static_cast<double>(frame));
+        search_out_[k] = x;
+        s.out_power += x * x;
+      }
+      s.at = to;
+      if (to == s.points) {
+        s.stage = Search::kCoarse;
+        s.lag = -s.half;
+        s.lag_end = s.half;
+        s.lag_step = s.step;
+      }
+      return;
+    }
+    for (long budget = kSearchWork; budget > 0 && s.lag <= s.lag_end; budget -= s.points) {
+      try_lag(s, s.lag);
+      s.lag += s.lag_step;
+    }
+    if (s.lag <= s.lag_end) return;
+    if (s.stage == Search::kCoarse && s.step > 1) {
+      s.stage = Search::kFine;
+      s.lag = s.best_lag - (s.step - 1) < -s.half ? -s.half : s.best_lag - (s.step - 1);
+      s.lag_end = s.best_lag + (s.step - 1) > s.half ? s.half : s.best_lag + (s.step - 1);
+      s.lag_step = 1;
+      return;
+    }
+    // Take the best place when it is a real likeness and better than the
+    // place asked for; otherwise the join stays where it was asked for.
+    const bool worth = s.best_alike >= kAlignFloor && s.best_alike > s.centre_alike + 0.02f;
+    d.found_offset = static_cast<double>(s.whole + (worth ? s.best_lag : 0));
+    d.found_alike = kit::clamp(worth ? s.best_alike : s.centre_alike, kMinAlike, 1.0f);
+    d.found = true;
+    d.searching = false;
+    s.deck = -1;
+  }
+
+  // Who the search works for (control rate): the deck it has, while that
+  // still wants what was asked; otherwise the next deck that is waiting.
+  void serve_search() {
+    if (search_.deck >= 0) {
+      Deck& d = decks_[search_.deck];
+      if (d.active && !d.releasing && d.searching && d.target == search_.target) {
+        search_step(d);
+        return;
+      }
+      search_.deck = -1;
+    }
+    for (int index = 0; index < 2; ++index) {
+      const Deck& d = decks_[index];
+      if (d.active && !d.releasing && d.searching) {
+        start_search(index);
+        return;
+      }
+    }
+  }
+
+  // Move a deck's join to where the search put it, once the playhead and
+  // the side reads either side of it are clear of both ends of the loop.
+  // The grains' join is set by the first result and stays there, since a
+  // grain may be reading across it at any time afterwards.
+  void take_found(Deck& d) {
+    const double reach = kSideSeconds * d.rate + 4.0;
+    const double low = (d.found_offset > d.offset ? d.found_offset : d.offset) + reach;
+    if (d.place <= low || d.place >= d.length - d.join - reach) return;
+    d.offset = d.found_offset;
+    d.alike = d.found_alike;
+    d.found = false;
+    if (!d.aligned) {
+      d.aligned = true;
+      d.grain_offset = d.offset;
+      d.grain_alike = d.alike;
+    }
   }
 
   // Loop bounds from Length: the most recent `Length` seconds of the capture.
@@ -491,9 +632,12 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     d.gain_step = 0.0f;
     d.blur = 0.0f;
     d.alike = 0.0f;
-    d.alike_step = 0.0f;
-    d.alike_aim = 0.0f;
-    start_probe(d);
+    d.target = 0.0;
+    d.searching = true;
+    d.found = false;
+    d.aligned = false;
+    d.grain_offset = 0.0;
+    d.grain_alike = 0.0f;
     d.active = true;
     d.releasing = false;
     d.env = 0.0f;
@@ -618,11 +762,11 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
   // One sample of a deck into `wet`, then move its playhead by `step` frames.
   void play(Deck& d, double step, bool wide, float* wet, float* side) {
     float loop[2];
-    loop_read(d, d.place, d.offset, &loop[0], &loop[1]);
+    loop_read(d, d.place, d.offset, d.alike, &loop[0], &loop[1]);
     float gain = d.gain;
     if (d.env < 1.0f) gain *= d.linear ? d.env : kit::SineTable::lookup(0.25f * d.env);
     // Smear: grains from around the playhead, moving at the loop's speed.
-    if (grain_gain_ > 0.0f && !d.releasing) {
+    if (grain_gain_ > 0.0f && !d.releasing && d.aligned) {
       d.until_grain -= 1.0f;
       if (d.until_grain <= 0.0f) {
         d.until_grain += grain_interval_ * (0.5f + rng_.uniform());
@@ -644,7 +788,8 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
       if (ahead >= d.length) ahead -= span;
       double behind = d.place - reach;
       if (behind < d.offset) behind += span;
-      *side += 0.5f * gain * (loop_sum(d, ahead, d.offset) - loop_sum(d, behind, d.offset));
+      *side += 0.5f * gain *
+               (loop_sum(d, ahead, d.offset, d.alike) - loop_sum(d, behind, d.offset, d.alike));
     }
 
     const double half = 0.5 * d.length;
@@ -657,13 +802,16 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     } else if (low != (d.place < half)) {
       // Mid-loop, away from both ends: choose where the next pass starts.
       const double most = kit::min(0.03f * static_cast<float>(d.length), kMaxOffsetSeconds * d.rate);
-      const double before = d.offset;
-      d.offset = param(micro_looper::kDrift) * rng_.uniform() * most;
-      if (d.offset != before) start_probe(d);
+      // The offset itself follows once the join has been lined up near it.
+      const double target = param(micro_looper::kDrift) * rng_.uniform() * most;
+      if (target != d.target) {
+        d.target = target;
+        d.searching = true;
+        d.found = false;
+      }
     }
     d.turns += (step < 0.0 ? -step : step) / d.length;
     d.gain += d.gain_step;
-    d.alike += d.alike_step;
     d.env += d.env_step;
     if (d.env >= 1.0f) {
       d.env = 1.0f;
@@ -749,6 +897,7 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     wobble_.aim(param(kDrift) * kWobbleDepth * drift_.next(kControlPeriod), !moving_);
     moving_ = true;
     keep();
+    serve_search();
 
     const float speed = step < 0.0f ? -step : step;
     const float fade = kit::max(param(kFade), kMinFade);
@@ -760,15 +909,12 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
         target *= std::exp(std::log(fade) * speed * kControlPeriod / static_cast<float>(d.length));
       }
       d.gain_step = (target - d.gain) * (1.0f / kControlPeriod);
-      if (d.probe_at < d.probe_frames) probe(d);
-      const float apart = d.alike_aim - d.alike;
-      const float closer = (apart > -1.0e-4f && apart < 1.0e-4f) ? apart : apart * alike_coeff_;
-      d.alike_step = closer * (1.0f / kControlPeriod);
+      if (d.found) take_found(d);
       if (d.gain < kGoneGain && !d.releasing) retire(d, kGoneSeconds);
       // Never read tape the record head is about to reach (the copy into
       // the store finishes long before; this is the safety net).
       d.stored = store_ready_ && store_tag_ == d.end;
-      const double oldest = d.start - d.join - 8.0;
+      const double oldest = d.start - d.join - kAlignSeconds * d.rate - 8.0;
       if (!d.stored && !d.releasing &&
           static_cast<double>(ring_.written()) - oldest > kRingFrames - 8192) {
         retire(d, 0.02f);
@@ -793,6 +939,7 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
   void restart() {
     ring_.forget();
     for (Deck& d : decks_) d = Deck();
+    search_ = Search();
     current_ = 0;
     // Nothing to take yet: Hold and Auto both wait for the first phrase.
     state_seen_ = state_;
@@ -912,7 +1059,9 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
   float width_seen_ = -1.0f, centre_gain_ = 1.0f;
   float smear_seen_ = -1.0f, plain_gain_ = 1.0f, grain_gain_ = 0.0f, grain_interval_ = 1200.0f;
   float grain_overlap_ = 3.0f, grain_level_ = 1.0f;
-  float alike_coeff_ = 0.04f;
+  Search search_;
+  float search_in_[kSearchIn] = {};
+  float search_out_[kSearchOut] = {};
   kit::ControlClock control_;
   float history_[2][4] = {};
   float write_phase_ = 0.0f;

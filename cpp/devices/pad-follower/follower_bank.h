@@ -3,8 +3,9 @@
 // The voice of Pad Follower: a bank of narrow complex band-pass channels,
 // each steering one sine oscillator.
 //
-//   x ─► [complex resonator ×2] ─► z_b ─┬─► |z_b| ─► gate ─► slow follower ─► level_b
-//                                       ├─► phase step per tick ─► frequency_b
+//   x ─► [complex resonator ×2] ─► z_b ─┬─► |z_b| ─► share, gate ─► slow follower ─► level_b
+//                                       ├─► phase step per tick ─► detune_b (held when
+//                                       │                           the partial stops)
 //                                       └─► phase ─► lock ─┐
 //                                                          ▼
 //        pad = Σ level_b · ( cos φ_b  +  up · cos 2φ_b  +  down · cos φ_b/2 )
@@ -12,20 +13,32 @@
 // - Analysis. Channel b is two cascaded one-pole filters with a complex pole
 //   at its centre frequency, so its output z_b is already analytic: |z_b| is
 //   the envelope and arg z_b the phase of whatever partial sits in the band.
-//   Centres follow an auditory-style map (roughly a semitone apart in the
-//   middle of the range, wider in Hz terms at the bottom).
-// - Level. The pad's level in a band is |z_b| through a soft gate
-//   (Sensitivity), a spectral peak pick (bands that only hear their
-//   neighbours' leakage stay silent) and a slow follower: two poles on the
-//   way up (Rise, an S-shaped swell) and one on the way down (Fall).
-// - Pitch. The oscillator of a band turns at the band's measured frequency:
-//   the phase z_b advanced between two control ticks, averaged without power
-//   weighting so a band holding two partials settles on the stronger one.
-//   While the input is present the oscillator is also pulled into phase with
-//   z_b (a first-order lock), so neighbouring bands that hear the same
-//   partial add coherently. When the input stops, tracking stops with it and
-//   the oscillator keeps the pitch it had: the pad hangs on in tune instead
-//   of sliding to the band centre as a ringing filter would.
+//   Centres follow an auditory-style map (about a semitone apart in the
+//   middle of the range, wider in pitch at the bottom).
+// - Pitch. How far the phase of z_b turns between two control ticks, less
+//   what the centre frequency would turn, is the detune of the partial from
+//   the centre. The readings are averaged as angles, without weighting by
+//   power, so a band holding two partials settles on the stronger one. The
+//   band's oscillator turns at centre + detune and, while the partial is
+//   present, is pulled into phase with it (a first-order lock), so two bands
+//   that hear the same partial sound it in phase.
+// - Whose partial. A partial lies between two band centres and is heard by
+//   more bands than that. Each band knows where it is (the detune) and so
+//   how much its own filter has attenuated and turned it; it undoes both and
+//   takes a share that falls linearly from one at its centre to nothing one
+//   band away. The shares of the two nearest bands add to one: every partial
+//   comes out once, at its own level, whichever bands it fell between.
+// - Level. That share of the partial's amplitude, through a soft gate
+//   (Sensitivity), then a slow follower: two poles on the way up (Rise, an
+//   S-shaped swell) and one on the way down (Fall).
+// - Holding. A resonator rings on at its own centre once the input stops, so
+//   readings taken then are wrong. The oscillator therefore follows the
+//   reading as it stood a moment ago (longer than it takes to notice that the
+//   partial has gone) and stops following when it has: the pad hangs on at
+//   the played pitch.
+// - Not a voice: a band that hears two partials about equally (its reading
+//   swings wildly), noise (the same), or only a far-off neighbour (its first
+//   stage is much louder than its second).
 // - Octaves. The band's oscillator is a unit phasor u, so the octave above
 //   is Re(u²) exactly, and the octave below is a second phasor turned at half
 //   the rate. No pitch detection and no division by a small envelope.
@@ -192,11 +205,10 @@ class FollowerBank {
   }
 
  private:
-  // The resonators, in three tiers. Nothing below a quarter of the rate can
-  // be in a band under an eighth of it, so the lower bands are fed a
-  // half-band-filtered copy of the input at half or a quarter of the rate
-  // and run only when it has a new sample: about a third of the work for
-  // the same bands. The copies arrive late by the filters' delay (32 and 96
+  // The resonators, in three tiers. A band far below the Nyquist frequency
+  // does not need every sample, so the lower bands are fed a half-band
+  // filtered copy of the input at half or a quarter of the rate and run only
+  // when it has a new sample: about a third of the work for the same bands. The copies arrive late by the filters' delay (32 and 96
   // samples), so the faster tiers wait for them and every band hears the
   // same instant; the oscillators of neighbouring bands in different tiers
   // then lock to the same phase.
@@ -478,25 +490,29 @@ class FollowerBank {
   static constexpr float kMapOffsetHz = 60.0f;
   // Per-stage -3 dB width of a resonator as a multiple of the band spacing.
   static constexpr float kBandwidthFactor = 1.55f;
+  // The lock's pull-in range as a share of the band spacing.
   static constexpr float kLockFactor = 0.3f;
+  // Smoothing of the band level before anything is judged by it.
   static constexpr float kFastSeconds = 0.008f;
+  // Glide of the Octaves control, and of the oscillator towards a new detune.
   static constexpr float kOctaveSeconds = 0.06f;
+  static constexpr float kCommitSeconds = 0.025f;
+  // How fast a band gains and loses its voice as it starts or stops following.
   static constexpr float kTrustRiseSeconds = 0.012f;
   static constexpr float kTrustFallSeconds = 0.06f;
   // A partial counts as gone once its band has fallen to this share of its
   // recent peak (a peak that itself decays with kPeakSeconds).
   static constexpr float kGoneRatio = 0.3f;
   static constexpr float kPeakSeconds = 0.15f;
-  // Mean swing of the reading, in band spacings: a full voice up to the
-  // first, none from the second.
   // |s1|²/|s2|² (normalised): a full voice up to the first, none from the second.
   static constexpr float kFarFull = 3.2f;
   static constexpr float kFarMute = 4.8f;
+  // Mean swing of the reading, in band spacings: a full voice up to the
+  // first, none from the second.
   static constexpr float kJitterFull = 0.6f;
   static constexpr float kJitterMute = 1.1f;
   // The second section at full Octaves, against the unshifted pad.
   static constexpr float kOctaveLevel = 0.9f;
-  static constexpr float kCommitSeconds = 0.025f;
 
   // The kit's half-band filter is flat to 0.42 of its output rate.
   static constexpr float kHalfbandFlat = 0.42f;
@@ -539,7 +555,8 @@ class FollowerBank {
   float last_r_[kBands] = {}, last_i_[kBands] = {};
   float mag_[kBands] = {}, level_[kBands] = {};
   float env1_[kBands] = {}, env2_[kBands] = {};
-  float estimate_[kBands] = {}, average_[kBands] = {}, dev_[kBands] = {}, trust_[kBands] = {}, peak_[kBands] = {};
+  float estimate_[kBands] = {}, average_[kBands] = {}, dev_[kBands] = {};
+  float trust_[kBands] = {}, peak_[kBands] = {};
   float kept_[kBands] = {}, kept_older_[kBands] = {}, jitter_[kBands] = {}, first_[kBands] = {};
   int age_[kBands] = {}, doubt_[kBands] = {};
 };

@@ -385,10 +385,12 @@ int main() {
     EXPECT(longest[1] - shortest[1] > 0.03, "Jitter 0.4 varies the cycles");
   }
 
-  // Spread holds the right side's cycles behind the left's: a quarter of a
-  // cycle at 1, together at 0. Below 200 Hz both sides play the same head.
+  // Spread brings in a second set of heads on the right whose cycles run a
+  // quarter of a cycle behind the left's: all of the right side at 1, none
+  // of it at 0, when both sides are the same. Below 200 Hz both sides play
+  // the same head.
   {
-    for (float spread : {0.0f, 0.5f, 1.0f}) {
+    for (float spread : {0.0f, 1.0f}) {
       plain(device);
       device.set_param(p::kLength, 400.0f);
       device.set_param(p::kSmooth, 0.0f);
@@ -404,7 +406,7 @@ int main() {
       while (k + 1 < right.size() && right[k] + 480 < left[2]) ++k;
       const double behind = (static_cast<double>(right[k]) - static_cast<double>(left[2])) / kRate;
       std::printf("  spread %.1f: right side jumps %.3f s after the left\n", spread, behind);
-      EXPECT_NEAR(behind, 0.1 * spread, 0.008, "Spread sets how far the right side trails");
+      EXPECT_NEAR(behind, 0.1 * spread, 0.008, "Spread 1: the right side trails by a quarter of a cycle");
       if (spread == 0.0f) {
         double apart = 0.0;
         for (size_t i = 0; i < out.size(); ++i) {
@@ -608,6 +610,56 @@ int main() {
     }
     std::printf("  default patch: held chord level stays within %.2f dB\n", hi - lo);
     EXPECT(hi - lo < 3.0, "defaults: a held chord does not pump");
+  }
+
+  // Spread is a knob, not a switch: along its travel the two sides of a
+  // played phrase grow apart step by step (plucked notes and a held chord,
+  // correlation of left and right), the right side keeps its level, and
+  // turning it while a chord is held does not click.
+  {
+    const std::vector<float> in = phrase();
+    const size_t pa = 0, pb = 4 * 48000, ca = 5 * 48000, cb = 9 * 48000;
+    double plucks[5], chord[5], level[5][2];
+    for (int k = 0; k < 5; ++k) {
+      device.init(kRate);
+      device.set_param(p::kSpread, 0.25f * static_cast<float>(k));
+      Stereo out = run(device, in);
+      plucks[k] = correlation(out.left, out.right, pa, pb);
+      chord[k] = correlation(out.left, out.right, ca, cb);
+      level[k][0] = db(rms(out.right, pa, pb));
+      level[k][1] = db(rms(out.right, ca, cb));
+    }
+    std::printf("  Spread 0, 0.25, 0.5, 0.75, 1: correlation on plucks %.2f %.2f %.2f %.2f %.2f, on a chord "
+                "%.2f %.2f %.2f %.2f %.2f\n",
+                plucks[0], plucks[1], plucks[2], plucks[3], plucks[4], chord[0], chord[1], chord[2],
+                chord[3], chord[4]);
+    double drift = 0.0;
+    for (int k = 1; k < 5; ++k) {
+      EXPECT(plucks[k] < plucks[k - 1] - 0.02, "Spread: every quarter turn widens plucked notes");
+      EXPECT(chord[k] < chord[k - 1] - 0.005, "Spread: every quarter turn widens a held chord");
+      EXPECT(plucks[k - 1] - plucks[k] < 0.5 * (plucks[0] - plucks[4]), "Spread: no step is half the travel");
+      drift = std::max(drift, std::fabs(level[k][0] - level[0][0]));
+      drift = std::max(drift, std::fabs(level[k][1] - level[0][1]));
+    }
+    std::printf("  Spread: the right side's level moves %.2f dB along the knob\n", drift);
+    EXPECT(plucks[0] > 0.9999 && chord[0] > 0.9999, "Spread 0: both sides the same");
+    EXPECT(plucks[4] < 0.85, "Spread 1: plucked notes are wide");
+    EXPECT(drift < 0.5, "Spread: the right side keeps its level along the knob");
+
+    const std::vector<float> held = held_chord(196.0);
+    double step[2];
+    for (int moving = 0; moving < 2; ++moving) {
+      device.init(kRate);
+      Stereo out;
+      for (size_t at = 0; at + 4800 <= held.size(); at += 4800) {
+        const double turn = 0.5 - 0.5 * std::cos(2.0 * kPi * static_cast<double>(at) / 48000.0 / 0.9);
+        if (moving) device.set_param(p::kSpread, at % 19200 == 0 ? (at % 38400 == 0 ? 0.0f : 1.0f) : static_cast<float>(turn));
+        out = concat(out, run(device, std::vector<float>(held.begin() + at, held.begin() + at + 4800)));
+      }
+      step[moving] = std::max(max_step(out.left, 4800), max_step(out.right, 4800));
+    }
+    std::printf("  Spread swept and jumped on a held chord: largest step %.4f (still %.4f)\n", step[1], step[0]);
+    EXPECT(step[1] < step[0] * 1.15, "moving Spread on a held chord does not click");
   }
 
   // Held chords at Smooth 0.5 and 1 with the sides apart (Spread): the left

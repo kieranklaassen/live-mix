@@ -163,6 +163,9 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     float left[2] = {0.0f, 0.0f}, right[2] = {0.0f, 0.0f};
     float absorb = 1.0f;      // what the string keeps under a new blow
     int absorb_left = 0;      // samples of that still to pass
+    float absorb_now = 1.0f;  // what it keeps at this moment: eases to `absorb` and back to all
+    float absorb_slew = 0.0f; // how far that moves every four samples
+    int absorb_pos = 0;       // samples since the blow asked for it
     int roll_turn = 0;
     bool sounding = false, two = false, fading = false, pending = false;
   };
@@ -198,6 +201,9 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     voice.fade = 1.0f;
     voice.absorb = 1.0f;
     voice.absorb_left = 0;
+    voice.absorb_now = 1.0f;
+    voice.absorb_slew = 0.0f;
+    voice.absorb_pos = 0;
     voice.roll_turn = 0;
     voice.left[0] = voice.left[1] = voice.right[0] = voice.right[1] = 0.0f;
     voice.sounding = voice.two = voice.fading = voice.pending = false;
@@ -488,6 +494,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     voice.fading = voice.pending = false;
     voice.fade = 1.0f;
     voice.absorb_left = 0;
+    voice.absorb_now = 1.0f;
     voice.roll_turn = 0;
     voice.follow = 1.0f;
     voice.chunk_peak = 0.0f;
@@ -535,6 +542,20 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     }
   }
 
+  // The string gives way to a blow over a millisecond or two and comes back
+  // as gradually: were what comes round cut down from one sample to the
+  // next, the cut would stay on the string as an edge, a tick with every
+  // stroke. The share kept moves in steps of four samples, counted from the
+  // blow, so the result does not depend on how the host cuts its blocks.
+  static constexpr float kAbsorbRampSeconds = 0.0015f;
+  void begin_absorb(Voice& voice, float keep, float samples) {
+    voice.absorb = keep;
+    voice.absorb_left = static_cast<int>(samples + 0.5f);
+    const float ramp = kit::clamp(kAbsorbRampSeconds * sample_rate(), 4.0f, kit::max(4.0f, samples));
+    voice.absorb_slew = kit::max(1.0f - keep, 0.05f) * 4.0f / ramp;
+    voice.absorb_pos = 0;
+  }
+
   // A blow on a string that is already moving.
   // - A key struck again (the hammer): the string keeps part of what it had
   //   for the period the blow takes to go round, and the blow lands on that.
@@ -550,8 +571,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     const float period = sample_rate() / voice.hz;
     if (!blow.soft) {
       voice.follow = kit::max(voice.follow, 0.1f);
-      voice.absorb = kKeepHammer;
-      voice.absorb_left = static_cast<int>(period + 0.5f);
+      begin_absorb(voice, kKeepHammer, period);
       set_strike(voice, blow, 0.0f);
       return;
     }
@@ -571,8 +591,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     // stroke and a bit, more the further it is above that.
     const float keep = kit::clamp(kRollCeiling * added / (before + added), kRollLeastKept, 1.0f);
     const float turns = kit::max(2.0f, std::ceil(kRollSettleSeconds * voice.hz));
-    voice.absorb = std::pow(keep, 1.0f / turns);
-    voice.absorb_left = static_cast<int>(wait + turns * period + 0.5f);
+    begin_absorb(voice, std::pow(keep, 1.0f / turns), wait + turns * period);
     voice.follow = kit::max(voice.follow, added);
   }
 
@@ -689,17 +708,34 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
       for (int i = 0; i < n && strike.active; ++i) in[i] += strike.next();
     }
     // Under a new blow the moving string keeps only part of itself: scale
-    // what comes round while that lasts.
-    const int kept = kit::clamp_int(voice.absorb_left, 0, n);
-    voice.absorb_left -= kept;
+    // what comes round while that lasts, easing in and out (begin_absorb).
     float a[kChunk], b[kChunk];
     const float* drive = struck ? in : nullptr;
-    if (kept > 0) voice.strings[0].run(drive, 1.0f, voice.absorb, a, kept);
-    if (kept < n) voice.strings[0].run(drive ? drive + kept : nullptr, 1.0f, 1.0f, a + kept, n - kept);
-    if (voice.two) {
-      if (kept > 0) voice.strings[1].run(drive, voice.second, voice.absorb, b, kept);
-      if (kept < n) voice.strings[1].run(drive ? drive + kept : nullptr, voice.second, 1.0f, b + kept, n - kept);
-    } else {
+    int at = 0;
+    while (at < n) {
+      int span = n - at;
+      float keep = 1.0f;
+      if (voice.absorb_left > 0 || voice.absorb_now < 1.0f) {
+        if ((voice.absorb_pos & 3) == 0) {
+          const float target = voice.absorb_left > 0 ? voice.absorb : 1.0f;
+          const float gap = target - voice.absorb_now;
+          voice.absorb_now = std::fabs(gap) <= voice.absorb_slew
+                                 ? target
+                                 : voice.absorb_now + (gap < 0.0f ? -voice.absorb_slew : voice.absorb_slew);
+        }
+        keep = voice.absorb_now;
+        // Level stretches run in one piece; while it moves, four samples at a time.
+        const bool level = voice.absorb_left > 0 && keep == voice.absorb;
+        span = kit::clamp_int(level ? voice.absorb_left : 4 - (voice.absorb_pos & 3), 1, span);
+        voice.absorb_pos += span;
+        voice.absorb_left = voice.absorb_left > span ? voice.absorb_left - span : 0;
+      }
+      const float* source = drive ? drive + at : nullptr;
+      voice.strings[0].run(source, 1.0f, keep, a + at, span);
+      if (voice.two) voice.strings[1].run(source, voice.second, keep, b + at, span);
+      at += span;
+    }
+    if (!voice.two) {
       for (int i = 0; i < n; ++i) b[i] = 0.0f;
     }
     float peak = voice.chunk_peak;
