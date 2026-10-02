@@ -58,6 +58,14 @@ export interface Clip {
    */
   reversed?: boolean
   /**
+   * How likely the clip is to sound each time its start comes round, 0 to 1:
+   * the scheduler draws once per counted pass of the transport, from its
+   * seed, the clip's id and the pass (`soundsOnPass`), so the passes a clip
+   * sits out are the same every time the piece is played with that seed.
+   * Absent, and 1, play it on every pass.
+   */
+  chance?: number
+  /**
    * Where this clip sits between left (−1) and right (1), ahead of the
    * track's own pan. A clip with `pan`, `lowpassHz` or `spaceDb` is placed:
    * it plays through nodes of its own, so clips sharing a track can sit in

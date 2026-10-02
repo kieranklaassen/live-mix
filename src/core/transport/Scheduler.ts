@@ -8,6 +8,10 @@
 // once a start it declined can be taken, and after an edit (`rejoin`). What is
 // under the playhead sounds, from that point in it.
 //
+// A clip with a `chance` is drawn for once per counted pass of the transport,
+// from the scheduler's seed: on a pass it sits out it is neither started nor
+// entered, and the same seed sits the same passes out every time.
+//
 // The transport can run faster or slower than the audio clock (`Transport.rate`).
 // Lookaheads stay clock seconds, so a window covers that much more or less of
 // the timeline; when the rate changes, what is pending is re-derived at its new
@@ -19,7 +23,13 @@
 // (`musicEngine.ts:722-745`, ebdd457) is the same loop with a 100 ms tick and a
 // 5 s lookahead — hence both are per-instance settings here.
 
-import { clipsSoundingAt, type ClipWindow, type ScheduledClip } from '../clips/window'
+import { normaliseSeed, soundsOnPass } from '../clips/chance'
+import {
+  clipsSoundingAt,
+  type ClipWindow,
+  type ScheduledClip,
+  type WindowClip,
+} from '../clips/window'
 import {
   isLooping,
   scheduleKey,
@@ -105,6 +115,8 @@ export interface Schedulable {
 
 export interface SchedulerOptions {
   transport: Transport
+  /** What every chance is drawn from (`Clip.chance`). Default 0. */
+  seed?: number
   /** Timer period in milliseconds. Default 40. */
   tickMs?: number
   /** Injectable timer functions (the engine clock's); default to the globals. */
@@ -118,13 +130,16 @@ export const REJOIN_FADE_SECONDS = 0.005
 
 /**
  * A start that was handed over, with the audio-clock time it was handed over
- * for. On a schedulable that follows the rate, a change of rate moves that
- * time to where the start would have been had the new rate always held, so
- * `when` plus a length at the current rate is where the clip ends; on one left
- * on the clock it stays put, and a drawn length is already clock seconds.
+ * for and the counted pass it belongs to (its `iteration` may be of an anchor
+ * that has gone). On a schedulable that follows the rate, a change of rate
+ * moves that time to where the start would have been had the new rate always
+ * held, so `when` plus a length at the current rate is where the clip ends; on
+ * one left on the clock it stays put, and a drawn length is already clock
+ * seconds.
  */
 interface Handover extends ScheduledStart {
   when: number
+  pass: number
 }
 
 interface Registration {
@@ -158,20 +173,56 @@ export class Scheduler {
   private readonly unsubscribe: () => void
   private readonly setIntervalFn: NonNullable<SchedulerOptions['setIntervalFn']>
   private readonly clearIntervalFn: NonNullable<SchedulerOptions['clearIntervalFn']>
+  private currentSeed: number
 
   constructor({
     transport,
+    seed = 0,
     tickMs = DEFAULT_TICK_MS,
     setIntervalFn = (callback, ms) => setInterval(callback, ms),
     clearIntervalFn = (id) => clearInterval(id),
   }: SchedulerOptions) {
     this.transport = transport
+    this.currentSeed = normaliseSeed(seed)
     this.tickMs = tickMs
     this.setIntervalFn = setIntervalFn
     this.clearIntervalFn = clearIntervalFn
     this.rate = transport.rate
     this.unsubscribe = transport.onChange((change) => this.onTransportChange(change))
     if (transport.state === 'playing') this.startTimer()
+  }
+
+  /** What every chance is drawn from: a clip with a `chance` sounds on the passes this seed gives it. */
+  get seed(): number {
+    return this.currentSeed
+  }
+
+  /**
+   * Another seed: another choice of passes for every clip with a `chance`.
+   * While playing, those clips are put in step with it at once (`rejoin`):
+   * one that now sits this pass out fades, one that now sounds is entered.
+   */
+  setSeed(seed: number): void {
+    const next = normaliseSeed(seed)
+    if (next === this.currentSeed) return
+    this.currentSeed = next
+    const drawn = new Set<string>()
+    for (const schedulable of this.registrations.keys()) {
+      for (const clip of schedulable.clips()) {
+        if (clip.chance !== undefined && clip.chance < 1) drawn.add(clip.id)
+      }
+    }
+    this.rejoin(drawn)
+  }
+
+  /**
+   * Whether `clip` sounds on loop pass `iteration` (default: the pass the
+   * transport is in): always without a `chance`, else by the seed's draw for
+   * that clip on that counted pass.
+   */
+  sounds(clip: Pick<WindowClip, 'id' | 'chance'>, iteration?: number): boolean {
+    const pass = iteration === undefined ? this.transport.pass() : this.transport.passOf(iteration)
+    return soundsOnPass(clip, pass, this.currentSeed)
   }
 
   /** Registers a schedulable; returns the matching unregister. Starts scheduling it at once while playing. */
@@ -248,10 +299,12 @@ export class Scheduler {
         // The transport started, or landed, inside these: they play from
         // there rather than waiting for their start to come round again.
         if (schedulable.joinsLate) {
+          const pass = this.transport.passOf(anchor.iteration)
           for (const clip of clipsSoundingAt(clips, anchor.positionSec)) {
+            if (!soundsOnPass(clip, pass, this.currentSeed)) continue
             const start = { clipId: clip.id, iteration: anchor.iteration, startSec: clip.startSec }
             const when = this.transport.contextTimeAt(start.startSec, start.iteration)
-            joins.push({ ...start, when })
+            joins.push({ ...start, when, pass })
           }
         }
       } else {
@@ -277,6 +330,10 @@ export class Scheduler {
       for (const hit of due) {
         const clip = clips.find((candidate) => candidate.id === hit.clipId)
         if (!clip) continue
+        // Left to chance, and this pass it sits out: nothing to hand over,
+        // and nothing to offer again later.
+        const pass = this.transport.passOf(hit.iteration)
+        if (!soundsOnPass(clip, pass, this.currentSeed)) continue
         const start: ScheduledStart = {
           clipId: hit.clipId,
           iteration: hit.iteration,
@@ -286,10 +343,10 @@ export class Scheduler {
         if (registration.scheduled.has(key)) continue
         const when = this.transport.contextTimeAt(start.startSec, start.iteration)
         if (!schedulable.schedule(start, when)) {
-          if (schedulable.joinsLate) registration.declined.set(key, { ...start, when })
+          if (schedulable.joinsLate) registration.declined.set(key, { ...start, when, pass })
           continue
         }
-        registration.scheduled.set(key, { ...start, when })
+        registration.scheduled.set(key, { ...start, when, pass })
         registration.declined.delete(key)
       }
 
@@ -301,14 +358,14 @@ export class Scheduler {
         else if (contextTime > start.when) joins.push(start)
       }
 
-      for (const { when, ...start } of joins) {
+      for (const { when, pass, ...start } of joins) {
         const key = scheduleKey(start)
         if (registration.scheduled.has(key)) continue
         if (schedulable.schedule(start, when, true)) {
-          registration.scheduled.set(key, { ...start, when })
+          registration.scheduled.set(key, { ...start, when, pass })
           registration.declined.delete(key)
         } else {
-          registration.declined.set(key, { ...start, when })
+          registration.declined.set(key, { ...start, when, pass })
         }
       }
 
@@ -417,26 +474,31 @@ export class Scheduler {
       const named = schedulable.clips().filter((clip) => ids.has(clip.id) && !kept.has(clip.id))
       // One way in per clip: where the position is inside it on this pass.
       const joins = new Map<string, Handover>()
+      const pass = this.transport.passOf(position.iteration)
       for (const clip of clipsSoundingAt(named, position.positionSec)) {
+        if (!soundsOnPass(clip, pass, this.currentSeed)) continue
         const start = { clipId: clip.id, iteration: position.iteration, startSec: clip.startSec }
         const when = this.transport.contextTimeAt(start.startSec, start.iteration)
-        joins.set(clip.id, { ...start, when })
+        joins.set(clip.id, { ...start, when, pass })
       }
       // Failing that, the start just let go, if by the clock it would still be
       // sounding: a clip that runs over the loop's end, heard from the pass
       // before. It comes back under the start it had.
       for (const start of released.sort((a, b) => b.when - a.when)) {
         if (joins.has(start.clipId) || start.when >= contextTime) continue
+        // Not one that the seed, or its own chance, now sits out of the pass it began on.
+        const clip = named.find((candidate) => candidate.id === start.clipId)
+        if (!clip || !soundsOnPass(clip, start.pass, this.currentSeed)) continue
         if (soundsOn(named, start, start.when, contextTime, soundingRate(schedulable, rate))) {
           joins.set(start.clipId, start)
         }
       }
-      for (const { when, ...start } of joins.values()) {
+      for (const { when, pass: joined, ...start } of joins.values()) {
         const key = scheduleKey(start)
         if (schedulable.schedule(start, when, true)) {
-          registration.scheduled.set(key, { ...start, when })
+          registration.scheduled.set(key, { ...start, when, pass: joined })
         } else {
-          registration.declined.set(key, { ...start, when })
+          registration.declined.set(key, { ...start, when, pass: joined })
         }
       }
     }

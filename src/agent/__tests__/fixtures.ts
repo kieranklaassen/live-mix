@@ -28,6 +28,7 @@ export const OPERATION_ARGS: Record<OperationType, Record<string, unknown>> = {
   'score.rename': { name: 'Evening' },
   'score.setMeta': { patch: { key: { root: 2, scale: 'minor' } } },
   'transport.loop': { enabled: true, lengthSec: 30 },
+  'transport.seed': { seed: 7 },
   'tempo.set': {
     segments: [
       { atSec: 0, bpm: 90 },

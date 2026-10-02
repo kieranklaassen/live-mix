@@ -625,6 +625,7 @@ export function arbiterTargets(op: Operation): string[] {
         .map((entry) => `meta:${entry}`)
     case 'score.rename':
     case 'transport.loop':
+    case 'transport.seed':
     case 'transport.quantize':
     case 'tempo.set':
       return ['score']

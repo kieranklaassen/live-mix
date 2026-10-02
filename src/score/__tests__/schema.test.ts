@@ -183,6 +183,24 @@ describe('validateScore', () => {
     )
   })
 
+  it('checks a clip chance is 0 to 1 and the seed a whole number a Uint32 holds', () => {
+    const paths = (edit: (raw: ReturnType<typeof demoScore>) => void): string[] => {
+      const raw = demoScore()
+      edit(raw)
+      return validateScore(raw).map((issue) => issue.path)
+    }
+    const firstClip = (raw: ReturnType<typeof demoScore>) => {
+      const track = raw.tracks.find((candidate) => candidate.kind === 'audio')
+      if (track?.kind !== 'audio') throw new Error('demoScore has an audio track')
+      return track.clips[0]
+    }
+    expect(paths((raw) => (firstClip(raw).chance = 0.5))).toEqual([])
+    expect(paths((raw) => (firstClip(raw).chance = 1.2))[0]).toMatch(/clips\[0\]\.chance$/)
+    expect(paths((raw) => (raw.transport.seed = 4294967295))).toEqual([])
+    expect(paths((raw) => (raw.transport.seed = 1.5))).toEqual(['transport.seed'])
+    expect(paths((raw) => (raw.transport.seed = -1))).toEqual(['transport.seed'])
+  })
+
   it('keeps what a device holds besides its parameters, and writes nothing for a device without', () => {
     const score = demoScore()
     score.tracks[0].strip.inserts[0].state = 'c3RhdGU='
