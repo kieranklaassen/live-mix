@@ -63,7 +63,8 @@ constexpr int kPeriod = 32;
 constexpr int kStages = 5;
 constexpr int kStageSize = 2048;
 constexpr int kTailLines = 8;
-constexpr int kTailSize = 16384;
+constexpr int kTailSize = 32768;
+constexpr int kTailSwept = 4;  // of the tail's lines move with Modulation
 
 // The delay line the taps read. Its first kPeriod samples are kept a second
 // time past the end, so the samples one tap needs for a whole control period
@@ -231,11 +232,24 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
     kit::spread_lengths<kTailLines>(kTailShortest * sr, kTailLongest * sr, lengths);
     for (int n = 0; n < kTailLines; ++n) {
       tail_[n].clear();
-      tail_length_[n] = kit::clamp_int(lengths[n], 8, kTailSize - 8);
+      // Primes share no factor, so no two lines' echoes ever line up.
+      int length = kit::clamp_int(lengths[n], 8, kTailSize - 256);
+      while (!is_prime(length) || (n > 0 && length <= tail_length_[n - 1])) ++length;
+      tail_length_[n] = length;
       tail_damp_[n].reset();
-      tail_damp_[n].set_cutoff(kTailDampHz, sr);
       tail_gain_[n] = 0.0f;
     }
+    for (int m = 0; m < kTailSwept; ++m) {
+      tail_phase_[m] = rng.uniform();
+      tail_rate_[m] = 0.31f + 0.58f * rng.uniform();
+      tail_delay_[m] = 0.0f;
+      tail_delay_step_[m] = 0.0f;
+    }
+    tail_low_[0].reset();
+    tail_low_[1].reset();
+    tail_low_[0].set_cutoff(kTailLowHz, sr);
+    tail_low_[1].set_cutoff(kTailLowHz, sr);
+    tail_still_ = true;
     tail_clear_ = true;
     tail_norm_ = 0.0f;
 
@@ -307,6 +321,7 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
   static constexpr int kStages = shaped_reverb_detail::kStages;
   static constexpr int kTailLines = shaped_reverb_detail::kTailLines;
   static constexpr int kTailSize = shaped_reverb_detail::kTailSize;
+  static constexpr int kTailSwept = shaped_reverb_detail::kTailSwept;
 
   // Taps per second of Time at Density 0 and 1.
   static constexpr float kRateSparse = 8.0f;
@@ -332,9 +347,16 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
   static constexpr float kDriftSamples = 0.04f;
   // Peak sweep of an allpass length at Modulation 1.
   static constexpr float kSweepSeconds = 0.0005f;
-  static constexpr float kTailShortest = 0.0431f;
-  static constexpr float kTailLongest = 0.1373f;
-  static constexpr float kTailDampHz = 5200.0f;
+  // The tail's eight lines, 1.5 s between them: enough modes that none
+  // rings on its own. Each is a prime number of samples.
+  static constexpr float kTailShortest = 0.0991f;
+  static constexpr float kTailLongest = 0.3167f;
+  // The tail loses treble on every pass above this share of High Cut.
+  static constexpr float kTailDampShare = 0.5f;
+  // What feeds the tail is thinned below this, so low notes do not pile up.
+  static constexpr float kTailLowHz = 140.0f;
+  // Peak sweep of a tail line at Modulation 1.
+  static constexpr float kTailSweepSeconds = 0.0003f;
   static constexpr float kColourHz = 900.0f;
   static constexpr float kSideCutHz = 160.0f;
 
@@ -358,6 +380,15 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
       default:
         return 1.0f;
     }
+  }
+
+  static bool is_prime(int n) {
+    if (n < 4) return n > 1;
+    if ((n & 1) == 0) return false;
+    for (int d = 3; d * d <= n; d += 2) {
+      if (n % d == 0) return false;
+    }
+    return true;
   }
 
   static int taps_for(float density, float seconds) {
@@ -809,6 +840,12 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
 
   kit::DelayLine<kTailSize> tail_[kTailLines];
   kit::OnePole tail_damp_[kTailLines];
+  kit::OnePole tail_low_[2];
+  float tail_phase_[kTailSwept] = {};
+  float tail_rate_[kTailSwept] = {};  // Hz
+  float tail_delay_[kTailSwept] = {};
+  float tail_delay_step_[kTailSwept] = {};
+  bool tail_still_ = true;  // no line is moving: whole-sample reads
   int tail_length_[kTailLines] = {};
   float tail_gain_[kTailLines] = {};
   float tail_norm_ = 0.0f;

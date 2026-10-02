@@ -397,6 +397,78 @@ int main() {
     EXPECT(peak(bare.left, at(0.5)) == 0.0 && peak(bare.right, at(0.5)) == 0.0, "with Sympathy 0 nothing rings on");
   }
 
+  // 9. No clicks from running out of strings or from plucking a string that
+  // is still ringing: soft, dark plucks have no fast edges of their own, so
+  // a string cut off would show as a larger sample-to-sample step.
+  {
+    auto soft = [&]() {
+      plain(device);
+      device.set_param(p::kBrightness, 0.15f);
+      device.set_param(p::kChord, 3.0f);
+      device.set_param(p::kStrum, 20.0f);
+      device.set_param(p::kDecay, 12.0f);
+    };
+    // One strum: what the plucks themselves do.
+    soft();
+    device.note_on(1, 110.0f, 0.8f);
+    Stereo one = render(device, 1.0f, kRate);
+    const double reference = std::max(max_step(one.left), max_step(one.right));
+
+    // Fourteen chords a minor third apart, 70 ms apart: far more pitches than strings.
+    soft();
+    Stereo pile;
+    for (int k = 0; k < 14; ++k) {
+      device.note_on(k, 98.0f * std::pow(2.0f, static_cast<float>(k) / 4.0f), 0.8f);
+      pile = concat(pile, render(device, 0.07f, kRate));
+    }
+    pile = concat(pile, render(device, 0.5f, kRate));
+    const double stolen = std::max(max_step(pile.left), max_step(pile.right));
+
+    // The same chord strummed eight times, 90 ms apart: every string plucked while it rings.
+    soft();
+    Stereo again;
+    for (int k = 0; k < 8; ++k) {
+      device.note_on(k, 110.0f, 0.8f);
+      again = concat(again, render(device, 0.09f, kRate));
+    }
+    const double replucked = std::max(max_step(again.left), max_step(again.right));
+    std::printf("clicks: largest step %.4f for one strum, %.4f stealing strings (peak %.2f), %.4f plucking ringing strings\n",
+                reference, stolen, std::max(peak(pile.left), peak(pile.right)), replucked);
+    EXPECT(stolen < 2.5 * reference, "taking a string that is in use does not click");
+    EXPECT(replucked < 2.5 * reference, "plucking a string that is still ringing does not click");
+    EXPECT(peak(pile.left) < 1.0 && peak(pile.right) < 1.0, "and the pile stays bounded");
+  }
+
+  // 10. Velocity and level: soft keys are quieter and rounder; one key at
+  // the default settings sits at a sane level and ten held keys stay clean.
+  {
+    device.init(kRate);
+    device.note_on(1, 220.0f, 0.7f);
+    Stereo normal = render(device, 1.0f, kRate);
+    const double level = db(std::max(peak(normal.left), peak(normal.right)));
+    std::printf("level: one key at velocity 0.7 peaks at %.1f dBFS at the default settings\n", level);
+    EXPECT(level > -24.0 && level < -10.0, "one key peaks between -24 and -10 dBFS");
+
+    double loud[2], bright[2];
+    const float velocity[2] = {0.2f, 1.0f};
+    for (int n = 0; n < 2; ++n) {
+      plain(device);
+      device.note_on(1, 220.0f, velocity[n]);
+      Stereo out = render(device, 0.5f, kRate);
+      loud[n] = rms(out.left, 0, at(0.4));
+      bright[n] = spectral_centroid(out.left, 0, at(0.4));
+    }
+    std::printf("velocity 0.2 against 1.0: %.1f dB, centroid %.0f against %.0f Hz\n", db(loud[0] / loud[1]), bright[0], bright[1]);
+    EXPECT(loud[0] < 0.35 * loud[1], "soft keys are quieter");
+    EXPECT(bright[0] < bright[1], "and rounder");
+
+    device.init(kRate);
+    for (int n = 0; n < 10; ++n) device.note_on(n, 110.0f * std::pow(2.0f, n * 3 / 12.0f), 0.8f);
+    Stereo ten = render(device, 3.0f, kRate);
+    std::printf("level: ten held keys peak at %.2f\n", std::max(peak(ten.left), peak(ten.right)));
+    EXPECT(peak(ten.left) < 0.9 && peak(ten.right) < 0.9, "ten keys stay under the clip knee region");
+  }
+
   // CHECKS
 
   return finish("zither");

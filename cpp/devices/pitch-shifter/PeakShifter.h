@@ -8,10 +8,10 @@
 // One analysis per frame serves every voice:
 //   - the stereo frame is windowed and transformed in one complex FFT
 //     (left in the real part, right in the imaginary part);
-//   - peaks of the combined power are found, and the bins between two peaks
-//     are split at the weakest one, so every bin belongs to one peak;
+//   - peaks of the combined power are found;
 //   - each peak's true frequency is read from how far its phase moved since
-//     the previous frame.
+//     the previous frame;
+//   - every bin is given to the peak it lies nearer to.
 // A voice then copies every region to where `ratio` times the peak's
 // frequency lies: by a whole number of bins, with one rotation for the whole
 // region that carries the rest of the move and runs on from frame to frame.
@@ -87,6 +87,7 @@ class PeakShifter {
     }
     find_peaks(loudest * kFloor);
     measure();
+    divide();
   }
 
   // Makes voice `v`'s frame for the last analysis, shifted by `ratio` and
@@ -156,8 +157,7 @@ class PeakShifter {
 
   static double wrap(double phase) { return phase - 2.0 * kPi * std::floor(phase / (2.0 * kPi) + 0.5); }
 
-  // A peak is a bin above its two neighbours on either side; the bins
-  // between two peaks are divided at the weakest of them.
+  // A peak is a bin above its two neighbours on either side.
   void find_peaks(float floor) {
     for (int k = 2; k <= kHalf - 2 && num_peaks_ < kMaxPeaks; ++k) {
       const float p = power_[k];
@@ -167,18 +167,22 @@ class PeakShifter {
         k += 2;
       }
     }
+  }
+
+  // Every bin goes with the nearer peak, by the frequencies just measured.
+  void divide() {
     for (int i = 0; i < num_peaks_; ++i) {
       if (i == 0) peak_from_[i] = 0;
       if (i == num_peaks_ - 1) {
         peak_to_[i] = kHalf + 1;
         break;
       }
-      int lowest = peak_bin_[i] + 1;
-      for (int k = lowest + 1; k < peak_bin_[i + 1]; ++k) {
-        if (power_[k] < power_[lowest]) lowest = k;
-      }
-      peak_to_[i] = lowest;
-      peak_from_[i + 1] = lowest;
+      const float middle = 0.5f * (peak_omega_[i] + peak_omega_[i + 1]) * (N / static_cast<float>(2.0 * kPi));
+      int edge = static_cast<int>(middle) + 1;
+      if (edge <= peak_bin_[i]) edge = peak_bin_[i] + 1;
+      if (edge > peak_bin_[i + 1]) edge = peak_bin_[i + 1];
+      peak_to_[i] = edge;
+      peak_from_[i + 1] = edge;
     }
   }
 

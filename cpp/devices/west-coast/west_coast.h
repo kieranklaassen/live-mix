@@ -303,7 +303,7 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
   static constexpr float kChanceFold = 0.25f;
   static constexpr float kChanceFm = 0.5f;
   static constexpr float kChanceDecayOctaves = 0.8f;
-  static constexpr float kChancePan = 0.8f;
+  static constexpr float kChancePan = 0.6f;
   static constexpr float kPitchDriftHz = 0.23f;
   static constexpr float kTimbreDriftHz = 0.13f;
   static constexpr float kMaxDriftCents = 7.0f;

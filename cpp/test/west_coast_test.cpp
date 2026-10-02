@@ -480,6 +480,62 @@ static void check_chance() {
   EXPECT(same, "the same notes after init give the same sound, sample for sample");
 }
 
+// A harder strike is louder and brighter.
+static void check_velocity() {
+  double level[3] = {}, brightness[3] = {};
+  const float gains[3] = {0.25f, 0.7f, 1.0f};
+  for (int n = 0; n < 3; ++n) {
+    plain(kRate);
+    device.note_on(1, 220.0f, gains[n]);
+    const Stereo out = render(device, 1.0f, kRate);
+    level[n] = db(peak(out.left));
+    brightness[n] = Spectrum(out.left, 0, 2048, kRate).centroid();
+    NOTE("velocity %.2f: peak %.1f dBFS, centroid of the strike %.0f Hz\n", gains[n], level[n], brightness[n]);
+  }
+  EXPECT(level[1] > level[0] + 3.0 && level[2] > level[1] + 1.0, "a harder strike is louder");
+  EXPECT(brightness[1] > 1.15 * brightness[0] && brightness[2] > 1.05 * brightness[1], "a harder strike is brighter");
+  // One note at gain 0.7 sits where the house level wants it.
+  EXPECT(level[1] > -24.0 && level[1] < -10.0, "one note peaks between -24 and -10 dBFS at the default volume");
+}
+
+// Eight notes held at once, at the default volume and as hard as they go,
+// stay under the knee of the output clip (0.5), and the output is the same
+// whatever block size the host uses.
+static void check_headroom_and_blocks() {
+  double worst = 0.0;
+  for (float fold : {0.0f, 0.35f, 1.0f}) {
+    device.init(kRate);
+    device.set_param(p::kSustain, 1.0f);
+    device.set_param(p::kFold, fold);
+    for (int n = 0; n < 8; ++n) device.note_on(n, 110.0f * std::pow(2.0f, n * 4 / 12.0f), 1.0f);
+    const Stereo out = render(device, 3.0f, kRate);
+    worst = std::max(worst, std::max(peak(out.left), peak(out.right)));
+  }
+  NOTE("headroom: eight held notes at full velocity peak at %.1f dBFS\n", db(worst));
+  EXPECT(worst < 0.5, "eight held notes stay under the clip knee");
+
+  Stereo reference;
+  for (int block : {128, 1, 37, 2048}) {
+    device.init(kRate);
+    device.note_on(1, 220.0f, 0.8f);
+    device.note_on(2, 330.0f, 0.6f);
+    Stereo out = render(device, 0.4f, kRate, block);
+    device.set_param(p::kFold, 0.9f);
+    device.note_on(3, 440.0f, 0.7f);
+    out = concat(out, render(device, 0.4f, kRate, block));
+    if (block == 128) {
+      reference = out;
+      continue;
+    }
+    double difference = 0.0;
+    for (size_t i = 0; i < out.size(); ++i) {
+      difference = std::max(difference, std::fabs(static_cast<double>(out.left[i] - reference.left[i])));
+    }
+    NOTE("blocks of %d against 128: largest difference %.2e\n", block, difference);
+    EXPECT(difference < 1.0e-6, "the sound does not depend on the block size");
+  }
+}
+
 // CHECKS
 
 int main() {
@@ -501,6 +557,8 @@ int main() {
   check_envelope();
   check_clicks();
   check_chance();
+  check_velocity();
+  check_headroom_and_blocks();
   // BEHAVIOUR
 
   // Cost with every voice sounding at the heaviest setting: eight held
