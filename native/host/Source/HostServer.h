@@ -59,6 +59,8 @@ private:
 
     juce::var hello() const;
     juce::var pluginList() const;
+    /** The list, and what scans have left out of it: `plugins`, `failed`, `crashed`, `names`. */
+    void describeKnown (juce::DynamicObject& result) const;
     void startScan (const Connection& connection, const juce::var& id, const juce::var& params);
     void stepScan();
     bool startScanWorker();
@@ -83,6 +85,12 @@ private:
     const Options options;
     juce::AudioPluginFormatManager formats;
     juce::KnownPluginList knownPlugins;
+    /**
+        Files a scan loaded no plug-in from. Kept with the list, so a scan
+        does not open them again until it is asked to: one of them may put a
+        licence dialog up every time it is looked at.
+    */
+    juce::StringArray couldNotLoad;
     std::unique_ptr<ScanJob> scan;
     /** A scan was started and has not run to its end: the list may be part of what there is. */
     bool scanUnfinished = false;

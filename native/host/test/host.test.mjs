@@ -8,7 +8,7 @@
 
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { after, before, test } from 'node:test'
@@ -607,7 +607,7 @@ for (const [trouble, what, limits, goes] of [
         assert.deepEqual(namesOf(scan), ['LiveMix Test Gain', 'LiveMix Test Sine'])
         assert.equal(scan.crashed.length, 1)
         assert.match(scan.crashed[0], /LiveMix Test Trouble/)
-        assert.deepEqual(scan.failed, scan.crashed)
+        assert.deepEqual(scan.failed, [])
         assert.equal(scan.names[scan.crashed[0]], 'LiveMix Test Trouble')
         assert.equal(own.process.exitCode, null, 'the host ended')
         const taken = connection.events.filter(
@@ -629,13 +629,32 @@ for (const [trouble, what, limits, goes] of [
         return scan.crashed
       })
 
-      // Nor does a host started later, with the plug-in behaving by now.
+      // Nor does a host started later, with the plug-in behaving by now: it
+      // says what is left out before any scan, and a scan passes it by.
       await withTrouble(null, folder, async (connection) => {
+        const known = await connection.call('plugins')
+        assert.deepEqual(known.crashed, left)
+        assert.equal(known.names[left[0]], 'LiveMix Test Trouble')
         const scan = await scanWithTrouble(connection)
         assert.deepEqual(namesOf(scan), ['LiveMix Test Gain', 'LiveMix Test Sine'])
         assert.deepEqual(scan.crashed, left)
 
-        // Until a scan is asked to start over.
+        // Until a scan is asked to give it another go,
+        const retried = await scanWithTrouble(connection, { retry: left })
+        assert.deepEqual(namesOf(retried), [
+          'LiveMix Test Gain',
+          'LiveMix Test Sine',
+          'LiveMix Test Trouble',
+        ])
+        assert.deepEqual(retried.crashed, [])
+        assert.deepEqual((await connection.call('plugins')).crashed, [])
+      })
+
+      // or, in a host that still has it left out, to start over.
+      rmSync(join(folder, 'plugins.xml'))
+      writeFileSync(join(folder, 'scan-in-progress.txt'), left[0])
+      await withTrouble(null, folder, async (connection) => {
+        assert.deepEqual((await connection.call('plugins')).crashed, left)
         const fresh = await scanWithTrouble(connection, { rescan: true })
         assert.deepEqual(namesOf(fresh), [
           'LiveMix Test Gain',
@@ -650,6 +669,54 @@ for (const [trouble, what, limits, goes] of [
     }
   })
 }
+
+test('remembers a file that holds no plug-in, and does not open it again until asked', async () => {
+  const folder = mkdtempSync(join(tmpdir(), 'live-mix-host-empty-'))
+  const plugins = join(folder, 'plugins')
+  const data = join(folder, 'data')
+  // A bundle by its name, with nothing in it.
+  mkdirSync(join(plugins, 'Broken.vst3'), { recursive: true })
+  const scanFolder = (connection, more = {}) =>
+    connection.call('scan', { paths: [plugins], defaultPaths: false, ...more })
+  const taken = (connection) =>
+    connection.events.filter(
+      (entry) => entry.event === 'scanProgress' && /Broken\.vst3$/.test(entry.file),
+    ).length
+  try {
+    const failed = await withTrouble(null, data, async (connection) => {
+      const scan = await scanFolder(connection)
+      assert.equal(scan.failed.length, 1)
+      assert.match(scan.failed[0], /Broken\.vst3$/)
+      assert.equal(scan.names[scan.failed[0]], 'Broken')
+      assert.deepEqual(scan.crashed, [])
+      assert.deepEqual(scan.plugins, [])
+      assert.equal(taken(connection), 1)
+
+      // The next scan says so again without opening it.
+      const again = await scanFolder(connection)
+      assert.deepEqual(again.failed, scan.failed)
+      assert.equal(taken(connection), 1)
+      return scan.failed
+    })
+
+    // A host started later knows before any scan, and its scans pass it by,
+    await withTrouble(null, data, async (connection) => {
+      const known = await connection.call('plugins')
+      assert.deepEqual(known.failed, failed)
+      assert.equal(known.names[failed[0]], 'Broken')
+      assert.deepEqual((await scanFolder(connection)).failed, failed)
+      assert.equal(taken(connection), 0)
+
+      // until one is asked to give it another go, or to start over.
+      assert.deepEqual((await scanFolder(connection, { retry: failed })).failed, failed)
+      assert.equal(taken(connection), 1)
+      assert.deepEqual((await scanFolder(connection, { rescan: true })).failed, failed)
+      assert.equal(taken(connection), 2)
+    })
+  } finally {
+    rmSync(folder, { recursive: true, force: true })
+  }
+})
 
 test('hands a list from one scanner to the next, which carries on where it stopped', async () => {
   const folder = mkdtempSync(join(tmpdir(), 'live-mix-host-relay-'))

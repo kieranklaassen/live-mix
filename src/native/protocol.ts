@@ -63,8 +63,14 @@ export interface NativeScanOptions {
    * folder, are left out.
    */
   defaultPaths?: boolean
-  /** Forget the cached list first, and try again the plug-ins left out for ending a scan. */
+  /** Forget the cached list first, and what scans left out with it: every file is looked at again. */
   rescan?: boolean
+  /**
+   * Entries of `failed` or `crashed` to give another go: this scan looks at
+   * them again, and only at them and at what is new. For a plug-in that was
+   * updated, or whose licence is there now.
+   */
+  retry?: readonly string[]
   /**
    * How many seconds a plug-in may keep the scan waiting without using the
    * processor before the scan goes on without it (default 10). A plug-in
@@ -83,14 +89,20 @@ export interface NativeScanOptions {
   perProcess?: number
 }
 
+/** What the host knows: the answer to a scan, and to `plugins` without one. */
 export interface NativeScanResult {
   plugins: NativePluginInfo[]
-  /** Files that could not be loaded as plug-ins in this scan. */
+  /**
+   * Files no plug-in could be loaded from, in this scan or an earlier one.
+   * The host keeps them with its list, and a scan does not open them again
+   * until it is asked to with `retry` or `rescan`.
+   */
   failed: string[]
   /**
    * Plug-ins left out because they crashed or never answered while they
    * were scanned, in this scan or an earlier one. A scan does not try them
-   * again until it is asked to with `rescan`.
+   * again until it is asked to with `retry` or `rescan`. None of them is in
+   * `failed`.
    */
   crashed: string[]
   /**

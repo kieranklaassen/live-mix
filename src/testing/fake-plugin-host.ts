@@ -16,6 +16,7 @@ import {
   type NativeHostAddress,
   type NativeParamInfo,
   type NativePluginInfo,
+  type NativeScanResult,
   type NativeSlotInfo,
 } from '../native/protocol'
 
@@ -139,6 +140,9 @@ interface Request {
   params: Record<string, unknown>
 }
 
+/** The file every scan of a fake host fails to load a plug-in from. */
+export const FAKE_BROKEN_FILE = '/plugins/Broken.vst3'
+
 /** The state a fake plug-in has until it is given another. */
 export const FAKE_STATE = 'c3RhdGU='
 
@@ -149,8 +153,14 @@ export interface FakePluginHostOptions {
   latencySamples?: number
   /** The host's last scan was cut short: it says so at hello. Default false. */
   scanUnfinished?: boolean
-  /** Plug-ins a scan leaves out for having ended one, by file. Default none. */
+  /**
+   * Plug-ins left out for having ended a scan before this host started, by
+   * file: it says so from the start, as the real one keeps them between
+   * runs. Default none.
+   */
   crashed?: readonly string[]
+  /** Files no plug-in could be loaded from before this host started. Default none. */
+  failed?: readonly string[]
   /** False for a host built without Ableton Link. Default true. */
   link?: boolean
   /** The fake session's clock. */
@@ -166,9 +176,14 @@ export class FakePluginHost {
   private readonly options: FakePluginHostOptions
   private readonly linkFollowers = new Set<FakeSocket>()
   private nextSlot = 1
+  /** What scans have left out so far; a scan asked to `retry` one takes it off. */
+  private failed: string[]
+  private crashed: string[]
 
   constructor(options: FakePluginHostOptions = {}) {
     this.options = options
+    this.failed = [...(options.failed ?? [])]
+    this.crashed = [...(options.crashed ?? [])]
     this.link = new FakeLinkSession({ clock: options.linkClock })
     this.link.onAnnounce = (state) => {
       for (const socket of this.linkFollowers) {
@@ -199,6 +214,19 @@ export class FakePluginHost {
   /** Send an event to the page, as the host does (`params`, `latency`, `editorClosed`, `stateChanged`). */
   emit(event: string, fields: Record<string, unknown>): void {
     this.socket.deliver({ event, ...fields })
+  }
+
+  /** The answer to `plugins` and to a scan: the list and what is left out of it. */
+  private known(plugins: NativePluginInfo[]): NativeScanResult {
+    const failed = [...this.failed]
+    const crashed = [...this.crashed]
+    const name = (file: string): string => file.replace(/^.*\//, '').replace(/\.[^.]+$/, '')
+    return {
+      plugins,
+      failed,
+      crashed,
+      names: Object.fromEntries([...failed, ...crashed].map((file) => [file, name(file)])),
+    }
   }
 
   private handle(request: Request, socket: FakeSocket): void {
@@ -248,7 +276,7 @@ export class FakePluginHost {
         else reply(this.link.stop(request.params))
         break
       case 'plugins':
-        reply({ plugins })
+        reply(this.known(plugins))
         break
       case 'scan':
         socket.deliver({
@@ -258,20 +286,20 @@ export class FakePluginHost {
           name: FAKE_REVERB.name,
           progress: 0,
         })
-        reply({
-          plugins,
-          failed: ['/plugins/Broken.vst3'],
-          crashed: [...(this.options.crashed ?? [])],
-          names: {
-            '/plugins/Broken.vst3': 'Broken',
-            ...Object.fromEntries(
-              (this.options.crashed ?? []).map((file) => [
-                file,
-                file.replace(/^.*\//, '').replace(/\.[^.]+$/, ''),
-              ]),
-            ),
-          },
-        })
+        // A plug-in given another go is no longer left out. One file never
+        // loads: every scan that looks at it says so again.
+        if (request.params.rescan === true) {
+          this.failed = []
+          this.crashed = []
+        }
+        for (const file of (request.params.retry as string[] | undefined) ?? []) {
+          this.failed = this.failed.filter((entry) => entry !== file)
+          this.crashed = this.crashed.filter((entry) => entry !== file)
+        }
+        if (!this.failed.includes(FAKE_BROKEN_FILE) && !this.crashed.includes(FAKE_BROKEN_FILE)) {
+          this.failed.push(FAKE_BROKEN_FILE)
+        }
+        reply(this.known(plugins))
         break
       case 'load': {
         const plugin = plugins.find((candidate) => candidate.id === request.params.plugin)

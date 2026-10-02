@@ -106,8 +106,9 @@ const reverb = await engine.devices.create('native:VST3-ValhallaVintageVerb-…'
 engine.master.addInsert(reverb)
 ```
 
-`client.plugins()` returns the list the host already knows without scanning;
-`client.scan({ paths, defaultPaths, rescan, idle, timeout, perProcess })` searches the format's
+`client.plugins()` returns the list the host already knows without scanning,
+and `client.known()` that list with what its scans left out of it;
+`client.scan({ paths, defaultPaths, rescan, retry, idle, timeout, perProcess })` searches the format's
 standard folders (and `paths`), reports each file on `scanProgress`, and
 answers with `{ plugins, failed, crashed, names }`. With `defaultPaths: false`
 only `paths` are searched, and Audio Units are left out: the system lists
@@ -121,9 +122,13 @@ that keeps the scan waiting for `idle` seconds without using the processor
 takes longer than `timeout` seconds in all (120). A version 3 Audio Unit is
 made by the system outside the scan process, where the scan cannot tell
 waiting from work: only `timeout` holds for it. What a scan left out is in
-`crashed`, and later scans do not try it again; `rescan: true` forgets that
-along with the list. `names` has what to call each entry of `failed` and
-`crashed`: an Audio Unit is listed by a code, not a file.
+`crashed`, and a file it loaded no plug-in from is in `failed`. The host keeps
+both with its list, so neither is opened again by a later scan or a later
+run: a plug-in that crashes, or one that asks for its licence in a dialog, is
+met once. `retry: [entries]` gives the named ones another go in a scan that
+otherwise only looks at what is new, and `rescan: true` forgets both along
+with the list. `names` has what to call each entry of `failed` and `crashed`:
+an Audio Unit is listed by a code, not a file.
 
 One scan process takes `perProcess` plug-ins (40) and the next carries on
 where it stopped, because plug-ins leave threads and memory behind in the
@@ -368,20 +373,20 @@ A request without `id` gets no answer. A frame with an `event` field is a
 notification from the host. Closing the connection unloads every plug-in it
 loaded.
 
-| Method         | Params                                                             | Result                                |
-| -------------- | ------------------------------------------------------------------ | ------------------------------------- |
-| `hello`        |                                                                    | `NativeHostInfo` (protocol, formats)  |
-| `plugins`      |                                                                    | `{ plugins }`, the cached list        |
-| `scan`         | `{ paths?, defaultPaths?, rescan?, idle?, timeout?, perProcess? }` | `{ plugins, failed, crashed, names }` |
-| `load`         | `{ plugin \| file, name?, sampleRate, blockSize, state? }`         | `NativeSlotInfo` (slot, params)       |
-| `unload`       | `{ slot }`                                                         | `{}`                                  |
-| `setParam`     | `{ slot, index, value }` (normalised; usually sent without `id`)   | `{}`                                  |
-| `getParams`    | `{ slot }`                                                         | `{ params }`                          |
-| `getState`     | `{ slot }`                                                         | `{ state }` (base64)                  |
-| `setState`     | `{ slot, state }`                                                  | `{ params, latencySamples }`          |
-| `showEditor`   | `{ slot }`                                                         | `{ showing }`                         |
-| `hideEditor`   | `{ slot }`                                                         | `{}`                                  |
-| `setTransport` | `{ bpm?, playing? }` (a field left out keeps its value)            | `{}`                                  |
+| Method         | Params                                                                     | Result                                         |
+| -------------- | -------------------------------------------------------------------------- | ---------------------------------------------- |
+| `hello`        |                                                                            | `NativeHostInfo` (protocol, formats)           |
+| `plugins`      |                                                                            | `{ plugins, failed, crashed, names }`, as kept |
+| `scan`         | `{ paths?, defaultPaths?, rescan?, retry?, idle?, timeout?, perProcess? }` | `{ plugins, failed, crashed, names }`          |
+| `load`         | `{ plugin \| file, name?, sampleRate, blockSize, state? }`                 | `NativeSlotInfo` (slot, params)                |
+| `unload`       | `{ slot }`                                                                 | `{}`                                           |
+| `setParam`     | `{ slot, index, value }` (normalised; usually sent without `id`)           | `{}`                                           |
+| `getParams`    | `{ slot }`                                                                 | `{ params }`                                   |
+| `getState`     | `{ slot }`                                                                 | `{ state }` (base64)                           |
+| `setState`     | `{ slot, state }`                                                          | `{ params, latencySamples }`                   |
+| `showEditor`   | `{ slot }`                                                                 | `{ showing }`                                  |
+| `hideEditor`   | `{ slot }`                                                                 | `{}`                                           |
+| `setTransport` | `{ bpm?, playing? }` (a field left out keeps its value)                    | `{}`                                           |
 
 | Event          | Fields                                                                                                                                                   |
 | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
