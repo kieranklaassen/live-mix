@@ -108,16 +108,11 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
     idle_.settle(output_peak(frames), frames);
   }
 
-  // For the harness: the current delay of the last left tap, in seconds.
-  float last_tap_seconds() const {
-    return static_cast<float>(tap_[0][kTaps - 1].delay) / sample_rate();
-  }
-
  private:
   static constexpr int kTaps = 14;
   static constexpr int kStages = 4;
   static constexpr int kLineSize = 262144;  // 2.4 s at 96 kHz and room to sweep
-  static constexpr int kAllpassSize = 8192;
+  static constexpr int kAllpassSize = 4096;
   static constexpr int kHistory = 16384;    // control ticks: 2.7 s at 96 kHz
   static constexpr int kControlPeriod = 16;
   static constexpr int kStepCount = 7;
