@@ -94,7 +94,7 @@
     }
   ],
   "presets": {
-    "Space echo": {
+    "Warm repeats": {
       "time": 380,
       "feedback": 0.45,
       "heads": 0,
@@ -104,7 +104,7 @@
       "highCut": 4500,
       "mix": 0.35
     },
-    "Discreet": {
+    "Short and soft": {
       "time": 160,
       "feedback": 0.3,
       "heads": 0,
@@ -276,6 +276,7 @@
       "mix": 0.3
     }
   },
+  "formerPresets": { "Space echo": "Warm repeats", "Discreet": "Short and soft" },
   "origin": {
     "kind": "new",
     "note": "Written for live-mix on cpp/kit. Models a Roland RE-201 style machine in outline (one record head, up to three playback heads on one loop, speed drift, band-limited recirculation), not a circuit emulation of any unit."

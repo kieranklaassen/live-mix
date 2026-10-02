@@ -122,7 +122,7 @@
       "bump": 0.6,
       "tone": 0.55
     },
-    "Disintegrating loop": {
+    "Worn thin": {
       "drive": 0.5,
       "wow": 0.7,
       "flutter": 0.4,
@@ -261,6 +261,7 @@
       "output": -2
     }
   },
+  "formerPresets": { "Disintegrating loop": "Worn thin" },
   "origin": {
     "kind": "new",
     "note": "Written for live-mix on cpp/kit. A behavioural sketch of a tape machine (emphasis around a soft saturator, a wobbling transport, playback equalisation per speed, dropouts, hiss), not a model of any one deck or of magnetic hysteresis. Hiss is only made while the device is awake: it carries on for a second after the input stops, fades, and an idle track is exactly silent."

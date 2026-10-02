@@ -27,7 +27,7 @@ export const HANDPAN_PRESETS: readonly FactoryPreset[] = [
     description: 'A steel tongue drum, pure and long, repeated by a tape echo on a small plate.',
     instrument: { deviceId: 'handpan', preset: 'Tongue drum', params: { volume: -3 } },
     effects: [
-      { deviceId: 'tape-echo', preset: 'Space echo', params: { mix: 0.25 } },
+      { deviceId: 'tape-echo', preset: 'Warm repeats', params: { mix: 0.25 } },
       { deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.2 } },
     ],
   },

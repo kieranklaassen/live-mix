@@ -21,6 +21,7 @@ import { canonicalJson, isJsonObject, type JsonObject } from '../core/json'
 import { type LfoShape } from '../core/automation/Modulator'
 import { type ModPolarity } from '../core/automation/ModMatrix'
 import { type Breakpoint, type LaneCurve } from '../core/automation/ParamLane'
+import { hasPreset } from '../core/devices/presets'
 import { type DeviceRegistry } from '../core/devices/registry'
 import { isFollowAction, normaliseFollowAction } from '../core/session/followActions'
 import {
@@ -662,7 +663,7 @@ function checkDevice(raw: unknown, path: string, ctx: Context): void {
       check.fail(`${path}.params.${name}`, `${descriptor.id} has no parameter "${name}"`)
     }
   }
-  if (typeof raw.preset === 'string' && !(raw.preset in (descriptor.presets ?? {}))) {
+  if (typeof raw.preset === 'string' && !hasPreset(descriptor, raw.preset)) {
     check.fail(`${path}.preset`, `${descriptor.id} has no preset "${raw.preset}"`)
   }
 }

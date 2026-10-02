@@ -823,7 +823,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { direction: 0, strum: 26, sustain: 1.6, tone: 0.85, spread: 0.5, volume: 0.5 },
     },
     effects: [
-      { deviceId: 'tremolo', preset: 'Brownface shimmer', params: { rate: 2.6, depth: 0.7 } },
+      { deviceId: 'tremolo', preset: 'Harmonic shimmer', params: { rate: 2.6, depth: 0.7 } },
       { deviceId: 'spring-reverb', preset: 'Two spring tank', params: { mix: 0.25 } },
     ],
   },
@@ -1031,7 +1031,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { decay: 2.4, volume: -1 },
     },
     effects: [
-      { deviceId: 'tape-echo', preset: 'Discreet', params: { time: 330, mix: 0.25 } },
+      { deviceId: 'tape-echo', preset: 'Short and soft', params: { time: 330, mix: 0.25 } },
       { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.3 } },
     ],
   },
@@ -1427,7 +1427,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'tape-echo',
-        preset: 'Discreet',
+        preset: 'Short and soft',
         params: { time: 480, feedback: 0.4, mix: 0.25 },
       },
       { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.3 } },
@@ -1779,7 +1779,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'tape-echo',
-        preset: 'Discreet',
+        preset: 'Short and soft',
         params: { time: 520, feedback: 0.25, mix: 0.25 },
       },
       { deviceId: 'spring-reverb', preset: 'Long three spring', params: { mix: 0.25 } },

@@ -68,7 +68,7 @@ export const OUTDOORS_PRESETS: readonly FactoryPreset[] = [
       params: { density: 0.55, volume: -7.5 },
     },
     effects: [
-      { deviceId: 'tape-echo', preset: 'Discreet', params: { time: 420, mix: 0.2 } },
+      { deviceId: 'tape-echo', preset: 'Short and soft', params: { time: 420, mix: 0.2 } },
       { deviceId: 'shimmer', preset: 'Plain hall', params: { mix: 0.3, decay: 5 } },
     ],
   },

@@ -78,7 +78,7 @@ export const GRAIN_SYNTH_PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'tape', preset: 'Disintegrating loop', params: { output: -3 } },
+      { deviceId: 'tape', preset: 'Worn thin', params: { output: -3 } },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },

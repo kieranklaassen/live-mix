@@ -39,7 +39,7 @@ export const HARP_PRESETS: readonly FactoryPreset[] = [
       'A hard pick near the bridge and every note pressed a semitone sharp after it sounds, with a quiet tape echo in a room.',
     instrument: { deviceId: 'harp', preset: 'Rising koto', params: { volume: 0 } },
     effects: [
-      { deviceId: 'tape-echo', preset: 'Discreet' },
+      { deviceId: 'tape-echo', preset: 'Short and soft' },
       { deviceId: 'fdn-reverb', preset: 'Room', params: { mix: 0.2 } },
     ],
     preview: 'keys',

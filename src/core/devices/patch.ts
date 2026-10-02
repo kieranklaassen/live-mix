@@ -8,7 +8,7 @@
 // registry it is validated and instantiated against decides what they are.
 
 import { type Device } from './Device'
-import { presetParams, resolvePreset } from './presets'
+import { hasPreset, presetParams, resolvePreset } from './presets'
 import { type DeviceCreateRequest, type DeviceDescriptor, type DeviceRegistry } from './registry'
 
 /** One device of a patch: which registry device, and its state. */
@@ -81,7 +81,7 @@ function checkDevice(
       message: `${descriptor.id} is an instrument, not an effect`,
     })
   }
-  if (device.preset !== undefined && !(device.preset in (descriptor.presets ?? {}))) {
+  if (device.preset !== undefined && !hasPreset(descriptor, device.preset)) {
     issues.push({
       path: `${path}.preset`,
       message: `${descriptor.id} has no preset "${device.preset}"`,

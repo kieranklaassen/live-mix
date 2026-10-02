@@ -413,6 +413,7 @@ export {
   applyPreset,
   capturePreset,
   defaultPreset,
+  hasPreset,
   devices,
   isPreset,
   listPresets,

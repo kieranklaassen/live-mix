@@ -130,7 +130,7 @@ export const TAPE_ECHO_DESCRIPTOR = wasmDeviceDescriptor(TAPE_ECHO_DEVICE, {
   description:
     'Tape delay with three playback heads, wow and flutter, tape saturation and a band-limited feedback loop that can run away.',
   presets: {
-    'Space echo': {
+    'Warm repeats': {
       time: 380,
       feedback: 0.45,
       heads: 0,
@@ -140,7 +140,7 @@ export const TAPE_ECHO_DESCRIPTOR = wasmDeviceDescriptor(TAPE_ECHO_DEVICE, {
       highCut: 4500,
       mix: 0.35,
     },
-    Discreet: {
+    'Short and soft': {
       time: 160,
       feedback: 0.3,
       heads: 0,
@@ -312,6 +312,7 @@ export const TAPE_ECHO_DESCRIPTOR = wasmDeviceDescriptor(TAPE_ECHO_DEVICE, {
       mix: 0.3,
     },
   },
+  formerPresets: { 'Space echo': 'Warm repeats', Discreet: 'Short and soft' },
 })
 
 export type TapeEcho = WasmDevice<typeof TAPE_ECHO_PARAMS>

@@ -241,7 +241,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'tape-echo',
-        preset: 'Discreet',
+        preset: 'Short and soft',
         params: { time: 130, feedback: 0.08, highCut: 7000, mix: 0.22 },
       },
       {
@@ -888,7 +888,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { midDecay: 5, mix: 0.4 } },
-      { deviceId: 'tape', preset: 'Disintegrating loop', params: { age: 0.6, hiss: 0.35 } },
+      { deviceId: 'tape', preset: 'Worn thin', params: { age: 0.6, hiss: 0.35 } },
     ],
   },
   {

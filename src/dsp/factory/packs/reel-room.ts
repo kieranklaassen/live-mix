@@ -341,7 +341,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'tape',
-        preset: 'Disintegrating loop',
+        preset: 'Worn thin',
         params: { wow: 0.4, age: 0.6, hiss: 0.35 },
       },
       { deviceId: 'ambient-eq', preset: 'Dark', params: { highCut: 2000 } },
@@ -981,7 +981,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'swell', preset: 'Piano to pad', params: { attack: 250, depth: 0.8 } },
-      { deviceId: 'tape', preset: 'Disintegrating loop', params: { wow: 0.45, age: 0.5 } },
+      { deviceId: 'tape', preset: 'Worn thin', params: { wow: 0.45, age: 0.5 } },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.45 } },
     ],
   },

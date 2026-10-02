@@ -101,7 +101,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'tape-echo',
-        preset: 'Discreet',
+        preset: 'Short and soft',
         params: { time: 240, feedback: 0.1, mix: 0.25 },
       },
       { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.22 } },
@@ -295,7 +295,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'tape-echo',
-        preset: 'Discreet',
+        preset: 'Short and soft',
         params: { time: 300, heads: 1, feedback: 0.35, mix: 0.25 },
       },
       { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.2 } },
@@ -359,7 +359,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { mallet: 0.6, decay: 1.3, resonator: 0.2, width: 0.5, volume: -4 },
     },
     effects: [
-      { deviceId: 'tape-echo', preset: 'Discreet', params: { feedback: 0.1, mix: 0.2 } },
+      { deviceId: 'tape-echo', preset: 'Short and soft', params: { feedback: 0.1, mix: 0.2 } },
       { deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.22 } },
     ],
   },
@@ -442,7 +442,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'tape-echo',
-        preset: 'Discreet',
+        preset: 'Short and soft',
         params: {
           time: 420,
           feedback: 0.35,
@@ -842,7 +842,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'tape-echo',
-        preset: 'Discreet',
+        preset: 'Short and soft',
         params: { time: 380, feedback: 0.1, mix: 0.25 },
       },
       { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.2 } },
@@ -1028,7 +1028,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'tape-echo',
-        preset: 'Discreet',
+        preset: 'Short and soft',
         params: { time: 320, feedback: 0.1, mix: 0.25 },
       },
       { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.18 } },
@@ -1269,7 +1269,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'tape-echo', preset: 'Discreet', params: { time: 280, mix: 0.2 } },
+      { deviceId: 'tape-echo', preset: 'Short and soft', params: { time: 280, mix: 0.2 } },
       { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.18 } },
     ],
   },
@@ -1498,7 +1498,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { decay: 1.5, touch: 0.45, damp: 0.6, volume: 1.5 },
     },
     effects: [
-      { deviceId: 'tape-echo', preset: 'Discreet', params: { time: 260, mix: 0.25 } },
+      { deviceId: 'tape-echo', preset: 'Short and soft', params: { time: 260, mix: 0.25 } },
       { deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.18 } },
     ],
   },

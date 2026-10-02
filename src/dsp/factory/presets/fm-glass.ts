@@ -45,7 +45,7 @@ export const FM_GLASS_PRESETS: readonly FactoryPreset[] = [
     description: 'Soft FM mallets with dotted tape echoes, for slow repeating patterns.',
     instrument: { deviceId: 'fm-glass', preset: 'Vibes', params: { volume: -7 } },
     effects: [
-      { deviceId: 'tape-echo', preset: 'Space echo', params: { heads: 3, time: 450, mix: 0.3 } },
+      { deviceId: 'tape-echo', preset: 'Warm repeats', params: { heads: 3, time: 450, mix: 0.3 } },
       { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.3 } },
     ],
   },

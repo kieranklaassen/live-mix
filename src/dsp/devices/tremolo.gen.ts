@@ -132,7 +132,7 @@ export const TREMOLO_DESCRIPTOR = wasmDeviceDescriptor(TREMOLO_DEVICE, {
       smooth: 0.2,
       mix: 1,
     },
-    'Brownface shimmer': {
+    'Harmonic shimmer': {
       mode: 2,
       rate: 3.4,
       depth: 0.85,
@@ -201,6 +201,7 @@ export const TREMOLO_DESCRIPTOR = wasmDeviceDescriptor(TREMOLO_DEVICE, {
       mix: 0.5,
     },
   },
+  formerPresets: { 'Brownface shimmer': 'Harmonic shimmer' },
 })
 
 export type Tremolo = WasmDevice<typeof TREMOLO_PARAMS>

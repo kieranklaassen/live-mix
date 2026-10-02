@@ -21,7 +21,7 @@ export const HORNS_PRESETS: readonly FactoryPreset[] = [
       'A soft trumpet that is half air, shadowed a fifth above, its tape echoes trailing into open space.',
     instrument: { deviceId: 'horns', preset: 'Parallel fifths', params: { volume: -3 } },
     effects: [
-      { deviceId: 'tape-echo', preset: 'Space echo', params: { mix: 0.3 } },
+      { deviceId: 'tape-echo', preset: 'Warm repeats', params: { mix: 0.3 } },
       { deviceId: 'expanse', preset: 'Open space', params: { mix: 0.3 } },
     ],
     preview: 'line',

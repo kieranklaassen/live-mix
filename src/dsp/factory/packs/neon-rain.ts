@@ -331,7 +331,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'phaser', preset: 'Classic 4-Stage', params: { rate: 0.18, mix: 0.45 } },
-      { deviceId: 'tape-echo', preset: 'Discreet', params: { time: 330, mix: 0.22 } },
+      { deviceId: 'tape-echo', preset: 'Short and soft', params: { time: 330, mix: 0.22 } },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { midDecay: 3.5, mix: 0.4 } },
     ],
   },
@@ -1375,7 +1375,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { breath: 0.7, release: 1, vibrato: 0.5, scoop: 140, volume: -12 },
     },
     effects: [
-      { deviceId: 'tape-echo', preset: 'Discreet', params: { time: 380, mix: 0.25 } },
+      { deviceId: 'tape-echo', preset: 'Short and soft', params: { time: 380, mix: 0.25 } },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.45 } },
     ],
   },

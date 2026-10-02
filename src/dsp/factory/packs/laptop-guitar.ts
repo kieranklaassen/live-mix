@@ -313,7 +313,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Short stutter',
         params: { length: 100, jitter: 0.5, mix: 0.5 },
       },
-      { deviceId: 'tape-echo', preset: 'Discreet', params: { time: 210, mix: 0.22 } },
+      { deviceId: 'tape-echo', preset: 'Short and soft', params: { time: 210, mix: 0.22 } },
     ],
     preview: 'keys',
   },

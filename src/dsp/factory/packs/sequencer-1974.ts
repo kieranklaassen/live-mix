@@ -317,7 +317,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { age: 0.45, hiss: 0.3, attack: 0.5, release: 1.5, volume: -12 },
     },
     effects: [
-      { deviceId: 'tape-echo', preset: 'Discreet', params: { mix: 0.25 } },
+      { deviceId: 'tape-echo', preset: 'Short and soft', params: { mix: 0.25 } },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.35 } },
     ],
     preview: 'chord',
@@ -1456,7 +1456,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'sympathetic', preset: 'Piano pedal', params: { root: 2, mode: 1, mix: 0.3 } },
-      { deviceId: 'tape-echo', preset: 'Discreet', params: { time: 220, mix: 0.2 } },
+      { deviceId: 'tape-echo', preset: 'Short and soft', params: { time: 220, mix: 0.2 } },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
@@ -1716,7 +1716,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { halo: 0.9, sweep: 1, volume: -3 },
     },
     effects: [
-      { deviceId: 'tape-echo', preset: 'Discreet', params: { mix: 0.2 } },
+      { deviceId: 'tape-echo', preset: 'Short and soft', params: { mix: 0.2 } },
       { deviceId: 'dattorro', preset: 'Long plate' },
     ],
   },

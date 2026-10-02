@@ -9,7 +9,7 @@ export const LADDER_BASS_PRESETS: readonly FactoryPreset[] = [
       'Short bass notes that start bright and close, with a tape echo that turns a pattern into a rolling pulse.',
     instrument: { deviceId: 'ladder-bass', preset: 'Sequence bass', params: { volume: -4 } },
     effects: [
-      { deviceId: 'tape-echo', preset: 'Space echo', params: { time: 375, mix: 0.35 } },
+      { deviceId: 'tape-echo', preset: 'Warm repeats', params: { time: 375, mix: 0.35 } },
       { deviceId: 'zita-rev1', preset: 'Room' },
     ],
     preview: 'line',

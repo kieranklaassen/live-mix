@@ -836,7 +836,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { decay: 8, release: 3, volume: -1 },
     },
     effects: [
-      { deviceId: 'swell', preset: 'Slow gear' },
+      { deviceId: 'swell', preset: 'Slow attack' },
       { deviceId: 'echo-memory', preset: 'Half-remembered', params: { mix: 0.5 } },
       { deviceId: 'ether-reverb', preset: 'Ether', params: { decay: 12, mix: 0.35 } },
     ],
@@ -926,7 +926,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'micro-looper', preset: 'Backwards bed', params: { mix: 0.4 } },
-      { deviceId: 'tape', preset: 'Disintegrating loop', params: { hiss: 0.3 } },
+      { deviceId: 'tape', preset: 'Worn thin', params: { hiss: 0.3 } },
       { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.3 } },
     ],
     preview: 'line',
@@ -973,7 +973,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { sustain: 9, release: 5, volume: -1.5 },
     },
     effects: [
-      { deviceId: 'swell', preset: 'Slow gear' },
+      { deviceId: 'swell', preset: 'Slow attack' },
       { deviceId: 'spectral-blur', preset: 'Slow dissolve', params: { width: 0, mix: 0.7 } },
       { deviceId: 'sympathetic', preset: 'Minor strings', params: { root: 2, mix: 0.4 } },
     ],
@@ -1136,7 +1136,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 1.5, release: 3, volume: -13 },
     },
     effects: [
-      { deviceId: 'tape', preset: 'Disintegrating loop', params: { hiss: 0.25 } },
+      { deviceId: 'tape', preset: 'Worn thin', params: { hiss: 0.25 } },
       { deviceId: 'spectral-blur', preset: 'Hanging mist', params: { width: 0.7, mix: 0.5 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.35 } },
     ],
@@ -1453,7 +1453,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       'A soft tongue drum with the stroke eased off, its ring scattered into a cloud, in a long tail that falls.',
     instrument: { deviceId: 'handpan', preset: 'Tongue drum', params: { volume: 0 } },
     effects: [
-      { deviceId: 'swell', preset: 'Slow gear' },
+      { deviceId: 'swell', preset: 'Slow attack' },
       { deviceId: 'grain-cloud', preset: 'Soft cloud', params: { mix: 0.5 } },
       { deviceId: 'bloom-reverb', preset: 'Long dark', params: { mix: 0.4 } },
     ],

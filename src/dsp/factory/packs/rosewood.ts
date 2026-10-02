@@ -524,7 +524,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'tape-echo',
-        preset: 'Discreet',
+        preset: 'Short and soft',
         params: { time: 250, feedback: 0.35, heads: 1, highCut: 5000, spread: 0.5, mix: 0.3 },
       },
       { deviceId: 'expanse', preset: 'Small dark room', params: { mix: 0.2 } },
@@ -603,7 +603,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'tape-echo', preset: 'Discreet', params: { time: 180, feedback: 0.2 } },
+      { deviceId: 'tape-echo', preset: 'Short and soft', params: { time: 180, feedback: 0.2 } },
       { deviceId: 'ether-reverb', preset: 'Room', params: { mix: 0.22 } },
     ],
   },
@@ -701,7 +701,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'tape-echo',
-        preset: 'Space echo',
+        preset: 'Warm repeats',
         params: { time: 330, feedback: 0.3, heads: 3, wow: 0.15, highCut: 5000, mix: 0.3 },
       },
       { deviceId: 'fdn-reverb', preset: 'Room', params: { mix: 0.2 } },
@@ -1598,7 +1598,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'tape-echo',
-        preset: 'Space echo',
+        preset: 'Warm repeats',
         params: { time: 500, feedback: 0.4, lowCut: 40, highCut: 3000, mix: 0.35 },
       },
       { deviceId: 'shaped-reverb', preset: 'Gated room', params: { lowCut: 40, mix: 0.3 } },
@@ -1804,7 +1804,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'tape-echo',
-        preset: 'Space echo',
+        preset: 'Warm repeats',
         params: { time: 375, feedback: 0.35, wow: 0.2, highCut: 5000, mix: 0.3 },
       },
       { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.2 } },

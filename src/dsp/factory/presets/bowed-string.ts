@@ -9,7 +9,7 @@ export const BOWED_STRING_PRESETS: readonly FactoryPreset[] = [
       'A guitar string held by a magnetic sustainer pressed hard, so each note blooms and tips into its octave.',
     instrument: { deviceId: 'bowed-string', preset: 'Octave feedback', params: { volume: -5 } },
     effects: [
-      { deviceId: 'tape-echo', preset: 'Space echo', params: { mix: 0.25 } },
+      { deviceId: 'tape-echo', preset: 'Warm repeats', params: { mix: 0.25 } },
       { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.22 } },
     ],
     preview: 'line',

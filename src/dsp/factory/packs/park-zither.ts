@@ -489,7 +489,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       { deviceId: 'chorus', preset: 'Guitar Shimmer', params: { mix: 0.4 } },
       {
         deviceId: 'tape-echo',
-        preset: 'Discreet',
+        preset: 'Short and soft',
         params: { time: 280, feedback: 0.4, spread: 0.5, mix: 0.3 },
       },
       { deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.25 } },
@@ -570,7 +570,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       { deviceId: 'flanger', preset: 'Classic Jet', params: { rate: 0.16, mix: 0.4 } },
       {
         deviceId: 'tape-echo',
-        preset: 'Discreet',
+        preset: 'Short and soft',
         params: { time: 340, feedback: 0.35, mix: 0.35 },
       },
       { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.2 } },
@@ -997,7 +997,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       { deviceId: 'stereo-detune', preset: 'Subtle halo', params: { detune: 6, mix: 0.3 } },
       {
         deviceId: 'tape-echo',
-        preset: 'Discreet',
+        preset: 'Short and soft',
         params: { time: 240, feedback: 0.3, spread: 0.4, mix: 0.25 },
       },
       { deviceId: 'dattorro', preset: 'Small plate', params: { decay: 0.55, mix: 0.25 } },
@@ -1571,7 +1571,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'tape-echo',
-        preset: 'Discreet',
+        preset: 'Short and soft',
         params: { time: 400, feedback: 0.35, mix: 0.25 },
       },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },

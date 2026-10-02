@@ -477,7 +477,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       'Flutes from the tape-replay keyboard, breathy and a little unsteady, with a short echo and a spring behind.',
     instrument: { deviceId: 'tape-orchestra', preset: 'Flutes on tape', params: { volume: -13 } },
     effects: [
-      { deviceId: 'tape-echo', preset: 'Discreet', params: { mix: 0.2 } },
+      { deviceId: 'tape-echo', preset: 'Short and soft', params: { mix: 0.2 } },
       { deviceId: 'spring-reverb', preset: 'Two spring tank', params: { mix: 0.3 } },
     ],
     preview: 'keys',

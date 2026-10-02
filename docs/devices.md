@@ -307,6 +307,15 @@ the preset's name, and sounds as it did. Fifteen presets were retuned here
 sibling); ten of them are loaded by factory sounds, 93 of which pin what they
 had.
 
+A saved score names the presets it loads, so a preset that is renamed keeps
+its old name in the device's `formerPresets` (old name to the name of today),
+which `resolvePreset` and `hasPreset` follow. Five were renamed here. Three
+carried a product's name: tape-echo "Space echo" is "Warm repeats", swell
+"Slow gear" is "Slow attack", tremolo "Brownface shimmer" is "Harmonic
+shimmer". Two leaned on a record's title: tape-echo "Discreet" is "Short and
+soft", tape "Disintegrating loop" is "Worn thin". The factory sounds name the
+new ones.
+
 The bench the presets were written at prints a line per preset:
 
 ```sh

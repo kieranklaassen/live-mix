@@ -9,6 +9,7 @@ import {
   applyPreset,
   capturePreset,
   defaultPreset,
+  hasPreset,
   isPreset,
   listPresets,
   parsePreset,
@@ -48,6 +49,20 @@ describe('presets', () => {
     expect(resolvePreset(FILTER_DESCRIPTOR, own)).toBe(own)
     const foreign: Preset = { ...own, deviceId: 'eq3' }
     expect(() => resolvePreset(FILTER_DESCRIPTOR, foreign)).toThrow(/is for eq3, not filter/)
+  })
+
+  it('finds a renamed preset by the name it had, and lists it once under the name of today', () => {
+    const renamed = { ...FILTER_DESCRIPTOR, formerPresets: { 'Rumble filter': 'High-pass rumble' } }
+    expect(resolvePreset(renamed, 'Rumble filter')).toEqual(
+      resolvePreset(renamed, 'High-pass rumble'),
+    )
+    expect(resolvePreset(renamed, 'Rumble filter').name).toBe('High-pass rumble')
+    expect(listPresets(renamed).map((p) => p.name)).not.toContain('Rumble filter')
+    expect(() => resolvePreset(renamed, 'Nope')).toThrow(/no preset "Nope"/)
+    expect(hasPreset(renamed, 'Rumble filter')).toBe(true)
+    expect(hasPreset(renamed, 'High-pass rumble')).toBe(true)
+    expect(hasPreset(renamed, 'Nope')).toBe(false)
+    expect(hasPreset(FILTER_DESCRIPTOR, 'Rumble filter')).toBe(false)
   })
 
   it('fills a full param map from a partial preset, clamped, dropping unknown params', () => {

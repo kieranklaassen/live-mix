@@ -165,6 +165,13 @@ function loadManifest(dir) {
     }
   }
 
+  const formerPresets = manifest.formerPresets ?? {}
+  for (const [former, current] of Object.entries(formerPresets)) {
+    const where = `formerPresets ${JSON.stringify(former)}`
+    if (former in presets) fail(id, `${where} is the name of a preset of today`)
+    if (!(current in presets)) fail(id, `${where} points at ${JSON.stringify(current)}, no preset`)
+  }
+
   const memoryMb = manifest.memoryMb ?? DEFAULT_MEMORY_MB
   if (!Number.isInteger(memoryMb) || memoryMb < 1 || memoryMb > 256)
     fail(id, 'memoryMb must be 1..256')
@@ -188,6 +195,7 @@ function loadManifest(dir) {
     params,
     meters,
     presets,
+    formerPresets,
     test,
     namespace: snakeCase(id),
     constant: constCase(id),
@@ -340,6 +348,10 @@ function deviceModule(device) {
   ]
   if (device.experimental) meta.push('  experimental: true,')
   if (presets) meta.push(`  presets: {\n${presets}\n  },`)
+  const formerPresets = Object.entries(device.formerPresets)
+    .map(([former, current]) => `${quote(former)}: ${quote(current)}`)
+    .join(', ')
+  if (formerPresets) meta.push(`  formerPresets: { ${formerPresets} },`)
   const latency =
     device.latencySamples === undefined ? '' : `\n  latencySamples: () => ${device.latencySamples},`
   const metered = device.meters.length > 0

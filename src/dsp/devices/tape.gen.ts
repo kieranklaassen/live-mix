@@ -165,7 +165,7 @@ export const TAPE_DESCRIPTOR = wasmDeviceDescriptor(TAPE_DEVICE, {
       bump: 0.6,
       tone: 0.55,
     },
-    'Disintegrating loop': {
+    'Worn thin': {
       drive: 0.5,
       wow: 0.7,
       flutter: 0.4,
@@ -304,6 +304,7 @@ export const TAPE_DESCRIPTOR = wasmDeviceDescriptor(TAPE_DEVICE, {
       output: -2,
     },
   },
+  formerPresets: { 'Disintegrating loop': 'Worn thin' },
 })
 
 export type Tape = WasmDevice<typeof TAPE_PARAMS>

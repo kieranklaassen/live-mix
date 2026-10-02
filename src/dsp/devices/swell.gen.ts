@@ -122,7 +122,7 @@ export const SWELL_DESCRIPTOR = wasmDeviceDescriptor(SWELL_DEVICE, {
       lookahead: 5,
       mix: 1,
     },
-    'Slow gear': {
+    'Slow attack': {
       attack: 160,
       sensitivity: -34,
       release: 80,
@@ -191,6 +191,7 @@ export const SWELL_DESCRIPTOR = wasmDeviceDescriptor(SWELL_DEVICE, {
     Sunrise: { attack: 1500, sensitivity: -50, release: 800, curve: 1, retrigger: 1 },
     'Half bowed': { attack: 300, mix: 0.5 },
   },
+  formerPresets: { 'Slow gear': 'Slow attack' },
 })
 
 export type Swell = WasmDevice<typeof SWELL_PARAMS>

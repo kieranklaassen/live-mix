@@ -94,7 +94,7 @@
       "smooth": 0.2,
       "mix": 1
     },
-    "Brownface shimmer": {
+    "Harmonic shimmer": {
       "mode": 2,
       "rate": 3.4,
       "depth": 0.85,
@@ -232,6 +232,7 @@
       "mix": 0.5
     }
   },
+  "formerPresets": { "Brownface shimmer": "Harmonic shimmer" },
   "origin": {
     "kind": "new",
     "note": "Written for live-mix on cpp/kit. The harmonic mode follows the idea of the early-sixties Fender brownface circuit (a low and a high band modulated in opposite phase), not its schematic."

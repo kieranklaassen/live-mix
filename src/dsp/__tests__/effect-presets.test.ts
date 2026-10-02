@@ -19,7 +19,11 @@ import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it } from 'vitest'
 
-import { presetParams } from '../../core/devices/presets'
+import { validatePatch } from '../../core/devices/patch'
+import { presetParams, resolvePreset } from '../../core/devices/presets'
+import { DeviceRegistry } from '../../core/devices/registry'
+import { createScore, validateScore } from '../../score/schema'
+import { STOCK_WASM_DEVICES, registerStockWasmDevices } from '../index'
 import {
   EFFECTS,
   FEWER_PRESETS,
@@ -102,6 +106,34 @@ describe('effect presets', () => {
       }
     }
     expect(problems).toEqual([])
+  })
+
+  it('keep the names they were saved under: a former name leads to a preset of today', () => {
+    const problems: string[] = []
+    for (const descriptor of STOCK_WASM_DEVICES) {
+      const names = Object.keys(descriptor.presets ?? {})
+      for (const [former, current] of Object.entries(descriptor.formerPresets ?? {})) {
+        const at = `${descriptor.id} "${former}"`
+        if (names.includes(former)) problems.push(`${at} is also a preset of today`)
+        if (!names.includes(current)) problems.push(`${at} leads to "${current}", no preset`)
+      }
+    }
+    expect(problems).toEqual([])
+    const tapeEcho = STOCK_WASM_DEVICES.find((descriptor) => descriptor.id === 'tape-echo')
+    expect(tapeEcho && resolvePreset(tapeEcho, 'Space echo').name).toBe('Warm repeats')
+
+    // What was saved under the old name is still a sound score and a sound patch.
+    const registry = registerStockWasmDevices(new DeviceRegistry())
+    const saved = { id: 'echo-1', deviceId: 'tape-echo', preset: 'Warm repeats', params: {} }
+    const score = createScore()
+    score.master.inserts.push({ ...saved, bypass: false })
+    expect(validateScore(score, { devices: registry })).toEqual([])
+    score.master.inserts[0].preset = 'No such echo'
+    expect(validateScore(score, { devices: registry }).map((issue) => issue.message)).toEqual([
+      'tape-echo has no preset "No such echo"',
+    ])
+    const patch = { id: 'old', name: 'Old', category: 'echo', description: '', effects: [saved] }
+    expect(validatePatch(patch, registry)).toEqual([])
   })
 
   it('excuses from being told apart only presets that are there', () => {

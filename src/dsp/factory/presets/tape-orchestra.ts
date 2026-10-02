@@ -48,7 +48,7 @@ export const TAPE_ORCHESTRA_PRESETS: readonly FactoryPreset[] = [
       'Breathy flutes with eight seconds of tape under each key, an echo and a small plate.',
     instrument: { deviceId: 'tape-orchestra', preset: 'Flutes on tape', params: { volume: -6 } },
     effects: [
-      { deviceId: 'tape-echo', preset: 'Space echo', params: { mix: 0.22 } },
+      { deviceId: 'tape-echo', preset: 'Warm repeats', params: { mix: 0.22 } },
       { deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.3 } },
     ],
   },

@@ -202,7 +202,7 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
         preset: 'Worn out',
         params: { length: 2.6, feedback: 0.88, wear: 0.9, wow: 0.6 },
       },
-      { deviceId: 'tape', preset: 'Disintegrating loop', params: { hiss: 0.3, output: 2.5 } },
+      { deviceId: 'tape', preset: 'Worn thin', params: { hiss: 0.3, output: 2.5 } },
     ],
   },
   {
@@ -434,7 +434,7 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
     description:
       'A harmonic tremolo that shimmers rather than pulses, then drifts from side to side.',
     effects: [
-      { deviceId: 'tremolo', preset: 'Brownface shimmer', params: { rate: 2.8, depth: 0.55 } },
+      { deviceId: 'tremolo', preset: 'Harmonic shimmer', params: { rate: 2.8, depth: 0.55 } },
       { deviceId: 'tremolo', preset: 'Slow pan', params: { depth: 0.6 } },
     ],
   },
@@ -736,7 +736,7 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
       'Half-second chunks of what you play, an octave down and half as fast, repeating as a rhythm with a quiet tape echo behind.',
     effects: [
       { deviceId: 'half-speed', preset: 'Slow chops' },
-      { deviceId: 'tape-echo', preset: 'Discreet', params: { mix: 0.2 } },
+      { deviceId: 'tape-echo', preset: 'Short and soft', params: { mix: 0.2 } },
     ],
   },
   {

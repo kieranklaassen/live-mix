@@ -89,7 +89,7 @@
       "lookahead": 5,
       "mix": 1
     },
-    "Slow gear": {
+    "Slow attack": {
       "attack": 160,
       "sensitivity": -34,
       "release": 80,
@@ -170,6 +170,7 @@
     "Sunrise": { "attack": 1500, "sensitivity": -50, "release": 800, "curve": 1, "retrigger": 1 },
     "Half bowed": { "attack": 300, "mix": 0.5 }
   },
+  "formerPresets": { "Slow gear": "Slow attack" },
   "origin": {
     "kind": "new",
     "note": "Written for live-mix on cpp/kit. The idea of the Boss SG-1 Slow Gear (a gate that opens slowly on every picked note) with a lookahead delay so the pick itself is caught; not a model of that circuit."

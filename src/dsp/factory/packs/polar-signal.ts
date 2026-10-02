@@ -1145,7 +1145,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'tape',
-        preset: 'Disintegrating loop',
+        preset: 'Worn thin',
         params: { wow: 0.4, age: 0.6, hiss: 0.3 },
       },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.4 } },
@@ -1418,7 +1418,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'tape-echo',
-        preset: 'Space echo',
+        preset: 'Warm repeats',
         params: { time: 620, highCut: 3000, mix: 0.25 },
       },
       { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.3, damping: 0.55 } },
@@ -2043,7 +2043,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'tape-echo',
-        preset: 'Space echo',
+        preset: 'Warm repeats',
         params: { time: 900, feedback: 0.55, highCut: 3000, mix: 0.4 },
       },
       { deviceId: 'expanse', preset: 'Far echoes', params: { mix: 0.35 } },
