@@ -91,6 +91,7 @@ float* device_out_left(void); float* device_out_right(void);
 int    device_max_block_frames(void);
 void   device_process(int frames);   // allocation-free
 // instruments add: device_note_on(id, frequency, gain), device_note_off(id)
+// devices with meters add: float device_meter(int index)
 ```
 
 Built with `emcc -O3 -fno-exceptions -fno-rtti --no-entry -s ALLOW_MEMORY_GROWTH=0`,
@@ -101,6 +102,13 @@ node and `WebAssembly.Instance`. Parameters travel over the `MessagePort`
 (`set-param`) and are smoothed inside the C++; bypass is an in-thread 5 ms
 crossfade; every factory accepts `{ processorUrl, wasm }` overrides
 ([getting started §3](../getting-started.md#3-worklet-and-wasm-asset-resolution)).
+A device can report what it is doing, such as a compressor's gain reduction:
+its manifest names the readings (`meters`), the module exports `device_meter`,
+and once something watches (`device.watchMeters()`, or `useDeviceMeter` in
+React) the worklet posts them 30 times a second. Nothing
+is posted while nobody watches. `isMeteredDevice(device)` tells such a device
+from a plain one.
+
 The committed `.wasm` artefacts reproduce byte-for-byte with the pinned
 emsdk (CI gate), and `pnpm test:native` runs every device's C++ parity harness
 with the system compiler. Adding one is a [recipe](../recipes/adding-a-wasm-device.md);
