@@ -302,6 +302,22 @@ describe('StretchTrack scheduling', () => {
     expect(track.voices()).toContain(voice)
   })
 
+  it('rejoin drops a voice that has not started, so its queued start cannot still fire', async () => {
+    const { ctx, nodes, samples, track, transport, scheduler } = setup()
+    await samples.load('s-a', buffer(ctx, 10))
+    track.clips.add(clip('a', 1))
+    transport.start(0)
+    scheduler.tick()
+    await track.settled()
+    ctx.currentTime = 0.9 // inside the lookahead of the 1 s start: queued, not sounding
+    scheduler.tick()
+    expect(nodes[0].scheduled[0]).toMatchObject({ output: 1, active: true })
+
+    scheduler.rejoin(['a'])
+    expect(track.voice('a:0:1.000')).toBeUndefined()
+    expect(nodes[0].dropped).toBe(1) // the source goes, queued start and all
+  })
+
   it('a sounding clip cut short of the playhead fades out instead of stopping dead', async () => {
     const { ctx, nodes, samples, track, transport, scheduler } = setup()
     await samples.load('s-a', buffer(ctx, 10))

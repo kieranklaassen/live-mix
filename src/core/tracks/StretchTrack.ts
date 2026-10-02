@@ -135,8 +135,7 @@ export class StretchTrack implements StripHost {
       () => this.clips.audible(),
       (start, when) => this.scheduleStart(start, when),
       {
-        cancel: (key, fadeSec) =>
-          fadeSec ? this.fadeOut(key, this.now(), fadeSec) : this.stop(key),
+        cancel: (key, fadeSec) => (fadeSec ? this.release(key, fadeSec) : this.stop(key)),
         cancelPending: () => this.stopPending(),
         cancelAll: (fadeSec) => this.stopAll(fadeSec > 0 ? { at: this.now() + fadeSec } : {}),
       },
@@ -224,6 +223,23 @@ export class StretchTrack implements StripHost {
     voice.source.stop(at)
     voice.endTime = Math.min(voice.endTime, at)
     this.armEnd(voice)
+  }
+
+  /**
+   * Let the voice under `key` go for another that takes its place: one that is
+   * sounding fades out over `seconds` from now; one that has not started is
+   * dropped outright, since a stop scheduled on its stretch node would leave
+   * its queued start to fire.
+   */
+  release(key: string, seconds: number): void {
+    const voice = this.active.get(key)
+    if (!voice) return
+    const at = this.now()
+    if (seconds <= 0 || voice.startTime > at || at >= voice.endTime) {
+      this.silence(voice)
+      return
+    }
+    this.fadeOutVoice(key, at, seconds)
   }
 
   /** Silence every voice that has not started yet; returns their keys. */
