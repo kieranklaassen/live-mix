@@ -57,4 +57,16 @@ export interface FactorySound {
    * sound it plays, rendered first.
    */
   source?: string
+  /**
+   * `'whole-cycles'` for a sound of steady tones: each note is retuned, by
+   * under two cents, to a whole number of cycles per loop when it is rendered
+   * (see ./parts.ts), in whatever key that is.
+   */
+  tuning?: 'whole-cycles'
+  /**
+   * The name and description with each note they mention in braces
+   * ("Low drone {D}"): what `transposeFactorySound` writes them from in
+   * another key. Absent when neither names a note.
+   */
+  words?: { name: string; description: string }
 }
