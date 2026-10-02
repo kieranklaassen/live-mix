@@ -12,6 +12,7 @@
 // allowed here; the ABI import below is type-only and the constants are
 // inlined by the bundler.
 
+import { LOAD_CELL_BUSY, loadCells } from '../../core/load-mark'
 import {
   BYPASS_RAMP_SECONDS,
   WASM_DEVICE_PROCESSOR_NAME,
@@ -39,6 +40,11 @@ class WasmDeviceProcessor extends AudioWorkletProcessor {
   private meterCount = 0
   private meterInterval = 0
   private meterElapsed = 0
+  // False once the host has disposed the device: `process` then ends the node.
+  private running = true
+  // Where this processor shows that it is at work, for the engine's load figure.
+  private readonly load: Int32Array | null
+  private readonly loadMark: number
 
   constructor(options?: AudioWorkletNodeOptions) {
     super()
@@ -55,6 +61,8 @@ class WasmDeviceProcessor extends AudioWorkletProcessor {
       this.device.device_set_param(paramId, value)
     }
     this.bypassStep = 1 / Math.max(1, BYPASS_RAMP_SECONDS * sampleRate)
+    this.load = loadCells(processorOptions.load)
+    this.loadMark = processorOptions.load?.slot ?? 0
 
     this.port.onmessage = (event: MessageEvent<DeviceMessage>) => {
       this.handleMessage(event.data)
@@ -89,6 +97,9 @@ class WasmDeviceProcessor extends AudioWorkletProcessor {
         this.meterInterval = Math.max(1, Math.floor(message.intervalFrames))
         // The first report goes out with the next block.
         this.meterElapsed = this.meterInterval
+        break
+      case 'dispose':
+        this.running = false
         break
       default: {
         const unhandled: never = message
@@ -127,6 +138,17 @@ class WasmDeviceProcessor extends AudioWorkletProcessor {
   }
 
   process(inputs: Float32Array[][], outputs: Float32Array[][]): boolean {
+    // A disconnected node whose processor keeps answering true is rendered for as long as the context lives.
+    if (!this.running) return false
+    const load = this.load
+    if (!load) return this.render(inputs, outputs)
+    Atomics.store(load, LOAD_CELL_BUSY, this.loadMark)
+    const alive = this.render(inputs, outputs)
+    Atomics.store(load, LOAD_CELL_BUSY, 0)
+    return alive
+  }
+
+  private render(inputs: Float32Array[][], outputs: Float32Array[][]): boolean {
     const output = outputs[0]
     if (!output || output.length === 0) return true
     const frames = Math.min(output[0].length, this.maxBlockFrames)
