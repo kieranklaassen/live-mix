@@ -53,6 +53,9 @@ export {
 } from './registry'
 export {
   DEFAULT_EDIT_GESTURE_GAP_MS,
+  DEFAULT_STATE_DELAY_MS,
+  DEFAULT_STATE_POLL_MS,
+  captureNativeState,
   followNativeEdits,
   type FollowNativeEditsOptions,
 } from './follow'

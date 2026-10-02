@@ -97,6 +97,11 @@ export const OPERATION_ARGS: Record<OperationType, Record<string, unknown>> = {
   'device.setParams': { device: 'kick-filter', params: { frequency: 900, q: null } },
   'device.preset': { device: 'glue', preset: null, params: { ratio: 2 } },
   'device.bypass': { device: 'kick-filter', bypass: true },
+  'device.setState': { device: 'kick-filter', state: 'c3RhdGU=' },
+  'device.replace': {
+    id: 'kick-filter',
+    device: { id: 'kick-delay', deviceId: 'delay', params: { timeMs: 250 }, bypass: false },
+  },
   'send.add': { owner: 'pad', target: 'hall', level: 0.2 },
   'send.remove': { owner: 'kick', target: 'hall' },
   'send.set': { owner: 'kick', target: 'hall', level: 0.5 },

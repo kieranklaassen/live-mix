@@ -75,6 +75,40 @@ export function isEditorDevice(device: Device): device is EditorDevice {
 }
 
 /**
+ * A device that holds more than its parameters say: a hosted plug-in with a
+ * sample it loaded, a program it picked, a curve drawn in its own window.
+ * Its state is opaque text (base64 for a plug-in's own chunk) that brings a
+ * new instance back to where this one is. A score keeps it beside the
+ * device's parameters (`ScoreDevice.state`).
+ */
+export interface StatefulDevice extends Device {
+  /** Says the state is text a score can keep; other `getState`s are the device's own business. */
+  readonly stateful: true
+  /** The device's whole state as it is now. */
+  getState(): Promise<string>
+  /**
+   * Restore a `getState()` result. Resolves to whether the device loaded it:
+   * false when it already held exactly this state and left itself alone.
+   */
+  setState(state: string): Promise<boolean>
+  /**
+   * Called when the device knows its state changed in a way no parameter
+   * shows, so a host that keeps the state can read it again. Optional: a
+   * device that cannot tell leaves it out. Returns the unsubscribe function.
+   */
+  onStateChange?(listener: () => void): () => void
+}
+
+export function isStatefulDevice(device: Device): device is StatefulDevice {
+  const candidate = device as Partial<StatefulDevice>
+  return (
+    candidate.stateful === true &&
+    typeof candidate.getState === 'function' &&
+    typeof candidate.setState === 'function'
+  )
+}
+
+/**
  * A device that words its own parameter values. A hosted plug-in knows its
  * decay reads "2.4 s"; its spec only knows a position between 0 and 1.
  */

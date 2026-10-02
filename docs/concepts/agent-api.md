@@ -71,7 +71,7 @@ runs the effects, rolling the operations back if a later step fails → an
 
 ## Vocabulary = score operations, plus intents
 
-- **60 operation tools** (one per score operation type, `OPERATION_TYPES`) are the [score](./score.md) vocabulary with legal
+- **65 operation tools** (one per score operation type, `OPERATION_TYPES`) are the [score](./score.md) vocabulary with legal
   tool names (`clip.replaceFrom` → `clip_replace_from`), each with a
   self-contained JSON Schema generated from the operation types. Structural
   operations need the `structure` consent scope, arrangement edits `arrange`;

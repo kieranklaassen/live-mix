@@ -120,6 +120,7 @@ export {
   type ScoreListener,
 } from './ScoreDocument'
 export {
+  DEFAULT_INSTRUMENT_TAIL_SECONDS,
   ScoreRenderError,
   ScoreRenderer,
   type RenderedHost,
@@ -186,4 +187,9 @@ export {
   type StoredVersionRecord,
   type VersionStorage,
 } from './versionStorage'
-export { patchEffectOps, scoreDeviceFromPatch, type PatchEffectOpsOptions } from './patch'
+export {
+  patchEffectOps,
+  patchInstrumentOps,
+  scoreDeviceFromPatch,
+  type PatchEffectOpsOptions,
+} from './patch'

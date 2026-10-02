@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { isNoteDevice } from '../../core/devices/Device'
 import { DEVICE_CATEGORIES, DeviceRegistry } from '../../core/devices/registry'
 import { groupDevices, isInsertDevice } from '../../react/components/DeviceChainView'
 import { NativeHostClient } from '../HostClient'
@@ -142,13 +143,28 @@ describe('a hosted plug-in that does not load', () => {
     expect(registry.describe(`native:${GONE_EFFECT.id}`).unavailable).toBeUndefined()
   })
 
-  it('an instrument rejects: there is no sound to pass through', async () => {
+  it('an instrument that does not load comes back as a stand-in that takes notes and plays nothing', async () => {
     const { client } = await connect()
     const ctx = createMockContext({ sampleRate: 48000 })
+    const failures: string[] = []
     const registry = new DeviceRegistry()
-    registerNativeDevices(client, [GONE_SYNTH], { registry })
-    await expect(registry.create(`native:${GONE_SYNTH.id}`, asAudioContext(ctx))).rejects.toThrow(
-      'unknown plug-in',
+    registerNativeDevices(client, [GONE_SYNTH], {
+      registry,
+      defaults: { onLoadError: (plugin) => failures.push(plugin.name) },
+    })
+    const device = await registry.create(`native:${GONE_SYNTH.id}`, asAudioContext(ctx), {
+      params: { p1: 0.6 },
+    })
+    expect(isMissingNativeDevice(device)).toBe(true)
+    // An instrument track takes it: the arrangement renders, this one track is silent.
+    expect(isNoteDevice(device)).toBe(true)
+    if (!isNoteDevice(device)) return
+    device.noteOn(1, 440, 1)
+    device.noteOff(1)
+    expect(device.getParam('p1')).toBe(0.6)
+    expect((device as { notice?: string }).notice).toMatch(
+      /did not load: unknown plug-in .* It plays nothing and its settings are kept\.$/,
     )
+    expect(failures).toEqual([GONE_SYNTH.name])
   })
 })

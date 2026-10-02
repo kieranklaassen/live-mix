@@ -56,6 +56,11 @@ export const DEVICE_CATEGORIES: readonly { id: DeviceCategory; label: string }[]
 export interface DeviceCreateOptions {
   /** Initial parameter values by name; anything omitted uses the spec default. */
   params?: Readonly<Record<string, number>>
+  /**
+   * An earlier `StatefulDevice.getState()` result to start from; `params` go
+   * on top of it. A factory whose device keeps no such state ignores it.
+   */
+  state?: string
 }
 
 export type DeviceFactory = (

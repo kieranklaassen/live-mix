@@ -10,7 +10,7 @@ import {
 } from '../../testing'
 import { Lfo, Macro } from '../../core/automation/Modulator'
 import { type StretchNode, type StretchNodeFactory } from '../../core/sources/StretchSource'
-import { type Device, type NoteDevice } from '../../core/devices/Device'
+import { type Device, type NoteDevice, type StatefulDevice } from '../../core/devices/Device'
 import { NODE_DEVICES } from '../../core/devices/native'
 import { DeviceRegistry } from '../../core/devices/registry'
 import { createEngine, type Engine } from '../../core/Engine'
@@ -638,6 +638,361 @@ describe('ScoreRenderer: instruments', () => {
     await expect(new ScoreRenderer(engine, { devices: registry }).render(plain)).rejects.toThrow(
       /NoteDevice/,
     )
+  })
+
+  /** Two instruments in a registry that remembers every instance it made. */
+  function instruments() {
+    const made: (NoteDevice & { disposed: boolean; made: string })[] = []
+    const registry = new DeviceRegistry(NODE_DEVICES)
+    const params = {
+      gain: { id: 0, name: 'Gain', min: 0, max: 1, default: 1, taper: 'linear', unit: '' },
+    } as const
+    for (const id of ['synth', 'organ']) {
+      registry.register({
+        id,
+        name: id,
+        kind: 'node',
+        category: 'instrument',
+        version: 1,
+        params,
+        create: (ctx) => {
+          const device = fakeNoteDevice(ctx)
+          const values = new Map<string, number>()
+          const instance = Object.assign(device, {
+            id,
+            made: id,
+            disposed: false,
+            setParam: vi.fn((name: string, value: number) => void values.set(name, value)),
+            getParam: (name: string) => values.get(name) ?? 1,
+            dispose: () => {
+              instance.disposed = true
+            },
+          })
+          made.push(instance)
+          return instance
+        },
+      })
+    }
+    const score = createScore()
+    score.tracks = [
+      {
+        kind: 'instrument',
+        id: 'keys',
+        name: 'Keys',
+        destination: masterDestination(),
+        strip: defaultStrip({
+          level: 0.5,
+          inserts: [{ id: 'keys-delay', deviceId: 'delay', params: {}, bypass: false }],
+        }),
+        device: { id: 'synth-1', deviceId: 'synth', params: {}, bypass: false },
+      },
+    ]
+    return { registry, score, made }
+  }
+
+  it('replacing an instrument swaps it on the track it has: strip and effects stay, the old one rings out', async () => {
+    vi.useFakeTimers()
+    try {
+      const { registry, score, made } = instruments()
+      const { engine, renderer, edit, document, errors } = await rig(score, registry)
+      const track = renderer.instrument('keys')
+      const delay = renderer.device('keys-delay')
+      const synth = made[0]
+      track.noteOn(1, 440)
+
+      await edit({
+        type: 'device.replace',
+        id: 'synth-1',
+        device: { id: 'organ-1', deviceId: 'organ', params: { gain: 0.25 }, bypass: false },
+      })
+      expect(errors).toEqual([])
+      // The same track, strip and insert; another instrument on it.
+      expect(renderer.instrument('keys')).toBe(track)
+      expect(engine.instruments).toEqual([track])
+      expect(renderer.device('keys-delay')).toBe(delay)
+      expect(track.strip.inserts).toEqual([delay])
+      expect(track.device).toBe(made[1])
+      expect(made[1].made).toBe('organ')
+      expect(renderer.device('organ-1')).toBe(made[1])
+      expect(() => renderer.device('synth-1')).toThrow()
+      // The held note was released on the instrument that left, which is not cut yet.
+      expect(synth.noteOff).toHaveBeenCalledWith(1)
+      expect(synth.disposed).toBe(false)
+      track.noteOn(2, 220)
+      expect(made[1].noteOn).toHaveBeenCalledWith(2, 220, undefined)
+      expect(synth.noteOn).toHaveBeenCalledTimes(1)
+
+      // Its tail over, it goes.
+      vi.advanceTimersByTime(9_000)
+      expect(synth.disposed).toBe(false)
+      vi.advanceTimersByTime(2_000)
+      expect(synth.disposed).toBe(true)
+
+      // Undo puts the first instrument's kind back the same way, as a new instance.
+      document.undo()
+      await renderer.whenIdle()
+      expect(renderer.instrument('keys')).toBe(track)
+      expect(track.device).toBe(made[2])
+      expect(made[2].made).toBe('synth')
+      expect(renderer.device('synth-1')).toBe(made[2])
+      expect(track.strip.inserts).toEqual([delay])
+
+      // What is still ringing when the renderer goes is taken down with it.
+      expect(made[1].disposed).toBe(false)
+      renderer.dispose()
+      expect(made[1].disposed).toBe(true)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('the tail of a swapped instrument is the renderer’s to set', async () => {
+    vi.useFakeTimers()
+    try {
+      const { registry, score, made } = instruments()
+      const ctx = createMockContext({ sampleRate: 48000 })
+      const engine = createEngine({
+        context: asAudioContext(ctx),
+        setIntervalFn: () => 0 as unknown as ReturnType<typeof setInterval>,
+        clearIntervalFn: () => {},
+        devices: registry,
+      })
+      const document = new ScoreDocument(score, { now: () => 0 })
+      const renderer = loadScore(engine, document, { instrumentTailSec: 0.5 })
+      await renderer.whenIdle()
+      document.apply({
+        type: 'device.replace',
+        id: 'synth-1',
+        device: { id: 'organ-1', deviceId: 'organ', params: {}, bypass: false },
+      })
+      await renderer.whenIdle()
+      vi.advanceTimersByTime(499)
+      expect(made[0].disposed).toBe(false)
+      vi.advanceTimersByTime(2)
+      expect(made[0].disposed).toBe(true)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('the same instrument with other settings is not swapped, and a lane on it stays bound', async () => {
+    const { registry, score, made } = instruments()
+    score.lanes = [
+      {
+        id: 'keys-gain',
+        target: { kind: 'device', device: 'synth-1', param: 'gain' },
+        breakpoints: [{ timeSec: 0, value: 0.5 }],
+      },
+    ]
+    const { renderer, edit, errors } = await rig(score, registry)
+    await edit({
+      type: 'device.replace',
+      id: 'synth-1',
+      device: { id: 'synth-1', deviceId: 'synth', params: { gain: 0.25 }, bypass: true },
+    })
+    expect(errors).toEqual([])
+    expect(made).toHaveLength(1)
+    expect(renderer.device('synth-1')).toBe(made[0])
+    expect(made[0].bypass).toBe(true)
+    expect(renderer.lane('keys-gain').breakpoints).toHaveLength(1)
+  })
+
+  it('an instrument kept under its own id but changed in kind is swapped too', async () => {
+    const { registry, score, made } = instruments()
+    const { renderer, edit, errors } = await rig(score, registry)
+    const track = renderer.instrument('keys')
+    await edit({
+      type: 'device.replace',
+      id: 'synth-1',
+      device: { id: 'synth-1', deviceId: 'organ', params: {}, bypass: false },
+    })
+    expect(errors).toEqual([])
+    expect(renderer.instrument('keys')).toBe(track)
+    expect(made[1].made).toBe('organ')
+    expect(track.device).toBe(made[1])
+    expect(renderer.device('synth-1')).toBe(made[1])
+  })
+
+  it('an instrument swapped for something that plays no notes fails and the track keeps what it had', async () => {
+    const { registry, score, made } = instruments()
+    const { renderer, document, errors } = await rig(score, registry)
+    document.apply({
+      type: 'device.replace',
+      id: 'synth-1',
+      device: { id: 'f-1', deviceId: 'filter', params: {}, bypass: false },
+    })
+    await renderer.whenIdle()
+    expect(errors).toHaveLength(1)
+    expect(String(errors[0])).toMatch(/NoteDevice/)
+    expect(renderer.instrument('keys').device).toBe(made[0])
+    expect(renderer.device('synth-1')).toBe(made[0])
+    expect(made[0].disposed).toBe(false)
+    // Taking the edit back leaves a renderer that still follows the document.
+    document.undo()
+    await renderer.whenIdle()
+    expect(renderer.instrument('keys').device).toBe(made[0])
+  })
+})
+
+describe('ScoreRenderer: device state', () => {
+  /** A device with a state besides its one parameter, as a hosted plug-in has. */
+  function stateful() {
+    const created: { state: string | undefined; params: Record<string, number> }[] = []
+    const loads: string[] = []
+    const sets: [string, number][] = []
+    let held: string | undefined
+    // What a load waits for, when a test wants it to take a while.
+    let gate: Promise<void> = Promise.resolve()
+    const registry = new DeviceRegistry(NODE_DEVICES)
+    registry.register({
+      id: 'sampler',
+      name: 'Sampler',
+      kind: 'node',
+      category: 'plugin',
+      version: 1,
+      params: {
+        gain: { id: 0, name: 'Gain', min: 0, max: 1, default: 1, taper: 'linear', unit: '' },
+      },
+      create: (ctx, options) => {
+        created.push({ state: options?.state, params: { ...options?.params } })
+        held = options?.state
+        const node = ctx.createGain()
+        const values = new Map<string, number>(Object.entries(options?.params ?? {}))
+        const device: StatefulDevice = {
+          id: 'sampler',
+          stateful: true,
+          input: node,
+          output: node,
+          params: {
+            gain: { id: 0, name: 'Gain', min: 0, max: 1, default: 1, taper: 'linear', unit: '' },
+          },
+          setParam: (name, value) => {
+            sets.push([name, value])
+            values.set(name, value)
+          },
+          getParam: (name) => values.get(name) ?? 1,
+          bypass: false,
+          latencySec: 0,
+          getState: () => Promise.resolve(held ?? ''),
+          setState: (state) => {
+            if (state === held) return Promise.resolve(false)
+            if (state === 'broken') return Promise.reject(new Error('cannot read that'))
+            held = state
+            loads.push(state)
+            return gate.then(() => {
+              // Loading a state puts the parameter wherever the state had it.
+              values.set('gain', 0.1)
+              return true
+            })
+          },
+          dispose: () => node.disconnect(),
+        }
+        return device
+      },
+    })
+    const score = createScore()
+    score.master.inserts.push({
+      id: 'sampler-1',
+      deviceId: 'sampler',
+      params: { gain: 0.7 },
+      bypass: false,
+      state: 'first',
+    })
+    /** Loads wait from here on; the function returned lets them land. */
+    const slow = (): (() => void) => {
+      let release = (): void => {}
+      gate = new Promise((resolve) => (release = resolve))
+      return release
+    }
+    return { registry, score, created, loads, sets, slow, hold: (state: string) => (held = state) }
+  }
+
+  it('a device is created from the state the document holds, with its parameters on top', async () => {
+    const { registry, score, created, loads } = stateful()
+    const { errors } = await rig(score, registry)
+    expect(errors).toEqual([])
+    expect(created).toEqual([{ state: 'first', params: { gain: 0.7 } }])
+    expect(loads).toEqual([])
+  })
+
+  it('a device without a state in the document is created without one', async () => {
+    const { registry, score, created } = stateful()
+    delete score.master.inserts[0].state
+    await rig(score, registry)
+    expect(created[0].state).toBeUndefined()
+    expect('state' in created[0]).toBe(true)
+  })
+
+  it('a state the document is given reaches the device, then the document’s values again', async () => {
+    const { registry, score, loads, sets } = stateful()
+    const { renderer, edit, errors } = await rig(score, registry)
+    await edit({ type: 'device.setState', device: 'sampler-1', state: 'second' })
+    expect(errors).toEqual([])
+    expect(loads).toEqual(['second'])
+    // The state moved the gain; the document says 0.7 and has the last word.
+    expect(sets).toEqual([['gain', 0.7]])
+    expect(renderer.device('sampler-1').getParam('gain')).toBe(0.7)
+  })
+
+  it('a state read from the device and kept in the document is not loaded into it again', async () => {
+    const { registry, score, loads, sets, hold } = stateful()
+    const { edit, errors } = await rig(score, registry)
+    hold('read')
+    await edit({ type: 'device.setState', device: 'sampler-1', state: 'read' })
+    expect(errors).toEqual([])
+    expect(loads).toEqual([])
+    expect(sets).toEqual([])
+  })
+
+  it('a parameter changed with the state is set either way', async () => {
+    const { registry, score, loads, sets, hold } = stateful()
+    const { document, renderer, errors } = await rig(score, registry)
+    hold('read')
+    // Both in one render: a knob turned in the plug-in and the state read after it.
+    document.apply({ type: 'device.setParam', device: 'sampler-1', param: 'gain', value: 0.4 })
+    document.apply({ type: 'device.setState', device: 'sampler-1', state: 'read' })
+    await renderer.whenIdle()
+    expect(errors).toEqual([])
+    expect(loads).toEqual([])
+    expect(sets).toEqual([['gain', 0.4]])
+  })
+
+  it('a knob turned while a state is still loading is what the device ends on', async () => {
+    const { registry, score, loads, sets, slow } = stateful()
+    const { renderer, document, errors } = await rig(score, registry)
+    const land = slow()
+    document.apply({ type: 'device.setState', device: 'sampler-1', state: 'second' })
+    await vi.waitFor(() => expect(loads).toEqual(['second']))
+    // The next edit arrives before the plug-in has taken the state.
+    document.apply({ type: 'device.setParam', device: 'sampler-1', param: 'gain', value: 0.4 })
+    land()
+    await renderer.whenIdle()
+    expect(errors).toEqual([])
+    // The values the state was restored under first, then the knob: not the other way round.
+    expect(sets).toEqual([
+      ['gain', 0.7],
+      ['gain', 0.4],
+    ])
+    expect(renderer.device('sampler-1').getParam('gain')).toBe(0.4)
+  })
+
+  it('a state the device cannot take is a render error and the device stays', async () => {
+    const { registry, score } = stateful()
+    const { renderer, document, errors } = await rig(score, registry)
+    const device = renderer.device('sampler-1')
+    document.apply({ type: 'device.setState', device: 'sampler-1', state: 'broken' })
+    await renderer.whenIdle()
+    expect(errors.map(String)).toEqual(['Error: cannot read that'])
+    expect(renderer.device('sampler-1')).toBe(device)
+  })
+
+  it('a state on a device that keeps none is carried by the document and ignored by the graph', async () => {
+    const { renderer, edit, errors, document } = await rig()
+    const filter = renderer.device('kick-filter')
+    await edit({ type: 'device.setState', device: 'kick-filter', state: 'anything' })
+    expect(errors).toEqual([])
+    expect(renderer.device('kick-filter')).toBe(filter)
+    expect(document.score.tracks[0].strip.inserts[0].state).toBe('anything')
   })
 })
 

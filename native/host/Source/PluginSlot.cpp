@@ -327,7 +327,10 @@ bool PluginSlot::setState (const juce::String& base64)
     plugin->suspendProcessing (true);
     plugin->setStateInformation (decoded.getData(), static_cast<int> (decoded.getDataSize()));
     plugin->suspendProcessing (false);
-    markAllDirty (Origin::plugin);
+    // The answer to the request carries every value as the state left it.
+    // Reporting them again as the plug-in's own changes would reach a client
+    // after it has put its values on top, and read as someone turning them back.
+    markAllDirty (Origin::none);
     return true;
 }
 
@@ -406,6 +409,9 @@ void PluginSlot::audioProcessorChanged (juce::AudioProcessor*, const ChangeDetai
         latencyDirty = true;
     if (details.parameterInfoChanged || details.programChanged)
         markAllDirty (Origin::plugin);
+    // A sample loaded, a program picked, a curve drawn: what only the state holds.
+    if (details.nonParameterStateChanged || details.programChanged)
+        stateDirty = true;
 }
 
 juce::Optional<juce::AudioPlayHead::PositionInfo> PluginSlot::getPosition() const

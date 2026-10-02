@@ -3,10 +3,24 @@
 // and the real plug-in host on the loopback interface. The page is served
 // cross-origin isolated (see serve.mjs): the bridge needs shared memory.
 
-import { holdRenderAt } from '@kieranklaassen/live-mix'
+import {
+  ScoreDocument,
+  createEngine,
+  createScore,
+  defaultStrip,
+  holdRenderAt,
+  loadScore,
+  masterDestination,
+  parseScore,
+  serializeScore,
+  unloadScore,
+} from '@kieranklaassen/live-mix'
 import {
   NativeDevice,
   NativeHostClient,
+  captureNativeState,
+  followNativeEdits,
+  nativeDeviceId,
   scanNativeDevices,
   type NativeHostAddress,
 } from '@kieranklaassen/live-mix/native'
@@ -69,6 +83,22 @@ export interface InstrumentOfflineResult {
   gapEnd: number
   peak: number
   underruns: number
+}
+
+export interface ScoreStateResult {
+  /** Zero crossings per second of A4 before the tuning, after it, and in the reopened document. */
+  before: number
+  tuned: number
+  reopened: number
+  /** Whether the document got a state when the plug-in appeared, and another after the tuning. */
+  firstState: boolean
+  stateChanged: boolean
+  /** Whether the plug-in's one parameter stayed where it was through all of it. */
+  paramsUntouched: boolean
+  /** Undo steps the document had after the tuning: keeping a state is not one. */
+  undoSteps: number
+  /** States a capture found changed right after the follower kept the latest one. */
+  capturedAgain: number
 }
 
 export interface HostLossResult {
@@ -375,6 +405,107 @@ async function instrumentOffline(args: NativeHarnessArgs): Promise<InstrumentOff
   return result
 }
 
+/**
+ * What a plug-in holds that no parameter shows, kept by a score. The test
+ * instrument takes a tuning from MIDI controller 20, keeps it only in its
+ * state and tells the host its state changed. The document follows the
+ * plug-in, is saved as text, and a new engine opened from that text plays
+ * the tuning.
+ */
+async function scoreState(args: NativeHarnessArgs): Promise<ScoreStateResult> {
+  const { client, find } = await connect(args)
+  const deviceId = nativeDeviceId(find('LiveMix Test Sine').id)
+
+  const open = async (text?: string) => {
+    const ctx = await liveContext()
+    const engine = createEngine({ context: ctx })
+    let score = createScore()
+    if (text === undefined) {
+      // Nothing of this needs to be heard: the test listens to the instrument itself.
+      score.master.level = 0
+      score.tracks = [
+        {
+          kind: 'instrument',
+          id: 'keys',
+          name: 'Keys',
+          destination: masterDestination(),
+          strip: defaultStrip(),
+          device: { id: 'sine-1', deviceId, params: {}, bypass: false },
+        },
+      ]
+    } else {
+      score = parseScore(text, { devices: engine.devices })
+    }
+    const document = new ScoreDocument(score)
+    const renderer = loadScore(engine, document)
+    await renderer.whenIdle()
+    const device = renderer.device('sine-1')
+    if (!(device instanceof NativeDevice)) throw new Error('the plug-in did not load')
+    await untilRunning(device)
+    const reference = ctx.createConstantSource()
+    reference.start()
+    /** Zero crossings per second of A4 through the track's instrument. */
+    const pitch = async (): Promise<number> => {
+      renderer.instrument('keys').noteOn(1, 440, 1)
+      await sleep(300)
+      const held = (await capture(ctx, reference, device.output, SAMPLE_RATE / 2)).b
+      renderer.instrument('keys').noteOff(1)
+      await sleep(100)
+      let crossings = 0
+      for (let i = 1; i < held.length; i += 1) if (held[i - 1] < 0 !== held[i] < 0) crossings += 1
+      return (crossings * SAMPLE_RATE) / held.length
+    }
+    const close = async (): Promise<void> => {
+      unloadScore(engine)
+      engine.dispose()
+      await ctx.close()
+    }
+    return { document, renderer, device, pitch, close }
+  }
+  const stateOf = (document: ScoreDocument): string | undefined => {
+    const [track] = document.score.tracks
+    return track.kind === 'instrument' ? track.device.state : undefined
+  }
+  const until = async (done: () => boolean): Promise<boolean> => {
+    for (let i = 0; i < 300 && !done(); i += 1) await sleep(10)
+    return done()
+  }
+
+  const first = await open()
+  const stop = followNativeEdits(first.document, first.renderer, { stateDelayMs: 50 })
+  const firstState = await until(() => stateOf(first.document) !== undefined)
+  const untuned = stateOf(first.document)
+  const [levelName] = Object.keys(first.device.params)
+  const level = first.device.getParam(levelName)
+  const before = await first.pitch()
+
+  // An octave up, by a controller: no parameter moves.
+  first.device.sendMidi([0xb0, 20, 76])
+  const stateChanged = await until(() => stateOf(first.document) !== untuned)
+  const tuned = await first.pitch()
+  const capturedAgain = await captureNativeState(first.document, first.renderer)
+  const paramsUntouched = first.device.getParam(levelName) === level
+  const undoSteps = first.document.canUndo ? 1 : 0
+  const saved = serializeScore(first.document.score)
+  stop()
+  await first.close()
+
+  const second = await open(saved)
+  const reopened = await second.pitch()
+  await second.close()
+  client.close()
+  return {
+    before,
+    tuned,
+    reopened,
+    firstState,
+    stateChanged,
+    paramsUntouched,
+    undoSteps,
+    capturedAgain,
+  }
+}
+
 /** Starts a device, reports its status, and reports again once `gone` resolves. */
 async function hostLoss(args: NativeHarnessArgs): Promise<HostLossResult> {
   const { client, find } = await connect(args)
@@ -408,9 +539,10 @@ declare global {
       offline: typeof offline
       instrument: typeof instrument
       instrumentOffline: typeof instrumentOffline
+      scoreState: typeof scoreState
       hostLoss: typeof hostLoss
     }
   }
 }
 
-window.nativeHarness = { live, offline, instrument, instrumentOffline, hostLoss }
+window.nativeHarness = { live, offline, instrument, instrumentOffline, scoreState, hostLoss }

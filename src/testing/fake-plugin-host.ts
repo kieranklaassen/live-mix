@@ -137,6 +137,9 @@ interface Request {
   params: Record<string, unknown>
 }
 
+/** The state a fake plug-in has until it is given another. */
+export const FAKE_STATE = 'c3RhdGU='
+
 export interface FakePluginHostOptions {
   protocol?: number
   plugins?: NativePluginInfo[]
@@ -174,7 +177,7 @@ export class FakePluginHost {
     return this.requests.filter((request) => request.method === method)
   }
 
-  /** Send an event to the page, as the host does (`params`, `latency`, `editorClosed`). */
+  /** Send an event to the page, as the host does (`params`, `latency`, `editorClosed`, `stateChanged`). */
   emit(event: string, fields: Record<string, unknown>): void {
     this.socket.deliver({ event, ...fields })
   }
@@ -223,7 +226,7 @@ export class FakePluginHost {
         this.slots.set(slot, {
           plugin: plugin.id,
           params,
-          state: typeof request.params.state === 'string' ? request.params.state : '',
+          state: typeof request.params.state === 'string' ? request.params.state : FAKE_STATE,
         })
         const info: NativeSlotInfo = {
           slot,
@@ -253,7 +256,8 @@ export class FakePluginHost {
         reply({ params: this.slots.get(String(request.params.slot))?.params ?? [] })
         break
       case 'getState':
-        reply({ state: 'c3RhdGU=' })
+        // What the slot was last given, or the plug-in's own first state.
+        reply({ state: this.slots.get(String(request.params.slot))?.state ?? FAKE_STATE })
         break
       case 'setState': {
         const slot = this.slots.get(String(request.params.slot))

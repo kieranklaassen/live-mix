@@ -60,7 +60,7 @@ Score
 
 ScoreDestination  { kind: 'master' } | { kind: 'group', id }
 ScoreStrip        { level, pan, inputGain, mute, solo, soloSafe, inserts: ScoreDevice[], sends: ScoreSend[] }
-ScoreDevice       { id, deviceId (registry id), preset?, params: { name: number }, bypass }
+ScoreDevice       { id, deviceId (registry id), preset?, params: { name: number }, bypass, state? }
 ScoreSend         { target: returnId, level: number | null }   null = direct connection
 ParamTarget       { kind: 'strip', owner: id | 'master', param: 'level' | 'pan' | 'inputGain' }
                 | { kind: 'device', device: instanceId, param: name }
@@ -137,23 +137,23 @@ branches are shared); `invert(score, op)` computes the undo against the
 pre-state; `applyWithInverse` does both. Anything that does not fit the
 score throws `ScoreOperationError`, so a failed operation changes nothing.
 
-| Group                                                             | Operations                                                                                                                                                         |
-| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Document                                                          | `score.rename`, `score.setMeta` (`patch`: a value sets an entry of `meta`, `null` removes it), `transport.loop`                                                    |
-| Sources                                                           | `source.add`, `source.update` (`url`, `durationSec`, `analysis`, `meta`; `null` clears), `source.remove` (refused while a clip uses it)                            |
-| Tracks                                                            | `track.add`, `track.remove`, `track.move`                                                                                                                          |
-| Groups                                                            | `group.add`, `group.remove` (members re-route to where it fed), `group.move`                                                                                       |
-| Returns                                                           | `return.add`, `return.remove` (sends to it are dropped), `return.move`                                                                                             |
-| Strips (any track/group/return; `'master'` for level and inserts) | `strip.rename`, `strip.route`, `strip.set` (level/pan/inputGain), `strip.mute`, `strip.solo`, `strip.soloSafe`                                                     |
-| Clips                                                             | `clip.add`, `clip.remove`, `clip.move`, `clip.trim`, `clip.update`, `clip.replaceFrom` (Breathwork Live's steer: drop everything from `fromSec`, add the new plan) |
-| Devices (by instance id)                                          | `device.add`, `device.remove`, `device.move`, `device.setParam`, `device.setParams` (`null` clears), `device.preset`, `device.bypass`                              |
-| Sends                                                             | `send.add`, `send.remove`, `send.set`                                                                                                                              |
-| Lanes                                                             | `lane.add` (one per parameter), `lane.remove`, `lane.setBreakpoints`, `lane.addBreakpoint`, `lane.removeBreakpoint`                                                |
-| Modulators                                                        | `modulator.add`, `modulator.remove` (routes go with it), `modulator.update`                                                                                        |
-| Routes                                                            | `route.add`, `route.remove`, `route.update`                                                                                                                        |
-| Session grid (U31, [`docs/session.md`](./session.md))             | `transport.quantize`, `scene.add`, `scene.remove` (its slots go with it), `scene.move`, `scene.rename`, `slot.add`, `slot.remove`, `slot.update`                   |
-| Composite                                                         | `batch { ops, label? }` — one step; inverse is the reversed inverses                                                                                               |
-| Whole document (U30)                                              | `score.replace { score, label? }` — a version restored: validated on apply, inverse carries the previous document                                                  |
+| Group                                                             | Operations                                                                                                                                                                                 |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Document                                                          | `score.rename`, `score.setMeta` (`patch`: a value sets an entry of `meta`, `null` removes it), `transport.loop`                                                                            |
+| Sources                                                           | `source.add`, `source.update` (`url`, `durationSec`, `analysis`, `meta`; `null` clears), `source.remove` (refused while a clip uses it)                                                    |
+| Tracks                                                            | `track.add`, `track.remove`, `track.move`                                                                                                                                                  |
+| Groups                                                            | `group.add`, `group.remove` (members re-route to where it fed), `group.move`                                                                                                               |
+| Returns                                                           | `return.add`, `return.remove` (sends to it are dropped), `return.move`                                                                                                                     |
+| Strips (any track/group/return; `'master'` for level and inserts) | `strip.rename`, `strip.route`, `strip.set` (level/pan/inputGain), `strip.mute`, `strip.solo`, `strip.soloSafe`                                                                             |
+| Clips                                                             | `clip.add`, `clip.remove`, `clip.move`, `clip.trim`, `clip.update`, `clip.replaceFrom` (Breathwork Live's steer: drop everything from `fromSec`, add the new plan)                         |
+| Devices (by instance id)                                          | `device.add`, `device.remove`, `device.move`, `device.setParam`, `device.setParams` (`null` clears), `device.preset`, `device.bypass`, `device.setState` (`null` clears), `device.replace` |
+| Sends                                                             | `send.add`, `send.remove`, `send.set`                                                                                                                                                      |
+| Lanes                                                             | `lane.add` (one per parameter), `lane.remove`, `lane.setBreakpoints`, `lane.addBreakpoint`, `lane.removeBreakpoint`                                                                        |
+| Modulators                                                        | `modulator.add`, `modulator.remove` (routes go with it), `modulator.update`                                                                                                                |
+| Routes                                                            | `route.add`, `route.remove`, `route.update`                                                                                                                                                |
+| Session grid (U31, [`docs/session.md`](./session.md))             | `transport.quantize`, `scene.add`, `scene.remove` (its slots go with it), `scene.move`, `scene.rename`, `slot.add`, `slot.remove`, `slot.update`                                           |
+| Composite                                                         | `batch { ops, label? }` — one step; inverse is the reversed inverses                                                                                                                       |
+| Whole document (U30)                                              | `score.replace { score, label? }` — a version restored: validated on apply, inverse carries the previous document                                                                          |
 
 Removals cascade: a track takes the lanes and routes on its strip and
 devices with it (and its session slots), a group re-routes its members, a
@@ -163,6 +163,20 @@ Their inverses are `batch` operations that restore every piece at its
 original index, so `apply(invert(op), apply(op)) ≡ score` for every
 operation — the property test in `operations.test.ts` applies 150 random
 operations per seed and checks undo, redo and the inverse of the inverse.
+
+`device.replace { id, device }` puts another device where one is. An insert
+keeps its place in the chain; an instrument track or a return gets a new
+device of its own and keeps its strip, which `device.remove` cannot do for
+them. Lanes and routes on the old device go with it and come back on undo,
+unless the new one is the same instance (`id`) of the same registry device
+with other settings, in which case everything bound to it stays.
+`patchInstrumentOps` (in [`docs/factory.md`](./factory.md)) builds on it to
+load an instrument preset as one undo step.
+
+`device.setState { device, state }` keeps what a device holds besides its
+parameters: `ScoreDevice.state`, opaque text only the device can read (a
+hosted plug-in's own chunk as base64, see [`docs/native.md`](./native.md)).
+A device is created from its state with its `params` on top.
 
 `OPERATION_TYPES` lists the vocabulary, `isOperation` recognises a record,
 `describeOperation` gives a short label for history lists.
@@ -256,6 +270,15 @@ imperative calls on the other).
 Handles: `renderer.audioTrack(id)`, `liveInput(id)`, `instrument(id)`,
 `group(id)`, `returnTrack(id)`, `device(instanceId)`, `lane(id)`,
 `modulator(id)`, `rendered`.
+
+An instrument track whose own device is replaced is not rebuilt: the new
+instrument goes onto the track that is there (`InstrumentTrack.setDevice`),
+so its strip, inserts, sends and handle stay, held notes are released on the
+instrument that leaves, and that one stays wired for `instrumentTailSec`
+(default 10 s) so its release is heard, then is disposed. A device that
+implements `StatefulDevice` and is given another `state` by the document
+loads it, and the document's parameter values are applied again after it;
+`whenIdle()` waits for that too.
 
 ### Parameter ownership
 

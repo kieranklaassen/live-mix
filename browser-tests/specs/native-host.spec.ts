@@ -25,6 +25,7 @@ import type {
   LiveResult,
   NativeHarnessArgs,
   OfflineResult,
+  ScoreStateResult,
 } from '../harness/native'
 import { collectPageErrors } from './page-errors'
 
@@ -139,6 +140,34 @@ test.describe('hosted plug-ins', () => {
       expect(result.gapStart).toBe(result.lag + result.offFrame)
       expect(result.gapEnd).toBe(result.lag + result.onFrame + 1)
     }
+    expect(errors).toEqual([])
+  })
+
+  test('a score keeps what a plug-in holds that no parameter shows, through a save and a reopen', async ({
+    page,
+  }) => {
+    const errors = collectPageErrors(page)
+    const args = await harness(page)
+    const result: ScoreStateResult = await page.evaluate(
+      (a) => window.nativeHarness!.scoreState(a),
+      args,
+    )
+
+    // The document had the plug-in's state from the moment it appeared.
+    expect(result.firstState).toBe(true)
+    // A4: 440 Hz crosses zero 880 times a second.
+    expect(result.before).toBeGreaterThan(860)
+    expect(result.before).toBeLessThan(900)
+    // Tuned an octave up from inside the plug-in: the document heard of it by itself.
+    expect(result.stateChanged).toBe(true)
+    expect(result.tuned).toBeGreaterThan(1720)
+    expect(result.tuned).toBeLessThan(1800)
+    expect(result.paramsUntouched).toBe(true)
+    expect(result.undoSteps).toBe(0)
+    expect(result.capturedAgain).toBe(0)
+    // Saved as text and opened in a new engine: still an octave up.
+    expect(result.reopened).toBeGreaterThan(1720)
+    expect(result.reopened).toBeLessThan(1800)
     expect(errors).toEqual([])
   })
 

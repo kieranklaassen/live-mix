@@ -26,6 +26,42 @@ export interface PatchEffectOpsOptions {
   pinned?: number
 }
 
+/** Instance ids for a patch's devices that no device in the score has: `tape-1`, `tape-2`, … */
+function idAllocator(score: Score): (deviceId: string) => string {
+  const taken = new Set(allDevices(score).map((location) => location.device.id))
+  return (deviceId) => {
+    let n = 1
+    while (taken.has(`${deviceId}-${n}`)) n += 1
+    const id = `${deviceId}-${n}`
+    taken.add(id)
+    return id
+  }
+}
+
+function effectOps(
+  score: Score,
+  owner: string,
+  patch: Pick<Patch, 'effects'>,
+  options: PatchEffectOpsOptions,
+  freshId: (deviceId: string) => string,
+): Operation[] {
+  const inserts =
+    owner === MASTER_OWNER ? score.master.inserts : findStripHost(score, owner)?.strip.inserts
+  if (!inserts) throw new Error(`live-mix: the score has no "${owner}" to put effects on`)
+  const pinned = Math.max(0, Math.floor(options.pinned ?? 0))
+  const ops: Operation[] = inserts
+    .slice(pinned)
+    .map((device) => ({ type: 'device.remove', id: device.id }))
+  for (const effect of patch.effects) {
+    ops.push({
+      type: 'device.add',
+      owner,
+      device: scoreDeviceFromPatch(freshId(effect.deviceId), effect),
+    })
+  }
+  return ops
+}
+
 /**
  * The operations that put a patch's effects on `owner` in place of the
  * inserts it has: a track, group or return by id, or `MASTER_OWNER`. Apply
@@ -39,20 +75,47 @@ export function patchEffectOps(
   patch: Pick<Patch, 'effects'>,
   options: PatchEffectOpsOptions = {},
 ): Operation[] {
-  const inserts =
-    owner === MASTER_OWNER ? score.master.inserts : findStripHost(score, owner)?.strip.inserts
-  if (!inserts) throw new Error(`live-mix: the score has no "${owner}" to put effects on`)
-  const pinned = Math.max(0, Math.floor(options.pinned ?? 0))
-  const taken = new Set(allDevices(score).map((location) => location.device.id))
-  const ops: Operation[] = inserts
-    .slice(pinned)
-    .map((device) => ({ type: 'device.remove', id: device.id }))
-  for (const effect of patch.effects) {
-    let n = 1
-    while (taken.has(`${effect.deviceId}-${n}`)) n += 1
-    const id = `${effect.deviceId}-${n}`
-    taken.add(id)
-    ops.push({ type: 'device.add', owner, device: scoreDeviceFromPatch(id, effect) })
+  return effectOps(score, owner, patch, options, idAllocator(score))
+}
+
+/**
+ * The operations that load an instrument preset onto an instrument track:
+ * its instrument with its settings in place of the track's own device
+ * (`device.replace`), and its effects in place of the track's inserts. The
+ * strip's level, pan and sends stay, and a track already playing the
+ * preset's instrument keeps that instance and the state it holds. Apply them
+ * as one `batch` and the load is one undo step. Throws when the patch has no
+ * instrument or the score has no such instrument track.
+ */
+export function patchInstrumentOps(
+  score: Score,
+  track: string,
+  patch: Pick<Patch, 'instrument' | 'effects'>,
+  options: PatchEffectOpsOptions = {},
+): Operation[] {
+  if (!patch.instrument) throw new Error('live-mix: the patch has no instrument')
+  const host = findStripHost(score, track)
+  if (!host || !('kind' in host) || host.kind !== 'instrument') {
+    throw new Error(`live-mix: the score has no instrument track "${track}"`)
   }
-  return ops
+  const freshId = idAllocator(score)
+  // The same instrument stays the instance it is and takes the preset's
+  // settings, so what it is playing goes on; another one is a new instance.
+  const kept = host.device.deviceId === patch.instrument.deviceId
+  const device = scoreDeviceFromPatch(
+    kept ? host.device.id : freshId(patch.instrument.deviceId),
+    patch.instrument,
+  )
+  // A patch cannot say what a device holds besides its parameters, and the
+  // instance that stays still holds it: dropping it here would take a hosted
+  // sample or program out of the document while it goes on sounding.
+  if (kept && host.device.state !== undefined) device.state = host.device.state
+  return [
+    {
+      type: 'device.replace',
+      id: host.device.id,
+      device,
+    },
+    ...effectOps(score, track, patch, options, freshId),
+  ]
 }
