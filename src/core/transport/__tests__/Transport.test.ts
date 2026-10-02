@@ -545,6 +545,27 @@ describe('Transport elapsed and the counted pass', () => {
     }
   })
 
+  it('seekElapsed lands on the start of the pass a whole number of lengths opens, with a length a float cannot hold', () => {
+    for (const lengthSec of [35.765, 25.9, 608 / 17]) {
+      const { transport } = build({ enabled: true, lengthSec })
+      for (const passes of [6, 17, 29, 58, 116]) {
+        // Worked out both ways a caller would: one multiplication, and a length added to the passes before.
+        for (const elapsedSec of [passes * lengthSec, (passes - 1) * lengthSec + lengthSec]) {
+          transport.seekElapsed(elapsedSec)
+          expect(transport.pass()).toBe(passes)
+          // At its start, or the hair past it the sum came out at: never before it.
+          expect(transport.position().positionSec).toBeGreaterThanOrEqual(0)
+          expect(transport.position().positionSec).toBeLessThan(1e-9)
+          expect(transport.elapsed()).toBe(elapsedSec)
+        }
+        // A millisecond short of it is still the pass before, at its very end.
+        transport.seekElapsed(passes * lengthSec - 0.001)
+        expect(transport.pass()).toBe(passes - 1)
+        expect(transport.position().positionSec).toBeCloseTo(lengthSec - 0.001, 6)
+      }
+    }
+  })
+
   it('setPass takes the run of the timeline to that pass, playing or not', () => {
     const { ctx, transport } = build(LOOP)
     transport.start()

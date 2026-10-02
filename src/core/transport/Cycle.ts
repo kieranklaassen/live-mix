@@ -16,7 +16,7 @@
 // timeline seconds, so a transport that runs faster or slower against the
 // audio clock (`Transport.rate`) takes every cycle with it at that speed.
 
-import type { TransportAnchor, TransportLoop, TransportPosition } from './anchor'
+import { passAt, type TransportAnchor, type TransportLoop, type TransportPosition } from './anchor'
 
 /**
  * What the scheduler and the lane writers read off a clock: where it is, the
@@ -55,9 +55,6 @@ interface SeenAnchor {
   anchor: Readonly<TransportAnchor>
   elapsedSec: number
 }
-
-// A second this close under a pass's start is that start, worked out with another rounding.
-const PASS_EPSILON_SEC = 1e-9
 
 export class Cycle implements Timebase {
   private readonly transport: CycleTransport
@@ -158,8 +155,7 @@ export class Cycle implements Timebase {
    * the pass before.
    */
   private passAt(elapsedSec: number): number {
-    const pass = Math.floor(elapsedSec / this.length)
-    return (pass + 1) * this.length - elapsedSec <= PASS_EPSILON_SEC ? pass + 1 : pass
+    return passAt(elapsedSec, this.length)
   }
 
   /** How far into pass `pass` the run is at `elapsedSec`: never before its start. */

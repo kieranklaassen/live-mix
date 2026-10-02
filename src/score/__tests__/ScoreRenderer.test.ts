@@ -420,6 +420,34 @@ describe('ScoreRenderer: incremental edits', () => {
     expect(ctx.currentTime).toBe(0)
   })
 
+  it('a lane under modulation is read on its track’s own loop, where the track has one', async () => {
+    const { renderer, edit, engine } = await rig()
+    // The pad's level lane gets a route: it is now the base of a modulation target.
+    await edit({
+      type: 'route.add',
+      route: {
+        id: 'r2',
+        source: 'lfo1',
+        target: { kind: 'strip', owner: 'pad', param: 'level' },
+        depth: 0.1,
+        polarity: 'unipolar',
+      },
+    })
+    const lane = renderer.lane('pad-level')
+    const target = [...engine.modulation.targets].find((candidate) => candidate.base === lane)
+    expect(target).toBeDefined()
+    // On the transport's loop it names no clock of its own.
+    expect(target?.timebase?.()).toBeUndefined()
+
+    await edit({ type: 'track.loop', id: 'pad', lengthSec: 10 })
+    const own = [...engine.modulation.targets].find((candidate) => candidate.base === lane)
+    expect(own?.timebase?.()).toBe(renderer.audioTrack('pad').timebase)
+    // 23 s in, the pad's loop is 3 s into its third pass, and that is where its lane is read.
+    engine.transport.seekElapsed(23)
+    expect(own?.timebase?.()?.position().positionSec).toBe(3)
+    expect(engine.transport.position().positionSec).toBe(23)
+  })
+
   it('muting a clip reaches the track; an annotation alone never touches it', async () => {
     const { renderer, edit } = await rig()
     const track = renderer.audioTrack('kick')

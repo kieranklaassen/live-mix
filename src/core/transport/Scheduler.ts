@@ -339,7 +339,7 @@ export class Scheduler {
         // Somewhere else now: it plays from where its clock stands in its
         // clips, apart from one still sounding as it was left.
         const entered = new Set(keptOver)
-        for (const { clip, iteration } of soundingUnder(clips, here, loop)) {
+        for (const { clip, iteration } of soundingUnder(clips, here, base)) {
           if (entered.has(clip.id)) continue
           const pass = base.passOf(iteration)
           if (!soundsOnPass(clip, pass, this.currentSeed)) continue
@@ -805,18 +805,21 @@ function soundingRate(schedulable: Schedulable, rate: number): number {
 /**
  * The clips the position stands inside, each with the pass of the clock it
  * began on: those begun earlier in this pass, then those that run over the
- * loop's end and are still in their tail here, from the pass before.
+ * loop's end and are still in their tail here, from the pass before. On the
+ * clock's first counted pass there is no pass before, whatever number the
+ * pass has: nothing began ahead of the origin of the run.
  */
 function soundingUnder(
   clips: ClipWindow['clips'],
   here: TransportPosition,
-  loop: TransportLoop,
+  base: Timebase,
 ): { clip: WindowClip; iteration: number }[] {
+  const loop = base.loop
   const under = clipsSoundingAt(clips, here.positionSec).map((clip) => ({
     clip,
     iteration: here.iteration,
   }))
-  if (!isLooping(loop) || here.iteration <= 0) return under
+  if (!isLooping(loop) || base.passOf(here.iteration) <= 0) return under
   for (const clip of clipsSoundingAt(clips, here.positionSec + loop.lengthSec)) {
     under.push({ clip, iteration: here.iteration - 1 })
   }

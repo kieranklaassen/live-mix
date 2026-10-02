@@ -90,6 +90,30 @@ describe('ModMatrix', () => {
     )
   })
 
+  it('reads a lane base where the target’s own clock stands, when it names one', () => {
+    const matrix = new ModMatrix()
+    const lane = new ParamLane({
+      breakpoints: [
+        { timeSec: 0, value: 0 },
+        { timeSec: 10, value: 1 },
+      ],
+    })
+    const param = new MockAudioParam()
+    const target = audioParamTarget(param, { min: 0, max: 1, base: lane })
+    matrix.attach(target)
+    // A track on a loop of its own: 2 s into its pass while the transport is at 5 s.
+    let own: { position(): { positionSec: number } } | undefined = {
+      position: () => ({ positionSec: 2 }),
+    }
+    target.timebase = () => own
+    matrix.update({ playheadSec: 5, contextTimeSec: 100 })
+    expect(calls(param).at(-1)?.[1]).toBeCloseTo(0.2, 9)
+    // Back on the transport’s loop, it is read at the playhead again.
+    own = undefined
+    matrix.update({ playheadSec: 5, contextTimeSec: 101 })
+    expect(calls(param).at(-1)?.[1]).toBeCloseTo(0.5, 9)
+  })
+
   it('renders the modulated curve offline', () => {
     const matrix = new ModMatrix()
     const target = audioParamTarget(new MockAudioParam(), { min: 0, max: 1, base: 0.5 })
