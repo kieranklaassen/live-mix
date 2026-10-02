@@ -47,3 +47,20 @@ export function denormalizeParam(spec: ParamSpec, position: number): number {
   }
   return clampParam(spec, spec.min + (spec.max - spec.min) * u)
 }
+
+/**
+ * A parameter table with descriptions added to the parameters named: for a
+ * table that is generated from somewhere that cannot carry them (a Faust
+ * `.dsp`). Ids, ranges and everything else are the table's own.
+ */
+export function describeParams<P extends Record<string, ParamSpec>>(
+  params: P,
+  descriptions: Readonly<Partial<Record<keyof P, string>>>,
+): P {
+  const described: Record<string, ParamSpec> = {}
+  for (const [name, spec] of Object.entries(params)) {
+    const description = descriptions[name as keyof P]
+    described[name] = description ? { ...spec, description } : spec
+  }
+  return described as P
+}
