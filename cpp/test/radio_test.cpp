@@ -487,6 +487,165 @@ int main() {
     EXPECT(peak(loud.left) <= 1.0, "the output never passes the amplifier's rails");
   }
 
+  // 16. The receiver starts settled: the first sound after loading does not
+  // arrive on a thump (the carrier switching on under the audio high-pass),
+  // and neither does a change of band. The input is 80 dB down, so whatever
+  // is heard is the receiver's own.
+  {
+    const std::vector<float> faint = sine(440.0f, 0.5f, kRate, 1.0e-4f);
+    double start = 0.0, hop = 0.0;
+    for (int band = 0; band < Radio::kBands; ++band) {
+      for (float width : {0.0f, 0.5f, 1.0f}) {
+        device.init(kRate);
+        device.set_param(p::kBand, static_cast<float>(band));
+        device.set_param(p::kBandwidth, width);
+        device.set_param(p::kStatic, 0.0f);
+        device.set_param(p::kInterference, 0.0f);
+        start = std::max(start, peak(run(device, faint).left));
+      }
+    }
+    clean(device, Radio::kShortwave);
+    run(device, faint);
+    for (int band : {Radio::kSideband, Radio::kShortwave, Radio::kMediumWave, Radio::kSideband,
+                     Radio::kMediumWave, Radio::kShortwave}) {
+      device.set_param(p::kBand, static_cast<float>(band));
+      hop = std::max(hop, peak(run(device, faint).left));
+    }
+    std::printf("switching on: peak %.5f in the first half second with a -80 dB input; changing band: %.5f\n",
+                start, hop);
+    EXPECT(start < 0.003, "the first sound after loading does not thump");
+    EXPECT(hop < 0.003, "changing band does not thump");
+  }
+
+  // 17. One bad input sample (not a number, infinite, absurdly large) in the
+  // middle of a chord: the output stays finite, the level comes back, and the
+  // device still reaches exact silence and sleeps.
+  {
+    std::vector<float> chord = sine(330.0f, 3.0f, kRate, 0.2f);
+    const std::vector<float> fifth = sine(495.0f, 3.0f, kRate, 0.15f);
+    for (size_t i = 0; i < chord.size(); ++i) chord[i] += fifth[i];
+    for (int band = 0; band < Radio::kBands; ++band) {
+      device.init(kRate);
+      device.set_param(p::kBand, static_cast<float>(band));
+      device.set_param(p::kMix, 0.7f);
+      const Stereo good = run(device, chord);
+      std::vector<float> left = chord, right = chord;
+      left[40000] = std::nanf("");
+      right[50000] = INFINITY;
+      left[60000] = 1.0e30f;
+      right[60001] = -1.0e30f;
+      device.init(kRate);
+      device.set_param(p::kBand, static_cast<float>(band));
+      device.set_param(p::kMix, 0.7f);
+      const Stereo bad = run(device, left, right);
+      const Stereo tail = render(device, 6.0f, kRate);
+      const Stereo rest = render(device, 0.5f, kRate);
+      EXPECT(finite(bad.left) && finite(bad.right) && finite(tail.left) && finite(tail.right),
+             "bad input samples: the output stays finite");
+      EXPECT(peak(bad.left) < 1.5 && peak(bad.right) < 1.5, "bad input samples do not reach the output");
+      EXPECT_NEAR(db(rms(bad.left, 96000, 144000)), db(rms(good.left, 96000, 144000)), 0.5,
+                  "bad input samples: the level comes back");
+      EXPECT(peak(rest.left) == 0.0 && peak(rest.right) == 0.0, "bad input samples: asleep after the tail");
+    }
+  }
+
+  // 18. Crashes do not startle. Over a held chord at a playing level (-16
+  // dBFS), what the static adds in its loudest 50 ms stays within about 6 dB
+  // of the programme's own level, at the default patch and at the two presets
+  // with the heaviest static (their settings as in device.json: keep in step).
+  {
+    std::vector<float> chord(static_cast<size_t>(90.0f * kRate), 0.0f);
+    for (float hz : {220.0f, 277.18f, 329.63f, 440.0f, 659.26f}) {
+      const std::vector<float> note = sine(hz, 90.0f, kRate, 0.1f);
+      for (size_t i = 0; i < chord.size(); ++i) chord[i] += note[i];
+    }
+    static const float kStorm[p::kNumParams] = {0, 0, 0.15f, 0.45f, 0.7f, 0.1f, 0.7f, 0.3f, 1};
+    static const float kFar[p::kNumParams] = {1, 0.05f, 0.35f, 0.9f, 0.45f, 0.15f, 0.35f, 0.5f, 1};
+    auto loudest_crash = [&](const float* values, double* bed) {
+      device.init(kRate);
+      set_all(device, values);
+      device.set_param(p::kInterference, 0.0f);
+      const Stereo full = run(device, chord);
+      device.init(kRate);
+      set_all(device, values);
+      device.set_param(p::kInterference, 0.0f);
+      device.set_param(p::kStatic, 0.0f);
+      const Stereo programme = run(device, chord);
+      std::vector<float> added(chord.size());
+      for (size_t i = 0; i < added.size(); ++i) added[i] = full.left[i] - programme.left[i];
+      const double level = db(rms(programme.left, 48000));
+      double loudest = -200.0;
+      for (size_t s = 48000; s + 2400 <= added.size(); s += 2400) {
+        loudest = std::max(loudest, db(rms(added, s, s + 2400)));
+      }
+      *bed = db(rms(added, 48000)) - level;
+      return loudest - level;
+    };
+    double bed_usual, bed_storm, bed_far;
+    const double usual = loudest_crash(p::kParamDefault, &bed_usual);
+    const double storm = loudest_crash(kStorm, &bed_storm);
+    const double far = loudest_crash(kFar, &bed_far);
+    std::printf("crashes over 90 s, loudest 50 ms of static re the programme's rms (and the static's own rms): "
+                "default %+.1f dB (%.1f), Storm coming %+.1f dB (%.1f), Far station %+.1f dB (%.1f)\n",
+                usual, bed_usual, storm, bed_storm, far, bed_far);
+    EXPECT(usual < 0.0, "default patch: no crash is louder than the music");
+    EXPECT(storm < 7.5 && far < 7.5, "heavy static presets: the loudest crash is within about 6 dB of the music");
+    EXPECT(storm > bed_storm + 6.0, "Storm coming still has crashes well over its hiss");
+  }
+
+  // 19. The default patch fades where it can be heard: in its first half
+  // minute a held chord swells and sinks by more than 5 dB, but never so far
+  // that the music is gone, and over four minutes it is never more than 12 dB
+  // under its usual level for longer than two seconds.
+  {
+    std::vector<float> chord(static_cast<size_t>(240.0f * kRate), 0.0f);
+    for (float hz : {220.0f, 277.18f, 329.63f, 440.0f, 659.26f}) {
+      const std::vector<float> note = sine(hz, 240.0f, kRate, 0.1f);
+      for (size_t i = 0; i < chord.size(); ++i) chord[i] += note[i];
+    }
+    device.init(kRate);
+    device.set_param(p::kStatic, 0.0f);
+    device.set_param(p::kInterference, 0.0f);
+    const Stereo out = run(device, chord);
+    std::vector<double> level;
+    for (size_t s = 48000; s + 24000 <= out.size(); s += 24000) level.push_back(db(rms(out.left, s, s + 24000)));
+    const std::vector<double> first(level.begin(), level.begin() + 58);
+    std::vector<double> sorted = level;
+    std::sort(sorted.begin(), sorted.end());
+    const double usual = sorted[sorted.size() / 2];
+    double sunk = 0.0, longest = 0.0;
+    for (double v : level) {
+      sunk = v < usual - 12.0 ? sunk + 0.5 : 0.0;
+      longest = std::max(longest, sunk);
+    }
+    std::printf("default fade: %.1f dB of movement in the first 30 s, %.1f dB over 4 minutes; deepest %.1f dB under "
+                "the usual level; more than 12 dB under for %.1f s at most\n",
+                range(first), range(level), usual - sorted.front(), longest);
+    EXPECT(range(first) > 5.0, "default patch: the fade is plain in the first half minute");
+    EXPECT(range(level) < 20.0 && longest <= 2.0, "default patch: the music is never lost for more than a moment");
+  }
+
+  // 20. A note struck after a silence, on Sideband, where the gain has risen
+  // all the way in the gap: its attack does not spike to the rails.
+  {
+    std::vector<float> notes(static_cast<size_t>(11.0f * kRate), 0.0f);
+    for (float at : {0.5f, 9.0f}) {
+      const size_t start = static_cast<size_t>(at * kRate);
+      for (size_t i = 0; i < 96000; ++i) {
+        const double t = static_cast<double>(i) / kRate;
+        notes[start + i] += static_cast<float>(0.3 * std::min(1.0, t / 0.003) * std::exp(-t / 0.5) *
+                                               std::sin(2.0 * kPi * 440.0 * t));
+      }
+    }
+    clean(device, Radio::kSideband);
+    device.set_param(p::kStatic, 0.25f);
+    const Stereo out = run(device, notes);
+    const size_t at = 9 * 48000;
+    const double attack = peak(out.left, at, at + 960), body = peak(out.left, at + 960, at + 9600);
+    std::printf("sideband, a note after 6 s of silence: attack peaks at %.3f, the body at %.3f\n", attack, body);
+    EXPECT(attack < 1.6 * body && attack < 0.9, "Sideband: the attack after a silence does not spike");
+  }
+
   // Cost with everything on: full static and interference, deep fading.
   device.init(kRate);
   device.set_param(p::kStatic, 1.0f);

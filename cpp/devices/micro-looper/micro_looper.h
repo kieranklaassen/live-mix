@@ -138,7 +138,7 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
   // The ring holds 10.9 s at 96 kHz and full clock; a loop is at most 8 s of
   // it plus its join, and the rest is the time the copy into the store has.
   static constexpr int kRingFrames = 1 << 20;
-  static constexpr int kStoreFrames = 776192;
+  static constexpr int kStoreFrames = 778240;
   static constexpr int kControlPeriod = 16;
   static constexpr float kClockGlideSeconds = 0.08f;
   static constexpr float kClocks[8] = {1.0f,        0.75f,       2.0f / 3.0f, 0.5f,
@@ -153,12 +153,23 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
   // The join across the loop point: 4 % of the loop, within these bounds.
   static constexpr float kMinJoinSeconds = 0.003f;
   static constexpr float kMaxJoinSeconds = 0.08f;
-  // The join's law follows how alike its two sides are (see join_gains).
-  // Their correlation is measured this many frames per control tick and
-  // taken up over a few milliseconds; below this floor it is not followed.
-  static constexpr int kProbeFrames = 16;
-  static constexpr float kAlikeSeconds = 0.008f;
+  // The join's law follows how alike its two sides are (see join_gains);
+  // below this correlation it is not followed.
   static constexpr float kMinAlike = -0.5f;
+  // Lining the join up (see Search): the tape that fades in may start up to
+  // 12 ms or 1 % of the loop either side of where it was asked to, at the
+  // place where it is most like the tape that fades out. The two are
+  // compared on points about 12 kHz apart; a best place below kAlignFloor
+  // is no better than chance and the join stays where it was asked for.
+  static constexpr float kAlignSeconds = 0.012f;
+  static constexpr float kAlignShare = 0.01f;
+  static constexpr float kAlignRateHz = 12000.0f;
+  static constexpr float kAlignFloor = 0.3f;
+  static constexpr float kNudgeCost = 0.03f;   // what the furthest place gives up
+  static constexpr int kSearchIn = 10240;      // frames of tape under the search
+  static constexpr int kSearchOut = 1536;      // points across the join
+  static constexpr int kSearchCopy = 64;       // frames read per control tick
+  static constexpr int kSearchWork = 512;      // points compared per control tick
   // A capture starts this long before the onset that asked for it.
   static constexpr float kLeadSeconds = 0.008f;
   static constexpr float kSoundFloor = 0.001f;   // -60 dBFS: something was played
@@ -272,13 +283,15 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     float env = 0.0f;        // fade between decks, 0..1
     float env_step = 0.0f;
     float blur = 0.0f;       // low-pass in the read above speed 1: 0 to 1/4
-    float alike = 0.0f;      // correlation of the join's two sides, as the reads use it
-    float alike_step = 0.0f;
-    float alike_aim = 0.0f;  // as last measured
-    long probe_at = 0;       // frames of the join measured so far
-    long probe_frames = 0;   // frames to measure (none: nothing to do)
-    double probe_offset = 0.0;
-    float probe_xy = 0.0f, probe_xx = 0.0f, probe_yy = 0.0f;
+    float alike = 0.0f;      // correlation of the join's two sides at `offset`
+    double target = 0.0;     // where Drift asked this pass to start
+    bool searching = false;  // its join is to be lined up for `target`
+    bool found = false;      // a result waits until the playhead is clear of both ends
+    double found_offset = 0.0;
+    float found_alike = 0.0f;
+    bool aligned = false;    // the first result is in: grains may start
+    double grain_offset = 0.0;  // the join the grains read through, fixed from then on
+    float grain_alike = 0.0f;
     bool linear = false;     // fades linearly: the other deck is on the same tape
     bool stored = false;     // the store holds its capture, complete (control rate)
     float until_grain = 0.0f;  // samples until Smear starts its next grain
@@ -296,11 +309,12 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
 
     float read(int channel, double position) const {
       if (channel == 1 && position == cached) return cached_right;
+      const double span = deck->length - deck->grain_offset;
       double q = position;
-      while (q >= deck->length) q -= deck->length;
-      while (q < 0.0) q += deck->length;
+      while (q >= deck->length) q -= span;
+      while (q < deck->grain_offset) q += span;
       float left, right;
-      looper->loop_read(*deck, q, 0.0, &left, &right);
+      looper->loop_read(*deck, q, deck->grain_offset, deck->grain_alike, &left, &right);
       cached = position;
       cached_right = right;
       return channel == 0 ? left : right;

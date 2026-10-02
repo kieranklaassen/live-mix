@@ -562,6 +562,9 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     wait += period * kRollPhase[voice.roll_turn];
     voice.roll_turn = (voice.roll_turn + 1) % kRollPhases;
     if (wait > period) wait -= period;
+    // An early turn can fall before now: take the next time round instead,
+    // or the blow would begin part way through its edge, as a click.
+    if (wait < 0.0f) wait += period;
     const float before = voice.follow;
     const float added = set_strike(voice, blow, wait) * (1.0f + voice.second);
     // What the string gives back: nothing while it is quieter than a

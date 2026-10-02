@@ -119,6 +119,8 @@ class PeakShifter {
     current_ = 0;
     num_peaks_ = 0;
     advance_ = kHop;
+    done_ = 0;
+    loudest_ = 0.0f;
     last_ratio_[0] = last_ratio_[1] = 0.0f;
   }
 
@@ -128,13 +130,28 @@ class PeakShifter {
   // `advance` samples after the previous one; 0 says the two are unrelated
   // and the frequencies are then read off the bin centres.
   void analyse(const float* left, const float* right, int advance) {
+    analyse_begin(left, right, advance, fft_.passes());
+    analyse_middle();
+    analyse_end();
+  }
+
+  // The same in three pieces, for spreading the work over several blocks:
+  // the window and the first `passes` of the transform; the rest of it and
+  // the spectrum; the peaks. No voice may be made between the first and the
+  // last.
+  void analyse_begin(const float* left, const float* right, int advance, int passes) {
     for (int n = 0; n < N; ++n) {
       re_[n] = left[n] * window_[n];
       im_[n] = right[n] * window_[n];
     }
-    fft_.forward(re_, im_);
-    current_ ^= 1;
+    done_ = passes < 1 ? 1 : (passes < fft_.passes() ? passes : fft_.passes());
+    fft_.run(re_, im_, false, 0, done_);
     advance_ = advance;
+  }
+
+  void analyse_middle() {
+    fft_.run(re_, im_, false, done_, fft_.passes());
+    current_ ^= 1;
     float* lr = spectrum_[current_][0];
     float* li = spectrum_[current_][1];
     float* rr = spectrum_[current_][2];
@@ -149,6 +166,11 @@ class PeakShifter {
       power_[k] = lr[k] * lr[k] + li[k] * li[k] + rr[k] * rr[k] + ri[k] * ri[k];
       if (power_[k] > loudest) loudest = power_[k];
     }
+    loudest_ = loudest;
+  }
+
+  void analyse_end() {
+    const float loudest = loudest_;
     num_peaks_ = 0;
     const float quiet = 1.0e-6f * static_cast<float>(N / 4);
     if (loudest < quiet * quiet) {  // silence: start afresh so nothing drifts
@@ -165,6 +187,14 @@ class PeakShifter {
   // frequency (radians per sample) lies in [from, to) are moved; the rest
   // are left out, for another shifter to take.
   void synthesise(int v, float ratio, float from, float to) {
+    shape(v, ratio, from, to);
+    finish();
+  }
+
+  // The same in pieces: the shifted spectrum; `passes` more of the transform
+  // back (as often as wanted); what is left of it and the window.
+  void shape(int v, float ratio, float from, float to) {
+    done_ = 0;
     for (int n = 0; n < N; ++n) re_[n] = im_[n] = 0.0f;
     const float* lr = spectrum_[current_][0];
     const float* li = spectrum_[current_][1];
@@ -218,7 +248,18 @@ class PeakShifter {
         im_[N - j] += p - b;
       }
     }
-    fft_.inverse(re_, im_);
+  }
+
+  void turn(int passes) {
+    if (passes < 1) return;
+    const int to = done_ + passes < fft_.passes() ? done_ + passes : fft_.passes();
+    fft_.run(re_, im_, true, done_, to);
+    done_ = to;
+  }
+
+  void finish() {
+    fft_.run(re_, im_, true, done_, fft_.passes());
+    done_ = fft_.passes();
     for (int n = 0; n < N; ++n) {
       re_[n] *= window_[n];
       im_[n] *= window_[n];
@@ -293,7 +334,7 @@ class PeakShifter {
     }
   }
 
-  kit::Fft<N> fft_;
+  StagedFft<N> fft_;
   float window_[N];
   float re_[N], im_[N];                  // work
   float spectrum_[2][4][kHalf + 1];      // [frame][left re, left im, right re, right im]
@@ -306,6 +347,8 @@ class PeakShifter {
   int current_ = 0;
   int num_peaks_ = 0;
   int advance_ = kHop;
+  int done_ = 0;          // passes of the transform in hand already made
+  float loudest_ = 0.0f;  // the strongest bin of the frame being analysed
 };
 
 }  // namespace pitch_shifter_dsp

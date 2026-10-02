@@ -203,7 +203,7 @@ export const RADIO_DESCRIPTOR = wasmDeviceDescriptor(RADIO_DEVICE, {
       tuning: -0.95,
       drift: 0.6,
       fading: 0.7,
-      static: 0.5,
+      static: 0.45,
       interference: 0.4,
       bandwidth: 0.45,
       speaker: 0.4,

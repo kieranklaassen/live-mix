@@ -220,8 +220,9 @@ class Radio : public kit::DeviceBase<radio::kNumParams> {
       // The gain glides between control ticks, but it comes down with the
       // signal at once: a tick's lag on the attack of a note after a silence
       // (where the Sideband gain has risen all the way) is a full-scale spike.
-      const float gain =
-          kit::min(agc_gain_.next(), std::sqrt(band.agc_reference / (level_ + 1.0e-4f)));
+      // The margin keeps this out of the way while the gain is settled.
+      const float gain = kit::min(
+          agc_gain_.next(), kAttackMargin * std::sqrt(band.agc_reference / (level_ + 1.0e-4f)));
       audio = audio_high_.process(audio_low_.process(audio)) * gain;
 
       // The loudspeaker.
@@ -258,6 +259,7 @@ class Radio : public kit::DeviceBase<radio::kNumParams> {
   static constexpr int kControlPeriod = 32;
   static constexpr float kQuiet = 1.0e-6f;
   static constexpr float kSane = 64.0f;  // +36 dBFS: nothing real is louder
+  static constexpr float kAttackMargin = 1.06f;
   // The oscillating detector of a simple set: a little of the receiver's own
   // frequency at the detector, which beats with an off-tune carrier.
   static constexpr float kRegeneration = 0.05f;
@@ -285,7 +287,7 @@ class Radio : public kit::DeviceBase<radio::kNumParams> {
       {330.0f, 155.0f, 2400.0f, 5000.0f, 5500.0f, 1.0f, 0.8f, 5500.0f, true, 250.0f,
        {40.0f, 0.13f, 0.31f, 0.7f, 0.35f, 0.001f}, 6.0f, 1.0f, 0.04f, 0.3f, 1.38f},
       {350.0f, 180.0f, 2200.0f, 3200.0f, 3400.0f, 0.0f, 1.0f, 400.0f, false, 50.0f,
-       {40.0f, 0.13f, 0.31f, 0.7f, 0.35f, 0.001f}, 4.0f, 0.3f, 0.003f, 1.4f, 1.41f},
+       {40.0f, 0.13f, 0.31f, 0.7f, 0.35f, 0.001f}, 4.0f, 0.3f, 0.0015f, 1.4f, 1.41f},
   };
 
   // Move towards a target a twentieth of the way per control tick.

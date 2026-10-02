@@ -53,6 +53,13 @@ struct Birds {
     float trill_phase = 0.0f, trill_inc = 0.0f, trill_depth = 0.0f;
     float amp = 0.0f, amp_slope = 0.0f, edge = 0.25f, rough = 0.0f;
     float flutter = 0.0f;  // how far the trill also pulls the level down
+    // What keeps a note from being a test tone: the bird's breath is never
+    // quite even. One noise source of its own, heard slowly (the level and
+    // the pitch waver together, and the octave with them) and quickly (a
+    // faint hiss around the note).
+    kit::Rng air;
+    float slow = 0.0f, fast = 0.0f;
+    float waver = 0.0f, jitter = 0.0f, breath = 0.0f;  // drawn for every syllable
   };
 
   Bird bird[kBirds];
@@ -60,9 +67,14 @@ struct Birds {
   float lean = 1.0f;     // register from the key
   float activity = 1.0f; // how keen the whole tree is right now
   int singing = 0;       // how many birds have a syllable sounding
+  // The breath's two one-poles (25 Hz and 800 Hz) and what brings each back to unit level.
+  float slow_k = 0.0f, slow_norm = 0.0f, fast_k = 0.0f, fast_norm = 0.0f;
 
   void seed(uint32_t base) {
-    for (int b = 0; b < kBirds; ++b) bird[b].rng.seed(seed_for(base + static_cast<uint32_t>(b)));
+    for (int b = 0; b < kBirds; ++b) {
+      bird[b].rng.seed(seed_for(base + static_cast<uint32_t>(b)));
+      bird[b].air.seed(seed_for(base + 8u + static_cast<uint32_t>(b)));
+    }
     mood.seed(seed_for(base + kBirds));
   }
 
@@ -252,13 +264,17 @@ struct Birds {
   void start(float hz, const Controls& c) {
     lean = key_lean(hz, 0.33f, 0.5f);
     singing = 0;
+    // (Uniform noise has a variance of a third; a one-pole leaves k / (2 - k) of it.)
+    slow_k = 1.0f - std::exp(-2.0f * kit::kPi * 25.0f / c.sample_rate);
+    fast_k = 1.0f - std::exp(-2.0f * kit::kPi * 800.0f / c.sample_rate);
+    slow_norm = std::sqrt(3.0f * (2.0f - slow_k) / slow_k);
+    fast_norm = std::sqrt(3.0f * (2.0f - fast_k) / fast_k);
     for (int i = 0; i < kBirds; ++i) {
       bird[i].singing = false;
       arrive(bird[i], i);
       // The nearest bird answers the key at once; the others join in.
       bird[i].wait = i == 0 ? 0.03f : between(bird[i].rng, 0.4f, 2.0f + 2.5f * static_cast<float>(i));
     }
-    (void)c;
   }
 
   // A bird lands: which species, where, how far off, and its first motif.
@@ -326,7 +342,8 @@ struct Birds {
     }
     const Syllable& s = b.motif[b.at];
     sing(b, s, c);
-    b.wait = s.seconds + s.gap;
+    // (No two gaps alike either, or a repeated motif ticks like a clock.)
+    b.wait = s.seconds + s.gap * (1.0f + 0.15f * b.air.bipolar());
     if (++b.at >= b.length) {
       b.at = 0;
       b.swell = kit::min(1.0f, b.swell + 0.13f);
@@ -360,6 +377,11 @@ struct Birds {
     b.amp = level * (1.0f - kit::max(0.0f, s.tilt));
     b.amp_slope = level * s.tilt;
     b.phase = 0.0f;
+    // How uneven this note is: the level wavers by a tenth or so, the pitch
+    // by a few cents, and a hiss sits about 25 dB under the tone.
+    b.waver = between(b.air, 0.05f, 0.16f);
+    b.jitter = between(b.air, 0.0015f, 0.0045f);
+    b.breath = between(b.air, 0.05f, 0.12f);
     if (!b.singing) ++singing;
     b.singing = true;
   }
@@ -377,13 +399,20 @@ struct Birds {
       const float trill = b.trill_depth != 0.0f ? kit::SineTable::lookup(b.trill_phase) : 0.0f;
       b.trill_phase += b.trill_inc;
       if (b.trill_phase >= 1.0f) b.trill_phase -= 1.0f;
-      b.phase += (b.inc_a + b.u * (b.inc_b + b.u * b.inc_c)) * (1.0f + b.trill_depth * trill);
+      const float white = b.air.bipolar();
+      b.slow += (white - b.slow) * slow_k;
+      b.fast += (white - b.fast) * fast_k;
+      const float drift = kit::clamp(b.slow * slow_norm, -2.0f, 2.0f);
+      b.phase += (b.inc_a + b.u * (b.inc_b + b.u * b.inc_c)) * (1.0f + b.trill_depth * trill) *
+                 (1.0f + b.jitter * drift);
       if (b.phase >= 1.0f) b.phase -= 1.0f;
       const float s = kit::SineTable::lookup(b.phase);
-      // 2s² - 1 is the octave above, for nothing.
-      const float tone = s + b.rough * (2.0f * s * s - 1.0f);
+      // 2s² - 1 is the octave above, for nothing; it comes and goes with the
+      // breath. The hiss is noise times the tone: a band around the note.
+      const float tone = s * (1.0f + b.breath * fast_norm * b.fast) +
+                         b.rough * (1.0f + 0.5f * drift) * (2.0f * s * s - 1.0f);
       const float out = tone * window(b.u, b.edge) * (b.amp + b.amp_slope * b.u) *
-                        (1.0f - b.flutter * (0.5f - 0.5f * trill));
+                        (1.0f - b.flutter * (0.5f - 0.5f * trill)) * (1.0f + b.waver * drift);
       left += out * b.pan_left;
       right += out * b.pan_right;
     }

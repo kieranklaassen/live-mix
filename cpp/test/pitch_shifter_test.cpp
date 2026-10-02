@@ -249,6 +249,9 @@ static void check_character();
 static void check_chord_and_voices();
 static void check_feedback_and_delay();
 static void check_moves();
+static void check_bad_input();
+static void check_wake();
+static void check_spread_work();
 
 int main() {
   Conformance spec;
@@ -270,6 +273,9 @@ int main() {
   check_chord_and_voices();
   check_feedback_and_delay();
   check_moves();
+  check_bad_input();
+  check_wake();
+  check_spread_work();
 
   // The heaviest sensible setting: both voices as jittered grains, fed back.
   device.init(kRate);
@@ -325,6 +331,7 @@ static void check_pitch() {
   // The same at the other sample rates: times are in seconds, not samples.
   for (float rate : {44100.0f, 96000.0f}) {
     device.init(rate);
+    device.set_param(p::kMode, kSmooth);
     device.set_param(p::kMix, 1.0f);
     device.set_param(p::kPitchA, 7.0f);
     Stereo out = run(device, sine(440.0f, 1.5f, rate, 0.5f));
@@ -1099,5 +1106,65 @@ static void check_chords_switch() {
     const double last = std::max(peak(tail.left, 11 * 48000, 12 * 48000), peak(tail.right, 11 * 48000, 12 * 48000));
     NOTE("chords: last second of 12 s of silence: peak %g\n", last);
     EXPECT(last == 0.0, "Chords: exact silence once the tail is over");
+  }
+}
+
+// Review additions -------------------------------------------------------------------------
+
+// A held chord of a few notes with falling overtones, to stand for playing.
+static std::vector<float> review_chord(float seconds, float rate) {
+  std::vector<float> chord(static_cast<size_t>(seconds * rate), 0.0f);
+  for (float hz : {110.0f, 164.81f, 196.0f, 261.63f}) {
+    for (int h = 1; h <= 6; ++h) {
+      const std::vector<float> one = sine(hz * h, seconds, rate, 0.08f / h);
+      for (size_t i = 0; i < chord.size(); ++i) chord[i] += one[i];
+    }
+  }
+  return chord;
+}
+
+// Bad input samples in the middle of playing, with Feedback up, in every
+// mode: not-a-number, both infinities and an absurd magnitude. Before the
+// input was sanitised one such sample lodged in the record filters and the
+// ring: Smooth, Grain and Vintage put out not-a-number for good and the
+// Chords voices fell silent for good.
+static void check_bad_input() {
+  const std::vector<float> clean = review_chord(4.0f, kRate);
+  std::vector<float> left = clean, right = clean;
+  left[48000] = std::nanf("");
+  right[48010] = HUGE_VALF;
+  left[60000] = 1.0e30f;
+  right[72000] = -HUGE_VALF;
+  left[72001] = -1.0e30f;
+  const std::vector<float> quiet = silence(14.0f, kRate);
+  char label[160];
+  for (int mode = 0; mode <= kChords; ++mode) {
+    const auto prepare = [&]() {
+      device.init(kRate);
+      device.set_param(p::kMode, static_cast<float>(mode));
+      device.set_param(p::kPitchA, 7.0f);
+      device.set_param(p::kLevelB, 0.7f);
+      device.set_param(p::kFeedback, 0.8f);
+      device.set_param(p::kDelay, 200.0f);
+    };
+    prepare();
+    const Stereo reference = run(device, clean);
+    prepare();
+    const Stereo out = run(device, left, right);
+    const Stereo tail = run(device, quiet);
+    const double level = db(rms(out.left, 144000, 192000) / rms(reference.left, 144000, 192000));
+    bool silent = true;
+    for (size_t i = tail.left.size() - 48000; i < tail.left.size(); ++i) {
+      silent = silent && tail.left[i] == 0.0f && tail.right[i] == 0.0f;
+    }
+    const double top = std::max(peak(out.left), peak(out.right));
+    NOTE("bad input, mode %d: finite %d, peak %.2f, level a second later %+.2f dB re clean, sleeps %d\n", mode,
+         finite(out.left) && finite(out.right) && finite(tail.left) && finite(tail.right), top, level, silent);
+    std::snprintf(label, sizeof label, "mode %d stays finite and bounded through bad input samples (peak %.2f)", mode, top);
+    EXPECT(finite(out.left) && finite(out.right) && finite(tail.left) && finite(tail.right) && top < 12.0, label);
+    std::snprintf(label, sizeof label, "mode %d is back at its level a second after bad input (%+.2f dB)", mode, level);
+    EXPECT(std::fabs(level) < 1.0, label);
+    std::snprintf(label, sizeof label, "mode %d still reaches exact zeros after bad input", mode);
+    EXPECT(silent, label);
   }
 }

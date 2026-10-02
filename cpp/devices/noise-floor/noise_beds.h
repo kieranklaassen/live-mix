@@ -191,9 +191,10 @@ struct Air {
 };
 
 // Vinyl: a dull surface noise (a band from 200 Hz to 1 kHz, falling away
-// above it), fine bright crackle, the odd soft pop, and a low rumble. Crackle is a Poisson stream of ticks with
-// heavy-tailed sizes, each a struck resonator with its own pitch, damping and
-// place between the sides. Movement makes the rumble and the dust come round
+// above it, over a trace of hiss), fine bright crackle, the odd soft pop,
+// and a low rumble. Crackle is a Poisson stream of ticks with heavy-tailed
+// sizes, each a struck resonator with its own pitch (3.5 to 9 kHz), damping
+// and place between the sides. Movement makes the rumble and the dust come round
 // once per turn of a 33⅓ record.
 struct Vinyl {
   static constexpr float kNorm = 5.508f;   // by measurement
@@ -209,7 +210,7 @@ struct Vinyl {
   // between the sides take some of that away again, so the largest in several
   // minutes, surface noise included, peaks about 14 dB over the bed's RMS.
   // They are heard because they are bright and the surface noise is dull,
-  // not because they are loud. A pop is a soft thump of 3 to 6 dB over.
+  // not because they are loud. A pop is a soft thump of 2 to 5 dB over.
   static constexpr float kTick = 2.3f;
   static constexpr float kTickCeiling = 1.6f;
   static constexpr float kTickHz = 3500.0f;
@@ -374,7 +375,8 @@ struct Room {
 };
 
 // Static: a radio between stations. Everything goes through the receiver's
-// band (350 Hz to 3.8 kHz): a sputtering hiss, crackles that come in bursts,
+// band (350 Hz to 3.8 kHz): a sputtering hiss, darker than the band so the
+// crackle is heard over it without being loud, crackles that come in bursts,
 // and crashes, sudden swells of noise that die away in a fraction of a
 // second and leave a flurry of crackle behind. Both sides hear the same
 // events through noise of their own. Movement is how restless the band is.

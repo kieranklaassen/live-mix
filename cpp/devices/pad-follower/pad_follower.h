@@ -87,7 +87,10 @@ class PadFollower : public kit::DeviceBase<pad_follower::kNumParams> {
       float left, right;
       take_input(i, &left, &right);
       float wet_left, wet_right;
-      push(0.5f * (left + right), &wet_left, &wet_right);
+      float mono = 0.5f * (left + right);
+      // A NaN or a wild value must not get into the resonators: it would never leave.
+      if (!(mono > -64.0f && mono < 64.0f)) mono = 0.0f;
+      push(mono, &wet_left, &wet_right);
       // Equal power: the pad is a new voice, not a copy of the input. From
       // the table so that Mix 0 is exactly the input.
       const float mix = mix_.next();

@@ -21,7 +21,9 @@
 //   and the rest of the device work unchanged.
 // - The work is spread: within one hop of the short window come its analysis,
 //   voice A, voice B and one step of the long window, a quarter hop apart,
-//   so no block of 128 carries more than one transform.
+//   so no block of 128 carries more than one transform. At 88.2 kHz and
+//   above, where the short window is 4096 points, each of those is cut in
+//   two again (see spread), so no block carries more than half of one.
 
 #include "../../kit/kit.h"
 #include "PeakShifter.h"
@@ -44,6 +46,9 @@ class ChordEngine {
     large_ = sample_rate > 66000.0f;
     size_ = large_ ? 4096 : 2048;
     hop_ = size_ / 4;
+    // How long after its frame was taken a voice's output is first read:
+    // by then the frame must be added in (see render and spread).
+    margin_ = large_ ? 3 * hop_ / 4 : hop_ / 2;
     down_ = large_ ? 8 : 4;
     small_.init();
     big_.init();
@@ -78,6 +83,7 @@ class ChordEngine {
       }
     }
     step_ = 0;
+    spread_advance_ = 0;
     high_time_ = 0;
     high_base_ = low_base_ = -1;
   }
@@ -93,20 +99,19 @@ class ChordEngine {
   // back in the ring; call before the ring and record() take the sample.
   void render(const Ring& ring, double base, const float* ratio, bool second, float (*out)[2]) {
     const int phase = step_ & (hop_ - 1);
-    if (phase == 0) {
-      if (large_) hear(big_, ring, base); else hear(small_, ring, base);
+    if (large_) {
+      if ((phase & (hop_ / 8 - 1)) == 0) spread(phase / (hop_ / 8), ring, base, ratio, second);
+    } else if (phase == 0) {
+      hear(small_, ring, base);
     } else if (phase == hop_ / 4 || (phase == hop_ / 2 && second)) {
       const int v = phase == hop_ / 4 ? 0 : 1;
-      if (large_) voice_high(big_, v, ratio[v]); else voice_high(small_, v, ratio[v]);
+      voice_high(small_, v, ratio[v]);
     } else if (phase == 3 * hop_ / 4) {
-      const int turn = step_ / hop_;
-      if (turn == 0) hear_low(base);
-      if (turn == 1) voice_low(0, ratio[0]);
-      if (turn == 2 && second) voice_low(1, ratio[1]);
+      low_step(base, ratio, second);
     }
     step_ = (step_ + 1) & (4 * hop_ - 1);
 
-    const unsigned at = (high_time_ - static_cast<unsigned>(size_ + hop_ / 2)) & kHighMask;
+    const unsigned at = (high_time_ - static_cast<unsigned>(size_ + margin_)) & kHighMask;
     const unsigned low_at = (low_time_ - static_cast<unsigned>(kLowSize + kLowWait)) & kLowMask;
     const float* taps = taps_[tick_];
     for (int v = 0; v < 2; ++v) {
@@ -178,19 +183,29 @@ class ChordEngine {
   template <class Shifter>
   void hear(Shifter& shifter, const Ring& ring, double base) {
     const int size = Shifter::kSize;
-    const int back = static_cast<int>(base + 0.5) + latency() - (size_ + hop_ / 2);
+    shifter.analyse(frame_[0], frame_[1], fetch(ring, base, size));
+  }
+
+  // A frame of the short window off the ring; returns its spacing from the last.
+  int fetch(const Ring& ring, double base, int size) {
+    const int back = static_cast<int>(base + 0.5) + latency() - (size_ + margin_);
     for (int n = 0; n < size; ++n) {
       frame_[0][n] = ring.left.read(back + size - n);
       frame_[1][n] = ring.right.read(back + size - n);
     }
-    shifter.analyse(frame_[0], frame_[1], spacing(size / 4, back, &high_base_));
     high_frame_ = high_time_;
+    return spacing(size / 4, back, &high_base_);
   }
 
   template <class Shifter>
   void voice_high(Shifter& shifter, int v, float ratio) {
-    const int size = Shifter::kSize;
     shifter.synthesise(v, ratio, kit::kTwoPi * split(ratio) / sample_rate_, 4.0f);
+    add_high(shifter, v);
+  }
+
+  template <class Shifter>
+  void add_high(const Shifter& shifter, int v) {
+    const int size = Shifter::kSize;
     const float* left = shifter.frame_left();
     const float* right = shifter.frame_right();
     const unsigned from = high_frame_ - static_cast<unsigned>(size);
@@ -199,6 +214,58 @@ class ChordEngine {
       high_sum_[v][0][at] += left[n];
       high_sum_[v][1][at] += right[n];
     }
+  }
+
+  // The hop's work at 88.2 kHz and above, where a frame is 4096 points and
+  // one transform of it alone would be most of what a block of 128 frames
+  // may cost: eight pieces an eighth of a hop (128 samples) apart, each
+  // about the same amount of work, the transforms cut in two.
+  void spread(int piece, const Ring& ring, double base, const float* ratio, bool second) {
+    const int all = 12;      // passes of a 4096-point transform
+    const float from0 = kit::kTwoPi * split(ratio[0]) / sample_rate_;
+    const float from1 = kit::kTwoPi * split(ratio[1]) / sample_rate_;
+    switch (piece) {
+      case 0:
+        spread_advance_ = fetch(ring, base, kMaxHighSize);
+        big_.analyse_begin(frame_[0], frame_[1], spread_advance_, all / 2);
+        break;
+      case 1:
+        big_.analyse_middle();
+        break;
+      case 2:
+        big_.analyse_end();
+        big_.shape(0, ratio[0], from0, 4.0f);
+        break;
+      case 3:
+        big_.turn(2 * all / 3);
+        break;
+      case 4:
+        big_.finish();
+        add_high(big_, 0);
+        if (second) big_.shape(1, ratio[1], from1, 4.0f);
+        break;
+      case 5:
+        if (second) big_.turn(2 * all / 3);
+        break;
+      case 6:
+        if (second) {
+          big_.finish();
+          add_high(big_, 1);
+        }
+        break;
+      default:
+        low_step(base, ratio, second);
+        break;
+    }
+  }
+
+  // One step of the long window: its frame, then a voice a hop of the
+  // short window later, the other one after that.
+  void low_step(double base, const float* ratio, bool second) {
+    const int turn = step_ / hop_;
+    if (turn == 0) hear_low(base);
+    if (turn == 1) voice_low(0, ratio[0]);
+    if (turn == 2 && second) voice_low(1, ratio[1]);
   }
 
   // Where the two windows divide the work, for a voice: lower when it
@@ -234,7 +301,7 @@ class ChordEngine {
 
   float sample_rate_ = 48000.0f;
   bool large_ = false;
-  int size_ = 2048, hop_ = 512, down_ = 4;
+  int size_ = 2048, hop_ = 512, down_ = 4, margin_ = 256;
   PeakShifter<2048> small_;            // above the split, up to 48 kHz
   PeakShifter<kMaxHighSize> big_;      // above the split, from 88.2 kHz
   PeakShifter<kLowSize> low_;          // below the split, at the reduced rate
@@ -250,6 +317,7 @@ class ChordEngine {
   unsigned low_time_ = 0, low_frame_ = 0;
   int tick_ = 0;                       // position between two reduced-rate samples
   int high_base_ = -1, low_base_ = -1; // where the last frames were read, to know their spacing
+  int spread_advance_ = 0;
 };
 
 }  // namespace pitch_shifter_dsp

@@ -104,6 +104,12 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
                        0.01 * (sinc(x - 3) + sinc(x + 3));
       comp_[i] = static_cast<float>(0.335 / g);
     }
+    // What the bin below a partial reads against the partial's own bin, in
+    // dB, for a partial that lies d bins above its bin, d from -1 to 1.
+    for (int i = 0; i <= kLobeSteps; ++i) {
+      const float d = 2.0f * static_cast<float>(i) / static_cast<float>(kLobeSteps) - 1.0f;
+      lobe_db_[i] = 8.6858896f * std::log(std::fabs(lobe(-1.0f - d) / lobe(-d)) + 1.0e-9f);
+    }
     for (int i = 0; i < kRing; ++i) {
       output_[0][i] = 0.0f;
       output_[1][i] = 0.0f;
@@ -225,6 +231,20 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
   static constexpr float kSoftSeconds = 0.1f;         // ... for this long, with no onset
   static constexpr float kSoftSpacingSeconds = 0.3f;  // and no more often than this
   static constexpr float kSettleSeconds = 0.2f;       // after a catch the reference takes in what still rises
+  // Breath, hiss and other noise have no partials to hold: frozen as it was
+  // caught, each chance peak of the frame would ring on as a note of its
+  // own. A peak whose neighbouring bins do not fit the window's lobe (by
+  // this many dB, and then fully 1 dB further on) is noise, and its region
+  // is given a new random phase every hop instead of a steady turn.
+  static constexpr float kNoisyFromDb = 2.0f;
+  static constexpr float kNoisySpanDb = 1.0f;
+  static constexpr float kNoisyOwnSpanDb = 3.0f;      // ... more gently for a peak that stands alone
+  static constexpr int kNoisyBlock = 32;              // peaks that are judged together
+  static constexpr int kNoisyReach = 4;               // peaks either side that a partial must stand above
+  static constexpr int kMaxBlocks = (kMaxRegions + kNoisyBlock - 1) / kNoisyBlock;
+  static constexpr float kProminent = 8.0f;           // a peak this many times the middle one is a partial
+  static constexpr float kSmearMakeup = 0.365f;       // frames that no longer add up in phase lose 2.7 dB
+  static constexpr int kLobeSteps = 64;
 
   int mode() const { return kit::clamp_int(static_cast<int>(param(sustainer::kMode) + 0.5f), 0, 2); }
   bool hold_on() const { return param(sustainer::kHold) >= 0.5f; }
@@ -281,6 +301,8 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     float drift_v[kAllRegions], drift[kAllRegions];  // common phase wander: velocity, phase (cycles)
     float side_a[kAllRegions], side[kAllRegions];    // left/right phase difference (two-pole noise)
     float swell_a[kAllRegions], swell[kAllRegions];  // slow level wander (two-pole noise)
+    float noisy[kAllRegions];                        // 0 a partial .. 1 noise, whose phase is redrawn every hop
+    bool low_noisy;  // the lows are noise: no second look
     int regions;
     int state;
     int serial;      // the onset count when it was caught
@@ -305,6 +327,7 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
       slot.state = kFree;
       slot.newest = false;
       slot.soft = false;
+      slot.low_noisy = false;
       slot.rise = 0.0f;
       slot.fall = 1.0f;
       slot.leave = 1.0f;
@@ -658,7 +681,8 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
   void refine_step(int stage) {
     if (refine_slot_ < 0) return;
     Slot& slot = slots_[refine_slot_];
-    if (slot.state != kHeld || slot.serial != onsets_ || !playing_) {
+    // (Nor is noise looked at again: it has no partials to measure.)
+    if (slot.state != kHeld || slot.serial != onsets_ || !playing_ || slot.low_noisy) {
       refine_slot_ = -1;
       return;
     }
@@ -681,6 +705,14 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
       return v > -1.0e-4f && v < 1.0e-4f ? 1.0f : std::sin(kit::kPi * v) / (kit::kPi * v);
     };
     return 0.42f * sinc(x) + 0.25f * (sinc(x - 1.0f) + sinc(x + 1.0f)) + 0.04f * (sinc(x - 2.0f) + sinc(x + 2.0f));
+  }
+
+  // The bin below a partial against the partial's own bin, dB, for a partial
+  // d bins above its bin (the bin above it reads lobe_db(-d)).
+  float lobe_db(float d) const {
+    const float at = (d + 1.0f) * (0.5f * static_cast<float>(kLobeSteps));
+    const int index = kit::clamp_int(static_cast<int>(at), 0, kLobeSteps - 1);
+    return lobe_db_[index] + (lobe_db_[index + 1] - lobe_db_[index]) * (at - static_cast<float>(index));
   }
 
   // Where the lows are handed from the caught frame to the rebuilt partials:
@@ -810,6 +842,7 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     slot.side[r] = 0.0f;
     slot.swell_a[r] = 0.0f;
     slot.swell[r] = 0.0f;
+    slot.noisy[r] = 0.0f;
   }
 
   // Catch what is sounding now into `slot`, from two frames half a hop apart:
@@ -890,6 +923,101 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
       const float hz = kit::max(0.0f, (static_cast<float>(p) + deviation * (4.0f / kit::kPi)) * bin_hz);
       slot.shift[r] = 0;
       start_region(slot, r, angle, hz);
+      // How far the bins beside the peak are from where a steady partial at
+      // that frequency would put them.
+      const float d = kit::clamp(deviation * (4.0f / kit::kPi), -1.0f, 1.0f);
+      const float own = mag_[p] + 1.0e-30f;
+      const float below = 6.0206f * fast_log2((mag_[p - 1] + 1.0e-30f) / own) - lobe_db(d);
+      const float above = 6.0206f * fast_log2((mag_[p + 1] + 1.0e-30f) / own) - lobe_db(-d);
+      misfit_[r] = std::sqrt(0.5f * (below * below + above * above));
+      weight_[r] = mag_[p] * mag_[p];
+    }
+    // Partial or noise, region by region. A peak that stands far above the
+    // peaks beside it (the middle one of the four either side) is a partial
+    // in its own right (a note in breath) and goes by its own fit. The rest
+    // go by the fit of the block and its two neighbours as a whole, so a
+    // chance fit among noise is still noise and a poor fit in a close chord
+    // is still a partial.
+    const float cross = kCrossHighHz / bin_hz;
+    const int blocks = (regions + kNoisyBlock - 1) / kNoisyBlock;
+    float block_power[kMaxBlocks], block_misfit[kMaxBlocks];
+    for (int r = 0; r < regions; ++r) {
+      // The middle one of the four peaks either side.
+      float sorted[2 * kNoisyReach];
+      int count = 0;
+      const int to = r + kNoisyReach < regions ? r + kNoisyReach : regions - 1;
+      for (int i = r - kNoisyReach < 0 ? 0 : r - kNoisyReach; i <= to; ++i) {
+        if (i == r) continue;
+        int at = count++;
+        while (at > 0 && sorted[at - 1] > weight_[i]) {
+          sorted[at] = sorted[at - 1];
+          --at;
+        }
+        sorted[at] = weight_[i];
+      }
+      stands_[r] = count > 0 && weight_[r] > kProminent * sorted[count / 2];
+    }
+    for (int b = 0; b < blocks; ++b) {
+      const int from = b * kNoisyBlock;
+      const int count = regions - from < kNoisyBlock ? regions - from : kNoisyBlock;
+      block_power[b] = 0.0f;
+      block_misfit[b] = 0.0f;
+      for (int i = from; i < from + count; ++i) {
+        if (stands_[i]) continue;
+        block_power[b] += weight_[i];
+        block_misfit[b] += weight_[i] * misfit_[i];
+      }
+    }
+    float low_noise = 0.0f, low_all = 0.0f;
+    for (int r = 0; r < regions; ++r) {
+      const int b = r / kNoisyBlock;
+      float around = 0.0f, around_misfit = 0.0f;
+      for (int i = b > 0 ? b - 1 : 0; i <= b + 1 && i < blocks; ++i) {
+        around += block_power[i];
+        around_misfit += block_misfit[i];
+      }
+      float noisy = (misfit_[r] - kNoisyFromDb) / kNoisyOwnSpanDb;
+      if (!stands_[r] && around > 0.0f) {
+        noisy = (kit::max(misfit_[r], around_misfit / around) - kNoisyFromDb) / kNoisySpanDb;
+      }
+      slot.noisy[r] = regions > 1 ? kit::clamp(noisy, 0.0f, 1.0f) : 0.0f;
+      if (static_cast<float>(peak_[r]) < cross) {
+        low_noise += weight_[r] * slot.noisy[r];
+        low_all += weight_[r];
+      }
+    }
+    slot.low_noisy = low_noise > 0.5f * low_all;
+    // A single frame of noise is all chance peaks and holes, which would be
+    // heard as a fixed, hollow colour. The bins of noisy regions are evened
+    // out to the level of the noise around them (about 90 Hz either way;
+    // partials are left out of that average and are not touched).
+    for (int r = 0; r < regions; ++r) {
+      for (int k = slot.start[r]; k < slot.start[r + 1]; ++k) last_re_[k] = slot.noisy[r];
+    }
+    const int reach = 8;
+    float noise_power = 0.0f, noise_count = 0.0f;
+    for (int k = 0; k < reach && k <= half_; ++k) {
+      noise_power += last_re_[k] * mag_[k] * mag_[k];
+      noise_count += last_re_[k];
+    }
+    for (int k = 0; k <= half_; ++k) {
+      if (k + reach <= half_) {
+        noise_power += last_re_[k + reach] * mag_[k + reach] * mag_[k + reach];
+        noise_count += last_re_[k + reach];
+      }
+      if (k - reach - 1 >= 0) {
+        noise_power -= last_re_[k - reach - 1] * mag_[k - reach - 1] * mag_[k - reach - 1];
+        noise_count -= last_re_[k - reach - 1];
+      }
+      last_im_[k] = noise_count > 0.5f ? std::sqrt(kit::max(noise_power, 0.0f) / noise_count) : mag_[k];
+    }
+    for (int k = 0; k <= half_; ++k) {
+      if (last_re_[k] <= 0.0f || mag_[k] <= 1.0e-20f) continue;
+      const float even = mag_[k] + last_re_[k] * (last_im_[k] - mag_[k]);
+      const float scale = even / mag_[k];
+      slot.c_re[k] *= scale;
+      slot.c_im[k] *= scale;
+      mag_[k] = even;
     }
     double sum = 0.0;
     for (int k = 0; k <= half_; ++k) sum += static_cast<double>(mag_[k]) * mag_[k];
@@ -988,12 +1116,16 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
         slot.swell[r] += swell_a_ * (slot.swell_a[r] - slot.swell[r]);
         const float wander = kit::min(kDriftCents * slot.cent_turn[r], drift_cap);
         float drift = slot.drift[r] + drift_scale * wander * slot.drift_v[r];
+        // Noise: a new phase every hop (anywhere on the circle when it is
+        // all noise), so the region sounds as a band of noise, not a note.
+        const float noisy = slot.noisy[r];
+        if (noisy > 0.0f) drift += 0.5f * noisy * slot.rng.bipolar();
         drift -= std::floor(drift);
         slot.drift[r] = drift;
         const float side = side_depth * slot.part[r] * slot.side[r];
         // exp(y) for |y| < 0.8 by its series: the wander is even in dB.
         const float y = kit::clamp(swell_depth * slot.swell[r], -0.8f, 0.8f);
-        const float level = gain * (1.0f + y * (1.0f + y * (0.5f + y * (1.0f / 6.0f))));
+        const float level = gain * (1.0f + kSmearMakeup * noisy) * (1.0f + y * (1.0f + y * (0.5f + y * (1.0f / 6.0f))));
         // The detuned pair: one copy up, one down, by the same amount.
         const float turn = kit::min(slot.cent_turn[r] * cents, kMaxDetuneTurn);
         float det = slot.det_phase[r] + turn;
@@ -1091,6 +1223,10 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
   float window_[kMaxFrame];           // Hann: synthesis, and the detector's frame
   float analysis_window_[kMaxFrame];  // Blackman: the capture's frames
   float comp_[kCompSteps + 1];
+  float lobe_db_[kLobeSteps + 1];
+  float misfit_[kMaxRegions];   // per caught peak: how badly its neighbours fit a partial's lobe, dB
+  float weight_[kMaxRegions];   // ... and its power
+  bool stands_[kMaxRegions];    // ... and whether it towers over the peaks around it
   float input_[kInputRing];
   float output_[2][kRing];
   kit::Smoother mix_;

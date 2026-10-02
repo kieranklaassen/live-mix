@@ -140,6 +140,7 @@ class FollowerBank {
       trust_[b] = estimate_[b] = average_[b] = peak_[b] = jitter_[b] = first_[b] = 0.0f;
       kept_[b] = kept_older_[b] = 0.0f;
       age_[b] = 0;
+      doubt_[b] = 0;
     }
     halve_[0].reset();
     halve_[1].reset();
@@ -301,7 +302,8 @@ class FollowerBank {
     // Is the partial still being played? Its level against the recent peak:
     // a band rings on at its own centre once the input stops, so readings
     // taken after that are worthless.
-    const float recent = kit::max(mag, peak_[b] * peak_decay_);
+    float recent = kit::max(mag, peak_[b] * peak_decay_);
+    if (recent < 1.0e-12f) recent = 0.0f;
     peak_[b] = recent;
     const float mag2 = mag * mag;
     float presence = 0.0f;
@@ -319,6 +321,7 @@ class FollowerBank {
     presence *= kit::clamp((kFarMute * mag2 - first) / ((kFarMute - kFarFull) * mag2 + 1.0e-30f), 0.0f, 1.0f);
     bool settled = false;
     if (presence > 0.0f) {
+      doubt_[b] = 0;
       if (age_[b] < 30000) ++age_[b];
       if (age_[b] <= warm_[b]) {
         // The resonators are still settling on the new sound.
@@ -348,9 +351,20 @@ class FollowerBank {
         }
       }
       settled = age_[b] >= settle_[b];
+    } else if (age_[b] > settle_[b] && mag > 1.0e-7f && doubt_[b] < keep_[b]) {
+      // Fallen away, but perhaps only for the trough of a beat between two
+      // partials: keep reading (the wild readings of a trough are what marks
+      // such a band as impure) and note nothing until it is back.
+      ++doubt_[b];
+      const float off = kit::min(std::fabs(measured - estimate_[b]) * share_scale_[b], 4.0f);
+      jitter_[b] += estimate_coeff_[b] * (off - jitter_[b]);
+      estimate_[b] += estimate_coeff_[b] * (measured - estimate_[b]);
+      estimate_[b] = kit::clamp(estimate_[b], -max_dev_[b], max_dev_[b]);
+      average_[b] += estimate_coeff_[b] * (estimate_[b] - average_[b]);
     } else {
       // Gone. The newer note of the reading may already be bent by the ring.
       age_[b] = 0;
+      doubt_[b] = 0;
       kept_[b] = kept_older_[b];
     }
     // The oscillator follows the reading as it stood one to two notes ago:
@@ -527,7 +541,7 @@ class FollowerBank {
   float env1_[kBands] = {}, env2_[kBands] = {};
   float estimate_[kBands] = {}, average_[kBands] = {}, dev_[kBands] = {}, trust_[kBands] = {}, peak_[kBands] = {};
   float kept_[kBands] = {}, kept_older_[kBands] = {}, jitter_[kBands] = {}, first_[kBands] = {};
-  int age_[kBands] = {};
+  int age_[kBands] = {}, doubt_[kBands] = {};
 };
 
 }  // namespace pad_follower

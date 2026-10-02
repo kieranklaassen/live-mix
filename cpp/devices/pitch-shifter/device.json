@@ -47,8 +47,8 @@
       "key": "mode",
       "name": "Mode",
       "choices": ["Smooth", "Grain", "Vintage", "Chords"],
-      "default": 0,
-      "description": "The character of the shift. Smooth lines its splices up with the sound and stays clean on single notes, Grain rebuilds it from overlapping grains, Vintage splices blindly and flutters like an early digital pitch changer. Chords moves every note of a chord on its own, so held chords and pads stay clean; it answers later, low notes latest, and softer on attacks."
+      "default": 3,
+      "description": "The character of the shift. Smooth lines its splices up with the sound and stays clean on single notes, Grain rebuilds it from overlapping grains, Vintage splices blindly and flutters like an early digital pitch changer. Chords moves every note of a chord on its own, so chords and pads stay clean where the others waver; its voices answer a moment late, so on fast playing they follow like a short echo."
     },
     {
       "key": "size",
@@ -263,6 +263,6 @@
   },
   "origin": {
     "kind": "new",
-    "note": "Written for live-mix on cpp/kit. Models the delay-line pitch changers and harmonizers of the late 1970s and the grain shifters that followed, in outline, not any one unit: two voices of read heads on a shared ring of recent input, with a delay and feedback so that repeats are shifted again. Smooth places each new head by normalised cross-correlation with the one it takes over from, the autocorrelation de-glitch splice of US patent 4,464,784 (expired) and the alignment step of WSOLA (W. Verhelst and M. Roelands, 'An overlap-add technique based on waveform similarity (WSOLA) for high quality time-scale modification of speech', ICASSP 1993). Vintage is pitch shifting by delay-line modulation with two crossfaded taps (P. Dutilleux, G. De Poli and U. Zölzer, 'Time-segment processing', in DAFX: Digital Audio Effects, 2002). Grain is overlap-add of Hann grains read at the shifted rate with randomised onsets (R. Bencina, 'Implementing real-time granular synthesis', 2001)."
+    "note": "Written for live-mix on cpp/kit. Models the delay-line pitch changers and harmonizers of early digital studio gear and the grain shifters that followed, in outline, not any one unit: two voices on a shared ring of recent input, with a delay and feedback so that repeats are shifted again. Smooth, Grain and Vintage read the ring with moving heads. Smooth starts each new head where the ring best matches what the old head is playing (normalised cross-correlation), a waveform-similarity splice after the approach of W. Verhelst and M. Roelands, 'An overlap-add technique based on waveform similarity (WSOLA) for high quality time-scale modification of speech'. Vintage is the plain delay-line shifter, two crossfaded heads with no alignment. Grain is overlap-add of windowed grains read at the shifted rate with scattered onsets, after the approach of R. Bencina, 'Implementing real-time granular synthesis'. Chords is a phase vocoder that moves each spectral peak together with the bins around it, after the approach of J. Laroche and M. Dolson, 'New phase-vocoder techniques for pitch-shifting, harmonizing and other exotic effects', run on two window lengths, a long one for the low partials and a short one above, so that close chords resolve. The sources were not open while this was written: no constants or details are taken from them."
   }
 }
