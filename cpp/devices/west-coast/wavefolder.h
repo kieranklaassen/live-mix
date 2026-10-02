@@ -112,15 +112,7 @@ class FoldCurve {
     const int cell = static_cast<int>(a * static_cast<float>(kGridScale));
     return piece_[cell < kGrid ? cell : kGrid - 1];
   }
-  float centre_half_slope() const { return fast_[0][2]; }
-  // The same from `low` on piece `piece` to `high` on the next one: the two
-  // parts weighted by their lengths.
-  float mean_across(int piece, float low, float high) const {
-    const float corner = fast_[piece + 1][0];
-    return ((corner - low) * mean_on_piece(piece, low, corner) +
-            (high - corner) * mean_on_piece(piece + 1, corner, high)) /
-           (high - low);
-  }
+  float start_of(int piece) const { return fast_[piece][0]; }
   float mean_on_piece(int piece, float a0, float a1) const {
     const float* c = fast_[piece];
     const float u0 = a0 - c[0];
@@ -151,9 +143,11 @@ class FoldCurve {
 
 // One voice's folder: the mean of the curve over the step from the last
 // input to this one. A step that stays on one piece, or runs from one piece
-// into the next, has a closed form with no cancellation (the mean of a
-// parabola, or two of them weighted by length), so float is enough. Only a
-// step over more than one corner takes the difference of the antiderivative.
+// into the next, is two parabolas' means weighted by length: no
+// cancellation, so float is enough, and no branch the input's pattern could
+// fool (a step inside one piece is split at its middle and takes the same
+// path). Only a step over more than one corner, or through zero from beyond
+// the first, takes the difference of the antiderivative.
 struct Wavefolder {
   float last_input = 0.0f;
   int last_piece = 0;
@@ -166,28 +160,30 @@ struct Wavefolder {
   float process(const FoldCurve& curve, float input) {
     const float previous = last_input;
     const float a = input < 0.0f ? -input : input;
+    const float b = previous < 0.0f ? -previous : previous;
     const int piece = curve.piece_of_float(a);
     const int old_piece = last_piece;
     last_input = input;
     last_piece = piece;
-    if ((previous < 0.0f) == (input < 0.0f)) {
-      const float b = previous < 0.0f ? -previous : previous;
-      float mean;
-      if (piece == old_piece) {
-        mean = curve.mean_on_piece(piece, b, a);
-      } else if (piece == old_piece + 1) {
-        mean = curve.mean_across(old_piece, b, a);
-      } else if (piece + 1 == old_piece) {
-        mean = curve.mean_across(piece, a, b);
-      } else {
-        return wide_step(curve, previous, input);
-      }
-      return input < 0.0f ? -mean : mean;
+    const int apart = piece - old_piece;
+    const bool opposite = (previous < 0.0f) != (input < 0.0f);
+    if (apart > 1 || apart < -1 || (opposite && (piece | old_piece) != 0)) {
+      return wide_step(curve, previous, input);
     }
-    // Through zero. The straight piece through the centre is odd, so the
-    // mean of a step that stays on it is the curve at the middle.
-    if (piece == 0 && old_piece == 0) return curve.centre_half_slope() * (previous + input);
-    return wide_step(curve, previous, input);
+    // The centre piece is a straight line through zero, so a step across
+    // zero on it is the same sum with signed ends.
+    const float from = (piece | old_piece) == 0 ? previous : b;
+    const float to = (piece | old_piece) == 0 ? input : a;
+    const float low = from < to ? from : to;
+    const float high = from < to ? to : from;
+    const int low_piece = apart < 0 ? piece : old_piece;
+    const int high_piece = apart < 0 ? old_piece : piece;
+    const float split = apart != 0 ? curve.start_of(high_piece) : 0.5f * (low + high);
+    const float first = curve.mean_on_piece(low_piece, low, split);
+    const float span = high - low;
+    const float second = curve.mean_on_piece(high_piece, split, high);
+    const float mean = span > 0.0f ? ((split - low) * first + (high - split) * second) / span : first;
+    return ((piece | old_piece) != 0 && input < 0.0f) ? -mean : mean;
   }
 
   // A step over more than one corner, or through zero from beyond the

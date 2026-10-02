@@ -205,7 +205,7 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
   }
   static float glide(kit::Smoother& s) { return s.value == s.target ? s.value : s.next(); }
 
-  // Exact to ±1, landing on ±2: what holds the loop when Reflect is past 1.
+  // Exact to ±1, landing on ±2: the ceiling on the swarm at the output.
   static float limit(float x) { return 2.0f * kit::soft_clip(0.5f * x); }
 
   void render(int i) {
@@ -234,7 +234,9 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
     const float turned[2] = {(back[0] + back[1]) * kit::kSqrtHalf,
                              (back[1] - back[0]) * kit::kSqrtHalf};
     for (int c = 0; c < 2; ++c) {
-      float x = in[c] + limit(reflect * turned[c]);
+      // The return is exact to ±0.5 and lands on ±1: what holds the loop
+      // when Reflect is past 1.
+      float x = in[c] + kit::soft_clip(reflect * turned[c]);
       x = low_cut_[c].highpass(dampen_[c].lowpass(x));
       for (int a = 0; a < kStages; ++a) {
         const float delayed = read_at(allpass_[c][a], stage_[c][a].next());
@@ -374,8 +376,13 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
 
     dampen_[0].set_cutoff(dampen_hz_.next(), sr);
     dampen_[1].a = dampen_[0].a;
-    low_cut_[0].set_cutoff(low_cut_hz_.next(), sr);
-    low_cut_[1].a = low_cut_[0].a;
+    // Second order, so the loop loses next to nothing above the corner.
+    low_cut_[0].set(low_cut_hz_.next(), kit::kSqrtHalf, sr);
+    low_cut_[1].g = low_cut_[0].g;
+    low_cut_[1].k = low_cut_[0].k;
+    low_cut_[1].a1 = low_cut_[0].a1;
+    low_cut_[1].a2 = low_cut_[0].a2;
+    low_cut_[1].a3 = low_cut_[0].a3;
   }
   void apply(int id) {
     using namespace swarm_reverb;
@@ -432,7 +439,7 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
   Read stage_[2][kStages];
 
   kit::OnePole dampen_[2];
-  kit::OnePole low_cut_[2];
+  kit::Svf low_cut_[2];
   kit::OnePole side_low_;
   kit::Smoother reflect_, diffuse_, dry_, wet_, width_, level_;
   kit::Smoother length_, depth_, wander_, dampen_hz_, low_cut_hz_;

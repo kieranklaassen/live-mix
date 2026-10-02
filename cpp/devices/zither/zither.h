@@ -340,15 +340,15 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
   }
 
   // Strings: what a moving string keeps under a new blow, how the ring time
-  // leans with pitch, and how long a partial near 3 kHz rings from
-  // Brightness 0 to 1.
+  // leans with pitch, and how long a partial near 3 kHz (higher for the
+  // treble strings) rings from Brightness 0 to 1.
   static constexpr float kKeepHammer = 0.7f;
   static constexpr float kKeepRollHammer = 0.8f;
   static constexpr float kKeepRollPluck = 0.65f;
   static constexpr float kRingLean = 0.3f;
   static constexpr float kDampHz = 3000.0f;
-  static constexpr float kDarkSeconds = 0.15f;
-  static constexpr float kBrightSeconds = 6.0f;
+  static constexpr float kDarkSeconds = 0.2f;
+  static constexpr float kBrightSeconds = 9.0f;
   static constexpr float kTopShare = 0.3f;  // the highest partials ring this share of that
   // Release at its top never damps.
   static constexpr float kOpenRelease = 19.5f;
@@ -419,7 +419,8 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
   // found for the first by bisection (the loss rises with the pole).
   void loss_filter(float hz, float brightness, float* pole, float* shelf) const {
     const float sr = sample_rate();
-    const float ref = kit::min(kit::max(kDampHz, 3.0f * hz), 0.45f * sr);
+    // Thinner, shorter treble strings keep their partials further up.
+    const float ref = kit::min(kDampHz * std::sqrt(kit::max(hz, 220.0f) / 220.0f), 0.4f * sr);
     const float seconds = kDarkSeconds * std::pow(kBrightSeconds / kDarkSeconds, brightness);
     const float wanted = std::exp(-kSixtyDb / (hz * seconds));  // per period, at the reference
     const float c = std::exp(-kSixtyDb / (hz * seconds * kTopShare));
@@ -491,7 +492,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
   // wider toward the treble, and a course lies a little across it.
   void place(Voice& voice) {
     const float note = kit::hz_to_midi(voice.hz);
-    const float width = 0.1f + 0.5f * kit::clamp((note - 40.0f) / 44.0f, 0.0f, 1.0f);
+    const float width = 0.1f + 0.3f * kit::clamp((note - 40.0f) / 44.0f, 0.0f, 1.0f);
     const float pan = width * kit::SineTable::lookup(note * 0.381966f);
     if (voice.two) {
       kit::pan_gains(pan - kCourseSplit, &voice.left[0], &voice.right[0]);
@@ -518,7 +519,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
 
   // Exciters. Widths are for a string at 220 Hz, from the softest to the
   // hardest touch, and grow toward the bass by the power given.
-  static constexpr float kFingerSoft = 0.0014f, kFingerHard = 0.00013f, kFingerLean = 0.5f;
+  static constexpr float kFingerSoft = 0.0012f, kFingerHard = 0.00008f, kFingerLean = 0.5f;
   static constexpr float kPickSoft = 0.00045f, kPickHard = 0.00007f, kPickLean = 0.25f;
   static constexpr float kHammerSoft = 0.0032f, kHammerHard = 0.0006f, kHammerLean = 0.5f;
   static constexpr float kPickStep = 0.45f;     // the pick's share of pluck: thin

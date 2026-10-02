@@ -565,6 +565,41 @@ int main() {
     }
   }
 
+  // Bad input does not stick. A sample that is not a number (or is infinite,
+  // or absurdly large) used to lodge in the input filter and leave the
+  // sampler holding its limit: a full-scale DC that never slept. Now the
+  // output is finite throughout, the tone is back at its level and free of
+  // DC a second later, and the device sleeps once the input stops.
+  for (int filter = 0; filter < 3; ++filter) {
+    const float bad[3][2] = {{std::nanf(""), std::nanf("")}, {INFINITY, -INFINITY}, {1.0e30f, -3.0e38f}};
+    for (const float* pair : bad) {
+      device.init(kRate);
+      device.set_param(p::kFilter, static_cast<float>(filter));
+      device.set_param(p::kDrive, 24.0f);
+      std::vector<float> in = sine(330.0f, 2.0f, kRate, 0.03f);
+      in[24000] = pair[0];
+      in[24001] = pair[1];
+      Stereo out = run(device, in);
+      device.init(kRate);
+      device.set_param(p::kFilter, static_cast<float>(filter));
+      device.set_param(p::kDrive, 24.0f);
+      in[24000] = in[24001] = 0.0f;
+      Stereo clean = run(device, in);
+      EXPECT(finite(out.left) && finite(out.right), "bad input: the output stays finite");
+      EXPECT_NEAR(db(rms(out.left, 72000) / rms(clean.left, 72000)), 0.0, 0.1,
+                  "bad input: the tone is back at its level a second later");
+      EXPECT(std::fabs(mean(out.left, 72000)) < 1.0e-3, "bad input: no DC is left behind");
+      render(device, 1.0f, kRate);
+      device.init(kRate);
+      device.set_param(p::kFilter, static_cast<float>(filter));
+      in[24000] = pair[0];
+      run(device, in);
+      render(device, 1.0f, kRate);
+      Stereo rest = render(device, 0.5f, kRate);
+      EXPECT(peak(rest.left) == 0.0 && peak(rest.right) == 0.0, "bad input: asleep after the tail");
+    }
+  }
+
   // Asleep when idle: exact zero soon after the input stops (the quantiser
   // has no step at zero, so nothing idles in the last bit), awake again on
   // the next sound.

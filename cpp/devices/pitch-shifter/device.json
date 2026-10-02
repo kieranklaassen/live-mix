@@ -45,11 +45,7 @@
     {
       "key": "mode",
       "name": "Mode",
-      "choices": [
-        "Smooth",
-        "Grain",
-        "Vintage"
-      ],
+      "choices": ["Smooth", "Grain", "Vintage"],
       "default": 0,
       "description": "The character of the shift. Smooth lines its splices up with the sound and stays clean, Grain rebuilds it from overlapping grains, Vintage splices blindly and flutters like an early digital pitch changer."
     },
