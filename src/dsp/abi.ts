@@ -5,6 +5,8 @@
 // Keep this file free of runtime imports: the processor imports it type-only
 // so the bundled worklet stays self-contained.
 
+import { type LoadSlot } from '../core/load-mark'
+
 /** The flat C ABI exported by every `*.wasm` device module. */
 export interface DeviceExports {
   memory: WebAssembly.Memory
@@ -39,6 +41,8 @@ export type DeviceMessage =
   | { type: 'sample'; channels: Float32Array[]; sampleRate: number }
   /** Report the first `count` meters every `intervalFrames` frames; a count of 0 stops. */
   | { type: 'meters'; count: number; intervalFrames: number }
+  /** The device is gone: stop processing, so the node can be let go and takes no more time. */
+  | { type: 'dispose' }
 
 /** Worklet → main thread messages. */
 export type DeviceHostMessage =
@@ -54,6 +58,8 @@ export interface WasmDeviceProcessorOptions {
   deviceId?: string
   /** Initial parameter values applied right after `device_init`. */
   params?: readonly (readonly [paramId: number, value: number])[]
+  /** The mark the processor shows while it works, where the engine's load is measured (core/load.ts). */
+  load?: LoadSlot
 }
 
 /** Registered processor name; shared by the host and the worklet file. */

@@ -27,11 +27,19 @@ const TYPES = {
 }
 
 // The hosted plug-in page shares memory between its bridge worklet and pump
-// worker, which a browser only allows on a cross-origin isolated page; a
-// worker started from such a page must carry the embedder policy itself.
-// Everything is same-origin here, so the headers change nothing else.
+// worker, and the engine load page between its devices and the load sampler,
+// which a browser only allows on a cross-origin isolated page; a worker
+// started from such a page must carry the embedder policy itself.
+// Everything is same-origin here, so the headers change nothing else. The
+// load page is also served plain, as /browser-tests/harness/load-plain.html,
+// for what the engine reports where it cannot measure.
+const ISOLATED_PAGES = new Set([
+  '/browser-tests/harness/native.html',
+  '/browser-tests/harness/load.html',
+])
+
 function isolation(pathname) {
-  if (pathname === '/browser-tests/harness/native.html') {
+  if (ISOLATED_PAGES.has(pathname)) {
     return {
       'cross-origin-opener-policy': 'same-origin',
       'cross-origin-embedder-policy': 'require-corp',
@@ -51,6 +59,10 @@ const server = createServer(async (request, response) => {
     pathname = '/playground/dist/index.html'
   // The playground is built with base '/', so its hashed assets resolve from the site root.
   if (pathname.startsWith('/assets/')) pathname = `/playground/dist${pathname}`
+  const served = pathname
+  if (pathname === '/browser-tests/harness/load-plain.html') {
+    pathname = '/browser-tests/harness/load.html'
+  }
   const target = normalize(join(root, pathname))
   if (!target.startsWith(root.endsWith(sep) ? root : root + sep)) {
     response.writeHead(403).end()
@@ -67,7 +79,7 @@ const server = createServer(async (request, response) => {
       'content-type': TYPES[extname(file)] ?? 'application/octet-stream',
       'content-length': info.size,
       'cache-control': 'no-store',
-      ...isolation(pathname),
+      ...isolation(served),
     })
     createReadStream(file).pipe(response)
   } catch {

@@ -14,6 +14,7 @@ import {
   type ObservableDevice,
 } from '../core/devices/Device'
 import { Emitter } from '../core/events'
+import { LoadProbe, wasmMemoryBytes, type LoadClaim } from '../core/load'
 import { ensureProcessor } from '../core/worklet-loader'
 import { clampParam, type ParamSpec } from '../core/params'
 import {
@@ -85,14 +86,17 @@ export class WasmDevice<P extends Record<string, ParamSpec> = Record<string, Par
   private meterWatchers = 0
   private bypassed = false
   private disposed = false
+  private readonly load: LoadClaim
 
   private constructor(
     definition: WasmDeviceDefinition<P>,
     node: AudioWorkletNode,
     initial: Map<string, number>,
     sampleRate: number,
+    load: LoadClaim,
   ) {
     this.id = definition.id
+    this.load = load
     this.params = definition.params
     this.meters = definition.meters ?? NO_METERS
     this.meterIntervalFrames = Math.max(1, Math.round(sampleRate / DEVICE_METER_HZ))
@@ -131,24 +135,36 @@ export class WasmDevice<P extends Record<string, ParamSpec> = Record<string, Par
       const requested = options.params?.[name as keyof P & string]
       initial.set(name, requested === undefined ? spec.default : clampParam(spec, requested))
     }
+    // The engine's load and memory figures count this device from here to `dispose`.
+    const load = LoadProbe.for(context).claim(definition.id)
+    void wasmMemoryBytes(module).then((bytes) => {
+      load.memoryBytes = bytes
+    })
     const processorOptions: WasmDeviceProcessorOptions = {
       module,
       deviceId: definition.id,
       params: Object.entries(definition.params).map(
         ([name, spec]) => [spec.id, initial.get(name) ?? spec.default] as const,
       ),
+      ...(load.slot ? { load: load.slot } : {}),
     }
     const processorName = definition.processor?.name ?? WASM_DEVICE_PROCESSOR_NAME
-    const node = (options.createNode ?? defaultCreateNode)(context, processorName, {
-      numberOfInputs: 1,
-      numberOfOutputs: 1,
-      channelCount: 2,
-      channelCountMode: 'explicit',
-      channelInterpretation: 'speakers',
-      outputChannelCount: [2],
-      processorOptions,
-    })
-    return new WasmDevice(definition, node, initial, context.sampleRate)
+    let node: AudioWorkletNode
+    try {
+      node = (options.createNode ?? defaultCreateNode)(context, processorName, {
+        numberOfInputs: 1,
+        numberOfOutputs: 1,
+        channelCount: 2,
+        channelCountMode: 'explicit',
+        channelInterpretation: 'speakers',
+        outputChannelCount: [2],
+        processorOptions,
+      })
+    } catch (error) {
+      load.release()
+      throw error
+    }
+    return new WasmDevice(definition, node, initial, context.sampleRate, load)
   }
 
   get input(): AudioNode {
@@ -263,7 +279,10 @@ export class WasmDevice<P extends Record<string, ParamSpec> = Record<string, Par
 
   dispose(): void {
     if (this.disposed) return
+    // Without this the processor would go on being rendered, disconnected, for the life of the context.
+    this.post({ type: 'dispose' })
     this.disposed = true
+    this.load.release()
     this.changes.clear()
     if (this.meterWatchers > 0) this.node.port.removeEventListener('message', this.onPortMessage)
     this.node.disconnect()

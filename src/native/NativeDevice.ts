@@ -27,6 +27,7 @@ import {
 } from '../core/devices/Device'
 import { NODE_DEVICE_RAMP_SECONDS } from '../core/devices/native/NodeDevice'
 import { Emitter } from '../core/events'
+import { LoadProbe, type LoadClaim } from '../core/load'
 import { clampParam } from '../core/params'
 import { ensureProcessor } from '../core/worklet-loader'
 import {
@@ -209,6 +210,7 @@ interface NativeDeviceInit {
   memory: BridgeMemory
   node: AudioWorkletNode
   worker: PumpWorker
+  load: LoadClaim
   bridgeLatencyFrames: number
   rampSec: number
   panelParamCount: number
@@ -231,6 +233,7 @@ export class NativeDevice
   /** Frames the round trip through the host is given. */
   readonly bridgeLatencyFrames: number
   private readonly worker: PumpWorker
+  private readonly load: LoadClaim
   private readonly control: Int32Array
   private readonly dry: GainNode
   private readonly wet: GainNode
@@ -272,6 +275,7 @@ export class NativeDevice
     this.slot = init.slot
     this.node = init.node
     this.worker = init.worker
+    this.load = init.load
     this.control = new Int32Array(init.memory.control)
     this.bridgeLatencyFrames = init.bridgeLatencyFrames
     this.pluginLatencySamples = Math.max(0, Math.round(init.slot.latencySamples))
@@ -356,8 +360,13 @@ export class NativeDevice
     })
 
     let worker: PumpWorker | undefined
+    const id = options.id ?? nativeDeviceId(plugin)
+    // The bridge's own work on the audio thread; the plug-in's is in the host's process.
+    const load = LoadProbe.for(context).claim(id)
     try {
       const memory = allocateBridgeMemory(slot.inputs > 0 ? 2 : 0, 2)
+      load.memoryBytes =
+        memory.control.byteLength + memory.input.byteLength + memory.output.byteLength
       Atomics.store(new Int32Array(memory.control), BRIDGE_LATENCY, bridgeLatencyFrames)
       const node = (options.createNode ?? defaultCreateNode)(
         context,
@@ -369,7 +378,7 @@ export class NativeDevice
           channelCountMode: 'explicit',
           channelInterpretation: 'speakers',
           outputChannelCount: [2],
-          processorOptions: memory,
+          processorOptions: load.slot ? { ...memory, load: load.slot } : memory,
         },
       )
       worker = (options.createWorker ?? defaultCreateWorker)(
@@ -377,13 +386,14 @@ export class NativeDevice
       )
       const device = new NativeDevice({
         state: options.state,
-        id: options.id ?? nativeDeviceId(plugin),
+        id,
         context,
         client,
         slot,
         memory,
         node,
         worker,
+        load,
         bridgeLatencyFrames,
         rampSec: options.rampSec ?? NODE_DEVICE_RAMP_SECONDS,
         panelParamCount: options.panelParamCount ?? DEFAULT_PANEL_PARAM_COUNT,
@@ -412,6 +422,7 @@ export class NativeDevice
       return device
     } catch (error) {
       // The plug-in exists in the host but the device could not finish: do not leak it.
+      load.release()
       worker?.terminate()
       void client.unload(slot.slot).catch(() => {})
       throw error
@@ -649,6 +660,7 @@ export class NativeDevice
     this.statsChanges.clear()
     this.stateChanges.clear()
     this.notes.clear()
+    this.load.release()
     this.worker.onmessage = null
     this.worker.postMessage({ type: 'stop' })
     this.worker.terminate()
