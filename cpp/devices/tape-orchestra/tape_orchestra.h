@@ -36,14 +36,14 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
   static constexpr float kKeyLevelDbAge = 2.0f;
   // Wow and flutter, peak cents.
   static constexpr float kWowCents = 1.0f;
-  static constexpr float kWowCentsAge = 13.0f;
+  static constexpr float kWowCentsAge = 11.0f;
   static constexpr float kFlutterCents = 0.3f;
-  static constexpr float kFlutterCentsAge = 3.7f;
-  // The lurch: a note starts this flat as the tape is gripped and has
-  // settled within 0.1 s.
+  static constexpr float kFlutterCentsAge = 3.2f;
+  // The lurch: a note starts this flat as the tape is gripped and comes up
+  // to pitch along half a cosine in this long.
   static constexpr float kLurchCents = 4.0f;
   static constexpr float kLurchCentsAge = 46.0f;
-  static constexpr float kLurchSeconds = 0.02f;
+  static constexpr float kLurchSeconds = 0.08f;
   // Dropouts start here on the Age knob.
   static constexpr float kDropoutFromAge = 0.45f;
   // The last stretch of a tape fades out.
@@ -107,7 +107,6 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
     speed_coeff_ = 1.0f - std::exp(-dt / kSpeedGlideSeconds);
     band_coeff_ = 1.0f - std::exp(-dt / 0.01f);
     drop_coeff_ = 1.0f - std::exp(-dt / 0.012f);
-    lurch_coeff_ = std::exp(-dt / kLurchSeconds);
     // White noise through the hiss filters at 48 kHz has an RMS near 0.43;
     // at other rates the same band holds a different share of it.
     hiss_trim_ = std::sqrt(sr / 48000.0f) / 0.43f;
@@ -296,7 +295,7 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
     float frequency = 220.0f;  // as recorded
     float velocity = 0.0f;
     float tape_time = 0.0f;    // seconds of tape played
-    float lurch = 0.0f;        // 1 as the tape is gripped, then gone
+    float gripped = 0.0f;      // seconds since the key went down
     kit::Adsr env;
     Ramp cut;                  // steal and tape-change fades, 0..1
     Ramp amp;                  // velocity, key level, run-out, dropouts
@@ -570,7 +569,7 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
     kit::Rng rng;
     rng.seed(scramble(seed ^ 0x9E3779B9u));
     voice.tape_time = 0.0f;
-    voice.lurch = 1.0f;
+    voice.gripped = 0.0f;
     voice.lp_left = 0.0f;
     voice.lp_right = 0.0f;
     voice.open = 0.0f;
@@ -654,11 +653,15 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
     voice.sway_phase -= std::floor(voice.sway_phase);
     voice.flutter_phase += voice.flutter_rate * tape_dt;
     voice.flutter_phase -= std::floor(voice.flutter_phase);
+    float lurch = 0.0f;
+    if (voice.gripped < kLurchSeconds) {
+      lurch = 0.5f + 0.5f * kit::SineTable::cos_lookup(0.5f * voice.gripped / kLurchSeconds);
+      voice.gripped += dt;
+    }
     const float cents = voice.key_cents * (kKeyCents + kKeyCentsAge * age) +
                         wow * (kWowCents + kWowCentsAge * age) +
                         flutter * (kFlutterCents + kFlutterCentsAge * age) -
-                        voice.lurch * (kLurchCents + kLurchCentsAge * age * age);
-    voice.lurch *= lurch_coeff_;
+                        lurch * (kLurchCents + kLurchCentsAge * age * age);
     const float base = voice.frequency / sr * speed_ * ratio(cents);
 
     // Dropouts sit at fixed places on a key's tape; Age makes them deep.
@@ -836,7 +839,7 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
   float roll_off_hz_ = 7000.0f;
   float low_cut_hz_ = 75.0f;
   // Per control tick.
-  float speed_coeff_ = 0.0f, band_coeff_ = 0.0f, drop_coeff_ = 0.0f, lurch_coeff_ = 0.0f;
+  float speed_coeff_ = 0.0f, band_coeff_ = 0.0f, drop_coeff_ = 0.0f;
   float hiss_trim_ = 1.0f;
   float noise_speed_ = 1.0f;  // keeps the noise at its level as its band narrows
   bool speed_moving_ = false;

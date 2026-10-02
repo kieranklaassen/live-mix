@@ -123,8 +123,15 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
         countdown_ = warm_up_length_;
       }
 
+      // While both sides have carried the same signal since the path was
+      // last empty, the right is the left: one channel is worked out and
+      // copied. The first frame that differs gives the right its own copy
+      // of every state, and from there both run.
+      if (mono_ && in[0] != in[1]) split();
+      const int channels = mono_ ? 1 : 2;
+
       float dry[2], pre[2];
-      for (int c = 0; c < 2; ++c) {
+      for (int c = 0; c < channels; ++c) {
         dry[c] = dry_[c].read(kLatency);
         dry_[c].write(in[c]);
         // Each of the four tone-shaping filters is skipped while it is out
@@ -135,14 +142,13 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
       }
 
       float wet[2];
-      run(lanes_[active_], pre, wet);
+      run(lanes_[active_], pre, wet, channels);
       if (phase_ != kSteady) {
         float incoming[2];
-        run(lanes_[1 - active_], pre, incoming);
+        run(lanes_[1 - active_], pre, incoming, channels);
         const float fade =
             phase_ == kFade ? static_cast<float>(fade_position_) / static_cast<float>(fade_length_) : 0.0f;
-        wet[0] += (incoming[0] - wet[0]) * fade;
-        wet[1] += (incoming[1] - wet[1]) * fade;
+        for (int c = 0; c < channels; ++c) wet[c] += (incoming[c] - wet[c]) * fade;
         if (phase_ == kWarmUp) {
           if (--countdown_ <= 0) {
             phase_ = kFade;
@@ -155,7 +161,7 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
         }
       }
 
-      for (int c = 0; c < 2; ++c) {
+      for (int c = 0; c < channels; ++c) {
         float y = wet[c];
         if (tone_on_) y = tilt_[c].process(y);
         if (high_cut_on_) {
@@ -165,7 +171,7 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
         wet[c] = dry[c] + (y * output - dry[c]) * mix;
       }
       out_left_[i] = wet[0];
-      out_right_[i] = wet[1];
+      out_right_[i] = mono_ ? wet[0] : wet[1];
     }
     idle_.settle(output_peak(frames), frames);
   }
@@ -299,6 +305,7 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
       high_cut_filter_[c][1].reset();
       tilt_[c].reset();
     }
+    mono_ = true;
     active_ = 0;
     phase_ = kSteady;
     countdown_ = 0;
@@ -336,6 +343,18 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
     const analog_drive_dsp::Circuit& spec = *lane.spec;
     return spec.bias + spec.bias_drive * drive +
            spec.bias_level * lane.arriving / (lane.arriving + spec.bias_knee);
+  }
+
+  // The right channel takes a copy of everything the left has been through.
+  void split() {
+    mono_ = false;
+    dry_[1] = dry_[0];
+    low_cut_filter_[1] = low_cut_filter_[0];
+    thump_filter_[1] = thump_filter_[0];
+    high_cut_filter_[1][0] = high_cut_filter_[0][0];
+    high_cut_filter_[1][1] = high_cut_filter_[0][1];
+    tilt_[1] = tilt_[0];
+    for (Lane& lane : lanes_) lane.channel[1] = lane.channel[0];
   }
 
   // `from` is the lane this one is about to take over from, if any: the new
@@ -443,7 +462,7 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
   // One frame of both channels through a lane's circuit, at four times the
   // rate inside. The working point and the gain move with the lane's
   // envelope, which is taken from what left the curve on the frame before.
-  void run(Lane& lane, const float* pre, float* out) {
+  void run(Lane& lane, const float* pre, float* out, int channels) {
     using namespace analog_drive_dsp;
     const Circuit& spec = *lane.spec;
     const float bias = working_point(lane, drive_.value);
@@ -454,7 +473,7 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
     const float makeup = lane.makeup.next();
     float level = 0.0f;
     float arriving = 0.0f;
-    for (int c = 0; c < 2; ++c) {
+    for (int c = 0; c < channels; ++c) {
       Lane::Channel& channel = lane.channel[c];
       float x = pre[c];
       for (int k = 0; k < kMaxPre; ++k) {
@@ -516,6 +535,7 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
   float makeup_drive_ = -1.0f;
   float makeup_auto_ = -1.0f;
   bool filters_dirty_ = true;
+  bool mono_ = true;
   bool low_cut_on_ = false;
   bool thump_on_ = false;
   bool tone_on_ = false;
