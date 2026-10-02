@@ -10,7 +10,7 @@
 // `device.remove`, `device.move`) and the renderer changes the chain: the
 // edits are in the document, in the log and on the undo stack.
 
-import { useCallback, useState, type CSSProperties } from 'react'
+import { useCallback, useState, type CSSProperties, type ReactNode } from 'react'
 
 import { type Device } from '../../core/devices/Device'
 import {
@@ -32,6 +32,8 @@ import { useMaybeArbiter, useMaybeEngine } from '../hooks/useEngine'
 import { useExternalSnapshot } from '../store'
 import { useChainReorder } from './chain-reorder'
 import { DevicePanel, type DevicePanelProps } from './DevicePanel'
+import { DevicePlate } from './DevicePlate'
+import { type DeviceSkin } from './device-skins'
 import { infoProps } from './info'
 import { cx } from './tokens'
 
@@ -129,6 +131,7 @@ const REORDER_INFO =
   'Drag this grip, or the title bar beside it, sideways to carry the device to another place in the chain. A line shows where it will land; Escape puts it back. The sound runs through the devices from left to right, so their order changes the result.'
 /** The line a device in a chain adds to its own info text. */
 const REORDER_HINT = 'Drag its title bar sideways to move it in the chain.'
+const PLATE_REORDER_HINT = 'Drag it by its face sideways to move it in the chain.'
 
 function sameDevices(a: readonly Device[], b: readonly Device[]): boolean {
   return a.length === b.length && a.every((device, index) => device === b[index])
@@ -168,6 +171,12 @@ export interface DeviceChainViewProps {
   onAdd?: (device: Device) => void
   /** Forwarded to every panel (knob size, choice labels, …). */
   panelProps?: Partial<Omit<DevicePanelProps, 'device' | 'registry' | 'onRemove'>>
+  /**
+   * The skin each device is drawn with, as a plate (`DevicePlate`); a device
+   * it gives none keeps the plain panel. `deviceSkin` is the kit's own answer.
+   * Left out, every device is a panel.
+   */
+  skin?: (device: Device) => DeviceSkin | null | undefined
   className?: string
   style?: CSSProperties
   'data-testid'?: string
@@ -183,6 +192,7 @@ export function DeviceChainView({
   onRemove,
   onAdd,
   panelProps,
+  skin,
   className,
   style,
   'data-testid': testId,
@@ -285,6 +295,7 @@ export function DeviceChainView({
       role="list"
       aria-label={`${strip.name} devices`}
       data-testid={testId}
+      data-lm-strip={strip.name}
     >
       {inserts.map((device, index) =>
         index < skip ? null : (
@@ -297,6 +308,7 @@ export function DeviceChainView({
             )}
             onPointerDown={reorder.onPointerDown(index - skip)}
             data-testid={testId ? `${testId}-item-${index - skip}` : undefined}
+            data-lm-insert={index}
           >
             <div
               className="lm-chain__handle"
@@ -306,13 +318,8 @@ export function DeviceChainView({
             >
               ⋮⋮
             </div>
-            <DevicePanel
-              hint={REORDER_HINT}
-              {...panelProps}
-              device={device}
-              registry={reg ?? undefined}
-              onRemove={() => remove(device, index)}
-              actions={
+            {((): ReactNode => {
+              const actions = (
                 <>
                   <button
                     type="button"
@@ -344,9 +351,35 @@ export function DeviceChainView({
                   </button>
                   {panelProps?.actions}
                 </>
-              }
-              data-testid={testId ? `${testId}-device-${index - skip}` : undefined}
-            />
+              )
+              const plate = skin?.(device)
+              const id = testId ? `${testId}-device-${index - skip}` : undefined
+              return plate ? (
+                <DevicePlate
+                  device={device}
+                  skin={plate}
+                  registry={reg ?? undefined}
+                  title={panelProps?.title}
+                  choiceLabels={panelProps?.choiceLabels}
+                  showBypass={panelProps?.showBypass}
+                  showPresets={panelProps?.showPresets}
+                  onRemove={() => remove(device, index)}
+                  actions={actions}
+                  hint={PLATE_REORDER_HINT}
+                  data-testid={id}
+                />
+              ) : (
+                <DevicePanel
+                  hint={REORDER_HINT}
+                  {...panelProps}
+                  device={device}
+                  registry={reg ?? undefined}
+                  onRemove={() => remove(device, index)}
+                  actions={actions}
+                  data-testid={id}
+                />
+              )
+            })()}
           </div>
         ),
       )}

@@ -29,11 +29,16 @@ const SCROLL_EDGE_PX = 36
 /** The most the chain scrolls in one frame, with the pointer at the very end. */
 const SCROLL_STEP_PX = 14
 
-/** What a device is taken by; anything else in its panel is a control of its own. */
-const GRIP = '[data-lm-drag-handle], .lm-chain__handle, .lm-device__header'
-/** Controls in a title bar: a press on one is that control's. */
+/**
+ * What a device is taken by: the grip, a panel's title bar, a plate anywhere
+ * on its face. Anything else in a panel is a control of its own.
+ */
+const GRIP = '[data-lm-drag-handle], .lm-chain__handle, .lm-device__header, .lm-plate'
+/** Controls in a title bar or on a plate: a press on one is that control's. */
 const CONTROL =
-  'button, select, input, textarea, a, label, [role="slider"], [role="switch"], [contenteditable="true"]'
+  'button, select, input, textarea, a, label, .lm-knob, .lm-fader, [role="slider"], [role="switch"], [contenteditable="true"]'
+/** Where a device's name is read from: a panel's title, a plate's name tag (whose `title` is the full name). */
+const NAME = '.lm-device__title, .lm-plate__name'
 
 /** Where one device of the chain stands, along the chain. */
 export interface ItemSpan {
@@ -287,9 +292,10 @@ export function useChainReorder(onMove: (from: number, to: number) => void): Cha
       } catch {
         // No capture for this pointer: the window still hears its moves.
       }
+      const name = current.item.querySelector(NAME)
       setCarried({
         index: current.from,
-        label: current.item.querySelector('.lm-device__title')?.textContent ?? '',
+        label: name?.getAttribute('title') ?? name?.textContent ?? '',
       })
       const tick = () => {
         const lifted = carry.current?.lifted

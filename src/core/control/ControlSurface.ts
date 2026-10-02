@@ -1,7 +1,7 @@
 // The stateful half of MIDI/OSC learn (U36, R15): one object that owns a
 // mapping table, the learn state, the per-mapping runtime state (pickup
-// positions, toggle edges), the registries for devices and macros, and the
-// lane writers that automation attached to targets. Inputs feed it
+// positions, toggle edges), the registries for devices, macros and host
+// actions, and the lane writers that automation attached to targets. Inputs feed it
 // `ControlEvent`s through `handle`; it binds them while learning, otherwise
 // resolves them against the table and applies each change through the
 // engine's ramped setters. A target with a `LaneWriter` is overridden on the
@@ -139,6 +139,7 @@ export class ControlSurface {
   private readonly remembered = new Map<string, number>()
   private readonly deviceMap = new Map<string, Device>()
   private readonly macroMap = new Map<string, Macro>()
+  private readonly actionMap = new Map<string, () => void>()
   private readonly writers = new Map<string, LaneWriter>()
   private readonly changes = new Emitter<ControlSurfaceChange>()
   private readonly inputs = new Set<() => void>()
@@ -162,9 +163,16 @@ export class ControlSurface {
       transport: () => undefined,
       device: (id) => this.deviceMap.get(id),
       macro: (name) => this.macroMap.get(name),
+      action: (id) => this.actionMap.get(id),
       ...(engine ? engineResolver(engine) : {}),
     }
-    this.resolver = { ...base, ...stripUndefined(options.resolve ?? {}) }
+    const supplied = stripUndefined(options.resolve ?? {})
+    this.resolver = {
+      ...base,
+      ...supplied,
+      // What was registered answers first; the host's own lookup takes the ids nothing registered.
+      action: (id) => this.actionMap.get(id) ?? supplied.action?.(id),
+    }
   }
 
   // --- State -------------------------------------------------------------------
@@ -267,6 +275,21 @@ export class ControlSurface {
 
   get macros(): ReadonlyMap<string, Macro> {
     return this.macroMap
+  }
+
+  /**
+   * Make something the host does addressable as `{ kind: 'action', id }`: a
+   * mapped pad or key fires it on a press. Returns the unregister function.
+   */
+  registerAction(id: string, run: () => void): () => void {
+    this.actionMap.set(id, run)
+    return () => {
+      if (this.actionMap.get(id) === run) this.actionMap.delete(id)
+    }
+  }
+
+  get actions(): ReadonlyMap<string, () => void> {
+    return this.actionMap
   }
 
   /**
@@ -449,6 +472,7 @@ export class ControlSurface {
     this.writers.clear()
     this.deviceMap.clear()
     this.macroMap.clear()
+    this.actionMap.clear()
   }
 
   // --- Internals -----------------------------------------------------------------------

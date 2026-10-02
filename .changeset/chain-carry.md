@@ -9,3 +9,5 @@ A device of a chain is moved by taking its title bar, as a device is in a rack.
 - `DevicePanel` takes `hint`, a line added to its info text; a chain uses it to say the device can be moved.
 - The marker and the carried name are children of `lm-chain`. A host stylesheet that drew something between devices with `.lm-chain > * + *` should name `.lm-chain__item` instead.
 - `lm-chain__item--over` is gone.
+
+A plate (`DevicePlate`) in a chain is taken anywhere on its face that is not a control, and takes `hint` like a panel. A device keeps its panel or plate when it moves: the chain keys them by device, not by place. The click that follows a carry presses nothing.

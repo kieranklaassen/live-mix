@@ -1,7 +1,7 @@
 // Resolving a `ControlTarget` to the live object behind it and moving values
 // through the same ramped setters the React hooks use: `ChannelStrip.setLevel`
 // / `setPan` / `setMute` / `setSolo`, `Bus.setLevel`, `Device.setParam` (the
-// host ramps), `Macro.set`, `Transport` actions. A binding reads and writes
+// host ramps), `Macro.set`, `Transport` actions, the host's own actions. A binding reads and writes
 // normalised 0..1 positions; the taper of a device parameter and the fader
 // span of a strip are folded here so the mapping table never sees units.
 
@@ -26,6 +26,8 @@ export interface ControlResolver {
   device(id: string): Device | undefined
   macro(name: string): Macro | undefined
   transport(): Transport | undefined
+  /** What a host action does when it fires; undefined while nothing answers to the id. */
+  action(id: string): (() => void) | undefined
 }
 
 /** A resolved target: read its normalised position, write one, or fire it. */
@@ -225,6 +227,10 @@ function transportBinding(
   return { read: () => null, write: () => {}, fire, value: () => 0 }
 }
 
+function actionBinding(run: () => void): ControlBinding {
+  return { read: () => null, write: () => {}, fire: run, value: () => 0 }
+}
+
 /** The binding for a target, or null when nothing answers to it right now. */
 export function resolveBinding(
   target: ControlTarget,
@@ -255,6 +261,10 @@ export function resolveBinding(
     case 'transport': {
       const transport = resolver.transport()
       return transport ? transportBinding(transport, target.action) : null
+    }
+    case 'action': {
+      const run = resolver.action(target.id)
+      return run ? actionBinding(run) : null
     }
     default: {
       const exhaustive: never = target

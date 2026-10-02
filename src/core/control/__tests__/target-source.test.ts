@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest'
 import {
   MIDI_OMNI,
   describeSource,
+  isMidiSource,
+  keyCodeLabel,
   parseControlSource,
   sameSource,
   sourceKey,
@@ -27,6 +29,7 @@ const targets: ControlTarget[] = [
   { kind: 'device', device: 'pad-filter', param: 'frequency' },
   { kind: 'macro', macro: 'intensity' },
   { kind: 'transport', action: 'toggle' },
+  { kind: 'action', id: 'marker.jump.2' },
 ]
 
 describe('ControlTarget', () => {
@@ -41,6 +44,7 @@ describe('ControlTarget', () => {
       'device:pad-filter:frequency',
       'macro:intensity',
       'transport:toggle',
+      'action:marker.jump.2',
     ])
     expect(sameControlTarget(targets[0], { kind: 'strip', track: 'pad', control: 'level' })).toBe(
       true,
@@ -57,12 +61,31 @@ describe('ControlTarget', () => {
       'pad-filter · frequency',
       'macro · intensity',
       'transport · toggle',
+      'action · marker.jump.2',
     ])
   })
 
   it('classifies on/off and action targets', () => {
-    expect(targets.map(isBooleanTarget)).toEqual([false, true, false, false, false, false, true])
-    expect(targets.map(isActionTarget)).toEqual([false, false, false, false, false, false, true])
+    expect(targets.map(isBooleanTarget)).toEqual([
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+    ])
+    expect(targets.map(isActionTarget)).toEqual([
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+    ])
     expect(isBooleanTarget({ kind: 'strip', track: 'a', control: 'solo' })).toBe(true)
   })
 
@@ -79,6 +102,8 @@ describe('ControlTarget', () => {
     expect(parseControlTarget({ kind: 'device', device: 'x', param: 3 })).toBeNull()
     expect(parseControlTarget({ kind: 'macro' })).toBeNull()
     expect(parseControlTarget({ kind: 'transport', action: 'record' })).toBeNull()
+    expect(parseControlTarget({ kind: 'action' })).toBeNull()
+    expect(parseControlTarget({ kind: 'action', id: '' })).toBeNull()
     expect(parseControlTarget({ kind: 'reverb.mix' })).toBeNull()
   })
 })
@@ -90,6 +115,7 @@ const sources: ControlSource[] = [
   { kind: 'pitchbend', channel: 1 },
   { kind: 'aftertouch', channel: 3 },
   { kind: 'osc', address: '/1/fader1', arg: 0 },
+  { kind: 'key', code: 'Digit1' },
 ]
 
 describe('ControlSource', () => {
@@ -101,6 +127,7 @@ describe('ControlSource', () => {
       'pitchbend:1',
       'aftertouch:3',
       'osc:/1/fader1:0',
+      'key:Digit1',
     ])
     expect(sources.map(describeSource)).toEqual([
       'Note 36 · ch 1',
@@ -109,6 +136,7 @@ describe('ControlSource', () => {
       'Pitch bend · ch 1',
       'Aftertouch · ch 3',
       'OSC /1/fader1[0]',
+      'Key 1',
     ])
     expect(describeSource({ kind: 'cc', channel: MIDI_OMNI, controller: 1 })).toBe('CC 1 · any ch')
     expect(sameSource(sources[1], { kind: 'cc', channel: 1, controller: 74 })).toBe(true)
@@ -145,6 +173,21 @@ describe('ControlSource', () => {
     ).toBe(false)
   })
 
+  it('takes a key of the computer keyboard by where it sits, and names it as a US keyboard does', () => {
+    const one: ControlSource = { kind: 'key', code: 'Digit1' }
+    expect(sourceMatches(one, { kind: 'key', code: 'Digit1' })).toBe(true)
+    expect(sourceMatches(one, { kind: 'key', code: 'Numpad1' })).toBe(false)
+    expect(sourceMatches(one, { kind: 'note', channel: 1, note: 1 })).toBe(false)
+    expect(sourceMatches({ kind: 'note', channel: 1, note: 1 }, one)).toBe(false)
+    expect(isMidiSource(one)).toBe(false)
+    expect(isMidiSource(sources[0])).toBe(true)
+    expect(
+      ['KeyQ', 'Digit0', 'Numpad4', 'F5', 'Space', 'ArrowLeft', 'BracketLeft', 'IntlBackslash'].map(
+        keyCodeLabel,
+      ),
+    ).toEqual(['Q', '0', 'Num 4', 'F5', 'Space', '←', '[', 'IntlBackslash'])
+  })
+
   it('round-trips through parse and rejects malformed values', () => {
     for (const source of sources) {
       expect(parseControlSource(JSON.parse(JSON.stringify(source)))).toEqual(source)
@@ -163,5 +206,9 @@ describe('ControlSource', () => {
     expect(parseControlSource({ kind: 'pitch', channel: 1 })).toBeNull()
     expect(parseControlSource({ kind: 'osc', address: 'fader', arg: 0 })).toBeNull()
     expect(parseControlSource({ kind: 'osc', address: '/x', arg: -1 })).toBeNull()
+    expect(parseControlSource({ kind: 'key' })).toBeNull()
+    expect(parseControlSource({ kind: 'key', code: '' })).toBeNull()
+    expect(parseControlSource({ kind: 'key', code: 'Digit 1' })).toBeNull()
+    expect(parseControlSource({ kind: 'key', code: 7 })).toBeNull()
   })
 })

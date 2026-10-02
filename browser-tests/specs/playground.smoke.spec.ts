@@ -85,7 +85,8 @@ test.describe('playground smoke', () => {
     // The keys chain: a node device (eq3) and a WASM device (stereo-widener).
     await page.locator('[data-testid="mixer-keys"] .lm-strip__name').click()
     await expect(page.locator('[data-testid="devices"] h2')).toContainText('keys')
-    await expect(page.locator('[data-testid="chain"] .lm-device')).toHaveCount(2)
+    // The playground draws its chain as plates (`skin={deviceSkin}`).
+    await expect(page.locator('[data-testid="chain"] .lm-plate')).toHaveCount(2)
     await page.getByTestId('devices').screenshot({ path: shot('devices') })
 
     // The offline bounce of the same score (U33), WASM and all.
