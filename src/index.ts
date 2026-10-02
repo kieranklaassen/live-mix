@@ -40,6 +40,7 @@ export {
 } from './core/json'
 export {
   clampParam,
+  describeParams,
   denormalizeParam,
   normalizeParam,
   type ParamSpec,
@@ -560,12 +561,30 @@ export { MasterLimiter } from './core/buses/MasterLimiter'
 export { type LimiterFactory } from './core/buses/MasterBus'
 export {
   EngineStats,
+  type EngineGlitchSource,
+  type EngineLoadSource,
   type EngineStatsListener,
   type EngineStatsOptions,
   type EngineStatsSnapshot,
   type RenderCapacityLike,
   type RenderCapacityUpdate,
 } from './core/stats'
+export {
+  LOAD_CELL_BUSY,
+  LoadProbe,
+  defaultLoadSamplerUrl,
+  loadCells,
+  wasmMemoryBytes,
+  type DeviceLoad,
+  type LoadClaim,
+  type LoadProbeOptions,
+  type LoadReading,
+  type LoadSampler,
+  type LoadSamplerFactory,
+  type LoadSamplerInit,
+  type LoadSamplerReport,
+  type LoadSlot,
+} from './core/load'
 export * from './score'
 export * from './core/session'
 export * from './core/control'

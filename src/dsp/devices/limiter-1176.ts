@@ -1,12 +1,24 @@
 // 1176-style limiter (cpp/faust/limiter-1176.dsp): Faust's
 // `co.limiter_1176_R4_stereo`, compiled to C++ at library build time and
 // hosted behind the device ABI like every other stock device. The param table
-// is generated from the .dsp by scripts/build-faust.sh.
+// is generated from the .dsp by scripts/build-faust.sh; what each knob does is
+// said here, because a .dsp cannot carry it.
 
+import { describeParams } from '../../core/params'
 import { defineWasmDevice, WasmDevice, type WasmDeviceOptions } from '../WasmDevice'
-import { LIMITER_1176_PARAMS, type Limiter1176ParamName } from './faust/limiter-1176'
+import {
+  LIMITER_1176_PARAMS as GENERATED_PARAMS,
+  type Limiter1176ParamName,
+} from './faust/limiter-1176'
 
-export { LIMITER_1176_PARAMS, type Limiter1176ParamName }
+/** The generated table, with what each knob does said for the info view. */
+export const LIMITER_1176_PARAMS = describeParams(GENERATED_PARAMS, {
+  inputGain:
+    'Drives the signal into the fixed threshold, like the input knob on the hardware. More gain means more compression and a denser sound.',
+  outputGain:
+    'Level after the limiter, to make up for or trim what the limiting did. Above zero the output can pass full scale.',
+})
+export { type Limiter1176ParamName }
 
 export const LIMITER_1176_DEVICE = defineWasmDevice({
   id: 'limiter-1176',

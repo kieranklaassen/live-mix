@@ -1341,6 +1341,22 @@ describe('AudioTrack with a loop length of its own', () => {
     expect(track.voice('a:3:5.000')).toBeDefined()
   })
 
+  it('runs its own loop at the transport\u2019s rate, with every voice read that much faster', async () => {
+    const { ctx, track, transport, runTo, starts } = await looped(10)
+    track.clips.add(note('a', 5))
+    transport.setRate(2)
+    transport.start()
+    runTo(12)
+    // A pass of 10 timeline seconds is 5 on the clock.
+    expect(starts()).toEqual([2.5, 7.5])
+    expect(ctx.sources.map((source) => source.playbackRate.value)).toEqual([2, 2])
+    // Slowed to the clock's own speed 12 s in (24 s along, 4 into the third pass): the same pass, later.
+    transport.setRate(1)
+    runTo(14)
+    expect(starts().slice(2)).toEqual([13])
+    expect(track.voice('a:2:5.000')).toBeDefined()
+  })
+
   it('takes a length while it plays: what sounds fades, and it is entered where the loop now stands', async () => {
     const { ctx, track, transport, runTo, starts } = await looped()
     track.clips.add(note('a', 5, 4))
@@ -1403,5 +1419,311 @@ describe('AudioTrack with a loop length of its own', () => {
     const { track } = await looped()
     expect(() => (track.loopLengthSec = 0)).toThrow(RangeError)
     expect(() => (track.loopLengthSec = Number.NaN)).toThrow(RangeError)
+  })
+})
+
+describe('AudioTrack rate (tape speed)', () => {
+  const faded = {
+    offsetSec: 1,
+    durationSec: 6,
+    fadeInSec: 2,
+    fadeOutSec: 1,
+    fadeCurve: 'linear' as const,
+  }
+
+  /** Recorded numbers rounded to 9 places: clock times come out of a division by the rate. */
+  function rounded(events: { method: string; args: unknown[] }[]): [string, ...unknown[]][] {
+    return events.map(({ method, args }) => [
+      method,
+      ...args.map((arg) => (typeof arg === 'number' ? Number(arg.toFixed(9)) : arg)),
+    ])
+  }
+
+  it('plays at the clock by default and leaves the source at its own rate', () => {
+    const { ctx, track } = setup()
+    expect(track.rate).toBe(1)
+    track.play('k', { buffer: buffer(ctx, 10), ...faded }, 3)
+    expect(ctx.sources[0].playbackRate.value).toBe(1)
+    expect(ctx.sources[0].playbackRate.events).toEqual([])
+  })
+
+  it('starts a voice at the rate: the buffer read that much faster, fades and end that much sooner', () => {
+    const { ctx, track } = setup()
+    track.setRate(2)
+    const voice = track.play('k', { buffer: buffer(ctx, 10), ...faded }, 3)
+    const source = ctx.sources[0]
+    expect(source.playbackRate.value).toBe(2)
+    // The same 6 s of buffer from the same offset: at double speed it is over in 3 s of clock.
+    expect(source.startCalls.calls).toEqual([[3, 1, 6]])
+    expect(ctx.gains[1].gain.events).toEqual([
+      { method: 'setValueAtTime', args: [0, 3] },
+      { method: 'linearRampToValueAtTime', args: [1, 4] },
+      { method: 'setValueAtTime', args: [1, 5.5] },
+      { method: 'linearRampToValueAtTime', args: [0, 6] },
+    ])
+    expect(voice?.endTime).toBe(6)
+  })
+
+  it('joins late by as much of the clip as the rate has run through', () => {
+    const { ctx, track } = setup({ currentTime: 4 })
+    track.setRate(0.5)
+    track.play('k', { buffer: buffer(ctx, 10), ...faded }, 3)
+    // A second of clock late at half speed is half a second into the clip.
+    expect(ctx.sources[0].startCalls.calls).toEqual([[4, 1.5, 5.5]])
+    expect(ctx.gains[1].gain.events).toEqual([
+      { method: 'setValueAtTime', args: [fadeGain(0.5, 6, 2, 1), 4] },
+      { method: 'linearRampToValueAtTime', args: [1, 7] },
+      { method: 'setValueAtTime', args: [1, 13] },
+      { method: 'linearRampToValueAtTime', args: [0, 15] },
+    ])
+  })
+
+  it('moves a sounding voice to a new rate: pitch at once, and what is left of its envelope', () => {
+    const { ctx, track } = setup()
+    const voice = track.play('k', { buffer: buffer(ctx, 10), ...faded }, 3)
+    const source = ctx.sources[0]
+    const level = ctx.gains[1].gain
+    ctx.currentTime = 4
+    level.events.length = 0
+    track.setRate(0.5)
+
+    expect(source.playbackRate.events).toEqual([{ method: 'setValueAtTime', args: [0.5, 4] }])
+    // 1 s into the clip at clock 4, with 5 s of it left: 10 s of clock at half speed.
+    expect(rounded(level.events)).toEqual([
+      ['cancelAndHoldAtTime', 4],
+      ['linearRampToValueAtTime', 1, 6],
+      ['setValueAtTime', 1, 12],
+      ['linearRampToValueAtTime', 0, 14],
+    ])
+    expect(voice?.endTime).toBe(14)
+    // It ends by running out of the 6 s it was started with, so it is not told when.
+    expect(source.stopCalls.count).toBe(0)
+  })
+
+  it('writes the level it has reached where the browser cannot hold it', () => {
+    const { ctx, track } = setup()
+    track.play('k', { buffer: buffer(ctx, 10), ...faded }, 3)
+    const level = ctx.gains[1].gain
+    ;(level as { cancelAndHoldAtTime?: unknown }).cancelAndHoldAtTime = undefined
+    ctx.currentTime = 8.5
+    level.events.length = 0
+    track.setRate(2)
+    // Half way down the fade-out, with half a second of clip left.
+    expect(rounded(level.events)).toEqual([
+      ['cancelScheduledValues', 8.5],
+      ['setValueAtTime', 0.5, 8.5],
+      ['linearRampToValueAtTime', 0, 8.75],
+    ])
+  })
+
+  it('carries one change into the next: each starts from where the clip has got to', () => {
+    const { ctx, track } = setup()
+    const voice = track.play('k', { buffer: buffer(ctx, 20), ...faded, durationSec: 12 }, 0)
+    const level = ctx.gains[1].gain
+    ctx.currentTime = 4
+    track.setRate(0.5)
+    // 4 s in. Two more seconds of clock at half speed: 5 s in.
+    ctx.currentTime = 6
+    level.events.length = 0
+    track.setRate(2)
+    // 7 s of clip left at double speed.
+    expect(rounded(level.events)).toEqual([
+      ['cancelAndHoldAtTime', 6],
+      ['setValueAtTime', 1, 9],
+      ['linearRampToValueAtTime', 0, 9.5],
+    ])
+    expect(voice?.endTime).toBeCloseTo(9.5, 9)
+    expect(ctx.sources[0].playbackRate.events).toEqual([
+      { method: 'setValueAtTime', args: [0.5, 4] },
+      { method: 'setValueAtTime', args: [2, 6] },
+    ])
+  })
+
+  it('stops a looping voice where its clip now ends', () => {
+    const { ctx, track } = setup()
+    track.play(
+      'k',
+      { buffer: buffer(ctx, 2), ...faded, offsetSec: 0, fadeInSec: 0, fadeOutSec: 0, loop: true },
+      3,
+    )
+    const source = ctx.sources[0]
+    expect(source.stopCalls.calls).toEqual([[9]])
+    ctx.currentTime = 6
+    track.setRate(1.5)
+    // 3 s of clip left take 2 s of clock.
+    expect(source.stopCalls.calls).toEqual([[9], [8]])
+  })
+
+  it('eases a voice in over the same few milliseconds when the rate changes inside the ease', () => {
+    const { ctx, track } = setup({ currentTime: 4.5 })
+    track.play('k', { buffer: buffer(ctx, 10), ...faded, easeInSec: 0.004 }, 3)
+    const level = ctx.gains[1].gain
+    ;(level as { cancelAndHoldAtTime?: unknown }).cancelAndHoldAtTime = undefined
+    ctx.currentTime = 4.502
+    level.events.length = 0
+    track.setRate(0.5)
+    const afterEase = fadeGain(1.504, 6, 2, 1)
+    expect(rounded(level.events)).toEqual([
+      ['cancelScheduledValues', 4.502],
+      ['setValueAtTime', Number((afterEase / 2).toFixed(9)), 4.502],
+      // The 2 ms of clip left in the ease take 4 ms of clock.
+      ['linearRampToValueAtTime', Number(afterEase.toFixed(9)), 4.506],
+      ['linearRampToValueAtTime', 1, 5.498],
+      ['setValueAtTime', 1, 11.498],
+      ['linearRampToValueAtTime', 0, 13.498],
+    ])
+  })
+
+  it('changes only the pitch of a voice that is fading out or was given a stop time', () => {
+    const { ctx, track } = setup()
+    track.play('fading', { buffer: buffer(ctx, 10), ...faded }, 0)
+    track.play('stopping', { buffer: buffer(ctx, 10), ...faded }, 0)
+    ctx.currentTime = 3
+    track.fadeOutVoice('fading', 3, 0.5)
+    track.stop('stopping', 3.25)
+    const fading = ctx.gains[1].gain
+    const stopping = ctx.gains[2].gain
+    const before = [fading.events.length, stopping.events.length]
+    ctx.currentTime = 3.1
+    track.setRate(0.5)
+    expect([fading.events.length, stopping.events.length]).toEqual(before)
+    expect(ctx.sources.map((source) => source.playbackRate.events)).toEqual([
+      [{ method: 'setValueAtTime', args: [0.5, 3.1] }],
+      [{ method: 'setValueAtTime', args: [0.5, 3.1] }],
+    ])
+    expect(ctx.sources[0].stopCalls.calls).toEqual([[3.5]])
+    expect(ctx.sources[1].stopCalls.calls).toEqual([[3.25]])
+  })
+
+  it('runs a voice that has not begun at the new rate from its own first frame', () => {
+    const { ctx, track } = setup()
+    const voice = track.play('k', { buffer: buffer(ctx, 10), ...faded }, 3)
+    const level = ctx.gains[1].gain
+    level.events.length = 0
+    ctx.currentTime = 1
+    track.setRate(2)
+    expect(ctx.sources[0].playbackRate.events).toEqual([{ method: 'setValueAtTime', args: [2, 3] }])
+    expect(rounded(level.events)).toEqual([
+      ['cancelScheduledValues', 3],
+      ['setValueAtTime', 0, 3],
+      ['linearRampToValueAtTime', 1, 4],
+      ['setValueAtTime', 1, 5.5],
+      ['linearRampToValueAtTime', 0, 6],
+    ])
+    expect(voice?.startTime).toBe(3)
+    expect(voice?.endTime).toBe(6)
+  })
+
+  it('leaves equal-power voices on the clock, new and sounding', () => {
+    const { ctx, track } = setup()
+    const options = {
+      buffer: buffer(ctx, 30),
+      offsetSec: 0,
+      durationSec: 20,
+      fadeInSec: CROSSFADE_SECONDS,
+      fadeOutSec: CROSSFADE_SECONDS,
+      fadeCurve: 'equalPower' as const,
+    }
+    track.play('before', options, 0)
+    const events = ctx.gains[1].gain.events.length
+    ctx.currentTime = 5
+    track.setRate(0.5)
+    track.play('after', options, 5)
+    expect(ctx.gains[1].gain.events).toHaveLength(events)
+    expect(ctx.sources.map((source) => source.playbackRate.events)).toEqual([[], []])
+    expect(ctx.sources.map((source) => source.playbackRate.value)).toEqual([1, 1])
+    expect(ctx.sources[1].stopCalls.calls).toEqual([[25]])
+  })
+
+  it('refuses a rate that is not a positive number and ignores the one it has', () => {
+    const { ctx, track } = setup()
+    track.play('k', { buffer: buffer(ctx, 10), ...faded }, 0)
+    track.setRate(1)
+    expect(ctx.sources[0].playbackRate.events).toEqual([])
+    expect(() => track.setRate(0)).toThrow(RangeError)
+    expect(() => track.setRate(Number.NaN)).toThrow(RangeError)
+  })
+
+  describe('on a scheduler', () => {
+    function clip(id: string, startSec: number, extra: Partial<Clip> = {}): Clip {
+      return {
+        id,
+        sourceId: 's',
+        startSec,
+        offsetSec: 0,
+        durationSec: 8,
+        fadeInSec: 0,
+        fadeOutSec: 2,
+        fadeCurve: 'linear',
+        gainDb: 0,
+        ...extra,
+      }
+    }
+
+    async function scheduled() {
+      const { ctx, samples, track } = setup({ currentTime: 100, lookaheadSec: 0.2 })
+      const transport = new Transport({
+        now: () => ctx.currentTime,
+        loop: { enabled: true, lengthSec: 32 },
+      })
+      const scheduler = new Scheduler({ transport, tickMs: 40 })
+      track.attach(scheduler)
+      await samples.load('s', buffer(ctx, 20))
+      return { ctx, track, transport, scheduler }
+    }
+
+    it('takes the transport rate: a sounding clip follows, a pending one is started again', async () => {
+      const { ctx, track, transport, scheduler } = await scheduled()
+      track.clips.add(clip('pad', 0))
+      track.clips.add(clip('next', 4.05))
+      transport.start()
+      ctx.currentTime = 104
+      scheduler.tick()
+      expect(ctx.sources).toHaveLength(2)
+      expect(ctx.sources[1].startCalls.calls[0][0]).toBeCloseTo(104.05, 9)
+
+      transport.setRate(0.5)
+      expect(track.rate).toBe(0.5)
+      // The sounding pad: half its 8 s left, now 8 s of clock.
+      expect(ctx.sources[0].playbackRate.events).toEqual([
+        { method: 'setValueAtTime', args: [0.5, 104] },
+      ])
+      expect(track.voice('pad:0:0.000')?.endTime).toBe(112)
+      // The pending one was silenced and scheduled afresh: 0.05 s of timeline is 0.1 s of clock.
+      expect(ctx.sources).toHaveLength(3)
+      expect(ctx.sources[1].stopCalls.count).toBe(1)
+      expect(ctx.sources[2].playbackRate.value).toBe(0.5)
+      expect(ctx.sources[2].startCalls.calls[0][0]).toBeCloseTo(104.1, 9)
+      expect(track.voices()).toHaveLength(2)
+      scheduler.dispose()
+    })
+
+    it('a track attached while the transport runs at another rate plays at it', async () => {
+      const { ctx, samples } = setup({ currentTime: 100 })
+      const transport = new Transport({ now: () => ctx.currentTime, rate: 1.25 })
+      const scheduler = new Scheduler({ transport, tickMs: 40 })
+      const track = new AudioTrack(asAudioContext(ctx), {
+        name: 'late',
+        destination: ctx.createGain() as unknown as AudioNode,
+        samples,
+        now: () => ctx.currentTime,
+        scheduler,
+      })
+      expect(track.rate).toBe(1.25)
+      scheduler.dispose()
+    })
+
+    it('enters a clip partway where the rate has brought the transport', async () => {
+      const { ctx, track, transport, scheduler } = await scheduled()
+      track.clips.add(clip('pad', 2, { fadeOutSec: 0 }))
+      transport.setRate(2)
+      transport.seek(5)
+      transport.start()
+      // 3 s into the clip; its start, at double speed, was 1.5 s of clock ago.
+      expect(ctx.sources).toHaveLength(1)
+      expect(ctx.sources[0].startCalls.calls).toEqual([[100, 3, 5]])
+      expect(track.voice('pad:0:2.000')?.endTime).toBe(102.5)
+      scheduler.dispose()
+    })
   })
 })

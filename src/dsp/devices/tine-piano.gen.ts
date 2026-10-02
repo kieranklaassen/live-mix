@@ -5,17 +5,126 @@ import { wasmDeviceDescriptor } from '../descriptor'
 import { defineWasmDevice, WasmDevice, type WasmDeviceOptions } from '../WasmDevice'
 
 export const TINE_PIANO_PARAMS = {
-  bell: { id: 0, name: 'Bell', min: 0, max: 1, default: 0.45, taper: 'linear', unit: '' },
-  bark: { id: 1, name: 'Bark', min: 0, max: 1, default: 0.35, taper: 'linear', unit: '' },
-  decay: { id: 2, name: 'Decay', min: 0.25, max: 4, default: 1, taper: 'log', unit: '' },
-  release: { id: 3, name: 'Release', min: 0.03, max: 3, default: 0.25, taper: 'log', unit: 's' },
-  hardness: { id: 4, name: 'Hardness', min: 0, max: 1, default: 0.7, taper: 'linear', unit: '' },
-  tremolo: { id: 5, name: 'Tremolo', min: 0, max: 1, default: 0.3, taper: 'linear', unit: '' },
-  tremoloRate: { id: 6, name: 'Rate', min: 0.1, max: 10, default: 3.2, taper: 'log', unit: 'Hz' },
-  pan: { id: 7, name: 'Pan', min: 0, max: 1, default: 1, taper: 'linear', unit: '' },
-  tone: { id: 8, name: 'Tone', min: 0, max: 1, default: 0.55, taper: 'linear', unit: '' },
-  drive: { id: 9, name: 'Drive', min: 0, max: 1, default: 0.15, taper: 'linear', unit: '' },
-  volume: { id: 10, name: 'Volume', min: -48, max: 6, default: -9, taper: 'linear', unit: 'dB' },
+  bell: {
+    id: 0,
+    name: 'Bell',
+    min: 0,
+    max: 1,
+    default: 0.45,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How much of the high bell tone rings at the start of each note. Applies from the next note played.',
+  },
+  bark: {
+    id: 1,
+    name: 'Bark',
+    min: 0,
+    max: 1,
+    default: 0.35,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Moves the tine closer to the pickup. Low is hollow and pure; high growls on hard notes while soft notes stay clean.',
+  },
+  decay: {
+    id: 2,
+    name: 'Decay',
+    min: 0.25,
+    max: 4,
+    default: 1,
+    taper: 'log',
+    unit: '',
+    description:
+      'How long held notes ring. Bass notes always last longer than treble. Applies from the next note played.',
+  },
+  release: {
+    id: 3,
+    name: 'Release',
+    min: 0.03,
+    max: 3,
+    default: 0.25,
+    taper: 'log',
+    unit: 's',
+    description:
+      'How quickly the damper stops a note after the key is let go. Short is tight; long lets notes hang over.',
+  },
+  hardness: {
+    id: 4,
+    name: 'Hardness',
+    min: 0,
+    max: 1,
+    default: 0.7,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How much playing harder changes the tone as well as the loudness. At zero a hard note is a loud soft note.',
+  },
+  tremolo: {
+    id: 5,
+    name: 'Tremolo',
+    min: 0,
+    max: 1,
+    default: 0.3,
+    taper: 'linear',
+    unit: '',
+    description:
+      "Depth of the suitcase amplifier's tremolo. Loudness stays the same as the depth goes up.",
+  },
+  tremoloRate: {
+    id: 6,
+    name: 'Rate',
+    min: 0.1,
+    max: 10,
+    default: 3.2,
+    taper: 'log',
+    unit: 'Hz',
+    description: 'How fast the tremolo pulses, or pans when Pan is up.',
+  },
+  pan: {
+    id: 7,
+    name: 'Pan',
+    min: 0,
+    max: 1,
+    default: 1,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Spreads the tremolo across the speakers. At zero both sides pulse together; at full the sound swings from side to side.',
+  },
+  tone: {
+    id: 8,
+    name: 'Tone',
+    min: 0,
+    max: 1,
+    default: 0.55,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Amplifier tone control. Low settings are dark and muffled; high settings let the bell and bark through.',
+  },
+  drive: {
+    id: 9,
+    name: 'Drive',
+    min: 0,
+    max: 1,
+    default: 0.15,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How hard the notes push the amplifier. Quiet playing stays clean; loud notes and chords saturate and compress.',
+  },
+  volume: {
+    id: 10,
+    name: 'Volume',
+    min: -48,
+    max: 6,
+    default: -9,
+    taper: 'linear',
+    unit: 'dB',
+    description:
+      'Output level of the instrument. Pushed hard, a soft clipper rounds off the peaks.',
+  },
 } as const satisfies Record<string, ParamSpec>
 
 export type TinePianoParamName = keyof typeof TINE_PIANO_PARAMS

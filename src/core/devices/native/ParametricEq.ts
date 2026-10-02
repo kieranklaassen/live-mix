@@ -20,12 +20,15 @@ type BandParamName<N extends BandIndex> = `band${N}Freq` | `band${N}Gain` | `ban
 export type ParametricEqParamName = 'lowCut' | BandParamName<BandIndex> | 'highCut'
 
 const BAND_DEFAULT_FREQUENCIES: readonly number[] = [100, 400, 1600, 6400]
+/** How a band is named in its parameters' descriptions. */
+const BAND_ORDINALS: readonly string[] = ['first', 'second', 'third', 'fourth']
 
 function bandParams(): Record<BandParamName<BandIndex>, ParamSpec> {
   const params: Partial<Record<BandParamName<BandIndex>, ParamSpec>> = {}
   for (let band = 1; band <= PARAMETRIC_EQ_BANDS; band += 1) {
     const n = band as BandIndex
     const base = 1 + (band - 1) * 3
+    const ordinal = BAND_ORDINALS[band - 1]
     params[`band${n}Freq`] = {
       id: base,
       name: `Band ${n} freq`,
@@ -34,6 +37,7 @@ function bandParams(): Record<BandParamName<BandIndex>, ParamSpec> {
       default: BAND_DEFAULT_FREQUENCIES[band - 1],
       taper: 'log',
       unit: 'Hz',
+      description: `The centre of the ${ordinal} band: the frequency its boost or cut is aimed at.`,
     }
     params[`band${n}Gain`] = {
       id: base + 1,
@@ -43,6 +47,7 @@ function bandParams(): Record<BandParamName<BandIndex>, ParamSpec> {
       default: 0,
       taper: 'linear',
       unit: 'dB',
+      description: `How much the ${ordinal} band boosts or cuts around its frequency. At zero the band does nothing.`,
     }
     params[`band${n}Q`] = {
       id: base + 2,
@@ -52,6 +57,7 @@ function bandParams(): Record<BandParamName<BandIndex>, ParamSpec> {
       default: 1,
       taper: 'log',
       unit: '',
+      description: `How narrow the ${ordinal} band is. Low is a broad, gentle curve; high is a tight peak or notch.`,
     }
   }
   return params as Record<BandParamName<BandIndex>, ParamSpec>
@@ -59,7 +65,17 @@ function bandParams(): Record<BandParamName<BandIndex>, ParamSpec> {
 
 export const PARAMETRIC_EQ_PARAMS: Readonly<Record<ParametricEqParamName, ParamSpec>> = {
   /** High-pass corner; the minimum is effectively off. */
-  lowCut: { id: 0, name: 'Low cut', min: 20, max: 1000, default: 20, taper: 'log', unit: 'Hz' },
+  lowCut: {
+    id: 0,
+    name: 'Low cut',
+    min: 20,
+    max: 1000,
+    default: 20,
+    taper: 'log',
+    unit: 'Hz',
+    description:
+      'Removes lows below this frequency with a high-pass. At its lowest setting it is effectively off.',
+  },
   ...bandParams(),
   /** Low-pass corner; the maximum is effectively off. */
   highCut: {
@@ -70,6 +86,8 @@ export const PARAMETRIC_EQ_PARAMS: Readonly<Record<ParametricEqParamName, ParamS
     default: 20000,
     taper: 'log',
     unit: 'Hz',
+    description:
+      'Removes highs above this frequency with a low-pass. At its highest setting it is effectively off.',
   },
 }
 
@@ -132,6 +150,8 @@ export const PARAMETRIC_EQ_DESCRIPTOR: DeviceDescriptor<typeof PARAMETRIC_EQ_PAR
   name: 'Parametric EQ',
   kind: 'node',
   category: 'eq',
+  description:
+    'Channel EQ: a low cut, four bell bands with frequency, gain and width, and a high cut, for detailed correction of one track.',
   version: 1,
   params: PARAMETRIC_EQ_PARAMS,
   presets: {

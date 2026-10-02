@@ -3,7 +3,8 @@
 // now + lookahead, write it") generalised to any lane — and yields to a live
 // override with cancel-and-hold (R13, R29). Every join back onto the lane
 // (first tick excepted) is a short ramp, so a seek, a stall, a lane edit under
-// playback or a released fader never steps the param (R2).
+// playback, a change of the transport's rate or a released fader never steps
+// the param (R2).
 //
 // A segment is handed to the graph whole as soon as the window reaches into
 // it: a ramp issued after its segment has begun is rendered as a jump to the
@@ -28,6 +29,12 @@ export interface LaneWindow {
   loopEnabled?: boolean
   /** Length of one loop pass; only read when `loopEnabled`. */
   loopLengthSec?: number
+  /**
+   * Timeline seconds per second of the audio clock (`Transport.rate`). Default
+   * 1. A lane is drawn on the timeline, so at another rate its breakpoints
+   * fall that much further apart, or closer, on the clock.
+   */
+  rate?: number
 }
 
 export interface LaneWriterOptions {
@@ -39,6 +46,8 @@ export interface LaneWriterOptions {
 export interface LaneTransport {
   position(): { positionSec: number; iteration: number }
   readonly loop: { readonly enabled: boolean; readonly lengthSec: number }
+  /** Absent: the transport runs at the clock's speed. */
+  readonly rate?: number
   contextTimeAt(positionSec: number, iteration?: number): number
 }
 
@@ -52,12 +61,16 @@ export function laneWindowFrom(transport: LaneTransport, lookaheadSec: number): 
     contextTimeSec: transport.contextTimeAt(positionSec, iteration),
     loopEnabled: transport.loop.enabled,
     loopLengthSec: transport.loop.lengthSec,
+    rate: transport.rate ?? 1,
   }
 }
 
 export const DEFAULT_JOIN_RAMP_SECONDS = 0.05
 
-/** Offset drift smaller than this is clock jitter, not a seek. */
+/**
+ * Offset drift smaller than this is clock jitter, not a seek. The offset is
+ * the clock time of timeline second 0 at the window's rate.
+ */
 const SEEK_EPSILON_SEC = 0.001
 
 interface Written {
@@ -76,6 +89,8 @@ export class LaneWriter {
   private lastWritten: Written | null = null
   private lastWrappedPlayheadSec: number | null = null
   private lastOffsetSec: number | null = null
+  /** The rate of the last tick: what `lastOffsetSec` was taken at. */
+  private rate = 1
   private iteration = 0
   /** Loop length of the last tick; 0 when not looping. */
   private loopLengthSec = 0
@@ -110,8 +125,12 @@ export class LaneWriter {
       window.loopEnabled === true && Number.isFinite(loopLengthSec) && loopLengthSec > 0
     this.loopLengthSec = looping ? loopLengthSec : 0
     const playheadSec = this.unwrap(window, looping, loopLengthSec)
-    const offsetSec = window.contextTimeSec - playheadSec
-    const horizonSec = playheadSec + Math.max(0, window.lookaheadSec)
+    const rate = window.rate ?? 1
+    const retimed = rate !== this.rate
+    this.rate = rate
+    const offsetSec = window.contextTimeSec - playheadSec / rate
+    // The lookahead is clock time: at this rate it reaches this far along the lane.
+    const horizonSec = playheadSec + Math.max(0, window.lookaheadSec) * rate
     this.lastWrappedPlayheadSec = window.playheadSec
 
     if (this.overridden) {
@@ -128,7 +147,8 @@ export class LaneWriter {
       this.emit('setValueAtTime', this.laneValueAt(playheadSec), window.contextTimeSec)
       this.cursorSec = playheadSec
       this.cursorAnchored = true
-    } else if (this.rejoin || edited || seeked || stalled) {
+    } else if (this.rejoin || edited || seeked || retimed || stalled) {
+      // What was written ahead stands at clock times the old rate gave it.
       this.join(playheadSec, offsetSec)
     }
     this.rejoin = false
@@ -155,7 +175,8 @@ export class LaneWriter {
    * `release()`. The override is remembered, not timed out (R29).
    */
   override(contextTimeSec: number): void {
-    const timelineSec = this.lastOffsetSec === null ? 0 : contextTimeSec - this.lastOffsetSec
+    const timelineSec =
+      this.lastOffsetSec === null ? 0 : (contextTimeSec - this.lastOffsetSec) * this.rate
     holdParamAt(this.param, contextTimeSec, this.laneValueAt(timelineSec))
     this.overridden = true
     this.rejoin = true
@@ -175,6 +196,7 @@ export class LaneWriter {
     this.lastWritten = null
     this.lastWrappedPlayheadSec = null
     this.lastOffsetSec = null
+    this.rate = 1
     this.iteration = 0
     this.rejoin = false
   }
@@ -197,12 +219,16 @@ export class LaneWriter {
 
   /** Hold at `playheadSec`, ramp onto the lane, and continue from the ramp's end. */
   private join(playheadSec: number, offsetSec: number): void {
-    const contextTimeSec = playheadSec + offsetSec
+    const contextTimeSec = this.clockAt(playheadSec, offsetSec)
     holdParamAt(this.param, contextTimeSec, this.laneValueAt(playheadSec))
     this.lastWritten = null
     if (this.joinRampSec > 0) {
       const endSec = playheadSec + this.joinRampSec
-      this.emit('linearRampToValueAtTime', this.laneValueAt(endSec), endSec + offsetSec)
+      this.emit(
+        'linearRampToValueAtTime',
+        this.laneValueAt(endSec),
+        this.clockAt(endSec, offsetSec),
+      )
       this.cursorSec = endSec
     } else {
       this.emit('setValueAtTime', this.laneValueAt(playheadSec), contextTimeSec)
@@ -253,13 +279,13 @@ export class LaneWriter {
 
   /** The loop restarts at unwrapped `wrapSec`; returns the local second to resume from. */
   private wrap(wrapSec: number, offsetSec: number, loopLengthSec: number): number {
-    const contextTimeSec = wrapSec + offsetSec
+    const contextTimeSec = this.clockAt(wrapSec, offsetSec)
     this.emit('setValueAtTime', this.lane.valueAt(loopLengthSec), contextTimeSec)
     if (this.joinRampSec > 0) {
       this.emit(
         'linearRampToValueAtTime',
         this.lane.valueAt(this.joinRampSec),
-        contextTimeSec + this.joinRampSec,
+        contextTimeSec + this.joinRampSec / this.rate,
       )
       return this.joinRampSec
     }
@@ -275,8 +301,13 @@ export class LaneWriter {
     offsetSec: number,
   ): void {
     for (const event of laneEventsInRange(this.lane, localFromSec, localToSec, includeEnd)) {
-      this.emit(event.method, event.value, passStartSec + event.timeSec + offsetSec)
+      this.emit(event.method, event.value, this.clockAt(passStartSec + event.timeSec, offsetSec))
     }
+  }
+
+  /** The audio-clock time of an unwrapped timeline second, at the rate of this tick. */
+  private clockAt(timelineSec: number, offsetSec: number): number {
+    return timelineSec / this.rate + offsetSec
   }
 
   /**

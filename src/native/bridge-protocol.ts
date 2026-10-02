@@ -12,6 +12,8 @@
 // shift the timing: a frame the host has not returned in time plays as
 // silence and the stream stays aligned.
 
+import { type LoadSlot } from '../core/load-mark'
+
 export const NATIVE_BRIDGE_PROCESSOR_NAME = 'live-mix-native-bridge'
 
 /** Slots of the `Int32Array` over the control buffer. */
@@ -54,7 +56,8 @@ export interface BridgeMemory {
   ringFrames: number
 }
 
-export type NativeBridgeProcessorOptions = BridgeMemory
+/** The shared memory, and the mark the processor shows while it works (core/load.ts). */
+export type NativeBridgeProcessorOptions = BridgeMemory & { load?: LoadSlot }
 
 /** Main thread → pump worker. */
 export type PumpMessage =

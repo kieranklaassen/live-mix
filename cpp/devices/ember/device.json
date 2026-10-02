@@ -13,7 +13,8 @@
       "key": "osc1Shape",
       "name": "Osc 1 Shape",
       "choices": ["Saw", "Pulse", "Triangle", "Sine"],
-      "default": 0
+      "default": 0,
+      "description": "Waveform of oscillator 1. Saw is bright and buzzy, pulse is hollow, triangle is soft and sine is a pure tone with no overtones."
     },
     {
       "key": "osc1Coarse",
@@ -21,7 +22,8 @@
       "min": -24,
       "max": 24,
       "default": 0,
-      "unit": "st"
+      "unit": "st",
+      "description": "Tunes oscillator 1 up or down in semitone steps from the played note."
     },
     {
       "key": "osc1Fine",
@@ -29,20 +31,23 @@
       "min": -100,
       "max": 100,
       "default": 0,
-      "unit": "ct"
+      "unit": "ct",
+      "description": "Tunes oscillator 1 by small amounts. A slight offset against oscillator 2 makes the two beat slowly against each other."
     },
     {
       "key": "osc1Pw",
       "name": "Osc 1 Width",
       "min": 0.05,
       "max": 0.95,
-      "default": 0.5
+      "default": 0.5,
+      "description": "Pulse width of oscillator 1, used by the Pulse shape only. The middle is a hollow square; either end is thinner and more nasal."
     },
     {
       "key": "osc2Shape",
       "name": "Osc 2 Shape",
       "choices": ["Saw", "Pulse", "Triangle", "Sine"],
-      "default": 0
+      "default": 0,
+      "description": "Waveform of oscillator 2. Saw is bright and buzzy, pulse is hollow, triangle is soft and sine is a pure tone with no overtones."
     },
     {
       "key": "osc2Coarse",
@@ -50,7 +55,8 @@
       "min": -24,
       "max": 24,
       "default": 0,
-      "unit": "st"
+      "unit": "st",
+      "description": "Tunes oscillator 2 in semitone steps, for intervals against oscillator 1. With Sync on it changes the tone instead."
     },
     {
       "key": "osc2Fine",
@@ -58,53 +64,61 @@
       "min": -100,
       "max": 100,
       "default": 0,
-      "unit": "ct"
+      "unit": "ct",
+      "description": "Tunes oscillator 2 by small amounts. A slight offset against oscillator 1 makes the two beat slowly against each other."
     },
     {
       "key": "osc2Pw",
       "name": "Osc 2 Width",
       "min": 0.05,
       "max": 0.95,
-      "default": 0.5
+      "default": 0.5,
+      "description": "Pulse width of oscillator 2, used by the Pulse shape only. The middle is a hollow square; either end is thinner and more nasal."
     },
     {
       "key": "osc2Sync",
       "name": "Osc 2 Sync",
       "choices": ["Off", "On"],
-      "default": 0
+      "default": 0,
+      "description": "On restarts oscillator 2 with every cycle of oscillator 1, so tuning it changes its tone, not its pitch. A sine ignores it."
     },
     {
       "key": "oscMix",
       "name": "Osc Mix",
       "min": 0,
       "max": 1,
-      "default": 0
+      "default": 0,
+      "description": "Balance between the two oscillators, from only oscillator 1 at the bottom to only oscillator 2 at the top."
     },
     {
       "key": "subLevel",
       "name": "Sub",
       "min": 0,
       "max": 1,
-      "default": 0
+      "default": 0,
+      "description": "Level of a sine one octave below the played note, mixed in before the filter to add weight in the bass."
     },
     {
       "key": "noiseLevel",
       "name": "Noise",
       "min": 0,
       "max": 1,
-      "default": 0
+      "default": 0,
+      "description": "Level of white noise mixed in before the filter. A little adds breath to a pad; a lot is material for wind and sweeps."
     },
     {
       "key": "filterType",
       "name": "Filter Type",
       "choices": ["LP", "HP", "BP"],
-      "default": 0
+      "default": 0,
+      "description": "LP removes what is above the cutoff, HP removes what is below it, and BP keeps only a band around it."
     },
     {
       "key": "filterSlope",
       "name": "Filter Slope",
       "choices": ["12 dB", "24 dB"],
-      "default": 1
+      "default": 1,
+      "description": "How steeply the filter cuts past the cutoff. 12 dB is gentler and brighter; 24 dB cuts harder and makes resonance stronger."
     },
     {
       "key": "cutoff",
@@ -113,42 +127,48 @@
       "max": 20000,
       "default": 20000,
       "taper": "log",
-      "unit": "Hz"
+      "unit": "Hz",
+      "description": "The frequency where the filter starts to cut. With the low-pass, lower is darker and more muffled and higher is brighter."
     },
     {
       "key": "resonance",
       "name": "Resonance",
       "min": 0,
       "max": 1,
-      "default": 0
+      "default": 0,
+      "description": "Emphasises the frequencies right at the cutoff. Low is smooth; high gives a ringing peak that makes filter sweeps stand out."
     },
     {
       "key": "filterDrive",
       "name": "Drive",
       "min": 0,
       "max": 1,
-      "default": 0
+      "default": 0,
+      "description": "Saturates the signal on its way into the filter. A little adds warmth; more adds grit and flattens the peaks."
     },
     {
       "key": "keyTrack",
       "name": "Key Track",
       "min": 0,
       "max": 1,
-      "default": 0
+      "default": 0,
+      "description": "Makes the cutoff follow the keyboard, so high notes are not duller than low ones. At full the cutoff moves exactly with the pitch."
     },
     {
       "key": "filterEnvAmount",
       "name": "Filter Env",
       "min": -1,
       "max": 1,
-      "default": 0
+      "default": 0,
+      "description": "How far the filter envelope moves the cutoff on every note. Positive values open the filter and negative values close it."
     },
     {
       "key": "velToFilter",
       "name": "Vel > Filter",
       "min": 0,
       "max": 1,
-      "default": 0
+      "default": 0,
+      "description": "How much playing harder opens the filter. Hard notes come out brighter and soft notes darker than the Cutoff setting."
     },
     {
       "key": "filterAttack",
@@ -157,7 +177,8 @@
       "max": 10,
       "default": 0.005,
       "taper": "log",
-      "unit": "s"
+      "unit": "s",
+      "description": "How long the filter envelope takes to reach its peak when a note starts. Short gives a plucked start; long gives a slow sweep."
     },
     {
       "key": "filterDecay",
@@ -166,14 +187,16 @@
       "max": 10,
       "default": 0.3,
       "taper": "log",
-      "unit": "s"
+      "unit": "s",
+      "description": "How long the filter envelope takes to fall from its peak to the Filter Sustain level while the key is held."
     },
     {
       "key": "filterSustain",
       "name": "Filter Sustain",
       "min": 0,
       "max": 1,
-      "default": 0.5
+      "default": 0.5,
+      "description": "Where the filter envelope rests while a key is held: at zero it returns to the Cutoff setting, at full it stays at its peak."
     },
     {
       "key": "filterRelease",
@@ -182,7 +205,8 @@
       "max": 20,
       "default": 0.3,
       "taper": "log",
-      "unit": "s"
+      "unit": "s",
+      "description": "How long the filter envelope takes to fall back after the key is released, which shapes the tone of the note's tail."
     },
     {
       "key": "ampAttack",
@@ -191,7 +215,8 @@
       "max": 10,
       "default": 0.005,
       "taper": "log",
-      "unit": "s"
+      "unit": "s",
+      "description": "How long a note takes to fade in. Short is immediate; long gives a slow swell."
     },
     {
       "key": "ampDecay",
@@ -200,14 +225,16 @@
       "max": 10,
       "default": 0.3,
       "taper": "log",
-      "unit": "s"
+      "unit": "s",
+      "description": "How long the level takes to fall from its peak to the Amp Sustain level while the key is held."
     },
     {
       "key": "ampSustain",
       "name": "Amp Sustain",
       "min": 0,
       "max": 1,
-      "default": 1
+      "default": 1,
+      "description": "The level a note holds while its key is down. At zero the note dies away on its own, like a pluck."
     },
     {
       "key": "ampRelease",
@@ -216,20 +243,23 @@
       "max": 20,
       "default": 0.2,
       "taper": "log",
-      "unit": "s"
+      "unit": "s",
+      "description": "How long a note takes to fade out after the key is released."
     },
     {
       "key": "velToAmp",
       "name": "Vel > Amp",
       "min": 0,
       "max": 1,
-      "default": 0.7
+      "default": 0.7,
+      "description": "How much playing harder makes a note louder. At zero every note plays at full level."
     },
     {
       "key": "lfo1Shape",
       "name": "LFO 1 Shape",
       "choices": ["Sine", "Triangle", "Saw", "Square", "S&H"],
-      "default": 0
+      "default": 0,
+      "description": "How LFO 1 moves: a smooth sine or triangle, a falling saw ramp, a square that jumps between two values, or random steps (S&H)."
     },
     {
       "key": "lfo1Rate",
@@ -238,26 +268,30 @@
       "max": 40,
       "default": 2,
       "taper": "log",
-      "unit": "Hz"
+      "unit": "Hz",
+      "description": "How fast LFO 1 cycles. Slow gives drifting movement; fast gives vibrato, tremolo or wobble."
     },
     {
       "key": "lfo1Dest",
       "name": "LFO 1 Destination",
       "choices": ["Pitch", "Cutoff", "Amp", "Pan", "PW"],
-      "default": 1
+      "default": 1,
+      "description": "What LFO 1 moves: pitch for vibrato, filter cutoff, level for tremolo, pan, or the pulse width of both oscillators."
     },
     {
       "key": "lfo1Amount",
       "name": "LFO 1 Amount",
       "min": -1,
       "max": 1,
-      "default": 0
+      "default": 0,
+      "description": "How far LFO 1 moves its destination. Zero switches it off, and negative values turn the movement upside down."
     },
     {
       "key": "lfo2Shape",
       "name": "LFO 2 Shape",
       "choices": ["Sine", "Triangle", "Saw", "Square", "S&H"],
-      "default": 0
+      "default": 0,
+      "description": "How LFO 2 moves: a smooth sine or triangle, a falling saw ramp, a square that jumps between two values, or random steps (S&H)."
     },
     {
       "key": "lfo2Rate",
@@ -266,26 +300,30 @@
       "max": 40,
       "default": 5,
       "taper": "log",
-      "unit": "Hz"
+      "unit": "Hz",
+      "description": "How fast LFO 2 cycles. Slow gives drifting movement; fast gives vibrato, tremolo or wobble."
     },
     {
       "key": "lfo2Dest",
       "name": "LFO 2 Destination",
       "choices": ["Pitch", "Cutoff", "Amp", "Pan", "PW"],
-      "default": 0
+      "default": 0,
+      "description": "What LFO 2 moves: pitch for vibrato, filter cutoff, level for tremolo, pan, or the pulse width of both oscillators."
     },
     {
       "key": "lfo2Amount",
       "name": "LFO 2 Amount",
       "min": -1,
       "max": 1,
-      "default": 0
+      "default": 0,
+      "description": "How far LFO 2 moves its destination. Zero switches it off, and negative values turn the movement upside down."
     },
     {
       "key": "voiceMode",
       "name": "Voice Mode",
       "choices": ["Poly", "Mono", "Legato"],
-      "default": 0
+      "default": 0,
+      "description": "Poly plays chords. Mono plays one note at a time and restarts its envelopes on each, while Legato keeps them running when notes overlap."
     },
     {
       "key": "glide",
@@ -293,14 +331,16 @@
       "min": 0,
       "max": 2,
       "default": 0,
-      "unit": "s"
+      "unit": "s",
+      "description": "How long the pitch takes to slide from the previous note to the new one. At zero notes start on pitch."
     },
     {
       "key": "unisonVoices",
       "name": "Unison",
       "min": 1,
       "max": 8,
-      "default": 1
+      "default": 1,
+      "description": "How many copies of the oscillators play each note. One is a single clean voice; more, detuned and spread, sound thicker and wider."
     },
     {
       "key": "unisonDetune",
@@ -308,14 +348,16 @@
       "min": 0,
       "max": 100,
       "default": 15,
-      "unit": "ct"
+      "unit": "ct",
+      "description": "How far the unison copies are tuned apart, from a slight shimmer to an out-of-tune ensemble. Needs more than one Unison voice."
     },
     {
       "key": "unisonSpread",
       "name": "Unison Spread",
       "min": 0,
       "max": 1,
-      "default": 0.5
+      "default": 0.5,
+      "description": "How far the unison copies are panned apart. At zero they all sit in the centre; at full they span left to right."
     },
     {
       "key": "volume",
@@ -323,7 +365,8 @@
       "min": -60,
       "max": 6,
       "default": -6,
-      "unit": "dB"
+      "unit": "dB",
+      "description": "Output level of the instrument. A soft clip after it rounds off the peaks when many notes stack up."
     }
   ],
   "presets": {

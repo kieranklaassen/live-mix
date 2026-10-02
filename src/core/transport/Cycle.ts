@@ -12,7 +12,9 @@
 // A cycle is the slice of `Transport` the scheduler and the lane writers read
 // (`Timebase`), so they schedule a track on its cycle exactly as they would
 // on the transport. It keeps no clock of its own: every answer is worked out
-// from the transport's `elapsed()` and `contextTimeAtElapsed()`.
+// from the transport's `elapsed()` and `contextTimeAtElapsed()`. Those are in
+// timeline seconds, so a transport that runs faster or slower against the
+// audio clock (`Transport.rate`) takes every cycle with it at that speed.
 
 import type { TransportAnchor, TransportLoop, TransportPosition } from './anchor'
 
@@ -34,6 +36,8 @@ export interface Timebase {
 export interface CycleTransport {
   readonly anchor: Readonly<TransportAnchor> | null
   readonly loop: Readonly<TransportLoop>
+  /** Timeline seconds per second of the audio clock. Absent: 1. */
+  readonly rate?: number
   now(): number
   position(contextTime?: number): TransportPosition
   elapsed(contextTime?: number): number
@@ -80,6 +84,11 @@ export class Cycle implements Timebase {
   /** A cycle always wraps: it is a loop whether or not the transport has one. */
   get loop(): Readonly<TransportLoop> {
     return { enabled: true, lengthSec: this.length }
+  }
+
+  /** The transport's rate: a cycle runs on its timeline, at its speed. */
+  get rate(): number {
+    return this.transport.rate ?? 1
   }
 
   get anchor(): Readonly<TransportAnchor> | null {

@@ -149,7 +149,9 @@ export class Automation {
         return
       case 'seek':
       case 'loop':
-        // The writer detects the re-pin from the offset change and rejoins.
+      case 'rate':
+        // The writer detects the re-pin from the offset change, or the new
+        // rate from its window, and rejoins.
         return
       default:
         return assertNever(change.reason)

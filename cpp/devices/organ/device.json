@@ -7,15 +7,78 @@
   "header": "organ.h",
   "sources": [],
   "params": [
-    { "key": "sub", "name": "Sub 16'", "min": 0, "max": 1, "default": 0.3 },
-    { "key": "octave", "name": "Octave 4'", "min": 0, "max": 1, "default": 0.45 },
-    { "key": "twelfth", "name": "Twelfth 2 2/3'", "min": 0, "max": 1, "default": 0.12 },
-    { "key": "fifteenth", "name": "Fifteenth 2'", "min": 0, "max": 1, "default": 0.18 },
-    { "key": "reed", "name": "Reed", "min": 0, "max": 1, "default": 0.3 },
-    { "key": "celeste", "name": "Celeste", "min": 0, "max": 1, "default": 0.3 },
-    { "key": "breath", "name": "Breath", "min": 0, "max": 1, "default": 0.2 },
-    { "key": "bellows", "name": "Bellows", "min": 0, "max": 1, "default": 0.3 },
-    { "key": "tremulant", "name": "Tremulant", "min": 0, "max": 1, "default": 0 },
+    {
+      "key": "sub",
+      "name": "Sub 16'",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Level of the rank an octave below the played note, for depth under the chord."
+    },
+    {
+      "key": "octave",
+      "name": "Octave 4'",
+      "min": 0,
+      "max": 1,
+      "default": 0.45,
+      "description": "Level of the rank an octave above the played note, which brightens the chord."
+    },
+    {
+      "key": "twelfth",
+      "name": "Twelfth 2 2/3'",
+      "min": 0,
+      "max": 1,
+      "default": 0.12,
+      "description": "Level of the rank an octave and a fifth above the played note. It colours the chord with a faint fifth on top."
+    },
+    {
+      "key": "fifteenth",
+      "name": "Fifteenth 2'",
+      "min": 0,
+      "max": 1,
+      "default": 0.18,
+      "description": "Level of the rank two octaves above the played note, for brilliance on top."
+    },
+    {
+      "key": "reed",
+      "name": "Reed",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Moves every rank from a pure flute tone towards the buzz of a free reed, at the same loudness. High notes stay closer to flutes."
+    },
+    {
+      "key": "celeste",
+      "name": "Celeste",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Level of an extra rank tuned a little sharp. It beats slowly against the main rank and sits on the opposite side of the stereo image."
+    },
+    {
+      "key": "breath",
+      "name": "Breath",
+      "min": 0,
+      "max": 1,
+      "default": 0.2,
+      "description": "Amount of air noise: a puff as each key speaks and a steady hiss of wind while keys are held."
+    },
+    {
+      "key": "bellows",
+      "name": "Bellows",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Depth of a slow, uneven swell in the wind. Level and pitch rise and fall together, as if someone were pumping."
+    },
+    {
+      "key": "tremulant",
+      "name": "Tremulant",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "Depth of a fast shake in the wind, which wobbles level and pitch together. At zero the wind is steady."
+    },
     {
       "key": "attack",
       "name": "Attack",
@@ -23,7 +86,8 @@
       "max": 6,
       "default": 0.12,
       "taper": "log",
-      "unit": "s"
+      "unit": "s",
+      "description": "How quickly a note speaks when a key goes down. Short is immediate; long swells in."
     },
     {
       "key": "release",
@@ -32,7 +96,8 @@
       "max": 10,
       "default": 0.4,
       "taper": "log",
-      "unit": "s"
+      "unit": "s",
+      "description": "How long a note takes to die away after the key is let go."
     },
     {
       "key": "tone",
@@ -41,9 +106,18 @@
       "max": 12000,
       "default": 3200,
       "taper": "log",
-      "unit": "Hz"
+      "unit": "Hz",
+      "description": "Low-pass over the whole organ, pipes and wind alike. Lower is darker and softer; higher is brighter."
     },
-    { "key": "volume", "name": "Volume", "min": -48, "max": 6, "default": -10, "unit": "dB" }
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -10,
+      "unit": "dB",
+      "description": "Overall output level of the instrument."
+    }
   ],
   "presets": {
     "Harmonium": {

@@ -15,16 +15,32 @@
       "max": 4000,
       "default": 600,
       "taper": "log",
-      "unit": "ms"
+      "unit": "ms",
+      "description": "Length of each backwards chunk, and how long the wait is to hear it. Short chunks stutter; long ones reverse whole phrases."
     },
-    { "key": "feedback", "name": "Feedback", "min": 0, "max": 0.95, "default": 0.35 },
+    {
+      "key": "feedback",
+      "name": "Feedback",
+      "min": 0,
+      "max": 0.95,
+      "default": 0.35,
+      "description": "Sends the chunks back in for more repeats. Each pass is reversed again, so every second repeat plays forwards."
+    },
     {
       "key": "pitch",
       "name": "Pitch",
       "choices": ["Normal", "Octave up", "Octave down"],
-      "default": 0
+      "default": 0,
+      "description": "Octave up plays the chunks at double speed and Octave down at half speed. The chunks stay the same length."
     },
-    { "key": "smooth", "name": "Smooth", "min": 0, "max": 1, "default": 0.35 },
+    {
+      "key": "smooth",
+      "name": "Smooth",
+      "min": 0,
+      "max": 1,
+      "default": 0.35,
+      "description": "How much of each chunk is spent fading in and out. Low splices chunks abruptly; high makes each one swell up and die away."
+    },
     {
       "key": "tone",
       "name": "Tone",
@@ -32,10 +48,25 @@
       "max": 16000,
       "default": 6000,
       "taper": "log",
-      "unit": "Hz"
+      "unit": "Hz",
+      "description": "Darkens the reversed sound. It sits in the feedback loop, so each repeat is darker than the last."
     },
-    { "key": "spread", "name": "Spread", "min": 0, "max": 1, "default": 0.5 },
-    { "key": "mix", "name": "Mix", "min": 0, "max": 1, "default": 0.4 },
+    {
+      "key": "spread",
+      "name": "Spread",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Sends alternate chunks to opposite sides. Zero keeps them all in the centre; full bounces them hard left and right."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "Balance between the dry signal and the reversed chunks."
+    },
     {
       "key": "lowCut",
       "name": "Low Cut",
@@ -43,7 +74,8 @@
       "max": 800,
       "default": 100,
       "taper": "log",
-      "unit": "Hz"
+      "unit": "Hz",
+      "description": "Removes lows from the reversed sound. It sits in the feedback loop, so the repeats thin out and the low end does not build up."
     }
   ],
   "presets": {

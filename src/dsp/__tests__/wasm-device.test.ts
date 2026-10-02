@@ -119,8 +119,12 @@ describe('WasmDevice', () => {
     expect(device.latencySec).toBe(0)
     device.dispose()
     expect(ctx.workletNodes[0].disconnectCalls.count).toBe(1)
+    // The processor is told to stop: disconnected, it would be rendered for as long as the context lives.
+    expect(ctx.workletNodes[0].port.posted.calls.map((call) => call[0])).toEqual([
+      { type: 'dispose' },
+    ])
     device.setParam('mix', 0.1)
-    expect(ctx.workletNodes[0].port.posted.count).toBe(0)
+    expect(ctx.workletNodes[0].port.posted.count).toBe(1)
   })
 
   it('compiles raw bytes and caches URL-shaped sources per page', async () => {

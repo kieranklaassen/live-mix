@@ -27,12 +27,64 @@ export const COMPRESSOR_PARAMS = {
     default: -24,
     taper: 'linear',
     unit: 'dB',
+    description:
+      'The level above which the compressor starts turning the sound down. Lower compresses more of the signal.',
   },
-  knee: { id: 1, name: 'Knee', min: 0, max: 40, default: 30, taper: 'linear', unit: 'dB' },
-  ratio: { id: 2, name: 'Ratio', min: 1, max: 20, default: 12, taper: 'log', unit: ':1' },
-  attack: { id: 3, name: 'Attack', min: 0.0001, max: 1, default: 0.003, taper: 'log', unit: 's' },
-  release: { id: 4, name: 'Release', min: 0.001, max: 1, default: 0.25, taper: 'log', unit: 's' },
-  makeupDb: { id: 5, name: 'Make-up', min: 0, max: 24, default: 0, taper: 'linear', unit: 'dB' },
+  knee: {
+    id: 1,
+    name: 'Knee',
+    min: 0,
+    max: 40,
+    default: 30,
+    taper: 'linear',
+    unit: 'dB',
+    description:
+      'The range above the threshold over which compression eases in. Wide is smooth and gradual; zero switches straight to the full ratio.',
+  },
+  ratio: {
+    id: 2,
+    name: 'Ratio',
+    min: 1,
+    max: 20,
+    default: 12,
+    taper: 'log',
+    unit: ':1',
+    description:
+      'How firmly a signal over the threshold is held back. Low is gentle levelling; high approaches limiting.',
+  },
+  attack: {
+    id: 3,
+    name: 'Attack',
+    min: 0.0001,
+    max: 1,
+    default: 0.003,
+    taper: 'log',
+    unit: 's',
+    description:
+      'How quickly the gain comes down when the level rises. Fast clamps transients; slow lets the front of each note through.',
+  },
+  release: {
+    id: 4,
+    name: 'Release',
+    min: 0.001,
+    max: 1,
+    default: 0.25,
+    taper: 'log',
+    unit: 's',
+    description:
+      'How quickly the gain recovers when the level falls. Fast brings quiet detail up sooner and can pump; slow is smoother.',
+  },
+  makeupDb: {
+    id: 5,
+    name: 'Make-up',
+    min: 0,
+    max: 24,
+    default: 0,
+    taper: 'linear',
+    unit: 'dB',
+    description:
+      'Extra gain after the compressor, to bring back the level that compression took away.',
+  },
 } as const satisfies Record<string, ParamSpec>
 
 export type CompressorParamName = keyof typeof COMPRESSOR_PARAMS
@@ -93,6 +145,8 @@ export const COMPRESSOR_DESCRIPTOR: DeviceDescriptor<typeof COMPRESSOR_PARAMS> =
   name: 'Compressor',
   kind: 'node',
   category: 'dynamics',
+  description:
+    'General-purpose compressor, the one built into the browser, with make-up gain: evens out the level of a voice, an instrument or a bus.',
   version: 1,
   params: COMPRESSOR_PARAMS,
   presets: {

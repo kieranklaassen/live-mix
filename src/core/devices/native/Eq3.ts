@@ -9,7 +9,7 @@ import {
   defineNodeDevice,
 } from './NodeDevice'
 
-const gainSpec = (id: number, name: string): ParamSpec => ({
+const gainSpec = (id: number, name: string, description: string): ParamSpec => ({
   id,
   name,
   min: -15,
@@ -17,12 +17,31 @@ const gainSpec = (id: number, name: string): ParamSpec => ({
   default: 0,
   taper: 'linear',
   unit: 'dB',
+  description,
 })
 
 export const EQ3_PARAMS = {
-  lowGain: gainSpec(0, 'Low'),
-  lowFreq: { id: 1, name: 'Low freq', min: 40, max: 1000, default: 200, taper: 'log', unit: 'Hz' },
-  midGain: gainSpec(2, 'Mid'),
+  lowGain: gainSpec(
+    0,
+    'Low',
+    'Boosts or cuts everything below Low freq with a shelf. Up adds weight; down thins the sound.',
+  ),
+  lowFreq: {
+    id: 1,
+    name: 'Low freq',
+    min: 40,
+    max: 1000,
+    default: 200,
+    taper: 'log',
+    unit: 'Hz',
+    description:
+      'Where the low shelf begins. Higher reaches up into the low mids; lower keeps it to the deep bass.',
+  },
+  midGain: gainSpec(
+    2,
+    'Mid',
+    'Boosts or cuts a band around Mid freq. Up brings that range forward; down scoops it out.',
+  ),
   midFreq: {
     id: 3,
     name: 'Mid freq',
@@ -31,9 +50,24 @@ export const EQ3_PARAMS = {
     default: 1000,
     taper: 'log',
     unit: 'Hz',
+    description: 'The centre of the mid band: the range that Mid boosts or cuts.',
   },
-  midQ: { id: 4, name: 'Mid Q', min: 0.3, max: 5, default: 1, taper: 'log', unit: '' },
-  highGain: gainSpec(5, 'High'),
+  midQ: {
+    id: 4,
+    name: 'Mid Q',
+    min: 0.3,
+    max: 5,
+    default: 1,
+    taper: 'log',
+    unit: '',
+    description:
+      'How narrow the mid band is. Low is a broad, gentle curve; high is a tight peak or notch around Mid freq.',
+  },
+  highGain: gainSpec(
+    5,
+    'High',
+    'Boosts or cuts everything above High freq with a shelf. Up adds brightness and air; down darkens the sound.',
+  ),
   highFreq: {
     id: 6,
     name: 'High freq',
@@ -42,6 +76,8 @@ export const EQ3_PARAMS = {
     default: 5000,
     taper: 'log',
     unit: 'Hz',
+    description:
+      'Where the high shelf begins. Lower reaches down into the upper mids; higher keeps it to the very top.',
   },
 } as const satisfies Record<string, ParamSpec>
 
@@ -91,6 +127,8 @@ export const EQ3_DESCRIPTOR: DeviceDescriptor<typeof EQ3_PARAMS> = {
   name: 'EQ Three',
   kind: 'node',
   category: 'eq',
+  description:
+    'Three-band tone control: a low shelf, a sweepable mid bell and a high shelf, for quick broad shaping of a channel.',
   version: 1,
   params: EQ3_PARAMS,
   presets: {

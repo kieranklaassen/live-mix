@@ -8,7 +8,14 @@
   "sources": [],
   "memoryMb": 10,
   "params": [
-    { "key": "position", "name": "Position", "min": 0, "max": 1, "default": 0.04 },
+    {
+      "key": "position",
+      "name": "Position",
+      "min": 0,
+      "max": 1,
+      "default": 0.04,
+      "description": "How far back in the recording the grains read. Low stays close to what was just played; high reaches the oldest sound in the buffer."
+    },
     {
       "key": "size",
       "name": "Size",
@@ -16,7 +23,8 @@
       "max": 2000,
       "default": 220,
       "taper": "log",
-      "unit": "ms"
+      "unit": "ms",
+      "description": "How long each grain lasts. Short grains break the sound into a fine, grainy texture; long grains keep recognisable pieces of it."
     },
     {
       "key": "density",
@@ -25,17 +33,81 @@
       "max": 100,
       "default": 20,
       "taper": "log",
-      "unit": "/s"
+      "unit": "/s",
+      "description": "How many grains start each second. Low leaves separate, scattered events; high fuses them into a continuous cloud."
     },
-    { "key": "pitch", "name": "Pitch", "min": -24, "max": 24, "default": 0, "unit": "st" },
-    { "key": "spray", "name": "Spray", "min": 0, "max": 1, "default": 0.3 },
-    { "key": "scatter", "name": "Scatter", "min": 0, "max": 1, "default": 0.3 },
-    { "key": "texture", "name": "Texture", "min": 0, "max": 1, "default": 0.1 },
-    { "key": "reverse", "name": "Reverse", "min": 0, "max": 1, "default": 0.25 },
-    { "key": "feedback", "name": "Feedback", "min": 0, "max": 0.95, "default": 0.25 },
-    { "key": "freeze", "name": "Freeze", "choices": ["Off", "On"], "default": 0 },
-    { "key": "spread", "name": "Spread", "min": 0, "max": 1, "default": 0.7 },
-    { "key": "mix", "name": "Mix", "min": 0, "max": 1, "default": 0.5 }
+    {
+      "key": "pitch",
+      "name": "Pitch",
+      "min": -24,
+      "max": 24,
+      "default": 0,
+      "unit": "st",
+      "description": "Transposes every grain up or down without changing how long it lasts."
+    },
+    {
+      "key": "spray",
+      "name": "Spray",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Randomises where each grain reads around Position. Low keeps the cloud near one moment; high pulls from the whole recording."
+    },
+    {
+      "key": "scatter",
+      "name": "Scatter",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Detunes each grain by a small random amount. Above half, more and more grains also jump by an octave or a fifth."
+    },
+    {
+      "key": "texture",
+      "name": "Texture",
+      "min": 0,
+      "max": 1,
+      "default": 0.1,
+      "description": "Shapes the edges of each grain. Low fades grains in and out smoothly; high gives them flat tops and abrupt edges for a choppier cloud."
+    },
+    {
+      "key": "reverse",
+      "name": "Reverse",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "description": "Share of grains that play backwards. Zero is all forwards; full is all backwards."
+    },
+    {
+      "key": "feedback",
+      "name": "Feedback",
+      "min": 0,
+      "max": 0.95,
+      "default": 0.25,
+      "description": "Records the cloud back into the buffer, so new grains are made from old grains and the sound builds and blurs."
+    },
+    {
+      "key": "freeze",
+      "name": "Freeze",
+      "choices": ["Off", "On"],
+      "default": 0,
+      "description": "On stops recording and holds what is in the buffer, so the cloud keeps playing that moment until it is switched off."
+    },
+    {
+      "key": "spread",
+      "name": "Spread",
+      "min": 0,
+      "max": 1,
+      "default": 0.7,
+      "description": "How far grains are thrown to the left and right. Zero keeps every grain in the centre."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Balance between the dry signal and the grain cloud."
+    }
   ],
   "presets": {
     "Soft cloud": {

@@ -6,11 +6,61 @@ import { wasmDeviceDescriptor } from '../descriptor'
 import { defineWasmDevice, WasmDevice, type WasmDeviceOptions } from '../WasmDevice'
 
 export const AMBIENT_EQ_PARAMS = {
-  lowCut: { id: 0, name: 'Low cut', min: 20, max: 500, default: 20, taper: 'log', unit: 'Hz' },
-  low: { id: 1, name: 'Low', min: -12, max: 12, default: 0, taper: 'linear', unit: 'dB' },
-  body: { id: 2, name: 'Body', min: -12, max: 12, default: 0, taper: 'linear', unit: 'dB' },
-  presence: { id: 3, name: 'Presence', min: -12, max: 12, default: 0, taper: 'linear', unit: 'dB' },
-  air: { id: 4, name: 'Air', min: -12, max: 12, default: 0, taper: 'linear', unit: 'dB' },
+  lowCut: {
+    id: 0,
+    name: 'Low cut',
+    min: 20,
+    max: 500,
+    default: 20,
+    taper: 'log',
+    unit: 'Hz',
+    description:
+      'Removes everything below this frequency with a steep slope. At its lowest setting it is out of the signal path altogether.',
+  },
+  low: {
+    id: 1,
+    name: 'Low',
+    min: -12,
+    max: 12,
+    default: 0,
+    taper: 'linear',
+    unit: 'dB',
+    description:
+      'A shelf that lifts or cuts the bottom end, from around 120 Hz down. Up adds weight; down thins a boomy layer.',
+  },
+  body: {
+    id: 2,
+    name: 'Body',
+    min: -12,
+    max: 12,
+    default: 0,
+    taper: 'linear',
+    unit: 'dB',
+    description:
+      'A broad bell around 320 Hz, where stacked layers pile up. Down clears mud and boxiness; up adds warmth.',
+  },
+  presence: {
+    id: 3,
+    name: 'Presence',
+    min: -12,
+    max: 12,
+    default: 0,
+    taper: 'linear',
+    unit: 'dB',
+    description:
+      'A broad bell around 3 kHz. Up brings a sound forward and adds bite; down pushes it back and softens harshness.',
+  },
+  air: {
+    id: 4,
+    name: 'Air',
+    min: -12,
+    max: 12,
+    default: 0,
+    taper: 'linear',
+    unit: 'dB',
+    description:
+      'A shelf that lifts or cuts the top end, from around 9 kHz up. Up opens the top; down darkens it.',
+  },
   highCut: {
     id: 5,
     name: 'High cut',
@@ -19,9 +69,31 @@ export const AMBIENT_EQ_PARAMS = {
     default: 20000,
     taper: 'log',
     unit: 'Hz',
+    description:
+      'Removes everything above this frequency with a gentle slope. At its highest setting it is out of the signal path altogether.',
   },
-  clear: { id: 6, name: 'Clear', min: 0, max: 1, default: 0.4, taper: 'linear', unit: '' },
-  clearTime: { id: 7, name: 'Clear time', min: 0.2, max: 8, default: 1.5, taper: 'log', unit: 's' },
+  clear: {
+    id: 6,
+    name: 'Clear',
+    min: 0,
+    max: 1,
+    default: 0.4,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How hard any narrow band that rings out above its neighbours is turned down once several layers are sounding. Zero turns it off.',
+  },
+  clearTime: {
+    id: 7,
+    name: 'Clear time',
+    min: 0.2,
+    max: 8,
+    default: 1.5,
+    taper: 'log',
+    unit: 's',
+    description:
+      'How fast Clear turns a ringing band down. Short catches a build-up at once; long only acts on what stays. It lets go at half the speed.',
+  },
 } as const satisfies Record<string, ParamSpec>
 
 export type AmbientEqParamName = keyof typeof AMBIENT_EQ_PARAMS

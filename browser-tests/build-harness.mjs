@@ -30,8 +30,12 @@ const servedPackage = {
 }
 
 await mkdir(outdir, { recursive: true })
-// harness.js is the real-audio golden's page; native.js the hosted plug-in page.
-for (const [name, entry] of Object.entries({ harness: 'main.ts', native: 'native.ts' })) {
+// harness.js is the real-audio golden's page; native.js the hosted plug-in page; load.js the engine load page.
+for (const [name, entry] of Object.entries({
+  harness: 'main.ts',
+  native: 'native.ts',
+  load: 'load.ts',
+})) {
   await build({
     entryPoints: [`${here}harness/${entry}`],
     bundle: true,

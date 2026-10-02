@@ -139,6 +139,49 @@ describe('Cycle', () => {
   })
 })
 
+describe('Cycle on a transport that changes speed', () => {
+  it('runs at the transport\u2019s rate: its length is timeline seconds', () => {
+    const { ctx, transport, cycle } = build(10)
+    transport.setRate(2)
+    expect(cycle.rate).toBe(2)
+    transport.start()
+    // 12 s of the clock is 24 s of the timeline: 4 s into the cycle's third pass.
+    ctx.currentTime = 112
+    expect(cycle.position()).toEqual({ positionSec: 4, iteration: 2, finished: false })
+    expect(transport.position()).toEqual({ positionSec: 24, iteration: 0, finished: false })
+    // The pass after next starts 6 timeline seconds on, 3 on the clock.
+    expect(cycle.contextTimeAt(0, 3)).toBe(115)
+  })
+
+  it('keeps its pass numbers through a change of rate, and only the clock times move', () => {
+    const { ctx, transport, cycle } = build(10)
+    transport.start()
+    ctx.currentTime = 123
+    expect(cycle.position()).toEqual({ positionSec: 3, iteration: 2, finished: false })
+    // A start handed over for the next pass, 7 s on.
+    expect(cycle.contextTimeAt(0, 3)).toBe(130)
+    transport.setRate(0.5)
+    expect(cycle.position()).toEqual({ positionSec: 3, iteration: 2, finished: false })
+    // The same pass, now 14 s on.
+    expect(cycle.contextTimeAt(0, 3)).toBe(137)
+    ctx.currentTime = 137
+    expect(cycle.position()).toEqual({ positionSec: 0, iteration: 3, finished: false })
+    expect(transport.elapsed()).toBe(30)
+  })
+
+  it('still meets another cycle where both lengths divide the run, sooner or later by the clock', () => {
+    const { ctx, transport, cycle } = build(6)
+    const other = new Cycle(transport, 10)
+    transport.setRate(1.5)
+    transport.start()
+    // 30 s of the timeline is 20 s of the clock.
+    ctx.currentTime = 120
+    expect(cycle.position().positionSec).toBe(0)
+    expect(other.position().positionSec).toBe(0)
+    expect(transport.elapsed()).toBe(30)
+  })
+})
+
 describe('Cycle on a transport whose anchor moves along in place', () => {
   // A transport that re-pins where it is without taking a fresh pass number
   // (a change of speed, say): elapsed time runs on unbroken.

@@ -66,13 +66,20 @@ export {
 export { Knob, type KnobProps } from './Knob'
 export { Fader, type FaderOrientation, type FaderProps } from './Fader'
 export {
+  DEVICE_POWER_INFO,
   DeviceToggle,
   ToggleButton,
   type DeviceToggleProps,
   type ToggleButtonProps,
   type ToggleTone,
 } from './Toggle'
-export { Meter, type MeterBarKind, type MeterOrientation, type MeterProps } from './Meter'
+export {
+  Meter,
+  meterInfo,
+  type MeterBarKind,
+  type MeterOrientation,
+  type MeterProps,
+} from './Meter'
 export { TransportBar, type TransportBarProps } from './TransportBar'
 export {
   ChannelStripView,
@@ -146,3 +153,23 @@ export { SOUND_KIND_LABELS, SoundIcon, type SoundIconKind, type SoundIconProps }
 export { Stroke, type StrokeAutomation, type StrokeProps } from './Stroke'
 export { PaintField, type PaintFieldProps } from './PaintField'
 export { VersionList, type VersionListProps } from './VersionList'
+export {
+  controlGestureInfo,
+  findInfo,
+  INFO_TEXT_ATTR,
+  INFO_TITLE_ATTR,
+  infoName,
+  infoParagraphs,
+  infoProps,
+  infoText,
+  isInfoControl,
+  resolveInfo,
+  sameInfo,
+  type ControlGestureOptions,
+  type FoundInfo,
+  type InfoEntry,
+  type InfoProps,
+} from './info'
+export { INFO_IDLE, InfoView, useInfo, type InfoViewProps, type UseInfoOptions } from './InfoView'
+export { paramInfo } from './param-info'
+export { STRIP_INFO, TRANSPORT_INFO } from './mixer-info'

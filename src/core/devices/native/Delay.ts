@@ -28,6 +28,8 @@ export const DELAY_PARAMS = {
     default: 0.35,
     taper: 'log',
     unit: 's',
+    description:
+      'The gap between the sound and its echo, and between each repeat. Short gives slapback and doubling; long gives distinct echoes.',
   },
   feedback: {
     id: 1,
@@ -37,6 +39,8 @@ export const DELAY_PARAMS = {
     default: 0.35,
     taper: 'linear',
     unit: '',
+    description:
+      'How much of each echo is sent back into the delay. Low gives one or two repeats; high gives a long trail that takes a while to die.',
   },
   /** Low-pass corner inside the feedback loop; repeats get darker each pass. */
   damping: {
@@ -47,8 +51,20 @@ export const DELAY_PARAMS = {
     default: 6000,
     taper: 'log',
     unit: 'Hz',
+    description:
+      'A low-pass in the feedback loop, so each repeat is darker than the last. Lower settings dull the echoes faster.',
   },
-  mix: { id: 3, name: 'Mix', min: 0, max: 1, default: 0.3, taper: 'linear', unit: '' },
+  mix: {
+    id: 3,
+    name: 'Mix',
+    min: 0,
+    max: 1,
+    default: 0.3,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Balance between the dry signal and the echoes. At zero only the dry sound is heard; at full only the echoes.',
+  },
 } as const satisfies Record<string, ParamSpec>
 
 export type DelayParamName = keyof typeof DELAY_PARAMS
@@ -108,6 +124,8 @@ export const DELAY_DESCRIPTOR: DeviceDescriptor<typeof DELAY_PARAMS> = {
   name: 'Delay',
   kind: 'node',
   category: 'delay',
+  description:
+    'Feedback delay of up to four seconds with a low-pass in the loop, so repeats darken as they fade: slapback, echoes and long washes.',
   version: 1,
   params: DELAY_PARAMS,
   presets: {

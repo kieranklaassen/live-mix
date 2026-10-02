@@ -925,6 +925,22 @@ describe('Scheduler runs a schedulable on a clock of its own', () => {
     ])
   })
 
+  it('follows the transport\u2019s rate on its own loop: the same passes, at new clock times', async () => {
+    const { ctx, transport, track } = buildCycles(10)
+    transport.setRate(2)
+    transport.start()
+    await advance(ctx, 8)
+    // 10 timeline seconds a pass is 5 on the clock.
+    expect(track.whens()).toEqual([
+      ['note:0:5.000', 102.5],
+      ['note:1:5.000', 107.5],
+    ])
+    // Back to the clock's speed 8 s in, 16 s along the timeline: 1 s past the second note's start.
+    transport.setRate(1)
+    await advance(ctx, 12)
+    expect(track.whens().slice(2)).toEqual([['note:2:5.000', 117]])
+  })
+
   it('repeats them on a transport that does not loop', async () => {
     const { ctx, transport, track, main } = buildCycles(10, { enabled: false, lengthSec: Infinity })
     transport.start()
@@ -1011,9 +1027,34 @@ describe('Scheduler runs a schedulable on a clock of its own', () => {
     ctx.currentTime = 105.5
     scheduler.tick()
     track.kept = 'note:0:5.000'
+    const handed = track.handed.length
     cycle.lengthSec = 6
     scheduler.refresh()
     expect(track.faded).toEqual([])
+    // The new loop stands inside the same clip, which is still sounding: it is not entered twice.
+    expect(track.handed).toHaveLength(handed)
+  })
+
+  it('forgets a kept start once it has sounded out, so its number is free on the new clock', async () => {
+    const { ctx, transport, scheduler, main } = buildCycles(10)
+    transport.start()
+    // Three re-pins on: the transport's pass is number 3.
+    for (let pin = 0; pin < 3; pin += 1) transport.seek(0)
+    ctx.currentTime = 105.5
+    scheduler.tick()
+    expect(main.keys()).toEqual(['note:3:5.000'])
+    main.kept = 'note:3:5.000'
+    // Onto a loop of its own, whose passes are numbered from 0.
+    main.timebase = new Cycle(transport, 10)
+    scheduler.refresh()
+    expect(main.faded).toEqual([])
+    await advance(ctx, 32)
+    // The cycle's own pass 3 is handed over, though the kept start had that name.
+    expect(main.whens().slice(1)).toEqual([
+      ['note:1:5.000', 115],
+      ['note:2:5.000', 125],
+      ['note:3:5.000', 135],
+    ])
   })
 
   it('leaves a schedulable on the transport alone when the transport loop changes length', () => {
@@ -1024,5 +1065,186 @@ describe('Scheduler runs a schedulable on a clock of its own', () => {
     transport.setLoop({ lengthSec: 16 })
     expect(main.faded).toEqual([])
     expect(main.keys()).toEqual(['note:0:5.000'])
+  })
+})
+
+describe('Scheduler follows the transport rate', () => {
+  /** A track that can enter a clip partway and be told to play at another speed, like an AudioTrack. */
+  class TapeTrack extends FakeTrack {
+    readonly joinsLate = true
+    readonly retimed: [number, number][] = []
+    readonly faded: [string, number | undefined][] = []
+
+    override cancel(key: string, fadeSec?: number): void {
+      super.cancel(key)
+      this.faded.push([key, fadeSec])
+    }
+
+    retime(rate: number, at: number): void {
+      this.retimed.push([rate, at])
+    }
+  }
+
+  /** A track that joins late but stays on the clock whatever the rate, like a StretchTrack: no `retime`. */
+  class ClockTrack extends FakeTrack {
+    readonly joinsLate = true
+    readonly faded: [string, number | undefined][] = []
+
+    override cancel(key: string, fadeSec?: number): void {
+      super.cancel(key)
+      this.faded.push([key, fadeSec])
+    }
+  }
+
+  const strokes = [
+    { id: 'pad', startSec: 2, durationSec: 16 },
+    { id: 'hit', startSec: 6, durationSec: 0.5 },
+  ]
+
+  function buildTape(items: ClipWindow['clips'] = strokes, lookaheadSec = 0.2) {
+    const ctx = new MockAudioContext()
+    ctx.currentTime = 100
+    const transport = new Transport({ now: () => ctx.currentTime, loop: LOOP })
+    const scheduler = new Scheduler({ transport })
+    const track = new TapeTrack(ctx, lookaheadSec, items)
+    scheduler.register(track)
+    return { ctx, transport, scheduler, track }
+  }
+
+  it('hands a start over at the clock time the rate brings it round at', () => {
+    const { ctx, transport, scheduler, track } = build()
+    transport.setRate(0.5)
+    transport.start()
+    // Half speed: 0.5 s along the timeline is a whole second of clock away,
+    // and the 0.2 s lookahead reaches 0.1 s along it.
+    ctx.currentTime = 100.75
+    scheduler.tick()
+    expect(track.keys()).toEqual([])
+    ctx.currentTime = 100.85
+    scheduler.tick()
+    expect(track.keys()).toEqual(['a:0:0.500'])
+    expect(track.handed[0].when).toBe(101)
+  })
+
+  it('looks the same clock time ahead whatever the rate, so further along a faster timeline', () => {
+    const { ctx, transport, scheduler, track } = build({ lookaheadSec: 0.2 })
+    transport.setRate(2)
+    transport.seek(3.5)
+    transport.start()
+    // 0.5 s of timeline is 0.25 s of clock away: outside the 0.2 s lookahead.
+    expect(track.keys()).toEqual([])
+    ctx.currentTime = 100.06
+    scheduler.tick()
+    expect(track.keys()).toEqual(['b:0:4.000'])
+    expect(track.handed[0].when).toBe(100.25)
+  })
+
+  it('cancels a pending start when the rate changes and hands it over again at its new time', () => {
+    const { ctx, transport, scheduler, track } = buildTape()
+    transport.seek(1.9)
+    transport.start()
+    expect(track.keys()).toEqual(['pad:0:2.000'])
+    expect(round(track.handed[0].when)).toBe(100.1)
+    ctx.currentTime = 100.05
+    transport.setRate(0.5)
+    // The 0.05 s of timeline still to go is now 0.1 s of clock.
+    expect(track.keys()).toEqual(['pad:0:2.000', 'pad:0:2.000'])
+    expect(round(track.handed[1].when)).toBe(100.15)
+    expect(track.retimed.at(-1)).toEqual([0.5, 100.05])
+    expect(track.voices.size).toBe(1)
+    scheduler.tick()
+    expect(track.handed).toHaveLength(2)
+  })
+
+  it('leaves a sounding start to the schedulable and does not hand it over twice', () => {
+    const { ctx, transport, scheduler, track } = buildTape()
+    transport.seek(1.9)
+    transport.start()
+    ctx.currentTime = 101
+    transport.setRate(1.05)
+    ctx.currentTime = 101.5
+    transport.setRate(0.95)
+    scheduler.tick()
+    expect(track.keys()).toEqual(['pad:0:2.000'])
+    expect(track.cancelled).toEqual([])
+    expect(track.retimed).toEqual([
+      [1, 100],
+      [1.05, 101],
+      [0.95, 101.5],
+    ])
+  })
+
+  it('finds the end of a sounding clip by the clock at the rate it now plays at', () => {
+    const { ctx, transport, scheduler, track } = buildTape([
+      { id: 'pad', startSec: 2, durationSec: 4 },
+    ])
+    transport.seek(2)
+    transport.start()
+    ctx.currentTime = 102
+    // Half its 4 s played; the other half takes 4 s of clock at half speed.
+    transport.setRate(0.5)
+    ctx.currentTime = 105.9
+    scheduler.rejoin(['pad'])
+    expect(track.faded).toEqual([['pad:0:2.000', REJOIN_FADE_SECONDS]])
+    expect(track.handed).toHaveLength(2)
+    // Its start, had the clip always run at half speed: 4 s of clock before the change.
+    expect(round(track.handed[1].when)).toBe(98)
+
+    // At 105.95 the clip is 3.975 s in: cut to 3.99 s it still reaches the
+    // transport, cut to 3.9 s its end is behind it.
+    ctx.currentTime = 105.95
+    track.items = [{ id: 'pad', startSec: 2, durationSec: 3.99 }]
+    scheduler.refresh()
+    expect(track.faded).toHaveLength(1)
+    track.items = [{ id: 'pad', startSec: 2, durationSec: 3.9 }]
+    scheduler.refresh()
+    expect(track.faded).toEqual([
+      ['pad:0:2.000', REJOIN_FADE_SECONDS],
+      ['pad:0:2.000', REJOIN_FADE_SECONDS],
+    ])
+  })
+
+  it('finds the end of a clip on a schedulable left on the clock in clock seconds', () => {
+    const ctx = new MockAudioContext()
+    ctx.currentTime = 100
+    const transport = new Transport({ now: () => ctx.currentTime, loop: LOOP })
+    const scheduler = new Scheduler({ transport })
+    const track = new ClockTrack(ctx, 0.2, [{ id: 'pad', startSec: 2, durationSec: 4 }])
+    scheduler.register(track)
+    transport.seek(2)
+    transport.start()
+    expect(track.keys()).toEqual(['pad:0:2.000'])
+    ctx.currentTime = 102
+    transport.setRate(2)
+
+    // It plays its 4 s at the clock's speed whatever the rate, so it is still
+    // sounding at 103.9 and only over at 104.
+    ctx.currentTime = 103.9
+    scheduler.refresh()
+    expect(track.faded).toEqual([])
+    ctx.currentTime = 104.1
+    scheduler.refresh()
+    expect(track.faded).toEqual([['pad:0:2.000', REJOIN_FADE_SECONDS]])
+  })
+
+  it('tells a schedulable the rate while stopped, and one registered later too', () => {
+    const { ctx, transport, scheduler, track } = buildTape()
+    transport.setRate(0.9)
+    expect(track.retimed).toEqual([
+      [1, 100],
+      [0.9, 100],
+    ])
+    const late = new TapeTrack(ctx, 0.2, strokes)
+    scheduler.register(late)
+    expect(late.retimed).toEqual([[0.9, 100]])
+  })
+
+  it('reports the pass to tick listeners with reason rate', () => {
+    const { transport, scheduler } = build()
+    const reasons: string[] = []
+    scheduler.onTick((tick) => reasons.push(tick.reason))
+    transport.start()
+    transport.setRate(1.02)
+    expect(reasons).toEqual(['start', 'rate'])
   })
 })

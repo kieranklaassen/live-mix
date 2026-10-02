@@ -14,9 +14,31 @@ export const BOWED_STRING_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Pluck', 'Ebow', 'Bow'],
+    description:
+      'How the string is played: plucked and left to ring, held singing by an ebow, or bowed with a rosin edge. Applies from the next note.',
   },
-  attack: { id: 1, name: 'Attack', min: 0.005, max: 10, default: 1.2, taper: 'log', unit: 's' },
-  release: { id: 2, name: 'Release', min: 0.05, max: 15, default: 2, taper: 'log', unit: 's' },
+  attack: {
+    id: 1,
+    name: 'Attack',
+    min: 0.005,
+    max: 10,
+    default: 1.2,
+    taper: 'log',
+    unit: 's',
+    description:
+      'How long an ebowed or bowed note takes to bloom. On Pluck it is a volume swell over the pick, switched off at the shortest setting.',
+  },
+  release: {
+    id: 2,
+    name: 'Release',
+    min: 0.05,
+    max: 15,
+    default: 2,
+    taper: 'log',
+    unit: 's',
+    description:
+      'How long the string rings on after the key is released. It never rings longer than Decay.',
+  },
   brightness: {
     id: 3,
     name: 'Brightness',
@@ -25,8 +47,20 @@ export const BOWED_STRING_PARAMS = {
     default: 0.5,
     taper: 'linear',
     unit: '',
+    description:
+      'How long the upper partials ring, from a dull, damped string to a bright, wiry one. It also brightens the pick, the ebow and the bow.',
   },
-  decay: { id: 4, name: 'Decay', min: 0.3, max: 30, default: 6, taper: 'log', unit: 's' },
+  decay: {
+    id: 4,
+    name: 'Decay',
+    min: 0.3,
+    max: 30,
+    default: 6,
+    taper: 'log',
+    unit: 's',
+    description:
+      'How long a plucked string rings while its key is held. It also limits how long any note rings after release.',
+  },
   position: {
     id: 5,
     name: 'Position',
@@ -35,10 +69,41 @@ export const BOWED_STRING_PARAMS = {
     default: 0.14,
     taper: 'linear',
     unit: '',
+    description:
+      'Where along the string it is played, from thin and bright near the bridge to rounder and hollow towards the middle. Clearest on Pluck.',
   },
-  pressure: { id: 6, name: 'Pressure', min: 0, max: 1, default: 0.4, taper: 'linear', unit: '' },
-  body: { id: 7, name: 'Body', min: 0, max: 1, default: 0.4, taper: 'linear', unit: '' },
-  vibrato: { id: 8, name: 'Vibrato', min: 0, max: 1, default: 0.15, taper: 'linear', unit: '' },
+  pressure: {
+    id: 6,
+    name: 'Pressure',
+    min: 0,
+    max: 1,
+    default: 0.4,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How hard the ebow or bow presses: the ebow moves towards the octave, the bow from flute-like to raspy. Pluck ignores it.',
+  },
+  body: {
+    id: 7,
+    name: 'Body',
+    min: 0,
+    max: 1,
+    default: 0.4,
+    taper: 'linear',
+    unit: '',
+    description:
+      "How much of the instrument's resonant body is heard. More adds low and mid resonances and takes away some of the bare string.",
+  },
+  vibrato: {
+    id: 8,
+    name: 'Vibrato',
+    min: 0,
+    max: 1,
+    default: 0.15,
+    taper: 'linear',
+    unit: '',
+    description: 'Depth of the pitch vibrato. It fades in a moment after each note starts.',
+  },
   vibratoRate: {
     id: 9,
     name: 'Vibrato Rate',
@@ -47,9 +112,30 @@ export const BOWED_STRING_PARAMS = {
     default: 5,
     taper: 'linear',
     unit: 'Hz',
+    description: 'How fast the vibrato wavers.',
   },
-  detune: { id: 10, name: 'Detune', min: 0, max: 25, default: 6, taper: 'linear', unit: 'ct' },
-  volume: { id: 11, name: 'Volume', min: -48, max: 6, default: -9, taper: 'linear', unit: 'dB' },
+  detune: {
+    id: 10,
+    name: 'Detune',
+    min: 0,
+    max: 25,
+    default: 6,
+    taper: 'linear',
+    unit: 'ct',
+    description:
+      "Tunes each note's two strings apart, left and right, so they beat slowly, or leaves one string at zero. Applies from the next note.",
+  },
+  volume: {
+    id: 11,
+    name: 'Volume',
+    min: -48,
+    max: 6,
+    default: -9,
+    taper: 'linear',
+    unit: 'dB',
+    description:
+      'Output level of the instrument. A soft clip after it rounds off the peaks when many notes stack up.',
+  },
 } as const satisfies Record<string, ParamSpec>
 
 export type BowedStringParamName = keyof typeof BOWED_STRING_PARAMS
