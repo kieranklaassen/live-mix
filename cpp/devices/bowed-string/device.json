@@ -8,7 +8,13 @@
   "sources": [],
   "experimental": true,
   "params": [
-    { "key": "mode", "name": "Mode", "choices": ["Pluck", "Ebow", "Bow"], "default": 1 },
+    {
+      "key": "mode",
+      "name": "Mode",
+      "choices": ["Pluck", "Ebow", "Bow"],
+      "default": 1,
+      "description": "How the string is played: plucked and left to ring, held singing by an ebow, or bowed with a rosin edge. Applies from the next note."
+    },
     {
       "key": "attack",
       "name": "Attack",
@@ -16,7 +22,8 @@
       "max": 10,
       "default": 1.2,
       "taper": "log",
-      "unit": "s"
+      "unit": "s",
+      "description": "How long an ebowed or bowed note takes to bloom. On Pluck it is a volume swell over the pick, switched off at the shortest setting."
     },
     {
       "key": "release",
@@ -25,9 +32,17 @@
       "max": 15,
       "default": 2,
       "taper": "log",
-      "unit": "s"
+      "unit": "s",
+      "description": "How long the string rings on after the key is released. It never rings longer than Decay."
     },
-    { "key": "brightness", "name": "Brightness", "min": 0, "max": 1, "default": 0.5 },
+    {
+      "key": "brightness",
+      "name": "Brightness",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How long the upper partials ring, from a dull, damped string to a bright, wiry one. It also brightens the pick, the ebow and the bow."
+    },
     {
       "key": "decay",
       "name": "Decay",
@@ -35,22 +50,68 @@
       "max": 30,
       "default": 6,
       "taper": "log",
-      "unit": "s"
+      "unit": "s",
+      "description": "How long a plucked string rings while its key is held. It also limits how long any note rings after release."
     },
-    { "key": "position", "name": "Position", "min": 0.02, "max": 0.5, "default": 0.14 },
-    { "key": "pressure", "name": "Pressure", "min": 0, "max": 1, "default": 0.4 },
-    { "key": "body", "name": "Body", "min": 0, "max": 1, "default": 0.4 },
-    { "key": "vibrato", "name": "Vibrato", "min": 0, "max": 1, "default": 0.15 },
+    {
+      "key": "position",
+      "name": "Position",
+      "min": 0.02,
+      "max": 0.5,
+      "default": 0.14,
+      "description": "Where along the string it is played, from thin and bright near the bridge to rounder and hollow towards the middle. Clearest on Pluck."
+    },
+    {
+      "key": "pressure",
+      "name": "Pressure",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "How hard the ebow or bow presses: the ebow moves towards the octave, the bow from flute-like to raspy. Pluck ignores it."
+    },
+    {
+      "key": "body",
+      "name": "Body",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "How much of the instrument's resonant body is heard. More adds low and mid resonances and takes away some of the bare string."
+    },
+    {
+      "key": "vibrato",
+      "name": "Vibrato",
+      "min": 0,
+      "max": 1,
+      "default": 0.15,
+      "description": "Depth of the pitch vibrato. It fades in a moment after each note starts."
+    },
     {
       "key": "vibratoRate",
       "name": "Vibrato Rate",
       "min": 2,
       "max": 9,
       "default": 5,
-      "unit": "Hz"
+      "unit": "Hz",
+      "description": "How fast the vibrato wavers."
     },
-    { "key": "detune", "name": "Detune", "min": 0, "max": 25, "default": 6, "unit": "ct" },
-    { "key": "volume", "name": "Volume", "min": -48, "max": 6, "default": -9, "unit": "dB" }
+    {
+      "key": "detune",
+      "name": "Detune",
+      "min": 0,
+      "max": 25,
+      "default": 6,
+      "unit": "ct",
+      "description": "Tunes each note's two strings apart, left and right, so they beat slowly, or leaves one string at zero. Applies from the next note."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -9,
+      "unit": "dB",
+      "description": "Output level of the instrument. A soft clip after it rounds off the peaks when many notes stack up."
+    }
   ],
   "presets": {
     "Ebow swell": {},

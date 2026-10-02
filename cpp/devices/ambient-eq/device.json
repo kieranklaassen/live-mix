@@ -14,12 +14,45 @@
       "max": 500,
       "default": 20,
       "taper": "log",
-      "unit": "Hz"
+      "unit": "Hz",
+      "description": "Removes everything below this frequency with a steep slope. At its lowest setting it is out of the signal path altogether."
     },
-    { "key": "low", "name": "Low", "min": -12, "max": 12, "default": 0, "unit": "dB" },
-    { "key": "body", "name": "Body", "min": -12, "max": 12, "default": 0, "unit": "dB" },
-    { "key": "presence", "name": "Presence", "min": -12, "max": 12, "default": 0, "unit": "dB" },
-    { "key": "air", "name": "Air", "min": -12, "max": 12, "default": 0, "unit": "dB" },
+    {
+      "key": "low",
+      "name": "Low",
+      "min": -12,
+      "max": 12,
+      "default": 0,
+      "unit": "dB",
+      "description": "A shelf that lifts or cuts the bottom end, from around 120 Hz down. Up adds weight; down thins a boomy layer."
+    },
+    {
+      "key": "body",
+      "name": "Body",
+      "min": -12,
+      "max": 12,
+      "default": 0,
+      "unit": "dB",
+      "description": "A broad bell around 320 Hz, where stacked layers pile up. Down clears mud and boxiness; up adds warmth."
+    },
+    {
+      "key": "presence",
+      "name": "Presence",
+      "min": -12,
+      "max": 12,
+      "default": 0,
+      "unit": "dB",
+      "description": "A broad bell around 3 kHz. Up brings a sound forward and adds bite; down pushes it back and softens harshness."
+    },
+    {
+      "key": "air",
+      "name": "Air",
+      "min": -12,
+      "max": 12,
+      "default": 0,
+      "unit": "dB",
+      "description": "A shelf that lifts or cuts the top end, from around 9 kHz up. Up opens the top; down darkens it."
+    },
     {
       "key": "highCut",
       "name": "High cut",
@@ -27,9 +60,17 @@
       "max": 20000,
       "default": 20000,
       "taper": "log",
-      "unit": "Hz"
+      "unit": "Hz",
+      "description": "Removes everything above this frequency with a gentle slope. At its highest setting it is out of the signal path altogether."
     },
-    { "key": "clear", "name": "Clear", "min": 0, "max": 1, "default": 0.4 },
+    {
+      "key": "clear",
+      "name": "Clear",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "How hard any narrow band that rings out above its neighbours is turned down once several layers are sounding. Zero turns it off."
+    },
     {
       "key": "clearTime",
       "name": "Clear time",
@@ -37,7 +78,8 @@
       "max": 8,
       "default": 1.5,
       "taper": "log",
-      "unit": "s"
+      "unit": "s",
+      "description": "How fast Clear turns a ringing band down. Short catches a build-up at once; long only acts on what stays. It lets go at half the speed."
     }
   ],
   "meters": [{ "key": "reduction", "name": "Clear", "unit": "dB" }],

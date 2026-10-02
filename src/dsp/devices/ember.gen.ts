@@ -14,6 +14,8 @@ export const EMBER_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Saw', 'Pulse', 'Triangle', 'Sine'],
+    description:
+      'Waveform of oscillator 1. Saw is bright and buzzy, pulse is hollow, triangle is soft and sine is a pure tone with no overtones.',
   },
   osc1Coarse: {
     id: 1,
@@ -23,6 +25,7 @@ export const EMBER_PARAMS = {
     default: 0,
     taper: 'linear',
     unit: 'st',
+    description: 'Tunes oscillator 1 up or down in semitone steps from the played note.',
   },
   osc1Fine: {
     id: 2,
@@ -32,6 +35,8 @@ export const EMBER_PARAMS = {
     default: 0,
     taper: 'linear',
     unit: 'ct',
+    description:
+      'Tunes oscillator 1 by small amounts. A slight offset against oscillator 2 makes the two beat slowly against each other.',
   },
   osc1Pw: {
     id: 3,
@@ -41,6 +46,8 @@ export const EMBER_PARAMS = {
     default: 0.5,
     taper: 'linear',
     unit: '',
+    description:
+      'Pulse width of oscillator 1, used by the Pulse shape only. The middle is a hollow square; either end is thinner and more nasal.',
   },
   osc2Shape: {
     id: 4,
@@ -51,6 +58,8 @@ export const EMBER_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Saw', 'Pulse', 'Triangle', 'Sine'],
+    description:
+      'Waveform of oscillator 2. Saw is bright and buzzy, pulse is hollow, triangle is soft and sine is a pure tone with no overtones.',
   },
   osc2Coarse: {
     id: 5,
@@ -60,6 +69,8 @@ export const EMBER_PARAMS = {
     default: 0,
     taper: 'linear',
     unit: 'st',
+    description:
+      'Tunes oscillator 2 in semitone steps, for intervals against oscillator 1. With Sync on it changes the tone instead.',
   },
   osc2Fine: {
     id: 6,
@@ -69,6 +80,8 @@ export const EMBER_PARAMS = {
     default: 0,
     taper: 'linear',
     unit: 'ct',
+    description:
+      'Tunes oscillator 2 by small amounts. A slight offset against oscillator 1 makes the two beat slowly against each other.',
   },
   osc2Pw: {
     id: 7,
@@ -78,6 +91,8 @@ export const EMBER_PARAMS = {
     default: 0.5,
     taper: 'linear',
     unit: '',
+    description:
+      'Pulse width of oscillator 2, used by the Pulse shape only. The middle is a hollow square; either end is thinner and more nasal.',
   },
   osc2Sync: {
     id: 8,
@@ -88,10 +103,42 @@ export const EMBER_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Off', 'On'],
+    description:
+      'On restarts oscillator 2 with every cycle of oscillator 1, so tuning it changes its tone, not its pitch. A sine ignores it.',
   },
-  oscMix: { id: 9, name: 'Osc Mix', min: 0, max: 1, default: 0, taper: 'linear', unit: '' },
-  subLevel: { id: 10, name: 'Sub', min: 0, max: 1, default: 0, taper: 'linear', unit: '' },
-  noiseLevel: { id: 11, name: 'Noise', min: 0, max: 1, default: 0, taper: 'linear', unit: '' },
+  oscMix: {
+    id: 9,
+    name: 'Osc Mix',
+    min: 0,
+    max: 1,
+    default: 0,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Balance between the two oscillators, from only oscillator 1 at the bottom to only oscillator 2 at the top.',
+  },
+  subLevel: {
+    id: 10,
+    name: 'Sub',
+    min: 0,
+    max: 1,
+    default: 0,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Level of a sine one octave below the played note, mixed in before the filter to add weight in the bass.',
+  },
+  noiseLevel: {
+    id: 11,
+    name: 'Noise',
+    min: 0,
+    max: 1,
+    default: 0,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Level of white noise mixed in before the filter. A little adds breath to a pad; a lot is material for wind and sweeps.',
+  },
   filterType: {
     id: 12,
     name: 'Filter Type',
@@ -101,6 +148,8 @@ export const EMBER_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['LP', 'HP', 'BP'],
+    description:
+      'LP removes what is above the cutoff, HP removes what is below it, and BP keeps only a band around it.',
   },
   filterSlope: {
     id: 13,
@@ -111,11 +160,53 @@ export const EMBER_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['12 dB', '24 dB'],
+    description:
+      'How steeply the filter cuts past the cutoff. 12 dB is gentler and brighter; 24 dB cuts harder and makes resonance stronger.',
   },
-  cutoff: { id: 14, name: 'Cutoff', min: 20, max: 20000, default: 20000, taper: 'log', unit: 'Hz' },
-  resonance: { id: 15, name: 'Resonance', min: 0, max: 1, default: 0, taper: 'linear', unit: '' },
-  filterDrive: { id: 16, name: 'Drive', min: 0, max: 1, default: 0, taper: 'linear', unit: '' },
-  keyTrack: { id: 17, name: 'Key Track', min: 0, max: 1, default: 0, taper: 'linear', unit: '' },
+  cutoff: {
+    id: 14,
+    name: 'Cutoff',
+    min: 20,
+    max: 20000,
+    default: 20000,
+    taper: 'log',
+    unit: 'Hz',
+    description:
+      'The frequency where the filter starts to cut. With the low-pass, lower is darker and more muffled and higher is brighter.',
+  },
+  resonance: {
+    id: 15,
+    name: 'Resonance',
+    min: 0,
+    max: 1,
+    default: 0,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Emphasises the frequencies right at the cutoff. Low is smooth; high gives a ringing peak that makes filter sweeps stand out.',
+  },
+  filterDrive: {
+    id: 16,
+    name: 'Drive',
+    min: 0,
+    max: 1,
+    default: 0,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Saturates the signal on its way into the filter. A little adds warmth; more adds grit and flattens the peaks.',
+  },
+  keyTrack: {
+    id: 17,
+    name: 'Key Track',
+    min: 0,
+    max: 1,
+    default: 0,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Makes the cutoff follow the keyboard, so high notes are not duller than low ones. At full the cutoff moves exactly with the pitch.',
+  },
   filterEnvAmount: {
     id: 18,
     name: 'Filter Env',
@@ -124,6 +215,8 @@ export const EMBER_PARAMS = {
     default: 0,
     taper: 'linear',
     unit: '',
+    description:
+      'How far the filter envelope moves the cutoff on every note. Positive values open the filter and negative values close it.',
   },
   velToFilter: {
     id: 19,
@@ -133,6 +226,8 @@ export const EMBER_PARAMS = {
     default: 0,
     taper: 'linear',
     unit: '',
+    description:
+      'How much playing harder opens the filter. Hard notes come out brighter and soft notes darker than the Cutoff setting.',
   },
   filterAttack: {
     id: 20,
@@ -142,6 +237,8 @@ export const EMBER_PARAMS = {
     default: 0.005,
     taper: 'log',
     unit: 's',
+    description:
+      'How long the filter envelope takes to reach its peak when a note starts. Short gives a plucked start; long gives a slow sweep.',
   },
   filterDecay: {
     id: 21,
@@ -151,6 +248,8 @@ export const EMBER_PARAMS = {
     default: 0.3,
     taper: 'log',
     unit: 's',
+    description:
+      'How long the filter envelope takes to fall from its peak to the Filter Sustain level while the key is held.',
   },
   filterSustain: {
     id: 22,
@@ -160,6 +259,8 @@ export const EMBER_PARAMS = {
     default: 0.5,
     taper: 'linear',
     unit: '',
+    description:
+      'Where the filter envelope rests while a key is held: at zero it returns to the Cutoff setting, at full it stays at its peak.',
   },
   filterRelease: {
     id: 23,
@@ -169,6 +270,8 @@ export const EMBER_PARAMS = {
     default: 0.3,
     taper: 'log',
     unit: 's',
+    description:
+      "How long the filter envelope takes to fall back after the key is released, which shapes the tone of the note's tail.",
   },
   ampAttack: {
     id: 24,
@@ -178,6 +281,7 @@ export const EMBER_PARAMS = {
     default: 0.005,
     taper: 'log',
     unit: 's',
+    description: 'How long a note takes to fade in. Short is immediate; long gives a slow swell.',
   },
   ampDecay: {
     id: 25,
@@ -187,6 +291,8 @@ export const EMBER_PARAMS = {
     default: 0.3,
     taper: 'log',
     unit: 's',
+    description:
+      'How long the level takes to fall from its peak to the Amp Sustain level while the key is held.',
   },
   ampSustain: {
     id: 26,
@@ -196,6 +302,8 @@ export const EMBER_PARAMS = {
     default: 1,
     taper: 'linear',
     unit: '',
+    description:
+      'The level a note holds while its key is down. At zero the note dies away on its own, like a pluck.',
   },
   ampRelease: {
     id: 27,
@@ -205,8 +313,19 @@ export const EMBER_PARAMS = {
     default: 0.2,
     taper: 'log',
     unit: 's',
+    description: 'How long a note takes to fade out after the key is released.',
   },
-  velToAmp: { id: 28, name: 'Vel > Amp', min: 0, max: 1, default: 0.7, taper: 'linear', unit: '' },
+  velToAmp: {
+    id: 28,
+    name: 'Vel > Amp',
+    min: 0,
+    max: 1,
+    default: 0.7,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How much playing harder makes a note louder. At zero every note plays at full level.',
+  },
   lfo1Shape: {
     id: 29,
     name: 'LFO 1 Shape',
@@ -216,6 +335,8 @@ export const EMBER_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Sine', 'Triangle', 'Saw', 'Square', 'S&H'],
+    description:
+      'How LFO 1 moves: a smooth sine or triangle, a falling saw ramp, a square that jumps between two values, or random steps (S&H).',
   },
   lfo1Rate: {
     id: 30,
@@ -225,6 +346,8 @@ export const EMBER_PARAMS = {
     default: 2,
     taper: 'log',
     unit: 'Hz',
+    description:
+      'How fast LFO 1 cycles. Slow gives drifting movement; fast gives vibrato, tremolo or wobble.',
   },
   lfo1Dest: {
     id: 31,
@@ -235,6 +358,8 @@ export const EMBER_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Pitch', 'Cutoff', 'Amp', 'Pan', 'PW'],
+    description:
+      'What LFO 1 moves: pitch for vibrato, filter cutoff, level for tremolo, pan, or the pulse width of both oscillators.',
   },
   lfo1Amount: {
     id: 32,
@@ -244,6 +369,8 @@ export const EMBER_PARAMS = {
     default: 0,
     taper: 'linear',
     unit: '',
+    description:
+      'How far LFO 1 moves its destination. Zero switches it off, and negative values turn the movement upside down.',
   },
   lfo2Shape: {
     id: 33,
@@ -254,6 +381,8 @@ export const EMBER_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Sine', 'Triangle', 'Saw', 'Square', 'S&H'],
+    description:
+      'How LFO 2 moves: a smooth sine or triangle, a falling saw ramp, a square that jumps between two values, or random steps (S&H).',
   },
   lfo2Rate: {
     id: 34,
@@ -263,6 +392,8 @@ export const EMBER_PARAMS = {
     default: 5,
     taper: 'log',
     unit: 'Hz',
+    description:
+      'How fast LFO 2 cycles. Slow gives drifting movement; fast gives vibrato, tremolo or wobble.',
   },
   lfo2Dest: {
     id: 35,
@@ -273,6 +404,8 @@ export const EMBER_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Pitch', 'Cutoff', 'Amp', 'Pan', 'PW'],
+    description:
+      'What LFO 2 moves: pitch for vibrato, filter cutoff, level for tremolo, pan, or the pulse width of both oscillators.',
   },
   lfo2Amount: {
     id: 36,
@@ -282,6 +415,8 @@ export const EMBER_PARAMS = {
     default: 0,
     taper: 'linear',
     unit: '',
+    description:
+      'How far LFO 2 moves its destination. Zero switches it off, and negative values turn the movement upside down.',
   },
   voiceMode: {
     id: 37,
@@ -292,9 +427,31 @@ export const EMBER_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Poly', 'Mono', 'Legato'],
+    description:
+      'Poly plays chords. Mono plays one note at a time and restarts its envelopes on each, while Legato keeps them running when notes overlap.',
   },
-  glide: { id: 38, name: 'Glide', min: 0, max: 2, default: 0, taper: 'linear', unit: 's' },
-  unisonVoices: { id: 39, name: 'Unison', min: 1, max: 8, default: 1, taper: 'linear', unit: '' },
+  glide: {
+    id: 38,
+    name: 'Glide',
+    min: 0,
+    max: 2,
+    default: 0,
+    taper: 'linear',
+    unit: 's',
+    description:
+      'How long the pitch takes to slide from the previous note to the new one. At zero notes start on pitch.',
+  },
+  unisonVoices: {
+    id: 39,
+    name: 'Unison',
+    min: 1,
+    max: 8,
+    default: 1,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How many copies of the oscillators play each note. One is a single clean voice; more, detuned and spread, sound thicker and wider.',
+  },
   unisonDetune: {
     id: 40,
     name: 'Unison Detune',
@@ -303,6 +460,8 @@ export const EMBER_PARAMS = {
     default: 15,
     taper: 'linear',
     unit: 'ct',
+    description:
+      'How far the unison copies are tuned apart, from a slight shimmer to an out-of-tune ensemble. Needs more than one Unison voice.',
   },
   unisonSpread: {
     id: 41,
@@ -312,8 +471,20 @@ export const EMBER_PARAMS = {
     default: 0.5,
     taper: 'linear',
     unit: '',
+    description:
+      'How far the unison copies are panned apart. At zero they all sit in the centre; at full they span left to right.',
   },
-  volume: { id: 42, name: 'Volume', min: -60, max: 6, default: -6, taper: 'linear', unit: 'dB' },
+  volume: {
+    id: 42,
+    name: 'Volume',
+    min: -60,
+    max: 6,
+    default: -6,
+    taper: 'linear',
+    unit: 'dB',
+    description:
+      'Output level of the instrument. A soft clip after it rounds off the peaks when many notes stack up.',
+  },
 } as const satisfies Record<string, ParamSpec>
 
 export type EmberParamName = keyof typeof EMBER_PARAMS

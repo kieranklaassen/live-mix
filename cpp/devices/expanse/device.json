@@ -8,8 +8,22 @@
   "sources": [],
   "memoryMb": 6,
   "params": [
-    { "key": "mix", "name": "Mix", "min": 0, "max": 1, "default": 0.4 },
-    { "key": "size", "name": "Size", "min": 0, "max": 1, "default": 0.5 },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "Balance between the dry signal and the reverb. Fully up is the reverb alone."
+    },
+    {
+      "key": "size",
+      "name": "Size",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How big the space is: how soon the first sound comes back and how far apart the echoes are. Moving it bends the pitch of the tail."
+    },
     {
       "key": "decay",
       "name": "Decay",
@@ -17,11 +31,33 @@
       "max": 60,
       "default": 10,
       "taper": "log",
-      "unit": "s"
+      "unit": "s",
+      "description": "How long the tail takes to die away. At the very top the loop stops losing level and the tail hangs on for minutes."
     },
-    { "key": "gravity", "name": "Gravity", "min": 0, "max": 1, "default": 0 },
-    { "key": "density", "name": "Density", "min": 0, "max": 1, "default": 0.8 },
-    { "key": "modDepth", "name": "Mod Depth", "min": 0, "max": 1, "default": 0.4 },
+    {
+      "key": "gravity",
+      "name": "Gravity",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "Makes the reverb swell in after the sound instead of answering at once. High settings give a reverse-like bloom."
+    },
+    {
+      "key": "density",
+      "name": "Density",
+      "min": 0,
+      "max": 1,
+      "default": 0.8,
+      "description": "How smeared the echoes are. Low answers in separate, distinct echoes; high blurs them into a smooth wash."
+    },
+    {
+      "key": "modDepth",
+      "name": "Mod Depth",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "How far the tail wavers in pitch. A little adds gentle movement; more is closer to a chorus. It also slowly dulls very long tails."
+    },
     {
       "key": "modRate",
       "name": "Mod Rate",
@@ -29,7 +65,8 @@
       "max": 5,
       "default": 0.4,
       "taper": "log",
-      "unit": "Hz"
+      "unit": "Hz",
+      "description": "How fast the tail wavers in pitch. Slow is a gentle drift; fast is a quicker, more restless flutter."
     },
     {
       "key": "lowCut",
@@ -38,7 +75,8 @@
       "max": 1000,
       "default": 80,
       "taper": "log",
-      "unit": "Hz"
+      "unit": "Hz",
+      "description": "Thins the bass of the reverb. It works inside the loop, so the lows below it die away sooner than the rest."
     },
     {
       "key": "highCut",
@@ -47,10 +85,24 @@
       "max": 18000,
       "default": 7000,
       "taper": "log",
-      "unit": "Hz"
+      "unit": "Hz",
+      "description": "Darkens the reverb. It works inside the loop, so the highs above it die away sooner than the rest."
     },
-    { "key": "freeze", "name": "Freeze", "choices": ["Off", "On"], "default": 0 },
-    { "key": "width", "name": "Width", "min": 0, "max": 1, "default": 1 }
+    {
+      "key": "freeze",
+      "name": "Freeze",
+      "choices": ["Off", "On"],
+      "default": 0,
+      "description": "On holds what is in the space for as long as you like and shuts out new sound, so you can play over it."
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "Stereo width of the reverb only. Zero is a mono tail; full is the widest."
+    }
   ],
   "presets": {
     "Open space": {

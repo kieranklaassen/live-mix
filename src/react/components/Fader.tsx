@@ -5,6 +5,7 @@
 import { type CSSProperties } from 'react'
 
 import { formatControlValue, type ControlTaper, type ControlUnit } from './control-math'
+import { controlGestureInfo, infoProps, infoText } from './info'
 import { cx } from './tokens'
 import { useParamControl } from './useParamControl'
 
@@ -35,6 +36,11 @@ export interface FaderProps {
   hideValue?: boolean
   /** Marks along the track as normalised positions (e.g. unity), drawn as ticks. */
   ticks?: readonly number[]
+  /**
+   * What the fader does, for the info view (`InfoView`): a sentence or two.
+   * How it is worked is said after it, so leave that out.
+   */
+  info?: string
   onChange?: (value: number) => void
   onChangeStart?: () => void
   onChangeEnd?: () => void
@@ -65,6 +71,7 @@ export function Fader({
   hideLabel = false,
   hideValue = false,
   ticks,
+  info,
   onChange,
   onChangeStart,
   onChangeEnd,
@@ -94,8 +101,13 @@ export function Fader({
     onChangeEnd,
   })
   const { normalized, interacting, handlers } = control
-  const valueText = format ? format(control.value) : formatControlValue(control.value, unit)
+  const print = (shown: number): string =>
+    format ? format(shown) : formatControlValue(shown, unit)
+  const valueText = print(control.value)
   const percent = `${normalized * 100}%`
+  const gesture = disabled
+    ? null
+    : controlGestureInfo({ axis: direction, reset: print(resetValue ?? defaultValue), wheel })
 
   return (
     <div
@@ -108,6 +120,7 @@ export function Fader({
       )}
       style={style}
       data-testid={testId}
+      {...infoProps(label, infoText(info, gesture))}
     >
       {hideLabel ? null : <span className="lm-fader__label">{label}</span>}
       <button

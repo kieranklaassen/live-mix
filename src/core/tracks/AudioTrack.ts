@@ -21,6 +21,14 @@
 // A reversed clip is the same voice on a mirrored copy of its buffer
 // (`reversed-buffer.ts`), entered where `mirrorSlice` says.
 //
+// The track plays at a rate (`setRate`; the scheduler passes on the
+// transport's): a linear voice reads its buffer that much faster or slower, so
+// it sounds higher or lower as tape does, and its fades and its end, which are
+// drawn on the timeline, fall that much closer or further apart on the clock.
+// A change while a voice sounds moves all three from that moment. Equal-power
+// voices are Breathwork Live's, which runs on the clock alone: they play at
+// the clock's speed whatever the rate.
+//
 // A placed clip (`pan`, `lowpassHz` or `spaceDb`, see `clips/placement.ts`)
 // gets nodes of its own after its envelope: trim → low-pass → panner into the
 // strip, and from the low-pass a send into the track's space (`space.ts`),
@@ -50,6 +58,7 @@ import {
 } from '../clips/placement'
 import { mirrorSlice } from '../clips/reverse'
 import { type ClipWindow } from '../clips/window'
+import { holdParamAt } from '../automation/scheduled-param'
 import { scheduleKey, type ScheduledStart } from '../transport/anchor'
 import { type Schedulable, type Scheduler } from '../transport/Scheduler'
 import {
@@ -161,6 +170,25 @@ interface PlacedNodes extends VoicePlacement {
   space: number
 }
 
+/**
+ * What a linear voice plays, in seconds of its clip, with the clock time its
+ * clip starts on at the rate it now plays at: enough to write its envelope
+ * again when the rate changes.
+ */
+interface VoiceTiming {
+  /** Audio-clock time the clip's own start falls on at `rate`. */
+  when: number
+  rate: number
+  durationSec: number
+  fadeInSec: number
+  fadeOutSec: number
+  /** Where in the clip the voice came up from silence, and where its envelope took over; equal when it did not ease in. */
+  easeFromSec: number
+  easeToSec: number
+  /** The source is stopped at the clip's end rather than running out by itself (a looping clip). */
+  stoppedAtEnd: boolean
+}
+
 /** A voice's options once a reversed clip has been turned into positions on its mirrored buffer. */
 interface VoicePlayback extends ClipVoiceOptions {
   /** How long the source may sound when that is shorter than the clip; only a reversed clip sets it. */
@@ -232,6 +260,10 @@ export class AudioTrack implements StripHost {
   private disposed = false
   // What each placed voice's nodes were last told.
   private readonly placed = new WeakMap<ClipVoice, PlacedNodes>()
+  // Timeline seconds per second of the audio clock that voices play at.
+  private rateValue = 1
+  // How each linear voice is timed, for as long as its envelope is the clip's own.
+  private readonly timings = new WeakMap<ClipVoice, VoiceTiming>()
 
   /** The Schedulable that hands clip starts to the graph. */
   readonly playback: Schedulable
@@ -271,6 +303,7 @@ export class AudioTrack implements StripHost {
         joinsLate: true,
         keeps: (key) => this.keeps(key),
         rekey: (key, to) => this.rekey(key, to),
+        retime: (rate, at) => this.setRate(rate, at),
       },
     )
     this.preload = new TrackSchedulable(
@@ -303,6 +336,31 @@ export class AudioTrack implements StripHost {
 
   voice(key: string): ClipVoice | undefined {
     return this.active.get(key)
+  }
+
+  /** Timeline seconds per second of the audio clock that this track's voices play at. Default 1. */
+  get rate(): number {
+    return this.rateValue
+  }
+
+  /**
+   * Plays the track at another speed from `at` on the audio clock (default:
+   * now), as tape does: every linear voice reads its buffer `rate` times as
+   * fast, so it sounds higher and shorter or lower and longer, and what is
+   * left of its fades and its end move to where the clip now reaches them.
+   * Voices started afterwards play at the new rate from their first frame,
+   * with `when` still the clock time of the clip's start. A voice that is
+   * fading out or has been given a stop time keeps that and only changes
+   * pitch. A track on a scheduler is told the transport's rate by it; call
+   * this for a track played by hand (`play`).
+   */
+  setRate(rate: number, at: number = this.now()): void {
+    if (!Number.isFinite(rate) || rate <= 0) {
+      throw new RangeError(`AudioTrack: rate must be a positive number, got ${rate}`)
+    }
+    if (rate === this.rateValue) return
+    this.rateValue = rate
+    for (const voice of this.active.values()) this.retime(voice, rate, at)
   }
 
   /**
@@ -382,8 +440,7 @@ export class AudioTrack implements StripHost {
     if (voice.startTime <= at && at < voice.endTime) {
       this.fadeOutVoice(key, at, seconds)
     } else if (voice.startTime > at) {
-      this.stopSource(voice, at)
-      voice.endTime = at
+      this.endAt(voice, at)
     }
   }
 
@@ -397,6 +454,8 @@ export class AudioTrack implements StripHost {
   fadeOutVoice(key: string, at: number, seconds: number): void {
     const voice = this.active.get(key)
     if (!voice) return
+    // From here its envelope is this fade, on the clock.
+    this.timings.delete(voice)
     voice.gain.gain.cancelScheduledValues(at)
     if (voice.fadeCurve === 'equalPower') {
       voice.gain.gain.setValueCurveAtTime(equalPowerFadeOut(), at, seconds)
@@ -417,12 +476,8 @@ export class AudioTrack implements StripHost {
   stop(key: string, at?: number): void {
     const voice = this.active.get(key)
     if (!voice) return
-    if (at === undefined) {
-      this.silence(voice)
-    } else {
-      this.stopSource(voice, at)
-      voice.endTime = Math.min(voice.endTime, at)
-    }
+    if (at === undefined) this.silence(voice)
+    else this.endAt(voice, at)
   }
 
   /**
@@ -469,10 +524,7 @@ export class AudioTrack implements StripHost {
   stopAll(options: { at?: number } = {}): void {
     for (const voice of [...this.active.values()]) {
       if (options.at === undefined) this.silence(voice)
-      else {
-        this.stopSource(voice, options.at)
-        voice.endTime = Math.min(voice.endTime, options.at)
-      }
+      else this.endAt(voice, options.at)
     }
   }
 
@@ -597,31 +649,40 @@ export class AudioTrack implements StripHost {
     }
   }
 
-  /** ambient-live `ClipPlayer.play`, verbatim, plus the ease-in of a voice entered partway. */
+  /**
+   * ambient-live `ClipPlayer.play`, verbatim at rate 1, plus the ease-in of a
+   * voice entered partway. At another rate the clip's seconds are that much
+   * shorter or longer on the clock, and the buffer is read that much faster.
+   */
   private playLinear(key: string, playback: VoicePlayback, when: number): ClipVoice | null {
+    const rate = this.rateValue
     // A start that has already passed joins the clip partway in rather than
     // replaying it from the trim point and overrunning its end.
     const late = Math.max(0, this.now() - when)
-    if (late >= (playback.soundSec ?? playback.durationSec)) return null
+    // How far into the clip that is.
+    const lateSec = late * rate
+    if (lateSec >= (playback.soundSec ?? playback.durationSec)) return null
     const start = when + late
-    const end = when + playback.durationSec
+    const end = when + playback.durationSec / rate
 
     const source = this.ctx.createBufferSource()
     const gain = this.ctx.createGain()
     source.buffer = playback.buffer
+    // Its speed from the first frame, not a change to a sounding voice.
+    if (rate !== 1) source.playbackRate.value = rate
     source.connect(gain)
     const { trim, placement } = this.connectVoice(gain, playback)
 
     // Linear ramps against the clip's own timeline, so the drawn fade slope is
     // the applied gain even when the clip is joined late.
-    const fadeInEnd = when + Math.min(playback.fadeInSec, playback.durationSec)
-    const fadeOutStart = Math.max(fadeInEnd, end - playback.fadeOutSec)
+    const fadeInEnd = when + Math.min(playback.fadeInSec, playback.durationSec) / rate
+    const fadeOutStart = Math.max(fadeInEnd, end - playback.fadeOutSec / rate)
     // The envelope takes over where the ease-in ends: at the join itself when there is none.
     const easeSec = Math.max(0, Math.min(playback.easeInSec ?? 0, end - start))
     const from = start + easeSec
     if (easeSec > 0) gain.gain.setValueAtTime(0, start)
     const envelopeAtFrom = fadeGain(
-      late + easeSec,
+      (late + easeSec) * rate,
       playback.durationSec,
       playback.fadeInSec,
       playback.fadeOutSec,
@@ -645,6 +706,16 @@ export class AudioTrack implements StripHost {
       endTime: end,
     }
     if (placement) this.placed.set(voice, placement)
+    this.timings.set(voice, {
+      when,
+      rate,
+      durationSec: playback.durationSec,
+      fadeInSec: playback.fadeInSec,
+      fadeOutSec: playback.fadeOutSec,
+      easeFromSec: lateSec,
+      easeToSec: (late + easeSec) * rate,
+      stoppedAtEnd: playback.loop === true,
+    })
     source.onended = () => this.forget(voice)
     if (playback.loop) {
       source.loop = true
@@ -653,17 +724,66 @@ export class AudioTrack implements StripHost {
       // A late join lands inside the region, not past its end on the source tail.
       source.start(
         start,
-        wrapIntoRegion(playback.offsetSec + late, source.loopStart, source.loopEnd),
+        wrapIntoRegion(playback.offsetSec + lateSec, source.loopStart, source.loopEnd),
       )
       this.stopSource(voice, end)
     } else {
+      // The length is of buffer played, whatever the speed: the source ends
+      // where the clip does without being told when.
       source.start(
         start,
-        playback.offsetSec + late,
-        (playback.soundSec ?? playback.durationSec) - late,
+        playback.offsetSec + lateSec,
+        (playback.soundSec ?? playback.durationSec) - lateSec,
       )
     }
     return voice
+  }
+
+  /**
+   * Moves a voice to another rate from `at` on. A voice that has not begun
+   * cannot be started sooner or later, so its time runs at the new rate from
+   * its own first frame.
+   */
+  private retime(voice: ClipVoice, rate: number, at: number): void {
+    const timing = this.timings.get(voice)
+    // Equal-power voices play on the clock.
+    if (!timing && voice.fadeCurve === 'equalPower') return
+    const from = Math.max(at, voice.startTime)
+    voice.source.playbackRate.setValueAtTime(rate, from)
+    // Fading out or stopping at a time it was given: only its pitch follows.
+    if (!timing) return
+
+    // Where the clip's start would have been had it always played at this rate.
+    timing.when = from + (timing.when - from) * (timing.rate / rate)
+    timing.rate = rate
+    const { when, durationSec, fadeInSec, fadeOutSec, easeFromSec, easeToSec } = timing
+    const clock = (clipSec: number): number => when + clipSec / rate
+    const elapsedSec = (from - when) * rate
+    const level = voice.gain.gain
+    const afterEase = fadeGain(easeToSec, durationSec, fadeInSec, fadeOutSec)
+    const easing = elapsedSec < easeToSec && easeToSec > easeFromSec
+    // What is left of the envelope, from the level it has reached.
+    const reached = easing
+      ? (afterEase * Math.max(0, elapsedSec - easeFromSec)) / (easeToSec - easeFromSec)
+      : fadeGain(elapsedSec, durationSec, fadeInSec, fadeOutSec)
+    if (voice.startTime > at) {
+      // Not begun: there is no level to hold yet, only the one it starts at.
+      level.cancelScheduledValues(from)
+      level.setValueAtTime(reached, from)
+    } else {
+      holdParamAt(level, from, reached)
+    }
+    if (easing) level.linearRampToValueAtTime(afterEase, clock(easeToSec))
+    const reachedSec = Math.max(elapsedSec, easeToSec)
+    const fadeInEndSec = Math.min(fadeInSec, durationSec)
+    const fadeOutStartSec = Math.max(fadeInEndSec, durationSec - fadeOutSec)
+    if (fadeInEndSec > reachedSec) level.linearRampToValueAtTime(1, clock(fadeInEndSec))
+    if (fadeOutSec > 0) {
+      if (fadeOutStartSec > reachedSec) level.setValueAtTime(1, clock(fadeOutStartSec))
+      level.linearRampToValueAtTime(0, clock(durationSec))
+    }
+    voice.endTime = clock(durationSec)
+    if (timing.stoppedAtEnd) this.stopSource(voice, voice.endTime)
   }
 
   /** Breathwork Live `MusicEngine.scheduleEntry`, verbatim. */
@@ -779,6 +899,13 @@ export class AudioTrack implements StripHost {
     return null
   }
 
+  /** Stops a voice's source at `at` on the clock, whatever the rate does afterwards. */
+  private endAt(voice: ClipVoice, at: number): void {
+    this.timings.delete(voice)
+    this.stopSource(voice, at)
+    voice.endTime = Math.min(voice.endTime, at)
+  }
+
   private stopSource(voice: ClipVoice, at: number): void {
     try {
       voice.source.stop(at)
@@ -836,6 +963,7 @@ export class TrackSchedulable implements Schedulable {
   readonly cancel: (key: string, fadeSec?: number) => void
   readonly keeps?: (key: string) => boolean
   readonly rekey?: (key: string, to: string) => boolean
+  readonly retime?: (rate: number, at: number) => void
   readonly cancelPending: () => string[]
   readonly cancelAll: (fadeSec: number) => void
 
@@ -848,12 +976,14 @@ export class TrackSchedulable implements Schedulable {
       joinsLate?: boolean
       keeps?: (key: string) => boolean
       rekey?: (key: string, to: string) => boolean
+      retime?: (rate: number, at: number) => void
     } = {},
   ) {
     this.readLookahead = readLookahead
     this.joinsLate = options.joinsLate ?? false
     this.keeps = options.keeps
     this.rekey = options.rekey
+    this.retime = options.retime
     this.clips = clips
     this.schedule = schedule
     this.cancel = cancels.cancel ?? (() => {})

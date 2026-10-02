@@ -27,6 +27,27 @@ measured on the CI VM (Intel Xeon, Node 22.14, emsdk 4.0.15); a current
 iPhone's performance core is faster than this machine's, so they are upper
 bounds.
 
+### Load while it runs
+
+Those figures time a device in a tight loop. In an audio thread a block of
+each device runs once every 3 ms, on a cache the other devices and the
+browser have been through since, and costs about twice as much: four Zita
+reverbs and two Shimmers took 4.6 % of real time flat out and 9.4 % at the
+audio thread's pace, in the same headless Chromium on the same machine.
+
+`engine.stats` gives the running figure (`averageLoad`, `peakLoad`, and
+`devices` by kind with the memory they hold). No browser reports its audio
+thread's load, and the thread cannot time itself (its only clock ticks in
+milliseconds, in step with the audio callbacks), so the processors mark when
+they are at work in shared memory and a worker samples the mark
+(`src/core/load.ts`). That needs a cross-origin isolated page; on any other
+page `supported` is false and there is no load figure, only the device list
+and its memory. The figure covers the engine's worklet processors (WASM
+devices, the plug-in bridge), not the browser's own nodes, and a hosted
+plug-in's work is in the host's process, not in it.
+`browser-tests/specs/engine-load.spec.ts` holds it against a worker's timing
+of the same modules.
+
 ## Catalogue
 
 | Device id           | Source                                                                        | Kind         | Params                                                                                                                                                             | `.wasm`  | Native cost                                                 | wasm cost (Node)                                            | Flag             |

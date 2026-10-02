@@ -8,6 +8,11 @@
 // once a start it declined can be taken, and after an edit (`rejoin`). What is
 // under the playhead sounds, from that point in it.
 //
+// The transport can run faster or slower than the audio clock (`Transport.rate`).
+// Lookaheads stay clock seconds, so a window covers that much more or less of
+// the timeline; when the rate changes, what is pending is re-derived at its new
+// clock time and what sounds is told to carry on at the new speed (`retime`).
+//
 // Lifted from ambient-live `app/frontend/pages/live/use-clip-transport.ts`
 // (1d3b31b): the `schedule` loop (:191-238), the timer (:241-246) and the
 // re-derive-on-edit effect (:253-266). Breathwork Live's `MusicEngine.tickAsync`
@@ -27,10 +32,11 @@ import { startsInWindow } from './window'
 
 /**
  * Why a scheduling pass ran: the timer, a transport re-pin (`start`, `seek`,
- * `loop`), an edit (`refresh`), a new registration, or a direct `tick()` call.
+ * `loop`, `rate`), an edit (`refresh`), a new registration, or a direct
+ * `tick()` call.
  */
 export type SchedulerTickReason =
-  'timer' | 'start' | 'seek' | 'loop' | 'refresh' | 'register' | 'manual'
+  'timer' | 'start' | 'seek' | 'loop' | 'rate' | 'refresh' | 'register' | 'manual'
 
 /** What a tick listener sees: the transport position the pass ran at, plus its unwrapped timeline second. */
 export interface SchedulerTick {
@@ -84,12 +90,22 @@ export interface Schedulable {
   /**
    * Take the start scheduled under `key` as scheduled under `to` from now on.
    * Its clip moved along the timeline together with everything else (the
-   * timeline was stretched under it, `Scheduler.retime`), and what it has
+   * timeline was stretched under it, `Scheduler.rescale`), and what it has
    * sounding or pending is still that clip's. Return false when there is
    * nothing under `key` to keep; the start is then let go as any moved start
    * is. Absent: every moved start is let go.
    */
   rekey?(key: string, to: string): boolean
+  /**
+   * The transport runs at `rate` from audio-clock time `at` on (timeline
+   * seconds per clock second, `Transport.rate`): what is sounding carries on
+   * at that speed, and starts handed over from now on are played at it. Starts
+   * not yet begun have been cancelled before this is called and are handed
+   * over again at their new times. Also called on registration, with the
+   * rate the transport has. Absent: this schedulable plays at the clock's
+   * speed whatever the rate, so what it has sounding falls out of step.
+   */
+  retime?(rate: number, at: number): void
   /** Silence every start that has not begun yet and return their keys, so they can be re-derived. */
   cancelPending(): string[]
   /** Silence everything, begun or not, fading over `fadeSec` (0 = immediately). */
@@ -109,7 +125,13 @@ export const DEFAULT_TICK_MS = 40
 /** How long a sounding clip takes to fade when `rejoin` lets it go for its edited self. */
 export const REJOIN_FADE_SECONDS = 0.005
 
-/** A start that was handed over, with the audio-clock time it was handed over for. */
+/**
+ * A start that was handed over, with the audio-clock time it was handed over
+ * for. On a schedulable that follows the rate, a change of rate moves that
+ * time to where the start would have been had the new rate always held, so
+ * `when` plus a length at the current rate is where the clip ends; on one left
+ * on the clock it stays put, and a drawn length is already clock seconds.
+ */
 interface Handover extends ScheduledStart {
   when: number
 }
@@ -140,8 +162,10 @@ export class Scheduler {
   private readonly registrations = new Map<Schedulable, Registration>()
   private readonly tickListeners = new Set<SchedulerTickListener>()
   private timer: ReturnType<typeof setInterval> | null = null
-  // Inside `retime`: edits and loop changes do not re-derive the queue yet.
-  private retiming = false
+  // Inside `rescale`: edits and loop changes do not re-derive the queue yet.
+  private rescaling = false
+  // The transport's rate as of the last change heard, to move clock times by.
+  private rate: number
   private readonly unsubscribe: () => void
   private readonly setIntervalFn: NonNullable<SchedulerOptions['setIntervalFn']>
   private readonly clearIntervalFn: NonNullable<SchedulerOptions['clearIntervalFn']>
@@ -156,6 +180,7 @@ export class Scheduler {
     this.tickMs = tickMs
     this.setIntervalFn = setIntervalFn
     this.clearIntervalFn = clearIntervalFn
+    this.rate = transport.rate
     this.unsubscribe = transport.onChange((change) => this.onTransportChange(change))
     if (transport.state === 'playing') this.startTimer()
   }
@@ -164,6 +189,8 @@ export class Scheduler {
   register(schedulable: Schedulable): () => void {
     if (!this.registrations.has(schedulable)) {
       this.registrations.set(schedulable, { scheduled: new Map(), declined: new Map() })
+      // It may have played at another rate before it came here.
+      schedulable.retime?.(this.rate, this.transport.now())
       this.tick('register')
     }
     return () => this.unregister(schedulable)
@@ -202,10 +229,13 @@ export class Scheduler {
     }
     const loop = this.transport.loop
     const anchor = this.transport.anchor
+    const rate = this.transport.rate
     const nowSec = unwrap(position.positionSec, position.iteration, loop)
 
     for (const [schedulable, registration] of this.registrations) {
       const clips = schedulable.clips()
+      // A lookahead is clock time: at this rate it reaches this far along the timeline.
+      const aheadSec = schedulable.lookaheadSec * rate
       let due: ScheduledClip[]
       // Clips to enter partway: the position is already inside them.
       const joins: Handover[] = []
@@ -222,7 +252,7 @@ export class Scheduler {
         due = startsInWindow({
           clips,
           positionSec: anchor.positionSec,
-          lookaheadSec: Math.max(0, contextTime - anchor.contextTime) + schedulable.lookaheadSec,
+          lookaheadSec: Math.max(0, contextTime - anchor.contextTime) * rate + aheadSec,
           iteration: anchor.iteration,
           loop,
         })
@@ -246,14 +276,14 @@ export class Scheduler {
         due = startsInWindow({
           clips,
           positionSec: position.positionSec,
-          lookaheadSec: schedulable.lookaheadSec,
+          lookaheadSec: aheadSec,
           iteration: position.iteration,
           loop,
           catchUpSec,
         })
       }
       registration.fromAnchor = false
-      registration.windowEndSec = nowSec + schedulable.lookaheadSec
+      registration.windowEndSec = nowSec + aheadSec
 
       for (const hit of due) {
         const clip = clips.find((candidate) => candidate.id === hit.clipId)
@@ -277,7 +307,7 @@ export class Scheduler {
       // A declined start the window has moved past (its sample decoded after
       // the playhead reached it) comes in where the clip has got to.
       for (const [key, start] of registration.declined) {
-        const stands = soundsOn(clips, start, start.when, contextTime)
+        const stands = soundsOn(clips, start, start.when, contextTime, rate)
         if (!stands || registration.scheduled.has(key)) registration.declined.delete(key)
         else if (contextTime > start.when) joins.push(start)
       }
@@ -299,7 +329,8 @@ export class Scheduler {
       for (const [key, start] of registration.scheduled) {
         if (start.iteration >= position.iteration) continue
         const sounding =
-          schedulable.joinsLate === true && soundsOn(clips, start, start.when, contextTime)
+          schedulable.joinsLate === true &&
+          soundsOn(clips, start, start.when, contextTime, soundingRate(schedulable, rate))
         if (!sounding) registration.scheduled.delete(key)
       }
     }
@@ -327,18 +358,20 @@ export class Scheduler {
    * is where clips have a length to read).
    */
   refresh(reason: SchedulerTickReason = 'refresh'): void {
-    if (this.transport.state !== 'playing' || this.retiming) return
+    if (this.transport.state !== 'playing' || this.rescaling) return
     this.cancelPending()
     const contextTime = this.transport.now()
+    const rate = this.transport.rate
     for (const [schedulable, registration] of this.registrations) {
       const clips = schedulable.clips()
+      const clipRate = soundingRate(schedulable, rate)
       for (const [key, start] of registration.scheduled) {
         const clip = clips.find((candidate) => candidate.id === start.clipId)
         if (clip && scheduleKey({ ...start, startSec: clip.startSec }) === key) {
           const cutShort =
             schedulable.joinsLate === true &&
             clip.durationSec !== undefined &&
-            start.when + clip.durationSec <= contextTime
+            start.when + clip.durationSec / clipRate <= contextTime
           if (!cutShort) continue
           // Its end is behind the transport now; what still sounds of it fades.
           schedulable.cancel(key, REJOIN_FADE_SECONDS)
@@ -364,16 +397,16 @@ export class Scheduler {
    * over afresh at their new times. A schedulable without `rekey` gives up
    * its moved starts as before. Outside playback this just runs `apply`.
    */
-  retime(apply: () => void): void {
-    if (this.retiming) {
+  rescale(apply: () => void): void {
+    if (this.rescaling) {
       apply()
       return
     }
-    this.retiming = true
+    this.rescaling = true
     try {
       apply()
     } finally {
-      this.retiming = false
+      this.rescaling = false
     }
     if (this.transport.state !== 'playing') return
 
@@ -420,6 +453,7 @@ export class Scheduler {
     const contextTime = this.transport.now()
     const position = this.transport.position(contextTime)
     if (position.finished) return
+    const rate = this.transport.rate
 
     for (const [schedulable, registration] of this.registrations) {
       if (!schedulable.joinsLate) continue
@@ -451,7 +485,9 @@ export class Scheduler {
       // before. It comes back under the start it had.
       for (const start of released.sort((a, b) => b.when - a.when)) {
         if (joins.has(start.clipId) || start.when >= contextTime) continue
-        if (soundsOn(named, start, start.when, contextTime)) joins.set(start.clipId, start)
+        if (soundsOn(named, start, start.when, contextTime, soundingRate(schedulable, rate))) {
+          joins.set(start.clipId, start)
+        }
       }
       for (const { when, ...start } of joins.values()) {
         const key = scheduleKey(start)
@@ -496,6 +532,9 @@ export class Scheduler {
         }
         this.refresh('loop')
         return
+      case 'rate':
+        this.retime()
+        return
       case 'pause':
       case 'end':
         this.silence(0)
@@ -510,6 +549,43 @@ export class Scheduler {
       default:
         return assertNever(change.reason)
     }
+  }
+
+  /**
+   * The transport's rate changed. Stopped or paused there is nothing in
+   * flight, and each schedulable only has to know the speed its next starts
+   * play at. Playing, starts not yet begun are cancelled and handed over
+   * again at their new clock times, as after an edit; what sounds is told to
+   * carry on at the new speed, and its handover moves to where its start
+   * would have been at that speed, so its end is still found by the clock.
+   */
+  private retime(): void {
+    const rate = this.transport.rate
+    const previous = this.rate
+    this.rate = rate
+    // Where the transport re-pinned: the moment the old rate gave way to the new.
+    const at = this.transport.anchor?.contextTime ?? this.transport.now()
+    if (this.transport.state !== 'playing') {
+      for (const schedulable of this.registrations.keys()) schedulable.retime?.(rate, at)
+      return
+    }
+    this.cancelPending()
+    const scale = previous / rate
+    for (const [schedulable, registration] of this.registrations) {
+      // Nothing declined has begun, so those starts are where the new rate puts them.
+      for (const start of registration.declined.values()) {
+        start.when = at + (start.when - at) * scale
+      }
+      // What is sounding only moves to the new rate on a schedulable that
+      // follows it; one left on the clock keeps the time it was handed over
+      // for, which is where its end is still found.
+      if (!schedulable.retime) continue
+      for (const start of registration.scheduled.values()) {
+        start.when = at + (start.when - at) * scale
+      }
+      schedulable.retime(rate, at)
+    }
+    this.tick('rate')
   }
 
   private silence(fadeSec: number): void {
@@ -539,20 +615,31 @@ export class Scheduler {
 }
 
 /**
+ * How fast a schedulable reads what it has sounding: one that follows the
+ * transport's rate (`retime`) plays its clips that much faster or slower, one
+ * without stays on the clock whatever the rate, so its clips take their drawn
+ * length in clock seconds.
+ */
+function soundingRate(schedulable: Schedulable, rate: number): number {
+  return schedulable.retime ? rate : 1
+}
+
+/**
  * Whether the clip `start` names is still where that start was drawn and, begun
- * at `when` on the audio clock, not yet over at `contextTime`.
+ * at `when` on the audio clock and played at `rate`, not yet over at `contextTime`.
  */
 function soundsOn(
   clips: ClipWindow['clips'],
   start: ScheduledStart,
   when: number,
   contextTime: number,
+  rate: number,
 ): boolean {
   const clip = clips.find((candidate) => candidate.id === start.clipId)
   return (
     clip?.durationSec !== undefined &&
     scheduleKey({ ...start, startSec: clip.startSec }) === scheduleKey(start) &&
-    contextTime < when + clip.durationSec
+    contextTime < when + clip.durationSec / rate
   )
 }
 

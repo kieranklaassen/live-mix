@@ -15,7 +15,17 @@ export const REVERB_DECAY_SECONDS = 2.6
 export const REVERB_WET_LEVEL = 0.26
 
 export const CONVOLVER_REVERB_PARAMS = {
-  wet: { id: 0, name: 'Wet', min: 0, max: 1, default: REVERB_WET_LEVEL, taper: 'linear', unit: '' },
+  wet: {
+    id: 0,
+    name: 'Wet',
+    min: 0,
+    max: 1,
+    default: REVERB_WET_LEVEL,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Level of the reverb. The device puts out only the reverberated sound, so the dry signal has to come from elsewhere, as on a return.',
+  },
 } as const satisfies Record<string, ParamSpec>
 
 export interface ConvolverReverbOptions extends DeviceCreateOptions {
@@ -148,6 +158,8 @@ export const CONVOLVER_REVERB_DESCRIPTOR: DeviceDescriptor<typeof CONVOLVER_REVE
   name: 'Convolver reverb',
   kind: 'node',
   category: 'reverb',
+  description:
+    'Convolution reverb with a generated hall or an impulse response you supply, putting out the reverb only: made for a return track fed by sends.',
   version: 1,
   params: CONVOLVER_REVERB_PARAMS,
   presets: {

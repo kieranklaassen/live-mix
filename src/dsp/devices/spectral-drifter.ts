@@ -18,15 +18,105 @@ export const SPECTRAL_DRIFTER_INTERVALS = ['Fifth', 'Octave', 'Fifth+Octave', 'A
 export const SPECTRAL_DRIFTER_AGE_MODES = ['Auto', 'Manual'] as const
 
 export const SPECTRAL_DRIFTER_PARAMS = {
-  mix: { id: 0, name: 'Mix', min: 0, max: 1, default: 0.5, taper: 'linear', unit: '' },
-  bloom: { id: 1, name: 'Bloom', min: 0, max: 1, default: 0.5, taper: 'linear', unit: '' },
-  direction: { id: 2, name: 'Direction', min: 0, max: 2, default: 0, taper: 'linear', unit: '' },
-  season: { id: 3, name: 'Season', min: 0, max: 3, default: 0, taper: 'linear', unit: '' },
-  seed: { id: 4, name: 'Seed', min: 0, max: 2, default: 0, taper: 'linear', unit: '' },
-  interval: { id: 5, name: 'Interval', min: 0, max: 3, default: 1, taper: 'linear', unit: '' },
-  decay: { id: 6, name: 'Decay', min: 1, max: 30, default: 5, taper: 'log', unit: 's' },
-  ageMode: { id: 7, name: 'Age mode', min: 0, max: 1, default: 0, taper: 'linear', unit: '' },
-  age: { id: 8, name: 'Age', min: 0, max: 1, default: 1, taper: 'linear', unit: '' },
+  mix: {
+    id: 0,
+    name: 'Mix',
+    min: 0,
+    max: 1,
+    default: 0.5,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Balance between the dry sound and the drifted grains. At zero only the dry sound is heard; at full only the grains.',
+  },
+  bloom: {
+    id: 1,
+    name: 'Bloom',
+    min: 0,
+    max: 1,
+    default: 0.5,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How far the grains drift in pitch from the played note towards the Interval. Low stays near unison; high reaches the interval as the sound ages.',
+  },
+  direction: {
+    id: 2,
+    name: 'Direction',
+    min: 0,
+    max: 2,
+    default: 0,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Which way the pitch drifts. Up and Down move every grain the same way; Scatter sends some grains up and others down at once.',
+  },
+  season: {
+    id: 3,
+    name: 'Season',
+    min: 0,
+    max: 3,
+    default: 0,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Tone of the drifted sound, brightest to darkest: Spring lifts the highs, Summer is close to flat, Autumn rolls them off, Winter is dark with added lows.',
+  },
+  seed: {
+    id: 4,
+    name: 'Seed',
+    min: 0,
+    max: 2,
+    default: 0,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Colour added to the drifted sound. Fundamental softens the top, Odd adds a hollow edge from odd harmonics, Even adds warmth from even ones.',
+  },
+  interval: {
+    id: 5,
+    name: 'Interval',
+    min: 0,
+    max: 3,
+    default: 1,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Where the drift is heading: a fifth, an octave, or grains split between the two. Atonal has no fixed interval and slides by up to an octave.',
+  },
+  decay: {
+    id: 6,
+    name: 'Decay',
+    min: 1,
+    max: 30,
+    default: 5,
+    taper: 'log',
+    unit: 's',
+    description:
+      'In Auto age mode, how long a sound must keep ringing before the drift reaches full depth. Longer makes the shift build more slowly.',
+  },
+  ageMode: {
+    id: 7,
+    name: 'Age mode',
+    min: 0,
+    max: 1,
+    default: 0,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Auto deepens the drift the longer the input keeps sounding and lets it fall back in silence. Manual takes it from the Age knob instead.',
+  },
+  age: {
+    id: 8,
+    name: 'Age',
+    min: 0,
+    max: 1,
+    default: 1,
+    taper: 'linear',
+    unit: '',
+    description:
+      'In Manual age mode, how far along the drift is. Low leaves about a third of the shift Bloom sets; full gives all of it.',
+  },
 } as const satisfies Record<string, ParamSpec>
 
 export type SpectralDrifterParamName = keyof typeof SPECTRAL_DRIFTER_PARAMS

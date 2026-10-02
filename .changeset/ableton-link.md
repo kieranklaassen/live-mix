@@ -10,7 +10,7 @@ A page cannot be a Link peer (Link is multicast UDP), so the host a desktop shel
 - `OutputClock`, `LinkClockOffset` and the beat arithmetic (`linkBeatAt`, `linkPhase`, `nextBeatInPhase`): from a session beat to an `AudioContext` time.
 - `LinkAudioSender`: connect a node to its `input` and the session gets a Link Audio channel, stamped with the beat each block is heard at. New worklet bundles `worklets/link-tap.js` and `worklets/link-audio.js`.
 - `Transport.nudge(deltaSec)`: slides a playing transport by a few milliseconds without re-pinning it, for following an outside clock.
-- A tempo change that keeps clips on their beat: `Transport.rescale(ratio)` stretches the position and the loop, `Scheduler.retime(apply)` takes starts already handed over along to their clips' new positions (`Schedulable.rekey`, which `AudioTrack` has) so sounding clips play on, and `ScoreRenderer.stretchTimeline(ratio)` does both for the next edit of a score document.
+- A tempo change that keeps clips on their beat: `Transport.rescale(ratio)` stretches the position and the loop, `Scheduler.rescale(apply)` takes starts already handed over along to their clips' new positions (`Schedulable.rekey`, which `AudioTrack` has) so sounding clips play on, and `ScoreRenderer.stretchTimeline(ratio)` does both for the next edit of a score document.
 - Host protocol: `link`, `linkPing`, `linkStart`, `linkStop`, the `link` event, the `/link-audio` path; `hello` gains `link` and `linkVersion`.
 - `FakePluginHost` in `./testing` answers the Link messages, with `host.link` (`FakeLinkSession`) to move the session by hand.
 - `buildPluginHost({ link, linkDir })` and `pluginHostLinkPeerPath` in `./native/shell`.

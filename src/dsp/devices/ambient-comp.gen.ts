@@ -14,11 +14,53 @@ export const AMBIENT_COMP_PARAMS = {
     default: -24,
     taper: 'linear',
     unit: 'dB',
+    description:
+      'The level above which the gain starts to come down. Lower catches more of the sound; higher leaves all but the loudest swells alone.',
   },
-  ratio: { id: 1, name: 'Ratio', min: 1, max: 10, default: 2, taper: 'log', unit: ':1' },
-  attack: { id: 2, name: 'Attack', min: 10, max: 3000, default: 300, taper: 'log', unit: 'ms' },
-  release: { id: 3, name: 'Release', min: 0.1, max: 20, default: 2, taper: 'log', unit: 's' },
-  knee: { id: 4, name: 'Knee', min: 0, max: 24, default: 12, taper: 'linear', unit: 'dB' },
+  ratio: {
+    id: 1,
+    name: 'Ratio',
+    min: 1,
+    max: 10,
+    default: 2,
+    taper: 'log',
+    unit: ':1',
+    description:
+      'How firmly a swell over the threshold is held back. Low is gentle levelling; high pins loud passages close to the threshold.',
+  },
+  attack: {
+    id: 2,
+    name: 'Attack',
+    min: 10,
+    max: 3000,
+    default: 300,
+    taper: 'log',
+    unit: 'ms',
+    description:
+      'How long the gain takes to come down once a swell passes the threshold. Slow lets the start of a swell through before it is reined in.',
+  },
+  release: {
+    id: 3,
+    name: 'Release',
+    min: 0.1,
+    max: 20,
+    default: 2,
+    taper: 'log',
+    unit: 's',
+    description:
+      'How long the gain takes to come back once the level falls. Short recovers between phrases; long holds the level steady across them.',
+  },
+  knee: {
+    id: 4,
+    name: 'Knee',
+    min: 0,
+    max: 24,
+    default: 12,
+    taper: 'linear',
+    unit: 'dB',
+    description:
+      'How gradually compression sets in around the threshold. Wide eases in well below it; zero is a hard corner at the threshold.',
+  },
   tails: {
     id: 5,
     name: 'Tails',
@@ -28,6 +70,8 @@ export const AMBIENT_COMP_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Hold', 'Release'],
+    description:
+      'Hold pauses the release while a sound dies away, so a tail keeps its own shape. Release is the classic way, which pulls a tail back up.',
   },
   scLowCut: {
     id: 6,
@@ -37,9 +81,31 @@ export const AMBIENT_COMP_PARAMS = {
     default: 90,
     taper: 'log',
     unit: 'Hz',
+    description:
+      'Keeps lows under this frequency out of the level detector, so sub rumble does not drive the compressor. The lows stay in the sound.',
   },
-  makeup: { id: 7, name: 'Make-up', min: -12, max: 24, default: 0, taper: 'linear', unit: 'dB' },
-  mix: { id: 8, name: 'Mix', min: 0, max: 1, default: 1, taper: 'linear', unit: '' },
+  makeup: {
+    id: 7,
+    name: 'Make-up',
+    min: -12,
+    max: 24,
+    default: 0,
+    taper: 'linear',
+    unit: 'dB',
+    description:
+      'Gain added after compression to bring the level back up. It applies to the compressed signal only, not to the dry part of Mix.',
+  },
+  mix: {
+    id: 8,
+    name: 'Mix',
+    min: 0,
+    max: 1,
+    default: 1,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Balance between the dry signal and the compressed one. Settings in between give parallel compression, with the dry dynamics on top.',
+  },
 } as const satisfies Record<string, ParamSpec>
 
 export type AmbientCompParamName = keyof typeof AMBIENT_COMP_PARAMS

@@ -19,11 +19,33 @@
         "Just minor",
         "Cluster"
       ],
-      "default": 2
+      "default": 2,
+      "description": "The intervals the partials form above each key: unison, octaves, fifths, the harmonic series, a pure major or minor chord, or a cluster."
     },
-    { "key": "partials", "name": "Partials", "min": 0, "max": 1, "default": 0.6 },
-    { "key": "wave", "name": "Wave", "min": 0, "max": 1, "default": 0.2 },
-    { "key": "movement", "name": "Movement", "min": 0, "max": 1, "default": 0.5 },
+    {
+      "key": "partials",
+      "name": "Partials",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "How many of the upper partials sound, brought in one after another. It changes the colour of the drone, not its loudness."
+    },
+    {
+      "key": "wave",
+      "name": "Wave",
+      "min": 0,
+      "max": 1,
+      "default": 0.2,
+      "description": "Morphs every partial from a pure sine through a triangle to a bright sawtooth."
+    },
+    {
+      "key": "movement",
+      "name": "Movement",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How far every partial wanders in pitch, level and pan, and how far the filter drifts. At zero the drone stands still."
+    },
     {
       "key": "rate",
       "name": "Rate",
@@ -31,10 +53,25 @@
       "max": 2,
       "default": 0.08,
       "taper": "log",
-      "unit": "Hz"
+      "unit": "Hz",
+      "description": "How fast the partials wander, from a gradual drift to a restless flutter. Has no effect with Movement at zero."
     },
-    { "key": "sub", "name": "Sub", "min": 0, "max": 1, "default": 0.3 },
-    { "key": "air", "name": "Air", "min": 0, "max": 1, "default": 0.15 },
+    {
+      "key": "sub",
+      "name": "Sub",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Level of a steady sine one octave below each key, in the centre, for weight under the partials."
+    },
+    {
+      "key": "air",
+      "name": "Air",
+      "min": 0,
+      "max": 1,
+      "default": 0.15,
+      "description": "Level of noise filtered to a narrow band at each key's pitch: a tuned, breathy layer over the tones."
+    },
     {
       "key": "cutoff",
       "name": "Cutoff",
@@ -42,7 +79,8 @@
       "max": 16000,
       "default": 2400,
       "taper": "log",
-      "unit": "Hz"
+      "unit": "Hz",
+      "description": "Low-pass over the whole drone. Lower is darker and softer; higher lets the upper partials and the air through."
     },
     {
       "key": "attack",
@@ -51,7 +89,8 @@
       "max": 30,
       "default": 3,
       "taper": "log",
-      "unit": "s"
+      "unit": "s",
+      "description": "How long a key takes to fade in. Long times let a drone rise slowly out of silence."
     },
     {
       "key": "release",
@@ -60,11 +99,33 @@
       "max": 30,
       "default": 6,
       "taper": "log",
-      "unit": "s"
+      "unit": "s",
+      "description": "How long a drone takes to fade out once its key is released, or once Hold lets it go."
     },
-    { "key": "width", "name": "Width", "min": 0, "max": 1, "default": 0.7 },
-    { "key": "hold", "name": "Hold", "choices": ["Off", "On"], "default": 0 },
-    { "key": "volume", "name": "Volume", "min": -48, "max": 6, "default": -10, "unit": "dB" }
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 0.7,
+      "description": "How far the partials and the air spread across the stereo field. At zero the drone is mono."
+    },
+    {
+      "key": "hold",
+      "name": "Hold",
+      "choices": ["Off", "On"],
+      "default": 0,
+      "description": "On keeps a drone sounding after its key is released. Pressing the same key again, or switching to Off, lets it fade out."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -10,
+      "unit": "dB",
+      "description": "Output level of the instrument. A soft clip after it rounds off the peaks when many notes stack up."
+    }
   ],
   "presets": {
     "Open fifths": {

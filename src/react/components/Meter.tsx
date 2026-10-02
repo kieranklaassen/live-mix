@@ -8,6 +8,7 @@ import { useRef, type CSSProperties } from 'react'
 import { gainToDb } from '../../core/devices/native/units'
 import { useMeter, type MeterSnapshot, type MeterSource } from '../hooks/useMeter'
 import { dbToMeterPosition, LUFS_FLOOR, METER_FLOOR_DB } from './control-math'
+import { infoProps } from './info'
 import { cx } from './tokens'
 
 export type MeterBarKind = 'peak' | 'rms' | 'lufs' | 'truePeak'
@@ -34,6 +35,8 @@ export interface MeterProps {
   holdMs?: number
   showReadout?: boolean
   label?: string
+  /** What is being measured, for the info view; the default says how to read the bars. */
+  info?: string
   className?: string
   style?: CSSProperties
   'data-testid'?: string
@@ -41,6 +44,23 @@ export interface MeterProps {
 
 function nowMs(): number {
   return typeof performance === 'object' ? performance.now() : Date.now()
+}
+
+/** How each bar is read, as the info view says it. */
+const BAR_INFO: Record<MeterBarKind, string> = {
+  peak: 'the peak, with a mark that holds the highest one for a moment',
+  rms: 'the average level (RMS)',
+  lufs: 'the short-term loudness in LUFS',
+  truePeak: 'the true peak between samples',
+}
+
+/** What a meter with these bars shows. */
+export function meterInfo(kinds: readonly MeterBarKind[], hotDb: number): string {
+  const bars = kinds.map((kind) => BAR_INFO[kind])
+  const list =
+    bars.length > 1 ? `${bars.slice(0, -1).join(', ')} and ${bars[bars.length - 1]}` : bars[0]
+  const shown = bars.length > 1 ? `The bars show ${list}.` : `The bar shows ${list}.`
+  return `How loud the signal is here. ${shown} Above ${hotDb} dB it changes colour; at 0 dB the signal clips.`
 }
 
 const BAR_LABELS: Record<MeterBarKind, string> = {
@@ -83,6 +103,7 @@ function MeterBars({
   holdMs = 1500,
   showReadout = true,
   label = 'Level',
+  info,
   className,
   style,
   'data-testid': testId,
@@ -119,6 +140,7 @@ function MeterBars({
       aria-valuenow={Number.isFinite(reading.peakDb) ? reading.peakDb : floorDb}
       aria-valuetext={`${formatDb(reading.peakDb)} dBFS`}
       data-testid={testId}
+      {...infoProps(label, info ?? meterInfo(kinds, hotDb))}
     >
       <div className="lm-meter__bars">
         {kinds.map((kind) => {

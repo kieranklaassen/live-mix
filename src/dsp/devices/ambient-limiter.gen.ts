@@ -6,10 +6,50 @@ import { wasmDeviceDescriptor } from '../descriptor'
 import { defineWasmDevice, WasmDevice, type WasmDeviceOptions } from '../WasmDevice'
 
 export const AMBIENT_LIMITER_PARAMS = {
-  ceiling: { id: 0, name: 'Ceiling', min: -12, max: 0, default: -1, taper: 'linear', unit: 'dBTP' },
-  gain: { id: 1, name: 'Gain', min: -12, max: 24, default: 0, taper: 'linear', unit: 'dB' },
-  release: { id: 2, name: 'Release', min: 0.2, max: 10, default: 1.5, taper: 'log', unit: 's' },
-  ride: { id: 3, name: 'Ride', min: 0, max: 1, default: 1, taper: 'linear', unit: '' },
+  ceiling: {
+    id: 0,
+    name: 'Ceiling',
+    min: -12,
+    max: 0,
+    default: -1,
+    taper: 'linear',
+    unit: 'dBTP',
+    description:
+      'The true-peak level the output never exceeds. Lower it to leave headroom for whatever comes after, such as a streaming encoder.',
+  },
+  gain: {
+    id: 1,
+    name: 'Gain',
+    min: -12,
+    max: 24,
+    default: 0,
+    taper: 'linear',
+    unit: 'dB',
+    description:
+      'Level going into the limiter. Raising it pushes more of the sound into the ceiling, so the result is louder and denser.',
+  },
+  release: {
+    id: 2,
+    name: 'Release',
+    min: 0.2,
+    max: 10,
+    default: 1.5,
+    taper: 'log',
+    unit: 's',
+    description:
+      'How long the slow ride takes to let the level back up after a loud passage. Short recovers soon; long holds a swell down evenly.',
+  },
+  ride: {
+    id: 3,
+    name: 'Ride',
+    min: 0,
+    max: 1,
+    default: 1,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How much of a sustained over is turned down smoothly ahead of the brickwall. At zero only the brickwall works.',
+  },
 } as const satisfies Record<string, ParamSpec>
 
 export type AmbientLimiterParamName = keyof typeof AMBIENT_LIMITER_PARAMS

@@ -23,6 +23,8 @@ export { wasmDeviceDescriptor, type WasmDeviceMeta } from './descriptor'
 export const DATTORRO_DESCRIPTOR = wasmDeviceDescriptor(DATTORRO_DEVICE, {
   name: 'Dattorro Plate',
   category: 'reverb',
+  description:
+    'The Dattorro plate reverb: the input is summed to mono, diffused and sent round a modulated figure-of-eight tank, for a smooth stereo tail on a bus or the master.',
   presets: {
     'ambient-live': { mix: 0.35, decay: 0.7, damping: 0.3, predelayMs: 20 },
     'Small plate': { mix: 0.25, decay: 0.45, damping: 0.5, predelayMs: 10 },
@@ -33,6 +35,8 @@ export const DATTORRO_DESCRIPTOR = wasmDeviceDescriptor(DATTORRO_DEVICE, {
 export const FDN_REVERB_DESCRIPTOR = wasmDeviceDescriptor(FDN_REVERB_DEVICE, {
   name: 'Tides FDN Reverb',
   category: 'reverb',
+  description:
+    'Eight-line feedback delay network reverb from Tides, from a room to a twenty-second tail, with a breathing gate that lets the input into the reverb in slow waves.',
   presets: {
     Room: { mix: 0.3, decay: 1.2, damping: 0.5, size: 0.7, breathDepth: 0 },
     Hall: { mix: 0.4, decay: 4, damping: 0.4, size: 1.2, breathDepth: 0.2 },
@@ -43,6 +47,8 @@ export const FDN_REVERB_DESCRIPTOR = wasmDeviceDescriptor(FDN_REVERB_DEVICE, {
 export const STEREO_WIDENER_DESCRIPTOR = wasmDeviceDescriptor(STEREO_WIDENER_DEVICE, {
   name: 'Stereo Widener',
   category: 'spatial',
+  description:
+    'Stereo width from mono to extra wide: mid/side balance first, then decorrelation and a tiny delay on one side near the top, with the bass narrowed as the rest widens.',
   presets: {
     Mono: { width: 0 },
     Normal: { width: 0.5 },
@@ -54,6 +60,8 @@ export const STEREO_WIDENER_DESCRIPTOR = wasmDeviceDescriptor(STEREO_WIDENER_DEV
 export const ZITA_REV1_DESCRIPTOR = wasmDeviceDescriptor(ZITA_REV1_DEVICE, {
   name: 'Zita Reverb',
   category: 'reverb',
+  description:
+    "Fons Adriaensen's Zita-Rev1 hall reverb: an eight-line network with separate decay times for lows and mids, levelled so the output stays as loud as the input at any mix.",
   presets: {
     Room: { preDelay: 30, lowDecay: 1.5, midDecay: 1.2, damping: 5000, mix: 0.25 },
     Hall: { preDelay: 60, crossover: 200, lowDecay: 3, midDecay: 2.5, damping: 6000, mix: 0.35 },
@@ -64,6 +72,8 @@ export const ZITA_REV1_DESCRIPTOR = wasmDeviceDescriptor(ZITA_REV1_DEVICE, {
 export const LIMITER_1176_DESCRIPTOR = wasmDeviceDescriptor(LIMITER_1176_DEVICE, {
   name: '1176 Limiter',
   category: 'dynamics',
+  description:
+    '1176-style levelling: a fixed 4:1 compressor with a fast attack that you drive with the input gain, followed by a soft ceiling that stops peaks at full scale.',
   presets: {
     Safety: { inputGain: 0, outputGain: 0 },
     Drive: { inputGain: 12, outputGain: -6 },
@@ -74,6 +84,8 @@ export const LIMITER_1176_DESCRIPTOR = wasmDeviceDescriptor(LIMITER_1176_DEVICE,
 export const ETHER_REVERB_DESCRIPTOR = wasmDeviceDescriptor(ETHER_REVERB_DEVICE, {
   name: 'Ether Reverb',
   category: 'reverb',
+  description:
+    'The reverb from Ether: a pre-delay into a Freeverb tank of eight combs and four allpasses a side, from a small room to a long wash, with a freeze that holds the tail.',
   presets: {
     Ether: { mix: 0.3, decay: 5, damping: 0.4, predelayMs: 0, size: 0.6 },
     Room: { mix: 0.25, decay: 1, damping: 0.6, predelayMs: 10, size: 0.3 },
@@ -85,6 +97,8 @@ export const ETHER_REVERB_DESCRIPTOR = wasmDeviceDescriptor(ETHER_REVERB_DEVICE,
 export const SPECTRAL_DRIFTER_DESCRIPTOR = wasmDeviceDescriptor(SPECTRAL_DRIFTER_DEVICE, {
   name: 'Bloom Spectral Drifter',
   category: 'other',
+  description:
+    'The pitch drifter from Bloom: replays the input as overlapping reversed grains whose pitch slides towards a fifth or an octave the longer a sound rings.',
   presets: {
     Bloom: { mix: 0.5, bloom: 0.5, direction: 0, season: 0, seed: 0, interval: 1 },
     Shimmer: { mix: 0.4, bloom: 0.8, direction: 0, season: 0, seed: 0, interval: 1, decay: 3 },
@@ -104,6 +118,8 @@ export const WORKLET_DUCKER_DESCRIPTOR: DeviceDescriptor<typeof DUCKER_PARAMS> =
   name: 'Sidechain Ducker',
   kind: 'worklet',
   category: 'dynamics',
+  description:
+    'Turns a signal down while a key signal is sounding and lets it back up after, to keep music out of the way of a voice.',
   version: 1,
   params: DUCKER_PARAMS,
   presets: {
@@ -128,6 +144,8 @@ export const WORKLET_DUCKER_DESCRIPTOR: DeviceDescriptor<typeof DUCKER_PARAMS> =
 export const FELT_PIANO_DESCRIPTOR = wasmDeviceDescriptor(FELT_PIANO_DEVICE, {
   name: 'Felt Piano',
   category: 'instrument',
+  description:
+    'Physically modelled felt piano with no samples: hammers striking through a felt strip, the thump and noise of the action, sympathetic strings under the pedal and its own room.',
   // Over the 5 % wasm budget on the CI core (docs/devices.md); the iPhone
   // figure the plan gates on is not recorded yet.
   experimental: true,

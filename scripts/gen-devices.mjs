@@ -121,6 +121,12 @@ function loadManifest(dir) {
     if (!(min < max)) fail(id, `${where}: needs min < max`)
     if (param.default < min || param.default > max) fail(id, `${where}: default outside the range`)
     if (taper === 'log' && min <= 0) fail(id, `${where}: a log taper needs a positive min`)
+    if (
+      param.description !== undefined &&
+      (typeof param.description !== 'string' || !param.description.trim())
+    ) {
+      fail(id, `${where}: description must be a sentence or be left out`)
+    }
     return {
       key: param.key,
       id: index,
@@ -131,6 +137,7 @@ function loadManifest(dir) {
       taper,
       unit: param.unit ?? '',
       choices,
+      description: param.description,
     }
   })
 
@@ -314,6 +321,7 @@ function deviceModule(device) {
         `unit: ${quote(param.unit)}`,
       ]
       if (param.choices) fields.push(`choices: [${param.choices.map(quote).join(', ')}]`)
+      if (param.description) fields.push(`description: ${quote(param.description)}`)
       return `  ${param.key}: { ${fields.join(', ')} },`
     })
     .join('\n')

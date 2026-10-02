@@ -14,7 +14,8 @@
       "max": 8,
       "default": 0.6,
       "taper": "log",
-      "unit": "s"
+      "unit": "s",
+      "description": "How long a note takes to fade in. Short starts at once, like an organ; long is a slow string swell."
     },
     {
       "key": "release",
@@ -23,10 +24,25 @@
       "max": 12,
       "default": 1.8,
       "taper": "log",
-      "unit": "s"
+      "unit": "s",
+      "description": "How long a note takes to fade out after the key is released."
     },
-    { "key": "low", "name": "Cello", "min": 0, "max": 1, "default": 0.4 },
-    { "key": "high", "name": "Violin", "min": 0, "max": 1, "default": 0.35 },
+    {
+      "key": "low",
+      "name": "Cello",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "Level of the sawtooth an octave below the played note, the deep cello register."
+    },
+    {
+      "key": "high",
+      "name": "Violin",
+      "min": 0,
+      "max": 1,
+      "default": 0.35,
+      "description": "Level of the sawtooth an octave above the played note, the bright violin register."
+    },
     {
       "key": "tone",
       "name": "Tone",
@@ -34,13 +50,50 @@
       "max": 12000,
       "default": 3200,
       "taper": "log",
-      "unit": "Hz"
+      "unit": "Hz",
+      "description": "Low-pass filter shared by all the notes. Lower is darker and mellower; higher is brighter and buzzier."
     },
-    { "key": "ensemble", "name": "Ensemble", "min": 0, "max": 1, "default": 0.8 },
-    { "key": "speed", "name": "Speed", "min": 0.25, "max": 2, "default": 1 },
-    { "key": "drift", "name": "Drift", "min": 0, "max": 1, "default": 0.3 },
-    { "key": "width", "name": "Width", "min": 0, "max": 1, "default": 0.8 },
-    { "key": "volume", "name": "Volume", "min": -48, "max": 6, "default": -9, "unit": "dB" }
+    {
+      "key": "ensemble",
+      "name": "Ensemble",
+      "min": 0,
+      "max": 1,
+      "default": 0.8,
+      "description": "Blend from the dry sawtooths to the three-line chorus that makes them shimmer like a string section. At zero the sound is dry."
+    },
+    {
+      "key": "speed",
+      "name": "Speed",
+      "min": 0.25,
+      "max": 2,
+      "default": 1,
+      "description": "How fast the ensemble chorus sweeps, both its slow swell and its quick shimmer. Slower is calmer; faster is more of a wobble."
+    },
+    {
+      "key": "drift",
+      "name": "Drift",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "How far each key wanders slowly out of tune on its own, which keeps held chords from sounding static."
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 0.8,
+      "description": "Stereo width of the ensemble chorus, down to mono at zero. It does nothing while Ensemble is at zero."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -9,
+      "unit": "dB",
+      "description": "Output level of the instrument. A soft clip after it rounds off the peaks when many notes stack up."
+    }
   ],
   "presets": {
     "Solina": {

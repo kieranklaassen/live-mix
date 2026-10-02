@@ -31,6 +31,7 @@ import {
 import { Fader } from './Fader'
 import { Knob } from './Knob'
 import { Meter } from './Meter'
+import { STRIP_INFO } from './mixer-info'
 import { ToggleButton } from './Toggle'
 import { cx } from './tokens'
 
@@ -213,6 +214,7 @@ export function ChannelStripView({
           unit="pan"
           bipolar
           size={36}
+          info={STRIP_INFO.pan}
           className="lm-strip__pan"
           onChange={(pan) => s.setPan(pan)}
           onChangeStart={() => s.touch('pan')}
@@ -233,6 +235,7 @@ export function ChannelStripView({
           taper="fader"
           ticks={[unityTick]}
           format={(db) => (db <= faderMinDb ? '-∞ dB' : formatControlValue(db, 'dB'))}
+          info={kind === 'master' ? STRIP_INFO.master : STRIP_INFO.level}
           className="lm-strip__fader"
           onChange={(db) => s.setLevel(faderDbToLevel(db, faderMinDb))}
           onChangeStart={() => s.touch('level')}
@@ -258,6 +261,7 @@ export function ChannelStripView({
           onPressedChange={(mute) => s.setMute(mute)}
           label="Mute"
           tone="mute"
+          info={STRIP_INFO.mute}
           className="lm-strip__mute"
           data-testid={testId ? `${testId}-mute` : undefined}
         >
@@ -269,6 +273,7 @@ export function ChannelStripView({
             onPressedChange={(solo) => s.setSolo(solo)}
             label="Solo"
             tone="solo"
+            info={STRIP_INFO.solo}
             className="lm-strip__solo"
             data-testid={testId ? `${testId}-solo` : undefined}
           >
@@ -317,6 +322,7 @@ function SendControl({ send, now }: { send: Send; now: () => number }) {
         unit="dB"
         taper="fader"
         format={() => text}
+        info={STRIP_INFO.send}
         onChange={(next) => {
           setDb(next)
           gainNode.gain.setTargetAtTime(faderDbToLevel(next), now(), 0.005)

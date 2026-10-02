@@ -20,12 +20,51 @@ import { dbToGain } from './units'
 
 export const UTILITY_PARAMS = {
   /** Trim in dB; the minimum is treated as silence. */
-  gainDb: { id: 0, name: 'Gain', min: -60, max: 12, default: 0, taper: 'linear', unit: 'dB' },
-  pan: { id: 1, name: 'Pan', min: -1, max: 1, default: 0, taper: 'linear', unit: '' },
+  gainDb: {
+    id: 0,
+    name: 'Gain',
+    min: -60,
+    max: 12,
+    default: 0,
+    taper: 'linear',
+    unit: 'dB',
+    description: 'Output level of the channel. At its lowest setting the channel is silent.',
+  },
+  pan: {
+    id: 1,
+    name: 'Pan',
+    min: -1,
+    max: 1,
+    default: 0,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Moves the sound between the left and right speakers. The centre leaves it where it is.',
+  },
   /** 1 leaves the stereo image alone, 0 sums to mono. */
-  width: { id: 2, name: 'Width', min: 0, max: 1, default: 1, taper: 'linear', unit: '' },
+  width: {
+    id: 2,
+    name: 'Width',
+    min: 0,
+    max: 1,
+    default: 1,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How wide the stereo image is. Full leaves it untouched; lower blends in a mono sum until both sides are the same.',
+  },
   /** Stepped: 0 normal, 1 inverted. Ramps through zero, so it is click-free. */
-  polarity: { id: 3, name: 'Polarity', min: 0, max: 1, default: 0, taper: 'linear', unit: '' },
+  polarity: {
+    id: 3,
+    name: 'Polarity',
+    min: 0,
+    max: 1,
+    default: 0,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Flips the waveform upside down. It sounds the same on its own, but can fix cancellation against another copy of the same source.',
+  },
 } as const satisfies Record<string, ParamSpec>
 
 export type UtilityParamName = keyof typeof UTILITY_PARAMS
@@ -87,6 +126,7 @@ export const UTILITY_DESCRIPTOR: DeviceDescriptor<typeof UTILITY_PARAMS> = {
   name: 'Utility',
   kind: 'node',
   category: 'utility',
+  description: 'Channel housekeeping: gain, pan, stereo width down to mono and a polarity flip.',
   version: 1,
   params: UTILITY_PARAMS,
   presets: {

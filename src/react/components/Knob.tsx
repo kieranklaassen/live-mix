@@ -12,6 +12,7 @@ import {
   type ControlTaper,
   type ControlUnit,
 } from './control-math'
+import { controlGestureInfo, infoProps, infoText } from './info'
 import { cx, tokenRef } from './tokens'
 import { useParamControl, type ControlAxis } from './useParamControl'
 
@@ -43,6 +44,11 @@ export interface KnobProps {
   format?: (value: number) => string
   hideLabel?: boolean
   hideValue?: boolean
+  /**
+   * What the knob does, for the info view (`InfoView`): a sentence or two.
+   * How it is worked is said after it, so leave that out.
+   */
+  info?: string
   onChange?: (value: number) => void
   onChangeStart?: () => void
   onChangeEnd?: () => void
@@ -73,6 +79,7 @@ export function Knob({
   format,
   hideLabel = false,
   hideValue = false,
+  info,
   onChange,
   onChangeStart,
   onChangeEnd,
@@ -118,8 +125,13 @@ export function Knob({
           Math.min(fillStart, normalized),
           Math.max(fillStart, normalized),
         )
-  const valueText = format ? format(control.value) : formatControlValue(control.value, unit)
+  const print = (shown: number): string =>
+    format ? format(shown) : formatControlValue(shown, unit)
+  const valueText = print(control.value)
   const stroke = tokenRef('stroke', '2px')
+  const gesture = disabled
+    ? null
+    : controlGestureInfo({ axis, reset: print(resetValue ?? defaultValue), wheel })
 
   return (
     <div
@@ -131,6 +143,7 @@ export function Knob({
       )}
       style={style}
       data-testid={testId}
+      {...infoProps(label, infoText(info, gesture))}
     >
       {hideLabel ? null : (
         <span className="lm-knob__label" title={label}>

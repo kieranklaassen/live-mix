@@ -630,6 +630,8 @@ export class Session {
     switch (change.reason) {
       case 'start':
       case 'pause':
+      case 'rate':
+        // A change of rate moves nothing either: the position carries on from where it is.
         this.lastPositionSec = change.position.positionSec
         return
       case 'seek':

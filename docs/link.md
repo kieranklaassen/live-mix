@@ -138,6 +138,13 @@ later ones start by the new position. Use it for corrections of a few
 milliseconds. A large difference (a peer joined with a tempo of its own and
 the session jumped) is a `seek`.
 
+A transport can also be run faster or slower by hand (`transport.setRate`, the
+tape). `nudge` takes timeline seconds whatever the rate, so the arithmetic
+above holds, but a correction would undo the hand's work as fast as it is
+done: a host that offers both stops correcting while the rate is not 1, and
+decides what the distance to the session's bar means once it is 1 again (keep
+it as an offset, or close it).
+
 ## When the tempo changes
 
 Link has one tempo, and any peer can move it. What that means for clips on a
@@ -159,11 +166,11 @@ document.apply({ type: 'batch', ops: [loopLengthOp, ...clipStartOps] })
 ```
 
 The renderer then stretches the transport with the clips
-(`Transport.rescale`) and moves the clips under `Scheduler.retime`, which takes
+(`Transport.rescale`) and moves the clips under `Scheduler.rescale`, which takes
 every start already handed over along to its clip's new position. Without the
 announcement the same edit is a loop change and a field of moved clips: the
 transport lands in another bar and sounding clips are cut. Without a score
-document, call `scheduler.retime(() => { transport.rescale(ratio); /* move the clips */ })`
+document, call `scheduler.rescale(() => { transport.rescale(ratio); /* move the clips */ })`
 yourself.
 
 ## Sending audio: Link Audio

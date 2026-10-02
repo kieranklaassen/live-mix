@@ -5,8 +5,28 @@ import { wasmDeviceDescriptor } from '../descriptor'
 import { defineWasmDevice, WasmDevice, type WasmDeviceOptions } from '../WasmDevice'
 
 export const SAMPLER_PARAMS = {
-  start: { id: 0, name: 'Start', min: 0, max: 1, default: 0.15, taper: 'linear', unit: '' },
-  end: { id: 1, name: 'End', min: 0, max: 1, default: 0.85, taper: 'linear', unit: '' },
+  start: {
+    id: 0,
+    name: 'Start',
+    min: 0,
+    max: 1,
+    default: 0.15,
+    taper: 'linear',
+    unit: '',
+    description:
+      'The front edge of the region the keys play and loop. A later start skips the attack of the recording.',
+  },
+  end: {
+    id: 1,
+    name: 'End',
+    min: 0,
+    max: 1,
+    default: 0.85,
+    taper: 'linear',
+    unit: '',
+    description:
+      'The back edge of the region the keys play and loop. An earlier end leaves out the tail of the recording.',
+  },
   loop: {
     id: 2,
     name: 'Loop',
@@ -16,6 +36,8 @@ export const SAMPLER_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Off', 'Forward', 'Ping-pong'],
+    description:
+      'Off plays the region once and stops. Forward repeats it from the start, and Ping-pong plays it there and back.',
   },
   crossfade: {
     id: 3,
@@ -25,6 +47,8 @@ export const SAMPLER_PARAMS = {
     default: 50,
     taper: 'linear',
     unit: 'ms',
+    description:
+      'Smooths the jump of a Forward loop by blending the end of each pass into the next. Longer hides a rougher loop.',
   },
   reverse: {
     id: 4,
@@ -35,15 +59,95 @@ export const SAMPLER_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Off', 'On'],
+    description: 'On plays the region backwards, so each key starts from the End.',
   },
-  tune: { id: 5, name: 'Tune', min: -24, max: 24, default: 0, taper: 'linear', unit: 'st' },
-  fine: { id: 6, name: 'Fine', min: -100, max: 100, default: 0, taper: 'linear', unit: 'ct' },
-  attack: { id: 7, name: 'Attack', min: 0.001, max: 8, default: 0.06, taper: 'log', unit: 's' },
-  release: { id: 8, name: 'Release', min: 0.01, max: 12, default: 0.6, taper: 'log', unit: 's' },
-  tone: { id: 9, name: 'Tone', min: 200, max: 18000, default: 8000, taper: 'log', unit: 'Hz' },
-  wobble: { id: 10, name: 'Wobble', min: 0, max: 1, default: 0.2, taper: 'linear', unit: '' },
-  velocity: { id: 11, name: 'Velocity', min: 0, max: 1, default: 0.6, taper: 'linear', unit: '' },
-  volume: { id: 12, name: 'Volume', min: -48, max: 6, default: -9, taper: 'linear', unit: 'dB' },
+  tune: {
+    id: 5,
+    name: 'Tune',
+    min: -24,
+    max: 24,
+    default: 0,
+    taper: 'linear',
+    unit: 'st',
+    description:
+      'Transposes the whole instrument. Pitch and speed move together, so lower also plays the recording slower.',
+  },
+  fine: {
+    id: 6,
+    name: 'Fine',
+    min: -100,
+    max: 100,
+    default: 0,
+    taper: 'linear',
+    unit: 'ct',
+    description:
+      'A small pitch offset on top of Tune, for matching the recording to other instruments.',
+  },
+  attack: {
+    id: 7,
+    name: 'Attack',
+    min: 0.001,
+    max: 8,
+    default: 0.06,
+    taper: 'log',
+    unit: 's',
+    description:
+      "How long a note takes to fade in. Short keeps the recording's own start; long turns it into a swell.",
+  },
+  release: {
+    id: 8,
+    name: 'Release',
+    min: 0.01,
+    max: 12,
+    default: 0.6,
+    taper: 'log',
+    unit: 's',
+    description: 'How long a note takes to fade out after the key is let go.',
+  },
+  tone: {
+    id: 9,
+    name: 'Tone',
+    min: 200,
+    max: 18000,
+    default: 8000,
+    taper: 'log',
+    unit: 'Hz',
+    description:
+      'Low-pass filter on the whole instrument. Lower settings take the top off for a darker, softer sound.',
+  },
+  wobble: {
+    id: 10,
+    name: 'Wobble',
+    min: 0,
+    max: 1,
+    default: 0.2,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Tape-style pitch wobble shared by all keys: a slow wow with some drift and a trace of flutter. Zero is steady.',
+  },
+  velocity: {
+    id: 11,
+    name: 'Velocity',
+    min: 0,
+    max: 1,
+    default: 0.6,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How much playing harder makes a note louder. At zero every note plays at full level.',
+  },
+  volume: {
+    id: 12,
+    name: 'Volume',
+    min: -48,
+    max: 6,
+    default: -9,
+    taper: 'linear',
+    unit: 'dB',
+    description:
+      'Output level of the instrument. Pushed hard, a soft clipper rounds off the peaks.',
+  },
 } as const satisfies Record<string, ParamSpec>
 
 export type SamplerParamName = keyof typeof SAMPLER_PARAMS

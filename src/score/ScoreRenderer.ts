@@ -402,7 +402,7 @@ export class ScoreRenderer {
    * a playing transport: the position stays where it was in seconds, so it
    * lands in another bar, and what is sounding is cut. Announced here, the
    * transport is stretched along with the clips (`Transport.rescale`) and the
-   * clips are moved under `Scheduler.retime`: the transport stays in its bar
+   * clips are moved under `Scheduler.rescale`: the transport stays in its bar
    * and sounding clips play on. Stretches announced before a render runs
    * multiply.
    */
@@ -658,7 +658,7 @@ export class ScoreRenderer {
       }
     }
     if (stretch !== 1) {
-      this.engine.scheduler.retime(() => {
+      this.engine.scheduler.rescale(() => {
         this.engine.transport.rescale(
           stretch,
           Number.isFinite(nextLoopLength)

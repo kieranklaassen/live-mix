@@ -26,6 +26,8 @@ const worklets = {
   // Link Audio: the tap is a worklet, its pump a worker.
   'link-tap': 'src/native/worklets/link-tap.processor.ts',
   'link-audio': 'src/native/worklets/link-audio.worker.ts',
+  // And the worker that samples the engine's load.
+  'load-sampler': 'src/core/load-sampler.worker.ts',
 }
 
 async function main() {

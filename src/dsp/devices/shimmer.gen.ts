@@ -5,9 +5,38 @@ import { wasmDeviceDescriptor } from '../descriptor'
 import { defineWasmDevice, WasmDevice, type WasmDeviceOptions } from '../WasmDevice'
 
 export const SHIMMER_PARAMS = {
-  mix: { id: 0, name: 'Mix', min: 0, max: 1, default: 0.4, taper: 'linear', unit: '' },
-  decay: { id: 1, name: 'Decay', min: 0.5, max: 30, default: 8, taper: 'log', unit: 's' },
-  shimmer: { id: 2, name: 'Shimmer', min: 0, max: 1, default: 0.5, taper: 'linear', unit: '' },
+  mix: {
+    id: 0,
+    name: 'Mix',
+    min: 0,
+    max: 1,
+    default: 0.4,
+    taper: 'linear',
+    unit: '',
+    description: 'Balance between the dry signal and the reverb. Fully up is the reverb alone.',
+  },
+  decay: {
+    id: 1,
+    name: 'Decay',
+    min: 0.5,
+    max: 30,
+    default: 8,
+    taper: 'log',
+    unit: 's',
+    description:
+      'How long the tail rings. Bright sounds still fade sooner as Shimmer goes up, because they climb out of range.',
+  },
+  shimmer: {
+    id: 2,
+    name: 'Shimmer',
+    min: 0,
+    max: 1,
+    default: 0.5,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How much of the tail goes through the pitch shifter on each pass. Zero is a plain reverb; higher lets more of it climb.',
+  },
   interval: {
     id: 3,
     name: 'Interval',
@@ -17,9 +46,31 @@ export const SHIMMER_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Octave up', 'Fifth up', 'Octave and fifth', 'Octave down', 'Two octaves'],
+    description:
+      'The step the tail moves by on every pass. The upward ones climb until they fade out of the top; Octave down sinks lower each time.',
   },
-  size: { id: 4, name: 'Size', min: 0, max: 1, default: 0.5, taper: 'linear', unit: '' },
-  tone: { id: 5, name: 'Tone', min: 500, max: 16000, default: 6000, taper: 'log', unit: 'Hz' },
+  size: {
+    id: 4,
+    name: 'Size',
+    min: 0,
+    max: 1,
+    default: 0.5,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How big the space sounds. Small packs the echoes close together; large spreads them out. Moving it bends the pitch of the tail.',
+  },
+  tone: {
+    id: 5,
+    name: 'Tone',
+    min: 500,
+    max: 16000,
+    default: 6000,
+    taper: 'log',
+    unit: 'Hz',
+    description:
+      'Darkens the tail. Lower settings make the highs die away sooner and stop the shimmer from climbing as high.',
+  },
   modulation: {
     id: 6,
     name: 'Modulation',
@@ -28,6 +79,8 @@ export const SHIMMER_PARAMS = {
     default: 0.3,
     taper: 'linear',
     unit: '',
+    description:
+      'Slow drift of the delay times, which gives the tail a gentle chorus-like movement. At zero the tail is static.',
   },
   predelay: {
     id: 7,
@@ -37,9 +90,30 @@ export const SHIMMER_PARAMS = {
     default: 20,
     taper: 'linear',
     unit: 'ms',
+    description:
+      'The gap before the reverb starts, which keeps the start of the sound clear of its tail.',
   },
-  lowCut: { id: 8, name: 'Low Cut', min: 20, max: 1000, default: 100, taper: 'log', unit: 'Hz' },
-  width: { id: 9, name: 'Width', min: 0, max: 1, default: 1, taper: 'linear', unit: '' },
+  lowCut: {
+    id: 8,
+    name: 'Low Cut',
+    min: 20,
+    max: 1000,
+    default: 100,
+    taper: 'log',
+    unit: 'Hz',
+    description:
+      'Removes lows from the reverb so it does not cloud the bass. The dry signal is not touched.',
+  },
+  width: {
+    id: 9,
+    name: 'Width',
+    min: 0,
+    max: 1,
+    default: 1,
+    taper: 'linear',
+    unit: '',
+    description: 'Stereo width of the reverb only. Zero is a mono tail; full is the widest.',
+  },
 } as const satisfies Record<string, ParamSpec>
 
 export type ShimmerParamName = keyof typeof SHIMMER_PARAMS

@@ -7,6 +7,7 @@ import { useState, type CSSProperties, type FormEvent } from 'react'
 
 import { type VersionHistory, type VersionSummary } from '../../score/versions'
 import { useVersions } from '../hooks/useVersions'
+import { infoProps } from './info'
 import { cx } from './tokens'
 
 export interface VersionListProps {
@@ -78,6 +79,10 @@ export function VersionList({
             className="lm-input lm-versions__label"
             placeholder="Version name"
             aria-label="Version name"
+            {...infoProps(
+              'Version name',
+              'A name for the version about to be saved. Left empty, it is numbered.',
+            )}
             value={label}
             onChange={(event) => setLabel(event.target.value)}
             data-testid={testId ? `${testId}-label` : undefined}
@@ -85,6 +90,10 @@ export function VersionList({
           <button
             type="submit"
             className="lm-button lm-button--accent lm-versions__button"
+            {...infoProps(
+              'Save',
+              'Keeps the document as it is now as a version that can be restored later.',
+            )}
             data-testid={testId ? `${testId}-save` : undefined}
           >
             Save
@@ -108,6 +117,10 @@ export function VersionList({
             <button
               type="button"
               className="lm-button lm-button--neutral lm-versions__button"
+              {...infoProps(
+                'Restore',
+                'Puts the document back as it was in this version. Undo brings back what was there before.',
+              )}
               onClick={() => {
                 v.restore(version.id)
                 onRestore?.(version)
@@ -121,6 +134,10 @@ export function VersionList({
                 type="button"
                 className="lm-button lm-button--neutral lm-versions__button"
                 aria-label={`Remove ${version.label}`}
+                {...infoProps(
+                  'Remove',
+                  'Deletes this saved version. The document itself is not changed.',
+                )}
                 onClick={() => v.remove(version.id)}
                 data-testid={testId ? `${testId}-remove-${version.id}` : undefined}
               >
