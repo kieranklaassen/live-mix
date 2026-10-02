@@ -12,6 +12,7 @@ import { FELT_PIANO_PRESETS } from './felt-piano'
 import { FM_GLASS_PRESETS } from './fm-glass'
 import { GRAIN_SYNTH_PRESETS } from './grain-synth'
 import { HANDPAN_PRESETS } from './handpan'
+import { MALLETS_PRESETS } from './mallets'
 import { MODAL_BELLS_PRESETS } from './modal-bells'
 import { ORGAN_PRESETS } from './organ'
 import { SAMPLER_PRESETS } from './sampler'
@@ -38,4 +39,5 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...ATMOSPHERE_PRESETS,
   ...HANDPAN_PRESETS,
   ...AURORA_PRESETS,
+  ...MALLETS_PRESETS,
 ]

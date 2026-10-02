@@ -48,6 +48,8 @@ build_generated_devices() {
     cpp/devices/handpan/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device lattice \
     cpp/devices/lattice/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device mallets \
+    cpp/devices/mallets/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device modal-bells \
     cpp/devices/modal-bells/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device organ \
@@ -139,6 +141,8 @@ test_generated_devices() {
     cpp/test/handpan_test.cpp
   native_test lattice_test \
     cpp/test/lattice_test.cpp
+  native_test mallets_test \
+    cpp/test/mallets_test.cpp
   native_test modal_bells_test \
     cpp/test/modal_bells_test.cpp
   native_test organ_test \

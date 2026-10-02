@@ -23,6 +23,7 @@ import { GRAIN_DELAY_DESCRIPTOR, GRAIN_DELAY_DEVICE } from './grain-delay.gen'
 import { GRAIN_SYNTH_DESCRIPTOR, GRAIN_SYNTH_DEVICE } from './grain-synth.gen'
 import { HANDPAN_DESCRIPTOR, HANDPAN_DEVICE } from './handpan.gen'
 import { LATTICE_DESCRIPTOR, LATTICE_DEVICE } from './lattice.gen'
+import { MALLETS_DESCRIPTOR, MALLETS_DEVICE } from './mallets.gen'
 import { MODAL_BELLS_DESCRIPTOR, MODAL_BELLS_DEVICE } from './modal-bells.gen'
 import { ORGAN_DESCRIPTOR, ORGAN_DEVICE } from './organ.gen'
 import { PATINA_DESCRIPTOR, PATINA_DEVICE } from './patina.gen'
@@ -66,6 +67,7 @@ export * from './grain-delay.gen'
 export * from './grain-synth.gen'
 export * from './handpan.gen'
 export * from './lattice.gen'
+export * from './mallets.gen'
 export * from './modal-bells.gen'
 export * from './organ.gen'
 export * from './patina.gen'
@@ -111,6 +113,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   GRAIN_SYNTH_DESCRIPTOR,
   HANDPAN_DESCRIPTOR,
   LATTICE_DESCRIPTOR,
+  MALLETS_DESCRIPTOR,
   MODAL_BELLS_DESCRIPTOR,
   ORGAN_DESCRIPTOR,
   PATINA_DESCRIPTOR,
@@ -157,6 +160,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   GRAIN_SYNTH_DEVICE,
   HANDPAN_DEVICE,
   LATTICE_DEVICE,
+  MALLETS_DEVICE,
   MODAL_BELLS_DEVICE,
   ORGAN_DEVICE,
   PATINA_DEVICE,
@@ -203,6 +207,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'grain-synth', instrument: true, samples: true, meters: 0, memoryMb: 12 },
   { id: 'handpan', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'lattice', instrument: false, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'mallets', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'modal-bells', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'organ', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'patina', instrument: false, samples: false, meters: 0, memoryMb: 4 },
