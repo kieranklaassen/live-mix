@@ -1386,6 +1386,12 @@
   background: var(--lm-meter-hot);
 }
 
+/* A horizontal meter has the readout on the side the lamp stands on, so leave
+ * the lamp its room there too. */
+.lm-meter--segments.lm-meter--horizontal .lm-meter__readout {
+  margin-left: 6px;
+}
+
 .lm-meter__readout {
   display: flex;
   flex-direction: column;
