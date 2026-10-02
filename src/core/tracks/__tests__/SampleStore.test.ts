@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import { MockAudioBuffer, asAudioContext, createMockContext } from '../../../testing'
+import type { SoundAnalysis } from '../../analysis/sound-kind'
 import { SampleStore, bytesOfBuffer } from '../SampleStore'
 
 const okFetch = vi.fn(async (url: string) => ({
@@ -87,6 +88,45 @@ describe('SampleStore', () => {
     // A decoded (here: silent) buffer still gets an analysis object.
     const silent = await store.load('silent', new ArrayBuffer(1))
     expect(silent.analysis).toEqual({ kind: 'texture', onsetsSec: [], tempo: null, loop: false })
+  })
+
+  it('takes peaks and an analysis the caller already has, and works out only what is left out', async () => {
+    const ctx = createMockContext()
+    const store = new SampleStore(asAudioContext(ctx), { peaks: 16, analysis: true })
+    const ramp = () => {
+      const decoded = new MockAudioBuffer(1, 1000, 44100)
+      decoded.getChannelData(0).set(Float32Array.from({ length: 1000 }, (_, i) => i / 999))
+      return decoded as unknown as AudioBuffer
+    }
+    const peaks = { min: Float32Array.of(-0.5, -0.25), max: Float32Array.of(0.5, 0.25) }
+    const analysis: SoundAnalysis = { kind: 'pad', onsetsSec: [], tempo: null, loop: true }
+
+    const both = await store.load('both', ramp(), { peaks, analysis })
+    expect(both.peaks).toBe(peaks)
+    expect(both.analysis).toBe(analysis)
+    expect(store.get('both')?.peaks).toBe(peaks)
+
+    // Only one of the two known: the other is worked out as the store's options say.
+    const onlyPeaks = await store.load('only-peaks', ramp(), { peaks })
+    expect(onlyPeaks.peaks).toBe(peaks)
+    expect(onlyPeaks.analysis?.kind).toBeDefined()
+    expect(onlyPeaks.analysis).not.toBe(analysis)
+    const onlyAnalysis = await store.load('only-analysis', ramp(), { analysis })
+    expect(onlyAnalysis.peaks?.min).toHaveLength(16)
+    expect(onlyAnalysis.analysis).toBe(analysis)
+
+    // Known to have none is taken at its word; a store that works nothing out still keeps what it is handed.
+    expect((await store.load('none', ramp(), { peaks: null, analysis: null })).peaks).toBeNull()
+    const plain = new SampleStore(asAudioContext(ctx))
+    const handed = await plain.load('handed', ramp(), { peaks, analysis })
+    expect(handed.peaks).toBe(peaks)
+    expect(handed.analysis).toBe(analysis)
+
+    // What is known counts for the call that starts the load: a second caller joins it.
+    const first = store.load('joined', ramp(), { peaks })
+    const second = store.load('joined', ramp(), { peaks: null })
+    expect(await second).toBe(await first)
+    expect((await first).peaks).toBe(peaks)
   })
 
   it('a failed fetch rejects, is forgotten, and can be retried', async () => {
