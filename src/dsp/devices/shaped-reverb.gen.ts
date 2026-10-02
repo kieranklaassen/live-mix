@@ -15,7 +15,7 @@ export const SHAPED_REVERB_PARAMS = {
     unit: '',
     choices: ['Gate', 'Reverse', 'Bloom', 'Fall', 'Pulse'],
     description:
-      "The outline the reverb's level follows. Gate holds steady and stops dead. Reverse grows louder and cuts off. Bloom swells in and fades away. Fall drops in a straight line. Pulse breathes in three waves.",
+      "The outline the reverb's level follows. Gate holds and stops dead, Reverse grows and cuts off, Bloom swells and fades, Fall drops in a line, Pulse breathes in waves.",
   },
   time: {
     id: 1,
@@ -26,7 +26,7 @@ export const SHAPED_REVERB_PARAMS = {
     taper: 'log',
     unit: 's',
     description:
-      'How long the shape lasts, from the note to its end. Short settings are a burst behind the note; long ones are a slow cloud. With Repeat up it is also the gap between repeats.',
+      'How long the shape lasts. Short is a burst behind the note, long a slow cloud. With Repeat up it is also the gap between repeats.',
   },
   density: {
     id: 2,

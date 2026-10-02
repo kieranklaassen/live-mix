@@ -15,7 +15,7 @@ export const OUTDOORS_PARAMS = {
     unit: '',
     choices: ['Birds', 'Crickets', 'Frogs', 'Stream', 'Thunder', 'Chimes'],
     description:
-      'Which scene plays: a dawn chorus of songbirds, a field of crickets, frogs calling across a pond, a running stream, a distant thunderstorm or wind chimes tuned to the keys you hold.',
+      'Which scene plays: songbirds at dawn, a field of crickets, frogs across a pond, a running stream, a distant thunderstorm or wind chimes tuned to the keys you hold.',
   },
   density: {
     id: 1,

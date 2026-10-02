@@ -15,7 +15,7 @@ export const RE_AMP_PARAMS = {
     unit: '',
     choices: ['Small', 'Combo', 'Stack', 'Horn', 'Full range'],
     description:
-      'Which loudspeaker the sound is played through. Small is a boxy little radio speaker, Combo an open guitar cabinet with a presence peak, Stack a closed cabinet with thump and scooped mids, Horn a honky public address horn, and Full range a nearly flat monitor for using the room alone.',
+      'Which loudspeaker plays the sound. Small is a boxy radio speaker, Combo an open cabinet with presence, Stack closed and scooped, Horn honky, Full range nearly flat.',
   },
   drive: {
     id: 1,
@@ -26,7 +26,7 @@ export const RE_AMP_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      "How hard the amplifier is pushed. Low settings stay clean; higher ones round the peaks off, add valve harmonics and squash the dynamics: loud playing is held about where it was, quiet playing and the amplifier's noise come up.",
+      "How hard the amplifier is pushed. Low stays clean; higher rounds the peaks, adds valve harmonics and squashes the dynamics, so quiet playing and the amp's noise come up.",
   },
   bass: {
     id: 2,
@@ -59,7 +59,7 @@ export const RE_AMP_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How far the microphone is from the speaker. Right on the cone the sound is dry and close with a little extra bass. Pulling it back lets in the reflections and the tail of the room until the speaker is heard from the far side.',
+      'How far the microphone is from the speaker. On the cone the sound is dry and close. Pulling it back lets in the room until the speaker is heard from the far side.',
   },
   room: {
     id: 5,
@@ -70,7 +70,7 @@ export const RE_AMP_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'The size of the room the speaker stands in, from a cupboard through a living room to a hall. Bigger rooms have later reflections and a longer tail. It is heard only once Distance has pulled the microphone back from the cone.',
+      'The size of the room the speaker stands in, from a cupboard to a hall. Bigger rooms have later reflections and a longer tail. Heard once Distance pulls the mic back.',
   },
   angle: {
     id: 6,

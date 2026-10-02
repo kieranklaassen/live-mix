@@ -12,7 +12,7 @@
       "name": "Exciter",
       "choices": ["Finger", "Pick", "Hammer"],
       "default": 0,
-      "description": "What sets the strings going. A fingertip is soft and round, a pick is bright and thin, and a felt hammer strikes with a wider, softer blow and a small bounce. Applies from the next string that is played."
+      "description": "What sets the strings going. A fingertip is soft and round, a pick bright and thin, a felt hammer a wider, softer blow with a small bounce. Applies from the next string."
     },
     {
       "key": "chord",
@@ -28,7 +28,7 @@
         "Add 9"
       ],
       "default": 0,
-      "description": "Which open strings one key plays: a single string, or a chord laid out over two octaves above the played note, like the strings of a chord zither. Applies from the next key."
+      "description": "Which open strings one key plays: a single string, or a chord laid out over two octaves above the note, like a chord zither. Applies from the next key."
     },
     {
       "key": "strum",
@@ -53,7 +53,7 @@
       "max": 16,
       "default": 0,
       "unit": "Hz",
-      "description": "While a key is held, goes on striking its strings softly, one after another, this many times a second: the hammered tremolo that keeps a string shimmering, a little uneven like a hand. Off at zero; the slowest roll is two strokes a second."
+      "description": "While a key is held, goes on striking its strings softly this many times a second, a little uneven like a hand: the hammered tremolo. Off at zero."
     },
     {
       "key": "decay",
@@ -81,7 +81,7 @@
       "min": 0,
       "max": 1,
       "default": 0.55,
-      "description": "How hard and narrow the finger, pick or hammer is and how long the upper partials ring. Low is soft, round and quickly mellow; high is glassy and stays bright. Applies from the next string that is played."
+      "description": "How hard and narrow the finger, pick or hammer is and how long the upper partials ring. Low is soft and soon mellow; high is glassy. Applies from the next string."
     },
     {
       "key": "position",
@@ -89,7 +89,7 @@
       "min": 0.05,
       "max": 0.5,
       "default": 0.2,
-      "description": "Where along the string it is played. Near the bridge is thin and nasal; toward the middle is hollow and round, with every second partial missing. Applies from the next string that is played."
+      "description": "Where along the string it is played. Near the bridge is thin and nasal; toward the middle is hollow and round. Applies from the next string that is played."
     },
     {
       "key": "courses",
@@ -97,7 +97,7 @@
       "min": 0,
       "max": 1,
       "default": 0.3,
-      "description": "Gives every note a second string tuned slightly apart from the first, one a little to each side, so the pair beats and shimmers; further up the detuning is wider. At zero each note is a single string. Applies from the next string that is played."
+      "description": "Gives every note a second string tuned slightly apart, one to each side, so the pair beats and shimmers. Further up the detuning widens. Applies from the next string."
     },
     {
       "key": "sympathy",
@@ -105,14 +105,14 @@
       "min": 0,
       "max": 1,
       "default": 0.3,
-      "description": "How strongly twelve undamped strings, one for every note of the scale, pick up what is played. They answer only to notes that are in tune with them, and ring on after the played strings are damped."
+      "description": "How strongly twelve undamped strings, one for each note of the scale, pick up what is played. They answer notes in tune with them and ring on after the others stop."
     },
     {
       "key": "body",
       "name": "Body",
       "choices": ["Harp", "Zither", "Dulcimer", "Koto"],
       "default": 1,
-      "description": "The soundbox the strings are mounted on: the warm board of a harp, the bright flat box of a zither, the ringing box of a hammered dulcimer or the hollow, nasal body of a koto."
+      "description": "The soundbox under the strings: the warm board of a harp, the bright flat box of a zither, the ringing box of a hammered dulcimer or the hollow, nasal body of a koto."
     },
     {
       "key": "volume",

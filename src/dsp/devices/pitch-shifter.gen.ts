@@ -58,7 +58,7 @@ export const PITCH_SHIFTER_PARAMS = {
     unit: '',
     choices: ['Smooth', 'Grain', 'Vintage', 'Chords'],
     description:
-      'The character of the shift. Smooth lines its splices up with the sound and stays clean on single notes, Grain rebuilds it from overlapping grains, Vintage splices blindly and flutters like an early digital pitch changer. Chords moves every note of a chord on its own, so chords and pads stay clean where the others waver; its voices answer a moment late, so on fast playing they follow like a short echo.',
+      'The character of the shift. Smooth is clean on single notes, Grain is grainy, Vintage flutters like an early digital unit, Chords stays clean on chords but answers late.',
   },
   size: {
     id: 5,
@@ -69,7 +69,7 @@ export const PITCH_SHIFTER_PARAMS = {
     taper: 'log',
     unit: 'ms',
     description:
-      'The length of the pieces the sound is cut into. Short is tight in time and rough, down to a metallic buzz in Grain; long is smoother and trails further behind the playing. Has no part in Chords.',
+      'The length of the pieces the sound is cut into. Short is tight and rough, down to a metallic buzz in Grain; long is smoother and trails behind. Has no part in Chords.',
   },
   jitter: {
     id: 6,

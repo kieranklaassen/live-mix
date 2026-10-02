@@ -14,7 +14,7 @@ export const VINTAGE_DIGITAL_PARAMS = {
     taper: 'log',
     unit: 'Hz',
     description:
-      'The sample rate of the old converter. Lower is duller and grittier, and brings the ringing copies of the sound that sit above half the rate down into hearing. All the way up switches the resampling off and leaves the other controls working.',
+      'The sample rate of the old converter. Lower is duller and grittier and brings ringing copies of the sound down into hearing. All the way up switches resampling off.',
   },
   bits: {
     id: 1,
@@ -37,7 +37,7 @@ export const VINTAGE_DIGITAL_PARAMS = {
     unit: '',
     choices: ['Linear', 'Mu-law'],
     description:
-      'How the steps are spaced. Linear has the same grain at every level, so quiet sounds suffer most. Mu-law packs the steps near silence, so quiet passages stay clean and loud ones get grainy.',
+      'How the steps are spaced. Linear has the same grain at every level, so quiet sounds suffer most. Mu-law packs the steps near silence, so quiet stays clean.',
   },
   aliasing: {
     id: 3,
@@ -48,7 +48,7 @@ export const VINTAGE_DIGITAL_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How much of the sound above half the Rate gets past the input filter. At zero it is filtered away and the result is clean and dull. Turned up, those highs fold back down as metallic tones that are not in tune with the notes.',
+      'How much of the sound above half the Rate gets past the input filter. At zero the result is clean and dull. Turned up, those highs fold down as out-of-tune tones.',
   },
   filter: {
     id: 4,
@@ -60,7 +60,7 @@ export const VINTAGE_DIGITAL_PARAMS = {
     unit: '',
     choices: ['None', 'Soft', 'Steep'],
     description:
-      'The filter after the converter. None leaves every stair step in, bright and glassy. Soft rounds them off. Steep removes everything above half the Rate, smooth and dull like the better old samplers.',
+      'The filter after the converter. None leaves every stair step in, bright and glassy. Soft rounds them off. Steep removes everything above half the Rate, smooth and dull.',
   },
   jitter: {
     id: 5,

@@ -14,7 +14,7 @@ export const ANALOG_DRIVE_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How hard the sound hits the circuit. The bottom of the travel adds weight and holds the peaks, the middle is clearly driven, and further up it compresses, thickens and finally squares off.',
+      'How hard the sound hits the circuit. Low adds weight and holds the peaks, the middle is clearly driven, and the top compresses, thickens and finally squares off.',
   },
   circuit: {
     id: 1,
@@ -26,7 +26,7 @@ export const ANALOG_DRIVE_PARAMS = {
     unit: '',
     choices: ['Tape preamp', 'Console', 'Transformer', 'Triode', 'Pentode'],
     description:
-      'What is being overdriven. Tape preamp is soft, warm and a little dull; Console pushes the mids forward with a firm edge; Transformer is thick in the low mids and breaks up the lows first; Triode is smooth and open and adds an octave-up glow; Pentode is lean and bright, stays clean and then bites.',
+      'What is overdriven. Tape preamp is warm and dull, Console firm in the mids, Transformer thick and loose in the lows, Triode smooth and open, Pentode lean with a bite.',
   },
   push: {
     id: 2,
@@ -94,7 +94,7 @@ export const ANALOG_DRIVE_PARAMS = {
     unit: '',
     choices: ['Off', 'On'],
     description:
-      "On, the loudness stays about where it was while Drive changes the character; quiet sounds still come up a little as they are driven. Off, Drive also makes it louder, up to the circuit's ceiling.",
+      "On keeps the loudness about where it was while Drive changes the character. Off lets Drive make it louder as well, up to the circuit's ceiling.",
   },
   output: {
     id: 8,

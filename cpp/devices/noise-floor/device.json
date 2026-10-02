@@ -12,7 +12,7 @@
       "name": "Type",
       "choices": ["Tape hiss", "Vinyl", "Room", "Hum 50", "Hum 60", "Static", "Air"],
       "default": 0,
-      "description": "Which medium is heard: tape hiss, the dull surface and fine crackle of a record, the rumble of an empty room, mains hum at 50 or 60 hertz, radio static, or the soft hiss of a microphone preamp."
+      "description": "Which medium is heard: tape hiss, the surface and crackle of a record, the rumble of an empty room, mains hum at 50 or 60 hertz, radio static or microphone air."
     },
     {
       "key": "level",
@@ -29,7 +29,7 @@
       "min": -1,
       "max": 1,
       "default": 0,
-      "description": "Ties the noise to the playing. Turned up, it rides with the sound and dies away with it. Turned down, it ducks under the sound and swells up in the gaps, like a recorder with automatic level. In the middle it is constant."
+      "description": "Ties the noise to the playing. Turned up, it rides with the sound and dies with it. Turned down, it ducks under the sound and swells in the gaps. The middle is steady."
     },
     {
       "key": "response",

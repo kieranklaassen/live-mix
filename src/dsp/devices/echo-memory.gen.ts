@@ -68,7 +68,7 @@ export const ECHO_MEMORY_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How often the memory goes somewhere new. Low recalls a moment now and then with silence between; high flickers between short glimpses several times a second, however long Size is.',
+      'How often the memory goes somewhere new. Low recalls a moment now and then with silence between; high flickers between short glimpses several times a second.',
   },
   size: {
     id: 6,
@@ -79,7 +79,7 @@ export const ECHO_MEMORY_PARAMS = {
     taper: 'log',
     unit: 's',
     description:
-      'How long each recalled moment lasts. Short gives glimpses of single notes, long brings back whole phrases under a slow fade. The more often Wander moves on, the shorter a moment can be.',
+      'How long each recalled moment lasts. Short gives glimpses of single notes, long brings back whole phrases under a slow fade. A busy Wander cuts moments shorter.',
   },
   vary: {
     id: 7,

@@ -14,7 +14,7 @@ export const STEREO_DETUNE_PARAMS = {
     taper: 'linear',
     unit: 'ct',
     description:
-      'How far the two copies are tuned away from the dry sound: the left one sharp, the right one flat. Small amounts widen softly; larger ones beat against the dry sound and turn sour.',
+      'How far the two copies are tuned from the dry sound, the left sharp and the right flat. A little widens softly; more beats against the dry sound and turns sour.',
   },
   delay: {
     id: 1,

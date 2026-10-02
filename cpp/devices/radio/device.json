@@ -12,7 +12,7 @@
       "name": "Band",
       "choices": ["Medium wave", "Shortwave", "Sideband"],
       "default": 1,
-      "description": "Which kind of reception. Medium wave is the fuller local station that fades slowly. Shortwave is narrower and fades faster and deeper, with the tone hollowing as it goes. Sideband has no carrier: Tuning moves every pitch, and the noise rushes up in the gaps."
+      "description": "Which kind of reception. Medium wave is fuller and fades slowly. Shortwave is narrower and fades faster and deeper. Sideband has no carrier, so Tuning moves every pitch."
     },
     {
       "key": "tuning",
@@ -20,7 +20,7 @@
       "min": -1,
       "max": 1,
       "default": 0,
-      "description": "The dial. In the middle the station is tuned in. On Medium wave and Shortwave, moving off brings a whistle that rises with the distance while the sound thins and breaks up. On Sideband it shifts every pitch up or down by the same amount, so harmonies turn sour."
+      "description": "The dial. In the middle the station is tuned in. Off it, a whistle rises while the sound thins and breaks up; on Sideband every pitch shifts instead and harmonies sour."
     },
     {
       "key": "drift",
@@ -36,7 +36,7 @@
       "min": 0,
       "max": 1,
       "default": 0.6,
-      "description": "How unsteady the path through the air is. The signal sinks and returns over seconds, and a hollow, phasing notch sweeps through the tone as it goes. At its lowest the signal is steady."
+      "description": "How unsteady the path through the air is. The signal sinks and returns over seconds while a hollow notch sweeps through the tone. At its lowest the signal is steady."
     },
     {
       "key": "static",
@@ -52,7 +52,7 @@
       "min": 0,
       "max": 1,
       "default": 0.15,
-      "description": "How often other things share the frequency: a passing whistle, a burst of warbling data tones, a mains buzz, the garble of a neighbouring station. They come and go; more makes them more frequent and louder."
+      "description": "How often other things share the frequency: a passing whistle, warbling data tones, a mains buzz, a neighbouring station. More makes them more frequent and louder."
     },
     {
       "key": "bandwidth",

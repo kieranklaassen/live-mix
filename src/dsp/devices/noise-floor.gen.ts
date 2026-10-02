@@ -15,7 +15,7 @@ export const NOISE_FLOOR_PARAMS = {
     unit: '',
     choices: ['Tape hiss', 'Vinyl', 'Room', 'Hum 50', 'Hum 60', 'Static', 'Air'],
     description:
-      'Which medium is heard: tape hiss, the dull surface and fine crackle of a record, the rumble of an empty room, mains hum at 50 or 60 hertz, radio static, or the soft hiss of a microphone preamp.',
+      'Which medium is heard: tape hiss, the surface and crackle of a record, the rumble of an empty room, mains hum at 50 or 60 hertz, radio static or microphone air.',
   },
   level: {
     id: 1,
@@ -37,7 +37,7 @@ export const NOISE_FLOOR_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Ties the noise to the playing. Turned up, it rides with the sound and dies away with it. Turned down, it ducks under the sound and swells up in the gaps, like a recorder with automatic level. In the middle it is constant.',
+      'Ties the noise to the playing. Turned up, it rides with the sound and dies with it. Turned down, it ducks under the sound and swells in the gaps. The middle is steady.',
   },
   response: {
     id: 3,

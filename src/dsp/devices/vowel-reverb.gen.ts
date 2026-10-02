@@ -25,7 +25,7 @@ export const VOWEL_REVERB_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How strongly the vowel is pressed onto the reverb. Turned right down it is a plain hall; higher settings make the tail more vocal, and the vowel grows clearer the longer it rings.',
+      'How strongly the vowel is pressed onto the reverb. Right down it is a plain hall; higher makes the tail more vocal, and the vowel grows clearer the longer it rings.',
   },
   voice: {
     id: 2,

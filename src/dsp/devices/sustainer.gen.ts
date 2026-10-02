@@ -15,7 +15,7 @@ export const SUSTAINER_PARAMS = {
     unit: '',
     choices: ['Auto', 'Layer', 'Latch'],
     description:
-      'Auto catches every new note or chord and lets it replace what was held. Layer adds each new one on top of the old ones, so harmony piles up. Latch catches nothing until Hold is switched on.',
+      'Auto catches every new note or chord in place of what was held. Layer adds each new one on top, so harmony piles up. Latch catches nothing until Hold is switched on.',
   },
   hold: {
     id: 1,
@@ -27,7 +27,7 @@ export const SUSTAINER_PARAMS = {
     unit: '',
     choices: ['Off', 'On'],
     description:
-      'In Auto and Layer, On keeps what is held for as long as it stays on and stops listening for new notes, so you can play over it. In Latch, On catches the sound of that moment (or, switched on in silence, the first sound that follows) and Off lets it go.',
+      'In Auto and Layer, On keeps what is held and stops listening, so you can play over it. In Latch, On catches the sound of that moment and Off lets it go.',
   },
   sensitivity: {
     id: 2,
@@ -38,7 +38,7 @@ export const SUSTAINER_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How easily a new note is caught. Low needs a loud, clear attack; high also catches soft notes. Sound that swells in without an attack is caught as well, once it is loud enough.',
+      'How easily a new note is caught. Low needs a loud, clear attack; high also catches soft notes. Sound that swells in with no attack is caught once it is loud enough.',
   },
   attack: {
     id: 3,
@@ -71,7 +71,7 @@ export const SUSTAINER_PARAMS = {
     taper: 'log',
     unit: 's',
     description:
-      'How long the old held sound takes to give way to a new one. Short changes chord at once; long lets one harmony melt into the next. It never leaves faster than the new one arrives, so a long Attack stretches it.',
+      'How long the old held sound takes to give way to a new one. Short changes chord at once; long melts one harmony into the next. A long Attack stretches it.',
   },
   motion: {
     id: 6,

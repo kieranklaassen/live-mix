@@ -12,7 +12,7 @@
       "name": "Tape",
       "choices": ["Strings", "Cellos", "Flutes", "Horns", "Reeds", "Choir"],
       "default": 0,
-      "description": "Which recording is on the tapes: a small violin section, cellos, flutes, French horns, a clarinet and oboe blend, or a mixed choir on ah. Notes already sounding cross over to the new tape."
+      "description": "Which recording is on the tapes: violins, cellos, flutes, French horns, a clarinet and oboe blend, or a choir on ah. Notes already sounding cross over to the new tape."
     },
     {
       "key": "age",
@@ -20,7 +20,7 @@
       "min": 0,
       "max": 1,
       "default": 0.35,
-      "description": "How worn the tapes and the machine are. More gives every key a deeper wobble of its own, a flatter lurch as the tape is gripped, keys that sit a little out of tune and level with each other, a narrower and grittier sound and, near the top, dropouts."
+      "description": "How worn the tapes and the machine are. More gives each key its own wobble and lurch, keys a little out of tune, a narrower, grittier sound and, near the top, dropouts."
     },
     {
       "key": "hiss",
@@ -43,7 +43,7 @@
       "name": "Speed",
       "choices": ["Normal", "Half"],
       "default": 0,
-      "description": "Half runs the tapes at half speed: everything sounds an octave lower and darker, with slower attacks, slower vibrato and twice the tape length. Switching while notes sound slows the tape down or brings it back up."
+      "description": "Half runs the tapes at half speed: an octave lower and darker, with slower attacks and vibrato and twice the tape length. Switched while notes sound, the tape bends."
     },
     {
       "key": "length",
@@ -80,7 +80,7 @@
       "min": 0,
       "max": 1,
       "default": 0.6,
-      "description": "How different the players on each tape are. At zero they play as one; higher they drift apart in tuning, come in at slightly different moments and swell on their own, like a looser section."
+      "description": "How different the players on each tape are. At zero they play as one; higher they drift apart in tuning, come in at different moments and swell on their own."
     },
     {
       "key": "vibrato",

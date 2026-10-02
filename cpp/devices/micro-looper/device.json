@@ -13,7 +13,7 @@
       "name": "State",
       "choices": ["Listen", "Hold", "Auto"],
       "default": 2,
-      "description": "Listen only remembers what you play. Hold loops the last thing you played and keeps it for ever; if the last Length was silent it waits for the next phrase. Auto loops each new phrase in place of the last one and lets it die away."
+      "description": "Listen only remembers what you play. Hold loops the last thing you played and keeps it for ever. Auto loops each new phrase in place of the last and lets it die away."
     },
     {
       "key": "length",
@@ -30,14 +30,14 @@
       "name": "Speed",
       "choices": ["Reverse 2x", "Reverse", "Reverse half", "Half", "Normal", "Double"],
       "default": 4,
-      "description": "How fast and which way the loop plays. Half is an octave down and twice as long, Double an octave up, and the Reverse settings play it backwards. A change glides like tape."
+      "description": "How fast and which way the loop plays. Half is an octave down and twice as long, Double an octave up, and the Reverse settings run backwards. A change glides like tape."
     },
     {
       "key": "clock",
       "name": "Clock",
       "choices": ["Full", "3/4", "2/3", "1/2", "3/8", "1/3", "1/4", "1/8"],
       "default": 0,
-      "description": "The looper's own sample rate. Lower clocks record with less and less top, like an old sampler. Moving it while a loop plays drops the loop by a fourth, a fifth or octaves and stretches it to match."
+      "description": "The looper's own sample rate. Lower clocks record with less top, like an old sampler. Moved while a loop plays, it drops the loop by a fourth, a fifth or octaves."
     },
     {
       "key": "smear",
@@ -79,7 +79,7 @@
       "min": 0,
       "max": 1,
       "default": 0.5,
-      "description": "Widens the loop with two more reads from just ahead of and behind the playing point, added on the left and taken away on the right. In mono they cancel and leave the plain loop; the low end stays in the centre."
+      "description": "Widens the loop with two more reads from just ahead of and behind the playing point, one to each side. In mono they cancel, and the low end stays in the centre."
     },
     {
       "key": "mix",

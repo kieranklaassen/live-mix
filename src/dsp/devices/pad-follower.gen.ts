@@ -47,7 +47,7 @@ export const PAD_FOLLOWER_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Adds a second section to the pad: below zero the octave under what you play, above zero the octave over it, stronger the further from zero. At zero the pad plays only the pitches you played.',
+      'Adds a second section to the pad: below zero the octave under what you play, above zero the octave over it, stronger the further from zero. At zero there is none.',
   },
   brightness: {
     id: 4,

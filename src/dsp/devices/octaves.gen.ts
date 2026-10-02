@@ -14,7 +14,7 @@ export const OCTAVES_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'The level of the voice two octaves below what you play. It gives the weight of organ pedals. The lowest bass notes are left out of it, because two octaves under them is below hearing.',
+      'The level of the voice two octaves below what you play, with the weight of organ pedals. The lowest bass notes are left out, as two octaves under them is below hearing.',
   },
   sub1: {
     id: 1,
@@ -25,7 +25,7 @@ export const OCTAVES_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'The level of the voice one octave below what you play. It follows chords note for note, like a bass player doubling every string. The very lowest notes are left out of it.',
+      'The level of the voice one octave below what you play. It follows chords note for note, like a bass doubling every string. The very lowest notes are left out.',
   },
   dry: {
     id: 2,
@@ -69,7 +69,7 @@ export const OCTAVES_PARAMS = {
     taper: 'linear',
     unit: 's',
     description:
-      'How long the octaves take to fade in after each new note. At zero they start with the note; longer times let the pick or hammer through alone and bring the octaves in behind it like a bowed pad.',
+      'How long the octaves take to fade in after each new note. At zero they start with the note; longer lets the pick or hammer through alone, then the octaves swell in.',
   },
   filter: {
     id: 6,

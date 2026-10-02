@@ -15,7 +15,7 @@ export const TAPE_ORCHESTRA_PARAMS = {
     unit: '',
     choices: ['Strings', 'Cellos', 'Flutes', 'Horns', 'Reeds', 'Choir'],
     description:
-      'Which recording is on the tapes: a small violin section, cellos, flutes, French horns, a clarinet and oboe blend, or a mixed choir on ah. Notes already sounding cross over to the new tape.',
+      'Which recording is on the tapes: violins, cellos, flutes, French horns, a clarinet and oboe blend, or a choir on ah. Notes already sounding cross over to the new tape.',
   },
   age: {
     id: 1,
@@ -26,7 +26,7 @@ export const TAPE_ORCHESTRA_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How worn the tapes and the machine are. More gives every key a deeper wobble of its own, a flatter lurch as the tape is gripped, keys that sit a little out of tune and level with each other, a narrower and grittier sound and, near the top, dropouts.',
+      'How worn the tapes and the machine are. More gives each key its own wobble and lurch, keys a little out of tune, a narrower, grittier sound and, near the top, dropouts.',
   },
   hiss: {
     id: 2,
@@ -60,7 +60,7 @@ export const TAPE_ORCHESTRA_PARAMS = {
     unit: '',
     choices: ['Normal', 'Half'],
     description:
-      'Half runs the tapes at half speed: everything sounds an octave lower and darker, with slower attacks, slower vibrato and twice the tape length. Switching while notes sound slows the tape down or brings it back up.',
+      'Half runs the tapes at half speed: an octave lower and darker, with slower attacks and vibrato and twice the tape length. Switched while notes sound, the tape bends.',
   },
   length: {
     id: 5,
@@ -103,7 +103,7 @@ export const TAPE_ORCHESTRA_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How different the players on each tape are. At zero they play as one; higher they drift apart in tuning, come in at slightly different moments and swell on their own, like a looser section.',
+      'How different the players on each tape are. At zero they play as one; higher they drift apart in tuning, come in at different moments and swell on their own.',
   },
   vibrato: {
     id: 9,

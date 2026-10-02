@@ -13,7 +13,7 @@
       "min": 0,
       "max": 1,
       "default": 0.35,
-      "description": "How hard the tone is driven into the wavefolder. At zero it is a pure sine; turning it up folds the wave over itself again and again, and overtones bloom on top of the note."
+      "description": "How hard the tone is driven into the wavefolder. At zero it is a pure sine; turned up, the wave folds over itself again and again and overtones bloom on the note."
     },
     {
       "key": "symmetry",
@@ -21,7 +21,7 @@
       "min": 0,
       "max": 1,
       "default": 0.1,
-      "description": "Pushes the wave off centre before it is folded, so the two halves fold differently. That adds the even overtones: hollow and woody at zero, fuller and more reedy as it rises."
+      "description": "Pushes the wave off centre before it is folded, so the two halves fold differently. That adds even overtones: hollow and woody at zero, fuller and reedier as it rises."
     },
     {
       "key": "fm",
@@ -36,7 +36,7 @@
       "name": "Ratio",
       "choices": ["1:2", "1:1", "3:2", "2:1", "3:1", "7:2", "5:1"],
       "default": 3,
-      "description": "Pitch of the modulating oscillator against the note, which decides where FM puts its overtones. 1:1, 2:1, 3:1 and 5:1 stay in tune with the note, 1:2 adds the octave below, 3:2 is hollow and drum-like, and 7:2 clangs like a bell. Applies from the next note."
+      "description": "Pitch of the modulator against the note. 1:1, 2:1, 3:1 and 5:1 stay in tune, 1:2 adds the octave below, 3:2 is hollow and 7:2 clangs. Applies from the next note."
     },
     {
       "key": "timbreEnv",
@@ -72,7 +72,7 @@
       "min": 0,
       "max": 1,
       "default": 0,
-      "description": "How far the gate stays open while a key is held. At zero every note is a pluck that dies away on its own; at full it rings on for as long as the key is down, settling just under the strike that started it."
+      "description": "How far the gate stays open while a key is held. At zero every note is a pluck that dies away on its own; at full it rings for as long as the key is down."
     },
     {
       "key": "colour",
@@ -88,7 +88,7 @@
       "min": 0,
       "max": 1,
       "default": 0.15,
-      "description": "How much each new note differs from the last in brightness, edge, length and place between the speakers, as if a random voltage were patched in. At zero every note is the same."
+      "description": "How much each new note differs from the last in brightness, edge, length and place between the speakers, like a random voltage. At zero every note is the same."
     },
     {
       "key": "drift",

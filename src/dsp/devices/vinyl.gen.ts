@@ -15,7 +15,7 @@ export const VINYL_PARAMS = {
     unit: '',
     choices: ['33', '45', '78'],
     description:
-      'How fast the record turns, which sets how fast the pitch warp and the scratch come round. 78 is shellac: nearly mono, a narrow band without deep bass or top, and a noisier surface.',
+      'How fast the record turns, and so how fast the warp and the scratch come round. 78 is shellac: nearly mono, a narrow band with no deep bass or top, and a noisier surface.',
   },
   warp: {
     id: 1,
@@ -48,7 +48,7 @@ export const VINYL_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Bigger clicks with a low thump under them, rare and soft low down, frequent and loud at the top. Some belong to a scratch that returns at the same place on every turn for a while, then fades.',
+      'Bigger clicks with a low thump under them, rare and soft low down, frequent and loud at the top. Some belong to a scratch that returns on every turn for a while.',
   },
   surface: {
     id: 4,

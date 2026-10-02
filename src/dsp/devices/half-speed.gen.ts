@@ -38,7 +38,7 @@ export const HALF_SPEED_PARAMS = {
     unit: '',
     choices: ['Three quarters', 'Two thirds', 'Half', 'Quarter'],
     description:
-      'How slow the playback runs, and so how far the pitch drops: a fourth, a fifth, one octave or two octaves down. A change bends the pitch like a tape machine changing speed.',
+      'How slow the playback runs, and so how far the pitch drops: a fourth, a fifth, one octave or two. A change bends the pitch like a tape machine changing speed.',
   },
   fade: {
     id: 3,
@@ -60,7 +60,7 @@ export const HALF_SPEED_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'At zero you hear each cycle start: a rhythm of slowed chunks, with what there was no time for left out. Turning it up brings in a second playback half a cycle behind, until at full the jumps disappear into one continuous slowed sound.',
+      'At zero each cycle is heard to start, a rhythm of slowed chunks. Turned up, a second playback half a cycle behind fills the jumps until the sound runs on unbroken.',
   },
   jitter: {
     id: 5,
@@ -104,7 +104,7 @@ export const HALF_SPEED_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      "Brings a second playback into the right side whose cycles run later than the left's, so the jumps land at different moments. The further it is turned, the wider the slowed sound. The bass stays in the middle.",
+      "Brings a second playback into the right side whose cycles run later than the left's. The further it is turned, the wider the slowed sound. The bass stays in the middle.",
   },
   mix: {
     id: 9,

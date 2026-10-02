@@ -15,7 +15,7 @@ export const ZITHER_PARAMS = {
     unit: '',
     choices: ['Finger', 'Pick', 'Hammer'],
     description:
-      'What sets the strings going. A fingertip is soft and round, a pick is bright and thin, and a felt hammer strikes with a wider, softer blow and a small bounce. Applies from the next string that is played.',
+      'What sets the strings going. A fingertip is soft and round, a pick bright and thin, a felt hammer a wider, softer blow with a small bounce. Applies from the next string.',
   },
   chord: {
     id: 1,
@@ -27,7 +27,7 @@ export const ZITHER_PARAMS = {
     unit: '',
     choices: ['Single', 'Octave', 'Fifth and octave', 'Major', 'Minor', 'Sus 2', 'Sus 4', 'Add 9'],
     description:
-      'Which open strings one key plays: a single string, or a chord laid out over two octaves above the played note, like the strings of a chord zither. Applies from the next key.',
+      'Which open strings one key plays: a single string, or a chord laid out over two octaves above the note, like a chord zither. Applies from the next key.',
   },
   strum: {
     id: 2,
@@ -61,7 +61,7 @@ export const ZITHER_PARAMS = {
     taper: 'linear',
     unit: 'Hz',
     description:
-      'While a key is held, goes on striking its strings softly, one after another, this many times a second: the hammered tremolo that keeps a string shimmering, a little uneven like a hand. Off at zero; the slowest roll is two strokes a second.',
+      'While a key is held, goes on striking its strings softly this many times a second, a little uneven like a hand: the hammered tremolo. Off at zero.',
   },
   decay: {
     id: 5,
@@ -94,7 +94,7 @@ export const ZITHER_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How hard and narrow the finger, pick or hammer is and how long the upper partials ring. Low is soft, round and quickly mellow; high is glassy and stays bright. Applies from the next string that is played.',
+      'How hard and narrow the finger, pick or hammer is and how long the upper partials ring. Low is soft and soon mellow; high is glassy. Applies from the next string.',
   },
   position: {
     id: 8,
@@ -105,7 +105,7 @@ export const ZITHER_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Where along the string it is played. Near the bridge is thin and nasal; toward the middle is hollow and round, with every second partial missing. Applies from the next string that is played.',
+      'Where along the string it is played. Near the bridge is thin and nasal; toward the middle is hollow and round. Applies from the next string that is played.',
   },
   courses: {
     id: 9,
@@ -116,7 +116,7 @@ export const ZITHER_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Gives every note a second string tuned slightly apart from the first, one a little to each side, so the pair beats and shimmers; further up the detuning is wider. At zero each note is a single string. Applies from the next string that is played.',
+      'Gives every note a second string tuned slightly apart, one to each side, so the pair beats and shimmers. Further up the detuning widens. Applies from the next string.',
   },
   sympathy: {
     id: 10,
@@ -127,7 +127,7 @@ export const ZITHER_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How strongly twelve undamped strings, one for every note of the scale, pick up what is played. They answer only to notes that are in tune with them, and ring on after the played strings are damped.',
+      'How strongly twelve undamped strings, one for each note of the scale, pick up what is played. They answer notes in tune with them and ring on after the others stop.',
   },
   body: {
     id: 11,
@@ -139,7 +139,7 @@ export const ZITHER_PARAMS = {
     unit: '',
     choices: ['Harp', 'Zither', 'Dulcimer', 'Koto'],
     description:
-      'The soundbox the strings are mounted on: the warm board of a harp, the bright flat box of a zither, the ringing box of a hammered dulcimer or the hollow, nasal body of a koto.',
+      'The soundbox under the strings: the warm board of a harp, the bright flat box of a zither, the ringing box of a hammered dulcimer or the hollow, nasal body of a koto.',
   },
   volume: {
     id: 12,

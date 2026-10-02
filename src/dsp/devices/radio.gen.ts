@@ -15,7 +15,7 @@ export const RADIO_PARAMS = {
     unit: '',
     choices: ['Medium wave', 'Shortwave', 'Sideband'],
     description:
-      'Which kind of reception. Medium wave is the fuller local station that fades slowly. Shortwave is narrower and fades faster and deeper, with the tone hollowing as it goes. Sideband has no carrier: Tuning moves every pitch, and the noise rushes up in the gaps.',
+      'Which kind of reception. Medium wave is fuller and fades slowly. Shortwave is narrower and fades faster and deeper. Sideband has no carrier, so Tuning moves every pitch.',
   },
   tuning: {
     id: 1,
@@ -26,7 +26,7 @@ export const RADIO_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'The dial. In the middle the station is tuned in. On Medium wave and Shortwave, moving off brings a whistle that rises with the distance while the sound thins and breaks up. On Sideband it shifts every pitch up or down by the same amount, so harmonies turn sour.',
+      'The dial. In the middle the station is tuned in. Off it, a whistle rises while the sound thins and breaks up; on Sideband every pitch shifts instead and harmonies sour.',
   },
   drift: {
     id: 2,
@@ -48,7 +48,7 @@ export const RADIO_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How unsteady the path through the air is. The signal sinks and returns over seconds, and a hollow, phasing notch sweeps through the tone as it goes. At its lowest the signal is steady.',
+      'How unsteady the path through the air is. The signal sinks and returns over seconds while a hollow notch sweeps through the tone. At its lowest the signal is steady.',
   },
   static: {
     id: 4,
@@ -70,7 +70,7 @@ export const RADIO_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How often other things share the frequency: a passing whistle, a burst of warbling data tones, a mains buzz, the garble of a neighbouring station. They come and go; more makes them more frequent and louder.',
+      'How often other things share the frequency: a passing whistle, warbling data tones, a mains buzz, a neighbouring station. More makes them more frequent and louder.',
   },
   bandwidth: {
     id: 6,

@@ -14,7 +14,7 @@ export const SWARM_REVERB_PARAMS = {
     taper: 'log',
     unit: 's',
     description:
-      'How long the swarm of echoes after each note lasts. Short is a tight cluster close behind the note, long is a slow scatter across a huge cave. Moving it bends what is already ringing.',
+      'How long the swarm of echoes after each note lasts. Short is a tight cluster behind the note, long a slow scatter across a huge cave. Moving it bends what is ringing.',
   },
   blur: {
     id: 1,
@@ -36,7 +36,7 @@ export const SWARM_REVERB_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How much of the swarm is sent round again. Low is one rush of echoes, high is a cave that rings for a long time, and at the very top it never dies and slowly feeds on itself.',
+      'How much of the swarm is sent round again. Low is one rush of echoes, high a cave that rings for a long time. At the very top it never dies and feeds on itself.',
   },
   highCut: {
     id: 3,
@@ -58,7 +58,7 @@ export const SWARM_REVERB_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Stretches or shrinks every echo at once. While it moves, everything in the cave bends in pitch: down as the cave grows, up as it shrinks. The middle is the size set by Length.',
+      'Stretches or shrinks every echo at once. While it moves, everything in the cave bends in pitch: down as it grows, up as it shrinks. The middle is the size Length sets.',
   },
   glide: {
     id: 5,
@@ -103,7 +103,7 @@ export const SWARM_REVERB_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Slow movement of individual echoes, each at its own rate. A little keeps the swarm from sounding fixed and metallic; a lot makes it shimmer, and held notes swell and fade.',
+      'Slow movement of single echoes, each at its own rate. A little keeps the swarm from sounding fixed and metallic; a lot makes it shimmer, and held notes swell and fade.',
   },
   lowCut: {
     id: 9,

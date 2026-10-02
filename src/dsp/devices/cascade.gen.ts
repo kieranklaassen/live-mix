@@ -15,7 +15,7 @@ export const CASCADE_PARAMS = {
     unit: '',
     choices: ['Stack', 'Restrike', 'Drone', 'Steps'],
     description:
-      'How each captured slice is replayed. Stack loops it at several speeds at once. Restrike strikes the start of it again and again in a run that quickens or slows. Drone loops a short piece of it into a steady drone that grows longer and darker. Steps plays each repeat at the next speed, like an arpeggio of the note.',
+      'How a slice is replayed. Stack loops it at several speeds at once, Restrike strikes its start again and again, Drone holds a short piece, Steps climbs like an arpeggio.',
   },
   time: {
     id: 1,
@@ -82,7 +82,7 @@ export const CASCADE_PARAMS = {
     unit: '',
     choices: ['Octaves', 'Octaves and fifths'],
     description:
-      'Which speeds the faster replays use. Octaves keeps everything on the note you played. Octaves and fifths adds replays a fifth above, which also fall three against two with the rest.',
+      'Which speeds the faster replays use. Octaves stays on the note you played. Octaves and fifths adds replays a fifth above, which fall three against two with the rest.',
   },
   shape: {
     id: 7,

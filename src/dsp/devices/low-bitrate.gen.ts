@@ -26,7 +26,7 @@ export const LOW_BITRATE_PARAMS = {
     unit: '',
     choices: ['Kept', 'Residue', 'Scattered'],
     description:
-      'Kept plays what survives the loss. Residue plays only what was thrown away, a thin ghost of the sound. Scattered keeps every frequency but scrambles its timing, which smears attacks into a diffuse haze.',
+      'Kept plays what survives the loss. Residue plays only what was thrown away, a thin ghost of the sound. Scattered scrambles the timing and smears attacks into a haze.',
   },
   frame: {
     id: 2,
