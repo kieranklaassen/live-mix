@@ -17,6 +17,7 @@ import {
 } from './control-math'
 import { Fader } from './Fader'
 import { Meter } from './Meter'
+import { STRIP_INFO } from './mixer-info'
 import { cx } from './tokens'
 
 export interface MasterStripViewProps {
@@ -60,6 +61,7 @@ export function MasterStripView({
           taper="fader"
           ticks={[normalizeValue(0, faderMinDb, faderMaxDb, 'fader')]}
           format={(db) => (db <= faderMinDb ? '-∞ dB' : formatControlValue(db, 'dB'))}
+          info={STRIP_INFO.master}
           className="lm-strip__fader"
           onChange={(db) => master.setLevel(faderDbToLevel(db, faderMinDb))}
           data-testid={testId ? `${testId}-fader` : undefined}

@@ -37,7 +37,17 @@ export function filterTypeAt(index: number): FilterType {
 
 export const FILTER_PARAMS = {
   /** Stepped: 0 lowpass, 1 highpass, 2 bandpass, 3 lowshelf, 4 highshelf, 5 peaking, 6 notch, 7 allpass. Switches instantly. */
-  type: { id: 0, name: 'Type', min: 0, max: 7, default: 0, taper: 'linear', unit: '' },
+  type: {
+    id: 0,
+    name: 'Type',
+    min: 0,
+    max: 7,
+    default: 0,
+    taper: 'linear',
+    unit: '',
+    description:
+      'The shape of the filter. Low-pass, high-pass, band-pass and notch remove a range; the shelves and peak boost or cut one; all-pass shifts phase only.',
+  },
   frequency: {
     id: 1,
     name: 'Frequency',
@@ -46,10 +56,31 @@ export const FILTER_PARAMS = {
     default: 1000,
     taper: 'log',
     unit: 'Hz',
+    description:
+      'The cutoff or centre of the filter: where a low-pass or high-pass starts to cut, or where a band, peak, notch or shelf sits.',
   },
-  q: { id: 2, name: 'Q', min: 0.1, max: 20, default: Math.SQRT1_2, taper: 'log', unit: '' },
+  q: {
+    id: 2,
+    name: 'Q',
+    min: 0.1,
+    max: 20,
+    default: Math.SQRT1_2,
+    taper: 'log',
+    unit: '',
+    description:
+      'Resonance at the cutoff for low-pass and high-pass; how narrow the band is for band-pass, peak, notch and all-pass. The shelves ignore it.',
+  },
   /** Only shelves and peaking use it. */
-  gain: { id: 3, name: 'Gain', min: -24, max: 24, default: 0, taper: 'linear', unit: 'dB' },
+  gain: {
+    id: 3,
+    name: 'Gain',
+    min: -24,
+    max: 24,
+    default: 0,
+    taper: 'linear',
+    unit: 'dB',
+    description: 'How much a shelf or peak boosts or cuts. The other filter types ignore it.',
+  },
 } as const satisfies Record<string, ParamSpec>
 
 export type FilterParamName = keyof typeof FILTER_PARAMS
@@ -90,6 +121,8 @@ export const FILTER_DESCRIPTOR: DeviceDescriptor<typeof FILTER_PARAMS> = {
   name: 'Filter',
   kind: 'node',
   category: 'eq',
+  description:
+    'A single filter with eight shapes, from low-pass and high-pass to shelves, peak, notch and all-pass, for cutting or shaping one part of the spectrum.',
   version: 1,
   params: FILTER_PARAMS,
   presets: {

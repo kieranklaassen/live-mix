@@ -5,8 +5,26 @@ import { wasmDeviceDescriptor } from '../descriptor'
 import { defineWasmDevice, WasmDevice, type WasmDeviceOptions } from '../WasmDevice'
 
 export const ORGAN_PARAMS = {
-  sub: { id: 0, name: "Sub 16'", min: 0, max: 1, default: 0.3, taper: 'linear', unit: '' },
-  octave: { id: 1, name: "Octave 4'", min: 0, max: 1, default: 0.45, taper: 'linear', unit: '' },
+  sub: {
+    id: 0,
+    name: "Sub 16'",
+    min: 0,
+    max: 1,
+    default: 0.3,
+    taper: 'linear',
+    unit: '',
+    description: 'Level of the rank an octave below the played note, for depth under the chord.',
+  },
+  octave: {
+    id: 1,
+    name: "Octave 4'",
+    min: 0,
+    max: 1,
+    default: 0.45,
+    taper: 'linear',
+    unit: '',
+    description: 'Level of the rank an octave above the played note, which brightens the chord.',
+  },
   twelfth: {
     id: 2,
     name: "Twelfth 2 2/3'",
@@ -15,6 +33,8 @@ export const ORGAN_PARAMS = {
     default: 0.12,
     taper: 'linear',
     unit: '',
+    description:
+      'Level of the rank an octave and a fifth above the played note. It colours the chord with a faint fifth on top.',
   },
   fifteenth: {
     id: 3,
@@ -24,16 +44,105 @@ export const ORGAN_PARAMS = {
     default: 0.18,
     taper: 'linear',
     unit: '',
+    description: 'Level of the rank two octaves above the played note, for brilliance on top.',
   },
-  reed: { id: 4, name: 'Reed', min: 0, max: 1, default: 0.3, taper: 'linear', unit: '' },
-  celeste: { id: 5, name: 'Celeste', min: 0, max: 1, default: 0.3, taper: 'linear', unit: '' },
-  breath: { id: 6, name: 'Breath', min: 0, max: 1, default: 0.2, taper: 'linear', unit: '' },
-  bellows: { id: 7, name: 'Bellows', min: 0, max: 1, default: 0.3, taper: 'linear', unit: '' },
-  tremulant: { id: 8, name: 'Tremulant', min: 0, max: 1, default: 0, taper: 'linear', unit: '' },
-  attack: { id: 9, name: 'Attack', min: 0.005, max: 6, default: 0.12, taper: 'log', unit: 's' },
-  release: { id: 10, name: 'Release', min: 0.02, max: 10, default: 0.4, taper: 'log', unit: 's' },
-  tone: { id: 11, name: 'Tone', min: 300, max: 12000, default: 3200, taper: 'log', unit: 'Hz' },
-  volume: { id: 12, name: 'Volume', min: -48, max: 6, default: -10, taper: 'linear', unit: 'dB' },
+  reed: {
+    id: 4,
+    name: 'Reed',
+    min: 0,
+    max: 1,
+    default: 0.3,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Moves every rank from a pure flute tone towards the buzz of a free reed, at the same loudness. High notes stay closer to flutes.',
+  },
+  celeste: {
+    id: 5,
+    name: 'Celeste',
+    min: 0,
+    max: 1,
+    default: 0.3,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Level of an extra rank tuned a little sharp. It beats slowly against the main rank and sits on the opposite side of the stereo image.',
+  },
+  breath: {
+    id: 6,
+    name: 'Breath',
+    min: 0,
+    max: 1,
+    default: 0.2,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Amount of air noise: a puff as each key speaks and a steady hiss of wind while keys are held.',
+  },
+  bellows: {
+    id: 7,
+    name: 'Bellows',
+    min: 0,
+    max: 1,
+    default: 0.3,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Depth of a slow, uneven swell in the wind. Level and pitch rise and fall together, as if someone were pumping.',
+  },
+  tremulant: {
+    id: 8,
+    name: 'Tremulant',
+    min: 0,
+    max: 1,
+    default: 0,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Depth of a fast shake in the wind, which wobbles level and pitch together. At zero the wind is steady.',
+  },
+  attack: {
+    id: 9,
+    name: 'Attack',
+    min: 0.005,
+    max: 6,
+    default: 0.12,
+    taper: 'log',
+    unit: 's',
+    description:
+      'How quickly a note speaks when a key goes down. Short is immediate; long swells in.',
+  },
+  release: {
+    id: 10,
+    name: 'Release',
+    min: 0.02,
+    max: 10,
+    default: 0.4,
+    taper: 'log',
+    unit: 's',
+    description: 'How long a note takes to die away after the key is let go.',
+  },
+  tone: {
+    id: 11,
+    name: 'Tone',
+    min: 300,
+    max: 12000,
+    default: 3200,
+    taper: 'log',
+    unit: 'Hz',
+    description:
+      'Low-pass over the whole organ, pipes and wind alike. Lower is darker and softer; higher is brighter.',
+  },
+  volume: {
+    id: 12,
+    name: 'Volume',
+    min: -48,
+    max: 6,
+    default: -10,
+    taper: 'linear',
+    unit: 'dB',
+    description: 'Overall output level of the instrument.',
+  },
 } as const satisfies Record<string, ParamSpec>
 
 export type OrganParamName = keyof typeof ORGAN_PARAMS

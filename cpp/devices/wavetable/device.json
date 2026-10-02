@@ -12,10 +12,25 @@
       "key": "table",
       "name": "Table",
       "choices": ["Glass", "Vowels", "Reed to Saw", "Hollow", "Spectral"],
-      "default": 0
+      "default": 0,
+      "description": "The row of waveforms to travel through: bell-like Glass, sung Vowels, Reed to Saw, a narrowing Hollow square or shifting Spectral clusters."
     },
-    { "key": "position", "name": "Position", "min": 0, "max": 1, "default": 0.3 },
-    { "key": "motion", "name": "Motion", "min": 0, "max": 1, "default": 0.45 },
+    {
+      "key": "position",
+      "name": "Position",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Where in the table the oscillators read. Sweeping it morphs the tone from the first waveform to the last."
+    },
+    {
+      "key": "motion",
+      "name": "Motion",
+      "min": 0,
+      "max": 1,
+      "default": 0.45,
+      "description": "How far the motion LFO sweeps the table position. Zero holds the tone still; more makes each key shimmer on its own."
+    },
     {
       "key": "rate",
       "name": "Rate",
@@ -23,10 +38,26 @@
       "max": 10,
       "default": 0.11,
       "taper": "log",
-      "unit": "Hz"
+      "unit": "Hz",
+      "description": "How fast the motion LFO sweeps the table. Slow is a gradual drift of tone; fast becomes a flutter."
     },
-    { "key": "detune", "name": "Detune", "min": 0, "max": 50, "default": 9, "unit": "ct" },
-    { "key": "sub", "name": "Sub", "min": 0, "max": 1, "default": 0.25 },
+    {
+      "key": "detune",
+      "name": "Detune",
+      "min": 0,
+      "max": 50,
+      "default": 9,
+      "unit": "ct",
+      "description": "Pitch gap between the two oscillators of each key. A little gives slow beating; more gives a wide, chorused sound."
+    },
+    {
+      "key": "sub",
+      "name": "Sub",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "description": "Level of a sine one octave below each key, for weight under the pad."
+    },
     {
       "key": "cutoff",
       "name": "Cutoff",
@@ -34,9 +65,17 @@
       "max": 20000,
       "default": 4200,
       "taper": "log",
-      "unit": "Hz"
+      "unit": "Hz",
+      "description": "Where the low-pass filter starts to cut. Lower is darker and softer; higher lets the whole waveform through."
     },
-    { "key": "resonance", "name": "Resonance", "min": 0, "max": 1, "default": 0.15 },
+    {
+      "key": "resonance",
+      "name": "Resonance",
+      "min": 0,
+      "max": 1,
+      "default": 0.15,
+      "description": "Emphasis at the filter cutoff. Higher adds a ringing peak there and pulls the rest of the sound down a little."
+    },
     {
       "key": "attack",
       "name": "Attack",
@@ -44,7 +83,8 @@
       "max": 20,
       "default": 1.2,
       "taper": "log",
-      "unit": "s"
+      "unit": "s",
+      "description": "How long each key takes to fade in. Short speaks at once; long swells in slowly."
     },
     {
       "key": "release",
@@ -53,10 +93,26 @@
       "max": 30,
       "default": 3.5,
       "taper": "log",
-      "unit": "s"
+      "unit": "s",
+      "description": "How long each key rings on after it is let go."
     },
-    { "key": "spread", "name": "Spread", "min": 0, "max": 1, "default": 0.7 },
-    { "key": "volume", "name": "Volume", "min": -48, "max": 6, "default": -9, "unit": "dB" }
+    {
+      "key": "spread",
+      "name": "Spread",
+      "min": 0,
+      "max": 1,
+      "default": 0.7,
+      "description": "How far apart the two oscillators of each key sit. Low keeps both in the centre; high puts one on each side."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -9,
+      "unit": "dB",
+      "description": "Overall output level of the instrument."
+    }
   ],
   "presets": {
     "Glass morning": {

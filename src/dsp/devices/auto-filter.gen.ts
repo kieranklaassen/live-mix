@@ -14,6 +14,8 @@ export const AUTO_FILTER_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Lowpass', 'Highpass', 'Bandpass', 'Notch', 'Peak'],
+    description:
+      'Lowpass keeps what is below the cutoff, Highpass what is above, Bandpass a band around it. Notch cuts that band and Peak lifts it.',
   },
   slope: {
     id: 1,
@@ -24,8 +26,20 @@ export const AUTO_FILTER_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['12 dB', '24 dB'],
+    description:
+      'How steeply the filter cuts past the cutoff. The steeper setting is a sharper, more obvious filter.',
   },
-  cutoffHz: { id: 2, name: 'Cutoff', min: 20, max: 20000, default: 1000, taper: 'log', unit: 'Hz' },
+  cutoffHz: {
+    id: 2,
+    name: 'Cutoff',
+    min: 20,
+    max: 20000,
+    default: 1000,
+    taper: 'log',
+    unit: 'Hz',
+    description:
+      'The frequency the filter works at, and the point the envelope and the LFO sweep it away from.',
+  },
   resonance: {
     id: 3,
     name: 'Resonance',
@@ -34,8 +48,20 @@ export const AUTO_FILTER_PARAMS = {
     default: 0.7071,
     taper: 'log',
     unit: 'Q',
+    description:
+      'Emphasis right at the cutoff. Low is smooth; high rings and whistles as the filter sweeps.',
   },
-  driveDb: { id: 4, name: 'Drive', min: 0, max: 24, default: 0, taper: 'linear', unit: 'dB' },
+  driveDb: {
+    id: 4,
+    name: 'Drive',
+    min: 0,
+    max: 24,
+    default: 0,
+    taper: 'linear',
+    unit: 'dB',
+    description:
+      'Pushes the signal harder into the filter so the filter itself saturates. Adds grit and holds the resonance peak in check.',
+  },
   envAmount: {
     id: 5,
     name: 'Env Amount',
@@ -44,6 +70,8 @@ export const AUTO_FILTER_PARAMS = {
     default: 0,
     taper: 'linear',
     unit: '%',
+    description:
+      'How far louder playing moves the cutoff. Positive values raise the cutoff as you play harder; negative values lower it.',
   },
   envAttackMs: {
     id: 6,
@@ -53,6 +81,8 @@ export const AUTO_FILTER_PARAMS = {
     default: 10,
     taper: 'log',
     unit: 'ms',
+    description:
+      'How quickly the envelope follows a rising level. Short snaps on every note; long eases in.',
   },
   envReleaseMs: {
     id: 7,
@@ -62,6 +92,8 @@ export const AUTO_FILTER_PARAMS = {
     default: 200,
     taper: 'log',
     unit: 'ms',
+    description:
+      'How quickly the envelope falls back when the level drops. Short follows every note; long glides back slowly.',
   },
   lfoAmount: {
     id: 8,
@@ -71,8 +103,19 @@ export const AUTO_FILTER_PARAMS = {
     default: 0,
     taper: 'linear',
     unit: '%',
+    description:
+      'How far the LFO sweeps the cutoff above and below its setting. At zero the LFO does nothing.',
   },
-  lfoRateHz: { id: 9, name: 'LFO Rate', min: 0.01, max: 20, default: 1, taper: 'log', unit: 'Hz' },
+  lfoRateHz: {
+    id: 9,
+    name: 'LFO Rate',
+    min: 0.01,
+    max: 20,
+    default: 1,
+    taper: 'log',
+    unit: 'Hz',
+    description: 'How fast the LFO sweeps the cutoff. Slow is a gradual wah; fast is a wobble.',
+  },
   lfoShape: {
     id: 10,
     name: 'LFO Shape',
@@ -82,8 +125,19 @@ export const AUTO_FILTER_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Sine', 'Triangle', 'Saw Up', 'Saw Down', 'Square', 'S&H'],
+    description:
+      'The path of the LFO sweep. Sine and Triangle glide, the saws ramp and snap back, Square steps between two points, S&H to a random one each cycle.',
   },
-  mix: { id: 11, name: 'Mix', min: 0, max: 1, default: 1, taper: 'linear', unit: '' },
+  mix: {
+    id: 11,
+    name: 'Mix',
+    min: 0,
+    max: 1,
+    default: 1,
+    taper: 'linear',
+    unit: '',
+    description: 'Balance between the unfiltered and the filtered signal.',
+  },
 } as const satisfies Record<string, ParamSpec>
 
 export type AutoFilterParamName = keyof typeof AUTO_FILTER_PARAMS

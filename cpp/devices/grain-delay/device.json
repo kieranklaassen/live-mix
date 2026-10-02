@@ -15,11 +15,34 @@
       "max": 2000,
       "default": 350,
       "taper": "log",
-      "unit": "ms"
+      "unit": "ms",
+      "description": "How far behind the input the grains play, which is the delay time of the repeat."
     },
-    { "key": "spray", "name": "Spray", "min": 0, "max": 1, "default": 0.15 },
-    { "key": "pitch", "name": "Pitch", "min": -24, "max": 24, "default": 12, "unit": "st" },
-    { "key": "pitchSpray", "name": "Pitch Spray", "min": 0, "max": 1, "default": 0.08 },
+    {
+      "key": "spray",
+      "name": "Spray",
+      "min": 0,
+      "max": 1,
+      "default": 0.15,
+      "description": "Makes each grain arrive a random amount later than Time. Low keeps the repeat tight; high smears it into a wash."
+    },
+    {
+      "key": "pitch",
+      "name": "Pitch",
+      "min": -24,
+      "max": 24,
+      "default": 12,
+      "unit": "st",
+      "description": "Transposes the repeats. With Feedback each repeat is shifted again, so they climb or fall in steps."
+    },
+    {
+      "key": "pitchSpray",
+      "name": "Pitch Spray",
+      "min": 0,
+      "max": 1,
+      "default": 0.08,
+      "description": "Gives each grain its own random detune. Low thickens the repeat; high scatters it across as much as an octave either way."
+    },
     {
       "key": "size",
       "name": "Size",
@@ -27,11 +50,34 @@
       "max": 500,
       "default": 120,
       "taper": "log",
-      "unit": "ms"
+      "unit": "ms",
+      "description": "How long each grain lasts. Short grains are grainy and tight in time; long grains are smoother and keep more of the phrase."
     },
-    { "key": "density", "name": "Density", "min": 1, "max": 8, "default": 4, "taper": "log" },
-    { "key": "reverse", "name": "Reverse", "min": 0, "max": 1, "default": 0 },
-    { "key": "feedback", "name": "Feedback", "min": 0, "max": 1, "default": 0.45 },
+    {
+      "key": "density",
+      "name": "Density",
+      "min": 1,
+      "max": 8,
+      "default": 4,
+      "taper": "log",
+      "description": "How many grains overlap at once. Low lets the repeat pulse with gaps between grains; high is smoother and more even."
+    },
+    {
+      "key": "reverse",
+      "name": "Reverse",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "Share of grains that play backwards. Zero is all forwards; full is all backwards."
+    },
+    {
+      "key": "feedback",
+      "name": "Feedback",
+      "min": 0,
+      "max": 1,
+      "default": 0.45,
+      "description": "Sends the repeats back into the delay. Higher settings give more repeats, each one pitched and scattered again."
+    },
     {
       "key": "tone",
       "name": "Tone",
@@ -39,10 +85,25 @@
       "max": 16000,
       "default": 6000,
       "taper": "log",
-      "unit": "Hz"
+      "unit": "Hz",
+      "description": "Darkens the repeats. It sits in the feedback loop, so each repeat loses more highs than the last."
     },
-    { "key": "spread", "name": "Spread", "min": 0, "max": 1, "default": 0.6 },
-    { "key": "mix", "name": "Mix", "min": 0, "max": 1, "default": 0.35 }
+    {
+      "key": "spread",
+      "name": "Spread",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "Throws each grain to a random place between left and right. Higher settings make the repeats wider."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.35,
+      "description": "Balance between the dry signal and the grain repeats."
+    }
   ],
   "presets": {
     "Crystals": {

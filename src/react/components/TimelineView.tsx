@@ -15,6 +15,7 @@ import { useMaybeEngine } from '../hooks/useEngine'
 import { useTransport } from '../hooks/useTransport'
 import { useExternalSnapshot } from '../store'
 import { formatTimeSec } from './control-math'
+import { infoProps } from './info'
 import { cx } from './tokens'
 import { clipPeaks, Waveform } from './Waveform'
 
@@ -182,6 +183,12 @@ export function TimelineView({
             aria-valuenow={seekOnClick ? t.positionSec : undefined}
             aria-valuetext={seekOnClick ? formatTimeSec(t.positionSec) : undefined}
             tabIndex={seekOnClick ? 0 : undefined}
+            {...(seekOnClick
+              ? infoProps(
+                  'Position',
+                  'Click to put the playhead there. The arrow keys move it a second at a time, and Home returns it to the start.',
+                )
+              : {})}
             onClick={seekAt}
             onKeyDown={seekByKey}
             data-testid={testId ? `${testId}-ruler` : undefined}

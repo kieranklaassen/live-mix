@@ -18,6 +18,8 @@ export const TRUE_PEAK_LIMITER_PARAMS = {
     default: -1,
     taper: 'linear',
     unit: 'dBTP',
+    description:
+      'The true-peak level the output never exceeds. Peaks that would pass it are turned down just before they arrive.',
   },
   releaseMs: {
     id: 1,
@@ -27,6 +29,8 @@ export const TRUE_PEAK_LIMITER_PARAMS = {
     default: 100,
     taper: 'log',
     unit: 'ms',
+    description:
+      'How fast the gain comes back after a peak. Short is louder but can distort sustained lows; long is cleaner but ducks the mix for longer.',
   },
   inputGainDb: {
     id: 2,
@@ -36,6 +40,8 @@ export const TRUE_PEAK_LIMITER_PARAMS = {
     default: 0,
     taper: 'linear',
     unit: 'dB',
+    description:
+      'Gain before the limiter. Raising it drives the sound into the ceiling, so the result is louder and more limited.',
   },
 } as const satisfies Record<string, ParamSpec>
 

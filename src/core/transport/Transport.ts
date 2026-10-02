@@ -1,5 +1,6 @@
 // Framework-free transport: play, pause, stop with fade, seek and loop over an
-// anchor on the audio clock (R5, KTD6).
+// anchor on the audio clock (R5, KTD6), at a speed that can be changed while
+// it plays (`rate`: the tape runs faster or slower against the clock).
 //
 // Lifted from ambient-live `app/frontend/pages/live/use-clip-transport.ts`
 // (1d3b31b): `anchorAt`/`resetSchedule` (:113-130), pause-at-end (:146-152),
@@ -18,7 +19,7 @@ import {
 
 export type TransportState = 'stopped' | 'playing' | 'paused'
 
-export type TransportChangeReason = 'start' | 'pause' | 'stop' | 'seek' | 'loop' | 'end'
+export type TransportChangeReason = 'start' | 'pause' | 'stop' | 'seek' | 'loop' | 'end' | 'rate'
 
 export interface TransportChange {
   reason: TransportChangeReason
@@ -35,6 +36,8 @@ export interface TransportOptions {
   now: () => number
   /** Defaults to loop off with no end (`lengthSec: Infinity`). */
   loop?: Partial<TransportLoop>
+  /** Timeline seconds per second of the audio clock. Default 1. */
+  rate?: number
 }
 
 export interface StopOptions {
@@ -60,11 +63,14 @@ export class Transport {
   private idlePass = 0
   /** The counted pass of the anchor's own `iteration`, while playing. */
   private anchorPass = 0
+  // Timeline seconds per second of the audio clock, since the anchor while playing.
+  private currentRate: number
   private readonly listeners = new Set<TransportListener>()
 
   constructor(options: TransportOptions) {
     this.clock = options.now
     this.currentLoop = validateLoop({ ...DEFAULT_LOOP, ...options.loop })
+    this.currentRate = validateRate(options.rate ?? 1)
   }
 
   get state(): TransportState {
@@ -80,6 +86,16 @@ export class Transport {
     return this.currentAnchor
   }
 
+  /**
+   * How fast the timeline runs against the audio clock: timeline seconds per
+   * clock second. 1 is the clock's own speed; below it the timeline is slow,
+   * above it fast. Whatever follows the transport plays at this speed, so a
+   * clip sounds lower and longer, or higher and shorter, as tape does.
+   */
+  get rate(): number {
+    return this.currentRate
+  }
+
   /** The audio clock. */
   now(): number {
     return this.clock()
@@ -92,7 +108,7 @@ export class Transport {
    */
   position(contextTime = this.clock()): TransportPosition {
     if (this.currentAnchor) {
-      return positionFromAnchor(this.currentAnchor, contextTime, this.currentLoop)
+      return positionFromAnchor(this.currentAnchor, contextTime, this.currentLoop, this.currentRate)
     }
     return { positionSec: this.idlePositionSec, iteration: this.idleIteration, finished: false }
   }
@@ -145,9 +161,10 @@ export class Transport {
     const anchor = this.currentAnchor
     if (!anchor) throw new Error('Transport.contextTimeAt: the transport is not playing')
     const offsetSec = positionSec - anchor.positionSec
-    if (!isLooping(this.currentLoop)) return anchor.contextTime + offsetSec
+    const rate = this.currentRate
+    if (!isLooping(this.currentLoop)) return anchor.contextTime + offsetSec / rate
     const passes = (iteration ?? anchor.iteration) - anchor.iteration
-    return anchor.contextTime + passes * this.currentLoop.lengthSec + offsetSec
+    return anchor.contextTime + (passes * this.currentLoop.lengthSec) / rate + offsetSec / rate
   }
 
   /**
@@ -222,6 +239,36 @@ export class Transport {
     this.emit('loop')
   }
 
+  /**
+   * Changes how fast the timeline runs against the audio clock, from now on.
+   * While playing the transport is re-pinned where it is, on the pass it is
+   * in: the position carries on without a jump and no pass is renumbered, so
+   * starts already handed over keep their keys and only their clock times
+   * move. Listeners hear reason `rate` and read the new one off `rate`; the
+   * `Scheduler` moves what is pending and what sounds. Stopped or paused, the
+   * rate is kept for the next start.
+   */
+  setRate(rate: number): void {
+    const next = validateRate(rate)
+    if (next === this.currentRate) return
+    const anchor = this.currentAnchor
+    if (anchor) {
+      const now = this.clock()
+      const position = this.position(now)
+      // The new anchor is of the pass the position is in: its counted pass goes with it.
+      this.anchorPass = this.passOf(position.iteration)
+      this.currentAnchor = {
+        // A start pinned ahead of the clock stays where it was pinned.
+        contextTime: Math.max(now, anchor.contextTime),
+        positionSec: position.positionSec,
+        iteration: position.iteration,
+      }
+      this.nextIteration = Math.max(this.nextIteration, position.iteration + 1)
+    }
+    this.currentRate = next
+    this.emit('rate')
+  }
+
   /** Subscribes to state changes and re-pins. Returns the unsubscribe function. */
   onChange(listener: TransportListener): () => void {
     this.listeners.add(listener)
@@ -262,6 +309,13 @@ export class Transport {
     }
     for (const listener of [...this.listeners]) listener(change)
   }
+}
+
+function validateRate(rate: number): number {
+  if (!Number.isFinite(rate) || rate <= 0) {
+    throw new RangeError(`Transport: rate must be a positive number, got ${rate}`)
+  }
+  return rate
 }
 
 function validateLoop(loop: TransportLoop): TransportLoop {

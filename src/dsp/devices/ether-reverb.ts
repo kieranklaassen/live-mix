@@ -8,9 +8,38 @@ import { type ParamSpec } from '../../core/params'
 import { defineWasmDevice, WasmDevice, type WasmDeviceOptions } from '../WasmDevice'
 
 export const ETHER_REVERB_PARAMS = {
-  mix: { id: 0, name: 'Mix', min: 0, max: 1, default: 0.3, taper: 'linear', unit: '' },
-  decay: { id: 1, name: 'Decay', min: 0.5, max: 30, default: 5, taper: 'log', unit: 's' },
-  damping: { id: 2, name: 'Damping', min: 0, max: 1, default: 0.4, taper: 'linear', unit: '' },
+  mix: {
+    id: 0,
+    name: 'Mix',
+    min: 0,
+    max: 1,
+    default: 0.3,
+    taper: 'linear',
+    unit: '',
+    description: 'Balance between the dry signal and the reverb. Fully up is the reverb alone.',
+  },
+  decay: {
+    id: 1,
+    name: 'Decay',
+    min: 0.5,
+    max: 30,
+    default: 5,
+    taper: 'log',
+    unit: 's',
+    description:
+      'Lengthens the tail on top of what Size sets. Long settings also ease off the damping, so long tails stay brighter.',
+  },
+  damping: {
+    id: 2,
+    name: 'Damping',
+    min: 0,
+    max: 1,
+    default: 0.4,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How quickly the highs die out of the tail. Low keeps it bright; high makes it dark. Long Decay settings take some of it back.',
+  },
   predelayMs: {
     id: 3,
     name: 'Pre-delay',
@@ -19,9 +48,31 @@ export const ETHER_REVERB_PARAMS = {
     default: 0,
     taper: 'linear',
     unit: 'ms',
+    description:
+      'The gap before the reverb starts, which keeps the start of the sound clear of its tail.',
   },
-  size: { id: 4, name: 'Size', min: 0, max: 1, default: 0.6, taper: 'linear', unit: '' },
-  freeze: { id: 5, name: 'Freeze', min: 0, max: 1, default: 0, taper: 'linear', unit: '' },
+  size: {
+    id: 4,
+    name: 'Size',
+    min: 0,
+    max: 1,
+    default: 0.6,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How big the room sounds, which here means how long it rings. Decay adds to it, and the two together set the tail.',
+  },
+  freeze: {
+    id: 5,
+    name: 'Freeze',
+    min: 0,
+    max: 1,
+    default: 0,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Holds the tail while it is on and mutes the dry signal and new input. Switched on in silence, it waits and holds the next sound.',
+  },
 } as const satisfies Record<string, ParamSpec>
 
 export type EtherReverbParamName = keyof typeof ETHER_REVERB_PARAMS

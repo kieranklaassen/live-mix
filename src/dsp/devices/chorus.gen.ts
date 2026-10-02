@@ -14,14 +14,85 @@ export const CHORUS_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['2', '3'],
+    description: 'Two voices is a lighter chorus. Three is a thicker ensemble.',
   },
-  rate: { id: 1, name: 'Rate', min: 0.01, max: 10, default: 0.8, taper: 'log', unit: 'Hz' },
-  depth: { id: 2, name: 'Depth', min: 0, max: 100, default: 50, taper: 'linear', unit: '%' },
-  delayMs: { id: 3, name: 'Delay', min: 5, max: 30, default: 12, taper: 'linear', unit: 'ms' },
-  spread: { id: 4, name: 'Spread', min: 0, max: 100, default: 70, taper: 'linear', unit: '%' },
-  feedback: { id: 5, name: 'Feedback', min: -95, max: 95, default: 0, taper: 'linear', unit: '%' },
-  hpHz: { id: 6, name: 'High-pass', min: 20, max: 2000, default: 20, taper: 'log', unit: 'Hz' },
-  mix: { id: 7, name: 'Mix', min: 0, max: 1, default: 0.5, taper: 'linear', unit: '' },
+  rate: {
+    id: 1,
+    name: 'Rate',
+    min: 0.01,
+    max: 10,
+    default: 0.8,
+    taper: 'log',
+    unit: 'Hz',
+    description:
+      'How fast the voices drift in pitch. Slow is a gentle swell; fast turns into vibrato.',
+  },
+  depth: {
+    id: 2,
+    name: 'Depth',
+    min: 0,
+    max: 100,
+    default: 50,
+    taper: 'linear',
+    unit: '%',
+    description:
+      'How far each voice swings in pitch. Low is a slight thickening; high is an obvious, wavering detune.',
+  },
+  delayMs: {
+    id: 3,
+    name: 'Delay',
+    min: 5,
+    max: 30,
+    default: 12,
+    taper: 'linear',
+    unit: 'ms',
+    description:
+      'The centre time the voices swing around. Short sits tight against the dry sound; long is a looser doubling.',
+  },
+  spread: {
+    id: 4,
+    name: 'Spread',
+    min: 0,
+    max: 100,
+    default: 70,
+    taper: 'linear',
+    unit: '%',
+    description:
+      'Pans the voices out from the centre and moves the right side out of step with the left. At zero both sides move together.',
+  },
+  feedback: {
+    id: 5,
+    name: 'Feedback',
+    min: -95,
+    max: 95,
+    default: 0,
+    taper: 'linear',
+    unit: '%',
+    description:
+      'Sends the voices back into the delay, which adds a ringing, metallic edge. Negative values sound hollower.',
+  },
+  hpHz: {
+    id: 6,
+    name: 'High-pass',
+    min: 20,
+    max: 2000,
+    default: 20,
+    taper: 'log',
+    unit: 'Hz',
+    description:
+      'Takes the lows out of the chorus voices so the bass stays clear and steady. At its lowest setting it is off.',
+  },
+  mix: {
+    id: 7,
+    name: 'Mix',
+    min: 0,
+    max: 1,
+    default: 0.5,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Balance between the dry sound and the voices. The middle is the classic chorus; fully wet leaves only the moving voices.',
+  },
 } as const satisfies Record<string, ParamSpec>
 
 export type ChorusParamName = keyof typeof CHORUS_PARAMS

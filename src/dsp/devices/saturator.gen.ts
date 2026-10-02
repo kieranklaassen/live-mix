@@ -14,12 +14,64 @@ export const SATURATOR_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Soft', 'Hard', 'Tube', 'Tape', 'Fold'],
+    description:
+      'The shape of the distortion. Soft and Tape round off gently, Hard clips flat, Tube is asymmetric for even harmonics, Fold wraps peaks back on themselves.',
   },
-  driveDb: { id: 1, name: 'Drive', min: 0, max: 36, default: 6, taper: 'linear', unit: 'dB' },
-  bias: { id: 2, name: 'Bias', min: -1, max: 1, default: 0, taper: 'linear', unit: '' },
-  toneDb: { id: 3, name: 'Tone', min: -12, max: 12, default: 0, taper: 'linear', unit: 'dB' },
-  outputDb: { id: 4, name: 'Output', min: -24, max: 24, default: 0, taper: 'linear', unit: 'dB' },
-  mix: { id: 5, name: 'Mix', min: 0, max: 1, default: 1, taper: 'linear', unit: '' },
+  driveDb: {
+    id: 1,
+    name: 'Drive',
+    min: 0,
+    max: 36,
+    default: 6,
+    taper: 'linear',
+    unit: 'dB',
+    description:
+      'Gain into the curve. More drive means more harmonics and compression; with the Tape curve it also dulls the top.',
+  },
+  bias: {
+    id: 2,
+    name: 'Bias',
+    min: -1,
+    max: 1,
+    default: 0,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Moves the signal off the centre of the curve so the two halves of the wave distort differently, which adds even harmonics.',
+  },
+  toneDb: {
+    id: 3,
+    name: 'Tone',
+    min: -12,
+    max: 12,
+    default: 0,
+    taper: 'linear',
+    unit: 'dB',
+    description:
+      'Tilts the distorted signal around 1 kHz. Up brightens it and thins the lows; down darkens it and fills them out.',
+  },
+  outputDb: {
+    id: 4,
+    name: 'Output',
+    min: -24,
+    max: 24,
+    default: 0,
+    taper: 'linear',
+    unit: 'dB',
+    description:
+      'Level of the distorted signal after the curve, to make up for what Drive added. The dry part of Mix is not affected.',
+  },
+  mix: {
+    id: 5,
+    name: 'Mix',
+    min: 0,
+    max: 1,
+    default: 1,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Balance between the clean signal and the distorted one. Part way blends grit in under the untouched sound.',
+  },
   dcBlock: {
     id: 6,
     name: 'DC Block',
@@ -29,6 +81,8 @@ export const SATURATOR_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Off', 'On'],
+    description:
+      'Removes the constant offset an asymmetric curve or Bias leaves in the signal. Leave it on unless the offset is wanted.',
   },
   oversample: {
     id: 7,
@@ -39,6 +93,8 @@ export const SATURATOR_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['1x', '2x', '4x'],
+    description:
+      'Runs the curve at a higher rate so its harmonics do not fold back as aliasing. 4x is cleanest; 1x costs least and aliases most.',
   },
   adaa: {
     id: 8,
@@ -49,6 +105,8 @@ export const SATURATOR_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Off', 'On'],
+    description:
+      'Extra anti-aliasing on the Soft and Hard curves, which cleans up heavy drive further. It does nothing on Tube, Tape or Fold.',
   },
 } as const satisfies Record<string, ParamSpec>
 

@@ -4,12 +4,19 @@
 
 import { type CSSProperties, type ReactNode } from 'react'
 
+import { infoProps } from './info'
 import { cx } from './tokens'
+
+/** What the power switch of a device does, as the info view says it. */
+export const DEVICE_POWER_INFO =
+  'Turns the device off and on. Off, the sound passes through unchanged and the settings are kept.'
 
 export interface DeviceToggleProps {
   pressed: boolean
   disabled?: boolean
   label?: string
+  /** What the switch turns on and off, for the info view; the default speaks of a device. */
+  info?: string
   onPressedChange: (pressed: boolean) => void
   className?: string
   'data-testid'?: string
@@ -20,6 +27,7 @@ export function DeviceToggle({
   pressed,
   disabled = false,
   label = 'Power',
+  info = DEVICE_POWER_INFO,
   onPressedChange,
   className,
   'data-testid': testId,
@@ -34,6 +42,7 @@ export function DeviceToggle({
       data-testid={testId}
       onClick={() => onPressedChange(!pressed)}
       className={cx('lm-toggle', pressed && 'lm-toggle--on', className)}
+      {...infoProps(label, info)}
     >
       <span aria-hidden="true" className="lm-toggle__dot" />
     </button>
@@ -50,6 +59,8 @@ export interface ToggleButtonProps {
   tone?: ToggleTone
   disabled?: boolean
   title?: string
+  /** What the button does, for the info view (`InfoView`). */
+  info?: string
   children?: ReactNode
   className?: string
   style?: CSSProperties
@@ -64,6 +75,7 @@ export function ToggleButton({
   tone = 'accent',
   disabled = false,
   title,
+  info,
   children,
   className,
   style,
@@ -80,6 +92,7 @@ export function ToggleButton({
       onClick={() => onPressedChange(!pressed)}
       className={cx('lm-button', `lm-button--${tone}`, pressed && 'lm-button--on', className)}
       style={style}
+      {...(info === undefined ? {} : infoProps(label ?? null, info))}
     >
       {children}
     </button>

@@ -369,4 +369,129 @@ describe('Transport counted pass', () => {
     ctx.currentTime = 3
     expect(transport.pass()).toBe(3)
   })
+
+  it('keeps counting through a change of rate, at the speed the loop now comes round', () => {
+    const { ctx, transport } = build(LOOP)
+    transport.setPass(5)
+    transport.start()
+    // Two times round at the clock's speed, then half speed from the middle of the third.
+    ctx.currentTime = 10
+    expect(transport.pass()).toBe(7)
+    transport.setRate(0.5)
+    expect(transport.pass()).toBe(7)
+    expect(transport.passOf(transport.position().iteration + 1)).toBe(8)
+    // 2 s of timeline left in the pass: 4 s of clock at half speed.
+    ctx.currentTime = 13.9
+    expect(transport.pass()).toBe(7)
+    ctx.currentTime = 14.1
+    expect(transport.pass()).toBe(8)
+    transport.setRate(2)
+    ctx.currentTime = 20
+    // 0.05 s into pass 8, then 5.9 s of clock at double speed: 11.85 s of timeline on.
+    expect(transport.pass()).toBe(10)
+    transport.pause()
+    expect(transport.pass()).toBe(10)
+  })
+})
+
+describe('Transport rate', () => {
+  it('runs at the clock by default and takes a rate on construction', () => {
+    expect(build().transport.rate).toBe(1)
+    expect(new Transport({ now: () => 0, rate: 0.5 }).rate).toBe(0.5)
+  })
+
+  it('moves along the timeline that much faster or slower than the clock', () => {
+    const { ctx, transport } = build()
+    transport.setRate(0.5)
+    ctx.currentTime = 10
+    transport.start()
+    ctx.currentTime = 14
+    expect(transport.position().positionSec).toBe(2)
+    transport.setRate(2)
+    ctx.currentTime = 15
+    expect(transport.position().positionSec).toBe(4)
+  })
+
+  it('carries on from where it is when the rate changes, on the pass it is in', () => {
+    const { ctx, transport, changes } = build({ enabled: true, lengthSec: 4 })
+    transport.start()
+    ctx.currentTime = 9.5
+    const before = transport.position()
+    transport.setRate(1.25)
+    expect(transport.position()).toEqual(before)
+    // Re-pinned here and now, without a new pass number: handed-over starts keep their keys.
+    expect(transport.anchor).toEqual({ contextTime: 9.5, positionSec: 1.5, iteration: 2 })
+    expect(changes.at(-1)).toMatchObject({ reason: 'rate', state: 'playing', position: before })
+    ctx.currentTime = 11.5
+    // 2 s of clock is 2.5 s of timeline: through the loop's end into the next pass.
+    expect(transport.position()).toEqual({ positionSec: 0, iteration: 3, finished: false })
+  })
+
+  it('numbers the pass after a seek past every pass a faster rate ran through', () => {
+    const { ctx, transport } = build({ enabled: true, lengthSec: 4 })
+    transport.start()
+    transport.setRate(2)
+    ctx.currentTime = 9
+    expect(transport.position().iteration).toBe(4)
+    transport.setRate(1)
+    transport.seek(1)
+    expect(transport.anchor?.iteration).toBe(5)
+  })
+
+  it('maps a timeline position to the clock at the rate', () => {
+    const { ctx, transport } = build({ enabled: true, lengthSec: 4 })
+    ctx.currentTime = 100
+    transport.seek(1)
+    transport.setRate(0.5)
+    transport.start()
+    expect(transport.contextTimeAt(1)).toBe(100)
+    expect(transport.contextTimeAt(3)).toBe(104)
+    expect(transport.contextTimeAt(0.5, 2)).toBe(100 + 16 - 1)
+  })
+
+  it('keeps a start pinned ahead of the clock where it was pinned', () => {
+    const { ctx, transport } = build()
+    ctx.currentTime = 10
+    transport.start(10.5)
+    transport.setRate(2)
+    expect(transport.anchor).toEqual({ contextTime: 10.5, positionSec: 0, iteration: 0 })
+    ctx.currentTime = 11
+    expect(transport.position().positionSec).toBe(1)
+  })
+
+  it('keeps the rate while stopped or paused and through a seek, a loop change and a stop', () => {
+    const { ctx, transport, changes } = build({ enabled: true, lengthSec: 8 })
+    transport.setRate(0.5)
+    expect(changes.map((change) => change.reason)).toEqual(['rate'])
+    expect(transport.position().positionSec).toBe(0)
+    transport.start()
+    ctx.currentTime = 2
+    transport.seek(4)
+    transport.setLoop({ lengthSec: 16 })
+    ctx.currentTime = 4
+    expect(transport.position().positionSec).toBe(5)
+    transport.stop()
+    expect(transport.rate).toBe(0.5)
+  })
+
+  it('reaches the end of a timeline with the loop off when the timeline does, not the clock', () => {
+    const { ctx, transport } = build({ lengthSec: 4 })
+    transport.setRate(2)
+    transport.start()
+    ctx.currentTime = 1.9
+    expect(transport.position().finished).toBe(false)
+    ctx.currentTime = 2
+    expect(transport.position()).toEqual({ positionSec: 4, iteration: 0, finished: true })
+  })
+
+  it('says nothing when the rate is the one it has, and refuses one that is not a positive number', () => {
+    const { transport, changes } = build()
+    transport.setRate(1)
+    expect(changes).toEqual([])
+    expect(() => transport.setRate(0)).toThrow(RangeError)
+    expect(() => transport.setRate(-1)).toThrow(RangeError)
+    expect(() => transport.setRate(Number.NaN)).toThrow(RangeError)
+    expect(() => transport.setRate(Infinity)).toThrow(RangeError)
+    expect(() => new Transport({ now: () => 0, rate: 0 })).toThrow(RangeError)
+  })
 })

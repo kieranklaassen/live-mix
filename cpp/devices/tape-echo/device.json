@@ -14,13 +14,48 @@
       "max": 2000,
       "default": 380,
       "taper": "log",
-      "unit": "ms"
+      "unit": "ms",
+      "description": "The gap between repeats. It works like tape speed, so moving it bends the pitch of the repeats already on the tape."
     },
-    { "key": "feedback", "name": "Feedback", "min": 0, "max": 1.1, "default": 0.45 },
-    { "key": "heads", "name": "Heads", "choices": ["One", "Two", "Three", "Dotted"], "default": 0 },
-    { "key": "wow", "name": "Wow", "min": 0, "max": 1, "default": 0.25 },
-    { "key": "flutter", "name": "Flutter", "min": 0, "max": 1, "default": 0.15 },
-    { "key": "drive", "name": "Drive", "min": 0, "max": 1, "default": 0.3 },
+    {
+      "key": "feedback",
+      "name": "Feedback",
+      "min": 0,
+      "max": 1.1,
+      "default": 0.45,
+      "description": "How much of each echo is recorded again. Near the top the echoes stop dying away and build until the tape saturates."
+    },
+    {
+      "key": "heads",
+      "name": "Heads",
+      "choices": ["One", "Two", "Three", "Dotted"],
+      "default": 0,
+      "description": "Which playback heads sound. One is a single echo. Two adds a tap at a third of the time, Dotted one at two thirds, and Three plays all three."
+    },
+    {
+      "key": "wow",
+      "name": "Wow",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "description": "Slow, wandering pitch drift on the repeats. Zero is a steady transport."
+    },
+    {
+      "key": "flutter",
+      "name": "Flutter",
+      "min": 0,
+      "max": 1,
+      "default": 0.15,
+      "description": "Fast, fine pitch wobble on the repeats. Zero is a steady transport."
+    },
+    {
+      "key": "drive",
+      "name": "Drive",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "How hard the tape is hit. Higher settings saturate sooner, so the repeats get dirtier and more squashed."
+    },
     {
       "key": "lowCut",
       "name": "Low Cut",
@@ -28,7 +63,8 @@
       "max": 800,
       "default": 120,
       "taper": "log",
-      "unit": "Hz"
+      "unit": "Hz",
+      "description": "Takes lows out of the feedback loop, so each repeat comes back thinner. The first echo is not affected."
     },
     {
       "key": "highCut",
@@ -37,10 +73,25 @@
       "max": 16000,
       "default": 4500,
       "taper": "log",
-      "unit": "Hz"
+      "unit": "Hz",
+      "description": "Takes highs out of the feedback loop, so each repeat comes back darker. The first echo is not affected."
     },
-    { "key": "spread", "name": "Ping Pong", "min": 0, "max": 1, "default": 0.3 },
-    { "key": "mix", "name": "Mix", "min": 0, "max": 1, "default": 0.35 }
+    {
+      "key": "spread",
+      "name": "Ping Pong",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Moves the input to the left and crosses the feedback between the sides, so the repeats bounce left and right."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.35,
+      "description": "Balance between the dry signal and the echoes."
+    }
   ],
   "presets": {
     "Space echo": {

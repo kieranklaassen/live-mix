@@ -14,12 +14,63 @@ export const PHASER_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['4', '6', '8', '10', '12'],
+    description:
+      'How many filter stages the sound passes through. Every two stages add a notch, so more stages give a denser, deeper sweep.',
   },
-  centerHz: { id: 1, name: 'Centre', min: 100, max: 5000, default: 800, taper: 'log', unit: 'Hz' },
-  spread: { id: 2, name: 'Spread', min: 0, max: 100, default: 30, taper: 'linear', unit: '%' },
-  feedback: { id: 3, name: 'Feedback', min: -95, max: 95, default: 40, taper: 'linear', unit: '%' },
-  rate: { id: 4, name: 'Rate', min: 0.01, max: 10, default: 0.3, taper: 'log', unit: 'Hz' },
-  depth: { id: 5, name: 'Depth', min: 0, max: 100, default: 60, taper: 'linear', unit: '%' },
+  centerHz: {
+    id: 1,
+    name: 'Centre',
+    min: 100,
+    max: 5000,
+    default: 800,
+    taper: 'log',
+    unit: 'Hz',
+    description:
+      'The frequency the sweep moves around. Low settings work on the body of the sound, high settings on the top.',
+  },
+  spread: {
+    id: 2,
+    name: 'Spread',
+    min: 0,
+    max: 100,
+    default: 30,
+    taper: 'linear',
+    unit: '%',
+    description:
+      'Tunes the stages apart from each other, which spreads the notches over a wider range. At zero all stages are tuned alike.',
+  },
+  feedback: {
+    id: 3,
+    name: 'Feedback',
+    min: -95,
+    max: 95,
+    default: 40,
+    taper: 'linear',
+    unit: '%',
+    description:
+      'Sends the phased signal back in, which sharpens the peaks between the notches. Negative values put peaks where the notches were.',
+  },
+  rate: {
+    id: 4,
+    name: 'Rate',
+    min: 0.01,
+    max: 10,
+    default: 0.3,
+    taper: 'log',
+    unit: 'Hz',
+    description: 'How fast the notches sweep. Slow is a long swirl; fast is a quick throb.',
+  },
+  depth: {
+    id: 5,
+    name: 'Depth',
+    min: 0,
+    max: 100,
+    default: 60,
+    taper: 'linear',
+    unit: '%',
+    description:
+      'How far the notches travel above and below Centre. At zero they stay put as a fixed filter.',
+  },
   shape: {
     id: 6,
     name: 'Shape',
@@ -29,9 +80,31 @@ export const PHASER_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Sine', 'Triangle', 'Saw up', 'Saw down', 'Square', 'Random'],
+    description:
+      'The path the sweep follows. Sine and Triangle glide, the saws go one way and snap back, Square and Random step from point to point.',
   },
-  stereo: { id: 7, name: 'Stereo', min: 0, max: 180, default: 90, taper: 'linear', unit: 'deg' },
-  mix: { id: 8, name: 'Mix', min: 0, max: 1, default: 0.5, taper: 'linear', unit: '' },
+  stereo: {
+    id: 7,
+    name: 'Stereo',
+    min: 0,
+    max: 180,
+    default: 90,
+    taper: 'linear',
+    unit: 'deg',
+    description:
+      'Puts the right side of the sweep ahead of the left. At zero both move together; higher values make the swirl cross the stereo field.',
+  },
+  mix: {
+    id: 8,
+    name: 'Mix',
+    min: 0,
+    max: 1,
+    default: 0.5,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Balance between the dry and the phased sound. The notches are deepest in the middle.',
+  },
 } as const satisfies Record<string, ParamSpec>
 
 export type PhaserParamName = keyof typeof PHASER_PARAMS

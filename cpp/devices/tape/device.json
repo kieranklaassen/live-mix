@@ -8,21 +8,86 @@
   "sources": [],
   "latencySamples": 415,
   "params": [
-    { "key": "drive", "name": "Drive", "min": 0, "max": 1, "default": 0.3 },
-    { "key": "wow", "name": "Wow", "min": 0, "max": 1, "default": 0.25 },
-    { "key": "flutter", "name": "Flutter", "min": 0, "max": 1, "default": 0.2 },
+    {
+      "key": "drive",
+      "name": "Drive",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "How hard the signal hits the tape. More adds harmonics and squashes peaks, and loud passages lose their treble first."
+    },
+    {
+      "key": "wow",
+      "name": "Wow",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "description": "Slow pitch drift that wanders and never quite repeats. Zero is a steady transport."
+    },
+    {
+      "key": "flutter",
+      "name": "Flutter",
+      "min": 0,
+      "max": 1,
+      "default": 0.2,
+      "description": "Fast, fine pitch wobble that makes held notes tremble. Zero is a steady transport."
+    },
     {
       "key": "speed",
       "name": "Speed",
       "choices": ["15 ips", "7.5 ips", "3.75 ips", "Cassette"],
-      "default": 1
+      "default": 1,
+      "description": "Which machine and tape speed. Slower speeds are darker and hissier, with a slower wobble and a higher head bump. Cassette is the dullest."
     },
-    { "key": "age", "name": "Age", "min": 0, "max": 1, "default": 0.2 },
-    { "key": "hiss", "name": "Hiss", "min": 0, "max": 1, "default": 0.25 },
-    { "key": "bump", "name": "Head Bump", "min": 0, "max": 1, "default": 0.5 },
-    { "key": "tone", "name": "Tone", "min": 0, "max": 1, "default": 0.5 },
-    { "key": "output", "name": "Output", "min": -12, "max": 12, "default": 0, "unit": "dB" },
-    { "key": "mix", "name": "Mix", "min": 0, "max": 1, "default": 1 }
+    {
+      "key": "age",
+      "name": "Age",
+      "min": 0,
+      "max": 1,
+      "default": 0.2,
+      "description": "How worn the tape is. More age dulls the top, deepens the wow and flutter, and brings dropouts, brief dips in level."
+    },
+    {
+      "key": "hiss",
+      "name": "Hiss",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "description": "Level of tape noise. It sounds only while signal is passing and for a moment after, so silence stays silent."
+    },
+    {
+      "key": "bump",
+      "name": "Head Bump",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "The low-end lift of the playback head. Where it sits depends on Speed: lower on fast tape, higher on cassette."
+    },
+    {
+      "key": "tone",
+      "name": "Tone",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Brightness of the playback. Low rolls off more of the top; high opens it beyond what the chosen speed gives."
+    },
+    {
+      "key": "output",
+      "name": "Output",
+      "min": -12,
+      "max": 12,
+      "default": 0,
+      "unit": "dB",
+      "description": "Volume of the taped signal, set after the saturation and before Mix. The dry signal is not affected."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "Balance between the dry signal and the tape sound."
+    }
   ],
   "presets": {
     "Quarter inch": {

@@ -5,9 +5,39 @@ import { wasmDeviceDescriptor } from '../descriptor'
 import { defineWasmDevice, WasmDevice, type WasmDeviceOptions } from '../WasmDevice'
 
 export const TAPE_PARAMS = {
-  drive: { id: 0, name: 'Drive', min: 0, max: 1, default: 0.3, taper: 'linear', unit: '' },
-  wow: { id: 1, name: 'Wow', min: 0, max: 1, default: 0.25, taper: 'linear', unit: '' },
-  flutter: { id: 2, name: 'Flutter', min: 0, max: 1, default: 0.2, taper: 'linear', unit: '' },
+  drive: {
+    id: 0,
+    name: 'Drive',
+    min: 0,
+    max: 1,
+    default: 0.3,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How hard the signal hits the tape. More adds harmonics and squashes peaks, and loud passages lose their treble first.',
+  },
+  wow: {
+    id: 1,
+    name: 'Wow',
+    min: 0,
+    max: 1,
+    default: 0.25,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Slow pitch drift that wanders and never quite repeats. Zero is a steady transport.',
+  },
+  flutter: {
+    id: 2,
+    name: 'Flutter',
+    min: 0,
+    max: 1,
+    default: 0.2,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Fast, fine pitch wobble that makes held notes tremble. Zero is a steady transport.',
+  },
   speed: {
     id: 3,
     name: 'Speed',
@@ -17,13 +47,74 @@ export const TAPE_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['15 ips', '7.5 ips', '3.75 ips', 'Cassette'],
+    description:
+      'Which machine and tape speed. Slower speeds are darker and hissier, with a slower wobble and a higher head bump. Cassette is the dullest.',
   },
-  age: { id: 4, name: 'Age', min: 0, max: 1, default: 0.2, taper: 'linear', unit: '' },
-  hiss: { id: 5, name: 'Hiss', min: 0, max: 1, default: 0.25, taper: 'linear', unit: '' },
-  bump: { id: 6, name: 'Head Bump', min: 0, max: 1, default: 0.5, taper: 'linear', unit: '' },
-  tone: { id: 7, name: 'Tone', min: 0, max: 1, default: 0.5, taper: 'linear', unit: '' },
-  output: { id: 8, name: 'Output', min: -12, max: 12, default: 0, taper: 'linear', unit: 'dB' },
-  mix: { id: 9, name: 'Mix', min: 0, max: 1, default: 1, taper: 'linear', unit: '' },
+  age: {
+    id: 4,
+    name: 'Age',
+    min: 0,
+    max: 1,
+    default: 0.2,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How worn the tape is. More age dulls the top, deepens the wow and flutter, and brings dropouts, brief dips in level.',
+  },
+  hiss: {
+    id: 5,
+    name: 'Hiss',
+    min: 0,
+    max: 1,
+    default: 0.25,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Level of tape noise. It sounds only while signal is passing and for a moment after, so silence stays silent.',
+  },
+  bump: {
+    id: 6,
+    name: 'Head Bump',
+    min: 0,
+    max: 1,
+    default: 0.5,
+    taper: 'linear',
+    unit: '',
+    description:
+      'The low-end lift of the playback head. Where it sits depends on Speed: lower on fast tape, higher on cassette.',
+  },
+  tone: {
+    id: 7,
+    name: 'Tone',
+    min: 0,
+    max: 1,
+    default: 0.5,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Brightness of the playback. Low rolls off more of the top; high opens it beyond what the chosen speed gives.',
+  },
+  output: {
+    id: 8,
+    name: 'Output',
+    min: -12,
+    max: 12,
+    default: 0,
+    taper: 'linear',
+    unit: 'dB',
+    description:
+      'Volume of the taped signal, set after the saturation and before Mix. The dry signal is not affected.',
+  },
+  mix: {
+    id: 9,
+    name: 'Mix',
+    min: 0,
+    max: 1,
+    default: 1,
+    taper: 'linear',
+    unit: '',
+    description: 'Balance between the dry signal and the tape sound.',
+  },
 } as const satisfies Record<string, ParamSpec>
 
 export type TapeParamName = keyof typeof TAPE_PARAMS

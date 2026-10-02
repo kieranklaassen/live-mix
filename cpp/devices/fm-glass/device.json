@@ -11,20 +11,23 @@
       "key": "algorithm",
       "name": "Algorithm",
       "choices": ["Bell", "Glass", "Mallet", "Pad"],
-      "default": 0
+      "default": 0,
+      "description": "Bell is two ringing pairs, Glass a bright ping over a pure tone, Mallet a short strike, and in Pad the brightness swells and stays. Applies from the next note."
     },
     {
       "key": "ratio",
       "name": "Ratio",
       "choices": ["0.5", "1", "1.41", "2", "2.76", "3", "3.5", "4", "5", "7", "9", "14"],
-      "default": 6
+      "default": 6,
+      "description": "Pitch of the modulators against the note, which sets the overtones: whole numbers are harmonic, 1.41, 2.76 and 3.5 clang like bells. Applies from the next note."
     },
     {
       "key": "brightness",
       "name": "Brightness",
       "min": 0,
       "max": 1,
-      "default": 0.45
+      "default": 0.45,
+      "description": "How strongly the modulators colour the tone, from nearly a pure sine to bright, glassy overtones. High notes get less so they stay clean."
     },
     {
       "key": "decay",
@@ -33,7 +36,8 @@
       "max": 20,
       "default": 2.5,
       "taper": "log",
-      "unit": "s"
+      "unit": "s",
+      "description": "How long a note's brightness takes to die away. The note itself rings about four times longer, and low notes longer than high ones."
     },
     {
       "key": "attack",
@@ -42,7 +46,8 @@
       "max": 8,
       "default": 0.003,
       "taper": "log",
-      "unit": "s"
+      "unit": "s",
+      "description": "How long a note takes to fade in. Short gives a struck bell or mallet; long gives a pad."
     },
     {
       "key": "release",
@@ -51,14 +56,16 @@
       "max": 15,
       "default": 3,
       "taper": "log",
-      "unit": "s"
+      "unit": "s",
+      "description": "How long a note takes to fade out after the key is released."
     },
     {
       "key": "sustain",
       "name": "Sustain",
       "min": 0,
       "max": 1,
-      "default": 0
+      "default": 0,
+      "description": "The level and brightness a held note settles at. At zero the note dies away like a struck bell; higher holds it like a pad."
     },
     {
       "key": "detune",
@@ -66,28 +73,32 @@
       "min": 0,
       "max": 30,
       "default": 5,
-      "unit": "ct"
+      "unit": "ct",
+      "description": "Tunes the two halves of each note apart so they beat slowly against each other. More is faster beating; at zero there is none."
     },
     {
       "key": "feedback",
       "name": "Feedback",
       "min": 0,
       "max": 1,
-      "default": 0.1
+      "default": 0.1,
+      "description": "Makes the modulators modulate themselves, which adds a buzzy, sawtooth-like edge to the overtones."
     },
     {
       "key": "velocity",
       "name": "Velocity",
       "min": 0,
       "max": 1,
-      "default": 0.6
+      "default": 0.6,
+      "description": "How much playing harder makes a note louder and brighter. At zero every note comes out at full level and brightness."
     },
     {
       "key": "spread",
       "name": "Spread",
       "min": 0,
       "max": 1,
-      "default": 0.6
+      "default": 0.6,
+      "description": "Pans the two detuned halves of each note apart, so their beating moves between the speakers. At zero both sit in the centre."
     },
     {
       "key": "volume",
@@ -95,7 +106,8 @@
       "min": -48,
       "max": 6,
       "default": -9,
-      "unit": "dB"
+      "unit": "dB",
+      "description": "Output level of the instrument. A soft clip after it rounds off the peaks when many notes stack up."
     }
   ],
   "presets": {

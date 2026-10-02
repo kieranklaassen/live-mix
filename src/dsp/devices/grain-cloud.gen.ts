@@ -5,14 +5,93 @@ import { wasmDeviceDescriptor } from '../descriptor'
 import { defineWasmDevice, WasmDevice, type WasmDeviceOptions } from '../WasmDevice'
 
 export const GRAIN_CLOUD_PARAMS = {
-  position: { id: 0, name: 'Position', min: 0, max: 1, default: 0.04, taper: 'linear', unit: '' },
-  size: { id: 1, name: 'Size', min: 10, max: 2000, default: 220, taper: 'log', unit: 'ms' },
-  density: { id: 2, name: 'Density', min: 0.5, max: 100, default: 20, taper: 'log', unit: '/s' },
-  pitch: { id: 3, name: 'Pitch', min: -24, max: 24, default: 0, taper: 'linear', unit: 'st' },
-  spray: { id: 4, name: 'Spray', min: 0, max: 1, default: 0.3, taper: 'linear', unit: '' },
-  scatter: { id: 5, name: 'Scatter', min: 0, max: 1, default: 0.3, taper: 'linear', unit: '' },
-  texture: { id: 6, name: 'Texture', min: 0, max: 1, default: 0.1, taper: 'linear', unit: '' },
-  reverse: { id: 7, name: 'Reverse', min: 0, max: 1, default: 0.25, taper: 'linear', unit: '' },
+  position: {
+    id: 0,
+    name: 'Position',
+    min: 0,
+    max: 1,
+    default: 0.04,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How far back in the recording the grains read. Low stays close to what was just played; high reaches the oldest sound in the buffer.',
+  },
+  size: {
+    id: 1,
+    name: 'Size',
+    min: 10,
+    max: 2000,
+    default: 220,
+    taper: 'log',
+    unit: 'ms',
+    description:
+      'How long each grain lasts. Short grains break the sound into a fine, grainy texture; long grains keep recognisable pieces of it.',
+  },
+  density: {
+    id: 2,
+    name: 'Density',
+    min: 0.5,
+    max: 100,
+    default: 20,
+    taper: 'log',
+    unit: '/s',
+    description:
+      'How many grains start each second. Low leaves separate, scattered events; high fuses them into a continuous cloud.',
+  },
+  pitch: {
+    id: 3,
+    name: 'Pitch',
+    min: -24,
+    max: 24,
+    default: 0,
+    taper: 'linear',
+    unit: 'st',
+    description: 'Transposes every grain up or down without changing how long it lasts.',
+  },
+  spray: {
+    id: 4,
+    name: 'Spray',
+    min: 0,
+    max: 1,
+    default: 0.3,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Randomises where each grain reads around Position. Low keeps the cloud near one moment; high pulls from the whole recording.',
+  },
+  scatter: {
+    id: 5,
+    name: 'Scatter',
+    min: 0,
+    max: 1,
+    default: 0.3,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Detunes each grain by a small random amount. Above half, more and more grains also jump by an octave or a fifth.',
+  },
+  texture: {
+    id: 6,
+    name: 'Texture',
+    min: 0,
+    max: 1,
+    default: 0.1,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Shapes the edges of each grain. Low fades grains in and out smoothly; high gives them flat tops and abrupt edges for a choppier cloud.',
+  },
+  reverse: {
+    id: 7,
+    name: 'Reverse',
+    min: 0,
+    max: 1,
+    default: 0.25,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Share of grains that play backwards. Zero is all forwards; full is all backwards.',
+  },
   feedback: {
     id: 8,
     name: 'Feedback',
@@ -21,6 +100,8 @@ export const GRAIN_CLOUD_PARAMS = {
     default: 0.25,
     taper: 'linear',
     unit: '',
+    description:
+      'Records the cloud back into the buffer, so new grains are made from old grains and the sound builds and blurs.',
   },
   freeze: {
     id: 9,
@@ -31,9 +112,30 @@ export const GRAIN_CLOUD_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['Off', 'On'],
+    description:
+      'On stops recording and holds what is in the buffer, so the cloud keeps playing that moment until it is switched off.',
   },
-  spread: { id: 10, name: 'Spread', min: 0, max: 1, default: 0.7, taper: 'linear', unit: '' },
-  mix: { id: 11, name: 'Mix', min: 0, max: 1, default: 0.5, taper: 'linear', unit: '' },
+  spread: {
+    id: 10,
+    name: 'Spread',
+    min: 0,
+    max: 1,
+    default: 0.7,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How far grains are thrown to the left and right. Zero keeps every grain in the centre.',
+  },
+  mix: {
+    id: 11,
+    name: 'Mix',
+    min: 0,
+    max: 1,
+    default: 0.5,
+    taper: 'linear',
+    unit: '',
+    description: 'Balance between the dry signal and the grain cloud.',
+  },
 } as const satisfies Record<string, ParamSpec>
 
 export type GrainCloudParamName = keyof typeof GRAIN_CLOUD_PARAMS

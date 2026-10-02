@@ -11,7 +11,8 @@
       "key": "material",
       "name": "Material",
       "choices": ["Church bell", "Singing bowl", "Vibraphone", "Bar", "Kalimba", "Glass", "Gong"],
-      "default": 1
+      "default": 1,
+      "description": "What is struck: bell, bowl, bar, tine, glass or gong. Each has its own set of overtones. Heard from the next note."
     },
     {
       "key": "decay",
@@ -20,28 +21,32 @@
       "max": 40,
       "default": 12,
       "taper": "log",
-      "unit": "s"
+      "unit": "s",
+      "description": "How long the lowest tone of a note rings. The overtones above it die sooner, by an amount Damping sets."
     },
     {
       "key": "damping",
       "name": "Damping",
       "min": 0,
       "max": 1,
-      "default": 0.4
+      "default": 0.4,
+      "description": "How much faster the high overtones die than the low ones. Low rings like metal; high goes dull quickly, like wood."
     },
     {
       "key": "hardness",
       "name": "Hardness",
       "min": 0,
       "max": 1,
-      "default": 0.45
+      "default": 0.45,
+      "description": "How hard the mallet is. Soft gives a round, muted strike; hard gives a bright attack with more overtones. Heard from the next strike."
     },
     {
       "key": "position",
       "name": "Position",
       "min": 0,
       "max": 1,
-      "default": 0.15
+      "default": 0.15,
+      "description": "Where the mallet lands, from the edge or rim to the middle. It changes which overtones the next strike brings out."
     },
     {
       "key": "detune",
@@ -49,42 +54,48 @@
       "min": 0,
       "max": 8,
       "default": 1,
-      "unit": "Hz"
+      "unit": "Hz",
+      "description": "Splits each paired overtone into two a little apart in pitch, which makes the ring beat. Higher beats faster; zero is still."
     },
     {
       "key": "stretch",
       "name": "Stretch",
       "min": 0.5,
       "max": 1.5,
-      "default": 1
+      "default": 1,
+      "description": "Squeezes or widens the gaps between the overtones. The middle is the true spacing; lower crowds them towards the note, higher spreads them."
     },
     {
       "key": "sustain",
       "name": "Sustain",
       "min": 0,
       "max": 1,
-      "default": 0
+      "default": 0,
+      "description": "Rubs the object while a key is held, so its low tones swell and hold instead of dying away. Higher settings also soften the strike."
     },
     {
       "key": "brightness",
       "name": "Brightness",
       "min": 0,
       "max": 1,
-      "default": 0.5
+      "default": 0.5,
+      "description": "Tilts the level of the overtones against the played note. Low is darker and rounder; high brings the upper overtones forward."
     },
     {
       "key": "release",
       "name": "Release",
       "min": 0,
       "max": 1,
-      "default": 0.25
+      "default": 0.25,
+      "description": "How quickly a note is damped when its key is let go. At zero it rings on untouched; higher values choke it faster."
     },
     {
       "key": "spread",
       "name": "Spread",
       "min": 0,
       "max": 1,
-      "default": 0.6
+      "default": 0.6,
+      "description": "Places the overtones across the stereo field. With more of it the beating pairs turn from side to side between the speakers."
     },
     {
       "key": "volume",
@@ -92,7 +103,8 @@
       "min": -48,
       "max": 6,
       "default": -9,
-      "unit": "dB"
+      "unit": "dB",
+      "description": "Overall output level of the instrument."
     }
   ],
   "presets": {

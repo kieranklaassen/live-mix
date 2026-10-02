@@ -23,6 +23,8 @@ const worklets = {
   // Not a worklet but a worker; it ships next to them as one more
   // self-contained script a host page loads by URL.
   'native-pump': 'src/native/worklets/native-pump.worker.ts',
+  // And the worker that samples the engine's load.
+  'load-sampler': 'src/core/load-sampler.worker.ts',
 }
 
 async function main() {

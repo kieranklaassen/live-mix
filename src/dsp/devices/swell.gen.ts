@@ -5,7 +5,17 @@ import { wasmDeviceDescriptor } from '../descriptor'
 import { defineWasmDevice, WasmDevice, type WasmDeviceOptions } from '../WasmDevice'
 
 export const SWELL_PARAMS = {
-  attack: { id: 0, name: 'Attack', min: 10, max: 5000, default: 400, taper: 'log', unit: 'ms' },
+  attack: {
+    id: 0,
+    name: 'Attack',
+    min: 10,
+    max: 5000,
+    default: 400,
+    taper: 'log',
+    unit: 'ms',
+    description:
+      'How long each note takes to fade in to full level. Short softens the pick; long gives slow bowed swells.',
+  },
   sensitivity: {
     id: 1,
     name: 'Sensitivity',
@@ -14,10 +24,42 @@ export const SWELL_PARAMS = {
     default: -40,
     taper: 'linear',
     unit: 'dB',
+    description:
+      'The input level that counts as a note and starts a swell. Lower catches soft playing; raise it if noise or ringing strings set it off.',
   },
-  release: { id: 2, name: 'Release', min: 20, max: 2000, default: 150, taper: 'log', unit: 'ms' },
-  depth: { id: 3, name: 'Depth', min: 0, max: 1, default: 1, taper: 'linear', unit: '' },
-  curve: { id: 4, name: 'Curve', min: 0, max: 1, default: 0.5, taper: 'linear', unit: '' },
+  release: {
+    id: 2,
+    name: 'Release',
+    min: 20,
+    max: 2000,
+    default: 150,
+    taper: 'log',
+    unit: 'ms',
+    description:
+      'How long the gain takes to close again after a note ends, ready for the next one. Short re-arms quickly; long lets a tail trail away.',
+  },
+  depth: {
+    id: 3,
+    name: 'Depth',
+    min: 0,
+    max: 1,
+    default: 1,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How far the attack is turned down before it fades in. At full each note starts from silence; lower leaves some of the pick audible.',
+  },
+  curve: {
+    id: 4,
+    name: 'Curve',
+    min: 0,
+    max: 1,
+    default: 0.5,
+    taper: 'linear',
+    unit: '',
+    description:
+      'The shape of the fade in. Low rises in a straight line; high stays quiet and arrives late, like rocking a volume pedal.',
+  },
   retrigger: {
     id: 5,
     name: 'Retrigger',
@@ -27,9 +69,31 @@ export const SWELL_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['On new notes', 'Only after silence'],
+    description:
+      'On new notes restarts the swell whenever a note is played over a ringing one. Only after silence waits until the sound has stopped.',
   },
-  lookahead: { id: 6, name: 'Lookahead', min: 0, max: 20, default: 5, taper: 'linear', unit: 'ms' },
-  mix: { id: 7, name: 'Mix', min: 0, max: 1, default: 1, taper: 'linear', unit: '' },
+  lookahead: {
+    id: 6,
+    name: 'Lookahead',
+    min: 0,
+    max: 20,
+    default: 5,
+    taper: 'linear',
+    unit: 'ms',
+    description:
+      'How early the detector sees a note, so the gain is already down when the pick arrives. At zero, a pick over a ringing note leaks through.',
+  },
+  mix: {
+    id: 7,
+    name: 'Mix',
+    min: 0,
+    max: 1,
+    default: 1,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Balance between the untouched signal and the swelled one. Lower settings let some of the original attack back in.',
+  },
 } as const satisfies Record<string, ParamSpec>
 
 export type SwellParamName = keyof typeof SWELL_PARAMS
