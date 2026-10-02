@@ -93,6 +93,12 @@ export interface DeviceDescriptor<P extends Record<string, ParamSpec> = Record<s
   /** Factory presets: name → partial param map. */
   presets?: PresetTable<P>
   /**
+   * Names presets had before they were renamed: old name → the name of today.
+   * `resolvePreset` follows it, so what was saved under an old name still
+   * loads; a list of presets shows only the names of today.
+   */
+  formerPresets?: Readonly<Record<string, string>>
+  /**
    * Shipped but over the CPU budget or otherwise not yet cleared for
    * production (see docs/devices.md); hosts may hide or label it. Absent
    * means false.

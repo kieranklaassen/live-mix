@@ -71,7 +71,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       {
         deviceId: 'tremolo',
         preset: 'Tape vibrato',
-        params: { rate: 4.6, depth: 0.22, drift: 0.4 },
+        params: { phase: 0, rate: 4.6, depth: 0.22, drift: 0.4 },
       },
       { deviceId: 'analog-delay', preset: 'Dark repeats', params: { time: 440, mix: 0.28 } },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { midDecay: 5, mix: 0.4 } },
@@ -241,7 +241,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { cutoff: 500, attack: 1.5, release: 5, chorus: 0, volume: -14 },
     },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master', params: { hiss: 0.05 } },
+      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4, hiss: 0.05 } },
       { deviceId: 'dattorro', preset: 'Long plate', params: { damping: 0.5, mix: 0.22 } },
     ],
     preview: 'low',
@@ -331,7 +331,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'phaser', preset: 'Classic 4-Stage', params: { rate: 0.18, mix: 0.45 } },
-      { deviceId: 'tape-echo', preset: 'Discreet', params: { time: 330, mix: 0.22 } },
+      { deviceId: 'tape-echo', preset: 'Short and soft', params: { time: 330, mix: 0.22 } },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { midDecay: 3.5, mix: 0.4 } },
     ],
   },
@@ -425,7 +425,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { blow: 0.5, attack: 3, release: 7 },
     },
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { lowCut: 30 } },
+      { deviceId: 'ambient-eq', preset: 'Dark', params: { highCut: 9000, lowCut: 30 } },
       { deviceId: 'ether-reverb', preset: 'Cathedral', params: { damping: 0.4, mix: 0.3 } },
     ],
     preview: 'low',
@@ -579,7 +579,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { decay: 3, hardness: 0.7, brightness: 0.6, volume: -6 },
     },
     effects: [
-      { deviceId: 'patina', preset: 'Twelve bit', params: { noise: 0.1 } },
+      { deviceId: 'patina', preset: 'Twelve bit', params: { wear: 0.35, noise: 0.1 } },
       {
         deviceId: 'analog-delay',
         preset: 'Fifths and fourths',
@@ -1375,7 +1375,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { breath: 0.7, release: 1, vibrato: 0.5, scoop: 140, volume: -12 },
     },
     effects: [
-      { deviceId: 'tape-echo', preset: 'Discreet', params: { time: 380, mix: 0.25 } },
+      { deviceId: 'tape-echo', preset: 'Short and soft', params: { time: 380, mix: 0.25 } },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.45 } },
     ],
   },

@@ -178,6 +178,95 @@
       "angle": 1,
       "noise": 0.05,
       "output": 0
+    },
+    "Just the valves": {
+      "speaker": 4,
+      "drive": 0.6,
+      "bass": 0,
+      "treble": 0,
+      "distance": 0,
+      "room": 0.3,
+      "angle": 0,
+      "noise": 0.05,
+      "output": -2
+    },
+    "Clean and bright": {
+      "speaker": 1,
+      "drive": 0,
+      "bass": -0.3,
+      "treble": 1,
+      "distance": 0.1,
+      "room": 0.3,
+      "angle": 0,
+      "noise": 0.05,
+      "output": 0
+    },
+    "Dark and woolly": {
+      "speaker": 2,
+      "drive": 0.4,
+      "bass": 1,
+      "treble": -1,
+      "distance": 0.1,
+      "room": 0.3,
+      "angle": 1,
+      "noise": 0.05,
+      "output": -5
+    },
+    "In the cupboard": {
+      "speaker": 1,
+      "drive": 0.3,
+      "bass": 0,
+      "treble": 0,
+      "distance": 0.7,
+      "room": 0,
+      "angle": 0.2,
+      "noise": 0.1,
+      "output": -1.5
+    },
+    "Far end of the hall": {
+      "speaker": 4,
+      "drive": 0.15,
+      "bass": 0,
+      "treble": 0.2,
+      "distance": 1,
+      "room": 1,
+      "angle": 0,
+      "noise": 0.05,
+      "output": -0.5
+    },
+    "Room underneath": {
+      "speaker": 4,
+      "drive": 0.1,
+      "bass": 0,
+      "treble": 0,
+      "distance": 1,
+      "room": 0.7,
+      "angle": 0,
+      "noise": 0,
+      "output": 4,
+      "mix": 0.35
+    },
+    "Noisy valves": {
+      "speaker": 1,
+      "drive": 0.5,
+      "bass": 0.1,
+      "treble": 0.2,
+      "distance": 0.2,
+      "room": 0.3,
+      "angle": 0.1,
+      "noise": 1,
+      "output": -1.5
+    },
+    "Stack flat out": {
+      "speaker": 2,
+      "drive": 1,
+      "bass": 0.3,
+      "treble": 0.4,
+      "distance": 0.15,
+      "room": 0.4,
+      "angle": 0.1,
+      "noise": 0.1,
+      "output": -4.5
     }
   },
   "origin": {

@@ -122,7 +122,7 @@ export const SWELL_DESCRIPTOR = wasmDeviceDescriptor(SWELL_DEVICE, {
       lookahead: 5,
       mix: 1,
     },
-    'Slow gear': {
+    'Slow attack': {
       attack: 160,
       sensitivity: -34,
       release: 80,
@@ -172,7 +172,26 @@ export const SWELL_DESCRIPTOR = wasmDeviceDescriptor(SWELL_DEVICE, {
       lookahead: 5,
       mix: 0.6,
     },
+    'Loud notes only': { attack: 60, sensitivity: -20, release: 40, curve: 0 },
+    'Volume pedal': { attack: 250, curve: 1, lookahead: 8 },
+    Backwards: { attack: 420, release: 100, curve: 1, lookahead: 20 },
+    'Ghost pick': { attack: 500, depth: 0.5, curve: 0.3 },
+    Glacier: {
+      attack: 4000,
+      sensitivity: -50,
+      release: 2000,
+      curve: 0,
+      retrigger: 1,
+      lookahead: 10,
+      mix: 0.85,
+    },
+    'First note only': { attack: 1500, sensitivity: -55, release: 1500, curve: 0.4, retrigger: 1 },
+    'String section': { attack: 340, sensitivity: -46, release: 600, curve: 0.2, lookahead: 10 },
+    'Slow bow': { attack: 650, curve: 0.3, lookahead: 10 },
+    Sunrise: { attack: 1500, sensitivity: -50, release: 800, curve: 1, retrigger: 1 },
+    'Half bowed': { attack: 300, mix: 0.5 },
   },
+  formerPresets: { 'Slow gear': 'Slow attack' },
 })
 
 export type Swell = WasmDevice<typeof SWELL_PARAMS>

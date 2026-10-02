@@ -9,7 +9,7 @@ export const WEST_COAST_PRESETS: readonly FactoryPreset[] = [
       'Woody plucks through a low-pass gate, with a quiet tape echo behind them and a small dark room.',
     instrument: { deviceId: 'west-coast', preset: 'Wooden pluck', params: { volume: -1.5 } },
     effects: [
-      { deviceId: 'tape-echo', preset: 'Discreet' },
+      { deviceId: 'tape-echo', preset: 'Short and soft' },
       { deviceId: 'expanse', preset: 'Small dark room', params: { mix: 0.3 } },
     ],
   },
@@ -58,7 +58,7 @@ export const WEST_COAST_PRESETS: readonly FactoryPreset[] = [
       'A bright strummed chord, each string a little different from the last, ringing into a plain hall.',
     instrument: { deviceId: 'west-coast', preset: 'Bright harp', params: { volume: -8.5 } },
     effects: [
-      { deviceId: 'tape-echo', preset: 'Discreet' },
+      { deviceId: 'tape-echo', preset: 'Short and soft' },
       { deviceId: 'shimmer', preset: 'Plain hall', params: { mix: 0.3 } },
     ],
   },

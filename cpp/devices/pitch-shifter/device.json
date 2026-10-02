@@ -259,6 +259,58 @@
       "tone": 7000,
       "spread": 0.6,
       "mix": 0.45
+    },
+    "Sinking fourths": {
+      "pitchA": -5,
+      "levelB": 0,
+      "detune": 0,
+      "mode": 0,
+      "size": 80,
+      "jitter": 0,
+      "delay": 400,
+      "feedback": 0.6,
+      "tone": 5000,
+      "spread": 0.5,
+      "mix": 0.4
+    },
+    "Scattered sparks": {
+      "pitchA": 24,
+      "pitchB": 19,
+      "levelB": 0.6,
+      "detune": 0,
+      "mode": 1,
+      "size": 28,
+      "jitter": 1,
+      "delay": 240,
+      "feedback": 0.45,
+      "tone": 14000,
+      "spread": 1,
+      "mix": 0.3
+    },
+    "Faint air": {
+      "pitchA": 12,
+      "levelB": 0,
+      "detune": 0,
+      "mode": 3,
+      "delay": 0,
+      "feedback": 0,
+      "tone": 16000,
+      "spread": 0.5,
+      "mix": 0.14
+    },
+    "Two octaves below": {
+      "pitchA": -24,
+      "pitchB": -12,
+      "levelB": 0.5,
+      "detune": 0,
+      "mode": 0,
+      "size": 140,
+      "jitter": 0.1,
+      "delay": 0,
+      "feedback": 0,
+      "tone": 1800,
+      "spread": 0.3,
+      "mix": 0.55
     }
   },
   "origin": {

@@ -33,7 +33,7 @@ export const ZITHER_PRESETS: readonly FactoryPreset[] = [
       'A hammered dulcimer rolled in octaves, with quiet tape echoes and a glassy shimmer behind it.',
     instrument: { deviceId: 'zither', preset: 'Hammered shimmer' },
     effects: [
-      { deviceId: 'tape-echo', preset: 'Discreet' },
+      { deviceId: 'tape-echo', preset: 'Short and soft' },
       { deviceId: 'shimmer', preset: 'Glass', params: { mix: 0.3 } },
     ],
   },

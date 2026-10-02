@@ -160,6 +160,60 @@
       "shape": 4,
       "stereo": 0,
       "mix": 0.5
+    },
+    "Faint Air": {
+      "delayMs": 1,
+      "rate": 0.15,
+      "depth": 60,
+      "feedback": 0,
+      "shape": 0,
+      "stereo": 180,
+      "mix": 0.2
+    },
+    "Glacial Drift": {
+      "delayMs": 3,
+      "rate": 0.02,
+      "depth": 90,
+      "feedback": 55,
+      "shape": 0,
+      "stereo": 120,
+      "mix": 0.5
+    },
+    "Rising Comb": {
+      "delayMs": 3.5,
+      "rate": 0.2,
+      "depth": 85,
+      "feedback": 40,
+      "shape": 3,
+      "stereo": 90,
+      "mix": 0.45
+    },
+    "Standing Comb": {
+      "delayMs": 4,
+      "rate": 0.25,
+      "depth": 0,
+      "feedback": -60,
+      "shape": 0,
+      "stereo": 0,
+      "mix": 0.5
+    },
+    "Fast Warble": {
+      "delayMs": 5,
+      "rate": 6,
+      "depth": 12,
+      "feedback": 20,
+      "shape": 0,
+      "stereo": 90,
+      "mix": 0.5
+    },
+    "Deep Dive": {
+      "delayMs": 7,
+      "rate": 0.1,
+      "depth": 100,
+      "feedback": 75,
+      "shape": 0,
+      "stereo": 0,
+      "mix": 0.5
     }
   },
   "origin": {

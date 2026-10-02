@@ -271,6 +271,64 @@ describe('DevicePlate', () => {
     expect(screen.getAllByRole('slider')).toHaveLength(2)
   })
 
+  it('lists its presets among the tools, or gives the foot to a picker the host draws', async () => {
+    const fixture = createTestEngine()
+    const device = await make(fixture)
+    const { unmount } = render(<DevicePlate device={device} skin={SKIN} data-testid="plate" />, {
+      wrapper: fixture.wrapper,
+    })
+    const list = screen.getByTestId('plate-preset')
+    expect(list.closest('.lm-plate__tools')).not.toBeNull()
+    expect(screen.getByTestId('plate').querySelector('.lm-plate__presets')).toBeNull()
+    fireEvent.change(list, { target: { value: 'Presence peak' } })
+    expect(device.getParam('gain')).toBe(4)
+    // A preset is every knob: this one names no gain, so the gain goes back to its start.
+    fireEvent.change(list, { target: { value: 'Low-pass gentle' } })
+    expect(device.getParam('gain')).toBe(0)
+    unmount()
+
+    render(
+      <DevicePlate
+        device={device}
+        skin={SKIN}
+        presetPicker={<button type="button">Presets of mine</button>}
+        onRemove={() => {}}
+        data-testid="plate"
+      />,
+      { wrapper: fixture.wrapper },
+    )
+    expect(screen.queryByTestId('plate-preset')).toBeNull()
+    const picker = screen.getByRole('button', { name: 'Presets of mine' })
+    // On the foot itself, in view without the pointer on the plate, and not among the tools that come and go.
+    expect(picker.parentElement).toHaveClass('lm-plate__presets')
+    expect(picker.closest('.lm-plate__tools')).toBeNull()
+    expect(picker.closest('.lm-plate__foot')).toHaveClass('lm-plate__foot--picker')
+    // The tools share the name's place, so they can come up over its end and leave the picker where it is.
+    const tools = screen.getByTestId('plate-remove').closest('.lm-plate__tools')
+    expect(tools?.parentElement).toHaveClass('lm-plate__lead')
+    expect(tools?.previousElementSibling).toHaveClass('lm-plate__name')
+  })
+
+  it('keeps its own preset list away for a picker that draws nothing, and gives it no room', async () => {
+    const fixture = createTestEngine()
+    const device = await make(fixture)
+    const { container } = render(
+      <DevicePlate
+        device={device}
+        skin={SKIN}
+        presetPicker={null}
+        onRemove={() => {}}
+        data-testid="plate"
+      />,
+      { wrapper: fixture.wrapper },
+    )
+    expect(screen.queryByTestId('plate-preset')).toBeNull()
+    expect(container.querySelector('.lm-plate__presets')).toBeNull()
+    expect(container.querySelector('.lm-plate__lead')).toBeNull()
+    expect(container.querySelector('.lm-plate__foot')).not.toHaveClass('lm-plate__foot--picker')
+    expect(screen.getByTestId('plate-remove').parentElement).toHaveClass('lm-plate__tools')
+  })
+
   it('turns the device off and on from the lamp', async () => {
     const fixture = createTestEngine()
     const device = await make(fixture)
@@ -435,6 +493,35 @@ describe('DeviceChainView with skins', () => {
     expect(hosted.openEditor).toHaveBeenCalledTimes(1)
     // A plug-in that is missing keeps the panel, which says why.
     expect(screen.getByTestId('chain-device-1')).toHaveClass('lm-device')
+  })
+
+  it('hands each device and its place to the host for a preset picker, on a plate and on a panel', async () => {
+    const fixture = createTestEngine()
+    const pad = fixture.engine.addAudioTrack('pad')
+    const trim = await make(fixture, 'utility')
+    const filter = await make(fixture)
+    const delay = await make(fixture, 'delay')
+    for (const device of [trim, filter, delay]) pad.strip.addInsert(device)
+    render(
+      <DeviceChainView
+        strip={pad}
+        pinned={1}
+        skin={(device) => (device.id === 'filter' ? SKIN : null)}
+        presetPicker={(device, index) => (
+          <button type="button" data-testid={`mine-${index}`}>
+            {device.id}
+          </button>
+        )}
+        data-testid="chain"
+      />,
+      { wrapper: fixture.wrapper },
+    )
+    // The place counts the devices shown, past what is pinned.
+    expect(screen.getByTestId('mine-0')).toHaveTextContent('filter')
+    expect(screen.getByTestId('mine-1')).toHaveTextContent('delay')
+    expect(screen.getByTestId('chain-device-0')).toContainElement(screen.getByTestId('mine-0'))
+    expect(screen.getByTestId('chain-device-1')).toContainElement(screen.getByTestId('mine-1'))
+    expect(screen.queryByRole('combobox', { name: /preset$/ })).toBeNull()
   })
 
   it('carries a plate by its face, under its full name, and leaves its knobs to themselves', async () => {

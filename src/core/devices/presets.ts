@@ -36,6 +36,7 @@ export interface PresetSource<P extends Record<string, ParamSpec> = Record<strin
   version: number
   params: P
   presets?: PresetTable<P>
+  formerPresets?: Readonly<Record<string, string>>
 }
 
 /** Materialise a descriptor's factory presets. */
@@ -55,13 +56,24 @@ export function defaultPreset(source: PresetSource, name = 'Default'): Preset {
   return { name, deviceId: source.id, deviceVersion: source.version, params }
 }
 
+/** Whether `name` is a preset of the descriptor, by its name of today or one it had before a rename. */
+export function hasPreset(source: PresetSource, name: string): boolean {
+  const presets = source.presets ?? {}
+  return name in presets || (source.formerPresets?.[name] ?? '') in presets
+}
+
 /**
  * Look a preset up by name in a descriptor's table, or validate a preset
- * object against the descriptor (device id must match).
+ * object against the descriptor (device id must match). A name the preset had
+ * before it was renamed (`formerPresets`) finds the preset under its name of
+ * today, so a saved score that names it still loads.
  */
 export function resolvePreset(source: PresetSource, preset: string | Preset): Preset {
   if (typeof preset === 'string') {
-    const found = listPresets(source).find((candidate) => candidate.name === preset)
+    const presets = listPresets(source)
+    const found =
+      presets.find((candidate) => candidate.name === preset) ??
+      presets.find((candidate) => candidate.name === source.formerPresets?.[preset])
     if (!found) throw new Error(`live-mix: ${source.id} has no preset "${preset}"`)
     return found
   }

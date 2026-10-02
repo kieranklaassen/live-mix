@@ -141,6 +141,100 @@
       "drip": 0.55,
       "predelay": 60,
       "drive": 0.7
+    },
+    "Tank alone": {
+      "mix": 1,
+      "decay": 3,
+      "tension": 0.4,
+      "springs": 2,
+      "tone": 3600,
+      "drip": 0.25,
+      "drive": 0.25
+    },
+    "Hint of spring": {
+      "mix": 0.12,
+      "decay": 1.5,
+      "tension": 0.6,
+      "springs": 1,
+      "tone": 3500,
+      "drip": 0.4,
+      "drive": 0.25
+    },
+    "Overdriven tank": {
+      "mix": 0.35,
+      "decay": 2,
+      "tension": 0.3,
+      "springs": 1,
+      "tone": 2800,
+      "drip": 0.8,
+      "drive": 1
+    },
+    "Underwater": {
+      "mix": 0.45,
+      "decay": 6,
+      "tension": 0.7,
+      "springs": 2,
+      "tone": 600,
+      "drip": 0,
+      "drive": 0.1
+    },
+    "Late splash": {
+      "mix": 0.35,
+      "decay": 1.2,
+      "tension": 0.1,
+      "springs": 2,
+      "tone": 6000,
+      "drip": 1,
+      "predelay": 200,
+      "drive": 0.25
+    },
+    "Single slack coil": {
+      "mix": 0.4,
+      "decay": 4,
+      "tension": 0,
+      "springs": 0,
+      "tone": 6000,
+      "drip": 0.9,
+      "drive": 0.25
+    },
+    "Tight long tank": {
+      "mix": 0.4,
+      "decay": 6,
+      "tension": 1,
+      "springs": 1,
+      "tone": 5500,
+      "drip": 0,
+      "drive": 0
+    },
+    "Narrow warm tank": {
+      "mix": 0.3,
+      "decay": 2,
+      "tension": 0.75,
+      "springs": 2,
+      "tone": 2200,
+      "drip": 0.3,
+      "predelay": 15,
+      "drive": 0.25,
+      "width": 0.3
+    },
+    "Quick twang": {
+      "mix": 0.3,
+      "decay": 0.8,
+      "tension": 0.25,
+      "springs": 1,
+      "tone": 6000,
+      "drip": 1,
+      "drive": 0.5
+    },
+    "Dark late coil": {
+      "mix": 0.5,
+      "decay": 5,
+      "tension": 0.85,
+      "springs": 0,
+      "tone": 1200,
+      "drip": 0.1,
+      "predelay": 80,
+      "drive": 0
     }
   },
   "origin": {

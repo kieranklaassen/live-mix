@@ -116,7 +116,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       { deviceId: 'analog-drive', preset: 'Iron lows', params: { drive: 0.7, output: 0 } },
       {
         deviceId: 'tape-echo',
-        preset: 'Discreet',
+        preset: 'Short and soft',
         params: { time: 190, feedback: 0.45, heads: 3, spread: 0.8, mix: 0.35 },
       },
       { deviceId: 'ether-reverb', preset: 'Room', params: { mix: 0.2 } },
@@ -271,7 +271,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
       {
         deviceId: 'tape-echo',
-        preset: 'Discreet',
+        preset: 'Short and soft',
         params: { time: 250, feedback: 0.4, spread: 0.6 },
       },
       { deviceId: 'bloom-reverb', preset: 'Still room', params: { mix: 0.25 } },
@@ -391,7 +391,11 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'auto-filter', preset: 'Random Steps', params: { resonance: 5, lfoAmount: 85 } },
+      {
+        deviceId: 'auto-filter',
+        preset: 'Random Steps',
+        params: { mix: 1, resonance: 5, lfoAmount: 85 },
+      },
       { deviceId: 'tremolo', preset: 'Slow pan', params: { rate: 2, shape: 3, depth: 0.4 } },
       {
         deviceId: 'analog-delay',
@@ -1106,7 +1110,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'tape-echo',
-        preset: 'Discreet',
+        preset: 'Short and soft',
         params: { time: 250, feedback: 0.45, heads: 3, highCut: 7000, spread: 0.7, mix: 0.3 },
       },
       { deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.2 } },
@@ -1370,7 +1374,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'tape-echo',
-        preset: 'Discreet',
+        preset: 'Short and soft',
         params: { time: 285, feedback: 0.4, spread: 0.6, mix: 0.25 },
       },
       { deviceId: 'fdn-reverb', preset: 'Room', params: { mix: 0.25 } },
@@ -1486,7 +1490,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       {
         deviceId: 'auto-filter',
         preset: 'Auto-Wah',
-        params: { type: 0, cutoffHz: 450, resonance: 4, envAmount: 75, envReleaseMs: 180 },
+        params: { mix: 1, type: 0, cutoffHz: 450, resonance: 4, envAmount: 75, envReleaseMs: 180 },
       },
       { deviceId: 'analog-delay', preset: 'Chorus echo', params: { time: 375, mix: 0.3 } },
       { deviceId: 'spring-reverb', preset: 'Two spring tank', params: { mix: 0.2 } },
@@ -1632,7 +1636,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { blow: 0.65, attack: 0.2, release: 1.5, harmony: 0.5, volume: -2.4 },
     },
     effects: [
-      { deviceId: 'tremolo', preset: 'Brownface shimmer', params: { rate: 4.5, depth: 0.6 } },
+      { deviceId: 'tremolo', preset: 'Harmonic shimmer', params: { rate: 4.5, depth: 0.6 } },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
@@ -1676,7 +1680,11 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Squelch',
         params: { cutoffHz: 500, resonance: 5, driveDb: 4, lfoAmount: 55 },
       },
-      { deviceId: 'tape-echo', preset: 'Discreet', params: { spread: 0.8, time: 375, mix: 0.2 } },
+      {
+        deviceId: 'tape-echo',
+        preset: 'Short and soft',
+        params: { spread: 0.8, time: 375, mix: 0.2 },
+      },
     ],
   },
 
@@ -1885,7 +1893,11 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'phaser', preset: 'Classic 4-Stage', params: { rate: 0.6, mix: 0.35 } },
-      { deviceId: 'tape-echo', preset: 'Discreet', params: { time: 250, feedback: 0.4, mix: 0.3 } },
+      {
+        deviceId: 'tape-echo',
+        preset: 'Short and soft',
+        params: { time: 250, feedback: 0.4, mix: 0.3 },
+      },
       { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.2 } },
     ],
   },

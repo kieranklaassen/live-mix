@@ -89,7 +89,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { mallet: 0.35, decay: 1.5, roll: 12, width: 0.5, volume: -15 },
     },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master', params: { hiss: 0.05 } },
+      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4, hiss: 0.05 } },
       { deviceId: 'shimmer', preset: 'Plain hall', params: { mix: 0.28 } },
     ],
     preview: 'low',
@@ -345,7 +345,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { damping: 0.3, hardness: 0.7, brightness: 0.75, spread: 0.7, volume: -7 },
     },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master' },
+      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4 } },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { lowDecay: 4, mix: 0.35 } },
     ],
     preview: 'hold',
@@ -524,7 +524,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'tape-echo',
-        preset: 'Discreet',
+        preset: 'Short and soft',
         params: { time: 250, feedback: 0.35, heads: 1, highCut: 5000, spread: 0.5, mix: 0.3 },
       },
       { deviceId: 'expanse', preset: 'Small dark room', params: { mix: 0.2 } },
@@ -603,7 +603,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'tape-echo', preset: 'Discreet', params: { time: 180, feedback: 0.2 } },
+      { deviceId: 'tape-echo', preset: 'Short and soft', params: { time: 180, feedback: 0.2 } },
       { deviceId: 'ether-reverb', preset: 'Room', params: { mix: 0.22 } },
     ],
   },
@@ -701,7 +701,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'tape-echo',
-        preset: 'Space echo',
+        preset: 'Warm repeats',
         params: { time: 330, feedback: 0.3, heads: 3, wow: 0.15, highCut: 5000, mix: 0.3 },
       },
       { deviceId: 'fdn-reverb', preset: 'Room', params: { mix: 0.2 } },
@@ -846,7 +846,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'ambient-eq', preset: 'Drone' },
-      { deviceId: 'tape', preset: 'Studio master' },
+      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4 } },
       { deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.2 } },
     ],
   },
@@ -1567,7 +1567,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { blow: 0.3, section: 0.8, attack: 3, volume: -6 },
     },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master' },
+      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { breathDepth: 0, mix: 0.25 } },
     ],
     preview: 'low',
@@ -1598,7 +1598,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'tape-echo',
-        preset: 'Space echo',
+        preset: 'Warm repeats',
         params: { time: 500, feedback: 0.4, lowCut: 40, highCut: 3000, mix: 0.35 },
       },
       { deviceId: 'shaped-reverb', preset: 'Gated room', params: { lowCut: 40, mix: 0.3 } },
@@ -1753,7 +1753,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 0.3, release: 2, tone: 2500, wobble: 0.15, volume: -18 },
     },
     effects: [
-      { deviceId: 'patina', preset: 'Fresh tape' },
+      { deviceId: 'patina', preset: 'Fresh tape', params: { tone: 0.5 } },
       { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.22 } },
     ],
   },
@@ -1804,7 +1804,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'tape-echo',
-        preset: 'Space echo',
+        preset: 'Warm repeats',
         params: { time: 375, feedback: 0.35, wow: 0.2, highCut: 5000, mix: 0.3 },
       },
       { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.2 } },
@@ -1983,7 +1983,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { fold: 0.2, decay: 2, volume: -2 },
     },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master', params: { wow: 0.1 } },
+      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4, wow: 0.1 } },
       { deviceId: 'ether-reverb', preset: 'Room', params: { mix: 0.22 } },
     ],
     preview: 'keys',

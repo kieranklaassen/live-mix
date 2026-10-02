@@ -132,7 +132,7 @@ export const TREMOLO_DESCRIPTOR = wasmDeviceDescriptor(TREMOLO_DEVICE, {
       smooth: 0.2,
       mix: 1,
     },
-    'Brownface shimmer': {
+    'Harmonic shimmer': {
       mode: 2,
       rate: 3.4,
       depth: 0.85,
@@ -155,7 +155,7 @@ export const TREMOLO_DESCRIPTOR = wasmDeviceDescriptor(TREMOLO_DEVICE, {
       drift: 0.25,
       smooth: 0.3,
     },
-    'Tape vibrato': { mode: 3, rate: 5.2, depth: 0.3, shape: 0, phase: 0, drift: 0.5, smooth: 0.2 },
+    'Tape vibrato': { mode: 3, rate: 5.2, depth: 0.3, shape: 0, phase: 8, drift: 0.5, smooth: 0.2 },
     'Slow chorus': {
       mode: 3,
       rate: 0.7,
@@ -166,7 +166,42 @@ export const TREMOLO_DESCRIPTOR = wasmDeviceDescriptor(TREMOLO_DEVICE, {
       smooth: 0.2,
       mix: 0.5,
     },
+    'Gentle breath': {
+      mode: 0,
+      rate: 0.25,
+      depth: 0.4,
+      shape: 0,
+      phase: 0,
+      drift: 0.3,
+      smooth: 0.5,
+    },
+    'On and off': { mode: 0, rate: 1.5, depth: 1, shape: 2, phase: 0, drift: 0, smooth: 0.05 },
+    'Fast shudder': { mode: 0, rate: 17, depth: 0.7, shape: 1, phase: 0, drift: 0, smooth: 0 },
+    'Side to side': { mode: 1, rate: 2.5, depth: 1, shape: 2, drift: 0, smooth: 0.3 },
+    'Wandering pan': { mode: 1, rate: 0.7, depth: 1, shape: 3, drift: 0.5, smooth: 0.6 },
+    'Tilting tone': {
+      mode: 2,
+      rate: 0.3,
+      depth: 0.8,
+      shape: 0,
+      phase: 180,
+      crossover: 450,
+      drift: 0.3,
+      smooth: 0.3,
+    },
+    'Wide wobble': { mode: 3, rate: 3, depth: 0.8, shape: 0, phase: 90, drift: 0.4, smooth: 0.2 },
+    'Drifting comb': {
+      mode: 3,
+      rate: 0.1,
+      depth: 1,
+      shape: 1,
+      phase: 180,
+      drift: 0.5,
+      smooth: 0.2,
+      mix: 0.5,
+    },
   },
+  formerPresets: { 'Brownface shimmer': 'Harmonic shimmer' },
 })
 
 export type Tremolo = WasmDevice<typeof TREMOLO_PARAMS>

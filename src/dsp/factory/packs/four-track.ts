@@ -253,7 +253,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { pickup: 1, hardness: 0.35, tone: 2600, strum: 0, warmth: 0.5, volume: -1.5 },
     },
     effects: [
-      { deviceId: 'tape-echo', preset: 'Discreet', params: { time: 210, mix: 0.25 } },
+      { deviceId: 'tape-echo', preset: 'Short and soft', params: { time: 210, mix: 0.25 } },
       { deviceId: 'dattorro', preset: 'Long plate', params: { predelayMs: 70, mix: 0.5 } },
       { deviceId: 'noise-floor', preset: 'Tape floor', params: { level: -44 } },
     ],
@@ -913,7 +913,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'tape-echo',
-        preset: 'Discreet',
+        preset: 'Short and soft',
         params: { time: 380, highCut: 4000, mix: 0.25 },
       },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.5 } },
@@ -1583,7 +1583,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'tape-echo',
-        preset: 'Discreet',
+        preset: 'Short and soft',
         params: { time: 500, feedback: 0.3, highCut: 2000, mix: 0.25 },
       },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.3 } },

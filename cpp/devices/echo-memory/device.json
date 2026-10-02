@@ -214,6 +214,103 @@
       "tone": 3000,
       "spread": 0.8,
       "mix": 0.35
+    },
+    "Only memories": {
+      "echo": 0,
+      "memory": 1,
+      "reach": 20,
+      "wander": 0.6,
+      "size": 2.5,
+      "vary": 0.3,
+      "tone": 6000,
+      "spread": 0.8,
+      "mix": 0.4
+    },
+    "Faint recall": {
+      "time": 450,
+      "feedback": 0.25,
+      "echo": 0.5,
+      "memory": 0.7,
+      "wander": 0.55,
+      "size": 2,
+      "vary": 0.2,
+      "tone": 4500,
+      "spread": 0.6,
+      "mix": 0.15
+    },
+    "Long dark trail": {
+      "time": 1100,
+      "feedback": 0.88,
+      "echo": 1,
+      "memory": 0.3,
+      "reach": 30,
+      "wander": 0.3,
+      "size": 5,
+      "vary": 0.2,
+      "tone": 1800,
+      "spread": 0.4,
+      "mix": 0.4
+    },
+    "Side to side": {
+      "time": 320,
+      "feedback": 0.6,
+      "echo": 1,
+      "memory": 0,
+      "tone": 8000,
+      "spread": 1,
+      "mix": 0.35
+    },
+    "Gathering swarm": {
+      "time": 400,
+      "feedback": 0.2,
+      "echo": 0.2,
+      "memory": 1,
+      "reach": 10,
+      "wander": 0.88,
+      "size": 0.5,
+      "vary": 0.6,
+      "buildUp": 1,
+      "tone": 7000,
+      "spread": 1,
+      "mix": 0.45
+    },
+    "Four second return": {
+      "time": 4000,
+      "feedback": 0.55,
+      "echo": 0.9,
+      "memory": 0.4,
+      "reach": 40,
+      "wander": 0.35,
+      "size": 4,
+      "vary": 0.2,
+      "tone": 4500,
+      "spread": 0.5,
+      "mix": 0.4
+    },
+    "A moment ago": {
+      "time": 250,
+      "feedback": 0.2,
+      "echo": 0.3,
+      "memory": 0.9,
+      "reach": 4,
+      "wander": 0.75,
+      "size": 0.9,
+      "vary": 0,
+      "tone": 9000,
+      "spread": 0,
+      "mix": 0.38
+    },
+    "Slap and glimpses": {
+      "time": 70,
+      "feedback": 0.15,
+      "echo": 0.6,
+      "memory": 0.7,
+      "wander": 0.7,
+      "size": 0.6,
+      "vary": 0.4,
+      "tone": 16000,
+      "spread": 0.9,
+      "mix": 0.35
     }
   },
   "origin": {

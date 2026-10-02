@@ -72,7 +72,7 @@ export const THESIS_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'limiter-1176', params: { inputGain: 7 } },
-      { deviceId: 'tape-echo', preset: 'Space echo' },
+      { deviceId: 'tape-echo', preset: 'Warm repeats' },
       { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.3 } },
     ],
     preview: 'line',

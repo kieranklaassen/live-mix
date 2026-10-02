@@ -665,7 +665,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { hardness: 0.9, reverbMix: 0, width: 0.7, polyphony: 16, outputDb: -9.5 },
     },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master' },
+      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { decay: 6, mix: 0.4 } },
     ],
   },
@@ -1305,7 +1305,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'tape-echo',
-        preset: 'Discreet',
+        preset: 'Short and soft',
         params: { time: 320, feedback: 0.15, mix: 0.2 },
       },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.35 } },
@@ -1536,7 +1536,11 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { mallet: 0.25, decay: 1.4, damper: 0.5, volume: -13.5 },
     },
     effects: [
-      { deviceId: 'vinyl', preset: 'Clean pressing', params: { warp: 0.3, crackle: 0.3 } },
+      {
+        deviceId: 'vinyl',
+        preset: 'Clean pressing',
+        params: { surface: 0.2, warp: 0.3, crackle: 0.3 },
+      },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.4 } },
     ],
     preview: 'keys',
@@ -1638,7 +1642,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 1.5, release: 4, volume: -11 },
     },
     effects: [
-      { deviceId: 'tape', preset: 'Disintegrating loop', params: { output: -6.5 } },
+      { deviceId: 'tape', preset: 'Worn thin', params: { output: -6.5 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.35 } },
     ],
   },

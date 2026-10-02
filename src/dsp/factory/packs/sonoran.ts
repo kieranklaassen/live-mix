@@ -53,7 +53,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { lowCut: 120, attack: 2.5, release: 6, volume: -16 },
     },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master' },
+      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4 } },
       { deviceId: 'ether-reverb', preset: 'Cathedral', params: { mix: 0.35 } },
     ],
   },
@@ -620,7 +620,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { distance: 0.7, movement: 0.8, tone: 0.35, volume: 2.5 },
     },
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Dark' },
+      { deviceId: 'ambient-eq', preset: 'Dark', params: { highCut: 9000 } },
       { deviceId: 'expanse', preset: 'Open space', params: { mix: 0.3, decay: 6 } },
     ],
   },
@@ -873,7 +873,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { sub: 0.7, cutoff: 800, attack: 3, spread: 0.2, volume: -14 },
     },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master' },
+      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4 } },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.25 } },
     ],
   },
@@ -1022,7 +1022,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { release: 4, volume: -12 },
     },
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Dark' },
+      { deviceId: 'ambient-eq', preset: 'Dark', params: { highCut: 9000 } },
       { deviceId: 'ether-reverb', preset: 'Cathedral', params: { mix: 0.3 } },
     ],
   },

@@ -13,6 +13,7 @@ import {
   applyPreset,
   capturePreset,
   listPresets,
+  presetParams,
   resolvePreset,
   type ApplyPresetResult,
   type Preset,
@@ -56,7 +57,11 @@ export interface DeviceControls {
   attributed: boolean
   setBypass(bypass: boolean): void
   toggleBypass(): void
-  /** A factory preset by name (needs a descriptor) or any preset object for this device. */
+  /**
+   * A factory preset by name (needs a descriptor) or any preset object for
+   * this device. By name, every parameter is set: the ones the preset lists,
+   * and the rest to their defaults. An object sets only what it carries.
+   */
   applyPreset(preset: string | Preset): ApplyPresetResult
   /** Snapshot the current values as a preset, stamped with the descriptor version when known. */
   capturePreset(name: string): Preset
@@ -178,9 +183,7 @@ export function useDevice(device: Device, options: UseDeviceOptions = {}): UseDe
       },
       applyPreset: (preset) => {
         const resolved =
-          typeof preset === 'string'
-            ? resolvePreset(requireDescriptor(descriptor, device), preset)
-            : preset
+          typeof preset === 'string' ? factoryPreset(descriptor, device, preset) : preset
         const result = attributed.attributed
           ? applyPresetThrough(device, resolved, attributed.setMany)
           : applyPreset(device, resolved)
@@ -212,6 +215,18 @@ export function useDevice(device: Device, options: UseDeviceOptions = {}): UseDe
     observable,
     ...controls,
   }
+}
+
+/**
+ * A descriptor's own preset by name, with every parameter in it. A factory
+ * preset lists only what it changes, and what it leaves out is the default:
+ * applied as written, it would keep whatever the preset before it had set, so
+ * the same name would sound different depending on what came first.
+ */
+function factoryPreset(descriptor: DeviceDescriptor | null, device: Device, name: string): Preset {
+  const source = requireDescriptor(descriptor, device)
+  const preset = resolvePreset(source, name)
+  return { ...preset, params: presetParams(source, preset) }
 }
 
 /** `applyPreset` as one score operation: the same params set, the same report. */

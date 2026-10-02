@@ -102,6 +102,7 @@ export {
   applyPreset,
   capturePreset,
   defaultPreset,
+  hasPreset,
   isPreset,
   listPresets,
   parsePreset,

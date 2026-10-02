@@ -1587,7 +1587,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { cutoff: 160, volume: -21 },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Tape Print', params: { driveDb: 6 } },
+      { deviceId: 'saturator', preset: 'Tape Print', params: { outputDb: -2, driveDb: 6 } },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { lowDecay: 4, mix: 0.3 } },
     ],
     preview: 'low',

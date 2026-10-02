@@ -44,14 +44,15 @@ The `.wasm` must come from Emscripten 4.0.15 (CI rebuilds it and compares bytes)
     },
     { "key": "heads", "name": "Heads", "choices": ["One", "Two", "Three"], "default": 0 }
   ],
-  "presets": { "Space echo": { "time": 380 } },
+  "presets": { "Warm repeats": { "time": 380 } },
   "origin": { "kind": "new", "note": "…" }
 }
 ```
 
 - `category`: `instrument`, `reverb`, `delay`, `texture`, `pitch`, `modulation`, `eq`, `dynamics`, `drive`, `spatial`, `utility`. `instrument` adds the note entry points.
 - `params`: array order is the parameter id. `key` is camelCase; `taper` is `linear` (default) or `log` (needs `min > 0`); `unit` is free text (`ms`, `s`, `Hz`, `dB`, `st`, `ct`, or empty for 0..1 amounts). A `choices` param takes only `key`, `name`, `choices`, `default` (an index). Any param may carry a `description`: a sentence or two on what turning it does to the sound, which the kit's info view shows when the knob is pointed at (leave out the range and the unit, and how a knob is turned). A wet/dry control is called `mix`, 0..1: equal power when the wet signal is decorrelated from the dry one (a reverb, a long delay, a granular cloud), a linear crossfade when the two stay time-aligned and coherent (a filter, a saturator, a tremolo), where equal power would add 3 dB at the centre.
-- `presets`: at least four, named in plain words, each a sound someone would want. A preset lists only what it changes.
+- `presets`: at least four for an instrument and sixteen for an effect, named in plain words (24 characters at most), each a sound someone would want. A preset lists only what it changes; loaded by name, the rest goes back to the defaults. An effect's presets are rendered and measured by `src/dsp/__tests__/effect-presets*.test.ts` (see [Effect presets](../devices.md#effect-presets)). No preset is named after a product, a brand, a maker or an artist.
+- `formerPresets`: when a preset is renamed, the name it had and the name of today (`{ "Space echo": "Warm repeats" }`). A saved score names its presets, and one that names the old one still loads; lists show only the names of today.
 - `sources`: extra `.cpp` files, repo-relative. Prefer header-only.
 - `memoryMb` (default 4): raise it when the static storage needs it (the linker says so). `samples: true` adds the sample entry points (see `cpp/kit/sample.h`). `experimental: true` marks a device over the CPU budget. `latencySamples` when the device delays its output by a fixed count.
 - `meters`: readings the device reports about its own work, for a meter beside its knobs: `[{ "key": "reduction", "name": "Gain reduction", "unit": "dB" }]`. Array order is the meter id. A device with meters adds `float meter(int index) const` to its class; it is called on the audio thread after `process`, about 30 times a second and only while someone is watching, so it returns a value the device already has (no work, no state change). At rest and asleep a meter reads its resting value (0 dB of reduction). On the web side the device is a `MeteredDevice` (`meters`, `meter(name)`, `watchMeters()`), `useDeviceMeter(device, name)` follows one reading, and the generated `DevicePanel` shows each in its title bar.

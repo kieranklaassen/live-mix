@@ -23,7 +23,8 @@ export const TANPURA_PRESETS: readonly FactoryPreset[] = [
       'A slow round on long strings with the bridge wide open, through tape into a very large space.',
     instrument: { deviceId: 'tanpura', preset: 'Slow wall', params: { volume: -5 } },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master' },
+      // The drive the preset had when this was tuned.
+      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4 } },
       { deviceId: 'expanse', preset: 'Open space', params: { mix: 0.45, decay: 16 } },
     ],
     preview: 'low',

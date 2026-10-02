@@ -14,6 +14,8 @@ export interface WasmDeviceMeta<P extends Record<string, ParamSpec>> {
   description?: string
   version?: number
   presets?: PresetTable<P>
+  /** Names presets had before they were renamed: old name → the name of today. */
+  formerPresets?: Readonly<Record<string, string>>
   /** Over the CPU budget (docs/devices.md) or otherwise not cleared for production. */
   experimental?: boolean
 }
@@ -52,6 +54,7 @@ export function wasmDeviceDescriptor<P extends Record<string, ParamSpec>>(
     params: definition.params,
     ...(definition.meters ? { meters: definition.meters } : {}),
     presets: meta.presets,
+    ...(meta.formerPresets ? { formerPresets: meta.formerPresets } : {}),
     ...(meta.experimental ? { experimental: true } : {}),
     create: (context, options) =>
       WasmDevice.create(context, definition, options as WasmDeviceOptions<P>),

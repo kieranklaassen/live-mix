@@ -113,6 +113,8 @@ export interface DevicePanelProps {
   showBypass?: boolean
   /** Default: when the descriptor has presets. */
   showPresets?: boolean
+  /** A host's own preset picker for this device, in the place of the kit's own list. */
+  presetPicker?: ReactNode
   knobSize?: number
   /** Extra header controls after the preset picker. */
   actions?: ReactNode
@@ -179,6 +181,7 @@ export function DevicePanel({
   choiceLabels,
   showBypass = true,
   showPresets,
+  presetPicker,
   knobSize = 40,
   actions,
   hint,
@@ -191,7 +194,7 @@ export function DevicePanel({
   const [presetName, setPresetName] = useState('')
   const names = params ?? device.panelParams ?? Object.keys(d.params)
   const ownText = isParamTextDevice(device) ? device : null
-  const presetsShown = showPresets ?? d.presets.length > 0
+  const presetsShown = presetPicker === undefined && (showPresets ?? d.presets.length > 0)
   const heading = title ?? d.descriptor?.name ?? d.id
   const about = d.descriptor?.description ?? `${heading}: one of the devices of this chain.`
 
@@ -210,6 +213,7 @@ export function DevicePanel({
             />
           ))
         : null}
+      {presetPicker}
       {presetsShown ? (
         <select
           className="lm-device__presets"

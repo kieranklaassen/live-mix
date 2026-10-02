@@ -35,7 +35,7 @@ export const PEDAL_STEEL_PRESETS: readonly FactoryPreset[] = [
       'One string that slides to every overlapping note within an octave, trailing tape echo into a hall.',
     instrument: { deviceId: 'pedal-steel', preset: 'Long slides', params: { volume: -7 } },
     effects: [
-      { deviceId: 'tape-echo', preset: 'Space echo', params: { mix: 0.28, spread: 0.8 } },
+      { deviceId: 'tape-echo', preset: 'Warm repeats', params: { mix: 0.28, spread: 0.8 } },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.4 } },
     ],
     preview: 'keys',

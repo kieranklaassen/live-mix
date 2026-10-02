@@ -57,7 +57,7 @@ export const AURORA_PRESETS: readonly FactoryPreset[] = [
       'Each note opens with a falling metallic ring that melts into the pad, repeated by tape and a long plate.',
     instrument: { deviceId: 'aurora', preset: 'Metal dawn', params: { volume: -11.5 } },
     effects: [
-      { deviceId: 'tape-echo', preset: 'Discreet' },
+      { deviceId: 'tape-echo', preset: 'Short and soft' },
       { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.3 } },
     ],
     preview: 'chord',

@@ -10,7 +10,7 @@ export const GUITAR_PRESETS: readonly FactoryPreset[] = [
     instrument: { deviceId: 'guitar', preset: 'Glass neck', params: { volume: 0 } },
     effects: [
       { deviceId: 'chorus', preset: 'Classic Chorus', params: { rate: 0.5, mix: 0.35 } },
-      { deviceId: 'tape-echo', preset: 'Space echo', params: { mix: 0.25 } },
+      { deviceId: 'tape-echo', preset: 'Warm repeats', params: { mix: 0.25 } },
     ],
     preview: 'keys',
   },

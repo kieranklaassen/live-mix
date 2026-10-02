@@ -145,6 +145,12 @@ export const LOW_BITRATE_DESCRIPTOR = wasmDeviceDescriptor(LOW_BITRATE_DEVICE, {
     'Frozen stream': { loss: 0.6, frame: 2, smear: 0.85 },
     'Thin air': { loss: 0.42, mode: 1, frame: 2, smear: 0.4 },
     'Few partials': { loss: 1, frame: 2, stereo: 1 },
+    'Watery trace': { loss: 0.8, frame: 2, mix: 0.3 },
+    'Gritty attacks': { loss: 0.62, frame: 0 },
+    'Fizzing phases': { loss: 0.9, mode: 2, frame: 0 },
+    'Holes in the signal': { loss: 0.3, dropouts: 0.5, burst: 0.7 },
+    'Through the wall': { loss: 0.35, stereo: 0.3, highCut: 1500 },
+    'Wash that never fades': { loss: 0.5, mode: 2, frame: 2, smear: 1, mix: 0.6 },
   },
 })
 

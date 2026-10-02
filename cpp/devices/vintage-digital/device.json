@@ -144,6 +144,64 @@
       "filter": 1,
       "jitter": 0.1,
       "drive": 12
+    },
+    "Coarse steps": {
+      "rate": 48000,
+      "bits": 7,
+      "companding": 0,
+      "aliasing": 0.35,
+      "filter": 1,
+      "jitter": 0
+    },
+    "Jitter haze": {
+      "rate": 6000,
+      "bits": 14,
+      "companding": 0,
+      "aliasing": 0,
+      "filter": 2,
+      "jitter": 1
+    },
+    "Sunken": {
+      "rate": 2500,
+      "bits": 12,
+      "companding": 0,
+      "aliasing": 0,
+      "filter": 2,
+      "jitter": 0.2
+    },
+    "Grit underneath": {
+      "rate": 5000,
+      "bits": 6,
+      "companding": 0,
+      "aliasing": 0.8,
+      "filter": 0,
+      "jitter": 0.3,
+      "mix": 0.35
+    },
+    "Flat tops": {
+      "rate": 48000,
+      "bits": 16,
+      "companding": 0,
+      "aliasing": 0.35,
+      "filter": 1,
+      "jitter": 0,
+      "drive": 15
+    },
+    "Four bit rasp": {
+      "rate": 11000,
+      "bits": 4,
+      "companding": 1,
+      "aliasing": 0.3,
+      "filter": 1,
+      "jitter": 0.2
+    },
+    "Low rate clang": {
+      "rate": 3000,
+      "bits": 12,
+      "companding": 0,
+      "aliasing": 1,
+      "filter": 0,
+      "jitter": 0.1
     }
   },
   "origin": {
