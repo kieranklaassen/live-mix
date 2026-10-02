@@ -439,7 +439,71 @@ int main() {
     EXPECT(worst < 0.012, "moving the controls while sounding does not click");
   }
 
-  // CASCADE-TEST-CHECKS-5
+  // Stereo. Spread 0 is mono; the default spread is wide but stays positive
+  // and loses little when summed to mono; the half-speed part stays centred.
+  {
+    std::vector<float> phrase(static_cast<size_t>(6.0f * kRate), 0.0f);
+    pluck(phrase, 0.0f, 220.0f, 0.4f);
+    pluck(phrase, 0.6f, 277.18f, 0.4f);
+    pluck(phrase, 1.2f, 329.63f, 0.4f);
+    pluck(phrase, 1.8f, 440.0f, 0.4f);
+    device.init(kRate);
+    device.set_param(p::kMix, 1.0f);
+    device.set_param(p::kSpread, 0.0f);
+    Stereo mono = run(device, phrase);
+    EXPECT(mono.left == mono.right, "Spread 0: left and right are the same");
+    device.init(kRate);
+    device.set_param(p::kMix, 1.0f);
+    Stereo wide = run(device, phrase);
+    device.init(kRate);
+    device.set_param(p::kMix, 1.0f);
+    device.set_param(p::kSpread, 1.0f);
+    Stereo widest = run(device, phrase);
+    std::vector<float> sum(wide.size());
+    for (size_t i = 0; i < sum.size(); ++i) sum[i] = 0.5f * (wide.left[i] + wide.right[i]);
+    const double each = std::sqrt(0.5 * (rms(wide.left) * rms(wide.left) + rms(wide.right) * rms(wide.right)));
+    const double folded = db(rms(sum) / each);
+    std::printf("stereo, wet only: correlation %.2f at the default spread, %.2f at full; mono sum %.2f dB against "
+                "the channels\n",
+                correlation(wide.left, wide.right), correlation(widest.left, widest.right), folded);
+    EXPECT(correlation(wide.left, wide.right) > 0.3 && correlation(wide.left, wide.right) < 0.97,
+           "default spread: decorrelated but positive");
+    EXPECT(correlation(widest.left, widest.right) > 0.0, "full spread stays mono compatible");
+    EXPECT(folded > -1.5, "the mono sum loses under 1.5 dB");
+
+    plain(device);
+    device.set_param(p::kLow, 1.0f);
+    device.set_param(p::kSpread, 1.0f);
+    Stereo low = run(device, tone_burst(220.0f, 0.3f, 3.0f));
+    const size_t from = static_cast<size_t>(0.4f * kRate), to = static_cast<size_t>(2.4f * kRate);
+    const double left = tone_level(low.left, 110.0, kRate, from, to);
+    const double right = tone_level(low.right, 110.0, kRate, from, to);
+    std::printf("stereo: the half-speed part at full spread: left %.2f dB, right %.2f dB\n", db(left), db(right));
+    EXPECT_NEAR(db(left), db(right), 0.1, "the half-speed part stays in the centre");
+  }
+
+  // The same at every sample rate: the first replay of a burst starts one
+  // Time after it and its x2 loop is an octave up.
+  {
+    for (float rate : {44100.0f, 96000.0f}) {
+      plain(device, rate);
+      device.set_param(p::kHigh, 1.0f);
+      device.set_param(p::kTime, 250.0f);
+      Stereo out = run(device, tone_burst(220.0f, 0.2f, 2.0f, 0.5f, rate));
+      size_t first = 0;
+      while (first < out.size() && std::fabs(out.left[first]) < 1.0e-5f) ++first;
+      const size_t from = static_cast<size_t>(0.25f * rate), to = static_cast<size_t>(1.5f * rate);
+      const double root = tone_level(out.left, 220.0, rate, from, to);
+      const double octave = tone_level(out.left, 440.0, rate, from, to);
+      const double two = tone_level(out.left, 880.0, rate, from, to);
+      std::printf("at %.0f Hz: first replay at %.1f ms; 220 Hz %.1f dB, 440 Hz %.1f dB, 880 Hz %.1f dB\n", rate,
+                  1000.0 * first / rate, db(root), db(octave), db(two));
+      EXPECT_NEAR(first / rate, 0.25, 0.004, "Time is in milliseconds at every sample rate");
+      EXPECT(octave > 0.3 * root && two > 0.15 * root, "the octaves are there at every sample rate");
+    }
+  }
+
+  // CASCADE-TEST-CHECKS-6
 
   device.init(kRate);
   rng_state() = 0xBEEFu;

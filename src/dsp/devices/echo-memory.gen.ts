@@ -75,7 +75,7 @@ export const ECHO_MEMORY_PARAMS = {
     name: 'Size',
     min: 0.2,
     max: 8,
-    default: 2,
+    default: 3,
     taper: 'log',
     unit: 's',
     description:
@@ -160,7 +160,7 @@ export const ECHO_MEMORY_DESCRIPTOR = wasmDeviceDescriptor(ECHO_MEMORY_DEVICE, {
       memory: 0.6,
       reach: 20,
       wander: 0.5,
-      size: 2,
+      size: 3,
       vary: 0.3,
       collect: 0,
       tone: 6000,

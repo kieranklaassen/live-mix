@@ -103,7 +103,7 @@ export const VINTAGE_DIGITAL_DEVICE = defineWasmDevice({
   // Static literal so Vite can rewrite it to a hashed asset URL at build time.
   wasm: () => new URL('../wasm/vintage-digital.wasm', import.meta.url),
   params: VINTAGE_DIGITAL_PARAMS,
-  latencySamples: () => 33,
+  latencySamples: () => 129,
 })
 
 export const VINTAGE_DIGITAL_DESCRIPTOR = wasmDeviceDescriptor(VINTAGE_DIGITAL_DEVICE, {
@@ -127,7 +127,7 @@ export const VINTAGE_DIGITAL_DESCRIPTOR = wasmDeviceDescriptor(VINTAGE_DIGITAL_D
     'Glass images': { rate: 8000, bits: 12, aliasing: 0.1, filter: 0, jitter: 0.05 },
     'Folded metal': { rate: 6000, bits: 10, aliasing: 1, filter: 1, jitter: 0.1 },
     'Telephone exchange': {
-      rate: 4000,
+      rate: 8000,
       bits: 8,
       companding: 1,
       aliasing: 0,
@@ -135,7 +135,7 @@ export const VINTAGE_DIGITAL_DESCRIPTOR = wasmDeviceDescriptor(VINTAGE_DIGITAL_D
       jitter: 0.3,
     },
     'Worn converter': { rate: 14000, bits: 10, aliasing: 0.4, filter: 1, jitter: 0.8 },
-    Crushed: { rate: 12000, bits: 5, aliasing: 0.3, filter: 1, jitter: 0.1, drive: 6 },
+    Crushed: { rate: 12000, bits: 5, aliasing: 0.3, filter: 1, jitter: 0.1, drive: 12 },
   },
 })
 

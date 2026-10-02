@@ -8,7 +8,7 @@
 //    3  memory: 0..1, default 0.6
 //    4  reach: 4..60 s, default 20
 //    5  wander: 0..1, default 0.5
-//    6  size: 0.2..8 s, default 2
+//    6  size: 0.2..8 s, default 3
 //    7  vary: 0..1, default 0.3
 //    8  collect: 0 Off, 1 On, default 0
 //    9  tone: 800..16000 Hz, default 6000
@@ -38,7 +38,7 @@ enum Param : int {
 
 inline constexpr float kParamMin[kNumParams] = {50.0f, 0.0f, 0.0f, 0.0f, 4.0f, 0.0f, 0.2f, 0.0f, 0.0f, 800.0f, 0.0f, 0.0f};
 inline constexpr float kParamMax[kNumParams] = {4000.0f, 0.95f, 1.0f, 1.0f, 60.0f, 1.0f, 8.0f, 1.0f, 1.0f, 16000.0f, 1.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {500.0f, 0.35f, 0.7f, 0.6f, 20.0f, 0.5f, 2.0f, 0.3f, 0.0f, 6000.0f, 0.6f, 0.4f};
+inline constexpr float kParamDefault[kNumParams] = {500.0f, 0.35f, 0.7f, 0.6f, 20.0f, 0.5f, 3.0f, 0.3f, 0.0f, 6000.0f, 0.6f, 0.4f};
 
 }  // namespace echo_memory
 }  // namespace livemix

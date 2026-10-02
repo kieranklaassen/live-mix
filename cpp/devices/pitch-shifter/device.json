@@ -55,7 +55,7 @@
       "name": "Size",
       "min": 10,
       "max": 400,
-      "default": 80,
+      "default": 60,
       "taper": "log",
       "unit": "ms",
       "description": "The length of the pieces the shifter works with. Short is tight in time and rougher, down to a metallic buzz in Grain; long is smoother and looser."

@@ -193,7 +193,80 @@ int main() {
     }
   }
 
-  // BEHAVIOUR 3
+  // 3. Each bed's spectrum is what it claims.
+  {
+    // Tape hiss rises to about 8 kHz and is level above it.
+    std::vector<float> hiss = bed(NoiseFloor::kTape, -30.0f, 20.0f);
+    const double rise = density_db(hiss, 6000.0, 9000.0) - density_db(hiss, 500.0, 1000.0);
+    const double flat = density_db(hiss, 11000.0, 14000.0) - density_db(hiss, 8000.0, 11000.0);
+    EXPECT(rise > 12.0, "tape hiss rises by more than 12 dB from 700 Hz to 7.5 kHz");
+    EXPECT(std::fabs(flat) < 3.0, "tape hiss is level from 8 to 14 kHz");
+
+    // Room: most of the energy is below 300 Hz.
+    std::vector<float> room = bed(NoiseFloor::kRoom, -30.0f, 30.0f);
+    const double room_low = band_power(room, 0.0, 300.0) / band_power(room, 0.0, 24000.0);
+    EXPECT(room_low > 0.7, "room: most of the energy is below 300 Hz");
+
+    // Air: most of the energy is above 4 kHz.
+    std::vector<float> air = bed(NoiseFloor::kAir, -30.0f, 20.0f);
+    const double air_high = band_power(air, 4000.0, 24000.0) / band_power(air, 0.0, 24000.0);
+    EXPECT(air_high > 0.8, "air: most of the energy is above 4 kHz");
+
+    // Hum: a line at the mains frequency within 0.1 Hz, its harmonics, and
+    // nothing between them. With Movement at full it still holds the pitch.
+    double hum_hz[2], hum_drift_hz[2], hum_second[2], hum_between[2];
+    for (int k = 0; k < 2; ++k) {
+      const double mains = k == 0 ? 50.0 : 60.0;
+      std::vector<float> hum = bed(NoiseFloor::kHum50 + k, -30.0f, 20.0f);
+      hum_hz[k] = dominant_frequency(hum, kRate, 30.0, 80.0);
+      const double first = tone_level(hum, mains, kRate);
+      hum_second[k] = db(tone_level(hum, 2.0 * mains, kRate) / first);
+      const double third = db(tone_level(hum, 3.0 * mains, kRate) / first);
+      hum_between[k] = db(tone_level(hum, 1.5 * mains, kRate) / first);
+      std::snprintf(label, sizeof label, "Hum %.0f: the fundamental is at %.0f Hz (%.3f)", mains, mains, hum_hz[k]);
+      EXPECT_NEAR(hum_hz[k], mains, 0.1, label);
+      EXPECT(hum_second[k] > -12.0 && third > -18.0, "hum: second and third harmonics are there");
+      EXPECT(hum_between[k] < -40.0, "hum: nothing between the lines");
+      still(device, NoiseFloor::kHum50 + k, -30.0f);
+      device.set_param(p::kMovement, 1.0f);
+      hum_drift_hz[k] = dominant_frequency(noise_only(device, 20.0f).left, kRate, 30.0, 80.0);
+      EXPECT_NEAR(hum_drift_hz[k], mains, 0.1, "hum: Movement drifts the mains by less than 0.1 Hz");
+      // Tone at the top is mostly buzz: energy moves above 400 Hz.
+      still(device, NoiseFloor::kHum50 + k, -30.0f);
+      device.set_param(p::kTone, 1.0f);
+      std::vector<float> buzz = noise_only(device, 10.0f).left;
+      EXPECT(band_power(buzz, 400.0, 4000.0) > 4.0 * band_power(hum, 400.0, 4000.0),
+             "hum: Tone brings up the buzz");
+      EXPECT_NEAR(db(rms(buzz)), -30.0, 0.5, "hum: Tone keeps the level");
+    }
+
+    // Vinyl and static are made of events: a crest factor far above the
+    // steady beds, and ticks at a countable rate.
+    std::vector<float> vinyl = bed(NoiseFloor::kVinyl, -42.0f, 40.0f);
+    std::vector<float> crackle = bed(NoiseFloor::kStatic, -42.0f, 40.0f);
+    const double steady_crest = std::max(db(peak(hiss) / rms(hiss)), db(peak(air) / rms(air)));
+    const double vinyl_crest = db(peak(vinyl) / rms(vinyl));
+    const double static_crest = db(peak(crackle) / rms(crackle));
+    const double vinyl_ticks = events_per_second(vinyl, 5.0);
+    const double static_ticks = events_per_second(crackle, 5.0);
+    EXPECT(steady_crest < 14.0, "hiss and air are steady (crest under 14 dB)");
+    EXPECT(vinyl_crest > steady_crest + 6.0, "vinyl: crest factor well above the steady beds");
+    EXPECT(static_crest > steady_crest + 6.0, "static: crest factor well above the steady beds");
+    EXPECT(vinyl_ticks > 1.0 && vinyl_ticks < 30.0, "vinyl: a few ticks a second stand out of the hiss");
+    EXPECT(static_ticks > 1.0 && static_ticks < 60.0, "static: crackles stand out of the hiss");
+    EXPECT(events_per_second(hiss, 5.0) < 0.2, "tape hiss has no ticks");
+    if (verbose) {
+      std::printf("spectra: tape rise %.1f dB, 8-14 kHz %.1f dB; room below 300 Hz %.0f%%; air above 4 kHz %.0f%%\n",
+                  rise, flat, 100.0 * room_low, 100.0 * air_high);
+      std::printf("hum: %.3f / %.3f Hz, with Movement 1 %.3f / %.3f Hz, 2nd harmonic %.1f / %.1f dB, between lines %.1f / %.1f dB\n",
+                  hum_hz[0], hum_hz[1], hum_drift_hz[0], hum_drift_hz[1], hum_second[0], hum_second[1],
+                  hum_between[0], hum_between[1]);
+      std::printf("events: crest steady %.1f, vinyl %.1f, static %.1f dB; ticks over 5x RMS vinyl %.1f/s, static %.1f/s\n",
+                  steady_crest, vinyl_crest, static_crest, vinyl_ticks, static_ticks);
+    }
+  }
+
+  // BEHAVIOUR 4
 
   still(device, NoiseFloor::kStatic, -30.0f);
   device.set_param(p::kMovement, 1.0f);

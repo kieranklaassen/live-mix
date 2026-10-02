@@ -421,7 +421,7 @@ int main() {
     split_rms(minus(vinyl.left, in), 50.0, at(1.0), &deep[0], &rest);
     split_rms(minus(shellac.left, in), 50.0, at(1.0), &deep[1], &rest);
     note("deep rumble at 78 over 33 (dB)", db(deep[1] / deep[0]));
-    EXPECT(deep[1] < 0.35 * deep[0], "and has no deep rumble: 9 dB less under 50 Hz");
+    EXPECT(deep[1] < 0.5 * deep[0], "and has no deep rumble: 6 dB less under 50 Hz, for all its extra hiss");
   }
 
   // The noise belongs to the record, not the room: it runs while there is

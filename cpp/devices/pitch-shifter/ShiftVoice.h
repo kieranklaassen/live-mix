@@ -7,11 +7,13 @@
 // of room another head takes over further back or further forward. How the
 // next head is placed and windowed is the mode:
 //
-//   Smooth   one head at a time with short raised-cosine joins. Each new
-//            head starts where the ring best matches what the old head is
-//            playing (normalised cross-correlation over one search range),
-//            the de-glitched splice of the studio harmonizers. The join
-//            gains keep the power constant for the match that was found.
+//   Smooth   two Hann heads half a window apart. Each new head starts where
+//            the ring best matches what the old head is playing
+//            (normalised cross-correlation over one search range), the
+//            de-glitched splice of the studio harmonizers: a single note
+//            comes out as a steady tone, and a chord gets the closest
+//            agreement its notes allow. Where the two heads still disagree
+//            the pair is lifted to constant power.
 //   Grain    four-fold overlapping Hann grains at regular intervals; Jitter
 //            scatters their spacing, their place in time, their pitch and
 //            their pan.
@@ -183,16 +185,8 @@ class ShiftVoice {
   static constexpr float kFloorSeconds = 0.0015f;   // the closest a head starts to the write point
   static constexpr int kGrainOverlap = 4;
   // Smooth: time between splices and length of the join, as shares of Size.
-#ifndef PS_HOP
-#define PS_HOP 0.5f
-#define PS_FADE 0.5f
-#define PS_SPAN 0.016f
-#endif
-#ifndef PS_SEARCH
-#define PS_SEARCH 0.02f
-#endif
-  static constexpr float kSmoothHop = PS_HOP;
-  static constexpr float kSmoothFade = PS_FADE;
+  static constexpr float kSmoothHop = 0.5f;
+  static constexpr float kSmoothFade = 0.5f;
   // Jitter at full: each head's own detune, in cents either way.
   static constexpr float kSmoothCents = 20.0f;
   static constexpr float kGrainCents = 40.0f;
@@ -203,8 +197,8 @@ class ShiftVoice {
   static constexpr float kSweepScatterSeconds = 0.02f;
   static constexpr float kSweepStretch = 0.03f;
   // The splice search: how far it looks, over what length it compares.
-  static constexpr float kSearchSeconds = PS_SEARCH;
-  static constexpr float kSpanSeconds = PS_SPAN;
+  static constexpr float kSearchSeconds = 0.02f;
+  static constexpr float kSpanSeconds = 0.016f;
   static constexpr int kPoints = 72;
   static constexpr int kMaxScan = 1024;  // lags tried in the first pass
   static constexpr float kNearBias = 0.03f;
@@ -460,9 +454,6 @@ class ShiftVoice {
     }
     const float found = best_score + kNearBias * scale * static_cast<float>(best) / static_cast<float>(range);
     match_ = kit::clamp(found / scale, 0.0f, 1.0f);
-#ifdef PS_DEBUG
-    std::printf("splice old %.3f first %d best %d frac %.3f res %.3f match %.5f ahead %.0f\n", old_total, first, best, fraction, residue, match_, ahead);
-#endif
     return static_cast<double>(first + best) + static_cast<double>(fraction) + residue - base;
   }
 

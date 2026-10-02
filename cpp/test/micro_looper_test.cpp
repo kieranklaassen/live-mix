@@ -272,6 +272,114 @@ int main() {
     EXPECT(db(alias) < -30.0, "what a low clock folds back is at least 30 dB down");
   }
 
+  // The loop point: a held sine whose ends do not line up joins without a
+  // click (a hard splice here would jump by up to the sine's full swing).
+  {
+    const float length = 0.3f, hz = 233.0f, gain = 0.5f;
+    plain(device, length);
+    run(device, sine(hz, 1.0f, kRate, gain));
+    device.set_param(p::kState, kHold);
+    Stereo held = render(device, 4.0f, kRate);
+    const double natural = gain * 2.0 * kPi * hz / kRate;
+    const double worst = max_step(held.left, 4800);
+    std::printf("micro-looper: loop point: largest step %.4f (the sine's own is %.4f)\n", worst, natural);
+    EXPECT(worst < 1.5 * natural, "the loop point is cross-faded, not spliced");
+    EXPECT(rms(held.left, 48000, 4 * 48000) > 0.3, "and the loop is still there");
+  }
+
+  // Smear: a loop that jumps from loud to quiet at its join. The plain loop
+  // keeps that edge; grains from around the playhead blur it.
+  {
+    const float length = 1.0f;
+    const size_t n = static_cast<size_t>(length * kRate);
+    std::vector<float> input = sine(330.0f, 1.0f, kRate, 0.03f);
+    for (size_t i = n / 2; i < n; ++i) input[i] *= 15.0f;
+    double variance[2] = {0.0, 0.0};
+    for (int smeared = 0; smeared < 2; ++smeared) {
+      plain(device, length);
+      device.set_param(p::kSmear, smeared ? 1.0f : 0.0f);
+      run(device, input);
+      device.set_param(p::kState, kHold);
+      Stereo held = render(device, 9.0f, kRate);
+      // RMS in 10 ms windows across +-150 ms of the join, over six passes.
+      double sum = 0.0, sum_squares = 0.0;
+      int count = 0;
+      for (int pass = 2; pass < 8; ++pass) {
+        for (int w = -15; w < 15; ++w) {
+          const size_t from = pass * n + w * 480;
+          const double level = rms(held.left, from, from + 480);
+          sum += level;
+          sum_squares += level * level;
+          ++count;
+        }
+      }
+      variance[smeared] = sum_squares / count - (sum / count) * (sum / count);
+    }
+    std::printf("micro-looper: envelope variance across the join: plain %.5f, Smear 1 %.5f\n",
+                variance[0], variance[1]);
+    EXPECT(variance[1] < 0.5 * variance[0], "Smear blurs the level step at the join");
+  }
+
+  // Auto: each new phrase replaces the loop, every pass is quieter by Fade,
+  // and once it has died the device sleeps.
+  {
+    const float length = 1.0f, fade = 0.5f;
+    const size_t n = static_cast<size_t>(length * kRate);
+    plain(device, length);
+    device.set_param(p::kState, kAuto);
+    device.set_param(p::kFade, fade);
+    std::vector<float> input = sine(300.0f, 0.6f, kRate, 0.4f);
+    input.resize(4 * n, 0.0f);
+    std::vector<float> second = sine(700.0f, 0.6f, kRate, 0.4f);
+    input.insert(input.end(), second.begin(), second.end());
+    input.resize(20 * n, 0.0f);
+    Stereo out = run(device, input);
+    // First phrase: looping from 1 s. Passes 1, 2 and 3 of it.
+    const double a1 = tone_level(out.left, 300.0, kRate, 1 * n, 2 * n - 4800);
+    const double a2 = tone_level(out.left, 300.0, kRate, 2 * n, 3 * n - 4800);
+    const double a3 = tone_level(out.left, 300.0, kRate, 3 * n, 4 * n - 4800);
+    std::printf("micro-looper: Auto passes of the first phrase: %.4f %.4f %.4f (ratio %.3f, Fade %.2f)\n",
+                a1, a2, a3, a3 / a2, fade);
+    EXPECT(a1 > 0.1, "Auto loops the phrase one Length after it began");
+    EXPECT_NEAR(a3 / a2, fade, 0.02, "each pass is quieter by Fade");
+    // Second phrase from 4 s: looping from 5 s, and the first one is gone.
+    const double old_tone = tone_level(out.left, 300.0, kRate, 5 * n + 4800, 6 * n - 4800);
+    const double new_tone = tone_level(out.left, 700.0, kRate, 5 * n + 4800, 6 * n - 4800);
+    std::printf("micro-looper: Auto after the second phrase: 700 Hz %.4f, 300 Hz %.6f\n", new_tone,
+                old_tone);
+    EXPECT(new_tone > 0.1 && old_tone < 0.01 * new_tone, "a new phrase takes the loop's place");
+    // Fade 0.5 reaches -60 dB after ten passes; then it lets go and sleeps.
+    size_t last = 0;
+    for (size_t i = 0; i < out.size(); ++i) {
+      if (out.left[i] != 0.0f || out.right[i] != 0.0f) last = i;
+    }
+    const double seconds = static_cast<double>(last) / kRate;
+    std::printf("micro-looper: Auto with Fade 0.5: asleep %.2f s in (second loop from 5 s)\n", seconds);
+    EXPECT(seconds > 14.0 && seconds < 18.0, "the loop dies away at the rate Fade sets");
+    Stereo rest = render(device, 1.0f, kRate);
+    EXPECT(peak(rest.left) == 0.0 && peak(rest.right) == 0.0, "and the device is asleep: exact zeros");
+  }
+
+  // Hold on an empty memory waits for the first phrase, then keeps it; a
+  // held loop keeps the device awake however long nothing comes in.
+  {
+    const float length = 0.5f;
+    const size_t n = static_cast<size_t>(length * kRate);
+    plain(device, length);
+    device.set_param(p::kState, kHold);
+    Stereo before = render(device, 1.0f, kRate);
+    EXPECT(peak(before.left) == 0.0, "Hold with nothing played is silent (and asleep)");
+    std::vector<float> input = sine(440.0f, 0.3f, kRate, 0.4f);
+    input.resize(2 * n, 0.0f);
+    Stereo during = run(device, input);
+    Stereo after = render(device, 60.0f, kRate);
+    const double first = tone_level(during.left, 440.0, kRate, n, n + 12000);
+    const double late = tone_level(after.left, 440.0, kRate, 118 * n, 118 * n + 12000);
+    std::printf("micro-looper: Hold from empty: first pass %.4f, a minute later %.4f\n", first, late);
+    EXPECT(first > 0.2, "Hold from empty takes the next phrase");
+    EXPECT_NEAR(late, first, 0.002, "and holds it: awake and at level a minute later");
+  }
+
   // BEHAVIOUR CHECKS GO HERE
 
   return finish("micro-looper");

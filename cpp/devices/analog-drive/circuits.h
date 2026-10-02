@@ -84,9 +84,10 @@ inline const Circuit& circuit(int index) {
        {{Eq::kLowShelf, 150.0f, -1.3f, 0.0f},
         {Eq::kHighShelf, 8000.0f, -0.8f, 0.0f},
         {Eq::kNone, 0.0f, 0.0f, 0.0f}}},
-      // Pentode: half hard clip, half firm knee, so it stays clean and then
-      // bites; lows held back from the curve, upper mids pushed at it; the
-      // supply sags under a sustained load and recovers.
+      // Pentode: a firm knee with a hard clip under it and no soft part, so
+      // it stays clean and then bites; lows held back from the curve, upper
+      // mids pushed at it; the supply sags under a sustained load and
+      // recovers.
       {{0.0, 1.0, 1.0, 0.65, 0.75, 0.35, 0.6},
        0.02f, 0.02f, 0.0f, 1.0f, 0.5f, 0.015f, 0.18f,
        {{Eq::kPeak, 2000.0f, 3.0f, 0.6f}, {Eq::kLowShelf, 120.0f, -3.0f, 0.0f}},

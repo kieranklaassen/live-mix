@@ -81,10 +81,7 @@
     {
       "key": "collect",
       "name": "Collect",
-      "choices": [
-        "Off",
-        "On"
-      ],
+      "choices": ["Off", "On"],
       "default": 0,
       "description": "On records what the memory plays back into the memory, quieter each time, so memories of memories build up and slowly fade."
     },
