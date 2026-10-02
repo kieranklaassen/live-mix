@@ -709,6 +709,38 @@ int main() {
     EXPECT(worst < 1.5, "a High Cut, Low Cut or Tail jump does not click");
   }
 
+  // Turning Density (or Time) re-sizes the diffuser's allpasses, and a moving
+  // allpass bends the pitch of what is in it. The lengths creep, so a held
+  // tone stays close to its pitch through a jump from a wash to separate
+  // echoes. (At full speed the wash dipped by 250 cents for half a second.)
+  {
+    bare(device, kGate, 0.9f);
+    const std::vector<float> tone = sine(1000.0f, 5.0f, kRate, 0.25f);
+    run(device, std::vector<float>(tone.begin(), tone.begin() + 144000));
+    device.set_param(p::kDensity, 0.0f);
+    Stereo out = run(device, std::vector<float>(tone.begin() + 144000, tone.end()));
+    double lowest = 0.0, highest = 0.0;
+    for (size_t w = 0; w + 960 <= out.left.size(); w += 480) {
+      // The mean frequency of 20 ms, from its upward zero crossings.
+      double first = -1.0, last = -1.0;
+      int crossings = 0;
+      for (size_t i = w + 1; i < w + 960; ++i) {
+        const float a = out.left[i - 1], b = out.left[i];
+        if (a < 0.0f && b >= 0.0f) {
+          last = static_cast<double>(i - 1) + a / (a - b);
+          if (first < 0.0) first = last;
+          ++crossings;
+        }
+      }
+      if (crossings < 5 || rms(out.left, w, w + 960) < 0.01) continue;
+      const double cents = 1200.0 * std::log2((crossings - 1) * kRate / (last - first) / 1000.0);
+      lowest = std::min(lowest, cents);
+      highest = std::max(highest, cents);
+    }
+    std::printf("a 1 kHz tone through a Density jump from 0.8 to 0: pitch between %+.0f and %+.0f cents\n", lowest, highest);
+    EXPECT(lowest > -80.0 && highest < 80.0, "a Density jump does not bend the pitch of the wash");
+  }
+
   // With Mix at zero the output is silent while repeats still go round. The
   // device must not fall asleep on them: turned up later, it plays what a
   // device with Mix up all along plays, not an old pass held over the gap.

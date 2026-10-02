@@ -306,6 +306,95 @@ int main() {
     EXPECT(first_up && c < a, "Alternate strums up on one key and down on the next");
   }
 
+  // 7. Roll: while the key is held the string is struck again and again at
+  // the stated rate, a little unevenly, and the level settles.
+  {
+    plain(device);
+    device.set_param(p::kExciter, 2.0f);
+    device.set_param(p::kRoll, 8.0f);
+    device.set_param(p::kDecay, 12.0f);
+    device.note_on(1, 220.0f, 0.8f);
+    Stereo out = render(device, 8.0f, kRate);
+    // A blow shows as a jump in the level, taken over two periods at a time.
+    const double hop = 2.0 * kRate / 220.0;
+    std::vector<float> jump;
+    double before = 0.0;
+    for (size_t k = 0; at((k + 1) * hop, 1.0) <= out.left.size(); ++k) {
+      const double level = rms(out.left, at(k * hop, 1.0), at((k + 1) * hop, 1.0));
+      jump.push_back(static_cast<float>(std::max(0.0, level - before)));
+      before = level;
+    }
+    std::vector<double> strikes;
+    const size_t skip = static_cast<size_t>(0.5 * kRate / hop);  // from 0.5 s: the roll alone
+    const double threshold = 0.3 * peak(jump, skip);
+    for (size_t i = skip; i + 1 < jump.size(); ++i) {
+      const double when = i * hop / kRate;
+      if (jump[i] > threshold && jump[i] >= jump[i - 1] && jump[i] > jump[i + 1] &&
+          (strikes.empty() || when - strikes.back() > 0.04)) {
+        strikes.push_back(when);
+      }
+    }
+    double total = 0.0, squares = 0.0;
+    const size_t gaps = strikes.size() > 1 ? strikes.size() - 1 : 0;
+    for (size_t i = 0; i < gaps; ++i) total += strikes[i + 1] - strikes[i];
+    const double gap = gaps > 0 ? total / gaps : 0.0;
+    for (size_t i = 0; i < gaps; ++i) squares += (strikes[i + 1] - strikes[i] - gap) * (strikes[i + 1] - strikes[i] - gap);
+    const double jitter = gaps > 0 ? std::sqrt(squares / gaps) / gap : 1.0;
+    std::vector<float> envelope;
+    for (size_t from = at(1.0); from + 240 <= out.left.size(); from += 240) {
+      envelope.push_back(static_cast<float>(rms(out.left, from, from + 240)));
+    }
+    const double average = mean(envelope);
+    for (float& value : envelope) value -= static_cast<float>(average);
+    const double wobble = dominant_frequency(envelope, 200.0, 2.0, 20.0);
+    const double early = rms(out.left, at(1.0), at(2.0)), mid = rms(out.left, at(4.0), at(5.0)),
+                 late = rms(out.left, at(7.0), at(8.0));
+    std::printf("roll 8 Hz: %zu strikes in 7.5 s, %.2f a second, jitter %.1f %%, envelope at %.2f Hz; level %.1f, %.1f, %.1f dB at 1.5, 4.5, 7.5 s\n",
+                strikes.size(), gap > 0.0 ? 1.0 / gap : 0.0, 100.0 * jitter, wobble, db(early), db(mid), db(late));
+    EXPECT_NEAR(1.0 / gap, 8.0, 0.4, "the roll strikes at the stated rate");
+    EXPECT_NEAR(wobble, 8.0, 0.5, "which is the rate the level moves at");
+    EXPECT(jitter > 0.01 && jitter < 0.2, "the strokes are uneven by less than a fifth");
+    EXPECT(std::fabs(db(late / mid)) < 1.0 && std::fabs(db(mid / early)) < 2.0, "the level settles instead of growing");
+
+    plain(device);
+    device.set_param(p::kExciter, 2.0f);
+    device.set_param(p::kDecay, 12.0f);
+    device.note_on(1, 220.0f, 0.8f);
+    Stereo once = render(device, 2.0f, kRate);
+    EXPECT(late > 1.5 * rms(once.left, at(1.0), at(2.0)), "a rolled string is kept louder than one struck once");
+    EXPECT(late < 3.0 * rms(once.left, 0, at(0.5)), "but not much louder than the first blow");
+  }
+
+  // 8. Sympathetic strings: after a short note is damped they ring on at its
+  // pitch (the A two octaves below has it as its fourth partial) and fade
+  // slowly; at Sympathy 0 nothing is left.
+  {
+    plain(device);
+    device.set_param(p::kSympathy, 0.6f);
+    device.set_param(p::kRelease, 0.05f);
+    device.note_on(1, 440.0f, 0.8f);
+    Stereo played = render(device, 1.0f, kRate);
+    device.note_off(1);
+    Stereo after = render(device, 4.0f, kRate);
+    const std::vector<float> rest = mono(after);
+    const double sung = dominant_frequency(rest, kRate, 300.0, 600.0, at(0.5), at(1.5));
+    const double first = tone_level(rest, 440.0, kRate, at(0.5), at(1.0)), later = tone_level(rest, 440.0, kRate, at(3.0), at(3.5));
+    const double ring = rt60(rest, kRate, 0.5, 0.25, -120.0);
+    std::printf("sympathy 0.6: %.1f dB at %.1f Hz half a second after the damping (the note was %.1f dB), T60 %.1f s\n",
+                db(first), sung, db(tone_level(mono(played), 440.0, kRate, at(0.5), at(1.0))), ring);
+    EXPECT_NEAR(sung, 440.0, 2.0, "the sympathetic strings ring at the pitch that was played");
+    EXPECT(db(first) > -75.0, "and are heard after the played string is damped");
+    EXPECT(db(later / first) > -25.0 && ring > 4.0, "and fade slowly");
+
+    plain(device);
+    device.set_param(p::kRelease, 0.05f);
+    device.note_on(1, 440.0f, 0.8f);
+    render(device, 1.0f, kRate);
+    device.note_off(1);
+    Stereo bare = render(device, 4.0f, kRate);
+    EXPECT(peak(bare.left, at(0.5)) == 0.0 && peak(bare.right, at(0.5)) == 0.0, "with Sympathy 0 nothing rings on");
+  }
+
   // CHECKS
 
   return finish("zither");

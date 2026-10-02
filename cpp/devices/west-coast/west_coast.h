@@ -77,6 +77,9 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
     for (int v = 0; v < kMaxVoices; ++v) {
       if (pool_.note_id_of(v) == note_id && pool_.voices[v].active()) slot = v;
     }
+    // The control clock starts with the first note out of silence, so what
+    // is played does not depend on how long the instrument sat idle.
+    if (pool_.count_active() == 0) until_control_ = 0;
     bool fresh = false;
     if (slot < 0) {
       bool stolen = false;
@@ -144,13 +147,10 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
 
   void process(int frames) {
     frames = begin_block(frames);
-    const bool was_asleep = idle_.asleep();
     if (!idle_.wake(pool_.count_active() > 0)) {
       silence_output(frames);
       return;
     }
-    // After a sleep the control clock starts with the note that woke it.
-    if (was_asleep) until_control_ = 0;
     clear_input(frames);  // an instrument ignores its input
     int done = 0;
     while (done < frames) {

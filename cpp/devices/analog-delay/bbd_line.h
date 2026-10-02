@@ -32,12 +32,16 @@ namespace analog_delay {
 
 class BbdLine {
  public:
-  // 8192 stages on a two-phase clock hold 4096 samples.
-  static constexpr int kSamples = 4096;
+  // 16384 stages on a two-phase clock hold 8192 samples: four of the
+  // longest lines made, in series, as the long-delay units chain them. With
+  // half as many the clock at a given Time is half as fast, and the band of
+  // a 900 ms echo ends at 1.4 kHz: a thud, not a repeat.
+  static constexpr int kSamples = 8192;
   static constexpr int kMask = kSamples - 1;
   // More ticks than this in one host sample are not needed for any setting
-  // (20 ms an octave up at 44.1 kHz is 9.3); the clamp is a safety net.
-  static constexpr float kMaxTicksPerSample = 16.0f;
+  // (20 ms an octave up at 44.1 kHz, wobbling, is 20.4); the clamp is a
+  // safety net.
+  static constexpr float kMaxTicksPerSample = 24.0f;
 
   void reset(uint32_t seed) {
     for (float& stage : stages_) stage = 0.0f;

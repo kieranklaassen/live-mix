@@ -31,7 +31,7 @@
 //   the recent peak of the whole stream; the margins shrink as Loss rises
 //   (62 → 2 dB under the band's peak, 96 → 14 dB under the stream's). Above
 //   a frequency that falls with Loss (22 → 3.5 kHz) nothing is kept. What is
-//   kept goes through the power-law quantiser of MPEG audio layer III with a
+//   kept goes through a power-law quantiser (as transform codecs use) with a
 //   step tied to its band's peak (80 → 1.5 steps). The energy thrown away is
 //   given back as gain (up to 6 dB), so Loss changes character, not level.
 // - Inverse plays the input minus what Standard keeps: the residue. It has
@@ -346,7 +346,7 @@ class LowBitrate : public kit::DeviceBase<low_bitrate::kNumParams> {
           y[k] = 0.0f;
           continue;
         }
-        // The power-law quantiser of MPEG audio layer III: round |x/step|^(3/4).
+        // A power-law quantiser of the kind transform codecs use: round |x/step|^(3/4).
         const float ratio = magnitude * per_step;
         const int q = static_cast<int>(std::sqrt(ratio * std::sqrt(ratio)) + 0.4054f);
         if (q < kQuantTable) magnitude = power_[q] * step;

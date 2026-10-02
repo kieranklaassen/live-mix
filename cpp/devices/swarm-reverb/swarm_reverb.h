@@ -55,6 +55,13 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
     for (int i = 0; i < kHistory; ++i) history_[i] = 0.0;
     position_ = 0.0;
     tick_ = 0;
+    for (int c = 0; c < 2; ++c) {
+      for (int j = 0; j < kControlPeriod; ++j) {
+        swarm_chunk_[c][j] = 0.0f;
+        back_chunk_[c][j] = 0.0f;
+      }
+    }
+    chunk_at_ = 0;
     build_swarm();
 
     reflect_.set_time(kSmoothingSeconds, sr);
@@ -114,6 +121,8 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
   static constexpr int kHistory = 16384;    // control ticks: 2.7 s at 96 kHz
   static constexpr int kControlPeriod = 16;
   static constexpr int kSteps = 7;
+  // The shortest a tap may be: a control period and the interpolator's reach.
+  static constexpr float kLeastTap = kControlPeriod + 4.0f;
 
   // Allpass lengths as shares of Length. Their sum is the earliest a sound
   // can come back; the tap distances are shortened by it so the arrivals
@@ -143,7 +152,9 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
   struct Read {
     double span = 0.5;    // distance behind the write point, in Lengths
     double delay = 16.0;  // in samples, now
+    double from = 16.0;   // where it was a control period ago
     double step = 0.0;
+    float least = 3.0f;
     long long index = 0;  // the history segment the read point is in
     float limit = 64.0f;
     float phase = 0.0f;   // its own slow sweep
@@ -189,6 +200,7 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
         tap = Read();
         tap.span = arrival - diffusers;
         tap.limit = static_cast<float>(kLineSize - 16);
+        tap.least = kLeastTap;
         tap.phase = rng.uniform();
         tap.rate = 0.15f + 0.6f * rng.uniform();
         const float sign = rng.uniform() < 0.5f ? -1.0f : 1.0f;
@@ -203,6 +215,7 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
       loop = Read();
       loop.span = kLoopSpan[c] - diffusers;
       loop.limit = static_cast<float>(kLineSize - 16);
+      loop.least = kLeastTap;
       loop.phase = rng.uniform();
       loop.rate = 0.11f + 0.2f * rng.uniform();
     }
@@ -212,27 +225,52 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
   // Exact to ±1, landing on ±2: the ceiling on the return and on the swarm.
   static float limit(float x) { return 2.0f * kit::soft_clip(0.5f * x); }
 
+  // One control period of a tap, added to `out`: the read point ramps from
+  // where it was to where control() aimed it. Every tap is at least a period
+  // and a few samples long, so what it reads in this period is already on
+  // the line; reading it in one run is the same audio as reading it sample
+  // by sample, at a fraction of the cost. Positions are 32.32 fixed point.
+  static void sweep(const kit::DelayLine<kLineSize>& line, const Read& read, float gain,
+                    float* out) {
+    const double step = (read.delay - read.from) * (1.0 / kControlPeriod);
+    const double first = static_cast<double>(line.write_position() + kLineSize) - (read.from + step);
+    long long at = static_cast<long long>(first * 4294967296.0);
+    const long long advance = static_cast<long long>((1.0 - step) * 4294967296.0);
+    for (int j = 0; j < kControlPeriod; ++j) {
+      const int index = static_cast<int>(at >> 32);
+      const float t = static_cast<float>(static_cast<unsigned int>(at)) * (1.0f / 4294967296.0f);
+      out[j] += gain * kit::hermite(line.at(index - 1), line.at(index), line.at(index + 1),
+                                    line.at(index + 2), t);
+      at += advance;
+    }
+  }
+
+  // The swarm and the loop reads for the coming control period.
+  void gather() {
+    for (int c = 0; c < 2; ++c) {
+      for (int j = 0; j < kControlPeriod; ++j) {
+        swarm_chunk_[c][j] = 0.0f;
+        back_chunk_[c][j] = 0.0f;
+      }
+      for (int k = 0; k < kTaps; ++k) sweep(line_[c], tap_[c][k], tap_[c][k].gain, swarm_chunk_[c]);
+      sweep(line_[c], loop_[c], 1.0f, back_chunk_[c]);
+    }
+  }
+
   void render(int i) {
     float in[2];
     take_input(i, &in[0], &in[1]);
     if (clock_.tick()) {
       control();
+      gather();
       started_ = true;
+      chunk_at_ = 0;
     }
     const float reflect = glide(reflect_);
     const float diffusion = glide(diffuse_);
-
-    float back[2];
-    float swarm[2];
-    for (int c = 0; c < 2; ++c) {
-      back[c] = read_at(line_[c], loop_[c].next());
-      float sum = 0.0f;
-      for (int k = 0; k < kTaps; ++k) {
-        Read& tap = tap_[c][k];
-        sum += tap.gain * read_at(line_[c], tap.next());
-      }
-      swarm[c] = sum;
-    }
+    const float back[2] = {back_chunk_[0][chunk_at_], back_chunk_[1][chunk_at_]};
+    const float swarm[2] = {swarm_chunk_[0][chunk_at_], swarm_chunk_[1][chunk_at_]};
+    ++chunk_at_;
 
     // The return: a quarter-turn rotation between the sides, then the limiter.
     const float turned[2] = {(back[0] + back[1]) * kit::kSqrtHalf,
@@ -295,13 +333,17 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
       const float reach = kit::min(sweep, 0.25f * static_cast<float>(target));
       target += static_cast<double>(reach * kit::SineTable::lookup(read.phase));
     }
-    if (target < 3.0) target = 3.0;
+    if (target < read.least) target = read.least;
     if (target > read.limit) target = read.limit;
     if (!started_) {
+      read.from = target;
       read.delay = target;
       read.step = 0.0;
+    } else if (read.least > 3.0f) {
+      read.from = read.delay;  // a tap: sweep() ramps it
+      read.delay = target;
     } else {
-      read.step = (target - read.delay) * (1.0 / kControlPeriod);
+      read.step = (target - read.delay) * (1.0 / kControlPeriod);  // an allpass: ramps per sample
     }
   }
 
@@ -445,6 +487,9 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
   double history_[kHistory];
   double position_ = 0.0;
   long long tick_ = 0;
+  float swarm_chunk_[2][kControlPeriod] = {};
+  float back_chunk_[2][kControlPeriod] = {};
+  int chunk_at_ = 0;
   Read tap_[2][kTaps];
   Read loop_[2];
   Read stage_[2][kStages];

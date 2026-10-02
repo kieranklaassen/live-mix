@@ -429,12 +429,12 @@ int main() {
     run(device, chord({196.0, 246.94, 293.66}, 8, 0.5f, 0.5f));
     Stereo tail = render(device, 1.5f, kRate);
     Stereo rest = render(device, 0.5f, kRate);
-    EXPECT(peak(tail.left, 4800) < 1.0e-3, "the voices stop with the input (nothing rings on past 100 ms)");
+    EXPECT(peak(tail.left, 2400) < 1.0e-3, "the voices stop with the input (nothing rings on past 50 ms)");
     EXPECT(peak(rest.left) == 0.0 && peak(rest.right) == 0.0, "asleep after the tail");
     Stereo woken = run(device, sine(220.0f, 0.2f, kRate, 0.5f));
-    std::printf("tail: %.5f at 100 ms, %.5f at 50 ms after a chord stops; woken %.3f\n", peak(tail.left, 4800),
-                peak(tail.left, 2400), tone_level(woken.left, 440.0, kRate, 4800));
-    EXPECT(tone_level(woken.left, 440.0, kRate, 4800) > 0.2, "wakes on new input");
+    const double woke = tone_level(woken.left, 440.0, kRate, 4800) + tone_level(woken.right, 440.0, kRate, 4800);
+    std::printf("tail: peak %.6f from 50 ms after a chord stops\n", peak(tail.left, 2400));
+    EXPECT(woke > 0.45, "wakes on new input");
   }
 
   device.init(kRate);

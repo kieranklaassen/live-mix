@@ -219,13 +219,13 @@ static std::vector<double> fine_spectrum(const std::vector<float>& x) {
   return power;
 }
 
-// The strongest line within ±3 % of `hz`: its frequency (parabolic fit) and
+// The strongest line within ±1.5 % of `hz`: its frequency (parabolic fit) and
 // how far it stands above the median of that neighbourhood.
 struct Line {
   double hz, prominence, power;
 };
 static Line line_near(const std::vector<double>& power, double hz) {
-  const int lo = static_cast<int>(0.97 * hz / kFineHz), hi = static_cast<int>(1.03 * hz / kFineHz) + 1;
+  const int lo = static_cast<int>(0.985 * hz / kFineHz), hi = static_cast<int>(1.015 * hz / kFineHz) + 1;
   int best = lo;
   std::vector<double> around;
   for (int k = lo; k <= hi; ++k) {
@@ -533,15 +533,18 @@ int main() {
     for (int far = 0; far < 2; ++far) {
       plain(device, Outdoors::kThunder, 0.5f);
       device.set_param(p::kDistance, far == 0 ? 0.0f : 0.6f);
-      const std::vector<float> start = mid(hold(device, 261.63f, 6.0f));
-      bright[far] = energy_above(start, 2000.0, kRate, 0, 9600);
+      const std::vector<float> start = mid(hold(device, 261.63f, 8.0f));
+      bright[far] = energy_above(start, 2000.0, kRate, 0, far == 0 ? 4800 : start.size());
       const std::vector<float> e = frames(start, 480);
-      onset[far] = 0.01 * static_cast<double>(std::max_element(e.begin(), e.end()) - e.begin());
+      size_t reached = 0;
+      while (reached < e.size() && e[reached] < 0.25 * highest(e)) ++reached;
+      onset[far] = 0.01 * static_cast<double>(reached);
     }
-    std::printf("outdoors: thunder at Distance 0 / 0.6: %.0f / %.1f %% of the first 200 ms is above 2 kHz; loudest %.2f / %.2f s in\n",
-                100.0 * bright[0], 100.0 * bright[1], onset[0], onset[1]);
-    EXPECT(bright[0] > 0.2 && bright[1] < 0.02, "Thunder: a crack only when near");
-    EXPECT(onset[0] < 0.1 && onset[1] > 0.3, "Thunder: from far off the roll swells in");
+    std::printf("outdoors: thunder at Distance 0: %.0f %% of its first 100 ms is above 2 kHz, a quarter of its "
+                "loudest within %.2f s; at 0.6: %.2f %% of the roll is above 2 kHz, a quarter of its loudest after %.2f s\n",
+                100.0 * bright[0], onset[0], 100.0 * bright[1], onset[1]);
+    EXPECT(bright[0] > 0.2 && bright[1] < 0.01, "Thunder: a crack only when near");
+    EXPECT(onset[0] < 0.03 && onset[1] > 0.2, "Thunder: from far off the roll swells in");
   }
 
   // Chimes: six tubes on the major pentatonic of the key, each with partials

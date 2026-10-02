@@ -16,16 +16,20 @@ namespace outdoors_scene {
 struct Thunder {
   static constexpr int kBands = 4;  // crack, body, rumble, sub
   static constexpr float kGain = 1.6f;
-  static constexpr float kCorner[kBands] = {2800.0f, 420.0f, 130.0f, 48.0f};
+  // The chain of one-poles, and after which of them each band is taken:
+  // the body has gone through two at 420 Hz, so it carries no hiss.
+  static constexpr int kPoles = 5;
+  static constexpr float kCorner[kPoles] = {2800.0f, 420.0f, 420.0f, 130.0f, 48.0f};
+  static constexpr int kTap[kBands] = {0, 2, 3, 4};
   // What makes each band as loud as the others for the same envelope.
-  static constexpr float kTrim[kBands] = {0.35f, 1.0f, 2.2f, 4.5f};
+  static constexpr float kTrim[kBands] = {0.35f, 1.4f, 2.4f, 4.8f};
   // Seconds to fall to 1/e after an arrival, and to rise to it.
   static constexpr float kFall[kBands] = {0.07f, 0.28f, 0.7f, 1.3f};
   static constexpr float kRise[kBands] = {0.002f, 0.012f, 0.04f, 0.09f};
 
   kit::Rng rng;
   kit::Noise noise[2];
-  kit::OnePole pole[2][kBands];
+  kit::OnePole pole[2][kPoles];
   kit::DcBlocker floor[2];  // nothing under 25 Hz: it only eats headroom
   // Envelopes, stepped on the control clock and ramped between.
   float kick[2][kBands] = {};   // what the arrivals have put in
@@ -55,8 +59,8 @@ struct Thunder {
   void start(float hz, const Controls& c) {
     lean = key_lean(hz, 0.5f, 1.0f);
     for (int ch = 0; ch < 2; ++ch) {
+      for (kit::OnePole& q : pole[ch]) q.reset();
       for (int k = 0; k < kBands; ++k) {
-        pole[ch][k].reset();
         kick[ch][k] = level[ch][k] = gain[ch][k] = target[ch][k] = step[ch][k] = 0.0f;
       }
     }
@@ -86,10 +90,12 @@ struct Thunder {
     // White noise spreads its power to half the sample rate: keep the level
     // of what the low-passes leave the same at any rate.
     trim = kGain * std::sqrt(sr / 48000.0f);
-    for (int k = 0; k < kBands; ++k) {
+    for (int q = 0; q < kPoles; ++q) {
       for (int ch = 0; ch < 2; ++ch) {
-        pole[ch][k].set_cutoff(kit::min(kCorner[k] * tilt, 0.4f * sr), sr);
+        pole[ch][q].set_cutoff(kit::min(kCorner[q] * tilt, 0.4f * sr), sr);
       }
+    }
+    for (int k = 0; k < kBands; ++k) {
       fall[k] = std::exp(-c.step_seconds / (kFall[k] * (1.0f + 0.6f * c.distance)));
       // From far off nothing arrives with an edge.
       rise[k] = 1.0f - std::exp(-c.step_seconds / (kRise[k] * (1.0f + 9.0f * c.distance)));
@@ -126,8 +132,8 @@ struct Thunder {
       for (int ch = 0; ch < 2; ++ch) {
         for (int k = 0; k < kBands; ++k) {
           kick[ch][k] = level[ch][k] = gain[ch][k] = target[ch][k] = step[ch][k] = 0.0f;
-          pole[ch][k].reset();
         }
+        for (kit::OnePole& q : pole[ch]) q.reset();
       }
       sounding = false;
     }
@@ -182,10 +188,13 @@ struct Thunder {
     float x[2] = {a + b, a - b};  // the two sides share most of their rumble
     float out[2] = {0.0f, 0.0f};
     for (int ch = 0; ch < 2; ++ch) {
-      for (int k = 0; k < kBands; ++k) {
-        x[ch] = pole[ch][k].lowpass(x[ch]);
+      int k = 0;
+      for (int q = 0; q < kPoles; ++q) {
+        x[ch] = pole[ch][q].lowpass(x[ch]);
+        if (q != kTap[k]) continue;
         gain[ch][k] += step[ch][k];
         out[ch] += x[ch] * gain[ch][k];
+        ++k;
       }
     }
     left += floor[0].process(out[0]);

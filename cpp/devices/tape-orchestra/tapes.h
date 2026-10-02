@@ -254,14 +254,15 @@ class Recorder {
   void init() { fft_.init(); }
 
   // `seed` fixes the phases of the harmonics, so a key is always the same
-  // recording. Both periods come out at unit RMS (times the tape's trim).
-  void record(int tape, float f0, uint32_t seed, float* recording) {
+  // recording. Harmonics above `band` Hz are left out. Both periods come
+  // out at unit RMS (times the tape's trim).
+  void record(int tape, float f0, float band, uint32_t seed, float* recording) {
     tape = kit::clamp_int(tape, 0, kNumTapes - 1);
     for (int i = 0; i < kTableSize; ++i) {
       re_[i] = 0.0f;
       im_[i] = 0.0f;
     }
-    int harmonics = static_cast<int>(kRecordedBandHz / f0);
+    int harmonics = static_cast<int>(band / f0);
     harmonics = kit::clamp_int(harmonics, 1, kMaxHarmonics);
     static const float kFlat = std::exp2(-kVibratoSpanCents / 1200.0f);
     static const float kSharp = std::exp2(kVibratoSpanCents / 1200.0f);

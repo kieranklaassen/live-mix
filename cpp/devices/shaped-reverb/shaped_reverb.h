@@ -327,8 +327,9 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
                                                     {0.143f, 0.157f, 0.199f, 0.221f, 0.280f}};
   static constexpr float kDiffusion = 0.66f;
   // The most an allpass's resting length moves in one control period, in
-  // samples: 0.25 % of the period, 4 cents of pitch for each stage.
-  static constexpr float kDriftSamples = 0.08f;
+  // samples: an eighth of a percent of the period, 2 cents of pitch for
+  // each trip round a stage. The longest move takes about eight seconds.
+  static constexpr float kDriftSamples = 0.04f;
   // Peak sweep of an allpass length at Modulation 1.
   static constexpr float kSweepSeconds = 0.0005f;
   static constexpr float kTailShortest = 0.0431f;
@@ -495,7 +496,7 @@ class ShapedReverb : public kit::DeviceBase<shaped_reverb::kNumParams> {
         // A new length is approached slowly: a moving allpass bends the pitch
         // of what is in it, and at full speed a turn of Density or Time
         // dipped the whole wash by two semitones for half a second. At this
-        // rate the five stages together stay within a fifth of a semitone.
+        // rate the five stages together stay within about a quarter of one.
         const float gap = base - stage.rest;
         if (!started_ || (gap <= kDriftSamples && gap >= -kDriftSamples)) {
           stage.rest = base;

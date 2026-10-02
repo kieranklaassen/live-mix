@@ -329,15 +329,15 @@ int main() {
     EXPECT(worn_under > new_under + 15.0, "Age turns the hiss up");
     EXPECT(worn_under < -45.0 && new_under < -70.0, "the hiss stays under the echo it rides on");
 
-    // Clock bleed: worn and at a long Time the clock itself (4096 samples in
-    // 1.2 s, about 3.4 kHz) is a faint whistle under the echo; new, or at a
+    // Clock bleed: worn and at a long Time the clock itself (8192 samples in
+    // 1.2 s, about 6.8 kHz) is a faint whistle under the echo; new, or at a
     // short Time where the clock is far above hearing, there is none.
     auto bleed = [&](float age, float ms) {
       clean(device);
       device.set_param(p::kAge, age);
       device.set_param(p::kTime, ms);
       Stereo out = run(device, burst(240.0f, 4.0f, 4.2f, kRate, 0.1f));
-      const double clock = 4096.5 / (ms * 0.001);
+      const double clock = 8192.5 / (ms * 0.001);
       const double hz = dominant_frequency(out.left, kRate, clock * 0.97, clock * 1.03, at(2.0), at(4.0));
       return db(tone_level(out.left, hz, kRate, at(2.0), at(4.0)));
     };

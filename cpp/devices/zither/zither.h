@@ -61,6 +61,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     stamp_ = 0;
     flip_ = false;
     chunk_left_ = 0;
+    now_ = 0.0;
     fade_step_ = 1.0f / (kFadeSeconds * sr);
     init_sympathetic(sr);
     init_bodies(sr);
@@ -114,6 +115,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
       finish_chunk(left, right, n, done);
       chunk_left_ -= n;
       done += n;
+      now_ += n;
     }
     idle_.settle(output_peak(frames), frames);
   }
@@ -150,6 +152,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     uint32_t generation = 0;  // counts the notes this voice has played
     uint32_t stamp = 0;
     float hz = 0.0f;
+    double origin = 0.0;      // when the string's first blow began, samples
     float ring = 0.0f;        // the ring time the loop gains are set for
     float key_scale = 1.0f;   // low strings ring longer
     float follow = 0.0f, chunk_peak = 0.0f;
@@ -186,6 +189,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     voice.holders = 0;
     voice.generation = 0;
     voice.stamp = 0;
+    voice.origin = 0.0;
     voice.hz = voice.ring = voice.follow = voice.chunk_peak = voice.second = 0.0f;
     voice.key_scale = 1.0f;
     voice.fade = 1.0f;
@@ -209,7 +213,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
       {0, 7, 14, 16, 19, 24},  // Add 9
   };
   // A stroke of the roll against the first blow, and how much it varies.
-  static constexpr float kRollLevel = 0.5f;
+  static constexpr float kRollLevel = 0.65f;
   static constexpr float kRollLevelSpread = 0.2f;
   static constexpr float kRollTimeSpread = 0.1f;
   static constexpr float kMinRollHz = 2.0f;
@@ -342,7 +346,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
   // Strings: what a moving string keeps under a new blow, how the ring time
   // leans with pitch, and how long a partial near 3 kHz (higher for the
   // treble strings) rings from Brightness 0 to 1.
-  static constexpr float kKeepHammer = 0.7f;
+  static constexpr float kKeepHammer = 0.45f;
   static constexpr float kKeepRollHammer = 0.8f;
   static constexpr float kKeepRollPluck = 0.65f;
   static constexpr float kRingLean = 0.3f;
@@ -388,7 +392,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
       ++voice.generation;
       voice.holders = 0;
       voice.stamp = ++stamp_;
-      start(voice, blow);
+      start(voice, blow, now_);
       return found;
     }
     // Every string is in use: take the quietest released one, else the quietest.
@@ -458,9 +462,10 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
   }
 
   // A fresh string for this blow.
-  void start(Voice& voice, const Blow& blow) {
+  void start(Voice& voice, const Blow& blow, double when) {
     const float sr = sample_rate();
     voice.hz = blow.hz;
+    voice.origin = when;
     voice.sounding = true;
     voice.fading = voice.pending = false;
     voice.fade = 1.0f;
@@ -482,7 +487,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     place(voice);
     voice.strikes[0].active = voice.strikes[1].active = false;
     voice.next_strike = 0;
-    set_strike(voice, blow);
+    set_strike(voice, blow, 0.0f);
   }
 
   // The two strings of a course are tuned this many hertz apart.
@@ -509,12 +514,21 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     }
   }
 
-  // A blow on a string that is already moving.
+  // A blow on a string that is already moving. A stroke of the roll waits
+  // for the wave of the first blow to come round (less than a period), so
+  // it pushes the string the way it is going and every stroke adds; a key
+  // struck again does not wait, and the string keeps less of itself.
   void add_blow(Voice& voice, const Blow& blow) {
     voice.absorb = blow.soft ? (blow.exciter == kHammer ? kKeepRollHammer : kKeepRollPluck) : kKeepHammer;
-    voice.absorb_left = static_cast<int>(sample_rate() / voice.hz + 0.5f);
+    const float period = sample_rate() / voice.hz;
+    voice.absorb_left = static_cast<int>(period + 0.5f);
     voice.follow = kit::max(voice.follow, 0.1f);
-    set_strike(voice, blow);
+    float wait = 0.0f;
+    if (blow.soft) {
+      wait = period - static_cast<float>(std::fmod(now_ - voice.origin, static_cast<double>(period)));
+      if (wait > period - 0.01f) wait = 0.0f;
+    }
+    set_strike(voice, blow, wait);
   }
 
   // Exciters. Widths are for a string at 220 Hz, from the softest to the
@@ -529,7 +543,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
   static constexpr float kBounceSeconds = 0.011f;
 
   // Draw the blow for this string and hand it to a free strike slot.
-  void set_strike(Voice& voice, const Blow& blow) {
+  void set_strike(Voice& voice, const Blow& blow, float wait) {
     const float sr = sample_rate();
     zither::Strike& strike = voice.strikes[voice.next_strike];
     voice.next_strike = 1 - voice.next_strike;
@@ -568,6 +582,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
       strike.step = level;
     }
     strike.finish_setup();
+    strike.t = -wait;
   }
 
   // Every 32 samples: keys, ring times, freeing.
@@ -656,7 +671,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
     voice.chunk_peak = peak;
     if (voice.fading && voice.fade <= 0.0f) {
       if (voice.pending) {
-        start(voice, voice.pending_blow);
+        start(voice, voice.pending_blow, now_ + static_cast<double>(n));
       } else {
         voice.sounding = voice.fading = false;
       }
@@ -864,6 +879,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
   uint32_t stamp_ = 0;
   bool flip_ = false;
   int chunk_left_ = 0;
+  double now_ = 0.0;  // samples rendered since init
   float fade_step_ = 0.01f;
   SympatheticString sympathetic_[kSympathetic];
   float sympathetic_left_[kSympathetic] = {}, sympathetic_right_[kSympathetic] = {};

@@ -6,7 +6,7 @@
 //        ▲                                                               │
 //        └──── feedback ◄──── low cut ◄──── expand 1:2 ◄─────────────────┘──► wet
 //
-// - The line holds a fixed 4096 samples and its clock sets the delay
+// - The line holds a fixed 8192 samples and its clock sets the delay
 //   (bbd_line.h), so Time is a clock rate: what is in the line changes pitch
 //   with the clock for one line length, and the bandwidth is half the clock.
 //   The two fourth-order low-passes sit at Tone, or lower when the clock
@@ -191,8 +191,8 @@ class AnalogDelay : public kit::DeviceBase<analog_delay::kNumParams> {
   // Clock bleed into the line's output at Age 1, and the clock rates between
   // which it fades in (none above the first, all of it below the second).
   static constexpr float kWhineLevel = 0.05f;
-  static constexpr float kWhineAboveHz = 9000.0f;
-  static constexpr float kWhineFullHz = 5000.0f;
+  static constexpr float kWhineAboveHz = 12000.0f;
+  static constexpr float kWhineFullHz = 7000.0f;
   // Clock rate for each interval choice: what is already in the line plays
   // back at this ratio when the clock steps to it (Off, octave, fifth and
   // fourth down, fourth, fifth and octave up).

@@ -42,6 +42,7 @@
 // filters and noise in the same state every time.
 
 #include "../../kit/kit.h"
+#include "doubler.h"
 #include "params.gen.h"
 #include "tapes.h"
 
@@ -50,7 +51,9 @@ namespace livemix {
 class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
  public:
   static constexpr int kMaxVoices = 16;
-  static constexpr int kControlPeriod = 64;
+  // The keys run at half the host's rate (doubler.h); the control clock
+  // counts their samples: one tick is 64 samples of output.
+  static constexpr int kControlPeriod = 32;
   static constexpr int kMaxPlayers = tape_orchestra_dsp::kMaxPlayers;
 
   // --- the tape under a key -------------------------------------------------
@@ -100,7 +103,12 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
     kit::SineTable::init();
     init_base(sample_rate, kParamMin, kParamMax, kParamDefault);
     const float sr = this->sample_rate();
+    engine_rate_ = 0.5f * sr;
     recorder_.init();
+    for (int c = 0; c < 2; ++c) doubler_[c].init();
+    spare_ = false;
+    spare_left_ = 0.0f;
+    spare_right_ = 0.0f;
     pool_.reset();
     for (int v = 0; v < kMaxVoices; ++v) {
       Voice& voice = pool_.voices[v];
@@ -109,7 +117,7 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
       voice.fresh = false;
       voice.let_go = false;
       voice.env = kit::Adsr();
-      voice.env.set_sample_rate(sr);
+      voice.env.set_sample_rate(engine_rate_);
       voice.cut = Ramp();
       for (float& value : voice.recording) value = 0.0f;
     }
@@ -131,7 +139,7 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
     speed_ = 1.0f;
     roll_off_hz_ = kRollOffHz;
     low_cut_hz_ = kLowCutHz;
-    const float dt = static_cast<float>(kControlPeriod) / sr;
+    const float dt = static_cast<float>(kControlPeriod) / engine_rate_;
     speed_coeff_ = 1.0f - std::exp(-dt / kSpeedGlideSeconds);
     band_coeff_ = 1.0f - std::exp(-dt / 0.01f);
     drop_coeff_ = 1.0f - std::exp(-dt / 0.012f);
@@ -171,7 +179,8 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
 
   void note_on(int note_id, float frequency, float gain) {
     if (!(frequency == frequency)) return;  // NaN
-    frequency = kit::clamp(frequency, 16.0f, 12000.0f);
+    // The engine carries tones up to 0.4 of its own rate.
+    frequency = kit::clamp(frequency, 16.0f, 0.38f * engine_rate_);
     if (!(gain == gain)) gain = 0.5f;
     gain = kit::clamp(gain, 0.0f, 1.0f);
     // A key struck again while held: its tape is let go quickly.
@@ -197,7 +206,7 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
     voice.next_gain = gain;
     if (sounding) {
       // Fade what it was playing; the new note starts when that is done.
-      voice.cut.step = -1.0f / (kStealSeconds * sample_rate());
+      voice.cut.step = -1.0f / (kStealSeconds * engine_rate_);
     } else {
       voice.cut.value = 0.0f;
       voice.cut.step = 0.0f;
@@ -227,11 +236,18 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
     clear_input(frames);  // an instrument ignores its input
     if (was_asleep) wake();
     int done = 0;
+    if (spare_) {
+      // The second half of an engine sample that the last block had no room for.
+      finish(&spare_left_, &spare_right_, 1, 0);
+      spare_ = false;
+      done = 1;
+    }
     while (done < frames) {
       // Work in runs that end on the control clock, whatever the block size.
       if (clock_.counter == 0) control();
       int count = clock_.period - clock_.counter;
-      if (count > frames - done) count = frames - done;
+      const int wanted = (frames - done + 1) / 2;
+      if (count > wanted) count = wanted;
       clock_.counter += count;
       if (clock_.counter >= clock_.period) clock_.counter = 0;
 
@@ -246,25 +262,19 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
         if (!voice.on || voice.resting) continue;
         render(voice, bus_left, bus_right, count);
       }
-      for (int n = 0; n < count; ++n) {
-        const float tilt = tilt_.next();
-        const float volume = volume_.next();
-        const float hiss = hiss_.next();
-        const float side = hiss_side_.next();
-        const float mid_noise = hiss_rng_[0].bipolar();
-        const float side_noise = hiss_rng_[1].bipolar() * side;
-        float x[2] = {bus_left[n], bus_right[n]};
-        const float grain[2] = {mid_noise + side_noise, mid_noise - side_noise};
-        for (int c = 0; c < 2; ++c) {
-          float y = roll_off_[c].lowpass(low_cut_[c].highpass(x[c]));
-          y += tilt * (y - shelf_[c].lowpass(y));
-          y += hiss * hiss_low_[c].lowpass(hiss_high_[c].highpass(grain[c]));
-          x[c] = kit::soft_clip(y * volume);
-        }
-        out_left_[done + n] = x[0];
-        out_right_[done + n] = x[1];
+      float left[2 * kControlPeriod];
+      float right[2 * kControlPeriod];
+      doubler_[0].process(bus_left, count, left);
+      doubler_[1].process(bus_right, count, right);
+      int ready = 2 * count;
+      if (done + ready > frames) {
+        ready -= 1;
+        spare_ = true;
+        spare_left_ = left[ready];
+        spare_right_ = right[ready];
       }
-      done += count;
+      finish(left, right, ready, done);
+      done += ready;
     }
     idle_.settle(output_peak(frames), frames);
   }
@@ -274,12 +284,13 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
   struct Ramp {
     float value = 0.0f;
     float step = 0.0f;
-    void aim(float target, bool snap) {
+    // `samples` is how many there are to the next tick.
+    void aim(float target, bool snap, int samples = kControlPeriod) {
       if (snap) {
         value = target;
         step = 0.0f;
       } else {
-        step = (target - value) * (1.0f / static_cast<float>(kControlPeriod));
+        step = (target - value) / static_cast<float>(samples);
       }
     }
     float next() {
@@ -368,6 +379,29 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
   static float saturate(float x) {
     x = x < kClampLow ? kClampLow : (x > kClampHigh ? kClampHigh : x);
     return x + x * x * (kEven - x * (1.0f / 3.0f));
+  }
+
+  // The tape band, the tone, the hiss and the output level, at the host's
+  // rate: `count` samples to the output from `at` on.
+  void finish(const float* left, const float* right, int count, int at) {
+    for (int n = 0; n < count; ++n) {
+      const float tilt = tilt_.next();
+      const float volume = volume_.next();
+      const float hiss = hiss_.next();
+      const float side = hiss_side_.next();
+      const float mid_noise = hiss_rng_[0].bipolar();
+      const float side_noise = hiss_rng_[1].bipolar() * side;
+      float x[2] = {left[n], right[n]};
+      const float grain[2] = {mid_noise + side_noise, mid_noise - side_noise};
+      for (int c = 0; c < 2; ++c) {
+        float y = roll_off_[c].lowpass(low_cut_[c].highpass(x[c]));
+        y += tilt * (y - shelf_[c].lowpass(y));
+        y += hiss * hiss_low_[c].lowpass(hiss_high_[c].highpass(grain[c]));
+        x[c] = kit::soft_clip(y * volume);
+      }
+      out_left_[at + n] = x[0];
+      out_right_[at + n] = x[1];
+    }
   }
 
   // `count` samples of one key, added to the bus.
@@ -481,7 +515,7 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
   void control() {
     using namespace tape_orchestra;
     const float sr = sample_rate();
-    const float dt = static_cast<float>(kControlPeriod) / sr;
+    const float dt = static_cast<float>(kControlPeriod) / engine_rate_;
 
     // The motor: Speed glides between full and half.
     const float speed = param(kSpeed) > 0.5f ? 0.5f : 1.0f;
@@ -535,16 +569,16 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
       Voice& voice = pool_.voices[v];
       voice.resting = voice.on && voice.waiting();
       if (!voice.on || voice.resting) continue;
-      sounding += control_voice(voice, dt, sr);
+      sounding += control_voice(voice, dt, engine_rate_);
     }
 
     // Hiss: every key down adds its tape's noise, and powers add.
     const float amount = param(kHiss);
     const float hiss = kHissGain * amount * (0.25f + 0.75f * amount) * std::sqrt(sounding) *
                        hiss_trim_;
-    hiss_.aim(hiss, settle_);
+    hiss_.aim(hiss, settle_, 2 * kControlPeriod);
     if (hiss == 0.0f && hiss_.value < 1.0e-6f) hiss_.aim(0.0f, true);
-    hiss_side_.aim(0.8f * param(kSpread), settle_);
+    hiss_side_.aim(0.8f * param(kSpread), settle_, 2 * kControlPeriod);
     settle_ = false;
   }
 
@@ -585,7 +619,8 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
     const int key =
         kit::clamp_int(static_cast<int>(std::floor(kit::hz_to_midi(voice.frequency) + 0.5f)), 0, 140);
     const uint32_t seed = scramble(static_cast<uint32_t>(key * 8 + tape + 1));
-    recorder_.record(tape, voice.frequency, seed, voice.recording);
+    recorder_.record(tape, voice.frequency, kit::min(kRecordedBandHz, 0.4f * engine_rate_), seed,
+                     voice.recording);
     voice.tape = tape;
     voice.need_record = false;
     {
@@ -593,7 +628,7 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
       // at the tape's level under a tone of unit RMS (its RMS through the
       // two poles is 0.577 * sqrt(3.614 * centre / rate)).
       const TapeDef& def = kTapes[tape];
-      const float sr = sample_rate();
+      const float sr = engine_rate_;
       voice.noise_centre =
           kit::clamp(def.noise_hz + def.noise_track * voice.frequency, 100.0f, 0.25f * sr);
       voice.noise_level = noise_gain_[tape] * 0.707f /
@@ -601,7 +636,7 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
       voice.retune = true;
     }
     if (!voice.fresh) {
-      voice.cut.step = 1.0f / (kSwapSeconds * sample_rate());
+      voice.cut.step = 1.0f / (kSwapSeconds * engine_rate_);
       return;
     }
     voice.fresh = false;
@@ -834,6 +869,8 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
       hiss_high_[c].reset();
     }
     hiss_ = Ramp();
+    for (int c = 0; c < 2; ++c) doubler_[c].reset();
+    spare_ = false;
     clock_.reset(kControlPeriod);
     settle_ = true;
   }
@@ -846,7 +883,7 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
       voice.need_record = true;
       voice.fresh = false;
       voice.order = ++order_;
-      voice.cut.step = -1.0f / (kSwapSeconds * sample_rate());
+      voice.cut.step = -1.0f / (kSwapSeconds * engine_rate_);
     }
   }
 
@@ -875,6 +912,10 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
   Ramp hiss_side_;
   kit::ControlClock clock_;
   kit::IdleGate idle_;
+  float engine_rate_ = 24000.0f;  // the keys' own sample rate, half the host's
+  tape_orchestra_dsp::Doubler doubler_[2];
+  bool spare_ = false;            // an output sample is waiting for the next block
+  float spare_left_ = 0.0f, spare_right_ = 0.0f;
   float speed_ = 1.0f;       // tape speed now, 0.5..1
   float roll_off_hz_ = 7000.0f;
   float low_cut_hz_ = 75.0f;

@@ -19,14 +19,22 @@
     {
       "key": "mode",
       "name": "Mode",
-      "choices": ["Standard", "Inverse", "Jitter"],
+      "choices": [
+        "Standard",
+        "Inverse",
+        "Jitter"
+      ],
       "default": 0,
       "description": "Standard plays what survives the loss. Inverse plays only what was thrown away, a thin ghost of the sound. Jitter keeps every frequency but scrambles its timing, which smears attacks into a diffuse haze."
     },
     {
       "key": "frame",
       "name": "Frame",
-      "choices": ["Short", "Medium", "Long"],
+      "choices": [
+        "Short",
+        "Medium",
+        "Long"
+      ],
       "default": 1,
       "description": "The size of the pieces the sound is cut into. Short is gritty and rough around attacks; Long is the most watery and smears each attack forwards and backwards."
     },
@@ -91,7 +99,7 @@
   ],
   "presets": {
     "Behind glass": {
-      "loss": 0.35
+      "loss": 0.45
     },
     "Underwater": {
       "loss": 0.7,
@@ -145,6 +153,6 @@
   },
   "origin": {
     "kind": "new",
-    "note": "Written for live-mix. Models a low-bitrate perceptual transform codec in outline, without a bitstream and without any codec's own psychoacoustic model: an MDCT filter bank, bins kept or dropped against thresholds per critical band, coarse quantisation, a falling bandwidth, joint stereo, and lost or repeated packets. The filter bank is the MDCT of J. Princen and A. Bradley, 'Analysis/synthesis filter bank design based on time domain aliasing cancellation' (IEEE Trans. ASSP, 1986), computed through a DCT-IV on an FFT of a quarter of the window. Jitter and Smear use the MDCT and MDST together as a complex spectrum, after H. Malvar, 'A modulated complex lapped transform and its applications to audio processing' (ICASSP 1999). The quantiser is the power law of MPEG-1 audio layer III (ISO/IEC 11172-3); the bands are E. Zwicker's critical bands (1961). Not a port of any codec or plug-in."
+    "note": "Written for live-mix. Models a low-bitrate perceptual transform codec in outline, without a bitstream and without any real codec's psychoacoustic model: a lapped cosine transform (MDCT) filter bank, bins kept or dropped against thresholds per critical band, coarse power-law quantisation of what is kept, a falling bandwidth, joint stereo, and lost or repeated packets. The filter bank is after the approach of J. Princen and A. Bradley, 'Analysis/synthesis filter bank design based on time domain aliasing cancellation'. Jitter and Smear treat the cosine and sine transforms together as a complex spectrum, after the approach of H. Malvar, 'A modulated complex lapped transform and its applications to audio processing'. The bands follow the critical-band (Bark) scale and the quantiser is a three-quarter-power law of the kind such codecs use, both written from memory of the general literature and not checked against any text; the thresholds, margins and slopes were tuned by measurement for this device. Not a port of any codec or plug-in."
   }
 }
