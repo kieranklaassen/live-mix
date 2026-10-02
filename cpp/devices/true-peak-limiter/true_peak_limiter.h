@@ -128,6 +128,15 @@ class TruePeakLimiter {
 
   // Gain currently applied, 0..1 (1 = no reduction).
   float envelope() const { return envelope_; }
+  // True when silence would move nothing but the lookahead: the release and
+  // both gains are at rest. Each rests on its target or just short of it,
+  // where one more step is smaller than a float can add (a 100 ms release
+  // stops at 0.99986), so the test is that a step leaves it where it is.
+  bool settled() const {
+    const float recovered = release_state_ + (1.0f - release_state_) * release_coefficient_;
+    return recovered == release_state_ && smooth(input_gain_, input_gain_target_) == input_gain_ &&
+           smooth(ceiling_, ceiling_target_) == ceiling_;
+  }
   float gainReductionDb() const { return 20.0f * std::log10(envelope_ > 1.0e-9f ? envelope_ : 1.0e-9f); }
 
   // One stereo frame, in place.

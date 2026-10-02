@@ -16,6 +16,10 @@ void SpectralDrifterDevice::init(float sample_rate) {
   decay_seconds_ = kDefaultDecaySeconds;
   manual_age_ = false;
   manual_age_value_ = kDefaultAge;
+  // A grain lasts GRAIN_SIZE samples and reads backwards from where the
+  // write head was when it began, at up to twice speed: nothing further back
+  // than three grains is ever heard again.
+  idle_.reset(sample_rate, 3.0f * SpectralDrifter::GRAIN_SIZE / sample_rate + 0.1f);
 
   for (int ch = 0; ch < 2; ++ch) {
     age_seconds_[ch] = 0.0f;
@@ -92,6 +96,8 @@ void SpectralDrifterDevice::set_param(SpectralDrifterParam param, float value) {
       manual_age_value_ = clamp01(value);
       break;
   }
+  // Asleep nothing advances the smoothers: stay up until this has landed.
+  idle_.wake(true);
 }
 
 // Bloom's per-line age tracker (PluginProcessor.cpp:323-333), on one input.
@@ -110,6 +116,15 @@ float SpectralDrifterDevice::track_age(int channel, float sample) {
 void SpectralDrifterDevice::process(int frames) {
   if (frames > kMaxBlockFrames) frames = kMaxBlockFrames;
   primed_ = true;
+  const bool aging = !manual_age_ && (age_seconds_[0] != 0.0f || age_seconds_[1] != 0.0f);
+  if (!idle_.wake(aging || block_present(in_left_, in_right_, frames))) {
+    for (int i = 0; i < frames; ++i) {
+      out_left_[i] = 0.0f;
+      out_right_[i] = 0.0f;
+    }
+    return;
+  }
+  float wet_peak = 0.0f;
 
   for (int i = 0; i < frames; ++i) {
     const float dry[2] = {in_left_[i], in_right_[i]};
@@ -123,6 +138,8 @@ void SpectralDrifterDevice::process(int frames) {
       age_normalized_[ch] = manual_age_ ? manual_age_value_ : track_age(ch, dry[ch]);
       drifters_[ch].setBloom(bloom);
       wet[ch] = drifters_[ch].process(dry[ch], age_normalized_[ch]);
+      const float level = std::fabs(wet[ch]);
+      if (level > wet_peak) wet_peak = level;
     }
 
     const float mix_angle = mix_.next() * kHalfPi;
@@ -132,6 +149,7 @@ void SpectralDrifterDevice::process(int frames) {
     out_left_[i] = dry[0] * dry_gain + wet[0] * wet_gain;
     out_right_[i] = dry[1] * dry_gain + wet[1] * wet_gain;
   }
+  idle_.settle(wet_peak, frames);
 }
 
 }  // namespace livemix

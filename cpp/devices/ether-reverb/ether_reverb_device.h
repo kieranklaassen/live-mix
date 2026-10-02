@@ -3,6 +3,7 @@
 #include <cmath>
 
 #include "../../common/dsp_util.h"
+#include "../../kit/idle.h"
 #include "freeverb.h"
 
 namespace livemix {
@@ -44,6 +45,15 @@ enum class EtherReverbParam : int {
 // from its top (two seconds after it became audible at the latest, so a pad
 // that keeps swelling is held too). From then on it is Ether's freeze. Thrown
 // while the room is ringing it holds at once, as in Ether.
+//
+// Sleep: a dying tail reaches exact zero (see freeverb.h). Once the reverb's
+// own output (before Mix, which can be 0 over a ringing room) has been
+// nothing but zeros for kIdleHoldSeconds with nothing coming in, the room is
+// empty and process() only clears its output: the next sound meets exactly
+// what it would have met. A held room rings for ever and never sleeps; an
+// armed freeze sleeps and is still armed when a sound wakes it. A parameter
+// that is set wakes the device for one hold (far longer than the ramps), so
+// every ramp has landed before it sleeps again.
 class EtherReverbDevice {
  public:
   static constexpr int kMaxBlockFrames = 2048;
@@ -57,6 +67,11 @@ class EtherReverbDevice {
   static constexpr float kDefaultPredelayMs = 0.0f;
   static constexpr float kDefaultSize = 0.6f;
   static constexpr float kFrozenRoomSize = 0.999f;
+  // The room is never silent for longer than this with sound still inside it
+  // (the pre-delay, 200 ms at most, then the shortest comb, 25 ms), and by
+  // the end of it every buffer has been written over with zeros: the longest,
+  // the pre-delay line, is 0.74 s at 44.1 kHz.
+  static constexpr float kIdleHoldSeconds = 1.0f;
 
   // Replacement for juce::SmoothedValue on the host-side gains: exponential
   // approach that settles to within 1 % of the target after `seconds`.
@@ -123,6 +138,8 @@ class EtherReverbDevice {
   const float* out_right() const { return out_right_; }
 
   Freeverb& reverb() { return reverb_; }
+  // Test hook: true while process() only clears the output.
+  bool asleep() const { return idle_.asleep(); }
   // Ether's decay -> Freeverb parameter law (PluginProcessor.cpp:141-149).
   static Freeverb::Parameters reverb_parameters_for(float decay_seconds, float size,
                                                     float damping, bool frozen);
@@ -168,6 +185,7 @@ class EtherReverbDevice {
 
   Smoother dry_gain_;
   Smoother wet_gain_;
+  kit::IdleGate idle_;
 
   PredelayLine predelay_[2];
   Freeverb reverb_;

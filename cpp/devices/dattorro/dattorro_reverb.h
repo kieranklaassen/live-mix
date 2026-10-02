@@ -23,6 +23,11 @@ class DattorroReverb {
   // Mono in, stereo wet out (100% wet; the caller owns dry/wet mixing).
   void process(float in, float* wet_left, float* wet_right);
 
+  // Turns the two modulators as `frames` calls of process() would and touches
+  // nothing else, for a caller that skips silent blocks: they run freely and
+  // keep their place in the cycle.
+  void advance_modulators(int frames);
+
   // Test hooks: full flush-to-zero, and the denormal-guard invariant that no
   // stored state value sits in the flush range (0 < |v| < kDenormalThreshold).
   bool is_silent_state() const;

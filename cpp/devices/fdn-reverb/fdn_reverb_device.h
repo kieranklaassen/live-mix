@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../../kit/idle.h"
 #include "fdn_reverb.h"
 
 namespace livemix {
@@ -19,10 +20,25 @@ enum class FdnReverbParam : int {
 // by Tides' equal-power law `dry*cos(mix*pi/2) + wet*sin(mix*pi/2)`
 // (PluginProcessor.cpp:415-423). Statically allocated; process() is
 // allocation-free.
+//
+// Sleep: the network's denormal guard takes a dying tail to exact zero. Once
+// the network itself (before Mix, which can be 0 over a ringing network) has
+// put out nothing but zeros for kIdleHoldSeconds with nothing coming in, the
+// lines are empty and process() only clears its output and turns the line
+// modulators and the breath: the next sound meets exactly what it would have
+// met. A parameter that is set wakes the device for one hold (far longer
+// than the 5 ms smoothing), so every smoothed value has landed before it
+// sleeps again.
 class FdnReverbDevice {
  public:
   static constexpr int kMaxBlockFrames = 2048;
   static constexpr float kDefaultMix = 0.5f;
+  // The network is never silent for longer than this with sound still inside
+  // it (the pre-delay, 250 ms at most, the input diffusion, 20 ms, and the
+  // shortest line at Size 2, 218 ms), and by the end of it every buffer has
+  // been written over with zeros: the lines, the longest, are 1.49 s at
+  // 44.1 kHz.
+  static constexpr float kIdleHoldSeconds = 2.0f;
 
   void init(float sample_rate);
   void set_param(FdnReverbParam param, float value);
@@ -39,6 +55,8 @@ class FdnReverbDevice {
   const float* out_right() const { return out_right_; }
 
   FdnReverb& reverb() { return reverb_; }
+  // Test hook: true while process() only clears the output.
+  bool asleep() const { return idle_.asleep(); }
 
  private:
   static constexpr float kHalfPi = 1.57079632679489661923f;
@@ -47,6 +65,7 @@ class FdnReverbDevice {
   FdnReverb::Smoother mix_;
   bool primed_ = false;
   FdnReverb reverb_;
+  kit::IdleGate idle_;
 
   float in_left_[kMaxBlockFrames] = {};
   float in_right_[kMaxBlockFrames] = {};

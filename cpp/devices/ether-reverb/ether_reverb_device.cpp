@@ -35,6 +35,7 @@ void EtherReverbDevice::init(float sample_rate) {
   reverb_.set_parameters(reverb_parameters_for(decay_seconds_, size_, damping_, false));
   reverb_.set_sample_rate(sample_rate);
   reverb_.reset();
+  idle_.reset(sample_rate, kIdleHoldSeconds);
 
   for (int i = 0; i < kMaxBlockFrames; ++i) {
     in_left_[i] = 0.0f;
@@ -124,6 +125,8 @@ void EtherReverbDevice::set_param(EtherReverbParam param, float value) {
     }
   }
   apply_parameters();
+  // Asleep nothing advances the ramps: stay up until this has landed.
+  idle_.wake(true);
 }
 
 // One sample of an armed freeze: wait for the room to sound, follow its tail
@@ -148,6 +151,14 @@ void EtherReverbDevice::advance_catch() {
 void EtherReverbDevice::process(int frames) {
   if (frames > kMaxBlockFrames) frames = kMaxBlockFrames;
   primed_ = true;
+  if (!idle_.wake(block_present(in_left_, in_right_, frames))) {
+    for (int i = 0; i < frames; ++i) {
+      out_left_[i] = 0.0f;
+      out_right_[i] = 0.0f;
+    }
+    return;
+  }
+  bool ringing = false;
 
   for (int i = 0; i < frames; ++i) {
     const float dry_left = in_left_[i];
@@ -164,6 +175,7 @@ void EtherReverbDevice::process(int frames) {
     float wet_right = predelay_[1].push_pop(fed_right, predelay_samples_);
 
     reverb_.process_stereo(&wet_left, &wet_right);
+    if (wet_left != 0.0f || wet_right != 0.0f) ringing = true;
 
     wet_power_ = flush_denormal(
         wet_power_ + follower_coefficient_ * (wet_left * wet_left + wet_right * wet_right - wet_power_));
@@ -174,6 +186,8 @@ void EtherReverbDevice::process(int frames) {
     out_left_[i] = dry_left * dry_gain + wet_left * wet_gain;
     out_right_[i] = dry_right * dry_gain + wet_right * wet_gain;
   }
+  // Exact silence, not the gate's floor: only then is the room empty.
+  idle_.settle(ringing ? 1.0f : 0.0f, frames);
 }
 
 }  // namespace livemix

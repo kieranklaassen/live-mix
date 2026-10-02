@@ -7,7 +7,10 @@
 #include "generated/zita-rev1.h"
 
 namespace {
-livemix::faust::FaustDevice<livemix::faust::ZitaRev1> g_device;
+// The hold: Mix can be 0 over a ringing reverb, and then the output shows
+// nothing of the tail, so the hold has to outlast the tail itself. 20 s is
+// 150 dB at the longest decay there is (8 s).
+livemix::faust::FaustDevice<livemix::faust::ZitaRev1, 20> g_device;
 }
 
 extern "C" {

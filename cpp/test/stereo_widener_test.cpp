@@ -29,6 +29,8 @@ constexpr int kBlock = 128;
 constexpr float kTwoPi = 6.28318530717958647692f;
 
 livemix::StereoWidenerDevice g_test_device;
+// A second device for the test that needs one beside g_test_device.
+livemix::StereoWidenerDevice g_other_device;
 
 struct Tone {
   float phase = 0.0f;
@@ -372,6 +374,60 @@ void test_silence_flushes_denormal_state() {
   EXPECT(settled.peak == 0.0f, "output is bit-exact zero after 0.5 s of silence");
 }
 
+void test_sleeps_after_the_reset_and_wakes_unchanged() {
+  // Two devices hear the same burst and fall silent. One hears the next
+  // sound the moment the silence has reset it; the other after five more
+  // seconds asleep, where process() only clears the output.
+  livemix::StereoWidenerDevice& rested = g_test_device;
+  livemix::StereoWidenerDevice& slept = g_other_device;
+  for (livemix::StereoWidenerDevice* device : {&rested, &slept}) {
+    device->init(kSampleRate);
+    device->set_param(livemix::StereoWidenerParam::kWidth, 1.0f);
+    Tone left(220.0f, 1.0f);
+    Tone right(330.0f, 0.3f);
+    run(*device, 0.05f, 0.0f, left, right);
+    EXPECT(!device->asleep(), "sound keeps it awake");
+    for (int block = 0; block < 1000 && !device->asleep(); ++block) device->process(kBlock);
+    EXPECT(device->asleep(), "asleep once the silence has reset the widener");
+  }
+  const Stats asleep = run_silence(slept, 5.0f);
+  EXPECT(slept.asleep() && asleep.peak == 0.0f, "asleep it writes exact zeros");
+
+  Noise left(11u, 0.5f);
+  Noise right(13u, 0.5f);
+  int mismatches = 0;
+  float peak = 0.0f;
+  for (int block = 0; block < 400; ++block) {
+    for (int i = 0; i < kBlock; ++i) {
+      const float l = left.next();
+      const float r = right.next();
+      for (livemix::StereoWidenerDevice* device : {&rested, &slept}) {
+        device->in_left()[i] = l;
+        device->in_right()[i] = r;
+      }
+    }
+    rested.process(kBlock);
+    slept.process(kBlock);
+    for (int i = 0; i < kBlock; ++i) {
+      if (rested.out_left()[i] != slept.out_left()[i] ||
+          rested.out_right()[i] != slept.out_right()[i]) {
+        ++mismatches;
+      }
+      peak = std::max(peak,
+                      std::max(std::fabs(slept.out_left()[i]), std::fabs(slept.out_right()[i])));
+    }
+  }
+  EXPECT(!slept.asleep() && peak > 0.1f, "input wakes it");
+  EXPECT(mismatches == 0, "the sleep changed nothing: both devices play the same samples");
+
+  run_silence(slept, 1.0f);
+  EXPECT(slept.asleep(), "asleep again after the sound");
+  slept.set_param(livemix::StereoWidenerParam::kWidth, 0.3f);
+  EXPECT(!slept.asleep(), "a width ramp wakes it");
+  const Stats ramp = run_silence(slept, 0.01f);
+  EXPECT(slept.asleep() && ramp.peak == 0.0f, "asleep again once the ramp has landed");
+}
+
 }  // namespace
 
 int main() {
@@ -385,6 +441,7 @@ int main() {
   test_stability_under_load();
   test_input_bus_clears_between_blocks();
   test_silence_flushes_denormal_state();
+  test_sleeps_after_the_reset_and_wakes_unchanged();
 
   if (g_failures == 0) {
     std::printf("stereo widener device tests: all passed\n");

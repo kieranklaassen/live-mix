@@ -136,6 +136,12 @@ void FeltPianoDevice::set_param(FeltPianoParam param, float value) {
     default:
       break;
   }
+
+  // Idle, nothing advances the ramps or the room's feedback gain, and a pedal
+  // burst would go unheard: run until all of it has landed and rung out. The
+  // idle flush puts the device back to sleep.
+  idle_ = false;
+  idle_frames_ = 0;
 }
 
 // PluginProcessor::updateVoiceParameters (:156-184).
@@ -195,6 +201,15 @@ void FeltPianoDevice::process(int frames) {
     in_right_[i] = 0.0f;
     out_left_[i] = 0.0f;
     out_right_[i] = 0.0f;
+  }
+
+  // Idle: no voice, no ghost, no burst, and everything after them was reset
+  // by the flush, so the block is the zeros just written. A note or a
+  // parameter ends it. (The ramps hold their targets, so the first block
+  // counts as run.)
+  if (idle_) {
+    primed_ = true;
+    return;
   }
 
   update_voice_parameters();
@@ -296,7 +311,6 @@ void FeltPianoDevice::process(int frames) {
     idle_frames_ = 0;
     return;
   }
-  if (idle_) return;
   idle_frames_ += frames;
   if (idle_frames_ >= idle_flush_frames_) {
     flush_idle_state();

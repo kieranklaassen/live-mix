@@ -16,6 +16,27 @@ inline float clamp01(float x) {
   return x;
 }
 
+// True when a block of the input bus holds anything but exact zeros: what a
+// device asks before it may sleep (kit::IdleGate, cpp/kit/idle.h).
+inline bool block_present(const float* left, const float* right, int frames) {
+  for (int i = 0; i < frames; ++i) {
+    if (left[i] != 0.0f || right[i] != 0.0f) return true;
+  }
+  return false;
+}
+
+// The largest magnitude in a block of the output bus, for IdleGate::settle.
+inline float block_peak(const float* left, const float* right, int frames) {
+  float peak = 0.0f;
+  for (int i = 0; i < frames; ++i) {
+    const float l = left[i] < 0.0f ? -left[i] : left[i];
+    const float r = right[i] < 0.0f ? -right[i] : right[i];
+    if (l > peak) peak = l;
+    if (r > peak) peak = r;
+  }
+  return peak;
+}
+
 // One-pole lowpass in the form Dattorro uses: y = x*(1-a) + y1*a.
 struct OnePoleLowpass {
   float state = 0.0f;

@@ -4,8 +4,8 @@
 // felt control, release vs held decay, sustain and half-pedal, sostenuto,
 // same-note retrigger, 32-voice stealing through the ghost pool, the soft
 // limiter bound, output gain, width, room mix, the input-bus contract, the
-// idle flush to exact zero, and the per-block CPU cost for a typical and a
-// worst-case load. Compiled with the system C++ compiler by
+// idle flush to exact zero, idle and waking from it, and the per-block CPU
+// cost for a typical and a worst-case load. Compiled with the system C++ compiler by
 // scripts/test-native.sh.
 
 #include <algorithm>
@@ -35,6 +35,8 @@ using livemix::FeltPianoDevice;
 using livemix::FeltPianoParam;
 
 FeltPianoDevice g_test_device;
+// A second device for the test that needs one beside g_test_device.
+FeltPianoDevice g_other_device;
 
 float note_hz(int midi) { return 440.0f * std::pow(2.0f, static_cast<float>(midi - 69) / 12.0f); }
 
@@ -443,6 +445,42 @@ void test_idle_flush_reaches_exact_zero() {
   EXPECT(device.idle() && render(device, 0.5f, kSampleRate) == 0.0f, "pedal noise rings out to exact zero");
 }
 
+void test_idle_only_clears_and_wakes_where_it_was() {
+  // Two devices play the same notes and flush. One hears the next note at
+  // once; the other after ten more seconds idle, where process() only clears
+  // its buffers.
+  FeltPianoDevice& device = g_test_device;
+  FeltPianoDevice& other = g_other_device;
+  for (FeltPianoDevice* each : {&device, &other}) {
+    each->init(kSampleRate);
+    each->note_on(1, note_hz(48), 0.8f);
+    each->note_on(2, note_hz(55), 0.8f);
+    render(*each, 0.5f, kSampleRate);
+    each->note_off(1);
+    each->note_off(2);
+    for (int block = 0; block < 8000 && !each->idle(); ++block) each->process(kBlock);
+    EXPECT(each->idle(), "idle once the notes have rung out");
+  }
+  EXPECT(render(other, 10.0f, kSampleRate) == 0.0f && other.idle(), "idle: exact zeros");
+
+  std::vector<float> rested;
+  std::vector<float> slept;
+  device.note_on(3, note_hz(60), 0.7f);
+  other.note_on(3, note_hz(60), 0.7f);
+  EXPECT(!other.idle(), "a note wakes it");
+  EXPECT(render(device, 1.0f, kSampleRate, nullptr, &rested) > 0.01f, "and sounds");
+  render(other, 1.0f, kSampleRate, nullptr, &slept);
+  EXPECT(rested == slept, "a longer idle changes nothing in what the next note meets");
+
+  other.note_off(3);
+  render(other, 10.0f, kSampleRate);
+  EXPECT(other.idle(), "idle again after the note");
+  other.set_param(FeltPianoParam::kReverbMix, 0.6f);
+  EXPECT(!other.idle(), "a parameter that is set wakes it");
+  EXPECT(render(other, 2.0f, kSampleRate) == 0.0f && other.idle(),
+         "and with nothing sounding it is idle again after the flush time, in silence");
+}
+
 void test_sample_rate_independence() {
   FeltPianoDevice& device = g_test_device;
   const float rates[3] = {44100.0f, 48000.0f, 96000.0f};
@@ -510,6 +548,7 @@ int main() {
   test_same_note_retrigger_and_stealing();
   test_output_gain_width_and_room();
   test_idle_flush_reaches_exact_zero();
+  test_idle_only_clears_and_wakes_where_it_was();
   test_sample_rate_independence();
   report_cpu_cost();
 

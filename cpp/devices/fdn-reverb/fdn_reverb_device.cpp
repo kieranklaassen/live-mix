@@ -15,6 +15,10 @@ void FdnReverbDevice::init(float sample_rate) {
     out_right_[i] = 0.0f;
   }
   reverb_.init(sample_rate);
+  idle_.reset(sample_rate, kIdleHoldSeconds);
+  // Awake to begin with: the first block primes the smoothers, here and in
+  // the network, whether or not it carries sound.
+  idle_.wake(true);
 }
 
 void FdnReverbDevice::set_param(FdnReverbParam param, float value) {
@@ -45,11 +49,22 @@ void FdnReverbDevice::set_param(FdnReverbParam param, float value) {
       reverb_.set_breath_depth(value);
       break;
   }
+  // Asleep nothing advances the smoothers: stay up until this has landed.
+  idle_.wake(true);
 }
 
 void FdnReverbDevice::process(int frames) {
   if (frames > kMaxBlockFrames) frames = kMaxBlockFrames;
+  if (!idle_.wake(block_present(in_left_, in_right_, frames))) {
+    reverb_.advance_modulators(frames);
+    for (int i = 0; i < frames; ++i) {
+      out_left_[i] = 0.0f;
+      out_right_[i] = 0.0f;
+    }
+    return;
+  }
   primed_ = true;
+  bool ringing = false;
 
   for (int i = 0; i < frames; ++i) {
     const float dry_left = in_left_[i];
@@ -61,6 +76,7 @@ void FdnReverbDevice::process(int frames) {
     float wet_left = 0.0f;
     float wet_right = 0.0f;
     reverb_.process((dry_left + dry_right) * 0.5f, &wet_left, &wet_right);
+    if (wet_left != 0.0f || wet_right != 0.0f) ringing = true;
 
     const float mix_angle = mix_.next() * kHalfPi;
     const float dry_gain = std::cos(mix_angle);
@@ -69,6 +85,8 @@ void FdnReverbDevice::process(int frames) {
     out_left_[i] = dry_left * dry_gain + wet_left * wet_gain;
     out_right_[i] = dry_right * dry_gain + wet_right * wet_gain;
   }
+  // Exact silence, not the gate's floor: only then are the lines empty.
+  idle_.settle(ringing ? 1.0f : 0.0f, frames);
 }
 
 }  // namespace livemix

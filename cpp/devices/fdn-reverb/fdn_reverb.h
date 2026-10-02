@@ -85,6 +85,12 @@ class FdnReverb {
   // Mono in, stereo wet out (100 % wet; the caller owns dry/wet mixing).
   void process(float in, float* wet_left, float* wet_right);
 
+  // Turns the line modulators and the breath as `frames` calls of process()
+  // would and touches nothing else, for a caller that skips silent blocks:
+  // they run freely and keep their place in the cycle. Only once the
+  // smoothers have landed (the breath rate is read where it stands).
+  void advance_modulators(int frames);
+
   // Tides' breathing law (PluginProcessor.cpp:332-333). UI code animating the
   // breath must use this exact formula; phase is 0..1.
   static float breath_law(float phase, float depth) {
@@ -371,6 +377,20 @@ inline void FdnReverb::process(float in, float* wet_left, float* wet_right) {
   const float wet_r = (delay_out[1] + delay_out[3] + delay_out[5] + delay_out[7]) * 0.25f;
   *wet_left = std::tanh(wet_l);
   *wet_right = std::tanh(wet_r);
+}
+
+inline void FdnReverb::advance_modulators(int frames) {
+  // The same additions process() makes, one per sample: a single step of
+  // `frames` increments rounds differently and would drift away from them.
+  const float breath_increment = breath_rate_.current * inverse_sample_rate_;
+  for (int i = 0; i < frames; ++i) {
+    breath_phase_ += breath_increment;
+    if (breath_phase_ >= 1.0f) breath_phase_ -= 1.0f;
+    for (int ch = 0; ch < kChannels; ++ch) {
+      lfo_phase_[ch] += lfo_increment_[ch];
+      if (lfo_phase_[ch] >= 1.0f) lfo_phase_[ch] -= 1.0f;
+    }
+  }
 }
 
 inline bool FdnReverb::is_silent_state() const {

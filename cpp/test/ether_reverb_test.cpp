@@ -37,6 +37,8 @@ using livemix::EtherReverbParam;
 using livemix::Freeverb;
 
 EtherReverbDevice g_test_device;
+// A second device for the test that needs one beside g_test_device.
+EtherReverbDevice g_awake_device;
 
 void init_wet(EtherReverbDevice& device, float sample_rate = kSampleRate) {
   device.init(sample_rate);
@@ -502,6 +504,84 @@ void test_host_gains_ramp() {
   EXPECT(std::fabs(previous) < 0.01f, "after 10 ms the dry is gone (wet has not arrived yet)");
 }
 
+void test_sleeps_when_empty_and_wakes_unchanged() {
+  EtherReverbDevice& device = g_test_device;
+  // Kept up by setting Mix to what it already is before every block (a
+  // parameter that is set wakes the device), so it runs the room for every
+  // sample: what the device did before it could sleep.
+  EtherReverbDevice& awake = g_awake_device;
+  for (EtherReverbDevice* each : {&device, &awake}) {
+    each->init(kSampleRate);
+    each->set_param(EtherReverbParam::kDecay, 0.5f);
+  }
+
+  // Feeds both `seconds` of the same tone (silence at gain 0), counting the
+  // samples that differ and keeping the device's peak over the stretch.
+  float phase = 0.0f;
+  float peak = 0.0f;
+  int mismatches = 0;
+  bool reference_slept = false;
+  const auto run = [&](float seconds, float gain) {
+    const int total_frames = static_cast<int>(seconds * kSampleRate);
+    peak = 0.0f;
+    for (int rendered = 0; rendered < total_frames; rendered += kBlock) {
+      awake.set_param(EtherReverbParam::kMix, EtherReverbDevice::kDefaultMix);
+      for (int i = 0; i < kBlock; ++i) {
+        const float value = gain * std::sin(phase);
+        phase += kTwoPi * 330.0f / kSampleRate;
+        if (phase >= kTwoPi) phase -= kTwoPi;
+        for (EtherReverbDevice* each : {&device, &awake}) {
+          each->in_left()[i] = value;
+          each->in_right()[i] = value;
+        }
+      }
+      device.process(kBlock);
+      awake.process(kBlock);
+      if (awake.asleep()) reference_slept = true;
+      for (int i = 0; i < kBlock; ++i) {
+        if (device.out_left()[i] != awake.out_left()[i] ||
+            device.out_right()[i] != awake.out_right()[i]) {
+          ++mismatches;
+        }
+        peak = std::max(peak, std::max(std::fabs(device.out_left()[i]),
+                                       std::fabs(device.out_right()[i])));
+      }
+    }
+  };
+
+  run(1.5f * EtherReverbDevice::kIdleHoldSeconds, 0.0f);
+  EXPECT(device.asleep() && peak == 0.0f, "asleep after one hold of silence, writing exact zeros");
+
+  run(0.25f, 0.5f);
+  EXPECT(!device.asleep() && peak > 0.01f, "input wakes it");
+  run(1.5f * EtherReverbDevice::kIdleHoldSeconds, 0.0f);
+  EXPECT(!device.asleep() && peak > 0.0f, "a ringing room stays awake");
+
+  run(20.0f, 0.0f);
+  EXPECT(device.asleep(), "asleep once the tail has been exact silence for the hold");
+  EXPECT(device.reverb().is_silent_state(), "it only sleeps on an empty room");
+  run(5.0f, 0.0f);
+  EXPECT(device.asleep() && peak == 0.0f, "asleep it writes exact zeros");
+
+  for (EtherReverbDevice* each : {&device, &awake}) {
+    each->set_param(EtherReverbParam::kPredelayMs, 120.0f);
+  }
+  EXPECT(!device.asleep(), "a parameter that is set wakes it");
+  run(1.5f * EtherReverbDevice::kIdleHoldSeconds, 0.0f);
+  EXPECT(device.asleep() && peak == 0.0f, "asleep again once the ramps have landed");
+
+  run(0.25f, 0.5f);
+  EXPECT(!device.asleep() && peak > 0.01f, "the next sound wakes it");
+  for (EtherReverbDevice* each : {&device, &awake}) {
+    each->set_param(EtherReverbParam::kFreeze, 1.0f);
+  }
+  run(10.0f, 0.0f);
+  EXPECT(device.holding() && !device.asleep() && peak > 0.01f, "a held room never sleeps");
+  EXPECT(!reference_slept, "the reference never slept");
+  EXPECT(mismatches == 0,
+         "asleep or awake, every sample is the one a device that never sleeps puts out");
+}
+
 void report_cpu_cost() {
   EtherReverbDevice& device = g_test_device;
   device.init(kSampleRate);
@@ -531,6 +611,7 @@ int main() {
   test_stability_under_loud_input();
   test_tail_flushes_to_exact_zero();
   test_host_gains_ramp();
+  test_sleeps_when_empty_and_wakes_unchanged();
   report_cpu_cost();
 
   if (g_failures == 0) {
