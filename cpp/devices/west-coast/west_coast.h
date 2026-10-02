@@ -103,7 +103,8 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
     voice.index_limit = kit::max(0.0f, (kFmLimitHz / frequency - 1.0f) / voice.ratio - 2.0f);
     voice.level_limit =
         kStartLevel + (Wavefolder::kFullLevel - kStartLevel) *
-                          kit::min(1.0f, std::pow(kFoldLimitHz / frequency, kFoldLimitSlope));
+                          kit::min(1.0f, kFoldLimitHz / frequency) *
+                          kit::clamp((kFoldEndHz - frequency) / (kFoldEndHz - kFoldFadeHz), 0.0f, 1.0f);
 
     // Chance: four draws per note whatever the setting, so a sequence is
     // the same every time after init.
@@ -125,7 +126,7 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
     voice.ramp_step = 1.0f / kit::max(1.0f, attack * sample_rate());
     voice.ramp_from = voice.vactrol;
     voice.key_down = true;
-    voice.stage = kAttack;
+    voice.stage = kStageStrike;
     tune(voice);
     if (fresh) {
       voice.open_hz = voice.open_target;
@@ -140,8 +141,8 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
     Voice& voice = pool_.voices[held];
     voice.key_down = false;
     // A strike always lands; a swell or a held note lets go at once.
-    const bool striking = voice.quick && (voice.stage == kAttack || voice.stage == kHold);
-    if (!striking) voice.stage = kRelease;
+    const bool striking = voice.quick && (voice.stage == kStageStrike || voice.stage == kStageHold);
+    if (!striking) voice.stage = kStageRelease;
   }
 
   void process(int frames) {
@@ -175,7 +176,7 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
   }
 
  private:
-  enum Stage : int { kOff = 0, kAttack, kHold, kSustain, kRelease };
+  enum Stage : int { kStageOff = 0, kStageStrike, kStageHold, kStageSustain, kStageRelease };
 
   struct Voice {
     // Oscillators (phases in cycles, increments per 2× sample).
@@ -189,7 +190,7 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
     kit::OnePole dc;
     kit::Svf gate;
     // The gate's control: where the key drives it and where the vactrol is.
-    int stage = kOff;
+    int stage = kStageOff;
     float ramp = 0.0f;
     float ramp_step = 1.0f;
     float ramp_from = 0.0f;
@@ -219,7 +220,7 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
     kit::Drift pitch_drift;
     kit::Drift timbre_drift;
 
-    bool active() const { return stage != kOff; }
+    bool active() const { return stage != kStageOff; }
     bool releasing() const { return !key_down; }
     float level() const { return vactrol; }
   };
@@ -229,12 +230,15 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
 
   // Wavefolder. Fold 0 sits inside the folder's linear part (a pure sine);
   // Fold 1 reaches every fold at low notes and fewer the higher the note.
-  static constexpr int kTableSize = 128;
-  static constexpr float kTableLevel = 8.0f;
+  static constexpr int kLevelSteps = 96;
+  static constexpr int kOffsetSteps = 16;
+  static constexpr float kTableLevel = 6.6f;
+  static constexpr float kTableOffset = 1.12f;
   static constexpr float kStartLevel = 0.42f;
   static constexpr float kOvertoneGain = 2.0f;
-  static constexpr float kFoldLimitHz = 1000.0f;
-  static constexpr float kFoldLimitSlope = 0.9f;
+  static constexpr float kFoldLimitHz = 600.0f;
+  static constexpr float kFoldFadeHz = 4000.0f;
+  static constexpr float kFoldEndHz = 8000.0f;
   static constexpr float kSymmetryBase = 0.3f;
   static constexpr float kSymmetrySlope = 0.12f;
   static constexpr float kTimbreEnvRange = 0.6f;
@@ -273,27 +277,51 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
   static constexpr float kMaxDriftCents = 7.0f;
   static constexpr float kMaxFoldDrift = 0.1f;
 
-  // For a sine of every input level: how much of the folder's output is the
-  // fundamental (so it can be taken out and replaced by a steady one), and
-  // the gain that keeps the loudness of body plus overtones constant.
+  // For a sine of every input level and offset: how much of the folder's
+  // output is the fundamental (so it can be taken out and replaced by a
+  // steady one), and the gain that keeps the loudness of body plus
+  // overtones constant. With an offset the output is still made of sines of
+  // the odd and cosines of the even harmonics, so the fundamental stays in
+  // phase with the input.
   void build_tables() {
-    const int steps = 256;
-    for (int i = 0; i <= kTableSize; ++i) {
-      const double level = static_cast<double>(i) * kTableLevel / kTableSize;
-      double first = 0.0, square = 0.0;
-      for (int k = 0; k < steps; ++k) {
-        const double s = std::sin(1.5707963267948966 * (k + 0.5) / steps);
-        const double y = west_coast::Wavefolder::shape(level * s);
-        first += y * s;
-        square += y * y;
-      }
-      first *= 2.0 / steps;   // amplitude of the fundamental
-      square *= 1.0 / steps;  // mean square
-      const double overtones = 2.0 * square - first * first;
-      fundamental_[i] = static_cast<float>(first);
-      makeup_[i] = static_cast<float>(
-          1.0 / std::sqrt(1.0 + kOvertoneGain * kOvertoneGain * (overtones > 0.0 ? overtones : 0.0)));
+    static constexpr int kSteps = 128;
+    double sines[kSteps];
+    for (int k = 0; k < kSteps; ++k) {
+      sines[k] = std::sin(3.14159265358979323846 * ((k + 0.5) / kSteps - 0.5));
     }
+    for (int j = 0; j <= kOffsetSteps; ++j) {
+      const double offset = static_cast<double>(j) * kTableOffset / kOffsetSteps;
+      for (int i = 0; i <= kLevelSteps; ++i) {
+        const double level = static_cast<double>(i) * kTableLevel / kLevelSteps;
+        double first = 0.0, square = 0.0, mean = 0.0;
+        for (int k = 0; k < kSteps; ++k) {
+          const double y = west_coast::Wavefolder::shape(level * sines[k] + offset);
+          first += y * sines[k];
+          square += y * y;
+          mean += y;
+        }
+        first *= 2.0 / kSteps;   // amplitude of the fundamental
+        square *= 1.0 / kSteps;  // mean square
+        mean *= 1.0 / kSteps;    // DC, which the voice blocks
+        const double overtones = 2.0 * (square - mean * mean) - first * first;
+        fundamental_[j][i] = static_cast<float>(first);
+        makeup_[j][i] = static_cast<float>(
+            1.0 / std::sqrt(1.0 + kOvertoneGain * kOvertoneGain * (overtones > 0.0 ? overtones : 0.0)));
+      }
+    }
+  }
+
+  // Bilinear read of one of the two tables.
+  static float read_table(const float table[][kLevelSteps + 1], float level, float offset) {
+    const float x = level * (kLevelSteps / kTableLevel);
+    const float y = offset * (kOffsetSteps / kTableOffset);
+    const int i = kit::clamp_int(static_cast<int>(x), 0, kLevelSteps - 1);
+    const int j = kit::clamp_int(static_cast<int>(y), 0, kOffsetSteps - 1);
+    const float fx = x - static_cast<float>(i);
+    const float fy = y - static_cast<float>(j);
+    const float low = table[j][i] + (table[j][i + 1] - table[j][i]) * fx;
+    const float high = table[j + 1][i] + (table[j + 1][i + 1] - table[j + 1][i]) * fx;
+    return low + (high - low) * fy;
   }
 
   // One voice for one output sample: two samples at twice the rate, added
@@ -303,20 +331,20 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
     // Where the key drives the gate.
     float control = 0.0f;
     switch (voice.stage) {
-      case kAttack:
+      case kStageStrike:
         voice.ramp += voice.ramp_step;
         if (voice.ramp >= 1.0f) {
           voice.ramp = 1.0f;
-          voice.stage = kHold;
+          voice.stage = kStageHold;
           voice.hold_left = hold_samples_;
         }
         control = voice.ramp_from + (voice.strike - voice.ramp_from) * voice.ramp;
         break;
-      case kHold:
+      case kStageHold:
         control = voice.strike;
-        if (--voice.hold_left <= 0) voice.stage = voice.key_down ? kSustain : kRelease;
+        if (--voice.hold_left <= 0) voice.stage = voice.key_down ? kStageSustain : kStageRelease;
         break;
-      case kSustain:
+      case kStageSustain:
         control = voice.strike * sustain;
         break;
       default:
@@ -331,8 +359,8 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
       vactrol -= (vactrol - control) * voice.fall * (kSlowShare + (1.0f - kSlowShare) * vactrol);
     }
     voice.vactrol = vactrol;
-    if (vactrol < voice.off_level && control < voice.off_level && voice.stage >= kSustain) {
-      voice.stage = kOff;
+    if (vactrol < voice.off_level && control < voice.off_level && voice.stage >= kStageSustain) {
+      voice.stage = kStageOff;
       voice.key_down = false;
       return;
     }
@@ -341,13 +369,11 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
     // does to a sine of that level.
     const float amount = kit::clamp(
         fold + voice.fold_chance + voice.fold_drift + timbre_env * kTimbreEnvRange * vactrol, 0.0f, 1.0f);
-    const float level = kStartLevel + amount * (voice.level_limit - kStartLevel);
+    // Fold to the power 1.5: the first half of the knob is the first two folds.
+    const float level = kStartLevel + amount * std::sqrt(amount) * (voice.level_limit - kStartLevel);
     const float offset = symmetry * (kSymmetryBase + kSymmetrySlope * level);
-    const float position = level * (kTableSize / kTableLevel);
-    const int cell = static_cast<int>(position);
-    const float fraction = position - static_cast<float>(cell);
-    const float fundamental = fundamental_[cell] + (fundamental_[cell + 1] - fundamental_[cell]) * fraction;
-    const float makeup = makeup_[cell] + (makeup_[cell + 1] - makeup_[cell]) * fraction;
+    const float fundamental = read_table(fundamental_, level, offset);
+    const float makeup = read_table(makeup_, level, offset);
 
     // The gate: the vactrol sets how far the low-pass is open (its cutoff
     // falls with the square, so the tone dulls before it fades) and the gain.
@@ -459,8 +485,8 @@ class WestCoast : public kit::DeviceBase<west_coast::kNumParams> {
   float rise_coeff_ = 0.02f;
   float open_coeff_ = 0.004f;
   int hold_samples_ = 96;
-  float fundamental_[kTableSize + 1] = {};
-  float makeup_[kTableSize + 1] = {};
+  float fundamental_[kOffsetSteps + 1][kLevelSteps + 1] = {};
+  float makeup_[kOffsetSteps + 1][kLevelSteps + 1] = {};
 };
 
 }  // namespace livemix

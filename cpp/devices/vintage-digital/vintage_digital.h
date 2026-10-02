@@ -344,17 +344,28 @@ class VintageDigital : public kit::DeviceBase<vintage_digital::kNumParams> {
   // Mid-tread, so silence stays exact silence. Mu-law squeezes the level
   // through log(1 + 255|x|) first and stretches it back after, which spaces
   // the steps finely near zero and coarsely near full scale.
-  float quantise_linear(float x) const { return step_ * std::floor(x * inverse_step_ + 0.5f); }
+  //
+  // To the nearest whole number, halves to the even one: adding and taking
+  // off 1.5 * 2^23 leaves no room for a fraction. Good for |x| < 2^22 (the
+  // largest code here is 2^15 * 1.125), odd-symmetric, and a NaN stays one.
+  static float round(float x) { return (x + 12582912.0f) - 12582912.0f; }
+
+  float quantise_linear(float x) const { return step_ * round(x * inverse_step_); }
   float quantise_mu(float x) const {
     const float a = x < 0.0f ? -x : x;
     // 1 + mu is 256, so the squeezed level is log2(1 + 255 a) / 8.
     const float squeezed = Kernels::log2_from_one(1.0f + kMu * a) * 0.125f;
-    const float code = step_ * std::floor(squeezed * inverse_step_ + 0.5f);
+    const float code = step_ * round(squeezed * inverse_step_);
     const float back = (Kernels::exp2_small(code * 8.0f) - 1.0f) * (1.0f / kMu);
     return x < 0.0f ? -back : back;
   }
   float quantise(float x) const {
-    x = kit::clamp(x, -kCodeLimit, kCodeLimit);
+    // Written so that anything that is not a number lands on a limit.
+    if (!(x >= -kCodeLimit)) {
+      x = -kCodeLimit;
+    } else if (x > kCodeLimit) {
+      x = kCodeLimit;
+    }
     if (companding_.value <= 0.0f) return quantise_linear(x);
     if (companding_.value >= 1.0f) return quantise_mu(x);
     return kit::lerp(quantise_linear(x), quantise_mu(x), companding_.value);

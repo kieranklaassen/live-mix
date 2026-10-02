@@ -352,19 +352,29 @@ int main() {
   }
 
   // 10. The compander softens attacks: a tone that starts at full level comes
-  // back with a rounded front, and reaches its level within a few rectifier
-  // time constants.
+  // back with a rounded front (the line clips the burst the compressor lets
+  // through before it has turned down, and the expander has yet to open),
+  // then settles at the level it went in. Age slows the rectifiers, so a
+  // worn circuit rounds the front more.
   {
-    clean(device);
-    device.set_param(p::kAge, 0.3f);
-    device.set_param(p::kTime, 200.0f);
-    Stereo out = run(device, sine(440.0f, 0.5f, kRate, 0.2f));
-    const double front = peak(out.left, at(0.2), at(0.2035)) / 0.2;
-    const double body = peak(out.left, at(0.3), at(0.4)) / 0.2;
-    std::printf("an abrupt 440 Hz onset comes back at %.2f of its level in the first 3.5 ms, %.2f after 100 ms\n",
-                front, body);
-    EXPECT(front < 0.6, "the front of the echo is softened");
-    EXPECT(body > 0.9 && body < 1.05, "the body of the echo is at the input level");
+    auto onset = [&](float age, double* front, double* body) {
+      clean(device);
+      device.set_param(p::kAge, age);
+      device.set_param(p::kTime, 200.0f);
+      Stereo out = run(device, sine(440.0f, 0.5f, kRate, 0.2f));
+      *front = peak(out.left, at(0.2), at(0.2035)) / 0.2;
+      *body = peak(out.left, at(0.33), at(0.4)) / 0.2;
+    };
+    double new_front, new_body, worn_front, worn_body;
+    onset(0.0f, &new_front, &new_body);
+    onset(1.0f, &worn_front, &worn_body);
+    std::printf("an abrupt onset comes back at %.2f of its level in the first 3.5 ms (%.2f worn), "
+                "%.2f after 130 ms (%.2f worn)\n",
+                new_front, worn_front, new_body, worn_body);
+    EXPECT(new_front < 0.7, "the front of the echo is softened");
+    EXPECT(worn_front < 0.5 * new_front, "Age softens it further");
+    EXPECT(new_body > 0.93 && new_body < 1.03, "the body of the echo is at the input level");
+    EXPECT(worn_body > 0.8 && worn_body < 1.03, "worn, it is a little under (the line saturates sooner)");
   }
 
   // 11. Feedback past 1 runs away into the line's saturation: it sustains,

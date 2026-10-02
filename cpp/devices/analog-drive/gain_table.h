@@ -2,9 +2,16 @@
 
 // Auto Gain: the make-up after each circuit, in dB, that returns pink noise
 // at -18 dBFS RMS to the level it came in at, for Drive 0, 1/12 ... 1, with
-// Push off and on. Measured by tmp/analog-drive/calibrate.cpp at 48 kHz with
-// every other control at its default; the device interpolates between the
-// points. Static: nothing here follows the signal.
+// Push off and on; the device interpolates between the points. Static:
+// nothing here follows the signal.
+//
+// To measure it again after a change to a circuit: build the device with
+// LIVEMIX_ANALOG_DRIVE_RAW_MAKEUP defined (the make-up is then a constant
+// 12.04 dB, the headroom), run 8 s of pink noise at -18 dBFS RMS through
+// each circuit, Push state and Drive point at 48 kHz with every other
+// control at its default, and enter 12.04 + input RMS - output RMS (in dB,
+// skipping the first second). The harness checks the result with another
+// noise: within 1 dB everywhere.
 
 namespace livemix {
 namespace analog_drive_dsp {

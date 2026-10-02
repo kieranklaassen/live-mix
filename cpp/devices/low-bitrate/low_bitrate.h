@@ -653,6 +653,11 @@ class LowBitrate : public kit::DeviceBase<low_bitrate::kNumParams> {
       } else {
         code(engine, n, loss, mode == kInverse);
       }
+    } else if (mode == kInverse) {
+      // Nothing is thrown away, so there is nothing to hear.
+      for (int c = 0; c < 2; ++c) {
+        for (int k = 0; k < n; ++k) cosine_[c][k] = 0.0f;
+      }
     }
     if (smear > 0.0f) {
       hang(engine, n, smear, mode == kJitter);

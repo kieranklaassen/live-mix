@@ -3,29 +3,37 @@
 // Cascade: little loops of what was just played, stacked at octave (and
 // fifth) speeds in a pattern.
 //
-//   in ─┬──────────────────────────────────────────────────────► dry ─┐
-//       └─ L+R ─► DC block ─► ring (x1) ─► half-band ─► ring (x2) ─►   │
-//                                half-band ─► ring (x4)                │
-//                    slice clock ─► loop voices ─► tone ─► limit ─► wet ┴─► out
+//   in ─┬─────────────────────────────────────────────────────────► dry ─┐
+//       └─ L+R ─► DC block ─► ring (x1) ─► half-band ─► ring (x2) ─►      │
+//                                half-band ─► ring (x4)                   │
+//           slice clock ─► loop voices ─► tone ─► hold ─► limit ─► wet ───┴─► out
 //
 // - A slice clock of period Time cuts the input into slots. A slot that had
 //   sound in it is captured by reference (a position and a length in the
 //   ring) and handed to a set of loop voices. A slot that starts in silence
-//   waits: it begins at the first sound, so a note is captured from its
-//   attack and its replays land exactly on multiples of Time after it.
+//   waits: it begins at the first sound. A note played over one that still
+//   sounds cuts the slot short and starts the next. Either way a note is
+//   captured from its attack, and what was captured first comes back exactly
+//   one Time after its slot began.
 // - A voice replays its slice in passes. Each pass reads a stretch of the
 //   slice at a speed (1/2, 1, 3/2, 2, 3 or 4) under a window, at a place in
 //   the stereo field, through a low-pass that closes a little more on every
 //   repeat. Everything a pass uses is fixed when the pass starts, at a point
-//   where its window is zero, so no control can click.
+//   where its window is zero, so the controls that shape it cannot click.
+//   High, Low, Spread, Tone and Mix act on what is already sounding.
 // - Speeds above 1 would alias. They read copies of the ring decimated by 2
 //   and by 4 through half-band filters (kit::Halfband2x), so a x2 or x4 voice
 //   reads one stored sample per output sample and what it shifts up was
 //   band-limited first.
-// - Patterns differ only in the passes they schedule (see schedule()).
+// - Patterns differ only in the passes they schedule (start_pass and the
+//   functions after it): Mosaic loops the slice at every speed at once, Strum
+//   strikes its start in a quickening or slowing run, Tunnel loops a piece
+//   of it into a drone, Steps plays each repeat at the next speed.
 // - The capture is mono (the sum of the inputs); the width comes from where
 //   the voices are placed. The half-speed voice stays in the centre.
 // - When the pool is full the quietest voice fades out over 10 ms.
+// - A slice is read for at most kMaxLifeSeconds: Repeats x Time is cut short
+//   at that (it matters above 1.1 s of Time).
 
 #include "../../kit/kit.h"
 #include "params.gen.h"
@@ -125,7 +133,7 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
   static constexpr int kRing0 = 1 << 21;
   static constexpr int kRing1 = kRing0 / 2;
   static constexpr int kRing2 = kRing0 / 4;
-  static constexpr float kMaxLifeSeconds = 19.0f;
+  static constexpr float kMaxLifeSeconds = 18.0f;
   // Up to kMaxLive voices sound; the rest of the pool holds those fading out
   // after a steal (a slice starts at most kMaxPerSlice voices).
   static constexpr int kMaxLive = 32;
@@ -224,7 +232,7 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
     slot_has_sound_ = false;
     fast_.reset();
     slow_.reset();
-    spawn_offset_ = 0;
+    start_delay_ = 0;
   }
 
   // The ring was not written while asleep. Take up recording on a whole
@@ -610,7 +618,7 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
       voice.repeats = repeats();
       voice.trim = trim;
       voice.cycle = cycle_;
-      voice.wait = delay + spawn_offset_;
+      voice.wait = delay + start_delay_;
       voice.rng.seed(rng_.next_u32());
       ++live_;
       ++active_;
@@ -620,7 +628,7 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
 
   // A slot with sound in it has ended: hand its slice to the pattern.
   void capture(long long start, float length, float period, int delay) {
-    spawn_offset_ = delay;
+    start_delay_ = delay;
     using namespace cascade;
     const int pattern = kit::clamp_int(static_cast<int>(param(kPattern) + 0.5f), 0, 3);
     const bool fifths = param(kInterval) > 0.5f;
@@ -689,24 +697,27 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
     const float high = param(kHigh) * param(kHigh);
     const float low = param(kLow) * param(kLow);
     float parts;
+    // Strum and Steps leave gaps, so they play a little hotter.
+    float level = 1.0f;
     switch (kit::clamp_int(static_cast<int>(param(kPattern) + 0.5f), 0, 3)) {
       case kStrum:
         parts = 0.3f * (1.0f + 0.5f * high + low);
+        level = 1.3f;
         break;
       case kTunnel:
         parts = 2.0f + high + low;
         break;
       case kSteps:
         parts = 0.25f + 0.35f * high + low;
+        level = 1.15f;
         break;
       default:
         parts = 0.72f + 2.0f * high + low;
         break;
     }
     const float power = window * generations * parts;
-    return kWetLevel * std::pow(kit::max(1.0f, power / kFullPower), -kTrimSlope);
+    return level * std::pow(kit::max(1.0f, power / kFullPower), -kTrimSlope);
   }
-  static constexpr float kWetLevel = 1.0f;
   static constexpr float kFullPower = 0.6f;
   static constexpr float kTrimSlope = 0.3f;
 
@@ -922,7 +933,9 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
   long long slot_begin_ = 0;
   long long slot_samples_ = 0;
   long long onset_gap_ = 0;
-  int spawn_offset_ = 0;
+  // Added to the delay of every voice capture() starts: a cut slot's voices
+  // wait until one Time after it began.
+  int start_delay_ = 0;
   kit::Follower fast_, slow_;
   bool slot_has_sound_ = false;
   long long slice_count_ = 0;

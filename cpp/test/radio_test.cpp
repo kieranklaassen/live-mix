@@ -26,6 +26,89 @@ static void clean(Radio& d, int band, float rate = kRate) {
   d.set_param(p::kMix, 1.0f);
 }
 
+static void set_all(Radio& d, const float* values) {
+  for (int id = 0; id < p::kNumParams; ++id) d.set_param(id, values[id]);
+}
+
+// Level in dB of the `hz` component in consecutive windows.
+static std::vector<double> tone_envelope(const std::vector<float>& x, double hz, float rate,
+                                         float window_seconds) {
+  std::vector<double> out;
+  const size_t window = static_cast<size_t>(window_seconds * rate);
+  for (size_t s = 0; s + window <= x.size(); s += window) {
+    out.push_back(db(tone_level(x, hz, rate, s, s + window)));
+  }
+  return out;
+}
+
+// RMS in dB of what is left between `lo` and `hi` Hz in consecutive windows
+// (eighth-order Butterworth each way).
+static std::vector<double> band_envelope(const std::vector<float>& x, float lo, float hi, float rate,
+                                         float window_seconds) {
+  using livemix::radio_parts::Cascade;
+  using livemix::radio_parts::kButter8;
+  std::vector<double> out;
+  const size_t window = static_cast<size_t>(window_seconds * rate);
+  Cascade<4> high, low;
+  high.reset();
+  low.reset();
+  high.set(lo, rate, kButter8);
+  low.set(hi, rate, kButter8);
+  double sum = 0.0;
+  for (size_t i = 0; i < x.size(); ++i) {
+    const double v = low.lowpass(high.highpass(x[i]));
+    sum += v * v;
+    if ((i + 1) % window == 0) {
+      out.push_back(db(std::sqrt(sum / static_cast<double>(window))));
+      sum = 0.0;
+    }
+  }
+  return out;
+}
+
+static double pearson(const std::vector<double>& a, const std::vector<double>& b) {
+  const size_t n = std::min(a.size(), b.size());
+  double ma = 0.0, mb = 0.0;
+  for (size_t i = 0; i < n; ++i) {
+    ma += a[i];
+    mb += b[i];
+  }
+  ma /= static_cast<double>(n);
+  mb /= static_cast<double>(n);
+  double sab = 0.0, saa = 0.0, sbb = 0.0;
+  for (size_t i = 0; i < n; ++i) {
+    sab += (a[i] - ma) * (b[i] - mb);
+    saa += (a[i] - ma) * (a[i] - ma);
+    sbb += (b[i] - mb) * (b[i] - mb);
+  }
+  return (saa > 0.0 && sbb > 0.0) ? sab / std::sqrt(saa * sbb) : 0.0;
+}
+
+static double range(const std::vector<double>& v, size_t from = 0) {
+  double lo = 1.0e9, hi = -1.0e9;
+  for (size_t i = from; i < v.size(); ++i) {
+    lo = std::min(lo, v[i]);
+    hi = std::max(hi, v[i]);
+  }
+  return hi - lo;
+}
+
+static double average(const std::vector<double>& v, size_t from = 0) {
+  double sum = 0.0;
+  for (size_t i = from; i < v.size(); ++i) sum += v[i];
+  return sum / static_cast<double>(v.size() - from);
+}
+
+// Times the series crosses its own mean: two per cycle of a slow movement.
+static int crossings(const std::vector<double>& v) {
+  const double m = average(v);
+  int count = 0;
+  for (size_t i = 1; i < v.size(); ++i) {
+    if ((v[i - 1] < m) != (v[i] < m)) ++count;
+  }
+  return count;
+}
+
 int main() {
   Conformance spec;
   spec.name = "radio";
@@ -36,6 +119,249 @@ int main() {
   spec.tail_seconds = 7.0f;
   spec.max_peak = 2.0f;
   check_effect(device, spec, kRate);
+
+  // 1. Band limits. Shortwave at the default bandwidth: everything under
+  // 150 Hz and over 6 kHz is at least 20 dB under the middle of the band. The
+  // wide setting passes 4 kHz, the narrow one does not.
+  {
+    auto level_at = [&](float hz, float bandwidth) {
+      clean(device, Radio::kShortwave);
+      device.set_param(p::kBandwidth, bandwidth);
+      Stereo out = run(device, sine(hz, 1.5f, kRate, 0.25f));
+      return db(tone_level(out.left, hz, kRate, 24000, 72000));
+    };
+    const double mid = level_at(1000.0f, 0.5f);
+    double worst_low = -200.0, worst_high = -200.0;
+    for (float hz : {40.0f, 80.0f, 120.0f, 150.0f}) worst_low = std::max(worst_low, level_at(hz, 0.5f) - mid);
+    for (float hz : {6000.0f, 8000.0f, 12000.0f}) worst_high = std::max(worst_high, level_at(hz, 0.5f) - mid);
+    const double wide = level_at(4000.0f, 1.0f) - level_at(1000.0f, 1.0f);
+    const double narrow = level_at(4000.0f, 0.0f) - level_at(1000.0f, 0.0f);
+    std::printf("band limits: <=150 Hz %.1f dB, >=6 kHz %.1f dB re 1 kHz; 4 kHz wide %.1f dB, narrow %.1f dB\n",
+                worst_low, worst_high, wide, narrow);
+    EXPECT(worst_low < -20.0, "Shortwave: 150 Hz and below are at least 20 dB down");
+    EXPECT(worst_high < -20.0, "Shortwave: 6 kHz and above are at least 20 dB down");
+    EXPECT(wide > -3.0, "the wide setting passes 4 kHz");
+    EXPECT(narrow < -30.0, "the narrow setting cuts 4 kHz");
+    EXPECT_NEAR(mid, db(0.25), 2.5, "a steady link is near unity gain in the passband");
+  }
+
+  // 2. Sideband: Tuning at +0.5 moves every frequency up by 200 Hz, so a
+  // 1000 + 2000 Hz pair is no longer an octave, and nothing is left where the
+  // other sideband would be.
+  {
+    clean(device, Radio::kSideband);
+    device.set_param(p::kTuning, 0.5f);
+    std::vector<float> pair = sine(1000.0f, 3.0f, kRate, 0.2f);
+    const std::vector<float> upper = sine(2000.0f, 3.0f, kRate, 0.2f);
+    for (size_t i = 0; i < pair.size(); ++i) pair[i] += upper[i];
+    Stereo out = run(device, pair);
+    const size_t from = 48000, to = 3 * 48000;
+    const double low = dominant_frequency(out.left, kRate, 500.0, 1500.0, from, to);
+    const double high = dominant_frequency(out.left, kRate, 1501.0, 2600.0, from, to);
+    const double image = db(tone_level(out.left, 800.0, kRate, from, to)) -
+                         db(tone_level(out.left, 1200.0, kRate, from, to));
+    std::printf("sideband +0.5: 1000 -> %.2f Hz, 2000 -> %.2f Hz, ratio %.4f, other sideband %.1f dB\n", low,
+                high, high / low, image);
+    EXPECT_NEAR(low, 1200.0, 1.0, "Sideband: 1000 Hz comes out 200 Hz higher");
+    EXPECT_NEAR(high, 2200.0, 1.0, "Sideband: 2000 Hz comes out 200 Hz higher");
+    EXPECT(std::fabs(high / low - 2.0) > 0.1, "Sideband: the octave is broken");
+    EXPECT(image < -60.0, "Sideband: the other sideband is rejected");
+
+    clean(device, Radio::kSideband);
+    device.set_param(p::kTuning, -1.0f);
+    out = run(device, sine(1000.0f, 2.0f, kRate, 0.2f));
+    EXPECT_NEAR(dominant_frequency(out.left, kRate, 300.0, 1500.0, from, 2 * 48000), 600.0, 1.0,
+                "Sideband: Tuning at -1 is 400 Hz down");
+  }
+
+  // 3. With a carrier, off-tune whistles at the offset: no input is at that
+  // frequency, the pitch follows the dial, and it is gone when tuned in.
+  {
+    auto whistle = [&](float tuning, double hz, double* programme) {
+      clean(device, Radio::kShortwave);
+      device.set_param(p::kTuning, tuning);
+      Stereo out = run(device, sine(300.0f, 2.5f, kRate, 0.25f));
+      *programme = db(tone_level(out.left, 300.0, kRate, 48000, 120000));
+      return db(tone_level(out.left, hz, kRate, 48000, 120000));
+    };
+    double programme_in, programme_off, programme_edge, unused;
+    const double tuned_in = whistle(0.0f, 1375.0, &programme_in);
+    const double off = whistle(0.5f, 1375.0, &programme_off);
+    const double other = whistle(0.3f, 495.0, &unused);
+    const double below = whistle(-0.5f, 1375.0, &unused);
+    whistle(0.9f, 4455.0, &programme_edge);
+    std::printf("whistle: tuned in %.1f dB, +0.5 (1375 Hz) %.1f dB, -0.5 %.1f dB, +0.3 (495 Hz) %.1f dB; "
+                "programme %.1f dB tuned, %.1f dB at +0.5, %.1f dB at +0.9\n",
+                tuned_in, off, below, other, programme_in, programme_off, programme_edge);
+    EXPECT(tuned_in < -80.0, "tuned in: no whistle");
+    EXPECT(off > -30.0 && off < -15.0, "Tuning +0.5: a whistle at the 1375 Hz offset");
+    EXPECT(below > -30.0, "Tuning -0.5: the same whistle from the other side");
+    EXPECT(other > -30.0, "the whistle's pitch follows the dial");
+    EXPECT(std::fabs(programme_off - programme_in) < 1.0, "a little off-tune leaves the programme's level");
+    // 4. Far enough off, the carrier slides down the filter's skirt and the
+    // programme sinks.
+    EXPECT(programme_edge < programme_in - 6.0, "far off-tune the programme sinks");
+  }
+
+  // 5. Fading. At 0 a steady tone stays steady for a minute; at 1 it rises
+  // and sinks by more than 12 dB over periods of seconds.
+  // 6. The fading is selective: two partials do not fade together, because a
+  // notch moves through the band.
+  {
+    std::vector<float> pair = sine(700.0f, 60.0f, kRate, 0.2f);
+    const std::vector<float> upper = sine(1900.0f, 60.0f, kRate, 0.2f);
+    for (size_t i = 0; i < pair.size(); ++i) pair[i] += upper[i];
+
+    clean(device, Radio::kShortwave);
+    Stereo steady = run(device, pair);
+    const double still = range(tone_envelope(steady.left, 700.0, kRate, 0.5f), 2);
+
+    clean(device, Radio::kShortwave);
+    device.set_param(p::kFading, 1.0f);
+    Stereo faded = run(device, pair);
+    const std::vector<double> low = tone_envelope(faded.left, 700.0, kRate, 0.5f);
+    const std::vector<double> high = tone_envelope(faded.left, 1900.0, kRate, 0.5f);
+    std::vector<double> tilt(low.size());
+    for (size_t i = 0; i < low.size(); ++i) tilt[i] = low[i] - high[i];
+    const int crossed = crossings(low);
+    std::printf("fading: range %.2f dB at 0, %.1f dB at 1 (700 Hz) and %.1f dB (1900 Hz); %d mean crossings "
+                "in 60 s (period about %.1f s); the two partials differ by %.1f dB at most, correlation %.2f\n",
+                still, range(low), range(high), crossed, crossed > 0 ? 120.0 / crossed : 0.0, range(tilt),
+                pearson(low, high));
+    EXPECT(still < 1.0, "Fading 0: a steady tone varies by less than 1 dB over a minute");
+    EXPECT(range(low) > 12.0, "Fading 1: a steady tone varies by more than 12 dB");
+    EXPECT(crossed >= 6 && crossed <= 60, "Fading 1: the fades take seconds (2 to 20 s a cycle)");
+    EXPECT(range(tilt) > 8.0, "Fading 1: partials fade at different times (a notch moves)");
+    EXPECT(pearson(low, high) < 0.97, "Fading 1: the two partials are not locked together");
+
+    // Medium wave fades too, but less and more slowly.
+    clean(device, Radio::kMediumWave);
+    device.set_param(p::kFading, 1.0f);
+    Stereo slow = run(device, pair);
+    const std::vector<double> local = tone_envelope(slow.left, 700.0, kRate, 0.5f);
+    std::printf("fading, medium wave: range %.1f dB, %d mean crossings\n", range(local), crossings(local));
+    EXPECT(range(local) > 4.0 && range(local) < range(low), "Medium wave fades less than Shortwave");
+    EXPECT(crossings(local) < crossed, "Medium wave fades more slowly than Shortwave");
+  }
+
+  // 7. The receiver's gain follows the signal, and the static was added
+  // before it: when the tone sinks the noise rises.
+  {
+    clean(device, Radio::kShortwave);
+    device.set_param(p::kFading, 1.0f);
+    device.set_param(p::kStatic, 0.3f);
+    Stereo out = run(device, sine(700.0f, 60.0f, kRate, 0.25f));
+    const std::vector<double> tone = tone_envelope(out.left, 700.0, kRate, 0.5f);
+    // Between the tone's second and third harmonics.
+    const std::vector<double> hiss = band_envelope(out.left, 1600.0f, 2000.0f, kRate, 0.5f);
+    const double together = pearson(tone, hiss);
+    std::printf("gain: tone range %.1f dB, noise range %.1f dB, correlation of the two %.2f\n", range(tone, 2),
+                range(hiss, 2), together);
+    EXPECT(together < -0.4, "the noise rises as the signal sinks (envelopes correlate below -0.4)");
+    EXPECT(range(hiss, 2) > 8.0, "the noise floor moves by more than 8 dB with the fades");
+
+    // The same at the default settings of those two controls.
+    clean(device, Radio::kShortwave);
+    device.set_param(p::kFading, p::kParamDefault[p::kFading]);
+    device.set_param(p::kStatic, p::kParamDefault[p::kStatic]);
+    out = run(device, sine(700.0f, 60.0f, kRate, 0.25f));
+    const double usual = pearson(tone_envelope(out.left, 700.0, kRate, 0.5f),
+                                 band_envelope(out.left, 1600.0f, 2000.0f, kRate, 0.5f));
+    std::printf("gain at the default Fading and Static: correlation %.2f\n", usual);
+    EXPECT(usual < -0.4, "at the defaults too, noise and signal move against each other");
+  }
+
+  // 8. Static follows its control: none at 0, and each step up is louder.
+  {
+    auto hiss_at = [&](float amount, float bandwidth, float lo, float hi) {
+      clean(device, Radio::kShortwave);
+      device.set_param(p::kStatic, amount);
+      device.set_param(p::kBandwidth, bandwidth);
+      Stereo out = run(device, sine(700.0f, 20.0f, kRate, 0.25f));
+      return average(band_envelope(out.left, lo, hi, kRate, 0.5f), 2);
+    };
+    const double none = hiss_at(0.0f, 0.5f, 1600.0f, 2000.0f), little = hiss_at(0.2f, 0.5f, 1600.0f, 2000.0f),
+                 some = hiss_at(0.5f, 0.5f, 1600.0f, 2000.0f), full = hiss_at(1.0f, 0.5f, 1600.0f, 2000.0f);
+    const double top = hiss_at(0.5f, 0.5f, 2700.0f, 3300.0f), narrow = hiss_at(0.5f, 0.0f, 2700.0f, 3300.0f);
+    std::printf("static: %.1f dB at 0 (the tone's skirt), %.1f at 0.2, %.1f at 0.5, %.1f at 1 (1.6 to 2 kHz); "
+                "2.7 to 3.3 kHz: %.1f dB, with the narrow filter %.1f\n",
+                none, little, some, full, top, narrow);
+    EXPECT(none < little - 15.0, "Static 0: no noise");
+    EXPECT(little > -70.0 && some > little + 6.0 && full > some + 4.0, "Static: more is louder");
+    EXPECT(narrow < top - 12.0, "a narrower filter lets less noise through at the top of the band");
+  }
+
+  // 9. Interference: nothing at 0; at the default it is occasional; turned
+  // up it is there more of the time and louder. The 60 Hz input only keeps
+  // the receiver on: it is under the audio band.
+  {
+    auto neighbours = [&](float amount, double* share, double* level, int* events) {
+      clean(device, Radio::kShortwave);
+      device.set_param(p::kInterference, amount);
+      Stereo out = run(device, sine(60.0f, 240.0f, kRate, 0.2f));
+      const std::vector<double> heard = band_envelope(out.left, 250.0f, 5000.0f, kRate, 0.25f);
+      int on = 0;
+      double sum = 0.0;
+      bool was = false;
+      *events = 0;
+      for (size_t i = 4; i < heard.size(); ++i) {
+        const bool is = heard[i] > -55.0;
+        if (is) {
+          ++on;
+          sum += heard[i];
+        }
+        if (is && !was) ++*events;
+        was = is;
+      }
+      *share = static_cast<double>(on) / static_cast<double>(heard.size() - 4);
+      *level = on > 0 ? sum / on : -200.0;
+    };
+    double share_off, level_off, share_usual, level_usual, share_full, level_full;
+    int events_off, events_usual, events_full;
+    neighbours(0.0f, &share_off, &level_off, &events_off);
+    neighbours(p::kParamDefault[p::kInterference], &share_usual, &level_usual, &events_usual);
+    neighbours(1.0f, &share_full, &level_full, &events_full);
+    std::printf("interference over 240 s: default %d bursts (%.1f a minute), heard %.0f%% of the time at %.1f dB; "
+                "at 1: %d bursts, %.0f%% of the time at %.1f dB\n",
+                events_usual, events_usual / 4.0, 100.0 * share_usual, level_usual, events_full,
+                100.0 * share_full, level_full);
+    EXPECT(share_off == 0.0, "Interference 0: nothing but the station");
+    EXPECT(share_usual > 0.04 && share_usual < 0.35, "default Interference is occasional (4 to 35% of the time)");
+    EXPECT(share_full > 0.5 && share_full < 0.95, "Interference 1 is there most of the time, never all of it");
+    EXPECT(level_full > level_usual + 4.0, "more Interference is louder");
+  }
+
+  // 10. Moving the dial or changing band while sounding does not click.
+  {
+    std::vector<float> chord = sine(220.0f, 2.0f, kRate, 0.3f);
+    const std::vector<float> fifth = sine(330.0f, 2.0f, kRate, 0.2f);
+    for (size_t i = 0; i < chord.size(); ++i) chord[i] += fifth[i];
+    clean(device, Radio::kShortwave);
+    Stereo settled = run(device, chord);
+    const double usual = max_step(settled.left, 48000);
+    double worst = 0.0;
+    for (int k = 0; k < 100; ++k) {
+      device.set_param(p::kTuning, -0.5f + 0.01f * static_cast<float>(k));
+      const std::vector<float> piece(chord.begin() + k * 960, chord.begin() + (k + 1) * 960);
+      worst = std::max(worst, max_step(run(device, piece).left));
+    }
+    clean(device, Radio::kShortwave);
+    run(device, chord);
+    device.set_param(p::kBand, static_cast<float>(Radio::kSideband));
+    const double to_sideband = max_step(run(device, chord).left);
+    device.set_param(p::kBand, static_cast<float>(Radio::kMediumWave));
+    const double to_medium = max_step(run(device, chord).left);
+    device.set_param(p::kBandwidth, 0.0f);
+    device.set_param(p::kSpeaker, 1.0f);
+    device.set_param(p::kFading, 1.0f);
+    const double knobs = max_step(run(device, chord).left, 0, 4800);
+    std::printf("clicks: largest step %.4f settled; %.4f sweeping Tuning; %.4f and %.4f changing Band; "
+                "%.4f on a jump of Bandwidth, Speaker and Fading\n",
+                usual, worst, to_sideband, to_medium, knobs);
+    EXPECT(worst < 0.06, "sweeping Tuning does not click");
+    EXPECT(to_sideband < 0.06 && to_medium < 0.06, "changing Band does not click");
+    EXPECT(knobs < 0.06, "Bandwidth, Speaker and Fading jumps do not click");
+  }
 
   // BEHAVIOUR
 

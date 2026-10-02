@@ -66,7 +66,7 @@ class HalfSpeed : public kit::DeviceBase<half_speed::kNumParams> {
   // read during the first half of the next cycle, 1.5 cycles of 4 s
   // stretched by a quarter by Jitter, at 96 kHz, losing a quarter of a
   // sample per sample at the fastest speed... (see reach()); plus margin.
-  static constexpr int kRingFrames = 560000;
+  static constexpr int kRingFrames = 700000;
   static constexpr long kLongEnough = 1L << 30;
   // Where a head starts: as close to the present as the read kernel allows.
   static constexpr double kStartDelay = 6.0;
@@ -104,7 +104,9 @@ class HalfSpeed : public kit::DeviceBase<half_speed::kNumParams> {
   void launch(Timing& timing, int head, const Timing* leader);
   float make_up(Timing& timing) const;
   void control();
+  bool ease(float* value, float target) const;
   void relaunch();
+  void clear_filters();
   void weigh(Timing& timing, float fade, float smooth) const;
   double reach() const;
 
@@ -136,6 +138,24 @@ inline void HalfSpeed::restart() {
   smooth_.snap(smooth_.target);
   mix_.snap(mix_.target);
   speed_.snap(speed_.target);
+  clear_filters();
+  clock_.reset(kControlPeriod);
+  filter_ease_ = 1.0f - std::exp(-kControlPeriod / (kFilterEaseSeconds * sample_rate()));
+  low_hz_ = param(half_speed::kLowCut);
+  high_hz_ = param(half_speed::kHighCut);
+  for (int c = 0; c < 2; ++c) {
+    low_cut_[c].set(low_hz_, kit::kSqrtHalf, sample_rate());
+    high_cut_[c].set(high_hz_, kit::kSqrtHalf, sample_rate());
+  }
+  mix_seen_ = -1.0f;
+  engage_ = false;
+  blank_ = 0;
+}
+
+// A fresh cycle with all three heads at the present. They read the same
+// place and their gains sum to one, so the slowed sound is there in full
+// from the first sample instead of fading in.
+inline void HalfSpeed::clear_filters() {
   for (int c = 0; c < 2; ++c) {
     low_cut_[c].reset();
     high_cut_[c].reset();
@@ -146,18 +166,8 @@ inline void HalfSpeed::restart() {
     filter->reset();
     filter->set(kBassHz, kit::kSqrtHalf, sample_rate());
   }
-  clock_.reset(kControlPeriod);
-  filter_ease_ = 1.0f - std::exp(-kControlPeriod / (kFilterEaseSeconds * sample_rate()));
-  low_hz_ = param(half_speed::kLowCut);
-  high_hz_ = param(half_speed::kHighCut);
-  mix_seen_ = -1.0f;
-  engage_ = false;
-  blank_ = 0;
 }
 
-// A fresh cycle with all three heads at the present. They read the same
-// place and their gains sum to one, so the slowed sound is there in full
-// from the first sample instead of fading in.
 inline void HalfSpeed::relaunch() {
   for (Timing& timing : timing_) {
     timing.phase = 0.0;
@@ -189,7 +199,10 @@ inline void HalfSpeed::render_frame(const float* in, float* out_left, float* out
   // Power: switching on from fully off starts a cycle at the present.
   if (engage_) {
     engage_ = false;
-    if (power_.value == 0.0f) relaunch();
+    if (power_.value == 0.0f) {
+      relaunch();
+      clear_filters();
+    }
   }
   const float power = power_.next();
   if (power == 0.0f) {
@@ -253,7 +266,7 @@ inline void HalfSpeed::render_frame(const float* in, float* out_left, float* out
     late.phase += wanted;
     if (late.phase < 0.0) late.phase += 1.0;
   } else {
-    late_increment *= kit::clamp(1.0f + kSpreadPull * static_cast<float>(wanted), 0.5f, 2.0f);
+    late_increment *= kit::clamp(1.0f + kSpreadPull * static_cast<float>(wanted), 0.75f, 1.5f);
   }
   const bool joined = locked && late.phase == lead.phase;
   if (advance(lead, increment, lose, nullptr)) {
@@ -391,15 +404,24 @@ inline float HalfSpeed::make_up(Timing& timing) const {
   return 1.0f / std::sqrt(squares + match * (1.0f - squares));
 }
 
+// One step of `value` towards `target`; false once it is there.
+inline bool HalfSpeed::ease(float* value, float target) const {
+  if (*value == target) return false;
+  *value += (target - *value) * filter_ease_;
+  const float gap = *value - target;
+  if (gap > -1.0e-3f * target && gap < 1.0e-3f * target) *value = target;
+  return true;
+}
+
 // Band filters, eased towards their settings so a sweep does not step.
 inline void HalfSpeed::control() {
   using namespace half_speed;
   const float sr = sample_rate();
-  low_hz_ += (param(kLowCut) - low_hz_) * filter_ease_;
-  high_hz_ += (param(kHighCut) - high_hz_) * filter_ease_;
-  for (int c = 0; c < 2; ++c) {
-    low_cut_[c].set(low_hz_, kit::kSqrtHalf, sr);
-    high_cut_[c].set(high_hz_, kit::kSqrtHalf, sr);
+  if (ease(&low_hz_, param(kLowCut))) {
+    for (kit::Svf& filter : low_cut_) filter.set(low_hz_, kit::kSqrtHalf, sr);
+  }
+  if (ease(&high_hz_, param(kHighCut))) {
+    for (kit::Svf& filter : high_cut_) filter.set(high_hz_, kit::kSqrtHalf, sr);
   }
 }
 

@@ -261,6 +261,10 @@ int main() {
     EXPECT(10.0 * std::log10(error / xx) < -40.0, "Standard plus Inverse, each without its make-up gain, is the input");
     EXPECT(1.0 / a >= 0.99 && 1.0 / a <= 2.01 && 1.0 / b >= 0.99 && 1.0 / b <= 8.01, "make-up gains are within their limits");
     EXPECT(rms(part[1].left, from) > 0.1 * rms(in.left, from), "Inverse is audible at Loss 0.6");
+    clean(device);
+    device.set_param(p::kMode, 1.0f);
+    Stereo nothing = run(device, in.left, in.right);
+    EXPECT(peak(nothing.left) == 0.0 && peak(nothing.right) == 0.0, "Inverse at Loss 0: nothing is thrown away, silence");
   }
 
   // Jitter: every third octave keeps its level while the waveform stops
@@ -664,6 +668,35 @@ int main() {
     render(device, 40.0f, kRate);
     Stereo still = render(device, 1.0f, kRate);
     EXPECT(rms(still.left) > 0.1, "a frozen wash keeps the device awake");
+  }
+
+  // With everything on (packet events, Smear, Jitter's random angles), the
+  // output is the same for blocks of 1, 128 and 2048 frames and after a
+  // second init.
+  {
+    rng_state() = 0xB10Cu;
+    const std::vector<float> left = noise(2.0f, kRate, 0.3f), right = noise(2.0f, kRate, 0.3f);
+    for (int mode = 0; mode < 3; ++mode) {
+      Stereo reference;
+      const int blocks[4] = {128, 1, 2048, 128};
+      for (int k = 0; k < 4; ++k) {
+        device.init(kRate);
+        device.set_param(p::kMode, static_cast<float>(mode));
+        device.set_param(p::kLoss, 0.6f);
+        device.set_param(p::kDropouts, 0.5f);
+        device.set_param(p::kStutter, 0.5f);
+        device.set_param(p::kSmear, 0.5f);
+        device.set_param(p::kStereo, 0.3f);
+        device.set_param(p::kHighCut, 9000.0f);
+        Stereo out = run(device, left, right, blocks[k]);
+        if (k == 0) {
+          reference = out;
+        } else {
+          EXPECT(out.left == reference.left && out.right == reference.right,
+                 "identical output at block sizes 1, 128 and 2048 and after a second init");
+        }
+      }
+    }
   }
 
   // Cost: the default patch, then the heaviest sensible one (Long frames,

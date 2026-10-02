@@ -425,6 +425,80 @@ int main() {
     EXPECT(std::fabs(db(total[1] / total[0])) < 0.5, "Ensemble does not change the level");
   }
 
+  // No clicks. A held 110 Hz sine at this level never steps by more than
+  // 0.0027 from one sample to the next (three times that when Ensemble and
+  // Motion stack their voices in phase); moving every control while it
+  // sounds, switching modes and toggling Hold must not add a step.
+  {
+    still(device);
+    device.set_param(p::kDecay, 60.0f);
+    run(device, sine(110.0f, 1.0f, kRate, 0.25f));
+    Stereo quiet = render(device, 1.0f, kRate);
+    const double natural = max_step(quiet.left);
+    Stereo swept;
+    for (int block = 0; block < 1500; ++block) {
+      const float t = static_cast<float>(block) / 1500.0f;
+      const float zig = std::fabs(std::fmod(t * 6.0f, 2.0f) - 1.0f);
+      device.set_param(p::kTone, 2.0f * zig - 1.0f);
+      device.set_param(p::kMix, 1.0f - 0.7f * zig);
+      device.set_param(p::kMotion, zig);
+      device.set_param(p::kEnsemble, 1.0f - zig);
+      device.set_param(p::kLowCut, 20.0f + 300.0f * zig);
+      device.set_param(p::kAttack, 0.01f + zig);
+      device.set_param(p::kGlide, 0.02f + zig);
+      device.set_param(p::kSensitivity, zig);
+      if (block % 200 == 100) device.set_param(p::kMode, static_cast<float>((block / 200) % 2));
+      if (block % 300 == 150) device.set_param(p::kHold, static_cast<float>((block / 300) % 2));
+      swept = concat(swept, render(device, 128.0f / kRate, kRate));
+    }
+    std::printf("sustainer: largest step of the held sine %.4f at rest, %.4f while every control moves\n", natural,
+                max_step(swept.left));
+    EXPECT(max_step(swept.left) < 0.009 && max_step(swept.right) < 0.009, "moving the controls while a sound is held does not click");
+
+    // A new note gliding over the old one, and a layer let go in Latch.
+    still(device);
+    device.set_param(p::kGlide, 0.02f);
+    device.set_param(p::kAttack, 0.01f);
+    Stereo change = run(device, join(sine(440.0f, 1.0f, kRate, 0.25f), sine(660.0f, 1.0f, kRate, 0.25f)));
+    std::printf("sustainer: largest step when a new note takes over at the shortest Attack and Glide %.4f\n",
+                max_step(change.left));
+    EXPECT(max_step(change.left) < 0.03, "a new note takes over without a click, even at the shortest Attack and Glide");
+  }
+
+  // Mix is an equal-power balance, and the dry signal is never touched.
+  {
+    device.init(kRate);
+    device.set_param(p::kMode, 2.0f);  // Latch with Hold off: nothing is ever held
+    device.set_param(p::kMix, 0.5f);
+    std::vector<float> tone = sine(440.0f, 0.5f, kRate, 0.5f);
+    Stereo out = run(device, tone);
+    double worst = 0.0;
+    for (size_t i = 4800; i < tone.size(); ++i) {
+      worst = std::max(worst, std::fabs(out.left[i] - std::sqrt(0.5) * static_cast<double>(tone[i])));
+    }
+    EXPECT(worst < 1.0e-6, "Mix 0.5 passes the dry signal at -3 dB, in time");
+  }
+
+  // A pile of loud layers is held to a ceiling: ten notes in Layer mode at
+  // -6 dBFS each stay under -10 dBFS in sum and never reach the clipper.
+  {
+    still(device);
+    device.set_param(p::kMode, 1.0f);
+    device.set_param(p::kDecay, 60.0f);
+    std::vector<float> notes;
+    for (int n = 0; n < 10; ++n) notes = join(notes, sine(220.0f * std::pow(2.0f, n * 5.0f / 12.0f), 0.4f, kRate, 0.5f));
+    Stereo out = run(device, join(notes, silence(3.0f, kRate)));
+    const size_t n = out.left.size();
+    const double level = db(rms(out.left, n - 96000, n));
+    std::printf("sustainer: ten loud layers: %d held, %.1f dBFS rms, peak %.2f\n", device.layers(), level,
+                std::max(peak(out.left), peak(out.right)));
+    EXPECT(device.layers() >= 4 && device.layers() <= Sustainer::kSlots, "Layer keeps the most recent notes");
+    EXPECT(level < -10.0 && level > -16.0, "a pile of layers is held to a common ceiling");
+    EXPECT(peak(out.left) < 0.9 && peak(out.right) < 0.9, "a pile of layers stays below the clipper");
+    Stereo later = render(device, 20.0f, kRate);
+    EXPECT_NEAR(db(rms(later.left, later.left.size() - 96000)), level, 0.2, "held layers neither grow nor fade");
+  }
+
   // (more checks are added above this line)
   return finish("sustainer");
 }

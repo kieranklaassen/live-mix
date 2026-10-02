@@ -30,10 +30,7 @@
     {
       "key": "companding",
       "name": "Companding",
-      "choices": [
-        "Linear",
-        "Mu-law"
-      ],
+      "choices": ["Linear", "Mu-law"],
       "default": 0,
       "description": "How the steps are spaced. Linear has the same grain at every level, so quiet sounds suffer most. Mu-law packs the steps near silence, so quiet passages stay clean and loud ones get grainy."
     },
@@ -48,11 +45,7 @@
     {
       "key": "filter",
       "name": "Filter",
-      "choices": [
-        "None",
-        "Soft",
-        "Steep"
-      ],
+      "choices": ["None", "Soft", "Steep"],
       "default": 1,
       "description": "The filter after the converter. None leaves every stair step in, bright and glassy. Soft rounds them off. Steep removes everything above half the Rate, smooth and dull like the better old samplers."
     },

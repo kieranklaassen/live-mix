@@ -147,12 +147,16 @@ struct BandState {
   float ic1 = 0.0f, ic2 = 0.0f;
 
   void reset() { ic1 = ic2 = 0.0f; }
+  // One flush for the pair: the two states feed each other, so with the
+  // first held out of the denormal range the second follows it down, and
+  // the device is asleep long before either gets there (its tail ends at
+  // -140 dBFS).
   float process(float x, const BandCoeff& c) {
     const float v3 = x - ic2;
     const float v1 = c.a1 * ic1 + c.a2 * v3;
     const float v2 = ic2 + c.a2 * ic1 + c.a3 * v3;
     ic1 = flush_denormal(2.0f * v1 - ic1);
-    ic2 = flush_denormal(2.0f * v2 - ic2);
+    ic2 = 2.0f * v2 - ic2;
     return v1 * c.k;
   }
 };
@@ -165,7 +169,7 @@ class OutputBank {
  public:
   // The table's narrowest first formants (40 Hz) are a closed throat; a
   // resonance that sharp picks single notes out of a chord and whistles.
-  static constexpr float kMinBandwidth = 70.0f;
+  static constexpr float kMinBandwidth = 80.0f;
   static constexpr float kReferenceHz = 400.0f;
   // The table's levels are those of the formants in a sung voice, so they
   // include the fall of the voice's own source towards the highs. What goes

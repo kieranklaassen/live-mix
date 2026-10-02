@@ -33,31 +33,57 @@ inline double frequency(double pos) {
 inline void OctaveBank::init(float rate, float low_hz, float high_hz, int count) {
   rate_ = rate;
   bands_ = count < 2 ? 2 : (count > kMaxBands ? kMaxBands : count);
-  tick_period_ = static_cast<int>(rate / kTickHz + 0.5f);
-  if (tick_period_ < 1) tick_period_ = 1;
+  // A tick is a whole number of the slowest group's samples.
+  tick_period_ = 4 * static_cast<int>(rate / (4.0f * kTickHz) + 0.5f);
+  if (tick_period_ < 4) tick_period_ = 4;
   tick_counter_ = 0;
-  inv_period_ = 1.0f / static_cast<float>(tick_period_);
+  call_ = 0;
   tick_seconds_ = static_cast<float>(tick_period_) / rate;
+  for (int g = 0; g < kGroups; ++g) inv_steps_[g] = static_cast<float>(1 << g) / static_cast<float>(tick_period_);
   agree_coeff_ = 1.0f - std::exp(-tick_seconds_ / kAgreeSeconds);
   jump_index_ = 0;
-  // A centred partial leaves stage 1 at (cutoff × 2π / rate)² times its level.
-  first_unit_ = static_cast<float>(std::pow(2.0 * kPiD / rate, 4.0));
   jump_fall_ = std::exp(-tick_seconds_ / kJumpFall);
   attack_coeff_ = 0.0f;
   detune_ = 0.0f;
+  for (HalfbandDown<kDownHalf>& d : down_) d.init(kDownBeta);
+  for (int b = 0; b < kBuses; ++b) {
+    up_half_[b].init(kUpBeta[0]);
+    up_quarter_[b].init(kUpBeta[1]);
+    late_half_[b] = 0.0f;
+    late_quarter_[b] = 0.0f;
+  }
+  x_prev_ = 0.0f;
+  half_prev_ = 0.0f;
+  // What each group's way down and back up costs, in samples at `rate`:
+  // to the channel (the decimators alone) and to the output (Halfband.h).
+  const double to_output[kGroups] = {
+      0.0, 2.0 * (kDownHalf + kUpHalf[0]) - 2.0,
+      2.0 * (kDownHalf + kUpHalf[0]) - 2.0 + 4.0 * (kDownHalf + kUpHalf[1]) - 4.0};
+  const double to_channel[kGroups] = {0.0, 2.0 * kDownHalf - 1.0,
+                                      2.0 * kDownHalf - 1.0 + 2.0 * (2.0 * kDownHalf - 1.0)};
 
+  if (high_hz > 0.23f * rate) high_hz = 0.23f * rate;
   const double lo = layout::position(low_hz);
   const double hi = layout::position(high_hz);
   const double step = (hi - lo) / (bands_ - 1);
   const double up1_high = 0.21 * rate, up2_high = 0.105 * rate;
+  for (int g = 0; g < kGroups; ++g) first_[g] = 0;
   for (int k = 0; k < bands_; ++k) {
     const double hz = layout::frequency(lo + step * k);
     const double spacing =
         0.5 * (layout::frequency(lo + step * (k + 1)) - layout::frequency(lo + step * (k - 1)));
-    const double w = 2.0 * kPiD * hz / rate;
+    int group = 0;
+    for (int g = 1; g < kGroups; ++g) {
+      if (hz < kGroupBelow[g] * rate) group = g;
+    }
+    for (int g = 0; g < group; ++g) first_[g] = k + 1;
+    const double own_rate = rate / (1 << group);
+    const double w = 2.0 * kPiD * hz / own_rate;
     centre_[k] = static_cast<float>(hz);
     carrier_re_[k] = static_cast<float>(std::cos(w));
     carrier_im_[k] = static_cast<float>(std::sin(w));
+    // A centred partial leaves stage 1 at (cutoff × 2π / rate)² times its level.
+    first_unit_[k] = static_cast<float>(std::pow(2.0 * kPiD / own_rate, 4.0));
     const double narrow = kNarrow * spacing;
     double wide = kWideErb * (24.7 + 0.108 * hz);
     if (wide < narrow) wide = narrow;
@@ -65,7 +91,7 @@ inline void OctaveBank::init(float rate, float low_hz, float high_hz, int count)
     wide_hz_[k] = static_cast<float>(wide);
     for (int s = 0; s < kStages; ++s) {
       for (int which = 0; which < 2; ++which) {
-        const double cutoff = 2.0 * kPiD * (which == 0 ? narrow : wide) / rate;
+        const double cutoff = 2.0 * kPiD * (which == 0 ? narrow : wide) / own_rate;
         const double r = std::exp(-kSigma[s] * cutoff);
         const double angle = w + kNu[s] * cutoff;
         (which == 0 ? narrow_re_ : wide_re_)[s][k] = static_cast<float>(r * std::cos(angle));
@@ -74,32 +100,40 @@ inline void OctaveBank::init(float rate, float low_hz, float high_hz, int count)
       yr_[s][k] = 0.0f;
       yi_[s][k] = 0.0f;
     }
-    limit_sub1_[k] = fade_in(hz, kSub1LowHz, kSub1LowHz * 1.4);
-    limit_sub2_[k] = fade_in(hz, kSub2LowHz, kSub2LowHz * 1.4);
-    limit_up1_[k] = 1.0f - fade_in(hz, up1_high * 0.8, up1_high);
-    limit_up2_[k] = 1.0f - fade_in(hz, up2_high * 0.8, up2_high);
+    const double limit[kVoices] = {
+        fade_in(hz, kSub2LowHz, kSub2LowHz * 1.4), fade_in(hz, kSub1LowHz, kSub1LowHz * 1.4),
+        1.0 - fade_in(hz, up1_high * 0.8, up1_high), 1.0 - fade_in(hz, up2_high * 0.8, up2_high)};
+    for (int v = 0; v < kVoices; ++v) {
+      const double angle = 2.0 * kPiD * kVoiceRatio[v] * hz * to_output[group] / rate;
+      comp_re_[v][k] = static_cast<float>(limit[v] * std::cos(angle));
+      comp_im_[v][k] = static_cast<float>(limit[v] * std::sin(angle));
+      det_re_[v][k] = 1.0f;
+      det_im_[v][k] = 0.0f;
+      det_cos_[v][k] = 1.0f;
+      det_sin_[v][k] = 0.0f;
+      w_re_[v][k] = w_im_[v][k] = 0.0f;
+      w_step_re_[v][k] = w_step_im_[v][k] = 0.0f;
+      w_target_re_[v][k] = w_target_im_[v][k] = 0.0f;
+    }
+    delay_slope_[k] = static_cast<float>(2.0 * kPiD * kVoiceRatio[0] * to_output[group] / rate);
+    const double skew = 2.0 * kPiD * hz * to_channel[group] / rate;
+    unskew_re_[k] = static_cast<float>(std::cos(skew));
+    unskew_im_[k] = static_cast<float>(std::sin(skew));
 
     open_[k] = 0.0f;
     age_[k] = 1.0f;
     jump_ref_[k] = 0.0f;
     for (int i = 0; i < kJumpDelay; ++i) jump_ring_[i][k] = 0.0f;
-    rot_re_[k] = rot_target_re_[k] = 1.0f;
-    rot_im_[k] = rot_target_im_[k] = 0.0f;
-    rot_step_re_[k] = rot_step_im_[k] = 0.0f;
+    rot_re_[k] = root1_re_[k] = root2_re_[k] = 1.0f;
+    rot_im_[k] = root1_im_[k] = root2_im_[k] = 0.0f;
     avg_re_[k] = avg_im_[k] = 0.0f;
     power_[k] = 0.0f;
     slow_[k] = 0.0f;
-    weight_[k] = weight_step_[k] = weight_target_[k] = 0.0f;
+    weight_[k] = 0.0f;
     agree_[k] = 0.0f;
-    half_re_[k] = quarter_re_[k] = 1.0f;
-    half_im_[k] = quarter_im_[k] = 0.0f;
-    half_norm_[k] = quarter_norm_[k] = 0.5f;
-    for (int v = 0; v < 4; ++v) {
-      det_re_[v][k] = 1.0f;
-      det_im_[v][k] = 0.0f;
-      det_cos_[v][k] = 1.0f;
-      det_sin_[v][k] = 0.0f;
-    }
+    live_[k] = false;
+    sign1_[k] = sign2_[k] = 1.0f;
+    half_im_[k] = 0.0f;
     set_width(k, 0.0f, false);
   }
   // The grid: the next grid channel is the first one most of an open
@@ -126,10 +160,9 @@ inline void OctaveBank::init(float rate, float low_hz, float high_hz, int count)
     }
   }
   up1_bands_ = bands_;
-  while (up1_bands_ > 0 && limit_up1_[up1_bands_ - 1] == 0.0f) --up1_bands_;
+  while (up1_bands_ > 0 && comp_re_[2][up1_bands_ - 1] == 0.0f && comp_im_[2][up1_bands_ - 1] == 0.0f) --up1_bands_;
   up2_bands_ = bands_;
-  while (up2_bands_ > 0 && limit_up2_[up2_bands_ - 1] == 0.0f) --up2_bands_;
-
+  while (up2_bands_ > 0 && comp_re_[3][up2_bands_ - 1] == 0.0f && comp_im_[3][up2_bands_ - 1] == 0.0f) --up2_bands_;
 }
 
 // Move channel k's poles to `open` (0 settled .. 1 just after an onset) and
@@ -199,18 +232,20 @@ inline void OctaveBank::set_width(int k, float open, bool rescale) {
   }
   open_[k] = open;
   // First-stage power in the units of the last stage's (a centred partial).
-  first_scale_[k] = 1.0f / (cutoff * cutoff * cutoff * cutoff * first_unit_);
+  first_scale_[k] = 1.0f / (cutoff * cutoff * cutoff * cutoff * first_unit_[k]);
   follow_[k] = tick_seconds_ * 2.0f * static_cast<float>(kPiD) * cutoff;
 }
 
-inline void OctaveBank::process(float x, const Want& want, Frame* out) {
-  float sub1 = 0.0f, sub2 = 0.0f;
+// One sample of group g's channels: the filters, then the voices of the
+// channels that are sounding. bus: sub2, sub1, up1 ×2, up2 ×2.
+inline void OctaveBank::run_group(int g, float x, const Want& want, float* bus) {
+  float sub2 = 0.0f, sub1 = 0.0f;
   float up1[2] = {0.0f, 0.0f};
   float up2[2] = {0.0f, 0.0f};
-  const bool detune = detune_ > 0.0f;
   const bool subs = want.sub1 || want.sub2;
   const bool ups = want.up1 || want.up2;
-  for (int k = 0; k < bands_; ++k) {
+  const int end = g == 0 ? bands_ : first_[g - 1];
+  for (int k = first_[g]; k < end; ++k) {
     // Three complex one-pole resonators in series.
     float ar = yr_[0][k], ai = yi_[0][k];
     float pr = pole_re_[0][k], pi = pole_im_[0][k];
@@ -227,118 +262,126 @@ inline void OctaveBank::process(float x, const Want& want, Frame* out) {
     br = t;
     yr_[1][k] = br;
     yi_[1][k] = bi;
-    float cr = yr_[2][k], ci = yi_[2][k];
+    const float was_re = yr_[2][k], was_im = yi_[2][k];
     pr = pole_re_[2][k];
     pi = pole_im_[2][k];
-    t = pr * cr - pi * ci + br;
-    ci = pr * ci + pi * cr + bi;
-    cr = t;
+    const float cr = pr * was_re - pi * was_im + br;
+    const float ci = pr * was_im + pi * was_re + bi;
     yr_[2][k] = cr;
     yi_[2][k] = ci;
+    if (!live_[k]) continue;
 
-    // Take the channel's own phase shift out.
-    const float rr = rot_re_[k], ri = rot_im_[k];
-    rot_re_[k] = rr + rot_step_re_[k];
-    rot_im_[k] = ri + rot_step_im_[k];
-    const float zr = cr * rr - ci * ri;
-    const float zi = cr * ri + ci * rr;
-    const float power = zr * zr + zi * zi + 1.0e-30f;
-    const float inv = 1.0f / std::sqrt(power);
-    const float w = weight_[k];
-    weight_[k] = w + weight_step_[k];
-    const float amp = power * inv * w;
-    const float c = zr * inv, s = zi * inv;
-    const int bus = k & 1;
-
+    const float m2 = cr * cr + ci * ci + 1.0e-24f;
+    const float inv = 1.0f / std::sqrt(m2);
+    const int side = k & 1;
     if (ups) {
-      const float c2 = c * c - s * s;
-      const float s2 = 2.0f * c * s;
+      // z² / |z| and z⁴ / |z|³, each against its complex weight.
+      const float z2r = cr * cr - ci * ci, z2i = 2.0f * cr * ci;
       if (want.up1 && k < up1_bands_) {
-        const float g = amp * limit_up1_[k];
-        if (detune) {
-          float dr, di;
-          turn(2, k, &dr, &di);
-          up1[bus] += g * (c2 * dr - s2 * di);
-        } else {
-          up1[bus] += g * c2;
-        }
+        const float wr = w_re_[2][k], wi = w_im_[2][k];
+        w_re_[2][k] = wr + w_step_re_[2][k];
+        w_im_[2][k] = wi + w_step_im_[2][k];
+        up1[side] += (z2r * wr - z2i * wi) * inv;
       }
       if (want.up2 && k < up2_bands_) {
-        const float g = amp * limit_up2_[k];
-        const float c4 = c2 * c2 - s2 * s2;
-        if (detune) {
-          float dr, di;
-          turn(3, k, &dr, &di);
-          up2[bus ^ 1] += g * (c4 * dr - 2.0f * c2 * s2 * di);
-        } else {
-          up2[bus ^ 1] += g * c4;
-        }
+        const float wr = w_re_[3][k], wi = w_im_[3][k];
+        w_re_[3][k] = wr + w_step_re_[3][k];
+        w_im_[3][k] = wi + w_step_im_[3][k];
+        const float inv2 = inv * inv;
+        const float c2 = z2r * inv2, s2 = z2i * inv2;
+        up2[side ^ 1] += ((c2 * c2 - s2 * s2) * wr - 2.0f * c2 * s2 * wi) * (m2 * inv);
       }
     }
-
     if (subs) {
-      // The half-angle phasor h (h² = unit phasor) lies midway between its
-      // last value and unit × conj(last value): exact, and continuous
-      // through the wraps of the phase. Its length is 2·cos(half the phase
-      // step), nearly constant, so one Newton step keeps the normaliser.
-      float hr = half_re_[k], hi = half_im_[k];
-      float vr = hr + (c * hr + s * hi);
-      float vi = hi + (s * hr - c * hi);
-      float m2 = vr * vr + vi * vi;
-      float n = half_norm_[k];
-      n *= 1.5f - 0.5f * m2 * n * n;
-      float check = m2 * n * n;
-      if (!(check > 0.98f && check < 1.02f)) n = exact_norm(m2);
-      if (n > 0.0f) {
-        half_norm_[k] = n;
-        hr = vr * n;
-        hi = vi * n;
-        half_re_[k] = hr;
-        half_im_[k] = hi;
-      }
-      if (want.sub1) {
-        const float g = amp * limit_sub1_[k];
-        if (detune) {
-          float dr, di;
-          turn(1, k, &dr, &di);
-          sub1 += g * (hr * dr - hi * di);
-        } else {
-          sub1 += g * hr;
+      // The half-angle phasor: the principal square root, times a sign that
+      // flips whenever z passes half a turn (its imaginary part changes
+      // sign on the far side: turning forwards from above, backwards from
+      // below).
+      const float a = m2 * inv;
+      float hr = std::sqrt(0.5f * a * std::fabs(a + cr));
+      float hi = std::sqrt(0.5f * a * std::fabs(a - cr));
+      if (ci < 0.0f) hi = -hi;
+      float sign = sign1_[k];
+      if ((ci < 0.0f) != (was_im < 0.0f)) {
+        const float turned = was_re * ci - was_im * cr;
+        if ((turned > 0.0f) == (was_im >= 0.0f)) {
+          sign = -sign;
+          sign1_[k] = sign;
         }
+      }
+      hr *= sign;
+      hi *= sign;
+      if (want.sub1) {
+        const float wr = w_re_[1][k], wi = w_im_[1][k];
+        w_re_[1][k] = wr + w_step_re_[1][k];
+        w_im_[1][k] = wi + w_step_im_[1][k];
+        sub1 += hr * wr - hi * wi;
       }
       if (want.sub2) {
-        float qr = quarter_re_[k], qi = quarter_im_[k];
-        vr = qr + (hr * qr + hi * qi);
-        vi = qi + (hi * qr - hr * qi);
-        m2 = vr * vr + vi * vi;
-        n = quarter_norm_[k];
-        n *= 1.5f - 0.5f * m2 * n * n;
-        check = m2 * n * n;
-        if (!(check > 0.98f && check < 1.02f)) n = exact_norm(m2);
-        if (n > 0.0f) {
-          quarter_norm_[k] = n;
-          qr = vr * n;
-          qi = vi * n;
-          quarter_re_[k] = qr;
-          quarter_im_[k] = qi;
+        // The same again on the half-angle phasor, which turns half as fast.
+        float qr = std::sqrt(0.5f * a * std::fabs(a + hr));
+        float qi = std::sqrt(0.5f * a * std::fabs(a - hr));
+        if (hi < 0.0f) qi = -qi;
+        float sign_q = sign2_[k];
+        if ((hi < 0.0f) != (half_im_[k] < 0.0f) && hr < 0.0f) {
+          sign_q = -sign_q;
+          sign2_[k] = sign_q;
         }
-        const float g = amp * limit_sub2_[k];
-        if (detune) {
-          float dr, di;
-          turn(0, k, &dr, &di);
-          sub2 += g * (qr * dr - qi * di);
-        } else {
-          sub2 += g * qr;
-        }
+        half_im_[k] = hi;
+        const float wr = w_re_[0][k], wi = w_im_[0][k];
+        w_re_[0][k] = wr + w_step_re_[0][k];
+        w_im_[0][k] = wi + w_step_im_[0][k];
+        sub2 += sign_q * (qr * wr - qi * wi);
       }
     }
   }
-  out->sub2 = sub2;
-  out->sub1 = sub1;
-  out->up1[0] = up1[0];
-  out->up1[1] = up1[1];
-  out->up2[0] = up2[0];
-  out->up2[1] = up2[1];
+  bus[0] = sub2;
+  bus[1] = sub1;
+  bus[2] = up1[0];
+  bus[3] = up1[1];
+  bus[4] = up2[0];
+  bus[5] = up2[1];
+}
+
+// The top group runs on every call, the middle one on every second with the
+// halved input, the bottom one on every fourth; what the lower groups make
+// is interpolated back up and joins the faster group's output.
+inline void OctaveBank::process(float x, const Want& want, Frame* out) {
+  float bus[kBuses];
+  run_group(0, x, want, bus);
+  if (call_ & 1) {
+    const float halved = down_[0].down(x_prev_, x);
+    float half[kBuses];
+    run_group(1, halved, want, half);
+    if (call_ == 3) {
+      const float quartered = down_[1].down(half_prev_, halved);
+      float quarter[kBuses];
+      run_group(2, quartered, want, quarter);
+      for (int b = 0; b < kBuses; ++b) {
+        float now;
+        up_quarter_[b].up(quarter[b], &now, &late_quarter_[b]);
+        half[b] += now;
+      }
+    } else {
+      for (int b = 0; b < kBuses; ++b) half[b] += late_quarter_[b];
+      half_prev_ = halved;
+    }
+    for (int b = 0; b < kBuses; ++b) {
+      float now;
+      up_half_[b].up(half[b], &now, &late_half_[b]);
+      bus[b] += now;
+    }
+  } else {
+    for (int b = 0; b < kBuses; ++b) bus[b] += late_half_[b];
+    x_prev_ = x;
+  }
+  call_ = (call_ + 1) & 3;
+  out->sub2 = bus[0];
+  out->sub1 = bus[1];
+  out->up1[0] = bus[2];
+  out->up1[1] = bus[3];
+  out->up2[0] = bus[4];
+  out->up2[1] = bus[5];
 
   if (++tick_counter_ >= tick_period_) {
     tick_counter_ = 0;

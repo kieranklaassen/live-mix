@@ -22,7 +22,7 @@
 // - Spread runs the right line's wobble out of phase with the left's (half
 //   a cycle at 1) and gives it its own drift. At 0 the two lines are one.
 // - Age lowers the line's headroom, raises its noise, lets the clock bleed
-//   through at long times and pulls the two rectifiers' speeds apart.
+//   through at long times and slows the compander's rectifiers.
 
 #include "../../kit/kit.h"
 #include "bbd_line.h"
@@ -168,6 +168,7 @@ class AnalogDelay : public kit::DeviceBase<analog_delay::kNumParams> {
   static constexpr float kLowCutHz = 45.0f;
   // Time constant of the compander's rectifiers when the circuit is new.
   static constexpr float kRectifierSeconds = 0.010f;
+  static constexpr float kRectifierAgeing = 1.5f;
   // Mod Depth 1 moves the clock by this share either way.
   static constexpr float kMaxClockDeviation = 0.03f;
   // The clock also wanders slowly: by this share of the wobble, plus a
@@ -231,8 +232,13 @@ class AnalogDelay : public kit::DeviceBase<analog_delay::kNumParams> {
         ch.in_filter[s].set(in_corner, kSectionQ[s], sr);
         ch.out_filter[s].set(out_corner, kSectionQ[s], sr);
       }
-      ch.compressor.rectifier.set_time(kRectifierSeconds * (1.0f - 0.3f * age), sr);
-      ch.expander.rectifier.set_time(kRectifierSeconds * (1.0f + 1.5f * age), sr);
+      // The two rectifiers slow down together. Matched, the pair is exact
+      // for anything the line passes cleanly; an expander that let go later
+      // than the compressor would pass each onset after a gap louder than it
+      // came in, and the loop would grow a click on every repeat.
+      const float seconds = kRectifierSeconds * (1.0f + kRectifierAgeing * age);
+      ch.compressor.rectifier.set_time(seconds, sr);
+      ch.expander.rectifier.set_time(seconds, sr);
     }
     noise_level_ = kNoiseNew + kNoiseWorn * age * age;
     whine_ = kWhineLevel * age * age *

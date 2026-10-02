@@ -59,7 +59,7 @@
       "min": 0,
       "max": 1,
       "default": 0.3,
-      "description": "Wear on the circuit. Higher settings add hiss that breathes with the signal, earlier saturation, a faint clock whine at long times and a looser, pumping response."
+      "description": "Wear on the circuit. Higher settings add hiss that breathes with the signal, earlier saturation, softer attacks on the repeats and a faint clock whine at long times."
     },
     {
       "key": "intervalA",
@@ -94,7 +94,12 @@
     {
       "key": "step",
       "name": "Step",
-      "choices": ["1", "2", "4", "8"],
+      "choices": [
+        "1",
+        "2",
+        "4",
+        "8"
+      ],
       "default": 1,
       "description": "How many repeats pass between clock steps. Short steps give a busy sequence of jumping echoes, long ones an occasional lurch."
     },
@@ -209,7 +214,7 @@
     },
     "Runaway": {
       "time": 300,
-      "feedback": 1.05,
+      "feedback": 1.1,
       "modDepth": 0.4,
       "tone": 2800,
       "age": 0.5,

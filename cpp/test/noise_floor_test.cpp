@@ -372,7 +372,87 @@ int main() {
     }
   }
 
-  // BEHAVIOUR 6
+  // 6. A change of Type cross-fades: no click, no dip, no bump, and the old
+  // bed is gone 0.2 s later.
+  {
+    const int pairs[3][2] = {{NoiseFloor::kTape, NoiseFloor::kRoom},
+                             {NoiseFloor::kRoom, NoiseFloor::kAir},
+                             {NoiseFloor::kHum50, NoiseFloor::kHum60}};
+    double worst_step = 0.0, worst_dip = 0.0, worst_bump = 0.0;
+    for (const int* pair : pairs) {
+      still(device, pair[0], -30.0f);
+      Stereo before = noise_only(device, 2.0f);
+      device.set_param(p::kType, static_cast<float>(pair[1]));
+      Stereo during = render(device, 0.2f, kRate);
+      Stereo after = render(device, 2.0f, kRate);
+      const double steady = std::max(max_step(before.left), max_step(after.left));
+      const double step = max_step(during.left) / steady;
+      worst_step = std::max(worst_step, step);
+      std::snprintf(label, sizeof label, "%s to %s: no click in the cross-fade (largest step %.2f of the steady noise's)",
+                    kTypeName[pair[0]], kTypeName[pair[1]], step);
+      EXPECT(step < 1.25, label);
+      for (double level : envelope_db(during.left, 0.04f)) {
+        worst_dip = std::min(worst_dip, level + 30.0);
+        worst_bump = std::max(worst_bump, level + 30.0);
+      }
+      // 0.2 s on, the output is the new bed alone: the same as that bed
+      // reached from silence would have... in level and in colour.
+      EXPECT_NEAR(db(rms(after.left)), -30.0, 1.0, "after the cross-fade the new bed is at Level");
+    }
+    EXPECT(worst_dip > -3.0 && worst_bump < 3.0, "the cross-fade holds the level (40 ms windows within 3 dB)");
+    still(device, NoiseFloor::kRoom, -30.0f);
+    noise_only(device, 1.0f);
+    device.set_param(p::kType, static_cast<float>(NoiseFloor::kAir));
+    render(device, 0.2f, kRate);
+    std::vector<float> air = render(device, 5.0f, kRate).left;
+    const double rumble_left = band_power(air, 0.0, 300.0) / band_power(air, 0.0, 24000.0);
+    EXPECT(rumble_left < 0.01, "0.2 s after Room to Air there is no rumble left");
+    if (verbose) {
+      std::printf("type change: largest step %.2f of steady, level within %+.1f / %+.1f dB, rumble left after Room to Air %.4f\n",
+                  worst_step, worst_dip, worst_bump, rumble_left);
+    }
+  }
+
+  // 7. Hold. The noise carries on at Level for Hold after the input stops,
+  // fades over half a second to exact zeros, and comes back with the next note.
+  {
+    auto silent_after = [&](float hold) {
+      still(device, NoiseFloor::kTape, -30.0f);
+      device.set_param(p::kHold, hold);
+      std::vector<float> note = sine(330.0f, 0.5f, kRate, 0.25f);
+      note.resize(note.size() + static_cast<size_t>((hold + 2.0f) * kRate), 0.0f);
+      Stereo out = run(device, note);
+      size_t last = 0;
+      for (size_t i = 0; i < out.size(); ++i) {
+        if (out.left[i] != 0.0f || out.right[i] != 0.0f) last = i;
+      }
+      return std::make_pair(out, static_cast<double>(last + 1) / kRate - 0.5);
+    };
+    auto two = silent_after(2.0f);
+    const Stereo& out = two.first;
+    const double held_level = db(rms(out.left, 24000 + 9600, 24000 + 91200));
+    const double fading = db(rms(out.left, 24000 + 108000, 24000 + 115200));
+    EXPECT_NEAR(held_level, -30.0, 1.0, "the noise holds its level for Hold after the input stops");
+    EXPECT_NEAR(two.second, 2.5, 0.05, "Hold 2 s: exact zeros 2.5 s after the input stops");
+    EXPECT(fading < held_level - 3.0 && fading > -90.0, "the noise is fading, not cut, at the end of Hold");
+    EXPECT(peak(out.left, 24000 + 122400) == 0.0 && peak(out.right, 24000 + 122400) == 0.0,
+           "after the fade the output is exactly zero");
+    Stereo rest = render(device, 1.0f, kRate);
+    EXPECT(peak(rest.left) == 0.0 && peak(rest.right) == 0.0, "asleep after the fade");
+    std::vector<float> note = sine(330.0f, 0.5f, kRate, 0.25f);
+    Stereo woken = minus(run(device, note), note, note);
+    EXPECT_NEAR(db(rms(woken.left, 4800)), -30.0, 3.0, "the noise is back with the next note");
+    EXPECT(max_step(woken.left, 0, 4800) < 1.2 * max_step(woken.left, 4800), "the noise fades back in without a click");
+    const double one = silent_after(1.0f).second;
+    const double eight = silent_after(8.0f).second;
+    EXPECT_NEAR(eight - one, 7.0, 0.02, "Hold sets how long the noise stays");
+    if (verbose) {
+      std::printf("hold: level while held %.2f dB; silent %.3f s after the input at Hold 2, %.3f s at 1, %.3f s at 8\n",
+                  held_level, two.second, one, eight);
+    }
+  }
+
+  // BEHAVIOUR 8
 
   still(device, NoiseFloor::kStatic, -30.0f);
   device.set_param(p::kMovement, 1.0f);

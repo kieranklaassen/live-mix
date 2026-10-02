@@ -647,6 +647,23 @@ int main() {
       EXPECT(max_step(up.left) < 1.05 * steady, label);
     }
 
+    // The same times at 96 kHz.
+    {
+      const float rate = 96000.0f;
+      const std::vector<float> fast = sine(hz, 4.0f, rate, 0.5f);
+      bare(device, rate);
+      device.set_param(p::kSpin, 1.0f);
+      run(device, slice(fast, 0, at(0.5, rate)));
+      device.set_param(p::kPlatter, 1.0f);
+      Stereo down = run(device, slice(fast, at(0.5, rate), at(2.0, rate)));
+      device.set_param(p::kPlatter, 0.0f);
+      Stereo up = run(device, slice(fast, at(2.0, rate), fast.size()));
+      EXPECT(peak(down.left, at(1.0, rate) + 2) == 0.0 && peak(down.left, at(0.9, rate), at(0.99, rate)) > 0.0,
+             "96 kHz: the platter stops in Spin Time, not sooner or later");
+      EXPECT(worst_difference(up.left, slice(fast, at(2.0, rate), fast.size()), at(0.56, rate)) < 1.0e-6,
+             "96 kHz: and is live again half of it (and the fade) after Play");
+    }
+
     // The noise goes down with the platter, and the dry signal does not.
     bare(device);
     device.set_param(p::kSurface, 1.0f);
@@ -762,6 +779,12 @@ int main() {
     EXPECT(correlation(wide.left, wide.right, at(1.0)) > correlation(left, right, at(1.0)),
            "default: and comes out a little narrower than it went in");
     EXPECT(peak(wide.left) < 1.2 * peak(left), "default: peaks no more than 1.6 dB over the dry signal's");
+    // Folded to mono, the pad is where it was: the wear works on the
+    // difference between the sides, and the warp moves both alike.
+    const std::vector<float> mono_in = half_sum(left, right, 1.0f), mono_out = half_sum(wide.left, wide.right, 1.0f);
+    note("default patch, wide pad: mono sum against dry (dB)", db(rms(mono_out, at(1.0)) / rms(mono_in, at(1.0))));
+    EXPECT_NEAR(db(rms(mono_out, at(1.0)) / rms(mono_in, at(1.0))), 0.0, 0.5,
+                "default: the mono sum of a wide pad keeps its level");
     // The surface on its own, in the gap after a note.
     device.init(kRate);
     std::vector<float> note_then_gap = sine(440.0f, 0.5f, kRate, 0.25f);

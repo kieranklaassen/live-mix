@@ -68,7 +68,7 @@ export const ANALOG_DELAY_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Wear on the circuit. Higher settings add hiss that breathes with the signal, earlier saturation, a faint clock whine at long times and a looser, pumping response.',
+      'Wear on the circuit. Higher settings add hiss that breathes with the signal, earlier saturation, softer attacks on the repeats and a faint clock whine at long times.',
   },
   intervalA: {
     id: 6,

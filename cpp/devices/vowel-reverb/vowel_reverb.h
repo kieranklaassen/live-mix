@@ -188,10 +188,13 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
         float x = v[n];
         // The vowel inside the loop: unity at the formants, 1 - amount in
         // the valleys between them. (At Resonance 0 there is none.)
-        if (amount_[n] > 0.0f) x += amount_[n] * (loop_bank_.process(kVowelSlot[n], x) - x);
         x *= gain_[n];
-        // Above High Cut the room loses a fixed share more per pass.
-        x += damp_[n] * (damping_[n].lowpass(x) - x);
+        if (kVowelSlot[n] >= 0) {
+          if (amount_[n] > 0.0f) x += amount_[n] * (loop_bank_.process(kVowelSlot[n], x) - x);
+        } else {
+          // Above High Cut the room loses a fixed share more per pass.
+          x += damp_[n] * (damping_[n].lowpass(x) - x);
+        }
         x += (n & 2) ? -feed[n & 1] : feed[n & 1];
         // Linear to ±2, landing on ±4: out of the way of any normal level.
         x = 4.0f * kit::soft_clip(0.25f * x);
@@ -231,9 +234,10 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
   static constexpr int kInputStages = 4;
   static constexpr int kControlPeriod = 32;
   // The vowel sits in every other pair of lines (0, 1, 4 and 5), twice as
-  // deep: the Hadamard matrix shares each line's loss with all the others
-  // on the next pass, so the room decays as if every line carried it, for
-  // half the filters. Each side of the output hears two lines of each kind.
+  // deep, and the high damping in the other four: the Hadamard matrix
+  // shares each line's loss with all the others on the next pass, so the
+  // room decays as if every line carried both, for half the filters. Each
+  // side of the output hears two lines of each kind.
   static constexpr int kVowelLines = 4;
   static constexpr int kVowelSlot[kLines] = {0, 1, -1, -1, 2, 3, -1, -1};
   // The vowel moves slowly: the banks are retuned every other control tick.
@@ -276,7 +280,7 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
   // Output formants: the table's widths times this (a section is wider
   // than one singer), and the makeup that sets the vowel's level against
   // the flat signal's, limited to 12 dB.
-  static constexpr float kOutputWiden = 1.3f;
+  static constexpr float kOutputWiden = 1.5f;
   static constexpr float kMakeupReference = 1.6f;
   static constexpr float kMaxMakeup = 4.0f;
   // Motion 1: the vowel wanders up to a whole vowel either way, the sides
@@ -384,7 +388,8 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
         amount_[n] = kVowelSlot[n] >= 0 ? 1.0f - std::exp(extra * seconds) : 0.0f;
         // Highs last a quarter as long as the rest, whatever the Decay: a
         // shelf, so the upper formants are not worn away in a long tail.
-        damp_[n] = 1.0f - std::exp(rate * kHighDamping * seconds);
+        // The four lines without the vowel carry it, twice as deep.
+        damp_[n] = kVowelSlot[n] >= 0 ? 0.0f : 1.0f - std::exp(2.0f * rate * kHighDamping * seconds);
       }
       // A long decay stores more energy for the same input; take half of
       // that back (in dB) so the Decay knob is not also a volume knob.

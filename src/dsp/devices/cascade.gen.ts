@@ -166,7 +166,6 @@ export const CASCADE_DESCRIPTOR = wasmDeviceDescriptor(CASCADE_DEVICE, {
       high: 0.5,
       shape: 0.15,
       spread: 0.9,
-      mix: 0.6,
     },
     'Long tunnel': {
       pattern: 2,
@@ -187,7 +186,6 @@ export const CASCADE_DESCRIPTOR = wasmDeviceDescriptor(CASCADE_DEVICE, {
       interval: 1,
       shape: 0.2,
       spread: 0.8,
-      mix: 0.6,
     },
     Undertow: {
       time: 600,

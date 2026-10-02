@@ -131,7 +131,8 @@
       "modulation": 0.3,
       "lowCut": 60,
       "highCut": 4500,
-      "mix": 0.45
+      "mix": 0.45,
+      "width": 0.8
     },
     "High ee": {
       "vowel": 2,
@@ -172,7 +173,8 @@
       "preDelay": 80,
       "lowCut": 150,
       "highCut": 6000,
-      "mix": 0.3
+      "mix": 0.3,
+      "width": 0.7
     },
     "Cathedral choir": {
       "vowel": 0.3,

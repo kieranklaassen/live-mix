@@ -238,16 +238,16 @@ class MicroShift : public kit::DeviceBase<micro_shift::kNumParams> {
         }
         break;
       case kDrift:
-        drift_.set(value, primed());
+        drift_.set(value, ramp);
         break;
       case kFeedback:
         feedback_.set(value, ramp);
         break;
       case kFocus:
-        focus_.set(std::log2(value), primed());
+        focus_.set(std::log2(value), ramp);
         break;
       case kTone:
-        tone_.set(std::log2(value), primed());
+        tone_.set(std::log2(value), ramp);
         break;
       case kWidth:
         width_.set(value, ramp);

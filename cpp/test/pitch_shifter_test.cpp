@@ -166,8 +166,6 @@ int main() {
   return finish("pitch-shifter");
 }
 
-static void check_character() {}
-static void check_chord_and_voices() {}
 static void check_feedback_and_delay() {}
 static void check_moves() {}
 
@@ -202,12 +200,14 @@ static void check_pitch() {
   for (const Case& c : cases) {
     const double ratio = std::pow(2.0, (c.pitch + c.detune / 100.0) / 12.0);
     double worst = 0.0;
-    for (float hz : {2000.0f, 3520.0f}) {
+    // High notes and a long look: the cluster is some 30 Hz wide and what
+    // is measured is the mean of a few hundred grains.
+    for (float hz : {3520.0f, 5274.0f}) {
       wet_only(device, kGrain, c.pitch);
       device.set_param(p::kDetune, c.detune);
       device.set_param(p::kJitter, 0.3f);
-      Stereo out = run(device, sine(hz, 4.0f, kRate, 0.5f));
-      const double found = centroid(out.left, hz * ratio, 40.0, 48000, 192000);
+      Stereo out = run(device, sine(hz, 6.0f, kRate, 0.5f));
+      const double found = centroid(out.left, hz * ratio, 40.0, 48000, 288000);
       worst = std::max(worst, std::fabs(cents(found, hz * ratio)));
     }
     NOTE("pitch: Grain (Jitter 0.3) %+.0f st %+.0f ct: centre off by %.2f cents\n", c.pitch, c.detune, worst);
@@ -239,5 +239,161 @@ static void check_pitch() {
     std::snprintf(label, sizeof label, "Vintage is centred on %+.0f st %+.0f ct (off %.2f, allowed %.2f)", c.pitch,
                   c.detune, worst, allowed);
     EXPECT(worst < allowed, label);
+  }
+}
+
+// How clean each mode is on one steady note. Smooth: no flutter, nothing but
+// the tone. Vintage: flutter and sidebands, measurably. Grain: Jitter turns
+// the tone into noise around the pitch, more with every step, and a short
+// Size turns it into a comb at the grain rate.
+static void check_character() {
+  char label[160];
+  const size_t from = 36000, to = 60000;
+
+  double smooth_worst = -200.0, smooth_flutter = 0.0;
+  struct Note {
+    float hz, pitch;
+  };
+  for (const Note& n : {Note{440.0f, 12.0f}, Note{261.63f, 7.0f}, Note{880.0f, -12.0f}, Note{1318.5f, 12.0f}}) {
+    wet_only(device, kSmooth, n.pitch);
+    Stereo out = run(device, sine(n.hz, 1.5f, kRate, 0.5f));
+    const double want = n.hz * std::pow(2.0, n.pitch / 12.0);
+    smooth_worst = std::max(smooth_worst, spurious_db(out.left, want, from, to));
+    smooth_flutter = std::max(smooth_flutter, flutter_db(out.left, from, to, 960));
+  }
+  NOTE("character: Smooth on a sine: spurious %.1f dB, flutter %.2f dB\n", smooth_worst, smooth_flutter);
+  std::snprintf(label, sizeof label, "Smooth: everything but the tone is 40 dB down (%.1f dB)", smooth_worst);
+  EXPECT(smooth_worst < -40.0, label);
+  std::snprintf(label, sizeof label, "Smooth: level flutter under 1 dB (%.2f dB)", smooth_flutter);
+  EXPECT(smooth_flutter < 1.0, label);
+
+  // Vintage depends on where the note falls on its splice grid: some notes
+  // come out steady but off pitch, others beat. Take the best and worst of
+  // four neighbouring notes.
+  double vintage_spurious = 200.0, vintage_flutter = 0.0;
+  for (float hz : {440.0f, 446.0f, 452.0f, 458.0f}) {
+    wet_only(device, kVintage, 12.0f);
+    Stereo vintage = run(device, sine(hz, 1.5f, kRate, 0.5f));
+    vintage_spurious = std::min(vintage_spurious, spurious_db(vintage.left, 2.0 * hz, from, to));
+    vintage_flutter = std::max(vintage_flutter, flutter_db(vintage.left, from, to, 960));
+  }
+  NOTE("character: Vintage on a sine: spurious %.1f dB, flutter %.2f dB\n", vintage_spurious, vintage_flutter);
+  EXPECT(vintage_spurious > smooth_worst + 20.0, "Vintage: sidebands at least 20 dB above Smooth's");
+  EXPECT(vintage_flutter > 3.0, "Vintage flutters by more than 3 dB where Smooth stays under 1 dB");
+
+  // Jitter: share of the power more than ~30 Hz from the shifted pitch.
+  double previous = -1.0;
+  bool rising = true;
+  double shares[4];
+  int index = 0;
+  for (float jitter : {0.0f, 0.35f, 0.7f, 1.0f}) {
+    wet_only(device, kGrain, 12.0f, 120.0f);
+    device.set_param(p::kJitter, jitter);
+    Stereo out = run(device, sine(1000.0f, 4.0f, kRate, 0.5f));
+    const double share = share_outside(out.left, 2000.0, 30.0, 24000, 192000);
+    shares[index++] = share;
+    if (share <= previous) rising = false;
+    previous = share;
+  }
+  NOTE("character: Grain noise share by Jitter 0 / 0.35 / 0.7 / 1: %.3f %.3f %.3f %.3f\n", shares[0], shares[1],
+       shares[2], shares[3]);
+  EXPECT(rising, "Grain: every step of Jitter moves more of the tone into noise around it");
+  EXPECT(shares[3] > 2.0 * shares[0], "Grain: full Jitter at least doubles the noise share");
+
+  // Size 10 ms without Jitter: grains 2.5 ms apart, a comb every 400 Hz.
+  wet_only(device, kGrain, 12.0f, 10.0f);
+  Stereo comb = run(device, sine(1100.0f, 1.5f, kRate, 0.5f));
+  double on_comb = 0.0, off_comb = 0.0;
+  for (int m = 1; m <= 6; ++m) {
+    const double line = tone_level(comb.left, 1100.0 + 400.0 * m, kRate, from, to);
+    const double gap = tone_level(comb.left, 1100.0 + 400.0 * m - 200.0, kRate, from, to);
+    on_comb += line * line;
+    off_comb += gap * gap;
+  }
+  NOTE("character: Grain at Size 10 ms: comb lines %.1f dB above the gaps\n", 10.0 * std::log10(on_comb / off_comb));
+  EXPECT(on_comb > 1000.0 * off_comb, "Grain: a short Size is a comb at the grain rate");
+}
+
+// Chords, the second voice, Detune, Spread, Tone and Mix.
+static void check_chord_and_voices() {
+  char label[160];
+  const size_t from = 36000, to = 84000;
+
+  // A major triad up a fifth: three shifted notes, none of the played ones.
+  {
+    const float notes[3] = {220.0f, 277.18f, 329.63f};
+    std::vector<float> chord(static_cast<size_t>(2.0f * kRate), 0.0f);
+    for (float hz : notes) {
+      const std::vector<float> one = sine(hz, 2.0f, kRate, 0.2f);
+      for (size_t i = 0; i < chord.size(); ++i) chord[i] += one[i];
+    }
+    for (int mode : {kSmooth, kGrain}) {
+      wet_only(device, mode, 7.0f);
+      if (mode == kGrain) device.set_param(p::kJitter, 0.3f);
+      Stereo out = run(device, chord);
+      double weakest = 1.0e9, leak = 0.0;
+      for (float hz : notes) {
+        // In Grain a note is a cluster: take its power within 40 Hz.
+        double power = 0.0;
+        for (int k = -8; k <= 8; ++k) {
+          const double level = tone_level(out.left, hz * std::pow(2.0, 7.0 / 12.0) + 5.0 * k, kRate, from, to);
+          power = mode == kGrain ? power + level * level : std::max(power, level * level);
+        }
+        weakest = std::min(weakest, std::sqrt(power));
+        // 220 Hz and 277 Hz are not notes of the shifted chord (329.6 Hz is: it is 220 up a fifth).
+        if (hz < 300.0f) leak = std::max(leak, tone_level(out.left, hz, kRate, from, to));
+      }
+      NOTE("chord +7 (%s): weakest shifted note %.1f dB re played, played notes left at %.1f dB\n",
+           mode == kGrain ? "Grain" : "Smooth", db(weakest / 0.2), db(leak / 0.2));
+      std::snprintf(label, sizeof label, "%s: all three notes of a chord come out shifted (weakest %.1f dB)",
+                    mode == kGrain ? "Grain" : "Smooth", db(weakest / 0.2));
+      EXPECT(weakest > 0.2 * 0.5, label);
+      EXPECT(leak < 0.2 * 0.05, "the played notes are not in the shifted voice");
+    }
+  }
+
+  // Voice B is silent at 0 and a second pitch when raised; Spread puts A on
+  // the left and B on the right, and the two still add up in mono.
+  {
+    wet_only(device, kSmooth, 12.0f);
+    device.set_param(p::kPitchB, -12.0f);
+    device.set_param(p::kSpread, 1.0f);
+    Stereo alone = run(device, sine(440.0f, 2.0f, kRate, 0.4f));
+    const double b_off = tone_level(alone.left, 220.0, kRate, from, to) + tone_level(alone.right, 220.0, kRate, from, to);
+    const double a_left = tone_level(alone.left, 880.0, kRate, from, to);
+    const double a_right = tone_level(alone.right, 880.0, kRate, from, to);
+    NOTE("voices: B off: 220 Hz at %.1f dB; A alone L %.1f dB R %.1f dB\n", db(b_off / 0.4), db(a_left / 0.4), db(a_right / 0.4));
+    EXPECT(b_off < 0.4 * 0.003, "Voice B at 0 is silent");
+    EXPECT(std::fabs(db(a_left / a_right)) < 0.1, "a single voice stays in the middle at any Spread");
+
+    device.set_param(p::kLevelB, 1.0f);
+    run(device, sine(440.0f, 0.5f, kRate, 0.4f));
+    Stereo both = run(device, sine(440.0f, 2.0f, kRate, 0.4f));
+    const double up_left = tone_level(both.left, 880.0, kRate, from, to), up_right = tone_level(both.right, 880.0, kRate, from, to);
+    const double down_left = tone_level(both.left, 220.0, kRate, from, to), down_right = tone_level(both.right, 220.0, kRate, from, to);
+    NOTE("voices: Spread 1: A L/R %.1f dB, B R/L %.1f dB\n", db(up_left / std::max(up_right, 1e-9)), db(down_right / std::max(down_left, 1e-9)));
+    EXPECT(up_left > 30.0 * up_right, "Spread: voice A on the left");
+    EXPECT(down_right > 30.0 * down_left, "Spread: voice B on the right");
+    std::vector<float> mono(both.left.size());
+    for (size_t i = 0; i < mono.size(); ++i) mono[i] = 0.5f * (both.left[i] + both.right[i]);
+    const double mono_up = tone_level(mono, 880.0, kRate, from, to), mono_down = tone_level(mono, 220.0, kRate, from, to);
+    NOTE("voices: in mono A %.1f dB, B %.1f dB re their side\n", db(mono_up / up_left), db(mono_down / down_right));
+    EXPECT(mono_up > 0.45 * up_left && mono_down > 0.45 * down_right, "both voices survive a mono fold-down");
+  }
+
+  // Detune: A sharp and B flat by the same amount, a doubler at 0 st.
+  {
+    wet_only(device, kSmooth, 0.0f);
+    device.set_param(p::kPitchB, 0.0f);
+    device.set_param(p::kLevelB, 1.0f);
+    device.set_param(p::kDetune, 20.0f);
+    device.set_param(p::kSpread, 1.0f);
+    Stereo out = run(device, sine(1000.0f, 2.0f, kRate, 0.4f));
+    const double sharp = dominant_frequency(out.left, kRate, 980.0, 1020.0, from, to);
+    const double flat = dominant_frequency(out.right, kRate, 980.0, 1020.0, from, to);
+    NOTE("detune 20 ct: A %+.2f ct, B %+.2f ct, L/R correlation %.2f\n", cents(sharp, 1000.0), cents(flat, 1000.0),
+         correlation(out.left, out.right, from, to));
+    EXPECT_NEAR(cents(sharp, 1000.0), 20.0, 1.0, "Detune raises voice A");
+    EXPECT_NEAR(cents(flat, 1000.0), -20.0, 1.0, "Detune lowers voice B");
   }
 }

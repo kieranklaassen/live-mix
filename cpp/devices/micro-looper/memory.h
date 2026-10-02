@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstring>
+
 #include "../../kit/math.h"
 
 namespace livemix {
@@ -56,6 +58,34 @@ class Ring {
     *right = buffer_[at + 1];
   }
 
+  // `count` frames from `from` into `dest`, interleaved.
+  void copy(long long from, int count, float* dest) const {
+    const int at = static_cast<int>(from & kMask);
+    if (from >= valid_from_ && from + count <= written_ && written_ - from <= Frames &&
+        at + count <= Frames) {
+      std::memcpy(dest, buffer_ + 2 * at, sizeof(float) * 2 * static_cast<size_t>(count));
+      return;
+    }
+    for (int k = 0; k < count; ++k) frame(from + k, &dest[2 * k], &dest[2 * k + 1]);
+  }
+
+  // The sum of both channels, linear between frames: enough for the side
+  // signal, which is a decorrelated copy and not the loop itself.
+  float read_sum(double position) const {
+    const long long whole = static_cast<long long>(position);
+    const float t = static_cast<float>(position - static_cast<double>(whole));
+    if (whole >= valid_from_ && whole + 1 < written_ && written_ - whole < Frames) {
+      const int i0 = static_cast<int>(whole & kMask) * 2;
+      const int i1 = static_cast<int>((whole + 1) & kMask) * 2;
+      const float a = buffer_[i0] + buffer_[i0 + 1];
+      return a + (buffer_[i1] + buffer_[i1 + 1] - a) * t;
+    }
+    float l[2], r[2];
+    frame(whole, &l[0], &r[0]);
+    frame(whole + 1, &l[1], &r[1]);
+    return l[0] + r[0] + (l[1] + r[1] - l[0] - r[0]) * t;
+  }
+
   // Hermite read of both channels. A whole position returns the stored frame.
   void read(double position, float* left, float* right) const {
     const long long whole = static_cast<long long>(position);
@@ -104,11 +134,24 @@ class Store {
   long long end() const { return base_ + count_; }
   bool full() const { return count_ >= Frames; }
 
-  void append(float left, float right) {
-    if (count_ >= Frames) return;
-    buffer_[2 * count_] = left;
-    buffer_[2 * count_ + 1] = right;
-    ++count_;
+  // Room for up to `wanted` more frames: where to write them (interleaved)
+  // and how many fit. They count as held at once.
+  float* claim(int wanted, int* granted) {
+    const long long room = Frames - count_;
+    *granted = wanted < room ? wanted : static_cast<int>(room);
+    float* at = buffer_ + 2 * count_;
+    count_ += *granted;
+    return at;
+  }
+
+  float read_sum(double position) const {
+    const long long floored = static_cast<long long>(position);
+    const long long whole = floored - base_;
+    const float t = static_cast<float>(position - static_cast<double>(floored));
+    if (whole < 0 || whole + 1 >= count_) return 0.0f;
+    const float* p = buffer_ + 2 * whole;
+    const float a = p[0] + p[1];
+    return a + (p[2] + p[3] - a) * t;
   }
 
   void read(double position, float* left, float* right) const {

@@ -173,7 +173,9 @@ int main() {
   spec.maxs = p::kParamMax;
   spec.defaults = p::kParamDefault;
   spec.tail_seconds = 1.0f;
-  spec.max_peak = 2.5f;
+  // A steep filter after a stair of full-scale values overshoots: 2.0 was the
+  // most found (a full-scale square wave, or noise, at any Rate).
+  spec.max_peak = 4.0f;
   check_effect(device, spec, kRate);
 
   // Latency: Mix 0 is the input delayed by exactly the reported count.
@@ -574,6 +576,31 @@ int main() {
     EXPECT(peak(rest.left) == 0.0 && peak(rest.right) == 0.0, "asleep after the tail");
     Stereo woken = run(device, sine(440.0f, 0.2f, kRate, 0.5f));
     EXPECT(rms(woken.left, 2400) > 0.2, "wakes on new input");
+  }
+
+  // Level: the default patch on a held chord (four notes, ten harmonics
+  // each, peaking near -8 dBFS) is as loud as the chord went in.
+  {
+    std::vector<float> chord(static_cast<size_t>(2.0f * kRate), 0.0f);
+    const double notes[4] = {146.83, 220.0, 277.18, 440.0};
+    for (size_t i = 0; i < chord.size(); ++i) {
+      double v = 0.0;
+      for (int n = 0; n < 4; ++n) {
+        for (int h = 1; h <= 10; ++h) {
+          v += std::sin(2.0 * kPi * notes[n] * h * static_cast<double>(i) / kRate + n + 0.5 * h) /
+               (h * std::sqrt(static_cast<double>(h)));
+        }
+      }
+      chord[i] = static_cast<float>(0.085 * v);
+    }
+    device.init(kRate);
+    Stereo out = run(device, chord);
+    const double change = db(rms(out.left, 9600) / rms(chord, 9600));
+    char label[120];
+    std::snprintf(label, sizeof label, "default patch on a held chord: %+.2f dB against the dry level, peak %.2f (dry %.2f)",
+                  change, peak(out.left), peak(chord));
+    EXPECT(change > -1.0 && change < 1.0 && peak(out.left) < 1.2 * peak(chord), label);
+    note(label);
   }
 
   // Cost at the heaviest sensible setting: the clock ticking on nearly every

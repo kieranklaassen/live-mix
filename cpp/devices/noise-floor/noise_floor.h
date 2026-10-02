@@ -145,7 +145,7 @@ class NoiseFloor : public kit::DeviceBase<noise_floor::kNumParams> {
       const float follow = follow_.next();
       float follow_gain = 1.0f;
       if (follow > 0.0f) {
-        follow_gain += follow * (2.0f * kit::fast_tanh(0.5f * loud) - 1.0f);
+        follow_gain += follow * (2.0f * kit::fast_tanh(kFollowKnee * loud) - 1.0f);
       } else if (follow < 0.0f) {
         follow_gain -= follow * (1.0f / (1.0f + kDuck * loud) - 1.0f);
       }
@@ -198,6 +198,7 @@ class NoiseFloor : public kit::DeviceBase<noise_floor::kNumParams> {
   static constexpr float kGateFallSeconds = 0.5f;
   static constexpr float kQuiet = 1.0e-6f;      // -120 dBFS: below this nothing is playing
   static constexpr float kReference = 0.25f;    // the input level Follow calls "loud": -12 dBFS
+  static constexpr float kFollowKnee = 0.5493f;  // atanh(1/2): unity at the reference, a ceiling of 2
   static constexpr float kDuck = 4.0f;
   static constexpr float kDarkQ = 0.6f;
   static constexpr float kToneBlend = 4.0f;  // the tone filters are fully in by Tone ±0.25

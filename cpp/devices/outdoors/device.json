@@ -1,0 +1,94 @@
+{
+  "id": "outdoors",
+  "name": "Outdoors",
+  "category": "instrument",
+  "description": "Living things and small events to play: birds at dawn, crickets, a frog pond, a stream, distant thunder and wind chimes, synthesised live. Hold a key to open the scene; more keys layer more of it, and the key's pitch tunes what is pitched.",
+  "class": "Outdoors",
+  "header": "outdoors.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "type",
+      "name": "Type",
+      "choices": ["Birds", "Crickets", "Frogs", "Stream", "Thunder", "Chimes"],
+      "default": 0,
+      "description": "Which scene plays: a dawn chorus of songbirds, a field of crickets, frogs calling across a pond, a running stream, a distant thunderstorm or wind chimes tuned to the keys you hold."
+    },
+    {
+      "key": "density",
+      "name": "Density",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How much is going on: how many birds, crickets or frogs are calling and how often, how fast the water runs, how often thunder rolls or the chimes are struck."
+    },
+    {
+      "key": "distance",
+      "name": "Distance",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "How far away the scene is. Near is bright, dry and distinct; far is duller, softer at the edges and more uneven in level, as if heard across a field."
+    },
+    {
+      "key": "movement",
+      "name": "Movement",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How much the scene changes over time: gusts in the chimes, waves of activity among the animals, surges in the stream. At zero it holds steady."
+    },
+    {
+      "key": "tone",
+      "name": "Tone",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Colour of the scene, from dark and mellow to bright. The key's pitch leans it as well: low keys give bigger, lower creatures and deeper water."
+    },
+    {
+      "key": "attack",
+      "name": "Attack",
+      "min": 0.01,
+      "max": 20,
+      "default": 2,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the scene takes to fade in when a key is pressed."
+    },
+    {
+      "key": "release",
+      "name": "Release",
+      "min": 0.05,
+      "max": 30,
+      "default": 4,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the scene takes to fade out after the key is released."
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "How far the sources spread across the stereo field. At full every creature and chime has its own place; at zero the scene folds to mono."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -9,
+      "unit": "dB",
+      "description": "Output level of the instrument. A soft clip after it rounds off the peaks when many keys stack up."
+    }
+  ],
+  "presets": {
+    "Dawn chorus": { "type": 0 }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit."
+  }
+}

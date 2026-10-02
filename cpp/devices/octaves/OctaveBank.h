@@ -1,10 +1,46 @@
 #pragma once
 
-// OctaveBank: the polyphonic octave generator behind Octaves (see octaves.h
-// for the method and the signal path). One real input at the bank's own
-// rate, four octave voices out.
+// OctaveBank: the polyphonic octave generator behind Octaves (octaves.h has
+// the signal path around it). One real input at the bank's own rate, four
+// octave voices out.
+//
+// The method is filter-bank phase scaling (Thuillier 2016, see octaves.h):
+// each channel is a narrow complex band-pass giving z = a·e^(jφ); the voices
+// are a·e^(j2φ), a·e^(j4φ), a·e^(jφ/2), a·e^(jφ/4) summed over the channels.
+// What is done here beyond that:
+//
+// - Channel shape: three complex one-pole resonators in a third-order
+//   Butterworth pattern around the centre: flat on top, 18 dB per octave of
+//   offset, and no ringing to speak of.
+// - Phase equaliser: a partial off the centre of its channel comes out with
+//   the channel's phase shift, which the phase scaling would multiply, so
+//   two channels sharing a partial would disagree. Where the partial sits is
+//   read from the phase between the last two stages, and the shift and the
+//   level it lost are put back before the scaling.
+// - Sharpened weights: a channel counts by the square of its power against
+//   its neighbours', so a partial is carried by the channel it is in and not
+//   smeared over three.
+// - Adaptive width: settled channels are narrow (a chord's notes fall in
+//   different channels and do not intermodulate) and so slow to rise. At an
+//   onset every few channels (the "grid") open to about one ERB, carry the
+//   note for the few milliseconds the narrow ones need, and close again,
+//   with their states moved so the partial does not notice.
+// - Sub octaves: the half-angle phasor is the principal square root with a
+//   sign that flips each time the phase passes half a turn: exact, with no
+//   memory to drift. Neighbouring channels that hold one partial are made to
+//   agree on the sign.
+// - Rates: the lower channels run at a half and a quarter of the bank's
+//   rate (they are far below the fold there), which is where the cost goes.
+//   Their voices come back through short halfband interpolators; the delay
+//   that costs (0.5 ms and 1.2 ms) is taken out of each voice's phase, so a
+//   partial shared across the boundary still adds.
+// - Per channel, per voice, everything slow (weight, equaliser, the phase
+//   for the delay, detune) is one complex number, set at the control rate
+//   and ramped: a voice costs a square or a square root and one product.
 
 #include <cmath>
+
+#include "Halfband.h"
 
 namespace livemix {
 namespace octaves {
@@ -13,6 +49,9 @@ class OctaveBank {
  public:
   static constexpr int kMaxBands = 64;
   static constexpr int kStages = 3;
+  static constexpr int kGroups = 3;
+  static constexpr int kVoices = 4;  // sub2, sub1, up1, up2
+  static constexpr int kBuses = 6;
 
   // Voice outputs for one sample. The up voices come out on two buses
   // (alternate channels) so the device can spread them across the stereo
@@ -39,6 +78,7 @@ class OctaveBank {
   int tick_period() const { return tick_period_; }
   float centre(int band) const { return centre_[band]; }
   bool is_grid(int band) const { return grid_[band]; }
+  int group_of(int band) const { return band >= first_[0] ? 0 : (band >= first_[1] ? 1 : 2); }
 
   // Time for a new note's voices to reach nine tenths of their level; 0 is off.
   void set_attack(float seconds) {
@@ -46,18 +86,17 @@ class OctaveBank {
       attack_coeff_ = 0.0f;
       return;
     }
-    const float tick_seconds = static_cast<float>(tick_period_) / rate_;
-    attack_coeff_ = 1.0f - std::exp(-tick_seconds * 2.3026f / seconds);
+    attack_coeff_ = 1.0f - std::exp(-tick_seconds_ * 2.3026f / seconds);
   }
 
   // amount 0..1: voice offsets of up to kDetuneCents, each voice its own way.
   void set_detune(float amount) {
     if (amount == detune_) return;
     detune_ = amount;
-    for (int v = 0; v < 4; ++v) {
+    for (int v = 0; v < kVoices; ++v) {
       const double ratio = std::exp2(kDetuneCents[v] * amount / 1200.0) - 1.0;
       for (int k = 0; k < bands_; ++k) {
-        const double angle = 2.0 * kPiD * ratio * kVoiceRatio[v] * centre_[k] / rate_;
+        const double angle = 2.0 * kPiD * ratio * kVoiceRatio[v] * centre_[k] * tick_seconds_;
         det_cos_[v][k] = static_cast<float>(std::cos(angle));
         det_sin_[v][k] = static_cast<float>(std::sin(angle));
       }
@@ -69,10 +108,11 @@ class OctaveBank {
   // For the harness: channel k's state.
   struct Probe {
     float open, power, weight, offset, age;
+    bool live;
   };
   Probe probe(int k) const {
-    return {open_[k], power_[k], weight_target_[k], avg_re_[k] > 0.0f ? avg_im_[k] / avg_re_[k] : 99.0f,
-            age_[k]};
+    return {open_[k], power_[k], weight_[k], avg_re_[k] > 0.0f ? avg_im_[k] / avg_re_[k] : 99.0f,
+            age_[k], live_[k]};
   }
 
  private:
@@ -123,23 +163,24 @@ class OctaveBank {
   static constexpr double kDetuneCents[4] = {5.0, -8.0, 11.0, -15.0};
   static constexpr double kVoiceRatio[4] = {0.25, 0.5, 2.0, 4.0};
 
-  static float pos(float x) { return x > 0.0f ? x : 0.0f; }
+  // The lower channels run at lower rates: those centred under these shares
+  // of the bank's rate at a half and at a quarter of it. The highest voice a
+  // channel makes is four times its centre, a fifth of its own rate at most.
+  static constexpr double kGroupBelow[kGroups] = {1.0, 0.0375, 0.0125};
+  // Kaiser beta of the rate changers (Halfband.h): 7 taps down each time,
+  // 19 and 11 taps up, all better than 54 dB where they have to be.
+  static constexpr double kDownBeta = 4.0;
+  static constexpr double kUpBeta[2] = {5.0, 4.5};
+  static constexpr int kDownHalf = 2;
+  static constexpr int kUpHalf[2] = {5, 3};
+  // A channel whose voices would come out under this level is switched off.
+  static constexpr float kFloor = 3.0e-6f;
 
   static float fade_in(double hz, double from, double to) {
     if (hz <= from) return 0.0f;
     if (hz >= to) return 1.0f;
     const double t = (hz - from) / (to - from);
     return static_cast<float>(t * t * (3.0 - 2.0 * t));
-  }
-
-  // The normaliser from scratch, for the rare sample where the running one
-  // is off (an onset, noise). Kept out of line so the common path does not
-  // pay for a square root and a division it does not use.
-#if defined(__GNUC__)
-  __attribute__((noinline))
-#endif
-  static float exact_norm(float m2) {
-    return m2 > 1.0e-6f ? 1.0f / std::sqrt(m2) : 0.0f;
   }
 
   // How much of a partial at channel j's centre channel k passes at its
@@ -159,32 +200,45 @@ class OctaveBank {
     return a / (a + b + 1.0e-20f);
   }
 
-  // Advance voice v's detune rotor in channel k and return it.
-  void turn(int v, int k, float* re, float* im) {
-    const float dr = det_re_[v][k], di = det_im_[v][k];
-    const float cs = det_cos_[v][k], sn = det_sin_[v][k];
-    *re = dr;
-    *im = di;
-    det_re_[v][k] = dr * cs - di * sn;
-    det_im_[v][k] = dr * sn + di * cs;
+  // The square root of (re, im) with a positive real part, same length.
+  static void principal_root(float re, float im, float* out_re, float* out_im) {
+    const float a = std::sqrt(re * re + im * im);
+    *out_re = std::sqrt(0.5f * std::fabs(a + re));
+    const float other = std::sqrt(0.5f * std::fabs(a - re));
+    *out_im = im < 0.0f ? -other : other;
+    const float scale = std::sqrt(a);
+    *out_re *= scale;
+    *out_im *= scale;
   }
 
   void set_width(int k, float open, bool rescale);
+  void run_group(int g, float x, const Want& want, float* bus);
+  void sub_phasors(int k, float* half, float* quarter) const;
   void tick();
 
   float rate_ = 24000.0f;
   int bands_ = 0;
+  int first_[kGroups + 1] = {};  // group g holds channels first_[g] .. first_[g - 1] (first_[-1] = bands_)
   int tick_period_ = 16;
   int tick_counter_ = 0;
+  int call_ = 0;
   float tick_seconds_ = 0.0f;
-  float inv_period_ = 1.0f / 16.0f;
+  float inv_steps_[kGroups] = {};
   float agree_coeff_ = 0.0f;
   float jump_fall_ = 0.0f;
-  float first_unit_ = 1.0f;
   float attack_coeff_ = 0.0f;
   float detune_ = 0.0f;
   int up1_bands_ = 0;
   int up2_bands_ = 0;
+
+  // Rate changers and what they hold between calls.
+  HalfbandDown<kDownHalf> down_[2];
+  HalfbandUp<5> up_half_[kBuses];
+  HalfbandUp<3> up_quarter_[kBuses];
+  float x_prev_ = 0.0f;
+  float half_prev_ = 0.0f;
+  float late_half_[kBuses] = {};
+  float late_quarter_[kBuses] = {};
 
   // Per channel: layout.
   float centre_[kMaxBands] = {};
@@ -196,10 +250,16 @@ class OctaveBank {
   float narrow_im_[kStages][kMaxBands] = {};
   float wide_re_[kStages][kMaxBands] = {};
   float wide_im_[kStages][kMaxBands] = {};
-  float limit_sub1_[kMaxBands] = {};
-  float limit_sub2_[kMaxBands] = {};
-  float limit_up1_[kMaxBands] = {};
-  float limit_up2_[kMaxBands] = {};
+  float first_unit_[kMaxBands] = {};
+  // Voice v's share of this channel (what the voice leaves out at the ends
+  // of the range) times the phase that undoes the group's delay at the
+  // channel's centre; delay_slope_ is that phase per Hz off the centre for
+  // the lowest voice; unskew_ is the same for the channel signal itself.
+  float comp_re_[kVoices][kMaxBands] = {};
+  float comp_im_[kVoices][kMaxBands] = {};
+  float delay_slope_[kMaxBands] = {};
+  float unskew_re_[kMaxBands] = {};
+  float unskew_im_[kMaxBands] = {};
   // Per channel: the resonators.
   float pole_re_[kStages][kMaxBands] = {};
   float pole_im_[kStages][kMaxBands] = {};
@@ -220,29 +280,33 @@ class OctaveBank {
   int grid_above_[kMaxBands] = {};
   float rot_re_[kMaxBands] = {};
   float rot_im_[kMaxBands] = {};
-  float rot_step_re_[kMaxBands] = {};
-  float rot_step_im_[kMaxBands] = {};
-  float rot_target_re_[kMaxBands] = {};
-  float rot_target_im_[kMaxBands] = {};
+  float root1_re_[kMaxBands] = {};
+  float root1_im_[kMaxBands] = {};
+  float root2_re_[kMaxBands] = {};
+  float root2_im_[kMaxBands] = {};
   float avg_re_[kMaxBands] = {};
   float avg_im_[kMaxBands] = {};
   float power_[kMaxBands] = {};
   float slow_[kMaxBands] = {};
   float weight_[kMaxBands] = {};
-  float weight_step_[kMaxBands] = {};
-  float weight_target_[kMaxBands] = {};
   float agree_[kMaxBands] = {};
-  // Per channel: the sub-octave phasors and their running normalisers.
-  float half_re_[kMaxBands] = {};
+  // Per channel, per voice: the complex weight, ramped between ticks.
+  bool live_[kMaxBands] = {};
+  float w_re_[kVoices][kMaxBands] = {};
+  float w_im_[kVoices][kMaxBands] = {};
+  float w_step_re_[kVoices][kMaxBands] = {};
+  float w_step_im_[kVoices][kMaxBands] = {};
+  float w_target_re_[kVoices][kMaxBands] = {};
+  float w_target_im_[kVoices][kMaxBands] = {};
+  // Per channel: the signs of the two square roots, and the half-angle
+  // phasor's last imaginary part (to see it pass half a turn).
+  float sign1_[kMaxBands] = {};
+  float sign2_[kMaxBands] = {};
   float half_im_[kMaxBands] = {};
-  float half_norm_[kMaxBands] = {};
-  float quarter_re_[kMaxBands] = {};
-  float quarter_im_[kMaxBands] = {};
-  float quarter_norm_[kMaxBands] = {};
-  float det_re_[4][kMaxBands] = {};
-  float det_im_[4][kMaxBands] = {};
-  float det_cos_[4][kMaxBands] = {};
-  float det_sin_[4][kMaxBands] = {};
+  float det_re_[kVoices][kMaxBands] = {};
+  float det_im_[kVoices][kMaxBands] = {};
+  float det_cos_[kVoices][kMaxBands] = {};
+  float det_sin_[kVoices][kMaxBands] = {};
 };
 
 }  // namespace octaves

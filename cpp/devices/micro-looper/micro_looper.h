@@ -62,7 +62,6 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
       const float clock = clock_.next();
       record(in, clock);
       sequence(in);
-      keep();
 
       const float step = clock * speed_.next() * (1.0f + wobble_.next());
       if (control_.tick()) control(step, clock);
@@ -284,6 +283,25 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     *right = *right * out_gain + next[1] * in_gain;
   }
 
+  // The same loop, both channels summed and read more cheaply: what the
+  // side signal is made from.
+  float source_sum(const Deck& d, double position) const {
+    if (d.blur < 0.01f) return d.stored ? store_.read_sum(position) : ring_.read_sum(position);
+    if (d.stored) {
+      return 0.5f * (store_.read_sum(position - d.blur) + store_.read_sum(position + d.blur));
+    }
+    return 0.5f * (ring_.read_sum(position - d.blur) + ring_.read_sum(position + d.blur));
+  }
+
+  float loop_sum(const Deck& d, double q, double offset) const {
+    const float sum = source_sum(d, d.start + q);
+    const double into = q - (d.length - d.join);
+    if (into <= 0.0) return sum;
+    const float next = source_sum(d, d.start + q - d.length + offset);
+    const float w = kit::min(1.0f, static_cast<float>(into / d.join));
+    return sum * kit::SineTable::cos_lookup(0.25f * w) + next * kit::SineTable::lookup(0.25f * w);
+  }
+
   // Loop bounds from Length: the most recent `Length` seconds of the capture.
   void set_bounds(Deck& d) const {
     const double frames = static_cast<double>(param(micro_looper::kLength)) * d.rate;
@@ -481,10 +499,7 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
       if (ahead >= d.length) ahead -= span;
       double behind = d.place - reach;
       if (behind < d.offset) behind += span;
-      float a[2], b[2];
-      loop_read(d, ahead, d.offset, &a[0], &a[1]);
-      loop_read(d, behind, d.offset, &b[0], &b[1]);
-      *side += 0.5f * gain * ((a[0] + a[1]) - (b[0] + b[1]));
+      *side += 0.5f * gain * (loop_sum(d, ahead, d.offset) - loop_sum(d, behind, d.offset));
     }
 
     const double half = 0.5 * d.length;
@@ -527,7 +542,8 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
   }
 
   // Keep the current loop: copy its capture from the ring into the store, a
-  // few frames per sample, once nothing is playing from the store any more.
+  // few frames per sample (in one piece on each control tick), once nothing
+  // is playing from the store any more.
   void keep() {
     const Deck& now = decks_[current_];
     if (!now.active || (store_ready_ && store_tag_ == now.end)) return;
@@ -539,11 +555,10 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
       copy_at_ = now.end - (kStoreFrames - 4);
       store_.begin(copy_at_);
     }
-    for (int k = 0; k < kCopyFrames; ++k) {
-      float left, right;
-      ring_.frame(copy_at_++, &left, &right);
-      store_.append(left, right);
-    }
+    int count = 0;
+    float* dest = store_.claim(kCopyFrames * kControlPeriod, &count);
+    ring_.copy(copy_at_, count, dest);
+    copy_at_ += count;
     if (store_.full()) store_ready_ = true;
   }
 
@@ -585,6 +600,7 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     }
     wobble_.aim(param(kDrift) * kWobbleDepth * drift_.next(kControlPeriod), !moving_);
     moving_ = true;
+    keep();
 
     const float speed = step < 0.0f ? -step : step;
     const float fade = kit::max(param(kFade), kMinFade);

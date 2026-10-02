@@ -10,11 +10,7 @@
     {
       "key": "band",
       "name": "Band",
-      "choices": [
-        "Medium wave",
-        "Shortwave",
-        "Sideband"
-      ],
+      "choices": ["Medium wave", "Shortwave", "Sideband"],
       "default": 1,
       "description": "Which kind of reception. Medium wave is the fuller local station that fades slowly. Shortwave is narrower and fades faster and deeper, with the tone hollowing as it goes. Sideband has no carrier: Tuning moves every pitch, and the noise rushes up in the gaps."
     },
