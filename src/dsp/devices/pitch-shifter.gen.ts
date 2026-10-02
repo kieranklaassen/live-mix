@@ -53,12 +53,12 @@ export const PITCH_SHIFTER_PARAMS = {
     name: 'Mode',
     min: 0,
     max: 3,
-    default: 0,
+    default: 3,
     taper: 'linear',
     unit: '',
     choices: ['Smooth', 'Grain', 'Vintage', 'Chords'],
     description:
-      'The character of the shift. Smooth lines its splices up with the sound and stays clean on single notes, Grain rebuilds it from overlapping grains, Vintage splices blindly and flutters like an early digital pitch changer. Chords moves every note of a chord on its own, so held chords and pads stay clean; it answers later, low notes latest, and softer on attacks.',
+      'The character of the shift. Smooth lines its splices up with the sound and stays clean on single notes, Grain rebuilds it from overlapping grains, Vintage splices blindly and flutters like an early digital pitch changer. Chords moves every note of a chord on its own, so chords and pads stay clean where the others waver; its voices answer a moment late, so on fast playing they follow like a short echo.',
   },
   size: {
     id: 5,

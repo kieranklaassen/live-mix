@@ -6,7 +6,7 @@
 //    1  pitchB: -24..24 st, default -12
 //    2  levelB: 0..1, default 0
 //    3  detune: 0..50 ct, default 0
-//    4  mode: 0 Smooth, 1 Grain, 2 Vintage, 3 Chords, default 0
+//    4  mode: 0 Smooth, 1 Grain, 2 Vintage, 3 Chords, default 3
 //    5  size: 10..400 ms, default 60
 //    6  jitter: 0..1, default 0
 //    7  delay: 0..1000 ms, default 0
@@ -38,7 +38,7 @@ enum Param : int {
 
 inline constexpr float kParamMin[kNumParams] = {-24.0f, -24.0f, 0.0f, 0.0f, 0.0f, 10.0f, 0.0f, 0.0f, 0.0f, 800.0f, 0.0f, 0.0f};
 inline constexpr float kParamMax[kNumParams] = {24.0f, 24.0f, 1.0f, 50.0f, 3.0f, 400.0f, 1.0f, 1000.0f, 0.95f, 18000.0f, 1.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {12.0f, -12.0f, 0.0f, 0.0f, 0.0f, 60.0f, 0.0f, 0.0f, 0.0f, 9000.0f, 0.5f, 0.5f};
+inline constexpr float kParamDefault[kNumParams] = {12.0f, -12.0f, 0.0f, 0.0f, 3.0f, 60.0f, 0.0f, 0.0f, 0.0f, 9000.0f, 0.5f, 0.5f};
 
 }  // namespace pitch_shifter
 }  // namespace livemix

@@ -1168,3 +1168,76 @@ static void check_bad_input() {
     EXPECT(silent, label);
   }
 }
+
+// What is set while the device sleeps takes hold at once on waking. Before,
+// a Mode turned to Chords during a silence was crossed over on the first
+// note instead: the old mode played its attack, then Chords played it again.
+static void check_wake() {
+  // A struck note: sharp start, decaying.
+  std::vector<float> note(static_cast<size_t>(1.0f * kRate), 0.0f);
+  for (size_t i = 4800; i < note.size(); ++i) {
+    const double t = static_cast<double>(i - 4800) / kRate;
+    note[i] = static_cast<float>(0.4 * std::exp(-t / 0.25) * std::sin(2.0 * kPi * 440.0 * t));
+  }
+  const std::vector<float> gap = silence(4.0f, kRate);
+  char label[160];
+
+  wet_only(device, kSmooth, 12.0f);
+  run(device, note);
+  Stereo rest = run(device, gap);
+  EXPECT(peak(rest.left, rest.left.size() - 4800) == 0.0, "the device is asleep four seconds after a note");
+  device.set_param(p::kMode, kChords);
+  Stereo out = run(device, note);
+  // Chords answers 193 ms after the attack; nothing may sound before.
+  const double early = rms(out.left, 4800, 4800 + 7200);
+  const double later = rms(out.left, 4800 + 9600, 4800 + 9600 + 7200);
+  NOTE("wake into Chords: the 150 ms after the attack %.1f dB against the 150 ms from 200 ms\n", db(early / later));
+  std::snprintf(label, sizeof label, "a note after Mode was turned to Chords in a silence arrives once (%.1f dB before it)",
+                db(early / later));
+  EXPECT(early < 0.01 * later, label);
+
+  // Pitch moved in a silence: the next note is on the new pitch from its start.
+  wet_only(device, kSmooth, 12.0f);
+  run(device, note);
+  run(device, gap);
+  device.set_param(p::kPitchA, -12.0f);
+  out = run(device, note);
+  const double found = dominant_frequency(std::vector<float>(out.left.begin() + 6300, out.left.begin() + 9180), kRate, 150.0, 400.0);
+  NOTE("wake after a Pitch move: the first 60 ms are at %.2f Hz (220 wanted, %+.1f cents)\n", found, cents(found, 220.0));
+  std::snprintf(label, sizeof label, "a note after Pitch was moved in a silence starts on the new pitch (%+.1f cents)",
+                cents(found, 220.0));
+  EXPECT(std::fabs(cents(found, 220.0)) < 8.0, label);
+}
+
+// At 96 kHz the Chords work of one hop is cut into eight pieces (ChordEngine
+// spread), the voices' frames added in later than at 48 kHz. Both voices
+// must still be whole: on pitch, steady and at the level of the input.
+static void check_spread_work() {
+  const float rate = 96000.0f;
+  char label[160];
+  device.init(rate);
+  device.set_param(p::kMode, kChords);
+  device.set_param(p::kMix, 1.0f);
+  device.set_param(p::kPitchA, 7.0f);
+  device.set_param(p::kPitchB, -5.0f);
+  device.set_param(p::kLevelB, 1.0f);
+  device.set_param(p::kSpread, 1.0f);
+  device.set_param(p::kTone, 18000.0f);
+  const std::vector<float> tone = sine(440.0f, 2.5f, rate, 0.5f);
+  Stereo out = run(device, tone);
+  const size_t a = static_cast<size_t>(1.0f * rate), b = static_cast<size_t>(2.5f * rate);
+  const double want_a = 440.0 * std::pow(2.0, 7.0 / 12.0), want_b = 440.0 * std::pow(2.0, -5.0 / 12.0);
+  const double found_a = frequency_near(out.left, want_a, rate, a, b);
+  const double found_b = frequency_near(out.right, want_b, rate, a, b);
+  const double flutter_a = flutter_db(out.left, a, b, static_cast<size_t>(0.01f * rate));
+  const double flutter_b = flutter_db(out.right, a, b, static_cast<size_t>(0.01f * rate));
+  const double level_a = db(rms(out.left, a, b) / rms(tone, a, b)), level_b = db(rms(out.right, a, b) / rms(tone, a, b));
+  NOTE("96 kHz, two Chords voices: A %+.3f ct, flutter %.3f dB, level %+.2f dB | B %+.3f ct, flutter %.3f dB, level %+.2f dB\n",
+       cents(found_a, want_a), flutter_a, level_a, cents(found_b, want_b), flutter_b, level_b);
+  std::snprintf(label, sizeof label, "96 kHz: both Chords voices on pitch (%+.3f, %+.3f ct)", cents(found_a, want_a),
+                cents(found_b, want_b));
+  EXPECT(found_a > 0.0 && found_b > 0.0 && std::fabs(cents(found_a, want_a)) < 1.0 && std::fabs(cents(found_b, want_b)) < 1.0, label);
+  std::snprintf(label, sizeof label, "96 kHz: both Chords voices steady (%.3f, %.3f dB) and at level (%+.2f, %+.2f dB)", flutter_a,
+                flutter_b, level_a, level_b);
+  EXPECT(flutter_a < 0.2 && flutter_b < 0.2 && std::fabs(level_a - 3.01) < 0.5 && std::fabs(level_b - 3.01) < 0.5, label);
+}
