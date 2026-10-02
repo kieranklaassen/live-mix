@@ -111,9 +111,10 @@ interface Registration {
   /**
    * Starts a schedulable that `joinsLate` declined. Once such a start has
    * passed the window stops offering it, so it is offered from here, as a
-   * join, for as long as its clip sounds.
+   * join, for as long as its clip sounds. Each keeps the clock time it was
+   * offered at: its pass number may belong to an anchor that has gone.
    */
-  declined: Map<string, ScheduledStart>
+  declined: Map<string, Handover>
   /** Where the last window ended, in unwrapped timeline seconds; unset until the first tick after a pin. */
   windowEndSec?: number
   /**
@@ -196,7 +197,7 @@ export class Scheduler {
       const clips = schedulable.clips()
       let due: ScheduledClip[]
       // Clips to enter partway: the position is already inside them.
-      const joins: ScheduledStart[] = []
+      const joins: Handover[] = []
       if (registration.fromAnchor && anchor) {
         // The audio clock can move between the pin and this pass (a render
         // quantum ends, a listener ahead of this one takes its time). The
@@ -218,7 +219,9 @@ export class Scheduler {
         // there rather than waiting for their start to come round again.
         if (schedulable.joinsLate) {
           for (const clip of clipsSoundingAt(clips, anchor.positionSec)) {
-            joins.push({ clipId: clip.id, iteration: anchor.iteration, startSec: clip.startSec })
+            const start = { clipId: clip.id, iteration: anchor.iteration, startSec: clip.startSec }
+            const when = this.transport.contextTimeAt(start.startSec, start.iteration)
+            joins.push({ ...start, when })
           }
         }
       } else {
@@ -253,7 +256,7 @@ export class Scheduler {
         if (registration.scheduled.has(key)) continue
         const when = this.transport.contextTimeAt(start.startSec, start.iteration)
         if (!schedulable.schedule(start, when)) {
-          if (schedulable.joinsLate) registration.declined.set(key, start)
+          if (schedulable.joinsLate) registration.declined.set(key, { ...start, when })
           continue
         }
         registration.scheduled.set(key, { ...start, when })
@@ -263,25 +266,19 @@ export class Scheduler {
       // A declined start the window has moved past (its sample decoded after
       // the playhead reached it) comes in where the clip has got to.
       for (const [key, start] of registration.declined) {
-        const clip = clips.find((candidate) => candidate.id === start.clipId)
-        const when = this.transport.contextTimeAt(start.startSec, start.iteration)
-        const stands =
-          clip?.durationSec !== undefined &&
-          scheduleKey({ ...start, startSec: clip.startSec }) === key &&
-          contextTime < when + clip.durationSec
+        const stands = soundsOn(clips, start, start.when, contextTime)
         if (!stands || registration.scheduled.has(key)) registration.declined.delete(key)
-        else if (contextTime > when) joins.push(start)
+        else if (contextTime > start.when) joins.push(start)
       }
 
-      for (const start of joins) {
+      for (const { when, ...start } of joins) {
         const key = scheduleKey(start)
         if (registration.scheduled.has(key)) continue
-        const when = this.transport.contextTimeAt(start.startSec, start.iteration)
         if (schedulable.schedule(start, when, true)) {
           registration.scheduled.set(key, { ...start, when })
           registration.declined.delete(key)
         } else {
-          registration.declined.set(key, start)
+          registration.declined.set(key, { ...start, when })
         }
       }
 
@@ -403,7 +400,7 @@ export class Scheduler {
         if (schedulable.schedule(start, when, true)) {
           registration.scheduled.set(key, { ...start, when })
         } else {
-          registration.declined.set(key, start)
+          registration.declined.set(key, { ...start, when })
         }
       }
     }

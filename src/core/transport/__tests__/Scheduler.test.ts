@@ -781,6 +781,30 @@ describe('Scheduler joins clips the position is inside', () => {
       expect(track.handed).toHaveLength(2)
     })
 
+    it('offers a declined re-entry again at the clock time it had, whatever pass the transport is on by then', () => {
+      const { ctx, transport, scheduler, track } = buildJoining([
+        { id: 'pad', startSec: 10, durationSec: 12 },
+      ])
+      transport.seek(15)
+      transport.start()
+      expect(round(track.handed[0].when)).toBe(95)
+      // A shorter loop: the transport wraps to 0 under a new pass, the pad sounds on by the clock.
+      ctx.currentTime = 101
+      transport.setLoop({ enabled: true, lengthSec: 8 })
+      scheduler.tick()
+      track.accept = false
+      scheduler.rejoin(['pad'])
+      expect(track.faded).toEqual([['pad:0:10.000', REJOIN_FADE_SECONDS]])
+      expect(track.handed).toHaveLength(1)
+
+      // Ready now: it comes back six and a half seconds in, not at a time worked out from the new pass.
+      track.accept = true
+      ctx.currentTime = 101.5
+      scheduler.tick()
+      expect(track.joined()).toEqual(['pad:0:10.000', 'pad:0:10.000'])
+      expect(round(track.handed[1].when)).toBe(95)
+    })
+
     it('does nothing while not playing, or for a schedulable that cannot join', () => {
       const { ctx, transport, scheduler, track } = buildJoining()
       scheduler.rejoin(['pad'])
