@@ -68,7 +68,7 @@ function Strip({ name }: { name: string }) {
 | `useTrack(track \| name)`                 | `useStrip` of any track kind, resolved by object or name                                                                    | same                                                                                          |
 | `useGroup(group \| name)`                 | `useStrip` plus `members`                                                                                                   | `add`, `remove`                                                                               |
 | `useMeter(source?, { fps, active })`      | `peak`, `rms`, `peakDb`, `lufs` reading, `lufsShortTerm`, `truePeakDb`                                                      | —                                                                                             |
-| `useDevice(device, { registry })`         | `values`, `bypass`, `params`, `descriptor`, `presets`                                                                       | `setParam`, `setBypass`, `applyPreset`, `capturePreset`, `reset`                              |
+| `useDevice(device, { registry })`         | `values`, `bypass`, `params`, `descriptor`, `presets`                                                                       | `setParam`, `setBypass`, `applyPreset` (by name: every knob), `capturePreset`, `reset`        |
 | `useDeviceParam(device, name)`            | `value`, `normalized` (taper-aware), `spec`                                                                                 | `set`, `setNormalized`, `reset`                                                               |
 | `useLane(lane)`                           | `breakpoints`, `version`, `valueAt`                                                                                         | `add`, `remove`, `replace`, `clear`                                                           |
 | `useModulation(matrix?)`                  | `routes`, `targets`, `routesFor`                                                                                            | `map`, `unmap`, `setRoute`, `attach`, `detach`                                                |
@@ -249,6 +249,20 @@ window drawn small, with three sliders that follow its first three parameters.
 The `Edit` cell at the right opens the real window (`openEditor`), and the
 `+n` cell sits under it. The cases are workshop colours, apart from the plates
 in `PLATE_PALETTES`.
+
+A device's own presets are a small list among the tools that show while a
+plate is pointed at, and a list in a panel's title bar. A host with a picker of
+its own (a search, stars, a play cell) passes it as `presetPicker`: a node on
+`DevicePlate` and `DevicePanel`, a function of the device and its place among
+the devices shown on `DeviceChainView`. The kit's list then stays away, and on
+a plate the picker sits on the foot beside the name, in view without the
+pointer. It gets the room the name leaves, down to 18 px, and that room is a
+container named `lm-plate-presets`, so the picker can fold to a smaller form
+with a container query; the tools come up over the end of the name, so the
+picker does not move under the pointer. `null` draws none and still keeps the
+kit's list away. Either way a preset picked by name sets every knob
+(`useDevice().applyPreset(name)`): what the preset does not name goes back to
+where the device starts, so the preset picked before leaves nothing behind.
 
 A plate costs nothing while it sits: the finish and the picture are drawn when
 the device is added or one of its knobs moves, not per frame. The names are the

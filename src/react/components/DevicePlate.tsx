@@ -88,6 +88,12 @@ export interface DevicePlateProps {
   showBypass?: boolean
   /** Default: when the descriptor has presets. */
   showPresets?: boolean
+  /**
+   * A host's own preset picker for this device. It stands on the foot beside
+   * the name and stays in view, where the kit's own list only shows with the
+   * tools; given one, the kit's list is left out.
+   */
+  presetPicker?: ReactNode
   /** Whether every knob shows from the start (default: only the face). */
   defaultOpen?: boolean
   onOpenChange?: (open: boolean) => void
@@ -135,6 +141,7 @@ export function DevicePlate({
   choiceLabels,
   showBypass = true,
   showPresets,
+  presetPicker,
   defaultOpen = false,
   onOpenChange,
   actions,
@@ -156,7 +163,7 @@ export function DevicePlate({
   const layout = plateLayout(names.length, skin.picture !== undefined)
   const ownText = isParamTextDevice(device) ? device : null
   const editor = isEditorDevice(device) ? device : null
-  const presetsShown = showPresets ?? d.presets.length > 0
+  const presetsShown = presetPicker === undefined && (showPresets ?? d.presets.length > 0)
   const heading = title ?? d.descriptor?.name ?? d.id
   const tag = skin.name ?? heading
   const about = d.descriptor?.description
@@ -295,7 +302,7 @@ export function DevicePlate({
           {open ? '−' : `+${rest.length}`}
         </button>
       ) : null}
-      <div className="lm-plate__foot">
+      <div className={cx('lm-plate__foot', presetPicker !== undefined && 'lm-plate__foot--picker')}>
         <h3 className="lm-plate__name" title={heading}>
           {tag}
         </h3>
@@ -312,6 +319,9 @@ export function DevicePlate({
               />
             ))
           : null}
+        {presetPicker !== undefined ? (
+          <div className="lm-plate__presets">{presetPicker}</div>
+        ) : null}
         <div className="lm-plate__tools">
           {presetsShown ? (
             <select

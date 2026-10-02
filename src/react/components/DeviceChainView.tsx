@@ -170,7 +170,12 @@ export interface DeviceChainViewProps {
   /** Called with the created device instead of `addInsert` (or the score operation) when set. */
   onAdd?: (device: Device) => void
   /** Forwarded to every panel (knob size, choice labels, …). */
-  panelProps?: Partial<Omit<DevicePanelProps, 'device' | 'registry' | 'onRemove'>>
+  panelProps?: Partial<Omit<DevicePanelProps, 'device' | 'registry' | 'onRemove' | 'presetPicker'>>
+  /**
+   * The host's own preset picker for a device of the chain, in the place of
+   * the kit's list of preset names. `undefined` for a device keeps the kit's.
+   */
+  presetPicker?: (device: Device, index: number) => ReactNode
   /**
    * The skin each device is drawn with, as a plate (`DevicePlate`); a device
    * it gives none keeps the plain panel. `deviceSkin` is the kit's own answer.
@@ -192,6 +197,7 @@ export function DeviceChainView({
   onRemove,
   onAdd,
   panelProps,
+  presetPicker,
   skin,
   className,
   style,
@@ -354,6 +360,7 @@ export function DeviceChainView({
               )
               const plate = skin?.(device)
               const id = testId ? `${testId}-device-${index - skip}` : undefined
+              const picker = presetPicker?.(device, index - skip)
               return plate ? (
                 <DevicePlate
                   device={device}
@@ -363,6 +370,7 @@ export function DeviceChainView({
                   choiceLabels={panelProps?.choiceLabels}
                   showBypass={panelProps?.showBypass}
                   showPresets={panelProps?.showPresets}
+                  presetPicker={picker}
                   onRemove={() => remove(device, index)}
                   actions={actions}
                   hint={PLATE_REORDER_HINT}
@@ -374,6 +382,7 @@ export function DeviceChainView({
                   {...panelProps}
                   device={device}
                   registry={reg ?? undefined}
+                  presetPicker={picker}
                   onRemove={() => remove(device, index)}
                   actions={actions}
                   data-testid={id}

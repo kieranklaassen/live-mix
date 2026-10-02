@@ -206,6 +206,34 @@ describe('DevicePanel', () => {
     expect(picker).toHaveValue('')
   })
 
+  it('sets every knob from a preset, so the one picked before leaves nothing behind', async () => {
+    const fixture = createTestEngine()
+    const device = await filter(fixture)
+    render(<DevicePanel device={device} />, { wrapper: fixture.wrapper })
+    const picker = screen.getByRole('combobox', { name: 'Filter preset' })
+    fireEvent.change(picker, { target: { value: 'Presence peak' } })
+    expect(device.getParam('gain')).toBe(4)
+    // This one names no gain: the gain goes back to where the device starts it.
+    fireEvent.change(picker, { target: { value: 'Low-pass gentle' } })
+    expect(device.getParam('frequency')).toBe(4000)
+    expect(device.getParam('gain')).toBe(0)
+  })
+
+  it('gives the place of its preset list to a picker the host draws', async () => {
+    const fixture = createTestEngine()
+    const device = await filter(fixture)
+    render(
+      <DevicePanel device={device} presetPicker={<button type="button">Presets of mine</button>} />,
+      { wrapper: fixture.wrapper },
+    )
+    expect(screen.getByRole('button', { name: 'Presets of mine' })).toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: 'Filter preset' })).toBeNull()
+    // Null says there is none to draw, and the kit's list stays away all the same.
+    cleanup()
+    render(<DevicePanel device={device} presetPicker={null} />, { wrapper: fixture.wrapper })
+    expect(screen.queryByRole('combobox', { name: 'Filter preset' })).toBeNull()
+  })
+
   it('shows a subset of parameters, choice labels and a remove action', async () => {
     const fixture = createTestEngine()
     const device = await filter(fixture)

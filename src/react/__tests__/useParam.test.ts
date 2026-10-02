@@ -87,6 +87,17 @@ describe('useDevice', () => {
     expect(applied.sort()).toEqual(['frequency', 'gain', 'q', 'type'])
     expect(result.current.values).toMatchObject({ type: 5, frequency: 3000, q: 1, gain: 4 })
 
+    // By name a preset is every knob: one that leaves the gain out puts it
+    // back where the device starts it, whatever the preset before left there.
+    act(() => {
+      applied = result.current.applyPreset('Low-pass gentle').applied
+    })
+    expect(applied.sort()).toEqual(['frequency', 'gain', 'q', 'type'])
+    expect(result.current.values).toMatchObject({ type: 0, frequency: 4000, q: 0.5, gain: 0 })
+    act(() => {
+      result.current.applyPreset('Presence peak')
+    })
+
     const captured = result.current.capturePreset('Mine')
     expect(captured).toMatchObject({ name: 'Mine', deviceId: 'filter', deviceVersion: 1 })
     expect(captured.params.frequency).toBe(3000)
@@ -97,6 +108,13 @@ describe('useDevice', () => {
       result.current.applyPreset(captured)
     })
     expect(result.current.values.frequency).toBe(3000)
+
+    // As an object a preset sets what it carries and leaves the rest alone.
+    act(() => {
+      applied = result.current.applyPreset({ ...captured, params: { q: 2 } }).applied
+    })
+    expect(applied).toEqual(['q'])
+    expect(result.current.values).toMatchObject({ frequency: 3000, q: 2, gain: 4 })
 
     act(() => result.current.toggleBypass())
     expect(result.current.bypass).toBe(true)
