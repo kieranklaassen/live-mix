@@ -140,7 +140,7 @@ class Radio : public kit::DeviceBase<radio::kNumParams> {
       // The station: band-limited, limited, and put on its carrier.
       float programme = 0.5f * (left + right);
       if (!(programme > -64.0f && programme < 64.0f)) programme = 0.0f;
-      programme = kit::soft_clip(transmit_.lowpass(programme));
+      programme = kit::soft_clip(transmit_.process(programme));
       // With a carrier the programme rides on it, in phase. Without one the
       // station sends the upper sideband alone: kit::Hilbert's quadrature
       // output leads, so that is I - jQ.
@@ -188,8 +188,8 @@ class Radio : public kit::DeviceBase<radio::kNumParams> {
       const float tune = static_cast<float>(tune_phase_);
       const float cosine = kit::SineTable::cos_lookup(tune);
       const float sine = kit::SineTable::lookup(tune);
-      const float if_re = if_re_.lowpass(re * cosine - im * sine);
-      const float if_im = if_im_.lowpass(re * sine + im * cosine);
+      const float if_re = if_re_.process(re * cosine - im * sine);
+      const float if_im = if_im_.process(re * sine + im * cosine);
 
       // Signal strength for the automatic gain.
       const float strength = std::sqrt(if_re * if_re + if_im * if_im);
@@ -209,7 +209,7 @@ class Radio : public kit::DeviceBase<radio::kNumParams> {
       }
       // The detector's own filter: an envelope has corners where the carrier
       // is lost, and they are not programme.
-      audio = audio_high_.highpass(audio_low_.lowpass(audio)) * agc_gain_.next();
+      audio = audio_high_.process(audio_low_.process(audio)) * agc_gain_.next();
 
       // The loudspeaker.
       float cone = cone_peak_.process(cone_high_.highpass(audio));
@@ -291,7 +291,7 @@ class Radio : public kit::DeviceBase<radio::kNumParams> {
     const BandSpec& band = kBandSpec[band_];
     const float sr = sample_rate();
     propagation_.set_style(band.path, sr);
-    transmit_.set(kit::min(band.transmit_hz, 0.45f * sr), sr, radio_parts::kButter4);
+    transmit_.set_lowpass(kit::min(band.transmit_hz, 0.45f * sr), sr, radio_parts::kButter4);
     attack_ = kit::time_to_coeff(band.agc_attack, sr);
     release_ = kit::time_to_coeff(band.agc_release, sr);
     level_ = band.agc_reference;
@@ -334,10 +334,10 @@ class Radio : public kit::DeviceBase<radio::kNumParams> {
     const bool high_moved = glide(&high_hz_, high_target_, jump);
     if (low_moved || high_moved) {
       const float half = carrier ? high_hz_ : 0.5f * (high_hz_ - low_hz_);
-      if_re_.set(half, sr, radio_parts::kButter8);
-      if_im_.set(half, sr, radio_parts::kButter8);
-      audio_high_.set(low_hz_, sr, radio_parts::kButter6);
-      audio_low_.set(kit::min(1.1f * high_hz_, 0.45f * sr), sr, radio_parts::kButter4);
+      if_re_.set_lowpass(half, sr, radio_parts::kButter8);
+      if_im_.set_lowpass(half, sr, radio_parts::kButter8);
+      audio_high_.set_highpass(low_hz_, sr, radio_parts::kButter6);
+      audio_low_.set_lowpass(kit::min(1.1f * high_hz_, 0.45f * sr), sr, radio_parts::kButter4);
     }
     centre_.aim(carrier ? 0.0f : 0.5f * (high_hz_ + low_hz_), inverse, jump);
 

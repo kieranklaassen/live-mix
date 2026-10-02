@@ -1,7 +1,7 @@
 #pragma once
 
 // Pieces of the Radio device that are not in the kit: a ramp between control
-// ticks, Butterworth cascades on kit::Svf, the two-path propagation model,
+// ticks, Butterworth cascades, the two-path propagation model,
 // the atmospheric noise source and the interference events.
 
 #include "../../kit/kit.h"
@@ -39,23 +39,24 @@ static constexpr float kButter6[3] = {0.51763809f, 0.70710678f, 1.93185165f};
 static constexpr float kButter8[4] = {0.50979558f, 0.60134489f, 0.89997622f, 2.56291545f};
 
 // N second-order sections in series: a Butterworth low-pass or high-pass of
-// order 2N. Svf sections, so the corner can move while sounding.
+// order 2N. The corner only moves when a control does, and then by a glide
+// on the control clock, which a transposed direct-form biquad follows
+// without a sound.
 template <int N>
 struct Cascade {
-  kit::Svf section[N];
+  kit::Biquad section[N];
 
   void reset() {
-    for (kit::Svf& s : section) s.reset();
+    for (kit::Biquad& s : section) s.reset();
   }
-  void set(float hz, float sample_rate, const float* qs) {
-    for (int i = 0; i < N; ++i) section[i].set(hz, qs[i], sample_rate);
+  void set_lowpass(float hz, float sample_rate, const float* qs) {
+    for (int i = 0; i < N; ++i) section[i].set_lowpass(hz, qs[i], sample_rate);
   }
-  float lowpass(float x) {
-    for (int i = 0; i < N; ++i) x = section[i].lowpass(x);
-    return x;
+  void set_highpass(float hz, float sample_rate, const float* qs) {
+    for (int i = 0; i < N; ++i) section[i].set_highpass(hz, qs[i], sample_rate);
   }
-  float highpass(float x) {
-    for (int i = 0; i < N; ++i) x = section[i].highpass(x);
+  float process(float x) {
+    for (int i = 0; i < N; ++i) x = section[i].process(x);
     return x;
   }
 };

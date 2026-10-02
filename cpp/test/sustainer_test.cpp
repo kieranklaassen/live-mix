@@ -590,6 +590,3 @@ int main() {
 
   return finish("sustainer");
 }
-// (old tail follows and is removed below)
-  return finish("sustainer");
-}

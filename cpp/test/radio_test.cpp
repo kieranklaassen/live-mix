@@ -52,11 +52,11 @@ static std::vector<double> band_envelope(const std::vector<float>& x, float lo, 
   Cascade<4> high, low;
   high.reset();
   low.reset();
-  high.set(lo, rate, kButter8);
-  low.set(hi, rate, kButter8);
+  high.set_highpass(lo, rate, kButter8);
+  low.set_lowpass(hi, rate, kButter8);
   double sum = 0.0;
   for (size_t i = 0; i < x.size(); ++i) {
-    const double v = low.lowpass(high.highpass(x[i]));
+    const double v = low.process(high.process(x[i]));
     sum += v * v;
     if ((i + 1) % window == 0) {
       out.push_back(db(std::sqrt(sum / static_cast<double>(window))));
