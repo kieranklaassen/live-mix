@@ -183,6 +183,55 @@ export function DevicePlate({
     onOpenChange?.(!open)
   }
 
+  // A picker that draws nothing (null) keeps the kit's list away and asks for no room.
+  const picker = presetPicker !== undefined && presetPicker !== null && presetPicker !== false
+  const name = (
+    <h3 className="lm-plate__name" title={heading}>
+      {tag}
+    </h3>
+  )
+  const tools = (
+    <div className="lm-plate__tools">
+      {presetsShown ? (
+        <select
+          className="lm-device__presets"
+          aria-label={`${heading} preset`}
+          {...infoProps(
+            'Preset',
+            `Sets every knob of ${heading} to one of its ready-made settings. Turning a knob afterwards leaves the preset behind.`,
+          )}
+          value={presetName}
+          onChange={(event) => {
+            const name = event.target.value
+            setPresetName(name)
+            if (name) d.applyPreset(name)
+          }}
+          data-testid={testId ? `${testId}-preset` : undefined}
+        >
+          <option value="">Preset…</option>
+          {d.presets.map((preset) => (
+            <option key={preset.name} value={preset.name}>
+              {preset.name}
+            </option>
+          ))}
+        </select>
+      ) : null}
+      {actions}
+      {onRemove ? (
+        <button
+          type="button"
+          className="lm-button lm-button--neutral lm-device__remove"
+          aria-label={`Remove ${heading}`}
+          onClick={onRemove}
+          {...infoProps('Remove', `Takes ${heading} out of the chain, with its settings.`)}
+          data-testid={testId ? `${testId}-remove` : undefined}
+        >
+          ×
+        </button>
+      ) : null}
+    </div>
+  )
+
   return (
     <section
       className={cx(
@@ -302,10 +351,16 @@ export function DevicePlate({
           {open ? '−' : `+${rest.length}`}
         </button>
       ) : null}
-      <div className={cx('lm-plate__foot', presetPicker !== undefined && 'lm-plate__foot--picker')}>
-        <h3 className="lm-plate__name" title={heading}>
-          {tag}
-        </h3>
+      <div className={cx('lm-plate__foot', picker && 'lm-plate__foot--picker')}>
+        {picker ? (
+          // Beside a picker the tools share the name's place, so they come up over its end.
+          <div className="lm-plate__lead">
+            {name}
+            {tools}
+          </div>
+        ) : (
+          name
+        )}
         {isMeteredDevice(device)
           ? Object.entries(device.meters).map(([name, spec]) => (
               <DeviceMeterReadout
@@ -319,48 +374,8 @@ export function DevicePlate({
               />
             ))
           : null}
-        {presetPicker !== undefined ? (
-          <div className="lm-plate__presets">{presetPicker}</div>
-        ) : null}
-        <div className="lm-plate__tools">
-          {presetsShown ? (
-            <select
-              className="lm-device__presets"
-              aria-label={`${heading} preset`}
-              {...infoProps(
-                'Preset',
-                `Sets every knob of ${heading} to one of its ready-made settings. Turning a knob afterwards leaves the preset behind.`,
-              )}
-              value={presetName}
-              onChange={(event) => {
-                const name = event.target.value
-                setPresetName(name)
-                if (name) d.applyPreset(name)
-              }}
-              data-testid={testId ? `${testId}-preset` : undefined}
-            >
-              <option value="">Preset…</option>
-              {d.presets.map((preset) => (
-                <option key={preset.name} value={preset.name}>
-                  {preset.name}
-                </option>
-              ))}
-            </select>
-          ) : null}
-          {actions}
-          {onRemove ? (
-            <button
-              type="button"
-              className="lm-button lm-button--neutral lm-device__remove"
-              aria-label={`Remove ${heading}`}
-              onClick={onRemove}
-              {...infoProps('Remove', `Takes ${heading} out of the chain, with its settings.`)}
-              data-testid={testId ? `${testId}-remove` : undefined}
-            >
-              ×
-            </button>
-          ) : null}
-        </div>
+        {picker ? <div className="lm-plate__presets">{presetPicker}</div> : null}
+        {picker ? null : tools}
         {showBypass ? (
           <DeviceToggle
             pressed={powered}

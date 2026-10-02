@@ -258,10 +258,12 @@ the devices shown on `DeviceChainView`. The kit's list then stays away, and on
 a plate the picker sits on the foot beside the name, in view without the
 pointer. It gets the room the name leaves, down to one 20 px cell, and that
 room is a container named `lm-plate-presets`, so the picker can fold to a
-smaller form with a container query. Under a pointer the tools come up over
-the end of the name, so the picker does not move; on a touch screen they keep
-their room. `null` draws none and still keeps the
-kit's list away. Either way a preset picked by name sets every knob
+smaller form with a container query. Beside a picker the tools share the
+name's place (`lm-plate__lead`): under a pointer they come up over the end of
+the name, so the picker does not move, and the pair is as wide as the wider of
+the two, so a short name leaves no tool cut off; on a touch screen they keep
+their room in front of the lamp. `null` draws none, takes no room and still
+keeps the kit's list away. Either way a preset picked by name sets every knob
 (`useDevice().applyPreset(name)`): what the preset does not name goes back to
 where the device starts, so the preset picked before leaves nothing behind.
 

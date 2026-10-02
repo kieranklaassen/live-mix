@@ -303,7 +303,30 @@ describe('DevicePlate', () => {
     expect(picker.parentElement).toHaveClass('lm-plate__presets')
     expect(picker.closest('.lm-plate__tools')).toBeNull()
     expect(picker.closest('.lm-plate__foot')).toHaveClass('lm-plate__foot--picker')
-    expect(screen.getByTestId('plate-remove').closest('.lm-plate__tools')).not.toBeNull()
+    // The tools share the name's place, so they can come up over its end and leave the picker where it is.
+    const tools = screen.getByTestId('plate-remove').closest('.lm-plate__tools')
+    expect(tools?.parentElement).toHaveClass('lm-plate__lead')
+    expect(tools?.previousElementSibling).toHaveClass('lm-plate__name')
+  })
+
+  it('keeps its own preset list away for a picker that draws nothing, and gives it no room', async () => {
+    const fixture = createTestEngine()
+    const device = await make(fixture)
+    const { container } = render(
+      <DevicePlate
+        device={device}
+        skin={SKIN}
+        presetPicker={null}
+        onRemove={() => {}}
+        data-testid="plate"
+      />,
+      { wrapper: fixture.wrapper },
+    )
+    expect(screen.queryByTestId('plate-preset')).toBeNull()
+    expect(container.querySelector('.lm-plate__presets')).toBeNull()
+    expect(container.querySelector('.lm-plate__lead')).toBeNull()
+    expect(container.querySelector('.lm-plate__foot')).not.toHaveClass('lm-plate__foot--picker')
+    expect(screen.getByTestId('plate-remove').parentElement).toHaveClass('lm-plate__tools')
   })
 
   it('turns the device off and on from the lamp', async () => {
