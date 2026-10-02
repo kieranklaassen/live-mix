@@ -48,6 +48,8 @@ build_generated_devices() {
     cpp/devices/modal-bells/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device organ \
     cpp/devices/organ/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device patina \
+    cpp/devices/patina/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device phaser \
     cpp/devices/phaser/device_api.gen.cpp
   MEMORY_BYTES=20971520 EXTRA_EXPORTS="" build_device reverse-delay \
@@ -133,6 +135,8 @@ test_generated_devices() {
     cpp/test/modal_bells_test.cpp
   native_test organ_test \
     cpp/test/organ_test.cpp
+  native_test patina_test \
+    cpp/test/patina_test.cpp
   native_test phaser_test \
     cpp/test/phaser_test.cpp
   native_test reverse_delay_test \
