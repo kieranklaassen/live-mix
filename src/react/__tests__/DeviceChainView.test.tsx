@@ -365,6 +365,38 @@ describe('DeviceChainView', () => {
     expect(pad.strip.inserts).toEqual([eq, delay, filter])
   })
 
+  it('lets go without pressing the control the pointer landed on', async () => {
+    const { pad, devices, titles } = await threeDevices()
+    const [filter, eq, delay] = devices
+    fireEvent.pointerDown(titles[0], { pointerId: 1, button: 0, clientX: 20 })
+    fireEvent.pointerMove(window, { pointerId: 1, clientX: 290 })
+    fireEvent.pointerUp(window, { pointerId: 1 })
+    expect(pad.strip.inserts).toEqual([eq, delay, filter])
+    // The click the browser sends after the drop is the carry's, not a press on what is under it.
+    const later = screen.getByRole('button', { name: 'Move eq3 later' })
+    fireEvent.click(later)
+    expect(pad.strip.inserts).toEqual([eq, delay, filter])
+    // The press after that is heard as ever.
+    fireEvent.click(later)
+    expect(pad.strip.inserts).toEqual([delay, eq, filter])
+  })
+
+  it('keeps the carried name inside what the chain scrolls', async () => {
+    const { titles } = await threeDevices()
+    // jsdom lays nothing out: the chain is made a scroller of 300 px of content in a 150 px view.
+    const element = screen.getByTestId('chain')
+    Object.defineProperty(element, 'scrollWidth', { value: 300 })
+    Object.defineProperty(element, 'clientWidth', { value: 150 })
+    element.style.overflowX = 'auto'
+    fireEvent.pointerDown(titles[0], { pointerId: 1, button: 0, clientX: 20 })
+    fireEvent.pointerMove(window, { pointerId: 1, clientX: 290 })
+    const carried = screen.getByTestId('chain-carried')
+    Object.defineProperty(carried, 'offsetWidth', { value: 80 })
+    // Past the end of the content the name would be more for the chain to scroll.
+    fireEvent.pointerMove(window, { pointerId: 1, clientX: 291 })
+    expect(carried.style.transform).toBe('translateX(220px)')
+  })
+
   it('carries past pinned inserts as if they were not there', async () => {
     const fixture = createTestEngine()
     const pad = fixture.engine.addAudioTrack('pad')
