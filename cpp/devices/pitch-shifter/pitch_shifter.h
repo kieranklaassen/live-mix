@@ -62,6 +62,7 @@ class PitchShifter : public kit::DeviceBase<pitch_shifter::kNumParams> {
     tone_seen_ = -1.0f;
     guard_seen_ = -1.0f;
     b_active_ = false;
+    loop_trim_ = 1.0f;
     // The longest silent gap: Delay, plus a head two octaves up at the
     // longest Size with full Jitter.
     idle_.reset(sr, 3.0f);
@@ -113,8 +114,11 @@ class PitchShifter : public kit::DeviceBase<pitch_shifter::kNumParams> {
         wet[1] += mid * mid_right_[v].next() - side;
       }
 
-      // Feedback: both voices at the power of one, held under full scale.
-      const float feedback = feedback_.next() / std::sqrt(1.0f + level_b * level_b);
+      // Feedback. Two voices in a loop meet their own echoes (A of B is B of
+      // A), which add in amplitude, so the pair is fed back at the level of
+      // one; the grains likewise count as if they all agreed. That keeps
+      // the loop below unity whatever the pitches.
+      const float feedback = feedback_.next() * loop_trim_ / (1.0f + level_b);
       for (int c = 0; c < 2; ++c) {
         const float returned = kit::soft_clip(feedback * rumble_[c].highpass(back[c]));
         const float record = guard_[1][c].lowpass(guard_[0][c].lowpass(in[c] + returned));
@@ -240,6 +244,7 @@ class PitchShifter : public kit::DeviceBase<pitch_shifter::kNumParams> {
       mid_right_[v].set(right * kSqrtTwo, !settle_);
       side_[v].set(1.0f - away, !settle_);
     }
+    loop_trim_ = mode == kGrain ? 0.5f / kit::max(setup_[0].grain_gain, setup_[1].grain_gain) : 1.0f;
     settle_ = false;
   }
 
@@ -258,6 +263,7 @@ class PitchShifter : public kit::DeviceBase<pitch_shifter::kNumParams> {
   float ratio_step_[2] = {0.0f, 0.0f};
   float mix_seen_ = -1.0f, dry_gain_ = 1.0f, wet_gain_ = 0.0f;
   float tone_seen_ = -1.0f, guard_seen_ = -1.0f;
+  float loop_trim_ = 1.0f;
   bool b_active_ = false;
   bool settle_ = true;  // the first control tick snaps what later ones glide
 };

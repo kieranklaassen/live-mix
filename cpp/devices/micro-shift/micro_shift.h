@@ -9,7 +9,7 @@
 //         │                                                         │ lows back in
 //   L + R ┼─ high-pass (Focus) ─(+)─► shifter UP ─► tone ─┬─► pan ──┼─┐
 //         │                      ▲                        │         │ ├─ mix ─► out L
-//         │                      └── soft limit ◄─ fb ────┘         │ │
+//         │                      └─ limit ◄─ smear ◄─ fb ─┘         │ │
 //         └─────────────────────────────────────────────────────────┴─┘ dry
 //   out R: the same from in R, with shifter DOWN at 1.4 times the delay.
 //   Both shifters read the mono sum, so every source gets a sharp copy on
@@ -30,8 +30,10 @@
 // - Drift wanders each side's detune (up to ±8 cents) and delay (up to
 //   ±1.5 ms) on its own slow, seeded, sine-sum curve.
 // - Feedback sends each side back into its own shifter, so every pass is
-//   detuned again: the left spirals up, the right down. The loop is linear
-//   up to 0 dBFS and lands on ±2 above it.
+//   detuned again: the left spirals up, the right down. Two short allpasses
+//   in that path smear each pass a little more, so the repeats of an attack
+//   blur into a wash rather than a flutter; the first copy is never smeared.
+//   The loop is linear up to 0 dBFS and lands on ±2 above it.
 // - Mix is equal power: the copies differ from the dry sound in time and in
 //   pitch, so they add in power, not in amplitude.
 
@@ -56,8 +58,10 @@ class MicroShift : public kit::DeviceBase<micro_shift::kNumParams> {
       low_[c].reset();
       diffuser_a_[c].clear();
       diffuser_b_[c].clear();
-      diffusion_a_[c] = kit::clamp_int(static_cast<int>(kDiffusionSeconds[c][0] * sr), 1, kDiffuserSize - 1);
-      diffusion_b_[c] = kit::clamp_int(static_cast<int>(kDiffusionSeconds[c][1] * sr), 1, kDiffuserSize - 1);
+      diffusion_a_[c] =
+          kit::clamp_int(static_cast<int>(kDiffusionSeconds[c][0] * sr), 1, kDiffuserSize - 1);
+      diffusion_b_[c] =
+          kit::clamp_int(static_cast<int>(kDiffusionSeconds[c][1] * sr), 1, kDiffuserSize - 1);
       tone_filter_[c].reset();
       last_wet_[c] = 0.0f;
       increment_[c].set_time(kDetuneGlideSeconds, sr);
@@ -98,6 +102,10 @@ class MicroShift : public kit::DeviceBase<micro_shift::kNumParams> {
     for (int i = 0; i < frames; ++i) {
       float in[2];
       take_input(i, &in[0], &in[1]);
+      // A non-finite or absurd sample would stay in the feedback loop for good.
+      for (float& sample : in) {
+        if (!(sample > -64.0f && sample < 64.0f)) sample = 0.0f;
+      }
 
       if (clock_.tick()) control(false);
 
@@ -112,10 +120,8 @@ class MicroShift : public kit::DeviceBase<micro_shift::kNumParams> {
         // What goes round again is smeared a little more on every pass, so
         // the repeats of an attack melt into a wash instead of a flutter.
         float back = last_wet_[c];
-#ifndef MS_NO_DIFFUSION
         back = diffuser_a_[c].process(back, diffusion_a_[c], kDiffusionGain);
         back = diffuser_b_[c].process(back, diffusion_b_[c], kDiffusionGain);
-#endif
         shifter_[c].write(flush_denormal(high + loop_limit(feedback * back)));
         const float shifted = shifter_[c].read(increment_[c].next(), wander_[c].next());
         wet[c] = tone_filter_[c].lowpass(shifted);
@@ -228,7 +234,7 @@ class MicroShift : public kit::DeviceBase<micro_shift::kNumParams> {
       case kDelay:
         for (int c = 0; c < 2; ++c) {
           const float ms = value * (c == 0 ? 1.0f : kRightDelayRatio);
-          shifter_[c].set_centre(ms * 0.001f * sample_rate(), !primed());
+          shifter_[c].set_centre(ms * 0.001f * sample_rate(), !ramp);
         }
         break;
       case kDrift:

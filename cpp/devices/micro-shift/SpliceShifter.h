@@ -128,14 +128,26 @@ class SpliceShifter {
   // to 25 ms long: that choice of landing points holds a whole period of
   // anything above 50 Hz, and the common period of most chords.
   static constexpr float kJumpMinMs = 5.0f;
-  static constexpr float kJumpRangeMs = 10.0f;  // either side of the jump that reaches the landing point
-  static constexpr float kSoftMs = 7.5f;   // this far ahead of the centre: splice at the next clean moment
-  static constexpr float kHardMs = 9.5f;   // this far ahead: splice now
-  static constexpr float kLandMs = 7.5f;   // a splice aims this far behind the centre
-  static constexpr float kFarMs = 19.5f;   // this far away on either side: splice now
-  static constexpr float kFadeMs = 12.0f;      // crossfade when the two heads agree
-  static constexpr float kLongFadeMs = 30.0f;  // and when they do not
-  static constexpr float kWanderRoomMs = 1.6f; // kept free under the lowest head for the caller's wander
+  // The search covers this much either side of the jump that reaches the
+  // landing point.
+  static constexpr float kJumpRangeMs = 10.0f;
+  // Ahead of the centre by this much, splice at the next clean moment; by
+  // kHardMs, splice now.
+  static constexpr float kSoftMs = 7.5f;
+  static constexpr float kHardMs = 9.5f;
+  // A splice aims this far behind the centre.
+  static constexpr float kLandMs = 7.5f;
+  // This far from the centre on either side (the Delay control jumped, or the
+  // direction of travel turned round), splice now.
+  static constexpr float kFarMs = 19.5f;
+  // Crossfade length: kFadeMs when the two heads agree, up to kLongFadeMs
+  // when they do not, never under kShortFadeMs.
+  static constexpr float kShortFadeMs = 5.0f;
+  static constexpr float kFadeMs = 12.0f;
+  static constexpr float kLongFadeMs = 30.0f;
+  // Kept free under the lowest landing point for the caller's wander.
+  static constexpr float kWanderRoomMs = 1.6f;
+  // Correlation windows: the decimated pass and the full-rate pass.
   static constexpr float kCoarseWindowMs = 10.0f;
   static constexpr float kFineWindowMs = 5.0f;
   // The Delay control may not ask for a centre closer to the write head.
@@ -152,6 +164,7 @@ class SpliceShifter {
     hard_ = kHardMs * ms;
     land_ = kLandMs * ms;
     far_ = kFarMs * ms;
+    fade_min_ = static_cast<int>(kShortFadeMs * ms);
     fade_short_ = static_cast<int>(kFadeMs * ms);
     fade_long_ = static_cast<int>(kLongFadeMs * ms);
     fade_length_ = fade_short_;
@@ -202,8 +215,8 @@ class SpliceShifter {
   }
 
   // Where the head should live, in samples behind the write head. `snap`
-  // (before the first block) puts it there at once; otherwise it gets there
-  // by a splice, or by a slow glide when the move is small.
+  // (nothing is sounding) puts it there at once; otherwise it gets there by a
+  // splice, or by a slow glide when the move is small.
   void set_centre(float samples, bool snap) {
     const double floor = static_cast<double>(kMinCentreMs * 0.001f * sample_rate_);
     double centre = static_cast<double>(samples);
@@ -211,8 +224,8 @@ class SpliceShifter {
     if (centre > max_delay_ - far_) centre = max_delay_ - far_;
     if (snap) {
       centre_ = centre;
-      head_ = centre;
-      other_ = centre;
+      head_ = centre + landing(increment_);
+      other_ = head_;
       fading_ = false;
       glide_ = 0.0;
       pending_ = 0.0;
@@ -429,9 +442,17 @@ class SpliceShifter {
 
     other_ = bound(head_ + jump);
     rho_ = rho;
-    // Heads that agree fade quickly; heads that do not dissolve slowly.
+    // Heads that agree fade quickly; heads that do not dissolve slowly. The
+    // line is known to be free of attacks only as far as the nearer head, so
+    // the fade is no longer than that head's delay when it can afford it: an
+    // attack that arrives after the splice began then meets one head only.
     const float doubt = kit::clamp((0.95f - rho) * (1.0f / 0.45f), 0.0f, 1.0f);
-    fade_length_ = fade_short_ + static_cast<int>(doubt * static_cast<float>(fade_long_ - fade_short_));
+    const float longest =
+        static_cast<float>(fade_short_) + doubt * static_cast<float>(fade_long_ - fade_short_);
+    const float briefest =
+        static_cast<float>(fade_min_) + doubt * static_cast<float>(fade_short_ - fade_min_);
+    const float clear = static_cast<float>(head_ < other_ ? head_ : other_);
+    fade_length_ = static_cast<int>(kit::clamp(clear, briefest, longest));
     fading_ = true;
     fade_position_ = 0;
     glide_ = 0.0;
@@ -573,6 +594,7 @@ class SpliceShifter {
   double pending_ = 0.0;
   double glide_rate_ = 0.003;
   int fade_length_ = 576;
+  int fade_min_ = 240;
   int fade_short_ = 576;
   int fade_long_ = 1440;
   int fade_position_ = 0;

@@ -14,7 +14,7 @@ export const MICRO_SHIFT_PARAMS = {
     taper: 'linear',
     unit: 'ct',
     description:
-      'How far the two copies are tuned away from the dry sound: the left one sharp, the right one flat. A few cents is a soft widening; higher settings beat against the dry sound and turn sour.',
+      'How far the two copies are tuned away from the dry sound: the left one sharp, the right one flat. A few cents is a soft widening; more beats against the dry sound and turns sour.',
   },
   delay: {
     id: 1,
@@ -47,7 +47,7 @@ export const MICRO_SHIFT_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Feeds each copy back into itself, so it is detuned again on every pass: the left side climbs and the right side sinks as the repeats fade.',
+      'Feeds each copy back into itself, so it is detuned again on every pass: the left side climbs and the right side sinks as the repeats blur and fade.',
   },
   focus: {
     id: 4,
@@ -118,11 +118,12 @@ export const MICRO_SHIFT_DESCRIPTOR = wasmDeviceDescriptor(MICRO_SHIFT_DEVICE, {
       focus: 180,
       tone: 10000,
       width: 1,
-      mix: 0.5,
+      mix: 0.4,
     },
-    'Subtle halo': { detune: 4, delay: 12, drift: 0.1, tone: 7000, mix: 0.35 },
+    'Subtle halo': { detune: 4, delay: 12, drift: 0.1, tone: 6000, mix: 0.28 },
     'Thick double': { detune: 20, delay: 32, drift: 0.25, tone: 8000, mix: 0.5 },
     'Treated piano': { detune: 12, delay: 18, drift: 0.45, focus: 250, tone: 3500, mix: 0.55 },
+    'Wide open': { detune: 14, delay: 20, drift: 0.2, focus: 120, tone: 18000, mix: 0.65 },
     Spiral: {
       detune: 14,
       delay: 45,
@@ -132,17 +133,17 @@ export const MICRO_SHIFT_DESCRIPTOR = wasmDeviceDescriptor(MICRO_SHIFT_DEVICE, {
       tone: 5000,
       mix: 0.45,
     },
-    Seasick: { detune: 40, delay: 24, drift: 0.9, tone: 6000, mix: 0.5 },
-    'Centre thickener': { detune: 7, delay: 12, drift: 0.1, width: 0, mix: 0.45 },
-    'Still shimmer': {
+    'Detune cloud': {
       detune: 6,
       delay: 22,
-      drift: 0,
-      feedback: 0.45,
+      drift: 0.3,
+      feedback: 0.5,
       focus: 400,
-      tone: 12000,
-      mix: 0.4,
+      tone: 9000,
+      mix: 0.45,
     },
+    Seasick: { detune: 40, delay: 24, drift: 0.9, tone: 6000, mix: 0.5 },
+    'Centre thickener': { detune: 7, delay: 12, drift: 0.1, width: 0, mix: 0.45 },
   },
 })
 

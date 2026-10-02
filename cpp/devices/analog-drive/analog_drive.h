@@ -399,10 +399,12 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
       const float thump = thump_.next();
       const float tone = tone_.next();
       const float high_hz = std::exp(high_cut_.next());
-      low_cut_amount_ =
-          kit::clamp(std::log(low_hz / kLowCutOutHz) / std::log(kLowCutInHz / kLowCutOutHz), 0.0f, 1.0f);
-      high_cut_open_ =
-          kit::clamp(std::log(high_hz / kHighCutInHz) / std::log(kHighCutOutHz / kHighCutInHz), 0.0f, 1.0f);
+      // (A hair of margin, so the ends of the travel land on 0 and 1
+      // whatever the logarithms round to.)
+      low_cut_amount_ = kit::clamp(
+          1.01f * std::log(low_hz / kLowCutOutHz) / std::log(kLowCutInHz / kLowCutOutHz) - 0.01f, 0.0f, 1.0f);
+      high_cut_open_ = kit::clamp(
+          1.01f * std::log(high_hz / kHighCutInHz) / std::log(kHighCutOutHz / kHighCutInHz), 0.0f, 1.0f);
       const float thump_hz = kit::max(kThumpFloorHz, kThumpRatio * low_hz);
       const bool low_cut_on = low_cut_amount_ > 0.0f;
       const bool thump_on = thump > 0.0f;
@@ -445,7 +447,7 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
     using namespace analog_drive_dsp;
     const Circuit& spec = *lane.spec;
     const float bias = working_point(lane, drive_.value);
-    const double offset = spec.curve.f(static_cast<double>(bias));
+    const double offset = bias == lane.bias ? lane.offset : spec.curve.f(static_cast<double>(bias));
     const float gain = gain_ * lane.push_gain / (1.0f + spec.sag * lane.envelope);
     const float bias_step = 0.25f * (bias - lane.bias);
     const double offset_step = 0.25 * (offset - lane.offset);
@@ -459,7 +461,7 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
         if (spec.pre[k].kind != Eq::kNone) x = channel.pre[k].process(x);
       }
       x *= gain;
-      const float size = x < 0.0f ? -x : x;
+      const float size = std::fabs(x);
       if (size > arriving) arriving = size;
       float pair[2], back[2];
       channel.outer.up(x, &pair[0], &pair[1]);
@@ -482,7 +484,7 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
         back[k] = channel.inner.down(sub[0], sub[1]);
       }
       float y = channel.outer.down(back[0], back[1]);
-      const float magnitude = y < 0.0f ? -y : y;
+      const float magnitude = std::fabs(y);
       if (magnitude > level) level = magnitude;
       for (int k = 0; k < kMaxPost; ++k) {
         if (spec.post[k].kind != Eq::kNone) y = channel.post[k].process(y);

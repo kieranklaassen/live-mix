@@ -67,39 +67,13 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
       const float step = clock * speed_.next() * (1.0f + wobble_.next());
       if (control_.tick()) control(step, clock);
       float wet[2] = {0.0f, 0.0f};
-      float side = 0.0f;
       const float smear = smear_.next();
-      if (smear != smear_seen_) {
-        smear_seen_ = smear;
-        plain_gain_ = kit::SineTable::cos_lookup(0.25f * smear);
-        grain_gain_ = kit::SineTable::lookup(0.25f * smear);
-        grain_interval_ =
-            (kGrainSeconds + kGrainGrowSeconds * smear) * sample_rate() / kGrainOverlap;
-      }
       const float width = width_.next();
-      for (Deck& d : decks_) {
-        if (d.active) play(d, step, width > 0.0f, wet, &side);
+      if (decks_[0].active || decks_[1].active) {
+        loop_voice(step, clock, smear, width, wet);
+      } else if (voiced_) {
+        rest();
       }
-      if (width > 0.0f) {
-        // Mid/side: the side signal cancels in mono and leaves the plain loop.
-        if (width != width_seen_) {
-          width_seen_ = width;
-          centre_gain_ = 1.0f / std::sqrt(1.0f + 2.0f * width * width);
-        }
-        const float s = side_cut_.highpass(side) * width;
-        wet[0] = centre_gain_ * (wet[0] + s);
-        wet[1] = centre_gain_ * (wet[1] - s);
-      }
-      if (clock < 1.0f) {
-        const float open = band_open(clock);
-        wet[0] = band_limit(read_cut_[0], wet[0], open);
-        wet[1] = band_limit(read_cut_[1], wet[1], open);
-      }
-      // Tone: a 12 dB/octave high cut that opens up completely at the top.
-      const float cut_left = tone_[0].lowpass(wet[0]);
-      const float cut_right = tone_[1].lowpass(wet[1]);
-      wet[0] = cut_left + tone_open_ * (wet[0] - cut_left);
-      wet[1] = cut_right + tone_open_ * (wet[1] - cut_right);
 
       const float mix = mix_.next();
       if (mix != mix_seen_) {
@@ -158,12 +132,13 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
   static constexpr float kWobbleHz = 0.35f;
   static constexpr float kMaxOffsetSeconds = 0.06f;
 
-  // Smear: grains of 100 to 300 ms, four deep, scattered 20 to 300 ms either
-  // side of the playhead.
-  static constexpr int kMaxGrains = 12;
-  static constexpr float kGrainOverlap = 4.0f;
-  static constexpr float kGrainSeconds = 0.1f;
-  static constexpr float kGrainGrowSeconds = 0.2f;
+  // Smear: grains of 120 to 400 ms, three to six deep, scattered 20 to
+  // 300 ms either side of the playhead.
+  static constexpr int kMaxGrains = 16;
+  static constexpr float kGrainOverlap = 3.0f;
+  static constexpr float kGrainOverlapGrow = 3.0f;
+  static constexpr float kGrainSeconds = 0.12f;
+  static constexpr float kGrainGrowSeconds = 0.28f;
   static constexpr float kScatterSeconds = 0.02f;
   static constexpr float kScatterGrowSeconds = 0.28f;
 
@@ -241,6 +216,7 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     float env = 0.0f;        // fade between decks, 0..1
     float env_step = 0.0f;
     float blur = 0.0f;       // half the spacing of the two reads above speed 1
+    bool stored = false;     // the store holds its capture, complete (control rate)
     float until_grain = 0.0f;  // samples until Smear starts its next grain
     kit::GrainPool<kMaxGrains> grains;
   };
@@ -256,7 +232,9 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
 
     float read(int channel, double position) const {
       if (channel == 1 && position == cached) return cached_right;
-      const double q = position - std::floor(position / deck->length) * deck->length;
+      double q = position;
+      while (q >= deck->length) q -= deck->length;
+      while (q < 0.0) q += deck->length;
       float left, right;
       looper->loop_read(*deck, q, 0.0, &left, &right);
       cached = position;
@@ -269,7 +247,7 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
   // 1 the read skips frames, so two reads half a step apart are averaged: a
   // zero at the ring's Nyquist, which is what would fold furthest down.
   void source_read(const Deck& d, double position, float* left, float* right) const {
-    const bool stored = store_ready_ && store_tag_ == d.end;
+    const bool stored = d.stored;
     if (d.blur < 0.01f) {
       if (stored) {
         store_.read(position, left, right);
@@ -357,6 +335,7 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     pending_ = kNone;
     const float seconds = swap_seconds();
     d.offset = 0.0;
+    d.stored = store_ready_ && store_tag_ == d.end;
     d.until_grain = 0.0f;
     d.gain_step = 0.0f;
     d.blur = 0.0f;
@@ -420,6 +399,58 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
       }
     }
     if (pending_ != kNone && !decks_[current_ ^ 1].active) begin_pending();
+  }
+
+  // Everything the loop is heard through: both decks, the side signal, the
+  // clock's band-limit and Tone.
+  void loop_voice(float step, float clock, float smear, float width, float* wet) {
+    voiced_ = true;
+    if (smear != smear_seen_) {
+      smear_seen_ = smear;
+      plain_gain_ = kit::SineTable::cos_lookup(0.25f * smear);
+      grain_gain_ = kit::SineTable::lookup(0.25f * smear);
+      grain_overlap_ = kGrainOverlap + kGrainOverlapGrow * smear;
+      grain_interval_ = (kGrainSeconds + kGrainGrowSeconds * smear) * sample_rate() / grain_overlap_;
+      // Unrelated grains: 1 / sqrt(overlap x mean square of the Hann
+      // window), and sqrt(2) for the centre of the pan law.
+      grain_level_ = 1.4142136f / std::sqrt(grain_overlap_ * 0.375f);
+    }
+    float side = 0.0f;
+    for (Deck& d : decks_) {
+      if (d.active) play(d, step, width > 0.0f, wet, &side);
+    }
+    if (width > 0.0f) {
+      // Mid/side: the side signal cancels in mono and leaves the plain loop.
+      if (width != width_seen_) {
+        width_seen_ = width;
+        centre_gain_ = 1.0f / std::sqrt(1.0f + 2.0f * width * width);
+      }
+      const float s = side_cut_.highpass(side) * width;
+      wet[0] = centre_gain_ * (wet[0] + s);
+      wet[1] = centre_gain_ * (wet[1] - s);
+    }
+    if (clock < 1.0f) {
+      const float open = band_open(clock);
+      wet[0] = band_limit(read_cut_[0], wet[0], open);
+      wet[1] = band_limit(read_cut_[1], wet[1], open);
+    }
+    // Tone: a 12 dB/octave high cut that opens up completely at the top.
+    if (tone_open_ < 1.0f) {
+      const float cut_left = tone_[0].lowpass(wet[0]);
+      const float cut_right = tone_[1].lowpass(wet[1]);
+      wet[0] = cut_left + tone_open_ * (wet[0] - cut_left);
+      wet[1] = cut_right + tone_open_ * (wet[1] - cut_right);
+    }
+  }
+
+  // No loop is playing: leave the voice's filters empty for the next one.
+  void rest() {
+    voiced_ = false;
+    for (int c = 0; c < 2; ++c) {
+      for (int k = 0; k < kBandSections; ++k) read_cut_[c][k].reset();
+      tone_[c].reset();
+    }
+    side_cut_.reset();
   }
 
   // One sample of a deck into `wet`, then move its playhead by `step` frames.
@@ -488,12 +519,11 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     const float length = (kGrainSeconds + kGrainGrowSeconds * smear) * sample_rate();
     double scatter = (kScatterSeconds + kScatterGrowSeconds * smear) * d.rate;
     if (scatter > 0.25 * d.length) scatter = 0.25 * d.length;
-    const double position = d.place + scatter * rng_.bipolar();
+    // A whole number of frames from the playhead, so that at normal speed a
+    // grain reads stored frames exactly as the playhead does.
+    const double position = d.place + std::floor(scatter * rng_.bipolar());
     const float pan = param(kSpread) * rng_.bipolar();
-    // Unrelated grains: 1 / sqrt(overlap x mean square of the Hann window),
-    // and sqrt(2) for the centre of the pan law.
-    const float gain = 1.4142136f / std::sqrt(kGrainOverlap * 0.375f);
-    d.grains.spawn(position, step, length, pan, gain, 1.0f);
+    d.grains.spawn(position, step, length, pan, grain_level_, 1.0f);
   }
 
   // Keep the current loop: copy its capture from the ring into the store, a
@@ -569,9 +599,9 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
       if (d.gain < kGoneGain && !d.releasing) retire(d, kGoneSeconds);
       // Never read tape the record head is about to reach (the copy into
       // the store finishes long before; this is the safety net).
-      const bool stored = store_ready_ && store_tag_ == d.end;
+      d.stored = store_ready_ && store_tag_ == d.end;
       const double oldest = d.start - d.join - 8.0;
-      if (!stored && !d.releasing &&
+      if (!d.stored && !d.releasing &&
           static_cast<double>(ring_.written()) - oldest > kRingFrames - 8192) {
         retire(d, 0.02f);
       }
@@ -611,6 +641,7 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     tone_now_ = -1.0f;
     width_seen_ = -1.0f;
     moving_ = false;
+    voiced_ = false;
     wobble_ = Line();
     control_.reset(kControlPeriod);
     clock_.snap(clock_.target);
@@ -690,11 +721,13 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
   kit::Rng rng_;
   Line wobble_;
   bool moving_ = false;
+  bool voiced_ = false;
   float clock_seen_ = 1.0f;
   float tone_now_ = 0.0f;
   float tone_open_ = 0.0f;
   float width_seen_ = -1.0f, centre_gain_ = 1.0f;
   float smear_seen_ = -1.0f, plain_gain_ = 1.0f, grain_gain_ = 0.0f, grain_interval_ = 1200.0f;
+  float grain_overlap_ = 3.0f, grain_level_ = 1.0f;
   kit::ControlClock control_;
   float history_[2][4] = {};
   float write_phase_ = 0.0f;

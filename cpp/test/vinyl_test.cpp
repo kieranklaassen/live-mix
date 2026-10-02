@@ -279,6 +279,22 @@ int main() {
     const std::vector<float> still = deviation(run(device, sine(1000.0f, 4.0f, kRate, 0.25f)).left, 1000.0, at(0.5), 20);
     EXPECT(largest(still) < 0.00002, "Warp 0: the pitch is steady");
 
+    // The read keeps its treble while the head moves: a 15 kHz tone at
+    // 44.1 kHz holds its level, and does not flutter as the fraction turns.
+    bare(device, 44100.0f);
+    device.set_param(p::kWarp, 0.5f);
+    Stereo high = run(device, sine(15000.0f, 4.0f, 44100.0f, 0.25f));
+    double quietest = 1.0e9, loudest = 0.0;
+    for (size_t i = 44100; i + 88 <= high.size(); i += 88) {
+      const double level = rms(high.left, i, i + 88);
+      quietest = std::min(quietest, level);
+      loudest = std::max(loudest, level);
+    }
+    note("15 kHz through the warp at 44.1 kHz: level (dB)", db(rms(high.left, 44100) / (0.25 * 0.70711)));
+    note("15 kHz through the warp at 44.1 kHz: ripple (dB)", db(loudest / quietest));
+    EXPECT_NEAR(db(rms(high.left, 44100) / (0.25 * 0.70711)), 0.0, 0.2, "the warped read keeps 15 kHz at its level");
+    EXPECT(db(loudest / quietest) < 0.4, "and steady within 0.4 dB as the read point moves");
+
     // The same at 96 kHz.
     bare(device, 96000.0f);
     device.set_param(p::kWarp, 1.0f);

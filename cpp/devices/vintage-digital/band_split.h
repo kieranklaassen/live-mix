@@ -3,8 +3,7 @@
 // The steep filter at half the converter's rate, used twice per channel
 // (before the sampler and after the hold): a ninth-order elliptic low-pass,
 // 0.1 dB ripple, 80 dB stopband from 1.256 times its edge, built as the sum
-// of two allpass chains (Vaidyanathan, Mitra & Neuvo, "A new approach to the
-// realization of low-sensitivity IIR digital filters", IEEE ASSP 1986):
+// of two allpass chains (the structure of a lattice wave digital filter):
 //
 //   low = (A1 + A2) / 2      high = (A1 - A2) / 2
 //
@@ -13,10 +12,13 @@
 // with no dip between. That is how the input filter is "taken away"
 // progressively: g is the share of the out-of-band signal let through.
 //
-// The sections are trapezoidal (Simper's state-variable form), which is the
-// bilinear transform of the analogue prototype and stays well behaved while
-// the edge moves. Poles from Orfanidis, "Lecture notes on elliptic filter
-// design" (2006), edge normalised to 1.
+// The sections are trapezoidal (the kit's state-variable form with the
+// allpass output), which is the bilinear transform of the analogue prototype
+// and stays well behaved while the edge moves. The poles were computed for
+// this device (elliptic design by Landen transformations, checked against
+// the equiripple response: -0.100 dB passband minimum, -80.00 dB stopband
+// maximum) with the edge normalised to 1; A1 takes the real pole and the
+// second and fourth pairs, A2 the first and third.
 
 #include "../../kit/math.h"
 
@@ -35,14 +37,14 @@ class BandSplit {
     for (int i = 0; i < kPairs; ++i) ic1_[i] = ic2_[i] = 0.0f;
   }
 
-  // `edge_hz` is the top of the passband; the stopband starts at 1.256 of it
-  // (a little higher near the host's Nyquist, where the bilinear map squeezes).
-  void set_edge(float edge_hz, float sample_rate) {
-    const float w = std::tan(kit::kPi * kit::clamp(edge_hz, 20.0f, 0.47f * sample_rate) / sample_rate);
-    const float g1 = w * kSigma;
+  // `warp` is tan(pi * edge / sample rate), where the edge is the top of the
+  // passband; the stopband starts at 1.256 of it (a little higher near the
+  // host's Nyquist, where the bilinear map squeezes).
+  void set_warp(float warp) {
+    const float g1 = warp * kSigma;
     first_gain_ = g1 / (1.0f + g1);
     for (int i = 0; i < kPairs; ++i) {
-      const float g = w * kW0[i];
+      const float g = warp * kW0[i];
       a1_[i] = 1.0f / (1.0f + g * (g + kK[i]));
       a2_[i] = g * a1_[i];
       a3_[i] = g * a2_[i];

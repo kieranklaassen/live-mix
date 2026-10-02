@@ -355,21 +355,30 @@ int main() {
       const double behind = (static_cast<double>(right[k]) - static_cast<double>(left[2])) / kRate;
       std::printf("  spread %.1f: right side jumps %.3f s after the left\n", spread, behind);
       EXPECT_NEAR(behind, 0.1 * spread, 0.008, "Spread sets how far the right side trails");
-      if (spread == 0.0f) EXPECT(out.left == out.right, "Spread 0: both sides are the same");
+      if (spread == 0.0f) {
+        double apart = 0.0;
+        for (size_t i = 0; i < out.size(); ++i) {
+          apart = std::max(apart, std::fabs(static_cast<double>(out.left[i]) - out.right[i]));
+        }
+        EXPECT(apart < 1.0e-5, "Spread 0: both sides are the same");
+      }
     }
-    // Bass: a 60 Hz tone (30 Hz slowed... keep it audible: 160 Hz in, 80 out)
-    // is the same on both sides at full Spread, while 2 kHz is not.
+    // Bass at full Spread: 163 Hz goes in with noise on top, 81.5 Hz comes
+    // out the same on both sides while the noise above it does not.
     plain(device);
     device.set_param(p::kSpread, 1.0f);
     device.set_param(p::kSmooth, 0.3f);
     device.set_param(p::kJitter, 0.5f);
     std::vector<float> in = sine(163.0f, 8.0f, kRate, 0.3f);
-    const std::vector<float> top = sine(4111.0f, 8.0f, kRate, 0.3f);
+    rng_state() = 0xD1CEu;
+    const std::vector<float> top = noise(8.0f, kRate, 0.2f);
     for (size_t i = 0; i < in.size(); ++i) in[i] += top[i];
     Stereo out = run(device, in);
     std::vector<float> low_left(out.size()), low_right(out.size()), mid(out.size());
-    double a = 0.0, b = 0.0, c = 0.0, e = 0.0;
-    const double pole = std::exp(-2.0 * kPi * 400.0 / kRate);
+    std::vector<float> high_left(out.size()), high_right(out.size());
+    double a = 0.0, b = 0.0, c = 0.0, e = 0.0, f = 0.0, g = 0.0;
+    const double high_pole = std::exp(-2.0 * kPi * 800.0 / kRate);
+    const double pole = std::exp(-2.0 * kPi * 110.0 / kRate);
     for (size_t i = 0; i < out.size(); ++i) {
       a = out.left[i] + (a - out.left[i]) * pole;
       b = a + (b - a) * pole;
@@ -378,14 +387,19 @@ int main() {
       low_left[i] = static_cast<float>(b);
       low_right[i] = static_cast<float>(e);
       mid[i] = 0.5f * (out.left[i] + out.right[i]);
+      f = out.left[i] + (f - out.left[i]) * high_pole;
+      g = out.right[i] + (g - out.right[i]) * high_pole;
+      high_left[i] = out.left[i] - static_cast<float>(f);
+      high_right[i] = out.right[i] - static_cast<float>(g);
     }
+    const double above = correlation(high_left, high_right, 48000);
     const double bass = correlation(low_left, low_right, 48000);
     const double fold = db(tone_level(mid, 81.5, kRate, 48000) / tone_level(out.left, 81.5, kRate, 48000));
-    std::printf("  spread 1: bass correlation %.3f, bass in mono %+.2f dB, whole signal correlation %.2f\n",
-                bass, fold, correlation(out.left, out.right, 48000));
-    EXPECT(bass > 0.95, "Spread 1: the bass is the same on both sides");
+    std::printf("  spread 1: bass correlation %.3f, bass in mono %+.2f dB, correlation above 800 Hz %.2f\n",
+                bass, fold, above);
+    EXPECT(bass > 0.97, "Spread 1: the bass is the same on both sides");
     EXPECT(std::fabs(fold) < 0.5, "Spread 1: the bass survives a mono fold-down");
-    EXPECT(correlation(out.left, out.right, 48000) < 0.9, "Spread 1: the sides differ above the bass");
+    EXPECT(std::fabs(above) < 0.3, "Spread 1: the sides differ above the bass");
   }
 
   // Quiet soon after the playing stops: exact zeros within Length.
@@ -405,7 +419,114 @@ int main() {
     EXPECT(rms(woken.left, 0, 1920) > 0.25, "a note after silence starts at once, not faded in");
   }
 
-  // BEHAVIOUR CHECKS
+  // Every control can be moved while a tone sounds without a click: the
+  // largest sample-to-sample step stays near the tone's own.
+  {
+    struct Move {
+      int id;
+      float values[3];
+      const char* message;
+    };
+    const Move moves[] = {
+        {p::kLength, {90.0f, 2600.0f, 300.0f}, "moving Length does not click"},
+        {p::kSpeed, {3.0f, 0.0f, 1.0f}, "switching Speed glides without a click"},
+        {p::kFade, {0.5f, 0.01f, 0.3f}, "moving Fade does not click"},
+        {p::kSmooth, {0.0f, 1.0f, 0.2f}, "moving Smooth does not click"},
+        {p::kJitter, {1.0f, 0.0f, 0.6f}, "moving Jitter does not click"},
+        {p::kLowCut, {2000.0f, 20.0f, 300.0f}, "moving Low Cut does not click"},
+        {p::kHighCut, {500.0f, 20000.0f, 3000.0f}, "moving High Cut does not click"},
+        {p::kSpread, {1.0f, 0.0f, 0.7f}, "moving Spread does not click"},
+        {p::kMix, {0.2f, 1.0f, 0.5f}, "moving Mix does not click"},
+    };
+    const std::vector<float> tone = sine(330.0f, 0.4f, kRate, 0.5f);
+    const double own = max_step(tone);
+    double worst = 0.0;
+    for (const Move& move : moves) {
+      device.init(kRate);
+      device.set_param(p::kLength, 300.0f);
+      device.set_param(p::kMix, 0.7f);
+      run(device, sine(330.0f, 1.0f, kRate, 0.5f));
+      double step = 0.0;
+      for (int k = 0; k < 9; ++k) {
+        device.set_param(move.id, move.values[k % 3]);
+        // The tone carries on in phase: 0.4 s is a whole number of cycles.
+        Stereo out = run(device, tone);
+        step = std::max(step, std::max(max_step(out.left), max_step(out.right)));
+      }
+      worst = std::max(worst, step);
+      EXPECT(step < own * 1.5, move.message);
+    }
+    std::printf("  moving controls: largest step %.4f (the tone's own %.4f)\n", worst, own);
+  }
+
+  // Seams on a tone at the tightest splice: no click with Smooth at 0.
+  {
+    double worst = 0.0;
+    for (float hz : {110.0f, 261.63f, 1244.5f}) {
+      plain(device);
+      device.set_param(p::kLength, 120.0f);
+      device.set_param(p::kSmooth, 0.0f);
+      device.set_param(p::kFade, 0.01f);
+      Stereo out = run(device, sine(hz, 3.0f, kRate, 0.5f));
+      // A half-speed sine of the same level steps half as far as the input.
+      const double own = 0.5 * 2.0 * kPi * hz * 0.5 / kRate;
+      worst = std::max(worst, max_step(out.left, 4800) / own);
+    }
+    std::printf("  smooth 0 seams on a tone: largest step %.2f x the slowed tone's own\n", worst);
+    EXPECT(worst < 1.25, "Smooth 0: the seam does not click on a tone");
+  }
+
+  // The same audio whatever the host's block size.
+  {
+    rng_state() = 0xB10Cu;
+    const std::vector<float> in = noise(3.0f, kRate, 0.4f);
+    Stereo reference;
+    for (int block : {128, 1, 2048}) {
+      device.init(kRate);
+      device.set_param(p::kLength, 220.0f);
+      device.set_param(p::kJitter, 0.7f);
+      Stereo out = run(device, in, block);
+      if (block == 128) {
+        reference = out;
+      } else {
+        EXPECT(out.left == reference.left && out.right == reference.right,
+               "blocks of 1, 128 and 2048 frames give the same samples");
+      }
+    }
+  }
+
+  // Times are in seconds at every sample rate: pitch, cycle length and the
+  // continuity of Smooth 1 hold at 44.1 and 96 kHz.
+  for (float rate : {44100.0f, 96000.0f}) {
+    plain(device, rate);
+    device.set_param(p::kLength, 100.0f);
+    device.set_param(p::kSmooth, 1.0f);
+    Stereo out = run(device, sine(261.63f, 3.0f, rate, 0.5f));
+    const size_t from = static_cast<size_t>(rate), to = static_cast<size_t>(3.0f * rate);
+    const double carrier = tone_level(out.left, 130.815, rate, from, to);
+    double side = 0.0;
+    for (double offset : {-20.0, -10.0, 10.0, 20.0}) {
+      side = std::max(side, tone_level(out.left, 130.815 + offset, rate, from, to));
+    }
+    std::printf("  %.1f kHz: tone %.2f, worst cycle-rate sideband %.1f dB under it\n", rate / 1000.0f,
+                carrier, db(side / carrier));
+    EXPECT(carrier > 0.45 && db(side / carrier) < -30.0, "pitch and continuity hold at this rate");
+
+    plain(device, rate);
+    device.set_param(p::kLength, 800.0f);
+    device.set_param(p::kSmooth, 0.0f);
+    device.set_param(p::kFade, 0.25f);
+    std::vector<float> in = sine(3000.0f, 4.0f, rate, 1.0e-4f);
+    const size_t at = static_cast<size_t>(1.9f * rate);  // 0.3 s into the third cycle
+    in[at] = 1.0f;
+    out = run(device, in);
+    size_t last = 0;
+    for (size_t i = at; i < out.size(); ++i) {
+      if (std::fabs(out.left[i]) > 0.02f) last = i;
+    }
+    EXPECT_NEAR((last - at) / rate, 0.3, 0.03, "a click 0.3 s into a cycle is heard 0.3 s late");
+  }
+
 
   plain(device);
   rng_state() = 0xBEEFu;

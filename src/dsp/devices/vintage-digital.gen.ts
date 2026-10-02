@@ -14,7 +14,7 @@ export const VINTAGE_DIGITAL_PARAMS = {
     taper: 'log',
     unit: 'Hz',
     description:
-      'The sample rate of the old converter. Lower is duller and grittier, and brings the ringing copies of the sound that sit above it down into hearing. All the way up switches the resampling off.',
+      'The sample rate of the old converter. Lower is duller and grittier, and brings the ringing copies of the sound that sit above half the rate down into hearing. All the way up switches the resampling off and leaves the other controls working.',
   },
   bits: {
     id: 1,
@@ -25,7 +25,7 @@ export const VINTAGE_DIGITAL_PARAMS = {
     taper: 'linear',
     unit: 'bit',
     description:
-      'How finely the level is measured. Fewer bits add a grain that follows the sound, and quiet tails start to break up and cut off.',
+      'How finely the level is measured. Fewer bits add a grain that follows the sound, and quiet tails break up and then cut off.',
   },
   companding: {
     id: 2,
@@ -82,7 +82,7 @@ export const VINTAGE_DIGITAL_PARAMS = {
     taper: 'linear',
     unit: 'dB',
     description:
-      'Level into the converter. More uses more of its range, so the grain drops, until peaks hit the top and clip flat. The output is turned down to match.',
+      'Level into the converter. More uses more of its range, so the grain drops away, until peaks hit the top and clip flat. The output is turned down to match.',
   },
   mix: {
     id: 7,
@@ -92,7 +92,8 @@ export const VINTAGE_DIGITAL_PARAMS = {
     default: 1,
     taper: 'linear',
     unit: '',
-    description: 'Balance between the clean signal and the converted one.',
+    description:
+      'Balance between the clean signal and the converted one. Part way layers the grit under the untouched sound.',
   },
 } as const satisfies Record<string, ParamSpec>
 
@@ -110,7 +111,7 @@ export const VINTAGE_DIGITAL_DESCRIPTOR = wasmDeviceDescriptor(VINTAGE_DIGITAL_D
   name: 'Vintage Digital',
   category: 'texture',
   description:
-    'The converters of an early sampler: a sample rate reducer and bit crusher with real aliasing, hold images, companding and clock jitter, from a soft twelve-bit glaze to folded metal.',
+    'The converters of an early sampler: a sample rate reducer and bit crusher with true aliasing, hold images, companding and clock jitter, from a soft twelve-bit glaze to folded metal.',
   presets: {
     'Twelve bit': {
       rate: 16000,
@@ -122,7 +123,7 @@ export const VINTAGE_DIGITAL_DESCRIPTOR = wasmDeviceDescriptor(VINTAGE_DIGITAL_D
       drive: 0,
       mix: 1,
     },
-    'Eight bit toy': { rate: 10000, bits: 8, companding: 1, aliasing: 0.5, filter: 1, jitter: 0.2 },
+    'Eight bit toy': { rate: 10000, bits: 8, companding: 1, aliasing: 0.6, filter: 1, jitter: 0.2 },
     'Dusty sampler': { rate: 22000, bits: 12, aliasing: 0.15, filter: 2, jitter: 0.15, drive: 6 },
     'Glass images': { rate: 8000, bits: 12, aliasing: 0.1, filter: 0, jitter: 0.05 },
     'Folded metal': { rate: 6000, bits: 10, aliasing: 1, filter: 1, jitter: 0.1 },
@@ -134,14 +135,14 @@ export const VINTAGE_DIGITAL_DESCRIPTOR = wasmDeviceDescriptor(VINTAGE_DIGITAL_D
       filter: 2,
       jitter: 0.3,
     },
-    'Worn converter': { rate: 14000, bits: 10, aliasing: 0.4, filter: 1, jitter: 0.8 },
+    'Worn converter': { rate: 14000, bits: 10, aliasing: 0.4, filter: 1, jitter: 0.65 },
     Crushed: { rate: 12000, bits: 5, aliasing: 0.3, filter: 1, jitter: 0.1, drive: 12 },
   },
 })
 
 export type VintageDigital = WasmDevice<typeof VINTAGE_DIGITAL_PARAMS>
 
-/** The converters of an early sampler: a sample rate reducer and bit crusher with real aliasing, hold images, companding and clock jitter, from a soft twelve-bit glaze to folded metal. */
+/** The converters of an early sampler: a sample rate reducer and bit crusher with true aliasing, hold images, companding and clock jitter, from a soft twelve-bit glaze to folded metal. */
 export function createVintageDigital(
   context: BaseAudioContext,
   options: WasmDeviceOptions<typeof VINTAGE_DIGITAL_PARAMS> = {},

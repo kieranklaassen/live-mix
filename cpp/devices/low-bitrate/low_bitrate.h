@@ -1,6 +1,57 @@
 #pragma once
 
-// Low Bitrate: a transform codec in outline, without the bitstream.
+// Low Bitrate: a perceptual transform codec in outline, without the
+// bitstream. What is heard is what such a codec does when it has too few
+// bits: quiet detail between the loud partials goes, the top of the spectrum
+// goes, what is left is quantised coarsely, and packets are lost or repeat.
+//
+//   in ─┬─► delay 4096 ───────────────────────────────────────────────► dry ─┐
+//       │                                                                    ├─► out
+//       └─► mid/side ─► sine window ─► MDCT ─► per frame ─► IMDCT ─► sine window
+//                                              │                 ─► overlap-add ─► limit ─► wet ─┘
+//                                              │
+//             Standard / Inverse / Jitter ─► Smear ─► joint stereo, High Cut ─► packets
+//
+// The transform is the MDCT of Princen and Bradley (mdct.h) with the sine
+// window at both ends: frames one hop apart add up to the input, so with
+// Loss at 0 the wet path is the input, late by the latency. Frame sets the
+// hop: 128, 512 or 1024 samples at 44.1 and 48 kHz (2.7, 11 and 21 ms; twice
+// the samples from 88.2 kHz up). The MDCT is what makes the artefacts those
+// of a codec and not of a spectral gate: its coefficients are real, so the
+// coefficient of a steady partial swings with the partial's phase from frame
+// to frame, and anything decided per coefficient flickers ("birdies", the
+// watery swirl), and a changed coefficient spreads over its whole frame, in
+// front of an attack as well as behind it (pre-echo).
+//
+// Per frame, for mid and side (cpp comments at each stage say more):
+//
+// - Standard. Bins are grouped into the critical bands. A bin is kept when it
+//   is within a margin of the loudest bin of its band, of the loud bands
+//   beside it (masking spreads 8 dB per band upwards, 16 downwards) and of
+//   the recent peak of the whole stream; the margins shrink as Loss rises
+//   (62 → 2 dB under the band's peak, 96 → 14 dB under the stream's). Above
+//   a frequency that falls with Loss (22 → 3.5 kHz) nothing is kept. What is
+//   kept goes through the power-law quantiser of MPEG audio layer III with a
+//   step tied to its band's peak (80 → 1.5 steps). The energy thrown away is
+//   given back as gain (up to 6 dB), so Loss changes character, not level.
+// - Inverse plays the input minus what Standard keeps: the residue. It has
+//   its own make-up (up to 18 dB), because at low Loss little is discarded.
+// - Jitter keeps every magnitude and turns each bin's phase by a random
+//   angle of up to ±Loss × 180°, new every frame (the MDST supplies the
+//   other half of the complex spectrum). No bin is dropped.
+// - Smear holds each bin's magnitude and lets it fall over 30 s × Smear³; at
+//   1 it does not fall and the wash collects whatever is played.
+// - Joint stereo: the side signal is dropped from the top down as far as
+//   Loss × (1 - Stereo) says. High Cut is a cut on the wet signal.
+// - Packets are 21 ms whatever the frame. Dropouts and Stutter set the share
+//   of packets that are lost (silence) or stuck (the last good packet is
+//   replayed, half a decibel quieter each time); Burst sets how long an
+//   event lasts (20 ms to half a second).
+//
+// A change of Frame starts a second engine at the new size and crossfades to
+// it once its output is whole, so the latency stays 4096 samples (the Long
+// frame at 96 kHz: 85 ms at 48 kHz, 43 ms at 96 kHz) at every setting and
+// the dry path, delayed by the same, never combs against the wet one.
 
 #include "../../kit/kit.h"
 #include "mdct.h"
@@ -160,7 +211,7 @@ class LowBitrate : public kit::DeviceBase<low_bitrate::kNumParams> {
   static constexpr float kEdgeSlope = 6.0f;                  // a cut is a sixth of an octave wide
   static constexpr float kSpreadUp = 0.398f;                 // masking falls 8 dB per band upwards
   static constexpr float kSpreadDown = 0.158f;               // and 16 dB per band downwards
-  static constexpr float kReferenceSeconds = 0.4f;           // how long the stream's peak is remembered
+  static constexpr float kReferenceSeconds = 1.5f;           // how long the stream's peak is remembered
   static constexpr float kMakeUpSeconds = 0.25f;
   enum PacketState : int { kFlowing = 0, kLost = 1, kStuck = 2 };
   static constexpr float kMaxLostShare = 0.5f;          // Dropouts at 1: half the stream is missing
@@ -175,6 +226,7 @@ class LowBitrate : public kit::DeviceBase<low_bitrate::kNumParams> {
   static constexpr float kMaxPhaseLift = 16.0f;     // cosine coefficient to complex magnitude, at most
   static constexpr float kCarryRatio = 0.25f;       // the stream still feeds a bin above this share of its hold
   static constexpr float kMaxMakeUp = 2.0f;                  // Standard: up to 6 dB
+  static constexpr float kMaxFoldMakeUp = 1.4142f;           // joint stereo: up to 3 dB
   static constexpr float kMaxGhostMakeUp = 8.0f;             // Inverse: up to 18 dB
 
   // What a frame size fixes: where the bands lie and how long a hop lasts.
@@ -209,6 +261,7 @@ class LowBitrate : public kit::DeviceBase<low_bitrate::kNumParams> {
     float out[2][kRing];      // finished wet samples by output time (mid, side)
     float reference;          // recent peak coefficient of the stream
     float energy_in, energy_kept, energy_lost;  // smoothed, for the make-up gain
+    float energy_wide, energy_narrow;           // smoothed, before and after the fold to mono
     float held[2][kMaxN];     // Smear: the magnitude each bin hangs on to
     float store[2][kMaxN];    // the last packet that arrived, as coefficients
     float hang_reference;     // Smear: peak energy of the stream, fading like the bins
@@ -221,6 +274,7 @@ class LowBitrate : public kit::DeviceBase<low_bitrate::kNumParams> {
     engine.active = false;
     engine.reference = 0.0f;
     engine.energy_in = engine.energy_kept = engine.energy_lost = 0.0f;
+    engine.energy_wide = engine.energy_narrow = 0.0f;
     engine.flow = 1.0f;
     engine.hang_reference = 0.0f;
     engine.alive = false;
@@ -251,7 +305,7 @@ class LowBitrate : public kit::DeviceBase<low_bitrate::kNumParams> {
     Severity s;
     s.margin = kit::db_to_gain(-(kMarginAtFullDb + kMarginRangeDb * squared));
     s.floor = kit::db_to_gain(-(kFloorAtFullDb + kFloorRangeDb * squared));
-    s.levels = kLevelsAtFull + kLevelsRange * eased * eased * eased;
+    s.levels = kLevelsAtFull + kLevelsRange * keep * squared;
     s.cut_octave = kBandwidthTopOctave + (kBandwidthBottomOctave - kBandwidthTopOctave) * loss * std::sqrt(loss);
     return s;
   }
@@ -492,11 +546,27 @@ class LowBitrate : public kit::DeviceBase<low_bitrate::kNumParams> {
     const float collapse = loss * (1.0f - stereo_.value);
     if (collapse > 0.0f) {
       // The side signal is dropped from the top down: from 20 kHz at none to
-      // under the lowest bin at all, over an octave.
+      // under the lowest bin at all, over an octave. What that takes from the
+      // level (3 dB when left and right have nothing in common) is given back.
       const float cut = kSideTopOctave + (kSideBottomOctave - kSideTopOctave) * collapse;
+      float wide = 0.0f, narrow = 0.0f;
       for (int k = 0; k < n; ++k) {
         const float keep = kit::clamp(cut - layout.octave[k] + 0.5f, 0.0f, 1.0f);
-        cosine_[1][k] *= keep;
+        const float mid = cosine_[0][k];
+        const float side = cosine_[1][k];
+        wide += mid * mid + side * side;
+        cosine_[1][k] = side * keep;
+        narrow += mid * mid + cosine_[1][k] * cosine_[1][k];
+      }
+      const float hold = std::exp(-layout.hop_seconds / kMakeUpSeconds);
+      engine.energy_wide = flush_denormal(wide + (engine.energy_wide - wide) * hold);
+      engine.energy_narrow = flush_denormal(narrow + (engine.energy_narrow - narrow) * hold);
+      if (engine.energy_narrow > 1.0e-18f) {
+        const float gain = kit::clamp(std::sqrt(engine.energy_wide / engine.energy_narrow), 1.0f, kMaxFoldMakeUp);
+        for (int k = 0; k < n; ++k) {
+          cosine_[0][k] *= gain;
+          cosine_[1][k] *= gain;
+        }
       }
     }
     const float high = high_cut_.value;

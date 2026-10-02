@@ -328,6 +328,27 @@ int main() {
     EXPECT(worn_gap < worn_under - 15.0, "worn: the noise floor drops by more than 15 dB in silence");
     EXPECT(worn_under > new_under + 15.0, "Age turns the hiss up");
     EXPECT(worn_under < -45.0 && new_under < -70.0, "the hiss stays under the echo it rides on");
+
+    // Clock bleed: worn and at a long Time the clock itself (4096 samples in
+    // 1.2 s, about 3.4 kHz) is a faint whistle under the echo; new, or at a
+    // short Time where the clock is far above hearing, there is none.
+    auto bleed = [&](float age, float ms) {
+      clean(device);
+      device.set_param(p::kAge, age);
+      device.set_param(p::kTime, ms);
+      Stereo out = run(device, burst(240.0f, 4.0f, 4.2f, kRate, 0.1f));
+      const double clock = 4096.5 / (ms * 0.001);
+      const double hz = dominant_frequency(out.left, kRate, clock * 0.97, clock * 1.03, at(2.0), at(4.0));
+      return db(tone_level(out.left, hz, kRate, at(2.0), at(4.0)));
+    };
+    const double worn_long = bleed(1.0f, 1200.0f);
+    const double new_long = bleed(0.0f, 1200.0f);
+    const double worn_short = bleed(1.0f, 300.0f);
+    std::printf("clock tone under a -20 dBFS note: %.1f dBFS worn at 1.2 s, %.1f new, %.1f worn at 300 ms\n",
+                worn_long, new_long, worn_short);
+    EXPECT(worn_long > -70.0 && worn_long < -50.0, "a worn line whistles faintly at a long Time");
+    EXPECT(new_long < worn_long - 30.0, "a new line does not");
+    EXPECT(worn_short < worn_long - 20.0, "nor does a short Time");
   }
 
   // 10. The compander softens attacks: a tone that starts at full level comes

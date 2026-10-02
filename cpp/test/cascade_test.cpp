@@ -324,6 +324,38 @@ int main() {
     EXPECT(starts.size() == 5 && worst < 3.0, "Strum: the gaps shrink geometrically from Time / 2 to Time / 8");
   }
 
+  // A note played while another still sounds cuts the slot: it is captured
+  // from its own attack, so in Strum it is its start that is struck, first
+  // one Time after it was played and then at the strum's gaps (every other
+  // slice strums the other way round, slowing down).
+  {
+    plain(device);
+    device.set_param(p::kPattern, 1.0f);
+    device.set_param(p::kTime, 400.0f);
+    device.set_param(p::kRepeats, 5.0f);
+    device.set_param(p::kShape, 0.0f);
+    std::vector<float> two(static_cast<size_t>(2.5f * kRate), 0.0f);
+    pluck(two, 0.0f, 220.0f, 0.3f);
+    const std::vector<float> second = tone_burst(3000.0f, 0.03f, 0.1f, 0.5f);
+    const size_t at = static_cast<size_t>(0.25f * kRate);
+    for (size_t i = 0; i < second.size(); ++i) two[at + i] += second[i];
+    Stereo out = run(device, two);
+    const std::vector<double> band = band_envelope(out.left, 3000.0);
+    std::vector<double> starts;
+    for (size_t i = 1; i < band.size(); ++i) {
+      if (band[i] > 0.02 && band[i - 1] <= 0.02) starts.push_back(static_cast<double>(i) + 5.0);
+    }
+    std::printf("onset: a second note at 250 ms is struck again at");
+    for (double start : starts) std::printf(" %.0f", start);
+    std::printf(" ms (expected 650 700 779 905 1105)\n");
+    EXPECT(starts.size() == 5, "the second note gets its own strum");
+    // The second slice strums the other way: the gaps grow from Time / 8 to Time / 2.
+    const double expected[5] = {650.0, 700.0, 779.4, 905.4, 1105.4};
+    double worst = 0.0;
+    for (size_t i = 0; i < starts.size() && i < 5; ++i) worst = std::max(worst, std::fabs(starts[i] - expected[i]));
+    EXPECT(starts.size() == 5 && worst < 8.0, "its strokes start one Time after it and follow the strum's gaps");
+  }
+
   // Tunnel: one piece of the note looped into a drone that keeps its pitch,
   // has no gaps between passes (under a full swell), and gets darker.
   {
@@ -569,12 +601,70 @@ int main() {
     EXPECT(worst < root * 0.003, "nothing appears below the burst");
   }
 
-  // CASCADE-TEST-CHECKS-7
+  // The same audio whatever the block size, with every source of chance in
+  // play (reverse, the Tunnel's search, stealing), and the same again after a
+  // second init.
+  {
+    std::vector<float> phrase(static_cast<size_t>(3.0f * kRate), 0.0f);
+    pluck(phrase, 0.0f, 220.0f, 0.4f);
+    pluck(phrase, 0.7f, 329.63f, 0.4f);
+    for (int pattern = 0; pattern < 4; ++pattern) {
+      Stereo renders[4];
+      const int blocks[4] = {128, 1, 2048, 128};
+      for (int r = 0; r < 4; ++r) {
+        device.init(kRate);
+        device.set_param(p::kPattern, static_cast<float>(pattern));
+        device.set_param(p::kReverse, 0.5f);
+        device.set_param(p::kLow, 0.7f);
+        device.set_param(p::kInterval, 1.0f);
+        device.set_param(p::kTime, 90.0f);
+        device.set_param(p::kRepeats, 12.0f);
+        renders[r] = run(device, phrase, phrase, blocks[r]);
+      }
+      EXPECT(renders[0].left == renders[1].left && renders[0].right == renders[1].right,
+             "blocks of 1 frame give the same audio as blocks of 128");
+      EXPECT(renders[0].left == renders[2].left && renders[0].right == renders[2].right,
+             "blocks of 2048 frames give the same audio as blocks of 128");
+      EXPECT(renders[0].left == renders[3].left && renders[0].right == renders[3].right,
+             "a second init gives the same audio");
+    }
+  }
 
+  // The device sleeps: exact zeros once the last repeat has ended, and a new
+  // note wakes it and is captured from its start.
+  {
+    device.init(kRate);
+    device.set_param(p::kMix, 1.0f);
+    run(device, tone_burst(330.0f, 0.3f, 1.0f));
+    render(device, 2.0f, kRate);
+    Stereo rest = render(device, 1.0f, kRate);
+    EXPECT(peak(rest.left) == 0.0 && peak(rest.right) == 0.0, "asleep after the last repeat");
+    Stereo woken = run(device, tone_burst(330.0f, 0.3f, 1.0f));
+    size_t first = 0;
+    while (first < woken.size() && std::fabs(woken.left[first]) < 1.0e-5f) ++first;
+    std::printf("sleep: silent after the tail; woken, the first replay starts at %.1f ms\n", 1000.0 * first / kRate);
+    EXPECT_NEAR(first / kRate, 0.4, 0.004, "wakes on new input and replays it one Time later");
+  }
+
+  // Cost: the default patch, and the heaviest setting (every part up, sixteen
+  // repeats: the whole pool sounding and stealing), on continuous input.
   device.init(kRate);
   rng_state() = 0xBEEFu;
   std::vector<float> input = noise(10.0f, kRate, 0.25f);
-  report_cost("cascade", 10.0f, kRate, [&] { run(device, input); });
+  report_cost("cascade (default patch)", 10.0f, kRate, [&] { run(device, input); });
+  device.init(kRate);
+  device.set_param(p::kRepeats, 16.0f);
+  device.set_param(p::kHigh, 1.0f);
+  device.set_param(p::kLow, 1.0f);
+  device.set_param(p::kInterval, 1.0f);
+  report_cost("cascade (every part up, 16 repeats, 32 voices)", 10.0f, kRate, [&] { run(device, input); });
+  device.init(kRate);
+  device.set_param(p::kPattern, 2.0f);
+  device.set_param(p::kRepeats, 16.0f);
+  device.set_param(p::kHigh, 1.0f);
+  device.set_param(p::kLow, 1.0f);
+  device.set_param(p::kTime, 60.0f);
+  report_cost("cascade (Tunnel at 60 ms, 16 repeats)", 10.0f, kRate, [&] { run(device, input); });
 
   return finish("cascade");
 }

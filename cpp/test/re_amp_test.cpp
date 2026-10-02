@@ -325,15 +325,16 @@ int main() {
     CHECK(second > -32.0, "the valve stage makes a second harmonic");
   }
 
-  // No audible fold-back: a loud 5 kHz tone at full Drive, at 44.1 kHz,
-  // through the flat speaker. Everything that is not a harmonic of 5 kHz is
-  // an alias.
+  // No audible fold-back: a 5 kHz tone at 44.1 kHz through the flat speaker
+  // with Drive flat out, at half scale and at full scale. Everything that is
+  // not a harmonic of 5 kHz is an alias.
   {
     char label[160];
-    for (float level : {0.5f, 1.0f}) {
+    const float cases[2][2] = {{1.0f, 0.5f}, {1.0f, 1.0f}};  // Drive, level
+    for (const float* test : cases) {
       close_clean(kFullRange, 44100.0f);
-      device.set_param(p::kDrive, 1.0f);
-      Stereo out = run(device, sine(5000.0f, 1.0f, 44100.0f, level));
+      device.set_param(p::kDrive, test[0]);
+      Stereo out = run(device, sine(5000.0f, 1.0f, 44100.0f, test[1]));
       double worst = 0.0, worst_hz = 0.0;
       for (double hz = 100.0; hz < 20000.0; hz += 100.0) {
         if (std::fmod(hz, 5000.0) == 0.0) continue;
@@ -343,9 +344,9 @@ int main() {
           worst_hz = hz;
         }
       }
-      std::snprintf(label, sizeof label, "5 kHz at %.1f, Drive 1, 44.1 kHz: worst alias %.1f dBFS at %.0f Hz",
-                    level, db(worst), worst_hz);
-      CHECK(db(worst) < -65.0, label);
+      std::snprintf(label, sizeof label, "5 kHz at %.1f, Drive %.1f, 44.1 kHz: worst alias %.1f dBFS at %.0f Hz",
+                    test[1], test[0], db(worst), worst_hz);
+      CHECK(db(worst) < -75.0, label);
       CHECK(db(tone_level(out.left, 5000.0, 44100.0, 22050)) > -20.0, "the tone itself comes through");
     }
   }

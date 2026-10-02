@@ -1,8 +1,54 @@
 #pragma once
 
-// Vintage Digital: the converter pair of an early sampler, as an insert.
-// (Signal path notes are filled in at the end of this comment as the stages
-// land; see the block above process().)
+// Vintage Digital: the converter pair of an early sampler, as an insert. A
+// sample rate reducer and bit crusher in which every artefact is one the
+// converters themselves would make, and nothing is added by the way it is
+// computed.
+//
+//   in ─► × drive ─► clip ─► input filter ─► sampler ─► quantiser ─► hold ─► output filter ─► make-up ─► mix ─► out
+//                            (Aliasing takes   (Rate,     (Bits,       (the     (None, Soft,                ▲
+//                             it away)          Jitter)    Companding)  stair)   Steep)                     │
+//   in ─► delay (kLatency) ─────────────────────────────────────────────────────────────────────────────────┘
+//
+// - Clip: the input stage is exactly linear up to full scale, bends over the
+//   next 1 dB and is flat above. What it takes off is averaged over the two
+//   steps either side of each sample with its antiderivative, which keeps the
+//   fold-back of a hard-driven tone 15 to 19 dB under a bare clip's, and
+//   leaves a signal that never clips untouched. The make-up after the
+//   converter holds a signal at -18 dBFS where it came in.
+// - Input filter: a ninth-order elliptic low-pass with its edge at 0.44 of
+//   Rate (band_split.h), split into the part below half the rate and the part
+//   above. Aliasing is how much of the part above is let through (its square,
+//   as a gain): at 0 a tone above half the rate is 80 dB down before it can
+//   fold, at 1 there is no filtering at all and everything folds.
+// - Sampler: a clock at Rate. On each tick the input is read at the tick's
+//   own instant between host samples (a 32-point windowed sinc, kernels.h).
+//   Jitter moves that instant at random, up to 0.12 of a period RMS, one
+//   clock for both channels; the value is still held from where the clock
+//   says, so the error is noise that grows with the signal's frequency.
+// - Quantiser: mid-tread with a step of 2^(1 - Bits), any Bits from 4 to 16.
+//   No dither and no noise floor: the grain follows the signal, and silence
+//   in is exact silence out. Mu-law quantises log2(1 + 255|x|) / 8 instead,
+//   which puts the steps close together near zero.
+// - Hold: the value stands until the next tick. Each change of it is drawn
+//   as a band-limited step (kernels.h), so the stair's images below the
+//   host's Nyquist are there at the level sin(x)/x gives, and the ones above
+//   it are removed instead of folding back as a hash that no converter makes.
+//   The hold's own droop (3.9 dB at half the rate) is left in.
+// - Output filter: None is the stair; Soft is two poles at half the rate;
+//   Steep is the elliptic filter again. Both follow Rate.
+// - Rate all the way up (the host rate, at most 48 kHz) switches the sampler
+//   and hold out with a 30 ms cross-fade: quantiser, clip and make-up remain.
+//   With 16 bits and no drive that is the input to the last bit of 16.
+// - Timing: the clip takes 1 sample, the sampler's interpolation looks 16
+//   ahead and the band-limited step 16 more. On top of that the filters and
+//   the hold delay the low end by a few periods of Rate; the sampler reads
+//   up to kPad samples less far back to make up for it, so the converted
+//   signal's low end lands on the dry signal (down to about 1.5 kHz of Rate
+//   at 48 kHz) and Mix is a blend without a comb. The device reports
+//   kLatency samples and the dry path is delayed by them.
+// - Mix is a linear cross-fade: the two stay coherent below the converter's
+//   band.
 
 #include "../../kit/kit.h"
 #include "band_split.h"
@@ -13,11 +59,11 @@ namespace livemix {
 
 class VintageDigital : public kit::DeviceBase<vintage_digital::kNumParams> {
  public:
-  // As reported in device.json (latencySamples): the input clip takes one
-  // sample, the sampler's interpolation looks 16 ahead and the band-limited
-  // hold 16 more.
+  // The sampler's look-ahead and the band-limited step's.
   static constexpr int kConverterDelay = 2 * vintage_digital_detail::Kernels::kHalf;
+  // How much of the converted signal's own lateness can be made up.
   static constexpr int kPad = 96;
+  // As reported in device.json (latencySamples).
   static constexpr int kLatency = 1 + kConverterDelay + kPad;
 
   void init(float sample_rate) {
@@ -42,8 +88,11 @@ class VintageDigital : public kit::DeviceBase<vintage_digital::kNumParams> {
     gain_.set_time(kSmoothingSeconds, sr);
     jitter_.set_time(kSmoothingSeconds, sr);
     companding_.set_time(kSwitchSeconds, sr);
-    pad_.set_time(0.08f, sr);
+    // The alignment moves slowly: it is a read position, so a fast change
+    // would be heard as a blip of pitch.
+    pad_.set_time(kPadGlideSeconds, sr);
     started_ = false;
+    tuned_rate_ = 0.0f;
     soft_.set_time(kSwitchSeconds, sr);
     steep_.set_time(kSwitchSeconds, sr);
     soft_.snap(0.0f);
@@ -92,24 +141,27 @@ class VintageDigital : public kit::DeviceBase<vintage_digital::kNumParams> {
         inverse_step_ = 1.0f / step_;
       }
       if (clock_.tick()) {
-        const float edge = kEdgeRatio * rate_;
-        for (int c = 0; c < 2; ++c) {
-          input_filter_[c].set_edge(edge, sr);
-          output_filter_[c].set_edge(edge, sr);
-          soft_filter_[c].set(kSoftRatio * rate_, kit::kSqrtHalf, sr);
+        if (rate_ != tuned_rate_) {
+          // The filters follow Rate. `edge_warp_` and `soft_warp_` are the
+          // tangents the bilinear transform puts their corners at.
+          tuned_rate_ = rate_;
+          edge_warp_ = std::tan(kit::kPi * kit::min(kEdgeRatio * rate_, 0.47f * sr) / sr);
+          soft_warp_ = std::tan(kit::kPi * kit::min(kSoftRatio * rate_, 0.49f * sr) / sr);
+          for (int c = 0; c < 2; ++c) {
+            input_filter_[c].set_warp(edge_warp_);
+            output_filter_[c].set_warp(edge_warp_);
+            soft_filter_[c].set(kSoftRatio * rate_, kit::kSqrtHalf, sr);
+          }
         }
-        // How late the converted signal's low end is on its own: the input
-        // filter, half a period of hold, and the output filter. The sampler
-        // reads that much less far back, so it meets the dry signal in time.
-        const float per_unit = 0.5f / std::tan(kit::kPi * kit::min(edge, 0.47f * sr) / sr);
-        const float input_delay = BandSplit::low_delay(stop_gain_.value) * per_unit;
-        const float steep_delay = BandSplit::low_delay(0.0f) * per_unit;
-        const float soft_delay =
-            1.41421356f / (2.0f * std::tan(kit::kPi * kit::min(kSoftRatio * rate_, 0.49f * sr) / sr));
-        const float own =
-            input_delay + steep_delay * steep_.value + soft_delay * soft_.value + 0.5f / increment_;
-        const float spread = 3.5f * jitter_.value * kJitterPeriods / increment_;
-        pad_.set(kit::max(spread, static_cast<float>(kPad) - own) , started_);
+        // How late the converted signal's low end is on its own, in samples:
+        // the input filter, half a period of hold, and the output filter (a
+        // two-pole Butterworth is late by sqrt(2) over its corner). The
+        // sampler reads that much less far back, so it meets the dry signal.
+        const float own = BandSplit::low_delay(stop_gain_.value) * 0.5f / edge_warp_ + 0.5f / increment_ +
+                          steep_.value * BandSplit::low_delay(0.0f) * 0.5f / edge_warp_ +
+                          soft_.value * 0.70710678f / soft_warp_;
+        const float reach = 3.5f * jitter_.value * kJitterPeriods / increment_;
+        pad_.set(kit::max(reach, static_cast<float>(kPad) - own), started_);
         started_ = true;
       }
       pad_.next();
@@ -131,40 +183,47 @@ class VintageDigital : public kit::DeviceBase<vintage_digital::kNumParams> {
 
       // The converter clock. A tick lands `behind` of a sample before this one.
       phase_ += increment_;
-      const bool tick = phase_ >= 1.0f;
-      float sinc[Kernels::kTaps];
-      float step[Kernels::kTaps];
-      int first_tap = 1;
-      if (tick) {
+      if (phase_ >= 1.0f) {
         phase_ -= 1.0f;
         const float behind = kit::clamp(phase_ / increment_, 0.0f, 1.0f);
-        // Jitter: the sample is taken a random moment away from where the
-        // clock says, but held from the clock's own instant. The error only
-        // ever looks back (its mean is 3.5 deviations late), so it needs no
-        // look-ahead. One clock serves both channels.
+        // Where to read: the tick's instant, earlier by the alignment pad,
+        // moved by the jitter (the pad is never less than the jitter's
+        // reach, so the read never asks for a sample that has not arrived).
         const float deviation = jitter * kJitterPeriods / increment_;
         const float late = kit::max(0.0f, behind + pad_.value + deviation * jitter_rng_.gaussian());
         const int whole = static_cast<int>(late);
-        first_tap = 1 + whole;
-        Kernels::sinc_weights(late - static_cast<float>(whole), sinc);
-        Kernels::step_weights(behind, step);
+        // The kTaps samples that end 1 + whole back, oldest first. Both
+        // channels in one pass, the table read between its rows as it goes.
+        const int start = (line_position_ - 1 - whole - (Kernels::kTaps - 1)) & kLineMask;
+        const float* left = &line_[0][start];
+        const float* right = &line_[1][start];
+        float t;
+        const float* row = Kernels::sinc_row(late - static_cast<float>(whole), &t);
+        float value[2] = {0.0f, 0.0f};
+        for (int k = 0; k < Kernels::kTaps; ++k) {
+          const float weight = row[k] + (row[k + Kernels::kTaps] - row[k]) * t;
+          value[0] += weight * left[k];
+          value[1] += weight * right[k];
+        }
+        const float jump[2] = {quantise(value[0]) - held_[0], quantise(value[1]) - held_[1]};
+        if (jump[0] != 0.0f || jump[1] != 0.0f) {
+          held_[0] += jump[0];
+          held_[1] += jump[1];
+          // The stair's corrections for the outputs to come.
+          row = Kernels::step_row(behind, &t);
+          float* pending_left = &pending_[0][pending_position_];
+          float* pending_right = &pending_[1][pending_position_];
+          for (int k = 0; k < Kernels::kTaps; ++k) {
+            const float weight = row[k] + (row[k + Kernels::kTaps] - row[k]) * t;
+            pending_left[k] += jump[0] * weight;
+            pending_right[k] += jump[1] * weight;
+          }
+        }
       }
 
       float out[2];
       for (int c = 0; c < 2; ++c) {
         const float pre = clip(c, in[c] * gain);
-        if (tick) {
-          // The kTaps samples ending first_tap back, oldest first.
-          const float* window =
-              &line_[c][(line_position_ - first_tap - (Kernels::kTaps - 1)) & kLineMask];
-          float value = 0.0f;
-          for (int k = 0; k < Kernels::kTaps; ++k) value += sinc[k] * window[k];
-          const float code = quantise(value);
-          const float jump = code - held_[c];
-          held_[c] = code;
-          float* pending = &pending_[c][pending_position_];
-          for (int k = 0; k < Kernels::kTaps; ++k) pending[k] += jump * step[k];
-        }
         // Written twice, a buffer length apart, so every window is contiguous.
         const float filtered = input_filter_[c].filter(pre, stop_gain);
         line_[c][line_position_] = filtered;
@@ -212,12 +271,14 @@ class VintageDigital : public kit::DeviceBase<vintage_digital::kNumParams> {
   typedef vintage_digital_detail::BandSplit BandSplit;
 
   static constexpr int kControlPeriod = 16;
-  // Room for the interpolation window behind the largest jitter: 7
-  // deviations of 0.12 periods at 1 kHz and 96 kHz is 81 samples.
-  static constexpr int kLineSize = 512;
+  // Room for the interpolation window behind the furthest read: the pad (or
+  // the jitter's reach if that is more) plus 3.5 deviations of jitter, 137
+  // samples at most.
+  static constexpr int kLineSize = 256;
   static constexpr int kLineMask = kLineSize - 1;
   static constexpr float kRateGlideSeconds = 0.03f;
   static constexpr float kSwitchSeconds = 0.03f;
+  static constexpr float kPadGlideSeconds = 0.08f;
   // The filters' passband ends at 0.44 of the converter's rate, so their
   // stopband starts at 0.553 and what folds lands above 0.447.
   static constexpr float kEdgeRatio = 0.44f;
@@ -233,8 +294,8 @@ class VintageDigital : public kit::DeviceBase<vintage_digital::kNumParams> {
   // The converter's input stage runs out of range just above full scale: it
   // is exactly linear up to ±1, bends over the next 2 * kKnee and is flat at
   // ±(1 + kKnee). Only what the clip takes off (the residual, zero inside
-  // ±1) is anti-aliased, by averaging it over the step from the last sample
-  // with its antiderivative, so a signal that never clips passes untouched.
+  // ±1) is anti-aliased, with its antiderivative, so a signal that never
+  // clips passes untouched.
   static constexpr float kKnee = 0.06f;
   // The converter's own range ends a little above that: what overshoots the
   // input stage (the input filter rings on a clipped wave) is cut off flat at
@@ -371,6 +432,9 @@ class VintageDigital : public kit::DeviceBase<vintage_digital::kNumParams> {
   kit::Rng jitter_rng_;
   kit::Smoother log_rate_, bits_, stop_gain_, mix_, gain_, jitter_, pad_;
   bool started_ = false;
+  float tuned_rate_ = 0.0f;
+  float edge_warp_ = 1.0f;
+  float soft_warp_ = 1.0f;
   kit::LinearRamp bypass_, companding_, soft_, steep_;
   BandSplit output_filter_[2];
   kit::Svf soft_filter_[2];

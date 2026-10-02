@@ -109,7 +109,9 @@ struct Propagation {
     const float spread = spread_.next(frames);
 
     const float u = kit::clamp(0.5f + 0.5f * (0.6f * a + 0.4f * b), 0.0f, 1.0f);
-    const float flat = kit::db_to_gain(-style_.depth_db * fading * u * std::sqrt(u));
+    // Fading is felt early on the control: 0.4 already takes half the depth.
+    const float depth = std::sqrt(fading * std::sqrt(fading));
+    const float flat = kit::db_to_gain(-style_.depth_db * depth * u * std::sqrt(u));
     // The late path matters most when the direct one is weak: a strong
     // signal is clean, a sinking one hollows and phases.
     const float echo = kit::clamp(
@@ -138,7 +140,7 @@ struct Propagation {
 // tenth of a second to a second, ragged). Sizes are heavy-tailed: most are
 // small, a few are large. Levels are relative to a carrier of 1.
 struct Atmospherics {
-  static constexpr float kHiss = 0.35f;         // noise amplitude at Static 1, at 48 kHz
+  static constexpr float kHiss = 0.26f;         // noise amplitude at Static 1, at 48 kHz
   static constexpr float kCrashesPerSecond = 0.5f;
   static constexpr float kClicksPerSecond = 14.0f;
 
@@ -158,7 +160,7 @@ struct Atmospherics {
   // Advance by `frames` samples; returns the noise gain to ramp towards.
   float tick(float amount, int frames, float sample_rate) {
     const float dt = static_cast<float>(frames) / sample_rate;
-    const float hiss = kHiss * amount * std::sqrt(amount) * std::sqrt(std::sqrt(amount));
+    const float hiss = kHiss * amount * std::sqrt(amount);
     const float ragged = ragged_.next_block(kit::Lfo::kSmooth, frames);
     // The dice are thrown every tick so the sequence does not depend on Static.
     const float crash_chance = dice_.uniform();
@@ -171,12 +173,12 @@ struct Atmospherics {
     crash_ = flush_denormal(crash_ * crash_decay_);
     if (crash_chance < (0.03f + kCrashesPerSecond * amount * amount) * dt && amount > 0.0f) {
       const float size = heavy(crash_size);
-      crash_ = kit::max(crash_, 1.5f + (4.0f + 14.0f * amount) * size);
+      crash_ = kit::max(crash_, 1.5f + (3.0f + 6.0f * amount) * size);
       const float seconds = 0.06f + 0.5f * crash_length * crash_length;
       crash_decay_ = std::exp(-dt / seconds);
     }
     if (click_chance < (0.4f + kClicksPerSecond * amount * amount) * dt && amount > 0.0f) {
-      const float size = hiss * rate_scale_ * rate_scale_ * (4.0f + (10.0f + 40.0f * amount) * heavy(click_size));
+      const float size = hiss * rate_scale_ * rate_scale_ * (3.0f + (8.0f + 16.0f * amount) * heavy(click_size));
       click_re_ = size * kit::SineTable::cos_lookup(click_angle);
       click_im_ = size * kit::SineTable::lookup(click_angle);
     }
@@ -372,7 +374,7 @@ struct Interferer {
       pulse_increment_ = 2.0f * (a < 0.5f ? 50.0f : 60.0f) / sample_rate;
       length_ = 2.0f + 5.0f * b;
       fade_ = 0.25f;
-      level_ = 0.5f * std::sqrt(sample_rate / 48000.0f);
+      level_ = 0.3f * std::sqrt(sample_rate / 48000.0f);
     } else {
       kind_ = kSplatter;
       hz_ = sideband ? 1800.0f + 900.0f * a : side * 5000.0f;

@@ -36,11 +36,12 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     }
     // What a copy loses when it turns `turn` cycles per hop away from the
     // lobe it is built from: the transform of the product of the two windows,
-    // 0.335 - 0.48 cos + 0.165 cos 2 - 0.02 cos 3, read 4 x turn bins off centre.
+    // 0.335 + 0.48 cos + 0.165 cos 2 + 0.02 cos 3 about its middle, read
+    // 4 x turn bins off centre.
     for (int i = 0; i <= kCompSteps; ++i) {
       const double x = 4.0 * kMaxDetuneTurn * i / kCompSteps;
       auto sinc = [](double v) { return std::fabs(v) < 1.0e-9 ? 1.0 : std::sin(3.14159265358979323846 * v) / (3.14159265358979323846 * v); };
-      const double g = 0.335 * sinc(x) - 0.24 * (sinc(x - 1) + sinc(x + 1)) + 0.0825 * (sinc(x - 2) + sinc(x + 2)) -
+      const double g = 0.335 * sinc(x) + 0.24 * (sinc(x - 1) + sinc(x + 1)) + 0.0825 * (sinc(x - 2) + sinc(x + 2)) +
                        0.01 * (sinc(x - 3) + sinc(x + 3));
       comp_[i] = static_cast<float>(0.335 / g);
     }

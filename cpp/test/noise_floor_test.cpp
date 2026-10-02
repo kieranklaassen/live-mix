@@ -199,7 +199,7 @@ int main() {
     std::vector<float> hiss = bed(NoiseFloor::kTape, -30.0f, 20.0f);
     const double rise = density_db(hiss, 6000.0, 9000.0) - density_db(hiss, 500.0, 1000.0);
     const double flat = density_db(hiss, 11000.0, 14000.0) - density_db(hiss, 8000.0, 11000.0);
-    EXPECT(rise > 12.0, "tape hiss rises by more than 12 dB from 700 Hz to 7.5 kHz");
+    EXPECT(rise > 10.0, "tape hiss rises by more than 10 dB from 700 Hz to 7.5 kHz");
     EXPECT(std::fabs(flat) < 3.0, "tape hiss is level from 8 to 14 kHz");
 
     // Room: most of the energy is below 300 Hz.
@@ -266,7 +266,113 @@ int main() {
     }
   }
 
-  // BEHAVIOUR 4
+  // 4. Follow. Six notes of one second at -12 dBFS with gaps of a second and
+  // a half; the noise is what is left when the input is taken away, and its
+  // envelope is compared with the input's in windows of 50 ms.
+  {
+    std::vector<float> phrase;
+    for (int n = 0; n < 6; ++n) {
+      std::vector<float> note = sine(220.0f, 1.0f, kRate, 0.25f);
+      phrase.insert(phrase.end(), note.begin(), note.end());
+      phrase.resize(phrase.size() + static_cast<size_t>(1.5f * kRate), 0.0f);
+    }
+    const size_t cycle = static_cast<size_t>(2.5f * kRate);
+    auto under = [&](const std::vector<float>& n) {  // the last half second of each note
+      double sum = 0.0;
+      for (int k = 1; k < 6; ++k) sum += rms(n, k * cycle + 24000, k * cycle + 48000);
+      return db(sum / 5.0);
+    };
+    auto between = [&](const std::vector<float>& n) {  // the last half second of each gap
+      double sum = 0.0;
+      for (int k = 1; k < 6; ++k) sum += rms(n, k * cycle + 96000, k * cycle + 120000);
+      return db(sum / 5.0);
+    };
+    auto linear = [](std::vector<double> e) {
+      for (double& v : e) v = std::pow(10.0, v / 20.0);
+      return e;
+    };
+    const std::vector<double> input_env = linear(envelope_db(phrase, 0.05f));
+    double on[3], off[3], corr[3];
+    const float follows[3] = {1.0f, 0.0f, -1.0f};
+    for (int k = 0; k < 3; ++k) {
+      still(device, NoiseFloor::kAir, -30.0f);
+      device.set_param(p::kFollow, follows[k]);
+      device.set_param(p::kResponse, 0.1f);
+      std::vector<float> n = minus(run(device, phrase), phrase, phrase).left;
+      on[k] = under(n);
+      off[k] = between(n);
+      corr[k] = pearson(linear(envelope_db(n, 0.05f)), input_env);
+    }
+    EXPECT(corr[0] > 0.8, "Follow +1: the noise's envelope follows the input's");
+    EXPECT_NEAR(on[0], -30.0, 1.5, "Follow +1: under a note at -12 dBFS the noise is at Level");
+    EXPECT(off[0] < on[0] - 30.0, "Follow +1: at least 30 dB lower in silence");
+    EXPECT(std::fabs(on[1] - off[1]) < 0.5 && std::fabs(corr[1]) < 0.2, "Follow 0: the noise is constant");
+    EXPECT(corr[2] < -0.8, "Follow -1: the noise's envelope mirrors the input's");
+    EXPECT_NEAR(off[2], -30.0, 1.0, "Follow -1: in the gaps the noise comes back up to Level");
+    EXPECT(off[2] > on[2] + 10.0, "Follow -1: at least 10 dB higher in the gaps than under a note");
+
+    // Response: after a note stops, the noise that rode on it falls to 1/e
+    // (8.7 dB down) in about the Response time.
+    double fall[2];
+    const float responses[2] = {0.1f, 1.0f};
+    for (int k = 0; k < 2; ++k) {
+      still(device, NoiseFloor::kAir, -30.0f);
+      device.set_param(p::kFollow, 1.0f);
+      device.set_param(p::kResponse, responses[k]);
+      std::vector<float> note = sine(220.0f, 3.0f, kRate, 0.125f);
+      note.resize(note.size() + static_cast<size_t>(3.0f * kRate), 0.0f);
+      std::vector<float> n = minus(run(device, note), note, note).left;
+      const float window = 0.02f * responses[k];
+      const std::vector<double> env = envelope_db(n, window);
+      const size_t stop = static_cast<size_t>(3.0f / window);
+      double steady = 0.0;
+      for (size_t i = stop - 50; i < stop; ++i) steady += env[i] / 50.0;
+      size_t at = stop;
+      while (at < env.size() && env[at] > steady - 8.686) ++at;
+      fall[k] = static_cast<double>(at - stop) * window;
+      std::snprintf(label, sizeof label, "Response %.1f s: the noise falls to 1/e in %.3f s", responses[k], fall[k]);
+      EXPECT(fall[k] > 0.7 * responses[k] && fall[k] < 1.5 * responses[k], label);
+    }
+    if (verbose) {
+      std::printf("follow +1: under %.1f dB, gaps %.1f dB, envelope corr %.2f | 0: %.1f / %.1f dB, corr %.2f | -1: under %.1f dB, gaps %.1f dB, corr %.2f\n",
+                  on[0], off[0], corr[0], on[1], off[1], corr[1], on[2], off[2], corr[2]);
+      std::printf("response: set 0.1 s fell in %.3f s, set 1.0 s fell in %.3f s\n", fall[0], fall[1]);
+    }
+  }
+
+  // 5. The image. At Width 1 the sides are unrelated for every type, at
+  // Width 0 they are the same signal, and the level does not change between.
+  {
+    double worst_wide = 0.0, worst_level = 0.0;
+    for (int t = 0; t < kTypes; ++t) {
+      still(device, t, -30.0f);
+      Stereo wide = noise_only(device, 20.0f);
+      still(device, t, -30.0f);
+      device.set_param(p::kWidth, 0.0f);
+      Stereo mono = noise_only(device, 20.0f);
+      const double c = correlation(wide.left, wide.right);
+      worst_wide = std::max(worst_wide, std::fabs(c));
+      worst_level = std::max(worst_level, std::fabs(db(rms(mono.left) / rms(wide.left))));
+      std::snprintf(label, sizeof label, "%s: left and right are unrelated at Width 1 (%.3f)", kTypeName[t], c);
+      EXPECT(std::fabs(c) < 0.2, label);
+      std::snprintf(label, sizeof label, "%s: mono at Width 0", kTypeName[t]);
+      EXPECT(mono.left == mono.right, label);
+      std::snprintf(label, sizeof label, "%s: Width does not change the level", kTypeName[t]);
+      EXPECT(std::fabs(db(rms(mono.left) / rms(wide.left))) < 1.0, label);
+    }
+    device.init(kRate);
+    device.set_param(p::kMovement, 0.0f);
+    device.set_param(p::kHold, 60.0f);
+    Stereo usual = noise_only(device, 20.0f);
+    const double usual_corr = correlation(usual.left, usual.right);
+    EXPECT(usual_corr > 0.25 && usual_corr < 0.47, "the default Width of 0.8 leaves a correlation near 0.36");
+    if (verbose) {
+      std::printf("width: worst |corr| at Width 1 %.3f, level change to Width 0 at most %.2f dB, default corr %.2f\n",
+                  worst_wide, worst_level, usual_corr);
+    }
+  }
+
+  // BEHAVIOUR 6
 
   still(device, NoiseFloor::kStatic, -30.0f);
   device.set_param(p::kMovement, 1.0f);

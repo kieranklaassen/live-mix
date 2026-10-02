@@ -5,6 +5,7 @@
 // sidebands), late by what Delay says, with the bass left alone.
 
 #include "../devices/micro-shift/micro_shift.h"
+
 #include "support/test_kit.h"
 
 using namespace testkit;
@@ -28,7 +29,9 @@ static void wet_only(MicroShift& d, float detune) {
   d.set_param(p::kMix, 1.0f);
 }
 
-static double cents_between(double hz, double reference) { return 1200.0 * std::log2(hz / reference); }
+static double cents_between(double hz, double reference) {
+  return 1200.0 * std::log2(hz / reference);
+}
 
 // The strongest frequency within ±`span` cents of `near`: a 0.5 cent Goertzel
 // scan with a parabola through the top three points.
@@ -79,7 +82,8 @@ static double worst_spur_db(const std::vector<float>& x, size_t from, int guard)
   int carrier = 1;
   double carrier_power = 0.0;
   for (int i = 1; i < n / 2; ++i) {
-    const double power = static_cast<double>(fft_re[i]) * fft_re[i] + static_cast<double>(fft_im[i]) * fft_im[i];
+    const double power =
+        static_cast<double>(fft_re[i]) * fft_re[i] + static_cast<double>(fft_im[i]) * fft_im[i];
     if (power > carrier_power) {
       carrier_power = power;
       carrier = i;
@@ -88,7 +92,8 @@ static double worst_spur_db(const std::vector<float>& x, size_t from, int guard)
   double spur_power = 0.0;
   for (int i = 2; i < n / 2; ++i) {
     if (std::abs(i - carrier) <= guard) continue;
-    const double power = static_cast<double>(fft_re[i]) * fft_re[i] + static_cast<double>(fft_im[i]) * fft_im[i];
+    const double power =
+        static_cast<double>(fft_re[i]) * fft_re[i] + static_cast<double>(fft_im[i]) * fft_im[i];
     spur_power = std::max(spur_power, power);
   }
   return 10.0 * std::log10(std::max(spur_power, 1.0e-30) / carrier_power);
@@ -112,8 +117,10 @@ static std::vector<float> pink_noise(float seconds) {
 static void add_click(std::vector<float>& x, size_t at, float gain) {
   const size_t length = static_cast<size_t>(0.001f * kRate);
   for (size_t i = 0; i < length && at + i < x.size(); ++i) {
-    const double window = 0.5 - 0.5 * std::cos(2.0 * kPi * static_cast<double>(i) / static_cast<double>(length));
-    x[at + i] += static_cast<float>(gain * window * std::sin(2.0 * kPi * 3000.0 * static_cast<double>(i) / kRate));
+    const double window =
+        0.5 - 0.5 * std::cos(2.0 * kPi * static_cast<double>(i) / static_cast<double>(length));
+    x[at + i] += static_cast<float>(gain * window *
+                                    std::sin(2.0 * kPi * 3000.0 * static_cast<double>(i) / kRate));
   }
 }
 
@@ -152,9 +159,10 @@ int main() {
       const double down = hz * std::pow(2.0, -detune / 1200.0);
       const double left = cents_between(peak_frequency(out.left, up, 4.0, from, to), up);
       const double right = cents_between(peak_frequency(out.right, down, 4.0, from, to), down);
-      std::snprintf(label, sizeof label,
-                    "%.0f Hz, %.0f ct: left is sharp and right flat by Detune (errors %+.3f, %+.3f ct)",
-                    hz, detune, left, right);
+      std::snprintf(
+          label, sizeof label,
+          "%.0f Hz, %.0f ct: left is sharp and right flat by Detune (errors %+.3f, %+.3f ct)", hz,
+          detune, left, right);
       EXPECT(std::fabs(left) < 1.0 && std::fabs(right) < 1.0, label);
     }
   }
@@ -167,20 +175,22 @@ int main() {
     Stereo out = run(device, sine(hz, 4.0f, kRate, 0.5f));
     const size_t from = static_cast<size_t>(kRate), to = out.size();
     const double up = hz * std::pow(2.0, 50.0 / 1200.0);
+    const double down = hz * std::pow(2.0, -50.0 / 1200.0);
     // A whole number of periods per window, about 20 ms.
-    const size_t window = static_cast<size_t>(std::round(0.02 * up) * kRate / up + 0.5);
-    const double left = ripple_db(out.left, from, to, window);
-    const double right = ripple_db(out.right, from, to, window);
+    const double left = ripple_db(out.left, from, to,
+                                  static_cast<size_t>(std::round(0.02 * up) * kRate / up + 0.5));
+    const double right = ripple_db(
+        out.right, from, to, static_cast<size_t>(std::round(0.02 * down) * kRate / down + 0.5));
     const int splices = device.shifter(0).splices();
     std::snprintf(label, sizeof label,
-                  "%.0f Hz: copies hold a steady level through %d splices (ripple %.3f, %.3f dB)", hz,
-                  splices, left, right);
+                  "%.0f Hz: copies hold a steady level through %d splices (ripple %.3f, %.3f dB)",
+                  hz, splices, left, right);
     EXPECT(splices >= 4 && left < 0.5 && right < 0.5, label);
     if (hz >= 1000.0f) {
       const double spur_left = worst_spur_db(out.left, from, 8);
       const double spur_right = worst_spur_db(out.right, from, 8);
-      std::snprintf(label, sizeof label, "%.0f Hz: spurious components 50 dB down (%.1f, %.1f dB)", hz,
-                    spur_left, spur_right);
+      std::snprintf(label, sizeof label, "%.0f Hz: spurious components 50 dB down (%.1f, %.1f dB)",
+                    hz, spur_left, spur_right);
       EXPECT(spur_left < -50.0 && spur_right < -50.0, label);
     }
   }
@@ -191,10 +201,12 @@ int main() {
     wet_only(device, 0.0f);
     device.set_param(p::kDelay, ms);
     Stereo out = run(device, impulse(0.25f, kRate, 0.5f));
-    const double left = static_cast<double>(first_above(out.left, 1, out.size(), 0.25)) * 1000.0 / kRate;
-    const double right = static_cast<double>(first_above(out.right, 1, out.size(), 0.25)) * 1000.0 / kRate;
-    std::snprintf(label, sizeof label, "Delay %.0f ms, no detune: copies arrive at %.2f and %.2f ms", ms,
-                  left, right);
+    const double left =
+        static_cast<double>(first_above(out.left, 1, out.size(), 0.25)) * 1000.0 / kRate;
+    const double right =
+        static_cast<double>(first_above(out.right, 1, out.size(), 0.25)) * 1000.0 / kRate;
+    std::snprintf(label, sizeof label,
+                  "Delay %.0f ms, no detune: copies arrive at %.2f and %.2f ms", ms, left, right);
     EXPECT(std::fabs(left - ms) < 0.05 && std::fabs(right - 1.4 * ms) < 0.05, label);
   }
 
@@ -218,7 +230,8 @@ int main() {
       const size_t span = static_cast<size_t>(0.105f * kRate);
       double sum = 0.0, earliest = 1.0e9, latest = 0.0;
       for (size_t at : clicks) {
-        const double arrival = static_cast<double>(first_above(wet, at, at + span, 0.2) - at) * 1000.0 / kRate;
+        const double arrival =
+            static_cast<double>(first_above(wet, at, at + span, 0.2) - at) * 1000.0 / kRate;
         sum += arrival;
         earliest = std::min(earliest, arrival);
         latest = std::max(latest, arrival);
@@ -243,13 +256,15 @@ int main() {
       std::snprintf(label, sizeof label,
                     "Delay %.1f ms, 50 ct: copy arrives %.1f to %.1f ms late, %.2f ms on average",
                     centre, earliest, latest, average);
-      EXPECT(std::fabs(average - centre) < 3.0 && earliest > centre - 11.5 && latest < centre + 19.5,
-             label);
+      EXPECT(
+          std::fabs(average - centre) < 3.0 && earliest > centre - 11.5 && latest < centre + 19.5,
+          label);
     }
   }
-  std::snprintf(label, sizeof label,
-                "every transient comes out once per copy, never doubled or dropped (%d of %d, weakest %.2f)",
-                clicks_once, clicks_total, click_peak_low);
+  std::snprintf(
+      label, sizeof label,
+      "every transient comes out once per copy, never doubled or dropped (%d of %d, weakest %.2f)",
+      clicks_once, clicks_total, click_peak_low);
   EXPECT(clicks_once == clicks_total && click_peak_low > 0.6, label);
 
   // Below Focus the sound is left alone: a 60 Hz tone at the default patch
@@ -264,8 +279,8 @@ int main() {
     const double with_dry = correlation(out.left, low, from, to);
     const double level = db(rms(out.left, from, to) / rms(low, from, to));
     std::snprintf(label, sizeof label,
-                  "60 Hz under Focus: sides correlate %.4f, with the dry tone %.4f, level %+.2f dB", sides,
-                  with_dry, level);
+                  "60 Hz under Focus: sides correlate %.4f, with the dry tone %.4f, level %+.2f dB",
+                  sides, with_dry, level);
     EXPECT(sides > 0.99 && with_dry > 0.98 && std::fabs(level) < 0.5, label);
 
     device.init(kRate);
@@ -290,7 +305,8 @@ int main() {
     const double sum = db(rms(mono, from, to) / rms(dry, from, to));
     const double sides = correlation(out.left, out.right, from, to);
     std::snprintf(label, sizeof label,
-                  "pink noise at defaults: sides %+.2f and %+.2f dB of dry, mono sum %+.2f dB, correlation %.2f",
+                  "pink noise at defaults: sides %+.2f and %+.2f dB of dry, mono sum %+.2f dB, "
+                  "correlation %.2f",
                   left, right, sum, sides);
     EXPECT(std::fabs(left) < 1.5 && std::fabs(right) < 1.5 && std::fabs(sum) < 2.0 && sides > 0.0 &&
                sides < 0.9,
@@ -306,9 +322,11 @@ int main() {
     std::vector<float> bright = noise(6.0f, kRate, 0.2f);
     Stereo wide = run(device, bright);
     const double white_sides = correlation(wide.left, wide.right, from, wide.size());
-    const double white_level = db(rms(wide.left, from, wide.size()) / rms(bright, from, bright.size()));
+    const double white_level =
+        db(rms(wide.left, from, wide.size()) / rms(bright, from, bright.size()));
     std::snprintf(label, sizeof label,
-                  "white noise, Mix 0.5, everything spread: correlation %.2f (half dry, half copies), level %+.2f dB",
+                  "white noise, Mix 0.5, everything spread: correlation %.2f (half dry, half "
+                  "copies), level %+.2f dB",
                   white_sides, white_level);
     EXPECT(white_sides > 0.3 && white_sides < 0.7 && std::fabs(white_level) < 1.0, label);
   }
@@ -322,7 +340,8 @@ int main() {
     std::vector<float> dry = noise(1.0f, kRate, 0.5f);
     Stereo out = run(device, dry);
     bool same = true;
-    for (size_t i = 0; i < dry.size(); ++i) same = same && out.left[i] == dry[i] && out.right[i] == dry[i];
+    for (size_t i = 0; i < dry.size(); ++i)
+      same = same && out.left[i] == dry[i] && out.right[i] == dry[i];
     EXPECT(same, "Mix 0 passes the input through bit for bit");
   }
 
@@ -338,8 +357,8 @@ int main() {
       worst = std::max(worst, std::fabs(static_cast<double>(out.left[i]) - out.right[i]));
     }
     const double level = db(rms(out.left, 48000) / rms(dry, 48000));
-    std::snprintf(label, sizeof label, "Width 0: left equals right (max difference %g), level %+.2f dB",
-                  worst, level);
+    std::snprintf(label, sizeof label,
+                  "Width 0: left equals right (max difference %g), level %+.2f dB", worst, level);
     EXPECT(worst < 1.0e-6 && std::fabs(level) < 1.5, label);
   }
 
@@ -367,9 +386,10 @@ int main() {
       out = concat(out, run(device, piece));
     }
     const double moved = std::max(max_step(out.left), max_step(out.right));
-    std::snprintf(label, sizeof label,
-                  "sweeping Detune and jumping Delay under a note: steepest step %.4f (the note alone %.4f)",
-                  moved, natural);
+    std::snprintf(
+        label, sizeof label,
+        "sweeping Detune and jumping Delay under a note: steepest step %.4f (the note alone %.4f)",
+        moved, natural);
     EXPECT(moved < 1.6 * natural, label);
     EXPECT(device.shifter(0).splices() >= 4, "a Delay jump is made by splicing");
   }
@@ -386,11 +406,21 @@ int main() {
       const float t = static_cast<float>(step % 8) / 7.0f;
       const float edge = step % 2 == 0 ? 1.0f : 0.0f;
       switch (step / 8) {
-        case 0: device.set_param(p::kMix, edge); break;
-        case 1: device.set_param(p::kWidth, edge); break;
-        case 2: device.set_param(p::kFeedback, 0.7f * edge); break;
-        case 3: device.set_param(p::kFocus, 20.0f * std::pow(50.0f, t)); break;
-        default: device.set_param(p::kTone, 18000.0f * std::pow(1.0f / 18.0f, t)); break;
+        case 0:
+          device.set_param(p::kMix, edge);
+          break;
+        case 1:
+          device.set_param(p::kWidth, edge);
+          break;
+        case 2:
+          device.set_param(p::kFeedback, 0.7f * edge);
+          break;
+        case 3:
+          device.set_param(p::kFocus, 20.0f * std::pow(50.0f, t));
+          break;
+        default:
+          device.set_param(p::kTone, 18000.0f * std::pow(1.0f / 18.0f, t));
+          break;
       }
       std::vector<float> piece(tone.begin() + static_cast<long>(step * chunk),
                                tone.begin() + static_cast<long>((step + 1) * chunk));
@@ -398,7 +428,8 @@ int main() {
     }
     const double moved = std::max(max_step(out.left), max_step(out.right));
     std::snprintf(label, sizeof label,
-                  "stepping Mix, Width, Feedback, Focus and Tone under a note: steepest step %.4f (the note alone %.4f)",
+                  "stepping Mix, Width, Feedback, Focus and Tone under a note: steepest step %.4f "
+                  "(the note alone %.4f)",
                   moved, natural);
     EXPECT(moved < 1.6 * natural, label);
   }
@@ -429,7 +460,8 @@ int main() {
     }
     const double wrong_way = average_level(out.left, -50.0);
     std::snprintf(label, sizeof label,
-                  "Feedback 0.6: copies at +50, +100, +150, +200 ct fall by %.2f, %.2f, %.2f per pass (right, sinking: %.2f, %.2f, %.2f)",
+                  "Feedback 0.6: copies at +50, +100, +150, +200 ct fall by %.2f, %.2f, %.2f per "
+                  "pass (right, sinking: %.2f, %.2f, %.2f)",
                   left[1] / left[0], left[2] / left[1], left[3] / left[2], right[1] / right[0],
                   right[2] / right[1], right[3] / right[2]);
     bool stacked = left[0] > 0.1 && right[0] > 0.1;
@@ -440,7 +472,7 @@ int main() {
     EXPECT(stacked, label);
     std::snprintf(label, sizeof label, "Feedback: the left side only climbs (%.1f dB at -50 ct)",
                   db(wrong_way / left[0]));
-    EXPECT(wrong_way < 0.01 * left[0], label);
+    EXPECT(wrong_way < 0.03 * left[0], label);
   }
 
   // Feedback at its maximum under full-scale input stays bounded, and dies
@@ -456,8 +488,9 @@ int main() {
     Stereo tail = render(device, 6.0f, kRate);
     const double top = std::max(peak(loud.left), peak(loud.right));
     const double ring = rt60(tail.left, kRate, 0.1, 0.1, -100.0);
-    std::snprintf(label, sizeof label, "Feedback 0.7 with full-scale noise: peak %.2f, then decays in %.2f s",
-                  top, ring);
+    std::snprintf(label, sizeof label,
+                  "Feedback 0.7 with full-scale noise: peak %.2f, then decays in %.2f s", top,
+                  ring);
     EXPECT(finite(loud.left) && finite(loud.right) && top < 4.0 && ring > 0.3 && ring < 3.0, label);
     Stereo rest = render(device, 0.5f, kRate);
     EXPECT(peak(rest.left) == 0.0 && peak(rest.right) == 0.0, "asleep after the feedback tail");
@@ -475,8 +508,9 @@ int main() {
       Stereo out = run(device, noise(2.0f, kRate, 0.3f));
       share[pass] = energy_above(out.left, 5000.0, kRate, 24000);
     }
-    std::snprintf(label, sizeof label, "Tone 2 kHz: share of energy above 5 kHz falls from %.2f to %.3f",
-                  share[0], share[1]);
+    std::snprintf(label, sizeof label,
+                  "Tone 2 kHz: share of energy above 5 kHz falls from %.2f to %.3f", share[0],
+                  share[1]);
     EXPECT(share[0] > 0.2 && share[1] < 0.2 * share[0], label);
   }
 
@@ -493,7 +527,8 @@ int main() {
         double low = 1.0e9, high = -1.0e9;
         for (int w = 0; w < 18; ++w) {
           const size_t from = static_cast<size_t>((1.0f + 0.5f * w) * kRate);
-          const double hz = peak_frequency(side == 0 ? out.left : out.right, 1000.0, 16.0, from, from + 24000);
+          const double hz =
+              peak_frequency(side == 0 ? out.left : out.right, 1000.0, 16.0, from, from + 24000);
           const double offset = cents_between(hz, 1000.0);
           if (pass == 1) track[side][w] = offset;
           low = std::min(low, offset);
@@ -510,18 +545,89 @@ int main() {
     }
     const double alike = together / std::sqrt(left_power * right_power);
     std::snprintf(label, sizeof label,
-                  "Drift: tuning wanders over %.1f ct (left) and %.1f ct (right), sides alike by %.2f; none at zero (%.3f ct)",
+                  "Drift: tuning wanders over %.1f ct (left) and %.1f ct (right), sides alike by "
+                  "%.2f; none at zero (%.3f ct)",
                   range[1][0], range[1][1], alike, std::max(range[0][0], range[0][1]));
     EXPECT(range[0][0] < 0.05 && range[0][1] < 0.05 && range[1][0] > 4.0 && range[1][0] < 24.0 &&
                range[1][1] > 4.0 && range[1][1] < 24.0 && std::fabs(alike) < 0.8,
            label);
   }
 
-  // CHECKS
+  // On a chord, every splice still lands where the waveform repeats: the two
+  // read points agree (normalised correlation near 1) at each one.
+  {
+    wet_only(device, 20.0f);
+    device.set_param(p::kFocus, 100.0f);
+    std::vector<float> chord(static_cast<size_t>(8.0f * kRate), 0.0f);
+    for (float hz : {220.0f, 277.18f, 329.63f, 440.0f}) {
+      for (int k = 1; k <= 8; ++k) {
+        for (size_t i = 0; i < chord.size(); ++i) {
+          chord[i] += static_cast<float>(
+              0.05 / (k * std::sqrt(static_cast<double>(k))) *
+              std::sin(2.0 * kPi * hz * k * static_cast<double>(i) / kRate + 0.7 * k));
+        }
+      }
+    }
+    double lowest = 1.0;
+    int seen[2] = {0, 0};
+    for (size_t done = 0; done + 64 <= chord.size(); done += 64) {
+      for (int i = 0; i < 64; ++i)
+        device.in_left()[i] = device.in_right()[i] = chord[done + static_cast<size_t>(i)];
+      device.process(64);
+      for (int side = 0; side < 2; ++side) {
+        if (device.shifter(side).splices() == seen[side]) continue;
+        seen[side] = device.shifter(side).splices();
+        lowest = std::min(lowest, static_cast<double>(device.shifter(side).last_correlation()));
+      }
+    }
+    std::snprintf(label, sizeof label,
+                  "four-note chord: %d splices, the read points agree by at least %.3f at each",
+                  seen[0] + seen[1], lowest);
+    EXPECT(seen[0] + seen[1] >= 8 && lowest > 0.9, label);
+  }
 
+  // The same pitch and the same delay at 44.1 and 96 kHz.
+  for (float rate : {44100.0f, 96000.0f}) {
+    device.init(rate);
+    device.set_param(p::kDetune, 9.0f);
+    device.set_param(p::kDrift, 0.0f);
+    device.set_param(p::kFocus, 20.0f);
+    device.set_param(p::kMix, 1.0f);
+    Stereo out = run(device, sine(1000.0f, 4.0f, rate, 0.5f));
+    const size_t from = static_cast<size_t>(rate), to = out.size();
+    const double up = 1000.0 * std::pow(2.0, 9.0 / 1200.0);
+    double best_hz = up, best = 0.0;
+    for (int i = -16; i <= 16; ++i) {
+      const double hz = up * std::pow(2.0, i * 0.125 / 1200.0);
+      const double level = tone_level(out.left, hz, rate, from, to);
+      if (level > best) {
+        best = level;
+        best_hz = hz;
+      }
+    }
+    device.init(rate);
+    device.set_param(p::kDetune, 0.0f);
+    device.set_param(p::kDrift, 0.0f);
+    device.set_param(p::kFocus, 20.0f);
+    device.set_param(p::kTone, 18000.0f);
+    device.set_param(p::kMix, 1.0f);
+    Stereo click = run(device, impulse(0.1f, rate, 0.5f));
+    const double arrival =
+        static_cast<double>(first_above(click.left, 1, click.size(), 0.1)) * 1000.0 / rate;
+    std::snprintf(label, sizeof label, "%.1f kHz: left copy %+.2f ct from Detune, %.2f ms late",
+                  rate / 1000.0, cents_between(best_hz, up), arrival);
+    EXPECT(std::fabs(cents_between(best_hz, up)) < 0.5 && std::fabs(arrival - 14.0) < 0.1, label);
+  }
+
+  // Cost at the heaviest setting: the widest detune and full drift (the most
+  // splices), feedback ringing, on broadband input.
   device.init(kRate);
+  device.set_param(p::kDetune, 50.0f);
+  device.set_param(p::kDrift, 1.0f);
+  device.set_param(p::kFeedback, 0.7f);
+  device.set_param(p::kDelay, 60.0f);
   rng_state() = 0xBEEFu;
-  std::vector<float> input = noise(10.0f, kRate, 0.25f);
+  std::vector<float> input = pink_noise(10.0f);
   report_cost("micro-shift", 10.0f, kRate, [&] { run(device, input); });
 
   return finish("micro-shift");

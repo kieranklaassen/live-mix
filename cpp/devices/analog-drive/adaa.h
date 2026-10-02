@@ -31,52 +31,56 @@ class Adaa2 {
     x1_ = x;
     x2_ = x;
     f2_1_ = curve.F2(x);
-    d1_ = curve.F1(x);
+    f2_2_ = f2_1_;
   }
 
   double process(const Curve& curve, double x) {
     const double f2 = curve.F2(x);
-    const double largest = max3(magnitude(x), magnitude(x1_), magnitude(x2_));
-    const double tolerance = kTolerance * (largest > 1.0 ? largest : 1.0);
-
+    const double size = magnitude(x) + magnitude(x1_);
+    const double tolerance = kTolerance * (size > 1.0 ? size : 1.0);
     const double step = x - x1_;
-    const double d = magnitude(step) > tolerance ? (f2 - f2_1_) / step : curve.F1(0.5 * (x + x1_));
+    const double last_step = x1_ - x2_;
+    const double span = x - x2_;
 
     double y;
-    const double span = x - x2_;
-    if (magnitude(span) > tolerance) {
-      y = 2.0 * (d - d1_) / span;
+    if (magnitude(step) > tolerance && magnitude(last_step) > tolerance && magnitude(span) > tolerance) {
+      // The usual case: the second divided difference of F2 over the last
+      // three inputs, 2 (D[n] - D[n-1]) / (x[n] - x[n-2]), as one division.
+      y = 2.0 * ((f2 - f2_1_) * last_step - (f2_1_ - f2_2_) * step) / (step * last_step * span);
     } else {
-      // x[n] and x[n-2] nearly meet (the top of a wave): integrate from
-      // their mean to x[n-1] instead.
-      const double mean = 0.5 * (x + x2_);
-      const double delta = mean - x1_;
-      if (magnitude(delta) > tolerance) {
-        y = (2.0 / delta) * (curve.F1(mean) + (f2_1_ - curve.F2(mean)) / delta);
+      const double d = magnitude(step) > tolerance ? (f2 - f2_1_) / step : curve.F1(0.5 * (x + x1_));
+      if (magnitude(span) > tolerance) {
+        const double last_d =
+            magnitude(last_step) > tolerance ? (f2_1_ - f2_2_) / last_step : curve.F1(0.5 * (x1_ + x2_));
+        y = 2.0 * (d - last_d) / span;
       } else {
-        y = curve.f(0.5 * (mean + x1_));
+        // x[n] and x[n-2] nearly meet (the top of a wave): integrate from
+        // their mean to x[n-1] instead.
+        const double mean = 0.5 * (x + x2_);
+        const double delta = mean - x1_;
+        if (magnitude(delta) > tolerance) {
+          y = (2.0 / delta) * (curve.F1(mean) + (f2_1_ - curve.F2(mean)) / delta);
+        } else {
+          y = curve.f(0.5 * (mean + x1_));
+        }
       }
     }
     x2_ = x1_;
     x1_ = x;
+    f2_2_ = f2_1_;
     f2_1_ = f2;
-    d1_ = d;
     return y;
   }
 
  private:
   static constexpr double kTolerance = 2.0e-5;
 
-  static double magnitude(double v) { return v < 0.0 ? -v : v; }
-  static double max3(double a, double b, double c) {
-    const double m = a > b ? a : b;
-    return m > c ? m : c;
-  }
+  static double magnitude(double v) { return std::fabs(v); }
 
   double x1_ = 0.0;
   double x2_ = 0.0;
-  double f2_1_ = 0.0;
-  double d1_ = 0.0;
+  double f2_1_ = 0.0;   // F2 at x1 and x2
+  double f2_2_ = 0.0;
 };
 
 // Three taps at the curve's rate, (-1/3, 5/3, -1/3), one sample late: the

@@ -2,17 +2,19 @@
 
 // The two tables Vintage Digital's converter runs on, both cut from one
 // Kaiser-windowed sinc h(t) (32 host samples long, cut off at 0.46 of the host
-// rate, beta 8: flat to 0.38, 80 dB down from 0.54):
+// rate, beta 8: flat to 0.38, 80 dB down from 0.54), plus the two curves of
+// the mu-law pair.
 //
-// - kSinc: h itself, to read the input between its samples when the converter
-//   clock ticks (band-limited interpolation, Smith & Gossett, "A flexible
-//   sampling-rate conversion method", ICASSP 1984).
-// - kStep: the running integral of h minus a bare step: what has to be added
+// - sinc: h itself, to read the input between its samples when the converter
+//   clock ticks (band-limited interpolation).
+// - step: the running integral of h minus a bare step: what has to be added
 //   around a sudden change of the held value so that the stair the converter
-//   puts out is band-limited to the host rate (Brandt, "Hard sync without
-//   aliasing", ICMC 2001: the band-limited step, here in its linear-phase
-//   form). The images of the hold below the host's Nyquist stay; the ones
-//   above it are removed instead of folding back.
+//   puts out is band-limited to the host rate. It is the idea behind the
+//   kit's PolyBLEP oscillators (cpp/kit/osc.h) with a long table in place of
+//   the two-sample polynomial, linear phase, so it takes 16 samples of
+//   look-ahead. The images of the hold below 0.38 of the host rate stay as
+//   they are; the ones above 0.54 are removed instead of folding back, and
+//   what folds from between lands above 0.46 (22 kHz at 48 kHz).
 //
 // Both are stored at 64 positions between two samples (plus the end point)
 // and read with linear interpolation between neighbouring positions.
@@ -96,13 +98,17 @@ class Kernels {
     return (table[index] + (table[index + 1] - table[index]) * t) * static_cast<float>(1u << whole);
   }
 
-  // Weights for a read `fraction` (0..1) of a sample before the centre of the
-  // window, for kTaps consecutive samples, oldest first: out[j] weighs
-  // x[newest - (kTaps - 1 - j)].
-  static void sinc_weights(float fraction, float* out) { blend(sinc(), fraction, out); }
-  // What to add to the next kTaps outputs for a unit step that happened
-  // `fraction` (0..1) of a sample before the current one.
-  static void step_weights(float fraction, float* out) { blend(step(), fraction, out); }
+  // The table row at or below `fraction` (0..1) and how far (`t`, 0..1)
+  // towards the next row, which follows it in memory: the weight of tap k is
+  // row[k] + (row[k + kTaps] - row[k]) * t.
+  //
+  // sinc_row: weights for a read `fraction` of a sample before the centre of
+  // the window, for kTaps consecutive samples, oldest first (tap j weighs
+  // x[newest - (kTaps - 1 - j)]).
+  static const float* sinc_row(float fraction, float* t) { return row(sinc(), fraction, t); }
+  // step_row: what to add to the next kTaps outputs for a unit step that
+  // happened `fraction` of a sample before the current one.
+  static const float* step_row(float fraction, float* t) { return row(step(), fraction, t); }
 
  private:
   static constexpr int kFine = 256;
@@ -112,15 +118,13 @@ class Kernels {
 
   typedef float Table[kPhases + 1][kTaps];
 
-  static void blend(const Table& table, float fraction, float* out) {
+  static const float* row(const Table& table, float fraction, float* t) {
     float position = fraction * kPhases;
     if (position < 0.0f) position = 0.0f;
     int index = static_cast<int>(position);
     if (index > kPhases - 1) index = kPhases - 1;
-    const float t = position - static_cast<float>(index);
-    const float* a = table[index];
-    const float* b = table[index + 1];
-    for (int k = 0; k < kTaps; ++k) out[k] = a[k] + (b[k] - a[k]) * t;
+    *t = position - static_cast<float>(index);
+    return table[index];
   }
 
   static double bessel_i0(double x) {

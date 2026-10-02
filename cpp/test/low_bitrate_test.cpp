@@ -211,6 +211,23 @@ int main() {
     EXPECT(upper[5] < upper[0] - 40.0, "Loss 1 has taken everything above 4.5 kHz");
   }
 
+  // The same in hertz and seconds at other sample rates: the band edge and
+  // the level at Loss 0.8 do not move with the rate.
+  for (float rate : {44100.0f, 96000.0f}) {
+    const Stereo in = chord(3.0f, rate);
+    clean(device, rate);
+    device.set_param(p::kLoss, 0.8f);
+    Stereo out = run(device, in.left, in.right);
+    const size_t from = static_cast<size_t>(rate) + kLatency;
+    const double kept = band_db(out.left, rate, 100.0, 4000.0, from, out.size());
+    const double above = band_db(out.left, rate, 6200.0, 0.5 * rate, from, out.size());
+    const double level = db(rms(out.left, from, out.size()) / rms(in.left, from - kLatency, in.size() - kLatency));
+    std::printf("low-bitrate: %.0f Hz, Loss 0.8: %.1f dB above 6.2 kHz re the band below 4 kHz, level %+.2f dB\n", rate,
+                above - kept, level);
+    EXPECT(above - kept < -60.0, "the band edge is a frequency, not a bin, at every sample rate");
+    EXPECT(std::fabs(level) < 3.0, "the level holds at every sample rate");
+  }
+
   // Standard and Inverse split the stream between them: Inverse is the input
   // minus what Standard keeps (quantised), before each mode's own make-up
   // gain. On a steady sound those gains are steady, so two fitted scalars
@@ -554,10 +571,132 @@ int main() {
     }
   }
 
-  device.init(kRate);
+  // Changing Frame while sounding: the other size is started alongside and
+  // crossfaded in, so with Loss 0 the output stays the delayed input all the
+  // way through, and with Loss on there is no click.
+  {
+    rng_state() = 0xF4u;
+    const std::vector<float> in = noise(4.0f, kRate, 0.3f);
+    const std::vector<float> tone = sine(220.0f, 4.0f, kRate, 0.5f);
+    for (int lossy = 0; lossy < 2; ++lossy) {
+      clean(device);
+      device.set_param(p::kLoss, lossy ? 0.5f : 0.0f);
+      const std::vector<float>& source = lossy ? tone : in;
+      Stereo out;
+      const float order[8] = {1.0f, 0.0f, 2.0f, 1.0f, 2.0f, 0.0f, 1.0f, 2.0f};
+      for (int k = 0; k < 8; ++k) {
+        device.set_param(p::kFrame, order[k]);
+        if (k == 5) device.set_param(p::kFrame, 2.0f);  // a second change before the first has finished
+        std::vector<float> piece(source.begin() + k * 24000, source.begin() + (k + 1) * 24000);
+        out = concat(out, run(device, piece));
+      }
+      if (lossy) {
+        std::printf("low-bitrate: Frame changed seven times under a tone at Loss 0.5: largest step %.4f (tone %.4f)\n",
+                    max_step(out.left, 8192), max_step(tone));
+        EXPECT(max_step(out.left, 8192) < 1.5 * max_step(tone), "changing Frame does not click");
+        EXPECT(rms(out.left, 8192) > 0.3, "changing Frame leaves no gap");
+      } else {
+        const double error = error_db(in, out.left, 0);
+        std::printf("low-bitrate: Frame changed seven times at Loss 0: error against the delayed input %.1f dB\n", error);
+        EXPECT(error < -80.0, "changing Frame keeps the latency and leaves no seam");
+      }
+    }
+  }
+
+  // The other controls moved while a tone sounds: Mode stepped through its
+  // choices, Smear, Stereo, High Cut and Mix swept. None of them clicks.
+  {
+    const std::vector<float> tone = sine(220.0f, 4.0f, kRate, 0.5f);
+    clean(device);
+    device.set_param(p::kLoss, 0.4f);
+    Stereo out;
+    for (int step = 0; step < 1500; ++step) {
+      const float t = static_cast<float>(step) / 1500.0f;
+      if (step % 250 == 0) device.set_param(p::kMode, static_cast<float>((step / 250) % 2 == 0 ? 0 : 2));
+      device.set_param(p::kSmear, 0.8f * t);
+      device.set_param(p::kStereo, 1.0f - t);
+      device.set_param(p::kHighCut, 20000.0f * std::pow(0.1f, t));
+      device.set_param(p::kMix, 0.5f + 0.5f * std::sin(20.0f * t));
+      std::vector<float> piece(tone.begin() + step * 128, tone.begin() + (step + 1) * 128);
+      out = concat(out, run(device, piece));
+    }
+    std::printf("low-bitrate: Mode, Smear, Stereo, High Cut and Mix moved under a tone: largest step %.4f (tone %.4f)\n",
+                max_step(out.left, 8192), max_step(tone));
+    EXPECT(max_step(out.left, 8192) < 0.1, "moving the other controls does not click");
+  }
+
+  // Dry and wet are in time: at Loss 0 any Mix is the delayed input, and with
+  // Loss on a tone keeps its level half way (no comb).
+  {
+    rng_state() = 0x313u;
+    const std::vector<float> in = noise(2.0f, kRate, 0.3f);
+    clean(device);
+    device.set_param(p::kMix, 0.5f);
+    Stereo half = run(device, in);
+    EXPECT(error_db(in, half.left, 0) < -80.0, "Mix 0.5 at Loss 0 is the delayed input");
+    clean(device);
+    device.set_param(p::kLoss, 0.6f);
+    device.set_param(p::kMix, 0.5f);
+    Stereo tone = run(device, sine(440.0f, 2.0f, kRate, 0.4f));
+    EXPECT_NEAR(db(tone_level(tone.left, 440.0, kRate, 24000, 96000) / 0.4), 0.0, 0.5,
+                "Mix 0.5 with Loss on: dry and wet add in phase");
+  }
+
+  // A NaN, an infinity or an absurd sample in the input does not stay in the
+  // device, and it sleeps after its tail and wakes on new input.
+  {
+    device.init(kRate);
+    device.set_param(p::kSmear, 0.3f);
+    std::vector<float> bad = sine(330.0f, 0.5f, kRate, 0.5f);
+    bad[1000] = std::nanf("");
+    bad[2000] = 1.0e30f;
+    bad[3000] = -HUGE_VALF;
+    run(device, bad);
+    Stereo next = run(device, sine(330.0f, 1.0f, kRate, 0.5f));
+    EXPECT(finite(next.left) && finite(next.right) && peak(next.left, 24000) < 1.0, "recovers from non-finite input");
+    render(device, 4.0f, kRate);
+    Stereo rest = render(device, 0.5f, kRate);
+    EXPECT(peak(rest.left) == 0.0 && peak(rest.right) == 0.0, "asleep after the tail");
+    Stereo woken = run(device, sine(330.0f, 1.0f, kRate, 0.5f));
+    EXPECT(rms(woken.left, 24000) > 0.2, "wakes on new input");
+    device.set_param(p::kSmear, 1.0f);
+    run(device, sine(330.0f, 1.0f, kRate, 0.5f));
+    render(device, 40.0f, kRate);
+    Stereo still = render(device, 1.0f, kRate);
+    EXPECT(rms(still.left) > 0.1, "a frozen wash keeps the device awake");
+  }
+
+  // Cost: the default patch, then the heaviest sensible one (Long frames,
+  // Smear, packet events, different left and right), and the worst block.
   rng_state() = 0xBEEFu;
-  std::vector<float> input = noise(10.0f, kRate, 0.25f);
-  report_cost("low-bitrate", 10.0f, kRate, [&] { run(device, input); });
+  const std::vector<float> left = noise(10.0f, kRate, 0.25f), right = noise(10.0f, kRate, 0.25f);
+  device.init(kRate);
+  report_cost("low-bitrate (defaults)", 10.0f, kRate, [&] { run(device, left, right); });
+  auto heavy = [&] {
+    device.init(kRate);
+    device.set_param(p::kFrame, 2.0f);
+    device.set_param(p::kSmear, 0.6f);
+    device.set_param(p::kDropouts, 0.3f);
+    device.set_param(p::kStutter, 0.3f);
+  };
+  heavy();
+  report_cost("low-bitrate (heaviest)", 10.0f, kRate, [&] { run(device, left, right); });
+  {
+    heavy();
+    std::vector<double> micros;
+    for (size_t done = 0; done + 128 <= left.size(); done += 128) {
+      for (int i = 0; i < 128; ++i) {
+        device.in_left()[i] = left[done + i];
+        device.in_right()[i] = right[done + i];
+      }
+      const auto start = std::chrono::steady_clock::now();
+      device.process(128);
+      micros.push_back(std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - start).count());
+    }
+    std::sort(micros.begin(), micros.end());
+    std::printf("low-bitrate worst block: %.0f us at the 99th percentile, %.0f us median, of %.0f us per block\n",
+                micros[micros.size() * 99 / 100], micros[micros.size() / 2], 128.0e6 / kRate);
+  }
 
   return finish("low-bitrate");
 }

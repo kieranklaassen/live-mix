@@ -124,7 +124,7 @@ export const RE_AMP_DEVICE = defineWasmDevice({
   // Static literal so Vite can rewrite it to a hashed asset URL at build time.
   wasm: () => new URL('../wasm/re-amp.wasm', import.meta.url),
   params: RE_AMP_PARAMS,
-  latencySamples: () => 39,
+  latencySamples: () => 31,
 })
 
 export const RE_AMP_DESCRIPTOR = wasmDeviceDescriptor(RE_AMP_DEVICE, {

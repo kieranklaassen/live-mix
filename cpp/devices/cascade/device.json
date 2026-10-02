@@ -134,17 +134,18 @@
       "decay": 0.3,
       "high": 0.5,
       "shape": 0.15,
-      "spread": 0.9
+      "spread": 0.9,
+      "mix": 0.6
     },
     "Long tunnel": {
       "pattern": 2,
-      "time": 700,
-      "repeats": 12,
-      "decay": 0.25,
-      "high": 0.35,
-      "low": 0.4,
+      "time": 900,
+      "repeats": 14,
+      "decay": 0.2,
+      "high": 0.3,
       "shape": 1,
-      "tone": 7000
+      "spread": 0.8,
+      "tone": 8000
     },
     "Rising steps": {
       "pattern": 3,
@@ -154,29 +155,31 @@
       "high": 0.8,
       "interval": 1,
       "shape": 0.2,
-      "spread": 0.8
+      "spread": 0.8,
+      "mix": 0.6
     },
     "Undertow": {
-      "time": 800,
-      "repeats": 6,
-      "decay": 0.35,
-      "high": 0.3,
-      "low": 0.9,
-      "shape": 0.8,
-      "reverse": 0.7,
-      "tone": 5000
+      "time": 600,
+      "repeats": 5,
+      "decay": 0.45,
+      "high": 0,
+      "low": 1,
+      "shape": 0.6,
+      "reverse": 1,
+      "spread": 0.5,
+      "tone": 3500
     },
     "Sparkle bed": {
-      "time": 220,
-      "repeats": 12,
-      "decay": 0.2,
-      "high": 0.9,
+      "time": 320,
+      "repeats": 14,
+      "decay": 0.15,
+      "high": 1,
       "interval": 1,
-      "shape": 0.85,
-      "reverse": 0.3,
+      "shape": 1,
+      "reverse": 0.4,
       "spread": 1,
       "tone": 12000,
-      "mix": 0.4
+      "mix": 0.35
     }
   },
   "origin": {

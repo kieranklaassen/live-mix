@@ -136,13 +136,15 @@ export const LOW_BITRATE_DESCRIPTOR = wasmDeviceDescriptor(LOW_BITRATE_DEVICE, {
     'What a starving audio stream does to sound: quiet detail is thrown away until the rest swirls and warbles as if behind glass, with lost and stuck packets on top.',
   presets: {
     'Behind glass': { loss: 0.35 },
-    Underwater: { loss: 0.7, frame: 2, highCut: 6000 },
-    'Dial-up': { loss: 0.85, frame: 0, stereo: 0, highCut: 3400 },
+    Underwater: { loss: 0.7, frame: 2, smear: 0.2, stereo: 0.5, highCut: 4000 },
+    'Dial-up': { loss: 0.7, frame: 0, stereo: 0, highCut: 3400 },
     Ghost: { loss: 0.55, mode: 1 },
     'Smeared phases': { loss: 0.6, mode: 2, frame: 2 },
     'Bad connection': { loss: 0.5, dropouts: 0.35, stutter: 0.35, burst: 0.4 },
+    'Stuck stream': { loss: 0.4, stutter: 0.6, burst: 0.85 },
     'Frozen stream': { loss: 0.6, frame: 2, smear: 0.85 },
     'Thin air': { loss: 0.3, mode: 1, frame: 2, smear: 0.4 },
+    'Few partials': { loss: 1, frame: 2, stereo: 1 },
   },
 })
 

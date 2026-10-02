@@ -65,10 +65,9 @@ struct Expander {
   Rectifier rectifier;
 
   void reset() { rectifier.reset(); }
-  // `trim` scales the detected level (1 tracks the compressor exactly).
-  float process(float x, float trim) {
+  float process(float x) {
     const float level = rectifier.process(x);
-    return x * level * trim * (1.0f / kUnity);
+    return x * level * (1.0f / kUnity);
   }
 };
 

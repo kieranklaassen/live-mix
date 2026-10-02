@@ -6,10 +6,57 @@
 //                                     ▲    ▲                                  ▲
 //                         warp (once a turn)  platter lag           crackle, pops, hiss, rumble
 //
-// [[NOTES]]
+// - The disc is a delay line the input is always written to. With no warp
+//   and the platter at speed the head reads the sample just written, so with
+//   everything off the output is the input and the dry path needs no delay.
+// - Warp moves the read point once per turn (33⅓, 45 or 78 rpm: 0.556, 0.75
+//   or 1.3 Hz), with a fifth of the swing at twice that rate and a slow drift
+//   (kit::Drift) that never repeats. Warp squared sets the peak pitch
+//   deviation, up to ±3 %, the same at every speed. The read is a twelve-tap
+//   windowed sinc (sinc_read.h), flat to 15 kHz whatever the fraction. The
+//   head sits behind by its own reach, so the wet path is late by a
+//   millisecond at the default and by 11 ms on average at Warp 1.
+// - Platter: Stop slows the disc along ds/dt = -(a + b·s), which reaches
+//   rest in Spin Time; Play brings it back along ds/dt = c·(1 + m - s) in
+//   half that. The head reads at speed s, so pitch follows speed, and a
+//   cartridge reads velocity, so level follows it too (as √s), with what
+//   falls under 24 Hz taken out. A head reading slower than the input
+//   arrives can only fall behind: once the platter is back at speed a second
+//   head on the live input fades in over 50 ms. Started from rest, the
+//   record picks up what is being played now.
+// - Wear: the difference channel is high-passed at 150 Hz (bass to the
+//   middle, as on a real cut) and turned down; tracing distortion is added;
+//   a high shelf takes up to 18 dB off the top. The tracing terms come from
+//   a round tip riding a modulated wall: it lifts by (r/2)·slope², opposite
+//   ways on the two walls, so the second-order part, k·d/dt(x²), lands on
+//   the difference channel (the pinch effect) and third order, k·d/dt(x³),
+//   is left in the middle. Both grow with level and with frequency: it is
+//   loud highs that smear. Their input is low-passed at 6 kHz (four poles)
+//   so that the squares and cubes stay under half the sample rate.
+// - Crackle is one Poisson stream whose sizes are Pareto distributed: most
+//   events are dust at the floor and go to two shared bands; the few that
+//   stand out are ticks, each ringing a band-pass of its own colour for half
+//   a millisecond. Every event is kicked somewhere between lateral and
+//   vertical, so left and right are uncorrelated. The rate follows a map of
+//   where the dust lies round the disc, which shifts a little every turn.
+// - Pops are larger, duller clicks with a 75 Hz thump. A scratch is a pop
+//   that returns at the same turn phase for 5 to 37 turns, swelling and
+//   fading as the stylus crosses it: the tick that makes it read as a record.
+// - Surface: pink hiss, a separate stream per wall, swishing ±30 % once per
+//   turn, over a rumble (38 Hz, cut under 20 Hz) the walls mostly share.
+// - 78 is shellac: 150 Hz to 6 kHz with a small lift at 1.1 kHz, a quarter
+//   of the stereo width, 7 dB more hiss and half as much crackle again. It
+//   fades across in 30 ms when Speed changes.
+// - Tone tilts the playback about 800 Hz, noise included.
+// - The noise is made only while there is signal on the record and for four
+//   seconds after; then it fades over 1.2 s and the device sleeps, its output
+//   exactly zero. All of it goes down with the platter. Asleep, the platter
+//   is simply where its switch says, and nothing recorded before the sleep
+//   is played after it.
 
 #include "../../kit/kit.h"
 #include "params.gen.h"
+#include "sinc_read.h"
 
 namespace livemix {
 
@@ -29,6 +76,7 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
   void init(float sample_rate) {
     using namespace vinyl;
     kit::SineTable::init();
+    vinyl_detail::SincRead::init();
     init_base(sample_rate, kParamMin, kParamMax, kParamDefault);
     const float sr = this->sample_rate();
     for (int c = 0; c < 2; ++c) {
@@ -116,8 +164,8 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
     start_rate_ = 0.0;
     max_lag_ = static_cast<double>(kMaxLagSeconds * sr);
     stop_a_ = stop_b_ = 0.0;
-    subsonic_ = 0.0f;
     playing_ = true;
+    asleep_ = true;
     valid_ = 0;
 
     warp_drift_.seed(0x51ED270Bu);
@@ -162,7 +210,6 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
   void process(int frames) {
     using namespace vinyl;
     frames = begin_block(frames);
-    const bool was_asleep = idle_.asleep();
     // Awake while there is input, and until the noise has faded and the
     // filters have emptied, whatever Mix lets through.
     if (!idle_.wake(input_present(frames) || quiet_ < drain_now_)) {
@@ -171,10 +218,14 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
       turning_ = spin_;
       lag_ = 0.0;
       head_fade_ = 0.0f;
+      asleep_ = true;
       silence_output(frames);
       return;
     }
-    if (was_asleep) valid_ = 0;
+    if (asleep_) {
+      asleep_ = false;
+      valid_ = 0;
+    }
     const float sr = sample_rate();
     for (int i = 0; i < frames; ++i) {
       float in[2];
@@ -200,8 +251,9 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
   }
 
  private:
-  // 5.46 s at 96 kHz: the furthest the head falls behind (0.575 of the
-  // longest Spin Time) plus the widest warp, with room to spare.
+  // 5.46 s at 96 kHz. The head falls behind by 0.575 of Spin Time while the
+  // platter stops and by 0.37 of the start-up time while it starts: 4.6 s at
+  // the most, plus the warp's 22 ms. Past kMaxLagSeconds it skips to live.
   static constexpr int kDiscSize = 524288;
   static constexpr int kControlPeriod = 16;
 
@@ -263,7 +315,7 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
   static constexpr float kCrackleRate = 500.0f;  // events a second at Crackle 1
   static constexpr float kCrackleAlpha = 1.3f;  // Pareto tail exponent
   static constexpr float kCrackleFloor = 2.0e-3f;  // smallest event at Crackle 1
-  static constexpr float kCrackleCeiling = 0.35f;  // largest at Crackle 1
+  static constexpr float kCrackleCeiling = 0.25f;  // largest at Crackle 1
   static constexpr float kTickRatio = 6.0f;  // events this far above the floor get their own colour
   static constexpr int kTickSlots = 4;
   static constexpr int kPopSlots = 2;
@@ -328,7 +380,7 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
   }
 
   void set_playing(bool playing) {
-    if (!primed() || idle_.asleep()) {
+    if (!primed() || asleep_) {
       // Nothing is sounding: the platter is simply in its new state.
       playing_ = playing;
       spin_ = playing ? 1.0f : 0.0f;
@@ -344,10 +396,13 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
     if (playing && spin_ <= 0.0f) lag_ = 0.0;
   }
 
-  // The disc `delay` samples back from the sample just written: Hermite, or
-  // linear inside the last sample, where there is no newer point to lean on
-  // (a delay of exactly zero is the input itself).
+  // The disc `delay` samples back from the sample just written. A delay of
+  // exactly zero is the input itself. From six samples back the read is the
+  // windowed sinc, which keeps the treble steady as the fraction moves;
+  // closer in there are too few newer samples for it, so the read is
+  // Hermite, then linear inside the last sample, each joining the next.
   float read_disc(int c, double delay) const {
+    using vinyl_detail::SincRead;
     const int whole = static_cast<int>(delay);
     const float t = static_cast<float>(delay - static_cast<double>(whole));
     const kit::DelayLine<kDiscSize>& disc = disc_[c];
@@ -358,9 +413,12 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
     }
     // Nothing older than the last wake is played: what lies there is from
     // before the device slept.
-    if (whole + 3 > valid_) return 0.0f;
-    return kit::hermite(disc.read(whole), disc.read(whole + 1), disc.read(whole + 2),
-                        disc.read(whole + 3), t);
+    if (whole + SincRead::kTaps > valid_) return 0.0f;
+    if (whole > SincRead::kMinDelay) return SincRead::read(disc, whole, t);
+    const float near = kit::hermite(disc.read(whole), disc.read(whole + 1), disc.read(whole + 2),
+                                    disc.read(whole + 3), t);
+    if (whole < SincRead::kMinDelay) return near;
+    return near + (SincRead::read(disc, whole, t) - near) * t;
   }
 
   // One impulse into a resonator, sized so that its output peaks near
@@ -700,9 +758,9 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
       reach += warp_amp_[k];
     }
     const float drift = warp_drift_.next(kControlPeriod);
-    // The head sits behind by its whole reach, and by up to two samples
-    // more so that the read stays a four-point one.
-    const float seconds = reach + kit::min(2.0f / sr, 0.5f * reach) -
+    // The head sits behind by its whole reach, and by up to seven samples
+    // more so that the read has newer samples to lean on.
+    const float seconds = reach + kit::min(7.0f / sr, 0.5f * reach) -
                           warp_amp_[0] * kit::SineTable::cos_lookup(turn_phase_) -
                           warp_amp_[1] * kit::SineTable::cos_lookup(2.0f * turn_phase_ + kWarpSecondPhase) -
                           warp_amp_[2] * drift;
@@ -798,8 +856,8 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
   double start_rate_ = 0.0;
   double max_lag_ = 0.0;
   double stop_a_ = 0.0, stop_b_ = 0.0;
-  float subsonic_ = 0.0f;
   bool playing_ = true;
+  bool asleep_ = true;
   long valid_ = 0;  // samples written since the device last woke
   kit::Svf stop_hp_[2];
 

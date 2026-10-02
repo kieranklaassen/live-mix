@@ -342,6 +342,89 @@ int main() {
     EXPECT(peak(released.left, 2 * s + s / 2) == 0.0 && device.layers() == 0, "Latch: then silence");
   }
 
+  // Motion. At 0 the held sound is the same left and right and does not
+  // move at all. At 1 every partial drifts on its own, differently on each
+  // side: the channels decorrelate and the level of a partial wanders slowly,
+  // with nothing at the frame rate (46.9 Hz). Below 150 Hz the sides stay
+  // together.
+  {
+    const size_t s = static_cast<size_t>(kRate);
+    still(device);
+    device.set_param(p::kDecay, 60.0f);
+    run(device, sine(1000.0f, 1.0f, kRate, 0.25f));
+    Stereo flat = render(device, 10.0f, kRate);
+    EXPECT(flat.left == flat.right, "Motion 0, Ensemble 0: left and right are identical");
+
+    still(device);
+    device.set_param(p::kDecay, 60.0f);
+    device.set_param(p::kMotion, 1.0f);
+    run(device, sine(1000.0f, 1.0f, kRate, 0.25f));
+    Stereo moving = render(device, 30.0f, kRate);
+    const double apart = correlation(moving.left, moving.right, 2 * s, 30 * s);
+    const double wander = level_spread_db(moving.left, 2 * s, 30 * s, 4800);
+    const double level = db(rms(moving.left, 2 * s, 30 * s) / rms(flat.left, 2 * s, 10 * s));
+    const double hz = dominant_frequency(moving.left, kRate, 950.0, 1050.0, 2 * s, 30 * s);
+    double flutter = 0.0;
+    for (int m = 1; m <= 4; ++m) {
+      flutter = std::max(flutter, tone_level(moving.left, 1000.0 + 46.875 * m, kRate, 2 * s, 30 * s));
+      flutter = std::max(flutter, tone_level(moving.left, 1000.0 - 46.875 * m, kRate, 2 * s, 30 * s));
+    }
+    const double flutter_db = db(flutter / (rms(moving.left, 2 * s, 30 * s) * std::sqrt(2.0)));
+    std::printf("sustainer: Motion 1: left/right correlation %.2f, level wanders %.1f dB, mean level %+.2f dB, "
+                "centre %.2f Hz, frame-rate sidebands %.1f dB\n",
+                apart, wander, level, hz, flutter_db);
+    EXPECT(apart < 0.4, "Motion 1 decorrelates left and right");
+    EXPECT(wander > 3.0 && wander < 14.0, "Motion 1: the level of a partial wanders by some dB, slowly");
+    EXPECT(std::fabs(level) < 1.0, "Motion does not change the mean level");
+    EXPECT_NEAR(hz, 1000.0, 2.0, "Motion 1: the partial stays at its pitch");
+    EXPECT(flutter_db < -50.0, "Motion 1: nothing at the frame rate (sidebands under -50 dB)");
+
+    still(device);
+    device.set_param(p::kDecay, 60.0f);
+    device.set_param(p::kMotion, 1.0f);
+    device.set_param(p::kEnsemble, 1.0f);
+    run(device, sine(110.0f, 1.0f, kRate, 0.25f));
+    Stereo bass = render(device, 20.0f, kRate);
+    const double bass_together = correlation(bass.left, bass.right, 2 * s, 20 * s);
+    std::printf("sustainer: Motion 1, Ensemble 1 at 110 Hz: left/right correlation %.3f\n", bass_together);
+    EXPECT(bass_together > 0.8, "the bass of the held sound stays mono-compatible");
+  }
+
+  // Ensemble adds a copy 8 cents up, mostly on the left, and one 8 cents
+  // down, mostly on the right, without changing the level.
+  {
+    const size_t s = static_cast<size_t>(kRate);
+    const double up = 1000.0 * std::pow(2.0, 8.0 / 1200.0), down = 1000.0 / std::pow(2.0, 8.0 / 1200.0);
+    double total[2] = {0.0, 0.0};
+    for (int on = 0; on < 2; ++on) {
+      still(device);
+      device.set_param(p::kDecay, 60.0f);
+      device.set_param(p::kEnsemble, static_cast<float>(on));
+      run(device, sine(1000.0f, 1.0f, kRate, 0.25f));
+      Stereo out = render(device, 22.0f, kRate);
+      const double centre = tone_level(out.left, 1000.0, kRate, 2 * s, 22 * s);
+      const double up_left = db(tone_level(out.left, up, kRate, 2 * s, 22 * s) / centre);
+      const double up_right = db(tone_level(out.right, up, kRate, 2 * s, 22 * s) / centre);
+      const double down_left = db(tone_level(out.left, down, kRate, 2 * s, 22 * s) / centre);
+      const double down_right = db(tone_level(out.right, down, kRate, 2 * s, 22 * s) / centre);
+      total[on] = rms(out.left, 2 * s, 22 * s);
+      std::printf("sustainer: Ensemble %d: copy at +8 cents %.1f dB left, %.1f dB right; at -8 cents %.1f dB left, "
+                  "%.1f dB right (re the centre voice)\n",
+                  on, up_left, up_right, down_left, down_right);
+      if (on == 0) {
+        EXPECT(up_left < -60.0 && down_right < -60.0, "Ensemble 0: no detuned copies");
+      } else {
+        EXPECT_NEAR(up_left, -0.7, 1.5, "Ensemble 1: the upper copy is as loud as the centre on the left");
+        EXPECT_NEAR(down_right, -0.7, 1.5, "Ensemble 1: the lower copy is as loud as the centre on the right");
+        EXPECT(up_left - up_right > 5.0 && down_right - down_left > 5.0, "Ensemble spreads the copies left and right");
+        const double width = correlation(out.left, out.right, 2 * s, 22 * s);
+        EXPECT(width > 0.5 && width < 0.95, "Ensemble widens the held sound and keeps it mono-compatible");
+      }
+    }
+    std::printf("sustainer: Ensemble 1 changes the level by %+.2f dB\n", db(total[1] / total[0]));
+    EXPECT(std::fabs(db(total[1] / total[0])) < 0.5, "Ensemble does not change the level");
+  }
+
   // (more checks are added above this line)
   return finish("sustainer");
 }

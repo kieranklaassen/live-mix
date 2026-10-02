@@ -122,15 +122,15 @@
       "mix": 0.4
     },
     "Low monks": {
-      "vowel": 3.5,
+      "vowel": 3.4,
       "resonance": 0.75,
-      "voice": 0.05,
+      "voice": 0.0,
       "motion": 0.25,
       "decay": 12,
       "size": 0.85,
       "modulation": 0.3,
-      "lowCut": 70,
-      "highCut": 5000,
+      "lowCut": 60,
+      "highCut": 4500,
       "mix": 0.45
     },
     "High ee": {
@@ -140,8 +140,8 @@
       "motion": 0.15,
       "decay": 5,
       "size": 0.5,
-      "lowCut": 180,
-      "highCut": 12000,
+      "lowCut": 200,
+      "highCut": 14000,
       "mix": 0.35
     },
     "Moving vowels": {
@@ -164,13 +164,15 @@
     },
     "Oo behind": {
       "vowel": 4,
-      "resonance": 0.7,
-      "voice": 0.5,
+      "resonance": 0.85,
+      "voice": 0.8,
       "motion": 0.2,
-      "decay": 7,
-      "preDelay": 60,
+      "decay": 4.5,
+      "size": 0.45,
+      "preDelay": 80,
+      "lowCut": 150,
       "highCut": 6000,
-      "mix": 0.35
+      "mix": 0.3
     },
     "Cathedral choir": {
       "vowel": 0.3,

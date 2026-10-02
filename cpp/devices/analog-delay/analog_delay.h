@@ -5,6 +5,24 @@
 //   in ─(+)─► low-pass ─► compress 2:1 ─► line (saturates, hisses) ─► low-pass
 //        ▲                                                               │
 //        └──── feedback ◄──── low cut ◄──── expand 1:2 ◄─────────────────┘──► wet
+//
+// - The line holds a fixed 4096 samples and its clock sets the delay
+//   (bbd_line.h), so Time is a clock rate: what is in the line changes pitch
+//   with the clock for one line length, and the bandwidth is half the clock.
+//   The two fourth-order low-passes sit at Tone, or lower when the clock
+//   requires it, which is why long times are dark.
+// - The compander (compander.h) rounds attacks and makes the hiss breathe.
+// - Mod Depth wobbles the clock by up to 3 % with a sine and a slow drift.
+//   An echo's pitch is the clock now over the clock when it was written, so
+//   its vibrato is 2 x deviation x sin(pi x rate x time).
+// - The step sequence moves the clock between the base rate and two
+//   interval ratios: base, A, base, B, one slot every Step repeats. A step
+//   up plays the line higher by the interval until it has emptied, and the
+//   step back plays what the faster clock wrote lower by the same interval.
+// - Spread runs the right line's wobble out of phase with the left's (half
+//   a cycle at 1) and gives it its own drift. At 0 the two lines are one.
+// - Age lowers the line's headroom, raises its noise, lets the clock bleed
+//   through at long times and pulls the two rectifiers' speeds apart.
 
 #include "../../kit/kit.h"
 #include "bbd_line.h"
@@ -38,6 +56,7 @@ class AnalogDelay : public kit::DeviceBase<analog_delay::kNumParams> {
     spread_.set_time(kSmoothingSeconds, sr);
     mix_.set_time(kSmoothingSeconds, sr);
     lfo_phase_ = 0.0f;
+    mix_applied_ = -1.0f;
     step_gain_ = 1.0f;
     step_target_ = 1.0f;
     step_slot_ = 0;
@@ -52,6 +71,7 @@ class AnalogDelay : public kit::DeviceBase<analog_delay::kNumParams> {
     activity_.reset();
     activity_.set(0.001f, 0.2f, sr);
     control_clock_.reset(kControlPeriod);
+    tone_coeff_ = 1.0f - kit::time_to_coeff(0.02f, sr / static_cast<float>(kControlPeriod));
     // The longest silent gap is the longest delay an octave down.
     idle_.reset(sr, 2.0f * kParamMax[kTime] * 0.001f + 0.6f);
     for (int id = 0; id < kNumParams; ++id) apply(id);
@@ -68,6 +88,7 @@ class AnalogDelay : public kit::DeviceBase<analog_delay::kNumParams> {
       silence_output(frames);
       return;
     }
+    float wet_peak = 0.0f;
     for (int i = 0; i < frames; ++i) {
       float in[2];
       take_input(i, &in[0], &in[1]);
@@ -103,8 +124,12 @@ class AnalogDelay : public kit::DeviceBase<analog_delay::kNumParams> {
       const float noise = noise_level_ * gate;
       const float bleed = whine_ * gate;
 
-      float dry_gain, wet_gain;
-      kit::equal_power(mix_.next(), &dry_gain, &wet_gain);
+      // The pan law costs a sine and a cosine: only while Mix is moving.
+      const float mix = mix_.next();
+      if (mix != mix_applied_) {
+        mix_applied_ = mix;
+        kit::equal_power(mix, &dry_gain_, &wet_gain_);
+      }
       for (int c = 0; c < 2; ++c) {
         Channel& ch = channel_[c];
         float x = in[c] + feedback * back[c];
@@ -115,15 +140,18 @@ class AnalogDelay : public kit::DeviceBase<analog_delay::kNumParams> {
         // once a long Time brings the clock down into the audible range.
         if (bleed > 0.0f) y += bleed * kit::SineTable::lookup(ch.line.phase());
         y = ch.out_filter[1].lowpass(ch.out_filter[0].lowpass(y));
-        y = ch.expander.process(y, 1.0f);
+        y = ch.expander.process(y);
         y = ch.low_cut.highpass(y);
         // Linear to ±1, never past ±2: only a runaway loop reaches the knee.
         ch.wet = flush_denormal(2.0f * kit::soft_clip(0.5f * y));
+        wet_peak = kit::max(wet_peak, std::fabs(ch.wet));
       }
-      out_left_[i] = in[0] * dry_gain + channel_[0].wet * wet_gain;
-      out_right_[i] = in[1] * dry_gain + channel_[1].wet * wet_gain;
+      out_left_[i] = in[0] * dry_gain_ + channel_[0].wet * wet_gain_;
+      out_right_[i] = in[1] * dry_gain_ + channel_[1].wet * wet_gain_;
     }
-    idle_.settle(output_peak(frames), frames);
+    // The echoes keep the device awake even when Mix hides them, so a line
+    // that is still ringing is never frozen and replayed later.
+    idle_.settle(kit::max(output_peak(frames), wet_peak), frames);
   }
 
  private:
@@ -134,20 +162,21 @@ class AnalogDelay : public kit::DeviceBase<analog_delay::kNumParams> {
   // Corners of the input and output filters as a share of the clock rate,
   // when Tone is above them. The input one sits lower: what it lets past
   // half the clock rate folds back as tones that belong to no harmonic.
-#ifndef AD_IN_SHARE
-#define AD_IN_SHARE 0.36f
-#define AD_OUT_SHARE 0.42f
-#endif
-  static constexpr float kInputShare = AD_IN_SHARE;
-  static constexpr float kOutputShare = AD_OUT_SHARE;
+  static constexpr float kInputShare = 0.36f;
+  static constexpr float kOutputShare = 0.42f;
+  // Coupling capacitors: each pass round the loop loses a little bass.
   static constexpr float kLowCutHz = 45.0f;
   // Time constant of the compander's rectifiers when the circuit is new.
   static constexpr float kRectifierSeconds = 0.010f;
   // Mod Depth 1 moves the clock by this share either way.
   static constexpr float kMaxClockDeviation = 0.03f;
+  // The clock also wanders slowly: by this share of the wobble, plus a
+  // little of its own per channel as Spread opens.
   static constexpr float kDriftHz = 0.23f;
   static constexpr float kDriftShare = 0.3f;
   static constexpr float kDriftFloor = 0.0012f;
+  // The line's headroom is 1 when new (a full-scale sine reaches half of it
+  // after the compressor) and falls by this much at Age 1.
   static constexpr float kHeadroomLoss = 0.6f;
   // The line's hiss is switched off under -100 dBFS so the device can sleep.
   static constexpr float kGateFloor = 1.0e-5f;
@@ -156,6 +185,7 @@ class AnalogDelay : public kit::DeviceBase<analog_delay::kNumParams> {
   // under it when new, 50 dB when worn.
   static constexpr float kNoiseNew = 0.0001f;
   static constexpr float kNoiseWorn = 0.004f;
+  // Glide 1: the clock covers 63 % of a step in this time.
   static constexpr float kMaxGlideSeconds = 0.7f;
   // Clock bleed into the line's output at Age 1, and the clock rates between
   // which it fades in (none above the first, all of it below the second).
@@ -185,8 +215,11 @@ class AnalogDelay : public kit::DeviceBase<analog_delay::kNumParams> {
     using namespace analog_delay;
     const float sr = sample_rate();
     const float rate = clock * sr;
-    const float in_corner = kit::min(param(kTone), kInputShare * rate);
-    const float out_corner = kit::min(param(kTone), kOutputShare * rate);
+    // Tone glides to its setting (20 ms) so a turned knob does not step the
+    // filters.
+    tone_ += (param(kTone) - tone_) * tone_coeff_;
+    const float in_corner = kit::min(tone_, kInputShare * rate);
+    const float out_corner = kit::min(tone_, kOutputShare * rate);
     const float age = age_.value;
     // The drift moves so slowly that a value every few samples is a smooth
     // curve; a step in clock rate is not a step in the signal.
@@ -253,6 +286,7 @@ class AnalogDelay : public kit::DeviceBase<analog_delay::kNumParams> {
     switch (id) {
       case kTime:
       case kTone:
+        if (!primed()) tone_ = param(kTone);
         clock_.set(ticks_for(param(kTime) * 0.001f), primed());
         step_length_ = param(kTime) * 0.001f * sample_rate();
         break;
@@ -306,6 +340,11 @@ class AnalogDelay : public kit::DeviceBase<analog_delay::kNumParams> {
   float lfo_phase_ = 0.0f;
   float lfo_increment_ = 0.0f;
   float noise_level_ = 0.0f;
+  float mix_applied_ = -1.0f;
+  float dry_gain_ = 1.0f;
+  float wet_gain_ = 0.0f;
+  float tone_ = 3200.0f;
+  float tone_coeff_ = 1.0f;
   float whine_ = 0.0f;
   float step_gain_ = 1.0f;
   float step_target_ = 1.0f;

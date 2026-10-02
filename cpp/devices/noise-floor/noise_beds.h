@@ -193,11 +193,11 @@ struct Air {
 // place between the sides. Movement makes the rumble and the dust come round
 // once per turn of a 33⅓ record.
 struct Vinyl {
-  static constexpr float kNorm = 2.439f;  // by measurement
+  static constexpr float kNorm = 2.402f;  // by measurement
   static constexpr float kRumble = 2.0f;  // 10 dB under the hiss
-  // A typical tick peaks 10 dB over the hiss's RMS, the largest 23 dB over.
-  static constexpr float kTick = 1.5f;
-  static constexpr float kTickCeiling = 6.0f;
+  // A typical tick peaks 16 dB over the hiss's RMS, the largest 25 dB over.
+  static constexpr float kTick = 3.0f;
+  static constexpr float kTickCeiling = 3.0f;
   static constexpr float kTicksPerSecond = 16.0f;
   static constexpr float kPopsPerSecond = 0.22f;
   static constexpr float kTurnHz = 33.333f / 60.0f;
@@ -265,7 +265,7 @@ struct Vinyl {
     pop_wait -= 1.0f;
     if (pop_wait <= 0.0f) {
       pop_wait += poisson_gap(events, kPopsPerSecond, sr);
-      const float size = kTick * (2.5f + 2.5f * events.uniform());
+      const float size = kTick * (1.5f + 1.5f * events.uniform());
       const float hz = 70.0f * std::exp2(1.5f * events.uniform());
       const float lean = 0.125f + 0.06f * events.bipolar();
       pop[0].strike(size * kit::SineTable::cos_lookup(lean), hz, 0.9f, sr);
@@ -357,11 +357,11 @@ struct Room {
 // second and leave a flurry of crackle behind. Both sides hear the same
 // events through noise of their own. Movement is how restless the band is.
 struct Static {
-  static constexpr float kNorm = 2.087f;  // by measurement
-  // A typical crackle peaks 8 dB over the hiss's RMS, the largest 18 dB over;
+  static constexpr float kNorm = 2.036f;  // by measurement
+  // A typical crackle peaks 14 dB over the hiss's RMS, the largest 23 dB over;
   // a typical crash is a swell of 6 dB, the largest 12 dB.
-  static constexpr float kCrackle = 4.8f;
-  static constexpr float kCrackleCeiling = 4.0f;
+  static constexpr float kCrackle = 9.6f;
+  static constexpr float kCrackleCeiling = 3.0f;
   static constexpr float kCrash = 0.8f;
   static constexpr float kCrashCeiling = 2.75f;
   static constexpr float kCracklesPerSecond = 30.0f;

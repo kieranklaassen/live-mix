@@ -115,7 +115,7 @@ class HalfSpeed : public kit::DeviceBase<half_speed::kNumParams> {
   double cycle_frames_ = 48000.0;
   float jitter_factor_ = 1.0f;
   float mix_seen_ = -1.0f, dry_gain_ = 1.0f, wet_gain_ = 0.0f;
-  kit::Svf low_cut_[2], high_cut_[2], bass_;
+  kit::Svf low_cut_[2], high_cut_[2], split_left_, split_low_[2], split_high_[2];
   kit::ControlClock clock_;
   float low_hz_ = 20.0f, high_hz_ = 20000.0f, filter_ease_ = 0.05f;
   bool together_ = true;
@@ -138,8 +138,12 @@ inline void HalfSpeed::restart() {
     low_cut_[c].reset();
     high_cut_[c].reset();
   }
-  bass_.reset();
-  bass_.set(kBassHz, kit::kSqrtHalf, sample_rate());
+  kit::Svf* split[5] = {&split_left_, &split_low_[0], &split_low_[1], &split_high_[0],
+                        &split_high_[1]};
+  for (kit::Svf* filter : split) {
+    filter->reset();
+    filter->set(kBassHz, kit::kSqrtHalf, sample_rate());
+  }
   clock_.reset(kControlPeriod);
   filter_ease_ = 1.0f - std::exp(-kControlPeriod / (kFilterEaseSeconds * sample_rate()));
   low_hz_ = param(half_speed::kLowCut);
@@ -227,8 +231,13 @@ inline void HalfSpeed::render_frame(const float* in, float* out_left, float* out
     late_right *= make_up(late);
   }
   float wet[2];
-  wet[0] = left;
-  wet[1] = late_right + bass_.lowpass(right - late_right);
+  // A fourth-order Linkwitz-Riley split on the right: lows from the first
+  // set, the rest from the second. Its two halves add up to a second-order
+  // allpass, which the left side gets too, so the sides stay in phase.
+  split_left_.process(left);
+  wet[0] = left - 2.0f * split_left_.k * split_left_.band;
+  wet[1] = split_low_[1].lowpass(split_low_[0].lowpass(right)) +
+           split_high_[1].highpass(split_high_[0].highpass(late_right));
   for (int c = 0; c < 2; ++c) wet[c] = low_cut_[c].highpass(high_cut_[c].lowpass(wet[c]));
 
   // Cycle clocks. The second one runs a little fast or slow until it is

@@ -10,8 +10,10 @@ namespace micro_looper {
 // Ring: the always-listening memory, a stereo ring the record stage writes
 // at the looper's clock. Positions are absolute counts of frames written,
 // held in a double, so a loop is addressed the same way however long the
-// session runs. `forget()` makes everything written so far read as silence
-// (waking from sleep: the gap was silent).
+// session runs. The count starts one ring length up, so no position a loop
+// can ask for is negative and truncation is floor. `forget()` makes
+// everything written so far read as silence (waking from sleep: the gap was
+// silent).
 //
 // Store: where a loop is kept once it is held, so that the ring can go on
 // listening. The device copies a capture into it a few frames per sample
@@ -26,8 +28,8 @@ class Ring {
 
   void clear() {
     for (int i = 0; i < 2 * Frames; ++i) buffer_[i] = 0.0f;
-    written_ = 0;
-    valid_from_ = 0;
+    written_ = Frames;
+    valid_from_ = Frames;
   }
 
   void forget() { valid_from_ = written_; }
@@ -56,9 +58,8 @@ class Ring {
 
   // Hermite read of both channels. A whole position returns the stored frame.
   void read(double position, float* left, float* right) const {
-    const double floored = std::floor(position);
-    const long long whole = static_cast<long long>(floored);
-    const float t = static_cast<float>(position - floored);
+    const long long whole = static_cast<long long>(position);
+    const float t = static_cast<float>(position - static_cast<double>(whole));
     if (whole - 1 >= valid_from_ && whole + 2 < written_ && written_ - whole < Frames - 2) {
       const int i0 = static_cast<int>((whole - 1) & kMask) * 2;
       const int i1 = static_cast<int>(whole & kMask) * 2;
@@ -76,8 +77,8 @@ class Ring {
 
  private:
   float buffer_[2 * Frames] = {};
-  long long written_ = 0;
-  long long valid_from_ = 0;
+  long long written_ = Frames;
+  long long valid_from_ = Frames;
 };
 
 // A stretch of the ring kept aside: frames [base, base + count) of the
@@ -111,9 +112,9 @@ class Store {
   }
 
   void read(double position, float* left, float* right) const {
-    const double floored = std::floor(position);
-    const long long whole = static_cast<long long>(floored) - base_;
-    const float t = static_cast<float>(position - floored);
+    const long long floored = static_cast<long long>(position);
+    const long long whole = floored - base_;
+    const float t = static_cast<float>(position - static_cast<double>(floored));
     if (whole >= 1 && whole + 2 < count_) {
       const float* p = buffer_ + 2 * (whole - 1);
       *left = kit::hermite(p[0], p[2], p[4], p[6], t);

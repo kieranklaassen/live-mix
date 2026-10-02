@@ -124,15 +124,101 @@
     }
   ],
   "presets": {
-    "Dark repeats": { "time": 380, "feedback": 0.45 },
-    "Chorus echo": { "time": 290, "feedback": 0.4, "modDepth": 0.55, "modRate": 0.9 },
-    "Seasick vibrato": { "time": 160, "feedback": 0.35, "modDepth": 0.9, "modRate": 3.1 },
-    "Long and murky": { "time": 900, "feedback": 0.6, "age": 0.6 },
-    "Slapback": { "time": 95, "feedback": 0.12, "tone": 5000, "modDepth": 0.15 },
-    "Octave hops": { "time": 420, "feedback": 0.6, "intervalA": 6, "step": 1 }
+    "Dark repeats": {
+      "time": 380,
+      "feedback": 0.45,
+      "modDepth": 0.3,
+      "modRate": 0.6,
+      "tone": 3200,
+      "age": 0.3,
+      "spread": 0.5,
+      "mix": 0.35
+    },
+    "Chorus echo": {
+      "time": 290,
+      "feedback": 0.4,
+      "modDepth": 0.55,
+      "modRate": 0.9,
+      "tone": 4500,
+      "age": 0.2,
+      "spread": 0.8,
+      "mix": 0.4
+    },
+    "Seasick vibrato": {
+      "time": 160,
+      "feedback": 0.35,
+      "modDepth": 0.75,
+      "modRate": 3.1,
+      "tone": 3600,
+      "age": 0.4,
+      "spread": 0.3,
+      "mix": 0.5
+    },
+    "Long and murky": {
+      "time": 900,
+      "feedback": 0.6,
+      "modDepth": 0.4,
+      "modRate": 0.25,
+      "tone": 2400,
+      "age": 0.6,
+      "spread": 0.6,
+      "mix": 0.4
+    },
+    "Slapback": {
+      "time": 95,
+      "feedback": 0.12,
+      "modDepth": 0.15,
+      "tone": 5000,
+      "age": 0.2,
+      "spread": 0.2,
+      "mix": 0.3
+    },
+    "Octave hops": {
+      "time": 420,
+      "feedback": 0.6,
+      "modDepth": 0.15,
+      "tone": 4500,
+      "intervalA": 6,
+      "intervalB": 0,
+      "step": 1,
+      "glide": 0,
+      "mix": 0.4
+    },
+    "Fifths and fourths": {
+      "time": 330,
+      "feedback": 0.65,
+      "modDepth": 0.2,
+      "tone": 4000,
+      "intervalA": 5,
+      "intervalB": 3,
+      "step": 0,
+      "glide": 0,
+      "mix": 0.4
+    },
+    "Falling tape": {
+      "time": 500,
+      "feedback": 0.55,
+      "modDepth": 0.4,
+      "modRate": 0.3,
+      "age": 0.5,
+      "intervalA": 1,
+      "intervalB": 0,
+      "step": 2,
+      "glide": 0.85,
+      "mix": 0.4
+    },
+    "Runaway": {
+      "time": 300,
+      "feedback": 1.05,
+      "modDepth": 0.4,
+      "tone": 2800,
+      "age": 0.5,
+      "spread": 0.7,
+      "mix": 0.3
+    }
   },
   "origin": {
     "kind": "new",
-    "note": "Written for live-mix on cpp/kit. Models a companded bucket-brigade delay in outline, not any one unit."
+    "note": "Written for live-mix on cpp/kit. Models a companded bucket-brigade delay in outline, not any one unit: a fixed line of 4096 samples (8192 stages) whose clock sets the delay, so pitch follows clock changes and the bandwidth falls with the clock; fourth-order input and output low-passes that track the clock; a 2:1 compressor and 1:2 expander with slow rectifiers around the line; stage noise, saturation and clock bleed that grow with Age. After the approach of Raffel and Smith, 'Practical Modeling of Bucket-Brigade Device Circuits' (DAFx-10), with the line clocked between host samples in the spirit of Holters and Parker, 'A Combined Model for a Bucket Brigade Device and its Input and Output Filters' (DAFx-18), but by a simpler scheme: the input is read by linear interpolation at each clock tick and the held output is box-integrated over each host sample, with ordinary digital filters either side. No constants or details are taken from either paper."
   }
 }

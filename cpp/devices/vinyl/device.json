@@ -105,16 +105,16 @@
     "Charity shop find": {
       "speed": 0,
       "warp": 0.4,
-      "crackle": 0.5,
-      "pops": 0.35,
-      "surface": 0.45,
-      "wear": 0.55,
-      "tone": -0.15
+      "crackle": 0.4,
+      "pops": 0.3,
+      "surface": 0.5,
+      "wear": 0.6,
+      "tone": -0.2
     },
     "Ballroom 78": {
       "speed": 2,
-      "warp": 0.45,
-      "crackle": 0.55,
+      "warp": 0.4,
+      "crackle": 0.5,
       "pops": 0.3,
       "surface": 0.6,
       "wear": 0.6,
@@ -123,27 +123,28 @@
     "Jukebox single": {
       "speed": 1,
       "warp": 0.3,
-      "crackle": 0.4,
-      "pops": 0.25,
+      "crackle": 0.35,
+      "pops": 0.2,
       "surface": 0.35,
-      "wear": 0.45,
-      "tone": 0.35
+      "wear": 0.35,
+      "tone": 0.6
     },
     "Warped": {
       "speed": 0,
-      "warp": 0.8,
-      "crackle": 0.25,
-      "pops": 0.1,
-      "surface": 0.25,
-      "wear": 0.3
+      "warp": 0.85,
+      "crackle": 0.2,
+      "pops": 0.05,
+      "surface": 0.2,
+      "wear": 0.2
     },
     "Dust and scratches": {
       "speed": 0,
-      "warp": 0.3,
+      "warp": 0.2,
       "crackle": 0.9,
-      "pops": 0.65,
-      "surface": 0.4,
-      "wear": 0.45
+      "pops": 0.6,
+      "surface": 0.3,
+      "wear": 0.3,
+      "tone": 0.1
     },
     "Inner groove": {
       "speed": 0,
@@ -155,26 +156,27 @@
       "tone": 0.2
     },
     "Locked scratch": {
-      "speed": 1,
+      "speed": 0,
       "warp": 0.3,
-      "crackle": 0.35,
+      "crackle": 0.2,
       "pops": 1,
-      "surface": 0.35,
-      "wear": 0.4
+      "surface": 0.3,
+      "wear": 0.5,
+      "tone": -0.1
     },
     "Slow platter": {
       "speed": 0,
-      "warp": 0.5,
-      "crackle": 0.3,
-      "pops": 0.15,
-      "surface": 0.35,
-      "wear": 0.4,
-      "tone": -0.4,
+      "warp": 0.55,
+      "crackle": 0.2,
+      "pops": 0.1,
+      "surface": 0.3,
+      "wear": 0.25,
+      "tone": -0.5,
       "spin": 5
     }
   },
   "origin": {
     "kind": "new",
-    "note": "placeholder"
+    "note": "Written for live-mix on cpp/kit. A behavioural sketch of a record and its turntable, not a model of any one deck, cartridge or pressing. The warp is a delay read (four-point Hermite) whose position moves once per turn, with a second harmonic and a slow drift. Tracing distortion follows the first terms of the classical analysis of a round stylus tip in a modulated groove (J. A. Pierce and F. V. Hunt, \"On Distortion in Sound Reproduction from Phonograph Records\", J. Acoust. Soc. Am., 1938; W. D. Lewis and F. V. Hunt, \"A Theory of Tracing Distortion in Sound Reproduction from Phonograph Records\", J. Acoust. Soc. Am., 1941): each wall lifts the tip by half its radius times the square of the groove's slope, which for the two walls of a stereo groove puts a second harmonic on the difference channel (the pinch effect) and leaves third order in the middle; here both terms are scaled by ear, and the middle one is made larger than the theory gives. Crackle is a Poisson stream with Pareto-distributed sizes whose rate follows a map of dust round the disc; a scratch is a pop repeated at one turn phase. Surface noise, shellac's band and the platter curves are tuned by measurement, not taken from a source. The platter is a varispeed read that falls behind the input while it slows and while it starts, and cross-fades to the live input once it is back at speed. Noise is only made while the device is awake: it carries on for four seconds after the input stops, fades, and an idle track is exactly silent."
   }
 }

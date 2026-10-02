@@ -2,13 +2,15 @@
 
 #include <cmath>
 
-// The second stage of the amplifier's 4x oversampling: 2x up and down through
-// a linear-phase halfband FIR of 4·Half − 1 taps (Kaiser window). The same
-// design as cpp/devices/saturator/halfband.h, copied here so the device stands
-// on its own directory and the kit. kit::Halfband2x is the first stage; it has
-// to be steep (63 taps) because the audio band ends just under its transition.
-// The second stage works on a signal that already has an octave of headroom,
-// so 31 taps reach -98 dB with a transition four times as wide.
+// One stage of the amplifier's 4x oversampling: 2x up and down through a
+// linear-phase halfband FIR of 4·Half − 1 taps (Kaiser window). The same
+// design as cpp/devices/saturator/halfband.h, copied here so the device
+// stands on its own directory and the kit. With Half = 16 and beta 8 it is
+// the filter of kit::Halfband2x tap for tap (63 taps, passband to 0.42 of the
+// base rate, stopband under -80 dB from 0.58, 31 base-rate samples for the
+// round trip), read from contiguous windows instead of a masked ring. The
+// second stage works on a signal that already has an octave of headroom, so
+// Half = 8 (31 taps) with beta 10 reaches -98 dB there.
 //
 // Both directions read one contiguous window: every other tap of a halfband is
 // zero, so upsampling needs only the input history, and downsampling only the

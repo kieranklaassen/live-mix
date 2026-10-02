@@ -14,7 +14,7 @@
       "max": 50,
       "default": 9,
       "unit": "ct",
-      "description": "How far the two copies are tuned away from the dry sound: the left one sharp, the right one flat. A few cents is a soft widening; higher settings beat against the dry sound and turn sour."
+      "description": "How far the two copies are tuned away from the dry sound: the left one sharp, the right one flat. A few cents is a soft widening; more beats against the dry sound and turns sour."
     },
     {
       "key": "delay",
@@ -39,7 +39,7 @@
       "min": 0,
       "max": 0.7,
       "default": 0,
-      "description": "Feeds each copy back into itself, so it is detuned again on every pass: the left side climbs and the right side sinks as the repeats fade."
+      "description": "Feeds each copy back into itself, so it is detuned again on every pass: the left side climbs and the right side sinks as the repeats blur and fade."
     },
     {
       "key": "focus",
@@ -87,14 +87,14 @@
       "focus": 180,
       "tone": 10000,
       "width": 1,
-      "mix": 0.5
+      "mix": 0.4
     },
     "Subtle halo": {
       "detune": 4,
       "delay": 12,
       "drift": 0.1,
-      "tone": 7000,
-      "mix": 0.35
+      "tone": 6000,
+      "mix": 0.28
     },
     "Thick double": {
       "detune": 20,
@@ -111,6 +111,14 @@
       "tone": 3500,
       "mix": 0.55
     },
+    "Wide open": {
+      "detune": 14,
+      "delay": 20,
+      "drift": 0.2,
+      "focus": 120,
+      "tone": 18000,
+      "mix": 0.65
+    },
     "Spiral": {
       "detune": 14,
       "delay": 45,
@@ -118,6 +126,15 @@
       "feedback": 0.62,
       "focus": 300,
       "tone": 5000,
+      "mix": 0.45
+    },
+    "Detune cloud": {
+      "detune": 6,
+      "delay": 22,
+      "drift": 0.3,
+      "feedback": 0.5,
+      "focus": 400,
+      "tone": 9000,
       "mix": 0.45
     },
     "Seasick": {
@@ -133,19 +150,10 @@
       "drift": 0.1,
       "width": 0,
       "mix": 0.45
-    },
-    "Still shimmer": {
-      "detune": 6,
-      "delay": 22,
-      "drift": 0,
-      "feedback": 0.45,
-      "focus": 400,
-      "tone": 12000,
-      "mix": 0.4
     }
   },
   "origin": {
     "kind": "new",
-    "note": "Written for live-mix on cpp/kit. Models the micro pitch shift treatment of studio harmonizers in outline (a slightly sharp copy on one side, a slightly flat copy on the other, each a few milliseconds late), not any unit. Each copy is a delay-line pitch shifter with a single read head, spliced by normalised cross-correlation as in the autocorrelation splice of US patent 4,464,784 (expired) and in Verhelst and Roelands, 'An overlap-add technique based on waveform similarity (WSOLA) for high quality time-scale modification of speech' (ICASSP 1993); splices also wait for a stretch of the line with no attack in it. Reads use a 16-tap Kaiser-windowed sinc."
+    "note": "Written for live-mix on cpp/kit. Models the micro pitch shift treatment of studio harmonizers in outline (a slightly sharp copy on one side and a slightly flat copy on the other, each a few milliseconds late, made from the mono sum of the input), not any unit. Each copy is a delay-line pitch shifter with a single read head. The head is spliced where normalised cross-correlation says the waveform repeats, as in the autocorrelation splice of US patent 4,464,784 (expired) and in Verhelst and Roelands, 'An overlap-add technique based on waveform similarity (WSOLA) for high quality time-scale modification of speech' (ICASSP 1993), and only when no attack lies between the two read points. Reads use a 16-tap Kaiser-windowed sinc; the feedback path passes through two Schroeder allpasses per side."
   }
 }

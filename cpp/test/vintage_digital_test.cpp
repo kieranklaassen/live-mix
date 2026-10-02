@@ -5,6 +5,7 @@
 // that nothing is in the output that the model does not predict.
 
 #include <complex>
+#include <cstdlib>
 
 #include "../devices/vintage-digital/vintage_digital.h"
 #include "support/test_kit.h"
@@ -39,6 +40,12 @@ static void ideal(VintageDigital& d, float rate, float sample_rate = kRate) {
 static double hold(double hz, double rate) {
   const double x = kPi * hz / rate;
   return std::fabs(std::sin(x) / x);
+}
+
+// With VD_NOTES set, prints the measured figure behind each labelled check.
+static void note(const char* label) {
+  static const bool on = std::getenv("VD_NOTES") != nullptr;
+  if (on) std::printf("note: %s\n", label);
 }
 
 static float db_to_gain_f(float decibels) { return std::pow(10.0f, decibels / 20.0f); }
@@ -197,6 +204,7 @@ int main() {
     std::snprintf(label, sizeof label, "transparent at the top settings at %.0f Hz (error %.1f dBFS)",
                   sample_rate, db(worst));
     EXPECT(db(worst) < -80.0, label);
+    note(label);
   }
 
   // Images: a 1 kHz tone held at 8 kHz comes out with copies at 7 and 9 kHz
@@ -212,6 +220,7 @@ int main() {
       std::snprintf(label, sizeof label, "image at %.0f Hz follows the hold's envelope at %.0f Hz",
                     hz, sample_rate);
       EXPECT_NEAR(measured, db(hold(hz, 8000.0)), 2.0, label);
+      note(label);
     }
   }
 
@@ -268,6 +277,7 @@ int main() {
       std::snprintf(label, sizeof label, "%.0f bits at %.0f Hz: signal-to-noise of a full-scale tone",
                     bits, rate);
       EXPECT_NEAR(snr(rate, bits, kLinear, 1.0f), 6.02 * bits + 1.76, 3.0, label);
+      note(label);
     }
   }
 
@@ -318,6 +328,7 @@ int main() {
                     "strongest stray %.1f dB)",
                     c.hz, c.rate, c.sample_rate, found.size(), db(stray / 0.5));
       EXPECT(found.size() >= 3 && db(stray / 0.5) < -80.0, label);
+      note(label);
     }
   }
 
@@ -360,6 +371,7 @@ int main() {
       std::snprintf(label, sizeof label, "Drive %.0f dB: a -18 dBFS tone stays within 4 dB (%+.2f dB)",
                     drive, change);
       EXPECT(change > -4.0 && change < 4.0, label);
+      note(label);
     }
     // More drive uses more of the converter: at 8 bits a -30 dBFS tone gains
     // 12 dB of signal-to-noise from 12 dB of drive.
@@ -377,27 +389,36 @@ int main() {
 
   // The clip is anti-aliased. With the resampling off (Rate at the top) a
   // 1245 Hz tone driven 12 dB over full scale has harmonics at multiples of
-  // 1245 Hz; what a bare clip folds back from above Nyquist (-44 dB in all)
-  // is 15 dB lower here.
+  // 1245 Hz; everything else is fold-back from above Nyquist. The device's
+  // is over 12 dB lower than a bare clip's of the same tone.
   {
+    const size_t n = 1 << 16;
+    const std::vector<float> in = sine(1245.0f, static_cast<float>(n + 9600) / kRate + 0.1f, kRate, 0.5f);
     ideal(device, 48000.0f);
     device.set_param(p::kDrive, 18.0f);
-    const size_t n = 1 << 16;
-    Stereo out = run(device, sine(1245.0f, static_cast<float>(n + 9600) / kRate + 0.1f, kRate, 0.5f));
-    const std::vector<Line> found = lines(out.left, 9600, n, kRate, 1.0e-6);
-    double fundamental = 0.0, folded = 0.0;
-    for (const Line& line : found) {
-      const double harmonic = std::round(line.hz / 1245.0);
-      if (std::fabs(harmonic * 1245.0 - line.hz) < 4.0 * kRate / n) {
-        if (harmonic == 1.0) fundamental = line.level;
-      } else {
-        folded += line.level * line.level;
+    Stereo out = run(device, in);
+    std::vector<float> bare(in.size());
+    for (size_t i = 0; i < in.size(); ++i) bare[i] = std::max(-1.0f, std::min(1.0f, in[i] * 7.9433f));
+    // Fold-back against the fundamental, in dB.
+    auto folded = [&](const std::vector<float>& x) {
+      const std::vector<Line> found = lines(x, 9600, n, kRate, 1.0e-6);
+      double fundamental = 1.0e-9, sum = 0.0;
+      for (const Line& line : found) {
+        const double harmonic = std::round(line.hz / 1245.0);
+        if (std::fabs(harmonic * 1245.0 - line.hz) >= 4.0 * kRate / n) {
+          sum += line.level * line.level;
+        } else if (harmonic == 1.0) {
+          fundamental = line.level;
+        }
       }
-    }
+      return db(std::sqrt(sum) / fundamental);
+    };
+    const double device_folded = folded(out.left), bare_folded = folded(bare);
     char label[120];
-    std::snprintf(label, sizeof label, "clip aliasing %.1f dB under the fundamental",
-                  -db(std::sqrt(folded) / std::max(fundamental, 1.0e-9)));
-    EXPECT(fundamental > 0.01 && db(std::sqrt(folded) / fundamental) < -55.0, label);
+    std::snprintf(label, sizeof label, "clip fold-back %.1f dB under the fundamental (a bare clip: %.1f dB)",
+                  -device_folded, -bare_folded);
+    EXPECT(device_folded < -50.0 && device_folded < bare_folded - 12.0, label);
+    note(label);
   }
 
   // No DC, whatever the quantiser: it is symmetric about zero.
@@ -457,6 +478,7 @@ int main() {
       // With no filter the stair at 1 kHz is itself the largest step there is
       // (up to 0.25 * 2 sin(pi 220 / 1000) = 0.32 for this tone).
       EXPECT(worst < (filter == kNone ? 0.33 : 1.5 * low + 0.002), label);
+      note(label);
     }
     for (float target : {2000.0f, 48000.0f, 30000.0f}) {
       device.init(kRate);
@@ -496,10 +518,74 @@ int main() {
       std::snprintf(label, sizeof label, "%s changes without a click (%.3f, steady %.3f and %.3f)",
                     change.name, during, before, after);
       EXPECT(during < 1.3 * std::max(before, after) + 0.002, label);
+      note(label);
     }
   }
 
-  // MORE CHECKS
+  // The converted signal is on time. Its filters and the hold make it late
+  // by a few of its own sample periods; the sampler reads that much less far
+  // back, so at low frequencies it arrives exactly with the dry signal
+  // (within a tenth of a sample here) whatever the Rate, Filter and Aliasing.
+  {
+    for (float rate : {4000.0f, 16000.0f, 47000.0f}) {
+      for (int filter = 0; filter < 3; ++filter) {
+        for (float aliasing : {0.0f, 1.0f}) {
+          ideal(device, rate);
+          device.set_param(p::kFilter, static_cast<float>(filter));
+          device.set_param(p::kAliasing, aliasing);
+          const std::vector<float> in = sine(50.0f, 1.0f, kRate, 0.5f);
+          Stereo out = run(device, in);
+          double lag = tone_phase(in, 50.0, kRate, 9600, 38400) - tone_phase(out.left, 50.0, kRate, 9600, 38400);
+          while (lag < -kPi) lag += 2.0 * kPi;
+          while (lag > kPi) lag -= 2.0 * kPi;
+          const double samples = lag / (2.0 * kPi * 50.0) * kRate;
+          char label[140];
+          std::snprintf(label, sizeof label,
+                        "rate %.0f, filter %d, aliasing %.0f: low end arrives with the dry signal (%.3f samples)",
+                        rate, filter, aliasing, samples - static_cast<double>(kLatency));
+          EXPECT_NEAR(samples, static_cast<double>(kLatency), 0.1, label);
+          note(label);
+        }
+      }
+    }
+    // So Mix half way is a blend and not a comb filter: tones under the
+    // converter's band come out at the level they went in (before the
+    // alignment the default patch lost 14 dB around 2.5 kHz).
+    for (float hz : {200.0f, 500.0f, 1000.0f, 2000.0f, 3000.0f, 4000.0f}) {
+      device.init(kRate);
+      device.set_param(p::kMix, 0.5f);
+      Stereo out = run(device, sine(hz, 0.5f, kRate, 0.25f));
+      char label[120];
+      std::snprintf(label, sizeof label, "Mix 0.5 at defaults keeps a %.0f Hz tone at its level (%+.2f dB)", hz,
+                    db(tone_level(out.left, hz, kRate, 4800) / 0.25));
+      EXPECT_NEAR(db(tone_level(out.left, hz, kRate, 4800) / 0.25), 0.0, 1.0, label);
+      note(label);
+    }
+  }
+
+  // Asleep when idle: exact zero soon after the input stops (the quantiser
+  // has no step at zero, so nothing idles in the last bit), awake again on
+  // the next sound.
+  {
+    device.init(kRate);
+    run(device, noise(0.2f, kRate, 0.5f));
+    render(device, 0.6f, kRate);
+    Stereo rest = render(device, 0.5f, kRate);
+    EXPECT(peak(rest.left) == 0.0 && peak(rest.right) == 0.0, "asleep after the tail");
+    Stereo woken = run(device, sine(440.0f, 0.2f, kRate, 0.5f));
+    EXPECT(rms(woken.left, 2400) > 0.2, "wakes on new input");
+  }
+
+  // Cost at the heaviest sensible setting: the clock ticking on nearly every
+  // sample, steep filters on both sides, Mu-law, jitter.
+  device.init(kRate);
+  device.set_param(p::kRate, 47000.0f);
+  device.set_param(p::kFilter, kSteep);
+  device.set_param(p::kCompanding, kMuLaw);
+  device.set_param(p::kJitter, 0.5f);
+  rng_state() = 0xBEEFu;
+  std::vector<float> input = noise(10.0f, kRate, 0.25f);
+  report_cost("vintage-digital", 10.0f, kRate, [&] { run(device, input); });
 
   return finish("vintage-digital");
 }

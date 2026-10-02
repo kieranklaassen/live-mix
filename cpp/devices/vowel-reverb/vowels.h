@@ -173,6 +173,12 @@ class OutputBank {
   // figures the upper formants, which tell the vowels apart, would be
   // counted down twice. This share of each level (in dB) is used.
   static constexpr float kLevelScale = 0.5f;
+  // A band-pass falls away below its centre for ever; a throat does not: it
+  // passes the low end at a fixed level under the first formant. So a
+  // vowel keeps some of the body of what is sung through it, this much of
+  // the input is added through a one-pole low-pass an octave under the
+  // first formant (whose phase never turns far enough to cancel anything).
+  static constexpr float kBody = 0.25f;
 
   void reset() {
     for (int k = 0; k < kFormants; ++k) {
@@ -183,6 +189,8 @@ class OutputBank {
     remaining_ = 0;
     tuned_ = false;
     power_ = 1.0f;
+    body_ = 0.0f;
+    body_pole_ = 0.0f;
   }
 
   // Retune (on the control clock). Bandwidths are the table's times `widen`.
@@ -204,6 +212,9 @@ class OutputBank {
         step_[k] = 0.0f;
       }
     }
+    // The body's corner: half the first formant, as a one-pole.
+    const float half = 0.5f * coeff_[0].g;
+    body_pole_ = (1.0f - half) / (1.0f + half);
     power_ = power;
     remaining_ = tuned_ ? period : 0;
     tuned_ = true;
@@ -217,7 +228,8 @@ class OutputBank {
       --remaining_;
       for (int k = 0; k < kFormants; ++k) gain_[k] += step_[k];
     }
-    float sum = 0.0f;
+    body_ = flush_denormal(x + (body_ - x) * body_pole_);
+    float sum = kBody * gain_[0] * body_;
     for (int k = 0; k < kFormants; ++k) sum += gain_[k] * state_[k].process(x, coeff_[k]);
     return sum;
   }
@@ -228,6 +240,8 @@ class OutputBank {
   float gain_[kFormants] = {};
   float step_[kFormants] = {};
   float power_ = 1.0f;
+  float body_ = 0.0f;
+  float body_pole_ = 0.0f;
   int remaining_ = 0;
   bool tuned_ = false;
 };

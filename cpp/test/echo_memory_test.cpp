@@ -485,6 +485,32 @@ int main() {
     EXPECT(ultrasonic < tone * 1.0e-3 && image < tone * 1.0e-3, "96 kHz: no images above -60 dB");
   }
 
+  // Other rates: a recalled tone has its pitch and level at 44.1 kHz (memory
+  // at the host rate), 88.2 kHz (half rate) and 192 kHz (half rate, where
+  // the ring holds less than Reach + Size and Reach is cut short).
+  for (float rate : {44100.0f, 88200.0f, 192000.0f}) {
+    std::vector<float> input = silence(12.0f, rate);
+    add_tone(input, 440.0f, 0.0f, 12.0f, 0.25f, rate);
+    memory_only(device, rate);
+    device.set_param(p::kSize, 2.0f);
+    device.set_param(p::kReach, 60.0f);
+    std::vector<Event> events;
+    Stereo out = run_logged(device, input, input, &events);
+    double tone = 0.0, pitch = 0.0;
+    for (const Event& event : events) {
+      const size_t length = static_cast<size_t>(event.recall.seconds * rate);
+      const size_t from = event.at + length * 42 / 100, to = event.at + length * 58 / 100;
+      if (event.recall.seconds < 1.9f || to >= out.size()) continue;
+      tone = tone_level(out.left, 440.0, rate, from, to) / event.recall.gain;
+      pitch = dominant_frequency(out.left, rate, 200.0, 900.0, from, to);
+      break;
+    }
+    std::printf("%.1f kHz: a recalled 440 Hz tone plays at %.1f Hz, %+.2f dB re input\n", rate / 1000.0,
+                pitch, db(tone / 0.25));
+    EXPECT(std::fabs(pitch - 440.0) < 1.0 && std::fabs(db(tone / 0.25)) < 0.2,
+           "a recalled tone keeps its pitch and level at other sample rates");
+  }
+
   // Level and stereo at the defaults, on a held chord from a mono source.
   {
     std::vector<float> input = silence(24.0f, kRate);
@@ -537,7 +563,7 @@ int main() {
     }
     std::printf("spread: at 1 moments sit %.1f to %.1f dB to one side and change sides %d times in %d; "
                 "at 0 left and right differ by %.2g\n",
-                narrowest, widest, flips, pairs);
+                narrowest, widest, flips, pairs, apart);
     EXPECT(pairs >= 8 && flips == pairs, "Spread 1: successive moments are on opposite sides");
     EXPECT(narrowest > 2.0 && widest > 9.0 && widest < 13.0, "Spread 1: from just off centre to wide, never hard");
     // Each channel of the memory has its own dither, a step of 1/32767.

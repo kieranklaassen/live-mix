@@ -12,7 +12,34 @@
 //                                                                                         │
 //      wet ◄─ width ◄─ high cut ◄─ (1 - b)·flat + b·makeup·[five formants, per side] ◄────┘
 //
-// HEADER-NOTES
+// - The room is an eight-line feedback delay network (Jot's form: lossless
+//   Hadamard mixing, one decay gain per line) with four input allpasses, one
+//   allpass in every loop so each pass multiplies the echoes, and every
+//   line read at a slowly drifting point (Hermite), which is the ensemble.
+//   What is heard is tapped part of the way down the lines, so the room
+//   answers before its first full pass.
+// - The vowel is the Csound manual's formant table (vowels.h): five
+//   formants, for a, e, i, o, u and for bass, tenor, alto and soprano,
+//   interpolated along Vowel and across Voice.
+// - It acts twice. On the way out, five band-passes in parallel at the
+//   table's frequencies and widths colour the whole wet signal at once;
+//   Resonance blends from the flat signal to them. In the loop, a broad
+//   version of the first three formants takes a little from everything
+//   that is not on a formant on every pass, so the valleys decay up to
+//   four times faster than the formants: the vowel grows clearer the
+//   longer the tail rings, and Decay stays the decay time of the first
+//   formant. The loop filter's gain is at most 1 at every frequency (see
+//   LoopBank), so no setting can make the room grow.
+// - The makeup gain follows the vowel: narrow formants pass less, and the
+//   level a played phrase comes out with stays within a few dB from A to U
+//   and from Resonance 0 to 1.
+// - Motion is three slow drifts: the vowel of the whole room wanders
+//   towards its neighbours, the two sides of the output lean away from each
+//   other, and they are sung by slightly different sizes of voice. At the
+//   ends of the vowel line the wander turns back instead of stopping.
+// - High Cut is a shelf in the loop (above it the room lasts a quarter as
+//   long, whatever the Decay) and a 6 dB per octave low-pass on the output.
+//   Low Cut is on the output only. The side signal carries no bass.
 
 #include "../../kit/kit.h"
 #include "params.gen.h"
@@ -92,7 +119,6 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
     motion_.set_time(0.1f, control_rate);
     low_cut_hz_.set_time(0.03f, control_rate);
     high_cut_hz_.set_time(0.03f, control_rate);
-    // The mouth takes about a tenth of a second to get to a new vowel.
     vowel_.set_time(kVowelGlideSeconds, control_rate);
     vowel_glide_.set_time(kVowelGlideSeconds, control_rate);
     voice_.set_time(kVowelGlideSeconds, control_rate);
@@ -149,9 +175,9 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
         sweep_[n] += sweep_step_[n];
         const float delay = kit::clamp(length_[n] * size + sweep_[n], 4.0f, max_line);
         v[n] = line_[n].read_hermite(delay);
-        // What is heard is taken part of the way down each line, so the
-        // room starts to answer well before its first full pass.
-        tap[n] = line_[n].read_linear(kit::max(delay * kTapPosition[n], 2.0f));
+        // Half of what is heard is taken part of the way down a line, so
+        // the room starts to answer well before its first full pass.
+        tap[n] = (n & 2) ? v[n] : line_[n].read_linear(kit::max(delay * kTapPosition[n >> 1 | (n & 1)], 2.0f));
       }
       float wet[2] = {0.5f * (tap[0] - tap[2] + tap[4] - tap[6]) + kEarlyGain * feed[0],
                       0.5f * (tap[1] - tap[3] + tap[5] - tap[7]) + kEarlyGain * feed[1]};
@@ -161,15 +187,15 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
       for (int n = 0; n < kLines; ++n) {
         float x = v[n];
         // The vowel inside the loop: unity at the formants, 1 - amount in
-        // the valleys between them.
-        if ((n & 2) == 0) x += amount_[n] * (loop_bank_.process((n >> 1) | (n & 1), x) - x);
+        // the valleys between them. (At Resonance 0 there is none.)
+        if (amount_[n] > 0.0f) x += amount_[n] * (loop_bank_.process(kVowelSlot[n], x) - x);
         x *= gain_[n];
         // Above High Cut the room loses a fixed share more per pass.
         x += damp_[n] * (damping_[n].lowpass(x) - x);
         x += (n & 2) ? -feed[n & 1] : feed[n & 1];
         // Linear to ±2, landing on ±4: out of the way of any normal level.
         x = 4.0f * kit::soft_clip(0.25f * x);
-        // Two allpasses in each loop: every pass multiplies the echoes.
+        // An allpass in each loop: every pass multiplies the echoes.
         for (int a = 0; a < kLoopStages; ++a) {
           x = loop_allpass_[n][a].process(x, loop_length_[n][a], kLoopDiffusion);
         }
@@ -209,6 +235,7 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
   // on the next pass, so the room decays as if every line carried it, for
   // half the filters. Each side of the output hears two lines of each kind.
   static constexpr int kVowelLines = 4;
+  static constexpr int kVowelSlot[kLines] = {0, 1, -1, -1, 2, 3, -1, -1};
   // The vowel moves slowly: the banks are retuned every other control tick.
   static constexpr int kTunePeriod = 2 * kControlPeriod;
 
@@ -226,10 +253,11 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
   // so a centred source still spreads.
   static constexpr float kInputAllpass[2][kInputStages] = {{229.0f, 173.0f, 611.0f, 447.0f},
                                                            {241.0f, 181.0f, 631.0f, 463.0f}};
-  // Where each line is tapped for the output, as a share of its length: the
-  // left side hears the even lines, the right side the odd ones.
-  static constexpr float kTapPosition[kLines] = {0.31f, 0.37f, 0.83f, 0.79f, 0.52f, 0.47f, 0.67f, 0.71f};
-  // The two allpasses in each loop, in seconds (they do not scale with Size).
+  // The left side hears the even lines and the right side the odd ones.
+  // Lines 0, 1, 4 and 5 are tapped at this share of their length; the other
+  // four are heard at their ends.
+  static constexpr float kTapPosition[4] = {0.31f, 0.37f, 0.52f, 0.47f};
+  // The allpass in each loop, in seconds (it does not scale with Size).
   static constexpr int kLoopStages = 1;
   static constexpr float kLoopAllpassSeconds[kLines][kLoopStages] = {
       {0.008938f}, {0.010354f}, {0.011896f}, {0.009729f}, {0.012729f}, {0.008354f}, {0.011313f}, {0.010938f}};
@@ -238,17 +266,28 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
   static constexpr float kWetGain = 1.3f;
   static constexpr float kSideBassHz = 160.0f;
 
-  // TUNING-CONSTANTS
+  // The valleys between the formants decay this many times the formants'
+  // rate faster at Resonance 1 (so they last a quarter as long), and never
+  // slower than 1 / kValleySlowest seconds; the highs do the same above
+  // High Cut at every Resonance.
   static constexpr float kValleyDepth = 3.0f;
   static constexpr float kValleySlowest = 0.2f;
   static constexpr float kHighDamping = 3.0f;
+  // Output formants: the table's widths times this (a section is wider
+  // than one singer), and the makeup that sets the vowel's level against
+  // the flat signal's, limited to 12 dB.
   static constexpr float kOutputWiden = 1.3f;
-  static constexpr float kPinkReference = 1.6f;
+  static constexpr float kMakeupReference = 1.6f;
   static constexpr float kMaxMakeup = 4.0f;
+  // Motion 1: the vowel wanders up to a whole vowel either way, the sides
+  // lean half as far apart, and the voice changes by a quarter of a step
+  // from tenor to alto. The drifts turn over about every twelve seconds.
   static constexpr float kMotionVowel = 1.0f;
   static constexpr float kMotionSpread = 0.5f;
   static constexpr float kMotionVoice = 0.08f;
   static constexpr float kMotionHz = 0.083f;
+  // The mouth takes about a tenth of a second to get to a new vowel (two
+  // of these in series: an S-shaped glide).
   static constexpr float kVowelGlideSeconds = 0.03f;
 
   // kit::hadamard<8> written out: the loop form costs six times as much
@@ -337,12 +376,12 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
                           kit::max(kValleyDepth / decay, kValleySlowest - 1.0f / decay);
       const float inverse_rate = 1.0f / sr;
       for (int n = 0; n < kLines; ++n) {
-        // A pass takes the line and its two allpasses (an allpass delays
+        // A pass takes the line and its allpass (an allpass delays
         // energy by its length on average).
         const float seconds = kLineSeconds[n] * size +
                               static_cast<float>(loop_delay_[n]) * inverse_rate;
         decay_gain_[n] = std::exp(rate * seconds);
-        amount_[n] = (n & 2) == 0 ? 1.0f - std::exp(extra * seconds) : 0.0f;
+        amount_[n] = kVowelSlot[n] >= 0 ? 1.0f - std::exp(extra * seconds) : 0.0f;
         // Highs last a quarter as long as the rest, whatever the Decay: a
         // shelf, so the upper formants are not worn away in a long tail.
         damp_[n] = 1.0f - std::exp(rate * kHighDamping * seconds);
@@ -397,7 +436,7 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
     if (!started_) flat_gain_ = flat;
     for (int c = 0; c < 2; ++c) {
       const float makeup =
-          kit::min(std::sqrt(kPinkReference / kit::max(bank_[c].pink_power(), 1.0e-6f)), kMaxMakeup);
+          kit::min(std::sqrt(kMakeupReference / kit::max(bank_[c].pink_power(), 1.0e-6f)), kMaxMakeup);
       const float target = blend * makeup;
       vowel_step_[c] = started_ ? (target - vowel_gain_[c]) * ramp : 0.0f;
       if (!started_) vowel_gain_[c] = target;

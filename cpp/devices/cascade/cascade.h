@@ -56,6 +56,8 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
     guard_ = static_cast<int>(kGuardSeconds * sr);
     preroll_ = static_cast<int>(kPrerollSeconds * sr);
     fade_step_ = 1.0f / (kStealSeconds * sr);
+    fast_.set(0.0005f, 0.01f, sr);
+    slow_.set(0.02f, 0.08f, sr);
     slice_count_ = 0;
     step_ = 0;
     cycle_ = 480.0f;
@@ -88,9 +90,18 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
       silence_output(frames);
       return;
     }
-    // The ring was not written while asleep: a slot must not span the gap.
-    if (was_asleep) restart_slots();
     int done = 0;
+    if (was_asleep) {
+      // Start again at the first sample that is not silence, wherever in the
+      // host's block it falls, so that what follows does not depend on how
+      // the silence before it was cut into blocks.
+      while (done < frames - 1 && in_left_[done] == 0.0f && in_right_[done] == 0.0f) {
+        out_left_[done] = 0.0f;
+        out_right_[done] = 0.0f;
+        ++done;
+      }
+      wake();
+    }
     while (done < frames) {
       if (control_left_ == 0) {
         control();
@@ -101,7 +112,7 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
       int count = frames - done < control_left_ ? frames - done : control_left_;
       const long long until = slot_begin_ + slot_samples_ - written_;
       if (until >= 1 && until < count) count = static_cast<int>(until);
-      chunk(done, count);
+      count = chunk(done, count);
       done += count;
       control_left_ -= count;
     }
@@ -135,6 +146,9 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
   static constexpr float kThreshold = 0.001f;
   // -2 dBFS: where the wet level starts to be held down.
   static constexpr float kCeiling = 0.8f;
+  // A new note: the fast level follower this far above the slow one.
+  static constexpr float kOnsetRatio = 2.5f;
+  static constexpr float kOnsetFloor = 0.003f;
 
   enum Role : int { kRoleMain = 0, kRoleHigh, kRoleLow, kNumRoles };
   enum Pattern : int { kMosaic = 0, kStrum, kTunnel, kSteps };
@@ -208,6 +222,30 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
   void restart_slots() {
     slot_begin_ = written_;
     slot_has_sound_ = false;
+    fast_.reset();
+    slow_.reset();
+    spawn_offset_ = 0;
+  }
+
+  // The ring was not written while asleep. Take up recording on a whole
+  // group of four samples with the decimators and the clocks at rest; the
+  // slot starts here (the ring just before holds the silence that let the
+  // device fall asleep).
+  void wake() {
+    while (written_ & 3) {
+      ring0_[written_ & (kRing0 - 1)] = 0.0f;
+      ++written_;
+    }
+    half_[0].reset();
+    half_[1].reset();
+    held1_ = 0.0f;
+    held2_ = 0.0f;
+    dc_.reset();
+    for (int c = 0; c < 2; ++c) tone_[c].reset();
+    held_ = 0.0f;
+    control_left_ = 0;
+    step_ = 0;
+    restart_slots();
   }
 
   int repeats() const { return kit::clamp_int(static_cast<int>(param(cascade::kRepeats) + 0.5f), 1, 16); }
@@ -337,9 +375,9 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
   // Parts: 0 = x1, 1 = x2, 2 = x4, 3 = x1/2, 4 = x3/2, 5 = x3.
   static constexpr float kMosaicSpeed[6] = {1.0f, 2.0f, 4.0f, 0.5f, 1.5f, 3.0f};
   static constexpr float kPanFour[4] = {-0.9f, 0.5f, -0.5f, 0.9f};
-  static constexpr float kAccentFour[4] = {0.7f, 1.0f, 0.85f, 0.95f};
+  static constexpr float kAccentFour[4] = {0.8f, 1.15f, 0.95f, 1.1f};
   static constexpr float kPanThree[3] = {0.65f, -0.65f, 0.0f};
-  static constexpr float kAccentThree[3] = {0.8f, 1.0f, 0.9f};
+  static constexpr float kAccentThree[3] = {0.9f, 1.1f, 1.0f};
   static constexpr float kStepsOctaves[4] = {1.0f, 2.0f, 4.0f, 2.0f};
   static constexpr float kStepsFifths[8] = {1.0f, 1.5f, 2.0f, 3.0f, 4.0f, 3.0f, 2.0f, 1.5f};
 
@@ -356,7 +394,7 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
         break;
       case 1:
         *pan = (k & 1) ? -1.0f : 1.0f;
-        *accent = (k & 1) ? 1.0f : 0.8f;
+        *accent = (k & 1) ? 1.1f : 0.9f;
         break;
       case 2:
         *pan = kPanFour[k & 3];
@@ -572,7 +610,7 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
       voice.repeats = repeats();
       voice.trim = trim;
       voice.cycle = cycle_;
-      voice.wait = delay;
+      voice.wait = delay + spawn_offset_;
       voice.rng.seed(rng_.next_u32());
       ++live_;
       ++active_;
@@ -581,7 +619,8 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
   }
 
   // A slot with sound in it has ended: hand its slice to the pattern.
-  void capture(long long start, float length, float period) {
+  void capture(long long start, float length, float period, int delay) {
+    spawn_offset_ = delay;
     using namespace cascade;
     const int pattern = kit::clamp_int(static_cast<int>(param(kPattern) + 0.5f), 0, 3);
     const bool fifths = param(kInterval) > 0.5f;
@@ -597,7 +636,9 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
       cycle_ = find_cycle(at + start, length - start);
       probe.cycle = cycle_;
     }
-    add(pattern, 0, at, length, period, 1.0f, 0);
+    // In Mosaic the loop at the played speed sits 1.4 dB under the ones above
+    // it at full High, so they are what is heard first.
+    add(pattern, 0, at, length, period, pattern == kMosaic ? 0.85f : 1.0f, 0);
     switch (pattern) {
       case kStrum:
         if (high) add(pattern, 1, at, length, period, 1.0f, 0);
@@ -659,7 +700,7 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
         parts = 0.25f + 0.35f * high + low;
         break;
       default:
-        parts = 1.0f + 1.4f * high + low;
+        parts = 0.72f + 2.0f * high + low;
         break;
     }
     const float power = window * generations * parts;
@@ -682,6 +723,7 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
     for (int c = 0; c < 2; ++c) tone_[c].set(hz, 0.6f, sr);
     trim_.set_target(wet_trim());
     slot_samples_ = static_cast<long long>(param(kTime) * 0.001f * sr);
+    onset_gap_ = static_cast<long long>(kit::max(0.06f * sr, 0.25f * static_cast<float>(slot_samples_)));
   }
 
   // `count` output frames of one voice, added per role to a centre sum and
@@ -762,10 +804,15 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
   }
 
   // Up to kControlPeriod frames: record the input, render the voices, mix.
-  void chunk(int offset, int count) {
+  // Returns how many it did (fewer than asked when a new note cut the slot).
+  int chunk(int offset, int count) {
     using namespace cascade;
     const float sr = sample_rate();
     float dry[2][kControlPeriod];
+    bool cut = false;
+    long long cut_begin = 0;
+    float cut_length = 0.0f;
+    int cut_delay = 0;
     for (int i = 0; i < count; ++i) {
       take_input(offset + i, &dry[0][i], &dry[1][i]);
       const float x = dc_.process(0.5f * (dry[0][i] + dry[1][i]));
@@ -773,7 +820,27 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
         slot_has_sound_ = true;
         if (written_ - preroll_ > slot_begin_) slot_begin_ = written_ - preroll_;
       }
+      // A new note over one still sounding (the level jumps by 8 dB within a
+      // few milliseconds) ends the slot early and starts the next at its
+      // attack, so notes are captured whole. What the cut slot held still
+      // comes back one Time after it started.
+      const float magnitude = x < 0.0f ? -x : x;
+      fast_.process(magnitude);
+      const long long into = written_ - slot_begin_;
+      if (fast_.level > kOnsetRatio * slow_.level + kOnsetFloor && slot_has_sound_ && into >= onset_gap_ &&
+          into < slot_samples_) {
+        cut = true;
+        cut_begin = slot_begin_;
+        cut_length = static_cast<float>(into - guard_);
+        cut_delay = static_cast<int>(slot_samples_ - into) - 1;
+        slot_begin_ = written_ - preroll_;
+      }
+      slow_.process(magnitude);
       record(x);
+      // The chunk ends with the sample that cut the slot, so the voices
+      // start (and any they push out fade) on a sample the host's blocks do
+      // not decide.
+      if (cut) count = i + 1;
     }
 
     float mid[kNumRoles][kControlPeriod] = {};
@@ -817,7 +884,7 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
       // Steps counts slots from the first one after a silence, so that
       // everything sounding moves to the next speed together.
       if (slot_has_sound_ && length >= 0.02f * sr) {
-        capture(slot_begin_, length, static_cast<float>(elapsed));
+        capture(slot_begin_, length, static_cast<float>(elapsed), 0);
         ++step_;
       } else {
         step_ = 0;
@@ -825,6 +892,11 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
       slot_begin_ = written_;
       slot_has_sound_ = false;
     }
+    if (cut && cut_length >= 0.02f * sr) {
+      capture(cut_begin, cut_length, static_cast<float>(slot_samples_), cut_delay);
+      ++step_;
+    }
+    return count;
   }
 
   float ring0_[kRing0];
@@ -849,6 +921,9 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
   // The slice clock.
   long long slot_begin_ = 0;
   long long slot_samples_ = 0;
+  long long onset_gap_ = 0;
+  int spawn_offset_ = 0;
+  kit::Follower fast_, slow_;
   bool slot_has_sound_ = false;
   long long slice_count_ = 0;
   int step_ = 0;

@@ -10,7 +10,11 @@
     {
       "key": "band",
       "name": "Band",
-      "choices": ["Medium wave", "Shortwave", "Sideband"],
+      "choices": [
+        "Medium wave",
+        "Shortwave",
+        "Sideband"
+      ],
       "default": 1,
       "description": "Which kind of reception. Medium wave is the fuller local station that fades slowly. Shortwave is narrower and fades faster and deeper, with the tone hollowing as it goes. Sideband has no carrier: Tuning moves every pitch, and the noise rushes up in the gaps."
     },
@@ -89,6 +93,94 @@
       "interference": 0.15,
       "bandwidth": 0.5,
       "speaker": 0.4,
+      "mix": 1
+    },
+    "Kitchen radio": {
+      "band": 0,
+      "tuning": 0,
+      "drift": 0.05,
+      "fading": 0.1,
+      "static": 0.12,
+      "interference": 0.05,
+      "bandwidth": 0.65,
+      "speaker": 0.75,
+      "mix": 1
+    },
+    "Far station": {
+      "band": 1,
+      "tuning": 0.05,
+      "drift": 0.35,
+      "fading": 0.9,
+      "static": 0.6,
+      "interference": 0.25,
+      "bandwidth": 0.35,
+      "speaker": 0.5,
+      "mix": 1
+    },
+    "Off the dial": {
+      "band": 1,
+      "tuning": 0.42,
+      "drift": 0.5,
+      "fading": 0.5,
+      "static": 0.4,
+      "interference": 0.2,
+      "bandwidth": 0.3,
+      "speaker": 0.45,
+      "mix": 1
+    },
+    "Sideband voices": {
+      "band": 2,
+      "tuning": 0.4,
+      "drift": 0.25,
+      "fading": 0.35,
+      "static": 0.25,
+      "interference": 0.15,
+      "bandwidth": 0.6,
+      "speaker": 0.35,
+      "mix": 1
+    },
+    "Numbers": {
+      "band": 1,
+      "tuning": 0,
+      "drift": 0.1,
+      "fading": 0.3,
+      "static": 0.2,
+      "interference": 0.8,
+      "bandwidth": 0.1,
+      "speaker": 0.6,
+      "mix": 1
+    },
+    "Storm coming": {
+      "band": 0,
+      "tuning": 0,
+      "drift": 0.15,
+      "fading": 0.45,
+      "static": 0.75,
+      "interference": 0.1,
+      "bandwidth": 0.7,
+      "speaker": 0.3,
+      "mix": 1
+    },
+    "Between stations": {
+      "band": 1,
+      "tuning": -0.9,
+      "drift": 0.6,
+      "fading": 0.7,
+      "static": 0.5,
+      "interference": 0.5,
+      "bandwidth": 0.45,
+      "speaker": 0.4,
+      "mix": 1
+    },
+    "Clean transistor": {
+      "band": 0,
+      "tuning": 0,
+      "drift": 0,
+      "fading": 0,
+      "static": 0.05,
+      "interference": 0,
+      "bandwidth": 0.8,
+      "speaker": 0.6,
       "mix": 1
     }
   },

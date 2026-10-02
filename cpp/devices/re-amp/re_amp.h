@@ -12,12 +12,14 @@
 //
 // - The amplifier is one valve-like stage: s(u) = u / sqrt(1 + u²) around a
 //   bias that grows with Drive (so it makes even harmonics as well as odd),
-//   run at four times the sample rate (kit::Halfband2x around a shorter
-//   second stage) and averaged over each step by its antiderivative
-//   (Parker, Zavalishin and Le Bivic, "Reducing the aliasing of nonlinear
-//   waveshaping using continuous-time convolution", DAFx 2016). For this
-//   curve the antiderivative is sqrt(1 + u²), so the average is exact in
-//   single precision and costs one square root.
+//   run at four times the sample rate (two half-band stages, 63 and 31
+//   taps) and averaged over each step by its antiderivative (Parker,
+//   Zavalishin and Le Bivic, "Reducing the aliasing of nonlinear waveshaping
+//   using continuous-time convolution", DAFx 2016). For this curve the
+//   antiderivative is sqrt(1 + u²), so the average is exact in single
+//   precision and costs one square root. Together they keep what a full-scale
+//   5 kHz tone folds back at full Drive under -80 dBFS at 44.1 kHz; at twice
+//   the rate it measured -61 dBFS.
 // - Drive runs from half gain into the curve (clean, a decibel of give at
 //   full scale) to 30 dB more. The make-up holds a signal around -15 dBFS at
 //   the level it came in, so Drive changes the texture and the dynamics, not
@@ -341,8 +343,9 @@ class ReAmp : public kit::DeviceBase<re_amp::kNumParams> {
 
  private:
   static constexpr int kControlPeriod = 16;
-  // Kaiser betas of the two half-band stages: the outer is the kit's 63-tap
-  // design (kit::Halfband2x), the inner 31 taps.
+  // Kaiser betas of the two half-band stages. The outer is the kit's 63-tap
+  // design (kit::Halfband2x) tap for tap; the inner, working an octave
+  // further from the audio band, needs 31.
   static constexpr double kOuterBeta = 8.0;
   static constexpr double kInnerBeta = 10.0;
 
@@ -449,9 +452,6 @@ class ReAmp : public kit::DeviceBase<re_amp::kNumParams> {
   }
 
   // One base-rate sample through the valve stage at four times the rate.
-  // s(u) averaged over the step from the last sample: with S = sqrt(1 + u²),
-  // (S(u) - S(v)) / (u - v) = (u + v) / (S(u) + S(v)), which needs no special
-  // case for a small step.
   float amplify(int c, float x) {
     float a, b;
     outer_[c].up(x, &a, &b);
@@ -470,6 +470,10 @@ class ReAmp : public kit::DeviceBase<re_amp::kNumParams> {
     return outer_[c].down(back[0], back[1]);
   }
 
+  // s(u) averaged over the step from the last sample: with S = sqrt(1 + u²),
+  // (S(u) - S(v)) / (u - v) = (u + v) / (S(u) + S(v)), which needs no special
+  // case for a small step. At four times the rate the two-point mean costs
+  // 0.4 dB at 18 kHz, which is left alone.
   float shape(int c, float x) {
     const float u = x + bias_;
     const float root = std::sqrt(1.0f + u * u);

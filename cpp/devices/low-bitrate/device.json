@@ -90,17 +90,61 @@
     }
   ],
   "presets": {
-    "Behind glass": { "loss": 0.35 },
-    "Underwater": { "loss": 0.7, "frame": 2, "highCut": 6000 },
-    "Dial-up": { "loss": 0.85, "frame": 0, "stereo": 0, "highCut": 3400 },
-    "Ghost": { "loss": 0.55, "mode": 1 },
-    "Smeared phases": { "loss": 0.6, "mode": 2, "frame": 2 },
-    "Bad connection": { "loss": 0.5, "dropouts": 0.35, "stutter": 0.35, "burst": 0.4 },
-    "Frozen stream": { "loss": 0.6, "frame": 2, "smear": 0.85 },
-    "Thin air": { "loss": 0.3, "mode": 1, "frame": 2, "smear": 0.4 }
+    "Behind glass": {
+      "loss": 0.35
+    },
+    "Underwater": {
+      "loss": 0.7,
+      "frame": 2,
+      "smear": 0.2,
+      "stereo": 0.5,
+      "highCut": 4000
+    },
+    "Dial-up": {
+      "loss": 0.7,
+      "frame": 0,
+      "stereo": 0,
+      "highCut": 3400
+    },
+    "Ghost": {
+      "loss": 0.55,
+      "mode": 1
+    },
+    "Smeared phases": {
+      "loss": 0.6,
+      "mode": 2,
+      "frame": 2
+    },
+    "Bad connection": {
+      "loss": 0.5,
+      "dropouts": 0.35,
+      "stutter": 0.35,
+      "burst": 0.4
+    },
+    "Stuck stream": {
+      "loss": 0.4,
+      "stutter": 0.6,
+      "burst": 0.85
+    },
+    "Frozen stream": {
+      "loss": 0.6,
+      "frame": 2,
+      "smear": 0.85
+    },
+    "Thin air": {
+      "loss": 0.3,
+      "mode": 1,
+      "frame": 2,
+      "smear": 0.4
+    },
+    "Few partials": {
+      "loss": 1,
+      "frame": 2,
+      "stereo": 1
+    }
   },
   "origin": {
     "kind": "new",
-    "note": "Written for live-mix. A perceptual transform codec in outline, without the bitstream."
+    "note": "Written for live-mix. Models a low-bitrate perceptual transform codec in outline, without a bitstream and without any codec's own psychoacoustic model: an MDCT filter bank, bins kept or dropped against thresholds per critical band, coarse quantisation, a falling bandwidth, joint stereo, and lost or repeated packets. The filter bank is the MDCT of J. Princen and A. Bradley, 'Analysis/synthesis filter bank design based on time domain aliasing cancellation' (IEEE Trans. ASSP, 1986), computed through a DCT-IV on an FFT of a quarter of the window. Jitter and Smear use the MDCT and MDST together as a complex spectrum, after H. Malvar, 'A modulated complex lapped transform and its applications to audio processing' (ICASSP 1999). The quantiser is the power law of MPEG-1 audio layer III (ISO/IEC 11172-3); the bands are E. Zwicker's critical bands (1961). Not a port of any codec or plug-in."
   }
 }

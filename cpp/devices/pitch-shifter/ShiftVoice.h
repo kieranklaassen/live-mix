@@ -190,17 +190,19 @@ class ShiftVoice {
   // Jitter at full: each head's own detune, in cents either way.
   static constexpr float kSmoothCents = 20.0f;
   static constexpr float kGrainCents = 40.0f;
-  // Vintage: the stretch of ring a head sweeps, as a share of Size; at full
-  // Jitter each pass starts up to this much later and sweeps this much more
+  // Vintage: the stretch of ring a head sweeps, as a share of Size (a steady
+  // tone comes out as lines |1 - ratio| / stretch apart around the pitch: the
+  // flutter, slower and closer to the pitch as Size grows); at full Jitter
+  // each pass starts up to this much later and sweeps this much more
   // or less (its pitch offset is that much wide or narrow).
-  static constexpr float kSweepShare = 0.5f;
+  static constexpr float kSweepShare = 1.0f;
   static constexpr float kSweepScatterSeconds = 0.02f;
   static constexpr float kSweepStretch = 0.03f;
   // The splice search: how far it looks, over what length it compares.
   static constexpr float kSearchSeconds = 0.02f;
   static constexpr float kSpanSeconds = 0.016f;
-  static constexpr int kPoints = 72;
-  static constexpr int kMaxScan = 1024;  // lags tried in the first pass
+  static constexpr int kPoints = 48;
+  static constexpr int kMaxScan = 512;  // lags tried in the first pass
   static constexpr float kNearBias = 0.03f;
 
   struct Head {
@@ -370,7 +372,8 @@ class ShiftVoice {
                      double nominal) {
     const float sr = setup.sample_rate;
     const int now = ring.now();
-    const int range = static_cast<int>(kSearchSeconds * sr);
+    // No further than one window: a short Size splices often and looks less far.
+    const int range = static_cast<int>(kit::min(kSearchSeconds * sr, kit::max(setup.size, 64.0f)));
     const float span = kSpanSeconds * sr;
     const float stride = span / kPoints;
     // Compared on whole samples; the old head's fraction is given back at the end.
@@ -392,7 +395,12 @@ class ShiftVoice {
     float weight[kPoints];
     float energy = 0.0f;
     for (int i = 0; i < kPoints; ++i) {
-      offset[i] = static_cast<int>(ahead - static_cast<float>(i) * stride);
+      // Unevenly spaced (golden-ratio steps inside each stride): on an even
+      // grid a tone at a multiple of the grid's rate looks the same at
+      // every lag.
+      const float wander = static_cast<float>(i) * 0.6180340f;
+      const float place = static_cast<float>(i) + wander - std::floor(wander);
+      offset[i] = static_cast<int>(ahead - place * stride);
       weight[i] = 0.5f - 0.5f * kit::SineTable::cos_lookup((static_cast<float>(i) + 0.5f) / kPoints);
       const float sample = ring.mono.at(now - old_whole + offset[i]);
       reference[i] = weight[i] * sample;
