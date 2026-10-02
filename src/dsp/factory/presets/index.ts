@@ -7,6 +7,7 @@ import { AURORA_PRESETS } from './aurora'
 import { BOWED_STRING_PRESETS } from './bowed-string'
 import { CHOIR_PRESETS } from './choir'
 import { DRONE_PRESETS } from './drone'
+import { DUSK_PRESETS } from './dusk'
 import { EMBER_PRESETS } from './ember'
 import { FELT_PIANO_PRESETS } from './felt-piano'
 import { FLUTE_PRESETS } from './flute'
@@ -42,4 +43,5 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...AURORA_PRESETS,
   ...MALLETS_PRESETS,
   ...FLUTE_PRESETS,
+  ...DUSK_PRESETS,
 ]

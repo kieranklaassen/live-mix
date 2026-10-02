@@ -1,0 +1,159 @@
+{
+  "id": "dusk",
+  "name": "Dusk",
+  "category": "instrument",
+  "description": "Eighties chorus polysynth for pads: one perfectly tuned oscillator per key with a locked sub octave, a four-pole filter that can sing, and a wide two-line stereo chorus.",
+  "class": "Dusk",
+  "header": "dusk.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "wave",
+      "name": "Wave",
+      "choices": ["Saw", "Square", "Saw + square", "Moving pulse", "Saw + moving pulse"],
+      "default": 4,
+      "description": "Which waves the oscillator plays. Moving pulse slowly sweeps the width of the pulse, so even one held note keeps changing."
+    },
+    {
+      "key": "sub",
+      "name": "Sub",
+      "min": 0,
+      "max": 1,
+      "default": 0.35,
+      "description": "Level of the square wave an octave below the note. It is locked to the oscillator, so it adds weight without beating."
+    },
+    {
+      "key": "lowCut",
+      "name": "Low cut",
+      "choices": ["Off", "Light", "Medium", "Deep"],
+      "default": 0,
+      "description": "Thins the low end in four steps, from the full sound to a light pad that leaves room for a bass."
+    },
+    {
+      "key": "cutoff",
+      "name": "Cutoff",
+      "min": 40,
+      "max": 18000,
+      "default": 2500,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "Brightness of the low-pass filter. It follows the keyboard, so low and high notes keep the same colour."
+    },
+    {
+      "key": "resonance",
+      "name": "Resonance",
+      "min": 0,
+      "max": 1,
+      "default": 0.15,
+      "description": "Emphasis at the cutoff. Higher makes the filter ring, and at the top it sings a pure note of its own that follows the keys."
+    },
+    {
+      "key": "envelope",
+      "name": "Envelope",
+      "min": -1,
+      "max": 1,
+      "default": 0.25,
+      "description": "How far the envelope moves the filter. Above zero a note opens as it arrives and closes as it fades. Below zero it does the opposite."
+    },
+    {
+      "key": "attack",
+      "name": "Attack",
+      "min": 0.001,
+      "max": 8,
+      "default": 0.6,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long a note takes to fade in. The filter moves with it, so a slow attack also blooms in brightness."
+    },
+    {
+      "key": "release",
+      "name": "Release",
+      "min": 0.002,
+      "max": 12,
+      "default": 2.5,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long a note takes to fade out after the key is let go. It also sets how quickly a held note settles from its peak."
+    },
+    {
+      "key": "chorus",
+      "name": "Chorus",
+      "choices": ["Off", "I", "II", "I + II"],
+      "default": 1,
+      "description": "The stereo chorus. I is slow and calm, II is faster and deeper, I + II is a fast shimmer in the centre. Off is plain and mono."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -9,
+      "unit": "dB",
+      "description": "Output level of the instrument. A soft clip after it rounds off the peaks when many notes stack up."
+    }
+  ],
+  "presets": {
+    "Soft strings": {
+      "wave": 4,
+      "sub": 0.35,
+      "lowCut": 0,
+      "cutoff": 2500,
+      "resonance": 0.15,
+      "envelope": 0.25,
+      "attack": 0.6,
+      "release": 2.5,
+      "chorus": 1
+    },
+    "Wide pulse": {
+      "wave": 3,
+      "sub": 0,
+      "lowCut": 1,
+      "cutoff": 3500,
+      "attack": 1.2,
+      "release": 4,
+      "chorus": 2
+    },
+    "Sub floor": {
+      "wave": 1,
+      "sub": 1,
+      "cutoff": 1200,
+      "resonance": 0.25,
+      "envelope": 0.1,
+      "attack": 0.3,
+      "release": 3
+    },
+    "Singing filter": {
+      "wave": 0,
+      "sub": 0,
+      "lowCut": 3,
+      "cutoff": 1046.5,
+      "resonance": 1,
+      "envelope": 0,
+      "attack": 0.8,
+      "release": 5
+    },
+    "Slow bloom": {
+      "wave": 2,
+      "sub": 0.5,
+      "cutoff": 300,
+      "resonance": 0.3,
+      "envelope": 0.8,
+      "attack": 3,
+      "release": 8,
+      "chorus": 2
+    },
+    "Shimmer organ": {
+      "wave": 1,
+      "sub": 0.6,
+      "cutoff": 1800,
+      "envelope": 0,
+      "attack": 0.02,
+      "release": 0.8,
+      "chorus": 3
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. The signal path follows the Roland Juno-6, Juno-60 and Juno-106 in outline: one oscillator per voice whose sawtooth, pulse and sub-octave square share one phase, a four-position low cut on the sum of the voices, a four-pole low-pass with full keyboard follow that self-oscillates, one envelope for level and filter, and a stereo chorus of two delay lines moved by one triangle LFO in opposite polarity. It is not a circuit or sample emulation. Grounding: the Ambient Town instrument research (synthesizers, section 1), which rests on general knowledge and names the public chorus analysis by Andy Harman (pendragon-andyh/Juno60) as the place to verify its chorus figures; nothing was measured from a real instrument for this device. Design targets taken from that research: chorus I at 0.513 Hz and II at 0.863 Hz sweeping 1.66 to 5.35 ms, I + II at 9.75 Hz sweeping 3.3 to 3.7 ms with both sides in phase. Choices, not measurements of the original: low cut corners of 120, 350 and 800 Hz; the wet path's low-passes at 8 kHz; the hiss level (about -72 dBFS at the default volume); sustain fixed at 70 % with decay following release; the moving pulse at 0.6 Hz between 50 and 88 % width; an envelope depth of six octaves; resonance make-up of half the loss in decibels; attack extended to 8 s; ten voices instead of six. Simplified: no vibrato, noise source, range switch, gate mode, hold or arpeggiator; no bucket-brigade clock or saturation model in the chorus; the hiss stops when the instrument goes idle so the device can sleep, where the original hisses for as long as its chorus is on."
+  }
+}

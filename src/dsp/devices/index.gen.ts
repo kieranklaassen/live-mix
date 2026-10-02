@@ -13,6 +13,7 @@ import { BOWED_STRING_DESCRIPTOR, BOWED_STRING_DEVICE } from './bowed-string.gen
 import { CHOIR_DESCRIPTOR, CHOIR_DEVICE } from './choir.gen'
 import { CHORUS_DESCRIPTOR, CHORUS_DEVICE } from './chorus.gen'
 import { DRONE_DESCRIPTOR, DRONE_DEVICE } from './drone.gen'
+import { DUSK_DESCRIPTOR, DUSK_DEVICE } from './dusk.gen'
 import { EMBER_DESCRIPTOR, EMBER_DEVICE } from './ember.gen'
 import { EXPANSE_DESCRIPTOR, EXPANSE_DEVICE } from './expanse.gen'
 import { FLANGER_DESCRIPTOR, FLANGER_DEVICE } from './flanger.gen'
@@ -58,6 +59,7 @@ export * from './bowed-string.gen'
 export * from './choir.gen'
 export * from './chorus.gen'
 export * from './drone.gen'
+export * from './dusk.gen'
 export * from './ember.gen'
 export * from './expanse.gen'
 export * from './flanger.gen'
@@ -105,6 +107,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   CHOIR_DESCRIPTOR,
   CHORUS_DESCRIPTOR,
   DRONE_DESCRIPTOR,
+  DUSK_DESCRIPTOR,
   EMBER_DESCRIPTOR,
   EXPANSE_DESCRIPTOR,
   FLANGER_DESCRIPTOR,
@@ -153,6 +156,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   CHOIR_DEVICE,
   CHORUS_DEVICE,
   DRONE_DEVICE,
+  DUSK_DEVICE,
   EMBER_DEVICE,
   EXPANSE_DEVICE,
   FLANGER_DEVICE,
@@ -201,6 +205,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'choir', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'chorus', instrument: false, samples: false, meters: 0, memoryMb: 4 },
   { id: 'drone', instrument: true, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'dusk', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'ember', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'expanse', instrument: false, samples: false, meters: 0, memoryMb: 6 },
   { id: 'flanger', instrument: false, samples: false, meters: 0, memoryMb: 4 },

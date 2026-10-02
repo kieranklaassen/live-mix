@@ -28,6 +28,8 @@ build_generated_devices() {
     cpp/devices/chorus/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device drone \
     cpp/devices/drone/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device dusk \
+    cpp/devices/dusk/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device ember \
     cpp/devices/ember/device_api.gen.cpp
   MEMORY_BYTES=6291456 EXTRA_EXPORTS="" build_device expanse \
@@ -123,6 +125,8 @@ test_generated_devices() {
     cpp/test/chorus_test.cpp
   native_test drone_test \
     cpp/test/drone_test.cpp
+  native_test dusk_test \
+    cpp/test/dusk_test.cpp
   native_test ember_test \
     cpp/test/ember_test.cpp
   native_test expanse_test \
