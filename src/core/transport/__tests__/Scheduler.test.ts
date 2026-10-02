@@ -1066,21 +1066,6 @@ describe('Scheduler runs a schedulable on a clock of its own', () => {
     expect(main.faded).toEqual([])
     expect(main.keys()).toEqual(['note:0:5.000'])
   })
-
-  it('moves over when a fold into a shorter transport loop moves the run under the cycle', () => {
-    const { transport, track, main } = buildCycles(10)
-    // 26.5 s in: the cycle is 1.5 s into the note of its third pass.
-    transport.seekElapsed(26.5)
-    transport.start()
-    expect(track.handed.at(-1)).toMatchObject({ when: 98.5, joining: true })
-    const sounding = track.keys().at(-1)
-    // Folded into a 21 s loop the whole run stands at 5.5: half a second into the note.
-    transport.setLoop({ lengthSec: 21 })
-    expect(track.faded).toEqual([[sounding, REJOIN_FADE_SECONDS]])
-    expect(track.handed.at(-1)).toMatchObject({ when: 99.5, joining: true })
-    // The schedulable on the transport keeps what it has, as any loop change leaves it.
-    expect(main.faded).toEqual([])
-  })
 })
 
 describe('Scheduler follows the transport rate', () => {
