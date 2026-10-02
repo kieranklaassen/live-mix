@@ -426,7 +426,11 @@ class FollowerBank {
 
     // Level: the partial's amplitude, shared between the two bands it lies
     // between, through the gate and the slow follower.
-    const float share = kit::max(0.0f, 1.0f - std::fabs(dev_[b]) * share_scale_[b]);
+    // (The oscillator's detune lags the reading by design. While the two
+    // disagree, as when one note gives way to another a band or two off, the
+    // smaller share counts, or the band would sound the passage between them.)
+    const float off_centre = kit::max(std::fabs(dev_[b]), settled ? std::fabs(estimate_[b]) : 0.0f);
+    const float share = kit::max(0.0f, 1.0f - off_centre * share_scale_[b]);
     const float partial = mag * boost * share * trust_[b];
     const float partial2 = partial * partial;
     const float target = partial2 > 0.0f ? partial * partial2 / (partial2 + threshold2_) : 0.0f;
@@ -514,9 +518,9 @@ class FollowerBank {
   static constexpr float kFarMute = 4.8f;
   // Mean swing of the reading, in band spacings: a full voice up to the
   // first, none from the second.
-  static constexpr float kJitterFull = 0.7f;
-  static constexpr float kJitterMute = 1.0f;
-  static constexpr float kJitterFallSeconds = 0.4f;
+  static constexpr float kJitterFull = 0.6f;
+  static constexpr float kJitterMute = 0.95f;
+  static constexpr float kJitterFallSeconds = 0.2f;
   // The second section at full Octaves, against the unshifted pad.
   static constexpr float kOctaveLevel = 0.9f;
 
