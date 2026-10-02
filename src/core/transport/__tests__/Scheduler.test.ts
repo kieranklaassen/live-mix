@@ -880,6 +880,17 @@ describe('Scheduler follows the transport rate', () => {
     }
   }
 
+  /** A track that joins late but stays on the clock whatever the rate, like a StretchTrack: no `retime`. */
+  class ClockTrack extends FakeTrack {
+    readonly joinsLate = true
+    readonly faded: [string, number | undefined][] = []
+
+    override cancel(key: string, fadeSec?: number): void {
+      super.cancel(key)
+      this.faded.push([key, fadeSec])
+    }
+  }
+
   const strokes = [
     { id: 'pad', startSec: 2, durationSec: 16 },
     { id: 'hit', startSec: 6, durationSec: 0.5 },
@@ -986,6 +997,29 @@ describe('Scheduler follows the transport rate', () => {
       ['pad:0:2.000', REJOIN_FADE_SECONDS],
       ['pad:0:2.000', REJOIN_FADE_SECONDS],
     ])
+  })
+
+  it('finds the end of a clip on a schedulable left on the clock in clock seconds', () => {
+    const ctx = new MockAudioContext()
+    ctx.currentTime = 100
+    const transport = new Transport({ now: () => ctx.currentTime, loop: LOOP })
+    const scheduler = new Scheduler({ transport })
+    const track = new ClockTrack(ctx, 0.2, [{ id: 'pad', startSec: 2, durationSec: 4 }])
+    scheduler.register(track)
+    transport.seek(2)
+    transport.start()
+    expect(track.keys()).toEqual(['pad:0:2.000'])
+    ctx.currentTime = 102
+    transport.setRate(2)
+
+    // It plays its 4 s at the clock's speed whatever the rate, so it is still
+    // sounding at 103.9 and only over at 104.
+    ctx.currentTime = 103.9
+    scheduler.refresh()
+    expect(track.faded).toEqual([])
+    ctx.currentTime = 104.1
+    scheduler.refresh()
+    expect(track.faded).toEqual([['pad:0:2.000', REJOIN_FADE_SECONDS]])
   })
 
   it('tells a schedulable the rate while stopped, and one registered later too', () => {

@@ -118,9 +118,10 @@ export const REJOIN_FADE_SECONDS = 0.005
 
 /**
  * A start that was handed over, with the audio-clock time it was handed over
- * for. A change of rate moves that time to where the start would have been
- * had the new rate always held, so `when` plus a length at the current rate
- * is where the clip ends.
+ * for. On a schedulable that follows the rate, a change of rate moves that
+ * time to where the start would have been had the new rate always held, so
+ * `when` plus a length at the current rate is where the clip ends; on one left
+ * on the clock it stays put, and a drawn length is already clock seconds.
  */
 interface Handover extends ScheduledStart {
   when: number
@@ -317,7 +318,8 @@ export class Scheduler {
       for (const [key, start] of registration.scheduled) {
         if (start.iteration >= position.iteration) continue
         const sounding =
-          schedulable.joinsLate === true && soundsOn(clips, start, start.when, contextTime, rate)
+          schedulable.joinsLate === true &&
+          soundsOn(clips, start, start.when, contextTime, soundingRate(schedulable, rate))
         if (!sounding) registration.scheduled.delete(key)
       }
     }
@@ -351,13 +353,14 @@ export class Scheduler {
     const rate = this.transport.rate
     for (const [schedulable, registration] of this.registrations) {
       const clips = schedulable.clips()
+      const clipRate = soundingRate(schedulable, rate)
       for (const [key, start] of registration.scheduled) {
         const clip = clips.find((candidate) => candidate.id === start.clipId)
         if (clip && scheduleKey({ ...start, startSec: clip.startSec }) === key) {
           const cutShort =
             schedulable.joinsLate === true &&
             clip.durationSec !== undefined &&
-            start.when + clip.durationSec / rate <= contextTime
+            start.when + clip.durationSec / clipRate <= contextTime
           if (!cutShort) continue
           // Its end is behind the transport now; what still sounds of it fades.
           schedulable.cancel(key, REJOIN_FADE_SECONDS)
@@ -424,7 +427,9 @@ export class Scheduler {
       // before. It comes back under the start it had.
       for (const start of released.sort((a, b) => b.when - a.when)) {
         if (joins.has(start.clipId) || start.when >= contextTime) continue
-        if (soundsOn(named, start, start.when, contextTime, rate)) joins.set(start.clipId, start)
+        if (soundsOn(named, start, start.when, contextTime, soundingRate(schedulable, rate))) {
+          joins.set(start.clipId, start)
+        }
       }
       for (const { when, ...start } of joins.values()) {
         const key = scheduleKey(start)
@@ -509,13 +514,18 @@ export class Scheduler {
     this.cancelPending()
     const scale = previous / rate
     for (const [schedulable, registration] of this.registrations) {
-      for (const start of registration.scheduled.values()) {
-        start.when = at + (start.when - at) * scale
-      }
+      // Nothing declined has begun, so those starts are where the new rate puts them.
       for (const start of registration.declined.values()) {
         start.when = at + (start.when - at) * scale
       }
-      schedulable.retime?.(rate, at)
+      // What is sounding only moves to the new rate on a schedulable that
+      // follows it; one left on the clock keeps the time it was handed over
+      // for, which is where its end is still found.
+      if (!schedulable.retime) continue
+      for (const start of registration.scheduled.values()) {
+        start.when = at + (start.when - at) * scale
+      }
+      schedulable.retime(rate, at)
     }
     this.tick('rate')
   }
@@ -544,6 +554,16 @@ export class Scheduler {
     this.clearIntervalFn(this.timer)
     this.timer = null
   }
+}
+
+/**
+ * How fast a schedulable reads what it has sounding: one that follows the
+ * transport's rate (`retime`) plays its clips that much faster or slower, one
+ * without stays on the clock whatever the rate, so its clips take their drawn
+ * length in clock seconds.
+ */
+function soundingRate(schedulable: Schedulable, rate: number): number {
+  return schedulable.retime ? rate : 1
 }
 
 /**
