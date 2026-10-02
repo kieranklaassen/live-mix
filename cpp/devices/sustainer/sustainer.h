@@ -37,7 +37,9 @@
 //   Where the peaks do not have a partial's shape the sound is noise
 //   (breath, hiss): those regions get a new random phase every hop and an
 //   evened level, and are held as noise instead of ringing as chance notes.
-//   Blackman, not Hann: its side
+//   (A peak between two deep valleys is a partial whatever its shape: the
+//   overtones of a note with vibrato are wide, and noise has no such
+//   valleys.) Blackman, not Hann: its side
 //   lobes are 58 dB down, so what one partial leaks into its neighbours'
 //   regions (where it turns at the wrong rate) stays inaudible; and the
 //   product Blackman × Hann still overlap-adds to an exact constant at 75 %.
@@ -47,7 +49,10 @@
 //   rebuilt as clean lobes of their own (the inverse-FFT synthesis of Rodet
 //   and Depalle, "Spectral envelopes and inverse FFT synthesis", 1992); the
 //   regions caught below 550 Hz hand all their bins over. If the note has
-//   ended or another has begun by then, the first look stands.
+//   ended or another has begun by then, the first look stands. It also
+//   stands for a note whose pitch moves (vibrato, a bend): the long frame
+//   sees such a partial as a few sidebands, which would be held fluttering
+//   against each other, or at its average pitch, away from the overtones.
 // - Holding. Every hop (21 ms) each region's phase is turned and its bins
 //   are added to one spectrum per channel; one inverse transform per channel
 //   and a Hann window give the next frame. Motion adds to each region a slow
@@ -234,7 +239,7 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
   static constexpr int kGroup = 8;              // partials of the long frame judged together
   static constexpr float kMember = 0.1f;        // ... those within 20 dB of the tallest of them
   static constexpr float kUnsteady = 1.035f;    // partials of one region change this unlike in a hop (0.3 dB)
-  static constexpr float kMovingShare = 10.0f;   // this much of the low power shows such signs: the pitch is moving
+  static constexpr float kMovingShare = 0.6f;   // this much of the low power shows such signs: the pitch is moving
   static constexpr float kFluxAtZero = 20.0f;   // fixed part of the onset threshold at Sensitivity 0 ...
   static constexpr float kFluxAtOne = 9.0f;     // ... and at 1
   static constexpr float kFluxAdapt = 2.0f;     // plus this many times the recent average flux
