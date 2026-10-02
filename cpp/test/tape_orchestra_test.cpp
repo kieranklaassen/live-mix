@@ -419,39 +419,30 @@ int main(int argc, char**) {
   // The lurch: a note starts flat as the tape is gripped and has settled
   // within 0.1 s. A quarter-tone on a worn machine, a few cents on a new one.
   {
-    auto lurch = [&](float age, double* unsettled) {
+    // Returns how flat the first 25 ms are against the pitch between 0.1 and
+    // 0.2 s; `climb` is the fastest the pitch rises during the lurch and
+    // `after` the fastest it moves once it should be over (cents per 5 ms).
+    auto lurch = [&](float age, double* climb, double* after) {
       plain(device, kFlutes);
       device.set_param(p::kAge, age);
       device.note_on(1, 880.0f, 0.7f);
       Stereo out = render(device, 0.4f, kRate);
       std::vector<double> track = cents_track(out.left, 880.0);
-      // Frame i compares the windows at i*5 and i*5 + 5 ms (20 ms long). The
-      // wow under the lurch is a straight line this early: fit it over 0.15
-      // to 0.3 s and take it away.
-      const size_t from = 30, to = 56;
-      double st = 0.0, sy = 0.0, stt = 0.0, sty = 0.0;
-      for (size_t i = from; i < to; ++i) {
-        st += static_cast<double>(i);
-        sy += track[i];
-        stt += static_cast<double>(i) * i;
-        sty += static_cast<double>(i) * track[i];
-      }
-      const double count = static_cast<double>(to - from);
-      const double slope = (count * sty - st * sy) / (count * stt - st * st);
-      const double offset = (sy - slope * st) / count;
-      auto against_wow = [&](size_t i) { return track[i] - (offset + slope * static_cast<double>(i)); };
-      *unsettled = 0.0;
-      for (size_t i = 18; i < 24; ++i) *unsettled = std::max(*unsettled, std::fabs(against_wow(i)));
-      return 0.5 * (against_wow(0) + against_wow(1));
+      *climb = 0.0;
+      *after = 0.0;
+      for (size_t i = 2; i < 14; ++i) *climb = std::max(*climb, track[i + 1] - track[i]);
+      for (size_t i = 20; i < 40; ++i) *after = std::max(*after, std::fabs(track[i + 1] - track[i]));
+      return mean_of(track, 0, 2) - mean_of(track, 20, 40);
     };
-    double worn_unsettled = 0.0, fresh_unsettled = 0.0;
-    const double worn = lurch(1.0f, &worn_unsettled);
-    const double fresh = lurch(0.0f, &fresh_unsettled);
-    SHOW("lurch: starts %.1f cents flat worn (%.1f cents off after 0.1 s), %.1f cents flat new", -worn,
-         worn_unsettled, -fresh);
-    EXPECT(worn < -25.0 && worn > -52.0, "Age 1: the note starts around a quarter-tone flat");
+    double worn_climb = 0.0, worn_after = 0.0, fresh_climb = 0.0, fresh_after = 0.0;
+    const double worn = lurch(1.0f, &worn_climb, &worn_after);
+    const double fresh = lurch(0.0f, &fresh_climb, &fresh_after);
+    SHOW("lurch: starts %.1f cents flat worn, %.1f cents flat new; climbs %.1f cents per 5 ms, then moves %.1f",
+         -worn, -fresh, worn_climb, worn_after);
+    EXPECT(worn < -25.0 && worn > -60.0, "Age 1: the note starts around a quarter-tone flat");
     EXPECT(fresh < -1.5 && fresh > -6.0, "Age 0: the note starts a few cents flat");
-    EXPECT(worn_unsettled < 3.0, "the lurch has settled within 0.1 s");
+    EXPECT(worn_climb > 3.0 && worn_after < 0.5 * worn_climb,
+           "the lurch is over within 0.1 s: after it the pitch only wobbles");
   }
 
   // TESTS

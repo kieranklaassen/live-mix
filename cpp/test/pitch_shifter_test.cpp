@@ -179,7 +179,6 @@ int main() {
   return finish("pitch-shifter");
 }
 
-static void check_moves() {}
 
 // The output pitch. Smooth and a small detune land on the frequency itself.
 // Grain with Jitter is a cluster centred on it. Vintage splices on a fixed
@@ -436,13 +435,17 @@ static void check_feedback_and_delay() {
     EXPECT(latency[1] < 25.0 && latency[2] < 30.0, "Smooth: a fifth up and an octave down arrive sooner still");
   }
 
-  // Delay moves the voice later by its setting.
+  // Delay moves the voice later by its setting (at 0 st, where the heads
+  // stand still and nothing else moves the burst).
   {
     std::vector<float> in(static_cast<size_t>(1.0f * kRate), 0.0f);
     add_burst(in, 4800, 960, 1000.0f, 0.5f);
-    wet_only(device, kSmooth, 7.0f);
+    wet_only(device, kSmooth, 0.0f);
     Stereo near = run(device, in);
-    wet_only(device, kSmooth, 7.0f);
+    const double tight = (energy_centre(near.left, 0, near.left.size()) - energy_centre(in, 0, in.size())) / kRate * 1000.0;
+    NOTE("delay 0, 0 st: the voice is %.2f ms behind the input\n", tight);
+    EXPECT(tight < 3.0, "with no shift and no Delay the voice is tight on the input");
+    wet_only(device, kSmooth, 0.0f);
     device.set_param(p::kDelay, 250.0f);
     Stereo far = run(device, in);
     const double moved = (energy_centre(far.left, 0, far.left.size()) - energy_centre(near.left, 0, near.left.size())) / kRate * 1000.0;
@@ -526,5 +529,103 @@ static void check_feedback_and_delay() {
       EXPECT(finite(out.left) && finite(out.right) && top <= 2.01, label);
       EXPECT(left_over < 0.02, "maximum feedback dies away after the input stops");
     }
+  }
+}
+
+// Moving things while it sounds, and the plain facts: Mix 0 is the input,
+// the default patch sits at the level of the input and stays mono
+// compatible.
+static void check_moves() {
+  char label[160];
+
+  // Mix 0 passes the input through untouched.
+  {
+    device.init(kRate);
+    device.set_param(p::kMix, 0.0f);
+    const std::vector<float> tone = sine(440.0f, 0.5f, kRate, 0.5f);
+    Stereo out = run(device, tone);
+    double worst = 0.0;
+    for (size_t i = 0; i < tone.size(); ++i) worst = std::max(worst, std::fabs(out.left[i] - static_cast<double>(tone[i])));
+    NOTE("mix 0: largest difference from the input %g\n", worst);
+    EXPECT(worst == 0.0, "Mix 0 is the input, bit for bit");
+  }
+
+  // A pitch-pedal move: Pitch A from 0 up an octave and down to -12 in one
+  // second each, in steps every 64 samples, on a held 220 Hz tone. The
+  // steepest thing in the output should be the tone itself an octave up
+  // (0.4 x 2 pi x 440 / 48000 = 0.023 per sample).
+  for (int mode : {kSmooth, kGrain, kVintage}) {
+    wet_only(device, mode, 0.0f);
+    const std::vector<float> tone = sine(220.0f, 3.0f, kRate, 0.4f);
+    Stereo out;
+    out.left.resize(tone.size());
+    for (size_t done = 0; done + 64 <= tone.size(); done += 64) {
+      const double t = static_cast<double>(done) / kRate;
+      const double pitch = t < 1.0 ? 0.0 : (t < 2.0 ? 12.0 * (t - 1.0) : 12.0 - 24.0 * (t - 2.0));
+      device.set_param(p::kPitchA, static_cast<float>(pitch));
+      for (int i = 0; i < 64; ++i) {
+        device.in_left()[i] = tone[done + i];
+        device.in_right()[i] = tone[done + i];
+      }
+      device.process(64);
+      for (int i = 0; i < 64; ++i) out.left[done + i] = device.out_left()[i];
+    }
+    const double step = max_step(out.left, 48000, 144000);
+    // The pitch follows the pedal: an octave up at the top of the move.
+    const double top = dominant_frequency(out.left, kRate, 300.0, 600.0, 96000 - 2400, 96000 + 1200);
+    NOTE("pitch sweep (mode %d): largest step %.4f, %.0f Hz at the top\n", mode, step, top);
+    std::snprintf(label, sizeof label, "mode %d: a pitch sweep does not click (step %.4f)", mode, step);
+    EXPECT(step < (mode == kGrain ? 0.05 : 0.03), label);
+    if (mode == kSmooth) EXPECT(top > 400.0 && top < 450.0, "the pitch follows the sweep closely");
+  }
+
+  // A sudden octave jump glides in a few milliseconds without a click.
+  {
+    wet_only(device, kSmooth, 0.0f);
+    run(device, sine(220.0f, 1.0f, kRate, 0.4f));
+    device.set_param(p::kPitchA, 12.0f);
+    Stereo out = run(device, sine(220.0f, 1.0f, kRate, 0.4f));
+    const double arrived = dominant_frequency(out.left, kRate, 300.0, 600.0, 4800, 9600);
+    NOTE("pitch jump 0 -> 12: largest step %.4f, %.1f Hz after 100 ms\n", max_step(out.left), arrived);
+    EXPECT(max_step(out.left) < 0.03, "a pitch jump glides without a click");
+    EXPECT_NEAR(arrived, 440.0, 2.0, "and is there within 100 ms");
+  }
+
+  // Switching Mode crossfades.
+  {
+    double worst = 0.0;
+    for (int from_mode : {kSmooth, kGrain, kVintage}) {
+      for (int to_mode : {kSmooth, kGrain, kVintage}) {
+        if (from_mode == to_mode) continue;
+        wet_only(device, from_mode, 7.0f);
+        run(device, sine(220.0f, 1.0f, kRate, 0.4f));
+        device.set_param(p::kMode, static_cast<float>(to_mode));
+        Stereo out = run(device, sine(220.0f, 0.5f, kRate, 0.4f));
+        worst = std::max(worst, max_step(out.left, 0, 9600));
+      }
+    }
+    // A 330 Hz tone at 0.4 moves 0.017 per sample; grains can add to 1.6x that.
+    NOTE("mode switches: largest step %.4f\n", worst);
+    std::snprintf(label, sizeof label, "switching Mode while sounding does not click (step %.4f)", worst);
+    EXPECT(worst < 0.035, label);
+  }
+
+  // The default patch on a sustained chord: at the level of the input, and
+  // a mono source stays mono (nothing to cancel in a fold-down).
+  {
+    device.init(kRate);
+    std::vector<float> chord(static_cast<size_t>(3.0f * kRate), 0.0f);
+    for (float hz : {220.0f, 277.18f, 329.63f, 440.0f}) {
+      for (int h = 1; h <= 4; ++h) {
+        const std::vector<float> one = sine(hz * h, 3.0f, kRate, 0.1f / (h * h));
+        for (size_t i = 0; i < chord.size(); ++i) chord[i] += one[i];
+      }
+    }
+    Stereo out = run(device, chord);
+    const double level = db(rms(out.left, 48000, 144000) / rms(chord, 48000, 144000));
+    const double together = correlation(out.left, out.right, 48000, 144000);
+    NOTE("default patch on a chord: %.2f dB re input, L/R correlation %.3f, peak %.2f\n", level, together, peak(out.left));
+    EXPECT(std::fabs(level) < 3.0, "the default patch is within 3 dB of the input level");
+    EXPECT(together > 0.99, "the default patch keeps a mono source mono");
   }
 }
