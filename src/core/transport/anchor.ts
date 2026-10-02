@@ -56,14 +56,16 @@ export function isLooping(loop: TransportLoop): boolean {
 /**
  * Where the transport is at `contextTime`, derived from the anchor rather than
  * from accumulated frames. Time before the anchor (a start pinned in the
- * future) reads as the anchor position.
+ * future) reads as the anchor position. `rate` is how many timeline seconds
+ * pass in one second of the audio clock since the anchor (`Transport.rate`).
  */
 export function positionFromAnchor(
   anchor: TransportAnchor,
   contextTime: number,
   loop: TransportLoop,
+  rate = 1,
 ): TransportPosition {
-  const raw = anchor.positionSec + Math.max(0, contextTime - anchor.contextTime)
+  const raw = anchor.positionSec + Math.max(0, contextTime - anchor.contextTime) * rate
   if (!isLooping(loop)) {
     return {
       positionSec: Math.min(raw, loop.lengthSec),

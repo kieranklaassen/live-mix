@@ -862,3 +862,150 @@ describe('Scheduler joins clips the position is inside', () => {
     })
   })
 })
+
+describe('Scheduler follows the transport rate', () => {
+  /** A track that can enter a clip partway and be told to play at another speed, like an AudioTrack. */
+  class TapeTrack extends FakeTrack {
+    readonly joinsLate = true
+    readonly retimed: [number, number][] = []
+    readonly faded: [string, number | undefined][] = []
+
+    override cancel(key: string, fadeSec?: number): void {
+      super.cancel(key)
+      this.faded.push([key, fadeSec])
+    }
+
+    retime(rate: number, at: number): void {
+      this.retimed.push([rate, at])
+    }
+  }
+
+  const strokes = [
+    { id: 'pad', startSec: 2, durationSec: 16 },
+    { id: 'hit', startSec: 6, durationSec: 0.5 },
+  ]
+
+  function buildTape(items: ClipWindow['clips'] = strokes, lookaheadSec = 0.2) {
+    const ctx = new MockAudioContext()
+    ctx.currentTime = 100
+    const transport = new Transport({ now: () => ctx.currentTime, loop: LOOP })
+    const scheduler = new Scheduler({ transport })
+    const track = new TapeTrack(ctx, lookaheadSec, items)
+    scheduler.register(track)
+    return { ctx, transport, scheduler, track }
+  }
+
+  it('hands a start over at the clock time the rate brings it round at', () => {
+    const { ctx, transport, scheduler, track } = build()
+    transport.setRate(0.5)
+    transport.start()
+    // Half speed: 0.5 s along the timeline is a whole second of clock away,
+    // and the 0.2 s lookahead reaches 0.1 s along it.
+    ctx.currentTime = 100.75
+    scheduler.tick()
+    expect(track.keys()).toEqual([])
+    ctx.currentTime = 100.85
+    scheduler.tick()
+    expect(track.keys()).toEqual(['a:0:0.500'])
+    expect(track.handed[0].when).toBe(101)
+  })
+
+  it('looks the same clock time ahead whatever the rate, so further along a faster timeline', () => {
+    const { ctx, transport, scheduler, track } = build({ lookaheadSec: 0.2 })
+    transport.setRate(2)
+    transport.seek(3.5)
+    transport.start()
+    // 0.5 s of timeline is 0.25 s of clock away: outside the 0.2 s lookahead.
+    expect(track.keys()).toEqual([])
+    ctx.currentTime = 100.06
+    scheduler.tick()
+    expect(track.keys()).toEqual(['b:0:4.000'])
+    expect(track.handed[0].when).toBe(100.25)
+  })
+
+  it('cancels a pending start when the rate changes and hands it over again at its new time', () => {
+    const { ctx, transport, scheduler, track } = buildTape()
+    transport.seek(1.9)
+    transport.start()
+    expect(track.keys()).toEqual(['pad:0:2.000'])
+    expect(round(track.handed[0].when)).toBe(100.1)
+    ctx.currentTime = 100.05
+    transport.setRate(0.5)
+    // The 0.05 s of timeline still to go is now 0.1 s of clock.
+    expect(track.keys()).toEqual(['pad:0:2.000', 'pad:0:2.000'])
+    expect(round(track.handed[1].when)).toBe(100.15)
+    expect(track.retimed.at(-1)).toEqual([0.5, 100.05])
+    expect(track.voices.size).toBe(1)
+    scheduler.tick()
+    expect(track.handed).toHaveLength(2)
+  })
+
+  it('leaves a sounding start to the schedulable and does not hand it over twice', () => {
+    const { ctx, transport, scheduler, track } = buildTape()
+    transport.seek(1.9)
+    transport.start()
+    ctx.currentTime = 101
+    transport.setRate(1.05)
+    ctx.currentTime = 101.5
+    transport.setRate(0.95)
+    scheduler.tick()
+    expect(track.keys()).toEqual(['pad:0:2.000'])
+    expect(track.cancelled).toEqual([])
+    expect(track.retimed).toEqual([
+      [1, 100],
+      [1.05, 101],
+      [0.95, 101.5],
+    ])
+  })
+
+  it('finds the end of a sounding clip by the clock at the rate it now plays at', () => {
+    const { ctx, transport, scheduler, track } = buildTape([
+      { id: 'pad', startSec: 2, durationSec: 4 },
+    ])
+    transport.seek(2)
+    transport.start()
+    ctx.currentTime = 102
+    // Half its 4 s played; the other half takes 4 s of clock at half speed.
+    transport.setRate(0.5)
+    ctx.currentTime = 105.9
+    scheduler.rejoin(['pad'])
+    expect(track.faded).toEqual([['pad:0:2.000', REJOIN_FADE_SECONDS]])
+    expect(track.handed).toHaveLength(2)
+    // Its start, had the clip always run at half speed: 4 s of clock before the change.
+    expect(round(track.handed[1].when)).toBe(98)
+
+    // At 105.95 the clip is 3.975 s in: cut to 3.99 s it still reaches the
+    // transport, cut to 3.9 s its end is behind it.
+    ctx.currentTime = 105.95
+    track.items = [{ id: 'pad', startSec: 2, durationSec: 3.99 }]
+    scheduler.refresh()
+    expect(track.faded).toHaveLength(1)
+    track.items = [{ id: 'pad', startSec: 2, durationSec: 3.9 }]
+    scheduler.refresh()
+    expect(track.faded).toEqual([
+      ['pad:0:2.000', REJOIN_FADE_SECONDS],
+      ['pad:0:2.000', REJOIN_FADE_SECONDS],
+    ])
+  })
+
+  it('tells a schedulable the rate while stopped, and one registered later too', () => {
+    const { ctx, transport, scheduler, track } = buildTape()
+    transport.setRate(0.9)
+    expect(track.retimed).toEqual([
+      [1, 100],
+      [0.9, 100],
+    ])
+    const late = new TapeTrack(ctx, 0.2, strokes)
+    scheduler.register(late)
+    expect(late.retimed).toEqual([[0.9, 100]])
+  })
+
+  it('reports the pass to tick listeners with reason rate', () => {
+    const { transport, scheduler } = build()
+    const reasons: string[] = []
+    scheduler.onTick((tick) => reasons.push(tick.reason))
+    transport.start()
+    transport.setRate(1.02)
+    expect(reasons).toEqual(['start', 'rate'])
+  })
+})
