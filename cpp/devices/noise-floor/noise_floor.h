@@ -152,8 +152,9 @@ class NoiseFloor : public kit::DeviceBase<noise_floor::kNumParams> {
 
       // The input's level, for Follow: a fast rise, a fall in Response, and
       // a second short pole that takes the ripple of low notes out.
-      const float coeff = magnitude > envelope_ ? attack_ : release_;
-      envelope_ = flush_denormal(magnitude + (envelope_ - magnitude) * coeff);
+      const float heard = kit::min(magnitude, kFollowLimit);
+      const float coeff = heard > envelope_ ? attack_ : release_;
+      envelope_ = flush_denormal(heard + (envelope_ - heard) * coeff);
       smooth_envelope_ = flush_denormal(envelope_ + (smooth_envelope_ - envelope_) * settle_);
       const float loud = smooth_envelope_ * (1.0f / kReference);
       const float follow = glide(follow_);
@@ -228,6 +229,7 @@ class NoiseFloor : public kit::DeviceBase<noise_floor::kNumParams> {
   // hiss of another device does not keep the noise running.
   static constexpr float kQuiet = 2.0e-4f;
   static constexpr float kInputLimit = 16.0f;  // +24 dBFS
+  static constexpr float kFollowLimit = 2.0f;  // Follow hears nothing louder: a glitch upstream is soon forgotten
   static constexpr float kReference = 0.25f;    // the input level Follow calls "loud": -12 dBFS
   static constexpr float kFollowKnee = 0.5493f;  // atanh(1/2): unity at the reference, a ceiling of 2
   static constexpr float kDuck = 4.0f;

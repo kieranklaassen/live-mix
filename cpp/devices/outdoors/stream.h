@@ -80,7 +80,9 @@ struct Stream {
       seen_density = c.density;
       seen_tone = c.tone;
       pitch = lean * std::exp2(1.2f * (c.tone - 0.5f));
-      // 40 bubbles a second is a trickle; 2000 is a brook in a hurry.
+      // 40 bubbles a second is a trickle; 2000 is a brook in a hurry. One key
+      // sounds at most about 500 of them a second (twelve at a time): past
+      // that the rest are heard only as the rush, which grows with the flow.
       rate = 40.0f * std::pow(50.0f, c.density);
       for (int ch = 0; ch < 2; ++ch) {
         rush_low[ch].set_cutoff(kit::min(1400.0f * pitch, 0.4f * sr), sr);

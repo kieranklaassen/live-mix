@@ -119,7 +119,7 @@ class TapeOrchestra : public kit::DeviceBase<tape_orchestra::kNumParams> {
   // they are in the period, and this share of its swing (in dB) is taken
   // back out of the key's level. The harmonics still move against each other
   // and across the image; the note keeps a breath of level and no more.
-  static constexpr float kLevelling = 0.7f;
+  static constexpr float kLevelling = 0.8f;
   // How far a player behind the lead drifts from its place in the section's
   // tuning, as a share of the section's spread.
   static constexpr float kDrift = 0.45f;
