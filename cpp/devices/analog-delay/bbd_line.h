@@ -32,10 +32,10 @@ namespace analog_delay {
 
 class BbdLine {
  public:
-  // 16384 stages on a two-phase clock hold 8192 samples: four of the
-  // longest lines made, in series, as the long-delay units chain them. With
-  // half as many the clock at a given Time is half as fast, and the band of
-  // a 900 ms echo ends at 1.4 kHz: a thud, not a repeat.
+  // 16384 stages on a two-phase clock hold 8192 samples. With half as many
+  // the clock at a given Time is half as fast, and the band of a 900 ms echo
+  // ends at 1.4 kHz: a thud, not a repeat. With these the clock leaves Tone
+  // its whole range up to about 400 ms and still takes the top off after.
   static constexpr int kSamples = 8192;
   static constexpr int kMask = kSamples - 1;
   // More ticks than this in one host sample are not needed for any setting

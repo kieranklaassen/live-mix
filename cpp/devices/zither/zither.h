@@ -698,13 +698,23 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
       }
       voice.fade = fade;
     }
-    for (int i = 0; i < n; ++i) {
-      const float sum = a[i] + b[i];
-      const float size = sum < 0.0f ? -sum : sum;
-      if (size > peak) peak = size;
-      bridge[i] += sum;
-      left[i] += a[i] * voice.left[0] + b[i] * voice.left[1];
-      right[i] += a[i] * voice.right[0] + b[i] * voice.right[1];
+    if (voice.two) {
+      const float l0 = voice.left[0], l1 = voice.left[1], r0 = voice.right[0], r1 = voice.right[1];
+      for (int i = 0; i < n; ++i) {
+        const float sum = a[i] + b[i];
+        peak = kit::max(peak, std::fabs(sum));
+        bridge[i] += sum;
+        left[i] += a[i] * l0 + b[i] * l1;
+        right[i] += a[i] * r0 + b[i] * r1;
+      }
+    } else {
+      const float l0 = voice.left[0], r0 = voice.right[0];
+      for (int i = 0; i < n; ++i) {
+        peak = kit::max(peak, std::fabs(a[i]));
+        bridge[i] += a[i];
+        left[i] += a[i] * l0;
+        right[i] += a[i] * r0;
+      }
     }
     voice.chunk_peak = peak;
     if (voice.fading && voice.fade <= 0.0f) {
@@ -789,8 +799,7 @@ class Zither : public kit::DeviceBase<zither::kNumParams> {
       const float gl = sympathetic_left_[s], gr = sympathetic_right_[s];
       for (int i = 0; i < n; ++i) {
         const float ring = out[i] - drive[i];  // the string without what drives it
-        const float size = ring < 0.0f ? -ring : ring;
-        if (size > peak) peak = size;
+        peak = kit::max(peak, std::fabs(ring));
         left[i] += ring * gl;
         right[i] += ring * gr;
       }

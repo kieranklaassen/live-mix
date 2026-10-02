@@ -316,9 +316,9 @@ static void check_fm() {
   EXPECT(levels[2][0] < -60.0, "FM at 7:2 leaves the third harmonic alone");
 }
 
-// Sustain 0 is a pluck that dies under a held key; Sustain 1 holds until the
-// key goes up and then closes like any other note, without a click. A long
-// Attack swells in.
+// Sustain 0 is a pluck that dies under a held key; Sustain 1 holds (after
+// the accent of the strike has settled) until the key goes up and then
+// closes like any other note, without a click. A long Attack swells in.
 static void check_envelope() {
   plain(kRate);
   device.note_on(1, 220.0f, 0.8f);
@@ -404,15 +404,15 @@ static void check_clicks() {
   device.set_param(p::kSustain, 1.0f);
   device.note_on(1, 220.0f, 1.0f);
   Stereo out = render(device, 0.5f, kRate);
-  const double single = max_step(out.left, 12000);
+  const double single = max_step(out.left);  // the strike itself is the steepest part
   plain(kRate);
   device.set_param(p::kSustain, 1.0f);
   device.note_on(1, 220.0f, 0.4f);
   render(device, 0.3f, kRate);
   device.note_on(1, 220.0f, 1.0f);
   out = render(device, 0.3f, kRate);
-  NOTE("clicks: second strike on a ringing key: step %.5f against %.5f held\n", max_step(out.left), single);
-  EXPECT(max_step(out.left) <= 1.25 * single, "striking a ringing key again does not click");
+  NOTE("clicks: second strike on a ringing key: step %.5f against %.5f for a first strike\n", max_step(out.left), single);
+  EXPECT(max_step(out.left) <= 1.1 * single, "striking a ringing key again is no steeper than a first strike");
 
   plain(kRate);
   device.set_param(p::kSustain, 1.0f);

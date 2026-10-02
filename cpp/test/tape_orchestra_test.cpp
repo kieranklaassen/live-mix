@@ -897,6 +897,43 @@ int main(int argc, char**) {
     EXPECT(db(highest / fundamental) > -75.0, "the top of the recorded band is still there");
   }
 
+  // A held key keeps its level: the players drift in and out of step, and
+  // without the section's leveller a note carried by one harmonic (high
+  // keys, flutes, reeds) swelled and sank by up to 9 dB with them. Level of
+  // both channels in 0.2 s windows, 2 to 12 s into the note, at the default
+  // settings, on every tape, low, middle and high. The harmonics must still
+  // move against each other: a levelled section is not one player.
+  {
+    double worst = 0.0, moving = 1.0e9;
+    for (int tape = 0; tape < 6; ++tape) {
+      for (float hz : {110.0f, 329.63f, 880.0f}) {
+        device.init(kRate);
+        device.set_param(p::kTape, static_cast<float>(tape));
+        device.note_on(1, hz, 0.7f);
+        Stereo out = render(device, 12.0f, kRate);
+        double lo = 1.0e9, hi = 0.0, fifth_lo = 1.0e9, fifth_hi = 0.0;
+        for (size_t from = at(2.0); from + 9600 <= out.size(); from += 2400) {
+          const double left = rms(out.left, from, from + 9600);
+          const double right = rms(out.right, from, from + 9600);
+          const double level = std::sqrt(left * left + right * right);
+          lo = std::min(lo, level);
+          hi = std::max(hi, level);
+          const double fifth = tone_level(out.left, 5.0 * hz, kRate, from, from + 4800);
+          fifth_lo = std::min(fifth_lo, fifth);
+          fifth_hi = std::max(fifth_hi, fifth);
+        }
+        worst = std::max(worst, db(hi / lo));
+        if (tape == kStrings || tape == kCellos || tape == kChoir) {
+          moving = std::min(moving, db(fifth_hi / fifth_lo));
+        }
+      }
+    }
+    SHOW("held keys: the level moves by at most %.2f dB in 10 s; the 5th harmonic by at least %.1f dB", worst,
+         moving);
+    EXPECT(worst < 4.0, "a held key's level stays within 4 dB on every tape");
+    EXPECT(moving > 8.0, "while its players still beat in the upper harmonics");
+  }
+
   // Cost with eight keys held on the heaviest tape (the choir has four
   // players a key) and on the default one.
   device.init(kRate);

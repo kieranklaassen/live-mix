@@ -92,6 +92,8 @@ class AnalogDelay : public kit::DeviceBase<analog_delay::kNumParams> {
     for (int i = 0; i < frames; ++i) {
       float in[2];
       take_input(i, &in[0], &in[1]);
+      in[0] = sane(in[0]);
+      in[1] = sane(in[1]);
 
       // The clock: the Time knob's rate, times the sequenced step. The step
       // moves at the Glide rate (at once when Glide is zero).
@@ -205,6 +207,14 @@ class AnalogDelay : public kit::DeviceBase<analog_delay::kNumParams> {
                                               4.0f / 3.0f, 1.5f,        2.0f};
   // Butterworth, fourth order, as two sections.
   static constexpr float kSectionQ[2] = {0.5411961f, 1.3065630f};
+
+  // An input sample that is not a number would lodge in the filters and go
+  // round the loop for good: it is dropped, and an absurd one is clamped.
+  static constexpr float kInputLimit = 64.0f;
+  static float sane(float v) {
+    if (v > -kInputLimit && v < kInputLimit) return v;
+    return v >= kInputLimit ? kInputLimit : (v <= -kInputLimit ? -kInputLimit : 0.0f);
+  }
 
   struct Channel {
     analog_delay::BbdLine line;

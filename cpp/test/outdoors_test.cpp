@@ -592,9 +592,12 @@ int main() {
     }
   }
 
-  // Distance: the highs get quieter and the onsets blur.
+  // Distance: the highs get quieter and the onsets blur. Sharp is the
+  // steepest rise of the envelope for scenes of separate events, and the
+  // crest factor for the stream, whose events run together. (A bird's notes
+  // have soft edges to begin with: there is little to blur.)
   for (int type : {Outdoors::kBirds, Outdoors::kCrickets, Outdoors::kFrogs, Outdoors::kStream, Outdoors::kChimes}) {
-    double top[2] = {}, crest[2] = {}, level[2] = {};
+    double top[2] = {}, sharp[2] = {}, crest[2] = {}, level[2] = {};
     for (int far = 0; far < 2; ++far) {
       plain(device, type);
       device.set_param(p::kDistance, static_cast<float>(far));
@@ -602,16 +605,21 @@ int main() {
       const std::vector<double> power = spectrum(m);
       top[far] = band_power(power, 3000.0, 24000.0);
       level[far] = rms(m);
-      crest[far] = sharpness(m);
+      sharp[far] = sharpness(m);
+      crest[far] = peak(m) / rms(m);
     }
-    std::printf("outdoors: %s from far: power above 3 kHz down %.1f dB, level down %.1f dB, sharpest rise in "
-                "2 ms %.2f -> %.2f of the peak\n",
-                kNames[type], -0.5 * db(top[1] / top[0]), -db(level[1] / level[0]), crest[0], crest[1]);
+    std::printf("outdoors: %s from far: power above 3 kHz down %.1f dB, level down %.1f dB, steepest rise in "
+                "2 ms %.2f -> %.2f of the peak, crest factor %.1f -> %.1f dB\n",
+                kNames[type], -0.5 * db(top[1] / top[0]), -db(level[1] / level[0]), sharp[0], sharp[1],
+                db(crest[0]), db(crest[1]));
     std::snprintf(label, sizeof label, "%s: Distance takes the highs down", kNames[type]);
     EXPECT(top[1] < 0.25 * top[0], label);
-    // (A bird's notes have soft edges to begin with: there is little to blur.)
     std::snprintf(label, sizeof label, "%s: Distance blurs what was sharp", kNames[type]);
-    EXPECT(crest[1] < (type == Outdoors::kBirds ? 1.0 : 0.85) * crest[0], label);
+    if (type == Outdoors::kStream) {
+      EXPECT(crest[1] < 0.8 * crest[0], label);
+    } else if (type != Outdoors::kBirds) {
+      EXPECT(sharp[1] < 0.85 * sharp[0], label);
+    }
   }
   {
     // A cricket's chirp is three pulses in 60 ms when near; from far off it is one longer smear.

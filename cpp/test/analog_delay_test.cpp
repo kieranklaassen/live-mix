@@ -521,6 +521,24 @@ int main() {
            "parameters set while asleep sound as they do set at load");
   }
 
+  // 14c. A sample that is not a number, or an infinite one, in the input
+  // does not lodge in the filters or the line: the echoes that follow are
+  // finite and at their usual level.
+  for (float bad : {std::nanf(""), HUGE_VALF, -HUGE_VALF}) {
+    device.init(kRate);
+    device.set_param(p::kMix, 1.0f);
+    device.set_param(p::kFeedback, 0.9f);
+    std::vector<float> x = sine(330.0f, 1.0f, kRate, 0.3f);
+    x[1000] = bad;
+    x[1001] = bad;
+    Stereo hit = run(device, x);
+    Stereo after = run(device, sine(330.0f, 6.0f, kRate, 0.3f));
+    EXPECT(finite(hit.left) && finite(hit.right) && finite(after.left) && finite(after.right),
+           "a bad input sample does not stick");
+    EXPECT(peak(after.left, at(4.0)) < 2.0 && rms(after.left, at(4.0)) > 0.1,
+           "and the echoes carry on at their usual level");
+  }
+
   // 15. The same audio whatever the block size, with the sequencer, the
   // hiss and the modulation all running.
   {

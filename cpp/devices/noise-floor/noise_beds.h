@@ -190,6 +190,18 @@ struct Air {
   }
 };
 
+#ifndef NF_LOW
+#define NF_LOW 500.0f
+#endif
+#ifndef NF_TICK
+#define NF_TICK 1.0f
+#endif
+#ifndef NF_TOP
+#define NF_TOP 5000.0f
+#define NF_HZ 1800.0f
+#define NF_OCT 2.0f
+#define NF_Q 1.0f
+#endif
 // Vinyl: surface hiss (a band from 500 Hz to 5 kHz), fine crackle, the odd
 // soft pop, and a low rumble. Crackle is a Poisson stream of ticks with
 // heavy-tailed sizes, each a struck resonator with its own pitch, damping and
@@ -203,15 +215,9 @@ struct Vinyl {
   // the sides most ticks peak 3 to 8 dB over the bed's RMS and the largest in
   // several minutes, hiss included, about 13 dB over. A pop is a soft thump
   // of 3 to 7 dB over.
-  static constexpr float kTick = 1.0f;
+  static constexpr float kTick = NF_TICK;
   static constexpr float kTickCeiling = 1.6f;
   static constexpr float kPop = 1.35f;
-#ifndef NF_TOP
-#define NF_TOP 5000.0f
-#define NF_HZ 1800.0f
-#define NF_OCT 2.0f
-#define NF_Q 1.0f
-#endif
   static constexpr float kHissTopHz = NF_TOP;
   static constexpr float kTickHz = NF_HZ;
   static constexpr float kTickOctaves = NF_OCT;
@@ -240,7 +246,7 @@ struct Vinyl {
     for (int c = 0; c < 2; ++c) {
       src[c].init(stream + c, sr);
       low_cut[c].reset();
-      low_cut[c].set_cutoff(500.0f, sr);
+      low_cut[c].set_cutoff(NF_LOW, sr);
       high_cut[c].reset();
       high_cut[c].set(kHissTopHz, 0.6f, sr);
       rumble[c].reset();

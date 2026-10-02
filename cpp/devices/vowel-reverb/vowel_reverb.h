@@ -493,17 +493,26 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
       wet_power_[c] = 0.0f;
       feed_power_[c] = 0.0f;
     }
-    // Half the level difference of the two sides, in nepers; under the
-    // floor (about -90 dBFS) both read as equal and the trim lets go.
-    const float lean = 0.25f * std::log((wet_level_[0] + kBalanceFloor) / (wet_level_[1] + kBalanceFloor));
-    const float given = 0.25f * std::log((feed_level_[0] + kBalanceFloor) / (feed_level_[1] + kBalanceFloor));
-    float excess = lean;
-    if (lean > 0.0f && given > 0.0f) excess = kit::max(lean - given, 0.0f);
-    if (lean < 0.0f && given < 0.0f) excess = kit::min(lean - given, 0.0f);
-    const float trim = kit::clamp(-kBalanceShare * excess, -kBalanceLimit, kBalanceLimit);
-    const float gain = std::exp(trim);
-    trim_step_[0] = (gain - trim_[0]) * (1.0f / kControlPeriod);
-    trim_step_[1] = (1.0f / gain - trim_[1]) * (1.0f / kControlPeriod);
+    // The lean is half the level difference of the two sides, in nepers.
+    // Under the floor (about -90 dBFS) both sides read as equal and the trim
+    // lets go. Where what went in leans the same way, only the excess over
+    // that counts: one logarithm serves either case.
+    const float wet_left = wet_level_[0] + kBalanceFloor, wet_right = wet_level_[1] + kBalanceFloor;
+    const float feed_left = feed_level_[0] + kBalanceFloor, feed_right = feed_level_[1] + kBalanceFloor;
+    const bool leans_left = wet_left > wet_right;
+    float ratio = wet_left / wet_right;
+    if (leans_left == (feed_left > feed_right)) {
+      const float given = feed_left / feed_right;
+      // No more than the whole lean: past that the room leans less than its
+      // input and there is nothing to take out.
+      ratio = leans_left ? kit::max(ratio / given, 1.0f) : kit::min(ratio / given, 1.0f);
+    }
+    const float trim = kit::clamp(-kBalanceShare * 0.25f * std::log(ratio), -kBalanceLimit, kBalanceLimit);
+    // exp(trim) and exp(-trim), to 0.001 dB over the trim's range.
+    const float even = 1.0f + trim * trim * (0.5f + trim * trim * (1.0f / 24.0f));
+    const float odd = trim * (1.0f + trim * trim * (1.0f / 6.0f));
+    trim_step_[0] = (even + odd - trim_[0]) * (1.0f / kControlPeriod);
+    trim_step_[1] = (even - odd - trim_[1]) * (1.0f / kControlPeriod);
   }
 
   void apply(int id) {

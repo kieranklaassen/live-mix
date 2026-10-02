@@ -3,6 +3,9 @@
 // independence and parameter abuse; the rest asserts what makes it a pitch
 // shifter: the output pitch in each mode, how clean each mode is, chords,
 // climbing repeats, latency, and that moving Pitch or Mode does not click.
+// The Chords mode has its own checks (check_chords and the two after it):
+// every note of a close chord on its shifted pitch with nothing else within
+// 40 dB, printed beside the same measurement for Smooth.
 //
 // Set PITCH_SHIFTER_VERBOSE=1 to print every measured number.
 
@@ -279,6 +282,14 @@ int main() {
   rng_state() = 0xBEEFu;
   std::vector<float> input = noise(10.0f, kRate, 0.25f);
   report_cost("pitch-shifter (two grain voices)", 10.0f, kRate, [&] { run(device, input); });
+
+  // And the Chords mode with both voices, fed back.
+  device.init(kRate);
+  device.set_param(p::kMode, kChords);
+  device.set_param(p::kLevelB, 1.0f);
+  device.set_param(p::kFeedback, 0.5f);
+  device.set_param(p::kDelay, 200.0f);
+  report_cost("pitch-shifter (two Chords voices)", 10.0f, kRate, [&] { run(device, input); });
 
   return finish("pitch-shifter");
 }

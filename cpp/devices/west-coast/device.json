@@ -131,7 +131,7 @@
       "colour": 0.5,
       "chance": 0.3,
       "drift": 0.1,
-      "volume": -5
+      "volume": -7
     },
     "Folding drone": {
       "fold": 0.7,
@@ -142,10 +142,10 @@
       "attack": 2.5,
       "decay": 4,
       "sustain": 1,
-      "colour": 0.55,
+      "colour": 0.7,
       "chance": 0.2,
       "drift": 0.8,
-      "volume": -12
+      "volume": -10
     },
     "Glass bell": {
       "fold": 0.1,
@@ -167,7 +167,7 @@
       "decay": 0.12,
       "colour": 0.7,
       "chance": 1,
-      "volume": -5
+      "volume": -7
     },
     "Deep pulse": {
       "fold": 0.25,
@@ -200,9 +200,9 @@
       "attack": 2,
       "decay": 3.5,
       "sustain": 0.8,
-      "colour": 0.7,
+      "colour": 0.8,
       "drift": 0.5,
-      "volume": -12
+      "volume": -10
     }
   },
   "origin": {

@@ -10,6 +10,11 @@
 // - A voice is a few read heads moving along the ring at the pitch ratio
 //   (ShiftVoice.h): spliced where the waveform lines up (Smooth), rebuilt
 //   from overlapping grains (Grain) or crossfaded blindly (Vintage).
+// - Chords is a fourth mode with an engine of its own (ChordEngine.h): a
+//   phase vocoder that moves every partial separately, for held chords,
+//   in place of the voices' heads. It reads the same ring and returns to
+//   it, so everything below applies to it as well; only Size and Jitter
+//   mean nothing to it. Turning Mode to or from it crosses the two over.
 // - Delay is not a second line: the heads simply read that much further
 //   back, and it glides when moved. Feedback goes back into the ring, so
 //   every pass is shifted again and the repeats climb or fall by the

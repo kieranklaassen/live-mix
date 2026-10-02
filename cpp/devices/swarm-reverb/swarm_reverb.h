@@ -3,8 +3,8 @@
 // Swarm Reverb: a cavern made of a swarm of short echoes, on a delay line
 // whose clock can be dragged.
 //
-//   in ─►(+)─► dampen ─► low cut ─► 4 allpasses ─► line ─┬─ 14 taps ─► swarm ─► width ─► wet
-//         ▲              (Diffuse)                       └─ end of the line ─┐
+//   in ─►(+)─► dampen ─► low cut ─► 4 allpasses ─► line ─┬─ 14 taps ─► width ─► wet
+//         ▲                         (Diffuse)            └─ end of the line ─┐
 //         └── limit ◄── Reflect, eased as the cave fills ◄── rotate L/R ◄────┘
 //
 // - Two lines, one per side. Each is read by fourteen taps at uneven, seeded
@@ -140,7 +140,9 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
   static constexpr float kWanderOctaves = 0.6f;
   static constexpr float kBassMonoHz = 160.0f;
   static constexpr float kWetGain = 1.0f;
-  static constexpr float kFullLevel = 0.4f;        // RMS in the line where the return starts to give
+  // RMS at the end of the lines where the return starts to give, and how
+  // slowly that level is followed.
+  static constexpr float kFullLevel = 0.4f;
   static constexpr float kFillSeconds = 0.25f;
   static constexpr float kAntiDenormal = 1.0e-18f;
   // Drag positions with Steps on, in octaves of time: 1/2, 2/3, 3/4, 1, 4/3,
@@ -394,7 +396,8 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
     if (param(kSteps) >= 0.5f) {
       int nearest = 0;
       for (int s = 1; s < kStepCount; ++s) {
-        if (std::fabs(kStepOctaves[s] - knob) < std::fabs(kStepOctaves[nearest] - knob)) nearest = s;
+        const float distance = std::fabs(kStepOctaves[s] - knob);
+        if (distance < std::fabs(kStepOctaves[nearest] - knob)) nearest = s;
       }
       const int offset = walk(wander);
       int index = nearest + offset;

@@ -180,30 +180,23 @@ class MicroShift : public kit::DeviceBase<micro_shift::kNumParams> {
   static constexpr float kDriftDelayMs = 1.5f;
   // Detune changes glide for 20 ms so a knob turn bends rather than steps.
   static constexpr float kDetuneGlideSeconds = 0.02f;
-#ifndef HOLD_SECONDS
-#define HOLD_SECONDS 0.009f
-#endif
-#ifndef HOLD_LOW
-#define HOLD_LOW 0.63f
-#endif
-#ifndef HOLD_HIGH
-#define HOLD_HIGH 1.41f
-#endif
+  // Level hold. The measurement looks back about 30 ms in all (one average
+  // per sample, kHoldStages more on the control clock): quick enough to
+  // catch a sag as it forms, slow enough that the difference tones of a
+  // chord do not reach the gain.
   static constexpr int kHoldStages = 3;
   static constexpr float kHoldFastSeconds = 0.003f;
-  static constexpr float kHoldSeconds = HOLD_SECONDS;
-  #ifndef HOLD_GLIDE
-#define HOLD_GLIDE 0.003f
-#endif
-#ifndef HOLD_W1
-#define HOLD_W1 0.1f
-#endif
-#ifndef HOLD_W2
-#define HOLD_W2 0.3f
-#endif
-  static constexpr float kHoldGlideSeconds = HOLD_GLIDE;
-  static constexpr float kHoldLow = HOLD_LOW;
-  static constexpr float kHoldHigh = HOLD_HIGH;
+  static constexpr float kHoldSeconds = 0.009f;
+  static constexpr float kHoldGlideSeconds = 0.003f;
+  // The whole side may sag to kHoldLow or swell to kHoldHigh of the level
+  // the dry sound and the copy have when they neither add nor cancel
+  // (in power: about -1.2 dB and +1.5 dB).
+  static constexpr float kHoldLow = 0.75f;
+  static constexpr float kHoldHigh = 1.41f;
+  // How gradually the copy steps back: over this much further sag, and
+  // over this much more advantage for the dry sound alone.
+  static constexpr float kHoldSagWidth = 0.15f;
+  static constexpr float kHoldAloneWidth = 0.45f;
   // The wet high-pass sits a little under the dry low-pass so the two meet
   // level at the Focus frequency (they add in power).
   static constexpr float kWetCornerRatio = 0.85f;
@@ -253,14 +246,9 @@ class MicroShift : public kit::DeviceBase<micro_shift::kNumParams> {
       // dry + gain^2 * copy + 2 * gain * cross = ceiling
       return (std::sqrt(cross * cross + copy * (ceiling - dry)) - cross) / copy;
     }
-    const float sagging = (kHoldLow * apart - together) / (HOLD_W1 * apart);
-    const float better_alone = (dry - together) / (HOLD_W2 * copy);
-#ifndef HOLD_TURN
-#define HOLD_TURN 0.0f
-#endif
-    const float ratio = -cross / copy;
-    const float turned = -HOLD_TURN * (std::sqrt(ratio * ratio + 1.0f) - ratio);
-    return 1.0f + (turned - 1.0f) * smooth_step(sagging) * smooth_step(better_alone);
+    const float sagging = (kHoldLow * apart - together) / (kHoldSagWidth * apart);
+    const float better_alone = (dry - together) / (kHoldAloneWidth * copy);
+    return 1.0f - smooth_step(sagging) * smooth_step(better_alone);
   }
 
   // Linear up to ±1, a smooth knee to ±2.
