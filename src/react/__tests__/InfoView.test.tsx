@@ -354,6 +354,34 @@ describe('InfoView', () => {
     }
   })
 
+  it('follows a root that is mounted after it', async () => {
+    function Late() {
+      const root = useRef<HTMLDivElement>(null)
+      const [shown, setShown] = useState(false)
+      return (
+        <>
+          <InfoView root={root} data-testid="info" />
+          <button type="button" onClick={() => setShown(true)}>
+            Show
+          </button>
+          {shown ? (
+            <div ref={root}>
+              <button type="button" {...infoProps('Loop', 'The loop is off.')}>
+                Loop
+              </button>
+            </div>
+          ) : null}
+        </>
+      )
+    }
+    render(<Late />)
+    fireEvent.click(screen.getByRole('button', { name: 'Show' }))
+    // The root is found as the page changes.
+    await act(async () => {})
+    fireEvent.pointerOver(screen.getByRole('button', { name: 'Loop' }))
+    expect(title()).toBe('Loop')
+  })
+
   it('draws an entry it is handed, with its paragraphs and actions', () => {
     render(
       <InfoView
