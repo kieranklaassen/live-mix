@@ -39,6 +39,18 @@ export interface LoadedSample {
 /** What `load` accepts: a URL to fetch, encoded bytes, or an already-decoded buffer. */
 export type SampleSource = string | ArrayBuffer | AudioBuffer
 
+/**
+ * What is already known of a sample being loaded. Working out peaks and an
+ * analysis reads every frame on the calling thread; an app that has them from
+ * elsewhere (a worker that rendered the audio, a cache from an earlier visit)
+ * hands them over and the store takes them as they are, whatever its own
+ * `peaks` and `analysis` options say. A field left out is worked out as usual.
+ */
+export interface KnownSample {
+  peaks?: WaveformPeaks | null
+  analysis?: SoundAnalysis | null
+}
+
 export interface SampleStoreOptions {
   fetchImpl?: typeof fetch
   /** Compute min/max peaks at decode time; `true` = 512 buckets, or a bucket count. */
@@ -137,9 +149,11 @@ export class SampleStore {
   /**
    * Decode `source` under `id`, once. Concurrent and repeated calls share the
    * same promise; a failed load is forgotten so a later call can retry. A
-   * sample dropped by the policy decodes again on the next `load`.
+   * sample dropped by the policy decodes again on the next `load`. `known`
+   * spares the store working out what the caller already has (`KnownSample`);
+   * it counts only for the call that starts the load.
    */
-  load(id: string, source: SampleSource): Promise<LoadedSample> {
+  load(id: string, source: SampleSource, known?: KnownSample): Promise<LoadedSample> {
     const ready = this.loaded.get(id)
     if (ready) {
       this.touch(id)
@@ -148,7 +162,7 @@ export class SampleStore {
     const inFlight = this.pending.get(id)
     if (inFlight) return inFlight
 
-    const promise = this.decode(id, source)
+    const promise = this.decode(id, source, known)
       .then((sample) => {
         // A `forget`/`clear` while decoding drops the result on the floor.
         if (this.pending.get(id) === promise) {
@@ -412,7 +426,11 @@ export class SampleStore {
     this.changeListeners.emit(this)
   }
 
-  private async decode(id: string, source: SampleSource): Promise<LoadedSample> {
+  private async decode(
+    id: string,
+    source: SampleSource,
+    known: KnownSample = {},
+  ): Promise<LoadedSample> {
     const buffer =
       typeof source === 'string'
         ? await this.ctx.decodeAudioData(await this.fetchBytes(source))
@@ -425,8 +443,14 @@ export class SampleStore {
       buffer,
       durationSec: buffer.duration,
       bytes: bytesOfBuffer(buffer),
-      peaks: this.peakBuckets === null ? null : peaksOf(buffer, this.peakBuckets),
-      analysis: this.analyse ? analysisOf(buffer) : null,
+      peaks:
+        known.peaks !== undefined
+          ? known.peaks
+          : this.peakBuckets === null
+            ? null
+            : peaksOf(buffer, this.peakBuckets),
+      analysis:
+        known.analysis !== undefined ? known.analysis : this.analyse ? analysisOf(buffer) : null,
     }
   }
 

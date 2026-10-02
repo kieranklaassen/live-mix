@@ -142,6 +142,7 @@ export {
 export {
   SampleStore,
   bytesOfBuffer,
+  type KnownSample,
   type LoadedSample,
   type SampleEviction,
   type SampleEvictionListener,
