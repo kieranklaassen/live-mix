@@ -1057,14 +1057,65 @@ describe('Scheduler runs a schedulable on a clock of its own', () => {
     ])
   })
 
-  it('leaves a schedulable on the transport alone when the transport loop changes length', () => {
-    const { ctx, transport, scheduler, main } = buildCycles(10)
+  it('leaves what sounds alone when the transport loop changes length around the position', () => {
+    const { ctx, transport, scheduler, track, main } = buildCycles(10)
     transport.start()
     ctx.currentTime = 105.5
     scheduler.tick()
     transport.setLoop({ lengthSec: 16 })
+    // 5.5 s fits in 16: nothing moved, on the transport or on the cycle.
     expect(main.faded).toEqual([])
     expect(main.keys()).toEqual(['note:0:5.000'])
+    expect(track.faded).toEqual([])
+    expect(track.keys()).toEqual(['note:0:5.000'])
+    expect(track.handed).toHaveLength(1)
+  })
+
+  it('enters the clip a folded transport loop lands in, on the transport and on a cycle', () => {
+    const { ctx, transport, scheduler, track, main } = buildCycles(10)
+    // 22 s in: the cycle is 2 s into its third pass, the transport 22 s into its first. Neither is in the note.
+    transport.seekElapsed(22)
+    transport.start()
+    expect(track.handed).toEqual([])
+    expect(main.handed).toEqual([])
+    // Folded into a 16 s loop the whole run stands at 6: a second into the note, on both.
+    transport.setLoop({ lengthSec: 16 })
+    expect(transport.elapsed()).toBe(6)
+    expect(track.handed).toHaveLength(1)
+    expect(track.handed[0]).toMatchObject({ when: 99, joining: true })
+    expect(main.handed).toHaveLength(1)
+    expect(main.handed[0]).toMatchObject({ when: 99, joining: true })
+    expect(track.faded).toEqual([])
+    expect(main.faded).toEqual([])
+
+    // Once, not on every pass after.
+    ctx.currentTime = 100.5
+    scheduler.tick()
+    expect(track.handed).toHaveLength(1)
+    expect(main.handed).toHaveLength(1)
+  })
+
+  it('leaves a clip that sounds through a fold as it sounds, and does not enter it twice', () => {
+    const { ctx, transport, scheduler, track } = buildCycles(10)
+    // 26.5 s in: the cycle is 1.5 s into the note of its third pass.
+    transport.seekElapsed(26.5)
+    transport.start()
+    expect(track.handed).toHaveLength(1)
+    expect(track.handed[0]).toMatchObject({ when: 98.5, joining: true })
+    // Folded into a 21 s loop the run stands at 5.5: inside the same note, which is still sounding.
+    transport.setLoop({ lengthSec: 21 })
+    expect(track.faded).toEqual([])
+    expect(track.handed).toHaveLength(1)
+
+    // It ends by the clock it was started on; its start next comes round on the cycle's following pass.
+    ctx.currentTime = 100.6
+    scheduler.tick()
+    expect(track.handed).toHaveLength(1)
+    ctx.currentTime = 109.4
+    scheduler.tick()
+    expect(track.handed).toHaveLength(2)
+    expect(round(track.handed[1].when)).toBe(109.5)
+    expect(track.handed[1].joining).toBe(false)
   })
 })
 

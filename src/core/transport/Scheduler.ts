@@ -126,6 +126,8 @@ export interface SchedulerOptions {
 export const DEFAULT_TICK_MS = 40
 /** How long a sounding clip takes to fade when `rejoin` lets it go for its edited self. */
 export const REJOIN_FADE_SECONDS = 0.005
+// A timeline that is further than this from where it would have run on to was put there.
+const FOLD_TOLERANCE_SECONDS = 1e-6
 
 /**
  * A start that was handed over, with the audio-clock time it was handed over
@@ -165,6 +167,11 @@ interface Registration {
   /** The clock the last pass ran on, and its loop length then: a change of either moves the schedulable over. */
   base?: Timebase
   baseLengthSec?: number
+  /**
+   * Set when a loop change folded the timeline to another place, until the
+   * next tick: that tick enters the clips the position has landed inside.
+   */
+  landed?: boolean
 }
 
 export class Scheduler {
@@ -176,6 +183,8 @@ export class Scheduler {
   private timer: ReturnType<typeof setInterval> | null = null
   // The transport's rate as of the last change heard, to move clock times by.
   private rate: number
+  // How far the timeline had run at the last pass, and when: a loop change that folds it shows against this.
+  private ran: { elapsedSec: number; contextTime: number } | null = null
   private readonly unsubscribe: () => void
   private readonly setIntervalFn: NonNullable<SchedulerOptions['setIntervalFn']>
   private readonly clearIntervalFn: NonNullable<SchedulerOptions['clearIntervalFn']>
@@ -239,26 +248,34 @@ export class Scheduler {
     }
     const rate = this.transport.rate
     const nowSec = unwrap(position.positionSec, position.iteration, this.transport.loop)
+    this.ran = { elapsedSec: this.transport.elapsed(contextTime), contextTime }
 
     for (const [schedulable, registration] of this.registrations) {
       // The clock its clips are on: the transport, or a cycle of its own
       // length, on which this pass runs exactly as it would on the transport.
       const base = schedulable.timebase ?? this.transport
-      // Null unless it is on another clock than last pass: then, the clips it kept sounding.
-      const keptOver = this.movedOver(schedulable, registration, base)
       const here = base === this.transport ? position : base.position(contextTime)
       const loop = base.loop
       const anchor = base.anchor
       const hereSec = unwrap(here.positionSec, here.iteration, loop)
       const clips = schedulable.clips()
+      // Null unless its clock is not where the last pass left it: it is on
+      // another one, or a loop change folded the timeline somewhere else. Then,
+      // the clips still sounding from before.
+      const keptOver =
+        this.movedOver(schedulable, registration, base) ??
+        (registration.landed
+          ? soundingClips(registration, clips, contextTime, soundingRate(schedulable, rate))
+          : null)
+      registration.landed = false
       // A lookahead is clock time: at this rate it reaches this far along the timeline.
       const aheadSec = schedulable.lookaheadSec * rate
       let due: ScheduledClip[]
       // Clips to enter partway: the position is already inside them.
       const joins: Handover[] = []
       if (keptOver && schedulable.joinsLate && !registration.fromAnchor) {
-        // On another clock now: it plays from where that one stands in its
-        // clips, apart from one still sounding as the old clock left it.
+        // Somewhere else now: it plays from where its clock stands in its
+        // clips, apart from one still sounding as it was left.
         for (const clip of clipsSoundingAt(clips, here.positionSec)) {
           if (keptOver.has(clip.id)) continue
           const start = { clipId: clip.id, iteration: here.iteration, startSec: clip.startSec }
@@ -502,16 +519,21 @@ export class Scheduler {
         this.reset()
         this.tick('seek')
         return
-      case 'loop':
+      case 'loop': {
         // The transport re-pinned with a new pass number: keys of pending
-        // starts are stale, sounding ones are left alone.
+        // starts are stale, sounding ones are left alone. A loop the position
+        // did not fit in has folded it: the timeline, and every cycle on it,
+        // is somewhere else, inside clips whose starts it never passed.
+        const folded = this.folded()
         for (const registration of this.registrations.values()) {
           registration.windowEndSec = undefined
           // Their pass numbers belong to the anchor that went.
           registration.declined.clear()
+          if (folded) registration.landed = true
         }
         this.refresh('loop')
         return
+      }
       case 'rate':
         this.retime()
         return
@@ -529,6 +551,15 @@ export class Scheduler {
       default:
         return assertNever(change.reason)
     }
+  }
+
+  /** Whether the timeline is somewhere other than where it would have run on to since the last pass. */
+  private folded(): boolean {
+    const ran = this.ran
+    if (!ran || this.transport.state !== 'playing') return false
+    const now = this.transport.now()
+    const expected = ran.elapsedSec + (now - ran.contextTime) * this.rate
+    return Math.abs(this.transport.elapsed(now) - expected) > FOLD_TOLERANCE_SECONDS
   }
 
   /**
@@ -609,11 +640,13 @@ export class Scheduler {
 
   /** Forgets every handed-over start and every window; the next tick starts from the anchor. */
   private reset(): void {
+    this.ran = null
     for (const registration of this.registrations.values()) {
       registration.scheduled.clear()
       registration.declined.clear()
       registration.windowEndSec = undefined
       registration.fromAnchor = true
+      registration.landed = false
     }
   }
 
@@ -637,6 +670,20 @@ export class Scheduler {
  */
 function soundingRate(schedulable: Schedulable, rate: number): number {
   return schedulable.retime ? rate : 1
+}
+
+/** The clips with a start handed over that is still sounding. */
+function soundingClips(
+  registration: Registration,
+  clips: ClipWindow['clips'],
+  contextTime: number,
+  rate: number,
+): Set<string> {
+  const sounding = new Set<string>()
+  for (const start of registration.scheduled.values()) {
+    if (soundsOn(clips, start, start.when, contextTime, rate)) sounding.add(start.clipId)
+  }
+  return sounding
 }
 
 /**

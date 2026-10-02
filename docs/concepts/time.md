@@ -81,6 +81,13 @@ A cycle's length is in timeline seconds, so the transport's rate (below)
 takes every cycle with it: the loops slide against each other exactly as
 they would, only sooner or later by the clock.
 
+A transport loop made shorter than where the position is folds the position
+into it, and `elapsed()` moves by as much, so every cycle is somewhere else
+too. As with any loop change, what sounds is left to sound; the scheduler
+then enters the clips the transport and each cycle have landed inside, on a
+track that can be entered partway, rather than waiting for their starts to
+come round.
+
 ## Rate: the timeline against the clock
 
 `transport.rate` is how many timeline seconds pass in one second of the audio
