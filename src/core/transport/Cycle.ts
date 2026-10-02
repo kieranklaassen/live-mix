@@ -56,6 +56,9 @@ interface SeenAnchor {
   elapsedSec: number
 }
 
+// A second this close under a pass's start is that start, worked out with another rounding.
+const PASS_EPSILON_SEC = 1e-9
+
 export class Cycle implements Timebase {
   private readonly transport: CycleTransport
   private length: number
@@ -104,7 +107,7 @@ export class Cycle implements Timebase {
     const pass = this.passAt(elapsedSec)
     return {
       contextTime: anchor.contextTime,
-      positionSec: elapsedSec - pass * this.length,
+      positionSec: this.into(pass, elapsedSec),
       iteration: this.numberOf(pass),
     }
   }
@@ -117,7 +120,7 @@ export class Cycle implements Timebase {
     const elapsedSec = this.transport.elapsed(contextTime)
     const pass = this.passAt(elapsedSec)
     return {
-      positionSec: elapsedSec - pass * this.length,
+      positionSec: this.into(pass, elapsedSec),
       iteration: this.numberOf(pass),
       finished: this.transport.position(contextTime).finished,
     }
@@ -147,8 +150,21 @@ export class Cycle implements Timebase {
     return Math.max(0, iteration - this.numberOffset)
   }
 
+  /**
+   * The pass the run of the timeline is in at `elapsedSec`. The start of a
+   * pass belongs to it however it was worked out: with a length a float
+   * cannot hold exactly (35.765), 29 lengths divided by one is a hair under
+   * 29, and the meeting point of two loops would read as the last instant of
+   * the pass before.
+   */
   private passAt(elapsedSec: number): number {
-    return Math.floor(elapsedSec / this.length)
+    const pass = Math.floor(elapsedSec / this.length)
+    return (pass + 1) * this.length - elapsedSec <= PASS_EPSILON_SEC ? pass + 1 : pass
+  }
+
+  /** How far into pass `pass` the run is at `elapsedSec`: never before its start. */
+  private into(pass: number, elapsedSec: number): number {
+    return Math.max(0, elapsedSec - pass * this.length)
   }
 
   /** The number of one of the cycle's passes, counted from the timeline's origin. */

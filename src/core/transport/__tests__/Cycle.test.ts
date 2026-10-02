@@ -139,6 +139,38 @@ describe('Cycle', () => {
   })
 })
 
+describe('Cycle of a length a float cannot hold exactly', () => {
+  // 29 lengths of 35.765 s divided by one comes out a hair under 29.
+  const lengthSec = 35.765
+
+  it('is at the start of a pass, not the last instant of the one before, where its lengths add up', () => {
+    for (const passes of [29, 31, 58, 62, 116]) {
+      const { transport, cycle } = build(lengthSec)
+      expect(Math.floor((passes * lengthSec) / lengthSec)).toBe(passes - 1)
+      transport.seekElapsed(passes * lengthSec)
+      transport.start()
+      const here = cycle.position()
+      expect(here.positionSec).toBe(0)
+      expect(cycle.passOf(here.iteration)).toBe(passes)
+      expect(cycle.anchor).toMatchObject({ positionSec: 0, iteration: here.iteration })
+      // A clip at the start of the pass is due now, not a whole length from now.
+      expect(cycle.contextTimeAt(0, here.iteration)).toBeCloseTo(100, 9)
+    }
+  })
+
+  it('meets a cycle of another length at the start of both', () => {
+    const { transport, cycle } = build(lengthSec)
+    const other = new Cycle(transport, 25.9)
+    // 5180 lengths of 35.765 s are 7153 of 25.9 s.
+    transport.seekElapsed(7153 * 25.9)
+    transport.start()
+    expect(cycle.position().positionSec).toBeCloseTo(0, 6)
+    expect(other.position().positionSec).toBeCloseTo(0, 6)
+    expect(cycle.position().positionSec).toBeLessThan(1)
+    expect(other.position().positionSec).toBeLessThan(1)
+  })
+})
+
 describe('Cycle counted pass', () => {
   it('counts its own passes from the origin of the timeline, whatever number a pass goes by', () => {
     const { ctx, transport, cycle } = build(10)
