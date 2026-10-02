@@ -270,6 +270,12 @@ export class NativeHostClient {
     return `${url}/link-audio?token=${encodeURIComponent(token)}&name=${encodeURIComponent(name)}`
   }
 
+  /** The address of one Link Audio channel this page listens to, for its intake. */
+  linkAudioInUrl(channelId: string): string {
+    const { url, token } = this.address
+    return `${url}/link-audio-in?token=${encodeURIComponent(token)}&channel=${encodeURIComponent(channelId)}`
+  }
+
   close(): void {
     this.finish('closed')
     this.socket.close()

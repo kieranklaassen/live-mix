@@ -36,6 +36,11 @@ export interface NativeHostInfo {
   link?: boolean
   /** The Link release the host was built with, e.g. `'4.1'`. */
   linkVersion?: string
+  /**
+   * Whether a page can listen to a peer's Link Audio channel through the
+   * host (`LinkAudioReceiver`). Absent from hosts built before it could.
+   */
+  linkAudioReceive?: boolean
 }
 
 /** One plug-in the host knows about, from a scan. */

@@ -267,7 +267,7 @@ export class FakePluginHost {
           platform: 'mac',
           scanUnfinished: this.options.scanUnfinished ?? false,
           link: this.options.link ?? true,
-          ...((this.options.link ?? true) ? { linkVersion: '4.1' } : {}),
+          ...((this.options.link ?? true) ? { linkVersion: '4.1', linkAudioReceive: true } : {}),
         })
         break
       case 'linkPing':

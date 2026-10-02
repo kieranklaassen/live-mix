@@ -123,6 +123,54 @@ namespace
         std::atomic<double>& quantum;
         ableton::LinkAudioSink sink;
     };
+
+    class AudioSource final : public LinkSession::Source
+    {
+    public:
+        AudioSource (ableton::LinkAudio& linkToUse, std::atomic<double>& quantumToUse,
+                     const ableton::ChannelId& id, LinkSession::Received receivedToUse)
+            : link (linkToUse),
+              quantum (quantumToUse),
+              received (std::move (receivedToUse)),
+              source (linkToUse, id, [this] (ableton::LinkAudioSource::BufferHandle buffer) { take (buffer); })
+        {
+        }
+
+    private:
+        // On Link's thread, one buffer at a time.
+        void take (const ableton::LinkAudioSource::BufferHandle& buffer)
+        {
+            const auto& info = buffer.info;
+            if (info.numFrames == 0 || info.numChannels < 1 || info.numChannels > 2 || info.sampleRate == 0)
+                return;
+
+            // The beat the buffer began on where it was sent, as this
+            // program counts beats, and from that the moment on the clock
+            // both read. A buffer from another session (two are merging) has
+            // no place in this one.
+            const auto state = link.captureAppSessionState();
+            const auto bars = quantum.load();
+            const auto begins = info.beginBeats (state, bars);
+            if (! begins.has_value())
+                return;
+            const auto atMicros = state.timeAtBeat (*begins, bars).count();
+
+            const auto samples = info.numFrames * info.numChannels;
+            floats.resize (samples);
+            for (size_t index = 0; index < samples; ++index)
+                floats[index] = ableton::util::int16ToFloat<float> (buffer.samples[index]);
+
+            received (floats.data(), static_cast<uint32_t> (info.numFrames), static_cast<uint32_t> (info.numChannels),
+                      info.sampleRate, atMicros, info.count);
+        }
+
+        ableton::LinkAudio& link;
+        std::atomic<double>& quantum;
+        LinkSession::Received received;
+        std::vector<float> floats;
+        // Last, so it goes first: its destructor waits for a buffer in hand.
+        ableton::LinkAudioSource source;
+    };
 }
 
 //==============================================================================
@@ -288,6 +336,18 @@ std::unique_ptr<LinkSession::Sink> LinkSession::openSink (const juce::String& na
     return std::make_unique<AudioSink> (impl->link, impl->quantum, name);
 }
 
+std::unique_ptr<LinkSession::Source> LinkSession::openSource (const juce::String& channelId, Received received)
+{
+    if (received == nullptr)
+        return nullptr;
+
+    for (const auto& channel : impl->link.channels())
+        if (hexOf (channel.id) == channelId)
+            return std::make_unique<AudioSource> (impl->link, impl->quantum, channel.id, std::move (received));
+
+    return nullptr;
+}
+
 } // namespace livemix
 
 #else // LIVE_MIX_HOST_LINK
@@ -319,6 +379,7 @@ int64_t LinkSession::followStart (double) { return micros(); }
 void LinkSession::stop (int64_t) {}
 bool LinkSession::takeChanged() { return false; }
 std::unique_ptr<LinkSession::Sink> LinkSession::openSink (const juce::String&) { return nullptr; }
+std::unique_ptr<LinkSession::Source> LinkSession::openSource (const juce::String&, Received) { return nullptr; }
 
 } // namespace livemix
 

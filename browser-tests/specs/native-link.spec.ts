@@ -3,7 +3,8 @@
 // (`native/host/test/link/LinkPeer.cpp`). Tempo, the place in the bar and
 // start/stop are compared between the two, and a click the page schedules on
 // a beat with a real AudioContext is sent over Link Audio and has to arrive at
-// the peer on that beat.
+// the peer on that beat. The other way round, a channel the peer sends has to
+// come out of the page with every click on its beat.
 //
 // Needs the host built (`pnpm host:build`). The two peers find each other by
 // multicast on this machine; where no interface carries it the tests skip,
@@ -298,6 +299,77 @@ test.describe('Ableton Link through the plug-in host', () => {
     expect(gaps).toHaveLength(phases.length)
     // Within a millisecond at 120 bpm (0.002 beats).
     for (const gap of gaps) expect(gap).toBeLessThan(0.002)
+  })
+
+  test('a channel the peer sends comes out of the page on the beat', async () => {
+    // At 44.1 kHz into a 48 kHz context: the page plays it at its own rate.
+    peer!.send('send 44100 2 From the peer')
+    const listening = await page.evaluate(() => window.nativeHarness!.linkListen('From the peer'))
+    expect(listening.peerName).toBe('Second peer')
+
+    // The peer clicks on the left on every beat and on the right on the first
+    // of each bar. Each click's beat is worked out on the page from the frame
+    // it came out at; one that came out while the stand-in audio device moved
+    // (it drops a buffer now and then on a busy machine) says nothing about
+    // the path, so the test waits for enough that did not.
+    const steady = (heard: { clicks: { outputOffsetMs: number }[] }, index: number) =>
+      index > 0 &&
+      Math.abs(heard.clicks[index].outputOffsetMs - heard.clicks[index - 1].outputOffsetMs) < 0.5
+    const wanted = 12
+    const deadline = Date.now() + 40_000
+    let heard = await page.evaluate(() => window.nativeHarness!.linkHeard())
+    for (;;) {
+      heard = await page.evaluate(() => window.nativeHarness!.linkHeard())
+      const good = heard.clicks.filter((_click, index) => steady(heard, index))
+      if (good.length >= wanted && good.some((click) => click.side === 1)) break
+      if (Date.now() > deadline) break
+      await sleep(250)
+    }
+    expect(heard.status).toBe('open')
+    expect(heard.delaySec).not.toBeNull()
+    // Two programs on one machine: well under a fifth of a second behind.
+    expect(heard.delaySec!).toBeLessThan(0.2)
+
+    const log: string[] = []
+    const offs: number[] = []
+    heard.clicks.forEach((click, index) => {
+      const off = click.beat - Math.round(click.beat)
+      const kept = steady(heard, index)
+      log.push(
+        `${click.side === 0 ? 'left' : 'right'} at ${click.phase.toFixed(4)}: ${(off * 500).toFixed(3)} ms off` +
+          (kept
+            ? ''
+            : index === 0
+              ? ' (the first; not counted)'
+              : ' (the output moved; not counted)'),
+      )
+      if (!kept) return
+      offs.push(off)
+      if (click.side === 0) expect(click.peak).toBeGreaterThan(0.4)
+      else {
+        expect(click.peak).toBeLessThan(-0.4)
+        expect(phaseGap(click.phase, 0)).toBeLessThan(0.004)
+      }
+    })
+    const starved = heard.stats.slice(2).reduce((sum, entry) => sum + entry.starvedFrames, 0)
+    const lost = heard.stats.reduce((sum, entry) => sum + entry.lost, 0)
+    const summary =
+      `delay ${(heard.delaySec! * 1000).toFixed(1)} ms (said ${heard.delays.length}x), ` +
+      `${lost} blocks lost, ${starved} frames starved after the first two seconds`
+    console.log(
+      `link audio in, clicks against the beat at 120 bpm:\n  ${log.join('\n  ')}\n  ${summary}`,
+    )
+    test
+      .info()
+      .annotations.push({ type: 'link-audio-in', description: `${summary}; ${log.join('; ')}` })
+    expect(offs.length).toBeGreaterThanOrEqual(wanted)
+    // Within a millisecond at 120 bpm (0.002 beats), nine clicks in ten: one
+    // that falls while the playout is catching up with a moved output is late.
+    const within = offs.filter((off) => Math.abs(off) < 0.002).length
+    expect(within / offs.length).toBeGreaterThanOrEqual(0.9)
+
+    await page.evaluate(() => window.nativeHarness!.linkUnlisten())
+    peer!.send('unsend')
   })
 
   test('nothing went wrong on the page', () => {
