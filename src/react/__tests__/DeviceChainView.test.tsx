@@ -5,7 +5,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { type Device } from '../../core/devices/Device'
 import { DEVICE_CATEGORIES } from '../../core/devices/registry'
-import { edgeScroll, landingIndex, markerPosition } from '../components/chain-reorder'
+import {
+  edgeScroll,
+  labelPosition,
+  landingIndex,
+  markerInside,
+  markerPosition,
+} from '../components/chain-reorder'
 import { DeviceChainView, groupDevices, reorderInserts } from '../components/DeviceChainView'
 import { createTestEngine, type TestEngine } from './harness'
 
@@ -95,6 +101,26 @@ describe('carrying a device along a chain', () => {
     expect(edgeScroll(382, 0, 400)).toBe(7)
     expect(edgeScroll(400, 0, 400)).toBe(14)
     expect(edgeScroll(10, 0, 0)).toBe(0)
+  })
+
+  it('keeps the carried name a little left of the pointer and inside the chain', () => {
+    expect(labelPosition(150, 400, 80)).toBe(140)
+    expect(labelPosition(4, 400, 80)).toBe(0)
+    // At the far end it stops with its own end at the chain's: it never widens what scrolls.
+    expect(labelPosition(395, 400, 80)).toBe(320)
+    expect(labelPosition(900, 400, 80)).toBe(320)
+    // A name wider than the chain starts at its head.
+    expect(labelPosition(50, 60, 80)).toBe(0)
+    // A chain that has not been laid out holds nothing back.
+    expect(labelPosition(150, 0, 80)).toBe(140)
+  })
+
+  it('stands the marker whole inside the chain at either end', () => {
+    expect(markerInside(230, 340)).toBe(230)
+    expect(markerInside(0, 340)).toBe(4)
+    expect(markerInside(340, 340)).toBe(336)
+    // A chain that has not been laid out holds nothing back.
+    expect(markerInside(340, 0)).toBe(340)
   })
 })
 
@@ -198,6 +224,113 @@ describe('DeviceChainView', () => {
     expect(screen.getByTestId('chain-marker').style.left).toBe('200px')
     fireEvent.pointerUp(window, { pointerId: 2 })
     expect(pad.strip.inserts).toEqual([eq, filter, delay])
+  })
+
+  it('keeps the click that ends a carry from pressing what is under the pointer', async () => {
+    const { pad, devices, items, titles } = await threeDevices()
+    const [filter, eq, delay] = devices
+    const later = () => screen.getByRole('button', { name: 'Move eq3 later' })
+    fireEvent.pointerDown(titles[0], { pointerId: 1, button: 0, clientX: 20 })
+    fireEvent.pointerMove(window, { pointerId: 1, clientX: 160 })
+    fireEvent.pointerUp(window, { pointerId: 1 })
+    expect(pad.strip.inserts).toEqual([eq, filter, delay])
+    // The click of that same button going up: it lands on nothing.
+    expect(fireEvent.click(later())).toBe(false)
+    expect(pad.strip.inserts).toEqual([eq, filter, delay])
+    // The next click is a click.
+    fireEvent.click(later())
+    expect(pad.strip.inserts).toEqual([filter, eq, delay])
+
+    // A carry left with Escape still has the button down: its click comes when that goes up.
+    layOut(items)
+    fireEvent.pointerDown(titles[0], { pointerId: 2, button: 0, clientX: 20 })
+    fireEvent.pointerMove(window, { pointerId: 2, clientX: 160 })
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    fireEvent.pointerUp(window, { pointerId: 2 })
+    expect(fireEvent.click(later())).toBe(false)
+    expect(pad.strip.inserts).toEqual([filter, eq, delay])
+  })
+
+  it('does not hold on to a click that never comes, and leaves a plain press its click', async () => {
+    const { pad, devices, items, titles } = await threeDevices()
+    const [filter, eq, delay] = devices
+    const later = () => screen.getByRole('button', { name: 'Move eq3 later' })
+    fireEvent.pointerDown(titles[0], { pointerId: 1, button: 0, clientX: 20 })
+    fireEvent.pointerMove(window, { pointerId: 1, clientX: 160 })
+    fireEvent.pointerUp(window, { pointerId: 1 })
+    expect(pad.strip.inserts).toEqual([eq, filter, delay])
+    // The button went up where no click followed (outside the window): a later click is its own.
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
+    fireEvent.click(later())
+    expect(pad.strip.inserts).toEqual([filter, eq, delay])
+
+    // A press on a title bar that never became a carry swallows nothing.
+    fireEvent.pointerDown(titles[0], { pointerId: 2, button: 0, clientX: 20 })
+    fireEvent.pointerUp(window, { pointerId: 2 })
+    fireEvent.click(later())
+    expect(pad.strip.inserts).toEqual([filter, delay, eq])
+
+    // Escape, and then a new press: the button went up unseen, so that press keeps its click.
+    layOut([items[0], items[2], items[1]])
+    fireEvent.pointerDown(titles[0], { pointerId: 3, button: 0, clientX: 20 })
+    fireEvent.pointerMove(window, { pointerId: 3, clientX: 160 })
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    const earlier = screen.getByRole('button', { name: 'Move eq3 earlier' })
+    fireEvent.pointerDown(earlier, { pointerId: 4, button: 0, clientX: 280 })
+    fireEvent.pointerUp(window, { pointerId: 4 })
+    fireEvent.click(earlier)
+    expect(pad.strip.inserts).toEqual([filter, eq, delay])
+  })
+
+  it('keeps a moved device its own panel: the panel is not drawn anew in its new place', async () => {
+    const { pad, devices, items, titles } = await threeDevices()
+    const [filter, eq, delay] = devices
+    fireEvent.pointerDown(titles[0], { pointerId: 1, button: 0, clientX: 20 })
+    fireEvent.pointerMove(window, { pointerId: 1, clientX: 290 })
+    fireEvent.pointerUp(window, { pointerId: 1 })
+    expect(pad.strip.inserts).toEqual([eq, delay, filter])
+    // The same three elements, in their new order.
+    expect(screen.getByTestId('chain-item-2')).toBe(items[0])
+    expect(screen.getByTestId('chain-item-0')).toBe(items[1])
+    expect(screen.getByTestId('chain-item-1')).toBe(items[2])
+    expect(titles[0]).toBeInTheDocument()
+  })
+
+  it('scrolls a long chain under a pointer held at its end, and stops where the chain ends', async () => {
+    const frames: FrameRequestCallback[] = []
+    vi.stubGlobal('requestAnimationFrame', (frame: FrameRequestCallback) => frames.push(frame))
+    vi.stubGlobal('cancelAnimationFrame', () => {})
+    // The carried name is 80 wide.
+    const width = vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(80)
+    try {
+      const { pad, devices, titles } = await threeDevices()
+      const [filter, eq, delay] = devices
+      // The chain shows 200 of its 300 px, and scrolls itself.
+      const view = screen.getByTestId('chain')
+      let scrolled = 0
+      Object.defineProperties(view, {
+        scrollWidth: { get: () => 300 },
+        clientWidth: { get: () => 200 },
+        scrollLeft: { get: () => scrolled, set: (value: number) => void (scrolled = value) },
+      })
+      view.style.overflowX = 'auto'
+      view.getBoundingClientRect = () => ({ left: 0, right: 200, top: 0, bottom: 40 }) as DOMRect
+
+      fireEvent.pointerDown(titles[0], { pointerId: 1, button: 0, clientX: 20 })
+      fireEvent.pointerMove(window, { pointerId: 1, clientX: 198 })
+      // Still for longer than the chain is long: every frame scrolls it on.
+      for (let frame = 0; frame < 40; frame += 1) act(() => frames.shift()?.(0))
+      expect(scrolled).toBe(100)
+      // The name stops with its end at the chain's end, so it never adds to what scrolls.
+      expect(screen.getByTestId('chain-carried').style.transform).toBe('translateX(220px)')
+      // Under the still pointer there is now the end of the chain, and the marker stands inside it.
+      expect(screen.getByTestId('chain-marker').style.left).toBe('296px')
+      fireEvent.pointerUp(window, { pointerId: 1 })
+      expect(pad.strip.inserts).toEqual([eq, delay, filter])
+    } finally {
+      width.mockRestore()
+      vi.unstubAllGlobals()
+    }
   })
 
   it('takes a device by its grip, and leaves a press on a control to the control', async () => {

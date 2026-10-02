@@ -3,7 +3,7 @@
 // name rides the title row under the pointer, its panel stays dimmed where it
 // was, and a marker stands in the gap it would land in; letting go puts it
 // there, Escape leaves it. The chain scrolls when the pointer nears an end of
-// what shows of it.
+// what shows of it, and never past the ends it had when the device was taken.
 //
 // Nothing of the layout moves during a carry, so where the device lands is
 // read from where the devices stood when it was taken. The name is moved with
@@ -22,6 +22,8 @@ import {
 export const REORDER_SLOP_PX = 4
 /** How far left of the pointer the carried name starts. */
 const LABEL_LEAD_PX = 10
+/** Half the marker's width, bars included: at an end of the chain it stands this far inside. */
+const MARKER_HALF_PX = 4
 /** How near an end of the scrolling view the pointer has to be for the chain to scroll. */
 const SCROLL_EDGE_PX = 36
 /** The most the chain scrolls in one frame, with the pointer at the very end. */
@@ -80,6 +82,57 @@ export function edgeScroll(x: number, left: number, right: number): number {
   return 0
 }
 
+/**
+ * A marker place kept inside a chain `width` wide, so the marker shows whole
+ * at either end and adds nothing to what the chain scrolls.
+ */
+export function markerInside(at: number, width: number): number {
+  if (width <= 2 * MARKER_HALF_PX) return at
+  return Math.max(MARKER_HALF_PX, Math.min(at, width - MARKER_HALF_PX))
+}
+
+/**
+ * Where the carried name starts for a pointer at `x` along a chain `width`
+ * wide: a little left of the pointer, and never out of either end. A name
+ * past the end would widen what its scroller holds, and the scroller would
+ * then follow it for as long as the pointer stayed at that end.
+ */
+export function labelPosition(x: number, width: number, labelWidth: number): number {
+  const last = width > 0 ? Math.max(0, width - labelWidth) : Infinity
+  return Math.max(0, Math.min(x - LABEL_LEAD_PX, last))
+}
+
+/**
+ * The click a browser sends once the button that carried a device goes up is
+ * the carry's: nothing under the pointer is pressed by it. `held` is a carry
+ * left with the button still down, whose click follows when the button goes
+ * up. What is returned stops waiting for that click.
+ */
+function swallowClick(held: boolean): () => void {
+  let timer: ReturnType<typeof setTimeout> | null = null
+  const swallow = (event: MouseEvent) => {
+    event.preventDefault()
+    event.stopPropagation()
+  }
+  const stop = () => {
+    window.removeEventListener('pointerup', arm, true)
+    window.removeEventListener('pointerdown', stop, true)
+    window.removeEventListener('click', swallow, true)
+    if (timer !== null) clearTimeout(timer)
+  }
+  function arm() {
+    window.removeEventListener('pointerup', arm, true)
+    window.addEventListener('click', swallow, { capture: true, once: true })
+    // That click comes with the button going up or not at all: a later one is not waited for.
+    timer = setTimeout(stop, 0)
+  }
+  // A new press means the button went up where the window did not see it.
+  window.addEventListener('pointerdown', stop, true)
+  if (held) window.addEventListener('pointerup', arm, true)
+  else arm()
+  return stop
+}
+
 /** The nearest element, from the chain outwards, that scrolls sideways. */
 function scrollerOf(chain: HTMLElement): HTMLElement | null {
   for (let element: HTMLElement | null = chain; element; element = element.parentElement) {
@@ -103,8 +156,12 @@ interface Carry {
     /** Every shown device as it stood when this one was taken, in the scroller's content. */
     spans: ItemSpan[]
     scroller: HTMLElement | null
+    /** How far the scroller went when the device was taken: the carry scrolls no further. */
+    scrollMax: number
     /** The chain's own left edge, in the same content. */
     chainLeft: number
+    /** How wide the chain's content was when the device was taken. */
+    chainWidth: number
     /** Where the carried name stands, in px from the chain's left edge. */
     labelLeft: number
     to: number
@@ -142,8 +199,10 @@ export function useChainReorder(onMove: (from: number, to: number) => void): Cha
   const [marker, setMarker] = useState<number | null>(null)
   // The listeners a carry holds on the window, taken down when it ends.
   const release = useRef<(() => void) | null>(null)
+  // The wait for the click that follows the last carry, which outlives it by a moment.
+  const unclick = useRef<(() => void) | null>(null)
 
-  const end = useCallback((land: boolean) => {
+  const end = useCallback((land: boolean, held = false) => {
     const current = carry.current
     carry.current = null
     release.current?.()
@@ -151,6 +210,8 @@ export function useChainReorder(onMove: (from: number, to: number) => void): Cha
     if (!current) return
     const { lifted, item, from } = current
     if (!lifted) return
+    unclick.current?.()
+    unclick.current = swallowClick(held)
     if (lifted.frame !== null) cancelAnimationFrame(lifted.frame)
     try {
       if (item.hasPointerCapture(current.pointerId)) item.releasePointerCapture(current.pointerId)
@@ -163,7 +224,25 @@ export function useChainReorder(onMove: (from: number, to: number) => void): Cha
   }, [])
 
   // A chain taken off the page mid-carry lets go of the window.
-  useEffect(() => () => end(false), [end])
+  useEffect(
+    () => () => {
+      end(false)
+      unclick.current?.()
+    },
+    [end],
+  )
+
+  /** Puts the carried name under a pointer at `x` in the scroller's content. */
+  const placeLabel = useCallback((x: number) => {
+    const lifted = carry.current?.lifted
+    if (!lifted) return
+    lifted.labelLeft = labelPosition(
+      x - lifted.chainLeft,
+      lifted.chainWidth,
+      label.current?.offsetWidth ?? 0,
+    )
+    if (label.current) label.current.style.transform = `translateX(${lifted.labelLeft}px)`
+  }, [])
 
   /** Puts the carried name under the pointer and the marker where the device would land. */
   const follow = useCallback(() => {
@@ -172,14 +251,13 @@ export function useChainReorder(onMove: (from: number, to: number) => void): Cha
     if (!current || !lifted) return
     // Read each time: the chain scrolling under a still pointer moves what the pointer is over.
     const scroll = lifted.scroller?.scrollLeft ?? 0
-    lifted.labelLeft = Math.max(0, current.x + scroll - lifted.chainLeft - LABEL_LEAD_PX)
-    if (label.current) label.current.style.transform = `translateX(${lifted.labelLeft}px)`
+    placeLabel(current.x + scroll)
     const to = landingIndex(lifted.spans, current.from, current.x + scroll)
     if (to === lifted.to) return
     lifted.to = to
     const at = markerPosition(lifted.spans, current.from, to)
-    setMarker(at === null ? null : at - lifted.chainLeft)
-  }, [])
+    setMarker(at === null ? null : markerInside(at - lifted.chainLeft, lifted.chainWidth))
+  }, [placeLabel])
 
   const lift = useCallback(
     (current: Carry) => {
@@ -195,9 +273,11 @@ export function useChainReorder(onMove: (from: number, to: number) => void): Cha
           return { left: bounds.left + scroll, right: bounds.right + scroll }
         }),
         scroller,
+        scrollMax: scroller ? scroller.scrollWidth - scroller.clientWidth : 0,
         // The marker is placed inside the chain's border, and scrolls with what the chain scrolls.
         chainLeft:
           element.getBoundingClientRect().left + element.clientLeft + scroll - element.scrollLeft,
+        chainWidth: element.scrollWidth,
         labelLeft: 0,
         to: current.from,
         frame: null,
@@ -219,7 +299,7 @@ export function useChainReorder(onMove: (from: number, to: number) => void): Cha
           const step = edgeScroll(carry.current.x, view.left, view.right)
           if (step !== 0) {
             const before = lifted.scroller.scrollLeft
-            lifted.scroller.scrollLeft = before + step
+            lifted.scroller.scrollLeft = Math.min(before + step, lifted.scrollMax)
             if (lifted.scroller.scrollLeft !== before) follow()
           }
         }
@@ -269,7 +349,7 @@ export function useChainReorder(onMove: (from: number, to: number) => void): Cha
         // The key is the carry's: nothing behind it closes or lets go of anything.
         key.preventDefault()
         key.stopPropagation()
-        end(false)
+        end(false, true)
       }
       const onBlur = () => end(false)
       window.addEventListener('pointermove', onPointerMove)
@@ -292,11 +372,15 @@ export function useChainReorder(onMove: (from: number, to: number) => void): Cha
     chain.current = element
   }, [])
   // The name is drawn a render after the device is taken: it starts where the pointer already is.
-  const labelRef = useCallback((element: HTMLElement | null) => {
-    label.current = element
-    const lifted = carry.current?.lifted
-    if (element && lifted) element.style.transform = `translateX(${lifted.labelLeft}px)`
-  }, [])
+  const labelRef = useCallback(
+    (element: HTMLElement | null) => {
+      label.current = element
+      const current = carry.current
+      if (element && current?.lifted)
+        placeLabel(current.x + (current.lifted.scroller?.scrollLeft ?? 0))
+    },
+    [placeLabel],
+  )
 
   return {
     chainRef,

@@ -110,6 +110,21 @@ export function groupDevices(
 }
 
 /** What the grip at a device's left says in the info view. */
+// A panel is its device's, wherever in the chain the device stands: moved, it
+// is the same panel in a new place, not a new one. Two devices of one kind
+// share an id, so the key is the device itself.
+const deviceKeys = new WeakMap<Device, number>()
+let deviceKeyCount = 0
+
+function deviceKey(device: Device): number {
+  let key = deviceKeys.get(device)
+  if (key === undefined) {
+    key = deviceKeyCount += 1
+    deviceKeys.set(device, key)
+  }
+  return key
+}
+
 const REORDER_INFO =
   'Drag this grip, or the title bar beside it, sideways to carry the device to another place in the chain. A line shows where it will land; Escape puts it back. The sound runs through the devices from left to right, so their order changes the result.'
 /** The line a device in a chain adds to its own info text. */
@@ -274,7 +289,7 @@ export function DeviceChainView({
       {inserts.map((device, index) =>
         index < skip ? null : (
           <div
-            key={`${device.id}-${index}`}
+            key={deviceKey(device)}
             role="listitem"
             className={cx(
               'lm-chain__item',
