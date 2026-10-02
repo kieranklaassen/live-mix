@@ -320,7 +320,7 @@ const mine = presets.filter((preset) => preset.pack === FACTORY_PACKS[0].id)
 ```
 
 `FACTORY_PACKS` is a few lines of names and comes with the bank. The presets
-do not: all 1,700 of them are a module of their own
+do not: all 2,500 of them are a module of their own
 (`src/dsp/factory/packs/all.ts`) behind a dynamic `import()`, which a bundler
 keeps out of the script a page starts with. `loadFactoryPacks()` fetches them
 once and hands back the same list from then on; a fetch that fails is tried
@@ -330,25 +330,33 @@ to. A pack preset is an ordinary `FactoryPreset`: `renderPresetPreview`,
 starts with its pack's (`<pack id>-...`), so the ids of the bank, the chains
 and the packs never meet.
 
-| Pack                                         | What it is                                                                                                                                                           |
-| -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Empty Concourse** (`concourse`)            | Piano notes, glassy bells and sung vowels on loops of unequal length that never meet the same way twice: music for the hours between flights.                        |
-| **Soft Pedal** (`soft-pedal`)                | A piano played with the soft pedal down and left to hang in a very long, slightly detuned room. Few notes, slow, with the lid nearly closed.                         |
-| **Shedding Oxide** (`oxide`)                 | Short orchestral loops on tape so old it sheds a little more each time round, until the tune is mostly the gaps.                                                     |
-| **Faded Nature Film** (`nature-film`)        | Detuned synthesizers off a wobbling reel, as heard under a 1970s wildlife documentary in a Scottish classroom.                                                       |
-| **Cornish Lucid Dreams** (`lucid`)           | Pads and bells remembered from sleep on the far south-west coast of England: soft, dark, a little out of tune and oddly moving.                                      |
-| **Coast Fog Four-Track** (`four-track`)      | A voice, a guitar and an old electric piano recorded to cassette by the Pacific, with the reverb up until the words are gone.                                        |
-| **Museum Window Garden** (`window-garden`)   | A few bright notes on an electric piano, with water and birds outside: Japanese environmental music of the early eighties, written for a room with a view of trees.  |
-| **Rosewood Circles** (`rosewood`)            | Marimba patterns that turn slowly round each other, with gongs and bowls between: percussion minimalism from Tokyo, played with soft mallets.                        |
-| **Park Bench Zither** (`park-zither`)        | An open-tuned zither struck with hammers and brushed by hand through a phaser and an echo, bright as a laugh, first heard busking in a New York park.                |
-| **Sonoran Night Air** (`sonoran`)            | Analogue pads that breathe as slowly as a sleeper, over the Arizona desert after dark. Open sky, long reverb, an hour without an edge.                               |
-| **Polar Night Signal** (`polar-signal`)      | Cold loops and far-off radio from above the Arctic Circle: a town in the dark for two months, snow, a foghorn, a signal fading in and out.                           |
-| **Far North Bowed Guitar** (`far-north`)     | An electric guitar played with a cello bow, a falsetto, a pump organ and a glockenspiel, rising very slowly over an island of lava and moss.                         |
-| **Steel in Slow Orbit** (`orbit-steel`)      | Pedal steel that slides instead of twangs, and guitars with all the attack taken off: country instruments sent up to circle the moon.                                |
-| **Old Broadcast Hall** (`broadcast-hall`)    | A felt-damped upright with its mechanism in the microphone, a chorus polysynth and a tape echo, in a wooden radio hall by the river in Berlin.                       |
-| **Sunburnt Laptop Guitar** (`laptop-guitar`) | A guitar fed through a laptop until the chords melt into grain and glitter: beach pop remembered through a broken summer in Vienna.                                  |
-| **Island Patch Cables** (`patch-cables`)     | A voltage-controlled synthesizer with no keyboard habits, woodwinds and a voice folded into it: bubbling, bright and green, from an island in the Pacific Northwest. |
-| **Ashram Harp and Organ** (`ashram`)         | Harp glissandi, a swirling organ, a drone of strings and tanpura: spiritual jazz that left the clubs for an ashram in California.                                    |
+| Pack                                           | What it is                                                                                                                                                           |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Empty Concourse** (`concourse`)              | Piano notes, glassy bells and sung vowels on loops of unequal length that never meet the same way twice: music for the hours between flights.                        |
+| **Soft Pedal** (`soft-pedal`)                  | A piano played with the soft pedal down and left to hang in a very long, slightly detuned room. Few notes, slow, with the lid nearly closed.                         |
+| **Austin Slow Brass** (`slow-brass`)           | Horns and strings that take half a minute to arrive and longer to leave, made by two patient people with guitars: no beat, no hurry, one chord.                      |
+| **Shedding Oxide** (`oxide`)                   | Short orchestral loops on tape so old it sheds a little more each time round, until the tune is mostly the gaps.                                                     |
+| **Faded Nature Film** (`nature-film`)          | Detuned synthesizers off a wobbling reel, as heard under a 1970s wildlife documentary in a Scottish classroom.                                                       |
+| **Cornish Lucid Dreams** (`lucid`)             | Pads and bells remembered from sleep on the far south-west coast of England: soft, dark, a little out of tune and oddly moving.                                      |
+| **Static Cathedral** (`static-cathedral`)      | Organ, piano and guitar pushed through broken digital gear until the church fills with warm static. Loud things made distant.                                        |
+| **Coast Fog Four-Track** (`four-track`)        | A voice, a guitar and an old electric piano recorded to cassette by the Pacific, with the reverb up until the words are gone.                                        |
+| **Museum Window Garden** (`window-garden`)     | A few bright notes on an electric piano, with water and birds outside: Japanese environmental music of the early eighties, written for a room with a view of trees.  |
+| **Rosewood Circles** (`rosewood`)              | Marimba patterns that turn slowly round each other, with gongs and bowls between: percussion minimalism from Tokyo, played with soft mallets.                        |
+| **Park Bench Zither** (`park-zither`)          | An open-tuned zither struck with hammers and brushed by hand through a phaser and an echo, bright as a laugh, first heard busking in a New York park.                |
+| **Sonoran Night Air** (`sonoran`)              | Analogue pads that breathe as slowly as a sleeper, over the Arizona desert after dark. Open sky, long reverb, an hour without an edge.                               |
+| **Polar Night Signal** (`polar-signal`)        | Cold loops and far-off radio from above the Arctic Circle: a town in the dark for two months, snow, a foghorn, a signal fading in and out.                           |
+| **Pulse under the Forest** (`forest-pulse`)    | Old orchestral strings looped and blurred into fog between the trees near Cologne, with a kick drum's heartbeat somewhere far below.                                 |
+| **Far North Bowed Guitar** (`far-north`)       | An electric guitar played with a cello bow, a falsetto, a pump organ and a glockenspiel, rising very slowly over an island of lava and moss.                         |
+| **Steel in Slow Orbit** (`orbit-steel`)        | Pedal steel that slides instead of twangs, and guitars with all the attack taken off: country instruments sent up to circle the moon.                                |
+| **Old Broadcast Hall** (`broadcast-hall`)      | A felt-damped upright with its mechanism in the microphone, a chorus polysynth and a tape echo, in a wooden radio hall by the river in Berlin.                       |
+| **Sunburnt Laptop Guitar** (`laptop-guitar`)   | A guitar fed through a laptop until the chords melt into grain and glitter: beach pop remembered through a broken summer in Vienna.                                  |
+| **Island Patch Cables** (`patch-cables`)       | A voltage-controlled synthesizer with no keyboard habits, woodwinds and a voice folded into it: bubbling, bright and green, from an island in the Pacific Northwest. |
+| **Ashram Harp and Organ** (`ashram`)           | Harp glissandi, a swirling organ, a drone of strings and tanpura: spiritual jazz that left the clubs for an ashram in California.                                    |
+| **Berlin Sequencer, 1974** (`sequencer-1974`)  | A bass sequence running through the night under tape-replay flutes and choirs, phased strings and an organ, in West Berlin in the mid seventies.                     |
+| **Neon Rain, 2019** (`neon-rain`)              | Brass swells from a huge polysynth, electric piano through chorus and a digital hall the size of a city: Los Angeles in the rain, as 1982 imagined it.               |
+| **Six Squared** (`six-squared`)                | Short sad synth loops layered until they glow, pressed hard into hiss and left in a long dark reverb: night music from England with rave in its memory.              |
+| **Indiana Reel Room** (`reel-room`)            | Slow orchestral swells run through tape until they blur, over a drone low enough to feel: steep darkness, hiss and fades that take minutes.                          |
+| **Stairwell Choir of One** (`stairwell-choir`) | One voice sung into a looper again and again until it is a choir, in the kind of reverb a stairwell or a church gives you for nothing.                               |
 
 ### What a pack is held to
 
