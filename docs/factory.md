@@ -164,10 +164,82 @@ lists it before audio starts and renders only what someone asks to hear.
 All three come out at `FACTORY_PEAK_DB` (−6 dBFS peak), so nothing in a
 browser list is louder than the entry above it. Every phrase stays on the
 white keys, so previews and sounds sit together and inside a C major scale
-lock. A sound has a catalogue `number` that never changes (ambient-live's
+lock; see below for other keys. A sound has a catalogue `number` that never changes (ambient-live's
 sample id for it is a billion plus the number) and a `kind` that
 `analyzeSound` must agree with, so the list can show the right icon before
 the sound has been rendered.
+
+## The bank in another key
+
+Every sound is written on the white keys: C major, A minor, D dorian and the
+other modes of the same seven notes. So one transposition moves the whole
+bank into any key, and every sound stays inside it.
+
+```ts
+import {
+  factoryTranspose,
+  renderFactorySound,
+  transposeFactorySound,
+} from '@kieranklaassen/live-mix/dsp'
+
+const by = factoryTranspose({ root: 4, mode: 'minor' }) // E minor: -5, the shortest way (5 down to 6 up)
+transposeFactorySound(sound, by).name // "Low drone A" for "Low drone D"
+const audio = await renderFactorySound(sound, { transpose: by })
+```
+
+`transposeFactorySound` moves the notes, the devices that are set to a pitch
+(the sympathetic strings' scale, a Thesis' centre) and the note names in the
+name and description, which the bank writes in braces (`'Low drone {D}'`).
+The id and the catalogue number stay, so it is the same sound to whatever
+refers to it. A sound made from another one renders that one in the new key
+and keeps its own notes. The three sounds of steady tones are retuned, by
+under two cents, to a whole number of cycles per loop at render time
+(`tuning: 'whole-cycles'`), in whatever key that is.
+
+`keyChord(key, degree)` is one of the seven chords of a key, `chordTakes`,
+`chordTones` and `chordName` say which colours (seventh, ninth, sus2, …) it
+takes without leaving the key, which notes those are and what the chord is
+then called.
+
+## New sounds from a seed
+
+```ts
+import { generateSound, renderGeneratedSound } from '@kieranklaassen/live-mix/dsp'
+
+const sound = generateSound({
+  seed: 20261002,
+  kind: 'pad',
+  key: { root: 2, mode: 'dorian' },
+  degree: 3,
+})
+sound.name // "Shimmer pad Gsus2"
+const audio = await renderGeneratedSound(sound)
+```
+
+`generateSound` makes a recipe and renders nothing. The seed decides which
+instrument plays, how it is set and, for a phrase, the line; the key and the
+chord (`degree`, 0 to 6; drawn from the seed when left out, the key's own
+chord most often and never the diminished one) decide the notes. So the same
+seed in another key is the same sound moved there, and a host that stores
+`{ seed, kind, degree }` can make the sound again in whatever key the piece
+is in. `kind` is one of `GENERATED_KINDS`: `drone`, `pad`, `texture`,
+`oneshot`, `melodic`.
+
+Every voice starts from a recipe of the bank and keeps what made it loop:
+notes held through the fold, slow motion at whole cycles per loop, pure
+fifths under a drone, and the whole-cycle tuning with a quarter turn for the
+steady ones. `generate.test.ts` holds them to the bank's rules (every note in the key in
+all six modes, the same devices in every key, one sound of every voice
+rendered and classified).
+
+What the bench says, so nobody has to find out again: of 250 generated
+sounds across all keys and chords, 246 came out as the kind asked for; the
+four that did not are drones whose level moves enough for `analyzeSound` to
+call them pads (its line between the two is how flat the level is). Two
+drone voices that crossed that line most of the time were taken out. The
+bank itself, moved through all twelve keys, keeps its kind in 394 of 408
+renders: the others are mostly the low drones a few semitones up, where
+they move more.
 
 ## What the bank is held to
 
@@ -199,6 +271,8 @@ cat tmp/factory-presets-choir.txt
 FACTORY_REPORT=chains  pnpm vitest run src/dsp/factory/__tests__/report.test.ts # first line is the dry input
 FACTORY_REPORT=sounds  pnpm vitest run src/dsp/factory/__tests__/report.test.ts # with the kind the analysis gives
 FACTORY_REPORT=devices pnpm vitest run src/dsp/factory/__tests__/report.test.ts # every device, parameter and preset
+FACTORY_REPORT=keys    pnpm vitest run src/dsp/factory/__tests__/report.test.ts # every sound in all twelve keys
+FACTORY_REPORT=generated FACTORY_SEEDS=40 pnpm vitest run src/dsp/factory/__tests__/report.test.ts # that many seeds of each kind
 # FACTORY=<part of an id> narrows any of them; FACTORY_WAV=tmp/wav keeps the audio
 ```
 

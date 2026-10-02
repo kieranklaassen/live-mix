@@ -3,7 +3,9 @@
 // `renderFactorySound` turns into audio on demand.
 //
 // Everything tonal stays on the white keys (C major, A minor, D dorian), so
-// any sound sits with any other. Sustained sounds loop without a seam: the
+// any sound sits with any other, and one transposition moves the whole bank
+// into another key (./key.ts). A name or description gives each note it
+// mentions in braces, so the words move with the notes. Sustained sounds loop without a seam: the
 // notes are held through the whole render, the attack and the build-up of the
 // reverb are skipped, and the end is folded over the start. Their slow
 // movement runs at a whole number of cycles per loop where the device allows
@@ -11,7 +13,8 @@
 // played in free time: notes on a grid would make them beats, not melodies.
 
 import { type PatchDevice } from '../../core/devices/patch'
-import { noteFrequency } from '../patch-render'
+import { transposeWords } from './key'
+import { breathe, quarterTurn, soften, zita } from './parts'
 import { type FactorySound } from './types'
 
 /** A factory sound with its patch written out: the patch takes the sound's id, name and description. */
@@ -22,16 +25,15 @@ interface Recipe extends Omit<FactorySound, 'patch'> {
 
 function sound(recipe: Recipe): FactorySound {
   const { instrument, effects, ...rest } = recipe
+  const name = transposeWords(recipe.name, 0)
+  const description = transposeWords(recipe.description, 0)
+  const names = name !== recipe.name || description !== recipe.description
   return {
     ...rest,
-    patch: {
-      id: recipe.id,
-      name: recipe.name,
-      category: recipe.kind,
-      description: recipe.description,
-      instrument,
-      effects,
-    },
+    name,
+    description,
+    ...(names ? { words: { name: recipe.name, description: recipe.description } } : {}),
+    patch: { id: recipe.id, name, category: recipe.kind, description, instrument, effects },
   }
 }
 
@@ -63,35 +65,6 @@ function looped(
   }
 }
 
-/**
- * A tone that does not move at all is the same wave at both ends of its loop,
- * and the equal-power fold, right for two unrelated stretches, then adds them
- * in amplitude: a swell of up to 3 dB at every pass (or a dip, when the ends
- * meet out of phase). These two take it away. `wholeCycles` moves a note by
- * less than two cents to the pitch that fits a whole number of cycles into
- * the loop, so every partial meets itself in phase; `quarterTurn` then shifts
- * everything up by a quarter of a cycle per loop, far too little to hear, so
- * every partial meets itself a quarter turn on, where amplitudes add in power.
- */
-function wholeCycles(note: number, loopSec: number): number {
-  const cycles = Math.round(noteFrequency(note) * loopSec)
-  return 69 + 12 * Math.log2(cycles / loopSec / 440)
-}
-
-const quarterTurn = (loopSec: number): PatchDevice => ({
-  deviceId: 'freq-shifter',
-  params: {
-    shift: 0,
-    fine: 1 / (4 * loopSec),
-    mode: 0,
-    feedback: 0,
-    lfoDepth: 0,
-    tone: 16000,
-    width: 0,
-    mix: 1,
-  },
-})
-
 /** A note of a phrase: when, how long the key is down, which note, how hard. */
 type Stroke = readonly [atSec: number, durSec: number, note: number, gain?: number]
 
@@ -109,28 +82,6 @@ function played(
     fadeOutSec,
   }
 }
-
-const zita = (preset: 'Room' | 'Hall' | 'Cathedral', mix: number): PatchDevice => ({
-  deviceId: 'zita-rev1',
-  preset,
-  params: { mix },
-})
-
-/** A slow swell in level at an exact rate, so it comes round with the loop. */
-const breathe = (rate: number, depth: number): PatchDevice => ({
-  deviceId: 'tremolo',
-  params: { mode: 0, rate, depth, shape: 0, phase: 0, drift: 0, smooth: 0.5 },
-})
-
-/**
- * Rounds off the clicks and crackles of a weather texture, which are 20 dB
- * above the bed they sit on: without it the bed is very quiet once the sound
- * is brought to the bank's peak level.
- */
-const soften = (driveDb: number): PatchDevice => ({
-  deviceId: 'saturator',
-  params: { curve: 3, driveDb, outputDb: -6, oversample: 1 },
-})
 
 const weather = (preset: string, params: Readonly<Record<string, number>> = {}): PatchDevice => ({
   deviceId: 'atmosphere',
@@ -152,9 +103,9 @@ export const FACTORY_SOUNDS: readonly FactorySound[] = [
   sound({
     id: 'low-drone-d',
     number: 101,
-    name: 'Low drone D',
+    name: 'Low drone {D}',
     kind: 'drone',
-    description: 'A stack of fifths on a low D with a sub octave under it, slowly shifting.',
+    description: 'A stack of fifths on a low {D} with a sub octave under it, slowly shifting.',
     instrument: {
       deviceId: 'drone',
       preset: 'Open fifths',
@@ -166,9 +117,9 @@ export const FACTORY_SOUNDS: readonly FactorySound[] = [
   sound({
     id: 'low-drone-a',
     number: 102,
-    name: 'Low drone A',
+    name: 'Low drone {A}',
     kind: 'drone',
-    description: 'Octaves stacked on a low A, darker than the D and moving more slowly.',
+    description: 'Octaves stacked on a low {A}, darker than the {D} and moving more slowly.',
     instrument: {
       deviceId: 'drone',
       preset: 'Deep octaves',
@@ -180,9 +131,10 @@ export const FACTORY_SOUNDS: readonly FactorySound[] = [
   sound({
     id: 'tanpura-d',
     number: 103,
-    name: 'Tanpura D',
+    name: 'Tanpura {D}',
     kind: 'drone',
-    description: 'The buzzing strings of a tanpura on D and A, with sympathetic strings behind.',
+    description:
+      'The buzzing strings of a tanpura on {D} and {A}, with sympathetic strings behind.',
     // Four partials only: the fifth would be an F sharp as loud as the root.
     instrument: {
       deviceId: 'drone',
@@ -199,27 +151,25 @@ export const FACTORY_SOUNDS: readonly FactorySound[] = [
   sound({
     id: 'organ-drone-c',
     number: 104,
-    name: 'Organ drone C',
+    name: 'Organ drone {C}',
     kind: 'drone',
-    description: 'Low pipes with a beating celeste on C and G, heard from the back of a chapel.',
+    description:
+      'Low pipes with a beating celeste on {C} and {G}, heard from the back of a chapel.',
     instrument: {
       deviceId: 'organ',
       preset: 'Celeste drone',
       params: { attack: 0.6, bellows: 0.2, celeste: 0.25 },
     },
     effects: [zita('Cathedral', 0.35), quarterTurn(16)],
-    ...looped(16, 4, 3, [
-      wholeCycles(48, 16),
-      [wholeCycles(55, 16), 0.7],
-      [wholeCycles(60, 16), 0.6],
-    ]),
+    ...looped(16, 4, 3, [48, [55, 0.7], [60, 0.6]]),
+    tuning: 'whole-cycles',
   }),
   sound({
     id: 'harmonium-drone-g',
     number: 105,
-    name: 'Harmonium drone G',
+    name: 'Harmonium drone {G}',
     kind: 'drone',
-    description: 'A reedy pump organ holding G and D, close and a little worn by tape.',
+    description: 'A reedy pump organ holding {G} and {D}, close and a little worn by tape.',
     instrument: { deviceId: 'organ', preset: 'Pump organ', params: { bellows: 0.3, attack: 0.4 } },
     effects: [
       { deviceId: 'tape', preset: 'Quarter inch', params: { hiss: 0.1 } },
@@ -230,23 +180,24 @@ export const FACTORY_SOUNDS: readonly FactorySound[] = [
   sound({
     id: 'cello-drone-d',
     number: 106,
-    name: 'Cello drone D',
+    name: 'Cello drone {D}',
     kind: 'drone',
-    description: 'Two bowed strings a fifth apart on D, with the wood of the body and a hall.',
+    description: 'Two bowed strings a fifth apart on {D}, with the wood of the body and a hall.',
     instrument: { deviceId: 'bowed-string', preset: 'Cello drone' },
     effects: [
       { deviceId: 'chorus', preset: 'Subtle Widener', params: { mix: 0.3 } },
       zita('Hall', 0.4),
       quarterTurn(8),
     ],
-    ...looped(8, 4, 2, [wholeCycles(38, 8), [wholeCycles(45, 8), 0.7]]),
+    ...looped(8, 4, 2, [38, [45, 0.7]]),
+    tuning: 'whole-cycles',
   }),
   sound({
     id: 'choir-drone-a',
     number: 107,
-    name: 'Choir drone A',
+    name: 'Choir drone {A}',
     kind: 'drone',
-    description: 'Two low voices holding an open fifth on A, a dark Oh in a long stone room.',
+    description: 'Two low voices holding an open fifth on {A}, a dark Oh in a long stone room.',
     instrument: {
       deviceId: 'choir',
       preset: 'Low monks',
@@ -260,9 +211,10 @@ export const FACTORY_SOUNDS: readonly FactorySound[] = [
   sound({
     id: 'warm-pad-dm9',
     number: 108,
-    name: 'Warm pad Dm9',
+    name: 'Warm pad {D}m9',
     kind: 'pad',
-    description: 'Two detuned saws on a D minor ninth, the filter opening and closing every 8 s.',
+    description:
+      'Two detuned saws holding {D} minor ninth, the filter opening and closing every 8 s.',
     instrument: {
       deviceId: 'ember',
       preset: 'Warm pad',
@@ -277,9 +229,10 @@ export const FACTORY_SOUNDS: readonly FactorySound[] = [
   sound({
     id: 'soft-pad-fmaj7',
     number: 109,
-    name: 'Soft pad Fmaj7',
+    name: 'Soft pad {F}maj7',
     kind: 'pad',
-    description: 'A hollow square and a triangle an octave up on F major seventh, in a wide space.',
+    description:
+      'A hollow square and a triangle an octave up on {F} major seventh, in a wide space.',
     instrument: {
       deviceId: 'ember',
       preset: 'Hollow Pad',
@@ -294,9 +247,9 @@ export const FACTORY_SOUNDS: readonly FactorySound[] = [
   sound({
     id: 'strings-am7',
     number: 110,
-    name: 'Strings Am7',
+    name: 'Strings {A}m7',
     kind: 'pad',
-    description: 'A string ensemble on A minor seventh through tape, swelling once every 16 s.',
+    description: 'A string ensemble on {A} minor seventh through tape, swelling once every 16 s.',
     instrument: {
       deviceId: 'string-machine',
       preset: 'Slow strings',
@@ -309,19 +262,15 @@ export const FACTORY_SOUNDS: readonly FactorySound[] = [
       quarterTurn(16),
     ],
     // The swell is lowest 13 s after the keys go down: the loop starts on its way up.
-    ...looped(16, 15, 2, [
-      [wholeCycles(45, 16), 0.8],
-      wholeCycles(55, 16),
-      wholeCycles(60, 16),
-      [wholeCycles(64, 16), 0.8],
-    ]),
+    ...looped(16, 15, 2, [[45, 0.8], 55, 60, [64, 0.8]]),
+    tuning: 'whole-cycles',
   }),
   sound({
     id: 'glass-pad-cmaj9',
     number: 111,
-    name: 'Glass pad Cmaj9',
+    name: 'Glass pad {C}maj9',
     kind: 'pad',
-    description: 'Glassy FM tones beating slowly against each other on a C major ninth.',
+    description: 'Glassy FM tones beating slowly against each other on {C} major ninth.',
     instrument: { deviceId: 'fm-glass', preset: 'Crystal pad', params: { attack: 0.5 } },
     effects: [zita('Hall', 0.4), breathe(0.125, 0.3)],
     ...looped(16, 7.5, 2, [48, 55, 64, 71, [74, 0.6]]),
@@ -329,9 +278,10 @@ export const FACTORY_SOUNDS: readonly FactorySound[] = [
   sound({
     id: 'drift-pad-g6',
     number: 112,
-    name: 'Drift pad G6',
+    name: 'Drift pad {G}6',
     kind: 'pad',
-    description: 'A hollow wavetable travelling through its table on G sixth, swelling every 8 s.',
+    description:
+      'A hollow wavetable travelling through its table on {G} sixth, swelling every 8 s.',
     instrument: {
       deviceId: 'wavetable',
       preset: 'Hollow drift',
@@ -343,9 +293,9 @@ export const FACTORY_SOUNDS: readonly FactorySound[] = [
   sound({
     id: 'choir-chord-am',
     number: 113,
-    name: 'Choir chord Am',
+    name: 'Choir chord {A}m',
     kind: 'pad',
-    description: 'Voices on an open Ah holding A minor, drifting against each other in a nave.',
+    description: 'Voices on an open Ah holding {A} minor, drifting against each other in a nave.',
     instrument: {
       deviceId: 'choir',
       preset: 'Airport ah',
@@ -361,9 +311,10 @@ export const FACTORY_SOUNDS: readonly FactorySound[] = [
   sound({
     id: 'shimmer-pad-csus2',
     number: 114,
-    name: 'Shimmer pad Csus2',
+    name: 'Shimmer pad {C}sus2',
     kind: 'pad',
-    description: 'High strings on C, G and D with a reverb that climbs an octave on every pass.',
+    description:
+      'High strings on {C}, {G} and {D} with a reverb that climbs an octave on every pass.',
     instrument: {
       deviceId: 'string-machine',
       preset: 'Glass',
@@ -382,7 +333,7 @@ export const FACTORY_SOUNDS: readonly FactorySound[] = [
     number: 115,
     name: 'Hill wind',
     kind: 'texture',
-    description: 'Wind over open ground, gusting and falling away, with a faint pitch on D.',
+    description: 'Wind over open ground, gusting and falling away, with a faint pitch on {D}.',
     instrument: weather('Hill wind'),
     effects: [zita('Room', 0.2)],
     ...looped(16, 8, 3, [62]),
@@ -457,9 +408,9 @@ export const FACTORY_SOUNDS: readonly FactorySound[] = [
   sound({
     id: 'glass-bell-a',
     number: 121,
-    name: 'Glass bell A',
+    name: 'Glass bell {A}',
     kind: 'oneshot',
-    description: 'One FM bell on A with a glassy strike and a hall behind it.',
+    description: 'One FM bell on {A} with a glassy strike and a hall behind it.',
     instrument: { deviceId: 'fm-glass', preset: 'Glass bell', params: { decay: 3.2, release: 3 } },
     effects: [zita('Hall', 0.35)],
     ...played(6, [[0, 5, 69]], 0.3),
@@ -467,9 +418,9 @@ export const FACTORY_SOUNDS: readonly FactorySound[] = [
   sound({
     id: 'singing-bowl-d',
     number: 122,
-    name: 'Singing bowl D',
+    name: 'Singing bowl {D}',
     kind: 'oneshot',
-    description: 'A struck metal bowl on D whose paired modes beat slowly as it rings down.',
+    description: 'A struck metal bowl on {D} whose paired modes beat slowly as it rings down.',
     instrument: bells('Singing bowl', { decay: 9 }),
     effects: [zita('Hall', 0.25)],
     ...played(8, [[0, 7.8, 62]], 0.4),
@@ -477,9 +428,9 @@ export const FACTORY_SOUNDS: readonly FactorySound[] = [
   sound({
     id: 'kalimba-e',
     number: 123,
-    name: 'Kalimba E',
+    name: 'Kalimba {E}',
     kind: 'oneshot',
-    description: 'One plucked tine on a high E, woody and short, in a small room.',
+    description: 'One plucked tine on a high {E}, woody and short, in a small room.',
     instrument: bells('Kalimba', { decay: 3.5, spread: 0.6 }),
     effects: [zita('Room', 0.3)],
     ...played(3, [[0, 2.8, 76]], 0.2),
@@ -487,9 +438,9 @@ export const FACTORY_SOUNDS: readonly FactorySound[] = [
   sound({
     id: 'vibraphone-g',
     number: 124,
-    name: 'Vibraphone G',
+    name: 'Vibraphone {G}',
     kind: 'oneshot',
-    description: 'A soft mallet on a G bar with the motor turning and the pedal held down.',
+    description: 'A soft mallet on the {G} bar with the motor turning and the pedal held down.',
     instrument: bells('Vibraphone', { spread: 0.6 }),
     effects: [
       { deviceId: 'tremolo', preset: 'Amp tremolo', params: { depth: 0.3 } },
@@ -500,10 +451,10 @@ export const FACTORY_SOUNDS: readonly FactorySound[] = [
   sound({
     id: 'gong-d',
     number: 125,
-    name: 'Gong D',
+    name: 'Gong {D}',
     kind: 'oneshot',
     description:
-      'A large gong struck off centre: a dark low D that beats slowly from side to side.',
+      'A large gong struck off centre: a dark low {D} that beats slowly from side to side.',
     instrument: bells('Gong', { decay: 9, hardness: 0.65, brightness: 1, position: 0.6 }),
     effects: [zita('Hall', 0.3)],
     ...played(8, [[0, 7.8, 38]], 0.5),
@@ -511,9 +462,9 @@ export const FACTORY_SOUNDS: readonly FactorySound[] = [
   sound({
     id: 'music-box-a',
     number: 126,
-    name: 'Music box A',
+    name: 'Music box {A}',
     kind: 'oneshot',
-    description: 'One bright comb tooth of a music box on a high A, in a small room.',
+    description: 'One bright comb tooth of a music box on a high {A}, in a small room.',
     instrument: bells('Music box', { spread: 0.8 }),
     effects: [zita('Room', 0.3)],
     ...played(3, [[0, 2.8, 81]], 0.2),
@@ -521,9 +472,9 @@ export const FACTORY_SOUNDS: readonly FactorySound[] = [
   sound({
     id: 'felt-piano-c',
     number: 127,
-    name: 'Felt piano C',
+    name: 'Felt piano {C}',
     kind: 'oneshot',
-    description: 'One low C on a felted piano, the key held until the note has rung out.',
+    description: 'One low {C} on a felted piano, the key held until the note has rung out.',
     instrument: FELT_PIANO,
     effects: [],
     ...played(8, [[0, 7.8, 48]], 0.4),
@@ -533,9 +484,10 @@ export const FACTORY_SOUNDS: readonly FactorySound[] = [
   sound({
     id: 'felt-piano-phrase-am',
     number: 128,
-    name: 'Felt piano phrase Am',
+    name: 'Felt piano phrase {A}m',
     kind: 'melodic',
-    description: 'A few slow notes over a low A and then an F on a felted piano, in free time.',
+    description:
+      'A few slow notes over a low {A} and then over {F} on a felted piano, in free time.',
     instrument: FELT_PIANO,
     effects: [],
     ...played(
@@ -557,9 +509,9 @@ export const FACTORY_SOUNDS: readonly FactorySound[] = [
   sound({
     id: 'electric-piano-dm9',
     number: 129,
-    name: 'Electric piano Dm9',
+    name: 'Electric piano {D}m9',
     kind: 'melodic',
-    description: 'Two rolled chords and a short answer on a tine piano, D minor ninth to G.',
+    description: 'Two rolled chords and a short answer on a tine piano, {D} minor ninth to {G}.',
     instrument: { deviceId: 'tine-piano', preset: 'Soft suitcase' },
     effects: [{ deviceId: 'chorus', preset: 'Subtle Widener' }, zita('Hall', 0.3)],
     ...played(
@@ -583,9 +535,10 @@ export const FACTORY_SOUNDS: readonly FactorySound[] = [
   sound({
     id: 'bell-phrase-c',
     number: 130,
-    name: 'Bell phrase C',
+    name: 'Bell phrase {C}',
     kind: 'melodic',
-    description: 'Five strokes of glass bells wandering down through C major, with an octave halo.',
+    description:
+      'Five strokes of glass bells wandering down through {C} major, with an octave halo.',
     instrument: { deviceId: 'fm-glass', preset: 'Glass bell' },
     effects: [{ deviceId: 'shimmer', preset: 'Glass', params: { mix: 0.3, decay: 2.5 } }],
     ...played(
@@ -604,10 +557,10 @@ export const FACTORY_SOUNDS: readonly FactorySound[] = [
   sound({
     id: 'kalimba-pattern-am',
     number: 131,
-    name: 'Kalimba pattern Am',
+    name: 'Kalimba pattern {A}m',
     kind: 'melodic',
     description:
-      'A rising kalimba figure in A minor pentatonic, played twice and slowing each time.',
+      'A rising kalimba figure in {A} minor pentatonic, played twice and slowing each time.',
     instrument: bells('Kalimba', { spread: 0.6 }),
     effects: [zita('Room', 0.3)],
     ...played(
@@ -634,7 +587,7 @@ export const FACTORY_SOUNDS: readonly FactorySound[] = [
   sound({
     id: 'piano-cloud-am',
     number: 132,
-    name: 'Piano cloud Am',
+    name: 'Piano cloud {A}m',
     kind: 'pad',
     description: 'The chord left ringing in the felt piano phrase, held as a slow cloud of grains.',
     source: 'felt-piano-phrase-am',
@@ -660,7 +613,7 @@ export const FACTORY_SOUNDS: readonly FactorySound[] = [
   sound({
     id: 'frozen-bell-a',
     number: 133,
-    name: 'Frozen bell A',
+    name: 'Frozen bell {A}',
     kind: 'pad',
     description: 'The glass bell held still a moment after its strike, with the octave below.',
     source: 'glass-bell-a',
@@ -675,7 +628,7 @@ export const FACTORY_SOUNDS: readonly FactorySound[] = [
   sound({
     id: 'reversed-piano-c',
     number: 134,
-    name: 'Reversed piano C',
+    name: 'Reversed piano {C}',
     kind: 'pad',
     description: 'The felt piano note played backwards: a slow swell that stops into a hall.',
     source: 'felt-piano-c',

@@ -64,6 +64,7 @@ export function controlWriteToOperation(
     }
     case 'macro':
     case 'transport':
+    case 'action':
       return null
     default: {
       const exhaustive: never = target

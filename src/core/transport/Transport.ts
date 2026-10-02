@@ -324,11 +324,12 @@ export class Transport {
    * loop length exactly, where the host has it without the rounding of a
    * multiplication.
    *
-   * Loop passes keep their numbers, so starts already handed over still
-   * belong to the pass they were handed over for; `Scheduler.rescale` is what
-   * moves them along with their clips. `elapsed()` is stretched by `ratio`
-   * too, so a `Cycle` whose length the host stretches by as much stays where
-   * it was in its pass. Announced as a `loop` change.
+   * Loop passes keep their numbers and the counted pass stays as it is, so
+   * starts already handed over still belong to the pass they were handed over
+   * for; `Scheduler.rescale` is what moves them along with their clips.
+   * `elapsed()` is stretched by `ratio` too, so a `Cycle` whose length the
+   * host stretches by as much stays where it was in its pass. Announced as a
+   * `loop` change.
    */
   rescale(ratio: number, lengthSec: number = this.currentLoop.lengthSec * ratio): void {
     if (!Number.isFinite(ratio) || ratio <= 0) {
@@ -342,6 +343,8 @@ export class Transport {
       const elapsedSec = this.elapsed(now)
       // A start still pinned in the future keeps its moment.
       const contextTime = Math.max(now, this.currentAnchor.contextTime)
+      // The new anchor is of the pass the position is in: its counted pass goes with it.
+      this.anchorPass = this.passOf(position.iteration)
       this.currentLoop = next
       this.currentAnchor = {
         contextTime,

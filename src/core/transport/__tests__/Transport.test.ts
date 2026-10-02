@@ -798,6 +798,20 @@ describe('Transport.rescale and the run of the timeline', () => {
     expect(transport.elapsed()).toBeCloseTo(8, 9)
     expect(transport.position().positionSec).toBeCloseTo(2, 9)
   })
+
+  it('leaves the run and the counted pass saying the same after the loop has come round', () => {
+    const { ctx, transport } = build({ enabled: true, lengthSec: 8 })
+    transport.setPass(5)
+    transport.start()
+    // Twice round since the start, with nothing pinned anew in between.
+    ctx.currentTime = 20
+    transport.rescale(0.5)
+    const { positionSec } = transport.position()
+    expect(transport.pass()).toBe(7)
+    expect(transport.elapsed()).toBeCloseTo(7 * 4 + positionSec, 9)
+    // A cycle of the transport's own length is on the pass the transport counts.
+    expect(Math.floor(transport.elapsed() / transport.loop.lengthSec)).toBe(transport.pass())
+  })
 })
 
 describe('Transport.rescale', () => {
@@ -830,6 +844,25 @@ describe('Transport.rescale', () => {
     expect(transport.position()).toMatchObject({ positionSec: 2, iteration: 2 })
     transport.seek(1)
     expect(transport.anchor?.iteration).toBe(3)
+  })
+
+  it('keeps the counted pass it is on, and goes on counting from it', () => {
+    const { ctx, transport } = build({ enabled: true, lengthSec: 8 })
+    transport.setPass(5)
+    transport.start()
+    // Twice round since the start.
+    ctx.currentTime = 20
+    expect(transport.pass()).toBe(7)
+    transport.rescale(0.5)
+    expect(transport.pass()).toBe(7)
+    expect(transport.passOf(transport.position().iteration + 1)).toBe(8)
+    // 2 s into a loop that is now 4 s long: round again 2 s on.
+    ctx.currentTime = 21.9
+    expect(transport.pass()).toBe(7)
+    ctx.currentTime = 22.1
+    expect(transport.pass()).toBe(8)
+    transport.pause()
+    expect(transport.pass()).toBe(8)
   })
 
   it('moves a transport that is not playing', () => {

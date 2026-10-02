@@ -34,6 +34,33 @@ function isRef(root: UseInfoOptions['root']): root is RefObject<Element | null> 
 const WATCHED = [INFO_TEXT_ATTR, INFO_TITLE_ATTR]
 
 /**
+ * The element the view follows. A ref's element can be mounted after the
+ * view, or mounted again under the same ref, so the page is watched and the
+ * ref read afresh as it changes.
+ */
+function useScope(root: UseInfoOptions['root'], disabled: boolean): Element | null {
+  const [scope, setScope] = useState<Element | null>(null)
+
+  useEffect(() => {
+    if (disabled || typeof document === 'undefined') {
+      setScope(null)
+      return
+    }
+    const resolve = (): void => {
+      const found = isRef(root) ? root.current : (root ?? document.documentElement)
+      setScope((previous) => (previous === found ? previous : found))
+    }
+    resolve()
+    if (!isRef(root)) return
+    const observer = typeof MutationObserver === 'undefined' ? null : new MutationObserver(resolve)
+    observer?.observe(document.documentElement, { subtree: true, childList: true })
+    return () => observer?.disconnect()
+  }, [root, disabled])
+
+  return scope
+}
+
+/**
  * The entry of whatever the pointer is over inside `root`, or of what has
  * the keyboard focus when that moved last; null over nothing that has one.
  * It follows the control: a button whose text changes when it is pressed is
@@ -41,14 +68,13 @@ const WATCHED = [INFO_TEXT_ATTR, INFO_TITLE_ATTR]
  */
 export function useInfo({ root, disabled = false }: UseInfoOptions = {}): InfoEntry | null {
   const [entry, setEntry] = useState<InfoEntry | null>(null)
+  const scope = useScope(root, disabled)
 
   useEffect(() => {
-    if (disabled || typeof document === 'undefined') {
+    if (disabled || !scope) {
       setEntry(null)
       return
     }
-    const scope: Element | null = isRef(root) ? root.current : (root ?? document.documentElement)
-    if (!scope) return
 
     // What the pointer or the focus is on now.
     let target: Element | null = null
@@ -93,7 +119,7 @@ export function useInfo({ root, disabled = false }: UseInfoOptions = {}): InfoEn
       observer?.disconnect()
       if (pending !== null) clearTimeout(pending)
     }
-  }, [root, disabled])
+  }, [scope, disabled])
 
   return entry
 }

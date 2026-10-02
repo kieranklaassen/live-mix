@@ -283,6 +283,7 @@ export function DeviceChainView({
       role="list"
       aria-label={`${strip.name} devices`}
       data-testid={testId}
+      data-lm-strip={strip.name}
     >
       {inserts.map((device, index) =>
         index < skip ? null : (
@@ -300,6 +301,7 @@ export function DeviceChainView({
             onDrop={onDrop(index)}
             onDragEnd={onDragEnd}
             data-testid={testId ? `${testId}-item-${index - skip}` : undefined}
+            data-lm-insert={index}
           >
             <div
               className="lm-chain__handle"

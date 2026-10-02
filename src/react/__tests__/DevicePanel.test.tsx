@@ -107,6 +107,38 @@ describe('DevicePanel', () => {
     expect(screen.getByRole('slider', { name: 'Type' })).toHaveAttribute('aria-valuetext', '0')
   })
 
+  it('says which device, parameter and power switch each part is, for a host that maps controllers', async () => {
+    const fixture = createTestEngine()
+    const device = await filter(fixture)
+    render(<DevicePanel device={device} data-testid="panel" />, { wrapper: fixture.wrapper })
+    const panel = screen.getByTestId('panel')
+    expect(panel).toHaveAttribute('data-lm-device', 'filter')
+    expect(
+      [...panel.querySelectorAll('[data-lm-param]')].map((knob) =>
+        knob.getAttribute('data-lm-param'),
+      ),
+    ).toEqual(['type', 'frequency', 'q', 'gain'])
+    expect(
+      screen.getByRole('slider', { name: 'Frequency' }).closest('[data-lm-param]'),
+    ).toHaveAttribute('data-lm-param', 'frequency')
+    expect(screen.getByRole('switch', { name: 'Filter power' })).toHaveAttribute(
+      'data-lm-power',
+      '',
+    )
+  })
+
+  it('leaves a frame that holds no device unmarked', () => {
+    render(
+      <DeviceFrame title="Keyboard" powered onPowerChange={() => {}} data-testid="frame">
+        keys
+      </DeviceFrame>,
+    )
+    expect(screen.getByTestId('frame')).not.toHaveAttribute('data-lm-device')
+    expect(screen.getByRole('switch', { name: 'Keyboard power' })).not.toHaveAttribute(
+      'data-lm-power',
+    )
+  })
+
   it('round-trips parameters: knob → device (ramped) and device → knob', async () => {
     const fixture = createTestEngine()
     const device = await filter(fixture)
