@@ -4,7 +4,8 @@ import { fileURLToPath } from 'node:url'
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { asAudioContext, createMockContext, type MockAudioContext } from '../../testing'
-import { type WasmDeviceProcessorOptions } from '../abi'
+import { isMeteredDevice } from '../../core/devices/Device'
+import { DEVICE_METER_HZ, type WasmDeviceProcessorOptions } from '../abi'
 import { clearWasmModuleCache, compileWasm } from '../assets'
 import { DATTORRO_DEVICE, DATTORRO_PARAMS, createDattorroReverb } from '../devices/dattorro'
 import { WasmDevice, defineWasmDevice, type WorkletNodeFactory } from '../WasmDevice'
@@ -193,6 +194,93 @@ describe('WasmDevice', () => {
     expect(device.latencySamples).toBe(39)
     expect(device.latencySec).toBeCloseTo(39 / ctx.sampleRate, 12)
     expect(Math.round(device.latencySec * ctx.sampleRate)).toBe(39)
+  })
+})
+
+describe('WasmDevice meters', () => {
+  const metered = defineWasmDevice({
+    id: 'metered',
+    wasm: () => dattorroModule,
+    params: {
+      amount: { id: 0, name: 'Amount', min: 0, max: 1, default: 0.5, taper: 'linear', unit: '' },
+    },
+    meters: {
+      reduction: { id: 0, name: 'Gain reduction', unit: 'dB' },
+      level: { id: 1, name: 'Level', unit: 'dB' },
+    },
+  })
+
+  async function create() {
+    const ctx = createMockContext()
+    const device = await WasmDevice.create(asAudioContext(ctx), metered, {
+      processorUrl: 'p',
+      createNode: mockNodeFactory,
+    })
+    const port = ctx.workletNodes[0].port
+    const posted = () => port.posted.calls.map((call) => call[0])
+    return { ctx, device, port, posted }
+  }
+
+  it('asks the module for its meters only while someone watches, and keeps the latest', async () => {
+    const { ctx, device, port, posted } = await create()
+    expect(isMeteredDevice(device)).toBe(true)
+    expect(device.meter('reduction')).toBe(0)
+    expect(posted()).toEqual([])
+
+    const stop = device.watchMeters()
+    const intervalFrames = Math.round(ctx.sampleRate / DEVICE_METER_HZ)
+    expect(posted()).toEqual([{ type: 'meters', count: 2, intervalFrames }])
+    port.receive({ type: 'meters', values: [-3.5, -18] })
+    expect(device.meter('reduction')).toBe(-3.5)
+    expect(device.meter('level')).toBe(-18)
+
+    stop()
+    stop()
+    expect(posted()).toEqual([
+      { type: 'meters', count: 2, intervalFrames },
+      { type: 'meters', count: 0, intervalFrames },
+    ])
+    // Nobody refreshes it any more, so it reads as nothing rather than as the last value.
+    expect(device.meter('reduction')).toBe(0)
+    port.receive({ type: 'meters', values: [-9, -9] })
+    expect(device.meter('reduction')).toBe(0)
+    expect(() => device.meter('nope')).toThrow(/no meter/)
+  })
+
+  it('counts watches, so one view leaving does not blind another', async () => {
+    const { device, port, posted } = await create()
+    const first = device.watchMeters()
+    const second = device.watchMeters()
+    expect(posted()).toHaveLength(1)
+    first()
+    port.receive({ type: 'meters', values: [-2, -20] })
+    expect(device.meter('reduction')).toBe(-2)
+    expect(posted()).toHaveLength(1)
+    second()
+    expect(posted()).toHaveLength(2)
+  })
+
+  it('leaves the port alone for a device without meters', async () => {
+    const ctx = createMockContext()
+    const device = await createDattorroReverb(asAudioContext(ctx), {
+      wasm: dattorroModule,
+      processorUrl: 'p',
+      createNode: mockNodeFactory,
+    })
+    expect(isMeteredDevice(device)).toBe(false)
+    device.watchMeters()()
+    expect(ctx.workletNodes[0].port.posted.count).toBe(0)
+  })
+
+  it('does not take the port over from an app that answers on onmessage', async () => {
+    const { device, port } = await create()
+    const answers: unknown[] = []
+    port.onmessage = (event) => answers.push(event.data)
+    const stop = device.watchMeters()
+    port.receive({ type: 'meters', values: [-1, -1] })
+    expect(answers).toEqual([{ type: 'meters', values: [-1, -1] }])
+    expect(device.meter('reduction')).toBe(-1)
+    stop()
   })
 })
 

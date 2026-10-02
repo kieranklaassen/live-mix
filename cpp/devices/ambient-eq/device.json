@@ -1,0 +1,67 @@
+{
+  "id": "ambient-eq",
+  "name": "Ambient EQ",
+  "category": "eq",
+  "description": "Broad tone controls for sustained sound, and a slow ear that turns down whatever rings out above the rest as layers stack.",
+  "class": "AmbientEq",
+  "header": "ambient_eq.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "lowCut",
+      "name": "Low cut",
+      "min": 20,
+      "max": 500,
+      "default": 20,
+      "taper": "log",
+      "unit": "Hz"
+    },
+    { "key": "low", "name": "Low", "min": -12, "max": 12, "default": 0, "unit": "dB" },
+    { "key": "body", "name": "Body", "min": -12, "max": 12, "default": 0, "unit": "dB" },
+    { "key": "presence", "name": "Presence", "min": -12, "max": 12, "default": 0, "unit": "dB" },
+    { "key": "air", "name": "Air", "min": -12, "max": 12, "default": 0, "unit": "dB" },
+    {
+      "key": "highCut",
+      "name": "High cut",
+      "min": 1000,
+      "max": 20000,
+      "default": 20000,
+      "taper": "log",
+      "unit": "Hz"
+    },
+    { "key": "clear", "name": "Clear", "min": 0, "max": 1, "default": 0.4 },
+    {
+      "key": "clearTime",
+      "name": "Clear time",
+      "min": 0.2,
+      "max": 8,
+      "default": 1.5,
+      "taper": "log",
+      "unit": "s"
+    }
+  ],
+  "meters": [{ "key": "reduction", "name": "Clear", "unit": "dB" }],
+  "presets": {
+    "Open": {
+      "lowCut": 20,
+      "low": 0,
+      "body": 0,
+      "presence": 0,
+      "air": 0,
+      "highCut": 20000,
+      "clear": 0.4,
+      "clearTime": 1.5
+    },
+    "Layer": { "lowCut": 90, "body": -2, "clear": 0.3 },
+    "Drone": { "lowCut": 28, "body": -1.5, "presence": -1, "clear": 0.3 },
+    "Texture": { "lowCut": 140, "body": -1.5, "air": 1.5, "clear": 0.3 },
+    "Keys": { "lowCut": 40, "presence": 1, "clear": 0.2 },
+    "Voice": { "lowCut": 80, "body": -2, "presence": 1.5, "highCut": 14000, "clear": 0.3 },
+    "Master": { "lowCut": 25, "clear": 0.3, "clearTime": 3 },
+    "Dark": { "air": -4, "highCut": 9000 }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. The static part is a plain series EQ (Butterworth cuts, RBJ shelves and bells). Clear is in the family of the resonance suppressors (a spectral compressor keyed on each band's level against its neighbours), reduced to 23 slow bands and a feed-forward detector; not a model of any product."
+  }
+}

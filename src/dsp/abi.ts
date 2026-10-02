@@ -26,6 +26,8 @@ export interface DeviceExports {
   /** Where the host writes the sound: channel 0, then channel 1 `capacity` frames later. */
   device_sample_buffer?: () => number
   device_sample_commit?: (frames: number, channels: number, sampleRate: number) => void
+  /** Devices with meters only: the reading at `index` of the manifest's `meters`, as it is now. */
+  device_meter?: (index: number) => number
 }
 
 /** Main thread → worklet messages. */
@@ -35,9 +37,14 @@ export type DeviceMessage =
   | { type: 'note-on'; noteId: number; frequency: number; gain: number }
   | { type: 'note-off'; noteId: number }
   | { type: 'sample'; channels: Float32Array[]; sampleRate: number }
+  /** Report the first `count` meters every `intervalFrames` frames; a count of 0 stops. */
+  | { type: 'meters'; count: number; intervalFrames: number }
 
 /** Worklet → main thread messages. */
-export type DeviceHostMessage = { type: 'ready'; deviceId: string; maxBlockFrames: number }
+export type DeviceHostMessage =
+  | { type: 'ready'; deviceId: string; maxBlockFrames: number }
+  /** The meters' readings, in the manifest's order. */
+  | { type: 'meters'; values: number[] }
 
 /** `processorOptions` the host passes to `new AudioWorkletNode(...)`. */
 export interface WasmDeviceProcessorOptions {
@@ -54,3 +61,6 @@ export const WASM_DEVICE_PROCESSOR_NAME = 'live-mix-wasm-device'
 
 /** Bypass crossfade length: long enough to be click-free, short enough to feel instant. */
 export const BYPASS_RAMP_SECONDS = 0.005
+
+/** How often a watched device reports its meters: enough for a meter that reads as moving. */
+export const DEVICE_METER_HZ = 30

@@ -250,6 +250,7 @@ const coreSymbols = [
   'holdFrame',
   'holdRenderAt',
   'isEditorDevice',
+  'isMeteredDevice',
   'isParamTextDevice',
   // Ableton Push 2 and 3
   'ABLETON_USB_VENDOR_ID',

@@ -4,7 +4,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { silentReading, type MeterReading } from '../../core/analysis/loudness'
 import { type MockAnalyserNode, type MockAudioWorkletNode } from '../../testing'
-import { readMeter, useMeter } from '../hooks/useMeter'
+import { type Device, type MeteredDevice } from '../../core/devices/Device'
+import { readMeter, useDeviceMeter, useMeter } from '../hooks/useMeter'
 import { createTestEngine, type TestEngine } from './harness'
 
 afterEach(cleanup)
@@ -140,5 +141,82 @@ describe('useMeter', () => {
       hasLufs: false,
       lufs: null,
     })
+  })
+})
+
+describe('useDeviceMeter', () => {
+  /** A filter that reports a reading the test sets, and counts who is watching. */
+  async function metered(fixture: TestEngine) {
+    const device = await fixture.engine.devices.create('filter', fixture.engine.context)
+    const state = { reduction: 0, watching: 0 }
+    const meteredDevice: MeteredDevice = Object.assign(device, {
+      meters: { reduction: { id: 0, name: 'Gain reduction', unit: 'dB' } },
+      meter: () => state.reduction,
+      watchMeters: () => {
+        state.watching += 1
+        return () => {
+          state.watching -= 1
+        }
+      },
+    })
+    return { device: meteredDevice, state }
+  }
+
+  it('watches the device while mounted and samples its reading on frames', async () => {
+    const fixture = createTestEngine()
+    const { device, state } = await metered(fixture)
+    const { result, unmount } = renderHook(() => useDeviceMeter(device, 'reduction', { fps: 20 }), {
+      wrapper: fixture.wrapper,
+    })
+    expect(result.current).toBe(0)
+    expect(state.watching).toBe(1)
+
+    state.reduction = -4.5
+    act(() => fixture.frames.flush(0))
+    expect(result.current).toBe(-4.5)
+    // Bounded: a frame inside the interval is not a sample.
+    state.reduction = -6
+    act(() => fixture.frames.flush(20))
+    expect(result.current).toBe(-4.5)
+    act(() => fixture.frames.flush(50))
+    expect(result.current).toBe(-6)
+
+    unmount()
+    expect(state.watching).toBe(0)
+    expect(fixture.frames.size).toBe(0)
+  })
+
+  it('stops watching while it is not active', async () => {
+    const fixture = createTestEngine()
+    const { device, state } = await metered(fixture)
+    const { rerender } = renderHook(
+      ({ active }: { active: boolean }) => useDeviceMeter(device, 'reduction', { active }),
+      { wrapper: fixture.wrapper, initialProps: { active: true } },
+    )
+    expect(state.watching).toBe(1)
+    rerender({ active: false })
+    expect(state.watching).toBe(0)
+    expect(fixture.frames.size).toBe(0)
+    rerender({ active: true })
+    expect(state.watching).toBe(1)
+  })
+
+  it('reads 0 and schedules nothing for a device without that meter, or none', async () => {
+    const fixture = createTestEngine()
+    const { device, state } = await metered(fixture)
+    const plain: Device = await fixture.engine.devices.create('filter', fixture.engine.context)
+    for (const [target, name] of [
+      [device, 'level'],
+      [plain, 'reduction'],
+      [null, 'reduction'],
+    ] as const) {
+      const { result, unmount } = renderHook(() => useDeviceMeter(target, name), {
+        wrapper: fixture.wrapper,
+      })
+      expect(result.current).toBe(0)
+      expect(fixture.frames.size).toBe(0)
+      unmount()
+    }
+    expect(state.watching).toBe(0)
   })
 })

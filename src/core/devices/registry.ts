@@ -6,7 +6,7 @@
 // may load its code lazily since `create` is always awaited.
 
 import { type ParamSpec } from '../params'
-import { type Device } from './Device'
+import { type Device, type DeviceMeterSpec } from './Device'
 import {
   type Preset,
   type PresetTable,
@@ -88,6 +88,8 @@ export interface DeviceDescriptor<P extends Record<string, ParamSpec> = Record<s
    * device a factory returns carries the real table. Absent means false.
    */
   dynamicParams?: boolean
+  /** Readings the device reports about its own work (see `MeteredDevice`), by name. Absent means none. */
+  meters?: Readonly<Record<string, DeviceMeterSpec>>
   /** Factory presets: name → partial param map. */
   presets?: PresetTable<P>
   /**

@@ -2,6 +2,9 @@
 
 import { type DeviceDescriptor } from '../../core/devices'
 import { type WasmDeviceDefinition } from '../WasmDevice'
+import { AMBIENT_COMP_DESCRIPTOR, AMBIENT_COMP_DEVICE } from './ambient-comp.gen'
+import { AMBIENT_EQ_DESCRIPTOR, AMBIENT_EQ_DEVICE } from './ambient-eq.gen'
+import { AMBIENT_LIMITER_DESCRIPTOR, AMBIENT_LIMITER_DEVICE } from './ambient-limiter.gen'
 import { ATMOSPHERE_DESCRIPTOR, ATMOSPHERE_DEVICE } from './atmosphere.gen'
 import { AUTO_FILTER_DESCRIPTOR, AUTO_FILTER_DEVICE } from './auto-filter.gen'
 import { BLOOM_REVERB_DESCRIPTOR, BLOOM_REVERB_DEVICE } from './bloom-reverb.gen'
@@ -39,6 +42,9 @@ import { TINE_PIANO_DESCRIPTOR, TINE_PIANO_DEVICE } from './tine-piano.gen'
 import { TREMOLO_DESCRIPTOR, TREMOLO_DEVICE } from './tremolo.gen'
 import { WAVETABLE_DESCRIPTOR, WAVETABLE_DEVICE } from './wavetable.gen'
 
+export * from './ambient-comp.gen'
+export * from './ambient-eq.gen'
+export * from './ambient-limiter.gen'
 export * from './atmosphere.gen'
 export * from './auto-filter.gen'
 export * from './bloom-reverb.gen'
@@ -78,6 +84,9 @@ export * from './wavetable.gen'
 
 /** Every generated WASM device, in id order; part of `STOCK_WASM_DEVICES`. */
 export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
+  AMBIENT_COMP_DESCRIPTOR,
+  AMBIENT_EQ_DESCRIPTOR,
+  AMBIENT_LIMITER_DESCRIPTOR,
   ATMOSPHERE_DESCRIPTOR,
   AUTO_FILTER_DESCRIPTOR,
   BLOOM_REVERB_DESCRIPTOR,
@@ -118,6 +127,9 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
 
 /** Their definitions (module location and parameter table), in the same order. */
 export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
+  AMBIENT_COMP_DEVICE,
+  AMBIENT_EQ_DEVICE,
+  AMBIENT_LIMITER_DEVICE,
   ATMOSPHERE_DEVICE,
   AUTO_FILTER_DEVICE,
   BLOOM_REVERB_DEVICE,
@@ -158,40 +170,43 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
 
 /** What the device-agnostic tests need to know about each generated artefact. */
 export const GENERATED_WASM_DEVICES = [
-  { id: 'atmosphere', instrument: true, samples: false, memoryMb: 4 },
-  { id: 'auto-filter', instrument: false, samples: false, memoryMb: 4 },
-  { id: 'bloom-reverb', instrument: false, samples: false, memoryMb: 4 },
-  { id: 'bowed-string', instrument: true, samples: false, memoryMb: 4 },
-  { id: 'choir', instrument: true, samples: false, memoryMb: 4 },
-  { id: 'chorus', instrument: false, samples: false, memoryMb: 4 },
-  { id: 'drone', instrument: true, samples: false, memoryMb: 4 },
-  { id: 'ember', instrument: true, samples: false, memoryMb: 4 },
-  { id: 'expanse', instrument: false, samples: false, memoryMb: 6 },
-  { id: 'flanger', instrument: false, samples: false, memoryMb: 4 },
-  { id: 'fm-glass', instrument: true, samples: false, memoryMb: 4 },
-  { id: 'freq-shifter', instrument: false, samples: false, memoryMb: 4 },
-  { id: 'grain-cloud', instrument: false, samples: false, memoryMb: 10 },
-  { id: 'grain-delay', instrument: false, samples: false, memoryMb: 10 },
-  { id: 'grain-synth', instrument: true, samples: true, memoryMb: 12 },
-  { id: 'lattice', instrument: false, samples: false, memoryMb: 4 },
-  { id: 'modal-bells', instrument: true, samples: false, memoryMb: 4 },
-  { id: 'organ', instrument: true, samples: false, memoryMb: 4 },
-  { id: 'phaser', instrument: false, samples: false, memoryMb: 4 },
-  { id: 'reverse-delay', instrument: false, samples: false, memoryMb: 20 },
-  { id: 'rotary', instrument: false, samples: false, memoryMb: 4 },
-  { id: 'sampler', instrument: true, samples: true, memoryMb: 24 },
-  { id: 'saturator', instrument: false, samples: false, memoryMb: 4 },
-  { id: 'shimmer', instrument: false, samples: false, memoryMb: 4 },
-  { id: 'spectral-blur', instrument: false, samples: false, memoryMb: 4 },
-  { id: 'spring-reverb', instrument: false, samples: false, memoryMb: 4 },
-  { id: 'string-machine', instrument: true, samples: false, memoryMb: 4 },
-  { id: 'swell', instrument: false, samples: false, memoryMb: 4 },
-  { id: 'sympathetic', instrument: false, samples: false, memoryMb: 4 },
-  { id: 'tape', instrument: false, samples: false, memoryMb: 4 },
-  { id: 'tape-echo', instrument: false, samples: false, memoryMb: 4 },
-  { id: 'tape-loop', instrument: false, samples: false, memoryMb: 24 },
-  { id: 'thesis', instrument: true, samples: false, memoryMb: 4 },
-  { id: 'tine-piano', instrument: true, samples: false, memoryMb: 4 },
-  { id: 'tremolo', instrument: false, samples: false, memoryMb: 4 },
-  { id: 'wavetable', instrument: true, samples: false, memoryMb: 5 },
+  { id: 'ambient-comp', instrument: false, samples: false, meters: 1, memoryMb: 4 },
+  { id: 'ambient-eq', instrument: false, samples: false, meters: 1, memoryMb: 4 },
+  { id: 'ambient-limiter', instrument: false, samples: false, meters: 1, memoryMb: 4 },
+  { id: 'atmosphere', instrument: true, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'auto-filter', instrument: false, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'bloom-reverb', instrument: false, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'bowed-string', instrument: true, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'choir', instrument: true, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'chorus', instrument: false, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'drone', instrument: true, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'ember', instrument: true, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'expanse', instrument: false, samples: false, meters: 0, memoryMb: 6 },
+  { id: 'flanger', instrument: false, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'fm-glass', instrument: true, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'freq-shifter', instrument: false, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'grain-cloud', instrument: false, samples: false, meters: 0, memoryMb: 10 },
+  { id: 'grain-delay', instrument: false, samples: false, meters: 0, memoryMb: 10 },
+  { id: 'grain-synth', instrument: true, samples: true, meters: 0, memoryMb: 12 },
+  { id: 'lattice', instrument: false, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'modal-bells', instrument: true, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'organ', instrument: true, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'phaser', instrument: false, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'reverse-delay', instrument: false, samples: false, meters: 0, memoryMb: 20 },
+  { id: 'rotary', instrument: false, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'sampler', instrument: true, samples: true, meters: 0, memoryMb: 24 },
+  { id: 'saturator', instrument: false, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'shimmer', instrument: false, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'spectral-blur', instrument: false, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'spring-reverb', instrument: false, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'string-machine', instrument: true, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'swell', instrument: false, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'sympathetic', instrument: false, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'tape', instrument: false, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'tape-echo', instrument: false, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'tape-loop', instrument: false, samples: false, meters: 0, memoryMb: 24 },
+  { id: 'thesis', instrument: true, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'tine-piano', instrument: true, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'tremolo', instrument: false, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'wavetable', instrument: true, samples: false, meters: 0, memoryMb: 5 },
 ] as const

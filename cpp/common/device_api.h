@@ -46,6 +46,12 @@ void device_process(int frames);
 //   int device_sample_capacity(void);
 //   float* device_sample_buffer(void);
 //   void device_sample_commit(int frames, int channels, float sample_rate);
+//
+// Devices that report on their own work (a compressor's gain reduction) add
+// one reading per entry of `meters` in their manifest. The host calls it
+// between device_process calls, and only while a meter is being watched.
+//
+//   float device_meter(int index);
 
 #ifdef __cplusplus
 }

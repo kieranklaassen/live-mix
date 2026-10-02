@@ -287,6 +287,7 @@ export class MockMediaElementSource extends MockAudioNode {
 export class MockMessagePort {
   readonly posted = new CallRecorder()
   onmessage: ((event: { data: unknown }) => void) | null = null
+  private readonly listeners = new Set<(event: { data: unknown }) => void>()
 
   constructor() {
     this.postMessage = spyOn(this.postMessage.bind(this))
@@ -299,6 +300,15 @@ export class MockMessagePort {
   /** Deliver a message as if it came from the other side of the port. */
   receive(data: unknown): void {
     this.onmessage?.({ data })
+    for (const listener of [...this.listeners]) listener({ data })
+  }
+
+  addEventListener(type: string, listener: (event: { data: unknown }) => void): void {
+    if (type === 'message') this.listeners.add(listener)
+  }
+
+  removeEventListener(type: string, listener: (event: { data: unknown }) => void): void {
+    if (type === 'message') this.listeners.delete(listener)
   }
 
   start(): void {}

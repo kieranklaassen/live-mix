@@ -23,6 +23,7 @@ const m=require('./$manifest');
 const e=[];
 if(m.category==='instrument')e.push('_device_note_on','_device_note_off');
 if(m.samples===true)e.push('_device_sample_capacity','_device_sample_buffer','_device_sample_commit');
+if((m.meters??[]).length>0)e.push('_device_meter');
 console.log(e.length?','+e.join(','):'')")
 
 out_dir="tmp/native-test"

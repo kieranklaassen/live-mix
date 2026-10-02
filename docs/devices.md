@@ -61,44 +61,47 @@ nothing else running: the native figure is the first load the harness prints
 the best of three runs of `scripts/smoke-wasm-device.mjs` (10 s; instruments
 hold 8 notes).
 
-| Device id        | Name              | Source              | Kind       | Params | `.wasm`  | Native cost per block | wasm cost per block (Node) | Latency (samples) | Memory (MB) |
-| ---------------- | ----------------- | ------------------- | ---------- | ------ | -------- | --------------------- | -------------------------- | ----------------- | ----------- |
-| `atmosphere`     | Atmosphere        | live-mix            | instrument | 10     | 33,549 B | 44.5 µs, 1.67 %       | 34.8 µs, 1.31 %            | 0                 | 4           |
-| `auto-filter`    | Auto Filter       | kkfonie Tatami      | eq         | 12     | 23,170 B | 21.0 µs, 0.79 %       | 22.8 µs, 0.86 %            | 31                | 4           |
-| `bloom-reverb`   | Bloom             | kkfonie Bloom       | reverb     | 8      | 25,205 B | 68.9 µs, 2.58 %       | 82.4 µs, 3.09 %            | 0                 | 4           |
-| `bowed-string`   | Bow               | live-mix            | instrument | 12     | 34,123 B | 85.8 µs, 3.22 %       | 108.2 µs, 4.06 %           | 0                 | 4           |
-| `choir`          | Choir             | live-mix            | instrument | 12     | 33,135 B | 66.9 µs, 2.51 %       | 46.7 µs, 1.75 %            | 0                 | 4           |
-| `chorus`         | Chorus            | kkfonie Tatami      | modulation | 8      | 12,666 B | 24.3 µs, 0.91 %       | 18.7 µs, 0.70 %            | 0                 | 4           |
-| `drone`          | Drone             | live-mix            | instrument | 13     | 32,213 B | 56.1 µs, 2.11 %       | 73.5 µs, 2.75 %            | 0                 | 4           |
-| `ember`          | Ember             | kkfonie Tatami      | instrument | 43     | 37,239 B | 55.8 µs, 2.09 %       | 75.8 µs, 2.84 %            | 16                | 4           |
-| `expanse`        | Expanse           | live-mix            | reverb     | 11     | 31,432 B | 60.4 µs, 2.27 %       | 33.3 µs, 1.25 %            | 0                 | 6           |
-| `flanger`        | Flanger           | kkfonie Tatami      | modulation | 7      | 11,926 B | 11.9 µs, 0.45 %       | 10.4 µs, 0.39 %            | 0                 | 4           |
-| `fm-glass`       | Glass             | live-mix            | instrument | 12     | 26,749 B | 90.2 µs, 3.38 %       | 42.0 µs, 1.57 %            | 0                 | 4           |
-| `freq-shifter`   | Frequency Shifter | live-mix            | pitch      | 10     | 14,333 B | 26.8 µs, 1.01 %       | 18.9 µs, 0.71 %            | 0                 | 4           |
-| `grain-cloud`    | Cloud             | live-mix            | texture    | 12     | 15,870 B | 18.4 µs, 0.69 %       | 23.8 µs, 0.89 %            | 0                 | 10          |
-| `grain-delay`    | Grain Delay       | live-mix            | delay      | 11     | 17,855 B | 27.2 µs, 1.02 %       | 32.8 µs, 1.23 %            | 0                 | 10          |
-| `grain-synth`    | Grain             | live-mix            | instrument | 14     | 32,011 B | 61.6 µs, 2.31 %       | 72.0 µs, 2.70 %            | 0                 | 12          |
-| `lattice`        | Lattice           | kkfonie Lattice     | pitch      | 59     | 34,723 B | 52.7 µs, 1.98 %       | 62.2 µs, 2.33 %            | 0                 | 4           |
-| `modal-bells`    | Bells             | live-mix            | instrument | 12     | 24,210 B | 58.5 µs, 2.20 %       | 40.6 µs, 1.52 %            | 0                 | 4           |
-| `organ`          | Reed Organ        | live-mix            | instrument | 13     | 23,093 B | 127.0 µs, 4.76 %      | 70.4 µs, 2.64 %            | 0                 | 4           |
-| `phaser`         | Phaser            | kkfonie Tatami      | modulation | 9      | 14,298 B | 13.9 µs, 0.52 %       | 10.9 µs, 0.41 %            | 0                 | 4           |
-| `reverse-delay`  | Reverse Delay     | live-mix            | delay      | 8      | 15,057 B | 17.1 µs, 0.64 %       | 13.2 µs, 0.50 %            | 0                 | 20          |
-| `rotary`         | Rotary            | live-mix            | modulation | 9      | 16,495 B | 25.3 µs, 0.95 %       | 27.2 µs, 1.02 %            | 0                 | 4           |
-| `sampler`        | Sampler           | live-mix            | instrument | 13     | 27,427 B | 46.8 µs, 1.76 %       | 30.9 µs, 1.16 %            | 0                 | 24          |
-| `saturator`      | Saturator         | kkfonie Tatami      | drive      | 9      | 23,626 B | 46.1 µs, 1.73 %       | 40.5 µs, 1.52 %            | 39                | 4           |
-| `shimmer`        | Shimmer           | live-mix            | reverb     | 10     | 26,901 B | 70.4 µs, 2.64 %       | 39.1 µs, 1.47 %            | 0                 | 4           |
-| `spectral-blur`  | Spectral Blur     | live-mix            | texture    | 9      | 17,643 B | 42.8 µs, 1.60 %       | 53.1 µs, 1.99 %            | 2304              | 4           |
-| `spring-reverb`  | Spring            | live-mix            | reverb     | 9      | 22,946 B | 33.2 µs, 1.25 %       | 26.1 µs, 0.98 %            | 0                 | 4           |
-| `string-machine` | String Machine    | live-mix            | instrument | 10     | 19,106 B | 31.0 µs, 1.16 %       | 22.4 µs, 0.84 %            | 0                 | 4           |
-| `swell`          | Swell             | live-mix            | dynamics   | 8      | 4,842 B  | 3.9 µs, 0.15 %        | 5.2 µs, 0.20 %             | 960               | 4           |
-| `sympathetic`    | Sympathetic       | kkfonie Sympathetic | reverb     | 7      | 31,992 B | 19.7 µs, 0.74 %       | 23.1 µs, 0.87 %            | 0                 | 4           |
-| `tape`           | Tape              | live-mix            | texture    | 10     | 22,263 B | 45.2 µs, 1.70 %       | 33.7 µs, 1.27 %            | 415               | 4           |
-| `tape-echo`      | Tape Echo         | live-mix            | delay      | 10     | 16,147 B | 19.5 µs, 0.73 %       | 18.3 µs, 0.69 %            | 0                 | 4           |
-| `tape-loop`      | Tape Loop         | live-mix            | delay      | 10     | 18,730 B | 19.3 µs, 0.72 %       | 21.3 µs, 0.80 %            | 0                 | 24          |
-| `thesis`         | Thesis            | kkfonie Thesis      | instrument | 15     | 36,421 B | 21.1 µs, 0.79 %       | 19.6 µs, 0.73 %            | 0                 | 4           |
-| `tine-piano`     | Tine              | live-mix            | instrument | 11     | 17,742 B | 76.9 µs, 2.88 %       | 44.9 µs, 1.68 %            | 0                 | 4           |
-| `tremolo`        | Tremolo           | live-mix            | modulation | 9      | 12,884 B | 7.7 µs, 0.29 %        | 8.1 µs, 0.30 %             | 0                 | 4           |
-| `wavetable`      | Wavetable         | live-mix            | instrument | 12     | 25,222 B | 48.4 µs, 1.82 %       | 35.9 µs, 1.34 %            | 0                 | 5           |
+| Device id         | Name               | Source              | Kind       | Params | `.wasm`  | Native cost per block | wasm cost per block (Node) | Latency (samples) | Memory (MB) |
+| ----------------- | ------------------ | ------------------- | ---------- | ------ | -------- | --------------------- | -------------------------- | ----------------- | ----------- |
+| `ambient-comp`    | Ambient Compressor | live-mix            | dynamics   | 9      | 11,205 B | 3.8 µs, 0.14 %        | 5.5 µs, 0.21 %             | 0                 | 4           |
+| `ambient-eq`      | Ambient EQ         | live-mix            | eq         | 8      | 27,483 B | 16.3 µs, 0.61 %       | 21.3 µs, 0.80 %            | 0                 | 4           |
+| `ambient-limiter` | Ambient Limiter    | live-mix            | dynamics   | 4      | 8,197 B  | 10.4 µs, 0.39 %       | 12.5 µs, 0.47 %            | 77                | 4           |
+| `atmosphere`      | Atmosphere         | live-mix            | instrument | 10     | 33,549 B | 44.5 µs, 1.67 %       | 34.8 µs, 1.31 %            | 0                 | 4           |
+| `auto-filter`     | Auto Filter        | kkfonie Tatami      | eq         | 12     | 23,170 B | 21.0 µs, 0.79 %       | 22.8 µs, 0.86 %            | 31                | 4           |
+| `bloom-reverb`    | Bloom              | kkfonie Bloom       | reverb     | 8      | 25,205 B | 68.9 µs, 2.58 %       | 82.4 µs, 3.09 %            | 0                 | 4           |
+| `bowed-string`    | Bow                | live-mix            | instrument | 12     | 34,123 B | 85.8 µs, 3.22 %       | 108.2 µs, 4.06 %           | 0                 | 4           |
+| `choir`           | Choir              | live-mix            | instrument | 12     | 33,135 B | 66.9 µs, 2.51 %       | 46.7 µs, 1.75 %            | 0                 | 4           |
+| `chorus`          | Chorus             | kkfonie Tatami      | modulation | 8      | 12,666 B | 24.3 µs, 0.91 %       | 18.7 µs, 0.70 %            | 0                 | 4           |
+| `drone`           | Drone              | live-mix            | instrument | 13     | 32,213 B | 56.1 µs, 2.11 %       | 73.5 µs, 2.75 %            | 0                 | 4           |
+| `ember`           | Ember              | kkfonie Tatami      | instrument | 43     | 37,239 B | 55.8 µs, 2.09 %       | 75.8 µs, 2.84 %            | 16                | 4           |
+| `expanse`         | Expanse            | live-mix            | reverb     | 11     | 31,432 B | 60.4 µs, 2.27 %       | 33.3 µs, 1.25 %            | 0                 | 6           |
+| `flanger`         | Flanger            | kkfonie Tatami      | modulation | 7      | 11,926 B | 11.9 µs, 0.45 %       | 10.4 µs, 0.39 %            | 0                 | 4           |
+| `fm-glass`        | Glass              | live-mix            | instrument | 12     | 26,749 B | 90.2 µs, 3.38 %       | 42.0 µs, 1.57 %            | 0                 | 4           |
+| `freq-shifter`    | Frequency Shifter  | live-mix            | pitch      | 10     | 14,333 B | 26.8 µs, 1.01 %       | 18.9 µs, 0.71 %            | 0                 | 4           |
+| `grain-cloud`     | Cloud              | live-mix            | texture    | 12     | 15,870 B | 18.4 µs, 0.69 %       | 23.8 µs, 0.89 %            | 0                 | 10          |
+| `grain-delay`     | Grain Delay        | live-mix            | delay      | 11     | 17,855 B | 27.2 µs, 1.02 %       | 32.8 µs, 1.23 %            | 0                 | 10          |
+| `grain-synth`     | Grain              | live-mix            | instrument | 14     | 32,011 B | 61.6 µs, 2.31 %       | 72.0 µs, 2.70 %            | 0                 | 12          |
+| `lattice`         | Lattice            | kkfonie Lattice     | pitch      | 59     | 34,723 B | 52.7 µs, 1.98 %       | 62.2 µs, 2.33 %            | 0                 | 4           |
+| `modal-bells`     | Bells              | live-mix            | instrument | 12     | 24,210 B | 58.5 µs, 2.20 %       | 40.6 µs, 1.52 %            | 0                 | 4           |
+| `organ`           | Reed Organ         | live-mix            | instrument | 13     | 23,093 B | 127.0 µs, 4.76 %      | 70.4 µs, 2.64 %            | 0                 | 4           |
+| `phaser`          | Phaser             | kkfonie Tatami      | modulation | 9      | 14,298 B | 13.9 µs, 0.52 %       | 10.9 µs, 0.41 %            | 0                 | 4           |
+| `reverse-delay`   | Reverse Delay      | live-mix            | delay      | 8      | 15,057 B | 17.1 µs, 0.64 %       | 13.2 µs, 0.50 %            | 0                 | 20          |
+| `rotary`          | Rotary             | live-mix            | modulation | 9      | 16,495 B | 25.3 µs, 0.95 %       | 27.2 µs, 1.02 %            | 0                 | 4           |
+| `sampler`         | Sampler            | live-mix            | instrument | 13     | 27,427 B | 46.8 µs, 1.76 %       | 30.9 µs, 1.16 %            | 0                 | 24          |
+| `saturator`       | Saturator          | kkfonie Tatami      | drive      | 9      | 23,626 B | 46.1 µs, 1.73 %       | 40.5 µs, 1.52 %            | 39                | 4           |
+| `shimmer`         | Shimmer            | live-mix            | reverb     | 10     | 26,901 B | 70.4 µs, 2.64 %       | 39.1 µs, 1.47 %            | 0                 | 4           |
+| `spectral-blur`   | Spectral Blur      | live-mix            | texture    | 9      | 17,643 B | 42.8 µs, 1.60 %       | 53.1 µs, 1.99 %            | 2304              | 4           |
+| `spring-reverb`   | Spring             | live-mix            | reverb     | 9      | 22,946 B | 33.2 µs, 1.25 %       | 26.1 µs, 0.98 %            | 0                 | 4           |
+| `string-machine`  | String Machine     | live-mix            | instrument | 10     | 19,106 B | 31.0 µs, 1.16 %       | 22.4 µs, 0.84 %            | 0                 | 4           |
+| `swell`           | Swell              | live-mix            | dynamics   | 8      | 4,842 B  | 3.9 µs, 0.15 %        | 5.2 µs, 0.20 %             | 960               | 4           |
+| `sympathetic`     | Sympathetic        | kkfonie Sympathetic | reverb     | 7      | 31,992 B | 19.7 µs, 0.74 %       | 23.1 µs, 0.87 %            | 0                 | 4           |
+| `tape`            | Tape               | live-mix            | texture    | 10     | 22,263 B | 45.2 µs, 1.70 %       | 33.7 µs, 1.27 %            | 415               | 4           |
+| `tape-echo`       | Tape Echo          | live-mix            | delay      | 10     | 16,147 B | 19.5 µs, 0.73 %       | 18.3 µs, 0.69 %            | 0                 | 4           |
+| `tape-loop`       | Tape Loop          | live-mix            | delay      | 10     | 18,730 B | 19.3 µs, 0.72 %       | 21.3 µs, 0.80 %            | 0                 | 24          |
+| `thesis`          | Thesis             | kkfonie Thesis      | instrument | 15     | 36,421 B | 21.1 µs, 0.79 %       | 19.6 µs, 0.73 %            | 0                 | 4           |
+| `tine-piano`      | Tine               | live-mix            | instrument | 11     | 17,742 B | 76.9 µs, 2.88 %       | 44.9 µs, 1.68 %            | 0                 | 4           |
+| `tremolo`         | Tremolo            | live-mix            | modulation | 9      | 12,884 B | 7.7 µs, 0.29 %        | 8.1 µs, 0.30 %             | 0                 | 4           |
+| `wavetable`       | Wavetable          | live-mix            | instrument | 12     | 25,222 B | 48.4 µs, 1.82 %       | 35.9 µs, 1.34 %            | 0                 | 5           |
 
 What the table does not show:
 

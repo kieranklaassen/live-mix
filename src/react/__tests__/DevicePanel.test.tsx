@@ -3,9 +3,9 @@ import '@testing-library/jest-dom/vitest'
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { type Device } from '../../core/devices/Device'
+import { type Device, type MeteredDevice } from '../../core/devices/Device'
 import { MissingNativeDevice } from '../../native/missing'
-import { DeviceFrame, DevicePanel } from '../components/DevicePanel'
+import { DeviceFrame, DevicePanel, formatDeviceMeter } from '../components/DevicePanel'
 import { createTestEngine, type TestEngine } from './harness'
 
 afterEach(cleanup)
@@ -40,6 +40,51 @@ describe('DeviceFrame', () => {
 })
 
 describe('DevicePanel', () => {
+  it('writes a reading to one decimal with its unit, and never as minus zero', () => {
+    expect([
+      formatDeviceMeter(-3.24, 'dB'),
+      formatDeviceMeter(0, 'dB'),
+      formatDeviceMeter(-0.04, 'dB'),
+      formatDeviceMeter(1.25, ''),
+    ]).toEqual(['−3.2 dB', '0.0 dB', '0.0 dB', '1.3'])
+  })
+
+  it('shows the readings of a device that reports them, while it is on', async () => {
+    const fixture = createTestEngine()
+    const state = { reduction: -3.24, watching: 0 }
+    const device: MeteredDevice = Object.assign(await filter(fixture), {
+      meters: { reduction: { id: 0, name: 'Gain reduction', unit: 'dB' } },
+      meter: () => state.reduction,
+      watchMeters: () => {
+        state.watching += 1
+        return () => {
+          state.watching -= 1
+        }
+      },
+    })
+    render(<DevicePanel device={device} data-testid="panel" />, { wrapper: fixture.wrapper })
+    const readout = screen.getByTestId('panel-meter-reduction')
+    expect(readout).toHaveAccessibleName('Gain reduction')
+    expect(readout).toHaveTextContent('−3.2 dB')
+    expect(state.watching).toBe(1)
+    state.reduction = -7.96
+    act(() => fixture.frames.flush(1000))
+    expect(readout).toHaveTextContent('−8.0 dB')
+
+    // Switched off it does no work: nothing is asked of it, and it reads zero.
+    fireEvent.click(screen.getByRole('switch', { name: 'Filter power' }))
+    expect(state.watching).toBe(0)
+    expect(readout).toHaveTextContent('0.0 dB')
+  })
+
+  it('has no reading for a device that reports none', async () => {
+    const fixture = createTestEngine()
+    render(<DevicePanel device={await filter(fixture)} data-testid="panel" />, {
+      wrapper: fixture.wrapper,
+    })
+    expect(screen.queryByTestId('panel-meter-reduction')).toBeNull()
+  })
+
   it('generates one taper-aware knob per parameter from the device table', async () => {
     const fixture = createTestEngine()
     const device = await filter(fixture)

@@ -8,6 +8,8 @@
 import {
   type DeviceChange,
   type DeviceChangeListener,
+  type DeviceMeterSpec,
+  type MeteredDevice,
   type NoteDevice,
   type ObservableDevice,
 } from '../core/devices/Device'
@@ -15,7 +17,9 @@ import { Emitter } from '../core/events'
 import { ensureProcessor } from '../core/worklet-loader'
 import { clampParam, type ParamSpec } from '../core/params'
 import {
+  DEVICE_METER_HZ,
   WASM_DEVICE_PROCESSOR_NAME,
+  type DeviceHostMessage,
   type DeviceMessage,
   type WasmDeviceProcessorOptions,
 } from './abi'
@@ -32,6 +36,8 @@ export interface WasmDeviceDefinition<
   latencySec?: number
   /** Sample-exact latency at a given rate, when the DSP knows it (default: `round(latencySec · sampleRate)`); given alone, `latencySec` follows from it. */
   latencySamples?: (sampleRate: number) => number
+  /** Readings the module reports through `device_meter`, by name; ids are positions in its list. */
+  meters?: Readonly<Record<string, DeviceMeterSpec>>
   /**
    * An app-local worklet processor implementing the same ABI plus extras
    * (ambient-live's instrument). Defaults to the library's generic processor.
@@ -61,16 +67,22 @@ export interface WasmDeviceOptions<P extends Record<string, ParamSpec>> extends 
 const defaultCreateNode: WorkletNodeFactory = (context, name, options) =>
   new AudioWorkletNode(context, name, options)
 
+const NO_METERS: Readonly<Record<string, DeviceMeterSpec>> = Object.freeze({})
+
 export class WasmDevice<P extends Record<string, ParamSpec> = Record<string, ParamSpec>>
-  implements NoteDevice, ObservableDevice
+  implements NoteDevice, ObservableDevice, MeteredDevice
 {
   readonly id: string
   readonly params: Readonly<P>
+  readonly meters: Readonly<Record<string, DeviceMeterSpec>>
   readonly node: AudioWorkletNode
   readonly latencySec: number
   readonly latencySamples: number
   private readonly values = new Map<string, number>()
   private readonly changes = new Emitter<DeviceChange>()
+  private readonly meterIntervalFrames: number
+  private meterValues: readonly number[] = []
+  private meterWatchers = 0
   private bypassed = false
   private disposed = false
 
@@ -82,6 +94,8 @@ export class WasmDevice<P extends Record<string, ParamSpec> = Record<string, Par
   ) {
     this.id = definition.id
     this.params = definition.params
+    this.meters = definition.meters ?? NO_METERS
+    this.meterIntervalFrames = Math.max(1, Math.round(sampleRate / DEVICE_METER_HZ))
     this.node = node
     this.latencySamples = Math.max(
       0,
@@ -176,6 +190,45 @@ export class WasmDevice<P extends Record<string, ParamSpec> = Record<string, Par
     return this.changes.subscribe(listener)
   }
 
+  /** The latest reading of a meter; 0 until one has arrived (nothing arrives unless the meters are watched). */
+  meter(name: string): number {
+    const spec = this.meters[name]
+    if (!spec) throw new Error(`live-mix: ${this.id} has no meter "${name}"`)
+    return this.meterValues[spec.id] ?? 0
+  }
+
+  /**
+   * Have the module report its meters (`DEVICE_METER_HZ` times a second) until
+   * the returned function is called. Watches are counted, so several views
+   * can watch one device; a device without meters ignores it.
+   */
+  watchMeters(): () => void {
+    const count = Object.keys(this.meters).length
+    if (count === 0 || this.disposed) return () => {}
+    if (this.meterWatchers === 0) {
+      // `onmessage` is left to whoever made the device: an app-local processor answers there.
+      this.node.port.addEventListener('message', this.onPortMessage)
+      this.node.port.start()
+      this.post({ type: 'meters', count, intervalFrames: this.meterIntervalFrames })
+    }
+    this.meterWatchers += 1
+    let watching = true
+    return () => {
+      if (!watching) return
+      watching = false
+      this.meterWatchers -= 1
+      if (this.meterWatchers > 0 || this.disposed) return
+      this.node.port.removeEventListener('message', this.onPortMessage)
+      this.post({ type: 'meters', count: 0, intervalFrames: this.meterIntervalFrames })
+      // A reading nobody refreshes is not a reading.
+      this.meterValues = []
+    }
+  }
+
+  private readonly onPortMessage = (event: MessageEvent<DeviceHostMessage>): void => {
+    if (event.data?.type === 'meters') this.meterValues = event.data.values
+  }
+
   /** Note events for instrument modules (`device_note_on/off`); effects ignore them. */
   noteOn(noteId: number, frequency: number, gain = 0.5): void {
     this.post({ type: 'note-on', noteId, frequency, gain })
@@ -212,6 +265,7 @@ export class WasmDevice<P extends Record<string, ParamSpec> = Record<string, Par
     if (this.disposed) return
     this.disposed = true
     this.changes.clear()
+    if (this.meterWatchers > 0) this.node.port.removeEventListener('message', this.onPortMessage)
     this.node.disconnect()
     this.node.port.close()
   }

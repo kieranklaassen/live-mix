@@ -51,9 +51,16 @@ class TruePeakLimiter {
   static constexpr float kDefaultReleaseMs = 100.0f;
   static constexpr float kDefaultInputGainDb = 0.0f;
 
-  void prepare(float sample_rate) {
+  // `lookahead_frames` 0 (the default) derives the lookahead from 1.5 ms, so
+  // the latency follows the sample rate: 71, 77 and 149 samples at 44.1, 48
+  // and 96 kHz. A positive count fixes it instead, for a host that reports one
+  // latency at every rate: prepare(rate, 72) gives latencyFrames() == 77
+  // whatever the rate (1.6 ms at 44.1 kHz, 0.75 ms at 96 kHz).
+  void prepare(float sample_rate, int lookahead_frames = 0) {
     sample_rate_ = sample_rate > 1.0f ? sample_rate : 48000.0f;
-    int lookahead = static_cast<int>(std::lround(kLookaheadSeconds * sample_rate_));
+    int lookahead = lookahead_frames > 0
+                        ? lookahead_frames
+                        : static_cast<int>(std::lround(kLookaheadSeconds * sample_rate_));
     if (lookahead < kMinLookaheadFrames) lookahead = kMinLookaheadFrames;
     if (lookahead > kMaxLookaheadFrames) lookahead = kMaxLookaheadFrames;
     box_frames_ = lookahead;

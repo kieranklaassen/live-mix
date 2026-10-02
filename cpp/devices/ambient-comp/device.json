@@ -1,0 +1,83 @@
+{
+  "id": "ambient-comp",
+  "name": "Ambient Compressor",
+  "category": "dynamics",
+  "description": "A slow hand on the fader: it rides swells over seconds, is not driven by sub rumble, and leaves a dying tail to die away.",
+  "class": "AmbientComp",
+  "header": "ambient_comp.h",
+  "sources": [],
+  "meters": [{ "key": "reduction", "name": "Gain reduction", "unit": "dB" }],
+  "params": [
+    { "key": "threshold", "name": "Threshold", "min": -60, "max": 0, "default": -24, "unit": "dB" },
+    {
+      "key": "ratio",
+      "name": "Ratio",
+      "min": 1,
+      "max": 10,
+      "default": 2,
+      "taper": "log",
+      "unit": ":1"
+    },
+    {
+      "key": "attack",
+      "name": "Attack",
+      "min": 10,
+      "max": 3000,
+      "default": 300,
+      "taper": "log",
+      "unit": "ms"
+    },
+    {
+      "key": "release",
+      "name": "Release",
+      "min": 0.1,
+      "max": 20,
+      "default": 2,
+      "taper": "log",
+      "unit": "s"
+    },
+    { "key": "knee", "name": "Knee", "min": 0, "max": 24, "default": 12, "unit": "dB" },
+    { "key": "tails", "name": "Tails", "choices": ["Hold", "Release"], "default": 0 },
+    {
+      "key": "scLowCut",
+      "name": "Ignore below",
+      "min": 20,
+      "max": 300,
+      "default": 90,
+      "taper": "log",
+      "unit": "Hz"
+    },
+    { "key": "makeup", "name": "Make-up", "min": -12, "max": 24, "default": 0, "unit": "dB" },
+    { "key": "mix", "name": "Mix", "min": 0, "max": 1, "default": 1 }
+  ],
+  "presets": {
+    "Level": {
+      "threshold": -24,
+      "ratio": 2,
+      "attack": 300,
+      "release": 2,
+      "knee": 12,
+      "tails": 0,
+      "scLowCut": 90,
+      "makeup": 0,
+      "mix": 1
+    },
+    "Glue": { "threshold": -18, "ratio": 1.5, "attack": 600, "release": 4, "knee": 18 },
+    "Hold swells": { "threshold": -20, "ratio": 4, "attack": 150, "release": 6, "knee": 8 },
+    "Lift": {
+      "threshold": -40,
+      "ratio": 4,
+      "attack": 400,
+      "release": 3,
+      "tails": 1,
+      "makeup": 9,
+      "mix": 0.5
+    },
+    "Keys": { "threshold": -22, "ratio": 2.5, "attack": 120, "release": 1.5 },
+    "Mic": { "threshold": -26, "ratio": 3, "attack": 60, "release": 1, "scLowCut": 120 }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. A stereo-linked feed-forward RMS compressor whose times are counted in seconds, with a high-passed sidechain and a release that waits while a tail dies away; not a model of any unit."
+  }
+}
