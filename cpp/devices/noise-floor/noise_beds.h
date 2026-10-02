@@ -256,8 +256,10 @@ struct Vinyl {
       // Anywhere between the sides, and as often out of phase as in: dust
       // sits on either wall of the groove.
       const float place = 0.25f * events.uniform();
-      const float flip = (events.next_u32() & 1u) ? 1.0f : -1.0f;
-      tick[0][which].strike(size * kit::SineTable::cos_lookup(place), hz, q, sr);
+      const uint32_t coin = events.next_u32();
+      const float up = (coin & 0x100u) ? 1.0f : -1.0f;
+      const float flip = (coin & 0x200u) ? up : -up;
+      tick[0][which].strike(up * size * kit::SineTable::cos_lookup(place), hz, q, sr);
       tick[1][which].strike(flip * size * kit::SineTable::lookup(place), hz * (0.9f + 0.2f * events.uniform()),
                             q, sr);
       which ^= 1;
@@ -265,7 +267,9 @@ struct Vinyl {
     pop_wait -= 1.0f;
     if (pop_wait <= 0.0f) {
       pop_wait += poisson_gap(events, kPopsPerSecond, sr);
-      const float size = kTick * (1.5f + 1.5f * events.uniform());
+      // Either way up, so the thumps leave no offset behind.
+      const float way = (events.next_u32() & 0x100u) ? 1.0f : -1.0f;
+      const float size = way * kTick * (1.5f + 1.5f * events.uniform());
       const float hz = 70.0f * std::exp2(1.5f * events.uniform());
       const float lean = 0.125f + 0.06f * events.bipolar();
       pop[0].strike(size * kit::SineTable::cos_lookup(lean), hz, 0.9f, sr);

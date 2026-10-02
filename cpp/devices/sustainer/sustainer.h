@@ -81,7 +81,6 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
       input_[position_ & kRingMask] = (mono > -64.0f && mono < 64.0f) ? mono : 0.0f;
 
       const uint32_t phase = position_ & hop_mask;
-      if (phase == 0) synthesise();
       on_sample(phase);
 
       const float mix = mix_.next();
@@ -242,6 +241,8 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     playing_ = false;
     capture_due_ = -1;
     hold_seen_ = false;
+    frame_any_ = false;
+    for (int s = 0; s < kSlots; ++s) frame_gain_[s] = 0.0f;
     flux_ = 0.0f;
     flux_mean_ = 0.0f;
     since_onset_ = 1.0f;
@@ -269,12 +270,37 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
   static float loudness(const Slot& slot) { return slot.gain * slot.gain * slot.power; }
 
   void on_sample(uint32_t phase) {
-    if (phase == static_cast<uint32_t>(hop_ / 2)) {
-      frame_tick();
+    // Eight steps to a hop (a step is 128 samples at 48 kHz): the detector
+    // on steps 0 and 4, the frame on 1, 2, 3 and 5, a capture on 4.
+    const uint32_t step = static_cast<uint32_t>(hop_ / 8);
+    if ((phase & (step - 1u)) == 0u) {
+      const uint32_t ahead = static_cast<uint32_t>(hop_) - phase;
+      switch (phase / step) {
+        case 0:
+          detect();
+          break;
+        case 1:
+          begin_frame();
+          build_layers(0, kSlots / 2);
+          break;
+        case 2:
+          build_layers(kSlots / 2, kSlots);
+          break;
+        case 3:
+          finish_channel(0, ahead);
+          break;
+        case 4:
+          detect();
+          frame_tick();
+          break;
+        case 5:
+          finish_channel(1, ahead);
+          break;
+        default:
+          break;
+      }
     }
     if (capture_due_ > 0) --capture_due_;
-    const uint32_t detector_hop = static_cast<uint32_t>(frame_ / 8);
-    if ((position_ & (detector_hop - 1u)) == detector_hop / 4u) detect();
   }
 
   // log2 to about 0.005, for x > 0 (the detector's level compression): the
@@ -307,7 +333,7 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
       sum += x * x;
       scratch_[n] = x * window_[4 * n];
     }
-    fft_.forward(scratch_, acc_re_[0], acc_im_[0], size);
+    fft_.forward(scratch_, det_re_, det_im_, size);
     const float sensitivity = param(kSensitivity);
     // Below this level nothing counts as playing: -30 dBFS at 0, -66 at 1.
     const float gate = std::exp(-0.11512925f * (30.0f + 36.0f * sensitivity));
@@ -318,8 +344,8 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     float flux = 0.0f;
     float before = det_b_[0];
     for (int k = 0; k <= bins; ++k) {
-      const float re = acc_re_[0][k];
-      const float im = acc_im_[0][k];
+      const float re = det_re_[k];
+      const float im = det_im_[k];
       const float value = fast_log2(1.0f + unit * std::sqrt(re * re + im * im));
       const float here = det_b_[k];
       const float after = k < bins ? det_b_[k + 1] : here;
@@ -551,27 +577,35 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
 
   // Build the next frame of every layer in the frequency domain, transform
   // once per channel and overlap-add.
-  void synthesise() {
-    using namespace sustainer;
-    float gains[kSlots];
+  //
+  // The work of one frame is spread over the hop so that no single 128-sample
+  // block carries all of it: the envelopes and the first three layers, the
+  // other three layers, the left transform, the right transform. The frame
+  // is added to the output where the next hop begins.
+  void begin_frame() {
     float total = 0.0f;
-    bool any = false;
+    frame_any_ = false;
     for (int s = 0; s < kSlots; ++s) {
-      gains[s] = slots_[s].state == kFree ? 0.0f : envelope(slots_[s]);
-      total += gains[s] * gains[s] * slots_[s].power;
-      any = any || slots_[s].state != kFree;
+      frame_gain_[s] = slots_[s].state == kFree ? 0.0f : envelope(slots_[s]);
+      total += frame_gain_[s] * frame_gain_[s] * slots_[s].power;
+      frame_any_ = frame_any_ || slots_[s].state != kFree;
     }
-    if (!any) return;
+    if (!frame_any_) return;
     update_shape();
     // Stacked layers are held to a common ceiling so a pile cannot run away.
     const float limit = total > kMaxPower ? std::sqrt(kMaxPower / total) : 1.0f;
-
+    for (int s = 0; s < kSlots; ++s) frame_gain_[s] *= limit;
     for (int c = 0; c < 2; ++c) {
       for (int k = 0; k <= half_; ++k) {
         acc_re_[c][k] = 0.0f;
         acc_im_[c][k] = 0.0f;
       }
     }
+  }
+
+  void build_layers(int from, int to) {
+    using namespace sustainer;
+    if (!frame_any_) return;
     const float motion = param(kMotion);
     const float ensemble = param(kEnsemble);
     const float cents = kMinCents + (kMaxCents - kMinCents) * ensemble;
@@ -582,10 +616,10 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     const float drift_cap = kDriftMaxHz * hop_seconds_;
     const float side_depth = motion * kSideCycles * side_norm_;
     const float swell_depth = motion * kSwellDepth * swell_norm_;
-    for (int s = 0; s < kSlots; ++s) {
+    for (int s = from; s < to; ++s) {
       Slot& slot = slots_[s];
-      if (slot.state == kFree) continue;
-      const float gain = gains[s] * limit;
+      const float gain = frame_gain_[s];
+      if (gain == 0.0f) continue;
       for (int r = 0; r < slot.regions; ++r) {
         // The region's own turn.
         float ur = slot.u_re[r] * slot.rot_re[r] - slot.u_im[r] * slot.rot_im[r];
@@ -640,20 +674,25 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
         }
       }
     }
+  }
+
+  // Tone and Low Cut, the inverse transform, the synthesis window, and the
+  // overlap-add `ahead` samples from now (where the next hop begins).
+  void finish_channel(int c, uint32_t ahead) {
+    if (!frame_any_) return;
     // Blackman x Hann frames at 75 % overlap sum to exactly 1.34 (the product
     // has no component past the third harmonic); the inverse returns N/2 × x.
     const float scale = kHeldGain * 2.0f / (1.34f * static_cast<float>(frame_));
-    for (int c = 0; c < 2; ++c) {
-      for (int k = 0; k <= half_; ++k) {
-        acc_re_[c][k] *= shape_[k];
-        acc_im_[c][k] *= shape_[k];
-      }
-      acc_im_[c][0] = 0.0f;
-      acc_im_[c][half_] = 0.0f;
-      fft_.inverse(acc_re_[c], acc_im_[c], scratch_, frame_);
-      for (int n = 0; n < frame_; ++n) {
-        output_[c][(position_ + static_cast<uint32_t>(n)) & kRingMask] += scratch_[n] * window_[n] * scale;
-      }
+    for (int k = 0; k <= half_; ++k) {
+      acc_re_[c][k] *= shape_[k];
+      acc_im_[c][k] *= shape_[k];
+    }
+    acc_im_[c][0] = 0.0f;
+    acc_im_[c][half_] = 0.0f;
+    fft_.inverse(acc_re_[c], acc_im_[c], scratch_, frame_);
+    const uint32_t start = position_ + ahead;
+    for (int n = 0; n < frame_; ++n) {
+      output_[c][(start + static_cast<uint32_t>(n)) & kRingMask] += scratch_[n] * window_[n] * scale;
     }
   }
 
@@ -673,6 +712,9 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
   float mag_[kMaxHalf + 1];
   uint16_t peak_[kMaxRegions];
   float det_a_[kMaxFrame / 8 + 1], det_b_[kMaxFrame / 8 + 1];  // the detector's last two frames
+  float det_re_[kMaxFrame / 8 + 1], det_im_[kMaxFrame / 8 + 1];
+  float frame_gain_[kSlots] = {};
+  bool frame_any_ = false;
   float flux_ = 0.0f, flux_mean_ = 0.0f;
   float since_onset_ = 1.0f, quiet_for_ = 1.0f, postponed_ = 0.0f;
   int onsets_ = 0;
