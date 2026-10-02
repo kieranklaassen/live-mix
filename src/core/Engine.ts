@@ -54,6 +54,7 @@ import {
   type SpaceColour,
   type SpaceOptions,
 } from './tracks/space'
+import { SharedSpaces } from './tracks/SharedSpace'
 import { ElementTrack, type ElementTrackOptions } from './sources/ElementTrack'
 import { EngineStats, type EngineStatsOptions } from './stats'
 import { TempoMap } from './time/TempoMap'
@@ -91,6 +92,15 @@ export interface EngineOptions extends ClockOptions {
    * `Engine.setSpace` changes it while the engine runs.
    */
   space?: SpaceOptions
+  /**
+   * Let the audio tracks whose strip only sets a level send into one room
+   * for each destination, instead of a convolver per track (`SharedSpace`).
+   * It sounds the same while levels stand still and costs one convolver
+   * where it cost one per track; a track that is muted or faded then stops
+   * sending and its room rings out, where its own room would be cut with
+   * it. Default false: every track convolves for itself.
+   */
+  sharedSpace?: boolean
 }
 
 export type AddElementTrackOptions = Omit<
@@ -137,7 +147,7 @@ export type AddWorkletDuckerOptions = WorkletDuckerOptions & { mode: 'worklet' }
 
 export type AddAudioTrackOptions = Omit<
   AudioTrackOptions,
-  'name' | 'destination' | 'samples' | 'now' | 'scheduler' | 'solo'
+  'name' | 'destination' | 'samples' | 'now' | 'scheduler' | 'solo' | 'sharedSpaces'
 > & {
   /** Where the track's voices connect; defaults to the master. */
   destination?: StripDestination
@@ -260,6 +270,7 @@ export class Engine {
   private readonly disposeListeners = new Set<() => void>()
   private spaceValue: Required<SpaceOptions>
   private spaceBuffer: AudioBuffer | null = null
+  private readonly sharedSpaces: SharedSpaces | null
   private disposed = false
 
   constructor(options: EngineOptions) {
@@ -287,6 +298,11 @@ export class Engine {
     this.modulation = this.automation.modulation
     this.retainSamples = options.retainSamples ?? true
     this.stats = new EngineStats(options.context, options.stats)
+    this.sharedSpaces = options.sharedSpace
+      ? new SharedSpaces(options.context, {
+          settings: () => ({ impulse: this.spaceImpulse(), ...this.spaceColour() }),
+        })
+      : null
   }
 
   /** Audio-clock seconds through the injected clock. */
@@ -359,6 +375,7 @@ export class Engine {
     const next = resolveSpace(options)
     if (!sameSpaceImpulse(this.spaceValue, next)) this.spaceBuffer = null
     this.spaceValue = next
+    this.sharedSpaces?.refresh()
     for (const track of this.trackMap.values()) track.refreshSpace()
   }
 
@@ -372,6 +389,7 @@ export class Engine {
       spaceImpulse: () => this.spaceImpulse(),
       spaceColour: () => this.spaceColour(),
       ...options,
+      sharedSpaces: this.sharedSpaces ?? undefined,
       name,
       destination: options.destination ?? this.master,
       solo: this.solo,
@@ -845,6 +863,7 @@ export class Engine {
     this.retainers.clear()
     for (const track of this.trackMap.values()) track.dispose()
     this.trackMap.clear()
+    this.sharedSpaces?.dispose()
     for (const track of this.stretchTrackMap.values()) track.dispose()
     this.stretchTrackMap.clear()
     for (const track of this.elementTrackMap.values()) track.dispose()

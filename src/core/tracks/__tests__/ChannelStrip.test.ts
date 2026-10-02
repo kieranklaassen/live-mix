@@ -54,6 +54,10 @@ function gainParam(node: GainNode): MockAudioParam {
   return (node as unknown as MockGainNode).gain
 }
 
+function asMock(node: AudioNode): MockGainNode {
+  return node as unknown as MockGainNode
+}
+
 function panParam(node: StereoPannerNode): MockAudioParam {
   return (node as unknown as MockStereoPannerNode).pan
 }
@@ -390,6 +394,55 @@ describe('ChannelStrip ramps (R2)', () => {
     a.addInsert(fakeDevice(ctx, 'd'))
     sweepParams(ctx)
     expect(ctx.gains.flatMap((g) => g.gain.events).length).toBeGreaterThan(5)
+  })
+})
+
+describe('ChannelStrip.shadow', () => {
+  it('is a fader and a gate that take every ramp the strip gives its own', () => {
+    const ctx = createMockContext({ currentTime: 2 })
+    const s = strip(ctx, 'a')
+    const shadow = s.shadow()
+    // An untouched strip stays without nodes; the shadow is at unity like it.
+    expect(s.materialized).toBe(false)
+    expect(gainParam(shadow.input).value).toBe(1)
+    expect(gainParam(shadow.output).value).toBe(1)
+    expect((shadow.input as unknown as MockGainNode).isConnectedTo(asMock(shadow.output))).toBe(
+      true,
+    )
+
+    s.setLevel(0.5, { at: 3, timeConstant: 0.02 })
+    expect(gainParam(shadow.input).events).toEqual(gainParam(s.fader).events)
+    s.mute = true
+    s.mute = false
+    expect(gainParam(shadow.output).events).toEqual(gainParam(s.gate).events)
+    // Pan and input trim are not a level the shadow can carry.
+    s.setPan(0.5)
+    s.setInputGain(2)
+    expect(gainParam(shadow.input).events).toHaveLength(1)
+    expect(gainParam(shadow.output).events).toHaveLength(2)
+  })
+
+  it('starts where the strip stands, and stops following once released', () => {
+    const ctx = createMockContext({ currentTime: 1 })
+    const s = strip(ctx, 'a')
+    s.setLevel(0.25)
+    s.mute = true
+    const shadow = s.shadow()
+    // The strip's own nodes are still on their way; the shadow makes the same approach.
+    expect(gainParam(shadow.input).lastEvent('setTargetAtTime')?.args).toEqual([0.25, 1, 0.005])
+    expect(gainParam(shadow.output).lastEvent('setTargetAtTime')?.args).toEqual([0, 1, 0.005])
+
+    shadow.release()
+    s.setLevel(1)
+    expect(gainParam(shadow.input).events).toHaveLength(1)
+    expect((shadow.input as unknown as MockGainNode).outputs.size).toBe(0)
+  })
+
+  it('says whether it has a send without making one', () => {
+    const ctx = createMockContext()
+    const s = strip(ctx, 'a')
+    expect(s.hasSends).toBe(false)
+    expect(s.materialized).toBe(false)
   })
 })
 

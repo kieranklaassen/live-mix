@@ -113,6 +113,25 @@ export const UTILITY_DEVICE = defineNodeDevice({
 
 export type Utility = NodeDevice<typeof UTILITY_PARAMS>
 
+/** True for a utility made by this module, as the registry and `createUtility` make them. */
+export function isUtility(device: { readonly id: string }): device is Utility {
+  return device instanceof NodeDevice && device.id === UTILITY_DEVICE.id
+}
+
+/**
+ * True while a utility does nothing to its signal but change its level: on,
+ * panned to the centre, full width, polarity as it came. A gain elsewhere
+ * that follows its `gainDb` (`NodeDevice.follow`) then does all it does.
+ */
+export function utilityIsLevelOnly(device: Utility): boolean {
+  return (
+    !device.bypass &&
+    device.getParam('pan') === 0 &&
+    device.getParam('width') === 1 &&
+    Math.round(device.getParam('polarity')) === 0
+  )
+}
+
 /** Gain, pan, width (stereo → mono) and polarity on one insert. */
 export function createUtility(
   context: BaseAudioContext,
