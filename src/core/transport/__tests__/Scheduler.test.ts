@@ -1496,3 +1496,145 @@ describe('Scheduler follows the transport rate', () => {
     expect(reasons).toEqual(['start', 'rate'])
   })
 })
+
+describe('Scheduler.rescale', () => {
+  /** A track that can take a start along when the timeline is stretched under it. */
+  class RekeyingTrack extends FakeTrack {
+    readonly rekeyed: [string, string][] = []
+
+    rekey(key: string, to: string): boolean {
+      const when = this.voices.get(key)
+      if (when === undefined) return false
+      this.voices.delete(key)
+      this.voices.set(to, when)
+      this.rekeyed.push([key, to])
+      return true
+    }
+  }
+
+  function stretched(Track: typeof FakeTrack) {
+    const ctx = new MockAudioContext()
+    ctx.currentTime = 100
+    const transport = new Transport({ now: () => ctx.currentTime, loop: LOOP })
+    const scheduler = new Scheduler({ transport })
+    // A long pad from 4 s, and a hit at 10.1 s.
+    const track = new Track(ctx, 0.2, [
+      { id: 'pad', startSec: 4, durationSec: 16 },
+      { id: 'hit', startSec: 10.1, durationSec: 1 },
+    ])
+    scheduler.register(track)
+    /** 120 bpm to 100 bpm: the transport and every clip, 1.2 times as far along. */
+    const slower = () =>
+      scheduler.rescale(() => {
+        transport.rescale(1.2, 38.4)
+        track.items = [
+          { id: 'pad', startSec: 4.8, durationSec: 16 },
+          { id: 'hit', startSec: 12.12, durationSec: 1 },
+        ]
+        // What a track's clip list does on every edit.
+        scheduler.refresh()
+      })
+    return { ctx, transport, scheduler, track, slower }
+  }
+
+  it('keeps a sounding clip sounding and hands a pending start over again at its new time', async () => {
+    const { ctx, transport, scheduler, track, slower } = stretched(RekeyingTrack)
+    transport.start()
+    await advance(ctx, 10)
+    // The pad has been sounding since 104; the hit is handed over for 110.1.
+    expect(track.keys()).toEqual(['pad:0:4.000', 'hit:0:10.100'])
+    const at = ctx.currentTime
+
+    slower()
+
+    expect((track as RekeyingTrack).rekeyed).toContainEqual(['pad:0:4.000', 'pad:0:4.800'])
+    expect(track.cancelled).toEqual([])
+    expect(track.voices.get('pad:0:4.800')).toBe(104)
+    // The hit had not begun: it is given up and handed over where it now falls,
+    // as far ahead in beats as it was.
+    expect(track.voices.has('hit:0:10.100')).toBe(false)
+    const again = track.handed.at(-1)
+    expect(again?.key).toBe('hit:0:12.120')
+    expect(round(again?.when ?? 0)).toBe(round(at + (12.12 - transport.position().positionSec)))
+
+    // The next pass plays the pad from its new place; the old voice is not confused with it.
+    await advance(ctx, 38.4)
+    expect(track.keys().filter((key) => key.startsWith('pad'))).toEqual([
+      'pad:0:4.000',
+      'pad:1:4.800',
+    ])
+    scheduler.dispose()
+  })
+
+  it('without it, the same edits let the sounding clip go', async () => {
+    const { ctx, transport, scheduler, track } = stretched(RekeyingTrack)
+    transport.start()
+    await advance(ctx, 10)
+    transport.rescale(1.2, 38.4)
+    track.items = [
+      { id: 'pad', startSec: 4.8, durationSec: 16 },
+      { id: 'hit', startSec: 12.12, durationSec: 1 },
+    ]
+    scheduler.refresh()
+    expect(track.cancelled).toContain('pad:0:4.000')
+    scheduler.dispose()
+  })
+
+  it('lets moved starts go on a schedulable that cannot take them along', async () => {
+    const { ctx, transport, scheduler, track, slower } = stretched(FakeTrack)
+    transport.start()
+    await advance(ctx, 10)
+    slower()
+    expect(track.cancelled).toEqual(['pad:0:4.000'])
+    scheduler.dispose()
+  })
+
+  it('only runs the edit while nothing plays', () => {
+    const { scheduler, track, slower, transport } = stretched(RekeyingTrack)
+    slower()
+    expect(transport.loop.lengthSec).toBe(38.4)
+    expect(track.handed).toEqual([])
+    scheduler.dispose()
+  })
+
+  it('takes a track on a loop of its own along, when that loop is stretched with the rest', async () => {
+    /** A rekeying track on a cycle, which can be entered partway. */
+    class LoopingTrack extends RekeyingTrack {
+      readonly joinsLate = true
+      timebase: Cycle | undefined
+    }
+    const ctx = new MockAudioContext()
+    ctx.currentTime = 100
+    const transport = new Transport({ now: () => ctx.currentTime, loop: LOOP })
+    const scheduler = new Scheduler({ transport })
+    const track = new LoopingTrack(ctx, 0.2, [{ id: 'pad', startSec: 4, durationSec: 5 }])
+    const cycle = new Cycle(transport, 10)
+    track.timebase = cycle
+    scheduler.register(track)
+    transport.start()
+    await advance(ctx, 6)
+    expect(track.keys()).toEqual(['pad:0:4.000'])
+    expect(round(cycle.position().positionSec)).toBe(6)
+
+    // 120 bpm to 100 bpm: the transport, the track's own loop and its clip, 1.2 times as long.
+    scheduler.rescale(() => {
+      transport.rescale(1.2, 38.4)
+      cycle.lengthSec = 12
+      track.items = [{ id: 'pad', startSec: 4.8, durationSec: 6 }]
+      scheduler.refresh()
+    })
+
+    // As far into its own pass as it was, in beats; the pad sounds on, and is not entered again.
+    expect(round(cycle.position().positionSec)).toBe(7.2)
+    expect(track.rekeyed).toEqual([['pad:0:4.000', 'pad:0:4.800']])
+    expect(track.cancelled).toEqual([])
+    expect(track.handed).toHaveLength(1)
+
+    // Its next pass starts the pad where it now is on the stretched loop.
+    await advance(ctx, 10)
+    expect(track.handed).toHaveLength(2)
+    expect(track.handed[1].start.startSec).toBe(4.8)
+    expect(round(track.handed[1].when)).toBe(115.6)
+    scheduler.dispose()
+  })
+})

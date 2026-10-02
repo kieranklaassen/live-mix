@@ -82,7 +82,7 @@
     "test:watch": "vitest",
     "test:native": "bash scripts/test-native.sh",
     "host:build": "node native/host/build.mjs --test-plugins",
-    "test:host": "node --test --test-timeout=60000 native/host/test/host.test.mjs",
+    "test:host": "node --test --test-timeout=60000 native/host/test/host.test.mjs native/host/test/link.test.mjs",
     "build:wasm": "bash scripts/build-wasm.sh",
     "build:faust": "bash scripts/build-faust.sh",
     "pack:check": "node scripts/check-pack.mjs",

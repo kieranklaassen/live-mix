@@ -285,6 +285,69 @@ export class Transport {
     this.emit('seek')
   }
 
+  /**
+   * Slides a playing transport `deltaSec` along the timeline (forwards when
+   * positive) without re-pinning it: for keeping step with a clock the audio
+   * clock drifts against, such as an Ableton Link session or a MIDI clock.
+   * Nothing is announced and nothing sounding is touched. Starts already
+   * handed to the audio graph keep their time; later ones are timed from the
+   * moved anchor, on the same pass numbers. It is for the fraction of a
+   * millisecond two clocks part by in a second: a start inside a larger jump
+   * is passed over or met twice with nobody told, which is what `seek` is
+   * for. `deltaSec` is timeline time, whatever the `rate`. No-op unless playing.
+   */
+  nudge(deltaSec: number): void {
+    if (!this.currentAnchor || !Number.isFinite(deltaSec) || deltaSec === 0) return
+    this.currentAnchor = {
+      ...this.currentAnchor,
+      contextTime: this.currentAnchor.contextTime - deltaSec / this.currentRate,
+    }
+  }
+
+  /**
+   * Stretches the timeline under the transport by `ratio`: the position and
+   * the loop length are multiplied by it, and the moment on the audio clock
+   * stays. This is a tempo change for a host whose clips keep their beat: at
+   * 120/100 (slower) everything that was at 10 s is at 12 s, the transport
+   * included, so it is in the same bar as before. `lengthSec` gives the new
+   * loop length exactly, where the host has it without the rounding of a
+   * multiplication.
+   *
+   * Loop passes keep their numbers, so starts already handed over still
+   * belong to the pass they were handed over for; `Scheduler.rescale` is what
+   * moves them along with their clips. `elapsed()` is stretched by `ratio`
+   * too, so a `Cycle` whose length the host stretches by as much stays where
+   * it was in its pass. Announced as a `loop` change.
+   */
+  rescale(ratio: number, lengthSec: number = this.currentLoop.lengthSec * ratio): void {
+    if (!Number.isFinite(ratio) || ratio <= 0) {
+      throw new RangeError(`Transport: rescale ratio must be positive, got ${ratio}`)
+    }
+    const next = validateLoop({ ...this.currentLoop, lengthSec })
+    if (ratio === 1 && next.lengthSec === this.currentLoop.lengthSec) return
+    if (this.currentAnchor) {
+      const now = this.clock()
+      const position = this.position(now)
+      const elapsedSec = this.elapsed(now)
+      // A start still pinned in the future keeps its moment.
+      const contextTime = Math.max(now, this.currentAnchor.contextTime)
+      this.currentLoop = next
+      this.currentAnchor = {
+        contextTime,
+        positionSec: this.normalisePosition(position.positionSec * ratio),
+        iteration: position.iteration,
+      }
+      this.nextIteration = Math.max(this.nextIteration, position.iteration + 1)
+      // The whole run is stretched with the pass it is in.
+      this.elapsedOffsetSec = elapsedSec * ratio - this.counted(this.currentAnchor)
+    } else {
+      this.currentLoop = next
+      this.idlePositionSec = this.normalisePosition(this.idlePositionSec * ratio)
+      this.idleElapsedSec *= ratio
+    }
+    this.emit('loop')
+  }
+
   /** Changes the loop. While playing the transport is re-pinned so the position carries over. */
   setLoop(loop: Partial<TransportLoop>): void {
     const next = validateLoop({ ...this.currentLoop, ...loop })

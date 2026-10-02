@@ -101,7 +101,7 @@ git_install() {
       test -f node_modules/@kieranklaassen/live-mix/dist/index.js &&
       test -f node_modules/@kieranklaassen/live-mix/dist/wam/index.js &&
       for wasm in "$OLDPWD"/src/dsp/wasm/*.wasm; do test -f "node_modules/@kieranklaassen/live-mix/dist/wasm/$(basename "$wasm")" || exit 1; done &&
-      for worklet in wasm-device ducker meter recorder native-bridge native-pump load-sampler; do test -f "node_modules/@kieranklaassen/live-mix/dist/worklets/$worklet.js" || exit 1; done &&
+      for worklet in wasm-device ducker meter recorder native-bridge native-pump link-tap link-audio load-sampler; do test -f "node_modules/@kieranklaassen/live-mix/dist/worklets/$worklet.js" || exit 1; done &&
       test -f node_modules/@kieranklaassen/live-mix/dist/native/index.js &&
       test -f node_modules/@kieranklaassen/live-mix/native/host/CMakeLists.txt &&
       node --input-type=module -e "

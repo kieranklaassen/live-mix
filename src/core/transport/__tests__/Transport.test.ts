@@ -684,3 +684,182 @@ describe('Transport rate', () => {
     expect(() => new Transport({ now: () => 0, rate: 0 })).toThrow(RangeError)
   })
 })
+
+describe('Transport.nudge', () => {
+  it('slides the position without re-pinning or announcing', () => {
+    const { ctx, transport, changes } = build({ enabled: true, lengthSec: 8 })
+    ctx.currentTime = 10
+    transport.start()
+    ctx.currentTime = 13
+    const before = changes.length
+    transport.nudge(0.004)
+    expect(transport.position().positionSec).toBeCloseTo(3.004, 9)
+    expect(transport.position().iteration).toBe(0)
+    expect(transport.anchor?.iteration).toBe(0)
+    expect(changes).toHaveLength(before)
+    transport.nudge(-0.01)
+    expect(transport.position().positionSec).toBeCloseTo(2.994, 9)
+  })
+
+  it('moves when later starts fall on the audio clock, by the same amount', () => {
+    const { ctx, transport } = build({ enabled: true, lengthSec: 8 })
+    ctx.currentTime = 10
+    transport.start()
+    expect(transport.contextTimeAt(4)).toBe(14)
+    transport.nudge(0.25)
+    // The timeline is a quarter second further on, so 4 s comes that much sooner.
+    expect(transport.contextTimeAt(4)).toBeCloseTo(13.75, 9)
+    expect(transport.contextTimeAt(4, 1)).toBeCloseTo(21.75, 9)
+  })
+
+  it('keeps the pass numbers across the loop end', () => {
+    const { ctx, transport } = build({ enabled: true, lengthSec: 8 })
+    transport.start()
+    ctx.currentTime = 7.999
+    transport.nudge(0.002)
+    expect(transport.position().iteration).toBe(1)
+    expect(transport.position().positionSec).toBeCloseTo(0.001, 9)
+    transport.nudge(-0.002)
+    expect(transport.position().iteration).toBe(0)
+    expect(transport.position().positionSec).toBeCloseTo(7.999, 9)
+  })
+
+  it('slides by timeline time at any rate', () => {
+    const { ctx, transport } = build({ enabled: true, lengthSec: 8 })
+    ctx.currentTime = 10
+    transport.start()
+    ctx.currentTime = 12
+    transport.setRate(0.5)
+    ctx.currentTime = 14
+    // Two seconds at full speed and two at half: 3 s along.
+    transport.nudge(0.01)
+    expect(transport.position().positionSec).toBeCloseTo(3.01, 9)
+    // And 4 s is 0.99 s of timeline away, which takes twice that on the clock.
+    expect(transport.contextTimeAt(4)).toBeCloseTo(14 + 0.99 * 2, 9)
+  })
+
+  it('does nothing while stopped or paused, or with no real amount', () => {
+    const { ctx, transport } = build()
+    transport.nudge(1)
+    expect(transport.position().positionSec).toBe(0)
+    transport.start()
+    ctx.currentTime = 2
+    transport.nudge(Number.NaN)
+    transport.nudge(0)
+    expect(transport.position().positionSec).toBe(2)
+    transport.pause()
+    transport.nudge(1)
+    expect(transport.position().positionSec).toBe(2)
+  })
+})
+
+describe('Transport.rescale and the run of the timeline', () => {
+  it('stretches the whole run with the pass it is in, playing or not', () => {
+    const { ctx, transport } = build({ enabled: true, lengthSec: 4 })
+    transport.start()
+    ctx.currentTime = 9.5
+    // A pause and a start: the pass has a new number, and the run is counted on.
+    transport.pause()
+    transport.start()
+    ctx.currentTime = 10
+    expect(transport.elapsed()).toBe(10)
+
+    transport.rescale(1.5)
+    expect(transport.loop.lengthSec).toBe(6)
+    expect(transport.position().positionSec).toBeCloseTo(3, 9)
+    expect(transport.elapsed()).toBeCloseTo(15, 9)
+    expect(transport.pass()).toBe(2)
+    ctx.currentTime = 11
+    expect(transport.elapsed()).toBeCloseTo(16, 9)
+
+    transport.pause()
+    transport.rescale(0.5)
+    expect(transport.elapsed()).toBeCloseTo(8, 9)
+    expect(transport.position().positionSec).toBeCloseTo(2, 9)
+  })
+})
+
+describe('Transport.rescale', () => {
+  it('stretches the position and the loop and keeps the moment', () => {
+    const { ctx, transport, changes } = build({ enabled: true, lengthSec: 32 })
+    ctx.currentTime = 100
+    transport.start()
+    ctx.currentTime = 110
+    // 120 bpm to 100 bpm: everything is 1.2 times as far along in seconds.
+    transport.rescale(1.2, 38.4)
+    expect(transport.loop).toEqual({ enabled: true, lengthSec: 38.4 })
+    expect(transport.position().positionSec).toBeCloseTo(12, 9)
+    expect(transport.position().iteration).toBe(0)
+    expect(transport.anchor?.contextTime).toBe(110)
+    expect(changes.at(-1)?.reason).toBe('loop')
+    expect(transport.state).toBe('playing')
+    // From here it runs a second a second, to the new loop end.
+    ctx.currentTime = 111
+    expect(transport.position().positionSec).toBeCloseTo(13, 9)
+    expect(transport.contextTimeAt(0, 1)).toBeCloseTo(110 + 26.4, 9)
+  })
+
+  it('keeps the pass it is on, and hands out later passes after it', () => {
+    const { ctx, transport } = build({ enabled: true, lengthSec: 8 })
+    transport.start()
+    ctx.currentTime = 20
+    expect(transport.position().iteration).toBe(2)
+    transport.rescale(0.5)
+    expect(transport.loop.lengthSec).toBe(4)
+    expect(transport.position()).toMatchObject({ positionSec: 2, iteration: 2 })
+    transport.seek(1)
+    expect(transport.anchor?.iteration).toBe(3)
+  })
+
+  it('moves a transport that is not playing', () => {
+    const { transport, changes } = build({ enabled: true, lengthSec: 32 })
+    transport.seek(10)
+    transport.rescale(0.5)
+    expect(transport.position().positionSec).toBe(5)
+    expect(transport.loop.lengthSec).toBe(16)
+    expect(transport.state).toBe('stopped')
+    expect(changes.at(-1)?.reason).toBe('loop')
+  })
+
+  it('leaves a start pinned in the future at its moment', () => {
+    const { ctx, transport } = build({ enabled: true, lengthSec: 32 })
+    ctx.currentTime = 50
+    transport.seek(8)
+    transport.start(51.5)
+    transport.rescale(2)
+    expect(transport.anchor).toEqual({ contextTime: 51.5, positionSec: 16, iteration: 0 })
+    ctx.currentTime = 52
+    expect(transport.position().positionSec).toBe(16.5)
+  })
+
+  it('does nothing for a ratio of one, and refuses one that is not a size', () => {
+    const { transport, changes } = build({ enabled: true, lengthSec: 32 })
+    transport.rescale(1)
+    expect(changes).toHaveLength(0)
+    expect(() => transport.rescale(0)).toThrow(RangeError)
+    expect(() => transport.rescale(Number.NaN)).toThrow(RangeError)
+  })
+
+  it('leaves an endless timeline endless', () => {
+    const { ctx, transport } = build()
+    transport.start()
+    ctx.currentTime = 6
+    transport.rescale(1.5)
+    expect(transport.loop.lengthSec).toBe(Infinity)
+    expect(transport.position().positionSec).toBe(9)
+  })
+
+  it('stretches a transport running at another rate from where it is', () => {
+    const { ctx, transport } = build({ enabled: true, lengthSec: 32 })
+    ctx.currentTime = 100
+    transport.start()
+    transport.setRate(0.5)
+    ctx.currentTime = 120
+    // Twenty seconds of clock at half speed: 10 s along.
+    transport.rescale(1.2, 38.4)
+    expect(transport.rate).toBe(0.5)
+    expect(transport.position().positionSec).toBeCloseTo(12, 9)
+    ctx.currentTime = 122
+    expect(transport.position().positionSec).toBeCloseTo(13, 9)
+  })
+})

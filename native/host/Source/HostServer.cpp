@@ -1,5 +1,6 @@
 #include "HostServer.h"
 
+#include <cmath>
 #include <cstring>
 #include <optional>
 
@@ -10,7 +11,10 @@ namespace
 {
     constexpr uint32_t messageProcess = 1;
     constexpr uint32_t messageMidi = 2;
+    constexpr uint32_t messageLinkAudio = 3;
     constexpr size_t audioHeaderBytes = 16;
+    /** A Link Audio block: the 16 bytes above (type, frames, channels, sample rate), then when it is heard. */
+    constexpr size_t linkAudioHeaderBytes = audioHeaderBytes + sizeof (double);
     constexpr uint32_t maxFramesPerMessage = 16384;
     constexpr uint32_t maxChannels = 8;
     constexpr int changeTimerHz = 30;
@@ -96,6 +100,8 @@ void HostServer::serve (Connection connection, const juce::String& path, const j
         serveControl (std::move (connection));
     else if (path == "/audio")
         serveAudio (std::move (connection), query["slot"], juce::jlimit (1, static_cast<int> (maxChannels), query.getValue ("out", "2").getIntValue()));
+    else if (path == "/link-audio")
+        serveLinkAudio (std::move (connection), query.getValue ("name", "Main"));
     else
         connection->close();
 }
@@ -110,6 +116,16 @@ void HostServer::serveControl (Connection connection)
         if (message.binary)
             continue;
         auto request = juce::JSON::parse (message.data.toString());
+        // Answered here, on the connection's own thread: the page halves the
+        // round trip to find its clock's offset from Link's, and a wait for
+        // the message thread would be counted as distance.
+        if (request["method"].toString() == "linkPing")
+        {
+            auto* result = new juce::DynamicObject();
+            result->setProperty ("micros", static_cast<juce::int64> (LinkSession::micros()));
+            reply (connection, request["id"], juce::var (result));
+            continue;
+        }
         juce::MessageManager::callAsync ([weak, connection, request = std::move (request)]
         {
             if (weak != nullptr)
@@ -202,6 +218,48 @@ void HostServer::serveAudio (Connection connection, const juce::String& slotId, 
     }
 }
 
+void HostServer::serveLinkAudio (Connection connection, const juce::String& channelName)
+{
+    if (! LinkSession::available())
+    {
+        connection->close();
+        return;
+    }
+
+    // The channel is in the session for as long as this connection is open.
+    const auto sink = linkSession().openSink (channelName);
+    WsMessage message;
+
+    while (sink != nullptr && connection->read (message))
+    {
+        const auto size = message.data.getSize();
+        if (! message.binary || size < linkAudioHeaderBytes)
+            continue;
+
+        uint32_t header[4];
+        double atMicros = 0.0;
+        std::memcpy (header, message.data.getData(), audioHeaderBytes);
+        std::memcpy (&atMicros, static_cast<const uint8_t*> (message.data.getData()) + audioHeaderBytes, sizeof (double));
+        if (header[0] != messageLinkAudio)
+            continue;
+
+        const auto frames = header[1];
+        const auto channels = header[2];
+        const auto sampleRate = header[3];
+        if (frames == 0 || frames > maxFramesPerMessage || channels < 1 || channels > 2
+            || sampleRate < 8000 || sampleRate > 768000 || ! std::isfinite (atMicros)
+            || size != linkAudioHeaderBytes + static_cast<size_t> (frames) * channels * sizeof (float))
+        {
+            connection->close();
+            break;
+        }
+
+        const auto* samples = static_cast<const uint8_t*> (message.data.getData()) + linkAudioHeaderBytes;
+        sink->write (reinterpret_cast<const float*> (samples), frames, channels, sampleRate,
+                     static_cast<int64_t> (std::llround (atMicros)));
+    }
+}
+
 //==============================================================================
 void HostServer::reply (const Connection& connection, const juce::var& id, const juce::var& result)
 {
@@ -246,6 +304,9 @@ juce::var HostServer::hello() const
     result->setProperty ("version", JUCE_APPLICATION_VERSION_STRING);
     result->setProperty ("juce", LIVE_MIX_HOST_JUCE_VERSION);
     result->setProperty ("formats", formatNames);
+    result->setProperty ("link", LinkSession::available());
+    if (LinkSession::available())
+        result->setProperty ("linkVersion", LinkSession::version());
    #if JUCE_MAC
     result->setProperty ("platform", "mac");
    #elif JUCE_WINDOWS
@@ -379,10 +440,106 @@ void HostServer::handleRequest (const Connection& connection, const juce::var& r
             slot->setTransport (bpm, playing);
         reply (connection, id, juce::var (new juce::DynamicObject()));
     }
+    else if (method == "link" || method == "linkStart" || method == "linkStop")
+    {
+        handleLink (connection, id, method, params);
+    }
     else
     {
         fail (connection, id, "unknown method \"" + method + "\"");
     }
+}
+
+//==============================================================================
+LinkSession& HostServer::linkSession()
+{
+    const juce::ScopedLock lock (linkLock);
+    if (link == nullptr)
+        link = std::make_unique<LinkSession>();
+    return *link;
+}
+
+void HostServer::followLink (const Connection& connection)
+{
+    for (const auto& follower : linkFollowers)
+        if (follower.lock() == connection)
+            return;
+    linkFollowers.push_back (connection);
+}
+
+void HostServer::handleLink (const Connection& connection, const juce::var& id, const juce::String& method, const juce::var& params)
+{
+    if (! LinkSession::available())
+    {
+        // Asking is not an error: the answer says there is none.
+        if (method == "link" && (params.getDynamicObject() == nullptr || params.getDynamicObject()->getProperties().isEmpty()))
+            reply (connection, id, LinkSession().describe());
+        else
+            fail (connection, id, "this host was built without Ableton Link");
+        return;
+    }
+
+    auto& session = linkSession();
+    followLink (connection);
+
+    if (method == "link")
+    {
+        session.apply (params);
+        reply (connection, id, session.describe());
+        return;
+    }
+
+    if (method == "linkStop")
+    {
+        session.stop (params.hasProperty ("atMicros") ? static_cast<int64_t> (static_cast<double> (params["atMicros"])) : LinkSession::micros());
+        reply (connection, id, session.describe());
+        return;
+    }
+
+    // linkStart
+    const auto beat = static_cast<double> (params["beat"]);
+    if (! std::isfinite (beat))
+    {
+        fail (connection, id, "linkStart needs a beat");
+        return;
+    }
+    int64_t at = 0;
+    if (static_cast<bool> (params["follow"]))
+    {
+        at = session.followStart (beat);
+    }
+    else
+    {
+        const auto atMicros = params.hasProperty ("atMicros") ? static_cast<int64_t> (static_cast<double> (params["atMicros"])) : LinkSession::micros();
+        const auto playing = params.hasProperty ("playing") ? std::optional<bool> (static_cast<bool> (params["playing"])) : std::nullopt;
+        at = session.requestBeat (beat, atMicros, playing);
+    }
+    auto state = session.describe();
+    state.getDynamicObject()->setProperty ("atMicros", static_cast<juce::int64> (at));
+    reply (connection, id, state);
+}
+
+void HostServer::announceLink()
+{
+    LinkSession* session = nullptr;
+    {
+        const juce::ScopedLock lock (linkLock);
+        session = link.get();
+    }
+    if (session == nullptr)
+        return;
+
+    std::vector<Connection> open;
+    for (const auto& follower : linkFollowers)
+        if (auto connection = follower.lock(); connection != nullptr && connection->isOpen())
+            open.push_back (std::move (connection));
+
+    if (! session->takeChanged())
+        return;
+
+    const auto state = session->describe();
+    for (const auto& connection : open)
+        emit (connection, "link", state.getDynamicObject()->clone().release());
 }
 
 void HostServer::controlClosed (const Connection& connection)
@@ -399,6 +556,22 @@ void HostServer::controlClosed (const Connection& connection)
     }
     for (const auto& slotId : owned)
         unload (slotId);
+
+    // The last page that followed Link is gone: leave the session, so a
+    // closed page does not keep a silent peer in everybody's count.
+    const auto before = linkFollowers.size();
+    std::erase_if (linkFollowers, [&connection] (const std::weak_ptr<WsConnection>& follower)
+    {
+        const auto held = follower.lock();
+        return held == nullptr || held == connection;
+    });
+    if (before > 0 && linkFollowers.empty())
+    {
+        auto* leave = new juce::DynamicObject();
+        leave->setProperty ("enabled", false);
+        leave->setProperty ("audio", false);
+        linkSession().apply (juce::var (leave));
+    }
 }
 
 //==============================================================================
@@ -616,6 +789,8 @@ void HostServer::savePluginCache() const
 
 void HostServer::timerCallback()
 {
+    announceLink();
+
     std::vector<std::shared_ptr<PluginSlot>> all;
     {
         const juce::ScopedLock lock (slotLock);

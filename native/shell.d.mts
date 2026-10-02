@@ -15,6 +15,12 @@ export declare function pluginHostBinaryPath(
 /** Where a build with `testPlugins` puts the two VST3 plug-ins the host's tests load. */
 export declare function pluginHostTestPluginsDir(buildDir: string): string
 
+/** Where a build with `testPlugins` puts the second Link peer the host's tests talk to. */
+export declare function pluginHostLinkPeerPath(
+  buildDir: string,
+  options?: { platform?: NodeJS.Platform },
+): string
+
 export interface BuildPluginHostOptions {
   /** CMake's build directory; created when missing. */
   buildDir: string
@@ -22,8 +28,16 @@ export interface BuildPluginHostOptions {
   config?: string
   /** A JUCE checkout at the pinned version; otherwise `$JUCE_DIR`, `~/JUCE` or a fetch. */
   juceDir?: string
-  /** Also build the two plug-ins the host's own tests load. */
+  /** Also build the two plug-ins the host's own tests load, and their Link peer. */
   testPlugins?: boolean
+  /**
+   * Build Ableton Link and Link Audio into the host (default true). Link is
+   * GPL v2 or later, and a host built with it is covered by that licence;
+   * false leaves it out.
+   */
+  link?: boolean
+  /** An Ableton Link checkout with its submodules; `$LINK_DIR` or the pinned release otherwise. */
+  linkDir?: string
   /** Parallel compile jobs; CMake's default when absent. */
   jobs?: number
   /** Where CMake's output goes (default `'inherit'`). */

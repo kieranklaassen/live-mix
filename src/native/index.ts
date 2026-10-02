@@ -1,5 +1,6 @@
 /**
- * `@kieranklaassen/live-mix/native` — VST3 and Audio Unit plug-ins as devices.
+ * `@kieranklaassen/live-mix/native` — VST3 and Audio Unit plug-ins as devices,
+ * and Ableton Link.
  *
  * A browser cannot load a native plug-in, so this entry talks to the plug-in
  * host (`native/host`, a JUCE program a desktop shell starts next to the
@@ -8,6 +9,11 @@
  * scanned plug-ins next to the built-in devices. The page must be
  * cross-origin isolated (the audio bridge uses shared memory). U39 of the
  * plan; docs/native.md is the guide.
+ *
+ * The same host joins an Ableton Link session for the page: `NativeLink` is
+ * the session's tempo and beat on the page's clock, `OutputClock` takes them
+ * to an `AudioContext`, and `LinkAudioSender` sends a node's sound to the
+ * session as a Link Audio channel. docs/link.md is the guide.
  *
  * @module live-mix/native
  */
@@ -90,6 +96,41 @@ export {
   type BridgeMemory,
   type PumpStats,
 } from './bridge-protocol'
+export {
+  NativeLink,
+  type NativeLinkListener,
+  type NativeLinkOptions,
+  type NativeLinkSettings,
+  type NativeLinkStartOptions,
+} from './NativeLink'
+export {
+  LinkClockOffset,
+  OutputClock,
+  idleLinkState,
+  linkBeatAt,
+  linkMicrosAtBeat,
+  linkPhase,
+  nextBeatInPhase,
+  outputClockOffsetMs,
+  type NativeLinkChannel,
+  type NativeLinkState,
+  type OutputClockContext,
+} from './link-time'
+export {
+  LinkAudioSender,
+  defaultLinkAudioPumpUrl,
+  defaultLinkTapProcessorUrl,
+  type LinkAudioSenderOptions,
+  type LinkAudioStatus,
+  type LinkAudioWorker,
+} from './LinkAudioSender'
+export {
+  HOST_MESSAGE_LINK_AUDIO,
+  LINK_AUDIO_BLOCK_FRAMES,
+  LINK_AUDIO_HEADER_BYTES,
+  LINK_TAP_PROCESSOR_NAME,
+  type LinkAudioStats,
+} from './link-audio-protocol'
 export {
   NATIVE_PROTOCOL_VERSION,
   type NativeHostAddress,

@@ -109,6 +109,15 @@ export interface Schedulable {
    */
   keeps?(key: string): boolean
   /**
+   * Take the start scheduled under `key` as scheduled under `to` from now on.
+   * Its clip moved along the timeline together with everything else (the
+   * timeline was stretched under it, `Scheduler.rescale`), and what it has
+   * sounding or pending is still that clip's. Return false when there is
+   * nothing under `key` to keep; the start is then let go as any moved start
+   * is. Absent: every moved start is let go.
+   */
+  rekey?(key: string, to: string): boolean
+  /**
    * The transport runs at `rate` from audio-clock time `at` on (timeline
    * seconds per clock second, `Transport.rate`): what is sounding carries on
    * at that speed, and starts handed over from now on are played at it. Starts
@@ -196,6 +205,8 @@ export class Scheduler {
   private readonly registrations = new Map<Schedulable, Registration>()
   private readonly tickListeners = new Set<SchedulerTickListener>()
   private timer: ReturnType<typeof setInterval> | null = null
+  // Inside `rescale`: edits and loop changes do not re-derive the queue yet.
+  private rescaling = false
   // The transport's rate as of the last change heard, to move clock times by.
   private rate: number
   // How far the timeline had run at the last pass, and when: a loop change that folds it shows against this.
@@ -460,7 +471,7 @@ export class Scheduler {
    * is where clips have a length to read).
    */
   refresh(reason: SchedulerTickReason = 'refresh'): void {
-    if (this.transport.state !== 'playing') return
+    if (this.transport.state !== 'playing' || this.rescaling) return
     this.cancelPending()
     const contextTime = this.transport.now()
     const rate = this.transport.rate
@@ -485,6 +496,57 @@ export class Scheduler {
       }
     }
     this.tick(reason)
+  }
+
+  /**
+   * Runs `apply`, which moves every clip along the timeline together with the
+   * transport (a tempo change in a host whose clips keep their beat:
+   * `Transport.rescale` and the clips' new `startSec`), and keeps what is
+   * sounding sounding. On its own, each of those edits reads as clips moved
+   * under a playing transport, and `refresh` lets a moved clip's audio go.
+   * Here nothing moved against anything else, so a start already handed over
+   * stays its clip's: it is taken along to the clip's new position
+   * (`Schedulable.rekey`) and plays on, and starts not yet begun are handed
+   * over afresh at their new times. A schedulable without `rekey` gives up
+   * its moved starts as before. Outside playback this just runs `apply`.
+   */
+  rescale(apply: () => void): void {
+    if (this.rescaling) {
+      apply()
+      return
+    }
+    this.rescaling = true
+    try {
+      apply()
+    } finally {
+      this.rescaling = false
+    }
+    if (this.transport.state !== 'playing') return
+
+    for (const [schedulable, registration] of this.registrations) {
+      const clips = schedulable.clips()
+      const moved: [string, string, Handover][] = []
+      for (const [key, start] of registration.scheduled) {
+        const clip = clips.find((candidate) => candidate.id === start.clipId)
+        if (!clip) continue
+        const next = { ...start, startSec: clip.startSec }
+        const to = scheduleKey(next)
+        if (to !== key) moved.push([key, to, next])
+      }
+      for (const [key, to, next] of moved) {
+        if (registration.scheduled.has(to) || !schedulable.rekey?.(key, to)) continue
+        registration.scheduled.delete(key)
+        registration.scheduled.set(to, next)
+      }
+      // Offered under positions that are gone; the window finds them again.
+      registration.declined.clear()
+      registration.windowEndSec = undefined
+      // A loop of its own that was stretched with the rest is the clock it was, not another.
+      if (registration.base === (schedulable.timebase ?? this.transport)) {
+        registration.baseLengthSec = registration.base.loop.lengthSec
+      }
+    }
+    this.refresh('refresh')
   }
 
   /**
@@ -588,7 +650,8 @@ export class Scheduler {
         // starts are stale, sounding ones are left alone. A loop the position
         // did not fit in has folded it: the timeline, and every cycle on it,
         // is somewhere else, inside clips whose starts it never passed.
-        const folded = this.folded()
+        // A stretch (`rescale`) moves everything together: nothing has landed anywhere.
+        const folded = !this.rescaling && this.folded()
         for (const registration of this.registrations.values()) {
           registration.windowEndSec = undefined
           // Their pass numbers belong to the anchor that went.

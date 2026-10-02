@@ -417,6 +417,9 @@ const testingSymbols = [
   'FAKE_STATE',
   'FAKE_SYNTH',
   'fakeReverbParams',
+  // An Ableton Link session in memory
+  'FakeLinkSession',
+  'FAKE_LINK_CLOCK_SKEW_MICROS',
   // A Push with no hardware
   'VirtualPush',
 ] as const
@@ -442,6 +445,23 @@ const nativeSymbols = [
   'bridgeLatencyFor',
   'tidyParamText',
   'NATIVE_PROTOCOL_VERSION',
+  // Ableton Link and Link Audio through the host
+  'NativeLink',
+  'LinkClockOffset',
+  'OutputClock',
+  'idleLinkState',
+  'linkBeatAt',
+  'linkMicrosAtBeat',
+  'linkPhase',
+  'nextBeatInPhase',
+  'outputClockOffsetMs',
+  'LinkAudioSender',
+  'defaultLinkAudioPumpUrl',
+  'defaultLinkTapProcessorUrl',
+  'HOST_MESSAGE_LINK_AUDIO',
+  'LINK_AUDIO_BLOCK_FRAMES',
+  'LINK_AUDIO_HEADER_BYTES',
+  'LINK_TAP_PROCESSOR_NAME',
 ] as const
 
 const wamSymbols = [

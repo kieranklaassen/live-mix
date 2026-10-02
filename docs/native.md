@@ -8,6 +8,9 @@ plug-in is a `Device` like the built-in ones: it sits in a strip's inserts or
 on an instrument track, takes `setParam`, appears in the registry, is written
 into a score and renders offline.
 
+The same host is how a page joins an **Ableton Link** session and sends
+**Link Audio**: that has its own guide, [link.md](./link.md).
+
 This is U39 of the plan, the optional native tier (KD7, R35). Nothing in `.`,
 `./dsp` or `./react` depends on it, and an application that stays in the
 browser loses nothing by ignoring it.
@@ -365,7 +368,9 @@ loaded.
 | `editorClosed` | `slot`: the person closed the window                                                                                                                     |
 | `stateChanged` | `slot`: the plug-in told its host its state changed in a way no parameter shows (a program, a loaded file); read it with `getState`                      |
 
-The types are in `src/native/protocol.ts`.
+The types are in `src/native/protocol.ts`. The Ableton Link messages (`link`,
+`linkPing`, `linkStart`, `linkStop`, the `link` event and the `/link-audio`
+path) are in [link.md](./link.md#the-messages).
 
 ### `/audio?token=…&slot=…&out=2`: binary frames
 
@@ -389,3 +394,7 @@ you hold if you have one. That concerns the binary and distributing it, not
 this package's JavaScript, which contains no JUCE code. Read JUCE's licence
 before you ship a build of the host to anyone. VST is a trademark of Steinberg
 Media Technologies GmbH.
+
+The default build also contains Ableton Link, which is GPL (version 2 or
+later) unless you hold Ableton's proprietary licence; `--no-link` leaves it
+out. See [link.md](./link.md#licensing).

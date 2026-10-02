@@ -81,6 +81,12 @@ A cycle's length is in timeline seconds, so the transport's rate (below)
 takes every cycle with it: the loops slide against each other exactly as
 they would, only sooner or later by the clock.
 
+A timeline stretched for a tempo change (`Transport.rescale`) stretches
+`elapsed()` by the same ratio. A host that stretches its clips stretches a
+track's `loopLengthSec` with them, and the track then stays where it was in
+its own pass and what it has sounding plays on (`Scheduler.rescale`); a
+length left as it was puts the track somewhere else in its loop.
+
 A transport loop made shorter than where the position is folds the position
 into it, and `elapsed()` moves by as much, so every cycle is somewhere else
 too. As with any loop change, what sounds is left to sound; the scheduler
