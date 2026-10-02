@@ -88,6 +88,58 @@ class PeakShifter {
     measure();
   }
 
+  // Adds voice `v`'s frame for the last analysis, shifted by `ratio`, into
+  // left/right (N samples each, windowed for a hop of N/4). Only peaks whose
+  // frequency (radians per sample) lies in [from, to) are moved; the rest
+  // are left out, for another shifter to take.
+  void synthesise(int v, float ratio, float from, float to, float* left, float* right) {
+    for (int n = 0; n < N; ++n) re_[n] = im_[n] = 0.0f;
+    const float* lr = spectrum_[current_][0];
+    const float* li = spectrum_[current_][1];
+    const float* rr = spectrum_[current_][2];
+    const float* ri = spectrum_[current_][3];
+    float* theta = theta_[v];
+    const int came = advance_ > 0 ? advance_ : kHop;
+    const float level = 1.0f / (1.5f * N);  // inverse FFT and the squared window at this overlap
+    for (int i = 0; i < num_peaks_; ++i) {
+      const double omega = peak_omega_[i];
+      if (omega < from || omega >= to) continue;
+      const double target = omega * ratio;
+      if (target >= 0.98 * kPi) continue;
+      // Whole bins, and the part of a bin left over as a rotation: it runs
+      // on at the target frequency from frame to frame, and is set so the
+      // partial is exactly right at the middle of the frame.
+      const double move = (target - omega) * N / (2.0 * kPi);
+      const double whole = std::floor(move + 0.5);
+      const float rest = static_cast<float>(move - whole);
+      const int shift = static_cast<int>(whole);
+      const double turned = wrap(theta[peak_bin_[i]] + target * kHop - omega * came);
+      const float angle = static_cast<float>(turned) + rest * static_cast<float>(kPi);
+      const float gain = level / (1.0f - 0.38f * rest * rest);  // a bin's slope off centre
+      const float c = gain * std::cos(angle);
+      const float s = gain * std::sin(angle);
+      const float kept = static_cast<float>(turned);
+      for (int k = peak_from_[i]; k < peak_to_[i]; ++k) {
+        theta[k] = kept;
+        const int j = k + shift;
+        if (j < 1 || j >= kHalf) continue;
+        const float a = lr[k] * c - li[k] * s;
+        const float b = lr[k] * s + li[k] * c;
+        const float p = rr[k] * c - ri[k] * s;
+        const float q = rr[k] * s + ri[k] * c;
+        re_[j] += a - q;
+        im_[j] += b + p;
+        re_[N - j] += a + q;
+        im_[N - j] += p - b;
+      }
+    }
+    fft_.inverse(re_, im_);
+    for (int n = 0; n < N; ++n) {
+      left[n] += re_[n] * window_[n];
+      right[n] += im_[n] * window_[n];
+    }
+  }
+
  private:
   static constexpr double kPi = 3.14159265358979323846;
   static constexpr float kFloor = 1.0e-10f;  // peaks this far under the loudest bin are left alone
@@ -123,8 +175,6 @@ class PeakShifter {
   // The frequency of each peak, from the phase it gained since last frame
   // (left and right together, weighted by their power).
   void measure() {
-    const float* const* none = nullptr;
-    (void)none;
     const int was = current_ ^ 1;
     for (int i = 0; i < num_peaks_; ++i) {
       const int k = peak_bin_[i];
