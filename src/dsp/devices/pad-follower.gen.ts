@@ -132,7 +132,7 @@ export const PAD_FOLLOWER_DESCRIPTOR = wasmDeviceDescriptor(PAD_FOLLOWER_DEVICE,
   description:
     'Grows a soft string-section pad out of whatever you play: the same chord swells in behind you, follows your harmony as it changes and fades when you stop.',
   presets: {
-    'Strings behind': {},
+    'String pad': {},
     'Slow swell': {
       rise: 4,
       fall: 7,
@@ -145,7 +145,7 @@ export const PAD_FOLLOWER_DESCRIPTOR = wasmDeviceDescriptor(PAD_FOLLOWER_DEVICE,
       width: 1,
       mix: 0.5,
     },
-    'Long shadow': {
+    Lingering: {
       rise: 1.2,
       fall: 18,
       sensitivity: 0.45,
@@ -181,7 +181,7 @@ export const PAD_FOLLOWER_DESCRIPTOR = wasmDeviceDescriptor(PAD_FOLLOWER_DEVICE,
       width: 0.6,
       mix: 0.4,
     },
-    'Tight double': {
+    Doubler: {
       rise: 0.05,
       fall: 0.8,
       sensitivity: 0.5,
@@ -193,7 +193,7 @@ export const PAD_FOLLOWER_DESCRIPTOR = wasmDeviceDescriptor(PAD_FOLLOWER_DEVICE,
       width: 0.8,
       mix: 0.4,
     },
-    'Glass section': {
+    Glassy: {
       rise: 0.15,
       fall: 2.5,
       sensitivity: 0.6,
@@ -217,7 +217,7 @@ export const PAD_FOLLOWER_DESCRIPTOR = wasmDeviceDescriptor(PAD_FOLLOWER_DEVICE,
       width: 0.7,
       mix: 0.2,
     },
-    'Section alone': {
+    'Pad alone': {
       rise: 0.35,
       fall: 5,
       sensitivity: 0.55,
@@ -253,7 +253,7 @@ export const PAD_FOLLOWER_DESCRIPTOR = wasmDeviceDescriptor(PAD_FOLLOWER_DEVICE,
       width: 0,
       mix: 0.5,
     },
-    'Restless section': {
+    Restless: {
       rise: 0.5,
       fall: 6,
       sensitivity: 0.55,
@@ -277,7 +277,7 @@ export const PAD_FOLLOWER_DESCRIPTOR = wasmDeviceDescriptor(PAD_FOLLOWER_DEVICE,
       width: 1,
       mix: 0.45,
     },
-    'Catch everything': {
+    'Catch all': {
       rise: 0.2,
       fall: 10,
       sensitivity: 1,
@@ -313,6 +313,15 @@ export const PAD_FOLLOWER_DESCRIPTOR = wasmDeviceDescriptor(PAD_FOLLOWER_DEVICE,
       width: 0.8,
       mix: 0.5,
     },
+  },
+  formerPresets: {
+    'Strings behind': 'String pad',
+    'Long shadow': 'Lingering',
+    'Tight double': 'Doubler',
+    'Glass section': 'Glassy',
+    'Section alone': 'Pad alone',
+    'Restless section': 'Restless',
+    'Catch everything': 'Catch all',
   },
 })
 

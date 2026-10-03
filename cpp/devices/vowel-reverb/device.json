@@ -145,7 +145,7 @@
       "highCut": 14000,
       "mix": 0.35
     },
-    "Moving vowels": {
+    "Vowel drift": {
       "vowel": 1.5,
       "resonance": 0.8,
       "voice": 0.5,
@@ -153,7 +153,7 @@
       "decay": 8,
       "modulation": 0.5
     },
-    "Whispering hall": {
+    "Whispering": {
       "vowel": 0.5,
       "resonance": 0.2,
       "voice": 0.6,
@@ -176,7 +176,7 @@
       "mix": 0.3,
       "width": 0.7
     },
-    "Cathedral choir": {
+    "Cathedral": {
       "vowel": 0.3,
       "resonance": 0.55,
       "voice": 0.35,
@@ -188,7 +188,7 @@
       "highCut": 7000,
       "mix": 0.45
     },
-    "Small chapel": {
+    "Chapel": {
       "vowel": 1,
       "resonance": 0.5,
       "voice": 0.6,
@@ -199,7 +199,7 @@
       "modulation": 0.25,
       "mix": 0.3
     },
-    "Plain stone hall": {
+    "Plain hall": {
       "resonance": 0,
       "decay": 4,
       "size": 0.7,
@@ -231,7 +231,7 @@
       "width": 0,
       "mix": 0.35
     },
-    "Soprano clouds": {
+    "High choir": {
       "vowel": 0,
       "resonance": 0.8,
       "voice": 1,
@@ -260,7 +260,7 @@
       "size": 0.7,
       "preDelay": 200
     },
-    "Humming dark": {
+    "Humming": {
       "vowel": 4,
       "resonance": 0.5,
       "voice": 0,
@@ -270,6 +270,15 @@
       "highCut": 1500,
       "mix": 0.5
     }
+  },
+  "formerPresets": {
+    "Moving vowels": "Vowel drift",
+    "Whispering hall": "Whispering",
+    "Cathedral choir": "Cathedral",
+    "Small chapel": "Chapel",
+    "Plain stone hall": "Plain hall",
+    "Soprano clouds": "High choir",
+    "Humming dark": "Humming"
   },
   "origin": {
     "kind": "new",

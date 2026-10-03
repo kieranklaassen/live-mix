@@ -46,7 +46,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { lowCut: 2, cutoff: 2200, attack: 0.5, release: 3, volume: -7 },
     },
     effects: [
-      { deviceId: 'phaser', preset: 'Slow Swirl', params: { rate: 0.11, mix: 0.45 } },
+      { deviceId: 'phaser', preset: 'Slow swirl', params: { rate: 0.11, mix: 0.45 } },
       { deviceId: 'patina', preset: 'Worn cassette', params: { wobble: 0.5, noise: 0.3 } },
     ],
   },
@@ -71,7 +71,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'analog-delay', preset: 'Long and murky', params: { mix: 0.3 } },
+      { deviceId: 'analog-delay', preset: 'Murky', params: { mix: 0.3 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { damping: 0.6, mix: 0.25 } },
     ],
   },
@@ -96,7 +96,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'vintage-digital', preset: 'Twelve bit', params: { rate: 11000, jitter: 0.3 } },
+      { deviceId: 'vintage-digital', preset: 'Sampler', params: { rate: 11000, jitter: 0.3 } },
       {
         deviceId: 'tape-echo',
         params: { time: 360, feedback: 0.4, wow: 0.45, flutter: 0.3, highCut: 3500, mix: 0.28 },
@@ -174,7 +174,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'chorus', preset: 'Lush Ensemble', params: { mix: 0.35 } },
+      { deviceId: 'chorus', preset: 'Lush ensemble', params: { mix: 0.35 } },
       { deviceId: 'tape', preset: 'Quarter inch', params: { wow: 0.45, speed: 2 } },
     ],
   },
@@ -210,8 +210,8 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'chorus', preset: 'Classic Chorus', params: { mix: 0.3 } },
-      { deviceId: 'analog-delay', preset: 'Dark repeats', params: { time: 410, mix: 0.28 } },
+      { deviceId: 'chorus', preset: 'Classic chorus', params: { mix: 0.3 } },
+      { deviceId: 'analog-delay', preset: 'Dark echo', params: { time: 410, mix: 0.28 } },
     ],
     preview: 'line',
   },
@@ -239,7 +239,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'vintage-digital', preset: 'Twelve bit', params: { rate: 12000 } },
+      { deviceId: 'vintage-digital', preset: 'Sampler', params: { rate: 12000 } },
       { deviceId: 'spring-reverb', preset: 'Two spring tank', params: { mix: 0.22 } },
     ],
   },
@@ -335,7 +335,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'phaser',
-        preset: 'Warm Six-Stage',
+        preset: 'Warm six-stage',
         params: { rate: 0.14, depth: 70, mix: 0.5 },
       },
       { deviceId: 'tape', preset: 'Quarter inch', params: { wow: 0.4, flutter: 0.25 } },
@@ -392,7 +392,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'half-speed',
-        preset: 'Continuous octave',
+        preset: 'Smooth octave',
         params: { highCut: 5000, mix: 0.5 },
       },
       { deviceId: 'dattorro', preset: 'Long plate', params: { damping: 0.6, mix: 0.25 } },
@@ -418,10 +418,10 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'vintage-digital', preset: 'Dusty sampler', params: { jitter: 0.4, drive: 4 } },
+      { deviceId: 'vintage-digital', preset: 'Dusty', params: { jitter: 0.4, drive: 4 } },
       {
         deviceId: 'analog-delay',
-        preset: 'Dark repeats',
+        preset: 'Dark echo',
         params: { time: 450, feedback: 0.5, mix: 0.3 },
       },
     ],
@@ -448,7 +448,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'flanger', preset: 'Slow Sweep', params: { feedback: 20, mix: 0.35 } },
+      { deviceId: 'flanger', preset: 'Slow sweep', params: { feedback: 20, mix: 0.35 } },
       { deviceId: 'stereo-detune', preset: 'Seasick', params: { detune: 25, mix: 0.25 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.25 } },
     ],
@@ -489,7 +489,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'patina', preset: 'Quarter inch reel', params: { wobble: 0.4, wear: 0.55 } },
-      { deviceId: 'analog-delay', preset: 'Chorus echo', params: { time: 340, mix: 0.3 } },
+      { deviceId: 'analog-delay', preset: 'Chorused', params: { time: 340, mix: 0.3 } },
     ],
   },
   {
@@ -512,7 +512,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'vintage-digital', preset: 'Soft glaze' },
+      { deviceId: 'vintage-digital', preset: 'Glaze' },
       { deviceId: 'spring-reverb', preset: 'Two spring tank', params: { mix: 0.25 } },
     ],
   },
@@ -529,7 +529,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'low-bitrate', preset: 'Behind glass', params: { loss: 0.55 } },
-      { deviceId: 'chorus', preset: 'Slow Drift', params: { mix: 0.35 } },
+      { deviceId: 'chorus', preset: 'Slow drift', params: { mix: 0.35 } },
     ],
   },
   {
@@ -544,7 +544,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { brilliance: 1300, attack: 0.25, release: 5, ring: 0.4, volume: -8 },
     },
     effects: [
-      { deviceId: 'phaser', preset: 'Deep 8-Stage', params: { rate: 0.1, mix: 0.4 } },
+      { deviceId: 'phaser', preset: 'Deep eight-stage', params: { rate: 0.1, mix: 0.4 } },
       { deviceId: 'reverse-delay', preset: 'Backwards echo', params: { mix: 0.25 } },
     ],
   },
@@ -638,7 +638,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'phaser', preset: 'Slow Swirl', params: { stereo: 60, mix: 0.45 } },
+      { deviceId: 'phaser', preset: 'Slow swirl', params: { stereo: 60, mix: 0.45 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.28 } },
     ],
   },
@@ -663,7 +663,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'vintage-digital', preset: 'Glass images', params: { rate: 10000 } },
+      { deviceId: 'vintage-digital', preset: 'Glassy', params: { rate: 10000 } },
       { deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.25 } },
     ],
   },
@@ -690,7 +690,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       { deviceId: 'stereo-detune', preset: 'Seasick', params: { mix: 0.3 } },
       {
         deviceId: 'analog-delay',
-        preset: 'Dark repeats',
+        preset: 'Dark echo',
         params: { time: 500, feedback: 0.5, mix: 0.3 },
       },
     ],
@@ -713,7 +713,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Clean transistor',
         params: { drift: 0.2, fading: 0.2, bandwidth: 0.7, mix: 0.6 },
       },
-      { deviceId: 'chorus', preset: 'Lush Ensemble', params: { mix: 0.4 } },
+      { deviceId: 'chorus', preset: 'Lush ensemble', params: { mix: 0.4 } },
     ],
   },
 
@@ -758,7 +758,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tremolo', preset: 'Pitch wobble', params: { phase: 0, rate: 5, depth: 0.3 } },
-      { deviceId: 'analog-delay', preset: 'Chorus echo', params: { mix: 0.3 } },
+      { deviceId: 'analog-delay', preset: 'Chorused', params: { mix: 0.3 } },
     ],
     preview: 'line',
   },
@@ -799,7 +799,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'phaser', preset: 'Negative Notch', params: { rate: 0.12, mix: 0.4 } },
+      { deviceId: 'phaser', preset: 'Negative notch', params: { rate: 0.12, mix: 0.4 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.28 } },
     ],
     preview: 'low',
@@ -816,7 +816,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { cutoff: 320, decay: 0.9, drive: 0.55, volume: 4 },
     },
     effects: [
-      { deviceId: 'vintage-digital', preset: 'Dusty sampler', params: { jitter: 0.3 } },
+      { deviceId: 'vintage-digital', preset: 'Dusty', params: { jitter: 0.3 } },
       {
         deviceId: 'tape-echo',
         params: { time: 330, feedback: 0.35, wow: 0.3, mix: 0.25 },
@@ -836,7 +836,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { beat: 22, sub: 0.5, cutoff: 500, emphasis: 0.25, drive: 0.35, volume: -8 },
     },
     effects: [
-      { deviceId: 'chorus', preset: 'Deep Sea', params: { mix: 0.4 } },
+      { deviceId: 'chorus', preset: 'Deep sea', params: { mix: 0.4 } },
       { deviceId: 'patina', preset: 'Quarter inch reel', params: { wobble: 0.5 } },
     ],
     preview: 'low',
@@ -898,7 +898,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { age: 0.5, attack: 0.8, release: 3, volume: -9 },
     },
     effects: [
-      { deviceId: 'analog-delay', preset: 'Long and murky', params: { mix: 0.25 } },
+      { deviceId: 'analog-delay', preset: 'Murky', params: { mix: 0.25 } },
       { deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.2 } },
     ],
   },
@@ -934,7 +934,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { age: 0.45, attack: 0.15, release: 1, players: 0.8, volume: -8 },
     },
     effects: [
-      { deviceId: 'phaser', preset: 'Classic 4-Stage', params: { rate: 0.2, mix: 0.4 } },
+      { deviceId: 'phaser', preset: 'Classic four-stage', params: { rate: 0.2, mix: 0.4 } },
       { deviceId: 'spring-reverb', preset: 'Dark amp spring', params: { mix: 0.25, width: 0.6 } },
     ],
     preview: 'chord',
@@ -988,7 +988,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'phaser',
-        preset: 'Warm Six-Stage',
+        preset: 'Warm six-stage',
         params: { feedback: 55, rate: 0.35, mix: 0.5 },
       },
       { deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.2 } },
@@ -1006,8 +1006,8 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { decay: 1.4, tremolo: 0, volume: -14 },
     },
     effects: [
-      { deviceId: 'vintage-digital', preset: 'Eight bit toy', params: { rate: 9000, bits: 10 } },
-      { deviceId: 'analog-delay', preset: 'Dark repeats', params: { mix: 0.28 } },
+      { deviceId: 'vintage-digital', preset: 'Toy', params: { rate: 9000, bits: 10 } },
+      { deviceId: 'analog-delay', preset: 'Dark echo', params: { mix: 0.28 } },
     ],
   },
   {
@@ -1022,7 +1022,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { tremolo: 0.6, tremoloRate: 0.6, volume: -12 },
     },
     effects: [
-      { deviceId: 'chorus', preset: 'Lush Ensemble', params: { mix: 0.4 } },
+      { deviceId: 'chorus', preset: 'Lush ensemble', params: { mix: 0.4 } },
       { deviceId: 'tape', preset: 'Quarter inch', params: { wow: 0.35 } },
     ],
   },
@@ -1093,12 +1093,12 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'vintage-digital',
-        preset: 'Dusty sampler',
+        preset: 'Dusty',
         params: { rate: 9000, jitter: 0.35, drive: 6 },
       },
       {
         deviceId: 'analog-delay',
-        preset: 'Dark repeats',
+        preset: 'Dark echo',
         params: { time: 520, feedback: 0.4, mix: 0.25 },
       },
     ],
@@ -1124,7 +1124,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
       {
         deviceId: 'phaser',
-        preset: 'Classic 4-Stage',
+        preset: 'Classic four-stage',
         params: { rate: 0.18, depth: 45, mix: 0.3 },
       },
     ],
@@ -1155,8 +1155,8 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { hardness: 0.45, tone: 3000, warmth: 0.5, volume: -1 },
     },
     effects: [
-      { deviceId: 'stereo-detune', preset: 'Thick double', params: { detune: 16 } },
-      { deviceId: 'echo-memory', preset: 'Half-remembered', params: { mix: 0.3 } },
+      { deviceId: 'stereo-detune', preset: 'Doubled', params: { detune: 16 } },
+      { deviceId: 'echo-memory', preset: 'Hazy past', params: { mix: 0.3 } },
     ],
   },
   {
@@ -1211,7 +1211,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       'Overlapping steel notes that slide a long way into each other, under a slow phaser and a long spring.',
     instrument: { deviceId: 'pedal-steel', preset: 'Long slides', params: { volume: -4.8 } },
     effects: [
-      { deviceId: 'phaser', preset: 'Warm Six-Stage', params: { rate: 0.2, mix: 0.35 } },
+      { deviceId: 'phaser', preset: 'Warm six-stage', params: { rate: 0.2, mix: 0.35 } },
       { deviceId: 'spring-reverb', preset: 'Long three spring', params: { mix: 0.3 } },
     ],
   },
@@ -1229,7 +1229,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { sweep: 0.9, volume: -4.8 },
     },
     effects: [
-      { deviceId: 'vintage-digital', preset: 'Soft glaze', params: { rate: 13000 } },
+      { deviceId: 'vintage-digital', preset: 'Glaze', params: { rate: 13000 } },
       {
         deviceId: 'tape-echo',
         params: { time: 400, feedback: 0.4, heads: 1, wow: 0.35, mix: 0.25 },
@@ -1250,7 +1250,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'low-bitrate', preset: 'Behind glass', params: { loss: 0.6 } },
-      { deviceId: 'shaped-reverb', preset: 'Backwards cloud', params: { time: 0.8, mix: 0.35 } },
+      { deviceId: 'shaped-reverb', preset: 'Reverse', params: { time: 0.8, mix: 0.35 } },
     ],
   },
 
@@ -1267,7 +1267,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { strum: 70, sustain: 4, tone: 0.4, pad: 0.45, volume: -8 },
     },
     effects: [
-      { deviceId: 'chorus', preset: 'Wide Chorus', params: { mix: 0.4 } },
+      { deviceId: 'chorus', preset: 'Wide chorus', params: { mix: 0.4 } },
       { deviceId: 'tape', preset: 'Cassette four-track', params: { wow: 0.5 } },
     ],
   },
@@ -1279,7 +1279,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       'A short toy strum over one octave, through eight-bit converters with companding, in a small room.',
     instrument: { deviceId: 'chord-harp', preset: 'Toy harp', params: { volume: -1 } },
     effects: [
-      { deviceId: 'vintage-digital', preset: 'Eight bit toy' },
+      { deviceId: 'vintage-digital', preset: 'Toy' },
       { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.2 } },
     ],
   },
@@ -1310,7 +1310,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       'A dulcimer rolled with hammers into a shimmer, phased slowly, with three echo heads trailing.',
     instrument: { deviceId: 'zither', preset: 'Hammered shimmer', params: { volume: -8 } },
     effects: [
-      { deviceId: 'phaser', preset: 'Slow Swirl', params: { rate: 0.1, mix: 0.4 } },
+      { deviceId: 'phaser', preset: 'Slow swirl', params: { rate: 0.1, mix: 0.4 } },
       { deviceId: 'tape-echo', params: { time: 560, feedback: 0.4, heads: 2, mix: 0.25 } },
     ],
   },
@@ -1329,7 +1329,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Half speed',
         params: { length: 1400, smooth: 0.8, highCut: 4000, mix: 0.6 },
       },
-      { deviceId: 'vintage-digital', preset: 'Twelve bit' },
+      { deviceId: 'vintage-digital', preset: 'Sampler' },
     ],
   },
   {
@@ -1347,7 +1347,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       { deviceId: 'micro-looper', preset: 'Lo-fi quarter', params: { mix: 0.3 } },
       {
         deviceId: 'analog-delay',
-        preset: 'Dark repeats',
+        preset: 'Dark echo',
         params: { time: 375, feedback: 0.5, mix: 0.3 },
       },
     ],
@@ -1386,7 +1386,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { mallet: 0.6, volume: -4 },
     },
     effects: [
-      { deviceId: 'vintage-digital', preset: 'Worn converter', params: { jitter: 0.5 } },
+      { deviceId: 'vintage-digital', preset: 'Worn', params: { jitter: 0.5 } },
       {
         deviceId: 'tape-echo',
         params: { time: 340, feedback: 0.45, wow: 0.4, flutter: 0.3, mix: 0.3 },
@@ -1442,7 +1442,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { brightness: 0.3, decay: 2, release: 0.8, volume: -8.5 },
     },
     effects: [
-      { deviceId: 'chorus', preset: 'Classic Chorus', params: { mix: 0.4 } },
+      { deviceId: 'chorus', preset: 'Classic chorus', params: { mix: 0.4 } },
       { deviceId: 'tape', preset: 'Quarter inch', params: { wow: 0.5, flutter: 0.3 } },
     ],
   },
@@ -1459,7 +1459,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'radio', preset: 'Kitchen radio', params: { mix: 0.7 } },
-      { deviceId: 'phaser', preset: 'Slow Swirl', params: { mix: 0.4 } },
+      { deviceId: 'phaser', preset: 'Slow swirl', params: { mix: 0.4 } },
     ],
   },
 
@@ -1492,7 +1492,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'freq-shifter', preset: 'Slow drift', params: { mix: 0.4 } },
-      { deviceId: 'analog-delay', preset: 'Long and murky', params: { mix: 0.3 } },
+      { deviceId: 'analog-delay', preset: 'Murky', params: { mix: 0.3 } },
     ],
   },
 
@@ -1564,7 +1564,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { motion: 0.8, vibrato: 0, attack: 2, release: 5, volume: -12 },
     },
     effects: [
-      { deviceId: 'low-bitrate', preset: 'Smeared phases', params: { loss: 0.5 } },
+      { deviceId: 'low-bitrate', preset: 'Smeared haze', params: { loss: 0.5 } },
       { deviceId: 'spectral-blur', preset: 'Hanging mist', params: { mix: 0.4 } },
     ],
   },
@@ -1584,7 +1584,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'analog-delay',
-        preset: 'Seasick vibrato',
+        preset: 'Seasick',
         params: { time: 28, feedback: 0.1, modRate: 2.4, mix: 0.5 },
       },
       { deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.25 } },
@@ -1603,7 +1603,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'patina', preset: 'Quarter inch reel', params: { wobble: 0.45, wear: 0.6 } },
-      { deviceId: 'chorus', preset: 'Slow Drift', params: { mix: 0.3 } },
+      { deviceId: 'chorus', preset: 'Slow drift', params: { mix: 0.3 } },
     ],
     preview: 'chord',
   },
@@ -1622,7 +1622,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tape', preset: 'Seasick', params: { wow: 0.75, flutter: 0.3, hiss: 0.25 } },
-      { deviceId: 'analog-delay', preset: 'Dark repeats', params: { mix: 0.25 } },
+      { deviceId: 'analog-delay', preset: 'Dark echo', params: { mix: 0.25 } },
     ],
   },
   {
@@ -1633,7 +1633,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       'Pan pipes with their chiff, replayed by a gritty old sampler, with dotted tape echoes.',
     instrument: { deviceId: 'flute', preset: 'Pan pipes', params: { volume: -11 } },
     effects: [
-      { deviceId: 'vintage-digital', preset: 'Dusty sampler', params: { jitter: 0.35 } },
+      { deviceId: 'vintage-digital', preset: 'Dusty', params: { jitter: 0.35 } },
       { deviceId: 'tape-echo', params: { time: 450, feedback: 0.4, heads: 3, mix: 0.28 } },
     ],
   },
@@ -1651,7 +1651,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { vibrato: 0.2, volume: -1.5 },
     },
     effects: [
-      { deviceId: 'echo-memory', preset: 'Distant minute', params: { time: 1100, mix: 0.3 } },
+      { deviceId: 'echo-memory', preset: 'Minute ago', params: { time: 1100, mix: 0.3 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.25 } },
     ],
   },
@@ -1724,7 +1724,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { cutoff: 800, volume: -4.5 },
     },
     effects: [
-      { deviceId: 'phaser', preset: 'Twelve Stage Cloud', params: { rate: 0.07, mix: 0.4 } },
+      { deviceId: 'phaser', preset: 'Twelve stage cloud', params: { rate: 0.07, mix: 0.4 } },
       { deviceId: 'tape', preset: 'Quarter inch', params: { wow: 0.45 } },
     ],
   },
@@ -1762,7 +1762,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { jawari: 0.7, volume: -5 },
     },
     effects: [
-      { deviceId: 'phaser', preset: 'Warm Six-Stage', params: { rate: 0.1, mix: 0.4 } },
+      { deviceId: 'phaser', preset: 'Warm six-stage', params: { rate: 0.1, mix: 0.4 } },
       { deviceId: 'patina', preset: 'Quarter inch reel', params: { wobble: 0.4 } },
     ],
   },
@@ -1857,7 +1857,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     instrument: { deviceId: 'outdoors', preset: 'Small stream', params: { volume: -2.5 } },
     effects: [
       { deviceId: 'tape', preset: 'Cassette four-track', params: { wow: 0.5 } },
-      { deviceId: 'vintage-digital', preset: 'Soft glaze' },
+      { deviceId: 'vintage-digital', preset: 'Glaze' },
     ],
   },
 
@@ -1874,8 +1874,8 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 0.02, release: 1.2, tone: 4000, wobble: 0.7, volume: -13 },
     },
     effects: [
-      { deviceId: 'vintage-digital', preset: 'Twelve bit' },
-      { deviceId: 'chorus', preset: 'Classic Chorus', params: { mix: 0.3 } },
+      { deviceId: 'vintage-digital', preset: 'Sampler' },
+      { deviceId: 'chorus', preset: 'Classic chorus', params: { mix: 0.3 } },
     ],
   },
   {
@@ -1920,7 +1920,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { spread: 0.7, volume: -16 },
     },
     effects: [
-      { deviceId: 'phaser', preset: 'Deep 8-Stage', params: { rate: 0.08, mix: 0.4 } },
+      { deviceId: 'phaser', preset: 'Deep eight-stage', params: { rate: 0.08, mix: 0.4 } },
       { deviceId: 'analog-delay', preset: 'Falling tape', params: { mix: 0.3 } },
     ],
   },
@@ -1939,8 +1939,8 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'ambient-limiter', params: { ceiling: -6, gain: 5.5 } },
-      { deviceId: 'flanger', preset: 'Wide Wash', params: { mix: 0.45 } },
-      { deviceId: 'analog-delay', preset: 'Long and murky', params: { mix: 0.2 } },
+      { deviceId: 'flanger', preset: 'Wide wash', params: { mix: 0.45 } },
+      { deviceId: 'analog-delay', preset: 'Murky', params: { mix: 0.2 } },
     ],
     preview: 'hold',
   },
@@ -1976,7 +1976,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tape', preset: 'Quarter inch', params: { wow: 0.5 } },
-      { deviceId: 'analog-delay', preset: 'Dark repeats', params: { time: 360, mix: 0.3 } },
+      { deviceId: 'analog-delay', preset: 'Dark echo', params: { time: 360, mix: 0.3 } },
     ],
   },
   {
@@ -1988,7 +1988,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     instrument: { deviceId: 'west-coast', preset: 'Slow bloom', params: { volume: -10 } },
     effects: [
       { deviceId: 'patina', preset: 'Quarter inch reel', params: { wobble: 0.5 } },
-      { deviceId: 'chorus', preset: 'Slow Drift', params: { mix: 0.35 } },
+      { deviceId: 'chorus', preset: 'Slow drift', params: { mix: 0.35 } },
     ],
   },
 ]

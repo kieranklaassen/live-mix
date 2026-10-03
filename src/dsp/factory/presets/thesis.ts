@@ -31,7 +31,7 @@ export const THESIS_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'limiter-1176', params: { inputGain: 8 } },
-      { deviceId: 'chorus', preset: 'Slow Drift', params: { spread: 60, mix: 0.35 } },
+      { deviceId: 'chorus', preset: 'Slow drift', params: { spread: 60, mix: 0.35 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
     preview: 'hold',

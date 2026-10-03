@@ -154,7 +154,7 @@ export const SHAPED_REVERB_DESCRIPTOR = wasmDeviceDescriptor(SHAPED_REVERB_DEVIC
   description:
     'A reverb whose level follows a drawn shape instead of dying away: it can hold and stop dead, rise backwards into a cut, swell and fade, fall in a straight line or breathe in waves.',
   presets: {
-    'Backwards cloud': {
+    Reverse: {
       shape: 1,
       time: 1.2,
       density: 0.9,
@@ -163,7 +163,7 @@ export const SHAPED_REVERB_DESCRIPTOR = wasmDeviceDescriptor(SHAPED_REVERB_DEVIC
       tail: 0.3,
       mix: 0.45,
     },
-    'Gated room': {
+    Gated: {
       shape: 0,
       time: 0.35,
       density: 1,
@@ -174,7 +174,7 @@ export const SHAPED_REVERB_DESCRIPTOR = wasmDeviceDescriptor(SHAPED_REVERB_DEVIC
       tail: 0,
       mix: 0.4,
     },
-    'Slow bloom': {
+    Bloom: {
       shape: 2,
       time: 2.5,
       density: 1,
@@ -185,7 +185,7 @@ export const SHAPED_REVERB_DESCRIPTOR = wasmDeviceDescriptor(SHAPED_REVERB_DEVIC
       tail: 0.45,
       mix: 0.5,
     },
-    'Straight fall': {
+    Falling: {
       shape: 3,
       time: 1.6,
       density: 0.85,
@@ -194,7 +194,7 @@ export const SHAPED_REVERB_DESCRIPTOR = wasmDeviceDescriptor(SHAPED_REVERB_DEVIC
       tail: 0.2,
       mix: 0.35,
     },
-    'Breathing pulses': {
+    Breathing: {
       shape: 4,
       time: 1.8,
       density: 0.9,
@@ -226,7 +226,7 @@ export const SHAPED_REVERB_DESCRIPTOR = wasmDeviceDescriptor(SHAPED_REVERB_DEVIC
       tail: 0.15,
       mix: 0.3,
     },
-    'Long reverse': {
+    'Long rise': {
       shape: 1,
       time: 4,
       density: 1,
@@ -235,7 +235,7 @@ export const SHAPED_REVERB_DESCRIPTOR = wasmDeviceDescriptor(SHAPED_REVERB_DEVIC
       tail: 0.5,
       mix: 0.55,
     },
-    'Scattered echoes': {
+    Scattered: {
       shape: 3,
       time: 2.2,
       density: 0.15,
@@ -244,7 +244,7 @@ export const SHAPED_REVERB_DESCRIPTOR = wasmDeviceDescriptor(SHAPED_REVERB_DEVIC
       tail: 0.4,
       mix: 0.4,
     },
-    'Stepped gate': {
+    'Gate steps': {
       shape: 0,
       time: 0.25,
       density: 0.95,
@@ -254,7 +254,7 @@ export const SHAPED_REVERB_DESCRIPTOR = wasmDeviceDescriptor(SHAPED_REVERB_DEVIC
       tail: 0.1,
       mix: 0.5,
     },
-    'Slow waves': {
+    'Slow tide': {
       shape: 4,
       time: 4,
       density: 1,
@@ -264,16 +264,8 @@ export const SHAPED_REVERB_DESCRIPTOR = wasmDeviceDescriptor(SHAPED_REVERB_DEVIC
       tail: 0.5,
       mix: 0.45,
     },
-    'Quick ripples': {
-      shape: 4,
-      time: 0.45,
-      density: 0.8,
-      colour: -0.1,
-      repeat: 0.8,
-      tail: 0,
-      mix: 0.45,
-    },
-    'Narrow slap': {
+    Ripples: { shape: 4, time: 0.45, density: 0.8, colour: -0.1, repeat: 0.8, tail: 0, mix: 0.45 },
+    'Mono slap': {
       shape: 0,
       time: 0.15,
       density: 0.3,
@@ -294,7 +286,7 @@ export const SHAPED_REVERB_DESCRIPTOR = wasmDeviceDescriptor(SHAPED_REVERB_DEVIC
       tail: 0.9,
       mix: 0.55,
     },
-    'Bright sparks': {
+    Sparkles: {
       shape: 1,
       time: 0.5,
       density: 0.2,
@@ -314,6 +306,20 @@ export const SHAPED_REVERB_DESCRIPTOR = wasmDeviceDescriptor(SHAPED_REVERB_DEVIC
       tail: 0.6,
       mix: 0.4,
     },
+  },
+  formerPresets: {
+    'Backwards cloud': 'Reverse',
+    'Gated room': 'Gated',
+    'Slow bloom': 'Bloom',
+    'Straight fall': 'Falling',
+    'Breathing pulses': 'Breathing',
+    'Long reverse': 'Long rise',
+    'Scattered echoes': 'Scattered',
+    'Stepped gate': 'Gate steps',
+    'Slow waves': 'Slow tide',
+    'Quick ripples': 'Ripples',
+    'Narrow slap': 'Mono slap',
+    'Bright sparks': 'Sparkles',
   },
 })
 

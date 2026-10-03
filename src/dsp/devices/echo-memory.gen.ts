@@ -153,7 +153,7 @@ export const ECHO_MEMORY_DESCRIPTOR = wasmDeviceDescriptor(ECHO_MEMORY_DEVICE, {
   description:
     'An echo with a long memory: under the repeats, moments from the last minute of playing drift back, sometimes backwards or at half speed.',
   presets: {
-    Remembering: {
+    Recalling: {
       time: 500,
       feedback: 0.35,
       echo: 0.7,
@@ -167,7 +167,7 @@ export const ECHO_MEMORY_DESCRIPTOR = wasmDeviceDescriptor(ECHO_MEMORY_DEVICE, {
       spread: 0.6,
       mix: 0.4,
     },
-    'Long memory': {
+    'Far back': {
       time: 750,
       feedback: 0.4,
       echo: 0.5,
@@ -193,7 +193,7 @@ export const ECHO_MEMORY_DESCRIPTOR = wasmDeviceDescriptor(ECHO_MEMORY_DEVICE, {
       spread: 1,
       mix: 0.4,
     },
-    'Backwards glances': {
+    Backwards: {
       time: 600,
       feedback: 0.3,
       echo: 0.45,
@@ -206,7 +206,7 @@ export const ECHO_MEMORY_DESCRIPTOR = wasmDeviceDescriptor(ECHO_MEMORY_DEVICE, {
       spread: 0.8,
       mix: 0.4,
     },
-    'Half-remembered': {
+    'Hazy past': {
       time: 1000,
       feedback: 0.5,
       echo: 0.3,
@@ -242,7 +242,7 @@ export const ECHO_MEMORY_DESCRIPTOR = wasmDeviceDescriptor(ECHO_MEMORY_DEVICE, {
       spread: 0.8,
       mix: 0.45,
     },
-    'Distant minute': {
+    'Minute ago': {
       time: 1500,
       feedback: 0.5,
       echo: 0.6,
@@ -255,7 +255,7 @@ export const ECHO_MEMORY_DESCRIPTOR = wasmDeviceDescriptor(ECHO_MEMORY_DEVICE, {
       spread: 0.8,
       mix: 0.35,
     },
-    'Only memories': {
+    'No echo': {
       echo: 0,
       memory: 1,
       reach: 20,
@@ -278,7 +278,7 @@ export const ECHO_MEMORY_DESCRIPTOR = wasmDeviceDescriptor(ECHO_MEMORY_DEVICE, {
       spread: 0.6,
       mix: 0.15,
     },
-    'Long dark trail': {
+    'Dark trail': {
       time: 1100,
       feedback: 0.88,
       echo: 1,
@@ -300,7 +300,7 @@ export const ECHO_MEMORY_DESCRIPTOR = wasmDeviceDescriptor(ECHO_MEMORY_DEVICE, {
       spread: 1,
       mix: 0.35,
     },
-    'Gathering swarm': {
+    Swarm: {
       time: 400,
       feedback: 0.2,
       echo: 0.2,
@@ -314,7 +314,7 @@ export const ECHO_MEMORY_DESCRIPTOR = wasmDeviceDescriptor(ECHO_MEMORY_DEVICE, {
       spread: 1,
       mix: 0.45,
     },
-    'Four second return': {
+    'Late return': {
       time: 4000,
       feedback: 0.55,
       echo: 0.9,
@@ -327,7 +327,7 @@ export const ECHO_MEMORY_DESCRIPTOR = wasmDeviceDescriptor(ECHO_MEMORY_DEVICE, {
       spread: 0.5,
       mix: 0.4,
     },
-    'A moment ago': {
+    'Just now': {
       time: 250,
       feedback: 0.2,
       echo: 0.3,
@@ -340,7 +340,7 @@ export const ECHO_MEMORY_DESCRIPTOR = wasmDeviceDescriptor(ECHO_MEMORY_DEVICE, {
       spread: 0,
       mix: 0.38,
     },
-    'Slap and glimpses': {
+    Glimpses: {
       time: 70,
       feedback: 0.15,
       echo: 0.6,
@@ -352,6 +352,19 @@ export const ECHO_MEMORY_DESCRIPTOR = wasmDeviceDescriptor(ECHO_MEMORY_DEVICE, {
       spread: 0.9,
       mix: 0.35,
     },
+  },
+  formerPresets: {
+    Remembering: 'Recalling',
+    'Long memory': 'Far back',
+    'Backwards glances': 'Backwards',
+    'Half-remembered': 'Hazy past',
+    'Distant minute': 'Minute ago',
+    'Only memories': 'No echo',
+    'Long dark trail': 'Dark trail',
+    'Gathering swarm': 'Swarm',
+    'Four second return': 'Late return',
+    'A moment ago': 'Just now',
+    'Slap and glimpses': 'Glimpses',
   },
 })
 

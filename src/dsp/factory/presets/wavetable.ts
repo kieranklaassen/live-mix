@@ -35,7 +35,7 @@ export const WAVETABLE_PRESETS: readonly FactoryPreset[] = [
       params: { motion: 1, rate: 0.09, spread: 0.6 },
     },
     effects: [
-      { deviceId: 'chorus', preset: 'Slow Drift', params: { spread: 60, mix: 0.35 } },
+      { deviceId: 'chorus', preset: 'Slow drift', params: { spread: 60, mix: 0.35 } },
       { deviceId: 'expanse', preset: 'Open space', params: { mix: 0.3, width: 0.8 } },
     ],
   },
@@ -78,7 +78,7 @@ export const WAVETABLE_PRESETS: readonly FactoryPreset[] = [
       params: { sub: 0.55, cutoff: 650 },
     },
     effects: [
-      { deviceId: 'phaser', preset: 'Slow Swirl', params: { mix: 0.4 } },
+      { deviceId: 'phaser', preset: 'Slow swirl', params: { mix: 0.4 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },

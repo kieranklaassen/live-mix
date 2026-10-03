@@ -25,7 +25,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     description: 'A concert harp plucked mid-string, turned slowly by a phaser in a small plate.',
     instrument: { deviceId: 'harp', preset: 'Concert harp', params: { touch: 0.5, volume: 0 } },
     effects: [
-      { deviceId: 'phaser', preset: 'Slow Swirl', params: { rate: 0.11, mix: 0.4 } },
+      { deviceId: 'phaser', preset: 'Slow swirl', params: { rate: 0.11, mix: 0.4 } },
       { deviceId: 'dattorro', preset: 'Small plate', params: { decay: 0.6, mix: 0.28 } },
     ],
   },
@@ -97,7 +97,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { pluck: 0.22, touch: 0.5, decay: 1.8, halo: 0.6, body: 0.9, volume: -8.5 },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Warm Glue' },
+      { deviceId: 'saturator', preset: 'Warm glue' },
       {
         deviceId: 'spring-reverb',
         preset: 'Dark amp spring',
@@ -122,7 +122,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Slow swell',
         params: { rise: 1.6, fall: 6, octaves: 0.3, ensemble: 0.5, mix: 0.45 },
       },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.28 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.28 } },
     ],
     preview: 'chord',
   },
@@ -157,7 +157,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'rotary', preset: 'Chorale', params: { drive: 0.3 } },
-      { deviceId: 'saturator', preset: 'Warm Glue' },
+      { deviceId: 'saturator', preset: 'Warm glue' },
       { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.3 } },
     ],
   },
@@ -246,7 +246,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { sub: 0.35, octave: 0.5, attack: 0.15, release: 1.2, tone: 4000, volume: -9 },
     },
     effects: [
-      { deviceId: 'phaser', preset: 'Deep 8-Stage', params: { rate: 0.14, feedback: 50 } },
+      { deviceId: 'phaser', preset: 'Deep eight-stage', params: { rate: 0.14, feedback: 50 } },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.35 } },
     ],
   },
@@ -323,7 +323,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       'The suspended tuning on the fourth, with a slow phaser turning its overtones in a hall.',
     instrument: { deviceId: 'tanpura', preset: 'Ma tuning', params: { spread: 0.7, volume: -2 } },
     effects: [
-      { deviceId: 'phaser', preset: 'Slow Swirl', params: { centerHz: 900, mix: 0.4 } },
+      { deviceId: 'phaser', preset: 'Slow swirl', params: { centerHz: 900, mix: 0.4 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
@@ -355,7 +355,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { jawari: 1, speed: 3.2, decay: 9, body: 0.55, volume: -5.5 },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Tube Preamp', params: { driveDb: 7, outputDb: -4 } },
+      { deviceId: 'saturator', preset: 'Tube preamp', params: { driveDb: 7, outputDb: -4 } },
       { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.3 } },
     ],
   },
@@ -464,7 +464,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Amp tremolo',
         params: { rate: 9, depth: 0.7, shape: 1, phase: 60, drift: 0.6, smooth: 0.3 },
       },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.3 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.3 } },
     ],
   },
   {
@@ -512,7 +512,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 1, release: 2.2, bow: 0.3, vibrato: 9, mute: 0.75, volume: -5 },
     },
     effects: [
-      { deviceId: 'phaser', preset: 'Twelve Stage Cloud', params: { rate: 0.09, mix: 0.45 } },
+      { deviceId: 'phaser', preset: 'Twelve stage cloud', params: { rate: 0.09, mix: 0.45 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
@@ -528,7 +528,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       preset: 'Airport ah',
       params: { ensemble: 0.8, vibrato: 14, attack: 0.5, release: 2, tone: 5200, volume: -10 },
     },
-    effects: [{ deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.3 } }],
+    effects: [{ deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.3 } }],
   },
   {
     id: 'ashram-back-row-basses',
@@ -608,7 +608,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'phaser', preset: 'Slow Swirl', params: { mix: 0.35 } },
+      { deviceId: 'phaser', preset: 'Slow swirl', params: { mix: 0.35 } },
       { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.35 } },
     ],
   },
@@ -642,7 +642,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { bark: 0.15, tremolo: 0.1, tone: 0.45, volume: -9.5 },
     },
     effects: [
-      { deviceId: 'phaser', preset: 'Classic 4-Stage', params: { rate: 0.55, feedback: 50 } },
+      { deviceId: 'phaser', preset: 'Classic four-stage', params: { rate: 0.55, feedback: 50 } },
       { deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.25 } },
     ],
   },
@@ -654,7 +654,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       'Tines played hard so the pickup barks, into a glowing valve stage and a two-spring tank.',
     instrument: { deviceId: 'tine-piano', preset: 'Barking stage', params: { volume: -13 } },
     effects: [
-      { deviceId: 'analog-drive', preset: 'Glowing triode', params: { drive: 0.4, output: -3 } },
+      { deviceId: 'analog-drive', preset: 'Triode glow', params: { drive: 0.4, output: -3 } },
       { deviceId: 'spring-reverb', preset: 'Two spring tank', params: { mix: 0.22 } },
     ],
   },
@@ -689,7 +689,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Dub wash',
         params: { time: 560, feedback: 0.5, spread: 0.7, mix: 0.3 },
       },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.25 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -756,7 +756,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { pad: 0.2, volume: -3.5 },
     },
     effects: [
-      { deviceId: 'phaser', preset: 'Warm Six-Stage', params: { rate: 0.2, mix: 0.45 } },
+      { deviceId: 'phaser', preset: 'Warm six-stage', params: { rate: 0.2, mix: 0.45 } },
       { deviceId: 'spring-reverb', preset: 'Long three spring', params: { mix: 0.25 } },
     ],
     preview: 'chord',
@@ -791,7 +791,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'rotary', preset: 'Chorale', params: { drive: 0.3, spread: 0.9 } },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.28 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.28 } },
     ],
     preview: 'chord',
   },
@@ -891,7 +891,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { brilliance: 3600, attack: 0.7, detune: 16, volume: -6.5 },
     },
     effects: [
-      { deviceId: 'phaser', preset: 'Slow Swirl', params: { rate: 0.09, mix: 0.4 } },
+      { deviceId: 'phaser', preset: 'Slow swirl', params: { rate: 0.09, mix: 0.4 } },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
@@ -920,7 +920,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tape-echo', preset: 'Three heads', params: { feedback: 0.4, mix: 0.25 } },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.3 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.3 } },
     ],
     preview: 'line',
   },
@@ -961,10 +961,10 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'phaser',
-        preset: 'Warm Six-Stage',
+        preset: 'Warm six-stage',
         params: { rate: 0.12, depth: 70, stereo: 30 },
       },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.3 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.3 } },
     ],
   },
   {
@@ -1032,7 +1032,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tape-echo', preset: 'Short and soft', params: { time: 330, mix: 0.25 } },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.3 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.3 } },
     ],
   },
   {
@@ -1047,7 +1047,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { fold: 0.6, attack: 1.5, drift: 0.6, volume: -6 },
     },
     effects: [
-      { deviceId: 'phaser', preset: 'Deep 8-Stage', params: { rate: 0.08, mix: 0.4 } },
+      { deviceId: 'phaser', preset: 'Deep eight-stage', params: { rate: 0.08, mix: 0.4 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
@@ -1144,8 +1144,8 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { roll: 9, mallet: 0.15, volume: -11.5 },
     },
     effects: [
-      { deviceId: 'phaser', preset: 'Warm Six-Stage', params: { rate: 0.15, mix: 0.4 } },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.3 } },
+      { deviceId: 'phaser', preset: 'Warm six-stage', params: { rate: 0.15, mix: 0.4 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.3 } },
     ],
     preview: 'chord',
   },
@@ -1333,7 +1333,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Sitar drone',
         params: { mode: 1, sympathy: 0.75, decay: 5, mix: 0.3, width: 0.5 },
       },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.25 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -1348,7 +1348,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { swell: 1.1, volume: -5.5 },
     },
     effects: [
-      { deviceId: 'chorus', preset: 'Slow Drift', params: { spread: 60, mix: 0.3 } },
+      { deviceId: 'chorus', preset: 'Slow drift', params: { spread: 60, mix: 0.3 } },
       { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.35 } },
     ],
   },
@@ -1382,7 +1382,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { roll: 10, decay: 6, brightness: 0.55, volume: -12 },
     },
     effects: [
-      { deviceId: 'analog-delay', preset: 'Chorus echo', params: { time: 340, mix: 0.25 } },
+      { deviceId: 'analog-delay', preset: 'Chorused', params: { time: 340, mix: 0.25 } },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
@@ -1498,7 +1498,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { breath: 0.45, scoop: 70, vibrato: 0.5, release: 1, volume: -8 },
     },
     effects: [
-      { deviceId: 'analog-delay', preset: 'Dark repeats', params: { time: 420, mix: 0.25 } },
+      { deviceId: 'analog-delay', preset: 'Dark echo', params: { time: 420, mix: 0.25 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
@@ -1516,7 +1516,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tape', preset: 'Mastering deck', params: { drive: 0.4, hiss: 0.15 } },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.3 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.3 } },
     ],
   },
   {
@@ -1531,7 +1531,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { blow: 0.85, growl: 0.8, vibrato: 0.35, volume: -4.5 },
     },
     effects: [
-      { deviceId: 'analog-drive', preset: 'Console edge', params: { drive: 0.5, output: -3 } },
+      { deviceId: 'analog-drive', preset: 'Console', params: { drive: 0.5, output: -3 } },
       { deviceId: 'spring-reverb', preset: 'Two spring tank', params: { mix: 0.25 } },
     ],
   },
@@ -1566,7 +1566,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { beat: 11, cutoff: 420, drive: 0.3, volume: -13 },
     },
     effects: [
-      { deviceId: 'phaser', preset: 'Bass Safe', params: { rate: 0.12, mix: 0.4 } },
+      { deviceId: 'phaser', preset: 'Bass safe', params: { rate: 0.12, mix: 0.4 } },
       { deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.22 } },
     ],
   },
@@ -1705,7 +1705,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'rotary', preset: 'Chorale', params: { drive: 0.3, hornDepth: 0.75 } },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.28 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.28 } },
     ],
   },
 
@@ -1761,8 +1761,8 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 0.6, vibrato: 0.55, age: 0.4, volume: -6.5 },
     },
     effects: [
-      { deviceId: 'flanger', preset: 'Slow Sweep', params: { feedback: 20, mix: 0.3 } },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.3 } },
+      { deviceId: 'flanger', preset: 'Slow sweep', params: { feedback: 20, mix: 0.3 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.3 } },
     ],
   },
   {
@@ -1834,7 +1834,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'limiter-1176', params: { inputGain: 8 } },
-      { deviceId: 'phaser', preset: 'Slow Swirl', params: { mix: 0.35 } },
+      { deviceId: 'phaser', preset: 'Slow swirl', params: { mix: 0.35 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
     preview: 'hold',

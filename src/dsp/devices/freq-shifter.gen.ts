@@ -226,7 +226,7 @@ export const FREQ_SHIFTER_DESCRIPTOR = wasmDeviceDescriptor(FREQ_SHIFTER_DEVICE,
       width: 0.4,
       mix: 0.35,
     },
-    'Travelling beat': {
+    'Moving beat': {
       shift: 0,
       fine: 2.2,
       mode: 0,
@@ -238,7 +238,7 @@ export const FREQ_SHIFTER_DESCRIPTOR = wasmDeviceDescriptor(FREQ_SHIFTER_DEVICE,
       width: 1,
       mix: 0.5,
     },
-    'Rising echoes': {
+    'Rising echo': {
       shift: 0,
       fine: 9,
       mode: 0,
@@ -250,7 +250,7 @@ export const FREQ_SHIFTER_DESCRIPTOR = wasmDeviceDescriptor(FREQ_SHIFTER_DEVICE,
       width: 0.5,
       mix: 0.4,
     },
-    'Parting echoes': {
+    'Parting echo': {
       shift: 35,
       fine: 0,
       mode: 2,
@@ -262,7 +262,7 @@ export const FREQ_SHIFTER_DESCRIPTOR = wasmDeviceDescriptor(FREQ_SHIFTER_DEVICE,
       width: 0.2,
       mix: 0.42,
     },
-    'Wide detune': {
+    Detuned: {
       shift: 0,
       fine: 4,
       mode: 2,
@@ -298,7 +298,7 @@ export const FREQ_SHIFTER_DESCRIPTOR = wasmDeviceDescriptor(FREQ_SHIFTER_DEVICE,
       width: 0.6,
       mix: 0.4,
     },
-    'Drowned bell': {
+    'Sunken bell': {
       shift: 140,
       fine: 0,
       mode: 1,
@@ -310,7 +310,7 @@ export const FREQ_SHIFTER_DESCRIPTOR = wasmDeviceDescriptor(FREQ_SHIFTER_DEVICE,
       width: 0.7,
       mix: 0.75,
     },
-    'Nervous warble': {
+    'Fast warble': {
       shift: 0,
       fine: 0,
       mode: 0,
@@ -322,6 +322,14 @@ export const FREQ_SHIFTER_DESCRIPTOR = wasmDeviceDescriptor(FREQ_SHIFTER_DEVICE,
       width: 0.3,
       mix: 1,
     },
+  },
+  formerPresets: {
+    'Travelling beat': 'Moving beat',
+    'Rising echoes': 'Rising echo',
+    'Parting echoes': 'Parting echo',
+    'Wide detune': 'Detuned',
+    'Drowned bell': 'Sunken bell',
+    'Nervous warble': 'Fast warble',
   },
 })
 

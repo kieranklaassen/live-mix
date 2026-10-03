@@ -110,7 +110,7 @@ export const CHORUS_DESCRIPTOR = wasmDeviceDescriptor(CHORUS_DEVICE, {
   description:
     'Two or three detuned voices on a modulated delay, spread across the stereo field, with feedback and a high-pass on the wet signal: from a light widener to a deep ensemble.',
   presets: {
-    'Wide Chorus': {
+    'Wide chorus': {
       voices: 1,
       rate: 0.8,
       depth: 50,
@@ -120,7 +120,7 @@ export const CHORUS_DESCRIPTOR = wasmDeviceDescriptor(CHORUS_DEVICE, {
       hpHz: 20,
       mix: 0.5,
     },
-    'Classic Chorus': {
+    'Classic chorus': {
       voices: 0,
       rate: 0.8,
       depth: 45,
@@ -130,7 +130,7 @@ export const CHORUS_DESCRIPTOR = wasmDeviceDescriptor(CHORUS_DEVICE, {
       hpHz: 20,
       mix: 0.5,
     },
-    'Lush Ensemble': {
+    'Lush ensemble': {
       voices: 1,
       rate: 0.5,
       depth: 60,
@@ -140,7 +140,7 @@ export const CHORUS_DESCRIPTOR = wasmDeviceDescriptor(CHORUS_DEVICE, {
       hpHz: 20,
       mix: 0.55,
     },
-    'Subtle Widener': {
+    'Subtle widener': {
       voices: 0,
       rate: 0.3,
       depth: 20,
@@ -160,7 +160,7 @@ export const CHORUS_DESCRIPTOR = wasmDeviceDescriptor(CHORUS_DEVICE, {
       hpHz: 20,
       mix: 1,
     },
-    'Guitar Shimmer': {
+    'Guitar shimmer': {
       voices: 1,
       rate: 1.2,
       depth: 40,
@@ -170,7 +170,7 @@ export const CHORUS_DESCRIPTOR = wasmDeviceDescriptor(CHORUS_DEVICE, {
       hpHz: 200,
       mix: 0.45,
     },
-    'Deep Sea': {
+    'Deep sea': {
       voices: 1,
       rate: 0.15,
       depth: 100,
@@ -180,7 +180,7 @@ export const CHORUS_DESCRIPTOR = wasmDeviceDescriptor(CHORUS_DEVICE, {
       hpHz: 60,
       mix: 0.6,
     },
-    'Vocal Thickener': {
+    'Vocal thickener': {
       voices: 1,
       rate: 0.4,
       depth: 25,
@@ -190,7 +190,7 @@ export const CHORUS_DESCRIPTOR = wasmDeviceDescriptor(CHORUS_DEVICE, {
       hpHz: 250,
       mix: 0.4,
     },
-    'Metallic Comb': {
+    'Metallic comb': {
       voices: 0,
       rate: 2,
       depth: 70,
@@ -200,7 +200,7 @@ export const CHORUS_DESCRIPTOR = wasmDeviceDescriptor(CHORUS_DEVICE, {
       hpHz: 20,
       mix: 0.5,
     },
-    'Slow Drift': {
+    'Slow drift': {
       voices: 1,
       rate: 0.08,
       depth: 55,
@@ -210,7 +210,7 @@ export const CHORUS_DESCRIPTOR = wasmDeviceDescriptor(CHORUS_DEVICE, {
       hpHz: 20,
       mix: 0.5,
     },
-    'Faint Air': {
+    'Faint air': {
       voices: 0,
       rate: 0.25,
       depth: 30,
@@ -220,7 +220,7 @@ export const CHORUS_DESCRIPTOR = wasmDeviceDescriptor(CHORUS_DEVICE, {
       hpHz: 500,
       mix: 0.2,
     },
-    'Loose Double': {
+    'Loose double': {
       voices: 0,
       rate: 0.2,
       depth: 12,
@@ -230,7 +230,7 @@ export const CHORUS_DESCRIPTOR = wasmDeviceDescriptor(CHORUS_DEVICE, {
       hpHz: 20,
       mix: 0.5,
     },
-    'Hollow Swell': {
+    'Hollow swell': {
       voices: 1,
       rate: 0.1,
       depth: 85,
@@ -240,7 +240,7 @@ export const CHORUS_DESCRIPTOR = wasmDeviceDescriptor(CHORUS_DEVICE, {
       hpHz: 20,
       mix: 0.5,
     },
-    'Fast Flutter': {
+    'Fast flutter': {
       voices: 1,
       rate: 6.5,
       depth: 10,
@@ -250,7 +250,7 @@ export const CHORUS_DESCRIPTOR = wasmDeviceDescriptor(CHORUS_DEVICE, {
       hpHz: 150,
       mix: 0.45,
     },
-    'Voices Only': {
+    'Voices only': {
       voices: 1,
       rate: 0.35,
       depth: 70,
@@ -260,7 +260,7 @@ export const CHORUS_DESCRIPTOR = wasmDeviceDescriptor(CHORUS_DEVICE, {
       hpHz: 20,
       mix: 1,
     },
-    'Warped Tape': {
+    'Warped tape': {
       voices: 0,
       rate: 1.3,
       depth: 90,
@@ -270,6 +270,23 @@ export const CHORUS_DESCRIPTOR = wasmDeviceDescriptor(CHORUS_DEVICE, {
       hpHz: 20,
       mix: 0.75,
     },
+  },
+  formerPresets: {
+    'Wide Chorus': 'Wide chorus',
+    'Classic Chorus': 'Classic chorus',
+    'Lush Ensemble': 'Lush ensemble',
+    'Subtle Widener': 'Subtle widener',
+    'Guitar Shimmer': 'Guitar shimmer',
+    'Deep Sea': 'Deep sea',
+    'Vocal Thickener': 'Vocal thickener',
+    'Metallic Comb': 'Metallic comb',
+    'Slow Drift': 'Slow drift',
+    'Faint Air': 'Faint air',
+    'Loose Double': 'Loose double',
+    'Hollow Swell': 'Hollow swell',
+    'Fast Flutter': 'Fast flutter',
+    'Voices Only': 'Voices only',
+    'Warped Tape': 'Warped tape',
   },
 })
 

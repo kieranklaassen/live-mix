@@ -79,7 +79,7 @@
     }
   ],
   "presets": {
-    "Classic wide": {
+    "Classic": {
       "detune": 9,
       "delay": 14,
       "drift": 0.15,
@@ -89,21 +89,21 @@
       "width": 1,
       "mix": 0.36
     },
-    "Subtle halo": {
+    "Soft halo": {
       "detune": 4,
       "delay": 12,
       "drift": 0.1,
       "tone": 6000,
       "mix": 0.28
     },
-    "Thick double": {
+    "Doubled": {
       "detune": 20,
       "delay": 32,
       "drift": 0.25,
       "tone": 8000,
       "mix": 0.38
     },
-    "Treated piano": {
+    "Piano haze": {
       "detune": 12,
       "delay": 18,
       "drift": 0.45,
@@ -111,7 +111,7 @@
       "tone": 3500,
       "mix": 0.38
     },
-    "Wide open": {
+    "Wider": {
       "detune": 14,
       "delay": 20,
       "drift": 0.2,
@@ -128,7 +128,7 @@
       "tone": 5000,
       "mix": 0.35
     },
-    "Detune cloud": {
+    "Cloud": {
       "detune": 6,
       "delay": 22,
       "drift": 0.3,
@@ -144,7 +144,7 @@
       "tone": 6000,
       "mix": 0.4
     },
-    "Centre thickener": {
+    "Thickener": {
       "detune": 7,
       "delay": 12,
       "drift": 0.1,
@@ -158,7 +158,7 @@
       "tone": 3000,
       "mix": 0.14
     },
-    "Top end only": {
+    "Top only": {
       "detune": 10,
       "delay": 12,
       "drift": 0.15,
@@ -166,7 +166,7 @@
       "tone": 18000,
       "mix": 0.5
     },
-    "Dark shadow": {
+    "Shadow": {
       "detune": 16,
       "delay": 28,
       "drift": 0.2,
@@ -174,21 +174,21 @@
       "tone": 1500,
       "mix": 0.5
     },
-    "Late double": {
+    "Late copy": {
       "detune": 5,
       "delay": 60,
       "drift": 0.1,
       "tone": 12000,
       "mix": 0.4
     },
-    "Drifting double": {
+    "Drifting": {
       "detune": 0,
       "delay": 25,
       "drift": 0.6,
       "tone": 10000,
       "mix": 0.45
     },
-    "Melting repeats": {
+    "Melting": {
       "detune": 50,
       "delay": 30,
       "drift": 0.3,
@@ -197,7 +197,7 @@
       "tone": 2500,
       "mix": 0.4
     },
-    "Copies only": {
+    "Wet only": {
       "detune": 12,
       "delay": 16,
       "drift": 0.2,
@@ -205,6 +205,21 @@
       "tone": 12000,
       "mix": 1
     }
+  },
+  "formerPresets": {
+    "Classic wide": "Classic",
+    "Subtle halo": "Soft halo",
+    "Thick double": "Doubled",
+    "Treated piano": "Piano haze",
+    "Wide open": "Wider",
+    "Detune cloud": "Cloud",
+    "Centre thickener": "Thickener",
+    "Top end only": "Top only",
+    "Dark shadow": "Shadow",
+    "Late double": "Late copy",
+    "Drifting double": "Drifting",
+    "Melting repeats": "Melting",
+    "Copies only": "Wet only"
   },
   "origin": {
     "kind": "new",

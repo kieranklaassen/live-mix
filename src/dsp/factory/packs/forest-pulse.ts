@@ -42,7 +42,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'New pressing',
         params: { surface: 0.2, warp: 0.45, crackle: 0.35, wear: 0.4, tone: -0.3 },
       },
-      { deviceId: 'half-speed', preset: 'Continuous octave', params: { highCut: 6000 } },
+      { deviceId: 'half-speed', preset: 'Smooth octave', params: { highCut: 6000 } },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.35 } },
     ],
   },
@@ -115,7 +115,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 0.5, release: 2, vibrato: 16, scatter: 0.5, volume: -2 },
     },
     effects: [
-      { deviceId: 'echo-memory', preset: 'Half-remembered', params: { mix: 0.45 } },
+      { deviceId: 'echo-memory', preset: 'Hazy past', params: { mix: 0.45 } },
       { deviceId: 'expanse', preset: 'Far echoes', params: { mix: 0.4 } },
     ],
     preview: 'line',
@@ -133,7 +133,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'sustainer', preset: 'Dark bed', params: { mix: 0.6 } },
-      { deviceId: 'phaser', preset: 'Slow Swirl', params: { centerHz: 700, mix: 0.35 } },
+      { deviceId: 'phaser', preset: 'Slow swirl', params: { centerHz: 700, mix: 0.35 } },
       { deviceId: 'dattorro', preset: 'Long plate', params: { damping: 0.6, mix: 0.3 } },
     ],
   },
@@ -229,7 +229,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'phaser',
-        preset: 'Twelve Stage Cloud',
+        preset: 'Twelve stage cloud',
         params: { rate: 0.05, stereo: 90, mix: 0.5 },
       },
       { deviceId: 'expanse', preset: 'Open space', params: { mix: 0.4, highCut: 5000 } },
@@ -335,7 +335,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { blow: 0.55, attack: 0.25, release: 1.2, volume: -6 },
     },
     effects: [
-      { deviceId: 'micro-looper', preset: 'Half speed bed', params: { length: 2, mix: 0.45 } },
+      { deviceId: 'micro-looper', preset: 'Half speed', params: { length: 2, mix: 0.45 } },
       { deviceId: 'tape', preset: 'Quarter inch', params: { wow: 0.35 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.35 } },
     ],
@@ -370,7 +370,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { blow: 0.5, section: 1, attack: 1.5, volume: -10 },
     },
     effects: [
-      { deviceId: 'half-speed', preset: 'Continuous octave' },
+      { deviceId: 'half-speed', preset: 'Smooth octave' },
       { deviceId: 'ambient-eq', preset: 'Shaded', params: { highCut: 5000 } },
       { deviceId: 'ether-reverb', preset: 'Cathedral', params: { mix: 0.3 } },
     ],
@@ -388,7 +388,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { breath: 0.65, attack: 0.9, release: 3, vibrato: 0.2, volume: 1.5 },
     },
     effects: [
-      { deviceId: 'chorus', preset: 'Slow Drift', params: { mix: 0.35 } },
+      { deviceId: 'chorus', preset: 'Slow drift', params: { mix: 0.35 } },
       { deviceId: 'shimmer', preset: 'Undertow', params: { mix: 0.4 } },
     ],
   },
@@ -417,7 +417,7 @@ export const PRESETS: readonly FactoryPreset[] = [
           lfoShape: 0,
         },
       },
-      { deviceId: 'shaped-reverb', preset: 'Slow bloom', params: { mix: 0.4 } },
+      { deviceId: 'shaped-reverb', preset: 'Bloom', params: { mix: 0.4 } },
     ],
     preview: 'chord',
   },
@@ -626,7 +626,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { sub: 0.6, cutoff: 90, emphasis: 0.4, contour: 0.9, decay: 8, volume: -2 },
     },
     effects: [
-      { deviceId: 'chorus', preset: 'Deep Sea', params: { mix: 0.4 } },
+      { deviceId: 'chorus', preset: 'Deep sea', params: { mix: 0.4 } },
       { deviceId: 'expanse', preset: 'Open space', params: { mix: 0.3, highCut: 3000 } },
     ],
   },
@@ -662,7 +662,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'flanger',
-        preset: 'Slow Sweep',
+        preset: 'Slow sweep',
         params: { mix: 0.4 },
       },
       {
@@ -739,7 +739,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 0.5, release: 1.2, tone: 3000, volume: -15 },
     },
     effects: [
-      { deviceId: 'vintage-digital', preset: 'Dusty sampler', params: { jitter: 0.5 } },
+      { deviceId: 'vintage-digital', preset: 'Dusty', params: { jitter: 0.5 } },
       { deviceId: 'grain-cloud', preset: 'Slow smear', params: { mix: 0.6 } },
       { deviceId: 'ether-reverb', preset: 'Cathedral', params: { decay: 10, mix: 0.3 } },
     ],
@@ -789,7 +789,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     instrument: { deviceId: 'bowed-string', preset: 'Glass bow', params: { volume: -6 } },
     effects: [
       { deviceId: 'spectral-blur', preset: 'Hanging mist', params: { width: 0.7, mix: 0.6 } },
-      { deviceId: 'vowel-reverb', preset: 'Cathedral choir', params: { mix: 0.4 } },
+      { deviceId: 'vowel-reverb', preset: 'Cathedral', params: { mix: 0.4 } },
     ],
     preview: 'line',
   },
@@ -804,7 +804,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 2.5, release: 5, brightness: 0.35, detune: 16, volume: -14.5 },
     },
     effects: [
-      { deviceId: 'chorus', preset: 'Slow Drift', params: { mix: 0.4 } },
+      { deviceId: 'chorus', preset: 'Slow drift', params: { mix: 0.4 } },
       {
         deviceId: 'auto-filter',
         params: { type: 0, slope: 0, cutoffHz: 900, resonance: 0.9 },
@@ -820,7 +820,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       'Held strings pushed until they sing their octave like amplifier feedback, through a dark valve fuzz closed at 2.4 kHz, in a long plate.',
     instrument: { deviceId: 'bowed-string', preset: 'Octave feedback', params: { volume: -10 } },
     effects: [
-      { deviceId: 'analog-drive', preset: 'Dark fuzz bed', params: { output: -7.5 } },
+      { deviceId: 'analog-drive', preset: 'Dark fuzz', params: { output: -7.5 } },
       { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.35 } },
     ],
   },
@@ -837,7 +837,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'swell', preset: 'Slow attack' },
-      { deviceId: 'echo-memory', preset: 'Half-remembered', params: { mix: 0.5 } },
+      { deviceId: 'echo-memory', preset: 'Hazy past', params: { mix: 0.5 } },
       { deviceId: 'ether-reverb', preset: 'Ether', params: { decay: 12, mix: 0.35 } },
     ],
   },
@@ -909,7 +909,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 3, release: 6, volume: -10.5 },
     },
     effects: [
-      { deviceId: 'phaser', preset: 'Slow Swirl', params: { mix: 0.5 } },
+      { deviceId: 'phaser', preset: 'Slow swirl', params: { mix: 0.5 } },
       { deviceId: 'swarm-reverb', preset: 'Dark well', params: { width: 0.7, mix: 0.4 } },
     ],
   },
@@ -925,7 +925,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 0.3, release: 1.5, tone: 4500, volume: -5 },
     },
     effects: [
-      { deviceId: 'micro-looper', preset: 'Backwards bed', params: { mix: 0.4 } },
+      { deviceId: 'micro-looper', preset: 'Reverse bed', params: { mix: 0.4 } },
       { deviceId: 'tape', preset: 'Worn thin', params: { hiss: 0.3 } },
       { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.3 } },
     ],
@@ -939,7 +939,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       'A choir whose vowels keep changing, doubled an octave below, in a hall that lets the sound in by slow waves.',
     instrument: { deviceId: 'choir', preset: 'Slow vowels', params: { volume: -9.5 } },
     effects: [
-      { deviceId: 'pitch-shifter', preset: 'Pad octave below', params: { mix: 0.6 } },
+      { deviceId: 'pitch-shifter', preset: 'Pad below', params: { mix: 0.6 } },
       { deviceId: 'fdn-reverb', preset: 'Breathing', params: { mix: 0.4 } },
     ],
   },
@@ -990,7 +990,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { strum: 90, sustain: 9, release: 5, volume: 0.5 },
     },
     effects: [
-      { deviceId: 'micro-looper', preset: 'Half speed bed', params: { length: 3, mix: 0.4 } },
+      { deviceId: 'micro-looper', preset: 'Half speed', params: { length: 3, mix: 0.4 } },
       {
         deviceId: 'vinyl',
         preset: 'New pressing',
@@ -1120,7 +1120,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 0.6, release: 2, volume: -5 },
     },
     effects: [
-      { deviceId: 'half-speed', preset: 'Continuous octave', params: { mix: 0.6 } },
+      { deviceId: 'half-speed', preset: 'Smooth octave', params: { mix: 0.6 } },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.4 } },
     ],
   },
@@ -1276,7 +1276,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     instrument: { deviceId: 'felt-piano', preset: 'Intimate', params: { outputDb: -10 } },
     effects: [
       { deviceId: 'swell', preset: 'Piano to pad' },
-      { deviceId: 'pad-follower', preset: 'Long shadow', params: { width: 0.6 } },
+      { deviceId: 'pad-follower', preset: 'Lingering', params: { width: 0.6 } },
       { deviceId: 'spectral-blur', preset: 'Endless', params: { width: 0.3, mix: 0.7 } },
     ],
   },
@@ -1359,7 +1359,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       'A struck bowl with itself two octaves down at quarter speed under it, blurred dark, in a long tail that falls.',
     instrument: { deviceId: 'fm-glass', preset: 'Temple bowl', params: { volume: -15.5 } },
     effects: [
-      { deviceId: 'half-speed', preset: 'Two octaves under', params: { mix: 0.6 } },
+      { deviceId: 'half-speed', preset: 'Two octaves', params: { mix: 0.6 } },
       { deviceId: 'spectral-blur', preset: 'Dark water', params: { width: 0.6, mix: 0.5 } },
       { deviceId: 'bloom-reverb', preset: 'Long dark', params: { mix: 0.4 } },
     ],
@@ -1413,7 +1413,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       'An electric chord swelled in with no pick, through a dark valve fuzz, the sort of rock chord a loop is cut from, in a large room.',
     instrument: { deviceId: 'guitar', preset: 'Volume swell', params: { volume: 0 } },
     effects: [
-      { deviceId: 'analog-drive', preset: 'Dark fuzz bed', params: { output: -6 } },
+      { deviceId: 'analog-drive', preset: 'Dark fuzz', params: { output: -6 } },
       { deviceId: 'expanse', preset: 'Open space', params: { mix: 0.4, highCut: 4000 } },
     ],
     preview: 'chord',
@@ -1440,7 +1440,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       'A steel pan replayed an octave down at half speed and dulled to 900 Hz: mostly the low thump of air under each note.',
     instrument: { deviceId: 'handpan', preset: 'Low ding', params: { volume: -3.5 } },
     effects: [
-      { deviceId: 'half-speed', preset: 'Continuous octave', params: { mix: 0.7 } },
+      { deviceId: 'half-speed', preset: 'Smooth octave', params: { mix: 0.7 } },
       { deviceId: 'auto-filter', params: { type: 0, slope: 0, cutoffHz: 900 } },
       { deviceId: 'shaped-reverb', preset: 'Ghost', params: { mix: 0.4 } },
     ],
@@ -1587,7 +1587,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'vinyl', preset: 'Ballroom 78', params: { crackle: 0.4 } },
-      { deviceId: 'half-speed', preset: 'Continuous octave', params: { mix: 0.5 } },
+      { deviceId: 'half-speed', preset: 'Smooth octave', params: { mix: 0.5 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
@@ -1617,7 +1617,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       'A small stream running close by with a slow phaser turning in it and a short bright halo over the water.',
     instrument: { deviceId: 'outdoors', preset: 'Small stream', params: { volume: 0.5 } },
     effects: [
-      { deviceId: 'phaser', preset: 'Slow Swirl', params: { mix: 0.4 } },
+      { deviceId: 'phaser', preset: 'Slow swirl', params: { mix: 0.4 } },
       { deviceId: 'shimmer', preset: 'Glass', params: { mix: 0.3 } },
     ],
   },
@@ -1708,7 +1708,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       'Drone strings with no buzz, with themselves an octave down at half speed underneath, on tape with a slow wow, in a hall.',
     instrument: { deviceId: 'tanpura', preset: 'Monochord', params: { volume: -4.5 } },
     effects: [
-      { deviceId: 'half-speed', preset: 'Continuous octave', params: { mix: 0.6 } },
+      { deviceId: 'half-speed', preset: 'Smooth octave', params: { mix: 0.6 } },
       { deviceId: 'tape', preset: 'Quarter inch', params: { wow: 0.4 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.35 } },
     ],
@@ -1736,7 +1736,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     instrument: { deviceId: 'thesis', preset: 'Glass Choir', params: { attack: 2 } },
     effects: [
       { deviceId: 'limiter-1176', params: { inputGain: 6, outputGain: 0 } },
-      { deviceId: 'half-speed', preset: 'Continuous octave', params: { mix: 0.6 } },
+      { deviceId: 'half-speed', preset: 'Smooth octave', params: { mix: 0.6 } },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.4 } },
     ],
   },

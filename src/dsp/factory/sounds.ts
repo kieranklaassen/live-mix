@@ -185,7 +185,7 @@ export const FACTORY_SOUNDS: readonly FactorySound[] = [
     description: 'Two bowed strings a fifth apart on {D}, with the wood of the body and a hall.',
     instrument: { deviceId: 'bowed-string', preset: 'Cello drone' },
     effects: [
-      { deviceId: 'chorus', preset: 'Subtle Widener', params: { mix: 0.3 } },
+      { deviceId: 'chorus', preset: 'Subtle widener', params: { mix: 0.3 } },
       zita('Hall', 0.4),
       quarterTurn(8),
     ],
@@ -221,7 +221,7 @@ export const FACTORY_SOUNDS: readonly FactorySound[] = [
       params: { unisonVoices: 1, osc2Fine: 5, ampAttack: 0.3, lfo1Rate: 0.125, lfo1Amount: -0.5 },
     },
     effects: [
-      { deviceId: 'chorus', preset: 'Slow Drift', params: { mix: 0.35 } },
+      { deviceId: 'chorus', preset: 'Slow drift', params: { mix: 0.35 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.4 } },
     ],
     ...looped(16, 3.5, 2, [50, 57, [65, 0.7], [72, 0.6], [76, 0.5]]),
@@ -239,7 +239,7 @@ export const FACTORY_SOUNDS: readonly FactorySound[] = [
       params: { unisonVoices: 1, ampAttack: 0.3, osc2Fine: 3, lfo1Rate: 0.0625, lfo1Amount: 0.4 },
     },
     effects: [
-      { deviceId: 'chorus', preset: 'Slow Drift', params: { mix: 0.4 } },
+      { deviceId: 'chorus', preset: 'Slow drift', params: { mix: 0.4 } },
       { deviceId: 'expanse', preset: 'Open space', params: { mix: 0.4 } },
     ],
     ...looped(16, 4, 2, [53, 60, 64, [69, 0.7]]),
@@ -302,7 +302,7 @@ export const FACTORY_SOUNDS: readonly FactorySound[] = [
       params: { ensemble: 0, vibrato: 0, attack: 0.5 },
     },
     effects: [
-      { deviceId: 'chorus', preset: 'Slow Drift', params: { mix: 0.35 } },
+      { deviceId: 'chorus', preset: 'Slow drift', params: { mix: 0.35 } },
       zita('Cathedral', 0.45),
       breathe(0.125, 0.3),
     ],
@@ -513,7 +513,7 @@ export const FACTORY_SOUNDS: readonly FactorySound[] = [
     kind: 'melodic',
     description: 'Two rolled chords and a short answer on a tine piano, {D} minor ninth to {G}.',
     instrument: { deviceId: 'tine-piano', preset: 'Soft suitcase' },
-    effects: [{ deviceId: 'chorus', preset: 'Subtle Widener' }, zita('Hall', 0.3)],
+    effects: [{ deviceId: 'chorus', preset: 'Subtle widener' }, zita('Hall', 0.3)],
     ...played(
       8,
       [

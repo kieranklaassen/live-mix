@@ -12,7 +12,7 @@ export const EMBER_PRESETS: readonly FactoryPreset[] = [
       params: { cutoff: 750, unisonVoices: 1, volume: -2 },
     },
     effects: [
-      { deviceId: 'chorus', preset: 'Lush Ensemble', params: { depth: 45, mix: 0.45 } },
+      { deviceId: 'chorus', preset: 'Lush ensemble', params: { depth: 45, mix: 0.45 } },
       { deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.2 } },
     ],
   },

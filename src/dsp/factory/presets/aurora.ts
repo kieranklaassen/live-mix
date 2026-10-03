@@ -9,7 +9,7 @@ export const AURORA_PRESETS: readonly FactoryPreset[] = [
       'Brass that starts dark, opens past its tone and keeps swelling while held, with a slow chorus and a hall.',
     instrument: { deviceId: 'aurora', preset: 'Slow brass' },
     effects: [
-      { deviceId: 'chorus', preset: 'Slow Drift', params: { spread: 60, mix: 0.3 } },
+      { deviceId: 'chorus', preset: 'Slow drift', params: { spread: 60, mix: 0.3 } },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
     ],
     preview: 'chord',
@@ -22,7 +22,7 @@ export const AURORA_PRESETS: readonly FactoryPreset[] = [
       'Two bright string layers beating against each other, thickened by an ensemble chorus in a long hall.',
     instrument: { deviceId: 'aurora', preset: 'Wide strings', params: { volume: -6 } },
     effects: [
-      { deviceId: 'chorus', preset: 'Lush Ensemble', params: { mix: 0.4 } },
+      { deviceId: 'chorus', preset: 'Lush ensemble', params: { mix: 0.4 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.35 } },
     ],
     preview: 'chord',

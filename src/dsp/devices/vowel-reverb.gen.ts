@@ -186,15 +186,8 @@ export const VOWEL_REVERB_DESCRIPTOR = wasmDeviceDescriptor(VOWEL_REVERB_DEVICE,
       highCut: 14000,
       mix: 0.35,
     },
-    'Moving vowels': {
-      vowel: 1.5,
-      resonance: 0.8,
-      voice: 0.5,
-      motion: 1,
-      decay: 8,
-      modulation: 0.5,
-    },
-    'Whispering hall': {
+    'Vowel drift': { vowel: 1.5, resonance: 0.8, voice: 0.5, motion: 1, decay: 8, modulation: 0.5 },
+    Whispering: {
       vowel: 0.5,
       resonance: 0.2,
       voice: 0.6,
@@ -217,7 +210,7 @@ export const VOWEL_REVERB_DESCRIPTOR = wasmDeviceDescriptor(VOWEL_REVERB_DEVICE,
       mix: 0.3,
       width: 0.7,
     },
-    'Cathedral choir': {
+    Cathedral: {
       vowel: 0.3,
       resonance: 0.55,
       voice: 0.35,
@@ -229,7 +222,7 @@ export const VOWEL_REVERB_DESCRIPTOR = wasmDeviceDescriptor(VOWEL_REVERB_DEVICE,
       highCut: 7000,
       mix: 0.45,
     },
-    'Small chapel': {
+    Chapel: {
       vowel: 1,
       resonance: 0.5,
       voice: 0.6,
@@ -240,7 +233,7 @@ export const VOWEL_REVERB_DESCRIPTOR = wasmDeviceDescriptor(VOWEL_REVERB_DEVICE,
       modulation: 0.25,
       mix: 0.3,
     },
-    'Plain stone hall': { resonance: 0, decay: 4, size: 0.7, highCut: 12000, mix: 0.35 },
+    'Plain hall': { resonance: 0, decay: 4, size: 0.7, highCut: 12000, mix: 0.35 },
     'Choir alone': { vowel: 0.8, resonance: 0.7, voice: 0.5, decay: 10, size: 0.8, mix: 1 },
     'Faint voices': { vowel: 2.5, resonance: 0.8, voice: 0.7, decay: 4, mix: 0.15 },
     'Lone voice': {
@@ -253,7 +246,7 @@ export const VOWEL_REVERB_DESCRIPTOR = wasmDeviceDescriptor(VOWEL_REVERB_DEVICE,
       width: 0,
       mix: 0.35,
     },
-    'Soprano clouds': {
+    'High choir': {
       vowel: 0,
       resonance: 0.8,
       voice: 1,
@@ -275,7 +268,7 @@ export const VOWEL_REVERB_DESCRIPTOR = wasmDeviceDescriptor(VOWEL_REVERB_DEVICE,
       mix: 0.5,
     },
     'Late basses': { vowel: 2, resonance: 0.7, voice: 0.1, decay: 7, size: 0.7, preDelay: 200 },
-    'Humming dark': {
+    Humming: {
       vowel: 4,
       resonance: 0.5,
       voice: 0,
@@ -285,6 +278,15 @@ export const VOWEL_REVERB_DESCRIPTOR = wasmDeviceDescriptor(VOWEL_REVERB_DEVICE,
       highCut: 1500,
       mix: 0.5,
     },
+  },
+  formerPresets: {
+    'Moving vowels': 'Vowel drift',
+    'Whispering hall': 'Whispering',
+    'Cathedral choir': 'Cathedral',
+    'Small chapel': 'Chapel',
+    'Plain stone hall': 'Plain hall',
+    'Soprano clouds': 'High choir',
+    'Humming dark': 'Humming',
   },
 })
 

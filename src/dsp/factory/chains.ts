@@ -52,8 +52,8 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
     description:
       'Each note is answered by a cloud that grows backwards behind it and cuts off, inside a quiet plate.',
     effects: [
-      { deviceId: 'shaped-reverb', preset: 'Backwards cloud' },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.2 } },
+      { deviceId: 'shaped-reverb', preset: 'Reverse' },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.2 } },
     ],
   },
   {
@@ -69,8 +69,8 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
     category: 'space',
     description: 'A choir whose vowel drifts on its own, left to dissolve in a plate.',
     effects: [
-      { deviceId: 'vowel-reverb', preset: 'Moving vowels', params: { mix: 0.35 } },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.2 } },
+      { deviceId: 'vowel-reverb', preset: 'Vowel drift', params: { mix: 0.35 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.2 } },
     ],
   },
   {
@@ -81,7 +81,7 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
       'A guitar amplifier heard from the far end of a hall, with a plate carrying the tail on.',
     effects: [
       { deviceId: 're-amp', preset: 'Down the hall', params: { output: -1.5 } },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.25 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -123,7 +123,7 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
     description: 'Repeats rebuilt from grains an octave up, each pass climbing again into a plate.',
     effects: [
       { deviceId: 'grain-delay', preset: 'Crystals' },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.3 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.3 } },
     ],
   },
   {
@@ -144,8 +144,8 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
     description:
       'A soft echo while phrases from the last twenty seconds drift back under what you play, in a wide plate.',
     effects: [
-      { deviceId: 'echo-memory', preset: 'Remembering', params: { mix: 0.35 } },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.25 } },
+      { deviceId: 'echo-memory', preset: 'Recalling', params: { mix: 0.35 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -155,7 +155,7 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
     description:
       'Dark recollections from up to a minute ago, some backwards or an octave down, blurred in a hall.',
     effects: [
-      { deviceId: 'echo-memory', preset: 'Half-remembered', params: { reach: 60, mix: 0.38 } },
+      { deviceId: 'echo-memory', preset: 'Hazy past', params: { reach: 60, mix: 0.38 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
@@ -166,8 +166,8 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
     description:
       'Long, dark bucket-brigade repeats with a slow chorus and a little hiss, set back in a plate.',
     effects: [
-      { deviceId: 'analog-delay', preset: 'Long and murky', params: { feedback: 0.55, mix: 0.35 } },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.25 } },
+      { deviceId: 'analog-delay', preset: 'Murky', params: { feedback: 0.55, mix: 0.35 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -178,7 +178,7 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
       'Each phrase comes back as a soft loop that fades under what is played next, in a plate.',
     effects: [
       { deviceId: 'micro-looper', preset: 'Soft bed' },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.25 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   // Tape: degradation and warmth (tape, records, radio, old converters, overdriven stages).
@@ -244,7 +244,7 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
     effects: [
       {
         deviceId: 'flanger',
-        preset: 'Through-Zero Feel',
+        preset: 'Through-zero feel',
         params: { rate: 0.08, feedback: 10, stereo: 40 },
       },
       { deviceId: 'tape', preset: 'Quarter inch', params: { output: 3.5 } },
@@ -280,7 +280,7 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
       'A cassette recorder with automatic level: the hiss sinks under each note and swells up in the gaps.',
     effects: [
       { deviceId: 'tape', preset: 'Cassette four-track', params: { hiss: 0 } },
-      { deviceId: 'noise-floor', preset: 'Breathing recorder', params: { level: -32 } },
+      { deviceId: 'noise-floor', preset: 'Breathing tape', params: { level: -32 } },
     ],
   },
   {
@@ -290,7 +290,7 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
     description:
       'The last phrase loops an octave down and twice as long behind the playing, in a hall.',
     effects: [
-      { deviceId: 'micro-looper', preset: 'Half speed bed' },
+      { deviceId: 'micro-looper', preset: 'Half speed' },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
@@ -301,7 +301,7 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
     description: 'A transformer stage that thickens and breaks up the lows, then a soft plate.',
     effects: [
       { deviceId: 'analog-drive', preset: 'Iron lows' },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.25 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -311,7 +311,7 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
     description:
       'A triode pushed until it folds, filtered dark and laid half under the clean sound in a hall.',
     effects: [
-      { deviceId: 'analog-drive', preset: 'Dark fuzz bed', params: { mix: 0.5 } },
+      { deviceId: 'analog-drive', preset: 'Dark fuzz', params: { mix: 0.5 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
@@ -322,8 +322,8 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
     description:
       'Twelve bits at a reduced rate: the top softens and a faint glassy copy of it rings above, in a plate.',
     effects: [
-      { deviceId: 'vintage-digital', preset: 'Twelve bit' },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.25 } },
+      { deviceId: 'vintage-digital', preset: 'Sampler' },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -334,7 +334,7 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
       'A hall heard through an eight-bit companded converter, so its tail turns to grain as it fades.',
     effects: [
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.3 } },
-      { deviceId: 'vintage-digital', preset: 'Eight bit toy', params: { aliasing: 0.4 } },
+      { deviceId: 'vintage-digital', preset: 'Toy', params: { aliasing: 0.4 } },
     ],
   },
   {
@@ -345,7 +345,7 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
       'A thin stream: quiet detail falls away and what is left swirls a little, in a soft plate.',
     effects: [
       { deviceId: 'low-bitrate', preset: 'Behind glass' },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.25 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -385,7 +385,7 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
       'The surface noise and crackle of an old record under the sound, heard across a room.',
     effects: [
       { deviceId: 'noise-floor', preset: 'Old record', params: { level: -40 } },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.25 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -396,7 +396,7 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
       'A distant station heard at night: thin, slowly fading, with static rising as it sinks, in a soft hall.',
     effects: [
       { deviceId: 'radio', preset: 'Night shortwave', params: { fading: 0.45, bandwidth: 0.62 } },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.25 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   // Motion: modulation.
@@ -405,7 +405,7 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
     name: 'Slow chorus',
     category: 'motion',
     description: 'Three voices drifting over twelve seconds: width and movement without wobble.',
-    effects: [{ deviceId: 'chorus', preset: 'Slow Drift' }],
+    effects: [{ deviceId: 'chorus', preset: 'Slow drift' }],
   },
   {
     id: 'phaser-sweep',
@@ -415,7 +415,7 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
     effects: [
       {
         deviceId: 'phaser',
-        preset: 'Deep 8-Stage',
+        preset: 'Deep eight-stage',
         params: { rate: 0.06, depth: 85, shape: 1, stereo: 60, feedback: 55, mix: 0.42 },
       },
     ],
@@ -460,8 +460,8 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
     description:
       'The reverb comes in three slow waves and comes round again, quieter each time, into a plate.',
     effects: [
-      { deviceId: 'shaped-reverb', preset: 'Breathing pulses', params: { mix: 0.4 } },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.25 } },
+      { deviceId: 'shaped-reverb', preset: 'Breathing', params: { mix: 0.4 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   // Texture: granular and spectral.
@@ -499,7 +499,7 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
     effects: [
       {
         deviceId: 'sympathetic',
-        preset: 'Follow the melody',
+        preset: 'Follow the tune',
         params: { strings: 12, sympathy: 0.5, decay: 6, mix: 0.3, width: 0.85 },
       },
     ],
@@ -551,7 +551,7 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
       'The sound sticks on tiny fragments like a scratched disc, softened and set in a plate.',
     effects: [
       { deviceId: 'glitch', preset: 'Skipping disc', params: { calm: 0.45, mix: 0.8 } },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.25 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -562,7 +562,7 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
       'Each note comes back as little loops an octave and two octaves up, falling into a long plate.',
     effects: [
       { deviceId: 'cascade', preset: 'Octave stack', params: { mix: 0.45 } },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.25 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -598,8 +598,8 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
     description:
       'A string section swells in behind each chord and follows the harmony, set in a soft plate.',
     effects: [
-      { deviceId: 'pad-follower', preset: 'Strings behind' },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.25 } },
+      { deviceId: 'pad-follower', preset: 'String pad' },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -621,7 +621,7 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
       'Holds each note or chord as an even pad that glides to the next, with a little room around it.',
     effects: [
       { deviceId: 'sustainer', preset: 'Sustain pedal', params: { mix: 0.4 } },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.25 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -666,7 +666,7 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
     description: 'Echoes that jump an octave each time they repeat, left and right, into a plate.',
     effects: [
       { deviceId: 'lattice', preset: 'Crystal cascade', params: { output: 5 } },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.3 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.3 } },
     ],
   },
   {
@@ -692,7 +692,7 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
     description:
       'Analog repeats whose clock steps every two echoes, so they leap an octave up and drop back, blurred in a hall.',
     effects: [
-      { deviceId: 'analog-delay', preset: 'Octave hops', params: { feedback: 0.55, mix: 0.35 } },
+      { deviceId: 'analog-delay', preset: 'Octave hop', params: { feedback: 0.55, mix: 0.35 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
@@ -703,8 +703,8 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
     description:
       'A sharp copy on the left and a flat copy on the right, darkened and hung in a plate.',
     effects: [
-      { deviceId: 'stereo-detune', preset: 'Treated piano' },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.25 } },
+      { deviceId: 'stereo-detune', preset: 'Piano haze' },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -725,7 +725,7 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
       'Your playing again an octave down at half speed, dark and continuous, under the dry signal and into a plate.',
     effects: [
       { deviceId: 'half-speed', preset: 'Under the mix', params: { mix: 0.35 } },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.25 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -746,7 +746,7 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
     description: 'A clean octave up beside the dry sound, softened by a plate.',
     effects: [
       { deviceId: 'pitch-shifter', preset: 'Octave up', params: { mode: 3, mix: 0.4 } },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.25 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -755,8 +755,8 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
     category: 'pitch',
     description: 'A wide fifth above held chords, every note moved cleanly, blurred in a plate.',
     effects: [
-      { deviceId: 'pitch-shifter', preset: 'Pad fifth above' },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.3 } },
+      { deviceId: 'pitch-shifter', preset: 'Pad fifth' },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.3 } },
     ],
   },
   {
@@ -766,8 +766,8 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
     description:
       'A cave whose echoes jump by fourths and fifths on their own, softened by a plate.',
     effects: [
-      { deviceId: 'swarm-reverb', preset: 'Interval ghosts', params: { mix: 0.35 } },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.25 } },
+      { deviceId: 'swarm-reverb', preset: 'Intervals', params: { mix: 0.35 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -778,7 +778,7 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
       'Every note of a chord doubled an octave and two below and above, like drawbars, in a plate.',
     effects: [
       { deviceId: 'octaves', preset: 'Organ' },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.25 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -798,7 +798,7 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
     category: 'master',
     description: 'A few decibels of soft saturation and a limiter that only catches peaks.',
     effects: [
-      { deviceId: 'saturator', preset: 'Warm Glue', params: { driveDb: 3, outputDb: -4 } },
+      { deviceId: 'saturator', preset: 'Warm glue', params: { driveDb: 3, outputDb: -4 } },
       { deviceId: 'limiter-1176', params: { inputGain: 3, outputGain: -3 } },
     ],
   },

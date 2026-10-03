@@ -22,7 +22,7 @@ export const LADDER_BASS_PRESETS: readonly FactoryPreset[] = [
       'Two sawtooths beating slowly under a half-closed filter, held for as long as the key is down, in a hall.',
     instrument: { deviceId: 'ladder-bass', preset: 'Pedal drone', params: { volume: -6 } },
     effects: [
-      { deviceId: 'chorus', preset: 'Slow Drift' },
+      { deviceId: 'chorus', preset: 'Slow drift' },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
     preview: 'low',
@@ -35,7 +35,7 @@ export const LADDER_BASS_PRESETS: readonly FactoryPreset[] = [
       'A sub tone with almost nothing above it, warmed a little so small speakers can still find it.',
     instrument: { deviceId: 'ladder-bass', preset: 'Soft sub', params: { volume: -15 } },
     effects: [
-      { deviceId: 'saturator', preset: 'Warm Glue' },
+      { deviceId: 'saturator', preset: 'Warm glue' },
       { deviceId: 'zita-rev1', preset: 'Room' },
     ],
     preview: 'low',

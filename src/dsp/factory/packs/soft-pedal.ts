@@ -29,7 +29,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'stereo-detune', preset: 'Treated piano' },
+      { deviceId: 'stereo-detune', preset: 'Piano haze' },
       {
         deviceId: 'expanse',
         preset: 'Open space',
@@ -63,7 +63,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Cathedral',
         params: { lowDecay: 8, midDecay: 7.5, damping: 3200, mix: 0.5 },
       },
-      { deviceId: 'stereo-detune', preset: 'Subtle halo', params: { detune: 6, drift: 0.3 } },
+      { deviceId: 'stereo-detune', preset: 'Soft halo', params: { detune: 6, drift: 0.3 } },
     ],
   },
   {
@@ -88,7 +88,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'chorus', preset: 'Subtle Widener', params: { mix: 0.3 } },
+      { deviceId: 'chorus', preset: 'Subtle widener', params: { mix: 0.3 } },
       {
         deviceId: 'fdn-reverb',
         preset: 'Hall',
@@ -119,7 +119,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'stereo-detune', preset: 'Subtle halo' },
+      { deviceId: 'stereo-detune', preset: 'Soft halo' },
       { deviceId: 'bloom-reverb', preset: 'Long dark', params: { decay: 28, mix: 0.55 } },
     ],
     preview: 'bells',
@@ -148,7 +148,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'swell', preset: 'Piano to pad', params: { attack: 700 } },
-      { deviceId: 'stereo-detune', preset: 'Thick double', params: { detune: 14 } },
+      { deviceId: 'stereo-detune', preset: 'Doubled', params: { detune: 14 } },
       { deviceId: 'expanse', preset: 'Bloom', params: { decay: 18, highCut: 4500, mix: 0.5 } },
     ],
     preview: 'chord',
@@ -204,7 +204,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'half-speed',
-        preset: 'Continuous octave',
+        preset: 'Smooth octave',
         params: { highCut: 4000, mix: 0.45 },
       },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.45 } },
@@ -265,7 +265,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'sympathetic',
-        preset: 'Long resonance',
+        preset: 'Long ring',
         params: { root: 2, mode: 1, mix: 0.4 },
       },
       { deviceId: 'ether-reverb', preset: 'Cathedral', params: { damping: 0.5, mix: 0.3 } },
@@ -285,7 +285,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { bell: 0.25, hardness: 0.35, decay: 2.6, release: 1.5, tone: 0.3, volume: -16 },
     },
     effects: [
-      { deviceId: 'chorus', preset: 'Classic Chorus', params: { rate: 0.5, depth: 35, mix: 0.4 } },
+      { deviceId: 'chorus', preset: 'Classic chorus', params: { rate: 0.5, depth: 35, mix: 0.4 } },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.5 } },
     ],
     preview: 'chord',
@@ -302,7 +302,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { hardness: 0.45, tremolo: 0, tone: 0.4, volume: -15 },
     },
     effects: [
-      { deviceId: 'phaser', preset: 'Slow Swirl', params: { mix: 0.4 } },
+      { deviceId: 'phaser', preset: 'Slow swirl', params: { mix: 0.4 } },
       {
         deviceId: 'fdn-reverb',
         preset: 'Hall',
@@ -324,7 +324,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'stereo-detune',
-        preset: 'Classic wide',
+        preset: 'Classic',
         params: { detune: 11, drift: 0.3, tone: 5000 },
       },
       {
@@ -387,7 +387,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'swell', preset: 'Piano to pad' },
-      { deviceId: 'chorus', preset: 'Lush Ensemble', params: { mix: 0.4 } },
+      { deviceId: 'chorus', preset: 'Lush ensemble', params: { mix: 0.4 } },
       { deviceId: 'expanse', preset: 'Bloom', params: { mix: 0.45 } },
     ],
     preview: 'chord',
@@ -404,7 +404,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { bell: 0.2, bark: 0.3, decay: 2.5, release: 1, tone: 0.4, volume: -14 },
     },
     effects: [
-      { deviceId: 'analog-delay', preset: 'Long and murky', params: { mix: 0.3 } },
+      { deviceId: 'analog-delay', preset: 'Murky', params: { mix: 0.3 } },
       {
         deviceId: 'zita-rev1',
         preset: 'Hall',
@@ -460,7 +460,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'stereo-detune', preset: 'Treated piano', params: { tone: 5000 } },
+      { deviceId: 'stereo-detune', preset: 'Piano haze', params: { tone: 5000 } },
       {
         deviceId: 'expanse',
         preset: 'Open space',
@@ -522,7 +522,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'chorus', preset: 'Slow Drift', params: { depth: 40, mix: 0.3 } },
+      { deviceId: 'chorus', preset: 'Slow drift', params: { depth: 40, mix: 0.3 } },
       {
         deviceId: 'shimmer',
         preset: 'Plain hall',
@@ -609,7 +609,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { decay: 10, hardness: 0.2, detune: 0.6, release: 0.3, spread: 0.5, volume: -9 },
     },
     effects: [
-      { deviceId: 'stereo-detune', preset: 'Classic wide', params: { detune: 7, mix: 0.3 } },
+      { deviceId: 'stereo-detune', preset: 'Classic', params: { detune: 7, mix: 0.3 } },
       {
         deviceId: 'expanse',
         preset: 'Open space',
@@ -745,7 +745,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
       {
         deviceId: 'stereo-detune',
-        preset: 'Classic wide',
+        preset: 'Classic',
         params: { detune: 8, drift: 0.35, tone: 5000, mix: 0.3 },
       },
     ],
@@ -777,7 +777,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'analog-delay',
-        preset: 'Dark repeats',
+        preset: 'Dark echo',
         params: { time: 560, feedback: 0.4, mix: 0.25 },
       },
       { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.35 } },
@@ -815,7 +815,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { decay: 2, bend: 30, volume: 3.3 },
     },
     effects: [
-      { deviceId: 'chorus', preset: 'Slow Drift', params: { depth: 40, spread: 60, mix: 0.4 } },
+      { deviceId: 'chorus', preset: 'Slow drift', params: { depth: 40, spread: 60, mix: 0.4 } },
       {
         deviceId: 'shimmer',
         preset: 'Plain hall',
@@ -835,7 +835,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { touch: 0.3, decay: 1.3, volume: -3.5 },
     },
     effects: [
-      { deviceId: 'pad-follower', preset: 'Long shadow', params: { mix: 0.4 } },
+      { deviceId: 'pad-follower', preset: 'Lingering', params: { mix: 0.4 } },
       {
         deviceId: 'zita-rev1',
         preset: 'Hall',
@@ -874,7 +874,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { mallet: 0.15, decay: 2.5, damper: 0, width: 0.7, volume: -10 },
     },
     effects: [
-      { deviceId: 'stereo-detune', preset: 'Subtle halo', params: { detune: 6 } },
+      { deviceId: 'stereo-detune', preset: 'Soft halo', params: { detune: 6 } },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.5 } },
     ],
   },
@@ -919,7 +919,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { mallet: 0.15, decay: 1.5, damper: 0.3, volume: -3.5 },
     },
     effects: [
-      { deviceId: 'chorus', preset: 'Subtle Widener' },
+      { deviceId: 'chorus', preset: 'Subtle widener' },
       { deviceId: 'dattorro', preset: 'Long plate', params: { damping: 0.55, mix: 0.4 } },
     ],
   },
@@ -974,7 +974,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { nail: 0.1, sustain: 8, release: 4, tone: 0.4, strum: 35, volume: 0 },
     },
     effects: [
-      { deviceId: 'stereo-detune', preset: 'Subtle halo', params: { detune: 7 } },
+      { deviceId: 'stereo-detune', preset: 'Soft halo', params: { detune: 7 } },
       {
         deviceId: 'expanse',
         preset: 'Open space',
@@ -1112,7 +1112,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'stereo-detune', preset: 'Subtle halo', params: { detune: 6, mix: 0.3 } },
+      { deviceId: 'stereo-detune', preset: 'Soft halo', params: { detune: 6, mix: 0.3 } },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.45 } },
     ],
     preview: 'line',
@@ -1136,7 +1136,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'chorus', preset: 'Lush Ensemble', params: { mix: 0.4 } },
+      { deviceId: 'chorus', preset: 'Lush ensemble', params: { mix: 0.4 } },
       { deviceId: 'expanse', preset: 'Open space', params: { decay: 18, width: 0.65, mix: 0.45 } },
     ],
   },
@@ -1167,7 +1167,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 2.5, release: 5, air: 0.5, volume: -8 },
     },
     effects: [
-      { deviceId: 'stereo-detune', preset: 'Classic wide', params: { detune: 6, mix: 0.3 } },
+      { deviceId: 'stereo-detune', preset: 'Classic', params: { detune: 6, mix: 0.3 } },
       {
         deviceId: 'fdn-reverb',
         preset: 'Hall',
@@ -1210,7 +1210,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       preset: 'Slow vowels',
       params: { attack: 3.5, tone: 4000, volume: -10 },
     },
-    effects: [{ deviceId: 'vowel-reverb', preset: 'Cathedral choir', params: { mix: 0.4 } }],
+    effects: [{ deviceId: 'vowel-reverb', preset: 'Cathedral', params: { mix: 0.4 } }],
   },
 
   // Chord harp: brushed, never strummed hard.
@@ -1226,7 +1226,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { sustain: 6, tone: 0.2, pad: 0.4, volume: -11 },
     },
     effects: [
-      { deviceId: 'stereo-detune', preset: 'Treated piano' },
+      { deviceId: 'stereo-detune', preset: 'Piano haze' },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.45 } },
     ],
   },
@@ -1242,7 +1242,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { strum: 150, sustain: 7, tone: 0.25, volume: -3.5 },
     },
     effects: [
-      { deviceId: 'shaped-reverb', preset: 'Slow bloom', params: { time: 3.5, mix: 0.4 } },
+      { deviceId: 'shaped-reverb', preset: 'Bloom', params: { time: 3.5, mix: 0.4 } },
       { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.3 } },
     ],
   },
@@ -1273,7 +1273,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { blow: 0.4, breath: 0.55, volume: -11 },
     },
     effects: [
-      { deviceId: 'stereo-detune', preset: 'Classic wide', params: { detune: 8 } },
+      { deviceId: 'stereo-detune', preset: 'Classic', params: { detune: 8 } },
       { deviceId: 'expanse', preset: 'Bloom', params: { decay: 16, mix: 0.45 } },
     ],
     preview: 'chord',
@@ -1360,7 +1360,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { cutoff: 700, ampAttack: 2, ampRelease: 6, volume: -4.5 },
     },
     effects: [
-      { deviceId: 'phaser', preset: 'Slow Swirl', params: { mix: 0.3 } },
+      { deviceId: 'phaser', preset: 'Slow swirl', params: { mix: 0.3 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { decay: 16, size: 1.9, mix: 0.45 } },
     ],
   },
@@ -1392,7 +1392,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { breath: 0.6, attack: 0.9, vibrato: 0.2, volume: -11 },
     },
     effects: [
-      { deviceId: 'stereo-detune', preset: 'Classic wide', params: { detune: 5, mix: 0.3 } },
+      { deviceId: 'stereo-detune', preset: 'Classic', params: { detune: 5, mix: 0.3 } },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.45 } },
     ],
   },
@@ -1408,7 +1408,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 2, release: 4, volume: -14.5 },
     },
     effects: [
-      { deviceId: 'chorus', preset: 'Slow Drift', params: { mix: 0.4 } },
+      { deviceId: 'chorus', preset: 'Slow drift', params: { mix: 0.4 } },
       { deviceId: 'expanse', preset: 'Open space', params: { decay: 18, mix: 0.45 } },
     ],
     preview: 'chord',
@@ -1427,7 +1427,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { detune: 8, attack: 2, release: 5, spread: 0.35, tone: 2500, volume: -19.8 },
     },
     effects: [
-      { deviceId: 'stereo-detune', preset: 'Classic wide', params: { mix: 0.28 } },
+      { deviceId: 'stereo-detune', preset: 'Classic', params: { mix: 0.28 } },
       { deviceId: 'expanse', preset: 'Open space', params: { decay: 20, width: 0.6, mix: 0.45 } },
     ],
   },
@@ -1462,7 +1462,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { hardness: 0.25, tone: 2600, volume: 1 },
     },
     effects: [
-      { deviceId: 'chorus', preset: 'Lush Ensemble', params: { spread: 60, mix: 0.4 } },
+      { deviceId: 'chorus', preset: 'Lush ensemble', params: { spread: 60, mix: 0.4 } },
       {
         deviceId: 'tape-echo',
         preset: 'Three heads',
@@ -1484,7 +1484,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'ambient-comp', preset: 'Lift', params: { makeup: 12, mix: 1 } },
-      { deviceId: 'stereo-detune', preset: 'Thick double' },
+      { deviceId: 'stereo-detune', preset: 'Doubled' },
       { deviceId: 'expanse', preset: 'Open space', params: { decay: 20, mix: 0.45 } },
     ],
     preview: 'chord',
@@ -1505,7 +1505,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'micro-looper',
-        preset: 'Half speed bed',
+        preset: 'Half speed',
         params: { fade: 0.45, tone: 4000, mix: 0.3 },
       },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.45 } },
@@ -1523,7 +1523,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { decay: 8, touch: 0.1, volume: -2 },
     },
     effects: [
-      { deviceId: 'pitch-shifter', preset: 'Detuned double', params: { tone: 5000, mix: 0.4 } },
+      { deviceId: 'pitch-shifter', preset: 'Doubler', params: { tone: 5000, mix: 0.4 } },
       {
         deviceId: 'fdn-reverb',
         preset: 'Hall',
@@ -1604,7 +1604,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { cutoff: 300, contour: 0.6, decay: 8, glide: 0.4, volume: -4 },
     },
     effects: [
-      { deviceId: 'stereo-detune', preset: 'Subtle halo' },
+      { deviceId: 'stereo-detune', preset: 'Soft halo' },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.4 } },
     ],
     preview: 'line',
@@ -1623,7 +1623,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { tone: 1000, volume: -13.5 },
     },
     effects: [
-      { deviceId: 'stereo-detune', preset: 'Classic wide', params: { detune: 6 } },
+      { deviceId: 'stereo-detune', preset: 'Classic', params: { detune: 6 } },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.5 } },
     ],
   },
@@ -1691,7 +1691,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { swell: 1.2, sustain: 30, tone: 1900, volume: -8 },
     },
     effects: [
-      { deviceId: 'stereo-detune', preset: 'Classic wide', params: { detune: 7 } },
+      { deviceId: 'stereo-detune', preset: 'Classic', params: { detune: 7 } },
       {
         deviceId: 'expanse',
         preset: 'Open space',
@@ -1711,7 +1711,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { swell: 0.8, vibrato: 4, tone: 2400, volume: -6 },
     },
     effects: [
-      { deviceId: 'echo-memory', preset: 'Long memory', params: { tone: 3500, mix: 0.35 } },
+      { deviceId: 'echo-memory', preset: 'Far back', params: { tone: 3500, mix: 0.35 } },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.45 } },
     ],
   },
@@ -1729,7 +1729,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 1.2, release: 4, tone: 3200, volume: -17 },
     },
     effects: [
-      { deviceId: 'stereo-detune', preset: 'Treated piano' },
+      { deviceId: 'stereo-detune', preset: 'Piano haze' },
       { deviceId: 'expanse', preset: 'Open space', params: { decay: 20, mix: 0.45 } },
     ],
   },
@@ -1745,7 +1745,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { release: 2, tone: 5000, volume: -15 },
     },
     effects: [
-      { deviceId: 'vintage-digital', preset: 'Soft glaze' },
+      { deviceId: 'vintage-digital', preset: 'Glaze' },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.5 } },
     ],
   },
@@ -1820,7 +1820,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { speed: 6, decay: 12, detune: 4, volume: -4 },
     },
     effects: [
-      { deviceId: 'stereo-detune', preset: 'Classic wide', params: { detune: 6 } },
+      { deviceId: 'stereo-detune', preset: 'Classic', params: { detune: 6 } },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.45 } },
     ],
   },
@@ -1851,7 +1851,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { age: 0.6, hiss: 0.3, attack: 0.5, release: 2.5, volume: -11.5 },
     },
     effects: [
-      { deviceId: 'stereo-detune', preset: 'Subtle halo' },
+      { deviceId: 'stereo-detune', preset: 'Soft halo' },
       {
         deviceId: 'fdn-reverb',
         preset: 'Hall',
@@ -1959,7 +1959,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { fold: 0.2, attack: 2.5, colour: 0.5, volume: -11.5 },
     },
     effects: [
-      { deviceId: 'stereo-detune', preset: 'Thick double', params: { detune: 12 } },
+      { deviceId: 'stereo-detune', preset: 'Doubled', params: { detune: 12 } },
       { deviceId: 'expanse', preset: 'Open space', params: { decay: 18, mix: 0.45 } },
     ],
   },
@@ -1977,7 +1977,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { decay: 7, release: 4, brightness: 0.3, volume: -8 },
     },
     effects: [
-      { deviceId: 'stereo-detune', preset: 'Treated piano' },
+      { deviceId: 'stereo-detune', preset: 'Piano haze' },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.45 } },
     ],
   },

@@ -35,7 +35,7 @@ export const STRING_MACHINE_PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'phaser',
-        preset: 'Slow Swirl',
+        preset: 'Slow swirl',
         params: { rate: 0.09, feedback: 45, stereo: 50 },
       },
       { deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.2, decay: 0.7 } },
@@ -56,7 +56,7 @@ export const STRING_MACHINE_PRESETS: readonly FactoryPreset[] = [
     description: 'The low octave alone: a dark section sound for slow bass lines and drones.',
     instrument: { deviceId: 'string-machine', preset: 'Cellos', params: { volume: -5 } },
     effects: [
-      { deviceId: 'saturator', preset: 'Warm Glue', params: { outputDb: -4.5 } },
+      { deviceId: 'saturator', preset: 'Warm glue', params: { outputDb: -4.5 } },
       { deviceId: 'zita-rev1', preset: 'Hall' },
     ],
     preview: 'low',

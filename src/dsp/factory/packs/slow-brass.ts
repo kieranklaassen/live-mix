@@ -120,7 +120,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'auto-filter', preset: 'Init', params: { slope: 1, cutoffHz: 900 } },
-      { deviceId: 'pad-follower', preset: 'Long shadow', params: { mix: 0.35 } },
+      { deviceId: 'pad-follower', preset: 'Lingering', params: { mix: 0.35 } },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.45 } },
     ],
     preview: 'chord',
@@ -233,7 +233,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 2.5, release: 5, vibrato: 4, mute: 0.4, volume: -8.5 },
     },
     effects: [
-      { deviceId: 'half-speed', preset: 'Continuous octave', params: { highCut: 5000, mix: 0.45 } },
+      { deviceId: 'half-speed', preset: 'Smooth octave', params: { highCut: 5000, mix: 0.45 } },
       {
         deviceId: 'zita-rev1',
         preset: 'Cathedral',
@@ -261,7 +261,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'stereo-detune', preset: 'Subtle halo' },
+      { deviceId: 'stereo-detune', preset: 'Soft halo' },
       { deviceId: 'ether-reverb', preset: 'Cathedral', params: { mix: 0.35 } },
     ],
     preview: 'low',
@@ -279,7 +279,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'swell', preset: 'Tide' },
-      { deviceId: 'vowel-reverb', preset: 'Cathedral choir', params: { mix: 0.45 } },
+      { deviceId: 'vowel-reverb', preset: 'Cathedral', params: { mix: 0.45 } },
     ],
   },
 
@@ -303,7 +303,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'stereo-detune', preset: 'Thick double', params: { mix: 0.3 } },
+      { deviceId: 'stereo-detune', preset: 'Doubled', params: { mix: 0.3 } },
       {
         deviceId: 'fdn-reverb',
         preset: 'Hall',
@@ -387,7 +387,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'swell', preset: 'Tide', params: { attack: 1500 } },
-      { deviceId: 'analog-delay', preset: 'Long and murky', params: { mix: 0.3 } },
+      { deviceId: 'analog-delay', preset: 'Murky', params: { mix: 0.3 } },
       { deviceId: 'dattorro', preset: 'Long plate', params: { decay: 0.92, mix: 0.4 } },
     ],
   },
@@ -413,7 +413,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'half-speed',
-        preset: 'Continuous octave',
+        preset: 'Smooth octave',
         params: { highCut: 4000, spread: 0.15, mix: 0.85 },
       },
       { deviceId: 'dattorro', preset: 'Long plate', params: { decay: 0.93, mix: 0.35 } },
@@ -510,7 +510,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { blow: 0.5, breath: 0.5, attack: 1.6, release: 3, volume: -2 },
     },
     effects: [
-      { deviceId: 'echo-memory', preset: 'Distant minute', params: { mix: 0.3 } },
+      { deviceId: 'echo-memory', preset: 'Minute ago', params: { mix: 0.3 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { decay: 8, mix: 0.5 } },
     ],
     preview: 'line',
@@ -625,7 +625,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'ambient-comp', preset: 'Level', params: { ratio: 1, makeup: 8 } },
-      { deviceId: 'stereo-detune', preset: 'Thick double', params: { mix: 0.4 } },
+      { deviceId: 'stereo-detune', preset: 'Doubled', params: { mix: 0.4 } },
       {
         deviceId: 'tape-loop',
         preset: 'Slow fade',
@@ -756,7 +756,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { age: 0.5, tone: -0.3, attack: 3.5, release: 6, vibrato: 0.2 },
     },
     effects: [
-      { deviceId: 'shaped-reverb', preset: 'Slow bloom', params: { mix: 0.4 } },
+      { deviceId: 'shaped-reverb', preset: 'Bloom', params: { mix: 0.4 } },
       { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.35 } },
     ],
   },
@@ -829,7 +829,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 4, release: 9, tone: 1000, volume: -13 },
     },
     effects: [
-      { deviceId: 'stereo-detune', preset: 'Subtle halo' },
+      { deviceId: 'stereo-detune', preset: 'Soft halo' },
       { deviceId: 'expanse', preset: 'Open space', params: { decay: 18, mix: 0.5 } },
     ],
   },
@@ -955,7 +955,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { brilliance: 700, attack: 3, release: 8, detune: 10, volume: -10.5 },
     },
     effects: [
-      { deviceId: 'chorus', preset: 'Slow Drift', params: { mix: 0.3 } },
+      { deviceId: 'chorus', preset: 'Slow drift', params: { mix: 0.3 } },
       { deviceId: 'expanse', preset: 'Bloom', params: { mix: 0.4 } },
     ],
   },
@@ -1112,7 +1112,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'swell', preset: 'Piano to pad', params: { attack: 1600, curve: 1 } },
-      { deviceId: 'saturator', preset: 'Warm Glue', params: { outputDb: 6 } },
+      { deviceId: 'saturator', preset: 'Warm glue', params: { outputDb: 6 } },
       {
         deviceId: 'fdn-reverb',
         preset: 'Hall',
@@ -1285,7 +1285,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { chiff: 0, attack: 2.5, release: 6, vibrato: 0.1, scoop: 0, volume: -17 },
     },
     effects: [
-      { deviceId: 'stereo-detune', preset: 'Subtle halo' },
+      { deviceId: 'stereo-detune', preset: 'Soft halo' },
       {
         deviceId: 'zita-rev1',
         preset: 'Cathedral',
@@ -1306,7 +1306,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 3, release: 6, vibrato: 0, volume: -10 },
     },
     effects: [
-      { deviceId: 'pad-follower', preset: 'Long shadow', params: { mix: 0.4 } },
+      { deviceId: 'pad-follower', preset: 'Lingering', params: { mix: 0.4 } },
       { deviceId: 'expanse', preset: 'Open space', params: { mix: 0.4 } },
     ],
     preview: 'hold',
@@ -1420,7 +1420,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'swell', preset: 'Piano to pad' },
-      { deviceId: 'half-speed', preset: 'Continuous octave', params: { mix: 0.8 } },
+      { deviceId: 'half-speed', preset: 'Smooth octave', params: { mix: 0.8 } },
       { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.4 } },
     ],
   },
@@ -1583,7 +1583,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'swell', preset: 'Piano to pad', params: { curve: 0.8, retrigger: 1 } },
-      { deviceId: 'vowel-reverb', preset: 'Cathedral choir', params: { mix: 0.5 } },
+      { deviceId: 'vowel-reverb', preset: 'Cathedral', params: { mix: 0.5 } },
     ],
     preview: 'chord',
   },
@@ -1652,7 +1652,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { swell: 1.6, vibrato: 2, tone: 2400, volume: -0.5 },
     },
     effects: [
-      { deviceId: 'micro-looper', preset: 'Half speed bed', params: { mix: 0.4 } },
+      { deviceId: 'micro-looper', preset: 'Half speed', params: { mix: 0.4 } },
       { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.4 } },
     ],
     preview: 'line',
@@ -1773,7 +1773,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { center: 60, resonance: 60, attack: 4, release: 8, breatheRate: 0.1 },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Warm Glue', params: { outputDb: 3 } },
+      { deviceId: 'saturator', preset: 'Warm glue', params: { outputDb: 3 } },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.45 } },
     ],
   },
@@ -1808,7 +1808,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'swell', preset: 'Piano to pad', params: { attack: 1500, curve: 1 } },
-      { deviceId: 'chorus', preset: 'Slow Drift', params: { mix: 0.35 } },
+      { deviceId: 'chorus', preset: 'Slow drift', params: { mix: 0.35 } },
       { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.4 } },
     ],
     preview: 'chord',
@@ -1876,7 +1876,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { fold: 0.35, attack: 3.5, colour: 0.3, drift: 0.6 },
     },
     effects: [
-      { deviceId: 'stereo-detune', preset: 'Classic wide' },
+      { deviceId: 'stereo-detune', preset: 'Classic' },
       {
         deviceId: 'zita-rev1',
         preset: 'Cathedral',

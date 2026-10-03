@@ -57,7 +57,7 @@ export const ORGAN_PRESETS: readonly FactoryPreset[] = [
       params: { sub: 0.35, octave: 0.4, reed: 0.3, celeste: 1, tone: 2600, volume: -14 },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Warm Glue' },
+      { deviceId: 'saturator', preset: 'Warm glue' },
       { deviceId: 'shimmer', preset: 'Organ loft', params: { mix: 0.3 } },
     ],
   },

@@ -11,7 +11,7 @@ export const SAMPLER_PRESETS: readonly FactoryPreset[] = [
       'The loaded sound an octave down on a slow unsteady loop, thickened and set in a hall.',
     instrument: { deviceId: 'sampler', preset: 'Tape choir', params: { volume: -11 } },
     effects: [
-      { deviceId: 'chorus', preset: 'Lush Ensemble', params: { mix: 0.4 } },
+      { deviceId: 'chorus', preset: 'Lush ensemble', params: { mix: 0.4 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.4 } },
     ],
   },
@@ -38,7 +38,7 @@ export const SAMPLER_PRESETS: readonly FactoryPreset[] = [
     instrument: { deviceId: 'sampler', preset: 'One shot', params: { release: 0.8 } },
     effects: [
       { deviceId: 'tape-echo', preset: 'Three heads', params: { spread: 1, mix: 0.3 } },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.3 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.3 } },
     ],
   },
   {

@@ -176,7 +176,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
       {
         deviceId: 'noise-floor',
-        preset: 'Breathing recorder',
+        preset: 'Breathing tape',
         params: { level: -32, response: 0.6 },
       },
       { deviceId: 'expanse', preset: 'Small dark room', params: { decay: 2.5, mix: 0.3 } },
@@ -214,7 +214,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 0.3, release: 1.8, vibrato: 0.2, volume: 0 },
     },
     effects: [
-      { deviceId: 'micro-looper', preset: 'Half speed bed', params: { tone: 3500, mix: 0.4 } },
+      { deviceId: 'micro-looper', preset: 'Half speed', params: { tone: 3500, mix: 0.4 } },
       { deviceId: 'tape', preset: 'Quarter inch', params: { age: 0.35, hiss: 0.3 } },
       { deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.3 } },
     ],
@@ -252,7 +252,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'half-speed',
-        preset: 'Continuous octave',
+        preset: 'Smooth octave',
         params: { highCut: 3000, spread: 0.6, mix: 0.55 },
       },
       { deviceId: 'saturator', preset: 'On tape', params: { driveDb: 6, outputDb: -8 } },
@@ -323,11 +323,11 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'echo-memory',
-        preset: 'Half-remembered',
+        preset: 'Hazy past',
         params: { reach: 8, size: 2.5, mix: 0.45 },
       },
       { deviceId: 'patina', preset: 'Quarter inch reel', params: { wobble: 0.4, wear: 0.4 } },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.25 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
 
@@ -389,7 +389,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'ambient-eq', preset: 'Shaded', params: { lowCut: 90, highCut: 3800 } },
-      { deviceId: 'noise-floor', preset: 'Breathing recorder', params: { level: -34, tone: -0.5 } },
+      { deviceId: 'noise-floor', preset: 'Breathing tape', params: { level: -34, tone: -0.5 } },
       { deviceId: 'ether-reverb', preset: 'Room', params: { mix: 0.25 } },
     ],
   },
@@ -544,7 +544,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'saturator', preset: 'On tape', params: { driveDb: 12, outputDb: -6 } },
-      { deviceId: 'noise-floor', preset: 'Rides the sound', params: { level: -34 } },
+      { deviceId: 'noise-floor', preset: 'Riding hiss', params: { level: -34 } },
       { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.25 } },
     ],
     preview: 'low',
@@ -580,7 +580,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 0.9, release: 2.5, low: 0.5, high: 0.25, tone: 2600, volume: -6 },
     },
     effects: [
-      { deviceId: 'micro-looper', preset: 'Drifting memory', params: { mix: 0.45 } },
+      { deviceId: 'micro-looper', preset: 'Drifting', params: { mix: 0.45 } },
       { deviceId: 'patina', preset: 'Quarter inch reel', params: { wobble: 0.35, wear: 0.4 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
@@ -605,7 +605,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'phaser', preset: 'Slow Swirl', params: { rate: 0.09, mix: 0.4 } },
+      { deviceId: 'phaser', preset: 'Slow swirl', params: { rate: 0.09, mix: 0.4 } },
       { deviceId: 'tremolo', preset: 'Sea swell', params: { rate: 0.4, depth: 0.45 } },
       { deviceId: 'tape', preset: 'Quarter inch', params: { hiss: 0.2 } },
       { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.25 } },
@@ -641,7 +641,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         deviceId: 'tape-loop',
         params: { length: 3.5, feedback: 0.7, wear: 0.4, wow: 0.3, lowCut: 120, mix: 0.45 },
       },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.3 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.3 } },
     ],
   },
   {
@@ -734,7 +734,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         deviceId: 'tape-loop',
         params: { length: 2, feedback: 0.8, wear: 0.6, wow: 0.4, lowCut: 100, mix: 0.5 },
       },
-      { deviceId: 'noise-floor', preset: 'Between stations', params: { level: -44 } },
+      { deviceId: 'noise-floor', preset: 'Radio static', params: { level: -44 } },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
@@ -768,7 +768,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'radio', params: { mix: 0.5 } },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.3 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.3 } },
     ],
   },
   {
@@ -899,7 +899,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'noise-floor', preset: 'Breathing recorder', params: { level: -33 } },
+      { deviceId: 'noise-floor', preset: 'Breathing tape', params: { level: -33 } },
       { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.25 } },
     ],
   },
@@ -959,7 +959,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 1, release: 3, tone: 6000, volume: -14 },
     },
     effects: [
-      { deviceId: 'micro-looper', preset: 'Half speed bed', params: { length: 3, mix: 0.4 } },
+      { deviceId: 'micro-looper', preset: 'Half speed', params: { length: 3, mix: 0.4 } },
       {
         deviceId: 'patina',
         preset: 'Quarter inch reel',
@@ -1058,7 +1058,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'analog-delay',
-        preset: 'Long and murky',
+        preset: 'Murky',
         params: { feedback: 0.5, tone: 2000, mix: 0.35 },
       },
       { deviceId: 'patina', preset: 'Quarter inch reel', params: { wobble: 0.35, wear: 0.5 } },
@@ -1098,7 +1098,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         deviceId: 'tape',
         params: { drive: 0.4, wow: 0.45, flutter: 0.3, speed: 2, age: 0.8, hiss: 0.3 },
       },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.3 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.3 } },
     ],
     preview: 'line',
   },
@@ -1137,7 +1137,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 0.25, release: 1.2, volume: -4 },
     },
     effects: [
-      { deviceId: 'vowel-reverb', preset: 'Small chapel', params: { mix: 0.3 } },
+      { deviceId: 'vowel-reverb', preset: 'Chapel', params: { mix: 0.3 } },
       { deviceId: 'radio', params: { static: 0.3, bandwidth: 0.45 } },
     ],
     preview: 'line',
@@ -1307,7 +1307,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       { deviceId: 'tremolo', preset: 'Slow pan', params: { depth: 0.6 } },
       { deviceId: 'tape', preset: 'Quarter inch', params: { hiss: 0.2 } },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.3 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.3 } },
     ],
   },
   {
@@ -1389,7 +1389,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { release: 3, volume: -8.5 },
     },
     effects: [
-      { deviceId: 'half-speed', preset: 'Continuous octave', params: { spread: 0.5, mix: 0.5 } },
+      { deviceId: 'half-speed', preset: 'Smooth octave', params: { spread: 0.5, mix: 0.5 } },
       { deviceId: 'noise-floor', preset: 'Tape floor', params: { level: -40 } },
       { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.3 } },
     ],
@@ -1521,7 +1521,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       'A damped harp, short and dull, with soft dark repeats, on slow tape in a small room.',
     instrument: { deviceId: 'harp', preset: 'Muted harp', params: { volume: -2 } },
     effects: [
-      { deviceId: 'analog-delay', preset: 'Dark repeats', params: { mix: 0.25 } },
+      { deviceId: 'analog-delay', preset: 'Dark echo', params: { mix: 0.25 } },
       { deviceId: 'tape', preset: 'Quarter inch', params: { speed: 2, tone: 0.3, wow: 0.35 } },
       { deviceId: 'fdn-reverb', preset: 'Room', params: { mix: 0.25 } },
     ],
@@ -1589,7 +1589,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         deviceId: 'tape-loop',
         params: { length: 3, feedback: 0.7, wear: 0.6, wow: 0.3, mix: 0.45 },
       },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.3 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.3 } },
     ],
     preview: 'chord',
   },
@@ -1658,7 +1658,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'noise-floor',
-        preset: 'Breathing recorder',
+        preset: 'Breathing tape',
         params: { level: -34, response: 1.5 },
       },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { decay: 6, mix: 0.35 } },
@@ -1726,7 +1726,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { sustain: 20, volume: -11 },
     },
     effects: [
-      { deviceId: 'half-speed', preset: 'Continuous octave', params: { highCut: 4000, mix: 0.5 } },
+      { deviceId: 'half-speed', preset: 'Smooth octave', params: { highCut: 4000, mix: 0.5 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.35 } },
     ],
     preview: 'chord',
@@ -1781,7 +1781,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'ambient-limiter', params: { gain: 12, ride: 0 } },
-      { deviceId: 'noise-floor', preset: 'Between stations', params: { level: -40 } },
+      { deviceId: 'noise-floor', preset: 'Radio static', params: { level: -40 } },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
@@ -1830,7 +1830,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       'Dark tines with no bell, doubled a few cents apart so they blur, going round a worn loop in a hall.',
     instrument: { deviceId: 'tine-piano', preset: 'Dark felt', params: { volume: -12.5 } },
     effects: [
-      { deviceId: 'stereo-detune', preset: 'Treated piano' },
+      { deviceId: 'stereo-detune', preset: 'Piano haze' },
       {
         deviceId: 'tape-loop',
         params: { length: 2.5, feedback: 0.8, wear: 0.5, wow: 0.3, mix: 0.5 },
@@ -1910,7 +1910,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { decay: 2.2, volume: 0 },
     },
     effects: [
-      { deviceId: 'micro-looper', preset: 'Backwards bed', params: { tone: 4000, mix: 0.35 } },
+      { deviceId: 'micro-looper', preset: 'Reverse bed', params: { tone: 4000, mix: 0.35 } },
       { deviceId: 'tape', preset: 'Quarter inch', params: { hiss: 0.3, wow: 0.35 } },
       { deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.3 } },
     ],

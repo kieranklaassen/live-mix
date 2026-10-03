@@ -21,12 +21,12 @@ import { wasmDeviceDescriptor } from './descriptor'
 export { wasmDeviceDescriptor, type WasmDeviceMeta } from './descriptor'
 
 export const DATTORRO_DESCRIPTOR = wasmDeviceDescriptor(DATTORRO_DEVICE, {
-  name: 'Dattorro Plate',
+  name: 'Plate Reverb',
   category: 'reverb',
   description:
-    'The Dattorro plate reverb: the input is summed to mono, diffused and sent round a modulated figure-of-eight tank, for a smooth stereo tail on a bus or the master.',
+    'A plate reverb: the input is summed to mono, diffused and sent round a modulated figure-of-eight tank, for a smooth stereo tail on a bus or the master.',
   presets: {
-    'ambient-live': { mix: 0.35, decay: 0.7, damping: 0.3, predelayMs: 20 },
+    'Medium plate': { mix: 0.35, decay: 0.7, damping: 0.3, predelayMs: 20 },
     'Small plate': { mix: 0.25, decay: 0.45, damping: 0.5, predelayMs: 10 },
     'Long plate': { mix: 0.4, decay: 0.9, damping: 0.2, predelayMs: 40 },
     'Tight room': { mix: 0.18, decay: 0.2, damping: 0.6, predelayMs: 0 },
@@ -37,6 +37,7 @@ export const DATTORRO_DESCRIPTOR = wasmDeviceDescriptor(DATTORRO_DEVICE, {
     'Distant haze': { mix: 0.75, decay: 0.85, damping: 0.65, predelayMs: 0 },
     'Full wet send': { mix: 1, decay: 0.6, damping: 0.2, predelayMs: 0 },
   },
+  formerPresets: { 'ambient-live': 'Medium plate' },
 })
 
 export const FDN_REVERB_DESCRIPTOR = wasmDeviceDescriptor(FDN_REVERB_DEVICE, {
@@ -113,10 +114,10 @@ export const STEREO_WIDENER_DESCRIPTOR = wasmDeviceDescriptor(STEREO_WIDENER_DEV
 })
 
 export const ZITA_REV1_DESCRIPTOR = wasmDeviceDescriptor(ZITA_REV1_DEVICE, {
-  name: 'Zita Reverb',
+  name: 'Hall Reverb',
   category: 'reverb',
   description:
-    "Fons Adriaensen's Zita-Rev1 hall reverb: an eight-line network with separate decay times for lows and mids, levelled so the output stays as loud as the input at any mix.",
+    'A hall reverb: an eight-line network with separate decay times for lows and mids, levelled so the output stays as loud as the input at any mix.',
   presets: {
     Room: { preDelay: 30, lowDecay: 1.5, midDecay: 1.2, damping: 5000, mix: 0.25 },
     Hall: { preDelay: 60, crossover: 200, lowDecay: 3, midDecay: 2.5, damping: 6000, mix: 0.35 },
@@ -155,10 +156,10 @@ export const ZITA_REV1_DESCRIPTOR = wasmDeviceDescriptor(ZITA_REV1_DEVICE, {
 })
 
 export const LIMITER_1176_DESCRIPTOR = wasmDeviceDescriptor(LIMITER_1176_DEVICE, {
-  name: '1176 Limiter',
+  name: 'FET Limiter',
   category: 'dynamics',
   description:
-    '1176-style levelling: a fixed 4:1 compressor with a fast attack that you drive with the input gain, followed by a soft ceiling that stops peaks at full scale.',
+    'Fast levelling, driven from the input: a fixed 4:1 compressor with a fast attack that you push with the input gain, followed by a soft ceiling that stops peaks at full scale.',
   presets: {
     Safety: { inputGain: 0, outputGain: 0 },
     Drive: { inputGain: 12, outputGain: -6 },

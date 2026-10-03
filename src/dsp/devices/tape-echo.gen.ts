@@ -218,7 +218,7 @@ export const TAPE_ECHO_DESCRIPTOR = wasmDeviceDescriptor(TAPE_ECHO_DEVICE, {
       spread: 0.6,
       mix: 0.5,
     },
-    'Clean steady repeats': {
+    'Clean and steady': {
       time: 450,
       feedback: 0.5,
       heads: 0,
@@ -312,7 +312,11 @@ export const TAPE_ECHO_DESCRIPTOR = wasmDeviceDescriptor(TAPE_ECHO_DEVICE, {
       mix: 0.3,
     },
   },
-  formerPresets: { 'Space echo': 'Warm repeats', Discreet: 'Short and soft' },
+  formerPresets: {
+    'Space echo': 'Warm repeats',
+    Discreet: 'Short and soft',
+    'Clean steady repeats': 'Clean and steady',
+  },
 })
 
 export type TapeEcho = WasmDevice<typeof TAPE_ECHO_PARAMS>

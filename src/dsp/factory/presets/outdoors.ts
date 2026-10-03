@@ -40,7 +40,7 @@ export const OUTDOORS_PRESETS: readonly FactoryPreset[] = [
       params: { attack: 1.5, volume: -4 },
     },
     effects: [
-      { deviceId: 'auto-filter', preset: 'Rumble Cut', params: { cutoffHz: 120 } },
+      { deviceId: 'auto-filter', preset: 'Rumble cut', params: { cutoffHz: 120 } },
       { deviceId: 'expanse', preset: 'Small dark room', params: { mix: 0.25, highCut: 6000 } },
     ],
   },

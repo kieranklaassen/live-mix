@@ -109,7 +109,7 @@
       "mix": 0.7,
       "width": 0.9
     },
-    "Long resonance": {
+    "Long ring": {
       "root": 0,
       "mode": 0,
       "sympathy": 0.4,
@@ -118,7 +118,7 @@
       "mix": 0.6,
       "width": 0.85
     },
-    "Follow the melody": {
+    "Follow the tune": {
       "root": 0,
       "mode": 2,
       "sympathy": 0.6,
@@ -163,7 +163,7 @@
       "mix": 0.35,
       "width": 0
     },
-    "Wide minor wash": {
+    "Minor wash": {
       "root": 2,
       "mode": 1,
       "sympathy": 0.55,
@@ -190,7 +190,7 @@
       "mix": 0.5,
       "width": 0.4
     },
-    "Hammered strings": {
+    "Hammered": {
       "root": 4,
       "mode": 1,
       "sympathy": 0.9,
@@ -208,6 +208,12 @@
       "mix": 0.4,
       "width": 0.3
     }
+  },
+  "formerPresets": {
+    "Long resonance": "Long ring",
+    "Follow the melody": "Follow the tune",
+    "Wide minor wash": "Minor wash",
+    "Hammered strings": "Hammered"
   },
   "origin": {
     "kind": "port",

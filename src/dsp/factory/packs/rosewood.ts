@@ -20,7 +20,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'analog-delay',
-        preset: 'Dark repeats',
+        preset: 'Dark echo',
         params: { time: 375, feedback: 0.3, modDepth: 0.08, tone: 5000, age: 0.15, mix: 0.3 },
       },
       { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.22 } },
@@ -41,7 +41,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'analog-delay',
-        preset: 'Dark repeats',
+        preset: 'Dark echo',
         params: {
           time: 400,
           feedback: 0.5,
@@ -158,7 +158,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'saturator',
-        preset: 'Tube Preamp',
+        preset: 'Tube preamp',
         params: { driveDb: 9, bias: 0.25, toneDb: 0, outputDb: -4, mix: 0.4 },
       },
       { deviceId: 'expanse', preset: 'Small dark room', params: { mix: 0.22 } },
@@ -207,7 +207,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         volume: -1,
       },
     },
-    effects: [{ deviceId: 'swarm-reverb', preset: 'Small swarm', params: { mix: 0.25 } }],
+    effects: [{ deviceId: 'swarm-reverb', preset: 'Tight swarm', params: { mix: 0.25 } }],
     preview: 'keys',
   },
   {
@@ -224,7 +224,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'analog-delay',
-        preset: 'Dark repeats',
+        preset: 'Dark echo',
         params: { time: 250, feedback: 0.45, modDepth: 0.1, tone: 3500, mix: 0.35 },
       },
       { deviceId: 'expanse', preset: 'Small dark room', params: { mix: 0.2 } },
@@ -245,7 +245,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'sympathetic',
-        preset: 'Long resonance',
+        preset: 'Long ring',
         params: { sympathy: 0.5, decay: 7, mix: 0.3, width: 0.6 },
       },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
@@ -373,7 +373,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'analog-delay',
-        preset: 'Dark repeats',
+        preset: 'Dark echo',
         params: { time: 333, feedback: 0.4, modDepth: 0.1, tone: 5000, mix: 0.3 },
       },
       { deviceId: 'ether-reverb', preset: 'Room', params: { mix: 0.2 } },
@@ -443,7 +443,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       { deviceId: 'tape', preset: 'Hot glue', params: { output: 0 } },
       {
         deviceId: 'analog-delay',
-        preset: 'Dark repeats',
+        preset: 'Dark echo',
         params: {
           time: 333,
           feedback: 0.35,
@@ -485,7 +485,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { pluck: 0.05, touch: 0.8, decay: 0.7, damp: 0.3, halo: 0.15, body: 0.9, volume: 0 },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Warm Glue', params: { driveDb: 15, outputDb: -6.5 } },
+      { deviceId: 'saturator', preset: 'Warm glue', params: { driveDb: 15, outputDb: -6.5 } },
       { deviceId: 'dattorro', preset: 'Small plate', params: { predelayMs: 0, mix: 0.2 } },
     ],
   },
@@ -559,7 +559,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       preset: 'Shakuhachi',
       params: { breath: 0.7, blow: 0.5, chiff: 1, release: 0.9, scoop: 150, volume: -12 },
     },
-    effects: [{ deviceId: 'vowel-reverb', preset: 'Whispering hall', params: { mix: 0.3 } }],
+    effects: [{ deviceId: 'vowel-reverb', preset: 'Whispering', params: { mix: 0.3 } }],
   },
   {
     id: 'rosewood-blown-bottles',
@@ -575,7 +575,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'analog-delay',
-        preset: 'Dark repeats',
+        preset: 'Dark echo',
         params: { time: 250, feedback: 0.4, modDepth: 0.1, tone: 4500, mix: 0.3 },
       },
       { deviceId: 'fdn-reverb', preset: 'Room', params: { mix: 0.22 } },
@@ -619,7 +619,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { breath: 0.9, blow: 0.2, release: 3, vibrato: 0.15, volume: -16 },
     },
     effects: [
-      { deviceId: 'stereo-detune', preset: 'Subtle halo' },
+      { deviceId: 'stereo-detune', preset: 'Soft halo' },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
     ],
     preview: 'chord',
@@ -754,7 +754,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         volume: -7,
       },
     },
-    effects: [{ deviceId: 'dattorro', preset: 'ambient-live', params: { decay: 0.6, mix: 0.25 } }],
+    effects: [{ deviceId: 'dattorro', preset: 'Medium plate', params: { decay: 0.6, mix: 0.25 } }],
   },
   {
     id: 'rosewood-felt-hammer-string',
@@ -883,7 +883,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'ambient-eq', preset: 'Texture', params: { lowCut: 400, body: -6, presence: 3 } },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.25 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -900,7 +900,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'analog-delay',
-        preset: 'Octave hops',
+        preset: 'Octave hop',
         params: { time: 500, feedback: 0.35, tone: 5000, mix: 0.3 },
       },
       { deviceId: 'ether-reverb', preset: 'Room', params: { mix: 0.2 } },
@@ -1119,9 +1119,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         volume: -5.5,
       },
     },
-    effects: [
-      { deviceId: 'vowel-reverb', preset: 'Small chapel', params: { vowel: 4, mix: 0.25 } },
-    ],
+    effects: [{ deviceId: 'vowel-reverb', preset: 'Chapel', params: { vowel: 4, mix: 0.25 } }],
     preview: 'line',
   },
 
@@ -1234,7 +1232,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         volume: -2,
       },
     },
-    effects: [{ deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.25 } }],
+    effects: [{ deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } }],
     preview: 'hold',
   },
 
@@ -1262,7 +1260,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'analog-delay',
-        preset: 'Dark repeats',
+        preset: 'Dark echo',
         params: { time: 375, feedback: 0.45, mix: 0.3 },
       },
       { deviceId: 'spring-reverb', preset: 'Two spring tank', params: { mix: 0.2 } },
@@ -1334,7 +1332,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'analog-delay',
-        preset: 'Dark repeats',
+        preset: 'Dark echo',
         params: { time: 125, feedback: 0.3, modDepth: 0.1, tone: 6000, mix: 0.25 },
       },
       { deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.2 } },
@@ -1429,7 +1427,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'analog-delay',
-        preset: 'Dark repeats',
+        preset: 'Dark echo',
         params: { time: 333, feedback: 0.5, modDepth: 0.05, tone: 5000, mix: 0.35 },
       },
       { deviceId: 'shaped-reverb', preset: 'Short halo', params: { mix: 0.25 } },
@@ -1601,7 +1599,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Warm repeats',
         params: { time: 500, feedback: 0.4, lowCut: 40, highCut: 3000, mix: 0.35 },
       },
-      { deviceId: 'shaped-reverb', preset: 'Gated room', params: { lowCut: 40, mix: 0.3 } },
+      { deviceId: 'shaped-reverb', preset: 'Gated', params: { lowCut: 40, mix: 0.3 } },
     ],
     preview: 'low',
   },
@@ -1735,7 +1733,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'analog-delay',
-        preset: 'Dark repeats',
+        preset: 'Dark echo',
         params: { time: 375, feedback: 0.4, modDepth: 0.1, tone: 4500, mix: 0.3 },
       },
       { deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.2 } },
@@ -1822,7 +1820,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       preset: 'Orchestra reeds',
       params: { age: 0.4, hiss: 0.3, attack: 0.2, release: 1, volume: -11 },
     },
-    effects: [{ deviceId: 'dattorro', preset: 'ambient-live', params: { decay: 0.6, mix: 0.25 } }],
+    effects: [{ deviceId: 'dattorro', preset: 'Medium plate', params: { decay: 0.6, mix: 0.25 } }],
     preview: 'chord',
   },
 
@@ -1964,7 +1962,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       { deviceId: 'saturator', preset: 'On tape', params: { driveDb: 12, outputDb: -9.5 } },
       {
         deviceId: 'analog-delay',
-        preset: 'Dark repeats',
+        preset: 'Dark echo',
         params: { time: 250, feedback: 0.5, modDepth: 0.1, tone: 3000, mix: 0.35 },
       },
       { deviceId: 'expanse', preset: 'Small dark room', params: { mix: 0.2 } },

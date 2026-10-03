@@ -137,7 +137,7 @@ export const SATURATOR_DESCRIPTOR = wasmDeviceDescriptor(SATURATOR_DEVICE, {
       oversample: 2,
       adaa: 0,
     },
-    'Warm Glue': {
+    'Warm glue': {
       curve: 0,
       driveDb: 4,
       bias: 0,
@@ -159,7 +159,7 @@ export const SATURATOR_DESCRIPTOR = wasmDeviceDescriptor(SATURATOR_DEVICE, {
       oversample: 2,
       adaa: 0,
     },
-    'Tube Preamp': {
+    'Tube preamp': {
       curve: 2,
       driveDb: 12,
       bias: 0.2,
@@ -181,7 +181,7 @@ export const SATURATOR_DESCRIPTOR = wasmDeviceDescriptor(SATURATOR_DEVICE, {
       oversample: 2,
       adaa: 0,
     },
-    'Drum Bus Crunch': {
+    'Drum bus crunch': {
       curve: 0,
       driveDb: 14,
       bias: 0,
@@ -192,7 +192,7 @@ export const SATURATOR_DESCRIPTOR = wasmDeviceDescriptor(SATURATOR_DEVICE, {
       oversample: 2,
       adaa: 1,
     },
-    'Hard Clip Master': {
+    'Hard clip master': {
       curve: 1,
       driveDb: 3,
       bias: 0,
@@ -203,7 +203,7 @@ export const SATURATOR_DESCRIPTOR = wasmDeviceDescriptor(SATURATOR_DEVICE, {
       oversample: 2,
       adaa: 1,
     },
-    'Fuzz Pedal': {
+    'Fuzz pedal': {
       curve: 1,
       driveDb: 30,
       bias: 0.4,
@@ -214,7 +214,7 @@ export const SATURATOR_DESCRIPTOR = wasmDeviceDescriptor(SATURATOR_DEVICE, {
       oversample: 2,
       adaa: 1,
     },
-    'Wavefold Lead': {
+    'Wavefold lead': {
       curve: 4,
       driveDb: 16,
       bias: 0.15,
@@ -247,7 +247,7 @@ export const SATURATOR_DESCRIPTOR = wasmDeviceDescriptor(SATURATOR_DEVICE, {
       oversample: 0,
       adaa: 0,
     },
-    'Parallel Shine': {
+    'Parallel shine': {
       curve: 3,
       driveDb: 20,
       bias: 0,
@@ -258,7 +258,7 @@ export const SATURATOR_DESCRIPTOR = wasmDeviceDescriptor(SATURATOR_DEVICE, {
       oversample: 2,
       adaa: 0,
     },
-    'Soft Tape Warmth': {
+    'Soft tape warmth': {
       curve: 3,
       driveDb: 6,
       bias: 0,
@@ -269,7 +269,7 @@ export const SATURATOR_DESCRIPTOR = wasmDeviceDescriptor(SATURATOR_DEVICE, {
       oversample: 1,
       adaa: 0,
     },
-    'Folded Glass': {
+    'Folded glass': {
       curve: 4,
       driveDb: 14,
       bias: 0,
@@ -280,7 +280,7 @@ export const SATURATOR_DESCRIPTOR = wasmDeviceDescriptor(SATURATOR_DEVICE, {
       oversample: 2,
       adaa: 0,
     },
-    'Octave Glow': {
+    'Octave glow': {
       curve: 0,
       driveDb: 12,
       bias: 0.6,
@@ -291,7 +291,7 @@ export const SATURATOR_DESCRIPTOR = wasmDeviceDescriptor(SATURATOR_DEVICE, {
       oversample: 2,
       adaa: 0,
     },
-    'Sustain Bed': {
+    'Sustain bed': {
       curve: 1,
       driveDb: 36,
       bias: 0,
@@ -302,6 +302,19 @@ export const SATURATOR_DESCRIPTOR = wasmDeviceDescriptor(SATURATOR_DEVICE, {
       oversample: 2,
       adaa: 1,
     },
+  },
+  formerPresets: {
+    'Warm Glue': 'Warm glue',
+    'Tube Preamp': 'Tube preamp',
+    'Drum Bus Crunch': 'Drum bus crunch',
+    'Hard Clip Master': 'Hard clip master',
+    'Fuzz Pedal': 'Fuzz pedal',
+    'Wavefold Lead': 'Wavefold lead',
+    'Parallel Shine': 'Parallel shine',
+    'Soft Tape Warmth': 'Soft tape warmth',
+    'Folded Glass': 'Folded glass',
+    'Octave Glow': 'Octave glow',
+    'Sustain Bed': 'Sustain bed',
   },
   retiredPresets: {
     'Tape Print': {

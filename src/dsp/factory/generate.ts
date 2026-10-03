@@ -307,7 +307,7 @@ const DRONES: readonly Voice[] = [
         chord: rootName(chord),
         instrument: { deviceId: 'bowed-string', preset: 'Cello drone' },
         effects: [
-          { deviceId: 'chorus', preset: 'Subtle Widener', params: { mix: 0.3 } },
+          { deviceId: 'chorus', preset: 'Subtle widener', params: { mix: 0.3 } },
           zita('Hall', between(voice, 0.35, 0.45)),
           quarterTurn(8),
         ],
@@ -362,7 +362,7 @@ const PADS: readonly Voice[] = [
           },
         },
         effects: [
-          { deviceId: 'chorus', preset: 'Slow Drift', params: { mix: 0.35 } },
+          { deviceId: 'chorus', preset: 'Slow drift', params: { mix: 0.35 } },
           {
             deviceId: 'fdn-reverb',
             preset: 'Hall',
@@ -393,7 +393,7 @@ const PADS: readonly Voice[] = [
           },
         },
         effects: [
-          { deviceId: 'chorus', preset: 'Slow Drift', params: { mix: 0.4 } },
+          { deviceId: 'chorus', preset: 'Slow drift', params: { mix: 0.4 } },
           {
             deviceId: 'expanse',
             preset: 'Open space',
@@ -492,7 +492,7 @@ const PADS: readonly Voice[] = [
           params: { ensemble: 0, vibrato: 0, attack: 0.5 },
         },
         effects: [
-          { deviceId: 'chorus', preset: 'Slow Drift', params: { mix: 0.35 } },
+          { deviceId: 'chorus', preset: 'Slow drift', params: { mix: 0.35 } },
           zita('Cathedral', between(scene.voice, 0.4, 0.5)),
           breathe(0.125, 0.3),
         ],
@@ -812,7 +812,7 @@ const ONE_SHOTS: readonly Voice[] = [
     0.3,
     () => ({
       instrument: { deviceId: 'tine-piano', preset: 'Soft suitcase' },
-      effects: [{ deviceId: 'chorus', preset: 'Subtle Widener' }, zita('Hall', 0.3)],
+      effects: [{ deviceId: 'chorus', preset: 'Subtle widener' }, zita('Hall', 0.3)],
     }),
   ),
 ]
@@ -950,7 +950,7 @@ const PHRASES: readonly Voice[] = [
         description: `A rolled ${chord} and a short answer above it on a tine piano.`,
         chord,
         instrument: { deviceId: 'tine-piano', preset: 'Soft suitcase' },
-        effects: [{ deviceId: 'chorus', preset: 'Subtle Widener' }, zita('Hall', 0.3)],
+        effects: [{ deviceId: 'chorus', preset: 'Subtle widener' }, zita('Hall', 0.3)],
         notes: [
           ...voicing(scene.chord, colour, 43).map((note, index) => ({
             atSec: roll[index],

@@ -56,7 +56,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'stereo-detune', preset: 'Thick double', params: { mix: 0.45 } },
+      { deviceId: 'stereo-detune', preset: 'Doubled', params: { mix: 0.45 } },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { midDecay: 4, damping: 3200, mix: 0.5 } },
       { deviceId: 'tape', preset: 'Cassette four-track', params: { wow: 0.3, hiss: 0.3 } },
     ],
@@ -157,7 +157,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'vowel-reverb',
-        preset: 'Cathedral choir',
+        preset: 'Cathedral',
         params: { decay: 14, highCut: 4500, mix: 0.5 },
       },
       { deviceId: 'tape', preset: 'Cassette four-track', params: { drive: 0.4, hiss: 0.3 } },
@@ -175,7 +175,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { vowel: 0.7, voice: 1.24, motion: 0.4, attack: 1.8, tone: 4200, volume: -16 },
     },
     effects: [
-      { deviceId: 'noise-floor', preset: 'Rides the sound', params: { level: -34, tone: -0.3 } },
+      { deviceId: 'noise-floor', preset: 'Riding hiss', params: { level: -34, tone: -0.3 } },
       { deviceId: 'expanse', preset: 'Open space', params: { highCut: 3800, mix: 0.45 } },
     ],
   },
@@ -194,7 +194,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       { deviceId: 'tape', preset: 'Cassette four-track', params: { hiss: 0.25 } },
       {
         deviceId: 'half-speed',
-        preset: 'Continuous octave',
+        preset: 'Smooth octave',
         params: { highCut: 4500, mix: 0.85 },
       },
       { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.45 } },
@@ -235,7 +235,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { pickup: 0.5, hardness: 0.6, sustain: 16, strum: 45, volume: -9 },
     },
     effects: [
-      { deviceId: 'analog-drive', preset: 'Dark fuzz bed', params: { drive: 0.55, output: -7 } },
+      { deviceId: 'analog-drive', preset: 'Dark fuzz', params: { drive: 0.55, output: -7 } },
       { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.55 } },
       { deviceId: 'ambient-eq', preset: 'Shaded', params: { highCut: 3000 } },
     ],
@@ -295,7 +295,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'analog-delay', preset: 'Long and murky', params: { time: 780, mix: 0.4 } },
+      { deviceId: 'analog-delay', preset: 'Murky', params: { time: 780, mix: 0.4 } },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.4 } },
     ],
   },
@@ -354,7 +354,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { pickup: 0.6, position: 0.12, hardness: 0.4, sustain: 4, tone: 3000, volume: 1.5 },
     },
     effects: [
-      { deviceId: 'micro-looper', preset: 'Half speed bed', params: { length: 3, mix: 0.4 } },
+      { deviceId: 'micro-looper', preset: 'Half speed', params: { length: 3, mix: 0.4 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { damping: 0.55, mix: 0.4 } },
       { deviceId: 'noise-floor', preset: 'Tape floor', params: { level: -45, tone: -0.2 } },
     ],
@@ -392,7 +392,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'pitch-shifter',
-        preset: 'Detuned double',
+        preset: 'Doubler',
         params: { detune: 12, delay: 30, tone: 7000, mix: 0.45 },
       },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.4 } },
@@ -412,7 +412,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'ambient-comp', preset: 'Mic' },
-      { deviceId: 'noise-floor', preset: 'Breathing recorder', params: { level: -36 } },
+      { deviceId: 'noise-floor', preset: 'Breathing tape', params: { level: -36 } },
       { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.2 } },
     ],
   },
@@ -428,7 +428,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { nail: 0.4, tone: 0.4, strum: 50, release: 3, volume: -0.5 },
     },
     effects: [
-      { deviceId: 'chorus', preset: 'Slow Drift', params: { mix: 0.3 } },
+      { deviceId: 'chorus', preset: 'Slow drift', params: { mix: 0.3 } },
       {
         deviceId: 'expanse',
         preset: 'Open space',
@@ -561,7 +561,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'sustainer', preset: 'Dark bed', params: { attack: 0.8, decay: 20, mix: 0.5 } },
-      { deviceId: 'vowel-reverb', preset: 'Whispering hall', params: { decay: 6, mix: 0.35 } },
+      { deviceId: 'vowel-reverb', preset: 'Whispering', params: { decay: 6, mix: 0.35 } },
     ],
   },
   {
@@ -766,7 +766,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Slowed down',
         params: { length: 4, feedback: 0.7, wear: 0.6, mix: 0.45 },
       },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { damping: 0.5, mix: 0.3 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { damping: 0.5, mix: 0.3 } },
     ],
   },
   {
@@ -850,7 +850,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { sub: 0.15, reed: 0.5, breath: 0.65, bellows: 0.85, tone: 2200, volume: -14.5 },
     },
     effects: [
-      { deviceId: 'noise-floor', preset: 'Close microphone', params: { level: -38 } },
+      { deviceId: 'noise-floor', preset: 'Close mic', params: { level: -38 } },
       { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.25 } },
     ],
   },
@@ -942,7 +942,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'analog-drive',
-        preset: 'Dark fuzz bed',
+        preset: 'Dark fuzz',
         params: { drive: 0.3, output: -13, mix: 0.7 },
       },
       { deviceId: 'spring-reverb', preset: 'Long three spring', params: { mix: 0.4 } },
@@ -969,8 +969,8 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'chorus', preset: 'Slow Drift', params: { mix: 0.35 } },
-      { deviceId: 'vowel-reverb', preset: 'Small chapel', params: { decay: 3, mix: 0.4 } },
+      { deviceId: 'chorus', preset: 'Slow drift', params: { mix: 0.35 } },
+      { deviceId: 'vowel-reverb', preset: 'Chapel', params: { decay: 3, mix: 0.4 } },
       { deviceId: 'patina', preset: 'Worn cassette', params: { noise: 0.3 } },
     ],
     preview: 'line',
@@ -1243,7 +1243,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 3, cutoff: 700, movement: 0.7, volume: -8.5 },
     },
     effects: [
-      { deviceId: 'noise-floor', preset: 'Breathing recorder', params: { level: -38 } },
+      { deviceId: 'noise-floor', preset: 'Breathing tape', params: { level: -38 } },
       { deviceId: 'fdn-reverb', preset: 'Breathing', params: { mix: 0.4 } },
     ],
   },
@@ -1362,7 +1362,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'analog-delay',
-        preset: 'Dark repeats',
+        preset: 'Dark echo',
         params: { time: 520, tone: 2200, mix: 0.3 },
       },
       { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.4 } },
@@ -1456,7 +1456,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tape', preset: 'Cassette four-track', params: { hiss: 0.3 } },
-      { deviceId: 'half-speed', preset: 'Continuous octave', params: { mix: 0.75 } },
+      { deviceId: 'half-speed', preset: 'Smooth octave', params: { mix: 0.75 } },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.4 } },
     ],
   },
@@ -1494,7 +1494,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { damp: 0.6, body: 0.9, volume: -3 },
     },
     effects: [
-      { deviceId: 'analog-delay', preset: 'Long and murky', params: { mix: 0.3 } },
+      { deviceId: 'analog-delay', preset: 'Murky', params: { mix: 0.3 } },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.4 } },
     ],
   },
@@ -1529,7 +1529,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'expanse', preset: 'Far echoes', params: { mix: 0.4 } },
-      { deviceId: 'noise-floor', preset: 'Close microphone', params: { level: -42 } },
+      { deviceId: 'noise-floor', preset: 'Close mic', params: { level: -42 } },
     ],
     preview: 'low',
   },
@@ -1620,7 +1620,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { mallet: 0.2, damper: 0.4, volume: -9.5 },
     },
     effects: [
-      { deviceId: 'sympathetic', preset: 'Long resonance', params: { decay: 6, mix: 0.3 } },
+      { deviceId: 'sympathetic', preset: 'Long ring', params: { decay: 6, mix: 0.3 } },
       { deviceId: 'patina', preset: 'Worn cassette', params: { wobble: 0.6 } },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.35 } },
     ],
@@ -1640,7 +1640,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'expanse', preset: 'Far echoes', params: { highCut: 3500, mix: 0.4 } },
-      { deviceId: 'noise-floor', preset: 'Close microphone', params: { level: -48, tone: -0.4 } },
+      { deviceId: 'noise-floor', preset: 'Close mic', params: { level: -48, tone: -0.4 } },
     ],
   },
   {
@@ -1864,7 +1864,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { age: 0.6, hiss: 0.35, tone: -0.1, volume: -9 },
     },
     effects: [
-      { deviceId: 'echo-memory', preset: 'Half-remembered', params: { reach: 12, mix: 0.4 } },
+      { deviceId: 'echo-memory', preset: 'Hazy past', params: { reach: 12, mix: 0.4 } },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.35 } },
     ],
   },
@@ -1935,7 +1935,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { cutoff: 900, resonance: 0.2, attack: 3, spread: 0.6, volume: -12 },
     },
     effects: [
-      { deviceId: 'stereo-detune', preset: 'Subtle halo' },
+      { deviceId: 'stereo-detune', preset: 'Soft halo' },
       {
         deviceId: 'expanse',
         preset: 'Open space',

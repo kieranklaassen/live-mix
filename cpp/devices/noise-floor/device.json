@@ -109,7 +109,7 @@
       "width": 0.3,
       "hold": 30
     },
-    "Between stations": {
+    "Radio static": {
       "type": 5,
       "level": -36,
       "tone": 0.1,
@@ -117,7 +117,7 @@
       "width": 0.5,
       "hold": 10
     },
-    "Breathing recorder": {
+    "Breathing tape": {
       "type": 0,
       "level": -28,
       "follow": -1,
@@ -126,7 +126,7 @@
       "movement": 0.4,
       "hold": 15
     },
-    "Rides the sound": {
+    "Riding hiss": {
       "type": 0,
       "level": -30,
       "follow": 1,
@@ -135,7 +135,7 @@
       "movement": 0.2,
       "hold": 2
     },
-    "Close microphone": {
+    "Close mic": {
       "type": 6,
       "level": -40,
       "follow": 0.3,
@@ -163,7 +163,7 @@
       "width": 1,
       "hold": 20
     },
-    "Low mains hum": {
+    "Mains hum": {
       "type": 3,
       "level": -36,
       "tone": -0.8,
@@ -171,7 +171,7 @@
       "width": 0.2,
       "hold": 20
     },
-    "Crackle in the gaps": {
+    "Gap crackle": {
       "type": 1,
       "level": -30,
       "follow": -1,
@@ -180,7 +180,7 @@
       "width": 0.9,
       "hold": 10
     },
-    "Notes made of static": {
+    "Static notes": {
       "type": 5,
       "level": -24,
       "follow": 1,
@@ -205,6 +205,15 @@
       "movement": 0.2,
       "width": 1
     }
+  },
+  "formerPresets": {
+    "Between stations": "Radio static",
+    "Breathing recorder": "Breathing tape",
+    "Rides the sound": "Riding hiss",
+    "Close microphone": "Close mic",
+    "Low mains hum": "Mains hum",
+    "Crackle in the gaps": "Gap crackle",
+    "Notes made of static": "Static notes"
   },
   "origin": {
     "kind": "new",

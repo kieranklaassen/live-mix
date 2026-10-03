@@ -145,9 +145,9 @@ export const HALF_SPEED_DESCRIPTOR = wasmDeviceDescriptor(HALF_SPEED_DEVICE, {
       mix: 1,
     },
     'Slow chops': { length: 500, fade: 0.06, smooth: 0, jitter: 0, spread: 0 },
-    'Continuous octave': { length: 2400, smooth: 1, fade: 0.3, spread: 0.8 },
+    'Smooth octave': { length: 2400, smooth: 1, fade: 0.3, spread: 0.8 },
     'Fifth down bed': { speed: 1, length: 1600, smooth: 0.8, highCut: 6000, spread: 0.7, mix: 0.5 },
-    'Two octaves under': {
+    'Two octaves': {
       speed: 3,
       length: 1500,
       smooth: 1,
@@ -169,7 +169,7 @@ export const HALF_SPEED_DESCRIPTOR = wasmDeviceDescriptor(HALF_SPEED_DEVICE, {
       spread: 1,
       mix: 0.6,
     },
-    'Quarter speed crawl': {
+    'Quarter speed': {
       speed: 3,
       length: 3600,
       fade: 0.35,
@@ -191,7 +191,7 @@ export const HALF_SPEED_DESCRIPTOR = wasmDeviceDescriptor(HALF_SPEED_DEVICE, {
       spread: 1,
       mix: 0.4,
     },
-    'Fourth below harmony': {
+    'Fourth below': {
       speed: 0,
       length: 170,
       fade: 0.25,
@@ -222,6 +222,12 @@ export const HALF_SPEED_DESCRIPTOR = wasmDeviceDescriptor(HALF_SPEED_DEVICE, {
       mix: 0.8,
     },
     'Tape slip': { speed: 0, length: 700, fade: 0.02, smooth: 0, jitter: 0.8, spread: 0, mix: 1 },
+  },
+  formerPresets: {
+    'Continuous octave': 'Smooth octave',
+    'Two octaves under': 'Two octaves',
+    'Quarter speed crawl': 'Quarter speed',
+    'Fourth below harmony': 'Fourth below',
   },
 })
 

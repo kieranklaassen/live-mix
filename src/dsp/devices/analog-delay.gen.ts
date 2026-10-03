@@ -171,7 +171,7 @@ export const ANALOG_DELAY_DESCRIPTOR = wasmDeviceDescriptor(ANALOG_DELAY_DEVICE,
   description:
     'Bucket-brigade delay: dark, soft, slightly noisy repeats that dull as the time gets longer, with chorus on the echoes and a stepped clock that makes them jump by musical intervals.',
   presets: {
-    'Dark repeats': {
+    'Dark echo': {
       time: 380,
       feedback: 0.45,
       modDepth: 0.3,
@@ -181,7 +181,7 @@ export const ANALOG_DELAY_DESCRIPTOR = wasmDeviceDescriptor(ANALOG_DELAY_DEVICE,
       spread: 0.5,
       mix: 0.35,
     },
-    'Chorus echo': {
+    Chorused: {
       time: 290,
       feedback: 0.4,
       modDepth: 0.55,
@@ -191,7 +191,7 @@ export const ANALOG_DELAY_DESCRIPTOR = wasmDeviceDescriptor(ANALOG_DELAY_DEVICE,
       spread: 0.8,
       mix: 0.4,
     },
-    'Seasick vibrato': {
+    Seasick: {
       time: 160,
       feedback: 0.35,
       modDepth: 0.75,
@@ -201,7 +201,7 @@ export const ANALOG_DELAY_DESCRIPTOR = wasmDeviceDescriptor(ANALOG_DELAY_DEVICE,
       spread: 0.3,
       mix: 0.5,
     },
-    'Long and murky': {
+    Murky: {
       time: 900,
       feedback: 0.6,
       modDepth: 0.4,
@@ -220,7 +220,7 @@ export const ANALOG_DELAY_DESCRIPTOR = wasmDeviceDescriptor(ANALOG_DELAY_DEVICE,
       spread: 0.2,
       mix: 0.3,
     },
-    'Octave hops': {
+    'Octave hop': {
       time: 420,
       feedback: 0.6,
       modDepth: 0.15,
@@ -231,7 +231,7 @@ export const ANALOG_DELAY_DESCRIPTOR = wasmDeviceDescriptor(ANALOG_DELAY_DEVICE,
       glide: 0,
       mix: 0.4,
     },
-    'Fifths and fourths': {
+    'Fifth hop': {
       time: 330,
       feedback: 0.65,
       modDepth: 0.2,
@@ -273,7 +273,7 @@ export const ANALOG_DELAY_DESCRIPTOR = wasmDeviceDescriptor(ANALOG_DELAY_DEVICE,
       spread: 0.8,
       mix: 0.16,
     },
-    'Bright and clean': {
+    'Clean echo': {
       time: 210,
       feedback: 0.4,
       modDepth: 0,
@@ -282,7 +282,7 @@ export const ANALOG_DELAY_DESCRIPTOR = wasmDeviceDescriptor(ANALOG_DELAY_DEVICE,
       spread: 0.2,
       mix: 0.35,
     },
-    'Thick double': {
+    Doubler: {
       time: 40,
       feedback: 0,
       modDepth: 0.8,
@@ -292,7 +292,7 @@ export const ANALOG_DELAY_DESCRIPTOR = wasmDeviceDescriptor(ANALOG_DELAY_DEVICE,
       spread: 1,
       mix: 0.5,
     },
-    'Wide slow drift': {
+    'Slow drift': {
       time: 640,
       feedback: 0.55,
       modDepth: 0.7,
@@ -302,7 +302,7 @@ export const ANALOG_DELAY_DESCRIPTOR = wasmDeviceDescriptor(ANALOG_DELAY_DEVICE,
       spread: 1,
       mix: 0.4,
     },
-    'Hiss and clock whine': {
+    'Noisy clock': {
       time: 1200,
       feedback: 0.45,
       modDepth: 0.2,
@@ -311,7 +311,7 @@ export const ANALOG_DELAY_DESCRIPTOR = wasmDeviceDescriptor(ANALOG_DELAY_DEVICE,
       spread: 0.4,
       mix: 0.35,
     },
-    'Slow lurch down': {
+    'Slow lurch': {
       time: 350,
       feedback: 0.6,
       modDepth: 0.2,
@@ -322,7 +322,7 @@ export const ANALOG_DELAY_DESCRIPTOR = wasmDeviceDescriptor(ANALOG_DELAY_DEVICE,
       glide: 0.6,
       mix: 0.4,
     },
-    'Fluttering repeats': {
+    Fluttering: {
       time: 240,
       feedback: 0.5,
       modDepth: 0.45,
@@ -332,6 +332,20 @@ export const ANALOG_DELAY_DESCRIPTOR = wasmDeviceDescriptor(ANALOG_DELAY_DEVICE,
       spread: 0.6,
       mix: 0.38,
     },
+  },
+  formerPresets: {
+    'Dark repeats': 'Dark echo',
+    'Chorus echo': 'Chorused',
+    'Seasick vibrato': 'Seasick',
+    'Long and murky': 'Murky',
+    'Octave hops': 'Octave hop',
+    'Fifths and fourths': 'Fifth hop',
+    'Bright and clean': 'Clean echo',
+    'Thick double': 'Doubler',
+    'Wide slow drift': 'Slow drift',
+    'Hiss and clock whine': 'Noisy clock',
+    'Slow lurch down': 'Slow lurch',
+    'Fluttering repeats': 'Fluttering',
   },
 })
 

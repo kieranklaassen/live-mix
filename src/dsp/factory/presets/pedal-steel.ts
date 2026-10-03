@@ -22,7 +22,7 @@ export const PEDAL_STEEL_PRESETS: readonly FactoryPreset[] = [
       'Steel strings with no vibrato, faded in over a second and a half and held in a very large, dark space.',
     instrument: { deviceId: 'pedal-steel', preset: 'Still glass', params: { volume: -10.5 } },
     effects: [
-      { deviceId: 'chorus', preset: 'Slow Drift', params: { mix: 0.3 } },
+      { deviceId: 'chorus', preset: 'Slow drift', params: { mix: 0.3 } },
       { deviceId: 'expanse', preset: 'Open space', params: { mix: 0.45 } },
     ],
     preview: 'chord',
@@ -49,7 +49,7 @@ export const PEDAL_STEEL_PRESETS: readonly FactoryPreset[] = [
     instrument: { deviceId: 'pedal-steel', preset: 'Singing lead', params: { volume: -6 } },
     effects: [
       { deviceId: 'tape-echo', preset: 'Three heads', params: { mix: 0.22 } },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.3 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.3 } },
     ],
     preview: 'keys',
   },

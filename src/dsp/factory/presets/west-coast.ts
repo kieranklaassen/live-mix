@@ -21,7 +21,7 @@ export const WEST_COAST_PRESETS: readonly FactoryPreset[] = [
       'Clangorous bell strikes that dull to a pure ring, widened a little and left in a still room.',
     instrument: { deviceId: 'west-coast', preset: 'Glass bell', params: { volume: -1 } },
     effects: [
-      { deviceId: 'chorus', preset: 'Subtle Widener' },
+      { deviceId: 'chorus', preset: 'Subtle widener' },
       { deviceId: 'bloom-reverb', preset: 'Still room', params: { mix: 0.35 } },
     ],
   },
@@ -45,7 +45,7 @@ export const WEST_COAST_PRESETS: readonly FactoryPreset[] = [
       'A chord that opens slowly, its overtones blooming with the gate, in an ensemble chorus and a blooming reverb.',
     instrument: { deviceId: 'west-coast', preset: 'Slow bloom', params: { volume: -9 } },
     effects: [
-      { deviceId: 'chorus', preset: 'Lush Ensemble', params: { mix: 0.4 } },
+      { deviceId: 'chorus', preset: 'Lush ensemble', params: { mix: 0.4 } },
       { deviceId: 'bloom-reverb', preset: 'Bloom', params: { mix: 0.35 } },
     ],
   },

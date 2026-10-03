@@ -74,7 +74,7 @@ export const DRONE_PRESETS: readonly FactoryPreset[] = [
       params: { wave: 0.9, sub: 0.1, cutoff: 3000, volume: -9 },
     },
     effects: [
-      { deviceId: 'phaser', preset: 'Slow Swirl', params: { mix: 0.4 } },
+      { deviceId: 'phaser', preset: 'Slow swirl', params: { mix: 0.4 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },

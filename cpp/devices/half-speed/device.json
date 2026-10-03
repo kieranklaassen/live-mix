@@ -112,7 +112,7 @@
       "jitter": 0,
       "spread": 0
     },
-    "Continuous octave": {
+    "Smooth octave": {
       "length": 2400,
       "smooth": 1,
       "fade": 0.3,
@@ -126,7 +126,7 @@
       "spread": 0.7,
       "mix": 0.5
     },
-    "Two octaves under": {
+    "Two octaves": {
       "speed": 3,
       "length": 1500,
       "smooth": 1,
@@ -174,7 +174,7 @@
       "spread": 1,
       "mix": 0.6
     },
-    "Quarter speed crawl": {
+    "Quarter speed": {
       "speed": 3,
       "length": 3600,
       "fade": 0.35,
@@ -196,7 +196,7 @@
       "spread": 1,
       "mix": 0.4
     },
-    "Fourth below harmony": {
+    "Fourth below": {
       "speed": 0,
       "length": 170,
       "fade": 0.25,
@@ -235,6 +235,12 @@
       "spread": 0,
       "mix": 1
     }
+  },
+  "formerPresets": {
+    "Continuous octave": "Smooth octave",
+    "Two octaves under": "Two octaves",
+    "Quarter speed crawl": "Quarter speed",
+    "Fourth below harmony": "Fourth below"
   },
   "origin": {
     "kind": "new",
