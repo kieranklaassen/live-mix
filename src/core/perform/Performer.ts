@@ -156,6 +156,8 @@ interface QueuedScene {
   /** Beats since the timeline began; null means the next tick, whenever that is. */
   beats: number | null
   morphBars: number | undefined
+  /** The grid asked for, so the line is found again on the same one after a seek. */
+  quantize: LaunchQuantize | undefined
   /** Reached by a follow rule rather than by a hand. */
   followed: boolean
 }
@@ -164,6 +166,7 @@ interface QueuedRide {
   value: number
   beats: number | null
   morphBars: number | undefined
+  quantize: LaunchQuantize | undefined
 }
 
 type TempoSource = TempoMap | (() => TempoMap)
@@ -278,7 +281,12 @@ export class Performer {
   go(scene: string, options: MoveOptions = {}): boolean {
     this.assertLive()
     if (!this.findScene(scene)) return false
-    this.queueScene({ scene, morphBars: options.morphBars, followed: false }, options.quantize)
+    this.queueScene({
+      scene,
+      morphBars: options.morphBars,
+      quantize: options.quantize,
+      followed: false,
+    })
     return true
   }
 
@@ -301,6 +309,7 @@ export class Performer {
       value: clamp(value, 0, MAX_RIDE),
       beats,
       morphBars: options.morphBars,
+      quantize: options.quantize,
     })
     // A line already inside the lookahead does not wait for the next tick.
     if (!this.flush(this.beatsNow())) this.changed()
@@ -656,12 +665,8 @@ export class Performer {
 
   // --- Moves ------------------------------------------------------------------------------
 
-  private queueScene(
-    move: Omit<QueuedScene, 'beats'>,
-    quantize: LaunchQuantize | undefined,
-    atBeats?: number,
-  ): void {
-    const beats = atBeats ?? this.lineAfter(quantize ?? this.current.quantize)
+  private queueScene(move: Omit<QueuedScene, 'beats'>, atBeats?: number): void {
+    const beats = atBeats ?? this.lineAfter(move.quantize ?? this.current.quantize)
     this.queued = { ...move, beats }
     this.events.emit({ type: 'queue', scene: move.scene })
     // A line already inside the lookahead does not wait for the next tick.
@@ -812,7 +817,7 @@ export class Performer {
       this.followAtBeats = at + this.followPeriodBeats
       return
     }
-    this.queueScene({ scene: next, morphBars: undefined, followed: true }, undefined, at)
+    this.queueScene({ scene: next, morphBars: undefined, quantize: undefined, followed: true }, at)
   }
 
   // --- Ticks --------------------------------------------------------------------------------
@@ -862,11 +867,16 @@ export class Performer {
     if (this.queued) {
       this.queued = {
         ...this.queued,
-        beats: this.queued.followed ? this.followAtBeats : this.lineAfter(this.current.quantize),
+        beats: this.queued.followed
+          ? this.followAtBeats
+          : this.lineAfter(this.queued.quantize ?? this.current.quantize),
       }
     }
     for (const [track, ride] of [...this.queuedRides]) {
-      this.queuedRides.set(track, { ...ride, beats: this.lineAfter(this.current.quantize) })
+      this.queuedRides.set(track, {
+        ...ride,
+        beats: this.lineAfter(ride.quantize ?? this.current.quantize),
+      })
     }
     this.reportedBeat = Math.ceil(now - BEAT_EPSILON) - 1
   }
