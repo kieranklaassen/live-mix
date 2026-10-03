@@ -23,7 +23,7 @@
 // The report is written to tmp/factory-<mode>-<filter or all>.txt (and printed, when the reporter shows
 // test output). FACTORY_WAV=<dir> also writes what was rendered as WAV files.
 
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { describe, it } from 'vitest'
@@ -203,10 +203,18 @@ describe.skipIf(!mode)('factory bench', () => {
       }
       // With the packs: the same instrument's pack presets, so a new preset is not one of those again.
       if (withPacks && onlyDevice) {
+        // A pack preset does not change, so its print is kept in tmp/ from one run to the next.
+        const kept = join('tmp', `prints-packs-${onlyDevice}.json`)
+        const known: Record<string, SoundPrint> = existsSync(kept)
+          ? (JSON.parse(readFileSync(kept, 'utf8')) as Record<string, SoundPrint>)
+          : {}
         const packs = await loadFactoryPacks()
         for (const preset of packs.filter((p) => p.instrument.deviceId === onlyDevice)) {
-          prints.set(preset.id, soundPrint(await render(preset)))
+          known[preset.id] ??= soundPrint(await render(preset))
+          prints.set(preset.id, known[preset.id])
         }
+        mkdirSync('tmp', { recursive: true })
+        writeFileSync(kept, JSON.stringify(known))
       }
       say(`\n${chosen.length} presets${onlyDevice ? ` for ${onlyDevice}` : ''}`)
       sayWords(chosen)
