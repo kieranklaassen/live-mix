@@ -67,4 +67,359 @@ export const MOTION_CHAINS: readonly FactoryChain[] = [
       { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
+  {
+    id: 'twin-rate-ensemble',
+    name: 'Twin rate ensemble',
+    category: 'motion',
+    description:
+      'Two choruses in a row, one slow and deep, one quick and shallow: the thick shimmer of a string machine.',
+    effects: [
+      { deviceId: 'chorus', preset: 'Lush ensemble', params: { rate: 0.6, depth: 45, spread: 25 } },
+      {
+        deviceId: 'chorus',
+        preset: 'Fast flutter',
+        params: { rate: 5.6, depth: 12, delayMs: 9, spread: 25, mix: 0.4 },
+      },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 5.5 } },
+    ],
+  },
+  {
+    id: 'spring-then-tremolo',
+    name: 'Spring then tremolo',
+    category: 'motion',
+    description:
+      'One spring, a tremolo after it and the speaker of a small combo amplifier, so the splash pulses with the notes.',
+    effects: [
+      {
+        deviceId: 'spring-reverb',
+        preset: 'Dark amp spring',
+        params: { mix: 0.35, decay: 2.8, tone: 3600, drip: 0.5 },
+      },
+      {
+        deviceId: 'tremolo',
+        preset: 'Amp tremolo',
+        params: { rate: 5.2, depth: 0.6, smooth: 0.35 },
+      },
+      {
+        deviceId: 're-amp',
+        preset: 'Combo in a room',
+        params: { distance: 0.15, noise: 0.03, output: 1.5 },
+      },
+    ],
+  },
+  {
+    id: 'fast-rotary-room',
+    name: 'Fast rotary room',
+    category: 'motion',
+    description:
+      'A rotating speaker on its fast speed with the amplifier pushed and the horn forward, in a small room.',
+    effects: [
+      {
+        deviceId: 'rotary',
+        preset: 'Tremolo',
+        params: {
+          hornDepth: 0.8,
+          drumDepth: 0.7,
+          drive: 0.5,
+          balance: 0.6,
+          distance: 0.4,
+          spread: 0.9,
+        },
+      },
+      { deviceId: 'zita-rev1', preset: 'Room' },
+    ],
+  },
+  {
+    id: 'soft-keys-phaser',
+    name: 'Soft keys phaser',
+    category: 'motion',
+    description:
+      'A warm preamp and a four stage phaser turning every two seconds, the soft swirl for an electric piano, in a small plate.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'Warm glue', params: { output: 1 } },
+      {
+        deviceId: 'phaser',
+        preset: 'Classic four-stage',
+        params: { centerHz: 700, feedback: 30, rate: 0.5, depth: 55, stereo: 40 },
+      },
+      { deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.18 } },
+    ],
+  },
+  {
+    id: 'drifting-double',
+    name: 'Drifting double',
+    category: 'motion',
+    description:
+      'Two unsteady copies either side and a later, duller pair behind them, like extra takes: width with no sweep.',
+    effects: [
+      { deviceId: 'stereo-detune', preset: 'Drifting', params: { drift: 0.7 } },
+      {
+        deviceId: 'stereo-detune',
+        preset: 'Late copy',
+        params: { detune: 3, delay: 48, tone: 6000, mix: 0.25 },
+      },
+    ],
+  },
+  {
+    id: 'touch-wah-echo',
+    name: 'Touch wah echo',
+    category: 'motion',
+    description:
+      'A resonant low pass that opens further the harder you play, then dark analog repeats of every note.',
+    effects: [
+      {
+        deviceId: 'auto-filter',
+        preset: 'Touch wah',
+        params: { type: 0, cutoffHz: 300, resonance: 4, driveDb: 6, envAmount: 100, mix: 0.85 },
+      },
+      {
+        deviceId: 'analog-delay',
+        preset: 'Dark echo',
+        params: { time: 340, feedback: 0.5, mix: 0.36 },
+      },
+    ],
+  },
+  {
+    id: 'sweeping-hall',
+    name: 'Sweeping hall',
+    category: 'motion',
+    description:
+      'A hall with a slow flanger after it, so the jet sweep passes through the tail as well as the notes and drifts from side to side.',
+    effects: [
+      { deviceId: 'zita-rev1', preset: 'Hall', params: { midDecay: 3.2, mix: 0.4 } },
+      {
+        deviceId: 'flanger',
+        preset: 'Slow sweep',
+        params: { rate: 0.07, feedback: 45, stereo: 30, mix: 0.4 },
+      },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 4.5 } },
+    ],
+  },
+  {
+    id: 'filter-fed-echo',
+    name: 'Filter fed echo',
+    category: 'motion',
+    description:
+      'A low pass swings open and shut before a tape echo, so each repeat is caught at a different brightness.',
+    effects: [
+      {
+        deviceId: 'auto-filter',
+        preset: 'Init',
+        params: { slope: 1, cutoffHz: 1100, resonance: 1, lfoAmount: 65, lfoRateHz: 0.31 },
+      },
+      {
+        deviceId: 'tape-echo',
+        preset: 'Warm repeats',
+        params: { time: 430, feedback: 0.55, spread: 0.5, mix: 0.38 },
+      },
+    ],
+  },
+  {
+    id: 'swelling-nave',
+    name: 'Swelling nave',
+    category: 'motion',
+    description:
+      'A cathedral whose tail sings a soft ah, and the whole of it rises and falls at random like surf on a beach.',
+    effects: [
+      { deviceId: 'vowel-reverb', preset: 'Cathedral', params: { mix: 0.35 } },
+      { deviceId: 'tremolo', preset: 'Sea swell', params: { rate: 0.22, depth: 0.6 } },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 3 } },
+    ],
+  },
+  {
+    id: 'opening-notes',
+    name: 'Opening notes',
+    category: 'motion',
+    description:
+      'Each note starts dull, opens a moment later and dims again as it fades, spread by a chorus and a hall.',
+    effects: [
+      {
+        deviceId: 'auto-filter',
+        preset: 'Soft bloom',
+        params: { cutoffHz: 420, resonance: 1.1, driveDb: 6, envAmount: 100, envAttackMs: 150 },
+      },
+      { deviceId: 'chorus', preset: 'Wide chorus', params: { rate: 0.5, mix: 0.35 } },
+      { deviceId: 'limiter-1176', params: { inputGain: 3 } },
+      { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.3, breathDepth: 0 } },
+    ],
+  },
+  {
+    id: 'bow-and-vibrato',
+    name: 'Bow and vibrato',
+    category: 'motion',
+    description:
+      'Each note fades in like a bow stroke, is held up as it dies and wavers in pitch like a string player, in a hall.',
+    effects: [
+      { deviceId: 'swell', preset: 'Slow bow', params: { attack: 500 } },
+      { deviceId: 'ambient-comp', preset: 'Long sustain', params: { makeup: 15.5 } },
+      {
+        deviceId: 'tremolo',
+        preset: 'Pitch wobble',
+        params: { rate: 5.4, depth: 0.22, drift: 0.4 },
+      },
+      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
+    ],
+  },
+  {
+    id: 'overtone-sweep',
+    name: 'Overtone sweep',
+    category: 'motion',
+    description:
+      'A narrow peak climbs and falls through the harmonics, picking them out one at a time, levelled and set in an airy hall.',
+    effects: [
+      {
+        deviceId: 'auto-filter',
+        preset: 'Resonant peak',
+        params: {
+          cutoffHz: 1200,
+          resonance: 6,
+          envAmount: 0,
+          lfoAmount: 50,
+          lfoRateHz: 0.12,
+          lfoShape: 1,
+        },
+      },
+      { deviceId: 'limiter-1176', params: { outputGain: -3 } },
+      { deviceId: 'zita-rev1', preset: 'Airy tail', params: { mix: 0.3 } },
+    ],
+  },
+  {
+    id: 'chorus-phase-wash',
+    name: 'Chorus phase wash',
+    category: 'motion',
+    description:
+      'An ensemble chorus, then a slow phaser, then a huge modulated space that keeps the swirl going long after the notes.',
+    effects: [
+      { deviceId: 'chorus', preset: 'Lush ensemble', params: { spread: 50 } },
+      { deviceId: 'phaser', preset: 'Slow swirl', params: { stereo: 90, mix: 0.45 } },
+      {
+        deviceId: 'expanse',
+        preset: 'Open space',
+        params: { decay: 24, modDepth: 0.5, width: 0.7 },
+      },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 6.5 } },
+    ],
+  },
+  {
+    id: 'undersea-sway',
+    name: 'Undersea sway',
+    category: 'motion',
+    description:
+      'A deep slow chorus under a low pass that opens and closes over twenty seconds, in a dark cathedral that is slow to empty.',
+    effects: [
+      { deviceId: 'chorus', preset: 'Deep sea', params: { mix: 0.5 } },
+      {
+        deviceId: 'auto-filter',
+        preset: 'Glacial low-pass',
+        params: { cutoffHz: 380, resonance: 0.8, driveDb: 0, lfoAmount: 20, lfoRateHz: 0.05 },
+      },
+      { deviceId: 'expanse', preset: 'Low cathedral', params: { mix: 0.32, decay: 45 } },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 4.5 } },
+    ],
+  },
+  {
+    id: 'bright-air-flange',
+    name: 'Bright air flange',
+    category: 'motion',
+    description:
+      'A short flanger combing the upper harmonics and swaying between the sides, thinned of its lows by a bright preamp, in a bright hall.',
+    effects: [
+      {
+        deviceId: 'flanger',
+        preset: 'Through-zero feel',
+        params: { delayMs: 0.7, rate: 0.18, feedback: 35, stereo: 30 },
+      },
+      {
+        deviceId: 'analog-drive',
+        preset: 'Sheen',
+        params: { drive: 0.3, lowCut: 200, tone: 0.8, output: 4 },
+      },
+      { deviceId: 'zita-rev1', preset: 'Bright hall', params: { mix: 0.3 } },
+    ],
+  },
+  {
+    id: 'photocell-throb',
+    name: 'Photocell throb',
+    category: 'motion',
+    description:
+      'A warm valve stage into a four stage phaser throbbing three times a second, kept in the middle with a dark spring.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'Triode glow', params: { drive: 0.4, output: 1.5 } },
+      {
+        deviceId: 'phaser',
+        preset: 'Fast throb',
+        params: { centerHz: 800, feedback: 45, rate: 3, depth: 75 },
+      },
+      { deviceId: 'spring-reverb', preset: 'Dark amp spring', params: { mix: 0.22 } },
+    ],
+  },
+  {
+    id: 'barber-pole-hall',
+    name: 'Barber pole hall',
+    category: 'motion',
+    description:
+      'A comb that seems to rise for ever, each pass a hertz further off pitch and so a little inharmonic, answered late by a hall.',
+    effects: [
+      {
+        deviceId: 'freq-shifter',
+        preset: 'Barber pole',
+        params: { fine: 1.2, feedback: 0.55, width: 0.6, mix: 0.35 },
+      },
+      { deviceId: 'fdn-reverb', preset: 'Late arrival', params: { mix: 0.3, predelayMs: 120 } },
+      { deviceId: 'ambient-limiter', preset: 'Master' },
+    ],
+  },
+  {
+    id: 'random-step-grit',
+    name: 'Random step grit',
+    category: 'motion',
+    description:
+      'A flanger that jumps to a new place four times a second, through an eight bit converter and worn tape that dips and dulls.',
+    effects: [
+      { deviceId: 'flanger', preset: 'Stepped random', params: { feedback: 55 } },
+      {
+        deviceId: 'vintage-digital',
+        preset: 'Dusty',
+        params: { rate: 4000, bits: 8, aliasing: 0.8, filter: 0, drive: 6 },
+      },
+      {
+        deviceId: 'tape',
+        preset: 'Worn thin',
+        params: { wow: 0.5, age: 0.8, hiss: 0.2, output: 3 },
+      },
+    ],
+  },
+  {
+    id: 'three-against-two',
+    name: 'Three against two',
+    category: 'motion',
+    description:
+      'Two tremolos at two and three pulses a second cut the sound into a cross rhythm, in a small room.',
+    effects: [
+      { deviceId: 'saturator', preset: 'Init', params: { driveDb: 5 } },
+      { deviceId: 'tremolo', preset: 'On and off', params: { rate: 2, depth: 0.8, smooth: 0.25 } },
+      {
+        deviceId: 'tremolo',
+        preset: 'On and off',
+        params: { rate: 3, depth: 0.7, shape: 0, phase: 90, smooth: 0.2 },
+      },
+      { deviceId: 'fdn-reverb', preset: 'Short ambience' },
+    ],
+  },
+  {
+    id: 'singing-comb',
+    name: 'Singing comb',
+    category: 'motion',
+    description:
+      'A comb filter driven close to ringing and slid slowly, so a pipe sings along with the notes, held by a limiter in a damped plate.',
+    effects: [
+      {
+        deviceId: 'flanger',
+        preset: 'Metal resonator',
+        params: { delayMs: 1.6, rate: 0.04, depth: 45, feedback: 85, stereo: 10 },
+      },
+      { deviceId: 'limiter-1176', params: { inputGain: 2 } },
+      { deviceId: 'dattorro', preset: 'Dark plate', params: { mix: 0.3 } },
+    ],
+  },
 ]
