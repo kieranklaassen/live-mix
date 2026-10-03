@@ -15,7 +15,7 @@
 //     generated sounds, that many seeds of each kind in keys and on chords that go round,
 //     measured and classified; `fold` is the level of the folded start against the same
 //     stretch rendered straight, which a loop that swells at its seam shows as +3 dB
-//   FACTORY_REPORT=keys [FACTORY=<part of an id>] pnpm vitest run …
+//   FACTORY_REPORT=keys [FACTORY=<part of an id>] [FACTORY_NUMBERS=<first>-<last>] pnpm vitest run …
 //     each factory sound in all twelve keys, measured and classified
 //   FACTORY_REPORT=packs FACTORY_PACK=<pack id> [FACTORY=<part of an id>] pnpm vitest run …
 //     each preset of one pack as it leaves the patch, with its instrument, its cost, and in
@@ -343,7 +343,7 @@ describe.skipIf(!mode)('factory bench', () => {
   it.skipIf(mode !== 'keys')(
     'keys',
     async () => {
-      for (const sound of FACTORY_SOUNDS.filter((s) => s.id.includes(only))) {
+      for (const sound of FACTORY_SOUNDS.filter((s) => s.id.includes(only) && numbered(s.number))) {
         for (let transpose = -5; transpose <= 6; transpose += 1) {
           const audio = await renderFactorySound(sound, {
             compile: compileFromDisk,
@@ -359,7 +359,8 @@ describe.skipIf(!mode)('factory bench', () => {
             `${sound.id.padEnd(24)} ${String(transpose).padStart(2)} ` +
               `${transposeFactorySound(sound, transpose).name.padEnd(24)} ` +
               `${formatMeasurement(measureAudio(audio))}  ` +
-              `kind ${analysis.kind}${analysis.kind === sound.kind ? '' : ' (WRONG)'}${seam}`,
+              `kind ${analysis.kind}${analysis.kind === sound.kind ? '' : ' (WRONG)'}${seam}` +
+              (sound.loopCrossfadeSec && !measureEnds(audio).round ? '  SEAM' : ''),
           )
         }
       }
