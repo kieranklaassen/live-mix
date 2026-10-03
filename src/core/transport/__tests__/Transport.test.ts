@@ -917,3 +917,96 @@ describe('Transport.rescale', () => {
     expect(transport.position().positionSec).toBeCloseTo(13, 9)
   })
 })
+
+describe('Transport start lead', () => {
+  function led(startLeadSec: TransportOptions['startLeadSec'], loop?: TransportOptions['loop']) {
+    const ctx = new MockAudioContext()
+    const transport = new Transport({ now: () => ctx.currentTime, loop, startLeadSec })
+    return { ctx, transport }
+  }
+
+  it('pins a start with no time of its own that far ahead, and stands at the position until then', () => {
+    const { ctx, transport } = led(0.01)
+    ctx.currentTime = 10
+    transport.seek(3)
+    transport.start()
+    expect(transport.anchor).toEqual({ contextTime: 10.01, positionSec: 3, iteration: 0 })
+    expect(transport.position().positionSec).toBe(3)
+    expect(transport.contextTimeAt(3)).toBe(10.01)
+    ctx.currentTime = 10.005
+    expect(transport.position().positionSec).toBe(3)
+    ctx.currentTime = 12.01
+    expect(transport.position().positionSec).toBe(5)
+  })
+
+  it('leaves a start given a time where it was asked for', () => {
+    const { ctx, transport } = led(0.01)
+    ctx.currentTime = 10
+    transport.start(10.002)
+    expect(transport.anchor?.contextTime).toBe(10.002)
+    transport.stop()
+    transport.start(9)
+    expect(transport.anchor?.contextTime).toBe(10)
+  })
+
+  it('pins a seek while playing that far ahead, and seekElapsed too', () => {
+    const { ctx, transport } = led(0.01, { enabled: true, lengthSec: 8 })
+    transport.start()
+    ctx.currentTime = 2
+    transport.seek(5)
+    expect(transport.anchor).toMatchObject({ contextTime: 2.01, positionSec: 5 })
+    ctx.currentTime = 3
+    transport.seekElapsed(17)
+    expect(transport.anchor).toMatchObject({ contextTime: 3.01, positionSec: 1 })
+    // Idle, a seek pins nothing.
+    transport.pause()
+    transport.seek(2)
+    expect(transport.anchor).toBeNull()
+  })
+
+  it('keeps a start still ahead of the clock where it was pinned through a loop change', () => {
+    const { ctx, transport } = led(0.01, { enabled: true, lengthSec: 8 })
+    ctx.currentTime = 10
+    transport.start()
+    ctx.currentTime = 10.004
+    transport.setLoop({ lengthSec: 16 })
+    expect(transport.anchor).toMatchObject({ contextTime: 10.01, positionSec: 0 })
+    // Once it runs, a loop change re-pins at now as before.
+    ctx.currentTime = 11.01
+    transport.setLoop({ lengthSec: 32 })
+    expect(transport.anchor).toMatchObject({ contextTime: 11.01, positionSec: 1 })
+  })
+
+  it('reads the lead at each pin, and takes none for nothing', () => {
+    let lead = 0.01
+    const { ctx, transport } = led(() => lead)
+    ctx.currentTime = 1
+    transport.start()
+    expect(transport.anchor?.contextTime).toBe(1.01)
+    transport.stop()
+    lead = 0.02
+    expect(transport.startLeadSec).toBe(0.02)
+    transport.start()
+    expect(transport.anchor?.contextTime).toBe(1.02)
+    for (const none of [0, -1, Number.NaN, Infinity]) {
+      transport.stop()
+      lead = none
+      expect(transport.startLeadSec).toBe(0)
+      transport.start()
+      expect(transport.anchor?.contextTime).toBe(1)
+    }
+    expect(build().transport.startLeadSec).toBe(0)
+  })
+
+  it('lets a seek for another clock aim at where the anchor will be', () => {
+    const { ctx, transport } = led(0.01, { enabled: true, lengthSec: 8 })
+    transport.start()
+    ctx.currentTime = 2
+    // 30 ms behind the other clock at 2 s: in step from the moment the seek takes hold.
+    transport.seek(transport.position().positionSec + 0.03 + transport.startLeadSec)
+    ctx.currentTime = 2.01
+    expect(transport.position().positionSec).toBeCloseTo(1.99 + 0.03 + 0.01, 9)
+    ctx.currentTime = 3
+    expect(transport.position().positionSec).toBeCloseTo(2.99 + 0.03, 9)
+  })
+})

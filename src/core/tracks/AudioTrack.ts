@@ -836,8 +836,9 @@ export class AudioTrack implements StripHost {
 
   /**
    * Let the voice under `key` go for another that takes its place: one that
-   * is sounding fades out over `seconds` from now and is forgotten at once, so
-   * the key is free; one that has not started, or `seconds` of 0, is silenced.
+   * is sounding fades out over `seconds` from now (on a device, from where the
+   * other can come up) and is forgotten at once, so the key is free; one that
+   * has not started, or `seconds` of 0, is silenced.
    */
   release(key: string, seconds: number): void {
     const voice = this.active.get(key)
@@ -845,6 +846,12 @@ export class AudioTrack implements StripHost {
     const at = this.now()
     if (seconds <= 0 || voice.startTime > at || at >= voice.endTime) {
       this.silence(voice)
+      return
+    }
+    // On a device the voice that takes its place comes up the start floor
+    // ahead of the clock, so this one fades from there, off its own envelope.
+    if (voice.fadeCurve === 'linear' && startFloorSec(this.ctx) > 0) {
+      this.letGo(voice, seconds)
       return
     }
     this.fadeOutVoice(key, at, seconds)
@@ -1416,11 +1423,11 @@ export class AudioTrack implements StripHost {
   /**
    * Lets a voice go at once. One that is sounding is not cut dead, which is a
    * step wherever its wave happens to stand: it falls to silence over
-   * `JOIN_EASE_SECONDS` from the level it has, and is forgotten now, so its
-   * key is free. One that has not started, or is over, is silenced; one in
-   * its tail is left to finish it.
+   * `seconds` from the level it has, and is forgotten now, so its key is
+   * free. One that has not started, or is over, is silenced; one in its tail
+   * is left to finish it.
    */
-  private letGo(voice: ClipVoice): void {
+  private letGo(voice: ClipVoice, seconds = JOIN_EASE_SECONDS): void {
     const now = this.now()
     const timing = this.timings.get(voice)
     if (voice.startTime > now || now >= voice.endTime + (timing?.tailSec ?? 0)) {
@@ -1440,9 +1447,9 @@ export class AudioTrack implements StripHost {
       if (typeof level.cancelAndHoldAtTime === 'function') level.cancelAndHoldAtTime(at)
       else level.cancelScheduledValues(at)
       level.setValueAtTime(reached, at)
-      level.linearRampToValueAtTime(0, at + JOIN_EASE_SECONDS)
-      this.stopSource(voice, at + JOIN_EASE_SECONDS)
-      voice.endTime = at + JOIN_EASE_SECONDS
+      level.linearRampToValueAtTime(0, at + seconds)
+      this.stopSource(voice, at + seconds)
+      voice.endTime = at + seconds
     }
     this.active.delete(voice.key)
     this.voiceClips.delete(voice.key)

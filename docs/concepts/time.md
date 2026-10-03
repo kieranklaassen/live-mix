@@ -15,7 +15,7 @@ boundary, and derives the position from the audio clock on demand:
 
 ```ts
 const t = engine.transport
-t.start() // pins now ↔ position
+t.start() // pins now ↔ position (on a device, the start lead ahead: see below)
 t.position() // { positionSec, iteration, finished } from context.currentTime
 t.pause() // keeps the position; start() re-pins there
 t.seek(42) // re-pins; sounding clips are re-evaluated by the scheduler
@@ -180,6 +180,24 @@ and hands each one to the graph exactly once, keyed by
   `stopAll()` without a time); one that has not started is dropped. A seek
   while playing is then a 5 ms crossfade onto the clips entered at the new
   place.
+- **On a device, a start is pinned ahead of the clock.** The audio clock runs
+  on while the page hands a start over (a browser renders a whole device
+  buffer of blocks in one burst), so a start pinned at the clock as it was
+  read has passed by the time the audio thread takes it up. Its voice then
+  begins a block or more into its sound with nothing to ease it, or under a
+  come-up that is already part of the way up: a step. So an `Engine` on a
+  context with a device buffer (`baseLatency`) gives its transport a start
+  lead, `startLeadSec(ctx)`: one device buffer and three blocks, 10.7 ms at
+  48 kHz on a 128-frame buffer. `start()` with no time, and a seek while
+  playing, pin the anchor that far ahead, and the position stands at the
+  anchor until then; `start(at)` is left where it was asked for. On an
+  `AudioTrack`, a linear voice whose time has passed joins
+  `startFloorSec(ctx)` ahead (one device buffer and a block) and eases in,
+  whoever asked for it; one due sooner than that plays whole from there; a
+  voice let go falls from there, which is where the one entered in its place
+  comes up. With no device buffer to go by (an offline render, a test's
+  context) both are 0 and everything is at the clock: a render is the same
+  to the frame.
 - **Edits while playing.** `refresh()` (which every clip-list change calls)
   keeps what is sounding and re-derives what is pending; a clip cut short of
   the playhead stops. It does not start anything whose start has passed. To

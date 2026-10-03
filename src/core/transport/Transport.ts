@@ -94,6 +94,17 @@ export class Transport {
     return this.currentState
   }
 
+  /**
+   * How far ahead of the clock the next start with no time of its own, or seek
+   * while playing, pins the anchor. A caller that seeks to put the transport
+   * in step with another clock aims that far along: the position it asks for
+   * is reached then, not now.
+   */
+  get startLeadSec(): number {
+    const leadSec = this.startLead()
+    return Number.isFinite(leadSec) && leadSec > 0 ? leadSec : 0
+  }
+
   get loop(): Readonly<TransportLoop> {
     return this.currentLoop
   }
@@ -434,8 +445,7 @@ export class Transport {
 
   /** Where a pin made at `now` with no time of its own goes: the start lead ahead. */
   private ahead(now: number): number {
-    const leadSec = this.startLead()
-    return Number.isFinite(leadSec) && leadSec > 0 ? now + leadSec : now
+    return now + this.startLeadSec
   }
 
   private pin(contextTime: number, positionSec: number): void {
