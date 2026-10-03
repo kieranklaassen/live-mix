@@ -94,6 +94,7 @@ export {
   noteFrequency,
   peakOf,
   renderPatch,
+  type LoopFold,
   type Phrase,
   type PhraseNote,
   type RenderPatchOptions,

@@ -257,6 +257,7 @@ export async function renderFactorySound(
     durationSec: inKey.durationSec,
     skipSec: inKey.skipSec,
     loopCrossfadeSec: inKey.loopCrossfadeSec,
+    loopFold: inKey.loopFold,
     fadeOutSec: inKey.loopCrossfadeSec ? 0 : (inKey.fadeOutSec ?? 0.05),
     normalizePeakDb: FACTORY_PEAK_DB,
   })

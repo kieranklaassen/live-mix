@@ -2245,94 +2245,19 @@
   display: flex;
 }
 
-/* Beside a host's picker the tools share the name's place: they come up over
-   the end of the name, so the picker keeps its place and its size as they
-   appear. The pair is as wide as the wider of the two, with the tools there
-   or not: a short name is not left with tools cut off at the plate's edge,
-   and nothing on the foot moves when they show. A long name still gives way
-   to the rest of the foot; the one column never gets narrower than the tools.
-   It is the same under a finger, which is why a pressed plate is in hand:
-   tools always there would leave the picker a cell and no more. */
-.lm-plate__lead {
-  display: grid;
-  flex: 0 1 auto;
-  min-width: 0;
-  margin-right: auto;
-}
-
-.lm-plate__lead > * {
-  grid-area: 1 / 1;
-}
-
-.lm-plate__lead .lm-plate__name {
-  justify-self: start;
-  max-width: 100%;
-  margin: 0;
-}
-
-.lm-plate__lead .lm-plate__tools {
-  display: flex;
-  justify-self: end;
+/* Beside a host's picker the foot is full: the name, the picker and the lamp.
+   The tools stand in a row of their own just above it, at the plate's edge,
+   so the name stays whole and nothing on the foot moves when they show. */
+.lm-plate__tools--above {
+  position: absolute;
+  right: 8px;
+  bottom: 32px;
   gap: 0;
-  visibility: hidden;
 }
 
-.lm-plate:hover .lm-plate__lead .lm-plate__tools,
-.lm-plate:focus-within .lm-plate__lead .lm-plate__tools,
-.lm-plate--open .lm-plate__lead .lm-plate__tools,
-.lm-plate--held .lm-plate__lead .lm-plate__tools {
-  visibility: visible;
-}
-
-/* A hairline of the plate's own colour cuts each tool from the name under it. */
-.lm-plate__lead .lm-plate__tools > * {
-  flex-shrink: 0;
+/* A hairline of the plate's own colour between one tool and the next. */
+.lm-plate__tools--above > * + * {
   box-shadow: -1px 0 0 var(--lm-plate);
-}
-
-/* Under the tools the name is whole words or nothing, never a word cut short:
-   it wraps in the room the tools leave, and a word with no room falls to a
-   second line the tag does not show. The empty box in front is a place to
-   break, so the first word can fall too. The room given up as padding comes
-   back as margin: the tag is no wider for it, and the foot stays as it was.
-   The tools are counted here, each a cell of `--lm-plate-tool`. */
-.lm-plate__lead {
-  --lm-plate-tools-room: 0px;
-}
-
-.lm-plate__lead:has(.lm-plate__tools > :nth-child(1)) {
-  --lm-plate-tools-room: var(--lm-plate-tool, 16px);
-}
-
-.lm-plate__lead:has(.lm-plate__tools > :nth-child(2)) {
-  --lm-plate-tools-room: calc(2 * var(--lm-plate-tool, 16px));
-}
-
-.lm-plate__lead:has(.lm-plate__tools > :nth-child(3)) {
-  --lm-plate-tools-room: calc(3 * var(--lm-plate-tool, 16px));
-}
-
-.lm-plate__lead:has(.lm-plate__tools > :nth-child(4)) {
-  --lm-plate-tools-room: calc(4 * var(--lm-plate-tool, 16px));
-}
-
-.lm-plate:hover .lm-plate__lead .lm-plate__name,
-.lm-plate:focus-within .lm-plate__lead .lm-plate__name,
-.lm-plate--open .lm-plate__lead .lm-plate__name,
-.lm-plate--held .lm-plate__lead .lm-plate__name {
-  box-sizing: border-box;
-  margin-right: calc(-1 * var(--lm-plate-tools-room));
-  padding-right: calc(7px + var(--lm-plate-tools-room));
-  text-overflow: clip;
-  white-space: normal;
-}
-
-.lm-plate:hover .lm-plate__lead .lm-plate__name::before,
-.lm-plate:focus-within .lm-plate__lead .lm-plate__name::before,
-.lm-plate--open .lm-plate__lead .lm-plate__name::before,
-.lm-plate--held .lm-plate__lead .lm-plate__name::before {
-  display: inline-block;
-  content: '';
 }
 
 .lm-plate__tools .lm-button,
