@@ -224,8 +224,9 @@ export function DevicePlate({
       {tag}
     </h3>
   )
+  // Beside a picker the foot has no room for them: they stand in a row of their own just above it.
   const tools = (
-    <div className="lm-plate__tools">
+    <div className={cx('lm-plate__tools', picker && 'lm-plate__tools--above')}>
       {presetsShown ? (
         <select
           className="lm-device__presets"
@@ -387,16 +388,9 @@ export function DevicePlate({
           {open ? '−' : `+${rest.length}`}
         </button>
       ) : null}
+      {picker ? tools : null}
       <div className={cx('lm-plate__foot', picker && 'lm-plate__foot--picker')}>
-        {picker ? (
-          // Beside a picker the tools share the name's place, so they come up over its end.
-          <div className="lm-plate__lead">
-            {name}
-            {tools}
-          </div>
-        ) : (
-          name
-        )}
+        {name}
         {isMeteredDevice(device)
           ? Object.entries(device.meters).map(([name, spec]) => (
               <DeviceMeterReadout

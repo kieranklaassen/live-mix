@@ -303,10 +303,11 @@ describe('DevicePlate', () => {
     expect(picker.parentElement).toHaveClass('lm-plate__presets')
     expect(picker.closest('.lm-plate__tools')).toBeNull()
     expect(picker.closest('.lm-plate__foot')).toHaveClass('lm-plate__foot--picker')
-    // The tools share the name's place, so they can come up over its end and leave the picker where it is.
+    // The foot is full beside a picker: the tools stand above it, and the name is on the foot whole.
     const tools = screen.getByTestId('plate-remove').closest('.lm-plate__tools')
-    expect(tools?.parentElement).toHaveClass('lm-plate__lead')
-    expect(tools?.previousElementSibling).toHaveClass('lm-plate__name')
+    expect(tools).toHaveClass('lm-plate__tools--above')
+    expect(tools?.closest('.lm-plate__foot')).toBeNull()
+    expect(tools?.nextElementSibling).toHaveClass('lm-plate__foot')
   })
 
   it('is in hand once a finger presses it, until a press lands anywhere else', async () => {
@@ -349,7 +350,7 @@ describe('DevicePlate', () => {
     )
     expect(screen.queryByTestId('plate-preset')).toBeNull()
     expect(container.querySelector('.lm-plate__presets')).toBeNull()
-    expect(container.querySelector('.lm-plate__lead')).toBeNull()
+    expect(container.querySelector('.lm-plate__tools--above')).toBeNull()
     expect(container.querySelector('.lm-plate__foot')).not.toHaveClass('lm-plate__foot--picker')
     expect(screen.getByTestId('plate-remove').parentElement).toHaveClass('lm-plate__tools')
   })
