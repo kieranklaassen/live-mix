@@ -162,13 +162,24 @@ and hands each one to the graph exactly once, keyed by
   into the next pass when the loop comes round by itself, but a start or a
   jump enters only what is drawn under the playhead, not what would have
   carried over from a pass that was never played.
-- **A clip cut partway ends on an ease.** A linear clip that stops partway
-  through its sound (it is shorter than what is left of its source, or it
-  loops and its end does not fall where the region comes round) eases out
-  over the same 5 ms, unless its own fade-out is longer: nothing after the
-  cut hides it, and at the loop's end it would click on every pass. A clip
-  that runs to its sound's own end is left to end as it was made, and
-  equal-power clips keep the envelope they were given.
+- **No clip clicks at its own ends.** A linear clip with no fade of its own
+  is seen to where its sound would step (`clips/seam.ts` measures a jump
+  against the sound's own moves in the 5 ms beside it). Cut partway through
+  its sound, it sounds on for 5 ms past its end, fading, on what the sound
+  goes on to. Ending where its sound does, on a sound made to loop, it has
+  the same tail on the sound's start; on a sound that just stops partway
+  through a wave, its last 5 ms fade. Starting on a sound made to loop, it
+  comes up over 5 ms. The tail and the come-up mirror each other, so a looped
+  sound that follows itself, as a clip the length of the loop does each time
+  the loop comes round, is unbroken, and anything else is a 5 ms crossfade. A
+  sound that starts on its attack and dies away is played exactly as it was
+  made, and equal-power clips keep the envelope they were given.
+- **Stop, pause and a seek do not click.** They silence every track at once,
+  and a clip cut where its wave stands is a step. An `AudioTrack` voice that
+  is sounding falls silent over 5 ms from the level it has (`stop(key)` and
+  `stopAll()` without a time); one that has not started is dropped. A seek
+  while playing is then a 5 ms crossfade onto the clips entered at the new
+  place.
 - **Edits while playing.** `refresh()` (which every clip-list change calls)
   keeps what is sounding and re-derives what is pending; a clip cut short of
   the playhead stops. It does not start anything whose start has passed. To

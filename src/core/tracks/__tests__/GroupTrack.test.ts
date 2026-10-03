@@ -96,10 +96,11 @@ describe('GroupTrack', () => {
     expect(pad.strip.materialized).toBe(false)
     expect(synths.members).toEqual([pad.strip])
 
-    // A voice started after the move goes to the group; one stopped is forgotten.
+    // A voice started after the move goes to the group; one stopped is forgotten once it has fallen silent.
     const second = sound(ctx, pad, 'second')
     expect(second.isConnectedTo(gainOf(synths.input))).toBe(true)
     pad.stop('k')
+    ctx.sources[0].finish()
     expect(pad.strip.sourceNodes).toEqual([second])
 
     synths.remove(pad)
@@ -381,6 +382,8 @@ describe('Phase 0 node-count contract', () => {
     expect(plain.gain.events).toEqual([{ method: 'setValueAtTime', args: [1, 2] }])
 
     track.stopAll()
+    // Both were sounding: each falls silent first, and is taken out when its source ends.
+    for (const source of ctx.sources) source.finish()
     expect(track.strip.sourceNodes).toEqual([])
     engine.removeTrack('music')
     expect(engine.solo.registered.map((strip) => strip.name)).toEqual([])

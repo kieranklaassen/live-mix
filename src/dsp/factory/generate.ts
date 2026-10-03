@@ -4,7 +4,7 @@
 // the key and the chord decide the notes. So the same seed in another key is
 // the same sound moved there, and any sound can be made again from its seed.
 //
-// Every voice here starts from a recipe of the factory bank (./sounds.ts) and
+// Every voice here starts from a recipe of the factory bank (./sounds/first.ts) and
 // keeps what made that recipe loop: the held notes, slow motion at whole
 // cycles per loop, and the two parts that let a steady tone fold (./parts.ts).
 

@@ -1,0 +1,502 @@
+{
+  "101": {
+    "id": "low-drone-d",
+    "durationSec": 16,
+    "loops": true
+  },
+  "102": {
+    "id": "low-drone-a",
+    "durationSec": 16,
+    "loops": true
+  },
+  "103": {
+    "id": "tanpura-d",
+    "durationSec": 16,
+    "loops": true
+  },
+  "104": {
+    "id": "organ-drone-c",
+    "durationSec": 16,
+    "loops": true
+  },
+  "105": {
+    "id": "harmonium-drone-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "106": {
+    "id": "cello-drone-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "107": {
+    "id": "choir-drone-a",
+    "durationSec": 16,
+    "loops": true
+  },
+  "108": {
+    "id": "warm-pad-dm9",
+    "durationSec": 16,
+    "loops": true
+  },
+  "109": {
+    "id": "soft-pad-fmaj7",
+    "durationSec": 16,
+    "loops": true
+  },
+  "110": {
+    "id": "strings-am7",
+    "durationSec": 16,
+    "loops": true
+  },
+  "111": {
+    "id": "glass-pad-cmaj9",
+    "durationSec": 16,
+    "loops": true
+  },
+  "112": {
+    "id": "drift-pad-g6",
+    "durationSec": 16,
+    "loops": true
+  },
+  "113": {
+    "id": "choir-chord-am",
+    "durationSec": 16,
+    "loops": true
+  },
+  "114": {
+    "id": "shimmer-pad-csus2",
+    "durationSec": 16,
+    "loops": true
+  },
+  "115": {
+    "id": "hill-wind",
+    "durationSec": 16,
+    "loops": true
+  },
+  "116": {
+    "id": "rain-on-the-window",
+    "durationSec": 16,
+    "loops": true
+  },
+  "117": {
+    "id": "waves-on-sand",
+    "durationSec": 16,
+    "loops": true
+  },
+  "118": {
+    "id": "record-crackle",
+    "durationSec": 8,
+    "loops": true
+  },
+  "119": {
+    "id": "hearth",
+    "durationSec": 16,
+    "loops": true
+  },
+  "120": {
+    "id": "grain-cloud",
+    "durationSec": 16,
+    "loops": true
+  },
+  "121": {
+    "id": "glass-bell-a",
+    "durationSec": 6,
+    "loops": false
+  },
+  "122": {
+    "id": "singing-bowl-d",
+    "durationSec": 8,
+    "loops": false
+  },
+  "123": {
+    "id": "kalimba-e",
+    "durationSec": 3,
+    "loops": false
+  },
+  "124": {
+    "id": "vibraphone-g",
+    "durationSec": 6,
+    "loops": false
+  },
+  "125": {
+    "id": "gong-d",
+    "durationSec": 8,
+    "loops": false
+  },
+  "126": {
+    "id": "music-box-a",
+    "durationSec": 3,
+    "loops": false
+  },
+  "127": {
+    "id": "felt-piano-c",
+    "durationSec": 8,
+    "loops": false
+  },
+  "128": {
+    "id": "felt-piano-phrase-am",
+    "durationSec": 16,
+    "loops": false
+  },
+  "129": {
+    "id": "electric-piano-dm9",
+    "durationSec": 8,
+    "loops": false
+  },
+  "130": {
+    "id": "bell-phrase-c",
+    "durationSec": 8,
+    "loops": false
+  },
+  "131": {
+    "id": "kalimba-pattern-am",
+    "durationSec": 8,
+    "loops": false
+  },
+  "132": {
+    "id": "piano-cloud-am",
+    "durationSec": 16,
+    "loops": true
+  },
+  "133": {
+    "id": "frozen-bell-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "134": {
+    "id": "reversed-piano-c",
+    "durationSec": 8,
+    "loops": false
+  },
+  "135": {
+    "id": "plucked-tanpura-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "136": {
+    "id": "bass-clarinet-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "137": {
+    "id": "horn-drone-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "138": {
+    "id": "flute-octaves-b",
+    "durationSec": 8,
+    "loops": true
+  },
+  "139": {
+    "id": "violin-drone-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "140": {
+    "id": "steel-guitar-drone-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "141": {
+    "id": "sub-drone-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "142": {
+    "id": "folding-drone-f",
+    "durationSec": 16,
+    "loops": true
+  },
+  "143": {
+    "id": "hollow-drone-b",
+    "durationSec": 8,
+    "loops": true
+  },
+  "144": {
+    "id": "glass-drone-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "145": {
+    "id": "air-drone-g",
+    "durationSec": 16,
+    "loops": true
+  },
+  "146": {
+    "id": "synth-horn-drone-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "147": {
+    "id": "chorus-pad-em7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "148": {
+    "id": "brass-swell-fadd9",
+    "durationSec": 16,
+    "loops": true
+  },
+  "149": {
+    "id": "folded-pad-c6",
+    "durationSec": 8,
+    "loops": true
+  },
+  "150": {
+    "id": "vowel-pad-am9",
+    "durationSec": 16,
+    "loops": true
+  },
+  "151": {
+    "id": "slow-glass-gadd9",
+    "durationSec": 8,
+    "loops": true
+  },
+  "152": {
+    "id": "phased-strings-dsus2",
+    "durationSec": 16,
+    "loops": true
+  },
+  "153": {
+    "id": "rotary-organ-gsus4",
+    "durationSec": 8,
+    "loops": true
+  },
+  "154": {
+    "id": "chamber-strings-em7",
+    "durationSec": 16,
+    "loops": true
+  },
+  "155": {
+    "id": "low-brass-fifths-f",
+    "durationSec": 16,
+    "loops": true
+  },
+  "156": {
+    "id": "treble-voices-dsus2",
+    "durationSec": 16,
+    "loops": true
+  },
+  "157": {
+    "id": "tape-choir-am9",
+    "durationSec": 8,
+    "loops": true
+  },
+  "158": {
+    "id": "clarinets-dm7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "159": {
+    "id": "high-flutes-gadd9",
+    "durationSec": 8,
+    "loops": true
+  },
+  "160": {
+    "id": "steel-swell-c6",
+    "durationSec": 8,
+    "loops": true
+  },
+  "161": {
+    "id": "brook-over-stones",
+    "durationSec": 8,
+    "loops": true
+  },
+  "162": {
+    "id": "wood-at-dawn",
+    "durationSec": 16,
+    "loops": true
+  },
+  "163": {
+    "id": "falls-in-a-gorge",
+    "durationSec": 8,
+    "loops": true
+  },
+  "164": {
+    "id": "steady-downpour",
+    "durationSec": 8,
+    "loops": true
+  },
+  "165": {
+    "id": "rolling-thunder",
+    "durationSec": 16,
+    "loops": true
+  },
+  "166": {
+    "id": "frog-pond-at-night",
+    "durationSec": 16,
+    "loops": true
+  },
+  "167": {
+    "id": "field-of-crickets",
+    "durationSec": 8,
+    "loops": true
+  },
+  "168": {
+    "id": "wind-in-the-chimney",
+    "durationSec": 16,
+    "loops": true
+  },
+  "169": {
+    "id": "hum-in-an-empty-room",
+    "durationSec": 8,
+    "loops": true
+  },
+  "170": {
+    "id": "radio-between-stations",
+    "durationSec": 8,
+    "loops": true
+  },
+  "171": {
+    "id": "rubber-bass-c",
+    "durationSec": 3,
+    "loops": false
+  },
+  "172": {
+    "id": "marimba-g",
+    "durationSec": 4,
+    "loops": false
+  },
+  "173": {
+    "id": "tanpura-pluck-d",
+    "durationSec": 5,
+    "loops": false
+  },
+  "174": {
+    "id": "nylon-string-a",
+    "durationSec": 4,
+    "loops": false
+  },
+  "175": {
+    "id": "handpan-f",
+    "durationSec": 5,
+    "loops": false
+  },
+  "176": {
+    "id": "guitar-chord-em",
+    "durationSec": 6,
+    "loops": false
+  },
+  "177": {
+    "id": "tine-chord-fmaj7",
+    "durationSec": 6,
+    "loops": false
+  },
+  "178": {
+    "id": "picked-steel-e",
+    "durationSec": 5,
+    "loops": false
+  },
+  "179": {
+    "id": "church-bell-d",
+    "durationSec": 8,
+    "loops": false
+  },
+  "180": {
+    "id": "harp-g",
+    "durationSec": 4,
+    "loops": false
+  },
+  "181": {
+    "id": "dulcimer-dsus2",
+    "durationSec": 5,
+    "loops": false
+  },
+  "182": {
+    "id": "chord-harp-am7",
+    "durationSec": 4,
+    "loops": false
+  },
+  "183": {
+    "id": "high-felt-piano-c",
+    "durationSec": 3,
+    "loops": false
+  },
+  "184": {
+    "id": "ice-chime-b",
+    "durationSec": 3,
+    "loops": false
+  },
+  "185": {
+    "id": "harp-phrase-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "186": {
+    "id": "handpan-round-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "187": {
+    "id": "nylon-guitar-fall-em",
+    "durationSec": 8,
+    "loops": false
+  },
+  "188": {
+    "id": "pedal-steel-sigh-c",
+    "durationSec": 12,
+    "loops": true
+  },
+  "189": {
+    "id": "marimba-phrase-g",
+    "durationSec": 8,
+    "loops": false
+  },
+  "190": {
+    "id": "zither-wash-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "191": {
+    "id": "tremolo-guitar-dm",
+    "durationSec": 12,
+    "loops": true
+  },
+  "192": {
+    "id": "wooden-plucks-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "193": {
+    "id": "shakuhachi-call-am",
+    "durationSec": 8,
+    "loops": false
+  },
+  "194": {
+    "id": "felt-piano-round-c",
+    "durationSec": 12,
+    "loops": true
+  },
+  "195": {
+    "id": "gong-wash-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "196": {
+    "id": "kalimba-glitter-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "197": {
+    "id": "frozen-electric-piano-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "198": {
+    "id": "choir-on-tape-dsus2",
+    "durationSec": 8,
+    "loops": true
+  },
+  "199": {
+    "id": "half-speed-bells-c",
+    "durationSec": 15,
+    "loops": false
+  },
+  "200": {
+    "id": "vibraphone-chord-em7",
+    "durationSec": 8,
+    "loops": false
+  }
+}

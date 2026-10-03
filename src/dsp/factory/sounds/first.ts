@@ -12,93 +12,11 @@
 // it. Sounds that end are left to ring out inside their length. Phrases are
 // played in free time: notes on a grid would make them beats, not melodies.
 
-import { type PatchDevice } from '../../core/devices/patch'
-import { transposeWords } from './key'
-import { breathe, quarterTurn, soften, zita } from './parts'
-import { type FactorySound } from './types'
+import { breathe, quarterTurn, soften, zita } from '../parts'
+import { type FactorySound } from '../types'
+import { FELT_PIANO, bells, looped, played, sound, weather } from './recipe'
 
-/** A factory sound with its patch written out: the patch takes the sound's id, name and description. */
-interface Recipe extends Omit<FactorySound, 'patch'> {
-  instrument: PatchDevice
-  effects: readonly PatchDevice[]
-}
-
-function sound(recipe: Recipe): FactorySound {
-  const { instrument, effects, ...rest } = recipe
-  const name = transposeWords(recipe.name, 0)
-  const description = transposeWords(recipe.description, 0)
-  const names = name !== recipe.name || description !== recipe.description
-  return {
-    ...rest,
-    name,
-    description,
-    ...(names ? { words: { name: recipe.name, description: recipe.description } } : {}),
-    patch: { id: recipe.id, name, category: recipe.kind, description, instrument, effects },
-  }
-}
-
-/** A note of a held chord: the MIDI note, or the note with its velocity. */
-type HeldNote = number | readonly [note: number, gain: number]
-
-/**
- * A chord held through everything that is rendered for a loop of `durationSec`:
- * the skipped start, the loop and the stretch that is folded over its start.
- */
-function looped(
-  durationSec: number,
-  skipSec: number,
-  loopCrossfadeSec: number,
-  notes: readonly HeldNote[],
-): Pick<FactorySound, 'phrase' | 'durationSec' | 'skipSec' | 'loopCrossfadeSec'> {
-  const durSec = skipSec + durationSec + loopCrossfadeSec + 1
-  return {
-    phrase: {
-      notes: notes.map((entry) =>
-        typeof entry === 'number'
-          ? { atSec: 0, durSec, note: entry }
-          : { atSec: 0, durSec, note: entry[0], gain: entry[1] },
-      ),
-    },
-    durationSec,
-    skipSec,
-    loopCrossfadeSec,
-  }
-}
-
-/** A note of a phrase: when, how long the key is down, which note, how hard. */
-type Stroke = readonly [atSec: number, durSec: number, note: number, gain?: number]
-
-/** A phrase that ends inside `durationSec`. */
-function played(
-  durationSec: number,
-  strokes: readonly Stroke[],
-  fadeOutSec?: number,
-): Pick<FactorySound, 'phrase' | 'durationSec' | 'fadeOutSec'> {
-  return {
-    phrase: {
-      notes: strokes.map(([atSec, durSec, note, gain]) => ({ atSec, durSec, note, gain })),
-    },
-    durationSec,
-    fadeOutSec,
-  }
-}
-
-const weather = (preset: string, params: Readonly<Record<string, number>> = {}): PatchDevice => ({
-  deviceId: 'atmosphere',
-  preset,
-  params: { attack: 0.5, width: 0.6, ...params },
-})
-
-const bells = (preset: string, params: Readonly<Record<string, number>> = {}): PatchDevice => ({
-  deviceId: 'modal-bells',
-  preset,
-  params,
-})
-
-/** The felt piano of the single note and the phrase, in its own hall. */
-const FELT_PIANO: PatchDevice = { deviceId: 'felt-piano', preset: 'Hall', params: { felt: 0.7 } }
-
-export const FACTORY_SOUNDS: readonly FactorySound[] = [
+export const FIRST_SOUNDS: readonly FactorySound[] = [
   // --- Drones -------------------------------------------------------------------
   sound({
     id: 'low-drone-d',

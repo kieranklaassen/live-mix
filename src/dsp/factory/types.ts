@@ -4,7 +4,7 @@
 
 import { type Patch, type PatchDevice } from '../../core/devices/patch'
 import { type SoundKind } from '../../core/analysis/sound-kind'
-import { type Phrase } from '../patch-render'
+import { type LoopFold, type Phrase } from '../patch-render'
 
 /** The groups a preset browser lists instrument presets under. */
 export type FactoryPresetCategory =
@@ -67,6 +67,12 @@ export interface FactorySound {
   skipSec?: number
   /** Seconds of crossfade that make the sound loop without a seam; absent for a sound that ends. */
   loopCrossfadeSec?: number
+  /**
+   * `'linear'` for a phrase that is played round again (see `cycled` in
+   * ./sounds/recipe.ts): what is folded over the start is the start once
+   * more, so the two are added at equal amplitude, not at equal power.
+   */
+  loopFold?: LoopFold
   /** Fade at the end of a sound that does not loop (default 0.05 s). */
   fadeOutSec?: number
   /**

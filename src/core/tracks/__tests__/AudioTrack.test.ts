@@ -54,6 +54,54 @@ function buffer(ctx: MockAudioContext, seconds: number): AudioBuffer {
   return new MockAudioBuffer(2, seconds * ctx.sampleRate, ctx.sampleRate) as unknown as AudioBuffer
 }
 
+function wave(
+  ctx: MockAudioContext,
+  seconds: number,
+  at: (turns: number, through: number) => number,
+): AudioBuffer {
+  const made = new MockAudioBuffer(2, seconds * ctx.sampleRate, ctx.sampleRate)
+  for (let channel = 0; channel < 2; channel += 1) {
+    const data = made.getChannelData(channel)
+    for (let frame = 0; frame < data.length; frame += 1) {
+      data[frame] = at(frame / ctx.sampleRate, frame / data.length)
+    }
+  }
+  return made as unknown as AudioBuffer
+}
+
+/**
+ * A sound made to loop: a 100 Hz wave that starts a quarter of the way through
+ * a cycle and comes round on itself every `period` seconds (its whole length
+ * unless told).
+ */
+function looped(ctx: MockAudioContext, seconds: number, period = seconds): AudioBuffer {
+  const cycles = Math.round(100 * period)
+  return wave(ctx, seconds, (sec) => 0.5 * Math.sin(2 * Math.PI * (0.25 + (cycles * sec) / period)))
+}
+
+/** A sound that starts on its attack, from rest, and dies away to nothing. */
+function struck(ctx: MockAudioContext, seconds: number): AudioBuffer {
+  return wave(
+    ctx,
+    seconds,
+    (sec, through) => 0.5 * (1 - through) * Math.sin(2 * Math.PI * 100.25 * sec),
+  )
+}
+
+/** Recorded events with their numbers to nine places, past which the clock's arithmetic is rounding. */
+function toNine(events: { method: string; args: unknown[] }[]): [string, ...unknown[]][] {
+  return events.map((event) => [
+    event.method,
+    ...event.args.map((arg) => (typeof arg === 'number' ? Number(arg.toFixed(9)) : arg)),
+  ])
+}
+
+/** A sound that starts from rest and just stops, at the top of a wave. */
+function cutOff(ctx: MockAudioContext, seconds: number): AudioBuffer {
+  const cycles = Math.round(100 * seconds) + 0.25
+  return wave(ctx, seconds, (sec) => 0.5 * Math.sin((2 * Math.PI * cycles * sec) / seconds))
+}
+
 describe('AudioTrack linear voices (ambient-live ClipPlayer parity)', () => {
   it('records exactly the ClipPlayer.play events for an on-time start with fades', () => {
     const { ctx, dest, track } = setup()
@@ -78,6 +126,9 @@ describe('AudioTrack linear voices (ambient-live ClipPlayer parity)', () => {
     expect(gain.connectCalls.calledWith(dest)).toBe(true)
     expect(ctx.gains).toHaveLength(2)
     expect(gain.gain.events).toEqual([
+      // Ahead of ClipPlayer's own events: silent from half a frame before the
+      // start, so the source's first frame is not heard at full level.
+      { method: 'setValueAtTime', args: [0, 3 - 0.5 / ctx.sampleRate] },
       { method: 'setValueAtTime', args: [fadeGain(0, 6, 2, 1), 3] },
       { method: 'linearRampToValueAtTime', args: [1, 5] },
       { method: 'setValueAtTime', args: [1, 8] },
@@ -150,109 +201,233 @@ describe('AudioTrack linear voices (ambient-live ClipPlayer parity)', () => {
     expect(ctx.gains[1].gain.events).toEqual([{ method: 'setValueAtTime', args: [1, 3] }])
   })
 
-  describe('a clip cut partway through its sound', () => {
+  describe('a clip whose sound would step where it starts or ends', () => {
     const bare = { fadeInSec: 0, fadeOutSec: 0, fadeCurve: 'linear' as const }
+    const E = JOIN_EASE_SECONDS
     const UNITY = [{ method: 'setValueAtTime', args: [1, 3] }]
-    const eased = (end: number) => [
-      ...UNITY,
-      { method: 'setValueAtTime', args: [1, end - JOIN_EASE_SECONDS] },
-      { method: 'linearRampToValueAtTime', args: [0, end] },
+    // Silent from half a frame before its start, so its first frame is not heard ahead of the come-up.
+    const HALF_FRAME = 0.5 / 48000
+    const comeUpAt = (start: number, over = E) => [
+      { method: 'setValueAtTime', args: [0, start - HALF_FRAME] },
+      { method: 'setValueAtTime', args: [0, start] },
+      { method: 'linearRampToValueAtTime', args: [1, start + over] },
+    ]
+    const comeUp = comeUpAt(3)
+    const tail = (end: number, sec = E) => [
+      { method: 'setValueAtTime', args: [1, end] },
+      { method: 'linearRampToValueAtTime', args: [0, end + sec] },
     ]
 
-    it('ends on a few milliseconds of ease-out where it has no fade of its own', () => {
+    it('a sound made to loop comes up over a few milliseconds and tails as long past its end, on its own start', () => {
       const { ctx, track } = setup()
-      track.play('k', { buffer: buffer(ctx, 10), offsetSec: 0, durationSec: 6, ...bare }, 3)
-      expect(ctx.gains[1].gain.events).toEqual(eased(9))
-      // Entered at an offset and stopped short of the end of the source: the same.
-      track.play('trimmed', { buffer: buffer(ctx, 10), offsetSec: 2, durationSec: 6, ...bare }, 3)
-      expect(ctx.gains[2].gain.events).toEqual(eased(9))
+      const voice = track.play(
+        'k',
+        { buffer: looped(ctx, 10), offsetSec: 0, durationSec: 10, ...bare },
+        3,
+      )
+      expect(ctx.gains[1].gain.events).toEqual([...comeUp, ...tail(13)])
+      // The source is brought round for the tail and stopped where the tail ends.
+      const source = ctx.sources[0]
+      expect([source.loop, source.loopStart, source.loopEnd]).toEqual([true, 0, 10])
+      expect(source.startCalls.calls).toEqual([[3, 0]])
+      expect(source.stopCalls.calls).toEqual([[13 + E]])
+      // The clip still ends where it is drawn.
+      expect(voice?.endTime).toBe(13)
     })
 
-    it('is left as it was made where it runs to the end of its sound, or past it', () => {
+    it('the tail of one pass and the come-up of the next are mirrors, so a looped sound that follows itself is unbroken', () => {
       const { ctx, track } = setup()
-      track.play('whole', { buffer: buffer(ctx, 10), offsetSec: 4, durationSec: 6, ...bare }, 3)
-      track.play('longer', { buffer: buffer(ctx, 10), offsetSec: 0, durationSec: 12, ...bare }, 3)
-      // Within a millisecond of its own end counts as that end.
-      track.play('near', { buffer: buffer(ctx, 10), offsetSec: 0, durationSec: 9.9995, ...bare }, 3)
-      for (const index of [1, 2, 3]) expect(ctx.gains[index].gain.events).toEqual(UNITY)
+      const repeating = { buffer: looped(ctx, 8), offsetSec: 0, loop: true, ...bare }
+      track.play('first', { ...repeating, durationSec: 16 }, 3)
+      track.play('second', { ...repeating, durationSec: 16 }, 19)
+      const out = ctx.gains[1].gain.events.slice(-2)
+      const into = ctx.gains[2].gain.events.slice(0, 3)
+      expect(out).toEqual(tail(19))
+      expect(into).toEqual(comeUpAt(19))
+      // The first is still reading the region, round onto its start, while the second comes up on that start.
+      expect(ctx.sources[0].stopCalls.calls).toEqual([[19 + E]])
+      expect(ctx.sources[1].startCalls.calls).toEqual([[19, 0]])
     })
 
-    it('keeps a fade-out of its own that is longer than the ease, and gets the ease in place of a shorter one', () => {
+    it('a clip drawn longer than its sound is left to run out: it is not brought round to fill the clip', () => {
+      const { ctx, track } = setup()
+      // Eight seconds of sound under a twelve second clip that does not loop: four seconds of silence end it.
+      const voice = track.play(
+        'long',
+        { buffer: looped(ctx, 8), offsetSec: 0, durationSec: 12, ...bare },
+        3,
+      )
+      expect(ctx.gains[1].gain.events).toEqual(comeUp)
+      const source = ctx.sources[0]
+      expect(source.loop).toBe(false)
+      expect(source.startCalls.calls).toEqual([[3, 0, 12]])
+      expect(source.stopCalls.calls).toEqual([])
+      expect(voice?.endTime).toBe(15)
+    })
+
+    it('a looping clip cut inside its region tails on what the sound goes on to', () => {
+      const { ctx, track } = setup()
+      // An 8 second sound for 14 seconds: once round, then cut six seconds in.
+      track.play(
+        'cut',
+        { buffer: looped(ctx, 8), offsetSec: 0, loop: true, durationSec: 14, ...bare },
+        3,
+      )
+      expect(ctx.gains[1].gain.events).toEqual([...comeUp, ...tail(17)])
+      expect(ctx.sources[0].startCalls.calls).toEqual([[3, 0]])
+      expect(ctx.sources[0].stopCalls.calls).toEqual([[17 + E]])
+    })
+
+    it('a clip shorter than its source tails on the source, as far as the source goes', () => {
+      const { ctx, track } = setup()
+      track.play('cut', { buffer: looped(ctx, 10), offsetSec: 0, durationSec: 6, ...bare }, 3)
+      expect(ctx.gains[1].gain.events).toEqual([...comeUp, ...tail(9)])
+      // No length: the source reads on past the clip's end and is stopped with the tail.
+      expect(ctx.sources[0].loop).toBe(false)
+      expect(ctx.sources[0].startCalls.calls).toEqual([[3, 0]])
+      expect(ctx.sources[0].stopCalls.calls).toEqual([[9 + E]])
+      // Three milliseconds short of the end of the source: that is all the tail there is.
+      track.play('near', { buffer: looped(ctx, 10), offsetSec: 0, durationSec: 9.997, ...bare }, 3)
+      const events = toNine(ctx.gains[2].gain.events)
+      expect(events.slice(-2)).toEqual([
+        ['setValueAtTime', 1, 12.997],
+        ['linearRampToValueAtTime', 0, 13],
+      ])
+    })
+
+    it('a sound that starts on its attack and dies away is left exactly as it was made', () => {
+      const { ctx, track } = setup()
+      track.play('k', { buffer: struck(ctx, 10), offsetSec: 0, durationSec: 10, ...bare }, 3)
+      expect(ctx.gains[1].gain.events).toEqual(UNITY)
+      expect(ctx.sources[0].loop).toBe(false)
+      expect(ctx.sources[0].startCalls.calls).toEqual([[3, 0, 10]])
+      expect(ctx.sources[0].stopCalls.calls).toEqual([])
+    })
+
+    it('a struck sound cut while it rings tails, and still starts on its attack', () => {
+      const { ctx, track } = setup()
+      // Cut at the top of a wave, two seconds in.
+      const end = 3 + 2.0025
+      track.play('k', { buffer: struck(ctx, 10), offsetSec: 0, durationSec: 2.0025, ...bare }, 3)
+      expect(ctx.gains[1].gain.events).toEqual([...UNITY, ...tail(end)])
+      expect(ctx.sources[0].startCalls.calls).toEqual([[3, 0]])
+      expect(ctx.sources[0].stopCalls.calls).toEqual([[end + E]])
+    })
+
+    it('a sound that stops partway through a wave, with nothing to go on to, fades over its last few milliseconds', () => {
+      const { ctx, track } = setup()
+      track.play('k', { buffer: cutOff(ctx, 10), offsetSec: 0, durationSec: 10, ...bare }, 3)
+      expect(ctx.gains[1].gain.events).toEqual([
+        ...UNITY,
+        { method: 'setValueAtTime', args: [1, 13 - E] },
+        { method: 'linearRampToValueAtTime', args: [0, 13] },
+      ])
+      // Played out as any clip the length of its sound is.
+      expect(ctx.sources[0].startCalls.calls).toEqual([[3, 0, 10]])
+      expect(ctx.sources[0].stopCalls.calls).toEqual([])
+    })
+
+    it('a cut that falls where the sound is at rest is left', () => {
+      const { ctx, track } = setup()
+      track.play('silent', { buffer: buffer(ctx, 10), offsetSec: 0, durationSec: 6, ...bare }, 3)
+      expect(ctx.gains[1].gain.events).toEqual(UNITY)
+      expect(ctx.sources[0].startCalls.calls).toEqual([[3, 0, 6]])
+      // Within a millisecond of the sound's own end counts as that end.
+      track.play('near', { buffer: struck(ctx, 10), offsetSec: 0, durationSec: 9.9995, ...bare }, 3)
+      expect(ctx.gains[2].gain.events).toEqual(UNITY)
+    })
+
+    it('a clip with fades of its own keeps them and gets nothing else', () => {
       const { ctx, track } = setup()
       track.play(
         'faded',
-        { buffer: buffer(ctx, 10), offsetSec: 0, durationSec: 6, ...bare, fadeOutSec: 1 },
+        {
+          buffer: looped(ctx, 10),
+          offsetSec: 0,
+          durationSec: 6,
+          ...bare,
+          fadeInSec: 2,
+          fadeOutSec: 1,
+        },
         3,
       )
       expect(ctx.gains[1].gain.events).toEqual([
-        ...UNITY,
+        { method: 'setValueAtTime', args: [0, 3 - HALF_FRAME] },
+        { method: 'setValueAtTime', args: [0, 3] },
+        { method: 'linearRampToValueAtTime', args: [1, 5] },
         { method: 'setValueAtTime', args: [1, 8] },
         { method: 'linearRampToValueAtTime', args: [0, 9] },
       ])
+      expect(ctx.sources[0].startCalls.calls).toEqual([[3, 0, 6]])
+      // One fade of its own: the other end is still seen to.
       track.play(
-        'barely',
-        { buffer: buffer(ctx, 10), offsetSec: 0, durationSec: 6, ...bare, fadeOutSec: 0.001 },
+        'out',
+        { buffer: looped(ctx, 10), offsetSec: 0, durationSec: 6, ...bare, fadeOutSec: 1 },
         3,
       )
-      expect(ctx.gains[2].gain.events).toEqual(eased(9))
-    })
-
-    it('a looping clip is eased where its end falls inside the region, and not where the region comes round', () => {
-      const { ctx, track } = setup()
-      const loop = { buffer: buffer(ctx, 8), offsetSec: 0, loop: true, ...bare }
-      // An 8 second sound for 14 seconds: once round, then cut six seconds in.
-      track.play('cut', { ...loop, durationSec: 14 }, 3)
-      expect(ctx.gains[1].gain.events).toEqual(eased(17))
-      // Twice round exactly, and once: the end is the sound's own.
-      track.play('twice', { ...loop, durationSec: 16 }, 3)
-      track.play('once', { ...loop, durationSec: 8 }, 3)
-      expect(ctx.gains[2].gain.events).toEqual(UNITY)
-      expect(ctx.gains[3].gain.events).toEqual(UNITY)
-      // A region of its own inside the source, entered partway into it.
-      const region = { ...loop, loopStartSec: 2, loopEndSec: 6 }
-      track.play('region-cut', { ...region, offsetSec: 3, durationSec: 5 }, 3)
-      track.play('region-round', { ...region, offsetSec: 3, durationSec: 7 }, 3)
-      track.play('region-first', { ...region, offsetSec: 3, durationSec: 2 }, 3)
-      expect(ctx.gains[4].gain.events).toEqual(eased(8))
-      expect(ctx.gains[5].gain.events).toEqual(UNITY)
-      expect(ctx.gains[6].gain.events).toEqual(eased(5))
-    })
-
-    it('a reversed clip is eased where it stops short of the start of its sound', () => {
-      const { ctx, track } = setup()
-      // Backwards from six seconds in to the start of the source: it ends where the sound begins.
-      track.play(
-        'to-start',
-        { buffer: buffer(ctx, 10), offsetSec: 0, durationSec: 6, reversed: true, ...bare },
-        3,
-      )
-      expect(ctx.gains[1].gain.events).toEqual(UNITY)
-      // Backwards from eight to two: it stops with two seconds of the sound unplayed.
-      track.play(
-        'short',
-        { buffer: buffer(ctx, 10), offsetSec: 2, durationSec: 6, reversed: true, ...bare },
-        3,
-      )
-      expect(ctx.gains[2].gain.events).toEqual(eased(9))
-    })
-
-    it('the ease falls on the clip\u2019s own time at another rate, and moves with a change of rate', () => {
-      const { ctx, track } = setup()
-      track.setRate(2)
-      track.play('k', { buffer: buffer(ctx, 10), offsetSec: 0, durationSec: 6, ...bare }, 3)
-      expect(ctx.gains[1].gain.events).toEqual([
-        { method: 'setValueAtTime', args: [1, 3] },
-        { method: 'setValueAtTime', args: [1, 6 - JOIN_EASE_SECONDS / 2] },
-        { method: 'linearRampToValueAtTime', args: [0, 6] },
+      expect(ctx.gains[2].gain.events).toEqual([
+        ...comeUp,
+        { method: 'setValueAtTime', args: [1, 8] },
+        { method: 'linearRampToValueAtTime', args: [0, 9] },
       ])
     })
 
-    it('a clip shorter than the ease fades over the whole of itself', () => {
+    it('a region of its own inside the source is judged by its own two ends', () => {
       const { ctx, track } = setup()
-      track.play('blip', { buffer: buffer(ctx, 10), offsetSec: 0, durationSec: 0.002, ...bare }, 3)
-      expect(ctx.gains[1].gain.events).toEqual([
-        { method: 'setValueAtTime', args: [1, 3] },
-        { method: 'linearRampToValueAtTime', args: [0, 3.002] },
+      // Frames 2 s to 6 s of a wave that takes four seconds to come round: a region that loops.
+      const region = {
+        buffer: looped(ctx, 8, 2),
+        loop: true,
+        loopStartSec: 2,
+        loopEndSec: 6,
+        ...bare,
+      }
+      track.play('round', { ...region, offsetSec: 2, durationSec: 8 }, 3)
+      expect(ctx.gains[1].gain.events).toEqual([...comeUp, ...tail(11)])
+      expect(ctx.sources[0].stopCalls.calls).toEqual([[11 + E]])
+    })
+
+    it('a reversed clip is judged on its mirrored sound', () => {
+      const { ctx, track } = setup()
+      // Backwards from eight to two: it stops with two seconds of the sound unplayed.
+      track.play(
+        'short',
+        { buffer: looped(ctx, 10), offsetSec: 2, durationSec: 6, reversed: true, ...bare },
+        3,
+      )
+      expect(ctx.gains[1].gain.events.slice(-2)).toEqual(tail(9))
+      // Backwards to the start of a sound that dies away: nothing to do.
+      track.play(
+        'to-start',
+        { buffer: struck(ctx, 10), offsetSec: 0, durationSec: 6, reversed: true, ...bare },
+        3,
+      )
+      expect(ctx.gains[2].gain.events).toEqual(UNITY)
+    })
+
+    it('the come-up and the tail are of the clock at any rate; a last fade is of the clip', () => {
+      const { ctx, track } = setup()
+      track.setRate(2)
+      track.play('k', { buffer: looped(ctx, 10), offsetSec: 0, durationSec: 6, ...bare }, 3)
+      expect(ctx.gains[1].gain.events).toEqual([...comeUp, ...tail(6)])
+      expect(ctx.sources[0].stopCalls.calls).toEqual([[6 + E]])
+      track.play('k2', { buffer: cutOff(ctx, 10), offsetSec: 0, durationSec: 10, ...bare }, 3)
+      expect(ctx.gains[2].gain.events).toEqual([
+        ...UNITY,
+        { method: 'setValueAtTime', args: [1, 8 - E / 2] },
+        { method: 'linearRampToValueAtTime', args: [0, 8] },
+      ])
+    })
+
+    it('a clip shorter than the ease comes up over the whole of itself', () => {
+      const { ctx, track } = setup()
+      track.play('blip', { buffer: looped(ctx, 10), offsetSec: 0, durationSec: 0.002, ...bare }, 3)
+      expect(toNine(ctx.gains[1].gain.events)).toEqual([
+        ['setValueAtTime', 0, Number((3 - HALF_FRAME).toFixed(9))],
+        ['setValueAtTime', 0, 3],
+        ['linearRampToValueAtTime', 1, 3.002],
+        ['setValueAtTime', 1, 3.002],
+        ['linearRampToValueAtTime', 0, 3.007],
       ])
     })
   })
@@ -279,7 +454,7 @@ describe('AudioTrack linear voices (ambient-live ClipPlayer parity)', () => {
     expect(track.voices().map((v) => v.key)).toEqual(['sounding'])
   })
 
-  it('stop(key) silences immediately; stopAll() silences everything; onended forgets a voice', () => {
+  it('stop(key) and stopAll() silence a voice that has not started at once; onended forgets a voice', () => {
     const { ctx, track } = setup()
     const opts = {
       buffer: buffer(ctx, 10),
@@ -289,11 +464,12 @@ describe('AudioTrack linear voices (ambient-live ClipPlayer parity)', () => {
       fadeOutSec: 0,
       fadeCurve: 'linear' as const,
     }
-    track.play('a', opts, 0)
+    track.play('a', opts, 1)
     track.play('b', opts, 1)
     track.play('c', opts, 2)
     track.stop('a')
     expect(ctx.sources[0].stopCalls.calls).toEqual([[]])
+    expect(ctx.sources[0].disconnectCalls.count).toBe(1)
     expect(track.voice('a')).toBeUndefined()
     ctx.sources[1].finish()
     expect(track.voice('b')).toBeUndefined()
@@ -301,6 +477,174 @@ describe('AudioTrack linear voices (ambient-live ClipPlayer parity)', () => {
     track.stopAll()
     expect(ctx.sources[2].stopCalls.calls).toEqual([[]])
     expect(track.voices()).toHaveLength(0)
+  })
+
+  describe('a voice stopped while it sounds', () => {
+    const E = JOIN_EASE_SECONDS
+    const bare = { fadeInSec: 0, fadeOutSec: 0, fadeCurve: 'linear' as const }
+    const fall = (at: number, from = 1) => [
+      { method: 'cancelAndHoldAtTime', args: [at] },
+      { method: 'setValueAtTime', args: [from, at] },
+      { method: 'linearRampToValueAtTime', args: [0, at + E] },
+    ]
+
+    it('is not cut dead: it falls silent over a few milliseconds and its key is free at once', () => {
+      const { ctx, track } = setup()
+      const voice = track.play(
+        'k',
+        { buffer: buffer(ctx, 10), offsetSec: 0, durationSec: 6, ...bare },
+        0,
+      )
+      ctx.currentTime = 2
+      track.stop('k')
+      expect(ctx.gains[1].gain.events.slice(-3)).toEqual(fall(2))
+      expect(ctx.sources[0].stopCalls.calls).toEqual([[2 + E]])
+      expect(voice?.endTime).toBe(2 + E)
+      // Forgotten now, still wired until its source ends.
+      expect(track.voice('k')).toBeUndefined()
+      expect(ctx.sources[0].disconnectCalls.count).toBe(0)
+      ctx.sources[0].finish()
+      expect(ctx.sources[0].disconnectCalls.count).toBe(1)
+    })
+
+    it('stopAll() lets every sounding voice fall and silences the ones still to come', () => {
+      const { ctx, track } = setup()
+      const opts = { buffer: buffer(ctx, 10), offsetSec: 0, durationSec: 6, ...bare }
+      track.play('sounding', opts, 0)
+      track.play('pending', opts, 3)
+      ctx.currentTime = 2
+      track.stopAll()
+      expect(ctx.sources[0].stopCalls.calls).toEqual([[2 + E]])
+      expect(ctx.sources[1].stopCalls.calls).toEqual([[]])
+      expect(track.voices()).toHaveLength(0)
+    })
+
+    it('falls from where its own fade has got to, and from its come-up', () => {
+      const { ctx, track } = setup()
+      // Halfway down a four second fade-out.
+      track.play(
+        'fading',
+        {
+          buffer: buffer(ctx, 10),
+          offsetSec: 0,
+          durationSec: 6,
+          fadeInSec: 0,
+          fadeOutSec: 4,
+          fadeCurve: 'linear',
+        },
+        0,
+      )
+      ctx.currentTime = 4
+      track.stop('fading')
+      expect(ctx.gains[1].gain.events.slice(-3)).toEqual(fall(4, 0.5))
+      // Two of the five milliseconds into the come-up of a sound made to loop.
+      ctx.currentTime = 10
+      track.play('rising', { buffer: looped(ctx, 8), offsetSec: 0, durationSec: 8, ...bare }, 10)
+      ctx.currentTime = 10.002
+      track.stop('rising')
+      expect(toNine(ctx.gains[2].gain.events.slice(-3))).toEqual(toNine(fall(10.002, 0.4)))
+    })
+
+    it('falls from the level it was given where its two fades overlap, not from the triangle they draw', () => {
+      const { ctx, track } = setup()
+      // Four seconds up and four down in six: the fade-in is played out, and the fade-out has the last two.
+      track.play(
+        'k',
+        {
+          buffer: buffer(ctx, 10),
+          offsetSec: 0,
+          durationSec: 6,
+          fadeInSec: 4,
+          fadeOutSec: 4,
+          fadeCurve: 'linear',
+        },
+        0,
+      )
+      expect(ctx.gains[1].gain.events.slice(-3)).toEqual([
+        { method: 'linearRampToValueAtTime', args: [1, 4] },
+        { method: 'setValueAtTime', args: [1, 4] },
+        { method: 'linearRampToValueAtTime', args: [0, 6] },
+      ])
+      ctx.currentTime = 5
+      track.stop('k')
+      expect(ctx.gains[1].gain.events.slice(-3)).toEqual(fall(5, 0.5))
+
+      // On the way up, past where the triangle would have turned down.
+      ctx.currentTime = 10
+      track.play(
+        'up',
+        {
+          buffer: buffer(ctx, 10),
+          offsetSec: 0,
+          durationSec: 6,
+          fadeInSec: 4,
+          fadeOutSec: 4,
+          fadeCurve: 'linear',
+        },
+        10,
+      )
+      ctx.currentTime = 13.5
+      track.stop('up')
+      expect(ctx.gains[2].gain.events.slice(-3)).toEqual(fall(13.5, 0.875))
+    })
+
+    it('joined inside its fade-out, falls from the line it was put on', () => {
+      const { ctx, track } = setup({ currentTime: 5 })
+      // A six second clip that started at 0, entered at 5 with a fade-out over its last four.
+      track.play(
+        'k',
+        {
+          buffer: buffer(ctx, 10),
+          offsetSec: 0,
+          durationSec: 6,
+          fadeInSec: 0,
+          fadeOutSec: 4,
+          fadeCurve: 'linear',
+          easeInSec: 0,
+        },
+        0,
+      )
+      ctx.currentTime = 5.5
+      track.stop('k')
+      expect(toNine(ctx.gains[1].gain.events.slice(-3))).toEqual(toNine(fall(5.5, 0.125)))
+    })
+
+    it('where the browser cannot hold a level, cancels and sets it', () => {
+      const { ctx, track } = setup()
+      const voice = track.play(
+        'k',
+        { buffer: buffer(ctx, 10), offsetSec: 0, durationSec: 6, ...bare },
+        0,
+      )
+      const level = voice?.gain.gain as unknown as { cancelAndHoldAtTime?: unknown }
+      level.cancelAndHoldAtTime = undefined
+      ctx.currentTime = 2
+      track.stop('k')
+      expect(ctx.gains[1].gain.events.slice(-3)).toEqual([
+        { method: 'cancelScheduledValues', args: [2] },
+        { method: 'setValueAtTime', args: [1, 2] },
+        { method: 'linearRampToValueAtTime', args: [0, 2 + E] },
+      ])
+    })
+
+    it('in its tail it is left to finish it; past its end it is silenced', () => {
+      const { ctx, track } = setup()
+      // A sound made to loop, once: it tails for five milliseconds past 8 s.
+      track.play('k', { buffer: looped(ctx, 8), offsetSec: 0, durationSec: 8, ...bare }, 0)
+      const written = ctx.gains[1].gain.events.length
+      ctx.currentTime = 8.002
+      track.stopAll()
+      expect(ctx.gains[1].gain.events).toHaveLength(written)
+      expect(ctx.sources[0].stopCalls.calls).toEqual([[8 + E]])
+      expect(track.voices()).toHaveLength(0)
+      ctx.sources[0].finish()
+      expect(ctx.sources[0].disconnectCalls.count).toBe(1)
+
+      track.play('over', { buffer: buffer(ctx, 10), offsetSec: 0, durationSec: 1, ...bare }, 9)
+      ctx.currentTime = 11
+      track.stop('over')
+      expect(ctx.sources[1].stopCalls.last).toEqual([])
+    })
   })
 
   it('loop clips set source.loop over the offset and stop at the clip end', () => {
@@ -612,7 +956,7 @@ describe('AudioTrack as Schedulables', () => {
     scheduler.dispose()
   })
 
-  it('transport stop with a fade stops sources at now + fade; pause silences immediately', async () => {
+  it('transport stop with a fade stops sources at now + fade; pause lets what sounds fall silent', async () => {
     const { ctx, samples, track, transport, scheduler } = scheduled({ lookaheadSec: 1 })
     await samples.load('s-a', buffer(ctx, 10))
     track.clips.add(clip('a', 0))
@@ -626,9 +970,9 @@ describe('AudioTrack as Schedulables', () => {
     scheduler.tick()
     expect(ctx.sources).toHaveLength(2)
     transport.pause()
-    // Pause silences everything at once: the fading voice and the new one.
-    expect(ctx.sources[0].stopCalls.last).toEqual([])
-    expect(ctx.sources[1].stopCalls.last).toEqual([])
+    // Pause lets go of everything at once: the voice the stop left sounding and the new one fall silent together.
+    expect(ctx.sources[0].stopCalls.last).toEqual([1 + JOIN_EASE_SECONDS])
+    expect(ctx.sources[1].stopCalls.last).toEqual([1 + JOIN_EASE_SECONDS])
     expect(track.voices()).toHaveLength(0)
     scheduler.dispose()
   })
@@ -700,6 +1044,7 @@ describe('AudioTrack reversed clips', () => {
     expect(source.loop).toBe(false)
     // The fades belong to the clip, not to the sound: the same events as a forward voice.
     expect(ctx.gains[1].gain.events).toEqual([
+      { method: 'setValueAtTime', args: [0, 4 - 0.5 / ctx.sampleRate] },
       { method: 'setValueAtTime', args: [fadeGain(0, 3, 1, 0.5), 4] },
       { method: 'linearRampToValueAtTime', args: [1, 5] },
       { method: 'setValueAtTime', args: [1, 6.5] },
@@ -803,7 +1148,9 @@ describe('AudioTrack reversed clips', () => {
     scheduler.tick()
     expect(ctx.sources).toHaveLength(1)
     expect(ctx.sources[0].buffer).not.toBe(buf)
-    expect(ctx.sources[0].startCalls.calls).toEqual([[1, 5, 3]])
+    // The ramp is cut where it is far from rest, so the source reads on into a tail and is stopped after it.
+    expect(ctx.sources[0].startCalls.calls).toEqual([[1, 5]])
+    expect(ctx.sources[0].stopCalls.calls).toEqual([[4 + JOIN_EASE_SECONDS]])
     expect(mirror).toHaveBeenCalledTimes(1)
     scheduler.dispose()
   })
@@ -838,7 +1185,9 @@ describe('AudioTrack reversed clips', () => {
     expect(ctx.sources).toHaveLength(0)
     ctx.currentTime = 0.9
     scheduler.tick()
-    expect(ctx.sources[0].startCalls.calls).toEqual([[1, 5, 3]])
+    // The ramp is cut where it is far from rest, so the source reads on into a tail and is stopped after it.
+    expect(ctx.sources[0].startCalls.calls).toEqual([[1, 5]])
+    expect(ctx.sources[0].stopCalls.calls).toEqual([[4 + JOIN_EASE_SECONDS]])
     expect(mirror).toHaveBeenCalledTimes(1)
     scheduler.dispose()
   })
@@ -1213,6 +1562,8 @@ describe('AudioTrack placed clips', () => {
       expect(track.strip.sourceNodes).toEqual([trim])
       expect(trim.gain.lastEvent('exponentialRampToValueAtTime')?.args[0]).toBeCloseTo(trimGain(-6))
       track.stop('k')
+      // Sounding, so it falls silent first; its nodes go when its source ends.
+      ctx.sources[0].finish()
       expect(trim.isConnectedTo(dest)).toBe(false)
       expect(track.strip.sourceNodes).toEqual([])
     })
@@ -1579,12 +1930,9 @@ describe('AudioTrack clips entered partway', () => {
     // Four seconds into the clip: the source is entered at its offset plus four, for the twelve left.
     expect(ctx.sources).toHaveLength(1)
     expect(ctx.sources[0].startCalls.calls).toEqual([[100, 5, 12]])
-    // It stops three seconds short of the end of its source, so it eases out as well.
     expect(ctx.gains[1].gain.events).toEqual([
       { method: 'setValueAtTime', args: [0, 100] },
       { method: 'linearRampToValueAtTime', args: [1, 100 + JOIN_EASE_SECONDS] },
-      { method: 'setValueAtTime', args: [1, 112 - JOIN_EASE_SECONDS] },
-      { method: 'linearRampToValueAtTime', args: [0, 112] },
     ])
     expect(track.voice('pad:0:2.000')?.endTime).toBe(112)
     scheduler.dispose()
@@ -1982,6 +2330,7 @@ describe('AudioTrack rate (tape speed)', () => {
     // The same 6 s of buffer from the same offset: at double speed it is over in 3 s of clock.
     expect(source.startCalls.calls).toEqual([[3, 1, 6]])
     expect(ctx.gains[1].gain.events).toEqual([
+      { method: 'setValueAtTime', args: [0, 3 - 0.5 / ctx.sampleRate] },
       { method: 'setValueAtTime', args: [0, 3] },
       { method: 'linearRampToValueAtTime', args: [1, 4] },
       { method: 'setValueAtTime', args: [1, 5.5] },
@@ -2080,22 +2429,29 @@ describe('AudioTrack rate (tape speed)', () => {
     expect(source.stopCalls.calls).toEqual([[9], [8]])
   })
 
-  it('moves the ease-out of a clip cut partway to where the clip now ends', () => {
+  it('moves the tail of a clip cut partway to where the clip now ends, and leaves a tail that has begun', () => {
     const { ctx, track } = setup()
     track.play(
       'k',
-      { buffer: buffer(ctx, 10), ...faded, offsetSec: 0, fadeInSec: 0, fadeOutSec: 0 },
+      { buffer: looped(ctx, 10), ...faded, offsetSec: 0, fadeInSec: 0, fadeOutSec: 0 },
       3,
     )
     const level = ctx.gains[1].gain
     ctx.currentTime = 6
     level.events.length = 0
     track.setRate(1.5)
-    // 3 s of clip left take 2 s of clock, and the ease its 5 ms of clip at that speed.
+    // 3 s of clip left take 2 s of clock; the tail after them is as long as it was.
     expect(rounded(level.events).slice(-2)).toEqual([
-      ['setValueAtTime', 1, Number((8 - JOIN_EASE_SECONDS / 1.5).toFixed(9))],
-      ['linearRampToValueAtTime', 0, 8],
+      ['setValueAtTime', 1, 8],
+      ['linearRampToValueAtTime', 0, 8 + JOIN_EASE_SECONDS],
     ])
+    expect(ctx.sources[0].stopCalls.calls.at(-1)).toEqual([8 + JOIN_EASE_SECONDS])
+    // In the tail only the pitch follows.
+    ctx.currentTime = 8.002
+    level.events.length = 0
+    track.setRate(1)
+    expect(level.events).toEqual([])
+    expect(ctx.sources[0].stopCalls.calls.at(-1)).toEqual([8 + JOIN_EASE_SECONDS])
   })
 
   it('eases a voice in over the same few milliseconds when the rate changes inside the ease', () => {
