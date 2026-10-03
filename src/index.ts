@@ -98,10 +98,12 @@ export { ReturnTrack, type ReturnTrackOptions } from './core/tracks/ReturnTrack'
 export { SendList, type Send, type SendOptions, type SendTarget } from './core/tracks/Send'
 export {
   ChannelStrip,
+  DEFAULT_RIDE_LAYER,
   SoloInPlace,
   resolveInput,
   type ChannelStripOptions,
   type RampOptions,
+  type RideOptions,
   type RoutableInput,
   type StripChange,
   type StripChangeKind,
@@ -620,6 +622,7 @@ export {
 } from './core/load'
 export * from './score'
 export * from './core/session'
+export * from './core/perform'
 export * from './core/control'
 export * from './agent'
 export {

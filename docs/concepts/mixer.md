@@ -64,6 +64,11 @@ kick.strip.onChange((change) => …) // level | pan | mute | solo | inserts | ro
 All changes are `setTargetAtTime` approaches (5 ms constant by default,
 `RampOptions` to change), never steps.
 
+A strip can also be **ridden**: `strip.setRide(value, { layer })` is a gain
+after the fader and before the gate, at 1 until moved, for something that
+performs the mix without changing it (scenes and dials, [perform.md](../perform.md)).
+The fader keeps the level that was composed; the post-fader sends follow the ride.
+
 **Lazy nodes.** A track's strip creates **no nodes until first used** (pan,
 level, mute, solo, an insert or a send), so the Phase 0 graph is unchanged:
 voices and dry gains connect straight to the destination and are re-pointed
