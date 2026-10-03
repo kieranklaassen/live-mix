@@ -29,7 +29,7 @@ test('the engine measures its own devices on an isolated page', async ({ page })
 
   // Every kind is there with its count and the memory its instances hold.
   const kinds = Object.fromEntries(last.devices.map((device) => [device.label, device]))
-  expect(Object.keys(kinds).sort()).toEqual(['shimmer', 'hall-reverb'])
+  expect(Object.keys(kinds).sort()).toEqual(['hall-reverb', 'shimmer'])
   expect(kinds['hall-reverb'].count).toBe(4)
   expect(kinds['shimmer'].count).toBe(2)
   expect(kinds['hall-reverb'].memoryBytes).toBe(4 * result.memory['hall-reverb'])
