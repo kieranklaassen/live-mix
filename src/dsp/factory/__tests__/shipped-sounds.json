@@ -169,6 +169,41 @@
     "durationSec": 8,
     "loops": false
   },
+  "147": {
+    "id": "chorus-pad-em7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "148": {
+    "id": "brass-swell-fadd9",
+    "durationSec": 16,
+    "loops": true
+  },
+  "149": {
+    "id": "folded-pad-c6",
+    "durationSec": 8,
+    "loops": true
+  },
+  "150": {
+    "id": "vowel-pad-am9",
+    "durationSec": 16,
+    "loops": true
+  },
+  "151": {
+    "id": "slow-glass-gadd9",
+    "durationSec": 8,
+    "loops": true
+  },
+  "152": {
+    "id": "phased-strings-dsus2",
+    "durationSec": 16,
+    "loops": true
+  },
+  "153": {
+    "id": "rotary-organ-gsus4",
+    "durationSec": 8,
+    "loops": true
+  },
   "171": {
     "id": "rubber-bass-c",
     "durationSec": 3,
