@@ -141,11 +141,11 @@ import {
 } from '@kieranklaassen/live-mix/dsp'
 ```
 
-|             | Count | Groups                                                                                                                          |
-| ----------- | ----- | ------------------------------------------------------------------------------------------------------------------------------- |
-| **Presets** | 170   | Five for each of the thirty-four stock instruments: pads, keys, bells, strings, plucked, wind, voices, organs, drones, textures |
-| **Chains**  | 76    | Space, echo, tape, motion, texture, pitch, master; every WASM effect is in at least one                                         |
-| **Sounds**  | 34    | Looping drones, pads and textures, one-shots, short phrases, and three made from other sounds                                   |
+|             | Count | Groups                                                                                                                                        |
+| ----------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Presets** | 170   | Five for each of the thirty-four stock instruments: pads, keys, bells, strings, plucked, wind, voices, organs, drones, textures               |
+| **Chains**  | 76    | Space, echo, tape, motion, texture, pitch, master; every WASM effect is in at least one                                                       |
+| **Sounds**  | 100   | Looping drones (19), pads (27) and textures (16), one-shots (22) and phrases (16, seven of which come round); nine are made from other sounds |
 
 The bank is data: importing it loads no module and touches no audio. A host
 lists it before audio starts and renders only what someone asks to hear.
@@ -576,6 +576,56 @@ As reported:
 - `atmosphere` at its default width has as much side as mid; `sympathetic`'s
   Major and Minor tunings follow the root's own scale (root D rings F sharp
   and C sharp); `drone` "Tanpura" has its fifth partial as loud as the root.
+- Found while the bank went from 34 sounds to 100, and worked round in the
+  recipes (`sounds/`), not fixed:
+  - Level: instruments leave at about −35 dBFS RMS, so `ambient-comp` does
+    nothing above a threshold of −45 and `limiter-1176` nothing under about
+    30 dB of input. Both let a pick through and pull the body of the note
+    down after it, so a plucked sound comes out quieter at the bank's peak,
+    not louder (`soften` or `ambient-limiter` "Pinned" does what was wanted).
+    `ambient-comp` is linked on stereo power, so the level of the mono sum
+    still moves after it.
+  - `felt-piano`: the level of a single note depends on its pitch, E4 about
+    10 dB over D4 at gain 0.6 and 5 to 6 dB at 0.9, so the balance of a phrase
+    shifts from key to key.
+  - `flute`: its pitch rises with how hard it is blown and is in tune near
+    gain 0.75; one flute alone is close to a sine.
+  - `tanpura`: the key played is not the string heard first (key G3 sounds D3,
+    the first string a fourth under it), and its plucks wander in time by
+    design: twelve take 7.9 to 8.1 s, so a loop sets `speed` for the cycle to
+    fill it (2.698 for twelve plucks in 8 s).
+  - `handpan`: a note struck again adds to what still rings of it, so the
+    second round of a phrase is louder than the first.
+  - `pedal-steel`: on a picked note the third harmonic is the loudest partial,
+    10 dB over the fundamental, which is a black key on B. A held note
+    darkens and its fifth beats; only `sustainer` fully wet holds it level.
+  - `modal-bells` "Church bell": its partials are 0.5, 1, 1.2, 1.5, 2, 2.5, 3,
+    4, 5.33, 6.67 and 8 times the note. The minor third (1.2) is a natural
+    only over D, E, A and B, and 2.5 is a major third: `position` 0.667 puts
+    that one on its node, which leaves D as the root with every partial on a
+    white key.
+  - `harp`: `halo` does nothing while a single string rings.
+  - `dusk`: its chorus turns at 0.513 Hz whatever is set, which no loop of 8
+    or 16 s comes round on; the `chorus` effect at 0.25 Hz does.
+  - `fm-glass`: with `detune` above 0 the two sides beat against each other
+    to silence in mono.
+  - `ladder-bass`, `aurora`, `wavetable`: `sub` adds the octave below every
+    note of a chord, which puts close intervals in the bass. Alone under one
+    low note it is all there is under 40 Hz, where `analyzeSound` hears no
+    pitch: a sub drone needs harmonics above it to stay a drone five
+    semitones down.
+  - `horns` with `section` above 0 and `chamber-strings` with more than one
+    player move enough to read as a pad, not a drone; so do spring and plate
+    reverbs after a held `pedal-steel`.
+  - `mallets` at `decay` 1.5: the bars stop before a hall's tail does, and the
+    tail is counted as hits (one key read as a beat); at 2.2 it is not.
+  - `dattorro`: the drift in its tail under one long held note is counted as
+    hits; `zita-rev1` under the same note is not.
+  - `sampler` preset "Tape choir" plays an octave down and six cents sharp
+    (`fine` 6).
+  - `spring-reverb` and a plate after a held `pedal-steel` chord: the
+    brightness of the result jumped from key to key; through `expanse` it
+    rises evenly with the key.
 - `renderPatch`'s loop fold is an equal-power crossfade, which is right for
   noise and moving sound but adds a steady tone to itself in amplitude: a held
   note can come out up to 3 dB louder or quieter across the crossfade,
