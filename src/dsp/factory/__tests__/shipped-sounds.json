@@ -234,6 +234,41 @@
     "durationSec": 8,
     "loops": true
   },
+  "154": {
+    "id": "chamber-strings-em7",
+    "durationSec": 16,
+    "loops": true
+  },
+  "155": {
+    "id": "low-brass-fifths-f",
+    "durationSec": 16,
+    "loops": true
+  },
+  "156": {
+    "id": "treble-voices-dsus2",
+    "durationSec": 16,
+    "loops": true
+  },
+  "157": {
+    "id": "tape-choir-am9",
+    "durationSec": 8,
+    "loops": true
+  },
+  "158": {
+    "id": "clarinets-dm7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "159": {
+    "id": "high-flutes-gadd9",
+    "durationSec": 8,
+    "loops": true
+  },
+  "160": {
+    "id": "steel-swell-c6",
+    "durationSec": 8,
+    "loops": true
+  },
   "161": {
     "id": "brook-over-stones",
     "durationSec": 8,
