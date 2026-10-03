@@ -164,3 +164,88 @@ export function formatMeasurement(m: AudioMeasurement): string {
     `width ${f(m.widthDb)} dB`
   )
 }
+
+/** A sound reduced to what tells it from another played on the same notes (`soundPrint`). */
+export interface SoundPrint {
+  /** Power in sixteen bands from 40 Hz to 16 kHz over four stretches of the sound, dB of its whole power. */
+  bands: number[]
+  /** Level in tenths of a second, dB under the loudest of them. */
+  level: number[]
+  /** Side over mid in the same four stretches, dB. */
+  width: number[]
+}
+
+const PRINT_BANDS = 16
+const PRINT_FLOOR_DB = -50
+
+/**
+ * What a rendered sound is like, apart from how loud it is: where its energy
+ * sits as it goes on, how its level moves and how wide it is. Two presets of
+ * one instrument play the same notes, so their prints differ only by what the
+ * presets do, and `printDistance` says by how much.
+ */
+export function soundPrint(audio: PlanarAudio): SoundPrint {
+  const [left, right = left] = audio.channels
+  const frames = left.length
+  const mid = new Float32Array(frames)
+  for (let i = 0; i < frames; i += 1) mid[i] = (left[i] + right[i]) / 2
+
+  const size = 4096
+  const re = new Float64Array(size)
+  const im = new Float64Array(size)
+  const stretches = 4
+  const power = Array.from({ length: stretches }, () => new Float64Array(PRINT_BANDS))
+  const sides = new Float64Array(stretches)
+  const mids = new Float64Array(stretches)
+  const bandOf = (hz: number) =>
+    Math.floor((Math.log2(hz / 40) / Math.log2(16000 / 40)) * PRINT_BANDS)
+  let total = 0
+  for (let start = 0; start + size <= frames; start += size / 2) {
+    const stretch = Math.min(stretches - 1, Math.floor((start * stretches) / frames))
+    for (let i = 0; i < size; i += 1) {
+      re[i] = mid[start + i] * (0.5 - 0.5 * Math.cos((2 * Math.PI * i) / size))
+      im[i] = 0
+      const side = (left[start + i] - right[start + i]) / 2
+      sides[stretch] += side * side
+      mids[stretch] += mid[start + i] * mid[start + i]
+    }
+    fft(re, im)
+    for (let bin = 1; bin < size / 2; bin += 1) {
+      const band = bandOf((bin * audio.sampleRate) / size)
+      if (band < 0 || band >= PRINT_BANDS) continue
+      const p = re[bin] * re[bin] + im[bin] * im[bin]
+      power[stretch][band] += p
+      total += p
+    }
+  }
+  const floored = (value: number, whole: number) =>
+    value > 0 && whole > 0
+      ? Math.max(PRINT_FLOOR_DB, 10 * Math.log10(value / whole))
+      : PRINT_FLOOR_DB
+
+  const tenths = envelope(mid, audio.sampleRate, 0.1)
+  const loudest = Math.max(...tenths, 0)
+  return {
+    bands: power.flatMap((stretch) => [...stretch].map((value) => floored(value, total))),
+    level: tenths.map((value) => floored(value * value, loudest * loudest)),
+    width: [...sides].map((side, i) => Math.max(-30, floored(side, mids[i]))),
+  }
+}
+
+/**
+ * How far two prints are apart, in dB: half of it the mean difference between
+ * their bands, a third the mean difference in how their level moves, the rest
+ * their width. Two renders of one preset are at 0; presets that are plainly
+ * different sounds are several dB apart.
+ */
+export function printDistance(a: SoundPrint, b: SoundPrint): number {
+  const apart = (x: readonly number[], y: readonly number[]) => {
+    const length = Math.min(x.length, y.length)
+    let sum = 0
+    for (let i = 0; i < length; i += 1) sum += Math.abs(x[i] - y[i])
+    return length > 0 ? sum / length : 0
+  }
+  return (
+    0.5 * apart(a.bands, b.bands) + 0.35 * apart(a.level, b.level) + 0.15 * apart(a.width, b.width)
+  )
+}
