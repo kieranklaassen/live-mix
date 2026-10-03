@@ -2229,7 +2229,8 @@
   container: lm-plate-presets / inline-size;
 }
 
-/* Presets, moving and removing: there while the plate is pointed at, in use or open. */
+/* Presets, moving and removing: there while the plate is pointed at, in use,
+   open or in hand (the plate a finger pressed last). */
 .lm-plate__tools {
   display: none;
   flex: 0 0 auto;
@@ -2239,72 +2240,104 @@
 
 .lm-plate:hover .lm-plate__tools,
 .lm-plate:focus-within .lm-plate__tools,
-.lm-plate--open .lm-plate__tools {
+.lm-plate--open .lm-plate__tools,
+.lm-plate--held .lm-plate__tools {
   display: flex;
 }
 
-/* Beside a host's picker the tools share the name's place. Where nothing
-   hovers they are there or not for good: the pair takes no part in the layout
-   and the tools keep their room in front of the lamp. */
+/* Beside a host's picker the tools share the name's place: they come up over
+   the end of the name, so the picker keeps its place and its size as they
+   appear. The pair is as wide as the wider of the two, with the tools there
+   or not: a short name is not left with tools cut off at the plate's edge,
+   and nothing on the foot moves when they show. A long name still gives way
+   to the rest of the foot; the one column never gets narrower than the tools.
+   It is the same under a finger, which is why a pressed plate is in hand:
+   tools always there would leave the picker a cell and no more. */
 .lm-plate__lead {
-  display: contents;
+  display: grid;
+  flex: 0 1 auto;
+  min-width: 0;
+  margin-right: auto;
+}
+
+.lm-plate__lead > * {
+  grid-area: 1 / 1;
+}
+
+.lm-plate__lead .lm-plate__name {
+  justify-self: start;
+  max-width: 100%;
+  margin: 0;
 }
 
 .lm-plate__lead .lm-plate__tools {
-  order: 1;
+  display: flex;
+  justify-self: end;
+  gap: 0;
+  visibility: hidden;
 }
 
-.lm-plate__foot--picker .lm-plate__lamp {
-  order: 2;
+.lm-plate:hover .lm-plate__lead .lm-plate__tools,
+.lm-plate:focus-within .lm-plate__lead .lm-plate__tools,
+.lm-plate--open .lm-plate__lead .lm-plate__tools,
+.lm-plate--held .lm-plate__lead .lm-plate__tools {
+  visibility: visible;
 }
 
-/* Under a pointer they come up over the end of the name instead, so the
-   picker under the pointer keeps its place and its size as they appear. The
-   pair is as wide as the wider of the two, with the tools there or not: a
-   short name is not left with tools cut off at the plate's edge, and nothing
-   on the foot moves when they show. A long name still gives way to the rest
-   of the foot; the one column never gets narrower than the tools. */
-@media (hover: hover) {
-  .lm-plate__lead {
-    display: grid;
-    flex: 0 1 auto;
-    min-width: 0;
-    margin-right: auto;
-  }
+/* A hairline of the plate's own colour cuts each tool from the name under it. */
+.lm-plate__lead .lm-plate__tools > * {
+  flex-shrink: 0;
+  box-shadow: -1px 0 0 var(--lm-plate);
+}
 
-  .lm-plate__lead > * {
-    grid-area: 1 / 1;
-  }
+/* Under the tools the name is whole words or nothing, never a word cut short:
+   it wraps in the room the tools leave, and a word with no room falls to a
+   second line the tag does not show. The empty box in front is a place to
+   break, so the first word can fall too. The room given up as padding comes
+   back as margin: the tag is no wider for it, and the foot stays as it was.
+   The tools are counted here, each a cell of `--lm-plate-tool`. */
+.lm-plate__lead {
+  --lm-plate-tools-room: 0px;
+}
 
-  .lm-plate__lead .lm-plate__name {
-    justify-self: start;
-    max-width: 100%;
-    margin: 0;
-  }
+.lm-plate__lead:has(.lm-plate__tools > :nth-child(1)) {
+  --lm-plate-tools-room: var(--lm-plate-tool, 16px);
+}
 
-  .lm-plate__lead .lm-plate__tools {
-    display: flex;
-    justify-self: end;
-    gap: 0;
-    visibility: hidden;
-  }
+.lm-plate__lead:has(.lm-plate__tools > :nth-child(2)) {
+  --lm-plate-tools-room: calc(2 * var(--lm-plate-tool, 16px));
+}
 
-  .lm-plate:hover .lm-plate__lead .lm-plate__tools,
-  .lm-plate:focus-within .lm-plate__lead .lm-plate__tools,
-  .lm-plate--open .lm-plate__lead .lm-plate__tools {
-    visibility: visible;
-  }
+.lm-plate__lead:has(.lm-plate__tools > :nth-child(3)) {
+  --lm-plate-tools-room: calc(3 * var(--lm-plate-tool, 16px));
+}
 
-  /* A hairline of the plate's own colour cuts each tool from the name under it. */
-  .lm-plate__lead .lm-plate__tools > * {
-    flex-shrink: 0;
-    box-shadow: -1px 0 0 var(--lm-plate);
-  }
+.lm-plate__lead:has(.lm-plate__tools > :nth-child(4)) {
+  --lm-plate-tools-room: calc(4 * var(--lm-plate-tool, 16px));
+}
+
+.lm-plate:hover .lm-plate__lead .lm-plate__name,
+.lm-plate:focus-within .lm-plate__lead .lm-plate__name,
+.lm-plate--open .lm-plate__lead .lm-plate__name,
+.lm-plate--held .lm-plate__lead .lm-plate__name {
+  box-sizing: border-box;
+  margin-right: calc(-1 * var(--lm-plate-tools-room));
+  padding-right: calc(7px + var(--lm-plate-tools-room));
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.lm-plate:hover .lm-plate__lead .lm-plate__name::before,
+.lm-plate:focus-within .lm-plate__lead .lm-plate__name::before,
+.lm-plate--open .lm-plate__lead .lm-plate__name::before,
+.lm-plate--held .lm-plate__lead .lm-plate__name::before {
+  display: inline-block;
+  content: '';
 }
 
 .lm-plate__tools .lm-button,
 .lm-plate__tools .lm-device__presets {
-  min-width: 16px;
+  min-width: var(--lm-plate-tool, 16px);
   height: 20px;
   padding: 0 3px;
   border: 0;
