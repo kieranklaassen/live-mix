@@ -92,4 +92,262 @@ export const SPACE_CHAINS: readonly FactoryChain[] = [
     description: 'A rush of separate echoes after each note that piles up into a dark cave.',
     effects: [{ deviceId: 'swarm-reverb', preset: 'Cavern' }],
   },
+
+  {
+    id: 'close-chamber',
+    name: 'Close chamber',
+    category: 'space',
+    description: 'A few cents of width on the source, then a short bright chamber close around it.',
+    effects: [
+      { deviceId: 'stereo-detune', preset: 'Faint width' },
+      {
+        deviceId: 'zita-rev1',
+        preset: 'Tight chamber',
+        params: { midDecay: 1.3, mix: 0.3 },
+      },
+    ],
+  },
+  {
+    id: 'long-low-hall',
+    name: 'Long low hall',
+    category: 'space',
+    description:
+      'A transformer thickens the lows, then a hall holds them twice as long as the rest.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'Low warmth', params: { output: -3 } },
+      {
+        deviceId: 'zita-rev1',
+        preset: 'Hall',
+        params: { crossover: 350, lowDecay: 5, damping: 4500 },
+      },
+    ],
+  },
+  {
+    id: 'slap-into-plate',
+    name: 'Slap into plate',
+    category: 'space',
+    description:
+      'One saturated tape slap stands between the note and the dark plate that answers it.',
+    effects: [
+      { deviceId: 'tape-echo', preset: 'Single slap', params: { time: 110, mix: 0.3 } },
+      {
+        deviceId: 'dattorro',
+        preset: 'Dark plate',
+        params: { predelayMs: 150, decay: 0.85, mix: 0.24 },
+      },
+    ],
+  },
+  {
+    id: 'chapel-into-nave',
+    name: 'Chapel into nave',
+    category: 'space',
+    description:
+      'Close early reflections from a small room, then the slow six second tail of a nave.',
+    effects: [
+      { deviceId: 'fdn-reverb', preset: 'Short ambience', params: { mix: 0.3 } },
+      { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.35 } },
+    ],
+  },
+  {
+    id: 'bright-upper-air',
+    name: 'Bright upper air',
+    category: 'space',
+    description:
+      'Only the top of the sound is spread wide and hung in a thin tail with no bass in it.',
+    effects: [
+      { deviceId: 'stereo-detune', preset: 'Top only', params: { focus: 600 } },
+      { deviceId: 'expanse', preset: 'Thin air', params: { mix: 0.3 } },
+    ],
+  },
+  {
+    id: 'driven-gated-room',
+    name: 'Driven gated room',
+    category: 'space',
+    description:
+      'A pushed console stage into a dense room that holds for half a second and stops dead.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'Console', params: { drive: 0.55 } },
+      { deviceId: 'shaped-reverb', preset: 'Gated', params: { time: 0.5, mix: 0.45 } },
+    ],
+  },
+  {
+    id: 'trembling-hall',
+    name: 'Trembling hall',
+    category: 'space',
+    description:
+      'A long hall played through a valve amp and its tremolo, so the tail itself pulses across the sides.',
+    effects: [
+      { deviceId: 'ether-reverb', preset: 'Cathedral', params: { decay: 9, mix: 0.2 } },
+      { deviceId: 'analog-drive', preset: 'Triode glow', params: { drive: 0.2, output: 1.5 } },
+      { deviceId: 'tremolo', preset: 'Amp tremolo', params: { rate: 3.2, depth: 0.6, phase: 40 } },
+    ],
+  },
+  {
+    id: 'slow-phased-hall',
+    name: 'Slow phased hall',
+    category: 'space',
+    description:
+      'A long bright hall with a phaser after it, drawing notches through the tail every sixteen seconds.',
+    effects: [
+      { deviceId: 'ether-reverb', preset: 'Shining tail' },
+      {
+        deviceId: 'phaser',
+        preset: 'Slow swirl',
+        params: { centerHz: 600, feedback: 45, stereo: 60 },
+      },
+    ],
+  },
+  {
+    id: 'opening-haze',
+    name: 'Opening haze',
+    category: 'space',
+    description:
+      'A far plate, mostly reverb, behind a low pass that opens and closes every twelve seconds.',
+    effects: [
+      { deviceId: 'dattorro', preset: 'Distant haze', params: { mix: 0.6 } },
+      {
+        deviceId: 'auto-filter',
+        preset: 'Glacial low-pass',
+        params: { cutoffHz: 1000, lfoRateHz: 0.08 },
+      },
+    ],
+  },
+  {
+    id: 'dripping-dark-hall',
+    name: 'Dripping dark hall',
+    category: 'space',
+    description: 'Two springs splash on every attack and their drips fall away into a dark hall.',
+    effects: [
+      { deviceId: 'spring-reverb', preset: 'Surf drip', params: { drive: 0.3, mix: 0.2 } },
+      { deviceId: 'zita-rev1', preset: 'Dark hall', params: { mix: 0.35 } },
+    ],
+  },
+  {
+    id: 'ringing-strings-room',
+    name: 'Ringing strings room',
+    category: 'space',
+    description:
+      'Twelve strings tuned to the white keys ring on as under a held pedal, in a small room.',
+    effects: [
+      {
+        deviceId: 'sympathetic',
+        preset: 'Piano pedal',
+        params: { strings: 8, decay: 5, mix: 0.35, width: 0.8 },
+      },
+      { deviceId: 'ether-reverb', preset: 'Room' },
+    ],
+  },
+  {
+    id: 'sinking-cathedral',
+    name: 'Sinking cathedral',
+    category: 'space',
+    description:
+      'A tail that drops an octave on each pass, sinking into a vast space with no treble.',
+    effects: [
+      { deviceId: 'shimmer', preset: 'Undertow', params: { decay: 10, mix: 0.35 } },
+      { deviceId: 'expanse', preset: 'Low cathedral', params: { decay: 12, mix: 0.3 } },
+    ],
+  },
+  {
+    id: 'far-wall-slap',
+    name: 'Far wall slap',
+    category: 'space',
+    description: 'One hard mono slap comes back off a far wall, and a small room softens both.',
+    effects: [
+      {
+        deviceId: 'shaped-reverb',
+        preset: 'Mono slap',
+        params: { preDelay: 190, time: 0.1, mix: 0.4 },
+      },
+      { deviceId: 'fdn-reverb', preset: 'Room', params: { mix: 0.25 } },
+    ],
+  },
+  {
+    id: 'concrete-culvert',
+    name: 'Concrete culvert',
+    category: 'space',
+    description:
+      'A short pipe that rings like metal on every attack, opening into a dark mono tunnel.',
+    effects: [
+      { deviceId: 'swarm-reverb', preset: 'Metal pipe', params: { feedback: 0.7 } },
+      { deviceId: 'expanse', preset: 'Narrow tunnel' },
+    ],
+  },
+  {
+    id: 'empty-stairwell',
+    name: 'Empty stairwell',
+    category: 'space',
+    description: 'Hard separate echoes off close walls, ringing on in a small bright space.',
+    effects: [
+      { deviceId: 'expanse', preset: 'Hard echoes' },
+      { deviceId: 'fdn-reverb', preset: 'Small bright tank', params: { decay: 3.5, mix: 0.25 } },
+    ],
+  },
+  {
+    id: 'drifting-in-a-plate',
+    name: 'Drifting in a plate',
+    category: 'space',
+    description:
+      'The sound drifts slowly from side to side while the plate behind it stays where it is.',
+    effects: [
+      { deviceId: 'tremolo', preset: 'Slow pan', params: { depth: 0.6 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { decay: 0.85, mix: 0.3 } },
+    ],
+  },
+  {
+    id: 'dissolve-and-hold',
+    name: 'Dissolve and hold',
+    category: 'space',
+    description:
+      'A diffuse wash spreads under each note, and a dark plate holds it for a minute after you stop.',
+    effects: [
+      { deviceId: 'spectral-blur', preset: 'Diffuse room' },
+      {
+        deviceId: 'dattorro',
+        preset: 'Endless wash',
+        params: { decay: 0.985, damping: 0.7, mix: 0.17 },
+      },
+    ],
+  },
+  {
+    id: 'squashed-room',
+    name: 'Squashed room',
+    category: 'space',
+    description:
+      'A small room crushed by a fast limiter, so each note and the room behind it sit at one level.',
+    effects: [
+      { deviceId: 'fdn-reverb', preset: 'Room', params: { decay: 1.6, mix: 0.45 } },
+      { deviceId: 'limiter-1176', preset: 'Squash' },
+    ],
+  },
+  {
+    id: 'across-the-valley',
+    name: 'Across the valley',
+    category: 'space',
+    description:
+      'One clear echo returns from the far side after most of a second, into a long open tail.',
+    effects: [
+      {
+        deviceId: 'analog-delay',
+        preset: 'Clean echo',
+        params: { time: 700, feedback: 0.15, tone: 4000, mix: 0.3 },
+      },
+      { deviceId: 'fdn-reverb', preset: 'Open valley', params: { mix: 0.35 } },
+    ],
+  },
+  {
+    id: 'behind-the-door',
+    name: 'Behind the door',
+    category: 'space',
+    description:
+      'A hall heard through its closed door: nearly all reverb, far off, with the highs taken away.',
+    effects: [
+      { deviceId: 'zita-rev1', preset: 'Far away', params: { mix: 0.7 } },
+      {
+        deviceId: 'ambient-eq',
+        preset: 'Muffled',
+        params: { low: 0, presence: -10, air: -12, highCut: 1000 },
+      },
+    ],
+  },
 ]
