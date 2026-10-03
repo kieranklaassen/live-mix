@@ -1,5 +1,0 @@
----
-'@kieranklaassen/live-mix': patch
----
-
-React headless hooks on the `./react` entry (U24, R32). `LiveMixProvider` / `useEngine`, `useTransport` (state, frame-sampled playhead at a bounded `fps`, controls), `useStrip` / `useTrack` / `useGroup` (level, pan, mute, solo, audible, inserts, members, with ramped setters), `useMeter` (analyser peak/RMS and the `LufsMeter` reading when installed, sampled on frames), `useDevice` / `useDeviceParam` (values, bypass, presets, taper-aware `normalized`), `useLane` / `useModulation`, `useSampleStore` (metrics), `useEngineStats`, `useClips` / `useSchedule` (sounding and upcoming clips through the Scheduler's window function). All subscriptions go through `useSyncExternalStore`; the entry is SSR-safe and the `.` and `./dsp` entries never import React. Additive change events in core for the hooks: `ChannelStrip.onChange`, `ClipList.subscribe`, `ParamLane.onChange`, `ModMatrix.onChange` + `setRoute`, `SampleStore.onChange`, `ObservableDevice.onChange` on `NodeDevice`, `WasmDevice`, `ConvolverReverb` and `WorkletDucker` (`isObservableDevice`), `EngineStats.reset` now notifies, and a shared `Emitter`.
