@@ -109,6 +109,7 @@ const audio = await renderPatch(patch, {
 | `sample`                  | The sound a sample instrument (`grain-synth`, `sampler`) plays                                |
 | `skipSec`                 | Rendered and thrown away first, so a loop starts with the attack over and the reverb full     |
 | `loopCrossfadeSec`        | Renders this much more and folds it over the start (equal power): the result loops seamlessly |
+| `loopFold`                | `'linear'` folds at equal amplitude: for a phrase played round again, where the two are alike |
 | `fadeInSec`, `fadeOutSec` | Linear fades at the ends                                                                      |
 | `normalizePeakDb`         | Scales the result to this peak                                                                |
 | `sliceMs`, `signal`       | Hands the thread back every 12 ms by default so a page stays responsive; aborts on the signal |
@@ -290,11 +291,13 @@ and the last column the render cost.
 ## Adding to the bank
 
 1. A preset goes in `src/dsp/factory/presets/<instrument>.ts`, a chain in
-   `chains.ts`, a sound in `sounds.ts` with the next free `number` (numbers
-   are never reused).
+   `chains.ts`, a sound in its family's file under `sounds/` with the next
+   free `number` (numbers are never reused).
 2. Run the bench for it and bring it inside the limits with the instrument's
    volume or an effect's mix, not by leaving it.
-3. `pnpm vitest run src/dsp/factory` must pass.
+3. A new sound gets its row in `shipped-sounds.json`:
+   `UPDATE_SHIPPED_SOUNDS=1 pnpm vitest run src/dsp/factory/__tests__/shipped-sounds.test.ts`.
+4. `pnpm vitest run src/dsp/factory` must pass.
 
 Words are part of the entry: a name says what the sound is in two or three
 plain words, a description says in one sentence what it sounds like and how
@@ -495,7 +498,7 @@ As reported:
   noise and moving sound but adds a steady tone to itself in amplitude: a held
   note can come out up to 3 dB louder or quieter across the crossfade,
   depending on the phase it meets itself in. The organ, cello and string
-  sounds get round it in `sounds.ts`: each note is retuned by under two cents
+  sounds get round it in `sounds/first.ts`: each note is retuned by under two cents
   to a whole number of cycles per loop, and a `freq-shifter` then moves
   everything a quarter of a cycle per loop, so every partial meets itself a
   quarter turn on, where amplitudes add in power.
