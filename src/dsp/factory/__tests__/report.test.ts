@@ -4,8 +4,11 @@
 //     every stock WASM device with its parameters and presets
 //   FACTORY_REPORT=presets [FACTORY=<part of an id>] [FACTORY_DEVICE=<instrument id>] pnpm vitest run …
 //     each preset's preview as it leaves the patch (not normalised), measured
-//   FACTORY_REPORT=sounds [FACTORY=<part of an id>] pnpm vitest run …
-//     each factory sound as rendered, measured and classified
+//   FACTORY_REPORT=sounds [FACTORY=<part of an id>] [FACTORY_NUMBERS=<first>-<last>] pnpm vitest run …
+//     each factory sound as rendered, measured and classified, with how it starts, ends and
+//     comes round, and in capitals where it leaves what a sound is held to (KIND, QUIET, LOUD,
+//     DC, WIDE, NAME over 24 characters in some key, SLOW over 12 % of real time; a loop: SEAM,
+//     FOLD over 1.5 dB; a sound that ends: STEP-IN, CUT, LATE)
 //   FACTORY_REPORT=chains [FACTORY=<part of an id>] pnpm vitest run …
 //     each effect chain on a dry piano phrase, measured against the dry phrase
 //   FACTORY_REPORT=generated [FACTORY=<kind>] [FACTORY_SEEDS=<how many, default 8>] [FACTORY_FROM=<first seed>] pnpm vitest run …
@@ -32,7 +35,7 @@ import { onsetEnvelope } from '../../../core/analysis/onsets'
 import { analyzeSound, soundFeatures } from '../../../core/analysis/sound-kind'
 import { encodeWav, type PlanarAudio } from '../../../core/render/encode'
 import { compileFromDisk, formatMeasurement, measureAudio } from '../../__tests__/render-support'
-import { renderPatch } from '../../patch-render'
+import { peakOf, renderPatch } from '../../patch-render'
 import { STOCK_WASM_DEVICES } from '../../registry'
 import {
   FACTORY_CHAINS,
@@ -58,19 +61,28 @@ import {
 } from '../packs/__tests__/support'
 import { type FactoryPreset } from '../types'
 import { CHAIN_TEST_PATCH, CHAIN_TEST_PHRASE } from './chain-input'
+import { KIND_LOUDNESS, longestName, measureEnds } from './sound-measure'
 
 const mode = process.env.FACTORY_REPORT
 const only = process.env.FACTORY ?? ''
 const onlyDevice = process.env.FACTORY_DEVICE
 const onlyPack = process.env.FACTORY_PACK
 const wavDir = process.env.FACTORY_WAV
+const [firstNumber, lastNumber = firstNumber] = (process.env.FACTORY_NUMBERS ?? '')
+  .split('-')
+  .map((part) => (part === '' ? undefined : Number(part)))
+const numbered = (number: number): boolean =>
+  firstNumber === undefined || (number >= firstNumber && number <= (lastNumber ?? firstNumber))
 const lines: string[] = []
 const say = (line: string) => lines.push(line)
 
 function publish(): void {
   mkdirSync('tmp', { recursive: true })
   writeFileSync(
-    join('tmp', `factory-${mode}-${onlyPack ?? onlyDevice ?? (only || 'all')}.txt`),
+    join(
+      'tmp',
+      `factory-${mode}-${onlyPack ?? onlyDevice ?? process.env.FACTORY_NUMBERS ?? (only || 'all')}.txt`,
+    ),
     `${lines.join('\n')}\n`,
   )
   console.log(lines.join('\n'))
@@ -172,23 +184,69 @@ describe.skipIf(!mode)('factory bench', () => {
   it.skipIf(mode !== 'sounds')(
     'sounds',
     async () => {
-      for (const sound of FACTORY_SOUNDS.filter((s) => s.id.includes(only))) {
+      const render = { compile: compileFromDisk, sliceMs: 0 } as const
+      for (const sound of FACTORY_SOUNDS.filter((s) => s.id.includes(only) && numbered(s.number))) {
         const [audio, cost] = await timed(sound.durationSec, () =>
-          renderFactorySound(sound, { compile: compileFromDisk, sliceMs: 0 }),
+          renderFactorySound(sound, render),
         )
         keep(sound.id, audio)
+        const measured = measureAudio(audio)
         const analysis = analyzeSound(audio.channels, audio.sampleRate)
-        const seam = sound.loopCrossfadeSec
-          ? `  seam ${Math.abs(audio.channels[0][0] - (audio.channels[0].at(-1) ?? 0)).toFixed(4)}`
-          : ''
+        const envelope = onsetEnvelope(audio.channels, audio.sampleRate)
+        const features = envelope
+          ? soundFeatures(envelope.mono, envelope.level, audio.sampleRate, analysis.onsetsSec)
+          : undefined
+        const ends = measureEnds(audio)
+        const problems: string[] = []
+        if (analysis.kind !== sound.kind) problems.push('KIND')
+        const [quietest, loudest] = KIND_LOUDNESS[sound.kind] ?? [-30, -10]
+        if (measured.lufs < quietest) problems.push('QUIET')
+        if (measured.lufs > loudest) problems.push('LOUD')
+        if (Math.abs(measured.dc) > 0.005) problems.push('DC')
+        if (measured.widthDb > -1.5) problems.push('WIDE')
+        if (longestName(sound).length > 24) problems.push('NAME')
+        if (Number(cost.replace('% rt', '')) > 12) problems.push('SLOW')
+        let ending: string
+        if (sound.loopCrossfadeSec) {
+          // The folded start against the same stretch rendered straight: a loop that swells or dips at its seam.
+          const straight = await renderFactorySound(
+            { ...sound, loopCrossfadeSec: undefined, fadeOutSec: 0 },
+            render,
+          )
+          const frames = Math.round(sound.loopCrossfadeSec * audio.sampleRate)
+          const level = (channels: readonly Float32Array[]): number => {
+            let sum = 0
+            for (const channel of channels)
+              for (let i = 0; i < frames; i += 1) sum += channel[i] * channel[i]
+            return Math.sqrt(sum)
+          }
+          const fold = 20 * Math.log10(level(audio.channels) / level(straight.channels))
+          const peaks = peakOf(audio.channels) / peakOf(straight.channels)
+          // Both are brought to the same peak, which the fold itself can move: taken out again.
+          const foldDb = fold - 20 * Math.log10(peaks)
+          if (!ends.round) problems.push('SEAM')
+          if (Math.abs(foldDb) > 1.5) problems.push('FOLD')
+          ending =
+            `round ${ends.round ? 'yes' : 'NO'}  fold ${foldDb >= 0 ? '+' : ''}${foldDb.toFixed(1)} dB  ` +
+            `swing ${ends.swingDb.toFixed(1)} dB`
+        } else {
+          if (ends.stepIn) problems.push('STEP-IN')
+          if (ends.stepOut || ends.endDb > -60) problems.push('CUT')
+          if (ends.leadSec > 0.03 && sound.kind !== 'pad') problems.push('LATE')
+          ending = `lead ${ends.leadSec.toFixed(3)} s  end ${ends.endDb.toFixed(0)} dB`
+        }
         say(
-          `${sound.id.padEnd(28)} ${formatMeasurement(measureAudio(audio))}  ` +
-            `kind ${analysis.kind}${analysis.kind === sound.kind ? '' : ` (says ${sound.kind})`}${seam}  ${cost}`,
+          `${String(sound.number).padEnd(4)}${sound.id.padEnd(28)} ${sound.durationSec}s  ` +
+            `${formatMeasurement(measured)}  ` +
+            `kind ${analysis.kind}${analysis.kind === sound.kind ? '' : ` (says ${sound.kind})`}  ` +
+            `hits ${analysis.onsetsSec.length}  flat ${features ? features.flatness.toFixed(2) : '-'}  ` +
+            `tonal ${features ? features.tonality.toFixed(2) : '-'}  ${ending}  ${cost}` +
+            (problems.length > 0 ? `  ${problems.join(' ')}` : ''),
         )
       }
       publish()
     },
-    900_000,
+    1_800_000,
   )
 
   it.skipIf(mode !== 'chains')(
