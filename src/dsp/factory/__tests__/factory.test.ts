@@ -12,7 +12,13 @@ import { analyzeSound } from '../../../core/analysis/sound-kind'
 import { DeviceRegistry } from '../../../core/devices/registry'
 import { validatePatch, type Patch } from '../../../core/devices/patch'
 import { type PlanarAudio } from '../../../core/render/encode'
-import { compileFromDisk, measureAudio, toDb } from '../../__tests__/render-support'
+import {
+  compileFromDisk,
+  measureAudio,
+  soundPrint,
+  toDb,
+  type SoundPrint,
+} from '../../__tests__/render-support'
 import { isWasmDescriptor } from '../../descriptor'
 import { canRenderPatch, peakOf, renderPatch } from '../../patch-render'
 import { STOCK_WASM_DEVICES } from '../../registry'
@@ -29,8 +35,10 @@ import {
   renderFactorySound,
   renderPresetPreview,
 } from '..'
+import { repeatedSettings } from '../packs/__tests__/support'
 import { CHAIN_TEST_PATCH, CHAIN_TEST_PHRASE } from './chain-input'
 import { longestName, measureEnds } from './sound-measure'
+import { BANK_LIMITS, chainProblems, nearestPrints, presetProblems } from './support'
 
 const registry = new DeviceRegistry(STOCK_WASM_DEVICES)
 const INSTRUMENTS = STOCK_WASM_DEVICES.filter((d) => d.category === 'instrument').map((d) => d.id)
@@ -46,6 +54,7 @@ function expectListed(patch: Patch): void {
   expect(patch.name.length, patch.id).toBeGreaterThan(2)
   expect(patch.name.length, `${patch.id}: a name has to fit a browser row`).toBeLessThanOrEqual(24)
   expect(patch.description, patch.id).toMatch(/^[A-Z].{24,}\.$/)
+  expect(patch.description.length, patch.id).toBeLessThanOrEqual(BANK_LIMITS.description)
   expect(validatePatch(patch, registry), patch.id).toEqual([])
   expect(canRenderPatch(patch), `${patch.id} must be all WASM devices`).toBe(true)
 }
@@ -73,10 +82,15 @@ describe('factory bank', () => {
     }
   })
 
+  it('sets no two presets and no two chains alike', () => {
+    expect(repeatedSettings(FACTORY_PRESETS), 'presets set exactly like another').toEqual([])
+    expect(repeatedSettings(FACTORY_CHAINS), 'chains set exactly like another').toEqual([])
+  })
+
   it('covers every instrument, every category and most of the effects', () => {
     for (const id of INSTRUMENTS) {
       const count = FACTORY_PRESETS.filter((preset) => preset.instrument.deviceId === id).length
-      expect(count, `presets for ${id}`).toBeGreaterThanOrEqual(3)
+      expect(count, `presets for ${id}`).toBeGreaterThanOrEqual(BANK_LIMITS.perInstrument)
     }
     for (const { id } of FACTORY_PRESET_CATEGORIES) {
       const count = FACTORY_PRESETS.filter((preset) => preset.category === id).length
@@ -84,7 +98,7 @@ describe('factory bank', () => {
     }
     for (const { id } of FACTORY_CHAIN_CATEGORIES) {
       const count = FACTORY_CHAINS.filter((chain) => chain.category === id).length
-      expect(count, `chains under ${id}`).toBeGreaterThanOrEqual(2)
+      expect(count, `chains under ${id}`).toBeGreaterThanOrEqual(BANK_LIMITS.perChainGroup)
     }
     const categories = new Set<string>(FACTORY_PRESET_CATEGORIES.map((category) => category.id))
     for (const preset of FACTORY_PRESETS)
@@ -103,10 +117,13 @@ describe('factory bank', () => {
   })
 })
 
+/** What each preset's preview is like, by instrument: filled as the presets below are rendered. */
+const prints = new Map<string, Map<string, SoundPrint>>()
+
 describe.each(FACTORY_PRESETS.map((preset) => [preset.id, preset] as const))(
   'preset %s',
   (_id, preset) => {
-    it('is listed properly and plays at a sane level as it leaves the patch', async () => {
+    it('is listed properly and plays at the level of the rest', async () => {
       expectListed(preset)
       expect(preset.effects.length, 'a preset is more than its instrument').toBeGreaterThan(0)
       expect(preset.effects.length).toBeLessThanOrEqual(4)
@@ -118,13 +135,28 @@ describe.each(FACTORY_PRESETS.map((preset) => [preset.id, preset] as const))(
         durationSec: PREVIEW_SECONDS,
       })
       const measured = measureAudio(raw)
+      expect(presetProblems(preset.id, measured), JSON.stringify(measured)).toEqual([])
+      // The shipped exceptions to the level are still held to the limits the bank began with.
       expect(measured.peakDb, 'peak').toBeLessThanOrEqual(-3)
       expect(measured.loudestDb, 'loudest 400 ms').toBeGreaterThanOrEqual(-36)
-      expect(measured.loudestDb, 'loudest 400 ms').toBeLessThanOrEqual(-12)
-      expect(Math.abs(measured.dc), 'DC offset').toBeLessThan(0.01)
+
+      const device = preset.instrument.deviceId
+      if (!prints.has(device)) prints.set(device, new Map())
+      prints.get(device)?.set(preset.id, soundPrint(raw))
     })
   },
 )
+
+describe('presets of one instrument', () => {
+  it('are different sounds, not one sound under two names', () => {
+    const alike = [...prints.values()].flatMap((instrument) =>
+      nearestPrints(instrument)
+        .filter(({ distance }) => distance < BANK_LIMITS.alikeDb)
+        .map(({ id, nearest, distance }) => `${id} = ${nearest} (${distance.toFixed(1)} dB apart)`),
+    )
+    expect(alike).toEqual([])
+  })
+})
 
 describe('preset previews', () => {
   it('come out at the bank level and end in silence', async () => {
@@ -158,7 +190,8 @@ describe('effect chains', () => {
       const wet = await renderPatch(chain, { ...node, input: dry, durationSec: 10 })
       const before = measureAudio(dry)
       const after = measureAudio(wet)
-      expect(after.peakDb, 'peak').toBeLessThanOrEqual(-1)
+      expect(chainProblems(chain.id, after, before), JSON.stringify(after)).toEqual([])
+      // The shipped exception to the level is still held to the limit the bank began with.
       expect(Math.abs(after.lufs - before.lufs), 'loudness against the dry phrase').toBeLessThan(9)
       let difference = 0
       for (let i = 0; i < wet.channels[0].length; i += 1) {

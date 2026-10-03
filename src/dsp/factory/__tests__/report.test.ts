@@ -26,7 +26,7 @@
 // The report is written to tmp/factory-<mode>-<filter or all>.txt (and printed, when the reporter shows
 // test output). FACTORY_WAV=<dir> also writes what was rendered as WAV files.
 
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { describe, it } from 'vitest'
@@ -34,12 +34,23 @@ import { describe, it } from 'vitest'
 import { onsetEnvelope } from '../../../core/analysis/onsets'
 import { analyzeSound, soundFeatures } from '../../../core/analysis/sound-kind'
 import { encodeWav, type PlanarAudio } from '../../../core/render/encode'
-import { compileFromDisk, formatMeasurement, measureAudio } from '../../__tests__/render-support'
-import { renderPatch } from '../../patch-render'
+import { validatePatch, type Patch } from '../../../core/devices/patch'
+import { DeviceRegistry } from '../../../core/devices/registry'
+import {
+  compileFromDisk,
+  formatMeasurement,
+  measureAudio,
+  printDistance,
+  soundPrint,
+  type SoundPrint,
+} from '../../__tests__/render-support'
+import { canRenderPatch, peakOf, renderPatch, type Phrase } from '../../patch-render'
 import { STOCK_WASM_DEVICES } from '../../registry'
 import {
   FACTORY_CHAINS,
+  FACTORY_CHAIN_CATEGORIES,
   FACTORY_MODES,
+  FACTORY_PRESET_CATEGORIES,
   FACTORY_PRESETS,
   FACTORY_SOUNDS,
   GENERATED_KINDS,
@@ -51,7 +62,7 @@ import {
   transposeFactorySound,
   type FactoryMode,
 } from '..'
-import { FACTORY_PACK_SIZE } from '../packs'
+import { FACTORY_PACK_SIZE, loadFactoryPacks } from '../packs'
 import {
   PACK_INSTRUMENTS,
   PACK_LIMITS,
@@ -62,12 +73,17 @@ import {
 import { type FactoryPreset } from '../types'
 import { CHAIN_TEST_PATCH, CHAIN_TEST_PHRASE } from './chain-input'
 import { KIND_LOUDNESS, longestName, measureEnds } from './sound-measure'
+import { BANK_LIMITS, chainProblems, nearestPrints, presetProblems } from './support'
 
 const mode = process.env.FACTORY_REPORT
 const only = process.env.FACTORY ?? ''
 const onlyDevice = process.env.FACTORY_DEVICE
 const onlyPack = process.env.FACTORY_PACK
+const onlyCategory = process.env.FACTORY_CATEGORY
+const withPacks = process.env.FACTORY_WITH_PACKS === '1'
 const wavDir = process.env.FACTORY_WAV
+const DRY = '(dry input)'
+const registry = new DeviceRegistry(STOCK_WASM_DEVICES)
 const [firstNumber, lastNumber = firstNumber] = (process.env.FACTORY_NUMBERS ?? '')
   .split('-')
   .map((part) => (part === '' ? undefined : Number(part)))
@@ -81,7 +97,7 @@ function publish(): void {
   writeFileSync(
     join(
       'tmp',
-      `factory-${mode}-${onlyPack ?? onlyDevice ?? process.env.FACTORY_NUMBERS ?? (only || 'all')}.txt`,
+      `factory-${mode}-${onlyPack ?? onlyDevice ?? onlyCategory ?? process.env.FACTORY_NUMBERS ?? (only || 'all')}.txt`,
     ),
     `${lines.join('\n')}\n`,
   )
@@ -99,6 +115,58 @@ async function timed<T>(seconds: number, work: () => Promise<T>): Promise<[T, st
   const result = await work()
   const cost = ((performance.now() - start) / (seconds * 10)).toFixed(1)
   return [result, `${cost}% rt`]
+}
+
+/** What the words of an entry break: a name too long for a row, a description that is not one short sentence. */
+function sayWords(patches: readonly Patch[]): void {
+  const groups = new Set<string>(
+    [...FACTORY_PRESET_CATEGORIES, ...FACTORY_CHAIN_CATEGORIES].map((category) => category.id),
+  )
+  for (const patch of patches) {
+    for (const issue of validatePatch(patch, registry)) {
+      say(`INVALID ${patch.id}: ${issue.path} ${issue.message}`)
+    }
+    if (!canRenderPatch(patch)) say(`INVALID ${patch.id}: a device that is not a WASM device`)
+    if (!groups.has(patch.category)) say(`INVALID ${patch.id}: no group "${patch.category}"`)
+    if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(patch.id)) say(`INVALID id "${patch.id}": kebab-case`)
+    if (patch.effects.length > (patch.instrument ? 4 : 5) || patch.effects.length === 0) {
+      say(`INVALID ${patch.id}: ${patch.effects.length} effects`)
+    }
+    if (/\d$/.test(patch.name)) say(`WORDS ${patch.id}: a name does not end in a digit`)
+    if (patch.name.length > 24) say(`LONG name "${patch.name}" (${patch.name.length} of 24)`)
+    if (!/^[A-Z].{24,}\.$/.test(patch.description))
+      say(`WORDS ${patch.id}: a description is a sentence`)
+    if (patch.description.length > BANK_LIMITS.description) {
+      say(
+        `LONG description ${patch.id} (${patch.description.length} of ${BANK_LIMITS.description})`,
+      )
+    }
+  }
+}
+
+/**
+ * Each chosen entry with the one it sounds most like, the closest pairs first.
+ * `apart` is the print that is not an entry (the dry phrase a chain is fed):
+ * how far each is from it is said beside it, and it is nobody's neighbour.
+ */
+function sayNearest(
+  prints: ReadonlyMap<string, SoundPrint>,
+  chosen: ReadonlySet<string>,
+  alikeDb: number,
+  apart?: string,
+): void {
+  const from = apart === undefined ? undefined : prints.get(apart)
+  const entries = new Map([...prints].filter(([id]) => id !== apart))
+  say(`\nnearest in sound (dB apart; under ${alikeDb} is the same sound twice)`)
+  for (const { id, nearest, distance } of nearestPrints(entries)) {
+    if (!chosen.has(id)) continue
+    const print = entries.get(id)
+    say(
+      `${id.padEnd(28)} ${distance.toFixed(1).padStart(5)}  ${nearest.padEnd(28)}` +
+        (from && print ? `  ${printDistance(print, from).toFixed(1)} from the dry phrase` : '') +
+        (distance < alikeDb ? '  ALIKE' : ''),
+    )
+  }
 }
 
 describe.skipIf(!mode)('factory bench', () => {
@@ -126,21 +194,60 @@ describe.skipIf(!mode)('factory bench', () => {
       const chosen = FACTORY_PRESETS.filter(
         (p) => p.id.includes(only) && (!onlyDevice || p.instrument.deviceId === onlyDevice),
       )
+      const prints = new Map<string, SoundPrint>()
+      const render = (preset: FactoryPreset) =>
+        renderPatch(preset, {
+          phrase: previewPhrase(preset),
+          durationSec: PREVIEW_SECONDS,
+          compile: compileFromDisk,
+          sliceMs: 0,
+        })
       for (const preset of chosen) {
-        const [audio, cost] = await timed(PREVIEW_SECONDS, () =>
-          renderPatch(preset, {
-            phrase: previewPhrase(preset),
-            durationSec: PREVIEW_SECONDS,
-            compile: compileFromDisk,
-            sliceMs: 0,
-          }),
-        )
+        const [audio, cost] = await timed(PREVIEW_SECONDS, () => render(preset))
         keep(preset.id, audio)
-        say(`${preset.id.padEnd(28)} ${formatMeasurement(measureAudio(audio))}  ${cost}`)
+        prints.set(preset.id, soundPrint(audio))
+        const measured = measureAudio(audio)
+        const problems = presetProblems(preset.id, measured)
+        say(
+          `${preset.id.padEnd(28)} ${formatMeasurement(measured)}  ${cost}` +
+            (problems.length > 0 ? `  ${problems.join(' ')}` : ''),
+        )
       }
+      // With the packs: the same instrument's pack presets, so a new preset is not one of those again.
+      if (withPacks && onlyDevice) {
+        // A pack preset does not change, so its print is kept in tmp/ from one run to the next.
+        const kept = join('tmp', `prints-packs-${onlyDevice}.json`)
+        const known: Record<string, SoundPrint> = existsSync(kept)
+          ? (JSON.parse(readFileSync(kept, 'utf8')) as Record<string, SoundPrint>)
+          : {}
+        const packs = await loadFactoryPacks()
+        for (const preset of packs.filter((p) => p.instrument.deviceId === onlyDevice)) {
+          known[preset.id] ??= soundPrint(await render(preset))
+          prints.set(preset.id, known[preset.id])
+        }
+        mkdirSync('tmp', { recursive: true })
+        writeFileSync(kept, JSON.stringify(known))
+      }
+      say(`\n${chosen.length} presets${onlyDevice ? ` for ${onlyDevice}` : ''}`)
+      sayWords(chosen)
+      const everything = [...FACTORY_PRESETS, ...(await loadFactoryPacks())]
+      const names = new Map<string, string>()
+      for (const preset of everything) {
+        const name = preset.name.toLowerCase()
+        const first = names.get(name)
+        if (first === undefined) names.set(name, preset.id)
+        else if (chosen.some((p) => p.id === preset.id || p.id === first)) {
+          say(`TWICE name "${preset.name}": ${first} and ${preset.id}`)
+        }
+      }
+      const chosenIds = new Set(chosen.map((p) => p.id))
+      for (const repeat of repeatedSettings(everything)) {
+        if (repeat.split(' = ').some((id) => chosenIds.has(id))) say(`SAME settings ${repeat}`)
+      }
+      sayNearest(prints, chosenIds, BANK_LIMITS.alikeDb)
       publish()
     },
-    600_000,
+    1_800_000,
   )
 
   it.skipIf(mode !== 'packs')(
@@ -266,8 +373,13 @@ describe.skipIf(!mode)('factory bench', () => {
         compile: compileFromDisk,
         sliceMs: 0,
       })
-      say(`${'(dry input)'.padEnd(28)} ${formatMeasurement(measureAudio(dry))}`)
-      for (const chain of FACTORY_CHAINS.filter((c) => c.id.includes(only))) {
+      const dryMeasured = measureAudio(dry)
+      say(`${DRY.padEnd(28)} ${formatMeasurement(dryMeasured)}`)
+      const chosen = FACTORY_CHAINS.filter(
+        (c) => c.id.includes(only) && (!onlyCategory || c.category === onlyCategory),
+      )
+      const prints = new Map<string, SoundPrint>([[DRY, soundPrint(dry)]])
+      for (const chain of chosen) {
         const [audio, cost] = await timed(seconds, () =>
           renderPatch(chain, {
             input: dry,
@@ -277,12 +389,142 @@ describe.skipIf(!mode)('factory bench', () => {
           }),
         )
         keep(chain.id, audio)
-        say(`${chain.id.padEnd(28)} ${formatMeasurement(measureAudio(audio))}  ${cost}`)
+        prints.set(chain.id, soundPrint(audio))
+        const measured = measureAudio(audio)
+        const lu = measured.lufs - dryMeasured.lufs
+        const problems = chainProblems(chain.id, measured, dryMeasured)
+        say(
+          `${chain.id.padEnd(28)} ${formatMeasurement(measured)}  ` +
+            `${lu >= 0 ? '+' : ''}${lu.toFixed(1)} LU  ${cost}` +
+            (problems.length > 0 ? `  ${problems.join(' ')}` : ''),
+        )
+      }
+      say(`\n${chosen.length} chains${onlyCategory ? ` under ${onlyCategory}` : ''}`)
+      sayWords(chosen)
+      const names = FACTORY_CHAINS.map((chain) => chain.name.toLowerCase())
+      for (const chain of chosen) {
+        if (names.filter((name) => name === chain.name.toLowerCase()).length > 1) {
+          say(`TWICE name "${chain.name}"`)
+        }
+      }
+      const ids = [...FACTORY_PRESETS, ...(await loadFactoryPacks())].map((preset) => preset.id)
+      for (const chain of chosen) if (ids.includes(chain.id)) say(`TWICE id ${chain.id}`)
+      const chosenIds = new Set(chosen.map((c) => c.id))
+      for (const repeat of repeatedSettings(FACTORY_CHAINS)) {
+        if (repeat.split(' = ').some((id) => chosenIds.has(id))) say(`SAME settings ${repeat}`)
+      }
+      sayNearest(prints, chosenIds, BANK_LIMITS.chainAlikeDb, DRY)
+      publish()
+    },
+    1_800_000,
+  )
+  it.skipIf(mode !== 'stress')(
+    'stress',
+    async () => {
+      const node = { compile: compileFromDisk, sliceMs: 0 } as const
+      const db = (gain: number) => (gain > 0 ? 20 * Math.log10(gain) : -Infinity)
+      const show = (value: number) => (Number.isFinite(value) ? value.toFixed(1) : '-inf')
+      const finite = (audio: PlanarAudio) =>
+        audio.channels.every((channel) => channel.every((sample) => Number.isFinite(sample)))
+      /** RMS of both channels between two times, dBFS. */
+      const level = (audio: PlanarAudio, fromSec: number, toSec: number) => {
+        let sum = 0
+        let count = 0
+        for (const channel of audio.channels) {
+          const end = Math.min(channel.length, Math.round(toSec * audio.sampleRate))
+          for (let i = Math.round(fromSec * audio.sampleRate); i < end; i += 1) {
+            sum += channel[i] * channel[i]
+            count += 1
+          }
+        }
+        return count > 0 ? db(Math.sqrt(sum / count)) : -Infinity
+      }
+      /** What a 30 s render says once the notes are over: still ringing, or growing. */
+      const afterwards = (audio: PlanarAudio, problems: string[]) => {
+        const loudest = Math.max(...Array.from({ length: 10 }, (_, i) => level(audio, i, i + 1)))
+        const middle = level(audio, 12, 17)
+        const end = level(audio, 25, 30)
+        if (end > middle + 1 && end > -70) problems.push('GROWS')
+        else if (end > loudest - 20) problems.push('RINGS')
+        return `at 12 s ${show(middle - loudest)} dB  at 25 s ${show(end - loudest)} dB`
+      }
+
+      if (!onlyCategory) {
+        // Presets: left to ring for half a minute, played as hard as it gets, and at the ends of the keyboard.
+        const hard: Phrase = {
+          notes: [38, 45, 50, 57, 62, 65, 69, 72].map((note) => ({
+            atSec: 0,
+            durSec: 4,
+            note,
+            gain: 1,
+          })),
+        }
+        const one = (note: number): Phrase => ({ notes: [{ atSec: 0, durSec: 2, note }] })
+        const chosen = FACTORY_PRESETS.filter(
+          (p) => p.id.includes(only) && (!onlyDevice || p.instrument.deviceId === onlyDevice),
+        )
+        for (const preset of chosen) {
+          const problems: string[] = []
+          const long = await renderPatch(preset, {
+            ...node,
+            phrase: previewPhrase(preset),
+            durationSec: 30,
+          })
+          const rings = afterwards(long, problems)
+          const full = await renderPatch(preset, { ...node, phrase: hard, durationSec: 6 })
+          const low = await renderPatch(preset, { ...node, phrase: one(28), durationSec: 3 })
+          const high = await renderPatch(preset, { ...node, phrase: one(100), durationSec: 3 })
+          if (![long, full, low, high].every(finite)) problems.push('NAN')
+          const fullPeak = db(peakOf(full.channels))
+          if (fullPeak > -1) problems.push('HOT')
+          say(
+            `${preset.id.padEnd(28)} ${rings}  eight keys at full ${show(fullPeak)} dB  ` +
+              `low E ${show(db(peakOf(low.channels)))} dB  high E ${show(db(peakOf(high.channels)))} dB` +
+              (problems.length > 0 ? `  ${problems.join(' ')}` : ''),
+          )
+        }
+      } else {
+        // Chains: fed nothing, fed the phrase at full scale, and left to ring for half a minute.
+        const dry = await renderPatch(CHAIN_TEST_PATCH, {
+          ...node,
+          phrase: CHAIN_TEST_PHRASE,
+          durationSec: 6,
+        })
+        const scale = 10 ** (-1 / 20) / peakOf(dry.channels)
+        const loud: PlanarAudio = {
+          sampleRate: dry.sampleRate,
+          channels: dry.channels.map((channel) => channel.map((sample) => sample * scale)),
+        }
+        const nothing: PlanarAudio = {
+          sampleRate: dry.sampleRate,
+          channels: [new Float32Array(dry.sampleRate), new Float32Array(dry.sampleRate)],
+        }
+        const chosen = FACTORY_CHAINS.filter(
+          (c) => c.id.includes(only) && c.category === onlyCategory,
+        )
+        for (const chain of chosen) {
+          const problems: string[] = []
+          const long = await renderPatch(chain, { ...node, input: dry, durationSec: 30 })
+          const rings = afterwards(long, problems)
+          const hot = await renderPatch(chain, { ...node, input: loud, durationSec: 8 })
+          const idle = await renderPatch(chain, { ...node, input: nothing, durationSec: 6 })
+          if (![long, hot, idle].every(finite)) problems.push('NAN')
+          const hotPeak = db(peakOf(hot.channels))
+          if (hotPeak > 0) problems.push('HOT')
+          const noise = level(idle, 2, 6)
+          if (noise > -60) problems.push('NOISE')
+          say(
+            `${chain.id.padEnd(28)} ${rings}  fed at -1 dBFS peaks ${show(hotPeak)} dB  ` +
+              `fed nothing ${show(noise)} dB` +
+              (problems.length > 0 ? `  ${problems.join(' ')}` : ''),
+          )
+        }
       }
       publish()
     },
-    600_000,
+    3_600_000,
   )
+
   it.skipIf(mode !== 'generated')(
     'generated',
     async () => {
