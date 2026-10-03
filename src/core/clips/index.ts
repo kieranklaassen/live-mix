@@ -27,6 +27,15 @@ export {
 } from './placement'
 export { mirrorSlice, reversedSourceSec, type MirroredSlice } from './reverse'
 export {
+  SEAM_SILENCE,
+  SEAM_STEP_RATIO,
+  SEAM_WINDOW_SECONDS,
+  comesRound,
+  entersOnStep,
+  leavesOnStep,
+  type SoundFrames,
+} from './seam'
+export {
   clipsInWindow,
   clipsSoundingAt,
   type ClipWindow,
