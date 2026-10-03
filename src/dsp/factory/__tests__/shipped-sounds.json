@@ -169,6 +169,36 @@
     "durationSec": 8,
     "loops": false
   },
+  "135": {
+    "id": "plucked-tanpura-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "136": {
+    "id": "bass-clarinet-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "137": {
+    "id": "horn-drone-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "138": {
+    "id": "flute-octaves-b",
+    "durationSec": 8,
+    "loops": true
+  },
+  "139": {
+    "id": "violin-drone-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "140": {
+    "id": "steel-guitar-drone-a",
+    "durationSec": 8,
+    "loops": true
+  },
   "141": {
     "id": "sub-drone-e",
     "durationSec": 8,
