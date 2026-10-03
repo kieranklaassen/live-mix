@@ -35,7 +35,7 @@ import { onsetEnvelope } from '../../../core/analysis/onsets'
 import { analyzeSound, soundFeatures } from '../../../core/analysis/sound-kind'
 import { encodeWav, type PlanarAudio } from '../../../core/render/encode'
 import { compileFromDisk, formatMeasurement, measureAudio } from '../../__tests__/render-support'
-import { peakOf, renderPatch } from '../../patch-render'
+import { renderPatch } from '../../patch-render'
 import { STOCK_WASM_DEVICES } from '../../registry'
 import {
   FACTORY_CHAINS,
@@ -214,16 +214,23 @@ describe.skipIf(!mode)('factory bench', () => {
             render,
           )
           const frames = Math.round(sound.loopCrossfadeSec * audio.sampleRate)
-          const level = (channels: readonly Float32Array[]): number => {
+          const level = (channels: readonly Float32Array[], from: number, to: number): number => {
             let sum = 0
             for (const channel of channels)
-              for (let i = 0; i < frames; i += 1) sum += channel[i] * channel[i]
-            return Math.sqrt(sum)
+              for (let i = from; i < to; i += 1) sum += channel[i] * channel[i]
+            return Math.sqrt(sum / Math.max(1, to - from))
           }
-          const fold = 20 * Math.log10(level(audio.channels) / level(straight.channels))
-          const peaks = peakOf(audio.channels) / peakOf(straight.channels)
-          // Both are brought to the same peak, which the fold itself can move: taken out again.
-          const foldDb = fold - 20 * Math.log10(peaks)
+          const total = audio.channels[0].length
+          const fold =
+            20 * Math.log10(level(audio.channels, 0, frames) / level(straight.channels, 0, frames))
+          // Each render is brought to the bank's peak by its own gain. Past the fold the two are
+          // the same audio, so their levels there give the difference in gain: taken out again.
+          const gain =
+            20 *
+            Math.log10(
+              level(audio.channels, frames, total) / level(straight.channels, frames, total),
+            )
+          const foldDb = fold - gain
           if (!ends.round) problems.push('SEAM')
           if (Math.abs(foldDb) > 1.5) problems.push('FOLD')
           ending =
