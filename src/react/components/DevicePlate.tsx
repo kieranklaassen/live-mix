@@ -7,7 +7,15 @@
 // the presets and the readings are there, with the same info text. A device
 // with a window of its own (a hosted plug-in) has a cell that opens it.
 
-import { memo, useId, useState, type CSSProperties, type ReactNode } from 'react'
+import {
+  memo,
+  useEffect,
+  useId,
+  useState,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from 'react'
 
 import {
   type Device,
@@ -132,6 +140,31 @@ const PictureLayer = memo(
   (before, after) => before.picture === after.picture && before.stamp === after.stamp,
 )
 
+/**
+ * A finger points at nothing, and in Safari a press gives a knob no focus, so
+ * a plate pressed with a finger or a pen is in hand: its tools show as they do
+ * under a pointer, until a press lands anywhere else. One plate is in hand at
+ * a time, because the press that takes one up puts the last one down.
+ */
+function usePlateInHand(): { is: boolean; take: (event: ReactPointerEvent) => void } {
+  const [is, setIs] = useState(false)
+  useEffect(() => {
+    if (!is) return
+    // Every press puts the plate down, and a press that came from the plate
+    // (its own list in a layer over the page counts) takes it up again in the
+    // same turn: this listener runs before the plate's, so nothing is drawn between.
+    const put = (): void => setIs(false)
+    document.addEventListener('pointerdown', put, true)
+    return () => document.removeEventListener('pointerdown', put, true)
+  }, [is])
+  return {
+    is,
+    take: (event) => {
+      if (event.pointerType !== 'mouse') setIs(true)
+    },
+  }
+}
+
 /** A device drawn from a skin: plate, finish, picture, its own knobs. */
 export function DevicePlate({
   device,
@@ -154,6 +187,7 @@ export function DevicePlate({
   const d = useDevice(device, registry ? { registry } : {})
   const [presetName, setPresetName] = useState('')
   const [open, setOpen] = useState(defaultOpen)
+  const held = usePlateInHand()
   const finishId = useId()
   const all = (device.panelParams ?? Object.keys(d.params)).filter((name) => d.params[name])
   const onFace = skin.picture ? FACE_PER_ROW : FACE_PER_ROW * 2
@@ -238,6 +272,7 @@ export function DevicePlate({
         'lm-plate',
         !powered && 'lm-plate--off',
         open && 'lm-plate--open',
+        held.is && 'lm-plate--held',
         skin.picture && 'lm-plate--pictured',
         className,
       )}
@@ -257,6 +292,7 @@ export function DevicePlate({
       data-powered={powered ? 'true' : 'false'}
       data-finish={skin.finish}
       aria-label={heading}
+      onPointerDownCapture={held.take}
       {...infoProps(
         heading,
         infoText(about ?? `${heading}: one of the devices of this chain.`, hint),

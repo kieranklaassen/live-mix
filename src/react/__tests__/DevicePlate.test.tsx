@@ -309,6 +309,31 @@ describe('DevicePlate', () => {
     expect(tools?.previousElementSibling).toHaveClass('lm-plate__name')
   })
 
+  it('is in hand once a finger presses it, until a press lands anywhere else', async () => {
+    const fixture = createTestEngine()
+    const device = await make(fixture)
+    render(
+      <>
+        <DevicePlate device={device} skin={SKIN} onRemove={() => {}} data-testid="plate" />
+        <button type="button">Elsewhere</button>
+      </>,
+      { wrapper: fixture.wrapper },
+    )
+    const plate = screen.getByTestId('plate')
+    // A pointer is on the plate while it works there, so a mouse takes nothing in hand.
+    fireEvent.pointerDown(screen.getByTestId('plate-remove'), { pointerType: 'mouse' })
+    expect(plate).not.toHaveClass('lm-plate--held')
+    fireEvent.pointerDown(plate, { pointerType: 'touch' })
+    expect(plate).toHaveClass('lm-plate--held')
+    // A second press on the plate, on one of its tools, keeps it in hand.
+    fireEvent.pointerDown(screen.getByTestId('plate-remove'), { pointerType: 'touch' })
+    expect(plate).toHaveClass('lm-plate--held')
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Elsewhere' }), {
+      pointerType: 'touch',
+    })
+    expect(plate).not.toHaveClass('lm-plate--held')
+  })
+
   it('keeps its own preset list away for a picker that draws nothing, and gives it no room', async () => {
     const fixture = createTestEngine()
     const device = await make(fixture)
