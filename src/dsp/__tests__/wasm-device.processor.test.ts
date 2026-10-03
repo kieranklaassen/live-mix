@@ -208,6 +208,31 @@ describe('WasmDeviceProcessor', () => {
     })
   })
 
+  it('lets go of its instance when disposed, without waiting to be rendered again', () => {
+    const { processor, port } = construct([[DATTORRO_PARAMS.mix.id, 0]])
+    const held = processor as unknown as { device: unknown; outLeft: Float32Array }
+    processor.process(block(0.25), outputs())
+    expect(held.device).not.toBeNull()
+    expect(held.outLeft.buffer.byteLength).toBeGreaterThan(0)
+
+    // An offline context never renders again once it is done: the message alone has to free the memory.
+    port.receive({ type: 'dispose' })
+    expect(held.device).toBeNull()
+    // No view into the instance's memory is left to keep it.
+    expect(held.outLeft.buffer.byteLength).toBe(0)
+
+    // Rendered again after all (a live context), it ends the node and writes nothing.
+    const out = outputs()
+    expect(processor.process(block(0.25), out)).toBe(false)
+    expect(Math.max(...out[0][0])).toBe(0)
+    // What is still on its way to a disposed device is dropped.
+    expect(() => {
+      port.receive({ type: 'set-param', paramId: DATTORRO_PARAMS.mix.id, value: 1 })
+      port.receive({ type: 'note-on', noteId: 1, frequency: 220, gain: 0.5 })
+      port.receive({ type: 'dispose' })
+    }).not.toThrow()
+  })
+
   it('throws on an unknown message', () => {
     const { port } = construct()
     expect(() => port.receive({ type: 'nope' } as unknown as DeviceMessage)).toThrow(

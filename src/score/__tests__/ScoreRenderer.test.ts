@@ -1249,6 +1249,15 @@ describe('ScoreRenderer: lifecycle', () => {
     expect(scoreRendererOf(engine)).toBeUndefined()
   })
 
+  it('disposes the inserts it made when the engine is disposed: no strip does', async () => {
+    const { engine, renderer } = await rig()
+    const made = ['kick-filter', 'glue', 'hall-verb'].map((id) => renderer.device(id))
+    const disposals = made.map((device) => vi.spyOn(device, 'dispose'))
+    engine.dispose()
+    // A track's insert and the master's are the renderer's; a return's own device goes with its track.
+    expect(disposals.map((spy) => spy.mock.calls.length)).toEqual([1, 1, 1])
+  })
+
   it('a device that leaves through a non-insert path keeps the registry honest', async () => {
     const { renderer } = await rig()
     const device: Device = renderer.device('hall-verb')

@@ -431,7 +431,8 @@ export class ScoreRenderer {
   /**
    * Stop following the document and remove everything this renderer created
    * from the engine (unless the engine itself is being disposed, in which
-   * case it takes the graph down and the renderer only forgets).
+   * case it takes the graph down and the renderer disposes the inserts it
+   * made, which no strip does, and forgets the rest).
    */
   dispose(options: { engineDisposed?: boolean } = {}): void {
     if (this.disposed) return
@@ -455,6 +456,13 @@ export class ScoreRenderer {
         this.engine.master.removeInsert(device)
         device.dispose()
       }
+    } else {
+      // The engine takes its strips down, and a strip leaves its inserts to
+      // whoever made them: this did. (A track's own device goes with its track.)
+      for (const handle of this.owners.values()) {
+        for (const device of handle.inserts) device.dispose()
+      }
+      for (const device of this.masterInserts) device.dispose()
     }
     this.bindings.clear()
     this.owners.clear()
