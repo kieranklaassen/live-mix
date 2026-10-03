@@ -1,0 +1,172 @@
+{
+  "101": {
+    "id": "low-drone-d",
+    "durationSec": 16,
+    "loops": true
+  },
+  "102": {
+    "id": "low-drone-a",
+    "durationSec": 16,
+    "loops": true
+  },
+  "103": {
+    "id": "tanpura-d",
+    "durationSec": 16,
+    "loops": true
+  },
+  "104": {
+    "id": "organ-drone-c",
+    "durationSec": 16,
+    "loops": true
+  },
+  "105": {
+    "id": "harmonium-drone-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "106": {
+    "id": "cello-drone-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "107": {
+    "id": "choir-drone-a",
+    "durationSec": 16,
+    "loops": true
+  },
+  "108": {
+    "id": "warm-pad-dm9",
+    "durationSec": 16,
+    "loops": true
+  },
+  "109": {
+    "id": "soft-pad-fmaj7",
+    "durationSec": 16,
+    "loops": true
+  },
+  "110": {
+    "id": "strings-am7",
+    "durationSec": 16,
+    "loops": true
+  },
+  "111": {
+    "id": "glass-pad-cmaj9",
+    "durationSec": 16,
+    "loops": true
+  },
+  "112": {
+    "id": "drift-pad-g6",
+    "durationSec": 16,
+    "loops": true
+  },
+  "113": {
+    "id": "choir-chord-am",
+    "durationSec": 16,
+    "loops": true
+  },
+  "114": {
+    "id": "shimmer-pad-csus2",
+    "durationSec": 16,
+    "loops": true
+  },
+  "115": {
+    "id": "hill-wind",
+    "durationSec": 16,
+    "loops": true
+  },
+  "116": {
+    "id": "rain-on-the-window",
+    "durationSec": 16,
+    "loops": true
+  },
+  "117": {
+    "id": "waves-on-sand",
+    "durationSec": 16,
+    "loops": true
+  },
+  "118": {
+    "id": "record-crackle",
+    "durationSec": 8,
+    "loops": true
+  },
+  "119": {
+    "id": "hearth",
+    "durationSec": 16,
+    "loops": true
+  },
+  "120": {
+    "id": "grain-cloud",
+    "durationSec": 16,
+    "loops": true
+  },
+  "121": {
+    "id": "glass-bell-a",
+    "durationSec": 6,
+    "loops": false
+  },
+  "122": {
+    "id": "singing-bowl-d",
+    "durationSec": 8,
+    "loops": false
+  },
+  "123": {
+    "id": "kalimba-e",
+    "durationSec": 3,
+    "loops": false
+  },
+  "124": {
+    "id": "vibraphone-g",
+    "durationSec": 6,
+    "loops": false
+  },
+  "125": {
+    "id": "gong-d",
+    "durationSec": 8,
+    "loops": false
+  },
+  "126": {
+    "id": "music-box-a",
+    "durationSec": 3,
+    "loops": false
+  },
+  "127": {
+    "id": "felt-piano-c",
+    "durationSec": 8,
+    "loops": false
+  },
+  "128": {
+    "id": "felt-piano-phrase-am",
+    "durationSec": 16,
+    "loops": false
+  },
+  "129": {
+    "id": "electric-piano-dm9",
+    "durationSec": 8,
+    "loops": false
+  },
+  "130": {
+    "id": "bell-phrase-c",
+    "durationSec": 8,
+    "loops": false
+  },
+  "131": {
+    "id": "kalimba-pattern-am",
+    "durationSec": 8,
+    "loops": false
+  },
+  "132": {
+    "id": "piano-cloud-am",
+    "durationSec": 16,
+    "loops": true
+  },
+  "133": {
+    "id": "frozen-bell-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "134": {
+    "id": "reversed-piano-c",
+    "durationSec": 8,
+    "loops": false
+  }
+}
