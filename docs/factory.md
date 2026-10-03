@@ -143,8 +143,8 @@ import {
 
 |             | Count | Groups                                                                                                                                        |
 | ----------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Presets** | 170   | Five for each of the thirty-four stock instruments: pads, keys, bells, strings, plucked, wind, voices, organs, drones, textures               |
-| **Chains**  | 76    | Space, echo, tape, motion, texture, pitch, master; every WASM effect is in at least one                                                       |
+| **Presets** | 680   | Twenty for each of the thirty-four stock instruments: pads, keys, bells, strings, plucked, wind, voices, organs, drones, textures             |
+| **Chains**  | 216   | Space (30), echo (28), tape (39), motion (26), texture (34), pitch (35), master (24); every WASM effect is in at least one                    |
 | **Sounds**  | 100   | Looping drones (19), pads (27) and textures (16), one-shots (22) and phrases (16, seven of which come round); nine are made from other sounds |
 
 The bank is data: importing it loads no module and touches no audio. A host
@@ -253,10 +253,10 @@ committed modules and fails the build when one leaves these limits:
 
 | Entry  | Rule                                                                                                                                                                                                 |
 | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| All    | Kebab-case id unique across presets and chains, name of at most 24 characters and unique, a one-sentence description, every device, preset and value valid                                           |
-| Bank   | At least three presets per instrument, two per category, and every WASM effect used somewhere                                                                                                        |
-| Preset | Raw preview peak at or below −3 dBFS, loudest 400 ms between −36 and −12 dBFS, no DC offset, finite output                                                                                           |
-| Chain  | On the dry phrase: peak at or below −1 dBFS, within 9 LU of the dry input, and it changes the sound                                                                                                  |
+| All    | Kebab-case id unique across presets and chains, name of at most 24 characters and unique, a one-sentence description of at most 140 characters, every device, preset and value valid                 |
+| Bank   | Twenty presets per instrument, twenty chains per group, two presets per category, every WASM effect used somewhere, no two presets and no two chains set exactly alike                               |
+| Preset | Raw preview peak at or below −8 dBFS, loudest 400 ms between −30 and −22 dBFS, side no louder than mid, no DC offset; no two presets of one instrument within 1 dB of each other in sound            |
+| Chain  | On the dry phrase: peak at or below −5 dBFS, within 4 LU of the dry input, no DC offset, and it changes the sound                                                                                    |
 | Sound  | 2 to 32 s, peak at −6 dBFS, not near-silent, `analyzeSound` gives its `kind`, a name of at most 24 characters in every key, a loop comes round on itself, a sound that ends starts and stops at rest |
 
 How a sound starts, ends and wraps is held to the measure a host enters and
@@ -292,8 +292,36 @@ FACTORY_REPORT=sounds  pnpm vitest run src/dsp/factory/__tests__/report.test.ts 
 FACTORY_REPORT=devices pnpm vitest run src/dsp/factory/__tests__/report.test.ts # every device, parameter and preset
 FACTORY_REPORT=keys    pnpm vitest run src/dsp/factory/__tests__/report.test.ts # every sound in all twelve keys
 FACTORY_REPORT=generated FACTORY_SEEDS=40 pnpm vitest run src/dsp/factory/__tests__/report.test.ts # that many seeds of each kind
+FACTORY_REPORT=chains  FACTORY_CATEGORY=tape pnpm vitest run src/dsp/factory/__tests__/report.test.ts # one group of chains
+FACTORY_REPORT=stress  FACTORY_DEVICE=choir  pnpm vitest run src/dsp/factory/__tests__/report.test.ts # presets pushed, see below
+FACTORY_REPORT=stress  FACTORY_CATEGORY=tape pnpm vitest run src/dsp/factory/__tests__/report.test.ts # chains pushed
 # FACTORY=<part of an id> narrows any of them; FACTORY_WAV=tmp/wav keeps the audio
 ```
+
+A line of `presets` or `chains` ends, in capitals, with where the entry leaves
+what the bank is held to: `PEAK`, `LOUD`, `QUIET`, `DC` and, for a preset,
+`WIDE` (side over mid). Before the lines come the faults that need no render:
+`INVALID` (a device, preset or value that does not exist, or too many
+effects), `LONG` (a name over 24 characters or a description over 140),
+`WORDS` (a description that is not a sentence, a name ending in a digit),
+`TWICE` (a name or id used before) and `SAME` (settings exactly those of
+another entry). After them, under "nearest in sound", every entry is listed
+with the one it sounds most like and how far off that is, nearest pairs
+first, with `ALIKE` on a pair under 1 dB apart (0.3 dB for chains, which all
+carry the same phrase): `printDistance` in `render-support.ts`, the level over
+time, the spectrum and the width of two renders compared.
+`FACTORY_WITH_PACKS=1` compares a preset with the pack presets of its
+instrument as well, so a new preset is not a pack preset under another name.
+
+`stress` asks what the level limits do not. A preset is left to ring for
+half a minute (`GROWS` when the end is louder than the middle, `RINGS` when
+it is still within 20 dB of its loudest second), played with eight keys at
+full velocity (`HOT` over −1 dBFS) and with one key at each end of the
+keyboard (`NAN`). A chain is fed the dry phrase for half a minute, the phrase
+at −1 dBFS (`HOT` over full scale) and nothing at all (`NOISE` when it puts
+out more than −60 dBFS by itself). These are prompts and not rules: a held
+drone rings because it is one, and a preset that says it holds its last
+chord is meant to.
 
 `FACTORY_NUMBERS=135-140` narrows `sounds` and `keys` to a range of catalogue
 numbers. A line of `sounds` adds to the measurements below: the kind the
@@ -318,10 +346,16 @@ and the last column the render cost.
 ## Adding to the bank
 
 1. A preset goes in `src/dsp/factory/presets/<instrument>.ts`, a chain in
-   `chains.ts`, a sound in its family's file under `sounds/` with the next
-   free `number` (numbers are never reused).
+   `chains/<group>.ts`, a sound in its family's file under `sounds/` with the
+   next free `number` (numbers are never reused). New entries go after the
+   ones that are there: a preset or chain that shipped keeps its id, its name
+   and every value, because a host stores it by id and someone may have saved
+   a piece on it.
 2. Run the bench for it and bring it inside the limits with the instrument's
-   volume or an effect's mix, not by leaving it.
+   volume or an effect's mix, not by leaving it. Run it with
+   `FACTORY_WITH_PACKS=1` and as `stress` too, and listen for what the
+   figures cannot say: a single note through a stereo reverb can sit far to
+   one side while the preview chord measures centred (see the devices below).
 3. A new sound gets its row in `shipped-sounds.json`:
    `UPDATE_SHIPPED_SOUNDS=1 pnpm vitest run src/dsp/factory/__tests__/shipped-sounds.test.ts`.
 4. `pnpm vitest run src/dsp/factory` must pass.
@@ -626,6 +660,79 @@ As reported:
   - `spring-reverb` and a plate after a held `pedal-steel` chord: the
     brightness of the result jumped from key to key; through `expanse` it
     rises evenly with the key.
+- Found while the bank went from 170 presets to 680 and from 76 chains to
+  216, and worked round in the presets and chains, not fixed:
+  - Stereo reverbs put a single steady note to one side, by how its pitch
+    falls on their delay lines. The preview chord measures centred, so the
+    bench's width figure does not show it. On pure tones (flute, clarinet,
+    sine, glockenspiel, tines): `spring-reverb` 10 to 16 dB ("Two spring
+    tank", "Long three spring"; "Narrow warm tank" is balanced), `ether-reverb`
+    up to 8 dB and 12 to 16 on a fading tail ("Bright chamber", "Cathedral"),
+    `fdn-reverb` "Short ambience" up to 12.6 dB on a fading note and 1 to 4
+    when larger, `dattorro`, `shimmer` and `expanse` 4 to 6, `vowel-reverb` up
+    to 4.7 at full width, `zita-rev1` 1 to 4. `bloom-reverb` with `bloom` 0
+    stays within 0.2 dB but rings on A. A preset on a pure-toned instrument
+    therefore ends in `zita-rev1`, `bloom-reverb` or a narrow room.
+  - Echoes and followers lean too: `tape-echo` and `echo-memory` to the left
+    at any `spread` (3.3 dB at 0.5), `octaves` by note with `spread` up,
+    `sympathetic` 4 to 15 dB left in its tail at `width` 0.6 and above (0.35
+    is balanced, and narrowing it raises its level 3 dB), `pad-follower` 1 to
+    2 dB left on a phrase and up to 8 on one note, `re-amp`'s room up to 3 dB
+    either way as `room` moves and 7 to 10 on a far microphone, `phaser` on a
+    sparse low spectrum at `stereo` above about 15.
+  - Instruments that pan by pitch before any effect: `flute`, `organ`,
+    `handpan`, `harp` (low strings 3.5 dB left), `zither` (up to 6 dB),
+    `tanpura` (each key's first string is on the left), `west-coast` with
+    `chance` up, `modal-bells` with `spread` above 0.2, `fm-glass` on its Bell
+    and Glass algorithms, `horns` with `section` 1 (10 dB from side to side
+    on a pure tone).
+  - `limiter-1176` works from −12 dBFS on each channel, lets a pick or strike
+    through and pulls the ring down after it with its half-second release, so
+    it is no clean make-up gain and pumps a bed under sparse clicks.
+    `analog-drive` at low drive holds a pick where `ambient-comp` "Pluck
+    tamer" lets it through; `analog-drive`'s own auto gain holds an output
+    ceiling (fed −1 dBFS it peaks at −12 to −15).
+  - `auto-filter` in Peak mode gains about 2Q at its cutoff with nothing to
+    make it good (+21.6 dB at Q 6: a held note the sweep crosses comes out
+    11 dB louder), and its envelope follows linear level, so "Touch wah" barely
+    moves at the level instruments leave at.
+  - Mixes that are crossfades and cost level part-way: `chorus` (2.5 to 4 LU
+    at 0.4, and it combs a pure tone by up to 5 dB from key to key),
+    `micro-looper` (4.5 LU at 0.4), `ambient-comp`, `phaser` (3 LU at 0.5),
+    `vinyl` (2.5 LU).
+  - Devices that add level: `ether-reverb` grows with `decay` ("Cathedral"
+    +4 LU alone, "Shining tail" 11 LU hot fully wet) and passes full scale at
+    a mix of 0.3 to 0.4 fed at −1 dBFS; `spectral-blur` +2.5 LU at a mix of
+    0.3 to 0.45 with wet peaks 4 to 6 dB over the dry, and it delays the dry
+    signal 47 ms; `freq-shifter` "Barber pole" +3.8 LU and up to 7 dB of
+    peak. `spectral-drifter` goes the other way, its wet 9 to 12 dB under
+    the dry.
+  - Noise that outlasts the notes: `radio` interference fires with no input
+    at any amount above 0 and its static runs about 20 s after the input
+    stops (and `radio` is mono, with no output level); `vinyl` surface noise
+    starts with the first input and never stops; `tape` hiss as before.
+  - `stereo-widener` "Mono" is not mono under about 1 kHz (the side of a wide
+    pad stays 8 dB under the mid); `rotary` widens only above its 800 Hz
+    split; `low-bitrate` gates to digital silence, so a reverb before it
+    loses its tail 1.2 s after the release.
+  - Instruments: `ember`'s unison copies are detuned in equal steps and
+    start an eighth of a cycle apart, so eight voices nearly cancel on a
+    first note and surge about once a second, and its LFO to Amp or Pan is
+    not smoothed; `dusk`'s chorus I + II is a fixed comb and exactly mono;
+    `felt-piano`'s `action`, `pedalNoise` and `sostenuto` do nothing
+    measurable and `polyphony` 1 clicks on a stolen voice; `guitar` stops a
+    note on key release whatever `sustain` says; `thesis` voices share one
+    noise source, so bands that coincide add in phase; `wavetable`'s sub
+    starts at a random phase against its oscillators; `ladder-bass` mixes saw
+    and square in opposite polarity (near `wave` 0.42 the fundamental
+    cancels); `tape-orchestra` holds a note for ever at `length` 9; `drone`
+    with `partials` 0 leaves one partial at full level.
+  - Presets that shipped and flag on the stress run, left as they shipped:
+    eight keys at full velocity pass −1 dBFS on Slow shore, Temple
+    shakuhachi, Soprano into tape echo, Bare piano hall, Ice chime crystals, Rain
+    taps, Yarn marimba and Storm over the hills; the chains Frozen room,
+    Spectral smear, Harmony in thirds and Chord organ pass full scale fed at
+    −1 dBFS; Latched pedal tone grows because it loads held.
 - `renderPatch`'s loop fold is an equal-power crossfade, which is right for
   noise and moving sound but adds a steady tone to itself in amplitude: a held
   note can come out up to 3 dB louder or quieter across the crossfade,
