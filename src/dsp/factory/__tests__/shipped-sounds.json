@@ -169,6 +169,36 @@
     "durationSec": 8,
     "loops": false
   },
+  "141": {
+    "id": "sub-drone-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "142": {
+    "id": "folding-drone-f",
+    "durationSec": 16,
+    "loops": true
+  },
+  "143": {
+    "id": "hollow-drone-b",
+    "durationSec": 8,
+    "loops": true
+  },
+  "144": {
+    "id": "glass-drone-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "145": {
+    "id": "air-drone-g",
+    "durationSec": 16,
+    "loops": true
+  },
+  "146": {
+    "id": "synth-horn-drone-a",
+    "durationSec": 8,
+    "loops": true
+  },
   "147": {
     "id": "chorus-pad-em7",
     "durationSec": 8,
