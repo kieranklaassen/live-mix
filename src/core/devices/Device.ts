@@ -6,7 +6,7 @@
 import { type ParamSpec } from '../params'
 
 export interface Device {
-  /** Device type id, e.g. `'dattorro'`. */
+  /** Device type id, e.g. `'plate-reverb'`. */
   readonly id: string
   /** Connect sources here. */
   readonly input: AudioNode

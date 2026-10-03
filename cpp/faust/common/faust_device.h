@@ -9,7 +9,7 @@
 namespace livemix::faust {
 
 // Hosts one generated Faust DSP behind the same stereo bus contract as the
-// hand-written devices (cpp/devices/dattorro/dattorro_device.h): fixed
+// hand-written devices (cpp/devices/plate-reverb/plate_reverb_device.h): fixed
 // buffers, input consumed once, allocation-free process(). The ABI shim
 // (cpp/faust/<device>.device.cpp) holds one static instance of this.
 //

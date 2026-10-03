@@ -19,7 +19,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       { deviceId: 'chorus', preset: 'Slow drift', params: { spread: 60, mix: 0.25 } },
       {
-        deviceId: 'zita-rev1',
+        deviceId: 'hall-reverb',
         preset: 'Cathedral',
         params: { lowDecay: 8, midDecay: 7.5, damping: 5000, mix: 0.45 },
       },
@@ -74,7 +74,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         params: { phase: 0, rate: 4.6, depth: 0.22, drift: 0.4 },
       },
       { deviceId: 'analog-delay', preset: 'Dark echo', params: { time: 440, mix: 0.28 } },
-      { deviceId: 'zita-rev1', preset: 'Cathedral', params: { midDecay: 5, mix: 0.4 } },
+      { deviceId: 'hall-reverb', preset: 'Cathedral', params: { midDecay: 5, mix: 0.4 } },
     ],
     preview: 'line',
   },
@@ -99,7 +99,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'octaves', preset: 'Sub octave', params: { sub1: 0.5, filter: 600 } },
-      { deviceId: 'dattorro', preset: 'Long plate', params: { damping: 0.5, mix: 0.3 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { damping: 0.5, mix: 0.3 } },
     ],
     preview: 'low',
   },
@@ -148,7 +148,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { cutoff: 1800, attack: 1.2, release: 5, chorus: 3, volume: -12.5 },
     },
     effects: [
-      { deviceId: 'zita-rev1', preset: 'Cathedral', params: { midDecay: 7, mix: 0.4 } },
+      { deviceId: 'hall-reverb', preset: 'Cathedral', params: { midDecay: 7, mix: 0.4 } },
       { deviceId: 'vintage-digital', preset: 'Glaze', params: { rate: 14000 } },
     ],
   },
@@ -209,7 +209,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Dark echo',
         params: { time: 250, feedback: 0.4, mix: 0.25 },
       },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.25 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.25 } },
     ],
   },
   {
@@ -242,7 +242,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tape', preset: 'Mastering deck', params: { drive: 0.4, hiss: 0.05 } },
-      { deviceId: 'dattorro', preset: 'Long plate', params: { damping: 0.5, mix: 0.22 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { damping: 0.5, mix: 0.22 } },
     ],
     preview: 'low',
   },
@@ -262,7 +262,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       { deviceId: 'chorus', preset: 'Classic chorus', params: { rate: 0.6, mix: 0.45 } },
       {
-        deviceId: 'zita-rev1',
+        deviceId: 'hall-reverb',
         preset: 'Cathedral',
         params: { lowDecay: 6, midDecay: 7, damping: 4500, mix: 0.4 },
       },
@@ -299,7 +299,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       { deviceId: 'chorus', preset: 'Deep sea', params: { depth: 60, feedback: 10, mix: 0.4 } },
       { deviceId: 'ambient-comp', preset: 'Keys' },
-      { deviceId: 'dattorro', preset: 'Long plate', params: { damping: 0.45, mix: 0.35 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { damping: 0.45, mix: 0.35 } },
     ],
   },
   {
@@ -332,7 +332,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       { deviceId: 'phaser', preset: 'Classic four-stage', params: { rate: 0.18, mix: 0.45 } },
       { deviceId: 'tape-echo', preset: 'Short and soft', params: { time: 330, mix: 0.22 } },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { midDecay: 3.5, mix: 0.4 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { midDecay: 3.5, mix: 0.4 } },
     ],
   },
   {
@@ -368,7 +368,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       { deviceId: 'analog-delay', preset: 'Dark echo', params: { time: 460, mix: 0.25 } },
       {
-        deviceId: 'zita-rev1',
+        deviceId: 'hall-reverb',
         preset: 'Cathedral',
         params: { preDelay: 100, midDecay: 8, mix: 0.45 },
       },
@@ -405,7 +405,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       { deviceId: 'ambient-comp', preset: 'Hold swells' },
       {
-        deviceId: 'zita-rev1',
+        deviceId: 'hall-reverb',
         preset: 'Cathedral',
         params: { lowDecay: 8, midDecay: 7, mix: 0.45 },
       },
@@ -468,7 +468,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'flanger', preset: 'Wide wash', params: { mix: 0.25 } },
-      { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.35 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.35 } },
     ],
   },
 
@@ -486,7 +486,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'cascade', preset: 'Glass rain', params: { time: 110, repeats: 6, mix: 0.3 } },
-      { deviceId: 'zita-rev1', preset: 'Cathedral', params: { damping: 7000, mix: 0.4 } },
+      { deviceId: 'hall-reverb', preset: 'Cathedral', params: { damping: 7000, mix: 0.4 } },
     ],
   },
   {
@@ -544,7 +544,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Dark echo',
         params: { time: 500, feedback: 0.35, mix: 0.22 },
       },
-      { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.3 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.3 } },
     ],
   },
   {
@@ -585,7 +585,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Fifth hop',
         params: { time: 360, feedback: 0.45, intervalB: 0, mix: 0.25 },
       },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { midDecay: 3.5, mix: 0.4 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { midDecay: 3.5, mix: 0.4 } },
     ],
   },
 
@@ -603,7 +603,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'chorus', preset: 'Classic chorus', params: { rate: 0.5, depth: 50, mix: 0.45 } },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { lowDecay: 4, midDecay: 4, mix: 0.4 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { lowDecay: 4, midDecay: 4, mix: 0.4 } },
     ],
   },
   {
@@ -661,7 +661,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       { deviceId: 'analog-delay', preset: 'Octave hop', params: { feedback: 0.45, mix: 0.25 } },
       { deviceId: 'radio', preset: 'Clean transistor', params: { bandwidth: 0.8, mix: 0.7 } },
-      { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.4 } },
+      { deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.4 } },
     ],
   },
   {
@@ -682,7 +682,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         params: { rate: 2.6, depth: 0.4, phase: 120 },
       },
       { deviceId: 'vintage-digital', preset: 'Sampler', params: { rate: 12000, jitter: 0.2 } },
-      { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.35 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.35 } },
     ],
   },
   {
@@ -715,7 +715,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       {
-        deviceId: 'zita-rev1',
+        deviceId: 'hall-reverb',
         preset: 'Cathedral',
         params: { midDecay: 7.5, damping: 4500, mix: 0.45 },
       },
@@ -775,7 +775,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'saturator', preset: 'Warm glue', params: { driveDb: 6, outputDb: -3 } },
-      { deviceId: 'dattorro', preset: 'Long plate', params: { damping: 0.5, mix: 0.25 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { damping: 0.5, mix: 0.25 } },
     ],
     preview: 'low',
   },
@@ -795,7 +795,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Dark echo',
         params: { time: 375, feedback: 0.4, mix: 0.25 },
       },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { lowDecay: 4, midDecay: 4, mix: 0.4 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { lowDecay: 4, midDecay: 4, mix: 0.4 } },
     ],
     preview: 'keys',
   },
@@ -853,7 +853,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Gentle sweep',
         params: { rate: 0.15, feedback: 15, mix: 0.22 },
       },
-      { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.4 } },
+      { deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.4 } },
     ],
   },
   {
@@ -920,7 +920,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'pad-follower', preset: 'Lingering', params: { fall: 12, mix: 0.4 } },
-      { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.3 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.3 } },
     ],
   },
   {
@@ -965,7 +965,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Dark echo',
         params: { time: 520, feedback: 0.25, mix: 0.2 },
       },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.35 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.35 } },
     ],
   },
 
@@ -983,7 +983,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'chorus', preset: 'Classic chorus', params: { rate: 0.5, mix: 0.35 } },
-      { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.4 } },
+      { deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.4 } },
     ],
   },
   {
@@ -1025,8 +1025,8 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'limiter-1176', preset: 'Drive', params: { inputGain: 22, outputGain: -8 } },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
+      { deviceId: 'fet-limiter', preset: 'Drive', params: { inputGain: 22, outputGain: -8 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
   {
@@ -1071,7 +1071,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       { deviceId: 'chorus', preset: 'Classic chorus', params: { rate: 0.4, spread: 30, mix: 0.3 } },
       { deviceId: 'analog-delay', preset: 'Dark echo', params: { time: 480, mix: 0.25 } },
-      { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.4 } },
+      { deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.4 } },
     ],
     preview: 'line',
   },
@@ -1111,7 +1111,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'vintage-digital', preset: 'Sampler', params: { rate: 11000, jitter: 0.25 } },
-      { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.45 } },
+      { deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.45 } },
     ],
   },
   {
@@ -1127,7 +1127,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'chorus', preset: 'Lush ensemble', params: { spread: 40, mix: 0.3 } },
-      { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.35 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.35 } },
     ],
   },
 
@@ -1178,7 +1178,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       { deviceId: 'analog-delay', preset: 'Dark echo', params: { time: 500, mix: 0.22 } },
       {
-        deviceId: 'zita-rev1',
+        deviceId: 'hall-reverb',
         preset: 'Cathedral',
         params: { preDelay: 100, midDecay: 7, damping: 5000, mix: 0.5 },
       },
@@ -1235,7 +1235,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       { deviceId: 'analog-delay', preset: 'Dark echo', params: { time: 430, mix: 0.22 } },
       {
-        deviceId: 'zita-rev1',
+        deviceId: 'hall-reverb',
         preset: 'Cathedral',
         params: { preDelay: 90, midDecay: 7.5, mix: 0.45 },
       },
@@ -1296,7 +1296,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'analog-drive', preset: 'Iron lows', params: { drive: 0.6, lowBump: 0.3 } },
-      { deviceId: 'dattorro', preset: 'Long plate', params: { damping: 0.6, mix: 0.22 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { damping: 0.6, mix: 0.22 } },
     ],
   },
 
@@ -1329,7 +1329,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       { deviceId: 'stereo-detune', preset: 'Classic', params: { detune: 12, mix: 0.3 } },
       { deviceId: 'tape-echo', params: { time: 470, feedback: 0.4, spread: 0.5, mix: 0.25 } },
-      { deviceId: 'zita-rev1', preset: 'Cathedral', params: { preDelay: 100, mix: 0.4 } },
+      { deviceId: 'hall-reverb', preset: 'Cathedral', params: { preDelay: 100, mix: 0.4 } },
     ],
     preview: 'line',
   },
@@ -1376,7 +1376,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tape-echo', preset: 'Short and soft', params: { time: 380, mix: 0.25 } },
-      { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.45 } },
+      { deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.45 } },
     ],
   },
   {
@@ -1411,7 +1411,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'chorus', preset: 'Lush ensemble', params: { spread: 60, mix: 0.35 } },
-      { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.4 } },
+      { deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.4 } },
     ],
   },
   {
@@ -1450,7 +1450,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Dark echo',
         params: { time: 390, feedback: 0.4, mix: 0.25 },
       },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { midDecay: 3.5, mix: 0.35 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { midDecay: 3.5, mix: 0.35 } },
     ],
   },
   {
@@ -1461,7 +1461,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       'A guitar chord with every pick taken off by the volume pedal, lifted, doubled thick and wide, in a huge space.',
     instrument: { deviceId: 'guitar', preset: 'Volume swell', params: { swell: 1.5, tone: 2800 } },
     effects: [
-      { deviceId: 'limiter-1176', params: { inputGain: 7 } },
+      { deviceId: 'fet-limiter', params: { inputGain: 7 } },
       { deviceId: 'stereo-detune', preset: 'Doubled', params: { mix: 0.3 } },
       { deviceId: 'expanse', preset: 'Open space', params: { size: 0.75, decay: 14, mix: 0.4 } },
     ],
@@ -1511,7 +1511,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Dark echo',
         params: { time: 400, feedback: 0.4, mix: 0.22 },
       },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { midDecay: 3.5, mix: 0.35 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { midDecay: 3.5, mix: 0.35 } },
     ],
   },
 
@@ -1529,7 +1529,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'chorus', preset: 'Subtle widener' },
-      { deviceId: 'zita-rev1', preset: 'Cathedral', params: { damping: 6000, mix: 0.45 } },
+      { deviceId: 'hall-reverb', preset: 'Cathedral', params: { damping: 6000, mix: 0.45 } },
     ],
   },
   {
@@ -1568,7 +1568,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'phaser', preset: 'Bass safe', params: { rate: 0.15, mix: 0.35 } },
-      { deviceId: 'dattorro', preset: 'Long plate', params: { damping: 0.5, mix: 0.22 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { damping: 0.5, mix: 0.22 } },
     ],
     preview: 'low',
   },
@@ -1585,7 +1585,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'analog-delay', preset: 'Chorused', params: { time: 450, mix: 0.28 } },
-      { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.4 } },
+      { deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.4 } },
     ],
     preview: 'line',
   },
@@ -1628,7 +1628,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Chorused',
         params: { time: 360, feedback: 0.45, mix: 0.3 },
       },
-      { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.4 } },
+      { deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.4 } },
     ],
   },
 
@@ -1662,7 +1662,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'rotary', preset: 'Across the room', params: { distance: 0.6, spread: 0.8 } },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { midDecay: 3.5, mix: 0.4 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { midDecay: 3.5, mix: 0.4 } },
     ],
   },
 
@@ -1763,7 +1763,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Toy',
         params: { rate: 9000, aliasing: 0.5 },
       },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { midDecay: 3.5, mix: 0.4 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { midDecay: 3.5, mix: 0.4 } },
     ],
   },
   {
@@ -1840,7 +1840,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'chorus', preset: 'Slow drift', params: { spread: 60, mix: 0.3 } },
-      { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.45 } },
+      { deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.45 } },
     ],
   },
   {
@@ -1878,8 +1878,8 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { resonance: 70, attack: 2, release: 5 },
     },
     effects: [
-      { deviceId: 'limiter-1176', params: { inputGain: 12, outputGain: -3 } },
-      { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.45 } },
+      { deviceId: 'fet-limiter', params: { inputGain: 12, outputGain: -3 } },
+      { deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.45 } },
     ],
     preview: 'hold',
   },
@@ -1925,7 +1925,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'vintage-digital', preset: 'Sampler', params: { rate: 12000, jitter: 0.2 } },
-      { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.45 } },
+      { deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.45 } },
     ],
   },
   {
@@ -1941,7 +1941,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'chorus', preset: 'Deep sea', params: { depth: 60, feedback: 10, mix: 0.35 } },
-      { deviceId: 'dattorro', preset: 'Long plate', params: { damping: 0.45, mix: 0.3 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { damping: 0.45, mix: 0.3 } },
     ],
   },
 
@@ -1966,13 +1966,13 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'limiter-1176', params: { inputGain: 12, outputGain: -2 } },
+      { deviceId: 'fet-limiter', params: { inputGain: 12, outputGain: -2 } },
       {
         deviceId: 'analog-delay',
         preset: 'Dark echo',
         params: { time: 180, feedback: 0.6, tone: 5000, mix: 0.45 },
       },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { midDecay: 3.5, mix: 0.45 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { midDecay: 3.5, mix: 0.45 } },
     ],
   },
   {
@@ -2006,7 +2006,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'chorus', preset: 'Classic chorus', params: { rate: 0.5, mix: 0.35 } },
-      { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.4 } },
+      { deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.4 } },
     ],
   },
   {

@@ -26,7 +26,7 @@ import {
   pitchClassName,
   relativeMajorRoot,
 } from './key'
-import { PURE_FIFTH, breathe, quarterTurn, soften, wholeCycles, zita } from './parts'
+import { PURE_FIFTH, breathe, quarterTurn, soften, wholeCycles, hall } from './parts'
 
 /** The kinds of sound that can be generated, as the library's analysis names them. */
 export const GENERATED_KINDS = ['drone', 'pad', 'texture', 'oneshot', 'melodic'] as const
@@ -220,7 +220,7 @@ const DRONES: readonly Voice[] = [
           attack: 1,
         },
       },
-      effects: [zita('Hall', between(voice, 0.25, 0.35))],
+      effects: [hall('Hall', between(voice, 0.25, 0.35))],
       ...held(16, 5, 3, [noteFrom(33, chord.root)]),
     }),
   },
@@ -251,7 +251,7 @@ const DRONES: readonly Voice[] = [
             preset: 'Sitar drone',
             params: { root: relativeMajorRoot(key), mix: between(voice, 0.2, 0.35), width: 0.7 },
           },
-          zita('Hall', 0.25),
+          hall('Hall', 0.25),
         ],
         ...held(16, 5, 3, [root, [root + PURE_FIFTH, 0.6]]),
       }
@@ -270,7 +270,7 @@ const DRONES: readonly Voice[] = [
           preset: 'Celeste drone',
           params: { attack: 0.6, bellows: 0.2, celeste: between(voice, 0.15, 0.3) },
         },
-        effects: [zita('Cathedral', between(voice, 0.3, 0.4)), quarterTurn(16)],
+        effects: [hall('Cathedral', between(voice, 0.3, 0.4)), quarterTurn(16)],
         ...held(16, 4, 3, [root, ...(open ? [[root + 7, 0.7] as const] : []), [root + 12, 0.6]]),
         steady: true,
       }
@@ -291,7 +291,7 @@ const DRONES: readonly Voice[] = [
         },
         effects: [
           { deviceId: 'tape', preset: 'Quarter inch', params: { hiss: 0.1 } },
-          zita('Hall', between(voice, 0.3, 0.4)),
+          hall('Hall', between(voice, 0.3, 0.4)),
         ],
         ...held(8, 4, 2, [root, [root + 7, 0.7], [root + 12, 0.5]]),
       }
@@ -308,7 +308,7 @@ const DRONES: readonly Voice[] = [
         instrument: { deviceId: 'bowed-string', preset: 'Cello drone' },
         effects: [
           { deviceId: 'chorus', preset: 'Subtle widener', params: { mix: 0.3 } },
-          zita('Hall', between(voice, 0.35, 0.45)),
+          hall('Hall', between(voice, 0.35, 0.45)),
           quarterTurn(8),
         ],
         ...held(8, 4, 2, [root, [root + (open ? 7 : 12), 0.7]]),
@@ -329,7 +329,7 @@ const DRONES: readonly Voice[] = [
           preset: 'Low monks',
           params: { attack: 0.8, motion: 0.06, ensemble: 0 },
         },
-        effects: [zita('Cathedral', between(voice, 0.4, 0.5))],
+        effects: [hall('Cathedral', between(voice, 0.4, 0.5))],
         ...held(16, 4, 3, [root, [root + PURE_FIFTH, 0.5]]),
       }
     },
@@ -452,7 +452,7 @@ const PADS: readonly Voice[] = [
         description: `Glassy FM tones beating slowly against each other on ${chord}.`,
         chord,
         instrument: { deviceId: 'fm-glass', preset: 'Crystal pad', params: { attack: 0.5 } },
-        effects: [zita('Hall', between(scene.voice, 0.35, 0.45)), breathe(0.125, 0.3)],
+        effects: [hall('Hall', between(scene.voice, 0.35, 0.45)), breathe(0.125, 0.3)],
         ...held(16, risingAt(8), 2, softTop(voicing(scene.chord, colour, 43))),
       }
     },
@@ -470,7 +470,7 @@ const PADS: readonly Voice[] = [
           preset: 'Hollow drift',
           params: { attack: 0.5, rate: 0.125 },
         },
-        effects: [zita('Hall', between(scene.voice, 0.35, 0.45)), breathe(0.125, 0.4)],
+        effects: [hall('Hall', between(scene.voice, 0.35, 0.45)), breathe(0.125, 0.4)],
         ...held(16, risingAt(8), 2, softTop(voicing(scene.chord, colour, 43))),
       }
     },
@@ -493,7 +493,7 @@ const PADS: readonly Voice[] = [
         },
         effects: [
           { deviceId: 'chorus', preset: 'Slow drift', params: { mix: 0.35 } },
-          zita('Cathedral', between(scene.voice, 0.4, 0.5)),
+          hall('Cathedral', between(scene.voice, 0.4, 0.5)),
           breathe(0.125, 0.3),
         ],
         ...held(16, risingAt(8), 3, softTop(doubled)),
@@ -556,7 +556,7 @@ const TEXTURES: readonly Voice[] = [
         movement: between(voice, 0.5, 0.7),
         tone: between(voice, 0.4, 0.6),
       }),
-      effects: [zita('Room', 0.2)],
+      effects: [hall('Room', 0.2)],
       ...held(16, 8, 3, [noteFrom(57, chord.root)]),
     }),
   },
@@ -713,7 +713,7 @@ const ONE_SHOTS: readonly Voice[] = [
         preset: 'Glass bell',
         params: { decay: between(voice, 2.6, 3.4, 0.1), release: 3 },
       },
-      effects: [zita('Hall', between(voice, 0.3, 0.4))],
+      effects: [hall('Hall', between(voice, 0.3, 0.4))],
     }),
   ),
   oneShot(
@@ -724,7 +724,7 @@ const ONE_SHOTS: readonly Voice[] = [
     0.4,
     (voice) => ({
       instrument: bells('Singing bowl', { decay: between(voice, 7, 10, 0.5) }),
-      effects: [zita('Hall', 0.25)],
+      effects: [hall('Hall', 0.25)],
     }),
   ),
   oneShot(
@@ -735,7 +735,7 @@ const ONE_SHOTS: readonly Voice[] = [
     0.2,
     (voice) => ({
       instrument: bells('Kalimba', { decay: between(voice, 3, 4, 0.1), spread: 0.6 }),
-      effects: [zita('Room', 0.3)],
+      effects: [hall('Room', 0.3)],
     }),
   ),
   oneShot(
@@ -752,7 +752,7 @@ const ONE_SHOTS: readonly Voice[] = [
           preset: 'Amp tremolo',
           params: { depth: between(voice, 0.2, 0.35) },
         },
-        zita('Hall', 0.3),
+        hall('Hall', 0.3),
       ],
     }),
   ),
@@ -770,7 +770,7 @@ const ONE_SHOTS: readonly Voice[] = [
         brightness: 1,
         position: 0.6,
       }),
-      effects: [zita('Hall', 0.3)],
+      effects: [hall('Hall', 0.3)],
     }),
   ),
   oneShot(
@@ -779,7 +779,7 @@ const ONE_SHOTS: readonly Voice[] = [
     76,
     3,
     0.2,
-    () => ({ instrument: bells('Music box', { spread: 0.8 }), effects: [zita('Room', 0.3)] }),
+    () => ({ instrument: bells('Music box', { spread: 0.8 }), effects: [hall('Room', 0.3)] }),
   ),
   oneShot(
     'Felt piano',
@@ -801,7 +801,7 @@ const ONE_SHOTS: readonly Voice[] = [
         preset: 'Temple bowl',
         params: { decay: between(voice, 5, 7, 0.5) },
       },
-      effects: [zita('Hall', 0.3)],
+      effects: [hall('Hall', 0.3)],
     }),
   ),
   oneShot(
@@ -812,7 +812,7 @@ const ONE_SHOTS: readonly Voice[] = [
     0.3,
     () => ({
       instrument: { deviceId: 'tine-piano', preset: 'Soft suitcase' },
-      effects: [{ deviceId: 'chorus', preset: 'Subtle widener' }, zita('Hall', 0.3)],
+      effects: [{ deviceId: 'chorus', preset: 'Subtle widener' }, hall('Hall', 0.3)],
     }),
   ),
 ]
@@ -950,7 +950,7 @@ const PHRASES: readonly Voice[] = [
         description: `A rolled ${chord} and a short answer above it on a tine piano.`,
         chord,
         instrument: { deviceId: 'tine-piano', preset: 'Soft suitcase' },
-        effects: [{ deviceId: 'chorus', preset: 'Subtle widener' }, zita('Hall', 0.3)],
+        effects: [{ deviceId: 'chorus', preset: 'Subtle widener' }, hall('Hall', 0.3)],
         notes: [
           ...voicing(scene.chord, colour, 43).map((note, index) => ({
             atSec: roll[index],
@@ -1001,7 +1001,7 @@ const PHRASES: readonly Voice[] = [
       description: `A kalimba figure on the five notes around ${chordName(chord)}, slowing as it goes.`,
       chord: chordName(chord),
       instrument: bells('Kalimba', { spread: 0.6, decay: between(voice, 2.5, 3.5, 0.1) }),
-      effects: [zita('Room', 0.3)],
+      effects: [hall('Room', 0.3)],
       notes: line(notes, chord, {
         count: [6, 9],
         low: 64,
@@ -1022,7 +1022,7 @@ const PHRASES: readonly Voice[] = [
       description: `A music box picking out a few high notes of ${chordName(chord)} as its spring runs down.`,
       chord: chordName(chord),
       instrument: bells('Music box', { spread: 0.8 }),
-      effects: [zita('Room', 0.3)],
+      effects: [hall('Room', 0.3)],
       notes: line(notes, chord, {
         count: [6, 8],
         low: 72,
@@ -1045,7 +1045,7 @@ const PHRASES: readonly Voice[] = [
       instrument: bells('Vibraphone', { spread: 0.6 }),
       effects: [
         { deviceId: 'tremolo', preset: 'Amp tremolo', params: { depth: 0.3 } },
-        zita('Hall', 0.3),
+        hall('Hall', 0.3),
       ],
       notes: line(notes, chord, {
         count: [4, 6],

@@ -84,7 +84,7 @@ export const OUTDOORS_PRESETS: readonly FactoryPreset[] = [
       params: { density: 1, distance: 0.1, movement: 0, attack: 0.3, width: 0.5, volume: -5 },
     },
     effects: [
-      { deviceId: 'zita-rev1', preset: 'Tight chamber', params: { mix: 0.15 } },
+      { deviceId: 'hall-reverb', preset: 'Tight chamber', params: { mix: 0.15 } },
       { deviceId: 'ambient-limiter', preset: 'Wall only', params: { ceiling: -2 } },
     ],
   },
@@ -100,7 +100,7 @@ export const OUTDOORS_PRESETS: readonly FactoryPreset[] = [
       preset: 'Spring pond',
       params: { distance: 0.55, movement: 0.5, tone: 0.1, attack: 1.5, width: 0.8, volume: -3 },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Dark hall', params: { mix: 0.35 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Dark hall', params: { mix: 0.35 } }],
   },
   {
     id: 'peepers-past-dusk',
@@ -171,7 +171,7 @@ export const OUTDOORS_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'ambient-eq', preset: 'Warm', params: { low: 6, highCut: 6000 } },
-      { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.2 } },
+      { deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.2 } },
       { deviceId: 'ambient-limiter', preset: 'Streaming' },
     ],
   },
@@ -204,7 +204,7 @@ export const OUTDOORS_PRESETS: readonly FactoryPreset[] = [
       params: { movement: 0.3, volume: -8 },
     },
     effects: [
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } },
       { deviceId: 'ambient-limiter', preset: 'Wall only', params: { ceiling: -2 } },
     ],
   },
@@ -233,7 +233,7 @@ export const OUTDOORS_PRESETS: readonly FactoryPreset[] = [
         preset: 'Dark water',
         params: { blur: 0.92, tilt: -1.5, lowCut: 45, width: 0, mix: 0.8 },
       },
-      { deviceId: 'zita-rev1', preset: 'Dark hall', params: { mix: 0.18 } },
+      { deviceId: 'hall-reverb', preset: 'Dark hall', params: { mix: 0.18 } },
       { deviceId: 'ambient-limiter', preset: 'Streaming' },
     ],
   },
@@ -257,7 +257,7 @@ export const OUTDOORS_PRESETS: readonly FactoryPreset[] = [
         volume: -4.5,
       },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } }],
   },
   {
     id: 'chime-shower',
@@ -281,7 +281,7 @@ export const OUTDOORS_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'ambient-eq', preset: 'Texture', params: { lowCut: 450, presence: 5 } },
-      { deviceId: 'dattorro', preset: 'Bright plate', params: { mix: 0.25 } },
+      { deviceId: 'plate-reverb', preset: 'Bright plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -377,7 +377,7 @@ export const OUTDOORS_PRESETS: readonly FactoryPreset[] = [
         preset: 'Two octaves',
         params: { levelB: 0, tone: 3000, mix: 1 },
       },
-      { deviceId: 'zita-rev1', preset: 'Dark hall', params: { midDecay: 5 } },
+      { deviceId: 'hall-reverb', preset: 'Dark hall', params: { midDecay: 5 } },
     ],
   },
 ]

@@ -1,12 +1,12 @@
 import { Lfo, createEngine, deviceParamTarget } from '@kieranklaassen/live-mix'
-import { createZitaReverb } from '@kieranklaassen/live-mix/dsp'
+import { createHallReverb } from '@kieranklaassen/live-mix/dsp'
 
 const engine = createEngine({ context: new AudioContext() })
 const keys = engine.addAudioTrack('keys')
 
-// Faust's zita-rev1, compiled to WASM and hosted in an AudioWorklet. Every
+// Faust's hall-reverb, compiled to WASM and hosted in an AudioWorklet. Every
 // device kind shares one contract: typed params, setParam, bypass, latency.
-const hall = await createZitaReverb(engine.context, { params: { mix: 0.25, midDecay: 3 } })
+const hall = await createHallReverb(engine.context, { params: { mix: 0.25, midDecay: 3 } })
 keys.strip.addInsert(hall)
 hall.setParam('damping', 4000) // clamped to the ParamSpec range, smoothed inside the DSP
 

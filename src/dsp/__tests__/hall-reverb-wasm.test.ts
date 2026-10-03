@@ -1,17 +1,17 @@
 import { describe, expect, it } from 'vitest'
 
-import { ZITA_REV1_PARAMS } from '../devices/faust/zita-rev1'
+import { HALL_REVERB_PARAMS } from '../devices/faust/hall-reverb'
 import { DEVICE_EXPORT_NAMES, loadWasmDevice } from './wasm-device-harness'
 
-const P = ZITA_REV1_PARAMS
+const P = HALL_REVERB_PARAMS
 
 // The 5 ms mix smoother runs in float32, so `1 - mix` settles at ~1e-5 (-100 dB)
 // rather than exactly 0; anything under -80 dB counts as silence here.
 const SILENCE = 1e-4
 
-describe('zita-rev1.wasm (committed Faust artefact)', () => {
+describe('hall-reverb.wasm (committed Faust artefact)', () => {
   it('exports the device ABI with an empty import object', async () => {
-    const { device, maxBlock } = await loadWasmDevice('zita-rev1')
+    const { device, maxBlock } = await loadWasmDevice('hall-reverb')
     expect(maxBlock).toBe(2048)
     for (const name of DEVICE_EXPORT_NAMES) {
       expect(typeof device[name]).toBe('function')
@@ -34,7 +34,7 @@ describe('zita-rev1.wasm (committed Faust artefact)', () => {
   })
 
   it('passes dry input through at mix 0 and clears the input between blocks', async () => {
-    const h = await loadWasmDevice('zita-rev1')
+    const h = await loadWasmDevice('hall-reverb')
     h.set(P.mix, 0)
     h.renderSilence(0.1)
     const frames = 128
@@ -53,7 +53,7 @@ describe('zita-rev1.wasm (committed Faust artefact)', () => {
     // The sum is divided by sqrt((1-mix)^2 + 0.2*mix^2): dry and a wet signal
     // 7 dB under it, added in power. Before the pre-delay only dry is there.
     const level = 1 / Math.sqrt(0.65 ** 2 + 0.2 * 0.35 ** 2)
-    const h = await loadWasmDevice('zita-rev1')
+    const h = await loadWasmDevice('hall-reverb')
     h.renderSilence(0.1)
     h.processBlock([1], [0.5])
     expect(h.view(h.device.device_out_left(), 1)[0]).toBeCloseTo(0.65 * level, 4)
@@ -61,11 +61,11 @@ describe('zita-rev1.wasm (committed Faust artefact)', () => {
   })
 
   it('delays the impulse response by the pre-delay, across its whole range', async () => {
-    // A mono impulse's allpass direct paths cancel in Zita's Hadamard mix, so
+    // A mono impulse's allpass direct paths cancel in the reverb's Hadamard mix, so
     // the first audible sample is pre-delay + the shortest allpass delay
     // (19.1 ms); moving the pre-delay moves that onset one for one.
     const onsetFor = async (preDelayMs: number) => {
-      const h = await loadWasmDevice('zita-rev1')
+      const h = await loadWasmDevice('hall-reverb')
       h.set(P.mix, 1)
       h.set(P.preDelay, preDelayMs)
       h.renderSilence(0.1)
@@ -90,7 +90,7 @@ describe('zita-rev1.wasm (committed Faust artefact)', () => {
 
   it('clamps parameters to their declared range', async () => {
     // mix 5 behaves as mix 1: no dry signal in the first sample.
-    const h = await loadWasmDevice('zita-rev1')
+    const h = await loadWasmDevice('hall-reverb')
     h.set(P.mix, 5)
     h.renderSilence(0.1)
     h.processBlock([1])
@@ -99,7 +99,7 @@ describe('zita-rev1.wasm (committed Faust artefact)', () => {
 
   it('produces a decaying, finite reverb tail whose length tracks the decay params', async () => {
     const tailAfterTwoSeconds = async (decaySeconds: number) => {
-      const h = await loadWasmDevice('zita-rev1')
+      const h = await loadWasmDevice('hall-reverb')
       h.set(P.mix, 1)
       h.set(P.preDelay, 20)
       h.set(P.lowDecay, decaySeconds)
@@ -119,7 +119,7 @@ describe('zita-rev1.wasm (committed Faust artefact)', () => {
 
   it('runs at 44.1, 48 and 96 kHz', async () => {
     for (const sampleRate of [44100, 48000, 96000]) {
-      const h = await loadWasmDevice('zita-rev1', sampleRate)
+      const h = await loadWasmDevice('hall-reverb', sampleRate)
       h.set(P.mix, 1)
       h.renderSilence(0.1)
       h.feedTone(0.05, 440, 1)

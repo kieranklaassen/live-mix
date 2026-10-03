@@ -75,7 +75,7 @@ export const FELT_PIANO_PRESETS: readonly FactoryPreset[] = [
         preset: 'Worn out',
         params: { length: 4, feedback: 0.75, wow: 0.5, mix: 0.45 },
       },
-      { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.3 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.3 } },
     ],
   },
   {
@@ -114,7 +114,7 @@ export const FELT_PIANO_PRESETS: readonly FactoryPreset[] = [
       params: { hardness: 0.7, reverbMix: 0, width: 0.7, polyphony: 16, outputDb: -12 },
     },
     effects: [
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { midDecay: 3.5, lowDecay: 4, mix: 0.4 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { midDecay: 3.5, lowDecay: 4, mix: 0.4 } },
     ],
   },
   {
@@ -136,7 +136,7 @@ export const FELT_PIANO_PRESETS: readonly FactoryPreset[] = [
         outputDb: -16,
       },
     },
-    effects: [{ deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.22 } }],
+    effects: [{ deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.22 } }],
   },
   {
     id: 'piano-and-its-room',
@@ -160,7 +160,7 @@ export const FELT_PIANO_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       {
-        deviceId: 'limiter-1176',
+        deviceId: 'fet-limiter',
         preset: 'Gentle lift',
         params: { inputGain: 18, outputGain: -11 },
       },
@@ -256,7 +256,7 @@ export const FELT_PIANO_PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'limiter-1176', preset: 'Drive', params: { inputGain: 20, outputGain: -5 } },
+      { deviceId: 'fet-limiter', preset: 'Drive', params: { inputGain: 20, outputGain: -5 } },
       { deviceId: 'analog-delay', preset: 'Slapback' },
       { deviceId: 'spring-reverb', preset: 'Quick twang', params: { mix: 0.2 } },
     ],
@@ -456,7 +456,7 @@ export const FELT_PIANO_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'sustainer', preset: 'Slow strings' },
-      { deviceId: 'zita-rev1', preset: 'Warm undertow', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Warm undertow', params: { mix: 0.3 } },
     ],
   },
   {
@@ -482,7 +482,7 @@ export const FELT_PIANO_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'octaves', preset: 'Glass octaves', params: { up1: 0.35, up2: 0.3 } },
-      { deviceId: 'dattorro', preset: 'Bright plate', params: { mix: 0.25 } },
+      { deviceId: 'plate-reverb', preset: 'Bright plate', params: { mix: 0.25 } },
     ],
   },
 ]

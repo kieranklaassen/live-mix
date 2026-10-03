@@ -10,7 +10,7 @@ export const TINE_PIANO_PRESETS: readonly FactoryPreset[] = [
     instrument: { deviceId: 'tine-piano', preset: 'Soft suitcase', params: { volume: -11.5 } },
     effects: [
       { deviceId: 'phaser', preset: 'Slow swirl' },
-      { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.25 } },
+      { deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.25 } },
     ],
   },
   {
@@ -21,7 +21,7 @@ export const TINE_PIANO_PRESETS: readonly FactoryPreset[] = [
     instrument: { deviceId: 'tine-piano', preset: 'Dark felt', params: { volume: -11 } },
     effects: [
       { deviceId: 'tape-echo', preset: 'Three heads', params: { feedback: 0.65, mix: 0.4 } },
-      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -88,7 +88,7 @@ export const TINE_PIANO_PRESETS: readonly FactoryPreset[] = [
         volume: -13.5,
       },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Tight chamber' }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Tight chamber' }],
   },
   {
     id: 'pedal-down-tines',
@@ -111,7 +111,7 @@ export const TINE_PIANO_PRESETS: readonly FactoryPreset[] = [
         volume: -14.5,
       },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } }],
   },
   {
     id: 'low-tine-bass',
@@ -140,7 +140,7 @@ export const TINE_PIANO_PRESETS: readonly FactoryPreset[] = [
         preset: 'Pluck tamer',
         params: { threshold: -30, scLowCut: 30, makeup: 3 },
       },
-      { deviceId: 'zita-rev1', preset: 'Tight chamber', params: { mix: 0.15 } },
+      { deviceId: 'hall-reverb', preset: 'Tight chamber', params: { mix: 0.15 } },
     ],
   },
   {
@@ -163,7 +163,7 @@ export const TINE_PIANO_PRESETS: readonly FactoryPreset[] = [
         volume: -10,
       },
     },
-    effects: [{ deviceId: 'dattorro', preset: 'Bright plate', params: { mix: 0.28 } }],
+    effects: [{ deviceId: 'plate-reverb', preset: 'Bright plate', params: { mix: 0.28 } }],
   },
   {
     id: 'envelope-wah-tines',
@@ -261,7 +261,7 @@ export const TINE_PIANO_PRESETS: readonly FactoryPreset[] = [
         volume: -14.5,
       },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Hall' }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Hall' }],
   },
   {
     id: 'dub-tine-stabs',
@@ -318,7 +318,7 @@ export const TINE_PIANO_PRESETS: readonly FactoryPreset[] = [
         deviceId: 'octaves',
         params: { sub1: 0, dry: 0.4, up1: 1, up2: 0.25, detune: 0.1, spread: 0.15 },
       },
-      { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.3 } },
     ],
   },
   {
@@ -344,7 +344,7 @@ export const TINE_PIANO_PRESETS: readonly FactoryPreset[] = [
     effects: [
       { deviceId: 'spectral-blur', preset: 'Softened attacks', params: { width: 0 } },
       { deviceId: 'stereo-detune', preset: 'Soft halo' },
-      { deviceId: 'zita-rev1', preset: 'Dark hall', params: { mix: 0.45 } },
+      { deviceId: 'hall-reverb', preset: 'Dark hall', params: { mix: 0.45 } },
     ],
   },
   {
@@ -395,7 +395,7 @@ export const TINE_PIANO_PRESETS: readonly FactoryPreset[] = [
         deviceId: 'radio',
         params: { band: 0, fading: 0.65, static: 0.15, interference: 0, bandwidth: 0.8 },
       },
-      { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.2 } },
+      { deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.2 } },
     ],
   },
   {
@@ -437,7 +437,7 @@ export const TINE_PIANO_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'grain-cloud', preset: 'Thick fog', params: { mix: 0.6 } },
-      { deviceId: 'zita-rev1', preset: 'Dark hall', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Dark hall', params: { mix: 0.3 } },
     ],
   },
 ]

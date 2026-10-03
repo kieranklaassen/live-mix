@@ -64,7 +64,7 @@ export const MOTION_CHAINS: readonly FactoryChain[] = [
       'The reverb comes in three slow waves and comes round again, quieter each time, into a plate.',
     effects: [
       { deviceId: 'shaped-reverb', preset: 'Breathing', params: { mix: 0.4 } },
-      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -126,7 +126,7 @@ export const MOTION_CHAINS: readonly FactoryChain[] = [
           spread: 0.9,
         },
       },
-      { deviceId: 'zita-rev1', preset: 'Room' },
+      { deviceId: 'hall-reverb', preset: 'Room' },
     ],
   },
   {
@@ -142,7 +142,7 @@ export const MOTION_CHAINS: readonly FactoryChain[] = [
         preset: 'Classic four-stage',
         params: { centerHz: 700, feedback: 30, rate: 0.5, depth: 55, stereo: 40 },
       },
-      { deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.18 } },
+      { deviceId: 'plate-reverb', preset: 'Small plate', params: { mix: 0.18 } },
     ],
   },
   {
@@ -186,7 +186,7 @@ export const MOTION_CHAINS: readonly FactoryChain[] = [
     description:
       'A hall with a slow flanger after it, so the jet sweep passes through the tail as well as the notes and drifts from side to side.',
     effects: [
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { midDecay: 3.2, mix: 0.4 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { midDecay: 3.2, mix: 0.4 } },
       {
         deviceId: 'flanger',
         preset: 'Slow sweep',
@@ -239,7 +239,7 @@ export const MOTION_CHAINS: readonly FactoryChain[] = [
         params: { cutoffHz: 420, resonance: 1.1, driveDb: 6, envAmount: 100, envAttackMs: 150 },
       },
       { deviceId: 'chorus', preset: 'Wide chorus', params: { rate: 0.5, mix: 0.35 } },
-      { deviceId: 'limiter-1176', params: { inputGain: 3 } },
+      { deviceId: 'fet-limiter', params: { inputGain: 3 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.3, breathDepth: 0 } },
     ],
   },
@@ -257,7 +257,7 @@ export const MOTION_CHAINS: readonly FactoryChain[] = [
         preset: 'Pitch wobble',
         params: { rate: 5.4, depth: 0.22, drift: 0.4 },
       },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
   {
@@ -279,8 +279,8 @@ export const MOTION_CHAINS: readonly FactoryChain[] = [
           lfoShape: 1,
         },
       },
-      { deviceId: 'limiter-1176', params: { outputGain: -3 } },
-      { deviceId: 'zita-rev1', preset: 'Airy tail', params: { mix: 0.3 } },
+      { deviceId: 'fet-limiter', params: { outputGain: -3 } },
+      { deviceId: 'hall-reverb', preset: 'Airy tail', params: { mix: 0.3 } },
     ],
   },
   {
@@ -334,7 +334,7 @@ export const MOTION_CHAINS: readonly FactoryChain[] = [
         preset: 'Sheen',
         params: { drive: 0.3, lowCut: 200, tone: 0.8, output: 4 },
       },
-      { deviceId: 'zita-rev1', preset: 'Bright hall', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Bright hall', params: { mix: 0.3 } },
     ],
   },
   {
@@ -418,8 +418,8 @@ export const MOTION_CHAINS: readonly FactoryChain[] = [
         preset: 'Metal resonator',
         params: { delayMs: 1.6, rate: 0.04, depth: 45, feedback: 85, stereo: 10 },
       },
-      { deviceId: 'limiter-1176', params: { inputGain: 2 } },
-      { deviceId: 'dattorro', preset: 'Dark plate', params: { mix: 0.3 } },
+      { deviceId: 'fet-limiter', params: { inputGain: 2 } },
+      { deviceId: 'plate-reverb', preset: 'Dark plate', params: { mix: 0.3 } },
     ],
   },
 ]

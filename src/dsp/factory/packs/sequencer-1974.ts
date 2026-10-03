@@ -30,7 +30,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         deviceId: 'tape-echo',
         params: { time: 375, feedback: 0.42, wow: 0.2, flutter: 0.12, highCut: 3800, mix: 0.38 },
       },
-      { deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.18 } },
+      { deviceId: 'plate-reverb', preset: 'Small plate', params: { mix: 0.18 } },
     ],
     preview: 'line',
   },
@@ -102,7 +102,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         deviceId: 'tape-echo',
         params: { time: 500, feedback: 0.55, heads: 3, highCut: 5000, spread: 0.7, mix: 0.45 },
       },
-      { deviceId: 'dattorro', preset: 'Medium plate', params: { decay: 0.5, mix: 0.2 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { decay: 0.5, mix: 0.2 } },
     ],
     preview: 'bells',
   },
@@ -123,7 +123,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Deep eight-stage',
         params: { rate: 0.07, stereo: 40, mix: 0.45 },
       },
-      { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.2 } },
+      { deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.2 } },
     ],
     preview: 'low',
   },
@@ -140,7 +140,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'analog-delay', preset: 'Chorused', params: { time: 420, mix: 0.3 } },
-      { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.28 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.28 } },
     ],
     preview: 'line',
   },
@@ -157,7 +157,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'analog-drive', preset: 'Iron lows', params: { drive: 0.75, output: -6 } },
-      { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.2 } },
+      { deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.2 } },
     ],
     preview: 'low',
   },
@@ -219,7 +219,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tape-echo', params: { time: 420, feedback: 0.5, highCut: 4000, mix: 0.33 } },
-      { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.25 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -260,7 +260,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tape', preset: 'Quarter inch', params: { wow: 0.3 } },
-      { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.4 } },
+      { deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.4 } },
     ],
   },
   {
@@ -289,7 +289,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'phaser', preset: 'Slow swirl', params: { rate: 0.08, feedback: 50 } },
-      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.3 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.3 } },
     ],
   },
   {
@@ -322,7 +322,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tape-echo', preset: 'Short and soft', params: { mix: 0.25 } },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.35 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.35 } },
     ],
     preview: 'chord',
   },
@@ -340,7 +340,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'phaser', preset: 'Slow swirl', params: { rate: 0.1, feedback: 45, stereo: 60 } },
-      { deviceId: 'dattorro', preset: 'Small plate', params: { decay: 0.65, mix: 0.22 } },
+      { deviceId: 'plate-reverb', preset: 'Small plate', params: { decay: 0.65, mix: 0.22 } },
     ],
   },
   {
@@ -361,7 +361,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         params: { centerHz: 1800, rate: 0.16, depth: 70, mix: 0.45 },
       },
       { deviceId: 'tape-echo', params: { time: 520, feedback: 0.4, heads: 1, mix: 0.25 } },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.25 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.25 } },
     ],
   },
   {
@@ -377,7 +377,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'phaser', preset: 'Deep eight-stage', params: { centerHz: 400, rate: 0.05 } },
-      { deviceId: 'zita-rev1', preset: 'Hall' },
+      { deviceId: 'hall-reverb', preset: 'Hall' },
     ],
     preview: 'low',
   },
@@ -393,7 +393,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 2.6, release: 5, tone: 2200, volume: -9 },
     },
     effects: [
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.4 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.4 } },
       { deviceId: 'tape', preset: 'Quarter inch', params: { wow: 0.35, age: 0.35 } },
     ],
   },
@@ -458,7 +458,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Warm stack',
         params: { drive: 0.2, distance: 0.6, room: 0.5 },
       },
-      { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.4 } },
+      { deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.4 } },
     ],
   },
 
@@ -521,7 +521,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Three heads',
         params: { time: 480, feedback: 0.45, mix: 0.3 },
       },
-      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
     preview: 'keys',
   },
@@ -596,7 +596,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'rotary', preset: 'Chorale', params: { drive: 0.35 } },
-      { deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.2 } },
+      { deviceId: 'plate-reverb', preset: 'Small plate', params: { mix: 0.2 } },
     ],
     preview: 'low',
   },
@@ -631,7 +631,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'chorus', preset: 'Lush ensemble', params: { mix: 0.4 } },
-      { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.3 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.3 } },
     ],
   },
   {
@@ -679,7 +679,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'analog-drive', preset: 'Warm glue' },
-      { deviceId: 'zita-rev1', preset: 'Hall' },
+      { deviceId: 'hall-reverb', preset: 'Hall' },
     ],
     preview: 'low',
   },
@@ -696,7 +696,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'flanger', preset: 'Wide wash', params: { rate: 0.1 } },
-      { deviceId: 'dattorro', preset: 'Medium plate' },
+      { deviceId: 'plate-reverb', preset: 'Medium plate' },
     ],
   },
   {
@@ -712,7 +712,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'phaser', preset: 'Negative notch', params: { rate: 0.09 } },
-      { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.35 } },
+      { deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.35 } },
     ],
   },
 
@@ -734,7 +734,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         deviceId: 'tape-echo',
         params: { time: 375, feedback: 0.5, heads: 3, spread: 0.6, mix: 0.4 },
       },
-      { deviceId: 'dattorro', preset: 'Small plate' },
+      { deviceId: 'plate-reverb', preset: 'Small plate' },
     ],
   },
   {
@@ -780,7 +780,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'freq-shifter', preset: 'Slow drift', params: { fine: 0.3, mix: 0.4 } },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
     preview: 'low',
   },
@@ -797,7 +797,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tape-echo', params: { time: 660, feedback: 0.55, mix: 0.35 } },
-      { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.3 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.3 } },
     ],
   },
   {
@@ -857,7 +857,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'rotary', preset: 'Across the room', params: { spread: 0.7 } },
-      { deviceId: 'dattorro', preset: 'Small plate' },
+      { deviceId: 'plate-reverb', preset: 'Small plate' },
     ],
   },
   {
@@ -873,7 +873,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'patina', preset: 'Quarter inch reel', params: { wobble: 0.35 } },
-      { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.3 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.3 } },
     ],
   },
   {
@@ -980,7 +980,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       { deviceId: 'tape', preset: 'Mastering deck', params: { drive: 0.6 } },
       { deviceId: 'phaser', preset: 'Classic four-stage', params: { rate: 0.18, mix: 0.3 } },
-      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -1077,7 +1077,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       { deviceId: 'analog-drive', preset: 'Triode glow', params: { drive: 0.55, output: -7 } },
       { deviceId: 'tape-echo', params: { time: 480, feedback: 0.5, mix: 0.3 } },
-      { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.25 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.25 } },
     ],
     preview: 'line',
   },
@@ -1098,7 +1098,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Warm six-stage',
         params: { rate: 0.08, stereo: 40, mix: 0.4 },
       },
-      { deviceId: 'zita-rev1', preset: 'Hall' },
+      { deviceId: 'hall-reverb', preset: 'Hall' },
     ],
     preview: 'low',
   },
@@ -1167,7 +1167,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       { deviceId: 'tape', preset: 'Quarter inch', params: { wow: 0.45, age: 0.4 } },
       { deviceId: 'phaser', preset: 'Warm six-stage', params: { rate: 0.1, mix: 0.4 } },
-      { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.3 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.3 } },
     ],
   },
   {
@@ -1203,7 +1203,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tape-echo', preset: 'Three heads', params: { time: 400, mix: 0.35 } },
-      { deviceId: 'zita-rev1', preset: 'Room' },
+      { deviceId: 'hall-reverb', preset: 'Room' },
     ],
   },
   {
@@ -1291,7 +1291,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Twelve stage cloud',
         params: { rate: 0.05, stereo: 60, mix: 0.4 },
       },
-      { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.25 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -1325,7 +1325,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'phaser', preset: 'Warm six-stage', params: { rate: 0.14, mix: 0.4 } },
-      { deviceId: 'dattorro', preset: 'Medium plate' },
+      { deviceId: 'plate-reverb', preset: 'Medium plate' },
     ],
   },
   {
@@ -1437,7 +1437,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Slow swells',
         params: { time: 1400, feedback: 0.25, mix: 0.8 },
       },
-      { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.3 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.3 } },
     ],
   },
   {
@@ -1461,7 +1461,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       { deviceId: 'sympathetic', preset: 'Piano pedal', params: { root: 2, mode: 1, mix: 0.3 } },
       { deviceId: 'tape-echo', preset: 'Short and soft', params: { time: 220, mix: 0.2 } },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
 
@@ -1512,7 +1512,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tape', preset: 'Quarter inch', params: { wow: 0.4, flutter: 0.3 } },
-      { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.3 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.3 } },
     ],
     preview: 'chord',
   },
@@ -1555,7 +1555,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Through-zero feel',
         params: { rate: 0.07, depth: 85, stereo: 120, mix: 0.45 },
       },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
 
@@ -1685,7 +1685,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       { deviceId: 'half-speed', preset: 'Smooth octave', params: { spread: 0.5, mix: 0.5 } },
       { deviceId: 'phaser', preset: 'Deep eight-stage', params: { stereo: 40, mix: 0.4 } },
-      { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.35 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.35 } },
     ],
     preview: 'hold',
   },
@@ -1705,7 +1705,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       { deviceId: 'tape', preset: 'Mastering deck', params: { drive: 0.7, hiss: 0.05 } },
       { deviceId: 'phaser', preset: 'Classic four-stage', params: { rate: 0.2, mix: 0.25 } },
-      { deviceId: 'dattorro', preset: 'Small plate' },
+      { deviceId: 'plate-reverb', preset: 'Small plate' },
     ],
   },
   {
@@ -1721,7 +1721,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tape-echo', preset: 'Short and soft', params: { mix: 0.2 } },
-      { deviceId: 'dattorro', preset: 'Long plate' },
+      { deviceId: 'plate-reverb', preset: 'Long plate' },
     ],
   },
 
@@ -1739,7 +1739,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'phaser', preset: 'Warm six-stage', params: { rate: 0.09, mix: 0.4 } },
-      { deviceId: 'zita-rev1', preset: 'Hall' },
+      { deviceId: 'hall-reverb', preset: 'Hall' },
     ],
     preview: 'chord',
   },
@@ -1774,7 +1774,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'phaser', preset: 'Warm six-stage', params: { rate: 0.15, mix: 0.35 } },
-      { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.3 } },
     ],
   },
   {
@@ -1808,7 +1808,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tape', preset: 'Quarter inch' },
-      { deviceId: 'dattorro', preset: 'Long plate' },
+      { deviceId: 'plate-reverb', preset: 'Long plate' },
     ],
     preview: 'hold',
   },
@@ -1878,7 +1878,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       { deviceId: 'analog-drive', preset: 'Triode glow', params: { drive: 0.4 } },
       { deviceId: 'tape-echo', params: { time: 480, feedback: 0.5, heads: 1, mix: 0.35 } },
-      { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.25 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.25 } },
     ],
     preview: 'line',
   },
@@ -1922,7 +1922,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tape', preset: 'Quarter inch', params: { age: 0.4, hiss: 0.35 } },
-      { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.3 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.3 } },
     ],
   },
   {
@@ -1956,7 +1956,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'flanger', preset: 'Slow sweep', params: { mix: 0.35 } },
-      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -1991,7 +1991,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       { deviceId: 'ambient-limiter', params: { gain: 8.5, ceiling: -6 } },
       { deviceId: 'flanger', preset: 'Classic jet', params: { rate: 0.12, stereo: 60, mix: 0.4 } },
-      { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.3 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.3 } },
     ],
   },
   {
@@ -2026,7 +2026,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'phaser', preset: 'Warm six-stage', params: { rate: 0.35, depth: 70 } },
-      { deviceId: 'dattorro', preset: 'Small plate' },
+      { deviceId: 'plate-reverb', preset: 'Small plate' },
     ],
   },
   {
@@ -2074,7 +2074,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'spring-reverb', preset: 'Slack and strange', params: { mix: 0.3 } },
-      { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.3 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.3 } },
     ],
   },
   {

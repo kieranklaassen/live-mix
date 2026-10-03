@@ -7,7 +7,7 @@ export const CLARINET_PRESETS: readonly FactoryPreset[] = [
     category: 'wind',
     description: 'A warm low clarinet, hollow and a little breathy, close up in a small room.',
     instrument: { deviceId: 'clarinet', preset: 'Warm clarinet', params: { volume: -4 } },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.3 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.3 } }],
     preview: 'line',
   },
   {
@@ -19,7 +19,7 @@ export const CLARINET_PRESETS: readonly FactoryPreset[] = [
     instrument: { deviceId: 'clarinet', preset: 'Subtone tenor' },
     effects: [
       { deviceId: 'tape', preset: 'Quarter inch' },
-      { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.3 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.3 } },
     ],
     preview: 'line',
   },
@@ -52,7 +52,7 @@ export const CLARINET_PRESETS: readonly FactoryPreset[] = [
     instrument: { deviceId: 'clarinet', preset: 'Bright soprano', params: { volume: -4 } },
     effects: [
       { deviceId: 'tape-echo', preset: 'Three heads', params: { feedback: 0.65, mix: 0.4 } },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.2 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.2 } },
     ],
     preview: 'line',
   },
@@ -75,7 +75,7 @@ export const CLARINET_PRESETS: readonly FactoryPreset[] = [
         volume: -3.5,
       },
     },
-    effects: [{ deviceId: 'dattorro', preset: 'Small plate' }],
+    effects: [{ deviceId: 'plate-reverb', preset: 'Small plate' }],
   },
   {
     id: 'tongued-clarinet',
@@ -88,7 +88,7 @@ export const CLARINET_PRESETS: readonly FactoryPreset[] = [
       preset: 'Warm clarinet',
       params: { blow: 0.5, breath: 0.2, attack: 0.015, release: 0.05, volume: -8 },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Tight chamber' }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Tight chamber' }],
     preview: 'keys',
   },
   {
@@ -104,7 +104,7 @@ export const CLARINET_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'chorus', preset: 'Slow drift', params: { mix: 0.3 } },
-      { deviceId: 'dattorro', preset: 'Dark plate', params: { mix: 0.3 } },
+      { deviceId: 'plate-reverb', preset: 'Dark plate', params: { mix: 0.3 } },
     ],
   },
   {
@@ -119,7 +119,7 @@ export const CLARINET_PRESETS: readonly FactoryPreset[] = [
       params: { blow: 0.72, breath: 0.3, attack: 0.05, release: 0.25, vibrato: 0.5, volume: -4.8 },
     },
     effects: [
-      { deviceId: 'zita-rev1', preset: 'Room' },
+      { deviceId: 'hall-reverb', preset: 'Room' },
       { deviceId: 'vinyl', preset: 'Parlour 78' },
     ],
   },
@@ -134,8 +134,8 @@ export const CLARINET_PRESETS: readonly FactoryPreset[] = [
       params: { bore: 0.1, blow: 0.9, attack: 0.04, vibrato: 0, growl: 1, volume: -2 },
     },
     effects: [
-      { deviceId: 'limiter-1176', preset: 'Drive', params: { outputGain: -4.5 } },
-      { deviceId: 'zita-rev1', preset: 'Bright hall', params: { mix: 0.25 } },
+      { deviceId: 'fet-limiter', preset: 'Drive', params: { outputGain: -4.5 } },
+      { deviceId: 'hall-reverb', preset: 'Bright hall', params: { mix: 0.25 } },
     ],
   },
   {
@@ -173,7 +173,7 @@ export const CLARINET_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'grain-cloud', preset: 'Soft cloud' },
-      { deviceId: 'zita-rev1', preset: 'Airy tail' },
+      { deviceId: 'hall-reverb', preset: 'Airy tail' },
     ],
   },
   {
@@ -190,7 +190,7 @@ export const CLARINET_PRESETS: readonly FactoryPreset[] = [
     effects: [
       { deviceId: 'octaves', preset: 'Organ' },
       { deviceId: 'rotary', preset: 'Chorale' },
-      { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.2 } },
+      { deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.2 } },
     ],
   },
   {
@@ -217,7 +217,7 @@ export const CLARINET_PRESETS: readonly FactoryPreset[] = [
       preset: 'Warm clarinet',
       params: { blow: 1, breath: 0.1, attack: 0.03, release: 0.2, volume: -3 },
     },
-    effects: [{ deviceId: 'dattorro', preset: 'Tight room' }],
+    effects: [{ deviceId: 'plate-reverb', preset: 'Tight room' }],
   },
   {
     id: 'wavering-reed',
@@ -255,7 +255,7 @@ export const CLARINET_PRESETS: readonly FactoryPreset[] = [
       params: { bore: 0.15, breath: 0.3, attack: 0.12, release: 0.6, vibrato: 0.25, volume: -2.5 },
     },
     effects: [
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } },
       { deviceId: 'radio', preset: 'Night shortwave', params: { static: 0.2 } },
     ],
   },
@@ -324,7 +324,7 @@ export const CLARINET_PRESETS: readonly FactoryPreset[] = [
       params: { blow: 1, breath: 0.1, attack: 0.04, vibrato: 0.15, growl: 0.1, volume: -7 },
     },
     effects: [
-      { deviceId: 'limiter-1176', preset: 'Drive' },
+      { deviceId: 'fet-limiter', preset: 'Drive' },
       { deviceId: 'expanse', preset: 'Far echoes', params: { decay: 8 } },
     ],
   },

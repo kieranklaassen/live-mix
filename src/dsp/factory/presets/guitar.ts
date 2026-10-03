@@ -81,7 +81,7 @@ export const GUITAR_PRESETS: readonly FactoryPreset[] = [
         volume: 0.5,
       },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.18 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.18 } }],
   },
   {
     id: 'bridge-pickup-plate',
@@ -104,7 +104,7 @@ export const GUITAR_PRESETS: readonly FactoryPreset[] = [
         volume: -2,
       },
     },
-    effects: [{ deviceId: 'dattorro', preset: 'Small plate' }],
+    effects: [{ deviceId: 'plate-reverb', preset: 'Small plate' }],
   },
   {
     id: 'twelve-string-room',
@@ -137,7 +137,7 @@ export const GUITAR_PRESETS: readonly FactoryPreset[] = [
         volume: -3,
       },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.25 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.25 } }],
   },
   {
     id: 'slapback-and-drip',
@@ -249,9 +249,9 @@ export const GUITAR_PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'limiter-1176', preset: 'Squash', params: { outputGain: -5 } },
+      { deviceId: 'fet-limiter', preset: 'Squash', params: { outputGain: -5 } },
       { deviceId: 'flanger', preset: 'Classic jet', params: { rate: 0.2 } },
-      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
     preview: 'chord',
   },
@@ -304,7 +304,7 @@ export const GUITAR_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'octaves', preset: 'Twelve string' },
-      { deviceId: 'limiter-1176', preset: 'Drive', params: { outputGain: -3.5 } },
+      { deviceId: 'fet-limiter', preset: 'Drive', params: { outputGain: -3.5 } },
       {
         deviceId: 'fdn-reverb',
         preset: 'Hall',
@@ -333,7 +333,7 @@ export const GUITAR_PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'limiter-1176', preset: 'Squash', params: { outputGain: -8 } },
+      { deviceId: 'fet-limiter', preset: 'Squash', params: { outputGain: -8 } },
       { deviceId: 'tremolo', preset: 'Chopper', params: { rate: 6, depth: 0.9 } },
       { deviceId: 'tape-echo', preset: 'Dotted bounce', params: { spread: 0.3, mix: 0.25 } },
     ],
@@ -390,7 +390,7 @@ export const GUITAR_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'octaves', preset: 'Sub octave' },
-      { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.15 } },
+      { deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.15 } },
     ],
     preview: 'low',
   },
@@ -419,7 +419,7 @@ export const GUITAR_PRESETS: readonly FactoryPreset[] = [
         preset: 'Octave stack',
         params: { time: 375, repeats: 10, decay: 0.2, high: 0.7, low: 0.8, mix: 0.7 },
       },
-      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   {

@@ -9,7 +9,7 @@ import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { type MockMessagePort } from '../../testing'
 import { type DeviceHostMessage, type DeviceMessage } from '../abi'
 import { AMBIENT_COMP_PARAMS } from '../devices/ambient-comp.gen'
-import { DATTORRO_PARAMS } from '../devices/dattorro'
+import { PLATE_REVERB_PARAMS } from '../devices/plate-reverb'
 // Registers the processor into the shimmed `registerProcessor`.
 import '../worklets/wasm-device.processor'
 
@@ -50,7 +50,7 @@ let compModule: WebAssembly.Module
 
 beforeAll(async () => {
   ;[module, compModule] = await Promise.all(
-    ['dattorro.wasm', 'ambient-comp.wasm'].map(async (file) =>
+    ['plate-reverb.wasm', 'ambient-comp.wasm'].map(async (file) =>
       WebAssembly.compile(await readFile(join(wasmDir, file))),
     ),
   )
@@ -58,7 +58,7 @@ beforeAll(async () => {
 
 function construct(
   params?: (readonly [number, number])[],
-  device: { module: WebAssembly.Module; deviceId: string } = { module, deviceId: 'dattorro' },
+  device: { module: WebAssembly.Module; deviceId: string } = { module, deviceId: 'plate-reverb' },
 ) {
   const Processor = registry.get('live-mix-wasm-device') as ProcessorCtor
   const processor = new Processor({
@@ -84,20 +84,20 @@ describe('WasmDeviceProcessor', () => {
     const { port } = construct()
     expect(port.posted[0]).toEqual({
       type: 'ready',
-      deviceId: 'dattorro',
+      deviceId: 'plate-reverb',
       maxBlockFrames: 2048,
     } satisfies DeviceHostMessage)
   })
 
   it('applies initial params and forwards set-param messages to the device', () => {
-    const { processor, port } = construct([[DATTORRO_PARAMS.mix.id, 0]])
+    const { processor, port } = construct([[PLATE_REVERB_PARAMS.mix.id, 0]])
     const out = outputs()
     processor.process(block(0.25), out)
     // mix 0 → pure dry pass-through.
     expect(out[0][0][0]).toBeCloseTo(0.25, 6)
     expect(out[0][1][127]).toBeCloseTo(0.25, 6)
 
-    port.receive({ type: 'set-param', paramId: DATTORRO_PARAMS.mix.id, value: 0.35 })
+    port.receive({ type: 'set-param', paramId: PLATE_REVERB_PARAMS.mix.id, value: 0.35 })
     const later = outputs()
     processor.process(block(1), later)
     // dry·(1−mix): the first tail samples are still in the pre-delay.
@@ -105,7 +105,7 @@ describe('WasmDeviceProcessor', () => {
   })
 
   it('treats a disconnected input as silence', () => {
-    const { processor } = construct([[DATTORRO_PARAMS.mix.id, 0]])
+    const { processor } = construct([[PLATE_REVERB_PARAMS.mix.id, 0]])
     const out = outputs()
     out[0][0].fill(9)
     processor.process([[]], out)
@@ -113,7 +113,7 @@ describe('WasmDeviceProcessor', () => {
   })
 
   it('bypass crossfades to the dry signal and back without a hard switch', () => {
-    const { processor, port } = construct([[DATTORRO_PARAMS.mix.id, 1]])
+    const { processor, port } = construct([[PLATE_REVERB_PARAMS.mix.id, 1]])
     // Wet-only at mix 1: before any tail arrives the output is silence.
     const wet = outputs()
     processor.process(block(0.5), wet)
@@ -136,7 +136,7 @@ describe('WasmDeviceProcessor', () => {
   })
 
   it('ignores note messages on an effect module (no device_note_on export)', () => {
-    const { processor, port } = construct([[DATTORRO_PARAMS.mix.id, 0]])
+    const { processor, port } = construct([[PLATE_REVERB_PARAMS.mix.id, 0]])
     port.receive({ type: 'note-on', noteId: 1, frequency: 440, gain: 0.5 })
     port.receive({ type: 'note-off', noteId: 1 })
     const out = outputs()
@@ -209,7 +209,7 @@ describe('WasmDeviceProcessor', () => {
   })
 
   it('lets go of its instance when disposed, without waiting to be rendered again', () => {
-    const { processor, port } = construct([[DATTORRO_PARAMS.mix.id, 0]])
+    const { processor, port } = construct([[PLATE_REVERB_PARAMS.mix.id, 0]])
     const held = processor as unknown as { device: unknown; outLeft: Float32Array }
     processor.process(block(0.25), outputs())
     expect(held.device).not.toBeNull()
@@ -227,7 +227,7 @@ describe('WasmDeviceProcessor', () => {
     expect(Math.max(...out[0][0])).toBe(0)
     // What is still on its way to a disposed device is dropped.
     expect(() => {
-      port.receive({ type: 'set-param', paramId: DATTORRO_PARAMS.mix.id, value: 1 })
+      port.receive({ type: 'set-param', paramId: PLATE_REVERB_PARAMS.mix.id, value: 1 })
       port.receive({ type: 'note-on', noteId: 1, frequency: 220, gain: 0.5 })
       port.receive({ type: 'dispose' })
     }).not.toThrow()

@@ -10,7 +10,7 @@ export const PEDAL_STEEL_PRESETS: readonly FactoryPreset[] = [
     instrument: { deviceId: 'pedal-steel', preset: 'Slow steel' },
     effects: [
       { deviceId: 'spring-reverb', preset: 'Two spring tank', params: { mix: 0.2 } },
-      { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.3 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.3 } },
     ],
     preview: 'chord',
   },
@@ -36,7 +36,7 @@ export const PEDAL_STEEL_PRESETS: readonly FactoryPreset[] = [
     instrument: { deviceId: 'pedal-steel', preset: 'Long slides', params: { volume: -7 } },
     effects: [
       { deviceId: 'tape-echo', preset: 'Warm repeats', params: { mix: 0.28, spread: 0.8 } },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.4 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.4 } },
     ],
     preview: 'keys',
   },
@@ -49,7 +49,7 @@ export const PEDAL_STEEL_PRESETS: readonly FactoryPreset[] = [
     instrument: { deviceId: 'pedal-steel', preset: 'Singing lead', params: { volume: -6 } },
     effects: [
       { deviceId: 'tape-echo', preset: 'Three heads', params: { mix: 0.22 } },
-      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.3 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.3 } },
     ],
     preview: 'keys',
   },
@@ -77,7 +77,7 @@ export const PEDAL_STEEL_PRESETS: readonly FactoryPreset[] = [
       preset: 'Slow steel',
       params: { swell: 0, sustain: 7, range: 0, vibrato: 5, pick: 0.12, tone: 2000, volume: -10 },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Tight chamber', params: { mix: 0.3 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Tight chamber', params: { mix: 0.3 } }],
   },
   {
     id: 'combo-amp-steel',
@@ -105,7 +105,7 @@ export const PEDAL_STEEL_PRESETS: readonly FactoryPreset[] = [
         preset: 'Clean and bright',
         params: { treble: 0.4, distance: 0.3, room: 0.5, output: -4.5 },
       },
-      { deviceId: 'zita-rev1', preset: 'Room' },
+      { deviceId: 'hall-reverb', preset: 'Room' },
     ],
   },
   {
@@ -147,7 +147,7 @@ export const PEDAL_STEEL_PRESETS: readonly FactoryPreset[] = [
         preset: 'Warm stack',
         params: { drive: 0.3, distance: 0.1, output: -4 },
       },
-      { deviceId: 'zita-rev1', preset: 'Room' },
+      { deviceId: 'hall-reverb', preset: 'Room' },
     ],
     preview: 'chord',
   },
@@ -303,7 +303,7 @@ export const PEDAL_STEEL_PRESETS: readonly FactoryPreset[] = [
         preset: 'String pad',
         params: { rise: 0.9, fall: 8, width: 0.3, mix: 0.5 },
       },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
   {
@@ -320,7 +320,7 @@ export const PEDAL_STEEL_PRESETS: readonly FactoryPreset[] = [
     effects: [
       { deviceId: 'octaves', preset: 'Organ' },
       { deviceId: 'rotary', preset: 'Chorale', params: { drive: 0.1, spread: 0.45 } },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
   {
@@ -336,7 +336,7 @@ export const PEDAL_STEEL_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'chorus', preset: 'Lush ensemble', params: { mix: 0.35 } },
-      { deviceId: 'zita-rev1', preset: 'Vast nave', params: { mix: 0.4 } },
+      { deviceId: 'hall-reverb', preset: 'Vast nave', params: { mix: 0.4 } },
     ],
   },
   {
@@ -356,7 +356,7 @@ export const PEDAL_STEEL_PRESETS: readonly FactoryPreset[] = [
         preset: 'Backwards only',
         params: { time: 500, smooth: 0.4, tone: 5000, spread: 0 },
       },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
   {

@@ -12,13 +12,17 @@ import { Lfo, Macro } from '../../core/automation/Modulator'
 import { type StretchNode, type StretchNodeFactory } from '../../core/sources/StretchSource'
 import { type Device, type NoteDevice, type StatefulDevice } from '../../core/devices/Device'
 import { NODE_DEVICES } from '../../core/devices/native'
+import { FILTER_DEVICE } from '../../core/devices/native/Filter'
+import { NodeDevice } from '../../core/devices/native/NodeDevice'
 import { DeviceRegistry } from '../../core/devices/registry'
 import { createEngine, type Engine } from '../../core/Engine'
 import { type Operation } from '../operations'
 import {
   createScore,
   defaultStrip,
+  findDevice,
   masterDestination,
+  withCurrentDeviceIds,
   type Score,
   type ScoreDevice,
 } from '../schema'
@@ -104,6 +108,38 @@ describe('ScoreRenderer: first render', () => {
     expect(ctx.gains).toHaveLength(1) // the master only
     expect(renderer.rendered).toBeNull()
     engine.dispose()
+  })
+
+  it('renders a device saved under an id it had before it was renamed, and follows the document on to the new one', async () => {
+    // The filter under a new id, still answering to the old one.
+    const renamed = new DeviceRegistry(
+      NODE_DEVICES.map((descriptor) =>
+        descriptor.id === 'filter'
+          ? {
+              ...descriptor,
+              id: 'tone',
+              formerIds: ['filter'],
+              create: (context, options) =>
+                new NodeDevice(context, { ...FILTER_DEVICE, id: 'tone' }, options),
+            }
+          : descriptor,
+      ),
+    )
+    const score = demoScore()
+    expect(findDevice(score, 'kick-filter')?.device.deviceId).toBe('filter')
+    const { renderer, errors, document, edit } = await rig(score, renamed)
+    expect(errors).toEqual([])
+    const saved = renderer.device('kick-filter')
+    expect(saved.id).toBe('tone')
+    expect(saved.getParam('frequency')).toBe(2000)
+    // The lane and the route that address the instance still reach it.
+    expect(renderer.engine.modulation.routes).toHaveLength(1)
+
+    await edit({ type: 'score.replace', score: withCurrentDeviceIds(document.score, renamed) })
+    expect(errors).toEqual([])
+    expect(findDevice(document.score, 'kick-filter')?.device.deviceId).toBe('tone')
+    expect(renderer.device('kick-filter').id).toBe('tone')
+    expect(renderer.device('kick-filter').getParam('frequency')).toBe(2000)
   })
 
   it("gives the scheduler the score's seed, and a clip its chance", async () => {

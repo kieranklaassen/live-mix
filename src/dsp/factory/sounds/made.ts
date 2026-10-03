@@ -7,7 +7,7 @@
 // white key that way; a chord or a phrase only by octaves, or by a fifth when
 // it has no B (up) or no F (down) in it.
 
-import { breathe, zita } from '../parts'
+import { breathe, hall } from '../parts'
 import { type FactorySound } from '../types'
 import { looped, played, sound } from './recipe'
 
@@ -38,7 +38,7 @@ export const MADE: readonly FactorySound[] = [
         tone: 3000,
       },
     },
-    effects: [{ deviceId: 'stereo-widener', preset: 'Narrow' }, zita('Hall', 0.45)],
+    effects: [{ deviceId: 'stereo-widener', preset: 'Narrow' }, hall('Hall', 0.45)],
     ...looped(8, 5, 3, [67]),
   }),
   sound({
@@ -67,7 +67,7 @@ export const MADE: readonly FactorySound[] = [
         tone: 14000,
       },
     },
-    effects: [zita('Hall', 0.35)],
+    effects: [hall('Hall', 0.35)],
     ...looped(8, 3, 2, [72]),
   }),
   sound({
@@ -93,7 +93,7 @@ export const MADE: readonly FactorySound[] = [
         tone: 6000,
       },
     },
-    effects: [zita('Hall', 0.4)],
+    effects: [hall('Hall', 0.4)],
     ...looped(8, 4, 2, [60]),
   }),
   sound({
@@ -130,7 +130,7 @@ export const MADE: readonly FactorySound[] = [
       params: { tone: 9000, wobble: 0.25, release: 0.5 },
     },
     // The halo of the phrase has more side than mid for seconds at a time: narrowed before the hall.
-    effects: [{ deviceId: 'stereo-widener', preset: 'Narrow' }, zita('Hall', 0.25)],
+    effects: [{ deviceId: 'stereo-widener', preset: 'Narrow' }, hall('Hall', 0.25)],
     // Half speed makes the eight seconds sixteen; the last of them is silence and is left off.
     ...played(15, [[0, 14.8, 48]], 1),
   }),
@@ -147,7 +147,7 @@ export const MADE: readonly FactorySound[] = [
       preset: 'One shot',
       params: { tone: 9000, wobble: 0.2, release: 0.5 },
     },
-    effects: [{ deviceId: 'limiter-1176', preset: 'Drive' }, zita('Hall', 0.3)],
+    effects: [{ deviceId: 'fet-limiter', preset: 'Drive' }, hall('Hall', 0.3)],
     ...played(
       8,
       [

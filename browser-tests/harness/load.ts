@@ -8,9 +8,9 @@
 import { createEngine, type EngineStatsSnapshot } from '@kieranklaassen/live-mix'
 import {
   SHIMMER_DEVICE,
-  ZITA_REV1_DEVICE,
+  HALL_REVERB_DEVICE,
   createShimmer,
-  createZitaReverb,
+  createHallReverb,
   type Device,
 } from '@kieranklaassen/live-mix/dsp'
 
@@ -32,7 +32,7 @@ const KINDS: {
   count: number
   create: (context: BaseAudioContext) => Promise<Device>
 }[] = [
-  { definition: ZITA_REV1_DEVICE, count: 4, create: (context) => createZitaReverb(context) },
+  { definition: HALL_REVERB_DEVICE, count: 4, create: (context) => createHallReverb(context) },
   { definition: SHIMMER_DEVICE, count: 2, create: (context) => createShimmer(context) },
 ]
 

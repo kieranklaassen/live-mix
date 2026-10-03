@@ -48,7 +48,7 @@ bounces with sidechain ducking; live-input tracks and element tracks (media
 elements play in real time only) are dropped by `renderableScore` with the
 lanes and routes on them. WASM devices and worklets do run offline (Chromium,
 Firefox); the playground's "Render offline" button bounces its demo through
-the Dattorro plate and StereoWidener.
+the plate reverb and StereoWidener.
 
 ## Stems
 
@@ -114,7 +114,7 @@ Chrome) is the **real-audio golden**: a page over the built package with a
 Web Audio call recorder proves that a real `OfflineAudioContext` receives
 exactly the source starts and `AudioParam` calls the Node mocks record for
 the same session, that audio flows through the real worklets and WASM (a
-Dattorro return included), and that a live capture of the same session
+plate return included), and that a live capture of the same session
 through the recorder worklet matches the offline render within 1.5 dB RMS /
 3 dB per band. Its first catch changed the lane writers: a ramp issued after
 its segment had begun renders as a jump, so `LaneWriter` now hands each

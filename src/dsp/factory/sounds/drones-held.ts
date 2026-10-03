@@ -2,7 +2,7 @@
 // fifth, held for as long as the loop lasts.
 // Numbers 135 to 140. What every sound here is held to is in docs/factory.md.
 
-import { quarterTurn, zita } from '../parts'
+import { quarterTurn, hall } from '../parts'
 import { type FactorySound } from '../types'
 import { looped, sound } from './recipe'
 
@@ -27,7 +27,7 @@ export const DRONES_HELD: readonly FactorySound[] = [
       // A pluck stands 6 dB over the strings still ringing, which reads as a note and not as
       // a drone: the limiter takes the pluck down and the compressor brings the ringing back
       // up behind it.
-      { deviceId: 'limiter-1176', params: { inputGain: 30, outputGain: -12 } },
+      { deviceId: 'fet-limiter', params: { inputGain: 30, outputGain: -12 } },
       {
         deviceId: 'ambient-comp',
         params: {
@@ -41,7 +41,7 @@ export const DRONES_HELD: readonly FactorySound[] = [
           makeup: 18,
         },
       },
-      zita('Room', 0.3),
+      hall('Room', 0.3),
     ],
     // The fifth pluck falls at 2.69 s and the sixth at 3.35 s: the loop starts just after the
     // one, with every string plucked once, and its fold is over before the other.
@@ -60,7 +60,7 @@ export const DRONES_HELD: readonly FactorySound[] = [
     },
     // No more of the room than this: its low resonances take one key up and the next down, and
     // at half and half the level moved by 4.5 LU and the width by 12 dB from key to key.
-    effects: [zita('Room', 0.3), quarterTurn(8)],
+    effects: [hall('Room', 0.3), quarterTurn(8)],
     // The breath wanders by a dB or so, the same way in every key: from here the two ends of
     // the loop are as loud as each other.
     ...looped(8, 5.5, 1, [41]),
@@ -80,7 +80,7 @@ export const DRONES_HELD: readonly FactorySound[] = [
       preset: 'Horn swell',
       params: { section: 0, breath: 0.5, attack: 1 },
     },
-    effects: [zita('Hall', 0.4), quarterTurn(8)],
+    effects: [hall('Hall', 0.4), quarterTurn(8)],
     ...looped(8, 5, 2, [55, [62, 0.7]]),
     tuning: 'whole-cycles',
   }),
@@ -109,7 +109,7 @@ export const DRONES_HELD: readonly FactorySound[] = [
           makeup: 24,
         },
       },
-      zita('Hall', 0.3),
+      hall('Hall', 0.3),
       quarterTurn(8),
     ],
     // Both at the touch where a flute is in tune (blown harder it goes sharp). It holds its
@@ -133,7 +133,7 @@ export const DRONES_HELD: readonly FactorySound[] = [
       preset: 'Still halo',
       params: { players: 1, scatter: 0 },
     },
-    effects: [zita('Hall', 0.4), quarterTurn(8)],
+    effects: [hall('Hall', 0.4), quarterTurn(8)],
     ...looped(8, 5, 2, [72, [79, 0.7]]),
     tuning: 'whole-cycles',
   }),
@@ -152,7 +152,7 @@ export const DRONES_HELD: readonly FactorySound[] = [
         preset: 'Glass organ',
         params: { tone: -0.3, motion: 0.15, lowCut: 60, mix: 1 },
       },
-      zita('Hall', 0.35),
+      hall('Hall', 0.35),
     ],
     ...looped(8, 6, 1, [57, [64, 0.7]]),
   }),

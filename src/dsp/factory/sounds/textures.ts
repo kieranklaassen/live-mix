@@ -7,7 +7,7 @@
 // another register) set far enough off to run together.
 
 import { type PatchDevice } from '../../../core/devices/patch'
-import { breathe, soften, zita } from '../parts'
+import { breathe, soften, hall } from '../parts'
 import { type FactorySound } from '../types'
 import { looped, sound, weather } from './recipe'
 
@@ -55,7 +55,7 @@ export const TEXTURES: readonly FactorySound[] = [
     kind: 'texture',
     description: 'Fast water falling a long way off: an even roar with a hall reverb behind it.',
     instrument: outdoors('Fast water', { distance: 0.8, tone: 0.3, attack: 1, width: 0.7 }),
-    effects: [zita('Hall', 0.3)],
+    effects: [hall('Hall', 0.3)],
     ...looped(8, 3, 2, [43]),
   }),
   sound({
@@ -112,7 +112,7 @@ export const TEXTURES: readonly FactorySound[] = [
     description:
       'Gusts across a chimney top heard from the room below: a hollow moan, rising and falling.',
     instrument: weather('Whistling gap', { resonance: 0.35, size: 0.5 }),
-    effects: [zita('Room', 0.3)],
+    effects: [hall('Room', 0.3)],
     ...looped(16, 6, 3, [50]),
   }),
   sound({
@@ -135,7 +135,7 @@ export const TEXTURES: readonly FactorySound[] = [
     kind: 'texture',
     description: 'Bands of tuned noise on a shortwave radio, fading in and out of its static.',
     instrument: { deviceId: 'thesis', params: { resonance: 20, attack: 0.3, breatheRate: 0.25 } },
-    effects: [{ deviceId: 'radio', preset: 'Night shortwave' }, zita('Room', 0.5)],
+    effects: [{ deviceId: 'radio', preset: 'Night shortwave' }, hall('Room', 0.5)],
     ...looped(8, 6, 2, [55, 62]),
   }),
 ]

@@ -23,7 +23,7 @@ export const PITCH_CHAINS: readonly FactoryChain[] = [
     description: 'A third above and a sixth below a single line, in C major, in a small room.',
     effects: [
       { deviceId: 'lattice', preset: 'Diatonic thirds', params: { output: 7 } },
-      { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.2 } },
+      { deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.2 } },
     ],
   },
   {
@@ -33,7 +33,7 @@ export const PITCH_CHAINS: readonly FactoryChain[] = [
     description: 'Echoes that jump an octave each time they repeat, left and right, into a plate.',
     effects: [
       { deviceId: 'lattice', preset: 'Crystal cascade', params: { output: 5 } },
-      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.3 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.3 } },
     ],
   },
   {
@@ -71,7 +71,7 @@ export const PITCH_CHAINS: readonly FactoryChain[] = [
       'A sharp copy on the left and a flat copy on the right, darkened and hung in a plate.',
     effects: [
       { deviceId: 'stereo-detune', preset: 'Piano haze' },
-      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -92,7 +92,7 @@ export const PITCH_CHAINS: readonly FactoryChain[] = [
       'Your playing again an octave down at half speed, dark and continuous, under the dry signal and into a plate.',
     effects: [
       { deviceId: 'half-speed', preset: 'Under the mix', params: { mix: 0.35 } },
-      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -113,7 +113,7 @@ export const PITCH_CHAINS: readonly FactoryChain[] = [
     description: 'A clean octave up beside the dry sound, softened by a plate.',
     effects: [
       { deviceId: 'pitch-shifter', preset: 'Octave up', params: { mode: 3, mix: 0.4 } },
-      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -123,7 +123,7 @@ export const PITCH_CHAINS: readonly FactoryChain[] = [
     description: 'A wide fifth above held chords, every note moved cleanly, blurred in a plate.',
     effects: [
       { deviceId: 'pitch-shifter', preset: 'Pad fifth' },
-      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.3 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.3 } },
     ],
   },
   {
@@ -134,7 +134,7 @@ export const PITCH_CHAINS: readonly FactoryChain[] = [
       'A cave whose echoes jump by fourths and fifths on their own, softened by a plate.',
     effects: [
       { deviceId: 'swarm-reverb', preset: 'Intervals', params: { mix: 0.35 } },
-      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -145,7 +145,7 @@ export const PITCH_CHAINS: readonly FactoryChain[] = [
       'Every note of a chord doubled an octave and two below and above, like drawbars, in a plate.',
     effects: [
       { deviceId: 'octaves', preset: 'Organ' },
-      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -188,7 +188,7 @@ export const PITCH_CHAINS: readonly FactoryChain[] = [
     description: 'A faint clean octave above the notes, then a bright hall with a long thin tail.',
     effects: [
       { deviceId: 'pitch-shifter', preset: 'Faint air' },
-      { deviceId: 'zita-rev1', preset: 'Airy tail', params: { mix: 0.25 } },
+      { deviceId: 'hall-reverb', preset: 'Airy tail', params: { mix: 0.25 } },
     ],
   },
   {
@@ -236,7 +236,7 @@ export const PITCH_CHAINS: readonly FactoryChain[] = [
       'A single line gains a voice that falls as it rises, a third above and an answer from the other octave, in a hall.',
     effects: [
       { deviceId: 'lattice', preset: 'Thesis voicing', params: { output: 3.2 } },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.25 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.25 } },
     ],
   },
   {
@@ -257,9 +257,9 @@ export const PITCH_CHAINS: readonly FactoryChain[] = [
     description:
       'A long plate sent round a shifter that lifts it a hertz and a half each pass, so the tail seems to climb for ever, under a limiter.',
     effects: [
-      { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.3 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.3 } },
       { deviceId: 'freq-shifter', preset: 'Barber pole', params: { feedback: 0.7, width: 0.6 } },
-      { deviceId: 'limiter-1176', preset: 'Safety', params: { outputGain: -1.5 } },
+      { deviceId: 'fet-limiter', preset: 'Safety', params: { outputGain: -1.5 } },
     ],
   },
   {
@@ -353,7 +353,7 @@ export const PITCH_CHAINS: readonly FactoryChain[] = [
       'Attacks removed so notes bow in, levelled, into a long reverb whose tail climbs an octave and a fifth like organ ranks.',
     effects: [
       { deviceId: 'swell', preset: 'Bowed', params: { attack: 300 } },
-      { deviceId: 'limiter-1176', params: { inputGain: 9, outputGain: -6.5 } },
+      { deviceId: 'fet-limiter', params: { inputGain: 9, outputGain: -6.5 } },
       { deviceId: 'shimmer', preset: 'Organ loft', params: { mix: 0.5 } },
     ],
   },
@@ -369,7 +369,7 @@ export const PITCH_CHAINS: readonly FactoryChain[] = [
         preset: 'Tuned double',
         params: { scale: 0, mix: 100, v1Level: 0, v1Pan: 0, v1Delay: 0, v2Role: 0, output: 3 },
       },
-      { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.3 } },
     ],
   },
   {

@@ -55,7 +55,7 @@ export const GRAIN_SYNTH_PRESETS: readonly FactoryPreset[] = [
       preset: 'Backwards wash',
       params: { position: 0.12, scan: -0.08, size: 700, spread: 0.5, volume: -10 },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.35 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.35 } }],
   },
   {
     id: 'slow-tape-stretch',
@@ -79,7 +79,7 @@ export const GRAIN_SYNTH_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tape', preset: 'Worn thin', params: { output: -3 } },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
   {
@@ -129,7 +129,7 @@ export const GRAIN_SYNTH_PRESETS: readonly FactoryPreset[] = [
         volume: -15.5,
       },
     },
-    effects: [{ deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.2 } }],
+    effects: [{ deviceId: 'plate-reverb', preset: 'Small plate', params: { mix: 0.2 } }],
   },
   {
     id: 'plain-grain-cloud',
@@ -163,7 +163,7 @@ export const GRAIN_SYNTH_PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'zita-rev1', preset: 'Bright hall', params: { mix: 0.25 } },
+      { deviceId: 'hall-reverb', preset: 'Bright hall', params: { mix: 0.25 } },
       { deviceId: 'ambient-limiter', preset: 'Margin', params: { ceiling: -4 } },
     ],
   },
@@ -192,7 +192,7 @@ export const GRAIN_SYNTH_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'analog-drive', preset: 'Low warmth' },
-      { deviceId: 'zita-rev1', preset: 'Dark hall', params: { mix: 0.35 } },
+      { deviceId: 'hall-reverb', preset: 'Dark hall', params: { mix: 0.35 } },
     ],
   },
   {
@@ -220,7 +220,7 @@ export const GRAIN_SYNTH_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'rotary', preset: 'Chorale' },
-      { deviceId: 'zita-rev1', preset: 'Tight chamber' },
+      { deviceId: 'hall-reverb', preset: 'Tight chamber' },
     ],
   },
   {
@@ -246,7 +246,7 @@ export const GRAIN_SYNTH_PRESETS: readonly FactoryPreset[] = [
         volume: -16,
       },
     },
-    effects: [{ deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.3 } }],
+    effects: [{ deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.3 } }],
   },
   {
     id: 'whole-sound-cloud',
@@ -405,7 +405,7 @@ export const GRAIN_SYNTH_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'phaser', preset: 'Slow swirl', params: { mix: 0.35 } },
-      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.25 } },
       { deviceId: 'ambient-limiter', preset: 'Margin', params: { ceiling: -4 } },
     ],
   },
@@ -461,7 +461,7 @@ export const GRAIN_SYNTH_PRESETS: readonly FactoryPreset[] = [
         volume: -19,
       },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Far away', params: { mix: 0.5 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Far away', params: { mix: 0.5 } }],
   },
   {
     id: 'grain-locked-groove',

@@ -1,0 +1,12 @@
+{
+  "id": "hall-reverb",
+  "name": "Hall Reverb",
+  "sources": ["hall-reverb.dsp", "generated/hall-reverb.h", "hall-reverb.device.cpp"],
+  "params": "src/dsp/devices/faust/hall-reverb.ts",
+  "origin": {
+    "faust": "2.88.0",
+    "generator": "scripts/build-faust.sh",
+    "libraries": ["reverbs.lib zita_rev1_stereo (Julius O. Smith III, STK-4.3)"],
+    "algorithm": "hall-reverb by Fons Adriaensen"
+  }
+}

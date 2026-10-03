@@ -7,7 +7,7 @@
 // captures (for the render-equals-live tolerance).
 
 import { ParamLane, WorkletRecorder, createEngine, renderOffline } from '@kieranklaassen/live-mix'
-import { createDattorroReverb } from '@kieranklaassen/live-mix/dsp'
+import { createPlateReverb } from '@kieranklaassen/live-mix/dsp'
 import type { ScheduleSnapshot } from '@kieranklaassen/live-mix/testing'
 import { DEFAULT_SESSION, buildSession, type SessionDeps, type SessionSpec } from '../session'
 import { fingerprint, type Fingerprint } from './fingerprint'
@@ -34,7 +34,7 @@ export interface HarnessResult {
 }
 
 const deps: SessionDeps = {
-  createReverb: (ctx) => createDattorroReverb(ctx, { params: { mix: 0.3, decay: 0.6 } }),
+  createReverb: (ctx) => createPlateReverb(ctx, { params: { mix: 0.3, decay: 0.6 } }),
   createLane: (options) => new ParamLane(options),
 }
 

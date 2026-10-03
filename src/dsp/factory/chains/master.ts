@@ -10,7 +10,7 @@ export const MASTER_CHAINS: readonly FactoryChain[] = [
     description: 'A few decibels of soft saturation and a limiter that only catches peaks.',
     effects: [
       { deviceId: 'saturator', preset: 'Warm glue', params: { driveDb: 3, outputDb: -4 } },
-      { deviceId: 'limiter-1176', params: { inputGain: 3, outputGain: -3 } },
+      { deviceId: 'fet-limiter', params: { inputGain: 3, outputGain: -3 } },
     ],
   },
   {
@@ -21,7 +21,7 @@ export const MASTER_CHAINS: readonly FactoryChain[] = [
       'A little more side signal with the bass kept in the middle, then a safety limiter.',
     effects: [
       { deviceId: 'stereo-widener', params: { width: 0.62 } },
-      { deviceId: 'limiter-1176', preset: 'Safety' },
+      { deviceId: 'fet-limiter', preset: 'Safety' },
     ],
   },
   {
@@ -33,7 +33,7 @@ export const MASTER_CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'tape', preset: 'Mastering deck', params: { drive: 0.25, hiss: 0 } },
       { deviceId: 'stereo-widener', params: { width: 0.56 } },
-      { deviceId: 'limiter-1176', preset: 'Safety' },
+      { deviceId: 'fet-limiter', preset: 'Safety' },
     ],
   },
   {
@@ -154,7 +154,7 @@ export const MASTER_CHAINS: readonly FactoryChain[] = [
         params: { drive: 0.05, lowBump: 0.4, tone: 0, output: -2 },
       },
       { deviceId: 'ambient-eq', preset: 'Master', params: { lowCut: 28, clear: 0 } },
-      { deviceId: 'limiter-1176', preset: 'Safety' },
+      { deviceId: 'fet-limiter', preset: 'Safety' },
     ],
   },
   {
@@ -216,7 +216,7 @@ export const MASTER_CHAINS: readonly FactoryChain[] = [
         params: { drive: 0.3, wobble: 0.1, wear: 0.2, noise: 0.15, tone: 0.2 },
       },
       { deviceId: 'stereo-widener', params: { width: 0.42 } },
-      { deviceId: 'limiter-1176', preset: 'Safety' },
+      { deviceId: 'fet-limiter', preset: 'Safety' },
     ],
   },
   {
@@ -272,7 +272,7 @@ export const MASTER_CHAINS: readonly FactoryChain[] = [
     description:
       'A faint one second chamber under everything so separate sounds share a room, then glued and capped.',
     effects: [
-      { deviceId: 'zita-rev1', preset: 'Tight chamber', params: { damping: 5000, mix: 0.08 } },
+      { deviceId: 'hall-reverb', preset: 'Tight chamber', params: { damping: 5000, mix: 0.08 } },
       { deviceId: 'ambient-comp', preset: 'Glue' },
       { deviceId: 'ambient-limiter', preset: 'Master' },
     ],

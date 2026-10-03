@@ -1,4 +1,4 @@
-// Native harness for the Zita-Rev1 Faust device: the parameter contract the
+// Native harness for the hall reverb Faust device: the parameter contract the
 // TypeScript table relies on, the stereo bus contract shared with every
 // device, and the reverb's behaviour (tail, decay tracking, sample-rate
 // independence, stability). Compiled with the system C++ compiler by
@@ -11,7 +11,7 @@
 #include <cstring>
 
 #include "../faust/common/faust_device.h"
-#include "../faust/generated/zita-rev1.h"
+#include "../faust/generated/hall-reverb.h"
 
 namespace {
 
@@ -25,19 +25,19 @@ int g_failures = 0;
     }                                                                 \
   } while (0)
 
-using Device = livemix::faust::FaustDevice<livemix::faust::ZitaRev1, 20>;
+using Device = livemix::faust::FaustDevice<livemix::faust::HallReverb, 20>;
 
 constexpr float kSampleRate = 48000.0f;
 constexpr int kBlock = 128;
 constexpr float kTwoPi = 6.28318530717958647692f;
 
-// Ids as src/dsp/devices/faust/zita-rev1.ts declares them.
+// Ids as src/dsp/devices/faust/hall-reverb.ts declares them.
 enum Param : int { kPreDelay = 0, kCrossover, kLowDecay, kMidDecay, kDamping, kMix };
 
 Device g_test_device;
 // The same DSP behind an hour's hold: it runs every block, as the wrapper did
 // before it could sleep.
-using AwakeDevice = livemix::faust::FaustDevice<livemix::faust::ZitaRev1, 3600>;
+using AwakeDevice = livemix::faust::FaustDevice<livemix::faust::HallReverb, 3600>;
 AwakeDevice g_awake_device;
 
 // Renders `seconds` of silence, returning the peak absolute output and
@@ -98,7 +98,7 @@ float feed_tone(Device& device, float seconds, float frequency, float gain,
 void test_param_table_matches_typescript() {
   Device& device = g_test_device;
   device.init(kSampleRate);
-  EXPECT(device.param_count() == 6, "zita-rev1 exposes six parameters");
+  EXPECT(device.param_count() == 6, "hall-reverb exposes six parameters");
 
   struct Expected {
     const char* label;
@@ -163,7 +163,7 @@ void test_input_bus_passthrough_and_clear() {
   EXPECT(residual < 1.0e-5f, "input bus should clear between blocks");
 }
 
-// The balance is the Dattorro device's (dry*(1-mix) + wet*mix); the sum is
+// The balance is the plate reverb's (dry*(1-mix) + wet*mix); the sum is
 // then divided by sqrt((1-mix)^2 + 0.2*mix^2), what dry and a wet signal 7 dB
 // under it add up to in power, so the level does not fall as Mix rises.
 float levelled(float mix) {
@@ -218,7 +218,7 @@ void test_level_holds_as_mix_rises() {
     return static_cast<float>(std::sqrt(sum / counted));
   };
   const float dry = rms_at(0.0f);
-  std::printf("zita-rev1 level against the dry signal (steady noise):");
+  std::printf("hall-reverb level against the dry signal (steady noise):");
   for (float mix : {0.25f, 0.35f, 0.5f, 0.75f, 1.0f}) {
     const float db = 20.0f * std::log10(rms_at(mix) / dry);
     std::printf(" mix %.2f %+.1f dB", mix, db);
@@ -442,9 +442,9 @@ int main() {
   test_sleeps_after_the_hold_and_wakes_unchanged();
 
   if (g_failures == 0) {
-    std::printf("zita-rev1 device tests: all passed\n");
+    std::printf("hall-reverb device tests: all passed\n");
     return 0;
   }
-  std::printf("zita-rev1 device tests: %d failure(s)\n", g_failures);
+  std::printf("hall-reverb device tests: %d failure(s)\n", g_failures);
   return 1;
 }

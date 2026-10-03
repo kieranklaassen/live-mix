@@ -6,22 +6,23 @@
 import { type DeviceDescriptor, type DeviceRegistry, devices } from '../core/devices'
 import { DUCKER_PARAMS } from '../core/devices/native/ducker-abi'
 import { type WorkletDuckerOptions } from '../core/devices/native/WorkletDucker'
-import { DATTORRO_DEVICE } from './devices/dattorro'
+import { PLATE_REVERB_DEVICE } from './devices/plate-reverb'
 import { ETHER_REVERB_DEVICE } from './devices/ether-reverb'
 import { FELT_PIANO_DEVICE } from './devices/felt-piano'
 import { createWorkletDucker, type DuckerProcessorOverrides } from './devices/ducker'
 import { FDN_REVERB_DEVICE } from './devices/fdn-reverb'
 import { GENERATED_WASM_DESCRIPTORS, GENERATED_WASM_DEVICES } from './devices/index.gen'
-import { LIMITER_1176_DEVICE } from './devices/limiter-1176'
+import { FET_LIMITER_DEVICE } from './devices/fet-limiter'
 import { SPECTRAL_DRIFTER_DEVICE } from './devices/spectral-drifter'
 import { STEREO_WIDENER_DEVICE } from './devices/stereo-widener'
-import { ZITA_REV1_DEVICE } from './devices/zita-rev1'
+import { HALL_REVERB_DEVICE } from './devices/hall-reverb'
 import { wasmDeviceDescriptor } from './descriptor'
 
 export { wasmDeviceDescriptor, type WasmDeviceMeta } from './descriptor'
 
-export const DATTORRO_DESCRIPTOR = wasmDeviceDescriptor(DATTORRO_DEVICE, {
+export const PLATE_REVERB_DESCRIPTOR = wasmDeviceDescriptor(PLATE_REVERB_DEVICE, {
   name: 'Plate Reverb',
+  formerIds: ['dattorro'],
   category: 'reverb',
   description:
     'A plate reverb: the input is summed to mono, diffused and sent round a modulated figure-of-eight tank, for a smooth stereo tail on a bus or the master.',
@@ -113,8 +114,9 @@ export const STEREO_WIDENER_DESCRIPTOR = wasmDeviceDescriptor(STEREO_WIDENER_DEV
   },
 })
 
-export const ZITA_REV1_DESCRIPTOR = wasmDeviceDescriptor(ZITA_REV1_DEVICE, {
+export const HALL_REVERB_DESCRIPTOR = wasmDeviceDescriptor(HALL_REVERB_DEVICE, {
   name: 'Hall Reverb',
+  formerIds: ['zita-rev1'],
   category: 'reverb',
   description:
     'A hall reverb: an eight-line network with separate decay times for lows and mids, levelled so the output stays as loud as the input at any mix.',
@@ -155,8 +157,9 @@ export const ZITA_REV1_DESCRIPTOR = wasmDeviceDescriptor(ZITA_REV1_DEVICE, {
   },
 })
 
-export const LIMITER_1176_DESCRIPTOR = wasmDeviceDescriptor(LIMITER_1176_DEVICE, {
+export const FET_LIMITER_DESCRIPTOR = wasmDeviceDescriptor(FET_LIMITER_DEVICE, {
   name: 'FET Limiter',
+  formerIds: ['limiter-1176'],
   category: 'dynamics',
   description:
     'Fast levelling, driven from the input: a fixed 4:1 compressor with a fast attack that you push with the input gain, followed by a soft ceiling that stops peaks at full scale.',
@@ -340,11 +343,11 @@ export const FELT_PIANO_DESCRIPTOR = wasmDeviceDescriptor(FELT_PIANO_DEVICE, {
 })
 
 export const STOCK_WASM_DEVICES: readonly DeviceDescriptor[] = [
-  DATTORRO_DESCRIPTOR,
+  PLATE_REVERB_DESCRIPTOR,
   FDN_REVERB_DESCRIPTOR,
   STEREO_WIDENER_DESCRIPTOR,
-  ZITA_REV1_DESCRIPTOR,
-  LIMITER_1176_DESCRIPTOR,
+  HALL_REVERB_DESCRIPTOR,
+  FET_LIMITER_DESCRIPTOR,
   WORKLET_DUCKER_DESCRIPTOR,
   SPECTRAL_DRIFTER_DESCRIPTOR,
   ETHER_REVERB_DESCRIPTOR,
@@ -352,6 +355,24 @@ export const STOCK_WASM_DEVICES: readonly DeviceDescriptor[] = [
   // The spec devices (cpp/devices/*/device.json with a params array).
   ...GENERATED_WASM_DESCRIPTORS,
 ]
+
+const stockById = new Map<string, DeviceDescriptor>()
+
+/**
+ * The stock WASM device that goes by `deviceId`, today or before it was
+ * renamed (`formerIds`), without a registry: what an offline render or a
+ * browser of patches asks for a device named in a patch.
+ */
+export function describeStockWasmDevice(deviceId: string): DeviceDescriptor | undefined {
+  if (stockById.size === 0) {
+    for (const descriptor of STOCK_WASM_DEVICES) {
+      for (const former of descriptor.formerIds ?? []) stockById.set(former, descriptor)
+    }
+    // An id of today always wins over a former one.
+    for (const descriptor of STOCK_WASM_DEVICES) stockById.set(descriptor.id, descriptor)
+  }
+  return stockById.get(deviceId)
+}
 
 /** Stock devices that play a sound handed to them through `WasmDevice.loadSample`. */
 export const SAMPLE_DEVICE_IDS: ReadonlySet<string> = new Set(

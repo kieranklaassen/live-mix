@@ -29,9 +29,9 @@ const engine = createEngine({
 ## 2. Three tracks into one plate
 
 ```ts
-import { createDattorroReverb, createFeltPiano } from '@kieranklaassen/live-mix/dsp'
+import { createPlateReverb, createFeltPiano } from '@kieranklaassen/live-mix/dsp'
 
-const plate = await createDattorroReverb(context, { params: { mix: 0.35 } })
+const plate = await createPlateReverb(context, { params: { mix: 0.35 } })
 engine.master.addInsert(plate) // the global reverb law: dry·(1−mix) + wet·mix
 
 const piano = await createFeltPiano(context, { params: { polyphony: 12 } }) // kkfonie's Felt, a NoteDevice
@@ -96,7 +96,7 @@ const stream = await navigator.mediaDevices.getUserMedia({
 })
 input.attach(stream) // monitored through the same mix; nothing buffers it
 input.strip.setMute(true) // monitor off (ramped); setMute(false) to hear it
-input.strip.addInsert(await createZitaReverb(context, { params: { mix: 0.2 } }))
+input.strip.addInsert(await createHallReverb(context, { params: { mix: 0.2 } }))
 engine.ioLatency() // { baseSec, outputSec, inputSec, totalSec } — what the browser adds
 ```
 
@@ -142,7 +142,7 @@ const bounce = await renderOffline({
   durationSec: 32,
   engine: { loop: { enabled: true, lengthSec: 32 } },
   build: async (offline) => {
-    offline.master.addInsert(await createDattorroReverb(offline.context, { params: { mix: 0.35 } }))
+    offline.master.addInsert(await createPlateReverb(offline.context, { params: { mix: 0.35 } }))
     const track = offline.addAudioTrack('clips', { lookaheadSec: 0.2 })
     await offline.samples.load('42', fileBytes)
     track.clips.set(clips.clips.all())

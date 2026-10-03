@@ -38,7 +38,7 @@ export const STRING_MACHINE_PRESETS: readonly FactoryPreset[] = [
         preset: 'Slow swirl',
         params: { rate: 0.09, feedback: 45, stereo: 50 },
       },
-      { deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.2, decay: 0.7 } },
+      { deviceId: 'plate-reverb', preset: 'Small plate', params: { mix: 0.2, decay: 0.7 } },
     ],
   },
   {
@@ -57,7 +57,7 @@ export const STRING_MACHINE_PRESETS: readonly FactoryPreset[] = [
     instrument: { deviceId: 'string-machine', preset: 'Cellos', params: { volume: -5 } },
     effects: [
       { deviceId: 'saturator', preset: 'Warm glue', params: { outputDb: -4.5 } },
-      { deviceId: 'zita-rev1', preset: 'Hall' },
+      { deviceId: 'hall-reverb', preset: 'Hall' },
     ],
     preview: 'low',
   },
@@ -80,7 +80,7 @@ export const STRING_MACHINE_PRESETS: readonly FactoryPreset[] = [
         volume: -6,
       },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Room' }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Room' }],
   },
   {
     id: 'full-rank-ensemble',
@@ -144,7 +144,7 @@ export const STRING_MACHINE_PRESETS: readonly FactoryPreset[] = [
         drift: 0.05,
       },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Dark hall', params: { mix: 0.3 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Dark hall', params: { mix: 0.3 } }],
   },
   {
     id: 'saw-rotary-organ',
@@ -167,7 +167,7 @@ export const STRING_MACHINE_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'rotary', preset: 'Chorale' },
-      { deviceId: 'zita-rev1', preset: 'Room' },
+      { deviceId: 'hall-reverb', preset: 'Room' },
     ],
   },
   {
@@ -191,7 +191,7 @@ export const STRING_MACHINE_PRESETS: readonly FactoryPreset[] = [
         volume: -10.5,
       },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Airy tail', params: { mix: 0.3 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Airy tail', params: { mix: 0.3 } }],
   },
   {
     id: 'string-lead-echo',
@@ -217,7 +217,7 @@ export const STRING_MACHINE_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'analog-delay', preset: 'Dark echo', params: { mix: 0.25 } },
-      { deviceId: 'zita-rev1', preset: 'Faint halo' },
+      { deviceId: 'hall-reverb', preset: 'Faint halo' },
     ],
     preview: 'line',
   },
@@ -246,7 +246,7 @@ export const STRING_MACHINE_PRESETS: readonly FactoryPreset[] = [
         preset: 'Amp tremolo',
         params: { rate: 10, depth: 0.85, shape: 1, phase: 60, drift: 0.35 },
       },
-      { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.35 } },
+      { deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.35 } },
     ],
   },
   {
@@ -283,7 +283,7 @@ export const STRING_MACHINE_PRESETS: readonly FactoryPreset[] = [
         },
       },
       { deviceId: 'saturator', preset: 'Tube preamp', params: { driveDb: 5, outputDb: -13.5 } },
-      { deviceId: 'zita-rev1', preset: 'Room' },
+      { deviceId: 'hall-reverb', preset: 'Room' },
     ],
   },
   {
@@ -363,7 +363,7 @@ export const STRING_MACHINE_PRESETS: readonly FactoryPreset[] = [
         preset: 'Underwater',
         params: { loss: 0.72, smear: 0, highCut: 6000 },
       },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.25 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.25 } },
     ],
   },
   {
@@ -387,7 +387,7 @@ export const STRING_MACHINE_PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'zita-rev1', preset: 'Room' },
+      { deviceId: 'hall-reverb', preset: 'Room' },
       { deviceId: 'vinyl', preset: 'Parlour 78' },
     ],
   },
@@ -414,7 +414,7 @@ export const STRING_MACHINE_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'grain-cloud', preset: 'Thick fog', params: { spread: 0.6, mix: 0.7 } },
-      { deviceId: 'zita-rev1', preset: 'Dark hall', params: { mix: 0.25 } },
+      { deviceId: 'hall-reverb', preset: 'Dark hall', params: { mix: 0.25 } },
     ],
     preview: 'chord',
   },
@@ -441,7 +441,7 @@ export const STRING_MACHINE_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'phaser', preset: 'Glacial sweep', params: { stereo: 15, mix: 0.4 } },
-      { deviceId: 'zita-rev1', preset: 'Vast nave', params: { mix: 0.4 } },
+      { deviceId: 'hall-reverb', preset: 'Vast nave', params: { mix: 0.4 } },
     ],
   },
 ]

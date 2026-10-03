@@ -32,13 +32,13 @@ export const PRESETS_EACH = 16
  */
 export const FEWER_PRESETS: Readonly<Record<string, number>> = {
   'ambient-limiter': 10,
-  dattorro: 10,
+  'plate-reverb': 10,
   'ether-reverb': 14,
   'fdn-reverb': 14,
-  'limiter-1176': 8,
+  'fet-limiter': 8,
   'spectral-drifter': 14,
   'stereo-widener': 6,
-  'zita-rev1': 12,
+  'hall-reverb': 12,
 }
 
 /**

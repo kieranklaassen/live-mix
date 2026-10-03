@@ -7,7 +7,7 @@ export const HANDPAN_PRESETS: readonly FactoryPreset[] = [
     category: 'bell',
     description: 'A handpan played with soft fingers in a small stone courtyard.',
     instrument: { deviceId: 'handpan', preset: 'Soft hands', params: { volume: -4 } },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.3 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.3 } }],
     preview: 'keys',
   },
   {
@@ -28,7 +28,7 @@ export const HANDPAN_PRESETS: readonly FactoryPreset[] = [
     instrument: { deviceId: 'handpan', preset: 'Tongue drum', params: { volume: -3 } },
     effects: [
       { deviceId: 'tape-echo', preset: 'Warm repeats', params: { mix: 0.25 } },
-      { deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.2 } },
+      { deviceId: 'plate-reverb', preset: 'Small plate', params: { mix: 0.2 } },
     ],
   },
   {
@@ -40,7 +40,7 @@ export const HANDPAN_PRESETS: readonly FactoryPreset[] = [
     instrument: { deviceId: 'handpan', preset: 'Rain taps', params: { volume: -1 } },
     effects: [
       { deviceId: 'grain-delay', preset: 'Grain cloud', params: { mix: 0.3, feedback: 0.35 } },
-      { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.3 } },
     ],
   },
   {
@@ -77,7 +77,7 @@ export const HANDPAN_PRESETS: readonly FactoryPreset[] = [
     description:
       'A handpan rapped with the knuckles, the overtones blooming just after each hit, on a medium plate.',
     instrument: { deviceId: 'handpan', preset: 'Knuckles', params: { decay: 4.5, volume: -5 } },
-    effects: [{ deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.3 } }],
+    effects: [{ deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.3 } }],
     preview: 'keys',
   },
   {
@@ -136,7 +136,7 @@ export const HANDPAN_PRESETS: readonly FactoryPreset[] = [
     effects: [
       { deviceId: 'analog-drive', preset: 'First hint' },
       { deviceId: 'analog-delay', preset: 'Slapback', params: { mix: 0.25 } },
-      { deviceId: 'dattorro', preset: 'Tight room' },
+      { deviceId: 'plate-reverb', preset: 'Tight room' },
     ],
   },
   {
@@ -182,7 +182,7 @@ export const HANDPAN_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'chorus', preset: 'Faint air' },
-      { deviceId: 'zita-rev1', preset: 'Airy tail', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Airy tail', params: { mix: 0.3 } },
     ],
   },
   {
@@ -292,7 +292,7 @@ export const HANDPAN_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'pad-follower', preset: 'Dark cellos', params: { mix: 0.7 } },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.25 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.25 } },
     ],
     preview: 'keys',
   },
@@ -367,7 +367,7 @@ export const HANDPAN_PRESETS: readonly FactoryPreset[] = [
         preset: 'Night shortwave',
         params: { static: 0.08, interference: 0 },
       },
-      { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.2 } },
+      { deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.2 } },
     ],
   },
 ]

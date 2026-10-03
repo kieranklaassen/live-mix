@@ -13,8 +13,8 @@ export const THESIS_PRESETS: readonly FactoryPreset[] = [
       params: { center: 71, attack: 0.7, release: 2.5 },
     },
     effects: [
-      { deviceId: 'limiter-1176', params: { inputGain: 14, outputGain: -3.5 } },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.35 } },
+      { deviceId: 'fet-limiter', params: { inputGain: 14, outputGain: -3.5 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.35 } },
     ],
     preview: 'hold',
   },
@@ -30,7 +30,7 @@ export const THESIS_PRESETS: readonly FactoryPreset[] = [
       params: { center: 67, resonance: 14, width: 85, attack: 2, release: 4, strum: 0, mode: 1 },
     },
     effects: [
-      { deviceId: 'limiter-1176', params: { inputGain: 8 } },
+      { deviceId: 'fet-limiter', params: { inputGain: 8 } },
       { deviceId: 'chorus', preset: 'Slow drift', params: { spread: 60, mix: 0.35 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
@@ -44,7 +44,7 @@ export const THESIS_PRESETS: readonly FactoryPreset[] = [
       'A minor triad of noise whose pitches wander slightly, through tape and a long space.',
     instrument: { deviceId: 'thesis', preset: 'Drifting Minor', params: { center: 59 } },
     effects: [
-      { deviceId: 'limiter-1176', params: { inputGain: 7 } },
+      { deviceId: 'fet-limiter', params: { inputGain: 7 } },
       { deviceId: 'tape', preset: 'Quarter inch' },
       { deviceId: 'expanse', preset: 'Open space', params: { mix: 0.35 } },
     ],
@@ -71,9 +71,9 @@ export const THESIS_PRESETS: readonly FactoryPreset[] = [
       params: { center: 60, attack: 0.12, release: 1.5 },
     },
     effects: [
-      { deviceId: 'limiter-1176', params: { inputGain: 7 } },
+      { deviceId: 'fet-limiter', params: { inputGain: 7 } },
       { deviceId: 'tape-echo', preset: 'Warm repeats' },
-      { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.3 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.3 } },
     ],
     preview: 'line',
   },
@@ -96,7 +96,7 @@ export const THESIS_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'ambient-limiter', params: { gain: 2 } },
-      { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.2 } },
+      { deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.2 } },
     ],
   },
   {
@@ -112,7 +112,7 @@ export const THESIS_PRESETS: readonly FactoryPreset[] = [
     effects: [
       { deviceId: 'ambient-limiter', params: { gain: -2 } },
       { deviceId: 'rotary', preset: 'Chorale', params: { drive: 0.1 } },
-      { deviceId: 'zita-rev1', preset: 'Tight chamber', params: { mix: 0.25 } },
+      { deviceId: 'hall-reverb', preset: 'Tight chamber', params: { mix: 0.25 } },
     ],
   },
   {
@@ -163,7 +163,7 @@ export const THESIS_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'ambient-limiter', params: { gain: -3 } },
-      { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.3 } },
     ],
   },
   {
@@ -188,7 +188,7 @@ export const THESIS_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'ambient-limiter', params: { gain: -3 } },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
   {
@@ -237,7 +237,7 @@ export const THESIS_PRESETS: readonly FactoryPreset[] = [
         params: { sympathy: 0.9, strings: 12, decay: 8, mix: 0.85, width: 0.5 },
       },
       { deviceId: 'ambient-limiter', params: { gain: -6.5 } },
-      { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.2 } },
+      { deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.2 } },
     ],
   },
   {
@@ -282,7 +282,7 @@ export const THESIS_PRESETS: readonly FactoryPreset[] = [
         params: { cutoffHz: 600, lfoAmount: 55, lfoRateHz: 0.2 },
       },
       { deviceId: 'ambient-limiter', params: { ceiling: -3, gain: 1 } },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
   {
@@ -306,7 +306,7 @@ export const THESIS_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'ambient-limiter', params: { ceiling: -3, gain: 12 } },
-      { deviceId: 'zita-rev1', preset: 'Dark hall', params: { mix: 0.35 } },
+      { deviceId: 'hall-reverb', preset: 'Dark hall', params: { mix: 0.35 } },
     ],
   },
   {
@@ -331,7 +331,7 @@ export const THESIS_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'ambient-eq', preset: 'Distant', params: { clear: 0 } },
-      { deviceId: 'zita-rev1', preset: 'Far away', params: { mix: 0.7 } },
+      { deviceId: 'hall-reverb', preset: 'Far away', params: { mix: 0.7 } },
     ],
   },
   {
@@ -410,7 +410,7 @@ export const THESIS_PRESETS: readonly FactoryPreset[] = [
         params: { rise: 1.2, octaves: 0.8, brightness: 6000, width: 0.4, mix: 0.8 },
       },
       { deviceId: 'ambient-limiter', params: { gain: 4.5 } },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
   {

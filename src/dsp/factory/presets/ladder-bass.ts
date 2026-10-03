@@ -10,7 +10,7 @@ export const LADDER_BASS_PRESETS: readonly FactoryPreset[] = [
     instrument: { deviceId: 'ladder-bass', preset: 'Sequence bass', params: { volume: -4 } },
     effects: [
       { deviceId: 'tape-echo', preset: 'Warm repeats', params: { time: 375, mix: 0.35 } },
-      { deviceId: 'zita-rev1', preset: 'Room' },
+      { deviceId: 'hall-reverb', preset: 'Room' },
     ],
     preview: 'line',
   },
@@ -36,7 +36,7 @@ export const LADDER_BASS_PRESETS: readonly FactoryPreset[] = [
     instrument: { deviceId: 'ladder-bass', preset: 'Soft sub', params: { volume: -15 } },
     effects: [
       { deviceId: 'saturator', preset: 'Warm glue' },
-      { deviceId: 'zita-rev1', preset: 'Room' },
+      { deviceId: 'hall-reverb', preset: 'Room' },
     ],
     preview: 'low',
   },
@@ -49,7 +49,7 @@ export const LADDER_BASS_PRESETS: readonly FactoryPreset[] = [
     instrument: { deviceId: 'ladder-bass', preset: 'Singing lead' },
     effects: [
       { deviceId: 'tape-echo', preset: 'Three heads', params: { mix: 0.25 } },
-      { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.3 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.3 } },
     ],
     preview: 'line',
   },
@@ -113,7 +113,7 @@ export const LADDER_BASS_PRESETS: readonly FactoryPreset[] = [
         volume: -13,
       },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Tight chamber' }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Tight chamber' }],
     preview: 'low',
   },
   {
@@ -136,7 +136,7 @@ export const LADDER_BASS_PRESETS: readonly FactoryPreset[] = [
         volume: -14,
       },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.25 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.25 } }],
   },
   {
     id: 'hollow-reed-lead',
@@ -161,7 +161,7 @@ export const LADDER_BASS_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tremolo', params: { mode: 3, rate: 5, depth: 0.35, drift: 0.3 } },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
   {
@@ -236,7 +236,7 @@ export const LADDER_BASS_PRESETS: readonly FactoryPreset[] = [
         preset: 'Minor strings',
         params: { strings: 12, decay: 6, sympathy: 1, mix: 1 },
       },
-      { deviceId: 'limiter-1176', params: { inputGain: 32, outputGain: -10 } },
+      { deviceId: 'fet-limiter', params: { inputGain: 32, outputGain: -10 } },
     ],
   },
   {
@@ -284,7 +284,7 @@ export const LADDER_BASS_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tape', preset: 'Flutter shimmer', params: { age: 0.7, mix: 1 } },
-      { deviceId: 'zita-rev1', preset: 'Bright hall' },
+      { deviceId: 'hall-reverb', preset: 'Bright hall' },
     ],
   },
   {
@@ -310,7 +310,7 @@ export const LADDER_BASS_PRESETS: readonly FactoryPreset[] = [
     effects: [
       { deviceId: 'analog-drive', preset: 'Torn cone', params: { output: -6 } },
       { deviceId: 'phaser', preset: 'Slow swirl', params: { stereo: 0, mix: 0.35 } },
-      { deviceId: 'zita-rev1', preset: 'Room' },
+      { deviceId: 'hall-reverb', preset: 'Room' },
     ],
     preview: 'low',
   },
@@ -436,7 +436,7 @@ export const LADDER_BASS_PRESETS: readonly FactoryPreset[] = [
     effects: [
       { deviceId: 'swell', preset: 'Slow bow' },
       { deviceId: 'chorus', preset: 'Lush ensemble' },
-      { deviceId: 'zita-rev1', preset: 'Hall' },
+      { deviceId: 'hall-reverb', preset: 'Hall' },
     ],
     preview: 'line',
   },

@@ -1622,5 +1622,45 @@
     "Twelve-string haze": {"exciter":1,"chord":1,"strum":40,"direction":0,"roll":0,"decay":12,"release":8,"brightness":0.6,"position":0.2,"courses":0.85,"sympathy":0.5,"body":1,"volume":-8},
     "Single felt string": {"exciter":2,"chord":0,"strum":120,"direction":0,"roll":0,"decay":5,"release":2,"brightness":0.4,"position":0.35,"courses":0,"sympathy":0.25,"body":0,"volume":-11},
     "Slow sus arpeggio": {"exciter":0,"chord":5,"strum":360,"direction":2,"roll":3,"decay":10,"release":20,"brightness":0.5,"position":0.25,"courses":0.2,"sympathy":0.45,"body":0,"volume":-12}
+  },
+  "plate-reverb": {
+    "(default)": {"mix":0.35,"decay":0.7,"damping":0.3,"predelayMs":20},
+    "Medium plate": {"mix":0.35,"decay":0.7,"damping":0.3,"predelayMs":20},
+    "Small plate": {"mix":0.25,"decay":0.45,"damping":0.5,"predelayMs":10},
+    "Long plate": {"mix":0.4,"decay":0.9,"damping":0.2,"predelayMs":40},
+    "Tight room": {"mix":0.18,"decay":0.2,"damping":0.6,"predelayMs":0},
+    "Dark plate": {"mix":0.4,"decay":0.75,"damping":0.85,"predelayMs":15},
+    "Bright plate": {"mix":0.35,"decay":0.6,"damping":0,"predelayMs":5},
+    "Faint sheen": {"mix":0.12,"decay":0.8,"damping":0.1,"predelayMs":90},
+    "Endless wash": {"mix":0.36,"decay":0.97,"damping":0.4,"predelayMs":60},
+    "Distant haze": {"mix":0.75,"decay":0.85,"damping":0.65,"predelayMs":0},
+    "Full wet send": {"mix":1,"decay":0.6,"damping":0.2,"predelayMs":0},
+    "ambient-live": {"mix":0.35,"decay":0.7,"damping":0.3,"predelayMs":20}
+  },
+  "hall-reverb": {
+    "(default)": {"preDelay":60,"crossover":200,"lowDecay":3,"midDecay":2,"damping":6000,"mix":0.35},
+    "Room": {"preDelay":30,"crossover":200,"lowDecay":1.5,"midDecay":1.2,"damping":5000,"mix":0.25},
+    "Hall": {"preDelay":60,"crossover":200,"lowDecay":3,"midDecay":2.5,"damping":6000,"mix":0.35},
+    "Cathedral": {"preDelay":80,"crossover":200,"lowDecay":7,"midDecay":6,"damping":3500,"mix":0.45},
+    "Tight chamber": {"preDelay":20,"crossover":200,"lowDecay":1,"midDecay":1,"damping":8000,"mix":0.2},
+    "Faint halo": {"preDelay":40,"crossover":200,"lowDecay":2.5,"midDecay":3,"damping":7000,"mix":0.13},
+    "Dark hall": {"preDelay":50,"crossover":200,"lowDecay":4,"midDecay":3,"damping":1500,"mix":0.4},
+    "Bright hall": {"preDelay":40,"crossover":300,"lowDecay":2,"midDecay":3,"damping":23520,"mix":0.35},
+    "Warm undertow": {"preDelay":60,"crossover":600,"lowDecay":8,"midDecay":2,"damping":4000,"mix":0.4},
+    "Airy tail": {"preDelay":30,"crossover":500,"lowDecay":1,"midDecay":5,"damping":14000,"mix":0.35},
+    "Vast nave": {"preDelay":100,"crossover":200,"lowDecay":8,"midDecay":8,"damping":5000,"mix":0.5},
+    "Far away": {"preDelay":20,"crossover":200,"lowDecay":5,"midDecay":4.5,"damping":3000,"mix":0.8},
+    "Full wet send": {"preDelay":20,"crossover":200,"lowDecay":4,"midDecay":4,"damping":6000,"mix":1}
+  },
+  "fet-limiter": {
+    "(default)": {"inputGain":0,"outputGain":0},
+    "Safety": {"inputGain":0,"outputGain":0},
+    "Drive": {"inputGain":12,"outputGain":-6},
+    "Squash": {"inputGain":24,"outputGain":-12},
+    "Light touch": {"inputGain":3,"outputGain":-2.5},
+    "Gentle lift": {"inputGain":6,"outputGain":-2},
+    "Lower ceiling": {"inputGain":0,"outputGain":-3},
+    "Flattened": {"inputGain":40,"outputGain":-14.2},
+    "Tucked under": {"inputGain":28,"outputGain":-14.7}
   }
 }

@@ -69,7 +69,7 @@ export const ZITHER_PRESETS: readonly FactoryPreset[] = [
     description:
       'Single strings over a warm harp board, plucked with a fingertip and never damped, in a small room.',
     instrument: { deviceId: 'zither', preset: 'Concert harp', params: { volume: -10 } },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.22 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.22 } }],
   },
   {
     id: 'plain-zither-plate',
@@ -79,7 +79,7 @@ export const ZITHER_PRESETS: readonly FactoryPreset[] = [
       'One paired string per key, plucked with a fingertip over the flat zither box, close and narrow, on a small plate.',
     instrument: { deviceId: 'zither', params: { decay: 8, release: 6, volume: -7.5 } },
     effects: [
-      { deviceId: 'dattorro', preset: 'Small plate' },
+      { deviceId: 'plate-reverb', preset: 'Small plate' },
       { deviceId: 'stereo-widener', preset: 'Narrow' },
     ],
   },
@@ -151,7 +151,7 @@ export const ZITHER_PRESETS: readonly FactoryPreset[] = [
     effects: [
       { deviceId: 'stereo-widener', params: { width: 0.2 } },
       { deviceId: 'tape', preset: 'Mastering deck' },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
   {
@@ -229,7 +229,7 @@ export const ZITHER_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'octaves', preset: 'Glass octaves', params: { up1: 0.35, up2: 0.35 } },
-      { deviceId: 'dattorro', preset: 'Bright plate' },
+      { deviceId: 'plate-reverb', preset: 'Bright plate' },
     ],
   },
   {
@@ -254,7 +254,7 @@ export const ZITHER_PRESETS: readonly FactoryPreset[] = [
         volume: -9.5,
       },
     },
-    effects: [{ deviceId: 'dattorro', preset: 'Dark plate' }],
+    effects: [{ deviceId: 'plate-reverb', preset: 'Dark plate' }],
   },
   {
     id: 'low-zither-restruck',
@@ -352,7 +352,7 @@ export const ZITHER_PRESETS: readonly FactoryPreset[] = [
     effects: [
       { deviceId: 'stereo-widener', preset: 'Narrow' },
       { deviceId: 'grain-cloud', preset: 'Octave rain', params: { mix: 0.55 } },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
   {
@@ -398,6 +398,6 @@ export const ZITHER_PRESETS: readonly FactoryPreset[] = [
         volume: -14,
       },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Vast nave', params: { mix: 0.45 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Vast nave', params: { mix: 0.45 } }],
   },
 ]

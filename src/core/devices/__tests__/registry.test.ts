@@ -109,6 +109,54 @@ describe('DeviceRegistry', () => {
     expect(registry.ids()).toEqual([])
   })
 
+  it('finds a renamed device under the ids it had, and lists it once under the id of today', async () => {
+    const renamed = descriptor({
+      formerIds: ['bespoke', 'made-to-order'],
+      presets: { Half: { amount: 0.5 } },
+    })
+    const registry = new DeviceRegistry([renamed])
+    expect(registry.ids()).toEqual(['custom'])
+    expect(registry.list()).toEqual([renamed])
+    for (const id of ['custom', 'bespoke', 'made-to-order']) {
+      expect(registry.has(id)).toBe(true)
+      expect(registry.get(id)).toBe(renamed)
+      expect(registry.describe(id)).toBe(renamed)
+      expect(registry.resolveId(id)).toBe('custom')
+      expect(registry.presets(id).map((preset) => preset.deviceId)).toEqual(['custom'])
+    }
+    // An id nothing is known of is its own answer.
+    expect(registry.resolveId('nope')).toBe('nope')
+    expect(registry.has('nope')).toBe(false)
+
+    const context = asAudioContext(createMockContext())
+    const device = await registry.create('bespoke', context, { preset: 'Half' })
+    expect(device.id).toBe('custom')
+    expect(device.getParam('amount')).toBe(0.5)
+    // A preset someone saved while the device went by the old id is still its own.
+    const saved = { name: 'Mine', deviceId: 'bespoke', deviceVersion: 1, params: { amount: 0.25 } }
+    const again = await registry.create('custom', context, { preset: saved })
+    expect(again.getParam('amount')).toBe(0.25)
+  })
+
+  it('lets a registered id win over a former one, and forgets former ids with their device', () => {
+    const registry = new DeviceRegistry([descriptor({ formerIds: ['filter'] })])
+    expect(registry.get('filter')?.id).toBe('custom')
+    registry.register(FILTER_DESCRIPTOR)
+    expect(registry.get('filter')).toBe(FILTER_DESCRIPTOR)
+    expect(registry.resolveId('filter')).toBe('filter')
+    registry.unregister('filter')
+    expect(registry.resolveId('filter')).toBe('custom')
+    // Replaced by a descriptor that no longer lists it: the old id finds nothing.
+    registry.register(descriptor({ formerIds: ['bespoke'] }), { replace: true })
+    expect(registry.has('filter')).toBe(false)
+    expect(registry.get('bespoke')?.id).toBe('custom')
+    registry.unregister('custom')
+    expect(registry.has('bespoke')).toBe(false)
+    expect(registry.resolveId('bespoke')).toBe('bespoke')
+    expect(() => registry.register(descriptor({ formerIds: ['custom'] }))).toThrow(/its own id/)
+    expect(() => registry.register(descriptor({ formerIds: [''] }))).toThrow(/empty former id/)
+  })
+
   it('lists by kind and category', () => {
     const registry = registerStockWasmDevices(new DeviceRegistry(NODE_DEVICES))
     expect(registry.list()).toHaveLength(NODE_DEVICES.length + STOCK_WASM_DEVICES.length)
@@ -122,12 +170,12 @@ describe('DeviceRegistry', () => {
         .list({ category: 'reverb' })
         .map((d) => d.id)
         .slice(0, 5),
-    ).toEqual(['convolver-reverb', 'dattorro', 'fdn-reverb', 'zita-rev1', 'ether-reverb'])
+    ).toEqual(['convolver-reverb', 'plate-reverb', 'fdn-reverb', 'hall-reverb', 'ether-reverb'])
     expect(registry.list({ kind: 'node', category: 'dynamics' }).map((d) => d.id)).toEqual([
       'compressor',
     ])
     expect(registry.list({ kind: 'wasm', category: 'dynamics' }).map((d) => d.id)).toContain(
-      'limiter-1176',
+      'fet-limiter',
     )
   })
 
@@ -270,11 +318,11 @@ describe('default registry', () => {
     registerStockWasmDevices()
     const wasm = devices.list({ kind: 'wasm' }).map((d) => d.id)
     expect(wasm.slice(0, 8)).toEqual([
-      'dattorro',
+      'plate-reverb',
       'fdn-reverb',
       'stereo-widener',
-      'zita-rev1',
-      'limiter-1176',
+      'hall-reverb',
+      'fet-limiter',
       'spectral-drifter',
       'ether-reverb',
       'felt-piano',

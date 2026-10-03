@@ -66,7 +66,7 @@ test.describe('playground smoke', () => {
       `return { state: demo.engine.context.state, hall: demo.returns[0].device.id, devices: demo.engine.devices.list().length }`,
     )
     expect(live.state).toBe('running')
-    expect(live.hall, 'the hall return is the Dattorro plate (WASM)').toBe('dattorro')
+    expect(live.hall, 'the hall return is the plate reverb (WASM)').toBe('plate-reverb')
     expect(live.devices).toBeGreaterThanOrEqual(17)
 
     // Play; signal reaches the master meter through the worklets.

@@ -5,7 +5,7 @@
 //             ▲                 │
 //             └─ feedback ◄─ damping (lowpass) ◄─┘
 //
-// The mix law is the linear `dry·(1−mix) + wet·mix` the Dattorro device uses.
+// The mix law is the linear `dry·(1−mix) + wet·mix` the plate reverb uses.
 
 import { type ParamSpec } from '../../params'
 import { type DeviceDescriptor } from '../registry'

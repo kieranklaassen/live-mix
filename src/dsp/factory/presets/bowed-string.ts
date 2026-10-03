@@ -10,7 +10,7 @@ export const BOWED_STRING_PRESETS: readonly FactoryPreset[] = [
     instrument: { deviceId: 'bowed-string', preset: 'Octave feedback', params: { volume: -5 } },
     effects: [
       { deviceId: 'tape-echo', preset: 'Warm repeats', params: { mix: 0.25 } },
-      { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.22 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.22 } },
     ],
     preview: 'line',
   },
@@ -21,7 +21,7 @@ export const BOWED_STRING_PRESETS: readonly FactoryPreset[] = [
     description:
       'One bowed string with a wooden body and a slow vibrato, for low notes held in a nave.',
     instrument: { deviceId: 'bowed-string', preset: 'Cello drone', params: { volume: -13 } },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.4 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.4 } }],
     preview: 'low',
   },
   {
@@ -53,7 +53,7 @@ export const BOWED_STRING_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tape-echo', preset: 'Three heads', params: { mix: 0.3 } },
-      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.4, decay: 0.8 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.4, decay: 0.8 } },
     ],
   },
   {
@@ -91,8 +91,8 @@ export const BOWED_STRING_PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'limiter-1176', preset: 'Light touch' },
-      { deviceId: 'zita-rev1', preset: 'Tight chamber', params: { mix: 0.22 } },
+      { deviceId: 'fet-limiter', preset: 'Light touch' },
+      { deviceId: 'hall-reverb', preset: 'Tight chamber', params: { mix: 0.22 } },
     ],
   },
   {
@@ -122,7 +122,7 @@ export const BOWED_STRING_PRESETS: readonly FactoryPreset[] = [
         preset: 'Warm glue',
         params: { driveDb: 12, toneDb: 0, outputDb: -8.5 },
       },
-      { deviceId: 'dattorro', preset: 'Bright plate', params: { mix: 0.3 } },
+      { deviceId: 'plate-reverb', preset: 'Bright plate', params: { mix: 0.3 } },
     ],
   },
   {
@@ -146,7 +146,7 @@ export const BOWED_STRING_PRESETS: readonly FactoryPreset[] = [
         volume: -11.5,
       },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Vast nave', params: { mix: 0.4 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Vast nave', params: { mix: 0.4 } }],
   },
   {
     id: 'pure-dark-strings',
@@ -193,7 +193,7 @@ export const BOWED_STRING_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'pad-follower', preset: 'Slow swell', params: { rise: 2, width: 0, mix: 0.6 } },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.45 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.45 } },
     ],
     preview: 'line',
   },
@@ -218,7 +218,7 @@ export const BOWED_STRING_PRESETS: readonly FactoryPreset[] = [
         volume: -11,
       },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Room' }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Room' }],
     preview: 'keys',
   },
   {
@@ -247,7 +247,7 @@ export const BOWED_STRING_PRESETS: readonly FactoryPreset[] = [
         deviceId: 'tremolo',
         params: { rate: 11, depth: 0.8, shape: 1, drift: 0.35, smooth: 0.1 },
       },
-      { deviceId: 'zita-rev1', preset: 'Far away', params: { mix: 0.55 } },
+      { deviceId: 'hall-reverb', preset: 'Far away', params: { mix: 0.55 } },
     ],
   },
   {
@@ -273,7 +273,7 @@ export const BOWED_STRING_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'chorus', preset: 'Lush ensemble', params: { mix: 0.45 } },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.45 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.45 } },
     ],
   },
   {
@@ -297,7 +297,7 @@ export const BOWED_STRING_PRESETS: readonly FactoryPreset[] = [
         volume: -7,
       },
     },
-    effects: [{ deviceId: 'dattorro', preset: 'Small plate' }],
+    effects: [{ deviceId: 'plate-reverb', preset: 'Small plate' }],
     preview: 'line',
   },
   {
@@ -321,7 +321,7 @@ export const BOWED_STRING_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'rotary', preset: 'Chorale', params: { drive: 0.1 } },
-      { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.2 } },
+      { deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.2 } },
     ],
   },
   {
@@ -368,7 +368,7 @@ export const BOWED_STRING_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tape', preset: 'Cassette four-track' },
-      { deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.3 } },
+      { deviceId: 'plate-reverb', preset: 'Small plate', params: { mix: 0.3 } },
     ],
   },
   {
@@ -394,7 +394,7 @@ export const BOWED_STRING_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'sympathetic', preset: 'Minor strings', params: { mix: 0.5 } },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.45 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.45 } },
     ],
     preview: 'bells',
   },
@@ -421,7 +421,7 @@ export const BOWED_STRING_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'radio', preset: 'Night shortwave' },
-      { deviceId: 'zita-rev1', preset: 'Dark hall', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Dark hall', params: { mix: 0.3 } },
     ],
   },
   {
@@ -451,7 +451,7 @@ export const BOWED_STRING_PRESETS: readonly FactoryPreset[] = [
         preset: 'Backwards only',
         params: { time: 600, feedback: 0.35 },
       },
-      { deviceId: 'dattorro', preset: 'Medium plate' },
+      { deviceId: 'plate-reverb', preset: 'Medium plate' },
     ],
   },
 ]

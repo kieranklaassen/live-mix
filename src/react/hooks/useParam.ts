@@ -182,8 +182,13 @@ export function useDevice(device: Device, options: UseDeviceOptions = {}): UseDe
         after()
       },
       applyPreset: (preset) => {
+        // A preset captured before the device was renamed is the same preset for the id of today.
         const resolved =
-          typeof preset === 'string' ? factoryPreset(descriptor, device, preset) : preset
+          typeof preset === 'string'
+            ? factoryPreset(descriptor, device, preset)
+            : descriptor
+              ? resolvePreset(descriptor, preset)
+              : preset
         const result = attributed.attributed
           ? applyPresetThrough(device, resolved, attributed.setMany)
           : applyPreset(device, resolved)

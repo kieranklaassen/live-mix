@@ -1,16 +1,16 @@
-// Flat C ABI (cpp/common/device_api.h) over the generated Zita-Rev1 DSP, the
-// Faust counterpart of cpp/devices/dattorro/device_api.cpp. The single static
+// Flat C ABI (cpp/common/device_api.h) over the generated hall reverb DSP, the
+// Faust counterpart of cpp/devices/plate-reverb/device_api.cpp. The single static
 // instance is the only global.
 
 #include "../common/device_api.h"
 #include "common/faust_device.h"
-#include "generated/zita-rev1.h"
+#include "generated/hall-reverb.h"
 
 namespace {
 // The hold: Mix can be 0 over a ringing reverb, and then the output shows
 // nothing of the tail, so the hold has to outlast the tail itself. 20 s is
 // 150 dB at the longest decay there is (8 s).
-livemix::faust::FaustDevice<livemix::faust::ZitaRev1, 20> g_device;
+livemix::faust::FaustDevice<livemix::faust::HallReverb, 20> g_device;
 }
 
 extern "C" {

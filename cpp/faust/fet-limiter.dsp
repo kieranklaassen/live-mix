@@ -1,4 +1,4 @@
-// 1176-style peak limiter (`co.limiter_1176_R4_stereo`: 4:1, -6 dB threshold,
+// FET-style peak limiter (Faust's `co.limiter_1176_R4_stereo`: 4:1, -6 dB threshold,
 // 0.8 ms attack, 0.5 s release, level detected on |L|+|R|) as a live-mix
 // device. Input gain drives the fixed threshold like the hardware's INPUT knob;
 // output gain is the make-up stage.
@@ -10,10 +10,10 @@
 // signal, then a tanh knee that approaches full scale and never passes it.
 // With output gain at 0 dB nothing leaves above 0 dBFS.
 //
-// scripts/build-faust.sh compiles this to cpp/faust/generated/limiter-1176.h
-// and src/dsp/devices/faust/limiter-1176.ts. Parameter ids are the `[N]` order.
+// scripts/build-faust.sh compiles this to cpp/faust/generated/fet-limiter.h
+// and src/dsp/devices/faust/fet-limiter.ts. Parameter ids are the `[N]` order.
 
-declare name "Limiter1176";
+declare name "FetLimiter";
 declare author "live-mix (device), Julius O. Smith III (compressor)";
 declare license "MIT";
 

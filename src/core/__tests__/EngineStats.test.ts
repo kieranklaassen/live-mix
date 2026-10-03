@@ -132,7 +132,7 @@ describe('EngineStats', () => {
         return sampler
       },
     })
-    const reverb = probe.claim('zita-rev1')
+    const reverb = probe.claim('hall-reverb')
     const first = probe.claim('grain-cloud')
     const second = probe.claim('grain-cloud')
     const mark = (claim: typeof reverb): number => claim.slot?.slot ?? -1
@@ -163,7 +163,7 @@ describe('EngineStats', () => {
     expect(snapshot.averageLoad).toBeCloseTo(0.11)
     expect(snapshot.peakLoad).toBeCloseTo(0.11)
     expect(snapshot.devices).toEqual([
-      { label: 'zita-rev1', count: 1, load: 0.06, memoryBytes: 4 << 20 },
+      { label: 'hall-reverb', count: 1, load: 0.06, memoryBytes: 4 << 20 },
       { label: 'grain-cloud', count: 2, load: 0.05, memoryBytes: 20 << 20 },
     ])
 

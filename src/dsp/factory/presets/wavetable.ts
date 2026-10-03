@@ -21,7 +21,7 @@ export const WAVETABLE_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tape-echo', preset: 'Three heads', params: { mix: 0.3 } },
-      { deviceId: 'dattorro', preset: 'Small plate' },
+      { deviceId: 'plate-reverb', preset: 'Small plate' },
     ],
   },
   {
@@ -63,7 +63,7 @@ export const WAVETABLE_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'saturator', preset: 'On tape', params: { toneDb: 0, outputDb: -5.5 } },
-      { deviceId: 'zita-rev1', preset: 'Hall' },
+      { deviceId: 'hall-reverb', preset: 'Hall' },
     ],
   },
   {
@@ -119,7 +119,7 @@ export const WAVETABLE_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'chorus', preset: 'Lush ensemble', params: { mix: 0.3 } },
-      { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.22 } },
+      { deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.22 } },
     ],
   },
   {
@@ -171,7 +171,7 @@ export const WAVETABLE_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tremolo', preset: 'Pitch wobble', params: { depth: 0.2, phase: 0 } },
-      { deviceId: 'zita-rev1', preset: 'Tight chamber' },
+      { deviceId: 'hall-reverb', preset: 'Tight chamber' },
     ],
   },
   {
@@ -221,7 +221,7 @@ export const WAVETABLE_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'chorus', preset: 'Vocal thickener' },
-      { deviceId: 'zita-rev1', preset: 'Tight chamber', params: { mix: 0.25 } },
+      { deviceId: 'hall-reverb', preset: 'Tight chamber', params: { mix: 0.25 } },
     ],
   },
   {
@@ -247,7 +247,7 @@ export const WAVETABLE_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'octaves', preset: 'Organ', params: { sub2: 0 } },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
   {
@@ -326,7 +326,7 @@ export const WAVETABLE_PRESETS: readonly FactoryPreset[] = [
         volume: -10,
       },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } }],
   },
   {
     id: 'beating-saw-drone',
@@ -353,7 +353,7 @@ export const WAVETABLE_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'analog-drive', preset: 'Iron lows' },
-      { deviceId: 'zita-rev1', preset: 'Dark hall', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Dark hall', params: { mix: 0.3 } },
     ],
   },
   {
@@ -377,7 +377,7 @@ export const WAVETABLE_PRESETS: readonly FactoryPreset[] = [
         volume: -13,
       },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.3 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.3 } }],
   },
   {
     id: 'vowel-table-flutter',
@@ -400,7 +400,7 @@ export const WAVETABLE_PRESETS: readonly FactoryPreset[] = [
         volume: -12,
       },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Far away', params: { mix: 0.55 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Far away', params: { mix: 0.55 } }],
   },
   {
     id: 'spectral-bubbles',
@@ -472,7 +472,7 @@ export const WAVETABLE_PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.2 } },
+      { deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.2 } },
       { deviceId: 'vinyl', preset: 'Charity shop find' },
     ],
   },

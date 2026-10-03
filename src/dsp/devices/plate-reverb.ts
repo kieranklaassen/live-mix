@@ -1,11 +1,11 @@
-// The Dattorro plate device (cpp/devices/dattorro), ambient-live's global
-// reverb lifted out as a stock WASM device. Ids must match DattorroParam in
-// dattorro_device.h.
+// The plate reverb device (cpp/devices/plate-reverb), ambient-live's global
+// reverb lifted out as a stock WASM device. Ids must match PlateReverbParam in
+// plate_reverb_device.h.
 
 import { type ParamSpec } from '../../core/params'
 import { defineWasmDevice, WasmDevice, type WasmDeviceOptions } from '../WasmDevice'
 
-export const DATTORRO_PARAMS = {
+export const PLATE_REVERB_PARAMS = {
   mix: {
     id: 0,
     name: 'Mix',
@@ -51,24 +51,24 @@ export const DATTORRO_PARAMS = {
   },
 } as const satisfies Record<string, ParamSpec>
 
-export type DattorroParamName = keyof typeof DATTORRO_PARAMS
+export type PlateReverbParamName = keyof typeof PLATE_REVERB_PARAMS
 
-export const DATTORRO_DEVICE = defineWasmDevice({
-  id: 'dattorro',
+export const PLATE_REVERB_DEVICE = defineWasmDevice({
+  id: 'plate-reverb',
   // Static literal so Vite can rewrite it to a hashed asset URL at build time.
-  wasm: () => new URL('../wasm/dattorro.wasm', import.meta.url),
-  params: DATTORRO_PARAMS,
+  wasm: () => new URL('../wasm/plate-reverb.wasm', import.meta.url),
+  params: PLATE_REVERB_PARAMS,
 })
 
-export type DattorroReverb = WasmDevice<typeof DATTORRO_PARAMS>
+export type PlateReverb = WasmDevice<typeof PLATE_REVERB_PARAMS>
 
 /**
  * Stereo in → mono sum → plate → `dry·(1−mix) + wet·mix`, exactly the law
  * ambient-live's engine applied. Insert it on a bus or the master.
  */
-export function createDattorroReverb(
+export function createPlateReverb(
   context: BaseAudioContext,
-  options: WasmDeviceOptions<typeof DATTORRO_PARAMS> = {},
-): Promise<DattorroReverb> {
-  return WasmDevice.create(context, DATTORRO_DEVICE, options)
+  options: WasmDeviceOptions<typeof PLATE_REVERB_PARAMS> = {},
+): Promise<PlateReverb> {
+  return WasmDevice.create(context, PLATE_REVERB_DEVICE, options)
 }

@@ -10,7 +10,7 @@ export const HORNS_PRESETS: readonly FactoryPreset[] = [
     description:
       'Three horns to a key, swelling in and warming as they grow, with a concert hall behind them.',
     instrument: { deviceId: 'horns', preset: 'Horn swell' },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.35 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.35 } }],
     preview: 'chord',
   },
   {
@@ -35,7 +35,7 @@ export const HORNS_PRESETS: readonly FactoryPreset[] = [
     instrument: { deviceId: 'horns', preset: 'Flugel breath', params: { volume: -3 } },
     effects: [
       { deviceId: 'tape', preset: 'Quarter inch' },
-      { deviceId: 'zita-rev1', preset: 'Room' },
+      { deviceId: 'hall-reverb', preset: 'Room' },
     ],
     preview: 'line',
   },
@@ -46,7 +46,7 @@ export const HORNS_PRESETS: readonly FactoryPreset[] = [
     description:
       'Trombones and tuba, four to a note, rising slowly out of a very large and dark space.',
     instrument: { deviceId: 'horns', preset: 'Low brass choir', params: { attack: 2.5 } },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.4 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.4 } }],
     preview: 'low',
   },
   {
@@ -73,7 +73,7 @@ export const HORNS_PRESETS: readonly FactoryPreset[] = [
       preset: 'Brass band',
       params: { section: 0, blow: 0.62, attack: 0.04, release: 0.35, vibrato: 0.2, volume: -1 },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Tight chamber' }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Tight chamber' }],
   },
   {
     id: 'tuba-alone',
@@ -85,7 +85,7 @@ export const HORNS_PRESETS: readonly FactoryPreset[] = [
       preset: 'Low brass choir',
       params: { section: 0, blow: 0.5, breath: 0.1, attack: 0.05, release: 0.5, volume: -4 },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Room' }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Room' }],
     preview: 'low',
   },
   {
@@ -99,7 +99,7 @@ export const HORNS_PRESETS: readonly FactoryPreset[] = [
       preset: 'Horn swell',
       params: { section: 0.35, blow: 0.55, attack: 0.25, release: 1.2, volume: -8 },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Room' }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Room' }],
     preview: 'chord',
   },
   {
@@ -121,7 +121,7 @@ export const HORNS_PRESETS: readonly FactoryPreset[] = [
         volume: -7,
       },
     },
-    effects: [{ deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.22 } }],
+    effects: [{ deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.22 } }],
     preview: 'chord',
   },
   {
@@ -135,7 +135,7 @@ export const HORNS_PRESETS: readonly FactoryPreset[] = [
       preset: 'Brass band',
       params: { section: 0.7, blow: 0.95, breath: 0, attack: 0.02, release: 0.45 },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Bright hall', params: { mix: 0.3 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Bright hall', params: { mix: 0.3 } }],
     preview: 'keys',
   },
   {
@@ -164,7 +164,7 @@ export const HORNS_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'chorus', preset: 'Slow drift', params: { mix: 0.35 } },
-      { deviceId: 'zita-rev1', preset: 'Dark hall' },
+      { deviceId: 'hall-reverb', preset: 'Dark hall' },
     ],
   },
   {
@@ -193,7 +193,7 @@ export const HORNS_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'phaser', preset: 'Slow swirl', params: { stereo: 0, mix: 0.3 } },
-      { deviceId: 'zita-rev1', preset: 'Hall' },
+      { deviceId: 'hall-reverb', preset: 'Hall' },
     ],
   },
   {
@@ -208,7 +208,7 @@ export const HORNS_PRESETS: readonly FactoryPreset[] = [
       params: { blow: 0.4, breath: 0.1, vibrato: 0.8, attack: 0.06, release: 0.6, volume: -3.5 },
     },
     effects: [
-      { deviceId: 'zita-rev1', preset: 'Room' },
+      { deviceId: 'hall-reverb', preset: 'Room' },
       { deviceId: 'vinyl', preset: 'Parlour 78' },
     ],
   },
@@ -226,7 +226,7 @@ export const HORNS_PRESETS: readonly FactoryPreset[] = [
     effects: [
       { deviceId: 'octaves', preset: 'Organ' },
       { deviceId: 'rotary', preset: 'Chorale' },
-      { deviceId: 'zita-rev1', preset: 'Room' },
+      { deviceId: 'hall-reverb', preset: 'Room' },
     ],
   },
   {
@@ -246,7 +246,7 @@ export const HORNS_PRESETS: readonly FactoryPreset[] = [
         preset: 'Piano pedal',
         params: { sympathy: 0.8, decay: 6, strings: 12, width: 0.2 },
       },
-      { deviceId: 'zita-rev1', preset: 'Room' },
+      { deviceId: 'hall-reverb', preset: 'Room' },
     ],
     preview: 'bells',
   },
@@ -271,7 +271,7 @@ export const HORNS_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'phaser', preset: 'Deep eight-stage', params: { centerHz: 1200, mix: 0.35 } },
-      { deviceId: 'zita-rev1', preset: 'Dark hall' },
+      { deviceId: 'hall-reverb', preset: 'Dark hall' },
     ],
   },
   {
@@ -287,7 +287,7 @@ export const HORNS_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tape-echo', preset: 'Dotted bounce', params: { spread: 0.5 } },
-      { deviceId: 'dattorro', preset: 'Small plate' },
+      { deviceId: 'plate-reverb', preset: 'Small plate' },
     ],
     preview: 'keys',
   },
@@ -316,7 +316,7 @@ export const HORNS_PRESETS: readonly FactoryPreset[] = [
         preset: 'Backwards only',
         params: { time: 800, mix: 0.7, spread: 0.15 },
       },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.25 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.25 } },
     ],
     preview: 'keys',
   },

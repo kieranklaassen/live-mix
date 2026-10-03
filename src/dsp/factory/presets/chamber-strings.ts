@@ -8,7 +8,7 @@ export const CHAMBER_STRINGS_PRESETS: readonly FactoryPreset[] = [
     description:
       'A small section as it comes, four players on every note, heard from a few rows back.',
     instrument: { deviceId: 'chamber-strings', preset: 'Chamber section' },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Hall' }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Hall' }],
     preview: 'chord',
   },
   {
@@ -42,7 +42,7 @@ export const CHAMBER_STRINGS_PRESETS: readonly FactoryPreset[] = [
     description:
       'Five players a note with slow bows and wide tuning, a long way down a stone nave.',
     instrument: { deviceId: 'chamber-strings', preset: 'Slow dark bows' },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.4 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.4 } }],
     preview: 'chord',
   },
   {
@@ -92,7 +92,7 @@ export const CHAMBER_STRINGS_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       {
-        deviceId: 'dattorro',
+        deviceId: 'plate-reverb',
         preset: 'Medium plate',
         params: { decay: 0.8, damping: 0.55 },
       },
@@ -141,7 +141,9 @@ export const CHAMBER_STRINGS_PRESETS: readonly FactoryPreset[] = [
         volume: -9.5,
       },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Bright hall', params: { midDecay: 4, mix: 0.45 } }],
+    effects: [
+      { deviceId: 'hall-reverb', preset: 'Bright hall', params: { midDecay: 4, mix: 0.45 } },
+    ],
   },
   {
     id: 'ragged-string-pad',
@@ -163,7 +165,7 @@ export const CHAMBER_STRINGS_PRESETS: readonly FactoryPreset[] = [
         volume: -7.5,
       },
     },
-    effects: [{ deviceId: 'dattorro', preset: 'Long plate' }],
+    effects: [{ deviceId: 'plate-reverb', preset: 'Long plate' }],
   },
   {
     id: 'cello-floor-drone',
@@ -189,7 +191,7 @@ export const CHAMBER_STRINGS_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'octaves', preset: 'Sub octave', params: { sub1: 0.5 } },
-      { deviceId: 'zita-rev1', preset: 'Warm undertow' },
+      { deviceId: 'hall-reverb', preset: 'Warm undertow' },
     ],
   },
   {
@@ -237,7 +239,7 @@ export const CHAMBER_STRINGS_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tape-echo', preset: 'Long dark trail', params: { mix: 0.3 } },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
     preview: 'line',
   },
@@ -265,7 +267,7 @@ export const CHAMBER_STRINGS_PRESETS: readonly FactoryPreset[] = [
     effects: [
       { deviceId: 'ambient-eq', preset: 'Thin' },
       { deviceId: 'tape', preset: 'Old dictation', params: { hiss: 0.5, tone: 0.15 } },
-      { deviceId: 'zita-rev1', preset: 'Room' },
+      { deviceId: 'hall-reverb', preset: 'Room' },
     ],
   },
   {
@@ -312,7 +314,7 @@ export const CHAMBER_STRINGS_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'ambient-eq', preset: 'Distant', params: { lowCut: 260 } },
-      { deviceId: 'zita-rev1', preset: 'Far away', params: { mix: 0.65 } },
+      { deviceId: 'hall-reverb', preset: 'Far away', params: { mix: 0.65 } },
     ],
   },
   {
@@ -337,7 +339,7 @@ export const CHAMBER_STRINGS_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'pitch-shifter', preset: 'Octave up', params: { mode: 3, mix: 0.6 } },
-      { deviceId: 'zita-rev1', preset: 'Airy tail' },
+      { deviceId: 'hall-reverb', preset: 'Airy tail' },
     ],
   },
   {
@@ -409,7 +411,7 @@ export const CHAMBER_STRINGS_PRESETS: readonly FactoryPreset[] = [
         preset: 'Chorale',
         params: { hornDepth: 0.8, drive: 0.3, balance: 0.65, distance: 0.4, spread: 0.75 },
       },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
   {
@@ -436,7 +438,7 @@ export const CHAMBER_STRINGS_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'octaves', preset: 'Organ' },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
 ]

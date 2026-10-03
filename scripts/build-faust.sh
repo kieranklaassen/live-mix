@@ -115,5 +115,5 @@ ensure_toolchain
 "$faust" --version | head -n 1
 mkdir -p cpp/faust/generated src/dsp/devices/faust
 
-build_device zita-rev1 ZitaRev1
-build_device limiter-1176 Limiter1176
+build_device hall-reverb HallReverb
+build_device fet-limiter FetLimiter

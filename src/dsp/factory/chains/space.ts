@@ -8,7 +8,7 @@ export const SPACE_CHAINS: readonly FactoryChain[] = [
     name: 'Long plate',
     category: 'space',
     description: 'A bright steel plate with a long even tail, the plain reverb for anything.',
-    effects: [{ deviceId: 'dattorro', preset: 'Long plate' }],
+    effects: [{ deviceId: 'plate-reverb', preset: 'Long plate' }],
   },
   {
     id: 'breathing-hall',
@@ -54,7 +54,7 @@ export const SPACE_CHAINS: readonly FactoryChain[] = [
       'Each note is answered by a cloud that grows backwards behind it and cuts off, inside a quiet plate.',
     effects: [
       { deviceId: 'shaped-reverb', preset: 'Reverse' },
-      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.2 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.2 } },
     ],
   },
   {
@@ -71,7 +71,7 @@ export const SPACE_CHAINS: readonly FactoryChain[] = [
     description: 'A choir whose vowel drifts on its own, left to dissolve in a plate.',
     effects: [
       { deviceId: 'vowel-reverb', preset: 'Vowel drift', params: { mix: 0.35 } },
-      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.2 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.2 } },
     ],
   },
   {
@@ -82,7 +82,7 @@ export const SPACE_CHAINS: readonly FactoryChain[] = [
       'A guitar amplifier heard from the far end of a hall, with a plate carrying the tail on.',
     effects: [
       { deviceId: 're-amp', preset: 'Down the hall', params: { output: -1.5 } },
-      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -101,7 +101,7 @@ export const SPACE_CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'stereo-detune', preset: 'Faint width' },
       {
-        deviceId: 'zita-rev1',
+        deviceId: 'hall-reverb',
         preset: 'Tight chamber',
         params: { midDecay: 1.3, mix: 0.3 },
       },
@@ -116,7 +116,7 @@ export const SPACE_CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'analog-drive', preset: 'Low warmth', params: { output: -3 } },
       {
-        deviceId: 'zita-rev1',
+        deviceId: 'hall-reverb',
         preset: 'Hall',
         params: { crossover: 350, lowDecay: 5, damping: 4500 },
       },
@@ -131,7 +131,7 @@ export const SPACE_CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'tape-echo', preset: 'Single slap', params: { time: 110, mix: 0.3 } },
       {
-        deviceId: 'dattorro',
+        deviceId: 'plate-reverb',
         preset: 'Dark plate',
         params: { predelayMs: 150, decay: 0.85, mix: 0.24 },
       },
@@ -145,7 +145,7 @@ export const SPACE_CHAINS: readonly FactoryChain[] = [
       'Close early reflections from a small room, then the slow six second tail of a nave.',
     effects: [
       { deviceId: 'fdn-reverb', preset: 'Short ambience', params: { mix: 0.3 } },
-      { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.35 } },
+      { deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.35 } },
     ],
   },
   {
@@ -204,7 +204,7 @@ export const SPACE_CHAINS: readonly FactoryChain[] = [
     description:
       'A far plate, mostly reverb, behind a low pass that opens and closes every twelve seconds.',
     effects: [
-      { deviceId: 'dattorro', preset: 'Distant haze', params: { mix: 0.6 } },
+      { deviceId: 'plate-reverb', preset: 'Distant haze', params: { mix: 0.6 } },
       {
         deviceId: 'auto-filter',
         preset: 'Glacial low-pass',
@@ -219,7 +219,7 @@ export const SPACE_CHAINS: readonly FactoryChain[] = [
     description: 'Two springs splash on every attack and their drips fall away into a dark hall.',
     effects: [
       { deviceId: 'spring-reverb', preset: 'Surf drip', params: { drive: 0.3, mix: 0.2 } },
-      { deviceId: 'zita-rev1', preset: 'Dark hall', params: { mix: 0.35 } },
+      { deviceId: 'hall-reverb', preset: 'Dark hall', params: { mix: 0.35 } },
     ],
   },
   {
@@ -291,7 +291,7 @@ export const SPACE_CHAINS: readonly FactoryChain[] = [
       'The sound drifts slowly from side to side while the plate behind it stays where it is.',
     effects: [
       { deviceId: 'tremolo', preset: 'Slow pan', params: { depth: 0.6 } },
-      { deviceId: 'dattorro', preset: 'Medium plate', params: { decay: 0.85, mix: 0.3 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { decay: 0.85, mix: 0.3 } },
     ],
   },
   {
@@ -303,7 +303,7 @@ export const SPACE_CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'spectral-blur', preset: 'Diffuse room' },
       {
-        deviceId: 'dattorro',
+        deviceId: 'plate-reverb',
         preset: 'Endless wash',
         params: { decay: 0.985, damping: 0.7, mix: 0.17 },
       },
@@ -317,7 +317,7 @@ export const SPACE_CHAINS: readonly FactoryChain[] = [
       'A small room crushed by a fast limiter, so each note and the room behind it sit at one level.',
     effects: [
       { deviceId: 'fdn-reverb', preset: 'Room', params: { decay: 1.6, mix: 0.45 } },
-      { deviceId: 'limiter-1176', preset: 'Squash' },
+      { deviceId: 'fet-limiter', preset: 'Squash' },
     ],
   },
   {
@@ -342,7 +342,7 @@ export const SPACE_CHAINS: readonly FactoryChain[] = [
     description:
       'A hall heard through its closed door: nearly all reverb, far off, with the highs taken away.',
     effects: [
-      { deviceId: 'zita-rev1', preset: 'Far away', params: { mix: 0.7 } },
+      { deviceId: 'hall-reverb', preset: 'Far away', params: { mix: 0.7 } },
       {
         deviceId: 'ambient-eq',
         preset: 'Muffled',

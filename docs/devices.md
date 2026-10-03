@@ -31,8 +31,8 @@ bounds.
 
 Those figures time a device in a tight loop. In an audio thread a block of
 each device runs once every 3 ms, on a cache the other devices and the
-browser have been through since, and costs about twice as much: four Zita
-reverbs and two Shimmers took 4.6 % of real time flat out and 9.4 % at the
+browser have been through since, and costs about twice as much: four Hall
+Reverbs and two Shimmers took 4.6 % of real time flat out and 9.4 % at the
 audio thread's pace, in the same headless Chromium on the same machine.
 
 `engine.stats` gives the running figure (`averageLoad`, `peakLoad`, and
@@ -52,11 +52,11 @@ of the same modules.
 
 | Device id           | Source                                                                        | Kind         | Params                                                                                                                                                             | `.wasm`  | Native cost                                                 | wasm cost (Node)                                            | Flag             |
 | ------------------- | ----------------------------------------------------------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- | ----------------------------------------------------------- | ----------------------------------------------------------- | ---------------- |
-| `dattorro`          | ambient-live's Dattorro plate                                                 | reverb       | mix, decay, damping, predelayMs                                                                                                                                    | 10,383 B | —                                                           | 7.5 µs / block, 0.28 %                                      |                  |
+| `plate-reverb`      | ambient-live's plate (Dattorro 1997)                                          | reverb       | mix, decay, damping, predelayMs                                                                                                                                    | 10,383 B | —                                                           | 7.5 µs / block, 0.28 %                                      |                  |
 | `fdn-reverb`        | kkfonie Tides (8-line FDN, breathing gate)                                    | reverb       | mix, decay, damping, predelayMs, size, breathRate, breathDepth                                                                                                     | 14,369 B | —                                                           | 31.7 µs / block, 1.19 %                                     |                  |
 | `stereo-widener`    | kkfonie StereoWidener (byte-identical)                                        | spatial      | width                                                                                                                                                              | 3,878 B  | —                                                           | 3.8 µs / block, 0.14 %                                      |                  |
-| `zita-rev1`         | Faust `re.zita_rev1_stereo`                                                   | reverb       | see `src/dsp/devices/faust/zita-rev1.ts`                                                                                                                           | 18,357 B | —                                                           | 7.8 µs / block, 0.29 %                                      |                  |
-| `limiter-1176`      | Faust                                                                         | dynamics     | inputGain, outputGain                                                                                                                                              | 7,668 B  | —                                                           | 4.9 µs / block, 0.18 %                                      |                  |
+| `hall-reverb`       | Faust `re.zita_rev1_stereo`                                                   | reverb       | see `src/dsp/devices/faust/hall-reverb.ts`                                                                                                                         | 18,357 B | —                                                           | 7.8 µs / block, 0.29 %                                      |                  |
+| `fet-limiter`       | Faust                                                                         | dynamics     | inputGain, outputGain                                                                                                                                              | 7,668 B  | —                                                           | 4.9 µs / block, 0.18 %                                      |                  |
 | `true-peak-limiter` | live-mix (BS.1770 true-peak brickwall)                                        | master stage | ceilingDb, releaseMs, inputGainDb                                                                                                                                  | 5,813 B  | —                                                           | 6.3 µs / block, 0.23 %                                      |                  |
 | `spectral-drifter`  | kkfonie Bloom `SpectralDrifter` (de-JUCEd)                                    | other        | mix, bloom, direction, season, seed, interval, decay, ageMode, age                                                                                                 | 12,930 B | 18.5 µs / block, 0.69 %                                     | 43.4 µs / block, 1.63 % (Atonal/Scatter, bloom 1)           |                  |
 | `ether-reverb`      | kkfonie Ether (Freeverb as `juce::dsp::Reverb`, pre-delay, decay law, freeze) | reverb       | mix, decay, damping, predelayMs, size, freeze                                                                                                                      | 7,718 B  | 6.8 µs / block, 0.25 %                                      | 8.4 µs / block, 0.32 %                                      |                  |
@@ -328,6 +328,22 @@ carried a product's name: tape-echo "Space echo" is "Warm repeats", swell
 shimmer". Two leaned on a record's title: tape-echo "Discreet" is "Short and
 soft", tape "Disintegrating loop" is "Worn thin". The factory sounds name the
 new ones.
+
+**A shipped device keeps answering to its id.** A saved score, patch or
+preset names a device by its id, so a device that is renamed lists the id it
+had in `formerIds` on its descriptor. The registry finds it under each of them
+(`has`, `get`, `describe`, `create`, `presets`), `resolveId` gives the id of
+today, and `ids` and `list` show the device once. A document saved under the
+old id validates and renders as it is; `parseScore(input, { devices })` and
+`withCurrentDeviceIds(score, devices)` move it on to the new id, for a host
+that keys anything of its own by device id, and leave instance ids alone.
+`describeStockWasmDevice(id)` is the same lookup over the stock WASM devices
+with no registry, which is what `renderPatch` uses. Three devices were renamed
+here, because each carried a maker's or a product's name: `dattorro` is
+`plate-reverb`, `zita-rev1` is `hall-reverb`, `limiter-1176` is `fet-limiter`.
+Their sources and exports follow the new ids, and the three `.wasm` files are
+byte for byte what they were. The rows of `shipped-presets.json` under the old
+ids stay as they are and are still checked, through the former id.
 
 The bench the presets were written at prints a line per preset:
 

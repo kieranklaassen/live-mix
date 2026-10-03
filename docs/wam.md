@@ -275,7 +275,7 @@ repo's build: [faust2wam](https://github.com/fr0stbyter/faust2wam)
 library exception) generates a static plugin directory:
 
 ```sh
-npx @shren/faust2wam cpp/faust/zita-rev1.dsp out/zita-wam          # effect
+npx @shren/faust2wam cpp/faust/hall-reverb.dsp out/hall-reverb-wam          # effect
 npx @shren/faust2wam my-synth.dsp out/my-synth -poly                # polyphonic MIDI instrument
 ```
 

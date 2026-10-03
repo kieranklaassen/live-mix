@@ -84,7 +84,7 @@ export const WEST_COAST_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'analog-drive', preset: 'Warm glue' },
-      { deviceId: 'zita-rev1', preset: 'Tight chamber', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Tight chamber', params: { mix: 0.3 } },
     ],
   },
   {
@@ -112,7 +112,7 @@ export const WEST_COAST_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'analog-drive', preset: 'Low warmth' },
-      { deviceId: 'zita-rev1', preset: 'Tight chamber' },
+      { deviceId: 'hall-reverb', preset: 'Tight chamber' },
     ],
   },
   {
@@ -139,7 +139,7 @@ export const WEST_COAST_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'rotary', preset: 'Chorale', params: { spread: 0.4 } },
-      { deviceId: 'zita-rev1', preset: 'Room' },
+      { deviceId: 'hall-reverb', preset: 'Room' },
     ],
   },
   {
@@ -165,7 +165,7 @@ export const WEST_COAST_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'stereo-detune', preset: 'Soft halo' },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.27 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.27 } },
     ],
   },
   {
@@ -191,7 +191,7 @@ export const WEST_COAST_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'analog-delay', preset: 'Dark echo', params: { spread: 0.2, mix: 0.2 } },
-      { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.3 } },
     ],
   },
   {
@@ -244,7 +244,7 @@ export const WEST_COAST_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'phaser', preset: 'Classic four-stage', params: { stereo: 20, mix: 0.4 } },
-      { deviceId: 'zita-rev1', preset: 'Tight chamber' },
+      { deviceId: 'hall-reverb', preset: 'Tight chamber' },
     ],
   },
   {
@@ -294,7 +294,7 @@ export const WEST_COAST_PRESETS: readonly FactoryPreset[] = [
         volume: -7,
       },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.35 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.35 } }],
   },
   {
     id: 'glass-fold-pad',
@@ -321,7 +321,7 @@ export const WEST_COAST_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tremolo', preset: 'Harmonic shimmer' },
-      { deviceId: 'dattorro', preset: 'Medium plate' },
+      { deviceId: 'plate-reverb', preset: 'Medium plate' },
     ],
   },
   {
@@ -375,7 +375,7 @@ export const WEST_COAST_PRESETS: readonly FactoryPreset[] = [
     effects: [
       { deviceId: 'tremolo', preset: 'Chopper', params: { rate: 4 } },
       { deviceId: 'analog-delay', preset: 'Dark echo', params: { time: 375, mix: 0.25 } },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.25 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.25 } },
     ],
   },
   {
@@ -398,7 +398,7 @@ export const WEST_COAST_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'pad-follower', preset: 'String pad', params: { width: 0.4, mix: 0.5 } },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.25 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.25 } },
     ],
   },
   {

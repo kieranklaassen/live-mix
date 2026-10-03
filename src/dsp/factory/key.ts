@@ -6,10 +6,9 @@
 //
 // Everything here is arithmetic on notes and the bank's own data: no audio.
 
-import { type DeviceDescriptor } from '../../core/devices'
 import { type Patch, type PatchDevice, patchDeviceParams } from '../../core/devices/patch'
 import { type Phrase } from '../patch-render'
-import { STOCK_WASM_DEVICES } from '../registry'
+import { describeStockWasmDevice } from '../registry'
 
 /** The seven-note modes a key can have, as semitones above its root. */
 export const FACTORY_MODES = {
@@ -106,17 +105,10 @@ const PITCHED_PARAMS: Readonly<Record<string, Readonly<Record<string, 'class' | 
   lattice: { root: 'class', center: 'note' },
 }
 
-const stock = new Map<string, DeviceDescriptor>()
-
-function describeStock(deviceId: string): DeviceDescriptor | undefined {
-  if (stock.size === 0)
-    for (const descriptor of STOCK_WASM_DEVICES) stock.set(descriptor.id, descriptor)
-  return stock.get(deviceId)
-}
-
 function transposeDevice(device: PatchDevice, semitones: number): PatchDevice {
-  const pitched = PITCHED_PARAMS[device.deviceId]
-  const descriptor = describeStock(device.deviceId)
+  // By the id of today: a patch may name the device by one it had before.
+  const descriptor = describeStockWasmDevice(device.deviceId)
+  const pitched = descriptor && PITCHED_PARAMS[descriptor.id]
   if (!pitched || !descriptor) return device
   // What the device is set to as the patch stands: its own value, else its preset's, else the default.
   const current = patchDeviceParams(descriptor, device)

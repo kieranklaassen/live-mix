@@ -97,7 +97,7 @@ inside the lookahead window, so the gap is small; documented in
 `cpp/faust/*.dsp` can become WAMs without touching this repo's build:
 
 ```sh
-npx @shren/faust2wam cpp/faust/zita-rev1.dsp out/zita-wam        # effect
+npx @shren/faust2wam cpp/faust/hall-reverb.dsp out/hall-reverb-wam        # effect
 npx @shren/faust2wam my-synth.dsp out/my-synth -poly              # polyphonic MIDI instrument
 ```
 

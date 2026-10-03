@@ -49,6 +49,9 @@ describe('presets', () => {
     expect(resolvePreset(FILTER_DESCRIPTOR, own)).toBe(own)
     const foreign: Preset = { ...own, deviceId: 'eq3' }
     expect(() => resolvePreset(FILTER_DESCRIPTOR, foreign)).toThrow(/is for eq3, not filter/)
+    // Saved while the device went by another id: the same preset, under the id of today.
+    const renamed = { ...FILTER_DESCRIPTOR, formerIds: ['eq3'] }
+    expect(resolvePreset(renamed, foreign)).toEqual(own)
   })
 
   it('finds a renamed preset by the name it had, and lists it once under the name of today', () => {

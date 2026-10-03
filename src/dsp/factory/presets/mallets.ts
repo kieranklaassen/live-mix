@@ -12,7 +12,7 @@ export const MALLETS_PRESETS: readonly FactoryPreset[] = [
       preset: 'Soft marimba',
       params: { width: 0.7, volume: -3.5 },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.25 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.25 } }],
     preview: 'bells',
   },
   {
@@ -28,7 +28,7 @@ export const MALLETS_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tape', preset: 'Quarter inch' },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.35 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.35 } },
     ],
     preview: 'chord',
   },
@@ -43,7 +43,7 @@ export const MALLETS_PRESETS: readonly FactoryPreset[] = [
       preset: 'Motor vibes',
       params: { motorRate: 3.5, volume: -6 },
     },
-    effects: [{ deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.3 } }],
+    effects: [{ deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.3 } }],
     preview: 'bells',
   },
   {
@@ -71,7 +71,7 @@ export const MALLETS_PRESETS: readonly FactoryPreset[] = [
       preset: 'Celesta',
       params: { volume: -6 },
     },
-    effects: [{ deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.3 } }],
+    effects: [{ deviceId: 'plate-reverb', preset: 'Small plate', params: { mix: 0.3 } }],
     preview: 'bells',
   },
   {
@@ -101,8 +101,8 @@ export const MALLETS_PRESETS: readonly FactoryPreset[] = [
       params: { mallet: 0.7, decay: 1.2, resonator: 0.9, width: 0.45, volume: -5 },
     },
     effects: [
-      { deviceId: 'limiter-1176', preset: 'Light touch', params: { outputGain: 0.5 } },
-      { deviceId: 'zita-rev1', preset: 'Tight chamber' },
+      { deviceId: 'fet-limiter', preset: 'Light touch', params: { outputGain: 0.5 } },
+      { deviceId: 'hall-reverb', preset: 'Tight chamber' },
     ],
   },
   {
@@ -131,7 +131,7 @@ export const MALLETS_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'analog-drive', preset: 'Iron lows' },
-      { deviceId: 'zita-rev1', preset: 'Warm undertow', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Warm undertow', params: { mix: 0.3 } },
     ],
   },
   {
@@ -154,7 +154,7 @@ export const MALLETS_PRESETS: readonly FactoryPreset[] = [
         volume: -6,
       },
     },
-    effects: [{ deviceId: 'dattorro', preset: 'Bright plate', params: { mix: 0.3 } }],
+    effects: [{ deviceId: 'plate-reverb', preset: 'Bright plate', params: { mix: 0.3 } }],
   },
   {
     id: 'vibes-without-tubes',
@@ -169,7 +169,7 @@ export const MALLETS_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'stereo-detune', preset: 'Soft halo' },
-      { deviceId: 'zita-rev1', preset: 'Airy tail', params: { mix: 0.5 } },
+      { deviceId: 'hall-reverb', preset: 'Airy tail', params: { mix: 0.5 } },
     ],
   },
   {
@@ -183,7 +183,7 @@ export const MALLETS_PRESETS: readonly FactoryPreset[] = [
       preset: 'Glockenspiel',
       params: { mallet: 0.05, decay: 2.5, resonator: 1, volume: -10.5 },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Dark hall' }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Dark hall' }],
   },
   {
     id: 'toy-celesta',
@@ -214,7 +214,7 @@ export const MALLETS_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'octaves', preset: 'Sub octave' },
-      { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.22 } },
+      { deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.22 } },
     ],
     preview: 'keys',
   },
@@ -243,7 +243,7 @@ export const MALLETS_PRESETS: readonly FactoryPreset[] = [
       params: { mallet: 0.7, decay: 0.8, resonator: 0.5, width: 0.3, volume: -1 },
     },
     effects: [
-      { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.2 } },
+      { deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.2 } },
       { deviceId: 'analog-drive', preset: 'Triode glow' },
       { deviceId: 'vinyl', preset: 'Parlour 78', params: { crackle: 0.4, surface: 0.45 } },
     ],
@@ -268,7 +268,7 @@ export const MALLETS_PRESETS: readonly FactoryPreset[] = [
         volume: -7.8,
       },
     },
-    effects: [{ deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.3 } }],
+    effects: [{ deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.3 } }],
     preview: 'keys',
   },
   {
@@ -284,7 +284,7 @@ export const MALLETS_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'swell', preset: 'Slow bow' },
-      { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.4 } },
+      { deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.4 } },
     ],
   },
   {

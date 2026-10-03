@@ -39,6 +39,7 @@ export {
   stripHosts,
   targetKey,
   validateScore,
+  withCurrentDeviceIds,
   type CreateScoreOptions,
   type DeviceLocation,
   type ParamTarget,

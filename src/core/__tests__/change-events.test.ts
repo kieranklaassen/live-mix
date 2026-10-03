@@ -288,10 +288,10 @@ describe('EngineStats.reset', () => {
 })
 
 describe('ObservableDevice', () => {
-  const wasmPath = join(dirname(fileURLToPath(import.meta.url)), '../../dsp/wasm/dattorro.wasm')
-  let dattorro: WebAssembly.Module
+  const wasmPath = join(dirname(fileURLToPath(import.meta.url)), '../../dsp/wasm/plate-reverb.wasm')
+  let plate: WebAssembly.Module
   beforeAll(async () => {
-    dattorro = await WebAssembly.compile(await readFile(wasmPath))
+    plate = await WebAssembly.compile(await readFile(wasmPath))
   })
 
   function collect(device: Device): DeviceChange[] {
@@ -348,7 +348,7 @@ describe('ObservableDevice', () => {
     const ctx = createMockContext()
     const definition = defineWasmDevice({
       id: 'custom',
-      wasm: () => dattorro,
+      wasm: () => plate,
       params: {
         amount: { id: 0, name: 'Amount', min: 0, max: 1, default: 0.5, taper: 'linear', unit: '' },
       },

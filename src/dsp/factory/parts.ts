@@ -40,8 +40,8 @@ export const quarterTurn = (loopSec: number): PatchDevice => ({
  */
 export const PURE_FIFTH = 12 * Math.log2(3 / 2)
 
-export const zita = (preset: 'Room' | 'Hall' | 'Cathedral', mix: number): PatchDevice => ({
-  deviceId: 'zita-rev1',
+export const hall = (preset: 'Room' | 'Hall' | 'Cathedral', mix: number): PatchDevice => ({
+  deviceId: 'hall-reverb',
   preset,
   params: { mix },
 })

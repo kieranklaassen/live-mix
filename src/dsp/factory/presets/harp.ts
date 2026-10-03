@@ -8,7 +8,7 @@ export const HARP_PRESETS: readonly FactoryPreset[] = [
     category: 'plucked',
     description: 'A pedal harp plucked near the middle of its strings, ringing on in a hall.',
     instrument: { deviceId: 'harp', preset: 'Concert harp', params: { volume: -4 } },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } }],
     preview: 'keys',
   },
   {
@@ -18,7 +18,7 @@ export const HARP_PRESETS: readonly FactoryPreset[] = [
     description:
       'Notes played together are rolled from the lowest to the highest, over a long plate.',
     instrument: { deviceId: 'harp', preset: 'Glissando', params: { volume: -3 } },
-    effects: [{ deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.3 } }],
+    effects: [{ deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.3 } }],
     preview: 'keys',
   },
   {
@@ -63,7 +63,7 @@ export const HARP_PRESETS: readonly FactoryPreset[] = [
       deviceId: 'harp',
       params: { pluck: 0.3, touch: 0.55, decay: 0.75, halo: 0.35, body: 0.8, volume: -4 },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.2 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.2 } }],
   },
   {
     id: 'wire-strung-harp',
@@ -104,7 +104,7 @@ export const HARP_PRESETS: readonly FactoryPreset[] = [
         volume: 3.5,
       },
     },
-    effects: [{ deviceId: 'dattorro', preset: 'Small plate' }],
+    effects: [{ deviceId: 'plate-reverb', preset: 'Small plate' }],
   },
   {
     id: 'harp-under-wool',
@@ -118,7 +118,7 @@ export const HARP_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tape', preset: 'Under a blanket' },
-      { deviceId: 'zita-rev1', preset: 'Room', params: { damping: 2000, mix: 0.2 } },
+      { deviceId: 'hall-reverb', preset: 'Room', params: { damping: 2000, mix: 0.2 } },
     ],
   },
   {
@@ -131,7 +131,9 @@ export const HARP_PRESETS: readonly FactoryPreset[] = [
       deviceId: 'harp',
       params: { pluck: 0.04, touch: 1, decay: 2, halo: 0.9, body: 0, volume: 4 },
     },
-    effects: [{ deviceId: 'dattorro', preset: 'Bright plate', params: { decay: 0.8, mix: 0.3 } }],
+    effects: [
+      { deviceId: 'plate-reverb', preset: 'Bright plate', params: { decay: 0.8, mix: 0.3 } },
+    ],
   },
   {
     id: 'harp-raindrops',
@@ -227,7 +229,7 @@ export const HARP_PRESETS: readonly FactoryPreset[] = [
       params: { pluck: 0.28, touch: 0.6, decay: 0.9, body: 0.7, volume: -2.5 },
     },
     effects: [
-      { deviceId: 'zita-rev1', preset: 'Room' },
+      { deviceId: 'hall-reverb', preset: 'Room' },
       { deviceId: 'vinyl', preset: 'Parlour 78' },
     ],
   },
@@ -305,7 +307,7 @@ export const HARP_PRESETS: readonly FactoryPreset[] = [
     effects: [
       { deviceId: 'analog-drive', preset: 'Iron lows' },
       { deviceId: 'stereo-widener', preset: 'Mono' },
-      { deviceId: 'zita-rev1', preset: 'Warm undertow', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Warm undertow', params: { mix: 0.3 } },
     ],
     preview: 'low',
   },

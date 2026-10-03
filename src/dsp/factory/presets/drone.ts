@@ -14,7 +14,7 @@ export const DRONE_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'sympathetic', preset: 'Sitar drone', params: { mix: 0.5, width: 0.7 } },
-      { deviceId: 'zita-rev1', preset: 'Room' },
+      { deviceId: 'hall-reverb', preset: 'Room' },
     ],
   },
   {
@@ -30,7 +30,7 @@ export const DRONE_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tape', preset: 'Hot glue', params: { output: -4.5 } },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.25 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.25 } },
     ],
   },
   {
@@ -124,7 +124,7 @@ export const DRONE_PRESETS: readonly FactoryPreset[] = [
         volume: -11,
       },
     },
-    effects: [{ deviceId: 'dattorro', preset: 'Small plate' }],
+    effects: [{ deviceId: 'plate-reverb', preset: 'Small plate' }],
   },
   {
     id: 'minor-drone-plate',
@@ -149,7 +149,7 @@ export const DRONE_PRESETS: readonly FactoryPreset[] = [
         volume: -8.5,
       },
     },
-    effects: [{ deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.28 } }],
+    effects: [{ deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.28 } }],
   },
   {
     id: 'still-sine-pedal',
@@ -202,7 +202,7 @@ export const DRONE_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'chorus', preset: 'Lush ensemble' },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.25 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.25 } },
     ],
   },
   {
@@ -257,7 +257,7 @@ export const DRONE_PRESETS: readonly FactoryPreset[] = [
         volume: -8,
       },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Bright hall', params: { mix: 0.3 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Bright hall', params: { mix: 0.3 } }],
   },
   {
     id: 'swept-overtone-drone',
@@ -295,7 +295,7 @@ export const DRONE_PRESETS: readonly FactoryPreset[] = [
           lfoShape: 1,
         },
       },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
   {
@@ -453,7 +453,7 @@ export const DRONE_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'vinyl', preset: 'Parlour 78', params: { warp: 0.55, crackle: 0.35 } },
-      { deviceId: 'zita-rev1', preset: 'Room' },
+      { deviceId: 'hall-reverb', preset: 'Room' },
     ],
   },
   {

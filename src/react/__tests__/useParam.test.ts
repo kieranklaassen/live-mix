@@ -122,6 +122,29 @@ describe('useDevice', () => {
     expect(result.current.bypass).toBe(false)
   })
 
+  it("applies a preset captured before the device was renamed, and still refuses another device's", async () => {
+    const fixture = createTestEngine()
+    const devices = fixture.engine.devices
+    devices.register({ ...devices.describe('filter'), formerIds: ['tone'] }, { replace: true })
+    const device = await filter(fixture)
+    const { result } = renderHook(() => useDevice(device), { wrapper: fixture.wrapper })
+    const captured = result.current.capturePreset('Mine')
+
+    let applied: string[] = []
+    act(() => {
+      applied = result.current.applyPreset({
+        ...captured,
+        deviceId: 'tone',
+        params: { frequency: 3000 },
+      }).applied
+    })
+    expect(applied).toEqual(['frequency'])
+    expect(result.current.values.frequency).toBe(3000)
+    expect(() => result.current.applyPreset({ ...captured, deviceId: 'gain' })).toThrow(
+      /is for gain, not filter/,
+    )
+  })
+
   it('works without a registry for a device that announces nothing: own writes re-render', () => {
     const device = silentDevice()
     const { result } = renderHook(() => useDevice(device))
