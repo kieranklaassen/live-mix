@@ -76,6 +76,7 @@ import { mirrorSlice } from '../clips/reverse'
 import { comesRound, entersOnStep, leavesOnStep } from '../clips/seam'
 import { type ClipWindow } from '../clips/window'
 import { ParamGlide, holdParamAt } from '../automation/scheduled-param'
+import { startFloorSec } from '../clock'
 import { scheduleKey, type ScheduledStart } from '../transport/anchor'
 import { Cycle, type Timebase } from '../transport/Cycle'
 import { type Schedulable, type Scheduler } from '../transport/Scheduler'
@@ -1016,9 +1017,17 @@ export class AudioTrack implements StripHost {
    */
   private playLinear(key: string, playback: VoicePlayback, when: number): ClipVoice | null {
     const rate = this.rateValue
+    const now = this.now()
+    // On a device, nothing is started nearer the clock than can be kept to the
+    // frame: the source would be taken up a block or more late, its level
+    // already part of the way along what was written for it.
+    const floorSec = startFloorSec(this.ctx)
+    const passed = when < now
+    // Due any moment now: it plays whole, from as soon as can be kept.
+    if (!passed && when < now + floorSec) when = now + floorSec
     // A start that has already passed joins the clip partway in rather than
     // replaying it from the trim point and overrunning its end.
-    const late = Math.max(0, this.now() - when)
+    const late = passed ? now + floorSec - when : 0
     // How far into the clip that is.
     const lateSec = late * rate
     if (lateSec >= (playback.soundSec ?? playback.durationSec)) return null
@@ -1028,9 +1037,12 @@ export class AudioTrack implements StripHost {
     const release = releaseOf(playback, rate)
     const fadeOutSec = release.kind === 'fade' ? release.sec : playback.fadeOutSec
     const tailSec = release.kind === 'tail' ? release.sec : 0
-    // The ease-in it was given (a join partway), or the come-up of a looped sound started on time.
+    // The ease-in it was given (a join partway), or the come-up of a looped
+    // sound started on time. On a device a start that has passed eases in
+    // whoever asked for it: it begins partway through a wave.
     const easeInSec =
-      playback.easeInSec ?? (late === 0 && comesUp(playback) ? JOIN_EASE_SECONDS : 0)
+      playback.easeInSec ??
+      ((late === 0 ? comesUp(playback) : floorSec > 0) ? JOIN_EASE_SECONDS : 0)
 
     const source = this.ctx.createBufferSource()
     const gain = this.ctx.createGain()
@@ -1052,7 +1064,8 @@ export class AudioTrack implements StripHost {
     // silence (a come-up, or a fade-in of its own) is silent from half a frame
     // sooner: its first frame would otherwise sound at full level, ahead of
     // the fade. This is the one event ambient-live's ClipPlayer did not write.
-    if ((easeSec > 0 || playback.fadeInSec > 0) && late === 0) {
+    // A join on a device starts ahead of the clock too, so on a frame of its own.
+    if (late === 0 ? easeSec > 0 || playback.fadeInSec > 0 : easeSec > 0 && floorSec > 0) {
       gain.gain.setValueAtTime(0, Math.max(0, start - 0.5 / this.ctx.sampleRate))
     }
     if (easeSec > 0) gain.gain.setValueAtTime(0, start)
@@ -1408,12 +1421,15 @@ export class AudioTrack implements StripHost {
    * its tail is left to finish it.
    */
   private letGo(voice: ClipVoice): void {
-    const at = this.now()
+    const now = this.now()
     const timing = this.timings.get(voice)
-    if (voice.startTime > at || at >= voice.endTime + (timing?.tailSec ?? 0)) {
+    if (voice.startTime > now || now >= voice.endTime + (timing?.tailSec ?? 0)) {
       this.silence(voice)
       return
     }
+    // The fall begins where the device can keep it to the frame, which is
+    // also where a voice entered in its place comes up.
+    const at = now + startFloorSec(this.ctx)
     if (at < voice.endTime) {
       const level = voice.gain.gain
       // A voice with no envelope of its own left is fading, or playing on the clock: where it is now.

@@ -310,7 +310,12 @@ export class Scheduler {
     }
     const rate = this.transport.rate
     const nowSec = unwrap(position.positionSec, position.iteration, this.transport.loop)
-    this.ran = { elapsedSec: this.transport.elapsed(contextTime), contextTime }
+    // Ahead of an anchor pinned in the future the timeline stands still: it
+    // runs on from the anchor's moment, not from this pass.
+    this.ran = {
+      elapsedSec: this.transport.elapsed(contextTime),
+      contextTime: Math.max(contextTime, this.transport.anchor?.contextTime ?? contextTime),
+    }
 
     for (const [schedulable, registration] of this.registrations) {
       // The clock its clips are on: the transport, or a cycle of its own
@@ -693,7 +698,7 @@ export class Scheduler {
     const ran = this.ran
     if (!ran || this.transport.state !== 'playing') return false
     const now = this.transport.now()
-    const expected = ran.elapsedSec + (now - ran.contextTime) * this.rate
+    const expected = ran.elapsedSec + Math.max(0, now - ran.contextTime) * this.rate
     return Math.abs(this.transport.elapsed(now) - expected) > FOLD_TOLERANCE_SECONDS
   }
 
