@@ -18,6 +18,12 @@
 // (`release`). An equal-power clip is not entered partway: its envelope is
 // written from its start, so it waits for its start to come round.
 //
+// A linear clip that stops partway through its sound (it is shorter than what
+// is left of its source, or it loops and its end does not fall where the
+// region comes round) ends on the same few milliseconds of ease-out, unless
+// its own fade-out is longer: nothing after it hides the cut either. A sound
+// that runs to its own end is left to end as it was made.
+//
 // A reversed clip is the same voice on a mirrored copy of its buffer
 // (`reversed-buffer.ts`), entered where `mirrorSlice` says.
 //
@@ -89,8 +95,11 @@ export const MAX_CLIP_GAIN_DB = 12
 /** ambient-live's scheduling lookahead. */
 export const DEFAULT_LOOKAHEAD_SECONDS = 0.2
 
-/** The ease-in of a clip entered partway, and the fade of the voice it replaces. */
+/** The ease-in of a clip entered partway, the fade of the voice it replaces, and the ease-out of a clip cut partway through its sound. */
 export const JOIN_EASE_SECONDS = 0.005
+
+/** How near its sound's own end a clip may stop and still count as ending there. */
+const OWN_END_SECONDS = 0.001
 
 /** How far down a placed clip's trim reaches: sitting far back costs more than the ±12 dB of a loudness trim. */
 export const MIN_PLACED_GAIN_DB = -60
@@ -212,6 +221,35 @@ interface VoiceTiming {
 interface VoicePlayback extends ClipVoiceOptions {
   /** How long the source may sound when that is shorter than the clip; only a reversed clip sets it. */
   soundSec?: number
+}
+
+/**
+ * Whether a voice stops partway through its sound: a clip shorter than what
+ * is left of its source, or a looping one whose end does not fall where its
+ * region comes round. Where the source runs out by itself, at the clip's end
+ * or before it, the end is the sound's own.
+ */
+function cutPartway(playback: VoicePlayback): boolean {
+  if (playback.soundSec !== undefined && playback.soundSec < playback.durationSec) return false
+  const stopsAt = playback.offsetSec + playback.durationSec
+  if (!playback.loop) return stopsAt < playback.buffer.duration - OWN_END_SECONDS
+  const regionStart = playback.loopStartSec ?? playback.offsetSec
+  const regionEnd = playback.loopEndSec ?? playback.buffer.duration
+  const region = regionEnd - regionStart
+  if (!(region > 0)) return false
+  if (stopsAt <= regionEnd) return stopsAt < regionEnd - OWN_END_SECONDS
+  const into = (stopsAt - regionStart) % region
+  return into > OWN_END_SECONDS && into < region - OWN_END_SECONDS
+}
+
+/**
+ * The fade a linear voice ends on: its clip's own, or a few milliseconds
+ * where the clip is cut partway through its sound and its own is shorter,
+ * since nothing after the cut hides it.
+ */
+function endFadeSec(playback: VoicePlayback): number {
+  if (!cutPartway(playback)) return playback.fadeOutSec
+  return Math.max(playback.fadeOutSec, Math.min(JOIN_EASE_SECONDS, playback.durationSec))
 }
 
 export interface ClipVoice {
@@ -869,6 +907,8 @@ export class AudioTrack implements StripHost {
     if (lateSec >= (playback.soundSec ?? playback.durationSec)) return null
     const start = when + late
     const end = when + playback.durationSec / rate
+    // Its clip's own fade-out, or the ease-out of a clip cut partway through its sound.
+    const fadeOutSec = endFadeSec(playback)
 
     const source = this.ctx.createBufferSource()
     const gain = this.ctx.createGain()
@@ -881,7 +921,7 @@ export class AudioTrack implements StripHost {
     // Linear ramps against the clip's own timeline, so the drawn fade slope is
     // the applied gain even when the clip is joined late.
     const fadeInEnd = when + Math.min(playback.fadeInSec, playback.durationSec) / rate
-    const fadeOutStart = Math.max(fadeInEnd, end - playback.fadeOutSec / rate)
+    const fadeOutStart = Math.max(fadeInEnd, end - fadeOutSec / rate)
     // The envelope takes over where the ease-in ends: at the join itself when there is none.
     const easeSec = Math.max(0, Math.min(playback.easeInSec ?? 0, end - start))
     const from = start + easeSec
@@ -890,12 +930,12 @@ export class AudioTrack implements StripHost {
       (late + easeSec) * rate,
       playback.durationSec,
       playback.fadeInSec,
-      playback.fadeOutSec,
+      fadeOutSec,
     )
     if (easeSec > 0) gain.gain.linearRampToValueAtTime(envelopeAtFrom, from)
     else gain.gain.setValueAtTime(envelopeAtFrom, from)
     if (fadeInEnd > from) gain.gain.linearRampToValueAtTime(1, fadeInEnd)
-    if (playback.fadeOutSec > 0) {
+    if (fadeOutSec > 0) {
       if (fadeOutStart > from) gain.gain.setValueAtTime(1, fadeOutStart)
       gain.gain.linearRampToValueAtTime(0, end)
     }
@@ -917,7 +957,7 @@ export class AudioTrack implements StripHost {
       rate,
       durationSec: playback.durationSec,
       fadeInSec: playback.fadeInSec,
-      fadeOutSec: playback.fadeOutSec,
+      fadeOutSec,
       easeFromSec: lateSec,
       easeToSec: (late + easeSec) * rate,
       stoppedAtEnd: playback.loop === true,
