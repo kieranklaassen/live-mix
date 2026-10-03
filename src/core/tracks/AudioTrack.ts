@@ -76,6 +76,7 @@ import { mirrorSlice } from '../clips/reverse'
 import { comesRound, entersOnStep, leavesOnStep } from '../clips/seam'
 import { type ClipWindow } from '../clips/window'
 import { ParamGlide, holdParamAt } from '../automation/scheduled-param'
+import { startFloorSec } from '../clock'
 import { scheduleKey, type ScheduledStart } from '../transport/anchor'
 import { Cycle, type Timebase } from '../transport/Cycle'
 import { type Schedulable, type Scheduler } from '../transport/Scheduler'
@@ -835,8 +836,9 @@ export class AudioTrack implements StripHost {
 
   /**
    * Let the voice under `key` go for another that takes its place: one that
-   * is sounding fades out over `seconds` from now and is forgotten at once, so
-   * the key is free; one that has not started, or `seconds` of 0, is silenced.
+   * is sounding fades out over `seconds` from now (on a device, from where the
+   * other can come up) and is forgotten at once, so the key is free; one that
+   * has not started, or `seconds` of 0, is silenced.
    */
   release(key: string, seconds: number): void {
     const voice = this.active.get(key)
@@ -844,6 +846,12 @@ export class AudioTrack implements StripHost {
     const at = this.now()
     if (seconds <= 0 || voice.startTime > at || at >= voice.endTime) {
       this.silence(voice)
+      return
+    }
+    // On a device the voice that takes its place comes up the start floor
+    // ahead of the clock, so this one fades from there, off its own envelope.
+    if (voice.fadeCurve === 'linear' && startFloorSec(this.ctx) > 0) {
+      this.letGo(voice, seconds)
       return
     }
     this.fadeOutVoice(key, at, seconds)
@@ -1016,21 +1024,21 @@ export class AudioTrack implements StripHost {
    */
   private playLinear(key: string, playback: VoicePlayback, when: number): ClipVoice | null {
     const rate = this.rateValue
+    const soundSec = playback.soundSec ?? playback.durationSec
+    // On a device, nothing is started nearer the clock than can be kept to the
+    // frame: the source would be taken up a block or more late, its level
+    // already part of the way along what was written for it.
+    const floorSec = startFloorSec(this.ctx)
     // A start that has already passed joins the clip partway in rather than
-    // replaying it from the trim point and overrunning its end.
-    const late = Math.max(0, this.now() - when)
-    // How far into the clip that is.
-    const lateSec = late * rate
-    if (lateSec >= (playback.soundSec ?? playback.durationSec)) return null
-    const start = when + late
-    const end = when + playback.durationSec / rate
+    // replaying it from the trim point and overrunning its end: this far in,
+    // by the clock on `now`.
+    const lateAt = (now: number) => (when < now ? now + floorSec - when : 0)
+    if (lateAt(this.now()) * rate >= soundSec) return null
     // Its clip's own fade-out, or the way out of a clip whose sound would step where it ends.
     const release = releaseOf(playback, rate)
     const fadeOutSec = release.kind === 'fade' ? release.sec : playback.fadeOutSec
     const tailSec = release.kind === 'tail' ? release.sec : 0
-    // The ease-in it was given (a join partway), or the come-up of a looped sound started on time.
-    const easeInSec =
-      playback.easeInSec ?? (late === 0 && comesUp(playback) ? JOIN_EASE_SECONDS : 0)
+    const comingUp = comesUp(playback)
 
     const source = this.ctx.createBufferSource()
     const gain = this.ctx.createGain()
@@ -1039,6 +1047,27 @@ export class AudioTrack implements StripHost {
     if (rate !== 1) source.playbackRate.value = rate
     source.connect(gain)
     const { trim, placement } = this.connectVoice(gain, playback)
+
+    // The clock is read once the voice is wired, and everything below is
+    // written against that reading: a first send into a space makes the
+    // space, which on a device is time the clock runs on through.
+    const now = this.now()
+    const late = lateAt(now)
+    // How far into the clip that is.
+    const lateSec = late * rate
+    if (lateSec >= soundSec) {
+      this.unwire({ source, gain, trim, placement })
+      return null
+    }
+    // Due any moment now: it plays whole, from as soon as can be kept.
+    if (late === 0 && when < now + floorSec) when = now + floorSec
+    const start = when + late
+    const end = when + playback.durationSec / rate
+    // The ease-in it was given (a join partway), or the come-up of a looped
+    // sound started on time. On a device a start that has passed eases in
+    // whoever asked for it: it begins partway through a wave.
+    const easeInSec =
+      playback.easeInSec ?? ((late === 0 ? comingUp : floorSec > 0) ? JOIN_EASE_SECONDS : 0)
 
     // Linear ramps against the clip's own timeline, so the drawn fade slope is
     // the applied gain even when the clip is joined late.
@@ -1052,7 +1081,8 @@ export class AudioTrack implements StripHost {
     // silence (a come-up, or a fade-in of its own) is silent from half a frame
     // sooner: its first frame would otherwise sound at full level, ahead of
     // the fade. This is the one event ambient-live's ClipPlayer did not write.
-    if ((easeSec > 0 || playback.fadeInSec > 0) && late === 0) {
+    // A join on a device starts ahead of the clock too, so on a frame of its own.
+    if (late === 0 ? easeSec > 0 || playback.fadeInSec > 0 : easeSec > 0 && floorSec > 0) {
       gain.gain.setValueAtTime(0, Math.max(0, start - 0.5 / this.ctx.sampleRate))
     }
     if (easeSec > 0) gain.gain.setValueAtTime(0, start)
@@ -1403,17 +1433,20 @@ export class AudioTrack implements StripHost {
   /**
    * Lets a voice go at once. One that is sounding is not cut dead, which is a
    * step wherever its wave happens to stand: it falls to silence over
-   * `JOIN_EASE_SECONDS` from the level it has, and is forgotten now, so its
-   * key is free. One that has not started, or is over, is silenced; one in
-   * its tail is left to finish it.
+   * `seconds` from the level it has, and is forgotten now, so its key is
+   * free. One that has not started, or is over, is silenced; one in its tail
+   * is left to finish it.
    */
-  private letGo(voice: ClipVoice): void {
-    const at = this.now()
+  private letGo(voice: ClipVoice, seconds = JOIN_EASE_SECONDS): void {
+    const now = this.now()
     const timing = this.timings.get(voice)
-    if (voice.startTime > at || at >= voice.endTime + (timing?.tailSec ?? 0)) {
+    if (voice.startTime > now || now >= voice.endTime + (timing?.tailSec ?? 0)) {
       this.silence(voice)
       return
     }
+    // The fall begins where the device can keep it to the frame, which is
+    // also where a voice entered in its place comes up.
+    const at = now + startFloorSec(this.ctx)
     if (at < voice.endTime) {
       const level = voice.gain.gain
       // A voice with no envelope of its own left is fading, or playing on the clock: where it is now.
@@ -1424,9 +1457,9 @@ export class AudioTrack implements StripHost {
       if (typeof level.cancelAndHoldAtTime === 'function') level.cancelAndHoldAtTime(at)
       else level.cancelScheduledValues(at)
       level.setValueAtTime(reached, at)
-      level.linearRampToValueAtTime(0, at + JOIN_EASE_SECONDS)
-      this.stopSource(voice, at + JOIN_EASE_SECONDS)
-      voice.endTime = at + JOIN_EASE_SECONDS
+      level.linearRampToValueAtTime(0, at + seconds)
+      this.stopSource(voice, at + seconds)
+      voice.endTime = at + seconds
     }
     this.active.delete(voice.key)
     this.voiceClips.delete(voice.key)
@@ -1454,7 +1487,7 @@ export class AudioTrack implements StripHost {
   }
 
   /** Takes a voice's nodes out of the graph; what it already sent into the space rings on. */
-  private unwire(voice: ClipVoice): void {
+  private unwire(voice: Pick<ClipVoice, 'source' | 'gain' | 'trim' | 'placement'>): void {
     voice.source.disconnect()
     voice.gain.disconnect()
     voice.trim?.disconnect()

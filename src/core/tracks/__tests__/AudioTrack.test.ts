@@ -28,8 +28,19 @@ import {
 import { SampleStore } from '../SampleStore'
 import { spaceDrift, spaceDriveGains } from '../space'
 
-function setup(options: { currentTime?: number; lookaheadSec?: number; preloadSec?: number } = {}) {
-  const ctx = createMockContext({ currentTime: options.currentTime ?? 0, sampleRate: 48000 })
+function setup(
+  options: {
+    currentTime?: number
+    lookaheadSec?: number
+    preloadSec?: number
+    baseLatency?: number
+  } = {},
+) {
+  const ctx = createMockContext({
+    currentTime: options.currentTime ?? 0,
+    sampleRate: 48000,
+    baseLatency: options.baseLatency,
+  })
   const dest = ctx.createGain()
   const samples = new SampleStore(asAudioContext(ctx))
   const track = new AudioTrack(asAudioContext(ctx), {
@@ -2625,5 +2636,197 @@ describe('AudioTrack rate (tape speed)', () => {
       expect(track.voice('pad:0:2.000')?.endTime).toBe(102.5)
       scheduler.dispose()
     })
+  })
+})
+
+describe('AudioTrack on a device: nothing starts nearer the clock than can be kept to the frame', () => {
+  // A device buffer of two blocks at 48 kHz: the floor is that and a block, 8 ms.
+  const DEVICE = 256 / 48000
+  const FLOOR = 384 / 48000
+  const E = JOIN_EASE_SECONDS
+  const HALF = 0.5 / 48000
+  const bare = { fadeInSec: 0, fadeOutSec: 0, fadeCurve: 'linear' as const }
+  const nine = (value: number) => Number(value.toFixed(9))
+  const starts = (ctx: MockAudioContext, index = 0) =>
+    ctx.sources[index].startCalls.calls.map((args) => args.map((arg) => nine(arg as number)))
+  const levels = (voice: { gain: GainNode } | null) =>
+    toNine(
+      (voice?.gain.gain as unknown as { events: { method: string; args: unknown[] }[] }).events,
+    )
+
+  it('a start that has passed joins that far ahead of the clock and eases in, whoever asked', () => {
+    const { ctx, track } = setup({ currentTime: 5, baseLatency: DEVICE })
+    const voice = track.play(
+      'k',
+      { buffer: buffer(ctx, 10), offsetSec: 1, durationSec: 6, ...bare },
+      4,
+    )
+    // A second and the floor into the clip, at 5.008.
+    expect(starts(ctx)).toEqual([[5.008, 2.008, 4.992]])
+    expect(voice?.startTime).toBeCloseTo(5 + FLOOR, 9)
+    expect(voice?.endTime).toBe(10)
+    // Silent from half a frame before its first, like any voice that starts on a frame of its own.
+    expect(levels(voice)).toEqual([
+      ['setValueAtTime', 0, nine(5 + FLOOR - HALF)],
+      ['setValueAtTime', 0, 5.008],
+      ['linearRampToValueAtTime', 1, nine(5.008 + E)],
+    ])
+  })
+
+  it('a join the scheduler asked for starts there too, with the ease it was given', () => {
+    const { ctx, track } = setup({ currentTime: 5, baseLatency: DEVICE })
+    const voice = track.play(
+      'k',
+      { buffer: buffer(ctx, 10), offsetSec: 0, durationSec: 6, ...bare, easeInSec: 0.002 },
+      4,
+    )
+    expect(starts(ctx)).toEqual([[5.008, 1.008, 4.992]])
+    expect(levels(voice).slice(-1)).toEqual([['linearRampToValueAtTime', 1, 5.01]])
+  })
+
+  it('a start due any moment plays whole, from as soon as can be kept', () => {
+    for (const when of [5, 5.004]) {
+      const { ctx, track } = setup({ currentTime: 5, baseLatency: DEVICE })
+      const voice = track.play(
+        'k',
+        { buffer: buffer(ctx, 10), offsetSec: 1, durationSec: 6, ...bare },
+        when,
+      )
+      expect(starts(ctx)).toEqual([[5.008, 1, 6]])
+      expect(voice?.startTime).toBeCloseTo(5.008, 9)
+      expect(voice?.endTime).toBeCloseTo(11.008, 9)
+      expect(levels(voice)).toEqual([['setValueAtTime', 1, 5.008]])
+    }
+  })
+
+  it('a start far enough ahead is left where it was asked for', () => {
+    for (const when of [5 + FLOOR, 5.5]) {
+      const { ctx, track } = setup({ currentTime: 5, baseLatency: DEVICE })
+      const voice = track.play(
+        'k',
+        { buffer: buffer(ctx, 10), offsetSec: 1, durationSec: 6, ...bare },
+        when,
+      )
+      expect(starts(ctx)).toEqual([[nine(when), 1, 6]])
+      expect(voice?.startTime).toBe(when)
+    }
+  })
+
+  it('a looped sound due now comes up from there', () => {
+    const { ctx, track } = setup({ currentTime: 5, baseLatency: DEVICE })
+    const voice = track.play(
+      'k',
+      { buffer: looped(ctx, 4), offsetSec: 0, durationSec: 4, ...bare },
+      5,
+    )
+    expect(levels(voice).slice(0, 3)).toEqual([
+      ['setValueAtTime', 0, nine(5 + FLOOR - HALF)],
+      ['setValueAtTime', 0, 5.008],
+      ['linearRampToValueAtTime', 1, nine(5.008 + E)],
+    ])
+  })
+
+  it('a voice let go falls from there, where one entered in its place comes up', () => {
+    const { ctx, track } = setup({ baseLatency: DEVICE })
+    const opts = { buffer: buffer(ctx, 10), offsetSec: 0, durationSec: 6, ...bare }
+    const voice = track.play('sounding', opts, 0)
+    track.play('pending', opts, 3)
+    ctx.currentTime = 2
+    track.stopAll()
+    expect(levels(voice).slice(-3)).toEqual([
+      ['cancelAndHoldAtTime', 2.008],
+      ['setValueAtTime', 1, 2.008],
+      ['linearRampToValueAtTime', 0, nine(2.008 + E)],
+    ])
+    expect(
+      ctx.sources[0].stopCalls.calls.map((args) => args.map((arg) => nine(arg as number))),
+    ).toEqual([[nine(2.008 + E)]])
+    expect(voice?.endTime).toBeCloseTo(2.008 + E, 9)
+    // Not sounding yet: dropped now.
+    expect(ctx.sources[1].stopCalls.calls).toEqual([[]])
+    expect(track.voices()).toHaveLength(0)
+
+    // Its place is taken from the same moment.
+    const joined = track.play('joined', { ...opts, easeInSec: E }, 1)
+    expect(starts(ctx, 2)).toEqual([[2.008, 1.008, 4.992]])
+    expect(levels(joined).slice(-1)).toEqual([['linearRampToValueAtTime', 1, nine(2.008 + E)]])
+  })
+
+  it('a voice released for another fades from there too, off its own envelope', () => {
+    const { ctx, track } = setup({ baseLatency: DEVICE })
+    // Halfway up a four second fade-in.
+    const voice = track.play(
+      'k',
+      { buffer: buffer(ctx, 10), offsetSec: 0, durationSec: 8, ...bare, fadeInSec: 4 },
+      1,
+    )
+    ctx.currentTime = 3
+    track.release('k', 0.02)
+    // The fade-in is kept up to where the fade-out starts, not dropped from now.
+    expect(levels(voice).slice(-3)).toEqual([
+      ['cancelAndHoldAtTime', 3.008],
+      ['setValueAtTime', 0.502, 3.008],
+      ['linearRampToValueAtTime', 0, 3.028],
+    ])
+    expect(voice?.endTime).toBeCloseTo(3.028, 9)
+    expect(track.voice('k')).toBeUndefined()
+  })
+
+  describe('wiring that takes a while (a first send into a space makes the space)', () => {
+    /** The first gain made from here on takes 150 ms of the clock. */
+    function stall(ctx: MockAudioContext) {
+      const createGain = ctx.createGain.bind(ctx)
+      let stalled = false
+      Object.assign(ctx, {
+        createGain: () => {
+          if (!stalled) ctx.currentTime += 0.15
+          stalled = true
+          return createGain()
+        },
+      })
+    }
+
+    it('reads the clock once the voice is wired: a start that passed meanwhile joins, eased', () => {
+      const { ctx, track } = setup({ currentTime: 5, baseLatency: DEVICE })
+      stall(ctx)
+      const voice = track.play(
+        'k',
+        { buffer: buffer(ctx, 10), offsetSec: 0, durationSec: 6, ...bare },
+        5.02,
+      )
+      // Due at 5.02 and wired at 5.15: joined the floor ahead of that, 0.138 s in.
+      expect(starts(ctx)).toEqual([[5.158, 0.138, 5.862]])
+      expect(levels(voice).slice(-1)).toEqual([['linearRampToValueAtTime', 1, nine(5.158 + E)]])
+    })
+
+    it('makes nothing of a voice that is over by then', () => {
+      const { ctx, track } = setup({ currentTime: 5, baseLatency: DEVICE })
+      stall(ctx)
+      const voice = track.play(
+        'k',
+        { buffer: buffer(ctx, 10), offsetSec: 0, durationSec: 0.1, ...bare },
+        5.02,
+      )
+      expect(voice).toBeNull()
+      expect(ctx.sources[0].startCalls.count).toBe(0)
+      expect(ctx.sources[0].disconnectCalls.count).toBe(1)
+      expect(track.voices()).toHaveLength(0)
+    })
+  })
+
+  it('a voice that ends before the fall could begin is left to end', () => {
+    const { ctx, track } = setup({ baseLatency: DEVICE })
+    // Starts at the floor (8 ms) and ends at 2.006 s; let go at 2 s, the fall would begin at 2.008 s.
+    const voice = track.play(
+      'k',
+      { buffer: buffer(ctx, 10), offsetSec: 0, durationSec: 1.998, ...bare },
+      0,
+    )
+    ctx.currentTime = 2
+    const before = levels(voice)
+    track.stop('k')
+    expect(levels(voice)).toEqual(before)
+    expect(ctx.sources[0].stopCalls.count).toBe(0)
+    expect(track.voice('k')).toBeUndefined()
   })
 })

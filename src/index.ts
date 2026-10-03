@@ -49,6 +49,8 @@ export {
 export { ensureProcessor } from './core/worklet-loader'
 export {
   createClock,
+  startFloorSec,
+  startLeadSec,
   type Clock,
   type ClockOptions,
   type IntervalId,

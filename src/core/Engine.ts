@@ -15,7 +15,7 @@ import { Automation, type AutomationOptions } from './automation/Automation'
 import { type ModMatrix } from './automation/ModMatrix'
 import { MasterBus, type MasterBusOptions } from './buses/MasterBus'
 import { Bus } from './buses/Bus'
-import { createClock, type Clock, type ClockOptions } from './clock'
+import { createClock, startLeadSec, type Clock, type ClockOptions } from './clock'
 import { Emitter } from './events'
 import { OutputRouter, type OutputRouterOptions } from './output/OutputRouter'
 import { devices as defaultDevices } from './devices'
@@ -279,7 +279,12 @@ export class Engine {
     this.clock = createClock(options.context, options)
     this.output = new OutputRouter(options.context, options.output)
     this.master = new MasterBus(options.context, this.output, options.master)
-    this.transport = new Transport({ now: this.clock.now, loop: options.loop })
+    this.transport = new Transport({
+      now: this.clock.now,
+      loop: options.loop,
+      // On a device a start is pinned far enough ahead to be kept to the frame.
+      startLeadSec: () => startLeadSec(options.context),
+    })
     this.scheduler = new Scheduler({
       transport: this.transport,
       tickMs: options.tickMs,

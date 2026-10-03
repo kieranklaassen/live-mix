@@ -518,6 +518,69 @@ describe('Scheduler timer', () => {
   })
 })
 
+describe('Scheduler under a transport that pins ahead of the clock', () => {
+  const LEAD = 0.01
+
+  /** As on a device: the clock runs a block on between the pin and the first pass. */
+  function buildLed(items: ClipWindow['clips'], loop: TransportLoop = LOOP) {
+    const ctx = new MockAudioContext()
+    ctx.currentTime = 100
+    const transport = new Transport({ now: () => ctx.currentTime, loop, startLeadSec: LEAD })
+    transport.onChange((change) => {
+      if (change.reason === 'start' || change.reason === 'seek') ctx.currentTime += 128 / 44_100
+    })
+    const scheduler = new Scheduler({ transport })
+    const track = new FakeTrack(ctx, 0.2, items)
+    scheduler.register(track)
+    return { ctx, transport, scheduler, track }
+  }
+
+  it('hands over what starts where the transport does while its time is still ahead', () => {
+    const { transport, track } = buildLed([{ id: 'top', startSec: 0 }])
+    transport.start()
+    expect(track.keys()).toEqual(['top:0:0.000'])
+    expect(round(track.handed[0].when)).toBe(100.01)
+    expect(track.handed[0].at).toBeLessThan(track.handed[0].when)
+  })
+
+  it('does so where a seek lands while playing, and hands nothing over twice once it runs', () => {
+    const { ctx, transport, scheduler, track } = buildLed([{ id: 'here', startSec: 12.5 }])
+    transport.start()
+    ctx.currentTime = 101
+    transport.seek(12.5)
+    expect(track.keys()).toEqual(['here:1:12.500'])
+    expect(round(track.handed[0].when)).toBe(101.01)
+    expect(track.handed[0].at).toBeLessThan(track.handed[0].when)
+    // Before the anchor's moment, at it, and after.
+    for (const at of [101.005, 101.01, 101.05]) {
+      ctx.currentTime = at
+      scheduler.tick()
+    }
+    expect(track.handed).toHaveLength(1)
+  })
+
+  it('times a clip the transport is started inside from the anchor, not from the clock', () => {
+    const { transport, track } = buildLed([{ id: 'pad', startSec: 2, durationSec: 16 }])
+    Object.assign(track, { joinsLate: true })
+    transport.seek(6.25)
+    transport.start()
+    expect(track.keys()).toEqual(['pad:0:2.000'])
+    const pinnedAt = transport.anchor?.contextTime ?? 0
+    expect(pinnedAt).toBeGreaterThan(track.handed[0].at)
+    expect(round(track.handed[0].when)).toBe(round(pinnedAt - 4.25))
+  })
+
+  it('leaves the start where it was pinned when the loop changes before it is reached', () => {
+    const { ctx, transport, track } = buildLed([{ id: 'top', startSec: 0 }])
+    transport.start()
+    ctx.currentTime = 100.006
+    transport.setLoop({ lengthSec: 64 })
+    // Handed over again under the new pass, for the same moment.
+    expect(track.keys()).toEqual(['top:0:0.000', 'top:1:0.000'])
+    expect(track.handed.map((entry) => round(entry.when))).toEqual([100.01, 100.01])
+  })
+})
+
 describe('Scheduler joins clips the position is inside', () => {
   /** A track that can enter a clip partway, like an AudioTrack: it is told when it is asked to. */
   class JoiningTrack extends FakeTrack {

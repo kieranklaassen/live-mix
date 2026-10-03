@@ -39,6 +39,13 @@ export interface TransportOptions {
   loop?: Partial<TransportLoop>
   /** Timeline seconds per second of the audio clock. Default 1. */
   rate?: number
+  /**
+   * How far ahead of the clock a start with no time of its own, and a seek
+   * while playing, pin the anchor: the time the audio device needs for what is
+   * due there to be started on the frame (`startLeadSec`, read at each pin).
+   * The position stands at the anchor until then. Default 0: pinned at now.
+   */
+  startLeadSec?: number | (() => number)
 }
 
 export interface StopOptions {
@@ -50,6 +57,7 @@ const DEFAULT_LOOP: TransportLoop = { enabled: false, lengthSec: Infinity }
 
 export class Transport {
   private readonly clock: () => number
+  private readonly startLead: () => number
   private currentState: TransportState = 'stopped'
   private currentLoop: TransportLoop
   // Pinned while playing. Null otherwise: the idle fields hold the position.
@@ -76,12 +84,25 @@ export class Transport {
 
   constructor(options: TransportOptions) {
     this.clock = options.now
+    const lead = options.startLeadSec ?? 0
+    this.startLead = typeof lead === 'function' ? lead : () => lead
     this.currentLoop = validateLoop({ ...DEFAULT_LOOP, ...options.loop })
     this.currentRate = validateRate(options.rate ?? 1)
   }
 
   get state(): TransportState {
     return this.currentState
+  }
+
+  /**
+   * How far ahead of the clock the next start with no time of its own, or seek
+   * while playing, pins the anchor. A caller that seeks to put the transport
+   * in step with another clock aims that far along: the position it asks for
+   * is reached then, not now.
+   */
+  get startLeadSec(): number {
+    const leadSec = this.startLead()
+    return Number.isFinite(leadSec) && leadSec > 0 ? leadSec : 0
   }
 
   get loop(): Readonly<TransportLoop> {
@@ -211,13 +232,15 @@ export class Transport {
 
   /**
    * Starts playing from the current position, pinning the anchor at `at` on
-   * the audio clock (default: now; past times are clamped to now, as in
-   * `AudioScheduledSourceNode.start`). No-op while already playing.
+   * the audio clock (past times are clamped to now, as in
+   * `AudioScheduledSourceNode.start`). With no `at` it is pinned the start
+   * lead ahead of now (`startLeadSec`; at now without one). No-op while
+   * already playing.
    */
   start(at?: number): void {
     if (this.currentState === 'playing') return
     const now = this.clock()
-    this.pin(at === undefined ? now : Math.max(at, now), this.idlePositionSec)
+    this.pin(at === undefined ? this.ahead(now) : Math.max(at, now), this.idlePositionSec)
     this.currentState = 'playing'
     this.emit('start')
   }
@@ -254,8 +277,8 @@ export class Transport {
 
   /**
    * Moves the position. Wraps into the loop when looping, clamps to
-   * `[0, lengthSec]` otherwise. While playing the transport is re-pinned to
-   * now with a fresh pass number. The counted pass stays as it is, and
+   * `[0, lengthSec]` otherwise. While playing the transport is re-pinned the
+   * start lead ahead of now with a fresh pass number. The counted pass stays as it is, and
    * `elapsed()` moves by as much as the position does: a seek is a move
    * within the pass the transport is in.
    */
@@ -263,7 +286,7 @@ export class Transport {
     const target = this.normalisePosition(positionSec)
     if (this.currentAnchor) this.unpin()
     this.moveTo(target)
-    if (this.currentState === 'playing') this.pin(this.clock(), target)
+    if (this.currentState === 'playing') this.pin(this.ahead(this.clock()), target)
     this.emit('seek')
   }
 
@@ -292,7 +315,7 @@ export class Transport {
     this.idleElapsedSec = looping ? runSec : target
     // The counted pass is the one that point of the run is in.
     if (looping) this.idlePass = pass
-    if (this.currentState === 'playing') this.pin(this.clock(), target)
+    if (this.currentState === 'playing') this.pin(this.ahead(this.clock()), target)
     this.emit('seek')
   }
 
@@ -371,12 +394,14 @@ export class Transport {
     ) {
       return
     }
+    // A start still pinned in the future keeps its moment: what was handed over for it is on its way.
+    const pinnedAt = this.currentAnchor?.contextTime ?? 0
     if (this.currentAnchor) this.unpin()
     this.currentLoop = next
     // Folded into a shorter loop, the position moves and `elapsed()` with it.
     const target = this.normalisePosition(this.idlePositionSec)
     this.moveTo(target)
-    if (this.currentState === 'playing') this.pin(this.clock(), target)
+    if (this.currentState === 'playing') this.pin(Math.max(this.clock(), pinnedAt), target)
     this.emit('loop')
   }
 
@@ -416,6 +441,11 @@ export class Transport {
     return () => {
       this.listeners.delete(listener)
     }
+  }
+
+  /** Where a pin made at `now` with no time of its own goes: the start lead ahead. */
+  private ahead(now: number): number {
+    return now + this.startLeadSec
   }
 
   private pin(contextTime: number, positionSec: number): void {
