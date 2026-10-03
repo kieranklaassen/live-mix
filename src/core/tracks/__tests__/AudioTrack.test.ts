@@ -545,6 +545,70 @@ describe('AudioTrack linear voices (ambient-live ClipPlayer parity)', () => {
       expect(toNine(ctx.gains[2].gain.events.slice(-3))).toEqual(toNine(fall(10.002, 0.4)))
     })
 
+    it('falls from the level it was given where its two fades overlap, not from the triangle they draw', () => {
+      const { ctx, track } = setup()
+      // Four seconds up and four down in six: the fade-in is played out, and the fade-out has the last two.
+      track.play(
+        'k',
+        {
+          buffer: buffer(ctx, 10),
+          offsetSec: 0,
+          durationSec: 6,
+          fadeInSec: 4,
+          fadeOutSec: 4,
+          fadeCurve: 'linear',
+        },
+        0,
+      )
+      expect(ctx.gains[1].gain.events.slice(-3)).toEqual([
+        { method: 'linearRampToValueAtTime', args: [1, 4] },
+        { method: 'setValueAtTime', args: [1, 4] },
+        { method: 'linearRampToValueAtTime', args: [0, 6] },
+      ])
+      ctx.currentTime = 5
+      track.stop('k')
+      expect(ctx.gains[1].gain.events.slice(-3)).toEqual(fall(5, 0.5))
+
+      // On the way up, past where the triangle would have turned down.
+      ctx.currentTime = 10
+      track.play(
+        'up',
+        {
+          buffer: buffer(ctx, 10),
+          offsetSec: 0,
+          durationSec: 6,
+          fadeInSec: 4,
+          fadeOutSec: 4,
+          fadeCurve: 'linear',
+        },
+        10,
+      )
+      ctx.currentTime = 13.5
+      track.stop('up')
+      expect(ctx.gains[2].gain.events.slice(-3)).toEqual(fall(13.5, 0.875))
+    })
+
+    it('joined inside its fade-out, falls from the line it was put on', () => {
+      const { ctx, track } = setup({ currentTime: 5 })
+      // A six second clip that started at 0, entered at 5 with a fade-out over its last four.
+      track.play(
+        'k',
+        {
+          buffer: buffer(ctx, 10),
+          offsetSec: 0,
+          durationSec: 6,
+          fadeInSec: 0,
+          fadeOutSec: 4,
+          fadeCurve: 'linear',
+          easeInSec: 0,
+        },
+        0,
+      )
+      ctx.currentTime = 5.5
+      track.stop('k')
+      expect(toNine(ctx.gains[1].gain.events.slice(-3))).toEqual(toNine(fall(5.5, 0.125)))
+    })
+
     it('where the browser cannot hold a level, cancels and sets it', () => {
       const { ctx, track } = setup()
       const voice = track.play(

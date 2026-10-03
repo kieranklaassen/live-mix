@@ -234,15 +234,35 @@ interface VoiceTiming {
   tailSec: number
 }
 
-/** The level a linear voice's envelope has at `at` on the clock: its come-up or ease-in, then its clip's own fades. */
+/**
+ * The level a linear voice's envelope has at `at` on the clock, as it was
+ * written: the come-up or ease-in, then a line up to 1 where the fade-in ends
+ * and a line down from where the fade-out starts. Where the two fades overlap
+ * that is not `fadeGain`'s triangle: the fade-in is played out first, and the
+ * fade-out takes what is left.
+ */
 function envelopeAt(timing: VoiceTiming, at: number): number {
   const { durationSec, fadeInSec, fadeOutSec, easeFromSec, easeToSec } = timing
   const elapsedSec = (at - timing.when) * timing.rate
-  if (elapsedSec < easeToSec && easeToSec > easeFromSec) {
-    const afterEase = fadeGain(easeToSec, durationSec, fadeInSec, fadeOutSec)
-    return (afterEase * Math.max(0, elapsedSec - easeFromSec)) / (easeToSec - easeFromSec)
+  // The level where the envelope took over: from the ease-in, or at the join itself.
+  const joined = fadeGain(easeToSec, durationSec, fadeInSec, fadeOutSec)
+  if (elapsedSec < easeToSec) {
+    if (!(easeToSec > easeFromSec)) return joined
+    return (joined * Math.max(0, elapsedSec - easeFromSec)) / (easeToSec - easeFromSec)
   }
-  return fadeGain(elapsedSec, durationSec, fadeInSec, fadeOutSec)
+  if (elapsedSec >= durationSec) return fadeOutSec > 0 ? 0 : 1
+  const fadeInEndSec = Math.min(fadeInSec, durationSec)
+  if (elapsedSec < fadeInEndSec) {
+    return joined + ((1 - joined) * (elapsedSec - easeToSec)) / (fadeInEndSec - easeToSec)
+  }
+  if (!(fadeOutSec > 0)) return 1
+  const fadeOutStartSec = Math.max(fadeInEndSec, durationSec - fadeOutSec)
+  if (fadeOutStartSec > easeToSec) {
+    if (elapsedSec < fadeOutStartSec) return 1
+    return 1 - (elapsedSec - fadeOutStartSec) / (durationSec - fadeOutStartSec)
+  }
+  // Joined inside its fade-out: one line down from there.
+  return (joined * (durationSec - elapsedSec)) / (durationSec - easeToSec)
 }
 
 /** A voice's options once a reversed clip has been turned into positions on its mirrored buffer. */
