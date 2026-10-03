@@ -168,5 +168,105 @@
     "id": "reversed-piano-c",
     "durationSec": 8,
     "loops": false
+  },
+  "171": {
+    "id": "rubber-bass-c",
+    "durationSec": 3,
+    "loops": false
+  },
+  "172": {
+    "id": "marimba-g",
+    "durationSec": 4,
+    "loops": false
+  },
+  "173": {
+    "id": "tanpura-pluck-d",
+    "durationSec": 5,
+    "loops": false
+  },
+  "174": {
+    "id": "nylon-string-a",
+    "durationSec": 4,
+    "loops": false
+  },
+  "175": {
+    "id": "handpan-f",
+    "durationSec": 5,
+    "loops": false
+  },
+  "176": {
+    "id": "guitar-chord-em",
+    "durationSec": 6,
+    "loops": false
+  },
+  "177": {
+    "id": "tine-chord-fmaj7",
+    "durationSec": 6,
+    "loops": false
+  },
+  "178": {
+    "id": "picked-steel-e",
+    "durationSec": 5,
+    "loops": false
+  },
+  "179": {
+    "id": "church-bell-d",
+    "durationSec": 8,
+    "loops": false
+  },
+  "180": {
+    "id": "harp-g",
+    "durationSec": 4,
+    "loops": false
+  },
+  "181": {
+    "id": "dulcimer-dsus2",
+    "durationSec": 5,
+    "loops": false
+  },
+  "182": {
+    "id": "chord-harp-am7",
+    "durationSec": 4,
+    "loops": false
+  },
+  "183": {
+    "id": "high-felt-piano-c",
+    "durationSec": 3,
+    "loops": false
+  },
+  "184": {
+    "id": "ice-chime-b",
+    "durationSec": 3,
+    "loops": false
+  },
+  "195": {
+    "id": "gong-wash-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "196": {
+    "id": "kalimba-glitter-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "197": {
+    "id": "frozen-electric-piano-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "198": {
+    "id": "choir-on-tape-dsus2",
+    "durationSec": 8,
+    "loops": true
+  },
+  "199": {
+    "id": "half-speed-bells-c",
+    "durationSec": 15,
+    "loops": false
+  },
+  "200": {
+    "id": "vibraphone-chord-em7",
+    "durationSec": 8,
+    "loops": false
   }
 }
