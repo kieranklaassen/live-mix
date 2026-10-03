@@ -251,13 +251,26 @@ they move more.
 `src/dsp/factory/__tests__/factory.test.ts` renders every entry with the
 committed modules and fails the build when one leaves these limits:
 
-| Entry  | Rule                                                                                                                                                       |
-| ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| All    | Kebab-case id unique across presets and chains, name of at most 24 characters and unique, a one-sentence description, every device, preset and value valid |
-| Bank   | At least three presets per instrument, two per category, and every WASM effect used somewhere                                                              |
-| Preset | Raw preview peak at or below −3 dBFS, loudest 400 ms between −36 and −12 dBFS, no DC offset, finite output                                                 |
-| Chain  | On the dry phrase: peak at or below −1 dBFS, within 9 LU of the dry input, and it changes the sound                                                        |
-| Sound  | 2 to 32 s, peak at −6 dBFS, not near-silent, `analyzeSound` gives its `kind`, a loop's seam no larger than a step inside it, a one-shot ends at silence    |
+| Entry  | Rule                                                                                                                                                                                                 |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| All    | Kebab-case id unique across presets and chains, name of at most 24 characters and unique, a one-sentence description, every device, preset and value valid                                           |
+| Bank   | At least three presets per instrument, two per category, and every WASM effect used somewhere                                                                                                        |
+| Preset | Raw preview peak at or below −3 dBFS, loudest 400 ms between −36 and −12 dBFS, no DC offset, finite output                                                                                           |
+| Chain  | On the dry phrase: peak at or below −1 dBFS, within 9 LU of the dry input, and it changes the sound                                                                                                  |
+| Sound  | 2 to 32 s, peak at −6 dBFS, not near-silent, `analyzeSound` gives its `kind`, a name of at most 24 characters in every key, a loop comes round on itself, a sound that ends starts and stops at rest |
+
+How a sound starts, ends and wraps is held to the measure a host enters and
+leaves a clip by (`src/core/clips/seam.ts`): a loop `comesRound` (its last
+samples lead into its first with no step larger than the steps inside it),
+and a sound that ends neither `entersOnStep` nor `leavesOnStep`. A host that
+lays a factory loop end to end therefore has nothing to mend at the wrap.
+
+A sound that shipped stays what it was. `shipped-sounds.test.ts` holds every
+number to the id, length and whether it loops that it first shipped with
+(`shipped-sounds.json`), because a host stores a sound by its number and
+strokes are painted to its length: a number is never reused or given to
+another sound, and a sound that is to be longer, shorter or looped is a new
+sound with a new number.
 
 The bank as written sits well inside them: preset previews have their loudest
 400 ms between about −31 and −23 dBFS with peaks under −9, chains stay within
@@ -282,6 +295,20 @@ FACTORY_REPORT=generated FACTORY_SEEDS=40 pnpm vitest run src/dsp/factory/__test
 # FACTORY=<part of an id> narrows any of them; FACTORY_WAV=tmp/wav keeps the audio
 ```
 
+`FACTORY_NUMBERS=135-140` narrows `sounds` and `keys` to a range of catalogue
+numbers. A line of `sounds` adds to the measurements below: the kind the
+analysis gives with what it went on (`hits`, `flat`, `tonal`); for a loop
+whether it comes `round`, `fold` (the level over the crossfade against the
+same stretch rendered straight: a seam that swells or dips) and `swing` (the
+loudest second against the quietest); for a sound that ends, `lead` (silence
+before it starts) and `end` (the level it stops at). Then, in capitals, what
+wants a look: `KIND`, `QUIET` or `LOUD` (outside the band for its kind:
+drones −19 to −12 LUFS, pads −22 to −13, textures −25 to −15, one-shots and
+phrases −24 to −13), `DC`, `WIDE` (side within 1.5 dB of mid), `NAME` (over
+24 characters in some key), `SLOW` (over 12 % of real time), `SEAM`, `FOLD`
+(over 1.5 dB), `STEP-IN`, `CUT`, `LATE`. They are prompts and not rules:
+`FOLD` on waves that are between two swells at the wrap is the waves.
+
 `peak` is the sample peak, `lufs` BS.1770 integrated loudness, `loudest` the
 RMS of the loudest 400 ms, `attack` the time to within 6 dB of the loudest
 50 ms, `tail` the last half second relative to the loudest part, `centroid`
@@ -298,6 +325,61 @@ and the last column the render cost.
 3. A new sound gets its row in `shipped-sounds.json`:
    `UPDATE_SHIPPED_SOUNDS=1 pnpm vitest run src/dsp/factory/__tests__/shipped-sounds.test.ts`.
 4. `pnpm vitest run src/dsp/factory` must pass.
+
+### Writing a sound
+
+The sounds are in `src/dsp/factory/sounds/`, a file per family, put together
+in order in `index.ts`:
+
+| File               | Numbers    | What                                                                |
+| ------------------ | ---------- | ------------------------------------------------------------------- |
+| `first.ts`         | 101 to 134 | The first thirty-four, of every kind                                |
+| `drones-held.ts`   | 135 to 140 | Held notes on the acoustic and modelled instruments                 |
+| `drones-synth.ts`  | 141 to 146 | Synthesizer drones                                                  |
+| `pads-synth.ts`    | 147 to 153 | Synthesizer chords that move                                        |
+| `pads-acoustic.ts` | 154 to 160 | Strings, brass, voices, reeds and flutes in chords                  |
+| `textures.ts`      | 161 to 170 | Weather, water, night, rooms and machines: no pitch                 |
+| `oneshots.ts`      | 171 to 184 | One note or one chord, struck or plucked, that rings out            |
+| `phrases.ts`       | 185 to 194 | Short phrases on one instrument, most of which come round           |
+| `made.ts`          | 195 to 200 | Sounds made from another sound of the bank, through a sample device |
+
+`recipe.ts` has what a recipe is written with:
+
+- `looped(seconds, skip, crossfade, notes)`: notes held from the start, the
+  first `skip` seconds thrown away (the attack), the end folded over the
+  start. For anything held.
+- `played(seconds, strokes, fadeOut?)`: notes struck at their times, rendered
+  once and let ring. For a sound that ends.
+- `cycled(seconds, strokes, { passes, crossfadeSec })`: the same strokes
+  played round and round, the first `passes` rounds thrown away, the next one
+  kept and folded linearly (`loopFold: 'linear'`) into the one after. What is
+  kept starts with the tails of the round before in it, so laid end to end it
+  plays on as if it had never stopped. For a phrase or a plucked chord that
+  is to loop. No stroke may start in the last crossfade of the round, and it
+  costs every round it renders: `passes: 1` is three rounds for one kept.
+  An instrument whose restruck note adds to what still rings of it (the
+  handpan) needs `passes: 2` before a round is like the next.
+- `weather(...)`, `bells(...)`: the atmosphere device and the bell
+  instruments as the first thirty-four set them.
+
+A held tone that is to loop is tuned to a whole number of cycles per loop
+(`tuning: 'whole-cycles'`) and turned a quarter cycle (`quarterTurn(seconds)`
+from `parts.ts`), or the fold swells or dips by up to 3 dB (see the last
+entry of [What the bench found](#what-the-bench-found-in-the-devices)).
+Movement in a loop (an LFO, a chorus, a tremolo, a pluck that repeats) has
+to come round too: a whole number of cycles in the loop's length.
+
+A sound stays on the white keys in everything that sounds, not only in the
+notes of its phrase: the partials of a bell, the strings of a tanpura, a
+chord mode, a shimmer or a harmonizer add pitches of their own. A major
+third over D, E, A or B is a black key, a minor third over C, F or G, a fifth
+over B. Every note the name or description mentions is in braces in `words`,
+so the sound is named where the key of a piece puts it.
+
+Everything skipped is rendered and thrown away in the listener's browser, as
+is every pass of `cycled` but one. A sound is as long as it needs to be to
+not be heard repeating: eight seconds for most, sixteen where a slow
+movement needs it.
 
 Words are part of the entry: a name says what the sound is in two or three
 plain words, a description says in one sentence what it sounds like and how
