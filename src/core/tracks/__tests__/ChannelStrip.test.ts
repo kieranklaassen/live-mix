@@ -587,3 +587,108 @@ describe('SoloInPlace', () => {
     expect(ctx.gains).toHaveLength(0)
   })
 })
+
+/** A ride's gain, which is there once the ride has been moved. */
+function rideOf(s: ChannelStrip, layer?: string): GainNode {
+  const node = s.rideNode(layer)
+  if (!node) throw new Error('the strip has no such ride')
+  return node
+}
+
+describe('ChannelStrip.setRide', () => {
+  it('makes no node until a ride is moved, then one gain between the fader and the gate', () => {
+    const ctx = createMockContext({ currentTime: 3 })
+    const s = strip(ctx, 'a')
+    s.setLevel(0.5)
+    expect(ctx.gains).toHaveLength(3)
+    expect(s.ride()).toBe(1)
+    expect(s.rideNode()).toBeNull()
+
+    s.setRide(0, { at: 4, timeConstant: 1 })
+    expect(ctx.gains).toHaveLength(4)
+    const ride = asMock(rideOf(s))
+    expect(asMock(s.fader).isConnectedTo(ride)).toBe(true)
+    expect(asMock(s.fader).isConnectedTo(asMock(s.gate))).toBe(false)
+    expect(ride.isConnectedTo(asMock(s.gate))).toBe(true)
+    // It comes up at unity and only then approaches, so making it does not step.
+    expect(ride.gain.value).toBe(1)
+    expect(ride.gain.lastEvent('setTargetAtTime')?.args).toEqual([0, 4, 1])
+    expect(s.ride()).toBe(0)
+    // The fader still says what the mix is.
+    expect(s.level).toBe(0.5)
+    sweepParams(ctx)
+  })
+
+  it('keeps the fader and the ride apart: a level change does not touch a ride in flight', () => {
+    const ctx = createMockContext({ currentTime: 0 })
+    const s = strip(ctx, 'a')
+    s.setRide(0, { at: 2, timeConstant: 1 })
+    const ride = gainParam(rideOf(s))
+    const before = ride.events.length
+    s.setLevel(0.25)
+    expect(ride.events).toHaveLength(before)
+    expect(gainParam(s.fader).lastEvent('setTargetAtTime')?.args).toEqual([
+      0.25,
+      0,
+      LEVEL_RAMP_SECONDS,
+    ])
+  })
+
+  it('drops an approach still to come for the new one, so the last word wins', () => {
+    const ctx = createMockContext({ currentTime: 10 })
+    const s = strip(ctx, 'a')
+    s.setRide(0, { at: 12, timeConstant: 1 })
+    s.setRide(1, { at: 10.5, timeConstant: 0.1 })
+    const ride = gainParam(rideOf(s))
+    expect(ride.events.map((event) => event.method)).toEqual([
+      'cancelScheduledValues',
+      'setTargetAtTime',
+      'cancelScheduledValues',
+      'setTargetAtTime',
+    ])
+    expect(ride.lastEvent('cancelScheduledValues')?.args).toEqual([10])
+    expect(ride.lastEvent('setTargetAtTime')?.args).toEqual([1, 10.5, 0.1])
+  })
+
+  it('stacks named layers in the order they were first moved, each with its own value', () => {
+    const ctx = createMockContext()
+    const s = strip(ctx, 'a')
+    s.setRide(0.5, { layer: 'scene' })
+    s.setRide(0.25, { layer: 'dial' })
+    expect(s.rideLayers).toEqual(['scene', 'dial'])
+    const scene = asMock(rideOf(s, 'scene'))
+    const dial = asMock(rideOf(s, 'dial'))
+    expect(asMock(s.fader).isConnectedTo(scene)).toBe(true)
+    expect(scene.isConnectedTo(dial)).toBe(true)
+    expect(scene.isConnectedTo(asMock(s.gate))).toBe(false)
+    expect(dial.isConnectedTo(asMock(s.gate))).toBe(true)
+    expect(s.ride('scene')).toBe(0.5)
+    expect(s.ride('dial')).toBe(0.25)
+    s.setRide(-1, { layer: 'scene' })
+    expect(s.ride('scene')).toBe(0)
+    expect(s.ride('dial')).toBe(0.25)
+  })
+
+  it('rides a shadow as it rides the strip, whichever was made first', () => {
+    const ctx = createMockContext({ currentTime: 1 })
+    const s = strip(ctx, 'a')
+    const before = s.shadow()
+    s.setRide(0, { layer: 'scene', at: 2, timeConstant: 1 })
+    const after = s.shadow()
+    s.setRide(0.5, { layer: 'scene', at: 3, timeConstant: 0.5 })
+
+    for (const shadow of [before, after]) {
+      const input = asMock(shadow.input)
+      const output = asMock(shadow.output)
+      // fader, the shadow's own ride, gate: nothing goes round the ride.
+      expect(input.isConnectedTo(output)).toBe(false)
+      const [ride] = [...input.outputs] as MockGainNode[]
+      expect(ride.isConnectedTo(output)).toBe(true)
+      expect(ride.gain.lastEvent('setTargetAtTime')?.args).toEqual([0.5, 3, 0.5])
+    }
+    after.release()
+    s.setRide(1, { layer: 'scene' })
+    const [released] = [...asMock(after.input).outputs]
+    expect(released).toBeUndefined()
+  })
+})

@@ -20,6 +20,12 @@
 // is soloed (the group has to pass the member through), or when it is
 // solo-safe (returns by default, so a soloed track keeps its reverb tail).
 // An explicit mute always wins over solo.
+//
+// A ride is a second fader after the first, for a performance that brings
+// tracks in and out over the mix without moving it (`setRide`): the fader
+// keeps saying what the mix is, and the ride what is being done to it tonight.
+// Each named layer is one more gain between the fader and the gate, made when
+// it is first moved, so a strip nobody rides has the four nodes it always had.
 
 import { LEVEL_RAMP_SECONDS, type Bus } from '../buses/Bus'
 import { type Device } from '../devices/Device'
@@ -64,6 +70,27 @@ export interface RampOptions {
   timeConstant?: number
 }
 
+export interface RideOptions extends RampOptions {
+  /** Which ride is moved. Layers multiply; each keeps its own value and its own ramp. Default `'ride'`. */
+  layer?: string
+}
+
+/** The layer `setRide` moves when none is named. */
+export const DEFAULT_RIDE_LAYER = 'ride'
+
+/** One ride layer: its gain after the fader, the same gain in every shadow, and what it was last told. */
+interface RideLayer {
+  readonly node: GainNode
+  readonly shadows: Map<ShadowNodes, GainNode>
+  value: number
+}
+
+/** A shadow's fader and gate, as the strip keeps them. */
+interface ShadowNodes {
+  readonly fader: GainNode
+  readonly gate: GainNode
+}
+
 /**
  * What changed on a strip (U24: UI subscriptions). `gate` is the implicit
  * mute another strip's solo imposes; `members` fires on a group strip when a
@@ -72,6 +99,7 @@ export interface RampOptions {
 export type StripChangeKind =
   | 'inputGain'
   | 'level'
+  | 'ride'
   | 'pan'
   | 'mute'
   | 'solo'
@@ -123,7 +151,9 @@ export class ChannelStrip {
   private sendList: SendList | null = null
   private nodes: StripNodes | null = null
   // The fader and gate each shadow keeps in step with the strip's.
-  private readonly shadows = new Set<{ fader: GainNode; gate: GainNode }>()
+  private readonly shadows = new Set<ShadowNodes>()
+  // The rides, in the order they stand between the fader and the gate.
+  private readonly rides = new Map<string, RideLayer>()
   // Nodes that hear the strip's output and every shadow's (`tap`).
   private readonly taps = new Set<AudioNode>()
 
@@ -328,6 +358,48 @@ export class ChannelStrip {
     this.changed('pan')
   }
 
+  /**
+   * Last commanded ride of a layer (linear). A layer never moved is at 1,
+   * which is the mix as it stands.
+   */
+  ride(layer: string = DEFAULT_RIDE_LAYER): number {
+    return this.rides.get(layer)?.value ?? 1
+  }
+
+  /** The layers that have been moved, in the order they stand after the fader. */
+  get rideLayers(): readonly string[] {
+    return [...this.rides.keys()]
+  }
+
+  /** A layer's gain node, or null until the layer is first moved. Reading it creates nothing. */
+  rideNode(layer: string = DEFAULT_RIDE_LAYER): GainNode | null {
+    return this.rides.get(layer)?.node ?? null
+  }
+
+  /**
+   * Ramp a ride (clamped at 0): a gain after the fader that multiplies what
+   * the fader lets through, so 0 takes the track out and 1 leaves the mix as
+   * it is. Sends and shadows follow it as they follow the fader. `level`
+   * does not change, and a later `setLevel` does not disturb a ride in
+   * flight: the two are separate gains. An approach already scheduled for
+   * later on this layer is dropped for the new one, so the last word wins
+   * whatever order the two were to start in. The first move of a layer makes
+   * its node; the strip's own nodes are made with it.
+   */
+  setRide(value: number, options: RideOptions = {}): void {
+    const layer = this.rideLayer(options.layer ?? DEFAULT_RIDE_LAYER)
+    layer.value = Math.max(0, value)
+    const now = this.context().currentTime
+    for (const param of [
+      layer.node.gain,
+      ...[...layer.shadows.values()].map((node) => node.gain),
+    ]) {
+      param.cancelScheduledValues(now)
+      this.approach(param, layer.value, options)
+    }
+    this.changed('ride')
+  }
+
   // --- Mute and solo -------------------------------------------------------------
 
   get mute(): boolean {
@@ -411,9 +483,16 @@ export class ChannelStrip {
     gate.gain.value = this.nodes?.gate.gain.value ?? this.gateCommand
     if (fader.gain.value !== this.levelValue) this.approach(fader.gain, this.levelValue, {})
     if (gate.gain.value !== this.gateCommand) this.approach(gate.gain, this.gateCommand, {})
-    fader.connect(gate)
+    const pair: ShadowNodes = { fader, gate }
+    let tail: GainNode = fader
+    for (const layer of this.rides.values()) {
+      const ride = this.shadowRide(layer)
+      layer.shadows.set(pair, ride)
+      tail.connect(ride)
+      tail = ride
+    }
+    tail.connect(gate)
     for (const tap of this.taps) gate.connect(tap)
-    const pair = { fader, gate }
     this.shadows.add(pair)
     return {
       input: fader,
@@ -422,6 +501,10 @@ export class ChannelStrip {
         if (!this.shadows.delete(pair)) return
         try {
           fader.disconnect()
+          for (const layer of this.rides.values()) {
+            layer.shadows.get(pair)?.disconnect()
+            layer.shadows.delete(pair)
+          }
           gate.disconnect()
         } catch {
           // Context may already be closed; ignore.
@@ -531,10 +614,15 @@ export class ChannelStrip {
       for (const device of this.insertList) device.output.disconnect()
       this.nodes?.panner.disconnect()
       this.nodes?.fader.disconnect()
+      for (const layer of this.rides.values()) {
+        layer.node.disconnect()
+        for (const node of layer.shadows.values()) node.disconnect()
+      }
       this.nodes?.gate.disconnect()
     } catch {
       // Context may already be closed; ignore.
     }
+    this.rides.clear()
     this.nodes = null
     this.insertList.length = 0
     this.sources.clear()
@@ -575,6 +663,44 @@ export class ChannelStrip {
   private approach(param: AudioParam, value: number, options: RampOptions): void {
     const at = options.at ?? this.context().currentTime
     param.setTargetAtTime(value, at, options.timeConstant ?? this.timeConstant)
+  }
+
+  /**
+   * The layer's gain, made on first use and put last before the gate, in the
+   * strip and in every shadow. It comes up at unity, so making one while the
+   * track sounds is sample-continuous.
+   */
+  private rideLayer(name: string): RideLayer {
+    const existing = this.rides.get(name)
+    if (existing) return existing
+    this.assertLive()
+    const { fader, gate } = this.ensureNodes()
+    const ctx = this.context()
+    const last = [...this.rides.values()].pop()
+    const node = ctx.createGain()
+    const tail = last?.node ?? fader
+    tail.disconnect(gate)
+    tail.connect(node)
+    node.connect(gate)
+    const layer: RideLayer = { node, shadows: new Map(), value: 1 }
+    for (const pair of this.shadows) {
+      const ride = ctx.createGain()
+      const shadowTail = last?.shadows.get(pair) ?? pair.fader
+      shadowTail.disconnect(pair.gate)
+      shadowTail.connect(ride)
+      ride.connect(pair.gate)
+      layer.shadows.set(pair, ride)
+    }
+    this.rides.set(name, layer)
+    return layer
+  }
+
+  /** A shadow's copy of a ride layer, standing where the strip's stands now and heading where it heads. */
+  private shadowRide(layer: RideLayer): GainNode {
+    const ride = this.context().createGain()
+    ride.gain.value = layer.node.gain.value
+    if (ride.gain.value !== layer.value) this.approach(ride.gain, layer.value, {})
+    return ride
   }
 
   private entry(): AudioNode {
