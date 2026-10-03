@@ -255,7 +255,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Continuous octave',
         params: { highCut: 3000, spread: 0.6, mix: 0.55 },
       },
-      { deviceId: 'saturator', preset: 'Tape Print', params: { driveDb: 6, outputDb: -8 } },
+      { deviceId: 'saturator', preset: 'On tape', params: { driveDb: 6, outputDb: -8 } },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.35 } },
     ],
     preview: 'chord',
@@ -388,7 +388,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { reverbMix: 0, resonance: 0.3, polyphony: 12, outputDb: -13.5 },
     },
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { lowCut: 90, highCut: 3800 } },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { lowCut: 90, highCut: 3800 } },
       { deviceId: 'noise-floor', preset: 'Breathing recorder', params: { level: -34, tone: -0.5 } },
       { deviceId: 'ether-reverb', preset: 'Room', params: { mix: 0.25 } },
     ],
@@ -543,7 +543,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 1.4, release: 3, volume: -8 },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Tape Print', params: { driveDb: 12, outputDb: -6 } },
+      { deviceId: 'saturator', preset: 'On tape', params: { driveDb: 12, outputDb: -6 } },
       { deviceId: 'noise-floor', preset: 'Rides the sound', params: { level: -34 } },
       { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.25 } },
     ],

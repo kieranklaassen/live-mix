@@ -17,7 +17,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { blow: 0.45, section: 0.85, attack: 4.5, release: 8, volume: -8 },
     },
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { highCut: 5000 } },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { highCut: 5000 } },
       {
         deviceId: 'zita-rev1',
         preset: 'Cathedral',
@@ -160,7 +160,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { players: 4, attack: 4, release: 7, air: 0.2, volume: -7 },
     },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4 } },
+      { deviceId: 'tape', preset: 'Mastering deck', params: { drive: 0.4 } },
       {
         deviceId: 'zita-rev1',
         preset: 'Cathedral',
@@ -180,7 +180,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 3, release: 6, vibrato: 0, mute: 0.5, volume: -3 },
     },
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { highCut: 9000 } },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { highCut: 9000 } },
       { deviceId: 'expanse', preset: 'Bloom', params: { mix: 0.45 } },
     ],
     preview: 'low',
@@ -323,7 +323,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 2.5, release: 6, pressure: 0.4, vibrato: 0.05, volume: -8.5 },
     },
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { highCut: 6000 } },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { highCut: 6000 } },
       { deviceId: 'expanse', preset: 'Open space', params: { highCut: 4000, mix: 0.45 } },
     ],
     preview: 'low',
@@ -476,7 +476,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { blow: 0.62, breath: 0.4, attack: 2.5, release: 5, volume: -6.3 },
     },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4, bump: 0.4 } },
+      { deviceId: 'tape', preset: 'Mastering deck', params: { drive: 0.4, bump: 0.4 } },
       { deviceId: 'expanse', preset: 'Open space', params: { decay: 16, lowCut: 40, mix: 0.45 } },
     ],
     preview: 'low',
@@ -564,7 +564,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { hardness: 0.3, sustain: 24, tone: 2200, swell: 2.5, warmth: 0.6 },
     },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4, output: 2.5 } },
+      { deviceId: 'tape', preset: 'Mastering deck', params: { drive: 0.4, output: 2.5 } },
       {
         deviceId: 'fdn-reverb',
         preset: 'Hall',
@@ -739,7 +739,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { tone: -0.2, attack: 2.5, release: 5, vibrato: 0.15, volume: -6.5 },
     },
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { highCut: 9000 } },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { highCut: 9000 } },
       { deviceId: 'expanse', preset: 'Open space', params: { decay: 16, mix: 0.4 } },
     ],
     preview: 'low',
@@ -939,7 +939,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { brilliance: 600, contour: 0.5, attack: 4, release: 10, volume: -6.5 },
     },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4 } },
+      { deviceId: 'tape', preset: 'Mastering deck', params: { drive: 0.4 } },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.5 } },
     ],
   },
@@ -1073,7 +1073,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { cutoff: 800, filterAttack: 4, ampAttack: 3.5, ampRelease: 9, volume: -9 },
     },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.3 } },
+      { deviceId: 'tape', preset: 'Mastering deck', params: { drive: 0.3 } },
       {
         deviceId: 'zita-rev1',
         preset: 'Cathedral',
@@ -1170,7 +1170,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { tone: 0.3, attack: 4, release: 10, width: 0.7, volume: 4.5 },
     },
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { highCut: 4000 } },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { highCut: 4000 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { decay: 6, mix: 0.35 } },
     ],
   },
@@ -1325,7 +1325,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { brightness: 0.2, attack: 3.5, release: 8, detune: 12, spread: 0.4, volume: -19.5 },
     },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4 } },
+      { deviceId: 'tape', preset: 'Mastering deck', params: { drive: 0.4 } },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.45 } },
     ],
   },
@@ -1500,7 +1500,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'swell', preset: 'Shadow', params: { attack: 2000, mix: 1 } },
-      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.2, bump: 0.7, output: -5 } },
+      { deviceId: 'tape', preset: 'Mastering deck', params: { drive: 0.2, bump: 0.7, output: -5 } },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { lowDecay: 8, mix: 0.45 } },
     ],
     preview: 'low',
@@ -1601,7 +1601,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { distance: 0.9, tone: 0.8, attack: 3, release: 12, volume: -4.5 },
     },
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { highCut: 9000 } },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { highCut: 9000 } },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
@@ -1635,7 +1635,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { swell: 2, tone: 1800, volume: -14.5 },
     },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4 } },
+      { deviceId: 'tape', preset: 'Mastering deck', params: { drive: 0.4 } },
       { deviceId: 'expanse', preset: 'Open space', params: { decay: 20, mix: 0.45 } },
     ],
     preview: 'chord',
@@ -1896,7 +1896,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 4, decay: 6, colour: 0.4, volume: -13.5 },
     },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4 } },
+      { deviceId: 'tape', preset: 'Mastering deck', params: { drive: 0.4 } },
       { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.4 } },
     ],
   },

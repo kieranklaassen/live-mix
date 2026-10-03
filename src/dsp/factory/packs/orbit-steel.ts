@@ -389,7 +389,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { volume: 1.5, position: 0.34, sustain: 5, strum: 30 },
     },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4 } },
+      { deviceId: 'tape', preset: 'Mastering deck', params: { drive: 0.4 } },
       { deviceId: 'fdn-reverb', preset: 'Room', params: { mix: 0.25 } },
     ],
     preview: 'keys',
@@ -407,7 +407,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'reverse-delay', preset: 'Slow swells', params: { time: 1800, mix: 0.9 } },
-      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4 } },
+      { deviceId: 'tape', preset: 'Mastering deck', params: { drive: 0.4 } },
       { deviceId: 'expanse', preset: 'Open space', params: { mix: 0.4 } },
     ],
     preview: 'chord',
@@ -587,7 +587,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 0.5, release: 4, volume: -8 },
     },
     effects: [
-      { deviceId: 'tremolo', preset: 'Tape vibrato', params: { phase: 0, rate: 4.5, depth: 0.25 } },
+      { deviceId: 'tremolo', preset: 'Pitch wobble', params: { phase: 0, rate: 4.5, depth: 0.25 } },
       { deviceId: 'analog-delay', preset: 'Chorus echo', params: { mix: 0.3 } },
       { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.3 } },
     ],
@@ -1480,7 +1480,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { cutoff: 160, glide: 0.25, volume: -15 },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Tape Print', params: { driveDb: 6, outputDb: -6 } },
+      { deviceId: 'saturator', preset: 'On tape', params: { driveDb: 6, outputDb: -6 } },
       { deviceId: 'fdn-reverb', preset: 'Room', params: { mix: 0.2 } },
     ],
     preview: 'low',
@@ -1636,7 +1636,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { density: 0.8, distance: 0.9, tone: 0.3, volume: 5 },
     },
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { highCut: 9000 } },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { highCut: 9000 } },
       { deviceId: 'tape', preset: 'Quarter inch' },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
     ],
@@ -1818,7 +1818,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { strum: 90, release: 2.5, scale: 4, root: 2 },
     },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4, output: -1 } },
+      { deviceId: 'tape', preset: 'Mastering deck', params: { drive: 0.4, output: -1 } },
       { deviceId: 'tape-echo', preset: 'Three heads', params: { mix: 0.3 } },
       { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.3 } },
     ],

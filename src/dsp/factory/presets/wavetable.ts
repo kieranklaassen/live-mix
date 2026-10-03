@@ -62,7 +62,7 @@ export const WAVETABLE_PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Tape Print', params: { toneDb: 0, outputDb: -5.5 } },
+      { deviceId: 'saturator', preset: 'On tape', params: { toneDb: 0, outputDb: -5.5 } },
       { deviceId: 'zita-rev1', preset: 'Hall' },
     ],
   },

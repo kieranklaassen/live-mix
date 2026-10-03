@@ -89,7 +89,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Down the hall',
         params: { drive: 0.15, distance: 0.5, room: 0.75 },
       },
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { air: -8, highCut: 2000 } },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { air: -8, highCut: 2000 } },
       { deviceId: 'noise-floor', preset: 'Tape floor', params: { level: -46 } },
     ],
   },
@@ -237,7 +237,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       { deviceId: 'analog-drive', preset: 'Dark fuzz bed', params: { drive: 0.55, output: -7 } },
       { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.55 } },
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { highCut: 3000 } },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { highCut: 3000 } },
     ],
     preview: 'chord',
   },
@@ -544,7 +544,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       { deviceId: 're-amp', preset: 'Bedside radio', params: { noise: 0.1 } },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.5 } },
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { highCut: 3500 } },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { highCut: 3500 } },
     ],
     preview: 'chord',
   },
@@ -667,7 +667,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { air: -8, highCut: 2500 } },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { air: -8, highCut: 2500 } },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.4 } },
       { deviceId: 'noise-floor', preset: 'Empty room', params: { level: -40 } },
     ],
@@ -1009,7 +1009,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { density: 0.45, tone: 0.3, attack: 2.5, width: 0.6, volume: -4.5 },
     },
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { air: -8, highCut: 1800 } },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { air: -8, highCut: 1800 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.35 } },
       { deviceId: 'noise-floor', preset: 'Tape floor', params: { level: -46 } },
     ],
@@ -1382,7 +1382,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { ratio: 3, brightness: 0.25, decay: 5, attack: 0.01, velocity: 0.4, volume: -10.5 },
     },
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { highCut: 2500 } },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { highCut: 2500 } },
       { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.45 } },
       { deviceId: 'tape', preset: 'Cassette four-track', params: { hiss: 0.3 } },
     ],
@@ -1690,7 +1690,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { density: 0.8, distance: 0.85, volume: -2 },
     },
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { highCut: 3000 } },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { highCut: 3000 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { decay: 5, mix: 0.3 } },
       { deviceId: 'noise-floor', preset: 'Tape floor', params: { level: -46 } },
     ],
@@ -1849,7 +1849,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.5 } },
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { highCut: 3500 } },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { highCut: 3500 } },
     ],
   },
   {

@@ -17,7 +17,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { brilliance: 900, attack: 1.2, swell: 0.8, release: 5, detune: 11, volume: -14 },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Tape Print', params: { driveDb: 12, outputDb: -10.5 } },
+      { deviceId: 'saturator', preset: 'On tape', params: { driveDb: 12, outputDb: -10.5 } },
       { deviceId: 'noise-floor', preset: 'Tape floor', params: { level: -46 } },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { damping: 2600, mix: 0.5 } },
     ],
@@ -322,7 +322,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Tape Print', params: { driveDb: 14, outputDb: -6.5 } },
+      { deviceId: 'saturator', preset: 'On tape', params: { driveDb: 14, outputDb: -6.5 } },
       { deviceId: 'ambient-comp', preset: 'Hold swells', params: { threshold: -30 } },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { damping: 2800, mix: 0.45 } },
     ],
@@ -501,7 +501,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Tape Print', params: { driveDb: 11, outputDb: -6 } },
+      { deviceId: 'saturator', preset: 'On tape', params: { driveDb: 11, outputDb: -6 } },
       { deviceId: 'ambient-comp', preset: 'Level', params: { threshold: -28, ratio: 3 } },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { damping: 2500, mix: 0.45 } },
     ],
@@ -907,7 +907,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { age: 0.5, hiss: 0.3, tone: -0.3, attack: 1.2, release: 2.5, volume: -11 },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Tape Print', params: { driveDb: 10, outputDb: -6 } },
+      { deviceId: 'saturator', preset: 'On tape', params: { driveDb: 10, outputDb: -6 } },
       { deviceId: 'ambient-comp', preset: 'Hold swells', params: { threshold: -28, makeup: 1 } },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { damping: 2600, mix: 0.45 } },
     ],
@@ -1069,7 +1069,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'chorus', preset: 'Deep Sea', params: { depth: 60, mix: 0.4 } },
-      { deviceId: 'saturator', preset: 'Tape Print', params: { driveDb: 8, outputDb: -10.5 } },
+      { deviceId: 'saturator', preset: 'On tape', params: { driveDb: 8, outputDb: -10.5 } },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { midDecay: 4, damping: 2800, mix: 0.4 } },
     ],
   },
@@ -1180,7 +1180,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { swell: 1.6, tone: 2600, sustain: 22, volume: 2 },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Tape Print', params: { driveDb: 10, outputDb: -6 } },
+      { deviceId: 'saturator', preset: 'On tape', params: { driveDb: 10, outputDb: -6 } },
       { deviceId: 'shimmer', preset: 'Undertow', params: { shimmer: 0.3, decay: 10, mix: 0.4 } },
     ],
     preview: 'chord',
@@ -1431,7 +1431,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { hardness: 0.45, brightness: 0.3, decay: 18, volume: -4.5 },
     },
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { highCut: 4500, lowCut: 80 } },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { highCut: 4500, lowCut: 80 } },
       { deviceId: 'expanse', preset: 'Far echoes', params: { decay: 14, mix: 0.4 } },
     ],
   },
@@ -1494,7 +1494,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { brightness: 0.28, attack: 2, release: 6, detune: 12, spread: 0.6, volume: -13 },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Tape Print', params: { driveDb: 10, outputDb: -6 } },
+      { deviceId: 'saturator', preset: 'On tape', params: { driveDb: 10, outputDb: -6 } },
       {
         deviceId: 'ambient-comp',
         preset: 'Level',
@@ -1517,7 +1517,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 2, release: 4, brightness: 0.4, vibrato: 0.1, detune: 9, volume: -16 },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Tape Print', params: { driveDb: 9, outputDb: -11 } },
+      { deviceId: 'saturator', preset: 'On tape', params: { driveDb: 9, outputDb: -11 } },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { damping: 2600, mix: 0.45 } },
     ],
   },
@@ -1673,7 +1673,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { blow: 0.45, breath: 0.5, volume: -6 },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Tape Print', params: { driveDb: 8, outputDb: -8 } },
+      { deviceId: 'saturator', preset: 'On tape', params: { driveDb: 8, outputDb: -8 } },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { damping: 2600, mix: 0.45 } },
     ],
   },
@@ -1725,7 +1725,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { celeste: 0.7, reed: 0.3, tone: 1500, attack: 2.2, release: 5, volume: -15 },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Tape Print', params: { driveDb: 10, outputDb: -9 } },
+      { deviceId: 'saturator', preset: 'On tape', params: { driveDb: 10, outputDb: -9 } },
       {
         deviceId: 'ambient-comp',
         preset: 'Glue',
@@ -1748,7 +1748,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { cutoff: 700, attack: 4, release: 10, air: 0.3, volume: -13 },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Tape Print', params: { driveDb: 10, outputDb: -9.5 } },
+      { deviceId: 'saturator', preset: 'On tape', params: { driveDb: 10, outputDb: -9.5 } },
       {
         deviceId: 'zita-rev1',
         preset: 'Hall',
@@ -1910,7 +1910,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { position: 0.2, detune: 8, attack: 1.8, release: 5, tone: 3500, volume: -13 },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Tape Print', params: { driveDb: 10, outputDb: -6 } },
+      { deviceId: 'saturator', preset: 'On tape', params: { driveDb: 10, outputDb: -6 } },
       {
         deviceId: 'ambient-comp',
         preset: 'Level',
@@ -1953,7 +1953,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 1.2, release: 4, tone: 3000, wobble: 0.6, volume: -22 },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Tape Print', params: { driveDb: 10, outputDb: -8.5 } },
+      { deviceId: 'saturator', preset: 'On tape', params: { driveDb: 10, outputDb: -8.5 } },
       { deviceId: 'noise-floor', preset: 'Tape floor', params: { level: -44 } },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { damping: 2600, mix: 0.45 } },
     ],

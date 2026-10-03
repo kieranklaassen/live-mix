@@ -212,7 +212,7 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
     description:
       'Two decks and four seconds of tape between them: play, and layers build and slowly fade.',
     effects: [
-      { deviceId: 'saturator', preset: 'Tape Print', params: { driveDb: 6, outputDb: -4 } },
+      { deviceId: 'saturator', preset: 'On tape', params: { driveDb: 6, outputDb: -4 } },
       {
         deviceId: 'auto-filter',
         preset: 'Init',
@@ -820,7 +820,7 @@ export const FACTORY_CHAINS: readonly FactoryChain[] = [
     description:
       'The mix printed to clean tape at fifteen inches a second, a touch wider, then limited.',
     effects: [
-      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.25, hiss: 0 } },
+      { deviceId: 'tape', preset: 'Mastering deck', params: { drive: 0.25, hiss: 0 } },
       { deviceId: 'stereo-widener', params: { width: 0.56 } },
       { deviceId: 'limiter-1176', preset: 'Safety' },
     ],

@@ -90,7 +90,7 @@
     }
   ],
   "presets": {
-    "Clean pressing": {
+    "New pressing": {
       "speed": 0,
       "warp": 0.15,
       "crackle": 0.22,
@@ -237,6 +237,20 @@
       "surface": 0.9,
       "wear": 1,
       "tone": -0.3
+    }
+  },
+  "retiredPresets": {
+    "Clean pressing": {
+      "speed": 0,
+      "warp": 0.15,
+      "crackle": 0.22,
+      "pops": 0.05,
+      "surface": 0.2,
+      "wear": 0.1,
+      "tone": 0,
+      "platter": 0,
+      "spin": 1.5,
+      "mix": 1
     }
   },
   "origin": {

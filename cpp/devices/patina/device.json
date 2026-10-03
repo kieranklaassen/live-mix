@@ -84,7 +84,7 @@
       "output": 0,
       "mix": 1
     },
-    "Fresh tape": {
+    "New tape": {
       "medium": 0,
       "drive": 0.2,
       "wobble": 0.08,
@@ -115,7 +115,7 @@
       "noise": 0.5,
       "output": 2
     },
-    "Twelve bit": {
+    "Early sampler": {
       "medium": 4,
       "drive": 0.5,
       "wobble": 0.15,
@@ -203,6 +203,10 @@
       "tone": 0.45,
       "output": -7
     }
+  },
+  "retiredPresets": {
+    "Fresh tape": { "medium": 0, "drive": 0.2, "wobble": 0.08, "wear": 0.05, "noise": 0.12 },
+    "Twelve bit": { "medium": 4, "drive": 0.5, "wobble": 0.15, "wear": 0.35, "noise": 0.2 }
   },
   "origin": {
     "kind": "new",

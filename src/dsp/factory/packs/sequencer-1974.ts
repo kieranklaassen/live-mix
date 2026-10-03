@@ -97,7 +97,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Tape Print', params: { driveDb: 12, outputDb: -6.5 } },
+      { deviceId: 'saturator', preset: 'On tape', params: { driveDb: 12, outputDb: -6.5 } },
       {
         deviceId: 'tape-echo',
         params: { time: 500, feedback: 0.55, heads: 3, highCut: 5000, spread: 0.7, mix: 0.45 },
@@ -563,7 +563,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 1.5, release: 5, tone: 1800, volume: -12 },
     },
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { highCut: 9000 } },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { highCut: 9000 } },
       { deviceId: 'fdn-reverb', preset: 'Breathing', params: { decay: 9, mix: 0.45 } },
     ],
   },
@@ -642,7 +642,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { brilliance: 800, volume: -7.5 },
     },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4 } },
+      { deviceId: 'tape', preset: 'Mastering deck', params: { drive: 0.4 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.35 } },
     ],
   },
@@ -725,7 +725,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { fold: 0.3, timbreEnv: 0.55, decay: 0.4, colour: 0.6, chance: 0.05, volume: 0 },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Tape Print', params: { driveDb: 16, outputDb: -8.5 } },
+      { deviceId: 'saturator', preset: 'On tape', params: { driveDb: 16, outputDb: -8.5 } },
       {
         deviceId: 'tape-echo',
         params: { time: 375, feedback: 0.5, heads: 3, spread: 0.6, mix: 0.4 },
@@ -756,7 +756,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'auto-filter',
-        preset: 'Random Steps',
+        preset: 'Stepped',
         params: { mix: 1, resonance: 5, lfoRateHz: 7 },
       },
       { deviceId: 'tape-echo', params: { time: 280, feedback: 0.4, mix: 0.3 } },
@@ -824,7 +824,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { decay: 0.5, sustain: 0.3, colour: 0.25, volume: -7.5 },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Tape Print', params: { outputDb: -2 } },
+      { deviceId: 'saturator', preset: 'On tape', params: { outputDb: -2 } },
       { deviceId: 'tape-echo', params: { time: 250, feedback: 0.35, mix: 0.3 } },
     ],
     preview: 'line',
@@ -956,7 +956,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'analog-drive', preset: 'Console edge', params: { drive: 0.35 } },
-      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4 } },
+      { deviceId: 'tape', preset: 'Mastering deck', params: { drive: 0.4 } },
     ],
     preview: 'low',
   },
@@ -974,7 +974,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { nail: 0.7, sustain: 5, release: 2, tone: 0.6, strum: 8, volume: 4.5 },
     },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.6 } },
+      { deviceId: 'tape', preset: 'Mastering deck', params: { drive: 0.6 } },
       { deviceId: 'phaser', preset: 'Classic 4-Stage', params: { rate: 0.18, mix: 0.3 } },
       { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.25 } },
     ],
@@ -991,7 +991,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { sustain: 2.5, release: 0.4, tone: 0.55, volume: -2 },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Tape Print', params: { driveDb: 14, outputDb: -8.5 } },
+      { deviceId: 'saturator', preset: 'On tape', params: { driveDb: 14, outputDb: -8.5 } },
       { deviceId: 'tape-echo', preset: 'Three heads', params: { time: 375, feedback: 0.45 } },
       { deviceId: 'spring-reverb', preset: 'Dark amp spring', params: { mix: 0.2 } },
     ],
@@ -1135,7 +1135,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { decay: 6, mix: 0.45 } },
-      { deviceId: 'patina', preset: 'Fresh tape', params: { tone: 0.5 } },
+      { deviceId: 'patina', preset: 'New tape', params: { tone: 0.5 } },
     ],
   },
 
@@ -1699,7 +1699,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { pluck: 0.06, touch: 0.8, decay: 1.5, halo: 0.25, body: 0.35, volume: 4 },
     },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.7, hiss: 0.05 } },
+      { deviceId: 'tape', preset: 'Mastering deck', params: { drive: 0.7, hiss: 0.05 } },
       { deviceId: 'phaser', preset: 'Classic 4-Stage', params: { rate: 0.2, mix: 0.25 } },
       { deviceId: 'dattorro', preset: 'Small plate' },
     ],

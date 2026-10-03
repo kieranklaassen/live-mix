@@ -65,6 +65,24 @@ describe('presets', () => {
     expect(hasPreset(FILTER_DESCRIPTOR, 'Rumble filter')).toBe(false)
   })
 
+  it('loads a retuned preset as it was under the name it had, and lists only the retune', () => {
+    const retuned = {
+      ...FILTER_DESCRIPTOR,
+      presets: { ...FILTER_DESCRIPTOR.presets, 'Low rumble cut': { type: 1, frequency: 120 } },
+      retiredPresets: { 'Rumble cut': { type: 1, frequency: 60 } },
+    }
+    const old = resolvePreset(retuned, 'Rumble cut')
+    expect(old).toMatchObject({ name: 'Rumble cut', deviceId: 'filter' })
+    expect(presetParams(retuned, old).frequency).toBe(60)
+    expect(presetParams(retuned, resolvePreset(retuned, 'Low rumble cut')).frequency).toBe(120)
+    expect(listPresets(retuned).map((p) => p.name)).not.toContain('Rumble cut')
+    expect(hasPreset(retuned, 'Rumble cut')).toBe(true)
+    expect(hasPreset(FILTER_DESCRIPTOR, 'Rumble cut')).toBe(false)
+    // A name is looked up as a name, not as a property every object has.
+    expect(hasPreset(retuned, 'constructor')).toBe(false)
+    expect(() => resolvePreset(retuned, 'toString')).toThrow(/no preset "toString"/)
+  })
+
   it('fills a full param map from a partial preset, clamped, dropping unknown params', () => {
     const preset: Preset = {
       name: 'old',

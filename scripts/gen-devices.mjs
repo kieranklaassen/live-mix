@@ -155,13 +155,27 @@ function loadManifest(dir) {
   })
 
   const presets = manifest.presets ?? {}
-  for (const [presetName, values] of Object.entries(presets)) {
-    for (const [key, value] of Object.entries(values)) {
-      const param = params.find((candidate) => candidate.key === key)
-      if (!param) fail(id, `preset ${JSON.stringify(presetName)} sets unknown param ${key}`)
-      if (typeof value !== 'number' || value < param.min || value > param.max) {
-        fail(id, `preset ${JSON.stringify(presetName)} sets ${key} to ${value}, outside its range`)
+  const retiredPresets = manifest.retiredPresets ?? {}
+  for (const [kind, table] of [
+    ['preset', presets],
+    ['retired preset', retiredPresets],
+  ]) {
+    for (const [presetName, values] of Object.entries(table)) {
+      for (const [key, value] of Object.entries(values)) {
+        const param = params.find((candidate) => candidate.key === key)
+        if (!param) fail(id, `${kind} ${JSON.stringify(presetName)} sets unknown param ${key}`)
+        if (typeof value !== 'number' || value < param.min || value > param.max) {
+          fail(
+            id,
+            `${kind} ${JSON.stringify(presetName)} sets ${key} to ${value}, outside its range`,
+          )
+        }
       }
+    }
+  }
+  for (const retired of Object.keys(retiredPresets)) {
+    if (retired in presets) {
+      fail(id, `retiredPresets ${JSON.stringify(retired)} is the name of a preset of today`)
     }
   }
 
@@ -169,6 +183,7 @@ function loadManifest(dir) {
   for (const [former, current] of Object.entries(formerPresets)) {
     const where = `formerPresets ${JSON.stringify(former)}`
     if (former in presets) fail(id, `${where} is the name of a preset of today`)
+    if (former in retiredPresets) fail(id, `${where} is the name of a retired preset`)
     if (!(current in presets)) fail(id, `${where} points at ${JSON.stringify(current)}, no preset`)
   }
 
@@ -196,6 +211,7 @@ function loadManifest(dir) {
     meters,
     presets,
     formerPresets,
+    retiredPresets,
     test,
     namespace: snakeCase(id),
     constant: constCase(id),
@@ -333,14 +349,17 @@ function deviceModule(device) {
       return `  ${param.key}: { ${fields.join(', ')} },`
     })
     .join('\n')
-  const presets = Object.entries(device.presets)
-    .map(([name, values]) => {
-      const body = Object.entries(values)
-        .map(([key, value]) => `${key}: ${value}`)
-        .join(', ')
-      return `    ${quote(name)}: { ${body} },`
-    })
-    .join('\n')
+  const table = (entries) =>
+    Object.entries(entries)
+      .map(([name, values]) => {
+        const body = Object.entries(values)
+          .map(([key, value]) => `${key}: ${value}`)
+          .join(', ')
+        return `    ${quote(name)}: { ${body} },`
+      })
+      .join('\n')
+  const presets = table(device.presets)
+  const retiredPresets = table(device.retiredPresets)
   const meta = [
     `  name: ${quote(device.name)},`,
     `  category: ${quote(device.category)},`,
@@ -352,6 +371,7 @@ function deviceModule(device) {
     .map(([former, current]) => `${quote(former)}: ${quote(current)}`)
     .join(', ')
   if (formerPresets) meta.push(`  formerPresets: { ${formerPresets} },`)
+  if (retiredPresets) meta.push(`  retiredPresets: {\n${retiredPresets}\n  },`)
   const latency =
     device.latencySamples === undefined ? '' : `\n  latencySamples: () => ${device.latencySamples},`
   const metered = device.meters.length > 0

@@ -80,7 +80,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 're-amp', preset: 'Just the room', params: { distance: 0.45, room: 0.8 } },
-      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4 } },
+      { deviceId: 'tape', preset: 'Mastering deck', params: { drive: 0.4 } },
     ],
   },
   {
@@ -319,7 +319,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { wave: 3, sub: 0.3, cutoff: 2400, attack: 0.05, release: 1.2, volume: -15 },
     },
     effects: [
-      { deviceId: 'patina', preset: 'Fresh tape', params: { tone: 0.5 } },
+      { deviceId: 'patina', preset: 'New tape', params: { tone: 0.5 } },
       { deviceId: 'spring-reverb', preset: 'Two spring tank', params: { mix: 0.3 } },
     ],
   },
@@ -675,7 +675,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 2, release: 5, tone: 1000, volume: -11 },
     },
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Dark', params: { lowCut: 80, highCut: 1800 } },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { lowCut: 80, highCut: 1800 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.5 } },
     ],
   },
@@ -709,7 +709,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { cutoff: 140, volume: -20 },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Tape Print', params: { driveDb: 24, outputDb: -18 } },
+      { deviceId: 'saturator', preset: 'On tape', params: { driveDb: 24, outputDb: -18 } },
       { deviceId: 'fdn-reverb', preset: 'Room', params: { mix: 0.15 } },
     ],
   },
@@ -795,7 +795,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { mallet: 0.2, decay: 1.5, resonator: 1, width: 0.6, volume: -15 },
     },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4 } },
+      { deviceId: 'tape', preset: 'Mastering deck', params: { drive: 0.4 } },
       { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.25 } },
     ],
     preview: 'low',
@@ -902,7 +902,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { nail: 0.4, sustain: 1.5, volume: -2 },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Tape Print', params: { driveDb: 12, outputDb: -6 } },
+      { deviceId: 'saturator', preset: 'On tape', params: { driveDb: 12, outputDb: -6 } },
       { deviceId: 'tape-echo', params: { time: 375, feedback: 0.55, heads: 1, mix: 0.4 } },
       { deviceId: 'spring-reverb', preset: 'Two spring tank', params: { mix: 0.2 } },
     ],
@@ -985,7 +985,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { pressure: 0.5, vibrato: 0.3, volume: -9 },
     },
     effects: [
-      { deviceId: 'patina', preset: 'Fresh tape', params: { tone: 0.5 } },
+      { deviceId: 'patina', preset: 'New tape', params: { tone: 0.5 } },
       { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.3 } },
     ],
     preview: 'line',
@@ -1764,7 +1764,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       'Single strings struck with a soft hammer, like a piano with its case taken away, on tape in the wooden room.',
     instrument: { deviceId: 'zither', preset: 'Single felt string', params: { volume: -8.5 } },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.4 } },
+      { deviceId: 'tape', preset: 'Mastering deck', params: { drive: 0.4 } },
       { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.25 } },
     ],
   },

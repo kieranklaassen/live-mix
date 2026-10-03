@@ -26,7 +26,7 @@ export const ATMOSPHERE_PRESETS: readonly FactoryPreset[] = [
       params: { density: 0.55, tone: 0.45, width: 0.65, volume: 0 },
     },
     effects: [
-      { deviceId: 'tape', preset: 'Studio master', params: { drive: 0.9, hiss: 0, output: 0.5 } },
+      { deviceId: 'tape', preset: 'Mastering deck', params: { drive: 0.9, hiss: 0, output: 0.5 } },
       { deviceId: 'zita-rev1', preset: 'Room' },
     ],
   },

@@ -183,7 +183,7 @@ export const TAPE_LOOP_DESCRIPTOR = wasmDeviceDescriptor(TAPE_LOOP_DEVICE, {
       mix: 0.5,
     },
     'Worn out': { length: 3, feedback: 0.7, wear: 1, wow: 0.8, lowCut: 150, spread: 0.2, mix: 0.5 },
-    'Hold forever': { length: 7, feedback: 1, wear: 0, wow: 0.1, lowCut: 40, spread: 0, mix: 0.5 },
+    'Endless hold': { length: 7, feedback: 1, wear: 0, wow: 0.1, lowCut: 40, spread: 0, mix: 0.5 },
     'One second round': {
       length: 1,
       feedback: 0.55,
@@ -262,6 +262,9 @@ export const TAPE_LOOP_DESCRIPTOR = wasmDeviceDescriptor(TAPE_LOOP_DEVICE, {
       spread: 0.3,
       mix: 0.5,
     },
+  },
+  retiredPresets: {
+    'Hold forever': { length: 8, feedback: 1, wear: 0, wow: 0.1, lowCut: 40, spread: 0, mix: 0.5 },
   },
 })
 
