@@ -18,11 +18,21 @@
 // (`release`). An equal-power clip is not entered partway: its envelope is
 // written from its start, so it waits for its start to come round.
 //
-// A linear clip that stops partway through its sound (it is shorter than what
-// is left of its source, or it loops and its end does not fall where the
-// region comes round) ends on the same few milliseconds of ease-out, unless
-// its own fade-out is longer: nothing after it hides the cut either. A sound
-// that runs to its own end is left to end as it was made.
+// A linear clip with no fade of its own is not left to click at either end
+// (`clips/seam.ts` says where it would):
+// - Stopped partway through its sound (shorter than what is left of its
+//   source, or looping with its end not where the region comes round), it
+//   goes on for the same few milliseconds past its end, fading: a tail.
+// - Ending where its sound does, on a sound made to loop (it comes round on
+//   itself, and starts partway through a wave), it has the same tail, on the
+//   start of the sound; a sound that just stops partway through a wave fades
+//   over its last few milliseconds instead.
+// - Starting on a sound made to loop, it comes up over those milliseconds.
+// The tail and the come-up are each other's mirror on the clock, so where a
+// looped sound follows itself (a clip the length of the piece when the piece
+// comes round, or two clips end to end) the two sum to the sound unbroken,
+// and where it follows something else they are a crossfade. A sound that
+// starts on its attack and dies away by itself is left exactly as it was made.
 //
 // A reversed clip is the same voice on a mirrored copy of its buffer
 // (`reversed-buffer.ts`), entered where `mirrorSlice` says.
@@ -63,6 +73,7 @@ import {
   type ClipPlacement,
 } from '../clips/placement'
 import { mirrorSlice } from '../clips/reverse'
+import { comesRound, entersOnStep, leavesOnStep } from '../clips/seam'
 import { type ClipWindow } from '../clips/window'
 import { ParamGlide, holdParamAt } from '../automation/scheduled-param'
 import { scheduleKey, type ScheduledStart } from '../transport/anchor'
@@ -95,7 +106,10 @@ export const MAX_CLIP_GAIN_DB = 12
 /** ambient-live's scheduling lookahead. */
 export const DEFAULT_LOOKAHEAD_SECONDS = 0.2
 
-/** The ease-in of a clip entered partway, the fade of the voice it replaces, and the ease-out of a clip cut partway through its sound. */
+/**
+ * The ease-in of a clip entered partway, the fade of the voice it replaces,
+ * and the come-up, tail or last fade of a clip whose sound would step there.
+ */
 export const JOIN_EASE_SECONDS = 0.005
 
 /** How near its sound's own end a clip may stop and still count as ending there. */
@@ -213,8 +227,10 @@ interface VoiceTiming {
   /** Where in the clip the voice came up from silence, and where its envelope took over; equal when it did not ease in. */
   easeFromSec: number
   easeToSec: number
-  /** The source is stopped at the clip's end rather than running out by itself (a looping clip). */
+  /** The source is stopped at the clip's end rather than running out by itself (a looping clip, or one with a tail). */
   stoppedAtEnd: boolean
+  /** Seconds of the clock the voice goes on past its clip's end, fading; 0 without a tail. */
+  tailSec: number
 }
 
 /** A voice's options once a reversed clip has been turned into positions on its mirrored buffer. */
@@ -242,14 +258,73 @@ function cutPartway(playback: VoicePlayback): boolean {
   return into > OWN_END_SECONDS && into < region - OWN_END_SECONDS
 }
 
+/** The frames of its buffer a voice's sound runs over: the loop's region, or from where it enters to the buffer's end. */
+function soundFrames(playback: VoicePlayback): { first: number; end: number } {
+  const { buffer } = playback
+  const startSec = playback.loop
+    ? (playback.loopStartSec ?? playback.offsetSec)
+    : playback.offsetSec
+  const endSec = playback.loop ? (playback.loopEndSec ?? buffer.duration) : buffer.duration
+  return {
+    first: Math.round(startSec * buffer.sampleRate),
+    end: Math.round(endSec * buffer.sampleRate),
+  }
+}
+
+/** The last frame of its buffer a voice cut partway plays. */
+function cutFrame(playback: VoicePlayback): number {
+  let stopsAt = playback.offsetSec + playback.durationSec
+  if (playback.loop) {
+    const regionStart = playback.loopStartSec ?? playback.offsetSec
+    const regionEnd = playback.loopEndSec ?? playback.buffer.duration
+    if (stopsAt > regionEnd)
+      stopsAt = regionStart + ((stopsAt - regionStart) % (regionEnd - regionStart))
+  }
+  return Math.round(stopsAt * playback.buffer.sampleRate) - 1
+}
+
+/** Whether the voice plays a sound made to loop from a frame that silence before it would make a step of. */
+function comesUp(playback: VoicePlayback): boolean {
+  if (playback.fadeInSec > 0) return false
+  const { first, end } = soundFrames(playback)
+  return (
+    comesRound(playback.buffer, first, end) &&
+    entersOnStep(playback.buffer, Math.round(playback.offsetSec * playback.buffer.sampleRate))
+  )
+}
+
 /**
- * The fade a linear voice ends on: its clip's own, or a few milliseconds
- * where the clip is cut partway through its sound and its own is shorter,
- * since nothing after the cut hides it.
+ * How a linear voice with no fade-out of its own is let go where its clip ends:
+ * - `tail`: it sounds on for `sec` of the clock past the end, fading, on what
+ *   its sound goes on to (`wraps`: the source is looped for it);
+ * - `fade`: its last `sec` of clip fade, where the sound has nothing to go on to.
  */
-function endFadeSec(playback: VoicePlayback): number {
-  if (!cutPartway(playback)) return playback.fadeOutSec
-  return Math.max(playback.fadeOutSec, Math.min(JOIN_EASE_SECONDS, playback.durationSec))
+type Release =
+  { kind: 'none' } | { kind: 'tail'; sec: number; wraps: boolean } | { kind: 'fade'; sec: number }
+
+const HELD: Release = { kind: 'none' }
+
+function releaseOf(playback: VoicePlayback, rate: number): Release {
+  if (playback.fadeOutSec > 0) return HELD
+  // The source runs out before the clip does: the end is the sound's own, wherever it falls.
+  if (playback.soundSec !== undefined && playback.soundSec < playback.durationSec) return HELD
+  const { buffer } = playback
+  if (cutPartway(playback)) {
+    // A cut that falls where the sound is at rest is no step, and is left.
+    if (!leavesOnStep(buffer, cutFrame(playback))) return HELD
+    if (playback.loop) return { kind: 'tail', sec: JOIN_EASE_SECONDS, wraps: false }
+    // No further than its buffer goes.
+    const leftSec = buffer.duration - (playback.offsetSec + playback.durationSec)
+    return { kind: 'tail', sec: Math.min(JOIN_EASE_SECONDS, leftSec / rate), wraps: false }
+  }
+  const { first, end } = soundFrames(playback)
+  if (comesRound(buffer, first, end)) {
+    // What a clip of the same sound right after it would come up on.
+    if (!entersOnStep(buffer, first)) return HELD
+    return { kind: 'tail', sec: JOIN_EASE_SECONDS, wraps: !playback.loop }
+  }
+  if (!leavesOnStep(buffer, end - 1)) return HELD
+  return { kind: 'fade', sec: Math.min(JOIN_EASE_SECONDS, playback.durationSec) }
 }
 
 export interface ClipVoice {
@@ -907,8 +982,13 @@ export class AudioTrack implements StripHost {
     if (lateSec >= (playback.soundSec ?? playback.durationSec)) return null
     const start = when + late
     const end = when + playback.durationSec / rate
-    // Its clip's own fade-out, or the ease-out of a clip cut partway through its sound.
-    const fadeOutSec = endFadeSec(playback)
+    // Its clip's own fade-out, or the way out of a clip whose sound would step where it ends.
+    const release = releaseOf(playback, rate)
+    const fadeOutSec = release.kind === 'fade' ? release.sec : playback.fadeOutSec
+    const tailSec = release.kind === 'tail' ? release.sec : 0
+    // The ease-in it was given (a join partway), or the come-up of a looped sound started on time.
+    const easeInSec =
+      playback.easeInSec ?? (late === 0 && comesUp(playback) ? JOIN_EASE_SECONDS : 0)
 
     const source = this.ctx.createBufferSource()
     const gain = this.ctx.createGain()
@@ -923,8 +1003,16 @@ export class AudioTrack implements StripHost {
     const fadeInEnd = when + Math.min(playback.fadeInSec, playback.durationSec) / rate
     const fadeOutStart = Math.max(fadeInEnd, end - fadeOutSec / rate)
     // The envelope takes over where the ease-in ends: at the join itself when there is none.
-    const easeSec = Math.max(0, Math.min(playback.easeInSec ?? 0, end - start))
+    const easeSec = Math.max(0, Math.min(easeInSec, end - start))
     const from = start + easeSec
+    // A source starts on the frame nearest its time and a level takes hold on
+    // the first frame at or after its own, so a voice that starts on time from
+    // silence (a come-up, or a fade-in of its own) is silent from half a frame
+    // sooner: its first frame would otherwise sound at full level, ahead of
+    // the fade. This is the one event ambient-live's ClipPlayer did not write.
+    if ((easeSec > 0 || playback.fadeInSec > 0) && late === 0) {
+      gain.gain.setValueAtTime(0, Math.max(0, start - 0.5 / this.ctx.sampleRate))
+    }
     if (easeSec > 0) gain.gain.setValueAtTime(0, start)
     const envelopeAtFrom = fadeGain(
       (late + easeSec) * rate,
@@ -938,6 +1026,10 @@ export class AudioTrack implements StripHost {
     if (fadeOutSec > 0) {
       if (fadeOutStart > from) gain.gain.setValueAtTime(1, fadeOutStart)
       gain.gain.linearRampToValueAtTime(0, end)
+    }
+    if (tailSec > 0) {
+      gain.gain.setValueAtTime(1, end)
+      gain.gain.linearRampToValueAtTime(0, end + tailSec)
     }
 
     const voice: ClipVoice = {
@@ -960,7 +1052,8 @@ export class AudioTrack implements StripHost {
       fadeOutSec,
       easeFromSec: lateSec,
       easeToSec: (late + easeSec) * rate,
-      stoppedAtEnd: playback.loop === true,
+      stoppedAtEnd: playback.loop === true || tailSec > 0,
+      tailSec,
     })
     source.onended = () => this.forget(voice)
     if (playback.loop) {
@@ -972,7 +1065,18 @@ export class AudioTrack implements StripHost {
         start,
         wrapIntoRegion(playback.offsetSec + lateSec, source.loopStart, source.loopEnd),
       )
-      this.stopSource(voice, end)
+      this.stopSource(voice, end + tailSec)
+    } else if (release.kind === 'tail') {
+      // The tail is of the clock, so the source is stopped where it ends, not
+      // given a length: it reads on into what follows the clip, or, where the
+      // clip ends with its sound, round onto the sound's start.
+      if (release.wraps) {
+        source.loop = true
+        source.loopStart = playback.offsetSec
+        source.loopEnd = playback.buffer.duration
+      }
+      source.start(start, playback.offsetSec + lateSec)
+      this.stopSource(voice, end + tailSec)
     } else {
       // The length is of buffer played, whatever the speed: the source ends
       // where the clip does without being told when.
@@ -998,11 +1102,13 @@ export class AudioTrack implements StripHost {
     voice.source.playbackRate.setValueAtTime(rate, from)
     // Fading out or stopping at a time it was given: only its pitch follows.
     if (!timing) return
+    // Past its clip's end, in its tail, which is of the clock: the same.
+    if (timing.tailSec > 0 && from >= voice.endTime) return
 
     // Where the clip's start would have been had it always played at this rate.
     timing.when = from + (timing.when - from) * (timing.rate / rate)
     timing.rate = rate
-    const { when, durationSec, fadeInSec, fadeOutSec, easeFromSec, easeToSec } = timing
+    const { when, durationSec, fadeInSec, fadeOutSec, easeFromSec, easeToSec, tailSec } = timing
     const clock = (clipSec: number): number => when + clipSec / rate
     const elapsedSec = (from - when) * rate
     const level = voice.gain.gain
@@ -1029,7 +1135,11 @@ export class AudioTrack implements StripHost {
       level.linearRampToValueAtTime(0, clock(durationSec))
     }
     voice.endTime = clock(durationSec)
-    if (timing.stoppedAtEnd) this.stopSource(voice, voice.endTime)
+    if (tailSec > 0) {
+      level.setValueAtTime(1, voice.endTime)
+      level.linearRampToValueAtTime(0, voice.endTime + tailSec)
+    }
+    if (timing.stoppedAtEnd) this.stopSource(voice, voice.endTime + tailSec)
   }
 
   /** Breathwork Live `MusicEngine.scheduleEntry`, verbatim. */
