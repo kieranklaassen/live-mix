@@ -1024,32 +1024,21 @@ export class AudioTrack implements StripHost {
    */
   private playLinear(key: string, playback: VoicePlayback, when: number): ClipVoice | null {
     const rate = this.rateValue
-    const now = this.now()
+    const soundSec = playback.soundSec ?? playback.durationSec
     // On a device, nothing is started nearer the clock than can be kept to the
     // frame: the source would be taken up a block or more late, its level
     // already part of the way along what was written for it.
     const floorSec = startFloorSec(this.ctx)
-    const passed = when < now
-    // Due any moment now: it plays whole, from as soon as can be kept.
-    if (!passed && when < now + floorSec) when = now + floorSec
     // A start that has already passed joins the clip partway in rather than
-    // replaying it from the trim point and overrunning its end.
-    const late = passed ? now + floorSec - when : 0
-    // How far into the clip that is.
-    const lateSec = late * rate
-    if (lateSec >= (playback.soundSec ?? playback.durationSec)) return null
-    const start = when + late
-    const end = when + playback.durationSec / rate
+    // replaying it from the trim point and overrunning its end: this far in,
+    // by the clock on `now`.
+    const lateAt = (now: number) => (when < now ? now + floorSec - when : 0)
+    if (lateAt(this.now()) * rate >= soundSec) return null
     // Its clip's own fade-out, or the way out of a clip whose sound would step where it ends.
     const release = releaseOf(playback, rate)
     const fadeOutSec = release.kind === 'fade' ? release.sec : playback.fadeOutSec
     const tailSec = release.kind === 'tail' ? release.sec : 0
-    // The ease-in it was given (a join partway), or the come-up of a looped
-    // sound started on time. On a device a start that has passed eases in
-    // whoever asked for it: it begins partway through a wave.
-    const easeInSec =
-      playback.easeInSec ??
-      ((late === 0 ? comesUp(playback) : floorSec > 0) ? JOIN_EASE_SECONDS : 0)
+    const comingUp = comesUp(playback)
 
     const source = this.ctx.createBufferSource()
     const gain = this.ctx.createGain()
@@ -1058,6 +1047,27 @@ export class AudioTrack implements StripHost {
     if (rate !== 1) source.playbackRate.value = rate
     source.connect(gain)
     const { trim, placement } = this.connectVoice(gain, playback)
+
+    // The clock is read once the voice is wired, and everything below is
+    // written against that reading: a first send into a space makes the
+    // space, which on a device is time the clock runs on through.
+    const now = this.now()
+    const late = lateAt(now)
+    // How far into the clip that is.
+    const lateSec = late * rate
+    if (lateSec >= soundSec) {
+      this.unwire({ source, gain, trim, placement })
+      return null
+    }
+    // Due any moment now: it plays whole, from as soon as can be kept.
+    if (late === 0 && when < now + floorSec) when = now + floorSec
+    const start = when + late
+    const end = when + playback.durationSec / rate
+    // The ease-in it was given (a join partway), or the come-up of a looped
+    // sound started on time. On a device a start that has passed eases in
+    // whoever asked for it: it begins partway through a wave.
+    const easeInSec =
+      playback.easeInSec ?? ((late === 0 ? comingUp : floorSec > 0) ? JOIN_EASE_SECONDS : 0)
 
     // Linear ramps against the clip's own timeline, so the drawn fade slope is
     // the applied gain even when the clip is joined late.
@@ -1477,7 +1487,7 @@ export class AudioTrack implements StripHost {
   }
 
   /** Takes a voice's nodes out of the graph; what it already sent into the space rings on. */
-  private unwire(voice: ClipVoice): void {
+  private unwire(voice: Pick<ClipVoice, 'source' | 'gain' | 'trim' | 'placement'>): void {
     voice.source.disconnect()
     voice.gain.disconnect()
     voice.trim?.disconnect()

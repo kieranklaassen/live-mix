@@ -2772,6 +2772,48 @@ describe('AudioTrack on a device: nothing starts nearer the clock than can be ke
     expect(track.voice('k')).toBeUndefined()
   })
 
+  describe('wiring that takes a while (a first send into a space makes the space)', () => {
+    /** The first gain made from here on takes 150 ms of the clock. */
+    function stall(ctx: MockAudioContext) {
+      const createGain = ctx.createGain.bind(ctx)
+      let stalled = false
+      Object.assign(ctx, {
+        createGain: () => {
+          if (!stalled) ctx.currentTime += 0.15
+          stalled = true
+          return createGain()
+        },
+      })
+    }
+
+    it('reads the clock once the voice is wired: a start that passed meanwhile joins, eased', () => {
+      const { ctx, track } = setup({ currentTime: 5, baseLatency: DEVICE })
+      stall(ctx)
+      const voice = track.play(
+        'k',
+        { buffer: buffer(ctx, 10), offsetSec: 0, durationSec: 6, ...bare },
+        5.02,
+      )
+      // Due at 5.02 and wired at 5.15: joined the floor ahead of that, 0.138 s in.
+      expect(starts(ctx)).toEqual([[5.158, 0.138, 5.862]])
+      expect(levels(voice).slice(-1)).toEqual([['linearRampToValueAtTime', 1, nine(5.158 + E)]])
+    })
+
+    it('makes nothing of a voice that is over by then', () => {
+      const { ctx, track } = setup({ currentTime: 5, baseLatency: DEVICE })
+      stall(ctx)
+      const voice = track.play(
+        'k',
+        { buffer: buffer(ctx, 10), offsetSec: 0, durationSec: 0.1, ...bare },
+        5.02,
+      )
+      expect(voice).toBeNull()
+      expect(ctx.sources[0].startCalls.count).toBe(0)
+      expect(ctx.sources[0].disconnectCalls.count).toBe(1)
+      expect(track.voices()).toHaveLength(0)
+    })
+  })
+
   it('a voice that ends before the fall could begin is left to end', () => {
     const { ctx, track } = setup({ baseLatency: DEVICE })
     // Starts at the floor (8 ms) and ends at 2.006 s; let go at 2 s, the fall would begin at 2.008 s.
