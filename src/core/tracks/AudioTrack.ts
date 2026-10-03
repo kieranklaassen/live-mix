@@ -108,7 +108,8 @@ export const DEFAULT_LOOKAHEAD_SECONDS = 0.2
 
 /**
  * The ease-in of a clip entered partway, the fade of the voice it replaces,
- * and the come-up, tail or last fade of a clip whose sound would step there.
+ * the come-up, tail or last fade of a clip whose sound would step there, and
+ * the fall of a voice stopped while it sounds.
  */
 export const JOIN_EASE_SECONDS = 0.005
 
@@ -231,6 +232,17 @@ interface VoiceTiming {
   stoppedAtEnd: boolean
   /** Seconds of the clock the voice goes on past its clip's end, fading; 0 without a tail. */
   tailSec: number
+}
+
+/** The level a linear voice's envelope has at `at` on the clock: its come-up or ease-in, then its clip's own fades. */
+function envelopeAt(timing: VoiceTiming, at: number): number {
+  const { durationSec, fadeInSec, fadeOutSec, easeFromSec, easeToSec } = timing
+  const elapsedSec = (at - timing.when) * timing.rate
+  if (elapsedSec < easeToSec && easeToSec > easeFromSec) {
+    const afterEase = fadeGain(easeToSec, durationSec, fadeInSec, fadeOutSec)
+    return (afterEase * Math.max(0, elapsedSec - easeFromSec)) / (easeToSec - easeFromSec)
+  }
+  return fadeGain(elapsedSec, durationSec, fadeInSec, fadeOutSec)
 }
 
 /** A voice's options once a reversed clip has been turned into positions on its mirrored buffer. */
@@ -789,13 +801,15 @@ export class AudioTrack implements StripHost {
   }
 
   /**
-   * Silence the voice under `key`. Without `at`: immediately, disconnecting it
-   * (ambient-live). With `at`: schedule `source.stop(at)` and let it end there.
+   * Silence the voice under `key`. Without `at`: at once (ambient-live). One
+   * that is sounding falls silent over `JOIN_EASE_SECONDS`, since a wave cut
+   * where it stands is a click; one that has not started is disconnected.
+   * With `at`: schedule `source.stop(at)` and let it end there.
    */
   stop(key: string, at?: number): void {
     const voice = this.active.get(key)
     if (!voice) return
-    if (at === undefined) this.silence(voice)
+    if (at === undefined) this.letGo(voice)
     else this.endAt(voice, at)
   }
 
@@ -835,14 +849,14 @@ export class AudioTrack implements StripHost {
   }
 
   /**
-   * Silence everything, started or not. Without `at`: immediately
-   * (ambient-live `stopAll`). With `at`: every source stops at `at`
-   * (Breathwork Live `stop()` stops sources at `now + STOP_FADE_SECONDS`
-   * while the master fades).
+   * Silence everything, started or not. Without `at`: at once, as `stop(key)`
+   * does each voice (ambient-live `stopAll`; the transport's stop, pause and
+   * seek). With `at`: every source stops at `at` (Breathwork Live `stop()`
+   * stops sources at `now + STOP_FADE_SECONDS` while the master fades).
    */
   stopAll(options: { at?: number } = {}): void {
     for (const voice of [...this.active.values()]) {
-      if (options.at === undefined) this.silence(voice)
+      if (options.at === undefined) this.letGo(voice)
       else this.endAt(voice, options.at)
     }
   }
@@ -851,7 +865,8 @@ export class AudioTrack implements StripHost {
     if (this.disposed) return
     this.disposed = true
     this.detach()
-    this.stopAll()
+    // The graph goes with the track: nothing is left to ease out through.
+    for (const voice of [...this.active.values()]) this.silence(voice)
     this.unwatchStrip?.()
     this.unwatchStrip = null
     for (const unwatch of this.unwatchInserts) unwatch()
@@ -1122,9 +1137,7 @@ export class AudioTrack implements StripHost {
     const afterEase = fadeGain(easeToSec, durationSec, fadeInSec, fadeOutSec)
     const easing = elapsedSec < easeToSec && easeToSec > easeFromSec
     // What is left of the envelope, from the level it has reached.
-    const reached = easing
-      ? (afterEase * Math.max(0, elapsedSec - easeFromSec)) / (easeToSec - easeFromSec)
-      : fadeGain(elapsedSec, durationSec, fadeInSec, fadeOutSec)
+    const reached = envelopeAt(timing, from)
     if (voice.startTime > at) {
       // Not begun: there is no level to hold yet, only the one it starts at.
       level.cancelScheduledValues(from)
@@ -1365,6 +1378,40 @@ export class AudioTrack implements StripHost {
     } catch {
       // Already stopped, or a mock that rejects pre-scheduled stops; harmless.
     }
+  }
+
+  /**
+   * Lets a voice go at once. One that is sounding is not cut dead, which is a
+   * step wherever its wave happens to stand: it falls to silence over
+   * `JOIN_EASE_SECONDS` from the level it has, and is forgotten now, so its
+   * key is free. One that has not started, or is over, is silenced; one in
+   * its tail is left to finish it.
+   */
+  private letGo(voice: ClipVoice): void {
+    const at = this.now()
+    const timing = this.timings.get(voice)
+    if (voice.startTime > at || at >= voice.endTime + (timing?.tailSec ?? 0)) {
+      this.silence(voice)
+      return
+    }
+    if (at < voice.endTime) {
+      const level = voice.gain.gain
+      // A voice with no envelope of its own left is fading, or playing on the clock: where it is now.
+      const reached = timing ? envelopeAt(timing, at) : level.value
+      this.timings.delete(voice)
+      // A fade under way is cut short where it has got to. A hold writes
+      // nothing where there was no ramp to cut, so the fall is anchored there.
+      if (typeof level.cancelAndHoldAtTime === 'function') level.cancelAndHoldAtTime(at)
+      else level.cancelScheduledValues(at)
+      level.setValueAtTime(reached, at)
+      level.linearRampToValueAtTime(0, at + JOIN_EASE_SECONDS)
+      this.stopSource(voice, at + JOIN_EASE_SECONDS)
+      voice.endTime = at + JOIN_EASE_SECONDS
+    }
+    this.active.delete(voice.key)
+    this.voiceClips.delete(voice.key)
+    // No longer the key's voice, so `forget` would pass it by.
+    voice.source.onended = () => this.unwire(voice)
   }
 
   private silence(voice: ClipVoice): void {

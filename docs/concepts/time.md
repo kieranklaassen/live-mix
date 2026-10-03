@@ -174,6 +174,12 @@ and hands each one to the graph exactly once, keyed by
   the loop comes round, is unbroken, and anything else is a 5 ms crossfade. A
   sound that starts on its attack and dies away is played exactly as it was
   made, and equal-power clips keep the envelope they were given.
+- **Stop, pause and a seek do not click.** They silence every track at once,
+  and a clip cut where its wave stands is a step. An `AudioTrack` voice that
+  is sounding falls silent over 5 ms from the level it has (`stop(key)` and
+  `stopAll()` without a time); one that has not started is dropped. A seek
+  while playing is then a 5 ms crossfade onto the clips entered at the new
+  place.
 - **Edits while playing.** `refresh()` (which every clip-list change calls)
   keeps what is sounding and re-derives what is pending; a clip cut short of
   the playhead stops. It does not start anything whose start has passed. To

@@ -454,7 +454,7 @@ describe('AudioTrack linear voices (ambient-live ClipPlayer parity)', () => {
     expect(track.voices().map((v) => v.key)).toEqual(['sounding'])
   })
 
-  it('stop(key) silences immediately; stopAll() silences everything; onended forgets a voice', () => {
+  it('stop(key) and stopAll() silence a voice that has not started at once; onended forgets a voice', () => {
     const { ctx, track } = setup()
     const opts = {
       buffer: buffer(ctx, 10),
@@ -464,11 +464,12 @@ describe('AudioTrack linear voices (ambient-live ClipPlayer parity)', () => {
       fadeOutSec: 0,
       fadeCurve: 'linear' as const,
     }
-    track.play('a', opts, 0)
+    track.play('a', opts, 1)
     track.play('b', opts, 1)
     track.play('c', opts, 2)
     track.stop('a')
     expect(ctx.sources[0].stopCalls.calls).toEqual([[]])
+    expect(ctx.sources[0].disconnectCalls.count).toBe(1)
     expect(track.voice('a')).toBeUndefined()
     ctx.sources[1].finish()
     expect(track.voice('b')).toBeUndefined()
@@ -476,6 +477,110 @@ describe('AudioTrack linear voices (ambient-live ClipPlayer parity)', () => {
     track.stopAll()
     expect(ctx.sources[2].stopCalls.calls).toEqual([[]])
     expect(track.voices()).toHaveLength(0)
+  })
+
+  describe('a voice stopped while it sounds', () => {
+    const E = JOIN_EASE_SECONDS
+    const bare = { fadeInSec: 0, fadeOutSec: 0, fadeCurve: 'linear' as const }
+    const fall = (at: number, from = 1) => [
+      { method: 'cancelAndHoldAtTime', args: [at] },
+      { method: 'setValueAtTime', args: [from, at] },
+      { method: 'linearRampToValueAtTime', args: [0, at + E] },
+    ]
+
+    it('is not cut dead: it falls silent over a few milliseconds and its key is free at once', () => {
+      const { ctx, track } = setup()
+      const voice = track.play(
+        'k',
+        { buffer: buffer(ctx, 10), offsetSec: 0, durationSec: 6, ...bare },
+        0,
+      )
+      ctx.currentTime = 2
+      track.stop('k')
+      expect(ctx.gains[1].gain.events.slice(-3)).toEqual(fall(2))
+      expect(ctx.sources[0].stopCalls.calls).toEqual([[2 + E]])
+      expect(voice?.endTime).toBe(2 + E)
+      // Forgotten now, still wired until its source ends.
+      expect(track.voice('k')).toBeUndefined()
+      expect(ctx.sources[0].disconnectCalls.count).toBe(0)
+      ctx.sources[0].finish()
+      expect(ctx.sources[0].disconnectCalls.count).toBe(1)
+    })
+
+    it('stopAll() lets every sounding voice fall and silences the ones still to come', () => {
+      const { ctx, track } = setup()
+      const opts = { buffer: buffer(ctx, 10), offsetSec: 0, durationSec: 6, ...bare }
+      track.play('sounding', opts, 0)
+      track.play('pending', opts, 3)
+      ctx.currentTime = 2
+      track.stopAll()
+      expect(ctx.sources[0].stopCalls.calls).toEqual([[2 + E]])
+      expect(ctx.sources[1].stopCalls.calls).toEqual([[]])
+      expect(track.voices()).toHaveLength(0)
+    })
+
+    it('falls from where its own fade has got to, and from its come-up', () => {
+      const { ctx, track } = setup()
+      // Halfway down a four second fade-out.
+      track.play(
+        'fading',
+        {
+          buffer: buffer(ctx, 10),
+          offsetSec: 0,
+          durationSec: 6,
+          fadeInSec: 0,
+          fadeOutSec: 4,
+          fadeCurve: 'linear',
+        },
+        0,
+      )
+      ctx.currentTime = 4
+      track.stop('fading')
+      expect(ctx.gains[1].gain.events.slice(-3)).toEqual(fall(4, 0.5))
+      // Two of the five milliseconds into the come-up of a sound made to loop.
+      ctx.currentTime = 10
+      track.play('rising', { buffer: looped(ctx, 8), offsetSec: 0, durationSec: 8, ...bare }, 10)
+      ctx.currentTime = 10.002
+      track.stop('rising')
+      expect(toNine(ctx.gains[2].gain.events.slice(-3))).toEqual(toNine(fall(10.002, 0.4)))
+    })
+
+    it('where the browser cannot hold a level, cancels and sets it', () => {
+      const { ctx, track } = setup()
+      const voice = track.play(
+        'k',
+        { buffer: buffer(ctx, 10), offsetSec: 0, durationSec: 6, ...bare },
+        0,
+      )
+      const level = voice?.gain.gain as unknown as { cancelAndHoldAtTime?: unknown }
+      level.cancelAndHoldAtTime = undefined
+      ctx.currentTime = 2
+      track.stop('k')
+      expect(ctx.gains[1].gain.events.slice(-3)).toEqual([
+        { method: 'cancelScheduledValues', args: [2] },
+        { method: 'setValueAtTime', args: [1, 2] },
+        { method: 'linearRampToValueAtTime', args: [0, 2 + E] },
+      ])
+    })
+
+    it('in its tail it is left to finish it; past its end it is silenced', () => {
+      const { ctx, track } = setup()
+      // A sound made to loop, once: it tails for five milliseconds past 8 s.
+      track.play('k', { buffer: looped(ctx, 8), offsetSec: 0, durationSec: 8, ...bare }, 0)
+      const written = ctx.gains[1].gain.events.length
+      ctx.currentTime = 8.002
+      track.stopAll()
+      expect(ctx.gains[1].gain.events).toHaveLength(written)
+      expect(ctx.sources[0].stopCalls.calls).toEqual([[8 + E]])
+      expect(track.voices()).toHaveLength(0)
+      ctx.sources[0].finish()
+      expect(ctx.sources[0].disconnectCalls.count).toBe(1)
+
+      track.play('over', { buffer: buffer(ctx, 10), offsetSec: 0, durationSec: 1, ...bare }, 9)
+      ctx.currentTime = 11
+      track.stop('over')
+      expect(ctx.sources[1].stopCalls.last).toEqual([])
+    })
   })
 
   it('loop clips set source.loop over the offset and stop at the clip end', () => {
@@ -787,7 +892,7 @@ describe('AudioTrack as Schedulables', () => {
     scheduler.dispose()
   })
 
-  it('transport stop with a fade stops sources at now + fade; pause silences immediately', async () => {
+  it('transport stop with a fade stops sources at now + fade; pause lets what sounds fall silent', async () => {
     const { ctx, samples, track, transport, scheduler } = scheduled({ lookaheadSec: 1 })
     await samples.load('s-a', buffer(ctx, 10))
     track.clips.add(clip('a', 0))
@@ -801,9 +906,9 @@ describe('AudioTrack as Schedulables', () => {
     scheduler.tick()
     expect(ctx.sources).toHaveLength(2)
     transport.pause()
-    // Pause silences everything at once: the fading voice and the new one.
-    expect(ctx.sources[0].stopCalls.last).toEqual([])
-    expect(ctx.sources[1].stopCalls.last).toEqual([])
+    // Pause lets go of everything at once: the voice the stop left sounding and the new one fall silent together.
+    expect(ctx.sources[0].stopCalls.last).toEqual([1 + JOIN_EASE_SECONDS])
+    expect(ctx.sources[1].stopCalls.last).toEqual([1 + JOIN_EASE_SECONDS])
     expect(track.voices()).toHaveLength(0)
     scheduler.dispose()
   })
@@ -1393,6 +1498,8 @@ describe('AudioTrack placed clips', () => {
       expect(track.strip.sourceNodes).toEqual([trim])
       expect(trim.gain.lastEvent('exponentialRampToValueAtTime')?.args[0]).toBeCloseTo(trimGain(-6))
       track.stop('k')
+      // Sounding, so it falls silent first; its nodes go when its source ends.
+      ctx.sources[0].finish()
       expect(trim.isConnectedTo(dest)).toBe(false)
       expect(track.strip.sourceNodes).toEqual([])
     })
