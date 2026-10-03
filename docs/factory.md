@@ -272,11 +272,23 @@ strokes are painted to its length: a number is never reused or given to
 another sound, and a sound that is to be longer, shorter or looped is a new
 sound with a new number.
 
-The bank as written sits well inside them: preset previews have their loudest
-400 ms between about −31 and −23 dBFS with peaks under −9, chains stay within
-4 LU of the dry input (but for Night shortwave, a narrow radio band that fades
-by design and sits 6 LU under it), stereo width (side over mid) is between about −12 and
-−2 dB, and a whole patch costs under about 12 % of real time on the bench.
+The bank as written sits inside them: preset previews have their loudest
+400 ms between −30 and −23 dBFS with peaks under −8.5 (Muted echo pattern and
+Muted acoustic echo shipped at −33 and stay there), chains come out between
+3.7 LU under the dry input and 2.8 LU over it (but for Night shortwave, a
+narrow radio band that fades by design and sits 6 LU under it), stereo width
+(side over mid) runs from mono to −2 dB with half the presets between −13 and
+−5, and a whole patch costs at most 8 % of real time on the bench (a chain
+at most 5 %).
+
+Two things the whole bench shows that the rules do not hold. Across
+instruments, three pairs of organ presets measure under 1 dB apart on the
+organ phrase (Clarinet stop organ and Flugelhorn organ, Hollow glass organ
+and Tape flute pipes, Saw rotary organ and Rotor brass organ): the
+rule is for presets of one instrument, and these are different instruments
+under the hands. And seventeen of the twenty-four master chains sit within
+0.3 dB of another on the dry phrase, because a master chain is meant to do
+little to a phrase that peaks at −10 dBFS: they part when they are driven.
 
 ### The bench
 
