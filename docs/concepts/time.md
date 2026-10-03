@@ -162,6 +162,13 @@ and hands each one to the graph exactly once, keyed by
   into the next pass when the loop comes round by itself, but a start or a
   jump enters only what is drawn under the playhead, not what would have
   carried over from a pass that was never played.
+- **A clip cut partway ends on an ease.** A linear clip that stops partway
+  through its sound (it is shorter than what is left of its source, or it
+  loops and its end does not fall where the region comes round) eases out
+  over the same 5 ms, unless its own fade-out is longer: nothing after the
+  cut hides it, and at the loop's end it would click on every pass. A clip
+  that runs to its sound's own end is left to end as it was made, and
+  equal-power clips keep the envelope they were given.
 - **Edits while playing.** `refresh()` (which every clip-list change calls)
   keeps what is sounding and re-derives what is pending; a clip cut short of
   the playhead stops. It does not start anything whose start has passed. To
