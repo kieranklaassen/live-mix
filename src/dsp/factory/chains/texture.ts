@@ -50,8 +50,8 @@ export const TEXTURE_CHAINS: readonly FactoryChain[] = [
       'Attacks are removed so each note fades in like a bow, levelled and carried on by a plate.',
     effects: [
       { deviceId: 'swell', preset: 'Bowed' },
-      { deviceId: 'limiter-1176', params: { inputGain: 8, outputGain: -2 } },
-      { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.35 } },
+      { deviceId: 'fet-limiter', params: { inputGain: 8, outputGain: -2 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.35 } },
     ],
   },
   {
@@ -89,7 +89,7 @@ export const TEXTURE_CHAINS: readonly FactoryChain[] = [
       'The sound sticks on tiny fragments like a scratched disc, softened and set in a plate.',
     effects: [
       { deviceId: 'glitch', preset: 'Skipping disc', params: { calm: 0.45, mix: 0.8 } },
-      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -100,7 +100,7 @@ export const TEXTURE_CHAINS: readonly FactoryChain[] = [
       'Each note comes back as little loops an octave and two octaves up, falling into a long plate.',
     effects: [
       { deviceId: 'cascade', preset: 'Octave stack', params: { mix: 0.45 } },
-      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -126,7 +126,7 @@ export const TEXTURE_CHAINS: readonly FactoryChain[] = [
         params: { tuning: 0.25, interference: 0.1, mix: 0.8 },
       },
       { deviceId: 'tape-echo', preset: 'Worn tape', params: { feedback: 0.45, mix: 0.3 } },
-      { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.3 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.3 } },
     ],
   },
   {
@@ -137,7 +137,7 @@ export const TEXTURE_CHAINS: readonly FactoryChain[] = [
       'A string section swells in behind each chord and follows the harmony, set in a soft plate.',
     effects: [
       { deviceId: 'pad-follower', preset: 'String pad' },
-      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -159,7 +159,7 @@ export const TEXTURE_CHAINS: readonly FactoryChain[] = [
       'Holds each note or chord as an even pad that glides to the next, with a little room around it.',
     effects: [
       { deviceId: 'sustainer', preset: 'Sustain pedal', params: { mix: 0.4 } },
-      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -170,7 +170,7 @@ export const TEXTURE_CHAINS: readonly FactoryChain[] = [
       'Every chord you play is caught and swells in behind you as a slow string section in a long plate.',
     effects: [
       { deviceId: 'sustainer', preset: 'Slow strings', params: { mix: 0.45 } },
-      { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.25 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.25 } },
     ],
   },
 
@@ -182,7 +182,7 @@ export const TEXTURE_CHAINS: readonly FactoryChain[] = [
       'A fine layer of short forward grains sits just behind the sound and widens it a little, in a small room.',
     effects: [
       { deviceId: 'grain-cloud', preset: 'Thin veil', params: { size: 90, spread: 0.9, mix: 0.3 } },
-      { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.2 } },
+      { deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.2 } },
     ],
   },
   {
@@ -197,7 +197,7 @@ export const TEXTURE_CHAINS: readonly FactoryChain[] = [
         preset: 'Softened attacks',
         params: { blur: 0.2, smear: 0.7, width: 1 },
       },
-      { deviceId: 'dattorro', preset: 'Tight room' },
+      { deviceId: 'plate-reverb', preset: 'Tight room' },
       { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 2 } },
     ],
   },
@@ -226,8 +226,8 @@ export const TEXTURE_CHAINS: readonly FactoryChain[] = [
       { deviceId: 'swell', preset: 'Bowed' },
       { deviceId: 'spectral-blur', preset: 'Pad from anything', params: { mix: 0.9 } },
       { deviceId: 'stereo-widener', preset: 'Narrow' },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.25 } },
-      { deviceId: 'limiter-1176', preset: 'Safety', params: { inputGain: 3, outputGain: -0.5 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.25 } },
+      { deviceId: 'fet-limiter', preset: 'Safety', params: { inputGain: 3, outputGain: -0.5 } },
     ],
   },
   {
@@ -286,7 +286,7 @@ export const TEXTURE_CHAINS: readonly FactoryChain[] = [
       'Long grains an octave down, most of them backwards, roll in under the sound and sink into a dark hall.',
     effects: [
       { deviceId: 'grain-cloud', preset: 'Low tide', params: { density: 7, mix: 0.45 } },
-      { deviceId: 'zita-rev1', preset: 'Dark hall', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Dark hall', params: { mix: 0.3 } },
     ],
   },
   {
@@ -307,7 +307,7 @@ export const TEXTURE_CHAINS: readonly FactoryChain[] = [
     description:
       'A long hall tail is cut into tiny grains with abrupt edges and scattered, so the room crackles as it fades.',
     effects: [
-      { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.55 } },
+      { deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.55 } },
       {
         deviceId: 'grain-cloud',
         preset: 'Glass shards',
@@ -322,7 +322,7 @@ export const TEXTURE_CHAINS: readonly FactoryChain[] = [
           mix: 0.55,
         },
       },
-      { deviceId: 'limiter-1176', preset: 'Safety' },
+      { deviceId: 'fet-limiter', preset: 'Safety' },
     ],
   },
   {
@@ -354,7 +354,7 @@ export const TEXTURE_CHAINS: readonly FactoryChain[] = [
         preset: 'Soft cloud',
         params: { size: 320, reverse: 0.4, mix: 0.4 },
       },
-      { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.3 } },
       { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: -1 } },
     ],
   },
@@ -379,7 +379,7 @@ export const TEXTURE_CHAINS: readonly FactoryChain[] = [
       { deviceId: 'glitch', preset: 'Shards', params: { chance: 0.4, calm: 0.3 } },
       { deviceId: 'grain-delay', preset: 'Grain cloud', params: { mix: 0.35 } },
       { deviceId: 'swarm-reverb', preset: 'Pattering', params: { mix: 0.25 } },
-      { deviceId: 'limiter-1176', preset: 'Safety', params: { inputGain: 2, outputGain: -0.5 } },
+      { deviceId: 'fet-limiter', preset: 'Safety', params: { inputGain: 2, outputGain: -0.5 } },
     ],
   },
   {

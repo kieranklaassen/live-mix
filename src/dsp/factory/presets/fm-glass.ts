@@ -11,7 +11,7 @@ export const FM_GLASS_PRESETS: readonly FactoryPreset[] = [
       preset: 'Glass bell',
       params: { spread: 0.35, volume: -5 },
     },
-    effects: [{ deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.35 } }],
+    effects: [{ deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.35 } }],
   },
   {
     id: 'ice-chime-crystals',
@@ -21,7 +21,7 @@ export const FM_GLASS_PRESETS: readonly FactoryPreset[] = [
     instrument: { deviceId: 'fm-glass', preset: 'Ice chimes', params: { volume: -3 } },
     effects: [
       { deviceId: 'grain-delay', preset: 'Crystals', params: { mix: 0.3 } },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
   {
@@ -46,7 +46,7 @@ export const FM_GLASS_PRESETS: readonly FactoryPreset[] = [
     instrument: { deviceId: 'fm-glass', preset: 'Vibes', params: { volume: -7 } },
     effects: [
       { deviceId: 'tape-echo', preset: 'Warm repeats', params: { heads: 3, time: 450, mix: 0.3 } },
-      { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.3 } },
     ],
   },
   {
@@ -88,7 +88,7 @@ export const FM_GLASS_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tremolo', preset: 'Slow pan', params: { rate: 0.9, depth: 0.6 } },
-      { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.22 } },
+      { deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.22 } },
     ],
   },
   {
@@ -115,7 +115,7 @@ export const FM_GLASS_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'rotary', preset: 'Chorale', params: { drive: 0.1, mix: 0.8 } },
-      { deviceId: 'zita-rev1', preset: 'Tight chamber' },
+      { deviceId: 'hall-reverb', preset: 'Tight chamber' },
     ],
   },
   {
@@ -143,7 +143,7 @@ export const FM_GLASS_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'chorus', preset: 'Lush ensemble', params: { spread: 60, mix: 0.45 } },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
   {
@@ -170,7 +170,7 @@ export const FM_GLASS_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tremolo', preset: 'Pitch wobble', params: { depth: 0.15 } },
-      { deviceId: 'zita-rev1', preset: 'Tight chamber', params: { mix: 0.25 } },
+      { deviceId: 'hall-reverb', preset: 'Tight chamber', params: { mix: 0.25 } },
     ],
   },
   {
@@ -196,7 +196,7 @@ export const FM_GLASS_PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.3 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.3 } },
       { deviceId: 'vinyl', preset: 'Parlour 78' },
     ],
   },
@@ -222,7 +222,7 @@ export const FM_GLASS_PRESETS: readonly FactoryPreset[] = [
         volume: -6.5,
       },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Faint halo', params: { mix: 0.18 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Faint halo', params: { mix: 0.18 } }],
   },
   {
     id: 'buzzing-wire-pluck',
@@ -326,7 +326,7 @@ export const FM_GLASS_PRESETS: readonly FactoryPreset[] = [
         volume: -10,
       },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Room' }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Room' }],
   },
   {
     id: 'dry-wooden-bars',
@@ -349,7 +349,7 @@ export const FM_GLASS_PRESETS: readonly FactoryPreset[] = [
         volume: -6.1,
       },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Tight chamber', params: { mix: 0.15 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Tight chamber', params: { mix: 0.15 } }],
     preview: 'keys',
   },
   {
@@ -376,7 +376,7 @@ export const FM_GLASS_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tremolo', preset: 'Gentle breath', params: { depth: 0.3 } },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.25 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.25 } },
     ],
   },
   {
@@ -465,7 +465,7 @@ export const FM_GLASS_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'patina', preset: 'Worn cassette', params: { noise: 0.3 } },
-      { deviceId: 'zita-rev1', preset: 'Dark hall', params: { mix: 0.35 } },
+      { deviceId: 'hall-reverb', preset: 'Dark hall', params: { mix: 0.35 } },
     ],
   },
 ]

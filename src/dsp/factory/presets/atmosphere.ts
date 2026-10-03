@@ -27,7 +27,7 @@ export const ATMOSPHERE_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tape', preset: 'Mastering deck', params: { drive: 0.9, hiss: 0, output: 0.5 } },
-      { deviceId: 'zita-rev1', preset: 'Room' },
+      { deviceId: 'hall-reverb', preset: 'Room' },
     ],
   },
   {
@@ -105,7 +105,7 @@ export const ATMOSPHERE_PRESETS: readonly FactoryPreset[] = [
         preset: 'Minor strings',
         params: { sympathy: 1, decay: 6, mix: 0.8 },
       },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.25 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.25 } },
     ],
   },
   {
@@ -205,7 +205,7 @@ export const ATMOSPHERE_PRESETS: readonly FactoryPreset[] = [
     effects: [
       { deviceId: 'saturator', preset: 'Warm glue', params: { driveDb: 27, outputDb: -7 } },
       { deviceId: 'swarm-reverb', preset: 'Vast hollow', params: { mix: 0.5, width: 0.6 } },
-      { deviceId: 'zita-rev1', preset: 'Vast nave', params: { mix: 0.6 } },
+      { deviceId: 'hall-reverb', preset: 'Vast nave', params: { mix: 0.6 } },
     ],
   },
   {
@@ -228,7 +228,7 @@ export const ATMOSPHERE_PRESETS: readonly FactoryPreset[] = [
         volume: -4.5,
       },
     },
-    effects: [{ deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.3 } }],
+    effects: [{ deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.3 } }],
   },
   {
     id: 'squall-on-slates',
@@ -257,7 +257,7 @@ export const ATMOSPHERE_PRESETS: readonly FactoryPreset[] = [
         preset: 'Gentle breath',
         params: { rate: 0.35, depth: 0.7, drift: 0.5 },
       },
-      { deviceId: 'zita-rev1', preset: 'Tight chamber' },
+      { deviceId: 'hall-reverb', preset: 'Tight chamber' },
     ],
   },
   {
@@ -282,7 +282,7 @@ export const ATMOSPHERE_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'auto-filter', preset: 'Rumble cut', params: { cutoffHz: 60 } },
-      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.3 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.3 } },
     ],
   },
   {
@@ -364,7 +364,7 @@ export const ATMOSPHERE_PRESETS: readonly FactoryPreset[] = [
     effects: [
       { deviceId: 'auto-filter', preset: 'Rumble cut', params: { cutoffHz: 80 } },
       { deviceId: 'saturator', preset: 'Warm glue', params: { driveDb: 12, outputDb: -2.5 } },
-      { deviceId: 'dattorro', preset: 'Dark plate', params: { mix: 0.3 } },
+      { deviceId: 'plate-reverb', preset: 'Dark plate', params: { mix: 0.3 } },
     ],
   },
   {
@@ -389,7 +389,7 @@ export const ATMOSPHERE_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'analog-drive', preset: 'Iron lows' },
-      { deviceId: 'zita-rev1', preset: 'Dark hall', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Dark hall', params: { mix: 0.3 } },
     ],
   },
   {
@@ -415,7 +415,7 @@ export const ATMOSPHERE_PRESETS: readonly FactoryPreset[] = [
     effects: [
       { deviceId: 'auto-filter', preset: 'Rumble cut', params: { cutoffHz: 90 } },
       { deviceId: 'saturator', preset: 'Warm glue', params: { driveDb: 20, outputDb: -5.5 } },
-      { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.3 } },
     ],
   },
   {
@@ -441,7 +441,7 @@ export const ATMOSPHERE_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'rotary', preset: 'Chorale', params: { balance: 0.6, spread: 1 } },
-      { deviceId: 'zita-rev1', preset: 'Room' },
+      { deviceId: 'hall-reverb', preset: 'Room' },
     ],
   },
   {
@@ -467,7 +467,7 @@ export const ATMOSPHERE_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tape', preset: 'Cassette four-track' },
-      { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.35 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.35 } },
     ],
   },
 ]

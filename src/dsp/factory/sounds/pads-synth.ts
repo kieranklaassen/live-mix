@@ -1,7 +1,7 @@
 // Pads of the synthesizers: a chord of the white keys held, with slow movement that comes round with the loop.
 // Numbers 147 to 153. What every sound here is held to is in docs/factory.md.
 
-import { breathe, zita } from '../parts'
+import { breathe, hall } from '../parts'
 import { type FactorySound } from '../types'
 import { cycled, looped, sound } from './recipe'
 
@@ -25,7 +25,7 @@ export const PADS_SYNTH: readonly FactorySound[] = [
         preset: 'Init',
         params: { slope: 1, cutoffHz: 480, lfoAmount: 45, lfoRateHz: 0.125 },
       },
-      zita('Room', 0.2),
+      hall('Room', 0.2),
       breathe(0.125, 0.25),
     ],
     ...looped(8, 6.5, 2, [40, 47, [55, 0.8], [62, 0.7]]),
@@ -40,7 +40,7 @@ export const PADS_SYNTH: readonly FactorySound[] = [
     instrument: { deviceId: 'aurora', preset: 'Slow bloom', params: { release: 5 } },
     effects: [
       { deviceId: 'chorus', preset: 'Slow drift', params: { rate: 0.0625, spread: 60, mix: 0.3 } },
-      zita('Hall', 0.35),
+      hall('Hall', 0.35),
     ],
     // The lows come in under the tail of the pass before and take seven seconds to open.
     ...cycled(
@@ -69,7 +69,7 @@ export const PADS_SYNTH: readonly FactorySound[] = [
     },
     effects: [
       { deviceId: 'chorus', preset: 'Subtle widener', params: { rate: 0.25 } },
-      zita('Room', 0.3),
+      hall('Room', 0.3),
       breathe(0.125, 0.45),
     ],
     ...looped(8, 7, 2, [48, 55, [64, 0.8], [69, 0.7]]),
@@ -106,7 +106,7 @@ export const PADS_SYNTH: readonly FactorySound[] = [
       params: { attack: 1, decay: 3, spread: 0.25, brightness: 0.5, detune: 6 },
     },
     effects: [
-      { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.35 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.35 } },
       breathe(0.25, 0.4),
     ],
     ...looped(8, 7.5, 2, [[55, 0.7], 67, 74, [81, 0.8], [83, 0.6]]),
@@ -149,7 +149,7 @@ export const PADS_SYNTH: readonly FactorySound[] = [
     },
     effects: [
       { deviceId: 'rotary', preset: 'Across the room' },
-      zita('Hall', 0.3),
+      hall('Hall', 0.3),
       breathe(0.125, 0.45),
     ],
     ...looped(8, 7, 2, [43, 50, 60, [67, 0.8], [74, 0.6]]),

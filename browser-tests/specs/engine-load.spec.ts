@@ -29,16 +29,16 @@ test('the engine measures its own devices on an isolated page', async ({ page })
 
   // Every kind is there with its count and the memory its instances hold.
   const kinds = Object.fromEntries(last.devices.map((device) => [device.label, device]))
-  expect(Object.keys(kinds).sort()).toEqual(['shimmer', 'zita-rev1'])
-  expect(kinds['zita-rev1'].count).toBe(4)
+  expect(Object.keys(kinds).sort()).toEqual(['hall-reverb', 'shimmer'])
+  expect(kinds['hall-reverb'].count).toBe(4)
   expect(kinds['shimmer'].count).toBe(2)
-  expect(kinds['zita-rev1'].memoryBytes).toBe(4 * result.memory['zita-rev1'])
+  expect(kinds['hall-reverb'].memoryBytes).toBe(4 * result.memory['hall-reverb'])
   expect(kinds['shimmer'].memoryBytes).toBe(2 * result.memory['shimmer'])
 
   // The load agrees with the worker's timing. A look at a random moment is a
   // noisy thing and so is a shared CI machine: within a factor of two, for
   // the sum and for each kind.
-  const expected = result.expected['zita-rev1'] + result.expected['shimmer']
+  const expected = result.expected['hall-reverb'] + result.expected['shimmer']
   const measured = mean(result.snapshots.map((snapshot) => snapshot.averageLoad))
   console.log(
     `engine load: measured ${(measured * 100).toFixed(2)} %, expected ${(expected * 100).toFixed(2)} %`,
@@ -46,7 +46,7 @@ test('the engine measures its own devices on an isolated page', async ({ page })
   expect(expected).toBeGreaterThan(0.005)
   expect(measured).toBeGreaterThan(expected / 2)
   expect(measured).toBeLessThan(expected * 2)
-  for (const label of ['zita-rev1', 'shimmer']) {
+  for (const label of ['hall-reverb', 'shimmer']) {
     const share = mean(
       result.snapshots.map(
         (snapshot) => snapshot.devices.find((device) => device.label === label)?.load ?? 0,
@@ -75,8 +75,8 @@ test('a page that cannot share memory reports no load, and still lists its devic
   expect(last.loadSource).toBeNull()
   expect(last.averageLoad).toBe(0)
   const kinds = Object.fromEntries(last.devices.map((device) => [device.label, device]))
-  expect(kinds['zita-rev1']).toMatchObject({ count: 4, load: 0 })
-  expect(kinds['zita-rev1'].memoryBytes).toBe(4 * result.memory['zita-rev1'])
+  expect(kinds['hall-reverb']).toMatchObject({ count: 4, load: 0 })
+  expect(kinds['hall-reverb'].memoryBytes).toBe(4 * result.memory['hall-reverb'])
   expect(kinds['shimmer']).toMatchObject({ count: 2, load: 0 })
   expect(result.after.devices).toEqual([])
   expect(errors).toEqual([])

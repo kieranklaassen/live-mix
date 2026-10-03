@@ -11,7 +11,7 @@ export const MODAL_BELLS_PRESETS: readonly FactoryPreset[] = [
       preset: 'Rubbed bowl',
       params: { decay: 7, release: 0.3, volume: -8 },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } }],
     preview: 'line',
   },
   {
@@ -26,7 +26,7 @@ export const MODAL_BELLS_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'reverse-delay', preset: 'Backwards echo' },
-      { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.25 } },
+      { deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.25 } },
     ],
   },
   {
@@ -41,7 +41,7 @@ export const MODAL_BELLS_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tremolo', preset: 'Amp tremolo', params: { rate: 3.2, depth: 0.45, phase: 90 } },
-      { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.35 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.35 } },
     ],
   },
   {
@@ -94,7 +94,7 @@ export const MODAL_BELLS_PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'dattorro', preset: 'Tight room' },
+      { deviceId: 'plate-reverb', preset: 'Tight room' },
       { deviceId: 'ambient-limiter', preset: 'Wall only', params: { ceiling: -3, gain: 6 } },
     ],
     preview: 'keys',
@@ -147,7 +147,7 @@ export const MODAL_BELLS_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'stereo-detune', preset: 'Soft halo' },
-      { deviceId: 'zita-rev1', preset: 'Tight chamber' },
+      { deviceId: 'hall-reverb', preset: 'Tight chamber' },
       { deviceId: 'ambient-limiter', preset: 'Wall only', params: { ceiling: -3, gain: 3 } },
     ],
   },
@@ -201,7 +201,7 @@ export const MODAL_BELLS_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'stereo-detune', preset: 'Drifting', params: { mix: 0.35 } },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
   {
@@ -227,7 +227,7 @@ export const MODAL_BELLS_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'rotary', preset: 'Chorale', params: { drive: 0.1 } },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.25 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.25 } },
     ],
   },
   {
@@ -299,7 +299,7 @@ export const MODAL_BELLS_PRESETS: readonly FactoryPreset[] = [
         volume: -10,
       },
     },
-    effects: [{ deviceId: 'dattorro', preset: 'Bright plate', params: { mix: 0.3 } }],
+    effects: [{ deviceId: 'plate-reverb', preset: 'Bright plate', params: { mix: 0.3 } }],
   },
   {
     id: 'long-tube-chimes',
@@ -378,7 +378,7 @@ export const MODAL_BELLS_PRESETS: readonly FactoryPreset[] = [
         volume: -5.5,
       },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Dark hall', params: { mix: 0.3 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Dark hall', params: { mix: 0.3 } }],
     preview: 'hold',
   },
   {
@@ -406,7 +406,7 @@ export const MODAL_BELLS_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'reverse-delay', preset: 'Glass splinters', params: { mix: 0.2 } },
-      { deviceId: 'dattorro', preset: 'Small plate' },
+      { deviceId: 'plate-reverb', preset: 'Small plate' },
       { deviceId: 'ambient-limiter', preset: 'Wall only', params: { ceiling: -3, gain: 7 } },
     ],
   },
@@ -433,7 +433,7 @@ export const MODAL_BELLS_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tape', preset: 'Old dictation', params: { hiss: 0.4 } },
-      { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.2 } },
+      { deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.2 } },
     ],
   },
   {

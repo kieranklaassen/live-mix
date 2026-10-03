@@ -99,7 +99,7 @@ meter's true-peak reading of the limited output never exceeds `ceilingDb`
 ending exactly when the peak arrives; `releaseMs` (10..2000, default 100) is
 the exponential recovery; `inputGainDb` (±24) drives the detector. Latency 77
 samples at 48 kHz (`truePeakLimiterLatencySamples(sampleRate)`). Any other
-`Device` can be installed the same way (`createLimiter1176` for character
+`Device` can be installed the same way (`createFetLimiter` for character
 before the wall — as an insert — or a custom device as the wall).
 
 **Meters.** `LufsMeter.create(ctx, { intervalMs, processorUrl, createNode })`

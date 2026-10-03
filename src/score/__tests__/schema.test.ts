@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import { devices } from '../../core/devices'
+import { NODE_DEVICES } from '../../core/devices/native'
+import { DeviceRegistry } from '../../core/devices/registry'
 import {
   SCORE_FORMAT_VERSION,
   ScoreValidationError,
@@ -15,6 +17,8 @@ import {
   serializeScore,
   targetKey,
   validateScore,
+  withCurrentDeviceIds,
+  type Score,
 } from '../schema'
 import { demoScore } from './fixtures'
 
@@ -334,6 +338,102 @@ describe('validateScore', () => {
       expect((error as ScoreValidationError).issues.length).toBeGreaterThan(0)
       expect((error as Error).message).toContain('tracks[0]')
     }
+  })
+})
+
+describe('withCurrentDeviceIds', () => {
+  // Three stock devices under new ids, each still answering to the one it had.
+  const RENAMES: Record<string, string> = {
+    filter: 'tone',
+    compressor: 'squeeze',
+    'convolver-reverb': 'room',
+  }
+  const renamed = new DeviceRegistry(
+    NODE_DEVICES.map((descriptor) =>
+      descriptor.id in RENAMES
+        ? { ...descriptor, id: RENAMES[descriptor.id], formerIds: [descriptor.id] }
+        : descriptor,
+    ),
+  )
+  /** The demo score with a device in every place one can sit. */
+  function everywhere(): Score {
+    const score = demoScore()
+    score.groups[0].strip.inserts.push({
+      id: 'bus-filter',
+      deviceId: 'filter',
+      params: {},
+      bypass: false,
+    })
+    score.returns[0].strip.inserts.push({
+      id: 'hall-filter',
+      deviceId: 'filter',
+      preset: 'High-pass rumble',
+      params: {},
+      bypass: true,
+    })
+    score.tracks.push({
+      kind: 'instrument',
+      id: 'keys',
+      name: 'keys',
+      destination: masterDestination(),
+      strip: {
+        ...defaultStrip(),
+        inserts: [{ id: 'keys-filter', deviceId: 'filter', params: {}, bypass: false }],
+      },
+      device: { id: 'keys-device', deviceId: 'filter', params: { q: 2 }, bypass: false },
+    })
+    return score
+  }
+
+  it('names every device by its id of today, wherever it sits, and leaves the rest alone', () => {
+    const score = everywhere()
+    const before = allDevices(score)
+    expect(
+      before.map((location) => `${location.owner} ${location.slot} ${location.device.deviceId}`),
+    ).toEqual([
+      'master insert compressor',
+      'kick insert filter',
+      'keys device filter',
+      'keys insert filter',
+      'drums insert filter',
+      'hall device convolver-reverb',
+      'hall insert filter',
+    ])
+    // The document as it was saved still passes for the registry of today.
+    expect(validateScore(score, { devices: renamed })).toEqual([])
+
+    const moved = withCurrentDeviceIds(score, renamed)
+    expect(allDevices(moved)).toEqual(
+      before.map((location) => ({
+        ...location,
+        device: { ...location.device, deviceId: RENAMES[location.device.deviceId] },
+      })),
+    )
+    expect(validateScore(moved, { devices: renamed })).toEqual([])
+    // Nothing else moved, and the score handed in is as it was.
+    expect({
+      ...moved,
+      master: score.master,
+      tracks: score.tracks,
+      groups: score.groups,
+      returns: score.returns,
+    }).toEqual(score)
+    expect(allDevices(score)).toEqual(before)
+  })
+
+  it('is the same object when no device was renamed', () => {
+    const score = everywhere()
+    expect(withCurrentDeviceIds(score, devices)).toBe(score)
+    const moved = withCurrentDeviceIds(score, renamed)
+    expect(withCurrentDeviceIds(moved, renamed)).toBe(moved)
+  })
+
+  it('is what parseScore does when it is given the registry, and only then', () => {
+    const json = serializeScore(everywhere())
+    expect(parseScore(json)).toEqual(normaliseScore(everywhere()))
+    expect(parseScore(json, { devices: renamed })).toEqual(
+      withCurrentDeviceIds(normaliseScore(everywhere()), renamed),
+    )
   })
 })
 

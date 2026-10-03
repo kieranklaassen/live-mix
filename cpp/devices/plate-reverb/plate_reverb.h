@@ -10,7 +10,7 @@ namespace livemix {
 // allpass, and output delay per half. Stereo output is tapped at the paper's
 // published points. All delay lengths are the paper's values at its 29761 Hz
 // reference rate, scaled to the running sample rate at init.
-class DattorroReverb {
+class PlateReverb {
  public:
   static constexpr float kMaxSupportedSampleRate = 96000.0f;
 

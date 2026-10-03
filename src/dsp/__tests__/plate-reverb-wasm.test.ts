@@ -4,9 +4,9 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 import { type DeviceExports } from '../abi'
-import { DATTORRO_PARAMS } from '../devices/dattorro'
+import { PLATE_REVERB_PARAMS } from '../devices/plate-reverb'
 
-const wasmPath = join(dirname(fileURLToPath(import.meta.url)), '../wasm/dattorro.wasm')
+const wasmPath = join(dirname(fileURLToPath(import.meta.url)), '../wasm/plate-reverb.wasm')
 
 async function loadDevice(sampleRate = 48000) {
   const bytes = await readFile(wasmPath)
@@ -20,7 +20,7 @@ async function loadDevice(sampleRate = 48000) {
   return { device, maxBlock, view }
 }
 
-describe('dattorro.wasm (committed artefact)', () => {
+describe('plate-reverb.wasm (committed artefact)', () => {
   it('exports the device ABI with an empty import object', async () => {
     const { device, maxBlock } = await loadDevice()
     expect(maxBlock).toBe(2048)
@@ -40,7 +40,7 @@ describe('dattorro.wasm (committed artefact)', () => {
 
   it('passes dry input through at mix 0 and clears the input between blocks', async () => {
     const { device, view } = await loadDevice()
-    device.device_set_param(DATTORRO_PARAMS.mix.id, 0)
+    device.device_set_param(PLATE_REVERB_PARAMS.mix.id, 0)
     const frames = 128
     view(device.device_in_left(), frames).fill(0.25)
     view(device.device_in_right(), frames).fill(-0.25)
@@ -66,9 +66,9 @@ describe('dattorro.wasm (committed artefact)', () => {
 
   it('produces a decaying reverb tail at mix 1', async () => {
     const { device, view } = await loadDevice()
-    device.device_set_param(DATTORRO_PARAMS.mix.id, 1)
-    device.device_set_param(DATTORRO_PARAMS.decay.id, 0.7)
-    device.device_set_param(DATTORRO_PARAMS.predelayMs.id, 1)
+    device.device_set_param(PLATE_REVERB_PARAMS.mix.id, 1)
+    device.device_set_param(PLATE_REVERB_PARAMS.decay.id, 0.7)
+    device.device_set_param(PLATE_REVERB_PARAMS.predelayMs.id, 1)
     const frames = 128
     const sampleRate = 48000
     // 50 ms of an 880 Hz tone into both channels.

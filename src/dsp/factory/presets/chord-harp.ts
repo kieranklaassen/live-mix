@@ -23,7 +23,7 @@ export const CHORD_HARP_PRESETS: readonly FactoryPreset[] = [
     instrument: { deviceId: 'chord-harp', preset: 'Slow cascade' },
     effects: [
       { deviceId: 'tape-echo', preset: 'Three heads', params: { feedback: 0.5, mix: 0.3 } },
-      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.3 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.3 } },
     ],
     preview: 'chord',
   },
@@ -58,7 +58,7 @@ export const CHORD_HARP_PRESETS: readonly FactoryPreset[] = [
     instrument: { deviceId: 'chord-harp', preset: 'Toy harp' },
     effects: [
       { deviceId: 'tape', preset: 'Quarter inch' },
-      { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.25 } },
+      { deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.25 } },
     ],
     preview: 'chord',
   },
@@ -72,7 +72,7 @@ export const CHORD_HARP_PRESETS: readonly FactoryPreset[] = [
       deviceId: 'chord-harp',
       params: { strum: 35, tone: 0.55, pad: 0, spread: 0.5, volume: -2.5 },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Tight chamber' }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Tight chamber' }],
     preview: 'chord',
   },
   {
@@ -91,7 +91,7 @@ export const CHORD_HARP_PRESETS: readonly FactoryPreset[] = [
         preset: 'Clean and steady',
         params: { time: 300, feedback: 0.45, mix: 0.3 },
       },
-      { deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.15 } },
+      { deviceId: 'plate-reverb', preset: 'Small plate', params: { mix: 0.15 } },
     ],
   },
   {
@@ -119,7 +119,7 @@ export const CHORD_HARP_PRESETS: readonly FactoryPreset[] = [
     effects: [
       { deviceId: 'octaves', preset: 'Organ' },
       { deviceId: 'rotary', preset: 'Chorale' },
-      { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.2 } },
+      { deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.2 } },
     ],
   },
   {
@@ -132,7 +132,7 @@ export const CHORD_HARP_PRESETS: readonly FactoryPreset[] = [
       deviceId: 'chord-harp',
       params: { strum: 6, direction: 2, span: 3, tone: 1, pad: 0, spread: 1, volume: -4 },
     },
-    effects: [{ deviceId: 'dattorro', preset: 'Bright plate', params: { mix: 0.3 } }],
+    effects: [{ deviceId: 'plate-reverb', preset: 'Bright plate', params: { mix: 0.3 } }],
     preview: 'chord',
   },
   {
@@ -169,7 +169,7 @@ export const CHORD_HARP_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'vinyl', preset: 'Charity shop find' },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
     preview: 'chord',
   },
@@ -185,7 +185,7 @@ export const CHORD_HARP_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'radio', preset: 'Kitchen radio', params: { interference: 0 } },
-      { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.2 } },
+      { deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.2 } },
     ],
     preview: 'chord',
   },
@@ -229,7 +229,7 @@ export const CHORD_HARP_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'sustainer', preset: 'Slow strings' },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
   {
@@ -244,7 +244,7 @@ export const CHORD_HARP_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'octaves', preset: 'Twelve string' },
-      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
     preview: 'chord',
   },
@@ -279,7 +279,7 @@ export const CHORD_HARP_PRESETS: readonly FactoryPreset[] = [
         preset: 'Minor strings',
         params: { sympathy: 1, strings: 12, decay: 6, mix: 0.4, width: 0.3 },
       },
-      { deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.2 } },
+      { deviceId: 'plate-reverb', preset: 'Small plate', params: { mix: 0.2 } },
     ],
   },
   {
@@ -294,7 +294,7 @@ export const CHORD_HARP_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'analog-delay', preset: 'Clean echo', params: { time: 360, mix: 0.25 } },
-      { deviceId: 'zita-rev1', preset: 'Bright hall', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Bright hall', params: { mix: 0.3 } },
     ],
   },
   {

@@ -32,7 +32,7 @@ export const DUSK_PRESETS: readonly FactoryPreset[] = [
     description:
       'A dark chord whose filter opens over three seconds and closes for longer, in a long plate.',
     instrument: { deviceId: 'dusk', preset: 'Slow bloom' },
-    effects: [{ deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.35 } }],
+    effects: [{ deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.35 } }],
   },
   {
     id: 'filter-song',
@@ -43,7 +43,7 @@ export const DUSK_PRESETS: readonly FactoryPreset[] = [
     instrument: { deviceId: 'dusk', preset: 'Singing filter' },
     effects: [
       { deviceId: 'tape-echo', preset: 'Three heads', params: { mix: 0.3 } },
-      { deviceId: 'zita-rev1', preset: 'Cathedral' },
+      { deviceId: 'hall-reverb', preset: 'Cathedral' },
     ],
     preview: 'line',
   },
@@ -56,7 +56,7 @@ export const DUSK_PRESETS: readonly FactoryPreset[] = [
     instrument: { deviceId: 'dusk', preset: 'Sub floor', params: { volume: -13 } },
     effects: [
       { deviceId: 'tape', preset: 'Quarter inch' },
-      { deviceId: 'zita-rev1', preset: 'Hall' },
+      { deviceId: 'hall-reverb', preset: 'Hall' },
     ],
     preview: 'low',
   },
@@ -72,7 +72,7 @@ export const DUSK_PRESETS: readonly FactoryPreset[] = [
       deviceId: 'dusk',
       params: { wave: 0, sub: 0.3, cutoff: 9000, envelope: 0, attack: 0.12, release: 1.2 },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Tight chamber' }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Tight chamber' }],
   },
   {
     id: 'dusk-soft-brass',
@@ -93,7 +93,7 @@ export const DUSK_PRESETS: readonly FactoryPreset[] = [
         volume: -5.5,
       },
     },
-    effects: [{ deviceId: 'dattorro', preset: 'Small plate' }],
+    effects: [{ deviceId: 'plate-reverb', preset: 'Small plate' }],
   },
   {
     id: 'hollow-square-reed',
@@ -177,7 +177,7 @@ export const DUSK_PRESETS: readonly FactoryPreset[] = [
         release: 7,
       },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.25 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.25 } }],
   },
   {
     id: 'dusty-sine-pad',
@@ -199,7 +199,7 @@ export const DUSK_PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'zita-rev1', preset: 'Hall' },
+      { deviceId: 'hall-reverb', preset: 'Hall' },
       { deviceId: 'vinyl', preset: 'Charity shop find', params: { pops: 0.1 } },
     ],
   },
@@ -226,7 +226,7 @@ export const DUSK_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tape-echo', preset: 'Dotted bounce', params: { mix: 0.3 } },
-      { deviceId: 'dattorro', preset: 'Bright plate' },
+      { deviceId: 'plate-reverb', preset: 'Bright plate' },
     ],
   },
   {
@@ -250,7 +250,7 @@ export const DUSK_PRESETS: readonly FactoryPreset[] = [
         volume: -7.5,
       },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Airy tail', params: { mix: 0.45 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Airy tail', params: { mix: 0.45 } }],
   },
   {
     id: 'square-pipe-stack',
@@ -273,7 +273,7 @@ export const DUSK_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'octaves', preset: 'Organ' },
-      { deviceId: 'zita-rev1', preset: 'Cathedral' },
+      { deviceId: 'hall-reverb', preset: 'Cathedral' },
     ],
   },
   {
@@ -298,7 +298,7 @@ export const DUSK_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'freq-shifter', preset: 'Slow drift', params: { mode: 2, mix: 0.35 } },
-      { deviceId: 'zita-rev1', preset: 'Dark hall' },
+      { deviceId: 'hall-reverb', preset: 'Dark hall' },
     ],
   },
   {
@@ -364,7 +364,7 @@ export const DUSK_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'radio', preset: 'Night shortwave', params: { static: 0.1, interference: 0 } },
-      { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.3 } },
     ],
   },
   {
@@ -392,7 +392,7 @@ export const DUSK_PRESETS: readonly FactoryPreset[] = [
         preset: 'Deep dive',
         params: { rate: 0.18, feedback: 70, stereo: 90 },
       },
-      { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.3 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.3 } },
     ],
   },
 ]

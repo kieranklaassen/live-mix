@@ -34,7 +34,7 @@ export const ACOUSTIC_GUITAR_PRESETS: readonly FactoryPreset[] = [
     description:
       'Twelve strings in octave and unison pairs, strummed with a pick and heard in a hall.',
     instrument: { deviceId: 'acoustic-guitar', preset: 'Twelve string', params: { volume: -5 } },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.4 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.4 } }],
     preview: 'keys',
   },
   {
@@ -84,7 +84,7 @@ export const ACOUSTIC_GUITAR_PRESETS: readonly FactoryPreset[] = [
         volume: 2,
       },
     },
-    effects: [{ deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.22 } }],
+    effects: [{ deviceId: 'plate-reverb', preset: 'Small plate', params: { mix: 0.22 } }],
   },
   {
     id: 'flatpick-chamber',
@@ -105,7 +105,7 @@ export const ACOUSTIC_GUITAR_PRESETS: readonly FactoryPreset[] = [
         strum: 28,
       },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Tight chamber', params: { mix: 0.22 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Tight chamber', params: { mix: 0.22 } }],
     preview: 'chord',
   },
   {
@@ -179,7 +179,7 @@ export const ACOUSTIC_GUITAR_PRESETS: readonly FactoryPreset[] = [
         volume: -11,
       },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Airy tail', params: { mix: 0.3 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Airy tail', params: { mix: 0.3 } }],
     preview: 'chord',
   },
   {
@@ -206,7 +206,7 @@ export const ACOUSTIC_GUITAR_PRESETS: readonly FactoryPreset[] = [
     effects: [
       { deviceId: 'analog-drive', preset: 'Sheen', params: { drive: 0.45, output: 0.5 } },
       { deviceId: 'chorus', preset: 'Guitar shimmer', params: { mix: 0.35 } },
-      { deviceId: 'dattorro', preset: 'Bright plate', params: { mix: 0.3 } },
+      { deviceId: 'plate-reverb', preset: 'Bright plate', params: { mix: 0.3 } },
     ],
   },
   {
@@ -231,7 +231,7 @@ export const ACOUSTIC_GUITAR_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'analog-drive', preset: 'Low warmth' },
-      { deviceId: 'zita-rev1', preset: 'Dark hall', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Dark hall', params: { mix: 0.3 } },
     ],
     preview: 'low',
   },
@@ -306,7 +306,7 @@ export const ACOUSTIC_GUITAR_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'rotary', preset: 'Guitar swirl', params: { mix: 1 } },
-      { deviceId: 'zita-rev1', preset: 'Room' },
+      { deviceId: 'hall-reverb', preset: 'Room' },
     ],
   },
   {
@@ -411,7 +411,7 @@ export const ACOUSTIC_GUITAR_PRESETS: readonly FactoryPreset[] = [
         preset: 'Night shortwave',
         params: { static: 0.08, fading: 0.45, interference: 0 },
       },
-      { deviceId: 'dattorro', preset: 'Dark plate', params: { mix: 0.25 } },
+      { deviceId: 'plate-reverb', preset: 'Dark plate', params: { mix: 0.25 } },
     ],
   },
   {

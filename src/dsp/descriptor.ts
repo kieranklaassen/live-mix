@@ -13,6 +13,8 @@ export interface WasmDeviceMeta<P extends Record<string, ParamSpec>> {
   /** One sentence for a device browser. */
   description?: string
   version?: number
+  /** Ids the device went by before it was renamed; the registry still finds it under them. */
+  formerIds?: readonly string[]
   presets?: PresetTable<P>
   /** Names presets had before they were renamed: old name → the name of today. */
   formerPresets?: Readonly<Record<string, string>>
@@ -47,6 +49,7 @@ export function wasmDeviceDescriptor<P extends Record<string, ParamSpec>>(
 ): WasmDeviceDescriptor<P> {
   return {
     id: definition.id,
+    ...(meta.formerIds ? { formerIds: meta.formerIds } : {}),
     definition,
     name: meta.name,
     kind: 'wasm',

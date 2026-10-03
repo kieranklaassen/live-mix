@@ -9,7 +9,7 @@ export const ORGAN_PRESETS: readonly FactoryPreset[] = [
     instrument: { deviceId: 'organ', preset: 'Pump organ', params: { celeste: 0.5, volume: -10 } },
     effects: [
       { deviceId: 'tape', preset: 'Cassette four-track', params: { hiss: 0.25, output: -3.5 } },
-      { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.35 } },
+      { deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.35 } },
       { deviceId: 'stereo-widener', preset: 'Wide' },
     ],
   },
@@ -19,7 +19,7 @@ export const ORGAN_PRESETS: readonly FactoryPreset[] = [
     category: 'organ',
     description: 'Stopped flutes with no reed at all, speaking quickly into a long stone nave.',
     instrument: { deviceId: 'organ', preset: 'Chapel flutes', params: { volume: -14 } },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.4 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.4 } }],
   },
   {
     id: 'slow-rotary-organ',
@@ -34,7 +34,7 @@ export const ORGAN_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'rotary', preset: 'Chorale' },
-      { deviceId: 'dattorro', preset: 'Small plate', params: { decay: 0.7 } },
+      { deviceId: 'plate-reverb', preset: 'Small plate', params: { decay: 0.7 } },
     ],
   },
   {
@@ -82,7 +82,7 @@ export const ORGAN_PRESETS: readonly FactoryPreset[] = [
         volume: -12,
       },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Tight chamber', params: { mix: 0.25 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Tight chamber', params: { mix: 0.25 } }],
   },
   {
     id: 'bright-parish-organ',
@@ -171,7 +171,7 @@ export const ORGAN_PRESETS: readonly FactoryPreset[] = [
         volume: -12,
       },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Hall' }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Hall' }],
   },
   {
     id: 'trembling-reed-stop',
@@ -200,7 +200,7 @@ export const ORGAN_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       {
-        deviceId: 'zita-rev1',
+        deviceId: 'hall-reverb',
         preset: 'Dark hall',
         params: { lowDecay: 5, midDecay: 4, mix: 0.6 },
       },
@@ -230,7 +230,7 @@ export const ORGAN_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'analog-delay', preset: 'Dark echo', params: { mix: 0.25 } },
-      { deviceId: 'zita-rev1', preset: 'Room' },
+      { deviceId: 'hall-reverb', preset: 'Room' },
     ],
   },
   {
@@ -321,7 +321,7 @@ export const ORGAN_PRESETS: readonly FactoryPreset[] = [
         preset: 'Glacial low-pass',
         params: { cutoffHz: 900, resonance: 0.8, driveDb: 0, lfoAmount: 60, lfoRateHz: 0.2 },
       },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
   {
@@ -347,7 +347,7 @@ export const ORGAN_PRESETS: readonly FactoryPreset[] = [
         volume: -12,
       },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Airy tail', params: { mix: 0.4 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Airy tail', params: { mix: 0.4 } }],
   },
   {
     id: 'reed-box-drone',
@@ -375,7 +375,7 @@ export const ORGAN_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'sympathetic', preset: 'Minor strings', params: { width: 0.3, mix: 0.35 } },
-      { deviceId: 'zita-rev1', preset: 'Room' },
+      { deviceId: 'hall-reverb', preset: 'Room' },
     ],
   },
   {
@@ -402,7 +402,7 @@ export const ORGAN_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tremolo', preset: 'Tilting tone', params: { phase: 30, crossover: 200 } },
-      { deviceId: 'zita-rev1', preset: 'Hall' },
+      { deviceId: 'hall-reverb', preset: 'Hall' },
     ],
   },
   {
@@ -430,7 +430,7 @@ export const ORGAN_PRESETS: readonly FactoryPreset[] = [
         preset: 'Glass organ',
         params: { decay: 20, tone: 0.2, lowCut: 60, mix: 0.6 },
       },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
   {
@@ -482,7 +482,7 @@ export const ORGAN_PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'zita-rev1', preset: 'Hall' },
+      { deviceId: 'hall-reverb', preset: 'Hall' },
       {
         deviceId: 'radio',
         preset: 'Kitchen radio',

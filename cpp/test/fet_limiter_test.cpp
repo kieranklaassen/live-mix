@@ -1,4 +1,4 @@
-// Native harness for the 1176 limiter Faust device: the parameter contract
+// Native harness for the FET limiter Faust device: the parameter contract
 // the TypeScript table relies on, and the compressor law of
 // co.limiter_1176_R4_stereo (4:1 above -6 dB on |L|+|R|, 0.8 ms attack,
 // 0.5 s release). Compiled with the system C++ compiler by
@@ -10,7 +10,7 @@
 #include <cstring>
 
 #include "../faust/common/faust_device.h"
-#include "../faust/generated/limiter-1176.h"
+#include "../faust/generated/fet-limiter.h"
 
 namespace {
 
@@ -24,19 +24,19 @@ int g_failures = 0;
     }                                                                 \
   } while (0)
 
-using Device = livemix::faust::FaustDevice<livemix::faust::Limiter1176, 8>;
+using Device = livemix::faust::FaustDevice<livemix::faust::FetLimiter, 8>;
 
 constexpr float kSampleRate = 48000.0f;
 constexpr int kBlock = 128;
 constexpr float kTwoPi = 6.28318530717958647692f;
 
-// Ids as src/dsp/devices/faust/limiter-1176.ts declares them.
+// Ids as src/dsp/devices/faust/fet-limiter.ts declares them.
 enum Param : int { kInputGain = 0, kOutputGain };
 
 Device g_test_device;
 // The same DSP behind an hour's hold: it runs every block, as the wrapper did
 // before it could sleep.
-using AwakeDevice = livemix::faust::FaustDevice<livemix::faust::Limiter1176, 3600>;
+using AwakeDevice = livemix::faust::FaustDevice<livemix::faust::FetLimiter, 3600>;
 AwakeDevice g_awake_device;
 
 float db_to_gain(float db) { return std::pow(10.0f, db / 20.0f); }
@@ -96,7 +96,7 @@ float expected_peak(float gain) {
 void test_param_table_matches_typescript() {
   Device& device = g_test_device;
   device.init(kSampleRate);
-  EXPECT(device.param_count() == 2, "limiter-1176 exposes two parameters");
+  EXPECT(device.param_count() == 2, "fet-limiter exposes two parameters");
   EXPECT(std::strcmp(device.param(kInputGain).label, "Input gain") == 0, "id 0 is input gain");
   EXPECT(device.param(kInputGain).min == 0.0f && device.param(kInputGain).max == 40.0f,
          "input gain spans 0..40 dB");
@@ -327,9 +327,9 @@ int main() {
   test_sleeps_after_the_hold_and_wakes_unchanged();
 
   if (g_failures == 0) {
-    std::printf("limiter-1176 device tests: all passed\n");
+    std::printf("fet-limiter device tests: all passed\n");
     return 0;
   }
-  std::printf("limiter-1176 device tests: %d failure(s)\n", g_failures);
+  std::printf("fet-limiter device tests: %d failure(s)\n", g_failures);
   return 1;
 }

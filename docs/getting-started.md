@@ -102,10 +102,10 @@ When a bundler cannot follow that, every factory takes explicit overrides:
 
 ```ts
 import processorUrl from '@kieranklaassen/live-mix/worklets/wasm-device.js?url'
-import plateWasm from '@kieranklaassen/live-mix/wasm/dattorro.wasm?url'
-import { createDattorroReverb } from '@kieranklaassen/live-mix/dsp'
+import plateWasm from '@kieranklaassen/live-mix/wasm/plate-reverb.wasm?url'
+import { createPlateReverb } from '@kieranklaassen/live-mix/dsp'
 
-const plate = await createDattorroReverb(ctx, { processorUrl, wasm: plateWasm })
+const plate = await createPlateReverb(ctx, { processorUrl, wasm: plateWasm })
 ```
 
 `wasm` accepts a URL, raw bytes, a `Response` or a pre-compiled
@@ -123,7 +123,7 @@ growth; WebKit's `addModule(blob:)` history on iOS).
 
 ```ts
 import { createEngine } from '@kieranklaassen/live-mix'
-import { createDattorroReverb } from '@kieranklaassen/live-mix/dsp'
+import { createPlateReverb } from '@kieranklaassen/live-mix/dsp'
 
 // From a user gesture: browsers only start audio after one.
 const context = new AudioContext({ latencyHint: 'interactive' })
@@ -133,7 +133,7 @@ const engine = createEngine({ context, master: { meter: true } })
 // (input gain → inserts → pan → fader → mute/solo → sends) is lazy: it creates
 // no nodes until the first setLevel/addInsert/send.
 const music = engine.addAudioTrack('music', { lookaheadSec: 5, preloadSec: 12 })
-const hall = engine.addReturnTrack('hall', { device: await createDattorroReverb(context) })
+const hall = engine.addReturnTrack('hall', { device: await createPlateReverb(context) })
 music.strip.sends.add(hall, { level: 0.3 })
 
 // Decode once, reference by id from any clip. Clips are seconds-first records.

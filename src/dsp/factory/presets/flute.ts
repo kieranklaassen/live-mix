@@ -10,7 +10,7 @@ export const FLUTE_PRESETS: readonly FactoryPreset[] = [
     description:
       'A concert flute as it comes, a little breath in the tone, with a long hall behind it.',
     instrument: { deviceId: 'flute', preset: 'Concert flute', params: { volume: -7 } },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.35 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.35 } }],
     preview: 'line',
   },
   {
@@ -20,7 +20,7 @@ export const FLUTE_PRESETS: readonly FactoryPreset[] = [
     description:
       'A breathy bamboo flute that bends up into each note, alone in a very large stone room.',
     instrument: { deviceId: 'flute', preset: 'Shakuhachi', params: { volume: -11 } },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.4 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.4 } }],
     preview: 'line',
   },
   {
@@ -78,7 +78,7 @@ export const FLUTE_PRESETS: readonly FactoryPreset[] = [
         volume: -7.5,
       },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Tight chamber' }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Tight chamber' }],
   },
   {
     id: 'alto-flute-alone',
@@ -100,7 +100,7 @@ export const FLUTE_PRESETS: readonly FactoryPreset[] = [
         volume: -8.5,
       },
     },
-    effects: [{ deviceId: 'dattorro', preset: 'Dark plate', params: { mix: 0.3 } }],
+    effects: [{ deviceId: 'plate-reverb', preset: 'Dark plate', params: { mix: 0.3 } }],
   },
   {
     id: 'flute-choir',
@@ -123,7 +123,7 @@ export const FLUTE_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'chorus', preset: 'Lush ensemble', params: { mix: 0.45 } },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { lowDecay: 4, midDecay: 4, mix: 0.4 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { lowDecay: 4, midDecay: 4, mix: 0.4 } },
     ],
   },
   {
@@ -194,7 +194,7 @@ export const FLUTE_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'octaves', preset: 'High voice alone', params: { spread: 0.15 } },
-      { deviceId: 'zita-rev1', preset: 'Bright hall', params: { mix: 0.25 } },
+      { deviceId: 'hall-reverb', preset: 'Bright hall', params: { mix: 0.25 } },
     ],
   },
   {
@@ -218,7 +218,7 @@ export const FLUTE_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'chorus', preset: 'Slow drift', params: { spread: 50, mix: 0.3 } },
-      { deviceId: 'zita-rev1', preset: 'Warm undertow', params: { mix: 0.35 } },
+      { deviceId: 'hall-reverb', preset: 'Warm undertow', params: { mix: 0.35 } },
     ],
   },
   {
@@ -242,7 +242,7 @@ export const FLUTE_PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'zita-rev1', preset: 'Room' },
+      { deviceId: 'hall-reverb', preset: 'Room' },
       { deviceId: 'vinyl', preset: 'Parlour 78' },
     ],
   },
@@ -322,7 +322,7 @@ export const FLUTE_PRESETS: readonly FactoryPreset[] = [
         preset: 'Organ',
         params: { sub2: 0, sub1: 0.4, up1: 0.35, up2: 0.15 },
       },
-      { deviceId: 'zita-rev1', preset: 'Tight chamber', params: { mix: 0.25 } },
+      { deviceId: 'hall-reverb', preset: 'Tight chamber', params: { mix: 0.25 } },
     ],
   },
   {
@@ -374,7 +374,7 @@ export const FLUTE_PRESETS: readonly FactoryPreset[] = [
     effects: [
       { deviceId: 'flanger', preset: 'Slow sweep', params: { rate: 0.15 } },
       { deviceId: 'fdn-reverb', preset: 'Bright air' },
-      { deviceId: 'limiter-1176', preset: 'Gentle lift', params: { outputGain: -4 } },
+      { deviceId: 'fet-limiter', preset: 'Gentle lift', params: { outputGain: -4 } },
     ],
   },
   {
@@ -402,7 +402,7 @@ export const FLUTE_PRESETS: readonly FactoryPreset[] = [
         preset: 'Backwards only',
         params: { time: 800, spread: 0.15 },
       },
-      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
     preview: 'bells',
   },
@@ -427,7 +427,7 @@ export const FLUTE_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'cascade', preset: 'Glass rain', params: { mix: 0.4 } },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.25 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.25 } },
     ],
     preview: 'keys',
   },

@@ -54,7 +54,7 @@ Node.
   or **Faust** behind a flat C ABI in an AudioWorklet, hand-written worklets
   (the sidechain ducker), racks, and **WAM 2.0** plugins.
 - Nine stock WASM devices with byte-reproducible builds and native C++ parity
-  tests: Dattorro plate, FDN reverb, StereoWidener, Zita-Rev1, an 1176-style
+  tests: a plate reverb, FDN reverb, StereoWidener, a hall reverb, a FET-style
   limiter, a true-peak limiter, SpectralDrifter, Ether reverb and the Felt
   piano (an instrument; experimental).
 - A registry with descriptors, presets and versioning; racks with eight
@@ -173,7 +173,7 @@ ducks the music while it sounds:
 
 ```ts
 import { createEngine } from '@kieranklaassen/live-mix'
-import { createDattorroReverb } from '@kieranklaassen/live-mix/dsp'
+import { createPlateReverb } from '@kieranklaassen/live-mix/dsp'
 
 // Browsers start audio after a user gesture: run this from a click handler.
 const engine = createEngine({ context: new AudioContext(), master: { meter: true } })
@@ -197,7 +197,7 @@ track.clips.add({
 })
 
 // A send into a reverb return. The plate is C++ compiled to WASM, running in an AudioWorklet.
-const hall = engine.addReturnTrack('hall', { device: await createDattorroReverb(engine.context) })
+const hall = engine.addReturnTrack('hall', { device: await createPlateReverb(engine.context) })
 track.strip.sends.add(hall, { level: 0.3 })
 
 // A live input — microphone, WebRTC voice, guitar — that ducks the music bus while it sounds.
@@ -274,14 +274,14 @@ engine.transport.start()
 
 ```ts
 import { Lfo, createEngine, deviceParamTarget } from '@kieranklaassen/live-mix'
-import { createZitaReverb } from '@kieranklaassen/live-mix/dsp'
+import { createHallReverb } from '@kieranklaassen/live-mix/dsp'
 
 const engine = createEngine({ context: new AudioContext() })
 const keys = engine.addAudioTrack('keys')
 
-// Faust's zita-rev1, compiled to WASM and hosted in an AudioWorklet. Every
+// Faust's hall-reverb, compiled to WASM and hosted in an AudioWorklet. Every
 // device kind shares one contract: typed params, setParam, bypass, latency.
-const hall = await createZitaReverb(engine.context, { params: { mix: 0.25, midDecay: 3 } })
+const hall = await createHallReverb(engine.context, { params: { mix: 0.25, midDecay: 3 } })
 keys.strip.addInsert(hall)
 hall.setParam('damping', 4000) // clamped to the ParamSpec range, smoothed inside the DSP
 
@@ -471,7 +471,7 @@ engine does.
 | Import                                      | Contents                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `@kieranklaassen/live-mix`                  | `createEngine`, tracks and strips, groups, buses, returns, `Transport`, `Scheduler`, `Clip`, `SampleStore`, `ElementTrack`, `OutputRouter`, master limiter and LUFS meters, node devices and the registry, racks and delay compensation, automation and modulators, `ControlSurface` (MIDI/OSC), `TempoMap`, Camelot, `StretchSource`, render/stems/WAV/recorder, the score (`ScoreDocument`, `loadScore`, `renderScore`), `Session` (grid), `AgentController` |
-| `@kieranklaassen/live-mix/dsp`              | `WasmDevice` host, the C ABI typings, asset resolution, factories and param tables for the nine WASM devices (Dattorro, FDN reverb, StereoWidener, Zita-Rev1, 1176, true-peak limiter, SpectralDrifter, Ether, Felt), the worklet ducker, `registerStockWasmDevices`                                                                                                                                                                                           |
+| `@kieranklaassen/live-mix/dsp`              | `WasmDevice` host, the C ABI typings, asset resolution, factories and param tables for the nine WASM devices (plate reverb, FDN reverb, StereoWidener, hall reverb, FET limiter, true-peak limiter, SpectralDrifter, Ether, Felt), the worklet ducker, `registerStockWasmDevices`                                                                                                                                                                              |
 | `@kieranklaassen/live-mix/react`            | Headless hooks (`LiveMixProvider`, `useTransport`, `useTrack`, `useMeter`, `useDevice`, `useSession`, `useControlSurface`, …) and the styled kit (`Knob`, `Fader`, `Meter`, `TransportBar`, `MixerView`, `DevicePanel`, `DeviceChainView`, `TimelineView`, `GridView`, …); `react` is an optional peer                                                                                                                                                         |
 | `@kieranklaassen/live-mix/react/styles.css` | The kit's default theme (JAXA-Zen, `data-lm-theme="dark"`) and component rules; optional — set the `--lm-*` tokens yourself instead                                                                                                                                                                                                                                                                                                                            |
 | `@kieranklaassen/live-mix/testing`          | `MockAudioContext` with an `AudioParam` event recorder, `MockOfflineAudioContext`, `advance`; framework-free                                                                                                                                                                                                                                                                                                                                                   |

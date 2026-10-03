@@ -22,22 +22,22 @@ import { type DeviceCreateRequest, type DeviceDescriptor, DeviceRegistry } from 
 
 // The stock WASM definitions live next to their descriptors; their lazy URLs
 // point at the committed artefacts, which the contract test compiles once.
-import { DATTORRO_DEVICE } from '../../../dsp/devices/dattorro'
+import { PLATE_REVERB_DEVICE } from '../../../dsp/devices/plate-reverb'
 import { GENERATED_WASM_DEFINITIONS } from '../../../dsp/devices/index.gen'
 import { ETHER_REVERB_DEVICE } from '../../../dsp/devices/ether-reverb'
 import { FELT_PIANO_DEVICE } from '../../../dsp/devices/felt-piano'
 import { FDN_REVERB_DEVICE } from '../../../dsp/devices/fdn-reverb'
-import { LIMITER_1176_DEVICE } from '../../../dsp/devices/limiter-1176'
+import { FET_LIMITER_DEVICE } from '../../../dsp/devices/fet-limiter'
 import { SPECTRAL_DRIFTER_DEVICE } from '../../../dsp/devices/spectral-drifter'
 import { STEREO_WIDENER_DEVICE } from '../../../dsp/devices/stereo-widener'
-import { ZITA_REV1_DEVICE } from '../../../dsp/devices/zita-rev1'
+import { HALL_REVERB_DEVICE } from '../../../dsp/devices/hall-reverb'
 
 const WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
-  DATTORRO_DEVICE,
+  PLATE_REVERB_DEVICE,
   FDN_REVERB_DEVICE,
   STEREO_WIDENER_DEVICE,
-  ZITA_REV1_DEVICE,
-  LIMITER_1176_DEVICE,
+  HALL_REVERB_DEVICE,
+  FET_LIMITER_DEVICE,
   SPECTRAL_DRIFTER_DEVICE,
   ETHER_REVERB_DEVICE,
   FELT_PIANO_DEVICE,
@@ -114,11 +114,11 @@ it('covers every stock device and the WAM adapter', () => {
       'convolver-reverb',
       'utility',
       'rack',
-      'dattorro',
+      'plate-reverb',
       'fdn-reverb',
       'stereo-widener',
-      'zita-rev1',
-      'limiter-1176',
+      'hall-reverb',
+      'fet-limiter',
       'ducker',
       'spectral-drifter',
       'wam-fake-effect',

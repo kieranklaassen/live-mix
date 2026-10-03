@@ -1,7 +1,7 @@
 // One-shots: a single note or one struck chord, starting on its attack and ringing out inside its length.
 // Numbers 171 to 184. What every sound here is held to is in docs/factory.md.
 
-import { zita } from '../parts'
+import { hall } from '../parts'
 import { type FactorySound } from '../types'
 import { bells, played, sound } from './recipe'
 
@@ -17,7 +17,7 @@ export const ONESHOTS: readonly FactorySound[] = [
       preset: 'Rubber pluck',
       params: { wave: 0.25, sub: 0, emphasis: 0.4, drive: 1, decay: 3 },
     },
-    effects: [{ deviceId: 'chorus', preset: 'Subtle widener' }, zita('Room', 0.2)],
+    effects: [{ deviceId: 'chorus', preset: 'Subtle widener' }, hall('Room', 0.2)],
     ...played(3, [[0, 2.7, 36]], 0.2),
   }),
   sound({
@@ -31,7 +31,7 @@ export const ONESHOTS: readonly FactorySound[] = [
       preset: 'Soft marimba',
       params: { mallet: 0.25, decay: 1.2 },
     },
-    effects: [zita('Room', 0.25)],
+    effects: [hall('Room', 0.25)],
     ...played(4, [[0, 3.8, 43]], 0.3),
   }),
   sound({
@@ -49,7 +49,7 @@ export const ONESHOTS: readonly FactorySound[] = [
       preset: 'Morning raga',
       params: { speed: 12, decay: 14, jawari: 0.85, body: 0.6, spread: 1 },
     },
-    effects: [zita('Hall', 0.25)],
+    effects: [hall('Hall', 0.25)],
     ...played(5, [[0, 2.9, 55]], 0.4),
   }),
   sound({
@@ -69,7 +69,7 @@ export const ONESHOTS: readonly FactorySound[] = [
         preset: 'Pinned',
         params: { gain: 16, release: 0.3, ride: 0 },
       },
-      zita('Room', 0.35),
+      hall('Room', 0.35),
     ],
     ...played(4, [[0, 3.7, 57]], 0.4),
   }),
@@ -81,7 +81,7 @@ export const ONESHOTS: readonly FactorySound[] = [
     description:
       'One tap on a hand-played steel pan on {F}, its octave and twelfth shimmering in a hall.',
     instrument: { deviceId: 'handpan', preset: 'Halo', params: { decay: 5 } },
-    effects: [zita('Hall', 0.4)],
+    effects: [hall('Hall', 0.4)],
     ...played(5, [[0, 4.7, 53]], 0.4),
   }),
   sound({
@@ -117,7 +117,7 @@ export const ONESHOTS: readonly FactorySound[] = [
     description:
       'A tine piano chord on {F} major seventh, the amplifier moving it from side to side.',
     instrument: { deviceId: 'tine-piano', preset: 'Slow pan', params: { tremolo: 0.5 } },
-    effects: [{ deviceId: 'chorus', preset: 'Subtle widener' }, zita('Hall', 0.3)],
+    effects: [{ deviceId: 'chorus', preset: 'Subtle widener' }, hall('Hall', 0.3)],
     ...played(
       6,
       [
@@ -138,7 +138,7 @@ export const ONESHOTS: readonly FactorySound[] = [
       'One picked note on a steel guitar on {E}, bright and bell-like, with a plate behind it.',
     // The third harmonic is the loudest thing in this note: on a B it would be an F sharp.
     instrument: { deviceId: 'pedal-steel', preset: 'Picked bell', params: { pick: 0.5 } },
-    effects: [{ deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.3 } }],
+    effects: [{ deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.3 } }],
     ...played(5, [[0, 3.6, 64]], 0.4),
   }),
   sound({
@@ -154,7 +154,7 @@ export const ONESHOTS: readonly FactorySound[] = [
     instrument: bells('Church bell', { decay: 10, position: 0.667 }),
     effects: [
       { deviceId: 'ambient-limiter', preset: 'Pinned', params: { gain: 9, release: 0.3, ride: 0 } },
-      zita('Cathedral', 0.35),
+      hall('Cathedral', 0.35),
     ],
     ...played(8, [[0, 7.8, 62]], 0.6),
   }),
@@ -166,7 +166,7 @@ export const ONESHOTS: readonly FactorySound[] = [
     description:
       'One string of a concert harp on {G}, plucked with the pad of a finger, in a hall.',
     instrument: { deviceId: 'harp', preset: 'Concert harp', params: { decay: 2 } },
-    effects: [zita('Hall', 0.3), { deviceId: 'stereo-widener', preset: 'Gently wide' }],
+    effects: [hall('Hall', 0.3), { deviceId: 'stereo-widener', preset: 'Gently wide' }],
     ...played(4, [[0, 3.6, 67]], 0.3),
   }),
   sound({
@@ -194,7 +194,7 @@ export const ONESHOTS: readonly FactorySound[] = [
         preset: 'Pinned',
         params: { gain: 11, release: 0.3, ride: 0 },
       },
-      zita('Hall', 0.35),
+      hall('Hall', 0.35),
     ],
     ...played(5, [[0, 4, 62]], 0.4),
   }),
@@ -212,7 +212,7 @@ export const ONESHOTS: readonly FactorySound[] = [
     },
     effects: [
       { deviceId: 'chorus', preset: 'Slow drift', params: { mix: 0.3 } },
-      zita('Room', 0.3),
+      hall('Room', 0.3),
     ],
     ...played(
       4,
@@ -237,7 +237,7 @@ export const ONESHOTS: readonly FactorySound[] = [
       preset: 'Felt',
       params: { felt: 0.5, thump: 0.15, action: 0.25, resonance: 0, reverbMix: 0, width: 0.3 },
     },
-    effects: [zita('Room', 0.3)],
+    effects: [hall('Room', 0.3)],
     ...played(3, [[0, 2.8, 84]], 0.3),
   }),
   sound({
@@ -247,7 +247,7 @@ export const ONESHOTS: readonly FactorySound[] = [
     kind: 'oneshot',
     description: 'A short glassy FM chime on a high {B} with a hall ringing on after it.',
     instrument: { deviceId: 'fm-glass', preset: 'Ice chimes', params: { detune: 1, spread: 0.35 } },
-    effects: [zita('Hall', 0.35)],
+    effects: [hall('Hall', 0.35)],
     ...played(3, [[0, 2.8, 95]], 0.3),
   }),
 ]

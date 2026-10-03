@@ -30,7 +30,7 @@ export const CHOIR_PRESETS: readonly FactoryPreset[] = [
     category: 'voice',
     description: 'Bass voices on a closed oh without vibrato, a long way down a stone nave.',
     instrument: { deviceId: 'choir', preset: 'Low monks', params: { volume: -8 } },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.4 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.4 } }],
     preview: 'low',
   },
   {
@@ -81,7 +81,7 @@ export const CHOIR_PRESETS: readonly FactoryPreset[] = [
         volume: -8,
       },
     },
-    effects: [{ deviceId: 'dattorro', preset: 'Small plate' }],
+    effects: [{ deviceId: 'plate-reverb', preset: 'Small plate' }],
   },
   {
     id: 'rehearsal-room-oh',
@@ -127,7 +127,7 @@ export const CHOIR_PRESETS: readonly FactoryPreset[] = [
         volume: -11,
       },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Bright hall', params: { mix: 0.3 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Bright hall', params: { mix: 0.3 } }],
   },
   {
     id: 'tenors-old-record',
@@ -153,7 +153,7 @@ export const CHOIR_PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'zita-rev1', preset: 'Room' },
+      { deviceId: 'hall-reverb', preset: 'Room' },
       { deviceId: 'vinyl', preset: 'Charity shop find' },
     ],
   },
@@ -180,7 +180,7 @@ export const CHOIR_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tape-echo', preset: 'Dotted bounce', params: { mix: 0.3 } },
-      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.2 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.2 } },
     ],
   },
   {
@@ -209,7 +209,7 @@ export const CHOIR_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'analog-drive', preset: 'Iron lows' },
-      { deviceId: 'dattorro', preset: 'Dark plate', params: { mix: 0.3 } },
+      { deviceId: 'plate-reverb', preset: 'Dark plate', params: { mix: 0.3 } },
     ],
     preview: 'low',
   },
@@ -242,7 +242,7 @@ export const CHOIR_PRESETS: readonly FactoryPreset[] = [
         deviceId: 'ambient-comp',
         params: { threshold: -30, ratio: 6, attack: 40, release: 0.6, knee: 8, makeup: 4 },
       },
-      { deviceId: 'zita-rev1', preset: 'Hall' },
+      { deviceId: 'hall-reverb', preset: 'Hall' },
     ],
   },
   {
@@ -298,7 +298,7 @@ export const CHOIR_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'octaves', preset: 'Organ' },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
   {
@@ -330,7 +330,7 @@ export const CHOIR_PRESETS: readonly FactoryPreset[] = [
         preset: 'Warm six-stage',
         params: { centerHz: 1600, rate: 0.12, mix: 0.35 },
       },
-      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.3 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.3 } },
     ],
   },
   {
@@ -394,7 +394,7 @@ export const CHOIR_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'spectral-blur', preset: 'Glass halo', params: { mix: 0.4 } },
-      { deviceId: 'dattorro', preset: 'Bright plate' },
+      { deviceId: 'plate-reverb', preset: 'Bright plate' },
     ],
   },
   {
@@ -418,7 +418,7 @@ export const CHOIR_PRESETS: readonly FactoryPreset[] = [
         volume: -6,
       },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.25 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.25 } }],
     preview: 'line',
   },
   {

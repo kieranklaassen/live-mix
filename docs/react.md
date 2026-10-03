@@ -439,7 +439,7 @@ It starts on the library's **recording mock context** (clock and analysers
 driven by timers, so it renders headless and without an audio permission) and
 switches to a real `AudioContext` on **Use real audio**. With real audio the
 device registry gains the nine stock WASM devices: the hall return becomes
-ambient-live's Dattorro plate and the keys track gets kkfonie's StereoWidener
+ambient-live's plate reverb and the keys track gets kkfonie's StereoWidener
 after its EQ, so the device catalogue, the add picker and the panels show
 node and WASM devices side by side. `window.playground.demo` is the running
 demo for the console. The grid on the page is the playground's own minimal

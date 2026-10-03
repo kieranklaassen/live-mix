@@ -53,10 +53,10 @@ build_device() {
   echo "Built $out_dir/$name.wasm ($(wc -c < "$out_dir/$name.wasm") bytes)"
 }
 
-build_device dattorro \
-  cpp/devices/dattorro/dattorro_reverb.cpp \
-  cpp/devices/dattorro/dattorro_device.cpp \
-  cpp/devices/dattorro/device_api.cpp
+build_device plate-reverb \
+  cpp/devices/plate-reverb/plate_reverb.cpp \
+  cpp/devices/plate-reverb/plate_reverb_device.cpp \
+  cpp/devices/plate-reverb/device_api.cpp
 
 build_device fdn-reverb \
   cpp/devices/fdn-reverb/fdn_reverb_device.cpp \
@@ -89,8 +89,8 @@ EXTRA_EXPORTS="$instrument_exports" build_device felt-piano \
 
 # Faust devices: the C++ under cpp/faust/generated is produced by
 # scripts/build-faust.sh and committed; no Faust toolchain is needed here.
-build_device zita-rev1 cpp/faust/zita-rev1.device.cpp
-build_device limiter-1176 cpp/faust/limiter-1176.device.cpp
+build_device hall-reverb cpp/faust/hall-reverb.device.cpp
+build_device fet-limiter cpp/faust/fet-limiter.device.cpp
 
 # Spec devices: everything under cpp/devices/<id>/ whose device.json carries
 # its parameter table. scripts/gen-devices.mjs writes the list below.

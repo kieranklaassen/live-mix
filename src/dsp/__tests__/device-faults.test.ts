@@ -57,11 +57,11 @@ describe('device faults found by the factory bench', () => {
     expect(frozen.tailDb).toBeGreaterThan(-6)
   })
 
-  it('limiter-1176 stops a click at full scale', async () => {
+  it('fet-limiter stops a click at full scale', async () => {
     const click = stereo(0.5, (i) => (i === 4800 ? 10 ** (-6 / 20) : 0))
     for (const inputGain of [12, 24]) {
       const out = await through(
-        chain({ deviceId: 'limiter-1176', params: { inputGain } }),
+        chain({ deviceId: 'fet-limiter', params: { inputGain } }),
         click,
         0.5,
       )
@@ -105,14 +105,14 @@ describe('device faults found by the factory bench', () => {
     }
   })
 
-  it('zita-rev1 presets come out as loud as what goes in', async () => {
+  it('hall-reverb presets come out as loud as what goes in', async () => {
     const dry = await dryPhrase()
     const dryLufs = measureAudio(dry).lufs
     for (const preset of ['Room', 'Hall', 'Cathedral']) {
-      const wet = measureAudio(await through(chain({ deviceId: 'zita-rev1', preset }), dry, 10))
+      const wet = measureAudio(await through(chain({ deviceId: 'hall-reverb', preset }), dry, 10))
       expect(Math.abs(wet.lufs - dryLufs)).toBeLessThan(1.5)
     }
-    const fullyWet = await through(chain({ deviceId: 'zita-rev1', params: { mix: 1 } }), dry, 10)
+    const fullyWet = await through(chain({ deviceId: 'hall-reverb', params: { mix: 1 } }), dry, 10)
     expect(Math.abs(measureAudio(fullyWet).lufs - dryLufs)).toBeLessThan(1.5)
   })
 })

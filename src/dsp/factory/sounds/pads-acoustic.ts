@@ -7,7 +7,7 @@
 // air: detuned players and noise on the upper notes are what the analysis
 // stops hearing as pitch.
 
-import { breathe, quarterTurn, zita } from '../parts'
+import { breathe, quarterTurn, hall } from '../parts'
 import { type FactorySound } from '../types'
 import { looped, sound } from './recipe'
 
@@ -24,7 +24,7 @@ export const PADS_ACOUSTIC: readonly FactorySound[] = [
       preset: 'Warm section',
       params: { attack: 1.2, air: 0.05, vibrato: 4, scatter: 0.2, mute: 0.5 },
     },
-    effects: [zita('Hall', 0.4), breathe(0.0625, 0.45)],
+    effects: [hall('Hall', 0.4), breathe(0.0625, 0.45)],
     // Cellos on {E} and {B}, a viola, two violins. The swell reaches its top 5 s after the bows
     // start: the loop begins just under it, with the attack over and the hall full.
     ...looped(16, 4, 3, [40, 47, [55, 0.8], [62, 0.8], [67, 0.6]]),
@@ -38,7 +38,7 @@ export const PADS_ACOUSTIC: readonly FactorySound[] = [
       'Trombones and tuba on open fifths over a low {F}, rising and sinking in a dark hall.',
     instrument: { deviceId: 'horns', preset: 'Low brass choir', params: { attack: 2 } },
     effects: [
-      { deviceId: 'zita-rev1', preset: 'Dark hall', params: { mix: 0.45 } },
+      { deviceId: 'hall-reverb', preset: 'Dark hall', params: { mix: 0.45 } },
       breathe(0.0625, 0.5),
     ],
     ...looped(16, 4, 3, [41, 48, [53, 0.8], [60, 0.6]]),
@@ -55,7 +55,7 @@ export const PADS_ACOUSTIC: readonly FactorySound[] = [
       preset: 'Boys ooh',
       params: { ensemble: 0, vibrato: 0, attack: 0.8, motion: 0.6 },
     },
-    effects: [zita('Cathedral', 0.5), breathe(0.0625, 0.45)],
+    effects: [hall('Cathedral', 0.5), breathe(0.0625, 0.45)],
     // These voices are steady tones, and how they meet themselves at the fold depends on where
     // the loop starts: 6 s in, the level over the fold stays within a decibel in every key.
     ...looped(16, 6, 3, [62, 69, [74, 0.7], [76, 0.7]]),
@@ -74,7 +74,7 @@ export const PADS_ACOUSTIC: readonly FactorySound[] = [
       // the preset's: a worn one drops out, and the analysis hears each return as a hit.
       params: { length: 9, attack: 0.5, vibrato: 0.1, players: 0.2, hiss: 0.3 },
     },
-    effects: [zita('Room', 0.25), breathe(0.125, 0.4)],
+    effects: [hall('Room', 0.25), breathe(0.125, 0.4)],
     // No basses: the harmonics of a low {A} beat fast against these thirds, and the analysis
     // hears the beats as hits.
     ...looped(8, 7, 2, [57, [60, 0.8], [64, 0.8], [67, 0.7], [71, 0.6]]),
@@ -94,7 +94,7 @@ export const PADS_ACOUSTIC: readonly FactorySound[] = [
     effects: [
       // Two turns of the chorus to a loop.
       { deviceId: 'chorus', preset: 'Subtle widener', params: { rate: 0.25 } },
-      zita('Room', 0.3),
+      hall('Room', 0.3),
       breathe(0.125, 0.55),
       quarterTurn(8),
     ],
@@ -114,7 +114,7 @@ export const PADS_ACOUSTIC: readonly FactorySound[] = [
       preset: 'Breath pad',
       params: { type: 0, breath: 0.5, blow: 0.3, vibrato: 0.1 },
     },
-    effects: [zita('Hall', 0.45), breathe(0.125, 0.5), quarterTurn(8)],
+    effects: [hall('Hall', 0.45), breathe(0.125, 0.5), quarterTurn(8)],
     ...looped(8, 7.5, 2, [67, 74, [81, 0.8], [83, 0.7]]),
     tuning: 'whole-cycles',
   }),

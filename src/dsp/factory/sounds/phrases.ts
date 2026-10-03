@@ -1,7 +1,7 @@
 // Phrases: a few notes in free time, either ending inside their length or coming round on themselves.
 // Numbers 185 to 194. What every sound here is held to is in docs/factory.md.
 
-import { soften, zita } from '../parts'
+import { soften, hall } from '../parts'
 import { type FactorySound } from '../types'
 import { cycled, played, sound } from './recipe'
 
@@ -14,7 +14,7 @@ export const PHRASES: readonly FactorySound[] = [
     description:
       'A harp climbs from a low {D} to the dorian sixth and steps back down; it comes round.',
     instrument: { deviceId: 'harp', preset: 'Concert harp', params: { decay: 2, halo: 0.7 } },
-    effects: [{ deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.3 } }],
+    effects: [{ deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.3 } }],
     ...cycled(8, [
       [0, 2.5, 50, 0.7],
       [0.09, 2.5, 57, 0.55],
@@ -34,7 +34,7 @@ export const PHRASES: readonly FactorySound[] = [
     description: 'Soft hands circling a handpan in {A} minor, never on a pulse; it comes round.',
     // A struck note meets what still rings of it from the pass before: two passes are dropped, not one.
     instrument: { deviceId: 'handpan', preset: 'Soft hands' },
-    effects: [zita('Room', 0.3)],
+    effects: [hall('Room', 0.3)],
     ...cycled(
       8,
       [
@@ -95,7 +95,7 @@ export const PHRASES: readonly FactorySound[] = [
       preset: 'Slow steel',
       params: { swell: 0, pick: 0.6, vibrato: 5, sustain: 24 },
     },
-    effects: [zita('Cathedral', 0.4)],
+    effects: [hall('Cathedral', 0.4)],
     ...cycled(12, [
       [0, 4.9, 48, 0.65],
       [0.03, 4.9, 64, 0.7],
@@ -116,7 +116,7 @@ export const PHRASES: readonly FactorySound[] = [
       'A marimba rolls a low chord on {G}, steps down three notes above it and answers lower; it rings out.',
     // Bars that ring a little longer than a marimba's: short ones left the hall's tail to be heard as hits.
     instrument: { deviceId: 'mallets', preset: 'Soft marimba', params: { decay: 2.2 } },
-    effects: [zita('Hall', 0.3)],
+    effects: [hall('Hall', 0.3)],
     ...played(
       8,
       [
@@ -146,7 +146,7 @@ export const PHRASES: readonly FactorySound[] = [
       preset: 'Twelve-string haze',
       params: { decay: 9, release: 6 },
     },
-    effects: [soften(12), zita('Hall', 0.45)],
+    effects: [soften(12), hall('Hall', 0.45)],
     ...cycled(8, [
       [0, 2, 65, 0.7],
       [1.22, 2, 72, 0.55],
@@ -195,7 +195,7 @@ export const PHRASES: readonly FactorySound[] = [
     kind: 'melodic',
     description: 'Woody plucks of a folded tone wandering over {G} mixolydian; it comes round.',
     instrument: { deviceId: 'west-coast', preset: 'Wooden pluck', params: { decay: 2.2 } },
-    effects: [{ deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.3 } }],
+    effects: [{ deviceId: 'plate-reverb', preset: 'Small plate', params: { mix: 0.3 } }],
     ...cycled(8, [
       [0, 1, 67, 0.7],
       [0.52, 1, 74, 0.5],
@@ -224,7 +224,7 @@ export const PHRASES: readonly FactorySound[] = [
       preset: 'Shakuhachi',
       params: { breath: 0.5, vibrato: 0.35 },
     },
-    effects: [zita('Hall', 0.35)],
+    effects: [hall('Hall', 0.35)],
     ...played(
       8,
       [
@@ -249,7 +249,7 @@ export const PHRASES: readonly FactorySound[] = [
     // The felt takes far more from a soft note above the middle of the keyboard than from a low one, so
     // the melody is played hard and the bass lightly. The piano's own room rings on some notes: a room after it.
     instrument: { deviceId: 'felt-piano', preset: 'Felt', params: { resonance: 0, reverbMix: 0 } },
-    effects: [zita('Room', 0.3)],
+    effects: [hall('Room', 0.3)],
     ...cycled(12, [
       [0, 5.9, 48, 0.55],
       [0.07, 5.9, 55, 0.45],

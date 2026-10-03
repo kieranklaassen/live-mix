@@ -551,7 +551,7 @@ Fixed:
   `grain-cloud` and `spectral-blur` are not changed: loaded with freeze on
   they still pass only the dry signal and hold nothing. No factory chain
   loads with a freeze on.
-- **`limiter-1176` passed single transients.** A click at −6 dBFS left at
+- **`fet-limiter` passed single transients.** A click at −6 dBFS left at
   +6 dBFS with 12 dB of input gain and at +18 dBFS with 24 dB, because the
   0.8 ms attack never sees it. A ceiling now follows the compressor (a wire
   to half scale, a tanh knee from there to full scale): the same clicks
@@ -576,7 +576,7 @@ Fixed:
   loaded. Its stereo is now made of each partial leaning a little from side
   to side, which sums to the plain partials in mono: the side is 5.6 to
   12.5 dB under the mid at every position.
-- **`zita-rev1` lost level as mix rose**: its presets came out 2.4 to 4.5 LU
+- **`hall-reverb` lost level as mix rose**: its presets came out 2.4 to 4.5 LU
   below the dry signal, and 7 dB fully wet. The balance is now levelled
   (`docs/faust-devices.md`): the presets are within 0.9 LU of the dry phrase
   and steady sound within 0.2 dB at any mix. The nineteen factory presets
@@ -607,13 +607,13 @@ As reported:
 - `lattice` comes out about 5 LU quiet on every preset; `spectral-drifter` is
   close to mono and about 7 LU below the dry signal.
 - `thesis` has no volume parameter and one key at high resonance sits near
-  −39 dBFS, so three presets use `limiter-1176` input gain as make-up; its
+  −39 dBFS, so three presets use `fet-limiter` input gain as make-up; its
   Width changes level and stays mono up to 75.
 - `organ` is close to mono; `atmosphere`'s event types (rain, crackle) have a
   25 to 30 dB crest factor and sit far below the other sounds at default
   volume; `tape` hiss keeps running after the notes stop, by design.
-- Wet levels differ widely between reverbs fully wet: `dattorro` "Long plate"
-  +6.5 LU, `spectral-blur` "Slow dissolve" +5 LU (`zita-rev1` "Hall" was
+- Wet levels differ widely between reverbs fully wet: `plate-reverb` "Long plate"
+  +6.5 LU, `spectral-blur` "Slow dissolve" +5 LU (`hall-reverb` "Hall" was
   −7 LU and is levelled now, see above).
 - `choir` with `ensemble` above 0, or any vibrato, beats deeply enough for
   `analyzeSound` to count notes (27 onsets on one held note at `ensemble` 1);
@@ -625,7 +625,7 @@ As reported:
 - Found while the bank went from 34 sounds to 100, and worked round in the
   recipes (`sounds/`), not fixed:
   - Level: instruments leave at about −35 dBFS RMS, so `ambient-comp` does
-    nothing above a threshold of −45 and `limiter-1176` nothing under about
+    nothing above a threshold of −45 and `fet-limiter` nothing under about
     30 dB of input. Both let a pick through and pull the body of the note
     down after it, so a plucked sound comes out quieter at the bank's peak,
     not louder (`soften` or `ambient-limiter` "Pinned" does what was wanted).
@@ -665,8 +665,8 @@ As reported:
     reverbs after a held `pedal-steel`.
   - `mallets` at `decay` 1.5: the bars stop before a hall's tail does, and the
     tail is counted as hits (one key read as a beat); at 2.2 it is not.
-  - `dattorro`: the drift in its tail under one long held note is counted as
-    hits; `zita-rev1` under the same note is not.
+  - `plate-reverb`: the drift in its tail under one long held note is counted as
+    hits; `hall-reverb` under the same note is not.
   - `sampler` preset "Tape choir" plays an octave down and six cents sharp
     (`fine` 6).
   - `spring-reverb` and a plate after a held `pedal-steel` chord: the
@@ -681,10 +681,10 @@ As reported:
     tank", "Long three spring"; "Narrow warm tank" is balanced), `ether-reverb`
     up to 8 dB and 12 to 16 on a fading tail ("Bright chamber", "Cathedral"),
     `fdn-reverb` "Short ambience" up to 12.6 dB on a fading note and 1 to 4
-    when larger, `dattorro`, `shimmer` and `expanse` 4 to 6, `vowel-reverb` up
-    to 4.7 at full width, `zita-rev1` 1 to 4. `bloom-reverb` with `bloom` 0
+    when larger, `plate-reverb`, `shimmer` and `expanse` 4 to 6, `vowel-reverb` up
+    to 4.7 at full width, `hall-reverb` 1 to 4. `bloom-reverb` with `bloom` 0
     stays within 0.2 dB but rings on A. A preset on a pure-toned instrument
-    therefore ends in `zita-rev1`, `bloom-reverb` or a narrow room.
+    therefore ends in `hall-reverb`, `bloom-reverb` or a narrow room.
   - Echoes and followers lean too: `tape-echo` and `echo-memory` to the left
     at any `spread` (3.3 dB at 0.5), `octaves` by note with `spread` up,
     `sympathetic` 4 to 15 dB left in its tail at `width` 0.6 and above (0.35
@@ -698,7 +698,7 @@ As reported:
     `chance` up, `modal-bells` with `spread` above 0.2, `fm-glass` on its Bell
     and Glass algorithms, `horns` with `section` 1 (10 dB from side to side
     on a pure tone).
-  - `limiter-1176` works from −12 dBFS on each channel, lets a pick or strike
+  - `fet-limiter` works from −12 dBFS on each channel, lets a pick or strike
     through and pulls the ring down after it with its half-second release, so
     it is no clean make-up gain and pumps a bed under sparse clicks.
     `analog-drive` at low drive holds a pick where `ambient-comp` "Pluck

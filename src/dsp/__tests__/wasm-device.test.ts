@@ -7,14 +7,18 @@ import { asAudioContext, createMockContext, type MockAudioContext } from '../../
 import { isMeteredDevice } from '../../core/devices/Device'
 import { DEVICE_METER_HZ, type WasmDeviceProcessorOptions } from '../abi'
 import { clearWasmModuleCache, compileWasm } from '../assets'
-import { DATTORRO_DEVICE, DATTORRO_PARAMS, createDattorroReverb } from '../devices/dattorro'
+import {
+  PLATE_REVERB_DEVICE,
+  PLATE_REVERB_PARAMS,
+  createPlateReverb,
+} from '../devices/plate-reverb'
 import { WasmDevice, defineWasmDevice, type WorkletNodeFactory } from '../WasmDevice'
 
-const wasmPath = join(dirname(fileURLToPath(import.meta.url)), '../wasm/dattorro.wasm')
-let dattorroModule: WebAssembly.Module
+const wasmPath = join(dirname(fileURLToPath(import.meta.url)), '../wasm/plate-reverb.wasm')
+let plateModule: WebAssembly.Module
 
 beforeAll(async () => {
-  dattorroModule = await WebAssembly.compile(await readFile(wasmPath))
+  plateModule = await WebAssembly.compile(await readFile(wasmPath))
 })
 
 beforeEach(() => {
@@ -32,12 +36,12 @@ describe('WasmDevice', () => {
     const ctx = createMockContext()
     const context = asAudioContext(ctx)
     const options = {
-      wasm: dattorroModule,
+      wasm: plateModule,
       processorUrl: 'https://example.test/worklets/wasm-device.js',
       createNode: mockNodeFactory,
     }
-    const a = await createDattorroReverb(context, options)
-    const b = await createDattorroReverb(context, options)
+    const a = await createPlateReverb(context, options)
+    const b = await createPlateReverb(context, options)
 
     expect(ctx.audioWorklet.modules).toEqual(['https://example.test/worklets/wasm-device.js'])
     expect(ctx.workletNodes).toHaveLength(2)
@@ -46,14 +50,14 @@ describe('WasmDevice', () => {
     const nodeOptions = ctx.workletNodes[0].options as AudioWorkletNodeOptions
     expect(nodeOptions.outputChannelCount).toEqual([2])
     const processorOptions = nodeOptions.processorOptions as WasmDeviceProcessorOptions
-    expect(processorOptions.module).toBe(dattorroModule)
-    expect(processorOptions.deviceId).toBe('dattorro')
+    expect(processorOptions.module).toBe(plateModule)
+    expect(processorOptions.deviceId).toBe('plate-reverb')
   })
 
   it('seeds processorOptions.params with defaults and clamped overrides', async () => {
     const ctx = createMockContext()
-    const device = await createDattorroReverb(asAudioContext(ctx), {
-      wasm: dattorroModule,
+    const device = await createPlateReverb(asAudioContext(ctx), {
+      wasm: plateModule,
       processorUrl: 'p',
       createNode: mockNodeFactory,
       params: { mix: 1.7, predelayMs: 40 },
@@ -67,13 +71,13 @@ describe('WasmDevice', () => {
       [3, 40],
     ])
     expect(device.getParam('mix')).toBe(1)
-    expect(device.getParam('decay')).toBe(DATTORRO_PARAMS.decay.default)
+    expect(device.getParam('decay')).toBe(PLATE_REVERB_PARAMS.decay.default)
   })
 
   it('posts clamped set-param messages by id and tracks values', async () => {
     const ctx = createMockContext()
-    const device = await createDattorroReverb(asAudioContext(ctx), {
-      wasm: dattorroModule,
+    const device = await createPlateReverb(asAudioContext(ctx), {
+      wasm: plateModule,
       processorUrl: 'p',
       createNode: mockNodeFactory,
     })
@@ -90,8 +94,8 @@ describe('WasmDevice', () => {
 
   it('toggles bypass over the port exactly once per change', async () => {
     const ctx = createMockContext()
-    const device = await createDattorroReverb(asAudioContext(ctx), {
-      wasm: dattorroModule,
+    const device = await createPlateReverb(asAudioContext(ctx), {
+      wasm: plateModule,
       processorUrl: 'p',
       createNode: mockNodeFactory,
     })
@@ -108,14 +112,14 @@ describe('WasmDevice', () => {
 
   it('exposes the worklet node as input and output and disconnects on dispose', async () => {
     const ctx = createMockContext()
-    const device = await createDattorroReverb(asAudioContext(ctx), {
-      wasm: dattorroModule,
+    const device = await createPlateReverb(asAudioContext(ctx), {
+      wasm: plateModule,
       processorUrl: 'p',
       createNode: mockNodeFactory,
     })
     expect(device.input).toBe(device.node)
     expect(device.output).toBe(device.node)
-    expect(device.id).toBe('dattorro')
+    expect(device.id).toBe('plate-reverb')
     expect(device.latencySec).toBe(0)
     device.dispose()
     expect(ctx.workletNodes[0].disconnectCalls.count).toBe(1)
@@ -142,8 +146,8 @@ describe('WasmDevice', () => {
     }
     try {
       const [first, second] = await Promise.all([
-        compileWasm('https://example.test/wasm/dattorro.wasm'),
-        compileWasm(new URL('https://example.test/wasm/dattorro.wasm')),
+        compileWasm('https://example.test/wasm/plate-reverb.wasm'),
+        compileWasm(new URL('https://example.test/wasm/plate-reverb.wasm')),
       ])
       expect(first).toBe(second)
       expect(fetches).toBe(1)
@@ -155,18 +159,20 @@ describe('WasmDevice', () => {
   it('defineWasmDevice keeps the default wasm URL lazy', () => {
     const definition = defineWasmDevice({
       id: 'lazy',
-      wasm: () => new URL('../wasm/dattorro.wasm', import.meta.url),
-      params: DATTORRO_PARAMS,
+      wasm: () => new URL('../wasm/plate-reverb.wasm', import.meta.url),
+      params: PLATE_REVERB_PARAMS,
     })
-    expect((definition.wasm() as URL).pathname.endsWith('/wasm/dattorro.wasm')).toBe(true)
-    expect((DATTORRO_DEVICE.wasm() as URL).pathname.endsWith('/wasm/dattorro.wasm')).toBe(true)
+    expect((definition.wasm() as URL).pathname.endsWith('/wasm/plate-reverb.wasm')).toBe(true)
+    expect((PLATE_REVERB_DEVICE.wasm() as URL).pathname.endsWith('/wasm/plate-reverb.wasm')).toBe(
+      true,
+    )
   })
 
   it('WasmDevice.create works with any definition, not only stock devices', async () => {
     const ctx = createMockContext()
     const custom = defineWasmDevice({
       id: 'custom',
-      wasm: () => dattorroModule,
+      wasm: () => plateModule,
       params: {
         amount: { id: 0, name: 'Amount', min: 0, max: 1, default: 0.5, taper: 'linear', unit: '' },
       },
@@ -185,7 +191,7 @@ describe('WasmDevice', () => {
     const ctx = createMockContext()
     const delayed = defineWasmDevice({
       id: 'delayed',
-      wasm: () => dattorroModule,
+      wasm: () => plateModule,
       params: {
         amount: { id: 0, name: 'Amount', min: 0, max: 1, default: 0.5, taper: 'linear', unit: '' },
       },
@@ -204,7 +210,7 @@ describe('WasmDevice', () => {
 describe('WasmDevice meters', () => {
   const metered = defineWasmDevice({
     id: 'metered',
-    wasm: () => dattorroModule,
+    wasm: () => plateModule,
     params: {
       amount: { id: 0, name: 'Amount', min: 0, max: 1, default: 0.5, taper: 'linear', unit: '' },
     },
@@ -266,8 +272,8 @@ describe('WasmDevice meters', () => {
 
   it('leaves the port alone for a device without meters', async () => {
     const ctx = createMockContext()
-    const device = await createDattorroReverb(asAudioContext(ctx), {
-      wasm: dattorroModule,
+    const device = await createPlateReverb(asAudioContext(ctx), {
+      wasm: plateModule,
       processorUrl: 'p',
       createNode: mockNodeFactory,
     })
@@ -293,7 +299,7 @@ describe('WasmDevice notes and custom processors', () => {
     const ctx = createMockContext()
     const custom = defineWasmDevice({
       id: 'app-synth',
-      wasm: () => dattorroModule,
+      wasm: () => plateModule,
       params: {},
       processor: { name: 'app-synth-processor', url: () => 'https://app.test/synth.js' },
     })
@@ -315,8 +321,8 @@ describe('WasmDevice notes and custom processors', () => {
 
   it('hands a sample device copies of at most two channels and leaves the caller its buffers', async () => {
     const ctx = createMockContext()
-    const device = await WasmDevice.create(asAudioContext(ctx), DATTORRO_DEVICE, {
-      wasm: dattorroModule,
+    const device = await WasmDevice.create(asAudioContext(ctx), PLATE_REVERB_DEVICE, {
+      wasm: plateModule,
       createNode: mockNodeFactory,
     })
     const left = Float32Array.of(0.1, 0.2, 0.3)

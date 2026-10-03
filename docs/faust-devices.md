@@ -18,13 +18,13 @@ cpp/faust/<name>.device.cpp                20-line hand-written ABI shim
    │  scripts/build-wasm.sh   (Emscripten 4.0.15, same flags as every device)
    └─► src/dsp/wasm/<name>.wasm            committed artefact, copied to dist/wasm/
 src/dsp/devices/<name>.ts                  hand-written defineWasmDevice() + factory,
-                                           same shape as dattorro.ts
+                                           same shape as plate-reverb.ts
 ```
 
 Both generation steps are reproducible and gated in CI: job `faust` rebuilds
 the pinned compiler (cached), reruns `build-faust.sh` and fails on any diff in
 `cpp/faust/generated` or `src/dsp/devices/faust`; job `wasm` rebuilds every
-`.wasm` and compares bytes, exactly as for Dattorro.
+`.wasm` and compares bytes, exactly as for the plate reverb.
 
 ## Why Faust → C++ → the existing ABI
 
@@ -87,12 +87,12 @@ compiler's `-json` description of the same tree, so the C++ ids and the
 
 ## Devices
 
-| Device         | Artefact                     | Source                                  | Params (id order)                                                                                                                                             |
-| -------------- | ---------------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `zita-rev1`    | `zita-rev1.wasm` (17.7 KB)   | `re.zita_rev1_stereo`, `fsmax = 96 kHz` | `preDelay` 20–100 ms (60), `crossover` 50–1000 Hz log (200), `lowDecay` 1–8 s (3), `midDecay` 1–8 s (2), `damping` 1.5–23.52 kHz log (6000), `mix` 0–1 (0.35) |
-| `limiter-1176` | `limiter-1176.wasm` (7.1 KB) | `co.limiter_1176_R4_stereo`, a ceiling  | `inputGain` 0–40 dB (0), `outputGain` −24–24 dB (0)                                                                                                           |
+| Device        | Artefact                     | Source                                  | Params (id order)                                                                                                                                             |
+| ------------- | ---------------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `hall-reverb` | `hall-reverb.wasm` (17.7 KB) | `re.zita_rev1_stereo`, `fsmax = 96 kHz` | `preDelay` 20–100 ms (60), `crossover` 50–1000 Hz log (200), `lowDecay` 1–8 s (3), `midDecay` 1–8 s (2), `damping` 1.5–23.52 kHz log (6000), `mix` 0–1 (0.35) |
+| `fet-limiter` | `fet-limiter.wasm` (7.1 KB)  | `co.limiter_1176_R4_stereo`, a ceiling  | `inputGain` 0–40 dB (0), `outputGain` −24–24 dB (0)                                                                                                           |
 
-`zita-rev1` balances `dry*(1-mix) + wet*mix`, the Dattorro device's law, and
+`hall-reverb` balances `dry*(1-mix) + wet*mix`, the plate reverb's law, and
 levels the sum. The reverb's own output runs about 7 dB under what goes into
 it, so the plain balance lost level as `mix` rose (4 dB at 0.35, 7 dB fully
 wet; the three presets came out 2.4 to 4.5 LU under the dry signal). Dry and
@@ -103,7 +103,7 @@ the output is within 0.2 dB of the input level on steady sound, and at
 1.9 MB of static state inside the 4 MB module memory); higher context rates
 run but clamp the longest delays.
 
-`limiter-1176` keeps the library's fixed 1176 "R4" law: 4:1 above −6 dB,
+`fet-limiter` keeps the Faust library's fixed "R4" law: 4:1 above −6 dB,
 0.8 ms attack, 0.5 s release, level detected on `|L| + |R|`. Input gain
 drives that threshold like the hardware's INPUT knob; output gain is make-up.
 A full-scale sine in both channels sits 12 dB over the detector's threshold
@@ -118,16 +118,16 @@ it (`0.5 + 0.5·tanh((|x| − 0.5) / 0.5)`). With output gain at 0 dB nothing
 leaves above 0 dBFS. The knee is a waveshaper without oversampling; it only
 works on what outruns the attack.
 
-From `@kieranklaassen/live-mix/dsp`: `createZitaReverb(ctx, options)` and
-`createLimiter1176(ctx, options)` return a `WasmDevice` over the committed
-artefact, exactly like `createDattorroReverb`; `ZITA_REV1_DEVICE` /
-`LIMITER_1176_DEVICE` are the definitions and `ZITA_REV1_PARAMS` /
-`LIMITER_1176_PARAMS` the tables.
+From `@kieranklaassen/live-mix/dsp`: `createHallReverb(ctx, options)` and
+`createFetLimiter(ctx, options)` return a `WasmDevice` over the committed
+artefact, exactly like `createPlateReverb`; `HALL_REVERB_DEVICE` /
+`FET_LIMITER_DEVICE` are the definitions and `HALL_REVERB_PARAMS` /
+`FET_LIMITER_PARAMS` the tables.
 
 ## Tests
 
-- Native (`pnpm test:native`): `cpp/test/zita_rev1_test.cpp`,
-  `cpp/test/limiter_1176_test.cpp` compile the generated header with the
+- Native (`pnpm test:native`): `cpp/test/hall_reverb_test.cpp`,
+  `cpp/test/fet_limiter_test.cpp` compile the generated header with the
   system compiler and check the parameter contract (labels, ranges, defaults,
   clamping), the bus contract (pass-through, input cleared), impulse and step
   behaviour (tail exists and decays; T60 tracks the decay params; onset moves
@@ -135,7 +135,7 @@ artefact, exactly like `createDattorroReverb`; `ZITA_REV1_DEVICE` /
   mix; 4:1 law within 0.4 dB; attack lets the onset through; a click stops at
   full scale; release recovers), sample-rate independence (44.1/48/96 kHz) and stability
   (30 s at maximum decay or 40 dB of drive: bounded, no NaN).
-- WASM (`pnpm test`): `src/dsp/__tests__/{zita-rev1,limiter-1176}-wasm.test.ts`
+- WASM (`pnpm test`): `src/dsp/__tests__/{hall-reverb,fet-limiter}-wasm.test.ts`
   instantiate the committed artefacts in Node with an empty import object and
   assert the same laws, so the browser build is held to the native numbers.
 
@@ -145,7 +145,7 @@ artefact, exactly like `createDattorroReverb`; `ZITA_REV1_DEVICE` /
    smoothing on audible parameters, `declare name "<ClassName>"`.
 2. Add `build_device <name> <ClassName>` to `scripts/build-faust.sh` and run
    `pnpm build:faust` (the first run builds the compiler into `tmp/`).
-3. Write `cpp/faust/<name>.device.cpp` by copying `zita-rev1.device.cpp` and
+3. Write `cpp/faust/<name>.device.cpp` by copying `hall-reverb.device.cpp` and
    changing the include, the class name and the idle hold (how long the
    device waits in silence before it sleeps; `faust_device.h` says what it
    has to cover).
@@ -157,7 +157,7 @@ artefact, exactly like `createDattorroReverb`; `ZITA_REV1_DEVICE` /
    `scripts/test-native.sh`; add a WASM test next to the existing ones and a
    row to `src/dsp/__tests__/device-factories.test.ts`.
 6. Write `src/dsp/devices/<name>.ts` (definition + factory, copy
-   `zita-rev1.ts`), export it from `src/dsp/index.ts`, add a changeset.
+   `hall-reverb.ts`), export it from `src/dsp/index.ts`, add a changeset.
 
 To move to a newer Faust, change `FAUST_VERSION` and `FAUST_TARBALL_SHA256`
 in `scripts/build-faust.sh`, rerun it, review the diff in
@@ -173,7 +173,7 @@ together; the CI cache key follows the script's hash.
   libraries' explicit **exception to the LGPL**: "you may create a larger
   FAUST program which directly or indirectly imports this library file and
   still distribute the compiled code generated by the FAUST compiler … under
-  your own copyright and license." The Zita-Rev1, compressor and filter
+  your own copyright and license." The reverb (`re.zita_rev1_stereo`), compressor and filter
   functions are Julius O. Smith III's, under the MIT-style STK-4.3 licence.
 - The `.dsp` sources, the shims and the generated C++ and TypeScript are
   therefore live-mix's and carry the repository's MIT licence. Each generated

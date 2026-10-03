@@ -12,7 +12,7 @@ fresh engine over an offline context:
 
 ```ts
 import { renderOffline, wavBlob } from '@kieranklaassen/live-mix'
-import { createDattorroReverb, createTruePeakLimiter } from '@kieranklaassen/live-mix/dsp'
+import { createPlateReverb, createTruePeakLimiter } from '@kieranklaassen/live-mix/dsp'
 
 const bounce = await renderOffline({
   durationSec: 180,
@@ -21,7 +21,7 @@ const bounce = await renderOffline({
   build: async (engine) => {
     await engine.master.installLimiter((ctx) => createTruePeakLimiter(ctx)) // yes, offline too
     const hall = engine.addReturnTrack('hall', {
-      device: await createDattorroReverb(engine.context),
+      device: await createPlateReverb(engine.context),
     })
     const music = engine.addAudioTrack('music', { lookaheadSec: 5 })
     music.strip.sends.add(hall, { level: 0.3 })

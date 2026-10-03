@@ -1,6 +1,7 @@
-// Zita-Rev1 stereo reverb (Fons Adriaensen's FDN design, Faust port by Julius
-// O. Smith III) as a live-mix device: stereo in, stereo out, a linear dry/wet
-// balance (`dry*(1-mix) + wet*mix`, the Dattorro device's) that is then
+// The hall reverb: Faust's `re.zita_rev1_stereo` (Fons Adriaensen's FDN
+// design, Faust port by Julius O. Smith III) as a live-mix device: stereo in,
+// stereo out, a linear dry/wet balance (`dry*(1-mix) + wet*mix`, the plate
+// reverb's) that is then
 // levelled so the output stays as loud as the input wherever Mix stands.
 //
 // The reverb's own output runs about 7 dB under what goes in, so the plain
@@ -10,10 +11,10 @@
 // that leaves the balance at every Mix value where it was and takes the level
 // drop out. At Mix 0 the gain is exactly 1.
 //
-// scripts/build-faust.sh compiles this to cpp/faust/generated/zita-rev1.h and
-// src/dsp/devices/faust/zita-rev1.ts. Parameter ids are the `[N]` order below.
+// scripts/build-faust.sh compiles this to cpp/faust/generated/hall-reverb.h and
+// src/dsp/devices/faust/hall-reverb.ts. Parameter ids are the `[N]` order below.
 
-declare name "ZitaRev1";
+declare name "HallReverb";
 declare author "live-mix (device), Fons Adriaensen (algorithm), Julius O. Smith III (Faust port)";
 declare license "MIT";
 

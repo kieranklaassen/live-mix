@@ -14,14 +14,14 @@ export interface SessionSpec {
   sampleRate: number
   /** Seconds of arrangement to render / capture. */
   durationSec: number
-  /** Send level from `music` into the Dattorro return; 0 leaves the return silent. Default 0.35. */
+  /** Send level from `music` into the plate return; 0 leaves the return silent. Default 0.35. */
   reverbSend?: number
   /** Drive the voice fader from a lane (0.8 → 0.2 over 2–3.5 s). Default true. */
   lane?: boolean
 }
 
 export interface SessionDeps {
-  /** A Dattorro reverb on the engine's context (real, or mock + wasm bytes in Node). */
+  /** A plate reverb on the engine's context (real, or mock + wasm bytes in Node). */
   createReverb: (ctx: BaseAudioContext) => Promise<Device>
   createLane: (options: ParamLaneOptions) => ParamLane
 }
@@ -66,7 +66,7 @@ function clip(id: string, sourceId: string, startSec: number, extra: Partial<Cli
 
 /**
  * Two clip tracks (a crossfade on `music`, a later linear-fade `voice`), a
- * fader lane on `voice`, and a send from `music` into a Dattorro return — so
+ * fader lane on `voice`, and a send from `music` into a plate return — so
  * the graph exercises sources, envelopes, the strip, automation and a WASM
  * device in a worklet.
  */

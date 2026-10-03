@@ -71,6 +71,13 @@ export type DeviceFactory = (
 export interface DeviceDescriptor<P extends Record<string, ParamSpec> = Record<string, ParamSpec>> {
   /** Device type id, e.g. `'filter'`; equals `Device.id` of what `create` returns. */
   id: string
+  /**
+   * Ids the device went by before it was renamed. The registry finds it under
+   * each of them (`has`, `get`, `describe`, `create`, `presets`), so a saved
+   * score, patch or preset that names one still loads this device; `ids` and
+   * `list` show only the id of today, and `resolveId` gives it.
+   */
+  formerIds?: readonly string[]
   /** Human-readable name for device lists. */
   name: string
   kind: DeviceKind
@@ -155,6 +162,9 @@ export function validateDescriptor(descriptor: DeviceDescriptor): void {
   if (typeof descriptor.create !== 'function') {
     throw new Error(`live-mix: device ${id} needs a create factory`)
   }
+  if (descriptor.formerIds?.some((former) => !former || former === id)) {
+    throw new Error(`live-mix: device ${id} lists an empty former id or its own id as one`)
+  }
   const entries = Object.entries(descriptor.params)
   if (entries.length === 0 && !descriptor.dynamicParams) {
     throw new Error(`live-mix: device ${id} has no parameters`)
@@ -196,6 +206,8 @@ export function validateDescriptor(descriptor: DeviceDescriptor): void {
 
 export class DeviceRegistry {
   private readonly descriptors = new Map<string, DeviceDescriptor>()
+  /** Former id → the id of today (`DeviceDescriptor.formerIds`). */
+  private readonly renamed = new Map<string, string>()
   private readonly listeners = new Set<DeviceRegistryListener>()
 
   constructor(initial: Iterable<DeviceDescriptor> = []) {
@@ -212,35 +224,50 @@ export class DeviceRegistry {
     if (this.descriptors.has(descriptor.id) && !options.replace) {
       throw new Error(`live-mix: device "${descriptor.id}" is already registered`)
     }
+    this.forgetFormerIds(descriptor.id)
     this.descriptors.set(descriptor.id, generic)
+    for (const former of generic.formerIds ?? []) this.renamed.set(former, descriptor.id)
     this.emit({ type: 'register', descriptor: generic })
     return this
   }
 
+  /** Remove a descriptor by its id of today; its former ids go with it. */
   unregister(id: string): boolean {
     const descriptor = this.descriptors.get(id)
     if (!descriptor) return false
     this.descriptors.delete(id)
+    this.forgetFormerIds(id)
     this.emit({ type: 'unregister', descriptor })
     return true
   }
 
-  has(id: string): boolean {
-    return this.descriptors.has(id)
+  /**
+   * The id a device goes by today: `id` itself when a device is registered
+   * under it or nothing is known of it, else the id of the device that lists
+   * it in `formerIds`. A registered id always wins over a former one.
+   */
+  resolveId(id: string): string {
+    return this.descriptors.has(id) ? id : (this.renamed.get(id) ?? id)
   }
 
+  /** Whether a device is registered under `id`, today's or a former one. */
+  has(id: string): boolean {
+    return this.descriptors.has(this.resolveId(id))
+  }
+
+  /** The descriptor registered under `id`, today's or a former one. */
   get(id: string): DeviceDescriptor | undefined {
-    return this.descriptors.get(id)
+    return this.descriptors.get(this.resolveId(id))
   }
 
   /** Like `get`, but throws for an unknown id. */
   describe(id: string): DeviceDescriptor {
-    const descriptor = this.descriptors.get(id)
+    const descriptor = this.get(id)
     if (!descriptor) throw new Error(`live-mix: unknown device "${id}"`)
     return descriptor
   }
 
-  /** Descriptors in registration order, optionally filtered by kind and category. */
+  /** Descriptors in registration order, optionally filtered by kind and category; each once, under its id of today. */
   list(filter: DeviceFilter = {}): DeviceDescriptor[] {
     return [...this.descriptors.values()].filter(
       (descriptor) =>
@@ -249,6 +276,7 @@ export class DeviceRegistry {
     )
   }
 
+  /** Every registered id of today, in registration order; former ids are not among them. */
   ids(): string[] {
     return [...this.descriptors.keys()]
   }
@@ -259,9 +287,9 @@ export class DeviceRegistry {
   }
 
   /**
-   * Instantiate a device by id. A `preset` (name or object) seeds the params,
-   * explicit `params` override it, and every other option reaches the factory
-   * untouched.
+   * Instantiate a device by id, today's or a former one. A `preset` (name or
+   * object) seeds the params, explicit `params` override it, and every other
+   * option reaches the factory untouched.
    */
   async create(
     id: string,
@@ -290,6 +318,12 @@ export class DeviceRegistry {
     this.listeners.add(listener)
     return () => {
       this.listeners.delete(listener)
+    }
+  }
+
+  private forgetFormerIds(id: string): void {
+    for (const [former, current] of this.renamed) {
+      if (current === id) this.renamed.delete(former)
     }
   }
 

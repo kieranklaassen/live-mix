@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url'
 
 import { expect, test } from '@playwright/test'
 import { ParamLane, renderOffline } from '@kieranklaassen/live-mix'
-import { createDattorroReverb } from '@kieranklaassen/live-mix/dsp'
+import { createPlateReverb } from '@kieranklaassen/live-mix/dsp'
 import {
   createMockOfflineContext,
   type MockAudioContext,
@@ -23,7 +23,7 @@ import type { HarnessResult } from '../harness/main'
 import { DEFAULT_SESSION, buildSession } from '../session'
 import { collectPageErrors } from './page-errors'
 
-const wasmPath = fileURLToPath(new URL('../../dist/wasm/dattorro.wasm', import.meta.url))
+const wasmPath = fileURLToPath(new URL('../../dist/wasm/plate-reverb.wasm', import.meta.url))
 
 /** The same session on the recording mocks: what the Vitest goldens assert against. */
 async function mockGolden(): Promise<ScheduleSnapshot> {
@@ -39,7 +39,7 @@ async function mockGolden(): Promise<ScheduleSnapshot> {
     build: (engine) =>
       buildSession(engine, DEFAULT_SESSION, {
         createReverb: (context) =>
-          createDattorroReverb(context, {
+          createPlateReverb(context, {
             params: { mix: 0.3, decay: 0.6 },
             wasm: new Uint8Array(wasm),
             createNode: (c, name, options) =>
@@ -110,7 +110,7 @@ test.describe('real-audio render-equals-live', () => {
   })
 
   test('the live capture matches the offline render within loudness and spectral tolerance', () => {
-    // Gate 25 dB under the loudest block/band: the Dattorro's free-running
+    // Gate 25 dB under the loudest block/band: the plate's free-running
     // modulation makes the quiet reverb tail differ between a context that
     // started at 0 and one already running, and that is not what this asserts.
     const diff = compareFingerprints(result.offline.fingerprint, result.live.fingerprint, -25)

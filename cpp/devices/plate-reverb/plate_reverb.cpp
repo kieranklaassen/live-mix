@@ -1,4 +1,4 @@
-#include "dattorro_reverb.h"
+#include "plate_reverb.h"
 
 #include <cmath>
 
@@ -43,7 +43,7 @@ constexpr float kMaxPredelayMs = 250.0f;
 }  // namespace
 
 template <int N>
-float DattorroReverb::ModulatedAllpass<N>::process(float x, float gain) {
+float PlateReverb::ModulatedAllpass<N>::process(float x, float gain) {
   lfo_phase += lfo_increment;
   if (lfo_phase >= kTwoPi) lfo_phase -= kTwoPi;
   const float delay = base_length + excursion * (1.0f + std::sin(lfo_phase)) * 0.5f;
@@ -54,9 +54,9 @@ float DattorroReverb::ModulatedAllpass<N>::process(float x, float gain) {
   return delayed - gain * feed;
 }
 
-void DattorroReverb::init(float sample_rate) {
+void PlateReverb::init(float sample_rate) {
   // Reset in place: the buffers total ~600KB, so materializing a temporary
-  // DattorroReverb here would overflow the (64KB default) WASM stack.
+  // PlateReverb here would overflow the (64KB default) WASM stack.
   predelay_.clear();
   input_lowpass_.state = 0.0f;
   input_diffusion_1_.buffer.clear();
@@ -118,19 +118,19 @@ void DattorroReverb::init(float sample_rate) {
   set_predelay_ms(20.0f);
 }
 
-void DattorroReverb::set_decay(float decay) {
+void PlateReverb::set_decay(float decay) {
   if (decay < 0.0f) decay = 0.0f;
   if (decay > 0.9999f) decay = 0.9999f;
   decay_ = decay;
 }
 
-void DattorroReverb::set_damping(float damping) {
+void PlateReverb::set_damping(float damping) {
   if (damping < 0.0f) damping = 0.0f;
   if (damping > 0.9999f) damping = 0.9999f;
   damping_coefficient_ = damping;
 }
 
-void DattorroReverb::set_predelay_ms(float ms) {
+void PlateReverb::set_predelay_ms(float ms) {
   if (ms < 0.0f) ms = 0.0f;
   if (ms > kMaxPredelayMs) ms = kMaxPredelayMs;
   int samples = static_cast<int>(ms * 0.001f * sample_rate_ + 0.5f);
@@ -138,7 +138,7 @@ void DattorroReverb::set_predelay_ms(float ms) {
   predelay_samples_ = samples;
 }
 
-void DattorroReverb::process(float in, float* wet_left, float* wet_right) {
+void PlateReverb::process(float in, float* wet_left, float* wet_right) {
   predelay_.write(in);
   float x = input_lowpass_.process(predelay_.read(predelay_samples_),
                                    bandwidth_coefficient_);
@@ -190,7 +190,7 @@ void DattorroReverb::process(float in, float* wet_left, float* wet_right) {
   *wet_right = out_r;
 }
 
-void DattorroReverb::advance_modulators(int frames) {
+void PlateReverb::advance_modulators(int frames) {
   // The same additions process() makes, one per sample: a single step of
   // `frames` increments rounds differently and would drift away from them.
   float left = left_decay_diffusion_1_.lfo_phase;
@@ -207,7 +207,7 @@ void DattorroReverb::advance_modulators(int frames) {
   right_decay_diffusion_1_.lfo_phase = right;
 }
 
-bool DattorroReverb::is_silent_state() const {
+bool PlateReverb::is_silent_state() const {
   const auto buffer_silent = [](const float* data, int n) {
     for (int i = 0; i < n; ++i) {
       if (data[i] != 0.0f) return false;
@@ -226,7 +226,7 @@ bool DattorroReverb::is_silent_state() const {
          left_feedback_ == 0.0f && right_feedback_ == 0.0f;
 }
 
-bool DattorroReverb::has_denormal_state() const {
+bool PlateReverb::has_denormal_state() const {
   const auto buffer_has_denormal = [](const float* data, int n) {
     for (int i = 0; i < n; ++i) {
       const float magnitude = data[i] < 0.0f ? -data[i] : data[i];

@@ -9,7 +9,7 @@ export const TAPE_ORCHESTRA_PRESETS: readonly FactoryPreset[] = [
     instrument: { deviceId: 'tape-orchestra', preset: 'Slow strings', params: { volume: -7 } },
     effects: [
       { deviceId: 'chorus', preset: 'Slow drift', params: { mix: 0.3 } },
-      { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.3 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.3 } },
     ],
   },
   {
@@ -49,7 +49,7 @@ export const TAPE_ORCHESTRA_PRESETS: readonly FactoryPreset[] = [
     instrument: { deviceId: 'tape-orchestra', preset: 'Flutes on tape', params: { volume: -6 } },
     effects: [
       { deviceId: 'tape-echo', preset: 'Warm repeats', params: { mix: 0.22 } },
-      { deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.3 } },
+      { deviceId: 'plate-reverb', preset: 'Small plate', params: { mix: 0.3 } },
     ],
   },
   {
@@ -131,7 +131,7 @@ export const TAPE_ORCHESTRA_PRESETS: readonly FactoryPreset[] = [
         volume: -11,
       },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Tight chamber', params: { mix: 0.25 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Tight chamber', params: { mix: 0.25 } }],
   },
   {
     id: 'one-taped-reed',
@@ -153,7 +153,7 @@ export const TAPE_ORCHESTRA_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'analog-delay', preset: 'Faint halo' },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.25 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.25 } },
     ],
   },
   {
@@ -178,7 +178,7 @@ export const TAPE_ORCHESTRA_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'rotary', preset: 'Chorale' },
-      { deviceId: 'zita-rev1', preset: 'Room' },
+      { deviceId: 'hall-reverb', preset: 'Room' },
     ],
   },
   {
@@ -246,7 +246,7 @@ export const TAPE_ORCHESTRA_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'analog-delay', preset: 'Murky' },
-      { deviceId: 'zita-rev1', preset: 'Hall' },
+      { deviceId: 'hall-reverb', preset: 'Hall' },
     ],
   },
   {
@@ -320,7 +320,7 @@ export const TAPE_ORCHESTRA_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'vinyl', preset: 'Parlour 78' },
-      { deviceId: 'zita-rev1', preset: 'Room' },
+      { deviceId: 'hall-reverb', preset: 'Room' },
     ],
   },
   {
@@ -346,7 +346,7 @@ export const TAPE_ORCHESTRA_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'flanger', preset: 'Slow sweep', params: { mix: 0.4 } },
-      { deviceId: 'zita-rev1', preset: 'Dark hall' },
+      { deviceId: 'hall-reverb', preset: 'Dark hall' },
     ],
   },
   {
@@ -372,7 +372,7 @@ export const TAPE_ORCHESTRA_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'grain-delay', preset: 'Crystals', params: { spread: 0.4 } },
-      { deviceId: 'zita-rev1', preset: 'Airy tail' },
+      { deviceId: 'hall-reverb', preset: 'Airy tail' },
     ],
   },
   {
@@ -388,7 +388,7 @@ export const TAPE_ORCHESTRA_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'reverse-delay', preset: 'Backwards only', params: { spread: 0.15, mix: 0.7 } },
-      { deviceId: 'zita-rev1', preset: 'Hall' },
+      { deviceId: 'hall-reverb', preset: 'Hall' },
     ],
   },
   {
@@ -411,7 +411,7 @@ export const TAPE_ORCHESTRA_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'radio', preset: 'Kitchen radio', params: { interference: 0 } },
-      { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.2 } },
+      { deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.2 } },
     ],
   },
 ]

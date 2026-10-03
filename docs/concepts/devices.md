@@ -17,7 +17,7 @@ without knowing which:
 
 ```ts
 interface Device {
-  readonly id: string // device type, e.g. 'dattorro'
+  readonly id: string // device type, e.g. 'plate-reverb'
   readonly params: Record<string, ParamSpec> // { id, name, min, max, default, taper: 'linear' | 'log', unit }
   readonly input: AudioNode
   readonly output: AudioNode
@@ -128,11 +128,14 @@ after a probe ([wam.md](../wam.md#registry-kind-wam)).
 import { devices } from '@kieranklaassen/live-mix'
 import { registerStockWasmDevices, wasmDeviceDescriptor } from '@kieranklaassen/live-mix/dsp'
 
-registerStockWasmDevices() // dattorro, fdn-reverb, stereo-widener, zita-rev1, limiter-1176, ducker, spectral-drifter, ether-reverb, felt-piano
+registerStockWasmDevices() // plate-reverb, fdn-reverb, stereo-widener, hall-reverb, fet-limiter, ducker, spectral-drifter, ether-reverb, felt-piano
 devices.register(wasmDeviceDescriptor(MY_DEVICE, { name: 'Mine', category: 'reverb' }))
 
 devices.list({ category: 'reverb' }).map((d) => d.name)
-const plate = await devices.create('dattorro', ctx, { preset: 'Small plate', params: { mix: 0.2 } })
+const plate = await devices.create('plate-reverb', ctx, {
+  preset: 'Small plate',
+  params: { mix: 0.2 },
+})
 const preset = devices.capturePreset(plate, 'Tonight') // { name, deviceId, deviceVersion, params }
 localStorage.setItem('plate', serializePreset(preset))
 applyPreset(plate, parsePreset(localStorage.getItem('plate')))

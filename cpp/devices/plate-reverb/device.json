@@ -1,0 +1,11 @@
+{
+  "id": "plate-reverb",
+  "name": "Plate Reverb",
+  "sources": ["plate_reverb.cpp", "plate_reverb_device.cpp", "device_api.cpp"],
+  "params": "src/dsp/devices/plate-reverb.ts",
+  "origin": {
+    "repo": "kieranklaassen/ambient-live",
+    "sha": "1d3b31b",
+    "paths": ["engine/src/plate_reverb.h", "engine/src/plate_reverb.cpp", "engine/src/dsp_util.h"]
+  }
+}

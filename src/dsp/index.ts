@@ -35,12 +35,12 @@ export {
 export { isNoteDevice, type Device, type NoteDevice } from '../core/devices/Device'
 export { clampParam, type ParamSpec, type ParamTaper } from '../core/params'
 export {
-  DATTORRO_DEVICE,
-  DATTORRO_PARAMS,
-  createDattorroReverb,
-  type DattorroParamName,
-  type DattorroReverb,
-} from './devices/dattorro'
+  PLATE_REVERB_DEVICE,
+  PLATE_REVERB_PARAMS,
+  createPlateReverb,
+  type PlateReverbParamName,
+  type PlateReverb,
+} from './devices/plate-reverb'
 export {
   FDN_REVERB_DEVICE,
   FDN_REVERB_PARAMS,
@@ -57,31 +57,32 @@ export {
   type StereoWidenerParamName,
 } from './devices/stereo-widener'
 export {
-  ZITA_REV1_DEVICE,
-  ZITA_REV1_PARAMS,
-  createZitaReverb,
-  type ZitaReverb,
-  type ZitaRev1ParamName,
-} from './devices/zita-rev1'
+  HALL_REVERB_DEVICE,
+  HALL_REVERB_PARAMS,
+  createHallReverb,
+  type HallReverb,
+  type HallReverbParamName,
+} from './devices/hall-reverb'
 export {
-  LIMITER_1176_DEVICE,
-  LIMITER_1176_PARAMS,
-  createLimiter1176,
-  type Limiter1176,
-  type Limiter1176ParamName,
-} from './devices/limiter-1176'
+  FET_LIMITER_DEVICE,
+  FET_LIMITER_PARAMS,
+  createFetLimiter,
+  type FetLimiter,
+  type FetLimiterParamName,
+} from './devices/fet-limiter'
 export {
-  DATTORRO_DESCRIPTOR,
+  PLATE_REVERB_DESCRIPTOR,
   ETHER_REVERB_DESCRIPTOR,
   FDN_REVERB_DESCRIPTOR,
   FELT_PIANO_DESCRIPTOR,
-  LIMITER_1176_DESCRIPTOR,
+  FET_LIMITER_DESCRIPTOR,
   SAMPLE_DEVICE_IDS,
   WORKLET_DUCKER_DESCRIPTOR,
   SPECTRAL_DRIFTER_DESCRIPTOR,
   STEREO_WIDENER_DESCRIPTOR,
   STOCK_WASM_DEVICES,
-  ZITA_REV1_DESCRIPTOR,
+  HALL_REVERB_DESCRIPTOR,
+  describeStockWasmDevice,
   registerStockWasmDevices,
   wasmDeviceDescriptor,
   type WasmDeviceMeta,

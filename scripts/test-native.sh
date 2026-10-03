@@ -10,12 +10,12 @@ mkdir -p "$out_dir"
 CXX="${CXX:-c++}"
 
 "$CXX" -std=c++17 -O2 -fno-exceptions -fno-rtti -Wall -Wextra \
-  cpp/test/dattorro_test.cpp \
-  cpp/devices/dattorro/dattorro_reverb.cpp \
-  cpp/devices/dattorro/dattorro_device.cpp \
-  -o "$out_dir/dattorro_test"
+  cpp/test/plate_reverb_test.cpp \
+  cpp/devices/plate-reverb/plate_reverb.cpp \
+  cpp/devices/plate-reverb/plate_reverb_device.cpp \
+  -o "$out_dir/plate_reverb_test"
 
-"$out_dir/dattorro_test"
+"$out_dir/plate_reverb_test"
 
 "$CXX" -std=c++17 -O2 -fno-exceptions -fno-rtti -Wall -Wextra \
   cpp/test/fdn_reverb_test.cpp \
@@ -67,16 +67,16 @@ CXX="${CXX:-c++}"
 # Faust devices are header-only: the generated class plus the FaustDevice
 # template. -Wno-unused-parameter covers Faust's empty classInit(sample_rate).
 "$CXX" -std=c++17 -O2 -fno-exceptions -fno-rtti -Wall -Wextra -Wno-unused-parameter \
-  cpp/test/zita_rev1_test.cpp \
-  -o "$out_dir/zita_rev1_test"
+  cpp/test/hall_reverb_test.cpp \
+  -o "$out_dir/hall_reverb_test"
 
-"$out_dir/zita_rev1_test"
+"$out_dir/hall_reverb_test"
 
 "$CXX" -std=c++17 -O2 -fno-exceptions -fno-rtti -Wall -Wextra -Wno-unused-parameter \
-  cpp/test/limiter_1176_test.cpp \
-  -o "$out_dir/limiter_1176_test"
+  cpp/test/fet_limiter_test.cpp \
+  -o "$out_dir/fet_limiter_test"
 
-"$out_dir/limiter_1176_test"
+"$out_dir/fet_limiter_test"
 
 # native_test <name> <sources...>: compile one harness and run it.
 native_test() {

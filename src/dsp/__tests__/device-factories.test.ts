@@ -9,15 +9,15 @@ import { describe, expect, it } from 'vitest'
 
 import { asAudioContext, createMockContext, type MockAudioContext } from '../../testing'
 import { type WasmDeviceProcessorOptions } from '../abi'
-import { DATTORRO_DEVICE, createDattorroReverb } from '../devices/dattorro'
+import { PLATE_REVERB_DEVICE, createPlateReverb } from '../devices/plate-reverb'
 import { ETHER_REVERB_DEVICE, createEtherReverb } from '../devices/ether-reverb'
 import { FELT_PIANO_DEVICE, createFeltPiano } from '../devices/felt-piano'
 import { FDN_REVERB_DEVICE, createFdnReverb } from '../devices/fdn-reverb'
-import { LIMITER_1176_DEVICE, createLimiter1176 } from '../devices/limiter-1176'
+import { FET_LIMITER_DEVICE, createFetLimiter } from '../devices/fet-limiter'
 import { SPECTRAL_DRIFTER_DEVICE, createSpectralDrifter } from '../devices/spectral-drifter'
 import { STEREO_WIDENER_DEVICE, createStereoWidener } from '../devices/stereo-widener'
 import { TRUE_PEAK_LIMITER_DEVICE, createTruePeakLimiter } from '../devices/true-peak-limiter'
-import { ZITA_REV1_DEVICE, createZitaReverb } from '../devices/zita-rev1'
+import { HALL_REVERB_DEVICE, createHallReverb } from '../devices/hall-reverb'
 import { type WasmDeviceDefinition, type WorkletNodeFactory } from '../WasmDevice'
 
 const wasmDir = join(dirname(fileURLToPath(import.meta.url)), '../wasm')
@@ -29,15 +29,15 @@ const mockNodeFactory: WorkletNodeFactory = (context, name, options) =>
   ) as unknown as AudioWorkletNode
 
 const factories = [
-  { definition: DATTORRO_DEVICE, create: createDattorroReverb, artefact: 'dattorro.wasm' },
+  { definition: PLATE_REVERB_DEVICE, create: createPlateReverb, artefact: 'plate-reverb.wasm' },
   { definition: FDN_REVERB_DEVICE, create: createFdnReverb, artefact: 'fdn-reverb.wasm' },
   {
     definition: STEREO_WIDENER_DEVICE,
     create: createStereoWidener,
     artefact: 'stereo-widener.wasm',
   },
-  { definition: ZITA_REV1_DEVICE, create: createZitaReverb, artefact: 'zita-rev1.wasm' },
-  { definition: LIMITER_1176_DEVICE, create: createLimiter1176, artefact: 'limiter-1176.wasm' },
+  { definition: HALL_REVERB_DEVICE, create: createHallReverb, artefact: 'hall-reverb.wasm' },
+  { definition: FET_LIMITER_DEVICE, create: createFetLimiter, artefact: 'fet-limiter.wasm' },
   {
     definition: TRUE_PEAK_LIMITER_DEVICE,
     create: createTruePeakLimiter,
@@ -83,7 +83,7 @@ describe.each(factories)('$definition.id factory', ({ definition, create, artefa
     const ctx = createMockContext()
     const module = await WebAssembly.compile(await readFile(join(wasmDir, artefact)))
     const [firstName, firstSpec] = Object.entries(def.params)[0]
-    const device = await (create as typeof createDattorroReverb)(asAudioContext(ctx), {
+    const device = await (create as typeof createPlateReverb)(asAudioContext(ctx), {
       wasm: module,
       processorUrl: 'p',
       createNode: mockNodeFactory,

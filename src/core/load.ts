@@ -31,7 +31,7 @@ export interface LoadClaim {
 
 /** Every processor of one kind, together. */
 export interface DeviceLoad {
-  /** The kind: a device id such as `zita-rev1`. */
+  /** The kind: a device id such as `hall-reverb`. */
   label: string
   /** How many of them are running. */
   count: number

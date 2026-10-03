@@ -1,0 +1,11 @@
+{
+  "id": "fet-limiter",
+  "name": "FET Limiter",
+  "sources": ["fet-limiter.dsp", "generated/fet-limiter.h", "fet-limiter.device.cpp"],
+  "params": "src/dsp/devices/faust/fet-limiter.ts",
+  "origin": {
+    "faust": "2.88.0",
+    "generator": "scripts/build-faust.sh",
+    "libraries": ["compressors.lib limiter_1176_R4_stereo (Julius O. Smith III, STK-4.3)"]
+  }
+}

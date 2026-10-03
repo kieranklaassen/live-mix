@@ -24,7 +24,11 @@ export const ECHO_CHAINS: readonly FactoryChain[] = [
         preset: 'Backwards echo',
         params: { time: 900, smooth: 0.6, mix: 0.5 },
       },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { lowDecay: 4, midDecay: 3.5, mix: 0.15 } },
+      {
+        deviceId: 'hall-reverb',
+        preset: 'Hall',
+        params: { lowDecay: 4, midDecay: 3.5, mix: 0.15 },
+      },
     ],
   },
   {
@@ -34,7 +38,7 @@ export const ECHO_CHAINS: readonly FactoryChain[] = [
     description: 'Repeats rebuilt from grains an octave up, each pass climbing again into a plate.',
     effects: [
       { deviceId: 'grain-delay', preset: 'Crystals' },
-      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.3 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.3 } },
     ],
   },
   {
@@ -56,7 +60,7 @@ export const ECHO_CHAINS: readonly FactoryChain[] = [
       'A soft echo while phrases from the last twenty seconds drift back under what you play, in a wide plate.',
     effects: [
       { deviceId: 'echo-memory', preset: 'Recalling', params: { mix: 0.35 } },
-      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -78,7 +82,7 @@ export const ECHO_CHAINS: readonly FactoryChain[] = [
       'Long, dark bucket-brigade repeats with a slow chorus and a little hiss, set back in a plate.',
     effects: [
       { deviceId: 'analog-delay', preset: 'Murky', params: { feedback: 0.55, mix: 0.35 } },
-      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -89,7 +93,7 @@ export const ECHO_CHAINS: readonly FactoryChain[] = [
       'Each phrase comes back as a soft loop that fades under what is played next, in a plate.',
     effects: [
       { deviceId: 'micro-looper', preset: 'Soft bed' },
-      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -135,7 +139,7 @@ export const ECHO_CHAINS: readonly FactoryChain[] = [
         preset: 'Dotted bounce',
         params: { time: 480, feedback: 0.5, mix: 0.3 },
       },
-      { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.2 } },
+      { deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.2 } },
     ],
   },
   {
@@ -198,7 +202,7 @@ export const ECHO_CHAINS: readonly FactoryChain[] = [
         preset: 'Slow swirl',
         params: { rate: 0.09, centerHz: 1600, mix: 0.3 },
       },
-      { deviceId: 'limiter-1176', preset: 'Safety', params: { inputGain: 2.5 } },
+      { deviceId: 'fet-limiter', preset: 'Safety', params: { inputGain: 2.5 } },
     ],
   },
   {
@@ -222,7 +226,7 @@ export const ECHO_CHAINS: readonly FactoryChain[] = [
       { deviceId: 'tape-echo', preset: 'Two head gallop', params: { time: 540, mix: 0.3 } },
       { deviceId: 'tremolo', preset: 'Amp tremolo', params: { rate: 5.5, depth: 0.35 } },
       { deviceId: 'spring-reverb', preset: 'Dark amp spring', params: { mix: 0.22 } },
-      { deviceId: 'limiter-1176', preset: 'Safety', params: { inputGain: 3 } },
+      { deviceId: 'fet-limiter', preset: 'Safety', params: { inputGain: 3 } },
     ],
   },
   {
@@ -242,7 +246,7 @@ export const ECHO_CHAINS: readonly FactoryChain[] = [
         preset: 'Clean echo',
         params: { time: 600, tone: 5000, spread: 0.6, mix: 0.3 },
       },
-      { deviceId: 'zita-rev1', preset: 'Faint halo' },
+      { deviceId: 'hall-reverb', preset: 'Faint halo' },
     ],
   },
   {
@@ -322,7 +326,7 @@ export const ECHO_CHAINS: readonly FactoryChain[] = [
         preset: 'Crossing sides',
         params: { length: 1.5, feedback: 0.75, mix: 0.4 },
       },
-      { deviceId: 'zita-rev1', preset: 'Warm undertow', params: { mix: 0.2 } },
+      { deviceId: 'hall-reverb', preset: 'Warm undertow', params: { mix: 0.2 } },
     ],
   },
   {
@@ -337,7 +341,7 @@ export const ECHO_CHAINS: readonly FactoryChain[] = [
         preset: 'Rising echo',
         params: { fine: 7, feedback: 0.7 },
       },
-      { deviceId: 'dattorro', preset: 'Dark plate', params: { mix: 0.25 } },
+      { deviceId: 'plate-reverb', preset: 'Dark plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -369,7 +373,7 @@ export const ECHO_CHAINS: readonly FactoryChain[] = [
         params: { time: 1200, lowCut: 100, highCut: 3500, mix: 0.35 },
       },
       { deviceId: 'chorus', preset: 'Slow drift', params: { mix: 0.3 } },
-      { deviceId: 'limiter-1176', preset: 'Safety', params: { inputGain: 5, outputGain: -1.5 } },
+      { deviceId: 'fet-limiter', preset: 'Safety', params: { inputGain: 5, outputGain: -1.5 } },
     ],
   },
   {
@@ -381,7 +385,7 @@ export const ECHO_CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'swell', preset: 'Slow attack', params: { attack: 220 } },
       {
-        deviceId: 'limiter-1176',
+        deviceId: 'fet-limiter',
         preset: 'Gentle lift',
         params: { inputGain: 4, outputGain: -2.5 },
       },
@@ -390,7 +394,7 @@ export const ECHO_CHAINS: readonly FactoryChain[] = [
         preset: 'Plain echo',
         params: { time: 520, feedback: 0.6, tone: 4000, spread: 0, mix: 0.4 },
       },
-      { deviceId: 'zita-rev1', preset: 'Airy tail', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Airy tail', params: { mix: 0.3 } },
     ],
   },
   {

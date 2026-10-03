@@ -1533,6 +1533,46 @@ export function normaliseScore(score: Score): Score {
   return out
 }
 
+/**
+ * The score with every device named by the id it goes by today in `devices`.
+ * A device that was renamed still loads under the id it had
+ * (`DeviceDescriptor.formerIds`), so an old document renders as it is; this
+ * moves it on to the new id, for a host that keys anything of its own by
+ * device id. Instance ids are left alone. The same object when nothing changes.
+ */
+export function withCurrentDeviceIds(
+  score: Score,
+  devices: Pick<DeviceRegistry, 'resolveId'>,
+): Score {
+  let renamed = false
+  const current = (device: ScoreDevice): ScoreDevice => {
+    const deviceId = devices.resolveId(device.deviceId)
+    if (deviceId === device.deviceId) return device
+    renamed = true
+    return { ...device, deviceId }
+  }
+  const inStrip = (strip: ScoreStrip): ScoreStrip => ({
+    ...strip,
+    inserts: strip.inserts.map(current),
+  })
+  const out: Score = {
+    ...score,
+    master: { ...score.master, inserts: score.master.inserts.map(current) },
+    tracks: score.tracks.map((track) =>
+      track.kind === 'instrument'
+        ? { ...track, strip: inStrip(track.strip), device: current(track.device) }
+        : { ...track, strip: inStrip(track.strip) },
+    ),
+    groups: score.groups.map((group) => ({ ...group, strip: inStrip(group.strip) })),
+    returns: score.returns.map((ret) => ({
+      ...ret,
+      strip: inStrip(ret.strip),
+      device: current(ret.device),
+    })),
+  }
+  return renamed ? out : score
+}
+
 /** Stable JSON (two-space indent, canonical field order). */
 export function serializeScore(score: Score): string {
   return JSON.stringify(normaliseScore(score), null, 2)
@@ -1599,11 +1639,14 @@ export function migrateScore(input: unknown): unknown {
 
 /**
  * Parse `serializeScore` output (a JSON string or an already-parsed value):
- * migrate, validate (throws `ScoreValidationError`), normalise.
+ * migrate, validate (throws `ScoreValidationError`), normalise. With `devices`
+ * given, a device saved under an id it had before it was renamed comes back
+ * under its id of today (`withCurrentDeviceIds`).
  */
 export function parseScore(input: unknown, options: ValidateScoreOptions = {}): Score {
   const value: unknown = typeof input === 'string' ? JSON.parse(input) : input
   const migrated = migrateScore(value)
   assertValidScore(migrated, options)
-  return normaliseScore(migrated)
+  const score = normaliseScore(migrated)
+  return options.devices ? withCurrentDeviceIds(score, options.devices) : score
 }

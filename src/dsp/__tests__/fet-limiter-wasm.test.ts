@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import { LIMITER_1176_PARAMS } from '../devices/faust/limiter-1176'
+import { FET_LIMITER_PARAMS } from '../devices/faust/fet-limiter'
 import { DEVICE_EXPORT_NAMES, dbToGain, gainToDb, loadWasmDevice } from './wasm-device-harness'
 
-const P = LIMITER_1176_PARAMS
+const P = FET_LIMITER_PARAMS
 
 // co.limiter_1176_R4_stereo: level = |L|+|R| in dB, 4:1 above -6 dB. The
 // ceiling after it is a wire up to half scale, which is where these sit.
@@ -13,15 +13,15 @@ const expectedPeak = (gain: number) => {
 }
 
 async function settledPeak(gain: number, inputGainDb = 0, outputGainDb = 0) {
-  const h = await loadWasmDevice('limiter-1176')
+  const h = await loadWasmDevice('fet-limiter')
   h.set(P.inputGain, inputGainDb)
   h.set(P.outputGain, outputGainDb)
   return h.feedTone(1, 440, gain, 0.5)
 }
 
-describe('limiter-1176.wasm (committed Faust artefact)', () => {
+describe('fet-limiter.wasm (committed Faust artefact)', () => {
   it('exports the device ABI with an empty import object', async () => {
-    const { device, maxBlock } = await loadWasmDevice('limiter-1176')
+    const { device, maxBlock } = await loadWasmDevice('fet-limiter')
     expect(maxBlock).toBe(2048)
     for (const name of DEVICE_EXPORT_NAMES) {
       expect(typeof device[name]).toBe('function')
@@ -66,7 +66,7 @@ describe('limiter-1176.wasm (committed Faust artefact)', () => {
     // One sample at -6 dBFS used to leave at +6 dBFS with 12 dB of input
     // gain and at +18 dBFS with 24: the 0.8 ms attack never sees it.
     for (const inputGain of [12, 24, 40]) {
-      const h = await loadWasmDevice('limiter-1176')
+      const h = await loadWasmDevice('fet-limiter')
       h.set(P.inputGain, inputGain)
       h.renderSilence(0.1)
       const click = new Float32Array(128)
@@ -80,7 +80,7 @@ describe('limiter-1176.wasm (committed Faust artefact)', () => {
   })
 
   it('stays finite and under full scale with 40 dB of drive', async () => {
-    const h = await loadWasmDevice('limiter-1176')
+    const h = await loadWasmDevice('fet-limiter')
     h.set(P.inputGain, 40)
     const peak = h.feedTone(5, 55, 4)
     expect(Number.isFinite(peak)).toBe(true)

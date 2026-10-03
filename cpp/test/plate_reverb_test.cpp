@@ -1,4 +1,4 @@
-// Native parity harness for the Dattorro device. These are the reverb,
+// Native parity harness for the plate reverb device. These are the reverb,
 // stability and denormal tests from ambient-live's engine_test.cpp, driven
 // through the device's stereo input bus instead of the old sine voice, plus
 // the input-bus contract (pass-through at mix 0, cleared between blocks).
@@ -8,7 +8,7 @@
 #include <cmath>
 #include <cstdio>
 
-#include "../devices/dattorro/dattorro_device.h"
+#include "../devices/plate-reverb/plate_reverb_device.h"
 
 namespace {
 
@@ -26,14 +26,14 @@ constexpr float kSampleRate = 48000.0f;
 constexpr int kBlock = 128;
 constexpr float kTwoPi = 6.28318530717958647692f;
 
-livemix::DattorroDevice g_test_device;
+livemix::PlateReverbDevice g_test_device;
 // A plate on its own, run for every sample whether or not anything is in it:
 // what the device did before it could sleep.
-livemix::DattorroReverb g_awake_reverb;
+livemix::PlateReverb g_awake_reverb;
 
 // Renders `seconds` of silence input, returning the peak absolute output and
 // optionally the left-channel RMS. NaN/inf poison the peak so callers notice.
-float render_seconds(livemix::DattorroDevice& device, float seconds,
+float render_seconds(livemix::PlateReverbDevice& device, float seconds,
                      float* rms_out = nullptr) {
   const int total_frames = static_cast<int>(seconds * kSampleRate);
   float peak = 0.0f;
@@ -64,7 +64,7 @@ float render_seconds(livemix::DattorroDevice& device, float seconds,
 }
 
 // Feeds `seconds` of a sine tone into both input channels.
-float feed_tone(livemix::DattorroDevice& device, float seconds, float frequency,
+float feed_tone(livemix::PlateReverbDevice& device, float seconds, float frequency,
                 float gain) {
   const int total_frames = static_cast<int>(seconds * kSampleRate);
   float phase = 0.0f;
@@ -90,11 +90,11 @@ float feed_tone(livemix::DattorroDevice& device, float seconds, float frequency,
 }
 
 void test_reverb_tail_exists_and_decays() {
-  livemix::DattorroDevice& device = g_test_device;
+  livemix::PlateReverbDevice& device = g_test_device;
   device.init(kSampleRate);
-  device.set_param(livemix::DattorroParam::kMix, 1.0f);
-  device.set_param(livemix::DattorroParam::kDecay, 0.7f);
-  device.set_param(livemix::DattorroParam::kPredelayMs, 1.0f);
+  device.set_param(livemix::PlateReverbParam::kMix, 1.0f);
+  device.set_param(livemix::PlateReverbParam::kDecay, 0.7f);
+  device.set_param(livemix::PlateReverbParam::kPredelayMs, 1.0f);
 
   feed_tone(device, 0.05f, 880.0f, 1.0f);
 
@@ -113,11 +113,11 @@ void test_reverb_tail_exists_and_decays() {
 
 void test_decay_parameter_lengthens_tail() {
   const auto tail_rms_at_2s = [](float decay) {
-    livemix::DattorroDevice& device = g_test_device;
+    livemix::PlateReverbDevice& device = g_test_device;
     device.init(kSampleRate);
-    device.set_param(livemix::DattorroParam::kMix, 1.0f);
-    device.set_param(livemix::DattorroParam::kDecay, decay);
-    device.set_param(livemix::DattorroParam::kPredelayMs, 1.0f);
+    device.set_param(livemix::PlateReverbParam::kMix, 1.0f);
+    device.set_param(livemix::PlateReverbParam::kDecay, decay);
+    device.set_param(livemix::PlateReverbParam::kPredelayMs, 1.0f);
     feed_tone(device, 0.05f, 440.0f, 1.0f);
     render_seconds(device, 2.0f);
     float rms = 0.0f;
@@ -132,10 +132,10 @@ void test_decay_parameter_lengthens_tail() {
 }
 
 void test_stability_under_load() {
-  livemix::DattorroDevice& device = g_test_device;
+  livemix::PlateReverbDevice& device = g_test_device;
   device.init(kSampleRate);
-  device.set_param(livemix::DattorroParam::kMix, 0.5f);
-  device.set_param(livemix::DattorroParam::kDecay, 0.95f);
+  device.set_param(livemix::PlateReverbParam::kMix, 0.5f);
+  device.set_param(livemix::PlateReverbParam::kDecay, 0.95f);
 
   // Eight stacked partials at 0.4 each, like the old eight-voice stress test.
   float peak = 0.0f;
@@ -170,10 +170,10 @@ void test_stability_under_load() {
 }
 
 void test_denormals_flush_to_silence() {
-  livemix::DattorroDevice& device = g_test_device;
+  livemix::PlateReverbDevice& device = g_test_device;
   device.init(kSampleRate);
-  device.set_param(livemix::DattorroParam::kMix, 1.0f);
-  device.set_param(livemix::DattorroParam::kDecay, 0.5f);
+  device.set_param(livemix::PlateReverbParam::kMix, 1.0f);
+  device.set_param(livemix::PlateReverbParam::kDecay, 0.5f);
   feed_tone(device, 0.05f, 440.0f, 1.0f);
 
   render_seconds(device, 10.0f);
@@ -185,9 +185,9 @@ void test_denormals_flush_to_silence() {
 }
 
 void test_input_bus_passthrough_and_clear() {
-  livemix::DattorroDevice& device = g_test_device;
+  livemix::PlateReverbDevice& device = g_test_device;
   device.init(kSampleRate);
-  device.set_param(livemix::DattorroParam::kMix, 0.0f);
+  device.set_param(livemix::PlateReverbParam::kMix, 0.0f);
 
   for (int i = 0; i < kBlock; ++i) {
     device.in_left()[i] = 0.25f;
@@ -213,7 +213,7 @@ void test_input_bus_passthrough_and_clear() {
 void test_mix_law_matches_ambient_live() {
   // dry*(1-mix) + wet*mix: at mix 0.35 with the reverb still silent (first
   // sample, before the pre-delay), the output is exactly 0.65 * dry.
-  livemix::DattorroDevice& device = g_test_device;
+  livemix::PlateReverbDevice& device = g_test_device;
   device.init(kSampleRate);
   EXPECT(std::fabs(device.mix() - 0.35f) < 1.0e-6f, "default mix is 0.35");
   device.in_left()[0] = 1.0f;
@@ -226,13 +226,13 @@ void test_mix_law_matches_ambient_live() {
 }
 
 void test_sleeps_when_empty_and_wakes_unchanged() {
-  livemix::DattorroDevice& device = g_test_device;
-  livemix::DattorroReverb& awake = g_awake_reverb;
+  livemix::PlateReverbDevice& device = g_test_device;
+  livemix::PlateReverb& awake = g_awake_reverb;
   device.init(kSampleRate);
   awake.init(kSampleRate);
   // Fully wet, so the device's output is the plate's and nothing else.
-  device.set_param(livemix::DattorroParam::kMix, 1.0f);
-  device.set_param(livemix::DattorroParam::kDecay, 0.3f);
+  device.set_param(livemix::PlateReverbParam::kMix, 1.0f);
+  device.set_param(livemix::PlateReverbParam::kDecay, 0.3f);
   awake.set_decay(0.3f);
 
   // Feeds both `seconds` of the same tone (silence at gain 0), counting the
@@ -271,7 +271,7 @@ void test_sleeps_when_empty_and_wakes_unchanged() {
 
   run(0.25f, 0.5f);
   EXPECT(!device.asleep() && peak > 0.01f, "input wakes it");
-  run(2.0f * livemix::DattorroDevice::kIdleHoldSeconds, 0.0f);
+  run(2.0f * livemix::PlateReverbDevice::kIdleHoldSeconds, 0.0f);
   EXPECT(!device.asleep() && peak > 0.0f, "a ringing plate stays awake");
 
   run(20.0f, 0.0f);
@@ -299,9 +299,9 @@ int main() {
   test_sleeps_when_empty_and_wakes_unchanged();
 
   if (g_failures == 0) {
-    std::printf("dattorro device tests: all passed\n");
+    std::printf("plate reverb device tests: all passed\n");
     return 0;
   }
-  std::printf("dattorro device tests: %d failure(s)\n", g_failures);
+  std::printf("plate reverb device tests: %d failure(s)\n", g_failures);
   return 1;
 }

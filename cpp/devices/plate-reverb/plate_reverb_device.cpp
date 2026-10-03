@@ -1,8 +1,8 @@
-#include "dattorro_device.h"
+#include "plate_reverb_device.h"
 
 namespace livemix {
 
-void DattorroDevice::init(float sample_rate) {
+void PlateReverbDevice::init(float sample_rate) {
   mix_ = kDefaultMix;
   for (int i = 0; i < kMaxBlockFrames; ++i) {
     in_left_[i] = 0.0f;
@@ -14,24 +14,24 @@ void DattorroDevice::init(float sample_rate) {
   idle_.reset(sample_rate, kIdleHoldSeconds);
 }
 
-void DattorroDevice::set_param(DattorroParam param, float value) {
+void PlateReverbDevice::set_param(PlateReverbParam param, float value) {
   switch (param) {
-    case DattorroParam::kMix:
+    case PlateReverbParam::kMix:
       mix_ = clamp01(value);
       break;
-    case DattorroParam::kDecay:
+    case PlateReverbParam::kDecay:
       reverb_.set_decay(value);
       break;
-    case DattorroParam::kDamping:
+    case PlateReverbParam::kDamping:
       reverb_.set_damping(value);
       break;
-    case DattorroParam::kPredelayMs:
+    case PlateReverbParam::kPredelayMs:
       reverb_.set_predelay_ms(value);
       break;
   }
 }
 
-void DattorroDevice::process(int frames) {
+void PlateReverbDevice::process(int frames) {
   if (frames > kMaxBlockFrames) frames = kMaxBlockFrames;
   if (!idle_.wake(block_present(in_left_, in_right_, frames))) {
     reverb_.advance_modulators(frames);

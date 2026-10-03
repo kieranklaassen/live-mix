@@ -15,7 +15,7 @@ import { type PlanarAudio } from '../core/render/encode'
 import { type DeviceExports } from './abi'
 import { compileWasm, type WasmSource } from './assets'
 import { isWasmDescriptor, type WasmDeviceDescriptor } from './descriptor'
-import { STOCK_WASM_DEVICES } from './registry'
+import { describeStockWasmDevice } from './registry'
 
 /** One note of a phrase, timed from the start of the render. */
 export interface PhraseNote {
@@ -90,19 +90,10 @@ export interface RenderPatchOptions {
 
 const BLOCK = 128
 
-const stockDescriptors = new Map<string, DeviceDescriptor>()
-
-function describeStock(deviceId: string): DeviceDescriptor | undefined {
-  if (stockDescriptors.size === 0) {
-    for (const descriptor of STOCK_WASM_DEVICES) stockDescriptors.set(descriptor.id, descriptor)
-  }
-  return stockDescriptors.get(deviceId)
-}
-
 /** True when every device of the patch is a WASM device `renderPatch` can run. */
 export function canRenderPatch(
   patch: Patch,
-  describe: (deviceId: string) => DeviceDescriptor | undefined = describeStock,
+  describe: (deviceId: string) => DeviceDescriptor | undefined = describeStockWasmDevice,
 ): boolean {
   const devices = patch.instrument ? [patch.instrument, ...patch.effects] : patch.effects
   return devices.every((device) => {
@@ -151,7 +142,7 @@ async function createStage(
   sampleRate: number,
   options: RenderPatchOptions,
 ): Promise<Stage> {
-  const descriptor = (options.describe ?? describeStock)(device.deviceId)
+  const descriptor = (options.describe ?? describeStockWasmDevice)(device.deviceId)
   if (!descriptor) throw new Error(`live-mix: unknown device "${device.deviceId}"`)
   if (!isWasmDescriptor(descriptor)) {
     throw new Error(

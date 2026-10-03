@@ -12,7 +12,7 @@
 // it. Sounds that end are left to ring out inside their length. Phrases are
 // played in free time: notes on a grid would make them beats, not melodies.
 
-import { breathe, quarterTurn, soften, zita } from '../parts'
+import { breathe, quarterTurn, soften, hall } from '../parts'
 import { type FactorySound } from '../types'
 import { FELT_PIANO, bells, looped, played, sound, weather } from './recipe'
 
@@ -29,7 +29,7 @@ export const FIRST_SOUNDS: readonly FactorySound[] = [
       preset: 'Open fifths',
       params: { partials: 0.75, wave: 0.5, movement: 0.3, sub: 0.4, cutoff: 2000, attack: 1 },
     },
-    effects: [zita('Hall', 0.3)],
+    effects: [hall('Hall', 0.3)],
     ...looped(16, 5, 3, [38]),
   }),
   sound({
@@ -62,7 +62,7 @@ export const FIRST_SOUNDS: readonly FactorySound[] = [
     effects: [
       // Strings on the C major scale: the white keys.
       { deviceId: 'sympathetic', preset: 'Sitar drone', params: { root: 0, mix: 0.3, width: 0.7 } },
-      zita('Hall', 0.25),
+      hall('Hall', 0.25),
     ],
     ...looped(16, 5, 3, [38, [45, 0.6]]),
   }),
@@ -78,7 +78,7 @@ export const FIRST_SOUNDS: readonly FactorySound[] = [
       preset: 'Celeste drone',
       params: { attack: 0.6, bellows: 0.2, celeste: 0.25 },
     },
-    effects: [zita('Cathedral', 0.35), quarterTurn(16)],
+    effects: [hall('Cathedral', 0.35), quarterTurn(16)],
     ...looped(16, 4, 3, [48, [55, 0.7], [60, 0.6]]),
     tuning: 'whole-cycles',
   }),
@@ -91,7 +91,7 @@ export const FIRST_SOUNDS: readonly FactorySound[] = [
     instrument: { deviceId: 'organ', preset: 'Pump organ', params: { bellows: 0.3, attack: 0.4 } },
     effects: [
       { deviceId: 'tape', preset: 'Quarter inch', params: { hiss: 0.1 } },
-      zita('Hall', 0.35),
+      hall('Hall', 0.35),
     ],
     ...looped(8, 4, 2, [43, [50, 0.7], [55, 0.5]]),
   }),
@@ -104,7 +104,7 @@ export const FIRST_SOUNDS: readonly FactorySound[] = [
     instrument: { deviceId: 'bowed-string', preset: 'Cello drone' },
     effects: [
       { deviceId: 'chorus', preset: 'Subtle widener', params: { mix: 0.3 } },
-      zita('Hall', 0.4),
+      hall('Hall', 0.4),
       quarterTurn(8),
     ],
     ...looped(8, 4, 2, [38, [45, 0.7]]),
@@ -121,7 +121,7 @@ export const FIRST_SOUNDS: readonly FactorySound[] = [
       preset: 'Low monks',
       params: { attack: 0.8, motion: 0.1, ensemble: 0 },
     },
-    effects: [zita('Cathedral', 0.5)],
+    effects: [hall('Cathedral', 0.5)],
     ...looped(16, 4, 3, [45, [52, 0.5]]),
   }),
 
@@ -190,7 +190,7 @@ export const FIRST_SOUNDS: readonly FactorySound[] = [
     kind: 'pad',
     description: 'Glassy FM tones beating slowly against each other on {C} major ninth.',
     instrument: { deviceId: 'fm-glass', preset: 'Crystal pad', params: { attack: 0.5 } },
-    effects: [zita('Hall', 0.4), breathe(0.125, 0.3)],
+    effects: [hall('Hall', 0.4), breathe(0.125, 0.3)],
     ...looped(16, 7.5, 2, [48, 55, 64, 71, [74, 0.6]]),
   }),
   sound({
@@ -205,7 +205,7 @@ export const FIRST_SOUNDS: readonly FactorySound[] = [
       preset: 'Hollow drift',
       params: { attack: 0.5, rate: 0.125 },
     },
-    effects: [zita('Hall', 0.4), breathe(0.125, 0.4)],
+    effects: [hall('Hall', 0.4), breathe(0.125, 0.4)],
     ...looped(16, 7.5, 2, [43, 50, 59, [64, 0.7]]),
   }),
   sound({
@@ -221,7 +221,7 @@ export const FIRST_SOUNDS: readonly FactorySound[] = [
     },
     effects: [
       { deviceId: 'chorus', preset: 'Slow drift', params: { mix: 0.35 } },
-      zita('Cathedral', 0.45),
+      hall('Cathedral', 0.45),
       breathe(0.125, 0.3),
     ],
     ...looped(16, 7.5, 3, [45, 57, 60, 64, [69, 0.6]]),
@@ -253,7 +253,7 @@ export const FIRST_SOUNDS: readonly FactorySound[] = [
     kind: 'texture',
     description: 'Wind over open ground, gusting and falling away, with a faint pitch on {D}.',
     instrument: weather('Hill wind'),
-    effects: [zita('Room', 0.2)],
+    effects: [hall('Room', 0.2)],
     ...looped(16, 8, 3, [62]),
   }),
   sound({
@@ -330,7 +330,7 @@ export const FIRST_SOUNDS: readonly FactorySound[] = [
     kind: 'oneshot',
     description: 'One FM bell on {A} with a glassy strike and a hall behind it.',
     instrument: { deviceId: 'fm-glass', preset: 'Glass bell', params: { decay: 3.2, release: 3 } },
-    effects: [zita('Hall', 0.35)],
+    effects: [hall('Hall', 0.35)],
     ...played(6, [[0, 5, 69]], 0.3),
   }),
   sound({
@@ -340,7 +340,7 @@ export const FIRST_SOUNDS: readonly FactorySound[] = [
     kind: 'oneshot',
     description: 'A struck metal bowl on {D} whose paired modes beat slowly as it rings down.',
     instrument: bells('Singing bowl', { decay: 9 }),
-    effects: [zita('Hall', 0.25)],
+    effects: [hall('Hall', 0.25)],
     ...played(8, [[0, 7.8, 62]], 0.4),
   }),
   sound({
@@ -350,7 +350,7 @@ export const FIRST_SOUNDS: readonly FactorySound[] = [
     kind: 'oneshot',
     description: 'One plucked tine on a high {E}, woody and short, in a small room.',
     instrument: bells('Kalimba', { decay: 3.5, spread: 0.6 }),
-    effects: [zita('Room', 0.3)],
+    effects: [hall('Room', 0.3)],
     ...played(3, [[0, 2.8, 76]], 0.2),
   }),
   sound({
@@ -362,7 +362,7 @@ export const FIRST_SOUNDS: readonly FactorySound[] = [
     instrument: bells('Vibraphone', { spread: 0.6 }),
     effects: [
       { deviceId: 'tremolo', preset: 'Amp tremolo', params: { depth: 0.3 } },
-      zita('Hall', 0.3),
+      hall('Hall', 0.3),
     ],
     ...played(6, [[0, 5.8, 67]], 0.3),
   }),
@@ -374,7 +374,7 @@ export const FIRST_SOUNDS: readonly FactorySound[] = [
     description:
       'A large gong struck off centre: a dark low {D} that beats slowly from side to side.',
     instrument: bells('Gong', { decay: 9, hardness: 0.65, brightness: 1, position: 0.6 }),
-    effects: [zita('Hall', 0.3)],
+    effects: [hall('Hall', 0.3)],
     ...played(8, [[0, 7.8, 38]], 0.5),
   }),
   sound({
@@ -384,7 +384,7 @@ export const FIRST_SOUNDS: readonly FactorySound[] = [
     kind: 'oneshot',
     description: 'One bright comb tooth of a music box on a high {A}, in a small room.',
     instrument: bells('Music box', { spread: 0.8 }),
-    effects: [zita('Room', 0.3)],
+    effects: [hall('Room', 0.3)],
     ...played(3, [[0, 2.8, 81]], 0.2),
   }),
   sound({
@@ -431,7 +431,7 @@ export const FIRST_SOUNDS: readonly FactorySound[] = [
     kind: 'melodic',
     description: 'Two rolled chords and a short answer on a tine piano, {D} minor ninth to {G}.',
     instrument: { deviceId: 'tine-piano', preset: 'Soft suitcase' },
-    effects: [{ deviceId: 'chorus', preset: 'Subtle widener' }, zita('Hall', 0.3)],
+    effects: [{ deviceId: 'chorus', preset: 'Subtle widener' }, hall('Hall', 0.3)],
     ...played(
       8,
       [
@@ -480,7 +480,7 @@ export const FIRST_SOUNDS: readonly FactorySound[] = [
     description:
       'A rising kalimba figure in {A} minor pentatonic, played twice and slowing each time.',
     instrument: bells('Kalimba', { spread: 0.6 }),
-    effects: [zita('Room', 0.3)],
+    effects: [hall('Room', 0.3)],
     ...played(
       8,
       [
@@ -525,7 +525,7 @@ export const FIRST_SOUNDS: readonly FactorySound[] = [
         tone: 4000,
       },
     },
-    effects: [zita('Hall', 0.5)],
+    effects: [hall('Hall', 0.5)],
     ...looped(16, 3, 3, [60]),
   }),
   sound({
@@ -540,7 +540,7 @@ export const FIRST_SOUNDS: readonly FactorySound[] = [
       preset: 'Frozen moment',
       params: { position: 0.05, spray: 0, size: 800, density: 12, detune: 0, attack: 0.5 },
     },
-    effects: [zita('Hall', 0.4)],
+    effects: [hall('Hall', 0.4)],
     ...looped(8, 4, 2, [60, [48, 0.6]]),
   }),
   sound({
@@ -555,7 +555,7 @@ export const FIRST_SOUNDS: readonly FactorySound[] = [
       preset: 'Backwards',
       params: { end: 0.7, attack: 0.3, release: 0.3 },
     },
-    effects: [zita('Hall', 0.35)],
+    effects: [hall('Hall', 0.35)],
     ...played(8, [[0, 7.5, 60]], 0.5),
   }),
 ]

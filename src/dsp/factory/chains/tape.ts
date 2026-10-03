@@ -79,7 +79,7 @@ export const TAPE_CHAINS: readonly FactoryChain[] = [
       'An old reel that drifts, dulls and hisses under the sound, left to ring in a long plate.',
     effects: [
       { deviceId: 'patina', preset: 'Quarter inch reel', params: { wobble: 0.4, wear: 0.5 } },
-      { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.3 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.3 } },
     ],
   },
 
@@ -122,7 +122,7 @@ export const TAPE_CHAINS: readonly FactoryChain[] = [
     description: 'A transformer stage that thickens and breaks up the lows, then a soft plate.',
     effects: [
       { deviceId: 'analog-drive', preset: 'Iron lows' },
-      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -144,7 +144,7 @@ export const TAPE_CHAINS: readonly FactoryChain[] = [
       'Twelve bits at a reduced rate: the top softens and a faint glassy copy of it rings above, in a plate.',
     effects: [
       { deviceId: 'vintage-digital', preset: 'Sampler' },
-      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -166,7 +166,7 @@ export const TAPE_CHAINS: readonly FactoryChain[] = [
       'A thin stream: quiet detail falls away and what is left swirls a little, in a soft plate.',
     effects: [
       { deviceId: 'low-bitrate', preset: 'Behind glass' },
-      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -206,7 +206,7 @@ export const TAPE_CHAINS: readonly FactoryChain[] = [
       'The surface noise and crackle of an old record under the sound, heard across a room.',
     effects: [
       { deviceId: 'noise-floor', preset: 'Old record', params: { level: -40 } },
-      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -217,7 +217,7 @@ export const TAPE_CHAINS: readonly FactoryChain[] = [
       'A distant station heard at night: thin, slowly fading, with static rising as it sinks, in a soft hall.',
     effects: [
       { deviceId: 'radio', preset: 'Night shortwave', params: { fading: 0.45, bandwidth: 0.62 } },
-      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
 
@@ -259,7 +259,7 @@ export const TAPE_CHAINS: readonly FactoryChain[] = [
       'A console channel driven hard under the clean sound, then a fast limiter that pulls the two together.',
     effects: [
       { deviceId: 'analog-drive', preset: 'Console', params: { drive: 0.55, mix: 0.5 } },
-      { deviceId: 'limiter-1176', preset: 'Drive', params: { inputGain: 6, outputGain: -6.2 } },
+      { deviceId: 'fet-limiter', preset: 'Drive', params: { inputGain: 6, outputGain: -6.2 } },
     ],
   },
   {
@@ -438,7 +438,7 @@ export const TAPE_CHAINS: readonly FactoryChain[] = [
       'A converter at a very low rate folds each note into out of tune bell tones above it, in an airy hall.',
     effects: [
       { deviceId: 'vintage-digital', preset: 'Clang', params: { mix: 0.35 } },
-      { deviceId: 'zita-rev1', preset: 'Airy tail', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Airy tail', params: { mix: 0.3 } },
     ],
   },
   {
@@ -493,7 +493,7 @@ export const TAPE_CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'stereo-detune', preset: 'Drifting' },
       { deviceId: 'tape', preset: 'Drifting chorus', params: { drive: 0.5, bump: 0.2 } },
-      { deviceId: 'zita-rev1', preset: 'Warm undertow', params: { mix: 0.25 } },
+      { deviceId: 'hall-reverb', preset: 'Warm undertow', params: { mix: 0.25 } },
     ],
   },
   {
@@ -509,7 +509,7 @@ export const TAPE_CHAINS: readonly FactoryChain[] = [
         params: { driveDb: 26, toneDb: 9, outputDb: -10 },
       },
       { deviceId: 'stereo-detune', preset: 'Top only' },
-      { deviceId: 'dattorro', preset: 'Bright plate', params: { mix: 0.2 } },
+      { deviceId: 'plate-reverb', preset: 'Bright plate', params: { mix: 0.2 } },
     ],
   },
   {

@@ -1,5 +1,5 @@
 import { createEngine } from '@kieranklaassen/live-mix'
-import { createDattorroReverb } from '@kieranklaassen/live-mix/dsp'
+import { createPlateReverb } from '@kieranklaassen/live-mix/dsp'
 
 // Browsers start audio after a user gesture: run this from a click handler.
 const engine = createEngine({ context: new AudioContext(), master: { meter: true } })
@@ -23,7 +23,7 @@ track.clips.add({
 })
 
 // A send into a reverb return. The plate is C++ compiled to WASM, running in an AudioWorklet.
-const hall = engine.addReturnTrack('hall', { device: await createDattorroReverb(engine.context) })
+const hall = engine.addReturnTrack('hall', { device: await createPlateReverb(engine.context) })
 track.strip.sends.add(hall, { level: 0.3 })
 
 // A live input — microphone, WebRTC voice, guitar — that ducks the music bus while it sounds.

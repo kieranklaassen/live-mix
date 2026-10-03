@@ -10,7 +10,7 @@ export const AURORA_PRESETS: readonly FactoryPreset[] = [
     instrument: { deviceId: 'aurora', preset: 'Slow brass' },
     effects: [
       { deviceId: 'chorus', preset: 'Slow drift', params: { spread: 60, mix: 0.3 } },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
     preview: 'chord',
   },
@@ -58,7 +58,7 @@ export const AURORA_PRESETS: readonly FactoryPreset[] = [
     instrument: { deviceId: 'aurora', preset: 'Metal dawn', params: { volume: -11.5 } },
     effects: [
       { deviceId: 'tape-echo', preset: 'Short and soft' },
-      { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.3 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.3 } },
     ],
     preview: 'chord',
   },
@@ -81,7 +81,7 @@ export const AURORA_PRESETS: readonly FactoryPreset[] = [
         volume: -11,
       },
     },
-    effects: [{ deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.2 } }],
+    effects: [{ deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.2 } }],
   },
   {
     id: 'aurora-quick-brass-section',
@@ -103,7 +103,7 @@ export const AURORA_PRESETS: readonly FactoryPreset[] = [
         volume: -12.5,
       },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.2 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.2 } }],
   },
   {
     id: 'aurora-close-synth-strings',
@@ -116,7 +116,7 @@ export const AURORA_PRESETS: readonly FactoryPreset[] = [
       preset: 'Wide strings',
       params: { brilliance: 3600, lowCut: 110, attack: 0.3, release: 1.4, detune: 9, volume: -12 },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Tight chamber', params: { mix: 0.28 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Tight chamber', params: { mix: 0.28 } }],
   },
   {
     id: 'aurora-silver-string-sheen',
@@ -188,7 +188,7 @@ export const AURORA_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'analog-delay', preset: 'Dark echo', params: { mix: 0.3 } },
-      { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.2 } },
+      { deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.2 } },
     ],
   },
   {
@@ -213,8 +213,8 @@ export const AURORA_PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'limiter-1176', params: { inputGain: 5, outputGain: -2 } },
-      { deviceId: 'dattorro', preset: 'Bright plate', params: { decay: 0.8 } },
+      { deviceId: 'fet-limiter', params: { inputGain: 5, outputGain: -2 } },
+      { deviceId: 'plate-reverb', preset: 'Bright plate', params: { decay: 0.8 } },
     ],
   },
   {
@@ -239,7 +239,7 @@ export const AURORA_PRESETS: readonly FactoryPreset[] = [
     effects: [
       { deviceId: 'octaves', preset: 'Organ', params: { sub2: 0 } },
       { deviceId: 'rotary', preset: 'Chorale' },
-      { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.2 } },
+      { deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.2 } },
     ],
   },
   {
@@ -286,7 +286,7 @@ export const AURORA_PRESETS: readonly FactoryPreset[] = [
         volume: -10.5,
       },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Far away', params: { mix: 0.6 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Far away', params: { mix: 0.6 } }],
   },
   {
     id: 'aurora-overtone-climb',
@@ -308,7 +308,7 @@ export const AURORA_PRESETS: readonly FactoryPreset[] = [
         volume: -7.5,
       },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } }],
     preview: 'low',
   },
   {
@@ -331,7 +331,7 @@ export const AURORA_PRESETS: readonly FactoryPreset[] = [
         volume: -5.5,
       },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Dark hall' }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Dark hall' }],
   },
   {
     id: 'aurora-shellac-strings',
@@ -345,7 +345,7 @@ export const AURORA_PRESETS: readonly FactoryPreset[] = [
       params: { brilliance: 2200, lowCut: 300, attack: 0.9, release: 3, detune: 18, volume: -7.5 },
     },
     effects: [
-      { deviceId: 'dattorro', preset: 'Small plate' },
+      { deviceId: 'plate-reverb', preset: 'Small plate' },
       { deviceId: 'vinyl', preset: 'Parlour 78' },
     ],
   },
@@ -362,7 +362,7 @@ export const AURORA_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'radio', preset: 'Night shortwave', params: { static: 0.2, interference: 0 } },
-      { deviceId: 'zita-rev1', preset: 'Dark hall', params: { mix: 0.25 } },
+      { deviceId: 'hall-reverb', preset: 'Dark hall', params: { mix: 0.25 } },
     ],
   },
   {
@@ -392,7 +392,7 @@ export const AURORA_PRESETS: readonly FactoryPreset[] = [
         params: { smear: 0.9, width: 0.45, mix: 0.8 },
       },
       { deviceId: 'fdn-reverb', preset: 'Bright air', params: { mix: 0.3 } },
-      { deviceId: 'limiter-1176', params: { inputGain: 14, outputGain: -7 } },
+      { deviceId: 'fet-limiter', params: { inputGain: 14, outputGain: -7 } },
     ],
   },
 ]

@@ -1,7 +1,7 @@
 // Drones of the synthesizers: oscillators, partials and filtered noise held still or barely moving.
 // Numbers 141 to 146. What every sound here is held to is in docs/factory.md.
 
-import { quarterTurn, zita } from '../parts'
+import { quarterTurn, hall } from '../parts'
 import { type FactorySound } from '../types'
 import { looped, sound } from './recipe'
 
@@ -20,7 +20,7 @@ export const DRONES_SYNTH: readonly FactorySound[] = [
       preset: 'Pedal drone',
       params: { beat: 0, cutoff: 700, emphasis: 0.25, drive: 0.3, glide: 0 },
     },
-    effects: [zita('Hall', 0.3), quarterTurn(8)],
+    effects: [hall('Hall', 0.3), quarterTurn(8)],
     ...looped(8, 4, 2, [40]),
     tuning: 'whole-cycles',
   }),
@@ -39,7 +39,7 @@ export const DRONES_SYNTH: readonly FactorySound[] = [
     },
     effects: [
       { deviceId: 'chorus', preset: 'Subtle widener', params: { rate: 0.125 } },
-      zita('Room', 0.25),
+      hall('Room', 0.25),
     ],
     ...looped(16, 6, 3, [41, 53, [60, 0.6]]),
   }),
@@ -58,7 +58,7 @@ export const DRONES_SYNTH: readonly FactorySound[] = [
     },
     effects: [
       { deviceId: 'tremolo', preset: 'Slow pan', params: { rate: 0.125, depth: 0.7, drift: 0 } },
-      zita('Cathedral', 0.3),
+      hall('Cathedral', 0.3),
       quarterTurn(8),
     ],
     ...looped(8, 4, 2, [59]),
@@ -79,7 +79,7 @@ export const DRONES_SYNTH: readonly FactorySound[] = [
     },
     effects: [
       { deviceId: 'chorus', preset: 'Slow drift', params: { rate: 0.125, mix: 0.2 } },
-      zita('Hall', 0.4),
+      hall('Hall', 0.4),
       quarterTurn(8),
     ],
     ...looped(8, 5, 2, [[60, 0.4], [67, 0.4], 72, [79, 0.8], [84, 0.6], [91, 0.4]]),
@@ -97,7 +97,7 @@ export const DRONES_SYNTH: readonly FactorySound[] = [
       preset: 'Major light',
       params: { partials: 0.75, air: 0.65, movement: 0.2, rate: 0.0625, attack: 1, width: 0.7 },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Airy tail', params: { mix: 0.35 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Airy tail', params: { mix: 0.35 } }],
     ...looped(16, 6, 3, [67]),
   }),
   sound({
@@ -108,7 +108,7 @@ export const DRONES_SYNTH: readonly FactorySound[] = [
     description:
       'Two soft synthesizer horns a fifth apart on {A}, held after their swell has settled.',
     instrument: { deviceId: 'aurora', preset: 'Soft horns', params: { attack: 0.5, detune: 0 } },
-    effects: [zita('Hall', 0.3), quarterTurn(8)],
+    effects: [hall('Hall', 0.3), quarterTurn(8)],
     ...looped(8, 8, 2, [57, [64, 0.7]]),
     tuning: 'whole-cycles',
   }),

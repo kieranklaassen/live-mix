@@ -326,7 +326,7 @@ export function demoScore(wasm: boolean): Score {
     slot('stop', 'bass', null),
   ]
   score.groups = [{ id: 'rhythm', name: 'rhythm', destination: MASTER, strip: defaultStrip() }]
-  // The hall is ambient-live's Dattorro plate (WASM) where a worklet can run,
+  // The hall is ambient-live's plate reverb (WASM) where a worklet can run,
   // a feedback delay on the mock context.
   score.returns = [
     {
@@ -335,7 +335,7 @@ export function demoScore(wasm: boolean): Score {
       destination: MASTER,
       strip: defaultStrip({ level: 0.5, soloSafe: true }),
       device: wasm
-        ? device('hall-plate', 'dattorro', { mix: 1, decay: 0.7 })
+        ? device('hall-plate', 'plate-reverb', { mix: 1, decay: 0.7 })
         : device('hall-delay', 'delay', { timeSec: 0.375, feedback: 0.35, mix: 1 }),
     },
   ]

@@ -33,6 +33,7 @@ export type PresetTable<P extends Record<string, ParamSpec> = Record<string, Par
 /** The subset of a descriptor `presets.ts` needs; avoids a cycle with registry.ts. */
 export interface PresetSource<P extends Record<string, ParamSpec> = Record<string, ParamSpec>> {
   id: string
+  formerIds?: readonly string[]
   version: number
   params: P
   presets?: PresetTable<P>
@@ -72,11 +73,13 @@ export function hasPreset(source: PresetSource, name: string): boolean {
 
 /**
  * Look a preset up by name, or validate a preset object against the
- * descriptor (device id must match). A name that was ever shipped loads the
- * settings it had, so a saved score that names it sounds as it did: a name
- * the preset had before it was renamed (`formerPresets`) finds the preset
- * under its name of today, and the name of a preset that was retuned
- * (`retiredPresets`) finds the settings from before, which no list shows.
+ * descriptor (device id must match; one saved under an id the device had
+ * before it was renamed comes back under the id of today). A name that was
+ * ever shipped loads the settings it had, so a saved score that names it
+ * sounds as it did: a name the preset had before it was renamed
+ * (`formerPresets`) finds the preset under its name of today, and the name of
+ * a preset that was retuned (`retiredPresets`) finds the settings from
+ * before, which no list shows.
  */
 export function resolvePreset(source: PresetSource, preset: string | Preset): Preset {
   if (typeof preset === 'string') {
@@ -95,10 +98,10 @@ export function resolvePreset(source: PresetSource, preset: string | Preset): Pr
     if (!found) throw new Error(`live-mix: ${source.id} has no preset "${preset}"`)
     return found
   }
-  if (preset.deviceId !== source.id) {
-    throw new Error(`live-mix: preset "${preset.name}" is for ${preset.deviceId}, not ${source.id}`)
-  }
-  return preset
+  if (preset.deviceId === source.id) return preset
+  // Saved before the device was renamed: the same preset, for the id of today.
+  if (source.formerIds?.includes(preset.deviceId)) return { ...preset, deviceId: source.id }
+  throw new Error(`live-mix: preset "${preset.name}" is for ${preset.deviceId}, not ${source.id}`)
 }
 
 /**

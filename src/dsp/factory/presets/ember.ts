@@ -13,7 +13,7 @@ export const EMBER_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'chorus', preset: 'Lush ensemble', params: { depth: 45, mix: 0.45 } },
-      { deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.2 } },
+      { deviceId: 'plate-reverb', preset: 'Small plate', params: { mix: 0.2 } },
     ],
   },
   {
@@ -41,7 +41,7 @@ export const EMBER_PRESETS: readonly FactoryPreset[] = [
         volume: -8,
       },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } }],
   },
   {
     id: 'glass-octave-pad',
@@ -64,7 +64,7 @@ export const EMBER_PRESETS: readonly FactoryPreset[] = [
         volume: -9,
       },
     },
-    effects: [{ deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.3 } }],
+    effects: [{ deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.3 } }],
   },
   {
     id: 'soft-brass-pad',
@@ -91,7 +91,7 @@ export const EMBER_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tape', preset: 'Quarter inch' },
-      { deviceId: 'dattorro', preset: 'Small plate' },
+      { deviceId: 'plate-reverb', preset: 'Small plate' },
     ],
   },
   {
@@ -153,7 +153,7 @@ export const EMBER_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'chorus', preset: 'Lush ensemble', params: { mix: 0.4 } },
-      { deviceId: 'zita-rev1', preset: 'Room' },
+      { deviceId: 'hall-reverb', preset: 'Room' },
     ],
   },
   {
@@ -215,7 +215,7 @@ export const EMBER_PRESETS: readonly FactoryPreset[] = [
         volume: -7,
       },
     },
-    effects: [{ deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.3 } }],
+    effects: [{ deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.3 } }],
   },
   {
     id: 'high-pass-saw-veil',
@@ -253,7 +253,7 @@ export const EMBER_PRESETS: readonly FactoryPreset[] = [
         volume: -1,
       },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Airy tail', params: { mix: 0.4 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Airy tail', params: { mix: 0.4 } }],
   },
   {
     id: 'band-pass-choir',
@@ -323,7 +323,7 @@ export const EMBER_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tremolo', preset: 'Slow pan', params: { rate: 1.1, depth: 0.5 } },
-      { deviceId: 'dattorro', preset: 'Small plate' },
+      { deviceId: 'plate-reverb', preset: 'Small plate' },
     ],
   },
   {
@@ -398,7 +398,7 @@ export const EMBER_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'analog-delay', preset: 'Faint halo' },
-      { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
   {
@@ -434,7 +434,7 @@ export const EMBER_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'reverse-delay', preset: 'Backwards echo', params: { mix: 0.3 } },
-      { deviceId: 'dattorro', preset: 'Bright plate', params: { mix: 0.2 } },
+      { deviceId: 'plate-reverb', preset: 'Bright plate', params: { mix: 0.2 } },
     ],
   },
   {
@@ -535,7 +535,7 @@ export const EMBER_PRESETS: readonly FactoryPreset[] = [
         volume: -12.5,
       },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Warm undertow', params: { mix: 0.3 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Warm undertow', params: { mix: 0.3 } }],
   },
   {
     id: 'noise-rain-patter',
@@ -597,7 +597,7 @@ export const EMBER_PRESETS: readonly FactoryPreset[] = [
         volume: -10,
       },
     },
-    effects: [{ deviceId: 'zita-rev1', preset: 'Room' }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Room' }],
   },
   {
     id: 'triangle-tape-pad',
