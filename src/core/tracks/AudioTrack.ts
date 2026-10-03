@@ -258,6 +258,13 @@ function cutPartway(playback: VoicePlayback): boolean {
   return into > OWN_END_SECONDS && into < region - OWN_END_SECONDS
 }
 
+/** Whether the voice's source has no more to play before its clip ends, so what follows is silence inside the clip. */
+function runsOut(playback: VoicePlayback): boolean {
+  if (playback.soundSec !== undefined && playback.soundSec < playback.durationSec) return true
+  if (playback.loop) return false
+  return playback.offsetSec + playback.durationSec > playback.buffer.duration + OWN_END_SECONDS
+}
+
 /** The frames of its buffer a voice's sound runs over: the loop's region, or from where it enters to the buffer's end. */
 function soundFrames(playback: VoicePlayback): { first: number; end: number } {
   const { buffer } = playback
@@ -307,7 +314,7 @@ const HELD: Release = { kind: 'none' }
 function releaseOf(playback: VoicePlayback, rate: number): Release {
   if (playback.fadeOutSec > 0) return HELD
   // The source runs out before the clip does: the end is the sound's own, wherever it falls.
-  if (playback.soundSec !== undefined && playback.soundSec < playback.durationSec) return HELD
+  if (runsOut(playback)) return HELD
   const { buffer } = playback
   if (cutPartway(playback)) {
     // A cut that falls where the sound is at rest is no step, and is left.

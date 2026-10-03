@@ -13,7 +13,7 @@ A clip with no fade-out used to end with a hard stop, and one with no fade-in to
 - **Ending where its sound does, on a sound that just stops partway through a wave**: its last 5 ms fade.
 - **Starting on a sound made to loop**: it comes up over 5 ms.
 
-The tail and the come-up are each other's mirror, so a looped sound followed by itself (a clip the length of the loop when the loop comes round, two clips end to end) sums to the sound unbroken, as it was before, and followed by anything else it is a 5 ms crossfade. A sound that starts from rest is not touched at its start, a sound that has died away is not touched at its end, and a clip's own fade is left as drawn. A rate change moves the tail with the clip's end. Equal-power clips are untouched.
+The tail and the come-up are each other's mirror, so a looped sound followed by itself (a clip the length of the loop when the loop comes round, two clips end to end) sums to the sound unbroken, as it was before, and followed by anything else it is a 5 ms crossfade. A sound that starts from rest is not touched at its start, a sound that has died away is not touched at its end, a clip's own fade is left as drawn, and a clip drawn longer than a sound that does not loop is left to run out as before. A rate change moves the tail with the clip's end. Equal-power clips are untouched.
 
 A voice that starts on time from silence, by the come-up or by a fade-in of its own, is also silent from half a frame before its start: the source starts on the frame nearest its time and the level takes hold on the first frame after it, so about every other start sounded one frame at full level ahead of its fade.
 

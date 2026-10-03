@@ -249,6 +249,22 @@ describe('AudioTrack linear voices (ambient-live ClipPlayer parity)', () => {
       expect(ctx.sources[1].startCalls.calls).toEqual([[19, 0]])
     })
 
+    it('a clip drawn longer than its sound is left to run out: it is not brought round to fill the clip', () => {
+      const { ctx, track } = setup()
+      // Eight seconds of sound under a twelve second clip that does not loop: four seconds of silence end it.
+      const voice = track.play(
+        'long',
+        { buffer: looped(ctx, 8), offsetSec: 0, durationSec: 12, ...bare },
+        3,
+      )
+      expect(ctx.gains[1].gain.events).toEqual(comeUp)
+      const source = ctx.sources[0]
+      expect(source.loop).toBe(false)
+      expect(source.startCalls.calls).toEqual([[3, 0, 12]])
+      expect(source.stopCalls.calls).toEqual([])
+      expect(voice?.endTime).toBe(15)
+    })
+
     it('a looping clip cut inside its region tails on what the sound goes on to', () => {
       const { ctx, track } = setup()
       // An 8 second sound for 14 seconds: once round, then cut six seconds in.
