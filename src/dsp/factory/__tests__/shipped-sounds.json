@@ -274,6 +274,56 @@
     "durationSec": 3,
     "loops": false
   },
+  "185": {
+    "id": "harp-phrase-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "186": {
+    "id": "handpan-round-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "187": {
+    "id": "nylon-guitar-fall-em",
+    "durationSec": 8,
+    "loops": false
+  },
+  "188": {
+    "id": "pedal-steel-sigh-c",
+    "durationSec": 12,
+    "loops": true
+  },
+  "189": {
+    "id": "marimba-phrase-g",
+    "durationSec": 8,
+    "loops": false
+  },
+  "190": {
+    "id": "zither-wash-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "191": {
+    "id": "tremolo-guitar-dm",
+    "durationSec": 12,
+    "loops": true
+  },
+  "192": {
+    "id": "wooden-plucks-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "193": {
+    "id": "shakuhachi-call-am",
+    "durationSec": 8,
+    "loops": false
+  },
+  "194": {
+    "id": "felt-piano-round-c",
+    "durationSec": 12,
+    "loops": true
+  },
   "195": {
     "id": "gong-wash-a",
     "durationSec": 8,
