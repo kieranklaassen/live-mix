@@ -45,7 +45,7 @@ export const ACOUSTIC_GUITAR_PRESETS: readonly FactoryPreset[] = [
       'Steel strings left to ring into each other, with tuned strings that answer and a quiet room behind.',
     instrument: { deviceId: 'acoustic-guitar', preset: 'Let ring', params: { volume: -6 } },
     effects: [
-      { deviceId: 'sympathetic', preset: 'Long resonance', params: { mix: 0.3 } },
+      { deviceId: 'sympathetic', preset: 'Long ring', params: { mix: 0.3 } },
       { deviceId: 'bloom-reverb', preset: 'Still room', params: { mix: 0.25 } },
     ],
     preview: 'keys',

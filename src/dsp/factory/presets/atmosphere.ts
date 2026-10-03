@@ -41,7 +41,7 @@ export const ATMOSPHERE_PRESETS: readonly FactoryPreset[] = [
       preset: 'Slow shore',
       params: { density: 0.5, tone: 0.65, attack: 2, width: 0.8, volume: -3 },
     },
-    effects: [{ deviceId: 'auto-filter', preset: 'Rumble Cut', params: { cutoffHz: 90 } }],
+    effects: [{ deviceId: 'auto-filter', preset: 'Rumble cut', params: { cutoffHz: 90 } }],
   },
   {
     id: 'record-surface',
@@ -73,7 +73,7 @@ export const ATMOSPHERE_PRESETS: readonly FactoryPreset[] = [
       params: { density: 0.85, movement: 0.6, tone: 0.7, width: 1, volume: -13 },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Tube Preamp' },
+      { deviceId: 'saturator', preset: 'Tube preamp' },
       { deviceId: 'spring-reverb', preset: 'Two spring tank', params: { mix: 0.25 } },
     ],
     preview: 'low',

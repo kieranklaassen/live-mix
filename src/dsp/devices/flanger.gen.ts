@@ -99,7 +99,7 @@ export const FLANGER_DESCRIPTOR = wasmDeviceDescriptor(FLANGER_DEVICE, {
   description:
     'Short swept delay with positive or negative feedback, six LFO shapes and a stereo phase offset: jet sweeps, hollow combs and metallic resonance.',
   presets: {
-    'Gentle Sweep': {
+    'Gentle sweep': {
       delayMs: 2.5,
       rate: 0.25,
       depth: 50,
@@ -108,7 +108,7 @@ export const FLANGER_DESCRIPTOR = wasmDeviceDescriptor(FLANGER_DEVICE, {
       stereo: 90,
       mix: 0.5,
     },
-    'Classic Jet': {
+    'Classic jet': {
       delayMs: 2.5,
       rate: 0.25,
       depth: 60,
@@ -117,7 +117,7 @@ export const FLANGER_DESCRIPTOR = wasmDeviceDescriptor(FLANGER_DEVICE, {
       stereo: 90,
       mix: 0.5,
     },
-    'Slow Sweep': {
+    'Slow sweep': {
       delayMs: 4,
       rate: 0.08,
       depth: 80,
@@ -126,7 +126,7 @@ export const FLANGER_DESCRIPTOR = wasmDeviceDescriptor(FLANGER_DEVICE, {
       stereo: 90,
       mix: 0.5,
     },
-    'Negative Hollow': {
+    'Negative hollow': {
       delayMs: 1.5,
       rate: 0.4,
       depth: 50,
@@ -135,7 +135,7 @@ export const FLANGER_DESCRIPTOR = wasmDeviceDescriptor(FLANGER_DEVICE, {
       stereo: 60,
       mix: 0.5,
     },
-    'Through-Zero Feel': {
+    'Through-zero feel': {
       delayMs: 0.8,
       rate: 0.3,
       depth: 100,
@@ -144,8 +144,8 @@ export const FLANGER_DESCRIPTOR = wasmDeviceDescriptor(FLANGER_DEVICE, {
       stereo: 180,
       mix: 0.5,
     },
-    'Tremolo Saw': { delayMs: 3, rate: 2, depth: 40, feedback: 10, shape: 2, stereo: 0, mix: 0.5 },
-    'Stepped Random': {
+    'Tremolo saw': { delayMs: 3, rate: 2, depth: 40, feedback: 10, shape: 2, stereo: 0, mix: 0.5 },
+    'Stepped random': {
       delayMs: 5,
       rate: 4,
       depth: 70,
@@ -154,7 +154,7 @@ export const FLANGER_DESCRIPTOR = wasmDeviceDescriptor(FLANGER_DEVICE, {
       stereo: 90,
       mix: 0.5,
     },
-    'Metal Resonator': {
+    'Metal resonator': {
       delayMs: 1,
       rate: 0.05,
       depth: 30,
@@ -163,7 +163,7 @@ export const FLANGER_DESCRIPTOR = wasmDeviceDescriptor(FLANGER_DEVICE, {
       stereo: 45,
       mix: 0.45,
     },
-    'Wide Wash': {
+    'Wide wash': {
       delayMs: 8,
       rate: 0.15,
       depth: 55,
@@ -172,8 +172,8 @@ export const FLANGER_DESCRIPTOR = wasmDeviceDescriptor(FLANGER_DEVICE, {
       stereo: 180,
       mix: 0.4,
     },
-    'Square Chop': { delayMs: 2, rate: 1, depth: 50, feedback: 0, shape: 4, stereo: 0, mix: 0.5 },
-    'Faint Air': {
+    'Square chop': { delayMs: 2, rate: 1, depth: 50, feedback: 0, shape: 4, stereo: 0, mix: 0.5 },
+    'Faint air': {
       delayMs: 1,
       rate: 0.15,
       depth: 60,
@@ -182,7 +182,7 @@ export const FLANGER_DESCRIPTOR = wasmDeviceDescriptor(FLANGER_DEVICE, {
       stereo: 180,
       mix: 0.2,
     },
-    'Glacial Drift': {
+    'Glacial drift': {
       delayMs: 3,
       rate: 0.02,
       depth: 90,
@@ -191,7 +191,7 @@ export const FLANGER_DESCRIPTOR = wasmDeviceDescriptor(FLANGER_DEVICE, {
       stereo: 120,
       mix: 0.5,
     },
-    'Rising Comb': {
+    'Rising comb': {
       delayMs: 3.5,
       rate: 0.2,
       depth: 85,
@@ -200,7 +200,7 @@ export const FLANGER_DESCRIPTOR = wasmDeviceDescriptor(FLANGER_DEVICE, {
       stereo: 90,
       mix: 0.45,
     },
-    'Standing Comb': {
+    'Standing comb': {
       delayMs: 4,
       rate: 0.25,
       depth: 0,
@@ -209,8 +209,26 @@ export const FLANGER_DESCRIPTOR = wasmDeviceDescriptor(FLANGER_DEVICE, {
       stereo: 0,
       mix: 0.5,
     },
-    'Fast Warble': { delayMs: 5, rate: 6, depth: 12, feedback: 20, shape: 0, stereo: 90, mix: 0.5 },
-    'Deep Dive': { delayMs: 7, rate: 0.1, depth: 100, feedback: 75, shape: 0, stereo: 0, mix: 0.5 },
+    'Fast warble': { delayMs: 5, rate: 6, depth: 12, feedback: 20, shape: 0, stereo: 90, mix: 0.5 },
+    'Deep dive': { delayMs: 7, rate: 0.1, depth: 100, feedback: 75, shape: 0, stereo: 0, mix: 0.5 },
+  },
+  formerPresets: {
+    'Gentle Sweep': 'Gentle sweep',
+    'Classic Jet': 'Classic jet',
+    'Slow Sweep': 'Slow sweep',
+    'Negative Hollow': 'Negative hollow',
+    'Through-Zero Feel': 'Through-zero feel',
+    'Tremolo Saw': 'Tremolo saw',
+    'Stepped Random': 'Stepped random',
+    'Metal Resonator': 'Metal resonator',
+    'Wide Wash': 'Wide wash',
+    'Square Chop': 'Square chop',
+    'Faint Air': 'Faint air',
+    'Glacial Drift': 'Glacial drift',
+    'Rising Comb': 'Rising comb',
+    'Standing Comb': 'Standing comb',
+    'Fast Warble': 'Fast warble',
+    'Deep Dive': 'Deep dive',
   },
 })
 

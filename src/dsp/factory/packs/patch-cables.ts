@@ -20,7 +20,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       { deviceId: 'saturator', params: { curve: 3, driveDb: 12, outputDb: -8 } },
       {
         deviceId: 'analog-delay',
-        preset: 'Fifths and fourths',
+        preset: 'Fifth hop',
         params: { time: 250, feedback: 0.5, tone: 5200, intervalB: 0, step: 1, mix: 0.35 },
       },
       { deviceId: 'spring-reverb', preset: 'Two spring tank', params: { mix: 0.2, tone: 4500 } },
@@ -44,8 +44,8 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Restruck',
         params: { time: 170, repeats: 6, decay: 0.4, high: 0.7, mix: 0.5 },
       },
-      { deviceId: 'chorus', preset: 'Subtle Widener' },
-      { deviceId: 'swarm-reverb', preset: 'Small swarm', params: { mix: 0.25 } },
+      { deviceId: 'chorus', preset: 'Subtle widener' },
+      { deviceId: 'swarm-reverb', preset: 'Tight swarm', params: { mix: 0.25 } },
     ],
   },
   {
@@ -76,7 +76,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { fold: 0.45, attack: 0.6, decay: 3, sustain: 0.85, colour: 0.9, volume: -8 },
     },
     effects: [
-      { deviceId: 'phaser', preset: 'Slow Swirl', params: { rate: 0.12, mix: 0.4 } },
+      { deviceId: 'phaser', preset: 'Slow swirl', params: { rate: 0.12, mix: 0.4 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.3, damping: 0.25 } },
     ],
   },
@@ -161,7 +161,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'lattice', preset: 'Diatonic thirds', params: { glide: 40, output: 4 } },
-      { deviceId: 'chorus', preset: 'Classic Chorus', params: { mix: 0.3 } },
+      { deviceId: 'chorus', preset: 'Classic chorus', params: { mix: 0.3 } },
       { deviceId: 'spring-reverb', preset: 'Long three spring', params: { mix: 0.22 } },
     ],
   },
@@ -183,7 +183,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Octave up',
         params: { mode: 3, tone: 10000, spread: 0.7, mix: 0.3 },
       },
-      { deviceId: 'stereo-detune', preset: 'Wide open', params: { mix: 0.3 } },
+      { deviceId: 'stereo-detune', preset: 'Wider', params: { mix: 0.3 } },
       { deviceId: 'shimmer', preset: 'Plain hall', params: { mix: 0.25 } },
     ],
   },
@@ -210,8 +210,8 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'chorus', preset: 'Wide Chorus', params: { mix: 0.3 } },
-      { deviceId: 'vowel-reverb', preset: 'Small chapel', params: { mix: 0.25 } },
+      { deviceId: 'chorus', preset: 'Wide chorus', params: { mix: 0.3 } },
+      { deviceId: 'vowel-reverb', preset: 'Chapel', params: { mix: 0.25 } },
     ],
   },
   {
@@ -237,7 +237,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'analog-delay',
-        preset: 'Octave hops',
+        preset: 'Octave hop',
         params: { time: 250, feedback: 0.5, tone: 6000, mix: 0.35 },
       },
       { deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.2 } },
@@ -266,7 +266,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'auto-filter',
-        preset: 'Low-Pass Gate',
+        preset: 'Low-pass gate',
         params: { cutoffHz: 900, resonance: 1.6, envAmount: 90, envAttackMs: 2, envReleaseMs: 260 },
       },
       {
@@ -362,10 +362,10 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'pitch-shifter',
-        preset: 'Pad fifth above',
+        preset: 'Pad fifth',
         params: { pitchA: 19, pitchB: 19, tone: 9000, mix: 0.25 },
       },
-      { deviceId: 'chorus', preset: 'Lush Ensemble', params: { mix: 0.3 } },
+      { deviceId: 'chorus', preset: 'Lush ensemble', params: { mix: 0.3 } },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
@@ -399,7 +399,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       { deviceId: 'tremolo', preset: 'Slow pan', params: { rate: 2, shape: 3, depth: 0.4 } },
       {
         deviceId: 'analog-delay',
-        preset: 'Chorus echo',
+        preset: 'Chorused',
         params: { time: 375, spread: 0.4, mix: 0.3 },
       },
     ],
@@ -420,7 +420,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'lattice', preset: 'Thesis voicing', params: { glide: 35, mix: 55, output: 6 } },
-      { deviceId: 'chorus', preset: 'Vocal Thickener' },
+      { deviceId: 'chorus', preset: 'Vocal thickener' },
       { deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.25 } },
     ],
   },
@@ -537,7 +537,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'lattice', preset: 'Seventh chord stack', params: { glide: 50, output: 4 } },
-      { deviceId: 'stereo-detune', preset: 'Subtle halo' },
+      { deviceId: 'stereo-detune', preset: 'Soft halo' },
       { deviceId: 'shimmer', preset: 'Plain hall', params: { mix: 0.25 } },
     ],
   },
@@ -579,7 +579,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'analog-delay',
-        preset: 'Octave hops',
+        preset: 'Octave hop',
         params: { time: 250, feedback: 0.5, tone: 6000, intervalA: 4, mix: 0.4 },
       },
       { deviceId: 'swarm-reverb', preset: 'Pattering', params: { mix: 0.25 } },
@@ -634,8 +634,8 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { breath: 0.7, blow: 0.35, attack: 0.45, release: 2.5, volume: -13 },
     },
     effects: [
-      { deviceId: 'chorus', preset: 'Deep Sea', params: { rate: 0.3, mix: 0.4 } },
-      { deviceId: 'vowel-reverb', preset: 'Whispering hall', params: { mix: 0.3 } },
+      { deviceId: 'chorus', preset: 'Deep sea', params: { rate: 0.3, mix: 0.4 } },
+      { deviceId: 'vowel-reverb', preset: 'Whispering', params: { mix: 0.3 } },
     ],
   },
   {
@@ -671,7 +671,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tremolo', preset: 'Wide shimmer', params: { rate: 11, depth: 0.6, phase: 60 } },
-      { deviceId: 'micro-looper', preset: 'Octave sparkle', params: { length: 0.75, mix: 0.3 } },
+      { deviceId: 'micro-looper', preset: 'Octave up', params: { length: 0.75, mix: 0.3 } },
       { deviceId: 'fdn-reverb', preset: 'Room', params: { mix: 0.3 } },
     ],
   },
@@ -707,7 +707,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tremolo', preset: 'Chopper', params: { rate: 6, depth: 0.85, smooth: 0.35 } },
-      { deviceId: 'analog-delay', preset: 'Dark repeats', params: { time: 250, mix: 0.25 } },
+      { deviceId: 'analog-delay', preset: 'Dark echo', params: { time: 250, mix: 0.25 } },
       { deviceId: 'expanse', preset: 'Small dark room', params: { mix: 0.2 } },
     ],
   },
@@ -724,7 +724,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { blow: 0.5, release: 0.9, volume: -10 },
     },
     effects: [
-      { deviceId: 'stereo-detune', preset: 'Classic wide', params: { mix: 0.3 } },
+      { deviceId: 'stereo-detune', preset: 'Classic', params: { mix: 0.3 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
@@ -742,8 +742,8 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'glitch', preset: 'Bouncing', params: { time: 250, chance: 0.5, mix: 0.6 } },
-      { deviceId: 'chorus', preset: 'Subtle Widener' },
-      { deviceId: 'shaped-reverb', preset: 'Gated room', params: { mix: 0.3 } },
+      { deviceId: 'chorus', preset: 'Subtle widener' },
+      { deviceId: 'shaped-reverb', preset: 'Gated', params: { mix: 0.3 } },
     ],
   },
   {
@@ -779,10 +779,10 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'saturator',
-        preset: 'Wavefold Lead',
+        preset: 'Wavefold lead',
         params: { driveDb: 14, outputDb: -6, mix: 0.5 },
       },
-      { deviceId: 'phaser', preset: 'Classic 4-Stage', params: { rate: 0.4, mix: 0.35 } },
+      { deviceId: 'phaser', preset: 'Classic four-stage', params: { rate: 0.4, mix: 0.35 } },
       {
         deviceId: 're-amp',
         preset: 'Combo in a room',
@@ -806,7 +806,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'analog-delay',
-        preset: 'Fifths and fourths',
+        preset: 'Fifth hop',
         params: { time: 375, feedback: 0.5, tone: 5000, mix: 0.35 },
       },
       { deviceId: 'bloom-reverb', preset: 'Still room', params: { mix: 0.25 } },
@@ -825,7 +825,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { roll: 9, mallet: 0.3, volume: -13 },
     },
     effects: [
-      { deviceId: 'chorus', preset: 'Slow Drift', params: { mix: 0.3 } },
+      { deviceId: 'chorus', preset: 'Slow drift', params: { mix: 0.3 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
@@ -846,7 +846,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Octave up',
         params: { delay: 190, feedback: 0.25, spread: 0.8, mix: 0.3 },
       },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.25 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -925,7 +925,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'analog-delay',
-        preset: 'Octave hops',
+        preset: 'Octave hop',
         params: { time: 190, feedback: 0.55, tone: 6500, spread: 0.8, mix: 0.35 },
       },
       { deviceId: 'shimmer', preset: 'Plain hall', params: { mix: 0.2 } },
@@ -943,7 +943,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { brightness: 0.55, attack: 0.2, release: 2.5, detune: 6, volume: -15 },
     },
     effects: [
-      { deviceId: 'phaser', preset: 'Bass Safe', params: { rate: 0.2, mix: 0.35 } },
+      { deviceId: 'phaser', preset: 'Bass safe', params: { rate: 0.2, mix: 0.35 } },
       { deviceId: 'shimmer', preset: 'Glass', params: { mix: 0.25 } },
     ],
   },
@@ -964,7 +964,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Touch wah',
         params: { cutoffHz: 500, resonance: 3, envAmount: 70, mix: 0.7 },
       },
-      { deviceId: 'chorus', preset: 'Classic Chorus', params: { mix: 0.3 } },
+      { deviceId: 'chorus', preset: 'Classic chorus', params: { mix: 0.3 } },
       { deviceId: 'fdn-reverb', preset: 'Room', params: { mix: 0.25 } },
     ],
   },
@@ -1037,7 +1037,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { strum: 45, volume: -5 },
     },
     effects: [
-      { deviceId: 'phaser', preset: 'Random Steps', params: { depth: 60, mix: 0.4 } },
+      { deviceId: 'phaser', preset: 'Random steps', params: { depth: 60, mix: 0.4 } },
       { deviceId: 'spring-reverb', preset: 'Two spring tank', params: { mix: 0.25 } },
     ],
   },
@@ -1066,7 +1066,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Three heads',
         params: { time: 250, feedback: 0.4, mix: 0.3 },
       },
-      { deviceId: 'swarm-reverb', preset: 'Small swarm', params: { mix: 0.25 } },
+      { deviceId: 'swarm-reverb', preset: 'Tight swarm', params: { mix: 0.25 } },
     ],
   },
   {
@@ -1225,7 +1225,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { strum: 70, direction: 3, span: 2, sustain: 1.6, volume: -3 },
     },
     effects: [
-      { deviceId: 'analog-delay', preset: 'Chorus echo', params: { time: 250, mix: 0.3 } },
+      { deviceId: 'analog-delay', preset: 'Chorused', params: { time: 250, mix: 0.3 } },
       { deviceId: 'bloom-reverb', preset: 'Still room', params: { mix: 0.25 } },
     ],
   },
@@ -1242,7 +1242,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { strum: 110, direction: 2, sustain: 3, volume: -14 },
     },
     effects: [
-      { deviceId: 'chorus', preset: 'Wide Chorus', params: { mix: 0.3 } },
+      { deviceId: 'chorus', preset: 'Wide chorus', params: { mix: 0.3 } },
       { deviceId: 'shimmer', preset: 'Rising choir', params: { decay: 6, shimmer: 0.4, mix: 0.3 } },
     ],
   },
@@ -1260,7 +1260,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { movement: 0.7, rate: 0.3, cutoff: 7000, attack: 1.2, release: 5, volume: -6 },
     },
     effects: [
-      { deviceId: 'flanger', preset: 'Stepped Random', params: { rate: 3, depth: 45, mix: 0.3 } },
+      { deviceId: 'flanger', preset: 'Stepped random', params: { rate: 3, depth: 45, mix: 0.3 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
@@ -1315,7 +1315,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'analog-delay',
-        preset: 'Dark repeats',
+        preset: 'Dark echo',
         params: { time: 375, tone: 4200, mix: 0.3 },
       },
       { deviceId: 'expanse', preset: 'Small dark room', params: { mix: 0.2 } },
@@ -1392,7 +1392,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { cutoff: 800, ampDecay: 1.2, ampRelease: 0.5, filterDecay: 0.2, volume: 5 },
     },
     effects: [
-      { deviceId: 'pitch-shifter', preset: 'Grain shimmer', params: { delay: 125, mix: 0.3 } },
+      { deviceId: 'pitch-shifter', preset: 'Shimmer', params: { delay: 125, mix: 0.3 } },
       { deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.25 } },
     ],
   },
@@ -1448,10 +1448,10 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { size: 60, density: 5, scan: 0.8, shape: 0.6, release: 0.4, volume: -16 },
     },
     effects: [
-      { deviceId: 'vintage-digital', preset: 'Soft glaze' },
+      { deviceId: 'vintage-digital', preset: 'Glaze' },
       {
         deviceId: 'analog-delay',
-        preset: 'Octave hops',
+        preset: 'Octave hop',
         params: { time: 250, feedback: 0.45, mix: 0.3 },
       },
       { deviceId: 'shaped-reverb', preset: 'Short halo', params: { mix: 0.3 } },
@@ -1469,7 +1469,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { density: 10, attack: 0.3, release: 2.5, scan: 0.2, spread: 0.7, volume: -15.5 },
     },
     effects: [
-      { deviceId: 'chorus', preset: 'Slow Drift', params: { spread: 70, mix: 0.3 } },
+      { deviceId: 'chorus', preset: 'Slow drift', params: { spread: 70, mix: 0.3 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
@@ -1492,7 +1492,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Touch wah',
         params: { mix: 1, type: 0, cutoffHz: 450, resonance: 4, envAmount: 75, envReleaseMs: 180 },
       },
-      { deviceId: 'analog-delay', preset: 'Chorus echo', params: { time: 375, mix: 0.3 } },
+      { deviceId: 'analog-delay', preset: 'Chorused', params: { time: 375, mix: 0.3 } },
       { deviceId: 'spring-reverb', preset: 'Two spring tank', params: { mix: 0.2 } },
     ],
   },
@@ -1552,10 +1552,10 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'echo-memory',
-        preset: 'Backwards glances',
+        preset: 'Backwards',
         params: { time: 375, reach: 6, mix: 0.35 },
       },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.2 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.2 } },
     ],
   },
 
@@ -1578,7 +1578,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Rising glass',
         params: { time: 500, feedback: 0.4, mix: 0.45 },
       },
-      { deviceId: 'vowel-reverb', preset: 'Small chapel', params: { mix: 0.2 } },
+      { deviceId: 'vowel-reverb', preset: 'Chapel', params: { mix: 0.2 } },
     ],
   },
   {
@@ -1595,7 +1595,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'micro-looper',
-        preset: 'Octave sparkle',
+        preset: 'Octave up',
         params: { length: 1, fade: 0.6, mix: 0.35 },
       },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.25 } },
@@ -1620,7 +1620,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Diatonic thirds',
         params: { v2Degrees: 4, v2Level: -8, glide: 45, output: 5 },
       },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.25 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -1656,7 +1656,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'analog-delay',
-        preset: 'Octave hops',
+        preset: 'Octave hop',
         params: { time: 250, feedback: 0.4, tone: 5500, step: 0, mix: 0.4 },
       },
       { deviceId: 're-amp', preset: 'Combo in a room', params: { drive: 0.2, noise: 0.05 } },
@@ -1722,8 +1722,8 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { decay: 3.5, brightness: 0.65, volume: 1 },
     },
     effects: [
-      { deviceId: 'flanger', preset: 'Gentle Sweep', params: { mix: 0.25 } },
-      { deviceId: 'shaped-reverb', preset: 'Backwards cloud', params: { time: 0.8, mix: 0.4 } },
+      { deviceId: 'flanger', preset: 'Gentle sweep', params: { mix: 0.25 } },
+      { deviceId: 'shaped-reverb', preset: 'Reverse', params: { time: 0.8, mix: 0.4 } },
     ],
   },
 
@@ -1777,7 +1777,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'analog-delay',
-        preset: 'Fifths and fourths',
+        preset: 'Fifth hop',
         params: { time: 330, feedback: 0.5, tone: 5000, mix: 0.35 },
       },
       { deviceId: 'ambient-eq', preset: 'Texture' },
@@ -1817,7 +1817,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { pick: 0.7, sustain: 5, vibrato: 2, volume: -12 },
     },
     effects: [
-      { deviceId: 'pitch-shifter', preset: 'Detuned double', params: { spread: 0.7, mix: 0.4 } },
+      { deviceId: 'pitch-shifter', preset: 'Doubler', params: { spread: 0.7, mix: 0.4 } },
       { deviceId: 'spring-reverb', preset: 'Surf drip', params: { mix: 0.25, drive: 0.3 } },
     ],
   },
@@ -1873,7 +1873,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Octaves both',
         params: { levelB: 0.6, tone: 9000, mix: 0.35 },
       },
-      { deviceId: 'chorus', preset: 'Lush Ensemble', params: { spread: 70, mix: 0.3 } },
+      { deviceId: 'chorus', preset: 'Lush ensemble', params: { spread: 70, mix: 0.3 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
@@ -1892,7 +1892,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 0.01, release: 0.3, high: 0.5, ensemble: 0.5, width: 0.6, volume: 1.7 },
     },
     effects: [
-      { deviceId: 'phaser', preset: 'Classic 4-Stage', params: { rate: 0.6, mix: 0.35 } },
+      { deviceId: 'phaser', preset: 'Classic four-stage', params: { rate: 0.6, mix: 0.35 } },
       {
         deviceId: 'tape-echo',
         preset: 'Short and soft',
@@ -1913,7 +1913,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 0.3, release: 2.5, tone: 8000, speed: 1.5, volume: -10.5 },
     },
     effects: [
-      { deviceId: 'stereo-detune', preset: 'Subtle halo' },
+      { deviceId: 'stereo-detune', preset: 'Soft halo' },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
@@ -1933,7 +1933,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'analog-delay',
-        preset: 'Octave hops',
+        preset: 'Octave hop',
         params: { time: 330, feedback: 0.4, tone: 6000, mix: 0.25 },
       },
       { deviceId: 'sympathetic', preset: 'Open triad', params: { root: 2, mix: 0.3 } },
@@ -2010,7 +2010,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'ambient-limiter', preset: 'Wall only', params: { gain: -0.5 } },
-      { deviceId: 'analog-delay', preset: 'Chorus echo', params: { time: 250, mix: 0.3 } },
+      { deviceId: 'analog-delay', preset: 'Chorused', params: { time: 250, mix: 0.3 } },
       { deviceId: 'fdn-reverb', preset: 'Room', params: { mix: 0.25 } },
     ],
   },
@@ -2027,7 +2027,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'ambient-limiter', preset: 'Wall only', params: { gain: 9.5 } },
-      { deviceId: 'chorus', preset: 'Wide Chorus', params: { mix: 0.3 } },
+      { deviceId: 'chorus', preset: 'Wide chorus', params: { mix: 0.3 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
@@ -2046,7 +2046,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'octaves', params: { sub1: 0.35, up1: 0.5, detune: 0.2, spread: 0.6 } },
-      { deviceId: 'chorus', preset: 'Guitar Shimmer', params: { mix: 0.3 } },
+      { deviceId: 'chorus', preset: 'Guitar shimmer', params: { mix: 0.3 } },
       { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.25 } },
     ],
   },
@@ -2080,7 +2080,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { chord: 0, roll: 12, decay: 4, release: 1.5, volume: -14 },
     },
     effects: [
-      { deviceId: 'stereo-detune', preset: 'Classic wide', params: { mix: 0.3 } },
+      { deviceId: 'stereo-detune', preset: 'Classic', params: { mix: 0.3 } },
       { deviceId: 'spring-reverb', preset: 'Two spring tank', params: { mix: 0.25 } },
     ],
   },
@@ -2105,7 +2105,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'sympathetic', preset: 'Follow the melody', params: { decay: 3, mix: 0.3 } },
+      { deviceId: 'sympathetic', preset: 'Follow the tune', params: { decay: 3, mix: 0.3 } },
       { deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.2 } },
     ],
   },

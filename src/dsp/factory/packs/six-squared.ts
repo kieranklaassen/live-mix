@@ -43,7 +43,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'analog-drive', preset: 'Console edge', params: { drive: 0.5, output: -0.5 } },
+      { deviceId: 'analog-drive', preset: 'Console', params: { drive: 0.5, output: -0.5 } },
       { deviceId: 'ambient-comp', preset: 'Hold swells', params: { threshold: -28, makeup: 2 } },
       {
         deviceId: 'expanse',
@@ -110,7 +110,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'saturator',
-        preset: 'Tube Preamp',
+        preset: 'Tube preamp',
         params: { driveDb: 9, toneDb: -2, outputDb: -9.5 },
       },
       {
@@ -161,7 +161,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { brilliance: 1500, attack: 0.5, release: 7, ring: 0.45, detune: 12, volume: -9.5 },
     },
     effects: [
-      { deviceId: 'vintage-digital', preset: 'Soft glaze', params: { rate: 14000 } },
+      { deviceId: 'vintage-digital', preset: 'Glaze', params: { rate: 14000 } },
       { deviceId: 'ambient-comp', preset: 'Glue', params: { threshold: -26, ratio: 3 } },
       { deviceId: 'dattorro', preset: 'Long plate', params: { damping: 0.6, mix: 0.4 } },
     ],
@@ -180,7 +180,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { cutoff: 1500, resonance: 0.2, attack: 1, release: 4.5, chorus: 3, volume: -15 },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Warm Glue', params: { driveDb: 10, outputDb: -5 } },
+      { deviceId: 'saturator', preset: 'Warm glue', params: { driveDb: 10, outputDb: -5 } },
       { deviceId: 'ambient-comp', preset: 'Level', params: { threshold: -30, ratio: 3 } },
       { deviceId: 'noise-floor', preset: 'Tape floor', params: { level: -44, tone: -0.2 } },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { damping: 2400, mix: 0.45 } },
@@ -248,7 +248,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { lowCut: 2, cutoff: 2600, attack: 2, release: 5, volume: -10 },
     },
     effects: [
-      { deviceId: 'noise-floor', preset: 'Rides the sound', params: { level: -36 } },
+      { deviceId: 'noise-floor', preset: 'Riding hiss', params: { level: -36 } },
       { deviceId: 'swarm-reverb', preset: 'Dark well', params: { highCut: 2400, mix: 0.45 } },
     ],
   },
@@ -264,7 +264,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 0.5, release: 4, chorus: 3, volume: -11.5 },
     },
     effects: [
-      { deviceId: 'analog-delay', preset: 'Long and murky', params: { time: 700, mix: 0.35 } },
+      { deviceId: 'analog-delay', preset: 'Murky', params: { time: 700, mix: 0.35 } },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { damping: 3000, mix: 0.4 } },
     ],
     preview: 'line',
@@ -293,7 +293,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'analog-delay',
-        preset: 'Dark repeats',
+        preset: 'Dark echo',
         params: { time: 375, feedback: 0.55, mix: 0.4 },
       },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { damping: 3500, mix: 0.3 } },
@@ -346,7 +346,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'vintage-digital', preset: 'Twelve bit', params: { rate: 11000 } },
+      { deviceId: 'vintage-digital', preset: 'Sampler', params: { rate: 11000 } },
       {
         deviceId: 'expanse',
         preset: 'Open space',
@@ -414,7 +414,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'noise-floor', preset: 'Rides the sound', params: { level: -34, response: 0.4 } },
+      { deviceId: 'noise-floor', preset: 'Riding hiss', params: { level: -34, response: 0.4 } },
       { deviceId: 'dattorro', preset: 'Long plate', params: { damping: 0.6, mix: 0.35 } },
     ],
   },
@@ -430,7 +430,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { cutoff: 340, lfo1Rate: 0.04, ampAttack: 4, volume: -8 },
     },
     effects: [
-      { deviceId: 'analog-drive', preset: 'Dark fuzz bed', params: { mix: 0.4 } },
+      { deviceId: 'analog-drive', preset: 'Dark fuzz', params: { mix: 0.4 } },
       {
         deviceId: 'fdn-reverb',
         preset: 'Breathing',
@@ -450,7 +450,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { cutoff: 3800, ampAttack: 1.4, ampRelease: 6, volume: -8.5 },
     },
     effects: [
-      { deviceId: 'stereo-detune', preset: 'Subtle halo' },
+      { deviceId: 'stereo-detune', preset: 'Soft halo' },
       {
         deviceId: 'shimmer',
         preset: 'Rising choir',
@@ -470,10 +470,10 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { cutoff: 420, filterDecay: 0.2, ampDecay: 0.9, ampRelease: 0.6, volume: 2 },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Warm Glue', params: { driveDb: 9, outputDb: -6 } },
+      { deviceId: 'saturator', preset: 'Warm glue', params: { driveDb: 9, outputDb: -6 } },
       {
         deviceId: 'analog-delay',
-        preset: 'Fifths and fourths',
+        preset: 'Fifth hop',
         params: { time: 300, feedback: 0.5, mix: 0.35 },
       },
 
@@ -540,7 +540,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'phaser',
-        preset: 'Slow Swirl',
+        preset: 'Slow swirl',
         params: { rate: 0.05, feedback: 45, stereo: 60, mix: 0.45 },
       },
       { deviceId: 'dattorro', preset: 'Long plate', params: { damping: 0.7, mix: 0.4 } },
@@ -581,7 +581,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 0.01, release: 0.7, tone: 3000, low: 0.4, width: 0.3, volume: -9.5 },
     },
     effects: [
-      { deviceId: 'vintage-digital', preset: 'Twelve bit', params: { rate: 12000 } },
+      { deviceId: 'vintage-digital', preset: 'Sampler', params: { rate: 12000 } },
       {
         deviceId: 'tape-loop',
         preset: 'Slow fade',
@@ -616,7 +616,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Quarter inch reel',
         params: { drive: 0.55, wear: 0.5, noise: 0.2 },
       },
-      { deviceId: 'noise-floor', preset: 'Breathing recorder', params: { level: -32 } },
+      { deviceId: 'noise-floor', preset: 'Breathing tape', params: { level: -32 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { decay: 6, damping: 0.6, mix: 0.35 } },
     ],
   },
@@ -642,7 +642,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Warm Glue', params: { driveDb: 12, outputDb: -8 } },
+      { deviceId: 'saturator', preset: 'Warm glue', params: { driveDb: 12, outputDb: -8 } },
       { deviceId: 'ambient-comp', preset: 'Glue', params: { threshold: -28, ratio: 2.5 } },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { damping: 2700, mix: 0.45 } },
     ],
@@ -685,7 +685,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'analog-drive', preset: 'Glowing triode', params: { drive: 0.45, tone: -0.3 } },
+      { deviceId: 'analog-drive', preset: 'Triode glow', params: { drive: 0.45, tone: -0.3 } },
       {
         deviceId: 'expanse',
         preset: 'Open space',
@@ -754,7 +754,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'saturator',
-        preset: 'Tube Preamp',
+        preset: 'Tube preamp',
         params: { driveDb: 18, bias: 0.35, toneDb: 0, outputDb: -17.7 },
       },
       { deviceId: 'noise-floor', params: { type: 3, level: -40, movement: 0.4, width: 0.4 } },
@@ -802,7 +802,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 0.4, release: 3.5, tone: 4500, vibrato: 6, volume: -11 },
     },
     effects: [
-      { deviceId: 'vintage-digital', preset: 'Twelve bit', params: { rate: 10000, jitter: 0.3 } },
+      { deviceId: 'vintage-digital', preset: 'Sampler', params: { rate: 10000, jitter: 0.3 } },
       { deviceId: 'expanse', preset: 'Open space', params: { decay: 12, highCut: 4500, mix: 0.4 } },
     ],
   },
@@ -818,7 +818,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 2.2, release: 5, tone: 2600, volume: -11 },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Warm Glue', params: { driveDb: 9, outputDb: -9.5 } },
+      { deviceId: 'saturator', preset: 'Warm glue', params: { driveDb: 9, outputDb: -9.5 } },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { damping: 2000, mix: 0.5 } },
     ],
   },
@@ -873,7 +873,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { vowel: 0.15, vibrato: 24, attack: 0.25, release: 1.2, tone: 5000, volume: -4.5 },
     },
     effects: [
-      { deviceId: 'echo-memory', preset: 'Half-remembered', params: { reach: 8, mix: 0.4 } },
+      { deviceId: 'echo-memory', preset: 'Hazy past', params: { reach: 8, mix: 0.4 } },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { damping: 2800, mix: 0.4 } },
     ],
     preview: 'line',
@@ -982,7 +982,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'micro-looper', preset: 'Soft bed', params: { length: 1, tone: 4000, mix: 0.4 } },
-      { deviceId: 'analog-delay', preset: 'Long and murky', params: { time: 600, mix: 0.3 } },
+      { deviceId: 'analog-delay', preset: 'Murky', params: { time: 600, mix: 0.3 } },
       {
         deviceId: 'dattorro',
         preset: 'Small plate',
@@ -1009,7 +1009,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
       {
         deviceId: 'shaped-reverb',
-        preset: 'Slow bloom',
+        preset: 'Bloom',
         params: { time: 3.5, highCut: 4500, mix: 0.45 },
       },
     ],
@@ -1045,7 +1045,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { hardness: 0.5, thump: 0.2, reverbMix: 0.05, outputDb: -11.5 },
     },
     effects: [
-      { deviceId: 'vintage-digital', preset: 'Twelve bit', params: { rate: 13000, jitter: 0.25 } },
+      { deviceId: 'vintage-digital', preset: 'Sampler', params: { rate: 13000, jitter: 0.25 } },
       {
         deviceId: 'tape-loop',
         preset: 'Two decks',
@@ -1068,7 +1068,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { decay: 2, release: 0.9, tone: 0.3, volume: -13 },
     },
     effects: [
-      { deviceId: 'chorus', preset: 'Deep Sea', params: { depth: 60, mix: 0.4 } },
+      { deviceId: 'chorus', preset: 'Deep sea', params: { depth: 60, mix: 0.4 } },
       { deviceId: 'saturator', preset: 'On tape', params: { driveDb: 8, outputDb: -10.5 } },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { midDecay: 4, damping: 2800, mix: 0.4 } },
     ],
@@ -1158,7 +1158,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'analog-delay',
-        preset: 'Chorus echo',
+        preset: 'Chorused',
         params: { time: 440, tone: 2600, mix: 0.35 },
       },
       {
@@ -1279,7 +1279,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { strum: 20, sustain: 6, pad: 0.6, tone: 0.3, volume: -9 },
     },
     effects: [
-      { deviceId: 'chorus', preset: 'Slow Drift', params: { spread: 60, mix: 0.35 } },
+      { deviceId: 'chorus', preset: 'Slow drift', params: { spread: 60, mix: 0.35 } },
       { deviceId: 'fdn-reverb', preset: 'Breathing', params: { decay: 9, damping: 0.6, mix: 0.4 } },
     ],
   },
@@ -1313,7 +1313,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { roll: 7, brightness: 0.4, volume: -13 },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Warm Glue', params: { driveDb: 9, outputDb: -7.5 } },
+      { deviceId: 'saturator', preset: 'Warm glue', params: { driveDb: 9, outputDb: -7.5 } },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { damping: 2600, mix: 0.45 } },
     ],
   },
@@ -1329,7 +1329,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { decay: 7, release: 4, volume: -8 },
     },
     effects: [
-      { deviceId: 'half-speed', preset: 'Continuous octave', params: { highCut: 4000, mix: 0.45 } },
+      { deviceId: 'half-speed', preset: 'Smooth octave', params: { highCut: 4000, mix: 0.45 } },
       {
         deviceId: 'tape-echo',
         preset: 'Worn tape',
@@ -1352,7 +1352,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { touch: 0.2, shimmer: 0.2, volume: -6 },
     },
     effects: [
-      { deviceId: 'half-speed', preset: 'Continuous octave', params: { highCut: 3500, mix: 0.65 } },
+      { deviceId: 'half-speed', preset: 'Smooth octave', params: { highCut: 3500, mix: 0.65 } },
       { deviceId: 'tape', preset: 'Quarter inch', params: { drive: 0.5, hiss: 0.3 } },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { midDecay: 4, damping: 2600, mix: 0.4 } },
     ],
@@ -1408,7 +1408,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { mallet: 0.1, roll: 9, volume: -17 },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Warm Glue', params: { driveDb: 8, outputDb: -9 } },
+      { deviceId: 'saturator', preset: 'Warm glue', params: { driveDb: 8, outputDb: -9 } },
       {
         deviceId: 'spectral-blur',
         preset: 'Hanging mist',
@@ -1476,7 +1476,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'analog-delay',
-        preset: 'Dark repeats',
+        preset: 'Dark echo',
         params: { time: 500, feedback: 0.5, mix: 0.3 },
       },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { damping: 3000, mix: 0.45 } },
@@ -1575,7 +1575,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         deviceId: 'auto-filter',
         params: { cutoffHz: 1800, resonance: 0.9, lfoAmount: 40, lfoRateHz: 0.05 },
       },
-      { deviceId: 'noise-floor', preset: 'Close microphone', params: { level: -44 } },
+      { deviceId: 'noise-floor', preset: 'Close mic', params: { level: -44 } },
       { deviceId: 'expanse', preset: 'Open space', params: { decay: 10, highCut: 4500, mix: 0.4 } },
     ],
   },
@@ -1593,7 +1593,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { blow: 0.45, release: 5, volume: -8 },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Warm Glue', params: { driveDb: 8, outputDb: -5 } },
+      { deviceId: 'saturator', preset: 'Warm glue', params: { driveDb: 8, outputDb: -5 } },
       {
         deviceId: 'fdn-reverb',
         preset: 'Breathing',
@@ -1655,7 +1655,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tape', preset: 'Quarter inch', params: { drive: 0.45, wow: 0.35 } },
-      { deviceId: 'analog-delay', preset: 'Long and murky', params: { time: 750, mix: 0.3 } },
+      { deviceId: 'analog-delay', preset: 'Murky', params: { time: 750, mix: 0.3 } },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { midDecay: 4, damping: 2800, mix: 0.4 } },
     ],
   },
@@ -1792,7 +1792,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { jawari: 0.6, volume: -5 },
     },
     effects: [
-      { deviceId: 'half-speed', preset: 'Continuous octave', params: { highCut: 3000, mix: 0.6 } },
+      { deviceId: 'half-speed', preset: 'Smooth octave', params: { highCut: 3000, mix: 0.6 } },
       { deviceId: 'tape', preset: 'Quarter inch', params: { drive: 0.5 } },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { midDecay: 4, damping: 2600, mix: 0.4 } },
     ],
@@ -1809,7 +1809,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { speed: 6, body: 0.7, volume: -6 },
     },
     effects: [
-      { deviceId: 'analog-delay', preset: 'Long and murky', params: { time: 850, mix: 0.3 } },
+      { deviceId: 'analog-delay', preset: 'Murky', params: { time: 850, mix: 0.3 } },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { damping: 2400, mix: 0.4 } },
     ],
   },
@@ -1970,7 +1970,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { start: 0.1, end: 0.5, release: 0.5, tone: 6000, volume: -11 },
     },
     effects: [
-      { deviceId: 'vintage-digital', preset: 'Twelve bit', params: { rate: 11000 } },
+      { deviceId: 'vintage-digital', preset: 'Sampler', params: { rate: 11000 } },
       {
         deviceId: 'tape-echo',
         preset: 'Dub wash',
@@ -2010,7 +2010,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'limiter-1176', params: { inputGain: 2 } },
-      { deviceId: 'saturator', preset: 'Warm Glue', params: { driveDb: 8, outputDb: -12 } },
+      { deviceId: 'saturator', preset: 'Warm glue', params: { driveDb: 8, outputDb: -12 } },
       {
         deviceId: 'fdn-reverb',
         preset: 'Breathing',
@@ -2035,7 +2035,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'analog-delay',
-        preset: 'Dark repeats',
+        preset: 'Dark echo',
         params: { time: 450, feedback: 0.55, spread: 0.6, mix: 0.4 },
       },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { damping: 3000, mix: 0.35 } },
@@ -2053,7 +2053,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { fold: 0.4, colour: 0.5, attack: 2.5, drift: 0.6, volume: -11 },
     },
     effects: [
-      { deviceId: 'stereo-detune', preset: 'Thick double', params: { mix: 0.35 } },
+      { deviceId: 'stereo-detune', preset: 'Doubled', params: { mix: 0.35 } },
       {
         deviceId: 'expanse',
         preset: 'Open space',
@@ -2078,7 +2078,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'saturator',
-        preset: 'Tube Preamp',
+        preset: 'Tube preamp',
         params: { driveDb: 12, toneDb: 0, outputDb: -13.5 },
       },
       { deviceId: 'zita-rev1', preset: 'Room', params: { damping: 3000, mix: 0.2 } },
@@ -2099,7 +2099,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'analog-delay',
-        preset: 'Dark repeats',
+        preset: 'Dark echo',
         params: { time: 375, feedback: 0.5, mix: 0.3 },
       },
       { deviceId: 'expanse', preset: 'Small dark room', params: { decay: 2.5, mix: 0.3 } },

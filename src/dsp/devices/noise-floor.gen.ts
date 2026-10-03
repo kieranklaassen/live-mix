@@ -124,8 +124,8 @@ export const NOISE_FLOOR_DESCRIPTOR = wasmDeviceDescriptor(NOISE_FLOOR_DEVICE, {
     'Old record': { type: 1, level: -38, movement: 0.5, width: 0.7, hold: 8 },
     'Empty room': { type: 2, level: -34, movement: 0.6, width: 1, hold: 20 },
     'Amp left on': { type: 4, level: -40, tone: 0.2, movement: 0.3, width: 0.3, hold: 30 },
-    'Between stations': { type: 5, level: -36, tone: 0.1, movement: 0.6, width: 0.5, hold: 10 },
-    'Breathing recorder': {
+    'Radio static': { type: 5, level: -36, tone: 0.1, movement: 0.6, width: 0.5, hold: 10 },
+    'Breathing tape': {
       type: 0,
       level: -28,
       follow: -1,
@@ -134,7 +134,7 @@ export const NOISE_FLOOR_DESCRIPTOR = wasmDeviceDescriptor(NOISE_FLOOR_DEVICE, {
       movement: 0.4,
       hold: 15,
     },
-    'Rides the sound': {
+    'Riding hiss': {
       type: 0,
       level: -30,
       follow: 1,
@@ -143,12 +143,12 @@ export const NOISE_FLOOR_DESCRIPTOR = wasmDeviceDescriptor(NOISE_FLOOR_DEVICE, {
       movement: 0.2,
       hold: 2,
     },
-    'Close microphone': { type: 6, level: -40, follow: 0.3, movement: 0.4, width: 1, hold: 10 },
+    'Close mic': { type: 6, level: -40, follow: 0.3, movement: 0.4, width: 1, hold: 10 },
     'Faint hiss': { type: 0, level: -56, tone: 0.3, movement: 0.1 },
     'Muffled hiss': { type: 0, level: -34, tone: -1, movement: 0.4 },
     'Wall of hiss': { type: 0, level: -28, tone: 0, movement: 0.5, width: 1, hold: 20 },
-    'Low mains hum': { type: 3, level: -36, tone: -0.8, movement: 0.2, width: 0.2, hold: 20 },
-    'Crackle in the gaps': {
+    'Mains hum': { type: 3, level: -36, tone: -0.8, movement: 0.2, width: 0.2, hold: 20 },
+    'Gap crackle': {
       type: 1,
       level: -30,
       follow: -1,
@@ -157,7 +157,7 @@ export const NOISE_FLOOR_DESCRIPTOR = wasmDeviceDescriptor(NOISE_FLOOR_DEVICE, {
       width: 0.9,
       hold: 10,
     },
-    'Notes made of static': {
+    'Static notes': {
       type: 5,
       level: -24,
       follow: 1,
@@ -169,6 +169,15 @@ export const NOISE_FLOOR_DESCRIPTOR = wasmDeviceDescriptor(NOISE_FLOOR_DEVICE, {
     },
     'Distant rumble': { type: 2, level: -28, tone: -1, movement: 0.8, width: 1, hold: 30 },
     'Thin bright air': { type: 6, level: -36, tone: 0.8, movement: 0.2, width: 1 },
+  },
+  formerPresets: {
+    'Between stations': 'Radio static',
+    'Breathing recorder': 'Breathing tape',
+    'Rides the sound': 'Riding hiss',
+    'Close microphone': 'Close mic',
+    'Low mains hum': 'Mains hum',
+    'Crackle in the gaps': 'Gap crackle',
+    'Notes made of static': 'Static notes',
   },
 })
 

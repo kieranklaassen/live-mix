@@ -94,8 +94,8 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'stereo-detune', preset: 'Classic wide', params: { mix: 0.3 } },
-      { deviceId: 'vowel-reverb', preset: 'Cathedral choir', params: { highCut: 10000, mix: 0.4 } },
+      { deviceId: 'stereo-detune', preset: 'Classic', params: { mix: 0.3 } },
+      { deviceId: 'vowel-reverb', preset: 'Cathedral', params: { highCut: 10000, mix: 0.4 } },
     ],
   },
   {
@@ -179,7 +179,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'auto-filter',
-        preset: 'Rumble Cut',
+        preset: 'Rumble cut',
         params: { cutoffHz: 500, resonance: 0.6 },
       },
       { deviceId: 'ether-reverb', preset: 'Cathedral', params: { mix: 0.3 } },
@@ -212,7 +212,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Rising choir',
         params: { decay: 10, shimmer: 0.4, size: 0.6, tone: 5000, mix: 0.2 },
       },
-      { deviceId: 'vowel-reverb', preset: 'Moving vowels', params: { mix: 0.3 } },
+      { deviceId: 'vowel-reverb', preset: 'Vowel drift', params: { mix: 0.3 } },
     ],
   },
   {
@@ -327,7 +327,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'saturator', preset: 'Warm Glue' },
+      { deviceId: 'saturator', preset: 'Warm glue' },
       {
         deviceId: 'expanse',
         preset: 'Open space',
@@ -356,7 +356,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'stereo-detune', preset: 'Wide open', params: { mix: 0.35 } },
+      { deviceId: 'stereo-detune', preset: 'Wider', params: { mix: 0.35 } },
       { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.35 } },
     ],
   },
@@ -372,7 +372,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 0.3, release: 2, volume: -8.5 },
     },
     effects: [
-      { deviceId: 'shaped-reverb', preset: 'Long reverse', params: { mix: 0.4 } },
+      { deviceId: 'shaped-reverb', preset: 'Long rise', params: { mix: 0.4 } },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.35 } },
     ],
     preview: 'line',
@@ -389,8 +389,8 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { release: 1.2, tone: 12000, velocity: 0.7, volume: -14.5 },
     },
     effects: [
-      { deviceId: 'vintage-digital', preset: 'Soft glaze' },
-      { deviceId: 'echo-memory', preset: 'Remembering', params: { spread: 0.4, mix: 0.35 } },
+      { deviceId: 'vintage-digital', preset: 'Glaze' },
+      { deviceId: 'echo-memory', preset: 'Recalling', params: { spread: 0.4, mix: 0.35 } },
       { deviceId: 'expanse', preset: 'Open space', params: { width: 0.8, mix: 0.3 } },
     ],
   },
@@ -437,7 +437,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Slow fade',
         params: { length: 3, feedback: 0.8, wear: 0.1, wow: 0.1, spread: 0, mix: 0.45 },
       },
-      { deviceId: 'vowel-reverb', preset: 'Whispering hall', params: { mix: 0.35 } },
+      { deviceId: 'vowel-reverb', preset: 'Whispering', params: { mix: 0.35 } },
     ],
   },
 
@@ -538,7 +538,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'micro-looper', preset: 'Backwards bed', params: { mix: 0.3 } },
+      { deviceId: 'micro-looper', preset: 'Reverse bed', params: { mix: 0.3 } },
       { deviceId: 'expanse', preset: 'Open space', params: { mix: 0.35 } },
     ],
   },
@@ -595,7 +595,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'chorus', preset: 'Vocal Thickener' },
+      { deviceId: 'chorus', preset: 'Vocal thickener' },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { decay: 6, mix: 0.4 } },
     ],
   },
@@ -620,7 +620,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'half-speed', preset: 'Continuous octave', params: { highCut: 2500, mix: 0.8 } },
+      { deviceId: 'half-speed', preset: 'Smooth octave', params: { highCut: 2500, mix: 0.8 } },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.35 } },
     ],
   },
@@ -718,7 +718,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Slow fade',
         params: { length: 3.5, feedback: 0.6, wear: 0.05, wow: 0.05, spread: 0.1, mix: 0.4 },
       },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { decay: 0.8, mix: 0.35 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { decay: 0.8, mix: 0.35 } },
     ],
     preview: 'line',
   },
@@ -904,7 +904,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'micro-looper', preset: 'Soft bed', params: { length: 2.5, mix: 0.35 } },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.35 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.35 } },
     ],
     preview: 'chord',
   },
@@ -930,7 +930,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'echo-memory', preset: 'Half-remembered', params: { mix: 0.3 } },
+      { deviceId: 'echo-memory', preset: 'Hazy past', params: { mix: 0.3 } },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { damping: 5500, mix: 0.4 } },
     ],
   },
@@ -986,7 +986,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'micro-looper', preset: 'Soft bed', params: { spread: 0.1, mix: 0.35 } },
-      { deviceId: 'vowel-reverb', preset: 'Small chapel', params: { decay: 2.5, mix: 0.3 } },
+      { deviceId: 'vowel-reverb', preset: 'Chapel', params: { decay: 2.5, mix: 0.3 } },
     ],
   },
   {
@@ -1059,8 +1059,8 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { nail: 0.15, sustain: 7, release: 3, strum: 30, volume: 0.5 },
     },
     effects: [
-      { deviceId: 'micro-looper', preset: 'Half speed bed', params: { spread: 0.25 } },
-      { deviceId: 'vowel-reverb', preset: 'Small chapel', params: { mix: 0.3 } },
+      { deviceId: 'micro-looper', preset: 'Half speed', params: { spread: 0.25 } },
+      { deviceId: 'vowel-reverb', preset: 'Chapel', params: { mix: 0.3 } },
     ],
   },
   {
@@ -1075,7 +1075,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { nail: 0.5, sustain: 10, release: 8, strum: 45, volume: -5 },
     },
     effects: [
-      { deviceId: 'sympathetic', preset: 'Follow the melody', params: { decay: 6, mix: 0.3 } },
+      { deviceId: 'sympathetic', preset: 'Follow the tune', params: { decay: 6, mix: 0.3 } },
       { deviceId: 'expanse', preset: 'Open space', params: { mix: 0.3 } },
     ],
   },
@@ -1116,7 +1116,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'vowel-reverb',
-        preset: 'Cathedral choir',
+        preset: 'Cathedral',
         params: { resonance: 0.7, mix: 0.45 },
       },
     ],
@@ -1135,7 +1135,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { brilliance: 1800, resonance: 0.5, attack: 2.5, release: 6, volume: -8.5 },
     },
     effects: [
-      { deviceId: 'chorus', preset: 'Slow Drift', params: { mix: 0.3 } },
+      { deviceId: 'chorus', preset: 'Slow drift', params: { mix: 0.3 } },
       { deviceId: 'shimmer', preset: 'Organ loft', params: { mix: 0.3 } },
     ],
   },
@@ -1250,7 +1250,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { strum: 120, span: 2, tone: 0.45, pad: 0.25, volume: -7.5 },
     },
     effects: [
-      { deviceId: 'echo-memory', preset: 'Distant minute', params: { spread: 0.4, mix: 0.3 } },
+      { deviceId: 'echo-memory', preset: 'Minute ago', params: { spread: 0.4, mix: 0.3 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { decay: 7, mix: 0.35 } },
     ],
   },
@@ -1288,7 +1288,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { blow: 0.45, breath: 0.5, attack: 1.2, release: 2.5, volume: -7 },
     },
     effects: [
-      { deviceId: 'pitch-shifter', preset: 'Detuned double', params: { spread: 0.4, mix: 0.35 } },
+      { deviceId: 'pitch-shifter', preset: 'Doubler', params: { spread: 0.4, mix: 0.35 } },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { midDecay: 7, mix: 0.45 } },
     ],
   },
@@ -1377,7 +1377,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 0.5, release: 3, volume: -7.5 },
     },
     effects: [
-      { deviceId: 'echo-memory', preset: 'Backwards glances', params: { spread: 0.3, mix: 0.35 } },
+      { deviceId: 'echo-memory', preset: 'Backwards', params: { spread: 0.3, mix: 0.35 } },
       { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.3 } },
     ],
     preview: 'line',
@@ -1423,7 +1423,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { ampAttack: 1.2, ampRelease: 5, volume: -8 },
     },
     effects: [
-      { deviceId: 'micro-looper', preset: 'Octave sparkle', params: { mix: 0.25 } },
+      { deviceId: 'micro-looper', preset: 'Octave up', params: { mix: 0.25 } },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.35 } },
     ],
   },
@@ -1457,9 +1457,9 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { reverbMix: 0.15, outputDb: -12.5 },
     },
     effects: [
-      { deviceId: 'micro-looper', preset: 'Drifting memory', params: { mix: 0.3 } },
+      { deviceId: 'micro-looper', preset: 'Drifting', params: { mix: 0.3 } },
       { deviceId: 'pad-follower', preset: 'Barely there', params: { mix: 0.25 } },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.3 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.3 } },
     ],
   },
 
@@ -1476,8 +1476,8 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 1.8, release: 3.5, vibrato: 0.1, volume: -14.5 },
     },
     effects: [
-      { deviceId: 'chorus', preset: 'Subtle Widener' },
-      { deviceId: 'vowel-reverb', preset: 'Whispering hall', params: { decay: 6, mix: 0.4 } },
+      { deviceId: 'chorus', preset: 'Subtle widener' },
+      { deviceId: 'vowel-reverb', preset: 'Whispering', params: { decay: 6, mix: 0.4 } },
     ],
     preview: 'chord',
   },
@@ -1547,7 +1547,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'vowel-reverb', preset: 'Moving vowels', params: { decay: 10, mix: 0.45 } },
+      { deviceId: 'vowel-reverb', preset: 'Vowel drift', params: { decay: 10, mix: 0.45 } },
     ],
   },
 
@@ -1566,7 +1566,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'analog-delay',
-        preset: 'Dark repeats',
+        preset: 'Dark echo',
         params: { time: 450, feedback: 0.4, mix: 0.25 },
       },
       {
@@ -1621,7 +1621,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { volume: -1.5 },
     },
     effects: [
-      { deviceId: 'micro-looper', preset: 'Half speed bed', params: { spread: 0.25, mix: 0.3 } },
+      { deviceId: 'micro-looper', preset: 'Half speed', params: { spread: 0.25, mix: 0.3 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.35 } },
     ],
   },
@@ -1641,7 +1641,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'analog-delay',
-        preset: 'Chorus echo',
+        preset: 'Chorused',
         params: { time: 520, feedback: 0.5, mix: 0.3 },
       },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { damping: 4500, mix: 0.35 } },
@@ -1778,7 +1778,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'reverse-delay', preset: 'Backwards echo', params: { mix: 0.25 } },
-      { deviceId: 'vowel-reverb', preset: 'Small chapel', params: { mix: 0.3 } },
+      { deviceId: 'vowel-reverb', preset: 'Chapel', params: { mix: 0.3 } },
     ],
   },
 
@@ -1817,7 +1817,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'shimmer', preset: 'Glass', params: { mix: 0.2 } },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.3 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.3 } },
     ],
   },
 
@@ -1834,7 +1834,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { swell: 1.2, vibrato: 10, tone: 3400, volume: -3 },
     },
     effects: [
-      { deviceId: 'stereo-detune', preset: 'Subtle halo' },
+      { deviceId: 'stereo-detune', preset: 'Soft halo' },
       {
         deviceId: 'shimmer',
         preset: 'Rising choir',
@@ -1975,7 +1975,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { bell: 0.3, bark: 0.1, decay: 1.6, release: 0.8, tone: 0.4, volume: -15 },
     },
     effects: [
-      { deviceId: 'pad-follower', preset: 'Strings behind', params: { mix: 0.3 } },
+      { deviceId: 'pad-follower', preset: 'String pad', params: { mix: 0.3 } },
       { deviceId: 'bloom-reverb', preset: 'Still room', params: { decay: 4, mix: 0.35 } },
     ],
   },
@@ -1996,7 +1996,7 @@ export const PRESETS: readonly FactoryPreset[] = [
         preset: 'Slow fade',
         params: { length: 4, feedback: 0.8, wear: 0, wow: 0, spread: 0.1, mix: 0.45 },
       },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.3 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.3 } },
     ],
   },
 
@@ -2021,7 +2021,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'stereo-detune', preset: 'Thick double', params: { mix: 0.25 } },
+      { deviceId: 'stereo-detune', preset: 'Doubled', params: { mix: 0.25 } },
       { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.4 } },
     ],
   },
@@ -2106,7 +2106,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'micro-looper', preset: 'Soft bed', params: { length: 3, mix: 0.3 } },
-      { deviceId: 'shaped-reverb', preset: 'Slow bloom', params: { mix: 0.35 } },
+      { deviceId: 'shaped-reverb', preset: 'Bloom', params: { mix: 0.35 } },
     ],
   },
 ]

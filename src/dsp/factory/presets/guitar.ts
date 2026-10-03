@@ -9,7 +9,7 @@ export const GUITAR_PRESETS: readonly FactoryPreset[] = [
       'A clean neck pickup through a slow chorus and a short tape echo: single notes that ring and widen.',
     instrument: { deviceId: 'guitar', preset: 'Glass neck', params: { volume: 0 } },
     effects: [
-      { deviceId: 'chorus', preset: 'Classic Chorus', params: { rate: 0.5, mix: 0.35 } },
+      { deviceId: 'chorus', preset: 'Classic chorus', params: { rate: 0.5, mix: 0.35 } },
       { deviceId: 'tape-echo', preset: 'Warm repeats', params: { mix: 0.25 } },
     ],
     preview: 'keys',

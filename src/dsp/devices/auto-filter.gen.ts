@@ -170,7 +170,7 @@ export const AUTO_FILTER_DESCRIPTOR = wasmDeviceDescriptor(AUTO_FILTER_DEVICE, {
       lfoShape: 0,
       mix: 1,
     },
-    'Low-Pass Gate': {
+    'Low-pass gate': {
       type: 0,
       slope: 1,
       cutoffHz: 400,
@@ -198,7 +198,7 @@ export const AUTO_FILTER_DESCRIPTOR = wasmDeviceDescriptor(AUTO_FILTER_DEVICE, {
       lfoShape: 0,
       mix: 0.6,
     },
-    'Dub Sweep': {
+    'Dub sweep': {
       type: 0,
       slope: 1,
       cutoffHz: 800,
@@ -240,7 +240,7 @@ export const AUTO_FILTER_DESCRIPTOR = wasmDeviceDescriptor(AUTO_FILTER_DEVICE, {
       lfoShape: 5,
       mix: 0.5,
     },
-    'Rumble Cut': {
+    'Rumble cut': {
       type: 1,
       slope: 1,
       cutoffHz: 80,
@@ -268,7 +268,7 @@ export const AUTO_FILTER_DESCRIPTOR = wasmDeviceDescriptor(AUTO_FILTER_DEVICE, {
       lfoShape: 0,
       mix: 1,
     },
-    'Slow Phaser Notch': {
+    'Slow notch': {
       type: 3,
       slope: 0,
       cutoffHz: 900,
@@ -282,7 +282,7 @@ export const AUTO_FILTER_DESCRIPTOR = wasmDeviceDescriptor(AUTO_FILTER_DEVICE, {
       lfoShape: 0,
       mix: 1,
     },
-    'Resonant Peak Bump': {
+    'Resonant peak': {
       type: 4,
       slope: 0,
       cutoffHz: 2500,
@@ -296,7 +296,7 @@ export const AUTO_FILTER_DESCRIPTOR = wasmDeviceDescriptor(AUTO_FILTER_DEVICE, {
       lfoShape: 0,
       mix: 1,
     },
-    'Screaming Self-Osc': {
+    Screaming: {
       type: 0,
       slope: 0,
       cutoffHz: 440,
@@ -310,7 +310,7 @@ export const AUTO_FILTER_DESCRIPTOR = wasmDeviceDescriptor(AUTO_FILTER_DEVICE, {
       lfoShape: 0,
       mix: 1,
     },
-    'Half-Wet Tremolo Filter': {
+    'Tremolo filter': {
       type: 0,
       slope: 0,
       cutoffHz: 2000,
@@ -324,7 +324,7 @@ export const AUTO_FILTER_DESCRIPTOR = wasmDeviceDescriptor(AUTO_FILTER_DEVICE, {
       lfoShape: 4,
       mix: 0.5,
     },
-    'Glacial Low-Pass': {
+    'Glacial low-pass': {
       type: 0,
       slope: 1,
       cutoffHz: 700,
@@ -338,7 +338,7 @@ export const AUTO_FILTER_DESCRIPTOR = wasmDeviceDescriptor(AUTO_FILTER_DEVICE, {
       lfoShape: 0,
       mix: 1,
     },
-    'Saw-Down High-Pass': {
+    'Falling high-pass': {
       type: 1,
       slope: 0,
       cutoffHz: 300,
@@ -352,7 +352,7 @@ export const AUTO_FILTER_DESCRIPTOR = wasmDeviceDescriptor(AUTO_FILTER_DEVICE, {
       lfoShape: 3,
       mix: 1,
     },
-    'Soft Envelope Bloom': {
+    'Soft bloom': {
       type: 0,
       slope: 1,
       cutoffHz: 250,
@@ -366,7 +366,7 @@ export const AUTO_FILTER_DESCRIPTOR = wasmDeviceDescriptor(AUTO_FILTER_DEVICE, {
       lfoShape: 0,
       mix: 1,
     },
-    'Loud Goes Dark': {
+    'Loud goes dark': {
       type: 0,
       slope: 0,
       cutoffHz: 5000,
@@ -380,6 +380,19 @@ export const AUTO_FILTER_DESCRIPTOR = wasmDeviceDescriptor(AUTO_FILTER_DEVICE, {
       lfoShape: 0,
       mix: 1,
     },
+  },
+  formerPresets: {
+    'Low-Pass Gate': 'Low-pass gate',
+    'Dub Sweep': 'Dub sweep',
+    'Rumble Cut': 'Rumble cut',
+    'Slow Phaser Notch': 'Slow notch',
+    'Resonant Peak Bump': 'Resonant peak',
+    'Screaming Self-Osc': 'Screaming',
+    'Half-Wet Tremolo Filter': 'Tremolo filter',
+    'Glacial Low-Pass': 'Glacial low-pass',
+    'Saw-Down High-Pass': 'Falling high-pass',
+    'Soft Envelope Bloom': 'Soft bloom',
+    'Loud Goes Dark': 'Loud goes dark',
   },
   retiredPresets: {
     'Auto-Wah': {

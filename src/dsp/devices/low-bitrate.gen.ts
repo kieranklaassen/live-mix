@@ -139,7 +139,7 @@ export const LOW_BITRATE_DESCRIPTOR = wasmDeviceDescriptor(LOW_BITRATE_DEVICE, {
     Underwater: { loss: 0.7, frame: 2, smear: 0.2, stereo: 0.5, highCut: 4000 },
     'Dial-up': { loss: 0.7, frame: 0, stereo: 0, highCut: 3400 },
     Ghost: { loss: 0.55, mode: 1 },
-    'Smeared phases': { loss: 0.6, mode: 2, frame: 2 },
+    'Smeared haze': { loss: 0.6, mode: 2, frame: 2 },
     'Bad connection': { loss: 0.5, dropouts: 0.35, stutter: 0.35, burst: 0.4 },
     'Stuck stream': { loss: 0.4, stutter: 0.6, burst: 0.85 },
     'Frozen stream': { loss: 0.6, frame: 2, smear: 0.85 },
@@ -148,9 +148,15 @@ export const LOW_BITRATE_DESCRIPTOR = wasmDeviceDescriptor(LOW_BITRATE_DEVICE, {
     'Watery trace': { loss: 0.8, frame: 2, mix: 0.3 },
     'Gritty attacks': { loss: 0.62, frame: 0 },
     'Fizzing phases': { loss: 0.9, mode: 2, frame: 0 },
-    'Holes in the signal': { loss: 0.3, dropouts: 0.5, burst: 0.7 },
-    'Through the wall': { loss: 0.35, stereo: 0.3, highCut: 1500 },
-    'Wash that never fades': { loss: 0.5, mode: 2, frame: 2, smear: 1, mix: 0.6 },
+    Dropouts: { loss: 0.3, dropouts: 0.5, burst: 0.7 },
+    'Through a wall': { loss: 0.35, stereo: 0.3, highCut: 1500 },
+    'Endless wash': { loss: 0.5, mode: 2, frame: 2, smear: 1, mix: 0.6 },
+  },
+  formerPresets: {
+    'Smeared phases': 'Smeared haze',
+    'Holes in the signal': 'Dropouts',
+    'Through the wall': 'Through a wall',
+    'Wash that never fades': 'Endless wash',
   },
 })
 

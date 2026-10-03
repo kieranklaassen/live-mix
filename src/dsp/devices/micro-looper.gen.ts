@@ -146,7 +146,7 @@ export const MICRO_LOOPER_DESCRIPTOR = wasmDeviceDescriptor(MICRO_LOOPER_DEVICE,
       spread: 0.5,
       mix: 0.25,
     },
-    'Half speed bed': {
+    'Half speed': {
       state: 2,
       length: 2.5,
       speed: 3,
@@ -168,7 +168,7 @@ export const MICRO_LOOPER_DESCRIPTOR = wasmDeviceDescriptor(MICRO_LOOPER_DEVICE,
       spread: 0.3,
       mix: 0.27,
     },
-    'Backwards bed': {
+    'Reverse bed': {
       state: 2,
       length: 3,
       speed: 1,
@@ -188,7 +188,7 @@ export const MICRO_LOOPER_DESCRIPTOR = wasmDeviceDescriptor(MICRO_LOOPER_DEVICE,
       spread: 0.2,
       mix: 0.3,
     },
-    'Octave sparkle': {
+    'Octave up': {
       state: 2,
       length: 1.2,
       speed: 5,
@@ -199,7 +199,7 @@ export const MICRO_LOOPER_DESCRIPTOR = wasmDeviceDescriptor(MICRO_LOOPER_DEVICE,
       spread: 0.7,
       mix: 0.32,
     },
-    'Drifting memory': {
+    Drifting: {
       state: 2,
       length: 4,
       clock: 1,
@@ -211,7 +211,7 @@ export const MICRO_LOOPER_DESCRIPTOR = wasmDeviceDescriptor(MICRO_LOOPER_DEVICE,
       mix: 0.27,
     },
     'Clean hold': { state: 1, length: 2, smear: 0, drift: 0, tone: 16000, spread: 0, mix: 0.5 },
-    'Faint shadow': {
+    'Faint bed': {
       state: 2,
       length: 1.5,
       smear: 0.4,
@@ -221,7 +221,7 @@ export const MICRO_LOOPER_DESCRIPTOR = wasmDeviceDescriptor(MICRO_LOOPER_DEVICE,
       spread: 0.6,
       mix: 0.12,
     },
-    'Underwater bed': {
+    Underwater: {
       state: 2,
       length: 2.5,
       smear: 0.5,
@@ -232,7 +232,7 @@ export const MICRO_LOOPER_DESCRIPTOR = wasmDeviceDescriptor(MICRO_LOOPER_DEVICE,
       mix: 0.4,
     },
     'Frozen pad': { state: 1, length: 1, smear: 1, drift: 0.3, tone: 7000, spread: 1, mix: 0.42 },
-    'Deep drone held': {
+    'Deep drone': {
       state: 1,
       length: 3,
       speed: 3,
@@ -243,7 +243,7 @@ export const MICRO_LOOPER_DESCRIPTOR = wasmDeviceDescriptor(MICRO_LOOPER_DEVICE,
       spread: 0.7,
       mix: 0.4,
     },
-    'Slow backwards haze': {
+    'Slow reverse': {
       state: 2,
       length: 3.5,
       speed: 2,
@@ -254,7 +254,7 @@ export const MICRO_LOOPER_DESCRIPTOR = wasmDeviceDescriptor(MICRO_LOOPER_DEVICE,
       spread: 0.7,
       mix: 0.32,
     },
-    'Backwards chirps': {
+    'Fast reverse': {
       state: 2,
       length: 0.6,
       speed: 0,
@@ -265,7 +265,7 @@ export const MICRO_LOOPER_DESCRIPTOR = wasmDeviceDescriptor(MICRO_LOOPER_DEVICE,
       spread: 0.6,
       mix: 0.3,
     },
-    'Old sampler grit': {
+    'Sampler grit': {
       state: 2,
       length: 1,
       clock: 7,
@@ -276,7 +276,7 @@ export const MICRO_LOOPER_DESCRIPTOR = wasmDeviceDescriptor(MICRO_LOOPER_DEVICE,
       spread: 0,
       mix: 0.3,
     },
-    'Quick repeats': {
+    'Quick loop': {
       state: 2,
       length: 0.5,
       smear: 0,
@@ -286,6 +286,19 @@ export const MICRO_LOOPER_DESCRIPTOR = wasmDeviceDescriptor(MICRO_LOOPER_DEVICE,
       spread: 0.4,
       mix: 0.3,
     },
+  },
+  formerPresets: {
+    'Half speed bed': 'Half speed',
+    'Backwards bed': 'Reverse bed',
+    'Octave sparkle': 'Octave up',
+    'Drifting memory': 'Drifting',
+    'Faint shadow': 'Faint bed',
+    'Underwater bed': 'Underwater',
+    'Deep drone held': 'Deep drone',
+    'Slow backwards haze': 'Slow reverse',
+    'Backwards chirps': 'Fast reverse',
+    'Old sampler grit': 'Sampler grit',
+    'Quick repeats': 'Quick loop',
   },
 })
 

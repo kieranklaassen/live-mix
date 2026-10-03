@@ -49,7 +49,7 @@ export const CHOIR_PRESETS: readonly FactoryPreset[] = [
       'A large section that drifts from vowel to vowel and takes three seconds to enter.',
     instrument: { deviceId: 'choir', preset: 'Slow vowels', params: { volume: -6 } },
     effects: [
-      { deviceId: 'chorus', preset: 'Vocal Thickener' },
+      { deviceId: 'chorus', preset: 'Vocal thickener' },
       { deviceId: 'fdn-reverb', preset: 'Breathing', params: { mix: 0.4 } },
     ],
   },

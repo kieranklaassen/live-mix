@@ -71,7 +71,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       { deviceId: 'tape', preset: 'Quarter inch', params: { speed: 2, age: 0.4 } },
       {
         deviceId: 'auto-filter',
-        preset: 'Low-Pass Gate',
+        preset: 'Low-pass gate',
         params: { cutoffHz: 900, resonance: 0.7 },
       },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { decay: 9, damping: 0.6, mix: 0.4 } },
@@ -90,7 +90,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { speed: 1, attack: 1.2, release: 3.5, tone: -0.4, age: 0.5, players: 0.8 },
     },
     effects: [
-      { deviceId: 'noise-floor', preset: 'Breathing recorder', params: { level: -34 } },
+      { deviceId: 'noise-floor', preset: 'Breathing tape', params: { level: -34 } },
       { deviceId: 'ambient-eq', preset: 'Shaded', params: { highCut: 3000 } },
       { deviceId: 'dattorro', preset: 'Long plate', params: { damping: 0.7, mix: 0.4 } },
     ],
@@ -148,7 +148,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'half-speed', preset: 'Two octaves under', params: { mix: 0.5, highCut: 1200 } },
+      { deviceId: 'half-speed', preset: 'Two octaves', params: { mix: 0.5, highCut: 1200 } },
       { deviceId: 'tape', preset: 'Quarter inch', params: { drive: 0.45, bump: 0.8, hiss: 0.2 } },
       {
         deviceId: 'zita-rev1',
@@ -258,7 +258,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'auto-filter',
-        preset: 'Low-Pass Gate',
+        preset: 'Low-pass gate',
         params: { cutoffHz: 700, resonance: 0.6 },
       },
       { deviceId: 'noise-floor', preset: 'Empty room', params: { level: -44 } },
@@ -278,7 +278,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { blow: 0.5, section: 0.7, attack: 2, release: 5, volume: -10 },
     },
     effects: [
-      { deviceId: 'half-speed', preset: 'Continuous octave', params: { highCut: 4000 } },
+      { deviceId: 'half-speed', preset: 'Smooth octave', params: { highCut: 4000 } },
       { deviceId: 'tape', preset: 'Quarter inch', params: { wow: 0.4, hiss: 0.3 } },
       {
         deviceId: 'zita-rev1',
@@ -360,7 +360,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 2.2, release: 4, vibrato: 0, mute: 0.6, volume: -8 },
     },
     effects: [
-      { deviceId: 'pitch-shifter', preset: 'Pad octave below', params: { tone: 2500, mix: 0.65 } },
+      { deviceId: 'pitch-shifter', preset: 'Pad below', params: { tone: 2500, mix: 0.65 } },
       { deviceId: 'tape', preset: 'Quarter inch', params: { hiss: 0.3 } },
       { deviceId: 'expanse', preset: 'Open space', params: { highCut: 3000, mix: 0.4 } },
     ],
@@ -379,10 +379,10 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'auto-filter',
-        preset: 'Low-Pass Gate',
+        preset: 'Low-pass gate',
         params: { cutoffHz: 1200, resonance: 0.6 },
       },
-      { deviceId: 'noise-floor', preset: 'Rides the sound', params: { level: -34, tone: -0.4 } },
+      { deviceId: 'noise-floor', preset: 'Riding hiss', params: { level: -34, tone: -0.4 } },
       { deviceId: 'dattorro', preset: 'Long plate', params: { damping: 0.6, mix: 0.4 } },
     ],
   },
@@ -463,7 +463,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 2, release: 4, vibrato: 4, mute: 0.5, volume: -12 },
     },
     effects: [
-      { deviceId: 'micro-looper', preset: 'Half speed bed', params: { tone: 2500, mix: 0.3 } },
+      { deviceId: 'micro-looper', preset: 'Half speed', params: { tone: 2500, mix: 0.3 } },
       { deviceId: 'analog-drive', preset: 'Tape weight', params: { lowBump: 0.3, highCut: 3500 } },
       { deviceId: 'shimmer', preset: 'Undertow', params: { shimmer: 0.35, tone: 2000, mix: 0.35 } },
     ],
@@ -581,7 +581,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'half-speed', preset: 'Continuous octave', params: { highCut: 2000, mix: 0.7 } },
+      { deviceId: 'half-speed', preset: 'Smooth octave', params: { highCut: 2000, mix: 0.7 } },
       { deviceId: 'patina', preset: 'Quarter inch reel', params: { tone: 0.35 } },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.4 } },
     ],
@@ -600,7 +600,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'auto-filter',
-        preset: 'Low-Pass Gate',
+        preset: 'Low-pass gate',
         params: { cutoffHz: 300, resonance: 0.9, lfoAmount: 20, lfoRateHz: 0.05 },
       },
       { deviceId: 'tape', preset: 'Quarter inch', params: { hiss: 0.2 } },
@@ -660,7 +660,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { blow: 0.45, attack: 0.8, release: 1.5, volume: -4.5 },
     },
     effects: [
-      { deviceId: 'micro-looper', preset: 'Half speed bed', params: { tone: 3000, mix: 0.35 } },
+      { deviceId: 'micro-looper', preset: 'Half speed', params: { tone: 3000, mix: 0.35 } },
       { deviceId: 'tape', preset: 'Cassette four-track' },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { decay: 6, damping: 0.6, mix: 0.4 } },
     ],
@@ -678,10 +678,10 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { blow: 0.4, attack: 1.2, release: 3, volume: -13.5 },
     },
     effects: [
-      { deviceId: 'half-speed', preset: 'Continuous octave' },
+      { deviceId: 'half-speed', preset: 'Smooth octave' },
       {
         deviceId: 'auto-filter',
-        preset: 'Low-Pass Gate',
+        preset: 'Low-pass gate',
         params: { cutoffHz: 600, resonance: 0.7 },
       },
       { deviceId: 'ether-reverb', preset: 'Cathedral', params: { damping: 0.6, mix: 0.35 } },
@@ -700,7 +700,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { blow: 0.1, breath: 1, attack: 1.5, release: 3, vibrato: 0, volume: -5.5 },
     },
     effects: [
-      { deviceId: 'noise-floor', preset: 'Close microphone', params: { level: -36 } },
+      { deviceId: 'noise-floor', preset: 'Close mic', params: { level: -36 } },
       { deviceId: 'ambient-eq', preset: 'Shaded', params: { highCut: 2500 } },
       { deviceId: 'dattorro', preset: 'Long plate', params: { damping: 0.7, mix: 0.4 } },
     ],
@@ -719,7 +719,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'patina', preset: 'Quarter inch reel', params: { wobble: 0.45, tone: 0.3 } },
-      { deviceId: 'echo-memory', preset: 'Half-remembered' },
+      { deviceId: 'echo-memory', preset: 'Hazy past' },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { damping: 3000, mix: 0.3 } },
     ],
     preview: 'line',
@@ -755,7 +755,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 3, release: 6, brightness: 0.25, vibrato: 0.05, detune: 8, volume: -12 },
     },
     effects: [
-      { deviceId: 'chorus', preset: 'Slow Drift', params: { mix: 0.3 } },
+      { deviceId: 'chorus', preset: 'Slow drift', params: { mix: 0.3 } },
       { deviceId: 'tape-loop', preset: 'Two decks', params: { wear: 0.5, mix: 0.4 } },
       { deviceId: 'expanse', preset: 'Open space', params: { highCut: 3000, mix: 0.4 } },
     ],
@@ -774,7 +774,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'auto-filter',
-        preset: 'Low-Pass Gate',
+        preset: 'Low-pass gate',
         params: { cutoffHz: 1100, resonance: 0.7 },
       },
       { deviceId: 'spectral-blur', preset: 'Hanging mist', params: { highCut: 3000, mix: 0.6 } },
@@ -793,7 +793,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 1.5, release: 4, pressure: 0.7, body: 1, vibrato: 0.1, volume: -12 },
     },
     effects: [
-      { deviceId: 'half-speed', preset: 'Two octaves under', params: { mix: 0.45 } },
+      { deviceId: 'half-speed', preset: 'Two octaves', params: { mix: 0.45 } },
       { deviceId: 'analog-drive', preset: 'Tape weight', params: { output: -10.5 } },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { damping: 3000, mix: 0.3 } },
     ],
@@ -812,7 +812,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'swell', preset: 'Bowed', params: { attack: 700 } },
-      { deviceId: 'analog-delay', preset: 'Long and murky', params: { tone: 1600, mix: 0.45 } },
+      { deviceId: 'analog-delay', preset: 'Murky', params: { tone: 1600, mix: 0.45 } },
       { deviceId: 'dattorro', preset: 'Long plate', params: { damping: 0.6, mix: 0.35 } },
     ],
   },
@@ -848,7 +848,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { blow: 0.2, chiff: 0, attack: 2, release: 6, vibrato: 0.1, volume: -13.5 },
     },
     effects: [
-      { deviceId: 'chorus', preset: 'Slow Drift', params: { mix: 0.3 } },
+      { deviceId: 'chorus', preset: 'Slow drift', params: { mix: 0.3 } },
       { deviceId: 'tape', preset: 'Quarter inch', params: { speed: 2, hiss: 0.3 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { decay: 10, damping: 0.6, mix: 0.45 } },
     ],
@@ -868,7 +868,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'auto-filter',
-        preset: 'Low-Pass Gate',
+        preset: 'Low-pass gate',
         params: { cutoffHz: 900, resonance: 0.6 },
       },
       { deviceId: 'noise-floor', preset: 'Tape floor', params: { level: -45 } },
@@ -1024,7 +1024,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       { deviceId: 'tape', preset: 'Quarter inch', params: { speed: 2, output: 2 } },
       {
         deviceId: 'shaped-reverb',
-        preset: 'Slow bloom',
+        preset: 'Bloom',
         params: { time: 4, highCut: 2500, mix: 0.5 },
       },
     ],
@@ -1079,7 +1079,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'auto-filter',
-        preset: 'Low-Pass Gate',
+        preset: 'Low-pass gate',
         params: { cutoffHz: 1000, resonance: 0.6 },
       },
       {
@@ -1353,7 +1353,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       { deviceId: 'tape', preset: 'Quarter inch', params: { hiss: 0.3 } },
       {
         deviceId: 'vowel-reverb',
-        preset: 'Cathedral choir',
+        preset: 'Cathedral',
         params: { highCut: 3000, mix: 0.4 },
       },
     ],
@@ -1451,7 +1451,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       { deviceId: 'tape-loop', preset: 'Worn out', params: { length: 4, lowCut: 60, mix: 0.5 } },
       {
         deviceId: 'auto-filter',
-        preset: 'Low-Pass Gate',
+        preset: 'Low-pass gate',
         params: { cutoffHz: 600, resonance: 0.6 },
       },
       { deviceId: 'dattorro', preset: 'Long plate', params: { damping: 0.7, mix: 0.35 } },
@@ -1554,7 +1554,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { mallet: 0.05, roll: 8, volume: -17 },
     },
     effects: [
-      { deviceId: 'half-speed', preset: 'Continuous octave', params: { highCut: 3000 } },
+      { deviceId: 'half-speed', preset: 'Smooth octave', params: { highCut: 3000 } },
       { deviceId: 'tape', preset: 'Quarter inch', params: { hiss: 0.3 } },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { damping: 3000, mix: 0.4 } },
     ],
@@ -1591,7 +1591,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { decay: 25, hardness: 0.05, brightness: 0.15, volume: -15 },
     },
     effects: [
-      { deviceId: 'pad-follower', preset: 'Long shadow', params: { brightness: 900, mix: 0.35 } },
+      { deviceId: 'pad-follower', preset: 'Lingering', params: { brightness: 900, mix: 0.35 } },
       { deviceId: 'tape', preset: 'Quarter inch', params: { wow: 0.35 } },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.4 } },
     ],
@@ -1730,7 +1730,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       { deviceId: 'tape', preset: 'Seasick', params: { wow: 0.7, hiss: 0.2 } },
       { deviceId: 'ambient-eq', preset: 'Shaded', params: { presence: -6, highCut: 1000 } },
-      { deviceId: 'analog-delay', preset: 'Long and murky', params: { tone: 1500, mix: 0.35 } },
+      { deviceId: 'analog-delay', preset: 'Murky', params: { tone: 1500, mix: 0.35 } },
       { deviceId: 'expanse', preset: 'Open space', params: { highCut: 3000, mix: 0.35 } },
     ],
   },
@@ -1885,7 +1885,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'auto-filter',
-        preset: 'Low-Pass Gate',
+        preset: 'Low-pass gate',
         params: { cutoffHz: 900, resonance: 0.6 },
       },
       { deviceId: 'ambient-comp', preset: 'Glue', params: { makeup: 1.5 } },
@@ -1994,7 +1994,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { fold: 0.2, fm: 0.1, timbreEnv: 0.6, attack: 3, colour: 0.3, volume: -15 },
     },
     effects: [
-      { deviceId: 'stereo-detune', preset: 'Thick double', params: { tone: 3000, width: 0.5 } },
+      { deviceId: 'stereo-detune', preset: 'Doubled', params: { tone: 3000, width: 0.5 } },
       { deviceId: 'spectral-blur', preset: 'Dark water', params: { width: 0.5, mix: 0.45 } },
       { deviceId: 'expanse', preset: 'Open space', params: { highCut: 2500, mix: 0.35 } },
     ],
@@ -2016,7 +2016,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       { deviceId: 'swell', preset: 'Soft pick' },
       {
         deviceId: 'sympathetic',
-        preset: 'Long resonance',
+        preset: 'Long ring',
         params: { root: 2, mode: 1, mix: 0.5 },
       },
       { deviceId: 'zita-rev1', preset: 'Cathedral', params: { mix: 0.4 } },

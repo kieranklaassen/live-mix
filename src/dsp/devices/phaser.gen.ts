@@ -122,7 +122,7 @@ export const PHASER_DESCRIPTOR = wasmDeviceDescriptor(PHASER_DEVICE, {
   description:
     'Four to twelve swept allpass stages with staggered tuning, positive or negative feedback, six LFO shapes and a stereo phase offset: slow swirls, vibe and stepped filter patterns.',
   presets: {
-    'Warm Six-Stage': {
+    'Warm six-stage': {
       stages: 1,
       centerHz: 800,
       spread: 30,
@@ -133,7 +133,7 @@ export const PHASER_DESCRIPTOR = wasmDeviceDescriptor(PHASER_DEVICE, {
       stereo: 90,
       mix: 0.5,
     },
-    'Classic 4-Stage': {
+    'Classic four-stage': {
       stages: 0,
       centerHz: 800,
       spread: 20,
@@ -144,7 +144,7 @@ export const PHASER_DESCRIPTOR = wasmDeviceDescriptor(PHASER_DEVICE, {
       stereo: 90,
       mix: 0.5,
     },
-    'Deep 8-Stage': {
+    'Deep eight-stage': {
       stages: 2,
       centerHz: 600,
       spread: 40,
@@ -155,7 +155,7 @@ export const PHASER_DESCRIPTOR = wasmDeviceDescriptor(PHASER_DEVICE, {
       stereo: 90,
       mix: 0.5,
     },
-    'Slow Swirl': {
+    'Slow swirl': {
       stages: 1,
       centerHz: 1200,
       spread: 30,
@@ -166,7 +166,7 @@ export const PHASER_DESCRIPTOR = wasmDeviceDescriptor(PHASER_DEVICE, {
       stereo: 120,
       mix: 0.5,
     },
-    'Fast Vibe': {
+    'Fast throb': {
       stages: 0,
       centerHz: 1500,
       spread: 10,
@@ -177,7 +177,7 @@ export const PHASER_DESCRIPTOR = wasmDeviceDescriptor(PHASER_DEVICE, {
       stereo: 0,
       mix: 0.5,
     },
-    'Twelve Stage Cloud': {
+    'Twelve stage cloud': {
       stages: 4,
       centerHz: 900,
       spread: 100,
@@ -188,7 +188,7 @@ export const PHASER_DESCRIPTOR = wasmDeviceDescriptor(PHASER_DEVICE, {
       stereo: 180,
       mix: 0.5,
     },
-    'Negative Notch': {
+    'Negative notch': {
       stages: 1,
       centerHz: 700,
       spread: 25,
@@ -199,7 +199,7 @@ export const PHASER_DESCRIPTOR = wasmDeviceDescriptor(PHASER_DEVICE, {
       stereo: 90,
       mix: 0.5,
     },
-    'Random Steps': {
+    'Random steps': {
       stages: 2,
       centerHz: 1000,
       spread: 30,
@@ -210,7 +210,7 @@ export const PHASER_DESCRIPTOR = wasmDeviceDescriptor(PHASER_DEVICE, {
       stereo: 90,
       mix: 0.5,
     },
-    'Saw Riser': {
+    'Saw riser': {
       stages: 1,
       centerHz: 400,
       spread: 20,
@@ -221,7 +221,7 @@ export const PHASER_DESCRIPTOR = wasmDeviceDescriptor(PHASER_DEVICE, {
       stereo: 0,
       mix: 0.5,
     },
-    'Bass Safe': {
+    'Bass safe': {
       stages: 0,
       centerHz: 2500,
       spread: 15,
@@ -232,7 +232,7 @@ export const PHASER_DESCRIPTOR = wasmDeviceDescriptor(PHASER_DEVICE, {
       stereo: 90,
       mix: 0.45,
     },
-    'Faint Shade': {
+    'Faint shade': {
       stages: 0,
       centerHz: 1000,
       spread: 30,
@@ -243,7 +243,7 @@ export const PHASER_DESCRIPTOR = wasmDeviceDescriptor(PHASER_DEVICE, {
       stereo: 180,
       mix: 0.2,
     },
-    'Glacial Sweep': {
+    'Glacial sweep': {
       stages: 3,
       centerHz: 450,
       spread: 50,
@@ -254,7 +254,7 @@ export const PHASER_DESCRIPTOR = wasmDeviceDescriptor(PHASER_DEVICE, {
       stereo: 140,
       mix: 0.5,
     },
-    'Endless Fall': {
+    'Endless fall': {
       stages: 3,
       centerHz: 1500,
       spread: 25,
@@ -265,7 +265,7 @@ export const PHASER_DESCRIPTOR = wasmDeviceDescriptor(PHASER_DEVICE, {
       stereo: 0,
       mix: 0.5,
     },
-    'Two-Tone Flip': {
+    'Two-tone flip': {
       stages: 1,
       centerHz: 1400,
       spread: 30,
@@ -276,7 +276,7 @@ export const PHASER_DESCRIPTOR = wasmDeviceDescriptor(PHASER_DEVICE, {
       stereo: 180,
       mix: 0.5,
     },
-    'Still Formant': {
+    'Still formant': {
       stages: 0,
       centerHz: 1000,
       spread: 30,
@@ -287,7 +287,7 @@ export const PHASER_DESCRIPTOR = wasmDeviceDescriptor(PHASER_DEVICE, {
       stereo: 0,
       mix: 0.5,
     },
-    'Stereo Scatter': {
+    'Stereo scatter': {
       stages: 2,
       centerHz: 700,
       spread: 40,
@@ -298,6 +298,24 @@ export const PHASER_DESCRIPTOR = wasmDeviceDescriptor(PHASER_DEVICE, {
       stereo: 180,
       mix: 1,
     },
+  },
+  formerPresets: {
+    'Warm Six-Stage': 'Warm six-stage',
+    'Classic 4-Stage': 'Classic four-stage',
+    'Deep 8-Stage': 'Deep eight-stage',
+    'Slow Swirl': 'Slow swirl',
+    'Fast Vibe': 'Fast throb',
+    'Twelve Stage Cloud': 'Twelve stage cloud',
+    'Negative Notch': 'Negative notch',
+    'Random Steps': 'Random steps',
+    'Saw Riser': 'Saw riser',
+    'Bass Safe': 'Bass safe',
+    'Faint Shade': 'Faint shade',
+    'Glacial Sweep': 'Glacial sweep',
+    'Endless Fall': 'Endless fall',
+    'Two-Tone Flip': 'Two-tone flip',
+    'Still Formant': 'Still formant',
+    'Stereo Scatter': 'Stereo scatter',
   },
 })
 

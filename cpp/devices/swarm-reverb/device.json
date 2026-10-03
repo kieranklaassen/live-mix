@@ -121,7 +121,7 @@
       "modulation": 0.1,
       "mix": 0.35
     },
-    "Endless cave": {
+    "Endless": {
       "length": 0.8,
       "blur": 0.8,
       "feedback": 1.0,
@@ -129,14 +129,14 @@
       "lowCut": 150,
       "mix": 0.35
     },
-    "Bending walls": {
+    "Bending": {
       "blur": 0.7,
       "feedback": 0.75,
       "glide": 2,
       "wander": 0.5,
       "modulation": 0.4
     },
-    "Interval ghosts": {
+    "Intervals": {
       "length": 0.6,
       "blur": 0.6,
       "feedback": 0.75,
@@ -152,7 +152,7 @@
       "lowCut": 60,
       "mix": 0.45
     },
-    "Small swarm": {
+    "Tight swarm": {
       "length": 0.1,
       "blur": 0.3,
       "feedback": 0.45,
@@ -168,7 +168,7 @@
       "wander": 0.3,
       "highCut": 6000
     },
-    "Feeding on itself": {
+    "Runaway": {
       "length": 0.4,
       "blur": 0.6,
       "feedback": 1.05,
@@ -177,7 +177,7 @@
       "lowCut": 200,
       "mix": 0.3
     },
-    "One long scatter": {
+    "Long scatter": {
       "length": 1.2,
       "blur": 0.2,
       "feedback": 0,
@@ -201,7 +201,7 @@
       "modulation": 0,
       "mix": 0.3
     },
-    "Glinting cave": {
+    "Glinting": {
       "length": 0.6,
       "blur": 0.8,
       "feedback": 0.8,
@@ -210,7 +210,7 @@
       "lowCut": 300,
       "mix": 0.4
     },
-    "Narrow shaft": {
+    "Mine shaft": {
       "length": 0.3,
       "blur": 0.4,
       "feedback": 0.7,
@@ -233,6 +233,16 @@
       "lowCut": 800,
       "mix": 0.35
     }
+  },
+  "formerPresets": {
+    "Endless cave": "Endless",
+    "Bending walls": "Bending",
+    "Interval ghosts": "Intervals",
+    "Small swarm": "Tight swarm",
+    "Feeding on itself": "Runaway",
+    "One long scatter": "Long scatter",
+    "Glinting cave": "Glinting",
+    "Narrow shaft": "Mine shaft"
   },
   "origin": {
     "kind": "new",

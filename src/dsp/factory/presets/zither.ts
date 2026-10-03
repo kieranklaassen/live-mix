@@ -45,7 +45,7 @@ export const ZITHER_PRESETS: readonly FactoryPreset[] = [
       'Wide double strings in octaves that beat slowly, through a drifting chorus into a long dark reverb.',
     instrument: { deviceId: 'zither', preset: 'Twelve-string haze', params: { volume: -4 } },
     effects: [
-      { deviceId: 'chorus', preset: 'Slow Drift' },
+      { deviceId: 'chorus', preset: 'Slow drift' },
       { deviceId: 'bloom-reverb', preset: 'Long dark', params: { mix: 0.4 } },
     ],
   },

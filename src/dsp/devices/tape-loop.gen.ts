@@ -203,7 +203,7 @@ export const TAPE_LOOP_DESCRIPTOR = wasmDeviceDescriptor(TAPE_LOOP_DEVICE, {
       spread: 0.5,
       mix: 0.4,
     },
-    'Slow and backwards': {
+    'Slow backwards': {
       length: 4,
       feedback: 0.7,
       speed: 0,
@@ -263,6 +263,7 @@ export const TAPE_LOOP_DESCRIPTOR = wasmDeviceDescriptor(TAPE_LOOP_DEVICE, {
       mix: 0.5,
     },
   },
+  formerPresets: { 'Slow and backwards': 'Slow backwards' },
   retiredPresets: {
     'Hold forever': { length: 8, feedback: 1, wear: 0, wow: 0.1, lowCut: 40, spread: 0, mix: 0.5 },
   },

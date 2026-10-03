@@ -52,11 +52,14 @@
     "Streaming": { "ceiling": -2 },
     "Slow tide": { "release": 6 },
     "Wall only": { "ride": 0 },
-    "Headroom": { "ceiling": -6 },
+    "Margin": { "ceiling": -6 },
     "Pinned": { "ceiling": -12, "gain": 12 },
     "Late night": { "ceiling": -9, "gain": 2, "release": 4 },
     "Pull back": { "gain": -3 },
     "Breathing": { "ceiling": -9, "gain": 4, "release": 0.3 }
+  },
+  "formerPresets": {
+    "Headroom": "Margin"
   },
   "retiredPresets": {
     "Louder": { "gain": 6, "release": 2.5 }

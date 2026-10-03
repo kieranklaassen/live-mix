@@ -28,7 +28,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'ambient-comp', preset: 'Keys', params: { makeup: -1 } },
-      { deviceId: 'noise-floor', preset: 'Close microphone', params: { level: -46 } },
+      { deviceId: 'noise-floor', preset: 'Close mic', params: { level: -46 } },
       { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.15 } },
     ],
   },
@@ -133,7 +133,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'sympathetic', preset: 'Follow the melody', params: { mix: 0.25 } },
+      { deviceId: 'sympathetic', preset: 'Follow the tune', params: { mix: 0.25 } },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
@@ -351,7 +351,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { resonance: 0.96, attack: 0.3, release: 3, volume: -8.3 },
     },
     effects: [
-      { deviceId: 'analog-delay', preset: 'Dark repeats', params: { mix: 0.3 } },
+      { deviceId: 'analog-delay', preset: 'Dark echo', params: { mix: 0.3 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
     preview: 'line',
@@ -403,7 +403,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { tremolo: 0, volume: -10 },
     },
     effects: [
-      { deviceId: 'chorus', preset: 'Classic Chorus', params: { rate: 0.45, mix: 0.3 } },
+      { deviceId: 'chorus', preset: 'Classic chorus', params: { rate: 0.45, mix: 0.3 } },
       { deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.3 } },
     ],
   },
@@ -462,8 +462,8 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { bark: 0.7, volume: -12 },
     },
     effects: [
-      { deviceId: 'analog-drive', preset: 'Console edge', params: { drive: 0.55 } },
-      { deviceId: 'phaser', preset: 'Slow Swirl', params: { mix: 0.35 } },
+      { deviceId: 'analog-drive', preset: 'Console', params: { drive: 0.55 } },
+      { deviceId: 'phaser', preset: 'Slow swirl', params: { mix: 0.35 } },
       { deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.25 } },
     ],
   },
@@ -523,7 +523,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     instrument: { deviceId: 'tape-orchestra', preset: 'Cello bed', params: { volume: -10 } },
     effects: [
       { deviceId: 'tape', preset: 'Quarter inch', params: { wow: 0.35 } },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.3 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.3 } },
     ],
   },
   {
@@ -538,7 +538,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { length: 3.5, age: 0.5, release: 0.6, volume: -11 },
     },
     effects: [
-      { deviceId: 'analog-delay', preset: 'Dark repeats', params: { mix: 0.3 } },
+      { deviceId: 'analog-delay', preset: 'Dark echo', params: { mix: 0.3 } },
       { deviceId: 'fdn-reverb', preset: 'Room', params: { mix: 0.3 } },
     ],
     preview: 'chord',
@@ -574,7 +574,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { breath: 0.6, bellows: 0.9, celeste: 0.3, attack: 0.25, volume: -14.5 },
     },
     effects: [
-      { deviceId: 'noise-floor', preset: 'Close microphone', params: { level: -44 } },
+      { deviceId: 'noise-floor', preset: 'Close mic', params: { level: -44 } },
       { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.25 } },
     ],
   },
@@ -603,7 +603,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { sub: 0.4, breath: 0.5, attack: 0.06, release: 0.3, tone: 4200, volume: -11 },
     },
     effects: [
-      { deviceId: 'stereo-detune', preset: 'Subtle halo' },
+      { deviceId: 'stereo-detune', preset: 'Soft halo' },
       { deviceId: 'fdn-reverb', preset: 'Room', params: { mix: 0.3 } },
     ],
   },
@@ -758,7 +758,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { cutoff: 1100, glide: 0.2, volume: 6 },
     },
     effects: [
-      { deviceId: 'chorus', preset: 'Classic Chorus', params: { mix: 0.35 } },
+      { deviceId: 'chorus', preset: 'Classic chorus', params: { mix: 0.35 } },
       { deviceId: 'tape-echo', preset: 'Three heads', params: { mix: 0.25 } },
       { deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.3 } },
     ],
@@ -776,7 +776,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { decay: 1.5, volume: 4 },
     },
     effects: [
-      { deviceId: 'analog-delay', preset: 'Chorus echo', params: { time: 330, mix: 0.35 } },
+      { deviceId: 'analog-delay', preset: 'Chorused', params: { time: 330, mix: 0.35 } },
       { deviceId: 'fdn-reverb', preset: 'Room', params: { mix: 0.2 } },
     ],
     preview: 'line',
@@ -886,7 +886,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       'A nylon-string guitar played with the fingertips, close to the microphone in a small dry booth.',
     instrument: { deviceId: 'acoustic-guitar', preset: 'Nylon dusk', params: { volume: 1 } },
     effects: [
-      { deviceId: 'noise-floor', preset: 'Close microphone', params: { level: -46 } },
+      { deviceId: 'noise-floor', preset: 'Close mic', params: { level: -46 } },
       { deviceId: 'bloom-reverb', preset: 'Still room', params: { mix: 0.25 } },
     ],
   },
@@ -921,7 +921,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { tone: 0.3, attack: 1.5, release: 3, volume: -9 },
     },
     effects: [
-      { deviceId: 'analog-drive', preset: 'Glowing triode', params: { drive: 0.3 } },
+      { deviceId: 'analog-drive', preset: 'Triode glow', params: { drive: 0.3 } },
       { deviceId: 'fdn-reverb', preset: 'Room', params: { mix: 0.2 } },
     ],
   },
@@ -1070,7 +1070,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tape', preset: 'Quarter inch' },
-      { deviceId: 'vowel-reverb', preset: 'Small chapel', params: { vowel: 4, mix: 0.3 } },
+      { deviceId: 'vowel-reverb', preset: 'Chapel', params: { vowel: 4, mix: 0.3 } },
     ],
     preview: 'low',
   },
@@ -1123,7 +1123,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { breath: 0.7, volume: -4 },
     },
     effects: [
-      { deviceId: 'noise-floor', preset: 'Close microphone', params: { level: -46 } },
+      { deviceId: 'noise-floor', preset: 'Close mic', params: { level: -46 } },
       { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.25 } },
     ],
   },
@@ -1198,7 +1198,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { volume: -3 },
     },
     effects: [
-      { deviceId: 'chorus', preset: 'Classic Chorus', params: { rate: 0.5, mix: 0.4 } },
+      { deviceId: 'chorus', preset: 'Classic chorus', params: { rate: 0.5, mix: 0.4 } },
       { deviceId: 'tape-echo', params: { time: 450, feedback: 0.4, mix: 0.2 } },
       { deviceId: 'fdn-reverb', preset: 'Room', params: { mix: 0.3 } },
     ],
@@ -1297,7 +1297,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { size: 220, density: 5, attack: 0.3, release: 1.5, tone: 8000, volume: -11 },
     },
     effects: [
-      { deviceId: 'micro-looper', preset: 'Half speed bed' },
+      { deviceId: 'micro-looper', preset: 'Half speed' },
       { deviceId: 'fdn-reverb', preset: 'Room', params: { mix: 0.3 } },
     ],
   },
@@ -1309,7 +1309,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       'One moment from the middle of whatever is loaded, held as a chord while earlier moments drift back in the hall.',
     instrument: { deviceId: 'grain-synth', preset: 'Frozen moment', params: { volume: -19.5 } },
     effects: [
-      { deviceId: 'echo-memory', preset: 'Remembering', params: { mix: 0.3 } },
+      { deviceId: 'echo-memory', preset: 'Recalling', params: { mix: 0.3 } },
       { deviceId: 'zita-rev1', preset: 'Hall', params: { mix: 0.35 } },
     ],
   },
@@ -1397,7 +1397,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'analog-delay',
-        preset: 'Dark repeats',
+        preset: 'Dark echo',
         params: { time: 375, feedback: 0.5, mix: 0.35 },
       },
       { deviceId: 'dattorro', preset: 'Small plate', params: { mix: 0.25 } },
@@ -1578,7 +1578,7 @@ export const PRESETS: readonly FactoryPreset[] = [
       params: { attack: 0.3, release: 1.5, tone: 2800, volume: -6.5 },
     },
     effects: [
-      { deviceId: 'phaser', preset: 'Slow Swirl', params: { mix: 0.4 } },
+      { deviceId: 'phaser', preset: 'Slow swirl', params: { mix: 0.4 } },
       { deviceId: 'spring-reverb', preset: 'Two spring tank', params: { mix: 0.25 } },
     ],
   },
@@ -1748,7 +1748,7 @@ export const PRESETS: readonly FactoryPreset[] = [
     effects: [
       {
         deviceId: 'analog-delay',
-        preset: 'Dark repeats',
+        preset: 'Dark echo',
         params: { time: 470, feedback: 0.5, modDepth: 0.45, mix: 0.3 },
       },
       { deviceId: 'fdn-reverb', preset: 'Room', params: { mix: 0.3 } },

@@ -176,7 +176,7 @@
       "spread": 0.5,
       "mix": 0.4
     },
-    "Slow and backwards": {
+    "Slow backwards": {
       "length": 4,
       "feedback": 0.7,
       "speed": 0,
@@ -242,6 +242,9 @@
       "spread": 0.3,
       "mix": 0.5
     }
+  },
+  "formerPresets": {
+    "Slow and backwards": "Slow backwards"
   },
   "retiredPresets": {
     "Hold forever": {

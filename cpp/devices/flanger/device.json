@@ -71,7 +71,7 @@
     }
   ],
   "presets": {
-    "Gentle Sweep": {
+    "Gentle sweep": {
       "delayMs": 2.5,
       "rate": 0.25,
       "depth": 50,
@@ -80,7 +80,7 @@
       "stereo": 90,
       "mix": 0.5
     },
-    "Classic Jet": {
+    "Classic jet": {
       "delayMs": 2.5,
       "rate": 0.25,
       "depth": 60,
@@ -89,7 +89,7 @@
       "stereo": 90,
       "mix": 0.5
     },
-    "Slow Sweep": {
+    "Slow sweep": {
       "delayMs": 4,
       "rate": 0.08,
       "depth": 80,
@@ -98,7 +98,7 @@
       "stereo": 90,
       "mix": 0.5
     },
-    "Negative Hollow": {
+    "Negative hollow": {
       "delayMs": 1.5,
       "rate": 0.4,
       "depth": 50,
@@ -107,7 +107,7 @@
       "stereo": 60,
       "mix": 0.5
     },
-    "Through-Zero Feel": {
+    "Through-zero feel": {
       "delayMs": 0.8,
       "rate": 0.3,
       "depth": 100,
@@ -116,7 +116,7 @@
       "stereo": 180,
       "mix": 0.5
     },
-    "Tremolo Saw": {
+    "Tremolo saw": {
       "delayMs": 3,
       "rate": 2,
       "depth": 40,
@@ -125,7 +125,7 @@
       "stereo": 0,
       "mix": 0.5
     },
-    "Stepped Random": {
+    "Stepped random": {
       "delayMs": 5,
       "rate": 4,
       "depth": 70,
@@ -134,7 +134,7 @@
       "stereo": 90,
       "mix": 0.5
     },
-    "Metal Resonator": {
+    "Metal resonator": {
       "delayMs": 1,
       "rate": 0.05,
       "depth": 30,
@@ -143,7 +143,7 @@
       "stereo": 45,
       "mix": 0.45
     },
-    "Wide Wash": {
+    "Wide wash": {
       "delayMs": 8,
       "rate": 0.15,
       "depth": 55,
@@ -152,7 +152,7 @@
       "stereo": 180,
       "mix": 0.4
     },
-    "Square Chop": {
+    "Square chop": {
       "delayMs": 2,
       "rate": 1,
       "depth": 50,
@@ -161,7 +161,7 @@
       "stereo": 0,
       "mix": 0.5
     },
-    "Faint Air": {
+    "Faint air": {
       "delayMs": 1,
       "rate": 0.15,
       "depth": 60,
@@ -170,7 +170,7 @@
       "stereo": 180,
       "mix": 0.2
     },
-    "Glacial Drift": {
+    "Glacial drift": {
       "delayMs": 3,
       "rate": 0.02,
       "depth": 90,
@@ -179,7 +179,7 @@
       "stereo": 120,
       "mix": 0.5
     },
-    "Rising Comb": {
+    "Rising comb": {
       "delayMs": 3.5,
       "rate": 0.2,
       "depth": 85,
@@ -188,7 +188,7 @@
       "stereo": 90,
       "mix": 0.45
     },
-    "Standing Comb": {
+    "Standing comb": {
       "delayMs": 4,
       "rate": 0.25,
       "depth": 0,
@@ -197,7 +197,7 @@
       "stereo": 0,
       "mix": 0.5
     },
-    "Fast Warble": {
+    "Fast warble": {
       "delayMs": 5,
       "rate": 6,
       "depth": 12,
@@ -206,7 +206,7 @@
       "stereo": 90,
       "mix": 0.5
     },
-    "Deep Dive": {
+    "Deep dive": {
       "delayMs": 7,
       "rate": 0.1,
       "depth": 100,
@@ -215,6 +215,24 @@
       "stereo": 0,
       "mix": 0.5
     }
+  },
+  "formerPresets": {
+    "Gentle Sweep": "Gentle sweep",
+    "Classic Jet": "Classic jet",
+    "Slow Sweep": "Slow sweep",
+    "Negative Hollow": "Negative hollow",
+    "Through-Zero Feel": "Through-zero feel",
+    "Tremolo Saw": "Tremolo saw",
+    "Stepped Random": "Stepped random",
+    "Metal Resonator": "Metal resonator",
+    "Wide Wash": "Wide wash",
+    "Square Chop": "Square chop",
+    "Faint Air": "Faint air",
+    "Glacial Drift": "Glacial drift",
+    "Rising Comb": "Rising comb",
+    "Standing Comb": "Standing comb",
+    "Fast Warble": "Fast warble",
+    "Deep Dive": "Deep dive"
   },
   "origin": {
     "kind": "port",

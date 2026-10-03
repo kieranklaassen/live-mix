@@ -115,16 +115,8 @@ export const SYMPATHETIC_DESCRIPTOR = wasmDeviceDescriptor(SYMPATHETIC_DEVICE, {
     },
     'Open triad': { root: 7, mode: 0, sympathy: 0.7, strings: 0, decay: 5, mix: 0.4, width: 0.3 },
     'Glass harp': { root: 5, mode: 0, sympathy: 0.85, strings: 12, decay: 7, mix: 0.7, width: 0.9 },
-    'Long resonance': {
-      root: 0,
-      mode: 0,
-      sympathy: 0.4,
-      strings: 12,
-      decay: 10,
-      mix: 0.6,
-      width: 0.85,
-    },
-    'Follow the melody': {
+    'Long ring': { root: 0, mode: 0, sympathy: 0.4, strings: 12, decay: 10, mix: 0.6, width: 0.85 },
+    'Follow the tune': {
       root: 0,
       mode: 2,
       sympathy: 0.6,
@@ -145,15 +137,7 @@ export const SYMPATHETIC_DESCRIPTOR = wasmDeviceDescriptor(SYMPATHETIC_DEVICE, {
     'Strings alone': { root: 4, mode: 1, sympathy: 0.5, strings: 12, decay: 8, mix: 1, width: 1 },
     'Faint ring': { root: 9, mode: 0, sympathy: 0.5, strings: 2, decay: 2, mix: 0.2, width: 0.5 },
     'Centre drone': { root: 9, mode: 1, sympathy: 0.3, strings: 0, decay: 10, mix: 0.35, width: 0 },
-    'Wide minor wash': {
-      root: 2,
-      mode: 1,
-      sympathy: 0.55,
-      strings: 12,
-      decay: 10,
-      mix: 0.65,
-      width: 1,
-    },
+    'Minor wash': { root: 2, mode: 1, sympathy: 0.55, strings: 12, decay: 10, mix: 0.65, width: 1 },
     'Learn and hold': {
       root: 0,
       mode: 2,
@@ -164,15 +148,7 @@ export const SYMPATHETIC_DESCRIPTOR = wasmDeviceDescriptor(SYMPATHETIC_DEVICE, {
       width: 0.9,
     },
     'Brief pluck': { root: 5, mode: 0, sympathy: 1, strings: 1, decay: 0.5, mix: 0.5, width: 0.4 },
-    'Hammered strings': {
-      root: 4,
-      mode: 1,
-      sympathy: 0.9,
-      strings: 5,
-      decay: 1.5,
-      mix: 0.5,
-      width: 0.75,
-    },
+    Hammered: { root: 4, mode: 1, sympathy: 0.9, strings: 5, decay: 1.5, mix: 0.5, width: 0.75 },
     'Echo the tune': {
       root: 0,
       mode: 2,
@@ -182,6 +158,12 @@ export const SYMPATHETIC_DESCRIPTOR = wasmDeviceDescriptor(SYMPATHETIC_DEVICE, {
       mix: 0.4,
       width: 0.3,
     },
+  },
+  formerPresets: {
+    'Long resonance': 'Long ring',
+    'Follow the melody': 'Follow the tune',
+    'Wide minor wash': 'Minor wash',
+    'Hammered strings': 'Hammered',
   },
 })
 

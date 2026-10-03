@@ -110,7 +110,7 @@
       "loss": 0.55,
       "mode": 1
     },
-    "Smeared phases": {
+    "Smeared haze": {
       "loss": 0.6,
       "mode": 2,
       "frame": 2
@@ -156,23 +156,29 @@
       "mode": 2,
       "frame": 0
     },
-    "Holes in the signal": {
+    "Dropouts": {
       "loss": 0.3,
       "dropouts": 0.5,
       "burst": 0.7
     },
-    "Through the wall": {
+    "Through a wall": {
       "loss": 0.35,
       "stereo": 0.3,
       "highCut": 1500
     },
-    "Wash that never fades": {
+    "Endless wash": {
       "loss": 0.5,
       "mode": 2,
       "frame": 2,
       "smear": 1,
       "mix": 0.6
     }
+  },
+  "formerPresets": {
+    "Smeared phases": "Smeared haze",
+    "Holes in the signal": "Dropouts",
+    "Through the wall": "Through a wall",
+    "Wash that never fades": "Endless wash"
   },
   "origin": {
     "kind": "new",

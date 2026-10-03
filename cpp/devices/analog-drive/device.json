@@ -107,7 +107,7 @@
       "highCut": 6500,
       "output": -5
     },
-    "Console edge": {
+    "Console": {
       "circuit": 1,
       "drive": 0.45,
       "lowCut": 45,
@@ -121,7 +121,7 @@
       "tone": -0.1,
       "output": -4
     },
-    "Glowing triode": {
+    "Triode glow": {
       "circuit": 3,
       "drive": 0.5,
       "output": -1
@@ -132,7 +132,7 @@
       "lowCut": 90,
       "highCut": 9000
     },
-    "Crushed piano": {
+    "Crushed": {
       "circuit": 1,
       "drive": 0.2,
       "push": 1,
@@ -140,7 +140,7 @@
       "highCut": 4200,
       "mix": 0.5
     },
-    "Dark fuzz bed": {
+    "Dark fuzz": {
       "circuit": 3,
       "drive": 0.45,
       "push": 1,
@@ -159,7 +159,7 @@
       "mix": 0.3
     },
     "First hint": { "circuit": 0, "drive": 0.15 },
-    "Deep warmth": {
+    "Low warmth": {
       "circuit": 2,
       "drive": 0.25,
       "lowCut": 30,
@@ -167,7 +167,7 @@
       "tone": -0.3,
       "output": -4
     },
-    "Forward sheen": { "circuit": 1, "drive": 0.65, "lowCut": 120, "tone": 0.6, "highCut": 14000 },
+    "Sheen": { "circuit": 1, "drive": 0.65, "lowCut": 120, "tone": 0.6, "highCut": 14000 },
     "Worn tape": {
       "circuit": 0,
       "drive": 0.5,
@@ -195,6 +195,14 @@
       "output": -4
     },
     "Hot channel": { "circuit": 1, "drive": 0.4, "autoGain": 0, "output": -17 }
+  },
+  "formerPresets": {
+    "Console edge": "Console",
+    "Glowing triode": "Triode glow",
+    "Crushed piano": "Crushed",
+    "Dark fuzz bed": "Dark fuzz",
+    "Deep warmth": "Low warmth",
+    "Forward sheen": "Sheen"
   },
   "origin": {
     "kind": "new",

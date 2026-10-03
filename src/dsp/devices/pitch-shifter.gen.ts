@@ -197,7 +197,7 @@ export const PITCH_SHIFTER_DESCRIPTOR = wasmDeviceDescriptor(PITCH_SHIFTER_DEVIC
       spread: 0.6,
       mix: 0.45,
     },
-    'Pad fifth above': {
+    'Pad fifth': {
       pitchA: 7,
       pitchB: 7,
       levelB: 1,
@@ -209,7 +209,7 @@ export const PITCH_SHIFTER_DESCRIPTOR = wasmDeviceDescriptor(PITCH_SHIFTER_DEVIC
       spread: 0.8,
       mix: 0.4,
     },
-    'Pad octave below': {
+    'Pad below': {
       pitchA: -12,
       levelB: 0,
       detune: 0,
@@ -220,7 +220,7 @@ export const PITCH_SHIFTER_DESCRIPTOR = wasmDeviceDescriptor(PITCH_SHIFTER_DEVIC
       spread: 0.5,
       mix: 0.5,
     },
-    'Detuned double': {
+    Doubler: {
       pitchA: 0,
       pitchB: 0,
       levelB: 1,
@@ -246,7 +246,7 @@ export const PITCH_SHIFTER_DESCRIPTOR = wasmDeviceDescriptor(PITCH_SHIFTER_DEVIC
       spread: 0.5,
       mix: 0.4,
     },
-    'Grain shimmer': {
+    Shimmer: {
       pitchA: 12,
       pitchB: 19,
       levelB: 0.4,
@@ -299,7 +299,7 @@ export const PITCH_SHIFTER_DESCRIPTOR = wasmDeviceDescriptor(PITCH_SHIFTER_DEVIC
       spread: 0.6,
       mix: 0.45,
     },
-    'Sinking fourths': {
+    'Falling steps': {
       pitchA: -5,
       levelB: 0,
       detune: 0,
@@ -312,7 +312,7 @@ export const PITCH_SHIFTER_DESCRIPTOR = wasmDeviceDescriptor(PITCH_SHIFTER_DEVIC
       spread: 0.5,
       mix: 0.4,
     },
-    'Scattered sparks': {
+    'High sparks': {
       pitchA: 24,
       pitchB: 19,
       levelB: 0.6,
@@ -337,7 +337,7 @@ export const PITCH_SHIFTER_DESCRIPTOR = wasmDeviceDescriptor(PITCH_SHIFTER_DEVIC
       spread: 0.5,
       mix: 0.14,
     },
-    'Two octaves below': {
+    'Two octaves': {
       pitchA: -24,
       pitchB: -12,
       levelB: 0.5,
@@ -351,6 +351,15 @@ export const PITCH_SHIFTER_DESCRIPTOR = wasmDeviceDescriptor(PITCH_SHIFTER_DEVIC
       spread: 0.3,
       mix: 0.55,
     },
+  },
+  formerPresets: {
+    'Pad fifth above': 'Pad fifth',
+    'Pad octave below': 'Pad below',
+    'Detuned double': 'Doubler',
+    'Grain shimmer': 'Shimmer',
+    'Sinking fourths': 'Falling steps',
+    'Scattered sparks': 'High sparks',
+    'Two octaves below': 'Two octaves',
   },
 })
 

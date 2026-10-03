@@ -8,7 +8,7 @@ export const TAPE_ORCHESTRA_PRESETS: readonly FactoryPreset[] = [
     description: 'A small violin section swelling in from tape, drifting slowly in a long plate.',
     instrument: { deviceId: 'tape-orchestra', preset: 'Slow strings', params: { volume: -7 } },
     effects: [
-      { deviceId: 'chorus', preset: 'Slow Drift', params: { mix: 0.3 } },
+      { deviceId: 'chorus', preset: 'Slow drift', params: { mix: 0.3 } },
       { deviceId: 'dattorro', preset: 'Long plate', params: { mix: 0.3 } },
     ],
   },

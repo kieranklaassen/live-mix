@@ -60,7 +60,7 @@ export const FM_GLASS_PRESETS: readonly FactoryPreset[] = [
       params: { spread: 0.6, volume: -16 },
     },
     effects: [
-      { deviceId: 'chorus', preset: 'Slow Drift', params: { mix: 0.4 } },
+      { deviceId: 'chorus', preset: 'Slow drift', params: { mix: 0.4 } },
       { deviceId: 'expanse', preset: 'Open space', params: { mix: 0.35, width: 0.7 } },
     ],
     preview: 'chord',

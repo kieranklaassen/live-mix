@@ -36,7 +36,7 @@ export const BOWED_STRING_PRESETS: readonly FactoryPreset[] = [
       params: { brightness: 0.9, pressure: 0.25, detune: 0, volume: -13 },
     },
     effects: [
-      { deviceId: 'chorus', preset: 'Slow Drift', params: { mix: 0.35 } },
+      { deviceId: 'chorus', preset: 'Slow drift', params: { mix: 0.35 } },
       { deviceId: 'shimmer', preset: 'Glass', params: { mix: 0.4, shimmer: 0.6 } },
     ],
   },
@@ -53,7 +53,7 @@ export const BOWED_STRING_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tape-echo', preset: 'Three heads', params: { mix: 0.3 } },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.4, decay: 0.8 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.4, decay: 0.8 } },
     ],
   },
   {

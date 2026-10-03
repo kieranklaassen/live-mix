@@ -76,7 +76,7 @@
     }
   ],
   "presets": {
-    "Twelve bit": {
+    "Sampler": {
       "rate": 9000,
       "bits": 12,
       "companding": 0,
@@ -86,13 +86,13 @@
       "drive": 0,
       "mix": 1
     },
-    "Soft glaze": {
+    "Glaze": {
       "rate": 16000,
       "aliasing": 0.35,
       "filter": 1,
       "jitter": 0.1
     },
-    "Eight bit toy": {
+    "Toy": {
       "rate": 7000,
       "bits": 8,
       "companding": 1,
@@ -100,7 +100,7 @@
       "filter": 1,
       "jitter": 0.25
     },
-    "Dusty sampler": {
+    "Dusty": {
       "rate": 7500,
       "bits": 10,
       "aliasing": 0.5,
@@ -108,21 +108,21 @@
       "jitter": 0.9,
       "drive": 9
     },
-    "Glass images": {
+    "Glassy": {
       "rate": 8000,
       "bits": 12,
       "aliasing": 0.1,
       "filter": 0,
       "jitter": 0.05
     },
-    "Folded metal": {
+    "Metallic": {
       "rate": 6000,
       "bits": 10,
       "aliasing": 1,
       "filter": 1,
       "jitter": 0.1
     },
-    "Telephone exchange": {
+    "Phone": {
       "rate": 8000,
       "bits": 8,
       "companding": 1,
@@ -130,7 +130,7 @@
       "filter": 2,
       "jitter": 0.3
     },
-    "Worn converter": {
+    "Worn": {
       "rate": 12000,
       "bits": 9,
       "aliasing": 0.5,
@@ -145,7 +145,7 @@
       "jitter": 0.1,
       "drive": 12
     },
-    "Coarse steps": {
+    "Coarse": {
       "rate": 48000,
       "bits": 7,
       "companding": 0,
@@ -153,7 +153,7 @@
       "filter": 1,
       "jitter": 0
     },
-    "Jitter haze": {
+    "Jittery": {
       "rate": 6000,
       "bits": 14,
       "companding": 0,
@@ -169,7 +169,7 @@
       "filter": 2,
       "jitter": 0.2
     },
-    "Grit underneath": {
+    "Grit bed": {
       "rate": 5000,
       "bits": 6,
       "companding": 0,
@@ -187,7 +187,7 @@
       "jitter": 0,
       "drive": 15
     },
-    "Four bit rasp": {
+    "Rasp": {
       "rate": 11000,
       "bits": 4,
       "companding": 1,
@@ -195,7 +195,7 @@
       "filter": 1,
       "jitter": 0.2
     },
-    "Low rate clang": {
+    "Clang": {
       "rate": 3000,
       "bits": 12,
       "companding": 0,
@@ -203,6 +203,21 @@
       "filter": 0,
       "jitter": 0.1
     }
+  },
+  "formerPresets": {
+    "Twelve bit": "Sampler",
+    "Soft glaze": "Glaze",
+    "Eight bit toy": "Toy",
+    "Dusty sampler": "Dusty",
+    "Glass images": "Glassy",
+    "Folded metal": "Metallic",
+    "Telephone exchange": "Phone",
+    "Worn converter": "Worn",
+    "Coarse steps": "Coarse",
+    "Jitter haze": "Jittery",
+    "Grit underneath": "Grit bed",
+    "Four bit rasp": "Rasp",
+    "Low rate clang": "Clang"
   },
   "origin": {
     "kind": "new",

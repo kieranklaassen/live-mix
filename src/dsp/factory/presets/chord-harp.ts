@@ -9,7 +9,7 @@ export const CHORD_HARP_PRESETS: readonly FactoryPreset[] = [
       'A held chord strummed up three octaves of soft electronic strings, in a slow chorus and a hall.',
     instrument: { deviceId: 'chord-harp', preset: 'Evening strum', params: { volume: -6 } },
     effects: [
-      { deviceId: 'chorus', preset: 'Lush Ensemble', params: { mix: 0.35 } },
+      { deviceId: 'chorus', preset: 'Lush ensemble', params: { mix: 0.35 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
     preview: 'chord',
@@ -23,7 +23,7 @@ export const CHORD_HARP_PRESETS: readonly FactoryPreset[] = [
     instrument: { deviceId: 'chord-harp', preset: 'Slow cascade' },
     effects: [
       { deviceId: 'tape-echo', preset: 'Three heads', params: { feedback: 0.5, mix: 0.3 } },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.3 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.3 } },
     ],
     preview: 'chord',
   },
@@ -44,7 +44,7 @@ export const CHORD_HARP_PRESETS: readonly FactoryPreset[] = [
       'A soft organ chord with its notes scattered above it in no order, wide, in a very large space.',
     instrument: { deviceId: 'chord-harp', preset: 'Pad and sparkle' },
     effects: [
-      { deviceId: 'phaser', preset: 'Slow Swirl' },
+      { deviceId: 'phaser', preset: 'Slow swirl' },
       { deviceId: 'expanse', preset: 'Open space', params: { mix: 0.4, width: 0.75 } },
     ],
     preview: 'chord',

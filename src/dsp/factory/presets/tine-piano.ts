@@ -9,7 +9,7 @@ export const TINE_PIANO_PRESETS: readonly FactoryPreset[] = [
       'The soft electric piano with its tremolo on, through a slow phaser in a small room.',
     instrument: { deviceId: 'tine-piano', preset: 'Soft suitcase', params: { volume: -11.5 } },
     effects: [
-      { deviceId: 'phaser', preset: 'Slow Swirl' },
+      { deviceId: 'phaser', preset: 'Slow swirl' },
       { deviceId: 'zita-rev1', preset: 'Room', params: { mix: 0.25 } },
     ],
   },
@@ -21,7 +21,7 @@ export const TINE_PIANO_PRESETS: readonly FactoryPreset[] = [
     instrument: { deviceId: 'tine-piano', preset: 'Dark felt', params: { volume: -11 } },
     effects: [
       { deviceId: 'tape-echo', preset: 'Three heads', params: { feedback: 0.65, mix: 0.4 } },
-      { deviceId: 'dattorro', preset: 'ambient-live', params: { mix: 0.25 } },
+      { deviceId: 'dattorro', preset: 'Medium plate', params: { mix: 0.25 } },
     ],
   },
   {
@@ -35,7 +35,7 @@ export const TINE_PIANO_PRESETS: readonly FactoryPreset[] = [
       params: { bell: 1, hardness: 0.95, tone: 0.9 },
     },
     effects: [
-      { deviceId: 'chorus', preset: 'Lush Ensemble', params: { mix: 0.45 } },
+      { deviceId: 'chorus', preset: 'Lush ensemble', params: { mix: 0.45 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
