@@ -234,6 +234,56 @@
     "durationSec": 8,
     "loops": true
   },
+  "161": {
+    "id": "brook-over-stones",
+    "durationSec": 8,
+    "loops": true
+  },
+  "162": {
+    "id": "wood-at-dawn",
+    "durationSec": 16,
+    "loops": true
+  },
+  "163": {
+    "id": "falls-in-a-gorge",
+    "durationSec": 8,
+    "loops": true
+  },
+  "164": {
+    "id": "steady-downpour",
+    "durationSec": 8,
+    "loops": true
+  },
+  "165": {
+    "id": "rolling-thunder",
+    "durationSec": 16,
+    "loops": true
+  },
+  "166": {
+    "id": "frog-pond-at-night",
+    "durationSec": 16,
+    "loops": true
+  },
+  "167": {
+    "id": "field-of-crickets",
+    "durationSec": 8,
+    "loops": true
+  },
+  "168": {
+    "id": "wind-in-the-chimney",
+    "durationSec": 16,
+    "loops": true
+  },
+  "169": {
+    "id": "hum-in-an-empty-room",
+    "durationSec": 8,
+    "loops": true
+  },
+  "170": {
+    "id": "radio-between-stations",
+    "durationSec": 8,
+    "loops": true
+  },
   "171": {
     "id": "rubber-bass-c",
     "durationSec": 3,
