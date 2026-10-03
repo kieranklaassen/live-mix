@@ -32,6 +32,9 @@ export interface Phrase {
   notes: readonly PhraseNote[]
 }
 
+/** How a loop's end is added to its start: at equal power, or at equal amplitude. */
+export type LoopFold = 'power' | 'linear'
+
 /** The velocity a phrase note plays at when it names none: what an on-screen key sends. */
 export const DEFAULT_PHRASE_GAIN = 0.8
 
@@ -61,6 +64,13 @@ export interface RenderPatchOptions {
    * end and crossfaded over the start (equal power).
    */
   loopCrossfadeSec?: number
+  /**
+   * How the fold adds the two stretches (default `'power'`). Equal power is
+   * right for two unrelated stretches; `'linear'` for a phrase that is played
+   * round again, where the stretch past the end is the start once more and
+   * equal power would swell by 3 dB.
+   */
+  loopFold?: LoopFold
   /** Linear fades at the two ends, in seconds (default 0 in, 0 out). */
   fadeInSec?: number
   fadeOutSec?: number
@@ -193,15 +203,24 @@ function nextTask(): Promise<void> {
 }
 
 /**
- * Fold the `crossfade` frames past `frames` onto the start, equal power, so
- * the first `frames` loop without a seam. Returns a `frames`-long copy.
+ * Fold the `crossfade` frames past `frames` onto the start, so the first
+ * `frames` loop without a seam: at equal power, or with `'linear'` at equal
+ * amplitude (two stretches that are the same sound). Returns a `frames`-long copy.
  */
-export function foldLoop(channel: Float32Array, frames: number, crossfade: number): Float32Array {
+export function foldLoop(
+  channel: Float32Array,
+  frames: number,
+  crossfade: number,
+  fold: LoopFold = 'power',
+): Float32Array {
   const out = channel.slice(0, frames)
   const span = Math.min(crossfade, frames, channel.length - frames)
   for (let i = 0; i < span; i += 1) {
-    const position = ((i + 0.5) / span) * (Math.PI / 2)
-    out[i] = channel[i] * Math.sin(position) + channel[frames + i] * Math.cos(position)
+    const along = (i + 0.5) / span
+    const position = along * (Math.PI / 2)
+    const [rise, fall] =
+      fold === 'linear' ? [along, 1 - along] : [Math.sin(position), Math.cos(position)]
+    out[i] = channel[i] * rise + channel[frames + i] * fall
   }
   return out
 }
@@ -311,7 +330,9 @@ export async function renderPatch(patch: Patch, options: RenderPatchOptions): Pr
 
   const kept = [left, right].map((channel) => {
     const body = channel.subarray(skip)
-    return crossfade > 0 ? foldLoop(body, frames, crossfade) : body.slice(0, frames)
+    return crossfade > 0
+      ? foldLoop(body, frames, crossfade, options.loopFold)
+      : body.slice(0, frames)
   })
 
   let peak = peakOf(kept)

@@ -30,6 +30,7 @@ import {
   renderPresetPreview,
 } from '..'
 import { CHAIN_TEST_PATCH, CHAIN_TEST_PHRASE } from './chain-input'
+import { longestName, measureEnds } from './sound-measure'
 
 const registry = new DeviceRegistry(STOCK_WASM_DEVICES)
 const INSTRUMENTS = STOCK_WASM_DEVICES.filter((d) => d.category === 'instrument').map((d) => d.id)
@@ -174,6 +175,9 @@ describe.each(FACTORY_SOUNDS.map((sound) => [sound.id, sound] as const))(
     it('renders at the bank level as the kind it says it is', async () => {
       expect(sound.id).toMatch(KEBAB)
       expect(sound.name.length).toBeLessThanOrEqual(24)
+      expect(longestName(sound).length, `"${longestName(sound)}" in its key`).toBeLessThanOrEqual(
+        24,
+      )
       expect(sound.description).toMatch(/^[A-Z].{24,}\.$/)
       expect(sound.durationSec).toBeGreaterThanOrEqual(2)
       expect(sound.durationSec).toBeLessThanOrEqual(32)
@@ -187,6 +191,7 @@ describe.each(FACTORY_SOUNDS.map((sound) => [sound.id, sound] as const))(
       expect(measureAudio(audio).lufs, 'loudness').toBeGreaterThan(-40)
       expect(analyzeSound(audio.channels, audio.sampleRate).kind).toBe(sound.kind)
 
+      const ends = measureEnds(audio)
       for (const channel of audio.channels) {
         const wrap = Math.abs(channel[0] - channel[channel.length - 1])
         if (sound.loopCrossfadeSec) {
@@ -194,6 +199,14 @@ describe.each(FACTORY_SOUNDS.map((sound) => [sound.id, sound] as const))(
         } else {
           expect(Math.abs(channel[channel.length - 1]), 'the last sample').toBeLessThan(1e-3)
         }
+      }
+      // The measure a clip is entered and left by (core/clips/seam.ts): a loop
+      // comes round on itself, and a sound that ends starts and stops at rest.
+      if (sound.loopCrossfadeSec) {
+        expect(ends.round, 'comes round on itself').toBe(true)
+      } else {
+        expect(ends.stepIn, 'starts on a step').toBe(false)
+        expect(ends.stepOut, 'ends on a step').toBe(false)
       }
     })
   },

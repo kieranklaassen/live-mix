@@ -252,4 +252,20 @@ describe('foldLoop', () => {
     // No overhang to fold: the body comes back as it is.
     expect(foldLoop(channel.slice(0, frames), frames, crossfade)).toEqual(channel.slice(0, frames))
   })
+
+  it('adds a stretch to itself at equal amplitude when the fold is linear', () => {
+    const frames = 1000
+    const crossfade = 200
+    // The overhang is the start over again, as it is for a phrase played round.
+    const channel = new Float32Array(frames + crossfade)
+    for (let i = 0; i < channel.length; i += 1) channel[i] = Math.sin((i % frames) * 0.05)
+    const linear = foldLoop(channel, frames, crossfade, 'linear')
+    const power = foldLoop(channel, frames, crossfade)
+    for (let i = 0; i < crossfade; i += 1) expect(linear[i]).toBeCloseTo(channel[i], 6)
+    // Equal power swells by up to 3 dB where the two are the same sound.
+    const middle = crossfade / 2
+    const peak = Math.max(...power.slice(middle - 70, middle + 70).map(Math.abs))
+    expect(peak).toBeGreaterThan(1.35)
+    expect(linear.slice(crossfade)).toEqual(channel.slice(crossfade, frames))
+  })
 })
