@@ -73,7 +73,18 @@ export interface RampOptions {
 export interface RideOptions extends RampOptions {
   /** Which ride is moved. Layers multiply; each keeps its own value and its own ramp. Default `'ride'`. */
   layer?: string
+  /**
+   * Audio-clock time by which the layer is where it was sent. An approach
+   * never quite arrives; from this time a second, short one closes what the
+   * first left, so a track ridden to 0 is out and not 2% in. Left out, or
+   * not after `at`, the approach goes on at its own rate; so does one whose
+   * time constant is no longer than the arrival's.
+   */
+  arriveAt?: number
 }
+
+/** The time constant of the short approach that closes a ride at its `arriveAt`. */
+export const RIDE_ARRIVAL_TIME_CONSTANT = 0.02
 
 /** The layer `setRide` moves when none is named. */
 export const DEFAULT_RIDE_LAYER = 'ride'
@@ -383,8 +394,9 @@ export class ChannelStrip {
    * does not change, and a later `setLevel` does not disturb a ride in
    * flight: the two are separate gains. An approach already scheduled for
    * later on this layer is dropped for the new one, so the last word wins
-   * whatever order the two were to start in. The first move of a layer makes
-   * its node; the strip's own nodes are made with it.
+   * whatever order the two were to start in. With `arriveAt` the layer is at
+   * its value by then. The first move of a layer makes its node; the strip's
+   * own nodes are made with it.
    */
   setRide(value: number, options: RideOptions = {}): void {
     const layer = this.rideLayer(options.layer ?? DEFAULT_RIDE_LAYER)
@@ -396,6 +408,7 @@ export class ChannelStrip {
     ]) {
       param.cancelScheduledValues(now)
       this.approach(param, layer.value, options)
+      this.arrive(param, layer.value, options)
     }
     this.changed('ride')
   }
@@ -663,6 +676,15 @@ export class ChannelStrip {
   private approach(param: AudioParam, value: number, options: RampOptions): void {
     const at = options.at ?? this.context().currentTime
     param.setTargetAtTime(value, at, options.timeConstant ?? this.timeConstant)
+  }
+
+  /** From `arriveAt` on, the rest of the way at once (see `RideOptions.arriveAt`). */
+  private arrive(param: AudioParam, value: number, options: RideOptions): void {
+    const from = options.at ?? this.context().currentTime
+    if (options.arriveAt === undefined || !(options.arriveAt > from)) return
+    // An approach as quick as the arrival has nothing left to close.
+    if ((options.timeConstant ?? this.timeConstant) <= RIDE_ARRIVAL_TIME_CONSTANT) return
+    param.setTargetAtTime(value, options.arriveAt, RIDE_ARRIVAL_TIME_CONSTANT)
   }
 
   /**

@@ -10,6 +10,7 @@ import {
 } from '../../../testing'
 import { createEngine, type Engine } from '../../Engine'
 import { TempoMap } from '../../time/TempoMap'
+import { RIDE_ARRIVAL_TIME_CONSTANT } from '../../tracks/ChannelStrip'
 import {
   DIAL_RIDE_LAYER,
   Performer,
@@ -35,6 +36,13 @@ function twoScenes(): PerformSet {
   }
 }
 
+/** What a ride was told the last time it was moved: its approach, then its arrival if it has one. */
+function lastWord(param: MockAudioParam | null) {
+  const events = param?.events ?? []
+  const from = events.map((event) => event.method).lastIndexOf('cancelScheduledValues')
+  return events.slice(from + 1).filter((event) => event.method === 'setTargetAtTime')
+}
+
 interface Rig {
   ctx: MockAudioContext
   engine: Engine
@@ -46,6 +54,8 @@ interface Rig {
   ride: (track: string, layer?: string) => MockAudioParam | null
   /** The last approach a ride was given: [value, at, timeConstant]. */
   approach: (track: string, layer?: string) => unknown[] | undefined
+  /** The short approach that closes it when the morph ends, if it was given one. */
+  arrival: (track: string, layer?: string) => unknown[] | undefined
 }
 
 function rig(set: PerformSet = twoScenes(), options: Partial<PerformerOptions> = {}): Rig {
@@ -75,17 +85,20 @@ function rig(set: PerformSet = twoScenes(), options: Partial<PerformerOptions> =
       engine.scheduler.tick('timer')
     },
     ride,
-    approach: (track, layer) => ride(track, layer)?.lastEvent('setTargetAtTime')?.args,
+    approach: (track, layer) => lastWord(ride(track, layer))[0]?.args,
+    arrival: (track, layer) => lastWord(ride(track, layer))[1]?.args,
   }
 }
 
 describe('Performer: scenes', () => {
   it('goes to a scene at once while the transport is stopped, over the morph', () => {
-    const { performer, approach, ride, events } = rig()
+    const { performer, approach, arrival, ride, events } = rig()
     expect(performer.go('dawn')).toBe(true)
     // Two bars at 120 is 4 s; the approach runs through four time constants in that.
     expect(approach('a')).toEqual([1, START, 1])
     expect(approach('b')).toEqual([0, START, 1])
+    // And when the morph ends the sound is out, not 2% in.
+    expect(arrival('b')).toEqual([0, START + 4, RIDE_ARRIVAL_TIME_CONSTANT])
     expect(ride('a', DIAL_RIDE_LAYER)).toBeNull()
     expect(performer.state).toMatchObject({ scene: 'dawn', queued: null, rides: { a: 1, b: 0 } })
     expect(events.filter((event) => event.type === 'scene')).toEqual([
@@ -204,6 +217,22 @@ describe('Performer: scenes', () => {
     expect(approach('b')?.[1]).toBeCloseTo(START + 1.5)
   })
 
+  it("finds the next line on a move's own grid after a seek, not on the set's", () => {
+    const { engine, performer, advance, approach, ride } = rig()
+    engine.transport.start()
+    advance(0.3)
+    performer.go('dawn', { quantize: 'beat' })
+    performer.ride('a', 0.25, { quantize: 'beat' })
+    engine.transport.seek(5.2)
+    expect(ride('b')).toBeNull()
+    // Position 5.2 s is beat 10.4: the next beat is 0.6 on, the next bar 1.6.
+    expect(performer.state.queuedInBeats).toBeCloseTo(0.6)
+    advance(0.25)
+    expect(approach('b')?.[0]).toBe(0)
+    expect(approach('b')?.[1]).toBeCloseTo(START + 0.6)
+    expect(approach('a')?.[1]).toBeCloseTo(START + 0.6)
+  })
+
   it('goes at once when the transport stops under a scene that waits', () => {
     const { engine, performer, advance, approach } = rig()
     engine.transport.start()
@@ -252,7 +281,7 @@ describe('Performer: single rides', () => {
     expect(performer.state.rides).toEqual({ a: 0.5, b: 1 })
     advance(1.45)
     expect(approach('b')).toEqual([0, START + 2, 1])
-    expect(ride('a')?.eventsFor('setTargetAtTime')).toHaveLength(1)
+    expect(ride('a')?.eventsFor('cancelScheduledValues')).toHaveLength(1)
     expect(performer.state).toMatchObject({ scene: 'night', rides: { a: 0.5, b: 0 } })
     expect(performer.state.queuedRides).toEqual({})
   })
@@ -321,15 +350,18 @@ describe('Performer: dials', () => {
 
   it('moves a ride on its own layer, the product of every dial that moves the track', () => {
     const hosted: [string, number, number][] = []
-    const { performer, approach, ride } = rig(dialSet(), {
+    const { performer, approach, arrival, ride } = rig(dialSet(), {
       host: (id, value, glide) => hosted.push([id, value, glide.seconds]),
     })
     performer.go('night')
     const sceneEvents = ride('b')?.events.length
     expect(performer.dial('energy', 0.75)).toBe(true)
     expect(approach('b', DIAL_RIDE_LAYER)).toEqual([0.5, START, 0.02])
+    // A dial put somewhere at once is there in a blink and has nothing left to close.
+    expect(arrival('b', DIAL_RIDE_LAYER)).toBeUndefined()
     performer.dial('duck', 1, { seconds: 2 })
     expect(approach('b', DIAL_RIDE_LAYER)).toEqual([0.25, START, 0.5])
+    expect(arrival('b', DIAL_RIDE_LAYER)).toEqual([0.25, START + 2, RIDE_ARRIVAL_TIME_CONSTANT])
     // The scene's own approach was not touched.
     expect(ride('b')?.events.length).toBe(sceneEvents)
     expect(hosted.at(-1)).toEqual(['tone', 300 + 0.75 * 17_700, 0.08])
@@ -577,10 +609,11 @@ describe('Performer: taking up a performance', () => {
     set.dials = [
       { id: 'energy', name: 'Energy', value: 1, targets: [{ kind: 'ride', track: 'a' }] },
     ]
-    const { performer, approach, events } = rig(set)
+    const { performer, approach, arrival, events } = rig(set)
     performer.go('dawn')
     performer.restore({ scene: 'night', rides: { a: 0.25 }, dials: { energy: 0.5 } })
     expect(approach('a')).toEqual([0.25, START, 0.005])
+    expect(arrival('a')).toBeUndefined()
     // A track the performance being taken up does not ride goes back to 1.
     expect(approach('b')).toEqual([1, START, 0.005])
     expect(approach('a', DIAL_RIDE_LAYER)).toEqual([0.5, START, 0.005])
@@ -620,13 +653,17 @@ describe('Performer: leaving', () => {
     set.dials = [
       { id: 'energy', name: 'Energy', value: 1, targets: [{ kind: 'ride', track: 'a' }] },
     ]
-    const { performer, approach, events } = rig(set)
+    const { performer, approach, arrival, events } = rig(set)
     performer.go('dawn')
     performer.dial('energy', 0.2)
     performer.reset(2)
     expect(approach('a')).toEqual([1, START, 0.5])
     expect(approach('b')).toEqual([1, START, 0.5])
     expect(approach('a', DIAL_RIDE_LAYER)).toEqual([1, START, 0.5])
+    // The piece is back whole when the reset is over.
+    for (const closed of [arrival('a'), arrival('b'), arrival('a', DIAL_RIDE_LAYER)]) {
+      expect(closed).toEqual([1, START + 2, RIDE_ARRIVAL_TIME_CONSTANT])
+    }
     expect(performer.state).toMatchObject({
       scene: null,
       queued: null,

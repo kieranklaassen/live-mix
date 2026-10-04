@@ -99,6 +99,7 @@ export { SendList, type Send, type SendOptions, type SendTarget } from './core/t
 export {
   ChannelStrip,
   DEFAULT_RIDE_LAYER,
+  RIDE_ARRIVAL_TIME_CONSTANT,
   SoloInPlace,
   resolveInput,
   type ChannelStripOptions,

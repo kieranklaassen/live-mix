@@ -164,9 +164,9 @@ function text(value: unknown): string | null {
   return typeof value === 'string' && value.length > 0 ? value : null
 }
 
-function range(value: unknown, max: number): PerformRange | undefined {
+function range(value: unknown, max: number, min = 0): PerformRange | undefined {
   if (!isRecord(value) || !finite(value.min) || !finite(value.max)) return undefined
-  return { min: clamp(value.min, 0, max), max: clamp(value.max, 0, max) }
+  return { min: clamp(value.min, min, max), max: clamp(value.max, min, max) }
 }
 
 function dialTarget(value: unknown): PerformDialTarget | null {
@@ -174,8 +174,11 @@ function dialTarget(value: unknown): PerformDialTarget | null {
   const shape: DialShape = {}
   const input = range(value.input, 1)
   if (input) shape.input = input
-  // A ride is a gain; what a host is handed is the host's own unit.
-  const output = range(value.output, value.kind === 'ride' ? MAX_RIDE : Number.MAX_VALUE)
+  // A ride is a gain; what a host is handed is the host's own unit, which may be signed.
+  const output =
+    value.kind === 'ride'
+      ? range(value.output, MAX_RIDE)
+      : range(value.output, Number.MAX_VALUE, -Number.MAX_VALUE)
   if (output) shape.output = output
   if ((MAPPING_CURVES as readonly unknown[]).includes(value.curve)) {
     shape.curve = value.curve as MappingCurve

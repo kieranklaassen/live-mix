@@ -54,7 +54,8 @@ export const DEFAULT_RESET_SECONDS = 0.5
 /**
  * A morph is an exponential approach, which never quite arrives: over the
  * morph's length it runs through this many time constants, which leaves it
- * within 2% of where it is going.
+ * within 2% of where it is going. A ride is told to arrive when the morph
+ * ends (`RideOptions.arriveAt`), so a sound taken out is out by then.
  */
 export const MORPH_TIME_CONSTANTS = 4
 /** A move with no length still takes this long, so nothing steps. */
@@ -155,6 +156,8 @@ interface QueuedScene {
   /** Beats since the timeline began; null means the next tick, whenever that is. */
   beats: number | null
   morphBars: number | undefined
+  /** The grid asked for, so the line is found again on the same one after a seek. */
+  quantize: LaunchQuantize | undefined
   /** Reached by a follow rule rather than by a hand. */
   followed: boolean
 }
@@ -163,6 +166,7 @@ interface QueuedRide {
   value: number
   beats: number | null
   morphBars: number | undefined
+  quantize: LaunchQuantize | undefined
 }
 
 type TempoSource = TempoMap | (() => TempoMap)
@@ -277,7 +281,12 @@ export class Performer {
   go(scene: string, options: MoveOptions = {}): boolean {
     this.assertLive()
     if (!this.findScene(scene)) return false
-    this.queueScene({ scene, morphBars: options.morphBars, followed: false }, options.quantize)
+    this.queueScene({
+      scene,
+      morphBars: options.morphBars,
+      quantize: options.quantize,
+      followed: false,
+    })
     return true
   }
 
@@ -300,6 +309,7 @@ export class Performer {
       value: clamp(value, 0, MAX_RIDE),
       beats,
       morphBars: options.morphBars,
+      quantize: options.quantize,
     })
     // A line already inside the lookahead does not wait for the next tick.
     if (!this.flush(this.beatsNow())) this.changed()
@@ -330,7 +340,12 @@ export class Performer {
     const at = this.engine.now()
     const timeConstant = Math.max(MIN_TIME_CONSTANT, seconds / MORPH_TIME_CONSTANTS)
     for (const track of this.sceneRides.keys()) {
-      this.resolveStrip(track)?.setRide(1, { layer: SCENE_RIDE_LAYER, at, timeConstant })
+      this.resolveStrip(track)?.setRide(1, {
+        layer: SCENE_RIDE_LAYER,
+        at,
+        timeConstant,
+        arriveAt: at + seconds,
+      })
       this.events.emit({ type: 'ride', track, value: 1, at })
     }
     this.sceneRides.clear()
@@ -650,12 +665,8 @@ export class Performer {
 
   // --- Moves ------------------------------------------------------------------------------
 
-  private queueScene(
-    move: Omit<QueuedScene, 'beats'>,
-    quantize: LaunchQuantize | undefined,
-    atBeats?: number,
-  ): void {
-    const beats = atBeats ?? this.lineAfter(quantize ?? this.current.quantize)
+  private queueScene(move: Omit<QueuedScene, 'beats'>, atBeats?: number): void {
+    const beats = atBeats ?? this.lineAfter(move.quantize ?? this.current.quantize)
     this.queued = { ...move, beats }
     this.events.emit({ type: 'queue', scene: move.scene })
     // A line already inside the lookahead does not wait for the next tick.
@@ -708,11 +719,14 @@ export class Performer {
 
   private moveRide(track: string, value: number, at: number, morphBars: number): void {
     this.sceneRides.set(track, value)
-    const timeConstant = Math.max(
-      MIN_TIME_CONSTANT,
-      this.barsToSeconds(morphBars) / MORPH_TIME_CONSTANTS,
-    )
-    this.resolveStrip(track)?.setRide(value, { layer: SCENE_RIDE_LAYER, at, timeConstant })
+    const seconds = this.barsToSeconds(morphBars)
+    const timeConstant = Math.max(MIN_TIME_CONSTANT, seconds / MORPH_TIME_CONSTANTS)
+    this.resolveStrip(track)?.setRide(value, {
+      layer: SCENE_RIDE_LAYER,
+      at,
+      timeConstant,
+      arriveAt: at + seconds,
+    })
     this.events.emit({ type: 'ride', track, value, at })
   }
 
@@ -749,7 +763,12 @@ export class Performer {
       const value = clamp(rides.get(track) ?? 1, 0, MAX_RIDE)
       const strip = this.resolveStrip(track)
       if (strip && strip.ride(DIAL_RIDE_LAYER) !== value) {
-        strip.setRide(value, { layer: DIAL_RIDE_LAYER, at: glide.at, timeConstant })
+        strip.setRide(value, {
+          layer: DIAL_RIDE_LAYER,
+          at: glide.at,
+          timeConstant,
+          arriveAt: glide.at + glide.seconds,
+        })
       }
       if (rides.has(track)) this.dialRidden.add(track)
       else this.dialRidden.delete(track)
@@ -798,7 +817,7 @@ export class Performer {
       this.followAtBeats = at + this.followPeriodBeats
       return
     }
-    this.queueScene({ scene: next, morphBars: undefined, followed: true }, undefined, at)
+    this.queueScene({ scene: next, morphBars: undefined, quantize: undefined, followed: true }, at)
   }
 
   // --- Ticks --------------------------------------------------------------------------------
@@ -848,11 +867,16 @@ export class Performer {
     if (this.queued) {
       this.queued = {
         ...this.queued,
-        beats: this.queued.followed ? this.followAtBeats : this.lineAfter(this.current.quantize),
+        beats: this.queued.followed
+          ? this.followAtBeats
+          : this.lineAfter(this.queued.quantize ?? this.current.quantize),
       }
     }
     for (const [track, ride] of [...this.queuedRides]) {
-      this.queuedRides.set(track, { ...ride, beats: this.lineAfter(this.current.quantize) })
+      this.queuedRides.set(track, {
+        ...ride,
+        beats: this.lineAfter(ride.quantize ?? this.current.quantize),
+      })
     }
     this.reportedBeat = Math.ceil(now - BEAT_EPSILON) - 1
   }
