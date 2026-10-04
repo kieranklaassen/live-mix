@@ -12,7 +12,7 @@ build_generated_devices() {
     cpp/devices/ambient-eq/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device ambient-limiter \
     cpp/devices/ambient-limiter/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device analog-delay \
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device analog-delay \
     cpp/devices/analog-delay/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device analog-drive \
     cpp/devices/analog-drive/device_api.gen.cpp
@@ -44,7 +44,7 @@ build_generated_devices() {
     cpp/devices/drone/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device dusk \
     cpp/devices/dusk/device_api.gen.cpp
-  MEMORY_BYTES=20971520 EXTRA_EXPORTS="" build_device echo-memory \
+  MEMORY_BYTES=20971520 EXTRA_EXPORTS=",_device_meter" build_device echo-memory \
     cpp/devices/echo-memory/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device ember \
     cpp/devices/ember/device_api.gen.cpp
@@ -143,7 +143,7 @@ build_generated_devices() {
     cpp/devices/tanpura/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device tape \
     cpp/devices/tape/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device tape-echo \
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device tape-echo \
     cpp/devices/tape-echo/device_api.gen.cpp
   MEMORY_BYTES=25165824 EXTRA_EXPORTS="" build_device tape-loop \
     cpp/devices/tape-loop/device_api.gen.cpp
