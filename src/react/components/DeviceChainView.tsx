@@ -151,6 +151,9 @@ const REORDER_INFO =
 const REORDER_HINT = 'Drag its title bar sideways to move it in the chain.'
 const PLATE_REORDER_HINT = 'Drag it by its face sideways to move it in the chain.'
 
+/** On a plate for as long as a move cell of its tools is given the focus back: the tools are drawn. */
+const PLATE_REFOCUS = 'data-lm-refocus'
+
 function sameDevices(a: readonly Device[], b: readonly Device[]): boolean {
   return a.length === b.length && a.every((device, index) => device === b[index])
 }
@@ -305,7 +308,13 @@ export function DeviceChainView({
           (other) => !other.matches(':disabled'),
         )
       : cell
-    still?.focus({ preventScroll: true })
+    if (!still) return
+    // A plate shows its tools only while it is pointed at or holds the focus, and the move
+    // took both: what is not drawn takes no focus, so the plate shows them for this.
+    const plate = still.closest('.lm-plate')
+    plate?.setAttribute(PLATE_REFOCUS, '')
+    still.focus({ preventScroll: true })
+    plate?.removeAttribute(PLATE_REFOCUS)
   }, [inserts])
 
   /**

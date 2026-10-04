@@ -1,6 +1,9 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { readFile } from 'node:fs/promises'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { type Device } from '../../core/devices/Device'
@@ -20,6 +23,9 @@ import {
 import { DeviceChainView, groupDevices, reorderInserts } from '../components/DeviceChainView'
 import { deviceSkin } from '../components/device-skins'
 import { createTestEngine, type TestEngine } from './harness'
+
+// jsdom's own `URL` is not one `fileURLToPath` takes: the path is joined instead.
+const stylesheet = join(dirname(fileURLToPath(import.meta.url)), '..', 'styles.css')
 
 afterEach(() => {
   cleanup()
@@ -407,6 +413,51 @@ describe('DeviceChainView', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Move filter later' }))
     expect(pad.strip.inserts).toEqual([eq, filter, delay])
     expect(knob).toHaveFocus()
+  })
+
+  it('gives the focus back on a plate too, whose tools are not drawn once the focus is gone', async () => {
+    const fixture = createTestEngine()
+    const pad = fixture.engine.addAudioTrack('pad')
+    const [filter, eq, delay] = await chain(fixture, ['filter', 'eq3', 'delay'])
+    for (const device of [filter, eq, delay]) pad.strip.addInsert(device)
+    render(<DeviceChainView strip={pad} skin={deviceSkin} data-testid="chain" />, {
+      wrapper: fixture.wrapper,
+    })
+    layOut([0, 1, 2].map((index) => screen.getByTestId(`chain-item-${index}`)))
+    dropFocusOnMove()
+    // The stylesheet's rule, which jsdom does not read: a plate draws its tools while it holds
+    // the focus, is open or in hand, or says so for a refocus, and what is not drawn takes no focus.
+    const css = await readFile(stylesheet, 'utf8')
+    expect(css).toContain('.lm-plate[data-lm-refocus] .lm-plate__tools')
+    expect(css).toContain(
+      ':is(.lm-plate--display, .lm-plate--plain)[data-lm-refocus] .lm-plate__tools--above',
+    )
+    const focus = HTMLElement.prototype.focus
+    vi.spyOn(HTMLElement.prototype, 'focus').mockImplementation(function (
+      this: HTMLElement,
+      options?: FocusOptions,
+    ) {
+      const plate = this.closest('.lm-plate')
+      const drawn =
+        !this.closest('.lm-plate__tools') ||
+        !plate ||
+        plate.contains(document.activeElement) ||
+        plate.matches('.lm-plate--open, .lm-plate--held, [data-lm-refocus]')
+      if (drawn) focus.call(this, options)
+    })
+    const later = screen.getByRole('button', { name: 'Move filter later' })
+    // Reached by Tab from a knob of the plate: the plate holds the focus, so its tools are drawn.
+    within(screen.getByTestId('chain-device-0')).getAllByRole('slider')[0].focus()
+    later.focus()
+    expect(later).toHaveFocus()
+    fireEvent.click(later)
+    expect(pad.strip.inserts).toEqual([eq, filter, delay])
+    expect(later).toHaveFocus()
+    // The plate says so only for that moment.
+    expect(later.closest('.lm-plate')).not.toHaveAttribute('data-lm-refocus')
+    fireEvent.click(later)
+    expect(pad.strip.inserts).toEqual([eq, delay, filter])
+    expect(screen.getByRole('button', { name: 'Move filter earlier' })).toHaveFocus()
   })
 
   it('keeps a moved device its own panel: the panel is not drawn anew in its new place', async () => {
