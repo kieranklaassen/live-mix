@@ -183,6 +183,30 @@ describe('Transport seek', () => {
     const { transport } = build()
     expect(() => transport.seek(Number.NaN)).toThrow(RangeError)
   })
+
+  it('rejects a place that is nowhere on the timeline, and stays where it was', () => {
+    const { transport } = build({ enabled: true, lengthSec: 8 })
+    transport.seek(3)
+    // Infinity wraps to no place in a loop.
+    expect(() => transport.seek(Infinity)).toThrow(RangeError)
+    expect(() => transport.seek(-Infinity)).toThrow(RangeError)
+    expect(() => transport.seekElapsed(Infinity)).toThrow(RangeError)
+    expect(transport.position().positionSec).toBe(3)
+    transport.seek(5)
+    expect(transport.elapsed()).toBe(5)
+    // With the loop off a timeline that ends holds it to its ends, as before.
+    transport.setLoop({ enabled: false })
+    transport.seek(Infinity)
+    expect(transport.position().positionSec).toBe(8)
+    transport.seek(-Infinity)
+    expect(transport.position().positionSec).toBe(0)
+    // One with no end has nowhere to hold it.
+    const endless = build().transport
+    endless.seek(3)
+    expect(() => endless.seek(Infinity)).toThrow(RangeError)
+    endless.seek(2)
+    expect(endless.elapsed()).toBe(2)
+  })
 })
 
 describe('Transport stop', () => {
@@ -281,6 +305,92 @@ describe('Transport change notifications', () => {
     off()
     transport.pause()
     expect(seen).toEqual(['start'])
+  })
+
+  it('tells every listener the changes in the order they happened, though a listener ahead of it moves the transport', () => {
+    const ctx = new MockAudioContext()
+    const transport = new Transport({
+      now: () => ctx.currentTime,
+      loop: { enabled: false, lengthSec: 4 },
+    })
+    // As the scheduler does, ahead of every later listener: it pauses a transport that is at its end.
+    const ended: string[] = []
+    transport.onChange((change) => {
+      ended.push(change.reason)
+      if (change.state === 'playing' && transport.position().finished) transport.pause()
+    })
+    const heard: string[] = []
+    transport.onChange((change) => heard.push(`${change.reason} ${change.state}`))
+
+    transport.seek(4)
+    transport.start()
+    expect(transport.state).toBe('paused')
+    // The last word is where the transport is: paused, not playing.
+    expect(heard).toEqual(['seek stopped', 'start playing', 'end paused'])
+    expect(ended).toEqual(['seek', 'start', 'end'])
+
+    heard.length = 0
+    transport.seek(1)
+    transport.start()
+    ctx.currentTime += 1
+    transport.seek(9)
+    expect(transport.state).toBe('paused')
+    expect(heard).toEqual(['seek paused', 'start playing', 'seek playing', 'end paused'])
+  })
+
+  it('goes on telling after a listener has thrown', () => {
+    const { transport } = build()
+    const heard: string[] = []
+    const off = transport.onChange(() => {
+      throw new Error('a listener of the host broke')
+    })
+    transport.onChange((change) => heard.push(change.reason))
+    expect(() => transport.start()).toThrow('a listener of the host broke')
+    off()
+    transport.pause()
+    expect(heard).toEqual(['pause'])
+  })
+})
+
+describe('Transport under a clock that moves on between two readings', () => {
+  // The audio clock belongs to the audio thread: read twice in one task, it has moved.
+  function moving(loop: TransportOptions['loop']) {
+    let clock = 100
+    const transport = new Transport({
+      now: () => {
+        const read = clock
+        clock += 0.003
+        return read
+      },
+      loop,
+    })
+    return transport
+  }
+
+  it('carries the position over a loop change without losing the time between them', () => {
+    const transport = moving({ enabled: true, lengthSec: 8 })
+    transport.start()
+    const before = transport.position(203).positionSec
+    const run = transport.elapsed(203)
+    transport.setLoop({ lengthSec: 16 })
+    // What sounds was left alone: the timeline is where it would have run to.
+    expect(transport.position(203).positionSec).toBeCloseTo(before, 9)
+    expect(transport.elapsed(203)).toBeCloseTo(run, 9)
+    // And over a second one: the time between readings does not add up change by change.
+    transport.setLoop({ lengthSec: 32 })
+    expect(transport.position(203).positionSec).toBeCloseTo(before, 9)
+    expect(transport.elapsed(203)).toBeCloseTo(run, 9)
+  })
+
+  it('sets the pass where the transport is', () => {
+    const transport = moving({ enabled: true, lengthSec: 8 })
+    transport.start()
+    const before = transport.position(203).positionSec
+    const run = transport.elapsed(203)
+    transport.setPass(5)
+    expect(transport.position(203).positionSec).toBeCloseTo(before, 9)
+    // Five passes on from the first, which it was in: the run moves by five lengths and no more.
+    expect(transport.elapsed(203)).toBeCloseTo(run + 5 * 8, 9)
   })
 })
 
@@ -975,6 +1085,26 @@ describe('Transport start lead', () => {
     ctx.currentTime = 11.01
     transport.setLoop({ lengthSec: 32 })
     expect(transport.anchor).toMatchObject({ contextTime: 11.01, positionSec: 1 })
+  })
+
+  it('keeps a start still ahead of the clock where it was pinned when the pass is set', () => {
+    const { ctx, transport } = led(0.01, { enabled: true, lengthSec: 8 })
+    ctx.currentTime = 10
+    transport.start()
+    transport.setPass(3)
+    expect(transport.pass()).toBe(3)
+    expect(transport.anchor).toMatchObject({ contextTime: 10.01, positionSec: 0 })
+    // A start given a time of its own (a session's bar line) too: it does not begin at once.
+    transport.stop()
+    transport.start(12)
+    transport.setPass(2)
+    expect(transport.anchor).toMatchObject({ contextTime: 12, positionSec: 0 })
+    ctx.currentTime = 11
+    expect(transport.position().positionSec).toBe(0)
+    // Once it runs, setting the pass re-pins at now.
+    ctx.currentTime = 13
+    transport.setPass(5)
+    expect(transport.anchor).toMatchObject({ contextTime: 13, positionSec: 1 })
   })
 
   it('reads the lead at each pin, and takes none for nothing', () => {

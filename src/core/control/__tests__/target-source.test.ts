@@ -188,6 +188,16 @@ describe('ControlSource', () => {
     ).toEqual(['Q', '0', 'Num 4', 'F5', 'Space', '←', '[', 'IntlBackslash'])
   })
 
+  it('names a key it does not know by its code, also a code every plain object answers to', () => {
+    // `constructor`, `toString` and `__proto__` are found on any object looked up by name.
+    for (const code of ['constructor', 'toString', 'valueOf', 'hasOwnProperty', '__proto__']) {
+      expect(keyCodeLabel(code)).toBe(code)
+    }
+    const source = parseControlSource({ kind: 'key', code: 'constructor' })
+    expect(source).toEqual({ kind: 'key', code: 'constructor' })
+    expect(source && describeSource(source)).toBe('Key constructor')
+  })
+
   it('round-trips through parse and rejects malformed values', () => {
     for (const source of sources) {
       expect(parseControlSource(JSON.parse(JSON.stringify(source)))).toEqual(source)

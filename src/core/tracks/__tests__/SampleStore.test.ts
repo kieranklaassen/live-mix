@@ -379,6 +379,36 @@ describe('SampleStore eviction', () => {
     expect(store.metrics).toMatchObject({ bytes: 0, count: 0, pinned: 0, held: 0 })
   })
 
+  it('a hold from before a forget or a clear lets go of nothing when it is released after', async () => {
+    const ctx = createMockContext()
+    const store = new SampleStore(asAudioContext(ctx), { evictOnRelease: true })
+    const evicted: string[] = []
+    store.onEvict(({ sample }) => evicted.push(sample.id))
+    await fill(store, ['a', 'b'])
+    const early = [store.retain('a'), store.retain('a'), store.retain('b')]
+    // The sample is taken out and loaded again under its id (replaced by the host), and held anew.
+    store.forget('a')
+    await fill(store, ['a'])
+    const later = store.retain('a')
+    // The clip that held it before the forget ends: its hold went with the forget.
+    early[0]()
+    early[1]()
+    expect(store.holds('a')).toBe(1)
+    expect(store.has('a')).toBe(true)
+    expect(evicted).toEqual([])
+    later()
+    expect(evicted).toEqual(['a'])
+
+    store.clear()
+    await fill(store, ['b'])
+    const held = store.retain('b')
+    early[2]()
+    expect(store.holds('b')).toBe(1)
+    expect(store.has('b')).toBe(true)
+    held()
+    expect(evicted).toEqual(['a', 'b'])
+  })
+
   it('a 45-minute playlist stays under budget: only the recent tracks remain', async () => {
     const ctx = createMockContext()
     const store = new SampleStore(asAudioContext(ctx), { budgetBytes: 200 * 1024 * 1024 })

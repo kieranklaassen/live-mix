@@ -494,9 +494,30 @@ export class ScoreRenderer {
   private async drain(): Promise<void> {
     while (this.latest && this.latest !== this.renderedScore && !this.disposed) {
       const target = this.latest
-      await this.reconcile(this.renderedScore ?? EMPTY_SCORE, target)
+      try {
+        await this.reconcile(this.renderedScore ?? EMPTY_SCORE, target)
+      } catch (error) {
+        if (!this.disposed) throw error
+      }
+      // Disposed under the render: it stopped where it was, and that is no failure.
+      if (this.disposed) return
       this.renderedScore = target
     }
+  }
+
+  /**
+   * Stops a render the renderer was disposed under, after each wait: what it
+   * had built is gone, and anything built now would stay in the engine.
+   */
+  private standing(): void {
+    if (this.disposed) throw new ScoreRenderError('renderer is disposed')
+  }
+
+  /** The device just made; one made for a renderer disposed meanwhile has nobody to take it down but this. */
+  private standingWith<D extends Device>(device: D): D {
+    if (this.disposed) device.dispose()
+    this.standing()
+    return device
   }
 
   private async reconcile(prev: Score, next: Score): Promise<void> {
@@ -557,6 +578,7 @@ export class ScoreRenderer {
       this.masterInsertIds,
       nextSpecs,
     )
+    this.standing()
 
     // 5. Owners: remove what is gone or must be rebuilt, then add in dependency order.
     //    A rebuilt owner is a new one for every later step (`added`).
@@ -566,6 +588,7 @@ export class ScoreRenderer {
       const host = nextHosts.get(id)
       if (host && this.needsInstrumentSwap(handle, host)) {
         await this.swapInstrument(handle, host.device)
+        this.standing()
         swapped.add(id)
         continue
       }
@@ -578,9 +601,14 @@ export class ScoreRenderer {
     }
     const added = new Set<string>()
     this.addGroups(next, added)
-    for (const ret of next.returns) if (!this.owners.has(ret.id)) await this.addReturn(ret, added)
-    for (const track of next.tracks)
+    for (const ret of next.returns) {
+      if (!this.owners.has(ret.id)) await this.addReturn(ret, added)
+      this.standing()
+    }
+    for (const track of next.tracks) {
       if (!this.owners.has(track.id)) await this.addTrack(track, added)
+      this.standing()
+    }
 
     // 5b. Element tracks: no strip, so a destination change is a rebuild.
     const nextElements = new Map(next.elementTracks.map((track) => [track.id, track]))
@@ -626,6 +654,7 @@ export class ScoreRenderer {
           host.device,
           nextSpecs,
         )
+        this.standing()
       }
       await this.reconcileInserts(
         handle.strip,
@@ -635,6 +664,7 @@ export class ScoreRenderer {
         handle.insertIds,
         nextSpecs,
       )
+      this.standing()
     }
 
     // 9. Sends.
@@ -748,7 +778,7 @@ export class ScoreRenderer {
     // Nothing of the instrument the track has is touched until the new one stands.
     let device: Device
     try {
-      device = await this.createDevice(spec)
+      device = this.standingWith(await this.createDevice(spec))
     } catch (error) {
       putBack()
       throw error
@@ -800,7 +830,7 @@ export class ScoreRenderer {
   }
 
   private async addReturn(ret: ScoreReturn, added: Set<string>): Promise<void> {
-    const device = await this.createDevice(ret.device)
+    const device = this.standingWith(await this.createDevice(ret.device))
     const live = this.engine.addReturnTrack(ret.id, {
       device,
       destination: this.resolveDestination(ret.destination),
@@ -850,7 +880,7 @@ export class ScoreRenderer {
         return
       }
       case 'instrument': {
-        const device = await this.createDevice(track.device)
+        const device = this.standingWith(await this.createDevice(track.device))
         if (!isNoteDevice(device)) {
           device.dispose()
           this.deviceMap.delete(track.device.id)
@@ -989,7 +1019,8 @@ export class ScoreRenderer {
         ? { ...defaultPreset(descriptor).params }
         : presetParams(descriptor, resolvePreset(descriptor, spec.preset))
     for (const [name, value] of Object.entries(spec.params)) {
-      const paramSpec = descriptor.params[name]
+      // Its own parameters only: `constructor` is on every object.
+      const paramSpec = Object.hasOwn(descriptor.params, name) ? descriptor.params[name] : undefined
       if (paramSpec) params[name] = clampParam(paramSpec, value)
       // No table to clamp against before the plug-in is loaded; the device clamps.
       else if (descriptor.dynamicParams) params[name] = value
@@ -1072,7 +1103,7 @@ export class ScoreRenderer {
     }
     for (let index = prefix; index < after.length; index += 1) {
       const spec = after[index]
-      const device = detached.get(spec.id) ?? (await this.createDevice(spec))
+      const device = detached.get(spec.id) ?? this.standingWith(await this.createDevice(spec))
       chain.addInsert(device)
       devices.push(device)
       ids.push(spec.id)
@@ -1081,6 +1112,7 @@ export class ScoreRenderer {
       const previous = beforeById.get(spec.id)
       if (previous?.deviceId === spec.deviceId) {
         await this.reconcileDeviceState(this.device(spec.id), previous, spec, specs)
+        this.standing()
       }
     }
   }
