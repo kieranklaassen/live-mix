@@ -116,6 +116,8 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
   const gestureRef = useRef(false)
   const pointerIdRef = useRef<number | null>(null)
   const lastPointRef = useRef({ x: 0, y: 0 })
+  /** The value the control had when the pointer took it: what a press the browser takes back returns to. */
+  const takenAtRef = useRef(shown)
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const elementRef = useRef<HTMLElement | null>(null)
 
@@ -214,6 +216,7 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
       draggingRef.current = true
       pointerIdRef.current = event.pointerId
       lastPointRef.current = { x: event.clientX, y: event.clientY }
+      takenAtRef.current = shownRef.current
       normRef.current = normalizeValue(
         shownRef.current,
         latest.current.min,
@@ -227,6 +230,27 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
       beginGesture()
     },
     [beginGesture],
+  )
+
+  /**
+   * The browser took the press for itself: a finger that began on the control
+   * turned out to be scrolling what the control stands in. Nothing was meant
+   * for the control, so what the first pixels turned it by is put back.
+   */
+  const cancelPointer = useCallback(
+    (event: PointerEvent<HTMLElement>) => {
+      if (pointerIdRef.current !== event.pointerId) return
+      const taken = takenAtRef.current
+      if (draggingRef.current && taken !== shownRef.current) {
+        const o = latest.current
+        normRef.current = normalizeValue(taken, o.min, o.max, o.taper, o.skew)
+        shownRef.current = taken
+        setInternal(taken)
+        o.onChange?.(taken)
+      }
+      endPointer(event)
+    },
+    [endPointer],
   )
 
   const onPointerMove = useCallback(
@@ -366,7 +390,7 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
       onPointerDown,
       onPointerMove,
       onPointerUp: endPointer,
-      onPointerCancel: endPointer,
+      onPointerCancel: cancelPointer,
       onDoubleClick,
       onKeyDown,
       onBlur,

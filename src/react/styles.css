@@ -2093,10 +2093,12 @@
   -webkit-user-select: none;
 }
 
-/* A display with points to drag takes a finger's drag for itself. */
-.lm-plate__display--handles {
-  touch-action: none;
-}
+/*
+  A display with points to drag takes a finger's drag for itself where the
+  finger comes down on a point, and says so as the press arrives (see
+  PlateDisplay). Beside the points a swipe is the page's, to scroll what the
+  plate stands in: so no touch-action here, which could not tell the two apart.
+*/
 
 .lm-plate__display[data-lm-handle] {
   cursor: grab;

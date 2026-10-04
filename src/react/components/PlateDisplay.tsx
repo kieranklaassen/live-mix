@@ -446,7 +446,20 @@ interface Grab {
   /** From the handle to the pointer, so the handle does not jump to the pointer when taken. */
   dx: number
   dy: number
+  /** A finger's press, and whether it has moved the handle: one that has not is a tap. */
+  touch: boolean
+  moved: boolean
 }
+
+/** A press on a handle that moved nothing: a second one soon after, on the same handle, is a double press. */
+interface Tap {
+  key: string
+  at: number
+  touch: boolean
+}
+
+/** Two taps of a finger within this many milliseconds are a double press. */
+const DOUBLE_TAP_MS = 350
 
 /** A plate's display: a canvas, run while it is in view. */
 export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
@@ -460,6 +473,10 @@ export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
   const grab = useRef<Grab | null>(null)
   /** Ends a turn of the wheel that is still open, before the hand takes a handle. */
   const wheelRest = useRef<(() => void) | null>(null)
+  /** The last press on a handle, if it moved nothing: half of a double press. */
+  const tap = useRef<Tap | null>(null)
+  /** Whether each of the last two presses moved its handle: a double click made of nudges is not a double press. */
+  const moves = useRef<[boolean, boolean]>([false, false])
 
   useEffect(() => {
     if (!canvas.current) return
@@ -529,13 +546,25 @@ export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
     // the knob beside a display is one: a canvas that answers presses itself
     // keeps the ones that land on it, also at its edge.
     const onClick = (): void => {}
+    // A finger on a point is the point's, and the page must not scroll under
+    // it; a finger beside the points is a swipe along whatever the plate
+    // stands in, which the browser scrolls. Which of the two it is can only be
+    // said here, where the finger comes down: a style could not tell them apart.
+    const onTouchStart = (event: TouchEvent): void => {
+      const touch = event.changedTouches[0]
+      if (!touch || !event.cancelable) return
+      const at = pointIn(element, touch)
+      if (runner.current?.hit(at.x, at.y, true)) event.preventDefault()
+    }
     element.addEventListener('wheel', onWheel, { passive: false })
     element.addEventListener('click', onClick)
+    element.addEventListener('touchstart', onTouchStart, { passive: false })
     return () => {
       rest()
       wheelRest.current = null
       element.removeEventListener('wheel', onWheel)
       element.removeEventListener('click', onClick)
+      element.removeEventListener('touchstart', onTouchStart)
     }
   }, [display, device])
 
@@ -553,6 +582,7 @@ export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
     wheelRest.current?.()
     // A chain reads this before it decides to carry the plate, and leaves the press to the handle.
     event.currentTarget.dataset.lmHandle = handle.key
+    const touch = event.pointerType === 'touch'
     event.currentTarget.setPointerCapture?.(event.pointerId)
     const names = Object.keys(handle.drag(handle.x, handle.y))
     grab.current = {
@@ -561,6 +591,8 @@ export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
       names,
       dx: at.x - handle.x,
       dy: at.y - handle.y,
+      touch,
+      moved: false,
     }
     runner.current?.point(handle.key, true)
     props.onDragStart(names)
@@ -579,6 +611,7 @@ export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
     if (event.pointerId !== held.pointerId) return
     const handle = runner.current?.handles().find((candidate) => candidate.key === held.key)
     if (!handle) return
+    held.moved = true
     runner.current?.moved(held.key)
     props.onDrag(handle.drag(at.x - held.dx, at.y - held.dy))
   }
@@ -590,6 +623,25 @@ export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
     event.currentTarget.releasePointerCapture?.(event.pointerId)
     runner.current?.point(held.key, false)
     props.onDragEnd(held.names)
+    // Two presses that each moved nothing are a double press; two short
+    // nudges one after the other are two nudges, however quick.
+    const before = tap.current
+    moves.current = [moves.current[1], held.moved]
+    const still = !held.moved && event.type === 'pointerup'
+    tap.current = still ? { key: held.key, at: event.timeStamp, touch: held.touch } : null
+    if (!still || !held.touch) return
+    if (before?.touch && before.key === held.key && event.timeStamp - before.at <= DOUBLE_TAP_MS) {
+      // A finger's second tap on the handle: the browser makes no double click
+      // of presses the display kept for itself, so the display counts them.
+      tap.current = null
+      const handle = runner.current?.handles().find((candidate) => candidate.key === held.key)
+      const params = handle?.reset?.()
+      if (!params) return
+      const names = Object.keys(params)
+      props.onDragStart(names)
+      props.onDrag(params)
+      props.onDragEnd(names)
+    }
   }
 
   return (
@@ -634,6 +686,9 @@ export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
       onDoubleClick={
         interactive
           ? (event) => {
+              // Two quick nudges of a point are counted as a double click by
+              // the browser: they were two nudges, and the second one stays.
+              if (moves.current[0] || moves.current[1]) return
               const at = pointIn(event.currentTarget, event)
               const params = runner.current?.hit(at.x, at.y, false)?.reset?.()
               if (!params) return
