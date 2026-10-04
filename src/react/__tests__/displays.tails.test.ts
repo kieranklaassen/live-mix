@@ -137,6 +137,15 @@ describe('the tail every one of them shares', () => {
     expect(secondsText(5.15, true)).toBe('5 s')
     expect(secondsText(1.88, true)).toBe('1.9 s')
     expect(secondsText(0.64, true)).toBe('600 ms')
+    // Nor to the second where a twentieth is more than that: every other second from ten,
+    // every fifth from 25. (Vowel Reverb at Decay 40: this gives 29.1 s, the device 31.0.)
+    expect(secondsText(9.7, true)).toBe('10 s')
+    expect(secondsText(16.25, true)).toBe('16 s')
+    expect(secondsText(16.95, true)).toBe('16 s')
+    expect(secondsText(29.1, true)).toBe('30 s')
+    expect(secondsText(31.0, true)).toBe('30 s')
+    expect(secondsText(29.1)).toBe('29 s')
+    expect(secondsText(120, true)).toBe('2.0 min')
   })
 
   it('ends a fall of 60 dB at the foot, at the time it takes', () => {
@@ -1171,10 +1180,12 @@ describe('Vowel Reverb', () => {
     expect(plain.seconds).toBeLessThan(6)
   })
 
-  it('says the time the whole takes, in whole seconds', () => {
+  it('says the time the whole takes, in steps no finer than it is known', () => {
     const { display, params } = face('vowel-reverb')
     expect(drawDisplay(display, params).words()).toContain('5 s')
     expect(drawDisplay(display, params, { values: { decay: 20 } }).words()).toContain('16 s')
+    // At Decay 40 it works out at 29.1 s where the device takes 31.0: said as 30.
+    expect(drawDisplay(display, params, { values: { decay: 40 } }).words()).toContain('30 s')
   })
 
   it('takes the vowel from the line of letters', () => {

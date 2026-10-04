@@ -96,15 +96,19 @@ function put(points: Point[], index: number, x: number, y: number): void {
  * A time as it is said: "320 ms", "5.0 s", "24 s", "2.7 min", and "∞" for
  * a tail that does not end. Under a second it is said to the hundredth,
  * which is as near as a tail's length is known when the sound that set it
- * off has a length of its own. `rough` is for a figure good to a twentieth:
- * tenths of a second up to two seconds, whole seconds from there.
+ * off has a length of its own. `rough` is for a figure good to a twentieth,
+ * said in steps no finer than that: tenths of a second up to two seconds,
+ * whole seconds up to ten, every other second up to 25 and every fifth from
+ * there.
  */
 export function secondsText(sec: number, rough = false): string {
   if (!Number.isFinite(sec)) return '∞'
   if (sec >= 99.5) return `${(sec / 60).toFixed(1)} min`
   const ms = rough ? Math.round(sec * 10) * 100 : Math.round(sec * 100) * 10
   if (ms < 1000) return `${ms} ms`
-  return sec < (rough ? 1.95 : 9.95) ? `${sec.toFixed(1)} s` : `${Math.round(sec)} s`
+  if (sec < (rough ? 1.95 : 9.95)) return `${sec.toFixed(1)} s`
+  const step = !rough || sec < 9.5 ? 1 : sec < 25 ? 2 : 5
+  return `${Math.round(sec / step) * step} s`
 }
 
 /** An upright line at every second, or every two, five or ten where they would crowd. */
