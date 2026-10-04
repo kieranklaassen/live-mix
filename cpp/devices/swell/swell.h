@@ -69,6 +69,23 @@ class Swell : public kit::DeviceBase<swell::kNumParams> {
     if (store_param(id, value)) apply(id);
   }
 
+  // The readings named by "meters" in device.json, for a display to draw:
+  // the gain on the swelled signal now (the floor up to 1, before Mix), where
+  // the ramp is between the floor (0) and unity (1), and which way it is
+  // going (0 closed, 1 diving, 2 rising, 3 open, 4 falling).
+  float meter(int index) const {
+    switch (index) {
+      case 0:
+        return floor_.value + (1.0f - floor_.value) * opening_;
+      case 1:
+        return position_;
+      case 2:
+        return static_cast<float>(state_);
+      default:
+        return 0.0f;
+    }
+  }
+
   void process(int frames) {
     using namespace swell;
     frames = begin_block(frames);

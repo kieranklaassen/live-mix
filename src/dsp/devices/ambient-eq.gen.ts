@@ -100,6 +100,11 @@ export type AmbientEqParamName = keyof typeof AMBIENT_EQ_PARAMS
 
 export const AMBIENT_EQ_METERS = {
   reduction: { id: 0, name: 'Clear', unit: 'dB' },
+  cuts1: { id: 1, name: 'Clear cuts, bands 1 to 5', unit: '', display: true },
+  cuts2: { id: 2, name: 'Clear cuts, bands 6 to 10', unit: '', display: true },
+  cuts3: { id: 3, name: 'Clear cuts, bands 11 to 15', unit: '', display: true },
+  cuts4: { id: 4, name: 'Clear cuts, bands 16 to 20', unit: '', display: true },
+  cuts5: { id: 5, name: 'Clear cuts, bands 21 to 23', unit: '', display: true },
 } as const satisfies Record<string, DeviceMeterSpec>
 
 export const AMBIENT_EQ_DEVICE = defineWasmDevice({

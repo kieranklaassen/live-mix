@@ -6,6 +6,14 @@
   "class": "StereoDetune",
   "header": "stereo_detune.h",
   "sources": [],
+  "meters": [
+    { "key": "centsLeft", "name": "Left copy detune", "unit": "ct", "display": true },
+    { "key": "centsRight", "name": "Right copy detune", "unit": "ct", "display": true },
+    { "key": "delayLeft", "name": "Left copy delay", "unit": "ms", "display": true },
+    { "key": "delayRight", "name": "Right copy delay", "unit": "ms", "display": true },
+    { "key": "holdLeft", "name": "Left copy level hold", "display": true },
+    { "key": "holdRight", "name": "Right copy level hold", "display": true }
+  ],
   "params": [
     {
       "key": "detune",

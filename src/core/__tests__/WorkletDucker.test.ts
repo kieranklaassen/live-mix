@@ -7,6 +7,8 @@ import {
   createMockContext,
   type MockAudioContext,
 } from '../../testing'
+import { WORKLET_DUCKER_DESCRIPTOR } from '../../dsp/registry'
+import { isMeteredDevice } from '../devices/Device'
 import { DUCK_DEPTH, ENV_ATTACK_MS, ENV_GAIN_SCALE, ENV_RELEASE_MS } from '../devices/native/Ducker'
 import {
   DUCKER_PARAMS,
@@ -170,6 +172,39 @@ describe('WorkletDucker (host)', () => {
     expect(ducker.envelope).toBe(0.4)
     expect(ducker.gain).toBe(0.35)
     expect(() => node.port.receive({ type: 'nope' })).toThrow(/unhandled ducker host message/)
+  })
+
+  it('gives the reported gain and key level as readings for a display, declared on its descriptor', () => {
+    const { ducker, node, posted } = setup()
+    expect(isMeteredDevice(ducker)).toBe(true)
+    expect(ducker.meters).toEqual({
+      gain: { id: 0, name: 'Duck gain', unit: '', display: true },
+      envelope: { id: 1, name: 'Key level', unit: '', display: true },
+    })
+    expect(WORKLET_DUCKER_DESCRIPTOR.meters).toBe(ducker.meters)
+
+    // Before the first report: nothing taken off, no key.
+    expect(ducker.meter('gain')).toBe(1)
+    expect(ducker.meter('envelope')).toBe(0)
+    // The processor reports by itself: watching asks it for nothing and stopping tells it nothing.
+    const before = posted().length
+    const unwatch = ducker.watchMeters()
+    node.port.receive({ type: 'envelope', envelope: 0.25, gain: 0.32 } satisfies DuckerHostMessage)
+    expect(ducker.meter('gain')).toBe(0.32)
+    expect(ducker.meter('envelope')).toBe(0.25)
+    unwatch()
+    unwatch()
+    node.port.receive({ type: 'envelope', envelope: 0.1, gain: 0.8 } satisfies DuckerHostMessage)
+    expect(ducker.meter('gain')).toBe(0.8)
+    expect(ducker.meter('envelope')).toBe(0.1)
+    expect(posted()).toHaveLength(before)
+    expect(() => ducker.meter('reduction')).toThrow('ducker has no meter "reduction"')
+  })
+
+  it('has no readings to give when the processor is told not to report', () => {
+    const { ducker } = setup({ reportHz: 0 })
+    expect(ducker.meters).toEqual({})
+    expect(isMeteredDevice(ducker)).toBe(false)
   })
 
   it('explains an unregistered processor instead of surfacing InvalidStateError', () => {

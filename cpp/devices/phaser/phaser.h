@@ -68,6 +68,23 @@ class Phaser : public kit::DeviceBase<phaser::kNumParams> {
     if (store_param(id, value)) apply(id);
   }
 
+  // The readings named by "meters" in device.json, for a display to draw:
+  // where the LFO is in its cycle (0..1), and the frequency the left and the
+  // right side's stages are swept to now, in Hz. Worked out from the lagged
+  // LFO as `retune` does, so it is right while the device sleeps too.
+  float meter(int index) const {
+    switch (index) {
+      case 0:
+        return lfo_.phase();
+      case 1:
+        return swept_hz(0);
+      case 2:
+        return swept_hz(1);
+      default:
+        return 0.0f;
+    }
+  }
+
   void process(int frames) {
     using namespace phaser;
     frames = begin_block(frames);
@@ -177,6 +194,10 @@ class Phaser : public kit::DeviceBase<phaser::kNumParams> {
     const float lowest = std::exp2(-stage_spread_);
     const float step = std::exp2(2.0f * stage_spread_ / static_cast<float>(chain.count - 1));
     for (int c = 0; c < 2; ++c) chain.tune(c, sweep_hz_[c] * lowest, step, sample_rate());
+  }
+
+  float swept_hz(int channel) const {
+    return center_.value * std::exp2(sweep_[channel] * depth_.value * kSweepOctaves);
   }
 
   // Put the lagged LFO on the LFO itself (nothing is sounding).

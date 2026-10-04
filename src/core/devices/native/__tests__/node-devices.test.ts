@@ -10,7 +10,13 @@ import {
   type MockAudioContext,
   type MockAudioNode,
 } from '../../../../testing'
-import { COMPRESSOR_LOOKAHEAD_SECONDS, COMPRESSOR_PARAMS, createCompressor } from '../Compressor'
+import { isMeteredDevice } from '../../Device'
+import {
+  COMPRESSOR_DESCRIPTOR,
+  COMPRESSOR_LOOKAHEAD_SECONDS,
+  COMPRESSOR_PARAMS,
+  createCompressor,
+} from '../Compressor'
 import { DELAY_PARAMS, createDelay } from '../Delay'
 import { EQ3_PARAMS, createEq3 } from '../Eq3'
 import { FILTER_PARAMS, FILTER_TYPES, createFilter, filterTypeAt, filterTypeIndex } from '../Filter'
@@ -210,6 +216,29 @@ describe('Compressor', () => {
 
     node.reduction = -7.5
     expect(compressor.reductionDb).toBe(-7.5)
+  })
+
+  it('reports its gain reduction as a meter, declared on its descriptor', () => {
+    const ctx = createMockContext()
+    const compressor = createCompressor(asAudioContext(ctx))
+    const [node] = ctx.compressors
+
+    expect(isMeteredDevice(compressor)).toBe(true)
+    expect(compressor.meters).toEqual({
+      reduction: { id: 0, name: 'Gain reduction', unit: 'dB' },
+    })
+    expect(COMPRESSOR_DESCRIPTOR.meters).toBe(compressor.meters)
+
+    // The reading is the node's own, there before anyone watches and after they stop.
+    expect(compressor.meter('reduction')).toBe(0)
+    const unwatch = compressor.watchMeters()
+    node.reduction = -4.25
+    expect(compressor.meter('reduction')).toBe(-4.25)
+    unwatch()
+    unwatch()
+    node.reduction = -1
+    expect(compressor.meter('reduction')).toBe(-1)
+    expect(() => compressor.meter('level')).toThrow('compressor has no meter "level"')
   })
 })
 

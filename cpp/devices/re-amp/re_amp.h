@@ -380,6 +380,11 @@ class ReAmp : public kit::DeviceBase<re_amp::kNumParams> {
     idle_.settle(output_peak(frames), frames);
   }
 
+  // The reading named by "meters" in device.json, for a display to draw the
+  // amplifier's curve where it stands now: how hard the supply is loaded, the
+  // follower on the driven signal that the sag is worked out from.
+  float meter(int index) const { return index == 0 ? sag_.level : 0.0f; }
+
  private:
   static constexpr int kControlPeriod = 16;
   // Kaiser betas of the two half-band stages. The outer is the kit's 63-tap

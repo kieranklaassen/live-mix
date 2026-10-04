@@ -5,7 +5,7 @@
 
 import { type DeviceDescriptor, type DeviceRegistry, devices } from '../core/devices'
 import { DUCKER_PARAMS } from '../core/devices/native/ducker-abi'
-import { type WorkletDuckerOptions } from '../core/devices/native/WorkletDucker'
+import { DUCKER_METERS, type WorkletDuckerOptions } from '../core/devices/native/WorkletDucker'
 import { PLATE_REVERB_DEVICE } from './devices/plate-reverb'
 import { ETHER_REVERB_DEVICE } from './devices/ether-reverb'
 import { FELT_PIANO_DEVICE } from './devices/felt-piano'
@@ -299,6 +299,7 @@ export const WORKLET_DUCKER_DESCRIPTOR: DeviceDescriptor<typeof DUCKER_PARAMS> =
     'Turns a signal down while a key signal is sounding and lets it back up after, to keep music out of the way of a voice.',
   version: 1,
   params: DUCKER_PARAMS,
+  meters: DUCKER_METERS,
   presets: {
     'Breathwork voice': {
       depth: DUCKER_PARAMS.depth.default,

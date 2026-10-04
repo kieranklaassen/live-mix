@@ -14,7 +14,13 @@
 
 import { Emitter } from '../../events'
 import { clampParam } from '../../params'
-import { type DeviceChange, type DeviceChangeListener, type ObservableDevice } from '../Device'
+import {
+  type DeviceChange,
+  type DeviceChangeListener,
+  type DeviceMeterSpec,
+  type MeteredDevice,
+  type ObservableDevice,
+} from '../Device'
 import {
   DUCKER_PARAMS,
   DUCKER_PROCESSOR_NAME,
@@ -45,13 +51,27 @@ const defaultCreateNode: DuckerNodeFactory = (context, name, options) =>
 
 const PARAM_NAMES = Object.keys(DUCKER_PARAMS) as DuckerParamName[]
 
-export class WorkletDucker implements ObservableDevice, SidechainDucker {
+/**
+ * What the ducker reports about its own work, for a display to draw: the gain
+ * it has on the signal (linear, 1 at rest) and its follower on the key (the
+ * key's level, linear RMS), as the processor last reported them.
+ */
+export const DUCKER_METERS = {
+  gain: { id: 0, name: 'Duck gain', unit: '', display: true },
+  envelope: { id: 1, name: 'Key level', unit: '', display: true },
+} as const satisfies Record<string, DeviceMeterSpec>
+
+const NO_METERS: Readonly<Record<string, DeviceMeterSpec>> = {}
+
+export class WorkletDucker implements ObservableDevice, MeteredDevice, SidechainDucker {
   readonly id = 'ducker'
   readonly mode = 'worklet' as const
   readonly params = DUCKER_PARAMS
   readonly node: AudioWorkletNode
   readonly latencySec = 0
   readonly latencySamples = 0
+  /** The readings a display draws; none when the processor was told not to report (`reportHz: 0`). */
+  readonly meters: Readonly<Record<string, DeviceMeterSpec>>
   private readonly values = new Map<DuckerParamName, number>()
   private readonly changes = new Emitter<DeviceChange>()
   private keyed: AudioNode | null = null
@@ -71,6 +91,7 @@ export class WorkletDucker implements ObservableDevice, SidechainDucker {
       windowSize: options.windowSize,
       reportHz: options.reportHz,
     }
+    this.meters = options.reportHz === 0 ? NO_METERS : DUCKER_METERS
     try {
       this.node = (options.createNode ?? defaultCreateNode)(ctx, DUCKER_PROCESSOR_NAME, {
         numberOfInputs: 2,
@@ -121,6 +142,18 @@ export class WorkletDucker implements ObservableDevice, SidechainDucker {
   /** Last reported smoothed gain, updated at `reportHz`. */
   get gain(): number {
     return this.gainValue
+  }
+
+  /** The latest reading of a meter: `gain` and `envelope` as above, both linear. */
+  meter(name: string): number {
+    if (name === 'gain') return this.gainValue
+    if (name === 'envelope') return this.envelopeValue
+    throw new Error(`live-mix: ducker has no meter "${name}"`)
+  }
+
+  /** The processor reports at `reportHz` whether or not anyone watches, so there is nothing to start or to stop. */
+  watchMeters(): () => void {
+    return () => {}
   }
 
   /** The node currently feeding the key input, or null. */

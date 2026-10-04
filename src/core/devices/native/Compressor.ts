@@ -3,6 +3,7 @@
 // the presets carry the musical settings.
 
 import { type ParamSpec } from '../../params'
+import { type DeviceMeterSpec, type MeteredDevice } from '../Device'
 import { type DeviceDescriptor } from '../registry'
 import {
   NodeDevice,
@@ -89,6 +90,11 @@ export const COMPRESSOR_PARAMS = {
 
 export type CompressorParamName = keyof typeof COMPRESSOR_PARAMS
 
+/** What the compressor reports about its own work: the gain it is taking off. */
+export const COMPRESSOR_METERS = {
+  reduction: { id: 0, name: 'Gain reduction', unit: 'dB' },
+} as const satisfies Record<string, DeviceMeterSpec>
+
 interface CompressorGraph extends NodeDeviceGraph<typeof COMPRESSOR_PARAMS> {
   compressor: DynamicsCompressorNode
 }
@@ -118,7 +124,12 @@ export const COMPRESSOR_DEVICE = defineNodeDevice({
   },
 })
 
-export class Compressor extends NodeDevice<typeof COMPRESSOR_PARAMS, CompressorGraph> {
+export class Compressor
+  extends NodeDevice<typeof COMPRESSOR_PARAMS, CompressorGraph>
+  implements MeteredDevice
+{
+  readonly meters = COMPRESSOR_METERS
+
   constructor(
     context: BaseAudioContext,
     options: NodeDeviceOptions<typeof COMPRESSOR_PARAMS> = {},
@@ -129,6 +140,17 @@ export class Compressor extends NodeDevice<typeof COMPRESSOR_PARAMS, CompressorG
   /** Current gain reduction in dB (≤ 0), read from the node for meters. */
   get reductionDb(): number {
     return this.graph.compressor.reduction
+  }
+
+  /** The latest reading of a meter: `reduction` is the node's own, in dB (0 or less). */
+  meter(name: string): number {
+    if (name !== 'reduction') throw new Error(`live-mix: ${this.id} has no meter "${name}"`)
+    return this.reductionDb
+  }
+
+  /** The node keeps its own reading fresh, so there is nothing to start or to stop. */
+  watchMeters(): () => void {
+    return () => {}
   }
 }
 
@@ -149,6 +171,7 @@ export const COMPRESSOR_DESCRIPTOR: DeviceDescriptor<typeof COMPRESSOR_PARAMS> =
     'General-purpose compressor, the one built into the browser, with make-up gain: evens out the level of a voice, an instrument or a bus.',
   version: 1,
   params: COMPRESSOR_PARAMS,
+  meters: COMPRESSOR_METERS,
   presets: {
     Gentle: { threshold: -18, knee: 12, ratio: 2, attack: 0.02, release: 0.3, makeupDb: 2 },
     Voice: { threshold: -20, knee: 6, ratio: 4, attack: 0.005, release: 0.15, makeupDb: 4 },

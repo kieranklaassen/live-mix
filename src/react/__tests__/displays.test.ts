@@ -8,6 +8,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { normalizeParam, type ParamSpec } from '../../core/params'
+import { isChoiceParam } from '../components/control-math'
 import { PLAIN_COLOURS } from '../components/display-kit'
 import { PLATE_FACES } from '../components/displays'
 import { type DisplayHandle } from '../components/plate-display'
@@ -147,7 +148,7 @@ describe.each(Object.entries(PLATE_FACES))('the display of %s', (id, face) => {
     // choice of every parameter that is one.
     const grounds: Record<string, number>[] = [{}, allAt(params, 'min'), allAt(params, 'max')]
     for (const [choice, spec] of Object.entries(params)) {
-      if (!spec.choices) continue
+      if (!isChoiceParam(spec)) continue
       for (let value = spec.min; value <= spec.max; value += 1) grounds.push({ [choice]: value })
     }
     for (const name of display.params) {
