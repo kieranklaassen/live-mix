@@ -463,6 +463,8 @@ const dspSymbols = [
   'transposePatch',
   'transposePhrase',
   'transposeFactorySound',
+  'varySound',
+  'VARIATION_LIMITS',
   'keyChord',
   'chordTakes',
   'chordTones',

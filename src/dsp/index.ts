@@ -120,6 +120,7 @@ export {
   GENERATED_KINDS,
   PITCH_CLASS_NAMES,
   PREVIEW_SECONDS,
+  VARIATION_LIMITS,
   chordName,
   chordTakes,
   chordTones,
@@ -143,6 +144,7 @@ export {
   transposePatch,
   transposePhrase,
   transposeWords,
+  varySound,
   type ChainPreviewOptions,
   type ChordColour,
   type FactoryChain,
@@ -160,6 +162,8 @@ export {
   type GeneratedKind,
   type GeneratedSound,
   type KeyChord,
+  type SoundVariation,
+  type VariedPlaying,
 } from './factory'
 export {
   capturePatch,

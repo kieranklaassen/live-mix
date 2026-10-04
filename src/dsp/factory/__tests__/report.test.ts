@@ -24,6 +24,11 @@
 //     recipes that come twice), what each recipe breaks before it is rendered, and the
 //     sounds that are nearest each other. OFFKEY marks a pitched sound with over a quarter
 //     of its power on the black keys: partials that are meant, or a note the key lacks
+//   FACTORY_REPORT=variants [FACTORY=<part of an id>] [FACTORY_NUMBERS=<first>-<last>] [FACTORY_EVERY=<n>] [FACTORY_SEEDS=<how many, default 2>] [FACTORY_AMOUNT=<0..1, default 1>] [FACTORY_PACK=<pack id>] pnpm vitest run …
+//     each factory sound beside that many variants of it (../vary.ts): how far each is from
+//     the sound in dB (`soundPrint`), its loudness against the sound's, and in capitals where a
+//     variant leaves what the sound is held to (KIND, SEAM, STEP-IN, CUT, LATE, OFFKEY) or is
+//     louder or quieter by over 2 dB (LEVEL), or cannot be told from the sound (SAME)
 //   FACTORY_REPORT=packs FACTORY_PACK=<pack id> [FACTORY=<part of an id>] pnpm vitest run …
 //     each preset of one pack as it leaves the patch, with its instrument, its cost, and in
 //     capitals where it leaves a pack's limits (PEAK, LOUD, QUIET, DC; SLOW over 12 % of real
@@ -430,6 +435,75 @@ describe.skipIf(!mode)('factory bench', () => {
       publish()
     },
     1_800_000,
+  )
+
+  it.skipIf(mode !== 'variants')(
+    'variants',
+    async () => {
+      const render = { compile: compileFromDisk, sliceMs: 0 } as const
+      const every = Number(process.env.FACTORY_EVERY ?? 1)
+      const seeds = Number(process.env.FACTORY_SEEDS ?? 2)
+      const amount = Number(process.env.FACTORY_AMOUNT ?? 1)
+      const from = await soundsAsked()
+      const chosen = from.filter(
+        (s, index) => s.id.includes(only) && numbered(s.number) && index % every === 0,
+      )
+      const apart: number[] = []
+      let flagged = 0
+      for (const sound of chosen) {
+        const audio = await renderFactorySound(sound, render)
+        const print = soundPrint(audio)
+        const lufs = measureAudio(audio).lufs
+        const black = blackKeyShare(audio)
+        say(`${String(sound.number).padEnd(6)}${sound.id.padEnd(44)} ${sound.kind}`)
+        for (let seed = 1; seed <= seeds; seed += 1) {
+          const [variant, cost] = await timed(sound.durationSec, () =>
+            renderFactorySound(sound, { ...render, vary: { seed, amount } }),
+          )
+          keep(`${sound.id}~${seed}`, variant)
+          const measured = measureAudio(variant)
+          const analysis = analyzeSound(variant.channels, variant.sampleRate)
+          const ends = measureEnds(variant)
+          const distance = printDistance(print, soundPrint(variant))
+          apart.push(distance)
+          const problems: string[] = []
+          if (analysis.kind !== sound.kind) problems.push('KIND')
+          if (Math.abs(measured.lufs - lufs) > 2) problems.push('LEVEL')
+          if (distance < 0.02) problems.push('SAME')
+          const blackNow = blackKeyShare(variant)
+          if (sound.kind !== 'texture' && blackNow > OFF_KEY_SHARE && blackNow > black + 0.05) {
+            problems.push('OFFKEY')
+          }
+          let ending: string
+          if (sound.loopCrossfadeSec) {
+            if (!ends.round) problems.push('SEAM')
+            ending = `round ${ends.round ? 'yes' : 'NO'}  swing ${ends.swingDb.toFixed(1)} dB`
+          } else {
+            if (ends.stepIn) problems.push('STEP-IN')
+            if (ends.stepOut || ends.endDb > -60) problems.push('CUT')
+            if (ends.leadSec > 0.03 && sound.kind !== 'pad') problems.push('LATE')
+            ending = `lead ${ends.leadSec.toFixed(3)} s  end ${ends.endDb.toFixed(0)} dB`
+          }
+          if (problems.length > 0) flagged += 1
+          const lu = measured.lufs - lufs
+          say(
+            `      seed ${String(seed).padEnd(3)} ${distance.toFixed(2).padStart(5)} dB apart  ` +
+              `${lu >= 0 ? '+' : ''}${lu.toFixed(1)} LU  kind ${analysis.kind}  ` +
+              `black ${(blackNow * 100).toFixed(0)}%  ${ending}  ${cost}` +
+              (problems.length > 0 ? `  ${problems.join(' ')}` : ''),
+          )
+        }
+      }
+      const sorted = [...apart].sort((a, b) => a - b)
+      const at = (share: number): string =>
+        sorted.length > 0 ? sorted[Math.floor(share * (sorted.length - 1))].toFixed(2) : '-'
+      say(
+        `\n${chosen.length} sounds, ${apart.length} variants at an amount of ${amount}: ` +
+          `${at(0)} to ${at(1)} dB apart, half under ${at(0.5)}; ${flagged} flagged`,
+      )
+      publish()
+    },
+    3_600_000,
   )
 
   it.skipIf(mode !== 'chains')(
