@@ -142,8 +142,14 @@ describe.each(Object.entries(PLATE_FACES))('the display of %s', (id, face) => {
         ? runDisplay(display, params, 0.5, { values, meters, signal: testSignal() }).print()
         : drawDisplay(display, params, { values, meters }).print()
     // A parameter may show only beside another (a band's width when the band
-    // has gain), so it is moved with the rest at their defaults, all down and all up.
-    const grounds = [{}, allAt(params, 'min'), allAt(params, 'max')]
+    // has gain, a gain under a shelf and not under a low pass), so it is moved
+    // with the rest at their defaults, all down and all up, and under each
+    // choice of every parameter that is one.
+    const grounds: Record<string, number>[] = [{}, allAt(params, 'min'), allAt(params, 'max')]
+    for (const [choice, spec] of Object.entries(params)) {
+      if (!spec.choices) continue
+      for (let value = spec.min; value <= spec.max; value += 1) grounds.push({ [choice]: value })
+    }
     for (const name of display.params) {
       const spec = params[name]
       const follows = grounds.some(
