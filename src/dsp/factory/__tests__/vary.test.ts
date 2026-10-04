@@ -87,8 +87,8 @@ function problems(sound: FactorySound, variation: SoundVariation): string[] {
   if (sound.loopCrossfadeSec && sound.loopFold !== 'linear' && heldThrough(sound)) {
     if (!heldThrough(variant)) out.push('let go early')
   }
-  if (sound.loopCrossfadeSec && sound.loopFold === 'linear') {
-    // Played round: every pass is the first pass again.
+  if (sound.loopCrossfadeSec && !heldThrough(sound)) {
+    // Played round, whatever the fold: every pass is the first pass again.
     const period = sound.durationSec
     const pass = (notes: readonly PhraseNote[], index: number): string =>
       notes
