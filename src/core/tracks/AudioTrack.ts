@@ -858,7 +858,7 @@ export class AudioTrack implements StripHost {
     this.active.delete(key)
     this.voiceClips.delete(key)
     // No longer the key's voice, so `forget` would pass it by.
-    voice.source.onended = () => this.unwire(voice)
+    voice.source.onended = () => this.retire(voice)
   }
 
   /**
@@ -1466,7 +1466,7 @@ export class AudioTrack implements StripHost {
     this.active.delete(voice.key)
     this.voiceClips.delete(voice.key)
     // No longer the key's voice, so `forget` would pass it by.
-    voice.source.onended = () => this.unwire(voice)
+    voice.source.onended = () => this.retire(voice)
   }
 
   private silence(voice: ClipVoice): void {
@@ -1485,6 +1485,19 @@ export class AudioTrack implements StripHost {
     if (this.active.get(voice.key) !== voice) return
     this.active.delete(voice.key)
     this.voiceClips.delete(voice.key)
+    this.retire(voice)
+  }
+
+  /**
+   * A voice whose source has ended comes out of the graph. Not in a render
+   * that is not on the clock: the page hears of the end when its own thread
+   * gets to it, which is another block of the render every time, and a voice
+   * taken out in the first blocks after its end loses what its low-pass
+   * still rings with, so one piece rendered twice was not one file. There
+   * the voice stays, silent, until the track goes.
+   */
+  private retire(voice: ClipVoice): void {
+    if (typeof (this.ctx as Partial<OfflineAudioContext>).startRendering === 'function') return
     this.unwire(voice)
   }
 

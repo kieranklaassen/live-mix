@@ -1808,6 +1808,62 @@ describe('AudioTrack placed clips', () => {
     }
   })
 
+  it('a voice that ends in a render that is not on the clock stays wired until the track goes', () => {
+    // The page is told of the end at a block of its own thread's choosing:
+    // taking the voice out there cuts its low-pass's ring at another frame each render.
+    const ctx = createMockOfflineContext({ sampleRate: 48000, length: 48000 * 20 })
+    const dest = ctx.createGain()
+    const track = new AudioTrack(asAudioContext(ctx), {
+      name: 'music',
+      destination: dest as unknown as AudioNode,
+      samples: new SampleStore(asAudioContext(ctx)),
+      now: () => ctx.currentTime,
+      spaceImpulse: () => buffer(ctx, 2),
+    })
+    const placed = { ...voice, buffer: buffer(ctx, 10), spaceDb: 0 }
+    const ended = track.play('ended', placed, 1)
+    const [lowpass] = ctx.filters
+    const [panner] = ctx.panners
+    const send = ended?.placement?.send as unknown as (typeof ctx.gains)[number]
+    const [room] = ctx.convolvers
+    ctx.sources[0].finish()
+    // Forgotten, so its key is free, and still where it was in the graph.
+    expect(track.voice('ended')).toBeUndefined()
+    expect(lowpass.isConnectedTo(panner)).toBe(true)
+    expect(lowpass.isConnectedTo(send)).toBe(true)
+    expect(panner.isConnectedTo(dest)).toBe(true)
+    expect(send.reaches(room)).toBe(true)
+    expect(ctx.sources[0].disconnectCalls.count).toBe(0)
+
+    // So does one that was let go for another, and one stopped while it sounded.
+    track.play('gave-way', placed, 0)
+    track.release('gave-way', 0.5)
+    ctx.sources[1].finish()
+    expect(ctx.sources[1].disconnectCalls.count).toBe(0)
+    ctx.currentTime = 2
+    track.play('stopped', placed, 1)
+    track.stop('stopped')
+    ctx.sources[2].finish()
+    expect(ctx.sources[2].disconnectCalls.count).toBe(0)
+    expect(track.voices()).toHaveLength(0)
+
+    // On a device the same end takes the voice out.
+    const live = createMockContext({ currentTime: 0, sampleRate: 48000 })
+    const out = live.createGain()
+    const onDevice = new AudioTrack(asAudioContext(live), {
+      name: 'music',
+      destination: out as unknown as AudioNode,
+      samples: new SampleStore(asAudioContext(live)),
+      now: () => live.currentTime,
+      spaceImpulse: () => buffer(live, 2),
+    })
+    onDevice.play('ended', { ...voice, buffer: buffer(live, 10), spaceDb: 0 }, 1)
+    live.sources[0].finish()
+    expect(live.filters[0].outputs.size).toBe(0)
+    expect(live.panners[0].isConnectedTo(out)).toBe(false)
+    expect(live.sources[0].disconnectCalls.count).toBe(1)
+  })
+
   it('a scheduled clip that is moved while it sounds follows without starting again', async () => {
     const { ctx, samples, track } = setup({ lookaheadSec: 1 })
     const transport = new Transport({ now: () => ctx.currentTime })
