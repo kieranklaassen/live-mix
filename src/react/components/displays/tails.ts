@@ -461,9 +461,13 @@ export function fallEnd(box: Box, span: number, rt60: number, from = 0): Point {
   return [box.x + box.w, yOfLevel((-60 * (span - from)) / Math.max(rt60, 1e-3), box)]
 }
 
-/** The time to fall 60 dB of the straight fall from (`from`, 0 dB) through a point of the panel. */
+/**
+ * The time to fall 60 dB of the straight fall from (`from`, 0 dB) through a
+ * point of the panel. A point past the panel's right edge is a later time
+ * still: an end that stands on that edge is drawn out by going on to the right.
+ */
 export function fallThrough(box: Box, span: number, x: number, y: number, from = 0): number {
-  const sec = Math.max(0.01, clamp((x - box.x) / box.w, 0, 1) * span - from)
+  const sec = Math.max(0.01, Math.max(0, (x - box.x) / box.w) * span - from)
   const db = clamp(dbOfY(y, box, TOP_DB, FOOT_DB), FOOT_DB, -0.01)
   return (-60 * sec) / db
 }

@@ -230,6 +230,9 @@ describe('what the reverbs share', () => {
     // And back: the fall through each of those points is the fall it was.
     expect(fallThrough(TAIL, 8, 0.5, TAIL.x + (1.5 / 8) * TAIL.w, yIn(TAIL, -30))).toBeCloseTo(2, 9)
     expect(fallThrough(TAIL, 8, 0.5, x, y)).toBeCloseTo(16, 9)
+    // From that edge a hand that goes on to the right draws the fall out further, and to the left in.
+    expect(fallThrough(TAIL, 8, 0.5, x + 25, y)).toBeGreaterThan(16.5)
+    expect(fallThrough(TAIL, 8, 0.5, x - 25, y)).toBeLessThan(15.5)
     // A room that is held has no end: its handle waits in the corner.
     expect(fallPoint(TAIL, 8, 0.5, Infinity, -60)).toEqual([TAIL.x + TAIL.w, TAIL.y])
   })

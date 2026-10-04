@@ -251,6 +251,14 @@ describe('the tail every one of them shares', () => {
     }
   })
 
+  it('draws a tail out further for a hand that goes on past the right edge', () => {
+    // 40 s on a 12 s panel: its end stands on the right edge, part of the way down.
+    const [x, y] = fallEnd(TAIL, 12, 40)
+    expect(x).toBe(TAIL.x + TAIL.w)
+    expect(fallThrough(TAIL, 12, x + 25, y)).toBeGreaterThan(41)
+    expect(fallThrough(TAIL, 12, x - 25, y)).toBeLessThan(39)
+  })
+
   it('adds a fall up band by band: fast while the edges die, then at the rate of what is left', () => {
     // Two bands as loud as each other, one dying at 10 dB a second and one at 60.
     const fall: BandFall = { rates: [10, 60], weights: [1, 1] }

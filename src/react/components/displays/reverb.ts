@@ -396,9 +396,14 @@ export function fallPoint(
   return [box.x + box.w, yOf((-60 * (seconds - from)) / Math.max(rt60, 1e-6), box)]
 }
 
-/** The time to fall 60 dB of the straight fall from the top at `from` seconds through a point of the box: `fallPoint` the other way round. */
+/**
+ * The time to fall 60 dB of the straight fall from the top at `from` seconds
+ * through a point of the box: `fallPoint` the other way round. A point past
+ * the box's right edge is a later time still, so an end that stands on that
+ * edge is drawn out further by a hand that goes on to the right.
+ */
 export function fallThrough(box: Box, seconds: number, from: number, x: number, y: number): number {
-  const elapsed = Math.max(0.005, clamp((x - box.x) / box.w, 0, 1) * seconds - from)
+  const elapsed = Math.max(0.005, Math.max(0, (x - box.x) / box.w) * seconds - from)
   const db = clamp(dbOfY(y, box, TOP_DB, FOOT_DB), FOOT_DB, -0.05)
   return (-60 * elapsed) / db
 }
