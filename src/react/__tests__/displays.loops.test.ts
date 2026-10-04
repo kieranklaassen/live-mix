@@ -419,11 +419,13 @@ describe('the Tape Loop display', () => {
   it('shows a blank tape and a play head in the ink while the device is asleep', () => {
     const state = display.init?.()
     runDisplay(display, params, 1, { state }, (t) => ({ meters: running(t, { level: 0.5 }) }))
-    // tape_loop.h meter(): asleep the clock reads -1 and the level 0.
+    // tape_loop.h meter(): asleep the clock reads -1 and the level 0; the
+    // head and the motor read as they were when it fell asleep, here part of
+    // the way round at half speed. It wakes with the head on the far deck.
     const asleep = runDisplay(display, params, 0.5, {
       state,
       now: 11,
-      meters: running(0, { level: 0, clock: -1 }),
+      meters: running(0, { level: 0, clock: -1, head: 0.4, speed: 0.5 }),
     })
     expect(accented(asleep)).toBe(false)
     expect(readHeads(asleep, ink)[0].x).toBeCloseTo(tap, 3)

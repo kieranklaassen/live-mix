@@ -505,19 +505,21 @@ const tapeLoop = plateDisplay<TapeLoopState>({
     const asked =
       (TAPE_SPEEDS[Math.round(frame.value('speed'))] ?? 1) *
       (Math.round(frame.value('direction')) === 1 ? -1 : 1)
-    const velocity = reading ? frame.meter('speed') : asked
+    // Asleep the motor is where it stopped; it wakes at the speed that is asked.
+    const velocity = awake ? frame.meter('speed') : asked
     tick(state.clock, frame.now, ran, awake, true)
     if (awake) state.tape.push(state.clock.time, frame.meter('level'))
     // Asleep the tape is blank, and it is forgotten on waking.
     else if (reading) state.tape.clear()
-    if (!reading) state.head.set = false
+    if (!awake) state.head.set = false
 
     // Between the decks, as it glides to where the knob has it.
-    const between = reading ? frame.meter('length') : length
+    const between = awake ? frame.meter('length') : length
     const tap = head - between * pxPerSec
     // tape_loop.h: `phase_ += (1 - velocity) / length_` each sample, the play
-    // head's place behind the record head in loops. At rest it is on the tap.
-    const behind = reading
+    // head's place behind the record head in loops. At rest it is on the tap,
+    // which is where `restart()` puts it when the device wakes.
+    const behind = awake
       ? carry(state.head, frame.meter('head'), (1 - velocity) / between, state.clock.dt)
       : 1
 
