@@ -117,14 +117,14 @@ interface Upright {
   alpha: number
 }
 
-/** The upright marks of one colour and width, left to right. */
-function uprights(picture: Picture, colour: string, width: number): Upright[] {
+/** The upright marks of one colour and width, left to right: the solid ones, or with `dashed` the dashed. */
+function uprights(picture: Picture, colour: string, width: number, dashed = false): Upright[] {
   return picture.lines
     .filter(
       (line) =>
         line.colour === colour &&
         line.width === width &&
-        !line.dashed &&
+        line.dashed === dashed &&
         line.points.length === 2 &&
         line.points[0][0] === line.points[1][0],
     )
@@ -248,17 +248,83 @@ describe('the pitch shifter display', () => {
   })
 
   it('shows how far Jitter scatters the pitch, by mode', () => {
-    const band = (mode: number): number | undefined =>
+    const band = (mode: number, pitchA = 12, jitter = 1): Rect | undefined =>
       pictureOf(
-        drawDisplay(display, params, { values: { pitchA: 12, levelB: 0, mode, jitter: 1 } }),
-      ).rects.find((rect) => rect.colour === accent && rect.alpha === 0.3)?.w
+        drawDisplay(display, params, { values: { pitchA, levelB: 0, mode, jitter } }),
+      ).rects.find((rect) => rect.colour === accent && rect.alpha === 0.3)
     // Smooth ±20 cents, Grain ±40 (`ShiftVoice.h`): 0.4 and 0.8 of a semitone of 3.375 px.
-    expect(band(0)).toBeCloseTo(0.4 * 3.375, 6)
-    expect(band(1)).toBeCloseTo(0.8 * 3.375, 6)
-    // Vintage stretches a pass by up to 3 %: 1200 log2(1.03) = 51.2 cents either side.
-    expect(band(2)).toBeCloseTo(2 * 0.51175 * 3.375, 3)
+    expect(band(0)?.w).toBeCloseTo(0.4 * 3.375, 6)
+    expect(band(1)?.w).toBeCloseTo(0.8 * 3.375, 6)
+    expect(band(1)?.x).toBeCloseTo(xOfSt(11.6), 6)
+    // The detune of a piece goes by Jitter squared: at 0.8, 0.64 of 40 cents either way.
+    expect(band(1, 12, 0.8)?.w).toBeCloseTo(0.512 * 3.375, 6)
+    // A band under a pixel wide is left out: at half Jitter, ±10 cents.
+    expect(band(1, 12, 0.5)).toBeUndefined()
     // Chords has no pieces to scatter.
     expect(band(3)).toBeUndefined()
+  })
+
+  it('scatters a Vintage voice by the stretch of its sweep, more the further it is shifted', () => {
+    const band = (pitchA: number): Rect | undefined =>
+      pictureOf(
+        drawDisplay(display, params, { values: { pitchA, levelB: 0, mode: 2, jitter: 1 } }),
+      ).rects.find((rect) => rect.colour === accent && rect.alpha === 0.3)
+    // `ShiftVoice.h`: a pass sweeps up to 3 % more or less of the ring, so a
+    // head reads at ratio ∓ 0.03 (ratio − 1). An octave up (ratio 2) that is
+    // 2 ∓ 0.03, 0.985 and 1.015 of the pitch: −26.2 and +25.8 cents.
+    expect(12 * Math.log2(1.97 / 2)).toBeCloseTo(-0.2617, 4)
+    expect(12 * Math.log2(2.03 / 2)).toBeCloseTo(0.2578, 4)
+    expect(band(12)?.x).toBeCloseTo(xOfSt(12 - 0.2617), 3)
+    expect(band(12)?.w).toBeCloseTo((0.2617 + 0.2578) * 3.375, 3)
+    // An octave down (ratio ½) it is ½ ± 0.015, 0.97 and 1.03 of the pitch: twice as wide.
+    expect(band(-12)?.w).toBeCloseTo(12 * Math.log2(1.03 / 0.97) * 3.375, 6)
+    expect(12 * Math.log2(1.03 / 0.97)).toBeCloseTo(1.039, 3)
+    // At unison a head does not sweep at all: nothing to stretch.
+    expect(band(0)).toBeUndefined()
+  })
+
+  it('holds a voice at two octaves, as the device does, when Detune would take it further', () => {
+    // `pitch_shifter.h` clamps the ratio between a quarter and four.
+    const values = { pitchA: 24, pitchB: -24, levelB: 1, detune: 50 }
+    const drawn = drawDisplay(display, params, { values })
+    const voices = uprights(pictureOf(drawn), accent, 2.5)
+    expect(voices.map((mark) => mark.x)).toEqual([xOfSt(-24), xOfSt(24)])
+    expect(drawn.words()).toContain('A +24')
+    expect(drawn.words()).toContain('B −24')
+    const a = handleOf('pitch-shifter', 'a', { values }).handle
+    expect(a.x).toBe(xOfSt(24))
+    expect(a.drag(a.x, a.y)).toEqual({ pitchA: 24 })
+    // The other way Detune still shows: A at −24 + 0.5.
+    const inward = drawDisplay(display, params, { values: { ...values, pitchA: -24, pitchB: 24 } })
+    expect(inward.words()).toContain('A −23.50')
+    expect(inward.words()).toContain('B +23.50')
+  })
+
+  it('in Grain trims the loop as the device does: by half over the gain of a grain', () => {
+    const repeat = (values: Record<string, number>, st: number): number => {
+      const picture = pictureOf(
+        drawDisplay(display, params, {
+          values: { levelB: 0, jitter: 0, feedback: 0.6, ...values },
+        }),
+      )
+      return (35 - at(uprights(picture, accent, 1), xOfSt(st)).top) / 27
+    }
+    // `grain_gain` at an octave up with Size 60 ms: the grains slip
+    // 0.25 × 0.06 × 1 = 15 ms, 47 radians at 500 Hz, so they add in power at
+    // 0.8165 each. `loop_trim_` is 0.5 / 0.8165: a pass leaves 0.6 × 0.6124.
+    expect(repeat({ mode: 1, pitchA: 12, size: 60 }, 24)).toBeCloseTo(0.3674, 4)
+    // The other modes feed back Feedback itself.
+    expect(repeat({ mode: 0, pitchA: 12, size: 60 }, 24)).toBeCloseTo(0.6, 6)
+    expect(repeat({ mode: 2, pitchA: 12, size: 60 }, 24)).toBeCloseTo(0.6, 6)
+    // Grains in step (no shift, no Jitter) add in amplitude at a half each: no trim.
+    expect(repeat({ mode: 1, pitchA: 0, pitchB: 0, size: 60 }, 0)).toBeCloseTo(0.6, 6)
+    // Between the two: a semitone up (ratio 1.05946) with Size 10 ms slips
+    // 0.25 × 0.01 × 0.05946 s = 0.467 radians; together = exp(−0.467² / 2) =
+    // 0.8967; gain 0.8967 × 0.5 + 0.1033 × 0.8165 = 0.5327; trim 0.9386.
+    expect(repeat({ mode: 1, pitchA: 1, pitchB: 1, size: 10 }, 2)).toBeCloseTo(0.6 * 0.9386, 4)
+    // The gain is the larger of the two voices', whether B sounds or not:
+    // B at −12 slips 7.5 ms, in power too, so A at unison is trimmed all the same.
+    expect(repeat({ mode: 1, pitchA: 0, pitchB: -12, size: 60 }, 0)).toBeCloseTo(0.3674, 4)
   })
 
   it('has a handle on each voice that snaps to semitones', () => {
@@ -356,11 +422,28 @@ describe('the octaves display', () => {
     expect(heights.get(0)).toBeGreaterThan(heights.get(-1) ?? 0)
   })
 
-  it('names the note and keeps it under the middle bar', () => {
-    const words = (note: number): string[] =>
-      drawDisplay(display, params, { meters: { note }, signal: testSignal() }).words()
-    expect(words(220)).toEqual(['−2', '−1', 'A3', '+1', '+2'])
-    expect(words(92.5)).toEqual(['−2', '−1', 'F♯2', '+1', '+2'])
+  it('names the bars by their octaves whatever is played, and the bar under the pointer', () => {
+    // The reading is the loudest partial the bank holds, not always the note
+    // played, so it is not printed as a note.
+    const words = (options: FrameOptions): string[] => drawDisplay(display, params, options).words()
+    expect(words({ meters: { note: 220 } })).toEqual(['−2', '−1', '0', '+1', '+2'])
+    expect(words({ meters: { note: 92.5 } })).toEqual(['−2', '−1', '0', '+1', '+2'])
+    expect(words({ hot: 'sub1' })).toContain('One down  50%')
+  })
+
+  it('follows a new reading over a moment, in pitch', () => {
+    // From 220 to 880 Hz, 50 ms on: a time constant of 50 ms leaves 1 / e of
+    // the two octaves to go, so the picture stands at 880 / 4^(1 / e) Hz.
+    const values = { ...everything, filter: 440, resonance: 0 }
+    const state = display.init?.()
+    drawDisplay(display, params, { values, meters: { note: 220 }, state })
+    const drawn = drawDisplay(display, params, { values, meters: { note: 880 }, state, dt: 0.05 })
+    const up = pictureOf(drawn).rects.find(
+      (rect) => rect.colour === accent && rect.x + rect.w / 2 === 84,
+    )
+    const hz = 880 / 4 ** Math.exp(-1)
+    expect(hz).toBeCloseTo(528.5, 0)
+    expect(up?.h).toBeCloseTo(heightOf(butterworth(2 * hz, 440)), 4)
   })
 
   it('leaves out of a voice what the device leaves out at the ends of its range', () => {
@@ -400,9 +483,13 @@ describe('the octaves display', () => {
     expect(middle({ filter: 16000, resonance: 0 })).toBeCloseTo(82 - heightOf(1), 2)
   })
 
-  it('shows the levels alone while no note is heard', () => {
-    expect(gets({ meters: { note: 0 }, signal: testSignal() }).size).toBe(0)
-    expect(gets({ meters: { note: 220 } }).size).toBe(0)
+  it('shows the levels alone while no note is heard, and when the plate is off', () => {
+    expect(gets({ meters: { note: 0 } }).size).toBe(0)
+    expect(gets({}).size).toBe(0)
+    expect(gets({ meters: { note: 220 }, powered: false }).size).toBe(0)
+    // The readings are all it needs: it asks for no tap on the sound.
+    expect(gets({ meters: { note: 220 } }).size).toBe(3)
+    expect(display.live).toEqual({ meters: true })
   })
 })
 
@@ -542,7 +629,42 @@ describe('the half speed display', () => {
     const picture = pictureOf(drawn)
     expect(uprights(picture, accent, 2.5)).toHaveLength(0)
     expect(uprights(picture, ink, 1.5)).toHaveLength(0)
-    expect(drawn.words()).toEqual(['Off'])
+    // The words name the knob, so it is not taken for the plate's own switch.
+    expect(drawn.words()).toEqual(['Power off'])
+    // The fade can still be set: its handle stands on the outline of this cycle.
+    const { handle } = handleOf('half-speed', 'fade', { values: { ...rest, power: 1 } })
+    expect([handle.x, handle.y]).toEqual([xOf(0.5 * 0.15), 6])
+    expect(picture.lines.some((line) => line.colour === ink && line.points.length === 192)).toBe(
+      true,
+    )
+    // No sound is drawn: the only filled shape is the handle.
+    expect(picture.areas.filter((area) => area.points.length > 0)).toHaveLength(0)
+  })
+
+  it('draws a cycle too short to follow as it does at rest', () => {
+    // Readings come 30 times a second: a 50 ms cycle is caught at one or two
+    // places a turn, so the heads are not followed through it.
+    const run = (cycle: number): Picture =>
+      pictureOf(
+        runDisplay(
+          display,
+          params,
+          1,
+          { values: { ...rest, length: cycle * 1000 }, signal: testSignal() },
+          (time) => {
+            const phase = (0.1 + time / cycle) % 1
+            return {
+              meters: { phase, cycle, cur: phase * cycle * 0.5, prev: cycle, mid: cycle * 0.5 },
+            }
+          },
+        ),
+      )
+    expect(writeHead(run(0.05)).x).toBeCloseTo(xOf(0.75), 6)
+    expect(writeHead(run(0.1)).x).toBeCloseTo(xOf(0.75), 6)
+    // From 150 ms up it is followed: 29 frames on, the clock of a 200 ms cycle is at 0.933.
+    const followed = writeHead(run(0.2)).x
+    expect(followed).toBeGreaterThan(xOf(0.9))
+    expect(followed).toBeLessThanOrEqual(xOf(1))
   })
 
   it('has the fade on a handle where the head has faded in', () => {
@@ -557,6 +679,22 @@ describe('the half speed display', () => {
     const slow = handleOf('half-speed', 'fade', { values: { ...rest, speed: 3 } }).handle
     expect(slow.x).toBeCloseTo(xOf(0.25 * 0.15), 6)
   })
+
+  it('keeps the handle on the outline of what is played', () => {
+    // With Smooth up the head comes in by its window instead: at Fade 0.15
+    // of the cycle the Hann window is ½ − ½ cos(0.3 π) = 0.2061.
+    const smooth = handleOf('half-speed', 'fade', { values: { ...rest, smooth: 1 } }).handle
+    expect(smooth.x).toBeCloseTo(xOf(0.5 * 0.15), 6)
+    expect(smooth.y).toBeCloseTo(24 - 18 * 0.2061, 3)
+    // A Fade under the 4 ms the device makes of it stands where the device
+    // fades: 4 ms of a 50 ms cycle. Taken there and not moved, Fade stays.
+    const short = handleOf('half-speed', 'fade', {
+      values: { ...rest, length: 50, fade: 0.01 },
+    }).handle
+    expect(short.x).toBeCloseTo(xOf(0.5 * 0.08), 6)
+    expect(short.y).toBe(6)
+    expect(short.drag(short.x, short.y)).toEqual({ fade: 0.01 })
+  })
 })
 
 // --- Frequency Shifter -------------------------------------------------------
@@ -570,68 +708,141 @@ describe('the frequency shifter display', () => {
   const sent = (values: Record<string, number>, options: FrameOptions = {}): Picture =>
     pictureOf(drawDisplay(display, params, { ...options, values: { ...plain, ...values } }))
 
-  it('draws the partials of a tone where they were: harmonics of 300 Hz', () => {
-    const were = uprights(sent({ shift: 233 }), ink, 1.5)
-    expect(were.map((mark) => mark.x)).toEqual([300, 600, 900, 1200, 1500, 1800].map(xOfHz))
-    expect(were.every((mark) => mark.alpha === 0.5)).toBe(true)
+  /** A line one pixel wide is drawn on the middle of the pixel it falls in. */
+  const onPixel = (x: number): number => Math.floor(x) + 0.5
+  /** Where the example's partials are sent: the solid lines of the ink from the foot up. */
+  const sentTo = (picture: Picture): Upright[] =>
+    uprights(picture, ink, 1).filter((mark) => mark.foot === 35 && mark.alpha >= 0.5)
+  /** What Feedback adds: fainter than any line of the first pass. */
+  const copies = (picture: Picture): Upright[] =>
+    uprights(picture, ink, 1).filter((mark) => mark.foot === 35 && mark.alpha < 0.5)
+
+  it('draws the partials of an example tone where they were: harmonics of 300 Hz, dashed', () => {
+    const were = uprights(sent({ shift: 233 }), ink, 1, true).filter((mark) => mark.foot === 35)
+    expect(were.map((mark) => mark.x)).toEqual(
+      [300, 600, 900, 1200, 1500, 1800].map((hz) => onPixel(xOfHz(hz))),
+    )
+    expect(were.every((mark) => mark.top === topOf(1))).toBe(true)
   })
 
   it('sends every partial the same number of hertz, so they stop being harmonics', () => {
-    const now = uprights(sent({ shift: 233 }), accent, 2.5)
-    expect(now.map((mark) => mark.x)).toEqual([533, 833, 1133, 1433, 1733, 2033].map(xOfHz))
+    const now = sentTo(sent({ shift: 233 }))
+    expect(now.map((mark) => mark.x)).toEqual(
+      [533, 833, 1133, 1433, 1733, 2033].map((hz) => onPixel(xOfHz(hz))),
+    )
     expect(now.every((mark) => Math.abs(mark.top - topOf(1)) < 1e-9)).toBe(true)
     // Fine is added to Shift (`freq_shifter.h`).
-    const fine = uprights(sent({ shift: 233, fine: 7.5 }), accent, 2.5)
-    expect(fine[0].x).toBeCloseTo(xOfHz(540.5), 6)
+    const fine = sentTo(sent({ shift: 233, fine: 7.5 }))
+    expect(fine[0].x).toBe(onPixel(xOfHz(540.5)))
     // Down: the same step the other way.
-    const down = uprights(sent({ shift: 233, mode: 1 }), accent, 2.5)
-    expect(down.map((mark) => mark.x)).toEqual([67, 367, 667, 967, 1267, 1567].map(xOfHz))
+    const down = sentTo(sent({ shift: 233, mode: 1 }))
+    expect(down.map((mark) => mark.x)).toEqual(
+      [67, 367, 667, 967, 1267, 1567].map((hz) => onPixel(xOfHz(hz))),
+    )
+  })
+
+  it('keeps the example in the ink: only the shift itself and the dial are in the second colour', () => {
+    const picture = sent({ shift: 233, feedback: 0.7 })
+    // No upright line is in the second colour: the partials are not the sound going in.
+    expect(
+      picture.lines.filter((line) => line.colour === accent && line.arcs.length === 0),
+    ).toEqual([
+      expect.objectContaining({
+        // From where the partial in hand was to where it is sent, at its top.
+        points: [
+          [xOfHz(1200), topOf(1)],
+          [xOfHz(1433), topOf(1)],
+        ],
+        width: 1.5,
+      }),
+    ])
+    expect(picture.rects.filter((rect) => rect.colour === accent)).toHaveLength(0)
+    // The partial in hand is the strong one; the rest of the example stands back.
+    const now = sentTo(picture)
+    expect(now.map((mark) => mark.alpha)).toEqual([0.5, 0.5, 0.5, 0.8, 0.5, 0.5])
+    // With no shift there is no way to draw.
+    const none = sent({ shift: 0 })
+    expect(none.lines.filter((line) => line.colour === accent && line.arcs.length === 0)).toEqual(
+      [],
+    )
   })
 
   it('brings a partial sent under 0 Hz back up from it', () => {
-    const down = uprights(sent({ shift: 400, mode: 1 }), accent, 2.5)
-    // 300 − 400 = −100: heard at 100 Hz.
-    expect(down[0].x).toBeCloseTo(xOfHz(100), 6)
-    expect(down[1].x).toBeCloseTo(xOfHz(200), 6)
+    const down = sentTo(sent({ shift: 400, mode: 1 }))
+    // 300 − 400 = −100: heard at 100 Hz. 600 − 400 = 200.
+    expect(down[0].x).toBe(onPixel(xOfHz(100)))
+    expect(down[1].x).toBe(onPixel(xOfHz(200)))
   })
 
   it('in Ring sends each partial both ways at half the power each', () => {
-    const ring = uprights(sent({ shift: 100, mode: 3 }), accent, 2.5)
+    const ring = sentTo(sent({ shift: 100, mode: 3 }))
     expect(ring).toHaveLength(12)
-    expect(ring[0].x).toBeCloseTo(xOfHz(200), 6)
-    expect(ring[1].x).toBeCloseTo(xOfHz(400), 6)
+    expect(ring[0].x).toBe(onPixel(xOfHz(200)))
+    expect(ring[1].x).toBe(onPixel(xOfHz(400)))
     for (const mark of ring) expect(mark.top).toBeCloseTo(topOf(Math.SQRT1_2), 5)
+    // The handle stands on the top of its partial, lower in Ring.
+    const { handle } = handleOf('freq-shifter', 'shift', {
+      values: { ...plain, shift: 100, mode: 3 },
+    })
+    expect(handle.y).toBeCloseTo(topOf(Math.SQRT1_2), 6)
+    expect(handle.x).toBeCloseTo(xOfHz(1300), 6)
   })
 
-  it('draws what Feedback adds: shifted again, through the Tone filter', () => {
-    // Shift 200 up, Feedback 0.5, Tone at 1 kHz with Q 0.6. The first partial
-    // goes 300 → 500, and what goes round again is the 500 Hz through the
-    // low pass: r = tan(π 500 / 48000) / tan(π 1000 / 48000) = 0.4995,
-    // gain = 1 / √((1 − r²)² + (r / 0.6)²) = 0.892.
-    const r = Math.tan((Math.PI * 500) / 48000) / Math.tan((Math.PI * 1000) / 48000)
+  it('draws what Feedback adds to the partial in hand: shifted again, through the Tone filter', () => {
+    // Shift 200 up, Feedback 0.5, Tone at 1 kHz with Q 0.6. The fourth
+    // partial goes 1200 → 1400, and what goes round again is the 1400 Hz
+    // through the low pass: r = tan(π 1400 / 48000) / tan(π 1000 / 48000) =
+    // 1.4023, gain = 1 / √((1 − r²)² + (r / 0.6)²) = 0.3954.
+    const r = Math.tan((Math.PI * 1400) / 48000) / Math.tan((Math.PI * 1000) / 48000)
     const through = 1 / Math.sqrt((1 - r * r) ** 2 + (r / 0.6) ** 2)
-    expect(through).toBeCloseTo(0.892, 3)
-    const repeats = uprights(sent({ shift: 200, feedback: 0.5, tone: 1000 }), accent, 1)
-    const second = at(repeats, xOfHz(700))
-    expect(second.top).toBeCloseTo(topOf(0.5 * through), 6)
+    expect(r).toBeCloseTo(1.4023, 3)
+    expect(through).toBeCloseTo(0.3954, 3)
+    const repeats = copies(sent({ shift: 200, feedback: 0.5, tone: 1000 }))
+    expect(repeats.map((mark) => mark.x)).toEqual([onPixel(xOfHz(1600))])
+    expect(repeats[0].top).toBeCloseTo(topOf(0.5 * through), 6)
     // With the Tone wide open a pass is Feedback of the last: 0.5, 0.25, 0.125, 0.0625.
-    const open = uprights(sent({ shift: 100, feedback: 0.5, tone: 16000 }), accent, 1)
-    expect(at(open, xOfHz(500)).top).toBeCloseTo(topOf(0.5), 2)
-    expect(at(open, xOfHz(600)).top).toBeCloseTo(topOf(0.25), 2)
-    expect(at(open, xOfHz(700)).top).toBeCloseTo(topOf(0.125), 2)
-    expect(uprights(sent({ shift: 100 }), accent, 1)).toHaveLength(0)
+    const open = copies(sent({ shift: 100, feedback: 0.5, tone: 16000 }))
+    expect(open.map((mark) => mark.x)).toEqual(
+      [1400, 1500, 1600, 1700].map((hz) => onPixel(xOfHz(hz))),
+    )
+    expect(open[0].top).toBeCloseTo(topOf(0.5), 1)
+    expect(open[1].top).toBeCloseTo(topOf(0.25), 1)
+    expect(open[2].top).toBeCloseTo(topOf(0.125), 1)
+    expect(copies(sent({ shift: 100 }))).toHaveLength(0)
   })
 
   it('reads the shift from the device while it runs, the LFO in it', () => {
-    const running = drawDisplay(display, params, {
-      values: { ...plain, shift: 0 },
-      meters: { shift: 5.5, carrier: 0.25 },
-      signal: testSignal(),
-    })
+    // Running, the carrier turns: 5.5 Hz is 0.183 of a turn a frame.
+    const running = runDisplay(
+      display,
+      params,
+      0.2,
+      { values: { ...plain, shift: 0 }, signal: testSignal() },
+      (time) => ({ meters: { shift: 5.5, carrier: (0.25 + time * 5.5) % 1 } }),
+    )
     expect(running.words()).toContain('+5.5 Hz')
-    expect(uprights(pictureOf(running), accent, 2.5)[0].x).toBeCloseTo(xOfHz(305.5), 6)
+    expect(sentTo(pictureOf(running))[0].x).toBe(onPixel(xOfHz(305.5)))
     const still = drawDisplay(display, params, { values: { ...plain, shift: -233 } })
     expect(still.words()).toContain('−233 Hz')
+  })
+
+  it('takes a carrier that stands for a device at rest, and draws the shift that is set', () => {
+    // Before the sound starts the device reports the shift it was made with,
+    // not the one set since: the readings are old, and the setting is drawn.
+    const options = {
+      values: { ...plain, shift: 233 },
+      meters: { shift: 0.4, carrier: 0 },
+      signal: testSignal(0, 0),
+    }
+    expect(drawDisplay(display, params, options).words()).toContain('+233 Hz')
+    const waited = runDisplay(display, params, 1, options)
+    expect(waited.words()).toContain('+233 Hz')
+    expect(sentTo(pictureOf(waited))[3].x).toBe(onPixel(xOfHz(1433)))
+    // A carrier that turned and then stopped: a third of a second on, the setting again.
+    const stopped = runDisplay(display, params, 1, options, (time) => ({
+      meters: { shift: 0.4, carrier: Math.min(time, 0.5) % 1 },
+    }))
+    expect(stopped.words()).toContain('+233 Hz')
   })
 
   it('turns the dial with the carrier, the right side a quarter turn off at full Width', () => {
@@ -679,7 +890,7 @@ describe('the lattice display', () => {
   const row = 83 / 6
   const xOfCents = (within: number, period = 1200): number => 11 + (within / period) * 110
   const yOfRow = (n: number, height = row): number => 87 - (n + 0.5) * height
-  const onLine = (value: number): number => Math.round(value) + 0.5
+  const onLine = (value: number): number => Math.floor(value) + 0.5
   const off = { v1Role: 0, v2Role: 0, v3Role: 0, v4Role: 0 }
   const major = { root: 0, scale: 0, center: 62, feedbackPath: 0 }
   /** The voices: round marks in the second colour, whether filled or in outline. */
@@ -714,7 +925,7 @@ describe('the lattice display', () => {
     expect(nodes).toHaveLength(6 * 7)
     // C major: 0 200 400 500 700 900 1100 cents.
     const columns = [...new Set(nodes.map((node) => node.x + 1))].sort((a, b) => a - b)
-    expect(columns).toEqual([0, 200, 400, 500, 700, 900, 1100].map((c) => Math.round(xOfCents(c))))
+    expect(columns).toEqual([0, 200, 400, 500, 700, 900, 1100].map((c) => Math.floor(xOfCents(c))))
     expect(drawDisplay(display, params, { values: { ...major, ...off } }).words()).toEqual([
       'C',
       'D',
@@ -730,6 +941,43 @@ describe('the lattice display', () => {
     expect(minor.words()).toContain('A♯')
   })
 
+  it('names every step where the names have room, and of all twelve the plain letters', () => {
+    const names = (values: Record<string, number>): Word[] =>
+      pictureOf(drawDisplay(display, params, { values: { ...major, ...off, ...values } })).words
+    // C natural minor: D♯ and G♯ are a semitone (9.2 px) from D and G. A
+    // letter is given 5 px and a pixel either side, so the sharp stands a
+    // third of a pixel off its step to clear it.
+    const minor = names({ scale: 1 })
+    expect(minor.map((word) => word.words)).toEqual(['C', 'D', 'F', 'G', 'D♯', 'G♯', 'A♯'])
+    const sharp = minor.find((word) => word.words === 'D♯')
+    expect(sharp?.x).toBeCloseTo(xOfCents(200) + 3.5 + 6, 6)
+    expect((sharp?.x ?? 0) - xOfCents(300)).toBeLessThan(0.5)
+    // Chromatic: a sharp has a letter a semitone off on both sides and no
+    // room between them, so the seven letters stand alone and can be read.
+    expect(names({ scale: 13 }).map((word) => word.words)).toEqual([
+      'C',
+      'D',
+      'E',
+      'F',
+      'G',
+      'A',
+      'B',
+    ])
+    // No two names are nearer than their widths and a pixel each.
+    for (const scale of [0, 1, 5, 9, 13]) {
+      for (const root of [0, 1, 6]) {
+        const written = names({ scale, root }).sort((one, other) => one.x - other.x)
+        for (let n = 1; n < written.length; n++) {
+          const room = written[n].x - written[n - 1].x
+          const needs = (written[n].words.length + written[n - 1].words.length) * 2.5 + 2
+          expect(room, `${written[n - 1].words} ${written[n].words}`).toBeGreaterThanOrEqual(
+            needs - 1e-9,
+          )
+        }
+      }
+    }
+  })
+
   it('spaces a custom scale by its cents and rows by its period', () => {
     const custom: Record<string, number> = { ...major, ...off, scale: 14, customPeriod: 1200 }
     for (let i = 1; i <= 12; i++) custom[`customOn${i}`] = 0
@@ -742,15 +990,15 @@ describe('the lattice display', () => {
     expect(nodes).toHaveLength(6 * 3)
     expect([...new Set(nodes.map((node) => node.x + 1))].sort((a, b) => a - b)).toEqual([
       11,
-      Math.round(xOfCents(386.3)),
-      Math.round(xOfCents(702)),
+      Math.floor(xOfCents(386.3)),
+      Math.floor(xOfCents(702)),
     ])
     // A period of 1902 cents: four rows hold the notes from 1902 to 9510 cents.
     const wide = pictureOf(
       drawDisplay(display, params, { values: { ...custom, customPeriod: 1902 } }),
     ).rects.filter((rect) => rect.w === 3 && rect.h === 3)
     expect(wide).toHaveLength(4 * 3)
-    expect(Math.max(...wide.map((node) => node.x + 1))).toBe(Math.round(xOfCents(702, 1902)))
+    expect(Math.max(...wide.map((node) => node.x + 1))).toBe(Math.floor(xOfCents(702, 1902)))
   })
 
   it('sends each voice where its role sends it (`Voicing.h`)', () => {
@@ -853,6 +1101,10 @@ describe('the lattice display', () => {
     // A row down and a little off the step: E4, MIDI 52.
     expect(handle.drag(xOfCents(400) + 3, yOfRow(2) - 2)).toEqual({ center: 52 })
     expect(handle.drag(handle.x + 2, handle.y)).toEqual({ center: 62 })
+    // Past the last step of a row it stays on it: B5, not the C of the row above.
+    expect(handle.drag(400, yOfRow(3))).toEqual({ center: 71 })
+    expect(handle.drag(xOfCents(1180), yOfRow(3))).toEqual({ center: 71 })
+    expect(handle.drag(-400, yOfRow(3))).toEqual({ center: 60 })
     // The ends of the knob: 36 and 84.
     expect(handle.drag(xOfCents(1100), yOfRow(5))).toEqual({ center: 84 })
     expect(handle.drag(xOfCents(0), yOfRow(0))).toEqual({ center: 36 })
