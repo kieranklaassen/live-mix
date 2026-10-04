@@ -1,0 +1,502 @@
+{
+  "15001": {
+    "id": "far-north-lava-field-drone-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15002": {
+    "id": "far-north-mutes-on-drone-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15003": {
+    "id": "far-north-pump-organ-drone-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15004": {
+    "id": "far-north-tubas-in-the-fog-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15005": {
+    "id": "far-north-bass-clarinet-growl-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15006": {
+    "id": "far-north-midnight-sun-drone-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15007": {
+    "id": "far-north-ground-under-ice-b",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15008": {
+    "id": "far-north-fuzz-under-the-floor-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15009": {
+    "id": "far-north-driven-drone-strings-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15010": {
+    "id": "far-north-plastic-organ-drone-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15011": {
+    "id": "far-north-close-bows-drone-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15012": {
+    "id": "far-north-every-rank-drawn-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15013": {
+    "id": "far-north-reeds-through-valves-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15014": {
+    "id": "far-north-held-chord-sparkle-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15015": {
+    "id": "far-north-reeds-no-bellows-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15016": {
+    "id": "far-north-bow-on-steel-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15017": {
+    "id": "far-north-trebles-in-the-loft-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15018": {
+    "id": "far-north-far-rotor-flutes-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15019": {
+    "id": "far-north-amp-begins-to-sing-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15020": {
+    "id": "far-north-low-reeds-beating-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15021": {
+    "id": "far-north-old-men-humming-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15022": {
+    "id": "far-north-plain-wire-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15023": {
+    "id": "far-north-magnet-and-string-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15024": {
+    "id": "far-north-whiteout-swell-fmaj7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15025": {
+    "id": "far-north-pipes-in-reverse-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15026": {
+    "id": "far-north-words-turned-round-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15027": {
+    "id": "far-north-horns-from-nothing-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15028": {
+    "id": "far-north-mutes-on-swell-em",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15029": {
+    "id": "far-north-quartet-going-flat-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15030": {
+    "id": "far-north-strings-at-the-top-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15031": {
+    "id": "far-north-sky-curtains-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15032": {
+    "id": "far-north-green-light-brass-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15033": {
+    "id": "far-north-village-band-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15034": {
+    "id": "far-north-long-blue-hour-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15035": {
+    "id": "far-north-cloud-coming-in-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15036": {
+    "id": "far-north-ice-forming-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15037": {
+    "id": "far-north-wet-finger-glasses-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15038": {
+    "id": "far-north-strum-that-stays-c",
+    "durationSec": 12,
+    "loops": false
+  },
+  "15039": {
+    "id": "far-north-choir-never-breathing-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15040": {
+    "id": "far-north-folding-as-it-grows-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15041": {
+    "id": "far-north-bar-and-pedal-c6",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15042": {
+    "id": "far-north-steel-without-strike-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15043": {
+    "id": "far-north-one-string-swelling-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15044": {
+    "id": "far-north-grains-thrown-up-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15045": {
+    "id": "far-north-backwards-weather-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15046": {
+    "id": "far-north-open-ground-wind",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15047": {
+    "id": "far-north-ground-steam-hiss",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15048": {
+    "id": "far-north-meltwater-over-stones",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15049": {
+    "id": "far-north-surf-run-backwards",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15050": {
+    "id": "far-north-breath-through-pipes",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15051": {
+    "id": "far-north-breath-chord-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15052": {
+    "id": "far-north-fingerboard-air-am7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15053": {
+    "id": "far-north-black-sand-shore",
+    "durationSec": 16,
+    "loops": true
+  },
+  "15054": {
+    "id": "far-north-cooling-lava",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15055": {
+    "id": "far-north-glacier-river",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15056": {
+    "id": "far-north-storm-past-the-ridge",
+    "durationSec": 16,
+    "loops": true
+  },
+  "15057": {
+    "id": "far-north-rain-on-the-turf-roof",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15058": {
+    "id": "far-north-frosted-glockenspiel-c",
+    "durationSec": 4.5,
+    "loops": false
+  },
+  "15059": {
+    "id": "far-north-spring-running-down-e",
+    "durationSec": 4,
+    "loops": false
+  },
+  "15060": {
+    "id": "far-north-bell-over-the-water-d",
+    "durationSec": 12,
+    "loops": false
+  },
+  "15061": {
+    "id": "far-north-slate-bar-g",
+    "durationSec": 2,
+    "loops": false
+  },
+  "15062": {
+    "id": "far-north-hard-hammer-upright-c",
+    "durationSec": 7,
+    "loops": false
+  },
+  "15063": {
+    "id": "far-north-piano-reversed-room-am",
+    "durationSec": 8.5,
+    "loops": false
+  },
+  "15064": {
+    "id": "far-north-untuned-upright-f",
+    "durationSec": 6,
+    "loops": false
+  },
+  "15065": {
+    "id": "far-north-felt-and-long-memory-c",
+    "durationSec": 10,
+    "loops": false
+  },
+  "15066": {
+    "id": "far-north-piano-strings-rising-g",
+    "durationSec": 10,
+    "loops": false
+  },
+  "15067": {
+    "id": "far-north-black-sand-baritone-e",
+    "durationSec": 8,
+    "loops": false
+  },
+  "15068": {
+    "id": "far-north-frost-on-the-wires-dm",
+    "durationSec": 8.5,
+    "loops": false
+  },
+  "15069": {
+    "id": "far-north-toy-piano-rod-d",
+    "durationSec": 2.5,
+    "loops": false
+  },
+  "15070": {
+    "id": "far-north-celesta-after-hours-f",
+    "durationSec": 6,
+    "loops": false
+  },
+  "15071": {
+    "id": "far-north-tongue-drum-shadow-a",
+    "durationSec": 10,
+    "loops": false
+  },
+  "15072": {
+    "id": "far-north-harp-in-the-nave-g",
+    "durationSec": 8,
+    "loops": false
+  },
+  "15073": {
+    "id": "far-north-drumstick-on-the-bass-e",
+    "durationSec": 5,
+    "loops": false
+  },
+  "15074": {
+    "id": "far-north-tines-with-an-edge-a",
+    "durationSec": 5,
+    "loops": false
+  },
+  "15075": {
+    "id": "far-north-tines-side-to-side-f",
+    "durationSec": 10,
+    "loops": false
+  },
+  "15076": {
+    "id": "far-north-boathouse-banjo-d",
+    "durationSec": 2.5,
+    "loops": false
+  },
+  "15077": {
+    "id": "far-north-paired-strings-d",
+    "durationSec": 6.5,
+    "loops": false
+  },
+  "15078": {
+    "id": "far-north-cold-clear-note-e",
+    "durationSec": 8,
+    "loops": false
+  },
+  "15079": {
+    "id": "far-north-cold-clear-picking-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15080": {
+    "id": "far-north-each-note-backwards-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15081": {
+    "id": "far-north-kitchen-table-tune-c",
+    "durationSec": 8,
+    "loops": false
+  },
+  "15082": {
+    "id": "far-north-boathouse-banjo-g",
+    "durationSec": 6,
+    "loops": false
+  },
+  "15083": {
+    "id": "far-north-nave-harp-round-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15084": {
+    "id": "far-north-harp-swept-upward-f",
+    "durationSec": 8,
+    "loops": false
+  },
+  "15085": {
+    "id": "far-north-glockenspiel-fall-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15086": {
+    "id": "far-north-steel-bars-answer-g",
+    "durationSec": 8,
+    "loops": false
+  },
+  "15087": {
+    "id": "far-north-clockwork-tune-em",
+    "durationSec": 8.5,
+    "loops": false
+  },
+  "15088": {
+    "id": "far-north-thumb-keys-round-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15089": {
+    "id": "far-north-toy-piano-tune-c",
+    "durationSec": 5.5,
+    "loops": false
+  },
+  "15090": {
+    "id": "far-north-celesta-figure-f",
+    "durationSec": 8,
+    "loops": false
+  },
+  "15091": {
+    "id": "far-north-slate-bars-in-a-row-d",
+    "durationSec": 6,
+    "loops": true
+  },
+  "15092": {
+    "id": "far-north-hard-hammer-answer-g",
+    "durationSec": 10,
+    "loops": false
+  },
+  "15093": {
+    "id": "far-north-felt-and-memory-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15094": {
+    "id": "far-north-piano-strings-rise-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15095": {
+    "id": "far-north-tongue-drum-round-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "15096": {
+    "id": "far-north-drumstick-bass-walk-a",
+    "durationSec": 8,
+    "loops": false
+  },
+  "15097": {
+    "id": "far-north-whistle-on-the-hill-d",
+    "durationSec": 8,
+    "loops": false
+  },
+  "15098": {
+    "id": "far-north-long-slides-echoing-c",
+    "durationSec": 12,
+    "loops": true
+  },
+  "15099": {
+    "id": "far-north-falsetto-over-snow-e",
+    "durationSec": 12,
+    "loops": false
+  },
+  "15100": {
+    "id": "far-north-baritone-climb-e",
+    "durationSec": 8,
+    "loops": false
+  }
+}

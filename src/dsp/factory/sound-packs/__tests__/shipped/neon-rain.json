@@ -1,0 +1,502 @@
+{
+  "22001": {
+    "id": "neon-rain-plain-beyond-towers-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22002": {
+    "id": "neon-rain-reactor-floor-octaves-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22003": {
+    "id": "neon-rain-generator-hum-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22004": {
+    "id": "neon-rain-brass-pedal-held-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22005": {
+    "id": "neon-rain-pedal-bass-phased-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22006": {
+    "id": "neon-rain-underpass-cello-rank-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22007": {
+    "id": "neon-rain-parking-cello-bowed-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22008": {
+    "id": "neon-rain-rooftop-pipes-held-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22009": {
+    "id": "neon-rain-foundry-tuba-held-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22010": {
+    "id": "neon-rain-held-wire-still-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22011": {
+    "id": "neon-rain-glass-rims-held-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22012": {
+    "id": "neon-rain-folded-tone-held-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22013": {
+    "id": "neon-rain-hollow-tower-still-b",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22014": {
+    "id": "neon-rain-skyline-crystal-held-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22015": {
+    "id": "neon-rain-ribbon-voices-held-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22016": {
+    "id": "neon-rain-flare-brass-swell-fmaj7",
+    "durationSec": 11,
+    "loops": false
+  },
+  "22017": {
+    "id": "neon-rain-rooftop-brass-gsus2",
+    "durationSec": 16,
+    "loops": true
+  },
+  "22018": {
+    "id": "neon-rain-searchlight-chord-a",
+    "durationSec": 10,
+    "loops": false
+  },
+  "22019": {
+    "id": "neon-rain-filter-tower-opens-d",
+    "durationSec": 13,
+    "loops": false
+  },
+  "22020": {
+    "id": "neon-rain-basin-horn-swell-c",
+    "durationSec": 11,
+    "loops": false
+  },
+  "22021": {
+    "id": "neon-rain-far-fanfare-chord-g",
+    "durationSec": 10,
+    "loops": false
+  },
+  "22022": {
+    "id": "neon-rain-singing-strings-em",
+    "durationSec": 16,
+    "loops": true
+  },
+  "22023": {
+    "id": "neon-rain-sampled-section-am",
+    "durationSec": 11,
+    "loops": false
+  },
+  "22024": {
+    "id": "neon-rain-half-speed-horns-d",
+    "durationSec": 16,
+    "loops": true
+  },
+  "22025": {
+    "id": "neon-rain-guitar-swell-round-g",
+    "durationSec": 12,
+    "loops": true
+  },
+  "22026": {
+    "id": "neon-rain-still-steel-round-c6",
+    "durationSec": 12,
+    "loops": true
+  },
+  "22027": {
+    "id": "neon-rain-flugelhorn-line-d",
+    "durationSec": 10,
+    "loops": false
+  },
+  "22028": {
+    "id": "neon-rain-high-rise-csus2",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22029": {
+    "id": "neon-rain-wet-pavement-fifths-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22030": {
+    "id": "neon-rain-glass-pulse-fifths-e",
+    "durationSec": 16,
+    "loops": true
+  },
+  "22031": {
+    "id": "neon-rain-ensemble-strings-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22032": {
+    "id": "neon-rain-low-cloud-gsus2",
+    "durationSec": 16,
+    "loops": true
+  },
+  "22033": {
+    "id": "neon-rain-high-wire-dsus2",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22034": {
+    "id": "neon-rain-chip-choir-open-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22035": {
+    "id": "neon-rain-tape-choir-triad-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22036": {
+    "id": "neon-rain-rotor-flutes-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22037": {
+    "id": "neon-rain-vowel-table-fifths-f",
+    "durationSec": 16,
+    "loops": true
+  },
+  "22038": {
+    "id": "neon-rain-plain-wires-round-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22039": {
+    "id": "neon-rain-failing-sign-tube-b",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22040": {
+    "id": "neon-rain-horn-and-fifth-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22041": {
+    "id": "neon-rain-saxophone-line-g",
+    "durationSec": 10,
+    "loops": false
+  },
+  "22042": {
+    "id": "neon-rain-heavy-rain-on-roof-glass",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22043": {
+    "id": "neon-rain-tenth-floor-window-rain",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22044": {
+    "id": "neon-rain-thunder-behind-towers",
+    "durationSec": 16,
+    "loops": true
+  },
+  "22045": {
+    "id": "neon-rain-cruiser-passes-over",
+    "durationSec": 12,
+    "loops": true
+  },
+  "22046": {
+    "id": "neon-rain-vent-shaft-air",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22047": {
+    "id": "neon-rain-steam-vent-low-breath",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22048": {
+    "id": "neon-rain-girder-wind-whistle",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22049": {
+    "id": "neon-rain-gutter-water-alley",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22050": {
+    "id": "neon-rain-rain-as-grain-cloud",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22051": {
+    "id": "neon-rain-storm-drain-roar",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22052": {
+    "id": "neon-rain-oil-drum-fire",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22053": {
+    "id": "neon-rain-empty-channel-static",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22054": {
+    "id": "neon-rain-tower-bell-struck-d",
+    "durationSec": 9,
+    "loops": false
+  },
+  "22055": {
+    "id": "neon-rain-smog-gong-struck-f",
+    "durationSec": 9,
+    "loops": false
+  },
+  "22056": {
+    "id": "neon-rain-deep-bowl-struck-b",
+    "durationSec": 10,
+    "loops": false
+  },
+  "22057": {
+    "id": "neon-rain-steel-boom-struck-d",
+    "durationSec": 8,
+    "loops": false
+  },
+  "22058": {
+    "id": "neon-rain-tongue-drum-touched-a",
+    "durationSec": 6,
+    "loops": false
+  },
+  "22059": {
+    "id": "neon-rain-piano-toll-low-c",
+    "durationSec": 8,
+    "loops": false
+  },
+  "22060": {
+    "id": "neon-rain-bare-piano-open-g",
+    "durationSec": 6,
+    "loops": false
+  },
+  "22061": {
+    "id": "neon-rain-old-upright-chord-am",
+    "durationSec": 7,
+    "loops": false
+  },
+  "22062": {
+    "id": "neon-rain-window-keys-chord-dm9",
+    "durationSec": 7,
+    "loops": false
+  },
+  "22063": {
+    "id": "neon-rain-late-tines-chord-em7",
+    "durationSec": 7,
+    "loops": false
+  },
+  "22064": {
+    "id": "neon-rain-lounge-tines-stab-g7",
+    "durationSec": 4,
+    "loops": false
+  },
+  "22065": {
+    "id": "neon-rain-bell-tine-high-b",
+    "durationSec": 6,
+    "loops": false
+  },
+  "22066": {
+    "id": "neon-rain-operator-keys-chord-fmaj7",
+    "durationSec": 5,
+    "loops": false
+  },
+  "22067": {
+    "id": "neon-rain-advert-chime-passing-g",
+    "durationSec": 7,
+    "loops": false
+  },
+  "22068": {
+    "id": "neon-rain-sign-sparkle-chord-am7",
+    "durationSec": 8,
+    "loops": false
+  },
+  "22069": {
+    "id": "neon-rain-sampled-bell-toy-a",
+    "durationSec": 6,
+    "loops": false
+  },
+  "22070": {
+    "id": "neon-rain-lobby-vibraphone-bar-g",
+    "durationSec": 7,
+    "loops": false
+  },
+  "22071": {
+    "id": "neon-rain-market-kalimba-tine-d",
+    "durationSec": 4,
+    "loops": false
+  },
+  "22072": {
+    "id": "neon-rain-koto-pressed-up-e",
+    "durationSec": 6,
+    "loops": false
+  },
+  "22073": {
+    "id": "neon-rain-nylon-string-stairwell-g",
+    "durationSec": 6,
+    "loops": false
+  },
+  "22074": {
+    "id": "neon-rain-twelve-string-open-c",
+    "durationSec": 5,
+    "loops": false
+  },
+  "22075": {
+    "id": "neon-rain-string-stab-am",
+    "durationSec": 4,
+    "loops": false
+  },
+  "22076": {
+    "id": "neon-rain-mono-lead-climbs-am",
+    "durationSec": 10,
+    "loops": false
+  },
+  "22077": {
+    "id": "neon-rain-night-lead-steps-e",
+    "durationSec": 10,
+    "loops": false
+  },
+  "22078": {
+    "id": "neon-rain-far-voice-line-am",
+    "durationSec": 10,
+    "loops": false
+  },
+  "22079": {
+    "id": "neon-rain-glitter-run-rises-c",
+    "durationSec": 8,
+    "loops": false
+  },
+  "22080": {
+    "id": "neon-rain-piano-shadow-round-c",
+    "durationSec": 12,
+    "loops": true
+  },
+  "22081": {
+    "id": "neon-rain-hammered-wire-phrase-d",
+    "durationSec": 9,
+    "loops": false
+  },
+  "22082": {
+    "id": "neon-rain-window-keys-round-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22083": {
+    "id": "neon-rain-headlights-round-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22084": {
+    "id": "neon-rain-lounge-lick-g",
+    "durationSec": 8,
+    "loops": false
+  },
+  "22085": {
+    "id": "neon-rain-operator-keys-round-fmaj7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22086": {
+    "id": "neon-rain-apartment-piano-fall-em",
+    "durationSec": 10,
+    "loops": false
+  },
+  "22087": {
+    "id": "neon-rain-soft-pedal-round-am",
+    "durationSec": 12,
+    "loops": true
+  },
+  "22088": {
+    "id": "neon-rain-nylon-fall-over-c",
+    "durationSec": 9,
+    "loops": false
+  },
+  "22089": {
+    "id": "neon-rain-chorus-guitar-round-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22090": {
+    "id": "neon-rain-harp-rolled-up-c",
+    "durationSec": 9,
+    "loops": false
+  },
+  "22091": {
+    "id": "neon-rain-market-kalimba-round-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22092": {
+    "id": "neon-rain-elevator-round-am9",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22093": {
+    "id": "neon-rain-celesta-winds-down-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22094": {
+    "id": "neon-rain-glockenspiel-run-up-g",
+    "durationSec": 8,
+    "loops": false
+  },
+  "22095": {
+    "id": "neon-rain-zither-haze-round-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22096": {
+    "id": "neon-rain-pursuit-bass-round-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22097": {
+    "id": "neon-rain-neon-drops-scatter-e",
+    "durationSec": 8,
+    "loops": false
+  },
+  "22098": {
+    "id": "neon-rain-console-thinks-c",
+    "durationSec": 8,
+    "loops": false
+  },
+  "22099": {
+    "id": "neon-rain-tongue-drum-round-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "22100": {
+    "id": "neon-rain-balcony-chimes-stirred-am",
+    "durationSec": 12,
+    "loops": false
+  }
+}
