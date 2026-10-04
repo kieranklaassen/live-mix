@@ -42,6 +42,21 @@ inline void wide_weights(float t, float a, float* w) {
   w[5] = a * c3;
 }
 
+// The highest of `count` samples that lie one after the other. Four maxima
+// are kept side by side, so one does not wait for the one before it.
+inline float highest(const float* data, int count) {
+  float a = 0.0f, b = 0.0f, c = 0.0f, d = 0.0f;
+  int i = 0;
+  for (; i + 4 <= count; i += 4) {
+    a = kit::max(a, std::fabs(data[i]));
+    b = kit::max(b, std::fabs(data[i + 1]));
+    c = kit::max(c, std::fabs(data[i + 2]));
+    d = kit::max(d, std::fabs(data[i + 3]));
+  }
+  for (; i < count; ++i) a = kit::max(a, std::fabs(data[i]));
+  return kit::max(kit::max(a, b), kit::max(c, d));
+}
+
 template <int Frames>
 class Ring {
  public:
@@ -88,6 +103,23 @@ class Ring {
       return;
     }
     for (int k = 0; k < count; ++k) frame(from + k, &dest[2 * k], &dest[2 * k + 1]);
+  }
+
+  // The highest sample, of either channel, among `count` frames from `from`:
+  // a level for a display. Frames from before forget(), not yet written or
+  // already overwritten count as silence. They lie in one run of the buffer,
+  // or in two when the ring goes round in between.
+  float peak(long long from, long long count) const {
+    long long first = from < valid_from_ ? valid_from_ : from;
+    if (first < written_ - Frames) first = written_ - Frames;
+    const long long last = from + count < written_ ? from + count : written_;
+    if (last <= first) return 0.0f;
+    const int frames = static_cast<int>(last - first);
+    const int at = static_cast<int>(first & kMask);
+    const int near = frames < Frames - at ? frames : Frames - at;
+    float high = highest(buffer_ + 2 * at, 2 * near);
+    if (frames > near) high = kit::max(high, highest(buffer_, 2 * (frames - near)));
+    return high;
   }
 
   // The sum of both channels, Hermite on the summed frames: what the side
@@ -192,6 +224,15 @@ class Store {
     float* at = buffer_ + 2 * count_;
     count_ += *granted;
     return at;
+  }
+
+  // The highest sample, of either channel, among `count` frames from `from`,
+  // as Ring::peak has it: frames the store does not hold count as silence.
+  float peak(long long from, long long count) const {
+    const long long first = from < base_ ? 0 : from - base_;
+    const long long last = from + count - base_ < count_ ? from + count - base_ : count_;
+    if (last <= first) return 0.0f;
+    return highest(buffer_ + 2 * first, 2 * static_cast<int>(last - first));
   }
 
   float read_sum(double position) const {
