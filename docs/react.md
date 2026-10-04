@@ -225,20 +225,23 @@ A skin is five choices and a face:
 | `plate`, `ink`, `accent` | The plate's colour and its two inks. They reach the plate as `--lm-plate`, `--lm-plate-ink` and `--lm-plate-accent`, and everything on it is drawn in those, so a plate keeps its colours in every theme. |
 | `finish`                 | `matte`, `grain`, `brushed`, `speckle`, `hammered`, `linen`, `fade` or `gloss`: SVG noise or a gradient over the plate, light on a dark plate and dark on a light one. No image files.                    |
 | `cap`                    | The knobs' cap: `disc`, `dot`, `skirt` or `pointer` (`Knob`'s `cap`; `arc` is the kit's own knob).                                                                                                        |
-| `face`, `labels`         | The four knobs on the face and shorter words for them. The rest are behind the `+n` cell, which widens the plate by whole 20 px cells.                                                                    |
+| `face`, `labels`         | The knobs on the face and shorter words for them: four over a picture or a strip, two for each column beside a window. The rest are behind the `+n` cell, which widens the plate by whole 20 px cells.    |
 | `picture`                | `{ params, draw(at) }`: SVG in a 240 by 140 box, drawn from the positions (0..1) of the parameters it names and again only when one of them moves. More Feedback on the Tape Echo draws more repeats.     |
+| `display`                | A `PlateDisplay`: a canvas that shows what the device is doing while it does it, in place of a picture. See "Displays" below.                                                                             |
 | `name`                   | The word on the tag when the device's own name is too long for it.                                                                                                                                        |
 
-`DEVICE_SKINS` holds the kit's own, for forty of the stock effects: the
-reverbs, delays, tape and modulation, and the ambient ones (Analog Delay,
-Cascade, Glitch, Low Bitrate, Vinyl, Radio, Patina and the rest).
+`DEVICE_SKINS` holds the kit's own, one for every stock effect: the EQs and
+filters, the compressors and limiters, the reverbs, delays, tape and
+modulation, and the ambient ones (Analog Delay, Cascade, Glitch, Low Bitrate,
+Vinyl, Radio, Patina and the rest). An instrument has none.
 `deviceSkin(device, skins?)` answers for a chain: the device's skin, else
 `QUIET_SKIN` (the theme's colours, no finish, no picture, eight knobs in two
 rows) so tools sit quietly between the others, and null for a plug-in that is
 missing, which keeps its `DevicePanel` and says there why it did not load.
 Pass your own table as the second argument, or your own function as `skin`, to
-add or replace skins. A plate is 140 px high and `plateLayout(knobs, pictured)`
-gives its width.
+add or replace skins. A plate is 140 px high and
+`plateLayout(knobs, pictured, display?)` gives its width and where its display
+stands.
 
 A hosted plug-in (a device with `openEditor`) is a plate too, though the kit
 has never seen it. `hostedSkin(device)` picks one of the eight cases in
@@ -269,9 +272,131 @@ keeps the kit's list away. Either way a preset picked by name sets every knob
 (`useDevice().applyPreset(name)`): what the preset does not name goes back to
 where the device starts, so the preset picked before leaves nothing behind.
 
+A chain takes two more things from its host. `deviceActions` is a function of
+a device and its place among the devices shown, and what it returns are tool
+cells of the host's own (swap the device for another, keep its settings). They
+stand after the two move cells and before the remove cell, on a plate and on a
+panel, and a button among them keeps its own press: it never starts a carry.
+
+`dropAt` is where something carried in from outside the chain would land (an
+effect dragged from the host's browser), counted among the devices shown: 0
+heads them, their number ends them, `null` is nothing carried. The chain stands
+its marker in that gap, the one a carry inside the chain shows, and has the
+class `lm-chain--receiving` meanwhile. Adding what lands is the host's, and so
+is marking its own add cell when the chain shows no device and has no gap.
+`chainDropIndex(chain, clientX)` reads that place for a pointer off the chain's
+element (`.lm-chain`): past a device's middle is after it.
+
+```tsx
+const [dropAt, setDropAt] = useState<number | null>(null)
+// While the host carries a device over the chain:
+const over = (event: PointerEvent) => {
+  const chain = document.querySelector<HTMLElement>('[data-lm-strip="pad"]')
+  setDropAt(chain ? chainDropIndex(chain, event.clientX) : null)
+}
+
+;<DeviceChainView
+  strip={track}
+  skin={deviceSkin}
+  dropAt={dropAt}
+  deviceActions={(device, index) => <SwapCell device={device} index={index} />}
+/>
+```
+
+`dropIndex(spans, x)` and `dropMarkerPosition(spans, index)` are the same
+counting and the marker's place over `ItemSpan`s, for a rack drawn by hand.
+
 A plate costs nothing while it sits: the finish and the picture are drawn when
-the device is added or one of its knobs moves, not per frame. The names are the
-devices' own, and no skin borrows a maker's colours or layout.
+the device is added or one of its knobs moves, not per frame, and a display
+runs only while it is in view and its device is on. The names are the devices'
+own, and no skin borrows a maker's colours or layout.
+
+#### Displays
+
+A picture is drawn from the knobs. A display (`PlateDisplay`, in
+`plate-display.ts`) is drawn on frames from three things: the parameters, the
+device's own readings (`MeteredDevice`: a compressor's gain reduction, an
+LFO's phase), and the sound going in and coming out, read by two analysers the
+plate hangs on the device while the display runs. So a compressor shows its
+curve and the gain it takes off, an EQ its response over the spectrum, a
+tremolo its modulation in step with the sound.
+
+```ts
+import { plateDisplay, displayKit, type PlateFace } from '@kieranklaassen/live-mix/react'
+
+const sweep = plateDisplay({
+  place: 'window', // or 'strip'
+  columns: 1, // window only: columns of two knobs beside it
+  params: ['frequency', 'q'], // a still display is drawn again when one moves
+  live: { spectrum: true }, // left out, the display is still and costs nothing
+  info: 'The response of the filter over the spectrum of what comes out.',
+  draw(frame) {
+    const box = displayKit.ground(frame)
+    displayKit.spectrum(frame, box)
+    // frame.value('frequency'), frame.meter('reduction'), frame.signal?.output.peak ...
+  },
+  handles: (view) => [
+    /* points to drag: { key, name, x, y, drag(x, y) => params, wheel?, reset? } */
+  ],
+})
+
+const faces: Record<string, PlateFace> = { filter: { display: sweep, face: ['type', 'gain'] } }
+```
+
+| Place    | Where it stands                                                                                                                                                                                              |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `strip`  | 184 by 48 under one row of four knobs, on a plate 240 wide. Opened, it is as wide as the row; on a device with more than twelve knobs it is 184 by 100 beside two rows. For what happens in time.            |
+| `window` | 100 high beside two rows of knobs, on a plate 280 wide: 176, 128 or 80 wide beside one, two or three columns (`displayWindowWidth`). For what has two axes: a curve over frequency, a level against a level. |
+
+A display draws to the size it is given and in the plate's own colours
+(`frame.colours`): the ink carries what is read (curves, scales, traces), the
+accent points at what is happening now (the level on a curve, an LFO's place,
+the gain taken off). `displayKit` has what displays share so they read as one
+family: the ground, the `INK` strengths, dB and frequency scales and grids,
+traces and fills, `spectrum`, a `History` that scrolls by the clock, the
+response of the filters devices are built from (`biquad`, `biquadDb`,
+`onePoleDb`), plain LFO shapes and `trackPhase`, which carries a phase the
+device reports thirty times a second smoothly between two readings.
+
+`live` says what a running display follows: `meters` (the device's readings,
+watched only while it runs), `signal` (the levels in and out, each with its
+`wave`), `spectrum`, `stereo` (the two sides apart), and `fps` (30, or 60 for
+something small that moves fast). The level going in needs the node that feeds
+the device: `DeviceChainView` passes it (`source` on `DevicePlate`); a plate on
+its own shows the output only. All displays on a page share one frame loop on
+the provider's `FrameScheduler`, each stops when it scrolls out of view or its
+device is switched off, and a canvas lays nothing out, so many can run while
+music plays.
+
+A handle is a point that can be dragged. Its `drag(x, y)` returns parameters
+in their own units; the plate clamps them and writes them through
+`useDevice().setMany` between `touchMany` and `releaseMany`, so under an
+arbiter a whole drag is one `device.setParams` gesture and one undo step. A
+double press calls `reset`, the wheel over a handle calls `wheel` (an EQ band's
+width). The chain leaves a press on a handle alone (`data-lm-handle`) and
+carries the plate from a press anywhere else on the display.
+
+A device may report a reading that is only for its display (an LFO's phase):
+`"display": true` on the meter in `device.json`, which keeps it out of the
+panel's title bar and the plate's foot. A plate with a display prints no
+readouts in its foot at all; the display draws them. Adding such a reading
+must not change one sample of the sound: `node scripts/same-sound.mjs <id>`
+plays the device as it was at `origin/main` and as it is now, at its defaults,
+every preset and with every parameter swept, and compares sample for sample.
+
+`PLATE_FACES` holds the stock displays by device id, one file per family under
+`components/displays/`. `src/react/__tests__/displays.test.ts` holds every one
+of them to the same rules (it reads parameters the device has, draws at any
+setting without a number the canvas cannot take, paints only in the plate's
+colours, follows every parameter it names, and its handles stand on it and set
+what they stand for), and `display-harness.ts` beside it has a recording
+canvas for a display's own tests.
+
+`playground/plates.html` (`pnpm playground`, then `/plates.html`) is the plate
+bench: every stock effect as a plate with sound running through it, by
+`?only=`, `?category=`, `?theme=`, `?open=1`, `?still=1`, `?chain=1` and
+`?preset=`. `node scripts/plates/shoot.mjs out.png "only=tremolo"` takes its
+picture in headless Chromium.
 
 ### The info view
 
