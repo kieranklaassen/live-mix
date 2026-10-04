@@ -11,6 +11,7 @@ import {
   FREQ_MIN,
   History,
   INK,
+  PHASE_STANDS_SEC,
   clamp,
   clipped,
   dbGrid,
@@ -88,6 +89,112 @@ function tremoloCycle(
   }
 }
 
+/**
+ * How much of its full bend Vibrato reaches at a rate: all of it from about
+ * 1 Hz up, and less under that, where the swing of the delay stops at 3 ms
+ * (`kVibratoBend` and `kVibratoMaxSeconds` in `tremolo.h`).
+ */
+const vibratoReach = (rate: number): number => Math.min(1, (0.003 * Math.PI * 2 * rate) / 0.02)
+
+/** The slew's time, one pole of its two, in cycles of the LFO. */
+const slewCycles = (rate: number, smooth: number): number => 0.001 * rate + smooth * 0.08
+
+/** How many cycles of Random the display keeps the targets of: a scope's two seconds at the fastest Rate, and some. */
+const WALK_CYCLES = 64
+/**
+ * How much a reading is doubted, against how little is known of a target
+ * before any reading: targets fall anywhere from −1 to 1, about the middle on
+ * the whole, so one that nothing has been read of is taken for the middle.
+ */
+const WALK_DOUBT = 0.003
+
+/**
+ * The targets Random glides between, found from the device's readings. The
+ * device draws a new target each cycle and joins them with half cosines
+ * (`wave` in `tremolo.h`), so a reading at a known place in a cycle says how
+ * much of the target before it and of the one after it are in it. Thirty
+ * readings a second are too few to follow a fast modulator point by point,
+ * but enough to find its targets, and those give the whole line and its slope.
+ */
+interface Walk {
+  /** The cycle the first target begins; null until a reading has come. */
+  first: number | null
+  targets: Float64Array
+  /** What the readings add up to for each target: of itself, with the next one, and of the modulator. */
+  own: Float64Array
+  next: Float64Array
+  read: Float64Array
+  /** Room to solve them in. */
+  work: [Float64Array, Float64Array]
+}
+
+const newWalk = (): Walk => ({
+  first: null,
+  targets: new Float64Array(WALK_CYCLES),
+  own: new Float64Array(WALK_CYCLES),
+  next: new Float64Array(WALK_CYCLES),
+  read: new Float64Array(WALK_CYCLES),
+  work: [new Float64Array(WALK_CYCLES), new Float64Array(WALK_CYCLES)],
+})
+
+/** Forget the targets: what comes next is of cycles that cannot be counted on from the ones kept. */
+function walkClear(walk: Walk): void {
+  walk.first = null
+  for (const kept of [walk.targets, walk.own, walk.next, walk.read]) kept.fill(0)
+}
+
+/** Take in a reading `m` of the modulator at `at` cycles, counted without wrapping. */
+function walkRead(walk: Walk, at: number, m: number): void {
+  const cycle = Math.floor(at)
+  walk.first ??= cycle - 2
+  // The oldest targets make room for the newest.
+  const over = Math.min(WALK_CYCLES, cycle + 1 - walk.first - (WALK_CYCLES - 1))
+  if (over > 0) {
+    for (const kept of [walk.targets, walk.own, walk.next, walk.read]) {
+      kept.copyWithin(0, over)
+      kept.fill(0, WALK_CYCLES - over)
+    }
+    walk.first = cycle + 2 - WALK_CYCLES
+  }
+  const i = cycle - walk.first
+  if (i < 0) return
+  // So much of the target after it, and the rest of the one before.
+  const after = 0.5 - 0.5 * Math.cos(Math.PI * (at - cycle))
+  const before = 1 - after
+  walk.own[i] += before * before
+  walk.own[i + 1] += after * after
+  walk.next[i] += before * after
+  walk.read[i] += before * m
+  walk.read[i + 1] += after * m
+}
+
+/** Find the targets that fit the readings best: each is tied to its two neighbours only, so one pass down and one back. */
+function walkSolve(walk: Walk): void {
+  const { targets, own, next, read } = walk
+  const [ratio, sum] = walk.work
+  for (let i = 0; i < WALK_CYCLES; i++) {
+    const tie = i > 0 ? next[i - 1] : 0
+    const pivot = own[i] + WALK_DOUBT - (i > 0 ? tie * ratio[i - 1] : 0)
+    ratio[i] = next[i] / pivot
+    sum[i] = (read[i] - (i > 0 ? tie * sum[i - 1] : 0)) / pivot
+  }
+  for (let i = WALK_CYCLES - 1; i >= 0; i--)
+    targets[i] = sum[i] - (i < WALK_CYCLES - 1 ? ratio[i] * targets[i + 1] : 0)
+}
+
+/**
+ * The slope of Random at `at` cycles before the slew, as Vibrato hears it:
+ * upside down, and 1 where a sine's is at its steepest. Between two targets
+ * it is half a sine as tall as a quarter of their difference.
+ */
+function walkBend(walk: Walk, at: number): number {
+  if (walk.first === null) return 0
+  const cycle = Math.floor(at)
+  const i = cycle - walk.first
+  if (i < 0 || i >= WALK_CYCLES - 1) return 0
+  return ((walk.targets[i] - walk.targets[i + 1]) * Math.sin(Math.PI * (at - cycle))) / 4
+}
+
 interface TremoloState {
   table: Float32Array
   /** What the table was made from, so it is made again only when one of them moves. */
@@ -96,6 +203,13 @@ interface TremoloState {
   /** The modulator as the device reports it, for Random, which no formula follows. */
   left: History
   right: History
+  /** Where the LFO is, in cycles counted without wrapping; the reading of it last taken in, and where that was. */
+  turns: number
+  seen: number
+  seenAt: number
+  /** Random's targets, and whether frames were missed since they were last added to. */
+  walk: Walk
+  lost: boolean
 }
 
 /** What a point's ring takes about its middle when it is lit: the kit's 4.5 px and half its 1.5 px line. */
@@ -109,14 +223,19 @@ const ringY = (view: Pick<DisplayView, 'height'>, y: number): number =>
 const lineOfRing = (view: Pick<DisplayView, 'height'>, y: number): number =>
   y <= RING_ROOM + 1e-6 ? -Infinity : y >= view.height - RING_ROOM - 1e-6 ? Infinity : y
 
+/** How far the Depth point travels: with the swing while Mix leaves it room, never less than half. */
+const depthTravel = (view: DisplayView): number => Math.max(0.5, view.value('mix'))
+
 /**
  * The one point of the Tremolo's scope: on the line the swing reaches at its
  * furthest, at the scope's left end, where nothing rides the LFO. Up and down
  * is Depth. Tremolo and Harmonic swing down from the top, where the sound is
  * untouched; Pan and Vibrato swing about the middle, and the point stands on
  * the upper end. Mix scales the swing with Depth, so the line stands at their
- * product and a drag is taken back through it. At the box's two ends the ring
- * stands a quarter pixel in from the line, so that it is whole when it is lit.
+ * product and a drag is taken back through it. Under half the Mix the point
+ * goes no nearer: with little or no Mix the swing has next to nowhere to go,
+ * and Depth is still to be set. At the box's two ends the ring stands a
+ * quarter pixel in from the line, so that it is whole when it is lit.
  */
 function tremoloHandles(view: DisplayView): DisplayHandle[] {
   const box = scopeBox(view)
@@ -125,8 +244,8 @@ function tremoloHandles(view: DisplayView): DisplayHandle[] {
   const spec = view.spec('depth')
   const falls = mode === 'tremolo' || mode === 'harmonic'
   const from = falls ? box.y : box.y + box.h / 2
-  // How far the line travels for the whole of Depth: down the box, or up half of it.
-  const reach = (falls ? box.h : -box.h / 2) * view.value('mix')
+  // How far the point travels for the whole of Depth: down the box, or up half of it.
+  const reach = (falls ? box.h : -box.h / 2) * depthTravel(view)
   const y = ringY(view, from + depth * reach)
   return [
     {
@@ -134,10 +253,9 @@ function tremoloHandles(view: DisplayView): DisplayHandle[] {
       name: 'Depth',
       x: box.x + 5,
       y,
-      // With no Mix nothing swings, and the line has nowhere to go.
       drag: (_x, toY) => ({
         depth:
-          Math.abs(toY - y) < 1e-6 || Math.abs(reach) < 1e-6
+          Math.abs(toY - y) < 1e-6
             ? depth
             : clamp((lineOfRing(view, toY) - from) / reach, spec?.min ?? 0, spec?.max ?? 1),
       }),
@@ -157,6 +275,11 @@ const tremolo = plateDisplay<TremoloState>({
     phase: null,
     left: new History(SPAN_SEC * NOW_AT, 124, 0),
     right: new History(SPAN_SEC * NOW_AT, 124, 0),
+    turns: 0,
+    seen: 0,
+    seenAt: 0,
+    walk: newWalk(),
+    lost: true,
   }),
   draw(frame) {
     const { ctx, colours, state } = frame
@@ -171,9 +294,41 @@ const tremolo = plateDisplay<TremoloState>({
     const running = frame.powered && frame.hasMeter('phase') && frame.dt > 0
 
     if (running) {
-      state.phase = trackPhase(state.phase, frame.meter('phase'), rate, frame.dt)
+      const before = state.phase?.phase
+      const reading = frame.meter('phase')
+      state.phase = trackPhase(state.phase, reading, rate, frame.dt)
       state.left.push(frame.now, frame.meter('left'))
       state.right.push(frame.now, frame.meter('right'))
+      if (state.lost || before === undefined) {
+        // Frames were missed: how many cycles went by in them is not known, nor which target is which.
+        state.turns = state.phase.phase
+        state.seenAt = state.turns
+        walkClear(state.walk)
+        state.lost = false
+      } else if ((state.phase.stood ?? 0) >= PHASE_STANDS_SEC) {
+        // The device stands, and the mark has gone back to its last reading.
+        state.turns = state.seenAt
+      } else {
+        // The cycles are counted from how far it should have gone, so a fast LFO is never taken to go backwards.
+        const expected = rate * frame.dt
+        state.turns += expected + shortWay(state.phase.phase - before - expected)
+      }
+      if (reading !== state.seen) {
+        state.seen = reading
+        state.seenAt = state.turns + shortWay(reading - state.phase.phase)
+        // Until the first reading arrives every one of them is nothing.
+        const blank = reading === 0 && frame.meter('left') === 0 && frame.meter('right') === 0
+        if (shape === 'random' && !blank) {
+          // The reading is of the modulator after the slew: about two of its poles late.
+          const at = state.seenAt - 2 * slewCycles(rate, smooth)
+          walkRead(state.walk, at, frame.meter('left'))
+          // The right side is the same line, read Stereo Phase ahead.
+          if (offset > 0.002) walkRead(state.walk, at + offset, frame.meter('right'))
+          walkSolve(state.walk)
+        }
+      }
+    } else {
+      state.lost = true
     }
     const made = `${shape} ${rate.toFixed(3)} ${smooth.toFixed(3)}`
     if (made !== state.made) {
@@ -185,12 +340,14 @@ const tremolo = plateDisplay<TremoloState>({
     const top = box.y
     const foot = box.y + box.h
     const middle = box.y + box.h / 2
-    const height = (m: number, side: 0 | 1): number => {
-      if (mode === 'tremolo') return top + depth * (1 - m) * 0.5 * box.h
-      if (mode === 'harmonic') return top + depth * (1 + (side === 0 ? -m : m)) * 0.5 * box.h
-      // Pan and Vibrato swing about the middle. The device pans to the right as the modulator rises: down here.
-      return middle + (mode === 'pan' ? depth : -depth) * m * (box.h / 2)
-    }
+    const falls = mode === 'tremolo' || mode === 'harmonic'
+    const height = (m: number): number =>
+      // Harmonic's line is its low band, which the modulator moves as Tremolo
+      // moves the whole sound; the high band goes the other way, as far.
+      falls
+        ? top + depth * (1 - m) * 0.5 * box.h
+        : // Pan and Vibrato swing about the middle. The device pans to the right as the modulator rises: down here.
+          middle + (mode === 'pan' ? depth : -depth) * m * (box.h / 2)
     const nowX = box.x + box.w * NOW_AT
     const read = (phase: number): number => {
       const at = (phase - Math.floor(phase)) * CYCLE
@@ -198,53 +355,68 @@ const tremolo = plateDisplay<TremoloState>({
       const next = state.table[(i + 1) % CYCLE]
       return state.table[i] + (next - state.table[i]) * (at - i)
     }
-    // Vibrato bends the pitch by how fast the delay moves: the slope of the modulator, upside down.
+    // Vibrato bends the pitch by how fast the delay moves: the slope of the
+    // modulator, upside down, and less of it where the Rate is under 1 Hz.
+    const bend = vibratoReach(rate)
     const value = (phase: number): number =>
       mode === 'vibrato'
-        ? (read(phase - 0.5 / CYCLE) - read(phase + 0.5 / CYCLE)) * (CYCLE / (2 * Math.PI))
+        ? (read(phase - 0.5 / CYCLE) - read(phase + 0.5 / CYCLE)) * (CYCLE / (2 * Math.PI)) * bend
         : read(phase)
 
     // The scale: where the sound is untouched.
-    rule(
-      ctx,
-      box.x,
-      mode === 'tremolo' || mode === 'harmonic' ? top : middle,
-      box.x + box.w,
-      mode === 'tremolo' || mode === 'harmonic' ? top : middle,
-      {
-        colour: colours.ink,
-        alpha: INK.grid,
-      },
-    )
+    rule(ctx, box.x, falls ? top : middle, box.x + box.w, falls ? top : middle, {
+      colour: colours.ink,
+      alpha: INK.grid,
+    })
     // How far the swing goes at the most: the line Depth is taken by.
     const [point] = tremoloHandles(frame)
-    const most =
-      mode === 'tremolo' || mode === 'harmonic' ? top + depth * box.h : middle - depth * (box.h / 2)
+    const most = falls ? top + depth * box.h : middle - depth * (box.h / 2)
     rule(ctx, box.x, most, box.x + box.w, most, { colour: colours.ink, alpha: INK.grid })
     rule(ctx, nowX, box.y - 2, nowX, foot + 2, { colour: colours.ink, alpha: INK.rule })
 
     const phaseNow = state.phase?.phase ?? 0
-    // Harmonic shows its two bands; the others show the right side when it is set apart.
-    const sides: (0 | 1)[] =
-      mode === 'harmonic' || (offset > 0.002 && mode !== 'pan') ? [1, 0] : [0]
+    // The right side too where Stereo Phase sets it apart; Pan has the two sides in one line.
+    const sides: (0 | 1)[] = offset > 0.002 && mode !== 'pan' ? [1, 0] : [0]
+    /** The modulator at now, a side each, as the mark shows it. */
+    const now: [number, number] = [0, 0]
     clipped(ctx, { x: box.x, y: box.y - 3, w: box.w, h: box.h + 6 }, () => {
       for (const side of sides) {
-        const lead = mode === 'harmonic' ? 0 : side * offset
+        const lead = side * offset
         const past: Point[] = []
         const next: Point[] = []
-        if (shape === 'random') {
+        if (shape === 'random' && mode === 'vibrato') {
+          // Random bends the pitch by its slope as the other shapes do: the
+          // slope of the half cosine between two targets, through the slew.
+          // It is run in from before the scope, as the slew has a past.
+          const pole = slewCycles(rate, smooth)
+          const step = (0.5 / box.w) * SPAN_SEC * rate
+          const keep = Math.exp(-step / pole)
+          const count = Math.ceil((nowX - box.x) / 0.5)
+          const warm = Math.min(2000, Math.ceil((6 * pole) / step))
+          let a = 0
+          let b = 0
+          for (let i = -warm; i <= count; i++) {
+            const raw = walkBend(state.walk, state.turns + lead + (i - count) * step)
+            a = i === -warm ? raw : raw + (a - raw) * keep
+            b = i === -warm ? raw : a + (b - a) * keep
+            if (i >= 0) past.push([nowX - (count - i) * 0.5, height(b * bend)])
+          }
+          now[side] = b * bend
+        } else if (shape === 'random') {
           // No formula follows Random: draw what the device reported, up to now.
           const history = side === 0 ? state.left : state.right
-          past.push(...history.points({ ...box, w: nowX - box.x }, (m) => height(m, side)))
+          past.push(...history.points({ ...box, w: nowX - box.x }, height))
+          now[side] = history.at(0)
         } else {
           for (let x = box.x; x <= box.x + box.w; x += 0.5) {
             const seconds = ((x - nowX) / box.w) * SPAN_SEC
-            const point: Point = [x, height(value(phaseNow + lead + seconds * rate), side)]
+            const point: Point = [x, height(value(phaseNow + lead + seconds * rate))]
             if (x <= nowX) past.push(point)
             if (x >= nowX) next.push(point)
           }
+          now[side] = value(phaseNow + lead)
         }
-        const back = side === 1 && mode !== 'harmonic'
+        const back = side === 1
         trace(ctx, past, { colour: colours.ink, width: back ? 1 : 1.5, alpha: back ? INK.back : 1 })
         trace(ctx, next, {
           colour: colours.ink,
@@ -256,11 +428,7 @@ const tremolo = plateDisplay<TremoloState>({
     })
     if (running || !frame.powered || shape !== 'random') {
       for (const side of sides) {
-        const m =
-          shape === 'random'
-            ? (side === 0 ? state.left : state.right).at(0)
-            : value(phaseNow + (mode === 'harmonic' ? 0 : side * offset))
-        dot(ctx, nowX, height(m, side), side === 0 ? 3 : 2, colours.accent, { ring: colours.ink })
+        dot(ctx, nowX, height(now[side]), side === 0 ? 3 : 2, colours.accent, { ring: colours.ink })
       }
     }
     // What the height means, at the two ends of the scale.
@@ -1346,6 +1514,16 @@ export function rotaryGain(
 }
 
 /**
+ * What Balance gives a rotor of its level: `control` in `rotary.h`
+ * (`horn_gain`, `drum_gain`). Equal power: both rotors whole at the middle,
+ * and at either end one silent and the other √2.
+ */
+export function rotaryBalance(kind: RotorKind, balance: number): number {
+  const turn = (clamp(balance, 0, 1) * Math.PI) / 2
+  return Math.SQRT2 * (kind === 'horn' ? Math.sin(turn) : Math.cos(turn))
+}
+
+/**
  * An angle over the last so many seconds, in cycles and never wrapped, kept
  * by the clock as the kit's `History` keeps a level. A rotor turns evenly
  * between two frames, so the steps a frame skipped lie on the line between,
@@ -1520,6 +1698,7 @@ function drawRotor(
   const distance = frame.value('distance')
   const spread = frame.value('spread')
   const swing = rotarySwing(kind, depth, distance)
+  const share = rotaryBalance(kind, frame.value('balance'))
   const way = ROTOR_WAY[kind]
   const angle = kept.turn
 
@@ -1563,10 +1742,14 @@ function drawRotor(
     })
   }
 
-  // Beside it: the level each microphone gets, the last moments up to now at the right.
+  // Beside it: the level each microphone gets, the last moments up to now at
+  // the right, as loud as Balance has this rotor. Where Balance lifts it over
+  // the top of the scale the scale gives way, so the line is never cut: the
+  // line across at a level of 1 sinks under it.
   const top = scope.y + 2
   const foot = scope.y + scope.h
-  const level = (gain: number): number => foot - (gain / ROTARY_TOP) * (foot - top)
+  const most = Math.max(ROTARY_TOP, share * rotaryGain(kind, 0, -1, swing, 0))
+  const level = (gain: number): number => foot - (gain / most) * (foot - top)
   rule(ctx, scope.x, level(1), scope.x + scope.w, level(1), {
     colour: colours.ink,
     alpha: INK.grid,
@@ -1585,7 +1768,7 @@ function drawRotor(
         const then =
           running && !kept.past.empty ? kept.past.at(back / perSlot) : angle - way * hz * back
         state.kept.x[i] = scope.x + (i / steps) * (nowX - scope.x)
-        state.kept.y[i] = level(rotaryGain(kind, then, side, swing, spread))
+        state.kept.y[i] = level(share * rotaryGain(kind, then, side, swing, spread))
       }
       strokeLine(ctx, state.kept.x, state.kept.y, 0, steps + 1, {
         colour: colours.ink,
@@ -1598,7 +1781,7 @@ function drawRotor(
     dot(
       ctx,
       nowX,
-      level(rotaryGain(kind, angle, side, swing, spread)),
+      level(share * rotaryGain(kind, angle, side, swing, spread)),
       side === -1 ? 2.5 : 1.75,
       colours.accent,
       { ring: side === -1 ? colours.ink : undefined },
@@ -1624,9 +1807,9 @@ function drawRotor(
 const rotary = plateDisplay<RotaryState>({
   place: 'window',
   columns: 2,
-  params: ['speed', 'hornDepth', 'drumDepth', 'distance', 'spread'],
+  params: ['speed', 'hornDepth', 'drumDepth', 'distance', 'spread', 'balance'],
   live: { meters: true, fps: 60 },
-  info: 'The cabinet from above: the horn, then the drum, each turning at its own speed past the two microphones in front. Beside each is the level its microphones got over the last moments, the right one fainter. An arrow is a rotor changing speed. The ringed microphone sets Spread.',
+  info: 'The cabinet from above: the horn, then the drum, each turning at its own speed past the two microphones in front. Beside each is the level its microphones got over the last moments, as Balance has it, the right one fainter. An arrow is a rotor changing speed. The ringed microphone sets Spread.',
   init: () => ({
     horn: rotor('horn'),
     drum: rotor('drum'),

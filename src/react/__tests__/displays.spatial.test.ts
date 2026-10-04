@@ -22,6 +22,7 @@ import { type DisplayLevel, type DisplaySignal } from '../components/plate-displ
 import {
   displaySize,
   drawDisplay,
+  runDisplay,
   stockDescriptors,
   viewOf,
   type FrameOptions,
@@ -592,7 +593,7 @@ describe('the Utility display', () => {
 // --- Stereo Detune ----------------------------------------------------------
 
 describe('the Stereo Detune display', () => {
-  const { field, draw, handle } = plate('stereo-detune')
+  const { display, params, field, draw, handle } = plate('stereo-detune')
   const P = STEREO_DETUNE_PARAMS
   /** A bead at Mix `mix` with the level hold at `hold`. */
   const beadRadius = (mix: number, hold = 1): number =>
@@ -626,7 +627,8 @@ describe('the Stereo Detune display', () => {
         radius: dot.radius,
         fill: dot.path.fill,
       }))
-  const live = { centsLeft: 11.4, centsRight: -7.6, delayLeft: 20, delayRight: 30 }
+  // Readings a working device gives at the defaults: Drift at 0.15 adds up to 1.2 cents either way.
+  const live = { centsLeft: 9.8, centsRight: -8.3, delayLeft: 20, delayRight: 30 }
 
   it('pans the copies as stereo_detune.h does: an eighth of a turn each way at full Width', () => {
     for (const width of [0, 0.25, 0.5, 1]) {
@@ -680,7 +682,35 @@ describe('the Stereo Detune display', () => {
     // The level hold has the right copy at half: its bead is that much smaller.
     expect(right.radius).toBeCloseTo(beadRadius(0.36, 0.5), 9)
     // The detune is the device's now; the Delay at the foot stays what is set.
-    expect(drawn.words()).toEqual(expect.arrayContaining(['+11 ct', '−8 ct', '14 ms', '20 ms']))
+    expect(drawn.words()).toEqual(expect.arrayContaining(['+10 ct', '−8 ct', '14 ms', '20 ms']))
+  })
+
+  it('says the Detune that is set while the device sleeps, with what Drift had added', () => {
+    // The device works out its cents only while it has sound: in silence its
+    // readings stand, whatever is turned. Here Drift had added 0.6 and 0.9 cents.
+    const asleep = { ...live, centsLeft: 9.6, centsRight: -8.1, holdLeft: 1, holdRight: 1 }
+    const state = display.init?.()
+    const said = (values: Record<string, number>): string[] =>
+      runDisplay(display, params, 0.5, { state, meters: asleep, values })
+        .words()
+        .filter((word) => word.endsWith(' ct'))
+    expect(said({})).toEqual(['+10 ct', '−8 ct'])
+    // Detune turned: the cents the device will come to, the copies' drift carried over.
+    expect(said({ detune: 30 })).toEqual(['+31 ct', '−29 ct'])
+    expect(said({ detune: 50 })).toEqual(['+51 ct', '−49 ct'])
+    // Drift turned to full: what it had added grows with it, to 4 and 6 cents.
+    expect(said({ detune: 30, drift: 1 })).toEqual(['+34 ct', '−24 ct'])
+    expect(said({ detune: 30, drift: 0 })).toEqual(['+30 ct', '−30 ct'])
+    // Back at what the device last worked on, its own reading again.
+    expect(said({})).toEqual(['+10 ct', '−8 ct'])
+    // Readings that cannot be of the Detune that is set, the first the display
+    // sees: the Detune was turned before it looked. It says what is set.
+    const late = display.init?.()
+    expect(
+      drawDisplay(display, params, { state: late, meters: asleep, values: { detune: 30 } })
+        .words()
+        .filter((word) => word.endsWith(' ct')),
+    ).toEqual(['+30 ct', '−30 ct'])
   })
 
   it('paints the beads in the accent only while the device says where its heads are', () => {
@@ -1079,6 +1109,55 @@ describe('the readings Stereo Detune gives its display', () => {
       expect(second - first).toBeGreaterThan(delay + DETUNE_SMEAR_MS[side] - 1)
       expect(second - first).toBeLessThan(delay + DETUNE_SMEAR_MS[side] + 1)
     }
+  })
+
+  it('come to the cents the display said of a Detune turned in silence, with no jump', async () => {
+    const { display, params } = plate('stereo-detune')
+    const h = await device(0.5)
+    const state = display.init?.()
+    let detune = 9
+    /** A frame of the display on the device's readings: the left copy's cents as said. */
+    const said = (): number => {
+      const meters = Object.fromEntries(
+        (Object.keys(M) as (keyof typeof M)[]).map((name) => [name, h.meter(name)]),
+      )
+      const [left] = drawDisplay(display, params, {
+        state,
+        meters,
+        dt: 1 / 30,
+        values: { detune, drift: 0.5 },
+      })
+        .words()
+        .filter((word) => word.endsWith(' ct'))
+      return Number(left.replace('−', '-').replace(' ct', ''))
+    }
+    // With sound the display says the device's reading.
+    for (let n = 0; n < 45; n++) {
+      h.feedTone(1 / 30, 330, 0.3)
+      expect(said()).toBe(Math.round(h.meter('centsLeft')))
+    }
+    // Silence: the device is not run and its readings stand.
+    const drifted = h.meter('centsLeft') - 9
+    expect(Math.abs(drifted)).toBeLessThanOrEqual(4)
+    for (let n = 0; n < 15; n++) expect(said()).toBe(Math.round(9 + drifted))
+    // Detune is turned. The device has not worked it out: its reading is the old one.
+    detune = 50
+    h.set(P.detune, 50)
+    for (let n = 0; n < 15; n++) {
+      expect(h.meter('centsLeft')).toBeCloseTo(9 + drifted, 9)
+      expect(said()).toBe(Math.round(50 + drifted))
+    }
+    // Sound again: the device glides to the new Detune over 20 ms, and the
+    // number goes on from where it stood, a cent at the most between frames.
+    let before = Math.round(50 + drifted)
+    for (let n = 0; n < 45; n++) {
+      h.feedTone(1 / 30, 330, 0.3)
+      const now = said()
+      expect(Math.abs(now - before)).toBeLessThanOrEqual(1)
+      before = now
+      if (n >= 3) expect(now).toBe(Math.round(h.meter('centsLeft')))
+    }
+    expect(Math.abs(h.meter('centsLeft') - 50)).toBeLessThanOrEqual(4)
   })
 
   it('carry the drift: up to 8 cents and 1.5 ms either way at full', async () => {

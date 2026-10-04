@@ -2,11 +2,11 @@
 // how loud it comes back. One picture for the four of them. A mark stands for
 // now and time runs to the right of it on a scale of seconds. The bars are the
 // repeats of one full-scale click: a delay time apart, each as much lower as
-// the loop makes it. Behind them is the sound itself: at the left of the mark
-// the level that went in over the last moments, at its right what is still to
-// come of it, so a loud note is seen marching off to the right and fading. The
-// point on the first repeat is dragged: across is the time, up and down the
-// feedback.
+// the loop makes it, and all as loud as Mix lets them out. Behind them is the
+// sound itself: at the left of the mark the level that went in over the last
+// moments, at its right what is still to come of it, so a loud note is seen
+// marching off to the right and fading. The point on the first repeat is
+// dragged: across is the time, up and down the feedback.
 
 import { type ParamSpec } from '../../../core/params'
 import {
@@ -62,7 +62,7 @@ const SLOTS = PAST_SEC * SLOTS_PER_SEC
 const MOST = 64
 /** Under this a repeat is not drawn. */
 const FAINT = 0.004
-/** A loop that grows is followed no further than this many times full scale. */
+/** A loop that grows is followed no further than to where it comes out at this many times full scale. */
 const RUNAWAY = 8
 /** How strongly the ink is laid for what went in, and for what is to come of it. */
 const PAST_INK = 0.3
@@ -86,10 +86,12 @@ function timesOf(span: number): readonly [number, number] {
 
 /**
  * The point in hand keeps the scale it was taken on until it is let go, so it
- * stays under the pointer and a drag reaches every time the scale shows. Only
- * a display knows it is in hand (`frame.dragging`); it leaves the scale here
- * for `handles`, which is given no more than the parameters. One point is in
- * hand at a time.
+ * stays under the pointer and a drag reaches every time the scale shows. Past
+ * the scale's right edge the point stops and the drag goes on, as many
+ * milliseconds to the pixel, to the longest time the knob has. Only a display
+ * knows it is in hand (`frame.dragging`); it leaves the scale here for
+ * `handles`, which is given no more than the parameters. One point is in hand
+ * at a time.
  */
 let held: { state: object; spec: ParamSpec | undefined; span: number; at: number } | null = null
 /** A hold whose display has not drawn for this long is gone with its plate. */
@@ -167,14 +169,15 @@ function echoHandle(
 ): DisplayHandle {
   const timeSpec = view.spec(time)
   const feedbackSpec = view.spec(feedback)
-  const [over, upTo] = isHeld ? [0, span] : timesOf(span)
+  // In hand the drag has no end but the knob's: the pointer is followed past the edge of the display.
+  const [over, upTo] = isHeld ? [0, Infinity] : timesOf(span)
   const pixelMs = (span * 1000) / scope.ahead
   const x = scope.nowX + Math.min(1, (view.value(time) * unit) / span) * scope.ahead
   const y = yOf(scope, view.value(feedback))
   const timeAt = (to: number): number => {
     // Taken and not moved, it stays where it is.
     if (!timeSpec || Math.abs(to - x) < 1e-6) return view.value(time)
-    let ms = clamp((to - scope.nowX) / scope.ahead, 0, 1) * span * 1000
+    let ms = Math.max(0, (to - scope.nowX) / scope.ahead) * span * 1000
     for (const step of ROUND_MS) {
       if (step < pixelMs) break
       const round = Math.round(ms / step) * step
@@ -280,7 +283,9 @@ export function ringComb(
 ): void {
   const { left, right } = comb
   const [lineL, lineR, passL, passR] = comb.work
-  const take = (level: number): number => (record ? record(level) : Math.min(level, RUNAWAY))
+  // Where the following ends is of what comes out: played quietly, a loop that grows still grows off the scale.
+  const most = RUNAWAY / Math.max(loop.level, FAINT)
+  const take = (level: number): number => (record ? record(level) : Math.min(level, most))
   /** What one more pass leaves of a sound that has been round so many times. */
   const lost = (passes: number): number => {
     const whole = Math.min(Math.floor(passes), MOST - 2)
@@ -358,6 +363,13 @@ function svfLowpass(cutHz: number, q: number, hz: number): number {
 /** A Butterworth low-pass of so many poles. */
 const butterworth = (cutHz: number, poles: number, hz: number): number =>
   1 / (1 + Math.pow(hz / cutHz, 2 * poles))
+
+/**
+ * What Mix lets through of the repeats where it is equal power: the sine of a
+ * quarter turn of it (`kit::equal_power`). The repeats are drawn as loud as
+ * they come out, so at no Mix there are none.
+ */
+const wetOf = (mix: number): number => Math.sin((clamp(mix, 0, 1) * Math.PI) / 2)
 
 /** One head at the Time knob's own distance, both sides fed alike: the plain loop. */
 const ONE_HEAD: Loop['heads'] = [[1, 1]]
@@ -724,9 +736,9 @@ function delayScope(view: DisplayView): Scope {
 
 const delay = plateDisplay<EchoState>({
   place: 'strip',
-  params: ['timeSec', 'feedback', 'damping'],
+  params: ['timeSec', 'feedback', 'damping', 'mix'],
   live: { signal: true },
-  info: 'The bars are the repeats of one loud click on a scale of seconds, lower by Feedback and Damping, and a bar on the right edge means they grow louder later. Behind them the sound that went in runs on from now, the mark, into its repeats. Drag the point: across is Time, up is Feedback.',
+  info: 'The bars are the repeats of one loud click on a scale of seconds, lower by Feedback, Damping and Mix, and a bar on the right edge means they grow louder later. Behind them the sound that went in runs on from now, the mark, into its repeats. Drag the point: across is Time, up is Feedback.',
   init: newEchoState,
   draw(frame) {
     ground(frame)
@@ -734,16 +746,17 @@ const delay = plateDisplay<EchoState>({
     const feedback = frame.value('feedback')
     const damping = frame.value('damping')
     const seconds = frame.value('timeSec')
+    const mix = frame.value('mix')
     const span = spanNow(frame, 'timeSec', seconds)
     const words = wordsOf(frame, seconds, feedback)
     drawEchoes(frame, {
       scope,
-      // `Delay.ts`: the delay feeds the wet gain as it is, and goes round
-      // through the damping filter and the feedback gain. Nothing in the loop
-      // holds a level down: where a pass gives back more than it took, the
-      // repeats grow, and are drawn growing to the top of the scale.
-      loop: { grid: 1, heads: ONE_HEAD, feedback, cross: 0, send: BOTH_SIDES, level: 1 },
-      key: `${feedback.toFixed(4)} ${damping.toFixed(1)} ${frame.sampleRate}`,
+      // `Delay.ts`: the delay feeds the wet gain, which is Mix itself, and
+      // goes round through the damping filter and the feedback gain. Nothing
+      // in the loop holds a level down: where a pass gives back more than it
+      // took, the repeats grow, and are drawn growing to the top of the scale.
+      loop: { grid: 1, heads: ONE_HEAD, feedback, cross: 0, send: BOTH_SIDES, level: mix },
+      key: `${feedback.toFixed(4)} ${damping.toFixed(1)} ${mix.toFixed(4)} ${frame.sampleRate}`,
       losses: (kept) => {
         // A Web Audio low-pass, whose Q of √½ is read as decibels: it stands
         // 1.7 dB proud under its corner, so over a Feedback of 0.82 a pass
@@ -820,9 +833,10 @@ const analogDelay = plateDisplay<AnalogState>({
     'intervalA',
     'intervalB',
     'spread',
+    'mix',
   ],
   live: { signal: true, meters: true },
-  info: 'The bars are the repeats of one loud click on a scale of seconds: a long Time, a low Tone and a worn line make them lower. The dots on the mark for now are the pitch of the echoes on each side, up for sharp. Drag the point for Time and Feedback.',
+  info: 'The bars are the repeats of one loud click on a scale of seconds: a long Time, a low Tone, a worn line and less Mix make them lower. The dots on the mark for now are the pitch of the echoes on each side, up for sharp. Drag the point for Time and Feedback.',
   init: () => ({ ...newEchoState(), clocks: [newReadings(1), newReadings(1)] }),
   draw(frame) {
     const { state } = frame
@@ -835,6 +849,7 @@ const analogDelay = plateDisplay<AnalogState>({
     const depth = frame.value('modDepth')
     const rate = frame.value('modRate')
     const spread = frame.value('spread')
+    const wet = wetOf(frame.value('mix'))
     const intervals = [frame.value('intervalA'), frame.value('intervalB')]
       .map((choice) => BBD_INTERVALS[Math.round(choice)] ?? 1)
       .filter((clock) => clock !== 1)
@@ -862,8 +877,8 @@ const analogDelay = plateDisplay<AnalogState>({
     const words = wordsOf(frame, seconds, feedback)
     drawEchoes(frame, {
       scope,
-      loop: { grid: 1, heads: ONE_HEAD, feedback, cross: 0, send: BOTH_SIDES, level: 1 },
-      key: `${feedback.toFixed(4)} ${inCorner.toFixed(1)} ${outCorner.toFixed(1)} ${age.toFixed(3)}`,
+      loop: { grid: 1, heads: ONE_HEAD, feedback, cross: 0, send: BOTH_SIDES, level: wet },
+      key: `${feedback.toFixed(4)} ${inCorner.toFixed(1)} ${outCorner.toFixed(1)} ${age.toFixed(3)} ${wet.toFixed(4)}`,
       losses: (kept) => {
         // Every repeat goes through both fourth-order low-passes and the low
         // cut once more: the first as well, since they stand in the line's path.
@@ -952,9 +967,20 @@ function tapeScope(view: DisplayView): Scope {
 
 const tapeEcho = plateDisplay<EchoState>({
   place: 'strip',
-  params: ['time', 'feedback', 'heads', 'wow', 'flutter', 'drive', 'lowCut', 'highCut', 'spread'],
+  params: [
+    'time',
+    'feedback',
+    'heads',
+    'wow',
+    'flutter',
+    'drive',
+    'lowCut',
+    'highCut',
+    'spread',
+    'mix',
+  ],
   live: { signal: true, meters: true },
-  info: 'The bars are the repeats of one loud click from every head on a scale of seconds, the left side above the line and the right below, so Ping Pong is seen to bounce. The dot on the mark for now is the tape speed, up for sharp. Drag the point for Time and Feedback.',
+  info: 'The bars are the repeats of one loud click from every head on a scale of seconds, as loud as Mix lets them out, the left side above the line and the right below, so Ping Pong is seen to bounce. The dot on the mark for now is the tape speed, up for sharp. Drag the point for Time and Feedback.',
   init: newEchoState,
   draw(frame) {
     ground(frame)
@@ -965,6 +991,7 @@ const tapeEcho = plateDisplay<EchoState>({
     const spread = frame.value('spread')
     const lowCut = frame.value('lowCut')
     const highCut = frame.value('highCut')
+    const wet = wetOf(frame.value('mix'))
     // The record path: tanh at unity gain for a small sound, harder with Drive.
     const drive = 1 + 3 * frame.value('drive')
     const running = frame.powered && frame.dt > 0 && frame.hasMeter('speed')
@@ -990,9 +1017,9 @@ const tapeEcho = plateDisplay<EchoState>({
         // Ping Pong records the input on the left tape and crosses the feedback.
         cross: spread,
         send: [1, 1 - spread],
-        level: 1,
+        level: wet,
       },
-      key: `${mode} ${feedback.toFixed(4)} ${spread.toFixed(3)} ${lowCut.toFixed(1)} ${highCut.toFixed(1)} ${drive.toFixed(3)}`,
+      key: `${mode} ${feedback.toFixed(4)} ${spread.toFixed(3)} ${lowCut.toFixed(1)} ${highCut.toFixed(1)} ${drive.toFixed(3)} ${wet.toFixed(4)}`,
       losses: (kept) =>
         // The cuts stand in the feedback path only: the first echo is whole.
         keptLevels(
@@ -1066,9 +1093,9 @@ function memoryBoxes(view: Pick<DisplayView, 'width' | 'height'>): MemoryBoxes {
 
 const echoMemory = plateDisplay<MemoryState>({
   place: 'strip',
-  params: ['time', 'feedback', 'echo', 'tone', 'memory', 'reach', 'size', 'wander'],
+  params: ['time', 'feedback', 'echo', 'tone', 'memory', 'reach', 'size', 'wander', 'mix'],
   live: { signal: true, meters: true },
-  info: 'Above, the echo: the bars are the repeats of one loud click on a scale of seconds. Below, the memory, from Reach ago at the left to now at the right, with a mark in the second colour where a moment is being played back. Drag the point for Time and Feedback.',
+  info: 'Above, the echo: the bars are the repeats of one loud click on a scale of seconds, as loud as Echo and Mix let them out. Below, the memory, from Reach ago at the left to now at the right, with a mark in the second colour where a moment is being played back. Drag the point for Time and Feedback.',
   init: () => ({
     ...newEchoState(),
     minute: new History(MEMORY_LONGEST_SEC, MEMORY_SLOTS, 0, 'max'),
@@ -1082,6 +1109,7 @@ const echoMemory = plateDisplay<MemoryState>({
     const feedback = frame.value('feedback')
     const echo = frame.value('echo')
     const tone = frame.value('tone')
+    const wet = wetOf(frame.value('mix'))
     const running = frame.powered && frame.dt > 0 && frame.hasMeter('time')
     let place = 1
     if (running) {
@@ -1104,9 +1132,10 @@ const echoMemory = plateDisplay<MemoryState>({
           (hz) =>
             svfLowpass(tone, 0.6, hz) * powerOfDb(onePoleDb('highpass', MEMORY_LOW_CUT_HZ, hz)),
         ),
-      // What is recorded and what is played are both limited: linear to full scale.
+      // What is recorded and what is played are both limited: linear to full
+      // scale. Mix comes after the limit.
       record: softLimit,
-      out: softLimit,
+      out: (level) => softLimit(level) * wet,
       seconds,
       place,
       span,

@@ -748,6 +748,15 @@ export const DETUNE_SMEAR_MS = [3.11 + 5.23, 3.97 + 6.41] as const
 const DETUNE_DRIFT_MS = 1.5
 /** The delay at the rim, ms: past the latest a copy's head can be. */
 const DETUNE_RIM_MS = 120
+/** What Drift at full adds to a copy's detune either way, cents (`kDriftCents`). */
+const DETUNE_DRIFT_CENTS = 8
+/** Cents that have not changed for this long are of a device that is not working: it sleeps on silence. */
+const DETUNE_STANDS_SEC = 0.15
+/**
+ * A device that has worked this long has its settings in its cents: a change
+ * of Detune glides for 20 ms (`kDetuneGlideSeconds`), and this is five of those.
+ */
+const DETUNE_TAKEN_SEC = 0.1
 
 /**
  * How far from the listener a copy so late stands, 0..1: by the square root,
@@ -830,13 +839,41 @@ function detuneHandles(view: DisplayView): DisplayHandle[] {
  */
 const detuneRing = (mix: number): number => Math.max(5, detuneBead(mix, 1) + 2.25)
 
-const stereoDetune = plateDisplay<Scope>({
+/**
+ * The copies' detune as the device reads it, and what that reading is of. The
+ * device works out its cents only while it has sound to work on: a Detune
+ * turned in silence is not in them until sound comes. So the display keeps
+ * the settings the cents were last known to be of, and where the settings
+ * have moved on it says the cents the device will come to: Detune, and what
+ * Drift had added when it last worked, which stands still while it sleeps.
+ */
+interface DetuneState extends Scope {
+  /** The two readings on the frame before; null until one has come. */
+  cents: [number, number] | null
+  /** For how long they have been the same, and for how long they have been moving, in seconds. */
+  stoodFor: number
+  workedFor: number
+  /** The Detune and Drift they are of; null where that is not known. */
+  of: { detune: number; drift: number } | null
+  /** What Drift had added to each copy, as a share of the most it adds: −1..1. */
+  wander: [number, number]
+}
+
+const stereoDetune = plateDisplay<DetuneState>({
   place: 'window',
   columns: 2,
   params: ['detune', 'delay', 'drift', 'feedback', 'width', 'mix'],
   live: { meters: true, stereo: true },
   info: 'The stereo field from where you sit, the sound a cloud. The beads are the two copies, sharp on the left and flat on the right, further out the later: each creeps along its rail as its pitch shifts, then jumps back. The numbers are detune and Delay, the dots repeats. The ring sets Delay and Width.',
-  init: scope,
+  init: () => ({
+    ...scope(),
+    cents: null,
+    // Standing, until the readings are seen to move.
+    stoodFor: Infinity,
+    workedFor: 0,
+    of: null,
+    wander: [0, 0],
+  }),
   draw(frame) {
     const { ctx, colours, state } = frame
     ground(frame)
@@ -850,6 +887,35 @@ const stereoDetune = plateDisplay<Scope>({
     const mix = frame.value('mix')
     // The device's own readings, once the first has come: a head is never at no delay.
     const live = frame.powered && frame.hasMeter('delayLeft') && frame.meter('delayLeft') > 0
+    // Whether the cents read are of the Detune and Drift set now.
+    let read = false
+    if (live) {
+      const cents: [number, number] = [frame.meter('centsLeft'), frame.meter('centsRight')]
+      const most = DETUNE_DRIFT_CENTS * drift
+      if (state.cents === null) {
+        // The first reading is taken to be of what is set where it can be: within Drift's reach of Detune.
+        const fits =
+          Math.abs(cents[0] - detune) <= most + 0.05 && Math.abs(cents[1] + detune) <= most + 0.05
+        state.of = fits ? { detune, drift } : null
+      } else if (cents[0] !== state.cents[0] || cents[1] !== state.cents[1]) {
+        state.stoodFor = 0
+      } else {
+        state.stoodFor += frame.dt
+      }
+      state.workedFor = state.stoodFor >= DETUNE_STANDS_SEC ? 0 : state.workedFor + frame.dt
+      state.cents = cents
+      // A working device has taken what is set; one that stands has what was set when it last worked.
+      read =
+        state.workedFor >= DETUNE_TAKEN_SEC ||
+        (state.of !== null && state.of.detune === detune && state.of.drift === drift)
+      if (read) {
+        state.of = { detune, drift }
+        for (const side of [0, 1] as const) {
+          const drifted = cents[side] - (side === 0 ? detune : -detune)
+          state.wander[side] = most > 0 ? clamp(drifted / most, -1, 1) : 0
+        }
+      }
+    }
     listen(frame, state)
     drawField(frame, field)
     // The dry sound, where and when it was: at the listener, at its part of the mix.
@@ -900,11 +966,10 @@ const stereoDetune = plateDisplay<Scope>({
         handle(frame, point.x, point.y, { hot: frame.hot === point.key, radius: detuneRing(mix) })
       }
 
-      const cents = live
+      // The detune the device reads, or the one it will come to once it works.
+      const cents = read
         ? frame.meter(side === 0 ? 'centsLeft' : 'centsRight')
-        : side === 0
-          ? detune
-          : -detune
+        : (side === 0 ? detune : -detune) + DETUNE_DRIFT_CENTS * drift * state.wander[side]
       const late = live ? frame.meter(side === 0 ? 'delayLeft' : 'delayRight') : centre
       const hold = live ? clamp(frame.meter(side === 0 ? 'holdLeft' : 'holdRight'), 0, 1) : 1
       // Each time round the copy is as late again and that much quieter, and

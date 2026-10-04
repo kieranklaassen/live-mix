@@ -25,6 +25,7 @@ import {
   phaserDb,
   phaserTune,
   phaserTurn,
+  rotaryBalance,
   rotaryGain,
   rotarySwing,
   scopeSpanSec,
@@ -271,10 +272,38 @@ describe('the Tremolo display', () => {
     expect(up.drag(9, -900)).toEqual({ depth: 1 })
     expect(up.drag(9, 900)).toEqual({ depth: 0 })
     expect(pointOf(tremolo, TREMOLO_PARAMS, { depth: 0.9 }).reset?.()).toEqual({ depth: 0.55 })
-    // With no Mix nothing swings: the point has nowhere to go and Depth stays.
-    const flat = pointOf(tremolo, TREMOLO_PARAMS, { mix: 0, depth: 0.4 })
-    expect(flat.y).toBe(5.25)
-    expect(flat.drag(9, 40)).toEqual({ depth: 0.4 })
+  })
+
+  it('leaves the point within reach under half the Mix, where the swing has next to nowhere to go', () => {
+    // With no Mix nothing swings, and the line the swing ends on lies at the top with the trace.
+    const values = { mix: 0, depth: 0.4 }
+    const drawn = drawDisplay(tremolo, TREMOLO_PARAMS, { values, meters: { phase: 0 } })
+    const trace = strokes(drawn).filter((stroke) => stroke.points.length > 10)
+    for (const at of trace.flatMap((stroke) => stroke.points)) expect(at.y).toBeCloseTo(5, 9)
+    expect(scaleLines(drawn).every((y) => y === 5.5)).toBe(true)
+    // The point keeps half its travel: 19 px for all of Depth, and it is taken and set there.
+    const flat = pointOf(tremolo, TREMOLO_PARAMS, values)
+    expect(flat.y).toBeCloseTo(5 + 0.4 * 19, 9)
+    expect(dots(drawn)).toContainEqual({ x: 9, y: flat.y, r: 3.5 })
+    expect(flat.drag(9, flat.y)).toEqual({ depth: 0.4 })
+    expect(flat.drag(9, 5 + 0.8 * 19).depth).toBeCloseTo(0.8, 9)
+    expect(pointOf(tremolo, TREMOLO_PARAMS, { mix: 0, depth: 0.8 }).y).toBeCloseTo(5 + 0.8 * 19, 9)
+    expect(flat.drag(9, 900)).toEqual({ depth: 1 })
+    expect(flat.drag(9, -900)).toEqual({ depth: 0 })
+    // Pan and Vibrato: up from the middle, a quarter of the box for all of it.
+    const pan = pointOf(tremolo, TREMOLO_PARAMS, { mode: 1, mix: 0, depth: 0.5 })
+    expect(pan.y).toBeCloseTo(24 - 0.5 * 9.5, 9)
+    expect(pan.drag(9, 24 - 0.25 * 9.5).depth).toBeCloseTo(0.25, 9)
+    expect(pointOf(tremolo, TREMOLO_PARAMS, { mode: 3, mix: 0.2, depth: 1 }).y).toBeCloseTo(14.5, 9)
+    // It does not jump where Mix passes a half: from there down it stands where it stood at a half.
+    for (const mix of [0.5, 0.49, 0.25, 0])
+      expect(pointOf(tremolo, TREMOLO_PARAMS, { depth: 0.8, mix }).y).toBeCloseTo(5 + 0.4 * 38, 9)
+    // Over a half it is on the line the swing ends on, as before.
+    const most = { depth: 0.8, mix: 0.75 }
+    expect(pointOf(tremolo, TREMOLO_PARAMS, most).y).toBeCloseTo(5 + 0.6 * 38, 9)
+    expect(scaleLines(drawDisplay(tremolo, TREMOLO_PARAMS, { values: most }))).toContain(
+      Math.floor(5 + 0.6 * 38) + 0.5,
+    )
   })
 
   it('keeps the ring whole on the strip where the line is at an edge of the scope', () => {
@@ -286,7 +315,6 @@ describe('the Tremolo display', () => {
       [{ mode: 2, depth: 1 }, 43, 42.75],
       [{ mode: 1, depth: 1 }, 5, 5.25],
       [{ mode: 3, depth: 1 }, 5, 5.25],
-      [{ mode: 0, depth: 0.7, mix: 0 }, 5, 5.25],
     ]
     for (const [values, line, ring] of edges) {
       const point = pointOf(tremolo, TREMOLO_PARAMS, values)
@@ -302,10 +330,6 @@ describe('the Tremolo display', () => {
       const moved = point.drag(9, point.y + inward).depth
       // And pushed on past the edge it stays at the end it is on.
       expect(point.drag(9, point.y - inward * 3)).toEqual({ depth })
-      if ((values.mix ?? 1) === 0) {
-        expect(moved).toBe(depth)
-        continue
-      }
       expect(Math.abs(moved - depth)).toBeLessThan(1.3 / (values.mode % 2 === 1 ? 19 : 38))
       // Brought back to where it was taken, the ring is at its end again, and so is Depth.
       const there = pointOf(tremolo, TREMOLO_PARAMS, { ...values, depth: moved })
@@ -360,6 +384,253 @@ describe('the Tremolo display', () => {
         ?.args[2] as number
     expect(word('L')).toBeLessThan(24)
     expect(word('R')).toBeGreaterThan(24)
+  })
+
+  /** How alike two rows of numbers move: 1 is in step, 0 not at all. */
+  const alike = (a: number[], b: number[]): number => {
+    const mean = (row: number[]): number => row.reduce((sum, value) => sum + value, 0) / row.length
+    const [ma, mb] = [mean(a), mean(b)]
+    let both = 0
+    let own = 0
+    let other = 0
+    for (let n = 0; n < a.length; n++) {
+      both += (a[n] - ma) * (b[n] - mb)
+      own += (a[n] - ma) ** 2
+      other += (b[n] - mb) ** 2
+    }
+    return both / Math.sqrt(own * other)
+  }
+
+  /** The pitch of a block of a tone, from its rising zero crossings, in Hz. */
+  const pitchOf = (block: Float32Array): number => {
+    let first = -1
+    let last = -1
+    let count = 0
+    for (let i = 1; i < block.length; i++) {
+      if (block[i - 1] >= 0 || block[i] < 0) continue
+      const at = i - 1 - block[i - 1] / (block[i] - block[i - 1])
+      if (first < 0) first = at
+      last = at
+      count += 1
+    }
+    return ((count - 1) / (last - first)) * RATE
+  }
+
+  /**
+   * Play a 1 kHz tone through Vibrato and draw the display as the plate does:
+   * sixty frames a second, a reading every other one. For every frame, how
+   * sharp the tone came out (in the 2 % that full Depth bends it by) and how
+   * far up the scale the mark stood, 1 being the scale's sharp end.
+   */
+  async function bends(
+    values: Readonly<Record<string, number>>,
+    seconds: number,
+  ): Promise<{ heard: number[]; shown: number[] }> {
+    const device = await loadWasmDevice('tremolo', RATE)
+    set(device, TREMOLO_PARAMS, values)
+    const state = tremolo.init?.()
+    const frames = RATE / 60
+    const block = new Float32Array(frames)
+    const pitch: number[] = []
+    const marks: number[] = []
+    let meters = { phase: 0, left: 0, right: 0 }
+    for (let n = 0; n < seconds * 60; n++) {
+      for (let i = 0; i < frames; i++)
+        block[i] = 0.5 * Math.sin(((n * frames + i) * 1000 * TWO_PI) / RATE)
+      device.processBlock(block)
+      pitch.push((pitchOf(device.view(device.device.device_out_left(), frames)) / 1000 - 1) / 0.02)
+      if (n % 2 === 0)
+        meters = { phase: meter(device, 0), left: meter(device, 1), right: meter(device, 2) }
+      const drawn = drawDisplay(tremolo, TREMOLO_PARAMS, {
+        values,
+        meters,
+        state,
+        now: 10 + n / 60,
+        dt: n === 0 ? 0 : 1 / 60,
+      })
+      marks.push((24 - (dots(drawn).find((dot) => dot.r === 3)?.y ?? NaN)) / 19)
+    }
+    // A frame's pitch is of its middle and the mark of its end: the mark is
+    // set against the pitch of the frame before it and the frame after. The
+    // first two seconds are left out, while the display finds its feet.
+    const heard: number[] = []
+    const shown: number[] = []
+    for (let n = 120; n < marks.length - 1; n++) {
+      heard.push((pitch[n] + pitch[n + 1]) / 2)
+      shown.push(marks[n])
+    }
+    return { heard, shown }
+  }
+
+  it('draws Vibrato with Shape Random as the pitch, the mark up while the note is sharp', async () => {
+    const random = { mode: 3, shape: 3, depth: 1, drift: 0, smooth: 0.2, mix: 1 }
+    // A fast one too: there the readings come less than twice a cycle.
+    for (const [rate, close] of [
+      [2, 0.95],
+      [4.5, 0.9],
+      [14, 0.7],
+    ]) {
+      const { heard, shown } = await bends({ ...random, rate }, 10)
+      expect(alike(heard, shown), `${rate} Hz`).toBeGreaterThan(close)
+      // Where both are clear of the middle the mark is on the pitch's side.
+      let agree = 0
+      let opposed = 0
+      for (let n = 0; n < heard.length; n++) {
+        if (Math.abs(heard[n]) < 0.1 || Math.abs(shown[n]) < 0.1) continue
+        if (Math.sign(heard[n]) === Math.sign(shown[n])) agree += 1
+        else opposed += 1
+      }
+      expect(agree, `${rate} Hz`).toBeGreaterThan(100)
+      expect(opposed, `${rate} Hz`).toBeLessThanOrEqual(agree / 50)
+      // Between two targets the slope is half a sine a quarter of their distance tall:
+      // Random never bends by more than half of what a sine does, and the mark says so.
+      expect(Math.max(...heard.map(Math.abs)), `${rate} Hz`).toBeLessThan(0.55)
+      expect(Math.max(...shown.map(Math.abs)), `${rate} Hz`).toBeLessThan(0.55)
+      expect(Math.max(...shown.map(Math.abs)), `${rate} Hz`).toBeGreaterThan(0.2)
+    }
+    // The other shapes as before: a sine's mark is the pitch too, the whole scale of it.
+    const sine = await bends({ ...random, shape: 0, rate: 2 }, 5)
+    expect(alike(sine.heard, sine.shown)).toBeGreaterThan(0.98)
+    expect(Math.max(...sine.shown)).toBeCloseTo(1, 1)
+  })
+
+  it('draws the line of Vibrato with Shape Random through the pitch of the last moments', async () => {
+    const values = { mode: 3, shape: 3, depth: 1, drift: 0, smooth: 0.2, mix: 1, rate: 4.5 }
+    const device = await loadWasmDevice('tremolo', RATE)
+    set(device, TREMOLO_PARAMS, values)
+    const state = tremolo.init?.()
+    const frames = RATE / 60
+    const block = new Float32Array(frames)
+    const pitch: number[] = []
+    let meters = { phase: 0, left: 0, right: 0 }
+    let drawn = drawDisplay(tremolo, TREMOLO_PARAMS, { values, state })
+    for (let n = 0; n < 360; n++) {
+      for (let i = 0; i < frames; i++)
+        block[i] = 0.5 * Math.sin(((n * frames + i) * 1000 * TWO_PI) / RATE)
+      device.processBlock(block)
+      pitch.push((pitchOf(device.view(device.device.device_out_left(), frames)) / 1000 - 1) / 0.02)
+      if (n % 2 === 0)
+        meters = { phase: meter(device, 0), left: meter(device, 1), right: meter(device, 2) }
+      drawn = drawDisplay(tremolo, TREMOLO_PARAMS, {
+        values,
+        meters,
+        state,
+        now: 10 + n / 60,
+        dt: n === 0 ? 0 : 1 / 60,
+      })
+    }
+    // The line up to now, on a strip 184 wide: two seconds are 176 px, and now is at 127.2.
+    const [line] = strokes(drawn).filter((stroke) => stroke.points.length > 10 && !stroke.dashed)
+    expect(line.points[line.points.length - 1].x).toBeCloseTo(127.2, 6)
+    const heard: number[] = []
+    const shown: number[] = []
+    for (let back = 2; back < 80; back++) {
+      // The frame that ended so many frames ago, by its middle.
+      const x = 127.2 - ((back + 0.5) / 60) * (176 / 2)
+      const at = line.points.reduce((best, point) =>
+        Math.abs(point.x - x) < Math.abs(best.x - x) ? point : best,
+      )
+      heard.push(pitch[pitch.length - 1 - back])
+      shown.push((24 - at.y) / 19)
+    }
+    expect(alike(heard, shown)).toBeGreaterThan(0.97)
+    for (let n = 0; n < heard.length; n++) expect(Math.abs(heard[n] - shown[n])).toBeLessThan(0.1)
+    // Nothing is drawn of what comes: no one knows Random's next target.
+    expect(strokes(drawn).filter((stroke) => stroke.points.length > 10 && stroke.dashed)).toEqual(
+      [],
+    )
+  })
+
+  it('bends Vibrato less under 1 Hz, where the swing of the delay stops at 3 ms', async () => {
+    // `tremolo.h`: the swing is the lesser of 3 ms and 2 % / (2π · rate), so at
+    // 0.3 Hz the bend is 0.003 · 2π · 0.3 = 0.565 % at the most: 0.283 of the scale.
+    const values = { mode: 3, shape: 0, depth: 1, drift: 0, smooth: 0, mix: 1, rate: 0.3 }
+    const { heard, shown } = await bends(values, 9)
+    expect(Math.max(...heard)).toBeCloseTo(0.283, 1)
+    expect(Math.max(...shown)).toBeCloseTo(0.283, 2)
+    expect(Math.min(...shown)).toBeCloseTo(-0.283, 2)
+    expect(alike(heard, shown)).toBeGreaterThan(0.98)
+    // The line it swings to stays where Depth has it: the scale's end is 2 %.
+    expect(pointOf(tremolo, TREMOLO_PARAMS, values).y).toBe(5.25)
+    // From 1.07 Hz up it is the whole of it.
+    const full = drawDisplay(tremolo, TREMOLO_PARAMS, {
+      values: { ...values, rate: 1.07 },
+      meters: { phase: 0 },
+    })
+    const trace = strokes(full).filter((stroke) => stroke.points.length > 10)
+    expect(Math.min(...trace.flatMap((stroke) => stroke.points.map((at) => at.y)))).toBeCloseTo(
+      5,
+      2,
+    )
+  })
+
+  it('sets the right side apart by Stereo Phase in Harmonic, as the device does', async () => {
+    // With the Crossover at 4 kHz a 100 Hz tone is all in the low band but a
+    // fortieth of it, and each side turns that band down by its own modulator.
+    const values = {
+      ...{ mode: 2, shape: 0, depth: 1, drift: 0, smooth: 0, mix: 1, rate: 2 },
+      crossover: 4000,
+      phase: 90,
+    }
+    const device = await loadWasmDevice('tremolo', RATE)
+    set(device, TREMOLO_PARAMS, values)
+    const state = tremolo.init?.()
+    const frames = 960
+    const block = new Float32Array(frames)
+    const marks: [number, number][] = []
+    let apart = 0
+    for (let n = 0; n < 150; n++) {
+      for (let i = 0; i < frames; i++)
+        block[i] = 0.5 * Math.sin(((n * frames + i) * 100 * TWO_PI) / RATE)
+      device.processBlock(block)
+      const level = (pointer: number): number =>
+        Math.sqrt(device.view(pointer, frames).reduce((sum, s) => sum + s * s, 0) / frames) /
+        (0.5 * Math.SQRT1_2)
+      const heard = [
+        level(device.device.device_out_left()),
+        level(device.device.device_out_right()),
+      ]
+      const drawn = drawDisplay(tremolo, TREMOLO_PARAMS, {
+        values,
+        meters: { phase: meter(device, 0), left: meter(device, 1), right: meter(device, 2) },
+        state,
+        now: 10 + n / 50,
+        dt: n === 0 ? 0 : 1 / 50,
+      })
+      // The low band's level as the marks have it: whole at the top, none at the foot.
+      const mark = (r: number): number =>
+        1 - ((dots(drawn).find((dot) => dot.r === r)?.y ?? NaN) - 5) / 38
+      marks.push([mark(3), mark(2)])
+      if (n < 25) continue
+      // A block's level is of its middle: between the marks at its two ends.
+      for (const side of [0, 1]) {
+        const shown = (marks[n][side] + marks[n - 1][side]) / 2
+        expect(Math.abs(shown - heard[side]), `side ${side}, block ${n}`).toBeLessThan(0.05)
+      }
+      apart = Math.max(apart, Math.abs(heard[0] - heard[1]))
+    }
+    // A quarter of a cycle apart, the two sides are as much as 0.7 of the swing apart.
+    expect(apart).toBeGreaterThan(0.6)
+    // The right side's line is the fainter one, behind; and with no Stereo Phase there is one line and one mark.
+    const lines = (drawn: RecordingContext): Stroke[] =>
+      strokes(drawn).filter((stroke) => stroke.points.length > 10 && !stroke.dashed)
+    const both = drawDisplay(tremolo, TREMOLO_PARAMS, { values, meters: { phase: 0 } })
+    expect(lines(both).map((stroke) => stroke.alpha)).toEqual([INK.back, 1])
+    expect(dots(both).filter((dot) => dot.r === 2).length).toBe(1)
+    const one = drawDisplay(tremolo, TREMOLO_PARAMS, {
+      values: { ...values, phase: 0 },
+      meters: { phase: 0 },
+    })
+    expect(lines(one).length).toBe(1)
+    expect(dots(one).filter((dot) => dot.r === 2).length).toBe(0)
+    // Half a cycle apart the right side is the left turned over: up while the left is down.
+    const over = drawDisplay(tremolo, TREMOLO_PARAMS, {
+      values: { ...values, phase: 180 },
+      meters: { phase: 0.25 },
+      dt: 1 / 60,
+    })
+    expect(dots(over).find((dot) => dot.r === 3)?.y).toBeCloseTo(5, 1)
+    expect(dots(over).find((dot) => dot.r === 2)?.y).toBeCloseTo(43, 1)
   })
 })
 
@@ -1302,6 +1573,87 @@ describe('the Rotary display', () => {
     const apart = lines({ speed: 0 })
     expect(apart.length).toBe(4)
     expect(apart.map((stroke) => stroke.alpha < 0.5)).toEqual([true, false, true, false])
+  })
+
+  it('gives each rotor the level Balance gives it', async () => {
+    // `rotary.h`: √2 · sin and cos of a quarter turn of Balance: both whole at the middle.
+    expect(rotaryBalance('horn', 0.5)).toBeCloseTo(1, 12)
+    expect(rotaryBalance('drum', 0.5)).toBeCloseTo(1, 12)
+    expect(rotaryBalance('horn', 0)).toBe(0)
+    expect(rotaryBalance('drum', 0)).toBeCloseTo(Math.SQRT2, 12)
+    expect(rotaryBalance('horn', 1)).toBeCloseTo(Math.SQRT2, 12)
+    expect(rotaryBalance('drum', 1)).toBeCloseTo(0, 12)
+    expect(rotaryBalance('horn', 0.25)).toBeCloseTo(Math.SQRT2 * Math.sin(Math.PI / 8), 12)
+    // The device, with nothing swinging: a 100 Hz tone is the drum's, a 6 kHz one the horn's.
+    const still = { speed: 2, hornDepth: 0, drumDepth: 0, distance: 0, spread: 0 }
+    const heard = async (hz: number, balance: number): Promise<number> => {
+      const { left } = await turn({ ...still, balance }, hz, 0.5, 0)
+      return left[left.length - 1]
+    }
+    for (const balance of [0, 0.25, 1]) {
+      expect((await heard(100, balance)) / (await heard(100, 0.5))).toBeCloseTo(
+        rotaryBalance('drum', balance),
+        1,
+      )
+      expect((await heard(6000, balance)) / (await heard(6000, 0.5))).toBeCloseTo(
+        rotaryBalance('horn', balance),
+        1,
+      )
+    }
+
+    // The display, at rest on a plate: a rotor's scope is 44 high, its foot the level of nothing.
+    const foot = (row: 0 | 1): number => 4 + row * 48 + 44
+    const lines = (balance: number): Stroke[] =>
+      strokes(drawDisplay(rotary, ROTARY_PARAMS, { values: { spread: 0, balance } })).filter(
+        (stroke) => stroke.points.length > 10,
+      )
+    const span = (line: Stroke): [number, number] => {
+      const ys = line.points.map((point) => point.y)
+      return [Math.min(...ys), Math.max(...ys)]
+    }
+    const [horn, drum] = lines(0.5)
+    // All the way to the drum the horn is not heard: its line lies on the foot, and its mark with it.
+    const [silent, loud] = lines(0)
+    expect(span(silent)).toEqual([foot(0), foot(0)])
+    const marks = dots(drawDisplay(rotary, ROTARY_PARAMS, { values: { spread: 0, balance: 0 } }))
+    expect(marks.filter((dot) => dot.r === 2.5).map((dot) => dot.y)[0]).toBe(foot(0))
+    // The drum is √2 as loud. Facing a microphone that is a level of 1.58,
+    // over the 1.5 at the top of the scale, so the scale gives way that much.
+    const facing = Math.SQRT2 * rotaryGain('drum', 0, -1, rotarySwing('drum', 0.5, 0.3), 0)
+    expect(facing).toBeCloseTo(1.577, 3)
+    loud.points.forEach((point, i) =>
+      expect(foot(1) - point.y).toBeCloseTo(
+        ((Math.SQRT2 * 1.5) / facing) * (foot(1) - drum.points[i].y),
+        4,
+      ),
+    )
+    // And the other way round at the other end.
+    expect(span(lines(1)[1])).toEqual([foot(1), foot(1)])
+    // Half way to the drum the horn is 0.77 of itself.
+    lines(0.25)[0].points.forEach((point, i) =>
+      expect(foot(0) - point.y).toBeCloseTo(
+        rotaryBalance('horn', 0.25) * (foot(0) - horn.points[i].y),
+        4,
+      ),
+    )
+
+    // A deep horn close up, with all of Balance: its level reaches 2.08, over
+    // the 1.5 at the top of the scale. The scale gives way to hold it: the
+    // line is whole, two pixels under the top of its scope at the highest,
+    // and the line across at a level of 1 has sunk to 1 / 2.08 of the way up.
+    const deep = { spread: 0, balance: 1, hornDepth: 1, distance: 0 }
+    const drawn = drawDisplay(rotary, ROTARY_PARAMS, { values: deep })
+    const [over] = strokes(drawn).filter((stroke) => stroke.points.length > 10)
+    const peak = Math.SQRT2 * rotaryGain('horn', 0, -1, 0.75, 0)
+    expect(peak).toBeCloseTo(2.083, 3)
+    expect(span(over)[0]).toBeGreaterThanOrEqual(6)
+    expect(span(over)[0]).toBeLessThan(6.01)
+    expect(span(over)[1]).toBeCloseTo(48 - 0.25 * 42, 1)
+    expect(scaleLines(drawn)).toContain(Math.floor(48 - 42 / peak) + 0.5)
+    // At the middle of Balance the scale is as it was: 1 is two thirds of the way up.
+    expect(scaleLines(drawDisplay(rotary, ROTARY_PARAMS))).toContain(
+      Math.floor(48 - 42 / 1.5) + 0.5,
+    )
   })
 
   it('shows a rotor on its way to another speed', () => {

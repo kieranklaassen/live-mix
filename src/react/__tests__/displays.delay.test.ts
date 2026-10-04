@@ -28,6 +28,15 @@ import {
 
 const stock = stockDescriptors()
 const paramsOf = (id: string): Readonly<Record<string, ParamSpec>> => stock.get(id)?.params ?? {}
+/**
+ * A device's settings with Mix all the way up, where every repeat comes out
+ * as loud as its loop has it: the tests of a loop work its levels by hand.
+ * What Mix does to them has tests of its own, on the device's own settings.
+ */
+const allWet = (id: string): Readonly<Record<string, ParamSpec>> => {
+  const params = paramsOf(id)
+  return { ...params, mix: { ...params.mix, default: 1 } }
+}
 const { ink, accent } = PLAIN_COLOURS
 
 // A strip at rest is 184 by 48: the scope is 176 by 40 inside it, now stands
@@ -295,7 +304,8 @@ describe('the scale of seconds', () => {
 
 describe('the Delay display', () => {
   const { display } = DELAY_FACES.delay
-  const params = paramsOf('delay')
+  const params = allWet('delay')
+  const set = paramsOf('delay')
 
   it('stands a bar at every delay time, each as much lower as Feedback says', () => {
     const values = { timeSec: 0.35, feedback: 0.5, damping: 20000 }
@@ -488,7 +498,7 @@ describe('the Delay display', () => {
     expect(held.x).toBeCloseTo(NOW_X + AHEAD * 0.75, 6)
     // And the whole of the scale is in reach: from the knob's shortest to its right edge.
     expect(held.drag(0, held.y).timeSec).toBe(0.001)
-    expect(held.drag(184, held.y).timeSec).toBe(2)
+    expect(held.drag(NOW_X + AHEAD, held.y).timeSec).toBe(2)
     const drawn = drawDisplay(display, params, { ...taken, values })
     expect(Math.abs(bars(drawn)[0].x + 1.5 - held.x)).toBeLessThanOrEqual(0.51)
     expect(bars(drawn).length).toBe(1)
@@ -500,6 +510,101 @@ describe('the Delay display', () => {
     const [free] = display.handles?.(view) ?? []
     expect(free.x).toBeCloseTo(NOW_X + (AHEAD * 1.5) / 8, 6)
     expect(Math.abs(bars(after)[0].x + 1.5 - free.x)).toBeLessThanOrEqual(0.51)
+  })
+
+  it('follows the pointer past the right edge while in hand, to the longest Time the knob has', () => {
+    // Taken at the default, 350 ms on the scale of two seconds: 14.6 ms a pixel.
+    const state = display.init?.()
+    const taken = { state, hot: 'repeat', dragging: true }
+    drawDisplay(display, set, taken)
+    const pointAt = (timeSec: number) =>
+      (display.handles?.(viewOf(display, set, { values: { timeSec } })) ?? [])[0]
+    const first = pointAt(0.35)
+    // The scale ends at the right edge of the display. The pointer goes on:
+    // as far again is four seconds, and half as far three.
+    expect(first.drag(NOW_X + AHEAD, first.y).timeSec).toBe(2)
+    expect(first.drag(NOW_X + 1.5 * AHEAD, first.y).timeSec).toBe(3)
+    expect(first.drag(NOW_X + 1.25 * AHEAD + 0.3, first.y).timeSec).toBe(2.5)
+    expect(first.drag(NOW_X + 2 * AHEAD, first.y).timeSec).toBe(4)
+    // No further than the knob.
+    expect(first.drag(NOW_X + 5 * AHEAD, first.y).timeSec).toBe(4)
+    // A drag asks for the point again on every move. Out there it stands on
+    // the edge, and the pointer is read from now as before, so nothing jumps:
+    // on, back, and under the edge again.
+    const out = pointAt(3)
+    expect(out.x).toBe(NOW_X + AHEAD)
+    expect(out.drag(NOW_X + 1.5 * AHEAD, out.y).timeSec).toBe(3)
+    expect(out.drag(NOW_X + 1.75 * AHEAD, out.y).timeSec).toBe(3.5)
+    expect(out.drag(NOW_X + AHEAD - 1, out.y).timeSec).toBeCloseTo(2 - 2 / AHEAD, 2)
+    expect(out.drag(NOW_X + 0.5 * AHEAD, out.y).timeSec).toBe(1)
+    // The one repeat it has is drawn nowhere: it is later than the scale shows.
+    expect(bars(drawDisplay(display, set, { ...taken, values: { timeSec: 3 } }))).toEqual([])
+    expect(shapes(drawDisplay(display, set, { ...taken, values: { timeSec: 3 } })).words).toContain(
+      '3.00 s  35%',
+    )
+    // Let go, the scale steps to hold it and the point is under the time again.
+    drawDisplay(display, set, { state, values: { timeSec: 3 } })
+    expect(pointAt(3).x).toBeCloseTo(NOW_X + gapOf(3), 6)
+    expect(spanOf(3)).toBeGreaterThanOrEqual(3 * 4.4)
+    // Not in hand it keeps to the times of its scale, as it did.
+    expect(pointAt(0.35).drag(NOW_X + 2 * AHEAD, 0).timeSec).toBe(2 / 4.4)
+  })
+
+  it('draws the repeats as loud as Mix lets them out: the wet gain is Mix itself', () => {
+    const values = { timeSec: 0.35, feedback: 0.5, damping: 20000 }
+    const levels = (mix?: number): number[] =>
+      bars(
+        drawDisplay(display, set, { values: mix === undefined ? values : { ...values, mix } }),
+      ).map((bar) => levelOf(bar.h, 40))
+    const whole = levels(1)
+    expect(whole[0]).toBeCloseTo(1, 3)
+    for (const mix of [0.75, 0.5, 0.1]) {
+      const drawn = levels(mix)
+      expect(drawn.length).toBeGreaterThan(1)
+      drawn.forEach((level, index) => expect(level / whole[index]).toBeCloseTo(mix, 3))
+    }
+    // As the device is set when it is new, Mix is 0.3: the first repeat is 0.3 of the click.
+    expect(set.mix.default).toBe(0.3)
+    expect(levels()[0]).toBeCloseTo(0.3, 3)
+    // With no Mix none is heard, and none is drawn. The click that goes in is.
+    const dry = drawDisplay(display, set, { values: { ...values, mix: 0 } })
+    expect(bars(dry)).toEqual([])
+    expect(
+      shapes(dry).rects.filter((rect) => rect.style === accent && rect.x === NOW_X - 1),
+    ).toEqual([expect.objectContaining({ w: 3, y: 44 - heightOf(1, 40) })])
+    // The point is where Feedback has it, whatever Mix: it can be taken at every Mix.
+    const point = (mix: number) =>
+      (display.handles?.(viewOf(display, set, { values: { ...values, mix } })) ?? [])[0]
+    expect(point(0).y).toBe(point(1).y)
+    expect(point(0).x).toBe(point(1).x)
+
+    // A note's repeats to come are as loud as Mix lets them out too: at half,
+    // the first is half the note (see the note marching to the right, above).
+    const note = { timeSec: 0.5, feedback: 0.5, damping: 20000, mix: 0.5 }
+    const drawn = runDisplay(display, set, 0.3, { values: note }, (time) => ({
+      signal: time < 0.1 ? testSignal(0.6, 0.3) : testSignal(0, 0),
+    }))
+    const ahead = shapes(drawn).paths.find(
+      (path) =>
+        path.op === 'fill' &&
+        path.style === ink &&
+        path.points[0][0] === NOW_X &&
+        path.points[0][1] === 44,
+    )
+    const place = Math.round(NOW_X + gapOf(0.5) * (1 - 0.233 / 0.5))
+    const top = ahead?.points.find((point, index) => index > 0 && point[0] === place)?.[1]
+    expect(top).toBeCloseTo(44 - heightOf(0.3, 40), 0)
+
+    // A loop that grows grows off the scale however quietly it is played: at
+    // a Mix of 0.1 the bar on the edge still stands the whole height.
+    const edge = shapes(
+      drawDisplay(display, set, {
+        values: { timeSec: 0.1, feedback: 0.95, damping: 2000, mix: 0.1 },
+      }),
+    ).rects.filter(
+      (rect) => rect.style === ink && rect.x === 178 && rect.w === 2 && rect.alpha === INK.text,
+    )
+    expect(edge).toEqual([{ x: 178, y: 4, w: 2, h: 40, style: ink, alpha: INK.text }])
   })
 
   it('says the time in words, and the feedback while the point is in hand', () => {
@@ -533,7 +638,8 @@ describe('the Delay display', () => {
 
 describe('the Analog Delay display', () => {
   const { display } = DELAY_FACES['analog-delay']
-  const params = paramsOf('analog-delay')
+  const params = allWet('analog-delay')
+  const set = paramsOf('analog-delay')
   const levels = (values: Record<string, number>): number[] =>
     bars(drawDisplay(display, params, { values })).map((bar) => levelOf(bar.h, 40))
   /** What the line returns of a steady level: `compander.h` and `bbd_line.h`, worked by hand. */
@@ -581,6 +687,29 @@ describe('the Analog Delay display', () => {
     expect(worn[0]).toBeLessThan(0.482)
     expect(worn[1]).toBeGreaterThan(0.14)
     expect(worn[1]).toBeLessThan(0.18)
+  })
+
+  it('draws the repeats as loud as Mix lets them out: the sine of a quarter turn of it', () => {
+    // `kit::equal_power`: the wet gain is sin(Mix × π / 2), after the line and
+    // its ceiling, so every repeat is lower by the same share.
+    const loop = { time: 100, feedback: 0.45, age: 0, tone: 8000 }
+    const at = (mix?: number): number[] =>
+      bars(drawDisplay(display, set, { values: mix === undefined ? loop : { ...loop, mix } })).map(
+        (bar) => levelOf(bar.h, 40),
+      )
+    const whole = at(1)
+    expect(whole).toEqual(levels(loop))
+    for (const mix of [0.75, 0.5, 0.2]) {
+      const drawn = at(mix)
+      expect(drawn.length).toBeGreaterThan(1)
+      drawn.forEach((level, index) =>
+        expect(level / whole[index]).toBeCloseTo(Math.sin((mix * Math.PI) / 2), 3),
+      )
+    }
+    // New, the device has Mix at 0.35: 0.52 of each repeat comes out.
+    expect(set.mix.default).toBe(0.35)
+    expect(at()[0] / whole[0]).toBeCloseTo(0.5225, 3)
+    expect(at(0)).toEqual([])
   })
 
   it('settles a loop that runs away where the line holds it', () => {
@@ -676,7 +805,8 @@ describe('the Analog Delay display', () => {
 
 describe('the Tape Echo display', () => {
   const { display } = DELAY_FACES['tape-echo']
-  const params = paramsOf('tape-echo')
+  const params = allWet('tape-echo')
+  const set = paramsOf('tape-echo')
   // 150 ms on the scale of one second: 20.55 pixels, and the heads a third of that apart.
   const gap = gapOf(0.15)
   const clean = { time: 150, feedback: 0.5, drive: 0, lowCut: 20, highCut: 16000 }
@@ -763,6 +893,31 @@ describe('the Tape Echo display', () => {
     ])
   })
 
+  it('draws the repeats as loud as Mix lets them out, on both sides', () => {
+    // `kit::equal_power` after the tape: sin(Mix × π / 2) of every repeat.
+    const loop = { ...clean, heads: 0, spread: 1 }
+    const at = (mix?: number): Rect[] =>
+      bars(drawDisplay(display, set, { values: mix === undefined ? loop : { ...loop, mix } }))
+    const whole = at(1)
+    expect(levelOf(whole[0].h, 20)).toBeCloseTo(fastTanh(1), 4)
+    for (const mix of [0.75, 0.5]) {
+      const drawn = at(mix)
+      expect(drawn.length).toBeGreaterThan(3)
+      drawn.forEach((bar, index) => {
+        expect(bar.x).toBe(whole[index].x)
+        // Up for the left and down for the right, as at full Mix.
+        expect(bar.y < 24).toBe(whole[index].y < 24)
+        expect(levelOf(bar.h, 20) / levelOf(whole[index].h, 20)).toBeCloseTo(
+          Math.sin((mix * Math.PI) / 2),
+          3,
+        )
+      })
+    }
+    expect(set.mix.default).toBe(0.35)
+    expect(levelOf(at()[0].h, 20) / fastTanh(1)).toBeCloseTo(0.5225, 3)
+    expect(at(0)).toEqual([])
+  })
+
   it('squashes a loud repeat as Drive is turned up', () => {
     const first = (drive: number): number =>
       levelOf(
@@ -842,7 +997,8 @@ describe('the Tape Echo display', () => {
 
 describe('the Echo Memory display', () => {
   const { display } = DELAY_FACES['echo-memory']
-  const params = paramsOf('echo-memory')
+  const params = allWet('echo-memory')
+  const set = paramsOf('echo-memory')
   // The scope is the upper 27 pixels; the memory is a band of 10 along the foot.
   const RISE = 27
   const BAND_Y = 34
@@ -870,6 +1026,37 @@ describe('the Echo Memory display', () => {
     expect(half[1] / half[0]).toBeGreaterThan(0.42)
     expect(half[1] / half[0]).toBeLessThan(0.5)
     expect(echoes(1)[0].h).toBeGreaterThan(echoes(0.5)[0].h)
+  })
+
+  it('plays the echo as loud as Mix lets it out, after the limit', () => {
+    // `echo_memory.h`: the echo and the memory are limited together, and the
+    // wet gain, sin(Mix × π / 2), comes after.
+    const loop = { echo: 1, feedback: 0.5, tone: 16000 }
+    const at = (mix?: number): number[] =>
+      bars(
+        drawDisplay(display, set, { values: mix === undefined ? loop : { ...loop, mix } }),
+        3,
+        BAND_Y - 3,
+      ).map((bar) => levelOf(bar.h, RISE))
+    const whole = at(1)
+    expect(whole.length).toBeGreaterThan(2)
+    for (const mix of [0.75, 0.5, 0.2]) {
+      const drawn = at(mix)
+      expect(drawn.length).toBeGreaterThan(1)
+      drawn.forEach((level, index) =>
+        expect(level / whole[index]).toBeCloseTo(Math.sin((mix * Math.PI) / 2), 3),
+      )
+    }
+    // New, the device has Mix at 0.4: 0.59 of the echo comes out.
+    expect(set.mix.default).toBe(0.4)
+    expect(at()[0] / whole[0]).toBeCloseTo(0.5878, 3)
+    expect(at(0)).toEqual([])
+    // The memory below is what was played, not what comes out: Mix leaves its band as it is.
+    const band = (mix: number): unknown[] =>
+      drawDisplay(display, set, { values: { mix } }).calls.filter(
+        (call) => call.name === 'fillRect' && (call.args as number[])[1] >= BAND_Y,
+      )
+    expect(band(0)).toEqual(band(1))
   })
 
   it('marks in the memory where each voice is reading, and which way', () => {
