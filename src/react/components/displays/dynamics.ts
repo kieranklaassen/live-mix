@@ -217,8 +217,11 @@ function compHandles(view: DisplayView) {
       x: curve.x + curve.w,
       y: handleY(out(TOP_DB), curve),
       // The end of the curve: pulled down it is a firmer hand, pulled up to the diagonal it is none.
+      // The point stands on the mixed curve, so the make-up and the dry part of
+      // Mix come off together: what they add where it stands now.
       drag: (_x: number, y: number) => {
-        const top = dbOfY(y, curve, TOP_DB, FOOT_DB) - makeup
+        const wet = TOP_DB + softKnee(TOP_DB, threshold, ratio, knee)
+        const top = dbOfY(y, curve, TOP_DB, FOOT_DB) - (out(TOP_DB) - wet)
         const span = TOP_DB - threshold
         const kept = clamp(top - threshold, span / 10, span)
         return { ratio: span > 0.5 ? clamp(span / kept, 1, 10) : ratio }
