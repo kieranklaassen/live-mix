@@ -1,17 +1,27 @@
 // Displays of the reverbs that are rooms, plates and springs: how the tail
-// dies away, and how long it takes. One picture for all of them: level
-// against time from the moment a sound goes in, on a scale of decibels, so a
-// decay is a slope and a longer decay a shallower one. At the left the first
-// moments on a scale of their own (the dry sound, the gap of the pre-delay,
-// the first reflections at their real times and levels), at the right the
-// whole tail on a scale in seconds, with a second, fainter line for the top
-// of the spectrum, which dies at its own rate. Every time and rate is worked
-// out from the device's own loops and gains; the functions that do it are
-// named after the code they were ported from.
+// dies away, and how long it takes.
 //
-// While sound runs the level coming out is drawn in the accent from the
-// moment the last sound went in, so a struck note is seen to ring down the
-// slope.
+// Five of them (plate, FDN, hall, Ether, spring) are windows in two parts, as
+// the displays of the tails are. Above, the first moments after a sound goes
+// in, on a short scale of their own: the dry sound, the gap of the pre-delay
+// and the first reflections at their real times and levels, with 0 dB the
+// sound going in. Below, the tail alone on a fixed scale of seconds: it
+// starts at the top when the reverb first sounds and falls 60 dB to the
+// foot, so the line is as long along the scale as the time written beside
+// it, and a longer decay is a longer line.
+// A second, darker wedge inside it is the top of the spectrum, which dies
+// sooner. The shaped reverb and the convolver are strips with one picture.
+//
+// Every time and rate is worked out from the device's own loops and gains;
+// the functions that do it are named after the code they were ported from,
+// and where a loop does not fall as its length and its losses alone say, the
+// reason is given with the figure that was measured on the device.
+//
+// The second colour is what happens now. At the left edge stands the level
+// that comes out against the sound that went in. When that sound stops, what
+// comes out is followed down the tail from that moment on, so a note is seen
+// to ring away along the slope and a held chord shows nothing false while it
+// lasts.
 
 import { REVERB_DECAY_SECONDS } from '../../../core/devices/native/ConvolverReverb'
 import { denormalizeParam } from '../../../core/params'
@@ -24,6 +34,7 @@ import {
   dbGrid,
   dbOfY,
   dot,
+  fillRect,
   fillTo,
   gainToDb,
   ground,
@@ -47,21 +58,30 @@ import {
 
 // --- What the family shares ---------------------------------------------------
 
-/** The levels a reverb display spans: the sound going in at the top, 60 dB under it at the foot. */
+/** The levels a reverb display spans: 0 dB at the top, 60 dB under it at the foot. */
 const TOP_DB = 0
 const FOOT_DB = -60
 /** Where the two lines of a tail are worked out: the body of a sound, and the top of its spectrum. */
 export const BODY_HZ = 500
 export const TOP_HZ = 8000
-/** A reverb mixed lower than this is drawn at this level, so its tail still has a length to show. */
-const LOWEST_WET_DB = -36
-/** The height of the scale of seconds under the boxes. */
+/** The lowest a reverb's start is drawn: on the foot, where a reverb mixed out altogether stands, with nothing of it to see. */
+const LOWEST_WET_DB = FOOT_DB
+/** The height of a row of the words of a scale. */
 const SCALE_HEIGHT = 8
-/** How much of the past the level coming out is kept for, and in how many steps. */
-const PAST_SEC = 30
-const PAST_SLOTS = 900
-/** Under this nothing is going in. */
-const SILENT_DB = -66
+/** Under this nothing goes in: quieter is the noise of what feeds the device, not a sound. */
+const QUIET_DB = -72
+/** A tail is followed down to here, far under where a quiet sound starts. */
+const GONE_DB = -100
+/** How far under the loudest lately a sound still counts as going in, in dB. */
+const NEAR_DB = 4
+/** How far under it a sound is still at its loudest, in dB. */
+const LOUD_DB = 1.5
+/** Seconds after a sound stops before what comes out is the reverb alone: the taps' window of 43 ms, and a frame. */
+const SETTLE_SEC = 0.07
+/** How often the level coming out is kept: once a frame. */
+const SLOTS_PER_SEC = 30
+/** The width of the level at the left edge. */
+const METER_WIDTH = 3
 
 const TWO_PI = Math.PI * 2
 
@@ -84,6 +104,34 @@ export function loopRt60(seconds: number, gainDb: number): number {
   return gainDb < 0 ? (-60 * seconds) / gainDb : Infinity
 }
 
+/**
+ * How long parts that each fall at their own rate take to fall 60 dB when
+ * they are heard together, against the mean of them: `times` are their own
+ * times, and each has as much to give as `shares` says (all alike when left
+ * out). The slow parts are what is left at the end, so the whole takes
+ * longer than the mean part does.
+ */
+export function fallTogether(times: readonly number[], shares?: readonly number[]): number {
+  let mean = 0
+  let whole = 0
+  for (let i = 0; i < times.length; i++) {
+    mean += times[i] / times.length
+    whole += shares ? shares[i] : 1
+  }
+  let low = 0
+  let high = 8 * mean
+  for (let n = 0; n < 48; n++) {
+    const middle = (low + high) / 2
+    let left = 0
+    for (let i = 0; i < times.length; i++) {
+      left += (shares ? shares[i] : 1) * Math.pow(10, (-6 * middle) / times[i])
+    }
+    if (left / whole > 1e-6) low = middle
+    else high = middle
+  }
+  return (low + high) / 2 / mean
+}
+
 /** The setting of a parameter at which `position` (which only rises or only falls with it) reaches `target`. */
 function solveParam(
   view: DisplayView,
@@ -101,7 +149,9 @@ function solveParam(
     if (position(denormalizeParam(spec, middle)) < target === rising) low = middle
     else high = middle
   }
-  return denormalizeParam(spec, (low + high) / 2)
+  // At either end of its range the parameter is at that end, not a hair inside it.
+  const found = (low + high) / 2
+  return found < 1e-6 ? spec.min : found > 1 - 1e-6 ? spec.max : denormalizeParam(spec, found)
 }
 
 /** The same view with one parameter somewhere else: where a handle would stand at another setting. */
@@ -124,8 +174,17 @@ function withParam(view: DisplayView, name: string, value: number): DisplayView 
   }
 }
 
-/** The rate the device runs at; a view without a frame (a handle being laid out) has the usual one. */
-const rateOf = (view: DisplayView): number => (view as Partial<DisplayFrame>).sampleRate ?? 48000
+/**
+ * The rate the last frame was drawn at. A handle is laid out from a view,
+ * which does not say the rate the device runs at, and several of these loops
+ * are counted in samples; the devices of a page share one rate, so the one
+ * last drawn at is the handle's too, and a handle stands where it is drawn
+ * at 44.1 kHz and at 96 kHz as it does at 48.
+ */
+let drawnRate = 48000
+
+const rateOf = (view: DisplayView): number =>
+  (view as Partial<DisplayFrame>).sampleRate ?? drawnRate
 
 const defaultOf = (view: DisplayView, name: string): number =>
   view.spec(name)?.default ?? view.value(name)
@@ -133,17 +192,47 @@ const defaultOf = (view: DisplayView, name: string): number =>
 const yOf = (db: number, box: Box): number =>
   yOfDb(clamp(db, FOOT_DB, TOP_DB), box, TOP_DB, FOOT_DB)
 
-/** Seconds as they are said on a scale: "0.2s", "1s", "20s". */
+/**
+ * Whether the size, the rate or a setting moved since the frame before;
+ * `seen` keeps them. What a picture is laid out from is worked out again
+ * only then, and not on every frame.
+ */
+function moved(
+  view: DisplayView,
+  rate: number,
+  names: readonly string[],
+  seen: Float64Array,
+): boolean {
+  let any = false
+  for (let i = 0; i < names.length + 3; i++) {
+    const value =
+      i === 0 ? view.width : i === 1 ? view.height : i === 2 ? rate : view.value(names[i - 3])
+    if (seen[i] !== value) {
+      seen[i] = value
+      any = true
+    }
+  }
+  return any
+}
+
+const unseen = (names: readonly string[]): Float64Array =>
+  new Float64Array(names.length + 3).fill(NaN)
+
+/**
+ * Seconds as they are said on a scale: "0.2s", "1s", "20s". Past 99 s no
+ * figure is given: a loop that loses a hundredth of a dB a trip falls as
+ * slowly as the least thing left out of the sum lets it.
+ */
 export function secondsText(seconds: number): string {
   if (!Number.isFinite(seconds)) return '∞'
+  if (seconds > 99.5) return '>99s'
+  if (seconds < 0.005) return '0s'
   const shown =
-    seconds >= 100
-      ? String(Math.round(seconds))
-      : seconds >= 10
-        ? seconds.toFixed(0)
-        : seconds >= 1
-          ? seconds.toFixed(1).replace(/\.0$/, '')
-          : seconds.toFixed(2).replace(/0$/, '')
+    seconds >= 9.95
+      ? seconds.toFixed(0)
+      : seconds >= 0.995
+        ? seconds.toFixed(1).replace(/\.0$/, '')
+        : seconds.toFixed(2).replace(/0$/, '')
   return `${shown}s`
 }
 
@@ -157,7 +246,7 @@ function scaleStep(seconds: number, width: number, apart: number): number {
 
 /**
  * A scale of seconds under a box that spans `seconds` from `box.x`: a line up
- * the box at every step, and the time in words under each when `words` says
+ * the box at every step, and the time in words under each when `each` says
  * so, or only the box's whole length at its right end.
  */
 function timeScale(
@@ -169,7 +258,7 @@ function timeScale(
 ): void {
   const { ctx, colours } = frame
   if (!(seconds > 0) || !Number.isFinite(seconds)) return
-  const step = scaleStep(seconds, box.w, each ? 30 : 9)
+  const step = scaleStep(seconds, box.w, each ? 24 : 30)
   for (let n = 1; n * step < seconds * 0.999; n++) {
     const x = box.x + ((n * step) / seconds) * box.w
     rule(ctx, x, box.y, x, box.y + box.h, { colour: colours.ink, alpha: INK.grid })
@@ -182,68 +271,68 @@ function timeScale(
   }
 }
 
-const MOST_MARKS = 320
+/** The most columns marks can stand in. */
+const MOST_COLUMNS = 512
 
-/** Upright marks gathered for one stroke: a reflection at its time, from the foot up to its level. */
+/**
+ * Upright marks: reflections at their times, from the foot up to their
+ * levels. They stand two pixels apart at the nearest, and where several fall
+ * in one column the loudest is kept, so echoes too dense to tell apart read
+ * as an even hatch and not as a block, and a thousand of them cost no more
+ * to draw than the columns they fall in.
+ */
 class Marks {
-  readonly at = new Float32Array(2 * MOST_MARKS)
-  count = 0
+  /** The level in each column, dB against the level the reverb starts at; none where nothing falls. */
+  readonly db = new Float32Array(MOST_COLUMNS)
+  columns = 0
+  private seconds = 1
+  private width = 1
 
-  clear(): void {
-    this.count = 0
+  /** Start again, for a box `width` wide that spans `seconds`. */
+  clear(width: number, seconds: number): void {
+    this.columns = clamp(Math.floor(width / 2) + 1, 0, MOST_COLUMNS)
+    this.db.fill(-Infinity, 0, this.columns)
+    this.seconds = seconds
+    this.width = width
   }
 
   /** `seconds` after the sound went in, `db` against the level the reverb starts at. */
   add(seconds: number, db: number): void {
-    if (this.count >= MOST_MARKS || !Number.isFinite(seconds) || !Number.isFinite(db)) return
-    this.at[2 * this.count] = seconds
-    this.at[2 * this.count + 1] = db
-    this.count += 1
+    if (!(seconds >= 0) || seconds > this.seconds || Number.isNaN(db)) return
+    const column = Math.round(((seconds / this.seconds) * this.width) / 2)
+    if (column < this.columns && db > this.db[column]) this.db[column] = db
   }
 }
 
-/** The columns marks can stand in, for counting how many are taken. */
-const MARK_COLUMNS = new Uint8Array(1024)
-
-/**
- * Every mark in `marks` as one path and one stroke, so marks that fall
- * together do not darken each other. They stand two pixels apart at the
- * nearest, so echoes too dense to tell apart read as an even hatch, not a
- * block; the closer they stand the lighter they are drawn.
- */
+/** Every mark as one path and one stroke; the closer they stand the lighter they are drawn. */
 function strokeMarks(
   frame: DisplayFrame,
   marks: Marks,
   box: Box,
-  seconds: number,
   levelDb: number,
   alpha: number,
 ): void {
   const { ctx } = frame
   const foot = box.y + box.h
-  const columns = Math.min(MARK_COLUMNS.length, Math.floor(box.w / 2) + 1)
-  MARK_COLUMNS.fill(0, 0, columns)
-  let first = columns
+  let first = marks.columns
   let last = -1
   let taken = 0
   ctx.beginPath()
-  for (let i = 0; i < marks.count; i++) {
-    const t = marks.at[2 * i]
-    if (t < 0 || t > seconds) continue
-    const column = Math.round(((t / seconds) * box.w) / 2)
-    const y = yOf(levelDb + marks.at[2 * i + 1], box)
-    if (column >= columns || y >= foot - 0.5) continue
+  for (let column = 0; column < marks.columns; column++) {
+    const db = marks.db[column]
+    if (db === -Infinity) continue
+    const y = yOf(levelDb + db, box)
+    if (y >= foot - 0.5) continue
     const x = Math.floor(box.x) + 2 * column + 0.5
     ctx.moveTo(x, foot)
     ctx.lineTo(x, y)
-    if (MARK_COLUMNS[column] === 0) taken += 1
-    MARK_COLUMNS[column] = 1
+    taken += 1
     if (column < first) first = column
-    if (column > last) last = column
+    last = column
   }
   if (taken === 0) return
   const crowded = taken / (last - first + 1)
-  ctx.globalAlpha = alpha * lerp(1, 0.5, clamp((crowded - 0.25) / 0.5, 0, 1))
+  ctx.globalAlpha = alpha * lerp(1, 0.6, clamp((crowded - 0.25) / 0.5, 0, 1))
   ctx.strokeStyle = frame.colours.ink
   ctx.lineWidth = 1
   ctx.lineCap = 'butt'
@@ -282,147 +371,233 @@ function decayLine(box: Box, seconds: number, from: number, level: number, rt60:
   ]
 }
 
-/** What a display keeps of the sound: the level coming out, and when the last sound went in. */
-interface Ringing {
-  out: History
-  /** On the frame's clock; NaN while nothing has gone in. */
-  struck: number
-  /** The level of that sound going in, dB. */
-  struckDb: number
-  /** The level going in on the frame before. */
-  lastDb: number
-  /** Seconds the level coming out has been under the foot of the display. */
-  quiet: number
+/**
+ * Where a fall of 60 dB in `rt60`, begun at the top `from` seconds in, is
+ * `db` down: on the line at that level, or where the line leaves the box at
+ * its right edge when that comes sooner. A handle stands there.
+ */
+export function fallPoint(
+  box: Box,
+  seconds: number,
+  from: number,
+  rt60: number,
+  db: number,
+): Point {
+  if (!Number.isFinite(rt60)) return [box.x + box.w, box.y]
+  const at = from + (rt60 * -db) / 60
+  if (at <= seconds) return [box.x + (at / seconds) * box.w, yOf(db, box)]
+  return [box.x + box.w, yOf((-60 * (seconds - from)) / Math.max(rt60, 1e-6), box)]
 }
 
-const ringing = (): Ringing => ({
-  out: new History(PAST_SEC, PAST_SLOTS, FLOOR_DB, 'max'),
-  struck: NaN,
-  struckDb: FLOOR_DB,
-  lastDb: FLOOR_DB,
-  quiet: 0,
+/** The time to fall 60 dB of the straight fall from the top at `from` seconds through a point of the box: `fallPoint` the other way round. */
+export function fallThrough(box: Box, seconds: number, from: number, x: number, y: number): number {
+  const elapsed = Math.max(0.005, clamp((x - box.x) / box.w, 0, 1) * seconds - from)
+  const db = clamp(dbOfY(y, box, TOP_DB, FOOT_DB), FOOT_DB, -0.05)
+  return (-60 * elapsed) / db
+}
+
+/** Set point `index` of a list a display keeps between frames, making it only the first time. */
+function put(points: Point[], index: number, x: number, y: number): void {
+  // A point is not to be changed by those it is handed to; this list is the display's own.
+  const point = points[index] as [number, number] | undefined
+  if (point) {
+    point[0] = x
+    point[1] = y
+  } else {
+    points[index] = [x, y]
+  }
+}
+
+/** What a display keeps of the sound, to show what happens now. */
+interface Ride {
+  /** The level coming out, dB, one reading a frame. */
+  out: History
+  /** The loudest going in lately, sinking, dB. */
+  hold: number
+  /** Whether sound was going in on the frame before. */
+  going: boolean
+  /** When the sound that goes in now, or went in last, began, on the frame's clock; NaN for never. */
+  began: number
+  /** When sound last went in; NaN for never. */
+  last: number
+  /** When it was last as loud as the loudest lately: the start of a note that dies away, the end of one that is held. */
+  loud: number
+  /** How loud that sound was, dB. */
+  went: number
+  /** What came out once the sound itself had gone: the fall is measured from it. NaN until then. */
+  from: number
+  /** Seconds the level coming out has been under the foot. */
+  under: number
+  /** The points last drawn, kept to be used again. */
+  points: Point[]
+}
+
+const newRide = (seconds: number): Ride => ({
+  out: new History(seconds, Math.round(seconds * SLOTS_PER_SEC), FLOOR_DB, 'max'),
+  hold: FLOOR_DB,
+  going: false,
+  began: NaN,
+  last: NaN,
+  loud: NaN,
+  went: FLOOR_DB,
+  from: NaN,
+  under: 0,
+  points: [],
 })
 
+function forget(ride: Ride): void {
+  ride.going = false
+  ride.began = NaN
+  ride.last = NaN
+  ride.loud = NaN
+  ride.from = NaN
+  ride.under = 0
+}
+
 /**
- * Follow the sound for one frame. A sound "goes in" when the level going in
- * jumps, and is louder than what the tail of the sound before has fallen to
- * by now: from then on the level coming out is drawn against the slope.
- * `throughDb` is what the device does to the level at once (the louder of
- * its dry and its wet side), for a plate that was not told what feeds it.
+ * Listen for a frame. A sound "goes in" while the level going in (what comes
+ * out, where the plate was not told what feeds the device) is within a few
+ * dB of the loudest lately; that level sinks at half the rate the tail falls
+ * at, so a quieter sound counts once the tail of the last has made room for
+ * it. A steady sound goes in for as long as it lasts. When it stops, the
+ * level that comes out a moment later, with the dry sound gone from it, is
+ * kept: the fall is measured from there. `held` is a room that lets nothing
+ * in: what rings in it is followed from the frame it is first heard.
  */
-function listen(frame: DisplayFrame, state: Ringing, rt60: number, throughDb: number): void {
+function hear(frame: DisplayFrame, ride: Ride, rt60: number, held = false): void {
   const signal = frame.signal
-  // Switched off the device rings nothing down: the picture is what it would do.
+  // Switched off or out of sight nothing is followed: the picture is what the device would do.
   if (!signal || !frame.powered) {
-    state.struck = NaN
-    state.lastDb = FLOOR_DB
+    forget(ride)
+    ride.hold = FLOOR_DB
     return
   }
   const out = gainToDb(signal.output.rms)
-  const going = signal.input ? gainToDb(signal.input.rms) : out - throughDb
-  state.out.push(frame.now, out)
-  const since = frame.now - state.struck
-  const left = Number.isFinite(since)
-    ? state.struckDb - (Number.isFinite(rt60) && rt60 > 0 ? (60 * since) / rt60 : 0)
-    : FLOOR_DB
-  if (going > SILENT_DB && going > state.lastDb + 3 && going > left + 3) {
-    state.struck = frame.now
-    state.struckDb = going
-    state.quiet = 0
-  } else if (since < 0.12 && going > state.struckDb) {
-    // Still the attack of the same sound.
-    state.struckDb = going
+  const level = gainToDb((signal.input ?? signal.output).rms)
+  ride.out.push(frame.now, out)
+  const sink = rt60 > 0 && Number.isFinite(rt60) ? Math.max(1, 30 / rt60) : 1
+  ride.hold = Math.max(level, ride.hold - sink * frame.dt)
+  const goes = !held && level > QUIET_DB && level >= ride.hold - NEAR_DB
+  if (goes) {
+    if (!ride.going) ride.began = frame.now
+    if (level >= ride.hold - LOUD_DB || !ride.going) ride.loud = frame.now
+    ride.last = frame.now
+    ride.went = ride.hold
+    ride.from = NaN
+    ride.under = 0
+  } else if (held && !Number.isFinite(ride.last)) {
+    if (out > GONE_DB) {
+      ride.began = frame.now
+      ride.loud = frame.now
+      ride.last = frame.now - SETTLE_SEC
+      ride.went = out
+      ride.from = out
+    }
+  } else if (Number.isFinite(ride.last)) {
+    if (Number.isNaN(ride.from) && frame.now - ride.last >= SETTLE_SEC) ride.from = out
+    const gone = out <= GONE_DB || (!Number.isNaN(ride.from) && out - ride.from < FOOT_DB)
+    ride.under = gone ? ride.under + frame.dt : 0
+    // The tail has died: the picture is at rest again.
+    if (ride.under > 1) forget(ride)
   }
-  state.lastDb = going
-  if (Number.isFinite(state.struck)) {
-    state.quiet = out - state.struckDb < FOOT_DB ? state.quiet + frame.dt : 0
-    if (state.quiet > 1.5) state.struck = NaN
+  ride.going = goes
+}
+
+/**
+ * The level that comes out now against the sound that went in, as a bar in
+ * the second colour up the left edge of `box`: with a steady sound it stands
+ * (the dry sound and the reverb together), and when the sound stops it drops
+ * to the reverb alone and sinks with it.
+ */
+function drawMeter(frame: DisplayFrame, ride: Ride, x: number, box: Box): void {
+  if (!frame.signal || !frame.powered || !Number.isFinite(ride.last)) return
+  const foot = box.y + box.h
+  const y = yOf(ride.out.at(0) - (ride.going ? ride.hold : ride.went), box)
+  if (y >= foot - 0.5) return
+  fillRect(frame.ctx, { x, y, w: METER_WIDTH, h: foot - y }, frame.colours.accent)
+}
+
+/**
+ * What came out since the sound stopped, across a box that spans `seconds`:
+ * a line in the second colour that starts at `startDb` (where the drawn tail
+ * starts) and falls as the level did, and a dot where it is now. Nothing
+ * while sound still goes in. A tail that outlasts the scale is a dot at the
+ * edge.
+ */
+function drawFall(
+  frame: DisplayFrame,
+  ride: Ride,
+  box: Box,
+  seconds: number,
+  startDb: number,
+): void {
+  if (!frame.signal || !frame.powered || ride.going) return
+  if (!Number.isFinite(ride.last) || Number.isNaN(ride.from)) return
+  const { ctx, colours } = frame
+  const foot = box.y + box.h
+  const right = box.x + box.w
+  const age = frame.now - ride.last
+  const nowY = yOf(startDb + Math.min(0, ride.out.at(0) - ride.from), box)
+  if (age > seconds) {
+    if (nowY < foot - 0.5) dot(ctx, right, nowY, 2.5, colours.accent, { ring: colours.ink })
+    return
+  }
+  const slot = 1 / SLOTS_PER_SEC
+  const points = ride.points
+  let count = 0
+  for (let back = Math.min(ride.out.slots - 1, Math.floor(age / slot)); back >= 0; back--) {
+    const elapsed = Math.max(0, age - back * slot)
+    const level = startDb + Math.min(0, ride.out.at(back) - ride.from)
+    put(points, count++, box.x + (elapsed / seconds) * box.w, yOf(level, box))
+  }
+  points.length = count
+  clipped(ctx, { x: box.x, y: box.y - 2, w: box.w, h: box.h + 2 }, () =>
+    trace(ctx, points, { colour: colours.accent, width: 1.5 }),
+  )
+  if (count > 0 && nowY < foot - 0.5) {
+    dot(ctx, points[count - 1][0], nowY, 2.5, colours.accent, { ring: colours.ink })
   }
 }
 
 /**
- * The level coming out since the last sound went in, across a box that spans
- * `seconds` from `zeroX`: a fill and a line in the accent under the slope,
- * and a dot where the sound is now.
+ * What came out since the sound went in, for a picture that is the answer
+ * to a short sound (the shaped reverb): a line in the second colour from the
+ * moment the sound was at its loudest (the start of a note that dies away,
+ * the end of one that is held), in dB under that sound, for as long as the
+ * scale spans.
  */
-function drawRinging(
-  frame: DisplayFrame,
-  state: Ringing,
-  box: Box,
-  zeroX: number,
-  seconds: number,
-): void {
-  if (!frame.signal || !frame.powered || !Number.isFinite(state.struck)) return
+function drawSince(frame: DisplayFrame, ride: Ride, box: Box, seconds: number): void {
+  if (!frame.signal || !frame.powered || !Number.isFinite(ride.loud)) return
+  const age = frame.now - ride.loud
+  if (age > seconds) return
   const { ctx, colours } = frame
-  const slot = PAST_SEC / PAST_SLOTS
-  const steps = Math.min(
-    PAST_SLOTS - 1,
-    Math.floor(frame.now / slot) - Math.floor(state.struck / slot),
-  )
-  if (steps < 0) return
-  const right = box.x + box.w
-  const perSecond = (right - zeroX) / seconds
-  const points: Point[] = []
-  let column = -Infinity
-  let highest = FOOT_DB
-  for (let back = steps; back >= 0; back--) {
-    const x = Math.min(right, zeroX + (steps - back) * slot * perSecond)
-    const level = state.out.at(back) - state.struckDb
-    // One point a pixel: the highest level that fell in it.
-    if (x - column < 1 && back > 0) {
-      if (level > highest) highest = level
-      continue
-    }
-    points.push([x, yOf(Math.max(level, highest), box)])
-    column = x
-    highest = FOOT_DB
-    if (x >= right) break
-  }
-  if (points.length === 0) return
   const foot = box.y + box.h
-  clipped(ctx, box, () => {
-    fillTo(ctx, points, foot, colours.accent, 0.3)
-    trace(ctx, points, { colour: colours.accent, width: 1.25 })
-  })
-  const [x, y] = points[points.length - 1]
+  const slot = 1 / SLOTS_PER_SEC
+  const points = ride.points
+  let count = 0
+  for (let back = Math.min(ride.out.slots - 1, Math.floor(age / slot)); back >= 0; back--) {
+    const elapsed = Math.max(0, age - back * slot)
+    const y = yOf(ride.out.at(back) - ride.went, box)
+    put(points, count++, box.x + (elapsed / seconds) * box.w, y)
+  }
+  points.length = count
+  if (count < 2) return
+  clipped(ctx, { x: box.x, y: box.y - 2, w: box.w, h: box.h + 2 }, () =>
+    trace(ctx, points, { colour: colours.accent, width: 1.5 }),
+  )
+  const [x, y] = points[count - 1]
   if (y < foot - 0.5) dot(ctx, x, y, 2.5, colours.accent, { ring: colours.ink })
 }
 
-/**
- * A modulator's mark on a tail: a hairline that sways about the line of the
- * level at the modulator's own rate, read along the scale of seconds. It
- * moves with the clock, as the modulators do: they run free, and where in
- * its cycle one is says nothing. `sway` is in pixels; the device moves
- * pitch, not level, so its size is a notation and only its rate is to scale.
- */
-function shimmer(
-  frame: DisplayFrame,
-  box: Box,
-  line: readonly Point[],
-  seconds: number,
-  hz: number,
-  sway: number,
-): void {
-  if (line.length < 2 || sway <= 0 || hz <= 0) return
-  const x0 = line[0][0]
-  const x1 = line[line.length - 1][0]
-  const perCycle = box.w / (seconds * hz)
-  // Finer than this the wave is a smear.
-  if (perCycle < 6 || x1 - x0 < 4) return
-  const moving = frame.signal !== null && frame.powered ? frame.now : 0
-  const points: Point[] = []
-  let at = 0
-  for (let x = x0; x <= x1; x += 2) {
-    while (at < line.length - 2 && line[at + 1][0] < x) at += 1
-    const [ax, ay] = line[at]
-    const [bx, by] = line[at + 1]
-    const y = bx > ax ? lerp(ay, by, clamp((x - ax) / (bx - ax), 0, 1)) : by
-    const t = ((x - box.x) / box.w) * seconds
-    points.push([x, y - 2 + sway * Math.sin(TWO_PI * hz * (t + moving))])
-  }
-  clipped(frame.ctx, box, () =>
-    trace(frame.ctx, points, { colour: frame.colours.ink, width: 1, alpha: INK.back }),
-  )
+/** The dry sound: an upright line at the moment it goes in, as high as it comes out. */
+function dryMark(frame: DisplayFrame, box: Box, dryDb: number): void {
+  if (dryDb <= FOOT_DB) return
+  const x = box.x + 1
+  rule(frame.ctx, x, box.y + box.h, x, yOf(dryDb, box), {
+    colour: frame.colours.ink,
+    width: 2,
+    alpha: INK.back,
+  })
 }
 
 // --- Rooms: a tail that dies away ---------------------------------------------
@@ -436,27 +611,23 @@ interface Answer {
   gap: number
   /** Seconds from the sound going in to the reverb's first sound: the gap and what the device adds to it. */
   onset: number
-  /** Seconds to fall 60 dB in the body of the sound; never, while the tail is held. */
+  /** Seconds to fall 60 dB in the body of the sound; in a room that is held, once it is let go. */
   body: number
   /** The same at the top of the spectrum. */
   top: number
   /** The same low down, where a device sets that apart; NaN where it does not. */
   low: number
-  /** What the body falls at once a hold is let go: the scale is set by it. `body` where nothing holds. */
-  release: number
-}
-
-interface RoomState {
-  ringing: Ringing
-  marks: Marks
+  /** A room that is held: its tail does not fall until it is let go. */
+  held: boolean
 }
 
 /** What one device brings to the family's picture. */
 interface Room {
   params: readonly string[]
   info: string
-  /** Seconds the box of the first moments spans. */
+  /** Seconds the part with the first moments spans, and seconds the tail's part spans. */
   first: number
+  span: number
   /** The parameters the handles set: the end of the tail, its start (across and up), the line of the highs. */
   decay: string
   mix: string
@@ -467,77 +638,90 @@ interface Room {
   answer(view: DisplayView, rate: number): Answer
   /** The first reflections, as marks. */
   reflections?(view: DisplayView, rate: number, answer: Answer, marks: Marks): void
-  /** What is the device's own in the first moments, where marks do not say it. */
-  drawFirst?(frame: DisplayFrame, box: Box, seconds: number, answer: Answer, level: number): void
-  /** What is the device's own on the tail; nothing right of `wordsX`, where the time is written. */
-  drawTail?(
-    frame: DisplayFrame,
-    box: Box,
-    seconds: number,
+  /** How far under its level the reverb may start, dB: something that lets less of a sound in at times. */
+  sinks?(view: DisplayView): number
+  /**
+   * What is the device's own in the first moments, where marks do not say
+   * it: `lay` works its outlines out into `into` when a setting moves and
+   * says how many there are, `paint` draws them.
+   */
+  lay?(
+    view: DisplayView,
+    rate: number,
     answer: Answer,
     level: number,
-    wordsX: number,
-  ): void
-  /** The rate of what modulates the tail, Hz; left out where nothing does. */
-  swayHz?: number
+    box: Box,
+    into: Float32Array,
+  ): number
+  paint?(frame: DisplayFrame, outlines: Float32Array, count: number, box: Box): void
+}
+
+/** What a room's display keeps: the sound, and the picture as it was last laid out. */
+interface RoomState {
+  ride: Ride
+  marks: Marks
+  seen: Float64Array
+  answer: Answer
+  level: number
+  /** The first moments: the tail setting off, and the lowest it may set off at. */
+  setsOff: Point[]
+  sunk: Point[]
+  /** The tail: its body, its highs, its lows, and what a held room falls at once let go. */
+  body: Point[]
+  top: Point[]
+  low: Point[]
+  letGo: Point[]
+  handles: readonly DisplayHandle[]
+  outlines: Float32Array
+  outlineCount: number
 }
 
 interface RoomBoxes {
+  /** The left edge of the level that comes out. */
+  meter: number
   first: Box
   tail: Box
-  /** The baseline of the scale's words. */
-  wordsY: number
-}
-
-/** The first moments at the left, the whole tail at the right, a scale of seconds under both. */
-function roomBoxes(view: Pick<DisplayView, 'width' | 'height'>): RoomBoxes {
-  const all: Box = { x: 4, y: 4, w: view.width - 8, h: view.height - 8 - SCALE_HEIGHT }
-  const first = { ...all, w: Math.round(all.w * 0.3) }
-  return {
-    first,
-    tail: { ...all, x: first.x + first.w + 6, w: all.w - first.w - 6 },
-    wordsY: view.height - 3.5,
-  }
+  /** The baselines of the two scales' words, and the line between the parts. */
+  firstWords: number
+  tailWords: number
+  between: number
 }
 
 /**
- * How far across its box a tail ends for a decay knob at `at`: a short tail
- * ends early and steep, a long one late and shallow. The knob alone places
- * the end, and the scale of seconds stretches to make it true, so the end
- * can be dragged without the scale running away under the hand.
+ * The first moments above, the tail below, each with its scale of seconds
+ * under it. Of a window 100 high the first moments get 27 and the tail 37,
+ * and the tail's foot stands clear of its scale's words, so a handle on the
+ * foot does not cover them.
  */
-const endAt = (at: number): number => lerp(0.3, 0.94, clamp(at, 0, 1))
-
-/** The seconds the tail's box spans. */
-function tailSeconds(room: Room, view: DisplayView, answer: Answer): number {
-  return Math.max(0.02, answer.onset + answer.release) / endAt(view.at(room.decay))
+function roomBoxes(view: Pick<DisplayView, 'width' | 'height'>): RoomBoxes {
+  const free = Math.max(20, view.height - 8 - 2 * SCALE_HEIGHT - 11)
+  const height = Math.round(free * 0.43)
+  // A handle at the very top (Mix full up) is a whole circle: the box starts a pixel lower for it.
+  const first: Box = { x: 6 + METER_WIDTH, y: 5, w: view.width - 10 - METER_WIDTH, h: height - 1 }
+  const under = first.y + first.h + SCALE_HEIGHT
+  return {
+    meter: 4,
+    first,
+    tail: { x: 4, y: under + 9, w: view.width - 8, h: free - height },
+    firstWords: under + 0.5,
+    tailWords: view.height - 3.5,
+    between: under + 4,
+  }
 }
 
 const shownWet = (answer: Answer): number => Math.max(answer.wet, LOWEST_WET_DB)
 
-/** Where the body of the tail meets the foot of its box. */
-function tailEndX(room: Room, view: DisplayView, rate: number): number {
-  const answer = room.answer(view, rate)
-  const { tail } = roomBoxes(view)
-  const reach = answer.onset + (answer.release * (shownWet(answer) - FOOT_DB)) / 60
-  return tail.x + (reach / tailSeconds(room, view, answer)) * tail.w
-}
+/** The room a device's own outlines are given: the spring's, three springs of 24 bounces of 8 points. */
+const MOST_OUTLINES = 3 * 24 * 2 * 8
 
-/** Where the handle of the highs stands: half way down their line. */
-function highsX(room: Room, view: DisplayView, rate: number): number {
-  const answer = room.answer(view, rate)
-  const { tail } = roomBoxes(view)
-  const top = Number.isFinite(answer.top) ? answer.top : answer.release
-  const reach = answer.onset + (top * (shownWet(answer) - FOOT_DB)) / 120
-  return tail.x + clamp(reach / tailSeconds(room, view, answer), 0, 1) * tail.w
-}
+/** How far down their line the handle of the highs stands. */
+const HIGHS_DB = -30
 
 function roomHandles(room: Room, view: DisplayView): DisplayHandle[] {
   const rate = rateOf(view)
   const answer = room.answer(view, rate)
   const { first, tail } = roomBoxes(view)
   const level = shownWet(answer)
-  const foot = tail.y + tail.h
   const lowestY = yOf(LOWEST_WET_DB, first)
   const { mix, predelay, damping, decay } = room
   const mixAt = (y: number): number => {
@@ -547,6 +731,7 @@ function roomHandles(room: Room, view: DisplayView): DisplayHandle[] {
     }
     return solveParam(view, mix, (value) => room.wetOf(value), dbOfY(y, first, TOP_DB, FOOT_DB))
   }
+  const [endX, endY] = fallPoint(tail, room.span, answer.onset, answer.body, FOOT_DB)
   const handles: DisplayHandle[] = [
     {
       key: 'start',
@@ -568,33 +753,35 @@ function roomHandles(room: Room, view: DisplayView): DisplayHandle[] {
       }),
     },
     {
+      // The tail's end: on the foot at its time, or up the right edge when it outlasts the scale.
       key: 'decay',
       name: 'Decay',
-      x: tailEndX(room, view, rate),
-      y: foot,
-      drag: (x) => ({
+      x: endX,
+      y: endY,
+      drag: (x, y) => ({
         [decay]: solveParam(
           view,
           decay,
-          (value) => tailEndX(room, withParam(view, decay, value), rate),
-          x,
+          (value) => room.answer(withParam(view, decay, value), rate).body,
+          fallThrough(tail, room.span, answer.onset, x, y),
         ),
       }),
       reset: () => ({ [decay]: defaultOf(view, decay) }),
     },
   ]
   if (damping) {
+    const [x, y] = fallPoint(tail, room.span, answer.onset, answer.top, HIGHS_DB)
     handles.push({
       key: 'damping',
       name: 'Damping',
-      x: highsX(room, view, rate),
-      y: (yOf(level, tail) + foot) / 2,
-      drag: (x) => ({
+      x,
+      y,
+      drag: (toX, toY) => ({
         [damping]: solveParam(
           view,
           damping,
-          (value) => highsX(room, withParam(view, damping, value), rate),
-          x,
+          (value) => room.answer(withParam(view, damping, value), rate).top,
+          fallThrough(tail, room.span, answer.onset, toX, toY),
         ),
       }),
       reset: () => ({ [damping]: defaultOf(view, damping) }),
@@ -603,123 +790,150 @@ function roomHandles(room: Room, view: DisplayView): DisplayHandle[] {
   return handles
 }
 
-/** The dry sound: an upright line at the moment it goes in, as high as it comes out. */
-function dryMark(frame: DisplayFrame, box: Box, dryDb: number): void {
-  if (dryDb <= FOOT_DB) return
-  const x = box.x + 1
-  rule(frame.ctx, x, box.y + box.h, x, yOf(dryDb, box), {
-    colour: frame.colours.ink,
-    width: 2,
-    alpha: INK.back,
-  })
+/** Work a room's picture out from its settings: done when one of them moves, not on every frame. */
+function layRoom(room: Room, view: DisplayView, rate: number, state: RoomState): void {
+  const { first, tail } = roomBoxes(view)
+  const answer = room.answer(view, rate)
+  const level = shownWet(answer)
+  const falls = answer.held ? Infinity : answer.body
+  state.answer = answer
+  state.level = level
+  state.setsOff = decayLine(first, room.first, answer.onset, level, falls)
+  // A line on the foot would not be seen: the lowest start is drawn just above it.
+  const sinks = room.sinks?.(view) ?? 0
+  state.sunk =
+    sinks < -0.5
+      ? decayLine(first, room.first, answer.onset, Math.max(level + sinks, FOOT_DB + 3), falls)
+      : []
+  state.marks.clear(first.w, room.first)
+  room.reflections?.(view, rate, answer, state.marks)
+  state.outlineCount = room.lay?.(view, rate, answer, level, first, state.outlines) ?? 0
+  const fall = (rt60: number): Point[] =>
+    Number.isFinite(rt60) ? decayLine(tail, room.span, answer.onset, TOP_DB, rt60) : []
+  state.body = decayLine(tail, room.span, answer.onset, TOP_DB, falls)
+  state.top = fall(answer.top)
+  state.low = fall(answer.low)
+  state.letGo = answer.held ? fall(answer.body) : []
+  state.handles = roomHandles(room, view)
+}
+
+/** How high a line stands at `x`: the foot before it starts and after it has come down. */
+function lineY(line: readonly Point[], x: number, foot: number): number {
+  if (line.length < 2 || x < line[0][0]) return foot
+  const [ax, ay] = line[0]
+  const [bx, by] = line[line.length - 1]
+  if (x >= bx) return by
+  return bx > ax ? lerp(ay, by, (x - ax) / (bx - ax)) : by
+}
+
+const NO_ANSWER: Answer = {
+  dry: FLOOR_DB,
+  wet: FLOOR_DB,
+  gap: 0,
+  onset: 0,
+  body: 0,
+  top: NaN,
+  low: NaN,
+  held: false,
 }
 
 /** A reverb with a tail that dies away, drawn the family's way. */
 function room(config: Room): PlateDisplay {
   return plateDisplay<RoomState>({
-    place: 'strip',
+    place: 'window',
+    columns: 2,
     params: config.params,
     live: { signal: true },
     info: config.info,
-    init: () => ({ ringing: ringing(), marks: new Marks() }),
+    init: () => ({
+      ride: newRide(config.span),
+      marks: new Marks(),
+      seen: unseen(config.params),
+      answer: NO_ANSWER,
+      level: FLOOR_DB,
+      setsOff: [],
+      sunk: [],
+      body: [],
+      top: [],
+      low: [],
+      letGo: [],
+      handles: [],
+      outlines: new Float32Array(config.lay ? MOST_OUTLINES : 0),
+      outlineCount: 0,
+    }),
     draw(frame) {
       const { ctx, colours, state } = frame
+      drawnRate = frame.sampleRate
       ground(frame)
-      const answer = config.answer(frame, frame.sampleRate)
-      const { first, tail, wordsY } = roomBoxes(frame)
-      const level = shownWet(answer)
-      const seconds = tailSeconds(config, frame, answer)
-      const held = !Number.isFinite(answer.body)
-      const foot = tail.y + tail.h
-      listen(frame, state.ringing, answer.body, Math.max(answer.dry, answer.wet))
-
-      dbGrid(frame, first, TOP_DB, FOOT_DB, 20)
-      dbGrid(frame, tail, TOP_DB, FOOT_DB, 20)
-      timeScale(frame, first, config.first, wordsY, false)
-      timeScale(frame, tail, seconds, wordsY, true)
-      for (const box of [first, tail]) {
-        rule(ctx, box.x, foot, box.x + box.w, foot, { colour: colours.ink, alpha: INK.rule })
+      if (moved(frame, frame.sampleRate, config.params, state.seen)) {
+        layRoom(config, frame, frame.sampleRate, state)
       }
+      const { answer, level } = state
+      const { meter, first, tail, firstWords, tailWords, between } = roomBoxes(frame)
+      hear(frame, state.ride, answer.body, answer.held)
 
-      // The first moments: the gap, the first reflections, the tail setting off.
+      // Above, the first moments: the dry sound, the gap, the first reflections, the tail setting off.
+      const firstFoot = first.y + first.h
+      dbGrid(frame, first, TOP_DB, FOOT_DB, 20)
+      timeScale(frame, first, config.first, firstWords, false)
+      rule(ctx, first.x, firstFoot, first.x + first.w, firstFoot, {
+        colour: colours.ink,
+        alpha: INK.rule,
+      })
       clipped(ctx, first, () => {
-        const body = decayLine(first, config.first, answer.onset, level, answer.body)
-        fillTo(ctx, body, foot, colours.ink, INK.fill)
-        if (Number.isFinite(answer.top)) {
-          trace(ctx, decayLine(first, config.first, answer.onset, level, answer.top), {
-            colour: colours.ink,
-            width: 1,
-            alpha: INK.back,
-          })
-        }
-        if (config.reflections) {
-          state.marks.clear()
-          config.reflections(frame, frame.sampleRate, answer, state.marks)
-          strokeMarks(frame, state.marks, first, config.first, level, INK.text)
-        }
-        config.drawFirst?.(frame, first, config.first, answer, level)
-        trace(ctx, body, { colour: colours.ink })
+        fillTo(ctx, state.setsOff, firstFoot, colours.ink, INK.fill)
+        strokeMarks(frame, state.marks, first, level, INK.rule)
+        config.paint?.(frame, state.outlines, state.outlineCount, first)
+        trace(ctx, state.sunk, { colour: colours.ink, width: 1, alpha: INK.back, dash: [2, 2] })
+        trace(ctx, state.setsOff, { colour: colours.ink, width: 1, alpha: INK.text })
       })
       dryMark(frame, first, answer.dry)
+      drawMeter(frame, state.ride, meter, first)
+      rule(ctx, 1, between, frame.width - 1, between, { colour: colours.ink, alpha: INK.rule })
 
-      // The whole tail.
+      // Below, the tail alone: from the top to the foot in the time written beside it.
+      const foot = tail.y + tail.h
+      dbGrid(frame, tail, TOP_DB, FOOT_DB, 20)
+      timeScale(frame, tail, config.span, tailWords, true)
+      rule(ctx, tail.x, foot, tail.x + tail.w, foot, { colour: colours.ink, alpha: INK.rule })
+      clipped(ctx, { x: tail.x, y: tail.y - 2, w: tail.w, h: tail.h + 2 }, () => {
+        // The lows where they are set apart: a lighter wedge, dashed.
+        fillTo(ctx, state.low, foot, colours.ink, INK.fill * 0.6)
+        trace(ctx, state.low, { colour: colours.ink, width: 1, alpha: INK.back, dash: [3, 2] })
+        fillTo(ctx, state.body, foot, colours.ink, INK.fill)
+        if (answer.held) {
+          // What it falls at once the hold is let go.
+          trace(ctx, state.letGo, { colour: colours.ink, width: 1, alpha: INK.text, dash: [2, 2] })
+          trace(ctx, state.top, { colour: colours.ink, width: 1, alpha: INK.back })
+        } else {
+          // The highs die sooner: a darker wedge inside the tail.
+          fillTo(ctx, state.top, foot, colours.ink, INK.fill)
+          trace(ctx, state.top, { colour: colours.ink, width: 1, alpha: INK.back })
+        }
+      })
+      clipped(ctx, { x: tail.x, y: tail.y - 2, w: tail.w, h: tail.h + 2 }, () =>
+        trace(ctx, state.body, { colour: colours.ink }),
+      )
+      drawFall(frame, state.ride, tail, config.span, TOP_DB)
+
+      for (const point of state.handles) {
+        handle(frame, point.x, point.y, { hot: frame.hot === point.key })
+      }
+      // The one figure a reverb is set by: how long the tail takes to fall 60 dB.
+      // In the corner over the tail, or at the foot where a long tail runs through the corner.
       const words =
         frame.hot === 'damping'
           ? secondsText(answer.top)
           : frame.hot === 'start' && config.predelay
             ? `${Math.round(answer.gap * 1000)}ms`
-            : secondsText(answer.body)
-      const wordsX = tail.x + tail.w - 2 - words.length * 5
-      const body = decayLine(tail, seconds, answer.onset, level, answer.body)
-      clipped(ctx, tail, () => {
-        fillTo(ctx, body, foot, colours.ink, INK.fill)
-        if (held) {
-          // What it falls at once the hold is let go.
-          trace(ctx, decayLine(tail, seconds, answer.onset, level, answer.release), {
-            colour: colours.ink,
-            width: 1,
-            alpha: INK.back,
-            dash: [2, 2],
-          })
-        }
-        if (Number.isFinite(answer.low)) {
-          trace(ctx, decayLine(tail, seconds, answer.onset, level, answer.low), {
-            colour: colours.ink,
-            width: 1,
-            alpha: INK.back,
-            dash: [3, 2],
-          })
-        }
-        if (Number.isFinite(answer.top)) {
-          trace(ctx, decayLine(tail, seconds, answer.onset, level, answer.top), {
-            colour: colours.ink,
-            width: 1,
-            alpha: INK.back,
-          })
-        }
-        config.drawTail?.(frame, tail, seconds, answer, level, wordsX)
+            : secondsText(answer.held ? Infinity : answer.body)
+      const right = tail.x + tail.w - 1
+      const left = right - words.length * 5.5 - 3
+      const through = Math.min(lineY(state.body, left, foot), lineY(state.low, left, foot))
+      text(frame, words, right, through < tail.y + 12 ? foot - 3 : tail.y + 8, {
+        align: 'right',
+        size: 9,
       })
-      drawRinging(frame, state.ringing, tail, tail.x, seconds)
-      clipped(ctx, tail, () => trace(ctx, body, { colour: colours.ink }))
-      if (config.swayHz && !held) shimmer(frame, tail, body, seconds, config.swayHz, 1)
-      dryMark(frame, tail, answer.dry)
-
-      for (const point of roomHandles(config, frame)) {
-        handle(frame, point.x, point.y, { hot: frame.hot === point.key })
-      }
-      // The one figure a reverb is set by: how long the tail takes to fall 60 dB.
-      // Under the line where a held tail runs level through its place.
-      const lineY = yOf(level, tail)
-      text(
-        frame,
-        words,
-        tail.x + tail.w - 1,
-        held && lineY < tail.y + 11 ? lineY + 11 : tail.y + 8,
-        {
-          align: 'right',
-          size: 9,
-        },
-      )
     },
     handles: (view) => roomHandles(config, view),
   })
@@ -736,16 +950,39 @@ const PLATE_HALVES = [
 /** Once round the figure of eight: both halves, an allpass counted at its length. */
 const PLATE_LOOP_SEC =
   PLATE_HALVES.reduce((sum, h) => sum + h.diffuser + h.first + h.second + h.last, 0) / PLATE_RATE
+/**
+ * How much longer the tank rings than its length says. The four allpasses in
+ * the loop (gains 0.7 and 0.5) hold each frequency back by its own time, from
+ * a fifth of their length to more than five times it, so a trip round is
+ * 0.80 to 1.75 of the loop for one frequency or another. Each falls at its
+ * own rate, and heard together (`fallTogether`, every phase of the four
+ * allpasses, each part lasting as long as its trip) they take 1.147 times as
+ * long to fall 60 dB. Measured on the device at Decay 0.7: 3.9 s where the
+ * loop's length alone says 3.5.
+ */
+export const PLATE_SPREAD = 0.147
+/**
+ * The two diffusers sway by 12 samples (`kExcursion`), which is half a cycle
+ * at this frequency. Well above it the sway carries a frequency through every
+ * trip time in turn and the spread evens out: measured, all of it is there at
+ * 500 Hz, half at 1.2 kHz and none at 4 kHz.
+ */
+const PLATE_SWAY_HZ = PLATE_RATE / 24
 
 /**
  * How long the plate takes to fall 60 dB at a frequency. `PlateReverb::process`
  * multiplies by Decay twice in each half of the tank and damps once, so a
- * trip round both halves is Decay⁴ and the damping filter twice.
+ * trip round both halves is Decay⁴ and the damping filter twice; the
+ * allpasses in the loop stretch that as `PLATE_SPREAD` says.
  */
 export function plateRt60(decay: number, damping: number, hz: number, rate: number): number {
   const kept = clamp(decay, 0, 0.9999)
   const a = clamp(damping, 0, 0.9999)
-  return loopRt60(PLATE_LOOP_SEC, 80 * Math.log10(kept) + 2 * onePoleLossDb(a, hz, rate))
+  const ratio = hz / PLATE_SWAY_HZ
+  return (
+    loopRt60(PLATE_LOOP_SEC, 80 * Math.log10(kept) + 2 * onePoleLossDb(a, hz, rate)) *
+    (1 + PLATE_SPREAD / (1 + ratio * ratio))
+  )
 }
 
 /**
@@ -795,34 +1032,58 @@ const PLATE_TAPS: readonly (readonly [samples: number, db: number, trips: number
   }
   return out
 })()
+/**
+ * The four allpasses the input goes through before the tank (`kInputAp1` to
+ * `4`, gains 0.75, 0.75, 0.625, 0.625): each hands a sound on at once (its
+ * gain), after its length (1 − gain²) and after twice its length (gain times
+ * that). Every way through the four, as samples added and dB against the
+ * loudest way: they smear each tap over 60 ms, which is why a plate starts
+ * dense.
+ */
+const PLATE_SMEAR: readonly (readonly [samples: number, db: number])[] = (() => {
+  let ways: [number, number][] = [[0, 1]]
+  for (const [length, gain] of [
+    [142, 0.75],
+    [107, 0.75],
+    [379, 0.625],
+    [277, 0.625],
+  ]) {
+    const echo = 1 - gain * gain
+    ways = ways.flatMap(([samples, level]): [number, number][] => [
+      [samples, level * gain],
+      [samples + length, level * echo],
+      [samples + 2 * length, level * gain * echo],
+    ])
+  }
+  const most = Math.max(...ways.map(([, level]) => level))
+  return ways.map(([samples, level]) => [samples, 20 * Math.log10(level / most)])
+})()
 /** The first tap of all: the plate's own part of the gap. */
 const PLATE_FIRST_SEC = Math.min(...PLATE_TAPS.map(([samples]) => samples)) / PLATE_RATE
 
 const plateReverb = room({
   params: ['mix', 'decay', 'damping', 'predelayMs'],
-  info: 'Level against time from the moment a sound goes in. Left, the first moments: the dry sound, the gap and the first taps of the plate. Right, the whole tail on a scale of seconds, with a fainter line for the highs. Sound rings down it in the second colour.',
+  info: 'Above, the first moments after a sound goes in: the dry sound, the gap and the plate answering, dense from the start. Below, the tail falling 60 dB on a scale of seconds, the highs dying sooner inside it. The figure is the time it takes. The second colour is the sound itself ringing away.',
   first: 0.4,
+  span: 8,
   decay: 'decay',
   mix: 'mix',
   predelay: 'predelayMs',
   damping: 'damping',
-  // The two allpasses in the tank sway at 1 and 0.95 Hz.
-  swayHz: 1,
   // `PlateReverbDevice::process`: dry·(1 − mix) + wet·mix.
   wetOf: (mix) => gainToDb(mix),
   answer(view, rate) {
     const mix = view.value('mix')
     const gap = view.value('predelayMs') / 1000
-    const body = plateRt60(view.value('decay'), view.value('damping'), BODY_HZ, rate)
     return {
       dry: gainToDb(1 - mix),
       wet: gainToDb(mix),
       gap,
       onset: gap + PLATE_FIRST_SEC,
-      body,
+      body: plateRt60(view.value('decay'), view.value('damping'), BODY_HZ, rate),
       top: plateRt60(view.value('decay'), view.value('damping'), TOP_HZ, rate),
       low: NaN,
-      release: body,
+      held: false,
     }
   },
   reflections(view, rate, answer, marks) {
@@ -830,7 +1091,9 @@ const plateReverb = room({
       20 * Math.log10(Math.max(1e-6, clamp(view.value('decay'), 0, 0.9999))) +
       onePoleLossDb(clamp(view.value('damping'), 0, 0.9999), BODY_HZ, rate)
     for (const [samples, db, trips] of PLATE_TAPS) {
-      marks.add(answer.gap + samples / PLATE_RATE, db + trips * trip)
+      const at = answer.gap + samples / PLATE_RATE
+      const level = db + trips * trip
+      for (const [smear, less] of PLATE_SMEAR) marks.add(at + smear / PLATE_RATE, level + less)
     }
   },
 })
@@ -848,7 +1111,8 @@ const fdnLine = (line: number, rate: number): number =>
  * mean line times Size; on it `FdnReverb::process` multiplies by
  * `feedback_gain_for` (the gain that makes Decay the RT60, held under 0.98),
  * damps with a one-pole whose cutoff Damping sweeps from 20 kHz to 1 kHz,
- * and blocks DC with R = 0.995.
+ * and blocks DC with R = 0.995. Measured on the device at Decay 5: 4.8 to
+ * 4.9 s at 500 Hz where this says 4.9.
  */
 export function fdnRt60(
   decay: number,
@@ -878,32 +1142,30 @@ export function fdnBreath(phase: number, depth: number): number {
 }
 
 const fdnReverb = room({
-  params: ['mix', 'decay', 'damping', 'predelayMs', 'size', 'breathRate', 'breathDepth'],
-  info: 'Level against time from the moment a sound goes in. Left, the first moments: the gap, then the eight lines answering, wider apart as Size grows. Right, the whole tail in seconds, a fainter line for the highs, and dotted the breath that lets sound in.',
+  params: ['mix', 'decay', 'damping', 'predelayMs', 'size', 'breathDepth'],
+  info: 'Above, the first moments after a sound goes in: the gap, then the eight lines answering, wider apart as Size grows. The dashed line is how low Breath lets the start sink. Below, the tail falling 60 dB on a scale of seconds, the highs dying sooner inside it. The figure is the time it takes.',
   first: 0.6,
+  span: 10,
   decay: 'decay',
   mix: 'mix',
   predelay: 'predelayMs',
   damping: 'damping',
-  // The lines sway at 0.3 to 0.79 Hz; this is the middle of them.
-  swayHz: 0.545,
   // `FdnReverbDevice::process`: dry·cos(mix·π/2) + wet·sin(mix·π/2).
   wetOf: (mix) => gainToDb(Math.sin((clamp(mix, 0, 1) * Math.PI) / 2)),
   answer(view, rate) {
     const mix = clamp(view.value('mix'), 0, 1)
     const gap = view.value('predelayMs') / 1000
     const size = clamp(view.value('size'), 0.5, 2)
-    const body = fdnRt60(view.value('decay'), view.value('damping'), size, BODY_HZ, rate)
     return {
       dry: gainToDb(Math.cos((mix * Math.PI) / 2)),
       wet: gainToDb(Math.sin((mix * Math.PI) / 2)),
       gap,
       // Nothing comes out before the shortest line has been gone through once.
       onset: gap + fdnLine(0, rate) * size,
-      body,
+      body: fdnRt60(view.value('decay'), view.value('damping'), size, BODY_HZ, rate),
       top: fdnRt60(view.value('decay'), view.value('damping'), size, TOP_HZ, rate),
       low: NaN,
-      release: body,
+      held: false,
     }
   },
   reflections(view, rate, answer, marks) {
@@ -922,25 +1184,9 @@ const fdnReverb = room({
       }
     }
   },
-  drawTail(frame, box, seconds, _answer, level, wordsX) {
-    const depth = clamp(frame.value('breathDepth'), 0, 1)
-    if (depth < 0.005) return
-    // The breath over the same seconds: a sound that goes in at a moment
-    // starts its tail this far down. Drawn open at the left; the device's
-    // breath runs free and where it is now is not known here.
-    const hz = frame.value('breathRate')
-    const points: Point[] = []
-    for (let x = box.x; x <= wordsX - 3; x += 2) {
-      const t = ((x - box.x) / box.w) * seconds
-      points.push([x, yOf(level + gainToDb(fdnBreath(t * hz + 0.25, depth)), box)])
-    }
-    trace(frame.ctx, points, {
-      colour: frame.colours.ink,
-      width: 1,
-      alpha: INK.text,
-      dash: [1, 2],
-    })
-  },
+  // The breath runs free and the device does not say where in its cycle it
+  // is, so only its reach is drawn: the least it lets in, at the bottom of a cycle.
+  sinks: (view) => gainToDb(fdnBreath(0.75, clamp(view.value('breathDepth'), 0, 1))),
 })
 
 // --- Hall Reverb --------------------------------------------------------------
@@ -955,6 +1201,15 @@ const HALL_ALLPASSES = [
 const HALL_MEAN_LOOP = HALL_LOOPS.reduce((sum, seconds) => sum + seconds, 0) / HALL_LOOPS.length
 /** The reverb's own output runs 7 dB under what goes in; Mix is levelled for it (`wetPower` in the .dsp). */
 const HALL_WET_POWER = 0.2
+/**
+ * How much longer the hall rings than its loops' lengths and losses say. The
+ * allpass in each loop (gain 0.6) holds part of every trip back. With the
+ * allpasses taken out the loops fall exactly as `hallTripDb` says; with them
+ * in, the device measures 1 to 4 % longer under Crossover and 6 to 9 %
+ * longer between Crossover and Damping, at Mid decay 1, 2, 4 and 8 alike.
+ * This is the middle of what was measured, not a figure worked out.
+ */
+export const HALL_LONGER = 1.06
 
 /**
  * What one trip round a loop `seconds` long does to a frequency, in dB, as
@@ -984,7 +1239,7 @@ export function hallTripDb(
   return 20 * Math.log10(mid) + 10 * Math.log10(shelf) + onePoleLossDb(pole, hz, rate)
 }
 
-/** How long the hall takes to fall 60 dB at a frequency: the mean of its loops, and what a trip round it loses. */
+/** How long the hall takes to fall 60 dB at a frequency: the mean of its loops, what a trip round it loses, and what the allpasses add. */
 export function hallRt60(
   hz: number,
   crossover: number,
@@ -993,9 +1248,12 @@ export function hallRt60(
   damping: number,
   rate: number,
 ): number {
-  return loopRt60(
-    HALL_MEAN_LOOP,
-    hallTripDb(HALL_MEAN_LOOP, hz, crossover, lowDecay, midDecay, damping, rate),
+  return (
+    HALL_LONGER *
+    loopRt60(
+      HALL_MEAN_LOOP,
+      hallTripDb(HALL_MEAN_LOOP, hz, crossover, lowDecay, midDecay, damping, rate),
+    )
   )
 }
 
@@ -1012,8 +1270,9 @@ const hallMidHz = (view: DisplayView): number =>
 
 const hallReverb = room({
   params: ['preDelay', 'crossover', 'lowDecay', 'midDecay', 'damping', 'mix'],
-  info: 'Level against time from the moment a sound goes in. Left, the first moments: the gap, the first echoes and the eight loops coming round. Right, the whole tail in seconds: the mids, dashed the lows under Crossover, and fainter the highs above Damping.',
+  info: 'Above, the first moments after a sound goes in: the gap, the first echoes and the eight loops coming round. Below, the tail falling 60 dB on a scale of seconds: the mids, dashed the lows under Crossover, and darker inside the highs above Damping. The figure is the time the mids take.',
   first: 0.4,
+  span: 6,
   decay: 'midDecay',
   mix: 'mix',
   predelay: 'preDelay',
@@ -1031,7 +1290,6 @@ const hallReverb = room({
         view.value('damping'),
         rate,
       )
-    const body = at(hallMidHz(view))
     return {
       dry: gainToDb(gains.dry),
       wet: gainToDb(gains.wet) + 10 * Math.log10(HALL_WET_POWER),
@@ -1039,10 +1297,10 @@ const hallReverb = room({
       // What goes straight through the allpasses cancels in the output: the
       // first sound is the shortest allpass's echo.
       onset: gap + Math.min(...HALL_ALLPASSES),
-      body,
+      body: at(hallMidHz(view)),
       top: at(TOP_HZ),
       low: at(view.value('crossover') / 4),
-      release: body,
+      held: false,
     }
   },
   reflections(view, rate, answer, marks) {
@@ -1073,10 +1331,27 @@ const hallReverb = room({
 
 // --- Ether Reverb -------------------------------------------------------------
 
-/** The eight combs of `freeverb.h`, in samples at 44.1 kHz. */
+/** The eight combs of `freeverb.h` and the four allpasses after them, in samples at 44.1 kHz. */
 const ETHER_COMBS = [1116, 1188, 1277, 1356, 1422, 1491, 1557, 1617] as const
+const ETHER_ALLPASSES = [556, 441, 341, 225] as const
 const ETHER_MEAN_COMB =
   ETHER_COMBS.reduce((sum, samples) => sum + samples, 0) / ETHER_COMBS.length / 44100
+/**
+ * The eight combs feed back alike, so each falls 60 dB in a time that goes
+ * with its length, the longest 1.45 times as slowly as the shortest. Heard
+ * together they take this much longer than the mean comb: 1.067. Measured on
+ * the device at its defaults: 1.8 to 1.9 s where the mean comb says 1.7.
+ */
+export const ETHER_TOGETHER = fallTogether(ETHER_COMBS)
+/**
+ * Every way through the four allpasses, in samples added. `AllpassFilter`
+ * gives a sound back at once and, as loud, after its length, so each echo
+ * of a comb arrives sixteen times over within 35 ms.
+ */
+const ETHER_SMEAR: readonly number[] = ETHER_ALLPASSES.reduce<number[]>(
+  (ways, length) => ways.flatMap((samples) => [samples, samples + length]),
+  [0],
+)
 
 /**
  * `EtherReverbDevice::reverb_parameters_for` and the scaling in `freeverb.h`:
@@ -1095,7 +1370,7 @@ export function etherLaw(
   return { feedback: roomSize * 0.28 + 0.7, damp: damp * 0.4 }
 }
 
-/** How long Ether's room takes to fall 60 dB at a frequency: the mean comb, its feedback and its damping. */
+/** How long Ether's room takes to fall 60 dB at a frequency: the mean comb with its feedback and its damping, and the eight heard together. */
 export function etherRt60(
   decay: number,
   size: number,
@@ -1106,13 +1381,17 @@ export function etherRt60(
 ): number {
   const { feedback, damp } = etherLaw(decay, size, damping, frozen)
   if (frozen) return Infinity
-  return loopRt60(ETHER_MEAN_COMB, 20 * Math.log10(feedback) + onePoleLossDb(damp, hz, rate))
+  return (
+    ETHER_TOGETHER *
+    loopRt60(ETHER_MEAN_COMB, 20 * Math.log10(feedback) + onePoleLossDb(damp, hz, rate))
+  )
 }
 
 const etherReverb = room({
   params: ['mix', 'decay', 'damping', 'predelayMs', 'size', 'freeze'],
-  info: 'Level against time from the moment a sound goes in. Left, the first moments: the gap, then the eight combs answering and coming round. Right, the whole tail in seconds, with a fainter line for the highs. With Freeze on the tail runs level and never falls.',
+  info: 'Above, the first moments after a sound goes in: the dry sound, the gap, then the combs answering, dense from the start. Below, the tail falling 60 dB on a scale of seconds, the highs dying sooner inside it. With Freeze on the tail runs level and the dashed line is what it falls at once let go.',
   first: 0.3,
+  span: 6,
   decay: 'decay',
   mix: 'mix',
   predelay: 'predelayMs',
@@ -1122,24 +1401,24 @@ const etherReverb = room({
   answer(view, rate) {
     const mix = view.value('mix')
     const gap = view.value('predelayMs') / 1000
-    const frozen = view.value('freeze') >= 0.5
-    const at = (hz: number, held: boolean): number =>
-      etherRt60(view.value('decay'), view.value('size'), view.value('damping'), held, hz, rate)
+    const held = view.value('freeze') >= 0.5
+    const at = (hz: number): number =>
+      etherRt60(view.value('decay'), view.value('size'), view.value('damping'), false, hz, rate)
     return {
       // A held room mutes the dry sound.
-      dry: frozen ? FLOOR_DB : gainToDb(1 - mix),
+      dry: held ? FLOOR_DB : gainToDb(1 - mix),
       wet: gainToDb(mix),
       gap,
       onset: gap + ETHER_COMBS[0] / 44100,
-      body: at(BODY_HZ, frozen),
-      top: at(TOP_HZ, frozen),
+      body: at(BODY_HZ),
+      top: at(TOP_HZ),
       low: NaN,
-      release: at(BODY_HZ, false),
+      held,
     }
   },
   reflections(view, rate, answer, marks) {
     // A held room lets nothing new in.
-    if (view.value('freeze') >= 0.5) return
+    if (answer.held) return
     const { feedback, damp } = etherLaw(
       view.value('decay'),
       view.value('size'),
@@ -1147,9 +1426,12 @@ const etherReverb = room({
       false,
     )
     const trip = 20 * Math.log10(feedback) + onePoleLossDb(damp, BODY_HZ, rate)
-    // Each comb's echo, and its next two trips; after that they are a wash.
+    // Each comb's echo on every trip the first moments hold, through every way of the allpasses.
     for (const samples of ETHER_COMBS) {
-      for (let n = 1; n <= 3; n++) marks.add(answer.gap + (n * samples) / 44100, (n - 1) * trip)
+      for (let n = 1; (n * samples) / 44100 <= 0.3; n++) {
+        const at = answer.gap + (n * samples) / 44100
+        for (const smear of ETHER_SMEAR) marks.add(at + smear / 44100, (n - 1) * trip)
+      }
     }
   },
 })
@@ -1175,10 +1457,10 @@ const SPRING_FEED = [
 ] as const
 /** The pieces each bounce's sweep is drawn in. */
 const SPRING_PIECES = 6
-const SPRING_SHARES = new Float64Array(SPRING_PIECES)
-/** The most trips of one spring that are drawn, and the outlines of them all. */
+/** The most trips of one spring that are drawn. */
 const SPRING_TRIPS = 24
-const SPRING_WEDGES = new Float32Array(3 * SPRING_TRIPS * 2 * (SPRING_PIECES + 2))
+/** The points of one bounce's outline. */
+const SPRING_POINTS = SPRING_PIECES + 2
 
 /** The rate the tank runs at: the device's rate over a whole number, so that half of it lands near the transition frequency. */
 export function springRate(rate: number): number {
@@ -1264,26 +1546,25 @@ const springMode = (view: DisplayView): number => clamp(Math.round(view.value('s
  * behind on every trip, so a bounce is drawn as a wedge: upright where the
  * lows land, sloping away to where the top of the band lands. Its height
  * along the way is how much of the band arrives in that moment, which is
- * what Tension shapes; Drip lifts the trailing highs.
+ * what Tension shapes; Drip lifts the trailing highs. The outline of every
+ * wedge goes into `into`, eight points each; how many is handed back.
  */
-function drawBounces(
-  frame: DisplayFrame,
-  box: Box,
-  seconds: number,
+function layBounces(
+  view: DisplayView,
+  rate: number,
   answer: Answer,
   level: number,
-): void {
-  const { ctx, colours } = frame
-  const rate = frame.sampleRate
-  const decay = frame.value('decay')
-  const tension = frame.value('tension')
-  const drip = frame.value('drip')
-  const feeds = SPRING_FEED[springMode(frame)]
-  const topHz = springTopHz(frame, rate)
-  const foot = box.y + box.h
+  box: Box,
+  seconds: number,
+  into: Float32Array,
+): number {
+  const decay = view.value('decay')
+  const tension = view.value('tension')
+  const drip = view.value('drip')
+  const feeds = SPRING_FEED[springMode(view)]
+  const topHz = springTopHz(view, rate)
   const x = (t: number): number => box.x + (t / seconds) * box.w
-  // Every wedge's outline first, then one fill and one stroke for them all.
-  const each = SPRING_PIECES + 2
+  const shares = new Float64Array(SPRING_PIECES)
   let wedges = 0
   for (let n = 0; n < feeds.length; n++) {
     if (feeds[n] <= 0) continue
@@ -1296,6 +1577,7 @@ function drawBounces(
       const lands = answer.gap + (still + loop.half + trip * (loop.line + still)) / loop.low
       const base = level + feedDb + trip * loop.gainDb
       if (lands > seconds || base < FOOT_DB) break
+      if (2 * SPRING_POINTS * (wedges + 1) > into.length) break
       const spread = ((trip + 1) * trails) / loop.low
       // How much of the band lands in each piece of the sweep, and the most in any.
       let from = 0
@@ -1308,34 +1590,39 @@ function drawBounces(
           10 * Math.log10(Math.max(1e-6, ((to - from) / wTop) * SPRING_PIECES)) +
           trip * onePoleLossDb(loop.damping, hz, loop.low)
         if (share > most) most = share
-        SPRING_SHARES[piece] = share + springDripDb(drip, hz, rate)
+        shares[piece] = share + springDripDb(drip, hz, rate)
         from = to
       }
-      const at = 2 * each * wedges
-      SPRING_WEDGES[at] = x(lands)
-      SPRING_WEDGES[at + 1] = yOf(base + SPRING_SHARES[0] - most, box)
+      const at = 2 * SPRING_POINTS * wedges
+      into[at] = x(lands)
+      into[at + 1] = yOf(base + shares[0] - most, box)
       for (let piece = 0; piece < SPRING_PIECES; piece++) {
-        SPRING_WEDGES[at + 2 + 2 * piece] = x(lands + (spread * (piece + 0.5)) / SPRING_PIECES)
-        SPRING_WEDGES[at + 3 + 2 * piece] = yOf(base + SPRING_SHARES[piece] - most, box)
+        into[at + 2 + 2 * piece] = x(lands + (spread * (piece + 0.5)) / SPRING_PIECES)
+        into[at + 3 + 2 * piece] = yOf(base + shares[piece] - most, box)
       }
-      SPRING_WEDGES[at + 2 * each - 2] = x(lands + spread)
-      SPRING_WEDGES[at + 2 * each - 1] = SPRING_WEDGES[at + 2 * each - 3]
+      into[at + 2 * SPRING_POINTS - 2] = x(lands + spread)
+      into[at + 2 * SPRING_POINTS - 1] = into[at + 2 * SPRING_POINTS - 3]
       wedges += 1
     }
   }
-  if (wedges === 0) return
+  return wedges
+}
+
+/** Every wedge of `layBounces`: one fill and two strokes for them all. */
+function paintBounces(frame: DisplayFrame, wedges: Float32Array, count: number, box: Box): void {
+  if (count === 0) return
+  const { ctx, colours } = frame
+  const foot = box.y + box.h
   const outline = (part: 'whole' | 'front' | 'sweep'): void => {
     ctx.beginPath()
-    for (let wedge = 0; wedge < wedges; wedge++) {
-      const at = 2 * each * wedge
-      if (part === 'sweep') ctx.moveTo(SPRING_WEDGES[at], SPRING_WEDGES[at + 1])
-      else ctx.moveTo(SPRING_WEDGES[at], foot)
-      const points = part === 'front' ? 1 : each
-      for (let i = 0; i < points; i++) {
-        ctx.lineTo(SPRING_WEDGES[at + 2 * i], SPRING_WEDGES[at + 2 * i + 1])
-      }
+    for (let wedge = 0; wedge < count; wedge++) {
+      const at = 2 * SPRING_POINTS * wedge
+      if (part === 'sweep') ctx.moveTo(wedges[at], wedges[at + 1])
+      else ctx.moveTo(wedges[at], foot)
+      const points = part === 'front' ? 1 : SPRING_POINTS
+      for (let i = 0; i < points; i++) ctx.lineTo(wedges[at + 2 * i], wedges[at + 2 * i + 1])
       if (part === 'whole') {
-        ctx.lineTo(SPRING_WEDGES[at + 2 * each - 2], foot)
+        ctx.lineTo(wedges[at + 2 * SPRING_POINTS - 2], foot)
         ctx.closePath()
       }
     }
@@ -1349,20 +1636,23 @@ function drawBounces(
   outline('whole')
   ctx.globalAlpha = INK.fill
   ctx.fill()
-  // The moment each bounce lands, lightly, and the slope of its sweep.
-  outline('front')
-  ctx.globalAlpha = INK.rule
-  ctx.stroke()
+  // The slope of each bounce's sweep, lightly, and the moment it lands.
   outline('sweep')
-  ctx.globalAlpha = INK.text
+  ctx.globalAlpha = INK.back
+  ctx.stroke()
+  outline('front')
+  ctx.globalAlpha = INK.back
   ctx.stroke()
   ctx.globalAlpha = 1
 }
 
+const SPRING_FIRST_SEC = 0.4
+
 const springReverb = room({
   params: ['mix', 'decay', 'tension', 'springs', 'tone', 'drip', 'predelay'],
-  info: 'Level against time from the moment a sound goes in. Left, the first moments: every bounce of the springs, its highs trailing further behind on each trip. Tension shapes the sweep and Drip lifts its end. Right, the whole tail in seconds, fainter for the highs.',
-  first: 0.25,
+  info: 'Above, the first moments after a sound goes in: every bounce of the springs, its highs trailing further behind on each trip. Tension shapes the sweep and Drip lifts its end. Below, the tail falling 60 dB on a scale of seconds, the highs dying sooner inside it. The figure is the time it takes.',
+  first: SPRING_FIRST_SEC,
+  span: 6,
   decay: 'decay',
   mix: 'mix',
   predelay: 'predelay',
@@ -1381,19 +1671,20 @@ const springReverb = room({
       const loop = springLoop(n, decay, tension, rate)
       first = Math.min(first, (springCascade(loop.a, 0) + loop.half) / loop.low)
     }
-    const body = springRt60(decay, tension, BODY_HZ, rate)
     return {
       dry: mix >= 1 ? FLOOR_DB : gainToDb(Math.cos((mix * Math.PI) / 2)),
       wet: gainToDb(Math.sin((mix * Math.PI) / 2)),
       gap,
       onset: gap + first,
-      body,
+      body: springRt60(decay, tension, BODY_HZ, rate),
       top: springRt60(decay, tension, springTopHz(view, rate), rate),
       low: NaN,
-      release: body,
+      held: false,
     }
   },
-  drawFirst: drawBounces,
+  lay: (view, rate, answer, level, box, into) =>
+    layBounces(view, rate, answer, level, box, SPRING_FIRST_SEC, into),
+  paint: paintBounces,
 })
 
 // --- Convolver Reverb ---------------------------------------------------------
@@ -1419,11 +1710,12 @@ export function convolverSeconds(db: number): number {
   return REVERB_DECAY_SECONDS * (1 - Math.pow(10, -db / (20 * CONVOLVER_POWER)))
 }
 
+/** The box a strip draws in, with room at its left for the level that comes out. */
 const stripBox = (view: Pick<DisplayView, 'width' | 'height'>): Box => ({
-  x: 4,
-  y: 4,
-  w: view.width - 8,
-  h: view.height - 8 - SCALE_HEIGHT,
+  x: 6 + METER_WIDTH,
+  y: 5,
+  w: view.width - 10 - METER_WIDTH,
+  h: view.height - 9 - SCALE_HEIGHT,
 })
 
 function convolverHandles(view: DisplayView): DisplayHandle[] {
@@ -1447,17 +1739,25 @@ function convolverHandles(view: DisplayView): DisplayHandle[] {
   ]
 }
 
+const CONVOLVER_PARAMS = ['wet'] as const
+
+interface ConvolverState {
+  ride: Ride
+  seen: Float64Array
+  curve: Point[]
+}
+
 /**
  * The convolver: one fixed room, so one fixed curve, and Wet sets how high
  * it starts. It has no dry side, no gap and no first reflections: the
  * impulse is noise from its first sample on, the same at every frequency.
  */
-const convolverReverb = plateDisplay<{ ringing: Ringing }>({
+const convolverReverb = plateDisplay<ConvolverState>({
   place: 'strip',
-  params: ['wet'],
+  params: CONVOLVER_PARAMS,
   live: { signal: true },
-  info: 'Level against time from the moment a sound goes in. This reverb is one fixed room: its tail leans over slowly, then drops away 2.6 seconds on. The figure is the time it takes to fall 60 dB. Drag the start up or down for how loud it is.',
-  init: () => ({ ringing: ringing() }),
+  info: 'Level against time from the moment a sound stops. This reverb is one fixed room: its tail leans over slowly, then drops away 2.6 seconds on. The figure is the time it takes to fall 60 dB. Drag the start up or down for how loud it is. The second colour is the sound ringing away.',
+  init: () => ({ ride: newRide(CONVOLVER_SPAN), seen: unseen(CONVOLVER_PARAMS), curve: [] }),
   draw(frame) {
     const { ctx, colours, state } = frame
     ground(frame)
@@ -1465,34 +1765,44 @@ const convolverReverb = plateDisplay<{ ringing: Ringing }>({
     const foot = box.y + box.h
     const wet = gainToDb(frame.value('wet'))
     const level = Math.max(wet, LOWEST_WET_DB)
-    listen(frame, state.ringing, convolverSeconds(60), wet)
+    if (moved(frame, 0, CONVOLVER_PARAMS, state.seen)) {
+      // The curve as far as the foot, and the moment it gets there.
+      const reach = convolverSeconds(level - FOOT_DB)
+      const curve: Point[] = []
+      for (let x = 0; x <= box.w + 2; x += 2) {
+        const seconds = Math.min(reach, (x / box.w) * CONVOLVER_SPAN)
+        curve.push([
+          box.x + (seconds / CONVOLVER_SPAN) * box.w,
+          yOf(level + convolverDb(seconds), box),
+        ])
+        if (seconds >= reach) break
+      }
+      state.curve = curve
+    }
+    hear(frame, state.ride, convolverSeconds(60))
 
     dbGrid(frame, box, TOP_DB, FOOT_DB, 20)
     timeScale(frame, box, CONVOLVER_SPAN, frame.height - 3.5, true)
     rule(ctx, box.x, foot, box.x + box.w, foot, { colour: colours.ink, alpha: INK.rule })
-
-    // The curve as far as the foot, and the moment it gets there.
-    const reach = convolverSeconds(level - FOOT_DB)
-    const curve: Point[] = []
-    for (let x = 0; x <= box.w + 2; x += 2) {
-      const seconds = Math.min(reach, (x / box.w) * CONVOLVER_SPAN)
-      curve.push([
-        box.x + (seconds / CONVOLVER_SPAN) * box.w,
-        yOf(level + convolverDb(seconds), box),
-      ])
-      if (seconds >= reach) break
-    }
-    clipped(ctx, box, () => fillTo(ctx, curve, foot, colours.ink, INK.fill))
-    drawRinging(frame, state.ringing, box, box.x, CONVOLVER_SPAN)
-    clipped(ctx, box, () => trace(ctx, curve, { colour: colours.ink }))
+    clipped(ctx, box, () => {
+      fillTo(ctx, state.curve, foot, colours.ink, INK.fill)
+      trace(ctx, state.curve, { colour: colours.ink })
+    })
+    drawFall(frame, state.ride, box, CONVOLVER_SPAN, level)
     // The impulse's end, where there is nothing left at all.
     const end = box.x + (REVERB_DECAY_SECONDS / CONVOLVER_SPAN) * box.w
     rule(ctx, end, foot - 3, end, foot, { colour: colours.ink, alpha: INK.back })
+    drawMeter(frame, state.ride, 4, box)
 
     for (const point of convolverHandles(frame)) {
       handle(frame, point.x, point.y, { hot: frame.hot === point.key })
     }
-    const words = frame.hot === 'wet' ? `${Math.round(wet)}dB` : secondsText(convolverSeconds(60))
+    const words =
+      frame.hot !== 'wet'
+        ? secondsText(convolverSeconds(60))
+        : wet > FLOOR_DB
+          ? `${Math.round(wet)}dB`
+          : 'off'
     text(frame, words, box.x + box.w - 1, box.y + 8, { align: 'right', size: 9 })
   },
   handles: convolverHandles,
@@ -1512,8 +1822,6 @@ const SHAPED_TAIL_LINES = [0, 1, 2, 3, 4, 5, 6, 7].map(
 )
 const SHAPED_TAIL_PASS =
   SHAPED_TAIL_LINES.reduce((sum, seconds) => sum + seconds, 0) / SHAPED_TAIL_LINES.length
-/** The middle of the rates the diffuser's five sweeps run at, 0.23 to 1.06 Hz. */
-const SHAPED_SWEEP_HZ = 0.645
 /** The most steps the level is worked out in: one a pixel. */
 const SHAPED_STEPS = 1024
 
@@ -1857,12 +2165,23 @@ function shapedHandles(view: DisplayView): DisplayHandle[] {
 }
 
 interface ShapedState {
-  ringing: Ringing
+  ride: Ride
   marks: Marks
+  seen: Float64Array
   power: Float32Array
   body: Float32Array
   top: Float32Array
   tail: Float32Array
+  /** The picture as it was last laid out. */
+  layout: ShapedLayout | null
+  bodyRuns: Point[][]
+  topRuns: Point[][]
+  tailRuns: Point[][]
+  handles: readonly DisplayHandle[]
+  /** The right end and the baseline of the figure, and whether no line runs where it stands. */
+  wordsX: number
+  wordsY: number
+  wordsClear: boolean
 }
 
 /** The parts of a line of levels that stand above the foot, each with its feet on it, so a gate's sides are upright. */
@@ -1887,121 +2206,159 @@ function runsAbove(levels: Float32Array, steps: number, box: Box, levelDb: numbe
   return runs
 }
 
+/** The settings the shaped reverb's picture is laid out from: all it reads. */
+const SHAPED_PARAMS = [
+  'shape',
+  'time',
+  'density',
+  'preDelay',
+  'colour',
+  'highCut',
+  'lowCut',
+  'repeat',
+  'tail',
+  'mix',
+] as const
+
+/** Work the shaped reverb's picture out from its settings: done when one of them moves. */
+function layShaped(view: DisplayView, rate: number, box: Box, state: ShapedState): void {
+  const layout = shapedLayout(view)
+  const level = shapedShownWet(layout)
+  const steps = shapedSteps(box)
+  const bodyBand = shapedBand(view, BODY_HZ, rate)
+  shapedLevels(layout, shapedBand(view, TOP_HZ, rate), steps, state.power, state.top, state.tail)
+  shapedLevels(layout, bodyBand, steps, state.power, state.body, state.tail)
+  state.layout = layout
+  state.bodyRuns = runsAbove(state.body, steps, box, level)
+  state.topRuns = runsAbove(state.top, steps, box, level)
+  state.tailRuns = runsAbove(state.tail, steps, box, level)
+  // The echoes of the shape's first time round, each as high as the shape is there.
+  state.marks.clear(box.w, layout.seconds)
+  const cut = 10 * Math.log10(bodyBand.cut)
+  for (let k = 0; k < layout.taps; k++) {
+    const u = (k + SHAPED_JITTER[k]) / layout.taps
+    const gain = shapedGain(layout.shape, u)
+    if (gain <= 0) continue
+    const late = shapedLate(u)
+    state.marks.add(
+      shapedTapSeconds(k, layout.taps, layout.time, layout.from - layout.smear - SHAPED_FLOOR_SEC),
+      cut +
+        20 * Math.log10(gain) +
+        10 * Math.log10((1 - late) * bodyBand.early + late * bodyBand.late),
+    )
+  }
+  state.handles = shapedHandles(view)
+  // The figure stands in the corner, left of the Tail handle when that
+  // stands at the box's end. Where repeats or a long tail hold the line up
+  // there it goes under the line, on a patch of the plate that keeps the
+  // fainter lines from running through it.
+  const right = box.x + box.w - 1
+  const tailX = state.handles[2].x
+  state.wordsX = tailX > right - 30 ? tailX - 6 : right
+  const last = Math.round(((state.wordsX - box.x) / box.w) * steps)
+  let highest = FOOT_DB
+  let lowest = TOP_DB
+  for (let i = Math.max(0, last - Math.round((26 / box.w) * steps)); i <= last; i++) {
+    highest = Math.max(highest, level + state.body[i])
+    lowest = Math.min(lowest, level + state.body[i])
+  }
+  const under = yOf(lowest, box) + 10
+  state.wordsClear = yOf(highest, box) >= box.y + 11
+  state.wordsY = !state.wordsClear && under <= box.y + box.h - 1 ? under : box.y + 8
+}
+
 /**
  * The shaped reverb: its level over time is drawn, not decayed, so the shape
  * is the picture. The echoes that make it stand as marks at their own
  * moments, as many as Density asks for; the line over them is the level in
  * the body of the sound and the fainter one the level of the highs, which
  * Colour takes from the early or the late echoes. After the shape, on the
- * same scale: the repeats and the tail.
+ * same scale: the repeats and the tail. Its scale of seconds stretches with
+ * Time, which spans a factor of forty: the shape's end stands at 28 % of the
+ * box at the shortest and 60 % at the longest, so a longer shape is a wider
+ * one and the scale says by how much.
  */
 const shapedReverb = plateDisplay<ShapedState>({
   place: 'strip',
-  params: [
-    'shape',
-    'time',
-    'density',
-    'preDelay',
-    'colour',
-    'highCut',
-    'lowCut',
-    'modulation',
-    'repeat',
-    'tail',
-    'mix',
-  ],
+  params: SHAPED_PARAMS,
   live: { signal: true },
-  info: 'Level against time from the moment a sound goes in. The marks are the echoes that make the shape and the line over them is their level. After the shape come its repeats and its tail. The fainter line is the highs. Drag the start for pre-delay and mix, the end for time and tail.',
+  info: 'Level against time from the moment a sound goes in. The marks are the echoes that make the shape and the line over them is their level. After the shape come its repeats and, dashed, its tail. Drag the start for pre-delay and mix, the end for time. The second colour is the sound coming through.',
   init: () => ({
-    ringing: ringing(),
+    ride: newRide(8),
     marks: new Marks(),
+    seen: unseen(SHAPED_PARAMS),
     power: new Float32Array(SHAPED_STEPS + 1),
     body: new Float32Array(SHAPED_STEPS + 1),
     top: new Float32Array(SHAPED_STEPS + 1),
     tail: new Float32Array(SHAPED_STEPS + 1),
+    layout: null,
+    bodyRuns: [],
+    topRuns: [],
+    tailRuns: [],
+    handles: [],
+    wordsX: 0,
+    wordsY: 0,
+    wordsClear: true,
   }),
   draw(frame) {
     const { ctx, colours, state } = frame
+    drawnRate = frame.sampleRate
     ground(frame)
     const box = stripBox(frame)
     const foot = box.y + box.h
-    const layout = shapedLayout(frame)
+    if (moved(frame, frame.sampleRate, SHAPED_PARAMS, state.seen) || !state.layout) {
+      layShaped(frame, frame.sampleRate, box, state)
+    }
+    const layout = state.layout ?? shapedLayout(frame)
     const level = shapedShownWet(layout)
-    const steps = shapedSteps(box)
-    const bodyBand = shapedBand(frame, BODY_HZ, frame.sampleRate)
-    const topBand = shapedBand(frame, TOP_HZ, frame.sampleRate)
-    shapedLevels(layout, topBand, steps, state.power, state.top, state.tail)
-    shapedLevels(layout, bodyBand, steps, state.power, state.body, state.tail)
-    listen(frame, state.ringing, layout.time, Math.max(layout.dry, layout.wet))
+    hear(frame, state.ride, layout.time)
 
     dbGrid(frame, box, TOP_DB, FOOT_DB, 20)
     timeScale(frame, box, layout.seconds, frame.height - 3.5, true)
     rule(ctx, box.x, foot, box.x + box.w, foot, { colour: colours.ink, alpha: INK.rule })
 
-    const body = runsAbove(state.body, steps, box, level)
     clipped(ctx, box, () => {
-      for (const run of body) fillTo(ctx, run, foot, colours.ink, INK.fill)
-      // The echoes of the shape's first time round, each as high as the shape is there.
-      state.marks.clear()
-      const cut = 10 * Math.log10(bodyBand.cut)
-      for (let k = 0; k < layout.taps; k++) {
-        const u = (k + SHAPED_JITTER[k]) / layout.taps
-        const gain = shapedGain(layout.shape, u)
-        if (gain <= 0) continue
-        const late = shapedLate(u)
-        state.marks.add(
-          shapedTapSeconds(
-            k,
-            layout.taps,
-            layout.time,
-            layout.from - layout.smear - SHAPED_FLOOR_SEC,
-          ),
-          cut +
-            20 * Math.log10(gain) +
-            10 * Math.log10((1 - late) * bodyBand.early + late * bodyBand.late),
-        )
-      }
-      strokeMarks(frame, state.marks, box, layout.seconds, level, INK.text)
-      for (const run of runsAbove(state.top, steps, box, level)) {
+      for (const run of state.bodyRuns) fillTo(ctx, run, foot, colours.ink, INK.fill)
+      strokeMarks(frame, state.marks, box, level, INK.back)
+      for (const run of state.topRuns) {
         trace(ctx, run, { colour: colours.ink, width: 1, alpha: INK.back })
       }
       // The tail alone, filling up under the shape and its repeats.
-      for (const run of runsAbove(state.tail, steps, box, level)) {
-        trace(ctx, run, { colour: colours.ink, width: 1, alpha: INK.back, dash: [2, 2] })
+      for (const run of state.tailRuns) {
+        trace(ctx, run, { colour: colours.ink, width: 1, alpha: INK.text, dash: [2, 2] })
       }
     })
-    drawRinging(frame, state.ringing, box, box.x, layout.seconds)
     clipped(ctx, box, () => {
-      for (const run of body) trace(ctx, run, { colour: colours.ink })
+      for (const run of state.bodyRuns) trace(ctx, run, { colour: colours.ink })
     })
-    // Modulation sweeps the allpasses that draw each echo out.
-    if (body.length > 0) {
-      shimmer(frame, box, body[0], layout.seconds, SHAPED_SWEEP_HZ, 1.5 * frame.value('modulation'))
-    }
+    drawSince(frame, state.ride, box, layout.seconds)
     dryMark(frame, box, layout.dry)
+    drawMeter(frame, state.ride, 4, box)
 
     // The frame the shape is drawn in: its length and the level of its top.
-    const points = shapedHandles(frame)
-    rule(ctx, points[0].x, points[0].y, points[1].x, points[1].y, {
-      colour: colours.ink,
-      alpha: INK.back,
-      dash: [1, 2],
-    })
-    for (const point of points) {
-      handle(frame, point.x, point.y, { hot: frame.hot === point.key })
+    const points = state.handles
+    if (points.length >= 2) {
+      rule(ctx, points[0].x, points[0].y, points[1].x, points[1].y, {
+        colour: colours.ink,
+        alpha: INK.back,
+        dash: [1, 2],
+      })
     }
     const words =
       frame.hot === 'start' ? `${Math.round(frame.value('preDelay'))}ms` : secondsText(layout.time)
-    // The figure goes under the line where repeats or a long tail hold the line up.
-    let highest = FOOT_DB
-    for (let i = Math.round(steps * (1 - 26 / box.w)); i <= steps; i++) {
-      highest = Math.max(highest, level + state.body[i])
+    if (!state.wordsClear) {
+      const wide = words.length * 5.5 + 3
+      fillRect(
+        ctx,
+        { x: state.wordsX + 1 - wide, y: state.wordsY - 8, w: wide, h: 10 },
+        colours.plate,
+        INK.back,
+      )
     }
-    const under = yOf(highest, box) < box.y + 11
-    text(frame, words, box.x + box.w - 1, under ? yOf(highest, box) + 11 : box.y + 8, {
-      align: 'right',
-      size: 9,
-    })
+    text(frame, words, state.wordsX, state.wordsY, { align: 'right', size: 9 })
+    for (const point of points) {
+      handle(frame, point.x, point.y, { hot: frame.hot === point.key })
+    }
   },
   handles: shapedHandles,
 })
