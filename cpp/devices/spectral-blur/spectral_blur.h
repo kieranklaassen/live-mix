@@ -111,6 +111,55 @@ class SpectralBlur : public kit::DeviceBase<spectral_blur::kNumParams> {
     if (store_param(id, value)) apply(id);
   }
 
+  // The readings named by "meters" in device.json, for a display to show
+  // where the spectrum hangs: for each of six half decades from 20 Hz to
+  // 20 kHz, the share (0..1) of the wet power in the newest frames that came
+  // from bins the input had let go of. 0 is all driven by the input, 1 all
+  // held.
+  //
+  // Worked out here, when it is asked for, from what the newest frame of
+  // each channel left behind (its input in last_re and last_im, what each
+  // bin holds in magnitude), so that process() does nothing for it. A bin is
+  // driven when its input reaches what it holds, which is transform()'s own
+  // test seen after the fact: a driven bin has risen no further than its
+  // input, a held one stands above it. The gains are transform()'s too.
+  // A wide band is read at every second to fourth bin, which is every
+  // partial still (a partial is four bins wide) and a share all the same.
+  float meter(int index) const {
+    using namespace spectral_blur;
+    if (index < 0 || index >= kBands) return 0.0f;
+    // Bin k lies in the half decade int(2 log10(k × rate / frame / 20 Hz)).
+    const float bins_per_hz = static_cast<float>(kFrame) / sample_rate();
+    const int from = index == 0 ? 0 : first_bin(20.0f * std::pow(10.0f, 0.5f * static_cast<float>(index)) * bins_per_hz);
+    const int to = index == kBands - 1
+                       ? kHalf + 1
+                       : first_bin(20.0f * std::pow(10.0f, 0.5f * static_cast<float>(index + 1)) * bins_per_hz);
+    const bool frozen = param(kFreeze) >= 0.5f;
+    const float smear = param(kSmear);
+    const float held_smear = frozen ? kit::max(smear, kFreezeDrift) : smear;
+    const float c_driven = sinc(smear);
+    const float driven_gain = 1.0f / std::sqrt(c_driven * c_driven + 0.25f * (1.0f - c_driven * c_driven));
+    const float c_held = sinc(held_smear);
+    const float held_full = std::sqrt(6.0f / (1.5f + 2.0f * c_held + 0.5f * c_held * c_held));
+    const float held_gain = 1.0f + (held_full - 1.0f) * kit::min(1.0f, held_smear * 20.0f);
+    float heard = 0.0f;
+    float hanging = 0.0f;
+    const int stride = kit::clamp_int(1 + (to - from) / 128, 1, 4);
+    for (int c = 0; c < 2; ++c) {
+      const Channel& channel = channel_[c];
+      for (int k = from; k < to; k += stride) {
+        const float held = channel.magnitude[k];
+        const float power = channel.last_re[k] * channel.last_re[k] + channel.last_im[k] * channel.last_im[k];
+        // (a hair of slack: at Blur 0 a bin holds exactly its input)
+        const bool driven = !frozen && power * 1.00001f >= held * held;
+        const float shaped = held * shape_[k] * (driven ? driven_gain : held_gain);
+        heard += shaped * shaped;
+        if (!driven) hanging += shaped * shaped;
+      }
+    }
+    return heard > 1.0e-18f ? hanging / heard : 0.0f;
+  }
+
   void process(int frames) {
     using namespace spectral_blur;
     frames = begin_block(frames);
@@ -165,6 +214,7 @@ class SpectralBlur : public kit::DeviceBase<spectral_blur::kNumParams> {
   // Hann² frames at 75 % overlap sum to 1.5; the inverse FFT is unscaled.
   static constexpr float kOutputScale = 1.0f / (1.5f * kFrame);
   static constexpr int kAngles = 2048;  // steps per turn of the random-angle table
+  static constexpr int kBands = 6;      // half decades from 20 Hz, for the display's readings (meter())
   static constexpr float kQuarterTurn[4][2] = {{1.0f, 0.0f}, {0.0f, 1.0f}, {-1.0f, 0.0f}, {0.0f, -1.0f}};
 
   struct Channel {
@@ -176,6 +226,9 @@ class SpectralBlur : public kit::DeviceBase<spectral_blur::kNumParams> {
     float last_re[kHalf + 1], last_im[kHalf + 1];    // the previous analysis frame
     bool alive;                                    // any bin above the floor
   };
+
+  // The first bin at or above a place given in bins, for meter().
+  static int first_bin(float bins) { return kit::clamp_int(static_cast<int>(std::ceil(bins)), 0, kHalf + 1); }
 
   void apply(int id) {
     using namespace spectral_blur;

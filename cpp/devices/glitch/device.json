@@ -6,6 +6,14 @@
   "class": "Glitch",
   "header": "glitch.h",
   "sources": [],
+  "meters": [
+    { "key": "events", "name": "Events started", "display": true },
+    { "key": "kind", "name": "Event kind", "display": true },
+    { "key": "count", "name": "Pieces in the event", "display": true },
+    { "key": "piece", "name": "Piece playing", "display": true },
+    { "key": "next", "name": "Time to the next cut", "display": true },
+    { "key": "speed", "name": "Reading speed", "display": true }
+  ],
   "memoryMb": 10,
   "params": [
     {

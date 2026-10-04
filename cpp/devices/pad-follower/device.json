@@ -6,6 +6,10 @@
   "class": "PadFollower",
   "header": "pad_follower.h",
   "sources": [],
+  "meters": [
+    { "key": "heard", "name": "Partials heard", "display": true },
+    { "key": "held", "name": "Pad level", "display": true }
+  ],
   "params": [
     {
       "key": "rise",

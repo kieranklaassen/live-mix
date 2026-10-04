@@ -68,11 +68,49 @@ class GrainCloud : public kit::DeviceBase<grain_cloud::kNumParams> {
     mix_.set_time(kSmoothingSeconds, sr);
     clock_.reset(32);
     idle_.reset(sr, 0.05f);
+    spawned_ = 0;
+    spawn_place_ = 0.0f;
+    spawn_rate_ = 1.0f;
+    spawn_pan_ = 0.0f;
     for (int id = 0; id < kNumParams; ++id) apply(id);
   }
 
   void set_param(int id, float value) {
     if (store_param(id, value)) apply(id);
+  }
+
+  // The readings named by "meters" in device.json, for a display to draw the
+  // cloud: how many grains have started, where the newest one began (seconds
+  // behind the record head, the old end of the stretch it reads), at what
+  // speed (negative backwards) and where from left (-1) to right (1), and
+  // the level being recorded: the highest sample of the newest 50 ms, read
+  // back from the tape when it is asked for (every fourth sample is enough
+  // for a level), so that recording does nothing for it.
+  float meter(int index) const {
+    switch (index) {
+      case 0:
+        return static_cast<float>(spawned_ & 0xFFFFFF);
+      case 1:
+        return spawn_place_;
+      case 2:
+        return spawn_rate_;
+      case 3:
+        return spawn_pan_;
+      case 4: {
+        if (!(record_.value > 0.0f)) return 0.0f;  // the head is stopped
+        const long long span = static_cast<long long>(kRecordPeakSeconds * sample_rate());
+        float peak = 0.0f;
+        for (long long back = 1; back <= span; back += 4) {
+          const float* written = tape_.data[(head_ - back) & kMask];
+          const float left = written[0] < 0.0f ? -written[0] : written[0];
+          const float right = written[1] < 0.0f ? -written[1] : written[1];
+          peak = kit::max(peak, kit::max(left, right));
+        }
+        return peak;
+      }
+      default:
+        return 0.0f;
+    }
   }
 
   void process(int frames) {
@@ -145,6 +183,7 @@ class GrainCloud : public kit::DeviceBase<grain_cloud::kNumParams> {
   static constexpr float kScatterCents = 24.0f;
   static constexpr float kFeedbackCutHz = 9000.0f;
   static constexpr float kMargin = 16.0f;  // samples kept clear of the record head
+  static constexpr float kRecordPeakSeconds = 0.05f;  // how far back the record level reading looks
   static constexpr float kJumps[8] = {12.0f, -12.0f, 7.0f, -5.0f, 12.0f, -12.0f, 19.0f, 24.0f};
 
   // The ring buffer as a GrainPool source, both channels side by side so a
@@ -238,12 +277,17 @@ class GrainCloud : public kit::DeviceBase<grain_cloud::kNumParams> {
     double start = static_cast<double>(head_) - static_cast<double>(delay);
     const bool reversed = rng_.uniform() < param(kReverse);
     if (reversed) start += static_cast<double>(rate * length);
+    // For the display only: where this grain reads and how fast.
+    ++spawned_;
+    spawn_place_ = delay / sr;
+    spawn_rate_ = reversed ? -rate : rate;
 
     // Constant-power pan with most grains away from the centre, so Spread 1
     // is properly wide rather than a uniform smear.
     const float side = rng_.bipolar();
     const float depth = rng_.uniform();
     const float pan = param(kSpread) * (side < 0.0f ? -1.0f : 1.0f) * (1.0f - depth * depth * depth);
+    spawn_pan_ = pan;  // for the display only
 
     const float shape = 1.0f - 0.96f * param(kTexture);
     const float mean_square = 1.0f - 0.625f * shape;  // of the window: 3/8 for a Hann bell
@@ -271,6 +315,11 @@ class GrainCloud : public kit::DeviceBase<grain_cloud::kNumParams> {
   float until_next_ = 0.0f;  // samples until the next grain starts
   float interval_ = 48000.0f;
   float rate_ = 1.0f;        // grains per second after the overlap ceiling
+  // Kept for the display (meter()); nothing that sounds reads them.
+  long spawned_ = 0;           // grains started since init
+  float spawn_place_ = 0.0f;   // the newest grain: seconds behind the head,
+  float spawn_rate_ = 1.0f;    // its speed, negative backwards,
+  float spawn_pan_ = 0.0f;     // and its place from left to right
 };
 
 }  // namespace livemix

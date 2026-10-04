@@ -70,6 +70,8 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
     fast_.set(0.0005f, 0.01f, sr);
     slow_.set(0.02f, 0.08f, sr);
     slice_count_ = 0;
+    caught_length_ = caught_period_ = 0.0f;
+    caught_delay_ = caught_step_ = 0;
     step_ = 0;
     cycle_ = 480.0f;
     restart_slots();
@@ -91,6 +93,31 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
 
   void set_param(int id, float value) {
     if (store_param(id, value)) apply(id);
+  }
+
+  // The readings named by "meters" in device.json, for a display to draw each
+  // slice's replays where they fall: how many slices have been captured, the
+  // newest one's length and the pulse its replays fall on (seconds), how long
+  // its voices waited before they started (seconds), where Steps began for
+  // it, and how far into the slot being recorded now the clock is (seconds;
+  // 0 while the slot has no sound in it yet).
+  float meter(int index) const {
+    switch (index) {
+      case 0:
+        return static_cast<float>(slice_count_ & 0xFFFFFF);
+      case 1:
+        return caught_length_ / sample_rate();
+      case 2:
+        return caught_period_ / sample_rate();
+      case 3:
+        return static_cast<float>(caught_delay_) / sample_rate();
+      case 4:
+        return static_cast<float>(caught_step_);
+      case 5:
+        return slot_has_sound_ ? static_cast<float>(written_ - slot_begin_) / sample_rate() : 0.0f;
+      default:
+        return 0.0f;
+    }
   }
 
   void process(int frames) {
@@ -714,6 +741,11 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
   // A slot with sound in it has ended: hand its slice to the pattern.
   void capture(long long start, float length, float period, int delay) {
     start_delay_ = delay;
+    // For the display only (meter()).
+    caught_length_ = length;
+    caught_period_ = period;
+    caught_delay_ = delay;
+    caught_step_ = step_;
     using namespace cascade;
     const int pattern = kit::clamp_int(static_cast<int>(param(kPattern) + 0.5f), 0, 3);
     const bool fifths = param(kInterval) > 0.5f;
@@ -1057,6 +1089,12 @@ class Cascade : public kit::DeviceBase<cascade::kNumParams> {
   float cycle_ = 480.0f;
   float held_ = 0.0f, hold_attack_ = 0.0f, hold_release_ = 0.0f;
   float mix_seen_ = -1.0f, dry_gain_ = 1.0f, wet_gain_ = 0.0f;
+  // The newest slice as capture() was handed it, kept for the display
+  // (meter()); nothing that sounds reads them.
+  float caught_length_ = 0.0f;
+  float caught_period_ = 0.0f;
+  int caught_delay_ = 0;
+  int caught_step_ = 0;
 };
 
 }  // namespace livemix
