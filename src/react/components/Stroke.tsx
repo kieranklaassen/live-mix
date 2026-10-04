@@ -111,6 +111,30 @@ export const Stroke = forwardRef<HTMLDivElement, StrokeProps>(function Stroke(
   const tagLeft = Math.max(6, mid - 6) + fadeIn * width
   const tagTop = tall ? 4 : mid - 8
   const autoRight = Math.max(8, mid - 4) + fadeOut * width
+  const autoBottom = tall ? 4 : mid - 8
+  // A stroke too low for two rows has its name and the line's word in one.
+  const besideName = Boolean(name) && !tall
+  // The line's word is shown whole or not at all: it stands at the end of a
+  // room one row high, and the stylesheet drops it from a room too short for
+  // it. Beside the name the room is what the name leaves of the row inside
+  // the ring. Otherwise it starts where the ring's round end is at the word's
+  // height (a half circle is as far in at a depth as it is down that far along).
+  const word = automation?.label ? (
+    <span
+      className="lm-stroke__automation-room"
+      style={
+        besideName
+          ? { left: '100%', top: 0, width: `calc(${width - 2 - autoRight - tagLeft}px - 100%)` }
+          : {
+              left: capInset(autoBottom, height - 2, height - 2),
+              right: autoRight,
+              bottom: autoBottom,
+            }
+      }
+    >
+      <span className="lm-stroke__automation-label">{automation.label}</span>
+    </span>
+  ) : null
 
   const rootStyle: CSSProperties = { width, height, borderRadius: mid, ...style }
 
@@ -229,16 +253,10 @@ export const Stroke = forwardRef<HTMLDivElement, StrokeProps>(function Stroke(
           ) : null}
           {reversed ? <SoundIcon kind="reverse" size={9} /> : null}
           {muted ? <span className="lm-stroke__meta">muted</span> : null}
+          {besideName ? word : null}
         </span>
       ) : null}
-      {automation?.label ? (
-        <span
-          className="lm-stroke__automation-label"
-          style={{ right: autoRight, bottom: tall ? 4 : mid - 8 }}
-        >
-          {automation.label}
-        </span>
-      ) : null}
+      {besideName ? null : word}
     </div>
   )
 })

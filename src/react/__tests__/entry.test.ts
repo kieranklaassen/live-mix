@@ -236,6 +236,24 @@ describe('entries', () => {
     expect(css).toMatch(/\.lm-well \{\n {2}border: 1px solid var\(--lm-hairline\);/)
   })
 
+  it("the stylesheet shows the word of a stroke's line whole or not at all", async () => {
+    const css = await readFile(join(src, 'react/styles.css'), 'utf8')
+    const rule = (selector: string) =>
+      [...css.matchAll(/(?:^|\n)([^{}/]+?) \{\n([^}]*)\}/g)]
+        .filter((match) => match[1].split(',').some((part) => part.trim() === selector))
+        .map((match) => match[2])
+        .join('')
+    // The word's room is one row high and cuts off the next, the one a word too long for it wraps to.
+    const room = rule('.lm-stroke__automation-room')
+    for (const line of ['flex-wrap: wrap;', 'height: 14px;', 'overflow: hidden;']) {
+      expect(room, line).toContain(line)
+    }
+    // It wraps behind a first thing a row high, and only if it is in the flow of its room.
+    expect(rule('.lm-stroke__automation-room::before')).toContain('height: 14px;')
+    expect(rule('.lm-stroke__automation-label')).toContain('height: 14px;')
+    expect(rule('.lm-stroke__automation-label')).not.toContain('position:')
+  })
+
   it('components reference colours only through --lm-* variables', async () => {
     const dir = join(src, 'react/components')
     const offenders: string[] = []
