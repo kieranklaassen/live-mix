@@ -6,6 +6,7 @@
   "class": "Chorus",
   "header": "chorus.h",
   "sources": [],
+  "meters": [{ "key": "phase", "name": "LFO phase", "display": true }],
   "params": [
     {
       "key": "voices",
