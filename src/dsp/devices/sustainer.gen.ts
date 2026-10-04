@@ -137,7 +137,6 @@ export const SUSTAINER_METERS = {
   held: { id: 1, name: 'Held level', unit: '', display: true },
   layers: { id: 2, name: 'Layers sounding', unit: '', display: true },
   caught: { id: 3, name: 'Layers caught', unit: '', display: true },
-  playing: { id: 4, name: 'Playing', unit: '', display: true },
 } as const satisfies Record<string, DeviceMeterSpec>
 
 export const SUSTAINER_DEVICE = defineWasmDevice({

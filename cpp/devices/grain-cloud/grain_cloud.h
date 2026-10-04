@@ -72,8 +72,6 @@ class GrainCloud : public kit::DeviceBase<grain_cloud::kNumParams> {
     spawn_place_ = 0.0f;
     spawn_rate_ = 1.0f;
     spawn_pan_ = 0.0f;
-    record_peak_ = 0.0f;
-    record_peak_fall_ = kit::time_to_coeff(kRecordPeakSeconds, sr);
     for (int id = 0; id < kNumParams; ++id) apply(id);
   }
 
@@ -85,7 +83,9 @@ class GrainCloud : public kit::DeviceBase<grain_cloud::kNumParams> {
   // cloud: how many grains have started, where the newest one began (seconds
   // behind the record head, the old end of the stretch it reads), at what
   // speed (negative backwards) and where from left (-1) to right (1), and
-  // the level being recorded.
+  // the level being recorded: the highest sample of the newest 50 ms, read
+  // back from the tape when it is asked for (every fourth sample is enough
+  // for a level), so that recording does nothing for it.
   float meter(int index) const {
     switch (index) {
       case 0:
@@ -96,8 +96,18 @@ class GrainCloud : public kit::DeviceBase<grain_cloud::kNumParams> {
         return spawn_rate_;
       case 3:
         return spawn_pan_;
-      case 4:
-        return record_peak_;
+      case 4: {
+        if (!(record_.value > 0.0f)) return 0.0f;  // the head is stopped
+        const long long span = static_cast<long long>(kRecordPeakSeconds * sample_rate());
+        float peak = 0.0f;
+        for (long long back = 1; back <= span; back += 4) {
+          const float* written = tape_.data[(head_ - back) & kMask];
+          const float left = written[0] < 0.0f ? -written[0] : written[0];
+          const float right = written[1] < 0.0f ? -written[1] : written[1];
+          peak = kit::max(peak, kit::max(left, right));
+        }
+        return peak;
+      }
       default:
         return 0.0f;
     }
@@ -140,8 +150,6 @@ class GrainCloud : public kit::DeviceBase<grain_cloud::kNumParams> {
           loudest = kit::max(loudest, written < 0.0f ? -written : written);
         }
         ++head_;
-        // For the display only: the level going onto the tape, falling over 50 ms.
-        record_peak_ = loudest > record_peak_ ? loudest : flush_denormal(record_peak_ * record_peak_fall_);
         if (loudest > kit::IdleGate::kFloor) {
           quiet_written_ = 0;
         } else if (quiet_written_ < length_) {
@@ -175,7 +183,7 @@ class GrainCloud : public kit::DeviceBase<grain_cloud::kNumParams> {
   static constexpr float kScatterCents = 24.0f;
   static constexpr float kFeedbackCutHz = 9000.0f;
   static constexpr float kMargin = 16.0f;  // samples kept clear of the record head
-  static constexpr float kRecordPeakSeconds = 0.05f;
+  static constexpr float kRecordPeakSeconds = 0.05f;  // how far back the record level reading looks
   static constexpr float kJumps[8] = {12.0f, -12.0f, 7.0f, -5.0f, 12.0f, -12.0f, 19.0f, 24.0f};
 
   // The ring buffer as a GrainPool source, both channels side by side so a
@@ -312,8 +320,6 @@ class GrainCloud : public kit::DeviceBase<grain_cloud::kNumParams> {
   float spawn_place_ = 0.0f;   // the newest grain: seconds behind the head,
   float spawn_rate_ = 1.0f;    // its speed, negative backwards,
   float spawn_pan_ = 0.0f;     // and its place from left to right
-  float record_peak_ = 0.0f;   // level being recorded, with a 50 ms fall
-  float record_peak_fall_ = 0.0f;
 };
 
 }  // namespace livemix

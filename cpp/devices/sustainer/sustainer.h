@@ -187,8 +187,7 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
   // The readings named by "meters" in device.json, for a display to draw the
   // held sound against the playing: the level going in as the detector's last
   // frame read it and the level of what the layers hold (both RMS), how many
-  // layers sound, how many have been caught so far, and whether the device
-  // takes the player to be playing.
+  // layers sound and how many have been caught so far.
   float meter(int index) const {
     switch (index) {
       case 0:
@@ -204,8 +203,6 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
         return static_cast<float>(layers());
       case 3:
         return static_cast<float>(catches_ & 0xFFFFFF);
-      case 4:
-        return playing_ ? 1.0f : 0.0f;
       default:
         return 0.0f;
     }

@@ -77,8 +77,6 @@ class SpectralBlur : public kit::DeviceBase<spectral_blur::kNumParams> {
       const float hz = static_cast<float>(k > 0 ? k : 1) * sr / kFrame;
       octave_[k] = std::log2(hz / kTiltPivotHz);
       shape_[k] = 1.0f;
-      // For the display: which half decade from 20 Hz the bin lies in.
-      band_[k] = static_cast<unsigned char>(kit::clamp_int(static_cast<int>(2.0f * std::log10(hz / 20.0f)), 0, kBands - 1));
     }
     for (int c = 0; c < 2; ++c) {
       Channel& channel = channel_[c];
@@ -97,7 +95,6 @@ class SpectralBlur : public kit::DeviceBase<spectral_blur::kNumParams> {
         channel.last_im[k] = 0.0f;
       }
       channel.alive = false;
-      for (int b = 0; b < kBands; ++b) channel.heard[b] = channel.hanging[b] = 0.0f;
     }
     position_ = 0;
     frame_index_ = 0;
@@ -119,10 +116,47 @@ class SpectralBlur : public kit::DeviceBase<spectral_blur::kNumParams> {
   // 20 kHz, the share (0..1) of the wet power in the newest frames that came
   // from bins the input had let go of. 0 is all driven by the input, 1 all
   // held.
+  //
+  // Worked out here, when it is asked for, from what the newest frame of
+  // each channel left behind (its input in last_re and last_im, what each
+  // bin holds in magnitude), so that process() does nothing for it. A bin is
+  // driven when its input reaches what it holds, which is transform()'s own
+  // test seen after the fact: a driven bin has risen no further than its
+  // input, a held one stands above it. The gains are transform()'s too.
+  // A wide band is read at every second to fourth bin, which is every
+  // partial still (a partial is four bins wide) and a share all the same.
   float meter(int index) const {
+    using namespace spectral_blur;
     if (index < 0 || index >= kBands) return 0.0f;
-    const float heard = channel_[0].heard[index] + channel_[1].heard[index];
-    const float hanging = channel_[0].hanging[index] + channel_[1].hanging[index];
+    // Bin k lies in the half decade int(2 log10(k × rate / frame / 20 Hz)).
+    const float bins_per_hz = static_cast<float>(kFrame) / sample_rate();
+    const int from = index == 0 ? 0 : first_bin(20.0f * std::pow(10.0f, 0.5f * static_cast<float>(index)) * bins_per_hz);
+    const int to = index == kBands - 1
+                       ? kHalf + 1
+                       : first_bin(20.0f * std::pow(10.0f, 0.5f * static_cast<float>(index + 1)) * bins_per_hz);
+    const bool frozen = param(kFreeze) >= 0.5f;
+    const float smear = param(kSmear);
+    const float held_smear = frozen ? kit::max(smear, kFreezeDrift) : smear;
+    const float c_driven = sinc(smear);
+    const float driven_gain = 1.0f / std::sqrt(c_driven * c_driven + 0.25f * (1.0f - c_driven * c_driven));
+    const float c_held = sinc(held_smear);
+    const float held_full = std::sqrt(6.0f / (1.5f + 2.0f * c_held + 0.5f * c_held * c_held));
+    const float held_gain = 1.0f + (held_full - 1.0f) * kit::min(1.0f, held_smear * 20.0f);
+    float heard = 0.0f;
+    float hanging = 0.0f;
+    const int stride = kit::clamp_int(1 + (to - from) / 128, 1, 4);
+    for (int c = 0; c < 2; ++c) {
+      const Channel& channel = channel_[c];
+      for (int k = from; k < to; k += stride) {
+        const float held = channel.magnitude[k];
+        const float power = channel.last_re[k] * channel.last_re[k] + channel.last_im[k] * channel.last_im[k];
+        // (a hair of slack: at Blur 0 a bin holds exactly its input)
+        const bool driven = !frozen && power * 1.00001f >= held * held;
+        const float shaped = held * shape_[k] * (driven ? driven_gain : held_gain);
+        heard += shaped * shaped;
+        if (!driven) hanging += shaped * shaped;
+      }
+    }
     return heard > 1.0e-18f ? hanging / heard : 0.0f;
   }
 
@@ -180,7 +214,7 @@ class SpectralBlur : public kit::DeviceBase<spectral_blur::kNumParams> {
   // Hann² frames at 75 % overlap sum to 1.5; the inverse FFT is unscaled.
   static constexpr float kOutputScale = 1.0f / (1.5f * kFrame);
   static constexpr int kAngles = 2048;  // steps per turn of the random-angle table
-  static constexpr int kBands = 6;      // half decades from 20 Hz, for the display's readings
+  static constexpr int kBands = 6;      // half decades from 20 Hz, for the display's readings (meter())
   static constexpr float kQuarterTurn[4][2] = {{1.0f, 0.0f}, {0.0f, 1.0f}, {-1.0f, 0.0f}, {0.0f, -1.0f}};
 
   struct Channel {
@@ -191,10 +225,10 @@ class SpectralBlur : public kit::DeviceBase<spectral_blur::kNumParams> {
     float turn_re[kHalf + 1], turn_im[kHalf + 1];    // its phase advance per frame
     float last_re[kHalf + 1], last_im[kHalf + 1];    // the previous analysis frame
     bool alive;                                    // any bin above the floor
-    // Kept for the display (meter()); nothing that sounds reads them.
-    float heard[kBands];                           // wet power of the newest frame, per half decade
-    float hanging[kBands];                         // the part of it from bins the input has let go of
   };
+
+  // The first bin at or above a place given in bins, for meter().
+  static int first_bin(float bins) { return kit::clamp_int(static_cast<int>(std::ceil(bins)), 0, kHalf + 1); }
 
   void apply(int id) {
     using namespace spectral_blur;
@@ -298,8 +332,6 @@ class SpectralBlur : public kit::DeviceBase<spectral_blur::kNumParams> {
     const float held_steps = 0.5f * held_smear * kAngles;
 
     bool alive = false;
-    float heard[kBands] = {};
-    float hanging[kBands] = {};
     for (int k = 0; k <= kHalf; ++k) {
       const float xr = re_[k];
       const float xi = (k == 0 || k == kHalf) ? 0.0f : re_[kFrame - k];
@@ -374,17 +406,8 @@ class SpectralBlur : public kit::DeviceBase<spectral_blur::kNumParams> {
       amplitude_[k] = out;
       re_[k] = out * pr;
       im_[k] = out * pi;
-      // For the display only: the wet power as it will be heard, and the
-      // part of it that is hanging.
-      const float shaped = out * shape_[k];
-      heard[band_[k]] += shaped * shaped;
-      if (!driven) hanging[band_[k]] += shaped * shaped;
     }
     channel.alive = alive;
-    for (int b = 0; b < kBands; ++b) {
-      channel.heard[b] = heard[b];
-      channel.hanging[b] = hanging[b];
-    }
 
     // Shimmer: bin j takes the product of the phases of bins j/2 and
     // (j+1)/2, at the geometric mean of their magnitudes.
@@ -427,7 +450,6 @@ class SpectralBlur : public kit::DeviceBase<spectral_blur::kNumParams> {
   float window_[kFrame];
   float octave_[kHalf + 1];     // octaves from the tilt pivot, per bin
   float shape_[kHalf + 1];      // tilt and cut gain, per bin
-  unsigned char band_[kHalf + 1];  // the half decade each bin lies in, for the display's readings
   float amplitude_[kHalf + 1];  // scratch: this frame's output magnitudes
   float angle_cos_[kAngles];
   float angle_sin_[kAngles];

@@ -9,6 +9,7 @@ import { PLAIN_COLOURS } from '../components/display-kit'
 import {
   TEXTURE_FACES,
   blurHangSec,
+  blurHeldAt,
   blurShapeDb,
   blurTiltDb,
   cascadeGain,
@@ -189,7 +190,7 @@ describe('Sustain', () => {
       marksOf(
         runDisplay(display, params, 3, {
           values: { decay },
-          meters: { ...meters, level: 0.2, held, layers: 1, caught: 1, playing: 1 },
+          meters: { ...meters, level: 0.2, held, layers: 1, caught: 1 },
         }),
       ).filter((mark) => mark.kind === 'stroke' && mark.dashed && mark.points.length === 2)
     const slope = (marks: Mark[]): number => {
@@ -209,13 +210,37 @@ describe('Sustain', () => {
     const rest = drawDisplay(display, params, { meters })
     const held = Math.pow(10, -10 / 20)
     const running = runDisplay(display, params, 2, {
-      meters: { ...meters, level: 0.001, held, layers: 2, caught: 2, playing: 2 },
+      meters: { ...meters, level: 0.001, held, layers: 2, caught: 2 },
     })
     expect(running.print()).not.toBe(rest.print())
     // What is held over what is played is in the second colour.
     expect(marksOf(running).some((mark) => mark.kind === 'fill' && mark.colour === ACCENT)).toBe(
       true,
     )
+  })
+
+  it('reads four meters, each one the display draws from', () => {
+    const { meters } = device('sustainer')
+    expect(Object.keys(meters)).toEqual(['level', 'held', 'layers', 'caught'])
+  })
+
+  it('marks a catch with a tick in ink where it happened, and the layers sounding in the second colour', () => {
+    const { display, params, meters } = device('sustainer')
+    // One catch, 15 frames before the last.
+    const marks = marksOf(
+      runDisplay(display, params, 2, { meters }, (time) => ({
+        meters: { ...meters, level: 0.2, held: 0.2, layers: 2, caught: time > 1.49 ? 1 : 0 },
+      })),
+    )
+    const nowX = Math.round(4 + 176 * 0.8)
+    const perSec = (nowX - 4) / 8
+    const ticks = marks.filter(
+      (mark) => mark.kind === 'rect' && mark.colour === INK && foot(mark) - top(mark) === 5,
+    )
+    expect(ticks).toHaveLength(1)
+    expect((left(ticks[0]) + right(ticks[0])) / 2).toBeCloseTo(nowX - (14 / 30) * perSec, 0)
+    const pips = marks.filter((mark) => mark.kind === 'rect' && mark.colour === ACCENT)
+    expect(pips).toHaveLength(2)
   })
 })
 
@@ -414,7 +439,6 @@ describe('Glitch', () => {
     speed,
     step: 0,
     slice: 0.25,
-    first: true,
   })
 
   it('turns each repeat down as next_segment() does: 6 dB a repeat at full Decay', () => {
@@ -511,7 +535,64 @@ describe('Glitch', () => {
     expect(left(coming[0])).toBeGreaterThanOrEqual(nowX - 1)
     expect(height(coming[0]) / height(blocks[0])).toBeCloseTo(0.25, 2)
     expect(height(coming[1]) / height(blocks[0])).toBeCloseTo(0.125, 2)
-    expect(marks.some((mark) => mark.words === 'REPEAT 2/4')).toBe(true)
+    expect(marks.some((mark) => mark.words === 'REPEAT')).toBe(true)
+    // The slice clock is short ticks along the foot, never a line up the picture.
+    const ticks = marks.filter((mark) => mark.kind === 'rect' && right(mark) - left(mark) === 1)
+    expect(ticks.length).toBeGreaterThanOrEqual(4)
+    for (const tick of ticks) expect(foot(tick) - top(tick)).toBe(4)
+  })
+
+  it('names an event while it plays and for a moment after, so that a short one can be read', () => {
+    // One reverse of a slice, from 1 s to 1.25 s.
+    const word = (seconds: number): Mark | undefined =>
+      runGlitch(
+        seconds,
+        (time) => {
+          const into = time % 0.25
+          const on = time >= 1 && time < 1.25
+          return {
+            events: time >= 1 ? 1 : 0,
+            kind: on ? REVERSE : 0,
+            count: on ? 1 : 0,
+            piece: on ? 1 : 0,
+            next: 0.25 - into,
+            speed: -1,
+          }
+        },
+        { time: 250 },
+      ).find((mark) => mark.kind === 'words')
+    expect(word(0.9)).toBeUndefined()
+    const playing = word(1.15)
+    expect(playing?.words).toBe('REVERSE')
+    const after = word(2)
+    expect(after?.words).toBe('REVERSE')
+    expect(after?.alpha ?? 1).toBeLessThan(playing?.alpha ?? 0)
+    expect(word(3.2)).toBeUndefined()
+  })
+
+  it('writes the word where all of it shows', () => {
+    const { display, params, meters } = device('glitch')
+    const nowX = Math.round(4 + 176 * 0.75)
+    for (const kind of [REPEAT, SKIP, REVERSE, HALF, STOP]) {
+      const drawn = runDisplay(display, params, 0.5, { meters }, (time) => ({
+        meters: { ...meters, events: 1, kind, count: 2, piece: 1, next: 0.25 - (time % 0.25) },
+      }))
+      const at = drawn.calls.findIndex((call) => call.name === 'fillText')
+      expect(at).toBeGreaterThan(-1)
+      const [words, x] = drawn.calls[at].args as [string, number]
+      const align = drawn.calls
+        .slice(0, at)
+        .reverse()
+        .find((call) => call.name === 'set textAlign')?.args[0]
+      // The test canvas makes a letter 5 px wide; the picture ends at 180.
+      if (align === 'left') {
+        expect(x).toBe(nowX + 6)
+        expect(x + words.length * 5).toBeLessThanOrEqual(180)
+      } else {
+        expect(align).toBe('right')
+        expect(x).toBe(180)
+      }
+    }
   })
 
   it('shows what the settings would do at rest, and nothing of it once the device reports', () => {
@@ -598,22 +679,61 @@ describe('Spectral Blur', () => {
     expect(low.drag(xOf(400), low.y).lowCut).toBeCloseTo(400, 1)
   })
 
+  it('grades the held share from the middle of one half decade to the middle of the next', () => {
+    const hang = [0, 0.2, 0.4, 0.8, 0.6, 1]
+    // A band's reading stands at its middle.
+    for (let band = 0; band < 6; band++) {
+      expect(blurHeldAt(hang, (band + 0.5) / 6)).toBeCloseTo(hang[band], 6)
+    }
+    // Where two bands meet it is half way between them, and past the outer middles it stays level.
+    expect(blurHeldAt(hang, 3 / 6)).toBeCloseTo(0.6, 6)
+    expect(blurHeldAt(hang, 4 / 6)).toBeCloseTo(0.7, 6)
+    expect(blurHeldAt(hang, 0)).toBe(0)
+    expect(blurHeldAt(hang, 1)).toBe(1)
+  })
+
   it('colours the spectrum by how much of each half decade the device says is hanging', () => {
     const { display, params, meters } = device('spectral-blur')
     const run = (hang: Record<string, number>): Mark[] =>
       marksOf(
         runDisplay(display, params, 2, { signal: testSignal(), meters: { ...meters, ...hang } }),
-      ).filter((mark) => mark.kind === 'fill' && mark.colour === ACCENT && mark.points.length > 8)
+      ).filter((mark) => mark.kind === 'rect' && mark.colour === ACCENT)
     // Nothing hanging: the spectrum is in ink alone.
     expect(run({})).toHaveLength(0)
-    // The band from 630 Hz to 2 kHz three quarters held: one fill, that strong.
+    // The band from 630 Hz to 2 kHz three quarters held: columns a pixel wide that stand on the
+    // foot, strongest at the band's middle (pixel 74 of the box from 4 to 124) and gone by its neighbours'.
     const one = run({ hang4: 0.75 })
-    expect(one).toHaveLength(1)
-    expect(one[0].alpha).toBeCloseTo(0.9 * 0.75, 2)
-    // All six held, as when frozen.
+    expect(one.length).toBeGreaterThan(20)
+    const held = [0, 0, 0, 0.75, 0, 0]
+    for (const column of one) {
+      expect(right(column) - left(column)).toBe(1)
+      expect(foot(column)).toBe(96)
+      expect(left(column)).toBeGreaterThan(4 + 120 * (2.5 / 6))
+      expect(left(column)).toBeLessThan(4 + 120 * (4.5 / 6))
+      expect(column.alpha).toBeCloseTo(0.9 * blurHeldAt(held, (left(column) + 0.5 - 4) / 120), 2)
+    }
+    const strongest = one.reduce((a, b) => (b.alpha > a.alpha ? b : a))
+    expect(Math.abs(left(strongest) + 0.5 - 74)).toBeLessThanOrEqual(0.5)
+    expect(strongest.alpha).toBeGreaterThan(0.9 * 0.7)
+    // All six held, as when frozen: the whole spectrum, as strong as the colour gets.
     const all = run({ hang1: 1, hang2: 1, hang3: 1, hang4: 1, hang5: 1, hang6: 1 })
-    expect(all).toHaveLength(6)
-    for (const mark of all) expect(mark.alpha).toBeCloseTo(0.9, 2)
+    expect(all.length).toBeGreaterThan(60)
+    for (const column of all) expect(column.alpha).toBeCloseTo(0.9, 2)
+  })
+
+  it('makes no new points for its spectrum or its curves from one frame to the next', () => {
+    const { display, params, meters } = device('spectral-blur')
+    const state = display.init?.() as { spectrum: unknown[]; tone: unknown; tiltLine: unknown }
+    const options = { signal: testSignal(), meters: { ...meters, hang3: 0.5 }, state }
+    runDisplay(display, params, 0.2, options)
+    const before = { spectrum: state.spectrum, first: state.spectrum[0], tone: state.tone }
+    runDisplay(display, params, 0.2, options)
+    expect(state.spectrum).toBe(before.spectrum)
+    expect(state.spectrum[0]).toBe(before.first)
+    expect(state.tone).toBe(before.tone)
+    // A setting that moves the curve makes it again.
+    runDisplay(display, params, 0.1, { ...options, values: { tilt: 3 } })
+    expect(state.tone).not.toBe(before.tone)
   })
 
   it('is a still picture of the settings when there is no sound', () => {
@@ -819,7 +939,8 @@ describe('Cascade', () => {
     expect(sounding).toHaveLength(1)
     // Steps: the first repeat is at the played speed and a slice long, and now is two thirds through it.
     // The scale fits one slice's replays: three Times and the last pass, at twice the speed.
-    const nowX = Math.round(14 + 110 * 0.2)
+    // The plot is from 18, clear of the names of the rows, to 124.
+    const nowX = Math.round(18 + 106 * 0.2)
     const perSec = (124 - nowX) / (1.04 * (1.2 + 0.3965 / 2))
     expect(left(sounding[0])).toBeCloseTo(nowX - since * perSec, 3)
     expect(right(sounding[0])).toBeCloseTo(nowX + (0.3965 - since) * perSec, 3)
@@ -828,5 +949,150 @@ describe('Cascade', () => {
     expect(coming).toHaveLength(1)
     expect(coming[0].starts).toHaveLength(3)
     expect(left(coming[0])).toBeCloseTo(nowX + (0.4 - since) * perSec, 3)
+  })
+
+  /** A slice caught every Time for `seconds`, as when the playing never stops. */
+  function runCascade(seconds: number, values: Record<string, number>): Mark[] {
+    const { display, params, meters } = device('cascade')
+    const period = values.time / 1000
+    return marksOf(
+      runDisplay(display, params, seconds, { values, meters }, (time) => ({
+        meters: {
+          ...meters,
+          slices: Math.floor(time / period),
+          length: period - 0.0035,
+          period,
+          delay: 0,
+          step: 0,
+          slot: time % period,
+        },
+      })),
+    )
+  }
+
+  it('draws the slice caught last in full and the earlier ones as one faint shape behind it', () => {
+    const marks = runCascade(3, {
+      pattern: 0,
+      time: 400,
+      repeats: 5,
+      decay: 0.5,
+      high: 1,
+      low: 0,
+      shape: 1,
+    })
+    const inked = hills(marks, INK)
+    expect(inked).toHaveLength(2)
+    const [bed, newest] = inked
+    expect(bed.alpha).toBeLessThan(newest.alpha / 2)
+    // The newest is one slice's cascade, less what sounds now: no more than its 35 passes.
+    expect(newest.starts.length).toBeGreaterThan(25)
+    expect(newest.starts.length).toBeLessThanOrEqual(35)
+    // Behind it, the slices before that are still playing out, together.
+    expect(bed.starts.length).toBeGreaterThan(newest.starts.length)
+    // What sounds now, of any slice, is in the second colour: one path, drawn last.
+    const sounding = hills(marks, ACCENT)
+    expect(sounding).toHaveLength(1)
+    expect(sounding[0].starts.length).toBeGreaterThan(3)
+    const nowX = Math.round(18 + 106 * 0.2)
+    for (const [x] of sounding[0].starts) expect(x).toBeLessThanOrEqual(nowX)
+  })
+
+  it('holds what a draw costs however many slices are playing out', () => {
+    // A drone of sixteen repeats with every part: some 130 passes a slice, sixteen slices at once.
+    const marks = runCascade(16, {
+      pattern: 2,
+      time: 900,
+      repeats: 16,
+      decay: 0.2,
+      high: 1,
+      low: 1,
+      shape: 1,
+    })
+    const [bed, newest] = hills(marks, INK)
+    // The earlier slices are given 240 hills between them, and the one that crosses that is finished.
+    expect(bed.starts.length).toBeGreaterThan(100)
+    expect(bed.starts.length).toBeLessThanOrEqual(240 + 288)
+    expect(newest.starts.length).toBeLessThanOrEqual(288)
+    // Each of theirs is a few points; a hill of the newest has its whole curve.
+    expect(bed.points.length / bed.starts.length).toBeLessThanOrEqual(8)
+    // Whatever sounds is still marked, of every slice.
+    expect(hills(marks, ACCENT)[0].starts.length).toBeGreaterThan(20)
+  })
+
+  it('names its rows clear of the edge and of the plot', () => {
+    const { display, params, meters } = device('cascade')
+    const marks = marksOf(drawDisplay(display, params, { meters, values: { interval: 1 } }))
+    const names = marks.filter((mark) => mark.kind === 'words' && mark.words !== undefined)
+    expect(names.map((mark) => mark.words).slice(0, 6)).toEqual(['½', '1', '1½', '2', '3', '4'])
+    // Right-aligned 2 px left of the plot, which begins 14 px in: room for the widest, 1½.
+    for (const name of names.slice(0, 6)) expect(name.points[0][0]).toBe(16)
+  })
+})
+
+// --- All six ----------------------------------------------------------------
+
+describe('The texture displays', () => {
+  const ids = ['grain-cloud', 'glitch', 'cascade', 'spectral-blur', 'sustainer', 'pad-follower']
+  const busy: Record<string, number> = {
+    grains: 3,
+    place: 1,
+    rate: 1,
+    pan: 0.2,
+    level: 0.3,
+    events: 1,
+    kind: 1,
+    count: 3,
+    piece: 1,
+    next: 0.1,
+    speed: 1,
+    slices: 2,
+    length: 0.39,
+    period: 0.4,
+    slot: 0.1,
+    hang3: 0.6,
+    held: 0.3,
+    layers: 2,
+    caught: 1,
+    heard: 0.1,
+  }
+
+  it('keep the second colour for what is happening: at rest every one is in ink alone', () => {
+    for (const id of ids) {
+      const { display, params, meters } = device(id)
+      for (const options of [{ meters }, { meters, signal: testSignal(0, 0) }]) {
+        const rest = marksOf(drawDisplay(display, params, options))
+        expect(
+          rest.filter((mark) => mark.colour === ACCENT),
+          id,
+        ).toHaveLength(0)
+      }
+    }
+  })
+
+  it('write nothing smaller than 8 px, at rest or running or with a point in hand', () => {
+    for (const id of ids) {
+      const { display, params, meters } = device(id)
+      const mine = Object.fromEntries(Object.keys(meters).map((name) => [name, busy[name] ?? 0]))
+      const hots = [undefined, ...(display.handles?.(viewOf(display, params)) ?? [])]
+      for (const hot of hots) {
+        const drawings = [
+          drawDisplay(display, params, { meters, hot: hot?.key }),
+          runDisplay(display, params, 1, { meters: mine, signal: testSignal(), hot: hot?.key }),
+          runDisplay(display, params, 1, {
+            meters: mine,
+            signal: testSignal(),
+            hot: hot?.key,
+            values: { freeze: 1, interval: 1 },
+          }),
+        ]
+        for (const drawn of drawings) {
+          for (const call of drawn.calls) {
+            if (call.name !== 'set font') continue
+            const size = Number(/^(\d+(?:\.\d+)?)px/.exec(String(call.args[0]))?.[1])
+            expect(size, `${id}: ${String(call.args[0])}`).toBeGreaterThanOrEqual(8)
+          }
+        }
+      }
+    }
   })
 })
