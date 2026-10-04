@@ -54,7 +54,8 @@ export const DEFAULT_RESET_SECONDS = 0.5
 /**
  * A morph is an exponential approach, which never quite arrives: over the
  * morph's length it runs through this many time constants, which leaves it
- * within 2% of where it is going.
+ * within 2% of where it is going. A ride is told to arrive when the morph
+ * ends (`RideOptions.arriveAt`), so a sound taken out is out by then.
  */
 export const MORPH_TIME_CONSTANTS = 4
 /** A move with no length still takes this long, so nothing steps. */
@@ -330,7 +331,12 @@ export class Performer {
     const at = this.engine.now()
     const timeConstant = Math.max(MIN_TIME_CONSTANT, seconds / MORPH_TIME_CONSTANTS)
     for (const track of this.sceneRides.keys()) {
-      this.resolveStrip(track)?.setRide(1, { layer: SCENE_RIDE_LAYER, at, timeConstant })
+      this.resolveStrip(track)?.setRide(1, {
+        layer: SCENE_RIDE_LAYER,
+        at,
+        timeConstant,
+        arriveAt: at + seconds,
+      })
       this.events.emit({ type: 'ride', track, value: 1, at })
     }
     this.sceneRides.clear()
@@ -708,11 +714,14 @@ export class Performer {
 
   private moveRide(track: string, value: number, at: number, morphBars: number): void {
     this.sceneRides.set(track, value)
-    const timeConstant = Math.max(
-      MIN_TIME_CONSTANT,
-      this.barsToSeconds(morphBars) / MORPH_TIME_CONSTANTS,
-    )
-    this.resolveStrip(track)?.setRide(value, { layer: SCENE_RIDE_LAYER, at, timeConstant })
+    const seconds = this.barsToSeconds(morphBars)
+    const timeConstant = Math.max(MIN_TIME_CONSTANT, seconds / MORPH_TIME_CONSTANTS)
+    this.resolveStrip(track)?.setRide(value, {
+      layer: SCENE_RIDE_LAYER,
+      at,
+      timeConstant,
+      arriveAt: at + seconds,
+    })
     this.events.emit({ type: 'ride', track, value, at })
   }
 
@@ -749,7 +758,12 @@ export class Performer {
       const value = clamp(rides.get(track) ?? 1, 0, MAX_RIDE)
       const strip = this.resolveStrip(track)
       if (strip && strip.ride(DIAL_RIDE_LAYER) !== value) {
-        strip.setRide(value, { layer: DIAL_RIDE_LAYER, at: glide.at, timeConstant })
+        strip.setRide(value, {
+          layer: DIAL_RIDE_LAYER,
+          at: glide.at,
+          timeConstant,
+          arriveAt: glide.at + glide.seconds,
+        })
       }
       if (rides.has(track)) this.dialRidden.add(track)
       else this.dialRidden.delete(track)

@@ -11,7 +11,7 @@ import {
 } from '../../../testing'
 import { Bus, LEVEL_RAMP_SECONDS } from '../../buses/Bus'
 import { type Device } from '../../devices/Device'
-import { ChannelStrip, SoloInPlace } from '../ChannelStrip'
+import { ChannelStrip, RIDE_ARRIVAL_TIME_CONSTANT, SoloInPlace } from '../ChannelStrip'
 
 /** A device made of one gain node, enough to test insert wiring. */
 function fakeDevice(ctx: MockAudioContext, id: string): Device {
@@ -648,6 +648,44 @@ describe('ChannelStrip.setRide', () => {
     ])
     expect(ride.lastEvent('cancelScheduledValues')?.args).toEqual([10])
     expect(ride.lastEvent('setTargetAtTime')?.args).toEqual([1, 10.5, 0.1])
+  })
+
+  it('arrives when it is told to: a second, short approach from there closes what the first left', () => {
+    const ctx = createMockContext({ currentTime: 10 })
+    const s = strip(ctx, 'a')
+    const shadow = s.shadow()
+    s.setRide(0, { at: 12, timeConstant: 1, arriveAt: 16 })
+    const [shadowRide] = [...asMock(shadow.input).outputs] as MockGainNode[]
+    for (const ride of [gainParam(rideOf(s)), shadowRide.gain]) {
+      expect(ride.eventsFor('setTargetAtTime').map((event) => event.args)).toEqual([
+        [0, 12, 1],
+        [0, 16, RIDE_ARRIVAL_TIME_CONSTANT],
+      ])
+    }
+    // A new word drops the arrival with the approach it closed.
+    s.setRide(1, { at: 13, timeConstant: 0.5 })
+    const ride = gainParam(rideOf(s))
+    expect(ride.events.slice(-2).map((event) => [event.method, ...event.args])).toEqual([
+      ['cancelScheduledValues', 10],
+      ['setTargetAtTime', 1, 13, 0.5],
+    ])
+  })
+
+  it('has nothing to close when the arrival is no later than the start, or the approach is as quick', () => {
+    const ctx = createMockContext({ currentTime: 10 })
+    const s = strip(ctx, 'a')
+    s.setRide(0, { at: 12, timeConstant: 1, arriveAt: 12 })
+    s.setRide(0.5, { timeConstant: 1, arriveAt: 9 })
+    s.setRide(0.25, { at: 12, timeConstant: RIDE_ARRIVAL_TIME_CONSTANT, arriveAt: 12.08 })
+    expect(
+      gainParam(rideOf(s))
+        .eventsFor('setTargetAtTime')
+        .map((event) => event.args),
+    ).toEqual([
+      [0, 12, 1],
+      [0.5, 10, 1],
+      [0.25, 12, RIDE_ARRIVAL_TIME_CONSTANT],
+    ])
   })
 
   it('stacks named layers in the order they were first moved, each with its own value', () => {

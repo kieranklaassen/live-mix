@@ -41,8 +41,9 @@ performer.on('bar', ({ bar, at }) => game.onBar(bar, at)) // a little ahead, wit
 
 ## Rides: the layer under it
 
-`ChannelStrip.setRide(value, { layer, at, timeConstant })` is a gain after the
-fader and before the mute and solo gate, at 1 until somebody moves it:
+`ChannelStrip.setRide(value, { layer, at, timeConstant, arriveAt })` is a gain
+after the fader and before the mute and solo gate, at 1 until somebody moves
+it:
 
 ```
 input gain → inserts → pan → fader → ride … ride → gate → destination
@@ -145,9 +146,14 @@ change (`Transport.rescale` with a `tempo` function) leaves it on its beat.
 With the transport stopped every move happens at once.
 
 **Morphs.** A ride is approached exponentially (`setTargetAtTime`), with a
-time constant of a quarter of the morph, so it is within 2% when the morph
-ends and can be redirected at any point without a step. `morphBars: 0` is a
-5 ms approach.
+time constant of a quarter of the morph, so it is within 2% (35 dB down, for
+a sound going out) when the morph ends and can be redirected at any point
+without a step. An approach never quite arrives, so the ride is given the end
+of the morph as its `arriveAt`: from there a second approach with a 20 ms time
+constant (`RIDE_ARRIVAL_TIME_CONSTANT`) closes the last 2%, and a sound taken
+out is out a tenth of a second after its morph ends. `morphBars: 0` is a 5 ms
+approach. Dial rides and `reset` arrive the same way at the end of their
+glide.
 
 **Follow.** When a scene comes in, its rule is armed from the line it came in
 on, so a rule of 8 bars hands over on a bar line. Draws come from

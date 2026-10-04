@@ -68,6 +68,8 @@ A strip can also be **ridden**: `strip.setRide(value, { layer })` is a gain
 after the fader and before the gate, at 1 until moved, for something that
 performs the mix without changing it (scenes and dials, [perform.md](../perform.md)).
 The fader keeps the level that was composed; the post-fader sends follow the ride.
+A ride given an `arriveAt` is at its value by then, so a track ridden to 0 over
+a long morph is silent when the morph ends.
 
 **Lazy nodes.** A track's strip creates **no nodes until first used** (pan,
 level, mute, solo, an insert or a send), so the Phase 0 graph is unchanged:
