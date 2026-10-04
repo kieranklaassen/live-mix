@@ -184,6 +184,33 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     idle_.settle(output_peak(frames), frames);
   }
 
+  // The readings named by "meters" in device.json, for a display to draw the
+  // held sound against the playing: the level going in as the detector's last
+  // frame read it and the level of what the layers hold (both RMS), how many
+  // layers sound, how many have been caught so far, and whether the device
+  // takes the player to be playing.
+  float meter(int index) const {
+    switch (index) {
+      case 0:
+        return level_;
+      case 1: {
+        float total = 0.0f;
+        for (int s = 0; s < kSlots; ++s) {
+          if (slots_[s].state != kFree) total += frame_gain_[s] * frame_gain_[s] * slots_[s].power;
+        }
+        return kHeldGain * std::sqrt(total);
+      }
+      case 2:
+        return static_cast<float>(layers());
+      case 3:
+        return static_cast<float>(catches_ & 0xFFFFFF);
+      case 4:
+        return playing_ ? 1.0f : 0.0f;
+      default:
+        return 0.0f;
+    }
+  }
+
   // For the harness: onsets detected so far and layers sounding now.
   int onsets() const { return onsets_; }
   int layers() const {
@@ -392,6 +419,7 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     quiet_for_ = 1.0f;
     postponed_ = 0.0f;
     onsets_ = 0;
+    catches_ = 0;
     gate_ = 0.0f;
     for (int k = 0; k <= kMaxFrame / 8; ++k) det_a_[k] = det_b_[k] = 0.0f;
     for (int k = 0; k <= kMaxHalf / 2; ++k) slow_[k] = ref_[k] = 0.0f;
@@ -656,6 +684,7 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
     }
     slot.state = kHeld;
     slot.serial = onsets_;
+    ++catches_;  // for the display only (meter())
     // The first frame built from it is the caught frame one hop on.
     slot.delay = static_cast<float>(static_cast<int32_t>(next_landing() - position_)) - static_cast<float>(hop_) +
                  static_cast<float>(frame_) - 1.0f;
@@ -1333,6 +1362,7 @@ class Sustainer : public kit::DeviceBase<sustainer::kNumParams> {
   float flux_mean_ = 0.0f;
   float since_onset_ = 1.0f, quiet_for_ = 1.0f, postponed_ = 0.0f;
   int onsets_ = 0;
+  int catches_ = 0;        // layers caught so far, kept for the display; nothing that sounds reads it
   float gate_ = 0.0f;      // the level under which nothing counts as playing
 
   sustainer_detail::RealFft<kMaxLongFrame> fft_;

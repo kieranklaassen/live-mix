@@ -6,6 +6,13 @@
   "class": "Sustainer",
   "header": "sustainer.h",
   "sources": [],
+  "meters": [
+    { "key": "level", "name": "Level going in", "display": true },
+    { "key": "held", "name": "Held level", "display": true },
+    { "key": "layers", "name": "Layers sounding", "display": true },
+    { "key": "caught", "name": "Layers caught", "display": true },
+    { "key": "playing", "name": "Playing", "display": true }
+  ],
   "params": [
     {
       "key": "mode",
