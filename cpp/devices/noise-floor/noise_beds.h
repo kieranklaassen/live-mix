@@ -232,9 +232,12 @@ struct Vinyl {
   float dust = 1.0f;
   float sr = 48000.0f;
   int which = 0;
+  // How many ticks and pops have been struck, for a display to count.
+  int ticks = 0, pops = 0;
 
   void init(float sample_rate, uint32_t stream) {
     sr = sample_rate;
+    ticks = pops = 0;
     for (int c = 0; c < 2; ++c) {
       src[c].init(stream + c, sr);
       low_cut[c].reset();
@@ -282,6 +285,7 @@ struct Vinyl {
       tick[1][which].strike(flip * size * kit::SineTable::lookup(place), hz * (0.9f + 0.2f * events.uniform()),
                             q, sr);
       which ^= 1;
+      ++ticks;
     }
     pop_wait -= 1.0f;
     if (pop_wait <= 0.0f) {
@@ -293,6 +297,7 @@ struct Vinyl {
       const float lean = 0.125f + 0.06f * events.bipolar();
       pop[0].strike(size * kit::SineTable::cos_lookup(lean), hz, 0.9f, sr);
       pop[1].strike(size * kit::SineTable::lookup(lean), hz * 1.04f, 0.9f, sr);
+      ++pops;
     }
     for (int c = 0; c < 2; ++c) {
       const float w = src[c].next();
@@ -411,9 +416,12 @@ struct Static {
   float restless = 0.0f;
   float impulse_scale = 1.0f;
   float sr = 48000.0f;
+  // How many crackles and crashes there have been, for a display to count.
+  int crackles = 0, crashes = 0;
 
   void init(float sample_rate, uint32_t stream) {
     sr = sample_rate;
+    crackles = crashes = 0;
     for (int c = 0; c < 2; ++c) {
       src[c].init(stream + c, sr);
       low_cut[c].reset();
@@ -461,6 +469,7 @@ struct Static {
       const float size = kCrackle * impulse_scale * heavy_tail(events, 0.4f, kCrackleCeiling);
       hit[0] = size * events.bipolar();
       hit[1] = size * events.bipolar();
+      ++crackles;
     }
     crash_wait -= 0.4f + 0.6f * restless + 0.6f * restless * restless;
     if (crash_wait <= 0.0f) {
@@ -470,6 +479,7 @@ struct Static {
       crash[1] = kit::min(crash[1] + size * (0.8f + 0.4f * events.uniform()), kCrash * kCrashCeiling);
       crash_decay = std::exp(-1.0f / ((0.03f + 0.2f * events.uniform()) * sr));
       aftermath = 1.0f;
+      ++crashes;
     }
     aftermath = flush_denormal(aftermath * aftermath_decay);
     for (int c = 0; c < 2; ++c) {

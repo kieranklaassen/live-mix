@@ -7,6 +7,14 @@
   "header": "tape.h",
   "sources": [],
   "latencySamples": 415,
+  "meters": [
+    { "key": "wow", "name": "Wow pitch", "display": true },
+    { "key": "flutter", "name": "Flutter phase", "display": true },
+    { "key": "flutterDepth", "name": "Flutter depth", "display": true },
+    { "key": "drops", "name": "Dropouts so far", "display": true },
+    { "key": "dropDepth", "name": "Dropout depth", "display": true },
+    { "key": "hiss", "name": "Hiss gate", "display": true }
+  ],
   "params": [
     {
       "key": "drive",
