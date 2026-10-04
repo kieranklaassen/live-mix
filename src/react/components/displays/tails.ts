@@ -2407,10 +2407,13 @@ const sympathetic = plateDisplay<SympatheticState>({
       })
     }
     const lit = frame.powered && frame.signal !== null
+    // `process()` of sympathetic.h: what the strings give comes out times the wet gain of
+    // `kit::equal_power` of Mix, so a string is lit as loud as it is heard, and at Mix 0 not at all.
+    const out = wetDb(frame.value('mix'))
     now.notes.forEach((note, index) => {
       const x = xOfNote(note, own, now)
       rule(ctx, x, top, x, line, { colour: colours.ink, alpha: INK.back })
-      const level = lit ? stringLevel(frame, index) : 0
+      const level = lit ? stringLevel(frame, index) + out : 0
       const share = clamp((level - (63 - STRING_RANGE_DB)) / STRING_RANGE_DB, 0, 1)
       if (share > 0) {
         rule(ctx, x, line, x, line - share * (line - top), {

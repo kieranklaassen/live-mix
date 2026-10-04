@@ -1217,8 +1217,12 @@ describe('Sympathetic', () => {
 
   it('lights a string as high as the device says it rings', () => {
     const { display, params } = face('sympathetic')
-    const run = (meters: Record<string, number>) =>
-      runDisplay(display, params, 0.2, { signal: testSignal(), meters: { note: -1, ...meters } })
+    const run = (meters: Record<string, number>, mix = 1) =>
+      runDisplay(display, params, 0.2, {
+        signal: testSignal(),
+        values: { mix },
+        meters: { note: -1, ...meters },
+      })
     // Silent strings: only what rings in the tail is in the accent.
     const silent = accents(run({ strings1: 0, strings2: 0 }))
     // The first string at -10 dB, the sixth at -20 dB: four strings to a reading, six bits each.
@@ -1228,12 +1232,46 @@ describe('Sympathetic', () => {
     expect(accents(run({ strings1: 3 }))).toBe(silent)
   })
 
+  it('lights a string as loud as Mix lets it out, and at Mix 0 not at all', () => {
+    const { display, params } = face('sympathetic')
+    const strings = (mix: number) =>
+      accentLines(
+        runDisplay(display, params, 0.2, {
+          signal: testSignal(),
+          values: { mix },
+          // Strings 1 and 2 at -3 and -15 dB.
+          meters: { note: -1, strings1: 60 + 48 * 64 },
+        }),
+      )
+        .filter(
+          (line) => line.length === 2 && line[0][0] === line[1][0] && line[0][1] < OWN.y + OWN.h,
+        )
+        .map((line) => Math.abs(line[0][1] - line[1][1]))
+    // sympathetic.h: the strings come out times sin(mix x pi / 2). At 1 as the device reports them.
+    expect(strings(1)[0]).toBeCloseTo((30.5 * 45) / 48, 1)
+    // At a half the wet gain is 0.707, 3 dB down: 42 and 30 dB of the 48 the panel shows.
+    const half = strings(0.5)
+    expect(half).toHaveLength(2)
+    expect(half[0]).toBeCloseTo((30.5 * 41.99) / 48, 1)
+    expect(half[1]).toBeCloseTo((30.5 * 29.99) / 48, 1)
+    // At 0.01 it is 36 dB down: the first string is 9 dB into the panel, the second under it.
+    const little = strings(0.01)
+    expect(little).toHaveLength(1)
+    expect(little[0]).toBeCloseTo(
+      (30.5 * (45 + 20 * Math.log10(Math.sin(0.005 * Math.PI)))) / 48,
+      1,
+    )
+    // At 0 nothing of a string is heard, however it rings inside.
+    expect(strings(0)).toHaveLength(0)
+  })
+
   it('unpacks four strings from a reading as the device packs them (by hand)', () => {
     const { display, params } = face('sympathetic')
     // sympathetic.h: level = int(63.5 + 10 log10(power)), string 4s is the lowest six bits.
     // Strings 1 to 4 at -3, -15, -33 and -51 dB: 60 + 48 x 64 + 30 x 4096 + 12 x 262144 = 3271932.
     const drawn = runDisplay(display, params, 0.2, {
       signal: testSignal(),
+      values: { mix: 1 },
       meters: { note: -1, strings1: 60 + 48 * 64 + 30 * 4096 + 12 * 262144 },
     })
     // Each is lit from the line (y 45.5) up by its share of 48 dB over 30.5 px: 45, 33 and 15 dB
