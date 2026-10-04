@@ -45,6 +45,7 @@ class GrainDelay : public kit::DeviceBase<grain_delay::kNumParams> {
     valid_from_ = 0;
     feedback_.set_time(kSmoothingSeconds, sr);
     mix_.set_time(kSmoothingSeconds, sr);
+    level_fall_ = std::exp(-1.0f / (kLevelSeconds * sr));
     rng_.seed(0x6A09E667u);
     asleep_ = true;
     quiet_ = 0;
@@ -54,6 +55,30 @@ class GrainDelay : public kit::DeviceBase<grain_delay::kNumParams> {
 
   void set_param(int id, float value) {
     if (store_param(id, value)) apply(id);
+  }
+
+  // The readings named by "meters" in device.json, for a display to draw:
+  // the level being recorded (a peak that sinks back over 30 ms, 0 while
+  // asleep), how many grains have started (it wraps at 4096), and for the
+  // newest grain and the one before it where on the ring it started, in
+  // seconds behind the write point as that is now, and its read speed
+  // (negative backwards).
+  float meter(int index) const {
+    switch (index) {
+      case 0:
+        return asleep_ ? 0.0f : level_;
+      case 1:
+        return static_cast<float>(started_);
+      case 2:
+      case 4:
+        return static_cast<float>((static_cast<double>(written_) - started_at_[index / 2 - 1]) /
+                                  sample_rate());
+      case 3:
+      case 5:
+        return started_ratio_[index / 2 - 1];
+      default:
+        return 0.0f;
+    }
   }
 
   void process(int frames) {
@@ -87,7 +112,11 @@ class GrainDelay : public kit::DeviceBase<grain_delay::kNumParams> {
         wet[c] = 2.0f * kit::soft_clip(0.5f * wet[c]);
         wet[c] = rumble_[c].highpass(tone_[c].lowpass(wet[c]));
         const float record = guard_[c].lowpass(in[c] + feedback * wet[c]);
-        line_[c].write(flush_denormal(kit::soft_clip(record)));
+        const float recorded = flush_denormal(kit::soft_clip(record));
+        line_[c].write(recorded);
+        // For the display only: nothing below reads it.
+        level_ = kit::max(recorded < 0.0f ? -recorded : recorded,
+                          c == 0 ? level_ * level_fall_ - 1.0e-12f : level_);
       }
       ++written_;
 
@@ -121,6 +150,8 @@ class GrainDelay : public kit::DeviceBase<grain_delay::kNumParams> {
   static constexpr float kPitchOffset = 0.33f;
   static constexpr float kSprayOffset = 0.45f;
   static constexpr float kDetuneOffset = 0.01f;
+  // How fast the level reported to a display sinks back.
+  static constexpr float kLevelSeconds = 0.03f;
 
   // The ring as kit::GrainPool reads it: absolute positions, Hermite, and
   // silence for anything from before the last wake or not yet written.
@@ -165,6 +196,7 @@ class GrainDelay : public kit::DeviceBase<grain_delay::kNumParams> {
     guard_seen_ = -1.0f;
     until_grain_ = 0.0f;
     hold_ = 1;
+    level_ = 0.0f;
   }
 
   float spray_seconds() const {
@@ -235,7 +267,14 @@ class GrainDelay : public kit::DeviceBase<grain_delay::kNumParams> {
     const float power =
         together * coherent_power(density) + (1.0f - together) * scattered_power(density);
     // √2 undoes the -3 dB of the pool's constant-power pan at centre.
-    pool_.spawn(start, ratio, size, pan, kSqrtTwo / std::sqrt(power), 1.0f);
+    if (pool_.spawn(start, ratio, size, pan, kSqrtTwo / std::sqrt(power), 1.0f)) {
+      // For the display only (see meter).
+      started_at_[1] = started_at_[0];
+      started_ratio_[1] = started_ratio_[0];
+      started_at_[0] = start;
+      started_ratio_[0] = ratio;
+      started_ = (started_ + 1) & 4095;
+    }
     until_grain_ += kit::max(8.0f, size / density * (1.0f + jitter));
   }
 
@@ -298,6 +337,12 @@ class GrainDelay : public kit::DeviceBase<grain_delay::kNumParams> {
   long hold_ = 1;
   long quiet_ = 0;
   bool asleep_ = true;
+  // For a display (see meter): what is being recorded, and the last two grains.
+  float level_ = 0.0f;
+  float level_fall_ = 0.0f;
+  int started_ = 0;
+  double started_at_[2] = {0.0, 0.0};
+  float started_ratio_[2] = {1.0f, 1.0f};
 };
 
 }  // namespace livemix

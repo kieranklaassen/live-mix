@@ -86,6 +86,7 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     fast_.set(0.0005f, 0.04f, sr);
     slow_.set(0.08f, 0.4f, sr);
     held_.set(0.08f, 0.4f, sr);
+    heard_fall_ = std::exp(-1.0f / (kHeardSeconds * sr));
     write_phase_ = 0.0f;
     mix_seen_ = -1.0f;
     asleep_ = true;
@@ -96,6 +97,34 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
 
   void set_param(int id, float value) {
     if (store_param(id, value)) apply(id);
+  }
+
+  // The readings named by "meters" in device.json, for a display to draw.
+  // Of the loop that is playing: where its playhead is as a share of the
+  // loop, how many loops a second it moves (negative backwards), what is
+  // left of its level (Fade, and the fade between two loops), the level of
+  // the tape under the playhead (a peak that sinks back over 30 ms) and how
+  // many seconds ago it was taken. Then the seconds until the loop being
+  // played in is taken. All 0 with no loop, and while asleep.
+  float meter(int index) const {
+    if (asleep_) return 0.0f;
+    if (index == 5) return static_cast<float>(wait_) / sample_rate();
+    const Deck& d = decks_[current_];
+    if (!d.active) return 0.0f;
+    switch (index) {
+      case 0:
+        return static_cast<float>(d.place / d.length);
+      case 1:
+        return static_cast<float>(last_step_ * sample_rate() / d.length);
+      case 2:
+        return d.gain * d.env;
+      case 3:
+        return heard_;
+      case 4:
+        return static_cast<float>(static_cast<double>(ring_.written() - d.end) / d.rate);
+      default:
+        return 0.0f;
+    }
   }
 
   void process(int frames) {
@@ -222,6 +251,8 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
   static constexpr float kGrainGrowSeconds = 0.28f;
   static constexpr float kScatterSeconds = 0.02f;
   static constexpr float kScatterGrowSeconds = 0.28f;
+  // How fast the level reported to a display sinks back.
+  static constexpr float kHeardSeconds = 0.03f;
 
   // A slow modulator worked out on the control clock and joined by lines.
   struct Line {
@@ -912,6 +943,11 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
   void play(Deck& d, double step, bool wide, float* wet, float* side) {
     float loop[2];
     loop_read(d, d.place, d.offset, d.alike, &loop[0], &loop[1]);
+    if (&d == &decks_[current_]) {
+      // For the display only: nothing below reads it.
+      heard_ = kit::max(kit::max(loop[0] < 0.0f ? -loop[0] : loop[0], loop[1] < 0.0f ? -loop[1] : loop[1]),
+                        heard_ * heard_fall_ - 1.0e-12f);
+    }
     float gain = d.gain;
     if (d.env < 1.0f) {
       // Between two decks that are alike the fade follows their likeness,
@@ -1139,6 +1175,7 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     smear_.snap(smear_.target);
     smear_seen_ = -1.0f;
     quiet_ = 0;
+    heard_ = 0.0f;
   }
 
   // Sleep once nothing is coming in, nothing is looping or about to, the
@@ -1235,6 +1272,9 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
   float mix_seen_ = -1.0f, dry_gain_ = 1.0f, wet_gain_ = 0.0f;
   bool asleep_ = true;
   long quiet_ = 0;
+  // The tape under the playhead, for a display (see meter).
+  float heard_ = 0.0f;
+  float heard_fall_ = 0.0f;
 };
 
 }  // namespace livemix

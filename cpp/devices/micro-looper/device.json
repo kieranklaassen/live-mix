@@ -7,6 +7,14 @@
   "header": "micro_looper.h",
   "sources": [],
   "memoryMb": 16,
+  "meters": [
+    { "key": "place", "name": "Playhead", "display": true },
+    { "key": "speed", "name": "Playhead speed", "display": true },
+    { "key": "gain", "name": "Loop gain", "display": true },
+    { "key": "heard", "name": "Loop level", "display": true },
+    { "key": "age", "name": "Since the loop was taken", "display": true },
+    { "key": "wait", "name": "Until the loop is taken", "display": true }
+  ],
   "params": [
     {
       "key": "state",

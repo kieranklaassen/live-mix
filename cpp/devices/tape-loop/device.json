@@ -7,6 +7,12 @@
   "header": "tape_loop.h",
   "sources": [],
   "memoryMb": 24,
+  "meters": [
+    { "key": "level", "name": "Record level", "display": true },
+    { "key": "head", "name": "Play head", "display": true },
+    { "key": "length", "name": "Loop length", "display": true },
+    { "key": "speed", "name": "Play speed", "display": true }
+  ],
   "params": [
     {
       "key": "length",

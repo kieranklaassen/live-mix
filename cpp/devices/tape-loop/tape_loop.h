@@ -63,6 +63,7 @@ class TapeLoop : public kit::DeviceBase<tape_loop::kNumParams> {
     margin_ = kMarginSeconds * sr;
     seam_ = kSeamSeconds * sr;
     glide_ = 1.0 - std::exp(-1.0 / (static_cast<double>(kLengthLagSeconds) * sr));
+    level_fall_ = std::exp(-1.0f / (kLevelSeconds * sr));
     wow_drift_.seed(0x51ED270Bu);
     wow_drift_.set_rate(0.5f, sr);
     flutter_.reset();
@@ -79,6 +80,27 @@ class TapeLoop : public kit::DeviceBase<tape_loop::kNumParams> {
 
   void set_param(int id, float value) {
     if (store_param(id, value)) apply(id);
+  }
+
+  // The readings named by "meters" in device.json, for a display to draw:
+  // the level the record head is writing (a peak that sinks back over 30 ms,
+  // 0 while asleep, when the tape is blank), how far behind the record head
+  // the play head is as a share of the loop, the distance between the decks
+  // in seconds as it glides, and the play head's speed as the motor has it
+  // (1 forwards, negative backwards).
+  float meter(int index) const {
+    switch (index) {
+      case 0:
+        return asleep_ ? 0.0f : level_;
+      case 1:
+        return static_cast<float>(phase_);
+      case 2:
+        return static_cast<float>(length_ / sample_rate());
+      case 3:
+        return velocity_.value;
+      default:
+        return 0.0f;
+    }
   }
 
   void process(int frames) {
@@ -169,6 +191,9 @@ class TapeLoop : public kit::DeviceBase<tape_loop::kNumParams> {
       const float right =
           flush_denormal(kit::soft_clip(in_right + feedback * kit::lerp(old[1], old[0], spread)));
       ring_.write(left, right);
+      // For the display only: nothing below reads it.
+      level_ = kit::max(kit::max(left < 0.0f ? -left : left, right < 0.0f ? -right : right),
+                        level_ * level_fall_ - 1.0e-12f);
       const float floor = kit::IdleGate::kFloor;
       if (left > floor || left < -floor || right > floor || right < -floor) {
         blank_ = 0;
@@ -213,6 +238,8 @@ class TapeLoop : public kit::DeviceBase<tape_loop::kNumParams> {
   static constexpr float kDrive = 1.5f;
   static constexpr float kSpeeds[3] = {0.5f, 1.0f, 2.0f};
   static constexpr int kControlPeriod = 16;
+  // How fast the level reported to a display sinks back.
+  static constexpr float kLevelSeconds = 0.03f;
 
   // A slow modulator worked out on the control clock and joined by straight
   // lines: these move at 7 Hz at most, and a sine per sample is not free.
@@ -252,6 +279,7 @@ class TapeLoop : public kit::DeviceBase<tape_loop::kNumParams> {
     spread_.snap(spread_.target);
     mix_.snap(mix_.target);
     blank_ = 0;
+    level_ = 0.0f;
   }
 
   void control() {
@@ -345,6 +373,9 @@ class TapeLoop : public kit::DeviceBase<tape_loop::kNumParams> {
   float seam_ = 1920.0f;
   long blank_ = 0;
   bool asleep_ = true;
+  // What the record head is writing, for a display (see meter).
+  float level_ = 0.0f;
+  float level_fall_ = 0.0f;
 };
 
 }  // namespace livemix
