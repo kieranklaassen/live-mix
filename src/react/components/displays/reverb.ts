@@ -1063,7 +1063,7 @@ const PLATE_FIRST_SEC = Math.min(...PLATE_TAPS.map(([samples]) => samples)) / PL
 
 const plateReverb = room({
   params: ['mix', 'decay', 'damping', 'predelayMs'],
-  info: 'Above, the first moments after a sound goes in: the dry sound, the gap and the plate answering, dense from the start. Below, the tail falling 60 dB on a scale of seconds, the highs dying sooner inside it. The figure is the time it takes. The second colour is the sound itself ringing away.',
+  info: 'Above, the first moments after a sound goes in: the dry sound, the gap and the plate answering, dense from the start. Below, the tail falling 60 dB on a scale of seconds, the time it takes written beside it and the highs dying sooner inside it. The second colour is the sound itself ringing away.',
   first: 0.4,
   span: 8,
   decay: 'decay',
@@ -1143,7 +1143,7 @@ export function fdnBreath(phase: number, depth: number): number {
 
 const fdnReverb = room({
   params: ['mix', 'decay', 'damping', 'predelayMs', 'size', 'breathDepth'],
-  info: 'Above, the first moments after a sound goes in: the gap, then the eight lines answering, wider apart as Size grows. The dashed line is how low Breath lets the start sink. Below, the tail falling 60 dB on a scale of seconds, the highs dying sooner inside it. The figure is the time it takes.',
+  info: 'Above, the first moments after a sound goes in: the gap, then the eight lines answering, wider apart as Size grows, and dashed how low Breath lets the start sink. Below, the tail falling 60 dB on a scale of seconds, the highs dying sooner inside it. The figure is the time it takes.',
   first: 0.6,
   span: 10,
   decay: 'decay',
@@ -1650,7 +1650,7 @@ const SPRING_FIRST_SEC = 0.4
 
 const springReverb = room({
   params: ['mix', 'decay', 'tension', 'springs', 'tone', 'drip', 'predelay'],
-  info: 'Above, the first moments after a sound goes in: every bounce of the springs, its highs trailing further behind on each trip. Tension shapes the sweep and Drip lifts its end. Below, the tail falling 60 dB on a scale of seconds, the highs dying sooner inside it. The figure is the time it takes.',
+  info: 'Above, the first moments after a sound goes in: every bounce of the springs, its highs trailing further behind on each trip as Tension and Drip shape them. Below, the tail falling 60 dB on a scale of seconds, the highs dying sooner inside it. The figure is the time it takes.',
   first: SPRING_FIRST_SEC,
   span: 6,
   decay: 'decay',
@@ -1756,7 +1756,7 @@ const convolverReverb = plateDisplay<ConvolverState>({
   place: 'strip',
   params: CONVOLVER_PARAMS,
   live: { signal: true },
-  info: 'Level against time from the moment a sound stops. This reverb is one fixed room: its tail leans over slowly, then drops away 2.6 seconds on. The figure is the time it takes to fall 60 dB. Drag the start up or down for how loud it is. The second colour is the sound ringing away.',
+  info: 'Level against time from the moment a sound stops: this reverb is one fixed room, whose tail leans over slowly and drops away 2.6 seconds on. The figure is the time it takes to fall 60 dB. Drag the start up or down for how loud it is.',
   init: () => ({ ride: newRide(CONVOLVER_SPAN), seen: unseen(CONVOLVER_PARAMS), curve: [] }),
   draw(frame) {
     const { ctx, colours, state } = frame
@@ -1973,9 +1973,11 @@ interface ShapedLayout {
 }
 
 /**
- * How far across its box the shape ends for a Time knob at `at`. As with the
- * rooms the knob alone places the end and the scale of seconds stretches to
- * make it true; the rest of the box is what comes after the shape.
+ * How far across its box the shape ends for a Time knob at `at`. Time spans
+ * a factor of forty, which no one scale of seconds can hold, so here the
+ * knob places the end (28 % across at the shortest, 60 % at the longest) and
+ * the scale stretches to make it true; the rest of the box is what comes
+ * after the shape.
  */
 const SHAPED_END = [0.28, 0.6] as const
 const shapedEnd = (at: number): number => lerp(SHAPED_END[0], SHAPED_END[1], clamp(at, 0, 1))
@@ -2282,7 +2284,7 @@ const shapedReverb = plateDisplay<ShapedState>({
   place: 'strip',
   params: SHAPED_PARAMS,
   live: { signal: true },
-  info: 'Level against time from the moment a sound goes in. The marks are the echoes that make the shape and the line over them is their level. After the shape come its repeats and, dashed, its tail. Drag the start for pre-delay and mix, the end for time. The second colour is the sound coming through.',
+  info: 'Level against time from the moment a sound goes in: the marks are the echoes that make the shape, the line over them their level, and after it come its repeats and, dashed, its tail. Drag the start for pre-delay and mix, the end for time, the point after it for the tail.',
   init: () => ({
     ride: newRide(8),
     marks: new Marks(),
