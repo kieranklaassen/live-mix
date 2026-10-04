@@ -28,7 +28,7 @@ build_generated_devices() {
     cpp/devices/stereo-widener/StereoWidener.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device bowed-string \
     cpp/devices/bowed-string/device_api.gen.cpp
-  MEMORY_BYTES=16777216 EXTRA_EXPORTS="" build_device cascade \
+  MEMORY_BYTES=16777216 EXTRA_EXPORTS=",_device_meter" build_device cascade \
     cpp/devices/cascade/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device chamber-strings \
     cpp/devices/chamber-strings/device_api.gen.cpp
@@ -58,9 +58,9 @@ build_generated_devices() {
     cpp/devices/fm-glass/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device freq-shifter \
     cpp/devices/freq-shifter/device_api.gen.cpp
-  MEMORY_BYTES=10485760 EXTRA_EXPORTS="" build_device glitch \
+  MEMORY_BYTES=10485760 EXTRA_EXPORTS=",_device_meter" build_device glitch \
     cpp/devices/glitch/device_api.gen.cpp
-  MEMORY_BYTES=10485760 EXTRA_EXPORTS="" build_device grain-cloud \
+  MEMORY_BYTES=10485760 EXTRA_EXPORTS=",_device_meter" build_device grain-cloud \
     cpp/devices/grain-cloud/device_api.gen.cpp
   MEMORY_BYTES=10485760 EXTRA_EXPORTS="" build_device grain-delay \
     cpp/devices/grain-delay/device_api.gen.cpp
@@ -96,7 +96,7 @@ build_generated_devices() {
     cpp/devices/organ/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device outdoors \
     cpp/devices/outdoors/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device pad-follower \
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device pad-follower \
     cpp/devices/pad-follower/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device patina \
     cpp/devices/patina/device_api.gen.cpp
@@ -122,7 +122,7 @@ build_generated_devices() {
     cpp/devices/shaped-reverb/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device shimmer \
     cpp/devices/shimmer/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device spectral-blur \
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device spectral-blur \
     cpp/devices/spectral-blur/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device spring-reverb \
     cpp/devices/spring-reverb/device_api.gen.cpp
@@ -130,7 +130,7 @@ build_generated_devices() {
     cpp/devices/stereo-detune/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device string-machine \
     cpp/devices/string-machine/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device sustainer \
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device sustainer \
     cpp/devices/sustainer/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device swarm-reverb \
     cpp/devices/swarm-reverb/device_api.gen.cpp
