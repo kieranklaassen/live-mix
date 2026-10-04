@@ -436,11 +436,7 @@ function filterHandles(view: DisplayView): DisplayHandle[] {
 const filter = plateDisplay({
   place: 'window',
   columns: 1,
-  // Gain belongs here too: it shows under a shelf or the peak, and the point
-  // sets it there. It is left out because the shared test moves a parameter
-  // only under a choice that names its `choices`, which the Filter's Type
-  // does not, so it never sees a shelf; displays.eq.test.ts checks Gain instead.
-  params: ['type', 'frequency', 'q'],
+  params: ['type', 'frequency', 'q', 'gain'],
   live: { spectrum: true },
   info: 'The curve of the filter type that is set, from 20 Hz to 20 kHz, over the spectrum of what comes out. Drag the point: across is the frequency, up and down the resonance, or the gain of a shelf or a peak. The dashed line of All pass is the phase.',
   draw(frame) {
