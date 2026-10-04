@@ -108,6 +108,12 @@ function compDisplay(options: {
   /** False for a device that reports no `reduction` reading: it is not asked for one. */
   metered?: boolean
   /**
+   * Where the figure stands. A detector that reads peaks has its levels up at
+   * the top of the past, so its figure stands at the foot, on a patch; one
+   * that reads RMS seldom gets that high and keeps the figure at the top.
+   */
+  figure?: 'top' | 'foot'
+  /**
    * The reduction now, where the device's own `reduction` reading is not the
    * whole answer or there is none: worked out from the frame and the sound.
    * `last` is the reduction on the frame before. Left out, the reading is used.
@@ -214,10 +220,14 @@ function compDisplay(options: {
         handle(frame, point.x, point.y, { hot: frame.hot === point.key })
       }
       // How much is off now, as a number: the one figure a compressor is watched by.
-      text(frame, reductionText(reduction), past.x + past.w - 1, past.y + 8, {
-        align: 'right',
-        size: 9,
-      })
+      if (options.figure === 'top') {
+        text(frame, reductionText(reduction), past.x + past.w - 1, past.y + 8, {
+          align: 'right',
+          size: 9,
+        })
+      } else {
+        reductionFigure(frame, past, reduction)
+      }
     },
     handles: options.handles,
   })
@@ -301,6 +311,7 @@ const ambientComp = compDisplay({
   threshold: (view) => view.value('threshold'),
   level: 'rms',
   model: ambientCompModel,
+  figure: 'top',
   handles: ambientCompHandles,
 })
 
@@ -375,60 +386,50 @@ function nodeCompHandles(view: DisplayView): DisplayHandle[] {
   const ratio = view.value('ratio')
   const model = nodeCompModel(view)
   const out = (inDb: number): number => inDb + model.gain(model.reduction(inDb))
-  const range = (param: string, fallback: [number, number]): [number, number] => {
-    const spec = view.spec(param)
-    return spec ? [spec.min, spec.max] : fallback
-  }
-  const [ratioMin, ratioMax] = range('ratio', [1, 20])
-  const [kneeMin, kneeMax] = range('knee', [0, 40])
-  /** Where the curve ends at that ratio: the node's own make-up moves with it. */
-  const endAt = (candidate: number): number => {
-    const bent = nodeCurve(threshold, knee, candidate)
-    return gainToDb(bent(1)) + nodeMakeupDb(bent) + view.value('makeupDb')
-  }
+  const kneeSpec = view.spec('knee')
+  // The display ends at −60 dB and the knob goes on below that: the point of
+  // a threshold down there waits where the curve comes on to the display.
+  const bend = Math.max(threshold, FOOT_DB)
+  /** The level a point stands at, which is on the display also when the curve is over its top. */
+  const shown = (level: number): number => clamp(level, FOOT_DB, TOP_DB)
+  /** Where the bend of the curve would stand at another threshold: the node's make-up moves with it. */
+  const bendAt = (candidate: number): number =>
+    shown(candidate + nodeMakeupDb(nodeCurve(candidate, knee, ratio)) + view.value('makeupDb'))
+  // No point for Ratio: the node makes up for most of what a ratio takes off,
+  // so the whole of the knob moves the end of the curve by a few pixels (four
+  // at the defaults), which is no travel for a hand. Ratio is a knob on the face.
   return [
     {
       key: 'threshold',
       name: 'Threshold',
-      x: xOfDb(threshold, curve),
-      y: handleY(out(threshold), curve),
-      // Taken along the diagonal, as the Ambient Compressor's is. The display
-      // ends at −60 dB; the knob goes on below that.
-      drag: (x, y) => ({
-        threshold: clamp(
-          (dbOfX(x, curve) + dbOfY(y, curve, TOP_DB, FOOT_DB) - (out(threshold) - threshold)) / 2,
-          FOOT_DB,
-          TOP_DB,
-        ),
-      }),
+      x: xOfDb(bend, curve),
+      y: handleY(out(bend), curve),
+      // Taken along the diagonal, as the Ambient Compressor's is: across and
+      // up each say a threshold, and the drag sets the one between them. A
+      // threshold under the display stays where it is until its point is
+      // pulled in.
+      drag: (x, y) => {
+        const across = dbOfX(x, curve)
+        const up = dbOfY(y, curve, TOP_DB, FOOT_DB)
+        let along = (across + up - shown(out(bend)) + bend) / 2
+        if (along <= FOOT_DB + 1e-6) return { threshold: Math.min(threshold, FOOT_DB) }
+        // The make-up changes with the threshold, and with it how high the
+        // bend stands: a few rounds settle on the threshold whose point is
+        // where the hand is.
+        for (let round = 0; round < 8; round++) {
+          const at = clamp(along, FOOT_DB, TOP_DB)
+          along = (across + up - bendAt(at) + at) / 2
+        }
+        return { threshold: clamp(along, FOOT_DB, TOP_DB) }
+      },
       // The wheel widens and narrows the knee above the threshold.
-      wheel: (steps) => ({ knee: clamp(knee + 2 * steps, kneeMin, kneeMax) }),
+      wheel: (steps) => ({
+        knee: clamp(knee + 2 * steps, kneeSpec?.min ?? 0, kneeSpec?.max ?? 40),
+      }),
       reset: () => ({
         threshold: view.spec('threshold')?.default ?? -24,
-        knee: view.spec('knee')?.default ?? 30,
+        knee: kneeSpec?.default ?? 30,
       }),
-    },
-    {
-      key: 'ratio',
-      name: 'Ratio',
-      x: curve.x + curve.w,
-      y: handleY(out(TOP_DB), curve),
-      // The end of the curve. The knee and the node's make-up both move it,
-      // so the ratio that puts it where it is dragged is searched for: a
-      // firmer ratio always ends lower.
-      drag: (_x, y) => {
-        const wanted = dbOfY(y, curve, TOP_DB, FOOT_DB)
-        if (endAt(ratioMin) - endAt(ratioMax) < 0.05) return { ratio }
-        let low = ratioMin
-        let high = ratioMax
-        for (let i = 0; i < 24; i++) {
-          const middle = Math.sqrt(low * high)
-          if (endAt(middle) > wanted) low = middle
-          else high = middle
-        }
-        return { ratio: clamp(Math.sqrt(low * high), ratioMin, ratioMax) }
-      },
-      reset: () => ({ ratio: view.spec('ratio')?.default ?? 12 }),
     },
   ]
 }
@@ -462,8 +463,12 @@ const nodeComp = compDisplay({
  */
 const FET_THRESHOLD_DB = -6 - gainToDb(2)
 const FET_RATIO = 4
-/** The time constant the compressor's gain comes back with, in seconds. */
-const FET_RELEASE_SEC = 0.5
+/**
+ * How fast the compressor's gain comes back, in dB a second. Its follower
+ * lets the level fall with a time constant of 0.5 s, which is 20 / (0.5 ln 10)
+ * dB a second, and the 4:1 curve gives back three quarters of that.
+ */
+const FET_RELEASE_DB_PER_SEC = ((1 - 1 / FET_RATIO) * 20) / (0.5 * Math.LN10)
 /** The ceiling behind the compressor, as `fet-limiter.dsp` has it: straight to half scale, then a tanh knee that never passes full scale. */
 function fetCeiling(level: number): number {
   return level > 0.5 ? 0.5 + 0.5 * Math.tanh((level - 0.5) / 0.5) : level
@@ -490,9 +495,9 @@ function fetModel(view: DisplayView): CompModel {
 /**
  * The device reports no reduction, so it is read off the sound: what comes
  * out against what goes in, less the two gains. In silence there is nothing
- * to read and the figure goes home at the compressor's own release. Without
- * the level going in, it is the curve's reduction at the level that would
- * come out as loud as this.
+ * to read and the figure goes home as the compressor's gain does, at a steady
+ * rate in dB. Without the level going in, it is the curve's reduction at the
+ * level that would come out as loud as this.
  */
 function fetReduction(
   frame: DisplayFrame,
@@ -511,7 +516,7 @@ function fetReduction(
     }
     return model.reduction((low + high) / 2)
   }
-  if (signal.input.rms < QUIET) return last * Math.exp(-frame.dt / FET_RELEASE_SEC)
+  if (signal.input.rms < QUIET) return Math.min(0, last + FET_RELEASE_DB_PER_SEC * frame.dt)
   return gainToDb(signal.output.rms) - gainToDb(signal.input.rms) - model.gain(0)
 }
 
@@ -710,9 +715,10 @@ const ambientLimiter = plateDisplay<LimiterState>({
       // What arrived over what leaves: the part the limiter held back.
       const over = arriving.map(([x, y], i): Point => [x, Math.min(y, leaving[i][1])])
       fillBetween(ctx, over, leaving, colours.ink, INK.back)
-      trace(ctx, leaving, { colour: colours.ink, width: 1.25 })
       curtain(frame, box, state.reduction, span, 0.45)
       curtain(frame, box, state.ride, span)
+      // Over what hangs: more than 6 dB off reaches down to the level that leaves.
+      trace(ctx, leaving, { colour: colours.ink, width: 1.25 })
     })
     levelLine(frame, box, limitY(ceiling, box), 'ceiling', dbText(ceiling))
     reductionFigure(frame, box, state.now)
@@ -820,12 +826,20 @@ export function duck(view: DisplayView, into: Float32Array): Duck {
   return { gains: into, span, from, to }
 }
 
+/** How far the key drives the duck, 0 to 1, as the device has it: the follower on the key times Key scale, and no further than all the way. */
+const duckDrive = (envelope: number, scale: number): number => clamp(envelope * scale, 0, 1)
+
+/** How thick the bar of the key is, in pixels, by how far it drives the duck: it stands in the margin over the display, which is 3 pixels. */
+const keyBar = (drive: number): number => 3 * drive
+
 interface DuckerState {
   /** The level going in and the level coming out, dB. */
   arriving: History
   leaving: History
   /** The gain the ducker has on the sound, dB (0 or below). */
   gain: History
+  /** How far the key drives the duck, 0 to 1. */
+  key: History
   now: number
   /** Whether the gain can be told at all: from a reading, or from the level going in. */
   known: boolean
@@ -875,11 +889,12 @@ const ducker = plateDisplay<DuckerState>({
   columns: 2,
   params: DUCKER_PARAMS,
   live: { meters: true, signal: true },
-  info: 'Left, one duck as it is set: the gain while a key at −12 dB sounds for the length of the bar, then held and let back. The point on its floor is Depth. Right, the last six seconds: the level going in and what comes out, and hanging from the top the gain taken off.',
+  info: 'Left, one duck as it is set: the gain while a key at −12 dB sounds for the length of the bar, then held and let back. The point on its floor is Depth. Right, the last six seconds: the bar along the top is the key, under it hangs the gain taken off, and below are the levels going in and coming out.',
   init: () => ({
     arriving: new History(PAST_SEC, 70, FLOOR_DB, 'max'),
     leaving: new History(PAST_SEC, 70, FLOOR_DB, 'max'),
     gain: new History(PAST_SEC, 70, 0, 'min'),
+    key: new History(PAST_SEC, 70, 0, 'max'),
     now: 0,
     known: false,
     shape: new Float32Array(DUCK_POINTS),
@@ -891,13 +906,15 @@ const ducker = plateDisplay<DuckerState>({
     ground(frame)
     const { curve, past } = compBoxes(frame)
 
+    // The device's own readings, both linear: the gain it has on the sound and
+    // its follower on the key. A ducker that reports neither is read off the sound.
+    const metered = frame.hasMeter('gain')
+    const keyed = frame.hasMeter('envelope')
     if (frame.signal) {
-      // The device's own reading where it has one; else the gain between the two levels,
-      // which stays where it was while the sound is too quiet to tell.
-      const read = frame.hasMeter('gain')
-        ? gainToDb(frame.meter('gain'))
-        : gainBetween(frame.signal)
-      state.known = frame.hasMeter('gain') || frame.signal.input !== null
+      // Without a reading, the gain between the two levels, which stays where
+      // it was while the sound is too quiet to tell.
+      const read = metered ? gainToDb(frame.meter('gain')) : gainBetween(frame.signal)
+      state.known = metered || frame.signal.input !== null
       state.now = Math.min(0, read ?? state.now)
       const leaving = gainToDb(frame.signal.output.rms)
       state.leaving.push(frame.now, leaving)
@@ -906,6 +923,9 @@ const ducker = plateDisplay<DuckerState>({
         frame.signal.input ? gainToDb(frame.signal.input.rms) : leaving - state.now,
       )
       state.gain.push(frame.now, state.now)
+      if (keyed) {
+        state.key.push(frame.now, duckDrive(frame.meter('envelope'), frame.value('gainScale')))
+      }
     } else {
       state.now = 0
     }
@@ -922,10 +942,17 @@ const ducker = plateDisplay<DuckerState>({
       points.push([curve.x + (i / (DUCK_POINTS - 1)) * curve.w, hangY(gains[i], curve, SPAN_DB)])
     }
     gainShape(frame, curve, points)
-    // While the key sounds.
+    // While the key sounds: a bar over the top the gain hangs from, as thick
+    // as that key drives the duck, and never too thin to show when it sounds.
+    const bar = Math.max(1, keyBar(duckDrive(DUCK_KEY, frame.value('gainScale'))))
     fillRect(
       ctx,
-      { x: curve.x + (from / span) * curve.w, y: curve.y, w: ((to - from) / span) * curve.w, h: 2 },
+      {
+        x: curve.x + (from / span) * curve.w,
+        y: curve.y - bar,
+        w: ((to - from) / span) * curve.w,
+        h: bar,
+      },
       colours.ink,
       INK.text,
     )
@@ -935,6 +962,8 @@ const ducker = plateDisplay<DuckerState>({
     clipped(ctx, past, () => {
       const leaving = state.leaving.points(past, (db) => yOf(db, past))
       fillTo(ctx, leaving, past.y + past.h, colours.ink, INK.fill)
+      curtain(frame, past, state.gain, SPAN_DB)
+      // Over what hangs: the level going in is not turned down, and can stand in it.
       trace(
         ctx,
         state.arriving.points(past, (db) => yOf(db, past)),
@@ -945,8 +974,13 @@ const ducker = plateDisplay<DuckerState>({
         },
       )
       trace(ctx, leaving, { colour: colours.ink, width: 1.25 })
-      curtain(frame, past, state.gain, SPAN_DB)
     })
+    // The key that does the ducking, where the device reports it: the same
+    // bar as at the left, over the top the gain hangs from.
+    if (keyed) {
+      const bar = state.key.points(past, (drive) => past.y - keyBar(drive))
+      fillTo(ctx, bar, past.y, colours.ink, INK.text)
+    }
     // The floor Depth sets, across both: the shape rests on it, and what hangs reaches it under a full key.
     const floorY = hangY(duckFloorDb(frame.value('depth')), curve, SPAN_DB)
     rule(ctx, curve.x, floorY, past.x + past.w, floorY, {
@@ -1017,6 +1051,9 @@ interface SwellState {
   /** The gain on the sound, dB (0 or below). */
   gain: History
   now: number
+  /** The ramp's state and position on the frame before; −1 before the first reading. */
+  stage: number
+  position: number
 }
 
 function swellHandles(view: DisplayView): DisplayHandle[] {
@@ -1028,13 +1065,19 @@ function swellHandles(view: DisplayView): DisplayHandle[] {
       name: 'Sensitivity',
       x: past.x + LINE_HANDLE_IN,
       y: handleY(view.value('sensitivity'), past),
-      drag: (_x, y) => ({
-        sensitivity: clamp(
-          dbOfY(y, past, TOP_DB, FOOT_DB),
-          spec?.min ?? -70,
-          Math.min(spec?.max ?? -10, TOP_DB),
-        ),
-      }),
+      // The knob goes on under the display's −60 dB: a line down there waits at
+      // the foot, and stays where it is until it is pulled back in.
+      drag: (_x, y) => {
+        const level = dbOfY(y, past, TOP_DB, FOOT_DB)
+        const sensitivity = view.value('sensitivity')
+        return {
+          sensitivity: clamp(
+            level <= FOOT_DB + 1e-6 ? Math.min(level, sensitivity) : level,
+            spec?.min ?? -70,
+            Math.min(spec?.max ?? -10, TOP_DB),
+          ),
+        }
+      },
       reset: () => ({ sensitivity: spec?.default ?? -40 }),
     },
   ]
@@ -1051,6 +1094,8 @@ const swell = plateDisplay<SwellState>({
     leaving: new History(PAST_SEC, 70, FLOOR_DB, 'max'),
     gain: new History(PAST_SEC, 70, 0, 'min'),
     now: 0,
+    stage: -1,
+    position: 0,
   }),
   draw(frame) {
     const { ctx, colours, state } = frame
@@ -1059,6 +1104,7 @@ const swell = plateDisplay<SwellState>({
     const metered = frame.hasMeter('gain')
 
     const stage = metered ? Math.round(frame.meter('state')) : -1
+    const position = metered ? clamp(frame.meter('position'), 0, 1) : 0
     if (frame.signal) {
       // The device's own gain; one that does not report it is read off the two
       // levels. Shut and waiting for a note it holds nothing back from anyone,
@@ -1074,7 +1120,18 @@ const swell = plateDisplay<SwellState>({
         frame.signal.input ? gainToDb(frame.signal.input.peak) : FLOOR_DB,
       )
       state.leaving.push(frame.now, gainToDb(frame.signal.output.peak))
+      // A rise that began since the frame before began at the floor
+      // (`Swell::trigger` takes the gain there first), and the gain leaves it
+      // faster than the readings come: so every note is seen to start there,
+      // not only the ones a reading happened to catch.
+      const begun =
+        stage === SWELL_RISING &&
+        state.stage !== -1 &&
+        (state.stage !== SWELL_RISING || position < state.position)
+      if (begun) state.gain.push(frame.now, swellGainDb(frame, 0))
       state.gain.push(frame.now, state.now)
+      state.stage = stage
+      state.position = position
     }
 
     // Left: one swell as it is set, from the floor up, open, and down again.
@@ -1108,9 +1165,9 @@ const swell = plateDisplay<SwellState>({
     const sensitivity = frame.value('sensitivity')
     levelLine(frame, past, handleY(sensitivity, past), 'sensitivity', dbText(sensitivity))
 
-    // Where the swell is now, on its shape: along the rise, open, or along the fall.
-    if (frame.signal && metered) {
-      const position = clamp(frame.meter('position'), 0, 1)
+    // Where the swell is now, on its shape: along the rise, open, or along the
+    // fall. Shut, nothing is under way and there is no mark.
+    if (frame.signal && metered && stage !== SWELL_CLOSED) {
       const t =
         stage === SWELL_RISING
           ? position * riseEnd
