@@ -1,0 +1,502 @@
+{
+  "21001": {
+    "id": "sequencer-1974-sub-under-the-floor-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21002": {
+    "id": "sequencer-1974-test-tone-fifth-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21003": {
+    "id": "sequencer-1974-low-vault-voices-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21004": {
+    "id": "sequencer-1974-bowed-low-string-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21005": {
+    "id": "sequencer-1974-fifths-under-fog-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21006": {
+    "id": "sequencer-1974-thin-organ-held-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21007": {
+    "id": "sequencer-1974-low-horn-pedal-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21008": {
+    "id": "sequencer-1974-hollow-organ-held-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21009": {
+    "id": "sequencer-1974-pulse-lead-held-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21010": {
+    "id": "sequencer-1974-cellar-pedal-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21011": {
+    "id": "sequencer-1974-rotor-pedal-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21012": {
+    "id": "sequencer-1974-far-horn-held-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21013": {
+    "id": "sequencer-1974-wood-flute-held-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21014": {
+    "id": "sequencer-1974-warm-room-drift-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21015": {
+    "id": "sequencer-1974-oscillator-bank-c",
+    "durationSec": 16,
+    "loops": true
+  },
+  "21016": {
+    "id": "sequencer-1974-folding-pedal-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21017": {
+    "id": "sequencer-1974-half-speed-reed-g",
+    "durationSec": 10,
+    "loops": false
+  },
+  "21018": {
+    "id": "sequencer-1974-taped-flutes-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21019": {
+    "id": "sequencer-1974-six-stage-strings-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21020": {
+    "id": "sequencer-1974-low-strings-pedal-d",
+    "durationSec": 16,
+    "loops": true
+  },
+  "21021": {
+    "id": "sequencer-1974-airfield-strings-em",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21022": {
+    "id": "sequencer-1974-distant-nave-strings-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21023": {
+    "id": "sequencer-1974-octave-down-choir-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21024": {
+    "id": "sequencer-1974-tape-strings-turning-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21025": {
+    "id": "sequencer-1974-cello-reel-bed-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21026": {
+    "id": "sequencer-1974-horn-reel-chorale-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21027": {
+    "id": "sequencer-1974-worn-flute-reel-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21028": {
+    "id": "sequencer-1974-night-chapel-pipes-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21029": {
+    "id": "sequencer-1974-all-stops-flanged-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21030": {
+    "id": "sequencer-1974-brass-after-hours-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21031": {
+    "id": "sequencer-1974-three-second-swell-em",
+    "durationSec": 11,
+    "loops": false
+  },
+  "21032": {
+    "id": "sequencer-1974-flanged-string-layer-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21033": {
+    "id": "sequencer-1974-resonant-night-pad-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21034": {
+    "id": "sequencer-1974-slow-fold-pad-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21035": {
+    "id": "sequencer-1974-slow-reed-sweep-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21036": {
+    "id": "sequencer-1974-night-air-flanged-d",
+    "durationSec": 16,
+    "loops": true
+  },
+  "21037": {
+    "id": "sequencer-1974-pulse-width-pad-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21038": {
+    "id": "sequencer-1974-far-muted-bows-em",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21039": {
+    "id": "sequencer-1974-low-brass-turning-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21040": {
+    "id": "sequencer-1974-faded-steel-chord-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21041": {
+    "id": "sequencer-1974-back-room-organ-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21042": {
+    "id": "sequencer-1974-piano-swelling-c",
+    "durationSec": 10,
+    "loops": false
+  },
+  "21043": {
+    "id": "sequencer-1974-glass-ripple-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21044": {
+    "id": "sequencer-1974-synthesizer-wind",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21045": {
+    "id": "sequencer-1974-flanged-noise-surf",
+    "durationSec": 16,
+    "loops": true
+  },
+  "21046": {
+    "id": "sequencer-1974-phased-crickets",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21047": {
+    "id": "sequencer-1974-jet-over-noise",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21048": {
+    "id": "sequencer-1974-frozen-wind-phased",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21049": {
+    "id": "sequencer-1974-rain-on-a-slow-reel",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21050": {
+    "id": "sequencer-1974-sample-and-hold-noise",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21051": {
+    "id": "sequencer-1974-crackle-on-the-reel",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21052": {
+    "id": "sequencer-1974-static-under-a-phaser",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21053": {
+    "id": "sequencer-1974-far-storm-on-tape",
+    "durationSec": 16,
+    "loops": true
+  },
+  "21054": {
+    "id": "sequencer-1974-rain-under-a-phaser",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21055": {
+    "id": "sequencer-1974-stream-under-a-flanger",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21056": {
+    "id": "sequencer-1974-night-bass-step-e",
+    "durationSec": 2.5,
+    "loops": false
+  },
+  "21057": {
+    "id": "sequencer-1974-dripping-filter-note-a",
+    "durationSec": 3.5,
+    "loops": false
+  },
+  "21058": {
+    "id": "sequencer-1974-clang-bell-c",
+    "durationSec": 8,
+    "loops": false
+  },
+  "21059": {
+    "id": "sequencer-1974-sour-bell-d",
+    "durationSec": 5.5,
+    "loops": false
+  },
+  "21060": {
+    "id": "sequencer-1974-opening-gong-stroke-d",
+    "durationSec": 10,
+    "loops": false
+  },
+  "21061": {
+    "id": "sequencer-1974-slowed-steel-gong-d",
+    "durationSec": 8.5,
+    "loops": false
+  },
+  "21062": {
+    "id": "sequencer-1974-struck-metal-bar-a",
+    "durationSec": 5,
+    "loops": false
+  },
+  "21063": {
+    "id": "sequencer-1974-phased-vibraphone-bar-f",
+    "durationSec": 5,
+    "loops": false
+  },
+  "21064": {
+    "id": "sequencer-1974-celesta-note-e",
+    "durationSec": 2.5,
+    "loops": false
+  },
+  "21065": {
+    "id": "sequencer-1974-phased-tine-d",
+    "durationSec": 4,
+    "loops": false
+  },
+  "21066": {
+    "id": "sequencer-1974-bare-grand-note-c",
+    "durationSec": 6.5,
+    "loops": false
+  },
+  "21067": {
+    "id": "sequencer-1974-plucked-keyboard-note-g",
+    "durationSec": 4,
+    "loops": false
+  },
+  "21068": {
+    "id": "sequencer-1974-brushed-harp-chord-c",
+    "durationSec": 6.5,
+    "loops": false
+  },
+  "21069": {
+    "id": "sequencer-1974-twelve-string-note-g",
+    "durationSec": 5,
+    "loops": false
+  },
+  "21070": {
+    "id": "sequencer-1974-inside-the-piano-pluck-c",
+    "durationSec": 8,
+    "loops": false
+  },
+  "21071": {
+    "id": "sequencer-1974-hammered-octave-d",
+    "durationSec": 5.5,
+    "loops": false
+  },
+  "21072": {
+    "id": "sequencer-1974-second-row-note-c",
+    "durationSec": 3,
+    "loops": false
+  },
+  "21073": {
+    "id": "sequencer-1974-steel-step-d",
+    "durationSec": 2.5,
+    "loops": false
+  },
+  "21074": {
+    "id": "sequencer-1974-clean-guitar-note-g",
+    "durationSec": 4.5,
+    "loops": false
+  },
+  "21075": {
+    "id": "sequencer-1974-clock-tick-d",
+    "durationSec": 2,
+    "loops": false
+  },
+  "21076": {
+    "id": "sequencer-1974-top-row-note-a",
+    "durationSec": 2.5,
+    "loops": false
+  },
+  "21077": {
+    "id": "sequencer-1974-hollow-organ-note-g",
+    "durationSec": 3,
+    "loops": false
+  },
+  "21078": {
+    "id": "sequencer-1974-night-run-figure-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21079": {
+    "id": "sequencer-1974-top-row-gallop-a",
+    "durationSec": 7.5,
+    "loops": false
+  },
+  "21080": {
+    "id": "sequencer-1974-clock-ticks-figure-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21081": {
+    "id": "sequencer-1974-second-row-line-g",
+    "durationSec": 8,
+    "loops": false
+  },
+  "21082": {
+    "id": "sequencer-1974-damped-steel-figure-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21083": {
+    "id": "sequencer-1974-twelve-string-line-g",
+    "durationSec": 11,
+    "loops": false
+  },
+  "21084": {
+    "id": "sequencer-1974-clean-guitar-line-c",
+    "durationSec": 12,
+    "loops": true
+  },
+  "21085": {
+    "id": "sequencer-1974-plucked-keyboard-run-d",
+    "durationSec": 8,
+    "loops": false
+  },
+  "21086": {
+    "id": "sequencer-1974-dotted-celesta-figure-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21087": {
+    "id": "sequencer-1974-echoing-bars-figure-a",
+    "durationSec": 10,
+    "loops": false
+  },
+  "21088": {
+    "id": "sequencer-1974-steel-steps-figure-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21089": {
+    "id": "sequencer-1974-three-head-strums-c",
+    "durationSec": 8.5,
+    "loops": false
+  },
+  "21090": {
+    "id": "sequencer-1974-hollow-organ-figure-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21091": {
+    "id": "sequencer-1974-night-tines-phrase-a",
+    "durationSec": 12,
+    "loops": false
+  },
+  "21092": {
+    "id": "sequencer-1974-phased-tines-phrase-d",
+    "durationSec": 12,
+    "loops": true
+  },
+  "21093": {
+    "id": "sequencer-1974-bare-grand-intro-a",
+    "durationSec": 12,
+    "loops": false
+  },
+  "21094": {
+    "id": "sequencer-1974-hammered-figure-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "21095": {
+    "id": "sequencer-1974-plucked-piano-strings-e",
+    "durationSec": 12,
+    "loops": false
+  },
+  "21096": {
+    "id": "sequencer-1974-vibraphone-phrase-f",
+    "durationSec": 12,
+    "loops": true
+  },
+  "21097": {
+    "id": "sequencer-1974-harp-run-c",
+    "durationSec": 10,
+    "loops": false
+  },
+  "21098": {
+    "id": "sequencer-1974-slide-line-e",
+    "durationSec": 12,
+    "loops": false
+  },
+  "21099": {
+    "id": "sequencer-1974-fuzz-lead-line-e",
+    "durationSec": 10,
+    "loops": false
+  },
+  "21100": {
+    "id": "sequencer-1974-dripping-filter-line-a",
+    "durationSec": 8,
+    "loops": false
+  }
+}
