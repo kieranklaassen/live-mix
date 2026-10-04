@@ -3,7 +3,10 @@
 // name rides the title row under the pointer, its panel stays dimmed where it
 // was, and a marker stands in the gap it would land in; letting go puts it
 // there, Escape leaves it. The chain scrolls when the pointer nears an end of
-// what shows of it, and never past the ends it had when the device was taken.
+// what shows of it, and never past the ends it had when the device was taken:
+// not back past the chain's own start where its scroller holds more before it.
+// An end the device was taken at scrolls once the pointer has gone on toward
+// it, or has left it and come back.
 //
 // Nothing of the layout moves during a carry, so where the device lands is
 // read from where the devices stood when it was taken. The name is moved with
@@ -118,6 +121,36 @@ export function edgeScroll(x: number, left: number, right: number): number {
 }
 
 /**
+ * How far back a carry may scroll, for a chain whose start stands at
+ * `chainStart` of what its scroller holds, taken with the scroller at
+ * `scroll`: to where the chain's start is at the view's edge. What a host puts
+ * before the chain in the same scroller is none of the carry's, and a view
+ * that already showed some of it when the device was taken shows no more.
+ */
+export function carryScrollMin(chainStart: number, scroll: number): number {
+  return Math.min(scroll, Math.max(0, chainStart))
+}
+
+/** Which ends of the view a carry may scroll at: the near one, the far one. */
+export interface ArmedEnds {
+  near: boolean
+  far: boolean
+}
+
+/**
+ * The ends a carry may scroll at once the pointer is at `x`, with `step` what
+ * `edgeScroll` asks there. A device taken at an end of the view is not asking
+ * for more of the chain by that alone: an end scrolls once the pointer has
+ * gone further toward it than where the device was taken (`startX`), or has
+ * been clear of it.
+ */
+export function armedEnds(armed: ArmedEnds, step: number, x: number, startX: number): ArmedEnds {
+  const near = armed.near || step >= 0 || x < startX
+  const far = armed.far || step <= 0 || x > startX
+  return near === armed.near && far === armed.far ? armed : { near, far }
+}
+
+/**
  * A marker place kept inside a chain `width` wide, so the marker shows whole
  * at either end and adds nothing to what the chain scrolls.
  */
@@ -229,6 +262,10 @@ interface Carry {
     scroller: HTMLElement | null
     /** How far the scroller went when the device was taken: the carry scrolls no further. */
     scrollMax: number
+    /** How far back the carry scrolls: to the chain's start, or where the scroller stood if it showed more. */
+    scrollMin: number
+    /** The ends of the view the carry may scroll at by now. */
+    armed: ArmedEnds
     /** The chain's own left edge, in the same content. */
     chainLeft: number
     /** How wide the chain's content was when the device was taken. */
@@ -338,6 +375,9 @@ export function useChainReorder(onMove: (from: number, to: number) => void): Cha
       if (items[current.from] !== current.item) return false
       const scroller = scrollerOf(element)
       const scroll = scroller?.scrollLeft ?? 0
+      // The marker is placed inside the chain's border, and scrolls with what the chain scrolls.
+      const chainLeft =
+        element.getBoundingClientRect().left + element.clientLeft + scroll - element.scrollLeft
       current.lifted = {
         spans: items.map((item) => {
           const bounds = item.getBoundingClientRect()
@@ -345,9 +385,14 @@ export function useChainReorder(onMove: (from: number, to: number) => void): Cha
         }),
         scroller,
         scrollMax: scroller ? scroller.scrollWidth - scroller.clientWidth : 0,
-        // The marker is placed inside the chain's border, and scrolls with what the chain scrolls.
-        chainLeft:
-          element.getBoundingClientRect().left + element.clientLeft + scroll - element.scrollLeft,
+        scrollMin: scroller
+          ? carryScrollMin(
+              chainLeft - scroller.getBoundingClientRect().left - scroller.clientLeft,
+              scroll,
+            )
+          : 0,
+        armed: { near: false, far: false },
+        chainLeft,
         chainWidth: element.scrollWidth,
         labelLeft: 0,
         to: current.from,
@@ -369,10 +414,15 @@ export function useChainReorder(onMove: (from: number, to: number) => void): Cha
         if (lifted.scroller) {
           const view = lifted.scroller.getBoundingClientRect()
           const step = edgeScroll(carry.current.x, view.left, view.right)
-          if (step !== 0) {
+          lifted.armed = armedEnds(lifted.armed, step, carry.current.x, carry.current.startX)
+          if (step < 0 ? lifted.armed.near : step > 0 && lifted.armed.far) {
             const before = lifted.scroller.scrollLeft
-            lifted.scroller.scrollLeft = Math.min(before + step, lifted.scrollMax)
-            if (lifted.scroller.scrollLeft !== before) follow()
+            // Held inside both ends, and never moved the other way by an end it is already past.
+            const to = Math.max(lifted.scrollMin, Math.min(before + step, lifted.scrollMax))
+            if (step < 0 ? to < before : to > before) {
+              lifted.scroller.scrollLeft = to
+              if (lifted.scroller.scrollLeft !== before) follow()
+            }
           }
         }
         lifted.frame = requestAnimationFrame(tick)

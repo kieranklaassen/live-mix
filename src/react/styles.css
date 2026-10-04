@@ -2286,7 +2286,8 @@
 }
 
 /* Presets, moving and removing: there while the plate is pointed at, in use,
-   open or in hand (the plate a finger pressed last). */
+   open or in hand (the plate a finger pressed last), and for the moment a move
+   cell is given back the focus its own move took from it. */
 .lm-plate__tools {
   display: none;
   flex: 0 0 auto;
@@ -2297,7 +2298,8 @@
 .lm-plate:hover .lm-plate__tools,
 .lm-plate:focus-within .lm-plate__tools,
 .lm-plate--open .lm-plate__tools,
-.lm-plate--held .lm-plate__tools {
+.lm-plate--held .lm-plate__tools,
+.lm-plate[data-lm-refocus] .lm-plate__tools {
   display: flex;
 }
 
@@ -2330,7 +2332,8 @@
 :is(.lm-plate--display, .lm-plate--plain):hover .lm-plate__tools--above,
 :is(.lm-plate--display, .lm-plate--plain):focus-within .lm-plate__tools--above,
 :is(.lm-plate--display, .lm-plate--plain).lm-plate--open .lm-plate__tools--above,
-:is(.lm-plate--display, .lm-plate--plain).lm-plate--held .lm-plate__tools--above {
+:is(.lm-plate--display, .lm-plate--plain).lm-plate--held .lm-plate__tools--above,
+:is(.lm-plate--display, .lm-plate--plain)[data-lm-refocus] .lm-plate__tools--above {
   display: grid;
 }
 
