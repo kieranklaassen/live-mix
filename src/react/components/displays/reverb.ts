@@ -1192,7 +1192,7 @@ const fdnReverb = room({
 
 // --- Hall Reverb --------------------------------------------------------------
 
-/** The eight loops of `re.zita_rev1_stereo` and the allpass in front of each, in seconds (`hall-reverb.dsp`). */
+/** The eight loops of the reverb in `hall-reverb.dsp` and the allpass in front of each, in seconds. */
 const HALL_LOOPS = [
   0.153129, 0.210389, 0.127837, 0.256891, 0.174713, 0.192303, 0.125, 0.219991,
 ] as const
