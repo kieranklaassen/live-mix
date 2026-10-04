@@ -1721,11 +1721,92 @@ interface DriftState {
   age: number
 }
 
+/**
+ * Where a grain plays once the sound has rung its longest, in semitones: the
+ * far end of its line. There the drift is all of Bloom, so Bloom alone sets it.
+ */
+const driftReach = (grain: number, interval: number, direction: number, bloom: number): number =>
+  grainShift(grainTarget(grain, interval, direction, bloom), bloom)
+
+/**
+ * The group of grains the handle stands on: the one with the most grains, and
+ * of two as large the one the device's first grain is in. Its first grain, and
+ * its share of them all.
+ */
+function driftLead(interval: number, direction: number): { grain: number; level: number } {
+  let lead = 0
+  let most = 0
+  for (let grain = 0; grain < DRIFT_GRAINS; grain++) {
+    const key = grainTarget(grain, interval, direction, 1)
+    let share = 0
+    for (let other = 0; other < DRIFT_GRAINS; other++)
+      if (grainTarget(other, interval, direction, 1) === key) share++
+    if (share > most) {
+      most = share
+      lead = grain
+    }
+  }
+  return { grain: lead, level: most / DRIFT_GRAINS }
+}
+
+/**
+ * The Bloom that puts the far end of a grain's line at `st` semitones, found
+ * by halving: the end only ever moves away from 0 as Bloom rises, from 0 with
+ * none to the grain's whole interval with all of it.
+ */
+function bloomOfReach(st: number, grain: number, interval: number, direction: number): number {
+  const way = driftReach(grain, interval, direction, 1) < 0 ? -1 : 1
+  if (way * st <= 0) return 0
+  if (way * st >= way * driftReach(grain, interval, direction, 1)) return 1
+  let low = 0
+  let high = 1
+  for (let n = 0; n < 40; n++) {
+    const middle = (low + high) / 2
+    if (way * driftReach(grain, interval, direction, middle) < way * st) low = middle
+    else high = middle
+  }
+  return (low + high) / 2
+}
+
+/**
+ * The one point of the Spectral Drifter's ruler: the far end of the line the
+ * largest group of grains drifts along, at the height of its mark. Along the
+ * ruler it sets Bloom, which is how far that end stands from 0.
+ */
+function driftHandles(view: DisplayView): DisplayHandle[] {
+  const ruler = semitoneRuler(view, -DRIFT_RANGE, DRIFT_RANGE)
+  const bloom = view.value('bloom')
+  const spec = view.spec('bloom')
+  const direction = clamp(Math.round(view.value('direction')), 0, 2)
+  const interval = clamp(Math.round(view.value('interval')), 0, 3)
+  const { grain, level } = driftLead(interval, direction)
+  const x = xOfSt(driftReach(grain, interval, direction, bloom), ruler)
+  return [
+    {
+      key: 'bloom',
+      name: 'Bloom',
+      x,
+      y: yOfLevel(level, ruler),
+      drag: (toX) => ({
+        bloom:
+          Math.abs(toX - x) < 1e-6
+            ? bloom
+            : clamp(
+                bloomOfReach(stOfX(toX, ruler), grain, interval, direction),
+                spec?.min ?? 0,
+                spec?.max ?? 1,
+              ),
+      }),
+      reset: () => ({ bloom: spec?.default ?? bloom }),
+    },
+  ]
+}
+
 const spectralDrifter = plateDisplay<DriftState>({
   place: 'strip',
   params: ['bloom', 'direction', 'interval', 'decay', 'ageMode', 'age'],
   live: { signal: true },
-  info: 'A ruler in semitones with the sound going in at 0. Each mark is a group of grains, as tall as its share of them, at the pitch it plays now. The longer the sound rings the further it drifts along its line, from the faint end where a fresh sound starts towards the dashed interval.',
+  info: 'A ruler in semitones with the sound going in at 0. Each mark is a group of grains, as tall as its share of them, at the pitch it plays now. The longer the sound rings the further it drifts along its line, from the faint end where a fresh sound starts towards the dashed interval. The ring sets Bloom.',
   init: () => ({ age: 0 }),
   draw(frame) {
     const { ctx, colours, state } = frame
@@ -1759,6 +1840,8 @@ const spectralDrifter = plateDisplay<DriftState>({
 
     mark(frame, ruler, 0, 1, colours.ink, 2, INK.back)
 
+    const [point] = driftHandles(frame)
+    const lead = driftLead(interval, direction).grain
     // The grains in groups that play the same pitch.
     const seen: number[] = []
     for (let grain = 0; grain < DRIFT_GRAINS; grain++) {
@@ -1790,10 +1873,13 @@ const spectralDrifter = plateDisplay<DriftState>({
         colour: colours.ink,
         alpha: INK.back,
       })
+      // The far end of the largest group's line is the point that sets Bloom; where the grains play now lies over it.
+      if (grain === lead) handle(frame, point.x, point.y, { hot: frame.hot === point.key })
       mark(frame, ruler, now, level, colours.accent, 2.5)
       dot(ctx, xOfSt(now, ruler), y, 2.5, colours.accent, { ring: colours.ink })
     }
   },
+  handles: driftHandles,
 })
 
 export const PITCH_FACES: Readonly<Record<string, PlateFace>> = {
