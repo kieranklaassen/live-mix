@@ -111,6 +111,9 @@ export interface DisplayFrame<S = unknown> extends DisplayView {
 }
 
 /** A point on a display that can be dragged, and what dragging it sets. */
+/** What a display keeps while one hand holds one of its handles: see `DisplayHandle.drag`. */
+export type DisplayHold = Record<string, number>
+
 export interface DisplayHandle {
   key: string
   /** What it is, for the info view: "Band 2", "Threshold". */
@@ -121,8 +124,14 @@ export interface DisplayHandle {
   /**
    * The parameters a drag to (x, y) sets, by name, in their own units. The
    * plate clamps them and writes them as one undo step per drag.
+   *
+   * `hold` is the display's own for as long as one hand holds the handle:
+   * empty at the press, the same at every move of that hand, and gone when it
+   * lets go. The plate asks for the handles again at every move, so what a
+   * drag must remember of its press (how far past the picture a setting lay)
+   * is kept there. Two hands on two handles have a hold each.
    */
-  drag(x: number, y: number): Readonly<Record<string, number>>
+  drag(x: number, y: number, hold?: DisplayHold): Readonly<Record<string, number>>
   /** What a turn of the wheel over the handle sets (an EQ band's width); `steps` is positive for up. */
   wheel?(steps: number): Readonly<Record<string, number>>
   /** What a double press sets: the parameters back where the device starts. Left out, a double press does nothing. */

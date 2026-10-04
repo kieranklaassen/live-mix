@@ -36,6 +36,7 @@ import {
   plateDisplay,
   type DisplayFrame,
   type DisplayHandle,
+  type DisplayHold,
   type DisplayView,
   type PlateFace,
 } from '../plate-display'
@@ -810,33 +811,10 @@ function handTo(hand: number, standing: number, low: number, high: number): numb
  * really lies: as far past the hand as it lay when it was taken, so nothing
  * jumps and the end of the range is as far off as it truly is. The plate asks
  * for a display's handles again on every move, and an answer knows only where
- * the point stands now, so how far past it lay is kept here from one answer to
- * the next, for the one point a hand holds.
- */
-interface Carry {
-  point: string
-  /** How far past where the point was drawn its setting lay when it was taken, in pixels. */
-  past: number
-  /** The setting the last answer found and the one it gave, and where each lies: the next move finds one of the two. */
-  found: number
-  foundAt: number
-  left: number
-  leftAt: number
-  /** After an answer to a hand on the point itself: what `past` is if that was a press, whose answer the plate throws away; else NaN. */
-  press: number
-}
-const carry: Carry = {
-  point: '',
-  past: 0,
-  found: Number.NaN,
-  foundAt: Number.NaN,
-  left: Number.NaN,
-  leftAt: Number.NaN,
-  press: Number.NaN,
-}
-
-/**
- * What a hand at `hand` sets a point to, along the one way the point goes.
+ * the point stands now, so how far past it lay at the press is kept in the
+ * hold the plate hands to every `drag` of one hand.
+ *
+ * What a hand at `hand` sets the point to, along the one way the point goes.
  * `standing` is where the point is drawn for `setting`, `placeOf` where a
  * setting lies on a scale that runs on past the picture, and `settingAt` the
  * setting at a place on it, held to its range. A hand that has not moved the
@@ -844,7 +822,7 @@ const carry: Carry = {
  * hand that drifts across a handle that goes up and down moves nothing.
  */
 function carried(
-  point: string,
+  hold: DisplayHold | undefined,
   setting: number,
   hand: number,
   standing: number,
@@ -852,26 +830,11 @@ function carried(
   settingAt: (place: number) => number,
 ): number {
   const lies = placeOf(setting)
-  const is = (value: number, at: number): boolean =>
-    Math.abs(setting - value) <= 1e-6 * Math.max(1, Math.abs(setting)) && Math.abs(lies - at) < 1e-3
-  const given = is(carry.left, carry.leftAt)
-  if (carry.point !== point || !(given || is(carry.found, carry.foundAt))) {
-    // Another point, or this one moved by something else since: it is taken where it stands.
-    carry.point = point
-    carry.past = lies - standing
-  } else if (!Number.isNaN(carry.press) && !given) {
-    // The last answer was not kept: that was the press of a new drag.
-    carry.past = carry.press
-  }
-  // The plate presses a point with a hand exactly on it; so does a hand that comes back to where it took it.
-  carry.press = hand === standing ? lies - standing : Number.NaN
-  const to = hand + carry.past
-  const value = Math.abs(to - lies) < 1e-9 ? setting : settingAt(to)
-  carry.found = setting
-  carry.foundAt = lies
-  carry.left = value
-  carry.leftAt = placeOf(value)
-  return value
+  // Asked without a hold (not by a plate), the point is taken where it lies at every call.
+  const kept = hold ?? {}
+  kept.past ??= lies - standing
+  const to = hand + kept.past
+  return Math.abs(to - lies) < 1e-9 ? setting : settingAt(to)
 }
 
 /** As the kit's `xOfHz` and `hzOfX`, but on past the picture's two ends: where a frequency lies, not where it is drawn. */
@@ -943,8 +906,8 @@ function floorHandle(
     name,
     x: floorHandleX(band, full),
     y: floorHandleY(band, full, view.value(param), perTenfold, shiftDb),
-    drag: (_x, y) => ({
-      [param]: carried(`floor ${param}`, view.value(param), y, point.y, placeOf, settingAt),
+    drag: (_x, y, hold) => ({
+      [param]: carried(hold, view.value(param), y, point.y, placeOf, settingAt),
     }),
     reset: () => ({ [param]: view.spec(param)?.default ?? 0.25 }),
   }
@@ -1294,9 +1257,9 @@ function tapeHandles(view: DisplayView, floor: Curve | null): DisplayHandle[] {
       band.y + band.h,
     ),
     // Across is where the top of the band ends: Tone moves it an octave either way.
-    drag: (x) => ({
+    drag: (x, _y, hold) => ({
       tone: carried(
-        'tape tone',
+        hold,
         view.value('tone'),
         x,
         tone.x,
@@ -2219,9 +2182,9 @@ function patinaHandles(view: DisplayView, floor: Curve | null): DisplayHandle[] 
     ),
     // Across is where the band ends: to the left wears the medium. With little
     // wear it ends above the picture, and the point is taken from where it ends.
-    drag: (x) => ({
+    drag: (x, _y, hold) => ({
       wear: carried(
-        'patina wear',
+        hold,
         view.value('wear'),
         x,
         wear.x,
@@ -3517,9 +3480,9 @@ function digitalHandles(view: DisplayView): DisplayHandle[] {
     y: clamp(yOfDb(grain, band, TOP_DB, FOOT_DB), band.y, foot),
     // Up is a coarser step: the grain rises 6 dB for each bit taken away. The
     // finest grain lies under the picture, and the point is taken from where it lies.
-    drag: (_x, y) => ({
+    drag: (_x, y, hold) => ({
       bits: carried(
-        'digital bits',
+        hold,
         set,
         y,
         bits.y,

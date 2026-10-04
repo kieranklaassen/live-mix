@@ -22,6 +22,7 @@ import {
   type DisplayColours,
   type DisplayFrame,
   type DisplayHandle,
+  type DisplayHold,
   type DisplaySignal,
   type DisplayView,
   type PlateDisplay,
@@ -451,6 +452,8 @@ interface Grab {
   /** A finger's press, and whether it has moved the handle: one that has not is a tap. */
   touch: boolean
   moved: boolean
+  /** The display's own for this hold: handed to every `drag` of it. */
+  hold: DisplayHold
 }
 
 /** A press on a handle that moved nothing: a second one soon after, on the same handle, is a double press. */
@@ -586,7 +589,8 @@ export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
     event.currentTarget.dataset.lmHandle = handle.key
     const touch = event.pointerType === 'touch'
     event.currentTarget.setPointerCapture?.(event.pointerId)
-    const names = Object.keys(handle.drag(handle.x, handle.y))
+    const hold: DisplayHold = {}
+    const names = Object.keys(handle.drag(handle.x, handle.y, hold))
     grab.current = {
       pointerId: event.pointerId,
       key: handle.key,
@@ -595,6 +599,7 @@ export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
       dy: at.y - handle.y,
       touch,
       moved: false,
+      hold,
     }
     runner.current?.point(handle.key, true)
     props.onDragStart(names)
@@ -615,7 +620,7 @@ export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
     if (!handle) return
     held.moved = true
     runner.current?.moved(held.key)
-    props.onDrag(handle.drag(at.x - held.dx, at.y - held.dy))
+    props.onDrag(handle.drag(at.x - held.dx, at.y - held.dy, held.hold))
   }
 
   const letGo = (event: ReactPointerEvent<HTMLCanvasElement>): void => {

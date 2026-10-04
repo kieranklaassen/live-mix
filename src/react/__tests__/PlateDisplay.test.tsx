@@ -755,6 +755,44 @@ describe('a handle under the wheel, under a finger and under another handle', ()
     return event
   }
 
+  it('hands a drag one hold from its press to its end, empty at the press, and the next drag another', async () => {
+    const holds: (Record<string, number> | undefined)[] = []
+    const emptyAtPress: boolean[] = []
+    const display: PlateDisplay = {
+      ...withHandle(),
+      handles: () => [
+        {
+          key: 'a',
+          name: 'a',
+          x: 40,
+          y: 30,
+          drag: (x: number, _y: number, hold?: Record<string, number>) => {
+            if (hold && !holds.includes(hold)) emptyAtPress.push(Object.keys(hold).length === 0)
+            holds.push(hold)
+            // What a display keeps of its press: there again at every move.
+            if (hold) hold.pressedAt ??= x
+            return { a: x }
+          },
+        },
+      ],
+    }
+    const { surface } = await mount(display)
+    fireEvent.pointerDown(surface, { pointerId: 1, button: 0, clientX: 40, clientY: 30 })
+    fireEvent.pointerMove(surface, { pointerId: 1, clientX: 50, clientY: 30 })
+    fireEvent.pointerMove(surface, { pointerId: 1, clientX: 60, clientY: 30 })
+    fireEvent.pointerUp(surface, { pointerId: 1, clientX: 60, clientY: 30 })
+    expect(holds).toHaveLength(3)
+    expect(holds[0]).toBeDefined()
+    expect(holds[1]).toBe(holds[0])
+    expect(holds[2]).toBe(holds[0])
+    expect(holds[0]).toEqual({ pressedAt: 40 })
+    fireEvent.pointerDown(surface, { pointerId: 2, button: 0, clientX: 40, clientY: 30 })
+    fireEvent.pointerUp(surface, { pointerId: 2, clientX: 40, clientY: 30 })
+    expect(holds).toHaveLength(4)
+    expect(holds[3]).not.toBe(holds[0])
+    expect(emptyAtPress).toEqual([true, true])
+  })
+
   it('turns by the size of the wheel: a trackpad’s small events add up to the step of one notch', async () => {
     vi.useFakeTimers()
     try {

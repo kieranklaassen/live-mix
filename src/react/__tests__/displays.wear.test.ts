@@ -8,6 +8,7 @@ import { loadWasmDevice } from '../../dsp/__tests__/wasm-device-harness'
 import { PLAIN_COLOURS } from '../components/display-kit'
 import {
   type DisplayHandle,
+  type DisplayHold,
   type DisplaySignal,
   type DisplayView,
 } from '../components/plate-display'
@@ -152,11 +153,13 @@ function running(id: string, values: Record<string, number> = {}) {
 function inHand(id: string, key: string, values: Record<string, number> = {}) {
   const set: Record<string, number> = { ...values }
   const taken = handleOf(id, key, set)
-  taken.drag(taken.x, taken.y)
+  // What the plate hands to every `drag` of one hand, for the display to keep what it must.
+  const hold: DisplayHold = {}
+  taken.drag(taken.x, taken.y, hold)
   return {
     taken,
     to(dx: number, dy: number): number {
-      Object.assign(set, handleOf(id, key, set).drag(taken.x + dx, taken.y + dy))
+      Object.assign(set, handleOf(id, key, set).drag(taken.x + dx, taken.y + dy, hold))
       return set[key]
     },
   }
@@ -358,6 +361,30 @@ describe('every handle of the family', () => {
     expect(again.to(-1, 0)).toBeGreaterThan(less)
     expect(again.to(-1, 0)).toBeLessThan(less + 0.04)
     expect(again.to(0, 0)).toBeCloseTo(less, 9)
+  })
+
+  it('goes with its own hand when two hands hold two such points at once', () => {
+    // Alone: eight pixels up from sixteen bits, and eight to the left from a new reel.
+    const alone = [inHand('vintage-digital', 'bits', { bits: 16 }), inHand('patina', 'wear')]
+    let bitsAlone = 16
+    let wearAlone = 0.3
+    for (let px = 1; px <= 8; px++) bitsAlone = alone[0].to(0, -px)
+    for (let px = 1; px <= 8; px++) wearAlone = alone[1].to(-px, 0)
+    expect(bitsAlone).toBeLessThan(16)
+    expect(wearAlone).toBeGreaterThan(0.3)
+    // Together, a pixel in turn, on two plates and on two of the same plate: each is where it was alone.
+    const bits = inHand('vintage-digital', 'bits', { bits: 16 })
+    const wear = inHand('patina', 'wear')
+    const other = inHand('patina', 'wear')
+    let [a, b, c] = [16, 0.3, 0.3]
+    for (let px = 1; px <= 8; px++) {
+      a = bits.to(0, -px)
+      b = wear.to(-px, 0)
+      c = other.to(-px, 0)
+    }
+    expect(a).toBeCloseTo(bitsAlone, 9)
+    expect(b).toBeCloseTo(wearAlone, 9)
+    expect(c).toBeCloseTo(wearAlone, 9)
   })
 
   it('reaches both ends of what it sets, in the picture or past it', () => {
