@@ -174,6 +174,36 @@ describe('the tail every one of them shares', () => {
     expect(sixtyDown(fall)).toBeCloseTo(5.699, 2)
   })
 
+  it('adds many bands up as the plain sum does, to a twentieth of a dB', () => {
+    // 360 bands with rates from 8 to 300 dB a second, in no order, some of them silent: the
+    // level takes bands with rates near each other as one and stops where the rest is nothing.
+    const rates: number[] = []
+    const weights: number[] = []
+    for (let n = 0; n < 360; n++) {
+      rates.push(8 * Math.pow(300 / 8, ((n * 197) % 360) / 359))
+      weights.push(n % 11 === 0 ? 0 : 1 + ((n * 37) % 17))
+    }
+    const plain = (sec: number): number => {
+      let sum = 0
+      let all = 0
+      rates.forEach((rate, n) => {
+        all += weights[n]
+        sum += weights[n] * Math.pow(10, (-rate * sec) / 10)
+      })
+      return 10 * Math.log10(sum / all)
+    }
+    const fall: BandFall = { rates, weights }
+    expect(bandLevel(fall, 0)).toBeCloseTo(0, 9)
+    // Down to the foot (60.9 dB down at 5.5 s) it is out by under a twentieth of a dB.
+    for (const sec of [0.01, 0.1, 0.5, 1, 2, 4, 5, 5.5]) {
+      expect(Math.abs(bandLevel(fall, sec) - plain(sec))).toBeLessThan(0.05)
+    }
+    expect(plain(5.5)).toBeCloseTo(-60.88, 2)
+    expect(Math.abs(bandLevel(fall, 7.5) - plain(7.5))).toBeLessThan(0.1)
+    // Nothing in it is no sound at all, not a fault.
+    expect(bandLevel({ rates: [10], weights: [0] }, 1)).toBeLessThan(-100)
+  })
+
   it('stands a curved tail on the foot where it is 60 dB down, and finds the setting that ends there', () => {
     // A tail that waits 1 s, is at its highest after 2, and then falls 60 dB in `value` seconds.
     const tailOf = (value: number): Tail =>
@@ -201,6 +231,19 @@ describe('the tail every one of them shares', () => {
     // Past either end of the range it stops there; the top of the right edge is the longest.
     expect(settingThrough(tailOf, 0.5, 30, TAIL, 12, TAIL.x, y)).toBeCloseTo(0.5, 3)
     expect(settingThrough(tailOf, 0.5, 30, TAIL, 12, TAIL.x + TAIL.w, TAIL.y)).toBe(30)
+  })
+
+  it('takes the nearer side where the tail jumps from one setting to the next', () => {
+    // A tail that falls 60 dB in `value` seconds, and from 29 on does not fall at all:
+    // 6 s in it is 12.4 dB down just under 29 and not down at all from there.
+    const tailOf = (value: number): Tail =>
+      new Tail(0, 0, null, (sec) => (value >= 29 ? 0 : (-60 * sec) / value))
+    const x = TAIL.x + TAIL.w / 2
+    expect(settingThrough(tailOf, 0.5, 30, TAIL, 12, x, yOfTail(-20))).toBeCloseTo(18, 3)
+    expect(settingThrough(tailOf, 0.5, 30, TAIL, 12, x, yOfTail(-10))).toBeCloseTo(29, 3)
+    expect(settingThrough(tailOf, 0.5, 30, TAIL, 12, x, yOfTail(-10))).toBeLessThan(29)
+    // Nearer the tail that does not fall, the setting is the top: every setting from 29 draws the same.
+    expect(settingThrough(tailOf, 0.5, 30, TAIL, 12, x, yOfTail(-3))).toBe(30)
   })
 
   it('lights a hit where it has got to on its way down the tail', () => {
@@ -264,17 +307,17 @@ describe('the tail every one of them shares', () => {
         .filter((line) => line.length === 2 && line[0][0] === line[1][0])
         .filter((line) => Math.abs(line[0][1] - line[1][1]) > OWN.h - 2)
         .map((line) => line[0][0])
-    // A hit every second: after 3.5 s the last began half a second ago, on a panel of 8 s.
+    // A hit every second: after 3.5 s the last began half a second ago, on a panel of 12 s.
     const hits = runDisplay(display, params, 3.5, { signal: testSignal(0, 0) }, (time) => ({
       signal: testSignal(time % 1 < 0.1 ? 0.5 : 0.01, 0.2),
     }))
     expect(heads(hits)).toHaveLength(1)
-    expect(heads(hits)[0]).toBeGreaterThan(OWN.x + (OWN.w * 0.4) / 8)
-    expect(heads(hits)[0]).toBeLessThan(OWN.x + (OWN.w * 0.6) / 8)
+    expect(heads(hits)[0]).toBeGreaterThan(OWN.x + (OWN.w * 0.4) / 12)
+    expect(heads(hits)[0]).toBeLessThan(OWN.x + (OWN.w * 0.6) / 12)
     // A drone begins once: its mark crosses the panel and is gone, and does not stand at the left.
     const early = runDisplay(display, params, 2, { signal: testSignal(0.3, 0.2) })
-    expect(heads(early)[0]).toBeGreaterThan(OWN.x + (OWN.w * 1.8) / 8)
-    const late = runDisplay(display, params, 9, { signal: testSignal(0.3, 0.2) })
+    expect(heads(early)[0]).toBeGreaterThan(OWN.x + (OWN.w * 1.8) / 12)
+    const late = runDisplay(display, params, 13, { signal: testSignal(0.3, 0.2) })
     expect(heads(late)).toHaveLength(0)
   })
 
@@ -492,8 +535,10 @@ describe('Shimmer', () => {
   it('takes Decay from the straight line', () => {
     const handle = handleOf('shimmer', 'decay')
     expect(handle.drag(handle.x, handle.y).decay).toBeCloseTo(8, 2)
-    // The panel is 8 s wide and the line begins 20 ms in: the foot at half way is 3.98 s.
-    expect(handle.drag(TAIL.x + TAIL.w / 2, TAIL.y + TAIL.h).decay).toBeCloseTo(3.98, 2)
+    // Decay 8 on a panel of 12 s: the handle has room on both sides.
+    expect(handle.x).toBeCloseTo(TAIL.x + (TAIL.w * 8.02) / 12, 6)
+    // The line begins 20 ms in: the foot at half way is 5.98 s.
+    expect(handle.drag(TAIL.x + TAIL.w / 2, TAIL.y + TAIL.h).decay).toBeCloseTo(5.98, 2)
   })
 })
 
@@ -651,6 +696,30 @@ describe('Expanse', () => {
     // The top of the right edge is the top of the knob, where it does not end.
     expect(handle.drag(TAIL.x + TAIL.w, TAIL.y).decay).toBe(60)
     expect(handle.drag(TAIL.x, TAIL.y + TAIL.h).decay).toBeCloseTo(0.5, 3)
+  })
+
+  it('holds Decay where it is taken, also where Decay does not move the tail', () => {
+    // From 0.995 of the knob the device stops losing in the middle of the spectrum: after 20 s
+    // the tail is 14 dB down there and 34 dB just under it, with nothing between. The handle
+    // taken stays at the top, and pulled down more than half way to the other it is the other.
+    const top = handleOf('expanse', 'decay', { size: 0, decay: 60 })
+    expect(top.x).toBe(TAIL.x + TAIL.w)
+    expect(top.y).toBeCloseTo(yOfTail(-14), 0)
+    expect(top.drag(top.x, top.y).decay).toBe(60)
+    expect(top.drag(top.x, top.y + 1).decay).toBe(60)
+    const under = top.drag(top.x, top.y + 8).decay
+    expect(under).toBeLessThan(59.7)
+    expect(under).toBeCloseTo(59.7, 3)
+    expect(handleOf('expanse', 'decay', { size: 0, decay: under }).y).toBeCloseTo(yOfTail(-33.7), 0)
+    // A large space with all its Gravity rings for its Sizes whatever a short Decay says
+    // (0.5 and 3 s sound the same): the handle taken there leaves Decay where it is.
+    const space = { size: 1, gravity: 1, decay: 0.5 }
+    const short = handleOf('expanse', 'decay', space)
+    expect(short.drag(short.x, short.y).decay).toBe(0.5)
+    expect(short.drag(short.x - 1, short.y).decay).toBeCloseTo(0.5, 5)
+    const longer = short.drag(short.x + 12, short.y).decay
+    expect(longer).toBeGreaterThan(3)
+    expect(handleOf('expanse', 'decay', { ...space, decay: longer }).x).toBeCloseTo(short.x + 12, 0)
   })
 })
 

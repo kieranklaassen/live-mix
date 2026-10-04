@@ -163,8 +163,10 @@ function keeper<T>(most = 12): (key: string, make: () => T) => T {
 // little more from some on every trip, so the whole falls in a curve: fast
 // while the edges die, then at the rate of what is left. The falls here were
 // each held against the compiled device: a tenth of a second of noise with as
-// much in every octave, wet only, the level in windows of 50 ms, the time
-// from the loudest window to 60 dB under it.
+// much in every octave (or of a few notes, where a display is about a note),
+// wet only, the power in windows of a tenth of a second as the mean of four
+// to eight runs, the time from the loudest window to 60 dB under it. One run
+// alone reads short, because its level wavers.
 
 /** Thirty bands a third of an octave apart, from 25 Hz to 20 kHz. */
 const FALL_BANDS: readonly number[] = Array.from({ length: 30 }, (_, b) => 25 * Math.pow(2, b / 3))
@@ -177,15 +179,70 @@ export interface BandFall {
   weights: number[]
 }
 
-/** The level of the whole, `sec` after its highest, in dB under that. */
-export function bandLevel(fall: BandFall, sec: number): number {
-  let sum = 0
-  let all = 0
-  for (let b = 0; b < fall.rates.length; b++) {
-    all += fall.weights[b]
-    sum += fall.weights[b] * Math.pow(10, (-fall.rates[b] * sec) / 10)
+/**
+ * A fall laid out for adding up, made once for each: bands whose rates lie
+ * within 4 % of each other as one at their mean rate (at 60 dB down that is
+ * out by a twentieth of a dB at most), the ones that last longest first, each
+ * rate as the exponent it is a second, and beside each the weight of it and
+ * all after it.
+ */
+interface FallSum {
+  rate: Float64Array
+  weight: Float64Array
+  rest: Float64Array
+}
+const fallSums = new WeakMap<BandFall, FallSum>()
+const FALL_STEP = Math.log(1.04)
+
+function fallSum(fall: BandFall): FallSum {
+  const { rates, weights } = fall
+  let least = Infinity
+  let most = 0
+  for (let b = 0; b < rates.length; b++) {
+    if (!(weights[b] > 0)) continue
+    least = Math.min(least, rates[b])
+    most = Math.max(most, rates[b])
   }
-  return sum > all * 1e-12 ? 10 * Math.log10(sum / all) : FLOOR_DB
+  // Rates under a thousandth of a dB a second are one: they differ by less than a dB in ten minutes.
+  const low = Math.max(least, 1e-3)
+  const bins = most > low ? Math.floor(Math.log(most / low) / FALL_STEP) + 1 : 1
+  const weight = new Float64Array(bins)
+  const rated = new Float64Array(bins)
+  for (let b = 0; b < rates.length; b++) {
+    if (!(weights[b] > 0)) continue
+    const n =
+      rates[b] > low ? Math.min(bins - 1, Math.floor(Math.log(rates[b] / low) / FALL_STEP)) : 0
+    weight[n] += weights[b]
+    rated[n] += weights[b] * rates[b]
+  }
+  let count = 0
+  for (let n = 0; n < bins; n++) {
+    if (weight[n] <= 0) continue
+    rated[count] = (rated[n] / weight[n]) * (Math.LN10 / 10)
+    weight[count++] = weight[n]
+  }
+  const rest = new Float64Array(count + 1)
+  for (let n = count - 1; n >= 0; n--) rest[n] = rest[n + 1] + weight[n]
+  return { rate: rated.subarray(0, count), weight: weight.subarray(0, count), rest }
+}
+
+/**
+ * The level of the whole, `sec` after its highest, in dB under that. A fall
+ * is not to be changed once its level has been asked for. Late in a tail only
+ * the few bands that last count: the sum stops where all the rest together
+ * are a thousand-millionth of it.
+ */
+export function bandLevel(fall: BandFall, sec: number): number {
+  let ready = fallSums.get(fall)
+  if (!ready) fallSums.set(fall, (ready = fallSum(fall)))
+  const { rate, weight, rest } = ready
+  let sum = 0
+  for (let n = 0; n < rate.length; n++) {
+    const left = Math.exp(-rate[n] * sec)
+    if (sec > 0 && rest[n] * left < sum * 1e-9) break
+    sum += weight[n] * left
+  }
+  return sum > rest[0] * 1e-12 ? 10 * Math.log10(sum / rest[0]) : FLOOR_DB
 }
 
 /** Seconds until a level that only falls is `down` dB under where it began; Infinity past ten minutes. */
@@ -320,11 +377,31 @@ function tailPoints(out: Point[], tail: Tail, box: Box, span: number): void {
   out.length = count
 }
 
+/** A point of the tail's panel as a time and a level: the level kept between the foot and just under the top. */
+function tailPoint(box: Box, span: number, x: number, y: number): { sec: number; db: number } {
+  return {
+    sec: clamp((x - box.x) / box.w, 0, 1) * span,
+    db: clamp(dbOfY(y, box, TOP_DB, FOOT_DB), FOOT_DB, -0.25),
+  }
+}
+
+/** A tail's level at a time, or just after its highest when the time is before that. */
+const levelFrom = (tail: Tail, sec: number): number => tail.level(Math.max(sec, tail.from + 1e-3))
+
+/** How near the point a tail has to pass for its setting to be the one: a thousandth of a pixel. */
+const SETTING_DB = 0.002
+
 /**
  * The setting whose tail passes through a point of the panel. `tailOf` makes
  * the tail of a setting, and a larger setting is a longer tail; the setting
  * is looked for between `low` and `high`. At the top of the right edge the
- * tail asked for has no end: that is `high`.
+ * tail asked for has no end: that is `high`. Where the tail jumps from one
+ * setting to the next (a setting from which it no longer ends), the side
+ * nearer the point is taken.
+ *
+ * A tail is a model run, so few are tried: a step along the straight line
+ * between the two sides and a step to the middle in turn, until one passes
+ * near enough. That takes about ten where halving alone took thirty.
  */
 export function settingThrough(
   tailOf: (value: number) => Tail,
@@ -335,19 +412,36 @@ export function settingThrough(
   x: number,
   y: number,
 ): number {
-  const sec = clamp((x - box.x) / box.w, 0, 1) * span
-  const db = dbOfY(y, box, TOP_DB, FOOT_DB)
-  if (db >= -0.25 && sec >= span) return high
-  const wanted = clamp(db, FOOT_DB, -0.25)
+  const { sec, db: wanted } = tailPoint(box, span, x, y)
+  if (dbOfY(y, box, TOP_DB, FOOT_DB) >= -0.25 && sec >= span) return high
+  /** How far over the point the tail of a setting passes, in dB. */
+  const over = (value: number): number => levelFrom(tailOf(value), sec) - wanted
   let under = low
-  let over = high
-  for (let i = 0; i < 30; i++) {
-    const mid = (under + over) / 2
-    const tail = tailOf(mid)
-    if (tail.level(Math.max(sec, tail.from + 1e-3)) < wanted) under = mid
-    else over = mid
+  let below = over(low)
+  if (below >= 0) return low
+  const top = over(high)
+  if (top < 0) return high
+  let above = high
+  let past = top
+  for (let i = 0; i < 80 && above - under > (high - low) * 1e-7; i++) {
+    const width = above - under
+    const along = i % 2 === 0 ? clamp(-below / (past - below), 1e-3, 1 - 1e-3) : 0.5
+    const mid = under + width * along
+    const at = over(mid)
+    if (Math.abs(at) < SETTING_DB) return mid
+    if (at < 0) {
+      under = mid
+      below = at
+    } else {
+      above = mid
+      past = at
+    }
   }
-  return (under + over) / 2
+  if (past - below > 1) {
+    if (past > -below) return under
+    return Math.abs(top - past) < 0.01 ? high : above
+  }
+  return (under + above) / 2
 }
 
 /**
@@ -594,9 +688,13 @@ function tailHandle(
     name,
     x,
     y,
-    drag: (toX, toY) => ({
-      [param]: settingThrough(tailOf, spec?.min ?? 0, high, box, span, toX, toY),
-    }),
+    drag: (toX, toY) => {
+      // Where the tail already passes through the point the setting stays: taken and not moved
+      // it holds, and where the setting does not move the tail it does not wander.
+      const at = tailPoint(box, span, toX, toY)
+      if (Math.abs(levelFrom(tail, at.sec) - at.db) < 0.02) return { [param]: view.value(param) }
+      return { [param]: settingThrough(tailOf, spec?.min ?? 0, high, box, span, toX, toY) }
+    },
     reset: () => ({ [param]: spec?.default ?? view.value(param) }),
   }
 }
@@ -846,7 +944,7 @@ function bloomHandles(view: DisplayView): DisplayHandle[] {
 // --- Shimmer ----------------------------------------------------------------
 
 /** Seconds across Shimmer's two panels. */
-const SHIMMER_SPAN = 8
+const SHIMMER_SPAN = 12
 /** The note the ladder is drawn for: what a rung keeps depends on where it is, so one has to be taken. */
 export const SHIMMER_NOTE_HZ = 220
 /** `shimmer.h`: the tank's lines at Size 0.5, the steps, the shifters' windows and what follows them. */
@@ -1236,6 +1334,20 @@ export interface ExpanseArrival {
   peak: number
 }
 
+/** The loop in slots of the arrival: its four lines, its three allpasses, and the eight taps on the lines. */
+const EXPANSE_LINE_SLOTS = Int32Array.from(EXPANSE_LINES, (share) =>
+  Math.max(1, Math.round(share * EXPANSE_SLOTS)),
+)
+const EXPANSE_STAGE_SLOTS = Int32Array.from(EXPANSE_LOOP, (share) =>
+  Math.max(1, Math.round(share * EXPANSE_SLOTS)),
+)
+const EXPANSE_TAP_SLOTS = Int32Array.from(
+  EXPANSE_TAPS.flatMap((side) =>
+    side.map((share, n) => Math.round(share * EXPANSE_LINES[n] * EXPANSE_SLOTS)),
+  ),
+)
+const EXPANSE_LOOP_SHARE = EXPANSE_LOOP.reduce((sum, share) => sum + share, 0)
+
 /**
  * What goes into Expanse's loop when a sound goes in, as energy in slots of
  * an eightieth of a Size: through the four input allpasses, and by Gravity
@@ -1278,43 +1390,48 @@ export function expanseArrival(
   const slot = seconds / EXPANSE_SLOTS
   const count = Math.round(sizes * EXPANSE_SLOTS)
   const endless = settings.decay >= settings.decayMost * 0.995
-  const lines = EXPANSE_LINES.map((share) => Math.max(1, Math.round(share * EXPANSE_SLOTS)))
-  const loopShare = EXPANSE_LOOP.reduce((sum, share) => sum + share, 0)
-  const kept = EXPANSE_LINES.map((share, n) =>
+  const lines = EXPANSE_LINES.length
+  const stages = EXPANSE_LOOP.length
+  // What a line hands back of what is written to it: a quarter (the mixing), less the decay gain.
+  const kept = Float64Array.from(EXPANSE_LINES, (share, n) =>
     endless
-      ? 1
-      : Math.pow(10, (-6 * seconds * (share + loopShare * EXPANSE_SKEW[n])) / settings.decay),
+      ? 0.25
+      : 0.25 *
+        Math.pow(
+          10,
+          (-6 * seconds * (share + EXPANSE_LOOP_SHARE * EXPANSE_SKEW[n])) / settings.decay,
+        ),
   )
-  const stages = EXPANSE_LOOP.map((share) => Math.max(1, Math.round(share * EXPANSE_SLOTS)))
   const c2 = (EXPANSE_LOOP_DIFFUSION * settings.density) ** 2
   const later = (1 - c2) * (1 - c2)
-  const held = stages.map(() => new Float64Array(count))
+  // One array for the three allpasses: stage k keeps slot i at k x count + i.
+  const held = new Float64Array(count * stages)
   const back = new Float64Array(count)
   const written = new Float64Array(count)
   for (let i = 0; i < count; i++) {
     let x = fed[i] + back[i]
-    for (let k = 0; k < stages.length; k++) {
-      const delayed = i >= stages[k] ? held[k][i - stages[k]] : 0
-      held[k][i] = x + c2 * delayed
+    for (let k = 0; k < stages; k++) {
+      const far = EXPANSE_STAGE_SLOTS[k]
+      const delayed = i >= far ? held[k * count + i - far] : 0
+      held[k * count + i] = x + c2 * delayed
       x = c2 * x + later * delayed
     }
     written[i] = x
-    for (let n = 0; n < lines.length; n++) {
-      if (i + lines[n] < count) back[i + lines[n]] += 0.25 * kept[n] * x
+    for (let n = 0; n < lines; n++) {
+      const lands = i + EXPANSE_LINE_SLOTS[n]
+      if (lands < count) back[lands] += kept[n] * x
     }
   }
-  const taps: number[] = []
-  for (const side of EXPANSE_TAPS) {
-    side.forEach((share, n) => taps.push(Math.round(share * EXPANSE_LINES[n] * EXPANSE_SLOTS)))
-  }
+  const taps = EXPANSE_TAP_SLOTS.length
   const out = new Float64Array(count)
   let most = 0
   for (let i = 0; i < count; i++) {
     let sum = 0
-    for (const tap of taps) {
+    for (let t = 0; t < taps; t++) {
+      const tap = EXPANSE_TAP_SLOTS[t]
       if (i >= tap) sum += written[i - tap]
     }
-    out[i] = sum / taps.length
+    out[i] = sum / taps
     if (out[i] > most) most = out[i]
   }
   const level = new Float32Array(count)
@@ -1337,10 +1454,12 @@ export function expanseArrival(
 
 /** Seconds of one pass round Expanse's loop: a line and its three allpasses, the mean of the four. */
 export function expansePass(size: number): number {
-  const loopShare = EXPANSE_LOOP.reduce((sum, share) => sum + share, 0)
   return (
     (expanseSeconds(size) *
-      EXPANSE_LINES.reduce((sum, share, n) => sum + share + loopShare * EXPANSE_SKEW[n], 0)) /
+      EXPANSE_LINES.reduce(
+        (sum, share, n) => sum + share + EXPANSE_LOOP_SHARE * EXPANSE_SKEW[n],
+        0,
+      )) /
     EXPANSE_LINES.length
   )
 }
@@ -1376,6 +1495,26 @@ export function expanseLossDb(
   return decibels(expanseCuts(hz, settings, sampleRate)) + EXPANSE_LOOP.length * decibels(stage)
 }
 
+/** The last few of what Expanse's loop takes beside the decay gain: Decay has no part in it. */
+const expanseBesides = keeper<BandFall>(4)
+
+/**
+ * What Expanse's loop takes beside the decay gain, band by band, as a fall of
+ * its own: the loop's filters and swept reads at each pass.
+ */
+function expanseBeside(settings: ExpanseSettings, sampleRate: number): BandFall {
+  return expanseBesides(
+    `${settings.size} ${settings.density} ${settings.lowCut} ${settings.highCut} ${settings.modDepth} ${sampleRate}`,
+    () => {
+      const pass = expansePass(settings.size)
+      return {
+        rates: FALL_BANDS.map((hz) => -expanseLossDb(hz, settings, sampleRate) / pass),
+        weights: FALL_BANDS.map((hz) => expanseCuts(hz, settings, sampleRate)),
+      }
+    },
+  )
+}
+
 /**
  * How Expanse's tail falls, band by band. A pass costs the decay gain, which
  * is 60 dB in Decay seconds at any frequency, and what the loop's filters
@@ -1384,18 +1523,10 @@ export function expanseLossDb(
  * the defaults: 9.4 s at Decay 10, 26 s at 30; this gives 9.4 and 27.)
  */
 export function expanseFall(settings: ExpanseSettings, sampleRate = TAIL_RATE): BandFall {
-  const pass = expansePass(settings.size)
   const endless = settings.decay >= settings.decayMost * 0.995
-  const rates: number[] = []
-  const weights: number[] = []
-  for (const hz of FALL_BANDS) {
-    rates.push(
-      (endless ? 0 : 60 / Math.max(settings.decay, 0.01)) -
-        expanseLossDb(hz, settings, sampleRate) / pass,
-    )
-    weights.push(expanseCuts(hz, settings, sampleRate))
-  }
-  return { rates, weights }
+  const plain = endless ? 0 : 60 / Math.max(settings.decay, 0.01)
+  const beside = expanseBeside(settings, sampleRate)
+  return { rates: beside.rates.map((rate) => plain + rate), weights: beside.weights }
 }
 
 const expanseSettings = (view: DisplayView): ExpanseSettings => ({
@@ -1444,10 +1575,9 @@ export function expanseTailOf(
   fed?: Float64Array,
 ): Tail {
   const answer = arrival ?? expanseArrival(settings, EXPANSE_TAIL_SIZES, fed)
-  const fall = expanseFall(settings)
   const endless = settings.decay >= settings.decayMost * 0.995
   const plain = endless ? 0 : 60 / Math.max(settings.decay, 0.01)
-  const beside: BandFall = { rates: fall.rates.map((rate) => rate - plain), weights: fall.weights }
+  const beside = expanseBeside(settings, TAIL_RATE)
   const count = answer.level.length
   // The energy of the last tenth of a second at each slot, under its highest.
   const wide = Math.max(1, Math.round(EXPANSE_SOUND_SEC / answer.slot))
@@ -1491,6 +1621,8 @@ export function expanseTailOf(
 }
 
 const expanseTails = keeper<Tail>()
+/** What feeds the loop over the tail's Sizes, for the last few settings a handle was moved at. */
+const expanseFeeds = keeper<Float64Array>(4)
 
 function expanseTail(settings: ExpanseSettings): Tail {
   return expanseTails(Object.values(settings).join(' '), () =>
@@ -1600,15 +1732,14 @@ const expanse = plateDisplay<ExpanseState>({
 
 function expanseHandles(view: DisplayView): DisplayHandle[] {
   const settings = expanseSettings(view)
-  // What feeds the loop does not move with Decay: worked out once, when the handle is first moved.
-  let fed: Float64Array | null = null
+  // What feeds the loop does not move with Decay: worked out when the handle is first moved, and kept.
+  const fed = (): Float64Array =>
+    expanseFeeds(`${settings.size} ${settings.gravity} ${settings.density}`, () =>
+      expanseFeed(settings, EXPANSE_TAIL_SIZES),
+    )
   return [
     tailHandle(view, EXPANSE_SPAN, 'decay', 'Decay', expanseTail(settings), (decay) =>
-      expanseTailOf(
-        { ...settings, decay },
-        undefined,
-        (fed ??= expanseFeed(settings, EXPANSE_TAIL_SIZES)),
-      ),
+      expanseTailOf({ ...settings, decay }, undefined, fed()),
     ),
   ]
 }
@@ -2480,15 +2611,20 @@ export function valleyTail(decay: number, resonance: number, size = 0.6): Tail {
 export const valleySeconds = (decay: number, resonance: number, size = 0.6): number =>
   valleyTail(decay, resonance, size).seconds
 
+/** The frequencies the loop's highest point is looked for at: 150 Hz to 5 kHz, a hundredth apart. */
+const VOWEL_SEARCH_HZ = Float64Array.from(
+  { length: 351 },
+  (_, i) => 150 * Math.pow(5000 / 150, i / 350),
+)
+
 /**
  * The vowel as the room's loop has it, ported from `LoopBank::set()`: the
  * first three formants as broad band-passes (three times the table's width,
  * a Q of 4 at most), weighted so that their sum stands at level^0.05 on each
  * centre, and the whole scaled so that its highest point is just under 1.
- * Returns what a line keeps of a frequency, as power, when the bank is
- * blended in at `amount`: |1 - amount + amount x bank|².
+ * Returns the bank's answer at each of `hz`, real parts then imaginary.
  */
-function vowelLoop(at: Formants, sampleRate: number): (hz: number, amount: number) => number {
+function vowelLoop(at: Formants, sampleRate: number): (hz: ArrayLike<number>) => Float64Array {
   const bands = [0, 1, 2]
   const g = bands.map((k) =>
     Math.tan((Math.PI * clamp(at.hz[k], 20, sampleRate * 0.45)) / sampleRate),
@@ -2516,6 +2652,8 @@ function vowelLoop(at: Formants, sampleRate: number): (hz: number, amount: numbe
       im += weights[n] * p * scale
     }
   }
+  const warped = (hz: number): number =>
+    Math.tan((Math.PI * Math.min(hz, sampleRate * 0.45)) / sampleRate)
   const weights = [...wanted]
   for (let round = 0; round < 3; round++) {
     for (const n of bands) {
@@ -2525,21 +2663,22 @@ function vowelLoop(at: Formants, sampleRate: number): (hz: number, amount: numbe
   }
   // The device looks for the highest point about and between the centres; here, along the whole stretch.
   let highest = 0
-  for (let i = 0; i <= VOWEL_SEARCH; i++) {
-    respond(weights, Math.tan((Math.PI * vowelSearchHz(i)) / sampleRate))
+  for (const hz of VOWEL_SEARCH_HZ) {
+    respond(weights, warped(hz))
     highest = Math.max(highest, Math.hypot(re, im))
   }
   const scale = 0.997 / Math.max(highest, 1)
   for (const n of bands) weights[n] *= scale
-  return (hz, amount) => {
-    respond(weights, Math.tan((Math.PI * Math.min(hz, sampleRate * 0.45)) / sampleRate))
-    return (1 - amount + amount * re) ** 2 + (amount * im) ** 2
+  return (hz) => {
+    const out = new Float64Array(hz.length * 2)
+    for (let i = 0; i < hz.length; i++) {
+      respond(weights, warped(hz[i]))
+      out[i] = re
+      out[hz.length + i] = im
+    }
+    return out
   }
 }
-
-/** The frequencies the loop's highest point is looked for at: 150 Hz to 5 kHz, a hundredth apart. */
-const VOWEL_SEARCH = 350
-const vowelSearchHz = (i: number): number => 150 * Math.pow(5000 / 150, i / VOWEL_SEARCH)
 
 export interface VowelSettings {
   decay: number
@@ -2551,11 +2690,56 @@ export interface VowelSettings {
   highCut: number
 }
 
+/** What of Vowel Reverb's fall does not move with Decay. */
+interface VowelRoom {
+  /** Seconds of a pass round the loop. */
+  pass: number
+  /** The loop's vowel filter along the stretch its highest point is looked for on, and at each band: real parts, then imaginary. */
+  search: Float64Array
+  bank: Float64Array
+  /** The low-pass of the high shelf at each band, real parts then imaginary. */
+  low: Float64Array
+  /** Each band's share of an even (pink) sound as it comes out: through the vowel, Low Cut and High Cut. */
+  colour: Float64Array
+}
+
+function vowelRoom(settings: VowelSettings, sampleRate: number): VowelRoom {
+  const at = formantsAt(settings.vowel, settings.voice)
+  const loop = vowelLoop(at, sampleRate)
+  const count = FALL_BANDS.length
+  const pole = Math.exp((-2 * Math.PI * clamp(settings.highCut, 0, sampleRate * 0.49)) / sampleRate)
+  const low = new Float64Array(count * 2)
+  const colour = new Float64Array(count)
+  FALL_BANDS.forEach((hz, b) => {
+    const w = (2 * Math.PI * Math.min(hz, sampleRate / 2)) / sampleRate
+    const dr = 1 - pole * Math.cos(w)
+    const di = pole * Math.sin(w)
+    const under = dr * dr + di * di
+    low[b] = ((1 - pole) * dr) / under
+    low[count + b] = (-(1 - pole) * di) / under
+    colour[b] =
+      Math.pow(10, vowelDb(hz, at, settings.resonance, sampleRate) / 10) *
+      svfPower('highpass', hz, settings.lowCut, Math.SQRT1_2, sampleRate) *
+      onePolePower('lowpass', hz, settings.highCut, sampleRate)
+  })
+  return {
+    pass: vowelPass(settings.size),
+    search: loop(VOWEL_SEARCH_HZ),
+    bank: loop(FALL_BANDS),
+    low,
+    colour,
+  }
+}
+
+/** The last few rooms worked out: a handle that is moved asks for the same one at every Decay it tries. */
+const vowelRooms = keeper<VowelRoom>(4)
+
 /**
  * How Vowel Reverb's tail falls for a wide sound, band by band and mode by
  * mode, from `control()` and `process()`. Every pass costs the decay gain.
  * In the four lines with the vowel it also costs what the loop's vowel
- * filter takes at that frequency, counted against its highest point, which
+ * filter takes at that frequency (blended in at `amount_`, so a line keeps
+ * |1 - amount + amount x bank|²), counted against its highest point, which
  * the device makes up for so that only there Decay is the decay time. In
  * the other four it costs the high shelf: a one-pole low-pass at High Cut
  * blended in so far that the highs last a quarter as long. A mode loses by
@@ -2565,40 +2749,39 @@ export interface VowelSettings {
  * So a wide sound does not last as long as Decay says: only what lies right
  * on the first formant does. (Compiled device, the mean of four runs of a
  * tenth of a second of pink noise, time from the loudest to 60 dB under it:
- * 5.1 s at Decay 6, 17 s at 20, 31 s at 40; this gives 5.0, 16 and 30. At
+ * 5.1 s at Decay 6, 17 s at 20, 31 s at 40; this gives 5.0, 16 and 29. At
  * Resonance 0 the device takes 5.8 s and this gives 5.8.)
  */
 export function vowelFall(settings: VowelSettings, sampleRate = TAIL_RATE): BandFall {
-  const pass = vowelPass(settings.size)
+  const room = vowelRooms(
+    `${settings.resonance} ${settings.size} ${settings.vowel} ${settings.voice} ${settings.lowCut} ${settings.highCut} ${sampleRate}`,
+    () => vowelRoom(settings, sampleRate),
+  )
+  const { pass, search, bank, low, colour } = room
   const still = Math.max(settings.decay, 0.01)
   const amount = vowelAmount(settings.decay, settings.resonance, pass)
   const damp = 1 - Math.exp(((2 * -6.907755278982137) / still) * VOWEL_HIGH_DAMPING * pass)
-  const at = formantsAt(settings.vowel, settings.voice)
-  const through = vowelLoop(at, sampleRate)
+  const kept = (re: number, im: number): number =>
+    (1 - amount + amount * re) ** 2 + (amount * im) ** 2
   let peak = (1 - amount) ** 2
-  for (let i = 0; i <= VOWEL_SEARCH; i++) peak = Math.max(peak, through(vowelSearchHz(i), amount))
-  const pole = Math.exp((-2 * Math.PI * clamp(settings.highCut, 0, sampleRate * 0.49)) / sampleRate)
+  const points = search.length / 2
+  for (let i = 0; i < points; i++) peak = Math.max(peak, kept(search[i], search[points + i]))
   const { share, weight } = VOWEL_MODES
+  const count = FALL_BANDS.length
   const rates: number[] = []
   const weights: number[] = []
-  for (const hz of FALL_BANDS) {
-    const vowelKeeps = Math.min(1, through(hz, amount) / peak)
-    // The shelf, 1 - damp x (1 - lowpass), with the low-pass as real and imaginary parts.
-    const w = (2 * Math.PI * Math.min(hz, sampleRate / 2)) / sampleRate
-    const dr = 1 - pole * Math.cos(w)
-    const di = pole * Math.sin(w)
-    const under = dr * dr + di * di
-    const shelfKeeps =
-      (1 - damp * (1 - ((1 - pole) * dr) / under)) ** 2 + ((damp * (1 - pole) * di) / under) ** 2
-    const colour =
-      Math.pow(10, vowelDb(hz, at, settings.resonance, sampleRate) / 10) *
-      svfPower('highpass', hz, settings.lowCut, Math.SQRT1_2, sampleRate) *
-      onePolePower('lowpass', hz, settings.highCut, sampleRate)
-    share.forEach((x, j) => {
-      const keeps = Math.max(1e-9, 1 - x * (1 - vowelKeeps) - (1 - x) * (1 - shelfKeeps))
+  for (let b = 0; b < count; b++) {
+    const vowelKeeps = Math.min(1, kept(bank[b], bank[count + b]) / peak)
+    // The shelf: 1 - damp x (1 - lowpass).
+    const shelfKeeps = (1 - damp * (1 - low[b])) ** 2 + (damp * low[count + b]) ** 2
+    for (let j = 0; j < share.length; j++) {
+      const keeps = Math.max(
+        1e-9,
+        1 - share[j] * (1 - vowelKeeps) - (1 - share[j]) * (1 - shelfKeeps),
+      )
       rates.push(60 / still - decibels(keeps) / pass)
-      weights.push(colour * weight[j])
-    })
+      weights.push(colour[b] * weight[j])
+    }
   }
   return { rates, weights }
 }
@@ -2755,10 +2938,6 @@ const vowel = plateDisplay<VowelState>({
     })
     rule(ctx, xOfVowel(0), rail, xOfVowel(4), rail, { colour: colours.ink, alpha: INK.rule })
     freqGrid(frame, curve, VOWEL_LOW_HZ, VOWEL_HIGH_HZ)
-    text(frame, '1k', xOfHz(1000, curve, VOWEL_LOW_HZ, VOWEL_HIGH_HZ) + 2, curve.y + curve.h - 2, {
-      size: 8,
-      alpha: INK.back,
-    })
     const level = yOfDb(0, curve, VOWEL_TOP_DB, VOWEL_FOOT_DB)
     rule(ctx, curve.x, level, curve.x + curve.w, level, { colour: colours.ink, alpha: INK.grid })
     clipped(ctx, curve, () => {
@@ -2771,6 +2950,10 @@ const vowel = plateDisplay<VowelState>({
       })
       fillTo(ctx, state.set, curve.y + curve.h, colours.ink, INK.fill)
       trace(ctx, state.set, { colour: colours.ink })
+    })
+    // Over the sound's spectrum, which would hide it.
+    text(frame, '1k', xOfHz(1000, curve, VOWEL_LOW_HZ, VOWEL_HIGH_HZ) + 2, curve.y + curve.h - 2, {
+      size: 8,
     })
 
     // The vowel sung now: where the device last tuned its banks, the two sides drawn as one.
