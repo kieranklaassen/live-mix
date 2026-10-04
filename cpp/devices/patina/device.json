@@ -7,6 +7,14 @@
   "header": "patina.h",
   "sources": [],
   "latencySamples": 271,
+  "meters": [
+    { "key": "wow", "name": "Wow pitch", "display": true },
+    { "key": "flutter", "name": "Flutter phase", "display": true },
+    { "key": "flutterDepth", "name": "Flutter depth", "display": true },
+    { "key": "level", "name": "Wobble level", "display": true },
+    { "key": "drops", "name": "Dropouts so far", "display": true },
+    { "key": "noise", "name": "Noise gate", "display": true }
+  ],
   "params": [
     {
       "key": "medium",

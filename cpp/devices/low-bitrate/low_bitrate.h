@@ -111,6 +111,24 @@ class LowBitrate : public kit::DeviceBase<low_bitrate::kNumParams> {
     if (store_param(id, value)) apply(id);
   }
 
+  // The readings named by "meters" in device.json, for a display to draw:
+  // what the stream is doing now (0 flowing, 1 a packet lost, 2 stuck on
+  // one), and how many times it has dropped out and how many times it has
+  // stuck so far (they wrap at 2^20), so an event shorter than the gap
+  // between two readings is still counted.
+  float meter(int index) const {
+    switch (index) {
+      case 0:
+        return static_cast<float>(packet_state_);
+      case 1:
+        return static_cast<float>(lost_count_ & 0xFFFFF);
+      case 2:
+        return static_cast<float>(stuck_count_ & 0xFFFFF);
+      default:
+        return 0.0f;
+    }
+  }
+
   void process(int frames) {
     using namespace low_bitrate;
     frames = begin_block(frames);
@@ -531,8 +549,10 @@ class LowBitrate : public kit::DeviceBase<low_bitrate::kNumParams> {
     const float chance_stuck = stuck / (stuck + mean * (1.0f - stuck));
     if (draw < chance_lost) {
       packet_state_ = kLost;
+      ++lost_count_;
     } else if (draw < chance_lost + chance_stuck) {
       packet_state_ = kStuck;
+      ++stuck_count_;
     } else {
       return;
     }
@@ -738,6 +758,8 @@ class LowBitrate : public kit::DeviceBase<low_bitrate::kNumParams> {
   int packet_state_ = 0;
   int packet_left_ = 0;          // packets the event in flight still lasts
   int packet_repeats_ = 0;       // how often a stuck packet has been replayed
+  int lost_count_ = 0;           // events so far, for the display's readings only
+  int stuck_count_ = 0;
   kit::Smoother loss_, stereo_, high_cut_;
   kit::Smoother mix_;
   kit::IdleGate idle_;

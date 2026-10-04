@@ -7,6 +7,14 @@
   "header": "vinyl.h",
   "sources": [],
   "memoryMb": 8,
+  "meters": [
+    { "key": "pitch", "name": "Pitch", "display": true },
+    { "key": "turn", "name": "Turn phase", "display": true },
+    { "key": "ticks", "name": "Ticks so far", "display": true },
+    { "key": "tickLevel", "name": "Tick level", "display": true },
+    { "key": "pops", "name": "Pops so far", "display": true },
+    { "key": "noise", "name": "Surface gate", "display": true }
+  ],
   "params": [
     {
       "key": "speed",

@@ -119,6 +119,32 @@ class NoiseFloor : public kit::DeviceBase<noise_floor::kNumParams> {
     if (store_param(id, value)) apply(id);
   }
 
+  // The readings named by "meters" in device.json, for a display to draw:
+  // the noise's gain now over the level set (Follow, the fade behind the
+  // last note and the drift), and how many ticks and how many pops or
+  // crashes the sounding bed has made so far (they wrap at 2^20).
+  float meter(int index) const {
+    switch (index) {
+      case 0: {
+        const float loud = smooth_envelope_ * (1.0f / kReference);
+        const float follow = follow_.value;
+        float follow_gain = 1.0f;
+        if (follow > 0.0f) {
+          follow_gain += follow * (2.0f * kit::fast_tanh(kFollowKnee * loud) - 1.0f);
+        } else if (follow < 0.0f) {
+          follow_gain -= follow * (1.0f / (1.0f + kDuck * loud) - 1.0f);
+        }
+        return follow_gain * gate_ * gate_ * (3.0f - 2.0f * gate_) * drift_gain_.value;
+      }
+      case 1:
+        return static_cast<float>((vinyl_.ticks + static_.crackles) & 0xFFFFF);
+      case 2:
+        return static_cast<float>((vinyl_.pops + static_.crashes) & 0xFFFFF);
+      default:
+        return 0.0f;
+    }
+  }
+
   void process(int frames) {
     frames = begin_block(frames);
     // Awake while there is input and until the noise has faded behind it.
