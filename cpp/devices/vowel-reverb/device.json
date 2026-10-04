@@ -6,6 +6,12 @@
   "class": "VowelReverb",
   "header": "vowel_reverb.h",
   "sources": [],
+  "meters": [
+    { "key": "vowel", "name": "Vowel now", "display": true },
+    { "key": "lean", "name": "Lean of the sides", "display": true },
+    { "key": "voice", "name": "Voice now", "display": true },
+    { "key": "build", "name": "Voice of the sides", "display": true }
+  ],
   "params": [
     {
       "key": "vowel",

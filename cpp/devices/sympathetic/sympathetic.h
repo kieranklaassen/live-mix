@@ -85,6 +85,35 @@ class Sympathetic : public kit::DeviceBase<sympathetic::kNumParams> {
   float detected_frequency() const { return detected_hz_; }
   float string_frequency(int index) const { return bank_.string_frequency(index); }
 
+  // The readings named by "meters" in device.json, for a display to draw.
+  // 0..3: how loud the sixteen strings ring, four to a reading. Each string
+  // is a whole number 0..63, its level in dB above -63 dB (0 for silent or
+  // not in use), and a reading is the four of them as digits to the base
+  // 64, lowest string first: under 2^24, so a float carries it exactly.
+  // 4: the note the detector last settled on (-1 before the first).
+  // 5: the scale the strings are tuned to, one bit for each semitone above
+  // the root that is in it (what Learn has gathered, in Learn mode).
+  float meter(int index) const {
+    if (index >= 0 && index < 4) {
+      int packed = 0;
+      for (int s = 3; s >= 0; --s) {
+        const float power = bank_.string_energy(4 * index + s);
+        int level = power > 0.0f ? static_cast<int>(63.5f + 10.0f * std::log10(power)) : 0;
+        packed = packed * 64 + kit::clamp_int(level, 0, 63);
+      }
+      return static_cast<float>(packed);
+    }
+    if (index == 4) return static_cast<float>(detected_note_);
+    if (index == 5) {
+      int scale[sympathetic::ScaleMapper::kMaxScale];
+      const int size = mapper_.current_scale(scale);
+      int bits = 0;
+      for (int i = 0; i < size; ++i) bits |= 1 << scale[i];
+      return static_cast<float>(bits);
+    }
+    return 0.0f;
+  }
+
   void process(int frames) {
     using namespace sympathetic;
     frames = begin_block(frames);

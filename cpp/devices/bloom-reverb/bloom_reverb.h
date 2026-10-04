@@ -131,6 +131,21 @@ class BloomReverb : public kit::DeviceBase<bloom_reverb::kNumParams> {
     if (store_param(id, value)) apply(id);
   }
 
+  // The readings named by "meters" in device.json, for a display to draw: how
+  // long the left side has been ringing, as a share of the longest age that
+  // is counted (twice Decay), and how far its grains are shifted now (0..1).
+  // Both stand still while the device sleeps.
+  float meter(int index) const {
+    switch (index) {
+      case 0:
+        return kit::min(0.25f * (age_[0] + age_[2] + age_[4] + age_[6]) / max_age_, 1.0f);
+      case 1:
+        return drifter_[0].getCurrentDrift();
+      default:
+        return 0.0f;
+    }
+  }
+
   void process(int frames) {
     frames = begin_block(frames);
     if (!idle_.wake(input_present(frames))) {
