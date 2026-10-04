@@ -304,23 +304,17 @@ export function formatTimeSec(seconds: number): string {
 // --- ParamSpec helpers for the generated device panel --------------------------------
 
 /**
- * True for a spec that names its `choices`, and otherwise for a small integer
- * range (2…32 steps) with an integer default and no unit — a choice like a
- * filter type. An unlabelled 0…1 range is never a choice here (`width`,
- * `mix`); give the spec `choices` or pass `choiceLabels` to the panel.
+ * True for a spec that says it is one of a list: one that names its
+ * `choices` (a filter type), or a bare count with `step: 1` and no unit
+ * (voices, repeats). A range is never taken for a list by its numbers alone:
+ * a tone from −1 to 1 or a vowel from 0 to 4 is continuous, and its presets
+ * sit in between. Give the spec `choices` or `step`, or pass `choiceLabels`
+ * to the panel. A stepped value with a unit (semitones) is not a choice: it
+ * moves by its step and keeps its unit.
  */
 export function isChoiceParam(spec: ParamSpec): boolean {
   if (spec.choices !== undefined && spec.choices.length > 0) return true
-  const span = spec.max - spec.min
-  return (
-    spec.taper === 'linear' &&
-    spec.unit === '' &&
-    Number.isInteger(spec.min) &&
-    Number.isInteger(spec.max) &&
-    Number.isInteger(spec.default) &&
-    span >= 2 &&
-    span <= 32
-  )
+  return spec.step === 1 && spec.unit === ''
 }
 
 /**
@@ -330,6 +324,7 @@ export function isChoiceParam(spec: ParamSpec): boolean {
  */
 export function paramStep(spec: ParamSpec): number {
   if (isChoiceParam(spec)) return 1
+  if (spec.step !== undefined && spec.step > 0) return spec.step
   if (spec.taper === 'log') return 0
   const range = spec.max - spec.min
   switch (spec.unit) {
@@ -351,11 +346,17 @@ export function paramTaper(spec: ParamSpec): ControlTaper {
   return spec.taper === 'log' && spec.min > 0 ? 'log' : 'linear'
 }
 
-/** Format a parameter value with the spec's unit (choices print their label, or the integer). */
+/**
+ * Format a parameter value with the spec's unit (choices print their label,
+ * or the integer; a value that moves in whole steps prints whole: "12 st").
+ */
 export function formatParamValue(spec: ParamSpec, value: number): string {
   if (isChoiceParam(spec)) {
     const step = Math.round(value)
     return spec.choices?.[step - spec.min] ?? String(step)
+  }
+  if (spec.step !== undefined && Number.isInteger(spec.step) && spec.step > 0) {
+    return `${Math.round(value)} ${spec.unit}`
   }
   return formatControlValue(value, spec.unit || 'ratio')
 }

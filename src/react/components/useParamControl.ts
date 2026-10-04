@@ -87,6 +87,9 @@ const isBrowser = typeof window !== 'undefined'
 // `useLayoutEffect` warns during server rendering; the effect only sets a ref.
 const useIsomorphicLayoutEffect = isBrowser ? useLayoutEffect : useEffect
 
+/** How far a finger goes before a control takes it for a turn, in pixels: less is a tap, or the start of a swipe. */
+const TOUCH_SLOP_PX = 4
+
 export function useParamControl(options: ParamControlOptions): ParamControl {
   const {
     value,
@@ -116,6 +119,12 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
   const gestureRef = useRef(false)
   const pointerIdRef = useRef<number | null>(null)
   const lastPointRef = useRef({ x: 0, y: 0 })
+  /** The value the control had when the pointer took it: what a press the browser takes back returns to. */
+  const takenAtRef = useRef(shown)
+  /** How far a finger has gone without turning the control yet, in pixels; null once it turns, and for a mouse. */
+  const heldBackRef = useRef<number | null>(null)
+  /** How far that finger has gone across the control's own way meanwhile. */
+  const heldAcrossRef = useRef(0)
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const elementRef = useRef<HTMLElement | null>(null)
 
@@ -214,6 +223,13 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
       draggingRef.current = true
       pointerIdRef.current = event.pointerId
       lastPointRef.current = { x: event.clientX, y: event.clientY }
+      takenAtRef.current = shownRef.current
+      // A finger's first pixels are held back: until it has gone a little way
+      // it may be a swipe along whatever the control stands in, which the
+      // browser is about to take, and a control that had already turned would
+      // leave a step to undo that changed nothing.
+      heldBackRef.current = event.pointerType === 'touch' ? 0 : null
+      heldAcrossRef.current = 0
       normRef.current = normalizeValue(
         shownRef.current,
         latest.current.min,
@@ -229,6 +245,27 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
     [beginGesture],
   )
 
+  /**
+   * The browser took the press for itself: a finger that began on the control
+   * turned out to be scrolling what the control stands in. Nothing was meant
+   * for the control, so what the first pixels turned it by is put back.
+   */
+  const cancelPointer = useCallback(
+    (event: PointerEvent<HTMLElement>) => {
+      if (pointerIdRef.current !== event.pointerId) return
+      const taken = takenAtRef.current
+      if (draggingRef.current && taken !== shownRef.current) {
+        const o = latest.current
+        normRef.current = normalizeValue(taken, o.min, o.max, o.taper, o.skew)
+        shownRef.current = taken
+        setInternal(taken)
+        o.onChange?.(taken)
+      }
+      endPointer(event)
+    },
+    [endPointer],
+  )
+
   const onPointerMove = useCallback(
     (event: PointerEvent<HTMLElement>) => {
       if (!draggingRef.current || pointerIdRef.current !== event.pointerId) return
@@ -242,9 +279,24 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
       lastPointRef.current = { x: event.clientX, y: event.clientY }
       const a = latest.current.axis ?? axis
       const travel = a === 'vertical' ? dy : a === 'horizontal' ? -dx : dy - dx
+      if (heldBackRef.current !== null) {
+        heldAcrossRef.current += a === 'vertical' ? dx : a === 'horizontal' ? dy : 0
+      }
       if (travel === 0) return
+      let moved = travel
+      if (heldBackRef.current !== null) {
+        heldBackRef.current += travel
+        if (Math.abs(heldBackRef.current) < TOUCH_SLOP_PX) return
+        // A finger that has gone further across than along is still a swipe the browser may
+        // take, however far it has drifted along meanwhile: a swipe on a slant drifts more
+        // than the first pixels.
+        if (Math.abs(heldBackRef.current) < Math.abs(heldAcrossRef.current)) return
+        // The finger means the control: it catches up with all of the way so far.
+        moved = heldBackRef.current
+        heldBackRef.current = null
+      }
       const px = latest.current.sensitivityPx ?? sensitivityPx
-      commitNorm(normRef.current + pointerDeltaToNormDelta(travel, px, event.shiftKey))
+      commitNorm(normRef.current + pointerDeltaToNormDelta(moved, px, event.shiftKey))
     },
     [axis, commitNorm, endPointer, sensitivityPx],
   )
@@ -330,7 +382,12 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
     (event: WheelEvent) => {
       const o = latest.current
       if (o.disabled || !(o.wheel ?? true)) return
-      // Shift turns a vertical wheel into a horizontal one on most platforms.
+      // Shift turns a vertical wheel into a horizontal one on most platforms, so with Shift held
+      // a sideways delta is the wheel. Without it, a swipe that goes more across than up or down
+      // is the scroller's (a chain of plates runs sideways): it turns nothing and scrolls on.
+      // A control that itself lies across keeps it.
+      const across = Math.abs(event.deltaX) > Math.abs(event.deltaY)
+      if (across && !event.shiftKey && o.axis !== 'horizontal') return
       const delta = event.deltaY !== 0 ? event.deltaY : event.deltaX
       if (delta === 0) return
       event.preventDefault()
@@ -366,7 +423,7 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
       onPointerDown,
       onPointerMove,
       onPointerUp: endPointer,
-      onPointerCancel: endPointer,
+      onPointerCancel: cancelPointer,
       onDoubleClick,
       onKeyDown,
       onBlur,

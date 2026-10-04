@@ -153,6 +153,92 @@ describe('Knob', () => {
     expect(container.firstChild).not.toHaveClass('lm-knob--active')
   })
 
+  it('puts back what it was turned by when the browser takes the press for a scroll', () => {
+    const onChange = vi.fn()
+    const onChangeEnd = vi.fn()
+    render(
+      <Knob
+        label="Mix"
+        defaultValue={0.5}
+        min={0}
+        max={1}
+        step={0.01}
+        onChange={onChange}
+        onChangeEnd={onChangeEnd}
+      />,
+    )
+    const control = slider()
+    fireEvent.pointerDown(control, { pointerId: 1, button: 0, clientX: 100, clientY: 50 })
+    // A finger swiping along a chain drifts a few pixels up or down before the browser scrolls.
+    fireEvent.pointerMove(control, { pointerId: 1, clientX: 80, clientY: 44 })
+    expect(onChange).toHaveBeenCalled()
+    expect(control).not.toHaveAttribute('aria-valuenow', '0.5')
+    fireEvent.pointerCancel(control, { pointerId: 1 })
+    // Back where it was, and the gesture is closed.
+    expect(onChange).toHaveBeenLastCalledWith(0.5)
+    expect(control).toHaveAttribute('aria-valuenow', '0.5')
+    expect(onChangeEnd).toHaveBeenCalledTimes(1)
+    // A press that is let go keeps what it was turned to, as ever.
+    fireEvent.pointerDown(control, { pointerId: 2, button: 0, clientX: 100, clientY: 50 })
+    fireEvent.pointerMove(control, { pointerId: 2, clientX: 100, clientY: 40 })
+    fireEvent.pointerUp(control, { pointerId: 2 })
+    expect(control).not.toHaveAttribute('aria-valuenow', '0.5')
+  })
+
+  it('holds back a finger’s first pixels, so a swipe the browser takes never turns it at all', () => {
+    const onChange = vi.fn()
+    render(<Knob label="Mix" defaultValue={0.5} min={0} max={1} onChange={onChange} />)
+    const control = slider()
+    const finger = { pointerId: 7, pointerType: 'touch' }
+    fireEvent.pointerDown(control, { ...finger, button: 0, clientX: 100, clientY: 50 })
+    // A swipe along a chain: far across, a pixel or two of drift, and then the browser has it.
+    fireEvent.pointerMove(control, { ...finger, clientX: 90, clientY: 49 })
+    fireEvent.pointerMove(control, { ...finger, clientX: 80, clientY: 47 })
+    fireEvent.pointerCancel(control, { ...finger })
+    expect(onChange).not.toHaveBeenCalled()
+    expect(control).toHaveAttribute('aria-valuenow', '0.5')
+    // A finger that goes on up means the knob, which catches up with all of the way so far.
+    fireEvent.pointerDown(control, { ...finger, button: 0, clientX: 100, clientY: 50 })
+    fireEvent.pointerMove(control, { ...finger, clientX: 100, clientY: 47 })
+    expect(onChange).not.toHaveBeenCalled()
+    fireEvent.pointerMove(control, { ...finger, clientX: 100, clientY: 38 })
+    fireEvent.pointerUp(control, { ...finger })
+    // Twelve pixels of a knob's 110, not the nine since it let go.
+    expect(onChange.mock.calls.at(-1)?.[0]).toBeCloseTo(0.5 + 12 / 110, 6)
+    // A mouse turns it from the first pixel, as ever.
+    onChange.mockClear()
+    fireEvent.pointerDown(control, { pointerId: 1, button: 0, clientX: 100, clientY: 50 })
+    fireEvent.pointerMove(control, { pointerId: 1, clientX: 100, clientY: 49 })
+    expect(onChange).toHaveBeenCalledTimes(1)
+    fireEvent.pointerUp(control, { pointerId: 1 })
+  })
+
+  it('holds back a finger that goes more across than along, however far it drifts', () => {
+    const onChange = vi.fn()
+    render(<Knob label="Mix" defaultValue={0.5} min={0} max={1} onChange={onChange} />)
+    const control = slider()
+    const finger = { pointerId: 7, pointerType: 'touch' }
+    // A swipe on a slant, 140 across and 40 up: four pixels up after eleven across, then the browser has it.
+    fireEvent.pointerDown(control, { ...finger, button: 0, clientX: 136, clientY: 723 })
+    fireEvent.pointerMove(control, { ...finger, clientX: 125, clientY: 720 })
+    fireEvent.pointerMove(control, { ...finger, clientX: 114, clientY: 716 })
+    fireEvent.pointerCancel(control, { ...finger })
+    expect(onChange).not.toHaveBeenCalled()
+    // As far up as across is the knob's: the browser leaves that one to it.
+    fireEvent.pointerDown(control, { ...finger, button: 0, clientX: 137, clientY: 723 })
+    fireEvent.pointerMove(control, { ...finger, clientX: 132, clientY: 718 })
+    expect(onChange.mock.calls.at(-1)?.[0]).toBeCloseTo(0.5 + 5 / 110, 6)
+    fireEvent.pointerUp(control, { ...finger })
+    // A finger that sets off across and then goes up takes the knob once it has gone further up.
+    onChange.mockClear()
+    fireEvent.pointerDown(control, { ...finger, button: 0, clientX: 100, clientY: 50 })
+    fireEvent.pointerMove(control, { ...finger, clientX: 92, clientY: 46 })
+    expect(onChange).not.toHaveBeenCalled()
+    fireEvent.pointerMove(control, { ...finger, clientX: 92, clientY: 40 })
+    expect(onChange).toHaveBeenCalledTimes(1)
+    fireEvent.pointerUp(control, { ...finger })
+  })
+
   it('ends a key gesture after the idle time', () => {
     vi.useFakeTimers()
     try {
@@ -196,6 +282,35 @@ describe('Knob', () => {
     const fine = new WheelEvent('wheel', { deltaY: -100, shiftKey: true, cancelable: true })
     control.dispatchEvent(fine)
     expect(onChange.mock.calls.at(-1)?.[0]).toBeCloseTo(0.5275, 4)
+  })
+
+  it('leaves a swipe that goes more across than up or down to the scroller', () => {
+    const onChange = vi.fn()
+    render(
+      <Knob label="Mix" defaultValue={0.5} min={0} max={1} step={0.0001} onChange={onChange} />,
+    )
+    const control = slider()
+    // A trackpad scrolling a chain sideways, the pointer over a knob: straight across, and a little down.
+    for (const init of [
+      { deltaX: 12, deltaY: 0 },
+      { deltaX: 12, deltaY: 1 },
+      { deltaX: -40, deltaY: -8 },
+    ]) {
+      const swipe = new WheelEvent('wheel', { ...init, cancelable: true, bubbles: true })
+      control.dispatchEvent(swipe)
+      expect(swipe.defaultPrevented, JSON.stringify(init)).toBe(false)
+    }
+    expect(onChange).not.toHaveBeenCalled()
+    // More down than across is the knob's, as before.
+    const turn = new WheelEvent('wheel', { deltaX: 3, deltaY: 100, cancelable: true })
+    control.dispatchEvent(turn)
+    expect(turn.defaultPrevented).toBe(true)
+    expect(onChange).toHaveBeenLastCalledWith(0.475)
+    // With Shift held a wheel comes as a sideways delta on most platforms: that is a fine turn.
+    const shifted = new WheelEvent('wheel', { deltaX: -100, shiftKey: true, cancelable: true })
+    control.dispatchEvent(shifted)
+    expect(shifted.defaultPrevented).toBe(true)
+    expect(onChange.mock.calls.at(-1)?.[0]).toBeCloseTo(0.4775, 4)
   })
 
   it('ignores the wheel when disabled or opted out', () => {

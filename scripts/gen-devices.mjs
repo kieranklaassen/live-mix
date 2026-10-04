@@ -127,6 +127,13 @@ function loadManifest(dir) {
     ) {
       fail(id, `${where}: description must be a sentence or be left out`)
     }
+    // A count (voices, repeats) says so with "step": 1; left out, a parameter is continuous.
+    if (param.step !== undefined) {
+      if (choices !== undefined) fail(id, `${where}: a choice has no step of its own`)
+      if (param.step !== 1) fail(id, `${where}: step must be 1 or be left out`)
+      if (![min, max, param.default].every(Number.isInteger))
+        fail(id, `${where}: a stepped parameter needs a whole min, max and default`)
+    }
     return {
       key: param.key,
       id: index,
@@ -137,6 +144,7 @@ function loadManifest(dir) {
       taper,
       unit: param.unit ?? '',
       choices,
+      step: param.step,
       description: param.description,
     }
   })
@@ -354,6 +362,7 @@ function deviceModule(device) {
         `unit: ${quote(param.unit)}`,
       ]
       if (param.choices) fields.push(`choices: [${param.choices.map(quote).join(', ')}]`)
+      if (param.step) fields.push(`step: ${param.step}`)
       if (param.description) fields.push(`description: ${quote(param.description)}`)
       return `  ${param.key}: { ${fields.join(', ')} },`
     })

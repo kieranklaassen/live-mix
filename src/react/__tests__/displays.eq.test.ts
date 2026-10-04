@@ -27,6 +27,7 @@ import { type DisplayHandle } from '../components/plate-display'
 import {
   displaySize,
   drawDisplay,
+  patchUnder,
   runDisplay,
   stockDescriptors,
   testSignal,
@@ -256,6 +257,30 @@ describe('the Filter display', () => {
     names.forEach((name, type) => expect(filter.draw({ values: { type } }).words()).toContain(name))
   })
 
+  it('sets the type on a patch of the plate: a grid line or the curve can run where the word stands', () => {
+    for (const type of [0, 1, 5]) {
+      const drawn = filter.draw({ values: { type } })
+      const name = drawn.words().find((word) => /pass|Peak/.test(word))
+      expect(name).toBeDefined()
+      const patch = patchUnder(drawn, name ?? '', PLAIN_COLOURS.plate)
+      expect(patch, `under "${name}"`).not.toBeNull()
+      expect(patch?.h).toBeGreaterThanOrEqual(8)
+    }
+  })
+
+  it('names its types on the knob as the display names them', () => {
+    expect(filter.params.type.choices).toEqual([
+      'Low pass',
+      'High pass',
+      'Band pass',
+      'Low shelf',
+      'High shelf',
+      'Peak',
+      'Notch',
+      'All pass',
+    ])
+  })
+
   it('has one point: across is the frequency, up and down the resonance or the gain', () => {
     const { box } = filter
     const at = (hz: number, level: number): [number, number] => [
@@ -311,6 +336,43 @@ describe('the Filter display', () => {
       for (const [name, value] of Object.entries(point.drag(point.x, point.y)))
         expect(value, `type ${type} ${name}`).toBeCloseTo(values[name as 'q'], 6)
     }
+  })
+})
+
+describe('the Parametric EQ display', () => {
+  const parametric = face('parametric-eq')
+  /** A little past the bands' ±18 dB, as the display's scale is. */
+  const SCALE = 20
+
+  it('draws a narrow band up to its point wherever the point stands between two pixels', () => {
+    // Q 10 is a tenth of the frequency wide, about two pixels: moved a quarter
+    // of a pixel at a time, its top must stay at the gain its point stands at.
+    const from = xOfHz(1000, parametric.box)
+    for (let step = 0; step < 12; step++) {
+      const x = from + step / 4
+      const hz = 20 * Math.pow(1000, (x - parametric.box.x) / parametric.box.w)
+      const values = { band2Freq: hz, band2Q: 10, band2Gain: 18 }
+      const curve = mainCurve(parametric.draw({ values }))
+      const top = Math.min(...curve.map(([, y]) => y))
+      const point = parametric.handle('band2', values)
+      expect(point.y).toBeCloseTo(yOfDb(18, parametric.box, SCALE, -SCALE), 6)
+      expect(Math.abs(top - point.y), `at x = ${x}`).toBeLessThan(0.2)
+      expect(dbAt(curve, hz, parametric.box, SCALE, -SCALE)).toBeCloseTo(18, 1)
+    }
+  })
+
+  it('draws a narrow cut down to its point too, and two bands each through their own frequency', () => {
+    const values = {
+      band1Freq: 333,
+      band1Q: 10,
+      band1Gain: -18,
+      band3Freq: 3210,
+      band3Q: 10,
+      band3Gain: 12,
+    }
+    const curve = mainCurve(parametric.draw({ values }))
+    expect(dbAt(curve, 333, parametric.box, SCALE, -SCALE)).toBeCloseTo(-18, 1)
+    expect(dbAt(curve, 3210, parametric.box, SCALE, -SCALE)).toBeCloseTo(12, 1)
   })
 })
 

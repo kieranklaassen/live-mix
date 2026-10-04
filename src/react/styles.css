@@ -2093,10 +2093,12 @@
   -webkit-user-select: none;
 }
 
-/* A display with points to drag takes a finger's drag for itself. */
-.lm-plate__display--handles {
-  touch-action: none;
-}
+/*
+  A display with points to drag takes a finger's drag for itself where the
+  finger comes down on a point, and says so as the press arrives (see
+  PlateDisplay). Beside the points a swipe is the page's, to scroll what the
+  plate stands in: so no touch-action here, which could not tell the two apart.
+*/
 
 .lm-plate__display[data-lm-handle] {
   cursor: grab;
@@ -2161,8 +2163,20 @@
   transform: scaleX(var(--lm-plate-squeeze, 1));
 }
 
+/*
+  A value can be wider than its knob's column ("-24.0 dB", "Tape preamp"). It
+  is set whole and never cut: it runs over the names beside it for as long as
+  the knob is in hand, on the plate's own colour so that it reads there.
+*/
 .lm-plate .lm-knob__value {
+  position: relative;
+  z-index: 1;
   display: none;
+  flex: none;
+  width: max-content;
+  min-width: 100%;
+  overflow: visible;
+  background: var(--lm-plate);
   letter-spacing: 0;
   text-transform: none;
 }

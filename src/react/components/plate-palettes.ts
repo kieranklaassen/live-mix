@@ -65,7 +65,7 @@ export const PLATE_PALETTES = {
   swell: { plate: '#a8d5a2', ink: '#17301a', accent: '#a3341f' },
   delay: { plate: '#b7cdf0', ink: '#101f3d', accent: '#b5361f' },
   'grain-delay': { plate: '#8f446b', ink: '#fff1f6', accent: '#ffe9a0' },
-  'convolver-reverb': { plate: '#5a4c85', ink: '#f6f3ff', accent: '#f4f0c8' },
+  'convolver-reverb': { plate: '#5a4c85', ink: '#f6f3ff', accent: '#d4a640' },
   'plate-reverb': { plate: '#9fb0c2', ink: '#0f1a26', accent: '#a3301c' },
   'hall-reverb': { plate: '#40251d', ink: '#f4e9df', accent: '#e8b04a' },
   'stereo-widener': { plate: '#7fd1c4', ink: '#0c2b28', accent: '#7a2a5a' },

@@ -12,6 +12,7 @@ import { duck, nodeCurve, nodeMakeupDb, swellShape } from '../components/display
 import { type DisplayHandle, type DisplaySignal } from '../components/plate-display'
 import {
   drawDisplay,
+  patchUnder,
   runDisplay,
   stockDescriptors,
   testLevel,
@@ -159,6 +160,78 @@ describe('the Ambient Compressor display', () => {
     const soft = curveOf(comp.draw({ values: { threshold: -24, ratio: 4, knee: 12 } }), 48)
     expect(soft(-24)).toBeCloseTo(-24 - 1.125, 1)
   })
+
+  it('shows what the reduction comes to behind Mix: less with the dry sound beside it, none at nothing', () => {
+    const taken = (mix: number): { tall: number; words: string[] } => {
+      const context = comp.run(1, {
+        values: { mix, makeup: 0 },
+        meters: { reduction: -12 },
+        signal: sound(0.5, 0.5),
+      })
+      const band = drawn(context).shapes.find(
+        (shape) => shape.op === 'fill' && shape.colour === ACCENT,
+      )
+      const { top, foot } = tallNow(band)
+      return { tall: foot - top, words: context.words() }
+    }
+    expect(taken(1).tall).toBeCloseTo((12 / 60) * HIGH, 3)
+    expect(taken(1).words).toContain('−12.0')
+    // Half dry: 1 − 0.5 + 0.5 · 10^(−12 / 20) of the sound is left, 4.07 dB off.
+    const half = -db(0.5 + 0.5 * gain(-12))
+    expect(taken(0.5).tall).toBeCloseTo((half / 60) * HIGH, 3)
+    expect(taken(0.5).words).toContain('−4.1')
+    // All dry: the compressor works, and none of it is heard.
+    expect(taken(0).tall).toBeCloseTo(0, 6)
+    expect(taken(0).words).toContain('0.0')
+  })
+
+  it('draws the level coming out as a line: under the level going in by what was taken off, over it by the make-up', () => {
+    const lineNow = (makeup: number): number => {
+      const context = comp.run(1, {
+        values: { makeup },
+        meters: { reduction: -6 },
+        signal: sound(0.5, 0.5),
+      })
+      const line = drawn(context).shapes.find(
+        (shape) => shape.op === 'stroke' && shape.width === 1.25 && shape.colour === INK_COLOUR,
+      )
+      return tallNow(line).top
+    }
+    // The detector reads RMS: a sine at half scale is 9.03 dB under full scale.
+    const going = db(0.5) - db(Math.SQRT2)
+    expect(lineNow(0)).toBeCloseTo(yOfLevel(going - 6), 3)
+    expect(lineNow(9)).toBeCloseTo(yOfLevel(going - 6 + 9), 3)
+  })
+
+  it('lets its last seconds go when it is switched off: nothing is taken off a sound it does not touch', () => {
+    const state = comp.display.init?.()
+    const heard = comp.run(1, { state, meters: { reduction: -12 }, signal: sound(0.5, 0.25) })
+    const band = (context: RecordingContext): Shape | undefined =>
+      drawn(context).shapes.find((shape) => shape.op === 'fill' && shape.colour === ACCENT)
+    expect(lowest(band(heard)) - highest(band(heard))).toBeGreaterThan(10)
+    const off = comp.draw({ state, powered: false, meters: { reduction: -12 } })
+    expect(lowest(band(off)) - highest(band(off))).toBe(0)
+    expect(off.words()).toEqual(['0.0'])
+  })
+
+  it('has points that do not move when they are taken with the curve over the top of the display', () => {
+    const settings: Record<string, number>[] = [
+      { threshold: -24, ratio: 2, makeup: 12 },
+      { threshold: -24, ratio: 2, makeup: 18 },
+      { threshold: -12, ratio: 2, makeup: 24 },
+      { threshold: -6, ratio: 6, makeup: 24, mix: 0.6 },
+    ]
+    for (const values of settings) {
+      const threshold = comp.handle('threshold', values)
+      const ratio = comp.handle('ratio', values)
+      expect(threshold.y).toBeGreaterThanOrEqual(TOP)
+      expect(threshold.drag(threshold.x, threshold.y).threshold).toBeCloseTo(values.threshold, 6)
+      expect(ratio.y).toBeGreaterThanOrEqual(TOP)
+      expect(ratio.drag(ratio.x, ratio.y).ratio).toBeCloseTo(values.ratio, 6)
+      // And from there they still go where the hand goes: down is a firmer hand.
+      expect(ratio.drag(ratio.x, ratio.y + 10).ratio).toBeGreaterThan(values.ratio)
+    }
+  })
 })
 
 describe('the Compressor display', () => {
@@ -261,6 +334,22 @@ describe('the Compressor display', () => {
     )
     expect(tallNow(band).top).toBeCloseTo(yOfLevel(db(0.5)), 3)
     expect(tallNow(band).foot).toBeCloseTo(yOfLevel(db(0.5) - 9), 3)
+  })
+
+  it('draws the level coming out with the make-up on it: louder than what went in when little is taken off', () => {
+    const values = { threshold: -24, knee: 0, ratio: 4, makeupDb: 3 }
+    const context = comp.run(1, { values, meters: { reduction: -2 }, signal: sound(0.5, 0.5) })
+    const { shapes } = drawn(context)
+    const line = shapes.find(
+      (shape) => shape.op === 'stroke' && shape.width === 1.25 && shape.colour === INK_COLOUR,
+    )
+    // 2 dB off, 10.8 dB of the node's own make-up and 3 dB of the knob's.
+    expect(tallNow(line).top).toBeCloseTo(yOfLevel(db(0.5) - 2 + 10.8 + 3), 2)
+    // What was taken off still hangs from the level going in, and the figure is that.
+    const band = shapes.find((shape) => shape.op === 'fill' && shape.colour === ACCENT)
+    expect(tallNow(band).top).toBeCloseTo(yOfLevel(db(0.5)), 3)
+    expect(tallNow(band).foot).toBeCloseTo(yOfLevel(db(0.5) - 2), 3)
+    expect(context.words()).toContain('−2.0')
   })
 
   it('reads nothing off silence, where the node stops and its reading stays put', () => {
@@ -638,7 +727,30 @@ describe('the Sidechain Ducker display', () => {
     for (const shape of drawn(rest).shapes.filter((one) => one.colour === ACCENT)) {
       expect(lowest(shape)).toBe(TOP)
     }
-    expect(rest.words()).toEqual(['0.0'])
+    expect(rest.words()).toContain('0.0')
+  })
+
+  it('says so when nothing keys it: the shape at the left is what it would do, and it does nothing', () => {
+    const unkeyed = { meters: { gain: 1, envelope: 0 }, signal: sound(0.5, 0.5) }
+    const never = ducker.run(1, unkeyed)
+    expect(never.words()).toEqual(['no key', '0.0'])
+    expect(patchUnder(never, 'no key', PLAIN_COLOURS.plate)).not.toBeNull()
+    // A key sounding, or one that sounded within the seconds the display looks back: nothing to say.
+    const state = ducker.display.init?.()
+    const keyed = ducker.run(1, {
+      state,
+      meters: { gain: 0.5, envelope: 0.25 },
+      signal: sound(0.5, 0.25),
+    })
+    expect(keyed.words()).not.toContain('no key')
+    const since = ducker.run(5, { ...unkeyed, state, now: 11 })
+    expect(since.words()).not.toContain('no key')
+    // The key gone for longer than that: it says so again.
+    const gone = ducker.run(2, { ...unkeyed, state, now: 16 })
+    expect(gone.words()).toContain('no key')
+    // A ducker that reports no follower cannot know, and says nothing.
+    const unknown = ducker.run(1, { meters: {}, signal: sound(0.5, 0.5) })
+    expect(unknown.words()).not.toContain('no key')
   })
 
   it('draws the key from the follower the device reports: a bar over the top, as thick as it drives the duck', () => {
@@ -821,9 +933,13 @@ describe('the Swell display', () => {
     )
   })
 
-  it('hangs the gain not yet given back to a note, and nothing while it is shut', () => {
-    const hungBy = (meters: Record<string, number>, values = {}): number => {
-      const context = swell.run(1, { values, meters, signal: sound(0.5, 0.25) })
+  it('hangs the gain not yet given back to a note, and the sound it holds shut under Sensitivity', () => {
+    const hungBy = (
+      meters: Record<string, number>,
+      values = {},
+      signal = sound(0.5, 0.25),
+    ): number => {
+      const context = swell.run(1, { values, meters, signal })
       const hung = drawn(context).shapes.find(
         (shape) => shape.op === 'fill' && shape.colour === ACCENT,
       )
@@ -835,8 +951,14 @@ describe('the Swell display', () => {
       yOfLevel(db(0.75)),
       3,
     )
-    expect(hungBy({ gain: 0, position: 0, state: 0 })).toBe(TOP)
     expect(hungBy({ gain: 1, position: 1, state: 3 })).toBe(TOP)
+    // Shut over a sound that stays under Sensitivity: it holds that sound at
+    // its floor, a quarter of it at Depth 0.5 and none of it at Depth 1.
+    const shut = { position: 0, state: 0 }
+    expect(hungBy({ ...shut, gain: 0.25 }, { depth: 0.5 })).toBeCloseTo(yOfLevel(db(0.25)), 3)
+    expect(hungBy({ ...shut, gain: 0 }, { depth: 1 })).toBe(TOP + HIGH)
+    // Shut in silence it holds nothing back from anyone: nothing hangs.
+    expect(hungBy({ ...shut, gain: 0 }, { depth: 1 }, sound(0, 0))).toBe(TOP)
   })
 
   it('shows every note starting from the floor, also when no reading caught it there', () => {
@@ -928,5 +1050,69 @@ describe('the Ambient Compressor ratio point under Mix and make-up', () => {
       const handle = ratioAt(values)
       expect(handle.drag(handle.x, handle.y).ratio).toBeCloseTo(values.ratio, 6)
     }
+  })
+
+  /** A drag as the plate makes it: every move asked of the point as the last move left it, with one hold. */
+  const inHand = (start: Record<string, number>) => {
+    const hold = {}
+    let values = start
+    const taken = ratioAt(values)
+    values = { ...values, ...taken.drag(taken.x, taken.y, hold) }
+    return {
+      y: taken.y,
+      to(y: number): number {
+        const now = ratioAt(values)
+        values = { ...values, ...now.drag(now.x, y, hold) }
+        return values.ratio
+      },
+      point: (): DisplayHandle => ratioAt(values),
+    }
+  }
+
+  it('sets the ratio whose mixed curve ends under the hand, and stays there while the hand does', () => {
+    const starts: Record<string, number>[] = [
+      { ratio: 2, mix: 0.4 },
+      { ratio: 2, mix: 0.7 },
+      { ratio: 4, mix: 0.5, makeup: 6 },
+      { ratio: 2, mix: 1 },
+    ]
+    for (const start of starts) {
+      const hand = inHand(start)
+      for (const by of [3, 5, -2]) {
+        const first = hand.to(hand.y + by)
+        // The point is where the hand is (unless the knob is at an end)...
+        if (first > 1 && first < 10)
+          expect(hand.point().y, JSON.stringify(start)).toBeCloseTo(hand.y + by, 6)
+        // ...and more moves that go no further leave it: it ran on to 10 a move at a time.
+        for (let n = 0; n < 6; n++) expect(hand.to(hand.y + by)).toBeCloseTo(first, 9)
+      }
+      // Back on the pixel it was taken at, it is the ratio it was.
+      expect(hand.to(hand.y), JSON.stringify(start)).toBeCloseTo(start.ratio, 6)
+    }
+  })
+
+  it('goes to both ends of Ratio and no further', () => {
+    const hand = inHand({ ratio: 2, mix: 0.4 })
+    expect(hand.to(hand.y + 400)).toBe(10)
+    expect(hand.to(hand.y - 400)).toBe(1)
+    expect(hand.to(hand.y)).toBeCloseTo(2, 6)
+  })
+
+  it('with the end over the top, is taken at the edge and moves from where the end lies', () => {
+    // 20 dB of make-up puts the end of the curve over the display's top: the point waits at the edge.
+    const start = { ratio: 2, mix: 1, makeup: 20, threshold: -24 }
+    const hand = inHand(start)
+    // One pixel down is one pixel's worth of level down from where the end lies, not from the edge.
+    const one = hand.to(hand.y + 1)
+    expect(one).toBeGreaterThan(2)
+    expect(one).toBeLessThan(2.3)
+    expect(hand.to(hand.y)).toBeCloseTo(2, 6)
+  })
+
+  it('stays where it is when Mix leaves the whole of Ratio less than a pixel of travel', () => {
+    const handle = ratioAt({ ratio: 3, mix: 0.01 })
+    expect(handle.drag(handle.x, handle.y + 20).ratio).toBe(3)
+    const none = ratioAt({ ratio: 3, mix: 0 })
+    expect(none.drag(none.x, none.y + 20).ratio).toBe(3)
   })
 })

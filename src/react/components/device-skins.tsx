@@ -1468,6 +1468,19 @@ const vowelReverb: PlatePicture = lifted({
   },
 })
 
+/**
+ * Lattice's twelve custom degrees have two knobs each, and their names
+ * ("Custom Degree 1 On", "Custom Degree 1 Cents") take three lines where a
+ * knob's word has two: both were cut to "Custom Degree 1". On the plate they
+ * go by the words that tell them apart, which stand whole in two lines of a
+ * knob's column. The parameter keeps its name everywhere else.
+ */
+const LATTICE_LABELS: Record<string, string> = {}
+for (let degree = 1; degree <= 12; degree++) {
+  LATTICE_LABELS[`customOn${degree}`] = `Degree ${degree} on`
+  LATTICE_LABELS[`customCents${degree}`] = `Degree ${degree} cents`
+}
+
 /** The skins the kit ships, by device id. */
 const SKINS: Readonly<Record<string, DeviceSkin>> = {
   'fdn-reverb': {
@@ -1526,6 +1539,7 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
     finish: 'matte',
     cap: 'skirt',
     face: ['root', 'scale', 'glide', 'mix'],
+    labels: LATTICE_LABELS,
     picture: lattice,
   },
   chorus: {

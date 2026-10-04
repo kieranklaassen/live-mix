@@ -22,6 +22,7 @@ import {
   type DisplayColours,
   type DisplayFrame,
   type DisplayHandle,
+  type DisplayHold,
   type DisplaySignal,
   type DisplayView,
   type PlateDisplay,
@@ -47,6 +48,12 @@ export interface DisplayInputs {
 /** How near a press must be to a handle to take it, in pixels: wider under a finger. */
 const HIT_MOUSE = 9
 const HIT_TOUCH = 18
+/** Handles this near to one another, in pixels, stand on one another: a press cannot tell them apart. */
+const STACKED = 1.5
+/** Turns of the wheel this close together, in milliseconds, are one gesture and one undo step. */
+const WHEEL_REST_MS = 400
+/** What a wheel sends for one notch, in pixels: a step of a handle's `wheel`. */
+const WHEEL_NOTCH = 100
 
 // Every display that is mounted, for the once-a-second look at things frames
 // do not tell: the theme's colours, the screen's pixel ratio, a tap a chain cut.
@@ -62,7 +69,9 @@ const QUIET = 1e-4
 /** How long a display runs on in silence before it stands still, unless it says (`live.settle`). */
 const SETTLE_SEC = 8
 /** How often a display that stands still in silence listens for sound, in ms. */
-const LISTEN_MS = 200
+const LISTEN_MS = 100
+/** How far back it listens, in seconds: past the last listening, a late timer allowed for. */
+const LISTEN_BACK_SEC = (LISTEN_MS * 1.5) / 1000
 
 // Displays standing still in silence. They ask for no frames and no readings;
 // a timer listens at their taps, and the first sound sets them running again.
@@ -115,6 +124,8 @@ export class DisplayRunner {
       })
     | null = null
   private disposed = false
+  /** The handle moved last, by key: it lies on top of one it stands on. */
+  private top: string | null = null
   hot: string | null = null
   dragging = false
 
@@ -218,19 +229,36 @@ export class DisplayRunner {
     return display.handles ? display.handles(this.view()) : []
   }
 
-  /** The handle a press at (x, y) takes, the nearest within reach; null for none. */
+  /**
+   * The handle a press at (x, y) takes, the nearest within reach; null for
+   * none. Where two stand on one another the one moved last lies on top, as
+   * the last thing put down does: it can be taken off again, and what it
+   * covered can be reached.
+   */
   hit(x: number, y: number, touch: boolean): DisplayHandle | null {
     const reach = touch ? HIT_TOUCH : HIT_MOUSE
     let found: DisplayHandle | null = null
     let nearest = reach * reach
+    let top: DisplayHandle | null = null
+    let topDistance = 0
     for (const handle of this.handles()) {
       const distance = (handle.x - x) ** 2 + (handle.y - y) ** 2
+      if (distance > reach * reach) continue
+      if (handle.key === this.top) {
+        top = handle
+        topDistance = distance
+      }
       if (distance <= nearest) {
         nearest = distance
         found = handle
       }
     }
-    return found
+    return top && Math.sqrt(topDistance) <= Math.sqrt(nearest) + STACKED ? top : found
+  }
+
+  /** A handle was moved: it lies over any it comes to stand on. */
+  moved(key: string): void {
+    this.top = key
   }
 
   /** Mark a handle as under the pointer or in hand, and show it at once on a still display. */
@@ -244,7 +272,7 @@ export class DisplayRunner {
   /** In silence: sound again sets it running. */
   listen(): void {
     if (this.disposed || !settled.has(this)) return
-    if (this.taps?.heard(QUIET)) this.sync(true)
+    if (this.taps?.listen(QUIET, LISTEN_BACK_SEC)) this.sync(true)
   }
 
   /** Whether what it draws from is other than at the last call: the settings, the size, the device, the power. */
@@ -421,7 +449,32 @@ interface Grab {
   /** From the handle to the pointer, so the handle does not jump to the pointer when taken. */
   dx: number
   dy: number
+  /** Where the pointer came down, in the display's pixels. */
+  px: number
+  py: number
+  /** A finger's press, and whether the hand has gone anywhere with the handle: one that has not is a tap. */
+  touch: boolean
+  moved: boolean
+  /** The display's own for this hold: handed to every `drag` of it. */
+  hold: DisplayHold
 }
+
+/** A press on a handle that moved nothing: a second one soon after, on the same handle, is a double press. */
+interface Tap {
+  key: string
+  at: number
+  touch: boolean
+}
+
+/** Two taps of a finger within this many milliseconds are a double press. */
+const DOUBLE_TAP_MS = 350
+
+/**
+ * A press that stays within this of where it came down has gone nowhere: a
+ * hand wobbles a pixel while it presses, a finger a few, and such a press is
+ * still half of a double press. A nudge goes further.
+ */
+const STILL_PX = { mouse: 2, touch: 4 }
 
 /** A plate's display: a canvas, run while it is in view. */
 export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
@@ -433,6 +486,12 @@ export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
   latest.current = { ...props, frames, context }
   const runner = useRef<DisplayRunner | null>(null)
   const grab = useRef<Grab | null>(null)
+  /** Ends a turn of the wheel that is still open, before the hand takes a handle. */
+  const wheelRest = useRef<(() => void) | null>(null)
+  /** The last press on a handle, if it moved nothing: half of a double press. */
+  const tap = useRef<Tap | null>(null)
+  /** Whether each of the last two presses moved its handle: a double click made of nudges is not a double press. */
+  const moves = useRef<[boolean, boolean]>([false, false])
 
   useEffect(() => {
     if (!canvas.current) return
@@ -451,22 +510,77 @@ export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
 
   // A turn of the wheel over a handle is the handle's, not the page's: that
   // takes a listener that may refuse the scroll, which React's are not.
+  // Notches that follow one another are one turn of the wheel, and one undo
+  // step: the turn is over when the wheel has rested, or the hand does
+  // something else.
   useEffect(() => {
     const element = canvas.current
     if (!element || !display.handles) return
+    let turning: {
+      key: string
+      /** The parameters the turn moves, once it has moved any. */
+      names: readonly string[] | null
+      /** How far the wheel has gone since the last step it made, in pixels: up is positive. */
+      pixels: number
+      timer?: ReturnType<typeof setTimeout>
+    } | null = null
+    const rest = (): void => {
+      if (!turning) return
+      clearTimeout(turning.timer)
+      const { names } = turning
+      turning = null
+      if (names) latest.current.onDragEnd(names)
+    }
+    wheelRest.current = rest
     const onWheel = (event: WheelEvent): void => {
+      // A swipe that goes more across than up or down is the chain's, to scroll by.
+      if (event.deltaY === 0 || Math.abs(event.deltaX) > Math.abs(event.deltaY)) return
       const at = pointIn(element, event)
       const handle = runner.current?.hit(at.x, at.y, false)
-      if (!handle?.wheel || event.deltaY === 0) return
+      if (!handle?.wheel) return
       event.preventDefault()
-      const params = handle.wheel(event.deltaY < 0 ? 1 : -1)
-      const names = Object.keys(params)
-      latest.current.onDragStart(names)
+      if (turning && turning.key !== handle.key) rest()
+      const turn = turning ?? { key: handle.key, names: null, pixels: 0 }
+      turning = turn
+      clearTimeout(turn.timer)
+      turn.timer = setTimeout(rest, WHEEL_REST_MS)
+      // A step for every notch of a wheel, and as far for a trackpad's many
+      // small events as for the one notch they add up to.
+      turn.pixels += wheelPixels(event)
+      const steps = Math.trunc(turn.pixels / WHEEL_NOTCH)
+      if (steps === 0) return
+      turn.pixels -= steps * WHEEL_NOTCH
+      const params = handle.wheel(steps)
+      if (!turn.names) {
+        turn.names = Object.keys(params)
+        latest.current.onDragStart(turn.names)
+      }
       latest.current.onDrag(params)
-      latest.current.onDragEnd(names)
+    }
+    // A finger's press is given to the nearest thing that answers a press, and
+    // the knob beside a display is one: a canvas that answers presses itself
+    // keeps the ones that land on it, also at its edge.
+    const onClick = (): void => {}
+    // A finger on a point is the point's, and the page must not scroll under
+    // it; a finger beside the points is a swipe along whatever the plate
+    // stands in, which the browser scrolls. Which of the two it is can only be
+    // said here, where the finger comes down: a style could not tell them apart.
+    const onTouchStart = (event: TouchEvent): void => {
+      const touch = event.changedTouches[0]
+      if (!touch || !event.cancelable) return
+      const at = pointIn(element, touch)
+      if (runner.current?.hit(at.x, at.y, true)) event.preventDefault()
     }
     element.addEventListener('wheel', onWheel, { passive: false })
-    return () => element.removeEventListener('wheel', onWheel)
+    element.addEventListener('click', onClick)
+    element.addEventListener('touchstart', onTouchStart, { passive: false })
+    return () => {
+      rest()
+      wheelRest.current = null
+      element.removeEventListener('wheel', onWheel)
+      element.removeEventListener('click', onClick)
+      element.removeEventListener('touchstart', onTouchStart)
+    }
   }, [display, device])
 
   const interactive = display.handles !== undefined
@@ -480,16 +594,24 @@ export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
       delete event.currentTarget.dataset.lmHandle
       return
     }
+    wheelRest.current?.()
     // A chain reads this before it decides to carry the plate, and leaves the press to the handle.
     event.currentTarget.dataset.lmHandle = handle.key
+    const touch = event.pointerType === 'touch'
     event.currentTarget.setPointerCapture?.(event.pointerId)
-    const names = Object.keys(handle.drag(handle.x, handle.y))
+    const hold: DisplayHold = {}
+    const names = Object.keys(handle.drag(handle.x, handle.y, hold))
     grab.current = {
       pointerId: event.pointerId,
       key: handle.key,
       names,
       dx: at.x - handle.x,
       dy: at.y - handle.y,
+      px: at.x,
+      py: at.y,
+      touch,
+      moved: false,
+      hold,
     }
     runner.current?.point(handle.key, true)
     props.onDragStart(names)
@@ -508,7 +630,10 @@ export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
     if (event.pointerId !== held.pointerId) return
     const handle = runner.current?.handles().find((candidate) => candidate.key === held.key)
     if (!handle) return
-    props.onDrag(handle.drag(at.x - held.dx, at.y - held.dy))
+    const still = held.touch ? STILL_PX.touch : STILL_PX.mouse
+    if (Math.hypot(at.x - held.px, at.y - held.py) >= still) held.moved = true
+    runner.current?.moved(held.key)
+    props.onDrag(handle.drag(at.x - held.dx, at.y - held.dy, held.hold))
   }
 
   const letGo = (event: ReactPointerEvent<HTMLCanvasElement>): void => {
@@ -518,6 +643,25 @@ export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
     event.currentTarget.releasePointerCapture?.(event.pointerId)
     runner.current?.point(held.key, false)
     props.onDragEnd(held.names)
+    // Two presses that each moved nothing are a double press; two short
+    // nudges one after the other are two nudges, however quick.
+    const before = tap.current
+    moves.current = [moves.current[1], held.moved]
+    const still = !held.moved && event.type === 'pointerup'
+    tap.current = still ? { key: held.key, at: event.timeStamp, touch: held.touch } : null
+    if (!still || !held.touch) return
+    if (before?.touch && before.key === held.key && event.timeStamp - before.at <= DOUBLE_TAP_MS) {
+      // A finger's second tap on the handle: the browser makes no double click
+      // of presses the display kept for itself, so the display counts them.
+      tap.current = null
+      const handle = runner.current?.handles().find((candidate) => candidate.key === held.key)
+      const params = handle?.reset?.()
+      if (!params) return
+      const names = Object.keys(params)
+      props.onDragStart(names)
+      props.onDrag(params)
+      props.onDragEnd(names)
+    }
   }
 
   return (
@@ -562,9 +706,13 @@ export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
       onDoubleClick={
         interactive
           ? (event) => {
+              // Two quick nudges of a point are counted as a double click by
+              // the browser: they were two nudges, and the second one stays.
+              if (moves.current[0] || moves.current[1]) return
               const at = pointIn(event.currentTarget, event)
               const params = runner.current?.hit(at.x, at.y, false)?.reset?.()
               if (!params) return
+              wheelRest.current?.()
               const names = Object.keys(params)
               props.onDragStart(names)
               props.onDrag(params)
@@ -574,6 +722,12 @@ export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
       }
     />
   )
+}
+
+/** How far one event turns the wheel, in pixels, up being positive: lines and pages are scaled so a notch of three lines is a notch. */
+function wheelPixels(event: Pick<WheelEvent, 'deltaY' | 'deltaMode'>): number {
+  const scale = event.deltaMode === 1 ? WHEEL_NOTCH / 3 : event.deltaMode === 2 ? WHEEL_NOTCH : 1
+  return -event.deltaY * scale
 }
 
 /** A pointer's place in the display's own pixels. */

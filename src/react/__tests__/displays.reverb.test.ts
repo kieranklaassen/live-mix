@@ -31,6 +31,7 @@ import {
   loopRt60,
   onePoleLossDb,
   plateRt60,
+  scaleText,
   secondsText,
   shapedGain,
   shapedSmear,
@@ -44,6 +45,8 @@ import {
   springRate,
   springRt60,
 } from '../components/displays/reverb'
+import { secondsText as tailSecondsText } from '../components/displays/tails'
+import { formatParamValue } from '../components/control-math'
 import { PLAIN_COLOURS } from '../components/display-kit'
 import {
   type DisplayHandle,
@@ -53,6 +56,7 @@ import {
 import {
   drawDisplay,
   frameOf,
+  patchUnder,
   runDisplay,
   stockDescriptors,
   testLevel,
@@ -144,19 +148,69 @@ describe('what the reverbs share', () => {
     expect(fallTogether([1, 2], [1, 100])).toBeCloseTo((2 - 0.0014) / 1.5, 3)
   })
 
-  it('says seconds as a scale says them, and no more of them than are true', () => {
-    expect(secondsText(0.25)).toBe('0.25s')
-    expect(secondsText(0.2)).toBe('0.2s')
-    expect(secondsText(1)).toBe('1s')
-    expect(secondsText(3.46)).toBe('3.5s')
-    expect(secondsText(24.4)).toBe('24s')
+  it('says the time a tail takes as the other displays of a tail say it, and no more of it than is true', () => {
+    expect(secondsText(0.25)).toBe('250 ms')
+    expect(secondsText(0.2)).toBe('200 ms')
+    expect(secondsText(1)).toBe('1.0 s')
+    expect(secondsText(3.46)).toBe('3.5 s')
+    expect(secondsText(24.4)).toBe('24 s')
     expect(secondsText(Infinity)).toBe('∞')
-    // A figure is rounded before it is worded: no "1.0s", no "10.0s", no "0.0s".
-    expect(secondsText(0.998)).toBe('1s')
-    expect(secondsText(9.97)).toBe('10s')
-    expect(secondsText(0)).toBe('0s')
+    // A figure is rounded before it is worded: no "1000 ms", no "10.0 s".
+    expect(secondsText(0.998)).toBe('1.0 s')
+    expect(secondsText(9.97)).toBe('10 s')
+    expect(secondsText(0)).toBe('0 ms')
+    // Up to 99 s the words are the very ones the tails of tails.ts are said in.
+    for (const seconds of [
+      0,
+      0.004,
+      0.047,
+      0.25,
+      0.998,
+      1,
+      3.46,
+      9.94,
+      9.97,
+      24.4,
+      99.4,
+      Infinity,
+    ]) {
+      expect(secondsText(seconds), String(seconds)).toBe(tailSecondsText(seconds))
+    }
     // Past 99 s a loop falls as slowly as the least thing left out of the sum lets it.
-    expect(secondsText(1608)).toBe('>99s')
+    expect(secondsText(1608)).toBe('>99 s')
+    expect(secondsText(99.5)).toBe('>99 s')
+  })
+
+  it('says seconds under a scale in few letters, with a space before the unit', () => {
+    expect(scaleText(0.05)).toBe('0.05 s')
+    expect(scaleText(0.2)).toBe('0.2 s')
+    expect(scaleText(1)).toBe('1 s')
+    expect(scaleText(1.5)).toBe('1.5 s')
+    expect(scaleText(20)).toBe('20 s')
+  })
+
+  it('writes no time with its unit run on to the figure, on a scale or beside a tail', () => {
+    for (const id of [...ROOMS, ...STRIPS]) {
+      const { display, params } = plate(id)
+      const settings: Record<string, number>[] = [{}]
+      for (const [name, spec] of Object.entries(params)) {
+        settings.push({ [name]: spec.min }, { [name]: spec.max })
+      }
+      const written = new Set<string>()
+      for (const values of settings) {
+        // At rest, and with the point of the start in hand, when the gap is said in its place.
+        for (const hot of [null, 'start', 'damping']) {
+          for (const word of drawDisplay(display, params, { values, hot }).words())
+            written.add(word)
+        }
+      }
+      const times = [...written].filter((word) => /\d\s*m?s$/.test(word))
+      expect(times.length, id).toBeGreaterThan(2)
+      expect(
+        times.filter((word) => !/\d (ms|s)$/.test(word)),
+        id,
+      ).toEqual([])
+    }
   })
 
   it('reads the tail in the body of a sound and at the top of its spectrum', () => {
@@ -176,6 +230,9 @@ describe('what the reverbs share', () => {
     // And back: the fall through each of those points is the fall it was.
     expect(fallThrough(TAIL, 8, 0.5, TAIL.x + (1.5 / 8) * TAIL.w, yIn(TAIL, -30))).toBeCloseTo(2, 9)
     expect(fallThrough(TAIL, 8, 0.5, x, y)).toBeCloseTo(16, 9)
+    // From that edge a hand that goes on to the right draws the fall out further, and to the left in.
+    expect(fallThrough(TAIL, 8, 0.5, x + 25, y)).toBeGreaterThan(16.5)
+    expect(fallThrough(TAIL, 8, 0.5, x - 25, y)).toBeLessThan(15.5)
     // A room that is held has no end: its handle waits in the corner.
     expect(fallPoint(TAIL, 8, 0.5, Infinity, -60)).toEqual([TAIL.x + TAIL.w, TAIL.y])
   })
@@ -293,7 +350,7 @@ describe('plate reverb', () => {
   it('writes that time and draws a tail that long', () => {
     const { display, params } = plate('plate-reverb')
     const drawn = drawDisplay(display, params, { values: { decay: 0.7, damping: 0.3 } })
-    expect(drawn.words()).toContain('3.9s')
+    expect(drawn.words()).toContain('3.9 s')
     // The tail starts at the top when the plate first sounds (the pre-delay, and its first
     // tap 266 samples along a first delay at the tank's 29761 Hz) and is at the foot
     // 3.949 s later, on a box that spans 8 s.
@@ -318,10 +375,47 @@ describe('plate reverb', () => {
     expect(end.x).toBeCloseTo(TAIL.x + TAIL.w, 6)
     expect(end.y).toBeGreaterThan(TAIL.y + 5)
     expect(end.y).toBeLessThan(TAIL.y + TAIL.h / 2)
-    expect(drawDisplay(display, params, { values: { decay: 0.95 } }).words()).toContain('27s')
+    expect(drawDisplay(display, params, { values: { decay: 0.95 } }).words()).toContain('27 s')
     // The device holds Decay under 0.9999, where what is left to lose it is the damping alone.
-    expect(drawDisplay(display, params, { values: { decay: 1 } }).words()).toContain('>99s')
-    expect(drawDisplay(display, params, { values: { decay: 0 } }).words()).toContain('0s')
+    expect(drawDisplay(display, params, { values: { decay: 1 } }).words()).toContain('>99 s')
+    expect(drawDisplay(display, params, { values: { decay: 0 } }).words()).toContain('0 ms')
+  })
+
+  it('sets the figure on a patch of the plate where it stands at the foot, with the lines of the tail running through', () => {
+    const { display, params } = plate('plate-reverb')
+    // Decay 1: the tail runs out through the corner, so the figure goes to the foot,
+    // where the line of the highs comes down through it.
+    const long = drawDisplay(display, params, { values: { decay: 1 } })
+    const patch = patchUnder(long, '>99 s', PLAIN_COLOURS.plate)
+    expect(patch).not.toBeNull()
+    if (!patch) return
+    const at = long.calls.findIndex((call) => call.name === 'fillText' && call.args[0] === '>99 s')
+    const [, right, baseline] = long.calls[at].args as [string, number, number]
+    expect(baseline).toBeCloseTo(TAIL.y + TAIL.h - 3, 6)
+    // The patch holds the whole of the figure, and keeps inside the tail's part.
+    expect(patch.x + patch.w).toBeGreaterThanOrEqual(right)
+    expect(patch.x).toBeLessThanOrEqual(right - '>99 s'.length * 5)
+    expect(patch.y).toBeLessThanOrEqual(baseline - 9)
+    expect(patch.y + patch.h).toBeGreaterThan(baseline)
+    expect(patch.y).toBeGreaterThan(TAIL.y)
+    expect(patch.y + patch.h).toBeLessThanOrEqual(TAIL.y + TAIL.h)
+    // The line of the highs does come down through it: by the patch's right end the line is
+    // under its top, and at its left end still over its foot.
+    const top = take(handlesOf('plate-reverb', { decay: 1 }), 'damping')
+    const onset = params.predelayMs.default / 1000 + 266 / 29761
+    const highs = plateRt60(1, params.damping.default, TOP_HZ, RATE)
+    const yAt = (x: number): number =>
+      TAIL.y + ((((x - TAIL.x) / TAIL.w) * 8 - onset) / highs) * TAIL.h
+    expect(yAt(top.x)).toBeCloseTo(top.y, 3)
+    expect(yAt(patch.x + patch.w)).toBeGreaterThan(patch.y)
+    expect(yAt(patch.x)).toBeLessThan(patch.y + patch.h)
+    // It is laid before the points, so it never lies over one of them.
+    expect(long.calls.slice(0, at).filter((call) => call.name === 'arc')).toEqual([])
+    expect(long.calls.slice(at).filter((call) => call.name === 'arc')).toHaveLength(3)
+    // In the corner over a tail that ends, nothing runs through it: no patch there.
+    const short = drawDisplay(display, params, { values: { decay: 0.7 } })
+    expect(short.words().at(-1)).toBe('3.9 s')
+    expect(patchUnder(short, '3.9 s', PLAIN_COLOURS.plate)).toBeNull()
   })
 
   it('starts the reverb after the pre-delay at the level of the mix', () => {
@@ -474,8 +568,8 @@ describe('hall reverb', () => {
     expect(hallRt60(1095, 200, 4, 4, 6000, RATE)).toBeCloseTo(4.04, 1)
     expect(hallRt60(1095, 200, 8, 8, 6000, RATE)).toBeCloseTo(8.14, 1)
     expect(hallRt60(50, 200, 3, 2, 6000, RATE)).toBeCloseTo(3.1, 1)
-    expect(drawDisplay(display, params).words()).toContain('2s')
-    expect(drawDisplay(display, params, { values: { midDecay: 4 } }).words()).toContain('4s')
+    expect(drawDisplay(display, params).words()).toContain('2.0 s')
+    expect(drawDisplay(display, params, { values: { midDecay: 4 } }).words()).toContain('4.0 s')
   })
 
   it('starts its reverb after the pre-delay and its shortest allpass, 7 dB under the mix', () => {
@@ -491,8 +585,8 @@ describe('hall reverb', () => {
     const longer = drawDisplay(display, params, { values: { lowDecay: 8, midDecay: 2 } })
     expect(longer.print()).not.toBe(same.print())
     // The lows hold the mids up a little too: at 1095 Hz the shelf at 200 Hz is not all gone.
-    expect(same.words().at(-1)).toBe('2s')
-    expect(longer.words().at(-1)).toBe('2.1s')
+    expect(same.words().at(-1)).toBe('2.0 s')
+    expect(longer.words().at(-1)).toBe('2.1 s')
     // Low decay 8 at 50 Hz, a quarter of Crossover: 1.06 · 7.4 s, out at the right edge of 6 s.
     const lows = hallRt60(50, 200, 8, 2, 6000, RATE)
     expect(lows).toBeGreaterThan(7)
@@ -532,7 +626,53 @@ describe('ether reverb', () => {
       etherRt60(5, 0.6, 0.5, false, BODY_HZ, RATE),
     )
     const { display, params } = plate('ether-reverb')
-    expect(drawDisplay(display, params).words()).toContain('1.8s')
+    expect(drawDisplay(display, params).words()).toContain('1.8 s')
+  })
+
+  it('gives Decay no unit: it is an amount on top of Size, and the display says the time', () => {
+    const { display, params } = plate('ether-reverb')
+    const decay = params.decay
+    expect(decay.unit).toBe('')
+    expect([decay.min, decay.max, decay.default, decay.taper]).toEqual([0.5, 30, 5, 'log'])
+    // The knob prints a bare figure, and its words say what the figure is not.
+    expect(formatParamValue(decay, decay.default)).toBe('5.00')
+    expect(decay.description).toMatch(/^An amount, not a time/)
+    expect(decay.description).toMatch(/on top of what Size sets/)
+    // The time is the display's to say: at Decay 5 the tail takes 1.8 s, and at Size 0, where the
+    // room is 0.3 · 4.5 / 29.5 = 0.0458 and the feedback 0.7128, 0.68 s.
+    expect(drawDisplay(display, params).words().at(-1)).toBe('1.8 s')
+    expect(
+      drawDisplay(display, params, { values: { size: 0 } })
+        .words()
+        .at(-1),
+    ).toBe('680 ms')
+  })
+
+  it('leaves Decay where it is under a drag when Size is full up and Decay cannot move the tail', () => {
+    const { params } = plate('ether-reverb')
+    const { min, max } = params.decay
+    // Size 1: the law holds the room at 1 whatever Decay adds, so from one end of Decay to
+    // the other the tail's end moves by less than a pixel.
+    const far = [min, max].map((decay) =>
+      take(handlesOf('ether-reverb', { size: 1, decay }), 'decay'),
+    )
+    expect(Math.hypot(far[1].x - far[0].x, far[1].y - far[0].y)).toBeLessThan(1)
+    for (const decay of [min, 5, 12, max]) {
+      const end = take(handlesOf('ether-reverb', { size: 1, decay }), 'decay')
+      for (const [x, y] of [
+        [end.x, end.y],
+        [end.x - 30, end.y],
+        [end.x + 5, end.y - 12],
+        [TAIL.x, TAIL.y + TAIL.h],
+        [TAIL.x + TAIL.w, TAIL.y],
+      ]) {
+        expect(end.drag(x, y), `Decay ${decay} dragged to ${x}, ${y}`).toEqual({ decay })
+      }
+    }
+    // Where Decay does move the tail, a drag sets it as before.
+    const free = take(handlesOf('ether-reverb', { size: 0.3 }), 'decay')
+    expect(free.drag(free.x + 20, free.y).decay).toBeGreaterThan(8)
+    expect(free.drag(free.x - 20, free.y).decay).toBe(min)
   })
 
   it('answers with every comb through every way of its allpasses', () => {
@@ -553,7 +693,7 @@ describe('ether reverb', () => {
     const { display, params } = plate('ether-reverb')
     const held = drawDisplay(display, params, { values: { freeze: 1 } })
     expect(held.words()).toContain('∞')
-    expect(held.words()).not.toContain('1.8s')
+    expect(held.words()).not.toContain('1.8 s')
     // The tail runs level at the top, right across its box.
     const level = pointsOf(held).filter(([, y]) => Math.abs(y - TAIL.y) < 0.01)
     expect(Math.max(...level.map(([x]) => x))).toBeCloseTo(TAIL.x + TAIL.w, 3)
@@ -599,7 +739,7 @@ describe('spring reverb', () => {
     // At 500 Hz, where the figure is read: 2.42 s. Measured on the device: 2.42 to 2.45 s.
     expect(springRt60(2.5, 0.5, BODY_HZ, RATE)).toBeCloseTo(2.42, 2)
     const { display, params } = plate('spring-reverb')
-    expect(drawDisplay(display, params).words()).toContain('2.4s')
+    expect(drawDisplay(display, params).words()).toContain('2.4 s')
   })
 
   it('lifts the trailing highs with Drip', () => {
@@ -663,7 +803,7 @@ describe('convolver reverb', () => {
   it('writes the time it takes to fall 60 dB and draws that curve', () => {
     const { display, params } = plate('convolver-reverb')
     const drawn = drawDisplay(display, params)
-    expect(drawn.words()).toContain('2.4s')
+    expect(drawn.words()).toContain('2.4 s')
     // Every point of the curve is the envelope under the wet level, on a box that spans 3 s.
     const wet = 20 * Math.log10(params.wet.default)
     const curve = pointsOf(drawn).filter(([x, y]) => {
@@ -818,7 +958,7 @@ describe('shaped reverb', () => {
     expect(start.x).toBeCloseTo(xOf(from), 3)
     expect(start.y).toBeCloseTo(yOfDb(wet), 3)
     const { display, params } = plate('shaped-reverb')
-    expect(drawDisplay(display, params, { values: plain }).words()).toContain('0.9s')
+    expect(drawDisplay(display, params, { values: plain }).words()).toContain('900 ms')
   })
 
   it('draws a gate as a level that stops dead', () => {
@@ -1190,11 +1330,11 @@ describe('at another sample rate', () => {
     expect(fdnRt60(5, 0.4, 1, BODY_HZ, 44100)).toBeCloseTo(fdnRt60(5, 0.4, 1, BODY_HZ, RATE), 1)
     expect(plateRt60(0.7, 0.3, TOP_HZ, 44100)).toBeCloseTo(2.55, 1)
     for (const [id, words] of [
-      ['plate-reverb', '3.9s'],
-      ['fdn-reverb', '4.9s'],
-      ['hall-reverb', '2s'],
-      ['ether-reverb', '1.8s'],
-      ['spring-reverb', '2.4s'],
+      ['plate-reverb', '3.9 s'],
+      ['fdn-reverb', '4.9 s'],
+      ['hall-reverb', '2.0 s'],
+      ['ether-reverb', '1.8 s'],
+      ['spring-reverb', '2.4 s'],
     ]) {
       expect(drawAt(id, 44100).words(), id).toContain(words)
     }

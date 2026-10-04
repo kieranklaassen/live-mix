@@ -213,6 +213,14 @@ const REPEAT_FLOOR = 0.04
 const REPEAT_PASSES = 24
 
 /**
+ * What Mix lets through of the voices, as a gain: `PitchShifter::process` in
+ * `pitch_shifter.h` mixes at equal power, the sound that went in by the
+ * cosine of a quarter turn of Mix and the voices by its sine.
+ */
+const shiftWetGain = (view: DisplayView): number =>
+  Math.sin(0.5 * Math.PI * clamp(view.value('mix'), 0, 1))
+
+/**
  * Where the two voices stand: `pitch_shifter.h` pushes A sharp and B flat by
  * Detune, and holds the ratio between a quarter and four, two octaves either
  * way, so Detune takes a voice no further than the end of the ruler.
@@ -347,9 +355,9 @@ const SHIFT_LIGHT_ALPHA = 0.55
 
 const pitchShifter = plateDisplay<{ lit: number }>({
   place: 'strip',
-  params: ['pitchA', 'pitchB', 'levelB', 'detune', 'feedback', 'mode', 'jitter'],
+  params: ['pitchA', 'pitchB', 'levelB', 'detune', 'feedback', 'mode', 'jitter', 'mix'],
   live: { signal: true },
-  info: 'A ruler in semitones: the sound going in stands at 0, voices A and B at their intervals, B as tall as its level. A light at 0 and under each voice rises and falls with the sound. The thin marks are what Feedback adds, every repeat shifted again. Drag A or B along the ruler, and B up or down.',
+  info: 'A ruler in semitones: the sound going in at 0, voices A and B at their intervals, B as tall as its level. A light at 0 follows the sound, and one under each voice what Mix lets through of it. The thin marks are what Feedback adds, every repeat shifted again. Drag A or B along it, and B up or down.',
   init: () => ({ lit: 0 }),
   draw(frame) {
     const { ctx, colours, state } = frame
@@ -360,13 +368,16 @@ const pitchShifter = plateDisplay<{ lit: number }>({
     const perSt = ruler.w / (2 * SHIFT_RANGE)
 
     // The sound itself: a light where it goes in and where each voice sends
-    // it, as tall as the voice's level when the sound is at full scale.
+    // it. With the sound at full scale the one at 0 is whole, and a voice's
+    // is as tall as what Mix lets through of the voice's level: at Mix 0
+    // nothing of a voice is heard, and it has no light.
     state.lit = litBy(frame, state.lit)
     if (state.lit > 0) {
+      const wet = shiftWetGain(frame)
       const lights: [number, number, string][] = [
         [0, 1, colours.ink],
-        [b, levelB, colours.accent],
-        [a, 1, colours.accent],
+        [b, levelB * wet, colours.accent],
+        [a, wet, colours.accent],
       ]
       for (const [st, level, colour] of lights) {
         const top = yOfLevel(level * state.lit, ruler)
@@ -547,21 +558,74 @@ function octaveReach(octave: number, hz: number, bankRate: number): number {
   return 1
 }
 
+/** `kStrike` of `OctaveBank.h`: the sound as a whole has just jumped when its peak is this many times the one before. */
+const OCTAVE_STRIKE = 1.4
+/** `OctaveBank::set_attack`: an Attack no longer than this is off. */
+const OCTAVE_ATTACK_OFF_SEC = 0.0005
+/** And a voice closes on its level by e to the minus this in the Attack time: nine tenths of the way. */
+const OCTAVE_ATTACK_RATE = 2.3026
+
 interface OctaveState {
   /** The loudest partial the device heard last, Hz; 0 until there has been one. */
   note: number
-  /** How much of each voice the sound going in lights now, 0..1. */
+  /** How much of the dry sound the sound going in lights now, 0..1. */
   lit: number
+  /** How much of an octave voice it lights, 0..1: less than `lit` while Attack holds the voice back. */
+  voiced: number
+  /** The level a voice is allowed, as a gain: `slow_` of `OctaveBank`, kept here for the sound as a whole. */
+  allowed: number
+  /** The level and the peak going in on the frame before, to tell a new note by. */
+  level: number
+  peak: number
   curve: Spot[]
+}
+
+/**
+ * How much of an octave voice the sound going in lights now, 0..1: the level
+ * on the scale of `litBy`, under the ceiling Attack sets, ported from
+ * `OctaveBank::tick` (`OctaveBankImpl.h`). There a channel's voices play at
+ * the smaller of its level and `slow_`, which rises towards the level by
+ * `attack_coeff_` a tick (nine tenths of the way in the Attack time), does
+ * not follow the level down, and is taken down only by a new note, to what
+ * the channel held before it. The display has the sound as a whole and not
+ * its channels, so a new note is the bank's own strike: a peak `kStrike`
+ * times the one before. Without a reading the ceiling stays where it is:
+ * the device plays on while its plate is off or out of sight.
+ */
+function octaveVoiceLit(frame: DisplayFrame<OctaveState>): number {
+  const { state } = frame
+  const heard = frame.powered && frame.signal ? (frame.signal.input ?? frame.signal.output) : null
+  if (!heard) return 0
+  const level = heard.rms
+  const attack = frame.value('attack')
+  if (!(attack > OCTAVE_ATTACK_OFF_SEC)) {
+    // No ceiling. When Attack is turned up, what sounds stays as it is (`attack_fresh_`).
+    state.allowed = level
+  } else {
+    if (heard.peak > OCTAVE_STRIKE * state.peak && state.allowed > state.level)
+      state.allowed = state.level
+    if (level > state.allowed && frame.dt > 0)
+      state.allowed +=
+        (1 - Math.exp((-frame.dt * OCTAVE_ATTACK_RATE) / attack)) * (level - state.allowed)
+  }
+  state.level = level
+  state.peak = heard.peak
+  const now = clamp(1 - gainToDb(Math.min(level, state.allowed)) / LIT_FLOOR_DB, 0, 1)
+  // A first frame, with no time gone by, shows the voice as it is.
+  return frame.dt > 0 ? follow(state.voiced, now, frame.dt, 0.02, 0.3) : now
 }
 
 const octaves = plateDisplay<OctaveState>({
   place: 'window',
   columns: 2,
+  // Attack shows only in how fast the light inside a voice rises while a note
+  // sounds. The shared test runs a display with no reading from the device,
+  // where no voice is lit, and would not see it follow, so Attack is read
+  // without being one of `params`; a display that runs is drawn on every frame.
   params: ['sub2', 'sub1', 'dry', 'up1', 'up2', 'filter', 'resonance'],
   live: { meters: true, signal: true },
-  info: 'Five bars, your own sound and its octaves from two down to two up, each as tall as its level: drag a bar to set it. The second colour is what the loudest note gets of each voice, and the meter inside it rises and falls with the sound. The line is the filter on the voices.',
-  init: () => ({ note: 0, lit: 0, curve: [] }),
+  info: "Five bars, your own sound and its octaves from two down to two up, each as tall as its level: drag a bar to set it. The second colour is what the loudest note gets of each voice, and the meter inside it follows the sound, a voice's as fast as Attack allows. The line is the filter on the voices.",
+  init: () => ({ note: 0, lit: 0, voiced: 0, allowed: 0, level: 0, peak: 0, curve: [] }),
   draw(frame) {
     const { ctx, colours, state } = frame
     ground(frame)
@@ -580,6 +644,7 @@ const octaves = plateDisplay<OctaveState>({
     // The bars stand an octave apart about that partial; before one is heard, about an example.
     const note = state.note > 0 ? state.note : OCTAVE_REST_HZ
     state.lit = litBy(frame, state.lit)
+    state.voiced = octaveVoiceLit(frame)
     rule(ctx, box.x, base, box.x + box.w, base, { colour: colours.ink, alpha: INK.rule })
 
     // The low pass on the voices (`octaves.h`): Resonance takes Q from √½ to 9.
@@ -604,7 +669,9 @@ const octaves = plateDisplay<OctaveState>({
       const top = yOfOctaveLevel(level, layout)
       // What is set, in the ink; in the second ink, pale, what the partial
       // heard gets of it after the filter and the ends of the voice's range;
-      // and solid, as much of that as the sound going in lights now.
+      // and solid, as much of that as the sound going in lights now: the dry
+      // sound at once, an octave voice as Attack lets it rise (`octaves.h`
+      // passes the dry sound by the bank).
       fillRect(ctx, { x, y: top, w: wide, h: base - top }, colours.ink, INK.fill * 1.5)
       if (heard) {
         const hz = note * 2 ** octave
@@ -618,7 +685,7 @@ const octaves = plateDisplay<OctaveState>({
           colours.accent,
           whole ? LIT_ALPHA : SET_ALPHA,
         )
-        const now = yOfOctaveLevel(gets * state.lit, layout)
+        const now = yOfOctaveLevel(gets * (octave === 0 ? state.lit : state.voiced), layout)
         if (!whole && base - now >= 0.5) {
           fillRect(ctx, { x, y: now, w: wide, h: base - now }, colours.accent, LIT_ALPHA)
         }
@@ -1042,6 +1109,24 @@ const xOfShiftHz = (hz: number, layout: HertzLayout): number =>
 const yOfPartial = (gain: number, layout: HertzLayout): number =>
   layout.base - clamp(gain, 0, 1.25) * PARTIAL_HEIGHT * (layout.base - layout.box.y)
 
+/**
+ * The shift the sound gets, as it is printed. `hz` is the carrier's frequency
+ * (Shift, Fine and the LFO), and `kDirection` of `freq_shifter.h` says which
+ * way a mode sends the sound by it: Up by `hz`, Down by as much the other
+ * way, so the sign printed is the one heard and not the knob's. Stereo sends
+ * the left side one way and the right the other, and Ring both sides both
+ * ways (`wet = I cos + d Q sin` with d 0, where the carrier's sign is lost):
+ * "±" and the size.
+ */
+function shiftWords(hz: number, mode: number): string {
+  const size = Math.abs(hz)
+  const digits = size < 10 ? (size < 1 ? 2 : 1) : 0
+  const [left, right] = SHIFT_DIRECTION[mode]
+  if (left === right && left !== 0) return `${signed(left * hz, digits)} Hz`
+  const figures = size.toFixed(digits)
+  return `${Number(figures) === 0 ? '' : '±'}${figures} Hz`
+}
+
 /** How tall a partial comes out of one pass: in Ring it is two sidebands of √½ each (`freq_shifter.h`). */
 const sidebandLevel = (view: DisplayView): number =>
   clamp(Math.round(view.value('mode')), 0, 3) === 3 ? Math.SQRT1_2 : 1
@@ -1256,8 +1341,7 @@ const freqShifter = plateDisplay<HertzState>({
     // beat of the shifted sound against the dry. The mark is drawn as long as
     // the way it went in one frame, so a fast shift is a ring. The smaller
     // mark is the right side, which Width turns out of step.
-    const words = `${signed(hz, Math.abs(hz) < 10 ? (Math.abs(hz) < 1 ? 2 : 1) : 0)} Hz`
-    text(frame, words, box.x + box.w, box.y + 7, { align: 'right' })
+    text(frame, shiftWords(hz, mode), box.x + box.w, box.y + 7, { align: 'right' })
     const radius = 5.5
     ctx.beginPath()
     ctx.arc(layout.dialX, layout.dialY, radius, 0, Math.PI * 2)
@@ -1319,6 +1403,8 @@ const ROLE_OFF = 0
 /** The lattice covers the notes from 24 semitones above the lowest root: every Center Note is on it. */
 const LATTICE_FOOT_CENTS = 2400
 const LATTICE_SPAN_CENTS = 7200
+/** A pitch less than this under a root is drawn on the root: half a pixel of the lattice on a plate at rest. */
+const LATTICE_ROOT_REACH_CENTS = 5
 /** A repeat quieter than this is not drawn. */
 const ECHO_FLOOR = 0.1
 /** The width a letter of a note's name takes, in pixels at the type's size of 8. */
@@ -1436,17 +1522,23 @@ function latticeLayout(view: Size, scale: LatticeScale): LatticeLayout {
   return { box, first, rows, rowHeight: box.h / rows, x: box.x + 6, w: box.w - 8 }
 }
 
-/** Where a pitch stands: across by its place in the period, up by the period it is in. */
+/**
+ * Where a pitch stands: across by its place in the period, up by the period
+ * it is in. A pitch a hair under a root is that root's: the note tracked and
+ * a voice sent to a root come as readings a fraction of a cent to either
+ * side of it, and the root is the first node of its own row, not a place
+ * past the last step of the row below.
+ */
 function latticePlace(
   cents: number,
   scale: LatticeScale,
   layout: LatticeLayout,
 ): { x: number; y: number; row: number } {
   const rel = cents - scale.root
-  const period = Math.floor(rel / scale.period)
+  const period = Math.floor((rel + LATTICE_ROOT_REACH_CENTS) / scale.period)
   const row = period - layout.first
   return {
-    x: layout.x + ((rel - period * scale.period) / scale.period) * layout.w,
+    x: layout.x + (Math.max(0, rel - period * scale.period) / scale.period) * layout.w,
     y: layout.box.y + layout.box.h - (row + 0.5) * layout.rowHeight,
     row,
   }
@@ -1471,11 +1563,20 @@ function latticeDegreeAt(x: number, y: number, scale: LatticeScale, layout: Latt
   return (layout.first + row) * scale.degrees.length + nearest
 }
 
+/**
+ * The step the Center Note stands on. The device takes the note whole
+ * (`to_int` in `Lattice::recompute_targets`, `lattice.h`, rounds a half up)
+ * and then the step nearest to it, so a Center Note set between two notes is
+ * the whole note it rounds to.
+ */
+const centreDegree = (view: DisplayView, scale: LatticeScale): number =>
+  nearestDegree(scale, Math.floor(view.value('center') + 0.5) * 100)
+
 function latticeHandles(view: DisplayView): DisplayHandle[] {
   const scale = latticeScale(view)
   const layout = latticeLayout(view, scale)
   const centre = view.value('center')
-  const degree = nearestDegree(scale, centre * 100)
+  const degree = centreDegree(view, scale)
   const place = latticePlace(degreeCents(scale, degree), scale, layout)
   return [
     {
@@ -1586,7 +1687,7 @@ const lattice = plateDisplay<LatticeState>({
     // The note played: what the device tracked last, held while nothing
     // pitched comes in. Before any note, the picture is drawn for a note two
     // steps above the Center Note, in outline.
-    const centre = nearestDegree(scale, frame.value('center') * 100)
+    const centre = centreDegree(frame, scale)
     const reading = frame.meter('note')
     const tracked = frame.hasMeter('note') && Number.isFinite(reading) && reading > 0
     const sounding = tracked && frame.powered && frame.meter('voiced') > 0.5
@@ -1820,20 +1921,26 @@ const spectralDrifter = plateDisplay<DriftState>({
 
     // The age, as `SpectralDrifterDevice::track_age` counts it: a second a
     // second while there is sound, up to twice Decay, and falling in silence.
+    // The device counts on whether or not its display is drawn with a
+    // reading: out of sight its sound goes on, and a plate that is switched
+    // off still runs (the worklet in `wasm-device.processor.ts` calls
+    // `device_process` on the sound going in and only crosses the output
+    // over to it). So a frame without a reading keeps the age it had, and
+    // the count goes on from there when the readings come back.
     let age = 0
     if (frame.value('ageMode') >= 0.5) {
       age = clamp(frame.value('age'), 0, 1)
-    } else if (frame.powered && frame.signal) {
-      const wave = (frame.signal.input ?? frame.signal.output).wave
-      let active = 0
-      for (const sample of wave) if (sample > DRIFT_ACTIVE || sample < -DRIFT_ACTIVE) active++
-      const share = wave.length > 0 ? active / wave.length : 0
-      state.age =
-        Math.min(longest, state.age + share * frame.dt) *
-        Math.exp((-(1 - share) * frame.dt) / DRIFT_FALL_SEC)
-      age = clamp(state.age / longest, 0, 1)
     } else {
-      state.age = 0
+      if (frame.powered && frame.signal) {
+        const wave = (frame.signal.input ?? frame.signal.output).wave
+        let active = 0
+        for (const sample of wave) if (sample > DRIFT_ACTIVE || sample < -DRIFT_ACTIVE) active++
+        const share = wave.length > 0 ? active / wave.length : 0
+        state.age =
+          Math.min(longest, state.age + share * frame.dt) *
+          Math.exp((-(1 - share) * frame.dt) / DRIFT_FALL_SEC)
+      }
+      age = clamp(state.age / longest, 0, 1)
     }
     // `intensityFactor`: Bloom, from three tenths of it for a fresh sound to all of it for an old one.
     const drift = (at: number): number => bloom * (0.3 + 0.7 * at)

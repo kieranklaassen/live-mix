@@ -97,18 +97,19 @@ function put(points: Point[], index: number, x: number, y: number): void {
  * A time as it is said: "320 ms", "5.0 s", "24 s", "2.7 min", and "∞" for
  * a tail that does not end. Under a second it is said to the hundredth,
  * which is as near as a tail's length is known when the sound that set it
- * off has a length of its own. `rough` is for a figure good to a twentieth,
- * said in steps no finer than that: tenths of a second up to two seconds,
- * whole seconds up to ten, every other second up to 25 and every fifth from
- * there.
+ * off has a length of its own, and from there to ten seconds to the tenth,
+ * as every display of a tail says it. `rough` is for a figure good to a
+ * twentieth: under a second it is said to the tenth, and from ten seconds
+ * in steps no finer than it is known, every other second up to 25 and every
+ * fifth from there.
  */
 export function secondsText(sec: number, rough = false): string {
   if (!Number.isFinite(sec)) return '∞'
   if (sec >= 99.5) return `${(sec / 60).toFixed(1)} min`
   const ms = rough ? Math.round(sec * 10) * 100 : Math.round(sec * 100) * 10
   if (ms < 1000) return `${ms} ms`
-  if (sec < (rough ? 1.95 : 9.95)) return `${sec.toFixed(1)} s`
-  const step = !rough || sec < 9.5 ? 1 : sec < 25 ? 2 : 5
+  if (sec < 9.95) return `${sec.toFixed(1)} s`
+  const step = !rough ? 1 : sec < 25 ? 2 : 5
   return `${Math.round(sec / step) * step} s`
 }
 
@@ -382,10 +383,14 @@ function tailPoints(out: Point[], tail: Tail, box: Box, span: number): void {
   out.length = count
 }
 
-/** A point of the tail's panel as a time and a level: the level kept between the foot and just under the top. */
+/**
+ * A point of the tail's panel as a time and a level: the level kept between
+ * the foot and just under the top. Past the right edge the time goes on, so
+ * an end that stands on that edge is drawn out by going on to the right.
+ */
 function tailPoint(box: Box, span: number, x: number, y: number): { sec: number; db: number } {
   return {
-    sec: clamp((x - box.x) / box.w, 0, 1) * span,
+    sec: Math.max(0, (x - box.x) / box.w) * span,
     db: clamp(dbOfY(y, box, TOP_DB, FOOT_DB), FOOT_DB, -0.25),
   }
 }
@@ -460,9 +465,13 @@ export function fallEnd(box: Box, span: number, rt60: number, from = 0): Point {
   return [box.x + box.w, yOfLevel((-60 * (span - from)) / Math.max(rt60, 1e-3), box)]
 }
 
-/** The time to fall 60 dB of the straight fall from (`from`, 0 dB) through a point of the panel. */
+/**
+ * The time to fall 60 dB of the straight fall from (`from`, 0 dB) through a
+ * point of the panel. A point past the panel's right edge is a later time
+ * still: an end that stands on that edge is drawn out by going on to the right.
+ */
 export function fallThrough(box: Box, span: number, x: number, y: number, from = 0): number {
-  const sec = Math.max(0.01, clamp((x - box.x) / box.w, 0, 1) * span - from)
+  const sec = Math.max(0.01, Math.max(0, (x - box.x) / box.w) * span - from)
   const db = clamp(dbOfY(y, box, TOP_DB, FOOT_DB), FOOT_DB, -0.01)
   return (-60 * sec) / db
 }
@@ -511,12 +520,18 @@ function newHeard(span: number): Heard {
  * a hit, a note, a chord struck. A drone that only goes on begins once.
  * Where the plate does not know what feeds the device, what comes out stands
  * in for the beginnings, and nothing is kept of what went in.
+ *
+ * A level nothing is heard at is kept as silence. The plate stops a display
+ * once the sound has been under 80 dB below full scale for `live.settle`
+ * seconds and leaves its last frame standing, and a sound that fades goes on
+ * a long way under that: kept as sound, the last of the fade was lit against
+ * itself once the louder part had left the panel, and stayed lit for good.
  */
 function hear(frame: DisplayFrame, heard: Heard): void {
   const signal = frame.signal
   if (!signal) return
   const going = gainToDb((signal.input ?? signal.output).peak)
-  heard.went.push(frame.now, signal.input && frame.powered ? going : FLOOR_DB)
+  heard.went.push(frame.now, signal.input && frame.powered && going > QUIET_DB ? going : FLOOR_DB)
   if (going > QUIET_DB && going > heard.slow + ONSET_DB) {
     heard.since = frame.now
     heard.slow = going
@@ -542,18 +557,44 @@ function ringIn(heard: Heard, key: string, tail: Tail | null, span: number): voi
 }
 
 /**
+ * How long a display of a tail runs on in silence before the plate lets it
+ * stand still (`live.settle`): until the last sound that went in has left its
+ * panel, and a second more for the slot that sound was kept in. With less the
+ * plate stopped it while that sound still stood lit in the panel, and left it
+ * lit for good.
+ */
+const settleAfter = (span: number): number => span + 1
+
+/**
+ * What Mix lets through of the tail, in dB under the tail alone: the wet gain
+ * of `kit::equal_power` (`cpp/kit/math.h`), `sin(mix * pi / 2)`, which is how
+ * all six of these devices mix. At 0 nothing of the tail comes out.
+ */
+export function wetDb(mix: number): number {
+  return gainToDb(Math.sin((Math.PI / 2) * clamp(mix, 0, 1)))
+}
+
+/**
  * What rings in the tail now, in the accent: every sound that went in over
  * the panel's span, drawn where it has got to. A sound that went in `sec`
  * ago stands `sec` along, as far down as the tail has taken it by then, and
  * under that by what it was quieter than the loudest. So a hit slides down
- * the fall as it dies, and a drone lights the whole of it.
+ * the fall as it dies, and a drone lights the whole of it. `through` is what
+ * the device lets out of the tail, in dB under all of it: the lit part
+ * stands that much lower, and where nothing is let out nothing is lit.
  */
-function drawRinging(frame: DisplayFrame, heard: Heard, box: Box, span: number): void {
+function drawRinging(
+  frame: DisplayFrame,
+  heard: Heard,
+  box: Box,
+  span: number,
+  through: number,
+): void {
   if (!frame.signal || !frame.powered) return
   let most = FLOOR_DB
   for (let k = 0; k < HEARD_SLOTS; k++) most = Math.max(most, heard.went.at(k))
   heard.most = most >= heard.most ? most : follow(heard.most, most, frame.dt, 0, 0.4)
-  if (heard.most <= QUIET_DB) return
+  if (heard.most <= QUIET_DB || through <= FLOOR_DB) return
   // The newest slot is still filling: the rest stand that far on.
   const clock = (frame.now / span) * HEARD_SLOTS
   const part = clock - Math.floor(clock)
@@ -561,10 +602,11 @@ function drawRinging(frame: DisplayFrame, heard: Heard, box: Box, span: number):
   const foot = box.y + box.h
   let count = 0
   let any = false
-  put(points, count++, box.x, yOfLevel(heard.went.at(0) - heard.most + heard.fall[0], box))
+  const under = through - heard.most
+  put(points, count++, box.x, yOfLevel(heard.went.at(0) + under + heard.fall[0], box))
   for (let k = 0; k < HEARD_SLOTS; k++) {
     const down = heard.fall[k] + (heard.fall[k + 1] - heard.fall[k]) * part
-    const y = yOfLevel(heard.went.at(k) - heard.most + down, box)
+    const y = yOfLevel(heard.went.at(k) + under + down, box)
     if (y < foot - 0.75) any = true
     put(points, count++, box.x + ((k + part) / HEARD_SLOTS) * box.w, y)
   }
@@ -600,6 +642,8 @@ interface TailPicture {
   beside?: readonly Point[]
   /** The time to fall 60 dB, said. */
   said: string
+  /** What the device lets out of the tail, in dB under all of it: what rings is lit that much lower. */
+  through: number
 }
 
 /** The tail's panel: its scales, the fall the device is set to, the time said, and what rings in it. */
@@ -617,7 +661,7 @@ function drawTail(
   rule(ctx, box.x, foot, box.x + box.w, foot, { colour: colours.ink, alpha: INK.rule })
   const within: Box = { x: box.x, y: box.y - 2, w: box.w, h: box.h + 3 }
   clipped(ctx, within, () => fillTo(ctx, picture.curve, foot, colours.ink, INK.fill))
-  drawRinging(frame, heard, box, span)
+  drawRinging(frame, heard, box, span, picture.through)
   clipped(ctx, within, () => {
     if (picture.under) {
       fillTo(ctx, picture.under, foot, colours.ink, INK.fill)
@@ -636,10 +680,12 @@ function drawTail(
       return y + ((next[1] - y) * (corner - x)) / (next[0] - x) < under
     })
   const crowded = crowds(picture.curve) || (picture.beside ? crowds(picture.beside) : false)
+  // The sign for a tail without end is one low glyph, hard to read at the size of the figures.
+  const size = picture.said === '∞' ? 13 : 8
   if (crowded) {
-    text(frame, picture.said, box.x + 2, foot - 3, { size: 8 })
+    text(frame, picture.said, box.x + 2, foot - 3, { size })
   } else {
-    text(frame, picture.said, box.x + box.w - 1, box.y + 7, { align: 'right', size: 8 })
+    text(frame, picture.said, box.x + box.w - 1, box.y + 7, { align: 'right', size })
   }
 }
 
@@ -838,8 +884,8 @@ const bloomRange = (direction: number): [number, number] =>
 const bloom = plateDisplay<BloomState>({
   place: 'window',
   columns: 2,
-  params: ['bloom', 'direction', 'interval', 'decay'],
-  live: { meters: true, signal: true },
+  params: ['bloom', 'direction', 'interval', 'decay', 'mix'],
+  live: { meters: true, signal: true, settle: settleAfter(BLOOM_SPAN) },
   info: 'Above, the pitch of the tail against how long it has rung: it drifts towards the interval, the fainter lines went round and were shifted again, the mark is the pitch now. Below, the tail and the time it takes to fall 60 dB, lit where sounds now ring in it. Drag its end to set Decay.',
   init: () => ({ heard: newHeard(BLOOM_SPAN), made: '', lines: [], tail: [] }),
   draw(frame) {
@@ -927,7 +973,8 @@ const bloom = plateDisplay<BloomState>({
       frame,
       tail,
       BLOOM_SPAN,
-      { curve: state.tail, said: secondsText(falls.seconds) },
+      // `process()` of bloom_reverb.h: the wet gain of `kit::equal_power`, times a headroom Mix does not move.
+      { curve: state.tail, said: secondsText(falls.seconds), through: wetDb(frame.value('mix')) },
       state.heard,
     )
     for (const point of bloomHandles(frame)) {
@@ -1015,8 +1062,8 @@ export interface ShimmerLadder {
  * through Low Cut.
  *
  * Against the compiled device the time to fall 60 dB is within 6 % at
- * twelve settings of thirteen and 9 % out at the worst found (Size 0): it
- * is said in whole seconds.
+ * twelve settings of thirteen and 9 % out at the worst found (Size 0): from
+ * ten seconds up it is said in steps of two seconds or more.
  */
 export function shimmerLadder(
   settings: ShimmerSettings,
@@ -1140,8 +1187,8 @@ const shimmerRange = (ratio: number): [number, number] => (ratio > 1 ? [-1.5, 6.
 const shimmer = plateDisplay<ShimmerState>({
   place: 'window',
   columns: 2,
-  params: ['decay', 'shimmer', 'interval', 'size', 'tone', 'predelay', 'lowCut'],
-  live: { signal: true },
+  params: ['decay', 'shimmer', 'interval', 'size', 'tone', 'predelay', 'lowCut', 'mix'],
+  live: { signal: true, settle: settleAfter(SHIMMER_SPAN) },
   info: 'Above, pitch against time for one note, taken at 220 Hz: each streak is the tail one step higher, as thick as it is loud, until Tone, the dashed line, stops the climb. Below, all of it together and the time it takes to fall 60 dB. Drag the end of the straight line to set Decay.',
   init: () => ({
     heard: newHeard(SHIMMER_SPAN),
@@ -1253,6 +1300,8 @@ const shimmer = plateDisplay<ShimmerState>({
         curve: state.tail,
         beside: [[xOfSec(ladder.from, tail, SHIMMER_SPAN), tail.y], end],
         said: secondsText(ladder.rt60, true),
+        // `apply()` of shimmer.h: `kit::equal_power` of Mix, the wet gain on what the tank gives.
+        through: wetDb(frame.value('mix')),
       },
       state.heard,
     )
@@ -1648,8 +1697,8 @@ const expanseGraph = (own: Box): Box => ({ x: own.x, y: own.y + 10, w: own.w, h:
 const expanse = plateDisplay<ExpanseState>({
   place: 'window',
   columns: 2,
-  params: ['size', 'decay', 'gravity', 'density', 'freeze', 'lowCut', 'highCut', 'modDepth'],
-  live: { signal: true },
+  params: ['size', 'decay', 'gravity', 'density', 'freeze', 'lowCut', 'highCut', 'modDepth', 'mix'],
+  live: { signal: true, settle: settleAfter(EXPANSE_SPAN) },
   info: 'Above, how the space answers a sound over its first three Sizes: the first echo, the swell Gravity makes, the echoes Density runs together. Below, the tail and the time it takes to fall 60 dB, lit where sounds now ring in it, and level when frozen. Drag its end to set Decay.',
   init: () => ({ heard: newHeard(EXPANSE_SPAN), made: '', arrival: [], tail: [] }),
   draw(frame) {
@@ -1719,13 +1768,15 @@ const expanse = plateDisplay<ExpanseState>({
       [tail.x, tail.y],
       [tail.x + tail.w, tail.y],
     ]
+    // `apply()` of expanse.h: `kit::equal_power` of Mix, the wet gain on what the space gives.
+    const through = wetDb(frame.value('mix'))
     drawTail(
       frame,
       tail,
       EXPANSE_SPAN,
       frozen
-        ? { curve: level, beside: state.tail, said: 'held' }
-        : { curve: state.tail, said: secondsText(falls.seconds) },
+        ? { curve: level, beside: state.tail, said: 'held', through }
+        : { curve: state.tail, said: secondsText(falls.seconds), through },
       state.heard,
     )
     for (const point of expanseHandles(frame)) {
@@ -2023,8 +2074,8 @@ function swarmSize(frame: DisplayFrame, set: number): number {
 const swarm = plateDisplay<SwarmState>({
   place: 'window',
   columns: 2,
-  params: ['length', 'stretch', 'steps', 'blur', 'feedback', 'lowCut', 'highCut'],
-  live: { meters: true, signal: true },
+  params: ['length', 'stretch', 'steps', 'blur', 'feedback', 'lowCut', 'highCut', 'mix'],
+  live: { meters: true, signal: true, settle: settleAfter(SWARM_SPAN) },
   info: 'Above, the echoes one sound sets off, left side up and right side down: the swarm, then each trip round fainter by Feedback and run together by Blur. Drag the handle on top to stretch the cave. Below, the tail and the time it takes to fall 60 dB, its end the handle for Feedback.',
   init: () => ({
     heard: newHeard(SWARM_SPAN),
@@ -2108,7 +2159,8 @@ const swarm = plateDisplay<SwarmState>({
       frame,
       tail,
       SWARM_SPAN,
-      { curve: state.tail, said: secondsText(falls.seconds) },
+      // `apply()` of swarm_reverb.h: `kit::equal_power` of Mix, the wet gain on what the cave gives.
+      { curve: state.tail, said: secondsText(falls.seconds), through: wetDb(frame.value('mix')) },
       state.heard,
     )
     for (const point of swarmHandles(frame)) {
@@ -2325,8 +2377,8 @@ interface SympatheticState {
 const sympathetic = plateDisplay<SympatheticState>({
   place: 'window',
   columns: 2,
-  params: ['root', 'mode', 'strings', 'decay'],
-  live: { meters: true, signal: true },
+  params: ['root', 'mode', 'strings', 'decay', 'sympathy', 'mix'],
+  live: { meters: true, signal: true, settle: settleAfter(SYMPATHETIC_SPAN) },
   info: 'Above, the strings by pitch on the notes of their scale, each lit as high as it rings now, and the note last heard, which they move to. Drag the handle on the line to set Root. Below, the tail falling 60 dB in Decay, its end the handle, and the highest string where that dies sooner.',
   init: () => ({ heard: newHeard(SYMPATHETIC_SPAN), tail: [], under: [] }),
   draw(frame) {
@@ -2355,10 +2407,13 @@ const sympathetic = plateDisplay<SympatheticState>({
       })
     }
     const lit = frame.powered && frame.signal !== null
+    // `process()` of sympathetic.h: what the strings give comes out times the wet gain of
+    // `kit::equal_power` of Mix, so a string is lit as loud as it is heard, and at Mix 0 not at all.
+    const out = wetDb(frame.value('mix'))
     now.notes.forEach((note, index) => {
       const x = xOfNote(note, own, now)
       rule(ctx, x, top, x, line, { colour: colours.ink, alpha: INK.back })
-      const level = lit ? stringLevel(frame, index) : 0
+      const level = lit ? stringLevel(frame, index) + out : 0
       const share = clamp((level - (63 - STRING_RANGE_DB)) / STRING_RANGE_DB, 0, 1)
       if (share > 0) {
         rule(ctx, x, line, x, line - share * (line - top), {
@@ -2395,6 +2450,9 @@ const sympathetic = plateDisplay<SympatheticState>({
         curve: state.tail,
         under: highest < decay * 0.95 ? state.under : undefined,
         said: secondsText(decay),
+        // `process()` of sympathetic.h: the strings are driven by the sound times Sympathy, and
+        // what they give comes out times the wet gain of `kit::equal_power` of Mix.
+        through: wetDb(frame.value('mix')) + gainToDb(clamp(frame.value('sympathy'), 0, 1)),
       },
       state.heard,
     )
@@ -2859,9 +2917,16 @@ function vowelCurve(
   out.length = count
 }
 
-/** The part of the upper panel under the line of vowels, and where each vowel stands on that line. */
+/**
+ * The part of the upper panel under the line of vowels, and where each vowel
+ * stands on that line. The letters stand over the line with their feet clear
+ * of the handle that runs along it, the larger one it is under the pointer
+ * too: the chosen letter is read whole, with the handle right under it.
+ */
 function vowelLayout(view: Size): {
   curve: Box
+  /** The baseline of the letters. */
+  letters: number
   rail: number
   xOfVowel: (vowel: number) => number
   own: Box
@@ -2869,17 +2934,18 @@ function vowelLayout(view: Size): {
   between: number
 } {
   const { own, tail, between } = panels(view)
-  const rail = own.y + 11.5
-  const curve: Box = { x: own.x, y: own.y + 16, w: own.w, h: Math.max(4, own.h - 16) }
+  const letters = own.y + 7
+  const rail = own.y + 13.5
+  const curve: Box = { x: own.x, y: own.y + 18, w: own.w, h: Math.max(4, own.h - 18) }
   const xOfVowel = (vowel: number): number => own.x + 8 + (clamp(vowel, 0, 4) / 4) * (own.w - 16)
-  return { curve, rail, xOfVowel, own, tail, between }
+  return { curve, letters, rail, xOfVowel, own, tail, between }
 }
 
 const vowel = plateDisplay<VowelState>({
   place: 'window',
   columns: 2,
-  params: ['vowel', 'resonance', 'voice', 'decay', 'size', 'lowCut', 'highCut'],
-  live: { meters: true, signal: true, spectrum: true },
+  params: ['vowel', 'resonance', 'voice', 'decay', 'size', 'lowCut', 'highCut', 'mix'],
+  live: { meters: true, signal: true, spectrum: true, settle: settleAfter(VOWEL_SPAN) },
   info: 'Above, what the vowel does to the reverb over the frequencies, its formants as peaks, the vowel sung now in the accent. Drag the handle along A E I O U to choose it. Below, the tail and its time to fall 60 dB, its end the handle for Decay, and under it the sound between formants, which dies sooner.',
   init: () => ({
     heard: newHeard(VOWEL_SPAN),
@@ -2896,7 +2962,7 @@ const vowel = plateDisplay<VowelState>({
   draw(frame) {
     const { ctx, colours, state } = frame
     ground(frame)
-    const { curve, rail, xOfVowel, tail, between } = vowelLayout(frame)
+    const { curve, letters, rail, xOfVowel, tail, between } = vowelLayout(frame)
     const resonance = frame.value('resonance')
     const decay = frame.value('decay')
     const size = frame.value('size')
@@ -2935,7 +3001,7 @@ const vowel = plateDisplay<VowelState>({
 
     // Above: the line of vowels, then the colour over the sound.
     VOWEL_LETTERS.forEach((letter, index) => {
-      text(frame, letter, xOfVowel(index), rail - 4, {
+      text(frame, letter, xOfVowel(index), letters, {
         align: 'center',
         size: 8,
         alpha: Math.abs(set - index) < 0.5 ? 1 : INK.back,
@@ -3000,6 +3066,8 @@ const vowel = plateDisplay<VowelState>({
         curve: state.tail,
         under: state.valleys < state.whole * 0.95 ? state.under : undefined,
         said: secondsText(state.whole, true),
+        // `apply()` of vowel_reverb.h: `kit::equal_power` of Mix, the wet gain on what the reverb gives.
+        through: wetDb(frame.value('mix')),
       },
       state.heard,
     )

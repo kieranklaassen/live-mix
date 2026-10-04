@@ -25,9 +25,10 @@ export const ETHER_REVERB_PARAMS = {
     max: 30,
     default: 5,
     taper: 'log',
-    unit: 's',
+    // Not seconds: the law below turns it into a share of room size, so it has no unit.
+    unit: '',
     description:
-      'Lengthens the tail on top of what Size sets. Long settings also ease off the damping, so long tails stay brighter.',
+      'An amount, not a time: it lengthens the tail on top of what Size sets. Long settings also ease off the damping, so long tails stay brighter.',
   },
   damping: {
     id: 2,

@@ -8,6 +8,7 @@ import { loadWasmDevice } from '../../dsp/__tests__/wasm-device-harness'
 import { PLAIN_COLOURS } from '../components/display-kit'
 import {
   type DisplayHandle,
+  type DisplayHold,
   type DisplaySignal,
   type DisplayView,
 } from '../components/plate-display'
@@ -20,6 +21,7 @@ import {
   codecMonoHz,
   codecSeverity,
   codecThreshold,
+  converterDrive,
   converterInput,
   converterOutputDb,
   converterStep,
@@ -112,7 +114,11 @@ function running(id: string, values: Record<string, number> = {}) {
   const { display } = WEAR_FACES[id]
   const state: unknown = display.init?.()
   let now = 10
-  const draw = (meters: Record<string, number>, live: boolean): RecordingContext => {
+  const draw = (
+    meters: Record<string, number>,
+    live: boolean,
+    signal = testSignal(),
+  ): RecordingContext => {
     now += 1 / 30
     return drawDisplay(display, descriptor.params, {
       values,
@@ -120,19 +126,70 @@ function running(id: string, values: Record<string, number> = {}) {
       state,
       now,
       dt: live ? 1 / 30 : 0,
-      signal: live ? testSignal() : null,
+      signal: live ? signal : null,
     })
   }
   return {
     frame: (meters: Record<string, number>) => draw(meters, true),
     rest: (meters: Record<string, number>) => draw(meters, false),
-    /** The same readings for `seconds`; the last frame's drawing comes back. */
-    hold(meters: Record<string, number>, seconds: number): RecordingContext {
-      let last = draw(meters, true)
-      for (let n = 1; n < Math.round(seconds * 30); n++) last = draw(meters, true)
+    /** The same readings for `seconds`, with the sound given; the last frame's drawing comes back. */
+    hold(
+      meters: Record<string, number>,
+      seconds: number,
+      signal?: DisplaySignal,
+    ): RecordingContext {
+      let last = draw(meters, true, signal)
+      for (let n = 1; n < Math.round(seconds * 30); n++) last = draw(meters, true, signal)
       return last
     },
   }
+}
+
+/**
+ * A point in a hand, as the plate holds it: pressed where it stands, and at
+ * every move the handles asked for again with what the last move set. `to`
+ * says what the point's setting is with the hand so far from where it pressed.
+ */
+function inHand(id: string, key: string, values: Record<string, number> = {}) {
+  const set: Record<string, number> = { ...values }
+  const taken = handleOf(id, key, set)
+  // What the plate hands to every `drag` of one hand, for the display to keep what it must.
+  const hold: DisplayHold = {}
+  taken.drag(taken.x, taken.y, hold)
+  return {
+    taken,
+    to(dx: number, dy: number): number {
+      Object.assign(set, handleOf(id, key, set).drag(taken.x + dx, taken.y + dy, hold))
+      return set[key]
+    },
+  }
+}
+
+/** The lines drawn in a colour: the heights of each one's points, and whether it was dashed. */
+function linesOf(drawn: RecordingContext, colour: string): { ys: number[]; dashed: boolean }[] {
+  const lines: { ys: number[]; dashed: boolean }[] = []
+  let ys: number[] = []
+  let stroke = ''
+  let dashed = false
+  for (const call of drawn.calls) {
+    if (call.name === 'beginPath') ys = []
+    else if (call.name === 'moveTo' || call.name === 'lineTo') ys.push(Number(call.args[1]))
+    else if (call.name === 'set strokeStyle') stroke = String(call.args[0])
+    else if (call.name === 'setLineDash') dashed = (call.args[0] as number[]).length > 0
+    else if (call.name === 'stroke' && stroke === colour) lines.push({ ys: [...ys], dashed })
+  }
+  return lines
+}
+
+/** How many shapes were filled in a colour. */
+function fillsOf(drawn: RecordingContext, colour: string): number {
+  let fill = ''
+  let count = 0
+  for (const call of drawn.calls) {
+    if (call.name === 'set fillStyle') fill = String(call.args[0])
+    else if ((call.name === 'fill' || call.name === 'fillRect') && fill === colour) count += 1
+  }
+  return count
 }
 
 /** How many lines were drawn in a colour at a width. */
@@ -264,31 +321,98 @@ describe('every handle of the family', () => {
     }
   })
 
-  it('stays where it is when pushed past an end of the picture it already stands at', () => {
+  it('is taken where it is drawn and moves from where its setting lies, without a jump', () => {
     // New tape on the reel medium ends above the picture: its edge stands at the right, clamped.
-    const wear = handleOf('patina', 'wear', { medium: 0 })
-    expect(wear.x).toBe(displaySize(WEAR_FACES.patina.display).width - 4)
-    expect(wear.drag(wear.x + 30, wear.y).wear).toBe(0.3)
-    // And pulled into the picture it wears from there on, the further the more.
-    const little = Number(wear.drag(wear.x - 2, wear.y).wear)
-    expect(little).toBeGreaterThan(0.3)
-    expect(Number(wear.drag(wear.x - 12, wear.y).wear)).toBeGreaterThan(little)
-    // Sixteen bits have their grain under the picture: pushed down they stay sixteen.
-    const bits = handleOf('vintage-digital', 'bits', { bits: 16 })
-    expect(bits.drag(bits.x, bits.y + 30).bits).toBe(16)
-    expect(Number(bits.drag(bits.x, bits.y - 6).bits)).toBeLessThan(16)
+    const wear = inHand('patina', 'wear', { medium: 0 })
+    expect(wear.taken.x).toBe(displaySize(WEAR_FACES.patina.display).width - 4)
+    // The band is 120 px for close on ten octaves, and the reel's whole wear is two and a half of them.
+    const aPixel = Math.log(Math.pow(1000, 1 / 120)) / Math.log(40000 / 7000)
+    expect(wear.to(-1, 0)).toBeCloseTo(0.3 + aPixel, 6)
+    expect(wear.to(-2, 0)).toBeCloseTo(0.3 + 2 * aPixel, 6)
+    // The noise at its default stands a pixel over the foot: a pixel down is a little less, not none.
+    const noise = inHand('patina', 'noise', { medium: 0 })
+    let before = 0.3
+    for (let down = 1; down <= 20; down++) {
+      const now = noise.to(0, down)
+      expect(before - now, `${down} px down`).toBeLessThan(0.04)
+      if (down === 1) expect(now).toBeGreaterThan(0.26)
+      if (now > 0) expect(now).toBeLessThan(before)
+      before = now
+    }
+    expect(before).toBe(0)
+    // Twelve bits have their grain a pixel over the foot, and finer ones under it: each pixel is the same part of a bit.
+    const bits = inHand('vintage-digital', 'bits')
+    const scale = (displaySize(WEAR_FACES['vintage-digital'].display).height - 8 - 28 - 4) / 110
+    for (let down = 1; down <= 8; down++)
+      expect(bits.to(0, down)).toBeCloseTo(12 + down / scale / 6.0206, 6)
+    expect(bits.to(0, -3)).toBeCloseTo(12 - 3 / scale / 6.0206, 6)
   })
 
-  it('reaches both ends of what it sets where the picture holds them', () => {
+  it('comes back to where it was with the hand, and is taken again from where it was left', () => {
+    const wear = inHand('patina', 'wear', { medium: 0 })
+    const less = wear.to(3, 0)
+    expect(less).toBeLessThan(0.21)
+    // The hand back where it pressed: the setting it pressed on, though the point never left the edge.
+    expect(wear.to(0, 0)).toBeCloseTo(0.3, 9)
+    expect(wear.to(3, 0)).toBe(less)
+    // Let go there and pressed again: the next hand starts from that, not from where the first began.
+    const again = inHand('patina', 'wear', { medium: 0, wear: less })
+    expect(again.taken.x).toBe(wear.taken.x)
+    expect(again.to(-1, 0)).toBeGreaterThan(less)
+    expect(again.to(-1, 0)).toBeLessThan(less + 0.04)
+    expect(again.to(0, 0)).toBeCloseTo(less, 9)
+  })
+
+  it('goes with its own hand when two hands hold two such points at once', () => {
+    // Alone: eight pixels up from sixteen bits, and eight to the left from a new reel.
+    const alone = [inHand('vintage-digital', 'bits', { bits: 16 }), inHand('patina', 'wear')]
+    let bitsAlone = 16
+    let wearAlone = 0.3
+    for (let px = 1; px <= 8; px++) bitsAlone = alone[0].to(0, -px)
+    for (let px = 1; px <= 8; px++) wearAlone = alone[1].to(-px, 0)
+    expect(bitsAlone).toBeLessThan(16)
+    expect(wearAlone).toBeGreaterThan(0.3)
+    // Together, a pixel in turn, on two plates and on two of the same plate: each is where it was alone.
+    const bits = inHand('vintage-digital', 'bits', { bits: 16 })
+    const wear = inHand('patina', 'wear')
+    const other = inHand('patina', 'wear')
+    let [a, b, c] = [16, 0.3, 0.3]
+    for (let px = 1; px <= 8; px++) {
+      a = bits.to(0, -px)
+      b = wear.to(-px, 0)
+      c = other.to(-px, 0)
+    }
+    expect(a).toBeCloseTo(bitsAlone, 9)
+    expect(b).toBeCloseTo(wearAlone, 9)
+    expect(c).toBeCloseTo(wearAlone, 9)
+  })
+
+  it('reaches both ends of what it sets, in the picture or past it', () => {
     const wear = handleOf('vinyl', 'wear')
     expect(wear.drag(wear.x, wear.y - 60).wear).toBe(0)
     expect(wear.drag(wear.x, wear.y + 60).wear).toBe(1)
-    const hiss = handleOf('tape', 'hiss')
-    expect(hiss.drag(hiss.x, hiss.y + 60).hiss).toBe(0)
-    expect(hiss.drag(hiss.x, hiss.y - 60).hiss).toBe(1)
+    const hiss = inHand('tape', 'hiss')
+    expect(hiss.to(0, 60)).toBe(0)
+    expect(hiss.to(0, -60)).toBe(1)
     const level = handleOf('noise-floor', 'level')
     expect(level.drag(level.x, level.y + 60).level).toBe(-72)
     expect(level.drag(level.x, level.y - 60).level).toBe(-12)
+    // What lies past the picture is reached from its edge: no wear, no noise, sixteen bits, all of Tone.
+    const worn = inHand('patina', 'wear', { medium: 0 })
+    expect(worn.to(30, 0)).toBe(0)
+    expect(worn.to(-60, 0)).toBe(1)
+    const noise = inHand('patina', 'noise', { medium: 0 })
+    expect(noise.to(0, 30)).toBe(0)
+    expect(noise.to(0, -60)).toBe(1)
+    const bits = inHand('vintage-digital', 'bits')
+    expect(bits.to(0, 30)).toBe(16)
+    expect(bits.to(0, -80)).toBe(4)
+    const fine = inHand('vintage-digital', 'bits', { bits: 16 })
+    expect(fine.to(0, 30)).toBe(16)
+    expect(fine.to(0, -6)).toBeLessThan(16)
+    const tone = inHand('tape', 'tone', { speed: 0, age: 0 })
+    expect(tone.to(30, 0)).toBe(1)
+    expect(tone.to(-60, 0)).toBe(0)
   })
 })
 
@@ -565,6 +689,72 @@ describe('vinyl', () => {
     expect(dotsOf(heard.hold(turning(9), 0.1), 1.75)).toBe(2)
   })
 
+  it('draws what the record adds as loud as Mix leaves it, and none of it with none of the record', () => {
+    const descriptor = stock.get('vinyl')
+    if (!descriptor) throw new Error('no vinyl')
+    const { display } = WEAR_FACES.vinyl
+    const rest = (mix: number): RecordingContext =>
+      drawDisplay(display, descriptor.params, { values: { surface: 0.8, crackle: 0.8, mix } })
+    /** The top of the surface noise's line: the one dashed line in the second colour that is a curve. */
+    const floorTop = (drawn: RecordingContext): number => {
+      const curves = linesOf(drawn, PLAIN_COLOURS.accent).filter(
+        (line) => line.dashed && line.ys.length > 2,
+      )
+      expect(curves).toHaveLength(1)
+      return Math.min(...curves[0].ys)
+    }
+    // Mix is a straight cross-fade: half of it is 6 dB down on the spectrum's scale, and the point rides the line.
+    const scale = (displaySize(display).height - 8 - 36 - 4) / 110
+    expect(floorTop(rest(0.5)) - floorTop(rest(1))).toBeCloseTo(6.0206 * scale, 3)
+    for (const mix of [1, 0.5]) {
+      const surface = handleOf('vinyl', 'surface', { surface: 0.8, crackle: 0.8, mix })
+      expect(surface.y).toBeCloseTo(floorTop(rest(mix)), 1)
+    }
+    // The sizes a click can be are lines beside the strip: lower by as much.
+    const sizes = (drawn: RecordingContext): number[] =>
+      linesOf(drawn, PLAIN_COLOURS.accent)
+        .filter((line) => !line.dashed && line.ys.length === 2)
+        .map((line) => Math.min(...line.ys))
+    expect(sizes(rest(1)).length).toBeGreaterThan(0)
+    expect(Math.min(...sizes(rest(0.5)))).toBeGreaterThan(Math.min(...sizes(rest(1))))
+    // With none of the record in the mix there is no noise, no click and no pop to draw.
+    expect(linesOf(rest(0), PLAIN_COLOURS.accent)).toHaveLength(0)
+    expect(fillsOf(rest(0), PLAIN_COLOURS.accent)).toBe(0)
+    // Nor while it plays, whatever the device reports of its ticks, its pops and its noise.
+    const playing = (mix: number): RecordingContext => {
+      const vinyl = running('vinyl', { surface: 0.8, crackle: 0.8, pops: 0.5, mix })
+      const turning = (count: number): Record<string, number> => ({
+        pitch: 0.4,
+        turn: 0.3,
+        ticks: count,
+        tickLevel: 0.1,
+        pops: count,
+        noise: 1,
+      })
+      vinyl.hold(turning(7), 0.5)
+      vinyl.frame(turning(8))
+      return vinyl.hold(turning(9), 0.1)
+    }
+    const heard = playing(1)
+    expect(fillsOf(heard, PLAIN_COLOURS.accent)).toBeGreaterThan(0)
+    expect(dotsOf(heard, 1.75)).toBe(2)
+    const dry = playing(0)
+    expect(linesOf(dry, PLAIN_COLOURS.accent)).toHaveLength(0)
+    expect(fillsOf(dry, PLAIN_COLOURS.accent)).toBe(0)
+    expect(dotsOf(dry, 1.75)).toBe(0)
+  })
+
+  it('takes Surface from the foot with none of the record in the mix, and still sets all of it', () => {
+    const surface = inHand('vinyl', 'surface', { mix: 0 })
+    const size = displaySize(WEAR_FACES.vinyl.display)
+    expect(surface.taken.y).toBe(size.height - 4 - 36 - 4)
+    const less = surface.to(0, 1)
+    expect(less).toBeLessThan(0.25)
+    expect(less).toBeGreaterThan(0.1)
+    expect(surface.to(0, 30)).toBe(0)
+    expect(surface.to(0, -30)).toBe(1)
+  })
+
   it('moves Wear from its point: the top of the band goes where the pointer is', () => {
     const size = displaySize(WEAR_FACES.vinyl.display)
     const wear = handleOf('vinyl', 'wear', { wear: 0, tone: 0 })
@@ -698,7 +888,8 @@ describe('patina', () => {
 
   it('moves Wear from the edge of the band', () => {
     const size = displaySize(WEAR_FACES.patina.display)
-    const wear = handleOf('patina', 'wear', { medium: 1, tone: 0.5 })
+    // (From a point that stands in the picture, the edge is under the hand.)
+    const wear = handleOf('patina', 'wear', { medium: 1, tone: 0.5, wear: 0.5 })
     // The cassette's band ends at 4.5 kHz worn through: put the edge there.
     expect(wear.drag(xOf(4500, 4, size.width - 8), wear.y).wear).toBeCloseTo(1, 2)
     // The sampler's edge is half its rate: 3 kHz is a rate of 6 kHz.
@@ -748,6 +939,32 @@ describe('radio', () => {
     // Uniform noise of amplitude g on both parts: 2g² / 3 over the whole rate, a bin and a half of 512.
     expect(radioStaticDb(0.26)).toBeCloseTo(db(((2 * 0.26 * 0.26) / 3) * (1.5 / 512)), 6)
     expect(radioStaticDb(0.26) - radioStaticDb(0.026)).toBeCloseTo(20, 6)
+  })
+
+  it('is off once nothing sounds, though the receiver’s last readings still stand', () => {
+    const radio = running('radio', { static: 0.8 })
+    const on = { tuning: 0, direct: 0.7, lateRe: 0.1, lateIm: 0, delay: 0.5, static: 0.2 }
+    /** The static: a filled bar while it sounds, a dashed line where Static would put it while the receiver is off. */
+    const bars = (drawn: RecordingContext): number => fillsOf(drawn, PLAIN_COLOURS.accent)
+    const dashes = (drawn: RecordingContext): number =>
+      linesOf(drawn, PLAIN_COLOURS.accent).filter((line) => line.dashed).length
+    const playing = radio.hold(on, 0.5)
+    expect(bars(playing)).toBeGreaterThan(0)
+    expect(dashes(playing)).toBe(0)
+    // The playing stops and the static has died away: the device sleeps and reports what it last read.
+    const silence = testSignal(0, 0)
+    const asleep = radio.hold(on, 3, silence)
+    expect(bars(asleep)).toBe(0)
+    expect(dashes(asleep)).toBe(1)
+    // The fade's mark for where the signal is now goes with it.
+    expect(dotsOf(asleep, 2)).toBe(0)
+    expect(dotsOf(playing, 2)).toBe(1)
+    // Static alone, running on after the playing, is sound coming out: the receiver is still on.
+    const afterwards = radio.hold(on, 1, testSignal(0, 0.05))
+    expect(bars(afterwards)).toBeGreaterThan(0)
+    // A gap in the playing of a second or so does not switch it off.
+    radio.hold(on, 0.5)
+    expect(bars(radio.hold(on, 1.5, silence))).toBeGreaterThan(0)
   })
 
   it('tunes and sets the bandwidth from the filter', () => {
@@ -888,6 +1105,23 @@ describe('low bitrate', () => {
     expect(flowing(testSignal(0, 0))).toBeCloseTo(width, 6)
   })
 
+  it('rests with none of the codec in the mix, whatever it loses', () => {
+    const lost = { packet: 1, lost: 3, stuck: 0 }
+    const codec = running('low-bitrate', { loss: 0.9, dropouts: 0.7 })
+    // What is thrown away is filled in the second colour while it is heard.
+    expect(fillsOf(codec.hold(lost, 1), PLAIN_COLOURS.accent)).toBeGreaterThan(0)
+    const dry = running('low-bitrate', { loss: 0.9, dropouts: 0.7, mix: 0 })
+    const drawn = dry.hold(lost, 1)
+    expect(fillsOf(drawn, PLAIN_COLOURS.accent)).toBe(0)
+    // And the picture is the one of a plate that is not played at all.
+    const descriptor = stock.get('low-bitrate')
+    if (!descriptor) throw new Error('no low-bitrate')
+    const rest = drawDisplay(WEAR_FACES['low-bitrate'].display, descriptor.params, {
+      values: { loss: 0.9, dropouts: 0.7, mix: 0 },
+    })
+    expect(drawn.print()).toBe(rest.print())
+  })
+
   it('moves Loss and High Cut from their edges', () => {
     const size = displaySize(WEAR_FACES['low-bitrate'].display)
     const loss = handleOf('low-bitrate', 'loss')
@@ -991,6 +1225,47 @@ describe('vintage digital', () => {
       14.9,
       1,
     )
+  })
+
+  it('turns the grain down with Drive’s make-up, as the compiled converter turns the signal', async () => {
+    // The grain is made between Drive and its make-up, so its line goes down by the make-up: 11 dB at Drive 12, 17 dB at 24.
+    const scale = (displaySize(WEAR_FACES['vintage-digital'].display).height - 8 - 28 - 4) / 110
+    const descriptor = stock.get('vintage-digital')
+    if (!descriptor) throw new Error('no vintage-digital')
+    const lineTop = (drive: number): number => {
+      const drawn = drawDisplay(WEAR_FACES['vintage-digital'].display, descriptor.params, {
+        values: { bits: 6, drive },
+      })
+      const curves = linesOf(drawn, PLAIN_COLOURS.accent).filter(
+        (line) => line.dashed && line.ys.length > 2,
+      )
+      expect(curves).toHaveLength(1)
+      return Math.min(...curves[0].ys)
+    }
+    expect((lineTop(12) - lineTop(0)) / scale).toBeCloseTo(11.1, 1)
+    expect((lineTop(24) - lineTop(0)) / scale).toBeCloseTo(17.1, 1)
+    // The point for Bits rides the line.
+    const plain = handleOf('vintage-digital', 'bits', { bits: 6 })
+    const driven = handleOf('vintage-digital', 'bits', { bits: 6, drive: 12 })
+    expect((driven.y - plain.y) / scale).toBeCloseTo(11.1, 1)
+    expect(decibels(converterDrive(0).makeUp)).toBeCloseTo(0, 9)
+    expect(decibels(converterDrive(12).makeUp)).toBeCloseTo(-11.1, 1)
+    expect(decibels(converterDrive(24).makeUp)).toBeCloseTo(-17.1, 1)
+    // A tone at −18 dBFS through the device with the sampler switched out: Drive up, then the make-up down.
+    const amplitude = 0.125
+    for (const drive of [0, 12]) {
+      const out = await through(
+        'vintage-digital',
+        { rate: 48000, bits: 16, jitter: 0, drive, mix: 1, companding: 0, aliasing: 0, filter: 0 },
+        [[1000, amplitude]],
+        0.5,
+      )
+      const { gain, makeUp } = converterDrive(drive)
+      expect(decibels(toneIn(out.subarray(out.length - 8192), 1000)), `Drive ${drive}`).toBeCloseTo(
+        decibels(amplitude * gain * makeUp),
+        1,
+      )
+    }
   })
 
   it('moves Rate from half the rate, and Bits by 6 dB a bit', () => {

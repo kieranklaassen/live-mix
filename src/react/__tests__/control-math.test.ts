@@ -26,6 +26,7 @@ import {
   stepBy,
   wheelDeltaToNormDelta,
 } from '../components/control-math'
+import { stockDescriptors } from './display-harness'
 
 describe('clamp / quantize / stepBy', () => {
   it('clamps into range', () => {
@@ -236,16 +237,102 @@ describe('formatting', () => {
   })
 })
 
+describe('the stock devices', () => {
+  const stock = [...stockDescriptors().values()]
+
+  it('step a parameter only where every setting of it is whole, its presets too', () => {
+    const stepped: string[] = []
+    for (const device of stock) {
+      for (const [name, spec] of Object.entries(device.params)) {
+        if (!isChoiceParam(spec) && spec.step === undefined) continue
+        if (!spec.choices && spec.unit === '') stepped.push(`${device.id}.${name}`)
+        expect([spec.min, spec.max, spec.default].every(Number.isInteger)).toBe(true)
+        for (const [preset, values] of Object.entries(device.presets ?? {})) {
+          const value = values[name]
+          if (value === undefined) continue
+          expect(Number.isInteger(value), `${device.id} "${preset}" ${name}`).toBe(true)
+        }
+      }
+    }
+    // The counts, which have no names to give: every other stepped parameter names its choices.
+    expect(stepped.sort()).toEqual([
+      'cascade.repeats',
+      'chamber-strings.players',
+      'ember.unisonVoices',
+    ])
+  })
+
+  it('leave a tone, a pan, a tuning or a vowel continuous, as their presets set them', () => {
+    const continuous = [
+      'analog-drive.tone',
+      'noise-floor.follow',
+      'noise-floor.tone',
+      'radio.tuning',
+      're-amp.bass',
+      're-amp.treble',
+      'saturator.bias',
+      'sustainer.tone',
+      'utility.pan',
+      'vinyl.tone',
+      'vowel-reverb.vowel',
+    ]
+    for (const path of continuous) {
+      const [id, name] = path.split('.')
+      const spec = stock.find((device) => device.id === id)?.params[name]
+      expect(spec, path).toBeDefined()
+      if (!spec) continue
+      expect(isChoiceParam(spec), path).toBe(false)
+      expect(paramStep(spec), path).toBeLessThan(0.05)
+    }
+  })
+
+  it('name the choices of the Filter type and of the Spectral Drifter', () => {
+    const choices = (id: string, name: string): readonly string[] | undefined =>
+      stock.find((device) => device.id === id)?.params[name].choices
+    expect(choices('filter', 'type')).toHaveLength(8)
+    expect(choices('filter', 'type')?.[5]).toBe('Peak')
+    expect(choices('spectral-drifter', 'direction')).toEqual(['Up', 'Down', 'Scatter'])
+    expect(choices('spectral-drifter', 'season')).toHaveLength(4)
+    expect(choices('spectral-drifter', 'seed')).toHaveLength(3)
+    expect(choices('spectral-drifter', 'interval')).toHaveLength(4)
+    expect(choices('spectral-drifter', 'ageMode')).toEqual(['Auto', 'Manual'])
+  })
+})
+
 describe('ParamSpec helpers', () => {
   const type: ParamSpec = {
     id: 0,
     name: 'Type',
     min: 0,
-    max: 7,
+    max: 2,
+    default: 0,
+    taper: 'linear',
+    unit: '',
+    choices: ['Low pass', 'High pass', 'Band pass'],
+  }
+  const voices: ParamSpec = {
+    id: 5,
+    name: 'Voices',
+    min: 1,
+    max: 8,
+    default: 1,
+    taper: 'linear',
+    unit: '',
+    step: 1,
+  }
+  // Whole numbers at both ends and in the middle, and no list: a tilt.
+  const tone: ParamSpec = {
+    id: 6,
+    name: 'Tone',
+    min: -1,
+    max: 1,
     default: 0,
     taper: 'linear',
     unit: '',
   }
+  const vowel: ParamSpec = { ...tone, id: 7, name: 'Vowel', min: 0, max: 4 }
+  // Whole semitones: stepped, and not a list.
+  const pitch: ParamSpec = { ...tone, id: 8, name: 'Pitch', min: -24, max: 24, unit: 'st', step: 1 }
   const freq: ParamSpec = {
     id: 1,
     name: 'Frequency',
@@ -285,8 +372,17 @@ describe('ParamSpec helpers', () => {
 
   it('recognises choice parameters and derives steps', () => {
     expect(isChoiceParam(type)).toBe(true)
+    expect(isChoiceParam(voices)).toBe(true)
     expect(isChoiceParam(mix)).toBe(false)
+    // A range is not a list by its numbers alone: these two are continuous.
+    expect(isChoiceParam(tone)).toBe(false)
+    expect(isChoiceParam(vowel)).toBe(false)
     expect(paramStep(type)).toBe(1)
+    expect(paramStep(voices)).toBe(1)
+    expect(paramStep(tone)).toBe(0.001)
+    expect(paramStep(vowel)).toBe(0.001)
+    expect(isChoiceParam(pitch)).toBe(false)
+    expect(paramStep(pitch)).toBe(1)
     expect(paramStep(freq)).toBe(0)
     expect(paramStep(gain)).toBe(0.1)
     expect(paramStep(time)).toBe(1)
@@ -296,7 +392,12 @@ describe('ParamSpec helpers', () => {
   it('maps tapers and formats with the unit', () => {
     expect(paramTaper(freq)).toBe('log')
     expect(paramTaper(gain)).toBe('linear')
-    expect(formatParamValue(type, 2.4)).toBe('2')
+    expect(formatParamValue(type, 2.4)).toBe('Band pass')
+    expect(formatParamValue(voices, 2.4)).toBe('2')
+    expect(formatParamValue(tone, 0.6)).toBe('0.60')
+    expect(formatParamValue(vowel, 3.4)).toBe('3.40')
+    expect(formatParamValue(pitch, 7)).toBe('7 st')
+    expect(formatParamValue(pitch, -12.2)).toBe('-12 st')
     expect(formatParamValue(freq, 1000)).toBe('1.00 kHz')
     expect(formatParamValue(gain, -3)).toBe('-3.0 dB')
     expect(formatParamValue(mix, 0.5)).toBe('0.50')

@@ -30,6 +30,7 @@ import {
   plateDisplay,
   type DisplayFrame,
   type DisplayHandle,
+  type DisplayHold,
   type DisplayLevel,
   type DisplaySignal,
   type DisplayView,
@@ -56,8 +57,13 @@ interface CompModel {
 interface CompState {
   /** The level going in, dB. */
   input: History
-  /** The gain taken off, dB (0 or below). */
+  /**
+   * What the reduction took off what comes out, dB (0 or below): the reduction
+   * itself, less whatever of it the dry part of a mix lets back in.
+   */
   reduction: History
+  /** The level coming out, dB: with the make-up and the dry part of a mix. */
+  output: History
   /** The latest level going in, for the mark on the curve. */
   level: number
   /** The reduction on the frame before. */
@@ -90,6 +96,14 @@ const QUIET = 1e-4
 
 /** A reduction as the one figure a compressor is watched by: "−3.2", and "0.0" when nothing is off. */
 const reductionText = (db: number): string => (db < -0.05 ? `−${(-db).toFixed(1)}` : '0.0')
+
+/**
+ * A device that is switched off does nothing to the sound, and the seconds
+ * before it was switched off are not what it is doing: its past is let go.
+ */
+function forget(...past: readonly History[]): void {
+  for (const history of past) history.clear()
+}
 
 /**
  * The display of a compressor: its curve with the sound riding it, and the
@@ -134,6 +148,7 @@ function compDisplay(options: {
     init: () => ({
       input: new History(PAST_SEC, slots, FOOT_DB, 'max'),
       reduction: new History(PAST_SEC, slots, 0, 'min'),
+      output: new History(PAST_SEC, slots, FOOT_DB, 'max'),
       level: FOOT_DB,
       last: 0,
     }),
@@ -153,6 +168,9 @@ function compDisplay(options: {
           ? Math.min(0, options.reduction(frame, frame.signal, model, state.last))
           : Math.min(0, frame.meter('reduction'))
       state.last = reduction
+      // What that reduction comes to in what is heard: behind a mix that lets
+      // the dry sound through it is less, and with Mix at nothing it is none.
+      const taken = Math.min(0, model.gain(reduction) - model.gain(0))
       if (frame.signal) {
         const input = frame.signal.input
           ? levelOf(frame.signal.input)
@@ -160,7 +178,10 @@ function compDisplay(options: {
             levelOf(frame.signal.output) - model.gain(reduction)
         state.level = input
         state.input.push(frame.now, input)
-        state.reduction.push(frame.now, reduction)
+        state.reduction.push(frame.now, taken)
+        state.output.push(frame.now, input + model.gain(reduction))
+      } else if (!frame.powered) {
+        forget(state.input, state.reduction, state.output)
       }
 
       // Left: the curve.
@@ -193,7 +214,13 @@ function compDisplay(options: {
         ])
         fillTo(ctx, going, past.y + past.h, colours.ink, INK.fill)
         fillBetween(ctx, going, held, colours.accent, 0.9)
-        trace(ctx, held, { colour: colours.ink, width: 1.25 })
+        // The level coming out: under the level going in by what was taken
+        // off, and over it again by the make-up.
+        trace(
+          ctx,
+          state.output.points(past, (db) => yOf(db, past)),
+          { colour: colours.ink, width: 1.25 },
+        )
       })
 
       // The threshold, across both: the curve bends at it and the level crosses it.
@@ -222,12 +249,12 @@ function compDisplay(options: {
       }
       // How much is off now, as a number: the one figure a compressor is watched by.
       if (options.figure === 'top') {
-        text(frame, reductionText(reduction), past.x + past.w - 1, past.y + 8, {
+        text(frame, reductionText(taken), past.x + past.w - 1, past.y + 8, {
           align: 'right',
           size: 9,
         })
       } else {
-        reductionFigure(frame, past, reduction)
+        reductionFigure(frame, past, taken)
       }
     },
     handles: options.handles,
@@ -269,8 +296,11 @@ function ambientCompHandles(view: DisplayView): DisplayHandle[] {
   const { curve } = compBoxes(view)
   const threshold = view.value('threshold')
   const ratio = view.value('ratio')
+  const knee = view.value('knee')
   const model = ambientCompModel(view)
   const out = (inDb: number): number => inDb + model.gain(model.reduction(inDb))
+  /** The level a point stands at: with Make-up the curve can leave the top, and its points wait at the edge. */
+  const shown = (level: number): number => clamp(level, FOOT_DB, TOP_DB)
   return [
     {
       key: 'threshold',
@@ -279,9 +309,13 @@ function ambientCompHandles(view: DisplayView): DisplayHandle[] {
       y: handleY(out(threshold), curve),
       // The threshold lies on the diagonal, so it is taken along it: across
       // and up each say a threshold, and the drag sets the one between them.
+      // Measured from where the point stands, so that taking it moves nothing.
       drag: (x: number, y: number) => ({
         threshold: clamp(
-          (dbOfX(x, curve) + dbOfY(y, curve, TOP_DB, FOOT_DB) - (out(threshold) - threshold)) / 2,
+          (dbOfX(x, curve) +
+            dbOfY(y, curve, TOP_DB, FOOT_DB) -
+            (shown(out(threshold)) - threshold)) /
+            2,
           -60,
           0,
         ),
@@ -294,14 +328,39 @@ function ambientCompHandles(view: DisplayView): DisplayHandle[] {
       x: curve.x + curve.w,
       y: handleY(out(TOP_DB), curve),
       // The end of the curve: pulled down it is a firmer hand, pulled up to the diagonal it is none.
-      // The point stands on the mixed curve, so the make-up and the dry part of
-      // Mix come off together: what they add where it stands now.
-      drag: (_x: number, y: number) => {
-        const wet = TOP_DB + model.reduction(TOP_DB)
-        const top = dbOfY(y, curve, TOP_DB, FOOT_DB) - (out(TOP_DB) - wet)
-        const span = TOP_DB - threshold
-        const kept = clamp(top - threshold, span / 10, span)
-        return { ratio: span > 0.5 ? clamp(span / kept, 1, 10) : ratio }
+      // The point stands on the mixed curve (the make-up and the dry part of Mix on top of what
+      // the ratio leaves), so the drag sets the ratio whose mixed curve ends under the hand. Taking
+      // the make-up and the dry part off at the ratio that stood ran away under a Mix below 1:
+      // they change with the ratio, so every move was worked out from the last move's answer.
+      drag: (_x: number, y: number, hold?: DisplayHold) => {
+        if (TOP_DB - threshold <= 0.5) return { ratio }
+        const endAt = (candidate: number): number =>
+          TOP_DB + model.gain(softKnee(TOP_DB, threshold, candidate, knee))
+        // With Make-up the end can lie over the top, where the point waits at the edge: it is
+        // taken there and moves from where the end lies, as far past as it lay at the press.
+        const kept = hold ?? {}
+        kept.past ??= out(TOP_DB) - shown(out(TOP_DB))
+        const to = dbOfY(y, curve, TOP_DB, FOOT_DB) + kept.past
+        if (Math.abs(to - out(TOP_DB)) < 1e-9) return { ratio }
+        const none = endAt(1)
+        const most = endAt(10)
+        // With next to none of the compressor in the mix the whole of Ratio moves the end by less
+        // than a pixel: no travel for a hand, and the knob sets it.
+        if (
+          none - most <
+          Math.abs(dbOfY(1, curve, TOP_DB, FOOT_DB) - dbOfY(0, curve, TOP_DB, FOOT_DB))
+        )
+          return { ratio }
+        if (to >= none) return { ratio: 1 }
+        if (to <= most) return { ratio: 10 }
+        let low = 1
+        let high = 10
+        for (let round = 0; round < 48; round++) {
+          const mid = (low + high) / 2
+          if (endAt(mid) > to) low = mid
+          else high = mid
+        }
+        return { ratio: (low + high) / 2 }
       },
       reset: () => ({ ratio: view.spec('ratio')?.default ?? 2 }),
     },
@@ -310,7 +369,7 @@ function ambientCompHandles(view: DisplayView): DisplayHandle[] {
 
 const ambientComp = compDisplay({
   params: ['threshold', 'ratio', 'knee', 'makeup', 'mix'],
-  info: 'Left, the curve: the level going in runs across, the level coming out runs up, and the mark is the sound now. Right, the last six seconds: the level going in, and in the second colour what the compressor took off it.',
+  info: 'Left, the curve: the level going in runs across, the level coming out runs up, and the mark is the sound now. Right, the last six seconds: the level going in, in the second colour what the compressor took off it, and the line is the level coming out.',
   threshold: (view) => view.value('threshold'),
   level: 'rms',
   model: ambientCompModel,
@@ -449,7 +508,7 @@ function nodeReduction(frame: DisplayFrame, signal: DisplaySignal): number {
 
 const nodeComp = compDisplay({
   params: ['threshold', 'knee', 'ratio', 'makeupDb'],
-  info: 'Left, the curve: the level going in runs across, the level coming out runs up, and the mark is the sound now. Right, the last six seconds: the level going in, and in the second colour what the compressor took off it. The wheel over the threshold point sets the knee.',
+  info: 'Left, the curve: level in runs across, level out runs up, and the mark is the sound now. Right, the last six seconds: the level going in, in the second colour what the compressor took off, and the line is the level coming out with its make-up. The wheel over the threshold point sets the knee.',
   threshold: (view) => view.value('threshold'),
   level: 'peak',
   model: nodeCompModel,
@@ -546,7 +605,7 @@ function fetHandles(view: DisplayView): DisplayHandle[] {
 const fetLimiter = compDisplay({
   columns: 1,
   params: ['inputGain', 'outputGain'],
-  info: 'Left, the curve: the level going in runs across, the level coming out runs up, and the mark is the sound now. Pull the point left to drive the sound harder into the limiter. Right, the last six seconds: the level going in, and in the second colour what the limiter took off it.',
+  info: 'Left, the curve: level in runs across, level out runs up, and the mark is the sound now. Pull the point left to drive the sound harder into the limiter. Right, the last six seconds: the level going in, in the second colour what the limiter took off, and the line is the level coming out.',
   threshold: (view) => FET_THRESHOLD_DB - view.value('inputGain'),
   level: 'peak',
   model: fetModel,
@@ -687,6 +746,8 @@ const ambientLimiter = plateDisplay<LimiterState>({
         frame.now,
         frame.hasMeter('ride') ? clamp(frame.meter('ride'), state.now, 0) : state.now,
       )
+    } else if (!frame.powered) {
+      forget(state.arriving, state.leaving, state.reduction, state.ride)
     }
 
     dbGrid(frame, box, LIMIT_TOP_DB, LIMIT_FOOT_DB, 12)
@@ -822,6 +883,10 @@ interface DuckerState {
   gain: History
   /** How far the key drives the duck, 0 to 1. */
   key: History
+  /** When a key last sounded, on the frame's clock; null for never. */
+  keyed: number | null
+  /** No key has sounded for as long as the display looks back: it says so. */
+  unkeyed: boolean
   now: number
   /** Whether the gain can be told at all: from a reading, or from the level going in. */
   known: boolean
@@ -877,6 +942,8 @@ const ducker = plateDisplay<DuckerState>({
     leaving: new History(PAST_SEC, 70, FLOOR_DB, 'max'),
     gain: new History(PAST_SEC, 70, 0, 'min'),
     key: new History(PAST_SEC, 70, 0, 'max'),
+    keyed: null,
+    unkeyed: false,
     now: 0,
     known: false,
     shape: new Float32Array(DUCK_POINTS),
@@ -906,10 +973,14 @@ const ducker = plateDisplay<DuckerState>({
       )
       state.gain.push(frame.now, state.now)
       if (keyed) {
-        state.key.push(frame.now, duckDrive(frame.meter('envelope'), frame.value('gainScale')))
+        const drive = duckDrive(frame.meter('envelope'), frame.value('gainScale'))
+        state.key.push(frame.now, drive)
+        if (drive > 0) state.keyed = frame.now
+        state.unkeyed = state.keyed === null || frame.now - state.keyed > PAST_SEC
       }
     } else {
       state.now = 0
+      if (!frame.powered) forget(state.leaving, state.arriving, state.gain, state.key)
     }
 
     // Left: one duck as it is set.
@@ -962,6 +1033,9 @@ const ducker = plateDisplay<DuckerState>({
     if (keyed) {
       const bar = state.key.points(past, (drive) => past.y - keyBar(drive))
       fillTo(ctx, bar, past.y, colours.ink, INK.text)
+      // A ducker nothing keys does nothing, whatever its shape says: where the
+      // key's bar would run, the display says that there is none.
+      if (state.unkeyed) label(frame, 'no key', past.x + 2, past.y + 9)
     }
     // The floor Depth sets, across both: the shape rests on it, and what hangs reaches it under a full key.
     const floorY = hangY(duckFloorDb(frame.value('depth')), curve, SPAN_DB)
@@ -1089,10 +1163,13 @@ const swell = plateDisplay<SwellState>({
     const position = metered ? clamp(frame.meter('position'), 0, 1) : 0
     if (frame.signal) {
       // The device's own gain; one that does not report it is read off the two
-      // levels. Shut and waiting for a note it holds nothing back from anyone,
-      // so nothing hangs until a note comes.
+      // levels. Shut and waiting in silence it holds nothing back from anyone,
+      // so nothing hangs until there is sound. Shut over a sound that stays
+      // under Sensitivity it holds that sound at its floor, and that hangs.
+      const waiting =
+        stage === SWELL_CLOSED && (!frame.signal.input || frame.signal.input.peak < QUIET)
       const read = metered
-        ? stage === SWELL_CLOSED
+        ? waiting
           ? 0
           : swellAppliedDb(frame, clamp(frame.meter('gain'), 0, 1))
         : (gainBetween(frame.signal) ?? 0)
@@ -1114,6 +1191,9 @@ const swell = plateDisplay<SwellState>({
       state.gain.push(frame.now, state.now)
       state.stage = stage
       state.position = position
+    } else if (!frame.powered) {
+      forget(state.arriving, state.leaving, state.gain)
+      state.now = 0
     }
 
     // Left: one swell as it is set, from the floor up, open, and down again.

@@ -13,6 +13,7 @@ export const CHAMBER_STRINGS_PARAMS = {
     default: 4,
     taper: 'linear',
     unit: '',
+    step: 1,
     description:
       'How many instruments play each note, from one soloist to a small section. More players sound thicker and less exact, not louder.',
   },

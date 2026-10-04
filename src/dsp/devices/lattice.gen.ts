@@ -54,6 +54,7 @@ export const LATTICE_PARAMS = {
     default: 62,
     taper: 'linear',
     unit: 'note',
+    step: 1,
     description:
       'The note the Thesis roles work around: Mirror, Middle, Mirror Middle, Octaflip and Center. Interval voices ignore it.',
   },
