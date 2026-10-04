@@ -243,8 +243,12 @@ export interface TextStyle {
   alpha?: number
 }
 
-/** The faintest a word is drawn: a scale's numbers and a part that is not in use stand back no further. */
-const TEXT_LEAST = 0.62
+/**
+ * The faintest a word is drawn: a scale's numbers and a part that is not in
+ * use stand back no further. Measured on the plates: at 0.62 such a word stood
+ * at about 2.5 to 1 against its ground, too little for type this small.
+ */
+export const TEXT_LEAST = 0.8
 
 /** Words on a display, in the plate's own type. */
 export function text(
@@ -263,6 +267,27 @@ export function text(
   ctx.fillStyle = style.colour ?? frame.colours.ink
   ctx.fillText(words, x, y)
   ctx.globalAlpha = 1
+}
+
+/**
+ * Words over a part of a display where things move: they stand on a patch of
+ * the plate, so what runs under them does not cross the letters. `x` is their
+ * left end, or their right end with `align` right; `y` their baseline.
+ */
+export function label(
+  frame: Pick<DisplayFrame, 'ctx' | 'colours' | 'fontFamily'>,
+  words: string,
+  x: number,
+  y: number,
+  align: 'left' | 'right' = 'left',
+  size = 8,
+): void {
+  const { ctx } = frame
+  ctx.font = `${size}px ${frame.fontFamily}`
+  const wide = Math.ceil(ctx.measureText(words).width) + 4
+  const left = align === 'right' ? x - wide + 2 : x - 2
+  fillRect(ctx, { x: left, y: y - size, w: wide, h: size + 2 }, frame.colours.plate, 0.7)
+  text(frame, words, x, y, { align, size })
 }
 
 // --- Decibels ---------------------------------------------------------------

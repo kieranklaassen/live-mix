@@ -18,6 +18,7 @@ import {
   gainToDb,
   ground,
   handle,
+  label,
   rule,
   text,
   trace,
@@ -574,27 +575,6 @@ function curtain(
 ): void {
   const edge = gain.points(box, (db) => hangY(db, box, spanDb))
   fillTo(frame.ctx, edge, box.y, frame.colours.accent, alpha)
-}
-
-/**
- * Words over a part of a display where things move: they stand on a patch of
- * the plate, so what runs under them does not cross the letters. `x` is their
- * left end, or their right end with `align` right; `y` their baseline.
- */
-function label(
-  frame: DisplayFrame,
-  words: string,
-  x: number,
-  y: number,
-  align: 'left' | 'right' = 'left',
-  size = 8,
-): void {
-  const { ctx } = frame
-  ctx.font = `${size}px ${frame.fontFamily}`
-  const wide = Math.ceil(ctx.measureText(words).width) + 4
-  const left = align === 'right' ? x - wide + 2 : x - 2
-  fillRect(ctx, { x: left, y: y - size, w: wide, h: size + 2 }, frame.colours.plate, 0.7)
-  text(frame, words, x, y, { align, size })
 }
 
 /** How much is off now, as a number at the foot of the last seconds, where what hangs from the top does not reach. */

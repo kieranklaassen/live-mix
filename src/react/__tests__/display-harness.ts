@@ -261,3 +261,28 @@ export function metersOf(
 ): Record<string, number> {
   return Object.fromEntries(Object.keys(specs ?? {}).map((name) => [name, value]))
 }
+
+/**
+ * The patch of the plate a word stands on: the rectangle filled in the plate's
+ * colour just before the word, with nothing drawn between them. Null when the
+ * word is set straight onto whatever lies there.
+ */
+export function patchUnder(
+  drawn: RecordingContext,
+  words: string,
+  plate: string,
+): { x: number; y: number; w: number; h: number } | null {
+  let fill = ''
+  let patch: { x: number; y: number; w: number; h: number } | null = null
+  for (const call of drawn.calls) {
+    if (call.name === 'set fillStyle') fill = String(call.args[0])
+    else if (call.name === 'fillRect' && fill === plate) {
+      const [x, y, w, h] = call.args as number[]
+      patch = { x, y, w, h }
+    } else if (call.name === 'fillText') {
+      if (String(call.args[0]) === words) return patch
+      patch = null
+    } else if (MARKS.has(call.name)) patch = null
+  }
+  return null
+}

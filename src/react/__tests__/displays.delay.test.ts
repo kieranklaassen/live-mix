@@ -18,6 +18,7 @@ import {
 } from '../components/displays/delay'
 import {
   drawDisplay,
+  patchUnder,
   runDisplay,
   stockDescriptors,
   testSignal,
@@ -845,6 +846,14 @@ describe('the Echo Memory display', () => {
   // The scope is the upper 27 pixels; the memory is a band of 10 along the foot.
   const RISE = 27
   const BAND_Y = 34
+
+  it('sets how far back the memory reaches on a patch of the plate, inside the band', () => {
+    // What was played is drawn in the same ink right under the figures.
+    const patch = patchUnder(drawDisplay(display, params), '20 s', PLAIN_COLOURS.plate)
+    expect(patch).not.toBeNull()
+    expect(patch?.x).toBeGreaterThanOrEqual(4)
+    expect((patch?.y ?? 0) + (patch?.h ?? 0)).toBeLessThanOrEqual(BAND_Y + 10)
+  })
 
   it('plays the echo as loud as Echo says, and not at all at zero', () => {
     const echoes = (echo: number): Rect[] =>

@@ -1440,7 +1440,7 @@ const glitch = plateDisplay<GlitchState>({
       const fits = nowX + 6 + ctx.measureText(word).width <= box.x + box.w
       text(frame, word, fits ? nowX + 6 : box.x + box.w, box.y + 7, {
         align: fits ? 'left' : 'right',
-        alpha: playing ? INK.text : INK.back,
+        alpha: playing ? 1 : INK.back,
       })
     }
     // One slice, measured back from now.
@@ -1830,19 +1830,23 @@ const CASCADE_PASSES = 288
 const CASCADE_STRIDE = 6
 /** Where now stands across the score. */
 const CASCADE_NOW_AT = 0.2
-/** Room at the left for the names of the rows: as wide as the widest, 1½. */
+/**
+ * Room at the left for the names of the rows: as wide as the widest, 1.5. A
+ * half is written .5: the one-glyph fraction sets its figures at half the
+ * type's size, which at 8 px cannot be read.
+ */
 const CASCADE_GUTTER = 14
 /** The rows by their speeds, with fifths and without. */
 const CASCADE_ROWS_OCTAVES: readonly (readonly [number, string])[] = [
-  [0.5, '½'],
+  [0.5, '.5'],
   [1, '1'],
   [2, '2'],
   [4, '4'],
 ]
 const CASCADE_ROWS_FIFTHS: readonly (readonly [number, string])[] = [
-  [0.5, '½'],
+  [0.5, '.5'],
   [1, '1'],
-  [1.5, '1½'],
+  [1.5, '1.5'],
   [2, '2'],
   [3, '3'],
   [4, '4'],
@@ -2231,7 +2235,7 @@ const cascade = plateDisplay<CascadeState>({
       const y = rowY(speed)
       const used = speed === 1 || (speed > 1 ? highOn : lowOn)
       rule(ctx, plot.x, y, plot.x + plot.w, y, { colour: colours.ink, alpha: INK.grid })
-      text(frame, name, plot.x - 2, y, { align: 'right', alpha: used ? INK.text : INK.rule })
+      text(frame, name, plot.x - 2, y, { align: 'right', alpha: used ? 1 : INK.back })
     }
     rule(ctx, lane.x, lane.y - 1, lane.x + lane.w, lane.y - 1, {
       colour: colours.ink,

@@ -626,7 +626,7 @@ const octaves = plateDisplay<OctaveState>({
       rule(ctx, x, top, x + wide, top, { colour: colours.ink, width: 1.5 })
       text(frame, signed(octave), centre + octave * perOctave, frame.height - 5, {
         align: 'center',
-        alpha: octave === 0 ? INK.text : INK.back,
+        alpha: octave === 0 ? 1 : INK.back,
       })
     }
 
@@ -1577,7 +1577,7 @@ const lattice = plateDisplay<LatticeState>({
           named++
           text(frame, name, x, frame.height - 4, {
             align: 'center',
-            alpha: k === 0 ? INK.text : INK.back,
+            alpha: k === 0 ? 1 : INK.back,
           })
         }
       }

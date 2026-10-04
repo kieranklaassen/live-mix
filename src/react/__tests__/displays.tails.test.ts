@@ -58,6 +58,7 @@ import { type DisplayHandle } from '../components/plate-display'
 import {
   displaySize,
   drawDisplay,
+  patchUnder,
   runDisplay,
   stockDescriptors,
   testSignal,
@@ -1039,6 +1040,15 @@ describe('Sympathetic', () => {
 })
 
 describe('Vowel Reverb', () => {
+  it('names 1 kHz on a patch of the plate, over the spectrum of the sound', () => {
+    const { display, params } = face('vowel-reverb')
+    // With a sound going in its spectrum fills the foot of the curve in the same ink.
+    for (const signal of [undefined, testSignal()]) {
+      const drawn = drawDisplay(display, params, signal ? { signal } : {})
+      expect(patchUnder(drawn, '1k', PLAIN_COLOURS.plate)).not.toBeNull()
+    }
+  })
+
   it('reads the formants off the device own table, between its entries too', () => {
     // Bass a, soprano a, tenor i.
     expect(formantsAt(0, 0).hz).toEqual([600, 1040, 2250, 2450, 2750])

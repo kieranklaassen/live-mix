@@ -23,6 +23,7 @@ import {
   ground,
   handle,
   hzOfX,
+  label,
   rule,
   spectrum,
   text,
@@ -2955,10 +2956,8 @@ const vowel = plateDisplay<VowelState>({
       fillTo(ctx, state.set, curve.y + curve.h, colours.ink, INK.fill)
       trace(ctx, state.set, { colour: colours.ink })
     })
-    // Over the sound's spectrum, which would hide it.
-    text(frame, '1k', xOfHz(1000, curve, VOWEL_LOW_HZ, VOWEL_HIGH_HZ) + 2, curve.y + curve.h - 2, {
-      size: 8,
-    })
+    // Over the sound's spectrum, which would hide it: on a patch of the plate.
+    label(frame, '1k', xOfHz(1000, curve, VOWEL_LOW_HZ, VOWEL_HIGH_HZ) + 3, curve.y + curve.h - 2)
 
     // The vowel sung now: where the device last tuned its banks, the two sides drawn as one.
     if (sounding(frame) && frame.hasMeter('vowel')) {
