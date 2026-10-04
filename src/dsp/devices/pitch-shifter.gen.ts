@@ -13,6 +13,7 @@ export const PITCH_SHIFTER_PARAMS = {
     default: 12,
     taper: 'linear',
     unit: 'st',
+    step: 1,
     description:
       'The interval of the first voice above or below what is played. It glides when moved, so it can be played like a pitch pedal.',
   },
@@ -24,6 +25,7 @@ export const PITCH_SHIFTER_PARAMS = {
     default: -12,
     taper: 'linear',
     unit: 'st',
+    step: 1,
     description: 'The interval of the second voice. It is silent until Voice B is raised.',
   },
   levelB: {

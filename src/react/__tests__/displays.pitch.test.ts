@@ -5,6 +5,8 @@
 import { describe, expect, it } from 'vitest'
 
 import { type ParamSpec } from '../../core/params'
+import { formatParamValue, isChoiceParam, paramStep } from '../components/control-math'
+import { DEVICE_SKINS } from '../components/device-skins'
 import { PLAIN_COLOURS } from '../components/display-kit'
 import { PITCH_FACES } from '../components/displays/pitch'
 import { type DisplayHandle, type PlateDisplay } from '../components/plate-display'
@@ -199,7 +201,8 @@ describe('the pitch shifter display', () => {
   })
 
   it('lights the input and each voice with the sound going in, as tall as the voice by full scale', () => {
-    const values = { pitchA: 7, pitchB: -5, levelB: 0.5 }
+    // With Mix all the way up the voices come through whole.
+    const values = { pitchA: 7, pitchB: -5, levelB: 0.5, mix: 1 }
     const signal = testSignal(0.5)
     const lit = 1 + (20 * Math.log10(signal.input?.rms ?? 0)) / 54
     const lights = pictureOf(drawDisplay(display, params, { values, signal })).rects.filter(
@@ -223,6 +226,52 @@ describe('the pitch shifter display', () => {
     expect(none({ signal, powered: false })).toBe(0)
     expect(none({ signal: testSignal(0) })).toBe(0)
     expect(display.live).toEqual({ signal: true })
+  })
+
+  it('lights a voice by what Mix lets through of it, as the device mixes', () => {
+    // `pitch_shifter.h` mixes at equal power: the voices by sin(Mix × π / 2),
+    // the sound that went in by the cosine. The light at 0 is the sound going in.
+    const signal = testSignal(0.5)
+    const lit = 1 + (20 * Math.log10(signal.input?.rms ?? 0)) / 54
+    const lights = (mix: number): Rect[] =>
+      pictureOf(
+        drawDisplay(display, params, {
+          values: { pitchA: 7, pitchB: -5, levelB: 0.5, mix },
+          signal,
+        }),
+      ).rects.filter((rect) => rect.w === 7)
+    // At Mix 0 nothing of the voices is heard, and neither has a light.
+    const dry = lights(0)
+    expect(dry.map((rect) => [rect.x + 3.5, rect.colour])).toEqual([[xOfSt(0), ink]])
+    expect(dry[0].h).toBeCloseTo(27 * lit, 4)
+    // Half way each voice is at √½ of its level, 3 dB down.
+    const half = lights(0.5)
+    expect(half.map((rect) => rect.x + 3.5)).toEqual([xOfSt(0), xOfSt(-5), xOfSt(7)])
+    expect(half[0].h).toBeCloseTo(27 * lit, 4)
+    expect(half[1].h).toBeCloseTo(27 * 0.5 * Math.SQRT1_2 * lit, 4)
+    expect(half[2].h).toBeCloseTo(27 * Math.SQRT1_2 * lit, 4)
+    // A third of the way: sin(30°) is a half.
+    expect(lights(1 / 3)[2].h).toBeCloseTo(27 * 0.5 * lit, 4)
+    expect(display.params).toContain('mix')
+  })
+
+  it('moves the Pitch knobs in whole semitones, as their points move', () => {
+    // The device has Detune for what lies between two semitones, and every
+    // preset it ships sets both intervals whole.
+    for (const name of ['pitchA', 'pitchB']) {
+      const spec = params[name]
+      expect(paramStep(spec), name).toBe(1)
+      // A stepped value with a unit is not one of a list: it keeps its unit and prints whole.
+      expect(isChoiceParam(spec), name).toBe(false)
+      expect(formatParamValue(spec, 12), name).toBe('12 st')
+    }
+    expect(paramStep(params.detune)).toBeLessThan(1)
+    for (const [preset, values] of Object.entries(stock.get('pitch-shifter')?.presets ?? {})) {
+      for (const name of ['pitchA', 'pitchB']) {
+        if (values[name] !== undefined)
+          expect(Number.isInteger(values[name]), `"${preset}" ${name}`).toBe(true)
+      }
+    }
   })
 
   it('pushes A sharp and B flat by Detune, in cents', () => {
@@ -571,6 +620,88 @@ describe('the octaves display', () => {
     expect(falling).toBeGreaterThan(heightOf(litOf(quiet)) + 5)
     expect(falling).toBeLessThan(up)
   })
+
+  /** What sounds of each voice after so many seconds of a sound that changes as `signalAt` says. */
+  const soundsAfter = (
+    seconds: number,
+    attack: number,
+    signalAt: (time: number) => ReturnType<typeof testSignal> | null,
+  ): Map<number, number> =>
+    byOctave(
+      pictureOf(
+        runDisplay(
+          display,
+          params,
+          seconds,
+          {
+            values: { ...everything, filter: 16000, resonance: 0, attack },
+            meters: { note: 220 },
+          },
+          (time) => ({ signal: signalAt(time) }),
+        ),
+      ).rects.filter((rect) => rect.colour === accent && rect.alpha === 0.9),
+    )
+  const silence = testSignal(0)
+  const loud = testSignal(0.5)
+  /** The level a voice is allowed so long after its note began, as a share of the level going in. */
+  const allowed = (seconds: number, attack: number): number =>
+    1 - Math.exp((-seconds * 2.3026) / attack)
+  /** A light so many times quieter than the level going in stands this much lower on the scale of 54 dB. */
+  const litAt = (share: number): number => litOf(loud) + (20 * Math.log10(share)) / 54
+
+  it('lets the light inside a voice rise as Attack lets the voice rise, the dry sound at once', () => {
+    // `OctaveBank::set_attack`: the level a voice is allowed closes on the
+    // level going in by e^(−2.3026 t / Attack), nine tenths of the way in the
+    // Attack time. A note struck after a fifth of a second of silence
+    // (frames come 30 times a second: the sixth is the first with sound).
+    const struck = (rise: number, attack: number): Map<number, number> =>
+      soundsAfter(0.2 + rise, attack, (time) => (time < 0.19 ? silence : loud))
+    // Attack 2 s, 0.4 s on: 1 − e^(−0.4605) = 0.369 of the level, 8.7 dB under it.
+    expect(allowed(0.4, 2)).toBeCloseTo(0.369, 3)
+    const early = struck(0.4, 2)
+    expect(early.get(0)).toBeCloseTo(heightOf(litOf(loud)), 1)
+    for (const octave of [-2, -1, 1, 2]) {
+      expect(early.get(octave), `voice ${octave}`).toBeCloseTo(heightOf(litAt(0.369)), 0)
+      // 8.7 dB of the 54 the scale has, 10 px of a bar, under the dry sound's.
+      expect((early.get(0) ?? 0) - (early.get(octave) ?? 0)).toBeGreaterThan(9)
+    }
+    // After the Attack time a voice is at nine tenths, under 1 dB from the level.
+    const risen = struck(2, 2)
+    expect(risen.get(1)).toBeCloseTo(heightOf(litAt(0.9)), 0)
+    expect((risen.get(0) ?? 0) - (risen.get(1) ?? 0)).toBeLessThan(1.5)
+    // A shorter Attack is as much faster: 0.4 s of 0.5 s is 0.842 of the level.
+    expect(struck(0.4, 0.5).get(-1)).toBeCloseTo(heightOf(litAt(allowed(0.4, 0.5))), 0)
+    // With Attack at 0 the device has no ceiling: a voice is lit with the dry sound.
+    const plain = struck(0.1, 0)
+    expect(plain.get(-1)).toBeCloseTo(plain.get(0) ?? 0, 1)
+  })
+
+  it('keeps what a voice has risen to through a dip, out of sight too, and starts again on a new note', () => {
+    // `OctaveBank::tick`: the ceiling does not follow the level down, and only
+    // a new note takes it down, to what was held before the note. The display
+    // tells a new note as the bank tells a strike: a peak 1.4 times the last.
+    const softer = testSignal(0.4)
+    const quiet = testSignal(0.05)
+    // Risen for 2 s, then a fifth softer for a moment and back: no new note, and the voice is where it was.
+    const dipped = soundsAfter(2.6, 2, (time) =>
+      time < 0.19 ? silence : time > 2.31 && time < 2.39 ? softer : loud,
+    )
+    expect(dipped.get(1)).toBeGreaterThan(heightOf(litAt(0.9)) - 0.5)
+    // Drawn without a reading for a while, as a display out of sight is: the
+    // device plays on, and the voice is not started again.
+    const away = soundsAfter(2.6, 2, (time) =>
+      time < 0.19 ? silence : time > 2.31 && time < 2.39 ? null : loud,
+    )
+    expect(away.get(1)).toBeGreaterThan(heightOf(litAt(0.9)) - 0.5)
+    // Down to a tenth and struck again: the voice starts from the tenth it
+    // held, and 0.2 s on it has closed 0.206 of the way back.
+    const again = soundsAfter(2.6, 2, (time) =>
+      time < 0.19 ? silence : time > 2.19 && time < 2.39 ? quiet : loud,
+    )
+    expect(again.get(1)).toBeCloseTo(heightOf(litAt(0.1 + 0.9 * allowed(0.2, 2))), 0)
+    expect(again.get(1)).toBeLessThan((dipped.get(1) ?? 0) - 5)
+    expect(again.get(0)).toBeCloseTo(heightOf(litOf(loud)), 1)
+  })
 })
 
 // --- Half Speed --------------------------------------------------------------
@@ -906,6 +1037,37 @@ describe('the frequency shifter display', () => {
     expect(still.words()).toContain('−233 Hz')
   })
 
+  it('prints the shift the sound gets: the other way in Down, both ways in Stereo and Ring', () => {
+    const printed = (values: Record<string, number>, options: FrameOptions = {}): string =>
+      drawDisplay(display, params, { ...options, values: { ...plain, ...values } })
+        .words()
+        .find((words) => words.endsWith(' Hz')) ?? ''
+    // `kDirection` of `freq_shifter.h`: Up sends the sound up by Shift, a Shift under 0 down.
+    expect(printed({ shift: 200, mode: 0 })).toBe('+200 Hz')
+    expect(printed({ shift: -200, mode: 0 })).toBe('−200 Hz')
+    // Down sends it the other way: +200 on the knob is 200 Hz lower, as the partials are drawn.
+    expect(printed({ shift: 200, mode: 1 })).toBe('−200 Hz')
+    expect(sentTo(sent({ shift: 200, mode: 1 }))[3].x).toBe(onPixel(xOfHz(1000)))
+    expect(printed({ shift: -200, mode: 1 })).toBe('+200 Hz')
+    expect(printed({ shift: 5, fine: 0.5, mode: 1 })).toBe('−5.5 Hz')
+    // Stereo sends the left side up and the right side down, Ring both sides both ways.
+    expect(printed({ shift: 200, mode: 2 })).toBe('±200 Hz')
+    expect(printed({ shift: -200, mode: 2 })).toBe('±200 Hz')
+    expect(printed({ shift: 200, mode: 3 })).toBe('±200 Hz')
+    expect(printed({ shift: -0.5, mode: 3 })).toBe('±0.50 Hz')
+    // No shift has no way to go.
+    for (const mode of [0, 1, 2, 3]) expect(printed({ shift: 0, mode })).toBe('0.00 Hz')
+    // Running, it is the device's own reading that is turned: the LFO has made 200 of 201.
+    const running = runDisplay(
+      display,
+      params,
+      0.2,
+      { values: { ...plain, shift: 200, mode: 1 }, signal: testSignal() },
+      (time) => ({ meters: { shift: 201, carrier: (0.25 + time * 201) % 1 } }),
+    )
+    expect(running.words()).toContain('−201 Hz')
+  })
+
   it('takes a carrier that stands for a device at rest, and draws the shift that is set', () => {
     // Before the sound starts the device reports the shift it was made with,
     // not the one set since: the readings are old, and the setting is drawn.
@@ -1146,6 +1308,84 @@ describe('the lattice display', () => {
     expectAt(voices(gliding), xOfCents(50), yOfRow(3))
   })
 
+  it('keeps a note or a voice a hair under the root on the root, not at the far end of the row below', () => {
+    // C4 as a tracker reads it, a fifth of a cent flat: 5999.8 cents. It is
+    // the C of its own row, the first node, and so is one a fifth of a cent sharp.
+    const held = (note: number, shift1: number): Picture =>
+      pictureOf(
+        drawDisplay(display, params, {
+          values: { ...major, ...off, v1Role: 1, v1Degrees: 2 },
+          meters: { note, voiced: 1, shift1, shift2: 0, shift3: 0, shift4: 0 },
+        }),
+      )
+    expect(square(held(59.998, 400))).toEqual([onLine(xOfCents(0)), onLine(yOfRow(3))])
+    expect(square(held(60.002, 400))).toEqual([onLine(xOfCents(0)), onLine(yOfRow(3))])
+    // A4 with a voice a minor third up, a tenth of a cent short of C6: on C in the row above.
+    expectAt(voices(held(69, 299.9)), xOfCents(0), yOfRow(4))
+    expectAt(voices(held(69, 300.1)), xOfCents(0.1), yOfRow(4))
+    // On its way there, half a semitone under the root, it is still in the row below, past B.
+    expectAt(voices(held(69, 250)), xOfCents(1150), yOfRow(3))
+  })
+
+  it('stands the ring on the note the device uses when the Center Note is set between two', () => {
+    // `lattice.h` rounds the Center Note to a whole note and then takes the
+    // nearest step. In C major 63.4 is 63, D♯, as near D as E: the lower, D,
+    // where 62 stands. 63.5 rounds up to 64, E.
+    const ring = (center: number): DisplayHandle =>
+      handleOf('lattice', 'center', { values: { ...major, center } }).handle
+    expect(ring(62).x).toBeCloseTo(xOfCents(200), 6)
+    expect(ring(63).x).toBeCloseTo(xOfCents(200), 6)
+    expect(ring(63.4).x).toBeCloseTo(xOfCents(200), 6)
+    expect(ring(63.5).x).toBeCloseTo(xOfCents(400), 6)
+    expect(ring(64).x).toBeCloseTo(xOfCents(400), 6)
+    // A voice sent to the centre stands in the ring.
+    const drawn = pictureOf(
+      drawDisplay(display, params, {
+        values: { ...major, ...off, center: 63.4, v1Role: 6, v1Degrees: 0 },
+      }),
+    )
+    expectAt(voices(drawn), xOfCents(200), yOfRow(3))
+    // Taken and not moved, or moved within its own step, the ring leaves the
+    // setting as it is; taken to the next step it sets that step's whole note.
+    const between = ring(63.4)
+    expect(between.drag(between.x, between.y)).toEqual({ center: 63.4 })
+    expect(between.drag(between.x + 2, between.y)).toEqual({ center: 63.4 })
+    expect(between.drag(xOfCents(400), between.y)).toEqual({ center: 64 })
+  })
+
+  it('moves the Center Note knob in whole notes, as the device takes it', () => {
+    const spec = params.center
+    expect(paramStep(spec)).toBe(1)
+    expect(isChoiceParam(spec)).toBe(false)
+    expect(formatParamValue(spec, 62)).toBe('62 note')
+    for (const [preset, values] of Object.entries(stock.get('lattice')?.presets ?? {})) {
+      if (values.center !== undefined)
+        expect(Number.isInteger(values.center), `"${preset}" center`).toBe(true)
+    }
+  })
+
+  it('names the two knobs of every custom degree apart, in words that stand whole in two lines', () => {
+    const skin = DEVICE_SKINS.lattice
+    // Every knob of the opened plate goes by a name of its own.
+    const names = Object.keys(params).map((key) => skin.labels?.[key] ?? params[key].name)
+    expect(new Set(names).size).toBe(names.length)
+    for (let degree = 1; degree <= 12; degree++) {
+      const pair = [skin.labels?.[`customOn${degree}`], skin.labels?.[`customCents${degree}`]]
+      expect(pair).toEqual([`Degree ${degree} on`, `Degree ${degree} cents`])
+      for (const label of pair) {
+        // Two lines of a knob's column: the first word alone, at most the
+        // seven letters a column of 48 px holds at the names' size, and the
+        // number with the word after it, eight characters at most ("12 cents").
+        const [first, ...rest] = (label ?? '').split(' ')
+        expect(first.length).toBeLessThanOrEqual(7)
+        expect(rest.join(' ').length).toBeLessThanOrEqual(8)
+      }
+      // The parameter keeps its own name.
+      expect(params[`customOn${degree}`].name).toBe(`Custom Degree ${degree} On`)
+      expect(params[`customCents${degree}`].name).toBe(`Custom Degree ${degree} Cents`)
+    }
+  })
+
   it('rings a voice for its echoes and trails it for a cascade', () => {
     const values = { ...major, ...off, v1Role: 1, v1Degrees: 2, v1Level: -6, v1Feedback: 50 }
     const rings = (delay: number): number[] =>
@@ -1275,11 +1515,48 @@ describe('the spectral drifter display', () => {
     })
     const mark = uprights(pictureOf(drawn), accent, 2.5)[0]
     expect(mark.x).toBeCloseTo(xOfSt(12 * Math.log2(1 + 0.3 + 0.7 * (age / 4))), 4)
-    // In silence the sound is fresh again.
-    const silent = drawDisplay(display, params, {
+    // A still picture, before any sound, is of a fresh one.
+    const still = drawDisplay(display, params, {
       values: { ...manual, ageMode: 0, bloom: 1, decay: 2 },
     })
-    expect(uprights(pictureOf(silent), accent, 2.5)[0].x).toBeCloseTo(xOfSt(12 * Math.log2(1.3)), 6)
+    expect(uprights(pictureOf(still), accent, 2.5)[0].x).toBeCloseTo(xOfSt(12 * Math.log2(1.3)), 6)
+    // Silence makes it fresh again: the age falls with a time constant of
+    // 0.23 s, and 2 s on nothing is left of it.
+    const state = display.init?.()
+    const options = { values: { ...manual, ageMode: 0, bloom: 1, decay: 2 }, state }
+    runDisplay(display, params, 2, { ...options, signal: testSignal() })
+    const silent = runDisplay(display, params, 2, { ...options, signal: testSignal(0, 0) })
+    expect(uprights(pictureOf(silent), accent, 2.5)[0].x).toBeCloseTo(xOfSt(12 * Math.log2(1.3)), 1)
+  })
+
+  it('keeps the age of the sound while it is drawn without a reading: the device counts on', () => {
+    // A display out of sight, and one whose plate is switched off, is drawn
+    // without a reading. The device runs on in both (a plate that is off
+    // still processes the sound going in, and only its output is crossed
+    // over), so the marks stay where they were and go on from there.
+    const values = { ...manual, ageMode: 0, bloom: 1, decay: 5 }
+    const state = display.init?.()
+    const at = (drawn: RecordingContext): number => uprights(pictureOf(drawn), accent, 2.5)[0].x
+    const rung = at(runDisplay(display, params, 4, { values, state, signal: testSignal() }))
+    // About 4 s of the 10 a sound can ring: well off the fresh end at 1.3 times the speed.
+    expect(rung).toBeGreaterThan(xOfSt(12 * Math.log2(1.3 + 0.7 * 0.35)))
+    // Out of sight: no reading, the plate still on.
+    expect(at(drawDisplay(display, params, { values, state }))).toBeCloseTo(rung, 9)
+    // Switched off: the same.
+    expect(at(drawDisplay(display, params, { values, state, powered: false }))).toBeCloseTo(rung, 9)
+    // Back in sight, the count goes on from where it was: after a second more
+    // (29 frames after the first) the marks stand where 148 frames of the
+    // sound in one run put them.
+    const back = at(runDisplay(display, params, 1, { values, state, signal: testSignal() }))
+    expect(back).toBeGreaterThan(rung)
+    const whole = at(
+      runDisplay(display, params, 149 / 30, {
+        values,
+        state: display.init?.(),
+        signal: testSignal(),
+      }),
+    )
+    expect(back).toBeCloseTo(whole, 6)
   })
 
   /** The lines the groups drift along: level, in the ink, from the fresh end to the old one. */
