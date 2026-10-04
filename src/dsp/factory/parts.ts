@@ -3,7 +3,7 @@
 // way a looping sound needs them.
 
 import { type PatchDevice } from '../../core/devices/patch'
-import { noteFrequency } from '../patch-render'
+import { noteFrequency } from '../note-frequency'
 
 /**
  * A tone that does not move at all is the same wave at both ends of its loop,

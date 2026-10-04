@@ -9,6 +9,10 @@
 // read from where the devices stood when it was taken. The name is moved with
 // a transform written straight to its element: a pointer move re-renders the
 // chain only when the landing place changes.
+//
+// What a host carries in from outside the chain (a device dragged from its
+// browser) lands in a gap the same way: `chainDropIndex` says which one the
+// pointer is over, and the chain stands the same marker there.
 
 import {
   useCallback,
@@ -76,6 +80,32 @@ export function markerPosition(
   const after = others[to]
   if (before && after) return (before.right + after.left) / 2
   return before ? before.right : (after?.left ?? null)
+}
+
+/**
+ * What comes in from outside the chain is none of its devices: every one of
+ * them is counted, and every one keeps its place.
+ */
+const FROM_OUTSIDE = -1
+
+/**
+ * The place among the devices at `spans` a pointer at `x` is over, for
+ * something carried in from outside the chain: past a device's middle is
+ * after it. 0 heads them, their number ends them.
+ */
+export function dropIndex(spans: readonly ItemSpan[], x: number): number {
+  return landingIndex(spans, FROM_OUTSIDE, x)
+}
+
+/**
+ * Where the marker stands for something that would land at `index` among the
+ * devices at `spans`: in the middle of the gap it would open, at the first
+ * device's left edge to head them, at the last one's right edge to end them.
+ * A place past either end is that end. Null when there is no device.
+ */
+export function dropMarkerPosition(spans: readonly ItemSpan[], index: number): number | null {
+  const to = Math.max(0, Math.min(Math.floor(index), spans.length))
+  return markerPosition(spans, FROM_OUTSIDE, to)
 }
 
 /** How far the chain scrolls this frame with the pointer at `x` in a view from `left` to `right`. */
@@ -146,6 +176,42 @@ function scrollerOf(chain: HTMLElement): HTMLElement | null {
     if (overflow === 'auto' || overflow === 'scroll') return element
   }
   return null
+}
+
+/** The devices a chain shows, in order: its marker and the carried name are not among them. */
+function chainItems(chain: HTMLElement): HTMLElement[] {
+  return [...chain.querySelectorAll<HTMLElement>(':scope > .lm-chain__item')]
+}
+
+/** Where each device a chain shows stands in the window. */
+function windowSpans(chain: HTMLElement): ItemSpan[] {
+  return chainItems(chain).map((item) => {
+    const bounds = item.getBoundingClientRect()
+    return { left: bounds.left, right: bounds.right }
+  })
+}
+
+/**
+ * The place among the devices a chain shows that a pointer at `clientX` is
+ * over, for something carried in from outside: past a device's middle is
+ * after it. `chain` is the chain's own element (`.lm-chain`).
+ */
+export function chainDropIndex(chain: HTMLElement, clientX: number): number {
+  // The pointer and the devices are both read in the window: scrolling moves them together.
+  return dropIndex(windowSpans(chain), clientX)
+}
+
+/**
+ * Where a chain's marker stands for something that would land at `index`
+ * among the devices it shows, in px from the chain's left edge: where a carry
+ * inside the chain puts it for the same gap. Null when no device is shown.
+ */
+export function chainDropMarker(chain: HTMLElement, index: number): number | null {
+  const at = dropMarkerPosition(windowSpans(chain), index)
+  if (at === null) return null
+  // The marker is placed inside the chain's border, and scrolls with what the chain scrolls.
+  const chainLeft = chain.getBoundingClientRect().left + chain.clientLeft - chain.scrollLeft
+  return markerInside(at - chainLeft, chain.scrollWidth)
 }
 
 interface Carry {
@@ -268,7 +334,7 @@ export function useChainReorder(onMove: (from: number, to: number) => void): Cha
     (current: Carry) => {
       const element = chain.current
       if (!element) return false
-      const items = [...element.querySelectorAll<HTMLElement>(':scope > .lm-chain__item')]
+      const items = chainItems(element)
       if (items[current.from] !== current.item) return false
       const scroller = scrollerOf(element)
       const scroll = scroller?.scrollLeft ?? 0

@@ -189,6 +189,22 @@ class AnalogDrive : public kit::DeviceBase<analog_drive::kNumParams> {
     idle_.settle(output_peak(frames), frames);
   }
 
+  // The readings named by "meters" in device.json, for a display to draw the
+  // curve where it stands now: the level arriving at the curve of the circuit
+  // in use, which moves its working point, and the level leaving it, which
+  // sags the gain into it. Both in the curve's own units (1 is its ceiling).
+  float meter(int index) const {
+    const Lane& lane = lanes_[active_];
+    switch (index) {
+      case 0:
+        return lane.arriving;
+      case 1:
+        return lane.envelope;
+      default:
+        return 0.0f;
+    }
+  }
+
   // The last thing the driven signal passes, after Output and before Mix:
   // exactly the input up to +-1.5 (so nothing at a sensible level is
   // touched, to the bit), then a smooth knee that lands on +-4. It is there

@@ -15,8 +15,15 @@
 //     generated sounds, that many seeds of each kind in keys and on chords that go round,
 //     measured and classified; `fold` is the level of the folded start against the same
 //     stretch rendered straight, which a loop that swells at its seam shows as +3 dB
-//   FACTORY_REPORT=keys [FACTORY=<part of an id>] [FACTORY_NUMBERS=<first>-<last>] pnpm vitest run …
-//     each factory sound in all twelve keys, measured and classified
+//   FACTORY_REPORT=keys [FACTORY=<part of an id>] [FACTORY_NUMBERS=<first>-<last>] [FACTORY_KEYS=-5,6] pnpm vitest run …
+//     each factory sound in all twelve keys, or in the ones FACTORY_KEYS names as semitones
+//     from the bank's own, measured and classified
+//   FACTORY_REPORT=sounds|keys FACTORY_PACK=<pack id> […] pnpm vitest run …
+//     the same for one pack's sounds (../sound-packs/<pack id>.ts, read alone), then what
+//     the pack breaks as a whole (its count, a kind it is short of, its seconds, names and
+//     recipes that come twice), what each recipe breaks before it is rendered, and the
+//     sounds that are nearest each other. OFFKEY marks a pitched sound with over a quarter
+//     of its power on the black keys: partials that are meant, or a note the key lacks
 //   FACTORY_REPORT=packs FACTORY_PACK=<pack id> [FACTORY=<part of an id>] pnpm vitest run …
 //     each preset of one pack as it leaves the patch, with its instrument, its cost, and in
 //     capitals where it leaves a pack's limits (PEAK, LOUD, QUIET, DC; SLOW over 12 % of real
@@ -62,7 +69,7 @@ import {
   transposeFactorySound,
   type FactoryMode,
 } from '..'
-import { FACTORY_PACK_SIZE, loadFactoryPacks } from '../packs'
+import { FACTORY_PACK_SIZE, FACTORY_SOUND_PACK_SIZE, loadFactoryPacks } from '../packs'
 import {
   PACK_INSTRUMENTS,
   PACK_LIMITS,
@@ -70,9 +77,14 @@ import {
   renderPackPreset,
   repeatedSettings,
 } from '../packs/__tests__/support'
-import { type FactoryPreset } from '../types'
+import {
+  SOUND_PACK_LIMITS,
+  packSoundProblems,
+  soundPackProblems,
+} from '../sound-packs/__tests__/support'
+import { type FactoryPreset, type FactorySound } from '../types'
 import { CHAIN_TEST_PATCH, CHAIN_TEST_PHRASE } from './chain-input'
-import { KIND_LOUDNESS, longestName, measureEnds } from './sound-measure'
+import { KIND_LOUDNESS, blackKeyShare, longestName, measureEnds } from './sound-measure'
 import { BANK_LIMITS, chainProblems, nearestPrints, presetProblems } from './support'
 
 const mode = process.env.FACTORY_REPORT
@@ -89,8 +101,57 @@ const [firstNumber, lastNumber = firstNumber] = (process.env.FACTORY_NUMBERS ?? 
   .map((part) => (part === '' ? undefined : Number(part)))
 const numbered = (number: number): boolean =>
   firstNumber === undefined || (number >= firstNumber && number <= (lastNumber ?? firstNumber))
+/** The keys the `keys` report renders, as semitones from the bank's own: all twelve unless FACTORY_KEYS names some. */
+const keysAsked = process.env.FACTORY_KEYS
+  ? process.env.FACTORY_KEYS.split(',').map(Number)
+  : [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6]
+/** Above this share of power on the black keys a pitched sound is flagged for a look (see `blackKeyShare`). */
+const OFF_KEY_SHARE = 0.25
 const lines: string[] = []
 const say = (line: string) => lines.push(line)
+
+/**
+ * The sounds a report is about: the bank's, or with FACTORY_PACK one pack's,
+ * read from its own module and no other, so one pack is measured while
+ * another is being written.
+ */
+async function soundsAsked(): Promise<readonly FactorySound[]> {
+  if (!onlyPack) return FACTORY_SOUNDS
+  // eslint-disable-next-line no-restricted-syntax -- which pack is asked for is only known when the bench runs
+  const module = (await import(`../sound-packs/${onlyPack}.ts`)) as {
+    SOUNDS: readonly FactorySound[]
+  }
+  return module.SOUNDS
+}
+
+/** What a pack of sounds breaks as a whole, and which of the chosen ones sound alike. */
+function saySoundPack(
+  pack: string,
+  sounds: readonly FactorySound[],
+  chosen: readonly FactorySound[],
+  prints: ReadonlyMap<string, SoundPrint>,
+): void {
+  const seconds = sounds.reduce((sum, sound) => sum + sound.durationSec, 0)
+  say(
+    `\n${sounds.length} of ${FACTORY_SOUND_PACK_SIZE} sounds, ${seconds.toFixed(0)} s of ` +
+      `${SOUND_PACK_LIMITS.seconds} at most`,
+  )
+  for (const problem of soundPackProblems(sounds)) say(problem)
+  for (const sound of chosen) {
+    for (const problem of packSoundProblems(pack, sound, registry)) say(`${sound.id}: ${problem}`)
+  }
+  const chosenIds = new Set(chosen.map((sound) => sound.id))
+  if (prints.size > 1) {
+    say(`\nnearest in sound (dB apart; under ${SOUND_PACK_LIMITS.alikeDb} is one sound twice)`)
+    for (const { id, nearest, distance } of nearestPrints(prints)) {
+      if (!chosenIds.has(id) || distance >= SOUND_PACK_LIMITS.alikeDb + 1) continue
+      say(
+        `${id.padEnd(40)} ${distance.toFixed(1).padStart(5)}  ${nearest}` +
+          (distance < SOUND_PACK_LIMITS.alikeDb ? '  ALIKE' : ''),
+      )
+    }
+  }
+}
 
 function publish(): void {
   mkdirSync('tmp', { recursive: true })
@@ -292,11 +353,15 @@ describe.skipIf(!mode)('factory bench', () => {
     'sounds',
     async () => {
       const render = { compile: compileFromDisk, sliceMs: 0 } as const
-      for (const sound of FACTORY_SOUNDS.filter((s) => s.id.includes(only) && numbered(s.number))) {
+      const from = await soundsAsked()
+      const chosen = from.filter((s) => s.id.includes(only) && numbered(s.number))
+      const prints = new Map<string, SoundPrint>()
+      for (const sound of chosen) {
         const [audio, cost] = await timed(sound.durationSec, () =>
           renderFactorySound(sound, render),
         )
         keep(sound.id, audio)
+        prints.set(sound.id, soundPrint(audio))
         const measured = measureAudio(audio)
         const analysis = analyzeSound(audio.channels, audio.sampleRate)
         const envelope = onsetEnvelope(audio.channels, audio.sampleRate)
@@ -313,6 +378,8 @@ describe.skipIf(!mode)('factory bench', () => {
         if (measured.widthDb > -1.5) problems.push('WIDE')
         if (longestName(sound).length > 24) problems.push('NAME')
         if (Number(cost.replace('% rt', '')) > 12) problems.push('SLOW')
+        const black = blackKeyShare(audio)
+        if (sound.kind !== 'texture' && black > OFF_KEY_SHARE) problems.push('OFFKEY')
         let ending: string
         if (sound.loopCrossfadeSec) {
           // The folded start against the same stretch rendered straight: a loop that swells or dips at its seam.
@@ -350,14 +417,16 @@ describe.skipIf(!mode)('factory bench', () => {
           ending = `lead ${ends.leadSec.toFixed(3)} s  end ${ends.endDb.toFixed(0)} dB`
         }
         say(
-          `${String(sound.number).padEnd(4)}${sound.id.padEnd(28)} ${sound.durationSec}s  ` +
+          `${String(sound.number).padEnd(onlyPack ? 6 : 4)}${sound.id.padEnd(onlyPack ? 44 : 28)} ${sound.durationSec}s  ` +
             `${formatMeasurement(measured)}  ` +
             `kind ${analysis.kind}${analysis.kind === sound.kind ? '' : ` (says ${sound.kind})`}  ` +
             `hits ${analysis.onsetsSec.length}  flat ${features ? features.flatness.toFixed(2) : '-'}  ` +
-            `tonal ${features ? features.tonality.toFixed(2) : '-'}  ${ending}  ${cost}` +
+            `tonal ${features ? features.tonality.toFixed(2) : '-'}  ` +
+            `black ${(black * 100).toFixed(0)}%  ${ending}  ${cost}` +
             (problems.length > 0 ? `  ${problems.join(' ')}` : ''),
         )
       }
+      if (onlyPack) saySoundPack(onlyPack, from, chosen, prints)
       publish()
     },
     1_800_000,
@@ -592,8 +661,9 @@ describe.skipIf(!mode)('factory bench', () => {
   it.skipIf(mode !== 'keys')(
     'keys',
     async () => {
-      for (const sound of FACTORY_SOUNDS.filter((s) => s.id.includes(only) && numbered(s.number))) {
-        for (let transpose = -5; transpose <= 6; transpose += 1) {
+      const from = await soundsAsked()
+      for (const sound of from.filter((s) => s.id.includes(only) && numbered(s.number))) {
+        for (const transpose of keysAsked) {
           const audio = await renderFactorySound(sound, {
             compile: compileFromDisk,
             sliceMs: 0,
@@ -605,7 +675,7 @@ describe.skipIf(!mode)('factory bench', () => {
             ? `  seam ${Math.abs(audio.channels[0][0] - (audio.channels[0].at(-1) ?? 0)).toFixed(4)}`
             : ''
           say(
-            `${sound.id.padEnd(24)} ${String(transpose).padStart(2)} ` +
+            `${sound.id.padEnd(onlyPack ? 44 : 24)} ${String(transpose).padStart(2)} ` +
               `${transposeFactorySound(sound, transpose).name.padEnd(24)} ` +
               `${formatMeasurement(measureAudio(audio))}  ` +
               `kind ${analysis.kind}${analysis.kind === sound.kind ? '' : ' (WRONG)'}${seam}` +

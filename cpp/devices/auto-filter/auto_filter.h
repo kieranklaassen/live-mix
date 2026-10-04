@@ -92,6 +92,30 @@ class AutoFilter : public kit::DeviceBase<auto_filter::kNumParams> {
     if (store_param(id, value)) apply(id);
   }
 
+  // The reading named by meters[0] in device.json, for a display to draw: the
+  // cutoff the filter stands at, in Hz, after the envelope and the LFO have
+  // moved it. Awake it is what the coefficients were last made from. Asleep,
+  // and before the first block, it is where waking would put it: the knobs
+  // where they are set, the envelope run down and the LFO turned on by the
+  // time slept (see wake_up).
+  float meter(int index) const {
+    using namespace auto_filter;
+    if (index != 0) return 0.0f;
+    float pitch = last_pitch_;
+    if (slept_ > 0.0 || pitch == kUnset) {
+      float envelope = envelope_;
+      if (slept_ > 0.0) {
+        envelope *= static_cast<float>(std::exp(slept_ * std::log1p(-static_cast<double>(release_coeff_))));
+      }
+      const double phase = lfo_phase_ + static_cast<double>(lfo_rate_.target) * slept_ / sample_rate();
+      const int shape = kit::clamp_int(static_cast<int>(param(kLfoShape) + 0.5f), 0, kNumLfoShapes - 1);
+      const float lfo = lfo_value(shape, static_cast<float>(phase - std::floor(phase)), lfo_held_);
+      pitch = cutoff_log2_.target + env_amount_.target * 0.01f * kEnvOctaves * kit::min(1.0f, envelope) +
+              lfo_amount_.target * 0.01f * kLfoOctaves * lfo;
+    }
+    return kit::clamp(std::exp2(pitch), kMinCutoffHz, max_cutoff_);
+  }
+
   void process(int frames) {
     using namespace auto_filter;
     frames = begin_block(frames);

@@ -160,6 +160,9 @@ export {
 } from './device-skins'
 export { HOSTED_PLATES, PLATE_PALETTES, type PlatePalette } from './plate-palettes'
 export {
+  chainDropIndex,
+  dropIndex,
+  dropMarkerPosition,
   landingIndex,
   markerPosition,
   useChainReorder,

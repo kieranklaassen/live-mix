@@ -14,13 +14,13 @@ build_generated_devices() {
     cpp/devices/ambient-limiter/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device analog-delay \
     cpp/devices/analog-delay/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device analog-drive \
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device analog-drive \
     cpp/devices/analog-drive/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device atmosphere \
     cpp/devices/atmosphere/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device aurora \
     cpp/devices/aurora/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device auto-filter \
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device auto-filter \
     cpp/devices/auto-filter/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device bloom-reverb \
     cpp/devices/bloom-reverb/device_api.gen.cpp \
@@ -108,7 +108,7 @@ build_generated_devices() {
     cpp/devices/pitch-shifter/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device radio \
     cpp/devices/radio/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device re-amp \
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device re-amp \
     cpp/devices/re-amp/device_api.gen.cpp
   MEMORY_BYTES=20971520 EXTRA_EXPORTS="" build_device reverse-delay \
     cpp/devices/reverse-delay/device_api.gen.cpp
@@ -126,7 +126,7 @@ build_generated_devices() {
     cpp/devices/spectral-blur/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device spring-reverb \
     cpp/devices/spring-reverb/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device stereo-detune \
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device stereo-detune \
     cpp/devices/stereo-detune/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device string-machine \
     cpp/devices/string-machine/device_api.gen.cpp
@@ -154,7 +154,7 @@ build_generated_devices() {
     cpp/devices/stereo-widener/StereoWidener.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device tine-piano \
     cpp/devices/tine-piano/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device tremolo \
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device tremolo \
     cpp/devices/tremolo/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device vintage-digital \
     cpp/devices/vintage-digital/device_api.gen.cpp
