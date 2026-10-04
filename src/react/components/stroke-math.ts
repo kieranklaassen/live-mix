@@ -65,8 +65,8 @@ const FULL_EASE = fadeEase(1)
 // for and free, and a path put together piece by piece stays a chain of
 // thousands of pieces until the page reads it: a zoom step of a field of
 // strokes left the browser three times the memory to collect.
-let AMPS = new Float64Array(1024)
-let SMOOTH = new Float64Array(1024)
+let AMPS: Float64Array = new Float64Array(1024)
+let SMOOTH: Float64Array = new Float64Array(1024)
 const PIECES: string[] = []
 
 /** Room for `count` columns in a kept array: the same one while it is long enough. */
@@ -98,7 +98,8 @@ function columnAmps({
   reversed = false,
   normalize = true,
 }: StrokeLevelsOptions): number {
-  const columns = Math.max(0, Math.floor(width / STROKE_COLUMN_PX))
+  // (A width that is not a number has no columns.)
+  const columns = Math.max(0, Math.floor(width / STROKE_COLUMN_PX)) || 0
   const radius = height / 2
   const room = Math.max(0, radius - STROKE_INSET_PX)
   const count = peaks ? Math.min(peaks.min.length, peaks.max.length) : 0
