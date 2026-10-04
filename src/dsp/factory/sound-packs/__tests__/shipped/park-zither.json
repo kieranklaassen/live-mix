@@ -1,0 +1,502 @@
+{
+  "11001": {
+    "id": "park-zither-long-noon-drone-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11002": {
+    "id": "park-zither-fourth-string-open-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11003": {
+    "id": "park-zither-just-major-air-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11004": {
+    "id": "park-zither-overtone-ladder-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11005": {
+    "id": "park-zither-root-under-strings-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11006": {
+    "id": "park-zither-lap-harmonium-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11007": {
+    "id": "park-zither-flutes-turning-b",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11008": {
+    "id": "park-zither-strings-under-arch-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11009": {
+    "id": "park-zither-home-keyboard-organ-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11010": {
+    "id": "park-zither-reed-by-the-water-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11011": {
+    "id": "park-zither-mouth-organ-held-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11012": {
+    "id": "park-zither-six-warm-bows-g6",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11013": {
+    "id": "park-zither-morning-chant-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11014": {
+    "id": "park-zither-ensemble-phaser-csus2",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11015": {
+    "id": "park-zither-warm-brick-am7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11016": {
+    "id": "park-zither-brass-gong-pad-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11017": {
+    "id": "park-zither-phased-pulse-pad-g6",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11018": {
+    "id": "park-zither-glass-pad-turning-dm7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11019": {
+    "id": "park-zither-glass-table-morning-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11020": {
+    "id": "park-zither-vowel-haze-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11021": {
+    "id": "park-zither-slow-saw-tide-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11022": {
+    "id": "park-zither-brass-in-the-swirl-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11023": {
+    "id": "park-zither-choir-on-a-reel-em",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11024": {
+    "id": "park-zither-mouth-organ-chord-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11025": {
+    "id": "park-zither-loaded-tanpura-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11026": {
+    "id": "park-zither-glass-slide-swell-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11027": {
+    "id": "park-zither-chords-from-nothing-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11028": {
+    "id": "park-zither-eyes-closed-cmaj7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11029": {
+    "id": "park-zither-wire-brush-chord-em7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11030": {
+    "id": "park-zither-lap-harmonium-breath-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11031": {
+    "id": "park-zither-tape-flutes-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11032": {
+    "id": "park-zither-bowed-wire-b",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11033": {
+    "id": "park-zither-wet-glass-rims-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11034": {
+    "id": "park-zither-bronze-weather-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11035": {
+    "id": "park-zither-warm-pavement-fmaj7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11036": {
+    "id": "park-zither-blanket-strings-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11037": {
+    "id": "park-zither-late-light-strings-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11038": {
+    "id": "park-zither-turning-leaves-c",
+    "durationSec": 12,
+    "loops": true
+  },
+  "11039": {
+    "id": "park-zither-there-and-back-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11040": {
+    "id": "park-zither-five-note-breath-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11041": {
+    "id": "park-zither-fountain-basin-loop",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11042": {
+    "id": "park-zither-wind-in-plane-trees-loop",
+    "durationSec": 16,
+    "loops": true
+  },
+  "11043": {
+    "id": "park-zither-sparrows-at-the-gate-loop",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11044": {
+    "id": "park-zither-sprinkler-on-the-lawn",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11045": {
+    "id": "park-zither-frogs-at-the-boat-pond",
+    "durationSec": 16,
+    "loops": true
+  },
+  "11046": {
+    "id": "park-zither-crickets-by-the-path",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11047": {
+    "id": "park-zither-thunder-past-the-arch",
+    "durationSec": 16,
+    "loops": true
+  },
+  "11048": {
+    "id": "park-zither-stream-under-the-bridge",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11049": {
+    "id": "park-zither-small-amp-left-on",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11050": {
+    "id": "park-zither-dry-leaves-underfoot",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11051": {
+    "id": "park-zither-wind-in-the-railings",
+    "durationSec": 16,
+    "loops": true
+  },
+  "11052": {
+    "id": "park-zither-pan-in-the-swirl-d",
+    "durationSec": 8,
+    "loops": false
+  },
+  "11053": {
+    "id": "park-zither-low-steel-ding-e",
+    "durationSec": 10,
+    "loops": false
+  },
+  "11054": {
+    "id": "park-zither-steel-tongue-echo-a",
+    "durationSec": 7,
+    "loops": false
+  },
+  "11055": {
+    "id": "park-zither-long-afternoon-ring-g",
+    "durationSec": 7,
+    "loops": false
+  },
+  "11056": {
+    "id": "park-zither-edge-struck-gong-d",
+    "durationSec": 9,
+    "loops": false
+  },
+  "11057": {
+    "id": "park-zither-bowl-on-the-blanket-b",
+    "durationSec": 10,
+    "loops": false
+  },
+  "11058": {
+    "id": "park-zither-glass-bell-swirl-c",
+    "durationSec": 6,
+    "loops": false
+  },
+  "11059": {
+    "id": "park-zither-chapel-upright-c",
+    "durationSec": 6,
+    "loops": false
+  },
+  "11060": {
+    "id": "park-zither-traded-twelve-string-d",
+    "durationSec": 6,
+    "loops": false
+  },
+  "11061": {
+    "id": "park-zither-phaser-tines-em7",
+    "durationSec": 5,
+    "loops": false
+  },
+  "11062": {
+    "id": "park-zither-pocket-chimes-a",
+    "durationSec": 5,
+    "loops": false
+  },
+  "11063": {
+    "id": "park-zither-afternoon-motor-cmaj7",
+    "durationSec": 8,
+    "loops": false
+  },
+  "11064": {
+    "id": "park-zither-sprinkler-arc-g",
+    "durationSec": 4,
+    "loops": false
+  },
+  "11065": {
+    "id": "park-zither-stoop-fingerstyle-f",
+    "durationSec": 7,
+    "loops": false
+  },
+  "11066": {
+    "id": "park-zither-late-set-tines-g6",
+    "durationSec": 8,
+    "loops": false
+  },
+  "11067": {
+    "id": "park-zither-knuckle-rap-d",
+    "durationSec": 3,
+    "loops": false
+  },
+  "11068": {
+    "id": "park-zither-park-bench-strum-g",
+    "durationSec": 7,
+    "loops": false
+  },
+  "11069": {
+    "id": "park-zither-home-dubbed-zither-dm",
+    "durationSec": 7,
+    "loops": false
+  },
+  "11070": {
+    "id": "park-zither-folded-gate-pluck-g",
+    "durationSec": 4.5,
+    "loops": false
+  },
+  "11071": {
+    "id": "park-zither-pigeons-scattering-dm",
+    "durationSec": 6,
+    "loops": false
+  },
+  "11072": {
+    "id": "park-zither-coins-in-the-case-c",
+    "durationSec": 4,
+    "loops": false
+  },
+  "11073": {
+    "id": "park-zither-button-chimes-e",
+    "durationSec": 4.5,
+    "loops": false
+  },
+  "11074": {
+    "id": "park-zither-woody-strings-a",
+    "durationSec": 6,
+    "loops": false
+  },
+  "11075": {
+    "id": "park-zither-chopstick-hammers-d",
+    "durationSec": 8,
+    "loops": false
+  },
+  "11076": {
+    "id": "park-zither-skipping-hammers-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11077": {
+    "id": "park-zither-marigold-arpeggio-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11078": {
+    "id": "park-zither-marimba-footsteps-am",
+    "durationSec": 7,
+    "loops": false
+  },
+  "11079": {
+    "id": "park-zither-hopscotch-bars-em",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11080": {
+    "id": "park-zither-thumb-piano-swirl-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11081": {
+    "id": "park-zither-tines-and-sparks-dm",
+    "durationSec": 8,
+    "loops": false
+  },
+  "11082": {
+    "id": "park-zither-electric-thumb-piano-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11083": {
+    "id": "park-zither-palm-on-the-strings-em",
+    "durationSec": 6,
+    "loops": false
+  },
+  "11084": {
+    "id": "park-zither-one-string-echo-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11085": {
+    "id": "park-zither-pipes-in-a-round-dm",
+    "durationSec": 8,
+    "loops": false
+  },
+  "11086": {
+    "id": "park-zither-rain-on-the-arch-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11087": {
+    "id": "park-zither-noon-haze-c",
+    "durationSec": 12,
+    "loops": true
+  },
+  "11088": {
+    "id": "park-zither-sine-chimes-g",
+    "durationSec": 8,
+    "loops": false
+  },
+  "11089": {
+    "id": "park-zither-gourd-resonator-c",
+    "durationSec": 8,
+    "loops": false
+  },
+  "11090": {
+    "id": "park-zither-park-railings-b",
+    "durationSec": 8,
+    "loops": false
+  },
+  "11091": {
+    "id": "park-zither-bridge-pluck-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11092": {
+    "id": "park-zither-electric-twelve-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11093": {
+    "id": "park-zither-piano-in-the-pedals-e",
+    "durationSec": 12,
+    "loops": true
+  },
+  "11094": {
+    "id": "park-zither-brushed-open-tuning-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11095": {
+    "id": "park-zither-one-glad-voice-am",
+    "durationSec": 8,
+    "loops": false
+  },
+  "11096": {
+    "id": "park-zither-wood-flute-far-bench-e",
+    "durationSec": 10,
+    "loops": false
+  },
+  "11097": {
+    "id": "park-zither-pawn-shop-harp-g",
+    "durationSec": 8,
+    "loops": false
+  },
+  "11098": {
+    "id": "park-zither-kite-strings-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "11099": {
+    "id": "park-zither-slide-bar-g",
+    "durationSec": 8,
+    "loops": false
+  },
+  "11100": {
+    "id": "park-zither-celesta-on-the-stairs-e",
+    "durationSec": 6,
+    "loops": false
+  }
+}

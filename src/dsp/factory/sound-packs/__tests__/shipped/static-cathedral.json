@@ -1,0 +1,502 @@
+{
+  "7001": {
+    "id": "static-cathedral-pedal-undertow-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7002": {
+    "id": "static-cathedral-clipped-flutes-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7003": {
+    "id": "static-cathedral-breaking-speaker-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7004": {
+    "id": "static-cathedral-shaking-floor-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7005": {
+    "id": "static-cathedral-slow-folding-tone-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7006": {
+    "id": "static-cathedral-folded-series-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7007": {
+    "id": "static-cathedral-overdriven-horns-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7008": {
+    "id": "static-cathedral-flickering-major-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7009": {
+    "id": "static-cathedral-thinned-choir-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7010": {
+    "id": "static-cathedral-cavern-fifths-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7011": {
+    "id": "static-cathedral-aliased-string-drone-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7012": {
+    "id": "static-cathedral-trumpets-on-the-line-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7013": {
+    "id": "static-cathedral-loft-in-static-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7014": {
+    "id": "static-cathedral-wire-choir-gsus4",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7015": {
+    "id": "static-cathedral-treble-images-am7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7016": {
+    "id": "static-cathedral-sideband-psalm-em",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7017": {
+    "id": "static-cathedral-brass-through-stone-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7018": {
+    "id": "static-cathedral-converter-choir-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7019": {
+    "id": "static-cathedral-folded-cloud-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7020": {
+    "id": "static-cathedral-iron-brass-pad-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7021": {
+    "id": "static-cathedral-bowless-section-em",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7022": {
+    "id": "static-cathedral-aliased-strings-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7023": {
+    "id": "static-cathedral-split-crystal-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7024": {
+    "id": "static-cathedral-ensemble-under-fuzz-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7025": {
+    "id": "static-cathedral-slowed-reel-horns-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7026": {
+    "id": "static-cathedral-steel-under-grit-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7027": {
+    "id": "static-cathedral-growling-reeds-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7028": {
+    "id": "static-cathedral-far-hall-monks-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7029": {
+    "id": "static-cathedral-singing-static-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7030": {
+    "id": "static-cathedral-backwards-vestry-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7031": {
+    "id": "static-cathedral-rolled-metal-blur-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7032": {
+    "id": "static-cathedral-nave-wall-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7033": {
+    "id": "static-cathedral-nave-wall-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7034": {
+    "id": "static-cathedral-blown-pedal-tone-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7035": {
+    "id": "static-cathedral-folded-high-strings-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7036": {
+    "id": "static-cathedral-eight-bit-bellows-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7037": {
+    "id": "static-cathedral-dull-metal-b",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7038": {
+    "id": "static-cathedral-buzzing-wall-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7039": {
+    "id": "static-cathedral-brass-through-stone-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7040": {
+    "id": "static-cathedral-nave-fuzz-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7041": {
+    "id": "static-cathedral-roar-of-grain",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7042": {
+    "id": "static-cathedral-overdriven-horn-wall",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7043": {
+    "id": "static-cathedral-glass-held-in-frames",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7044": {
+    "id": "static-cathedral-six-bit-downpour",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7045": {
+    "id": "static-cathedral-thunder-through-walls",
+    "durationSec": 16,
+    "loops": true
+  },
+  "7046": {
+    "id": "static-cathedral-wind-in-the-pipe-mouths",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7047": {
+    "id": "static-cathedral-whispers-dropping-out",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7048": {
+    "id": "static-cathedral-sines-between-stations",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7049": {
+    "id": "static-cathedral-swirled-flute-breath",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7050": {
+    "id": "static-cathedral-bows-behind-glass",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7051": {
+    "id": "static-cathedral-drips-in-the-nave",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7052": {
+    "id": "static-cathedral-crackle-down-the-nave",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7053": {
+    "id": "static-cathedral-draught-in-the-tower",
+    "durationSec": 16,
+    "loops": true
+  },
+  "7054": {
+    "id": "static-cathedral-bow-and-static-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7055": {
+    "id": "static-cathedral-piano-under-snow-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7056": {
+    "id": "static-cathedral-tower-bell-d",
+    "durationSec": 9,
+    "loops": false
+  },
+  "7057": {
+    "id": "static-cathedral-jittered-steel-a",
+    "durationSec": 4.5,
+    "loops": false
+  },
+  "7058": {
+    "id": "static-cathedral-detuned-upright-c",
+    "durationSec": 6.5,
+    "loops": false
+  },
+  "7059": {
+    "id": "static-cathedral-crushed-felt-f",
+    "durationSec": 5,
+    "loops": false
+  },
+  "7060": {
+    "id": "static-cathedral-blown-cone-tines-e",
+    "durationSec": 5,
+    "loops": false
+  },
+  "7061": {
+    "id": "static-cathedral-dusty-tines-g6",
+    "durationSec": 6,
+    "loops": false
+  },
+  "7062": {
+    "id": "static-cathedral-baritone-grind-d",
+    "durationSec": 6,
+    "loops": false
+  },
+  "7063": {
+    "id": "static-cathedral-five-bit-twelve-g",
+    "durationSec": 7,
+    "loops": false
+  },
+  "7064": {
+    "id": "static-cathedral-crushed-silk-string-e",
+    "durationSec": 3,
+    "loops": false
+  },
+  "7065": {
+    "id": "static-cathedral-transept-nylon-am",
+    "durationSec": 7,
+    "loops": false
+  },
+  "7066": {
+    "id": "static-cathedral-slipping-steel-a",
+    "durationSec": 5,
+    "loops": false
+  },
+  "7067": {
+    "id": "static-cathedral-closing-filter-f",
+    "durationSec": 6,
+    "loops": false
+  },
+  "7068": {
+    "id": "static-cathedral-rafter-zither-g",
+    "durationSec": 10,
+    "loops": false
+  },
+  "7069": {
+    "id": "static-cathedral-clipped-flute-stab-dm",
+    "durationSec": 5,
+    "loops": false
+  },
+  "7070": {
+    "id": "static-cathedral-unwound-upright-e",
+    "durationSec": 8,
+    "loops": false
+  },
+  "7071": {
+    "id": "static-cathedral-small-tower-bell-d",
+    "durationSec": 5.5,
+    "loops": false
+  },
+  "7072": {
+    "id": "static-cathedral-crushed-felt-chord-c",
+    "durationSec": 6,
+    "loops": false
+  },
+  "7073": {
+    "id": "static-cathedral-high-jittered-steel-e",
+    "durationSec": 4.5,
+    "loops": false
+  },
+  "7074": {
+    "id": "static-cathedral-detuned-upright-air-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7075": {
+    "id": "static-cathedral-transept-nylon-rise-em",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7076": {
+    "id": "static-cathedral-harp-turned-back-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7077": {
+    "id": "static-cathedral-jittered-steel-round-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7078": {
+    "id": "static-cathedral-dusty-tines-round-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7079": {
+    "id": "static-cathedral-splintered-plucks-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7080": {
+    "id": "static-cathedral-octave-down-guitar-d",
+    "durationSec": 12,
+    "loops": true
+  },
+  "7081": {
+    "id": "static-cathedral-warped-lead-steel-c",
+    "durationSec": 12,
+    "loops": true
+  },
+  "7082": {
+    "id": "static-cathedral-held-and-spiralling-b",
+    "durationSec": 12,
+    "loops": true
+  },
+  "7083": {
+    "id": "static-cathedral-lone-cantor-d",
+    "durationSec": 14,
+    "loops": false
+  },
+  "7084": {
+    "id": "static-cathedral-telephone-trumpet-g",
+    "durationSec": 10,
+    "loops": false
+  },
+  "7085": {
+    "id": "static-cathedral-bamboo-in-stone-e",
+    "durationSec": 10,
+    "loops": false
+  },
+  "7086": {
+    "id": "static-cathedral-rasping-reed-line-am",
+    "durationSec": 12,
+    "loops": false
+  },
+  "7087": {
+    "id": "static-cathedral-crushed-felt-phrase-c",
+    "durationSec": 9,
+    "loops": false
+  },
+  "7088": {
+    "id": "static-cathedral-slipping-steel-dm",
+    "durationSec": 10,
+    "loops": false
+  },
+  "7089": {
+    "id": "static-cathedral-crushed-silk-run-b",
+    "durationSec": 7,
+    "loops": false
+  },
+  "7090": {
+    "id": "static-cathedral-bad-line-celesta-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7091": {
+    "id": "static-cathedral-blown-cone-riff-a",
+    "durationSec": 8,
+    "loops": false
+  },
+  "7092": {
+    "id": "static-cathedral-closing-filter-line-d",
+    "durationSec": 9,
+    "loops": false
+  },
+  "7093": {
+    "id": "static-cathedral-baritone-grind-riff-e",
+    "durationSec": 10,
+    "loops": false
+  },
+  "7094": {
+    "id": "static-cathedral-mirrored-bell-peal-e",
+    "durationSec": 14,
+    "loops": false
+  },
+  "7095": {
+    "id": "static-cathedral-skipping-tremulant-g",
+    "durationSec": 14,
+    "loops": false
+  },
+  "7096": {
+    "id": "static-cathedral-unwound-upright-a",
+    "durationSec": 12,
+    "loops": false
+  },
+  "7097": {
+    "id": "static-cathedral-stuttering-chimes",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7098": {
+    "id": "static-cathedral-slowed-tongues-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7099": {
+    "id": "static-cathedral-strum-without-end-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "7100": {
+    "id": "static-cathedral-skipping-string-rise-c",
+    "durationSec": 8,
+    "loops": false
+  }
+}

@@ -1,0 +1,502 @@
+{
+  "16001": {
+    "id": "orbit-steel-steel-held-aloft-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16002": {
+    "id": "orbit-steel-low-orbit-fifths-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16003": {
+    "id": "orbit-steel-major-light-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16004": {
+    "id": "orbit-steel-chapel-rotary-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16005": {
+    "id": "orbit-steel-soft-floor-sub-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16006": {
+    "id": "orbit-steel-magnet-held-string-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16007": {
+    "id": "orbit-steel-string-feedback-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16008": {
+    "id": "orbit-steel-still-sine-octaves-b",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16009": {
+    "id": "orbit-steel-singing-hall-reed-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16010": {
+    "id": "orbit-steel-idle-amp-hum-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16011": {
+    "id": "orbit-steel-major-light-high-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16012": {
+    "id": "orbit-steel-slow-fold-held-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16013": {
+    "id": "orbit-steel-earthrise-steel-fmaj7",
+    "durationSec": 12,
+    "loops": true
+  },
+  "16014": {
+    "id": "orbit-steel-low-steel-halo-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16015": {
+    "id": "orbit-steel-no-pick-heard-cmaj7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16016": {
+    "id": "orbit-steel-tines-hammers-off-dm7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16017": {
+    "id": "orbit-steel-harp-without-fingers-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16018": {
+    "id": "orbit-steel-chorus-pad-bed-em7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16019": {
+    "id": "orbit-steel-slow-light-pad-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16020": {
+    "id": "orbit-steel-thin-pulse-orbit-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16021": {
+    "id": "orbit-steel-pad-in-tremolo-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16022": {
+    "id": "orbit-steel-soft-brass-swell-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16023": {
+    "id": "orbit-steel-low-slow-opening-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16024": {
+    "id": "orbit-steel-muted-section-far-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16025": {
+    "id": "orbit-steel-chapel-choir-far-f",
+    "durationSec": 16,
+    "loops": true
+  },
+  "16026": {
+    "id": "orbit-steel-tape-choir-halo-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16027": {
+    "id": "orbit-steel-far-horn-chorale-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16028": {
+    "id": "orbit-steel-ensemble-slow-phase-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16029": {
+    "id": "orbit-steel-hollow-pad-phasing-e",
+    "durationSec": 16,
+    "loops": true
+  },
+  "16030": {
+    "id": "orbit-steel-slow-fold-swell-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16031": {
+    "id": "orbit-steel-beating-glass-climb-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16032": {
+    "id": "orbit-steel-strum-read-backwards",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16033": {
+    "id": "orbit-steel-warm-pad-turning-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16034": {
+    "id": "orbit-steel-rubbed-bowl-circling-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16035": {
+    "id": "orbit-steel-pump-organ-bellows-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16036": {
+    "id": "orbit-steel-low-ensemble-sway-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16037": {
+    "id": "orbit-steel-low-flute-chord-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16038": {
+    "id": "orbit-steel-endless-guitar-note-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16039": {
+    "id": "orbit-steel-slow-string-wall-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16040": {
+    "id": "orbit-steel-low-cabin-pad-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16041": {
+    "id": "orbit-steel-rolled-bars-rising-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16042": {
+    "id": "orbit-steel-handless-steel-pan-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16043": {
+    "id": "orbit-steel-octave-down-cellos-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16044": {
+    "id": "orbit-steel-pedal-bowed-guitar-e",
+    "durationSec": 12,
+    "loops": true
+  },
+  "16045": {
+    "id": "orbit-steel-shore-far-below-loop",
+    "durationSec": 16,
+    "loops": true
+  },
+  "16046": {
+    "id": "orbit-steel-night-field-crickets-loop",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16047": {
+    "id": "orbit-steel-far-ridge-storm-loop",
+    "durationSec": 16,
+    "loops": true
+  },
+  "16048": {
+    "id": "orbit-steel-breath-over-steel-loop",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16049": {
+    "id": "orbit-steel-noise-choir-far-loop",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16050": {
+    "id": "orbit-steel-rain-smeared-to-grains",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16051": {
+    "id": "orbit-steel-wind-off-the-ridge",
+    "durationSec": 16,
+    "loops": true
+  },
+  "16052": {
+    "id": "orbit-steel-rain-on-a-tin-roof",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16053": {
+    "id": "orbit-steel-campfire-on-cassette",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16054": {
+    "id": "orbit-steel-stock-pond-frogs",
+    "durationSec": 16,
+    "loops": true
+  },
+  "16055": {
+    "id": "orbit-steel-creek-below-the-porch",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16056": {
+    "id": "orbit-steel-record-left-spinning",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16057": {
+    "id": "orbit-steel-air-strummed-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16058": {
+    "id": "orbit-steel-detuned-double-slap-c",
+    "durationSec": 5,
+    "loops": false
+  },
+  "16059": {
+    "id": "orbit-steel-far-side-baritone-e",
+    "durationSec": 6,
+    "loops": false
+  },
+  "16060": {
+    "id": "orbit-steel-strum-into-octaves-g",
+    "durationSec": 12,
+    "loops": false
+  },
+  "16061": {
+    "id": "orbit-steel-hallway-twelve-string-a",
+    "durationSec": 7,
+    "loops": false
+  },
+  "16062": {
+    "id": "orbit-steel-open-strings-answer-d",
+    "durationSec": 8,
+    "loops": false
+  },
+  "16063": {
+    "id": "orbit-steel-porch-thumb-chord-c",
+    "durationSec": 5,
+    "loops": false
+  },
+  "16064": {
+    "id": "orbit-steel-slow-sway-tines-dm9",
+    "durationSec": 7,
+    "loops": false
+  },
+  "16065": {
+    "id": "orbit-steel-low-harp-cassette-f",
+    "durationSec": 5,
+    "loops": false
+  },
+  "16066": {
+    "id": "orbit-steel-string-pressed-sharp-g",
+    "durationSec": 5,
+    "loops": false
+  },
+  "16067": {
+    "id": "orbit-steel-felt-chord-widened-am",
+    "durationSec": 9,
+    "loops": false
+  },
+  "16068": {
+    "id": "orbit-steel-front-room-upright-f",
+    "durationSec": 5,
+    "loops": false
+  },
+  "16069": {
+    "id": "orbit-steel-cave-tongue-drum-e",
+    "durationSec": 7,
+    "loops": false
+  },
+  "16070": {
+    "id": "orbit-steel-far-field-bell-d",
+    "durationSec": 12,
+    "loops": false
+  },
+  "16071": {
+    "id": "orbit-steel-operator-tines-b",
+    "durationSec": 6,
+    "loops": false
+  },
+  "16072": {
+    "id": "orbit-steel-wooden-pluck-slapped-g",
+    "durationSec": 3,
+    "loops": false
+  },
+  "16073": {
+    "id": "orbit-steel-paired-strings-far-a",
+    "durationSec": 10,
+    "loops": false
+  },
+  "16074": {
+    "id": "orbit-steel-swept-chord-tremolo-c",
+    "durationSec": 7,
+    "loops": false
+  },
+  "16075": {
+    "id": "orbit-steel-twelve-string-sway-c",
+    "durationSec": 8,
+    "loops": false
+  },
+  "16076": {
+    "id": "orbit-steel-long-bar-slide-g",
+    "durationSec": 12,
+    "loops": true
+  },
+  "16077": {
+    "id": "orbit-steel-half-speed-steel-c",
+    "durationSec": 10,
+    "loops": false
+  },
+  "16078": {
+    "id": "orbit-steel-tremolo-steel-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16079": {
+    "id": "orbit-steel-two-string-harmony-c",
+    "durationSec": 9,
+    "loops": false
+  },
+  "16080": {
+    "id": "orbit-steel-echo-thrown-steel-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16081": {
+    "id": "orbit-steel-lap-steel-question-c",
+    "durationSec": 7,
+    "loops": false
+  },
+  "16082": {
+    "id": "orbit-steel-small-amp-tremolo-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16083": {
+    "id": "orbit-steel-porch-thumb-picking-g",
+    "durationSec": 8,
+    "loops": false
+  },
+  "16084": {
+    "id": "orbit-steel-flat-top-slapback-f",
+    "durationSec": 7,
+    "loops": false
+  },
+  "16085": {
+    "id": "orbit-steel-looped-fingerpicking-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16086": {
+    "id": "orbit-steel-strings-rise-behind-em",
+    "durationSec": 12,
+    "loops": true
+  },
+  "16087": {
+    "id": "orbit-steel-filter-sings-alone-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16088": {
+    "id": "orbit-steel-struck-pad-loop-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16089": {
+    "id": "orbit-steel-tines-long-memory-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16090": {
+    "id": "orbit-steel-octave-harp-round-em",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16091": {
+    "id": "orbit-steel-pressed-strings-fall-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16092": {
+    "id": "orbit-steel-felt-piano-widened-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16093": {
+    "id": "orbit-steel-upright-comes-home-g",
+    "durationSec": 8,
+    "loops": false
+  },
+  "16094": {
+    "id": "orbit-steel-subtone-and-slap-g",
+    "durationSec": 8,
+    "loops": false
+  },
+  "16095": {
+    "id": "orbit-steel-operator-tines-round-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16096": {
+    "id": "orbit-steel-cave-tongue-round-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16097": {
+    "id": "orbit-steel-motor-vibes-phrase-f",
+    "durationSec": 10,
+    "loops": false
+  },
+  "16098": {
+    "id": "orbit-steel-wooden-plucks-round-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "16099": {
+    "id": "orbit-steel-paired-strings-round-d",
+    "durationSec": 12,
+    "loops": true
+  },
+  "16100": {
+    "id": "orbit-steel-dark-tine-walk-g",
+    "durationSec": 7,
+    "loops": false
+  }
+}
