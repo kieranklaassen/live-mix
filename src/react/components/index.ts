@@ -202,9 +202,11 @@ export {
   STROKE_COLUMN_PX,
   STROKE_INSET_PX,
   strokeLevels,
+  strokeWavePaths,
   type FadePaths,
   type StrokeLevel,
   type StrokeLevelsOptions,
+  type StrokeWavePaths,
 } from './stroke-math'
 export { SOUND_KIND_LABELS, SoundIcon, type SoundIconKind, type SoundIconProps } from './SoundIcon'
 export { Stroke, type StrokeAutomation, type StrokeProps } from './Stroke'

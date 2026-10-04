@@ -110,6 +110,7 @@ describe('entries', () => {
     'PaintField',
     'ChannelRowView',
     'strokeLevels',
+    'strokeWavePaths',
     'fadePaths',
     'graphite',
     'paper',
@@ -125,6 +126,9 @@ describe('entries', () => {
     'useDeviceMeter',
     // Console fader and meter
     'heldPeak',
+    // Frames without a render
+    'subscribeFrames',
+    'subscribeFrameSampled',
   ] as const)('`./react` exports %s', (name) => {
     expect((react as Record<string, unknown>)[name]).toBeDefined()
   })

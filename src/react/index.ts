@@ -30,6 +30,8 @@ export {
   DEFAULT_REFRESH_FPS,
   defaultFrameScheduler,
   frameIntervalMs,
+  subscribeFrames,
+  subscribeFrameSampled,
   useFrameSampled,
   type FrameScheduler,
 } from './frame'

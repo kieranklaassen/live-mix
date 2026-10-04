@@ -18,10 +18,8 @@ import {
   fadeGainAt,
   fadePaths,
   hitPositions,
-  levelsBarsPath,
-  levelsOutlinePath,
   repeatSeams,
-  strokeLevels,
+  strokeWavePaths,
 } from './stroke-math'
 import { BRUSH_COUNT, cx } from './tokens'
 
@@ -96,17 +94,11 @@ export const Stroke = forwardRef<HTMLDivElement, StrokeProps>(function Stroke(
   // Transients stay sharp on anything with hits; sustained sounds are smoothed.
   const window = hits && hits.length > 0 ? 0 : 2
 
-  const paths = useMemo(() => {
-    const levels = strokeLevels({ width, height, peaks, repeats, fadeIn, fadeOut, gain, reversed })
-    return {
-      halo: levelsOutlinePath(levels, mid, width, 1.4, window + 1),
-      wave: levelsOutlinePath(levels, mid, width, 1, window),
-      bars: levelsBarsPath(
-        levels.filter((_, index) => index % 2 === 0),
-        mid,
-      ),
-    }
-  }, [width, height, peaks, repeats, fadeIn, fadeOut, gain, reversed, mid, window])
+  const paths = useMemo(
+    () =>
+      strokeWavePaths({ width, height, peaks, repeats, fadeIn, fadeOut, gain, reversed }, window),
+    [width, height, peaks, repeats, fadeIn, fadeOut, gain, reversed, window],
+  )
 
   const seams = looping ? repeatSeams(repeats, width) : []
   const firstPass = width / Math.max(repeats, 1)
