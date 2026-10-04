@@ -56,7 +56,7 @@ build_generated_devices() {
     cpp/devices/flute/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device fm-glass \
     cpp/devices/fm-glass/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device freq-shifter \
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device freq-shifter \
     cpp/devices/freq-shifter/device_api.gen.cpp
   MEMORY_BYTES=10485760 EXTRA_EXPORTS="" build_device glitch \
     cpp/devices/glitch/device_api.gen.cpp
@@ -68,7 +68,7 @@ build_generated_devices() {
     cpp/devices/grain-synth/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device guitar \
     cpp/devices/guitar/device_api.gen.cpp
-  MEMORY_BYTES=8388608 EXTRA_EXPORTS="" build_device half-speed \
+  MEMORY_BYTES=8388608 EXTRA_EXPORTS=",_device_meter" build_device half-speed \
     cpp/devices/half-speed/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device handpan \
     cpp/devices/handpan/device_api.gen.cpp
@@ -78,7 +78,7 @@ build_generated_devices() {
     cpp/devices/horns/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device ladder-bass \
     cpp/devices/ladder-bass/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device lattice \
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device lattice \
     cpp/devices/lattice/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device low-bitrate \
     cpp/devices/low-bitrate/device_api.gen.cpp
@@ -90,7 +90,7 @@ build_generated_devices() {
     cpp/devices/modal-bells/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device noise-floor \
     cpp/devices/noise-floor/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device octaves \
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device octaves \
     cpp/devices/octaves/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device organ \
     cpp/devices/organ/device_api.gen.cpp
