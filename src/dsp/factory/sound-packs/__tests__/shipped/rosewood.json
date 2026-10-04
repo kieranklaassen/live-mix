@@ -1,0 +1,502 @@
+{
+  "10001": {
+    "id": "rosewood-pedal-under-bars-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10002": {
+    "id": "rosewood-low-gut-bow-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10003": {
+    "id": "rosewood-bass-reed-breath-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10004": {
+    "id": "rosewood-reed-floor-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10005": {
+    "id": "rosewood-brass-under-gongs-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10006": {
+    "id": "rosewood-after-the-gong-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10007": {
+    "id": "rosewood-buzzing-bridge-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10008": {
+    "id": "rosewood-court-reed-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10009": {
+    "id": "rosewood-shell-horns-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10010": {
+    "id": "rosewood-low-octave-flutes-b",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10011": {
+    "id": "rosewood-studio-dusk-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10012": {
+    "id": "rosewood-mouth-organ-cluster-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10013": {
+    "id": "rosewood-high-string-shade-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10014": {
+    "id": "rosewood-held-roll-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10015": {
+    "id": "rosewood-rubbed-rims-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10016": {
+    "id": "rosewood-low-bars-rolled-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10017": {
+    "id": "rosewood-bowls-left-ringing-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10018": {
+    "id": "rosewood-gong-hum-swelling-g",
+    "durationSec": 16,
+    "loops": true
+  },
+  "10019": {
+    "id": "rosewood-pump-reeds-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10020": {
+    "id": "rosewood-tubes-alone-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10021": {
+    "id": "rosewood-wire-without-pick-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10022": {
+    "id": "rosewood-bronze-swell-b",
+    "durationSec": 10,
+    "loops": false
+  },
+  "10023": {
+    "id": "rosewood-still-section-dm7",
+    "durationSec": 16,
+    "loops": true
+  },
+  "10024": {
+    "id": "rosewood-low-ensemble-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10025": {
+    "id": "rosewood-whistling-bows-em",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10026": {
+    "id": "rosewood-bowed-metal-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10027": {
+    "id": "rosewood-rubbed-wire-am",
+    "durationSec": 10,
+    "loops": false
+  },
+  "10028": {
+    "id": "rosewood-bowed-bars-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10029": {
+    "id": "rosewood-held-resonance-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10030": {
+    "id": "rosewood-low-brass-floor-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10031": {
+    "id": "rosewood-slow-fans-rolled-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10032": {
+    "id": "rosewood-rolled-courses-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10033": {
+    "id": "rosewood-reed-strip-chord-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10034": {
+    "id": "rosewood-hummed-fifth-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10035": {
+    "id": "rosewood-low-chant-chord-c",
+    "durationSec": 16,
+    "loops": true
+  },
+  "10036": {
+    "id": "rosewood-shell-horn-call-d",
+    "durationSec": 10,
+    "loops": false
+  },
+  "10037": {
+    "id": "rosewood-slow-downstroke-f",
+    "durationSec": 12,
+    "loops": false
+  },
+  "10038": {
+    "id": "rosewood-gut-bows-am",
+    "durationSec": 16,
+    "loops": true
+  },
+  "10039": {
+    "id": "rosewood-thin-string-shade-am7",
+    "durationSec": 16,
+    "loops": true
+  },
+  "10040": {
+    "id": "rosewood-rain-on-broad-leaves",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10041": {
+    "id": "rosewood-wind-across-cane",
+    "durationSec": 16,
+    "loops": true
+  },
+  "10042": {
+    "id": "rosewood-wind-across-pipes",
+    "durationSec": 16,
+    "loops": true
+  },
+  "10043": {
+    "id": "rosewood-brushes-on-skin",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10044": {
+    "id": "rosewood-shaken-seed-rattle",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10045": {
+    "id": "rosewood-low-flute-breath-bed",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10046": {
+    "id": "rosewood-rolled-water-grains",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10047": {
+    "id": "rosewood-stream-by-the-studio",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10048": {
+    "id": "rosewood-charcoal-brazier",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10049": {
+    "id": "rosewood-rain-on-roof-tiles",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10050": {
+    "id": "rosewood-thunder-past-the-hills",
+    "durationSec": 16,
+    "loops": true
+  },
+  "10051": {
+    "id": "rosewood-bamboo-grove-wind",
+    "durationSec": 16,
+    "loops": true
+  },
+  "10052": {
+    "id": "rosewood-great-gong-b",
+    "durationSec": 10,
+    "loops": false
+  },
+  "10053": {
+    "id": "rosewood-struck-bowl-g",
+    "durationSec": 8,
+    "loops": false
+  },
+  "10054": {
+    "id": "rosewood-hanging-bell-d",
+    "durationSec": 12,
+    "loops": false
+  },
+  "10055": {
+    "id": "rosewood-kettle-gong-d",
+    "durationSec": 4,
+    "loops": false
+  },
+  "10056": {
+    "id": "rosewood-centre-note-e",
+    "durationSec": 10,
+    "loops": false
+  },
+  "10057": {
+    "id": "rosewood-slit-log-f",
+    "durationSec": 3,
+    "loops": false
+  },
+  "10058": {
+    "id": "rosewood-answering-steel-d",
+    "durationSec": 8,
+    "loops": false
+  },
+  "10059": {
+    "id": "rosewood-motor-off-chord-fmaj7",
+    "durationSec": 6,
+    "loops": false
+  },
+  "10060": {
+    "id": "rosewood-slow-fans-b",
+    "durationSec": 6,
+    "loops": false
+  },
+  "10061": {
+    "id": "rosewood-sine-gong-a",
+    "durationSec": 8,
+    "loops": false
+  },
+  "10062": {
+    "id": "rosewood-bronze-pot-c",
+    "durationSec": 8,
+    "loops": false
+  },
+  "10063": {
+    "id": "rosewood-big-drum-d",
+    "durationSec": 2,
+    "loops": false
+  },
+  "10064": {
+    "id": "rosewood-temple-block-g",
+    "durationSec": 2,
+    "loops": false
+  },
+  "10065": {
+    "id": "rosewood-gated-mallet-c",
+    "durationSec": 4,
+    "loops": false
+  },
+  "10066": {
+    "id": "rosewood-felt-hammer-string-e",
+    "durationSec": 8,
+    "loops": false
+  },
+  "10067": {
+    "id": "rosewood-mid-string-b",
+    "durationSec": 6,
+    "loops": false
+  },
+  "10068": {
+    "id": "rosewood-single-plate-f",
+    "durationSec": 3,
+    "loops": false
+  },
+  "10069": {
+    "id": "rosewood-tine-vibraphone-em",
+    "durationSec": 6,
+    "loops": false
+  },
+  "10070": {
+    "id": "rosewood-wedged-strings-d",
+    "durationSec": 6,
+    "loops": false
+  },
+  "10071": {
+    "id": "rosewood-open-strum-gsus2",
+    "durationSec": 10,
+    "loops": false
+  },
+  "10072": {
+    "id": "rosewood-sunk-drum-d",
+    "durationSec": 8,
+    "loops": false
+  },
+  "10073": {
+    "id": "rosewood-stopped-string-g",
+    "durationSec": 3,
+    "loops": false
+  },
+  "10074": {
+    "id": "rosewood-bar-without-knock-a",
+    "durationSec": 3,
+    "loops": false
+  },
+  "10075": {
+    "id": "rosewood-plectrum-snap-a",
+    "durationSec": 4,
+    "loops": false
+  },
+  "10076": {
+    "id": "rosewood-yarn-pattern-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10077": {
+    "id": "rosewood-gourd-bars-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10078": {
+    "id": "rosewood-koto-figure-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10079": {
+    "id": "rosewood-stopped-harp-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10080": {
+    "id": "rosewood-hammered-figure-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10081": {
+    "id": "rosewood-thirteen-strings-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10082": {
+    "id": "rosewood-felt-ostinato-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10083": {
+    "id": "rosewood-slipping-tines-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10084": {
+    "id": "rosewood-square-figure-em",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10085": {
+    "id": "rosewood-thumb-piano-round-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10086": {
+    "id": "rosewood-edge-and-patter-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10087": {
+    "id": "rosewood-restruck-bars-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10088": {
+    "id": "rosewood-two-passes-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10089": {
+    "id": "rosewood-strings-behind-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10090": {
+    "id": "rosewood-stopped-nylon-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "10091": {
+    "id": "rosewood-bridge-taps-b",
+    "durationSec": 8,
+    "loops": false
+  },
+  "10092": {
+    "id": "rosewood-wooden-bird-calls-e",
+    "durationSec": 10,
+    "loops": false
+  },
+  "10093": {
+    "id": "rosewood-small-canon-c",
+    "durationSec": 7,
+    "loops": false
+  },
+  "10094": {
+    "id": "rosewood-pressed-string-g",
+    "durationSec": 10,
+    "loops": false
+  },
+  "10095": {
+    "id": "rosewood-loaded-bar-answered-g",
+    "durationSec": 8,
+    "loops": false
+  },
+  "10096": {
+    "id": "rosewood-plectrum-strings-a",
+    "durationSec": 8,
+    "loops": false
+  },
+  "10097": {
+    "id": "rosewood-far-bamboo-call-d",
+    "durationSec": 12,
+    "loops": false
+  },
+  "10098": {
+    "id": "rosewood-bamboo-breath-fall-a",
+    "durationSec": 10,
+    "loops": false
+  },
+  "10099": {
+    "id": "rosewood-spike-fiddle-e",
+    "durationSec": 10,
+    "loops": false
+  },
+  "10100": {
+    "id": "rosewood-pressed-silk-a",
+    "durationSec": 10,
+    "loops": false
+  }
+}
