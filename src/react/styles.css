@@ -2930,7 +2930,6 @@
 
 .lm-stroke__tag,
 .lm-stroke__automation-label {
-  position: absolute;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -2939,6 +2938,10 @@
   white-space: nowrap;
   pointer-events: none;
   background: color-mix(in srgb, var(--lm-stroke-brush) 9%, var(--lm-sunken));
+}
+
+.lm-stroke__tag {
+  position: absolute;
 }
 
 .lm-stroke__name {
@@ -2952,6 +2955,27 @@
 
 .lm-stroke__automation-label {
   color: var(--lm-automation);
+}
+
+/* The room of the line's word: one row high, the word at its end. A word
+   longer than the room wraps to a second row, which the room cuts off, so the
+   word is there whole or not at all: never over the name, never cut by the ring. */
+.lm-stroke__automation-room {
+  position: absolute;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  height: 14px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* A row keeps its first thing however short the row is, and only that. This
+   is the first: nothing wide, so the word is the one to wrap, and a row high,
+   so the row the word wraps to starts below the room. */
+.lm-stroke__automation-room::before {
+  content: '';
+  height: 14px;
 }
 
 /* --- Channel row ----------------------------------------------------------- */
