@@ -176,6 +176,25 @@ class StereoDetune : public kit::DeviceBase<stereo_detune::kNumParams> {
     idle_.settle(kit::max(output_peak(frames), wet_peak), frames);
   }
 
+  // The readings named by "meters" in device.json, for a display to draw, per
+  // side: the copy's detune as it is now with the drift in it (cents), how far
+  // behind the dry sound its read head is now with the wander in it (ms), and
+  // the level hold's gain on it (1 is untouched).
+  float meter(int index) const {
+    const int c = index & 1;
+    switch (index >> 1) {
+      case 0:
+        return 1200.0f * std::log2(1.0f - increment_[c].value);
+      case 1:
+        return (static_cast<float>(shifter_[c].head()) + wander_[c].value) * 1000.0f /
+               sample_rate();
+      case 2:
+        return hold_gain_[c].value;
+      default:
+        return 0.0f;
+    }
+  }
+
   // For the harness: the shifters themselves.
   const stereo_detune_parts::SpliceShifter& shifter(int side) const { return shifter_[side & 1]; }
 

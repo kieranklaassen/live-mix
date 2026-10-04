@@ -46,8 +46,13 @@ const preset = query.get('preset')
 
 function benchRegistry(): DeviceRegistry {
   const registry = new DeviceRegistry(stockDevices.list())
-  const processorUrl = new URL('worklets/wasm-device.js', document.baseURI).href
+  // A compiled device runs in the shared processor; a worklet device (the ducker) in its own.
+  const urls = {
+    wasm: new URL('worklets/wasm-device.js', document.baseURI).href,
+    worklet: new URL('worklets/ducker.js', document.baseURI).href,
+  }
   for (const descriptor of STOCK_WASM_DEVICES) {
+    const processorUrl = descriptor.kind === 'worklet' ? urls.worklet : urls.wasm
     const withUrl = {
       ...descriptor,
       create: (context: BaseAudioContext, options: DeviceCreateOptions) => {
@@ -59,6 +64,31 @@ function benchRegistry(): DeviceRegistry {
     registry.register(withUrl)
   }
   return registry
+}
+
+/**
+ * Four seconds of a key for a device that is keyed (the ducker): a burst like
+ * a spoken phrase, a second and a half long, then quiet.
+ */
+function benchKey(context: BaseAudioContext): AudioBuffer {
+  const seconds = 4
+  const rate = context.sampleRate
+  const buffer = context.createBuffer(1, seconds * rate, rate)
+  const data = buffer.getChannelData(0)
+  for (let n = 0; n < data.length; n += 1) {
+    const t = n / rate
+    if (t < 0.5 || t > 2) continue
+    const edge = Math.min(1, (t - 0.5) / 0.05, (2 - t) / 0.2)
+    const syllables = 0.6 + 0.4 * Math.sin(2 * Math.PI * 4 * t)
+    data[n] = 0.5 * edge * syllables * Math.sin(2 * Math.PI * 180 * t)
+  }
+  return buffer
+}
+
+/** Feeds the key to a device that takes one. */
+function keyed(device: Device, key: AudioNode): void {
+  const takesKey = device as Device & { key?: (node: AudioNode) => void }
+  if (typeof takesKey.key === 'function') takesKey.key(key)
 }
 
 /**
@@ -125,6 +155,9 @@ async function makeBench(): Promise<Bench> {
   const source = context.createBufferSource()
   source.buffer = benchSound(context)
   source.loop = true
+  const key = context.createBufferSource()
+  key.buffer = benchKey(context)
+  key.loop = true
   const silent = context.createGain()
   silent.gain.value = 0
   silent.connect(context.destination)
@@ -142,6 +175,7 @@ async function makeBench(): Promise<Bench> {
         preset && descriptor.presets?.[preset] ? { preset } : {},
       )
       strip.addInsert(device)
+      keyed(device, key)
       entries.push({ device, feed: strip.input, name: descriptor.name })
     }
   } else {
@@ -155,11 +189,13 @@ async function makeBench(): Promise<Bench> {
       source.connect(feed)
       feed.connect(device.input)
       device.output.connect(silent)
+      keyed(device, key)
       entries.push({ device, feed, name: descriptor.name })
     }
   }
   if (!still) {
     source.start()
+    key.start()
     void context.resume()
   }
   return { engine, registry, entries, strip }
