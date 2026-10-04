@@ -52,15 +52,18 @@ import {
   valleyTail,
   vowelDb,
   vowelTailOf,
+  wetDb,
   type BandFall,
 } from '../components/displays/tails'
-import { type DisplayHandle } from '../components/plate-display'
+import { type DisplayHandle, type DisplaySignal } from '../components/plate-display'
 import {
   displaySize,
   drawDisplay,
   patchUnder,
+  recordingContext,
   runDisplay,
   stockDescriptors,
+  testLevel,
   testSignal,
   viewOf,
   type RecordingContext,
@@ -106,6 +109,76 @@ function accentLines(drawn: RecordingContext): [number, number][][] {
   return lines
 }
 
+/** Everything stroked or filled in the accent that lies wholly in the tail's panel, as its points. */
+function accentInTail(drawn: RecordingContext): [number, number][][] {
+  const shapes: [number, number][][] = []
+  let path: [number, number][] = []
+  let stroke: unknown = null
+  let fill: unknown = null
+  for (const call of drawn.calls) {
+    if (call.name === 'beginPath') path = []
+    else if (call.name === 'moveTo' || call.name === 'lineTo')
+      path.push([call.args[0] as number, call.args[1] as number])
+    else if (call.name === 'set strokeStyle') stroke = call.args[0]
+    else if (call.name === 'set fillStyle') fill = call.args[0]
+    else if (
+      (call.name === 'stroke' && stroke === PLAIN_COLOURS.accent) ||
+      (call.name === 'fill' && fill === PLAIN_COLOURS.accent)
+    ) {
+      // The line between the two panels is at y 58: what the device alone does is all above it.
+      if (path.length > 0 && path.every(([, y]) => y > 58)) shapes.push(path)
+    }
+  }
+  return shapes
+}
+
+/** A sound of two levels and nothing else: what the taps give for a level going in and one coming out. */
+function levels(input: number, output: number): DisplaySignal {
+  return {
+    input: testLevel(input),
+    output: testLevel(output),
+    spectrum: null,
+    binHz: 0,
+    left: null,
+    right: null,
+  }
+}
+
+/**
+ * Run a display as the plate does until the plate lets it stand still, and
+ * hand back the frame that is left standing. The plate (`DisplayRunner` of
+ * PlateDisplay.tsx) draws a frame for every tick, counts the seconds in which
+ * the levels going in and coming out are both at or under 80 dB below full
+ * scale, and stops asking for frames once that has gone on for the display's
+ * `live.settle`, or 8 s where it names none. `sound` gives the two levels at
+ * a time since the start.
+ */
+function untilItStands(
+  id: string,
+  values: Record<string, number>,
+  sound: (time: number) => [number, number],
+): { left: RecordingContext; rest: RecordingContext; seconds: number } {
+  const { display, params } = face(id)
+  const fps = display.live?.fps ?? 30
+  const settle = display.live?.settle ?? 8
+  const state: unknown = display.init?.()
+  let quiet = 0
+  let left = recordingContext()
+  for (let n = 0; n < 240 * fps; n++) {
+    const time = n / fps
+    const dt = n === 0 ? 0 : 1 / fps
+    const [input, output] = sound(time)
+    const frame = { values, signal: levels(input, output), now: 10 + time, dt }
+    left = drawDisplay(display, params, { ...frame, state })
+    quiet = input > 1e-4 || output > 1e-4 ? 0 : quiet + dt
+    if (quiet >= settle) {
+      // The picture at rest: the same frame drawn by a display that has heard nothing.
+      return { left, rest: drawDisplay(display, params, frame), seconds: time }
+    }
+  }
+  throw new Error(`${id} never stood still`)
+}
+
 /** Seconds for a band fall to be 60 dB down. */
 function sixtyDown(fall: BandFall): number {
   let low = 0
@@ -134,13 +207,17 @@ describe('the tail every one of them shares', () => {
     expect(secondsText(0.3162)).toBe('320 ms')
     expect(secondsText(0.961)).toBe('960 ms')
     expect(secondsText(0.997)).toBe('1.0 s')
-    // A figure good to a twentieth is not said to a hundredth.
-    expect(secondsText(5.15, true)).toBe('5 s')
+    // A figure good to a twentieth is not said to a hundredth. Under ten seconds it is said
+    // to the tenth, as every other tail is: "5 s" beside another display's "4.6 s" read as two
+    // ways of writing a time.
+    expect(secondsText(5.15, true)).toBe('5.2 s')
+    expect(secondsText(2.04, true)).toBe('2.0 s')
     expect(secondsText(1.88, true)).toBe('1.9 s')
     expect(secondsText(0.64, true)).toBe('600 ms')
+    expect(secondsText(9.7, true)).toBe('9.7 s')
     // Nor to the second where a twentieth is more than that: every other second from ten,
     // every fifth from 25. (Vowel Reverb at Decay 40: this gives 29.1 s, the device 31.0.)
-    expect(secondsText(9.7, true)).toBe('10 s')
+    expect(secondsText(9.97, true)).toBe('10 s')
     expect(secondsText(16.25, true)).toBe('16 s')
     expect(secondsText(16.95, true)).toBe('16 s')
     expect(secondsText(29.1, true)).toBe('30 s')
@@ -257,11 +334,16 @@ describe('the tail every one of them shares', () => {
   })
 
   it('lights a hit where it has got to on its way down the tail', () => {
-    // A hit of a tenth of a second into Bloom at Decay 5, then nothing for 3 s.
+    // A hit of a tenth of a second into Bloom at Decay 5, then nothing for 3 s. Mix is full
+    // up: the tail alone comes out, and the lit part stands on the fall itself.
     const { display, params } = face('bloom-reverb')
-    const drawn = runDisplay(display, params, 3, { signal: testSignal(0, 0) }, (time) => ({
-      signal: testSignal(time < 0.1 ? 0.5 : 0, 0.2),
-    }))
+    const drawn = runDisplay(
+      display,
+      params,
+      3,
+      { values: { mix: 1 }, signal: testSignal(0, 0) },
+      (time) => ({ signal: testSignal(time < 0.1 ? 0.5 : 0, 0.2) }),
+    )
     const lines = accentLines(drawn)
     expect(lines).toHaveLength(1)
     const lit = lines[0].filter(([, y]) => y < TAIL.y + TAIL.h - 0.75)
@@ -278,8 +360,10 @@ describe('the tail every one of them shares', () => {
 
   it('lights the whole fall for a drone, and nothing in silence', () => {
     const { display, params } = face('sympathetic')
+    // Mix and Sympathy full up: all of what the strings give comes out.
+    const values = { mix: 1, sympathy: 1 }
     // Sympathetic at Decay 3 on a panel of 8 s: the straight fall ends at 3 s.
-    const drone = runDisplay(display, params, 9, { signal: testSignal(0.3, 0.2) })
+    const drone = runDisplay(display, params, 9, { values, signal: testSignal(0.3, 0.2) })
     const lit = accentLines(drone).find((line) => line.length > 100)
     expect(lit).toBeDefined()
     for (const sec of [0.5, 1, 2, 2.9]) {
@@ -290,9 +374,13 @@ describe('the tail every one of them shares', () => {
       ).toBeLessThan(0.6)
     }
     // A quieter sound after a louder one lies under the fall by what it is quieter: 20 dB.
-    const two = runDisplay(display, params, 2, { signal: testSignal(0.5, 0.2) }, (time) => ({
-      signal: testSignal(time < 1 ? 0.5 : 0.05, 0.2),
-    }))
+    const two = runDisplay(
+      display,
+      params,
+      2,
+      { values, signal: testSignal(0.5, 0.2) },
+      (time) => ({ signal: testSignal(time < 1 ? 0.5 : 0.05, 0.2) }),
+    )
     const steps = accentLines(two).find((line) => line.length > 100) ?? []
     const at = (sec: number): number => {
       const x = TAIL.x + (TAIL.w * sec) / 8
@@ -302,11 +390,136 @@ describe('the tail every one of them shares', () => {
     expect(Math.abs(at(0.5) - yOfTail(-10 - 20))).toBeLessThan(1)
     // A second and a half ago the loud one did: on the fall itself, 30 dB down.
     expect(Math.abs(at(1.5) - yOfTail(-30))).toBeLessThan(1)
-    const quiet = runDisplay(display, params, 1, { signal: testSignal(0, 0) })
+    const quiet = runDisplay(display, params, 1, { values, signal: testSignal(0, 0) })
     expect(accents(quiet)).toBe(0)
     // Switched off, nothing goes in.
-    const off = runDisplay(display, params, 1, { signal: testSignal(0.3, 0.2), powered: false })
+    const off = runDisplay(display, params, 1, {
+      values,
+      signal: testSignal(0.3, 0.2),
+      powered: false,
+    })
     expect(accents(off)).toBe(0)
+  })
+
+  it('lets through what the equal-power mix of the kit lets through (by hand)', () => {
+    // `kit::equal_power`: the wet gain is sin(mix · 90°). Half way it is 0.7071, 3.01 dB down;
+    // at a quarter sin(22.5°) = 0.3827, 8.34 dB down; at 0 nothing, which is the floor.
+    expect(wetDb(1)).toBeCloseTo(0, 9)
+    expect(wetDb(0.5)).toBeCloseTo(-3.0103, 3)
+    expect(wetDb(0.25)).toBeCloseTo(-8.343, 2)
+    expect(wetDb(0)).toBe(-120)
+    expect(wetDb(-1)).toBe(-120)
+    expect(wetDb(2)).toBeCloseTo(0, 9)
+  })
+
+  it.each(Object.keys(TAILS_FACES))(
+    '%s lights in its tail only what Mix lets out of it: nothing at 0, less at little',
+    (id) => {
+      const { display, params } = face(id)
+      expect(display.params).toContain('mix')
+      // Sympathetic's strings are driven by Sympathy too: full up here, and on its own below.
+      const rest: Record<string, number> = id === 'sympathetic' ? { sympathy: 1 } : {}
+      /** What is lit in the tail's panel after two seconds of a steady sound, as the line it is drawn with. */
+      const lit = (values: Record<string, number>): [number, number][] => {
+        const drawn = runDisplay(display, params, 2, {
+          values: { ...rest, ...values },
+          signal: testSignal(0.3, 0.2),
+        })
+        return accentInTail(drawn).reduce((a, b) => (b.length > a.length ? b : a), [])
+      }
+      // At 0 no reverb comes out, and nothing is lit.
+      expect(lit({ mix: 0 }), 'Mix 0').toEqual([])
+      const all = lit({ mix: 1 })
+      const little = lit({ mix: 0.25 })
+      expect(all.length, 'Mix 1').toBeGreaterThan(100)
+      expect(little).toHaveLength(all.length)
+      // At a quarter the wet gain is 8.34 dB down: every point of what is lit stands that much
+      // lower, where the top and the foot of the panel do not hold it.
+      const lower = (TAIL.h * 8.343) / 60
+      const free = all
+        .map(([, y], i) => [y, little[i][1]])
+        .filter(([high, low]) => high > TAIL.y + 0.01 && low < TAIL.y + TAIL.h - 0.01)
+      expect(free.length).toBeGreaterThan(3)
+      for (const [high, low] of free) expect(low - high).toBeCloseTo(lower, 2)
+      if (id !== 'sympathetic') return
+      // `process()` of sympathetic.h drives the strings with the sound times Sympathy: at half,
+      // 6.02 dB less of them; at 0 they are not driven at all.
+      expect(display.params).toContain('sympathy')
+      expect(lit({ mix: 1, sympathy: 0 }), 'Sympathy 0').toEqual([])
+      const half = lit({ mix: 1, sympathy: 0.5 })
+      const held = all
+        .map(([, y], i) => [y, half[i][1]])
+        .filter(([high, low]) => high > TAIL.y + 0.01 && low < TAIL.y + TAIL.h - 0.01)
+      expect(held.length).toBeGreaterThan(3)
+      for (const [high, low] of held) expect(low - high).toBeCloseTo((TAIL.h * 6.0206) / 60, 2)
+    },
+  )
+
+  it.each(Object.keys(TAILS_FACES))(
+    '%s is left as it is at rest when the plate stops it after a sound that fades away or stops dead',
+    (id) => {
+      const { display, params } = face(id)
+      // The longest tail the knob gives: what has gone in stays high in the panel for longest.
+      const long: Record<string, number> =
+        id === 'swarm-reverb' ? { feedback: 0.95 } : { decay: params.decay.max }
+      /** Four seconds of sound, then a fall of `rate` dB a second, going in and coming out alike. */
+      const fading =
+        (rate: number) =>
+        (time: number): [number, number] => {
+          const gain = time < 4 ? 1 : Math.pow(10, (-rate * (time - 4)) / 20)
+          return [0.5 * gain, 0.3 * gain]
+        }
+      const stopped = (time: number): [number, number] => (time < 4 ? [0.5, 0.3] : [0, 0])
+      const cases: [string, Record<string, number>, (time: number) => [number, number]][] = [
+        ['stopped dead, at the defaults', {}, stopped],
+        ['stopped dead, with the longest tail', long, stopped],
+        ...[3, 5, 12, 40].map(
+          (rate): [string, Record<string, number>, (time: number) => [number, number]] => [
+            `faded at ${rate} dB a second`,
+            {},
+            fading(rate),
+          ],
+        ),
+      ]
+      // It runs on until the last sound has left the panel, which is longer than the plate's own 8 s.
+      expect(display.live?.settle ?? 8).toBeGreaterThanOrEqual(8)
+      for (const [what, values, sound] of cases) {
+        const { left, rest } = untilItStands(id, values, sound)
+        expect(accentInTail(left), `${id}, ${what}: lit in the tail`).toEqual([])
+        expect(accents(left), `${id}, ${what}: in the accent`).toBe(0)
+        expect(left.print() === rest.print(), `${id}, ${what}: the picture at rest`).toBe(true)
+      }
+    },
+    30_000,
+  )
+
+  it('writes the sign for a tail without end larger than its figures, as the rooms do', () => {
+    /** The size of type a word was written in. */
+    const sizeOf = (drawn: RecordingContext, words: string): number => {
+      let size = 0
+      for (const call of drawn.calls) {
+        if (call.name === 'set font') size = parseFloat(String(call.args[0]))
+        else if (call.name === 'fillText' && call.args[0] === words) return size
+      }
+      throw new Error(`"${words}" was not written`)
+    }
+    for (const [id, values] of [
+      ['expanse', { decay: 60 }],
+      ['swarm-reverb', { feedback: 1 }],
+    ] as const) {
+      const { display, params } = face(id)
+      const drawn = drawDisplay(display, params, { values })
+      expect(sizeOf(drawn, '∞'), id).toBe(13)
+      // It stands at the foot, under the tail that runs level across the top, inside the panel.
+      const said = drawn.calls.find((call) => call.name === 'fillText' && call.args[0] === '∞')
+      const [, x, y] = said?.args as [string, number, number]
+      expect(x, id).toBeGreaterThanOrEqual(TAIL.x)
+      expect(y, id).toBeLessThan(TAIL.y + TAIL.h)
+      expect(y - 13, id).toBeGreaterThan(TAIL.y)
+    }
+    // A figure keeps the size of the figures.
+    const { display, params } = face('expanse')
+    expect(sizeOf(drawDisplay(display, params), '9.2 s')).toBe(8)
   })
 
   it('marks a sound that begins, and not one that only goes on', () => {
@@ -531,12 +744,17 @@ describe('Shimmer', () => {
     expect(Math.abs(bright[0] - dark[0])).toBeLessThan(2)
   })
 
-  it('says the time the whole really takes, in whole seconds, and names its note', () => {
+  it('says the time the whole really takes, to the tenth under ten seconds, and names its note', () => {
     const { display, params } = face('shimmer')
     const words = drawDisplay(display, params).words()
     expect(words).toContain('+12')
-    expect(words).toContain('5 s')
+    // 5.14 s by the ladder, 5.15 on the compiled device.
+    expect(words).toContain('5.1 s')
+    expect(words).not.toContain('5 s')
     expect(words).toContain('220 Hz note')
+    // Two seconds and more are not said in whole seconds: Decay 2.5 with no Shimmer is 2.5 s.
+    const plain = drawDisplay(display, params, { values: { decay: 2.5, shimmer: 0, tone: 16000 } })
+    expect(plain.words()).toContain('2.5 s')
     // A fall longer than the panel is still said in full.
     const long = drawDisplay(display, params, { values: { decay: 30, shimmer: 0, tone: 16000 } })
     expect(long.words()).toContain('30 s')
@@ -1192,10 +1410,44 @@ describe('Vowel Reverb', () => {
 
   it('says the time the whole takes, in steps no finer than it is known', () => {
     const { display, params } = face('vowel-reverb')
-    expect(drawDisplay(display, params).words()).toContain('5 s')
+    // Under ten seconds to the tenth: 4.99 s at the defaults, 2.56 s at Decay 3.
+    expect(drawDisplay(display, params).words()).toContain('5.0 s')
+    expect(drawDisplay(display, params, { values: { decay: 3 } }).words()).toContain('2.6 s')
     expect(drawDisplay(display, params, { values: { decay: 20 } }).words()).toContain('16 s')
     // At Decay 40 it works out at 29.1 s where the device takes 31.0: said as 30.
     expect(drawDisplay(display, params, { values: { decay: 40 } }).words()).toContain('30 s')
+  })
+
+  it('stands the chosen letter whole over its handle, the larger handle of a point in hand too', () => {
+    const { display, params } = face('vowel-reverb')
+    'AEIOU'.split('').forEach((letter, vowel) => {
+      const handle = handleOf('vowel-reverb', 'vowel', { vowel })
+      const drawn = drawDisplay(display, params, { values: { vowel }, hot: 'vowel' })
+      let size = 0
+      let at: [number, number] | null = null
+      for (const call of drawn.calls) {
+        if (call.name === 'set font') size = parseFloat(String(call.args[0]))
+        else if (call.name === 'fillText' && call.args[0] === letter) {
+          at = [call.args[1] as number, call.args[2] as number]
+          break
+        }
+      }
+      expect(at, letter).not.toBeNull()
+      if (!at) return
+      const [x, foot] = at
+      // The handle in hand is a ring of radius 4.5 with a line 1.5 wide: 5.25 from its middle.
+      const top = handle.y - 5.25
+      // The letter's foot is clear of it by a pixel and more, so no part of the letter is hidden...
+      expect(top - foot, letter).toBeGreaterThanOrEqual(1)
+      // ...and the handle is still plainly the letter's: right under it, nothing between them.
+      expect(x, letter).toBeCloseTo(handle.x, 6)
+      expect(top - foot, letter).toBeLessThan(3)
+      // The letter is 8 px and stands whole inside the display.
+      expect(size, letter).toBe(8)
+      expect(foot - size, letter).toBeGreaterThanOrEqual(OWN.y - 1)
+      expect(x, letter).toBeGreaterThan(OWN.x + 4)
+      expect(x, letter).toBeLessThan(OWN.x + OWN.w - 4)
+    })
   })
 
   it('takes the vowel from the line of letters', () => {

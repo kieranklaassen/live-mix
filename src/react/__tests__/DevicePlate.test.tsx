@@ -198,17 +198,19 @@ describe('device skins', () => {
     expect(window).not.toMatch(/NaN|undefined|Infinity/)
   })
 
-  it('keeps both inks readable on every plate: the words, and the lamp and marks in the accent', () => {
+  /** How far apart two colours written as #rrggbb are, as the contrast ratio of WCAG 2. */
+  const contrast = (a: string, b: string): number => {
     const channel = (hex: string, at: number): number => {
       const c = parseInt(hex.slice(at, at + 2), 16) / 255
       return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
     }
     const light = (hex: string): number =>
       0.2126 * channel(hex, 1) + 0.7152 * channel(hex, 3) + 0.0722 * channel(hex, 5)
-    const contrast = (a: string, b: string): number => {
-      const [high, low] = [light(a), light(b)].sort((x, y) => y - x)
-      return (high + 0.05) / (low + 0.05)
-    }
+    const [high, low] = [light(a), light(b)].sort((x, y) => y - x)
+    return (high + 0.05) / (low + 0.05)
+  }
+
+  it('keeps both inks readable on every plate: the words, and the lamp and marks in the accent', () => {
     for (const [id, palette] of Object.entries(PLATE_PALETTES)) {
       expect(contrast(palette.ink, palette.plate), `${id} ink on its plate`).toBeGreaterThan(3.8)
       // A lit lamp and a display's mark for now are small: three to one tells them from the plate.
@@ -216,6 +218,16 @@ describe('device skins', () => {
         3,
       )
     }
+  })
+
+  it("tells the Convolver's accent from its ink, which its display draws side by side", () => {
+    // The display draws the curve the device is set to in the ink and what rings now in the
+    // accent, one over the other: two to one between them, and still three to one on the plate.
+    const { plate, ink, accent } = PLATE_PALETTES['convolver-reverb']
+    expect(contrast(accent, ink)).toBeGreaterThanOrEqual(2)
+    expect(contrast(accent, plate)).toBeGreaterThanOrEqual(3)
+    // Nothing else of the skin is other than it was.
+    expect([plate, ink]).toEqual(['#5a4c85', '#f6f3ff'])
   })
 
   it('reads a hex plate as dark or light, and anything else as light', () => {

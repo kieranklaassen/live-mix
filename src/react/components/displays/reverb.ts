@@ -39,6 +39,7 @@ import {
   gainToDb,
   ground,
   handle,
+  label,
   lerp,
   rule,
   text,
@@ -55,6 +56,7 @@ import {
   type PlateDisplay,
   type PlateFace,
 } from '../plate-display'
+import { secondsText as saidSeconds } from './tails'
 
 // --- What the family shares ---------------------------------------------------
 
@@ -219,21 +221,26 @@ const unseen = (names: readonly string[]): Float64Array =>
   new Float64Array(names.length + 3).fill(NaN)
 
 /**
- * Seconds as they are said on a scale: "0.2s", "1s", "20s". Past 99 s no
- * figure is given: a loop that loses a hundredth of a dB a trip falls as
- * slowly as the least thing left out of the sum lets it.
+ * The time a tail takes, as it is said: written as the other displays of a
+ * tail write it (`secondsText` of tails.ts), "470 ms", "3.9 s", "24 s", and
+ * "∞" for a tail that does not end. Past 99 s no figure is given: a loop that
+ * loses a hundredth of a dB a trip falls as slowly as the least thing left
+ * out of the sum lets it.
  */
 export function secondsText(seconds: number): string {
-  if (!Number.isFinite(seconds)) return '∞'
-  if (seconds > 99.5) return '>99s'
-  if (seconds < 0.005) return '0s'
+  if (Number.isFinite(seconds) && seconds >= 99.5) return '>99 s'
+  return saidSeconds(seconds)
+}
+
+/** Seconds under a line of a scale, where there is room for few letters: "0.2 s", "1 s", "20 s". */
+export function scaleText(seconds: number): string {
   const shown =
     seconds >= 9.95
       ? seconds.toFixed(0)
       : seconds >= 0.995
         ? seconds.toFixed(1).replace(/\.0$/, '')
         : seconds.toFixed(2).replace(/0$/, '')
-  return `${shown}s`
+  return `${shown} s`
 }
 
 /** The step of a scale of seconds `seconds` long over `width` pixels: 1, 2 or 5 of a power of ten, no two nearer than `apart`. */
@@ -263,11 +270,11 @@ function timeScale(
     const x = box.x + ((n * step) / seconds) * box.w
     rule(ctx, x, box.y, x, box.y + box.h, { colour: colours.ink, alpha: INK.grid })
     if (each && x < box.x + box.w - 9) {
-      text(frame, secondsText(n * step), x, wordsY, { align: 'center', alpha: INK.back })
+      text(frame, scaleText(n * step), x, wordsY, { align: 'center', alpha: INK.back })
     }
   }
   if (!each) {
-    text(frame, secondsText(seconds), box.x + box.w, wordsY, { align: 'right', alpha: INK.back })
+    text(frame, scaleText(seconds), box.x + box.w, wordsY, { align: 'right', alpha: INK.back })
   }
 }
 
@@ -732,6 +739,20 @@ function roomHandles(room: Room, view: DisplayView): DisplayHandle[] {
     return solveParam(view, mix, (value) => room.wetOf(value), dbOfY(y, first, TOP_DB, FOOT_DB))
   }
   const [endX, endY] = fallPoint(tail, room.span, answer.onset, answer.body, FOOT_DB)
+  /** The time the tail takes at a setting of Decay, the rest as they are. */
+  const bodyAt = (value: number): number => room.answer(withParam(view, decay, value), rate).body
+  /**
+   * Whether Decay moves the tail at all as the rest are set: whether the
+   * tail's end at Decay's two ends stands a pixel apart. Ether's Decay only
+   * adds to Size, and with Size full up the room is as large as it gets.
+   */
+  const decayMoves = (): boolean => {
+    const spec = view.spec(decay)
+    if (!spec) return false
+    const [lowX, lowY] = fallPoint(tail, room.span, answer.onset, bodyAt(spec.min), FOOT_DB)
+    const [highX, highY] = fallPoint(tail, room.span, answer.onset, bodyAt(spec.max), FOOT_DB)
+    return Math.hypot(highX - lowX, highY - lowY) >= 1
+  }
   const handles: DisplayHandle[] = [
     {
       key: 'start',
@@ -759,12 +780,11 @@ function roomHandles(room: Room, view: DisplayView): DisplayHandle[] {
       x: endX,
       y: endY,
       drag: (x, y) => ({
-        [decay]: solveParam(
-          view,
-          decay,
-          (value) => room.answer(withParam(view, decay, value), rate).body,
-          fallThrough(tail, room.span, answer.onset, x, y),
-        ),
+        // Where no setting of Decay puts the end anywhere else, a drag is not a setting: the
+        // search would hand back whichever end of the range it fell to, and the tail would not move.
+        [decay]: decayMoves()
+          ? solveParam(view, decay, bodyAt, fallThrough(tail, room.span, answer.onset, x, y))
+          : view.value(decay),
       }),
       reset: () => ({ [decay]: defaultOf(view, decay) }),
     },
@@ -916,25 +936,29 @@ function room(config: Room): PlateDisplay {
       )
       drawFall(frame, state.ride, tail, config.span, TOP_DB)
 
-      for (const point of state.handles) {
-        handle(frame, point.x, point.y, { hot: frame.hot === point.key })
-      }
       // The one figure a reverb is set by: how long the tail takes to fall 60 dB.
       // In the corner over the tail, or at the foot where a long tail runs through the corner.
       const words =
         frame.hot === 'damping'
           ? secondsText(answer.top)
           : frame.hot === 'start' && config.predelay
-            ? `${Math.round(answer.gap * 1000)}ms`
+            ? `${Math.round(answer.gap * 1000)} ms`
             : secondsText(answer.held ? Infinity : answer.body)
       const right = tail.x + tail.w - 1
       const left = right - words.length * 5.5 - 3
       const through = Math.min(lineY(state.body, left, foot), lineY(state.low, left, foot))
       // The sign for a tail that never falls is a small one in most faces: it is set larger.
-      text(frame, words, right, through < tail.y + 12 ? foot - 3 : tail.y + 8, {
-        align: 'right',
-        size: words === '∞' ? 13 : 9,
-      })
+      const size = words === '∞' ? 13 : 9
+      if (through < tail.y + 12) {
+        // At the foot the lines of the highs and the lows run through where it stands: on a
+        // patch of the plate, laid before the points so it never lies over one.
+        label(frame, words, right, foot - 3, 'right', size)
+      } else {
+        text(frame, words, right, tail.y + 8, { align: 'right', size })
+      }
+      for (const point of state.handles) {
+        handle(frame, point.x, point.y, { hot: frame.hot === point.key })
+      }
     },
     handles: (view) => roomHandles(config, view),
   })
@@ -1813,6 +1837,8 @@ const convolverReverb = plateDisplay<ConvolverState>({
 
 /** The constants of `shaped_reverb.h`. */
 const SHAPED_MOST_TAPS = 256
+/** The widest the figure beside the shape gets, in pixels: "990 ms" at its size of 9. */
+const SHAPED_FIGURE_WIDE = 30
 const SHAPED_FLOOR_SEC = 0.001
 const SHAPED_COLOUR_HZ = 900
 const SHAPED_TAIL_DAMP_SHARE = 0.5
@@ -2257,11 +2283,12 @@ function layShaped(view: DisplayView, rate: number, box: Box, state: ShapedState
   // fainter lines from running through it.
   const right = box.x + box.w - 1
   const tailX = state.handles[2].x
-  state.wordsX = tailX > right - 30 ? tailX - 6 : right
+  state.wordsX = tailX > right - SHAPED_FIGURE_WIDE - 6 ? tailX - 6 : right
   const last = Math.round(((state.wordsX - box.x) / box.w) * steps)
   let highest = FOOT_DB
   let lowest = TOP_DB
-  for (let i = Math.max(0, last - Math.round((26 / box.w) * steps)); i <= last; i++) {
+  const wide = Math.round(((SHAPED_FIGURE_WIDE + 2) / box.w) * steps)
+  for (let i = Math.max(0, last - wide); i <= last; i++) {
     highest = Math.max(highest, level + state.body[i])
     lowest = Math.min(lowest, level + state.body[i])
   }
@@ -2348,7 +2375,7 @@ const shapedReverb = plateDisplay<ShapedState>({
       })
     }
     const words =
-      frame.hot === 'start' ? `${Math.round(frame.value('preDelay'))}ms` : secondsText(layout.time)
+      frame.hot === 'start' ? `${Math.round(frame.value('preDelay'))} ms` : secondsText(layout.time)
     if (!state.wordsClear) {
       const wide = words.length * 5.5 + 3
       fillRect(
