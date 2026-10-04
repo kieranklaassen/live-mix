@@ -1023,8 +1023,8 @@ describe('Cascade', () => {
     const { display, params, meters } = device('cascade')
     const marks = marksOf(drawDisplay(display, params, { meters, values: { interval: 1 } }))
     const names = marks.filter((mark) => mark.kind === 'words' && mark.words !== undefined)
-    expect(names.map((mark) => mark.words).slice(0, 6)).toEqual(['½', '1', '1½', '2', '3', '4'])
-    // Right-aligned 2 px left of the plot, which begins 14 px in: room for the widest, 1½.
+    expect(names.map((mark) => mark.words).slice(0, 6)).toEqual(['.5', '1', '1.5', '2', '3', '4'])
+    // Right-aligned 2 px left of the plot, which begins 14 px in: room for the widest, 1.5.
     for (const name of names.slice(0, 6)) expect(name.points[0][0]).toBe(16)
   })
 })

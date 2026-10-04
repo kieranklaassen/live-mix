@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest'
 
 import { normalizeParam, type ParamSpec } from '../../core/params'
 import { isChoiceParam } from '../components/control-math'
-import { PLAIN_COLOURS } from '../components/display-kit'
+import { PLAIN_COLOURS, TEXT_LEAST } from '../components/display-kit'
 import { PLATE_FACES } from '../components/displays'
 import { type DisplayHandle } from '../components/plate-display'
 import {
@@ -34,7 +34,18 @@ function allAt(params: Readonly<Record<string, ParamSpec>>, end: 'min' | 'max') 
 function expectSound(id: string, what: string, drawn: RecordingContext): void {
   for (const { name, value } of drawn.numbers())
     if (!Number.isFinite(value)) throw new Error(`${id} ${what}: ${name} was handed ${value}`)
+  let alpha = 1
   for (const call of drawn.calls) {
+    if (call.name === 'set globalAlpha') alpha = Number(call.args[0])
+    // A word may stand back, but at this size it is never fainter than it can be read,
+    // and never a fraction in one glyph, whose figures are half the type's size.
+    if (call.name === 'fillText') {
+      const words = String(call.args[0])
+      expect(alpha, `${id} ${what}: how strongly "${words}" is drawn`).toBeGreaterThanOrEqual(
+        TEXT_LEAST,
+      )
+      expect(words, `${id} ${what}: a fraction in one glyph`).not.toMatch(/[¼½¾⅓⅔⅛]/)
+    }
     if (call.name === 'set fillStyle' || call.name === 'set strokeStyle') {
       const value = call.args[0]
       // A gradient is made of the plate's colours too; a plain colour must be one of the three.

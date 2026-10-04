@@ -19,6 +19,7 @@ import {
   dot,
   ground,
   handle,
+  label,
   lerp,
   onePoleDb,
   rule,
@@ -1188,7 +1189,8 @@ const echoMemory = plateDisplay<MemoryState>({
       ctx.stroke()
       ctx.globalAlpha = 1
     }
-    text(frame, `${Math.round(reach)} s`, band.x + 1, crisp(foot - 2) - 0.5)
+    // Over what was played, which would cross the figures.
+    label(frame, `${Math.round(reach)} s`, band.x + 2, crisp(foot - 2) - 0.5)
   },
   handles: (view) => [pointOf(view, memoryBoxes(view).scope, 'time', 'feedback', 0.001)],
 })
