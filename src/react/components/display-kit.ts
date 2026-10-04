@@ -45,8 +45,11 @@ export type Point = readonly [number, number]
 export const clamp = (value: number, low: number, high: number): number =>
   value < low ? low : value > high ? high : value
 export const lerp = (from: number, to: number, t: number): number => from + (to - from) * t
-/** Half a pixel in, so a line one pixel wide falls on a row of pixels and is sharp. */
-export const crisp = (value: number): number => Math.round(value) + 0.5
+/**
+ * The middle of the pixel a value falls in, so a line one pixel wide lies on
+ * one row of pixels and is sharp, never more than half a pixel from its value.
+ */
+export const crisp = (value: number): number => Math.floor(value) + 0.5
 
 /**
  * The ground of a display, over the whole canvas: the plate a shade nearer its
@@ -676,13 +679,16 @@ export function trackPhase(
   dt: number,
 ): PhaseTrack {
   if (!track) return { phase: reading, reading }
+  const carried = track.phase + rateHz * dt
   if (reading !== track.reading) {
-    // A new reading: go to it, unless carrying forward already put us within a step of it.
-    const ahead = ((((track.phase - reading + 0.5) % 1) + 1) % 1) - 0.5
+    // A new reading: go to it, unless carrying forward already put us within a
+    // step of it. It is measured against where this frame was carried to, so
+    // the mark settles on the reading and not a frame ahead of it.
+    const ahead = ((((carried - reading + 0.5) % 1) + 1) % 1) - 0.5
     const near = Math.abs(ahead) < Math.max(0.02, rateHz / 20)
-    return { phase: near ? wrap(track.phase + rateHz * dt - ahead * 0.5) : reading, reading }
+    return { phase: near ? wrap(carried - ahead * 0.5) : reading, reading }
   }
-  return { phase: wrap(track.phase + rateHz * dt), reading }
+  return { phase: wrap(carried), reading }
 }
 
 const wrap = (phase: number): number => phase - Math.floor(phase)
