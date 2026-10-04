@@ -1,13 +1,14 @@
 // Displays of the delays that repeat: each repeat where it falls in time and
 // how loud it comes back. One picture for the four of them. A mark stands for
-// now. At its left is the level that went in over the last moments; at its
-// right is what is still to come: that same level again one delay time later,
-// and again, each time as much quieter as the loop makes it, so a loud note is
-// seen marching off to the right and fading. Under it stand the repeats of a
-// single full-scale click, which is the picture at rest. The point on the
-// first repeat is dragged: across is the time, up and down the feedback.
+// now and time runs to the right of it on a scale of seconds. The bars are the
+// repeats of one full-scale click: a delay time apart, each as much lower as
+// the loop makes it. Behind them is the sound itself: at the left of the mark
+// the level that went in over the last moments, at its right what is still to
+// come of it, so a loud note is seen marching off to the right and fading. The
+// point on the first repeat is dragged: across is the time, up and down the
+// feedback.
 
-import { denormalizeParam } from '../../../core/params'
+import { type ParamSpec } from '../../../core/params'
 import {
   History,
   INK,
@@ -16,7 +17,6 @@ import {
   clamp,
   crisp,
   dot,
-  follow,
   ground,
   handle,
   lerp,
@@ -38,13 +38,19 @@ import {
 /** Where now stands across the display. */
 const NOW_AT = 0.22
 /**
- * How far right of now the first repeat falls, as a share of the room there:
- * at the short end of the Time knob and at the long end. Time is a knob of
- * many octaves, so the axis is drawn to the time: seconds run evenly across
- * it at any one setting, and a longer time is a wider gap on a wider view.
+ * How many seconds the room right of now holds. Time is a knob of many
+ * octaves, so the scale has steps: within one a longer time is a wider gap,
+ * pixel for millisecond, and where the repeats would leave the display the
+ * scale goes to the next. The lines and ticks under the repeats say which.
  */
-const NEAR = 0.08
-const FAR = 0.4
+const SPANS = [0.5, 1, 2, 4, 8, 16] as const
+/**
+ * The scale is the shortest that holds so many of the time: four to nine
+ * repeats are in view, the fourth clear of the edge. The steps fall between
+ * the round times (at 114, 227, 455, 909 and 1818 ms), so a time like 250 or
+ * 500 ms does not stand on the edge of two scales.
+ */
+const FIT = 4.4
 /** The level at the top of a display: a little over full scale, for a loop that runs away. */
 const FULL = 1.25
 /** The level going in is kept this long, in slots this fine. */
@@ -55,9 +61,52 @@ const SLOTS = PAST_SEC * SLOTS_PER_SEC
 const MOST = 64
 /** Under this a repeat is not drawn. */
 const FAINT = 0.004
+/** A loop that grows is followed no further than this many times full scale. */
+const RUNAWAY = 8
 /** How strongly the ink is laid for what went in, and for what is to come of it. */
-const PAST_INK = 0.4
-const AHEAD_INK = 0.62
+const PAST_INK = 0.3
+const AHEAD_INK = 0.45
+/** The one point a delay's display has. */
+const POINT = 'repeat'
+
+/** The seconds across the room right of now for a delay time (exported for the test beside the displays). */
+export function spanOf(seconds: number): number {
+  for (const span of SPANS) if (span >= FIT * seconds) return span
+  return SPANS[SPANS.length - 1]
+}
+
+/** The times a scale is chosen for: longer than the first, no longer than the second. */
+function timesOf(span: number): readonly [number, number] {
+  return [
+    span === SPANS[0] ? 0 : (span / (2 * FIT)) * (1 + 1e-6),
+    span === SPANS[SPANS.length - 1] ? Infinity : span / FIT,
+  ]
+}
+
+/**
+ * The point in hand keeps the scale it was taken on until it is let go, so it
+ * stays under the pointer and a drag reaches every time the scale shows. Only
+ * a display knows it is in hand (`frame.dragging`); it leaves the scale here
+ * for `handles`, which is given no more than the parameters. One point is in
+ * hand at a time.
+ */
+let held: { state: object; spec: ParamSpec | undefined; span: number; at: number } | null = null
+/** A hold whose display has not drawn for this long is gone with its plate. */
+const HELD_SEC = 10
+
+/** The scale to draw on this frame: the held one while the point is in hand. */
+function spanNow(frame: DisplayFrame<EchoState>, time: string, seconds: number): number {
+  if (held && Math.abs(frame.now - held.at) > HELD_SEC) held = null
+  if (frame.dragging && frame.hot === POINT) {
+    if (held?.state !== frame.state) {
+      held = { state: frame.state, spec: frame.spec(time), span: spanOf(seconds), at: frame.now }
+    }
+    held.at = frame.now
+    return held.span
+  }
+  if (held?.state === frame.state) held = null
+  return spanOf(seconds)
+}
 
 interface Scope {
   box: Box
@@ -90,39 +139,87 @@ const levelOf = (share: number): number => FULL * clamp(share, 0, 1) ** 2
 const yOf = (scope: Scope, level: number, side: 0 | 1 = 0): number =>
   scope.base + (side === 0 ? -1 : 1) * shareOf(level) * scope.rise
 
-/** The gap between two repeats in pixels, from where the Time knob stands. */
-const gapOf = (scope: Scope, view: DisplayView, time: string): number =>
-  scope.ahead * lerp(NEAR, FAR, view.at(time))
+/**
+ * Times a drag comes to rest on, in milliseconds, the roundest first: a drag
+ * takes the first multiple it comes within half a pixel of, of the steps no
+ * finer than a pixel.
+ */
+const ROUND_MS = [1000, 500, 250, 125, 100, 50, 25, 10, 5, 1] as const
 
-/** The point on the first repeat: across is Time, up and down is Feedback. */
+/**
+ * The point on the first repeat: across is Time, up and down is Feedback.
+ * `unit` is the Time knob's unit in seconds. `span` is the scale it stands
+ * on; on a scale that is not held a drag stays among the times that scale is
+ * chosen for, so the scale cannot change under the pointer before the display
+ * has seen the point taken. A pixel is some milliseconds wide, so a drag that
+ * comes within half a pixel of a round time takes it: 250, 375 and 500 ms
+ * can be set by hand.
+ */
 function echoHandle(
   view: DisplayView,
   scope: Scope,
   time: string,
   feedback: string,
+  unit: number,
+  span: number,
+  isHeld: boolean,
 ): DisplayHandle {
   const timeSpec = view.spec(time)
   const feedbackSpec = view.spec(feedback)
+  const [over, upTo] = isHeld ? [0, span] : timesOf(span)
+  const pixelMs = (span * 1000) / scope.ahead
+  const x = scope.nowX + Math.min(1, (view.value(time) * unit) / span) * scope.ahead
+  const y = yOf(scope, view.value(feedback))
+  const timeAt = (to: number): number => {
+    // Taken and not moved, it stays where it is.
+    if (!timeSpec || Math.abs(to - x) < 1e-6) return view.value(time)
+    let ms = clamp((to - scope.nowX) / scope.ahead, 0, 1) * span * 1000
+    for (const step of ROUND_MS) {
+      if (step < pixelMs) break
+      const round = Math.round(ms / step) * step
+      if (Math.abs(round - ms) <= pixelMs / 2) {
+        ms = round
+        break
+      }
+    }
+    ms = clamp(ms, over * 1000, upTo * 1000)
+    return clamp(ms / (unit * 1000), timeSpec.min, timeSpec.max)
+  }
   return {
-    key: 'repeat',
+    key: POINT,
     name: 'Time and feedback',
-    x: scope.nowX + gapOf(scope, view, time),
-    y: yOf(scope, view.value(feedback)),
-    drag: (x, y) => ({
-      [time]: timeSpec
-        ? denormalizeParam(timeSpec, ((x - scope.nowX) / scope.ahead - NEAR) / (FAR - NEAR))
-        : view.value(time),
-      [feedback]: clamp(
-        levelOf((scope.base - y) / scope.rise),
-        feedbackSpec?.min ?? 0,
-        feedbackSpec?.max ?? 1,
-      ),
+    x,
+    y,
+    drag: (toX, toY) => ({
+      [time]: timeAt(toX),
+      [feedback]:
+        Math.abs(toY - y) < 1e-6
+          ? view.value(feedback)
+          : clamp(
+              levelOf((scope.base - toY) / scope.rise),
+              feedbackSpec?.min ?? 0,
+              feedbackSpec?.max ?? 1,
+            ),
     }),
     reset: () => ({
       [time]: timeSpec?.default ?? view.value(time),
       [feedback]: feedbackSpec?.default ?? view.value(feedback),
     }),
   }
+}
+
+/** The point as `handles` gives it: on the held scale when its display has it in hand. */
+function pointOf(
+  view: DisplayView,
+  scope: Scope,
+  time: string,
+  feedback: string,
+  unit: number,
+): DisplayHandle {
+  const spec = held?.spec
+  const mine = spec !== undefined && spec === view.spec(time)
+  const span = mine && held ? held.span : spanOf(view.value(time) * unit)
+  return echoHandle(view, scope, time, feedback, unit, span, mine)
 }
 
 // --- The loop ---------------------------------------------------------------
@@ -146,72 +243,82 @@ export interface Loop {
 export interface Comb {
   left: Float32Array
   right: Float32Array
-  /** The two sides as one level: the root of their mean power. */
-  both: Float32Array
   /** The last step that can be seen. */
   last: number
-  /** What it was made from, so it is made again only when that moves. */
-  made: string
-  /** What is left of a level after so many passes of the loop's filters. */
-  kept: Float32Array
+  /** What stands on each line by step, and how many times round the loop it has been. */
   work: Float32Array[]
 }
 
 export const newComb = (): Comb => ({
   left: new Float32Array(MOST + 1),
   right: new Float32Array(MOST + 1),
-  both: new Float32Array(MOST + 1),
   last: 0,
-  made: '',
-  kept: new Float32Array(MOST + 1).fill(1),
   work: [0, 1, 2, 3].map(() => new Float32Array(MOST + 1)),
 })
 
+/** What a loop's filters leave of a level, pass by pass: all of it until `keptLevels` says otherwise. */
+export const newKept = (): Float32Array => new Float32Array(MOST + 1).fill(1)
+
 /**
- * The repeats of one full-scale click, pass by pass. A pass plays what was
- * recorded through every head, and records the sum again times Feedback,
- * crossed between the sides; what it plays has been through the loop's
- * filters once more than the pass before. This is the recurrence the four
- * devices run a sample at a time, taken a repeat at a time. (This and
- * `keptLevels` are exported for the test beside the displays.)
+ * The repeats of one click, a step of the comb at a time: this is the
+ * recurrence the four devices run a sample at a time. At every step each head
+ * plays what was recorded so many steps before, and the sum is recorded again
+ * times Feedback, crossed between the sides, less what the loop's filters
+ * take on one more pass (`kept`, by how many times round the sound has been;
+ * where heads of different passes add, by their mean). `record` is what the
+ * device does to a level on its way into the line, the click's own included:
+ * a tape that saturates, a line with a ceiling. Left out, the comb is that of
+ * a small sound, which no device bends. (This and `keptLevels` are exported
+ * for the test beside the displays.)
  */
-export function ringComb(loop: Loop, comb: Comb): void {
-  const { left, right, kept } = comb
-  const [recL, recR, playL, playR] = comb.work
-  const steps = MOST + 1
-  left.fill(0)
-  right.fill(0)
-  recL.fill(0)
-  recR.fill(0)
-  recL[0] = loop.send[0]
-  recR[0] = loop.send[1]
-  for (let pass = 0; pass <= MOST; pass++) {
-    let loudest = 0
-    for (let m = 0; m < steps; m++) {
-      let l = 0
-      let r = 0
-      for (const [behind, gain] of loop.heads) {
-        if (m < behind) continue
-        l += gain * recL[m - behind]
-        r += gain * recR[m - behind]
-      }
-      playL[m] = l
-      playR[m] = r
-    }
-    for (let m = 0; m < steps; m++) {
-      left[m] += playL[m] * kept[pass] * loop.level
-      right[m] += playR[m] * kept[pass] * loop.level
-      // Kept finite where Feedback is over one; the device's own limit is drawn on top.
-      recL[m] = clamp(loop.feedback * lerp(playL[m], playR[m], loop.cross), -8, 8)
-      recR[m] = clamp(loop.feedback * lerp(playR[m], playL[m], loop.cross), -8, 8)
-      loudest = Math.max(loudest, Math.abs(recL[m]), Math.abs(recR[m]))
-    }
-    if (loudest < FAINT * 0.1) break
+export function ringComb(
+  loop: Loop,
+  kept: Float32Array,
+  comb: Comb,
+  record?: (level: number) => number,
+): void {
+  const { left, right } = comb
+  const [lineL, lineR, passL, passR] = comb.work
+  const take = (level: number): number => (record ? record(level) : Math.min(level, RUNAWAY))
+  /** What one more pass leaves of a sound that has been round so many times. */
+  const lost = (passes: number): number => {
+    const whole = Math.min(Math.floor(passes), MOST - 2)
+    const first = kept[whole] > 0 ? kept[whole + 1] / kept[whole] : 0
+    const next = kept[whole + 1] > 0 ? kept[whole + 2] / kept[whole + 1] : 0
+    return lerp(first, next, Math.min(1, passes - whole))
   }
+  left[0] = 0
+  right[0] = 0
+  lineL[0] = take(loop.send[0] * kept[0])
+  lineR[0] = take(loop.send[1] * kept[0])
+  passL[0] = 0
+  passR[0] = 0
   comb.last = 0
-  for (let m = 1; m < steps; m++) {
-    comb.both[m] = Math.sqrt((left[m] * left[m] + right[m] * right[m]) / 2)
-    if (Math.abs(left[m]) >= FAINT || Math.abs(right[m]) >= FAINT) comb.last = m
+  for (let m = 1; m <= MOST; m++) {
+    let playL = 0
+    let playR = 0
+    let wentL = 0
+    let wentR = 0
+    for (const [behind, gain] of loop.heads) {
+      if (m < behind) continue
+      const l = gain * lineL[m - behind]
+      const r = gain * lineR[m - behind]
+      playL += l
+      playR += r
+      wentL += l * passL[m - behind]
+      wentR += r * passR[m - behind]
+    }
+    left[m] = playL * loop.level
+    right[m] = playR * loop.level
+    if (left[m] >= FAINT || right[m] >= FAINT) comb.last = m
+    const backL = lerp(playL, playR, loop.cross)
+    const backR = lerp(playR, playL, loop.cross)
+    const roundL = backL > 0 ? lerp(wentL, wentR, loop.cross) / backL : 0
+    const roundR = backR > 0 ? lerp(wentR, wentL, loop.cross) / backR : 0
+    lineL[m] = take(loop.feedback * backL * lost(roundL))
+    lineR[m] = take(loop.feedback * backR * lost(roundR))
+    passL[m] = roundL + 1
+    passR[m] = roundR + 1
   }
 }
 
@@ -260,18 +367,28 @@ const BOTH_SIDES: Loop['send'] = [1, 1]
 interface EchoState {
   /** The level going in, by the clock. */
   heard: History
-  /** The same by pixel of age, made again each frame. */
+  /** The same by pixel of age, made again each frame, and what the device records of it. */
   ages: Float32Array
-  comb: Comb
-  /** 1 while nothing sounds and the click's repeats are the picture, 0 while the sound is. */
-  rest: number
+  taken: Float32Array
+  /** The repeats of a small sound, which nothing bends, and of one full-scale click. */
+  small: Comb
+  click: Comb
+  kept: Float32Array
+  /** What the combs were made from, so they are made again only when that moves. */
+  made: string
+  /** Whether a sound was drawn on the last frame. */
+  sounding: boolean
 }
 
 const newEchoState = (): EchoState => ({
   heard: new History(PAST_SEC, SLOTS, 0, 'max'),
   ages: new Float32Array(2048),
-  comb: newComb(),
-  rest: 1,
+  taken: new Float32Array(2048),
+  small: newComb(),
+  click: newComb(),
+  kept: newKept(),
+  made: '',
+  sounding: false,
 })
 
 /**
@@ -310,39 +427,76 @@ function hear(frame: DisplayFrame, heard: History): 'in' | 'out' | null {
 interface EchoPicture {
   scope: Scope
   loop: Loop
-  /** The loop and its filters in a word: the comb is made again when it changes. */
+  /** The loop, its filters and its limits in a word: the combs are made again when it changes. */
   key: string
-  /** Fills `kept` for the comb; called only when the key changes. */
+  /** Fills `kept` for the combs; called only when the key changes. */
   losses: (kept: Float32Array) => void
-  /** The device's limit on a level: what the tape or the line does to a loud one. */
-  limit: (level: number) => number
+  /** What the device does to a level it records: the tape's saturation, the line's ceiling. */
+  record?: (level: number) => number
+  /** What it does to the level it plays, after the loop. */
+  out?: (level: number) => number
   /** The Time knob in seconds, and the delay as it is now against it (1 when it stands where the knob says). */
   seconds: number
   place: number
-  /** The gap between repeats where the knob stands, in pixels. */
-  gap: number
+  /** The seconds across the room right of now. */
+  span: number
+  /** The mark for now carries something else while sound plays: no level on it. */
+  bare?: boolean
+  /** Where the words stand: nothing is drawn under them. */
+  words: Box
 }
 
-/** Draw the scope: the past, the repeats to come and the click's own repeats. Returns the level now. */
+/** The scale of seconds: a tick under the foot at every second and every tenth, and a line at every second, where they have room. */
+function drawScale(frame: DisplayFrame, scope: Scope, span: number): void {
+  const { ctx, colours } = frame
+  const { box, nowX } = scope
+  const foot = box.y + box.h
+  const right = box.x + box.w
+  const second = scope.ahead / span
+  ctx.fillStyle = colours.ink
+  for (const [gap, tall] of [
+    [second, true],
+    [second / 10, false],
+  ] as const) {
+    if (gap < 6) continue
+    for (let n = -Math.floor((nowX - box.x) / gap); nowX + n * gap <= right + 0.5; n++) {
+      if (n === 0 || (!tall && n % 10 === 0)) continue
+      const x = Math.round(nowX + n * gap)
+      if (x >= right) continue
+      // A line the whole height only where the seconds stand well apart: closer, they crowd the repeats.
+      if (tall && gap >= 20) {
+        ctx.globalAlpha = INK.grid
+        ctx.fillRect(x, box.y, 1, box.h)
+      }
+      ctx.globalAlpha = tall ? INK.back : INK.rule
+      ctx.fillRect(x, foot + 1, 1, 2)
+    }
+  }
+  ctx.globalAlpha = 1
+}
+
+/** Draw the scope: the scale, the past, the repeats to come and the click's own repeats. Returns the level now. */
 function drawEchoes(frame: DisplayFrame<EchoState>, picture: EchoPicture): number {
   const { ctx, colours, state } = frame
-  const { scope, loop, limit } = picture
+  const { scope, loop, record, out, span, words } = picture
   const { box, nowX, base, sided } = scope
-  const { comb, ages } = state
-  if (picture.key !== comb.made) {
-    picture.losses(comb.kept)
-    ringComb(loop, comb)
-    comb.made = picture.key
+  const { ages, taken, small } = state
+  if (picture.key !== state.made) {
+    picture.losses(state.kept)
+    ringComb(loop, state.kept, small)
+    if (record) ringComb(loop, state.kept, state.click, record)
+    state.made = picture.key
   }
+  const click = record ? state.click : small
   const source = hear(frame, state.heard)
-  // A step of the comb in pixels, and a pixel in seconds.
-  const step = Math.max(0.5, (picture.gap * picture.place) / loop.grid)
-  const perPixel = picture.seconds / Math.max(1, picture.gap)
+  // A pixel in seconds, and a step of the comb in pixels.
+  const perPixel = span / scope.ahead
+  const step = Math.max(0.05, (picture.seconds * picture.place) / loop.grid / perPixel)
   const behind = nowX - box.x
   const count = Math.min(
     ages.length,
     Math.ceil(PAST_SEC / perPixel) + 1,
-    Math.max(behind, Math.ceil(comb.last * step)) + 2,
+    Math.max(behind, Math.ceil(small.last * step)) + 2,
   )
   let loudest = 0
   if (source) {
@@ -353,17 +507,25 @@ function drawEchoes(frame: DisplayFrame<EchoState>, picture: EchoPicture): numbe
       let level = 0
       for (let i = from; i <= to; i++) level = Math.max(level, state.heard.at(i))
       ages[k] = level
+      taken[k] = record ? record(level) : level
       if (level > loudest) loudest = level
     }
   }
   // The past is drawn from either level; what is to come only from the level going in.
   const heardNow = source !== null && loudest > FAINT
   const sounding = heardNow && source === 'in'
-  state.rest =
-    frame.dt > 0 ? follow(state.rest, sounding ? 0 : 1, frame.dt, 0.4, 0.08) : sounding ? 0 : 1
+  state.sounding = sounding
   const sides: readonly (0 | 1)[] = sided ? [0, 1] : [0]
   const right = box.x + box.w
 
+  drawScale(frame, scope, span)
+  // Everything of the sound and its repeats keeps clear of the words.
+  ctx.save()
+  ctx.beginPath()
+  ctx.rect(0, 0, frame.width, frame.height)
+  ctx.rect(words.x, words.y, words.w, words.h)
+  ctx.clip('evenodd')
+  ctx.fillStyle = colours.ink
   if (heardNow) {
     // What went in, at the left of now.
     for (const side of sides) {
@@ -373,92 +535,109 @@ function drawEchoes(frame: DisplayFrame<EchoState>, picture: EchoPicture): numbe
       ctx.lineTo(nowX, base)
       ctx.closePath()
       ctx.globalAlpha = PAST_INK
-      ctx.fillStyle = colours.ink
       ctx.fill()
     }
-    ctx.globalAlpha = 1
   }
   if (sounding) {
-    // What is to come: every repeat of it that has not played yet, the powers added.
+    // What is to come: every repeat of it that has not played yet, the powers
+    // added. A repeat is the small sound's, of what the device recorded, and
+    // never more than the full-scale click's: in a loop that bends, a sound
+    // twice as loud does not come back twice as loud.
     const stride = scope.ahead > 320 ? 2 : 1
     for (const side of sides) {
-      const gains = !sided ? comb.both : side === 0 ? comb.left : comb.right
+      const gains = side === 0 ? small.left : small.right
+      const most = side === 0 ? click.left : click.right
       ctx.beginPath()
       ctx.moveTo(nowX, base)
       for (let j = 0; j <= scope.ahead; j += stride) {
         let power = 0
-        for (let m = 1; m <= comb.last; m++) {
-          const age = Math.round(m * step - j)
-          if (age < 0) continue
+        for (let m = Math.max(1, Math.ceil(j / step)); m <= small.last; m++) {
+          const age = Math.max(0, Math.round(m * step - j))
           if (age >= count) break
-          const level = gains[m] * ages[age]
+          let level = gains[m] * taken[age]
+          const ceiling = ages[age] > 1 ? most[m] * ages[age] : most[m]
+          if (level > ceiling) level = ceiling
           power += level * level
         }
-        ctx.lineTo(nowX + j, yOf(scope, limit(Math.sqrt(power)), side))
+        const level = Math.sqrt(power)
+        ctx.lineTo(nowX + j, yOf(scope, out ? out(level) : level, side))
       }
       ctx.lineTo(right, base)
       ctx.closePath()
       ctx.globalAlpha = AHEAD_INK
-      ctx.fillStyle = colours.ink
       ctx.fill()
     }
-    ctx.globalAlpha = 1
   }
 
-  // The repeats of one click: bars at rest, a ruler under the sound while it plays.
-  const rest = state.rest
-  const width = rest > 0.5 ? 3 : 1
+  // The repeats of one full-scale click.
+  const width = step >= 5 ? 3 : step >= 3 ? 2 : 1
+  // Steps enough to hold every head, and both sides of a loop that crosses.
+  const round = 2 * loop.grid
   for (const side of sides) {
-    const gains = !sided ? comb.both : side === 0 ? comb.left : comb.right
-    ctx.fillStyle = colours.ink
-    for (let m = 1; m <= comb.last; m++) {
+    const levels = side === 0 ? click.left : click.right
+    let seen = 0
+    ctx.globalAlpha = 1
+    for (let m = 1; m <= click.last; m++) {
       const x = nowX + m * step
       if (x > right - 1) break
-      const level = limit(Math.abs(gains[m]))
+      seen = m
+      const level = out ? out(levels[m]) : levels[m]
       if (level < FAINT) continue
       const y = yOf(scope, level, side)
-      ctx.globalAlpha = lerp(INK.text, 1, rest)
       ctx.fillRect(Math.round(x - width / 2), Math.min(y, base), width, Math.abs(y - base))
+    }
+    // A loop that grows may not have grown yet where the view ends. Where the
+    // repeats long after stand taller than the last ones seen, a bar on the
+    // edge says how tall.
+    if (click.last === MOST && seen > 0 && seen + round <= MOST) {
+      let near = 0
+      let far = 0
+      for (let m = Math.max(1, seen - round + 1); m <= seen; m++) near = Math.max(near, levels[m])
+      for (let m = MOST - round + 1; m <= MOST; m++) far = Math.max(far, levels[m])
+      const tall = Math.abs(yOf(scope, out ? out(far) : far, side) - base)
+      if (tall >= Math.abs(yOf(scope, out ? out(near) : near, side) - base) + 2) {
+        ctx.globalAlpha = INK.text
+        ctx.fillRect(right - 2, side === 0 ? base - tall : base, 2, tall)
+      }
     }
   }
   ctx.globalAlpha = 1
+  ctx.restore()
 
   // The lines the levels stand on, and now.
   rule(ctx, box.x, base, right, base, { colour: colours.ink, alpha: INK.rule })
   rule(ctx, nowX, box.y, nowX, box.y + box.h, { colour: colours.ink, alpha: INK.back })
   const now = heardNow ? ages[0] : 0
-  if (heardNow) {
-    // The level going in now, in the second ink on the mark.
+  if (!heardNow || !picture.bare) {
+    // On the mark, in the second ink: the level going in now, or at rest the click itself.
+    ctx.fillStyle = colours.accent
     for (const side of sides) {
-      const y = yOf(scope, now, side)
-      ctx.fillStyle = colours.accent
+      const y = yOf(scope, heardNow ? now : 1, side)
       ctx.fillRect(nowX - 1, Math.min(y, base), 3, Math.abs(y - base))
     }
-  } else {
-    // The click itself, at full scale.
-    for (const side of sides) {
-      const y = yOf(scope, 1, side)
-      ctx.globalAlpha = rest
-      ctx.fillStyle = colours.accent
-      ctx.fillRect(nowX - 1, Math.min(y, base), 3, Math.abs(y - base))
-    }
-    ctx.globalAlpha = 1
   }
   if (sided && box.w >= 120) {
-    text(frame, 'L', box.x + 1, box.y + 6, { size: 7, alpha: INK.back })
-    text(frame, 'R', box.x + 1, box.y + box.h, { size: 7, alpha: INK.back })
+    text(frame, 'L', box.x + 1, box.y + 7, { alpha: INK.back })
+    text(frame, 'R', box.x + 1, box.y + box.h, { alpha: INK.back })
   }
   return now
 }
 
-/** The point in hand and the time it stands at, in words. */
-function drawHandle(
-  frame: DisplayFrame,
-  scope: Scope,
-  point: DisplayHandle,
-  seconds: number,
-  feedback: number,
-): void {
+/** The time the point stands at, in words, and the feedback while it is in hand. */
+function wordsOf(frame: DisplayFrame, seconds: number, feedback: number): string {
+  const time = seconds >= 1 ? `${seconds.toFixed(2)} s` : `${Math.round(seconds * 1000)} ms`
+  return frame.hot === POINT ? `${time}  ${Math.round(feedback * 100)}%` : time
+}
+
+/** Where the words stand: the top right corner of the scope. */
+function wordsBox(frame: DisplayFrame, scope: Scope, words: string): Box {
+  frame.ctx.font = `8px ${frame.fontFamily}`
+  const width = Math.ceil(frame.ctx.measureText(words).width) + 3
+  return { x: scope.box.x + scope.box.w - width, y: scope.box.y - 1, w: width + 1, h: 10 }
+}
+
+/** The point and the words beside it. */
+function drawHandle(frame: DisplayFrame, scope: Scope, point: DisplayHandle, words: string): void {
   const { ctx, colours } = frame
   const hot = frame.hot === point.key
   // The rail it runs on: up is more feedback.
@@ -467,8 +646,6 @@ function drawHandle(
     alpha: hot ? INK.back : INK.grid,
   })
   handle(frame, point.x, point.y, { hot })
-  const time = seconds >= 1 ? `${seconds.toFixed(2)} s` : `${Math.round(seconds * 1000)} ms`
-  const words = hot ? `${time}  ${Math.round(feedback * 100)}%` : time
   text(frame, words, scope.box.x + scope.box.w - 1, scope.box.y + 7, {
     align: 'right',
     alpha: hot ? 1 : INK.text,
@@ -495,15 +672,11 @@ interface PitchMark {
   steps: readonly number[]
   /** The pitch of what plays now, a side each; none at rest. */
   now: readonly number[]
-  /** The pitch so many seconds ago, for the trail behind the mark; null to leave it out. */
-  trail: ((secondsAgo: number) => number) | null
-  /** Seconds in a pixel, for the trail. */
-  perPixel: number
 }
 
 /**
  * The pitch of the repeats, on the mark that stands for now: the middle of the
- * display is in tune, up is sharp. The thick part of the mark is how far the
+ * display is in tune, up is sharp. The slot about the mark is how far the
  * pitch can swing at this setting; the dot in the second ink is where it is.
  */
 function drawPitch(frame: DisplayFrame, scope: Scope, pitch: PitchMark): void {
@@ -515,32 +688,17 @@ function drawPitch(frame: DisplayFrame, scope: Scope, pitch: PitchMark): void {
   const y = (cents: number): number =>
     middle - Math.sign(cents) * Math.sqrt(Math.min(1, Math.abs(cents) / pitch.scale)) * half
   if (pitch.swing > 0.5) {
+    // A slot either side of the mark, so what stands on the mark shows through.
     const top = y(pitch.swing)
+    const tall = Math.max(1, y(-pitch.swing) - top)
     ctx.globalAlpha = INK.back
     ctx.fillStyle = colours.ink
-    ctx.fillRect(nowX - 2, top, 5, Math.max(1, y(-pitch.swing) - top))
+    ctx.fillRect(nowX - 3, top, 2, tall)
+    ctx.fillRect(nowX + 2, top, 2, tall)
     ctx.globalAlpha = 1
   }
   for (const cents of pitch.steps) {
     rule(ctx, nowX - 4, y(cents), nowX + 5, y(cents), { colour: colours.ink, alpha: INK.text })
-  }
-  if (pitch.now.length === 0) return
-  if (pitch.trail) {
-    let furthest = 0
-    ctx.beginPath()
-    for (let x = nowX; x >= box.x; x -= 2) {
-      const cents = pitch.trail((nowX - x) * pitch.perPixel)
-      furthest = Math.max(furthest, Math.abs(cents))
-      if (x === nowX) ctx.moveTo(x, y(cents))
-      else ctx.lineTo(x, y(cents))
-    }
-    // A transport that runs steady leaves no trail.
-    if (furthest > 0.5) {
-      ctx.strokeStyle = colours.accent
-      ctx.lineWidth = 1
-      ctx.lineJoin = 'round'
-      ctx.stroke()
-    }
   }
   for (let side = pitch.now.length - 1; side >= 0; side--) {
     dot(ctx, nowX, y(pitch.now[side]), side === 0 ? 3 : 2, colours.accent, { ring: colours.ink })
@@ -567,7 +725,7 @@ const delay = plateDisplay<EchoState>({
   place: 'strip',
   params: ['timeSec', 'feedback', 'damping'],
   live: { signal: true },
-  info: 'Time runs to the right and the mark is now. Left of it is the level that went in, right of it the repeats still to come, each a delay time later and quieter by Feedback. Damping makes later repeats shorter. Drag the point: across is Time, up is Feedback.',
+  info: 'The bars are the repeats of one loud click on a scale of seconds, lower by Feedback and Damping, and a bar on the right edge means they grow louder later. Behind them the sound that went in runs on from now, the mark, into its repeats. Drag the point: across is Time, up is Feedback.',
   init: newEchoState,
   draw(frame) {
     ground(frame)
@@ -575,14 +733,20 @@ const delay = plateDisplay<EchoState>({
     const feedback = frame.value('feedback')
     const damping = frame.value('damping')
     const seconds = frame.value('timeSec')
+    const span = spanNow(frame, 'timeSec', seconds)
+    const words = wordsOf(frame, seconds, feedback)
     drawEchoes(frame, {
       scope,
       // `Delay.ts`: the delay feeds the wet gain as it is, and goes round
-      // through the damping filter and the feedback gain.
+      // through the damping filter and the feedback gain. Nothing in the loop
+      // holds a level down: where a pass gives back more than it took, the
+      // repeats grow, and are drawn growing to the top of the scale.
       loop: { grid: 1, heads: ONE_HEAD, feedback, cross: 0, send: BOTH_SIDES, level: 1 },
       key: `${feedback.toFixed(4)} ${damping.toFixed(1)} ${frame.sampleRate}`,
       losses: (kept) => {
-        // A Web Audio low-pass, whose Q of √½ is read as decibels.
+        // A Web Audio low-pass, whose Q of √½ is read as decibels: it stands
+        // 1.7 dB proud under its corner, so over a Feedback of 0.82 a pass
+        // gives back more than it took there.
         const filter = biquad('lowpass', damping, Math.SQRT1_2, 0, frame.sampleRate, true)
         keptLevels(
           kept,
@@ -590,14 +754,19 @@ const delay = plateDisplay<EchoState>({
           (hz) => powerOfDb(biquadDb(filter, hz, frame.sampleRate)),
         )
       },
-      limit: (level) => level,
       seconds,
       place: 1,
-      gap: gapOf(scope, frame, 'timeSec'),
+      span,
+      words: wordsBox(frame, scope, words),
     })
-    drawHandle(frame, scope, echoHandle(frame, scope, 'timeSec', 'feedback'), seconds, feedback)
+    drawHandle(
+      frame,
+      scope,
+      echoHandle(frame, scope, 'timeSec', 'feedback', 1, span, frame.dragging),
+      words,
+    )
   },
-  handles: (view) => [echoHandle(view, delayScope(view), 'timeSec', 'feedback')],
+  handles: (view) => [pointOf(view, delayScope(view), 'timeSec', 'feedback', 1)],
 })
 
 // --- Analog Delay -----------------------------------------------------------
@@ -652,7 +821,7 @@ const analogDelay = plateDisplay<AnalogState>({
     'spread',
   ],
   live: { signal: true, meters: true },
-  info: 'Left of the mark is the level that went in, right of it the repeats to come; long times and a low Tone make them shorter. The dots on the mark are the pitch of the echoes on each side, up for sharp: they ride the clock wobble and jump with the interval steps. Drag the point for Time and Feedback.',
+  info: 'The bars are the repeats of one loud click on a scale of seconds: a long Time, a low Tone and a worn line make them lower. The dots on the mark for now are the pitch of the echoes on each side, up for sharp. Drag the point for Time and Feedback.',
   init: () => ({ ...newEchoState(), clocks: [newReadings(1), newReadings(1)] }),
   draw(frame) {
     const { state } = frame
@@ -684,17 +853,16 @@ const analogDelay = plateDisplay<AnalogState>({
       for (let i = 0; i < slots; i++) sum += state.clocks[0].at(i)
       mean = sum / slots
     }
-    // The line saturates towards its headroom, behind a 2:1 compressor and in
-    // front of a 1:2 expander: for a steady level a root and a square, which
-    // put a full-scale sine at half the headroom of a new line (`compander.h`).
     const headroom = 1 - BBD_HEADROOM_LOSS * age
     const clockHz = BBD_SAMPLES / seconds
     const inCorner = Math.min(tone, BBD_INPUT_SHARE * clockHz)
     const outCorner = Math.min(tone, BBD_OUTPUT_SHARE * clockHz)
+    const span = spanNow(frame, 'time', seconds)
+    const words = wordsOf(frame, seconds, feedback)
     drawEchoes(frame, {
       scope,
       loop: { grid: 1, heads: ONE_HEAD, feedback, cross: 0, send: BOTH_SIDES, level: 1 },
-      key: `${feedback.toFixed(4)} ${inCorner.toFixed(1)} ${outCorner.toFixed(1)}`,
+      key: `${feedback.toFixed(4)} ${inCorner.toFixed(1)} ${outCorner.toFixed(1)} ${age.toFixed(3)}`,
       losses: (kept) => {
         // Every repeat goes through both fourth-order low-passes and the low
         // cut once more: the first as well, since they stand in the line's path.
@@ -704,14 +872,20 @@ const analogDelay = plateDisplay<AnalogState>({
           powerOfDb(onePoleDb('highpass', BBD_LOW_CUT_HZ, hz))
         keptLevels(kept, pass, pass)
       },
-      // After the expander the wet path is linear to ±1 and never past ±2.
-      limit: (level) => {
+      // Every pass goes through the line, which saturates towards its
+      // headroom behind a 2:1 compressor and in front of a 1:2 expander: for a
+      // steady level a root and a square, which put a full-scale sine at half
+      // the headroom of a new line (`compander.h`, `bbd_line.h`). After the
+      // expander the wet path is linear to ±1 and never past ±2.
+      record: (level) => {
         const line = headroom * fastTanh((BBD_COMPRESSED * Math.sqrt(level)) / headroom)
         return softLimit((line / BBD_COMPRESSED) ** 2)
       },
       seconds,
       place: 1 / clamp(mean, 0.25, 4),
-      gap: gapOf(scope, frame, 'time'),
+      span,
+      bare: true,
+      words: wordsBox(frame, scope, words),
     })
     // An echo's pitch is the clock now over the clock when it was written,
     // so its swing is 2 × the clock's × sin(π × rate × time) (`analog_delay.h`):
@@ -724,20 +898,23 @@ const analogDelay = plateDisplay<AnalogState>({
         2 * wander * Math.abs(Math.sin(Math.PI * BBD_DRIFT_HZ * seconds)),
     )
     const delayNow = seconds / clamp(mean, 0.25, 4)
-    const pitchOf = (side: 0 | 1, ago: number): number =>
-      centsOf(readBack(state.clocks[side], ago) / readBack(state.clocks[side], ago + delayNow))
-    const sides: (0 | 1)[] = spread > 0.002 ? [0, 1] : [0]
+    const pitchOf = (side: 0 | 1): number =>
+      centsOf(readBack(state.clocks[side], 0) / readBack(state.clocks[side], delayNow))
     drawPitch(frame, scope, {
       scale: intervals.length > 0 ? 1300 : 140,
       swing,
       steps: intervals.flatMap((clock) => [centsOf(clock), -centsOf(clock)]),
-      now: running && sounds(frame) ? sides.map((side) => pitchOf(side, 0)) : [],
-      trail: (ago) => pitchOf(0, ago),
-      perPixel: seconds / Math.max(1, gapOf(scope, frame, 'time')),
+      now:
+        running && sounds(frame) ? (spread > 0.002 ? [pitchOf(0), pitchOf(1)] : [pitchOf(0)]) : [],
     })
-    drawHandle(frame, scope, echoHandle(frame, scope, 'time', 'feedback'), seconds, feedback)
+    drawHandle(
+      frame,
+      scope,
+      echoHandle(frame, scope, 'time', 'feedback', 0.001, span, frame.dragging),
+      words,
+    )
   },
-  handles: (view) => [echoHandle(view, analogScope(view), 'time', 'feedback')],
+  handles: (view) => [pointOf(view, analogScope(view), 'time', 'feedback', 0.001)],
 })
 
 // --- Tape Echo --------------------------------------------------------------
@@ -759,27 +936,26 @@ const TAPE_HEADS: readonly (readonly (readonly [number, number])[])[] = [
     [2, 0.5],
   ],
 ]
-/** The pitch the wow and the flutter reach at full, either way (`kWowSeconds`, `kFlutterSeconds`). */
-const TAPE_WOW_SWING = 0.005
-const TAPE_FLUTTER_SWING = 0.003
-
-interface TapeState extends EchoState {
-  /** The tape's speed past the heads, in cents off a steady transport. */
-  speed: History
-}
+/**
+ * The pitch the wow and the flutter reach at full, either way: how fast the
+ * read point moves. The wow is 1.6 ms of a drift of three sines about 0.5 Hz
+ * (`kit::Drift`: 2π × 0.5 × 0.516 at its steepest); the flutter 0.07 ms of 0.7
+ * of a sine at 7.1 Hz and 0.3 of a drift about 1.9 Hz.
+ */
+const TAPE_WOW_SWING = 0.0052
+const TAPE_FLUTTER_SWING = 0.0024
 
 function tapeScope(view: DisplayView): Scope {
   return scopeOf(scopeBox(view), true)
 }
 
-const tapeEcho = plateDisplay<TapeState>({
+const tapeEcho = plateDisplay<EchoState>({
   place: 'strip',
   params: ['time', 'feedback', 'heads', 'wow', 'flutter', 'drive', 'lowCut', 'highCut', 'spread'],
   live: { signal: true, meters: true },
-  info: 'Left of the mark is the level that went in, right of it the repeats to come from every head, the left side above the line and the right below, so Ping Pong is seen to bounce. The dot on the mark is the tape speed: up is sharp, and it rides the wow and flutter. Drag the point for Time and Feedback.',
-  init: () => ({ ...newEchoState(), speed: newReadings(0) }),
+  info: 'The bars are the repeats of one loud click from every head on a scale of seconds, the left side above the line and the right below, so Ping Pong is seen to bounce. The dot on the mark for now is the tape speed, up for sharp. Drag the point for Time and Feedback.',
+  init: newEchoState,
   draw(frame) {
-    const { state } = frame
     ground(frame)
     const scope = tapeScope(frame)
     const seconds = frame.value('time') / 1000
@@ -792,6 +968,7 @@ const tapeEcho = plateDisplay<TapeState>({
     const drive = 1 + 3 * frame.value('drive')
     const running = frame.powered && frame.dt > 0 && frame.hasMeter('speed')
     let place = 1
+    let cents = 0
     if (running) {
       // The head on its way to where the knob says, with the motor's lag.
       const head = frame.meter('time')
@@ -799,9 +976,10 @@ const tapeEcho = plateDisplay<TapeState>({
       // While the motor chases a longer Time the head runs away faster than
       // the tape and the repeats play backwards: that is off the foot of the scale.
       const speed = frame.meter('speed')
-      state.speed.push(frame.now, speed === 0 ? 0 : centsOf(Math.max(speed, 0.01)))
+      cents = speed === 0 ? 0 : centsOf(Math.max(speed, 0.01))
     }
-    const gap = gapOf(scope, frame, 'time')
+    const span = spanNow(frame, 'time', seconds)
+    const words = wordsOf(frame, seconds, feedback)
     drawEchoes(frame, {
       scope,
       loop: {
@@ -813,7 +991,7 @@ const tapeEcho = plateDisplay<TapeState>({
         send: [1, 1 - spread],
         level: 1,
       },
-      key: `${mode} ${feedback.toFixed(4)} ${spread.toFixed(3)} ${lowCut.toFixed(1)} ${highCut.toFixed(1)}`,
+      key: `${mode} ${feedback.toFixed(4)} ${spread.toFixed(3)} ${lowCut.toFixed(1)} ${highCut.toFixed(1)} ${drive.toFixed(3)}`,
       losses: (kept) =>
         // The cuts stand in the feedback path only: the first echo is whole.
         keptLevels(
@@ -821,24 +999,30 @@ const tapeEcho = plateDisplay<TapeState>({
           () => 1,
           (hz) => svfLowpass(highCut, 0.6, hz) * powerOfDb(onePoleDb('highpass', lowCut, hz)),
         ),
-      limit: (level) => fastTanh(level * drive) / drive,
+      // Whatever is recorded, the click and every pass of it, saturates.
+      record: (level) => fastTanh(level * drive) / drive,
       seconds,
       place,
-      gap,
+      span,
+      bare: true,
+      words: wordsBox(frame, scope, words),
     })
-    const wow = frame.value('wow')
-    const flutter = frame.value('flutter')
     drawPitch(frame, scope, {
       scale: 20,
-      swing: centsOf(1 + TAPE_WOW_SWING * wow + TAPE_FLUTTER_SWING * flutter),
+      swing: centsOf(
+        1 + TAPE_WOW_SWING * frame.value('wow') + TAPE_FLUTTER_SWING * frame.value('flutter'),
+      ),
       steps: [],
-      now: running && sounds(frame) ? [readBack(state.speed, 0)] : [],
-      trail: (ago) => readBack(state.speed, ago),
-      perPixel: seconds / Math.max(1, gap),
+      now: running && sounds(frame) ? [cents] : [],
     })
-    drawHandle(frame, scope, echoHandle(frame, scope, 'time', 'feedback'), seconds, feedback)
+    drawHandle(
+      frame,
+      scope,
+      echoHandle(frame, scope, 'time', 'feedback', 0.001, span, frame.dragging),
+      words,
+    )
   },
-  handles: (view) => [echoHandle(view, tapeScope(view), 'time', 'feedback')],
+  handles: (view) => [pointOf(view, tapeScope(view), 'time', 'feedback', 0.001)],
 })
 
 // --- Echo Memory ------------------------------------------------------------
@@ -883,7 +1067,7 @@ const echoMemory = plateDisplay<MemoryState>({
   place: 'strip',
   params: ['time', 'feedback', 'echo', 'tone', 'memory', 'reach', 'size', 'wander'],
   live: { signal: true, meters: true },
-  info: 'Above, the echo: the level that went in at the left of the mark and the repeats to come at its right. Below, the memory, from Reach ago at the left to now at the right: the marks in the second colour are the moments being played back. Drag the point for Time and Feedback.',
+  info: 'Above, the echo: the bars are the repeats of one loud click on a scale of seconds. Below, the memory, from Reach ago at the left to now at the right, with a mark in the second colour where a moment is being played back. Drag the point for Time and Feedback.',
   init: () => ({
     ...newEchoState(),
     minute: new History(MEMORY_LONGEST_SEC, MEMORY_SLOTS, 0, 'max'),
@@ -903,6 +1087,8 @@ const echoMemory = plateDisplay<MemoryState>({
       const head = frame.meter('time')
       if (head > 0) place = clamp(head / (seconds * 1000), 0.05, 20)
     }
+    const span = spanNow(frame, 'time', seconds)
+    const words = wordsOf(frame, seconds, feedback)
     const now = drawEchoes(frame, {
       scope,
       // Spread moves the repeats between the sides at the same power, which
@@ -917,12 +1103,20 @@ const echoMemory = plateDisplay<MemoryState>({
           (hz) =>
             svfLowpass(tone, 0.6, hz) * powerOfDb(onePoleDb('highpass', MEMORY_LOW_CUT_HZ, hz)),
         ),
-      limit: softLimit,
+      // What is recorded and what is played are both limited: linear to full scale.
+      record: softLimit,
+      out: softLimit,
       seconds,
       place,
-      gap: gapOf(scope, frame, 'time'),
+      span,
+      words: wordsBox(frame, scope, words),
     })
-    drawHandle(frame, scope, echoHandle(frame, scope, 'time', 'feedback'), seconds, feedback)
+    drawHandle(
+      frame,
+      scope,
+      echoHandle(frame, scope, 'time', 'feedback', 0.001, span, frame.dragging),
+      words,
+    )
 
     // The memory: Reach ago at the left, now at the right.
     const reach = frame.value('reach')
@@ -981,22 +1175,22 @@ const echoMemory = plateDisplay<MemoryState>({
       const interval = 20 * Math.pow(0.01, frame.value('wander'))
       const length = Math.min(frame.value('size'), 1.4 * interval, reach - MEMORY_NEAREST_SEC)
       const from = xOfAge(MEMORY_NEAREST_SEC + (reach - MEMORY_NEAREST_SEC) / 2 + length / 2)
-      const span = Math.max(3, (length / reach) * band.w)
+      const across = Math.max(3, (length / reach) * band.w)
       ctx.beginPath()
       ctx.moveTo(from, foot)
-      for (let x = 0; x <= span; x += 1) {
-        ctx.lineTo(from + x, foot - momentWindow(x / span) * memory * (band.h - 1))
+      for (let x = 0; x <= across; x += 1) {
+        ctx.lineTo(from + x, foot - momentWindow(x / across) * memory * (band.h - 1))
       }
-      ctx.lineTo(from + span, foot)
+      ctx.lineTo(from + across, foot)
       ctx.strokeStyle = colours.ink
       ctx.lineWidth = 1
-      ctx.globalAlpha = state.rest > 0.5 ? 1 : INK.back
+      ctx.globalAlpha = state.sounding ? INK.back : 1
       ctx.stroke()
       ctx.globalAlpha = 1
     }
-    text(frame, `${Math.round(reach)} s`, band.x + 1, crisp(foot - 2) - 0.5, { size: 7 })
+    text(frame, `${Math.round(reach)} s`, band.x + 1, crisp(foot - 2) - 0.5)
   },
-  handles: (view) => [echoHandle(view, memoryBoxes(view).scope, 'time', 'feedback')],
+  handles: (view) => [pointOf(view, memoryBoxes(view).scope, 'time', 'feedback', 0.001)],
 })
 
 export const DELAY_FACES: Readonly<Record<string, PlateFace>> = {
