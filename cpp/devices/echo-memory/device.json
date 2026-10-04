@@ -6,6 +6,13 @@
   "class": "EchoMemory",
   "header": "echo_memory.h",
   "sources": [],
+  "meters": [
+    { "key": "time", "name": "Echo time", "unit": "ms", "display": true },
+    { "key": "age1", "name": "Memory voice 1 age", "unit": "s", "display": true },
+    { "key": "level1", "name": "Memory voice 1 level", "display": true },
+    { "key": "age2", "name": "Memory voice 2 age", "unit": "s", "display": true },
+    { "key": "level2", "name": "Memory voice 2 level", "display": true }
+  ],
   "memoryMb": 20,
   "params": [
     {
