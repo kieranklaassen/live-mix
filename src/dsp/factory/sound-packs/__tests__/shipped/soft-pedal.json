@@ -1,0 +1,502 @@
+{
+  "2001": {
+    "id": "soft-pedal-unlit-cellar-drone-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2002": {
+    "id": "soft-pedal-hall-floor-drone-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2003": {
+    "id": "soft-pedal-closed-door-pipes-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2004": {
+    "id": "soft-pedal-far-end-viola-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2005": {
+    "id": "soft-pedal-sub-under-piano-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2006": {
+    "id": "soft-pedal-low-horns-drone-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2007": {
+    "id": "soft-pedal-one-high-voice-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2008": {
+    "id": "soft-pedal-lamp-turned-low-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2009": {
+    "id": "soft-pedal-string-ensemble-hush-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2010": {
+    "id": "soft-pedal-amplifier-left-on-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2011": {
+    "id": "soft-pedal-bellows-and-rotor-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2012": {
+    "id": "soft-pedal-back-row-subtone-b",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2013": {
+    "id": "soft-pedal-low-marimba-roll-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2014": {
+    "id": "soft-pedal-hammerless-piano-fmaj7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2015": {
+    "id": "soft-pedal-strikeless-tines-am9",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2016": {
+    "id": "soft-pedal-beating-glass-pad-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2017": {
+    "id": "soft-pedal-pale-blooming-pad-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2018": {
+    "id": "soft-pedal-dark-brass-half-lost-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2019": {
+    "id": "soft-pedal-smeared-brass-swell-em7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2020": {
+    "id": "soft-pedal-mutes-on-section-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2021": {
+    "id": "soft-pedal-bows-barely-touching-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2022": {
+    "id": "soft-pedal-slow-vowels-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2023": {
+    "id": "soft-pedal-dusk-filter-opening-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2024": {
+    "id": "soft-pedal-closed-lid-pad-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2025": {
+    "id": "soft-pedal-hollow-dark-room-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2026": {
+    "id": "soft-pedal-folded-tone-pad-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2027": {
+    "id": "soft-pedal-frozen-piano-instant-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2028": {
+    "id": "soft-pedal-two-second-clarinets-em7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2029": {
+    "id": "soft-pedal-held-string-halo-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2030": {
+    "id": "soft-pedal-dim-tape-choir-am9",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2031": {
+    "id": "soft-pedal-half-speed-flutes-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2032": {
+    "id": "soft-pedal-blurred-vibes-roll-g6",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2033": {
+    "id": "soft-pedal-soft-hammered-roll-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2034": {
+    "id": "soft-pedal-rubbed-bowl-haze-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2035": {
+    "id": "soft-pedal-glass-rims-room-em",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2036": {
+    "id": "soft-pedal-still-sines-phasing-b",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2037": {
+    "id": "soft-pedal-dark-fifth-below-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2038": {
+    "id": "soft-pedal-plain-four-strings-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2039": {
+    "id": "soft-pedal-bronze-without-strike-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2040": {
+    "id": "soft-pedal-low-octave-strings-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2041": {
+    "id": "soft-pedal-draught-under-the-door",
+    "durationSec": 16,
+    "loops": true
+  },
+  "2042": {
+    "id": "soft-pedal-open-window-cricket-field",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2043": {
+    "id": "soft-pedal-breath-chord-haze-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2044": {
+    "id": "soft-pedal-low-unsteady-bands-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2045": {
+    "id": "soft-pedal-hung-noise-bands-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2046": {
+    "id": "soft-pedal-practice-room-rain",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2047": {
+    "id": "soft-pedal-stove-in-the-corner",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2048": {
+    "id": "soft-pedal-record-left-turning",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2049": {
+    "id": "soft-pedal-backwards-rain-dissolve",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2050": {
+    "id": "soft-pedal-storm-two-towns-over",
+    "durationSec": 16,
+    "loops": true
+  },
+  "2051": {
+    "id": "soft-pedal-slow-loop-of-wind",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2052": {
+    "id": "soft-pedal-next-room-rumble",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2053": {
+    "id": "soft-pedal-lid-nearly-closed-d",
+    "durationSec": 8,
+    "loops": false
+  },
+  "2054": {
+    "id": "soft-pedal-left-pedal-chord-g",
+    "durationSec": 7,
+    "loops": false
+  },
+  "2055": {
+    "id": "soft-pedal-both-pedals-down-e",
+    "durationSec": 10,
+    "loops": false
+  },
+  "2056": {
+    "id": "soft-pedal-thump-and-low-string-a",
+    "durationSec": 6,
+    "loops": false
+  },
+  "2057": {
+    "id": "soft-pedal-low-dark-bowl-c",
+    "durationSec": 12,
+    "loops": false
+  },
+  "2058": {
+    "id": "soft-pedal-glass-vibes-chorus-a",
+    "durationSec": 7,
+    "loops": false
+  },
+  "2059": {
+    "id": "soft-pedal-motor-off-vibraphone-f",
+    "durationSec": 10,
+    "loops": false
+  },
+  "2060": {
+    "id": "soft-pedal-next-town-bell-d",
+    "durationSec": 12,
+    "loops": false
+  },
+  "2061": {
+    "id": "soft-pedal-slowed-thumb-key-c",
+    "durationSec": 6,
+    "loops": false
+  },
+  "2062": {
+    "id": "soft-pedal-detuned-room-harp-a",
+    "durationSec": 8,
+    "loops": false
+  },
+  "2063": {
+    "id": "soft-pedal-long-ring-harp-g",
+    "durationSec": 6,
+    "loops": false
+  },
+  "2064": {
+    "id": "soft-pedal-damped-harp-tail-d",
+    "durationSec": 8,
+    "loops": false
+  },
+  "2065": {
+    "id": "soft-pedal-octave-under-harp-f",
+    "durationSec": 8,
+    "loops": false
+  },
+  "2066": {
+    "id": "soft-pedal-brushed-chord-fmaj7",
+    "durationSec": 7,
+    "loops": false
+  },
+  "2067": {
+    "id": "soft-pedal-tongue-drum-hush-g",
+    "durationSec": 8,
+    "loops": false
+  },
+  "2068": {
+    "id": "soft-pedal-low-murky-fifth-d",
+    "durationSec": 8,
+    "loops": false
+  },
+  "2069": {
+    "id": "soft-pedal-soft-mallet-tone-e",
+    "durationSec": 6,
+    "loops": false
+  },
+  "2070": {
+    "id": "soft-pedal-small-hammered-piano-c",
+    "durationSec": 7,
+    "loops": false
+  },
+  "2071": {
+    "id": "soft-pedal-glockenspiel-echoes-b",
+    "durationSec": 8,
+    "loops": false
+  },
+  "2072": {
+    "id": "soft-pedal-three-head-chime-c",
+    "durationSec": 8,
+    "loops": false
+  },
+  "2073": {
+    "id": "soft-pedal-lid-closed-round-d",
+    "durationSec": 12,
+    "loops": true
+  },
+  "2074": {
+    "id": "soft-pedal-left-pedal-phrase-g",
+    "durationSec": 10,
+    "loops": false
+  },
+  "2075": {
+    "id": "soft-pedal-four-slow-notes-a",
+    "durationSec": 12,
+    "loops": false
+  },
+  "2076": {
+    "id": "soft-pedal-slow-shadow-round-c",
+    "durationSec": 12,
+    "loops": true
+  },
+  "2077": {
+    "id": "soft-pedal-empty-hall-tape-em",
+    "durationSec": 10,
+    "loops": false
+  },
+  "2078": {
+    "id": "soft-pedal-slow-pan-tines-c",
+    "durationSec": 12,
+    "loops": true
+  },
+  "2079": {
+    "id": "soft-pedal-across-the-room-f",
+    "durationSec": 12,
+    "loops": true
+  },
+  "2080": {
+    "id": "soft-pedal-few-cents-wide-e",
+    "durationSec": 10,
+    "loops": false
+  },
+  "2081": {
+    "id": "soft-pedal-treated-glass-keys-am",
+    "durationSec": 12,
+    "loops": true
+  },
+  "2082": {
+    "id": "soft-pedal-dulled-high-glass-c",
+    "durationSec": 8,
+    "loops": false
+  },
+  "2083": {
+    "id": "soft-pedal-backwards-chimes-d",
+    "durationSec": 12,
+    "loops": true
+  },
+  "2084": {
+    "id": "soft-pedal-slow-broken-chord-c",
+    "durationSec": 12,
+    "loops": false
+  },
+  "2085": {
+    "id": "soft-pedal-rolled-harp-chord-dm",
+    "durationSec": 8,
+    "loops": false
+  },
+  "2086": {
+    "id": "soft-pedal-bent-silk-round-e",
+    "durationSec": 12,
+    "loops": true
+  },
+  "2087": {
+    "id": "soft-pedal-harp-and-strings-f",
+    "durationSec": 12,
+    "loops": true
+  },
+  "2088": {
+    "id": "soft-pedal-far-hall-vibes-g",
+    "durationSec": 10,
+    "loops": false
+  },
+  "2089": {
+    "id": "soft-pedal-throbbing-bars-am",
+    "durationSec": 12,
+    "loops": true
+  },
+  "2090": {
+    "id": "soft-pedal-lid-down-celesta-c",
+    "durationSec": 8,
+    "loops": false
+  },
+  "2091": {
+    "id": "soft-pedal-long-room-nylon-am",
+    "durationSec": 10,
+    "loops": false
+  },
+  "2092": {
+    "id": "soft-pedal-steel-held-over-g",
+    "durationSec": 12,
+    "loops": true
+  },
+  "2093": {
+    "id": "soft-pedal-two-slow-strums-em",
+    "durationSec": 10,
+    "loops": false
+  },
+  "2094": {
+    "id": "soft-pedal-volume-pedal-line-c",
+    "durationSec": 12,
+    "loops": true
+  },
+  "2095": {
+    "id": "soft-pedal-fingertip-pan-round-d",
+    "durationSec": 12,
+    "loops": true
+  },
+  "2096": {
+    "id": "soft-pedal-gliding-synth-line-a",
+    "durationSec": 12,
+    "loops": true
+  },
+  "2097": {
+    "id": "soft-pedal-smeared-wind-chimes-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2098": {
+    "id": "soft-pedal-closed-bridge-lute-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "2099": {
+    "id": "soft-pedal-hammered-round-c",
+    "durationSec": 12,
+    "loops": true
+  },
+  "2100": {
+    "id": "soft-pedal-bell-tine-phrase-e",
+    "durationSec": 10,
+    "loops": false
+  }
+}

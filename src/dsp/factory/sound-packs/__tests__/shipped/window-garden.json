@@ -1,0 +1,502 @@
+{
+  "9001": {
+    "id": "window-garden-steady-fifth-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9002": {
+    "id": "window-garden-skylight-chord-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9003": {
+    "id": "window-garden-flute-stops-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9004": {
+    "id": "window-garden-plain-tones-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9005": {
+    "id": "window-garden-singing-bowl-rim-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9006": {
+    "id": "window-garden-low-flutes-together-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9007": {
+    "id": "window-garden-flugelhorns-indoors-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9008": {
+    "id": "window-garden-four-plain-strings-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9009": {
+    "id": "window-garden-soft-bridge-drone-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9010": {
+    "id": "window-garden-taped-flutes-b",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9011": {
+    "id": "window-garden-reed-line-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9012": {
+    "id": "window-garden-whistle-tone-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9013": {
+    "id": "window-garden-tape-loop-tone-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9014": {
+    "id": "window-garden-rolled-wood-bed-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9015": {
+    "id": "window-garden-held-glass-am7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9016": {
+    "id": "window-garden-light-bows-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9017": {
+    "id": "window-garden-rounded-low-strings-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9018": {
+    "id": "window-garden-three-clarinets-em7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9019": {
+    "id": "window-garden-still-trio-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9020": {
+    "id": "window-garden-hollow-afternoon-dm7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9021": {
+    "id": "window-garden-humming-next-door-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9022": {
+    "id": "window-garden-light-on-water-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9023": {
+    "id": "window-garden-round-brass-pad-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9024": {
+    "id": "window-garden-thin-strings-by-day-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9025": {
+    "id": "window-garden-daylight-pad-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9026": {
+    "id": "window-garden-high-string-line-b",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9027": {
+    "id": "window-garden-parlour-organ-c6",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9028": {
+    "id": "window-garden-held-moment-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9029": {
+    "id": "window-garden-taped-reeds-fmaj7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9030": {
+    "id": "window-garden-flute-stops-dm7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9031": {
+    "id": "window-garden-low-flute-chord-cadd9",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9032": {
+    "id": "window-garden-flugelhorn-chord-am7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9033": {
+    "id": "window-garden-voices-upstairs-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9034": {
+    "id": "window-garden-plain-tones-gsus2",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9035": {
+    "id": "window-garden-skylight-chord-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9036": {
+    "id": "window-garden-breath-on-glass-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9037": {
+    "id": "window-garden-water-under-the-bridge-loop",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9038": {
+    "id": "window-garden-rain-chain-trickle",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9039": {
+    "id": "window-garden-frogs-across-the-pond-loop",
+    "durationSec": 16,
+    "loops": true
+  },
+  "9040": {
+    "id": "window-garden-rain-on-the-eaves-loop",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9041": {
+    "id": "window-garden-leaves-moving-outside",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9042": {
+    "id": "window-garden-five-note-breathing",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9043": {
+    "id": "window-garden-slow-reading-of-a-brook",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9044": {
+    "id": "window-garden-crickets-at-the-screen",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9045": {
+    "id": "window-garden-gallery-air-vents",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9046": {
+    "id": "window-garden-thunder-past-the-wall",
+    "durationSec": 16,
+    "loops": true
+  },
+  "9047": {
+    "id": "window-garden-wind-at-the-sliding-door",
+    "durationSec": 16,
+    "loops": true
+  },
+  "9048": {
+    "id": "window-garden-porcelain-bowl-c",
+    "durationSec": 8,
+    "loops": false
+  },
+  "9049": {
+    "id": "window-garden-tea-bowl-d",
+    "durationSec": 8,
+    "loops": false
+  },
+  "9050": {
+    "id": "window-garden-struck-tumbler-a",
+    "durationSec": 4.5,
+    "loops": false
+  },
+  "9051": {
+    "id": "window-garden-chime-bars-e",
+    "durationSec": 5,
+    "loops": false
+  },
+  "9052": {
+    "id": "window-garden-cool-bars-g",
+    "durationSec": 7,
+    "loops": false
+  },
+  "9053": {
+    "id": "window-garden-buried-jar-f",
+    "durationSec": 3.5,
+    "loops": false
+  },
+  "9054": {
+    "id": "window-garden-small-glockenspiel-c",
+    "durationSec": 5,
+    "loops": false
+  },
+  "9055": {
+    "id": "window-garden-celesta-lesson-fmaj7",
+    "durationSec": 4,
+    "loops": false
+  },
+  "9056": {
+    "id": "window-garden-cedar-bars-c",
+    "durationSec": 3.5,
+    "loops": false
+  },
+  "9057": {
+    "id": "window-garden-steel-tongue-drum-a",
+    "durationSec": 5.5,
+    "loops": false
+  },
+  "9058": {
+    "id": "window-garden-small-strum-am",
+    "durationSec": 2.5,
+    "loops": false
+  },
+  "9059": {
+    "id": "window-garden-plate-chimes-g",
+    "durationSec": 4.5,
+    "loops": false
+  },
+  "9060": {
+    "id": "window-garden-steel-left-ringing-g",
+    "durationSec": 8,
+    "loops": false
+  },
+  "9061": {
+    "id": "window-garden-clean-electric-cmaj7",
+    "durationSec": 6.5,
+    "loops": false
+  },
+  "9062": {
+    "id": "window-garden-gallery-upright-dm9",
+    "durationSec": 6.5,
+    "loops": false
+  },
+  "9063": {
+    "id": "window-garden-soft-bass-pluck-f",
+    "durationSec": 2.5,
+    "loops": false
+  },
+  "9064": {
+    "id": "window-garden-steel-bar-bells-e",
+    "durationSec": 6.5,
+    "loops": false
+  },
+  "9065": {
+    "id": "window-garden-bamboo-knock-d",
+    "durationSec": 2,
+    "loops": false
+  },
+  "9066": {
+    "id": "window-garden-hammered-string-a",
+    "durationSec": 8,
+    "loops": false
+  },
+  "9067": {
+    "id": "window-garden-silk-strings-b",
+    "durationSec": 6,
+    "loops": false
+  },
+  "9068": {
+    "id": "window-garden-museum-morning-cmaj9",
+    "durationSec": 5.5,
+    "loops": false
+  },
+  "9069": {
+    "id": "window-garden-sine-mallet-g",
+    "durationSec": 3.5,
+    "loops": false
+  },
+  "9070": {
+    "id": "window-garden-museum-morning-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9071": {
+    "id": "window-garden-sill-in-the-sun-fmaj7",
+    "durationSec": 10,
+    "loops": false
+  },
+  "9072": {
+    "id": "window-garden-stepping-stones-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9073": {
+    "id": "window-garden-pond-glass-fall-e",
+    "durationSec": 8,
+    "loops": false
+  },
+  "9074": {
+    "id": "window-garden-paper-screen-round-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9075": {
+    "id": "window-garden-afternoon-loop-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9076": {
+    "id": "window-garden-strings-behind-glass-c",
+    "durationSec": 12,
+    "loops": true
+  },
+  "9077": {
+    "id": "window-garden-vitrine-keys-em",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9078": {
+    "id": "window-garden-sine-cell-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9079": {
+    "id": "window-garden-vibes-at-noon-fmaj9",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9080": {
+    "id": "window-garden-platform-chime-c",
+    "durationSec": 5.5,
+    "loops": false
+  },
+  "9081": {
+    "id": "window-garden-frost-on-the-basin-g",
+    "durationSec": 5,
+    "loops": false
+  },
+  "9082": {
+    "id": "window-garden-still-vibraphone-echo-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9083": {
+    "id": "window-garden-dry-wood-taps-c",
+    "durationSec": 5,
+    "loops": false
+  },
+  "9084": {
+    "id": "window-garden-kalimba-on-a-bench-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9085": {
+    "id": "window-garden-bamboo-flute-alone-d",
+    "durationSec": 8,
+    "loops": false
+  },
+  "9086": {
+    "id": "window-garden-pipes-in-the-yard-g",
+    "durationSec": 8,
+    "loops": false
+  },
+  "9087": {
+    "id": "window-garden-cedar-bars-walk-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9088": {
+    "id": "window-garden-glass-keys-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9089": {
+    "id": "window-garden-chorus-pulse-keys-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9090": {
+    "id": "window-garden-sine-keys-e",
+    "durationSec": 8,
+    "loops": false
+  },
+  "9091": {
+    "id": "window-garden-lobby-record-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9092": {
+    "id": "window-garden-nylon-by-the-door-c",
+    "durationSec": 8,
+    "loops": false
+  },
+  "9093": {
+    "id": "window-garden-damped-pan-taps-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9094": {
+    "id": "window-garden-koto-by-the-pond-e",
+    "durationSec": 8,
+    "loops": false
+  },
+  "9095": {
+    "id": "window-garden-plucked-by-the-bridge-a",
+    "durationSec": 7.5,
+    "loops": false
+  },
+  "9096": {
+    "id": "window-garden-whistled-line-g",
+    "durationSec": 8,
+    "loops": false
+  },
+  "9097": {
+    "id": "window-garden-one-plucked-string-g",
+    "durationSec": 8,
+    "loops": false
+  },
+  "9098": {
+    "id": "window-garden-glass-wind-bell-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9099": {
+    "id": "window-garden-birds-past-the-pane-loop",
+    "durationSec": 8,
+    "loops": true
+  },
+  "9100": {
+    "id": "window-garden-bird-on-the-lantern-loop",
+    "durationSec": 10,
+    "loops": true
+  }
+}

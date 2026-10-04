@@ -1,0 +1,502 @@
+{
+  "20001": {
+    "id": "ashram-morning-tanpura-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20002": {
+    "id": "ashram-open-bridge-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20003": {
+    "id": "ashram-reed-drone-box-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20004": {
+    "id": "ashram-arco-bass-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20005": {
+    "id": "ashram-prayer-harmonium-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20006": {
+    "id": "ashram-square-wave-organ-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20007": {
+    "id": "ashram-fourth-string-dusk-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20008": {
+    "id": "ashram-pedal-tone-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20009": {
+    "id": "ashram-pedal-synth-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20010": {
+    "id": "ashram-alto-flute-dusk-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20011": {
+    "id": "ashram-low-brass-floor-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20012": {
+    "id": "ashram-cassette-tanpura-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20013": {
+    "id": "ashram-sunday-organ-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20014": {
+    "id": "ashram-synth-vowels-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20015": {
+    "id": "ashram-chorale-organ-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20016": {
+    "id": "ashram-phased-flutes-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20017": {
+    "id": "ashram-overtone-floor-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20018": {
+    "id": "ashram-folded-low-tone-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20019": {
+    "id": "ashram-still-strings-b",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20020": {
+    "id": "ashram-evening-voices-cmaj7",
+    "durationSec": 12,
+    "loops": false
+  },
+  "20021": {
+    "id": "ashram-slow-brass-dawn-f",
+    "durationSec": 14,
+    "loops": false
+  },
+  "20022": {
+    "id": "ashram-wide-synth-strings-em7",
+    "durationSec": 12,
+    "loops": false
+  },
+  "20023": {
+    "id": "ashram-lamp-lit-pad-d",
+    "durationSec": 14,
+    "loops": false
+  },
+  "20024": {
+    "id": "ashram-still-steel-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20025": {
+    "id": "ashram-held-syllable-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20026": {
+    "id": "ashram-reel-strings-dm",
+    "durationSec": 12,
+    "loops": false
+  },
+  "20027": {
+    "id": "ashram-low-desks-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20028": {
+    "id": "ashram-sung-reply-dm",
+    "durationSec": 12,
+    "loops": false
+  },
+  "20029": {
+    "id": "ashram-swaying-strings-a",
+    "durationSec": 12,
+    "loops": false
+  },
+  "20030": {
+    "id": "ashram-slow-cycle-a",
+    "durationSec": 16,
+    "loops": true
+  },
+  "20031": {
+    "id": "ashram-top-octave-strings-c",
+    "durationSec": 12,
+    "loops": false
+  },
+  "20032": {
+    "id": "ashram-keyboard-strings-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20033": {
+    "id": "ashram-cassette-loop-bed-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20034": {
+    "id": "ashram-rubbed-bowl-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20035": {
+    "id": "ashram-conch-breath-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20036": {
+    "id": "ashram-canyon-wind-gusts",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20037": {
+    "id": "ashram-lamp-flame-close",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20038": {
+    "id": "ashram-dorian-air-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20039": {
+    "id": "ashram-prayer-hall-rain",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20040": {
+    "id": "ashram-canyon-road-crickets",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20041": {
+    "id": "ashram-creek-below-the-hall",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20042": {
+    "id": "ashram-old-pressing-crackle",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20043": {
+    "id": "ashram-surf-below-the-bluff",
+    "durationSec": 16,
+    "loops": true
+  },
+  "20044": {
+    "id": "ashram-lotus-pond-frogs",
+    "durationSec": 16,
+    "loops": true
+  },
+  "20045": {
+    "id": "ashram-thunder-up-the-canyon",
+    "durationSec": 16,
+    "loops": true
+  },
+  "20046": {
+    "id": "ashram-saffron-harp-a",
+    "durationSec": 8,
+    "loops": false
+  },
+  "20047": {
+    "id": "ashram-wound-string-d",
+    "durationSec": 8,
+    "loops": false
+  },
+  "20048": {
+    "id": "ashram-harp-over-drone-g",
+    "durationSec": 10,
+    "loops": false
+  },
+  "20049": {
+    "id": "ashram-late-set-harp-c",
+    "durationSec": 3,
+    "loops": false
+  },
+  "20050": {
+    "id": "ashram-brass-bowl-b",
+    "durationSec": 12,
+    "loops": false
+  },
+  "20051": {
+    "id": "ashram-small-hand-bell-e",
+    "durationSec": 5,
+    "loops": false
+  },
+  "20052": {
+    "id": "ashram-courtyard-bell-d",
+    "durationSec": 12,
+    "loops": false
+  },
+  "20053": {
+    "id": "ashram-tuned-hand-drum-a",
+    "durationSec": 3,
+    "loops": false
+  },
+  "20054": {
+    "id": "ashram-late-set-piano-d",
+    "durationSec": 6,
+    "loops": false
+  },
+  "20055": {
+    "id": "ashram-phased-tines-em7",
+    "durationSec": 8,
+    "loops": false
+  },
+  "20056": {
+    "id": "ashram-driven-tine-a",
+    "durationSec": 4,
+    "loops": false
+  },
+  "20057": {
+    "id": "ashram-tremolo-dusk-fmaj7",
+    "durationSec": 8,
+    "loops": false
+  },
+  "20058": {
+    "id": "ashram-rotor-tines-g7",
+    "durationSec": 6,
+    "loops": false
+  },
+  "20059": {
+    "id": "ashram-folded-harp-g",
+    "durationSec": 6,
+    "loops": false
+  },
+  "20060": {
+    "id": "ashram-plectrum-lute-e",
+    "durationSec": 4,
+    "loops": false
+  },
+  "20061": {
+    "id": "ashram-brushed-chord-dm",
+    "durationSec": 7,
+    "loops": false
+  },
+  "20062": {
+    "id": "ashram-quick-bright-strum-c",
+    "durationSec": 4,
+    "loops": false
+  },
+  "20063": {
+    "id": "ashram-bass-vamp-f",
+    "durationSec": 3,
+    "loops": false
+  },
+  "20064": {
+    "id": "ashram-sustained-lead-a",
+    "durationSec": 8,
+    "loops": false
+  },
+  "20065": {
+    "id": "ashram-reed-wave-organ-em",
+    "durationSec": 5,
+    "loops": false
+  },
+  "20066": {
+    "id": "ashram-twelve-over-drone-am",
+    "durationSec": 10,
+    "loops": false
+  },
+  "20067": {
+    "id": "ashram-swirl-strum-c",
+    "durationSec": 8,
+    "loops": false
+  },
+  "20068": {
+    "id": "ashram-first-sweep-dm",
+    "durationSec": 8,
+    "loops": false
+  },
+  "20069": {
+    "id": "ashram-canyon-sweep-g",
+    "durationSec": 12,
+    "loops": false
+  },
+  "20070": {
+    "id": "ashram-falling-strum-am",
+    "durationSec": 14,
+    "loops": false
+  },
+  "20071": {
+    "id": "ashram-veranda-chimes-c",
+    "durationSec": 16,
+    "loops": true
+  },
+  "20072": {
+    "id": "ashram-saffron-harp-round-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20073": {
+    "id": "ashram-drone-harp-fall-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20074": {
+    "id": "ashram-reed-solo-e",
+    "durationSec": 8,
+    "loops": false
+  },
+  "20075": {
+    "id": "ashram-octave-line-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20076": {
+    "id": "ashram-free-violin-am",
+    "durationSec": 10,
+    "loops": false
+  },
+  "20077": {
+    "id": "ashram-alto-lead-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20078": {
+    "id": "ashram-sliding-string-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20079": {
+    "id": "ashram-muted-trumpet-call-a",
+    "durationSec": 10,
+    "loops": false
+  },
+  "20080": {
+    "id": "ashram-bamboo-flute-em",
+    "durationSec": 10,
+    "loops": false
+  },
+  "20081": {
+    "id": "ashram-soprano-run-d",
+    "durationSec": 8,
+    "loops": false
+  },
+  "20082": {
+    "id": "ashram-club-vibes-round-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20083": {
+    "id": "ashram-late-piano-vamp-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20084": {
+    "id": "ashram-plate-piano-fall-c",
+    "durationSec": 12,
+    "loops": false
+  },
+  "20085": {
+    "id": "ashram-long-tine-echo-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20086": {
+    "id": "ashram-phased-tines-arp-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20087": {
+    "id": "ashram-hand-drum-round-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20088": {
+    "id": "ashram-bass-vamp-round-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20089": {
+    "id": "ashram-hammered-strings-round-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20090": {
+    "id": "ashram-plectrum-lute-phrase-e",
+    "durationSec": 8,
+    "loops": false
+  },
+  "20091": {
+    "id": "ashram-turning-harmonium-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20092": {
+    "id": "ashram-driven-tines-riff-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20093": {
+    "id": "ashram-swirling-organ-vamp-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20094": {
+    "id": "ashram-harp-and-section-am",
+    "durationSec": 16,
+    "loops": false
+  },
+  "20095": {
+    "id": "ashram-late-harp-line-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20096": {
+    "id": "ashram-bent-organ-line-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20097": {
+    "id": "ashram-ringing-steel-round-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20098": {
+    "id": "ashram-hand-bells-scatter-b",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20099": {
+    "id": "ashram-folded-harp-round-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "20100": {
+    "id": "ashram-wound-strings-round-g",
+    "durationSec": 8,
+    "loops": true
+  }
+}
