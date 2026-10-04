@@ -43,6 +43,33 @@ import {
   type PlateFace,
 } from '../plate-display'
 
+// --- Mix --------------------------------------------------------------------
+//
+// One rule for every display here: what the device makes is drawn only while
+// Mix lets it be heard. With none of it in the mix only the sound that came
+// in comes out: nothing is drawn as happening, and at rest there is no worked
+// example of what the settings would do, for they would do nothing. The
+// scales and the points stay.
+
+/** Under this nothing sounds, as for the plate that draws the display. */
+const QUIET = 1e-4
+
+/**
+ * The gain Mix gives what a device makes: `kit::equal_power` on the Cascade,
+ * the Cloud, the Blur, the Sustainer and the Pad Follower (the sine of Mix
+ * quarter turns), a straight cross-fade on the Glitch. All of it for a device
+ * without a Mix.
+ */
+function wetGain(view: Pick<DisplayView, 'value' | 'spec'>, straight = false): number {
+  if (!view.spec('mix')) return 1
+  const mix = clamp(view.value('mix'), 0, 1)
+  return straight ? mix : Math.sin(mix * (Math.PI / 2))
+}
+
+/** Whether Mix lets what the device makes be heard at all. */
+const mixedIn = (view: Pick<DisplayView, 'value' | 'spec'>, straight = false): boolean =>
+  wetGain(view, straight) > QUIET
+
 // --- Holds ------------------------------------------------------------------
 //
 // Sustain and Pad Follower: the level that is played against the level that
@@ -53,6 +80,12 @@ import {
 /** How much of the past a hold display keeps, and where in it now stands. */
 const HOLD_PAST_SEC = 8
 const HOLD_NOW_AT = 0.8
+/**
+ * How long a hold display is drawn on in silence: its past has to run out of
+ * the picture before it goes back to its worked example, and what it reads is
+ * not what the plate listens to, so the two need not fall silent together.
+ */
+const HOLD_SETTLE_SEC = HOLD_PAST_SEC + 4
 /** Points across a trace: the slots of the history, and as many across a worked example. */
 const HOLD_POINTS = 96
 
@@ -119,6 +152,8 @@ interface HoldPicture {
   example(t: number, out: [number, number]): void
   /** Whether the readings are the device's (the display runs and the device reports). */
   metered: boolean
+  /** The gain Mix gives the hold. */
+  wet: number
 }
 
 /**
@@ -134,28 +169,32 @@ function drawHold(frame: DisplayFrame<HoldState>, picture: HoldPicture): boolean
   const foot = box.y + box.h
   const yOf = (db: number): number => yOfDb(clamp(db, footDb, topDb), box, topDb, footDb)
 
-  const running = frame.powered && frame.dt > 0 && picture.metered
+  const heard = picture.wet > QUIET
+  const powered = frame.powered && heard
+  const running = powered && frame.dt > 0 && picture.metered
   if (running) {
     const played = gainToDb(picture.played)
     const held = gainToDb(picture.held)
     state.played.push(frame.now, Math.max(footDb, played))
     state.held.push(frame.now, Math.max(footDb, held))
-    if (played > footDb + 3 || held > footDb + 3) state.heardAt = frame.now
+    // The hold counts while it is heard: as loud as Mix leaves it.
+    if (played > footDb + 3 || gainToDb(picture.held * picture.wet) > footDb + 3)
+      state.heardAt = frame.now
   }
-  const live =
-    frame.powered && state.heardAt !== null && frame.now - state.heardAt < HOLD_PAST_SEC + 0.5
+  const live = powered && state.heardAt !== null && frame.now - state.heardAt < HOLD_PAST_SEC + 0.5
 
   dbGrid(frame, box, topDb, footDb, 24, topDb)
   const { playedLine, heldLine, overLine } = state
   if (!live) {
-    const exampleOf = picture.exampleOf()
+    const exampleOf = `${picture.exampleOf()} ${heard}`
     if (state.exampleOf !== exampleOf) {
       const levels: [number, number] = [footDb, footDb]
       for (let i = 0; i < HOLD_POINTS; i++) {
         const t = (box.x + (i / (HOLD_POINTS - 1)) * box.w - nowX) / perSec
         picture.example(t, levels)
         state.example[i] = levels[0]
-        state.example[HOLD_POINTS + i] = levels[1]
+        // With none of the hold in the mix the example has the playing and no hold.
+        state.example[HOLD_POINTS + i] = heard ? levels[1] : footDb
       }
       state.exampleOf = exampleOf
     }
@@ -269,8 +308,8 @@ export function sustainRise(since: number, attack: number): number {
 
 const sustainer = plateDisplay<HoldState>({
   place: 'strip',
-  params: ['sensitivity', 'attack', 'decay', 'mode', 'hold'],
-  live: { meters: true },
+  params: ['sensitivity', 'attack', 'decay', 'mode', 'hold', 'mix'],
+  live: { meters: true, settle: HOLD_SETTLE_SEC },
   info: 'The last eight seconds: the level you play as a fill, the held sound as a line, and in the second colour what the hold carries on after the playing. A tick at the top is a catch, the squares are the layers sounding. Drag the dashed line to set how soft a note is caught.',
   init: () => holdState(SUSTAIN_FOOT_DB),
   draw(frame) {
@@ -285,7 +324,8 @@ const sustainer = plateDisplay<HoldState>({
     const metered = frame.hasMeter('held')
 
     // A catch: the count steps.
-    if (frame.powered && frame.dt > 0 && frame.hasMeter('caught')) {
+    const heard = mixedIn(frame)
+    if (frame.powered && heard && frame.dt > 0 && frame.hasMeter('caught')) {
       const caught = frame.meter('caught')
       if (state.caught !== null && caught > state.caught) {
         state.catches.copyWithin(1, 0)
@@ -311,6 +351,7 @@ const sustainer = plateDisplay<HoldState>({
       played: frame.meter('level'),
       held: frame.meter('held'),
       metered,
+      wet: wetGain(frame),
       exampleOf: () =>
         `${gateDb.toFixed(2)} ${attack.toFixed(3)} ${fall.toFixed(4)} ${catches} ${frame.width}`,
       example(t, out) {
@@ -345,7 +386,7 @@ const sustainer = plateDisplay<HoldState>({
         ctx.fillStyle = n < layers ? colours.accent : colours.ink
         ctx.fillRect(x, box.y, 3, 3)
       }
-    } else if (catches) {
+    } else if (catches && heard) {
       tickAt(caughtAt)
     }
     ctx.globalAlpha = 1
@@ -431,8 +472,8 @@ interface PadState extends HoldState {
 
 const padFollower = plateDisplay<PadState>({
   place: 'strip',
-  params: ['rise', 'fall', 'sensitivity'],
-  live: { meters: true },
+  params: ['rise', 'fall', 'sensitivity', 'mix'],
+  live: { meters: true, settle: HOLD_SETTLE_SEC },
   info: 'The last eight seconds: the partials the pad hears in what you play as a fill, the pad it makes of them as a line, and in the second colour the pad hanging on after the playing. Rise and Fall are its slopes. Drag the dashed line to set how soft a note becomes pad.',
   init: () => ({ ...holdState(PAD_FOOT_DB), followed: new Float32Array(1100), followedOf: '' }),
   draw(frame) {
@@ -452,6 +493,7 @@ const padFollower = plateDisplay<PadState>({
       played: frame.meter('heard'),
       held: frame.meter('held'),
       metered: frame.hasMeter('held'),
+      wet: wetGain(frame),
       exampleOf,
       example(t, out) {
         const followedOf = exampleOf()
@@ -516,6 +558,8 @@ const CLOUD_TAPE = 120
 const CLOUD_LANE = 13
 /** How long a grain's mark stays where the grain left it, fading, after the grain has ended. */
 const CLOUD_AFTER_SEC = 1.6
+/** What a grain has to read, as loud as Mix leaves it, to count as sounding: a little over what the plate takes for silence, so the cloud is at rest before the plate stops drawing it. */
+const CLOUD_HEARD = 4 * QUIET
 
 interface CloudGrain {
   /** Seconds behind the head where its stretch began (the old end), when it started. */
@@ -566,6 +610,27 @@ function cloudLayout(view: Pick<DisplayView, 'width' | 'height'>): CloudLayout {
     mid: box.y + box.h / 2,
     perSemitone: box.h / 2 / CLOUD_SEMITONES,
   }
+}
+
+/**
+ * The loudest the display saw recorded in the stretch a grain reads: from
+ * `place` seconds behind the head on for `span` seconds of tape, and a slot
+ * either side for a reading that came late. A stretch older than the display
+ * has watched the tape is taken to be at full level.
+ */
+function cloudHeld(
+  state: Pick<CloudState, 'tape' | 'travel'>,
+  place: number,
+  span: number,
+): number {
+  if (place > state.travel) return 1
+  const slot = CLOUD_SECONDS / CLOUD_TAPE
+  const last = CLOUD_TAPE - 1
+  const from = clamp(last - Math.floor(place / slot) - 1, 0, last)
+  const to = clamp(last - Math.floor((place - span) / slot) + 1, from, last)
+  let loudest = 0
+  for (let i = from; i <= to; i++) if (state.tape[i] > loudest) loudest = state.tape[i]
+  return loudest
 }
 
 /**
@@ -652,7 +717,8 @@ function cloudHandles(view: DisplayView): DisplayHandle[] {
       name: 'Pitch',
       x: box.x + 5,
       y: mid - pitch * perSemitone,
-      drag: (_x, y) => ({ pitch: clamp((mid - y) / perSemitone, -24, 24) }),
+      // A pixel is less than a semitone, so the hand sets whole ones: each can be reached, the fifth and the octave among them.
+      drag: (_x, y) => ({ pitch: clamp(Math.round((mid - y) / perSemitone), -24, 24) }),
       reset: () => ({ pitch: 0 }),
     },
   ]
@@ -672,6 +738,7 @@ const grainCloud = plateDisplay<CloudState>({
     'reverse',
     'freeze',
     'spread',
+    'mix',
   ],
   live: { meters: true },
   info: 'Along the foot, the eight seconds the cloud holds, newest at the right. Each mark above is a grain: where in that sound it reads, as wide as what it reads, higher for a higher pitch, up in its row for left and down for right. Drag the rings for Position and Pitch; the wheel on Position is Size.',
@@ -710,7 +777,10 @@ const grainCloud = plateDisplay<CloudState>({
       clamp(semitones - pan * CLOUD_PAN_SEMITONES, -CLOUD_SEMITONES, CLOUD_SEMITONES) * perSemitone
 
     // What the device reports: the tape moving under the head, and new grains.
-    const running = frame.powered && frame.dt > 0 && frame.hasMeter('grains')
+    const wet = wetGain(frame)
+    const heard = wet > QUIET
+    const powered = frame.powered && heard
+    const running = powered && frame.dt > 0 && frame.hasMeter('grains')
     if (running) {
       if (!frozen) {
         const slot = CLOUD_SECONDS / CLOUD_TAPE
@@ -736,11 +806,15 @@ const grainCloud = plateDisplay<CloudState>({
         grain.length = cloudLength(size, rate, frame.sampleRate)
         grain.born = frame.now
         grain.travel = state.travel
-        state.lastAt = frame.now
+        // The device goes on opening grains on a tape that has run empty, for
+        // as long as it holds anything at all: those make no sound, and the
+        // cloud is not kept up for them.
+        if (cloudHeld(state, place, Math.abs(rate) * grain.length) * wet > CLOUD_HEARD)
+          state.lastAt = frame.now
       }
       state.count = count
     }
-    const live = frame.powered && frame.now - state.lastAt < CLOUD_AFTER_SEC + 2.5
+    const live = powered && frame.now - state.lastAt < CLOUD_AFTER_SEC + 2.5
 
     // The scales: the played pitch and the octaves about it; one, two and four seconds back.
     for (const semitones of CLOUD_PITCH_LINES) {
@@ -853,6 +927,7 @@ const grainCloud = plateDisplay<CloudState>({
         }
         return
       }
+      if (!heard) return
       // At rest, the cloud as the settings make it: the grains of the last
       // moments, each thrown as `spawn()` throws one, the newest still sounding.
       const rate = cloudRate(frame.value('density'), size)
@@ -1175,7 +1250,7 @@ const GLITCH_PARAMS = [
 
 const glitch = plateDisplay<GlitchState>({
   place: 'strip',
-  params: GLITCH_PARAMS,
+  params: [...GLITCH_PARAMS, 'mix'],
   live: { meters: true },
   info: 'Four seconds run left past the mark for now, a tick for each slice; the ring sets the slice. A block is a piece of a glitch, as long as it plays and as tall as it is loud, and the word names it. Its line is where the sound is read: up for a repeat, down for a reverse, flattening as a tape slows.',
   init: () => ({
@@ -1211,7 +1286,9 @@ const glitch = plateDisplay<GlitchState>({
     const now = frame.now
 
     // --- What the device reports ---
-    const running = frame.powered && frame.dt > 0 && frame.hasMeter('next')
+    const heard = mixedIn(frame, true)
+    const powered = frame.powered && heard
+    const running = powered && frame.dt > 0 && frame.hasMeter('next')
     const next = running ? frame.meter('next') : 0
     const kind = running ? Math.round(frame.meter('kind')) : 0
     const events = running ? frame.meter('events') : 0
@@ -1295,7 +1372,7 @@ const glitch = plateDisplay<GlitchState>({
       }
       state.events = events
     }
-    const live = frame.powered && now - state.lastAt < GLITCH_SPAN_SEC
+    const live = powered && now - state.lastAt < GLITCH_SPAN_SEC
 
     // --- The picture ---
     const xOf = (t: number): number => nowX + t * perSec
@@ -1388,7 +1465,7 @@ const glitch = plateDisplay<GlitchState>({
 
     clipped(ctx, { x: box.x, y: box.y, w: box.w, h: box.h + 1 }, () => {
       for (const piece of pieces) {
-        if (piece.kind === 0) continue
+        if (piece.kind === 0 || !(live || heard)) continue
         const ahead = !live && piece.t0 > 0
         block(piece, from, ahead ? 'next' : live && piece === state.current ? 'now' : 'past')
       }
@@ -1613,7 +1690,7 @@ export function blurHeldAt(hang: ArrayLike<number>, across: number): number {
 const spectralBlur = plateDisplay<BlurState>({
   place: 'window',
   columns: 2,
-  params: ['blur', 'freeze', 'tilt', 'lowCut', 'highCut'],
+  params: ['blur', 'freeze', 'tilt', 'lowCut', 'highCut', 'mix'],
   live: { meters: true, spectrum: true },
   info: 'The spectrum of what comes out, from 20 Hz to 20 kHz, in the second colour where the sound is hanging on after the playing let it go. The line is the tone of the blur, with points for the two cuts and the tilt. The wedge along the top is how long the spectrum hangs: drag its tip.',
   init: () => ({
@@ -1633,7 +1710,8 @@ const spectralBlur = plateDisplay<BlurState>({
     const tilt = frame.value('tilt')
     const lowCut = frame.value('lowCut')
     const highCut = frame.value('highCut')
-    const running = frame.powered && frame.dt > 0 && frame.hasMeter('hang1')
+    const heard = mixedIn(frame)
+    const running = frame.powered && heard && frame.dt > 0 && frame.hasMeter('hang1')
 
     for (let band = 0; band < BLUR_BANDS; band++) {
       const reading = running ? clamp(frame.meter(BLUR_METERS[band]), 0, 1) : 0
@@ -1722,7 +1800,7 @@ const spectralBlur = plateDisplay<BlurState>({
     }
     clipped(ctx, box, () => {
       // With no sound to show, what the tone lets through.
-      if (!shown) fillTo(ctx, state.tone, foot, colours.ink, INK.fill)
+      if (!shown && heard) fillTo(ctx, state.tone, foot, colours.ink, INK.fill)
       trace(ctx, state.tiltLine, { colour: colours.ink, width: 1, alpha: INK.back, dash: [2, 2] })
       trace(ctx, state.tone, { colour: colours.ink })
     })
@@ -1737,8 +1815,14 @@ const spectralBlur = plateDisplay<BlurState>({
     const seconds = blurHangSec(blur)
     const tip = ruler.x + blur * ruler.w
     if (frozen) {
-      // Frozen, nothing dies away: the whole ruler, at full height.
-      fillRect(ctx, { x: ruler.x, y: ruler.y, w: ruler.w, h: ruler.h }, colours.accent, 0.9)
+      // Frozen, nothing dies away: the whole ruler, at full height. It is in the
+      // second colour while what is frozen is heard.
+      fillRect(
+        ctx,
+        { x: ruler.x, y: ruler.y, w: ruler.w, h: ruler.h },
+        heard ? colours.accent : colours.ink,
+        0.9,
+      )
     } else if (tip > ruler.x + 0.5) {
       ctx.beginPath()
       ctx.moveTo(ruler.x, ruler.y)
@@ -1889,6 +1973,11 @@ export interface CascadeSlice {
  * its accent and trim, and the share of it that is the window's rise at full
  * Shape. Drone cuts its piece to whole cycles of the sound, which only the
  * device knows: here it has the length the device aims for.
+ *
+ * Returns how many repeats of the slice are played: Repeats, or fewer where
+ * the device stops a cascade, 18 s after its voices start. They are counted
+ * on the first part, the one that is always there: its strokes in a
+ * Restrike, and otherwise the pulses its last pass reaches into.
  */
 export function cascadePasses(
   slice: CascadeSlice,
@@ -1900,14 +1989,16 @@ export function cascadePasses(
     level: number,
     swell: number,
   ) => void,
-): void {
+): number {
   const { length, period, repeats, fifths, pattern } = slice
   const droneStart = Math.min(0.1 * length, 0.02)
   const droneMost = 0.5 * (length - droneStart) - 8 / 48000
   const droneHalf = (k: number): number =>
     Math.max(16 / 48000, Math.min(Math.max(0.125 * period, 0.015) * (1 + 0.12 * k), droneMost))
-  const part = (index: number, trim: number, delay = 0): void => {
+  // Each part answers with the repeat its last pass belongs to, counted from 1.
+  const part = (index: number, trim: number, delay = 0): number => {
     let elapsed = 0
+    let last = 0
     for (let k = 0; k < CASCADE_PASSES; k++) {
       let speed = 1
       let read = length
@@ -1917,7 +2008,7 @@ export function cascadePasses(
       let age = elapsed / period
       if (pattern === CASCADE_RESTRIKE) {
         // The start of the slice, struck once a repeat, the gaps a bouncing ball's.
-        if (k >= repeats) return
+        if (k >= repeats) return last
         speed = index === 2 ? 0.5 : index === 1 ? (fifths && !(k & 1) ? 1.5 : 2) : 1
         const piece = Math.min(length, clamp(period / 3, 0.03, 0.25))
         let run = piece / speed
@@ -1935,7 +2026,7 @@ export function cascadePasses(
         age = k
       } else if (pattern === CASCADE_DRONE) {
         // A piece of the slice looped, each pass 12 % longer, until Repeats × Time is up.
-        if (elapsed >= repeats * period) return
+        if (elapsed >= repeats * period) return last
         const half = droneHalf(k)
         speed = index === 3 ? 0.5 : index === 2 ? (fifths ? 1.5 : 2) : 1
         if (index === 1) {
@@ -1949,11 +2040,11 @@ export function cascadePasses(
       } else if (pattern === CASCADE_STEPS) {
         // Each repeat at the next speed; the half-speed part every other one.
         if (index === 1) {
-          if (k >= (repeats + 1) >> 1) return
+          if (k >= (repeats + 1) >> 1) return last
           speed = 0.5
           grid = 2 * period
         } else {
-          if (k >= repeats) return
+          if (k >= repeats) return last
           const step = slice.step + k
           speed = fifths ? CASCADE_STEPS_FIFTHS[step & 7] : CASCADE_STEPS_OCTAVES[step & 3]
         }
@@ -1961,19 +2052,24 @@ export function cascadePasses(
         // Stack: the whole slice at the part's speed, back to back.
         speed = CASCADE_STACK_SPEED[index]
         grid = period / speed
-        if (k >= (index === 3 ? (repeats + 1) >> 1 : Math.floor(repeats * speed + 0.5))) return
+        if (k >= (index === 3 ? (repeats + 1) >> 1 : Math.floor(repeats * speed + 0.5))) return last
         if (index === 1) accent = k & 1 ? 1.1 : 0.9
         else if (index === 2) accent = CASCADE_ACCENT_FOUR[k & 3]
         else if (index === 4) accent = CASCADE_ACCENT_THREE[k % 3]
         else if (index === 5) accent = CASCADE_ACCENT_THREE[(k + 1) % 3]
       }
       const run = read / speed
-      if (elapsed + run > CASCADE_MAX_LIFE_SEC) return
+      if (elapsed + run > CASCADE_MAX_LIFE_SEC) return last
       visit(delay + elapsed, Math.min(run, grid), speed, age, accent * trim, swell)
+      last =
+        pattern === CASCADE_RESTRIKE
+          ? k + 1
+          : Math.ceil((elapsed + Math.min(run, grid)) / period - 1e-6)
       elapsed += grid
     }
+    return last
   }
-  part(0, pattern === CASCADE_STACK ? 0.85 : 1)
+  const played = part(0, pattern === CASCADE_STACK ? 0.85 : 1)
   if (pattern === CASCADE_RESTRIKE) {
     if (slice.high) part(1, 1)
     if (slice.low) part(2, 1)
@@ -1997,6 +2093,7 @@ export function cascadePasses(
     }
     if (slice.low) part(3, 1)
   }
+  return Math.min(repeats, played)
 }
 
 /** How loud a pass is against the slice it replays: Decay by its age, its accent, and High or Low by its speed. */
@@ -2037,6 +2134,8 @@ interface CascadeKept {
   /** Its passes: start, run, speed, age, level, swell each. */
   passes: Float32Array
   count: number
+  /** How many of its repeats are played. */
+  repeats: number
 }
 
 interface CascadeState {
@@ -2063,6 +2162,7 @@ const emptySlice = (): CascadeKept => ({
   length: 0,
   passes: new Float32Array(CASCADE_PASSES * CASCADE_STRIDE),
   count: 0,
+  repeats: 0,
 })
 
 function keepSlice(kept: CascadeKept, slice: CascadeSlice, at: number, begin: number): void {
@@ -2072,7 +2172,7 @@ function keepSlice(kept: CascadeKept, slice: CascadeSlice, at: number, begin: nu
   kept.count = 0
   let last = 0
   const passes = kept.passes
-  cascadePasses(slice, (start, run, speed, age, level, swell) => {
+  kept.repeats = cascadePasses(slice, (start, run, speed, age, level, swell) => {
     if (kept.count >= CASCADE_PASSES) return
     const to = kept.count * CASCADE_STRIDE
     passes[to] = start
@@ -2126,7 +2226,7 @@ function cascadeHill(
 const cascade = plateDisplay<CascadeState>({
   place: 'window',
   columns: 2,
-  params: ['pattern', 'time', 'repeats', 'decay', 'high', 'low', 'interval', 'shape'],
+  params: ['pattern', 'time', 'repeats', 'decay', 'high', 'low', 'interval', 'shape', 'mix'],
   live: { meters: true },
   info: 'The score of the replays: time runs across past the mark for now, and each row is a speed, from half at the bottom to four times at the top. Each hill is one pass of a loop, as long as it sounds and as tall as it is loud, coloured while it sounds. The blocks along the foot are the slices caught.',
   init: () => ({
@@ -2157,7 +2257,9 @@ const cascade = plateDisplay<CascadeState>({
     const lowOn = low > 0.001
 
     // --- What the device reports: a slice, each time its count steps ---
-    const running = frame.powered && frame.dt > 0 && frame.hasMeter('slices')
+    const heard = mixedIn(frame)
+    const powered = frame.powered && heard
+    const running = powered && frame.dt > 0 && frame.hasMeter('slices')
     const slot = running ? frame.meter('slot') : 0
     if (running) {
       const slices = frame.meter('slices')
@@ -2185,8 +2287,8 @@ const cascade = plateDisplay<CascadeState>({
       }
       state.slices = slices
     }
-    let live = frame.powered && slot > 0
-    if (frame.powered) for (const kept of state.kept) if (kept.end > now) live = true
+    let live = powered && slot > 0
+    if (powered) for (const kept of state.kept) if (kept.end > now) live = true
     // The slice the settings would make of one Time of sound: drawn when none is caught, and the measure of the scale.
     const exampleKey =
       pattern +
@@ -2348,7 +2450,7 @@ const cascade = plateDisplay<CascadeState>({
           const x0 = nowX - Math.min(slot, time) * perSec
           fillRect(ctx, { x: x0, y: lane.y + 1, w: nowX - x0, h: lane.h - 1 }, colours.accent, 0.95)
         }
-      } else {
+      } else if (heard) {
         ctx.beginPath()
         if (score(state.example, 0, CASCADE_HILL_POINTS, false) > 0) inked(CASCADE_NEWEST_ALPHA)
         const x0 = nowX - time * perSec
@@ -2362,11 +2464,13 @@ const cascade = plateDisplay<CascadeState>({
     })
 
     rule(ctx, nowX, all.y, nowX, all.y + all.h, { colour: colours.ink, alpha: INK.rule })
-    // How long a cascade is: so many repeats of so long.
+    // How long a cascade is: so many repeats of so long. They are the repeats
+    // that are played: a cascade the device stops has fewer than Repeats.
     const ms = frame.value('time')
-    if (state.wordsRepeats !== repeats || state.wordsMs !== ms) {
-      state.words = `${repeats} × ${ms >= 1000 ? `${(ms / 1000).toFixed(2)} s` : `${Math.round(ms)} ms`}`
-      state.wordsRepeats = repeats
+    const played = state.example.repeats
+    if (state.wordsRepeats !== played || state.wordsMs !== ms) {
+      state.words = `${played} × ${ms >= 1000 ? `${(ms / 1000).toFixed(2)} s` : `${Math.round(ms)} ms`}`
+      state.wordsRepeats = played
       state.wordsMs = ms
     }
     text(frame, state.words, plot.x + plot.w, all.y + all.h - 0.5, { align: 'right' })

@@ -312,6 +312,25 @@ describe('Pad Follower', () => {
       true,
     )
   })
+
+  it('is drawn on in silence until its past has left the picture and it is at rest again', () => {
+    for (const id of ['pad-follower', 'sustainer']) {
+      const { display, params, meters } = device(id)
+      const rest = drawDisplay(display, params, { meters }).print()
+      const sounding = { ...meters, held: 0.2, heard: 0.1, level: 0.1 }
+      // Two seconds of a hold, then nothing: `after` seconds on, the picture.
+      const after = (seconds: number): string =>
+        runDisplay(display, params, 2 + seconds, { meters }, (time) => ({
+          meters: time < 2 ? sounding : meters,
+        })).print()
+      // The eight seconds it keeps are still running out of the picture when the plate would stop by itself.
+      expect(after(8.3), id).not.toBe(rest)
+      // So the display asks to be drawn longer than that: its last frame is the resting picture.
+      const settle = display.live?.settle ?? 8
+      expect(settle, id).toBeGreaterThan(9)
+      expect(after(settle - 1 / 30), id).toBe(rest)
+    }
+  })
 })
 
 // --- Cloud ------------------------------------------------------------------
@@ -402,6 +421,68 @@ describe('Cloud', () => {
     // Left is up in the row and right is down.
     expect(middle(grainMark({ place: 2, rate: 1, pan: -1 }))).toBeLessThan(played)
     expect(middle(grainMark({ place: 2, rate: 1, pan: 1 }))).toBeGreaterThan(played)
+  })
+
+  it('sets whole semitones with Pitch, every one of them within reach', () => {
+    const reached = new Set<number>()
+    const pitch = handleOf('grain-cloud', 'pitch', { pitch: 0 })
+    for (let px = -45; px <= 45; px++) {
+      const set = Number(pitch.drag(pitch.x, pitch.y + px).pitch)
+      expect(Number.isInteger(set), `${px} px gives ${set}`).toBe(true)
+      reached.add(set)
+    }
+    for (let semitones = -24; semitones <= 24; semitones++)
+      expect(reached.has(semitones), `${semitones} semitones`).toBe(true)
+    expect(reached.size).toBe(49)
+    // From a pitch the knob left between two: the same whole steps, a fifth and an octave among them.
+    const between = handleOf('grain-cloud', 'pitch', { pitch: 3.4 })
+    const from = new Set<number>()
+    for (let px = -45; px <= 45; px++)
+      from.add(Number(between.drag(between.x, between.y + px).pitch))
+    expect(from.has(7) && from.has(12) && from.has(-12)).toBe(true)
+    expect([...from].every(Number.isInteger)).toBe(true)
+  })
+
+  it('is at rest again once its grains read only a tape that has run empty', () => {
+    const { display, params, meters } = device('grain-cloud')
+    const rest = drawDisplay(display, params, { meters }).print()
+    // The device opens a grain every tenth of a second, 0.3 s behind the head, for as long as it holds
+    // anything at all. Sound is recorded for the first two seconds; then nothing.
+    const grains = (seconds: number): RecordingContext =>
+      runDisplay(display, params, seconds, { meters }, (time) => ({
+        meters: {
+          ...meters,
+          place: 0.3,
+          rate: 1,
+          pan: 0,
+          level: time < 2 ? 0.2 : 0,
+          grains: Math.floor(time * 10),
+        },
+      }))
+    const accent = (drawn: RecordingContext): number =>
+      marksOf(drawn).filter((mark) => mark.colour === ACCENT).length
+    // While they read sound, and for the moment after that their marks take to fade, the cloud is the device's own.
+    expect(accent(grains(2))).toBeGreaterThan(0)
+    expect(accent(grains(5))).toBeGreaterThan(0)
+    // Seven seconds after the sound: the grains still come, the picture is the resting one.
+    expect(grains(9).print()).toBe(rest)
+  })
+
+  it('counts a grain as sounding by what Mix leaves of it, and one it has not seen recorded as sounding', () => {
+    const { display, params, meters } = device('grain-cloud')
+    const accent = (values: Record<string, number>, level: number, place: number): number =>
+      marksOf(
+        runDisplay(display, params, 1, { meters, values }, (time) => ({
+          meters: { ...meters, place, rate: 1, pan: 0, level, grains: Math.floor(time * 10) },
+        })),
+      ).filter((mark) => mark.colour === ACCENT).length
+    // A tape recorded at −60 dBFS is heard at Mix 0.5 and is under silence at Mix 0.01.
+    expect(accent({ mix: 0.5 }, 0.001, 0.05)).toBeGreaterThan(0)
+    expect(accent({ mix: 0.01 }, 0.001, 0.05)).toBe(0)
+    // Nothing recorded at all is silence at any Mix.
+    expect(accent({ mix: 1 }, 0, 0.05)).toBe(0)
+    // Six seconds back is older than the display has watched: it cannot say that is silence.
+    expect(accent({ mix: 0.5 }, 0, 6)).toBeGreaterThan(0)
   })
 
   it('stands Position on the held sound and sets Size by the wheel', () => {
@@ -878,6 +959,41 @@ describe('Cascade', () => {
     expect(long[8].start + long[8].run).toBeLessThanOrEqual(18)
   })
 
+  it('says how many repeats are played: Repeats, or as many as fit in the 18 s', () => {
+    // The words at the foot say it, and the hills of the slice's own speed are as many.
+    const { display, params, meters } = device('cascade')
+    const words = (values: Record<string, number>): string[] =>
+      drawDisplay(display, params, { meters, values }).words()
+    expect(words({ time: 2000, repeats: 16 })).toContain('9 × 2.00 s')
+    expect(words({ time: 1500, repeats: 16 })).toContain('12 × 1.50 s')
+    expect(words({ time: 2000, repeats: 9 })).toContain('9 × 2.00 s')
+    expect(words({ time: 1000, repeats: 16 })).toContain('16 × 1.00 s')
+    // The strokes of a Restrike come closer and closer: all sixteen are over in half the time.
+    expect(words({ time: 2000, repeats: 16, pattern: RESTRIKE })).toContain('16 × 2.00 s')
+    const played = (over: Partial<CascadeSlice>): number => cascadePasses(slice(over), () => {})
+    for (const pattern of [STACK, RESTRIKE, DRONE, STEPS]) {
+      expect(played({ pattern }), `pattern ${pattern}`).toBe(5)
+      expect(played({ pattern, repeats: 16, low: true }), `pattern ${pattern}`).toBe(16)
+    }
+    const long = { period: 2, length: 2 - 0.0035, repeats: 16 }
+    expect(played({ ...long, pattern: STACK })).toBe(9)
+    expect(played({ ...long, pattern: STEPS })).toBe(9)
+    expect(played({ ...long, pattern: DRONE })).toBe(9)
+    expect(played({ ...long, pattern: STACK, period: 1.5, length: 1.5 - 0.0035 })).toBe(12)
+    expect(played({ ...long, pattern: RESTRIKE })).toBe(16)
+    const rest = marksOf(
+      drawDisplay(display, params, {
+        meters,
+        values: { pattern: 0, time: 2000, repeats: 16, high: 0, low: 0 },
+      }),
+    )
+    const score = rest.filter(
+      (mark) => mark.kind === 'fill' && mark.colour === INK && mark.points.length > 2,
+    )
+    expect(score).toHaveLength(1)
+    expect(score[0].starts).toHaveLength(9)
+  })
+
   it('shapes a pass as render() does: a rise, then a fall that Shape rounds', () => {
     expect(cascadeWindow(0, 0.5, 1)).toBe(0)
     expect(cascadeWindow(0.25, 0.5, 1)).toBeCloseTo(0.5, 6)
@@ -1066,6 +1182,47 @@ describe('The texture displays', () => {
           id,
         ).toHaveLength(0)
       }
+    }
+  })
+
+  it('draw the device at work only while Mix lets it be heard: with none of it they are at rest', () => {
+    // Every device busy: grains and slices counted up, a glitch playing, a spectrum and a hold hanging.
+    const at = (meters: Record<string, number>, time: number): Record<string, number> => ({
+      ...Object.fromEntries(Object.keys(meters).map((name) => [name, busy[name] ?? 0])),
+      ...('grains' in meters ? { grains: Math.floor(time * 10) } : {}),
+      ...('slices' in meters ? { slices: Math.floor(time * 2) } : {}),
+    })
+    for (const id of ids) {
+      const { display, params, meters } = device(id)
+      const accent = (values: Record<string, number>): number =>
+        marksOf(
+          runDisplay(display, params, 1.5, { meters, values, signal: testSignal() }, (time) => ({
+            meters: at(meters, time),
+          })),
+        ).filter((mark) => mark.colour === ACCENT).length
+      expect(accent({}), id).toBeGreaterThan(0)
+      expect(accent({ mix: 0.02 }), id).toBeGreaterThan(0)
+      expect(accent({ mix: 0 }), id).toBe(0)
+      // The plate draws it again when Mix moves.
+      expect(display.params, id).toContain('mix')
+      // At rest too: there is no worked example of what would not be heard.
+      const example = drawDisplay(display, params, { meters })
+      const none = drawDisplay(display, params, { meters, values: { mix: 0 } })
+      expect(none.print(), id).not.toBe(example.print())
+      expect(none.marks(), id).toBeLessThanOrEqual(example.marks())
+      expect(drawDisplay(display, params, { meters, values: { mix: 0.02 } }).print(), id).toBe(
+        example.print(),
+      )
+    }
+    // Where no spectrum of the sound is drawn, that is the picture of a plate that is not played at all.
+    for (const id of ids.filter((name) => name !== 'spectral-blur')) {
+      const { display, params, meters } = device(id)
+      const dry = runDisplay(display, params, 1.5, { meters, values: { mix: 0 } }, (time) => ({
+        meters: at(meters, time),
+      }))
+      expect(dry.print(), id).toBe(
+        drawDisplay(display, params, { meters, values: { mix: 0 } }).print(),
+      )
     }
   })
 

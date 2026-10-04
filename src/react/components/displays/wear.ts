@@ -67,6 +67,16 @@ const db10 = (power: number): number => (power > 1e-20 ? 10 * Math.log10(power) 
 const db20 = (gain: number): number => (gain > 1e-10 ? 20 * Math.log10(gain) : SILENT_DB)
 const fromDb = (db: number): number => Math.pow(10, db / 20)
 
+/** Under this nothing sounds, as for the plate that draws the display. */
+const QUIET = 1e-4
+/**
+ * What Mix leaves of what a device makes where it is a straight cross-fade
+ * (Vinyl, Low Bitrate): Mix itself, and all of it for a device without one.
+ * With less than `QUIET` of it only the sound that came in is heard, and the
+ * display is at rest as it is when the device is switched off.
+ */
+const mixOf = (view: DisplayView): number => (view.spec('mix') ? clamp(view.value('mix'), 0, 1) : 1)
+
 /** The width of one bin of the spectrum, with or without sound. */
 const binHzOf = (frame: Pick<DisplayFrame, 'signal' | 'sampleRate'>): number =>
   frame.signal && frame.signal.binHz > 0 ? frame.signal.binHz : frame.sampleRate / TAP_BINS
@@ -795,6 +805,81 @@ function handTo(hand: number, standing: number, low: number, high: number): numb
 }
 
 /**
+ * A point whose setting lies where the picture does not reach is drawn at the
+ * picture's edge. A hand that takes it there moves the setting from where it
+ * really lies: as far past the hand as it lay when it was taken, so nothing
+ * jumps and the end of the range is as far off as it truly is. The plate asks
+ * for a display's handles again on every move, and an answer knows only where
+ * the point stands now, so how far past it lay is kept here from one answer to
+ * the next, for the one point a hand holds.
+ */
+interface Carry {
+  point: string
+  /** How far past where the point was drawn its setting lay when it was taken, in pixels. */
+  past: number
+  /** The setting the last answer found and the one it gave, and where each lies: the next move finds one of the two. */
+  found: number
+  foundAt: number
+  left: number
+  leftAt: number
+  /** After an answer to a hand on the point itself: what `past` is if that was a press, whose answer the plate throws away; else NaN. */
+  press: number
+}
+const carry: Carry = {
+  point: '',
+  past: 0,
+  found: Number.NaN,
+  foundAt: Number.NaN,
+  left: Number.NaN,
+  leftAt: Number.NaN,
+  press: Number.NaN,
+}
+
+/**
+ * What a hand at `hand` sets a point to, along the one way the point goes.
+ * `standing` is where the point is drawn for `setting`, `placeOf` where a
+ * setting lies on a scale that runs on past the picture, and `settingAt` the
+ * setting at a place on it, held to its range. A hand that has not moved the
+ * place gets the setting back as it was. The other way is not looked at: a
+ * hand that drifts across a handle that goes up and down moves nothing.
+ */
+function carried(
+  point: string,
+  setting: number,
+  hand: number,
+  standing: number,
+  placeOf: (setting: number) => number,
+  settingAt: (place: number) => number,
+): number {
+  const lies = placeOf(setting)
+  const is = (value: number, at: number): boolean =>
+    Math.abs(setting - value) <= 1e-6 * Math.max(1, Math.abs(setting)) && Math.abs(lies - at) < 1e-3
+  const given = is(carry.left, carry.leftAt)
+  if (carry.point !== point || !(given || is(carry.found, carry.foundAt))) {
+    // Another point, or this one moved by something else since: it is taken where it stands.
+    carry.point = point
+    carry.past = lies - standing
+  } else if (!Number.isNaN(carry.press) && !given) {
+    // The last answer was not kept: that was the press of a new drag.
+    carry.past = carry.press
+  }
+  // The plate presses a point with a hand exactly on it; so does a hand that comes back to where it took it.
+  carry.press = hand === standing ? lies - standing : Number.NaN
+  const to = hand + carry.past
+  const value = Math.abs(to - lies) < 1e-9 ? setting : settingAt(to)
+  carry.found = setting
+  carry.foundAt = lies
+  carry.left = value
+  carry.leftAt = placeOf(value)
+  return value
+}
+
+/** As the kit's `xOfHz` and `hzOfX`, but on past the picture's two ends: where a frequency lies, not where it is drawn. */
+const placeOfHz = (hz: number, box: Box): number =>
+  box.x + (Math.log(Math.max(hz, 1e-3) / 20) / Math.log(1000)) * box.w
+const hzOfPlace = (x: number, box: Box): number => 20 * Math.pow(1000, (x - box.x) / box.w)
+
+/**
  * What a control from 0 to 1 that is raised to a power does to a level, in
  * dB: squared, it moves the level 40 dB for a tenfold turn.
  */
@@ -804,17 +889,24 @@ const amountDb = (amount: number, perTenfold = 40): number =>
 /** Where the handle of a noise floor stands for such a control: across, on the floor's highest point. */
 const floorHandleX = (band: Box, full: Curve): number =>
   clamp(band.x + full.peakAt * band.w, band.x + 4, band.x + band.w - 4)
-/** And up: the floor's highest point with the control at 1, moved by what the control does to the level. */
-const floorHandleY = (band: Box, full: Curve, amount: number, perTenfold = 40): number =>
+/** And up: the floor's highest point with the control at 1, moved by what the control does to the level and by `shiftDb`. */
+const floorHandleY = (
+  band: Box,
+  full: Curve,
+  amount: number,
+  perTenfold = 40,
+  shiftDb = 0,
+): number =>
   clamp(
-    yOfDb(full.peakDb + amountDb(amount, perTenfold), band, TOP_DB, FOOT_DB),
+    yOfDb(full.peakDb + shiftDb + amountDb(amount, perTenfold), band, TOP_DB, FOOT_DB),
     band.y,
     band.y + band.h,
   )
 
 /**
  * A handle on the highest point of a noise floor, for such a control. The
- * curve is the floor with the control at 1; up and down sets the control.
+ * curve is the floor with the control at 1, `shiftDb` what else moves all of
+ * it; up and down sets the control.
  */
 function floorHandle(
   view: DisplayView,
@@ -823,28 +915,37 @@ function floorHandle(
   param: string,
   name: string,
   perTenfold = 40,
+  shiftDb = 0,
 ): DisplayHandle {
-  const peakDb = full.peakDb
-  const foot = band.y + band.h
+  const top = full.peakDb + shiftDb
+  const perPixel = (TOP_DB - FOOT_DB) / band.h
+  // On a scale of dB nothing lies endlessly far down. From the foot of the
+  // picture (or from the control at 1, where that is lower still) the control
+  // runs on straight at the pace it has there, and is at nothing some ten
+  // pixels further on.
+  const edge = Math.min(1, Math.pow(10, (FOOT_DB - top) / perTenfold))
+  const edgeY = yOfDb(top + perTenfold * Math.log10(edge), band, TOP_DB, FOOT_DB)
+  const run = perTenfold / (Math.LN10 * perPixel)
+  const placeOf = (amount: number): number =>
+    amount >= edge
+      ? yOfDb(top + perTenfold * Math.log10(amount), band, TOP_DB, FOOT_DB)
+      : edgeY + (1 - amount / edge) * run
+  const settingAt = (y: number): number =>
+    clamp(
+      y <= edgeY
+        ? Math.pow(10, (dbOfY(y, band, TOP_DB, FOOT_DB) - top) / perTenfold)
+        : edge * (1 - (y - edgeY) / run),
+      0,
+      1,
+    )
   const point: DisplayHandle = {
     key: param,
     name,
     x: floorHandleX(band, full),
-    y: floorHandleY(band, full, view.value(param), perTenfold),
-    drag: (_x, y) => {
-      // Under the picture there is none of it, wherever the handle stood.
-      if (y > foot) return { [param]: 0 }
-      const to = handTo(y, point.y, band.y, foot)
-      if (Number.isNaN(to)) return { [param]: view.value(param) }
-      if (to >= foot - 0.5) return { [param]: 0 }
-      return {
-        [param]: clamp(
-          Math.pow(10, (dbOfY(to, band, TOP_DB, FOOT_DB) - peakDb) / perTenfold),
-          0,
-          1,
-        ),
-      }
-    },
+    y: floorHandleY(band, full, view.value(param), perTenfold, shiftDb),
+    drag: (_x, y) => ({
+      [param]: carried(`floor ${param}`, view.value(param), y, point.y, placeOf, settingAt),
+    }),
     reset: () => ({ [param]: view.spec(param)?.default ?? 0.25 }),
   }
   return point
@@ -1182,6 +1283,7 @@ function tapeHandles(view: DisplayView, floor: Curve | null): DisplayHandle[] {
   const sampleRate = 48000
   const cutoff = tapeCutoffHz(view, sampleRate)
   const speed = tapeSpeed(view)
+  const age = view.value('age')
   const tone: DisplayHandle = {
     key: 'tone',
     name: 'Tone',
@@ -1192,18 +1294,16 @@ function tapeHandles(view: DisplayView, floor: Curve | null): DisplayHandle[] {
       band.y + band.h,
     ),
     // Across is where the top of the band ends: Tone moves it an octave either way.
-    drag: (x) => {
-      const to = handTo(x, tone.x, band.x, band.x + band.w)
-      return {
-        tone: Number.isNaN(to)
-          ? view.value('tone')
-          : clamp(
-              (Math.log2(hzOfX(to, band) / TAPE_BAND_HZ[speed]) + 1 + view.value('age')) / 2,
-              0,
-              1,
-            ),
-      }
-    },
+    drag: (x) => ({
+      tone: carried(
+        'tape tone',
+        view.value('tone'),
+        x,
+        tone.x,
+        (at) => placeOfHz(TAPE_BAND_HZ[speed] * Math.pow(2, 2 * at - 1 - age), band),
+        (to) => clamp((Math.log2(hzOfPlace(to, band) / TAPE_BAND_HZ[speed]) + 1 + age) / 2, 0, 1),
+      ),
+    }),
     reset: () => ({ tone: view.spec('tone')?.default ?? 0.5 }),
   }
   const hiss = floorHandle(
@@ -1521,6 +1621,8 @@ function vinylHandles(view: DisplayView, floor: Curve | null): DisplayHandle[] {
       ),
     'surface',
     'Surface',
+    40,
+    db20(mixOf(view)),
   )
   return [wear, surface]
 }
@@ -1556,7 +1658,7 @@ const clickY = (level: number, box: Box): number =>
 const vinyl = plateDisplay<VinylState>({
   place: 'window',
   columns: 2,
-  params: ['speed', 'warp', 'crackle', 'pops', 'surface', 'wear', 'tone'],
+  params: ['speed', 'warp', 'crackle', 'pops', 'surface', 'wear', 'tone', 'mix'],
   live: { meters: true, signal: true, spectrum: true },
   info: 'Above, what the record does across frequency: the worn top as a line over the spectrum, and the surface noise in the second colour. Drag the points for Wear and Surface. Below, the last seconds: the pitch as the warp bends it, a line at each turn, each tick at its size, and a dot for each pop.',
   init: () => ({
@@ -1587,7 +1689,10 @@ const vinyl = plateDisplay<VinylState>({
     const sr = frame.sampleRate
     const binHz = binHzOf(frame)
     const surface = frame.value('surface')
-    const running = frame.signal !== null && frame.hasMeter('pitch') && frame.dt > 0
+    // What the record adds comes out as much lower as Mix turns the record down.
+    const mix = mixOf(frame)
+    const mixDb = db20(mix)
+    const running = frame.signal !== null && frame.hasMeter('pitch') && frame.dt > 0 && mix > QUIET
 
     if (
       stale(
@@ -1608,13 +1713,19 @@ const vinyl = plateDisplay<VinylState>({
       state.spots[1] = wear.y
       state.spots[2] = floorHandleX(band, state.floor)
     }
-    state.spots[3] = floorHandleY(band, state.floor, surface)
+    state.spots[3] = floorHandleY(band, state.floor, surface, 40, mixDb)
 
     grid(frame, band)
     drawUnchanged(frame, band)
     clipTo(ctx, band.x, band.y, band.w, band.h)
     drawSpectrum(frame, band, state.columns)
-    drawFloor(frame, band, state.floor, running ? frame.meter('noise') : null, amountDb(surface))
+    drawFloor(
+      frame,
+      band,
+      state.floor,
+      running ? frame.meter('noise') : null,
+      amountDb(surface) + mixDb,
+    )
     drawResponse(frame, band, state.response)
     ctx.restore()
     knob(frame, state.spots[0], state.spots[1], frame.hot === 'wear')
@@ -1631,14 +1742,20 @@ const vinyl = plateDisplay<VinylState>({
     const crackle = frame.value('crackle')
     const pops = frame.value('pops')
     const { sizes } = state
-    if (stale(state.sizesFor, crackle, pops, past.y, past.h)) {
+    if (stale(state.sizesFor, crackle, pops, mix, past.y, past.h)) {
       const { floor, ceiling } = crackleSizes(crackle)
-      sizes[0] = clickY(floor, past)
-      sizes[1] = clickY(Math.min(TICK_RATIO * floor, ceiling), past)
-      sizes[2] = clickY(ceiling, past)
-      sizes[3] = clickY(POP_CEILING * pops, past)
+      sizes[0] = clickY(floor * mix, past)
+      sizes[1] = clickY(Math.min(TICK_RATIO * floor, ceiling) * mix, past)
+      sizes[2] = clickY(ceiling * mix, past)
+      sizes[3] = clickY(POP_CEILING * pops * mix, past)
     }
     const edge = strip.x - 3
+    // With none of the record in the mix there is no click of any size.
+    if (mix <= QUIET) {
+      state.tickCount.rest()
+      state.popCount.rest()
+      return
+    }
     if (crackle > 0) {
       // Faint where it is an even bed of dust, full where a tick stands out of it.
       line(ctx, edge, sizes[0], edge, sizes[1], colours.accent, 0.45, 2)
@@ -1655,7 +1772,7 @@ const vinyl = plateDisplay<VinylState>({
     const ticked = state.tickCount.more(frame.meter('ticks'), frame.now)
     const popped = state.popCount.more(frame.meter('pops'), frame.now)
     state.pitch.push(frame.now, frame.meter('pitch'))
-    state.ticks.push(frame.now, ticked > 0 ? frame.meter('tickLevel') : 0)
+    state.ticks.push(frame.now, ticked > 0 ? frame.meter('tickLevel') * mix : 0)
     // A scratch that began before Pops was turned to nothing still comes round, with no sound: it is not a pop.
     state.popped.push(frame.now, pops > 0 ? popped : 0)
     state.turned.push(frame.now, state.tickCount.steady && turn < state.turn - 0.5 ? 1 : 0)
@@ -2088,6 +2205,9 @@ function patinaHandles(view: DisplayView, floor: Curve | null): DisplayHandle[] 
     ? sampleRate / samplerHold(view.value('wear'), sampleRate) / 2
     : patinaHighHz(view, sampleRate)
   const response = patinaResponse(view, sampleRate)
+  // The edge with no wear and with all of it, before the device holds it under half the rate.
+  const open = sampler ? sampleRate / 2 : 40000 * Math.pow(2, 2 * view.value('tone') - 1)
+  const closed = sampler ? 3000 : open * (MEDIA[index].highHz / 40000)
   const wear: DisplayHandle = {
     key: 'wear',
     name: 'Wear',
@@ -2097,17 +2217,18 @@ function patinaHandles(view: DisplayView, floor: Curve | null): DisplayHandle[] 
       band.y,
       band.y + band.h,
     ),
-    // Across is where the band ends: to the left wears the medium.
-    drag: (x) => {
-      const to = handTo(x, wear.x, band.x, band.x + band.w)
-      if (Number.isNaN(to)) return { wear: view.value('wear') }
-      const hz = hzOfX(to, band)
-      const worn = sampler
-        ? Math.log((2 * hz) / sampleRate) / Math.log(6000 / sampleRate)
-        : Math.log(hz / (40000 * Math.pow(2, 2 * view.value('tone') - 1))) /
-          Math.log(MEDIA[index].highHz / 40000)
-      return { wear: clamp(worn, 0, 1) }
-    },
+    // Across is where the band ends: to the left wears the medium. With little
+    // wear it ends above the picture, and the point is taken from where it ends.
+    drag: (x) => ({
+      wear: carried(
+        'patina wear',
+        view.value('wear'),
+        x,
+        wear.x,
+        (worn) => placeOfHz(open * Math.pow(closed / open, worn), band),
+        (to) => clamp(Math.log(hzOfPlace(to, band) / open) / Math.log(closed / open), 0, 1),
+      ),
+    }),
     reset: () => ({ wear: view.spec('wear')?.default ?? 0.3 }),
   }
   const noise = floorHandle(
@@ -2593,6 +2714,8 @@ function radioHandles(view: DisplayView): DisplayHandle[] {
 
 /** How many steps the receiver's filter is kept in, from its centre to the far end of the picture. */
 const RADIO_SHAPE = 256
+/** How long the receiver counts as on after the last sound, in or out: over a gap in the playing, not over a sleep. */
+const RADIO_ON_SEC = 2
 
 interface RadioState {
   programme: Bins
@@ -2613,6 +2736,8 @@ interface RadioState {
   air: Path
   through: Path
   filter: Path
+  /** When something last sounded, going in or coming out. */
+  heardAt: number
 }
 
 const radio = plateDisplay<RadioState>({
@@ -2636,6 +2761,7 @@ const radio = plateDisplay<RadioState>({
     air: newPath(),
     through: newPath(),
     filter: newPath(),
+    heardAt: Number.NEGATIVE_INFINITY,
   }),
   draw(frame) {
     const { ctx, colours, state } = frame
@@ -2654,8 +2780,12 @@ const radio = plateDisplay<RadioState>({
     const perDb = h / (RADIO_TOP_DB - RADIO_FOOT_DB)
     const lowest = RADIO_FOOT_DB - 6
     const running = frame.signal !== null && frame.hasMeter('direct') && frame.dt > 0
-    // Asleep, the receiver is off and reports nothing: then the picture is what the controls say.
-    const live = running && frame.meter('direct') > 1e-4
+    if (running && Math.max(frame.signal?.output.peak ?? 0, frame.signal?.input?.peak ?? 0) > QUIET)
+      state.heardAt = frame.now
+    // Asleep, the receiver is off, and its readings stand where they were when it
+    // went: it is on only while something sounds, its static if nothing else.
+    // Off, the picture is what the controls say.
+    const live = running && frame.meter('direct') > 1e-4 && frame.now - state.heardAt < RADIO_ON_SEC
 
     // What the transmitter's filter leaves at each column, and the receiver's by distance from its centre: made again only when they move.
     if (stale(state.made, index, frame.value('bandwidth'), sr, w)) {
@@ -2975,7 +3105,7 @@ interface CodecState {
 const lowBitrate = plateDisplay<CodecState>({
   place: 'window',
   columns: 2,
-  params: ['loss', 'mode', 'frame', 'dropouts', 'stutter', 'stereo', 'highCut'],
+  params: ['loss', 'mode', 'frame', 'dropouts', 'stutter', 'stereo', 'highCut', 'mix'],
   live: { meters: true, signal: true, spectrum: true },
   info: 'Above, the spectrum going in and the line under which the codec throws detail away: kept in the ink, lost in the second colour, with a mark at the top where stereo folds to mono. Drag the points for Loss and High Cut. Below, the stream of packets: a gap is lost, the second colour is stuck.',
   init: () => ({
@@ -3031,7 +3161,10 @@ const lowBitrate = plateDisplay<CodecState>({
     // Nothing is kept above the lower of the two cuts; scattering has no cut of its own.
     const cutHz = scattered ? 30000 : state.cutHz
     const topHz = Math.min(cutHz, cutOn ? highCut : 30000)
-    const running = frame.signal !== null && frame.dt > 0
+    // With none of the codec in the mix nothing it loses is missed: the picture
+    // rests, and all of the range is kept.
+    const mixed = mixOf(frame) > QUIET
+    const running = frame.signal !== null && frame.dt > 0 && mixed
     const choice = clamp(Math.round(frame.value('frame')), 0, 2)
     const columns = Math.floor(band.w / 2) + 1
     let laid = false
@@ -3144,7 +3277,7 @@ const lowBitrate = plateDisplay<CodecState>({
       stair.n = count
     }
 
-    const topX = clamp(xOfHz(topHz, band), band.x, right)
+    const topX = mixed ? clamp(xOfHz(topHz, band), band.x, right) : right
     if (state.sounding) {
       clipTo(ctx, band.x, band.y, band.w, band.h)
       // Kept in the ink, lost in the second colour. Residue plays the lost part.
@@ -3157,7 +3290,7 @@ const lowBitrate = plateDisplay<CodecState>({
       ctx.restore()
     } else if (!scattered) {
       // No sound: the part of the range that is kept, or in Residue the part that is thrown away and played.
-      if (residue) bar(ctx, topX, band.y, right - topX, band.h, colours.accent, INK.fill)
+      if (residue && mixed) bar(ctx, topX, band.y, right - topX, band.h, colours.accent, INK.fill)
       else bar(ctx, band.x, band.y, topX - band.x, band.h, colours.ink, INK.ground)
     }
 
@@ -3322,16 +3455,39 @@ export function converterStep(bits: number, mu: boolean, level: number): number 
   return mu ? (step * 8 * Math.LN2 * (1 + 255 * Math.abs(level))) / 255 : step
 }
 
+/** What a bit is worth: each one halves the quantiser's step. */
+const BIT_DB = 6.0206
 /** How many samples of the wave Vintage Digital's strip shows: 4 ms at 48 kHz. */
 const DIGITAL_SPAN = 192
 /** The level a signal is taken to be at where there is none to measure: −18 dBFS, where the device's make-up holds it. */
 const DIGITAL_NOMINAL = 0.125
 
-/** The grain of the quantiser as the spectrum shows it under 1 kHz, in dB: white noise of a twelfth of the step's square at the converter's rate. */
+/**
+ * Drive, as `vintage_digital.h` has it: the gain in front of the converter,
+ * and the make-up after it that holds a signal at −18 dBFS about where it
+ * came in. The converter's grain is made between the two, so the make-up
+ * turns it down with the rest: 11 dB at Drive 12, 17 dB at 24.
+ */
+export function converterDrive(driveDb: number): { gain: number; makeUp: number } {
+  const gain = fromDb(driveDb)
+  const reference = DIGITAL_NOMINAL * DIGITAL_NOMINAL
+  return { gain, makeUp: Math.sqrt((1 + reference * gain * gain) / (1 + reference)) / gain }
+}
+
+/**
+ * The grain of the quantiser as the spectrum shows it under 1 kHz, in dB,
+ * for a signal that comes in at `level`: white noise of a twelfth of the
+ * step's square at the converter's rate, as loud as Drive's make-up leaves it.
+ */
 function grainDb(view: DisplayView, level: number, sampleRate: number, binHz: number): number {
   const { rate } = converterRate(view, sampleRate)
-  const step = converterStep(view.value('bits'), view.value('companding') >= 0.5, level)
-  return noiseBinDb(((step * step) / 12) * (sampleRate / rate), sampleRate, binHz)
+  const { gain, makeUp } = converterDrive(view.value('drive'))
+  const step = converterStep(
+    view.value('bits'),
+    view.value('companding') >= 0.5,
+    Math.min(1, level * gain),
+  )
+  return noiseBinDb(((step * step) / 12) * (sampleRate / rate), sampleRate, binHz) + db20(makeUp)
 }
 
 function digitalHandles(view: DisplayView): DisplayHandle[] {
@@ -3353,20 +3509,24 @@ function digitalHandles(view: DisplayView): DisplayHandle[] {
     reset: () => ({ rate: view.spec('rate')?.default ?? 9000 }),
   }
   const grain = grainDb(view, DIGITAL_NOMINAL, sampleRate, sampleRate / TAP_BINS)
+  const set = view.value('bits')
   const bits: DisplayHandle = {
     key: 'bits',
     name: 'Bits',
     x: band.x + 9,
     y: clamp(yOfDb(grain, band, TOP_DB, FOOT_DB), band.y, foot),
-    // Up is a coarser step: the grain rises 6 dB for each bit taken away.
-    drag: (_x, y) => {
-      const to = handTo(y, bits.y, band.y, foot)
-      return {
-        bits: Number.isNaN(to)
-          ? view.value('bits')
-          : clamp(view.value('bits') + (grain - dbOfY(to, band, TOP_DB, FOOT_DB)) / 6.0206, 4, 16),
-      }
-    },
+    // Up is a coarser step: the grain rises 6 dB for each bit taken away. The
+    // finest grain lies under the picture, and the point is taken from where it lies.
+    drag: (_x, y) => ({
+      bits: carried(
+        'digital bits',
+        set,
+        y,
+        bits.y,
+        (at) => yOfDb(grain - BIT_DB * (at - set), band, TOP_DB, FOOT_DB),
+        (to) => clamp(set + (grain - dbOfY(to, band, TOP_DB, FOOT_DB)) / BIT_DB, 4, 16),
+      ),
+    }),
     reset: () => ({ bits: view.spec('bits')?.default ?? 12 }),
   }
   return [rate, bits]
@@ -3423,7 +3583,7 @@ interface DigitalState {
 const vintageDigital = plateDisplay<DigitalState>({
   place: 'window',
   columns: 2,
-  params: ['rate', 'bits', 'companding', 'aliasing', 'filter', 'jitter'],
+  params: ['rate', 'bits', 'companding', 'aliasing', 'filter', 'jitter', 'drive'],
   live: { meters: false, signal: true, spectrum: true },
   info: 'Above, the spectrum with half the sample rate marked: the line is what the hold and the output filter leave, the dashes what is let in to fold back, the second colour what the converter adds. Drag the points for Rate and Bits. Below, the wave, with a mark for each sample held.',
   init: () => ({
@@ -3466,6 +3626,10 @@ const vintageDigital = plateDisplay<DigitalState>({
     const jitter = frame.value('jitter')
     const bits = frame.value('bits')
     const mu = frame.value('companding') >= 0.5
+    const drive = frame.value('drive')
+    const { gain, makeUp } = converterDrive(drive)
+    // What a signal under full scale keeps of its level through Drive and the make-up.
+    const kept = gain * makeUp
     const columns = curveLength(band)
     const inHz = sr / DIGITAL_BINS
     const bins = DIGITAL_BINS / 2
@@ -3507,7 +3671,7 @@ const vintageDigital = plateDisplay<DigitalState>({
       }
     }
     // The quantiser's grain alone, where Bits puts it for a signal at a working level: the line its point rides on.
-    const reset = stale(state.setFor, bits, mu ? 1 : 0, binHz)
+    const reset = stale(state.setFor, bits, mu ? 1 : 0, binHz, drive)
     if (remade || reset) {
       const grain = grainDb(frame, DIGITAL_NOMINAL, sr, binHz)
       const set = sized(state.set, columns)
@@ -3529,7 +3693,7 @@ const vintageDigital = plateDisplay<DigitalState>({
     // The spectrum of what goes in, taken every second frame.
     const going = frame.signal ? (frame.signal.input ?? frame.signal.output) : null
     const running = going !== null && frame.dt > 0
-    const sounding = running && going.peak > 0.5 * converterStep(bits, mu, 0)
+    const sounding = running && going.peak * gain > 0.5 * converterStep(bits, mu, 0)
     let taken = false
     if (going && running) {
       state.since += frame.dt
@@ -3555,9 +3719,11 @@ const vintageDigital = plateDisplay<DigitalState>({
       }
       state.slope = slope
       // How loud the sound going in is: the grain is there only while there is a signal to round.
+      // The step is made after Drive and so comes out smaller by the make-up; what a
+      // straying clock adds is part of the signal and keeps its level with it.
       const strays = (jitter * jitter * 0.12) / rate
-      const step = converterStep(bits, mu, going.rms)
-      const grain = (step * step) / 12 + (out ? 0 : slope * strays * strays)
+      const step = converterStep(bits, mu, Math.min(1, going.rms * gain)) * makeUp
+      const grain = (step * step) / 12 + (out ? 0 : kept * kept * slope * strays * strays)
       // The grain, white at the converter's rate, as the spectrum reads it.
       const noise = Math.pow(10, noiseBinDb(grain * (out ? 1 : sr / rate), sr, binHz) / 10)
       // A tone of power a² / 2 reads 20·log10(a) − 14 dB on the spectrum.
@@ -3581,7 +3747,7 @@ const vintageDigital = plateDisplay<DigitalState>({
             }
           }
         }
-        const db = db10(Math.max(0, copies) * asTone + noise) + state.response.db[i]
+        const db = db10(Math.max(0, copies) * kept * kept * asTone + noise) + state.response.db[i]
         added.x[i] = band.x + Math.min(band.w, i * 2)
         added.y[i] = clamp(yOfDb(db, band, TOP_DB, FOOT_DB), band.y - 4, foot + 4)
       }
@@ -3636,7 +3802,7 @@ const vintageDigital = plateDisplay<DigitalState>({
       if (size > peak) peak = size
     }
     // The levels the quantiser has, where they are far enough apart to see.
-    const apart = (converterStep(bits, false, 0) / peak) * (past.h / 2 - 1)
+    const apart = ((converterStep(bits, false, 0) * makeUp) / peak) * (past.h / 2 - 1)
     if (!mu && apart >= 3)
       for (let y = apart; y < past.h / 2; y += apart) {
         line(ctx, past.x, middle - y, past.x + past.w, middle - y, colours.ink, INK.grid)
