@@ -7,6 +7,37 @@
   "header": "half_speed.h",
   "sources": [],
   "memoryMb": 8,
+  "meters": [
+    {
+      "key": "phase",
+      "name": "Cycle phase",
+      "display": true
+    },
+    {
+      "key": "cycle",
+      "name": "Cycle length",
+      "unit": "s",
+      "display": true
+    },
+    {
+      "key": "cur",
+      "name": "Head behind",
+      "unit": "s",
+      "display": true
+    },
+    {
+      "key": "prev",
+      "name": "Last head behind",
+      "unit": "s",
+      "display": true
+    },
+    {
+      "key": "mid",
+      "name": "Middle head behind",
+      "unit": "s",
+      "display": true
+    }
+  ],
   "params": [
     {
       "key": "power",
