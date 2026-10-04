@@ -390,6 +390,7 @@ export function DevicePlate({
         } as CSSProperties
       }
       data-testid={testId}
+      data-lm-device={device.id}
       data-powered={powered ? 'true' : 'false'}
       data-finish={skin.finish}
       aria-label={heading}
@@ -465,6 +466,7 @@ export function DevicePlate({
                 longestWord(label) > roomy && 'lm-plate__knob--tight',
               )}
               data-testid={testId ? `${testId}-${name}` : undefined}
+              data-lm-param={name}
             />
           )
         })}
@@ -536,6 +538,7 @@ export function DevicePlate({
             onPressedChange={(next) => d.setBypass(!next)}
             className="lm-plate__lamp"
             data-testid={testId ? `${testId}-power` : undefined}
+            data-lm-power
           />
         ) : null}
       </div>
