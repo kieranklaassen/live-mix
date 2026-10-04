@@ -9,8 +9,20 @@
 // adding, removing and moving are score operations (`device.add`,
 // `device.remove`, `device.move`) and the renderer changes the chain: the
 // edits are in the document, in the log and on the undo stack.
+//
+// A host adds tool cells of its own to each device (`deviceActions`) and says
+// where something it carries in from outside would land (`dropAt`): the chain
+// stands its marker in that gap, and what lands there is the host's to add.
 
-import { useCallback, useState, type CSSProperties, type ReactNode } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from 'react'
 
 import { type Device } from '../../core/devices/Device'
 import {
@@ -30,7 +42,7 @@ import {
 } from '../../score/schema'
 import { useMaybeArbiter, useMaybeEngine } from '../hooks/useEngine'
 import { useExternalSnapshot } from '../store'
-import { useChainReorder } from './chain-reorder'
+import { chainDropMarker, useChainReorder } from './chain-reorder'
 import { DevicePanel, type DevicePanelProps } from './DevicePanel'
 import { DevicePlate } from './DevicePlate'
 import { type DeviceSkin } from './device-skins'
@@ -144,6 +156,9 @@ export function useInserts(host: InsertHost): readonly Device[] {
   return useExternalSnapshot(subscribe, read, sameDevices)
 }
 
+// `useLayoutEffect` warns during server rendering; the effect measures a chain that is on the page.
+const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect
+
 function contextOf(host: InsertHost): BaseAudioContext | null {
   const nodes = host as { destination?: AudioNode; gainNode?: AudioNode }
   return (nodes.destination ?? nodes.gainNode)?.context ?? null
@@ -177,6 +192,20 @@ export interface DeviceChainViewProps {
    */
   presetPicker?: (device: Device, index: number) => ReactNode
   /**
+   * A host's own tool cells for one device of the chain (swap it for another,
+   * keep its settings), drawn after the two move cells and before the remove
+   * cell. `index` counts among the devices shown.
+   */
+  deviceActions?: (device: Device, index: number) => ReactNode
+  /**
+   * Where something carried in from outside the chain (a device dragged from a
+   * host's browser) would land, counted among the devices shown: 0 heads them,
+   * their number ends them. The chain draws its marker in that gap, the one a
+   * carry inside the chain shows. Null or left out, there is none. With no
+   * device shown there is no gap to mark: the host marks its own add cell.
+   */
+  dropAt?: number | null
+  /**
    * The skin each device is drawn with, as a plate (`DevicePlate`); a device
    * it gives none keeps the plain panel. `deviceSkin` is the kit's own answer.
    * Left out, every device is a panel.
@@ -198,6 +227,8 @@ export function DeviceChainView({
   onAdd,
   panelProps,
   presetPicker,
+  deviceActions,
+  dropAt,
   skin,
   className,
   style,
@@ -293,10 +324,35 @@ export function DeviceChainView({
   // The carry counts among the devices shown; the chain counts the pinned ones too.
   const reorder = useChainReorder((from, to) => move(from + skip, to + skip))
 
+  const element = useRef<HTMLElement | null>(null)
+  const { chainRef: reorderRef } = reorder
+  const chainRef = useCallback(
+    (chain: HTMLElement | null) => {
+      element.current = chain
+      reorderRef(chain)
+    },
+    [reorderRef],
+  )
+  // What comes in from outside lands in a gap of the chain as it is drawn now: the gap is
+  // measured once the devices stand, and again when they or the place change.
+  const receiving = typeof dropAt === 'number'
+  const [dropMarker, setDropMarker] = useState<number | null>(null)
+  useIsomorphicLayoutEffect(() => {
+    const chain = element.current
+    setDropMarker(chain && typeof dropAt === 'number' ? chainDropMarker(chain, dropAt) : null)
+  }, [dropAt, inserts, skip])
+  // A carry of the chain's own has the marker for as long as it lasts.
+  const marker = reorder.carried !== null ? reorder.marker : dropMarker
+
   return (
     <div
-      ref={reorder.chainRef}
-      className={cx('lm-chain', reorder.carried !== null && 'lm-chain--reordering', className)}
+      ref={chainRef}
+      className={cx(
+        'lm-chain',
+        reorder.carried !== null && 'lm-chain--reordering',
+        receiving && 'lm-chain--receiving',
+        className,
+      )}
       style={style}
       role="list"
       aria-label={`${strip.name} devices`}
@@ -356,6 +412,7 @@ export function DeviceChainView({
                     ▸
                   </button>
                   {panelProps?.actions}
+                  {deviceActions?.(device, index - skip)}
                 </>
               )
               const plate = skin?.(device)
@@ -402,10 +459,10 @@ export function DeviceChainView({
           {reorder.label}
         </div>
       ) : null}
-      {reorder.marker !== null ? (
+      {marker !== null ? (
         <div
           className="lm-chain__marker"
-          style={{ left: reorder.marker }}
+          style={{ left: marker }}
           aria-hidden="true"
           data-testid={testId ? `${testId}-marker` : undefined}
         />

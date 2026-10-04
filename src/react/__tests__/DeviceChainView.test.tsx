@@ -6,6 +6,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { type Device } from '../../core/devices/Device'
 import { DEVICE_CATEGORIES } from '../../core/devices/registry'
 import {
+  chainDropIndex,
+  dropIndex,
+  dropMarkerPosition,
   edgeScroll,
   labelPosition,
   landingIndex,
@@ -13,6 +16,7 @@ import {
   markerPosition,
 } from '../components/chain-reorder'
 import { DeviceChainView, groupDevices, reorderInserts } from '../components/DeviceChainView'
+import { deviceSkin } from '../components/device-skins'
 import { createTestEngine, type TestEngine } from './harness'
 
 afterEach(cleanup)
@@ -124,6 +128,44 @@ describe('carrying a device along a chain', () => {
   })
 })
 
+describe('carrying something into a chain from outside', () => {
+  // Three devices, 100 wide, 20 apart.
+  const spans = [
+    { left: 0, right: 100 },
+    { left: 120, right: 220 },
+    { left: 240, right: 340 },
+  ]
+
+  it('lands after every device whose middle the pointer is past', () => {
+    expect(dropIndex(spans, -20)).toBe(0)
+    expect(dropIndex(spans, 49)).toBe(0)
+    expect(dropIndex(spans, 51)).toBe(1)
+    // Over a gap it is the gap's own place.
+    expect(dropIndex(spans, 110)).toBe(1)
+    expect(dropIndex(spans, 169)).toBe(1)
+    expect(dropIndex(spans, 171)).toBe(2)
+    expect(dropIndex(spans, 289)).toBe(2)
+    expect(dropIndex(spans, 291)).toBe(3)
+    expect(dropIndex(spans, 900)).toBe(3)
+    // A chain with no device has one place.
+    expect(dropIndex([], 120)).toBe(0)
+  })
+
+  it('marks the middle of the gap it lands in, or the end of the chain it heads or ends', () => {
+    expect(dropMarkerPosition(spans, 0)).toBe(0)
+    expect(dropMarkerPosition(spans, 1)).toBe(110)
+    expect(dropMarkerPosition(spans, 2)).toBe(230)
+    expect(dropMarkerPosition(spans, 3)).toBe(340)
+    // A place past either end is that end.
+    expect(dropMarkerPosition(spans, -2)).toBe(0)
+    expect(dropMarkerPosition(spans, 9)).toBe(340)
+    expect(dropMarkerPosition([{ left: 20, right: 120 }], 0)).toBe(20)
+    expect(dropMarkerPosition([{ left: 20, right: 120 }], 1)).toBe(120)
+    // No device, no gap to mark.
+    expect(dropMarkerPosition([], 0)).toBeNull()
+  })
+})
+
 describe('groupDevices', () => {
   it('lists devices under their category in menu order and drops empty categories', () => {
     const fixture = createTestEngine()
@@ -167,11 +209,13 @@ describe('DeviceChainView', () => {
     const pad = fixture.engine.addAudioTrack('pad')
     const devices = await chain(fixture, ['filter', 'eq3', 'delay'])
     for (const device of devices) pad.strip.addInsert(device)
-    render(<DeviceChainView strip={pad} data-testid="chain" />, { wrapper: fixture.wrapper })
+    const { rerender } = render(<DeviceChainView strip={pad} data-testid="chain" />, {
+      wrapper: fixture.wrapper,
+    })
     const items = [0, 1, 2].map((index) => screen.getByTestId(`chain-item-${index}`))
     layOut(items)
     const titles = items.map((item) => within(item).getByRole('heading'))
-    return { pad, devices, items, titles }
+    return { pad, devices, items, titles, rerender }
   }
 
   it('carries a device by its title bar to the gap the marker stands in', async () => {
@@ -415,6 +459,206 @@ describe('DeviceChainView', () => {
     fireEvent.pointerMove(window, { pointerId: 1, clientX: 10 })
     fireEvent.pointerUp(window, { pointerId: 1 })
     expect(pad.strip.inserts).toEqual([trim, eq, filter])
+  })
+
+  it('reads the place a pointer from outside is over off the devices it shows', async () => {
+    const { pad, rerender } = await threeDevices()
+    const view = screen.getByTestId('chain')
+    expect(chainDropIndex(view, -40)).toBe(0)
+    expect(chainDropIndex(view, 49)).toBe(0)
+    expect(chainDropIndex(view, 51)).toBe(1)
+    expect(chainDropIndex(view, 249)).toBe(2)
+    expect(chainDropIndex(view, 251)).toBe(3)
+    // The marker and the add cell are no devices: with them drawn the places are the same.
+    rerender(<DeviceChainView strip={pad} dropAt={1} data-testid="chain" />)
+    expect(screen.getByTestId('chain-marker')).toBeInTheDocument()
+    expect(chainDropIndex(view, 151)).toBe(2)
+    expect(chainDropIndex(view, 900)).toBe(3)
+  })
+
+  it('stands its marker in the gap something carried in from outside would land in', async () => {
+    const { pad, rerender } = await threeDevices()
+    const view = screen.getByTestId('chain')
+    expect(screen.queryByTestId('chain-marker')).toBeNull()
+    expect(view).not.toHaveClass('lm-chain--receiving')
+    const markerAt = (dropAt: number | null | undefined): string | null => {
+      rerender(<DeviceChainView strip={pad} dropAt={dropAt} data-testid="chain" />)
+      return screen.queryByTestId('chain-marker')?.style.left ?? null
+    }
+    // At the head of the chain, in a gap, at its end.
+    expect(markerAt(0)).toBe('0px')
+    expect(view).toHaveClass('lm-chain--receiving')
+    expect(screen.getByTestId('chain-marker')).toHaveClass('lm-chain__marker')
+    expect(markerAt(1)).toBe('100px')
+    expect(markerAt(2)).toBe('200px')
+    expect(markerAt(3)).toBe('300px')
+    // A place past the last device is the end of the chain.
+    expect(markerAt(9)).toBe('300px')
+    expect(markerAt(-1)).toBe('0px')
+    // The devices are still the chain's only items, and nothing was moved.
+    expect(view.querySelectorAll(':scope > .lm-chain__item')).toHaveLength(3)
+    expect(pad.strip.inserts.map((device) => device.id)).toEqual(['filter', 'eq3', 'delay'])
+    // Nothing carried, no marker.
+    expect(markerAt(null)).toBeNull()
+    expect(view).not.toHaveClass('lm-chain--receiving')
+    expect(markerAt(2)).toBe('200px')
+    expect(markerAt(undefined)).toBeNull()
+  })
+
+  it('places that marker from its own left edge, whole inside either end, wherever it has scrolled', async () => {
+    const { pad, items, rerender } = await threeDevices()
+    // The chain stands 40 px into the window behind a 1 px border and scrolls 300 px of devices.
+    const view = screen.getByTestId('chain')
+    let scrolled = 0
+    Object.defineProperties(view, {
+      clientLeft: { get: () => 1 },
+      scrollWidth: { get: () => 300 },
+      scrollLeft: { get: () => scrolled },
+    })
+    view.getBoundingClientRect = () => ({ left: 40, right: 240, top: 0, bottom: 40 }) as DOMRect
+    items.forEach((item, index) => {
+      item.getBoundingClientRect = () => {
+        const left = 41 + index * 100 - scrolled
+        return { left, right: left + 100, top: 0, bottom: 40 } as DOMRect
+      }
+    })
+    const markerAt = (dropAt: number): string => {
+      rerender(<DeviceChainView strip={pad} dropAt={dropAt} data-testid="chain" />)
+      return screen.getByTestId('chain-marker').style.left
+    }
+    expect(markerAt(1)).toBe('100px')
+    expect(markerAt(0)).toBe('4px')
+    expect(markerAt(3)).toBe('296px')
+    // Scrolled, the same gap is the same place in what the chain scrolls.
+    scrolled = 50
+    expect(chainDropIndex(view, 45)).toBe(1)
+    expect(markerAt(1)).toBe('100px')
+    expect(markerAt(2)).toBe('200px')
+  })
+
+  it('gives the marker to a carry of its own for as long as that lasts', async () => {
+    const { pad, devices, titles, rerender } = await threeDevices()
+    rerender(<DeviceChainView strip={pad} dropAt={3} data-testid="chain" />)
+    expect(screen.getByTestId('chain-marker').style.left).toBe('300px')
+    fireEvent.pointerDown(titles[2], { pointerId: 1, button: 0, clientX: 220 })
+    // Carried over its own place the device would stay: the chain shows no marker at all.
+    fireEvent.pointerMove(window, { pointerId: 1, clientX: 250 })
+    expect(screen.getByTestId('chain-carried')).toHaveTextContent('Delay')
+    expect(screen.queryByTestId('chain-marker')).toBeNull()
+    fireEvent.pointerMove(window, { pointerId: 1, clientX: 20 })
+    expect(screen.getAllByTestId('chain-marker')).toHaveLength(1)
+    expect(screen.getByTestId('chain-marker').style.left).toBe('0px')
+    // Left with Escape, the marker is the outside one's again.
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    expect(screen.getByTestId('chain-marker').style.left).toBe('300px')
+    fireEvent.pointerUp(window, { pointerId: 1 })
+    expect(pad.strip.inserts).toEqual(devices)
+  })
+
+  it('marks no gap in a chain that shows no device', async () => {
+    const fixture = createTestEngine()
+    const pad = fixture.engine.addAudioTrack('pad')
+    const [trim] = await chain(fixture, ['utility'])
+    const { rerender } = render(<DeviceChainView strip={pad} dropAt={0} data-testid="chain" />, {
+      wrapper: fixture.wrapper,
+    })
+    expect(screen.queryByTestId('chain-marker')).toBeNull()
+    expect(chainDropIndex(screen.getByTestId('chain'), 500)).toBe(0)
+    // Nor in one whose only insert is the host's own.
+    act(() => pad.strip.addInsert(trim))
+    rerender(<DeviceChainView strip={pad} pinned={1} dropAt={1} data-testid="chain" />)
+    expect(screen.queryByTestId('chain-item-0')).toBeNull()
+    expect(screen.queryByTestId('chain-marker')).toBeNull()
+    expect(chainDropIndex(screen.getByTestId('chain'), 500)).toBe(0)
+  })
+
+  it('counts the place of what is carried in among the devices shown, past what is pinned', async () => {
+    const fixture = createTestEngine()
+    const pad = fixture.engine.addAudioTrack('pad')
+    const [trim, filter, eq] = await chain(fixture, ['utility', 'filter', 'eq3'])
+    for (const device of [trim, filter, eq]) pad.strip.addInsert(device)
+    const { rerender } = render(<DeviceChainView strip={pad} pinned={1} data-testid="chain" />, {
+      wrapper: fixture.wrapper,
+    })
+    layOut([0, 1].map((index) => screen.getByTestId(`chain-item-${index}`)))
+    const view = screen.getByTestId('chain')
+    expect(chainDropIndex(view, 120)).toBe(1)
+    expect(chainDropIndex(view, 400)).toBe(2)
+    const markerAt = (dropAt: number): string => {
+      rerender(<DeviceChainView strip={pad} pinned={1} dropAt={dropAt} data-testid="chain" />)
+      return screen.getByTestId('chain-marker').style.left
+    }
+    // 0 is ahead of the first device shown, not ahead of the pinned one.
+    expect(markerAt(0)).toBe('0px')
+    expect(markerAt(1)).toBe('100px')
+    expect(markerAt(2)).toBe('200px')
+    // Two are shown: the third place is still the end.
+    expect(markerAt(3)).toBe('200px')
+  })
+
+  it("draws a host's tool cells on each device, and leaves a press on one to the host", async () => {
+    const fixture = createTestEngine()
+    const pad = fixture.engine.addAudioTrack('pad')
+    const [trim, filter, eq] = await chain(fixture, ['utility', 'filter', 'eq3'])
+    for (const device of [trim, filter, eq]) pad.strip.addInsert(device)
+    const swap = vi.fn<(device: Device, index: number) => void>()
+    render(
+      <DeviceChainView
+        strip={pad}
+        pinned={1}
+        // The second device shown is a plate, the first a panel.
+        skin={(device) => (device === eq ? deviceSkin(device) : null)}
+        deviceActions={(device, index) => (
+          <button
+            type="button"
+            aria-label={`Swap ${device.id}`}
+            onClick={() => swap(device, index)}
+          >
+            ⇄
+          </button>
+        )}
+        data-testid="chain"
+      />,
+      { wrapper: fixture.wrapper },
+    )
+    const items = [0, 1].map((index) => screen.getByTestId(`chain-item-${index}`))
+    layOut(items)
+    expect(screen.getByTestId('chain-device-0')).toHaveClass('lm-device')
+    expect(screen.getByTestId('chain-device-1')).toHaveClass('lm-plate')
+    // After the two move cells and before the remove cell, on a panel and on a plate.
+    for (const [index, id] of ['filter', 'eq3'].entries()) {
+      const cells = within(items[index])
+        .getAllByRole('button')
+        .map((button) => button.getAttribute('aria-label') ?? '')
+      const at = cells.indexOf(`Swap ${id}`)
+      expect(cells.slice(at - 2, at + 1)).toEqual([
+        `Move ${id} earlier`,
+        `Move ${id} later`,
+        `Swap ${id}`,
+      ])
+      expect(cells[at + 1]).toMatch(/^Remove /)
+    }
+    // A press on one that moves is not a carry: the device stays, and nothing rides the chain.
+    const cell = within(items[0]).getByRole('button', { name: 'Swap filter' })
+    fireEvent.pointerDown(cell, { pointerId: 1, button: 0, clientX: 80 })
+    fireEvent.pointerMove(window, { pointerId: 1, clientX: 190 })
+    expect(screen.queryByTestId('chain-carried')).toBeNull()
+    expect(screen.queryByTestId('chain-marker')).toBeNull()
+    fireEvent.pointerUp(window, { pointerId: 1 })
+    expect(pad.strip.inserts).toEqual([trim, filter, eq])
+    // Its click is its own, with the device and its place among those shown.
+    fireEvent.click(cell)
+    expect(swap).toHaveBeenLastCalledWith(filter, 0)
+    // On a plate, which is taken anywhere else on its face.
+    const onPlate = within(items[1]).getByRole('button', { name: 'Swap eq3' })
+    fireEvent.pointerDown(onPlate, { pointerId: 2, button: 0, clientX: 180 })
+    fireEvent.pointerMove(window, { pointerId: 2, clientX: 10 })
+    expect(screen.queryByTestId('chain-carried')).toBeNull()
+    fireEvent.pointerUp(window, { pointerId: 2 })
+    expect(pad.strip.inserts).toEqual([trim, filter, eq])
+    fireEvent.click(onPlate)
+    expect(swap).toHaveBeenLastCalledWith(eq, 1)
+    expect(swap).toHaveBeenCalledTimes(2)
   })
 
   it('removes and disposes a device, or hands removal to the host', async () => {
