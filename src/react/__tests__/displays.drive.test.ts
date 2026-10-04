@@ -7,10 +7,14 @@ import { describe, expect, it } from 'vitest'
 
 import { loadWasmDevice, type WasmDeviceHarness } from '../../dsp/__tests__/wasm-device-harness'
 import {
+  CIRCUITS as ANALOG_CIRCUITS,
   DRIVE_FACES,
   analogDriveCurve,
   analogDriveTone,
+  analogSafety,
+  circuitShape,
   reAmpCurve,
+  reAmpLimit,
   reAmpTone,
   saturatorCurve,
   saturatorShape,
@@ -19,9 +23,9 @@ import {
 import { type DisplayView } from '../components/plate-display'
 import {
   drawDisplay,
+  frameOf,
   runDisplay,
   stockDescriptors,
-  testLevel,
   testSignal,
   viewOf,
   type RecordingContext,
@@ -161,12 +165,63 @@ function markOf(drawn: RecordingContext) {
 const usesAccent = (drawn: RecordingContext): boolean =>
   drawn.calls.some((call) => call.name.startsWith('set ') && call.args[0] === 'Highlight')
 
+/** Where the points that can be dragged were drawn: the kit's rings, 3.5 px at rest and 4.5 in hand. */
+const ringsOf = (drawn: RecordingContext): [number, number][] =>
+  drawn.calls
+    .filter((call) => call.name === 'arc' && (call.args[2] === 3.5 || call.args[2] === 4.5))
+    .map((call) => [Number(call.args[0]), Number(call.args[1])])
+
+/** What a drive display keeps between frames, as far as a test looks at it. */
+interface Kept {
+  out: (x: number) => number
+  curve: unknown
+  tone: unknown
+  back: unknown
+  handles: unknown
+}
+
 // --- Saturator ----------------------------------------------------------------
 
 describe('the display of saturator', () => {
   const out = (values: Values) => saturatorCurve(view('saturator', values))
 
-  it('has the five curves of Waveshapers.h', () => {
+  it('has the five shapes of Waveshapers.h, each at points worked by hand', () => {
+    const shapes: [number, number, number][] = [
+      // Soft: tanh.
+      [0, 0.5, 0.46212],
+      [0, 1, 0.76159],
+      [0, -2, -0.96403],
+      // Hard: a clip at ±1.
+      [1, 0.4, 0.4],
+      [1, 1.7, 1],
+      [1, -3, -1],
+      // Tube: tanh above, tanh(1.5 x) / 1.5 below.
+      [2, 0.5, 0.46212],
+      [2, -0.2, -0.19421],
+      [2, -1, -0.60343],
+      // Tape: x / √(1 + x²).
+      [3, 1, 0.70711],
+      [3, 2, 0.89443],
+      [3, -0.75, -0.6],
+      // Fold: a triangle of period 4 through ±1.
+      [4, 0.5, 0.5],
+      [4, 1.5, 0.5],
+      [4, 2, 0],
+      [4, 3, -1],
+      [4, -1.5, -0.5],
+      [4, 5, 1],
+    ]
+    for (const [curve, x, y] of shapes) {
+      expect(saturatorShape(curve, x), `curve ${curve} at ${x}`).toBeCloseTo(y, 4)
+    }
+    // And the whole path at one setting: a quarter scale, 12 dB of Drive (3.9811), Bias 0.2,
+    // Output −6 dB (0.50119), Mix 0.8: tanh(1.19527) − tanh(0.2) = 0.83221 − 0.19738.
+    const whole = out({ curve: 0, driveDb: 12, bias: 0.2, outputDb: -6, mix: 0.8 })
+    expect(whole(0.25)).toBeCloseTo(0.25 + (0.63483 * 0.50119 - 0.25) * 0.8, 3)
+    expect(whole(0.25)).toBeCloseTo(0.3045, 3)
+  })
+
+  it('has the five curves of Waveshapers.h behind Drive', () => {
     // Soft: tanh. Drive 6 dB is a gain of 1.9953, so half scale goes in at 0.9976.
     expect(out({ curve: 0, driveDb: 6 })(0.5)).toBeCloseTo(Math.tanh(0.99763), 4)
     expect(out({ curve: 0, driveDb: 6 })(0.5)).toBeCloseTo(0.7606, 3)
@@ -215,7 +270,7 @@ describe('the display of saturator', () => {
         0.3,
         0.1,
       )
-      const expected = out(values)
+      const expected = out(off)
       let worst = 0
       // The device is 39 samples late.
       for (let i = 39; i < input.length; i++) {
@@ -225,12 +280,39 @@ describe('the display of saturator', () => {
     }
   })
 
+  it('holds what leaves the curve inside full scale while DC Block is on, as the device does', async () => {
+    // Soft, 12 dB of Drive, Bias −1: tanh(3.98 − 1) + tanh(1) = 1.7565 at full scale, and
+    // tanh(−3.98 − 1) + tanh(1) = −0.2383 the other way.
+    const values = { curve: 0, driveDb: 12, bias: -1 }
+    expect(out({ ...values, dcBlock: 0 })(1)).toBeCloseTo(1.7565, 3)
+    expect(out({ ...values, dcBlock: 1 })(1)).toBe(1)
+    expect(out({ ...values, dcBlock: 1 })(-1)).toBeCloseTo(-0.2383, 3)
+    // Output comes after the hold.
+    expect(out({ ...values, dcBlock: 1, outputDb: -6.0206 })(1)).toBeCloseTo(0.5, 4)
+    // Unbiased, nothing reaches the hold, on or off.
+    for (const curve of [0, 1, 2, 3, 4]) {
+      for (const x of [-1, -0.3, 0.6, 1]) {
+        expect(out({ curve, driveDb: 24, dcBlock: 1 })(x)).toBe(
+          out({ curve, driveDb: 24, dcBlock: 0 })(x),
+        )
+      }
+    }
+    // The device at 1x: off, its top is the curve's; on, nothing leaves over full scale.
+    const settings = { ...values, oversample: 0, adaa: 0, toneDb: 0 }
+    const free = play(await device('saturator', { ...settings, dcBlock: 0 }), 220, 0.9, 0.5, 0.1)
+    expect(Math.max(...free.output)).toBeCloseTo(out({ ...values, dcBlock: 0 })(0.9), 3)
+    const held = play(await device('saturator', { ...settings, dcBlock: 1 }), 220, 0.9, 0.5, 0.1)
+    expect(Math.max(...held.output)).toBeLessThanOrEqual(1)
+    expect(Math.max(...held.output)).toBeGreaterThan(0.9)
+    expect(Math.min(...held.output)).toBeGreaterThanOrEqual(-1)
+  })
+
   it('tilts about 1 kHz, and Tape closes its top as Drive goes up', () => {
-    const tone = saturatorTone(view('saturator', { toneDb: 12 }), RATE)
+    const tone = saturatorTone(view('saturator', { toneDb: 12, dcBlock: 0 }), RATE)
     expect(tone(1000)).toBeCloseTo(0, 2)
     expect(tone(20)).toBeCloseTo(-12, 1)
     expect(Math.abs(tone(20000) - 12)).toBeLessThan(0.3)
-    expect(saturatorTone(view('saturator', { toneDb: 0 }), RATE)(5000)).toBeCloseTo(0, 6)
+    expect(saturatorTone(view('saturator', { toneDb: 0 }), RATE)(5000)).toBeCloseTo(0, 4)
     // The Tape curve's high cut: 16 kHz with no drive, 6 kHz at full, 3 dB down at its corner.
     const tape = (driveDb: number, hz: number) =>
       saturatorTone(view('saturator', { curve: 3, driveDb }), RATE)(hz)
@@ -240,8 +322,28 @@ describe('the display of saturator', () => {
     // No other curve has it.
     expect(saturatorTone(view('saturator', { curve: 0, driveDb: 36 }), RATE)(6000)).toBeCloseTo(
       0,
-      6,
+      4,
     )
+  })
+
+  it('has the low cut of DC Block at 10 Hz, as the device does', async () => {
+    // A signal less its own mean below 10 Hz: 10 log(1 + (10 / f)²) down, so 0.97 dB at 20 Hz
+    // and 0.46 dB at 30 Hz.
+    const on = saturatorTone(view('saturator', { dcBlock: 1 }), RATE)
+    const off = saturatorTone(view('saturator', { dcBlock: 0 }), RATE)
+    expect(off(20)).toBeCloseTo(0, 6)
+    expect(on(20)).toBeCloseTo(-0.969, 2)
+    expect(on(30)).toBeCloseTo(-0.458, 2)
+    expect(on(1000)).toBeCloseTo(0, 2)
+    for (const dcBlock of [0, 1]) {
+      const values = { driveDb: 0, dcBlock }
+      const model = slopeDb(out(values)) + saturatorTone(view('saturator', values), RATE)(30)
+      // Half a second in, so the 10 Hz filter has settled on the tone.
+      const { input, output } = play(await device('saturator', values), 30, 0.001, 1, 0.5)
+      expect(Math.abs(dbOf(rms(output) / rms(input)) - model), `DC Block ${dcBlock}`).toBeLessThan(
+        0.05,
+      )
+    }
   })
 
   it('draws that curve, up for more, on scales from minus to plus full scale', () => {
@@ -310,11 +412,11 @@ describe('the display of saturator', () => {
     expect(usesAccent(drawDisplay(display, params, { values, powered: false }))).toBe(false)
     const silent = runDisplay(display, params, 0.3, { values, signal: testSignal(0, 0) })
     expect(markOf(silent).dot).toBeNull()
-    // Not told what feeds it, the Saturator has nothing to place the mark by: the wave is still drawn.
+    // Not told what feeds it, the Saturator has nothing to place the mark by, and places none.
     const untold = { ...testSignal(0.5, 0.4), input: null }
     const alone = runDisplay(display, params, 0.3, { values, signal: untold })
     expect(markOf(alone).dot).toBeNull()
-    expect(alone.calls.length).toBeGreaterThan(still.calls.length)
+    expect(usesAccent(alone)).toBe(false)
   })
 
   it('lets the mark sink back when the sound stops', () => {
@@ -369,9 +471,20 @@ describe('the display of saturator', () => {
         expect(handles.bias.reset?.()).toEqual({ bias: 0 })
       }
     }
-    // Down is more bias, up is less.
+    // Down is more bias, up is less: the curve's middle goes down and to the left with more
+    // bias, so the point goes where the hand does.
     expect(low.handles.bias.drag(0, low.plot.y(-0.3)).bias).toBeGreaterThan(0.2)
     expect(low.handles.bias.drag(0, low.plot.y(0.3)).bias).toBeLessThan(-0.2)
+    for (const curve of [0, 1, 2, 3, 4]) {
+      const at = (y: number) => handlesAt({ curve }).handles.bias.drag(0, y).bias
+      const down = handlesAt({ curve, bias: at(low.plot.y(-0.3)) })
+      expect(down.handles.bias.y, `curve ${curve}`).toBeCloseTo(low.plot.y(-0.3), 6)
+      expect(down.handles.bias.x, `curve ${curve}`).toBeLessThan(low.plot.x(0))
+      // Taken at rest and let go it is exactly at rest, and it stops at the ends of Bias.
+      expect(Math.abs(at(low.plot.y(0))), `curve ${curve}`).toBe(0)
+      expect(at(low.plot.foot + 40), `curve ${curve}`).toBe(1)
+      expect(at(low.plot.top - 40), `curve ${curve}`).toBe(-1)
+    }
     // With Output down the point keeps half its travel, so it can still be set by hand.
     const quiet = handlesAt({ bias: 0.5, outputDb: -18 })
     expect(quiet.handles.bias.y - quiet.plot.y(0)).toBeCloseTo(
@@ -389,6 +502,75 @@ describe('the display of analog-drive', () => {
   const out = (values: Values, arriving = 0, envelope = 0) =>
     analogDriveCurve(view('analog-drive', values), arriving, envelope)
   const tone = (values: Values) => analogDriveTone(view('analog-drive', values), RATE)
+
+  it('has the five circuits of curve.h and circuits.h, each at points worked by hand', () => {
+    const shapes: [number, number, number][] = [
+      // Tape preamp, all soft: K(t) / steepness with t = v × steepness / 1.5, steepness 1 above, 1.3 below.
+      [0, 1.5, 0.88388],
+      [0, 0.75, 0.6261],
+      [0, -1.5, -0.72304],
+      // Console: 0.45 soft and 0.55 firm landing on 0.9 from 1.35, the same both ways.
+      [1, 0.5, 0.46877],
+      [1, 2, 0.9198],
+      [1, -2, -0.9198],
+      // Transformer: 0.65 soft (1 above, 1.06 below) and 0.35 firm landing on 1.
+      [2, 1, 0.78351],
+      [2, -1, -0.77005],
+      // Triode: all soft, 0.7 above and 1.6 below.
+      [3, 1, 0.85216],
+      [3, -1, -0.56261],
+      // Pentode: 0.35 firm landing on 0.75 and 0.65 clipped at 0.55.
+      [4, 0.5, 0.48848],
+      [4, 2, 0.62],
+      [4, -0.6, -0.54759],
+    ]
+    for (const [circuit, v, y] of shapes) {
+      expect(circuitShape(ANALOG_CIRCUITS[circuit], v), `circuit ${circuit} at ${v}`).toBeCloseTo(
+        y,
+        4,
+      )
+    }
+    // Every kernel has unit slope at zero and the weights sum to 1.
+    for (const circuit of ANALOG_CIRCUITS) {
+      expect((circuitShape(circuit, 1e-4) - circuitShape(circuit, -1e-4)) / 2e-4).toBeCloseTo(1, 4)
+      expect(circuit.soft + circuit.firm + circuit.hard).toBeCloseTo(1, 9)
+    }
+  })
+
+  it('runs the whole path of analog_drive.h: gain, working point, make-up by either law, safety', () => {
+    // Console, Drive 0.5: the taper is ln 5 / ln 9 = 0.73249, so the gain is 0.25 × 10^(42 ×
+    // 0.73249 / 20) = 8.6332 and the working point 0.01 + 0.01 × 0.73249. A tenth of full scale
+    // reaches the curve at 0.88065, where it gives 0.7282, less 0.01732 at the working point.
+    // Auto Gain reads the table at 0.73249 × 12 = 8.79: −13.16 − 1.4 × 0.79 = −14.266 dB.
+    const console = { circuit: 1, drive: 0.5 }
+    expect(out(console)(0.1)).toBeCloseTo(0.71088 * gainOf(-14.2658), 3)
+    expect(out(console)(0.1)).toBeCloseTo(0.1376, 3)
+    // Auto Gain off: 12.05 dB at Drive 0 less the 12.04 dB of headroom × the taper, 3.23 dB.
+    expect(out({ ...console, autoGain: 0 })(0.1)).toBeCloseTo(0.71088 * gainOf(3.2299), 3)
+    expect(out({ ...console, autoGain: 0 })(0.1)).toBeCloseTo(1.0311, 3)
+    // Push: ten times into the curve, and after it the difference of the two tables at the
+    // same place, −16.901 − −14.266 dB, under either law.
+    const pushed =
+      circuitShape(ANALOG_CIRCUITS[1], 8.6332 + 0.017325) -
+      circuitShape(ANALOG_CIRCUITS[1], 0.017325)
+    expect(pushed).toBeCloseTo(0.945 - 0.01732, 3)
+    expect(out({ ...console, push: 1 })(0.1)).toBeCloseTo(pushed * gainOf(-16.9011), 3)
+    expect(out({ ...console, push: 1, autoGain: 0 })(0.1)).toBeCloseTo(
+      pushed * gainOf(3.2299 - 2.6353),
+      3,
+    )
+    // The safety stage: nothing up to 1.5, then 1.5 + 2.5 tanh((x − 1.5) / 2.5), a hair under 4.
+    expect(analogSafety(1.5)).toBe(1.5)
+    expect(analogSafety(-0.7)).toBe(-0.7)
+    expect(analogSafety(2)).toBeCloseTo(1.99344, 4)
+    expect(analogSafety(-2)).toBeCloseTo(-1.99344, 4)
+    expect(analogSafety(10)).toBeCloseTo(3.99444, 4)
+    expect(analogSafety(1000)).toBe(3.99999)
+    // And reached through the curve: the console at Drive 0 with Auto Gain off (12.05 dB) and
+    // Output up 12 dB puts full scale at 0.24539 × 4.0041 × 3.9811 = 3.912, which leaves at 3.366.
+    expect(out({ circuit: 1, drive: 0, autoGain: 0, output: 12 })(1)).toBeCloseTo(3.366, 2)
+    expect(out({ circuit: 1, drive: 0, autoGain: 0, output: 12 })(-1)).toBeLessThan(-3.3)
+  })
 
   it('is clean at Drive 0 and lands on the ceiling of its circuit at Drive 1', () => {
     for (const circuit of CIRCUITS) {
@@ -608,6 +790,31 @@ describe('the display of re-amp', () => {
     expect(out({ drive: 0.25, mix: 0.5 })(1)).toBeCloseTo((1 + curve(1)) / 2, 6)
   })
 
+  it('has the valve and the limiter of re_amp.h at points worked by hand', () => {
+    // Drive 0.5: gain 0.5 × 2^2.5 = 2.8284, bias 0.22, make-up 1.005, so the level is
+    // 1.005 × √(1 + 0.5091²) × 1.0484^1.5 / 2.8284 = 0.42801. Half scale reaches the valve at
+    // 1.6342: 0.85297 less 0.21486 at the bias.
+    expect(out({ drive: 0.5 })(0.5)).toBeCloseTo(0.63811 * 0.42801, 3)
+    expect(out({ drive: 0.5 })(0.5)).toBeCloseTo(0.2731, 3)
+    // Under a load of 2 the droop is a half: 17.5 % off the gain, 10 % off the level.
+    expect(out({ drive: 0.5 }, 2)(0.5)).toBeCloseTo(0.2297, 3)
+    // Drive 1: gain 16, bias 0.32, make-up 0.875, level 0.19298.
+    expect(out({ drive: 1 })(0.3)).toBeCloseTo((0.98146 - 0.30478) * 0.19298, 3)
+    expect(out({ drive: 1 })(-0.3)).toBeCloseTo((-0.97598 - 0.30478) * 0.19298, 3)
+    // The limiter: nothing up to 2, then 4 × (0.5 + 0.5 f((|x| / 4 − 0.5) × 2)) with
+    // f(t) = t (27 + t²) / (27 + 9 t²), which lands on 4 from 8 up.
+    expect(reAmpLimit(2)).toBe(2)
+    expect(reAmpLimit(-1.2)).toBe(-1.2)
+    expect(reAmpLimit(3)).toBeCloseTo(2.93162, 4)
+    expect(reAmpLimit(-3)).toBeCloseTo(-2.93162, 4)
+    expect(reAmpLimit(8)).toBe(4)
+    expect(reAmpLimit(50)).toBe(4)
+    // And reached through the curve: Drive 0 (level 2.0516) with Output up 12 dB puts half
+    // scale at 1.861, under the limiter, and full scale at 3.331, which leaves at 3.179.
+    expect(out({ drive: 0, output: 12 })(0.5)).toBeCloseTo(1.861, 2)
+    expect(out({ drive: 0, output: 12 })(1)).toBeCloseTo(3.179, 2)
+  })
+
   it('gives under load: up to 35 % off the gain and 20 % off the ceiling', () => {
     // A load of 2 is half the droop: load² / (load² + 4).
     const rested = out({ drive: 0.5 })
@@ -736,27 +943,107 @@ describe('the drive displays together', () => {
     }
   })
 
-  it('show the wave coming out only while there is one, on the scale of the curve', () => {
+  it('paint in the second ink only what is happening now: nothing at rest, off, or in silence', () => {
     for (const id of Object.keys(DRIVE_FACES)) {
       const display = displayOf(id)
       const params = paramsOf(id)
-      const meters = { arriving: 0, envelope: 0, load: 0 }
-      // A sine of 0.6 coming out: the filled wave reaches 0.6 of full scale and no further.
-      const signal = { ...testSignal(0.5, 0.6), output: testLevel(0.6, 8) }
-      const running = runDisplay(display, params, 0.2, { meters, signal })
+      const meters = { arriving: 0.8, envelope: 0.5, load: 1 }
+      expect(usesAccent(drawDisplay(display, params, { meters })), id).toBe(false)
+      expect(usesAccent(drawDisplay(display, params, { meters, powered: false })), id).toBe(false)
+      const silent = runDisplay(display, params, 0.2, { meters, signal: testSignal(0, 0) })
+      expect(usesAccent(silent), id).toBe(false)
+      // With a sound: the part of the curve it is on, the bar along the input axis and the point.
+      const running = runDisplay(display, params, 0.2, { meters, signal: testSignal(0.5, 0.4) })
+      const accents = pathsOf(running).filter((path) => path.colour === 'Highlight')
+      expect(accents.length, id).toBe(2)
       const plot = plotOf(running)
-      const fills = pathsOf(running).filter(
-        (path) => path.how === 'fill' && path.points.length > 40,
-      )
-      const tops = fills.map((path) => Math.min(...path.points.map((point) => point[1])))
-      expect(
-        tops.some((top) => Math.abs(top - plot.y(0.6)) < 0.5),
-        id,
-      ).toBe(true)
-      const still = drawDisplay(display, params, { meters })
-      expect(pathsOf(still).filter((path) => path.how === 'fill').length, id).toBeLessThan(
-        pathsOf(running).filter((path) => path.how === 'fill').length,
-      )
+      const [part] = accents
+      expect(part.how, id).toBe('stroke')
+      expect(part.points[0][0], id).toBeCloseTo(plot.x(-0.5), 4)
+      expect(part.points[part.points.length - 1][0], id).toBeCloseTo(plot.x(0.5), 4)
+      expect(markOf(running).bar?.[0], id).toBeCloseTo(plot.x(-0.5), 4)
+    }
+  })
+
+  it('keep the curve, the tone and the points while nothing moves, and make only what did', () => {
+    for (const id of Object.keys(DRIVE_FACES)) {
+      const display = displayOf(id)
+      const params = paramsOf(id)
+      const meters = { arriving: 0.8, envelope: 0.5, load: 1 }
+      const { frame } = frameOf(display, params, { meters, signal: testSignal(0.5, 0.4) })
+      const state = frame.state as Kept
+      display.draw(frame)
+      const first = { ...state }
+      display.draw({ ...frame, now: frame.now + 1 / 30, dt: 1 / 30 })
+      expect(state.out, id).toBe(first.out)
+      expect(state.curve, id).toBe(first.curve)
+      expect(state.tone, id).toBe(first.tone)
+      expect(state.back, id).toBe(first.back)
+      expect(state.handles, id).toBe(first.handles)
+      // A reading that moves makes the curve again where the device has one, and nothing else.
+      const pushed = { ...frame, meter: (name: string) => (name in meters ? 1.4 : 0) }
+      display.draw(pushed)
+      if (id === 'saturator') expect(state.out, id).toBe(first.out)
+      else expect(state.out, id).not.toBe(first.out)
+      expect(state.tone, id).toBe(first.tone)
+      expect(state.handles, id).toBe(first.handles)
+      // Another size is another layout: all of it again.
+      display.draw({ ...frame, width: frame.width + 48 })
+      expect(state.tone, id).not.toBe(first.tone)
+      expect(state.handles, id).not.toBe(first.handles)
+    }
+    // A knob of the tone makes the tone again and leaves the curve.
+    const display = displayOf('analog-drive')
+    const { frame } = frameOf(display, paramsOf('analog-drive'), {})
+    const state = frame.state as Kept
+    display.draw(frame)
+    const first = { ...state }
+    display.draw({ ...frame, value: (name: string) => (name === 'tone' ? 0.5 : frame.value(name)) })
+    expect(state.tone).not.toBe(first.tone)
+    expect(state.out).toBe(first.out)
+  })
+
+  it('draw the Drive point on the curve as the sound has it, never out of reach of where it is taken', () => {
+    const display = displayOf('analog-drive')
+    const params = paramsOf('analog-drive')
+    const rest = (values: Values) =>
+      (display.handles?.(view('analog-drive', values)) ?? []).find((h) => h.key === 'drive')
+    // The tape preamp at its defaults sags a little: the point rides the curve as it stands now.
+    const meters = { arriving: 1, envelope: 0.5 }
+    const running = runDisplay(display, params, 0.1, { meters, signal: testSignal(0.4, 0.3) })
+    const plot = plotOf(running)
+    const [ring] = ringsOf(running)
+    const point = rest({})
+    expect(ring[0]).toBe(point?.x)
+    expect(ring[1]).toBeCloseTo(
+      plot.y(analogDriveCurve(view('analog-drive'), 1, 0.5)(plot.level(ring[0]))),
+      4,
+    )
+    expect(Math.abs(ring[1] - (point?.y ?? 0))).toBeLessThan(5)
+    // The triode pushed with Auto Gain off leans far from where it rests: the point goes 5 px
+    // with it and no further, inside the 9 px a press reaches.
+    const triode = { circuit: 3, drive: 0.6, autoGain: 0 }
+    const leaning = { values: triode, meters: { arriving: 6, envelope: 1 }, signal: testSignal() }
+    const [far] = ringsOf(runDisplay(display, params, 0.1, leaning))
+    expect(Math.abs(far[1] - (rest(triode)?.y ?? 0))).toBeCloseTo(5, 6)
+    // At rest every point is drawn exactly where it is taken.
+    for (const id of Object.keys(DRIVE_FACES)) {
+      const handles = displayOf(id).handles?.(view(id)) ?? []
+      const rings = ringsOf(drawDisplay(displayOf(id), paramsOf(id)))
+      expect(rings.length, id).toBe(handles.length)
+      handles.forEach((handle, i) => {
+        expect(rings[i][0], `${id} ${handle.key}`).toBeCloseTo(handle.x, 9)
+        expect(rings[i][1], `${id} ${handle.key}`).toBeCloseTo(handle.y, 9)
+      })
+    }
+  })
+
+  it('say what they show in three sentences at most, in plain words', () => {
+    for (const [id, face] of Object.entries(DRIVE_FACES)) {
+      const { info } = face.display
+      expect(info.split('. ').length, id).toBeLessThanOrEqual(3)
+      expect(info.endsWith('.'), id).toBe(true)
+      expect(info, id).not.toMatch(/[—–]| - /)
     }
   })
 
@@ -768,6 +1055,8 @@ describe('the drive displays together', () => {
     expect(words('re-amp', { speaker: 2 })).toEqual(['STACK'])
     expect(words('saturator', { driveDb: 18 }, 'drive')).toEqual(['+18.0 dB'])
     expect(words('saturator', { bias: -0.25 }, 'bias')).toEqual(['Bias −0.25'])
+    // A bias of next to nothing is no bias, and has no sign.
+    expect(words('saturator', { bias: -1e-6 }, 'bias')).toEqual(['Bias 0.00'])
     // Analog Drive says the gain into the circuit: 42 dB × the taper, and 20 dB more with Push.
     expect(words('analog-drive', { drive: 1, push: 1 }, 'drive')).toEqual(['+62.0 dB'])
     expect(words('analog-drive', { lowCut: 120 }, 'lowCut')).toEqual(['Low cut 120 Hz'])

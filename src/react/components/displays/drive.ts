@@ -3,13 +3,17 @@
 // Above, what comes out against what goes in, from minus to plus full scale
 // on both axes, over the straight line of no change: the device's own shaping
 // function at its present settings, ported from its source, with the level
-// going in marked on it in the second ink and the wave coming out faint behind
-// it. Below, the tone of the driven sound across frequency, from the filters
-// the device has around its curve.
+// going in marked on it in the second ink. Below, the tone of the driven
+// sound across frequency, from the filters the device has around its curve.
 //
 // What such a curve cannot hold is left to the strip below it or left out:
 // a filter between two stages changes what reaches the curve by frequency,
-// and a DC blocker moves it by the wave's own mean.
+// and what takes the wave's own mean off again after the curve (a DC blocker,
+// a loudspeaker) moves the whole of it up or down as the sound goes.
+//
+// A frame on which nothing moved makes nothing: the curve, the two responses,
+// the points and the word are kept and made again only when what they come
+// from changes.
 
 import { denormalizeParam } from '../../../core/params'
 import {
@@ -17,11 +21,9 @@ import {
   biquad,
   biquadDb,
   clamp,
-  clipped,
+  crisp,
   dbText,
   dbToGain,
-  dot,
-  fillRect,
   fillTo,
   follow,
   freqGrid,
@@ -30,10 +32,9 @@ import {
   hzOfX,
   hzText,
   lerp,
+  onePoleDb,
   responsePoints,
-  rule,
   text,
-  trace,
   xOfHz,
   yOfDb,
   type Biquad,
@@ -44,7 +45,6 @@ import {
   plateDisplay,
   type DisplayFrame,
   type DisplayHandle,
-  type DisplayLevel,
   type DisplayView,
   type PlateFace,
 } from '../plate-display'
@@ -53,68 +53,94 @@ import {
 
 /** How far past full scale a curve is followed before it is cut. */
 const OVER = 1.3
-/** Under this a level is silence: no mark, no wave. */
+/** Under this a level is silence: no mark. */
 const QUIET = 0.002
 /** How fast the mark of the level sinks back, in seconds. */
 const LEVEL_FALL = 0.25
 /** Where the Drive point stands along the input axis: far right with no drive, near the middle at full. */
 const DRIVE_AT_REST = 0.92
 const DRIVE_AT_FULL = 0.12
+/**
+ * How far the Drive point is drawn from where it is taken, in pixels, when the
+ * sound has moved the curve under it: under the pointer's reach, so the point
+ * seen is always the point that can be taken.
+ */
+const HANDLE_GIVE = 5
+/** How finely a reading of the device is followed: a step under this moves the curve by less than a pixel. */
+const READING_STEPS = 1000
 
 /** Points kept between frames and written again in place. */
 type Trace = [number, number][]
-
-interface DriveState {
-  curve: Trace
-  /** What the curve was worked out from, so it is worked out again only when that moves. */
-  curveKey: string
-  wave: Trace
-  tone: Point[]
-  back: Point[]
-  toneKey: string
-  /** The peak going in, in full scales, sinking back between peaks. */
-  level: number
-}
-
-const driveState = (): DriveState => ({
-  curve: [],
-  curveKey: '',
-  wave: [],
-  tone: [],
-  back: [],
-  toneKey: '',
-  level: 0,
-})
-
+/** What comes out for what goes in, both in full scales. */
+type Curve = (x: number) => number
 /** A response across frequency, in dB. */
 type Response = (hz: number) => number
-
-/** What one drive display is drawn from on a frame. */
-interface DrivePicture {
-  /** What comes out for what goes in, both in full scales. */
-  out: (x: number) => number
-  /** What `out` was made from. */
-  key: string
-  /** The device's own reading of the peak going in, for when the plate was not told what feeds it. */
-  reading: number | null
-  /** The curve, circuit or speaker in use, in a word. */
-  word: string
-  tone: {
-    key: string
-    /** The levels at the top and the foot of the strip, in dB. */
-    top: number
-    foot: number
-    /** The responses, made only when `key` moves: the driven sound, and what stands behind it. */
-    make(): { main: Response; back?: Response }
-  }
-  handles: readonly DisplayHandle[]
-  /** What the handle in hand is set to, in words. */
-  says(key: string): string
-}
 
 interface DriveBoxes {
   curve: Box
   tone: Box
+}
+
+interface DriveState {
+  /** The size the two boxes were laid out for. */
+  width: number
+  height: number
+  boxes: DriveBoxes
+  /** What the curve was made from last: its parameters, and the device's two readings in steps. */
+  curveAt: number[]
+  first: number
+  second: number
+  out: Curve
+  curve: Trace
+  /** What the tone was made from last. */
+  toneAt: number[]
+  tone: readonly Point[]
+  back: readonly Point[]
+  handles: readonly DisplayHandle[]
+  word: string
+  /** The peak going in, in full scales, sinking back between peaks. */
+  level: number
+}
+
+const NO_POINTS: readonly Point[] = []
+const NO_BOX: Box = { x: 0, y: 0, w: 0, h: 0 }
+
+const driveState = (): DriveState => ({
+  width: -1,
+  height: -1,
+  boxes: { curve: NO_BOX, tone: NO_BOX },
+  curveAt: [],
+  first: 0,
+  second: 0,
+  out: (x) => x,
+  curve: [],
+  toneAt: [],
+  tone: NO_POINTS,
+  back: NO_POINTS,
+  handles: [],
+  word: '',
+  level: 0,
+})
+
+/** What makes one drive display its own: its curve, its tone, its points and its words. */
+interface DriveKind {
+  /** The parameters the curve is made from. */
+  curveParams: readonly string[]
+  /** The curve at two readings of the device (0 where it has none, and at rest). */
+  curve(view: DisplayView, first: number, second: number): Curve
+  /** The parameters the tone is made from. */
+  toneParams: readonly string[]
+  /** The levels at the top and the foot of the strip, in dB. */
+  top: number
+  foot: number
+  /** The responses: the driven sound, and what stands behind it. */
+  tone(view: DisplayView, sampleRate: number): { main: Response; back?: Response }
+  /** The points, where a press finds them: on the curve at rest. */
+  handles(view: DisplayView): readonly DisplayHandle[]
+  /** The curve, circuit or speaker in use, in a word. */
+  word(view: DisplayView): string
+  /** What the point in hand is set to, in words. */
+  says(view: DisplayView, key: string): string
 }
 
 /**
@@ -124,7 +150,7 @@ interface DriveBoxes {
  */
 function driveBoxes(view: Pick<DisplayView, 'width' | 'height'>): DriveBoxes {
   const all: Box = { x: 4, y: 4, w: view.width - 8, h: view.height - 8 }
-  const strip = Math.round(all.h * 0.27)
+  const strip = Math.round(all.h * 0.23)
   return {
     curve: { ...all, y: all.y + 3, h: all.h - strip - 10 },
     tone: { ...all, y: all.y + all.h - strip, h: strip },
@@ -140,177 +166,234 @@ const outOfY = (y: number, box: Box): number => 1 - ((y - box.y) / box.h) * 2
 /** A reading that is a level: nothing under zero, and nothing that is not a number. */
 const levelOf = (reading: number): number => (reading > 0 && Number.isFinite(reading) ? reading : 0)
 
-function sized(points: Trace, length: number): Trace {
-  if (points.length === length) return points
-  return Array.from({ length }, (): [number, number] => [0, 0])
+/**
+ * True when one of the named parameters is not what `kept` has, or the last
+ * number is not; `kept` then takes them.
+ */
+function moved(view: DisplayView, names: readonly string[], kept: number[], last = 0): boolean {
+  let any = false
+  for (let i = 0; i <= names.length; i++) {
+    const value = i < names.length ? view.value(names[i]) : last
+    if (kept[i] !== value) {
+      kept[i] = value
+      any = true
+    }
+  }
+  return any
+}
+
+const DASH: number[] = [2, 2]
+const SOLID: number[] = []
+const AT_REST = { hot: false } as const
+const IN_HAND = { hot: true } as const
+const WORDS = {} as const
+
+/** A line through points, as the kit's `trace` draws it, with nothing made to draw it. */
+function stroke(
+  ctx: CanvasRenderingContext2D,
+  points: readonly Point[],
+  colour: string,
+  width: number,
+  alpha = 1,
+  dashed = false,
+): void {
+  if (points.length < 2) return
+  ctx.beginPath()
+  ctx.moveTo(points[0][0], points[0][1])
+  for (let i = 1; i < points.length; i++) ctx.lineTo(points[i][0], points[i][1])
+  ctx.globalAlpha = alpha
+  ctx.strokeStyle = colour
+  ctx.lineWidth = width
+  ctx.lineJoin = 'round'
+  ctx.lineCap = 'round'
+  if (dashed) ctx.setLineDash(DASH)
+  ctx.stroke()
+  if (dashed) ctx.setLineDash(SOLID)
+  ctx.globalAlpha = 1
+}
+
+/** A straight line one pixel wide, as the kit's `rule` draws it: sharp when level or upright. */
+function line(
+  ctx: CanvasRenderingContext2D,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  colour: string,
+  alpha: number,
+  dashed = false,
+): void {
+  const level = y1 === y2
+  const upright = x1 === x2
+  ctx.beginPath()
+  ctx.moveTo(upright ? crisp(x1) : x1, level ? crisp(y1) : y1)
+  ctx.lineTo(upright ? crisp(x2) : x2, level ? crisp(y2) : y2)
+  ctx.globalAlpha = alpha
+  ctx.strokeStyle = colour
+  ctx.lineWidth = 1
+  ctx.lineJoin = 'round'
+  ctx.lineCap = 'round'
+  if (dashed) ctx.setLineDash(DASH)
+  ctx.stroke()
+  if (dashed) ctx.setLineDash(SOLID)
+  ctx.globalAlpha = 1
 }
 
 /**
- * A cycle or two of a wave across a box, on the curve's own scale of levels.
- * It starts where the wave rises through zero and runs to the second such
- * place after it, so a steady note stands still from frame to frame. A column
- * that holds several samples shows the largest, so a flat top stays flat.
+ * One frame of a drive display. `first` and `second` are the device's own
+ * readings that move its curve (0 for a device without them, and at rest);
+ * `reading` is its own word on the peak going in, for when the plate was not
+ * told what feeds it.
  */
-function waveInto(level: DisplayLevel, box: Box, points: Trace): void {
-  const wave = level.wave
-  const arm = -0.2 * level.peak
-  let armed = false
-  let first = -1
-  let second = -1
-  let third = -1
-  for (let i = 1; i < wave.length; i++) {
-    if (wave[i] < arm) armed = true
-    else if (armed && wave[i - 1] < 0 && wave[i] >= 0) {
-      armed = false
-      if (first < 0) first = i
-      else if (second < 0) second = i
-      else {
-        third = i
-        break
-      }
-    }
-  }
-  let start = Math.max(0, first)
-  let end = third > 0 ? third : second > 0 ? second : Math.min(wave.length - 1, start + 512)
-  if (end - start < 16) {
-    start = 0
-    end = Math.min(wave.length - 1, 512)
-  }
-  const step = (end - start) / (points.length - 1)
-  for (let c = 0; c < points.length; c++) {
-    const at = start + c * step
-    let sample: number
-    if (step <= 1) {
-      const below = Math.floor(at)
-      const above = Math.min(wave.length - 1, below + 1)
-      sample = lerp(wave[below], wave[above], at - below)
-    } else {
-      sample = 0
-      const last = Math.min(end, Math.ceil(at + step / 2))
-      for (let i = Math.max(start, Math.floor(at - step / 2)); i <= last; i++) {
-        if (Math.abs(wave[i]) > Math.abs(sample)) sample = wave[i]
-      }
-    }
-    points[c][0] = box.x + (c / (points.length - 1)) * box.w
-    points[c][1] = yOfOut(Number.isFinite(sample) ? sample : 0, box)
-  }
-}
-
-function drawDrive(frame: DisplayFrame<DriveState>, picture: DrivePicture): void {
-  const { ctx, colours, state } = frame
-  const { signal } = frame
+function drawDrive(
+  frame: DisplayFrame<DriveState>,
+  kind: DriveKind,
+  first: number,
+  second: number,
+  reading: number | null,
+): void {
+  const { ctx, colours, state, signal } = frame
   ground(frame)
-  const { curve, tone } = driveBoxes(frame)
+  const resized = state.width !== frame.width || state.height !== frame.height
+  if (resized) {
+    state.boxes = driveBoxes(frame)
+    state.width = frame.width
+    state.height = frame.height
+  }
+  const { curve, tone } = state.boxes
+  const right = curve.x + curve.w
   const zero = curve.y + curve.h / 2
   const middle = curve.x + curve.w / 2
   const foot = curve.y + curve.h
-  const { out } = picture
+
+  // What is kept, made again where what it comes from has moved.
+  const set = moved(frame, kind.curveParams, state.curveAt) || resized
+  const firstStep = Math.round(first * READING_STEPS)
+  const secondStep = Math.round(second * READING_STEPS)
+  if (set || firstStep !== state.first || secondStep !== state.second) {
+    state.first = firstStep
+    state.second = secondStep
+    state.out = kind.curve(frame, first, second)
+    const length = Math.max(2, Math.round(curve.w * 2) + 1)
+    if (state.curve.length !== length) {
+      state.curve = Array.from({ length }, (): [number, number] => [0, 0])
+    }
+    const last = length - 1
+    for (let i = 0; i <= last; i++) {
+      state.curve[i][0] = curve.x + (i / last) * curve.w
+      state.curve[i][1] = yOfOut(state.out((i / last) * 2 - 1), curve)
+    }
+  }
+  const toned = moved(frame, kind.toneParams, state.toneAt, frame.sampleRate) || resized
+  if (toned) {
+    const made = kind.tone(frame, frame.sampleRate)
+    state.tone = responsePoints(tone, made.main, kind.top, kind.foot)
+    state.back = made.back ? responsePoints(tone, made.back, kind.top, kind.foot) : NO_POINTS
+  }
+  if (set || toned) {
+    state.handles = kind.handles(frame)
+    state.word = kind.word(frame).toUpperCase()
+  }
+  const { out } = state
 
   // The scale: full scale above and below, the two axes through silence, and
   // the straight line of no change.
-  for (const y of [curve.y, zero, foot]) {
-    rule(ctx, curve.x, y, curve.x + curve.w, y, { colour: colours.ink, alpha: INK.grid })
-  }
-  rule(ctx, middle, curve.y, middle, foot, { colour: colours.ink, alpha: INK.grid })
-  rule(ctx, curve.x, foot, curve.x + curve.w, curve.y, {
-    colour: colours.ink,
-    alpha: INK.rule,
-    dash: [2, 2],
-  })
-
-  const curveKey = `${picture.key} ${curve.w} ${curve.h}`
-  if (curveKey !== state.curveKey) {
-    state.curve = sized(state.curve, Math.max(2, Math.round(curve.w * 2) + 1))
-    const last = state.curve.length - 1
-    for (let i = 0; i <= last; i++) {
-      state.curve[i][0] = curve.x + (i / last) * curve.w
-      state.curve[i][1] = yOfOut(out((i / last) * 2 - 1), curve)
-    }
-    state.curveKey = curveKey
-  }
+  line(ctx, curve.x, curve.y, right, curve.y, colours.ink, INK.grid)
+  line(ctx, curve.x, zero, right, zero, colours.ink, INK.grid)
+  line(ctx, curve.x, foot, right, foot, colours.ink, INK.grid)
+  line(ctx, middle, curve.y, middle, foot, colours.ink, INK.grid)
+  line(ctx, curve.x, foot, right, curve.y, colours.ink, INK.rule, true)
 
   // The level going in: what the taps heard, else what the device itself reports.
-  const heard = signal ? (signal.input ? signal.input.peak : picture.reading) : null
+  const heard = signal ? (signal.input ? signal.input.peak : reading) : null
   state.level =
     heard === null ? 0 : follow(state.level, Math.min(1, levelOf(heard)), frame.dt, 0, LEVEL_FALL)
   const level = state.level > QUIET ? state.level : 0
 
   // A stroke on full scale is whole, and what goes over it is cut a little outside.
-  clipped(ctx, { x: curve.x - 2, y: curve.y - 4, w: curve.w + 4, h: curve.h + 5.5 }, () => {
-    if (signal && signal.output.peak > QUIET) {
-      // What comes out, faint: its tops go flat where the curve does.
-      state.wave = sized(state.wave, Math.max(2, Math.floor(curve.w / 2) + 1))
-      waveInto(signal.output, curve, state.wave)
-      fillTo(ctx, state.wave, zero, colours.ink, INK.fill)
-    }
-    if (level > 0) {
-      // The part of the curve the sound is on, under the curve itself.
-      const last = state.curve.length - 1
-      const from = Math.ceil(((1 - level) / 2) * last)
-      const to = Math.floor(((1 + level) / 2) * last)
-      ctx.beginPath()
-      ctx.moveTo(xOfIn(-level, curve), yOfOut(out(-level), curve))
-      for (let i = from; i <= to; i++) ctx.lineTo(state.curve[i][0], state.curve[i][1])
-      ctx.lineTo(xOfIn(level, curve), yOfOut(out(level), curve))
-      ctx.globalAlpha = 0.85
-      ctx.strokeStyle = colours.accent
-      ctx.lineWidth = 4.5
-      ctx.lineJoin = 'round'
-      ctx.lineCap = 'round'
-      ctx.stroke()
-      ctx.globalAlpha = 1
-    }
-    trace(ctx, state.curve, { colour: colours.ink })
-  })
+  ctx.save()
+  ctx.beginPath()
+  ctx.rect(curve.x - 2, curve.y - 4, curve.w + 4, curve.h + 5.5)
+  ctx.clip()
+  if (level > 0) {
+    // The part of the curve the sound is on, under the curve itself.
+    const last = state.curve.length - 1
+    const from = Math.ceil(((1 - level) / 2) * last)
+    const to = Math.floor(((1 + level) / 2) * last)
+    ctx.beginPath()
+    ctx.moveTo(xOfIn(-level, curve), yOfOut(out(-level), curve))
+    for (let i = from; i <= to; i++) ctx.lineTo(state.curve[i][0], state.curve[i][1])
+    ctx.lineTo(xOfIn(level, curve), yOfOut(out(level), curve))
+    ctx.globalAlpha = 0.85
+    ctx.strokeStyle = colours.accent
+    ctx.lineWidth = 4.5
+    ctx.lineJoin = 'round'
+    ctx.lineCap = 'round'
+    ctx.stroke()
+    ctx.globalAlpha = 1
+  }
+  stroke(ctx, state.curve, colours.ink, 1.5)
+  ctx.restore()
   if (level > 0) {
     // The same level along the input axis, and the point at its peak.
     const left = xOfIn(-level, curve)
-    fillRect(ctx, { x: left, y: foot + 2, w: xOfIn(level, curve) - left, h: 2 }, colours.accent)
-    dot(
-      ctx,
+    ctx.globalAlpha = 1
+    ctx.fillStyle = colours.accent
+    ctx.fillRect(left, foot + 2, xOfIn(level, curve) - left, 2)
+    ctx.beginPath()
+    ctx.arc(
       xOfIn(level, curve),
       clamp(yOfOut(out(level), curve), curve.y, foot),
       2.5,
-      colours.accent,
-      { ring: colours.ink },
+      0,
+      Math.PI * 2,
     )
+    ctx.fill()
+    ctx.strokeStyle = colours.ink
+    ctx.lineWidth = 1
+    ctx.stroke()
   }
 
   // Below: the tone of the driven sound.
-  const { top, foot: floor } = picture.tone
-  const toneKey = `${picture.tone.key} ${tone.w} ${tone.h} ${frame.sampleRate}`
-  if (toneKey !== state.toneKey) {
-    const made = picture.tone.make()
-    state.tone = responsePoints(tone, made.main, top, floor)
-    state.back = made.back ? responsePoints(tone, made.back, top, floor) : []
-    state.toneKey = toneKey
-  }
-  const flat = yOfDb(0, tone, top, floor)
+  const flat = yOfDb(0, tone, kind.top, kind.foot)
   freqGrid(frame, tone)
-  rule(ctx, tone.x, flat, tone.x + tone.w, flat, { colour: colours.ink, alpha: INK.rule })
-  clipped(ctx, tone, () => {
-    trace(ctx, state.back, { colour: colours.ink, width: 1, alpha: INK.back, dash: [2, 2] })
-    fillTo(ctx, state.tone, tone.y + tone.h, colours.ink, INK.fill)
-    trace(ctx, state.tone, { colour: colours.ink, width: 1.25 })
-  })
+  line(ctx, tone.x, flat, tone.x + tone.w, flat, colours.ink, INK.rule)
+  ctx.save()
+  ctx.beginPath()
+  ctx.rect(tone.x, tone.y, tone.w, tone.h)
+  ctx.clip()
+  stroke(ctx, state.back, colours.ink, 1, INK.back, true)
+  fillTo(ctx, state.tone, tone.y + tone.h, colours.ink, INK.fill)
+  stroke(ctx, state.tone, colours.ink, 1.25)
+  ctx.restore()
 
-  for (const point of picture.handles) {
-    handle(frame, point.x, point.y, { hot: frame.hot === point.key })
+  let inHand = false
+  for (const point of state.handles) {
+    const hot = frame.hot === point.key
+    inHand = inHand || hot
+    // The Drive point rides the curve as the sound has it now, within reach of where it is taken.
+    const y =
+      point.key === 'drive'
+        ? clamp(
+            yOfOut(out(inOfX(point.x, curve)), curve),
+            Math.max(curve.y, point.y - HANDLE_GIVE),
+            Math.min(foot, point.y + HANDLE_GIVE),
+          )
+        : point.y
+    handle(frame, point.x, y, hot ? IN_HAND : AT_REST)
   }
   // In a corner the curve leaves free: what is in use, or what the point in hand is set to.
-  const hot = picture.handles.find((point) => point.key === frame.hot)
-  text(frame, hot ? picture.says(hot.key) : picture.word.toUpperCase(), curve.x + 1, curve.y + 8, {
-    alpha: hot ? INK.text : INK.back,
-  })
+  text(
+    frame,
+    inHand && frame.hot !== null ? kind.says(frame, frame.hot) : state.word,
+    curve.x + 1,
+    curve.y + 8,
+    WORDS,
+  )
 }
 
 /** The Drive point: on the curve, further left the more drive there is. */
-function driveHandle(
-  view: DisplayView,
-  box: Box,
-  param: string,
-  out: (x: number) => number,
-): DisplayHandle {
+function driveHandle(view: DisplayView, box: Box, param: string, out: Curve): DisplayHandle {
   const spec = view.spec(param)
   const at = lerp(DRIVE_AT_REST, DRIVE_AT_FULL, view.at(param))
   return {
@@ -397,23 +480,31 @@ export function saturatorShape(curve: number, x: number): number {
 }
 
 /**
- * What the Saturator puts out for what goes in, as `saturator.h` runs it:
- * Drive in front, the curve at Bias less its own value there (so silence
- * stays silence), Output behind, and the clean signal beside it by Mix.
+ * What the Saturator puts out for what goes in, as `shaped` and `process` in
+ * `saturator.h` run it: Drive in front, the curve at Bias less its own value
+ * there (so silence stays silence), Output behind, and the clean signal
+ * beside it by Mix. With DC Block on, what leaves the curve is held inside
+ * full scale; the blocker's own slow mean, which then centres the wave, is
+ * taken at rest.
  */
-export function saturatorCurve(view: DisplayView): (x: number) => number {
+export function saturatorCurve(view: DisplayView): Curve {
   const curve = Math.round(view.value('curve'))
   const gain = dbToGain(view.value('driveDb'))
   const bias = view.value('bias')
   const offset = saturatorShape(curve, bias)
   const output = dbToGain(view.value('outputDb'))
   const mix = view.value('mix')
-  return (x) => x + ((saturatorShape(curve, gain * x + bias) - offset) * output - x) * mix
+  const held = view.value('dcBlock') >= 0.5
+  return (x) => {
+    const shaped = saturatorShape(curve, gain * x + bias) - offset
+    return x + ((held ? clamp(shaped, -1, 1) : shaped) * output - x) * mix
+  }
 }
 
 /**
- * The Saturator's tone: the tilt about 1 kHz, and on the Tape curve the high
- * cut that closes from 16 kHz to 6 kHz as Drive goes up.
+ * The Saturator's tone: the tilt about 1 kHz, on the Tape curve the high cut
+ * that closes from 16 kHz to 6 kHz as Drive goes up, and with DC Block on the
+ * first-order low cut at 10 Hz that a signal less its own slow mean is.
  */
 export function saturatorTone(view: DisplayView, sampleRate: number): Response {
   const tilt = tiltFilter(view.value('toneDb'), 1000, sampleRate)
@@ -421,36 +512,48 @@ export function saturatorTone(view: DisplayView, sampleRate: number): Response {
     Math.round(view.value('curve')) === SATURATOR_TAPE
       ? onePole(16000 * Math.pow(6000 / 16000, view.value('driveDb') / 36), sampleRate)
       : null
+  const blocked = view.value('dcBlock') >= 0.5
   return (hz) =>
-    firstOrderDb(tilt, hz, sampleRate) + (tape ? firstOrderDb(tape, hz, sampleRate) : 0)
+    firstOrderDb(tilt, hz, sampleRate) +
+    (tape ? firstOrderDb(tape, hz, sampleRate) : 0) +
+    (blocked ? onePoleDb('highpass', 10, hz) : 0)
 }
 
 /** How far the Bias point travels: with the curve while Output and Mix leave it room, never less than half. */
 const biasTravel = (view: DisplayView): number =>
   clamp(dbToGain(view.value('outputDb')) * view.value('mix'), 0.5, 1)
 
-/** The bias at which a curve's own value is `value`: every curve rises from −1 to 1, so halving finds it. */
+/**
+ * The bias at which a curve's own value is `value`: each curve of
+ * `saturatorShape` turned round, on the stretch from −1 to 1 where all five
+ * rise.
+ */
 function biasFor(curve: number, value: number): number {
-  let low = -1
-  let high = 1
-  for (let i = 0; i < 20; i++) {
-    const half = (low + high) / 2
-    if (saturatorShape(curve, half) < value) low = half
-    else high = half
+  const v = clamp(value, -1, 1)
+  switch (curve) {
+    case 0:
+      return clamp(Math.atanh(v), -1, 1)
+    case 2:
+      return clamp(v >= 0 ? Math.atanh(v) : Math.atanh(Math.max(-1, v * 1.5)) / 1.5, -1, 1)
+    case SATURATOR_TAPE:
+      return clamp(v / Math.sqrt(1 - v * v), -1, 1)
+    default:
+      // The clip, and the fold before its first turn: the value itself.
+      return v
   }
-  return (low + high) / 2
 }
 
-function saturatorHandles(view: DisplayView, out = saturatorCurve(view)): DisplayHandle[] {
+function saturatorHandles(view: DisplayView): DisplayHandle[] {
   const { curve: box } = driveBoxes(view)
   const curve = Math.round(view.value('curve'))
   const bias = view.value('bias')
   const travel = biasTravel(view)
   return [
-    driveHandle(view, box, 'driveDb', out),
+    driveHandle(view, box, 'driveDb', saturatorCurve(view)),
     {
-      // The middle of the curve, where the signal sits when it is not biased:
-      // Bias takes it off the centre, down and to the left for more.
+      // The middle of the curve, where the signal sits when it is not biased.
+      // Bias takes it off the centre, down and to the left for more, and the
+      // curve goes with it: the point follows the hand.
       key: 'bias',
       name: 'Bias',
       x: xOfIn(-bias / dbToGain(view.value('driveDb')), box),
@@ -461,35 +564,34 @@ function saturatorHandles(view: DisplayView, out = saturatorCurve(view)): Displa
   ]
 }
 
+const SATURATOR: DriveKind = {
+  curveParams: ['curve', 'driveDb', 'bias', 'outputDb', 'mix', 'dcBlock'],
+  curve: saturatorCurve,
+  toneParams: ['curve', 'driveDb', 'toneDb', 'dcBlock'],
+  top: 15,
+  foot: -15,
+  tone: (view, sampleRate) => ({ main: saturatorTone(view, sampleRate) }),
+  handles: saturatorHandles,
+  word: (view) => choiceWord(view, 'curve'),
+  says: (view, key) => {
+    if (key !== 'bias') return dbText(view.value('driveDb'))
+    // To the hundredth it is shown at, so a bias of next to nothing has no sign.
+    const bias = Math.round(view.value('bias') * 100) / 100
+    return `Bias ${bias > 0 ? '+' : bias < 0 ? '−' : ''}${Math.abs(bias).toFixed(2)}`
+  },
+}
+
 const saturator = plateDisplay<DriveState>({
   place: 'window',
   columns: 2,
-  params: ['curve', 'driveDb', 'bias', 'toneDb', 'outputDb', 'mix'],
+  params: ['curve', 'driveDb', 'bias', 'toneDb', 'outputDb', 'mix', 'dcBlock'],
   live: { signal: true },
-  info: 'Above, the curve the sound is bent along: in runs across, out runs up, and the dashed line is no change. The second colour marks the level going in, the faint shape is the wave coming out. Drag the point on the curve for Drive and the one in its middle for Bias. Below, the tone across the range.',
+  info: 'The curve the sound is bent along: in runs across, out runs up, and the dashed line is no change. The second colour marks the level going in. The point on the curve is Drive, the one at its middle is Bias, and the strip below is the tone.',
   init: driveState,
   draw(frame) {
-    const bias = frame.value('bias')
-    const out = saturatorCurve(frame)
-    drawDrive(frame, {
-      out,
-      key: ['curve', 'driveDb', 'bias', 'outputDb', 'mix'].map((name) => frame.value(name)).join(),
-      reading: null,
-      word: choiceWord(frame, 'curve'),
-      tone: {
-        key: `${frame.value('curve')} ${frame.value('driveDb')} ${frame.value('toneDb')}`,
-        top: 15,
-        foot: -15,
-        make: () => ({ main: saturatorTone(frame, frame.sampleRate) }),
-      },
-      handles: saturatorHandles(frame, out),
-      says: (key) =>
-        key === 'bias'
-          ? `Bias ${bias > 0 ? '+' : bias < 0 ? '−' : ''}${Math.abs(bias).toFixed(2)}`
-          : dbText(frame.value('driveDb')),
-    })
+    drawDrive(frame, SATURATOR, 0, 0, null)
   },
-  handles: (view) => saturatorHandles(view),
+  handles: saturatorHandles,
 })
 
 // --- Analog Drive -----------------------------------------------------------
@@ -552,7 +654,7 @@ function circuit(
 }
 
 /** The five circuits of Analog Drive, as `circuits.h` and `gain_table.h` have them. */
-const CIRCUITS: readonly Circuit[] = [
+export const CIRCUITS: readonly Circuit[] = [
   // Tape preamp: all soft knee, a little lopsided; treble lifted on the way in and cut by more on the way out.
   circuit(
     [1, 1, 1.3, 0, 1, 0, 1],
@@ -689,7 +791,7 @@ function analogMakeupDb(circuit: Circuit, drive: number, push: boolean, autoGain
 }
 
 /** The last stage of the driven signal (`safety`): untouched up to 1.5, then a knee that lands on 4. */
-function analogSafety(x: number): number {
+export function analogSafety(x: number): number {
   const size = Math.abs(x)
   if (size <= 1.5) return x
   return Math.sign(x) * Math.min(3.99999, 1.5 + 2.5 * Math.tanh((size - 1.5) / 2.5))
@@ -714,11 +816,7 @@ function analogGain(view: DisplayView, envelope = 0): number {
  * make-up, Output and the safety stage; and the clean signal beside it by
  * Mix. The two levels are the device's own readings, in the curve's units.
  */
-export function analogDriveCurve(
-  view: DisplayView,
-  arriving = 0,
-  envelope = 0,
-): (x: number) => number {
+export function analogDriveCurve(view: DisplayView, arriving = 0, envelope = 0): Curve {
   const circuit = analogCircuit(view)
   const drive = driveTaper(view.value('drive'))
   const push = view.value('push') >= 0.5
@@ -823,7 +921,7 @@ export function analogDriveTone(
 const ANALOG_TONE_TOP = 15
 const ANALOG_TONE_FOOT = -27
 
-function analogDriveHandles(view: DisplayView, out = analogDriveCurve(view)): DisplayHandle[] {
+function analogDriveHandles(view: DisplayView): DisplayHandle[] {
   const { curve, tone } = driveBoxes(view)
   const flat = yOfDb(0, tone, ANALOG_TONE_TOP, ANALOG_TONE_FOOT)
   const cut = (param: 'lowCut' | 'highCut', name: string): DisplayHandle => {
@@ -839,10 +937,31 @@ function analogDriveHandles(view: DisplayView, out = analogDriveCurve(view)): Di
     }
   }
   return [
-    driveHandle(view, curve, 'drive', out),
+    driveHandle(view, curve, 'drive', analogDriveCurve(view)),
     cut('lowCut', 'Low cut'),
     cut('highCut', 'High cut'),
   ]
+}
+
+const ANALOG_DRIVE: DriveKind = {
+  curveParams: ['drive', 'circuit', 'push', 'autoGain', 'output', 'mix'],
+  curve: analogDriveCurve,
+  toneParams: ['circuit', 'lowCut', 'lowBump', 'tone', 'highCut'],
+  top: ANALOG_TONE_TOP,
+  foot: ANALOG_TONE_FOOT,
+  tone: (view, sampleRate) => {
+    const { into, net } = analogDriveTone(view, sampleRate)
+    return { main: net, back: into }
+  },
+  handles: analogDriveHandles,
+  word: (view) => choiceWord(view, 'circuit'),
+  says: (view, key) =>
+    key === 'lowCut' || key === 'highCut'
+      ? `${key === 'lowCut' ? 'Low cut' : 'High cut'} ${hzText(view.value(key))}`
+      : // The gain into the circuit above where Drive starts.
+        dbText(
+          ANALOG_DRIVE_DB * driveTaper(view.value('drive')) + (view.value('push') >= 0.5 ? 20 : 0),
+        ),
 }
 
 const analogDrive = plateDisplay<DriveState>({
@@ -861,45 +980,24 @@ const analogDrive = plateDisplay<DriveState>({
     'mix',
   ],
   live: { meters: true, signal: true },
-  info: 'Above, the curve of the circuit: in runs across, out runs up. The second colour marks the level going in, the faint shape is the wave coming out. The curve leans and gives as it is pushed. Drag the point on it for Drive. Below, the tone, with a point per cut. Dashed is what reaches the circuit.',
+  info: 'The curve of the circuit, in across and out up: it leans and gives as the sound pushes it, and the second colour marks the level going in. The point on it is Drive. Below is the tone with a point for each cut, and dashed what reaches the circuit.',
   init: driveState,
   draw(frame) {
     // The circuit follows the sound: its working point and its sag are the device's own readings.
-    const running = frame.signal !== null
-    const arriving = running ? levelOf(frame.meter('arriving')) : 0
-    const envelope = running ? levelOf(frame.meter('envelope')) : 0
-    const out = analogDriveCurve(frame, arriving, envelope)
-    const gain = analogGain(frame, envelope)
-    drawDrive(frame, {
-      out,
-      key: `${['drive', 'circuit', 'push', 'autoGain', 'output', 'mix']
-        .map((name) => frame.value(name))
-        .join()} ${arriving.toFixed(3)} ${envelope.toFixed(3)}`,
-      reading: frame.hasMeter('arriving') ? arriving / gain : null,
-      word: choiceWord(frame, 'circuit'),
-      tone: {
-        key: ['circuit', 'lowCut', 'lowBump', 'tone', 'highCut']
-          .map((name) => frame.value(name))
-          .join(),
-        top: ANALOG_TONE_TOP,
-        foot: ANALOG_TONE_FOOT,
-        make: () => {
-          const { into, net } = analogDriveTone(frame, frame.sampleRate)
-          return { main: net, back: into }
-        },
-      },
-      handles: analogDriveHandles(frame, out),
-      says: (key) =>
-        key === 'lowCut' || key === 'highCut'
-          ? `${key === 'lowCut' ? 'Low cut' : 'High cut'} ${hzText(frame.value(key))}`
-          : // The gain into the circuit above where Drive starts.
-            dbText(
-              ANALOG_DRIVE_DB * driveTaper(frame.value('drive')) +
-                (frame.value('push') >= 0.5 ? 20 : 0),
-            ),
-    })
+    const { signal } = frame
+    const arriving = signal ? levelOf(frame.meter('arriving')) : 0
+    const envelope = signal ? levelOf(frame.meter('envelope')) : 0
+    // Not told what feeds it, the level arriving at the curve says what went in.
+    const untold = signal !== null && signal.input === null && frame.hasMeter('arriving')
+    drawDrive(
+      frame,
+      ANALOG_DRIVE,
+      arriving,
+      envelope,
+      untold ? arriving / analogGain(frame, envelope) : null,
+    )
   },
-  handles: (view) => analogDriveHandles(view),
+  handles: analogDriveHandles,
 })
 
 // --- Re-amp -----------------------------------------------------------------
@@ -1043,7 +1141,7 @@ const valve = (u: number): number => u / Math.sqrt(1 + u * u)
 const reAmpGain = (view: DisplayView): number => 0.5 * Math.pow(2, 5 * view.value('drive'))
 
 /** The limiter after Output (`kit::soft_clip` scaled by 4): untouched up to 2, landing on 4. */
-function reAmpLimit(x: number): number {
+export function reAmpLimit(x: number): number {
   const size = Math.abs(x) / 4
   if (size <= 0.5) return x
   const t = clamp((size - 0.5) * 2, -3, 3)
@@ -1059,7 +1157,7 @@ function reAmpLimit(x: number): number {
  * microphone and the room after it are taken as passing the level on; then
  * Output, the limiter, and the clean signal beside it by Mix.
  */
-export function reAmpCurve(view: DisplayView, load = 0): (x: number) => number {
+export function reAmpCurve(view: DisplayView, load = 0): Curve {
   const drive = clamp(view.value('drive'), 0, 1)
   const gain = reAmpGain(view)
   const bias = 0.12 + 0.2 * drive
@@ -1129,8 +1227,24 @@ export function reAmpTone(
   }
 }
 
-function reAmpHandles(view: DisplayView, out = reAmpCurve(view)): DisplayHandle[] {
-  return [driveHandle(view, driveBoxes(view).curve, 'drive', out)]
+function reAmpHandles(view: DisplayView): DisplayHandle[] {
+  return [driveHandle(view, driveBoxes(view).curve, 'drive', reAmpCurve(view))]
+}
+
+const RE_AMP: DriveKind = {
+  curveParams: ['drive', 'output', 'mix'],
+  curve: reAmpCurve,
+  toneParams: ['speaker', 'bass', 'treble', 'distance', 'angle'],
+  top: 15,
+  foot: -33,
+  tone: (view, sampleRate) => {
+    const { direct, room } = reAmpTone(view, sampleRate)
+    return { main: direct, back: room }
+  },
+  handles: reAmpHandles,
+  word: (view) => choiceWord(view, 'speaker'),
+  // The gain into the valve.
+  says: (view) => dbText(20 * Math.log10(reAmpGain(view))),
 }
 
 const reAmp = plateDisplay<DriveState>({
@@ -1138,40 +1252,25 @@ const reAmp = plateDisplay<DriveState>({
   columns: 2,
   params: ['speaker', 'drive', 'bass', 'treble', 'distance', 'angle', 'output', 'mix'],
   live: { meters: true, signal: true },
-  info: 'Above, the curve of the amplifier: in runs across, out runs up. The second colour marks the level going in, the faint shape is the wave coming out. Drag the point on the curve for Drive. Below, the speaker as the microphone hears it, and dashed the room, which comes up as it is pulled back.',
+  info: 'The curve of the amplifier, in across and out up: it gives under load, and the second colour marks the level going in. The point on it is Drive. Below is the speaker as the microphone hears it, and dashed the room, which comes up as the microphone is pulled back.',
   init: driveState,
   draw(frame) {
     // The supply gives when the amplifier is hit hard: the device's own reading.
-    const load = frame.signal ? levelOf(frame.meter('load')) : 0
-    const out = reAmpCurve(frame, load)
-    drawDrive(frame, {
-      out,
-      key: `${frame.value('drive')} ${frame.value('output')} ${frame.value('mix')} ${load.toFixed(3)}`,
-      reading: frame.hasMeter('load') ? load / reAmpGain(frame) : null,
-      word: choiceWord(frame, 'speaker'),
-      tone: {
-        key: ['speaker', 'bass', 'treble', 'distance', 'angle']
-          .map((name) => frame.value(name))
-          .join(),
-        top: 15,
-        foot: -33,
-        make: () => {
-          const { direct, room } = reAmpTone(frame, frame.sampleRate)
-          return { main: direct, back: room }
-        },
-      },
-      handles: reAmpHandles(frame, out),
-      // The gain into the valve.
-      says: () => dbText(20 * Math.log10(reAmpGain(frame))),
-    })
+    const { signal } = frame
+    const load = signal ? levelOf(frame.meter('load')) : 0
+    // Not told what feeds it, the load says what went in.
+    const untold = signal !== null && signal.input === null && frame.hasMeter('load')
+    drawDrive(frame, RE_AMP, load, 0, untold ? load / reAmpGain(frame) : null)
   },
-  handles: (view) => reAmpHandles(view),
+  handles: reAmpHandles,
 })
 
 export const DRIVE_FACES: Readonly<Record<string, PlateFace>> = {
   saturator: {
     display: saturator,
     face: ['curve', 'driveDb', 'toneDb', 'mix'],
+    // Behind the plate's +n cell, where the parameter's own name is cut.
+    labels: { oversample: 'Oversample' },
   },
   'analog-drive': {
     display: analogDrive,
