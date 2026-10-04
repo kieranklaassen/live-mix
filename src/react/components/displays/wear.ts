@@ -4,6 +4,11 @@
 // the medium adds (its noise floor, its ticks, its dropouts) is in the second
 // colour, at its real level on the spectrum's own scale; what it does to the
 // pitch is a trace of the last seconds; what it does to the wave is the wave.
+//
+// Many of these stand open at once while music plays, so a frame makes
+// nothing: curves are worked out again only when a control moves, and lines
+// are drawn from points kept between frames (`Path`), not from arrays made
+// for the kit's `trace`.
 
 import {
   History,
@@ -11,28 +16,21 @@ import {
   biquad,
   biquadDb,
   clamp,
-  clipped,
+  crisp,
   dbOfY,
-  dot,
-  fillRect,
-  fillTo,
-  freqGrid,
   gainToDb,
   ground,
   handle,
   hzOfX,
   hzText,
-  rule,
-  spectrum,
   text,
-  trace,
   trackPhase,
   xOfHz,
   yOfDb,
   type Biquad,
   type Box,
   type PhaseTrack,
-  type Point,
+  type TextStyle,
 } from '../display-kit'
 import {
   plateDisplay,
@@ -152,76 +150,73 @@ const chainDb = (filters: readonly Biquad[], hz: number, sampleRate: number): nu
 /** Butterworth section Qs for four poles, as the devices write them. */
 const BUTTER4 = [0.5412, 1.3066] as const
 
-// --- Curves kept between frames ---------------------------------------------
+// --- Drawing that makes nothing ----------------------------------------------
 
-/**
- * A curve across a box, one value in dB for every second pixel, worked out
- * again only when what it was made from changes; the points it is drawn
- * through are kept too, so a frame makes no arrays.
- */
-interface Curve {
-  made: string
-  db: Float32Array
-  points: [number, number][]
+type Ctx = CanvasRenderingContext2D
+
+/** The points of a line, kept between frames: x and y side by side, `n` of them in use. */
+interface Path {
+  x: Float64Array
+  y: Float64Array
+  n: number
 }
 
-const newCurve = (): Curve => ({ made: '', db: new Float32Array(0), points: [] })
+const newPath = (room = 0): Path => ({
+  x: new Float64Array(room),
+  y: new Float64Array(room),
+  n: 0,
+})
 
-/** How many values a curve across `box` has. */
-const curveLength = (box: Box): number => Math.max(2, Math.floor(box.w / 2) + 1)
-
-function makeCurve(
-  curve: Curve,
-  made: string,
-  box: Box,
-  db: (hz: number, index: number) => number,
-  minHz?: number,
-  maxHz?: number,
-): void {
-  const key = `${made}|${box.x},${box.w}`
-  if (key === curve.made) return
-  curve.made = key
-  const length = curveLength(box)
-  if (curve.db.length !== length) {
-    curve.db = new Float32Array(length)
-    curve.points = Array.from({ length }, (): [number, number] => [0, 0])
+/** Make room in a path for `n` points and say that many are in use. */
+function sized(path: Path, n: number): Path {
+  if (path.x.length < n) {
+    path.x = new Float64Array(n)
+    path.y = new Float64Array(n)
   }
-  for (let i = 0; i < length; i++) {
-    const value = db(hzOfX(box.x + Math.min(box.w, i * 2), box, minHz, maxHz), i)
-    curve.db[i] = Number.isFinite(value) ? value : SILENT_DB
-  }
+  path.n = n
+  return path
 }
 
-/** A curve's points in a box on a scale of dB, moved by `shiftDb`; they stay within a few pixels of the box. */
-function curvePoints(
-  curve: Curve,
-  box: Box,
-  topDb: number,
-  footDb: number,
-  shiftDb = 0,
-): readonly Point[] {
-  const length = curve.points.length
-  for (let i = 0; i < length; i++) {
-    const point = curve.points[i]
-    point[0] = box.x + Math.min(box.w, i * 2)
-    point[1] = clamp(yOfDb(curve.db[i] + shiftDb, box, topDb, footDb), box.y - 4, box.y + box.h + 4)
-  }
-  return curve.points
-}
+// One array for each kind of line, handed to the canvas as it is.
+const SOLID: number[] = []
+const DASHED: number[] = [2, 2]
+const DOTTED: number[] = [1, 3]
 
-/** The area between two curves over the same columns; unlike the kit's, the points are read where they lie and nothing is made. */
-function fillBetweenCurves(
-  ctx: CanvasRenderingContext2D,
-  one: readonly Point[],
-  other: readonly Point[],
+/** A line through a path's points, or through those from `from` to `to`; the kit's `trace` without its arrays. */
+function strokePath(
+  ctx: Ctx,
+  path: Path,
   colour: string,
-  alpha: number,
+  width = 1.5,
+  alpha = 1,
+  dash: number[] = SOLID,
+  from = 0,
+  to = path.n - 1,
 ): void {
-  if (one.length < 2 || other.length < 2) return
+  if (to - from < 1) return
   ctx.beginPath()
-  ctx.moveTo(one[0][0], one[0][1])
-  for (let i = 1; i < one.length; i++) ctx.lineTo(one[i][0], one[i][1])
-  for (let i = other.length - 1; i >= 0; i--) ctx.lineTo(other[i][0], other[i][1])
+  ctx.moveTo(path.x[from], path.y[from])
+  for (let i = from + 1; i <= to; i++) ctx.lineTo(path.x[i], path.y[i])
+  ctx.globalAlpha = alpha
+  ctx.strokeStyle = colour
+  ctx.lineWidth = width
+  ctx.lineJoin = 'round'
+  ctx.lineCap = 'round'
+  if (dash !== SOLID) ctx.setLineDash(dash)
+  ctx.stroke()
+  if (dash !== SOLID) ctx.setLineDash(SOLID)
+  ctx.globalAlpha = 1
+}
+
+/** The area between a path and the level `toY`. */
+function fillUnder(ctx: Ctx, path: Path, toY: number, colour: string, alpha: number): void {
+  const n = path.n
+  if (n < 2) return
+  ctx.beginPath()
+  ctx.moveTo(path.x[0], path.y[0])
+  for (let i = 1; i < n; i++) ctx.lineTo(path.x[i], path.y[i])
+  ctx.lineTo(path.x[n - 1], toY)
+  ctx.lineTo(path.x[0], toY)
   ctx.closePath()
   ctx.globalAlpha = alpha
   ctx.fillStyle = colour
@@ -229,11 +224,223 @@ function fillBetweenCurves(
   ctx.globalAlpha = 1
 }
 
-/** The highest value of a curve and where it is, as a share of the way across. */
-function curvePeak(curve: Curve): { db: number; at: number } {
+/** The area between two paths over the same columns. */
+function fillBetween(ctx: Ctx, one: Path, other: Path, colour: string, alpha: number): void {
+  if (one.n < 2 || other.n < 2) return
+  ctx.beginPath()
+  ctx.moveTo(one.x[0], one.y[0])
+  for (let i = 1; i < one.n; i++) ctx.lineTo(one.x[i], one.y[i])
+  for (let i = other.n - 1; i >= 0; i--) ctx.lineTo(other.x[i], other.y[i])
+  ctx.closePath()
+  ctx.globalAlpha = alpha
+  ctx.fillStyle = colour
+  ctx.fill()
+  ctx.globalAlpha = 1
+}
+
+/** A straight line, one pixel wide unless told, sharp when level or upright: the kit's `rule`. */
+function line(
+  ctx: Ctx,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  colour: string,
+  alpha = 1,
+  width = 1,
+  dash: number[] = SOLID,
+): void {
+  const level = y1 === y2 && width === 1
+  const upright = x1 === x2 && width === 1
+  ctx.beginPath()
+  ctx.moveTo(upright ? crisp(x1) : x1, level ? crisp(y1) : y1)
+  ctx.lineTo(upright ? crisp(x2) : x2, level ? crisp(y2) : y2)
+  ctx.globalAlpha = alpha
+  ctx.strokeStyle = colour
+  ctx.lineWidth = width
+  ctx.lineJoin = 'round'
+  ctx.lineCap = 'round'
+  if (dash !== SOLID) ctx.setLineDash(dash)
+  ctx.stroke()
+  if (dash !== SOLID) ctx.setLineDash(SOLID)
+  ctx.globalAlpha = 1
+}
+
+/** A filled rectangle. */
+function bar(
+  ctx: Ctx,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  colour: string,
+  alpha = 1,
+): void {
+  if (w <= 0 || h <= 0) return
+  ctx.globalAlpha = alpha
+  ctx.fillStyle = colour
+  ctx.fillRect(x, y, w, h)
+  ctx.globalAlpha = 1
+}
+
+/** A filled dot; with `ring`, a line of that colour around it so it stands off a trace. */
+function spot(ctx: Ctx, x: number, y: number, radius: number, colour: string, ring = ''): void {
+  ctx.beginPath()
+  ctx.arc(x, y, radius, 0, Math.PI * 2)
+  ctx.fillStyle = colour
+  ctx.fill()
+  if (ring) {
+    ctx.strokeStyle = ring
+    ctx.lineWidth = 1
+    ctx.stroke()
+  }
+}
+
+/** Keep what is drawn from here inside a rectangle, until `ctx.restore()`. */
+function clipTo(ctx: Ctx, x: number, y: number, w: number, h: number): void {
+  ctx.save()
+  ctx.beginPath()
+  ctx.rect(x, y, w, h)
+  ctx.clip()
+}
+
+const HOT = { hot: true } as const
+const COLD = { hot: false } as const
+/** A handle as the kit draws it. */
+const knob = (frame: Paint, x: number, y: number, hot: boolean): void =>
+  handle(frame, x, y, hot ? HOT : COLD)
+
+const LEFT: TextStyle = {}
+const RIGHT: TextStyle = { align: 'right' }
+
+const GRID_HZ = [100, 1000, 10000]
+const GRID_FINE_HZ = [50, 200, 500, 2000, 5000]
+
+/** Upright lines at 100 Hz, 1 kHz and 10 kHz, and fainter ones between where there is room: the kit's `freqGrid`. */
+function grid(frame: Paint, box: Box): void {
+  const { ctx, colours } = frame
+  const foot = box.y + box.h
+  for (const hz of GRID_HZ) {
+    const x = xOfHz(hz, box)
+    line(ctx, x, box.y, x, foot, colours.ink, INK.grid)
+  }
+  if (box.w < 150) return
+  for (const hz of GRID_FINE_HZ) {
+    const x = xOfHz(hz, box)
+    line(ctx, x, box.y, x, foot, colours.ink, INK.grid * 0.55)
+  }
+}
+
+// --- What is kept between frames ---------------------------------------------
+
+/** The numbers something was made from; nothing has been made from a new one. */
+const newKey = (): Float64Array => new Float64Array(12).fill(NaN)
+
+/**
+ * Whether any of up to twelve numbers differs from the ones seen last, which
+ * it then takes their place: what a curve is made from, so it is made again
+ * only when one of them moves.
+ */
+function stale(
+  seen: Float64Array,
+  a: number,
+  b = 0,
+  c = 0,
+  d = 0,
+  e = 0,
+  f = 0,
+  g = 0,
+  h = 0,
+  i = 0,
+  j = 0,
+  k = 0,
+  l = 0,
+): boolean {
+  if (
+    seen[0] === a &&
+    seen[1] === b &&
+    seen[2] === c &&
+    seen[3] === d &&
+    seen[4] === e &&
+    seen[5] === f &&
+    seen[6] === g &&
+    seen[7] === h &&
+    seen[8] === i &&
+    seen[9] === j &&
+    seen[10] === k &&
+    seen[11] === l
+  )
+    return false
+  seen[0] = a
+  seen[1] = b
+  seen[2] = c
+  seen[3] = d
+  seen[4] = e
+  seen[5] = f
+  seen[6] = g
+  seen[7] = h
+  seen[8] = i
+  seen[9] = j
+  seen[10] = k
+  seen[11] = l
+  return true
+}
+
+/**
+ * A curve across a box, one value in dB for every second pixel, with its
+ * highest value and where that is (a share of the way across), and the
+ * points it is drawn through.
+ */
+interface Curve {
+  db: Float32Array
+  peakDb: number
+  peakAt: number
+  path: Path
+}
+
+const newCurve = (): Curve => ({
+  db: new Float32Array(0),
+  peakDb: SILENT_DB,
+  peakAt: 0,
+  path: newPath(),
+})
+
+/** How many values a curve across `box` has. */
+const curveLength = (box: Box): number => Math.max(2, Math.floor(box.w / 2) + 1)
+
+/** Work a curve out: `db` at the frequency of each of its columns. */
+function fillCurve(
+  curve: Curve,
+  box: Box,
+  db: (hz: number, index: number) => number,
+  minHz?: number,
+  maxHz?: number,
+): Curve {
+  const length = curveLength(box)
+  if (curve.db.length !== length) curve.db = new Float32Array(length)
   let best = 0
-  for (let i = 1; i < curve.db.length; i++) if (curve.db[i] > curve.db[best]) best = i
-  return { db: curve.db[best] ?? SILENT_DB, at: best / Math.max(1, curve.db.length - 1) }
+  for (let i = 0; i < length; i++) {
+    const value = db(hzOfX(box.x + Math.min(box.w, i * 2), box, minHz, maxHz), i)
+    curve.db[i] = Number.isFinite(value) ? value : SILENT_DB
+    if (curve.db[i] > curve.db[best]) best = i
+  }
+  curve.peakDb = curve.db[best]
+  curve.peakAt = best / Math.max(1, length - 1)
+  return curve
+}
+
+/** A curve's points in a box on a scale of dB, moved by `shiftDb`; they stay within a few pixels of the box. They are the curve's own and hold until it is asked again. */
+function curvePath(curve: Curve, box: Box, topDb: number, footDb: number, shiftDb = 0): Path {
+  const length = curve.db.length
+  const path = sized(curve.path, length)
+  const low = box.y - 4
+  const high = box.y + box.h + 4
+  const scale = box.h / (topDb - footDb)
+  for (let i = 0; i < length; i++) {
+    path.x[i] = box.x + Math.min(box.w, i * 2)
+    path.y[i] = clamp(box.y + (topDb - curve.db[i] - shiftDb) * scale, low, high)
+  }
+  return path
 }
 
 // --- The parts the family shares --------------------------------------------
@@ -249,73 +456,182 @@ function drawFloor(frame: Paint, box: Box, curve: Curve, live: number | null, se
   const foot = box.y + box.h
   if (setDb <= SILENT_DB / 2) return
   if (live !== null && live > 1e-3) {
-    const points = curvePoints(curve, box, TOP_DB, FOOT_DB, setDb + db20(live))
-    fillTo(ctx, points, foot + 4, colours.accent, 0.45)
-    trace(ctx, points, { colour: colours.accent, width: 1.25 })
-    if (Math.abs(db20(live)) < 0.5) return
+    const liveDb = db20(live)
+    const path = curvePath(curve, box, TOP_DB, FOOT_DB, setDb + liveDb)
+    fillUnder(ctx, path, foot + 4, colours.accent, 0.45)
+    strokePath(ctx, path, colours.accent, 1.25)
+    if (Math.abs(liveDb) < 0.5) return
   }
-  trace(ctx, curvePoints(curve, box, TOP_DB, FOOT_DB, setDb), {
-    colour: colours.accent,
-    width: 1,
-    alpha: live === null ? 1 : INK.back,
-    dash: [2, 2],
-  })
+  strokePath(
+    ctx,
+    curvePath(curve, box, TOP_DB, FOOT_DB, setDb),
+    colours.accent,
+    1,
+    live === null ? 1 : INK.back,
+    DASHED,
+  )
 }
 
-/** A steady tone the medium adds (a hum's harmonic, an idle tone): a line from the foot up to its level. */
-function drawTone(frame: Paint, box: Box, hz: number, db: number, alpha = 1): void {
-  if (hz <= 20 || hz >= 20000 || db <= FOOT_DB) return
-  const x = xOfHz(hz, box)
-  rule(frame.ctx, x, box.y + box.h, x, Math.max(box.y, yOfDb(db, box, TOP_DB, FOOT_DB)), {
-    colour: frame.colours.accent,
-    alpha,
-  })
+/** A steady tone the medium adds (a hum's harmonic, an idle tone): a line at `x` from the foot up to its level. */
+function drawTone(frame: Paint, box: Box, x: number, db: number, alpha = 1): void {
+  if (db <= FOOT_DB) return
+  const y = Math.max(box.y, yOfDb(db, box, TOP_DB, FOOT_DB))
+  line(frame.ctx, x, box.y + box.h, x, y, frame.colours.accent, alpha)
 }
 
 /**
- * A row of harmonics the medium adds (mains hum): each a line where there is
- * room for lines, and where they crowd, the band they fill. `amps` holds
- * harmonic 1 first; `baseDb` is the level of an amplitude of 1.
+ * A row of harmonics the medium adds (mains hum), as it is kept: where each
+ * stands across the box, its level and the level of the band's edge over it
+ * (the stronger of it and its neighbours) in dB against an amplitude of 1,
+ * and from which harmonic on they stand too close for lines.
  */
-function drawComb(
-  frame: Paint,
-  box: Box,
-  keep: [number, number][],
-  amps: readonly number[],
-  baseHz: number,
-  baseDb: number,
-  alpha = 1,
-): void {
-  const foot = box.y + box.h
-  let crowded = amps.length
-  for (let n = 1; n < amps.length; n++) {
-    if (xOfHz(baseHz * (n + 1), box) - xOfHz(baseHz * n, box) < 3) {
-      crowded = n
+interface Comb {
+  x: Float64Array
+  db: Float32Array
+  edgeDb: Float32Array
+  count: number
+  crowded: number
+  path: Path
+}
+
+const newComb = (): Comb => ({
+  x: new Float64Array(0),
+  db: new Float32Array(0),
+  edgeDb: new Float32Array(0),
+  count: 0,
+  crowded: 0,
+  path: newPath(),
+})
+
+/** Lay a comb out: `amps` holds harmonic 1 of `baseHz` first. */
+function fillComb(comb: Comb, box: Box, amps: readonly number[], baseHz: number): void {
+  const count = amps.length
+  if (comb.x.length !== count) {
+    comb.x = new Float64Array(count)
+    comb.db = new Float32Array(count)
+    comb.edgeDb = new Float32Array(count)
+  }
+  comb.count = count
+  comb.crowded = count
+  for (let n = 0; n < count; n++) {
+    const hz = baseHz * (n + 1)
+    comb.x[n] = hz > 20 && hz < 20000 ? xOfHz(hz, box) : NaN
+    comb.db[n] = db20(amps[n])
+    // The band's edge runs over the stronger harmonics, not down into each weaker one between.
+    comb.edgeDb[n] = db20(Math.max(amps[n], amps[n - 1] ?? 0, amps[n + 1] ?? 0))
+  }
+  for (let n = 1; n < count; n++) {
+    if (comb.x[n] - comb.x[n - 1] < 3) {
+      comb.crowded = n
       break
     }
   }
-  for (let n = 0; n < crowded; n++)
-    drawTone(frame, box, baseHz * (n + 1), baseDb + db20(amps[n]), alpha)
+}
+
+/** Draw a comb: each harmonic a line where there is room for lines, and where they crowd, the band they fill. `baseDb` is the level of an amplitude of 1. */
+function drawComb(frame: Paint, box: Box, comb: Comb, baseDb: number, alpha = 1): void {
+  const foot = box.y + box.h
+  for (let n = 0; n < comb.crowded; n++)
+    if (!Number.isNaN(comb.x[n])) drawTone(frame, box, comb.x[n], baseDb + comb.db[n], alpha)
+  const path = sized(comb.path, comb.count)
   let count = 0
-  for (let n = crowded; n < amps.length; n++) {
-    const hz = baseHz * (n + 1)
-    // The band's edge runs over the stronger harmonics, not down into each weaker one between.
-    const db = baseDb + db20(Math.max(amps[n], amps[n - 1] ?? 0, amps[n + 1] ?? 0))
-    if (hz >= 20000 || db <= FOOT_DB) continue
-    keep[count] ??= [0, 0]
-    keep[count][0] = xOfHz(hz, box)
-    keep[count][1] = Math.max(box.y, yOfDb(db, box, TOP_DB, FOOT_DB))
+  for (let n = comb.crowded; n < comb.count; n++) {
+    const db = baseDb + comb.edgeDb[n]
+    if (Number.isNaN(comb.x[n]) || db <= FOOT_DB) continue
+    path.x[count] = comb.x[n]
+    path.y[count] = Math.max(box.y, yOfDb(db, box, TOP_DB, FOOT_DB))
     count += 1
   }
-  keep.length = count
+  path.n = count
   if (count < 2) return
-  fillTo(frame.ctx, keep, foot + 4, frame.colours.accent, 0.45 * alpha)
-  trace(frame.ctx, keep, { colour: frame.colours.accent, width: 1.25, alpha })
+  fillUnder(frame.ctx, path, foot + 4, frame.colours.accent, 0.45 * alpha)
+  strokePath(frame.ctx, path, frame.colours.accent, 1.25, alpha)
+}
+
+/**
+ * Which bins of the analyser fall in each column of a box, as the kit's
+ * `spectrum` reads them: one point per two pixels, the loudest bin in the
+ * column, and low down, where a bin is wider than a column, a reading
+ * between two bins. Worked out once for a box and a spectrum, not for every
+ * frame.
+ */
+interface Columns {
+  made: Float64Array
+  first: Int32Array
+  last: Int32Array
+  /** Where between two bins a narrow column reads; −1 where it takes the loudest of several. */
+  between: Float32Array
+  path: Path
+}
+
+const newColumns = (): Columns => ({
+  made: newKey(),
+  first: new Int32Array(0),
+  last: new Int32Array(0),
+  between: new Float32Array(0),
+  path: newPath(),
+})
+
+/**
+ * The spectrum of what comes out as points across a box, on the family's
+ * scale; false when there is none or it is all under the foot.
+ */
+function spectrumPath(frame: Pick<DisplayFrame, 'signal'>, box: Box, columns: Columns): boolean {
+  const bins = frame.signal?.spectrum
+  const binHz = frame.signal?.binHz ?? 0
+  if (!bins || binHz <= 0) return false
+  const count = Math.max(2, Math.floor(box.w / 2))
+  if (stale(columns.made, box.x, box.w, binHz, bins.length)) {
+    if (columns.first.length !== count + 1) {
+      columns.first = new Int32Array(count + 1)
+      columns.last = new Int32Array(count + 1)
+      columns.between = new Float32Array(count + 1)
+    }
+    const top = bins.length - 1
+    for (let c = 0; c <= count; c++) {
+      const from = hzOfX(box.x + ((c - 0.5) / count) * box.w, box)
+      const to = hzOfX(box.x + ((c + 0.5) / count) * box.w, box)
+      if (to - from < binHz) {
+        columns.between[c] = clamp((from + to) / 2 / binHz, 1, top)
+        columns.first[c] = columns.last[c] = 0
+      } else {
+        columns.between[c] = -1
+        columns.first[c] = clamp(Math.ceil(from / binHz), 1, top)
+        columns.last[c] = clamp(Math.floor(to / binHz), columns.first[c], top)
+      }
+    }
+  }
+  const path = sized(columns.path, count + 1)
+  const foot = box.y + box.h
+  const scale = box.h / (TOP_DB - FOOT_DB)
+  let any = false
+  for (let c = 0; c <= count; c++) {
+    let db = -Infinity
+    const at = columns.between[c]
+    if (at >= 0) {
+      const below = Math.floor(at)
+      const above = Math.min(bins.length - 1, below + 1)
+      db = bins[below] + (bins[above] - bins[below]) * (at - below)
+    } else {
+      const last = columns.last[c]
+      for (let i = columns.first[c]; i <= last; i++) if (bins[i] > db) db = bins[i]
+    }
+    if (!(db > FOOT_DB)) db = FOOT_DB
+    else any = true
+    path.x[c] = box.x + (c / count) * box.w
+    path.y[c] = clamp(box.y + (TOP_DB - db) * scale, box.y, foot)
+  }
+  return any
 }
 
 /** The spectrum of what comes out, behind everything: the sound itself, in the ink. */
-function drawSpectrum(frame: DisplayFrame, box: Box, minHz?: number, maxHz?: number): void {
-  spectrum(frame, box, { topDb: TOP_DB, bottomDb: FOOT_DB, alpha: 0.42, minHz, maxHz })
+function drawSpectrum(
+  frame: Paint & Pick<DisplayFrame, 'signal'>,
+  box: Box,
+  columns: Columns,
+): void {
+  if (spectrumPath(frame, box, columns))
+    fillUnder(frame.ctx, columns.path, box.y + box.h, frame.colours.ink, 0.42)
 }
 
 /**
@@ -360,38 +676,90 @@ export class Tally {
   }
 }
 
+// The device's counters wrap at 2^20.
+const COUNTER_WRAP = 1048576
+/** After a rest, readings are not news for this long: the first of them is still on its way (they come 30 times a second). */
+const COUNTER_SETTLE_SEC = 0.25
+/** Frames further apart than this were not one run of frames: the page was hidden between them. */
+const COUNTER_GAP_SEC = 0.5
+/** More than this in one frame is not a count of events: the device began again from nothing. */
+const COUNTER_MOST = 4096
+
 /**
- * How many more of something a device has counted since the last frame. The
- * device's counters wrap at 2^20, and the first reading only sets the mark.
+ * How many more of something a device has counted since the frame before:
+ * its ticks, its pops, its dropouts. A count is news only from one running
+ * frame to the next. While the display is off the screen its readings stop
+ * and read 0, and what the device counted meanwhile is not shown as a burst
+ * when it comes back: after a rest (`rest()`), a gap between frames, or the
+ * first frame of all, the readings only set the mark again for a quarter of
+ * a second.
  */
-function counted(before: number, reading: number): number {
-  if (before < 0) return 0
-  const more = reading - before
-  return more < 0 ? more + 1048576 : more
+export class Counter {
+  private seen = 0
+  private last = Number.NEGATIVE_INFINITY
+  private from = Number.POSITIVE_INFINITY
+  /** Whether the reading before this one could be counted from: false while the mark is being set again. */
+  steady = false
+
+  /** The display is not running: whatever is read next is not news. */
+  rest(): void {
+    this.from = Number.POSITIVE_INFINITY
+    this.steady = false
+  }
+
+  /** How many more there are in `reading`, taken at `now` (seconds). */
+  more(reading: number, now: number): number {
+    const gap = now - this.last
+    this.last = now
+    if (this.from === Number.POSITIVE_INFINITY || gap > COUNTER_GAP_SEC || gap < 0)
+      this.from = now + COUNTER_SETTLE_SEC
+    let more = reading - this.seen
+    this.seen = reading
+    this.steady = now >= this.from
+    if (!this.steady) return 0
+    if (more < 0) more += COUNTER_WRAP
+    return more <= COUNTER_MOST ? more : 0
+  }
 }
 
+/** A window in two: the band across frequency above, the last seconds in a strip under it. */
 interface TwoBoxes {
   band: Box
   past: Box
 }
 
-/** A window in two: the band across frequency above, the last seconds in a strip under it. */
-function twoBoxes(view: Size, stripHeight = 26): TwoBoxes {
-  const all: Box = { x: 4, y: 4, w: view.width - 8, h: view.height - 8 }
-  const strip = Math.min(stripHeight, Math.round(all.h * 0.45))
-  return {
-    band: { ...all, h: all.h - strip - 4 },
-    past: { ...all, y: all.y + all.h - strip, h: strip },
-  }
+interface Layout extends TwoBoxes {
+  made: Float64Array
 }
+
+const newLayout = (): Layout => ({
+  made: newKey(),
+  band: { x: 0, y: 0, w: 0, h: 0 },
+  past: { x: 0, y: 0, w: 0, h: 0 },
+})
+
+/** The two boxes of a window of a size, worked out again only when the size changes. */
+function layout(kept: Layout, view: Size, stripHeight = 26): Layout {
+  if (!stale(kept.made, view.width, view.height, stripHeight)) return kept
+  const w = view.width - 8
+  const h = view.height - 8
+  const strip = Math.min(stripHeight, Math.round(h * 0.45))
+  kept.band.x = kept.past.x = 4
+  kept.band.w = kept.past.w = w
+  kept.band.y = 4
+  kept.band.h = h - strip - 4
+  kept.past.y = 4 + h - strip
+  kept.past.h = strip
+  return kept
+}
+
+/** The same for a handle asked for outside a frame, where nothing is kept. */
+const twoBoxes = (view: Size, stripHeight = 26): TwoBoxes => layout(newLayout(), view, stripHeight)
 
 /** The line between the two parts of a window. */
 function divide(frame: Paint, boxes: TwoBoxes): void {
   const y = boxes.past.y - 2
-  rule(frame.ctx, 1, y, boxes.band.x + boxes.band.w + 3, y, {
-    colour: frame.colours.ink,
-    alpha: INK.grid,
-  })
+  line(frame.ctx, 1, y, boxes.band.x + boxes.band.w + 3, y, frame.colours.ink, INK.grid)
 }
 
 // --- The medium's curve -----------------------------------------------------
@@ -403,19 +771,28 @@ const CURVE_FOOT_DB = -36
 /** The line where the medium leaves a frequency as it was. */
 function drawUnchanged(frame: Paint, box: Box): void {
   const y = yOfDb(0, box, CURVE_TOP_DB, CURVE_FOOT_DB)
-  rule(frame.ctx, box.x, y, box.x + box.w, y, { colour: frame.colours.ink, alpha: INK.grid })
+  line(frame.ctx, box.x, y, box.x + box.w, y, frame.colours.ink, INK.grid)
 }
 
 /** The medium's response: a line in the ink, the main thing read. */
 function drawResponse(frame: Paint, box: Box, curve: Curve): void {
-  trace(frame.ctx, curvePoints(curve, box, CURVE_TOP_DB, CURVE_FOOT_DB), {
-    colour: frame.colours.ink,
-  })
+  strokePath(frame.ctx, curvePath(curve, box, CURVE_TOP_DB, CURVE_FOOT_DB), frame.colours.ink)
 }
 
-/** Leave a handle's parameter alone when it is taken and not moved, however its place was clamped. */
-const moved = (x: number, y: number, standing: { x: number; y: number }): boolean =>
-  Math.abs(x - standing.x) > 0.5 || Math.abs(y - standing.y) > 0.5
+/**
+ * Where a hand takes a handle along the one way it goes, from `low` to `high`
+ * on the picture, or NaN where the hand leaves it be: within half a pixel of
+ * where it stands (a press that takes it moves nothing, however its place was
+ * clamped), and past an end it already stands at (what it stands for lies
+ * further out than the picture goes, and stays there). The other way is not
+ * looked at: a hand that drifts across a handle that goes up and down moves
+ * nothing.
+ */
+function handTo(hand: number, standing: number, low: number, high: number): number {
+  if (hand < low) return standing <= low + 1e-6 ? Number.NaN : low
+  if (hand > high) return standing >= high - 1e-6 ? Number.NaN : high
+  return Math.abs(hand - standing) > 0.5 ? hand : Number.NaN
+}
 
 /**
  * What a control from 0 to 1 that is raised to a power does to a level, in
@@ -423,6 +800,17 @@ const moved = (x: number, y: number, standing: { x: number; y: number }): boolea
  */
 const amountDb = (amount: number, perTenfold = 40): number =>
   amount > 1e-4 ? perTenfold * Math.log10(amount) : SILENT_DB
+
+/** Where the handle of a noise floor stands for such a control: across, on the floor's highest point. */
+const floorHandleX = (band: Box, full: Curve): number =>
+  clamp(band.x + full.peakAt * band.w, band.x + 4, band.x + band.w - 4)
+/** And up: the floor's highest point with the control at 1, moved by what the control does to the level. */
+const floorHandleY = (band: Box, full: Curve, amount: number, perTenfold = 40): number =>
+  clamp(
+    yOfDb(full.peakDb + amountDb(amount, perTenfold), band, TOP_DB, FOOT_DB),
+    band.y,
+    band.y + band.h,
+  )
 
 /**
  * A handle on the highest point of a noise floor, for such a control. The
@@ -436,41 +824,30 @@ function floorHandle(
   name: string,
   perTenfold = 40,
 ): DisplayHandle {
-  const peak = curvePeak(full)
+  const peakDb = full.peakDb
   const foot = band.y + band.h
   const point: DisplayHandle = {
     key: param,
     name,
-    x: clamp(band.x + peak.at * band.w, band.x + 4, band.x + band.w - 4),
-    y: clamp(
-      yOfDb(peak.db + amountDb(view.value(param), perTenfold), band, TOP_DB, FOOT_DB),
-      band.y,
-      foot,
-    ),
-    drag: (x, y) => ({
-      [param]: moved(x, y, point)
-        ? y >= foot - 0.5
-          ? 0
-          : clamp(
-              Math.pow(
-                10,
-                (dbOfY(Math.max(y, band.y), band, TOP_DB, FOOT_DB) - peak.db) / perTenfold,
-              ),
-              0,
-              1,
-            )
-        : view.value(param),
-    }),
+    x: floorHandleX(band, full),
+    y: floorHandleY(band, full, view.value(param), perTenfold),
+    drag: (_x, y) => {
+      // Under the picture there is none of it, wherever the handle stood.
+      if (y > foot) return { [param]: 0 }
+      const to = handTo(y, point.y, band.y, foot)
+      if (Number.isNaN(to)) return { [param]: view.value(param) }
+      if (to >= foot - 0.5) return { [param]: 0 }
+      return {
+        [param]: clamp(
+          Math.pow(10, (dbOfY(to, band, TOP_DB, FOOT_DB) - peakDb) / perTenfold),
+          0,
+          1,
+        ),
+      }
+    },
     reset: () => ({ [param]: view.spec(param)?.default ?? 0.25 }),
   }
   return point
-}
-
-/** A floor's curve for a handle asked for outside a frame, where none is kept. */
-function scratchCurve(band: Box, db: (hz: number) => number): Curve {
-  const curve = newCurve()
-  makeCurve(curve, 'handle', band, db)
-  return curve
 }
 
 // --- Pitch ------------------------------------------------------------------
@@ -501,7 +878,8 @@ interface PitchState {
   /** Dropouts as the device counted them, and how deep the deepest in each slot was. */
   drops: Tally
   dropDepth: History
-  dropped: number
+  dropped: Counter
+  path: Path
 }
 
 const newPitch = (seconds = PITCH_SEC, slots = PITCH_SLOTS): PitchState => ({
@@ -510,7 +888,8 @@ const newPitch = (seconds = PITCH_SEC, slots = PITCH_SLOTS): PitchState => ({
   wow: 0,
   drops: new Tally(seconds, slots),
   dropDepth: new History(seconds, slots, 0, 'max'),
-  dropped: -1,
+  dropped: new Counter(),
+  path: newPath(slots),
 })
 
 /**
@@ -545,65 +924,112 @@ function pushWobble(
   state.wow = wow
 }
 
+/**
+ * The transport is not turning (the device sleeps once its sound has gone,
+ * and its readings then stand where they stopped): true pitch, and nothing
+ * moves.
+ */
+function pushStill(state: PitchState, now: number): void {
+  state.pitch.push(now, 0)
+  state.wow = 0
+  state.flutter = null
+}
+
 /** Note the dropouts a device has counted since the last frame. */
 function pushDrops(state: PitchState, now: number, counter: number, depth: number): void {
-  const more = counted(state.dropped, counter)
+  const more = state.dropped.more(counter, now)
   state.drops.push(now, more)
   state.dropDepth.push(now, more > 0 ? depth : 0)
-  state.dropped = counter
+}
+
+const newBox = (): Box => ({ x: 0, y: 0, w: 0, h: 0 })
+
+/** Set a kept box. */
+function setBox(box: Box, x: number, y: number, w: number, h: number): Box {
+  box.x = x
+  box.y = y
+  box.w = w
+  box.h = h
+  return box
 }
 
 /** The part of a pitch strip the trace runs in: the number has the left end. */
-const pitchBox = (whole: Box): Box => ({
-  x: whole.x + PITCH_LABEL,
-  y: whole.y,
-  w: whole.w - PITCH_LABEL - 2,
-  h: whole.h,
-})
+const pitchBox = (kept: Box, whole: Box): Box =>
+  setBox(kept, whole.x + PITCH_LABEL, whole.y, whole.w - PITCH_LABEL - 2, whole.h)
 
-/** The furthest the settings let the pitch go, as a number at the left end of a strip. */
-function drawReach(frame: DisplayFrame, whole: Box, reach: number): void {
-  text(frame, reachText(reach), whole.x, whole.y + whole.h / 2 + 3)
+/** A number said once and kept until it changes: the words at the left end of a strip. */
+interface Said {
+  value: number
+  words: string
+}
+const newSaid = (): Said => ({ value: NaN, words: '' })
+
+/** A pitch deviation as it is said: "±0.25%". */
+const reachText = (percent: number): string =>
+  `±${percent >= 0.995 ? percent.toFixed(1) : percent.toFixed(2)}%`
+
+function drawReach(frame: DisplayFrame, said: Said, x: number, y: number, reach: number): void {
+  if (said.value !== reach) {
+    said.value = reach
+    said.words = reachText(reach)
+  }
+  text(frame, said.words, x, y, LEFT)
 }
 
 /** The ground of a pitch trace: true pitch along the middle, and the furthest the settings let it go as two dashed lines. */
 function drawPitchLines(frame: Paint, box: Box, reach: number): void {
   const { ctx, colours } = frame
   const middle = box.y + box.h / 2
-  rule(ctx, box.x, middle, box.x + box.w, middle, { colour: colours.ink, alpha: INK.grid })
+  line(ctx, box.x, middle, box.x + box.w, middle, colours.ink, INK.grid)
   if (reach <= 0.004) return
-  for (const side of [1, -1]) {
-    const y = pitchY(side * reach, box)
-    rule(ctx, box.x, y, box.x + box.w, y, { colour: colours.ink, alpha: INK.rule, dash: [1, 3] })
+  const over = pitchY(reach, box)
+  const under = pitchY(-reach, box)
+  line(ctx, box.x, over, box.x + box.w, over, colours.ink, INK.rule, 1, DOTTED)
+  line(ctx, box.x, under, box.x + box.w, under, colours.ink, INK.rule, 1, DOTTED)
+}
+
+/** A history as points across a box, oldest at the left and now at the right edge: a pitch on the strip's scale. */
+function pitchPath(path: Path, box: Box, past: History): Path {
+  const slots = past.slots
+  sized(path, slots)
+  for (let i = 0; i < slots; i++) {
+    path.x[i] = box.x + (i / (slots - 1)) * box.w
+    path.y[i] = pitchY(past.at(slots - 1 - i), box)
   }
+  return path
+}
+
+/** The same for a level in dB, kept inside the scale. */
+function levelPath(path: Path, box: Box, past: History, topDb: number, footDb: number): Path {
+  const slots = past.slots
+  sized(path, slots)
+  for (let i = 0; i < slots; i++) {
+    path.x[i] = box.x + (i / (slots - 1)) * box.w
+    path.y[i] = yOfDb(clamp(past.at(slots - 1 - i), footDb, topDb), box, topDb, footDb)
+  }
+  return path
 }
 
 /** A trace of the last seconds, running to the left of now at the right edge, with a dot on now. */
-function drawPast(frame: Paint, box: Box, past: History, y: (value: number) => number): void {
+function drawPast(frame: Paint, box: Box, path: Path): void {
   const { ctx, colours } = frame
-  clipped(ctx, { x: box.x, y: box.y - 1, w: box.w + 3, h: box.h + 2 }, () => {
-    const points = past.points(box, y)
-    trace(ctx, points, { colour: colours.ink, width: 1.25 })
-    const now = points[points.length - 1]
-    dot(ctx, now[0], now[1], 2, colours.accent, { ring: colours.ink })
-  })
+  clipTo(ctx, box.x, box.y - 1, box.w + 3, box.h + 2)
+  strokePath(ctx, path, colours.ink, 1.25)
+  const now = path.n - 1
+  if (now >= 0) spot(ctx, path.x[now], path.y[now], 2, colours.accent, colours.ink)
+  ctx.restore()
 }
 
 /** Dropouts where they fell: each hangs from the top of the strip, longer the deeper it was. */
 function drawDrops(frame: Paint, box: Box, state: PitchState): void {
-  for (let back = 0; back < state.drops.slots; back++) {
+  const slots = state.drops.slots
+  for (let back = 0; back < slots; back++) {
     if (state.drops.at(back) <= 0) continue
     const x = state.drops.x(back, box)
-    rule(frame.ctx, x, box.y, x, box.y + 2 + state.dropDepth.at(back) * (box.h * 0.5), {
-      colour: frame.colours.accent,
-      width: 1.5,
-    })
+    const length = 2 + state.dropDepth.at(back) * (box.h * 0.5)
+    line(frame.ctx, x, box.y, x, box.y + length, frame.colours.accent, 1, 1.5)
   }
 }
-
-/** A pitch deviation as it is said: "±0.25 %". */
-const reachText = (percent: number): string =>
-  `±${percent >= 0.995 ? percent.toFixed(1) : percent.toFixed(2)}%`
 
 // --- Tape -------------------------------------------------------------------
 
@@ -632,10 +1058,42 @@ function tapePlayback(view: DisplayView, sampleRate: number): Biquad[] {
   ]
 }
 
-/** What Tape does to a quiet tone at a frequency, in dB: the playback chain and Output. */
+/**
+ * What Tape's playback side does to a tone at a frequency, in dB: the
+ * playback chain and Output. A tone at the level the record stage's make-up
+ * holds (−12 dBFS) comes out with exactly this; `tapeKeptDb` says what a
+ * louder or a quieter one gets on top.
+ */
 export function tapeResponseDb(view: DisplayView, hz: number, sampleRate: number): number {
   return chainDb(tapePlayback(view, sampleRate), hz, sampleRate) + view.value('output')
 }
+
+/** How much `record()` boosts a frequency before its curve (and cuts it after): 1 + k above a pole at 3.5 kHz, at twice the rate. */
+function tapeEmphasis(age: number, hz: number, sampleRate: number): number {
+  const k = 2 + 1.5 * age
+  const alpha = 1 - Math.exp((-2 * Math.PI * 3500) / (2 * sampleRate))
+  const w = (2 * Math.PI * hz) / (2 * sampleRate)
+  const low = cdiv(cx(alpha), cx(1 - (1 - alpha) * Math.cos(w), (1 - alpha) * Math.sin(w)))
+  return Math.sqrt(power(cadd(cx(1 + k), cscale(low, -k))))
+}
+
+/** The gain of a tone that swings `swing` through the curve u / √(1 + u²) about a bias: the first term of what comes out, over what went in. */
+function tapeThrough(bias: number, swing: number): number {
+  if (swing <= 1e-4) return Math.pow(1 + bias * bias, -1.5)
+  let sum = 0
+  for (let i = 0; i < 16; i++) {
+    const sine = Math.sin((2 * Math.PI * (i + 0.5)) / 16)
+    const u = swing * sine + bias
+    sum += (u / Math.sqrt(1 + u * u)) * sine
+  }
+  return sum / 8 / swing
+}
+
+const tapeGain = (drive: number): number => Math.pow(2, 4 * drive - 1)
+const tapeBias = (drive: number): number => 0.05 + 0.25 * drive
+/** The make-up after the curve: a tone at −12 dBFS comes out as it went in. */
+const tapeMakeUp = (drive: number): number =>
+  Math.sqrt(1 + 0.0625 * tapeGain(drive) ** 2) * Math.pow(1 + tapeBias(drive) ** 2, 1.5)
 
 /**
  * What Tape's record stage leaves of a tone of amplitude `level` at `hz`,
@@ -651,28 +1109,15 @@ export function tapeKeptDb(
   hz: number,
   sampleRate: number,
 ): number {
-  const gain = Math.pow(2, 4 * drive - 1)
-  const bias = 0.05 + 0.25 * drive
-  const k = 2 + 1.5 * age
-  const alpha = 1 - Math.exp((-2 * Math.PI * 3500) / (2 * sampleRate))
-  const w = (2 * Math.PI * hz) / (2 * sampleRate)
-  const low = cdiv(cx(alpha), cx(1 - (1 - alpha) * Math.cos(w), (1 - alpha) * Math.sin(w)))
-  const emphasis = Math.sqrt(power(cadd(cx(1 + k), cscale(low, -k))))
-  const swing = level * gain * emphasis
-  const straight = Math.pow(1 + bias * bias, -1.5)
-  let through = straight
-  if (swing > 1e-4) {
-    let sum = 0
-    for (let i = 0; i < 16; i++) {
-      const sine = Math.sin((2 * Math.PI * (i + 0.5)) / 16)
-      const u = swing * sine + bias
-      sum += (u / Math.sqrt(1 + u * u)) * sine
-    }
-    through = sum / 8 / swing
-  }
-  // The make-up: a tone at −12 dBFS comes out as it went in.
-  const makeUp = Math.sqrt(1 + 0.0625 * gain * gain) / straight
-  return db20(through * makeUp)
+  const swing = level * tapeGain(drive) * tapeEmphasis(age, hz, sampleRate)
+  return db20(tapeThrough(tapeBias(drive), swing) * tapeMakeUp(drive))
+}
+
+/** Tape's hiss at Hiss 1 before the playback chain, as the spectrum shows it: white noise tilted up above 1.5 kHz. */
+function tapeHissRawDb(speed: number, hz: number, sampleRate: number, binHz: number): number {
+  const peak = 0.0229 * fromDb(TAPE_HISS_DB[speed])
+  const tilt = power(cadd(cx(1), cscale(onePole(hz, 1500, sampleRate), -0.7)))
+  return noiseBinDb(((peak * peak) / 3) * tilt * SIDES_APART, sampleRate, binHz)
 }
 
 /** Tape's hiss at Hiss 1 as the spectrum shows it: white noise tilted up above 1.5 kHz, through the playback chain. */
@@ -682,11 +1127,8 @@ export function tapeHissDb(
   sampleRate: number,
   binHz: number,
 ): number {
-  const peak = 0.0229 * fromDb(TAPE_HISS_DB[tapeSpeed(view)])
-  const tilt = power(cadd(cx(1), cscale(onePole(hz, 1500, sampleRate), -0.7)))
   return (
-    noiseBinDb(((peak * peak) / 3) * tilt * SIDES_APART, sampleRate, binHz) +
-    tapeResponseDb(view, hz, sampleRate)
+    tapeHissRawDb(tapeSpeed(view), hz, sampleRate, binHz) + tapeResponseDb(view, hz, sampleRate)
   )
 }
 
@@ -696,16 +1138,44 @@ function tapeReach(view: DisplayView): number {
   return (0.8 * view.value('wow') + 0.3 * view.value('flutter')) * worn
 }
 
+/** The swings the record stage's gain is kept for between frames: 2^−10 to 2^6, eight to the octave. */
+const SWING_LOW = -10
+const SWING_STEPS = 8
+const SWING_COUNT = 16 * SWING_STEPS + 1
+
 interface TapeState {
+  boxes: Layout
+  strip: Box
+  made: Float64Array
+  columns: Columns
   response: Curve
   loud: Curve
   kept: Curve
   floor: Curve
+  /** Per column: the record stage's emphasis there. Per swing: what the curve leaves of a tone, with the make-up, in dB. */
+  emphasis: Float32Array
+  through: Float32Array
+  /** The level the kept curve was last made for, dB; NaN before the first. */
+  keptAt: number
+  /** Where the two handles stand: x and y of Tone, then of Hiss. */
+  spots: Float64Array
   transport: PitchState
+  reach: Said
   level: number
 }
 
-const TAPE_CURVE = ['speed', 'tone', 'age', 'bump', 'output'] as const
+/** A curve of a handle asked for outside a frame, where none is kept. */
+function tapeFloor(view: DisplayView, band: Box, sampleRate: number, binHz: number): Curve {
+  const playback = tapePlayback(view, sampleRate)
+  const speed = tapeSpeed(view)
+  const output = view.value('output')
+  return fillCurve(
+    newCurve(),
+    band,
+    (hz) =>
+      tapeHissRawDb(speed, hz, sampleRate, binHz) + chainDb(playback, hz, sampleRate) + output,
+  )
+}
 
 function tapeHandles(view: DisplayView, floor: Curve | null): DisplayHandle[] {
   const { band } = twoBoxes(view, 30)
@@ -722,17 +1192,24 @@ function tapeHandles(view: DisplayView, floor: Curve | null): DisplayHandle[] {
       band.y + band.h,
     ),
     // Across is where the top of the band ends: Tone moves it an octave either way.
-    drag: (x, y) => ({
-      tone: moved(x, y, tone)
-        ? clamp((Math.log2(hzOfX(x, band) / TAPE_BAND_HZ[speed]) + 1 + view.value('age')) / 2, 0, 1)
-        : view.value('tone'),
-    }),
+    drag: (x) => {
+      const to = handTo(x, tone.x, band.x, band.x + band.w)
+      return {
+        tone: Number.isNaN(to)
+          ? view.value('tone')
+          : clamp(
+              (Math.log2(hzOfX(to, band) / TAPE_BAND_HZ[speed]) + 1 + view.value('age')) / 2,
+              0,
+              1,
+            ),
+      }
+    },
     reset: () => ({ tone: view.spec('tone')?.default ?? 0.5 }),
   }
   const hiss = floorHandle(
     view,
     band,
-    floor ?? scratchCurve(band, (hz) => tapeHissDb(view, hz, sampleRate, sampleRate / TAP_BINS)),
+    floor ?? tapeFloor(view, band, sampleRate, sampleRate / TAP_BINS),
     'hiss',
     'Hiss',
   )
@@ -746,96 +1223,159 @@ const tape = plateDisplay<TapeState>({
   live: { meters: true, signal: true, spectrum: true },
   info: 'Above, what the tape does across frequency: its response as a line over the spectrum, dashed for a tone at full level, and its hiss in the second colour. Drag the points for Tone and Hiss. Below, the pitch over three seconds: wow bends it, flutter shakes it, and a dropout hangs from the top.',
   init: () => ({
+    boxes: newLayout(),
+    strip: newBox(),
+    made: newKey(),
+    columns: newColumns(),
     response: newCurve(),
     loud: newCurve(),
     kept: newCurve(),
     floor: newCurve(),
+    emphasis: new Float32Array(0),
+    through: new Float32Array(SWING_COUNT),
+    keptAt: NaN,
+    spots: new Float64Array(4),
     transport: newPitch(),
+    reach: newSaid(),
     level: 0,
   }),
   draw(frame) {
     const { ctx, colours, state } = frame
     ground(frame)
-    const boxes = twoBoxes(frame, 30)
+    const boxes = layout(state.boxes, frame, 30)
     const { band, past } = boxes
     const sr = frame.sampleRate
     const binHz = binHzOf(frame)
     const drive = frame.value('drive')
     const age = frame.value('age')
-    const settings = TAPE_CURVE.map((name) => frame.value(name).toFixed(3)).join(' ')
+    const hiss = frame.value('hiss')
     const running = frame.signal !== null && frame.hasMeter('flutter') && frame.dt > 0
 
-    makeCurve(state.response, settings, band, (hz) => tapeResponseDb(frame, hz, sr))
-    makeCurve(
-      state.loud,
-      `${settings} ${drive.toFixed(3)}`,
-      band,
-      (hz, i) => state.response.db[i] + tapeKeptDb(drive, age, 1, hz, sr),
-    )
-    makeCurve(state.floor, `${settings} ${binHz.toFixed(2)}`, band, (hz) =>
-      tapeHissDb(frame, hz, sr, binHz),
-    )
+    if (
+      stale(
+        state.made,
+        frame.value('speed'),
+        frame.value('tone'),
+        age,
+        frame.value('bump'),
+        frame.value('output'),
+        drive,
+        binHz,
+        sr,
+        frame.width,
+        frame.height,
+      )
+    ) {
+      // The curves and what they are made from, again only when a control has moved.
+      const playback = tapePlayback(frame, sr)
+      const speed = tapeSpeed(frame)
+      const output = frame.value('output')
+      const length = curveLength(band)
+      if (state.emphasis.length !== length) state.emphasis = new Float32Array(length)
+      const { response, emphasis, through } = state
+      fillCurve(response, band, (hz, i) => {
+        emphasis[i] = tapeEmphasis(age, hz, sr)
+        return chainDb(playback, hz, sr) + output
+      })
+      const gain = tapeGain(drive)
+      const bias = tapeBias(drive)
+      const makeUp = tapeMakeUp(drive)
+      for (let s = 0; s < SWING_COUNT; s++)
+        through[s] = db20(tapeThrough(bias, Math.pow(2, SWING_LOW + s / SWING_STEPS)) * makeUp)
+      fillCurve(
+        state.loud,
+        band,
+        (_hz, i) => response.db[i] + db20(tapeThrough(bias, gain * emphasis[i]) * makeUp),
+      )
+      fillCurve(state.floor, band, (hz, i) => tapeHissRawDb(speed, hz, sr, binHz) + response.db[i])
+      state.keptAt = NaN
+      const tone = tapeHandles(frame, state.floor)[0]
+      state.spots[0] = tone.x
+      state.spots[1] = tone.y
+      state.spots[2] = floorHandleX(band, state.floor)
+    }
+    state.spots[3] = floorHandleY(band, state.floor, hiss)
     // How loud the sound going in is now, held a moment so the eye can follow it.
     if (frame.signal) {
       const peak = (frame.signal.input ?? frame.signal.output).peak
       state.level = Math.max(peak, state.level * Math.exp(-frame.dt / 0.25))
     }
+    // The transport turns while the device is awake: its hiss is up from the first sound until a second after the last.
+    const awake = running && frame.meter('hiss') > 0
 
-    freqGrid(frame, band)
+    grid(frame, band)
     drawUnchanged(frame, band)
-    clipped(ctx, band, () => {
-      drawSpectrum(frame, band)
-      drawFloor(
-        frame,
-        band,
-        state.floor,
-        running ? frame.meter('hiss') : null,
-        amountDb(frame.value('hiss')),
-      )
-      const response = curvePoints(state.response, band, CURVE_TOP_DB, CURVE_FOOT_DB)
-      if (frame.signal && state.level > 0.003) {
-        // What the saturation is doing to the sound at the level it has now.
-        const level = Math.round(gainToDb(state.level) * 2) / 2
-        makeCurve(
-          state.kept,
-          `${settings} ${drive.toFixed(3)} ${level}`,
-          band,
-          (hz, i) => state.response.db[i] + tapeKeptDb(drive, age, fromDb(level), hz, sr),
-        )
-        const kept = curvePoints(state.kept, band, CURVE_TOP_DB, CURVE_FOOT_DB)
-        fillBetweenCurves(ctx, response, kept, colours.accent, 0.7)
+    clipTo(ctx, band.x, band.y, band.w, band.h)
+    drawSpectrum(frame, band, state.columns)
+    drawFloor(frame, band, state.floor, running ? frame.meter('hiss') : null, amountDb(hiss))
+    if (frame.signal && state.level > 0.003) {
+      // What the saturation is doing to the sound at the level it has now.
+      const level = Math.round(gainToDb(state.level) * 2) / 2
+      if (level !== state.keptAt) {
+        state.keptAt = level
+        const swing = Math.log2(fromDb(level) * tapeGain(drive))
+        const { kept, response, emphasis, through } = state
+        if (kept.db.length !== response.db.length) kept.db = new Float32Array(response.db.length)
+        for (let i = 0; i < kept.db.length; i++) {
+          const at = clamp(
+            (swing + Math.log2(emphasis[i]) - SWING_LOW) * SWING_STEPS,
+            0,
+            SWING_COUNT - 1.001,
+          )
+          const below = Math.floor(at)
+          kept.db[i] =
+            response.db[i] + through[below] + (through[below + 1] - through[below]) * (at - below)
+        }
       }
-      trace(ctx, curvePoints(state.loud, band, CURVE_TOP_DB, CURVE_FOOT_DB), {
-        colour: colours.ink,
-        width: 1,
-        alpha: INK.back,
-        dash: [2, 2],
-      })
-      drawResponse(frame, band, state.response)
-    })
-    const handles = tapeHandles(frame, state.floor)
-    for (const point of handles) handle(frame, point.x, point.y, { hot: frame.hot === point.key })
-    if (frame.hot === 'tone') text(frame, hzText(tapeCutoffHz(frame, sr)), band.x + 1, band.y + 8)
+      fillBetween(
+        ctx,
+        curvePath(state.response, band, CURVE_TOP_DB, CURVE_FOOT_DB),
+        curvePath(state.kept, band, CURVE_TOP_DB, CURVE_FOOT_DB),
+        colours.accent,
+        0.7,
+      )
+    }
+    strokePath(
+      ctx,
+      curvePath(state.loud, band, CURVE_TOP_DB, CURVE_FOOT_DB),
+      colours.ink,
+      1,
+      INK.back,
+      DASHED,
+    )
+    drawResponse(frame, band, state.response)
+    ctx.restore()
+    knob(frame, state.spots[0], state.spots[1], frame.hot === 'tone')
+    knob(frame, state.spots[2], state.spots[3], frame.hot === 'hiss')
+    if (frame.hot === 'tone')
+      text(frame, hzText(tapeCutoffHz(frame, sr)), band.x + 1, band.y + 8, LEFT)
 
     // Below: the transport.
     divide(frame, boxes)
-    if (running) {
+    const transport = state.transport
+    if (awake) {
       pushWobble(
-        state.transport,
+        transport,
         frame,
         frame.meter('wow'),
         frame.meter('flutter'),
         frame.meter('flutterDepth'),
         TAPE_FLUTTER_HZ[tapeSpeed(frame)],
       )
-      pushDrops(state.transport, frame.now, frame.meter('drops'), frame.meter('dropDepth'))
+      pushDrops(transport, frame.now, frame.meter('drops'), frame.meter('dropDepth'))
+    } else if (running) {
+      pushStill(transport, frame.now)
+      pushDrops(transport, frame.now, frame.meter('drops'), 0)
+    } else {
+      transport.dropped.rest()
     }
-    const strip = pitchBox(past)
-    drawReach(frame, past, tapeReach(frame))
-    drawPitchLines(frame, strip, tapeReach(frame))
+    const reach = tapeReach(frame)
+    drawReach(frame, state.reach, past.x, past.y + past.h / 2 + 3, reach)
+    const strip = pitchBox(state.strip, past)
+    drawPitchLines(frame, strip, reach)
     if (running) {
-      drawDrops(frame, strip, state.transport)
-      drawPast(frame, strip, state.transport.pitch, (percent) => pitchY(percent, strip))
+      drawDrops(frame, strip, transport)
+      drawPast(frame, strip, pitchPath(transport.path, strip, transport.pitch))
     }
   },
   handles: (view) => tapeHandles(view, null),
@@ -952,11 +1492,15 @@ function vinylHandles(view: DisplayView, floor: Curve | null): DisplayHandle[] {
       band.y + band.h,
     ),
     // Down wears the record: the top of the band goes where the pointer is.
-    drag: (x, y) => {
-      if (!moved(x, y, wear)) return { wear: view.value('wear') }
+    drag: (_x, y) => {
+      const to = handTo(y, wear.y, band.y, band.y + band.h)
+      if (Number.isNaN(to)) return { wear: view.value('wear') }
       const wanted =
-        dbOfY(clamp(y, band.y, band.y + band.h), band, CURVE_TOP_DB, CURVE_FOOT_DB) -
+        dbOfY(to, band, CURVE_TOP_DB, CURVE_FOOT_DB) -
         vinylColourDb(view, WEAR_HANDLE_HZ, sampleRate)
+      // Past either end of what Wear can do, the end itself.
+      if (wanted >= wearShelfDb(0, WEAR_HANDLE_HZ, sampleRate)) return { wear: 0 }
+      if (wanted <= wearShelfDb(1, WEAR_HANDLE_HZ, sampleRate)) return { wear: 1 }
       let low = 0
       let high = 1
       for (let i = 0; i < 16; i++) {
@@ -972,7 +1516,9 @@ function vinylHandles(view: DisplayView, floor: Curve | null): DisplayHandle[] {
     view,
     band,
     floor ??
-      scratchCurve(band, (hz) => vinylSurfaceDb(view, hz, sampleRate, sampleRate / TAP_BINS)),
+      fillCurve(newCurve(), band, (hz) =>
+        vinylSurfaceDb(view, hz, sampleRate, sampleRate / TAP_BINS),
+      ),
     'surface',
     'Surface',
   )
@@ -980,15 +1526,26 @@ function vinylHandles(view: DisplayView, floor: Curve | null): DisplayHandle[] {
 }
 
 interface VinylState {
+  boxes: Layout
+  strip: Box
+  made: Float64Array
+  columns: Columns
   response: Curve
   floor: Curve
+  /** Where the two handles stand: x and y of Wear, then of Surface. */
+  spots: Float64Array
+  /** The sizes the settings let a click be, as places on the strip: the dust, where a tick starts, the largest tick, the largest pop. */
+  sizesFor: Float64Array
+  sizes: Float64Array
   pitch: History
+  path: Path
+  reach: Said
   /** The largest tick in each slot (linear), pops and the starts of turns where they fell. */
   ticks: History
   popped: Tally
   turned: Tally
-  tickCount: number
-  popCount: number
+  tickCount: Counter
+  popCount: Counter
   turn: number
 }
 
@@ -1001,105 +1558,121 @@ const vinyl = plateDisplay<VinylState>({
   columns: 2,
   params: ['speed', 'warp', 'crackle', 'pops', 'surface', 'wear', 'tone'],
   live: { meters: true, signal: true, spectrum: true },
-  info: 'Above, what the record does across frequency: the worn top as a line over the spectrum, and the surface noise in the second colour. Drag the points for Wear and Surface. Below, three turns of the record: the pitch as the warp bends it, each tick of the crackle at its size, and pops as dots.',
+  info: 'Above, what the record does across frequency: the worn top as a line over the spectrum, and the surface noise in the second colour. Drag the points for Wear and Surface. Below, the last seconds: the pitch as the warp bends it, a line at each turn, each tick at its size, and a dot for each pop.',
   init: () => ({
+    boxes: newLayout(),
+    strip: newBox(),
+    made: newKey(),
+    columns: newColumns(),
     response: newCurve(),
     floor: newCurve(),
+    spots: new Float64Array(4),
+    sizesFor: newKey(),
+    sizes: new Float64Array(4),
     pitch: new History(VINYL_SEC, VINYL_SLOTS, 0),
+    path: newPath(VINYL_SLOTS),
+    reach: newSaid(),
     ticks: new History(VINYL_SEC, VINYL_SLOTS, 0, 'max'),
     popped: new Tally(VINYL_SEC, VINYL_SLOTS),
     turned: new Tally(VINYL_SEC, VINYL_SLOTS),
-    tickCount: -1,
-    popCount: -1,
+    tickCount: new Counter(),
+    popCount: new Counter(),
     turn: 0,
   }),
   draw(frame) {
     const { ctx, colours, state } = frame
     ground(frame)
-    const boxes = twoBoxes(frame, 36)
+    const boxes = layout(state.boxes, frame, 36)
     const { band, past } = boxes
     const sr = frame.sampleRate
     const binHz = binHzOf(frame)
+    const surface = frame.value('surface')
     const running = frame.signal !== null && frame.hasMeter('pitch') && frame.dt > 0
-    const colour = `${Math.round(frame.value('speed'))} ${frame.value('tone').toFixed(3)}`
 
-    makeCurve(state.response, `${colour} ${frame.value('wear').toFixed(3)}`, band, (hz) =>
-      vinylResponseDb(frame, hz, sr),
-    )
-    makeCurve(state.floor, `${colour} ${binHz.toFixed(2)}`, band, (hz) =>
-      vinylSurfaceDb(frame, hz, sr, binHz),
-    )
-    freqGrid(frame, band)
-    drawUnchanged(frame, band)
-    clipped(ctx, band, () => {
-      drawSpectrum(frame, band)
-      drawFloor(
-        frame,
-        band,
-        state.floor,
-        running ? frame.meter('noise') : null,
-        amountDb(frame.value('surface')),
+    if (
+      stale(
+        state.made,
+        Math.round(frame.value('speed')),
+        frame.value('tone'),
+        frame.value('wear'),
+        binHz,
+        sr,
+        frame.width,
+        frame.height,
       )
-      drawResponse(frame, band, state.response)
-    })
-    for (const point of vinylHandles(frame, state.floor))
-      handle(frame, point.x, point.y, { hot: frame.hot === point.key })
+    ) {
+      fillCurve(state.response, band, (hz) => vinylResponseDb(frame, hz, sr))
+      fillCurve(state.floor, band, (hz) => vinylSurfaceDb(frame, hz, sr, binHz))
+      const wear = vinylHandles(frame, state.floor)[0]
+      state.spots[0] = wear.x
+      state.spots[1] = wear.y
+      state.spots[2] = floorHandleX(band, state.floor)
+    }
+    state.spots[3] = floorHandleY(band, state.floor, surface)
+
+    grid(frame, band)
+    drawUnchanged(frame, band)
+    clipTo(ctx, band.x, band.y, band.w, band.h)
+    drawSpectrum(frame, band, state.columns)
+    drawFloor(frame, band, state.floor, running ? frame.meter('noise') : null, amountDb(surface))
+    drawResponse(frame, band, state.response)
+    ctx.restore()
+    knob(frame, state.spots[0], state.spots[1], frame.hot === 'wear')
+    knob(frame, state.spots[2], state.spots[3], frame.hot === 'surface')
 
     // Below: the record turning.
     divide(frame, boxes)
-    const strip = pitchBox(past)
+    const strip = pitchBox(state.strip, past)
     const foot = past.y + past.h
     const warp = frame.value('warp')
-    drawReach(frame, past, 3 * warp * warp)
+    drawReach(frame, state.reach, past.x, past.y + past.h / 2 + 3, 3 * warp * warp)
     drawPitchLines(frame, strip, 3 * warp * warp)
     // What the settings let a click be: the crackle from its dust to its largest tick, and the largest pop.
-    const sizes = crackleSizes(frame.value('crackle'))
-    const edge = strip.x - 3
-    if (frame.value('crackle') > 0) {
-      // Faint where it is an even bed of dust, full where a tick stands out of it.
-      const tick = Math.min(TICK_RATIO * sizes.floor, sizes.ceiling)
-      rule(ctx, edge, clickY(sizes.floor, past), edge, clickY(tick, past), {
-        colour: colours.accent,
-        width: 2,
-        alpha: 0.45,
-      })
-      if (sizes.ceiling > tick)
-        rule(ctx, edge, clickY(tick, past), edge, clickY(sizes.ceiling, past), {
-          colour: colours.accent,
-          width: 2,
-        })
-    }
+    const crackle = frame.value('crackle')
     const pops = frame.value('pops')
-    if (pops > 0) dot(ctx, edge, clickY(POP_CEILING * pops, past), 1.5, colours.accent)
-    if (!running) return
+    const { sizes } = state
+    if (stale(state.sizesFor, crackle, pops, past.y, past.h)) {
+      const { floor, ceiling } = crackleSizes(crackle)
+      sizes[0] = clickY(floor, past)
+      sizes[1] = clickY(Math.min(TICK_RATIO * floor, ceiling), past)
+      sizes[2] = clickY(ceiling, past)
+      sizes[3] = clickY(POP_CEILING * pops, past)
+    }
+    const edge = strip.x - 3
+    if (crackle > 0) {
+      // Faint where it is an even bed of dust, full where a tick stands out of it.
+      line(ctx, edge, sizes[0], edge, sizes[1], colours.accent, 0.45, 2)
+      if (sizes[2] < sizes[1]) line(ctx, edge, sizes[1], edge, sizes[2], colours.accent, 1, 2)
+    }
+    if (pops > 0) spot(ctx, edge, sizes[3], 1.5, colours.accent)
+    if (!running) {
+      state.tickCount.rest()
+      state.popCount.rest()
+      return
+    }
 
     const turn = frame.meter('turn')
-    const ticks = frame.meter('ticks')
-    const popCount = frame.meter('pops')
+    const ticked = state.tickCount.more(frame.meter('ticks'), frame.now)
+    const popped = state.popCount.more(frame.meter('pops'), frame.now)
     state.pitch.push(frame.now, frame.meter('pitch'))
-    state.ticks.push(frame.now, counted(state.tickCount, ticks) > 0 ? frame.meter('tickLevel') : 0)
-    state.popped.push(frame.now, counted(state.popCount, popCount))
-    state.turned.push(frame.now, turn < state.turn - 0.5 ? 1 : 0)
-    state.tickCount = ticks
-    state.popCount = popCount
+    state.ticks.push(frame.now, ticked > 0 ? frame.meter('tickLevel') : 0)
+    // A scratch that began before Pops was turned to nothing still comes round, with no sound: it is not a pop.
+    state.popped.push(frame.now, pops > 0 ? popped : 0)
+    state.turned.push(frame.now, state.tickCount.steady && turn < state.turn - 0.5 ? 1 : 0)
     state.turn = turn
-    clipped(ctx, { x: strip.x, y: past.y - 1, w: strip.w + 1, h: past.h + 2 }, () => {
-      const popTop = clickY(POP_CEILING * Math.max(pops, 0.05), past)
-      for (let back = 0; back < VINYL_SLOTS; back++) {
-        const x = state.turned.x(back, strip)
-        // The start of each turn: a scratch comes back at the same place in every one.
-        if (state.turned.at(back) > 0)
-          rule(ctx, x, past.y, x, foot, { colour: colours.ink, alpha: INK.rule })
-        const tick = state.ticks.at(back)
-        if (tick > 0)
-          rule(ctx, x, foot, x, clickY(tick, past), { colour: colours.accent, alpha: 0.6 })
-        if (state.popped.at(back) > 0) {
-          rule(ctx, x, foot, x, popTop, { colour: colours.accent, alpha: INK.back })
-          dot(ctx, x, popTop, 1.75, colours.accent)
-        }
-      }
-    })
-    drawPast(frame, strip, state.pitch, (percent) => pitchY(percent, strip))
+    clipTo(ctx, strip.x, past.y - 1, strip.w + 1, past.h + 2)
+    // A pop's size is not reported: each is a dot in a row of their own along the top, and says no more than that it fell.
+    const row = past.y + 2.5
+    for (let back = 0; back < VINYL_SLOTS; back++) {
+      const x = state.turned.x(back, strip)
+      // The start of each turn: a scratch comes back at the same place in every one.
+      if (state.turned.at(back) > 0) line(ctx, x, past.y, x, foot, colours.ink, INK.rule)
+      const tick = state.ticks.at(back)
+      if (tick > 0) line(ctx, x, foot, x, clickY(tick, past), colours.accent, 0.6)
+      if (state.popped.at(back) > 0) spot(ctx, x, row, 1.75, colours.accent)
+    }
+    ctx.restore()
+    drawPast(frame, strip, pitchPath(state.path, strip, state.pitch))
   },
   handles: (view) => vinylHandles(view, null),
 })
@@ -1108,12 +1681,15 @@ const vinyl = plateDisplay<VinylState>({
 
 /**
  * The spectrum of the end of a wave, for a picture that needs what goes in
- * (the kit's taps give the spectrum of what comes out only). `db[i]` is the
- * level of a tone at `i · rate / size`, 0 for full scale; it rises at once
- * and falls 30 dB a second so the eye can follow it.
+ * (the kit's taps give the spectrum of what comes out only). `power[i]` is
+ * the square of the amplitude of a tone at `i · rate / size`, 1 for full
+ * scale; it rises at once and falls 30 dB a second so the eye can follow it.
+ * It is kept as a power so that a reading costs no logarithm for every bin,
+ * and a display takes one only as often as it needs: every second frame is
+ * enough for the eye.
  */
 export class Bins {
-  readonly db: Float32Array
+  readonly power: Float32Array
   private readonly re: Float32Array
   private readonly im: Float32Array
   private readonly window: Float32Array
@@ -1124,7 +1700,7 @@ export class Bins {
   /** `size` is a power of two: 512 is fine across a few kilohertz, 2048 for the whole range. */
   constructor(readonly size = 512) {
     const n = size
-    this.db = new Float32Array(n / 2 + 1).fill(SILENT_DB)
+    this.power = new Float32Array(n / 2 + 1)
     this.re = new Float32Array(n)
     this.im = new Float32Array(n)
     this.window = new Float32Array(n)
@@ -1146,10 +1722,10 @@ export class Bins {
   /** Take the end of `wave`; `dt` is the time since the last one, seconds. */
   read(wave: Float32Array, dt: number): void {
     const n = this.size
-    const { re, im } = this
-    const from = Math.max(0, wave.length - n)
+    const { re, im, swap, window, cos, sin, power } = this
+    const from = wave.length - n
     for (let i = 0; i < n; i++) {
-      re[this.swap[i]] = (wave[from + i] ?? 0) * this.window[i]
+      re[swap[i]] = from + i >= 0 ? wave[from + i] * window[i] : 0
       im[i] = 0
     }
     for (let size = 2; size <= n; size <<= 1) {
@@ -1157,8 +1733,8 @@ export class Bins {
       const stride = n / size
       for (let start = 0; start < n; start += size) {
         for (let k = 0; k < half; k++) {
-          const c = this.cos[k * stride]
-          const sn = this.sin[k * stride]
+          const c = cos[k * stride]
+          const sn = sin[k * stride]
           const a = start + k
           const b = a + half
           const tr = re[b] * c + im[b] * sn
@@ -1170,19 +1746,28 @@ export class Bins {
         }
       }
     }
-    const fall = 30 * Math.max(0, dt)
+    // 30 dB a second, as a share of the power.
+    const fall = Math.pow(10, -3 * Math.max(0, dt))
+    // A tone of amplitude 1 puts a quarter of the window's length in its bin.
+    const scale = 16 / (n * n)
     for (let i = 0; i <= n / 2; i++) {
-      // A tone of amplitude 1 puts a quarter of the window's length in its bin.
-      const now = db20((Math.sqrt(re[i] * re[i] + im[i] * im[i]) * 4) / n)
-      this.db[i] = Math.max(now, this.db[i] - fall)
+      const now = (re[i] * re[i] + im[i] * im[i]) * scale
+      const held = power[i] * fall
+      power[i] = now > held ? now : held
     }
   }
 
-  /** The level at a frequency, between its two bins. */
+  /** The level of a bin, dB. */
+  db(index: number): number {
+    return db10(this.power[index])
+  }
+
+  /** The level at a frequency, between its two bins, dB. */
   at(hz: number, sampleRate: number): number {
     const place = clamp((Math.abs(hz) * this.size) / sampleRate, 0, this.size / 2 - 1)
     const index = Math.floor(place)
-    return this.db[index] + (this.db[index + 1] - this.db[index]) * (place - index)
+    const below = db10(this.power[index])
+    return below + (db10(this.power[index + 1]) - below) * (place - index)
   }
 }
 
@@ -1205,9 +1790,9 @@ export function loudestBin(
   }
   const first = clamp(Math.ceil(fromHz / binHz), 0, bins.length - 1)
   const last = clamp(Math.floor(toHz / binHz), first, bins.length - 1)
-  let db = bins[first]
-  for (let i = first + 1; i <= last; i++) if (bins[i] > db) db = bins[i]
-  return db
+  let most = bins[first]
+  for (let i = first + 1; i <= last; i++) if (bins[i] > most) most = bins[i]
+  return most
 }
 
 // --- The wave ---------------------------------------------------------------
@@ -1225,45 +1810,47 @@ export function risingEdge(wave: Float32Array, span: number): number {
 /**
  * `span` samples of what comes out, from its last rise through zero, at a
  * height that fits the loudest of them: a sample that is held shows as a
- * step. Answers with the gain it was drawn at.
+ * step. Answers with the loudest of them.
  */
-function drawWave(
-  frame: Paint,
-  box: Box,
-  keep: [number, number][],
-  wave: Float32Array,
-  span: number,
-): number {
+function drawWave(frame: Paint, box: Box, path: Path, wave: Float32Array, span: number): number {
   const start = risingEdge(wave, span)
+  const end = Math.min(span, wave.length - 1 - start)
   let peak = 0.02
-  for (let i = 0; i <= span; i++) peak = Math.max(peak, Math.abs(wave[start + i] ?? 0))
-  const gain = 1 / peak
-  const middle = box.y + box.h / 2
-  for (let i = 0; i <= span; i++) {
-    keep[i] ??= [0, 0]
-    keep[i][0] = box.x + (i / span) * box.w
-    keep[i][1] = middle - (wave[start + i] ?? 0) * gain * (box.h / 2 - 1)
+  for (let i = 0; i <= end; i++) {
+    const size = Math.abs(wave[start + i])
+    if (size > peak) peak = size
   }
-  keep.length = span + 1
-  trace(frame.ctx, keep, { colour: frame.colours.ink, width: 1.25 })
-  return gain
+  const middle = box.y + box.h / 2
+  const scale = (box.h / 2 - 1) / peak
+  sized(path, end + 1)
+  for (let i = 0; i <= end; i++) {
+    path.x[i] = box.x + (i / span) * box.w
+    path.y[i] = middle - wave[start + i] * scale
+  }
+  strokePath(frame.ctx, path, frame.colours.ink, 1.25)
+  return peak
 }
 
 /** Marks along the foot of a wave, one for each time a converter takes a new sample; `spread` is how far its clock wanders, as a share of the step. */
 function drawHolds(frame: Paint, box: Box, span: number, period: number, spread = 0): void {
   const step = (period / span) * box.w
   if (step < 2.5) return
+  const { ctx, colours } = frame
   const foot = box.y + box.h
-  for (let x = box.x; x <= box.x + box.w + 0.5; x += step) {
-    if (spread > 0.01 && x > box.x)
-      fillRect(
-        frame.ctx,
-        { x: x - spread * step, y: foot - 2, w: 2 * spread * step, h: 2 },
-        frame.colours.accent,
-        0.5,
-      )
-    rule(frame.ctx, x, foot, x, foot - 4, { colour: frame.colours.accent })
+  const end = box.x + box.w + 0.5
+  if (spread > 0.01)
+    for (let x = box.x + step; x <= end; x += step)
+      bar(ctx, x - spread * step, foot - 2, 2 * spread * step, 2, colours.accent, 0.5)
+  // All the marks in one stroke.
+  ctx.beginPath()
+  for (let x = box.x; x <= end; x += step) {
+    ctx.moveTo(crisp(x), foot)
+    ctx.lineTo(crisp(x), foot - 4)
   }
+  ctx.strokeStyle = colours.accent
+  ctx.lineWidth = 1
+  ctx.lineCap = 'round'
+  ctx.stroke()
 }
 
 // --- Patina -----------------------------------------------------------------
@@ -1485,19 +2072,14 @@ const SAMPLER_SPAN = 96
 /** The share of full scale the sampler's curve is drawn over: its steps are at the bottom. */
 const SAMPLER_ZOOM = 1 / 64
 
-/** The edges of the box the Drive curve is drawn in, and of the strip beside it. */
-function patinaBoxes(view: Size): TwoBoxes & { curve: Box; strip: Box } {
-  const boxes = twoBoxes(view, 30)
-  const { past } = boxes
-  return {
-    ...boxes,
-    curve: { x: past.x, y: past.y, w: past.h, h: past.h },
-    strip: { x: past.x + past.h + 6, y: past.y, w: past.w - past.h - 8, h: past.h },
-  }
-}
+/** Room at the left of Patina's strip for the number that says what it shows. */
+const PATINA_LABEL = 35
+/** How much of the past Patina's strip keeps where it shows the pitch, and in how many steps: its strip is short. */
+const PATINA_PITCH_SEC = 2
+const PATINA_PITCH_SLOTS = 100
 
 function patinaHandles(view: DisplayView, floor: Curve | null): DisplayHandle[] {
-  const { band } = patinaBoxes(view)
+  const { band } = twoBoxes(view, 30)
   const sampleRate = 48000
   const index = mediumOf(view)
   const sampler = index === SAMPLER
@@ -1516,9 +2098,10 @@ function patinaHandles(view: DisplayView, floor: Curve | null): DisplayHandle[] 
       band.y + band.h,
     ),
     // Across is where the band ends: to the left wears the medium.
-    drag: (x, y) => {
-      if (!moved(x, y, wear)) return { wear: view.value('wear') }
-      const hz = hzOfX(clamp(x, band.x, band.x + band.w), band)
+    drag: (x) => {
+      const to = handTo(x, wear.x, band.x, band.x + band.w)
+      if (Number.isNaN(to)) return { wear: view.value('wear') }
+      const hz = hzOfX(to, band)
       const worn = sampler
         ? Math.log((2 * hz) / sampleRate) / Math.log(6000 / sampleRate)
         : Math.log(hz / (40000 * Math.pow(2, 2 * view.value('tone') - 1))) /
@@ -1530,7 +2113,7 @@ function patinaHandles(view: DisplayView, floor: Curve | null): DisplayHandle[] 
   const noise = floorHandle(
     view,
     band,
-    floor ?? scratchCurve(band, patinaFloor(view, sampleRate, sampleRate / TAP_BINS)),
+    floor ?? fillCurve(newCurve(), band, patinaFloor(view, sampleRate, sampleRate / TAP_BINS)),
     'noise',
     'Noise',
     PATINA_NOISE_TENFOLD,
@@ -1550,47 +2133,83 @@ function patinaFloor(view: DisplayView, sampleRate: number, binHz: number): (hz:
 }
 
 interface PatinaState {
+  boxes: Layout
+  curve: Box
+  strip: Box
+  made: Float64Array
+  columns: Columns
   response: Curve
   floor: Curve
+  /** Where the two handles stand: x and y of Wear, then of Noise. */
+  spots: Float64Array
+  /** The steady tones in the noise: where each stands, and its level at Noise 1 with all of it up, dB. */
+  toneX: Float64Array
+  toneDb: Float64Array
+  tones: number
+  /** Where half the sampler's rate stands; NaN where there is no such line. */
+  halfRateX: number
   /** The Drive curve at 33 points across its box, and what it was made from. */
-  bent: Float32Array
-  bentFor: string
-  line: [number, number][]
-  swing: [number, number][]
+  bentFor: Float64Array
+  bent: Path
   transport: PitchState
   /** The level Wobble has the sound at where it moves the level: slowly on the radio, faster in the valve. */
   fading: History
   sag: History
+  past: Path
   level: number
-  wave: [number, number][]
+  wave: Path
+  said: Said
 }
 
-const PATINA_CURVE = ['medium', 'wear', 'tone', 'output'] as const
+/** A level as it is said in a small place: "−6 dB". */
+const dbWords = (db: number): string => {
+  const whole = Math.round(db)
+  return `${whole < 0 ? '−' : ''}${Math.abs(whole)} dB`
+}
 
 const patina = plateDisplay<PatinaState>({
   place: 'window',
   columns: 2,
   params: ['medium', 'drive', 'wobble', 'wear', 'noise', 'tone', 'output'],
   live: { meters: true, signal: true, spectrum: true },
-  info: 'Above, what the medium does across frequency: its band as a line over the spectrum, its noise in the second colour. Drag the points for Wear and Noise. Below, the curve Drive bends the wave through, and what Wobble moves: the pitch, the level, or the clock of the sampler under its wave.',
+  info: 'Above, what the medium does across frequency: its band as a line over the spectrum, its noise in the second colour. Drag the points for Wear and Noise. Below, the curve Drive bends the wave through, and what Wobble moves and how far: the pitch, the level, or the clock of the sampler under its wave.',
   init: () => ({
+    boxes: newLayout(),
+    curve: newBox(),
+    strip: newBox(),
+    made: newKey(),
+    columns: newColumns(),
     response: newCurve(),
     floor: newCurve(),
-    bent: new Float32Array(33),
-    bentFor: '',
-    line: [],
-    swing: [],
-    transport: newPitch(),
-    fading: new History(12, 120, 0),
-    sag: new History(4, 120, 0),
+    spots: new Float64Array(4),
+    toneX: new Float64Array(4),
+    toneDb: new Float64Array(4),
+    tones: 0,
+    halfRateX: NaN,
+    bentFor: newKey(),
+    bent: newPath(33),
+    transport: newPitch(PATINA_PITCH_SEC, PATINA_PITCH_SLOTS),
+    fading: new History(12, 60, 0),
+    sag: new History(4, 60, 0),
+    past: newPath(60),
     level: 0,
-    wave: [],
+    wave: newPath(),
+    said: newSaid(),
   }),
   draw(frame) {
     const { ctx, colours, state } = frame
     ground(frame)
-    const boxes = patinaBoxes(frame)
-    const { band, curve, strip } = boxes
+    const boxes = layout(state.boxes, frame, 30)
+    const { band, past } = boxes
+    const curve = setBox(state.curve, past.x, past.y, past.h, past.h)
+    const labelX = past.x + past.h + 5
+    const strip = setBox(
+      state.strip,
+      labelX + PATINA_LABEL,
+      past.y,
+      past.w - past.h - 7 - PATINA_LABEL,
+      past.h,
+    )
     const sr = frame.sampleRate
     const binHz = binHzOf(frame)
     const index = mediumOf(frame)
@@ -1598,83 +2217,113 @@ const patina = plateDisplay<PatinaState>({
     const wear = frame.value('wear')
     const wobble = frame.value('wobble')
     const drive = frame.value('drive')
-    const settings = PATINA_CURVE.map((name) => frame.value(name).toFixed(3)).join(' ')
+    const noise = frame.value('noise')
     const running = frame.signal !== null && frame.hasMeter('flutter') && frame.dt > 0
-    const response = patinaResponse(frame, sr)
-    const noiseDb = amountDb(frame.value('noise'), PATINA_NOISE_TENFOLD)
+    const noiseDb = amountDb(noise, PATINA_NOISE_TENFOLD)
     const gate = running ? frame.meter('noise') : null
+    // The transport turns while the device is awake: its noise is up from the first sound until three seconds after the last.
+    const awake = gate !== null && gate > 0
 
-    makeCurve(state.response, settings, band, response)
-    makeCurve(state.floor, `${settings} ${binHz.toFixed(2)}`, band, patinaFloor(frame, sr, binHz))
-    freqGrid(frame, band)
+    if (
+      stale(
+        state.made,
+        index,
+        wear,
+        frame.value('tone'),
+        frame.value('output'),
+        binHz,
+        sr,
+        frame.width,
+        frame.height,
+      )
+    ) {
+      const response = patinaResponse(frame, sr)
+      fillCurve(state.response, band, response)
+      fillCurve(state.floor, band, patinaFloor(frame, sr, binHz))
+      // The hum and the idle tone ride on the same level and the same band.
+      const rate = sr / samplerHold(wear, sr)
+      const tones = patinaTones(index)
+      state.tones = tones.length
+      for (let k = 0; k < tones.length; k++) {
+        const [hz, amplitude] = tones[k]
+        // The sampler's tone is held with the signal: over half its rate it folds back down.
+        const heard = index === SAMPLER ? Math.abs(hz - Math.round(hz / rate) * rate) : hz
+        state.toneX[k] = heard > 20 && heard < 20000 ? xOfHz(heard, band) : NaN
+        state.toneDb[k] = spec.noiseDb + db20(amplitude) + TONE_DB + response(heard)
+      }
+      // Half the sampler's rate: what was above it comes back under it.
+      state.halfRateX =
+        index === SAMPLER && samplerHold(wear, sr) > 1.01 ? xOfHz(rate / 2, band) : NaN
+      const point = patinaHandles(frame, state.floor)[0]
+      state.spots[0] = point.x
+      state.spots[1] = point.y
+      state.spots[2] = floorHandleX(band, state.floor)
+    }
+    state.spots[3] = floorHandleY(band, state.floor, noise, PATINA_NOISE_TENFOLD)
+
+    grid(frame, band)
     drawUnchanged(frame, band)
-    clipped(ctx, band, () => {
-      drawSpectrum(frame, band)
-      drawFloor(frame, band, state.floor, gate, noiseDb)
-      if (noiseDb > SILENT_DB / 2) {
-        // The hum and the idle tone ride on the same level and the same band.
-        const hold = samplerHold(wear, sr)
-        for (const [hz, amplitude] of patinaTones(index)) {
-          // The sampler's tone is held with the signal: over half its rate it folds back down.
-          const rate = sr / hold
-          const heard = index === SAMPLER ? Math.abs(hz - Math.round(hz / rate) * rate) : hz
-          drawTone(
-            frame,
-            band,
-            heard,
-            spec.noiseDb + noiseDb + db20(amplitude * (gate ?? 1)) + TONE_DB + response(heard),
-            gate === null ? INK.back : 1,
-          )
-        }
-      }
-      if (index === SAMPLER && samplerHold(wear, sr) > 1.01) {
-        // Half the sampler's rate: what was above it comes back under it.
-        const x = xOfHz(sr / samplerHold(wear, sr) / 2, band)
-        rule(ctx, x, band.y, x, band.y + band.h, { colour: colours.accent, dash: [2, 2] })
-      }
-      drawResponse(frame, band, state.response)
-    })
-    for (const point of patinaHandles(frame, state.floor))
-      handle(frame, point.x, point.y, { hot: frame.hot === point.key })
+    clipTo(ctx, band.x, band.y, band.w, band.h)
+    drawSpectrum(frame, band, state.columns)
+    drawFloor(frame, band, state.floor, gate, noiseDb)
+    if (noiseDb > SILENT_DB / 2) {
+      const up = noiseDb + (gate === null ? 0 : db20(gate))
+      for (let k = 0; k < state.tones; k++)
+        if (!Number.isNaN(state.toneX[k]))
+          drawTone(frame, band, state.toneX[k], state.toneDb[k] + up, gate === null ? INK.back : 1)
+    }
+    if (!Number.isNaN(state.halfRateX))
+      line(
+        ctx,
+        state.halfRateX,
+        band.y,
+        state.halfRateX,
+        band.y + band.h,
+        colours.accent,
+        1,
+        1,
+        DASHED,
+      )
+    drawResponse(frame, band, state.response)
+    ctx.restore()
+    knob(frame, state.spots[0], state.spots[1], frame.hot === 'wear')
+    knob(frame, state.spots[2], state.spots[3], frame.hot === 'noise')
     if (frame.hot === 'wear') {
       const edge = index === SAMPLER ? sr / samplerHold(wear, sr) / 2 : patinaHighHz(frame, sr)
-      text(frame, hzText(edge), band.x + 1, band.y + 8)
+      text(frame, hzText(edge), band.x + 1, band.y + 8, LEFT)
     }
 
     divide(frame, boxes)
     // Below, left: the curve Drive bends the wave through, input across and output up.
     const reach = index === SAMPLER ? SAMPLER_ZOOM : 1
-    const bentFor = `${index} ${drive.toFixed(3)}`
-    if (bentFor !== state.bentFor) {
-      state.bentFor = bentFor
-      const bent = patinaCurve(index, drive)
-      for (let i = 0; i < state.bent.length; i++)
-        state.bent[i] = bent((i / (state.bent.length - 1)) * 2 * reach - reach) / reach
-    }
     const centreX = curve.x + curve.w / 2
     const centreY = curve.y + curve.h / 2
-    rule(ctx, curve.x, centreY, curve.x + curve.w, centreY, {
-      colour: colours.ink,
-      alpha: INK.grid,
-    })
-    rule(ctx, centreX, curve.y, centreX, curve.y + curve.h, {
-      colour: colours.ink,
-      alpha: INK.grid,
-    })
-    // Unbent: out as in.
-    rule(ctx, curve.x, curve.y + curve.h, curve.x + curve.w, curve.y, {
-      colour: colours.ink,
-      alpha: INK.rule,
-      dash: [1, 3],
-    })
-    const last = state.bent.length - 1
-    for (let i = 0; i <= last; i++) {
-      state.line[i] ??= [0, 0]
-      state.line[i][0] = curve.x + (i / last) * curve.w
-      state.line[i][1] = centreY - clamp(state.bent[i], -1, 1) * (curve.h / 2)
+    const bent = state.bent
+    const last = 32
+    if (stale(state.bentFor, index, drive, curve.x, curve.y, curve.h)) {
+      const through = patinaCurve(index, drive)
+      sized(bent, last + 1)
+      for (let i = 0; i <= last; i++) {
+        bent.x[i] = curve.x + (i / last) * curve.w
+        bent.y[i] =
+          centreY - clamp(through((i / last) * 2 * reach - reach) / reach, -1, 1) * (curve.h / 2)
+      }
     }
-    state.line.length = last + 1
-    trace(ctx, state.line, { colour: colours.ink, width: 1.25 })
+    line(ctx, curve.x, centreY, curve.x + curve.w, centreY, colours.ink, INK.grid)
+    line(ctx, centreX, curve.y, centreX, curve.y + curve.h, colours.ink, INK.grid)
+    // Unbent: out as in.
+    line(
+      ctx,
+      curve.x,
+      curve.y + curve.h,
+      curve.x + curve.w,
+      curve.y,
+      colours.ink,
+      INK.rule,
+      1,
+      DOTTED,
+    )
+    strokePath(ctx, bent, colours.ink, 1.25)
     if (frame.signal) {
       const peak = (frame.signal.input ?? frame.signal.output).peak
       state.level = Math.max(peak, state.level * Math.exp(-frame.dt / 0.25))
@@ -1684,66 +2333,83 @@ const patina = plateDisplay<PatinaState>({
       const swing = Math.min(1, state.level / reach)
       const from = Math.floor(((1 - swing) / 2) * last)
       const to = Math.ceil(((1 + swing) / 2) * last)
-      for (let i = from; i <= to; i++) state.swing[i - from] = state.line[i]
-      state.swing.length = to - from + 1
-      trace(ctx, state.swing, { colour: colours.accent, width: 2 })
-      dot(ctx, state.line[to][0], state.line[to][1], 1.75, colours.accent)
+      strokePath(ctx, bent, colours.accent, 2, 1, SOLID, from, to)
+      spot(ctx, bent.x[to], bent.y[to], 1.75, colours.accent)
     }
 
-    // Below, right: what Wobble moves.
+    // Below, right: what Wobble moves, and at the left of it a number whose unit says which.
+    const transport = state.transport
+    const said = state.said
+    const middle = strip.y + strip.h / 2
     if (index === SAMPLER) {
-      // The converter's clock: a mark for each sample it takes, and how far Wobble lets each one stray.
+      // The converter's clock: its rate, a mark for each sample it takes, and how far Wobble lets each one stray.
       const hold = samplerHold(wear, sr)
+      const key = index * 1e6 + hold
+      if (said.value !== key) {
+        said.value = key
+        said.words = hzText(sr / hold)
+      }
+      text(frame, said.words, labelX, middle + 3, LEFT)
       drawHolds(frame, strip, SAMPLER_SPAN, hold, 0.3 * wobble)
+      transport.dropped.rest()
       const heard = running ? frame.signal?.output.wave : undefined
-      if (heard)
-        clipped(ctx, strip, () => {
-          drawWave(frame, strip, state.wave, heard, SAMPLER_SPAN)
-        })
-      else
-        rule(ctx, strip.x, strip.y + strip.h / 2, strip.x + strip.w, strip.y + strip.h / 2, {
-          colour: colours.ink,
-          alpha: INK.grid,
-        })
+      if (heard) {
+        clipTo(ctx, strip.x, strip.y, strip.w, strip.h)
+        drawWave(frame, strip, state.wave, heard, SAMPLER_SPAN)
+        ctx.restore()
+      } else line(ctx, strip.x, middle, strip.x + strip.w, middle, colours.ink, INK.grid)
       return
     }
     if (index === RADIO || index === VALVE) {
-      const y = (db: number): number =>
-        yOfDb(clamp(db, SWAY_FOOT_DB, SWAY_TOP_DB), strip, SWAY_TOP_DB, SWAY_FOOT_DB)
-      rule(ctx, strip.x, y(0), strip.x + strip.w, y(0), { colour: colours.ink, alpha: INK.grid })
+      const zero = yOfDb(0, strip, SWAY_TOP_DB, SWAY_FOOT_DB)
+      line(ctx, strip.x, zero, strip.x + strip.w, zero, colours.ink, INK.grid)
       // The furthest Wobble takes the level: the radio fades by up to 9 dB, the valve gives way and blooms by 6.
       const depth = 3 * wobble
-      const ends =
-        index === RADIO
-          ? [-9 * wobble]
-          : [db20(1 + 0.3228 * depth), db20((1 + 0.3228 * depth) / (1 + depth))]
-      if (wobble > 0.004)
-        for (const db of ends)
-          rule(ctx, strip.x, y(db), strip.x + strip.w, y(db), {
-            colour: colours.ink,
-            alpha: INK.rule,
-            dash: [1, 3],
-          })
+      const down = index === RADIO ? -9 * wobble : db20((1 + 0.3228 * depth) / (1 + depth))
+      const key = index * 1e6 + Math.round(down)
+      if (said.value !== key) {
+        said.value = key
+        said.words = dbWords(down)
+      }
+      text(frame, said.words, labelX, middle + 3, LEFT)
+      if (wobble > 0.004) {
+        const under = yOfDb(down, strip, SWAY_TOP_DB, SWAY_FOOT_DB)
+        line(ctx, strip.x, under, strip.x + strip.w, under, colours.ink, INK.rule, 1, DOTTED)
+        if (index === VALVE) {
+          const over = yOfDb(db20(1 + 0.3228 * depth), strip, SWAY_TOP_DB, SWAY_FOOT_DB)
+          line(ctx, strip.x, over, strip.x + strip.w, over, colours.ink, INK.rule, 1, DOTTED)
+        }
+      }
+      transport.dropped.rest()
       if (!running) return
-      const past = index === RADIO ? state.fading : state.sag
-      past.push(frame.now, db20(Math.max(frame.meter('level'), 1e-3)))
-      drawPast(frame, strip, past, y)
+      const levels = index === RADIO ? state.fading : state.sag
+      levels.push(frame.now, db20(Math.max(frame.meter('level'), 1e-3)))
+      drawPast(frame, strip, levelPath(state.past, strip, levels, SWAY_TOP_DB, SWAY_FOOT_DB))
       return
     }
-    drawPitchLines(frame, strip, patinaReach(frame))
-    if (!running) return
-    pushWobble(
-      state.transport,
-      frame,
-      frame.meter('wow'),
-      frame.meter('flutter'),
-      frame.meter('flutterDepth'),
-      spec.flutterHz,
-    )
-    // A dropout's depth is not reported: each is drawn at the deepest Wear lets it be.
-    pushDrops(state.transport, frame.now, frame.meter('drops'), 0.9 * Math.sqrt(wear))
-    drawDrops(frame, strip, state.transport)
-    drawPast(frame, strip, state.transport.pitch, (percent) => pitchY(percent, strip))
+    const furthest = patinaReach(frame)
+    drawReach(frame, said, labelX, middle + 3, furthest)
+    drawPitchLines(frame, strip, furthest)
+    if (!running) {
+      transport.dropped.rest()
+      return
+    }
+    if (awake) {
+      pushWobble(
+        transport,
+        frame,
+        frame.meter('wow'),
+        frame.meter('flutter'),
+        frame.meter('flutterDepth'),
+        spec.flutterHz,
+      )
+    } else {
+      pushStill(transport, frame.now)
+    }
+    // A dropout's depth is not reported: each is a mark of one length, and says no more than that it fell.
+    pushDrops(transport, frame.now, frame.meter('drops'), 0.4)
+    drawDrops(frame, strip, transport)
+    drawPast(frame, strip, pitchPath(transport.path, strip, transport.pitch))
   },
   handles: (view) => patinaHandles(view, null),
 })
@@ -1892,9 +2558,10 @@ function radioHandles(view: DisplayView): DisplayHandle[] {
     x: clamp(radioX(centre, band, box), box.x, box.x + box.w),
     y: radioY(0, box),
     // Across is where the receiver listens.
-    drag: (x, y) => {
-      if (!moved(x, y, tuning)) return { tuning: view.value('tuning') }
-      const hz = radioHz(clamp(x, box.x, box.x + box.w), band, box)
+    drag: (x) => {
+      const to = handTo(x, tuning.x, box.x, box.x + box.w)
+      if (Number.isNaN(to)) return { tuning: view.value('tuning') }
+      const hz = radioHz(to, band, box)
       const turned = clamp((band.carrier ? hz : centre + off - hz) / band.tuneHz, -1, 1)
       return { tuning: band.square ? Math.sign(turned) * Math.sqrt(Math.abs(turned)) : turned }
     },
@@ -1906,9 +2573,10 @@ function radioHandles(view: DisplayView): DisplayHandle[] {
     x: clamp(radioX(centre + half, band, box), box.x, box.x + box.w),
     y: radioY(-3, box),
     // Across is the filter's upper edge.
-    drag: (x, y) => {
-      if (!moved(x, y, bandwidth)) return { bandwidth: view.value('bandwidth') }
-      const edge = radioHz(clamp(x, box.x, box.x + box.w), band, box)
+    drag: (x) => {
+      const to = handTo(x, bandwidth.x, box.x, box.x + box.w)
+      if (Number.isNaN(to)) return { bandwidth: view.value('bandwidth') }
+      const edge = radioHz(to, band, box)
       const high = band.carrier ? edge - off : edge + off
       return {
         bandwidth: clamp(
@@ -1923,16 +2591,28 @@ function radioHandles(view: DisplayView): DisplayHandle[] {
   return [tuning, bandwidth]
 }
 
+/** How many steps the receiver's filter is kept in, from its centre to the far end of the picture. */
+const RADIO_SHAPE = 256
+
 interface RadioState {
   programme: Bins
-  /** Per column of the picture: what the transmitter's filter and the receiver's do there, dB. */
+  /** Frames since the programme's spectrum was taken, and the time. */
+  turn: number
+  since: number
+  made: Float64Array
+  /** The audio band's edges at this Bandwidth, Hz. */
+  low: number
+  high: number
+  /** Per column of the picture: its frequency off the carrier, what the transmitter's filter leaves there, and the programme there, dB. */
+  hz: Float32Array
   sent: Float32Array
-  sentFor: string
   heard: Float32Array
-  heardFor: string
-  air: [number, number][]
-  through: [number, number][]
-  filter: [number, number][]
+  /** The receiver's filter by distance from its centre, dB, in steps of `shapeHz`. */
+  shape: Float32Array
+  shapeHz: number
+  air: Path
+  through: Path
+  filter: Path
 }
 
 const radio = plateDisplay<RadioState>({
@@ -1943,49 +2623,67 @@ const radio = plateDisplay<RadioState>({
   info: 'A stretch of the dial with the station in the middle: its carrier, and the programme either side as the sky wave hollows it. The line is the filter of the receiver and the second colour is the static. Drag the filter along to tune, and its edge for the bandwidth.',
   init: () => ({
     programme: new Bins(RADIO_BINS),
+    turn: 0,
+    since: 0,
+    made: newKey(),
+    low: 0,
+    high: 0,
+    hz: new Float32Array(0),
     sent: new Float32Array(0),
-    sentFor: '',
     heard: new Float32Array(0),
-    heardFor: '',
-    air: [],
-    through: [],
-    filter: [],
+    shape: new Float32Array(RADIO_SHAPE + 1),
+    shapeHz: 1,
+    air: newPath(),
+    through: newPath(),
+    filter: newPath(),
   }),
   draw(frame) {
     const { ctx, colours, state } = frame
     ground(frame)
-    const box = radioBox(frame)
-    const band = radioBand(frame)
+    const x0 = 4
+    const y0 = 4
+    const w = frame.width - 8
+    const h = frame.height - 8
+    const foot = y0 + h
+    const index = clamp(Math.round(frame.value('band')), 0, RADIO_BANDS.length - 1)
+    const band = RADIO_BANDS[index]
     const sr = frame.sampleRate
-    const foot = box.y + box.h
+    const span = band.toHz - band.fromHz
+    const columns = Math.floor(w / 2) + 1
+    // The picture's scale of levels, as `radioY` has it.
+    const perDb = h / (RADIO_TOP_DB - RADIO_FOOT_DB)
+    const lowest = RADIO_FOOT_DB - 6
     const running = frame.signal !== null && frame.hasMeter('direct') && frame.dt > 0
     // Asleep, the receiver is off and reports nothing: then the picture is what the controls say.
     const live = running && frame.meter('direct') > 1e-4
-    const off = live ? frame.meter('tuning') : radioDialHz(frame)
-    const { centre, half } = radioFilter(frame, off)
-    const columns = Math.floor(box.w / 2) + 1
 
-    // What the transmitter's filter leaves at each column, and the receiver's: made again only when they move.
-    const sentFor = `${frame.value('band')} ${columns} ${sr}`
-    if (sentFor !== state.sentFor) {
-      state.sentFor = sentFor
-      if (state.sent.length !== columns) state.sent = new Float32Array(columns)
-      const filters = BUTTER4.map((q) => biquad('lowpass', band.transmitHz, q, 0, sr))
-      for (let i = 0; i < columns; i++)
-        state.sent[i] = chainDb(filters, Math.abs(radioHz(box.x + i * 2, band, box)), sr)
+    // What the transmitter's filter leaves at each column, and the receiver's by distance from its centre: made again only when they move.
+    if (stale(state.made, index, frame.value('bandwidth'), sr, w)) {
+      const edges = radioEdges(frame)
+      state.low = edges.low
+      state.high = edges.high
+      if (state.hz.length !== columns) {
+        state.hz = new Float32Array(columns)
+        state.sent = new Float32Array(columns)
+        state.heard = new Float32Array(columns).fill(SILENT_DB)
+      }
+      const sending = BUTTER4.map((q) => biquad('lowpass', band.transmitHz, q, 0, sr))
+      for (let i = 0; i < columns; i++) {
+        state.hz[i] = band.fromHz + ((i * 2) / w) * span
+        state.sent[i] = chainDb(sending, Math.abs(state.hz[i]), sr)
+      }
+      const half = band.carrier ? edges.high : 0.5 * (edges.high - edges.low)
+      const receiving = BUTTER8.map((q) => biquad('lowpass', half, q, 0, sr))
+      // Far enough for a filter at either end of the dial to reach the other end of the picture.
+      state.shapeHz = (span + 2 * band.tuneHz) / RADIO_SHAPE
+      for (let k = 0; k <= RADIO_SHAPE; k++)
+        state.shape[k] = chainDb(receiving, Math.min(k * state.shapeHz, sr * 0.49), sr)
     }
-    const heardFor = `${sentFor} ${centre.toFixed(0)} ${half.toFixed(0)}`
-    if (heardFor !== state.heardFor) {
-      state.heardFor = heardFor
-      if (state.heard.length !== columns) state.heard = new Float32Array(columns)
-      const filters = BUTTER8.map((q) => biquad('lowpass', half, q, 0, sr))
-      for (let i = 0; i < columns; i++)
-        state.heard[i] = chainDb(
-          filters,
-          Math.min(Math.abs(radioHz(box.x + i * 2, band, box) - centre), sr * 0.49),
-          sr,
-        )
-    }
+    const dial = radioDialHz(frame)
+    const off = live ? frame.meter('tuning') : dial
+    const half = band.carrier ? state.high : 0.5 * (state.high - state.low)
+    const middle = band.carrier ? 0 : 0.5 * (state.low + state.high)
+    const centre = band.carrier ? off : middle - off
 
     // The dial: a line every kilohertz or five, and the station.
     for (
@@ -1993,19 +2691,42 @@ const radio = plateDisplay<RadioState>({
       hz <= band.toHz;
       hz += band.gridHz
     ) {
-      const x = radioX(hz, band, box)
-      rule(ctx, x, box.y, x, foot, { colour: colours.ink, alpha: hz === 0 ? INK.rule : INK.grid })
+      const x = x0 + ((hz - band.fromHz) / span) * w
+      line(ctx, x, y0, x, foot, colours.ink, hz === 0 ? INK.rule : INK.grid)
     }
 
     // The static at the aerial, the same all along the dial.
-    const setStatic = 0.26 * Math.pow(frame.value('static'), 1.5) * Math.sqrt(sr / 48000)
-    const setY = radioY(radioStaticDb(setStatic), box)
     if (live) {
-      const y = radioY(radioStaticDb(frame.meter('static')), box)
-      fillRect(ctx, { x: box.x, y, w: box.w, h: foot - y }, colours.accent, 0.45)
-      rule(ctx, box.x, y, box.x + box.w, y, { colour: colours.accent, width: 1.25 })
-    } else if (setStatic > 0) {
-      rule(ctx, box.x, setY, box.x + box.w, setY, { colour: colours.accent, dash: [2, 2] })
+      const db = clamp(radioStaticDb(frame.meter('static')), lowest, RADIO_TOP_DB)
+      const y = y0 + (RADIO_TOP_DB - db) * perDb
+      bar(ctx, x0, y, w, foot - y, colours.accent, 0.45)
+      line(ctx, x0, y, x0 + w, y, colours.accent, 1, 1.25)
+    } else {
+      // Where Static puts it for a part at the level the device takes as usual.
+      const set = 0.26 * Math.pow(frame.value('static'), 1.5) * Math.sqrt(sr / 48000)
+      if (set > 0) {
+        const db = clamp(radioStaticDb(set), lowest, RADIO_TOP_DB)
+        const y = y0 + (RADIO_TOP_DB - db) * perDb
+        line(ctx, x0, y, x0 + w, y, colours.accent, 1, 1, DASHED)
+      }
+    }
+
+    // The programme: a spectrum of what goes in, taken every second frame.
+    const wave = frame.signal ? (frame.signal.input ?? frame.signal.output).wave : null
+    if (wave && running) {
+      state.since += frame.dt
+      if (state.turn === 0) {
+        state.programme.read(wave, state.since)
+        state.since = 0
+        // With a carrier each tone of the programme is a pair of sidebands of half the depth; without, one of all of it, above.
+        const depth = db20(band.carrier ? band.depth / 2 : band.depth)
+        for (let i = 0; i < columns; i++)
+          state.heard[i] =
+            !band.carrier && state.hz[i] < 0
+              ? SILENT_DB
+              : state.programme.at(state.hz[i], sr) + depth
+      }
+      state.turn = (state.turn + 1) % 2
     }
 
     // The station as it arrives: the programme on its carrier, through the two paths of the sky wave.
@@ -2013,84 +2734,90 @@ const radio = plateDisplay<RadioState>({
     const lateRe = live ? frame.meter('lateRe') : 0
     const lateIm = live ? frame.meter('lateIm') : 0
     const late = live ? frame.meter('delay') : 0
-    const wave = frame.signal ? (frame.signal.input ?? frame.signal.output).wave : null
-    if (wave && running) state.programme.read(wave, frame.dt)
+    // The late path's turn at each column: the columns are evenly spaced, so it is carried from one to the next.
+    const first = -2 * Math.PI * state.hz[0] * late * 0.001
+    const step = -2 * Math.PI * ((2 / w) * span) * late * 0.001
+    const stepCos = Math.cos(step)
+    const stepSin = Math.sin(step)
+    let cos = Math.cos(first)
+    let sin = Math.sin(first)
+    const air = sized(state.air, columns)
+    const through = sized(state.through, columns)
+    const filter = sized(state.filter, columns)
     let loudest = SILENT_DB
     for (let i = 0; i < columns; i++) {
-      const x = box.x + i * 2
-      const hz = radioHz(x, band, box)
-      // With a carrier each tone of the programme is a pair of sidebands of half the depth; without, one of all of it, above.
-      const programme =
-        !wave || (!band.carrier && hz < 0)
-          ? SILENT_DB
-          : state.programme.at(hz, sr) + db20(band.carrier ? band.depth / 2 : band.depth)
-      const arrived = programme + state.sent[i] + skyWaveDb(direct, lateRe, lateIm, late, hz)
-      loudest = Math.max(loudest, arrived)
-      state.air[i] ??= [0, 0]
-      state.air[i][0] = x
-      state.air[i][1] = radioY(arrived, box)
-      state.through[i] ??= [0, 0]
-      state.through[i][0] = x
-      state.through[i][1] = radioY(arrived + state.heard[i], box)
-      state.filter[i] ??= [0, 0]
-      state.filter[i][0] = x
-      state.filter[i][1] = radioY(state.heard[i], box)
+      const x = x0 + i * 2
+      const re = direct + lateRe * cos - lateIm * sin
+      const im = lateRe * sin + lateIm * cos
+      const turned = cos * stepCos - sin * stepSin
+      sin = sin * stepCos + cos * stepSin
+      cos = turned
+      const at = Math.min(Math.abs(state.hz[i] - centre) / state.shapeHz, RADIO_SHAPE - 0.001)
+      const below = Math.floor(at)
+      const passed =
+        state.shape[below] + (state.shape[below + 1] - state.shape[below]) * (at - below)
+      const arrived = (wave ? state.heard[i] : SILENT_DB) + state.sent[i] + db10(re * re + im * im)
+      if (arrived > loudest) loudest = arrived
+      air.x[i] = through.x[i] = filter.x[i] = x
+      air.y[i] = y0 + (RADIO_TOP_DB - clamp(arrived, lowest, RADIO_TOP_DB)) * perDb
+      through.y[i] = y0 + (RADIO_TOP_DB - clamp(arrived + passed, lowest, RADIO_TOP_DB)) * perDb
+      filter.y[i] = y0 + (RADIO_TOP_DB - clamp(passed, lowest, RADIO_TOP_DB)) * perDb
     }
-    state.air.length = state.through.length = state.filter.length = columns
-    clipped(ctx, box, () => {
-      if (loudest > RADIO_FOOT_DB) {
-        // All of it faintly, and what the filter lets through over that.
-        fillTo(ctx, state.air, foot + 8, colours.ink, INK.fill)
-        fillTo(ctx, state.through, foot + 8, colours.ink, 0.42)
-      } else {
-        // No programme: the band the station sends in, as an outline.
-        for (let i = 0; i < columns; i++) state.air[i][1] = radioY(-24 + state.sent[i], box)
-        const from = band.carrier ? 0 : Math.ceil((radioX(0, band, box) - box.x) / 2)
-        trace(ctx, state.air.slice(from), {
-          colour: colours.ink,
-          width: 1,
-          alpha: INK.back,
-          dash: [2, 2],
-        })
-      }
-      if (band.carrier) {
-        const x = radioX(0, band, box)
-        const carrier = skyWaveDb(direct, lateRe, lateIm, late, 0)
-        rule(ctx, x, foot, x, radioY(carrier, box), { colour: colours.ink, width: 2 })
-      }
-      trace(ctx, state.filter, { colour: colours.ink })
-    })
+    clipTo(ctx, x0, y0, w, h)
+    if (loudest > RADIO_FOOT_DB) {
+      // All of it faintly, and what the filter lets through over that.
+      fillUnder(ctx, air, foot + 8, colours.ink, INK.fill)
+      fillUnder(ctx, through, foot + 8, colours.ink, 0.42)
+    } else {
+      // No programme: the band the station sends in, as an outline.
+      for (let i = 0; i < columns; i++)
+        air.y[i] = y0 + (RADIO_TOP_DB - clamp(-24 + state.sent[i], lowest, RADIO_TOP_DB)) * perDb
+      const from = band.carrier ? 0 : Math.ceil((((0 - band.fromHz) / span) * w) / 2)
+      strokePath(ctx, air, colours.ink, 1, INK.back, DASHED, from)
+    }
+    if (band.carrier) {
+      const x = x0 + ((0 - band.fromHz) / span) * w
+      const carrier = clamp(db10((direct + lateRe) ** 2 + lateIm ** 2), lowest, RADIO_TOP_DB)
+      line(ctx, x, foot, x, y0 + (RADIO_TOP_DB - carrier) * perDb, colours.ink, 1, 2)
+    }
+    strokePath(ctx, filter, colours.ink)
+    ctx.restore()
 
     // How far the fading takes the signal down, at the left edge, and where it is now.
     const deepest = -band.fadeDb * Math.pow(frame.value('fading'), 0.75)
-    const edge = box.x + 1.5
-    rule(ctx, edge, radioY(0, box), edge, radioY(deepest, box), {
-      colour: colours.ink,
-      alpha: INK.text,
-    })
-    for (const db of [0, deepest])
-      rule(ctx, edge, radioY(db, box), edge + 3, radioY(db, box), {
-        colour: colours.ink,
-        alpha: INK.text,
-      })
-    if (live) dot(ctx, edge, radioY(db20(direct), box), 2, colours.accent, { ring: colours.ink })
-
-    for (const point of radioHandles(frame))
-      handle(frame, point.x, point.y, { hot: frame.hot === point.key })
-    if (frame.hot === 'tuning') {
-      const dial = radioDialHz(frame)
-      text(
-        frame,
-        `${dial >= 0 ? '+' : '−'}${hzText(Math.abs(dial))}`,
-        box.x + box.w - 1,
-        box.y + 8,
-        {
-          align: 'right',
-        },
+    const edge = x0 + 1.5
+    const top = y0 + RADIO_TOP_DB * perDb
+    const bottom = y0 + (RADIO_TOP_DB - clamp(deepest, lowest, RADIO_TOP_DB)) * perDb
+    line(ctx, edge, top, edge, bottom, colours.ink, INK.text)
+    line(ctx, edge, top, edge + 3, top, colours.ink, INK.text)
+    line(ctx, edge, bottom, edge + 3, bottom, colours.ink, INK.text)
+    if (live)
+      spot(
+        ctx,
+        edge,
+        y0 + (RADIO_TOP_DB - clamp(db20(direct), lowest, RADIO_TOP_DB)) * perDb,
+        2,
+        colours.accent,
+        colours.ink,
       )
-    } else if (frame.hot === 'bandwidth') {
-      text(frame, hzText(radioEdges(frame).high), box.x + box.w - 1, box.y + 8, { align: 'right' })
-    }
+
+    // The handles stand where the dial and Bandwidth put the filter.
+    const setCentre = band.carrier ? dial : middle - dial
+    knob(
+      frame,
+      clamp(x0 + ((setCentre - band.fromHz) / span) * w, x0, x0 + w),
+      top,
+      frame.hot === 'tuning',
+    )
+    knob(
+      frame,
+      clamp(x0 + ((setCentre + half - band.fromHz) / span) * w, x0, x0 + w),
+      y0 + (RADIO_TOP_DB + 3) * perDb,
+      frame.hot === 'bandwidth',
+    )
+    if (frame.hot === 'tuning')
+      text(frame, `${dial >= 0 ? '+' : '−'}${hzText(Math.abs(dial))}`, x0 + w - 1, y0 + 8, RIGHT)
+    else if (frame.hot === 'bandwidth') text(frame, hzText(state.high), x0 + w - 1, y0 + 8, RIGHT)
   },
   handles: (view) => radioHandles(view),
 })
@@ -2159,7 +2886,6 @@ const packetShare = (amount: number): number => 0.5 * amount * Math.sqrt(amount)
 
 const CODEC_PAST_SEC = 4
 const CODEC_SLOTS = 240
-const CODEC_BINS = 2048
 const HIGH_CUT_OFF = 19900
 
 function codecHandles(view: DisplayView): DisplayHandle[] {
@@ -2171,9 +2897,10 @@ function codecHandles(view: DisplayView): DisplayHandle[] {
     x: clamp(xOfHz(cutHz, band), band.x, band.x + band.w),
     y: band.y + band.h * 0.45,
     // Across is the top of what is kept: to the left loses more.
-    drag: (x, y) => {
-      if (!moved(x, y, loss)) return { loss: view.value('loss') }
-      const octaves = 14.4252 - Math.log2(hzOfX(clamp(x, band.x, band.x + band.w), band))
+    drag: (x) => {
+      const to = handTo(x, loss.x, band.x, band.x + band.w)
+      if (Number.isNaN(to)) return { loss: view.value('loss') }
+      const octaves = 14.4252 - Math.log2(hzOfX(to, band))
       return { loss: Math.pow(clamp(octaves / 2.6521, 0, 1), 2 / 3) }
     },
     reset: () => ({ loss: view.spec('loss')?.default ?? 0.5 }),
@@ -2183,32 +2910,66 @@ function codecHandles(view: DisplayView): DisplayHandle[] {
     name: 'High Cut',
     x: clamp(xOfHz(view.value('highCut'), band), band.x, band.x + band.w),
     y: band.y + 13,
-    drag: (x, y) => ({
-      highCut: moved(x, y, highCut)
-        ? clamp(hzOfX(clamp(x, band.x, band.x + band.w), band), 1000, 20000)
-        : view.value('highCut'),
-    }),
+    drag: (x) => {
+      const to = handTo(x, highCut.x, band.x, band.x + band.w)
+      return {
+        highCut: Number.isNaN(to) ? view.value('highCut') : clamp(hzOfX(to, band), 1000, 20000),
+      }
+    },
     reset: () => ({ highCut: view.spec('highCut')?.default ?? 20000 }),
   }
   return [loss, highCut]
 }
 
+/**
+ * How many samples the picture's spectrum of what goes in is made from: as
+ * many as one of the codec's frames spans (twice its coefficients), so the
+ * picture tells apart what the codec can tell apart and no more. Short
+ * frames get twice that, or their spectrum would jump about.
+ */
+function codecBins(frame: number, sampleRate: number): number {
+  const choice = clamp(Math.round(frame), 0, 2)
+  const span = 2 * CODEC_FRAMES[choice] * (sampleRate >= 70000 ? 2 : 1)
+  return Math.min(2048, choice === 0 ? 2 * span : span)
+}
+
 interface CodecState {
+  boxes: Layout
+  columns: Columns
   input: Bins
+  /** Frames since the spectrum going in was taken, and the time. */
+  turn: number
+  since: number
   /** The stream's recent peak, dB: it is let go over a second and a half. */
   reference: number
+  /** What the codec's bands were laid out for, their edges in Hz, and where each stands along the foot. */
+  made: Float64Array
   edges: number[]
-  edgesFor: string
+  edgeX: Float64Array
+  /** Per column: the band it is in, and the frequencies at its middle and its two sides. */
+  bandOf: Int16Array
+  centreHz: Float32Array
+  fromHz: Float32Array
+  toHz: Float32Array
+  /** What Loss means now, and what it was worked out for. */
+  lossFor: Float64Array
+  marginDb: number
+  floorDb: number
+  cutHz: number
+  /** What the verdict on each column was reached for, apart from the spectrum. */
+  verdictFor: Float64Array
   limit: Float32Array
-  sound: [number, number][]
-  under: [number, number][]
-  stair: [number, number][]
-  out: [number, number][]
-  fan: [number, number][]
+  /** The spectrum going in, in two parts: the columns the codec keeps, and the ones it throws away. */
+  kept: Path
+  lost: Path
+  stair: Path
+  sounding: boolean
+  fanFor: Float64Array
+  fan: Path
   /** The stream of packets: 0 flowing, 1 lost, 2 stuck. */
   packets: History
-  lost: number
-  stuck: number
+  lostCount: Counter
+  stuckCount: Counter
 }
 
 const lowBitrate = plateDisplay<CodecState>({
@@ -2218,237 +2979,258 @@ const lowBitrate = plateDisplay<CodecState>({
   live: { meters: true, signal: true, spectrum: true },
   info: 'Above, the spectrum going in and the line under which the codec throws detail away: kept in the ink, lost in the second colour, with a mark at the top where stereo folds to mono. Drag the points for Loss and High Cut. Below, the stream of packets: a gap is lost, the second colour is stuck.',
   init: () => ({
-    input: new Bins(CODEC_BINS),
+    boxes: newLayout(),
+    columns: newColumns(),
+    input: new Bins(1024),
+    turn: 0,
+    since: 0,
     reference: SILENT_DB,
+    made: newKey(),
     edges: [],
-    edgesFor: '',
+    edgeX: new Float64Array(0),
+    bandOf: new Int16Array(0),
+    centreHz: new Float32Array(0),
+    fromHz: new Float32Array(0),
+    toHz: new Float32Array(0),
+    lossFor: newKey(),
+    marginDb: 0,
+    floorDb: 0,
+    cutHz: 0,
+    verdictFor: newKey(),
     limit: new Float32Array(32),
-    sound: [],
-    under: [],
-    stair: [],
-    out: [],
-    fan: [],
+    kept: newPath(),
+    lost: newPath(),
+    stair: newPath(),
+    sounding: false,
+    fanFor: newKey(),
+    fan: newPath(17),
     packets: new History(CODEC_PAST_SEC, CODEC_SLOTS, 0, 'max'),
-    lost: -1,
-    stuck: -1,
+    lostCount: new Counter(),
+    stuckCount: new Counter(),
   }),
   draw(frame) {
     const { ctx, colours, state } = frame
     ground(frame)
-    const boxes = twoBoxes(frame, 18)
+    const boxes = layout(state.boxes, frame, 18)
     const { band, past } = boxes
     const sr = frame.sampleRate
     const foot = band.y + band.h
+    const right = band.x + band.w
     const loss = frame.value('loss')
     const mode = clamp(Math.round(frame.value('mode')), 0, 2)
     const scattered = mode === 2
     const residue = mode === 1
-    const severity = codecSeverity(loss)
+    if (stale(state.lossFor, loss)) {
+      const severity = codecSeverity(loss)
+      state.marginDb = severity.marginDb
+      state.floorDb = severity.floorDb
+      state.cutHz = severity.cutHz
+    }
     const highCut = frame.value('highCut')
     const cutOn = highCut < HIGH_CUT_OFF
     // Nothing is kept above the lower of the two cuts; scattering has no cut of its own.
-    const cutHz = scattered ? 30000 : severity.cutHz
+    const cutHz = scattered ? 30000 : state.cutHz
     const topHz = Math.min(cutHz, cutOn ? highCut : 30000)
-    const topX = clamp(xOfHz(topHz, band), band.x, band.x + band.w)
     const running = frame.signal !== null && frame.dt > 0
-    const edgesFor = `${Math.round(frame.value('frame'))} ${sr}`
-    if (edgesFor !== state.edgesFor) {
-      state.edgesFor = edgesFor
-      state.edges = codecBands(frame.value('frame'), sr)
-    }
-    const { edges } = state
-    const bands = edges.length - 1
-
-    freqGrid(frame, band)
-    // The codec's bands, along the foot.
-    for (let b = 1; b < bands; b++) {
-      if (edges[b] < 20 || edges[b] > 20000) continue
-      const x = xOfHz(edges[b], band)
-      rule(ctx, x, foot, x, foot - 3, { colour: colours.ink, alpha: INK.back })
-    }
-
-    const wave = frame.signal ? (frame.signal.input ?? frame.signal.output).wave : null
-    if (wave && running) state.input.read(wave, frame.dt)
-    const binHz = sr / CODEC_BINS
-    let loudest = SILENT_DB
-    for (const db of state.input.db) loudest = Math.max(loudest, db)
-    state.reference = Math.max(loudest, state.reference - (8.686 * frame.dt) / 1.5)
-    const sounding = running && loudest > -100
-
-    if (sounding) {
-      // Each band's loudest, then the level under which the codec drops what is in it.
-      for (let b = 0; b < bands; b++)
-        state.limit[b] = loudestBin(state.input.db, binHz, edges[b], edges[b + 1] - binHz)
-      if (!scattered && loss > 1e-4)
-        codecThreshold(state.limit, bands, severity.marginDb, state.reference - severity.floorDb)
-      else state.limit.fill(SILENT_DB)
-      const columns = Math.floor(band.w / 2) + 1
+    const choice = clamp(Math.round(frame.value('frame')), 0, 2)
+    const columns = Math.floor(band.w / 2) + 1
+    let laid = false
+    if (stale(state.made, choice, sr, band.x, band.w)) {
+      laid = true
+      state.edges = codecBands(choice, sr)
+      const size = codecBins(choice, sr)
+      if (state.input.size !== size) state.input = new Bins(size)
+      const count = state.edges.length - 1
+      if (state.edgeX.length !== count) state.edgeX = new Float64Array(count)
+      for (let b = 1; b < count; b++) {
+        const hz = state.edges[b]
+        state.edgeX[b] = hz < 20 || hz > 20000 ? NaN : xOfHz(hz, band)
+      }
+      if (state.bandOf.length !== columns) {
+        state.bandOf = new Int16Array(columns)
+        state.centreHz = new Float32Array(columns)
+        state.fromHz = new Float32Array(columns)
+        state.toHz = new Float32Array(columns)
+      }
       let b = 0
       for (let i = 0; i < columns; i++) {
         const x = band.x + Math.min(band.w, i * 2)
-        const from = hzOfX(x - 1, band)
-        const to = hzOfX(x + 1, band)
         const centre = hzOfX(x, band)
-        while (b < bands - 1 && centre >= edges[b + 1]) b += 1
-        // On the family's scale, where a tone at full level reads −14 dB.
-        const level = loudestBin(state.input.db, binHz, from, to) + TONE_DB
-        const limit = centre > topHz ? TOP_DB : state.limit[b] + TONE_DB
-        const y = clamp(yOfDb(level, band, TOP_DB, FOOT_DB), band.y, foot)
-        state.sound[i] ??= [0, 0]
-        state.sound[i][0] = x
-        state.sound[i][1] = y
-        state.under[i] ??= [0, 0]
-        state.under[i][0] = x
-        state.under[i][1] = Math.max(y, clamp(yOfDb(limit, band, TOP_DB, FOOT_DB), band.y, foot))
+        state.centreHz[i] = centre
+        state.fromHz[i] = hzOfX(x - 1, band)
+        state.toHz[i] = hzOfX(x + 1, band)
+        while (b < count - 1 && centre >= state.edges[b + 1]) b += 1
+        state.bandOf[i] = b
       }
-      state.sound.length = state.under.length = columns
-      clipped(ctx, band, () => {
-        // Over the line: kept. Under it, and past the cut: lost. Residue plays the lost part.
-        fillBetweenCurves(ctx, state.sound, state.under, colours.ink, residue ? INK.fill : 0.5)
-        if (!scattered)
-          clipped(
-            ctx,
-            {
-              x: band.x,
-              y: band.y,
-              w: (cutOn ? xOfHz(highCut, band) : band.x + band.w) - band.x,
-              h: band.h,
-            },
-            () => fillTo(ctx, state.under, foot + 4, colours.accent, residue ? 0.75 : 0.4),
-          )
-        // What comes out, as a line: Smear holds it up after the sound has gone, a lost packet drops it.
-        const bins = frame.signal?.spectrum
-        const outHz = frame.signal?.binHz ?? 0
-        if (bins && outHz > 0) {
-          for (let i = 0; i < columns; i++) {
-            const x = band.x + Math.min(band.w, i * 2)
-            state.out[i] ??= [0, 0]
-            state.out[i][0] = x
-            state.out[i][1] = clamp(
-              yOfDb(
-                loudestBin(bins, outHz, hzOfX(x - 1, band), hzOfX(x + 1, band)),
-                band,
-                TOP_DB,
-                FOOT_DB,
-              ),
-              band.y,
-              foot,
-            )
-          }
-          state.out.length = columns
-          trace(ctx, state.out, { colour: colours.ink, width: 1, alpha: INK.back })
+    }
+    const { edges, input } = state
+    const bands = edges.length - 1
+
+    grid(frame, band)
+    // The codec's bands, along the foot: all the marks in one stroke.
+    ctx.beginPath()
+    for (let b = 1; b < bands; b++) {
+      const x = state.edgeX[b]
+      if (Number.isNaN(x)) continue
+      ctx.moveTo(crisp(x), foot)
+      ctx.lineTo(crisp(x), foot - 3)
+    }
+    ctx.globalAlpha = INK.back
+    ctx.strokeStyle = colours.ink
+    ctx.lineWidth = 1
+    ctx.lineCap = 'round'
+    ctx.stroke()
+    ctx.globalAlpha = 1
+
+    // The spectrum of what goes in, taken every second frame.
+    const wave = frame.signal ? (frame.signal.input ?? frame.signal.output).wave : null
+    let taken = false
+    if (wave && running) {
+      state.since += frame.dt
+      if (state.turn === 0) {
+        input.read(wave, state.since)
+        let loudest = 0
+        for (const power of input.power) if (power > loudest) loudest = power
+        const loudestDb = db10(loudest)
+        state.reference = Math.max(loudestDb, state.reference - (8.686 * state.since) / 1.5)
+        state.sounding = loudestDb > -100
+        state.since = 0
+        taken = true
+      }
+      state.turn = (state.turn + 1) % 2
+    } else {
+      state.sounding = false
+    }
+
+    const judged = stale(state.verdictFor, loss, mode, highCut, band.y, band.h)
+    if (state.sounding && (taken || judged || laid)) {
+      // Each band's loudest, then the level under which the codec drops what is in it.
+      const binHz = sr / input.size
+      const { limit } = state
+      for (let b = 0; b < bands; b++)
+        limit[b] = db10(loudestBin(input.power, binHz, edges[b], edges[b + 1] - binHz))
+      if (!scattered && loss > 1e-4)
+        codecThreshold(limit, bands, state.marginDb, state.reference - state.floorDb)
+      else limit.fill(SILENT_DB)
+      // A column whose loudest is over its band's line is kept; under it, or past the codec's own cut, it is thrown
+      // away. What is past High Cut is in neither part: that cut comes after everything.
+      const kept = sized(state.kept, 2 * columns)
+      const lost = sized(state.lost, 2 * columns)
+      for (let i = 0; i < columns; i++) {
+        const x = band.x + Math.min(band.w, i * 2)
+        const centre = state.centreHz[i]
+        // On the family's scale, where a tone at full level reads −14 dB.
+        const level = db10(loudestBin(input.power, binHz, state.fromHz[i], state.toHz[i]))
+        const y = clamp(yOfDb(level + TONE_DB, band, TOP_DB, FOOT_DB), band.y, foot)
+        const gone = cutOn && centre > highCut
+        const keeps = !gone && centre <= cutHz && level >= limit[state.bandOf[i]]
+        kept.x[2 * i] = lost.x[2 * i] = Math.max(band.x, x - 1)
+        kept.x[2 * i + 1] = lost.x[2 * i + 1] = Math.min(right, x + 1)
+        kept.y[2 * i] = kept.y[2 * i + 1] = keeps ? y : foot
+        lost.y[2 * i] = lost.y[2 * i + 1] = keeps || gone ? foot : y
+      }
+      const stair = sized(state.stair, 2 * bands)
+      let count = 0
+      if (!scattered && loss > 1e-4) {
+        for (let b = 0; b < bands; b++) {
+          if (edges[b] >= topHz) break
+          const y = clamp(yOfDb(limit[b] + TONE_DB, band, TOP_DB, FOOT_DB), band.y, foot)
+          stair.x[count] = xOfHz(Math.max(edges[b], 20), band)
+          stair.x[count + 1] = xOfHz(Math.min(edges[b + 1], topHz), band)
+          stair.y[count] = stair.y[count + 1] = y
+          count += 2
         }
-        if (!scattered && loss > 1e-4) {
-          let count = 0
-          for (let k = 0; k < bands; k++) {
-            if (edges[k] >= topHz) break
-            const y = clamp(yOfDb(state.limit[k] + TONE_DB, band, TOP_DB, FOOT_DB), band.y, foot)
-            for (const hz of [Math.max(edges[k], 20), Math.min(edges[k + 1], topHz)]) {
-              state.stair[count] ??= [0, 0]
-              state.stair[count][0] = xOfHz(hz, band)
-              state.stair[count][1] = y
-              count += 1
-            }
-          }
-          state.stair.length = count
-          trace(ctx, state.stair, { colour: colours.ink, width: 1.25 })
-        }
-      })
+      }
+      stair.n = count
+    }
+
+    const topX = clamp(xOfHz(topHz, band), band.x, right)
+    if (state.sounding) {
+      clipTo(ctx, band.x, band.y, band.w, band.h)
+      // Kept in the ink, lost in the second colour. Residue plays the lost part.
+      fillUnder(ctx, state.kept, foot, colours.ink, residue ? INK.fill : 0.5)
+      if (!scattered) fillUnder(ctx, state.lost, foot, colours.accent, residue ? 0.75 : 0.45)
+      // What comes out, as a line: Smear holds it up after the sound has gone, a lost packet drops it.
+      if (spectrumPath(frame, band, state.columns))
+        strokePath(ctx, state.columns.path, colours.ink, 1, INK.back)
+      strokePath(ctx, state.stair, colours.ink, 1.25)
+      ctx.restore()
     } else if (!scattered) {
       // No sound: the part of the range that is kept, or in Residue the part that is thrown away and played.
-      if (residue)
-        fillRect(
-          ctx,
-          { x: topX, y: band.y, w: band.x + band.w - topX, h: band.h },
-          colours.accent,
-          INK.fill,
-        )
-      else
-        fillRect(
-          ctx,
-          { x: band.x, y: band.y, w: topX - band.x, h: band.h },
-          colours.ink,
-          INK.ground,
-        )
+      if (residue) bar(ctx, topX, band.y, right - topX, band.h, colours.accent, INK.fill)
+      else bar(ctx, band.x, band.y, topX - band.x, band.h, colours.ink, INK.ground)
     }
 
     // The cuts: Loss takes the top away, High Cut cuts whatever is left.
-    if (!scattered) {
-      const x = xOfHz(cutHz, band)
-      if (x <= band.x + band.w)
-        rule(ctx, x, band.y, x, foot, {
-          colour: colours.ink,
-          alpha: cutHz <= topHz ? 1 : INK.rule,
-        })
-    }
-    if (cutOn) {
-      const x = xOfHz(highCut, band)
-      rule(ctx, x, band.y, x, foot, { colour: colours.ink, alpha: highCut <= topHz ? 1 : INK.rule })
-    }
+    const lossX = xOfHz(cutHz, band)
+    if (!scattered && lossX <= right)
+      line(ctx, lossX, band.y, lossX, foot, colours.ink, cutHz <= topHz ? 1 : INK.rule)
+    const highX = xOfHz(highCut, band)
+    if (cutOn) line(ctx, highX, band.y, highX, foot, colours.ink, highCut <= topHz ? 1 : INK.rule)
     // Two sides as two lines along the top, one from where they are folded together.
-    const monoX = clamp(
-      xOfHz(codecMonoHz(loss, frame.value('stereo')), band),
-      band.x,
-      band.x + band.w,
-    )
-    for (const y of [band.y + 1, band.y + 4])
-      rule(ctx, band.x, y, Math.max(band.x, monoX - 2), y, { colour: colours.ink, alpha: INK.text })
-    if (monoX < band.x + band.w - 1)
-      rule(ctx, monoX, band.y + 2.5, band.x + band.w, band.y + 2.5, {
-        colour: colours.ink,
-        alpha: INK.text,
-      })
+    const monoX = clamp(xOfHz(codecMonoHz(loss, frame.value('stereo')), band), band.x, right)
+    const apart = Math.max(band.x, monoX - 2)
+    line(ctx, band.x, band.y + 1, apart, band.y + 1, colours.ink, INK.text)
+    line(ctx, band.x, band.y + 4, apart, band.y + 4, colours.ink, INK.text)
+    if (monoX < right - 1)
+      line(ctx, monoX, band.y + 2.5, right, band.y + 2.5, colours.ink, INK.text)
 
-    const handles = codecHandles(frame)
+    // The handles: Loss on the codec's own cut, High Cut on its edge.
+    const lossSpotX = clamp(xOfHz(state.cutHz, band), band.x, right)
+    const lossSpotY = band.y + band.h * 0.45
     if (scattered) {
       // Scattered turns each coefficient's phase by up to ±Loss × 180°: the fan round the point.
-      const centre = handles[0]
+      const fan = state.fan
       const steps = 16
-      for (let i = 0; i <= steps; i++) {
-        const angle = Math.PI + ((i / steps) * 2 - 1) * loss * Math.PI
-        state.fan[i] ??= [0, 0]
-        state.fan[i][0] = centre.x + 11 * Math.cos(angle)
-        state.fan[i][1] = centre.y + 11 * Math.sin(angle)
+      if (stale(state.fanFor, loss, lossSpotX, lossSpotY)) {
+        sized(fan, steps + 1)
+        for (let i = 0; i <= steps; i++) {
+          const angle = Math.PI + ((i / steps) * 2 - 1) * loss * Math.PI
+          fan.x[i] = lossSpotX + 11 * Math.cos(angle)
+          fan.y[i] = lossSpotY + 11 * Math.sin(angle)
+        }
       }
-      state.fan.length = steps + 1
-      trace(ctx, state.fan, { colour: colours.accent, width: 2 })
-      for (const end of [state.fan[0], state.fan[steps]])
-        rule(ctx, centre.x, centre.y, end[0], end[1], { colour: colours.accent })
+      strokePath(ctx, fan, colours.accent, 2)
+      line(ctx, lossSpotX, lossSpotY, fan.x[0], fan.y[0], colours.accent)
+      line(ctx, lossSpotX, lossSpotY, fan.x[steps], fan.y[steps], colours.accent)
     }
-    for (const point of handles) handle(frame, point.x, point.y, { hot: frame.hot === point.key })
+    knob(frame, lossSpotX, lossSpotY, frame.hot === 'loss')
+    knob(frame, clamp(highX, band.x, right), band.y + 13, frame.hot === 'highCut')
     if (frame.hot === 'loss' && !scattered)
-      text(frame, hzText(severity.cutHz), band.x + 1, band.y + 14)
-    else if (frame.hot === 'highCut') text(frame, hzText(highCut), band.x + 1, band.y + 14)
+      text(frame, hzText(state.cutHz), band.x + 1, band.y + 14, LEFT)
+    else if (frame.hot === 'highCut') text(frame, hzText(highCut), band.x + 1, band.y + 14, LEFT)
 
     // Below: the stream of packets over the last seconds.
     divide(frame, boxes)
-    const ribbon: Box = { x: past.x, y: past.y + 2, w: past.w, h: past.h - 8 }
-    const shares: Box = { x: past.x, y: past.y + past.h - 3, w: past.w, h: 2 }
+    const ribbonY = past.y + 2
+    const ribbonH = past.h - 8
     // How much of the stream the settings lose and hold, in the long run: a share of the line, from the right.
-    const stuck = packetShare(frame.value('stutter')) * shares.w
-    const lost = packetShare(frame.value('dropouts')) * shares.w
-    fillRect(ctx, { ...shares, w: shares.w - stuck - lost }, colours.ink, INK.back)
-    fillRect(ctx, { ...shares, x: shares.x + shares.w - stuck, w: stuck }, colours.accent)
+    const sharesY = past.y + past.h - 3
+    const stuck = packetShare(frame.value('stutter')) * past.w
+    const lost = packetShare(frame.value('dropouts')) * past.w
+    bar(ctx, past.x, sharesY, past.w - stuck - lost, 2, colours.ink, INK.back)
+    bar(ctx, past.x + past.w - stuck, sharesY, stuck, 2, colours.accent)
     if (!running || !frame.hasMeter('packet')) {
-      fillRect(ctx, ribbon, colours.ink, INK.fill)
+      state.lostCount.rest()
+      state.stuckCount.rest()
+      bar(ctx, past.x, ribbonY, past.w, ribbonH, colours.ink, INK.fill)
       return
     }
-    const lostCount = frame.meter('lost')
-    const stuckCount = frame.meter('stuck')
     // An event shorter than the gap between two readings is still counted.
-    if (counted(state.lost, lostCount) > 0) state.packets.push(frame.now, 1)
-    if (counted(state.stuck, stuckCount) > 0) state.packets.push(frame.now, 2)
-    state.packets.push(frame.now, Math.round(frame.meter('packet')))
-    state.lost = lostCount
-    state.stuck = stuckCount
-    const slot = ribbon.w / CODEC_SLOTS
+    if (state.lostCount.more(frame.meter('lost'), frame.now) > 0) state.packets.push(frame.now, 1)
+    if (state.stuckCount.more(frame.meter('stuck'), frame.now) > 0) state.packets.push(frame.now, 2)
+    // With no sound in and none out the device sleeps and its last packet's state stands: a stream of nothing loses nothing.
+    const asleep = frame.signal?.output.peak === 0 && frame.signal.input?.peak === 0
+    state.packets.push(frame.now, asleep ? 0 : Math.round(frame.meter('packet')))
+    const slot = past.w / CODEC_SLOTS
     let from = 0
     for (let i = 1; i <= CODEC_SLOTS; i++) {
       const kind = state.packets.at(CODEC_SLOTS - 1 - from)
       if (i < CODEC_SLOTS && state.packets.at(CODEC_SLOTS - 1 - i) === kind) continue
-      const run: Box = { x: ribbon.x + from * slot, y: ribbon.y, w: (i - from) * slot, h: ribbon.h }
-      if (kind === 0) fillRect(ctx, run, colours.ink, 0.42)
-      else if (kind === 2) fillRect(ctx, run, colours.accent)
+      if (kind === 0)
+        bar(ctx, past.x + from * slot, ribbonY, (i - from) * slot, ribbonH, colours.ink, 0.42)
+      else if (kind === 2)
+        bar(ctx, past.x + from * slot, ribbonY, (i - from) * slot, ribbonH, colours.accent)
       from = i
     }
   },
@@ -2562,11 +3344,12 @@ function digitalHandles(view: DisplayView): DisplayHandle[] {
     x: clamp(xOfHz(view.value('rate') / 2, band), band.x, band.x + band.w),
     y: band.y + band.h * 0.4,
     // Across is half the rate: what is above it cannot be kept.
-    drag: (x, y) => ({
-      rate: moved(x, y, rate)
-        ? clamp(2 * hzOfX(clamp(x, band.x, band.x + band.w), band), 1000, 48000)
-        : view.value('rate'),
-    }),
+    drag: (x) => {
+      const to = handTo(x, rate.x, band.x, band.x + band.w)
+      return {
+        rate: Number.isNaN(to) ? view.value('rate') : clamp(2 * hzOfX(to, band), 1000, 48000),
+      }
+    },
     reset: () => ({ rate: view.spec('rate')?.default ?? 9000 }),
   }
   const grain = grainDb(view, DIGITAL_NOMINAL, sampleRate, sampleRate / TAP_BINS)
@@ -2576,35 +3359,66 @@ function digitalHandles(view: DisplayView): DisplayHandle[] {
     x: band.x + 9,
     y: clamp(yOfDb(grain, band, TOP_DB, FOOT_DB), band.y, foot),
     // Up is a coarser step: the grain rises 6 dB for each bit taken away.
-    drag: (x, y) => ({
-      bits: moved(x, y, bits)
-        ? clamp(
-            view.value('bits') +
-              (grain - dbOfY(clamp(y, band.y, foot), band, TOP_DB, FOOT_DB)) / 6.0206,
-            4,
-            16,
-          )
-        : view.value('bits'),
-    }),
+    drag: (_x, y) => {
+      const to = handTo(y, bits.y, band.y, foot)
+      return {
+        bits: Number.isNaN(to)
+          ? view.value('bits')
+          : clamp(view.value('bits') + (grain - dbOfY(to, band, TOP_DB, FOOT_DB)) / 6.0206, 4, 16),
+      }
+    },
     reset: () => ({ bits: view.spec('bits')?.default ?? 12 }),
   }
   return [rate, bits]
 }
 
-interface DigitalState {
-  input: Bins
-  /** Per bin of the input: what the filter before the sampler lets through, and what was made from. */
-  let: Float32Array
-  letFor: string
-  /** Per bin: the power that reaches the sampler now. */
-  reach: Float32Array
-  response: Curve
-  before: Curve
-  added: [number, number][]
-  wave: [number, number][]
+/** How many samples the picture's spectrum of what goes in is made from: bins 47 Hz apart at 48 kHz, finer than a column of the picture from 400 Hz up. */
+const DIGITAL_BINS = 1024
+
+/**
+ * Where each bin of a spectrum lands once a sampler at `rate` has folded it:
+ * the bin of its distance from the nearest multiple of the rate. Everything
+ * a sampler puts out at a frequency came from one of the bins that land on
+ * that frequency's own.
+ */
+export function foldedBins(alias: Uint16Array, rate: number, binHz: number): void {
+  const top = Math.max(0, Math.round(rate / 2 / binHz))
+  for (let b = 0; b < alias.length; b++) {
+    const hz = b * binHz
+    alias[b] = Math.min(top, Math.round(Math.abs(hz - Math.round(hz / rate) * rate) / binHz))
+  }
 }
 
-const DIGITAL_BINS = 2048
+interface DigitalState {
+  boxes: Layout
+  columns: Columns
+  input: Bins
+  /** Frames since the spectrum going in was taken, and the time. */
+  turn: number
+  since: number
+  made: Float64Array
+  setFor: Float64Array
+  response: Curve
+  before: Curve
+  /** Per bin of the input: what the filter before the sampler lets through, and the bin it folds to. */
+  let: Float32Array
+  alias: Uint16Array
+  /** Per bin: the power that reaches the sampler now, and all that lands on that bin once folded. */
+  reach: Float32Array
+  folded: Float32Array
+  /** Per column of the picture: the bins of the input it holds, as `Columns` has them. */
+  first: Int16Array
+  last: Int16Array
+  between: Float32Array
+  /** How fast what reaches the sampler moves: the sum of each tone's power by the square of its angular frequency. */
+  slope: number
+  sounding: boolean
+  added: Path
+  set: Path
+  wave: Path
+  /** Where the two handles stand: x and y of Rate, then of Bits. */
+  spots: Float64Array
+}
 
 const vintageDigital = plateDisplay<DigitalState>({
   place: 'window',
@@ -2613,148 +3427,196 @@ const vintageDigital = plateDisplay<DigitalState>({
   live: { meters: false, signal: true, spectrum: true },
   info: 'Above, the spectrum with half the sample rate marked: the line is what the hold and the output filter leave, the dashes what is let in to fold back, the second colour what the converter adds. Drag the points for Rate and Bits. Below, the wave, with a mark for each sample held.',
   init: () => ({
+    boxes: newLayout(),
+    columns: newColumns(),
     input: new Bins(DIGITAL_BINS),
-    let: new Float32Array(DIGITAL_BINS / 2 + 1),
-    letFor: '',
-    reach: new Float32Array(DIGITAL_BINS / 2 + 1),
+    turn: 0,
+    since: 0,
+    made: newKey(),
+    setFor: newKey(),
     response: newCurve(),
     before: newCurve(),
-    added: [],
-    wave: [],
+    let: new Float32Array(DIGITAL_BINS / 2 + 1),
+    alias: new Uint16Array(DIGITAL_BINS / 2 + 1),
+    reach: new Float32Array(DIGITAL_BINS / 2 + 1),
+    folded: new Float32Array(DIGITAL_BINS / 2 + 1),
+    first: new Int16Array(0),
+    last: new Int16Array(0),
+    between: new Float32Array(0),
+    slope: 0,
+    sounding: false,
+    added: newPath(),
+    set: newPath(),
+    wave: newPath(),
+    spots: new Float64Array(4),
   }),
   draw(frame) {
     const { ctx, colours, state } = frame
     ground(frame)
-    const boxes = twoBoxes(frame, 28)
+    const boxes = layout(state.boxes, frame, 28)
     const { band, past } = boxes
     const sr = frame.sampleRate
     const binHz = binHzOf(frame)
     const foot = band.y + band.h
-    const { rate, out } = converterRate(frame, sr)
+    const top = Math.min(48000, sr)
+    const rate = Math.min(frame.value('rate'), top)
+    const out = frame.value('rate') >= top
     const aliasing = frame.value('aliasing')
     const filter = Math.round(frame.value('filter'))
     const jitter = frame.value('jitter')
-    const settings = `${rate.toFixed(0)} ${filter} ${out}`
-
-    makeCurve(state.response, settings, band, (hz) =>
-      out ? 0 : converterOutputDb(filter, hz, rate, sr),
-    )
-    makeCurve(state.before, `${settings} ${aliasing.toFixed(3)}`, band, (hz) =>
-      out ? 0 : db10(converterInput(aliasing, hz, rate, sr)),
-    )
-
-    const wave = frame.signal ? (frame.signal.input ?? frame.signal.output).wave : null
-    const running = wave !== null && frame.dt > 0
-    if (wave && running) state.input.read(wave, frame.dt)
-    // How loud the sound going in is: the grain is there only while there is a signal to round.
-    const going = frame.signal ? (frame.signal.input ?? frame.signal.output) : null
-    const level = going?.rms ?? 0
+    const bits = frame.value('bits')
     const mu = frame.value('companding') >= 0.5
-    const sounding = running && (going?.peak ?? 0) > 0.5 * converterStep(frame.value('bits'), mu, 0)
+    const columns = curveLength(band)
+    const inHz = sr / DIGITAL_BINS
+    const bins = DIGITAL_BINS / 2
 
-    freqGrid(frame, band)
-    drawUnchanged(frame, band)
-    clipped(ctx, band, () => {
-      drawSpectrum(frame, band)
-      const columns = Math.floor(band.w / 2) + 1
-      const inHz = sr / DIGITAL_BINS
-      const last = state.reach.length - 1
-      let grain = 0
-      if (sounding) {
-        // What reaches the sampler, bin by bin, and how fast it moves: a clock that strays reads a moving wave wrong.
-        const letFor = `${rate.toFixed(0)} ${aliasing.toFixed(3)} ${sr}`
-        if (letFor !== state.letFor) {
-          state.letFor = letFor
-          for (let i = 0; i <= last; i++)
-            state.let[i] = converterInput(aliasing, i * inHz, rate, sr)
-        }
-        let slope = 0
-        for (let i = 0; i <= last; i++) {
-          // A tone of amplitude a has the power a² / 2; its bin and the two beside it hold 1.5 a².
-          const tone = Math.pow(10, state.input.db[i] / 10) / 2
-          state.reach[i] = tone * state.let[i]
-          slope += (2 * Math.PI * i * inHz) ** 2 * (state.reach[i] / 1.5)
-        }
-        const strays = (jitter * jitter * 0.12) / rate
-        const step = converterStep(frame.value('bits'), mu, level)
-        grain = (step * step) / 12 + (out ? 0 : slope * strays * strays)
+    // The curves, and where each bin of the input goes, again only when a control has moved.
+    const remade = stale(
+      state.made,
+      rate,
+      out ? 1 : 0,
+      filter,
+      aliasing,
+      sr,
+      frame.width,
+      frame.height,
+    )
+    if (remade) {
+      fillCurve(state.response, band, (hz) => (out ? 0 : converterOutputDb(filter, hz, rate, sr)))
+      fillCurve(state.before, band, (hz) =>
+        out ? 0 : db10(converterInput(aliasing, hz, rate, sr)),
+      )
+      for (let b = 0; b <= bins; b++) state.let[b] = converterInput(aliasing, b * inHz, rate, sr)
+      foldedBins(state.alias, rate, inHz)
+      if (state.first.length !== columns) {
+        state.first = new Int16Array(columns)
+        state.last = new Int16Array(columns)
+        state.between = new Float32Array(columns)
       }
-      // The quantiser's grain alone, where Bits puts it for a signal at a working level: the line its point rides on.
-      const set = grainDb(frame, DIGITAL_NOMINAL, sr, binHz)
       for (let i = 0; i < columns; i++) {
         const x = band.x + Math.min(band.w, i * 2)
-        state.added[i] ??= [0, 0]
-        state.added[i][0] = x
-        state.added[i][1] = clamp(
-          yOfDb(set + state.response.db[i], band, TOP_DB, FOOT_DB),
+        const from = hzOfX(x - 1, band)
+        const to = hzOfX(x + 1, band)
+        if (to - from < inHz) {
+          state.between[i] = clamp((from + to) / 2 / inHz, 0, bins - 0.001)
+        } else {
+          state.between[i] = -1
+          state.first[i] = clamp(Math.ceil(from / inHz), 0, bins)
+          state.last[i] = clamp(Math.floor(to / inHz), state.first[i], bins)
+        }
+      }
+    }
+    // The quantiser's grain alone, where Bits puts it for a signal at a working level: the line its point rides on.
+    const reset = stale(state.setFor, bits, mu ? 1 : 0, binHz)
+    if (remade || reset) {
+      const grain = grainDb(frame, DIGITAL_NOMINAL, sr, binHz)
+      const set = sized(state.set, columns)
+      for (let i = 0; i < columns; i++) {
+        set.x[i] = band.x + Math.min(band.w, i * 2)
+        set.y[i] = clamp(
+          yOfDb(grain + state.response.db[i], band, TOP_DB, FOOT_DB),
           band.y - 4,
           foot + 4,
         )
       }
-      state.added.length = columns
-      trace(ctx, state.added, {
-        colour: colours.accent,
-        width: 1,
-        alpha: sounding ? INK.back : 1,
-        dash: [2, 2],
-      })
-      for (let i = 0; i < columns && sounding; i++) {
-        const x = band.x + Math.min(band.w, i * 2)
-        const hz = hzOfX(x, band)
-        let db = SILENT_DB
-        {
-          // The grain, white at the converter's rate, and every copy of the input that lands here from a multiple of the rate away.
-          let folded = 0
-          if (!out) {
-            const from = hzOfX(x - 1, band)
-            const to = hzOfX(x + 1, band)
-            const most = Math.floor((hz + sr / 2) / rate)
-            for (let k = -most; k <= most; k++) {
-              if (k === 0) continue
-              const low = Math.min(Math.abs(from + k * rate), Math.abs(to + k * rate))
-              const high = Math.max(Math.abs(from + k * rate), Math.abs(to + k * rate))
-              if (low > sr / 2) continue
-              const first = clamp(Math.round(low / inHz), 0, last)
-              const end = clamp(Math.round(high / inHz), first, last)
-              let loudest = 0
-              for (let b = first; b <= end; b++) loudest = Math.max(loudest, state.reach[b])
-              folded += loudest
+      const points = digitalHandles(frame)
+      state.spots[0] = points[0].x
+      state.spots[1] = points[0].y
+      state.spots[2] = points[1].x
+      state.spots[3] = points[1].y
+    }
+
+    // The spectrum of what goes in, taken every second frame.
+    const going = frame.signal ? (frame.signal.input ?? frame.signal.output) : null
+    const running = going !== null && frame.dt > 0
+    const sounding = running && going.peak > 0.5 * converterStep(bits, mu, 0)
+    let taken = false
+    if (going && running) {
+      state.since += frame.dt
+      if (state.turn === 0) {
+        state.input.read(going.wave, state.since)
+        state.since = 0
+        taken = true
+      }
+      state.turn = (state.turn + 1) % 2
+    }
+    if (sounding && (taken || remade || reset || !state.sounding)) {
+      // What reaches the sampler, bin by bin, and how fast it moves: a clock that strays reads a moving wave wrong.
+      const { reach, folded, alias } = state
+      const power = state.input.power
+      let slope = 0
+      folded.fill(0)
+      for (let b = 0; b <= bins; b++) {
+        // A tone of amplitude a has the power a² / 2; its bin and the two beside it hold 1.5 a².
+        const tone = (power[b] / 2) * state.let[b]
+        reach[b] = tone
+        folded[alias[b]] += tone
+        slope += (2 * Math.PI * b * inHz) ** 2 * (tone / 1.5)
+      }
+      state.slope = slope
+      // How loud the sound going in is: the grain is there only while there is a signal to round.
+      const strays = (jitter * jitter * 0.12) / rate
+      const step = converterStep(bits, mu, going.rms)
+      const grain = (step * step) / 12 + (out ? 0 : slope * strays * strays)
+      // The grain, white at the converter's rate, as the spectrum reads it.
+      const noise = Math.pow(10, noiseBinDb(grain * (out ? 1 : sr / rate), sr, binHz) / 10)
+      // A tone of power a² / 2 reads 20·log10(a) − 14 dB on the spectrum.
+      const asTone = 2 * Math.pow(10, TONE_DB / 10)
+      const added = sized(state.added, columns)
+      for (let i = 0; i < columns; i++) {
+        // Every copy of the input that lands here from a multiple of the rate away: all that lands, less what was here.
+        let copies = 0
+        if (!out) {
+          const at = state.between[i]
+          if (at >= 0) {
+            const below = Math.floor(at)
+            const one = folded[alias[below]] - reach[below]
+            const other = folded[alias[below + 1]] - reach[below + 1]
+            copies = one + (other - one) * (at - below)
+          } else {
+            const last = state.last[i]
+            for (let b = state.first[i]; b <= last; b++) {
+              const here = folded[alias[b]] - reach[b]
+              if (here > copies) copies = here
             }
           }
-          // A tone of power a² / 2 reads 20·log10(a) − 14 dB on the spectrum.
-          const tones = folded > 0 ? db10(2 * folded) + TONE_DB : SILENT_DB
-          const noise = noiseBinDb(grain * (out ? 1 : sr / rate), sr, binHz)
-          db = db10(Math.pow(10, tones / 10) + Math.pow(10, noise / 10)) + state.response.db[i]
         }
-        state.added[i][1] = clamp(yOfDb(db, band, TOP_DB, FOOT_DB), band.y - 4, foot + 4)
+        const db = db10(Math.max(0, copies) * asTone + noise) + state.response.db[i]
+        added.x[i] = band.x + Math.min(band.w, i * 2)
+        added.y[i] = clamp(yOfDb(db, band, TOP_DB, FOOT_DB), band.y - 4, foot + 4)
       }
-      if (sounding) {
-        fillTo(ctx, state.added, foot + 4, colours.accent, 0.45)
-        trace(ctx, state.added, { colour: colours.accent, width: 1.25 })
-      }
-      if (!out) {
-        // Half the rate: what was above it comes back under it.
-        const x = xOfHz(rate / 2, band)
-        rule(ctx, x, band.y, x, foot, { colour: colours.accent, dash: [2, 2] })
-        trace(ctx, curvePoints(state.before, band, CURVE_TOP_DB, CURVE_FOOT_DB), {
-          colour: colours.ink,
-          width: 1,
-          alpha: INK.back,
-          dash: [2, 2],
-        })
-      }
-      drawResponse(frame, band, state.response)
-    })
-    for (const point of digitalHandles(frame))
-      handle(frame, point.x, point.y, { hot: frame.hot === point.key })
-    if (frame.hot === 'rate') text(frame, hzText(rate), band.x + 1, band.y + 8)
-    else if (frame.hot === 'bits')
-      text(
-        frame,
-        `${frame.value('bits').toFixed(1).replace(/\.0$/, '')} bit`,
-        band.x + 1,
-        band.y + 8,
+    }
+    state.sounding = sounding
+
+    grid(frame, band)
+    drawUnchanged(frame, band)
+    clipTo(ctx, band.x, band.y, band.w, band.h)
+    drawSpectrum(frame, band, state.columns)
+    strokePath(ctx, state.set, colours.accent, 1, sounding ? INK.back : 1, DASHED)
+    if (sounding) {
+      fillUnder(ctx, state.added, foot + 4, colours.accent, 0.45)
+      strokePath(ctx, state.added, colours.accent, 1.25)
+    }
+    if (!out) {
+      // Half the rate: what was above it comes back under it.
+      const x = xOfHz(rate / 2, band)
+      line(ctx, x, band.y, x, foot, colours.accent, 1, 1, DASHED)
+      strokePath(
+        ctx,
+        curvePath(state.before, band, CURVE_TOP_DB, CURVE_FOOT_DB),
+        colours.ink,
+        1,
+        INK.back,
+        DASHED,
       )
+    }
+    drawResponse(frame, band, state.response)
+    ctx.restore()
+    knob(frame, state.spots[0], state.spots[1], frame.hot === 'rate')
+    knob(frame, state.spots[2], state.spots[3], frame.hot === 'bits')
+    if (frame.hot === 'rate') text(frame, hzText(rate), band.x + 1, band.y + 8, LEFT)
+    else if (frame.hot === 'bits')
+      text(frame, `${bits.toFixed(1).replace(/\.0$/, '')} bit`, band.x + 1, band.y + 8, LEFT)
 
     // Below: the wave as it comes out, 4 ms of it.
     divide(frame, boxes)
@@ -2763,26 +3625,26 @@ const vintageDigital = plateDisplay<DigitalState>({
     if (!out) drawHolds(frame, past, span, sr / rate, 0.24 * jitter * jitter)
     const heard = frame.signal?.output
     if (!heard || !running || heard.peak < 1e-5) {
-      rule(ctx, past.x, middle, past.x + past.w, middle, { colour: colours.ink, alpha: INK.grid })
+      line(ctx, past.x, middle, past.x + past.w, middle, colours.ink, INK.grid)
       return
     }
-    clipped(ctx, past, () => {
-      const start = risingEdge(heard.wave, span)
-      let peak = 0.02
-      for (let i = 0; i <= span; i++) peak = Math.max(peak, Math.abs(heard.wave[start + i] ?? 0))
-      // The levels the quantiser has, where they are far enough apart to see.
-      const step = converterStep(frame.value('bits'), false, 0)
-      const apart = (step / peak) * (past.h / 2 - 1)
-      if (!mu && apart >= 3)
-        for (let y = apart; y < past.h / 2; y += apart)
-          for (const side of [-1, 1])
-            rule(ctx, past.x, middle + side * y, past.x + past.w, middle + side * y, {
-              colour: colours.ink,
-              alpha: INK.grid,
-            })
-      rule(ctx, past.x, middle, past.x + past.w, middle, { colour: colours.ink, alpha: INK.grid })
-      drawWave(frame, past, state.wave, heard.wave, span)
-    })
+    clipTo(ctx, past.x, past.y, past.w, past.h)
+    const start = risingEdge(heard.wave, span)
+    let peak = 0.02
+    for (let i = 0; i <= span && start + i < heard.wave.length; i++) {
+      const size = Math.abs(heard.wave[start + i])
+      if (size > peak) peak = size
+    }
+    // The levels the quantiser has, where they are far enough apart to see.
+    const apart = (converterStep(bits, false, 0) / peak) * (past.h / 2 - 1)
+    if (!mu && apart >= 3)
+      for (let y = apart; y < past.h / 2; y += apart) {
+        line(ctx, past.x, middle - y, past.x + past.w, middle - y, colours.ink, INK.grid)
+        line(ctx, past.x, middle + y, past.x + past.w, middle + y, colours.ink, INK.grid)
+      }
+    line(ctx, past.x, middle, past.x + past.w, middle, colours.ink, INK.grid)
+    drawWave(frame, past, state.wave, heard.wave, span)
+    ctx.restore()
   },
   handles: (view) => digitalHandles(view),
 })
@@ -2914,21 +3776,6 @@ export function humLines(tone: number): number[] {
   )
 }
 
-interface NoiseState {
-  floor: Curve
-  /** The sound going in and the noise under it over the last seconds, dB. */
-  sound: History
-  noise: History
-  /** Ticks and pops as the device counted them, where they fell. */
-  ticked: Tally
-  popped: Tally
-  ticks: number
-  pops: number
-  lines: number[]
-  linesFor: number
-  comb: [number, number][]
-}
-
 const NOISE_PAST_SEC = 6
 /** The levels the strip of the last seconds spans. */
 const PAST_TOP_DB = 0
@@ -2953,60 +3800,71 @@ function noiseFloorDb(view: DisplayView, hz: number, sampleRate: number, binHz: 
   return noiseBinDb(variance, 48000, binHz)
 }
 
-function noiseCurve(state: NoiseState, view: DisplayView, box: Box, binHz: number): Curve {
-  const made = ['type', 'level', 'tone', 'width'].map((name) => view.value(name).toFixed(3))
-  makeCurve(state.floor, `${made.join(' ')} ${binHz.toFixed(2)}`, box, (hz) =>
-    noiseFloorDb(view, hz, 48000, binHz),
-  )
-  return state.floor
-}
-
-/** The loudest of the hum's harmonics, in dB on the spectrum's scale, for a Level and a Width. */
-function humPeakDb(view: DisplayView): number {
-  const width = view.value('width')
-  return (
-    view.value('level') +
-    db20(Math.max(...humLines(view.value('tone')))) +
-    db10(1 - 0.151 * width * width) +
-    TONE_DB
-  )
-}
-
 const isHum = (view: DisplayView): boolean => {
   const bed = Math.round(view.value('type'))
   return bed === 3 || bed === 4
 }
 
+/** The loudest of the hum's harmonics, in dB on the spectrum's scale, for a Level and a Width. */
+function humPeakDb(view: DisplayView): number {
+  const width = view.value('width')
+  let loudest = 0
+  for (const amplitude of humLines(view.value('tone'))) loudest = Math.max(loudest, amplitude)
+  return view.value('level') + db20(loudest) + db10(1 - 0.151 * width * width) + TONE_DB
+}
+
 /** Where the handle of the floor stands: on the floor's highest point. */
 function noiseHandle(view: DisplayView, curve: Curve | null): DisplayHandle[] {
   const { band } = twoBoxes(view)
-  const scratch = curve ?? newCurve()
-  if (!curve)
-    makeCurve(scratch, 'handle', band, (hz) => noiseFloorDb(view, hz, 48000, 48000 / TAP_BINS))
-  const peak = curvePeak(scratch)
+  const floor =
+    curve ?? fillCurve(newCurve(), band, (hz) => noiseFloorDb(view, hz, 48000, 48000 / TAP_BINS))
   const hum = isHum(view)
   const mainsHz = Math.round(view.value('type')) === 4 ? 60 : 50
-  const peakDb = hum ? humPeakDb(view) : peak.db
-  const x = hum ? xOfHz(mainsHz, band) : band.x + peak.at * band.w
+  const peakDb = hum ? humPeakDb(view) : floor.peakDb
+  const x = hum ? xOfHz(mainsHz, band) : band.x + floor.peakAt * band.w
   const over = peakDb - view.value('level')
   const spec = view.spec('level')
-  return [
-    {
-      key: 'level',
-      name: 'Level',
-      x: clamp(x, band.x + 4, band.x + band.w - 4),
-      y: clamp(yOfDb(peakDb, band, TOP_DB, FOOT_DB), band.y, band.y + band.h),
-      // Up and down is the level: the floor's highest point follows the pointer.
-      drag: (_x, y) => ({
-        level: clamp(
-          dbOfY(clamp(y, band.y, band.y + band.h), band, TOP_DB, FOOT_DB) - over,
-          spec?.min ?? -72,
-          spec?.max ?? -12,
-        ),
-      }),
-      reset: () => ({ level: spec?.default ?? -42 }),
+  const level: DisplayHandle = {
+    key: 'level',
+    name: 'Level',
+    x: clamp(x, band.x + 4, band.x + band.w - 4),
+    y: clamp(yOfDb(peakDb, band, TOP_DB, FOOT_DB), band.y, band.y + band.h),
+    // Up and down is the level: the floor's highest point follows the pointer.
+    drag: (_x, y) => {
+      const to = handTo(y, level.y, band.y, band.y + band.h)
+      return {
+        level: Number.isNaN(to)
+          ? view.value('level')
+          : clamp(dbOfY(to, band, TOP_DB, FOOT_DB) - over, spec?.min ?? -72, spec?.max ?? -12),
+      }
     },
-  ]
+    reset: () => ({ level: spec?.default ?? -42 }),
+  }
+  return [level]
+}
+
+const NOISE_PAST_SLOTS = 60
+
+interface NoiseState {
+  boxes: Layout
+  columns: Columns
+  made: Float64Array
+  floor: Curve
+  comb: Comb
+  /** The level of a hum's harmonic of amplitude 1 with all of the noise up, dB. */
+  combDb: number
+  /** Where the handle stands. */
+  spot: Float64Array
+  /** The sound going in and the noise under it over the last seconds, dB. */
+  sound: History
+  noise: History
+  soundPath: Path
+  noisePath: Path
+  /** Ticks and pops as the device counted them, where they fell. */
+  ticked: Tally
+  popped: Tally
+  ticks: Counter
+  pops: Counter
 }
 
 const noiseFloor = plateDisplay<NoiseState>({
@@ -3016,94 +3874,117 @@ const noiseFloor = plateDisplay<NoiseState>({
   live: { meters: true, signal: true, spectrum: true },
   info: 'Above, the noise in the second colour under the spectrum of what comes out: its real level at every frequency, hum as lines at its harmonics. Drag its point for the level. Below, the last six seconds: the sound, and the noise riding with it or ducking under it, with its ticks.',
   init: () => ({
+    boxes: newLayout(),
+    columns: newColumns(),
+    made: newKey(),
     floor: newCurve(),
-    sound: new History(NOISE_PAST_SEC, 60, PAST_FOOT_DB, 'max'),
-    noise: new History(NOISE_PAST_SEC, 60, PAST_FOOT_DB),
-    ticked: new Tally(NOISE_PAST_SEC, 60),
-    popped: new Tally(NOISE_PAST_SEC, 60),
-    ticks: -1,
-    pops: -1,
-    lines: [],
-    linesFor: NaN,
-    comb: [],
+    comb: newComb(),
+    combDb: 0,
+    spot: new Float64Array(2),
+    sound: new History(NOISE_PAST_SEC, NOISE_PAST_SLOTS, PAST_FOOT_DB, 'max'),
+    noise: new History(NOISE_PAST_SEC, NOISE_PAST_SLOTS, PAST_FOOT_DB),
+    soundPath: newPath(NOISE_PAST_SLOTS),
+    noisePath: newPath(NOISE_PAST_SLOTS),
+    ticked: new Tally(NOISE_PAST_SEC, NOISE_PAST_SLOTS),
+    popped: new Tally(NOISE_PAST_SEC, NOISE_PAST_SLOTS),
+    ticks: new Counter(),
+    pops: new Counter(),
   }),
   draw(frame) {
     const { ctx, colours, state } = frame
     ground(frame)
-    const boxes = twoBoxes(frame)
+    const boxes = layout(state.boxes, frame)
     const { band, past } = boxes
     const binHz = binHzOf(frame)
+    const bed = Math.round(frame.value('type'))
+    const hum = bed === 3 || bed === 4
+    const set = frame.value('level')
+    const width = frame.value('width')
     // Without sound the device sleeps and its noise with it: then only where the controls put it is drawn.
     const running = frame.signal !== null && frame.hasMeter('gain')
     const sounding = running && frame.meter('gain') > 1e-3
     const gain = sounding ? frame.meter('gain') : null
-    const curve = noiseCurve(state, frame, band, binHz)
-    const hum = isHum(frame)
 
-    freqGrid(frame, band)
-    clipped(ctx, band, () => {
-      drawSpectrum(frame, band)
-      drawFloor(frame, band, curve, gain)
-      if (hum) {
-        const tone = frame.value('tone')
-        if (tone !== state.linesFor) {
-          state.lines = humLines(tone)
-          state.linesFor = tone
-        }
-        const width = frame.value('width')
-        const mains = Math.round(frame.value('type')) === 4 ? 60 : 50
-        const base =
-          frame.value('level') + db10(1 - 0.151 * width * width) + TONE_DB + db20(gain ?? 1)
-        drawComb(frame, band, state.comb, state.lines, mains, base, gain === null ? INK.back : 1)
-      }
-    })
-    for (const point of noiseHandle(frame, curve))
-      handle(frame, point.x, point.y, { hot: frame.hot === point.key })
+    if (stale(state.made, bed, set, frame.value('tone'), width, binHz, frame.width, frame.height)) {
+      fillCurve(state.floor, band, (hz) => noiseFloorDb(frame, hz, 48000, binHz))
+      if (hum) fillComb(state.comb, band, humLines(frame.value('tone')), bed === 4 ? 60 : 50)
+      state.combDb = set + db10(1 - 0.151 * width * width) + TONE_DB
+      const point = noiseHandle(frame, state.floor)[0]
+      state.spot[0] = point.x
+      state.spot[1] = point.y
+    }
+
+    grid(frame, band)
+    clipTo(ctx, band.x, band.y, band.w, band.h)
+    drawSpectrum(frame, band, state.columns)
+    drawFloor(frame, band, state.floor, gain)
+    if (hum)
+      drawComb(
+        frame,
+        band,
+        state.comb,
+        state.combDb + (gain === null ? 0 : db20(gain)),
+        gain === null ? INK.back : 1,
+      )
+    ctx.restore()
+    knob(frame, state.spot[0], state.spot[1], frame.hot === 'level')
     if (frame.hot === 'level')
-      text(frame, `${Math.round(frame.value('level'))} dB`, band.x + band.w - 1, band.y + 8, {
-        align: 'right',
-      })
+      text(frame, `${Math.round(set)} dB`, band.x + band.w - 1, band.y + 8, RIGHT)
 
     // Below: the sound and the noise under it, into the past.
     divide(frame, boxes)
-    const set = frame.value('level')
-    const y = (db: number): number =>
-      yOfDb(clamp(db, PAST_FOOT_DB, PAST_TOP_DB), past, PAST_TOP_DB, PAST_FOOT_DB)
     if (frame.signal && running && frame.dt > 0) {
       const going = frame.signal.input ?? frame.signal.output
       state.sound.push(frame.now, gainToDb(going.rms))
       state.noise.push(frame.now, set + db20(frame.meter('gain')))
-      const ticks = frame.meter('ticks')
-      const pops = frame.meter('pops')
-      state.ticked.push(frame.now, counted(state.ticks, ticks))
-      state.popped.push(frame.now, counted(state.pops, pops))
-      state.ticks = ticks
-      state.pops = pops
+      state.ticked.push(frame.now, state.ticks.more(frame.meter('ticks'), frame.now))
+      state.popped.push(frame.now, state.pops.more(frame.meter('pops'), frame.now))
+    } else {
+      state.ticks.rest()
+      state.pops.rest()
     }
-    clipped(ctx, past, () => {
-      // Where Level puts the noise, on the strip's scale of levels.
-      rule(ctx, past.x, y(set), past.x + past.w, y(set), {
-        colour: colours.accent,
-        alpha: running ? INK.back : 1,
-        dash: [2, 2],
-      })
-      if (!running) return
-      fillTo(ctx, state.sound.points(past, y), past.y + past.h, colours.ink, 0.42)
-      const noise = state.noise.points(past, y)
+    clipTo(ctx, past.x, past.y, past.w, past.h)
+    // Where Level puts the noise, on the strip's scale of levels.
+    const level = yOfDb(clamp(set, PAST_FOOT_DB, PAST_TOP_DB), past, PAST_TOP_DB, PAST_FOOT_DB)
+    line(
+      ctx,
+      past.x,
+      level,
+      past.x + past.w,
+      level,
+      colours.accent,
+      running ? INK.back : 1,
+      1,
+      DASHED,
+    )
+    if (running) {
+      fillUnder(
+        ctx,
+        levelPath(state.soundPath, past, state.sound, PAST_TOP_DB, PAST_FOOT_DB),
+        past.y + past.h,
+        colours.ink,
+        0.42,
+      )
+      const noise = levelPath(state.noisePath, past, state.noise, PAST_TOP_DB, PAST_FOOT_DB)
       // Ticks stand on the noise they belong to, taller the more of them fell together; a pop is a dot over them.
-      for (let i = 0; i < noise.length; i++) {
-        const back = noise.length - 1 - i
-        const [x, top] = noise[i]
+      for (let i = 0; i < noise.n; i++) {
+        const back = noise.n - 1 - i
         const ticks = state.ticked.at(back)
         if (ticks > 0)
-          rule(ctx, x, top, x, top - 1 - Math.min(7, 2 * ticks), {
-            colour: colours.accent,
-            alpha: 0.8,
-          })
-        if (state.popped.at(back) > 0) dot(ctx, x, top - 9, 1.5, colours.accent)
+          line(
+            ctx,
+            noise.x[i],
+            noise.y[i],
+            noise.x[i],
+            noise.y[i] - 1 - Math.min(7, 2 * ticks),
+            colours.accent,
+            0.8,
+          )
+        if (state.popped.at(back) > 0) spot(ctx, noise.x[i], noise.y[i] - 9, 1.5, colours.accent)
       }
-      trace(ctx, noise, { colour: colours.accent, width: 1.25 })
-    })
+      strokePath(ctx, noise, colours.accent, 1.25)
+    }
+    ctx.restore()
   },
   handles: (view) => noiseHandle(view, null),
 })
@@ -3124,8 +4005,6 @@ export const WEAR_FACES: Readonly<Record<string, PlateFace>> = {
   radio: {
     display: radio,
     face: ['band', 'tuning', 'fading', 'static'],
-    // The knob the kit's skin gave a shorter word is on the display now, as the filter's edge.
-    labels: {},
   },
   'low-bitrate': {
     display: lowBitrate,

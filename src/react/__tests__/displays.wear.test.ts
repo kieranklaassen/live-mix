@@ -4,9 +4,16 @@
 
 import { describe, expect, it } from 'vitest'
 
-import { type DisplayHandle, type DisplayView } from '../components/plate-display'
+import { loadWasmDevice } from '../../dsp/__tests__/wasm-device-harness'
+import { PLAIN_COLOURS } from '../components/display-kit'
+import {
+  type DisplayHandle,
+  type DisplaySignal,
+  type DisplayView,
+} from '../components/plate-display'
 import {
   Bins,
+  Counter,
   Tally,
   WEAR_FACES,
   codecBands,
@@ -17,6 +24,7 @@ import {
   converterOutputDb,
   converterStep,
   crackleSizes,
+  foldedBins,
   humLines,
   loudestBin,
   noiseBedPower,
@@ -42,7 +50,14 @@ import {
   vinylResponseDb,
   vinylSurfaceDb,
 } from '../components/displays/wear'
-import { displaySize, stockDescriptors, viewOf } from './display-harness'
+import {
+  displaySize,
+  drawDisplay,
+  stockDescriptors,
+  testSignal,
+  viewOf,
+  type RecordingContext,
+} from './display-harness'
 
 const stock = stockDescriptors()
 const SR = 48000
@@ -86,6 +101,99 @@ function meanPower(power: (hz: number) => number, step = 5): number {
   return sum / count
 }
 
+/**
+ * A display run frame by frame on one state, as the plate runs it: `frame`
+ * draws the next thirtieth of a second with the readings given, `rest` draws
+ * it as the plate does when the display leaves the screen (no sound, no time).
+ */
+function running(id: string, values: Record<string, number> = {}) {
+  const descriptor = stock.get(id)
+  if (!descriptor) throw new Error(`no device ${id}`)
+  const { display } = WEAR_FACES[id]
+  const state: unknown = display.init?.()
+  let now = 10
+  const draw = (meters: Record<string, number>, live: boolean): RecordingContext => {
+    now += 1 / 30
+    return drawDisplay(display, descriptor.params, {
+      values,
+      meters,
+      state,
+      now,
+      dt: live ? 1 / 30 : 0,
+      signal: live ? testSignal() : null,
+    })
+  }
+  return {
+    frame: (meters: Record<string, number>) => draw(meters, true),
+    rest: (meters: Record<string, number>) => draw(meters, false),
+    /** The same readings for `seconds`; the last frame's drawing comes back. */
+    hold(meters: Record<string, number>, seconds: number): RecordingContext {
+      let last = draw(meters, true)
+      for (let n = 1; n < Math.round(seconds * 30); n++) last = draw(meters, true)
+      return last
+    },
+  }
+}
+
+/** How many lines were drawn in a colour at a width. */
+function strokesOf(drawn: RecordingContext, colour: string, width: number): number {
+  let stroke = ''
+  let line = 0
+  let count = 0
+  for (const call of drawn.calls) {
+    if (call.name === 'set strokeStyle') stroke = String(call.args[0])
+    else if (call.name === 'set lineWidth') line = Number(call.args[0])
+    else if (call.name === 'stroke' && stroke === colour && line === width) count += 1
+  }
+  return count
+}
+
+/** How many dots of a radius were drawn. */
+const dotsOf = (drawn: RecordingContext, radius: number): number =>
+  drawn.calls.filter((call) => call.name === 'arc' && call.args[2] === radius).length
+
+/** The amplitude of the tone at `hz` in `wave`, read under a Hann window. */
+function toneIn(wave: Float32Array, hz: number): number {
+  let re = 0
+  let im = 0
+  let weight = 0
+  for (let i = 0; i < wave.length; i++) {
+    const w = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / wave.length)
+    re += wave[i] * w * Math.cos((2 * Math.PI * hz * i) / SR)
+    im += wave[i] * w * Math.sin((2 * Math.PI * hz * i) / SR)
+    weight += w
+  }
+  return (2 * Math.hypot(re, im)) / weight
+}
+
+/** Tones through the compiled device for `seconds`: the left side of what comes out. */
+async function through(
+  id: string,
+  values: Record<string, number>,
+  tones: readonly (readonly [number, number])[],
+  seconds: number,
+): Promise<Float32Array> {
+  const params = stock.get(id)?.params ?? {}
+  const host = await loadWasmDevice(id, SR)
+  for (const [name, value] of Object.entries(values)) host.set(params[name], value)
+  const total = Math.floor(seconds * SR)
+  const out = new Float32Array(total)
+  const block = new Float32Array(128)
+  for (let done = 0; done + 128 <= total; done += 128) {
+    for (let i = 0; i < 128; i++) {
+      let sample = 0
+      for (const [hz, amplitude] of tones)
+        sample += amplitude * Math.sin((2 * Math.PI * hz * (done + i)) / SR + hz)
+      block[i] = sample
+    }
+    host.processBlock(block)
+    out.set(host.view(host.device.device_out_left(), 128), done)
+  }
+  return out
+}
+
+const decibels = (gain: number): number => 20 * Math.log10(Math.max(gain, 1e-9))
+
 /** Across a window's band on the kit's scale of 20 Hz to 20 kHz. */
 const xOf = (hz: number, x: number, w: number): number =>
   x + (Math.log(hz / 20) / Math.log(1000)) * w
@@ -125,6 +233,65 @@ describe('every wear display', () => {
   })
 })
 
+describe('every handle of the family', () => {
+  /** The way each handle goes; the other way is not its own. */
+  const ACROSS = new Set(['tone', 'tuning', 'bandwidth', 'loss', 'highCut', 'rate'])
+  const SETTINGS: Record<string, Record<string, number>[]> = {
+    tape: [{}, { tone: 1 }, { hiss: 0.02 }],
+    vinyl: [{}, { surface: 0.01 }],
+    patina: [{ medium: 0 }, { medium: 1 }, { medium: 2 }, { medium: 3 }, { medium: 4 }],
+    radio: [{ band: 0 }, { band: 1 }, { band: 2 }, { band: 3 }, { band: 0, tuning: 1 }],
+    'low-bitrate': [{}, { loss: 0 }],
+    'vintage-digital': [{}, { bits: 16 }, { rate: 48000 }],
+    'noise-floor': [{ type: 0 }, { type: 1 }, { type: 3 }, { type: 0, level: -72 }],
+  }
+
+  it('is left where it is by a hand that drifts the other way, wherever it stands', () => {
+    for (const [id, face] of Object.entries(WEAR_FACES)) {
+      for (const values of SETTINGS[id]) {
+        const seen = view(id, values)
+        for (const handle of face.display.handles?.(seen) ?? []) {
+          const across = handle.key === 'wear' ? id === 'patina' : ACROSS.has(handle.key)
+          for (const drift of [-9, -1, 1, 9]) {
+            const set = across
+              ? handle.drag(handle.x, handle.y + drift)
+              : handle.drag(handle.x + drift, handle.y)
+            for (const [name, value] of Object.entries(set))
+              expect(value, `${id} ${JSON.stringify(values)} ${handle.key}`).toBe(seen.value(name))
+          }
+        }
+      }
+    }
+  })
+
+  it('stays where it is when pushed past an end of the picture it already stands at', () => {
+    // New tape on the reel medium ends above the picture: its edge stands at the right, clamped.
+    const wear = handleOf('patina', 'wear', { medium: 0 })
+    expect(wear.x).toBe(displaySize(WEAR_FACES.patina.display).width - 4)
+    expect(wear.drag(wear.x + 30, wear.y).wear).toBe(0.3)
+    // And pulled into the picture it wears from there on, the further the more.
+    const little = Number(wear.drag(wear.x - 2, wear.y).wear)
+    expect(little).toBeGreaterThan(0.3)
+    expect(Number(wear.drag(wear.x - 12, wear.y).wear)).toBeGreaterThan(little)
+    // Sixteen bits have their grain under the picture: pushed down they stay sixteen.
+    const bits = handleOf('vintage-digital', 'bits', { bits: 16 })
+    expect(bits.drag(bits.x, bits.y + 30).bits).toBe(16)
+    expect(Number(bits.drag(bits.x, bits.y - 6).bits)).toBeLessThan(16)
+  })
+
+  it('reaches both ends of what it sets where the picture holds them', () => {
+    const wear = handleOf('vinyl', 'wear')
+    expect(wear.drag(wear.x, wear.y - 60).wear).toBe(0)
+    expect(wear.drag(wear.x, wear.y + 60).wear).toBe(1)
+    const hiss = handleOf('tape', 'hiss')
+    expect(hiss.drag(hiss.x, hiss.y + 60).hiss).toBe(0)
+    expect(hiss.drag(hiss.x, hiss.y - 60).hiss).toBe(1)
+    const level = handleOf('noise-floor', 'level')
+    expect(level.drag(level.x, level.y + 60).level).toBe(-72)
+    expect(level.drag(level.x, level.y - 60).level).toBe(-12)
+  })
+})
+
 describe('the parts the family shares', () => {
   it('counts events into the slot of the time they fell in', () => {
     const tally = new Tally(1, 10)
@@ -144,24 +311,62 @@ describe('the parts the family shares', () => {
     expect(tally.x(9, box)).toBe(10)
   })
 
+  it('counts what a device counted between two running frames, and nothing else', () => {
+    const counter = new Counter()
+    // The first readings only set the mark: what the device counted before the display opened is not news.
+    expect(counter.more(500, 10)).toBe(0)
+    expect(counter.more(503, 10.1)).toBe(0)
+    expect(counter.steady).toBe(false)
+    // From a quarter of a second on, each frame has what was added since the one before.
+    expect(counter.more(503, 10.3)).toBe(0)
+    expect(counter.steady).toBe(true)
+    expect(counter.more(505, 10.33)).toBe(2)
+    expect(counter.more(505, 10.36)).toBe(0)
+    // Off the screen the readings stop and read 0 until the first new one arrives: no burst of what was missed.
+    counter.rest()
+    expect(counter.more(0, 20)).toBe(0)
+    expect(counter.more(0, 20.03)).toBe(0)
+    expect(counter.more(940, 20.06)).toBe(0)
+    expect(counter.more(940, 20.3)).toBe(0)
+    expect(counter.more(941, 20.33)).toBe(1)
+    // A page that was hidden draws no frames for a while: the first one back counts nothing either.
+    expect(counter.more(990, 31)).toBe(0)
+    expect(counter.more(990, 31.3)).toBe(0)
+    expect(counter.more(993, 31.33)).toBe(3)
+    // The device's counters wrap at 2^20.
+    expect(counter.more(1048575, 31.36)).toBe(0)
+    expect(counter.more(3, 31.4)).toBe(4)
+    // A device that began again from nothing (a new bed of noise) has not counted a million events.
+    expect(counter.more(4000, 31.43)).toBe(3997)
+    expect(counter.more(0, 31.46)).toBe(0)
+    expect(counter.more(2, 31.5)).toBe(2)
+  })
+
   it('reads a tone at its level in the spectrum of what goes in', () => {
     const bins = new Bins(512)
     const wave = new Float32Array(2048)
     // On bin 32 of 512 at 48 kHz: 3 kHz, at half of full scale.
     for (let i = 0; i < wave.length; i++) wave[i] = 0.5 * Math.sin((2 * Math.PI * 32 * i) / 512)
     bins.read(wave, 0)
-    expect(bins.db[32]).toBeCloseTo(-6.02, 1)
+    expect(bins.db(32)).toBeCloseTo(-6.02, 1)
     expect(bins.at(3000, SR)).toBeCloseTo(-6.02, 1)
-    expect(bins.db[40]).toBeLessThan(-80)
+    expect(bins.db(40)).toBeLessThan(-80)
+    // It is kept as a power: the square of the tone's amplitude.
+    expect(bins.power[32]).toBeCloseTo(0.25, 3)
     // It falls 30 dB a second once the tone has gone.
     bins.read(new Float32Array(2048), 0.5)
-    expect(bins.db[32]).toBeCloseTo(-21.02, 1)
-    expect(loudestBin(bins.db, SR / 512, 2500, 3500)).toBeCloseTo(-21.02, 1)
+    expect(bins.db(32)).toBeCloseTo(-21.02, 1)
+    expect(db(loudestBin(bins.power, SR / 512, 2500, 3500))).toBeCloseTo(-21.02, 1)
     // Narrower than a bin: a reading between two of them.
-    expect(loudestBin(bins.db, SR / 512, 3040, 3050)).toBeCloseTo(
-      (bins.db[32] + bins.db[33]) / 2,
-      0,
+    const between = 3045 / (SR / 512) - 32
+    expect(loudestBin(bins.power, SR / 512, 3040, 3050)).toBeCloseTo(
+      bins.power[32] + (bins.power[33] - bins.power[32]) * between,
+      6,
     )
+    // A wave shorter than the window is read as silence before it began.
+    const short = new Bins(512)
+    short.read(wave.subarray(0, 256), 0)
+    expect(Number.isFinite(short.db(32))).toBe(true)
   })
 
   it('draws a wave from where it last rose through zero', () => {
@@ -231,6 +436,52 @@ describe('tape', () => {
     )
   })
 
+  it('hangs a dropout where it fell, and none for those it did not see', () => {
+    const tape = running('tape')
+    const reading = (drops: number, hiss = 1): Record<string, number> => ({
+      wow: 0.1,
+      flutter: 0.2,
+      flutterDepth: 0.05,
+      drops,
+      dropDepth: 0.5,
+      hiss,
+    })
+    const drops = (drawn: RecordingContext): number => strokesOf(drawn, PLAIN_COLOURS.accent, 1.5)
+    // The device had counted 500 before the display opened: none of them is drawn.
+    expect(drops(tape.hold(reading(500), 0.5))).toBe(0)
+    expect(drops(tape.frame(reading(501)))).toBe(1)
+    // Off the screen and back: the readings read 0 until the first arrives, then 30 more than before.
+    tape.rest(reading(501))
+    tape.frame(reading(0, 0))
+    tape.frame(reading(0, 0))
+    expect(drops(tape.hold(reading(531), 0.4))).toBe(1)
+    expect(drops(tape.frame(reading(532)))).toBe(2)
+  })
+
+  it('holds the pitch still while the device sleeps', () => {
+    // Asleep the readings stand where they stopped: a wow of 1 % is not being played.
+    const tape = running('tape', { wow: 1, flutter: 1 })
+    const asleep = { wow: 1, flutter: 0.2, flutterDepth: 0.3, drops: 0, dropDepth: 0, hiss: 0 }
+    const size = displaySize(WEAR_FACES.tape.display)
+    const middle = 4 + (size.height - 8) - 30 + 15
+    const trace = (drawn: RecordingContext): number[] => {
+      // The pitch trace is the last line of 150 points drawn.
+      const ys: number[] = []
+      for (const call of drawn.calls) {
+        if (call.name === 'beginPath') ys.length = 0
+        else if (call.name === 'moveTo' || call.name === 'lineTo') ys.push(Number(call.args[1]))
+        else if (call.name === 'stroke' && ys.length === 150) return [...ys]
+      }
+      return []
+    }
+    const still = trace(tape.hold(asleep, 3.2))
+    expect(still).toHaveLength(150)
+    for (const y of still) expect(y).toBeCloseTo(middle, 6)
+    // Awake, the same readings bend it.
+    const awake = trace(tape.hold({ ...asleep, hiss: 1 }, 1))
+    expect(Math.min(...awake)).toBeLessThan(middle - 3)
+  })
+
   it('moves Tone and Hiss from their points', () => {
     const size = displaySize(WEAR_FACES.tape.display)
     const tone = handleOf('tape', 'tone', { speed: 0, age: 0 })
@@ -291,6 +542,27 @@ describe('vinyl', () => {
     expect(low.ceiling).toBeCloseTo(2 * low.floor, 6)
     const top = crackleSizes(1)
     expect(20 * Math.log10(top.ceiling / top.floor)).toBeCloseTo(41.9, 0)
+  })
+
+  it('draws a pop only where Pops lets one sound', () => {
+    const turning = (count: number): Record<string, number> => ({
+      pitch: 0,
+      turn: 0.3,
+      ticks: 0,
+      tickLevel: 0,
+      pops: count,
+      noise: 1,
+    })
+    // A scratch cut while Pops was up still comes round at Pops 0, counted by the device and silent.
+    const silent = running('vinyl', { pops: 0 })
+    silent.hold(turning(7), 0.5)
+    silent.frame(turning(8))
+    expect(dotsOf(silent.frame(turning(9)), 1.75)).toBe(0)
+    const heard = running('vinyl', { pops: 0.5 })
+    heard.hold(turning(7), 0.5)
+    // Two frames, a slot of the strip apart, so two dots, and none for the seven before the display opened.
+    heard.frame(turning(8))
+    expect(dotsOf(heard.hold(turning(9), 0.1), 1.75)).toBe(2)
   })
 
   it('moves Wear from its point: the top of the band goes where the pointer is', () => {
@@ -411,6 +683,19 @@ describe('patina', () => {
     expect(patinaTones(4)).toEqual([[3200, 1.64 * 0.3 * Math.SQRT1_2]])
   })
 
+  it('says beside its strip what Wobble moves and how far', () => {
+    const says = (values: Record<string, number>): string[] =>
+      drawDisplay(WEAR_FACES.patina.display, stock.get('patina')?.params ?? {}, { values }).words()
+    // The cassette's wow and flutter reach 1.2 % and 0.4 %; the radio fades by 9 dB; the valve gives way by 6.
+    expect(says({ medium: 1, wobble: 1 })).toEqual(['±1.6%'])
+    expect(says({ medium: 0, wobble: 0.5 })).toEqual(['±0.38%'])
+    expect(says({ medium: 3, wobble: 1 })).toEqual(['−9 dB'])
+    expect(says({ medium: 5, wobble: 1 })).toEqual(['−6 dB'])
+    // The sampler's strip is its clock: the rate it is held down to.
+    expect(says({ medium: 4, wear: 1 })).toEqual(['6 kHz'])
+    expect(says({ medium: 4, wear: 0 })).toEqual(['48 kHz'])
+  })
+
   it('moves Wear from the edge of the band', () => {
     const size = displaySize(WEAR_FACES.patina.display)
     const wear = handleOf('patina', 'wear', { medium: 1, tone: 0.5 })
@@ -523,11 +808,84 @@ describe('low bitrate', () => {
     expect(Array.from(floor)).toEqual([-10, -18, -20, -20])
   })
 
+  it('keeps and throws away the tones the compiled codec does', async () => {
+    // Five tones well apart, each in a band of its own: 0, −20, −40, −55 and −30 dB against the loudest.
+    const loudest = 0.25
+    const tones: [number, number][] = [
+      [1000, 0],
+      [1600, -20],
+      [3000, -40],
+      [6000, -55],
+      [9000, -30],
+    ]
+    const edges = codecBands(2, SR)
+    const bands = edges.length - 1
+    const bandOf = (hz: number): number => edges.findIndex((_, i) => i < bands && hz < edges[i + 1])
+    for (const loss of [0.5, 0.8]) {
+      const severity = codecSeverity(loss)
+      // The display's verdict: each band's loudest, then the line under which the codec drops what is in it.
+      const limit = new Float32Array(32).fill(-200)
+      for (const [hz, down] of tones) limit[bandOf(hz)] = decibels(loudest) + down
+      codecThreshold(limit, bands, severity.marginDb, decibels(loudest) - severity.floorDb)
+      const out = await through(
+        'low-bitrate',
+        { loss, frame: 2, mode: 0, mix: 1, stereo: 1, smear: 0, dropouts: 0, stutter: 0 },
+        tones.map(([hz, down]) => [hz, loudest * Math.pow(10, down / 20)]),
+        3,
+      )
+      const tail = out.subarray(out.length - 65536)
+      let judged = 0
+      for (const [hz, down] of tones) {
+        const level = decibels(loudest) + down
+        const over = level - limit[bandOf(hz)]
+        const came = decibels(toneIn(tail, hz)) - level
+        const what = `${hz} Hz at Loss ${loss}, ${over.toFixed(1)} dB over the line`
+        if (hz > severity.cutHz || over < -3) expect(came, what).toBeLessThan(-40)
+        else if (over > 3) expect(Math.abs(came), what).toBeLessThan(2)
+        else continue
+        judged += 1
+      }
+      expect(judged, `tones judged at Loss ${loss}`).toBeGreaterThanOrEqual(4)
+    }
+  })
+
   it('folds stereo to mono from the top down as far as Loss and Stereo say', () => {
     expect(codecMonoHz(0.5, 1)).toBeCloseTo(20000, -1)
     expect(codecMonoHz(0, 0)).toBeCloseTo(20000, -1)
     expect(codecMonoHz(1, 0)).toBeCloseTo(5, 1)
     expect(codecMonoHz(0.5, 0.7)).toBeCloseTo(20000 * Math.pow(2, -11.9658 * 0.15), -1)
+  })
+
+  it('shows a lost packet as a gap in the stream, and none where nothing goes in or comes out', () => {
+    const descriptor = stock.get('low-bitrate')
+    if (!descriptor) throw new Error('no low-bitrate')
+    const { display } = WEAR_FACES['low-bitrate']
+    /** Five seconds of a device that reports a lost packet; how wide the stream is drawn flowing at the end. */
+    const flowing = (signal: DisplaySignal): number => {
+      const state: unknown = display.init?.()
+      let wide = 0
+      for (let n = 1; n <= 150; n++) {
+        const drawn = drawDisplay(display, descriptor.params, {
+          meters: { packet: 1, lost: 3, stuck: 0 },
+          state,
+          now: 10 + n / 30,
+          dt: 1 / 30,
+          signal,
+        })
+        let alpha = 1
+        wide = 0
+        for (const call of drawn.calls) {
+          if (call.name === 'set globalAlpha') alpha = Number(call.args[0])
+          else if (call.name === 'fillRect' && alpha === 0.42) wide += Number(call.args[2])
+        }
+      }
+      return wide
+    }
+    const width = displaySize(display).width - 8
+    // Sound goes in and the packets are lost: the whole of the last four seconds is a gap.
+    expect(flowing(testSignal(0.5, 0))).toBe(0)
+    // Nothing goes in: the device sleeps with its last reading standing, and the stream is whole.
+    expect(flowing(testSignal(0, 0))).toBeCloseTo(width, 6)
   })
 
   it('moves Loss and High Cut from their edges', () => {
@@ -578,6 +936,48 @@ describe('vintage digital', () => {
       converterOutputDb(0, 3000, 9000, SR),
       0,
     )
+  })
+
+  it('folds each bin to where a sampler puts it', () => {
+    // 512 bins of 46.875 Hz, a sampler at 9 kHz: 6 kHz comes back at 3 kHz, 9 kHz at nothing, 4.5 kHz stays.
+    const alias = new Uint16Array(513)
+    foldedBins(alias, 9000, SR / 1024)
+    expect(alias[128]).toBe(64)
+    expect(alias[192]).toBe(0)
+    expect(alias[96]).toBe(96)
+    expect(alias[64]).toBe(64)
+    // 12 kHz is 3 kHz from 9 kHz too, and nothing lands above half the rate.
+    expect(alias[256]).toBe(64)
+    expect(Math.max(...alias)).toBe(96)
+  })
+
+  it('puts the aliases and the images where the compiled converter does, at its levels', async () => {
+    const amplitude = 0.125
+    const cases: [number, number, number, number][] = [
+      // Rate, the tone, Aliasing, the output filter.
+      [9000, 6000, 1, 0],
+      [9000, 6000, 0.5, 1],
+      [4000, 5000, 1, 0],
+    ]
+    for (const [rate, tone, aliasing, filter] of cases) {
+      const out = await through(
+        'vintage-digital',
+        { rate, aliasing, filter, bits: 16, jitter: 0, drive: 0, mix: 1, companding: 0 },
+        [[tone, amplitude]],
+        1.5,
+      )
+      const tail = out.subarray(out.length - 32768)
+      // What Aliasing lets in of the tone, folded to its distance from the nearest multiple of the rate and its copies.
+      const passed = decibels(amplitude) + 10 * Math.log10(converterInput(aliasing, tone, rate, SR))
+      const alias = Math.abs(tone - Math.round(tone / rate) * rate)
+      for (const hz of [alias, rate - alias, rate + alias, 2 * rate - alias]) {
+        const says = passed + converterOutputDb(filter, hz, rate, SR)
+        expect(
+          decibels(toneIn(tail, hz)),
+          `${hz} Hz of ${tone} Hz at a rate of ${rate}`,
+        ).toBeCloseTo(says, 0)
+      }
+    }
   })
 
   it('steps by 2^(1 − Bits), and by mu-law finer near nothing and coarser at full scale', () => {
