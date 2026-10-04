@@ -62,7 +62,7 @@ build_generated_devices() {
     cpp/devices/glitch/device_api.gen.cpp
   MEMORY_BYTES=10485760 EXTRA_EXPORTS=",_device_meter" build_device grain-cloud \
     cpp/devices/grain-cloud/device_api.gen.cpp
-  MEMORY_BYTES=10485760 EXTRA_EXPORTS="" build_device grain-delay \
+  MEMORY_BYTES=10485760 EXTRA_EXPORTS=",_device_meter" build_device grain-delay \
     cpp/devices/grain-delay/device_api.gen.cpp
   MEMORY_BYTES=12582912 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_sample_capacity,_device_sample_buffer,_device_sample_commit" build_device grain-synth \
     cpp/devices/grain-synth/device_api.gen.cpp
@@ -84,7 +84,7 @@ build_generated_devices() {
     cpp/devices/low-bitrate/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device mallets \
     cpp/devices/mallets/device_api.gen.cpp
-  MEMORY_BYTES=16777216 EXTRA_EXPORTS="" build_device micro-looper \
+  MEMORY_BYTES=16777216 EXTRA_EXPORTS=",_device_meter" build_device micro-looper \
     cpp/devices/micro-looper/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device modal-bells \
     cpp/devices/modal-bells/device_api.gen.cpp
@@ -110,7 +110,7 @@ build_generated_devices() {
     cpp/devices/radio/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device re-amp \
     cpp/devices/re-amp/device_api.gen.cpp
-  MEMORY_BYTES=20971520 EXTRA_EXPORTS="" build_device reverse-delay \
+  MEMORY_BYTES=20971520 EXTRA_EXPORTS=",_device_meter" build_device reverse-delay \
     cpp/devices/reverse-delay/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device rotary \
     cpp/devices/rotary/device_api.gen.cpp
@@ -145,7 +145,7 @@ build_generated_devices() {
     cpp/devices/tape/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device tape-echo \
     cpp/devices/tape-echo/device_api.gen.cpp
-  MEMORY_BYTES=25165824 EXTRA_EXPORTS="" build_device tape-loop \
+  MEMORY_BYTES=25165824 EXTRA_EXPORTS=",_device_meter" build_device tape-loop \
     cpp/devices/tape-loop/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device tape-orchestra \
     cpp/devices/tape-orchestra/device_api.gen.cpp
