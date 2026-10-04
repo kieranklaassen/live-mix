@@ -134,7 +134,7 @@ build_generated_devices() {
     cpp/devices/sustainer/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device swarm-reverb \
     cpp/devices/swarm-reverb/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device swell \
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device swell \
     cpp/devices/swell/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device sympathetic \
     cpp/devices/sympathetic/device_api.gen.cpp \
