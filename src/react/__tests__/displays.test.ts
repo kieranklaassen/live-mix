@@ -46,7 +46,7 @@ function expectSound(id: string, what: string, drawn: RecordingContext): void {
     if (call.name === 'set font') {
       const font = String(call.args[0])
       const size = Number(/(\d+(?:\.\d+)?)px/.exec(font)?.[1])
-      expect(size, `${id} ${what}: type size in "${font}"`).toBeGreaterThanOrEqual(7)
+      expect(size, `${id} ${what}: type size in "${font}"`).toBeGreaterThanOrEqual(8)
       expect(font, `${id} ${what}: the plate's font`).toContain('sans-serif')
     }
   }

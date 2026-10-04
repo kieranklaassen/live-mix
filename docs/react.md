@@ -352,7 +352,9 @@ A display draws to the size it is given and in the plate's own colours
 (`frame.colours`): the ink carries what is read (curves, scales, traces), the
 accent points at what is happening now (the level on a curve, an LFO's place,
 the gain taken off). `displayKit` has what displays share so they read as one
-family: the ground, the `INK` strengths, dB and frequency scales and grids,
+family: the ground (which hushes the plate's finish under it, so a thin line is
+not read against specks), words at 8 px or more in full ink and never fainter
+than a scale's numbers, the `INK` strengths, dB and frequency scales and grids,
 traces and fills, `spectrum`, a `History` that scrolls by the clock, the
 response of the filters devices are built from (`biquad`, `biquadDb`,
 `onePoleDb`), plain LFO shapes and `trackPhase`, which carries a phase the
