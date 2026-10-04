@@ -16,7 +16,7 @@ import { defaultFrameScheduler, type FrameScheduler } from '../frame'
 
 /**
  * Where a display stands on its plate.
- * - `strip`: under a row of four knobs, 184 by 48 on a plate 240 wide. For
+ * - `strip`: under a row of four knobs, 224 by 48 on a plate 280 wide. For
  *   things that happen in time: a delay's repeats, a reverb's tail, an LFO.
  * - `window`: beside the knobs at the plate's full working height, 100 high
  *   and 80, 128 or 176 wide on a plate 280 wide, with the knobs in two rows.
@@ -181,7 +181,7 @@ export function plateDisplay<S>(display: PlateDisplay<S>): PlateDisplay {
   return display
 }
 
-/** A strip's size on a plate with its face knobs, and a window's height. */
+/** A strip's width beside two rows of knobs (under a face of four it is as wide as the plate allows), its height, and a window's height. */
 export const DISPLAY_STRIP_WIDTH = 184
 export const DISPLAY_STRIP_HEIGHT = 48
 export const DISPLAY_WINDOW_HEIGHT = 100

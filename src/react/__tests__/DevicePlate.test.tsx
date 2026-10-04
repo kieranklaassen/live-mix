@@ -308,12 +308,15 @@ describe('plateLayout', () => {
   })
 
   it('lays a strip under one row of knobs, as wide as the row', () => {
+    // A face of four is as wide as a plate with a window, and its knobs share that room.
     const rest = plateLayout(4, false, { place: 'strip' })
-    expect(rest).toMatchObject({ rows: 1, columns: 4, width: 240 })
-    expect(rest.display).toEqual({ left: 8, top: 60, width: 184, height: 48 })
+    expect(rest).toMatchObject({ rows: 1, columns: 4, column: 58, width: 280 })
+    expect(rest.width).toBe(plateLayout(4, false, { place: 'window', columns: 2 }).width)
+    expect(rest.display).toEqual({ left: 8, top: 60, width: 224, height: 48 })
     // Opened in one row the strip runs under all of it; the right-hand column stays the plate's.
     const opened = plateLayout(9, false, { place: 'strip' })
     expect(opened.rows).toBe(1)
+    expect(opened.column).toBe(48)
     expect(opened.display).toMatchObject({ left: 8, top: 60, height: 48 })
     expect(opened.display?.width).toBe(opened.width - 56)
     // Past twelve knobs they take two rows and the strip stands beside them at full height.

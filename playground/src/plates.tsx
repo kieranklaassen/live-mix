@@ -11,7 +11,7 @@
 //   ?chain=1                         in one `DeviceChainView` on a strip, as an app draws them
 //   ?preset=<name>                   each device on its preset of that name, where it has one
 //
-// `window.plates` is there for a script: `ready`, `devices` by id, `context`.
+// `window.plates` is there for a script: `ready`, `devices` by id, `context`, `registry`.
 
 import '@kieranklaassen/live-mix/react/styles.css'
 
@@ -214,6 +214,7 @@ function Plates() {
           plates: {
             ready: true,
             context: made.engine.context,
+            registry: made.registry,
             devices: Object.fromEntries(
               made.entries.map((entry) => [entry.device.id, entry.device]),
             ),

@@ -168,13 +168,13 @@ describe('a plate with a display', () => {
     )
     const plate = screen.getByTestId('plate')
     expect(plate).toHaveClass('lm-plate--strip')
-    expect(plate.style.width).toBe('240px')
+    expect(plate.style.width).toBe('280px')
     expect(screen.getAllByRole('slider')).toHaveLength(4)
     const display = screen.getByTestId('plate-display')
     expect(display.style).toMatchObject({
       left: '8px',
       top: '60px',
-      width: '184px',
+      width: '224px',
       height: '48px',
     })
     fireEvent.click(screen.getByTestId('plate-more'))

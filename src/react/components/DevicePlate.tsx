@@ -66,11 +66,22 @@ const PLAIN_KNOB_COLUMN = 56
 const KNOBS_LEFT = 4
 const MORE_COLUMN = 44
 const FACE_PER_ROW = 4
-/** A word under a knob with more letters than this is set tighter, so none is cut short. */
-const TIGHT_OVER = 7
-const PLAIN_TIGHT_OVER = 8
 /** A capital of a long word at the names' size, set close, in the widest face a theme has: px. */
 const LETTER = 5.6
+/** What the names' usual spacing adds to a letter, and what a name keeps clear at its two sides: px. */
+const LETTER_APART = 0.32
+const NAME_CLEAR = 4
+/**
+ * The letters a column holds at the names' usual spacing; a longer word is
+ * set tighter, so none is cut short. Seven in a column of 48, eight in 56.
+ */
+const roomyLetters = (column: number): number =>
+  Math.floor((column - NAME_CLEAR) / (LETTER + LETTER_APART))
+/**
+ * The least a plate with a strip is wide: as wide as one with a window, so a
+ * chain of them is even, and its foot holds a preset's name beside its own.
+ */
+const STRIP_PLATE_LEAST = 280
 
 const longestWord = (words: string): number =>
   Math.max(...words.split(/\s+/).map((word) => word.length))
@@ -108,7 +119,8 @@ export interface PlateLayout {
  * stands clear at the right. A plate without a picture always has two rows.
  *
  * With a display: a strip lies under one row of knobs and ends where they do,
- * so the column at the right stays the plate's own; past twelve knobs they
+ * so the column at the right stays the plate's own, on a plate never narrower
+ * than one with a window (a face of four knobs shares that room); past twelve knobs they
  * take two rows and the strip stands beside them at the plate's full working
  * height. A window stands at the left and the knobs take two rows beside it.
  */
@@ -137,11 +149,16 @@ export function plateLayout(
     const columns = Math.max(FACE_PER_ROW, Math.ceil(knobs / rows))
     const knobsRight = KNOBS_LEFT + columns * KNOB_COLUMN
     if (rows === 1) {
-      const width = cells(knobsRight + MORE_COLUMN)
+      const width = Math.max(STRIP_PLATE_LEAST, cells(knobsRight + MORE_COLUMN))
+      // A face of four shares the room the least width gives it; more knobs keep their usual column.
+      const column =
+        columns === FACE_PER_ROW
+          ? Math.floor((width - KNOBS_LEFT - MORE_COLUMN) / columns)
+          : KNOB_COLUMN
       return {
         rows,
         columns,
-        column: KNOB_COLUMN,
+        column,
         width,
         knobsLeft: KNOBS_LEFT,
         display: {
@@ -312,7 +329,7 @@ export function DevicePlate({
   const stamp = picture?.params.map((param) => at(param).toFixed(3)).join(' ') ?? ''
 
   // The letters a knob's column holds at the word's usual size; a longer word is set tighter.
-  const roomy = pictured ? TIGHT_OVER : PLAIN_TIGHT_OVER
+  const roomy = roomyLetters(layout.column)
 
   const toggleOpen = (): void => {
     setOpen(!open)
