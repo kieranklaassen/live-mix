@@ -294,8 +294,10 @@ function vary<T extends VariedPlaying>(
       // seam is clear of it) keeps that start: the time is counted from it.
       if (draw(seed, SPEED) < amount.speed * VARIATION_LIMITS.doubling) {
         const first = Math.min(...hits.map((hit) => hit.at))
-        const lead = first < LEAD_SEC ? first : 0
         if (draw(seed, SPEED_WAY) < 0.5) {
+          // So does one that double time would bring into that moment: a
+          // first note written just clear of it never comes ahead of it.
+          const lead = first / 2 < LEAD_SEC ? first : 0
           hits = [0, 1].flatMap((turn) =>
             hits.map((hit) => ({
               ...hit,
@@ -306,6 +308,7 @@ function vary<T extends VariedPlaying>(
           )
           changes.rate = 2
         } else {
+          const lead = first < LEAD_SEC ? first : 0
           const firstHalf = hits.filter((hit) => hit.at - lead < period / 2 - TOGETHER_SEC)
           if (firstHalf.length > 0 && firstHalf.length < hits.length) {
             hits = firstHalf.map((hit) => ({

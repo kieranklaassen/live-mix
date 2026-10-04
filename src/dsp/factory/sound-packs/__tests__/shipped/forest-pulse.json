@@ -1,0 +1,502 @@
+{
+  "14001": {
+    "id": "forest-pulse-root-floor-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14002": {
+    "id": "forest-pulse-dark-trunk-strings-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14003": {
+    "id": "forest-pulse-octaves-under-moss-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14004": {
+    "id": "forest-pulse-bass-reed-under-b",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14005": {
+    "id": "forest-pulse-night-horn-floor-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14006": {
+    "id": "forest-pulse-cello-loop-slowed-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14007": {
+    "id": "forest-pulse-lidded-fold-drone-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14008": {
+    "id": "forest-pulse-shellac-reed-organ-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14009": {
+    "id": "forest-pulse-stacked-loops-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14010": {
+    "id": "forest-pulse-three-phase-haze-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14011": {
+    "id": "forest-pulse-bright-clearing-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14012": {
+    "id": "forest-pulse-plain-strings-slowed-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14013": {
+    "id": "forest-pulse-low-brass-fog-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14014": {
+    "id": "forest-pulse-ensemble-behind-trees-b",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14015": {
+    "id": "forest-pulse-standing-section-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14016": {
+    "id": "forest-pulse-lidded-horns-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14017": {
+    "id": "forest-pulse-hollow-reed-haze-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14018": {
+    "id": "forest-pulse-low-vowels-fog-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14019": {
+    "id": "forest-pulse-vowels-doubled-below-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14020": {
+    "id": "forest-pulse-hollow-under-water-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14021": {
+    "id": "forest-pulse-tremolo-strings-haze-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14022": {
+    "id": "forest-pulse-flea-market-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14023": {
+    "id": "forest-pulse-spires-in-fog-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14024": {
+    "id": "forest-pulse-fir-horn-loop-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14025": {
+    "id": "forest-pulse-low-flutes-smeared-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14026": {
+    "id": "forest-pulse-half-speed-chorale-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14027": {
+    "id": "forest-pulse-steel-without-edges-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14028": {
+    "id": "forest-pulse-rubbed-glass-below-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14029": {
+    "id": "forest-pulse-cellos-under-fog-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14030": {
+    "id": "forest-pulse-slow-phase-reeds-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14031": {
+    "id": "forest-pulse-brass-through-fog-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14032": {
+    "id": "forest-pulse-canopy-fog-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14033": {
+    "id": "forest-pulse-warped-evening-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14034": {
+    "id": "forest-pulse-far-horn-call-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14035": {
+    "id": "forest-pulse-wrong-speed-strings-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14036": {
+    "id": "forest-pulse-flugel-going-under-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14037": {
+    "id": "forest-pulse-one-bar-in-mist-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14038": {
+    "id": "forest-pulse-backwards-bar-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14039": {
+    "id": "forest-pulse-heartbeat-under-leaves",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14040": {
+    "id": "forest-pulse-empty-groove-crackle",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14041": {
+    "id": "forest-pulse-wind-in-hollow-trunks",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14042": {
+    "id": "forest-pulse-thunder-past-the-ridge",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14043": {
+    "id": "forest-pulse-fog-between-trunks",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14044": {
+    "id": "forest-pulse-fir-cluster-air",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14045": {
+    "id": "forest-pulse-bows-in-grain-mist",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14046": {
+    "id": "forest-pulse-wind-over-the-canopy",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14047": {
+    "id": "forest-pulse-rain-on-the-canopy",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14048": {
+    "id": "forest-pulse-dawn-birds-slowed",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14049": {
+    "id": "forest-pulse-stream-in-the-clearing",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14050": {
+    "id": "forest-pulse-drips-after-rain",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14051": {
+    "id": "forest-pulse-breath-among-trunks",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14052": {
+    "id": "forest-pulse-floor-thump-c",
+    "durationSec": 2.5,
+    "loops": false
+  },
+  "14053": {
+    "id": "forest-pulse-thump-through-moss-e",
+    "durationSec": 2,
+    "loops": false
+  },
+  "14054": {
+    "id": "forest-pulse-wooden-heartbeat-g",
+    "durationSec": 3,
+    "loops": false
+  },
+  "14055": {
+    "id": "forest-pulse-knock-on-bark-a",
+    "durationSec": 3.5,
+    "loops": false
+  },
+  "14056": {
+    "id": "forest-pulse-heartbeat-below-c",
+    "durationSec": 2,
+    "loops": false
+  },
+  "14057": {
+    "id": "forest-pulse-next-room-kick-d",
+    "durationSec": 2,
+    "loops": false
+  },
+  "14058": {
+    "id": "forest-pulse-kick-under-leaves-f",
+    "durationSec": 2,
+    "loops": false
+  },
+  "14059": {
+    "id": "forest-pulse-pad-turned-kick-g",
+    "durationSec": 2,
+    "loops": false
+  },
+  "14060": {
+    "id": "forest-pulse-ground-swell-e",
+    "durationSec": 6,
+    "loops": false
+  },
+  "14061": {
+    "id": "forest-pulse-slowed-salon-piano-g",
+    "durationSec": 6,
+    "loops": false
+  },
+  "14062": {
+    "id": "forest-pulse-strum-under-water-a",
+    "durationSec": 7,
+    "loops": false
+  },
+  "14063": {
+    "id": "forest-pulse-low-bass-step-b",
+    "durationSec": 4,
+    "loops": false
+  },
+  "14064": {
+    "id": "forest-pulse-harp-sweep-on-wax-c",
+    "durationSec": 6,
+    "loops": false
+  },
+  "14065": {
+    "id": "forest-pulse-piano-standing-still-c",
+    "durationSec": 7,
+    "loops": false
+  },
+  "14066": {
+    "id": "forest-pulse-low-bell-far-off-d",
+    "durationSec": 8,
+    "loops": false
+  },
+  "14067": {
+    "id": "forest-pulse-bar-in-the-fog-e",
+    "durationSec": 5,
+    "loops": false
+  },
+  "14068": {
+    "id": "forest-pulse-slowed-steel-f",
+    "durationSec": 6,
+    "loops": false
+  },
+  "14069": {
+    "id": "forest-pulse-half-tines-f",
+    "durationSec": 6,
+    "loops": false
+  },
+  "14070": {
+    "id": "forest-pulse-sweep-returning-g",
+    "durationSec": 8,
+    "loops": false
+  },
+  "14071": {
+    "id": "forest-pulse-quarter-speed-bowl-e",
+    "durationSec": 8,
+    "loops": false
+  },
+  "14072": {
+    "id": "forest-pulse-spires-stab-a",
+    "durationSec": 6,
+    "loops": false
+  },
+  "14073": {
+    "id": "forest-pulse-tongue-drum-bloom-b",
+    "durationSec": 6,
+    "loops": false
+  },
+  "14074": {
+    "id": "forest-pulse-mallet-pulled-under-c",
+    "durationSec": 5,
+    "loops": false
+  },
+  "14075": {
+    "id": "forest-pulse-bells-through-trees-d",
+    "durationSec": 8,
+    "loops": false
+  },
+  "14076": {
+    "id": "forest-pulse-hammered-string-e",
+    "durationSec": 6,
+    "loops": false
+  },
+  "14077": {
+    "id": "forest-pulse-harp-glass-ring-g",
+    "durationSec": 6,
+    "loops": false
+  },
+  "14078": {
+    "id": "forest-pulse-slow-bass-walk-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14079": {
+    "id": "forest-pulse-wooden-steps-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14080": {
+    "id": "forest-pulse-slowed-salon-round-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14081": {
+    "id": "forest-pulse-slowed-steel-round-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14082": {
+    "id": "forest-pulse-harp-sweeps-on-wax-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14083": {
+    "id": "forest-pulse-half-tines-round-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14084": {
+    "id": "forest-pulse-mallets-pulled-under-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14085": {
+    "id": "forest-pulse-looped-singer-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14086": {
+    "id": "forest-pulse-light-on-leaves-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "14087": {
+    "id": "forest-pulse-nylon-in-fog-a",
+    "durationSec": 8,
+    "loops": false
+  },
+  "14088": {
+    "id": "forest-pulse-piano-turning-to-pad-c",
+    "durationSec": 9,
+    "loops": false
+  },
+  "14089": {
+    "id": "forest-pulse-twelve-bit-bar-a",
+    "durationSec": 10,
+    "loops": false
+  },
+  "14090": {
+    "id": "forest-pulse-pendulum-bar-d",
+    "durationSec": 10,
+    "loops": false
+  },
+  "14091": {
+    "id": "forest-pulse-pendulum-handpan-a",
+    "durationSec": 10,
+    "loops": false
+  },
+  "14092": {
+    "id": "forest-pulse-twelve-bit-zither-f",
+    "durationSec": 10,
+    "loops": false
+  },
+  "14093": {
+    "id": "forest-pulse-wooden-steps-up-e",
+    "durationSec": 6,
+    "loops": false
+  },
+  "14094": {
+    "id": "forest-pulse-plucks-remembered-c",
+    "durationSec": 8,
+    "loops": false
+  },
+  "14095": {
+    "id": "forest-pulse-hammers-in-the-fog-g",
+    "durationSec": 8,
+    "loops": false
+  },
+  "14096": {
+    "id": "forest-pulse-two-slow-bowls-a",
+    "durationSec": 12,
+    "loops": false
+  },
+  "14097": {
+    "id": "forest-pulse-harp-chord-returning-a",
+    "durationSec": 10,
+    "loops": false
+  },
+  "14098": {
+    "id": "forest-pulse-long-harp-climb-c",
+    "durationSec": 9,
+    "loops": false
+  },
+  "14099": {
+    "id": "forest-pulse-tongue-drum-mist-d",
+    "durationSec": 10,
+    "loops": false
+  },
+  "14100": {
+    "id": "forest-pulse-three-bells-far-off-d",
+    "durationSec": 12,
+    "loops": false
+  }
+}

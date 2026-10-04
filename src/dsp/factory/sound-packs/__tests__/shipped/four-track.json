@@ -1,0 +1,502 @@
+{
+  "8001": {
+    "id": "four-track-drone-under-the-song-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8002": {
+    "id": "four-track-one-low-string-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8003": {
+    "id": "four-track-minor-under-hiss-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8004": {
+    "id": "four-track-sub-under-the-tape-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8005": {
+    "id": "four-track-bellows-close-up-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8006": {
+    "id": "four-track-sub-and-tape-weight-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8007": {
+    "id": "four-track-one-finger-held-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8008": {
+    "id": "four-track-low-pipes-held-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8009": {
+    "id": "four-track-still-fold-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8010": {
+    "id": "four-track-harbour-horn-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8011": {
+    "id": "four-track-guitar-haze-held-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8012": {
+    "id": "four-track-dark-well-fold-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8013": {
+    "id": "four-track-cellos-down-the-hall-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8014": {
+    "id": "four-track-pump-organ-murk-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8015": {
+    "id": "four-track-fog-voice-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8016": {
+    "id": "four-track-low-hymn-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8017": {
+    "id": "four-track-keys-caught-in-fog-em7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8018": {
+    "id": "four-track-monochord-and-hiss-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8019": {
+    "id": "four-track-overcast-pad-dm7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8020": {
+    "id": "four-track-hummed-chord-fmaj7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8021": {
+    "id": "four-track-borrowed-strings-am7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8022": {
+    "id": "four-track-sagging-tape-pad-csus2",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8023": {
+    "id": "four-track-slow-glass-chord-gadd9",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8024": {
+    "id": "four-track-lid-shut-vowels-csus4",
+    "durationSec": 16,
+    "loops": true
+  },
+  "8025": {
+    "id": "four-track-hollow-fog-dsus2",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8026": {
+    "id": "four-track-string-machine-murk-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8027": {
+    "id": "four-track-muted-five-cadd9",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8028": {
+    "id": "four-track-vowels-in-the-hall-fadd9",
+    "durationSec": 16,
+    "loops": true
+  },
+  "8029": {
+    "id": "four-track-slowed-chorus-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8030": {
+    "id": "four-track-tape-choir-far-back-dm7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8031": {
+    "id": "four-track-volume-knob-swell-em",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8032": {
+    "id": "four-track-steel-in-a-plate-gsus2",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8033": {
+    "id": "four-track-fuzzed-combo-organ-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8034": {
+    "id": "four-track-pipes-on-worn-tape-gsus4",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8035": {
+    "id": "four-track-tremulant-far-end-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8036": {
+    "id": "four-track-dubbed-voices-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8037": {
+    "id": "four-track-slowed-voices-dsus2",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8038": {
+    "id": "four-track-stilled-strum-em",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8039": {
+    "id": "four-track-backwards-keys-dm9",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8040": {
+    "id": "four-track-heard-through-plaster-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8041": {
+    "id": "four-track-sung-in-rounds-am",
+    "durationSec": 12,
+    "loops": true
+  },
+  "8042": {
+    "id": "four-track-backwards-strum-f",
+    "durationSec": 12,
+    "loops": true
+  },
+  "8043": {
+    "id": "four-track-strum-plate-at-night-c",
+    "durationSec": 12,
+    "loops": true
+  },
+  "8044": {
+    "id": "four-track-low-reed-looped-f",
+    "durationSec": 12,
+    "loops": true
+  },
+  "8045": {
+    "id": "four-track-flugel-behind-a-door-a",
+    "durationSec": 10,
+    "loops": false
+  },
+  "8046": {
+    "id": "four-track-brushed-chord-wet-tape-f",
+    "durationSec": 12,
+    "loops": false
+  },
+  "8047": {
+    "id": "four-track-bow-hair-mist-g6",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8048": {
+    "id": "four-track-roof-rain-to-cassette",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8049": {
+    "id": "four-track-shore-heard-indoors",
+    "durationSec": 16,
+    "loops": true
+  },
+  "8050": {
+    "id": "four-track-porch-frogs-on-tape",
+    "durationSec": 16,
+    "loops": true
+  },
+  "8051": {
+    "id": "four-track-thunder-out-at-sea",
+    "durationSec": 16,
+    "loops": true
+  },
+  "8052": {
+    "id": "four-track-wind-in-the-gutter-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8053": {
+    "id": "four-track-breath-and-hiss-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8054": {
+    "id": "four-track-whispered-chord-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8055": {
+    "id": "four-track-breath-of-low-flutes-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8056": {
+    "id": "four-track-noise-and-one-note-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8057": {
+    "id": "four-track-blank-cassette-hiss",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8058": {
+    "id": "four-track-stove-through-the-wall",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8059": {
+    "id": "four-track-wind-at-the-sash",
+    "durationSec": 16,
+    "loops": true
+  },
+  "8060": {
+    "id": "four-track-spring-tank-strum-em",
+    "durationSec": 8,
+    "loops": false
+  },
+  "8061": {
+    "id": "four-track-fuzz-under-fog-d",
+    "durationSec": 8,
+    "loops": false
+  },
+  "8062": {
+    "id": "four-track-picked-far-plate-g",
+    "durationSec": 7,
+    "loops": false
+  },
+  "8063": {
+    "id": "four-track-porch-strum-g",
+    "durationSec": 8,
+    "loops": false
+  },
+  "8064": {
+    "id": "four-track-low-tide-strum-dsus2",
+    "durationSec": 10,
+    "loops": false
+  },
+  "8065": {
+    "id": "four-track-nylon-under-vowels-e",
+    "durationSec": 7,
+    "loops": false
+  },
+  "8066": {
+    "id": "four-track-small-hours-keys-fmaj7",
+    "durationSec": 7,
+    "loops": false
+  },
+  "8067": {
+    "id": "four-track-barked-chord-am7",
+    "durationSec": 7,
+    "loops": false
+  },
+  "8068": {
+    "id": "four-track-half-speed-keys-g",
+    "durationSec": 5,
+    "loops": false
+  },
+  "8069": {
+    "id": "four-track-upright-no-top-end-c",
+    "durationSec": 8,
+    "loops": false
+  },
+  "8070": {
+    "id": "four-track-pedal-left-down-a",
+    "durationSec": 10,
+    "loops": false
+  },
+  "8071": {
+    "id": "four-track-soft-pedal-note-e",
+    "durationSec": 4,
+    "loops": false
+  },
+  "8072": {
+    "id": "four-track-piano-under-plate-c",
+    "durationSec": 10,
+    "loops": false
+  },
+  "8073": {
+    "id": "four-track-piano-and-humming-f",
+    "durationSec": 10,
+    "loops": false
+  },
+  "8074": {
+    "id": "four-track-blanketed-glass-a",
+    "durationSec": 8,
+    "loops": false
+  },
+  "8075": {
+    "id": "four-track-steel-pan-slowed-d",
+    "durationSec": 8,
+    "loops": false
+  },
+  "8076": {
+    "id": "four-track-vibes-motor-off-b",
+    "durationSec": 10,
+    "loops": false
+  },
+  "8077": {
+    "id": "four-track-attic-celesta-c",
+    "durationSec": 7,
+    "loops": false
+  },
+  "8078": {
+    "id": "four-track-bell-buoy-d",
+    "durationSec": 12,
+    "loops": false
+  },
+  "8079": {
+    "id": "four-track-silk-string-on-tape-c",
+    "durationSec": 7,
+    "loops": false
+  },
+  "8080": {
+    "id": "four-track-zither-on-the-stairs-f",
+    "durationSec": 9,
+    "loops": false
+  },
+  "8081": {
+    "id": "four-track-thumb-and-hiss-g",
+    "durationSec": 6,
+    "loops": false
+  },
+  "8082": {
+    "id": "four-track-picked-round-em",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8083": {
+    "id": "four-track-delay-pedal-murk-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8084": {
+    "id": "four-track-arpeggio-on-a-loop-em",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8085": {
+    "id": "four-track-picking-and-worn-echo-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8086": {
+    "id": "four-track-tremolo-and-spring-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8087": {
+    "id": "four-track-fifths-on-a-loop-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8088": {
+    "id": "four-track-piano-loop-octave-down-em",
+    "durationSec": 12,
+    "loops": true
+  },
+  "8089": {
+    "id": "four-track-muted-harp-murk-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8090": {
+    "id": "four-track-tongue-drum-on-tape-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "8091": {
+    "id": "four-track-slide-and-tremolo-c",
+    "durationSec": 12,
+    "loops": true
+  },
+  "8092": {
+    "id": "four-track-two-takes-line-d",
+    "durationSec": 11,
+    "loops": false
+  },
+  "8093": {
+    "id": "four-track-slack-low-strings-e",
+    "durationSec": 11,
+    "loops": false
+  },
+  "8094": {
+    "id": "four-track-small-amp-far-mic-am",
+    "durationSec": 10,
+    "loops": false
+  },
+  "8095": {
+    "id": "four-track-doubled-acoustic-g",
+    "durationSec": 10,
+    "loops": false
+  },
+  "8096": {
+    "id": "four-track-three-heads-one-hall-f",
+    "durationSec": 11,
+    "loops": false
+  },
+  "8097": {
+    "id": "four-track-wavering-upright-c",
+    "durationSec": 12,
+    "loops": false
+  },
+  "8098": {
+    "id": "four-track-sliding-bass-line-g",
+    "durationSec": 9,
+    "loops": false
+  },
+  "8099": {
+    "id": "four-track-wooden-plucks-wet-road-f",
+    "durationSec": 9,
+    "loops": false
+  },
+  "8100": {
+    "id": "four-track-hammered-string-pad-g",
+    "durationSec": 13,
+    "loops": false
+  }
+}

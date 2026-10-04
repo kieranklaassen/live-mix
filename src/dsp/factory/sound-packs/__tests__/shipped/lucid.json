@@ -1,0 +1,502 @@
+{
+  "6001": {
+    "id": "lucid-mine-rumble-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6002": {
+    "id": "lucid-under-bed-sub-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6003": {
+    "id": "lucid-cellar-bow-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6004": {
+    "id": "lucid-pylon-hum-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6005": {
+    "id": "lucid-low-reed-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6006": {
+    "id": "lucid-landing-light-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6007": {
+    "id": "lucid-night-section-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6008": {
+    "id": "lucid-bowed-gong-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6009": {
+    "id": "lucid-filter-left-open-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6010": {
+    "id": "lucid-fence-wire-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6011": {
+    "id": "lucid-tone-folding-over-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6012": {
+    "id": "lucid-hollow-hours-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6013": {
+    "id": "lucid-hymn-for-sleepers-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6014": {
+    "id": "lucid-two-tones-beating-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6015": {
+    "id": "lucid-floorboards-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6016": {
+    "id": "lucid-night-light-pad-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6017": {
+    "id": "lucid-sung-through-walls-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6018": {
+    "id": "lucid-glass-motion-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6019": {
+    "id": "lucid-flat-reed-organ-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6020": {
+    "id": "lucid-pillow-tone-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6021": {
+    "id": "lucid-struck-air-pad-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6022": {
+    "id": "lucid-tender-ooh-em",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6023": {
+    "id": "lucid-slowed-treble-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6024": {
+    "id": "lucid-ring-of-tin-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6025": {
+    "id": "lucid-strings-gone-sour-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6026": {
+    "id": "lucid-filter-opens-late-g",
+    "durationSec": 12,
+    "loops": false
+  },
+  "6027": {
+    "id": "lucid-muted-hymn-strings-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6028": {
+    "id": "lucid-thin-high-strings-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6029": {
+    "id": "lucid-unison-adrift-b",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6030": {
+    "id": "lucid-choir-reel-slowed-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6031": {
+    "id": "lucid-loose-oscillators-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6032": {
+    "id": "lucid-bell-held-under-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6033": {
+    "id": "lucid-mineshaft-voices-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6034": {
+    "id": "lucid-chapel-celeste-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6035": {
+    "id": "lucid-foghorn-section-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6036": {
+    "id": "lucid-drifting-ensemble-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6037": {
+    "id": "lucid-reed-from-nowhere-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6038": {
+    "id": "lucid-wrong-weather-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6039": {
+    "id": "lucid-steel-in-fog-c",
+    "durationSec": 12,
+    "loops": false
+  },
+  "6040": {
+    "id": "lucid-shed-guitar-swell-am",
+    "durationSec": 10,
+    "loops": false
+  },
+  "6041": {
+    "id": "lucid-motor-vibes-asleep-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6042": {
+    "id": "lucid-sliding-wire-f",
+    "durationSec": 12,
+    "loops": false
+  },
+  "6043": {
+    "id": "lucid-whistling-adit",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6044": {
+    "id": "lucid-wind-through-the-hedge",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6045": {
+    "id": "lucid-far-thunder",
+    "durationSec": 16,
+    "loops": true
+  },
+  "6046": {
+    "id": "lucid-breath-organ-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6047": {
+    "id": "lucid-air-over-fifths-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6048": {
+    "id": "lucid-cove-at-night",
+    "durationSec": 16,
+    "loops": true
+  },
+  "6049": {
+    "id": "lucid-rain-on-slates",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6050": {
+    "id": "lucid-grate-fire-late",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6051": {
+    "id": "lucid-run-out-groove",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6052": {
+    "id": "lucid-bows-on-air-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6053": {
+    "id": "lucid-noise-chord-dark-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6054": {
+    "id": "lucid-whistling-bands-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6055": {
+    "id": "lucid-stream-under-mill",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6056": {
+    "id": "lucid-tin-gong-d",
+    "durationSec": 12,
+    "loops": false
+  },
+  "6057": {
+    "id": "lucid-toy-mallet-g",
+    "durationSec": 3,
+    "loops": false
+  },
+  "6058": {
+    "id": "lucid-lullaby-keys-f",
+    "durationSec": 6,
+    "loops": false
+  },
+  "6059": {
+    "id": "lucid-sampled-comb-a",
+    "durationSec": 3,
+    "loops": false
+  },
+  "6060": {
+    "id": "lucid-stretched-bowl-f",
+    "durationSec": 12,
+    "loops": false
+  },
+  "6061": {
+    "id": "lucid-twelve-strings-f",
+    "durationSec": 10,
+    "loops": false
+  },
+  "6062": {
+    "id": "lucid-toy-strum-g",
+    "durationSec": 3,
+    "loops": false
+  },
+  "6063": {
+    "id": "lucid-hollow-drum-d",
+    "durationSec": 6,
+    "loops": false
+  },
+  "6064": {
+    "id": "lucid-yard-clank-c",
+    "durationSec": 4,
+    "loops": false
+  },
+  "6065": {
+    "id": "lucid-bent-silk-string-b",
+    "durationSec": 5,
+    "loops": false
+  },
+  "6066": {
+    "id": "lucid-dull-tines-dm",
+    "durationSec": 6,
+    "loops": false
+  },
+  "6067": {
+    "id": "lucid-sampled-tines-am",
+    "durationSec": 8,
+    "loops": false
+  },
+  "6068": {
+    "id": "lucid-dull-pluck-g",
+    "durationSec": 3,
+    "loops": false
+  },
+  "6069": {
+    "id": "lucid-upright-chord-am",
+    "durationSec": 6,
+    "loops": false
+  },
+  "6070": {
+    "id": "lucid-worn-brass-stab-f",
+    "durationSec": 4,
+    "loops": false
+  },
+  "6071": {
+    "id": "lucid-half-speed-piano-c",
+    "durationSec": 8,
+    "loops": false
+  },
+  "6072": {
+    "id": "lucid-thumb-piano-g",
+    "durationSec": 5,
+    "loops": false
+  },
+  "6073": {
+    "id": "lucid-slowed-glock-a",
+    "durationSec": 6,
+    "loops": false
+  },
+  "6074": {
+    "id": "lucid-engine-house-gong-e",
+    "durationSec": 12,
+    "loops": false
+  },
+  "6075": {
+    "id": "lucid-buzz-and-comb-pluck",
+    "durationSec": 7,
+    "loops": false
+  },
+  "6076": {
+    "id": "lucid-sine-whistle-tune-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6077": {
+    "id": "lucid-warble-keys-round-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6078": {
+    "id": "lucid-wonky-box-lullaby-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6079": {
+    "id": "lucid-toy-mallets-tune-d",
+    "durationSec": 8,
+    "loops": false
+  },
+  "6080": {
+    "id": "lucid-lullaby-keys-round-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6081": {
+    "id": "lucid-sampled-comb-round-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6082": {
+    "id": "lucid-night-radio-voice-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6083": {
+    "id": "lucid-worn-brass-broken-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6084": {
+    "id": "lucid-lone-horn-line-g",
+    "durationSec": 10,
+    "loops": false
+  },
+  "6085": {
+    "id": "lucid-nylon-question-em",
+    "durationSec": 8,
+    "loops": false
+  },
+  "6086": {
+    "id": "lucid-upright-phrase-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6087": {
+    "id": "lucid-sampled-pipes-air-g",
+    "durationSec": 8,
+    "loops": false
+  },
+  "6088": {
+    "id": "lucid-bent-silk-phrase-e",
+    "durationSec": 8,
+    "loops": false
+  },
+  "6089": {
+    "id": "lucid-distant-trumpet-call-g",
+    "durationSec": 10,
+    "loops": false
+  },
+  "6090": {
+    "id": "lucid-fairground-far-off-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6091": {
+    "id": "lucid-lost-reel-flutes-dm",
+    "durationSec": 10,
+    "loops": false
+  },
+  "6092": {
+    "id": "lucid-sampled-tines-phrase-g",
+    "durationSec": 12,
+    "loops": false
+  },
+  "6093": {
+    "id": "lucid-dripping-on-tin-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6094": {
+    "id": "lucid-slack-string-phrase-e",
+    "durationSec": 10,
+    "loops": false
+  },
+  "6095": {
+    "id": "lucid-hollow-drum-round-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "6096": {
+    "id": "lucid-lane-chimes-far-b",
+    "durationSec": 8,
+    "loops": false
+  },
+  "6097": {
+    "id": "lucid-yard-clank-pattern-e",
+    "durationSec": 7,
+    "loops": false
+  },
+  "6098": {
+    "id": "lucid-toy-strums-worn-c",
+    "durationSec": 7,
+    "loops": false
+  },
+  "6099": {
+    "id": "lucid-twelve-strings-up-c",
+    "durationSec": 10,
+    "loops": false
+  },
+  "6100": {
+    "id": "lucid-dull-tines-walk-f",
+    "durationSec": 8,
+    "loops": false
+  }
+}
