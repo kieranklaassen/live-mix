@@ -12,6 +12,7 @@
 // component that runs one.
 
 import { type ParamSpec } from '../../core/params'
+import { defaultFrameScheduler, type FrameScheduler } from '../frame'
 
 /**
  * Where a display stands on its plate.
@@ -189,39 +190,55 @@ export function displayWindowWidth(columns: number): number {
 
 type FrameListener = (nowMs: number) => void
 
-const frameListeners = new Set<FrameListener>()
-let frameHandle: number | null = null
+/** The displays on one frame source, and the frame they wait for. */
+interface FrameLoop {
+  listeners: Set<FrameListener>
+  handle: unknown
+  waiting: boolean
+}
 
-function frame(nowMs: number): void {
-  frameHandle = null
-  for (const listener of [...frameListeners]) listener(nowMs)
-  if (frameListeners.size > 0 && typeof requestAnimationFrame === 'function') {
-    frameHandle = requestAnimationFrame(frame)
-  }
+const frameLoops = new Map<FrameScheduler, FrameLoop>()
+
+function ask(scheduler: FrameScheduler, loop: FrameLoop): void {
+  loop.waiting = true
+  loop.handle = scheduler.request((nowMs) => {
+    loop.waiting = false
+    for (const listener of [...loop.listeners]) listener(nowMs)
+    if (loop.listeners.size > 0 && !loop.waiting) ask(scheduler, loop)
+  })
 }
 
 /**
- * Call `listener` on every animation frame until the returned function is
- * called. Every display on the page shares one loop, and the loop stops when
- * the last of them leaves; where there are no frames (a server) it never runs.
+ * Call `listener` on every frame until the returned function is called.
+ * Every display on one frame source (the provider's, or the page's own)
+ * shares one loop, and the loop stops when the last of them leaves.
  */
-export function onDisplayFrame(listener: FrameListener): () => void {
-  frameListeners.add(listener)
-  if (frameHandle === null && typeof requestAnimationFrame === 'function') {
-    frameHandle = requestAnimationFrame(frame)
+export function onDisplayFrame(
+  listener: FrameListener,
+  scheduler: FrameScheduler = defaultFrameScheduler,
+): () => void {
+  let loop = frameLoops.get(scheduler)
+  if (!loop) {
+    loop = { listeners: new Set(), handle: null, waiting: false }
+    frameLoops.set(scheduler, loop)
   }
+  loop.listeners.add(listener)
+  if (!loop.waiting) ask(scheduler, loop)
+  const joined = loop
   return () => {
-    frameListeners.delete(listener)
-    if (frameListeners.size === 0 && frameHandle !== null) {
-      cancelAnimationFrame(frameHandle)
-      frameHandle = null
-    }
+    joined.listeners.delete(listener)
+    if (joined.listeners.size > 0) return
+    if (joined.waiting) scheduler.cancel(joined.handle)
+    joined.waiting = false
+    frameLoops.delete(scheduler)
   }
 }
 
 /** How many displays are running now; for a test or a measurement. */
 export function runningDisplays(): number {
-  return frameListeners.size
+  let count = 0
+  for (const loop of frameLoops.values()) count += loop.listeners.size
+  return count
 }
 
 // --- Taps -------------------------------------------------------------------
@@ -241,12 +258,13 @@ class Tap {
   private bins: Float32Array<ArrayBuffer> | null = null
 
   constructor(
+    private readonly context: BaseAudioContext,
     private readonly node: AudioNode,
     spectrum: boolean,
     /** Which output of `node` to read: a splitter's left (0) or right (1). */
     private readonly side = 0,
   ) {
-    this.analyser = node.context.createAnalyser()
+    this.analyser = context.createAnalyser()
     this.analyser.fftSize = TAP_WINDOW
     this.analyser.smoothingTimeConstant = 0.7
     this.wave = new Float32Array(TAP_WINDOW)
@@ -286,7 +304,7 @@ class Tap {
   }
 
   get binHz(): number {
-    return this.analyser.context.sampleRate / this.analyser.fftSize
+    return this.context.sampleRate / this.analyser.fftSize
   }
 
   release(): void {
@@ -309,16 +327,18 @@ class Sides {
   readonly left: Tap
   readonly right: Tap
 
-  constructor(private readonly node: AudioNode) {
-    const context = node.context
+  constructor(
+    context: BaseAudioContext,
+    private readonly node: AudioNode,
+  ) {
     this.both = context.createGain()
     this.both.channelCount = 2
     this.both.channelCountMode = 'explicit'
     this.both.channelInterpretation = 'speakers'
     this.splitter = context.createChannelSplitter(2)
     this.both.connect(this.splitter)
-    this.left = new Tap(this.splitter, false, 0)
-    this.right = new Tap(this.splitter, false, 1)
+    this.left = new Tap(context, this.splitter, false, 0)
+    this.right = new Tap(context, this.splitter, false, 1)
     this.mend()
   }
 
@@ -356,20 +376,30 @@ export class DisplayTaps {
     private readonly sides: Sides | null,
   ) {}
 
-  /** Null where analysers cannot be made (a context without them, a test's stand-in). */
+  /**
+   * Null where analysers cannot be made (a context without them). `context`
+   * is the one the device lives in; a node says which made it, and where it
+   * does not (a test's stand-in) the caller does.
+   */
   static open(
     source: AudioNode | null | undefined,
     output: AudioNode,
     options: DisplayTapOptions = {},
+    context: BaseAudioContext | null = null,
   ): DisplayTaps | null {
     try {
-      if (typeof output.context?.createAnalyser !== 'function') return null
-      const out = new Tap(output, options.spectrum === true)
-      return new DisplayTaps(
-        source ? new Tap(source, false) : null,
-        out,
-        options.stereo ? new Sides(output) : null,
-      )
+      const made = (output.context as BaseAudioContext | undefined) ?? context
+      if (typeof made?.createAnalyser !== 'function') return null
+      const out = new Tap(made, output, options.spectrum === true)
+      let sides: Sides | null = null
+      if (options.stereo) {
+        try {
+          sides = new Sides(made, output)
+        } catch {
+          // No splitter here: the display has the two levels and not the two sides.
+        }
+      }
+      return new DisplayTaps(source ? new Tap(made, source, false) : null, out, sides)
     } catch {
       return null
     }

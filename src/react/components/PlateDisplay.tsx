@@ -12,6 +12,8 @@ import {
 
 import { type Device, isMeteredDevice } from '../../core/devices/Device'
 import { normalizeParam, type ParamSpec } from '../../core/params'
+import { type FrameScheduler } from '../frame'
+import { useFrameScheduler, useMaybeEngine } from '../hooks/useEngine'
 import { PLAIN_COLOURS } from './display-kit'
 import { infoProps, infoText } from './info'
 import {
@@ -37,6 +39,9 @@ export interface DisplayInputs {
   powered: boolean
   params: Readonly<Record<string, ParamSpec>>
   values: Readonly<Record<string, number>>
+  /** The frames it runs on, and the context its device lives in; the layer takes both from the provider. */
+  frames?: FrameScheduler
+  context?: BaseAudioContext | null
 }
 
 /** How near a press must be to a handle to take it, in pixels: wider under a finger. */
@@ -102,7 +107,7 @@ export class DisplayRunner {
   /** After anything changed (a knob, the power, the size): run or stand still, and draw. */
   sync(): void {
     if (this.disposed || !this.ctx) return
-    const { display, device, powered, source } = this.inputs()
+    const { display, device, powered, source, frames, context } = this.inputs()
     this.fit()
     const run = Boolean(display.live) && this.visible && powered
     if (run) {
@@ -114,16 +119,18 @@ export class DisplayRunner {
         const output = device.output
         if (this.tapsFor?.source !== source || this.tapsFor?.output !== output) {
           this.taps?.release()
-          this.taps = DisplayTaps.open(source, output, {
-            spectrum: live.spectrum,
-            stereo: live.stereo,
-          })
+          this.taps = DisplayTaps.open(
+            source,
+            output,
+            { spectrum: live.spectrum, stereo: live.stereo },
+            context,
+          )
           this.tapsFor = { source, output }
         }
       }
       if (!this.stop) {
         this.lastMs = null
-        this.stop = onDisplayFrame((nowMs) => this.onFrame(nowMs))
+        this.stop = onDisplayFrame((nowMs) => this.onFrame(nowMs), frames)
       }
     } else {
       this.rest()
@@ -264,7 +271,10 @@ export class DisplayRunner {
       now: nowMs / 1000,
       dt,
       powered,
-      sampleRate: device.output.context?.sampleRate ?? 48000,
+      sampleRate:
+        (device.output.context as BaseAudioContext | undefined)?.sampleRate ??
+        this.inputs().context?.sampleRate ??
+        48000,
       hot: this.hot,
       dragging: this.dragging,
       state: this.state,
@@ -278,7 +288,7 @@ export class DisplayRunner {
   }
 }
 
-export interface PlateDisplayLayerProps extends DisplayInputs {
+export interface PlateDisplayLayerProps extends Omit<DisplayInputs, 'frames' | 'context'> {
   /** The device's name, for the info view. */
   heading: string
   /** A drag on a handle begins: the parameters it will move. */
@@ -304,8 +314,10 @@ interface Grab {
 export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
   const { display, device, heading, width, height, className, style } = props
   const canvas = useRef<HTMLCanvasElement>(null)
-  const latest = useRef(props)
-  latest.current = props
+  const frames = useFrameScheduler()
+  const context = useMaybeEngine()?.context ?? null
+  const latest = useRef({ ...props, frames, context })
+  latest.current = { ...props, frames, context }
   const runner = useRef<DisplayRunner | null>(null)
   const grab = useRef<Grab | null>(null)
 
