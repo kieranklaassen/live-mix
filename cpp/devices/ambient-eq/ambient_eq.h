@@ -49,7 +49,8 @@
 //   the same gain on both channels so the image does not move. The gain is
 //   ramped across the frame and the filter redesigned every 64 samples; a
 //   band at 0 dB is skipped.
-// - meter(0) is the deepest cut in force, in dB.
+// - meter(0) is the deepest cut in force, in dB; meters 1 to 5 carry every
+//   band's cut to the display.
 //
 // Asleep nothing is sounding, so the filters, the band powers, the cuts and
 // the FFT's input are cleared: waking is the same as starting.
@@ -107,9 +108,24 @@ class AmbientEq : public kit::DeviceBase<ambient_eq::kNumParams> {
     if (store_param(id, value)) apply(id);
   }
 
-  // The reading named by meters[index] in device.json: 0 is the deepest cut
-  // Clear is making right now, in dB (0 or below).
-  float meter(int index) const { return index == 0 ? deepest_ : 0.0f; }
+  // The readings named by meters[index] in device.json: 0 is the deepest cut
+  // Clear is making right now, in dB (0 or below). 1 to 5 are for the display,
+  // which draws every band's cut: the cut in force in five bands to a reading
+  // (bands 0 to 4, 5 to 9 and so on), each in half decibels (0 to 24) as one
+  // digit of a number in base 25, the lowest band in the lowest digit. A float
+  // holds every such number exactly (25^5 is under 2^24).
+  float meter(int index) const {
+    if (index == 0) return deepest_;
+    if (index < 1 || index > kCutReadings) return 0.0f;
+    const int first = (index - 1) * kBandsPerReading;
+    int packed = 0;
+    for (int k = first + kBandsPerReading - 1; k >= first; --k) {
+      const float half_db = k < kBands ? -2.0f * gain_[k].value : 0.0f;
+      const int steps = kit::clamp_int(static_cast<int>(half_db + 0.5f), 0, kCutSteps - 1);
+      packed = packed * kCutSteps + steps;
+    }
+    return static_cast<float>(packed);
+  }
 
   void process(int frames) {
     frames = begin_block(frames);
@@ -191,6 +207,11 @@ class AmbientEq : public kit::DeviceBase<ambient_eq::kNumParams> {
   enum Stage : int { kLowStage = 0, kBodyStage, kPresenceStage, kAirStage, kStages };
 
   static constexpr uint32_t kRingMask = kFrame - 1;
+  // How meter() packs the cuts for the display.
+  static constexpr int kBandsPerReading = 5;
+  static constexpr int kCutReadings = 5;
+  static constexpr int kCutSteps = 25;  // 0 to 12 dB in half decibels
+  static_assert(kBandsPerReading * kCutReadings >= kBands, "every band needs a place in a reading");
   static constexpr int kEqPeriod = 16;     // samples between tone control updates
   static constexpr int kClearPeriod = 64;  // samples between band filter updates
   static constexpr int kTicksPerFrame = kHop / kClearPeriod;
