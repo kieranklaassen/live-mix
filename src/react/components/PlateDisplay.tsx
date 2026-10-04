@@ -583,6 +583,17 @@ export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
     }
   }, [display, device])
 
+  // A display that leaves the page with a handle in hand hears nothing of the
+  // pointer going up: the drag ends here, so what it holds is let go.
+  useEffect(
+    () => () => {
+      const held = grab.current
+      grab.current = null
+      if (held) latest.current.onDragEnd(held.names)
+    },
+    [],
+  )
+
   const interactive = display.handles !== undefined
 
   const onPointerDown = (event: ReactPointerEvent<HTMLCanvasElement>): void => {
@@ -640,7 +651,9 @@ export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
     const held = grab.current
     if (held?.pointerId !== event.pointerId) return
     grab.current = null
-    event.currentTarget.releasePointerCapture?.(event.pointerId)
+    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
     runner.current?.point(held.key, false)
     props.onDragEnd(held.names)
     // Two presses that each moved nothing are a double press; two short
@@ -694,6 +707,9 @@ export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
       onPointerMove={interactive ? onPointerMove : undefined}
       onPointerUp={interactive ? letGo : undefined}
       onPointerCancel={interactive ? letGo : undefined}
+      // The pointer taken from the display (its plate moved along the chain) sends no more
+      // here; after a pointer up the browser says this too, when the handle is already let go.
+      onLostPointerCapture={interactive ? letGo : undefined}
       onPointerLeave={
         interactive
           ? (event) => {
