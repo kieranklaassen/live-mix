@@ -66,8 +66,9 @@ describe('device skins', () => {
         expect(skin.face, `${id} face`).toHaveLength(Math.min(room, params.length))
       for (const name of [...(skin.face ?? []), ...(skin.picture?.params ?? [])])
         expect(params, `${id} has ${name}`).toContain(name)
+      // A label is for any knob the plate can show: one on its face or one behind its +n cell.
       for (const name of Object.keys(skin.labels ?? {}))
-        expect(skin.face, `${id} labels a face knob`).toContain(name)
+        expect(params, `${id} labels a knob it has`).toContain(name)
       expect(PLATE_FINISHES).toContain(skin.finish)
     }
   })
