@@ -12,6 +12,8 @@ import { type ReactNode } from 'react'
 
 import { type Device, isEditorDevice } from '../../core/devices/Device'
 import { type KnobCap } from './Knob'
+import { PLATE_FACES } from './displays'
+import { type PlateDisplay } from './plate-display'
 import { HOSTED_PLATES, PLATE_PALETTES } from './plate-palettes'
 
 /** How a plate's surface is worked. */
@@ -64,6 +66,12 @@ export interface DeviceSkin {
   /** Shorter words for a knob than its parameter's name. */
   labels?: Readonly<Record<string, string>>
   picture?: PlatePicture
+  /**
+   * What the device is doing, on a canvas that moves with it (`plate-display.ts`).
+   * It stands where the picture would, and a skin with both shows the display.
+   * The face is four knobs over a strip, and two, four or six beside a window.
+   */
+  display?: PlateDisplay
 }
 
 const INK = 'var(--lm-plate-ink)'
@@ -1461,7 +1469,7 @@ const vowelReverb: PlatePicture = lifted({
 })
 
 /** The skins the kit ships, by device id. */
-export const DEVICE_SKINS: Readonly<Record<string, DeviceSkin>> = {
+const SKINS: Readonly<Record<string, DeviceSkin>> = {
   'fdn-reverb': {
     name: 'Tides',
     ...PLATE_PALETTES['fdn-reverb'],
@@ -1753,7 +1761,43 @@ export const DEVICE_SKINS: Readonly<Record<string, DeviceSkin>> = {
     labels: { resonance: 'Reso' },
     picture: vowelReverb,
   },
+  // The tools and the rest. What each shows is its display (`displays/`).
+  filter: { ...PLATE_PALETTES.filter, finish: 'gloss', cap: 'pointer' },
+  eq3: { ...PLATE_PALETTES.eq3, finish: 'matte', cap: 'skirt' },
+  'parametric-eq': { ...PLATE_PALETTES['parametric-eq'], finish: 'fade', cap: 'dot' },
+  'ambient-eq': { ...PLATE_PALETTES['ambient-eq'], finish: 'linen', cap: 'disc' },
+  compressor: { ...PLATE_PALETTES.compressor, finish: 'hammered', cap: 'skirt' },
+  'ambient-comp': { ...PLATE_PALETTES['ambient-comp'], finish: 'grain', cap: 'disc' },
+  'ambient-limiter': { ...PLATE_PALETTES['ambient-limiter'], finish: 'matte', cap: 'dot' },
+  'fet-limiter': { ...PLATE_PALETTES['fet-limiter'], finish: 'brushed', cap: 'pointer' },
+  ducker: { ...PLATE_PALETTES.ducker, finish: 'gloss', cap: 'disc' },
+  swell: { ...PLATE_PALETTES.swell, finish: 'fade', cap: 'dot' },
+  delay: { ...PLATE_PALETTES.delay, finish: 'matte', cap: 'disc' },
+  'grain-delay': { ...PLATE_PALETTES['grain-delay'], finish: 'speckle', cap: 'dot' },
+  'convolver-reverb': { ...PLATE_PALETTES['convolver-reverb'], finish: 'fade', cap: 'skirt' },
+  'plate-reverb': { ...PLATE_PALETTES['plate-reverb'], finish: 'brushed', cap: 'pointer' },
+  'hall-reverb': { ...PLATE_PALETTES['hall-reverb'], finish: 'grain', cap: 'skirt' },
+  'stereo-widener': { ...PLATE_PALETTES['stereo-widener'], finish: 'gloss', cap: 'disc' },
+  utility: { ...PLATE_PALETTES.utility, finish: 'matte', cap: 'pointer' },
+  'spectral-drifter': { ...PLATE_PALETTES['spectral-drifter'], finish: 'speckle', cap: 'dot' },
+  flanger: { ...PLATE_PALETTES.flanger, finish: 'gloss', cap: 'pointer' },
+  'freq-shifter': { ...PLATE_PALETTES['freq-shifter'], finish: 'linen', cap: 'dot' },
+  phaser: { ...PLATE_PALETTES.phaser, finish: 'fade', cap: 'skirt' },
+  tremolo: { ...PLATE_PALETTES.tremolo, finish: 'grain', cap: 'skirt' },
 }
+
+/**
+ * The kit's skin for every stock effect, by device id: a plate of its own
+ * colour and finish with, where the kit has one, a display of what the device
+ * is doing (`PLATE_FACES`) and the knobs that stand with it. A skin that has
+ * a display keeps its picture for a host that wants the still plate.
+ */
+export const DEVICE_SKINS: Readonly<Record<string, DeviceSkin>> = Object.fromEntries(
+  Object.entries(SKINS).map(([id, skin]): [string, DeviceSkin] => {
+    const face = Object.hasOwn(PLATE_FACES, id) ? PLATE_FACES[id] : undefined
+    return [id, face ? { ...skin, ...face } : skin]
+  }),
+)
 
 /**
  * The plate of a device with no skin of its own, and of the tools (an EQ, a

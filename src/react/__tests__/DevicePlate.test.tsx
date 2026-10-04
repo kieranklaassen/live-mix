@@ -5,7 +5,6 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { type Device, type EditorDevice } from '../../core/devices/Device'
-import { STOCK_WASM_DEVICES } from '../../dsp'
 import { DeviceChainView } from '../components/DeviceChainView'
 import { DevicePlate, plateLayout } from '../components/DevicePlate'
 import {
@@ -21,6 +20,7 @@ import {
 import { Knob, type KnobCap } from '../components/Knob'
 import { HOSTED_PLATES, PLATE_PALETTES } from '../components/plate-palettes'
 import { MissingNativeDevice } from '../../native/missing'
+import { stockDescriptors } from './display-harness'
 import { createTestEngine, type TestEngine } from './harness'
 
 afterEach(cleanup)
@@ -54,18 +54,28 @@ const SKIN: DeviceSkin = {
 }
 
 describe('device skins', () => {
-  const stock = new Map(STOCK_WASM_DEVICES.map((descriptor) => [descriptor.id, descriptor]))
+  const stock = stockDescriptors()
 
   it('skins devices that exist, with face knobs and picture parameters they have', () => {
     for (const [id, skin] of Object.entries(DEVICE_SKINS)) {
       const params = Object.keys(stock.get(id)?.params ?? {})
       expect(params.length, `${id} is a stock device`).toBeGreaterThan(0)
-      expect(skin.face, `${id} face`).toHaveLength(4)
+      // Four knobs over a picture or a strip, two for each column beside a window.
+      const room = skin.display?.place === 'window' ? 2 * (skin.display.columns ?? 2) : 4
+      if (skin.picture || skin.display)
+        expect(skin.face, `${id} face`).toHaveLength(Math.min(room, params.length))
       for (const name of [...(skin.face ?? []), ...(skin.picture?.params ?? [])])
         expect(params, `${id} has ${name}`).toContain(name)
       for (const name of Object.keys(skin.labels ?? {}))
         expect(skin.face, `${id} labels a face knob`).toContain(name)
       expect(PLATE_FINISHES).toContain(skin.finish)
+    }
+  })
+
+  it('has a plate of its own for every stock effect', () => {
+    for (const descriptor of stock.values()) {
+      if (descriptor.category === 'instrument' || descriptor.kind === 'rack') continue
+      expect(Object.hasOwn(DEVICE_SKINS, descriptor.id), `${descriptor.id} has a skin`).toBe(true)
     }
   })
 
@@ -97,7 +107,8 @@ describe('device skins', () => {
     for (const id of skinned) {
       expect(stock.get(id)?.category, `${id} is a stock effect`).not.toBe('instrument')
       expect(stock.has(id), `${id} is a stock device`).toBe(true)
-      expect(DEVICE_SKINS[id]?.picture, `${id} has a plate with a picture`).toBeDefined()
+      const skin = DEVICE_SKINS[id]
+      expect(skin?.picture ?? skin?.display, `${id} has a plate that shows something`).toBeDefined()
     }
     // No two plates share a colour: each is told apart at a glance.
     const plates = Object.values(DEVICE_SKINS).map((skin) => skin.plate)
@@ -106,8 +117,10 @@ describe('device skins', () => {
 
   it('draws every picture at any setting, and differently as the settings move', () => {
     for (const [id, skin] of Object.entries(DEVICE_SKINS)) {
+      const picture = skin.picture
+      if (!picture) continue
       const drawn = [0, 0.4, 1].map((position) =>
-        renderToStaticMarkup(<svg>{skin.picture?.draw(() => position)}</svg>),
+        renderToStaticMarkup(<svg>{picture.draw(() => position)}</svg>),
       )
       for (const markup of drawn) {
         expect(markup.length, id).toBeGreaterThan(40)
@@ -120,8 +133,9 @@ describe('device skins', () => {
   it('gives a device its own skin, else the quiet one, and none to a plug-in that is missing', async () => {
     const fixture = createTestEngine()
     const filter = await make(fixture)
-    expect(deviceSkin(filter)).toBe(QUIET_SKIN)
+    expect(deviceSkin(filter)).toBe(DEVICE_SKINS.filter)
     expect(deviceSkin(filter, { filter: SKIN })).toBe(SKIN)
+    expect(deviceSkin(filter, {})).toBe(QUIET_SKIN)
     // A name every object has is not a skin.
     expect(deviceSkin(Object.assign(filter, { id: 'toString' }))).toBe(QUIET_SKIN)
     expect(deviceSkin(new MissingNativeDevice(fixture.engine.context, 'plugin:gone'))).toBeNull()
@@ -200,16 +214,91 @@ describe('device skins', () => {
   })
 })
 
+/** A plate without a display: its knobs start at the plate's edge. */
+const AT_REST = { knobsLeft: 4, display: null }
+
 describe('plateLayout', () => {
   it('keeps a plate on whole cells and widens it with its knobs', () => {
-    expect(plateLayout(4, true)).toEqual({ rows: 1, columns: 4, column: 48, width: 240 })
+    expect(plateLayout(4, true)).toEqual({
+      ...AT_REST,
+      rows: 1,
+      columns: 4,
+      column: 48,
+      width: 240,
+    })
     expect(plateLayout(2, true).width).toBe(240)
-    expect(plateLayout(10, true)).toEqual({ rows: 1, columns: 10, column: 48, width: 540 })
+    expect(plateLayout(10, true)).toEqual({
+      ...AT_REST,
+      rows: 1,
+      columns: 10,
+      column: 48,
+      width: 540,
+    })
     // Past twelve the knobs take two rows and the picture stands clear beside them.
-    expect(plateLayout(20, true)).toEqual({ rows: 2, columns: 10, column: 48, width: 740 })
-    expect(plateLayout(4, false)).toEqual({ rows: 1, columns: 4, column: 56, width: 280 })
-    expect(plateLayout(8, false)).toEqual({ rows: 2, columns: 4, column: 56, width: 280 })
-    expect(plateLayout(14, false)).toEqual({ rows: 2, columns: 7, column: 56, width: 440 })
+    expect(plateLayout(20, true)).toEqual({
+      ...AT_REST,
+      rows: 2,
+      columns: 10,
+      column: 48,
+      width: 740,
+    })
+    expect(plateLayout(4, false)).toEqual({
+      ...AT_REST,
+      rows: 1,
+      columns: 4,
+      column: 56,
+      width: 280,
+    })
+    expect(plateLayout(8, false)).toEqual({
+      ...AT_REST,
+      rows: 2,
+      columns: 4,
+      column: 56,
+      width: 280,
+    })
+    expect(plateLayout(14, false)).toEqual({
+      ...AT_REST,
+      rows: 2,
+      columns: 7,
+      column: 56,
+      width: 440,
+    })
+  })
+
+  it('gives a window its height and the knobs two rows beside it', () => {
+    // Two columns of knobs: the window is 128 wide and the knobs start where it ends.
+    expect(plateLayout(4, false, { place: 'window', columns: 2 })).toEqual({
+      rows: 2,
+      columns: 2,
+      column: 48,
+      width: 280,
+      knobsLeft: 140,
+      display: { left: 8, top: 8, width: 128, height: 100 },
+    })
+    expect(plateLayout(2, false, { place: 'window', columns: 1 }).display?.width).toBe(176)
+    expect(plateLayout(6, false, { place: 'window', columns: 3 }).display?.width).toBe(80)
+    for (const columns of [1, 2, 3] as const)
+      expect(plateLayout(columns * 2, false, { place: 'window', columns }).width).toBe(280)
+    // Opened, the knobs run on in their two rows and the window keeps its size.
+    const opened = plateLayout(12, false, { place: 'window', columns: 2 })
+    expect(opened.display).toEqual({ left: 8, top: 8, width: 128, height: 100 })
+    expect(opened.rows).toBe(2)
+    expect(opened.width % 20).toBe(0)
+  })
+
+  it('lays a strip under one row of knobs, as wide as the row', () => {
+    const rest = plateLayout(4, false, { place: 'strip' })
+    expect(rest).toMatchObject({ rows: 1, columns: 4, width: 240 })
+    expect(rest.display).toEqual({ left: 8, top: 60, width: 184, height: 48 })
+    // Opened in one row the strip runs under all of it; the right-hand column stays the plate's.
+    const opened = plateLayout(9, false, { place: 'strip' })
+    expect(opened.rows).toBe(1)
+    expect(opened.display).toMatchObject({ left: 8, top: 60, height: 48 })
+    expect(opened.display?.width).toBe(opened.width - 56)
+    // Past twelve knobs they take two rows and the strip stands beside them at full height.
+    const many = plateLayout(20, false, { place: 'strip' })
+    expect(many.rows).toBe(2)
+    expect(many.display).toMatchObject({ top: 8, width: 184, height: 100 })
   })
 })
 

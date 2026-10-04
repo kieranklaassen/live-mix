@@ -127,6 +127,11 @@ export interface DeviceMeterSpec {
   id: number
   name: string
   unit: string
+  /**
+   * A reading for a display to draw (where an LFO is in its cycle), not a
+   * number to print: a panel that lists a device's readings leaves it out.
+   */
+  display?: true
 }
 
 /**
