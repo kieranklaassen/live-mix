@@ -592,6 +592,37 @@ describe('Performer: bars and beats', () => {
     expect(new Set(beats.map((event) => event.at.toFixed(3))).size).toBe(beats.length)
   })
 
+  it('puts a beat on the grid though the clock moves on between two readings of it', () => {
+    const { ctx, engine, advance, events } = rig()
+    // The thread is put aside for 3 ms after every look at the clock, as a busy page's is.
+    let clock = ctx.currentTime
+    Object.defineProperty(ctx, 'currentTime', {
+      configurable: true,
+      get: () => {
+        const read = clock
+        clock += 0.003
+        return read
+      },
+      set: (value: number) => {
+        clock = value
+      },
+    })
+    engine.transport.start()
+    for (let i = 0; i < 45; i += 1) advance(0.1)
+    const beats = events.filter((event) => event.type === 'beat')
+    expect(beats.length).toBeGreaterThan(8)
+    const off = beats.map(
+      (event) =>
+        event.at - engine.transport.contextTimeAtElapsed((event.bar * 4 + event.beat) * 0.5),
+    )
+    // Never ahead of its line. One the clock has just passed when it is told is told as now.
+    for (const by of off) {
+      expect(by).toBeGreaterThan(-1e-6)
+      expect(by).toBeLessThan(0.01)
+    }
+    expect(off.filter((by) => Math.abs(by) < 1e-6).length).toBeGreaterThanOrEqual(beats.length - 1)
+  })
+
   it('counts bars from the start of each pass of the loop', () => {
     const { engine, advance, events } = rig()
     engine.transport.start()
