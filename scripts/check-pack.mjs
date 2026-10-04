@@ -57,8 +57,37 @@ try {
     }
   }
 
+  // A built script finds its files (a device's .wasm, a worklet) beside
+  // itself: `new URL('../wasm/x.wasm', import.meta.url)`. Code splitting may
+  // move that line into a shared chunk at another depth, where the same path
+  // points at nothing, and a consumer's bundler then leaves the file out
+  // without a word. Every such path has to land on a file of the tarball.
+  const scripts = [...files].filter((file) => file.startsWith('dist/') && file.endsWith('.js'))
+  let located = 0
+  const lost = []
+  for (const script of scripts) {
+    const source = readFileSync(script, 'utf8')
+    for (const [, path] of source.matchAll(
+      /new URL\(\s*["'](\.{1,2}\/[^"']+)["']\s*,\s*import\.meta\.url\s*\)/g,
+    )) {
+      located += 1
+      if (!files.has(join(dirname(script), path))) lost.push(`${script}: ${path}`)
+    }
+  }
+  if (lost.length > 0) {
+    console.error('check-pack: built scripts point at files that are not where they look:')
+    for (const line of lost.slice(0, 12)) console.error(`  ${line}`)
+    if (lost.length > 12) console.error(`  and ${lost.length - 12} more`)
+    console.error(
+      'A shared chunk took device or worklet code out of its entry. Whatever a lazily loaded script imports ' +
+        'must import nothing that reaches a descriptor: see "The layout of the build" in docs/factory.md.',
+    )
+    process.exit(1)
+  }
+
   console.log(
     `check-pack: ${files.size} files, ${targets.length} export targets resolve, ` +
+      `${located} files found from where the scripts look for them, ` +
       `${wasm.length} wasm, ${worklets.length} worklet(s), ` +
       `optional peers (${optionalPeers.join(', ')}) confined to their entries`,
   )
