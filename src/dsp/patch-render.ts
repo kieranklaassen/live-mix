@@ -15,6 +15,7 @@ import { type PlanarAudio } from '../core/render/encode'
 import { type DeviceExports } from './abi'
 import { compileWasm, type WasmSource } from './assets'
 import { isWasmDescriptor, type WasmDeviceDescriptor } from './descriptor'
+import { noteFrequency } from './note-frequency'
 import { describeStockWasmDevice } from './registry'
 
 /** One note of a phrase, timed from the start of the render. */
@@ -38,10 +39,7 @@ export type LoopFold = 'power' | 'linear'
 /** The velocity a phrase note plays at when it names none: what an on-screen key sends. */
 export const DEFAULT_PHRASE_GAIN = 0.8
 
-/** Equal temperament, A4 = 440 Hz. */
-export function noteFrequency(note: number): number {
-  return 440 * 2 ** ((note - 69) / 12)
-}
+export { noteFrequency }
 
 export interface RenderPatchOptions {
   /** Length of the returned audio in seconds. */

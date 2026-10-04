@@ -6,7 +6,7 @@
 // `packSounds` and nothing else.
 
 import { type PatchDevice } from '../../../core/devices/patch'
-import { transposeWords } from '../key'
+import { transposeWords } from '../words'
 import { type FactoryPreset, type FactorySound } from '../types'
 
 export { breathe, hall, quarterTurn, soften } from '../parts'

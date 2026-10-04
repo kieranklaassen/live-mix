@@ -631,6 +631,27 @@ on the wrong degree). `FACTORY_NUMBERS=1001-1020` and `FACTORY=<part of an
 id>` narrow it. When the pack is whole, add its id to `WITH_SOUNDS` in
 `packs/index.ts` and its rows with `UPDATE_SHIPPED_SOUNDS=1`.
 
+### The layout of the build
+
+A device finds its module beside the script it is in:
+`new URL('../wasm/plate-reverb.wasm', import.meta.url)`, which is right from
+`dist/dsp/index.js` and from nowhere else. The build splits code that two
+scripts share into chunks at the top of `dist/`, and a path that was right
+one level down then points at nothing; a consumer's bundler leaves the file
+out without a word, and the device fails when it is first used.
+
+A script behind a dynamic `import()` shares whatever it imports with the
+entry, so it must import nothing that reaches a device's descriptor. The
+packs' presets are data alone. The packs' sounds are written with the bank's
+own helpers (`looped`, `hall`, `transposeWords`), and those import only
+leaves: `factory/words.ts` and `note-frequency.ts` import nothing, and
+`factory/parts.ts` and `factory/sounds/recipe.ts` nothing but them and
+types. Keep it so: a helper a pack sound needs goes in one of those, not in a
+module that imports the registry or the renderer.
+
+`pnpm pack:check` holds the build to it: every path a built script resolves
+against itself must land on a file of the tarball.
+
 ## What the bench found in the devices
 
 Writing the bank meant measuring every device and most of their presets.
