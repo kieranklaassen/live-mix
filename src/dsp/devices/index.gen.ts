@@ -394,7 +394,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'shimmer', instrument: false, samples: false, meters: 0, memoryMb: 4 },
   { id: 'spectral-blur', instrument: false, samples: false, meters: 0, memoryMb: 4 },
   { id: 'spring-reverb', instrument: false, samples: false, meters: 0, memoryMb: 4 },
-  { id: 'stereo-detune', instrument: false, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'stereo-detune', instrument: false, samples: false, meters: 6, memoryMb: 4 },
   { id: 'string-machine', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'sustainer', instrument: false, samples: false, meters: 0, memoryMb: 4 },
   { id: 'swarm-reverb', instrument: false, samples: false, meters: 0, memoryMb: 4 },
