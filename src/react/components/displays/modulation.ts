@@ -98,13 +98,25 @@ interface TremoloState {
   right: History
 }
 
+/** What a point's ring takes about its middle when it is lit: the kit's 4.5 px and half its 1.5 px line. */
+const RING_ROOM = 5.25
+
+/** Where the ring of a scope's point stands for a line at `y`: on it, and whole on the strip at its two edges. */
+const ringY = (view: Pick<DisplayView, 'height'>, y: number): number =>
+  clamp(y, RING_ROOM, view.height - RING_ROOM)
+
+/** The line a ring dragged to `y` stands for: the same height, and past the scope where the ring can go no further. */
+const lineOfRing = (view: Pick<DisplayView, 'height'>, y: number): number =>
+  y <= RING_ROOM + 1e-6 ? -Infinity : y >= view.height - RING_ROOM - 1e-6 ? Infinity : y
+
 /**
  * The one point of the Tremolo's scope: on the line the swing reaches at its
  * furthest, at the scope's left end, where nothing rides the LFO. Up and down
  * is Depth. Tremolo and Harmonic swing down from the top, where the sound is
  * untouched; Pan and Vibrato swing about the middle, and the point stands on
  * the upper end. Mix scales the swing with Depth, so the line stands at their
- * product and a drag is taken back through it.
+ * product and a drag is taken back through it. At the box's two ends the ring
+ * stands a quarter pixel in from the line, so that it is whole when it is lit.
  */
 function tremoloHandles(view: DisplayView): DisplayHandle[] {
   const box = scopeBox(view)
@@ -115,7 +127,7 @@ function tremoloHandles(view: DisplayView): DisplayHandle[] {
   const from = falls ? box.y : box.y + box.h / 2
   // How far the line travels for the whole of Depth: down the box, or up half of it.
   const reach = (falls ? box.h : -box.h / 2) * view.value('mix')
-  const y = from + depth * reach
+  const y = ringY(view, from + depth * reach)
   return [
     {
       key: 'depth',
@@ -127,7 +139,7 @@ function tremoloHandles(view: DisplayView): DisplayHandle[] {
         depth:
           Math.abs(toY - y) < 1e-6 || Math.abs(reach) < 1e-6
             ? depth
-            : clamp((toY - from) / reach, spec?.min ?? 0, spec?.max ?? 1),
+            : clamp((lineOfRing(view, toY) - from) / reach, spec?.min ?? 0, spec?.max ?? 1),
       }),
       reset: () => ({ depth: spec?.default ?? depth }),
     },
@@ -176,8 +188,8 @@ const tremolo = plateDisplay<TremoloState>({
     const height = (m: number, side: 0 | 1): number => {
       if (mode === 'tremolo') return top + depth * (1 - m) * 0.5 * box.h
       if (mode === 'harmonic') return top + depth * (1 + (side === 0 ? -m : m)) * 0.5 * box.h
-      // Pan and Vibrato swing about the middle.
-      return middle - depth * m * (box.h / 2)
+      // Pan and Vibrato swing about the middle. The device pans to the right as the modulator rises: down here.
+      return middle + (mode === 'pan' ? depth : -depth) * m * (box.h / 2)
     }
     const nowX = box.x + box.w * NOW_AT
     const read = (phase: number): number => {
@@ -206,7 +218,9 @@ const tremolo = plateDisplay<TremoloState>({
     )
     // How far the swing goes at the most: the line Depth is taken by.
     const [point] = tremoloHandles(frame)
-    rule(ctx, box.x, point.y, box.x + box.w, point.y, { colour: colours.ink, alpha: INK.grid })
+    const most =
+      mode === 'tremolo' || mode === 'harmonic' ? top + depth * box.h : middle - depth * (box.h / 2)
+    rule(ctx, box.x, most, box.x + box.w, most, { colour: colours.ink, alpha: INK.grid })
     rule(ctx, nowX, box.y - 2, nowX, foot + 2, { colour: colours.ink, alpha: INK.rule })
 
     const phaseNow = state.phase?.phase ?? 0
@@ -420,7 +434,8 @@ function chorusHandles(view: DisplayView): DisplayHandle[] {
   const spec = view.spec('depth')
   // The whole of Depth, in ms: less than the scale's 5 where Delay is under 6 ms.
   const most = chorusSwingMs(100, view.value('delayMs'))
-  const y = middle - chorusSwingMs(depth, view.value('delayMs')) * perMs
+  // At the top of the scope the ring stands a quarter pixel under the line, whole when it is lit.
+  const y = ringY(view, middle - chorusSwingMs(depth, view.value('delayMs')) * perMs)
   return [
     {
       key: 'depth',
@@ -431,7 +446,11 @@ function chorusHandles(view: DisplayView): DisplayHandle[] {
         depth:
           Math.abs(toY - y) < 1e-6
             ? depth
-            : clamp(((middle - toY) / (most * perMs)) * 100, spec?.min ?? 0, spec?.max ?? 100),
+            : clamp(
+                ((middle - lineOfRing(view, toY)) / (most * perMs)) * 100,
+                spec?.min ?? 0,
+                spec?.max ?? 100,
+              ),
       }),
       reset: () => ({ depth: spec?.default ?? depth }),
     },
@@ -471,7 +490,8 @@ const chorus = plateDisplay<ChorusState>({
     rule(ctx, box.x, middle, box.x + box.w, middle, { colour: colours.ink, alpha: INK.grid })
     // How far up the voices swing: the line Depth is taken by.
     const [point] = chorusHandles(frame)
-    rule(ctx, box.x, point.y, box.x + box.w, point.y, { colour: colours.ink, alpha: INK.grid })
+    const most = middle - swing * perMs
+    rule(ctx, box.x, most, box.x + box.w, most, { colour: colours.ink, alpha: INK.grid })
     rule(ctx, nowX, box.y - 2, nowX, box.y + box.h + 2, { colour: colours.ink, alpha: INK.rule })
 
     // The LFO across the scope, once: some thirty points a cycle, with one exactly at now.

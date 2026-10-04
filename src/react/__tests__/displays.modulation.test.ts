@@ -205,10 +205,13 @@ describe('the Tremolo display', () => {
 
   it('stands the point where the swing ends in every mode, Mix scaling it with Depth', () => {
     // Harmonic swings down from the top as Tremolo does.
-    expect(pointOf(tremolo, TREMOLO_PARAMS, { mode: 2, depth: 1 }).y).toBeCloseTo(43, 9)
-    expect(pointOf(tremolo, TREMOLO_PARAMS, { mode: 0, depth: 0 }).y).toBe(5)
+    expect(pointOf(tremolo, TREMOLO_PARAMS, { mode: 2, depth: 0.9 }).y).toBeCloseTo(5 + 0.9 * 38, 9)
+    expect(pointOf(tremolo, TREMOLO_PARAMS, { mode: 0, depth: 0.1 }).y).toBeCloseTo(5 + 0.1 * 38, 9)
     // Pan and Vibrato swing about the middle: the point is on the upper end, 19 px for all of it.
-    expect(pointOf(tremolo, TREMOLO_PARAMS, { mode: 1, depth: 1 }).y).toBeCloseTo(5, 9)
+    expect(pointOf(tremolo, TREMOLO_PARAMS, { mode: 1, depth: 0.9 }).y).toBeCloseTo(
+      24 - 0.9 * 19,
+      9,
+    )
     expect(pointOf(tremolo, TREMOLO_PARAMS, { mode: 3, depth: 0.5 }).y).toBeCloseTo(14.5, 9)
     expect(pointOf(tremolo, TREMOLO_PARAMS, { mode: 1, depth: 0 }).y).toBe(24)
     // Half the Mix is half the swing: Depth 0.8 of it is 0.4 of the box.
@@ -270,8 +273,93 @@ describe('the Tremolo display', () => {
     expect(pointOf(tremolo, TREMOLO_PARAMS, { depth: 0.9 }).reset?.()).toEqual({ depth: 0.55 })
     // With no Mix nothing swings: the point has nowhere to go and Depth stays.
     const flat = pointOf(tremolo, TREMOLO_PARAMS, { mix: 0, depth: 0.4 })
-    expect(flat.y).toBe(5)
+    expect(flat.y).toBe(5.25)
     expect(flat.drag(9, 40)).toEqual({ depth: 0.4 })
+  })
+
+  it('keeps the ring whole on the strip where the line is at an edge of the scope', () => {
+    // Lit, the ring is 4.5 px wide under a 1.5 px line: 5.25 px about its middle, on a strip 48 high.
+    const edges: [Record<string, number>, number, number][] = [
+      [{ mode: 0, depth: 0 }, 5, 5.25],
+      [{ mode: 2, depth: 0 }, 5, 5.25],
+      [{ mode: 0, depth: 1 }, 43, 42.75],
+      [{ mode: 2, depth: 1 }, 43, 42.75],
+      [{ mode: 1, depth: 1 }, 5, 5.25],
+      [{ mode: 3, depth: 1 }, 5, 5.25],
+      [{ mode: 0, depth: 0.7, mix: 0 }, 5, 5.25],
+    ]
+    for (const [values, line, ring] of edges) {
+      const point = pointOf(tremolo, TREMOLO_PARAMS, values)
+      expect(point.y, JSON.stringify(values)).toBeCloseTo(ring, 9)
+      const hot = drawDisplay(tremolo, TREMOLO_PARAMS, { values, hot: 'depth' })
+      const lit = dots(hot).find((dot) => dot.x === 9 && dot.r === 4.5)
+      expect(lit?.y).toBeCloseTo(ring, 9)
+      // The line it is taken by stays where the swing ends, a quarter pixel from the ring.
+      expect(scaleLines(hot)).toContain(line + 0.5)
+      // Taken there and moved a pixel into the scope, Depth moves by that pixel and the quarter, and no further.
+      const inward = ring < 24 ? 1 : -1
+      const depth = values.depth ?? 0
+      const moved = point.drag(9, point.y + inward).depth
+      // And pushed on past the edge it stays at the end it is on.
+      expect(point.drag(9, point.y - inward * 3)).toEqual({ depth })
+      if ((values.mix ?? 1) === 0) {
+        expect(moved).toBe(depth)
+        continue
+      }
+      expect(Math.abs(moved - depth)).toBeLessThan(1.3 / (values.mode % 2 === 1 ? 19 : 38))
+      // Brought back to where it was taken, the ring is at its end again, and so is Depth.
+      const there = pointOf(tremolo, TREMOLO_PARAMS, { ...values, depth: moved })
+      expect(there.y).toBeCloseTo(point.y + inward, 9)
+      expect(there.drag(9, there.y - inward)).toEqual({ depth })
+    }
+    // Everywhere between, the ring is on the line itself.
+    for (const depth of [0.01, 0.3, 0.99])
+      expect(pointOf(tremolo, TREMOLO_PARAMS, { depth }).y).toBeCloseTo(
+        Math.min(42.75, Math.max(5.25, 5 + depth * 38)),
+        9,
+      )
+  })
+
+  it('draws Pan as the device pans: up while the left side is the louder', async () => {
+    const values = { mode: 1, shape: 2, smooth: 0, depth: 1, mix: 1, rate: 2 }
+    const device = await loadWasmDevice('tremolo', RATE)
+    set(device, TREMOLO_PARAMS, values)
+    const block = new Float32Array(128).fill(0.5)
+    let lefts = 0
+    let rights = 0
+    for (let n = 0; n < 600; n++) {
+      device.processBlock(block)
+      const phase = meter(device, 0)
+      // In the middle of each half of the square, where the slew has long settled.
+      const half = phase % 0.5
+      if (n < 200 || half < 0.15 || half > 0.35) continue
+      const left = device.view(device.device.device_out_left(), 128)[127]
+      const right = device.view(device.device.device_out_right(), 128)[127]
+      // `tremolo.h`: the modulator up is the right side, hard over at full Depth.
+      const m = meter(device, 1)
+      expect(Math.abs(m)).toBeGreaterThan(0.99)
+      expect(m > 0 ? left : right).toBeLessThan(0.01)
+      expect(m > 0 ? right : left).toBeCloseTo(0.5 * Math.SQRT2, 2)
+      // The display, at the phase the device reports: its dot at now on the louder side's end.
+      const drawn = drawDisplay(tremolo, TREMOLO_PARAMS, {
+        values,
+        meters: { phase },
+        dt: 1 / 60,
+      })
+      const now = dots(drawn).find((dot) => dot.r === 3)
+      expect(now?.y).toBeCloseTo(left > right ? 5 : 43, 1)
+      if (left > right) lefts += 1
+      else rights += 1
+    }
+    expect(lefts).toBeGreaterThan(20)
+    expect(rights).toBeGreaterThan(20)
+    // The words at the two ends say so: L over R.
+    const drawn = drawDisplay(tremolo, TREMOLO_PARAMS, { values, meters: { phase: 0.1 } })
+    const word = (words: string): number =>
+      drawn.calls.find((call) => call.name === 'fillText' && call.args[0] === words)
+        ?.args[2] as number
+    expect(word('L')).toBeLessThan(24)
+    expect(word('R')).toBeGreaterThan(24)
   })
 })
 
@@ -479,7 +567,20 @@ describe('the Chorus display', () => {
     expect(dots(drawn)).toContainEqual({ x: 9, y: point.y, r: 3.5 })
     // At other settings: none of it on the middle line, all of it at the top of the scope.
     expect(pointOf(chorus, CHORUS_PARAMS, { depth: 0 }).y).toBe(24)
-    expect(pointOf(chorus, CHORUS_PARAMS, { depth: 100 }).y).toBeCloseTo(5, 9)
+    expect(pointOf(chorus, CHORUS_PARAMS, { depth: 90 }).y).toBeCloseTo(24 - 4.5 * (19 / 5), 9)
+    // All of it is the top of the scope: the ring a quarter pixel under the line, whole when it is lit.
+    const whole = pointOf(chorus, CHORUS_PARAMS, { depth: 100 })
+    expect(whole.y).toBe(5.25)
+    const lit = drawDisplay(chorus, CHORUS_PARAMS, { values: { depth: 100 }, hot: 'depth' })
+    expect(dots(lit)).toContainEqual({ x: 9, y: 5.25, r: 4.5 })
+    expect(scaleLines(lit)).toContain(5.5)
+    expect(whole.drag(9, 3)).toEqual({ depth: 100 })
+    const less = whole.drag(9, 6.25).depth
+    expect(100 - less).toBeLessThan((1.3 / 19) * 100)
+    // Brought back up to where the ring stops, it is all of Depth again.
+    const lower = pointOf(chorus, CHORUS_PARAMS, { depth: less })
+    expect(lower.y).toBeCloseTo(6.25, 9)
+    expect(lower.drag(9, 5.25)).toEqual({ depth: 100 })
     // Under 6 ms of Delay the whole of Depth is less than the scale: 4 ms at 5.
     expect(pointOf(chorus, CHORUS_PARAMS, { depth: 100, delayMs: 5 }).y).toBeCloseTo(
       24 - 4 * (19 / 5),
