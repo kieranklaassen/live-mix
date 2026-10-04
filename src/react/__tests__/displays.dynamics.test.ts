@@ -918,12 +918,13 @@ describe('the Ambient Compressor ratio point under Mix and make-up', () => {
   }
 
   it('does not move when it is taken, whatever Mix and the make-up add', () => {
-    for (const values of [
+    const settings: Record<string, number>[] = [
       { ratio: 4 },
       { ratio: 4, mix: 0.5 },
       { ratio: 4, mix: 0.5, makeup: 9 },
       { ratio: 2.5, mix: 0.25, makeup: 3, threshold: -36 },
-    ]) {
+    ]
+    for (const values of settings) {
       const handle = ratioAt(values)
       expect(handle.drag(handle.x, handle.y).ratio).toBeCloseTo(values.ratio, 6)
     }
