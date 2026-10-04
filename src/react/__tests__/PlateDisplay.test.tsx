@@ -19,6 +19,7 @@ import { MockAudioBuffer, type MockAnalyserNode, type MockGainNode } from '../..
 import { DeviceChainView } from '../components/DeviceChainView'
 import { printedMeters } from '../components/DevicePanel'
 import { DevicePlate } from '../components/DevicePlate'
+import { settledDisplays } from '../components/PlateDisplay'
 import { DEVICE_SKINS, QUIET_SKIN, type DeviceSkin } from '../components/device-skins'
 import {
   DisplayTaps,
@@ -333,6 +334,74 @@ describe('when a display is drawn', () => {
     expect(runningDisplays()).toBe(1)
     act(() => seen?.([{ isIntersecting: false }]))
     expect(runningDisplays()).toBe(0)
+  })
+
+  it('stands still after some seconds of silence, and runs again at the first sound', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+    try {
+      const fixture = createTestEngine()
+      const { device, unwatch } = await makeMetered(fixture)
+      const draw = vi.fn()
+      const analysers = fixture.ctx.analysers.length
+      const skin = { ...BASE, display: live(draw, { meters: true, settle: 2 }) }
+      const plate = <DevicePlate device={device} skin={skin} data-testid="plate" />
+      const view = render(plate, { wrapper: fixture.wrapper })
+      // It reads no levels, and is tapped all the same: the tap says when there is no sound.
+      const [tap, ...others] = fixture.ctx.analysers.slice(analysers)
+      expect(others).toHaveLength(0)
+      let now = 1000
+      const frames = (seconds: number): void => {
+        for (let n = 0; n < seconds * 10; n++) act(() => fixture.frames.flush((now += 100)))
+      }
+
+      // With sound it runs on, however long.
+      tap.level = 0.5
+      frames(3)
+      expect([runningDisplays(), settledDisplays()]).toEqual([1, 0])
+      expect((draw.mock.calls.at(-1)?.[0] as DisplayFrame).signal).toBeNull()
+
+      // In silence it runs for as long as it says, then asks for no frames and no readings.
+      tap.level = 0
+      frames(1.5)
+      expect([runningDisplays(), settledDisplays()]).toEqual([1, 0])
+      frames(1)
+      expect([runningDisplays(), settledDisplays()]).toEqual([0, 1])
+      expect(fixture.frames.size).toBe(0)
+      expect(unwatch).toHaveBeenCalledTimes(1)
+      const drawn = draw.mock.calls.length
+
+      // Drawn again with nothing changed, and listening to more silence, it stays as it is.
+      view.rerender(plate)
+      act(() => {
+        vi.advanceTimersByTime(600)
+      })
+      expect([runningDisplays(), settledDisplays()]).toEqual([0, 1])
+      expect(draw.mock.calls.length).toBe(drawn)
+
+      // The first sound sets it running, with its readings watched again.
+      tap.level = 0.3
+      act(() => {
+        vi.advanceTimersByTime(200)
+      })
+      expect([runningDisplays(), settledDisplays()]).toEqual([1, 0])
+      expect(device.watchMeters).toHaveBeenCalledTimes(2)
+
+      // So does a knob it reads, for as long again.
+      tap.level = 0
+      frames(2.5)
+      expect([runningDisplays(), settledDisplays()]).toEqual([0, 1])
+      act(() => device.setParam('frequency', 900))
+      expect([runningDisplays(), settledDisplays()]).toEqual([1, 0])
+      frames(2.5)
+      expect([runningDisplays(), settledDisplays()]).toEqual([0, 1])
+
+      // Taken away while it stands, it leaves nothing listening.
+      view.unmount()
+      expect([runningDisplays(), settledDisplays()]).toEqual([0, 0])
+      expect(vi.getTimerCount()).toBe(0)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('hears what feeds the device when it stands in a chain', async () => {

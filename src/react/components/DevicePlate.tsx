@@ -371,6 +371,9 @@ export function DevicePlate({
         pictured && 'lm-plate--pictured',
         display && 'lm-plate--display',
         display && `lm-plate--${display.place}`,
+        // No picture and no display: two rows of knobs, and the column at the right is the plate's own.
+        !pictured && !display && 'lm-plate--plain',
+        editor && 'lm-plate--editor',
         className,
       )}
       style={

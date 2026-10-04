@@ -420,6 +420,32 @@ describe('DevicePlate', () => {
     expect(tools?.nextElementSibling).toHaveClass('lm-plate__foot')
   })
 
+  it('says when the column at its right is its own, so the tools can stand there', async () => {
+    const fixture = createTestEngine()
+    const device = await make(fixture)
+    // Over a picture the tools keep their row, where there is no knob's name to cover.
+    const pictured = render(<DevicePlate device={device} skin={SKIN} data-testid="plate" />, {
+      wrapper: fixture.wrapper,
+    })
+    expect(screen.getByTestId('plate')).not.toHaveClass('lm-plate--plain')
+    pictured.unmount()
+
+    // Without a picture or a display it has two rows of knobs and a free column beside them.
+    const plain: DeviceSkin = { ...SKIN, picture: undefined }
+    const bare = render(<DevicePlate device={device} skin={plain} data-testid="plate" />, {
+      wrapper: fixture.wrapper,
+    })
+    expect(screen.getByTestId('plate')).toHaveClass('lm-plate--plain')
+    expect(screen.getByTestId('plate')).not.toHaveClass('lm-plate--editor')
+    bare.unmount()
+
+    // A plate with a window of its own has two cells in that column, and says so.
+    render(<DevicePlate device={await makeHosted(fixture)} skin={plain} data-testid="plate" />, {
+      wrapper: fixture.wrapper,
+    })
+    expect(screen.getByTestId('plate')).toHaveClass('lm-plate--plain', 'lm-plate--editor')
+  })
+
   it('is in hand once a finger presses it, until a press lands anywhere else', async () => {
     const fixture = createTestEngine()
     const device = await make(fixture)

@@ -265,14 +265,18 @@ function Plates() {
                       defaultOpen={open}
                       // A stand-in for an app's preset cell, so the tools stand where they do in an app.
                       presetPicker={<span style={{ fontSize: 9, opacity: 0.7 }}>Preset</span>}
+                      // As many tools as an app gives a plate: earlier, later, swap, save (and remove).
                       actions={
                         <>
-                          <button type="button" className="lm-button lm-button--neutral">
-                            ‹
-                          </button>
-                          <button type="button" className="lm-button lm-button--neutral">
-                            ›
-                          </button>
+                          {['‹', '›', '⇄', '↓'].map((mark) => (
+                            <button
+                              key={mark}
+                              type="button"
+                              className="lm-button lm-button--neutral"
+                            >
+                              {mark}
+                            </button>
+                          ))}
                         </>
                       }
                       onRemove={() => {}}

@@ -153,6 +153,11 @@ export interface PlateDisplay<S = unknown> {
     stereo?: boolean
     /** Frames per second: 30 unless something small moves fast enough to need 60. */
     fps?: 30 | 60
+    /**
+     * Seconds of silence, in and out, after which it stands still until sound
+     * comes again: 8 unless it has more of the past than that to show.
+     */
+    settle?: number
   }
   /** One or two sentences for the info view: what the display shows and how to read it. */
   info: string
@@ -297,6 +302,13 @@ class Tap {
     }
   }
 
+  /** Whether anything louder than `floor` is on the node now: the cheapest thing a tap can say. */
+  heard(floor: number): boolean {
+    this.analyser.getFloatTimeDomainData(this.wave)
+    for (const sample of this.wave) if (sample > floor || sample < -floor) return true
+    return false
+  }
+
   spectrum(): Float32Array | null {
     if (!this.bins) return null
     this.analyser.getFloatFrequencyData(this.bins)
@@ -414,6 +426,11 @@ export class DisplayTaps {
       left: this.sides ? this.sides.left.level() : null,
       right: this.sides ? this.sides.right.level() : null,
     }
+  }
+
+  /** Whether there is sound at the device, going in or coming out, louder than `floor`. */
+  heard(floor: number): boolean {
+    return this.output.heard(floor) || (this.input?.heard(floor) ?? false)
   }
 
   mend(): void {
