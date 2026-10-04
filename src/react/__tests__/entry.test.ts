@@ -124,6 +124,9 @@ describe('entries', () => {
     'useDeviceMeter',
     // Console fader and meter
     'heldPeak',
+    // Frames without a render
+    'subscribeFrames',
+    'subscribeFrameSampled',
   ] as const)('`./react` exports %s', (name) => {
     expect((react as Record<string, unknown>)[name]).toBeDefined()
   })

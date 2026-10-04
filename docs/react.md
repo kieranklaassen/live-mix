@@ -89,6 +89,15 @@ own hooks: `useExternalSnapshot(subscribe, read, isEqual?)`,
 `useFrameSampled(active, intervalMs, sample)`, `normalizeParam` /
 `denormalizeParam`.
 
+Everything sampled on one scheduler rides one chain of frame requests, and
+subscribers with the same `fps` fire on the same frames. A `Meter` on a source
+does not render per frame: it writes each reading to its elements itself. To
+do the same for a value of your own, `subscribeFrameSampled(scheduler,
+intervalMs, sample, onValue, isEqual?)` tells `onValue` the first sample and
+then each one that changed, with no React state in between, and
+`subscribeFrames(scheduler, intervalMs, onFrame)` is the bare frame. Both
+return a function that stops them; `useFrameScheduler()` is the scheduler.
+
 Under automation a knob must `writer.override(engine.now())` before `set` and
 `writer.release()` on pointer-up — the hooks do not reach the `LaneWriter`
 from a `Device`; the kit's `onChangeStart`/`onChangeEnd` are where a host does
