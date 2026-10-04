@@ -1051,4 +1051,68 @@ describe('the Ambient Compressor ratio point under Mix and make-up', () => {
       expect(handle.drag(handle.x, handle.y).ratio).toBeCloseTo(values.ratio, 6)
     }
   })
+
+  /** A drag as the plate makes it: every move asked of the point as the last move left it, with one hold. */
+  const inHand = (start: Record<string, number>) => {
+    const hold = {}
+    let values = start
+    const taken = ratioAt(values)
+    values = { ...values, ...taken.drag(taken.x, taken.y, hold) }
+    return {
+      y: taken.y,
+      to(y: number): number {
+        const now = ratioAt(values)
+        values = { ...values, ...now.drag(now.x, y, hold) }
+        return values.ratio
+      },
+      point: (): DisplayHandle => ratioAt(values),
+    }
+  }
+
+  it('sets the ratio whose mixed curve ends under the hand, and stays there while the hand does', () => {
+    const starts: Record<string, number>[] = [
+      { ratio: 2, mix: 0.4 },
+      { ratio: 2, mix: 0.7 },
+      { ratio: 4, mix: 0.5, makeup: 6 },
+      { ratio: 2, mix: 1 },
+    ]
+    for (const start of starts) {
+      const hand = inHand(start)
+      for (const by of [3, 5, -2]) {
+        const first = hand.to(hand.y + by)
+        // The point is where the hand is (unless the knob is at an end)...
+        if (first > 1 && first < 10)
+          expect(hand.point().y, JSON.stringify(start)).toBeCloseTo(hand.y + by, 6)
+        // ...and more moves that go no further leave it: it ran on to 10 a move at a time.
+        for (let n = 0; n < 6; n++) expect(hand.to(hand.y + by)).toBeCloseTo(first, 9)
+      }
+      // Back on the pixel it was taken at, it is the ratio it was.
+      expect(hand.to(hand.y), JSON.stringify(start)).toBeCloseTo(start.ratio, 6)
+    }
+  })
+
+  it('goes to both ends of Ratio and no further', () => {
+    const hand = inHand({ ratio: 2, mix: 0.4 })
+    expect(hand.to(hand.y + 400)).toBe(10)
+    expect(hand.to(hand.y - 400)).toBe(1)
+    expect(hand.to(hand.y)).toBeCloseTo(2, 6)
+  })
+
+  it('with the end over the top, is taken at the edge and moves from where the end lies', () => {
+    // 20 dB of make-up puts the end of the curve over the display's top: the point waits at the edge.
+    const start = { ratio: 2, mix: 1, makeup: 20, threshold: -24 }
+    const hand = inHand(start)
+    // One pixel down is one pixel's worth of level down from where the end lies, not from the edge.
+    const one = hand.to(hand.y + 1)
+    expect(one).toBeGreaterThan(2)
+    expect(one).toBeLessThan(2.3)
+    expect(hand.to(hand.y)).toBeCloseTo(2, 6)
+  })
+
+  it('stays where it is when Mix leaves the whole of Ratio less than a pixel of travel', () => {
+    const handle = ratioAt({ ratio: 3, mix: 0.01 })
+    expect(handle.drag(handle.x, handle.y + 20).ratio).toBe(3)
+    const none = ratioAt({ ratio: 3, mix: 0 })
+    expect(none.drag(none.x, none.y + 20).ratio).toBe(3)
+  })
 })

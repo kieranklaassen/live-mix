@@ -30,6 +30,7 @@ import {
   plateDisplay,
   type DisplayFrame,
   type DisplayHandle,
+  type DisplayHold,
   type DisplayLevel,
   type DisplaySignal,
   type DisplayView,
@@ -295,6 +296,7 @@ function ambientCompHandles(view: DisplayView): DisplayHandle[] {
   const { curve } = compBoxes(view)
   const threshold = view.value('threshold')
   const ratio = view.value('ratio')
+  const knee = view.value('knee')
   const model = ambientCompModel(view)
   const out = (inDb: number): number => inDb + model.gain(model.reduction(inDb))
   /** The level a point stands at: with Make-up the curve can leave the top, and its points wait at the edge. */
@@ -326,14 +328,39 @@ function ambientCompHandles(view: DisplayView): DisplayHandle[] {
       x: curve.x + curve.w,
       y: handleY(out(TOP_DB), curve),
       // The end of the curve: pulled down it is a firmer hand, pulled up to the diagonal it is none.
-      // The point stands on the mixed curve, so the make-up and the dry part of
-      // Mix come off together: what they add where it stands now.
-      drag: (_x: number, y: number) => {
-        const wet = TOP_DB + model.reduction(TOP_DB)
-        const top = dbOfY(y, curve, TOP_DB, FOOT_DB) - (shown(out(TOP_DB)) - wet)
-        const span = TOP_DB - threshold
-        const kept = clamp(top - threshold, span / 10, span)
-        return { ratio: span > 0.5 ? clamp(span / kept, 1, 10) : ratio }
+      // The point stands on the mixed curve (the make-up and the dry part of Mix on top of what
+      // the ratio leaves), so the drag sets the ratio whose mixed curve ends under the hand. Taking
+      // the make-up and the dry part off at the ratio that stood ran away under a Mix below 1:
+      // they change with the ratio, so every move was worked out from the last move's answer.
+      drag: (_x: number, y: number, hold?: DisplayHold) => {
+        if (TOP_DB - threshold <= 0.5) return { ratio }
+        const endAt = (candidate: number): number =>
+          TOP_DB + model.gain(softKnee(TOP_DB, threshold, candidate, knee))
+        // With Make-up the end can lie over the top, where the point waits at the edge: it is
+        // taken there and moves from where the end lies, as far past as it lay at the press.
+        const kept = hold ?? {}
+        kept.past ??= out(TOP_DB) - shown(out(TOP_DB))
+        const to = dbOfY(y, curve, TOP_DB, FOOT_DB) + kept.past
+        if (Math.abs(to - out(TOP_DB)) < 1e-9) return { ratio }
+        const none = endAt(1)
+        const most = endAt(10)
+        // With next to none of the compressor in the mix the whole of Ratio moves the end by less
+        // than a pixel: no travel for a hand, and the knob sets it.
+        if (
+          none - most <
+          Math.abs(dbOfY(1, curve, TOP_DB, FOOT_DB) - dbOfY(0, curve, TOP_DB, FOOT_DB))
+        )
+          return { ratio }
+        if (to >= none) return { ratio: 1 }
+        if (to <= most) return { ratio: 10 }
+        let low = 1
+        let high = 10
+        for (let round = 0; round < 48; round++) {
+          const mid = (low + high) / 2
+          if (endAt(mid) > to) low = mid
+          else high = mid
+        }
+        return { ratio: (low + high) / 2 }
       },
       reset: () => ({ ratio: view.spec('ratio')?.default ?? 2 }),
     },
