@@ -48,6 +48,7 @@ export const SPECTRAL_DRIFTER_PARAMS = {
     default: 0,
     taper: 'linear',
     unit: '',
+    choices: SPECTRAL_DRIFTER_DIRECTIONS,
     description:
       'Which way the pitch drifts. Up and Down move every grain the same way; Scatter sends some grains up and others down at once.',
   },
@@ -59,6 +60,7 @@ export const SPECTRAL_DRIFTER_PARAMS = {
     default: 0,
     taper: 'linear',
     unit: '',
+    choices: SPECTRAL_DRIFTER_SEASONS,
     description:
       'Tone of the drifted sound, brightest to darkest: Spring lifts the highs, Summer is close to flat, Autumn rolls them off, Winter is dark with added lows.',
   },
@@ -70,6 +72,7 @@ export const SPECTRAL_DRIFTER_PARAMS = {
     default: 0,
     taper: 'linear',
     unit: '',
+    choices: SPECTRAL_DRIFTER_SEEDS,
     description:
       'Colour added to the drifted sound. Fundamental softens the top, Odd adds a hollow edge from odd harmonics, Even adds warmth from even ones.',
   },
@@ -81,6 +84,7 @@ export const SPECTRAL_DRIFTER_PARAMS = {
     default: 1,
     taper: 'linear',
     unit: '',
+    choices: SPECTRAL_DRIFTER_INTERVALS,
     description:
       'Where the drift is heading: a fifth, an octave, or grains split between the two. Atonal has no fixed interval and slides by up to an octave.',
   },
@@ -103,6 +107,7 @@ export const SPECTRAL_DRIFTER_PARAMS = {
     default: 0,
     taper: 'linear',
     unit: '',
+    choices: SPECTRAL_DRIFTER_AGE_MODES,
     description:
       'Auto deepens the drift the longer the input keeps sounding and lets it fall back in silence. Manual takes it from the Age knob instead.',
   },

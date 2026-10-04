@@ -37,6 +37,7 @@ export const CASCADE_PARAMS = {
     default: 5,
     taper: 'linear',
     unit: '',
+    step: 1,
     description:
       'How many times each slice comes back before it stops, which sets how long the cascade goes on after you stop playing.',
   },

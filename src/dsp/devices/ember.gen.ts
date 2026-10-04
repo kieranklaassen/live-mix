@@ -449,6 +449,7 @@ export const EMBER_PARAMS = {
     default: 1,
     taper: 'linear',
     unit: '',
+    step: 1,
     description:
       'How many copies of the oscillators play each note. One is a single clean voice; more, detuned and spread, sound thicker and wider.',
   },

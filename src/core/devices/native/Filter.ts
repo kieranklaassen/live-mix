@@ -24,6 +24,18 @@ export const FILTER_TYPES = [
 
 export type FilterType = (typeof FILTER_TYPES)[number]
 
+/** The responses in words, in the order of `FILTER_TYPES`: what the Type control prints. */
+export const FILTER_TYPE_NAMES = [
+  'Low pass',
+  'High pass',
+  'Band pass',
+  'Low shelf',
+  'High shelf',
+  'Peak',
+  'Notch',
+  'All pass',
+] as const
+
 /** Index of a biquad response on the `type` param scale. */
 export function filterTypeIndex(type: FilterType): number {
   return FILTER_TYPES.indexOf(type)
@@ -45,6 +57,7 @@ export const FILTER_PARAMS = {
     default: 0,
     taper: 'linear',
     unit: '',
+    choices: FILTER_TYPE_NAMES,
     description:
       'The shape of the filter. Low-pass, high-pass, band-pass and notch remove a range; the shelves and peak boost or cut one; all-pass shifts phase only.',
   },

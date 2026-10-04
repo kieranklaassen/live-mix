@@ -18,6 +18,13 @@ export interface ParamSpec {
    */
   choices?: readonly string[]
   /**
+   * The size of one step, for a parameter that only takes steps: 1 for a
+   * count (voices, repeats, players). Panels move it a step at a time and
+   * print it whole. Left out, a parameter without `choices` is continuous,
+   * whatever its range: a tone from −1 to 1 is not three settings.
+   */
+  step?: number
+  /**
    * What turning it does to the sound, in a sentence or two, for a host that
    * explains its controls (the kit's info view). Not its range or its unit:
    * those are in the fields above.

@@ -47,6 +47,12 @@ export interface DisplayInputs {
 /** How near a press must be to a handle to take it, in pixels: wider under a finger. */
 const HIT_MOUSE = 9
 const HIT_TOUCH = 18
+/** Handles this near to one another, in pixels, stand on one another: a press cannot tell them apart. */
+const STACKED = 1.5
+/** Turns of the wheel this close together, in milliseconds, are one gesture and one undo step. */
+const WHEEL_REST_MS = 400
+/** What a wheel sends for one notch, in pixels: a step of a handle's `wheel`. */
+const WHEEL_NOTCH = 100
 
 // Every display that is mounted, for the once-a-second look at things frames
 // do not tell: the theme's colours, the screen's pixel ratio, a tap a chain cut.
@@ -115,6 +121,8 @@ export class DisplayRunner {
       })
     | null = null
   private disposed = false
+  /** The handle moved last, by key: it lies on top of one it stands on. */
+  private top: string | null = null
   hot: string | null = null
   dragging = false
 
@@ -218,19 +226,36 @@ export class DisplayRunner {
     return display.handles ? display.handles(this.view()) : []
   }
 
-  /** The handle a press at (x, y) takes, the nearest within reach; null for none. */
+  /**
+   * The handle a press at (x, y) takes, the nearest within reach; null for
+   * none. Where two stand on one another the one moved last lies on top, as
+   * the last thing put down does: it can be taken off again, and what it
+   * covered can be reached.
+   */
   hit(x: number, y: number, touch: boolean): DisplayHandle | null {
     const reach = touch ? HIT_TOUCH : HIT_MOUSE
     let found: DisplayHandle | null = null
     let nearest = reach * reach
+    let top: DisplayHandle | null = null
+    let topDistance = 0
     for (const handle of this.handles()) {
       const distance = (handle.x - x) ** 2 + (handle.y - y) ** 2
+      if (distance > reach * reach) continue
+      if (handle.key === this.top) {
+        top = handle
+        topDistance = distance
+      }
       if (distance <= nearest) {
         nearest = distance
         found = handle
       }
     }
-    return found
+    return top && Math.sqrt(topDistance) <= Math.sqrt(nearest) + STACKED ? top : found
+  }
+
+  /** A handle was moved: it lies over any it comes to stand on. */
+  moved(key: string): void {
+    this.top = key
   }
 
   /** Mark a handle as under the pointer or in hand, and show it at once on a still display. */
@@ -433,6 +458,8 @@ export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
   latest.current = { ...props, frames, context }
   const runner = useRef<DisplayRunner | null>(null)
   const grab = useRef<Grab | null>(null)
+  /** Ends a turn of the wheel that is still open, before the hand takes a handle. */
+  const wheelRest = useRef<(() => void) | null>(null)
 
   useEffect(() => {
     if (!canvas.current) return
@@ -451,22 +478,65 @@ export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
 
   // A turn of the wheel over a handle is the handle's, not the page's: that
   // takes a listener that may refuse the scroll, which React's are not.
+  // Notches that follow one another are one turn of the wheel, and one undo
+  // step: the turn is over when the wheel has rested, or the hand does
+  // something else.
   useEffect(() => {
     const element = canvas.current
     if (!element || !display.handles) return
+    let turning: {
+      key: string
+      /** The parameters the turn moves, once it has moved any. */
+      names: readonly string[] | null
+      /** How far the wheel has gone since the last step it made, in pixels: up is positive. */
+      pixels: number
+      timer?: ReturnType<typeof setTimeout>
+    } | null = null
+    const rest = (): void => {
+      if (!turning) return
+      clearTimeout(turning.timer)
+      const { names } = turning
+      turning = null
+      if (names) latest.current.onDragEnd(names)
+    }
+    wheelRest.current = rest
     const onWheel = (event: WheelEvent): void => {
+      // A swipe that goes more across than up or down is the chain's, to scroll by.
+      if (event.deltaY === 0 || Math.abs(event.deltaX) > Math.abs(event.deltaY)) return
       const at = pointIn(element, event)
       const handle = runner.current?.hit(at.x, at.y, false)
-      if (!handle?.wheel || event.deltaY === 0) return
+      if (!handle?.wheel) return
       event.preventDefault()
-      const params = handle.wheel(event.deltaY < 0 ? 1 : -1)
-      const names = Object.keys(params)
-      latest.current.onDragStart(names)
+      if (turning && turning.key !== handle.key) rest()
+      const turn = turning ?? { key: handle.key, names: null, pixels: 0 }
+      turning = turn
+      clearTimeout(turn.timer)
+      turn.timer = setTimeout(rest, WHEEL_REST_MS)
+      // A step for every notch of a wheel, and as far for a trackpad's many
+      // small events as for the one notch they add up to.
+      turn.pixels += wheelPixels(event)
+      const steps = Math.trunc(turn.pixels / WHEEL_NOTCH)
+      if (steps === 0) return
+      turn.pixels -= steps * WHEEL_NOTCH
+      const params = handle.wheel(steps)
+      if (!turn.names) {
+        turn.names = Object.keys(params)
+        latest.current.onDragStart(turn.names)
+      }
       latest.current.onDrag(params)
-      latest.current.onDragEnd(names)
     }
+    // A finger's press is given to the nearest thing that answers a press, and
+    // the knob beside a display is one: a canvas that answers presses itself
+    // keeps the ones that land on it, also at its edge.
+    const onClick = (): void => {}
     element.addEventListener('wheel', onWheel, { passive: false })
-    return () => element.removeEventListener('wheel', onWheel)
+    element.addEventListener('click', onClick)
+    return () => {
+      rest()
+      wheelRest.current = null
+      element.removeEventListener('wheel', onWheel)
+      element.removeEventListener('click', onClick)
+    }
   }, [display, device])
 
   const interactive = display.handles !== undefined
@@ -480,6 +550,7 @@ export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
       delete event.currentTarget.dataset.lmHandle
       return
     }
+    wheelRest.current?.()
     // A chain reads this before it decides to carry the plate, and leaves the press to the handle.
     event.currentTarget.dataset.lmHandle = handle.key
     event.currentTarget.setPointerCapture?.(event.pointerId)
@@ -508,6 +579,7 @@ export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
     if (event.pointerId !== held.pointerId) return
     const handle = runner.current?.handles().find((candidate) => candidate.key === held.key)
     if (!handle) return
+    runner.current?.moved(held.key)
     props.onDrag(handle.drag(at.x - held.dx, at.y - held.dy))
   }
 
@@ -565,6 +637,7 @@ export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
               const at = pointIn(event.currentTarget, event)
               const params = runner.current?.hit(at.x, at.y, false)?.reset?.()
               if (!params) return
+              wheelRest.current?.()
               const names = Object.keys(params)
               props.onDragStart(names)
               props.onDrag(params)
@@ -574,6 +647,12 @@ export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
       }
     />
   )
+}
+
+/** How far one event turns the wheel, in pixels, up being positive: lines and pages are scaled so a notch of three lines is a notch. */
+function wheelPixels(event: Pick<WheelEvent, 'deltaY' | 'deltaMode'>): number {
+  const scale = event.deltaMode === 1 ? WHEEL_NOTCH / 3 : event.deltaMode === 2 ? WHEEL_NOTCH : 1
+  return -event.deltaY * scale
 }
 
 /** A pointer's place in the display's own pixels. */

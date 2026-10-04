@@ -26,6 +26,7 @@ import {
   responsePoints,
   rule,
   spectrum,
+  label,
   text,
   trace,
   xOfHz,
@@ -186,7 +187,8 @@ function captions(
     const x = left ? box.x + 2 : box.x + box.w - 2
     const y = head ? box.y + 8 : box.y + box.h - 3
     const align = left ? 'left' : 'right'
-    text(frame, item.words, x, y, { align, size })
+    // On a patch of the plate: a grid line or the curve can run where the words stand.
+    label(frame, item.words, x, y, align, size)
     // The note is the inner line: under the words at the head, over them at the foot.
     if (item.note) text(frame, item.note, x, head ? y + 9 : y - 9, { align, alpha: INK.back })
   }
@@ -282,11 +284,14 @@ const parametricEq = plateDisplay({
     clipped(ctx, box, () => {
       // The sound, in the second ink: it is what is happening; the curve is what is set.
       spectrum(frame, box, { topDb: 0, bottomDb: SPECTRUM_FOOT_DB, alpha: 0.5 })
-      const points = responsePoints(
+      // Through each band's own frequency: a narrow band peaks between two
+      // of the curve's points, and would be drawn short of its point.
+      const points = responseThrough(
         box,
         parametricDb(frame, frame.sampleRate),
         PARAMETRIC_DB,
         -PARAMETRIC_DB,
+        PARAMETRIC_BANDS.map((n) => frame.value(`band${n}Freq`)),
       )
       fillTo(ctx, points, zero, colours.ink, INK.fill)
       trace(ctx, points, { colour: colours.ink })
@@ -487,7 +492,7 @@ const filter = plateDisplay({
         frame.hot === point.key
           ? { words: `${hzText(frame.value('frequency'))}  ${height}`, side: 'left' }
           : null,
-        // The type in words: its knob has only a position to show.
+        // The type in words, as its knob says it while it is held.
         {
           words: FILTER_NAMES[kind],
           side: 'right',
