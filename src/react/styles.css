@@ -2004,6 +2004,11 @@
   bottom: 0;
 }
 
+/* Something carried in from outside the chain lands at the same marker, kept above the devices. */
+.lm-chain--receiving .lm-chain__marker {
+  z-index: 4;
+}
+
 .lm-chain__handle {
   display: flex;
   align-items: center;
