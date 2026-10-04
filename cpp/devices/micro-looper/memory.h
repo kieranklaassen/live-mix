@@ -90,6 +90,24 @@ class Ring {
     for (int k = 0; k < count; ++k) frame(from + k, &dest[2 * k], &dest[2 * k + 1]);
   }
 
+  // The highest sample, of either channel, among `count` frames from
+  // `from`: a level for a display. Frames the ring does not hold count as
+  // silence, as they read.
+  float peak(long long from, long long count) const {
+    long long first = from < valid_from_ ? valid_from_ : from;
+    if (first < written_ - Frames) first = written_ - Frames;
+    const long long last = from + count < written_ ? from + count : written_;
+    float high = 0.0f;
+    for (long long index = first; index < last; ++index) {
+      const int at = static_cast<int>(index & kMask) * 2;
+      const float left = buffer_[at] < 0.0f ? -buffer_[at] : buffer_[at];
+      const float right = buffer_[at + 1] < 0.0f ? -buffer_[at + 1] : buffer_[at + 1];
+      if (left > high) high = left;
+      if (right > high) high = right;
+    }
+    return high;
+  }
+
   // The sum of both channels, Hermite on the summed frames: what the side
   // signal is made from, at half the work of reading each channel.
   float read_sum(double position) const {
@@ -192,6 +210,21 @@ class Store {
     float* at = buffer_ + 2 * count_;
     count_ += *granted;
     return at;
+  }
+
+  // The highest sample, of either channel, among `count` frames from ring
+  // frame `from`: a level for a display. Frames it does not hold are silence.
+  float peak(long long from, long long count) const {
+    const long long first = from < base_ ? 0 : from - base_;
+    const long long last = from + count - base_ < count_ ? from + count - base_ : count_;
+    float high = 0.0f;
+    for (long long index = first; index < last; ++index) {
+      const float left = buffer_[2 * index] < 0.0f ? -buffer_[2 * index] : buffer_[2 * index];
+      const float right = buffer_[2 * index + 1] < 0.0f ? -buffer_[2 * index + 1] : buffer_[2 * index + 1];
+      if (left > high) high = left;
+      if (right > high) high = right;
+    }
+    return high;
   }
 
   float read_sum(double position) const {

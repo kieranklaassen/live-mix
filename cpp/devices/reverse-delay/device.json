@@ -12,7 +12,8 @@
     { "key": "aBehind", "name": "Reader A behind", "display": true },
     { "key": "aGain", "name": "Reader A gain", "display": true },
     { "key": "bBehind", "name": "Reader B behind", "display": true },
-    { "key": "bGain", "name": "Reader B gain", "display": true }
+    { "key": "bGain", "name": "Reader B gain", "display": true },
+    { "key": "clock", "name": "Running time", "display": true }
   ],
   "params": [
     {

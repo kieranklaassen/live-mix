@@ -9,7 +9,7 @@
   "memoryMb": 10,
   "meters": [
     { "key": "level", "name": "Record level", "display": true },
-    { "key": "grains", "name": "Grains started", "display": true },
+    { "key": "clock", "name": "Running time", "display": true },
     { "key": "newBehind", "name": "Newest grain behind", "display": true },
     { "key": "newSpeed", "name": "Newest grain speed", "display": true },
     { "key": "oldBehind", "name": "Grain before behind", "display": true },

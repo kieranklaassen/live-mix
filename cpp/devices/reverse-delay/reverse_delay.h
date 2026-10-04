@@ -39,7 +39,6 @@ class ReverseDelay : public kit::DeviceBase<reverse_delay::kNumParams> {
     feedback_.set_time(kSmoothingSeconds, sr);
     spread_.set_time(kSmoothingSeconds, sr);
     mix_.set_time(kSmoothingSeconds, sr);
-    level_fall_ = std::exp(-1.0f / (kLevelSeconds * sr));
     asleep_ = true;
     quiet_ = 0;
     restart();
@@ -51,15 +50,19 @@ class ReverseDelay : public kit::DeviceBase<reverse_delay::kNumParams> {
   }
 
   // The readings named by "meters" in device.json, for a display to draw:
-  // the level being recorded (a peak that sinks back over 30 ms), and for
-  // each of the two readers how far behind the newest sample it is, in
-  // seconds, and the gain of its fade. All 0 while asleep, when the ring is
-  // forgotten and nothing reads it.
+  // the level that was just recorded (the highest sample of the last 40 ms),
+  // for each of the two readers how far behind the newest sample it is, in
+  // seconds, and the gain of its fade, and how long the device has run, in
+  // seconds, going round at 64: it moves on with every block the device
+  // works, so a display can tell a device that runs from one that stands.
+  // Asleep, when the ring is forgotten and nothing reads it, that is -1 and
+  // the rest 0. All of it is worked out here, when a display asks: nothing is
+  // kept for it while the sound is made.
   float meter(int index) const {
-    if (asleep_) return 0.0f;
+    if (asleep_) return index == 5 ? -1.0f : 0.0f;
     switch (index) {
       case 0:
-        return level_;
+        return ring_.peak(static_cast<int>(kLevelSeconds * sample_rate()));
       case 1:
       case 3: {
         const Reader& reader = readers_[index / 2];
@@ -73,6 +76,11 @@ class ReverseDelay : public kit::DeviceBase<reverse_delay::kNumParams> {
         float gain = reader.in_phase < 1.0f ? kit::SineTable::lookup(0.25f * reader.in_phase) : 1.0f;
         if (reader.releasing) gain *= kit::SineTable::cos_lookup(0.25f * reader.out_phase);
         return gain;
+      }
+      case 5: {
+        const double lap = static_cast<double>(kClockSeconds) * sample_rate();
+        const double frames = ring_.written();
+        return static_cast<float>((frames - lap * std::floor(frames / lap)) / sample_rate());
       }
       default:
         return 0.0f;
@@ -147,13 +155,8 @@ class ReverseDelay : public kit::DeviceBase<reverse_delay::kNumParams> {
       // Recorded through a limiter that is exactly linear below -6 dBFS: it
       // bounds the loop when two chunks of a steady tone add in phase.
       const float feedback = feedback_.next();
-      const float record_left = flush_denormal(kit::soft_clip(in[0] + feedback * back[0]));
-      const float record_right = flush_denormal(kit::soft_clip(in[1] + feedback * back[1]));
-      ring_.write(record_left, record_right);
-      // For the display only: nothing below reads it.
-      level_ = kit::max(kit::max(record_left < 0.0f ? -record_left : record_left,
-                                 record_right < 0.0f ? -record_right : record_right),
-                        level_ * level_fall_ - 1.0e-12f);
+      ring_.write(flush_denormal(kit::soft_clip(in[0] + feedback * back[0])),
+                  flush_denormal(kit::soft_clip(in[1] + feedback * back[1])));
 
       const float mix = mix_.next();
       if (mix != mix_seen_) {
@@ -181,8 +184,11 @@ class ReverseDelay : public kit::DeviceBase<reverse_delay::kNumParams> {
   static constexpr float kMinFadeSeconds = 0.004f;
   static constexpr float kSqrtTwo = 1.41421356f;
   static constexpr float kRates[3] = {1.0f, 2.0f, 0.5f};
-  // How fast the level reported to a display sinks back.
-  static constexpr float kLevelSeconds = 0.03f;
+  // For a display (see meter): how much of the newest sound its level is
+  // taken from, a little more than the time between two readings, and where
+  // its clock goes round.
+  static constexpr float kLevelSeconds = 0.04f;
+  static constexpr float kClockSeconds = 64.0f;
 
   struct Reader {
     bool active = false;
@@ -212,7 +218,6 @@ class ReverseDelay : public kit::DeviceBase<reverse_delay::kNumParams> {
     longest_chunk_ = 0;
     fastest_ = 0.0f;
     hold_ = 1;
-    level_ = 0.0f;
   }
 
   int chunk_samples() const {
@@ -313,9 +318,6 @@ class ReverseDelay : public kit::DeviceBase<reverse_delay::kNumParams> {
   long hold_ = 1;
   long quiet_ = 0;
   bool asleep_ = true;
-  // What is being recorded, for a display (see meter).
-  float level_ = 0.0f;
-  float level_fall_ = 0.0f;
 };
 
 }  // namespace livemix

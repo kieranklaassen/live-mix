@@ -7,7 +7,8 @@
 // reversed chunk's fade, a grain) is a lens over the stretch it reads. The
 // length of the loop or the chunk is a span along the foot, with its far end
 // to drag. Where the heads are is what the device reports; the outline is the
-// level it reports having written, kept here by the clock.
+// level it reports having written, kept here by the device's own clock, which
+// also says whether the device runs, stands (the sound is paused) or sleeps.
 
 import { denormalizeParam } from '../../../core/params'
 import {
@@ -50,38 +51,106 @@ const PAST = 0.16
 
 /** How often the devices report, which is as fine as a level outline can be. */
 const SLOT_SEC = 1 / 30
-/** With no new reading for this long, a device that should be moving has stopped. */
+/** With no new reading for this long, the device has stopped: four readings have not come. */
 const STALLED_SEC = 0.15
 
 /**
- * The device's time, as far as the display can tell it. It runs with the
- * display's clock while the device reports, and stands still when readings
- * that should move stop moving: the sound is paused, and nothing drawn here
- * may run on without the device.
+ * The device's time. Each of these devices reports a clock of its own, a
+ * number that moves on with every block it works; the display's clock carries
+ * it between two readings, and when the number stops moving the device has
+ * stopped (the sound is paused) and nothing drawn here may run on without it.
+ * It is the device's own word and not a guess from the sound: a drone held at
+ * one level runs the tape as a melody does.
  */
 export interface DeviceClock {
   /** The device's time now, in seconds, and how much of it passed since the frame before. */
   time: number
   dt: number
-  /** The display's clock at the frame before, the readings then, and how long they have not moved. */
+  /** The display's clock at the frame before, the device's clock then, and how long it has not moved. */
   seen: number | null
   mark: number
   still: number
+  /** Whether `mark` is a reading yet. */
+  set: boolean
+  /**
+   * For a clock that counts seconds: how far the time here stood ahead of the
+   * device's at its last reading, and what has been added to it since.
+   */
+  ahead: number
+  carried: number
 }
 
-export const deviceClock = (): DeviceClock => ({ time: 0, dt: 0, seen: null, mark: 0, still: 0 })
+export const deviceClock = (): DeviceClock => ({
+  time: 0,
+  dt: 0,
+  seen: null,
+  mark: 0,
+  still: 0,
+  set: false,
+  ahead: 0,
+  carried: 0,
+})
+
+/** Where the devices' clocks go round, in seconds (`kClockSeconds` in each). */
+const LAP_SEC = 64
+const lapped = (seconds: number): number => seconds - LAP_SEC * Math.floor(seconds / LAP_SEC)
+/** How far apart two times on a device's clock are, the short way round. */
+export function apart(a: number, b: number): number {
+  const between = lapped(a - b)
+  return Math.min(between, LAP_SEC - between)
+}
+
+/** How far the time here may stand from the device's before it is put right: under two readings. */
+const SLACK_SEC = 0.05
 
 /**
- * Move the device's time on to the display's `now`. `mark` is any number made
- * of the device's readings, and `moving` says whether it would change from
- * one reading to the next if the device ran.
+ * Move the device's time on to the display's `now`. `mark` is the device's
+ * clock as it was last read, and `runs` whether the device is awake to move
+ * it; asleep nothing happens in it, and its time stands.
+ *
+ * With `timed` the mark counts seconds (round `LAP_SEC`), so it also says how
+ * far the device has come. The time here is then held to it: what ran on
+ * after a pause, before the pause could be known, is waited out when the
+ * sound goes on, and a reading that came late is caught up with. So what is
+ * kept by this time stays where the device wrote it.
  */
-export function tick(clock: DeviceClock, now: number, mark: number, moving: boolean): void {
+export function tick(
+  clock: DeviceClock,
+  now: number,
+  mark: number,
+  runs: boolean,
+  timed = false,
+): void {
   const step = clock.seen === null ? 0 : Math.max(0, now - clock.seen)
   clock.seen = now
-  clock.still = moving && mark === clock.mark ? clock.still + step : 0
+  let passed = 0
+  if (!runs) {
+    clock.set = false
+    clock.still = 0
+    clock.ahead = 0
+    clock.carried = 0
+  } else {
+    const fresh = !clock.set || mark !== clock.mark
+    clock.still = fresh ? 0 : clock.still + step
+    const slack = Math.max(SLACK_SEC, 1.5 * step)
+    passed = clock.still > STALLED_SEC || clock.ahead > slack ? 0 : step
+    clock.carried += passed
+    if (fresh) {
+      if (timed && clock.set) {
+        // As far as the mark has moved, by the number of laps nearest to what was carried.
+        let moved = lapped(mark - clock.mark)
+        moved += LAP_SEC * Math.round((clock.ahead + clock.carried - moved) / LAP_SEC)
+        clock.ahead += clock.carried - moved
+        if (clock.ahead < -slack) {
+          passed -= clock.ahead
+          clock.ahead = 0
+        }
+      }
+      clock.carried = 0
+      clock.set = true
+    }
+  }
   clock.mark = mark
-  const passed = clock.still > STALLED_SEC ? 0 : step
   clock.time += passed
   // A long step is time nobody watched: what is carried forward is not carried across it.
   clock.dt = Math.min(passed, 0.25)
@@ -111,6 +180,14 @@ export class Tape {
   /** How long it has been kept without a gap, in seconds. */
   get known(): number {
     return this.latest === null || this.since === null ? 0 : this.latest - this.since
+  }
+
+  /** The device has forgotten what it held: a blank tape. */
+  clear(): void {
+    if (this.latest === null) return
+    this.past.clear()
+    this.latest = null
+    this.since = null
   }
 
   /** Add the level written at `now`. */
@@ -257,12 +334,18 @@ function held(
   ctx.globalAlpha = 1
 }
 
-/** Upright lines a second apart behind the sound, counted back from `zero`; every fifth or tenth when they would crowd. */
-function secondsGrid(frame: Paint, box: Box, zero: number, pxPerSec: number): void {
+/**
+ * Upright lines a second apart behind the sound; every fifth or tenth when
+ * they would crowd. They are marks on the sound itself: with `travelled`, the
+ * seconds the sound has run, they move away from `zero` as it is written, so a
+ * tape that runs is seen to run even while what is on it does not change.
+ */
+function secondsGrid(frame: Paint, box: Box, zero: number, pxPerSec: number, travelled = 0): void {
   if (!(pxPerSec > 0)) return
   const every = pxPerSec >= 12 ? 1 : pxPerSec >= 2.4 ? 5 : 10
   const reach = Math.min((zero - box.x) / pxPerSec, 400 * every)
-  for (let seconds = every; seconds <= reach; seconds += every) {
+  const first = travelled > 0 ? travelled % every : every
+  for (let seconds = first; seconds <= reach; seconds += every) {
     const x = zero - seconds * pxPerSec
     rule(frame.ctx, x, box.y, x, box.y + box.h, { colour: frame.colours.ink, alpha: INK.grid })
   }
@@ -415,21 +498,19 @@ const tapeLoop = plateDisplay<TapeLoopState>({
     const length = Math.max(0.01, frame.value('length'))
     const pxPerSec = (lay.reach * loopShare(frame.at('length'))) / length
     // Until the first reading arrives the length reads 0, which no loop has.
-    const reading = frame.powered && frame.hasMeter('length') && frame.meter('length') > 0
+    const reading = frame.powered && frame.hasMeter('clock') && frame.meter('length') > 0
+    // tape_loop.h `meter(4)`: the tape's running time, -1 while it is asleep.
+    const ran = reading ? frame.meter('clock') : -1
+    const awake = ran >= 0
     const asked =
       (TAPE_SPEEDS[Math.round(frame.value('speed'))] ?? 1) *
       (Math.round(frame.value('direction')) === 1 ? -1 : 1)
     const velocity = reading ? frame.meter('speed') : asked
-    // A running tape either writes a level that moves or has a play head that does.
-    const written = reading ? frame.meter('level') : 0
-    tick(
-      state.clock,
-      frame.now,
-      reading ? written + frame.meter('head') : 0,
-      reading && (written > 0 || velocity !== 1),
-    )
-    if (reading) state.tape.push(state.clock.time, written)
-    else state.head.set = false
+    tick(state.clock, frame.now, ran, awake, true)
+    if (awake) state.tape.push(state.clock.time, frame.meter('level'))
+    // Asleep the tape is blank, and it is forgotten on waking.
+    else if (reading) state.tape.clear()
+    if (!reading) state.head.set = false
 
     // Between the decks, as it glides to where the knob has it.
     const between = reading ? frame.meter('length') : length
@@ -440,7 +521,7 @@ const tapeLoop = plateDisplay<TapeLoopState>({
       ? carry(state.head, frame.meter('head'), (1 - velocity) / between, state.clock.dt)
       : 1
 
-    secondsGrid(frame, tape, head, pxPerSec)
+    secondsGrid(frame, tape, head, pxPerSec, state.clock.time)
     const level = (x: number): number =>
       state.tape.over((head - x - STEP / 2) / pxPerSec, (head - x + STEP / 2) / pxPerSec)
     // Past the far deck the tape still holds the passes before: a longer loop finds them again.
@@ -451,8 +532,11 @@ const tapeLoop = plateDisplay<TapeLoopState>({
       alpha: INK.back,
       dash: [2, 2],
     })
+    // The play head is in the accent while the tape runs under it; at rest it is a ghost in the ink.
     clipped(frame.ctx, { x: tape.x - 2, y: 0, w: tape.w + 4, h: frame.height }, () => {
-      readHead(frame, tape, head - behind * between * pxPerSec, velocity, colours.accent)
+      const x = head - behind * between * pxPerSec
+      if (awake) readHead(frame, tape, x, velocity, colours.accent)
+      else readHead(frame, tape, x, velocity, colours.ink, INK.back)
     })
     writeHead(frame, tape, head, Math.round(frame.value('record')) === 0)
     span(frame, lay, head - length * pxPerSec, head, timeText(length), 'length')
@@ -464,9 +548,13 @@ const tapeLoop = plateDisplay<TapeLoopState>({
 
 /** reverse_delay.h `kRates`, by Pitch: Normal, Octave up, Octave down. */
 const REVERSE_RATES = [1, 2, 0.5] as const
-/** The share of the reach one chunk takes, from the shortest Time to the longest. */
-const CHUNK_LEAST = 0.18
-const CHUNK_MOST = 0.32
+/**
+ * The share of the reach one chunk takes, from the shortest Time to the
+ * longest. The end of the span is the handle, so this is also how far a hand
+ * moves it from one end of Time to the other: far enough to set it by.
+ */
+const CHUNK_LEAST = 0.1
+const CHUNK_MOST = 0.5
 const chunkShare = (at: number): number => lerp(CHUNK_LEAST, CHUNK_MOST, at)
 const REVERSE_KEEPS_SEC = 4 / CHUNK_MOST + 0.5
 
@@ -522,14 +610,18 @@ const reverseDelay = plateDisplay<ReverseState>({
     const pxPerSec = (lay.reach * chunkShare(frame.at('time'))) / time
     const rate = REVERSE_RATES[Math.round(frame.value('pitch'))] ?? 1
     const fade = chunkFade(time, frame.value('smooth'))
-    const reading = frame.powered && frame.hasMeter('aBehind')
-    // Awake, one reader or the other is always on its way.
-    const mark = reading
-      ? frame.meter('level') + frame.meter('aBehind') + frame.meter('bBehind')
-      : 0
-    tick(state.clock, frame.now, mark, mark > 0)
+    const reading = frame.powered && frame.hasMeter('clock')
+    // reverse_delay.h `meter(5)`: its running time, -1 while it is asleep.
+    const ran = reading ? frame.meter('clock') : -1
+    const awake = ran >= 0
+    tick(state.clock, frame.now, ran, awake, true)
     const now = state.clock.time
-    if (reading) state.tape.push(now, frame.meter('level'))
+    if (awake) state.tape.push(now, frame.meter('level'))
+    else if (reading) {
+      // Asleep the ring is forgotten: nothing of it is played again.
+      state.tape.clear()
+      state.starts.fill(NEVER)
+    }
     const middle = tape.y + tape.h / 2
     const half = tape.h / 2 - 0.5
 
@@ -550,7 +642,7 @@ const reverseDelay = plateDisplay<ReverseState>({
           held(frame, tape, reader, start, (x) => level(x) * gainAt(x), colours.accent, 0.85)
         }
         ctx.beginPath()
-        for (const side of [-1, 1]) {
+        for (let side = -1; side <= 1; side += 2) {
           ctx.moveTo(start, middle)
           for (let x = start; x > Math.max(far, tape.x - STEP); x -= STEP) {
             ctx.lineTo(x, middle + side * gainAt(x) * half)
@@ -595,7 +687,7 @@ const reverseDelay = plateDisplay<ReverseState>({
     if (playing === 0) {
       // At rest: the window of a chunk that starts now, over the sound it will read.
       window(0, false, 0)
-      readHead(frame, tape, head - 9, -rate, colours.accent)
+      readHead(frame, tape, head - 9, -rate, colours.ink, INK.back)
     }
     // Where the chunks were cut.
     for (const started of state.starts) {
@@ -712,10 +804,15 @@ interface GrainState {
   ratio: Float32Array
   size: Float32Array
   next: number
-  /** The device's count of grains at the last reading, and when it last moved. */
-  count: number
-  countAt: number
+  /** The device's clock at the last reading and when that came, by its time here; -1 before the first. */
+  read: number
+  readAt: number
+  /** Where on the device's clock the newest grain started, as of that reading. */
+  newest: number
 }
+
+/** Two grains that started within this of each other on the ring are one grain: under three samples. */
+const SAME_GRAIN_SEC = 5e-5
 
 /** A grain's lens over the stretch of sound it reads, above the middle forwards and under it backwards. */
 function lens(
@@ -753,6 +850,23 @@ function lens(
   ctx.globalAlpha = 1
 }
 
+/** Keep a grain the device has started: when, on what sound, how fast and how long. */
+function addGrain(
+  state: GrainState,
+  born: number,
+  from: number,
+  ratio: number,
+  size: number,
+): void {
+  if (!Number.isFinite(from) || !Number.isFinite(ratio) || ratio === 0) return
+  const i = state.next
+  state.next = (i + 1) % GRAINS
+  state.born[i] = born
+  state.from[i] = from
+  state.ratio[i] = ratio
+  state.size[i] = size
+}
+
 const grainDelay = plateDisplay<GrainState>({
   place: 'strip',
   params: ['time', 'spray', 'pitch', 'size', 'density', 'reverse'],
@@ -766,8 +880,9 @@ const grainDelay = plateDisplay<GrainState>({
     ratio: new Float32Array(GRAINS),
     size: new Float32Array(GRAINS),
     next: 0,
-    count: -1,
-    countAt: 0,
+    read: -1,
+    readAt: 0,
+    newest: 0,
   }),
   draw(frame) {
     const { ctx, colours, state } = frame
@@ -778,41 +893,43 @@ const grainDelay = plateDisplay<GrainState>({
     const size = Math.max(0.001, frame.value('size') / 1000)
     // grain_delay.h `spray_seconds()`: a square-law amount, up to 1 s later.
     const spray = frame.value('spray') ** 2
-    const reading = frame.powered && frame.hasMeter('grains')
-    // Awake, the place of the newest grain falls behind as the sound is written.
-    const written = reading ? frame.meter('level') : 0
-    tick(state.clock, frame.now, reading ? written + frame.meter('newBehind') : 0, written > 0)
+    const reading = frame.powered && frame.hasMeter('clock')
+    // grain_delay.h `meter(1)`: its running time, -1 while it is asleep.
+    const ran = reading ? frame.meter('clock') : -1
+    const awake = ran >= 0
+    tick(state.clock, frame.now, ran, awake, true)
     const now = state.clock.time
-    if (reading) {
-      state.tape.push(now, written)
-      const count = frame.meter('grains')
-      if (state.count >= 0 && count !== state.count) {
-        // Grains started since the last reading: the device tells of the last two.
-        const started = (((count - state.count) % 4096) + 4096) % 4096
-        const waited = clamp(now - state.countAt, 0, 1)
-        const ago = Math.min(waited / (2 * started), SLOT_SEC / 2)
-        const add = (since: number, behind: number, ratio: number): void => {
-          if (!Number.isFinite(behind) || !Number.isFinite(ratio) || ratio === 0) return
-          const i = state.next
-          state.next = (i + 1) % GRAINS
-          state.born[i] = now - since
-          state.from[i] = now - behind
-          state.ratio[i] = ratio
-          state.size[i] = size
+    if (awake) {
+      state.tape.push(now, frame.meter('level'))
+      if (ran !== state.read) {
+        // A new reading. A grain is known by where on the ring it started,
+        // which is the clock less how far behind the write point that is now.
+        const newBehind = frame.meter('newBehind')
+        const oldBehind = frame.meter('oldBehind')
+        const newest = ran - newBehind
+        if (state.read >= 0 && apart(newest, state.newest) > SAME_GRAIN_SEC) {
+          // Grains started since the last reading: the device tells of the last
+          // two. When they started is not told: somewhere since that reading.
+          const two = apart(ran - oldBehind, state.newest) > SAME_GRAIN_SEC
+          const waited = clamp(now - state.readAt, 0, 1)
+          const ago = Math.min(waited / (two ? 4 : 2), SLOT_SEC / 2)
+          addGrain(state, now - ago, now - newBehind, frame.meter('newSpeed'), size)
+          if (two) {
+            const before = now - ago - Math.min(waited / 2, size)
+            addGrain(state, before, now - oldBehind, frame.meter('oldSpeed'), size)
+          }
         }
-        add(ago, frame.meter('newBehind'), frame.meter('newSpeed'))
-        if (started >= 2) {
-          add(
-            ago + Math.min(waited / started, size),
-            frame.meter('oldBehind'),
-            frame.meter('oldSpeed'),
-          )
-        }
+        state.newest = newest
+        state.read = ran
+        state.readAt = now
       }
-      if (count !== state.count) state.countAt = now
-      state.count = count
     } else {
-      state.count = -1
+      state.read = -1
+      if (reading) {
+        // Asleep: what the ring holds is never played again, and no grain is open.
+        state.tape.clear()
+        state.born.fill(NEVER)
+      }
     }
 
     const level = (x: number): number =>
@@ -860,11 +977,12 @@ const grainDelay = plateDisplay<GrainState>({
         const ratio = grainRatio(frame.value('pitch'))
         const backwards = clamp(frame.value('reverse'), 0, 1)
         const grains = clamp(Math.round(frame.value('density')), 1, 8)
-        const apart = size / frame.value('density')
+        const between = size / frame.value('density')
         for (let k = 0; k < grains; k++) {
           // Grain k started k intervals before the newest, which is half an interval old.
-          const shift = (k + 0.5) * apart
-          for (const reversed of [false, true]) {
+          const shift = (k + 0.5) * between
+          for (let way = 0; way < 2; way++) {
+            const reversed = way === 1
             const share = reversed ? backwards : 1 - backwards
             if (share < 0.02) continue
             const behind = grainStartBehind(time, ratio, size, reversed) + shift
@@ -901,7 +1019,9 @@ const grainDelay = plateDisplay<GrainState>({
             if (placed(middle) > x) low = middle
             else high = middle
           }
-          return { time: spec ? denormalizeParam(spec, (low + high) / 2) : 0 }
+          // Past either end of its travel it is at that end, and not a hair short of it.
+          const at = low === 0 ? 0 : high === 1 ? 1 : (low + high) / 2
+          return { time: spec ? denormalizeParam(spec, at) : 0 }
         },
         reset: () => ({ time: spec?.default ?? 350 }),
       },
@@ -962,27 +1082,29 @@ const microLooper = plateDisplay<LooperState>({
     const length = Math.max(0.01, frame.value('length'))
     const pxPerSec = (lay.reach * loopShare(frame.at('length'))) / length
     const start = head - length * pxPerSec
-    const reading = frame.powered && frame.hasMeter('gain')
-    const gain = reading ? clamp(frame.meter('gain'), 0, 1) : 0
-    const playing = gain > 0
-    const wait = reading ? clamp(frame.meter('wait'), 0, length) : 0
+    const reading = frame.powered && frame.hasMeter('age')
+    // micro_looper.h `meter(4)`: over 0 it is how long ago the loop that plays
+    // was taken; under 0 there is no loop and it is the memory's running time;
+    // 0 is asleep. Either way it moves on with every block the looper works.
+    const aged = reading ? frame.meter('age') : 0
+    const awake = aged !== 0
+    const playing = aged > 0
+    const gain = playing ? clamp(frame.meter('gain'), 0, 1) : 0
+    const wait = awake ? clamp(frame.meter('wait'), 0, length) : 0
     const speed = LOOPER_SPEEDS[Math.round(frame.value('speed'))] ?? 1
+    // A loop held for hours has an age too long to show a block's worth; its playhead still moves.
+    tick(state.clock, frame.now, aged * 64 + (playing ? frame.meter('place') : 0), awake)
 
     // The memory records what goes in, and nothing else: the level going in
     // is what it holds. Where the plate was not told what feeds the device the
     // memory is not drawn, and a loop is learnt from the tape under its playhead.
-    const input = reading ? (frame.signal?.input ?? null) : null
-    // Sound going in never reads the same twice, and a loop's playhead never stands.
-    tick(
-      state.clock,
-      frame.now,
-      (input ? input.peak + input.rms : 0) + (reading ? frame.meter('place') + wait : 0),
-      (input !== null && input.peak > 0) || playing || wait > 0,
-    )
+    const input = awake ? (frame.signal?.input ?? null) : null
     if (input) state.heard.push(state.clock.time, input.peak)
+    // Asleep the memory is emptied: the looper wakes with nothing to take.
+    else if (reading && !awake) state.heard.clear()
 
     if (playing) {
-      const age = Math.max(0, frame.meter('age'))
+      const age = aged
       if (!state.holds || age < state.age - 0.05) {
         // A loop was taken: it is the memory as it stood `age` seconds ago,
         // as far back as the memory was watched.
@@ -1006,9 +1128,11 @@ const microLooper = plateDisplay<LooperState>({
       return back >= CAPTURE_SEC ? 0 : near + (far - near) * clamp(at - i, 0, 1)
     }
 
-    secondsGrid(frame, tape, head, pxPerSec)
     // While a phrase is played in, the write head crosses the loop it will be.
     const writer = head - wait * pxPerSec
+    // A loop stands still, and the seconds with it; the memory runs past its write head.
+    if (playing) secondsGrid(frame, tape, head, pxPerSec)
+    else secondsGrid(frame, tape, writer, pxPerSec, state.clock.time)
     const memory = (x: number): number =>
       state.heard.over((writer - x - STEP / 2) / pxPerSec, (writer - x + STEP / 2) / pxPerSec)
     let place = 0

@@ -11,7 +11,8 @@
     { "key": "level", "name": "Record level", "display": true },
     { "key": "head", "name": "Play head", "display": true },
     { "key": "length", "name": "Loop length", "display": true },
-    { "key": "speed", "name": "Play speed", "display": true }
+    { "key": "speed", "name": "Play speed", "display": true },
+    { "key": "clock", "name": "Running time", "display": true }
   ],
   "params": [
     {

@@ -71,6 +71,24 @@ class StereoRing {
     *right = kit::hermite(r[0], r[1], r[2], r[3], t);
   }
 
+  // The highest sample, of either channel, among the last `frames` written:
+  // a level for a display. Frames from before forget() count as silence.
+  float peak(int frames) const {
+    long long count = written_ - valid_from_;
+    if (count > frames) count = frames;
+    if (count > Frames) count = Frames;
+    float high = 0.0f;
+    int at = head_;
+    for (long long k = 0; k < count; ++k) {
+      if (--at < 0) at = Frames - 1;
+      const float left = buffer_[2 * at];
+      const float right = buffer_[2 * at + 1];
+      const float size = kit::max(left < 0.0f ? -left : left, right < 0.0f ? -right : right);
+      if (size > high) high = size;
+    }
+    return high;
+  }
+
  private:
   // Where frame `index` (one of the last Frames written) is stored. Worked
   // from the write slot: a 64-bit remainder per read is slow in WASM.

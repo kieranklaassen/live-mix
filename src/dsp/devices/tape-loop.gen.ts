@@ -127,6 +127,7 @@ export const TAPE_LOOP_METERS = {
   head: { id: 1, name: 'Play head', unit: '', display: true },
   length: { id: 2, name: 'Loop length', unit: '', display: true },
   speed: { id: 3, name: 'Play speed', unit: '', display: true },
+  clock: { id: 4, name: 'Running time', unit: '', display: true },
 } as const satisfies Record<string, DeviceMeterSpec>
 
 export const TAPE_LOOP_DEVICE = defineWasmDevice({

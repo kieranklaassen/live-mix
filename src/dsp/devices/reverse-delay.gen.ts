@@ -104,6 +104,7 @@ export const REVERSE_DELAY_METERS = {
   aGain: { id: 2, name: 'Reader A gain', unit: '', display: true },
   bBehind: { id: 3, name: 'Reader B behind', unit: '', display: true },
   bGain: { id: 4, name: 'Reader B gain', unit: '', display: true },
+  clock: { id: 5, name: 'Running time', unit: '', display: true },
 } as const satisfies Record<string, DeviceMeterSpec>
 
 export const REVERSE_DELAY_DEVICE = defineWasmDevice({

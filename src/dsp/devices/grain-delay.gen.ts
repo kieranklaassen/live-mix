@@ -131,7 +131,7 @@ export type GrainDelayParamName = keyof typeof GRAIN_DELAY_PARAMS
 
 export const GRAIN_DELAY_METERS = {
   level: { id: 0, name: 'Record level', unit: '', display: true },
-  grains: { id: 1, name: 'Grains started', unit: '', display: true },
+  clock: { id: 1, name: 'Running time', unit: '', display: true },
   newBehind: { id: 2, name: 'Newest grain behind', unit: '', display: true },
   newSpeed: { id: 3, name: 'Newest grain speed', unit: '', display: true },
   oldBehind: { id: 4, name: 'Grain before behind', unit: '', display: true },
