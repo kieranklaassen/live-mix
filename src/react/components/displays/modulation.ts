@@ -220,8 +220,8 @@ const tremolo = plateDisplay<TremoloState>({
             ? ['♯', '♭']
             : ['', '']
     if (high) {
-      text(frame, high, box.x + box.w, box.y + 6, { align: 'right', size: 7, alpha: INK.back })
-      text(frame, low, box.x + box.w, foot, { align: 'right', size: 7, alpha: INK.back })
+      text(frame, high, box.x + box.w, box.y + 6, { align: 'right', alpha: INK.back })
+      text(frame, low, box.x + box.w, foot, { align: 'right', alpha: INK.back })
     }
   },
 })
@@ -237,13 +237,11 @@ const shortWay = (cycles: number): number => wrap(cycles + 0.5) - 0.5
 interface Line {
   x: Float32Array
   y: Float32Array
-  n: number
 }
 
 const line = (size = 0): Line => ({
   x: new Float32Array(size),
   y: new Float32Array(size),
-  n: 0,
 })
 
 /** Room for `size` points; the arrays are made again only when the display grew. */
@@ -288,25 +286,43 @@ function strokeLine(
 }
 
 /**
- * Fills `kept` with a curve of time across a scope: `y(seconds)` from the
- * left edge of `box` to its right, with now at `NOW_AT` and a point exactly
- * there. Returns the index of that point: up to it is what has been.
+ * The most cycles of a modulation a scope spans. A faster one is given less
+ * time across the same width, so it stays a wave that runs and does not
+ * close up into a hatching.
  */
-function scopeLine(kept: Line, box: Box, step: number, y: (seconds: number) => number): number {
-  const nowX = box.x + box.w * NOW_AT
-  const before = Math.max(1, Math.ceil((nowX - box.x) / step))
-  const after = Math.max(1, Math.ceil((box.x + box.w - nowX) / step))
-  room(kept, before + after + 1)
-  for (let i = 0; i <= before + after; i++) {
-    const x =
-      i <= before
-        ? box.x + ((nowX - box.x) * i) / before
-        : nowX + ((box.x + box.w - nowX) * (i - before)) / after
-    kept.x[i] = x
-    kept.y[i] = y(((x - nowX) / box.w) * SPAN_SEC)
+const SCOPE_CYCLES = 4
+
+/** How much time a scope of a modulation at `rateHz` spans, in seconds: `most`, or `SCOPE_CYCLES` of it. */
+export function scopeSpanSec(rateHz: number, most = SPAN_SEC): number {
+  return rateHz * most > SCOPE_CYCLES ? SCOPE_CYCLES / rateHz : most
+}
+
+/** A reading that has not changed for this long is of a device that is not being run. */
+const STANDS_SEC = 0.15
+
+/** An LFO followed from the device's readings of its phase, and for how long no new reading has come. */
+interface Followed {
+  track: PhaseTrack | null
+  stoodFor: number
+}
+
+const followed = (): Followed => ({ track: null, stoodFor: 0 })
+
+/**
+ * The kit's `trackPhase`, for a reading that may stop coming. A free-running
+ * LFO never reports the same place twice (the slowest moves every reading),
+ * so the same reading for `STANDS_SEC` means nothing runs the device: the
+ * sound engine is stopped. Then the phase stands on the last reading and is
+ * not carried on by the clock. Returns false while it stands.
+ */
+function followPhase(kept: Followed, reading: number, rateHz: number, dt: number): boolean {
+  kept.stoodFor = kept.track !== null && reading === kept.track.reading ? kept.stoodFor + dt : 0
+  if (kept.stoodFor >= STANDS_SEC) {
+    kept.track = { phase: reading, reading }
+    return false
   }
-  kept.n = before + after + 1
-  return before
+  kept.track = trackPhase(kept.track, reading, rateHz, dt)
+  return true
 }
 
 // --- Chorus -----------------------------------------------------------------
@@ -337,16 +353,25 @@ export function chorusVoiceMs(
 }
 
 interface ChorusState {
-  phase: PhaseTrack | null
+  lfo: Followed
+  /** The LFO at every point across the scope, as its sine and cosine: each voice is a turn of the two. */
+  sin: Float32Array
+  cos: Float32Array
   kept: Line
 }
 
 const chorus = plateDisplay<ChorusState>({
   place: 'strip',
   params: ['voices', 'rate', 'depth', 'delayMs', 'spread'],
+  // Three voices a third of a cycle apart make a figure that comes round three times in a cycle: 30 frames a second cannot follow it at a few Hz.
   live: { meters: true, fps: 60 },
-  info: 'Each line is one voice: the delay it reads at, swinging around Delay over two seconds that run to the left. The mark is now. Up is a longer delay, and the steeper a line the more that voice is bent in pitch. The fainter lines are the right side, which Spread sets apart.',
-  init: () => ({ phase: null, kept: line() }),
+  info: 'Each line is one voice: the delay it reads at, swinging around Delay and running to the left, two seconds across or four cycles when Rate is fast. The mark is now. Up is a longer delay, and a steeper line is more bend in pitch. The fainter lines are the right side, which Spread sets apart.',
+  init: () => ({
+    lfo: followed(),
+    sin: new Float32Array(0),
+    cos: new Float32Array(0),
+    kept: line(),
+  }),
   draw(frame) {
     const { ctx, colours, state } = frame
     ground(frame)
@@ -357,45 +382,69 @@ const chorus = plateDisplay<ChorusState>({
     const delay = frame.value('delayMs')
     const swing = chorusSwingMs(frame.value('depth'), delay)
     const apart = (frame.value('spread') / 100) * 0.25
-    const running = frame.powered && frame.hasMeter('phase') && frame.dt > 0
-    if (running) state.phase = trackPhase(state.phase, frame.meter('phase'), rate, frame.dt)
-    const phaseNow = state.phase?.phase ?? 0
+    if (frame.powered && frame.hasMeter('phase') && frame.dt > 0)
+      followPhase(state.lfo, frame.meter('phase'), rate, frame.dt)
+    const phaseNow = state.lfo.track?.phase ?? 0
 
     // Delay is the middle line, and the most a voice can swing fills the box.
     const middle = box.y + box.h / 2
-    const height = (ms: number): number => middle - (ms / CHORUS_SWING_MS) * (box.h / 2)
+    const perMs = box.h / 2 / CHORUS_SWING_MS
     const nowX = box.x + box.w * NOW_AT
     rule(ctx, box.x, middle, box.x + box.w, middle, { colour: colours.ink, alpha: INK.grid })
     rule(ctx, nowX, box.y - 2, nowX, box.y + box.h + 2, { colour: colours.ink, alpha: INK.rule })
 
-    // A point a pixel where a cycle is long, two where it is short.
-    const step = box.w / (SPAN_SEC * rate) >= 24 ? 1 : 0.5
-    const sides = apart > 0.002 ? [1, 0] : [0]
-    clipped(ctx, { x: box.x, y: box.y - 3, w: box.w, h: box.h + 6 }, () => {
-      for (const side of sides) {
-        for (let voice = 0; voice < voices; voice++) {
-          const now = scopeLine(state.kept, box, step, (seconds) =>
-            height(chorusVoiceMs(phaseNow + seconds * rate, voice, voices, swing, side * apart)),
-          )
-          const { x, y, n } = state.kept
-          strokeLine(ctx, x, y, 0, now + 1, {
-            colour: colours.ink,
-            width: side === 1 ? 1 : 1.5,
-            alpha: side === 1 ? INK.back : 1,
-          })
-          strokeLine(ctx, x, y, now, n, {
-            colour: colours.ink,
-            width: 1,
-            alpha: side === 1 ? INK.grid * 2 : INK.back,
-            dotted: true,
-          })
+    // The LFO across the scope, once: some thirty points a cycle, with one exactly at now.
+    const span = scopeSpanSec(rate)
+    const step = clamp(box.w / (span * rate) / 32, 1, 3)
+    const before = Math.max(1, Math.ceil((nowX - box.x) / step))
+    const after = Math.max(1, Math.ceil((box.x + box.w - nowX) / step))
+    const count = before + after + 1
+    room(state.kept, count)
+    if (state.sin.length < count) {
+      state.sin = new Float32Array(count)
+      state.cos = new Float32Array(count)
+    }
+    const { x, y } = state.kept
+    for (let i = 0; i < count; i++) {
+      x[i] =
+        i <= before
+          ? box.x + ((nowX - box.x) * i) / before
+          : nowX + ((box.x + box.w - nowX) * (i - before)) / after
+      const angle = (phaseNow + ((x[i] - nowX) / box.w) * span * rate) * TWO_PI
+      state.sin[i] = Math.sin(angle)
+      state.cos[i] = Math.cos(angle)
+    }
+    // The right side behind, where Spread sets it apart: what it has done, and not what comes.
+    const sides = apart > 0.002 ? 1 : 0
+    ctx.save()
+    ctx.beginPath()
+    ctx.rect(box.x, box.y - 3, box.w, box.h + 6)
+    ctx.clip()
+    for (let side = sides; side >= 0; side--) {
+      for (let voice = 0; voice < voices; voice++) {
+        // sin(lfo + ahead), as the device turns one sine and cosine to each voice.
+        const ahead = (voice / voices + side * apart) * TWO_PI
+        const c = Math.cos(ahead) * swing * perMs
+        const s = Math.sin(ahead) * swing * perMs
+        for (let i = 0; i < count; i++) y[i] = middle - (state.sin[i] * c + state.cos[i] * s)
+        if (side === 1) {
+          strokeLine(ctx, x, y, 0, before + 1, { colour: colours.ink, width: 1, alpha: INK.rule })
+          continue
         }
+        strokeLine(ctx, x, y, 0, before + 1, { colour: colours.ink })
+        strokeLine(ctx, x, y, before, count, {
+          colour: colours.ink,
+          width: 1,
+          alpha: INK.back,
+          dotted: true,
+        })
       }
-    })
-    for (const side of sides) {
+    }
+    ctx.restore()
+    for (let side = sides; side >= 0; side--) {
       for (let voice = 0; voice < voices; voice++) {
         const ms = chorusVoiceMs(phaseNow, voice, voices, swing, side * apart)
-        dot(ctx, nowX, height(ms), side === 0 ? 2.5 : 1.5, colours.accent, {
+        dot(ctx, nowX, middle - ms * perMs, side === 0 ? 2.5 : 1.5, colours.accent, {
           ring: side === 0 ? colours.ink : undefined,
         })
       }
@@ -572,12 +621,12 @@ const sweptY = (db: number, box: Box): number =>
 /**
  * The response of a wet path that turns the phase by `phaseAt(hz)` (radians,
  * falling as the frequency rises) inside a loop one sample longer, across a
- * box: a point a pixel, and between two of them a point at every place a
- * notch or a resonance stands (the turn, with its lean, or the loop passing
- * a whole or a half turn), so none is lost between pixels and none flickers
- * as it moves. Where the teeth of a comb stand closer than `TEETH_APART` the
- * curve cannot be followed: from there on its bounds are given, when `kept`
- * has them.
+ * box: a point every `step` pixels, and between two of them a point at every
+ * place a notch or a resonance stands (the turn, with its lean, or the loop
+ * passing a whole or a half turn), so none is lost between pixels and none
+ * flickers as it moves. Where the teeth of a comb stand closer than
+ * `TEETH_APART` the curve cannot be followed: from there on its bounds are
+ * given, when `kept` has them.
  */
 function sampleResponse(
   out: Curve,
@@ -586,10 +635,13 @@ function sampleResponse(
   phaseAt: (hz: number) => number,
   feedback: number,
   mix: number,
+  step: number,
   kept?: Bounds,
 ): void {
-  const columns = Math.max(2, Math.round(box.w))
-  const size = columns * 4 + 8
+  const columns = Math.max(2, Math.round(box.w / step))
+  // How far the turn may go on in one column before the teeth are too close to draw.
+  const most = (TWO_PI / TEETH_APART) * (box.w / columns)
+  const size = columns * 6 + 8
   if (out.x.length < size) {
     out.x = new Float32Array(size)
     out.y = new Float32Array(size)
@@ -613,7 +665,7 @@ function sampleResponse(
     const x = box.x + (c / columns) * box.w
     const hz = hzOfX(x, box)
     const phi = phaseAt(hz)
-    if (phiBefore - phi > TWO_PI / TEETH_APART) {
+    if (phiBefore - phi > most) {
       dense = c
       break
     }
@@ -669,7 +721,8 @@ function sampleResponse(
 /**
  * A response as the plate shows it: filled from the line where nothing is
  * changed and drawn over, and where its teeth run together a band between
- * the highest and the lowest they reach.
+ * the highest and the lowest they reach, fainter than the teeth that can be
+ * read so the eye stays on what slides.
  */
 function drawResponse(frame: DisplayFrame, kept: Curve, zero: number): void {
   const { ctx, colours } = frame
@@ -691,13 +744,13 @@ function drawResponse(frame: DisplayFrame, kept: Curve, zero: number): void {
     for (let i = from + 1; i < n; i++) ctx.lineTo(x[i], y[i])
     for (let i = n - 1; i >= from; i--) ctx.lineTo(x[i], low[i])
     ctx.closePath()
-    ctx.globalAlpha = INK.back * 0.8
+    ctx.globalAlpha = INK.fill
     ctx.fill()
   }
   ctx.globalAlpha = 1
+  strokeLine(ctx, x, y, from, n, { colour: colours.ink, width: 1, alpha: INK.back })
+  strokeLine(ctx, x, low, from, n, { colour: colours.ink, width: 1, alpha: INK.back })
   strokeLine(ctx, x, y, 0, dense, { colour: colours.ink })
-  strokeLine(ctx, x, y, from, n, { colour: colours.ink, width: 1 })
-  strokeLine(ctx, x, low, from, n, { colour: colours.ink, width: 1 })
 }
 
 interface SweptBoxes {
@@ -750,25 +803,54 @@ function sweptHandles(
   ]
 }
 
-/** The bar under a swept response: the range of the sweep, and where each side is in it now. */
-function drawSweep(
+/**
+ * How far the sweep goes, behind the response: the part of the spectrum it
+ * crosses a shade darker, and under it a bar from one end to the other.
+ */
+function drawSweepRange(
   frame: DisplayFrame,
   boxes: SweptBoxes,
   fromHz: number,
   toHz: number,
-  leftHz: number,
-  rightHz: number,
 ): void {
   const { ctx, colours } = frame
   const { plot, rail } = boxes
   const from = xOfHz(fromHz, plot)
   const to = xOfHz(toHz, plot)
+  ctx.globalAlpha = INK.ground
+  ctx.fillStyle = colours.ink
+  ctx.fillRect(from, plot.y, to - from, plot.h)
+  ctx.globalAlpha = 1
   // `rail` is the middle of a row of pixels; `rule` puts a level line on the row under what it is given.
   rule(ctx, from, rail - 0.5, to, rail - 0.5, { colour: colours.ink, alpha: INK.back })
-  for (const end of [from, to])
-    rule(ctx, end, rail - 2.5, end, rail + 2.5, { colour: colours.ink, alpha: INK.back })
+  rule(ctx, from, rail - 2.5, from, rail + 2.5, { colour: colours.ink, alpha: INK.back })
+  rule(ctx, to, rail - 2.5, to, rail + 2.5, { colour: colours.ink, alpha: INK.back })
+}
+
+/**
+ * Where the sweep is now, over the response: a line in the accent at the left
+ * side's place, from the bar up through the response, and a smaller dot on
+ * the bar for the right side where it is elsewhere.
+ */
+function drawSweepNow(
+  frame: DisplayFrame,
+  boxes: SweptBoxes,
+  leftHz: number,
+  rightHz: number,
+): void {
+  const { ctx, colours } = frame
+  const { plot, rail } = boxes
   const left = xOfHz(leftHz, plot)
   const right = xOfHz(rightHz, plot)
+  // Not on whole pixels: a line that slides, not one that steps.
+  ctx.beginPath()
+  ctx.moveTo(left, plot.y)
+  ctx.lineTo(left, rail)
+  ctx.globalAlpha = INK.back
+  ctx.strokeStyle = colours.accent
+  ctx.lineWidth = 1
+  ctx.stroke()
+  ctx.globalAlpha = 1
   if (Math.abs(right - left) > 0.5) dot(ctx, right, rail, 1.75, colours.accent)
   dot(ctx, left, rail, 2.75, colours.accent, { ring: colours.ink })
 }
@@ -797,7 +879,7 @@ const signed = (percent: number): string => {
 }
 
 interface SweptState {
-  phase: PhaseTrack | null
+  lfo: Followed
   curve: Curve
   bounds: Bounds
   /** The Phaser's stage coefficients, one side at a time. */
@@ -805,7 +887,7 @@ interface SweptState {
 }
 
 const sweptState = (): SweptState => ({
-  phase: null,
+  lfo: followed(),
   curve: curve(),
   bounds: bounds(),
   stages: new Float32Array(12),
@@ -826,10 +908,9 @@ function trackSweep(
 ): boolean {
   const { state } = frame
   const running = frame.powered && frame.hasMeter('phase') && frame.dt > 0
-  if (running)
-    state.phase = trackPhase(state.phase, frame.meter('phase'), frame.value('rate'), frame.dt)
-  const now = state.phase?.phase ?? 0
-  const then = state.phase?.reading ?? 0
+  if (running) followPhase(state.lfo, frame.meter('phase'), frame.value('rate'), frame.dt)
+  const now = state.lfo.track?.phase ?? 0
+  const then = state.lfo.track?.reading ?? 0
   moved[0] = sweepWave(shape, now) - sweepWave(shape, then)
   moved[1] = sweepWave(shape, now + lead) - sweepWave(shape, then + lead)
   return running
@@ -880,8 +961,7 @@ export function flangerDb(
  * pixels across a box: there `sampleResponse` gives its bounds.
  */
 function teethMergeHz(delayMs: number, box: Box): number {
-  const columns = Math.max(2, Math.round(box.w))
-  return (columns * 1000) / (TEETH_APART * delayMs * Math.log(FREQ_MAX / FREQ_MIN))
+  return (box.w * 1000) / (TEETH_APART * delayMs * Math.log(FREQ_MAX / FREQ_MIN))
 }
 
 /** Where the comb's first notch stands for a delay: half a cycle fits in it. */
@@ -893,9 +973,10 @@ const flangerHandles = (view: DisplayView): DisplayHandle[] =>
 const flanger = plateDisplay<SweptState>({
   place: 'window',
   columns: 2,
-  params: ['delayMs', 'rate', 'depth', 'feedback', 'shape', 'stereo', 'mix'],
+  // Rate is not among them: the sweep's place comes from the device, and Rate only carries it from one reading to the next.
+  params: ['delayMs', 'depth', 'feedback', 'shape', 'stereo', 'mix'],
   live: { meters: true },
-  info: 'The comb the Flanger cuts, from 20 Hz at the left to 20 kHz at the right: each dip is a notch, and they slide together as the delay sweeps. The bar under it is how far the sweep goes, with a dot where its first tooth is now. The point sets Delay across and Feedback up and down.',
+  info: 'The comb the Flanger cuts, from 20 Hz at the left to 20 kHz at the right: each dip is a notch, and they slide together as the delay sweeps. The shaded span is how far the first notch travels, and the line in it is where it is now. The point sets Delay across and Feedback up and down.',
   init: sweptState,
   draw(frame) {
     const { ctx, colours, state, sampleRate } = frame
@@ -909,7 +990,7 @@ const flanger = plateDisplay<SweptState>({
     const mix = frame.value('mix')
     const lead = frame.value('stereo') / 360
     const running = trackSweep(frame, shape, lead, MOVED)
-    const phase = state.phase?.phase ?? 0
+    const phase = state.lfo.track?.phase ?? 0
     const swing = delay * (depth / 100) * FLANGER_DEPTH
     const most = (FLANGER_MOST * 1000) / sampleRate
     const side = (name: 'left' | 'right', moved: number, ahead: number): number => {
@@ -922,30 +1003,29 @@ const flanger = plateDisplay<SweptState>({
     const left = side('left', MOVED[0], 0)
     const right = side('right', MOVED[1], lead)
 
+    drawSweepRange(
+      frame,
+      boxes,
+      firstNotchHz(flangerDelayMs(delay, depth, 1, sampleRate)),
+      firstNotchHz(flangerDelayMs(delay, depth, -1, sampleRate)),
+    )
     freqGrid(frame, plot)
     dbGrid(frame, plot, SWEPT_TOP_DB, SWEPT_FOOT_DB, 12)
     clipped(ctx, plot, () => {
       const comb = (ms: number) => (hz: number) => (-hz * TWO_PI * ms) / 1000
       if (Math.abs(right - left) > left * 0.004) {
         // The right side's comb, behind and fainter, as far as the teeth of both can be told apart.
-        sampleResponse(state.curve, plot, sampleRate, comb(right), feedback, mix)
+        sampleResponse(state.curve, plot, sampleRate, comb(right), feedback, mix, 2)
         const { x, y, dense } = state.curve
         const until = xOfHz(teethMergeHz(left, plot), plot)
         let end = dense
         while (end > 0 && x[end - 1] > until) end -= 1
-        strokeLine(ctx, x, y, 0, end, { colour: colours.ink, width: 1, alpha: INK.back })
+        strokeLine(ctx, x, y, 0, end, { colour: colours.ink, width: 1, alpha: INK.rule })
       }
-      sampleResponse(state.curve, plot, sampleRate, comb(left), feedback, mix, state.bounds)
+      sampleResponse(state.curve, plot, sampleRate, comb(left), feedback, mix, 1, state.bounds)
       drawResponse(frame, state.curve, zero)
     })
-    drawSweep(
-      frame,
-      boxes,
-      firstNotchHz(flangerDelayMs(delay, depth, 1, sampleRate)),
-      firstNotchHz(flangerDelayMs(delay, depth, -1, sampleRate)),
-      firstNotchHz(left),
-      firstNotchHz(right),
-    )
+    drawSweepNow(frame, boxes, firstNotchHz(left), firstNotchHz(right))
     const [point] = flangerHandles(frame)
     drawSweptHandle(
       frame,
@@ -995,7 +1075,11 @@ export function phaserTune(
  * How far a chain turns the phase of a frequency, in radians: nothing at the
  * foot of the spectrum, half a turn a stage at its top. A stage is
  * y[n] = a·x[n] + x[n−1] − a·y[n−1] (`phaser_stage.h`), whose turn is
- * −w + 2·atan(a·sin w / (1 + a·cos w)).
+ * −w + 2·atan(a·sin w / (1 + a·cos w)), which is −2·atan(k·tan(w/2)) with
+ * k = (1 − a) / (1 + a). The turns of the stages add as the angles of the
+ * numbers 1 + j·k·tan(w/2) do when they are multiplied, so the chain costs
+ * one arctangent and not one a stage. Each factor turns less than a quarter,
+ * so every time the product passes half a turn it is seen and counted.
  */
 export function phaserTurn(
   stages: Float32Array,
@@ -1003,12 +1087,18 @@ export function phaserTurn(
   hz: number,
   sampleRate: number,
 ): number {
-  const w = (hz * TWO_PI) / sampleRate
-  const sin = Math.sin(w)
-  const cos = Math.cos(w)
-  let turn = -count * w
-  for (let s = 0; s < count; s++) turn += 2 * Math.atan2(stages[s] * sin, 1 + stages[s] * cos)
-  return turn
+  const t = Math.tan((Math.PI * Math.min(hz, sampleRate * 0.499)) / sampleRate)
+  let re = 1
+  let im = 0
+  let wholes = 0
+  for (let s = 0; s < count; s++) {
+    const q = (t * (1 - stages[s])) / (1 + stages[s])
+    const turned = im + re * q
+    re -= im * q
+    if (im >= 0 && turned < 0) wholes += 1
+    im = turned
+  }
+  return -2 * (Math.atan2(im, re) + wholes * TWO_PI)
 }
 
 /**
@@ -1039,9 +1129,10 @@ const phaserHandles = (view: DisplayView): DisplayHandle[] =>
 const phaser = plateDisplay<SweptState>({
   place: 'window',
   columns: 2,
-  params: ['stages', 'centerHz', 'spread', 'feedback', 'rate', 'depth', 'shape', 'stereo', 'mix'],
+  // Rate is not among them: the sweep's place comes from the device, and Rate only carries it from one reading to the next.
+  params: ['stages', 'centerHz', 'spread', 'feedback', 'depth', 'shape', 'stereo', 'mix'],
   live: { meters: true },
-  info: 'What the Phaser does across the spectrum, from 20 Hz at the left to 20 kHz at the right: every two stages cut one notch, and the notches slide as the sweep moves. The bar under it is how far the sweep goes, with a dot where it is now. The point sets Centre across and Feedback up and down.',
+  info: 'What the Phaser does across the spectrum, from 20 Hz at the left to 20 kHz at the right: every two stages cut one notch, and the notches slide as the sweep moves. The shaded span is how far the sweep goes, and the line in it is where it is now. The point sets Centre across and Feedback up and down.',
   init: sweptState,
   draw(frame) {
     const { ctx, colours, state, sampleRate } = frame
@@ -1057,7 +1148,7 @@ const phaser = plateDisplay<SweptState>({
     const mix = frame.value('mix')
     const lead = frame.value('stereo') / 360
     const running = trackSweep(frame, shape, lead, MOVED)
-    const phase = state.phase?.phase ?? 0
+    const phase = state.lfo.track?.phase ?? 0
     const side = (name: 'left' | 'right', moved: number, ahead: number): number => {
       const reading = running ? frame.meter(name) : 0
       // The device's own reading, carried on to this frame; at rest, where the shape would have it.
@@ -1068,6 +1159,7 @@ const phaser = plateDisplay<SweptState>({
     const left = side('left', MOVED[0], 0)
     const right = side('right', MOVED[1], lead)
 
+    drawSweepRange(frame, boxes, centre * Math.pow(2, -octaves), centre * Math.pow(2, octaves))
     freqGrid(frame, plot)
     dbGrid(frame, plot, SWEPT_TOP_DB, SWEPT_FOOT_DB, 12)
     clipped(ctx, plot, () => {
@@ -1075,25 +1167,18 @@ const phaser = plateDisplay<SweptState>({
       if (Math.abs(right - left) > left * 0.004) {
         // The right side's notches, behind and fainter.
         phaserTune(state.stages, count, right, spread, sampleRate)
-        sampleResponse(state.curve, plot, sampleRate, chain, feedback, mix)
+        sampleResponse(state.curve, plot, sampleRate, chain, feedback, mix, 2)
         strokeLine(ctx, state.curve.x, state.curve.y, 0, state.curve.dense, {
           colour: colours.ink,
           width: 1,
-          alpha: INK.back,
+          alpha: INK.rule,
         })
       }
       phaserTune(state.stages, count, left, spread, sampleRate)
-      sampleResponse(state.curve, plot, sampleRate, chain, feedback, mix)
+      sampleResponse(state.curve, plot, sampleRate, chain, feedback, mix, 1)
       drawResponse(frame, state.curve, zero)
     })
-    drawSweep(
-      frame,
-      boxes,
-      centre * Math.pow(2, -octaves),
-      centre * Math.pow(2, octaves),
-      left,
-      right,
-    )
+    drawSweepNow(frame, boxes, left, right)
     const [point] = phaserHandles(frame)
     drawSweptHandle(frame, boxes, point, `${hzText(centre)}  ${signed(frame.value('feedback'))}`)
   },
@@ -1115,9 +1200,15 @@ const ROTOR_START: Record<RotorKind, number> = { horn: 0, drum: 0.37 }
 const ROTOR_WAY: Record<RotorKind, 1 | -1> = { horn: 1, drum: -1 }
 /** A microphone stands this far off the front at full Spread, in cycles: half of `kMaxMicCycles`. */
 const ROTARY_MIC = 0.2
-/** How much of the past a rotor's level is drawn over, and in how many steps it is kept. */
+/**
+ * The most of the past a rotor's level is drawn over (less when it turns
+ * fast: `scopeSpanSec`), and in how many steps it is kept.
+ */
 const ROTARY_PAST_SEC = 1.5
 const ROTARY_SLOTS = 90
+/** The microphones as they are drawn: the right one first, behind, where Spread sets it apart. */
+const TWO_MICS: readonly (-1 | 1)[] = [1, -1]
+const ONE_MIC: readonly (-1 | 1)[] = [-1]
 /** The level at the top of a rotor's scope: over the loudest a swing's make-up reaches. */
 const ROTARY_TOP = 1.5
 
@@ -1277,12 +1368,6 @@ function rotorBoxes(view: Pick<DisplayView, 'width' | 'height'>, row: 0 | 1): Ro
   }
 }
 
-/** A place round a rotor: `angle` cycles off the front, which is down the display, as seen from above. */
-const around = (cx: number, cy: number, reach: number, angle: number): Point => [
-  cx + reach * Math.sin(angle * TWO_PI),
-  cy + reach * Math.cos(angle * TWO_PI),
-]
-
 function drawRotor(
   frame: DisplayFrame<RotaryState>,
   kind: RotorKind,
@@ -1326,11 +1411,14 @@ function drawRotor(
   ctx.fill()
   dot(ctx, cx, cy, 1.5, colours.ink)
   // The two microphones in front: further out with Distance, further apart with Spread.
-  const sides: (-1 | 1)[] = spread > 0.005 ? [1, -1] : [-1]
+  const sides = spread > 0.005 ? TWO_MICS : ONE_MIC
   for (const side of sides) {
-    const mic = side * ROTARY_MIC * spread * (kind === 'horn' ? 1 : 0.5)
-    const [x, y] = around(cx, cy, radius + 4 + 3 * distance, mic)
-    dot(ctx, x, y, 1.75, colours.ink, { alpha: side === -1 ? 1 : INK.back })
+    // `side` cycles off the front, which is down the display.
+    const mic = side * ROTARY_MIC * spread * (kind === 'horn' ? 1 : 0.5) * TWO_PI
+    const reach = radius + 4 + 3 * distance
+    dot(ctx, cx + reach * Math.sin(mic), cy + reach * Math.cos(mic), 1.75, colours.ink, {
+      alpha: side === -1 ? 1 : INK.back,
+    })
   }
 
   // Beside it: the level each microphone gets, the last moments up to now at the right.
@@ -1341,14 +1429,16 @@ function drawRotor(
     colour: colours.ink,
     alpha: INK.grid,
   })
-  const steps = Math.max(2, Math.round(scope.w * 2))
+  // A point a pixel: the span is short enough for that when the rotor is fast.
+  const steps = Math.max(2, Math.round(scope.w))
+  const span = scopeSpanSec(hz, ROTARY_PAST_SEC)
   const perSlot = ROTARY_PAST_SEC / ROTARY_SLOTS
   room(state.kept, steps + 1)
   const nowX = scope.x + scope.w - 3
   clipped(ctx, scope, () => {
     for (const side of sides) {
       for (let i = 0; i <= steps; i++) {
-        const back = (1 - i / steps) * ROTARY_PAST_SEC
+        const back = (1 - i / steps) * span
         // What it did, where that is known; at rest, what it would do at its speed.
         const then =
           running && !kept.past.empty ? kept.past.at(back / perSlot) : angle - way * hz * back
@@ -1358,7 +1448,7 @@ function drawRotor(
       strokeLine(ctx, state.kept.x, state.kept.y, 0, steps + 1, {
         colour: colours.ink,
         width: side === -1 ? 1.5 : 1,
-        alpha: side === -1 ? 1 : INK.back,
+        alpha: side === -1 ? 1 : INK.rule,
       })
     }
   })
@@ -1394,7 +1484,7 @@ const rotary = plateDisplay<RotaryState>({
   columns: 2,
   params: ['speed', 'hornDepth', 'drumDepth', 'distance', 'spread'],
   live: { meters: true, fps: 60 },
-  info: 'The cabinet from above: the horn, then the drum, each turning at its own speed past the two microphones in front. Beside each is the level its microphones got over the last second and a half, the right one fainter. An arrow shows a rotor on its way to another speed.',
+  info: 'The cabinet from above: the horn, then the drum, each turning at its own speed past the two microphones in front. Beside each is the level its microphones got over the last moments, the right one fainter. An arrow shows a rotor on its way to another speed.',
   init: () => ({
     horn: rotor('horn'),
     drum: rotor('drum'),
@@ -1459,6 +1549,6 @@ export const MODULATION_FACES: Readonly<Record<string, PlateFace>> = {
   rotary: {
     display: rotary,
     face: ['speed', 'hornDepth', 'drumDepth', 'drive'],
-    labels: { hornDepth: 'Horn', drumDepth: 'Drum' },
+    labels: { hornDepth: 'Horn', drumDepth: 'Drum', acceleration: 'Accel' },
   },
 }

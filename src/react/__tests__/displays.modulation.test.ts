@@ -10,9 +10,10 @@ import { CHORUS_PARAMS } from '../../dsp/devices/chorus.gen'
 import { FLANGER_PARAMS } from '../../dsp/devices/flanger.gen'
 import { PHASER_PARAMS } from '../../dsp/devices/phaser.gen'
 import { ROTARY_PARAMS } from '../../dsp/devices/rotary.gen'
+import { TREMOLO_PARAMS } from '../../dsp/devices/tremolo.gen'
 import { loadWasmDevice, type WasmDeviceHarness } from '../../dsp/__tests__/wasm-device-harness'
 import { type ParamSpec } from '../../core/params'
-import { xOfHz, type Box } from '../components/display-kit'
+import { PLAIN_COLOURS, xOfHz, type Box } from '../components/display-kit'
 import {
   MODULATION_FACES,
   chorusSwingMs,
@@ -22,8 +23,11 @@ import {
   mixedDb,
   phaserCoefficient,
   phaserDb,
+  phaserTune,
+  phaserTurn,
   rotaryGain,
   rotarySwing,
+  scopeSpanSec,
   sweepWave,
 } from '../components/displays/modulation'
 import { drawDisplay, runDisplay, type RecordingContext } from './display-harness'
@@ -101,12 +105,49 @@ function dots(drawn: RecordingContext): { x: number; y: number; r: number }[] {
     }))
 }
 
-/** Every point a drawing's lines pass through. */
-function points(drawn: RecordingContext): { x: number; y: number }[] {
-  return drawn.calls
-    .filter((call) => call.name === 'lineTo' || call.name === 'moveTo')
-    .map((call) => ({ x: call.args[0] as number, y: call.args[1] as number }))
+interface Stroke {
+  colour: string
+  alpha: number
+  width: number
+  dashed: boolean
+  points: { x: number; y: number }[]
 }
+
+/** Every line a drawing strokes, with what it was stroked in. */
+function strokes(drawn: RecordingContext): Stroke[] {
+  const all: Stroke[] = []
+  let path: { x: number; y: number }[] = []
+  let colour = ''
+  let alpha = 1
+  let width = 1
+  let dashed = false
+  for (const call of drawn.calls) {
+    if (call.name === 'beginPath') path = []
+    else if (call.name === 'moveTo' || call.name === 'lineTo')
+      path.push({ x: call.args[0] as number, y: call.args[1] as number })
+    else if (call.name === 'set strokeStyle') colour = String(call.args[0])
+    else if (call.name === 'set globalAlpha') alpha = call.args[0] as number
+    else if (call.name === 'set lineWidth') width = call.args[0] as number
+    else if (call.name === 'setLineDash') dashed = (call.args[0] as number[]).length > 0
+    else if (call.name === 'stroke') all.push({ colour, alpha, width, dashed, points: path })
+  }
+  return all
+}
+
+/** Every point the lines in the plate's ink pass through: the curves, and not the marks in the accent. */
+function points(drawn: RecordingContext): { x: number; y: number }[] {
+  return strokes(drawn)
+    .filter((stroke) => stroke.colour === PLAIN_COLOURS.ink)
+    .flatMap((stroke) => stroke.points)
+}
+
+/** A phase as the device reports it while it runs: thirty times a second, whatever the frames do. */
+const reported =
+  (start: number, rate: number, more: (phase: number) => Record<string, number> = () => ({})) =>
+  (time: number): { meters: Record<string, number> } => {
+    const phase = wrap(start + rate * (Math.floor(time * 30 + 1e-9) / 30))
+    return { meters: { phase, ...more(phase) } }
+  }
 
 const chorus = MODULATION_FACES.chorus.display
 const flanger = MODULATION_FACES.flanger.display
@@ -131,6 +172,15 @@ describe('the Chorus display', () => {
     }
     // Full Spread puts the right side a quarter of a cycle on.
     expect(chorusVoiceMs(0, 0, 2, 3, 0.25)).toBeCloseTo(3, 9)
+    // By hand, a tenth of a cycle in (36°), swinging 2.5 ms: the second of
+    // three voices is at sin(156°) = 0.406737, the third at sin(276°) =
+    // −0.994522, and the first on the right at full Spread at sin(126°) = 0.809017.
+    expect(chorusVoiceMs(0.1, 1, 3, 2.5)).toBeCloseTo(1.01684, 4)
+    expect(chorusVoiceMs(0.1, 2, 3, 2.5)).toBeCloseTo(-2.4863, 4)
+    expect(chorusVoiceMs(0.1, 0, 3, 2.5, 0.25)).toBeCloseTo(2.02254, 4)
+    // The limit of 5 ms is reached from 6 ms of Delay on.
+    expect(chorusSwingMs(100, 6)).toBeCloseTo(5, 9)
+    expect(chorusSwingMs(30, 5)).toBeCloseTo(1.2, 9)
   })
 
   it.each([
@@ -220,6 +270,77 @@ describe('the Chorus display', () => {
     const [first] = dots(drawn).filter((dot) => dot.r === 2.5)
     expect(first.y).toBeCloseTo(24 - chorusVoiceMs(0.25 + 2 * (3 / 60), 0, 2, 2.5) * (19 / 5), 4)
   })
+
+  it('settles on the phase the device reports, and not a frame ahead of it', () => {
+    const place = (phase: number): number => 24 - chorusVoiceMs(phase, 0, 2, 2.5) * (19 / 5)
+    const first = (drawn: RecordingContext): number =>
+      dots(drawn).find((dot) => dot.r === 2.5)?.y ?? NaN
+    const values = { voices: 0, spread: 0, rate: 3 }
+    // Sixty frames, thirty readings: the last frame is the one a reading arrives on.
+    const onReading = runDisplay(chorus, CHORUS_PARAMS, 59 / 60, { values }, reported(0.3, 3))
+    expect(first(onReading)).toBeCloseTo(place(0.3 + 3 * (58 / 60)), 5)
+    // The frame after it has the same reading, carried on by one frame of the Rate.
+    const between = runDisplay(chorus, CHORUS_PARAMS, 1, { values }, reported(0.3, 3))
+    expect(first(between)).toBeCloseTo(place(0.3 + 3 * (58 / 60) + 3 / 60), 5)
+    // A frame ahead of the reading it would stand 3 / 60 of a cycle further on: not here.
+    expect(Math.abs(first(onReading) - place(0.3 + 3 * (59 / 60)))).toBeGreaterThan(0.4)
+  })
+
+  it('stands where the device last said when no reading comes any more', () => {
+    // Half a second of one reading: nothing is running the device, and the clock does not carry it on.
+    const drawn = runDisplay(chorus, CHORUS_PARAMS, 0.5, {
+      values: { voices: 0, spread: 0, rate: 3 },
+      meters: { phase: 0.1 },
+    })
+    const [first] = dots(drawn).filter((dot) => dot.r === 2.5)
+    expect(first.y).toBeCloseTo(24 - chorusVoiceMs(0.1, 0, 2, 2.5) * (19 / 5), 6)
+  })
+
+  it('spans two seconds, and four cycles where the Rate is faster than that', () => {
+    expect(scopeSpanSec(0.01)).toBe(2)
+    expect(scopeSpanSec(0.8)).toBe(2)
+    expect(scopeSpanSec(2)).toBe(2)
+    expect(scopeSpanSec(4)).toBe(1)
+    expect(scopeSpanSec(10)).toBeCloseTo(0.4, 9)
+    // The line of a voice: at the left edge of the scope it is the span's share before now back.
+    const nowX = 4 + 146 * 0.7
+    for (const [rate, span] of [
+      [0.8, 2],
+      [10, 0.4],
+    ]) {
+      const drawn = drawDisplay(chorus, CHORUS_PARAMS, {
+        values: { voices: 0, spread: 0, rate },
+        meters: { phase: 0 },
+      })
+      const [past, next] = strokes(drawn).filter((stroke) => stroke.points.length > 10)
+      const at = (seconds: number): number =>
+        24 - chorusVoiceMs(seconds * rate, 0, 2, 2.5) * (19 / 5)
+      expect(past.points[0].x).toBe(4)
+      expect(past.points[0].y).toBeCloseTo(at(-0.7 * span), 4)
+      expect(past.points[past.points.length - 1].x).toBeCloseTo(nowX, 4)
+      expect(past.points[past.points.length - 1].y).toBeCloseTo(at(0), 4)
+      expect(next.dashed).toBe(true)
+      expect(next.points[next.points.length - 1].y).toBeCloseTo(at(0.3 * span), 4)
+      // Never closer than a point a pixel, never fewer than thirty a cycle.
+      const gaps = past.points.slice(1).map((point, i) => point.x - past.points[i].x)
+      expect(Math.min(...gaps)).toBeGreaterThanOrEqual(0.99)
+      expect(Math.max(...gaps) * span * rate).toBeLessThanOrEqual(146 / 30)
+    }
+  })
+
+  it('draws the right side behind and fainter, and only where Spread sets it apart', () => {
+    const lines = (spread: number): Stroke[] =>
+      strokes(
+        drawDisplay(chorus, CHORUS_PARAMS, { values: { spread }, meters: { phase: 0 } }),
+      ).filter((stroke) => stroke.points.length > 10)
+    // Three voices: what each has done and what comes, and nothing else.
+    expect(lines(0).length).toBe(6)
+    // Set apart: three fainter lines of what the right side has done, drawn first.
+    const apart = lines(70)
+    expect(apart.length).toBe(9)
+    expect(apart.slice(0, 3).every((stroke) => stroke.alpha < 0.5 && !stroke.dashed)).toBe(true)
+    expect(apart.slice(3).filter((stroke) => stroke.alpha === 1).length).toBe(3)
+  })
 })
 
 describe('the sweep shapes of the Flanger and the Phaser', () => {
@@ -262,6 +383,16 @@ describe('the Flanger display', () => {
     expect(flangerDb(200, 2.5, 0, 0.25, RATE)).toBeCloseTo(-6.02, 2)
     // Twice the delay, half the frequency.
     expect(flangerDb(100, 5, 0, 0.5, RATE)).toBeLessThan(-60)
+    // By hand, half wet and no feedback: the power is ½ + ½ · cos(2π · f · delay).
+    // 100 Hz through 2.5 ms is a quarter of a turn, half the power; 50 Hz an
+    // eighth, 0.853553 of it.
+    expect(flangerDb(100, 2.5, 0, 0.5, RATE)).toBeCloseTo(-3.0103, 3)
+    expect(flangerDb(50, 2.5, 0, 0.5, RATE)).toBeCloseTo(-0.6877, 3)
+    // And with half the wet fed back, at 100 Hz: the loop is a quarter turn
+    // and one sample (0.01309 rad), so 1 − 0.5 · e^(jψ) is 1.006545 + 0.499957j,
+    // the wet −j over that is −0.395821 − 0.796891j, and half of 1 plus it
+    // is 0.302090 − 0.398446j: a power of 0.250017.
+    expect(flangerDb(100, 2.5, 0.5, 0.5, RATE)).toBeCloseTo(-6.0203, 3)
   })
 
   it('sharpens with feedback, and turns over with its sign', () => {
@@ -337,6 +468,62 @@ describe('the Flanger display', () => {
   it('never reads nearer than two samples', () => {
     expect(flangerDelayMs(0.5, 100, -1, RATE)).toBeCloseTo(2000 / RATE, 9)
     expect(flangerDelayMs(2.5, 50, 1, RATE)).toBeCloseTo(2.5 * 1.475, 9)
+    // By hand: Depth 50 % is 0.475 of the Delay each way, 1.3125 to 3.6875 ms.
+    expect(flangerDelayMs(2.5, 50, -1, RATE)).toBeCloseTo(1.3125, 9)
+    expect(flangerDelayMs(2.5, 50, 1, RATE)).toBeCloseTo(3.6875, 9)
+    // Nor further than the line is long: 2044 samples.
+    expect(flangerDelayMs(10, 100, 1, 96000)).toBeCloseTo(19.5, 9)
+    expect(flangerDelayMs(10, 100, 1, 192000)).toBeCloseTo((2044 * 1000) / 192000, 9)
+  })
+
+  it('shades how far its first notch travels, and marks in the accent where it is now', () => {
+    // 1.3125 to 3.6875 ms: the first notch goes from 380.95 Hz down to 135.59 Hz.
+    const from = xOfHz(500 / 3.6875, PLOT)
+    const to = xOfHz(500 / 1.3125, PLOT)
+    const drawn = runDisplay(flanger, FLANGER_PARAMS, 2 / 30, {
+      values: { stereo: 0 },
+      meters: { phase: 0, left: 2, right: 2 },
+    })
+    const shade = drawn.calls.find(
+      (call) => call.name === 'fillRect' && call.args[1] === PLOT.y && call.args[3] === PLOT.h,
+    )
+    expect(shade?.args[0]).toBeCloseTo(from, 6)
+    expect((shade?.args[0] as number) + (shade?.args[2] as number)).toBeCloseTo(to, 6)
+    const ends = points(drawn).filter((point) => point.y === RAIL - 2.5 || point.y === RAIL + 2.5)
+    const xs = [...new Set(ends.map((point) => point.x))].sort((a, b) => a - b)
+    expect(xs.length).toBe(2)
+    expect(Math.abs(xs[0] - from)).toBeLessThanOrEqual(1)
+    expect(Math.abs(xs[1] - to)).toBeLessThanOrEqual(1)
+    // The one line in the accent: at the notch of the delay the device reads at, 250 Hz at 2 ms.
+    const marks = strokes(drawn).filter((stroke) => stroke.colour === PLAIN_COLOURS.accent)
+    expect(marks.length).toBe(1)
+    expect(marks[0].points).toEqual([
+      { x: expect.closeTo(xOfHz(250, PLOT), 6), y: PLOT.y },
+      { x: expect.closeTo(xOfHz(250, PLOT), 6), y: RAIL },
+    ])
+    // Both sides at one place: one dot on the bar.
+    expect(dots(drawn).filter((dot) => dot.y === RAIL).length).toBe(1)
+  })
+
+  it('settles on the delay the device reports, and stands on it when no reading comes', () => {
+    const at = (phase: number): number => flangerDelayMs(2.5, 50, sweepWave(0, phase), RATE)
+    const now = (drawn: RecordingContext): number =>
+      dots(drawn).find((dot) => dot.r === 2.75)?.x ?? NaN
+    // A reading on every frame, each a thirtieth of a cycle on at Rate 1 Hz: the dot is on the reading.
+    const moving = runDisplay(
+      flanger,
+      FLANGER_PARAMS,
+      1,
+      { values: { rate: 1, stereo: 0 } },
+      reported(0.1, 1, (phase) => ({ left: at(phase), right: at(phase) })),
+    )
+    expect(now(moving)).toBeCloseTo(xOfHz(500 / at(0.1 + 29 / 30), PLOT), 5)
+    // The same reading for half a second: it is not carried on.
+    const standing = runDisplay(flanger, FLANGER_PARAMS, 0.5, {
+      values: { rate: 1, stereo: 0 },
+      meters: { phase: 0.1, left: at(0.1), right: at(0.1) },
+    })
+    expect(now(standing)).toBeCloseTo(xOfHz(500 / at(0.1), PLOT), 6)
   })
 
   it('draws the comb where the delay is: the first notch a third of the way across at 2.5 ms', () => {
@@ -418,6 +605,42 @@ describe('the Phaser display', () => {
     // Clamped at 10 Hz and at 0.45 of the sample rate, as in the device.
     expect(phaserCoefficient(1, RATE)).toBe(phaserCoefficient(10, RATE))
     expect(phaserCoefficient(23000, RATE)).toBe(phaserCoefficient(21600, RATE))
+    // By hand: at a quarter of the sample rate the tangent is 1 and the
+    // coefficient nothing; at 800 Hz it is tan(0.0523599) = 0.0524078, so
+    // (0.0524078 − 1) / (0.0524078 + 1) = −0.900404.
+    expect(phaserCoefficient(12000, RATE)).toBeCloseTo(0, 4)
+    expect(phaserCoefficient(800, RATE)).toBeCloseTo(-0.900404, 5)
+  })
+
+  it('adds up the turns of the stages as the formula of one stage gives them', () => {
+    for (const count of [4, 6, 8, 10, 12]) {
+      for (const spread of [0, 0.3, 1]) {
+        for (const sweep of [100, 800, 5000]) {
+          const stages = new Float32Array(12)
+          phaserTune(stages, count, sweep, spread, RATE)
+          for (const hz of [20, 55, 331, 800, 1931, 5000, 12000, 20000]) {
+            const w = (hz * TWO_PI) / RATE
+            let turn = -count * w
+            for (let s = 0; s < count; s++)
+              turn += 2 * Math.atan2(stages[s] * Math.sin(w), 1 + stages[s] * Math.cos(w))
+            expect(phaserTurn(stages, count, hz, RATE)).toBeCloseTo(turn, 6)
+          }
+        }
+      }
+    }
+    // A stage turns its own frequency a quarter back: four alike a whole turn
+    // there (nothing is cut), six a turn and a half (a notch).
+    const alike = new Float32Array(12)
+    phaserTune(alike, 6, 800, 0, RATE)
+    expect(phaserTurn(alike, 1, 800, RATE)).toBeCloseTo(-Math.PI / 2, 4)
+    expect(phaserTurn(alike, 4, 800, RATE)).toBeCloseTo(-TWO_PI, 4)
+    expect(phaserDb(800, 800, 4, 0, 0, 0.5, RATE)).toBeCloseTo(0, 4)
+    expect(phaserDb(800, 800, 6, 0, 0, 0.5, RATE)).toBeLessThan(-60)
+    // Spread 100 % lays the stages from an octave under the sweep to an octave over it.
+    phaserTune(alike, 4, 800, 1, RATE)
+    expect(alike[0]).toBeCloseTo(phaserCoefficient(400, RATE), 6)
+    expect(alike[3]).toBeCloseTo(phaserCoefficient(1600, RATE), 6)
+    expect(alike[1]).toBeCloseTo(phaserCoefficient(400 * Math.pow(2, 2 / 3), RATE), 6)
   })
 
   it('has a notch for every two stages, where the stages turn the sound half way round', () => {
@@ -534,6 +757,30 @@ describe('the Phaser display', () => {
       xOfHz(swept(0.3 + 2 / 30), PLOT),
       4,
     )
+    // The line in the accent stands on the same place, from the top of the response to the bar.
+    const [mark] = strokes(drawn).filter((stroke) => stroke.colour === PLAIN_COLOURS.accent)
+    expect(mark.points).toEqual([
+      { x: expect.closeTo(xOfHz(1600, PLOT), 6), y: PLOT.y },
+      { x: expect.closeTo(xOfHz(1600, PLOT), 6), y: RAIL },
+    ])
+    // A reading on every frame: the dot is on it and not a frame ahead; none for half a second: it stands.
+    const every = (phase: number) => ({ left: swept(phase), right: swept(phase) })
+    const moving = runDisplay(
+      phaser,
+      PHASER_PARAMS,
+      1,
+      { values: { stereo: 0, shape: 1, rate: 1 } },
+      reported(0.3, 1, every),
+    )
+    expect(dots(moving).find((dot) => dot.r === 2.75)?.x).toBeCloseTo(
+      xOfHz(swept(0.3 + 29 / 30), PLOT),
+      5,
+    )
+    const standing = runDisplay(phaser, PHASER_PARAMS, 0.5, {
+      values: { stereo: 0, shape: 1, rate: 1 },
+      meters: { phase: 0.3, ...every(0.3) },
+    })
+    expect(dots(standing).find((dot) => dot.r === 2.75)?.x).toBeCloseTo(xOfHz(swept(0.3), PLOT), 6)
   })
 
   it('shows the range of the sweep: Depth 100 % is two and a half octaves each way', () => {
@@ -543,6 +790,16 @@ describe('the Phaser display', () => {
     expect(xs.length).toBe(2)
     expect(Math.abs(xs[0] - xOfHz(800 / Math.pow(2, 2.5), PLOT))).toBeLessThanOrEqual(1)
     expect(Math.abs(xs[1] - xOfHz(800 * Math.pow(2, 2.5), PLOT))).toBeLessThanOrEqual(1)
+    // By hand, at the Depth it starts with: 60 % is an octave and a half each way, 282.84 Hz to 2262.74 Hz, shaded.
+    const usual = drawDisplay(phaser, PHASER_PARAMS, { values: { centerHz: 800 } })
+    const shade = usual.calls.find(
+      (call) => call.name === 'fillRect' && call.args[1] === PLOT.y && call.args[3] === PLOT.h,
+    )
+    expect(shade?.args[0]).toBeCloseTo(xOfHz(282.843, PLOT), 3)
+    expect((shade?.args[0] as number) + (shade?.args[2] as number)).toBeCloseTo(
+      xOfHz(2262.742, PLOT),
+      3,
+    )
   })
 })
 
@@ -557,6 +814,16 @@ describe('the Rotary display', () => {
     expect(makeup).toBeCloseTo(1.2109, 3)
     expect(rotaryGain('horn', 0, -1, swing, 0)).toBeCloseTo(makeup, 9)
     expect(rotaryGain('horn', 0.5, -1, swing, 0)).toBeCloseTo(makeup * (1 - swing), 9)
+    // By hand: Horn Depth 1 close up swings 0.75, and the make-up is
+    // 1 / √(0.625² + 0.125 · 0.75²) = 1 / √0.4609375 = 1.472919. Facing the
+    // microphone that, a quarter turn off 0.625 of it, facing away a quarter of it.
+    expect(rotarySwing('horn', 1, 0)).toBe(0.75)
+    expect(rotaryGain('horn', 0, -1, 0.75, 0)).toBeCloseTo(1.472919, 5)
+    expect(rotaryGain('horn', 0.25, -1, 0.75, 0)).toBeCloseTo(0.920574, 5)
+    expect(rotaryGain('horn', 0.5, -1, 0.75, 0)).toBeCloseTo(0.36823, 5)
+    // Drum Depth 1 at full Distance swings 0.25: 1 / √(0.875² + 0.125 · 0.25²) = 1.13707.
+    expect(rotarySwing('drum', 1, 1)).toBeCloseTo(0.25, 9)
+    expect(rotaryGain('drum', 0, 1, 0.25, 0)).toBeCloseTo(1.13707, 5)
     // The make-up keeps the mean power of a whole turn where it was.
     let power = 0
     for (let step = 0; step < 360; step++)
@@ -662,7 +929,7 @@ describe('the Rotary display', () => {
   const turning =
     (horn: number, drum: number) =>
     (time: number): { meters: Record<string, number> } => {
-      const heard = Math.floor(time * 30) / 30
+      const heard = Math.floor(time * 30 + 1e-9) / 30
       return {
         meters: {
           hornAngle: wrap(0.2 + horn * heard),
@@ -689,9 +956,21 @@ describe('the Rotary display', () => {
     const state = rotary.init?.() as Kept
     // Fast: the horn turns 0.22 of a turn between two readings.
     runDisplay(rotary, ROTARY_PARAMS, 2, { values: { speed: 1 }, state }, turning(6.7, 5.8))
+    // The last frame is one after a reading: where the device said, and a frame of turning on.
     const seen = 2 - 1 / 60
-    expect(Math.abs(state.horn.turn - (0.2 + 6.7 * seen))).toBeLessThan(0.3)
-    expect(Math.abs(state.drum.turn - (0.37 - 5.8 * seen))).toBeLessThan(0.3)
+    expect(Math.abs(state.horn.turn - (0.2 + 6.7 * seen))).toBeLessThan(1e-3)
+    expect(Math.abs(state.drum.turn - (0.37 - 5.8 * seen))).toBeLessThan(1e-3)
+    // And on the frame the reading arrives, on the reading itself: not a frame ahead of it.
+    const onReading = rotary.init?.() as Kept
+    runDisplay(
+      rotary,
+      ROTARY_PARAMS,
+      2 - 1 / 60,
+      { values: { speed: 1 }, state: onReading },
+      turning(6.7, 5.8),
+    )
+    expect(Math.abs(onReading.horn.turn - (0.2 + 6.7 * (2 - 2 / 60)))).toBeLessThan(1e-3)
+    expect(Math.abs(onReading.drum.turn - (0.37 - 5.8 * (2 - 2 / 60)))).toBeLessThan(1e-3)
   })
 
   it('marks at each microphone the level the formula gives for where the rotor points', () => {
@@ -701,8 +980,8 @@ describe('the Rotary display', () => {
     const level = (row: 0 | 1, gain: number): number => 4 + row * 48 + 44 - (gain / 1.5) * 42
     // Where a rotor points is where the device last said, carried on to the frame.
     const off = (a: number, b: number): number => Math.abs(wrap(a - b + 0.5) - 0.5)
-    expect(off(state.horn.turn, 0.2 + 0.8 * (1 - 1 / 60))).toBeLessThan(0.04)
-    expect(off(state.drum.turn, 0.37 - 0.67 * (1 - 1 / 60))).toBeLessThan(0.04)
+    expect(off(state.horn.turn, 0.2 + 0.8 * (1 - 1 / 60))).toBeLessThan(1e-3)
+    expect(off(state.drum.turn, 0.37 - 0.67 * (1 - 1 / 60))).toBeLessThan(1e-3)
     const marks = dots(drawn).filter((dot) => dot.r === 2.5)
     expect(marks.length).toBe(2)
     expect(marks[0].y).toBeCloseTo(
@@ -715,6 +994,37 @@ describe('the Rotary display', () => {
     )
     // No rotor is on its way to another speed: no arrow, only the horn and the drum's scoop are filled shapes.
     expect(drawn.calls.filter((call) => call.name === 'closePath').length).toBe(2)
+  })
+
+  it('draws the level over the last moments: a second and a half, or four turns of a fast rotor', () => {
+    expect(scopeSpanSec(0.8, 1.5)).toBe(1.5)
+    expect(scopeSpanSec(0, 1.5)).toBe(1.5)
+    expect(scopeSpanSec(6.7, 1.5)).toBeCloseTo(4 / 6.7, 9)
+    const level = (row: 0 | 1, gain: number): number => 4 + row * 48 + 44 - (gain / 1.5) * 42
+    const lines = (values: Record<string, number>): Stroke[] =>
+      strokes(drawDisplay(rotary, ROTARY_PARAMS, { values })).filter(
+        (stroke) => stroke.points.length > 10,
+      )
+    // At rest the line is what the rotor would do at its speed. One microphone: one line a rotor.
+    const fast = lines({ speed: 1, spread: 0 })
+    expect(fast.length).toBe(2)
+    // Fast, its oldest point is four whole turns back: as high as now.
+    for (const line of fast)
+      expect(line.points[0].y).toBeCloseTo(line.points[line.points.length - 1].y, 3)
+    // Slow, the horn's is 0.8 Hz · 1.5 s = 1.2 turns back and the drum's 0.67 Hz · 1.5 s on from 0.37.
+    const slow = lines({ speed: 0, spread: 0 })
+    const horn = rotarySwing('horn', 0.6, 0.3)
+    const drum = rotarySwing('drum', 0.5, 0.3)
+    expect(slow[0].points[0].y).toBeCloseTo(level(0, rotaryGain('horn', -1.2, -1, horn, 0)), 3)
+    expect(slow[1].points[0].y).toBeCloseTo(
+      level(1, rotaryGain('drum', 0.37 + 0.67 * 1.5, -1, drum, 0)),
+      3,
+    )
+    // A point a pixel, and the right microphone's line behind and fainter where Spread sets it apart.
+    expect(slow[0].points.length).toBeLessThanOrEqual(128)
+    const apart = lines({ speed: 0 })
+    expect(apart.length).toBe(4)
+    expect(apart.map((stroke) => stroke.alpha < 0.5)).toEqual([true, false, true, false])
   })
 
   it('shows a rotor on its way to another speed', () => {
@@ -737,5 +1047,39 @@ describe('the Rotary display', () => {
     // And they point where the device has them, not where carrying on would have taken them.
     expect(state.horn.turn).toBeCloseTo(0.31, 6)
     expect(state.drum.turn).toBeCloseTo(0.62, 6)
+  })
+})
+
+describe('the modulation plates together', () => {
+  it('set no type under 8 px, in any mode and with a point in hand', () => {
+    const drawings: [string, RecordingContext][] = [
+      ...[0, 1, 2, 3].map((mode): [string, RecordingContext] => [
+        `tremolo in mode ${mode}`,
+        drawDisplay(MODULATION_FACES.tremolo.display, TREMOLO_PARAMS, { values: { mode } }),
+      ]),
+      ['chorus', drawDisplay(chorus, CHORUS_PARAMS)],
+      ['flanger', drawDisplay(flanger, FLANGER_PARAMS, { hot: 'delayMs' })],
+      ['phaser', drawDisplay(phaser, PHASER_PARAMS, { hot: 'centerHz' })],
+      ['rotary', drawDisplay(rotary, ROTARY_PARAMS)],
+    ]
+    let words = 0
+    for (const [what, drawn] of drawings) {
+      words += drawn.words().length
+      for (const call of drawn.calls) {
+        if (call.name !== 'set font') continue
+        const size = Number(/(\d+(?:\.\d+)?)px/.exec(String(call.args[0]))?.[1])
+        expect(size, `${what}: "${String(call.args[0])}"`).toBeGreaterThanOrEqual(8)
+      }
+    }
+    // Pan, Harmonic and Vibrato name their two ends, the Chorus its Delay, the points what they are set to, the Rotary its rotors.
+    expect(words).toBe(6 + 1 + 1 + 1 + 2)
+  })
+
+  it('gives every knob of the opened Rotary a word that fits under it', () => {
+    const { labels } = MODULATION_FACES.rotary
+    for (const [name, spec] of Object.entries(ROTARY_PARAMS)) {
+      const words = (labels?.[name] ?? spec.name).split(' ')
+      expect(Math.max(...words.map((word) => word.length)), name).toBeLessThanOrEqual(9)
+    }
   })
 })
