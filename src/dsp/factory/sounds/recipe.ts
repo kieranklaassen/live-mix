@@ -5,7 +5,7 @@
 // `sound({...})` and nothing else.
 
 import { type PatchDevice } from '../../../core/devices/patch'
-import { transposeWords } from '../key'
+import { transposeWords } from '../words'
 import { type FactorySound } from '../types'
 
 /** A factory sound with its patch written out: the patch takes the sound's id, name and description. */
