@@ -375,6 +375,24 @@ describe('ScoreRenderer: incremental edits', () => {
     ).toMatchObject({ ratio: 20, threshold: -20 })
   })
 
+  it('a parameter the device does not have is left out, also one named as something every plain object has', async () => {
+    const { renderer } = await rig()
+    const given = JSON.parse(
+      '{"ratio":3,"nope":1,"constructor":1,"toString":2,"__proto__":3}',
+    ) as Record<string, number>
+    const params = renderer.effectiveParams({
+      id: 'x',
+      deviceId: 'compressor',
+      params: given,
+      bypass: false,
+    })
+    expect(params.ratio).toBe(3)
+    expect(Object.keys(params)).not.toContain('nope')
+    expect(Object.keys(params)).not.toContain('constructor')
+    expect(Object.keys(params)).not.toContain('toString')
+    expect(Object.getPrototypeOf(params)).toBe(Object.prototype)
+  })
+
   it('sends: level ramps in place, direct↔level swaps rewire, removals unwire', async () => {
     const { renderer, edit } = await rig()
     const kick = renderer.audioTrack('kick').strip
@@ -1283,6 +1301,84 @@ describe('ScoreRenderer: lifecycle', () => {
     await expect(previous.render(demoScore())).rejects.toThrow(/disposed/)
     unloadScore(engine)
     expect(scoreRendererOf(engine)).toBeUndefined()
+  })
+
+  describe('disposed while a render runs', () => {
+    /** An engine with the demo samples in, and nothing rendered yet. */
+    async function bare(): Promise<Engine> {
+      const engine = createEngine({
+        context: asAudioContext(createMockContext({ sampleRate: 48000 })),
+        setIntervalFn: () => 0 as unknown as ReturnType<typeof setInterval>,
+        clearIntervalFn: () => {},
+      })
+      const buffer = new MockAudioBuffer(2, 48000 * 10, 48000) as unknown as AudioBuffer
+      await engine.samples.load('a', buffer)
+      await engine.samples.load('b', buffer)
+      return engine
+    }
+    const turns = async (count: number): Promise<void> => {
+      for (let turn = 0; turn < count; turn += 1) await Promise.resolve()
+    }
+    // How far into the first render the renderer goes before it is disposed.
+    const MOMENTS = [0, 1, 2, 3, 4, 5, 6, 8, 10, 12, 16, 24]
+
+    it('builds no further and leaves nothing in the engine', async () => {
+      for (const moment of MOMENTS) {
+        const engine = await bare()
+        const errors: unknown[] = []
+        const renderer = loadScore(engine, new ScoreDocument(demoScore()), {
+          onError: (error) => errors.push(error),
+        })
+        await turns(moment)
+        unloadScore(engine)
+        await renderer.whenIdle()
+        await turns(50)
+        expect(errors, `after ${moment} turns`).toEqual([])
+        expect(engine.tracks, `after ${moment} turns`).toEqual([])
+        expect(engine.groups, `after ${moment} turns`).toEqual([])
+        expect(engine.returnTracks, `after ${moment} turns`).toEqual([])
+        expect(engine.liveInputs, `after ${moment} turns`).toEqual([])
+        expect(engine.master.inserts, `after ${moment} turns`).toEqual([])
+      }
+    })
+
+    it('a score loaded while the one before is still being built is in the engine once', async () => {
+      for (const moment of MOMENTS) {
+        const engine = await bare()
+        const errors: unknown[] = []
+        const onError = (error: unknown): number => errors.push(error)
+        const first = loadScore(engine, new ScoreDocument(demoScore()), { onError })
+        await turns(moment)
+        const second = loadScore(engine, new ScoreDocument(demoScore()), { onError })
+        await first.whenIdle()
+        await second.whenIdle()
+        await turns(50)
+        expect(errors, `after ${moment} turns`).toEqual([])
+        expect(
+          engine.tracks.map((track) => track.name),
+          `after ${moment} turns`,
+        ).toEqual(['kick', 'pad'])
+        expect(engine.groups, `after ${moment} turns`).toHaveLength(1)
+        expect(engine.returnTracks, `after ${moment} turns`).toHaveLength(1)
+        expect(engine.liveInputs, `after ${moment} turns`).toHaveLength(1)
+        expect(engine.master.inserts, `after ${moment} turns`).toEqual([second.device('glue')])
+      }
+    })
+
+    it('the engine going away under a render is no failure of the render', async () => {
+      for (const moment of MOMENTS) {
+        const engine = await bare()
+        const errors: unknown[] = []
+        const renderer = loadScore(engine, new ScoreDocument(demoScore()), {
+          onError: (error) => errors.push(error),
+        })
+        await turns(moment)
+        engine.dispose()
+        await renderer.whenIdle()
+        await turns(50)
+        expect(errors, `after ${moment} turns`).toEqual([])
+      }
+    })
   })
 
   it('disposes the inserts it made when the engine is disposed: no strip does', async () => {

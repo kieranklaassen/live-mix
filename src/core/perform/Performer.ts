@@ -223,9 +223,7 @@ export class Performer {
     this.resolveStrip = options.strip ?? ((track) => engineStrip(this.engine, track))
     this.host = options.host
     this.cueDestination = options.cueDestination
-    this.lastBeats = this.beatsNow()
-    this.lastClock = this.engine.now()
-    this.lastPlaying = this.engine.transport.state === 'playing'
+    this.look()
     this.reportedBeat = Math.ceil(this.lastBeats - BEAT_EPSILON) - 1
     this.unsubscribe.push(
       this.engine.scheduler.onTick((tick) => this.onTick(tick)),
@@ -836,18 +834,23 @@ export class Performer {
       return
     }
     if (tick.reason === 'seek' || this.unsettled) this.relocate()
-    const now = this.beatsNow()
-    this.look(now)
+    const now = this.look()
     this.drawFollow(now)
     this.flush(now)
     this.reportLines(now)
   }
 
-  /** Notes where the timeline stands and what the audio clock reads. */
-  private look(beats: number): void {
-    this.lastBeats = beats
-    this.lastClock = this.engine.now()
+  /**
+   * Notes where the timeline stands and what the audio clock reads, both at
+   * one reading of it (`clock`), and returns the beats. Two readings would
+   * put the note out by what the clock moved between them, and the next look
+   * for a jump would find one that never was.
+   */
+  private look(clock: number = this.engine.now()): number {
+    this.lastBeats = this.beatsNow(clock)
+    this.lastClock = clock
     this.lastPlaying = this.engine.transport.state === 'playing'
+    return this.lastBeats
   }
 
   /**
@@ -858,14 +861,15 @@ export class Performer {
   private relocate(): void {
     this.unsettled = false
     const transport = this.engine.transport
-    const now = this.beatsNow()
+    const clock = this.engine.now()
     // How far the timeline has moved beyond what playing would have moved it.
     const played = this.lastPlaying
-      ? ((this.engine.now() - this.lastClock) * transport.rate) /
-        this.tempo().secondsPerBeatAt(transport.position().positionSec)
+      ? ((clock - this.lastClock) * transport.rate) /
+        this.tempo().secondsPerBeatAt(transport.position(clock).positionSec)
       : 0
-    const jumped = now - this.lastBeats - played
-    this.look(now)
+    const before = this.lastBeats
+    const now = this.look(clock)
+    const jumped = now - before - played
     if (Math.abs(jumped) < JUMP_EPSILON_BEATS) return
     if (this.followAtBeats !== null) this.followAtBeats += jumped
     if (this.queued) {
@@ -923,11 +927,11 @@ export class Performer {
         this.unsettled = true
         break
       case 'start':
-        this.look(this.beatsNow())
+        this.look()
         this.reportedBeat = Math.ceil(this.lastBeats - BEAT_EPSILON) - 1
         break
       case 'pause':
-        this.look(this.beatsNow())
+        this.look()
         break
       case 'rate':
         break

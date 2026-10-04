@@ -1174,8 +1174,10 @@ export class AudioTrack implements StripHost {
     voice.source.playbackRate.setValueAtTime(rate, from)
     // Fading out or stopping at a time it was given: only its pitch follows.
     if (!timing) return
-    // Past its clip's end, in its tail, which is of the clock: the same.
-    if (timing.tailSec > 0 && from >= voice.endTime) return
+    // Past its clip's end: in its tail, which is of the clock, or played out
+    // with its `ended` still to come. The same, and nothing is left to move
+    // (moved, its end would land before `from`, below zero on a young clock).
+    if (from >= voice.endTime) return
 
     // Where the clip's start would have been had it always played at this rate.
     timing.when = from + (timing.when - from) * (timing.rate / rate)

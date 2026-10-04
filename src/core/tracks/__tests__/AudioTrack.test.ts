@@ -2546,6 +2546,25 @@ describe('AudioTrack rate (tape speed)', () => {
     expect(ctx.sources[1].stopCalls.calls).toEqual([[25]])
   })
 
+  it('leaves a voice that has played out as it is: nothing is written at a time before the clock began', () => {
+    for (const loop of [false, true]) {
+      const { ctx, track } = setup()
+      track.setRate(4)
+      // 6 s of clip at four times the speed is over at 1.6 on the clock; its `ended` has not come.
+      const voice = track.play('k', { buffer: buffer(ctx, 10), ...faded, loop }, 0.1)
+      const source = ctx.sources[0]
+      const level = ctx.gains[1].gain
+      const stops = source.stopCalls.calls.length
+      ctx.currentTime = 2
+      level.events.length = 0
+      track.setRate(0.25)
+      // A ramp or a stop below zero is a RangeError in a browser.
+      expect(level.events).toEqual([])
+      expect(source.stopCalls.calls).toHaveLength(stops)
+      expect(voice?.endTime).toBe(1.6)
+    }
+  })
+
   it('refuses a rate that is not a positive number and ignores the one it has', () => {
     const { ctx, track } = setup()
     track.play('k', { buffer: buffer(ctx, 10), ...faded }, 0)

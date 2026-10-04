@@ -211,21 +211,25 @@ export class MidiInput implements ControlInput {
 
   /** Request access and attach to the input ports. Idempotent; rejects when MIDI is unavailable or denied. */
   open(): Promise<void> {
+    if (this.opening) return this.opening
     // `new Promise` turns a synchronous throw from the request into a rejection.
-    this.opening ??= new Promise<MidiAccessLike>((resolve) =>
+    const opening: Promise<void> = new Promise<MidiAccessLike>((resolve) =>
       resolve(this.requestAccess({ sysex: this.sysex })),
     ).then(
       (access) => {
+        // Closed while the request was out: nothing is attached for an answer nobody waits on.
+        if (this.opening !== opening) return
         this.access = access
         this.unfollow = this.follow(access)
         this.refreshPorts()
       },
       (error: unknown) => {
-        this.opening = null
+        if (this.opening === opening) this.opening = null
         throw error
       },
     )
-    return this.opening
+    this.opening = opening
+    return opening
   }
 
   get opened(): boolean {
