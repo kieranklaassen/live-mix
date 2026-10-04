@@ -2147,10 +2147,13 @@
   white-space: normal;
 }
 
+/* Tighter is closer and, past that, narrower, never smaller: the names on a plate are one size. */
 .lm-plate .lm-plate__knob--tight .lm-knob__label {
+  flex: none;
+  width: calc(100% / var(--lm-plate-squeeze, 1));
   padding: 0;
-  font-size: 7px;
   letter-spacing: 0;
+  transform: scaleX(var(--lm-plate-squeeze, 1));
 }
 
 .lm-plate .lm-knob__value {
@@ -2294,30 +2297,43 @@
   box-shadow: -1px 0 0 var(--lm-plate);
 }
 
-/* On a plate with a display the column at the right is the plate's own, and
-   the tools stand at its foot two abreast, under the cell that opens the
-   rest: over no knob and no part of the display, however many there are. */
-.lm-plate--display .lm-plate__tools--above {
+/* On a plate with a display, and on a plain plate (two rows of knobs and no
+   picture), the column at the right is the plate's own, and the tools stand
+   at its foot two abreast, under the cell that opens the rest: over no knob,
+   no knob's name and no part of the display, however many there are. Only
+   over a picture do they stay in their row, where there is nothing to cover. */
+:is(.lm-plate--display, .lm-plate--plain) .lm-plate__tools--above {
   right: calc((44px - 2 * var(--lm-plate-tool, 16px) - 1px) / 2);
   grid-template-columns: repeat(2, var(--lm-plate-tool, 16px));
   gap: 1px;
 }
 
-.lm-plate--display:hover .lm-plate__tools--above,
-.lm-plate--display:focus-within .lm-plate__tools--above,
-.lm-plate--display.lm-plate--open .lm-plate__tools--above,
-.lm-plate--display.lm-plate--held .lm-plate__tools--above {
+:is(.lm-plate--display, .lm-plate--plain):hover .lm-plate__tools--above,
+:is(.lm-plate--display, .lm-plate--plain):focus-within .lm-plate__tools--above,
+:is(.lm-plate--display, .lm-plate--plain).lm-plate--open .lm-plate__tools--above,
+:is(.lm-plate--display, .lm-plate--plain).lm-plate--held .lm-plate__tools--above {
   display: grid;
 }
 
-.lm-plate--display .lm-plate__tools--above > * + * {
+:is(.lm-plate--display, .lm-plate--plain) .lm-plate__tools--above > * + * {
   box-shadow: none;
 }
 
-.lm-plate--display .lm-plate__tools--above .lm-button {
+:is(.lm-plate--display, .lm-plate--plain) .lm-plate__tools--above .lm-button {
   width: var(--lm-plate-tool, 16px);
   min-width: 0;
   padding: 0;
+}
+
+/* A plate with a window of its own has two cells in that column. They stand
+   closer, so three rows of tools fit under them. */
+.lm-plate--editor .lm-plate__more {
+  top: 8px;
+  height: 17px;
+}
+
+.lm-plate--editor .lm-plate__more--second {
+  top: 27px;
 }
 
 .lm-plate__tools .lm-button,

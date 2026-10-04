@@ -53,10 +53,27 @@ class TapeEcho : public kit::DeviceBase<tape_echo::kNumParams> {
     // The longest silent gap is the longest delay plus the motor lag.
     idle_.reset(sr, kParamMax[kTime] * 0.001f + 0.5f);
     for (int id = 0; id < kNumParams; ++id) apply(id);
+    time_seen_ = time_.value;
+    time_step_ = 0.0f;
+    wobble_seen_ = 0.0f;
+    wobble_step_ = 0.0f;
   }
 
   void set_param(int id, float value) {
     if (store_param(id, value)) apply(id);
+  }
+
+  // The readings named by "meters" in device.json, for a display to draw:
+  // 0, where the Time head stands now in milliseconds (the knob's time while
+  // the motor is still catching up with it; asleep, where it will stand);
+  // 1, the tape's speed past the heads against a steady transport (1 is
+  // steady, above it the repeats play sharp): one less the rate at which the
+  // read point moves away, from the motor's glide and the wow and flutter.
+  float meter(int index) const {
+    const float sr = sample_rate();
+    if (index == 0) return (idle_.asleep() ? time_.target : time_seen_) * 1000.0f / sr;
+    if (index == 1) return idle_.asleep() ? 1.0f : 1.0f - (time_step_ + wobble_step_ * sr);
+    return 0.0f;
   }
 
   void process(int frames) {
@@ -66,6 +83,11 @@ class TapeEcho : public kit::DeviceBase<tape_echo::kNumParams> {
       silence_output(frames);
       return;
     }
+    // The last two read points of the block, kept for meter(): the motor's
+    // part in samples and the wobble in seconds, apart, because their sum is
+    // too coarse a float to take a small difference of.
+    float time_was = time_seen_, time_is = time_seen_;
+    float wobble_was = wobble_seen_, wobble_is = wobble_seen_;
     const float max_delay = kit::DelayLine<kTapeSize>::max_delay() - 8.0f;
     for (int i = 0; i < frames; ++i) {
       float in[2];
@@ -83,6 +105,10 @@ class TapeEcho : public kit::DeviceBase<tape_echo::kNumParams> {
                            flutter_.next() * kFlutterSeconds *
                                (0.7f * flutter_lfo_.next(kit::Lfo::kSine) + 0.3f * flutter_drift_.next());
       const float base = time_.next() + wobble * sample_rate();
+      time_was = time_is;
+      time_is = time_.value;
+      wobble_was = wobble_is;
+      wobble_is = wobble;
 
       float echo[2] = {0.0f, 0.0f};
       for (int h = 0; h < kNumHeads; ++h) {
@@ -111,6 +137,10 @@ class TapeEcho : public kit::DeviceBase<tape_echo::kNumParams> {
       out_left_[i] = in[0] * dry_gain + echo[0] * wet_gain;
       out_right_[i] = in[1] * dry_gain + echo[1] * wet_gain;
     }
+    time_seen_ = time_is;
+    time_step_ = time_is - time_was;
+    wobble_seen_ = wobble_is;
+    wobble_step_ = wobble_is - wobble_was;
     idle_.settle(output_peak(frames), frames);
   }
 
@@ -177,6 +207,11 @@ class TapeEcho : public kit::DeviceBase<tape_echo::kNumParams> {
   kit::Lfo flutter_lfo_;
   kit::ControlClock filter_clock_;
   kit::IdleGate idle_;
+  // For meter() only: never read by the sound.
+  float time_seen_ = 0.0f;
+  float time_step_ = 0.0f;
+  float wobble_seen_ = 0.0f;
+  float wobble_step_ = 0.0f;
 };
 
 }  // namespace livemix

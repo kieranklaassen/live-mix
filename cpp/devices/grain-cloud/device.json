@@ -6,6 +6,13 @@
   "class": "GrainCloud",
   "header": "grain_cloud.h",
   "sources": [],
+  "meters": [
+    { "key": "grains", "name": "Grains started", "display": true },
+    { "key": "place", "name": "Newest grain place", "display": true },
+    { "key": "rate", "name": "Newest grain speed", "display": true },
+    { "key": "pan", "name": "Newest grain pan", "display": true },
+    { "key": "level", "name": "Record level", "display": true }
+  ],
   "memoryMb": 10,
   "params": [
     {

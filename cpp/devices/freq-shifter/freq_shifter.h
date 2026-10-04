@@ -63,6 +63,21 @@ class FreqShifter : public kit::DeviceBase<freq_shifter::kNumParams> {
     if (store_param(id, value)) apply(id);
   }
 
+  // The readings named by "meters" in device.json, for a display to draw:
+  // the shift as it is now, LFO included (Hz), and where the carrier is in
+  // its cycle (0..1), which turns once for every beat against the dry sound.
+  float meter(int index) const {
+    switch (index) {
+      case 0:
+        return shift_.value +
+               lfo_depth_.value * kLfoRangeHz * kit::SineTable::lookup(static_cast<float>(lfo_phase_));
+      case 1:
+        return static_cast<float>(carrier_phase_);
+      default:
+        return 0.0f;
+    }
+  }
+
   void process(int frames) {
     using namespace freq_shifter;
     frames = begin_block(frames);

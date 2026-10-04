@@ -6,6 +6,42 @@
   "class": "Lattice",
   "header": "lattice.h",
   "sources": [],
+  "meters": [
+    {
+      "key": "note",
+      "name": "Tracked note",
+      "display": true
+    },
+    {
+      "key": "voiced",
+      "name": "Pitched input",
+      "display": true
+    },
+    {
+      "key": "shift1",
+      "name": "Voice 1 shift",
+      "unit": "ct",
+      "display": true
+    },
+    {
+      "key": "shift2",
+      "name": "Voice 2 shift",
+      "unit": "ct",
+      "display": true
+    },
+    {
+      "key": "shift3",
+      "name": "Voice 3 shift",
+      "unit": "ct",
+      "display": true
+    },
+    {
+      "key": "shift4",
+      "name": "Voice 4 shift",
+      "unit": "ct",
+      "display": true
+    }
+  ],
   "params": [
     {
       "key": "root",

@@ -126,6 +126,30 @@ class Tape : public kit::DeviceBase<tape::kNumParams> {
     if (store_param(id, value)) apply(id);
   }
 
+  // The readings named by "meters" in device.json, for a display to draw:
+  // the pitch the wow has it at now (per cent off true), where the flutter
+  // is in its cycle (0..1) and how far it bends the pitch at its peaks (per
+  // cent), how many dropouts there have been (wraps at 2^20) and how deep
+  // the latest is (0..1), and how far the hiss is up (0..1).
+  float meter(int index) const {
+    switch (index) {
+      case 0:
+        return -100.0f * wow_rate_;
+      case 1:
+        return flutter_phase_;
+      case 2:
+        return 100.0f * flutter_depth_.value * flutter_scale_ * kit::kTwoPi * kFlutterHz[speed_];
+      case 3:
+        return static_cast<float>(drop_count_ & 0xFFFFF);
+      case 4:
+        return drop_depth_;
+      case 5:
+        return hiss_gate_;
+      default:
+        return 0.0f;
+    }
+  }
+
   void process(int frames) {
     using namespace tape;
     frames = begin_block(frames);
@@ -337,9 +361,14 @@ class Tape : public kit::DeviceBase<tape::kNumParams> {
     const float flutter_scale =
         (1.0f + kFlutterDepthWander * flutter_depth_wander_.next(kControlPeriod)) /
         (1.0f + kFlutterDepthWander);
+    const float wow = wow_depth_.next() * wow_drift_.next(kControlPeriod);
     const float wobble =
-        wow_depth_.next() * wow_drift_.next(kControlPeriod) +
-        flutter_depth_.next() * flutter_scale * kit::SineTable::lookup(flutter_phase_);
+        wow + flutter_depth_.next() * flutter_scale * kit::SineTable::lookup(flutter_phase_);
+    // For the display: how fast the wow moves the read point, and the
+    // flutter's depth as it wanders.
+    wow_rate_ = snap ? 0.0f : (wow - wow_seen_) / dt;
+    wow_seen_ = wow;
+    flutter_scale_ = flutter_scale;
     if (snap) wobble_ = wobble;
     wobble_step_ = (wobble - wobble_) * (1.0f / kControlPeriod);
 
@@ -386,6 +415,7 @@ class Tape : public kit::DeviceBase<tape::kNumParams> {
       drop_depth_ = (0.25f + 0.65f * age) * (0.4f + 0.6f * size);
       drop_length_ = static_cast<int>((0.02f + (0.04f + 0.14f * age) * length) * sr);
       drop_left_ = drop_length_;
+      ++drop_count_;
       // Each channel takes at least half of it: the tape lifts at one edge.
       drop_weight_[0] = 0.5f + 0.5f * left;
       drop_weight_[1] = 0.5f + 0.5f * right;
@@ -450,6 +480,11 @@ class Tape : public kit::DeviceBase<tape::kNumParams> {
   long quiet_ = 1;
   int speed_ = 1;
   bool started_ = false;
+  // Kept for the display's readings only.
+  float wow_seen_ = 0.0f;
+  float wow_rate_ = 0.0f;
+  float flutter_scale_ = 1.0f;
+  int drop_count_ = 0;
 };
 
 }  // namespace livemix

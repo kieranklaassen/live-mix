@@ -6,6 +6,11 @@
   "class": "NoiseFloor",
   "header": "noise_floor.h",
   "sources": [],
+  "meters": [
+    { "key": "gain", "name": "Noise gain", "display": true },
+    { "key": "ticks", "name": "Ticks so far", "display": true },
+    { "key": "pops", "name": "Pops so far", "display": true }
+  ],
   "params": [
     {
       "key": "type",

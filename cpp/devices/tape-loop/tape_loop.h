@@ -81,6 +81,37 @@ class TapeLoop : public kit::DeviceBase<tape_loop::kNumParams> {
     if (store_param(id, value)) apply(id);
   }
 
+  // The readings named by "meters" in device.json, for a display to draw:
+  // the level the record head has just written (the highest sample of the
+  // last 40 ms of tape, 0 while asleep, when the tape is blank), how far
+  // behind the record head the play head is as a share of the loop, the
+  // distance between the decks in seconds as it glides, the play head's speed
+  // as the motor has it (1 forwards, negative backwards), and how long the
+  // tape has run, in seconds, going round at 64: it moves on with every block
+  // the device works, so a display can tell a tape that runs from one that
+  // stands, and it is -1 while asleep. All of it is worked out here, when a
+  // display asks: nothing is kept for it while the sound is made.
+  float meter(int index) const {
+    switch (index) {
+      case 0:
+        return asleep_ ? 0.0f : ring_.peak(static_cast<int>(kLevelSeconds * sample_rate()));
+      case 1:
+        return static_cast<float>(phase_);
+      case 2:
+        return static_cast<float>(length_ / sample_rate());
+      case 3:
+        return velocity_.value;
+      case 4: {
+        if (asleep_) return -1.0f;
+        const double lap = static_cast<double>(kClockSeconds) * sample_rate();
+        const double frames = ring_.written();
+        return static_cast<float>((frames - lap * std::floor(frames / lap)) / sample_rate());
+      }
+      default:
+        return 0.0f;
+    }
+  }
+
   void process(int frames) {
     using namespace tape_loop;
     frames = begin_block(frames);
@@ -213,6 +244,11 @@ class TapeLoop : public kit::DeviceBase<tape_loop::kNumParams> {
   static constexpr float kDrive = 1.5f;
   static constexpr float kSpeeds[3] = {0.5f, 1.0f, 2.0f};
   static constexpr int kControlPeriod = 16;
+  // For a display (see meter): how much of the newest tape its level is taken
+  // from, a little more than the time between two readings, and where its
+  // clock goes round.
+  static constexpr float kLevelSeconds = 0.04f;
+  static constexpr float kClockSeconds = 64.0f;
 
   // A slow modulator worked out on the control clock and joined by straight
   // lines: these move at 7 Hz at most, and a sine per sample is not free.

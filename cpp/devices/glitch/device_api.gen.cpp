@@ -28,4 +28,6 @@ int device_max_block_frames(void) { return livemix::Glitch::kMaxBlockFrames; }
 
 void device_process(int frames) { g_device.process(frames); }
 
+float device_meter(int index) { return g_device.meter(index); }
+
 }  // extern "C"

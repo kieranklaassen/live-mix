@@ -57,6 +57,40 @@ function slowTick(): void {
   for (const runner of mounted) runner.look()
 }
 
+/** A level under this, in and out, is silence: 80 dB under full scale. */
+const QUIET = 1e-4
+/** How long a display runs on in silence before it stands still, unless it says (`live.settle`). */
+const SETTLE_SEC = 8
+/** How often a display that stands still in silence listens for sound, in ms. */
+const LISTEN_MS = 200
+
+// Displays standing still in silence. They ask for no frames and no readings;
+// a timer listens at their taps, and the first sound sets them running again.
+const settled = new Set<DisplayRunner>()
+let listenTimer: ReturnType<typeof setInterval> | null = null
+
+function listenTick(): void {
+  for (const runner of [...settled]) runner.listen()
+}
+
+function settle(runner: DisplayRunner): void {
+  settled.add(runner)
+  listenTimer ??= setInterval(listenTick, LISTEN_MS)
+}
+
+function unsettle(runner: DisplayRunner): void {
+  if (!settled.delete(runner)) return
+  if (settled.size === 0 && listenTimer !== null) {
+    clearInterval(listenTimer)
+    listenTimer = null
+  }
+}
+
+/** How many displays stand still in silence now; for a test or a measurement. */
+export function settledDisplays(): number {
+  return settled.size
+}
+
 export class DisplayRunner {
   private readonly ctx: CanvasRenderingContext2D | null
   private readonly observer: IntersectionObserver | null = null
@@ -72,6 +106,14 @@ export class DisplayRunner {
   private pixelRatio = 0
   private lastMs: number | null = null
   private drawnMs = Number.NEGATIVE_INFINITY
+  /** How long there has been no sound at the device, in seconds, while it runs. */
+  private quietSec = 0
+  private drawnFrom:
+    | (Pick<DisplayInputs, 'display' | 'device' | 'source' | 'width' | 'height' | 'powered'> & {
+        visible: boolean
+        values: Readonly<Record<string, number>>
+      })
+    | null = null
   private disposed = false
   hot: string | null = null
   dragging = false
@@ -104,29 +146,39 @@ export class DisplayRunner {
     }
   }
 
-  /** After anything changed (a knob, the power, the size): run or stand still, and draw. */
-  sync(): void {
+  /**
+   * After anything changed (a knob, the power, the size): run or stand still,
+   * and draw. The layer calls it on every render; a display standing still in
+   * silence stays so unless something it draws from did change, or `stir` says
+   * to run (sound again, a point under the pointer, new colours).
+   */
+  sync(stir = false): void {
     if (this.disposed || !this.ctx) return
     const { display, device, powered, source, frames, context } = this.inputs()
-    this.fit()
+    const changed = this.changed()
     const run = Boolean(display.live) && this.visible && powered
+    if (run && settled.has(this) && !changed && !stir) return
+    this.fit()
     if (run) {
       const live = display.live ?? {}
+      // It runs again for a while, and stands still again if the silence goes on.
+      unsettle(this)
+      if (changed || stir) this.quietSec = 0
       if (live.meters && !this.unwatch && isMeteredDevice(device)) {
         this.unwatch = device.watchMeters()
       }
-      if (live.signal || live.spectrum || live.stereo) {
-        const output = device.output
-        if (this.tapsFor?.source !== source || this.tapsFor?.output !== output) {
-          this.taps?.release()
-          this.taps = DisplayTaps.open(
-            source,
-            output,
-            { spectrum: live.spectrum, stereo: live.stereo },
-            context,
-          )
-          this.tapsFor = { source, output }
-        }
+      // Every running display is tapped, whatever it reads: the taps say when
+      // there is no sound, and then it need not run.
+      const output = device.output
+      if (this.tapsFor?.source !== source || this.tapsFor?.output !== output) {
+        this.taps?.release()
+        this.taps = DisplayTaps.open(
+          source,
+          output,
+          { spectrum: live.spectrum, stereo: live.stereo },
+          context,
+        )
+        this.tapsFor = { source, output }
       }
       if (!this.stop) {
         this.lastMs = null
@@ -146,7 +198,7 @@ export class DisplayRunner {
     const before = this.colourKey
     this.readColours()
     const ratio = typeof devicePixelRatio === 'number' ? devicePixelRatio : 1
-    if (!this.stop && (before !== this.colourKey || ratio !== this.pixelRatio)) this.sync()
+    if (!this.stop && (before !== this.colourKey || ratio !== this.pixelRatio)) this.sync(true)
   }
 
   dispose(): void {
@@ -186,10 +238,49 @@ export class DisplayRunner {
     if (hot === this.hot && dragging === this.dragging) return
     this.hot = hot
     this.dragging = dragging
-    if (!this.stop) this.sync()
+    if (!this.stop) this.sync(true)
+  }
+
+  /** In silence: sound again sets it running. */
+  listen(): void {
+    if (this.disposed || !settled.has(this)) return
+    if (this.taps?.heard(QUIET)) this.sync(true)
+  }
+
+  /** Whether what it draws from is other than at the last call: the settings, the size, the device, the power. */
+  private changed(): boolean {
+    const { display, device, source, width, height, powered, values } = this.inputs()
+    const before = this.drawnFrom
+    const same =
+      before !== null &&
+      before.display === display &&
+      before.device === device &&
+      before.source === source &&
+      before.width === width &&
+      before.height === height &&
+      before.powered === powered &&
+      before.visible === this.visible &&
+      display.params.every((name) => before.values[name] === values[name])
+    if (!same) {
+      // A copy of what it reads: the settings may be one object that changes in place.
+      const read: Record<string, number> = {}
+      for (const name of display.params) read[name] = values[name]
+      this.drawnFrom = {
+        display,
+        device,
+        source,
+        width,
+        height,
+        powered,
+        visible: this.visible,
+        values: read,
+      }
+    }
+    return !same
   }
 
   private rest(): void {
+    unsettle(this)
     this.stop?.()
     this.stop = null
     this.unwatch?.()
@@ -248,7 +339,29 @@ export class DisplayRunner {
     if (this.colourKey === '') this.readColours()
     const dt = this.lastMs === null ? 0 : Math.min(0.25, (nowMs - this.lastMs) / 1000)
     this.lastMs = nowMs
-    this.draw(nowMs, dt, this.taps ? this.taps.read() : null)
+    const live = display.live ?? {}
+    const reads = live.signal === true || live.spectrum === true || live.stereo === true
+    const signal = this.taps && reads ? this.taps.read() : null
+    this.draw(nowMs, dt, signal)
+    // Without taps nothing says there is silence, and it runs on.
+    const heard = signal
+      ? signal.output.peak > QUIET || (signal.input?.peak ?? 0) > QUIET
+      : (this.taps?.heard(QUIET) ?? true)
+    this.quietSec = heard ? 0 : this.quietSec + dt
+    if (this.quietSec >= (live.settle ?? SETTLE_SEC)) this.settle()
+  }
+
+  /**
+   * Nothing has sounded for a while: what was drawn stays, and the display
+   * asks for no more frames and no more readings until there is sound again
+   * or something of its own changes. The taps stay, to listen with.
+   */
+  private settle(): void {
+    this.stop?.()
+    this.stop = null
+    this.unwatch?.()
+    this.unwatch = null
+    settle(this)
   }
 
   private draw(nowMs: number, dt: number, signal: DisplaySignal | null): void {

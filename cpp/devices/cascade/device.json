@@ -6,6 +6,14 @@
   "class": "Cascade",
   "header": "cascade.h",
   "sources": [],
+  "meters": [
+    { "key": "slices", "name": "Slices captured", "display": true },
+    { "key": "length", "name": "Newest slice length", "display": true },
+    { "key": "period", "name": "Newest slice pulse", "display": true },
+    { "key": "delay", "name": "Wait before the replays", "display": true },
+    { "key": "step", "name": "Steps position", "display": true },
+    { "key": "slot", "name": "Time into the slot", "display": true }
+  ],
   "memoryMb": 16,
   "params": [
     {

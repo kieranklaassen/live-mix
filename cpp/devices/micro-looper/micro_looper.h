@@ -98,6 +98,54 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
     if (store_param(id, value)) apply(id);
   }
 
+  // The readings named by "meters" in device.json, for a display to draw.
+  // Of the loop that is playing: where its playhead is as a share of the
+  // loop, how many loops a second it moves (negative backwards), what is
+  // left of its level (Fade, and the fade between two loops), the level of
+  // the tape the playhead has just been over (the highest sample of the
+  // 40 ms it last played) and how many seconds ago it was taken, which is
+  // never 0. With no loop those are 0, but for the last: that is then less
+  // than 0, and under the minus sign how long the memory has run, from 1 to
+  // 65 and round again. So awake it moves on with every block the device
+  // works, loop or none, and a display can tell a looper that runs from one
+  // that stands. Then the seconds until the loop being played in is taken.
+  // All 0 while asleep. The level is worked out here, when a display asks:
+  // nothing is kept for it while the sound is made.
+  float meter(int index) const {
+    if (asleep_) return 0.0f;
+    if (index == 5) return static_cast<float>(wait_) / sample_rate();
+    const Deck& d = decks_[current_];
+    if (!d.active) {
+      if (index != 4) return 0.0f;
+      const long long lap = static_cast<long long>(kClockSeconds * sample_rate());
+      return -1.0f - static_cast<float>(static_cast<double>(ring_.written() % lap) / sample_rate());
+    }
+    switch (index) {
+      case 0:
+        return static_cast<float>(d.place / d.length);
+      case 1:
+        return static_cast<float>(last_step_ * sample_rate() / d.length);
+      case 2:
+        return d.gain * d.env;
+      case 3: {
+        // Forwards the playhead has come from below its place, backwards from above.
+        const double speed = last_step_ < 0.0f ? -last_step_ : last_step_;
+        const double span = kit::max(1.0f, static_cast<float>(speed * kHeardSeconds * sample_rate()));
+        double from = last_step_ < 0.0f ? d.place : d.place - span;
+        double to = from + span;
+        if (from < 0.0) from = 0.0;
+        if (to > d.length) to = d.length;
+        const long long first = static_cast<long long>(d.start + from);
+        const long long count = static_cast<long long>(to - from) + 1;
+        return d.stored ? store_.peak(first, count) : ring_.peak(first, count);
+      }
+      case 4:
+        return static_cast<float>(static_cast<double>(ring_.written() - d.end + 1) / d.rate);
+      default:
+        return 0.0f;
+    }
+  }
+
   void process(int frames) {
     frames = begin_block(frames);
     const bool excited = input_present(frames);
@@ -222,6 +270,11 @@ class MicroLooper : public kit::DeviceBase<micro_looper::kNumParams> {
   static constexpr float kGrainGrowSeconds = 0.28f;
   static constexpr float kScatterSeconds = 0.02f;
   static constexpr float kScatterGrowSeconds = 0.28f;
+  // For a display (see meter): how much of the loop behind the playhead its
+  // level is taken from, a little more than the time between two readings,
+  // and where the clock it is given with no loop goes round.
+  static constexpr float kHeardSeconds = 0.04f;
+  static constexpr float kClockSeconds = 64.0f;
 
   // A slow modulator worked out on the control clock and joined by lines.
   struct Line {
