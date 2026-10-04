@@ -58,8 +58,31 @@ export function capInset(x: number, width: number, height: number): number {
 /** The gain of a whole fade: what `fadeEase` gives everywhere past its end. */
 const FULL_EASE = fadeEase(1)
 
+// What a stroke is worked out in, kept from one stroke to the next: its
+// columns, their averages, and the pieces of the path being written. A stroke
+// is worked out in one go and nothing else runs meanwhile. Made anew for each
+// stroke, the columns are memory outside the heap that the page has to account
+// for and free, and a path put together piece by piece stays a chain of
+// thousands of pieces until the page reads it: a zoom step of a field of
+// strokes left the browser three times the memory to collect.
+let AMPS = new Float64Array(1024)
+let SMOOTH = new Float64Array(1024)
+const PIECES: string[] = []
+
+/** Room for `count` columns in a kept array: the same one while it is long enough. */
+function roomFor(kept: Float64Array, count: number): Float64Array {
+  return kept.length >= count ? kept : new Float64Array(Math.max(count, kept.length * 2))
+}
+
+/** The first `count` pieces as one text, flat: what `Array.prototype.join` makes. */
+function joined(count: number): string {
+  PIECES.length = count
+  return PIECES.join('')
+}
+
 /**
- * The half-heights of a stroke's columns, left to right. Column `c` stands at
+ * The half-heights of a stroke's columns, left to right, written to `AMPS`;
+ * answers with how many there are. Column `c` stands at
  * `c * STROKE_COLUMN_PX + STROKE_COLUMN_PX / 2`. Every figure is worked out
  * with the same operations in the same order as it always was, so the result
  * is the same to the last bit; what is left out is work whose result is known.
@@ -74,7 +97,7 @@ function columnAmps({
   gain = 1,
   reversed = false,
   normalize = true,
-}: StrokeLevelsOptions): Float64Array {
+}: StrokeLevelsOptions): number {
   const columns = Math.max(0, Math.floor(width / STROKE_COLUMN_PX))
   const radius = height / 2
   const room = Math.max(0, radius - STROKE_INSET_PX)
@@ -93,8 +116,9 @@ function columnAmps({
   const straight = Math.max(0, room - 0)
   const rises = fadeIn > 0
   const falls = fadeOut > 0
-  const amps = new Float64Array(columns)
-  for (let column = 0; column < amps.length; column += 1) {
+  AMPS = roomFor(AMPS, columns)
+  const amps = AMPS
+  for (let column = 0; column < columns; column += 1) {
     const x = column * STROKE_COLUMN_PX + STROKE_COLUMN_PX / 2
     const t = x / width
     let value = 0
@@ -117,15 +141,15 @@ function columnAmps({
     }
     amps[column] = Math.max(0.5, Math.min(limit, amp * room))
   }
-  return amps
+  return columns
 }
 
 /** The waveform columns of a stroke, left to right. */
 export function strokeLevels(options: StrokeLevelsOptions): StrokeLevel[] {
-  const amps = columnAmps(options)
+  const count = columnAmps(options)
   const levels: StrokeLevel[] = []
-  for (let column = 0; column < amps.length; column += 1) {
-    levels.push([column * STROKE_COLUMN_PX + STROKE_COLUMN_PX / 2, amps[column]])
+  for (let column = 0; column < count; column += 1) {
+    levels.push([column * STROKE_COLUMN_PX + STROKE_COLUMN_PX / 2, AMPS[column]])
   }
   return levels
 }
@@ -165,33 +189,37 @@ function fixed(value: number): string {
 
 /** One vertical bar per column: the fine detail drawn over the filled shape. */
 export function levelsBarsPath(levels: readonly StrokeLevel[], mid: number): string {
-  let path = ''
+  let pieces = 0
   for (let index = 0; index < levels.length; index += 1) {
     const level = levels[index]
     // A hole in the array is no bar.
     if (level === undefined && !(index in levels)) continue
-    path += `M${level[0]} ${fixed(mid - level[1])}V${fixed(mid + level[1])}`
+    PIECES[pieces++] = `M${level[0]} `
+    PIECES[pieces++] = fixed(mid - level[1])
+    PIECES[pieces++] = 'V'
+    PIECES[pieces++] = fixed(mid + level[1])
   }
-  return path
+  return joined(pieces)
 }
 
 /**
- * The outline of columns given as flat arrays: `moves[c]` is the `L{x} ` that
- * leads to column `c`, shared by the upper and the lower edge.
+ * The outline of the first `count` columns of `AMPS`: `moves[c]` is the
+ * `L{x} ` that leads to column `c`, shared by the upper and the lower edge.
  */
 function outlinePath(
   moves: readonly string[],
-  amps: Float64Array,
+  count: number,
   mid: number,
   width: number,
   scale: number,
   window: number,
 ): string {
-  const count = amps.length
   if (count === 0) return ''
   // Only a whole window reaches a neighbour; any other averages nothing.
   const reach = Number.isInteger(window) && window >= 0 ? window : -1
-  const smooth = new Float64Array(count)
+  const amps = AMPS
+  SMOOTH = roomFor(SMOOTH, count)
+  const smooth = SMOOTH
   for (let index = 0; index < count; index += 1) {
     const first = Math.max(0, index - reach)
     const last = Math.min(count - 1, index + reach)
@@ -201,15 +229,21 @@ function outlinePath(
     const samples = last >= first ? last - first + 1 : 0
     smooth[index] = Math.min(mid, (total / samples) * scale)
   }
-  let path = `M0 ${mid}`
+  // Each piece is a text that is kept (a column's move, a figure in tenths) or
+  // one of the three made here: nothing is made per column but the path.
+  let pieces = 0
+  PIECES[pieces++] = `M0 ${mid}`
   for (let index = 0; index < count; index += 1) {
-    path += moves[index] + fixed(mid - smooth[index])
+    PIECES[pieces++] = moves[index]
+    PIECES[pieces++] = fixed(mid - smooth[index])
   }
-  path += `L${width} ${mid}`
+  PIECES[pieces++] = `L${width} ${mid}`
   for (let index = count - 1; index >= 0; index -= 1) {
-    path += moves[index] + fixed(mid + smooth[index])
+    PIECES[pieces++] = moves[index]
+    PIECES[pieces++] = fixed(mid + smooth[index])
   }
-  return `${path}Z`
+  PIECES[pieces++] = 'Z'
+  return joined(pieces)
 }
 
 /**
@@ -225,13 +259,13 @@ export function levelsOutlinePath(
 ): string {
   const count = levels.length
   const moves: string[] = []
-  const amps = new Float64Array(count)
+  AMPS = roomFor(AMPS, count)
   for (let index = 0; index < count; index += 1) {
     const level = levels[index]
     moves.push(`L${level[0]} `)
-    amps[index] = level[1]
+    AMPS[index] = level[1]
   }
-  return outlinePath(moves, amps, mid, width, scale, window)
+  return outlinePath(moves, count, mid, width, scale, window)
 }
 
 /** How much taller than the wave its halo is drawn. */
@@ -241,14 +275,17 @@ const HALO_SCALE = 1.4
 const MOVES_KEPT = 16384
 const COLUMN_MOVES: string[] = []
 
+const BAR_MOVES: string[] = []
+
 /**
- * The `L{x} ` that leads to each of the first `count` columns. A column always
- * stands at the same x, so the text is made once and every stroke reads it.
+ * The `L{x} ` that leads to each of the first `count` columns, or the `M{x} `
+ * a bar starts with. A column always stands at the same x, so the text is
+ * made once and every stroke reads it.
  */
-function columnMoves(count: number): readonly string[] {
-  const moves = count > MOVES_KEPT ? [] : COLUMN_MOVES
+function columnMoves(count: number, letter: 'L' | 'M' = 'L'): readonly string[] {
+  const moves = count > MOVES_KEPT ? [] : letter === 'L' ? COLUMN_MOVES : BAR_MOVES
   for (let column = moves.length; column < count; column += 1) {
-    moves.push(`L${column * STROKE_COLUMN_PX + STROKE_COLUMN_PX / 2} `)
+    moves.push(`${letter}${column * STROKE_COLUMN_PX + STROKE_COLUMN_PX / 2} `)
   }
   return moves
 }
@@ -273,16 +310,20 @@ export interface StrokeWavePaths {
  */
 export function strokeWavePaths(options: StrokeLevelsOptions, window = 2): StrokeWavePaths {
   const mid = options.height / 2
-  const amps = columnAmps(options)
-  const moves = columnMoves(amps.length)
-  let bars = ''
-  for (let column = 0; column < amps.length; column += 2) {
-    const x = column * STROKE_COLUMN_PX + STROKE_COLUMN_PX / 2
-    bars += `M${x} ${fixed(mid - amps[column])}V${fixed(mid + amps[column])}`
+  const count = columnAmps(options)
+  const moves = columnMoves(count)
+  const starts = columnMoves(count, 'M')
+  let pieces = 0
+  for (let column = 0; column < count; column += 2) {
+    PIECES[pieces++] = starts[column]
+    PIECES[pieces++] = fixed(mid - AMPS[column])
+    PIECES[pieces++] = 'V'
+    PIECES[pieces++] = fixed(mid + AMPS[column])
   }
+  const bars = joined(pieces)
   return {
-    halo: outlinePath(moves, amps, mid, options.width, HALO_SCALE, window + 1),
-    wave: outlinePath(moves, amps, mid, options.width, 1, window),
+    halo: outlinePath(moves, count, mid, options.width, HALO_SCALE, window + 1),
+    wave: outlinePath(moves, count, mid, options.width, 1, window),
     bars,
   }
 }
