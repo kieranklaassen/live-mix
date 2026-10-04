@@ -1,10 +1,12 @@
 // The truth of the EQ and filter displays: each curve against numbers worked
-// out from the filter it stands for, what the handles set, and what the two
-// compiled devices' readings put on the display.
+// out from the filter it stands for, what the handles set, what the two
+// compiled devices' readings put on the display, and the compiled devices
+// themselves against what is drawn of them.
 
 import { describe, expect, it } from 'vitest'
 
 import { type ParamSpec } from '../../core/params'
+import { loadWasmDevice } from '../../dsp/__tests__/wasm-device-harness'
 import { PLAIN_COLOURS, biquad, biquadDb, xOfHz, yOfDb, type Box } from '../components/display-kit'
 import {
   AMBIENT_DB,
@@ -18,6 +20,7 @@ import {
   autoFilterSweep,
   biquadTurns,
   clearCuts,
+  seriesDb,
   svfDb,
 } from '../components/displays/eq'
 import { type DisplayHandle } from '../components/plate-display'
@@ -137,6 +140,25 @@ describe('the family', () => {
       expect(display.live?.spectrum).toBe(true)
     }
   })
+
+  it('says what each shows in three sentences at most', () => {
+    for (const [id, { display }] of Object.entries(EQ_FACES))
+      expect(display.info.split(/(?<=\.)\s+/).length, id).toBeLessThanOrEqual(3)
+  })
+
+  it('sums filters in series as the kit sums them one by one', () => {
+    const filters = [
+      biquad('lowshelf', 120, 0, 7, RATE),
+      biquad('peaking', 404, 4.32, -3.5, RATE),
+      biquad('peaking', 3000, 0.7, 9, RATE),
+      biquad('highshelf', 9000, 0, -11, RATE),
+    ]
+    for (const hz of [20, 120, 404, 1000, 3000, 9000, 20000]) {
+      const one = filters.reduce((sum, filter) => sum + biquadDb(filter, hz, RATE), 0)
+      expect(seriesDb(filters, hz, RATE)).toBeCloseTo(one, 9)
+    }
+    expect(seriesDb([], 1000, RATE)).toBe(0)
+  })
 })
 
 describe('the Filter display', () => {
@@ -180,6 +202,16 @@ describe('the Filter display', () => {
     expect(db({ type: 4, frequency: 2000, gain: -18 }, 50)).toBeCloseTo(0, 0)
     expect(db({ type: 5, frequency: 3000, q: 1, gain: 9 }, 3000)).toBeCloseTo(9, 1)
     expect(db({ type: 5, frequency: 3000, q: 1, gain: 9 }, 100)).toBeCloseTo(0, 0)
+  })
+
+  it('follows Gain under a shelf and the peak, which are the types the device uses it for', () => {
+    // The shared test cannot reach these types (Type names no choices), so Gain is checked here.
+    const picture = (type: number, gain: number): string =>
+      filter.draw({ values: { type, frequency: 700, q: 2, gain } }).print()
+    for (let type = 0; type < 8; type++) {
+      const follows = new Set([-24, 0, 24].map((gain) => picture(type, gain))).size === 3
+      expect(follows, `type ${type}`).toBe(type === 3 || type === 4 || type === 5)
+    }
   })
 
   it('keeps a narrow peak and a notch whole between two points of the curve', () => {
@@ -455,6 +487,73 @@ describe('the Ambient EQ display', () => {
     expect([...none].every((cut) => cut === 0)).toBe(true)
   })
 
+  /**
+   * `AmbientEq::meter(index)` for index 1 to 5, term by term: the gains are
+   * the bands' cuts in dB (0 or below), five bands to a reading from the
+   * highest digit down, each `int(-2 * gain + 0.5)` kept to 0..24.
+   */
+  const packedAsTheDevice = (gains: Readonly<Record<number, number>>, index: number): number => {
+    const first = (index - 1) * 5
+    let packed = 0
+    for (let k = first + 4; k >= first; k--) {
+      const halfDb = k < 23 ? -2 * (gains[k] ?? 0) : 0
+      const steps = Math.min(24, Math.max(0, Math.trunc(halfDb + 0.5)))
+      packed = packed * 25 + steps
+    }
+    return Math.fround(packed)
+  }
+  const asTheDevice = (gains: Readonly<Record<number, number>>): Record<string, number> => ({
+    reduction: Math.min(0, ...Object.values(gains)),
+    ...Object.fromEntries(
+      [1, 2, 3, 4, 5].map((index) => [`cuts${index}`, packedAsTheDevice(gains, index)]),
+    ),
+  })
+
+  it('brings a cut of 3.5 dB in band 7 back as 3.5 dB at 404 Hz', () => {
+    // Band 7 is the third digit of the second reading (bands 5 to 9): 7 half
+    // decibels times 25², and nothing anywhere else.
+    const meters = asTheDevice({ 7: -3.5 })
+    expect(meters).toEqual({ reduction: -3.5, cuts1: 0, cuts2: 4375, cuts3: 0, cuts4: 0, cuts5: 0 })
+    const read = clearCuts((name) => meters[name], new Float32Array(23))
+    expect([...read].map((cut, band) => (cut === 0 ? null : [band, cut])).filter(Boolean)).toEqual([
+      [7, -3.5],
+    ])
+    // The band is the fourth third of an octave from 180 Hz: 360 to 454 Hz, centre 404.
+    expect(CLEAR_BANDS[7].hz).toBeCloseTo(360 * Math.pow(2, 1 / 6), 9)
+    expect(CLEAR_BANDS[7].hz).toBeCloseTo(404.1, 1)
+    const running = ambient.run(1, { meters, signal: testSignal(), values: { clear: 1 } })
+    const now = shapes(running).filter(
+      (shape) =>
+        shape.op === 'stroke' &&
+        shape.width === 1 &&
+        shape.dash.length === 0 &&
+        shape.points.length > 10,
+    )
+    expect(now.length).toBe(1)
+    expect(
+      dbAt(now[0].points, CLEAR_BANDS[7].hz, ambient.box, AMBIENT_DB, -AMBIENT_DB),
+    ).toBeCloseTo(-3.5, 2)
+    expect(running.words()).toContain('−3.5 dB')
+  })
+
+  it('reads the readings as the device packs them, at the ends of a digit too', () => {
+    // A cut is rounded to the half decibel; one deeper than 12 dB, which Clear
+    // never makes, would read as 12 and leave the band beside it alone.
+    const gains = { 2: -3.26, 3: -3.24, 4: -0.2, 7: -3.5, 8: -13, 9: -0.2, 20: -12, 22: -0.5 }
+    const meters = asTheDevice(gains)
+    const read = clearCuts((name) => meters[name], new Float32Array(23))
+    const want: Record<number, number> = { 2: -3.5, 3: -3, 7: -3.5, 8: -12, 20: -12, 22: -0.5 }
+    for (let band = 0; band < 23; band++) expect(read[band], `band ${band}`).toBe(want[band] ?? 0)
+    // Every band at its deepest is the largest reading there is, and a float holds it exactly.
+    const deepest = Object.fromEntries(Array.from({ length: 23 }, (_, band) => [band, -12]))
+    expect(packedAsTheDevice(deepest, 1)).toBe(Math.pow(25, 5) - 1)
+    expect(Math.pow(25, 5)).toBeLessThan(Math.pow(2, 24))
+    const all = asTheDevice(deepest)
+    expect(
+      [...clearCuts((name) => all[name], new Float32Array(23))].every((cut) => cut === -12),
+    ).toBe(true)
+  })
+
   it('shows in the accent what Clear is taking off, and how deep', () => {
     const band = 11
     const meters = readings({ [band]: -8.5 }, -8.7)
@@ -480,12 +579,12 @@ describe('the Ambient EQ display', () => {
     // One band wide: half the cut in dB is reached inside the band next to it.
     const next = CLEAR_BANDS[band + 1].hz
     expect(dbAt(now[0].points, next, ambient.box, AMBIENT_DB, -AMBIENT_DB)).toBeGreaterThan(-4.25)
-    expect(running.words()).toContain('−8.7')
+    expect(running.words()).toContain('−8.7 dB')
 
     // At rest and switched off nothing is being taken off.
     for (const still of [ambient.draw({ meters }), ambient.run(1, { meters, powered: false })]) {
       expect(shapes(still).filter((shape) => shape.colour === PLAIN_COLOURS.accent)).toEqual([])
-      expect(still.words()).toContain('0.0')
+      expect(still.words()).toContain('0.0 dB')
     }
   })
 
@@ -533,12 +632,42 @@ describe('the Ambient EQ display', () => {
     const lowCut = ambient.handle('lowCut', values)
     expect(lowCut.x).toBeCloseTo(xOfHz(80, box), 6)
     expect(lowCut.y).toBeCloseTo(yOfDb(-3, box, AMBIENT_DB, -AMBIENT_DB), 6)
+    expect(ambient.handle('highCut', values).y).toBeCloseTo(
+      yOfDb(-3, box, AMBIENT_DB, -AMBIENT_DB),
+      6,
+    )
+    // At the end of its range a cut is out of circuit: its point is on the middle line, as the curve is.
+    const zero = yOfDb(0, box, AMBIENT_DB, -AMBIENT_DB)
+    expect(ambient.handle('lowCut').y).toBe(zero)
+    expect(ambient.handle('highCut').y).toBe(zero)
+    expect(ambient.handle('lowCut', { highCut: 9000 }).y).toBe(zero)
+    expect(ambient.handle('highCut', { lowCut: 80 }).y).toBe(zero)
     expect(lowCut.drag(xOfHz(200, box), 0).lowCut).toBeCloseTo(200, 6)
     expect(lowCut.drag(xOfHz(5000, box), 0)).toEqual({ lowCut: 500 })
     expect(lowCut.reset?.()).toEqual({ lowCut: 20 })
     const highCut = ambient.handle('highCut', values)
     expect(highCut.drag(xOfHz(100, box), 0)).toEqual({ highCut: 1000 })
     expect(highCut.reset?.()).toEqual({ highCut: 20000 })
+  })
+
+  it('keeps every point clear of the others at each factory preset', () => {
+    // The tone points do not move across, and a cut's travel passes two of
+    // them: on the middle line a cut at 120 Hz would lie under Low.
+    const presets = stock.get('ambient-eq')?.presets ?? {}
+    expect(Object.keys(presets).length).toBeGreaterThan(10)
+    for (const [name, preset] of Object.entries(presets)) {
+      const values: Record<string, number> = {}
+      for (const [param, value] of Object.entries(preset))
+        if (value !== undefined) values[param] = value
+      const points = ambient.handles(values)
+      for (const a of points)
+        for (const b of points)
+          if (a.key < b.key)
+            expect(
+              Math.hypot(a.x - b.x, a.y - b.y),
+              `${name}: ${a.key} and ${b.key}`,
+            ).toBeGreaterThan(7)
+    }
   })
 })
 
@@ -688,5 +817,298 @@ describe('the Auto Filter display', () => {
       signal: testSignal(),
     })
     expect(moved.calls.find((call) => call.name === 'arc')?.args[0]).toBeCloseTo(xOfHz(400, box), 6)
+  })
+})
+
+describe('the words on a display', () => {
+  /** The words a point stands in: 5 px a letter, as the recording canvas measures them. */
+  function covered(drawn: RecordingContext, points: readonly DisplayHandle[]): string[] {
+    const found: string[] = []
+    let align = 'left'
+    let size = 8
+    for (const call of drawn.calls) {
+      if (call.name === 'set textAlign') align = String(call.args[0])
+      else if (call.name === 'set font') size = Number(/(\d+)px/.exec(String(call.args[0]))?.[1])
+      else if (call.name === 'fillText') {
+        const [words, x, y] = call.args as [string, number, number]
+        const from = align === 'right' ? x - words.length * 5 : x
+        const under = points.some(
+          (point) =>
+            point.x > from - 4 &&
+            point.x < from + words.length * 5 + 4 &&
+            point.y > y - size - 4 &&
+            point.y < y + 6,
+        )
+        if (under) found.push(words)
+      }
+    }
+    return found
+  }
+
+  it('keep clear of a point at either end of its travel, in hand or not', () => {
+    const settings: [string, string | null, Record<string, number>][] = []
+    for (const frequency of [20, 150, 1000, 9000, 20000]) {
+      for (const type of [0, 1, 2, 6, 7])
+        for (const q of [0.1, 20]) settings.push(['filter', 'point', { type, frequency, q }])
+      for (const type of [3, 4, 5])
+        for (const gain of [-24, 24]) settings.push(['filter', 'point', { type, frequency, gain }])
+      for (const resonance of [0.5, 25])
+        settings.push(['auto-filter', 'cutoff', { cutoffHz: frequency, resonance }])
+    }
+    for (const gain of [-15, 15]) {
+      for (const lowFreq of [40, 1000]) settings.push(['eq3', 'low', { lowGain: gain, lowFreq }])
+      for (const midFreq of [200, 8000]) settings.push(['eq3', 'mid', { midGain: gain, midFreq }])
+      for (const highFreq of [1000, 16000])
+        settings.push(['eq3', 'high', { highGain: gain, highFreq }])
+    }
+    for (const gain of [-12, 12])
+      for (const tone of ['low', 'body', 'presence', 'air'])
+        settings.push(['ambient-eq', tone, { [tone]: gain }])
+    expect(settings.length).toBeGreaterThan(80)
+    for (const [id, key, values] of settings) {
+      const made = face(id)
+      for (const hot of [key, null]) {
+        const drawn = made.draw({ values, hot })
+        expect(covered(drawn, made.handles(values)), `${id} ${JSON.stringify(values)}`).toEqual([])
+        // What the point is at is still said while it is in hand.
+        if (hot)
+          expect(
+            drawn.words().some((words) => /\d/.test(words)),
+            id,
+          ).toBe(true)
+      }
+    }
+  })
+
+  it('stand at the head of the display, the point in hand at the left, while nothing is in the way', () => {
+    const filter = face('filter')
+    const { box } = filter
+    const head = (drawn: RecordingContext): [string, number, number][] =>
+      drawn.calls
+        .filter((call) => call.name === 'fillText')
+        .map((call) => call.args as [string, number, number])
+    expect(head(filter.draw({ values: { type: 5, gain: 6 }, hot: 'point' }))).toEqual([
+      ['1 kHz  +6.0 dB', box.x + 2, box.y + 8],
+      ['Peak', box.x + box.w - 2, box.y + 8],
+    ])
+    // A high pass far up at 150 Hz stands at the left of the head: the words in hand go to the right.
+    const moved = head(filter.draw({ values: { type: 1, frequency: 150, q: 20 }, hot: 'point' }))
+    expect(moved[0]).toEqual(['150 Hz  Q 20', box.x + box.w - 2, box.y + 8])
+    expect(moved[1][0]).toBe('High pass')
+    expect(moved[1][2]).toBe(box.y + box.h - 3)
+  })
+})
+
+describe('the Auto Filter face', () => {
+  it('has a word of one line under each knob', () => {
+    // Two rows of knobs stand beside the window: a second line would stand against the knob below.
+    const { face = [], labels = {} } = EQ_FACES['auto-filter']
+    const params = stock.get('auto-filter')?.params ?? {}
+    expect(face).toEqual(['type', 'envAmount', 'lfoAmount', 'lfoRateHz'])
+    for (const name of face)
+      expect((labels[name] ?? params[name].name).length, name).toBeLessThanOrEqual(9)
+  })
+})
+
+describe('the compiled devices against what is drawn of them', () => {
+  const BLOCK = 128
+  const LEVEL = 0.1
+
+  /** What a compiled device does to a sine at `hz` once it has settled, in dB: the level out over the level in. */
+  async function measuredDb(
+    id: string,
+    values: Record<string, number>,
+    hz: number,
+  ): Promise<number> {
+    const device = await loadWasmDevice(id, RATE)
+    const params = stock.get(id)?.params ?? {}
+    for (const [name, value] of Object.entries(values)) device.set(params[name], value)
+    const block = new Float32Array(BLOCK)
+    const step = (2 * Math.PI * hz) / RATE
+    let sum = 0
+    let count = 0
+    for (let done = 0; done < RATE * 0.45; done += BLOCK) {
+      for (let i = 0; i < BLOCK; i++) block[i] = LEVEL * Math.sin(step * (done + i))
+      device.processBlock(block)
+      if (done < RATE * 0.25) continue
+      for (const sample of device.view(device.device.device_out_left(), BLOCK)) {
+        sum += sample * sample
+        count += 1
+      }
+    }
+    return 10 * Math.log10(sum / count / ((LEVEL * LEVEL) / 2))
+  }
+
+  /** The same noise every time, between −1 and 1. */
+  function noiseSource(): () => number {
+    let seed = 1
+    return () => {
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0
+      return seed / 2147483648 - 1
+    }
+  }
+
+  it('the Auto Filter: every type on both slopes, and the dry sound added by Mix', async () => {
+    for (const type of [0, 1, 2, 3, 4]) {
+      for (const slope of [0, 1]) {
+        for (const [resonance, mix] of [
+          [2, 1],
+          [Math.SQRT1_2, 0.5],
+        ]) {
+          const drawn = autoFilterDb({ type, steep: slope === 1, q: resonance, mix }, 1000, RATE)
+          for (const hz of [250, 700, 1400, 3900]) {
+            const measured = await measuredDb(
+              'auto-filter',
+              { type, slope, cutoffHz: 1000, resonance, mix },
+              hz,
+            )
+            expect(
+              Math.abs(measured - drawn(hz)),
+              `type ${type} slope ${slope} Q ${resonance} mix ${mix} at ${hz} Hz: ${measured} against ${drawn(hz)}`,
+            ).toBeLessThan(0.05)
+          }
+        }
+      }
+    }
+  })
+
+  it('the Auto Filter: the reading is the cutoff, awake, asleep and on waking', async () => {
+    const device = await loadWasmDevice('auto-filter', RATE)
+    const params = stock.get('auto-filter')?.params ?? {}
+    const reading = (): number => device.device.device_meter?.(0) ?? Number.NaN
+    device.set(params.cutoffHz, 1000)
+    device.set(params.lfoAmount, 100)
+    device.set(params.lfoRateHz, 1)
+    // Before the first block the LFO has not turned: the knob is the cutoff.
+    expect(reading()).toBeCloseTo(1000, 1)
+    const [low, high] = autoFilterSweep(1000, 0, 100)
+    const block = new Float32Array(BLOCK)
+    const sound = (from: number): void => {
+      for (let i = 0; i < BLOCK; i++)
+        block[i] = 0.2 * Math.sin((2 * Math.PI * 300 * (from + i)) / RATE)
+    }
+    // Awake over two turns of the LFO: three octaves down and three up, no further.
+    const awake: number[] = []
+    let done = 0
+    for (; done < RATE * 2; done += BLOCK) {
+      sound(done)
+      device.processBlock(block)
+      awake.push(reading())
+    }
+    expect(Math.min(...awake) / low).toBeCloseTo(1, 2)
+    expect(Math.max(...awake) / high).toBeCloseTo(1, 2)
+    // Asleep the LFO turns on paper, and the reading with it, a block at a time.
+    block.fill(0)
+    const asleep: number[] = []
+    for (let n = 0; n < RATE * 1.3; n += BLOCK) {
+      device.processBlock(block)
+      asleep.push(reading())
+    }
+    expect(Math.max(...device.view(device.device.device_out_left(), BLOCK))).toBe(0)
+    expect(Math.min(...asleep) / low).toBeCloseTo(1, 2)
+    expect(Math.max(...asleep) / high).toBeCloseTo(1, 2)
+    // One block at 1 Hz moves three octaves' sine by 0.05 of an octave at most.
+    const octaves = (a: number, b: number): number => Math.abs(Math.log2(a / b))
+    for (let i = 1; i < asleep.length; i++)
+      expect(octaves(asleep[i], asleep[i - 1])).toBeLessThan(0.06)
+    // Waking, the filter is where the reading said it would be.
+    sound(done)
+    device.processBlock(block)
+    expect(octaves(reading(), asleep[asleep.length - 1])).toBeLessThan(0.06)
+  })
+
+  it('the Ambient EQ: the two cuts and the four tone controls', async () => {
+    const ambient = face('ambient-eq')
+    const values = { lowCut: 100, low: 6, body: -4, presence: 5, air: -6, highCut: 6000, clear: 0 }
+    const curve = mainCurve(ambient.draw({ values }))
+    for (const hz of [50, 71, 100, 120, 320, 997, 3001, 6007, 9001, 12007]) {
+      const measured = await measuredDb('ambient-eq', values, hz)
+      const drawn = dbAt(curve, hz, ambient.box, AMBIENT_DB, -AMBIENT_DB)
+      // The curve is a line between points two pixels apart: a tenth of a dB off where it bends.
+      expect(Math.abs(measured - drawn), `${hz} Hz: ${measured} against ${drawn}`).toBeLessThan(
+        0.15,
+      )
+    }
+  })
+
+  it('the Ambient EQ: a band that rings is the band the readings name and the display cuts', async () => {
+    const device = await loadWasmDevice('ambient-eq', RATE)
+    const params = stock.get('ambient-eq')?.params ?? {}
+    device.set(params.clear, 1)
+    device.set(params.clearTime, 0.2)
+    // A bed of noise with a tone at the centre of band 7 standing out of it.
+    const noise = noiseSource()
+    const ringing = 7
+    const step = (2 * Math.PI * CLEAR_BANDS[ringing].hz) / RATE
+    const block = new Float32Array(BLOCK)
+    for (let done = 0; done < RATE * 5; done += BLOCK) {
+      for (let i = 0; i < BLOCK; i++) block[i] = 0.1 * noise() + 0.02 * Math.sin(step * (done + i))
+      device.processBlock(block)
+    }
+    const meters: Record<string, number> = {}
+    const names = ['reduction', 'cuts1', 'cuts2', 'cuts3', 'cuts4', 'cuts5']
+    names.forEach(
+      (name, index) => (meters[name] = device.device.device_meter?.(index) ?? Number.NaN),
+    )
+    const cuts = clearCuts((name) => meters[name], new Float32Array(23))
+    // Only that band is cut, by what the device says is its deepest cut, to the half decibel.
+    expect(meters.reduction).toBeLessThan(-3)
+    expect(Math.abs(cuts[ringing] - meters.reduction)).toBeLessThanOrEqual(0.25)
+    for (let band = 0; band < 23; band++)
+      if (band !== ringing) expect(cuts[band], `band ${band}`).toBe(0)
+
+    const ambient = face('ambient-eq')
+    const running = ambient.run(1, { meters, signal: testSignal(), values: { clear: 1 } })
+    const now = shapes(running).filter(
+      (shape) =>
+        shape.op === 'stroke' &&
+        shape.width === 1 &&
+        shape.dash.length === 0 &&
+        shape.points.length > 10,
+    )
+    expect(now.length).toBe(1)
+    expect(
+      dbAt(now[0].points, CLEAR_BANDS[ringing].hz, ambient.box, AMBIENT_DB, -AMBIENT_DB),
+    ).toBeCloseTo(cuts[ringing], 1)
+    expect(
+      shapes(running).filter(
+        (shape) => shape.op === 'fill' && shape.colour === PLAIN_COLOURS.accent,
+      ).length,
+    ).toBe(1)
+  })
+
+  it('reading a device changes nothing it puts out', async () => {
+    const settings: Record<string, Record<string, number>> = {
+      'auto-filter': { lfoAmount: 100, lfoRateHz: 3, envAmount: 60, resonance: 6 },
+      'ambient-eq': { clear: 1, clearTime: 0.2, lowCut: 80, presence: 4 },
+    }
+    for (const [id, values] of Object.entries(settings)) {
+      const params = stock.get(id)?.params ?? {}
+      const read = await loadWasmDevice(id, RATE)
+      const unread = await loadWasmDevice(id, RATE)
+      for (const device of [read, unread])
+        for (const [name, value] of Object.entries(values)) device.set(params[name], value)
+      const readings = Object.keys(stock.get(id)?.meters ?? {}).length
+      expect(readings).toBeGreaterThan(0)
+      const noise = noiseSource()
+      const block = new Float32Array(BLOCK)
+      let different = 0
+      for (let done = 0; done < RATE * 1.5; done += BLOCK) {
+        // Sound, a silence long enough to fall asleep in, and sound again.
+        const silent = done > RATE * 0.5 && done < RATE
+        for (let i = 0; i < BLOCK; i++)
+          block[i] = silent
+            ? 0
+            : 0.1 * noise() + 0.05 * Math.sin((2 * Math.PI * 404 * (done + i)) / RATE)
+        read.processBlock(block)
+        unread.processBlock(block)
+        for (let twice = 0; twice < 2; twice++)
+          for (let index = 0; index < readings; index++) read.device.device_meter?.(index)
+        const a = read.view(read.device.device_out_left(), BLOCK)
+        const b = unread.view(unread.device.device_out_left(), BLOCK)
+        for (let i = 0; i < BLOCK; i++) if (a[i] !== b[i]) different += 1
+      }
+      expect(different, id).toBe(0)
+    }
   })
 })

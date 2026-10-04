@@ -92,8 +92,105 @@ function responseThrough(
   return points
 }
 
+/**
+ * What second-order filters in series do to a frequency, in dB: the sum of
+ * the kit's `biquadDb` over them, with the sines and cosines of the frequency
+ * taken once for all of them. Clear can have twenty filters in the path.
+ */
+export function seriesDb(filters: readonly Biquad[], hz: number, sampleRate: number): number {
+  const w = (2 * Math.PI * hz) / sampleRate
+  const cos1 = Math.cos(w)
+  const cos2 = Math.cos(2 * w)
+  const sin1 = Math.sin(w)
+  const sin2 = Math.sin(2 * w)
+  let power = 1
+  for (const filter of filters) {
+    const numRe = filter.b0 + filter.b1 * cos1 + filter.b2 * cos2
+    const numIm = filter.b1 * sin1 + filter.b2 * sin2
+    const denRe = 1 + filter.a1 * cos1 + filter.a2 * cos2
+    const denIm = filter.a1 * sin1 + filter.a2 * sin2
+    power *= (numRe * numRe + numIm * numIm) / (denRe * denRe + denIm * denIm)
+  }
+  return power > 1e-12 ? 10 * Math.log10(power) : FLOOR_DB
+}
+
 /** A width as a knob says it: "Q 0.71", "Q 12". */
 const qText = (q: number): string => `Q ${q.toFixed(q < 10 ? 2 : 1).replace(/\.?0+$/, '')}`
+
+/** Words at a corner of a display. */
+interface Caption {
+  words: string
+  /** The side of the head of the display it stands at when no point is in its way. */
+  side: 'left' | 'right'
+  size?: number
+  /** A second, fainter line with it. */
+  note?: string
+}
+
+/** The corners in the order a caption tries them: its own side of the head, the other side, then the foot. */
+const CORNERS = {
+  left: ['head left', 'head right', 'foot left', 'foot right'],
+  right: ['head right', 'head left', 'foot right', 'foot left'],
+} as const
+type Corner = (typeof CORNERS.left)[number]
+
+/** Whether words so wide and so deep can stand in a corner of `box` with no point under them. */
+function cornerFree(
+  corner: Corner,
+  box: Box,
+  points: readonly { x: number; y: number }[],
+  width: number,
+  depth: number,
+): boolean {
+  const from = corner.endsWith('left') ? box.x + 2 : box.x + box.w - 2 - width
+  const head = corner.startsWith('head')
+  for (const point of points) {
+    // A point in hand is 5 px to its rim.
+    const across = point.x > from - 5 && point.x < from + width + 5
+    const inside = head ? point.y < box.y + depth + 5 : point.y > box.y + box.h - depth - 5
+    if (across && inside) return false
+  }
+  return true
+}
+
+/**
+ * The words on a display, kept clear of its points: a point at the top of
+ * its travel stands where the words are, and under it they cannot be read.
+ * Each caption takes the first corner that has no point in it and no caption
+ * before it; the one given first chooses first.
+ */
+function captions(
+  frame: Pick<DisplayFrame, 'ctx' | 'colours' | 'fontFamily'>,
+  box: Box,
+  points: readonly { x: number; y: number }[],
+  items: readonly (Caption | null)[],
+): void {
+  let taken = ''
+  for (const item of items) {
+    if (!item) continue
+    const size = item.size ?? 8
+    frame.ctx.font = `${size}px ${frame.fontFamily}`
+    let width = frame.ctx.measureText(item.words).width
+    if (item.note) width = Math.max(width, frame.ctx.measureText(item.note).width)
+    // How far in from the head or the foot the words reach: a line, or two.
+    const depth = item.note ? 21 : 12
+    let corner: Corner = CORNERS[item.side][0]
+    for (const tried of CORNERS[item.side]) {
+      if (taken.includes(tried) || !cornerFree(tried, box, points, width, depth)) continue
+      corner = tried
+      break
+    }
+    taken += corner
+    const left = corner.endsWith('left')
+    const head = corner.startsWith('head')
+    const x = left ? box.x + 2 : box.x + box.w - 2
+    const y = head ? box.y + 8 : box.y + box.h - 3
+    const align = left ? 'left' : 'right'
+    text(frame, item.words, x, y, { align, size })
+    // The note is the inner line: under the words at the head, over them at the foot.
+    if (item.note) text(frame, item.note, x, head ? y + 9 : y - 9, { align, alpha: INK.back })
+  }
+}
 
 // --- Parametric EQ ----------------------------------------------------------
 
@@ -339,7 +436,10 @@ function filterHandles(view: DisplayView): DisplayHandle[] {
 const filter = plateDisplay({
   place: 'window',
   columns: 1,
-  // Gain shows only under a shelf or the peak, which no end of Type's range is.
+  // Gain belongs here too: it shows under a shelf or the peak, and the point
+  // sets it there. It is left out because the shared test moves a parameter
+  // only under a choice that names its `choices`, which the Filter's Type
+  // does not, so it never sees a shelf; displays.eq.test.ts checks Gain instead.
   params: ['type', 'frequency', 'q'],
   live: { spectrum: true },
   info: 'The curve of the filter type that is set, from 20 Hz to 20 kHz, over the spectrum of what comes out. Drag the point: across is the frequency, up and down the resonance, or the gain of a shelf or a peak. The dashed line of All pass is the phase.',
@@ -381,17 +481,24 @@ const filter = plateDisplay({
         rule(ctx, point.x, zero, point.x, point.y, { colour: colours.ink, alpha: INK.rule })
     })
     handle(frame, point.x, point.y, { hot: frame.hot === point.key })
-    // The type in words: its knob has only a position to show.
-    text(frame, FILTER_NAMES[kind], box.x + box.w - 2, box.y + 8, { align: 'right' })
-    if (kind === 'allpass')
-      text(frame, 'phase 0° to −360°', box.x + box.w - 2, box.y + 17, {
-        align: 'right',
-        alpha: INK.back,
-      })
-    if (frame.hot === point.key) {
-      const height = hasGain(kind) ? dbText(frame.value('gain')) : qText(frame.value('q'))
-      text(frame, `${hzText(frame.value('frequency'))}  ${height}`, box.x + 2, box.y + 8)
-    }
+    const height = hasGain(kind) ? dbText(frame.value('gain')) : qText(frame.value('q'))
+    captions(
+      frame,
+      box,
+      [point],
+      [
+        // The point in hand, in words.
+        frame.hot === point.key
+          ? { words: `${hzText(frame.value('frequency'))}  ${height}`, side: 'left' }
+          : null,
+        // The type in words: its knob has only a position to show.
+        {
+          words: FILTER_NAMES[kind],
+          side: 'right',
+          note: kind === 'allpass' ? 'phase 0° to −360°' : undefined,
+        },
+      ],
+    )
   },
   handles: filterHandles,
 })
@@ -462,13 +569,9 @@ const eq3 = plateDisplay({
       spectrum(frame, box, { topDb: 0, bottomDb: SPECTRUM_FOOT_DB, alpha: 0.5 })
       curve(
         frame,
-        responseThrough(
-          box,
-          (hz) => filters.reduce((sum, band) => sum + biquadDb(band, hz, frame.sampleRate), 0),
-          EQ3_DB,
-          -EQ3_DB,
-          [frame.value('midFreq')],
-        ),
+        responseThrough(box, (hz) => seriesDb(filters, hz, frame.sampleRate), EQ3_DB, -EQ3_DB, [
+          frame.value('midFreq'),
+        ]),
         zero,
       )
       // The band in hand, alone: what this point adds to the curve.
@@ -488,12 +591,8 @@ const eq3 = plateDisplay({
     for (const point of handles) handle(frame, point.x, point.y, { hot: frame.hot === point.key })
     if (hot >= 0) {
       const band = EQ3_BANDS[hot]
-      text(
-        frame,
-        `${hzText(frame.value(band.freq))}  ${dbText(frame.value(band.gain))}`,
-        box.x + 2,
-        box.y + 8,
-      )
+      const words = `${hzText(frame.value(band.freq))}  ${dbText(frame.value(band.gain))}`
+      captions(frame, box, handles, [{ words, side: 'left' }])
     }
   },
   handles: eq3Handles,
@@ -535,6 +634,14 @@ const AMBIENT_TONES = [
 ] as const
 const AMBIENT_BELL_Q = 0.7
 
+/** Whether the Low cut and the High cut are in circuit: the device takes each out at the end of its range. */
+function ambientCutsIn(view: DisplayView): [boolean, boolean] {
+  return [
+    view.value('lowCut') > (view.spec('lowCut')?.min ?? 20),
+    view.value('highCut') < (view.spec('highCut')?.max ?? 20000),
+  ]
+}
+
 /**
  * What the Ambient EQ is set to, before Clear: `ambient_eq.h` runs a low cut
  * (24 dB an octave), the four tone stages and a high cut (12 dB an octave) in
@@ -543,16 +650,14 @@ const AMBIENT_BELL_Q = 0.7
 function ambientToneDb(view: DisplayView, sampleRate: number): (hz: number) => number {
   const lowCut = view.value('lowCut')
   const highCut = view.value('highCut')
-  const lowCutIn = lowCut > (view.spec('lowCut')?.min ?? 20)
-  const highCutIn = highCut < (view.spec('highCut')?.max ?? 20000)
+  const [lowCutIn, highCutIn] = ambientCutsIn(view)
   const tones = AMBIENT_TONES.filter((tone) => view.value(tone.param) !== 0).map((tone) =>
     biquad(tone.kind, tone.hz, AMBIENT_BELL_Q, view.value(tone.param), sampleRate),
   )
   return (hz) => {
-    let db = 0
+    let db = seriesDb(tones, hz, sampleRate)
     if (lowCutIn)
       for (const q of AMBIENT_LOW_CUT_Q) db += svfDb('highpass', lowCut, q, hz, sampleRate)
-    for (const tone of tones) db += biquadDb(tone, hz, sampleRate)
     if (highCutIn) db += svfDb('lowpass', highCut, Math.SQRT1_2, hz, sampleRate)
     return db
   }
@@ -607,21 +712,25 @@ interface AmbientState {
 
 function ambientHandles(view: DisplayView): DisplayHandle[] {
   const box = curveBox(view)
-  // A cut's point stands where the cut has taken 3 dB, on its own curve and clear of the tone points.
-  const cutY = yOfDb(-3, box, AMBIENT_DB, -AMBIENT_DB)
-  const cut = (param: 'lowCut' | 'highCut', name: string): DisplayHandle => {
+  // A cut's point stands where the cut has taken 3 dB: on its own curve, and
+  // clear of the tone points, which rest on the middle line at fixed places
+  // inside the cut's travel and would lie under it there. At the end of its
+  // range the cut is out of circuit and its point is on the middle line, as
+  // the curve is.
+  const [lowCutIn, highCutIn] = ambientCutsIn(view)
+  const cut = (param: 'lowCut' | 'highCut', name: string, inCircuit: boolean): DisplayHandle => {
     const [min, max] = rangeOf(view, param, [20, 20000])
     return {
       key: param,
       name,
       x: xOfHz(view.value(param), box),
-      y: cutY,
+      y: yOfDb(inCircuit ? -3 : 0, box, AMBIENT_DB, -AMBIENT_DB),
       drag: (x) => ({ [param]: clamp(hzOfX(x, box), min, max) }),
       reset: () => ({ [param]: startOf(view, param, view.value(param)) }),
     }
   }
   return [
-    cut('lowCut', 'Low cut'),
+    cut('lowCut', 'Low cut', lowCutIn),
     ...AMBIENT_TONES.map((tone): DisplayHandle => {
       const [min, max] = rangeOf(view, tone.param, [-12, 12])
       return {
@@ -636,7 +745,7 @@ function ambientHandles(view: DisplayView): DisplayHandle[] {
         reset: () => ({ [tone.param]: 0 }),
       }
     }),
-    cut('highCut', 'High cut'),
+    cut('highCut', 'High cut', highCutIn),
   ]
 }
 
@@ -645,7 +754,7 @@ const ambientEq = plateDisplay<AmbientState>({
   columns: 1,
   params: ['lowCut', 'low', 'body', 'presence', 'air', 'highCut', 'clear'],
   live: { meters: true, spectrum: true },
-  info: 'The curve the tone controls and the two cuts are set to, over the spectrum of what comes out. In the second colour, what Clear is taking off each band right now, with the deepest cut in dB at the top. The dotted line is how far Clear may reach. Drag a point to set its gain or its cut.',
+  info: 'The curve the tone controls and the two cuts are set to, over the spectrum of what comes out, with a point to drag for each. In the second colour, what Clear is taking off each band right now, and the deepest cut in dB in the corner. The dotted line is how far Clear may reach.',
   init: () => ({
     read: new Float32Array(CLEAR_BANDS.length),
     cuts: new Float32Array(CLEAR_BANDS.length),
@@ -692,18 +801,18 @@ const ambientEq = plateDisplay<AmbientState>({
         // The curve as it stands now: each band's cut is a peak at its centre
         // one band wide, the same biquad the device designs.
         const cuts: Biquad[] = []
-        const centres: number[] = []
+        const through = [...corners]
         CLEAR_BANDS.forEach((band, k) => {
           if (state.cuts[k] >= -0.05) return
           cuts.push(biquad('peaking', band.hz, band.q, state.cuts[k], frame.sampleRate))
-          centres.push(band.hz)
+          through.push(band.hz)
         })
         const now = responseThrough(
           box,
-          (hz) => cuts.reduce((sum, band) => sum + biquadDb(band, hz, frame.sampleRate), tone(hz)),
+          (hz) => tone(hz) + seriesDb(cuts, hz, frame.sampleRate),
           AMBIENT_DB,
           -AMBIENT_DB,
-          [...corners, ...centres],
+          through,
         )
         fillTo(ctx, set, zero, colours.ink, INK.fill)
         fillBetween(ctx, set, now, colours.accent, 0.9)
@@ -716,20 +825,14 @@ const ambientEq = plateDisplay<AmbientState>({
     const handles = ambientHandles(frame)
     for (const point of handles) handle(frame, point.x, point.y, { hot: frame.hot === point.key })
     const hot = handles.find((point) => point.key === frame.hot)
-    if (hot) {
-      const value = frame.value(hot.key)
-      const cut = hot.key === 'lowCut' || hot.key === 'highCut'
-      text(frame, `${hot.name}  ${cut ? hzText(value) : dbText(value)}`, box.x + 2, box.y + 8)
-    }
+    const value = hot ? frame.value(hot.key) : 0
+    const cut = hot?.key === 'lowCut' || hot?.key === 'highCut'
     // The deepest cut Clear is making, as a number: the one figure it is watched by.
     const deepest = running ? Math.min(0, frame.meter('reduction')) : 0
-    text(
-      frame,
-      deepest < -0.05 ? `−${(-deepest).toFixed(1)}` : '0.0',
-      box.x + box.w - 2,
-      box.y + 8,
-      { align: 'right', size: 9 },
-    )
+    captions(frame, box, handles, [
+      hot ? { words: `${hot.name}  ${cut ? hzText(value) : dbText(value)}`, side: 'left' } : null,
+      { words: dbText(deepest), side: 'right', size: 9 },
+    ])
   },
   handles: ambientHandles,
 })
@@ -845,7 +948,7 @@ const autoFilter = plateDisplay({
   columns: 2,
   params: ['type', 'slope', 'cutoffHz', 'resonance', 'envAmount', 'lfoAmount', 'mix'],
   live: { meters: true, spectrum: true },
-  info: 'The curve of the filter where it stands now, moving as the envelope and the LFO move it, over the spectrum of what comes out. The shaded span is how far they can take the cutoff. The point is where the knobs have it: across is the cutoff, up and down the resonance.',
+  info: 'The curve of the filter where it stands now, moving as the envelope and the LFO move it, over the spectrum of what comes out; the shaded span is how far they can take the cutoff. The point is where the knobs have it: across is the cutoff, up and down the resonance. What Drive adds is not drawn.',
   draw(frame) {
     const { ctx, colours } = frame
     ground(frame)
@@ -886,8 +989,10 @@ const autoFilter = plateDisplay({
         { ring: colours.ink },
       )
     }
-    if (frame.hot === point.key)
-      text(frame, `${hzText(set)}  ${qText(frame.value('resonance'))}`, box.x + 2, box.y + 8)
+    if (frame.hot === point.key) {
+      const words = `${hzText(set)}  ${qText(frame.value('resonance'))}`
+      captions(frame, box, [point], [{ words, side: 'left' }])
+    }
   },
   handles: autoFilterHandles,
 })
@@ -912,7 +1017,8 @@ export const EQ_FACES: Readonly<Record<string, PlateFace>> = {
   'auto-filter': {
     display: autoFilter,
     face: ['type', 'envAmount', 'lfoAmount', 'lfoRateHz'],
-    // The skin's shorter words were for the knobs of its old face; these four fit as they are.
-    labels: {},
+    // "Env Amount" and "LFO Amount" take two lines, and the second stands
+    // against the knob below; the one word says which of the two moves the cutoff.
+    labels: { envAmount: 'Env', lfoAmount: 'LFO' },
   },
 }
