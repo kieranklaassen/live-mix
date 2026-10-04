@@ -924,6 +924,17 @@ describe('a handle under the wheel, under a finger and under another handle', ()
     press(0)
     fireEvent.doubleClick(surface, { clientX: at.b, clientY: 30 })
     expect(onDrag).toHaveBeenLastCalledWith({ b: 0 })
+    // A hand wobbles a pixel while it presses: that is still a double press, and puts the point back.
+    press(3)
+    press(1)
+    press(0)
+    fireEvent.doubleClick(surface, { clientX: at.b, clientY: 30 })
+    expect(onDrag).toHaveBeenLastCalledWith({ b: 0 })
+    press(3)
+    press(0)
+    press(-1)
+    fireEvent.doubleClick(surface, { clientX: at.b, clientY: 30 })
+    expect(onDrag).toHaveBeenLastCalledWith({ b: 0 })
   })
 
   it('counts a finger’s double tap itself, on the second tap’s release, and not two nudges', async () => {
@@ -953,6 +964,11 @@ describe('a handle under the wheel, under a finger and under another handle', ()
     const drags = onDrag.mock.calls.length
     finger(0)
     expect(onDrag.mock.calls.length).toBe(drags)
+    // A finger wobbles a few pixels in a tap: two such taps are still a double press.
+    finger(8)
+    finger(2)
+    finger(-3)
+    expect(onDrag).toHaveBeenLastCalledWith({ b: 0 })
   })
 
   it('keeps a finger that comes down on a point, and lets one beside the points scroll', async () => {

@@ -123,6 +123,8 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
   const takenAtRef = useRef(shown)
   /** How far a finger has gone without turning the control yet, in pixels; null once it turns, and for a mouse. */
   const heldBackRef = useRef<number | null>(null)
+  /** How far that finger has gone across the control's own way meanwhile. */
+  const heldAcrossRef = useRef(0)
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const elementRef = useRef<HTMLElement | null>(null)
 
@@ -227,6 +229,7 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
       // browser is about to take, and a control that had already turned would
       // leave a step to undo that changed nothing.
       heldBackRef.current = event.pointerType === 'touch' ? 0 : null
+      heldAcrossRef.current = 0
       normRef.current = normalizeValue(
         shownRef.current,
         latest.current.min,
@@ -276,11 +279,18 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
       lastPointRef.current = { x: event.clientX, y: event.clientY }
       const a = latest.current.axis ?? axis
       const travel = a === 'vertical' ? dy : a === 'horizontal' ? -dx : dy - dx
+      if (heldBackRef.current !== null) {
+        heldAcrossRef.current += a === 'vertical' ? dx : a === 'horizontal' ? dy : 0
+      }
       if (travel === 0) return
       let moved = travel
       if (heldBackRef.current !== null) {
         heldBackRef.current += travel
         if (Math.abs(heldBackRef.current) < TOUCH_SLOP_PX) return
+        // A finger that has gone further across than along is still a swipe the browser may
+        // take, however far it has drifted along meanwhile: a swipe on a slant drifts more
+        // than the first pixels.
+        if (Math.abs(heldBackRef.current) < Math.abs(heldAcrossRef.current)) return
         // The finger means the control: it catches up with all of the way so far.
         moved = heldBackRef.current
         heldBackRef.current = null

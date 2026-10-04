@@ -449,7 +449,10 @@ interface Grab {
   /** From the handle to the pointer, so the handle does not jump to the pointer when taken. */
   dx: number
   dy: number
-  /** A finger's press, and whether it has moved the handle: one that has not is a tap. */
+  /** Where the pointer came down, in the display's pixels. */
+  px: number
+  py: number
+  /** A finger's press, and whether the hand has gone anywhere with the handle: one that has not is a tap. */
   touch: boolean
   moved: boolean
   /** The display's own for this hold: handed to every `drag` of it. */
@@ -465,6 +468,13 @@ interface Tap {
 
 /** Two taps of a finger within this many milliseconds are a double press. */
 const DOUBLE_TAP_MS = 350
+
+/**
+ * A press that stays within this of where it came down has gone nowhere: a
+ * hand wobbles a pixel while it presses, a finger a few, and such a press is
+ * still half of a double press. A nudge goes further.
+ */
+const STILL_PX = { mouse: 2, touch: 4 }
 
 /** A plate's display: a canvas, run while it is in view. */
 export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
@@ -597,6 +607,8 @@ export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
       names,
       dx: at.x - handle.x,
       dy: at.y - handle.y,
+      px: at.x,
+      py: at.y,
       touch,
       moved: false,
       hold,
@@ -618,7 +630,8 @@ export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
     if (event.pointerId !== held.pointerId) return
     const handle = runner.current?.handles().find((candidate) => candidate.key === held.key)
     if (!handle) return
-    held.moved = true
+    const still = held.touch ? STILL_PX.touch : STILL_PX.mouse
+    if (Math.hypot(at.x - held.px, at.y - held.py) >= still) held.moved = true
     runner.current?.moved(held.key)
     props.onDrag(handle.drag(at.x - held.dx, at.y - held.dy, held.hold))
   }

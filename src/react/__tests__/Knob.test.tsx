@@ -213,6 +213,32 @@ describe('Knob', () => {
     fireEvent.pointerUp(control, { pointerId: 1 })
   })
 
+  it('holds back a finger that goes more across than along, however far it drifts', () => {
+    const onChange = vi.fn()
+    render(<Knob label="Mix" defaultValue={0.5} min={0} max={1} onChange={onChange} />)
+    const control = slider()
+    const finger = { pointerId: 7, pointerType: 'touch' }
+    // A swipe on a slant, 140 across and 40 up: four pixels up after eleven across, then the browser has it.
+    fireEvent.pointerDown(control, { ...finger, button: 0, clientX: 136, clientY: 723 })
+    fireEvent.pointerMove(control, { ...finger, clientX: 125, clientY: 720 })
+    fireEvent.pointerMove(control, { ...finger, clientX: 114, clientY: 716 })
+    fireEvent.pointerCancel(control, { ...finger })
+    expect(onChange).not.toHaveBeenCalled()
+    // As far up as across is the knob's: the browser leaves that one to it.
+    fireEvent.pointerDown(control, { ...finger, button: 0, clientX: 137, clientY: 723 })
+    fireEvent.pointerMove(control, { ...finger, clientX: 132, clientY: 718 })
+    expect(onChange.mock.calls.at(-1)?.[0]).toBeCloseTo(0.5 + 5 / 110, 6)
+    fireEvent.pointerUp(control, { ...finger })
+    // A finger that sets off across and then goes up takes the knob once it has gone further up.
+    onChange.mockClear()
+    fireEvent.pointerDown(control, { ...finger, button: 0, clientX: 100, clientY: 50 })
+    fireEvent.pointerMove(control, { ...finger, clientX: 92, clientY: 46 })
+    expect(onChange).not.toHaveBeenCalled()
+    fireEvent.pointerMove(control, { ...finger, clientX: 92, clientY: 40 })
+    expect(onChange).toHaveBeenCalledTimes(1)
+    fireEvent.pointerUp(control, { ...finger })
+  })
+
   it('ends a key gesture after the idle time', () => {
     vi.useFakeTimers()
     try {

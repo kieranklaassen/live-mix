@@ -438,9 +438,23 @@ describe('Cloud', () => {
     const between = handleOf('grain-cloud', 'pitch', { pitch: 3.4 })
     const from = new Set<number>()
     for (let px = -45; px <= 45; px++)
-      from.add(Number(between.drag(between.x, between.y + px).pitch))
+      if (px !== 0) from.add(Number(between.drag(between.x, between.y + px).pitch))
     expect(from.has(7) && from.has(12) && from.has(-12)).toBe(true)
     expect([...from].every(Number.isInteger)).toBe(true)
+  })
+
+  it('leaves a Pitch between two semitones as it was while the hand only goes across', () => {
+    const between = handleOf('grain-cloud', 'pitch', { pitch: 3.4 })
+    // Taken, and nudged sideways: it snapped to 3.
+    expect(between.drag(between.x, between.y).pitch).toBe(3.4)
+    expect(between.drag(between.x + 12, between.y).pitch).toBe(3.4)
+    // In one drag: up to a whole semitone, and back on the row it was taken at it is what it was.
+    const hold = {}
+    between.drag(between.x, between.y, hold)
+    const up = Number(between.drag(between.x, between.y - 6, hold).pitch)
+    expect(Number.isInteger(up) && up > 3.4).toBe(true)
+    const moved = handleOf('grain-cloud', 'pitch', { pitch: up })
+    expect(moved.drag(moved.x + 3, between.y, hold).pitch).toBe(3.4)
   })
 
   it('is at rest again once its grains read only a tape that has run empty', () => {

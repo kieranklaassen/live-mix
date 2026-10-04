@@ -728,8 +728,16 @@ function cloudHandles(view: DisplayView): DisplayHandle[] {
       name: 'Pitch',
       x: box.x + 5,
       y: mid - pitch * perSemitone,
-      // A pixel is less than a semitone, so the hand sets whole ones: each can be reached, the fifth and the octave among them.
-      drag: (_x, y) => ({ pitch: clamp(Math.round((mid - y) / perSemitone), -24, 24) }),
+      // A pixel is less than a semitone, so the hand sets whole ones: each can be reached, the
+      // fifth and the octave among them. On the row it was taken at it is the pitch it was,
+      // between two semitones too: a hand that only goes across changes nothing.
+      drag: (_x, y, hold) => {
+        const kept = hold ?? {}
+        kept.from ??= pitch
+        kept.at ??= mid - pitch * perSemitone
+        if (Math.abs(y - kept.at) < 0.5) return { pitch: kept.from }
+        return { pitch: clamp(Math.round((mid - y) / perSemitone), -24, 24) }
+      },
       reset: () => ({ pitch: 0 }),
     },
   ]
