@@ -271,6 +271,29 @@ describe('DevicePlate', () => {
     expect(screen.getAllByRole('slider')).toHaveLength(2)
   })
 
+  it('says which device and parameter each part is, as a panel does, for a host that maps controllers', async () => {
+    const fixture = createTestEngine()
+    const device = await make(fixture)
+    render(<DevicePlate device={device} skin={SKIN} data-testid="plate" />, {
+      wrapper: fixture.wrapper,
+    })
+    const plate = screen.getByTestId('plate')
+    expect(plate).toHaveAttribute('data-lm-device', 'filter')
+    const named = () =>
+      [...plate.querySelectorAll('[data-lm-param]')].map((knob) =>
+        knob.getAttribute('data-lm-param'),
+      )
+    expect(named()).toEqual(['frequency', 'q'])
+    expect(screen.getByRole('slider', { name: 'Freq' }).closest('[data-lm-param]')).toHaveAttribute(
+      'data-lm-param',
+      'frequency',
+    )
+    expect(screen.getByTestId('plate-power')).toHaveAttribute('data-lm-power')
+    // Opened, every control is named, not only the face.
+    fireEvent.click(screen.getByTestId('plate-more'))
+    expect(named().sort()).toEqual(['frequency', 'gain', 'q', 'type'])
+  })
+
   it('lists its presets among the tools, or gives the foot to a picker the host draws', async () => {
     const fixture = createTestEngine()
     const device = await make(fixture)

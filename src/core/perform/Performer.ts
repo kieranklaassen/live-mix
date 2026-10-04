@@ -587,11 +587,15 @@ export class Performer {
     return isLooping(loop) ? tempo.secondsToBeats(loop.lengthSec) : null
   }
 
-  /** Beats since the timeline began, counting every pass of the loop. */
-  private beatsNow(): number {
+  /**
+   * Beats since the timeline began, counting every pass of the loop. `now` is
+   * the reading of the clock a sum is made at: one that works out a time from
+   * the playhead and from this count takes both at the same reading, since the
+   * clock moves on between two.
+   */
+  private beatsNow(now: number = this.engine.now()): number {
     const transport = this.engine.transport
     const tempo = this.tempo()
-    const now = this.engine.now()
     const perPass = this.passBeats(tempo)
     if (perPass === null) return tempo.secondsToBeats(transport.elapsed(now))
     const positionSec = transport.position(now).positionSec
@@ -610,7 +614,7 @@ export class Performer {
     if (transport.state !== 'playing') return now
     const tempo = this.tempo()
     const positionSec = transport.position(now).positionSec
-    const ahead = tempo.secondsToBeats(positionSec) + (beats - this.beatsNow())
+    const ahead = tempo.secondsToBeats(positionSec) + (beats - this.beatsNow(now))
     const perPass = this.passBeats(tempo)
     let aheadSec: number
     if (perPass === null || perPass <= 0) {
@@ -637,7 +641,7 @@ export class Performer {
     const positionSec = transport.position(now).positionSec
     let lineSec = quantizeLaunch(tempo, positionSec, grid)
     if (isLooping(transport.loop)) lineSec = Math.min(lineSec, transport.loop.lengthSec)
-    return this.beatsNow() + (tempo.secondsToBeats(lineSec) - tempo.secondsToBeats(positionSec))
+    return this.beatsNow(now) + (tempo.secondsToBeats(lineSec) - tempo.secondsToBeats(positionSec))
   }
 
   /**
