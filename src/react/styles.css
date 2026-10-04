@@ -2147,10 +2147,13 @@
   white-space: normal;
 }
 
+/* Tighter is closer and, past that, narrower, never smaller: the names on a plate are one size. */
 .lm-plate .lm-plate__knob--tight .lm-knob__label {
+  flex: none;
+  width: calc(100% / var(--lm-plate-squeeze, 1));
   padding: 0;
-  font-size: 7px;
   letter-spacing: 0;
+  transform: scaleX(var(--lm-plate-squeeze, 1));
 }
 
 .lm-plate .lm-knob__value {

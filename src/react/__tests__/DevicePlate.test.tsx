@@ -580,9 +580,33 @@ describe('DevicePlate', () => {
       />,
       { wrapper: fixture.wrapper },
     )
-    expect(screen.getByTestId('plate-frequency')).toHaveClass('lm-plate__knob--tight')
+    const long = screen.getByTestId('plate-frequency')
+    expect(long).toHaveClass('lm-plate__knob--tight')
+    // It keeps the size of its neighbours and gives up width: twelve letters in a column of 48.
+    expect(Number(long.style.getPropertyValue('--lm-plate-squeeze'))).toBeCloseTo(
+      48 / (12 * 5.6),
+      3,
+    )
     // Two short words take two lines at the usual size.
-    expect(screen.getByTestId('plate-q')).not.toHaveClass('lm-plate__knob--tight')
+    const short = screen.getByTestId('plate-q')
+    expect(short).not.toHaveClass('lm-plate__knob--tight')
+    expect(short.style.getPropertyValue('--lm-plate-squeeze')).toBe('')
+  })
+
+  it('sets a word of eight letters closer and no narrower', async () => {
+    const fixture = createTestEngine()
+    const device = await make(fixture)
+    render(
+      <DevicePlate
+        device={device}
+        skin={{ ...SKIN, labels: { frequency: 'Feedback' } }}
+        data-testid="plate"
+      />,
+      { wrapper: fixture.wrapper },
+    )
+    const knob = screen.getByTestId('plate-frequency')
+    expect(knob).toHaveClass('lm-plate__knob--tight')
+    expect(knob.style.getPropertyValue('--lm-plate-squeeze')).toBe('')
   })
 
   it("opens a hosted plug-in's own window from a cell, and has no such cell for any other device", async () => {

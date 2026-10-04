@@ -69,9 +69,17 @@ const FACE_PER_ROW = 4
 /** A word under a knob with more letters than this is set tighter, so none is cut short. */
 const TIGHT_OVER = 7
 const PLAIN_TIGHT_OVER = 8
+/** A capital of a long word at the names' size, set close, in the widest face a theme has: px. */
+const LETTER = 5.6
 
 const longestWord = (words: string): number =>
   Math.max(...words.split(/\s+/).map((word) => word.length))
+/**
+ * How far a name is narrowed to stand whole in its column: 1 for a word that
+ * fits. The names on a plate stay one size; a long one gives up width alone.
+ */
+const squeeze = (words: string, column: number): number =>
+  Math.min(1, column / (longestWord(words) * LETTER))
 /** Opened, a pictured plate with more knobs than this lays them in two rows beside the picture. */
 const ONE_ROW_MOST = 12
 
@@ -465,6 +473,13 @@ export function DevicePlate({
                 'lm-plate__knob',
                 longestWord(label) > roomy && 'lm-plate__knob--tight',
               )}
+              style={
+                longestWord(label) > roomy && squeeze(label, layout.column) < 1
+                  ? ({
+                      '--lm-plate-squeeze': squeeze(label, layout.column).toFixed(3),
+                    } as CSSProperties)
+                  : undefined
+              }
               data-testid={testId ? `${testId}-${name}` : undefined}
               data-lm-param={name}
             />
