@@ -240,7 +240,9 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
       // The drag shows `internal`; seed it from the controlled value so nothing jumps.
       setInternal(shownRef.current)
       setDragging(true)
-      beginGesture()
+      // A finger's gesture opens with its first turn, not with the press: a
+      // swipe the browser takes for a scroll holds nothing and leaves no step to undo.
+      if (heldBackRef.current === null) beginGesture()
     },
     [beginGesture],
   )
@@ -294,11 +296,12 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
         // The finger means the control: it catches up with all of the way so far.
         moved = heldBackRef.current
         heldBackRef.current = null
+        beginGesture()
       }
       const px = latest.current.sensitivityPx ?? sensitivityPx
       commitNorm(normRef.current + pointerDeltaToNormDelta(moved, px, event.shiftKey))
     },
-    [axis, commitNorm, endPointer, sensitivityPx],
+    [axis, beginGesture, commitNorm, endPointer, sensitivityPx],
   )
 
   const onDoubleClick = useCallback(

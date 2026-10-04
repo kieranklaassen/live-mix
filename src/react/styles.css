@@ -859,7 +859,13 @@
   background: transparent;
   color: inherit;
   cursor: ns-resize;
-  touch-action: none;
+  /*
+    A knob is turned up and down, so a finger's way up and down is its own and
+    a swipe across it is left to whatever it stands in to scroll (a chain of
+    plates runs sideways): the browser takes that one and cancels the press,
+    which puts the knob back where the first pixels found it.
+  */
+  touch-action: pan-x;
   user-select: none;
   -webkit-user-select: none;
 }

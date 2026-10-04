@@ -187,7 +187,17 @@ describe('Knob', () => {
 
   it('holds back a finger’s first pixels, so a swipe the browser takes never turns it at all', () => {
     const onChange = vi.fn()
-    render(<Knob label="Mix" defaultValue={0.5} min={0} max={1} onChange={onChange} />)
+    const onChangeStart = vi.fn()
+    render(
+      <Knob
+        label="Mix"
+        defaultValue={0.5}
+        min={0}
+        max={1}
+        onChange={onChange}
+        onChangeStart={onChangeStart}
+      />,
+    )
     const control = slider()
     const finger = { pointerId: 7, pointerType: 'touch' }
     fireEvent.pointerDown(control, { ...finger, button: 0, clientX: 100, clientY: 50 })
@@ -197,11 +207,15 @@ describe('Knob', () => {
     fireEvent.pointerCancel(control, { ...finger })
     expect(onChange).not.toHaveBeenCalled()
     expect(control).toHaveAttribute('aria-valuenow', '0.5')
+    // The finger held nothing, so there was no gesture to undo either.
+    expect(onChangeStart).not.toHaveBeenCalled()
     // A finger that goes on up means the knob, which catches up with all of the way so far.
     fireEvent.pointerDown(control, { ...finger, button: 0, clientX: 100, clientY: 50 })
     fireEvent.pointerMove(control, { ...finger, clientX: 100, clientY: 47 })
     expect(onChange).not.toHaveBeenCalled()
+    expect(onChangeStart).not.toHaveBeenCalled()
     fireEvent.pointerMove(control, { ...finger, clientX: 100, clientY: 38 })
+    expect(onChangeStart).toHaveBeenCalledTimes(1)
     fireEvent.pointerUp(control, { ...finger })
     // Twelve pixels of a knob's 110, not the nine since it let go.
     expect(onChange.mock.calls.at(-1)?.[0]).toBeCloseTo(0.5 + 12 / 110, 6)
