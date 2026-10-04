@@ -407,7 +407,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'tape-orchestra', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'thesis', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'tine-piano', instrument: true, samples: false, meters: 0, memoryMb: 4 },
-  { id: 'tremolo', instrument: false, samples: false, meters: 0, memoryMb: 4 },
+  { id: 'tremolo', instrument: false, samples: false, meters: 3, memoryMb: 4 },
   { id: 'vintage-digital', instrument: false, samples: false, meters: 0, memoryMb: 4 },
   { id: 'vinyl', instrument: false, samples: false, meters: 0, memoryMb: 8 },
   { id: 'vowel-reverb', instrument: false, samples: false, meters: 0, memoryMb: 4 },

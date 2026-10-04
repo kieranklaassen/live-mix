@@ -40,7 +40,7 @@ const SCROLL_STEP_PX = 14
 const GRIP = '[data-lm-drag-handle], .lm-chain__handle, .lm-device__header, .lm-plate'
 /** Controls in a title bar or on a plate: a press on one is that control's. */
 const CONTROL =
-  'button, select, input, textarea, a, label, .lm-knob, .lm-fader, [role="slider"], [role="switch"], [contenteditable="true"]'
+  'button, select, input, textarea, a, label, .lm-knob, .lm-fader, [role="slider"], [role="switch"], [contenteditable="true"], [data-lm-handle]'
 /** Where a device's name is read from: a panel's title, a plate's name tag (whose `title` is the full name). */
 const NAME = '.lm-device__title, .lm-plate__name'
 

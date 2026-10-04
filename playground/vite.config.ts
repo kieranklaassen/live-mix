@@ -80,5 +80,12 @@ export default defineConfig({
     strictPort: true,
     fs: { allow: [root] },
   },
-  build: { outDir: 'dist', emptyOutDir: true },
+  build: {
+    outDir: 'dist',
+    emptyOutDir: true,
+    // The playground, and the plate bench beside it (plates.html).
+    rollupOptions: {
+      input: { index: join(here, 'index.html'), plates: join(here, 'plates.html') },
+    },
+  },
 })

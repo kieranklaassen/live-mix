@@ -141,6 +141,11 @@ export function formatDeviceMeter(value: number, unit: string): string {
   return unit ? `${text} ${unit}` : text
 }
 
+/** The readings a panel prints: all but the ones that are for a display to draw. */
+export function printedMeters(device: MeteredDevice): [string, DeviceMeterSpec][] {
+  return Object.entries(device.meters).filter(([, spec]) => !spec.display)
+}
+
 /** One reading of a device that reports its own, as a number that follows it. */
 export function DeviceMeterReadout({
   device,
@@ -201,7 +206,7 @@ export function DevicePanel({
   const header = (
     <>
       {isMeteredDevice(device)
-        ? Object.entries(device.meters).map(([name, spec]) => (
+        ? printedMeters(device).map(([name, spec]) => (
             <DeviceMeterReadout
               key={name}
               device={device}
