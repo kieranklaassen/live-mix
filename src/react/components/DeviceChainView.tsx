@@ -286,12 +286,37 @@ export function DeviceChainView({
   }
 
   /**
+   * The move cell a step was made with, while it had the focus. The device
+   * that moves may be the one taken out of the page and put in again, and
+   * that takes the focus from the cell: a second Return would move nothing,
+   * and the page's own keys would be about another device.
+   */
+  const pressed = useRef<HTMLElement | null>(null)
+  useIsomorphicLayoutEffect(() => {
+    const cell = pressed.current
+    pressed.current = null
+    const active = document.activeElement
+    // Only a focus that fell to the page is given back: what took it meanwhile keeps it.
+    if (!cell?.isConnected || (active !== null && active !== document.body && active !== cell))
+      return
+    // At the chain's end the cell has gone dim: the one beside it still moves the device.
+    const still = cell.matches(':disabled')
+      ? [...(cell.parentElement?.querySelectorAll<HTMLElement>('.lm-chain__move') ?? [])].find(
+          (other) => !other.matches(':disabled'),
+        )
+      : cell
+    still?.focus({ preventScroll: true })
+  }, [inserts])
+
+  /**
    * The move buttons: one slot earlier or later. The step is through the
    * score's own order, which the engine's chain follows a render behind — read
    * out of the chain, a second click would land back on the slot the first
    * came from.
    */
-  const step = (index: number, delta: 1 | -1): void => {
+  const step = (index: number, delta: 1 | -1, cell: HTMLElement): void => {
+    // The cell that was pressed has the focus given back once the device stands in its new place.
+    if (document.activeElement === cell) pressed.current = cell
     if (!arbiter || owner === null) {
       move(index, index + delta)
       return
@@ -398,7 +423,7 @@ export function DeviceChainView({
                       'Moves the device one place towards the start of the chain, so the sound reaches it sooner.',
                     )}
                     disabled={index === skip}
-                    onClick={() => step(index, -1)}
+                    onClick={(event) => step(index, -1, event.currentTarget)}
                     data-testid={testId ? `${testId}-earlier-${index - skip}` : undefined}
                   >
                     ◂
@@ -412,7 +437,7 @@ export function DeviceChainView({
                       'Moves the device one place towards the end of the chain, so it works on what the devices before it made.',
                     )}
                     disabled={index === inserts.length - 1}
-                    onClick={() => step(index, 1)}
+                    onClick={(event) => step(index, 1, event.currentTarget)}
                     data-testid={testId ? `${testId}-later-${index - skip}` : undefined}
                   >
                     ▸

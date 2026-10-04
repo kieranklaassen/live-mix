@@ -19,7 +19,10 @@ import { DeviceChainView, groupDevices, reorderInserts } from '../components/Dev
 import { deviceSkin } from '../components/device-skins'
 import { createTestEngine, type TestEngine } from './harness'
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  vi.restoreAllMocks()
+})
 
 async function chain(fixture: TestEngine, ids: string[]): Promise<Device[]> {
   const devices: Device[] = []
@@ -324,6 +327,58 @@ describe('DeviceChainView', () => {
     fireEvent.pointerUp(window, { pointerId: 4 })
     fireEvent.click(earlier)
     expect(pad.strip.inserts).toEqual([filter, eq, delay])
+  })
+
+  /**
+   * A browser takes the focus from what is inside a node that is put in
+   * another place of the page; jsdom leaves it. Here it is taken, as a browser does.
+   */
+  function dropFocusOnMove(): void {
+    for (const method of ['insertBefore', 'appendChild'] as const) {
+      const put = Node.prototype[method] as (this: Node, ...nodes: Node[]) => Node
+      vi.spyOn(Node.prototype, method).mockImplementation(function (this: Node, ...nodes: Node[]) {
+        const active = document.activeElement
+        if (nodes[0].isConnected && active instanceof HTMLElement && nodes[0].contains(active))
+          active.blur()
+        return put.apply(this, nodes)
+      })
+    }
+  }
+
+  it('leaves the focus on the move cell that was pressed, so the next press moves the device on', async () => {
+    const { pad, devices } = await threeDevices()
+    dropFocusOnMove()
+    const [filter, eq, delay] = devices
+    const later = screen.getByRole('button', { name: 'Move filter later' })
+    later.focus()
+    fireEvent.click(later)
+    expect(pad.strip.inserts).toEqual([eq, filter, delay])
+    // The device that moved is the one taken out of the page and put in again: its cell has the focus back.
+    expect(later).toHaveFocus()
+    fireEvent.click(later)
+    expect(pad.strip.inserts).toEqual([eq, delay, filter])
+    // At the end there is no later: the focus goes to the cell beside it, which still moves the device.
+    expect(later).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Move filter earlier' })).toHaveFocus()
+
+    const earlier = screen.getByRole('button', { name: 'Move delay earlier' })
+    earlier.focus()
+    fireEvent.click(earlier)
+    expect(pad.strip.inserts).toEqual([delay, eq, filter])
+    expect(earlier).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Move delay later' })).toHaveFocus()
+  })
+
+  it('takes no focus for a move cell pressed without it, nor from what took the focus meanwhile', async () => {
+    const { pad, devices } = await threeDevices()
+    dropFocusOnMove()
+    const [filter, eq, delay] = devices
+    // A press that left the focus where it was (a browser that gives a pressed button none).
+    const knob = screen.getAllByRole('slider')[0]
+    knob.focus()
+    fireEvent.click(screen.getByRole('button', { name: 'Move filter later' }))
+    expect(pad.strip.inserts).toEqual([eq, filter, delay])
+    expect(knob).toHaveFocus()
   })
 
   it('keeps a moved device its own panel: the panel is not drawn anew in its new place', async () => {
