@@ -1253,3 +1253,139 @@ describe('The texture displays', () => {
     }
   })
 })
+
+// --- Mix away and back ------------------------------------------------------
+//
+// A display follows its device while none of what it makes is in the mix, so
+// that when Mix comes back nothing is drawn that did not just happen.
+
+describe('After Mix has been at 0', () => {
+  /** A run with Mix at its own setting, at 0 from two seconds on until `back`, and then as it was. */
+  const away = (
+    id: string,
+    seconds: number,
+    back: number,
+    readings: (time: number) => Record<string, number>,
+    values: Record<string, number> = {},
+  ): RecordingContext => {
+    const { display, params, meters } = device(id)
+    return runDisplay(display, params, seconds, { values, meters }, (time) => ({
+      values: time >= 2 && time < back ? { ...values, mix: 0 } : values,
+      meters: { ...meters, ...readings(time) },
+    }))
+  }
+  /** The same run with Mix never moved. */
+  const stayed = (
+    id: string,
+    seconds: number,
+    readings: (time: number) => Record<string, number>,
+    values: Record<string, number> = {},
+  ): RecordingContext => away(id, seconds, 2, readings, values)
+  const accent = (drawn: RecordingContext): Mark[] =>
+    marksOf(drawn).filter((mark) => mark.colour === ACCENT)
+
+  it('a hold shows the playing as it was and no hold: not one flat level', () => {
+    for (const [id, played] of [
+      ['sustainer', 'level'],
+      ['pad-follower', 'heard'],
+    ] as const) {
+      // Played until four seconds and held until two; then nothing, and Mix back at nine.
+      const readings = (time: number): Record<string, number> => ({
+        [played]: time < 4 ? 0.3 : 0,
+        held: time < 2 ? 0.3 : 0,
+      })
+      const drawn = away(id, 9.5, 9, readings)
+      // What a plate whose Mix never left shows of the same playing.
+      expect(drawn.print(), id).toBe(stayed(id, 9.5, readings).print())
+      const { display, params, meters } = device(id)
+      expect(drawn.print(), id).not.toBe(drawDisplay(display, params, { meters }).print())
+      // And a hold the device kept up unheard is kept as no hold.
+      const unheard = (time: number): Record<string, number> => ({
+        [played]: time < 4 ? 0.3 : 0,
+        held: time < 2 || (time >= 3 && time < 8) ? 0.3 : 0,
+      })
+      expect(away(id, 9.5, 9, unheard).print(), id).toBe(drawn.print())
+    }
+  })
+
+  it('the Sustainer marks no catch that was made unheard, nor one at the moment Mix is back', () => {
+    const ticks = (drawn: RecordingContext): Mark[] =>
+      marksOf(drawn).filter(
+        (mark) => mark.kind === 'rect' && mark.colour === INK && foot(mark) - top(mark) === 5,
+      )
+    const readings = (time: number): Record<string, number> => ({
+      level: 0.2,
+      held: 0.2,
+      layers: 2,
+      caught: time > 3 ? 1 : 0,
+    })
+    // The catch at three seconds is marked on a plate that let it be heard.
+    expect(ticks(stayed('sustainer', 5.5, readings))).toHaveLength(1)
+    expect(ticks(away('sustainer', 5.5, 5, readings))).toHaveLength(0)
+  })
+
+  it('the Grain Cloud has the tape the device has: empty after silence, so it is at rest', () => {
+    const { display, params, meters } = device('grain-cloud')
+    // Sound is recorded for four seconds; the grains go on being opened on the tape as it empties.
+    const readings = (time: number): Record<string, number> => ({
+      place: 0.3,
+      rate: 1,
+      pan: 0,
+      level: time < 4 ? 0.2 : 0,
+      grains: Math.floor(time * 10),
+    })
+    const drawn = away('grain-cloud', 10.5, 10, readings)
+    expect(accent(drawn)).toHaveLength(0)
+    expect(drawn.print()).toBe(drawDisplay(display, params, { meters }).print())
+    // With the sound going on it is the picture of a plate whose Mix never left.
+    const sounding = (time: number): Record<string, number> => ({ ...readings(time), level: 0.2 })
+    const on = away('grain-cloud', 10.5, 10, sounding)
+    expect(accent(on).length).toBeGreaterThan(0)
+    expect(on.print()).toBe(stayed('grain-cloud', 10.5, sounding).print())
+  })
+
+  it('the Cascade draws no slice as caught at the moment Mix is back', () => {
+    const values = { pattern: 3, time: 400, repeats: 4, decay: 0, high: 1, low: 0, shape: 1 }
+    // A slice every half second until four seconds; none after.
+    const readings = (time: number): Record<string, number> => ({
+      slices: Math.floor(Math.min(time, 4) * 2),
+      length: 0.3965,
+      period: 0.4,
+      delay: 0,
+      step: 0,
+      slot: 0,
+    })
+    const drawn = away('cascade', 10.5, 10, readings, values)
+    expect(accent(drawn)).toHaveLength(0)
+    expect(drawn.print()).toBe(stayed('cascade', 10.5, readings, values).print())
+  })
+
+  it('the Glitch ends a piece when the device does, not when Mix is back', () => {
+    const values = { time: 250, decay: 1, calm: 0 }
+    // A slice clock of 250 ms; a repeat of two pieces begins at 1.75 s and is over at 2.25 s,
+    // a quarter of a second after Mix went to 0.
+    const readings = (time: number): Record<string, number> => {
+      const into = time % 0.25
+      const on = time >= 1.75 && time < 2.25
+      return {
+        events: time >= 1.75 ? 1 : 0,
+        kind: on ? 1 : 0,
+        count: on ? 2 : 0,
+        piece: on ? 1 + Math.floor((time - 1.75) / 0.25) : 0,
+        next: 0.25 - into,
+        speed: 1,
+      }
+    }
+    for (const seconds of [10.1, 10.5, 12]) {
+      const blocks = accent(away('glitch', seconds, 10, readings, values)).filter(
+        (mark) => mark.kind === 'fill',
+      )
+      // A piece is a slice long, 11 px; the fault drew one from 1.75 s to the moment Mix was back.
+      for (const block of blocks) expect(right(block) - left(block), `${seconds}`).toBeLessThan(13)
+    }
+    // What the device did unheard is not drawn as the past: only the clock runs on.
+    expect(
+      accent(away('glitch', 10.5, 10, readings, values)).filter((mark) => mark.kind === 'fill'),
+    ).toHaveLength(0)
+  })
+})

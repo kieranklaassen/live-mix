@@ -50,6 +50,12 @@ import {
 // in comes out: nothing is drawn as happening, and at rest there is no worked
 // example of what the settings would do, for they would do nothing. The
 // scales and the points stay.
+//
+// The display goes on following the device all the while: its counts, its
+// tape, its levels. One that stopped following took the first reading after
+// Mix came back for something that had just happened, and drew the stretch it
+// had missed as one flat level. What the device did unheard is not kept as
+// something heard: a hold is kept at nothing, a catch is not marked.
 
 /** Under this nothing sounds, as for the plate that draws the display. */
 const QUIET = 1e-4
@@ -170,18 +176,22 @@ function drawHold(frame: DisplayFrame<HoldState>, picture: HoldPicture): boolean
   const yOf = (db: number): number => yOfDb(clamp(db, footDb, topDb), box, topDb, footDb)
 
   const heard = picture.wet > QUIET
-  const powered = frame.powered && heard
-  const running = powered && frame.dt > 0 && picture.metered
+  const running = frame.powered && frame.dt > 0 && picture.metered
   if (running) {
     const played = gainToDb(picture.played)
-    const held = gainToDb(picture.held)
+    // With none of the hold in the mix the playing is kept and no hold.
+    const held = heard ? gainToDb(picture.held) : footDb
     state.played.push(frame.now, Math.max(footDb, played))
     state.held.push(frame.now, Math.max(footDb, held))
     // The hold counts while it is heard: as loud as Mix leaves it.
     if (played > footDb + 3 || gainToDb(picture.held * picture.wet) > footDb + 3)
       state.heardAt = frame.now
   }
-  const live = powered && state.heardAt !== null && frame.now - state.heardAt < HOLD_PAST_SEC + 0.5
+  const live =
+    frame.powered &&
+    heard &&
+    state.heardAt !== null &&
+    frame.now - state.heardAt < HOLD_PAST_SEC + 0.5
 
   dbGrid(frame, box, topDb, footDb, 24, topDb)
   const { playedLine, heldLine, overLine } = state
@@ -325,9 +335,10 @@ const sustainer = plateDisplay<HoldState>({
 
     // A catch: the count steps.
     const heard = mixedIn(frame)
-    if (frame.powered && heard && frame.dt > 0 && frame.hasMeter('caught')) {
+    if (frame.powered && frame.dt > 0 && frame.hasMeter('caught')) {
       const caught = frame.meter('caught')
-      if (state.caught !== null && caught > state.caught) {
+      // The count is followed whatever Mix is; a catch nobody heard is not marked.
+      if (heard && state.caught !== null && caught > state.caught) {
         state.catches.copyWithin(1, 0)
         state.catches[0] = frame.now
       }
@@ -780,7 +791,7 @@ const grainCloud = plateDisplay<CloudState>({
     const wet = wetGain(frame)
     const heard = wet > QUIET
     const powered = frame.powered && heard
-    const running = powered && frame.dt > 0 && frame.hasMeter('grains')
+    const running = frame.powered && frame.dt > 0 && frame.hasMeter('grains')
     if (running) {
       if (!frozen) {
         const slot = CLOUD_SECONDS / CLOUD_TAPE
@@ -1288,7 +1299,7 @@ const glitch = plateDisplay<GlitchState>({
     // --- What the device reports ---
     const heard = mixedIn(frame, true)
     const powered = frame.powered && heard
-    const running = powered && frame.dt > 0 && frame.hasMeter('next')
+    const running = frame.powered && frame.dt > 0 && frame.hasMeter('next')
     const next = running ? frame.meter('next') : 0
     const kind = running ? Math.round(frame.meter('kind')) : 0
     const events = running ? frame.meter('events') : 0
@@ -1371,6 +1382,11 @@ const glitch = plateDisplay<GlitchState>({
         state.piece = number
       }
       state.events = events
+    }
+    if (!heard) {
+      // What the device did unheard is not the past of what is heard: only the piece it is in is kept.
+      for (const piece of state.pieces) if (piece !== state.current) piece.kind = 0
+      state.ticks.fill(Number.NEGATIVE_INFINITY)
     }
     const live = powered && now - state.lastAt < GLITCH_SPAN_SEC
 
@@ -2259,7 +2275,7 @@ const cascade = plateDisplay<CascadeState>({
     // --- What the device reports: a slice, each time its count steps ---
     const heard = mixedIn(frame)
     const powered = frame.powered && heard
-    const running = powered && frame.dt > 0 && frame.hasMeter('slices')
+    const running = frame.powered && frame.dt > 0 && frame.hasMeter('slices')
     const slot = running ? frame.meter('slot') : 0
     if (running) {
       const slices = frame.meter('slices')
