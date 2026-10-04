@@ -197,6 +197,28 @@ describe('Fader', () => {
     expect(container.firstChild).toHaveClass('lm-fader--cap', 'lm-fader--disabled')
   })
 
+  it('ends a move that is open when the fader leaves the page, once', () => {
+    const onChangeStart = vi.fn()
+    const onChangeEnd = vi.fn()
+    const { unmount } = render(
+      <Fader
+        label="Level"
+        defaultValue={0.5}
+        min={0}
+        max={1}
+        onChangeStart={onChangeStart}
+        onChangeEnd={onChangeEnd}
+      />,
+    )
+    const track = screen.getByRole('slider')
+    fireEvent.pointerDown(track, { pointerId: 1, button: 0, clientX: 0, clientY: 100 })
+    fireEvent.pointerMove(track, { pointerId: 1, clientX: 0, clientY: 75 })
+    // A strip taken off the page with a finger on its fader: whoever holds the level lets it go.
+    unmount()
+    expect(onChangeStart).toHaveBeenCalledTimes(1)
+    expect(onChangeEnd).toHaveBeenCalledTimes(1)
+  })
+
   it('supports a custom formatter and a disabled state', () => {
     render(
       <Fader

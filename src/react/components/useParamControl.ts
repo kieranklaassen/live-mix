@@ -62,6 +62,7 @@ export interface ParamControlHandlers {
   onPointerMove: (event: PointerEvent<HTMLElement>) => void
   onPointerUp: (event: PointerEvent<HTMLElement>) => void
   onPointerCancel: (event: PointerEvent<HTMLElement>) => void
+  onLostPointerCapture: (event: PointerEvent<HTMLElement>) => void
   onDoubleClick: (event: MouseEvent<HTMLElement>) => void
   onKeyDown: (event: KeyboardEvent<HTMLElement>) => void
   onBlur: () => void
@@ -163,12 +164,31 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
     }, latest.current.gestureIdleMs ?? gestureIdleMs)
   }, [beginGesture, endGesture, gestureIdleMs])
 
-  useEffect(
-    () => () => {
-      if (idleTimerRef.current !== null) clearTimeout(idleTimerRef.current)
-    },
-    [],
-  )
+  /** Ends the move that is open without the pointer's say: the pointer that held it holds it no more. */
+  const dropGesture = useCallback(() => {
+    const pointerId = pointerIdRef.current
+    draggingRef.current = false
+    pointerIdRef.current = null
+    setDragging(false)
+    const element = elementRef.current
+    if (pointerId !== null && element?.hasPointerCapture?.(pointerId)) {
+      element.releasePointerCapture(pointerId)
+    }
+    endGesture()
+  }, [endGesture])
+
+  // A control that leaves the page in the middle of a move hears nothing more
+  // from the browser, and the idle timer of its keys goes with it: the move
+  // ends here, so whoever was told it began is told it is over.
+  useEffect(() => dropGesture, [dropGesture])
+
+  // Switched off in the middle of a move (a bypassed device): the move ends at
+  // once. A browser may send a disabled control none of the pointer's later
+  // events, so its going up cannot be waited for.
+  const disabled = options.disabled === true
+  useEffect(() => {
+    if (disabled) dropGesture()
+  }, [disabled, dropGesture])
 
   // A quantised value repeats across pointer frames; a redundant `onChange`
   // would re-render the host and re-send the param to the audio thread.
@@ -243,6 +263,18 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
       beginGesture()
     },
     [beginGesture],
+  )
+
+  /**
+   * The pointer was taken from the control (something else captured it): none
+   * of its later events come here, so the move ends as if it had gone up. A
+   * browser says this after every pointer up too, when the move is already over.
+   */
+  const onLostPointerCapture = useCallback(
+    (event: PointerEvent<HTMLElement>) => {
+      if (pointerIdRef.current === event.pointerId) dropGesture()
+    },
+    [dropGesture],
   )
 
   /**
@@ -424,6 +456,7 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
       onPointerMove,
       onPointerUp: endPointer,
       onPointerCancel: cancelPointer,
+      onLostPointerCapture,
       onDoubleClick,
       onKeyDown,
       onBlur,
