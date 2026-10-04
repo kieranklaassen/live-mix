@@ -6,6 +6,7 @@
   "class": "SwarmReverb",
   "header": "swarm_reverb.h",
   "sources": [],
+  "meters": [{ "key": "size", "name": "Size now", "display": true }],
   "params": [
     {
       "key": "length",
