@@ -906,3 +906,26 @@ describe('the dynamics displays together', () => {
     }
   })
 })
+
+describe('the Ambient Compressor ratio point under Mix and make-up', () => {
+  const comp = plate('ambient-comp')
+  const ratioAt = (values: Record<string, number>): DisplayHandle => {
+    const handle = comp.display
+      .handles?.(viewOf(comp.display, comp.params, { values }))
+      .find((each) => each.key === 'ratio')
+    if (!handle) throw new Error('no ratio point')
+    return handle
+  }
+
+  it('does not move when it is taken, whatever Mix and the make-up add', () => {
+    for (const values of [
+      { ratio: 4 },
+      { ratio: 4, mix: 0.5 },
+      { ratio: 4, mix: 0.5, makeup: 9 },
+      { ratio: 2.5, mix: 0.25, makeup: 3, threshold: -36 },
+    ]) {
+      const handle = ratioAt(values)
+      expect(handle.drag(handle.x, handle.y).ratio).toBeCloseTo(values.ratio, 6)
+    }
+  })
+})

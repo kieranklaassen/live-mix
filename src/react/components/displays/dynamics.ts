@@ -268,7 +268,6 @@ function ambientCompHandles(view: DisplayView): DisplayHandle[] {
   const { curve } = compBoxes(view)
   const threshold = view.value('threshold')
   const ratio = view.value('ratio')
-  const makeup = view.value('makeup')
   const model = ambientCompModel(view)
   const out = (inDb: number): number => inDb + model.gain(model.reduction(inDb))
   return [
@@ -297,7 +296,7 @@ function ambientCompHandles(view: DisplayView): DisplayHandle[] {
       // The point stands on the mixed curve, so the make-up and the dry part of
       // Mix come off together: what they add where it stands now.
       drag: (_x: number, y: number) => {
-        const wet = TOP_DB + softKnee(TOP_DB, threshold, ratio, knee)
+        const wet = TOP_DB + model.reduction(TOP_DB)
         const top = dbOfY(y, curve, TOP_DB, FOOT_DB) - (out(TOP_DB) - wet)
         const span = TOP_DB - threshold
         const kept = clamp(top - threshold, span / 10, span)
