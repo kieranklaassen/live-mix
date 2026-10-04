@@ -98,11 +98,59 @@ interface TremoloState {
   right: History
 }
 
+/** What a point's ring takes about its middle when it is lit: the kit's 4.5 px and half its 1.5 px line. */
+const RING_ROOM = 5.25
+
+/** Where the ring of a scope's point stands for a line at `y`: on it, and whole on the strip at its two edges. */
+const ringY = (view: Pick<DisplayView, 'height'>, y: number): number =>
+  clamp(y, RING_ROOM, view.height - RING_ROOM)
+
+/** The line a ring dragged to `y` stands for: the same height, and past the scope where the ring can go no further. */
+const lineOfRing = (view: Pick<DisplayView, 'height'>, y: number): number =>
+  y <= RING_ROOM + 1e-6 ? -Infinity : y >= view.height - RING_ROOM - 1e-6 ? Infinity : y
+
+/**
+ * The one point of the Tremolo's scope: on the line the swing reaches at its
+ * furthest, at the scope's left end, where nothing rides the LFO. Up and down
+ * is Depth. Tremolo and Harmonic swing down from the top, where the sound is
+ * untouched; Pan and Vibrato swing about the middle, and the point stands on
+ * the upper end. Mix scales the swing with Depth, so the line stands at their
+ * product and a drag is taken back through it. At the box's two ends the ring
+ * stands a quarter pixel in from the line, so that it is whole when it is lit.
+ */
+function tremoloHandles(view: DisplayView): DisplayHandle[] {
+  const box = scopeBox(view)
+  const mode = TREMOLO_MODES[Math.round(view.value('mode'))] ?? 'tremolo'
+  const depth = view.value('depth')
+  const spec = view.spec('depth')
+  const falls = mode === 'tremolo' || mode === 'harmonic'
+  const from = falls ? box.y : box.y + box.h / 2
+  // How far the line travels for the whole of Depth: down the box, or up half of it.
+  const reach = (falls ? box.h : -box.h / 2) * view.value('mix')
+  const y = ringY(view, from + depth * reach)
+  return [
+    {
+      key: 'depth',
+      name: 'Depth',
+      x: box.x + 5,
+      y,
+      // With no Mix nothing swings, and the line has nowhere to go.
+      drag: (_x, toY) => ({
+        depth:
+          Math.abs(toY - y) < 1e-6 || Math.abs(reach) < 1e-6
+            ? depth
+            : clamp((lineOfRing(view, toY) - from) / reach, spec?.min ?? 0, spec?.max ?? 1),
+      }),
+      reset: () => ({ depth: spec?.default ?? depth }),
+    },
+  ]
+}
+
 const tremolo = plateDisplay<TremoloState>({
   place: 'strip',
   params: ['mode', 'rate', 'depth', 'shape', 'phase', 'smooth', 'mix'],
   live: { meters: true, fps: 60 },
-  info: 'The modulation over two seconds, running to the left: the mark is now, with what has been at its left and what comes next at its right. Up is louder for Tremolo, left for Pan, the low band for Harmonic and sharp for Vibrato. A second, fainter line is the right side when Stereo Phase sets it apart.',
+  info: 'The modulation over two seconds, running to the left: the mark is now, the past at its left and what comes at its right. Up is louder for Tremolo, left for Pan, the low band for Harmonic and sharp for Vibrato. The fainter line is the right side, set apart by Stereo Phase. The ring sets Depth.',
   init: () => ({
     table: new Float32Array(CYCLE),
     made: '',
@@ -140,8 +188,8 @@ const tremolo = plateDisplay<TremoloState>({
     const height = (m: number, side: 0 | 1): number => {
       if (mode === 'tremolo') return top + depth * (1 - m) * 0.5 * box.h
       if (mode === 'harmonic') return top + depth * (1 + (side === 0 ? -m : m)) * 0.5 * box.h
-      // Pan and Vibrato swing about the middle.
-      return middle - depth * m * (box.h / 2)
+      // Pan and Vibrato swing about the middle. The device pans to the right as the modulator rises: down here.
+      return middle + (mode === 'pan' ? depth : -depth) * m * (box.h / 2)
     }
     const nowX = box.x + box.w * NOW_AT
     const read = (phase: number): number => {
@@ -168,6 +216,11 @@ const tremolo = plateDisplay<TremoloState>({
         alpha: INK.grid,
       },
     )
+    // How far the swing goes at the most: the line Depth is taken by.
+    const [point] = tremoloHandles(frame)
+    const most =
+      mode === 'tremolo' || mode === 'harmonic' ? top + depth * box.h : middle - depth * (box.h / 2)
+    rule(ctx, box.x, most, box.x + box.w, most, { colour: colours.ink, alpha: INK.grid })
     rule(ctx, nowX, box.y - 2, nowX, foot + 2, { colour: colours.ink, alpha: INK.rule })
 
     const phaseNow = state.phase?.phase ?? 0
@@ -223,7 +276,9 @@ const tremolo = plateDisplay<TremoloState>({
       text(frame, high, box.x + box.w, box.y + 6, { align: 'right', alpha: INK.back })
       text(frame, low, box.x + box.w, foot, { align: 'right', alpha: INK.back })
     }
+    handle(frame, point.x, point.y, { hot: frame.hot === point.key })
   },
+  handles: tremoloHandles,
 })
 
 // --- Lines kept between frames ----------------------------------------------
@@ -360,12 +415,54 @@ interface ChorusState {
   kept: Line
 }
 
+/** The scope of the Chorus: the strip less the room for the words at its right. */
+function chorusBox(view: Pick<DisplayView, 'width' | 'height'>): Box {
+  const all = scopeBox(view)
+  return { ...all, w: all.w - CHORUS_MARGIN }
+}
+
+/**
+ * The one point of the Chorus's scope: on the line the voices swing up to, at
+ * the scope's left end, where nothing rides the LFO. Up and down is Depth, on
+ * the scope's own scale of 5 ms either side of Delay, which no knob stretches.
+ */
+function chorusHandles(view: DisplayView): DisplayHandle[] {
+  const box = chorusBox(view)
+  const middle = box.y + box.h / 2
+  const perMs = box.h / 2 / CHORUS_SWING_MS
+  const depth = view.value('depth')
+  const spec = view.spec('depth')
+  // The whole of Depth, in ms: less than the scale's 5 where Delay is under 6 ms.
+  const most = chorusSwingMs(100, view.value('delayMs'))
+  // At the top of the scope the ring stands a quarter pixel under the line, whole when it is lit.
+  const y = ringY(view, middle - chorusSwingMs(depth, view.value('delayMs')) * perMs)
+  return [
+    {
+      key: 'depth',
+      name: 'Depth',
+      x: box.x + 5,
+      y,
+      drag: (_x, toY) => ({
+        depth:
+          Math.abs(toY - y) < 1e-6
+            ? depth
+            : clamp(
+                ((middle - lineOfRing(view, toY)) / (most * perMs)) * 100,
+                spec?.min ?? 0,
+                spec?.max ?? 100,
+              ),
+      }),
+      reset: () => ({ depth: spec?.default ?? depth }),
+    },
+  ]
+}
+
 const chorus = plateDisplay<ChorusState>({
   place: 'strip',
   params: ['voices', 'rate', 'depth', 'delayMs', 'spread'],
   // Three voices a third of a cycle apart make a figure that comes round three times in a cycle: 30 frames a second cannot follow it at a few Hz.
   live: { meters: true, fps: 60 },
-  info: 'Each line is one voice: the delay it reads at, swinging around Delay and running to the left, two seconds across or four cycles when Rate is fast. The mark is now. Up is a longer delay, and a steeper line is more bend in pitch. The fainter lines are the right side, which Spread sets apart.',
+  info: 'Each line is one voice: the delay it reads at, swinging around Delay and running to the left, two seconds across or four cycles when Rate is fast. The mark is now. Up is a longer delay, a steeper line more bend in pitch. The fainter lines are the right side, set apart by Spread. The ring sets Depth.',
   init: () => ({
     lfo: followed(),
     sin: new Float32Array(0),
@@ -376,7 +473,7 @@ const chorus = plateDisplay<ChorusState>({
     const { ctx, colours, state } = frame
     ground(frame)
     const all = scopeBox(frame)
-    const box = { ...all, w: all.w - CHORUS_MARGIN }
+    const box = chorusBox(frame)
     const voices = frame.value('voices') >= 0.5 ? 3 : 2
     const rate = frame.value('rate')
     const delay = frame.value('delayMs')
@@ -391,6 +488,10 @@ const chorus = plateDisplay<ChorusState>({
     const perMs = box.h / 2 / CHORUS_SWING_MS
     const nowX = box.x + box.w * NOW_AT
     rule(ctx, box.x, middle, box.x + box.w, middle, { colour: colours.ink, alpha: INK.grid })
+    // How far up the voices swing: the line Depth is taken by.
+    const [point] = chorusHandles(frame)
+    const most = middle - swing * perMs
+    rule(ctx, box.x, most, box.x + box.w, most, { colour: colours.ink, alpha: INK.grid })
     rule(ctx, nowX, box.y - 2, nowX, box.y + box.h + 2, { colour: colours.ink, alpha: INK.rule })
 
     // The LFO across the scope, once: some thirty points a cycle, with one exactly at now.
@@ -460,7 +561,9 @@ const chorus = plateDisplay<ChorusState>({
         baseline: 'middle',
       },
     )
+    handle(frame, point.x, point.y, { hot: frame.hot === point.key })
   },
+  handles: chorusHandles,
 })
 
 // --- A sweep across the spectrum (Flanger, Phaser) --------------------------
@@ -1368,6 +1471,40 @@ function rotorBoxes(view: Pick<DisplayView, 'width' | 'height'>, row: 0 | 1): Ro
   }
 }
 
+/**
+ * The one point of the Rotary's display: the horn's left microphone, which
+ * stands still while the rotors turn. Taken round the horn it sets Spread:
+ * at the front the two microphones are one, a fifth of a turn off it they are
+ * as far apart as they go. Past either end the nearer one holds, as far as
+ * the place opposite the middle of the travel.
+ */
+function rotaryHandles(view: DisplayView): DisplayHandle[] {
+  const { cx, cy, radius } = rotorBoxes(view, 0)
+  const spread = view.value('spread')
+  const spec = view.spec('spread')
+  const mic = -ROTARY_MIC * spread * TWO_PI
+  const reach = radius + 4 + 3 * view.value('distance')
+  const x = cx + reach * Math.sin(mic)
+  const y = cy + reach * Math.cos(mic)
+  return [
+    {
+      key: 'spread',
+      name: 'Spread',
+      x,
+      y,
+      drag: (toX, toY) => {
+        if (Math.abs(toX - x) < 1e-6 && Math.abs(toY - y) < 1e-6) return { spread }
+        // How far round to the left of the front, which is down the display, in turns.
+        const turn = wrap(Math.atan2(cx - toX, toY - cy) / TWO_PI)
+        const most = spec?.max ?? 1
+        if (turn <= ROTARY_MIC) return { spread: clamp((turn / ROTARY_MIC) * most, 0, most) }
+        return { spread: turn < 0.5 + ROTARY_MIC / 2 ? most : (spec?.min ?? 0) }
+      },
+      reset: () => ({ spread: spec?.default ?? spread }),
+    },
+  ]
+}
+
 function drawRotor(
   frame: DisplayFrame<RotaryState>,
   kind: RotorKind,
@@ -1416,6 +1553,11 @@ function drawRotor(
     // `side` cycles off the front, which is down the display.
     const mic = side * ROTARY_MIC * spread * (kind === 'horn' ? 1 : 0.5) * TWO_PI
     const reach = radius + 4 + 3 * distance
+    // The horn's left microphone is the point that sets Spread: a ring round it.
+    if (kind === 'horn' && side === -1) {
+      const [point] = rotaryHandles(frame)
+      handle(frame, point.x, point.y, { hot: frame.hot === point.key, radius: 3 })
+    }
     dot(ctx, cx + reach * Math.sin(mic), cy + reach * Math.cos(mic), 1.75, colours.ink, {
       alpha: side === -1 ? 1 : INK.back,
     })
@@ -1484,7 +1626,7 @@ const rotary = plateDisplay<RotaryState>({
   columns: 2,
   params: ['speed', 'hornDepth', 'drumDepth', 'distance', 'spread'],
   live: { meters: true, fps: 60 },
-  info: 'The cabinet from above: the horn, then the drum, each turning at its own speed past the two microphones in front. Beside each is the level its microphones got over the last moments, the right one fainter. An arrow shows a rotor on its way to another speed.',
+  info: 'The cabinet from above: the horn, then the drum, each turning at its own speed past the two microphones in front. Beside each is the level its microphones got over the last moments, the right one fainter. An arrow is a rotor changing speed. The ringed microphone sets Spread.',
   init: () => ({
     horn: rotor('horn'),
     drum: rotor('drum'),
@@ -1525,6 +1667,7 @@ const rotary = plateDisplay<RotaryState>({
       drawRotor(frame, kind, kept, hz, target, turning)
     }
   },
+  handles: rotaryHandles,
 })
 
 export const MODULATION_FACES: Readonly<Record<string, PlateFace>> = {

@@ -773,12 +773,69 @@ const centsText = (cents: number): string => {
 export const detuneTravel = (detune: number, drift: number): number =>
   (detune > 0 || drift > 0 ? DETUNE_TRAVEL_MS : 0) + drift * DETUNE_DRIFT_MS
 
+/** How large a copy's bead is, in pixels: as loud as Mix and the level hold (0..1) have it. */
+const detuneBead = (mix: number, hold: number): number =>
+  1.5 + 2.5 * Math.sin((mix * Math.PI) / 2) * hold
+
+/**
+ * The one point of the Stereo Detune's field: the mark across the left copy's
+ * rail, where its Delay stands. It is the place the copy is set to and not
+ * where its head is now, so it holds still while the bead creeps. Further out
+ * is a longer Delay, on the field's own scale; round towards the left side is
+ * more Width. Under the foot there is no field: a place there counts as on
+ * the foot.
+ */
+function detuneHandles(view: DisplayView): DisplayHandle[] {
+  const field = fieldOf(view)
+  const delay = view.value('delay')
+  const width = view.value('width')
+  const delaySpec = view.spec('delay')
+  const widthSpec = view.spec('width')
+  const [x, y] = ray(field, detuneAngle(0, width), field.r * detuneReach(delay))
+  return [
+    {
+      key: 'copy',
+      name: 'Delay and width',
+      x,
+      y,
+      drag: (toX, toY) => {
+        if (Math.abs(toX - x) < 1e-6 && Math.abs(toY - y) < 1e-6) return { delay, width }
+        const across = field.cx - toX
+        const up = Math.max(0, field.cy - toY)
+        const to = clamp(
+          Math.atan2(across, Math.max(1e-6, up)) / EIGHTH,
+          widthSpec?.min ?? 0,
+          widthSpec?.max ?? 1,
+        )
+        // Past either end of Width the rail stays at that end, and the Delay
+        // is the place on it nearest the pointer.
+        const angle = to * EIGHTH
+        const out = Math.max(0, across * Math.sin(angle) + up * Math.cos(angle)) / field.r
+        return {
+          delay: clamp(DETUNE_RIM_MS * out * out, delaySpec?.min ?? 12, delaySpec?.max ?? 60),
+          width: to,
+        }
+      },
+      reset: () => ({
+        delay: delaySpec?.default ?? delay,
+        width: widthSpec?.default ?? width,
+      }),
+    },
+  ]
+}
+
+/**
+ * The ring of that point, in pixels: wide enough to stand clear round the
+ * bead, which lies in it while the copy is at rest and grows with Mix.
+ */
+const detuneRing = (mix: number): number => Math.max(5, detuneBead(mix, 1) + 2.25)
+
 const stereoDetune = plateDisplay<Scope>({
   place: 'window',
   columns: 2,
   params: ['detune', 'delay', 'drift', 'feedback', 'width', 'mix'],
   live: { meters: true, stereo: true },
-  info: 'The stereo field from where you sit, with the sound as a cloud. The beads are the two copies, sharp on the left and flat on the right, further out the later they are: each creeps along its rail as its pitch shifts, then jumps back. The numbers are their detune and Delay, the dots their repeats.',
+  info: 'The stereo field from where you sit, the sound a cloud. The beads are the two copies, sharp on the left and flat on the right, further out the later: each creeps along its rail as its pitch shifts, then jumps back. The numbers are detune and Delay, the dots repeats. The ring sets Delay and Width.',
   init: scope,
   draw(frame) {
     const { ctx, colours, state } = frame
@@ -837,6 +894,11 @@ const stereoDetune = plateDisplay<Scope>({
         ],
         rail,
       )
+      // The left copy's mark is the point that sets Delay and Width; the bead lies over it.
+      if (side === 0) {
+        const [point] = detuneHandles(frame)
+        handle(frame, point.x, point.y, { hot: frame.hot === point.key, radius: detuneRing(mix) })
+      }
 
       const cents = live
         ? frame.meter(side === 0 ? 'centsLeft' : 'centsRight')
@@ -862,7 +924,7 @@ const stereoDetune = plateDisplay<Scope>({
         ctx,
         field.cx + across * out,
         field.cy - up * out,
-        1.5 + 2.5 * Math.sin((mix * Math.PI) / 2) * hold,
+        detuneBead(mix, hold),
         live ? colours.accent : colours.ink,
         { ring: colours.ink },
       )
@@ -879,6 +941,7 @@ const stereoDetune = plateDisplay<Scope>({
     drawAlike(frame, field, state)
     drawBars(frame, field, state)
   },
+  handles: detuneHandles,
 })
 
 export const SPATIAL_FACES: Readonly<Record<string, PlateFace>> = {

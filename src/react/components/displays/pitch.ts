@@ -59,6 +59,25 @@ function svfLowGain(hz: number, cutHz: number, q: number, sampleRate: number): n
   return 1 / Math.sqrt(a * a + k * k * r * r)
 }
 
+/** The level at which a voice's light is out; at full scale it is whole. */
+const LIT_FLOOR_DB = -54
+/** A voice that is set and not sounding, and the part of it that sounds now. */
+const SET_ALPHA = 0.35
+const LIT_ALPHA = 0.9
+
+/**
+ * How much of a voice is lit by the sound going in now, 0..1: its level on a
+ * scale of decibels, quick up and slow down, as a meter moves. 0 while there
+ * is no sound to read (a plate that is off, out of sight, or still).
+ */
+function litBy(frame: DisplayFrame, last: number): number {
+  const heard = frame.powered && frame.signal ? (frame.signal.input ?? frame.signal.output) : null
+  if (!heard) return 0
+  const now = clamp(1 - gainToDb(heard.rms) / LIT_FLOOR_DB, 0, 1)
+  // A first frame, with no time gone by, shows the level as it is.
+  return frame.dt > 0 ? follow(last, now, frame.dt, 0.02, 0.3) : now
+}
+
 // --- A ruler in semitones ---------------------------------------------------
 
 interface Ruler {
@@ -322,17 +341,49 @@ function shiftLabels(view: DisplayView, ruler: Ruler, points: DisplayHandle[]): 
   return labels
 }
 
-const pitchShifter = plateDisplay({
+/** How wide the light under a mark is, and how strong: over the band Jitter draws, under the mark itself. */
+const SHIFT_LIGHT_PX = 7
+const SHIFT_LIGHT_ALPHA = 0.55
+
+const pitchShifter = plateDisplay<{ lit: number }>({
   place: 'strip',
   params: ['pitchA', 'pitchB', 'levelB', 'detune', 'feedback', 'mode', 'jitter'],
-  info: 'A ruler in semitones: the sound going in stands at 0, voice A and voice B at their intervals, B as tall as its level. The thin marks are what Feedback adds, every repeat shifted again. Drag A or B along the ruler, and B up or down for its level.',
+  live: { signal: true },
+  info: 'A ruler in semitones: the sound going in stands at 0, voices A and B at their intervals, B as tall as its level. A light at 0 and under each voice rises and falls with the sound. The thin marks are what Feedback adds, every repeat shifted again. Drag A or B along the ruler, and B up or down.',
+  init: () => ({ lit: 0 }),
   draw(frame) {
-    const { ctx, colours } = frame
+    const { ctx, colours, state } = frame
     ground(frame)
     const ruler = semitoneRuler(frame, -SHIFT_RANGE, SHIFT_RANGE)
     drawRuler(frame, ruler)
     const { a, b, levelB } = shiftVoices(frame)
     const perSt = ruler.w / (2 * SHIFT_RANGE)
+
+    // The sound itself: a light where it goes in and where each voice sends
+    // it, as tall as the voice's level when the sound is at full scale.
+    state.lit = litBy(frame, state.lit)
+    if (state.lit > 0) {
+      const lights: [number, number, string][] = [
+        [0, 1, colours.ink],
+        [b, levelB, colours.accent],
+        [a, 1, colours.accent],
+      ]
+      for (const [st, level, colour] of lights) {
+        const top = yOfLevel(level * state.lit, ruler)
+        if (ruler.base - top < 0.5) continue
+        fillRect(
+          ctx,
+          {
+            x: xOfSt(st, ruler) - SHIFT_LIGHT_PX / 2,
+            y: top,
+            w: SHIFT_LIGHT_PX,
+            h: ruler.base - top,
+          },
+          colour,
+          SHIFT_LIGHT_ALPHA,
+        )
+      }
+    }
 
     // What went in: the mark every interval is measured from.
     mark(frame, ruler, 0, 1, colours.ink, 2, INK.back)
@@ -499,6 +550,8 @@ function octaveReach(octave: number, hz: number, bankRate: number): number {
 interface OctaveState {
   /** The loudest partial the device heard last, Hz; 0 until there has been one. */
   note: number
+  /** How much of each voice the sound going in lights now, 0..1. */
+  lit: number
   curve: Spot[]
 }
 
@@ -506,9 +559,9 @@ const octaves = plateDisplay<OctaveState>({
   place: 'window',
   columns: 2,
   params: ['sub2', 'sub1', 'dry', 'up1', 'up2', 'filter', 'resonance'],
-  live: { meters: true },
-  info: 'Five bars, your own sound in the middle and its octaves from two down to two up, each as tall as its level: drag a bar to set it. While sound comes in, the second colour fills what the loudest note gets of each voice. The line is the filter on the voices.',
-  init: () => ({ note: 0, curve: [] }),
+  live: { meters: true, signal: true },
+  info: 'Five bars, your own sound and its octaves from two down to two up, each as tall as its level: drag a bar to set it. The second colour is what the loudest note gets of each voice, and the meter inside it rises and falls with the sound. The line is the filter on the voices.',
+  init: () => ({ note: 0, lit: 0, curve: [] }),
   draw(frame) {
     const { ctx, colours, state } = frame
     ground(frame)
@@ -526,6 +579,7 @@ const octaves = plateDisplay<OctaveState>({
     }
     // The bars stand an octave apart about that partial; before one is heard, about an example.
     const note = state.note > 0 ? state.note : OCTAVE_REST_HZ
+    state.lit = litBy(frame, state.lit)
     rule(ctx, box.x, base, box.x + box.w, base, { colour: colours.ink, alpha: INK.rule })
 
     // The low pass on the voices (`octaves.h`): Resonance takes Q from √½ to 9.
@@ -548,14 +602,26 @@ const octaves = plateDisplay<OctaveState>({
       const x = Math.round(centre + octave * perOctave - wide / 2)
       const level = frame.value(param)
       const top = yOfOctaveLevel(level, layout)
-      // What is set, in the ink; and in the second ink what the partial heard
-      // gets of it now, after the filter and the ends of the voice's range.
+      // What is set, in the ink; in the second ink, pale, what the partial
+      // heard gets of it after the filter and the ends of the voice's range;
+      // and solid, as much of that as the sound going in lights now.
       fillRect(ctx, { x, y: top, w: wide, h: base - top }, colours.ink, INK.fill * 1.5)
       if (heard) {
         const hz = note * 2 ** octave
         const gets = octave === 0 ? level : level * octaveReach(octave, note, bankRate) * passes(hz)
-        const now = yOfOctaveLevel(gets, layout)
-        fillRect(ctx, { x, y: now, w: wide, h: base - now }, colours.accent, 0.9)
+        const most = yOfOctaveLevel(gets, layout)
+        // With no sound to read (a still picture), the whole of it is solid.
+        const whole = frame.signal === null
+        fillRect(
+          ctx,
+          { x, y: most, w: wide, h: base - most },
+          colours.accent,
+          whole ? LIT_ALPHA : SET_ALPHA,
+        )
+        const now = yOfOctaveLevel(gets * state.lit, layout)
+        if (!whole && base - now >= 0.5) {
+          fillRect(ctx, { x, y: now, w: wide, h: base - now }, colours.accent, LIT_ALPHA)
+        }
       }
       rule(ctx, x, top, x + wide, top, { colour: colours.ink, width: 1.5 })
       text(frame, signed(octave), centre + octave * perOctave, frame.height - 5, {
@@ -1655,11 +1721,92 @@ interface DriftState {
   age: number
 }
 
+/**
+ * Where a grain plays once the sound has rung its longest, in semitones: the
+ * far end of its line. There the drift is all of Bloom, so Bloom alone sets it.
+ */
+const driftReach = (grain: number, interval: number, direction: number, bloom: number): number =>
+  grainShift(grainTarget(grain, interval, direction, bloom), bloom)
+
+/**
+ * The group of grains the handle stands on: the one with the most grains, and
+ * of two as large the one the device's first grain is in. Its first grain, and
+ * its share of them all.
+ */
+function driftLead(interval: number, direction: number): { grain: number; level: number } {
+  let lead = 0
+  let most = 0
+  for (let grain = 0; grain < DRIFT_GRAINS; grain++) {
+    const key = grainTarget(grain, interval, direction, 1)
+    let share = 0
+    for (let other = 0; other < DRIFT_GRAINS; other++)
+      if (grainTarget(other, interval, direction, 1) === key) share++
+    if (share > most) {
+      most = share
+      lead = grain
+    }
+  }
+  return { grain: lead, level: most / DRIFT_GRAINS }
+}
+
+/**
+ * The Bloom that puts the far end of a grain's line at `st` semitones, found
+ * by halving: the end only ever moves away from 0 as Bloom rises, from 0 with
+ * none to the grain's whole interval with all of it.
+ */
+function bloomOfReach(st: number, grain: number, interval: number, direction: number): number {
+  const way = driftReach(grain, interval, direction, 1) < 0 ? -1 : 1
+  if (way * st <= 0) return 0
+  if (way * st >= way * driftReach(grain, interval, direction, 1)) return 1
+  let low = 0
+  let high = 1
+  for (let n = 0; n < 40; n++) {
+    const middle = (low + high) / 2
+    if (way * driftReach(grain, interval, direction, middle) < way * st) low = middle
+    else high = middle
+  }
+  return (low + high) / 2
+}
+
+/**
+ * The one point of the Spectral Drifter's ruler: the far end of the line the
+ * largest group of grains drifts along, at the height of its mark. Along the
+ * ruler it sets Bloom, which is how far that end stands from 0.
+ */
+function driftHandles(view: DisplayView): DisplayHandle[] {
+  const ruler = semitoneRuler(view, -DRIFT_RANGE, DRIFT_RANGE)
+  const bloom = view.value('bloom')
+  const spec = view.spec('bloom')
+  const direction = clamp(Math.round(view.value('direction')), 0, 2)
+  const interval = clamp(Math.round(view.value('interval')), 0, 3)
+  const { grain, level } = driftLead(interval, direction)
+  const x = xOfSt(driftReach(grain, interval, direction, bloom), ruler)
+  return [
+    {
+      key: 'bloom',
+      name: 'Bloom',
+      x,
+      y: yOfLevel(level, ruler),
+      drag: (toX) => ({
+        bloom:
+          Math.abs(toX - x) < 1e-6
+            ? bloom
+            : clamp(
+                bloomOfReach(stOfX(toX, ruler), grain, interval, direction),
+                spec?.min ?? 0,
+                spec?.max ?? 1,
+              ),
+      }),
+      reset: () => ({ bloom: spec?.default ?? bloom }),
+    },
+  ]
+}
+
 const spectralDrifter = plateDisplay<DriftState>({
   place: 'strip',
   params: ['bloom', 'direction', 'interval', 'decay', 'ageMode', 'age'],
   live: { signal: true },
-  info: 'A ruler in semitones with the sound going in at 0. Each mark is a group of grains, as tall as its share of them, at the pitch it plays now. The longer the sound rings the further it drifts along its line, from the faint end where a fresh sound starts towards the dashed interval.',
+  info: 'A ruler in semitones with the sound going in at 0. Each mark is a group of grains, as tall as its share of them, at the pitch it plays now. The longer the sound rings the further it drifts along its line, from the faint end where a fresh sound starts towards the dashed interval. The ring sets Bloom.',
   init: () => ({ age: 0 }),
   draw(frame) {
     const { ctx, colours, state } = frame
@@ -1693,6 +1840,8 @@ const spectralDrifter = plateDisplay<DriftState>({
 
     mark(frame, ruler, 0, 1, colours.ink, 2, INK.back)
 
+    const [point] = driftHandles(frame)
+    const lead = driftLead(interval, direction).grain
     // The grains in groups that play the same pitch.
     const seen: number[] = []
     for (let grain = 0; grain < DRIFT_GRAINS; grain++) {
@@ -1724,10 +1873,13 @@ const spectralDrifter = plateDisplay<DriftState>({
         colour: colours.ink,
         alpha: INK.back,
       })
+      // The far end of the largest group's line is the point that sets Bloom; where the grains play now lies over it.
+      if (grain === lead) handle(frame, point.x, point.y, { hot: frame.hot === point.key })
       mark(frame, ruler, now, level, colours.accent, 2.5)
       dot(ctx, xOfSt(now, ruler), y, 2.5, colours.accent, { ring: colours.ink })
     }
   },
+  handles: driftHandles,
 })
 
 export const PITCH_FACES: Readonly<Record<string, PlateFace>> = {

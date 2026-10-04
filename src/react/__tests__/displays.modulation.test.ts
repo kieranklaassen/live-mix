@@ -13,7 +13,7 @@ import { ROTARY_PARAMS } from '../../dsp/devices/rotary.gen'
 import { TREMOLO_PARAMS } from '../../dsp/devices/tremolo.gen'
 import { loadWasmDevice, type WasmDeviceHarness } from '../../dsp/__tests__/wasm-device-harness'
 import { type ParamSpec } from '../../core/params'
-import { PLAIN_COLOURS, xOfHz, type Box } from '../components/display-kit'
+import { INK, PLAIN_COLOURS, xOfHz, type Box } from '../components/display-kit'
 import {
   MODULATION_FACES,
   chorusSwingMs,
@@ -30,7 +30,8 @@ import {
   scopeSpanSec,
   sweepWave,
 } from '../components/displays/modulation'
-import { drawDisplay, runDisplay, type RecordingContext } from './display-harness'
+import { type DisplayHandle, type PlateDisplay } from '../components/plate-display'
+import { drawDisplay, runDisplay, viewOf, type RecordingContext } from './display-harness'
 
 const RATE = 48000
 const TWO_PI = Math.PI * 2
@@ -149,10 +150,218 @@ const reported =
     return { meters: { phase, ...more(phase) } }
   }
 
+const tremolo = MODULATION_FACES.tremolo.display
 const chorus = MODULATION_FACES.chorus.display
 const flanger = MODULATION_FACES.flanger.display
 const phaser = MODULATION_FACES.phaser.display
 const rotary = MODULATION_FACES.rotary.display
+
+/** The one point of a display at these settings, on a plate at rest. */
+function pointOf(
+  display: PlateDisplay,
+  params: Specs,
+  values: Readonly<Record<string, number>> = {},
+): DisplayHandle {
+  const [point] = display.handles?.(viewOf(display, params, { values })) ?? []
+  return point
+}
+
+/** The level lines of a scale: two points at one height in the plate's ink, as faint as a grid. */
+const scaleLines = (drawn: RecordingContext): number[] =>
+  strokes(drawn)
+    .filter(
+      (stroke) =>
+        stroke.colour === PLAIN_COLOURS.ink &&
+        stroke.alpha === INK.grid &&
+        stroke.points.length === 2 &&
+        stroke.points[0].y === stroke.points[1].y,
+    )
+    .map((stroke) => stroke.points[0].y)
+
+describe('the Tremolo display', () => {
+  // The scope on a plate at rest: 176 by 38 from (4, 5), its middle at 24.
+  const square = { shape: 2, smooth: 0 }
+
+  it('has Depth on a point at the foot of the swing, at the left end of the scope', () => {
+    // Depth 0.55 of 38 px down from the top, where the sound is untouched.
+    const point = pointOf(tremolo, TREMOLO_PARAMS)
+    expect(point.key).toBe('depth')
+    expect(point.x).toBe(9)
+    expect(point.y).toBeCloseTo(5 + 0.55 * 38, 9)
+    // A square swings the whole way: the lowest the trace gets is where the point stands.
+    const drawn = drawDisplay(tremolo, TREMOLO_PARAMS, { values: square, meters: { phase: 0 } })
+    const trace = strokes(drawn).filter((stroke) => stroke.points.length > 10)
+    expect(Math.max(...trace.flatMap((stroke) => stroke.points.map((at) => at.y)))).toBeCloseTo(
+      point.y,
+      3,
+    )
+    // The line it is taken by lies across the scope at that height, on the row of pixels it falls in.
+    expect(scaleLines(drawn)).toContain(Math.floor(point.y) + 0.5)
+    // And the ring is drawn there, larger while it is under the pointer.
+    expect(dots(drawn)).toContainEqual({ x: 9, y: point.y, r: 3.5 })
+    const hot = drawDisplay(tremolo, TREMOLO_PARAMS, { hot: 'depth' })
+    expect(dots(hot)).toContainEqual({ x: 9, y: point.y, r: 4.5 })
+  })
+
+  it('stands the point where the swing ends in every mode, Mix scaling it with Depth', () => {
+    // Harmonic swings down from the top as Tremolo does.
+    expect(pointOf(tremolo, TREMOLO_PARAMS, { mode: 2, depth: 0.9 }).y).toBeCloseTo(5 + 0.9 * 38, 9)
+    expect(pointOf(tremolo, TREMOLO_PARAMS, { mode: 0, depth: 0.1 }).y).toBeCloseTo(5 + 0.1 * 38, 9)
+    // Pan and Vibrato swing about the middle: the point is on the upper end, 19 px for all of it.
+    expect(pointOf(tremolo, TREMOLO_PARAMS, { mode: 1, depth: 0.9 }).y).toBeCloseTo(
+      24 - 0.9 * 19,
+      9,
+    )
+    expect(pointOf(tremolo, TREMOLO_PARAMS, { mode: 3, depth: 0.5 }).y).toBeCloseTo(14.5, 9)
+    expect(pointOf(tremolo, TREMOLO_PARAMS, { mode: 1, depth: 0 }).y).toBe(24)
+    // Half the Mix is half the swing: Depth 0.8 of it is 0.4 of the box.
+    expect(pointOf(tremolo, TREMOLO_PARAMS, { depth: 0.8, mix: 0.5 }).y).toBeCloseTo(
+      5 + 0.4 * 38,
+      9,
+    )
+    expect(pointOf(tremolo, TREMOLO_PARAMS, { mode: 1, depth: 0.8, mix: 0.5 }).y).toBeCloseTo(
+      24 - 0.4 * 19,
+      9,
+    )
+    // The trace of a square in Pan reaches up to it too.
+    const values = { ...square, mode: 1, depth: 0.7 }
+    const drawn = drawDisplay(tremolo, TREMOLO_PARAMS, { values, meters: { phase: 0 } })
+    const trace = strokes(drawn).filter((stroke) => stroke.points.length > 10)
+    expect(Math.min(...trace.flatMap((stroke) => stroke.points.map((at) => at.y)))).toBeCloseTo(
+      pointOf(tremolo, TREMOLO_PARAMS, values).y,
+      3,
+    )
+  })
+
+  it('takes Depth from how far the point is dragged, and leaves it alone when it is only taken', () => {
+    const settings: Record<string, number>[] = [
+      {},
+      { depth: 0.37 },
+      { mode: 1, depth: 0.81 },
+      { mode: 2, depth: 0.2, mix: 0.3 },
+      { mode: 3, depth: 1 },
+      { depth: 0 },
+    ]
+    for (const values of settings) {
+      const point = pointOf(tremolo, TREMOLO_PARAMS, values)
+      const depth = values.depth ?? TREMOLO_PARAMS.depth.default
+      expect(point.drag(point.x, point.y)).toEqual({ depth })
+      // Only up and down counts.
+      expect(point.drag(point.x + 60, point.y)).toEqual({ depth })
+    }
+    // Down a quarter of the box is Depth 0.25; in Pan up a quarter of the half is the same.
+    const down = pointOf(tremolo, TREMOLO_PARAMS)
+    expect(down.drag(9, 5 + 0.25 * 38).depth).toBeCloseTo(0.25, 9)
+    expect(pointOf(tremolo, TREMOLO_PARAMS, { depth: 0.25 }).y).toBeCloseTo(5 + 0.25 * 38, 9)
+    const up = pointOf(tremolo, TREMOLO_PARAMS, { mode: 1 })
+    expect(up.drag(9, 24 - 0.25 * 19).depth).toBeCloseTo(0.25, 9)
+    // With half the Mix the same place is twice the Depth.
+    expect(pointOf(tremolo, TREMOLO_PARAMS, { mix: 0.5 }).drag(9, 5 + 0.25 * 38).depth).toBeCloseTo(
+      0.5,
+      9,
+    )
+  })
+
+  it('stops at the ends of Depth however far it is dragged, and a double press gives the default', () => {
+    const down = pointOf(tremolo, TREMOLO_PARAMS)
+    expect(down.drag(9, 900)).toEqual({ depth: 1 })
+    expect(down.drag(9, -900)).toEqual({ depth: 0 })
+    expect(down.drag(-400, 43)).toEqual({ depth: 1 })
+    const up = pointOf(tremolo, TREMOLO_PARAMS, { mode: 3 })
+    expect(up.drag(9, -900)).toEqual({ depth: 1 })
+    expect(up.drag(9, 900)).toEqual({ depth: 0 })
+    expect(pointOf(tremolo, TREMOLO_PARAMS, { depth: 0.9 }).reset?.()).toEqual({ depth: 0.55 })
+    // With no Mix nothing swings: the point has nowhere to go and Depth stays.
+    const flat = pointOf(tremolo, TREMOLO_PARAMS, { mix: 0, depth: 0.4 })
+    expect(flat.y).toBe(5.25)
+    expect(flat.drag(9, 40)).toEqual({ depth: 0.4 })
+  })
+
+  it('keeps the ring whole on the strip where the line is at an edge of the scope', () => {
+    // Lit, the ring is 4.5 px wide under a 1.5 px line: 5.25 px about its middle, on a strip 48 high.
+    const edges: [Record<string, number>, number, number][] = [
+      [{ mode: 0, depth: 0 }, 5, 5.25],
+      [{ mode: 2, depth: 0 }, 5, 5.25],
+      [{ mode: 0, depth: 1 }, 43, 42.75],
+      [{ mode: 2, depth: 1 }, 43, 42.75],
+      [{ mode: 1, depth: 1 }, 5, 5.25],
+      [{ mode: 3, depth: 1 }, 5, 5.25],
+      [{ mode: 0, depth: 0.7, mix: 0 }, 5, 5.25],
+    ]
+    for (const [values, line, ring] of edges) {
+      const point = pointOf(tremolo, TREMOLO_PARAMS, values)
+      expect(point.y, JSON.stringify(values)).toBeCloseTo(ring, 9)
+      const hot = drawDisplay(tremolo, TREMOLO_PARAMS, { values, hot: 'depth' })
+      const lit = dots(hot).find((dot) => dot.x === 9 && dot.r === 4.5)
+      expect(lit?.y).toBeCloseTo(ring, 9)
+      // The line it is taken by stays where the swing ends, a quarter pixel from the ring.
+      expect(scaleLines(hot)).toContain(line + 0.5)
+      // Taken there and moved a pixel into the scope, Depth moves by that pixel and the quarter, and no further.
+      const inward = ring < 24 ? 1 : -1
+      const depth = values.depth ?? 0
+      const moved = point.drag(9, point.y + inward).depth
+      // And pushed on past the edge it stays at the end it is on.
+      expect(point.drag(9, point.y - inward * 3)).toEqual({ depth })
+      if ((values.mix ?? 1) === 0) {
+        expect(moved).toBe(depth)
+        continue
+      }
+      expect(Math.abs(moved - depth)).toBeLessThan(1.3 / (values.mode % 2 === 1 ? 19 : 38))
+      // Brought back to where it was taken, the ring is at its end again, and so is Depth.
+      const there = pointOf(tremolo, TREMOLO_PARAMS, { ...values, depth: moved })
+      expect(there.y).toBeCloseTo(point.y + inward, 9)
+      expect(there.drag(9, there.y - inward)).toEqual({ depth })
+    }
+    // Everywhere between, the ring is on the line itself.
+    for (const depth of [0.01, 0.3, 0.99])
+      expect(pointOf(tremolo, TREMOLO_PARAMS, { depth }).y).toBeCloseTo(
+        Math.min(42.75, Math.max(5.25, 5 + depth * 38)),
+        9,
+      )
+  })
+
+  it('draws Pan as the device pans: up while the left side is the louder', async () => {
+    const values = { mode: 1, shape: 2, smooth: 0, depth: 1, mix: 1, rate: 2 }
+    const device = await loadWasmDevice('tremolo', RATE)
+    set(device, TREMOLO_PARAMS, values)
+    const block = new Float32Array(128).fill(0.5)
+    let lefts = 0
+    let rights = 0
+    for (let n = 0; n < 600; n++) {
+      device.processBlock(block)
+      const phase = meter(device, 0)
+      // In the middle of each half of the square, where the slew has long settled.
+      const half = phase % 0.5
+      if (n < 200 || half < 0.15 || half > 0.35) continue
+      const left = device.view(device.device.device_out_left(), 128)[127]
+      const right = device.view(device.device.device_out_right(), 128)[127]
+      // `tremolo.h`: the modulator up is the right side, hard over at full Depth.
+      const m = meter(device, 1)
+      expect(Math.abs(m)).toBeGreaterThan(0.99)
+      expect(m > 0 ? left : right).toBeLessThan(0.01)
+      expect(m > 0 ? right : left).toBeCloseTo(0.5 * Math.SQRT2, 2)
+      // The display, at the phase the device reports: its dot at now on the louder side's end.
+      const drawn = drawDisplay(tremolo, TREMOLO_PARAMS, {
+        values,
+        meters: { phase },
+        dt: 1 / 60,
+      })
+      const now = dots(drawn).find((dot) => dot.r === 3)
+      expect(now?.y).toBeCloseTo(left > right ? 5 : 43, 1)
+      if (left > right) lefts += 1
+      else rights += 1
+    }
+    expect(lefts).toBeGreaterThan(20)
+    expect(rights).toBeGreaterThan(20)
+    // The words at the two ends say so: L over R.
+    const drawn = drawDisplay(tremolo, TREMOLO_PARAMS, { values, meters: { phase: 0.1 } })
+    const word = (words: string): number =>
+      drawn.calls.find((call) => call.name === 'fillText' && call.args[0] === words)
+        ?.args[2] as number
+    expect(word('L')).toBeLessThan(24)
+    expect(word('R')).toBeGreaterThan(24)
+  })
+})
 
 /** Where a swept display draws its response on a plate at rest: 128 by 100, the bar under it at 92.5. */
 const PLOT: Box = { x: 4, y: 4, w: 120, h: 83 }
@@ -340,6 +549,74 @@ describe('the Chorus display', () => {
     expect(apart.length).toBe(9)
     expect(apart.slice(0, 3).every((stroke) => stroke.alpha < 0.5 && !stroke.dashed)).toBe(true)
     expect(apart.slice(3).filter((stroke) => stroke.alpha === 1).length).toBe(3)
+  })
+
+  it('has Depth on a point at the top of the swing, at the left end of the scope', () => {
+    // Depth 50 % of 5 ms, at 3.8 px a millisecond over the middle line.
+    const point = pointOf(chorus, CHORUS_PARAMS)
+    expect(point.key).toBe('depth')
+    expect(point.x).toBe(9)
+    expect(point.y).toBeCloseTo(24 - 2.5 * (19 / 5), 9)
+    // The highest a voice gets is where the point stands, and the line it is taken by lies there.
+    const drawn = drawDisplay(chorus, CHORUS_PARAMS, { meters: { phase: 0 } })
+    const voices = strokes(drawn).filter((stroke) => stroke.points.length > 10)
+    const top = Math.min(...voices.flatMap((stroke) => stroke.points.map((at) => at.y)))
+    expect(top).toBeGreaterThanOrEqual(point.y - 1e-6)
+    expect(top).toBeLessThan(point.y + 0.1)
+    expect(scaleLines(drawn)).toContain(Math.floor(point.y) + 0.5)
+    expect(dots(drawn)).toContainEqual({ x: 9, y: point.y, r: 3.5 })
+    // At other settings: none of it on the middle line, all of it at the top of the scope.
+    expect(pointOf(chorus, CHORUS_PARAMS, { depth: 0 }).y).toBe(24)
+    expect(pointOf(chorus, CHORUS_PARAMS, { depth: 90 }).y).toBeCloseTo(24 - 4.5 * (19 / 5), 9)
+    // All of it is the top of the scope: the ring a quarter pixel under the line, whole when it is lit.
+    const whole = pointOf(chorus, CHORUS_PARAMS, { depth: 100 })
+    expect(whole.y).toBe(5.25)
+    const lit = drawDisplay(chorus, CHORUS_PARAMS, { values: { depth: 100 }, hot: 'depth' })
+    expect(dots(lit)).toContainEqual({ x: 9, y: 5.25, r: 4.5 })
+    expect(scaleLines(lit)).toContain(5.5)
+    expect(whole.drag(9, 3)).toEqual({ depth: 100 })
+    const less = whole.drag(9, 6.25).depth
+    expect(100 - less).toBeLessThan((1.3 / 19) * 100)
+    // Brought back up to where the ring stops, it is all of Depth again.
+    const lower = pointOf(chorus, CHORUS_PARAMS, { depth: less })
+    expect(lower.y).toBeCloseTo(6.25, 9)
+    expect(lower.drag(9, 5.25)).toEqual({ depth: 100 })
+    // Under 6 ms of Delay the whole of Depth is less than the scale: 4 ms at 5.
+    expect(pointOf(chorus, CHORUS_PARAMS, { depth: 100, delayMs: 5 }).y).toBeCloseTo(
+      24 - 4 * (19 / 5),
+      9,
+    )
+    // Rate is not on this scale: the point stays where it is as the scope spans less time.
+    expect(pointOf(chorus, CHORUS_PARAMS, { rate: 10 }).y).toBe(point.y)
+  })
+
+  it('takes Depth from how far up the point is dragged, and leaves it alone when it is only taken', () => {
+    const settings: Record<string, number>[] = [
+      {},
+      { depth: 0 },
+      { depth: 83 },
+      { depth: 100 },
+      { depth: 37, delayMs: 5 },
+    ]
+    for (const values of settings) {
+      const point = pointOf(chorus, CHORUS_PARAMS, values)
+      const depth = values.depth ?? CHORUS_PARAMS.depth.default
+      expect(point.drag(point.x, point.y)).toEqual({ depth })
+      expect(point.drag(point.x - 40, point.y)).toEqual({ depth })
+    }
+    // To 1 ms over the middle: a fifth of the 5 ms, and a quarter of the 4 ms a Delay of 5 leaves.
+    expect(pointOf(chorus, CHORUS_PARAMS).drag(9, 24 - 19 / 5).depth).toBeCloseTo(20, 9)
+    expect(pointOf(chorus, CHORUS_PARAMS, { delayMs: 5 }).drag(9, 24 - 19 / 5).depth).toBeCloseTo(
+      25,
+      9,
+    )
+    expect(pointOf(chorus, CHORUS_PARAMS, { depth: 20 }).y).toBeCloseTo(24 - 19 / 5, 9)
+    // The ends are exact however far it goes, and a double press gives the default.
+    const point = pointOf(chorus, CHORUS_PARAMS)
+    expect(point.drag(9, -900)).toEqual({ depth: 100 })
+    expect(point.drag(9, 900)).toEqual({ depth: 0 })
+    expect(point.drag(700, 24)).toEqual({ depth: 0 })
+    expect(pointOf(chorus, CHORUS_PARAMS, { depth: 12 }).reset?.()).toEqual({ depth: 50 })
   })
 })
 
@@ -1047,6 +1324,78 @@ describe('the Rotary display', () => {
     // And they point where the device has them, not where carrying on would have taken them.
     expect(state.horn.turn).toBeCloseTo(0.31, 6)
     expect(state.drum.turn).toBeCloseTo(0.62, 6)
+  })
+
+  // The horn on a plate at rest: its hub at (27, 20), its path 14 px out, a microphone 4 to 7 px beyond.
+  const hub = { x: 27, y: 20 }
+  /** A place so far round to the left of the front, which is down the display, in turns. */
+  const round = (turns: number, out: number): [number, number] => [
+    hub.x - out * Math.sin(turns * TWO_PI),
+    hub.y + out * Math.cos(turns * TWO_PI),
+  ]
+
+  it("has Spread on a point at the horn's left microphone, which stands still", () => {
+    for (const [spread, distance] of [
+      [0.7, 0.3],
+      [0, 0.3],
+      [1, 0],
+      [0.35, 1],
+    ]) {
+      const values = { spread, distance }
+      const point = pointOf(rotary, ROTARY_PARAMS, values)
+      expect(point.key).toBe('spread')
+      // A fifth of a turn off the front at full Spread, further out with Distance.
+      const [x, y] = round(0.2 * spread, 18 + 3 * distance)
+      expect(point.x).toBeCloseTo(x, 9)
+      expect(point.y).toBeCloseTo(y, 9)
+      // The microphone is drawn there, and the ring round it.
+      const drawn = drawDisplay(rotary, ROTARY_PARAMS, { values })
+      expect(dots(drawn)).toContainEqual({ x: point.x, y: point.y, r: 1.75 })
+      expect(dots(drawn)).toContainEqual({ x: point.x, y: point.y, r: 3 })
+      // It does not turn with the rotors.
+      const turned = drawDisplay(rotary, ROTARY_PARAMS, {
+        values,
+        meters: { hornAngle: 0.4, drumAngle: 0.1, hornSpeed: 6.7, drumSpeed: 5.8 },
+      })
+      expect(dots(turned)).toContainEqual({ x: point.x, y: point.y, r: 3 })
+    }
+    // One ring only: the drum's microphones and the horn's right one are not points.
+    expect(dots(drawDisplay(rotary, ROTARY_PARAMS)).filter((dot) => dot.r === 3).length).toBe(1)
+    expect(
+      dots(drawDisplay(rotary, ROTARY_PARAMS, { hot: 'spread' })).filter((dot) => dot.r === 4)
+        .length,
+    ).toBe(1)
+  })
+
+  it('takes Spread from how far round the horn the point is dragged, and leaves it alone when it is only taken', () => {
+    for (const spread of [0, 0.2, 0.7, 1]) {
+      const point = pointOf(rotary, ROTARY_PARAMS, { spread })
+      expect(point.drag(point.x, point.y)).toEqual({ spread })
+    }
+    const point = pointOf(rotary, ROTARY_PARAMS)
+    // A tenth of a turn round is half of it, however far out the pointer is.
+    expect(point.drag(...round(0.1, 19)).spread).toBeCloseTo(0.5, 9)
+    expect(point.drag(...round(0.1, 60)).spread).toBeCloseTo(0.5, 9)
+    expect(point.drag(...round(0.05, 8)).spread).toBeCloseTo(0.25, 9)
+    const half = pointOf(rotary, ROTARY_PARAMS, { spread: 0.5 })
+    expect(half.x).toBeCloseTo(round(0.1, 18.9)[0], 9)
+    expect(half.y).toBeCloseTo(round(0.1, 18.9)[1], 9)
+  })
+
+  it('stops at the ends of Spread, the nearer one past them, and a double press gives the default', () => {
+    const point = pointOf(rotary, ROTARY_PARAMS)
+    // Straight in front the microphones are one; a fifth of a turn round they are furthest apart.
+    expect(point.drag(hub.x, hub.y + 40)).toEqual({ spread: 0 })
+    expect(point.drag(...round(0.2, 19)).spread).toBeCloseTo(1, 9)
+    // Far off to the left and over the top it stays at the most, far to the right at none.
+    expect(point.drag(-900, hub.y)).toEqual({ spread: 1 })
+    expect(point.drag(hub.x - 1, -900)).toEqual({ spread: 1 })
+    expect(point.drag(900, hub.y)).toEqual({ spread: 0 })
+    expect(point.drag(hub.x + 5, hub.y + 900)).toEqual({ spread: 0 })
+    // The two ends meet opposite the middle of the travel: 0.6 of a turn round.
+    expect(point.drag(...round(0.59, 30))).toEqual({ spread: 1 })
+    expect(point.drag(...round(0.61, 30))).toEqual({ spread: 0 })
+    expect(pointOf(rotary, ROTARY_PARAMS, { spread: 0.1 }).reset?.()).toEqual({ spread: 0.7 })
   })
 })
 

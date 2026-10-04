@@ -1974,7 +1974,10 @@
   cursor: grabbing;
 }
 
-/* Where the carried device lands: a line in the gap, with a bar at each end. */
+/* Where the carried device lands: a line in the gap, with a bar at each end.
+   At an end of the chain it stands on the first or last device, whose plate
+   may be near the accent in lightness, so the line is edged in the ground's
+   colour and reads on any plate. */
 .lm-chain__marker {
   position: absolute;
   top: 0;
@@ -1983,6 +1986,8 @@
   width: 2px;
   margin-left: -1px;
   background: var(--lm-accent);
+  filter: drop-shadow(1px 0 0 var(--lm-bg)) drop-shadow(-1px 0 0 var(--lm-bg))
+    drop-shadow(0 1px 0 var(--lm-bg)) drop-shadow(0 -1px 0 var(--lm-bg));
   pointer-events: none;
 }
 

@@ -110,7 +110,7 @@ function pathsOf(drawn: RecordingContext): Path[] {
   return paths
 }
 
-const { ink, accent } = PLAIN_COLOURS
+const { ink, accent, plate: ground } = PLAIN_COLOURS
 
 /** The cloud: the one path of small squares, as the middles of the squares. */
 function cloudOf(drawn: RecordingContext): [number, number][] {
@@ -592,7 +592,7 @@ describe('the Utility display', () => {
 // --- Stereo Detune ----------------------------------------------------------
 
 describe('the Stereo Detune display', () => {
-  const { field, draw } = plate('stereo-detune')
+  const { field, draw, handle } = plate('stereo-detune')
   const P = STEREO_DETUNE_PARAMS
   /** A bead at Mix `mix` with the level hold at `hold`. */
   const beadRadius = (mix: number, hold = 1): number =>
@@ -603,13 +603,18 @@ describe('the Stereo Detune display', () => {
     radius: number
     fill: string | null
   }
-  /** The two beads, the left one first: the dots with a ring on the disc, how far out and at what angle. */
+  /**
+   * The two beads, the left one first: the dots with a ring on the disc, how
+   * far out and at what angle. The point that is dragged is a ring too, but
+   * filled with the plate.
+   */
   const beads = (drawn: RecordingContext): Bead[] =>
     pathsOf(drawn)
       .filter(
         (path) =>
           path.arcs.length === 1 &&
           path.fill !== null &&
+          path.fill !== ground &&
           path.stroke === ink &&
           path.arcs[0][1] < field.alike.y,
       )
@@ -812,6 +817,148 @@ describe('the Stereo Detune display', () => {
     expect(dry(0)).toBeCloseTo(4.5, 9)
     expect(dry(0.5)).toBeCloseTo(1.5 + 3 * HALF, 9)
     expect(dry(1)).toBeCloseTo(1.5, 9)
+  })
+
+  /** A place on the field so many ms out, at an angle off straight up (left is negative). */
+  const placeOf = (ms: number, angle: number): [number, number] => [
+    field.cx + field.r * detuneReach(ms) * Math.sin(angle),
+    field.cy - field.r * detuneReach(ms) * Math.cos(angle),
+  ]
+  /** The rings filled with the plate: the points that can be dragged. */
+  const rings = (drawn: RecordingContext): { x: number; y: number; radius: number }[] =>
+    pathsOf(drawn)
+      .filter((path) => path.arcs.length === 1 && path.fill === ground && path.stroke === ink)
+      .map((path) => ({ x: path.arcs[0][0], y: path.arcs[0][1], radius: path.arcs[0][2] }))
+
+  it('has Delay and Width on a point at the mark across the left copy', () => {
+    const settings: Record<string, number>[] = [
+      {},
+      { delay: 30, width: 1 },
+      { delay: 12, width: 0 },
+      { delay: 60, width: 0.5 },
+      { delay: 45, width: 0.2 },
+    ]
+    for (const values of settings) {
+      const delay = values.delay ?? 14
+      const width = values.width ?? 1
+      const point = handle('copy', values)
+      // As far out as the Delay, an eighth of a turn to the left at full Width.
+      const [x, y] = placeOf(delay, -EIGHTH * width)
+      expect(point.x).toBeCloseTo(x, 9)
+      expect(point.y).toBeCloseTo(y, 9)
+      // The short line across the rail has its middle there, and the ring is drawn round it.
+      const drawn = draw({ values })
+      const marks = pathsOf(drawn)
+        .filter(
+          (path) =>
+            path.stroke === ink &&
+            path.points.length === 2 &&
+            Math.abs(
+              Math.hypot(
+                path.points[1][0] - path.points[0][0],
+                path.points[1][1] - path.points[0][1],
+              ) - 6,
+            ) < 1e-6,
+        )
+        .map(({ points: [[x1, y1], [x2, y2]] }) => [(x1 + x2) / 2, (y1 + y2) / 2])
+      expect(
+        marks.some(([mx, my]) => Math.hypot(mx - point.x, my - point.y) < 1e-6),
+        `a mark under the point at Delay ${delay}, Width ${width}`,
+      ).toBe(true)
+      expect(rings(drawn).map((ring) => [ring.x, ring.y])).toEqual([[point.x, point.y]])
+    }
+  })
+
+  it('holds the point still while the head moves: it is where the copy is set, not where it is', () => {
+    const still = handle('copy')
+    const running = draw({ meters: { ...live, holdLeft: 1, holdRight: 0.5 } })
+    expect(rings(running).map((ring) => [ring.x, ring.y])).toEqual([[still.x, still.y]])
+    // The bead is elsewhere on its rail, in the accent, and lies over the ring.
+    const [left] = beads(running)
+    expect(left.out).toBeCloseTo(detuneReach(20), 6)
+    const order = pathsOf(running).filter(
+      (path) => path.arcs.length === 1 && path.stroke === ink && path.fill !== null,
+    )
+    expect(order.findIndex((path) => path.fill === ground)).toBeLessThan(
+      order.findIndex((path) => path.fill === accent),
+    )
+  })
+
+  it('draws the ring clear of the bead, which grows with Mix', () => {
+    for (const mix of [0, 0.36, 0.7, 1]) {
+      const drawn = draw({ values: { mix } })
+      const [ring] = rings(drawn)
+      // The ring's line is 1.5 wide, the bead's own 1.
+      expect(ring.radius - 0.75).toBeGreaterThan(beadRadius(mix) + 0.5 + 0.5)
+      expect(ring.radius).toBeGreaterThanOrEqual(5)
+      expect(ring.radius).toBeLessThanOrEqual(6.25)
+    }
+    const hot = rings(draw({ hot: 'copy' }))
+    expect(hot).toEqual([])
+    const taken = pathsOf(draw({ hot: 'copy' })).filter(
+      (path) => path.arcs.length === 1 && path.fill === accent && path.stroke === ink,
+    )
+    // Under the pointer it is the accent, a pixel larger: 2.25 px clear of the bead at Mix 0.36, and one.
+    expect(taken.map((path) => path.arcs[0][2])).toEqual([beadRadius(0.36) + 2.25 + 1])
+  })
+
+  it('takes the Delay from how far out the point is dragged and the Width from how far round', () => {
+    const settings: Record<string, number>[] = [
+      {},
+      { delay: 30, width: 1 },
+      { delay: 12, width: 0 },
+      { delay: 60, width: 0.5 },
+      { delay: 23.7, width: 0.31 },
+    ]
+    for (const values of settings) {
+      const point = handle('copy', values)
+      const delay = values.delay ?? 14
+      const width = values.width ?? 1
+      // Taken and not moved, both stay exactly where they are.
+      expect(point.drag(point.x, point.y)).toEqual({ delay, width })
+    }
+    const point = handle('copy')
+    // Out along its rail to where 40 ms stands: 40 ms, the Width as it was.
+    const out = point.drag(...placeOf(40, -EIGHTH))
+    expect(out.delay).toBeCloseTo(40, 9)
+    expect(out.width).toBeCloseTo(1, 9)
+    // Round to a quarter of the way to the left side, no further out: Width a quarter.
+    const round = point.drag(...placeOf(14, -EIGHTH / 4))
+    expect(round.delay).toBeCloseTo(14, 9)
+    expect(round.width).toBeCloseTo(0.25, 9)
+    // The point goes where it is taken.
+    const moved = handle('copy', { delay: 33, width: 0.6 })
+    const there = point.drag(moved.x, moved.y)
+    expect(there.delay).toBeCloseTo(33, 9)
+    expect(there.width).toBeCloseTo(0.6, 9)
+  })
+
+  it('stops at the ends of Delay and Width however far the point is dragged, and a double press gives the defaults', () => {
+    const point = handle('copy', { delay: 30, width: 0.5 })
+    // Far to the left: past the rim and past the left side.
+    expect(point.drag(field.cx - 900, field.cy - 20)).toEqual({ delay: 60, width: 1 })
+    // Far to the right the copies are one, straight ahead: the rail stands
+    // upright, and the Delay is the place on it level with the pointer.
+    const right = point.drag(field.cx + 900, field.cy - 30)
+    expect(right.width).toBe(0)
+    expect(right.delay).toBeCloseTo(120 * (30 / field.r) ** 2, 9)
+    expect(point.drag(field.cx + 900, field.cy - 55)).toEqual({ delay: 60, width: 0 })
+    // Far up: past the rim, straight ahead.
+    expect(point.drag(field.cx, -900)).toEqual({ delay: 60, width: 0 })
+    // At the listener, and anywhere near: the shortest Delay.
+    expect(point.drag(field.cx, field.cy)).toEqual({ delay: 12, width: 0 })
+    expect(point.drag(field.cx - 5, field.cy - 5).delay).toBe(12)
+    // Under the foot there is no field: a place there counts as on the foot,
+    // past the left side, and the Delay is the place on the left diagonal nearest it.
+    expect(point.drag(field.cx - 10, field.cy + 900)).toEqual({ delay: 12, width: 1 })
+    const under = point.drag(field.cx - 40, field.cy + 900)
+    expect(under.width).toBe(1)
+    expect(under.delay).toBeCloseTo(120 * ((40 * HALF) / field.r) ** 2, 9)
+    // To the right of the middle the Width is none: the left copy does not cross over.
+    const over = point.drag(...placeOf(25, EIGHTH / 2))
+    expect(over.width).toBe(0)
+    expect(over.delay).toBeCloseTo(25 * Math.cos(EIGHTH / 2) ** 2, 9)
+    expect(point.reset?.()).toEqual({ delay: 14, width: 1 })
   })
 })
 
