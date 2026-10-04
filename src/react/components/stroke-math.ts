@@ -55,8 +55,16 @@ export function capInset(x: number, width: number, height: number): number {
   return radius - Math.sqrt(Math.max(0, radius * radius - (radius - fromEnd) ** 2))
 }
 
-/** The waveform columns of a stroke, left to right. */
-export function strokeLevels({
+/** The gain of a whole fade: what `fadeEase` gives everywhere past its end. */
+const FULL_EASE = fadeEase(1)
+
+/**
+ * The half-heights of a stroke's columns, left to right. Column `c` stands at
+ * `c * STROKE_COLUMN_PX + STROKE_COLUMN_PX / 2`. Every figure is worked out
+ * with the same operations in the same order as it always was, so the result
+ * is the same to the last bit; what is left out is work whose result is known.
+ */
+function columnAmps({
   width,
   height,
   peaks,
@@ -66,7 +74,7 @@ export function strokeLevels({
   gain = 1,
   reversed = false,
   normalize = true,
-}: StrokeLevelsOptions): StrokeLevel[] {
+}: StrokeLevelsOptions): Float64Array {
   const columns = Math.max(0, Math.floor(width / STROKE_COLUMN_PX))
   const radius = height / 2
   const room = Math.max(0, radius - STROKE_INSET_PX)
@@ -80,29 +88,128 @@ export function strokeLevels({
     if (loudest <= 0) loudest = 1
   }
   const passes = Math.max(repeats, 1e-6)
-  const levels: StrokeLevel[] = []
-  for (let column = 0; column < columns; column += 1) {
+  const source = peaks && count > 0 ? peaks : null
+  // Between the round ends nothing is taken off the room, and without a fade the gain is 1.
+  const straight = Math.max(0, room - 0)
+  const rises = fadeIn > 0
+  const falls = fadeOut > 0
+  const amps = new Float64Array(columns)
+  for (let column = 0; column < amps.length; column += 1) {
     const x = column * STROKE_COLUMN_PX + STROKE_COLUMN_PX / 2
     const t = x / width
     let value = 0
-    if (peaks && count > 0) {
-      let position = (t * passes) % 1
+    if (source) {
+      // Below one pass the remainder is the number itself.
+      const along = t * passes
+      let position = along < 1 ? along : along % 1
       if (reversed) position = 1 - position
       const index = Math.min(count - 1, Math.max(0, Math.floor(position * count)))
-      value = Math.max(Math.abs(peaks.min[index]), Math.abs(peaks.max[index])) / loudest
+      value = Math.max(Math.abs(source.min[index]), Math.abs(source.max[index])) / loudest
     }
-    const limit = Math.max(0, room - capInset(x, width, height))
-    const amp = clamp01(value * gain) * fadeGainAt(t, fadeIn, fadeOut) * room
-    levels.push([x, Math.max(0.5, Math.min(limit, amp))])
+    const limit =
+      Math.min(x, width - x) >= radius ? straight : Math.max(0, room - capInset(x, width, height))
+    let amp = clamp01(value * gain)
+    if (rises || falls) {
+      // Past the end of a fade its gain is that of the whole fade, with no sine to take.
+      const rise = rises ? (t / fadeIn >= 1 ? FULL_EASE : fadeEase(t / fadeIn)) : 1
+      const fall = falls ? ((1 - t) / fadeOut >= 1 ? FULL_EASE : fadeEase((1 - t) / fadeOut)) : 1
+      amp *= Math.min(rise, fall)
+    }
+    amps[column] = Math.max(0.5, Math.min(limit, amp * room))
+  }
+  return amps
+}
+
+/** The waveform columns of a stroke, left to right. */
+export function strokeLevels(options: StrokeLevelsOptions): StrokeLevel[] {
+  const amps = columnAmps(options)
+  const levels: StrokeLevel[] = []
+  for (let column = 0; column < amps.length; column += 1) {
+    levels.push([column * STROKE_COLUMN_PX + STROKE_COLUMN_PX / 2, amps[column]])
   }
   return levels
 }
 
-const fixed = (value: number): string => value.toFixed(1)
+/** How many tenths have their text kept: every coordinate of a stroke up to 819 px. */
+const TENTHS_KEPT = 8192
+const TENTHS = new Array<string | undefined>(TENTHS_KEPT)
+
+/** A whole number of tenths as `toFixed(1)` prints it: 315 is `31.5`. */
+function tenthsText(tenths: number): string {
+  const digit = tenths % 10
+  return `${(tenths - digit) / 10}.${digit}`
+}
+
+/**
+ * `value.toFixed(1)`, which every coordinate of a path is printed with, at a
+ * fraction of its cost. `toFixed(1)` gives the whole number of tenths nearest
+ * to the exact value of `value × 10`, the larger one on a tie. `scaled` is
+ * that product as a double, and below 1e10 it is off by less than a millionth.
+ * So wherever `scaled` stands a ten-thousandth or more clear of a tie, the
+ * exact product rounds to the same whole number, and its text is that number
+ * with a point before its last digit. Anything else goes to `toFixed` itself:
+ * a tie or a number right next to one, a negative, a huge one, not a number.
+ */
+function fixed(value: number): string {
+  if (value >= 0 && value < 1e9) {
+    const scaled = value * 10
+    const tenths = Math.round(scaled)
+    const off = scaled - tenths
+    if (off > -0.4999 && off < 0.4999) {
+      if (tenths >= TENTHS_KEPT) return tenthsText(tenths)
+      return (TENTHS[tenths] ??= tenthsText(tenths))
+    }
+  }
+  return value.toFixed(1)
+}
 
 /** One vertical bar per column: the fine detail drawn over the filled shape. */
 export function levelsBarsPath(levels: readonly StrokeLevel[], mid: number): string {
-  return levels.map(([x, amp]) => `M${x} ${fixed(mid - amp)}V${fixed(mid + amp)}`).join('')
+  let path = ''
+  for (let index = 0; index < levels.length; index += 1) {
+    const level = levels[index]
+    // A hole in the array is no bar.
+    if (level === undefined && !(index in levels)) continue
+    path += `M${level[0]} ${fixed(mid - level[1])}V${fixed(mid + level[1])}`
+  }
+  return path
+}
+
+/**
+ * The outline of columns given as flat arrays: `moves[c]` is the `L{x} ` that
+ * leads to column `c`, shared by the upper and the lower edge.
+ */
+function outlinePath(
+  moves: readonly string[],
+  amps: Float64Array,
+  mid: number,
+  width: number,
+  scale: number,
+  window: number,
+): string {
+  const count = amps.length
+  if (count === 0) return ''
+  // Only a whole window reaches a neighbour; any other averages nothing.
+  const reach = Number.isInteger(window) && window >= 0 ? window : -1
+  const smooth = new Float64Array(count)
+  for (let index = 0; index < count; index += 1) {
+    const first = Math.max(0, index - reach)
+    const last = Math.min(count - 1, index + reach)
+    // Summed from the left, as the average always was: the order is part of the result.
+    let total = 0
+    for (let near = first; near <= last; near += 1) total += amps[near]
+    const samples = last >= first ? last - first + 1 : 0
+    smooth[index] = Math.min(mid, (total / samples) * scale)
+  }
+  let path = `M0 ${mid}`
+  for (let index = 0; index < count; index += 1) {
+    path += moves[index] + fixed(mid - smooth[index])
+  }
+  path += `L${width} ${mid}`
+  for (let index = count - 1; index >= 0; index -= 1) {
+    path += moves[index] + fixed(mid + smooth[index])
+  }
+  return `${path}Z`
 }
 
 /**
@@ -116,25 +223,68 @@ export function levelsOutlinePath(
   scale = 1,
   window = 2,
 ): string {
-  if (levels.length === 0) return ''
-  const smooth = levels.map(([x], index) => {
-    let total = 0
-    let samples = 0
-    for (let offset = -window; offset <= window; offset += 1) {
-      const neighbour = levels[index + offset]
-      if (neighbour) {
-        total += neighbour[1]
-        samples += 1
-      }
-    }
-    return [x, Math.min(mid, (total / samples) * scale)] as const
-  })
-  const top = smooth.map(([x, amp]) => `L${x} ${fixed(mid - amp)}`).join('')
-  const bottom = [...smooth]
-    .reverse()
-    .map(([x, amp]) => `L${x} ${fixed(mid + amp)}`)
-    .join('')
-  return `M0 ${mid}${top}L${width} ${mid}${bottom}Z`
+  const count = levels.length
+  const moves: string[] = []
+  const amps = new Float64Array(count)
+  for (let index = 0; index < count; index += 1) {
+    const level = levels[index]
+    moves.push(`L${level[0]} `)
+    amps[index] = level[1]
+  }
+  return outlinePath(moves, amps, mid, width, scale, window)
+}
+
+/** How much taller than the wave its halo is drawn. */
+const HALO_SCALE = 1.4
+
+/** How many columns have their `L{x} ` kept between strokes: a stroke up to 32768 px wide. */
+const MOVES_KEPT = 16384
+const COLUMN_MOVES: string[] = []
+
+/**
+ * The `L{x} ` that leads to each of the first `count` columns. A column always
+ * stands at the same x, so the text is made once and every stroke reads it.
+ */
+function columnMoves(count: number): readonly string[] {
+  const moves = count > MOVES_KEPT ? [] : COLUMN_MOVES
+  for (let column = moves.length; column < count; column += 1) {
+    moves.push(`L${column * STROKE_COLUMN_PX + STROKE_COLUMN_PX / 2} `)
+  }
+  return moves
+}
+
+/** The waveform of a stroke as the three paths it is drawn with. */
+export interface StrokeWavePaths {
+  /** The soft shape behind the wave: swollen, and averaged one column wider. */
+  halo: string
+  /** The filled outline. */
+  wave: string
+  /** A fine bar on every other column. */
+  bars: string
+}
+
+/**
+ * The halo, the wave and the bars of a stroke in one go. The strings are those
+ * of `levelsOutlinePath(levels, mid, width, 1.4, window + 1)`,
+ * `levelsOutlinePath(levels, mid, width, 1, window)` and `levelsBarsPath` of
+ * every other level, for `levels = strokeLevels(options)` and the centre line
+ * `mid = height / 2`, without the columns being laid out, read and printed
+ * once for each. `window` is 2 for a sustained sound and 0 for one with hits.
+ */
+export function strokeWavePaths(options: StrokeLevelsOptions, window = 2): StrokeWavePaths {
+  const mid = options.height / 2
+  const amps = columnAmps(options)
+  const moves = columnMoves(amps.length)
+  let bars = ''
+  for (let column = 0; column < amps.length; column += 2) {
+    const x = column * STROKE_COLUMN_PX + STROKE_COLUMN_PX / 2
+    bars += `M${x} ${fixed(mid - amps[column])}V${fixed(mid + amps[column])}`
+  }
+  return {
+    halo: outlinePath(moves, amps, mid, options.width, HALO_SCALE, window + 1),
+    wave: outlinePath(moves, amps, mid, options.width, 1, window),
+    bars,
+  }
 }
 
 export interface FadePaths {
@@ -156,15 +306,22 @@ export function fadePaths(
   const mid = height / 2
   const reach = mid - 1
   const length = clamp01(fraction) * width
-  const at = (x: number): string => fixed(fromEnd ? width - x : x)
-  const points: (readonly [number, number])[] = []
-  for (let x = 0; x < length; x += 3) points.push([x, fadeEase(x / length) * reach])
-  points.push([length, reach])
-  const top = points.map(([x, amp]) => `L${at(x)} ${fixed(mid - amp)}`).join('')
-  const bottom = points.map(([x, amp]) => `L${at(x)} ${fixed(mid + amp)}`).join('')
+  // A point every 3 px along the fade, each printed once for the two curves it is on.
+  let top = ''
+  let bottom = ''
+  for (let x = 0; x < length; x += 3) {
+    const amp = fadeEase(x / length) * reach
+    const move = `L${fixed(fromEnd ? width - x : x)} `
+    top += move + fixed(mid - amp)
+    bottom += move + fixed(mid + amp)
+  }
+  const start = fixed(fromEnd ? width - 0 : 0)
+  const end = fixed(fromEnd ? width - length : length)
+  top += `L${end} ${fixed(mid - reach)}`
+  bottom += `L${end} ${fixed(mid + reach)}`
   return {
-    curve: `M${at(0)} ${mid}${top}M${at(0)} ${mid}${bottom}`,
-    shade: `M${at(0)} 0L${at(0)} ${mid}${top}L${at(length)} 0ZM${at(0)} ${height}L${at(0)} ${mid}${bottom}L${at(length)} ${height}Z`,
+    curve: `M${start} ${mid}${top}M${start} ${mid}${bottom}`,
+    shade: `M${start} 0L${start} ${mid}${top}L${end} 0ZM${start} ${height}L${start} ${mid}${bottom}L${end} ${height}Z`,
     handle: [fromEnd ? width - length : length, 3.5],
   }
 }

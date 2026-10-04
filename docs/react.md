@@ -399,8 +399,10 @@ along it as fractions of its width, and owns dragging, trimming and painting
 (pointer handlers and `data-*` pass through to the root). The geometry is
 exported for hosts that hit-test or draw their own (`strokeLevels`,
 `levelsOutlinePath`, `fadePaths`, `fadeGainAt`, `repeatSeams`, `hitPositions`,
-`automationPositions`). The kind, hits and tempo come from the engine's sound
-analysis (`analyzeSound`, or `samples: { analysis: true }` on the engine).
+`automationPositions`; `strokeWavePaths` is the halo, the wave and the bars of
+a stroke in one call, which is how `Stroke` draws them). The kind, hits and
+tempo come from the engine's sound analysis (`analyzeSound`, or
+`samples: { analysis: true }` on the engine).
 
 `useParamControl` is the shared interaction hook for custom controls, and the
 pure maths (`normalizeValue`, `quantize`, `faderDbToLevel`,

@@ -109,6 +109,7 @@ describe('entries', () => {
     'PaintField',
     'ChannelRowView',
     'strokeLevels',
+    'strokeWavePaths',
     'fadePaths',
     'graphite',
     'paper',
