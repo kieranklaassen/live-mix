@@ -16,7 +16,12 @@ export const FACTORY_SOUND_PACK_SIZE = 100
  * The packs whose sounds are written (../sound-packs/<pack id>.ts holds a
  * hundred): what a host can know before it fetches any of them.
  */
-const WITH_SOUNDS: ReadonlySet<string> = new Set<string>([])
+const WITH_SOUNDS: ReadonlySet<string> = new Set<string>([
+  'soft-pedal',
+  'window-garden',
+  'broadcast-hall',
+  'ashram',
+])
 
 const PACKS: readonly Omit<FactoryPack, 'sounds'>[] = [
   {

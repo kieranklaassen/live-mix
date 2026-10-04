@@ -1,0 +1,502 @@
+{
+  "17001": {
+    "id": "broadcast-hall-sixteen-foot-stop-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17002": {
+    "id": "broadcast-hall-organ-point-fifths-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17003": {
+    "id": "broadcast-hall-minor-reel-drone-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17004": {
+    "id": "broadcast-hall-pedal-square-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17005": {
+    "id": "broadcast-hall-foot-pedal-bass-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17006": {
+    "id": "broadcast-hall-evening-broadcast-b",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17007": {
+    "id": "broadcast-hall-pump-organ-reeds-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17008": {
+    "id": "broadcast-hall-flue-pipe-octaves-b",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17009": {
+    "id": "broadcast-hall-plain-string-drone-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17010": {
+    "id": "broadcast-hall-valve-desk-hum-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17011": {
+    "id": "broadcast-hall-sustained-wire-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17012": {
+    "id": "broadcast-hall-close-bass-clarinets-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17013": {
+    "id": "broadcast-hall-low-flute-breath-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17014": {
+    "id": "broadcast-hall-woody-cello-drone-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17015": {
+    "id": "broadcast-hall-hummed-chapel-fifth-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17016": {
+    "id": "broadcast-hall-reed-table-drone-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17017": {
+    "id": "broadcast-hall-cistern-reeds-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17018": {
+    "id": "broadcast-hall-organ-next-door-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17019": {
+    "id": "broadcast-hall-slow-slider-pad-dm",
+    "durationSec": 10,
+    "loops": false
+  },
+  "17020": {
+    "id": "broadcast-hall-chorus-buttons-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17021": {
+    "id": "broadcast-hall-thin-pulse-pad-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17022": {
+    "id": "broadcast-hall-chamber-polysynth-gsus2",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17023": {
+    "id": "broadcast-hall-replay-choir-cmaj7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17024": {
+    "id": "broadcast-hall-three-violins-far-em",
+    "durationSec": 7,
+    "loops": false
+  },
+  "17025": {
+    "id": "broadcast-hall-slowed-reel-cellos-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17026": {
+    "id": "broadcast-hall-old-reel-horns-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17027": {
+    "id": "broadcast-hall-replay-flutes-gadd9",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17028": {
+    "id": "broadcast-hall-cistern-swell-am",
+    "durationSec": 12,
+    "loops": false
+  },
+  "17029": {
+    "id": "broadcast-hall-soft-brass-stack-c",
+    "durationSec": 10,
+    "loops": false
+  },
+  "17030": {
+    "id": "broadcast-hall-string-layer-echo-em7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17031": {
+    "id": "broadcast-hall-quartet-on-parquet-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17032": {
+    "id": "broadcast-hall-muted-tape-bows-am",
+    "durationSec": 16,
+    "loops": true
+  },
+  "17033": {
+    "id": "broadcast-hall-gallery-voices-f6",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17034": {
+    "id": "broadcast-hall-second-synth-pad-csus2",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17035": {
+    "id": "broadcast-hall-hollow-slow-pad-dsus4",
+    "durationSec": 16,
+    "loops": true
+  },
+  "17036": {
+    "id": "broadcast-hall-reed-table-pad-am",
+    "durationSec": 16,
+    "loops": true
+  },
+  "17037": {
+    "id": "broadcast-hall-string-ensemble-gsus4",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17038": {
+    "id": "broadcast-hall-ensemble-cellos-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17039": {
+    "id": "broadcast-hall-low-brass-chorale-em",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17040": {
+    "id": "broadcast-hall-still-steel-reel-fmaj7",
+    "durationSec": 11,
+    "loops": false
+  },
+  "17041": {
+    "id": "broadcast-hall-late-clarinets-am",
+    "durationSec": 10,
+    "loops": false
+  },
+  "17042": {
+    "id": "broadcast-hall-backwards-answer-dm9",
+    "durationSec": 12,
+    "loops": false
+  },
+  "17043": {
+    "id": "broadcast-hall-frozen-string-bar",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17044": {
+    "id": "broadcast-hall-tape-choir-bed-dm9",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17045": {
+    "id": "broadcast-hall-rain-on-the-glass-roof",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17046": {
+    "id": "broadcast-hall-river-past-the-window",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17047": {
+    "id": "broadcast-hall-courtyard-birds-at-dawn",
+    "durationSec": 16,
+    "loops": true
+  },
+  "17048": {
+    "id": "broadcast-hall-empty-hall-at-night",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17049": {
+    "id": "broadcast-hall-dial-between-stations",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17050": {
+    "id": "broadcast-hall-blank-reel-hiss",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17051": {
+    "id": "broadcast-hall-control-room-rain",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17052": {
+    "id": "broadcast-hall-weir-down-the-river",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17053": {
+    "id": "broadcast-hall-storm-over-the-river",
+    "durationSec": 16,
+    "loops": true
+  },
+  "17054": {
+    "id": "broadcast-hall-shellac-disc-crackle",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17055": {
+    "id": "broadcast-hall-stairwell-draught",
+    "durationSec": 16,
+    "loops": true
+  },
+  "17056": {
+    "id": "broadcast-hall-stretched-river-take",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17057": {
+    "id": "broadcast-hall-moderator-upright-c",
+    "durationSec": 5,
+    "loops": false
+  },
+  "17058": {
+    "id": "broadcast-hall-neighbours-asleep-e",
+    "durationSec": 5,
+    "loops": false
+  },
+  "17059": {
+    "id": "broadcast-hall-pedal-down-chamber-am",
+    "durationSec": 8,
+    "loops": false
+  },
+  "17060": {
+    "id": "broadcast-hall-tall-upright-f",
+    "durationSec": 7,
+    "loops": false
+  },
+  "17061": {
+    "id": "broadcast-hall-ribbon-upright-g",
+    "durationSec": 5,
+    "loops": false
+  },
+  "17062": {
+    "id": "broadcast-hall-soundcheck-piano-d",
+    "durationSec": 6,
+    "loops": false
+  },
+  "17063": {
+    "id": "broadcast-hall-one-string-each-b",
+    "durationSec": 6,
+    "loops": false
+  },
+  "17064": {
+    "id": "broadcast-hall-tine-and-chorus-em7",
+    "durationSec": 5,
+    "loops": false
+  },
+  "17065": {
+    "id": "broadcast-hall-amp-and-hum-a",
+    "durationSec": 5,
+    "loops": false
+  },
+  "17066": {
+    "id": "broadcast-hall-hot-desk-channel-g",
+    "durationSec": 4,
+    "loops": false
+  },
+  "17067": {
+    "id": "broadcast-hall-bass-marimba-c",
+    "durationSec": 4,
+    "loops": false
+  },
+  "17068": {
+    "id": "broadcast-hall-piano-top-celesta-e",
+    "durationSec": 3,
+    "loops": false
+  },
+  "17069": {
+    "id": "broadcast-hall-motor-off-vibes-a",
+    "durationSec": 8,
+    "loops": false
+  },
+  "17070": {
+    "id": "broadcast-hall-far-glockenspiel-e",
+    "durationSec": 6,
+    "loops": false
+  },
+  "17071": {
+    "id": "broadcast-hall-dry-booth-nylon-a",
+    "durationSec": 4,
+    "loops": false
+  },
+  "17072": {
+    "id": "broadcast-hall-damped-tongue-drum-d",
+    "durationSec": 3,
+    "loops": false
+  },
+  "17073": {
+    "id": "broadcast-hall-distant-hall-harp-c",
+    "durationSec": 5,
+    "loops": false
+  },
+  "17074": {
+    "id": "broadcast-hall-piano-lid-music-box-g",
+    "durationSec": 4,
+    "loops": false
+  },
+  "17075": {
+    "id": "broadcast-hall-struck-open-string-e",
+    "durationSec": 6,
+    "loops": false
+  },
+  "17076": {
+    "id": "broadcast-hall-zither-strum-reel-d",
+    "durationSec": 6,
+    "loops": false
+  },
+  "17077": {
+    "id": "broadcast-hall-glass-tine-keys-fmaj7",
+    "durationSec": 5,
+    "loops": false
+  },
+  "17078": {
+    "id": "broadcast-hall-brushed-chord-reel-dm7",
+    "durationSec": 4,
+    "loops": false
+  },
+  "17079": {
+    "id": "broadcast-hall-upright-and-echo-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17080": {
+    "id": "broadcast-hall-half-speed-overdub-c",
+    "durationSec": 12,
+    "loops": false
+  },
+  "17081": {
+    "id": "broadcast-hall-moderator-round-f",
+    "durationSec": 12,
+    "loops": true
+  },
+  "17082": {
+    "id": "broadcast-hall-echo-arpeggio-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17083": {
+    "id": "broadcast-hall-whistling-filter-e",
+    "durationSec": 11,
+    "loops": false
+  },
+  "17084": {
+    "id": "broadcast-hall-tines-after-hours-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17085": {
+    "id": "broadcast-hall-looped-tines-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17086": {
+    "id": "broadcast-hall-pipes-into-echo-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17087": {
+    "id": "broadcast-hall-low-pattern-echo-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17088": {
+    "id": "broadcast-hall-round-lead-voice-am",
+    "durationSec": 11,
+    "loops": false
+  },
+  "17089": {
+    "id": "broadcast-hall-rubber-pluck-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17090": {
+    "id": "broadcast-hall-marimba-into-echo-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17091": {
+    "id": "broadcast-hall-muted-steel-echo-em",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17092": {
+    "id": "broadcast-hall-soft-pluck-pattern-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17093": {
+    "id": "broadcast-hall-steel-pan-echo-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17094": {
+    "id": "broadcast-hall-damped-harp-f",
+    "durationSec": 8,
+    "loops": false
+  },
+  "17095": {
+    "id": "broadcast-hall-slide-and-echo-g",
+    "durationSec": 13,
+    "loops": false
+  },
+  "17096": {
+    "id": "broadcast-hall-reel-pan-pipes-am",
+    "durationSec": 10,
+    "loops": false
+  },
+  "17097": {
+    "id": "broadcast-hall-stairwell-trumpet-d",
+    "durationSec": 11,
+    "loops": false
+  },
+  "17098": {
+    "id": "broadcast-hall-soft-mallet-voice-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17099": {
+    "id": "broadcast-hall-glass-bar-echo-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "17100": {
+    "id": "broadcast-hall-buzzing-bridge-round-e",
+    "durationSec": 8,
+    "loops": true
+  }
+}

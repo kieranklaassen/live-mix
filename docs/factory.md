@@ -246,6 +246,124 @@ bank itself, moved through all twelve keys, keeps its kind in 394 of 408
 renders: the others are mostly the low drones a few semitones up, where
 they move more.
 
+## A variant of a sound
+
+A sound is a recipe, so it can be played once more, differently:
+
+```ts
+import { describeVariant, renderFactorySound, varySound } from '@kieranklaassen/live-mix/dsp'
+
+const vary = { seed: 4711, chords: 0.3, speed: 0, pattern: 0.2, touch: 0.25 }
+const audio = await renderFactorySound(sound, { vary, transpose })
+const variant = varySound(sound, vary) // the recipe, nothing rendered
+describeVariant(sound, vary) // { chordSteps: -2, octaves: 0, rate: 1, rests: 1, swaps: 0, laterSec: 0 }
+```
+
+`varySound` gives the recipe of a variant and renders nothing. A seed is one
+variant, always the same one. There are four kinds of difference
+(`VARIATION_KINDS`), each with an amount of its own from 0 to 1; `amount` is
+for every kind that is not given one. At 0 in every kind, or without a
+variation, the sound itself comes back, the same object, so nothing about its
+render changes; so does a sound a kind has nothing to work on (the speed of a
+held chord). A host that keeps the seed and the amounts beside the sound's id
+has kept the variant. A new kind is a new name in `VARIATION_KINDS` and a
+stretch of `vary.ts`; what the others give for a seed does not move.
+
+What each kind changes, in proportion to its amount (`VARIATION_LIMITS` is
+what an amount of 1 allows):
+
+| kind    |         | at 1    |                                                                                                                                             |
+| ------- | ------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| chords  | chord   | 0.75    | the chance that the whole sound is played on another chord of the key: every note the same number of steps along the white keys             |
+|         | voicing | 0.4     | the chance that a chord of three notes or more rings with one upper note an octave away                                                     |
+|         | octave  | 0.2     | the chance, for each single note of a phrase, that it is played an octave away: never the first, never the lowest                           |
+| speed   | rate    | 1 oct   | a phrase that ends is played from half to twice as fast, from its first note on; slower, it stops where the sound's last note was           |
+|         | double  | 0.5     | the chance that a phrase played round is played at double time (twice in its length) or at half time (its first half over the whole length) |
+| pattern | rests   | 0.4     | the share of a phrase's moments that rest, spread through it as evenly as they go: never the first, never the lowest note                   |
+|         | places  | 0.35    | the chance that two neighbouring single notes of a phrase change places: never the first note, never the lowest                             |
+|         | thin    | 0.4     | the chance that a chord of three notes or more sounds without one of its upper notes                                                        |
+| touch   | timing  | 0.12 s  | a note is early or late, never by more than a third of the way to its neighbour; notes struck together move together                        |
+|         | gain    | 3 dB    | a note is played harder or softer against the others; the hardest note of the variant is as hard as the sound's hardest                     |
+|         | tuning  | 7 cents | not for a sound tuned to whole cycles                                                                                                       |
+|         | start   | 4 s     | a held chord is taken up that much later, at another moment of whatever moves in its instrument                                             |
+
+The methods are old ones. The chord is a weighted choice: a third down or up
+first (two notes of a triad in common), a fourth or a fifth next (one), a step
+last (none), and the further ones only come in above a third and two thirds
+of the amount; no sound is ever stood on B, the one white key with no fifth
+above it. The rests are a Euclidean rhythm: the moments that sound are spread
+over the phrase as evenly as their number allows, turned so the first one
+sounds. Everything else is a chance per note or per sound.
+
+What no kind changes: the instrument and its settings, the effects, the
+length, the loop and its fold, the key, and the attack a sound starts on. In a
+sound that ends, the notes it ends on are never later and no key is down
+longer, so it still dies away inside its length. A sound made of another one
+(`source`) has no chord of its own to move: its notes say how far the other
+sound's audio is shifted.
+
+Every factory sound is written on the white keys, and a chord is moved along
+them. So a variant is made of the sound as written and transposed afterwards:
+`renderFactorySound` does both in that order, and a host that keeps its own
+copy of a varied recipe transposes that. Everything is drawn from the seed and
+a note's own place in the phrase, never from a running count, and a phrase
+that is played round (`cycled`) is varied as one pass and laid out again for
+every pass, so the loop still meets itself, and a variant in another key is
+the same variant moved there.
+
+`vary.test.ts` holds each kind to its own business, holds a variant of every
+sound of the bank and of every pack sound there is to what a sound must keep
+without rendering, and renders ten by their touch and by every kind at once.
+`FACTORY_REPORT=variants` is the bench: per variant what it does, how far it
+is from its sound (`printDistance`, the same measure as `ALIKE`), the
+loudness against the sound's, the kind the analysis gives, and whether it
+comes round or ends as the sound does, with `KIND`, `LEVEL` (over 2 LU from
+the sound), `SAME` (under 0.02 dB apart: nothing to hear), `OFFKEY`, `SEAM`,
+`STEP-IN`, `CUT` and `LATE`.
+
+```bash
+FACTORY_REPORT=variants pnpm vitest run src/dsp/factory/__tests__/report.test.ts # two seeds of every bank sound, every kind at 1
+FACTORY_REPORT=variants FACTORY_KIND=chords FACTORY_EVERY=4 pnpm vitest run src/dsp/factory/__tests__/report.test.ts # one kind alone
+FACTORY_REPORT=variants FACTORY_AMOUNT=0.25 FACTORY_SEEDS=4 FACTORY_EVERY=5 pnpm vitest run src/dsp/factory/__tests__/report.test.ts
+FACTORY_REPORT=variants FACTORY_PACK=<id> pnpm vitest run src/dsp/factory/__tests__/report.test.ts # a pack's sounds
+```
+
+What the bench says, so nobody has to find out again. Each kind alone at an
+amount of 1, two variants of every fourth sound of the bank (25 sounds, 50
+variants a kind); a variant's distance from its sound is the level between
+the two renders, band by band.
+
+| Kind    | Variants that differ | Distance, where they differ   | Loudness against the sound's       | What was flagged                                                                           |
+| ------- | -------------------- | ----------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------ |
+| Chords  | 34 of 50 (23 sounds) | 0.1 to 5.0 dB, half under 1.7 | within 1 LU for 28, 2.1 LU at most | two held chords moved to E and to D read 37 and 34 % on the black keys, from 14 and 13 %   |
+| Speed   | 10 of 50 (5 sounds)  | 1.1 to 7.7 dB, half under 4.4 | over 2 LU for 3, 3.2 LU at most    | one slowed phrase ends at -58 dB, where the sound ends at -107                             |
+| Pattern | 10 of 50 (5 sounds)  | 1.4 to 6.5 dB, half under 2.5 | over 2 LU for 3, 3.1 LU at most    | one phrase with four of its notes resting is called a one-shot by `analyzeSound`           |
+| Touch   | 50 of 50 (25 sounds) | 0.1 to 2.2 dB, half under 1.0 | within 1 LU for 45, 2.0 LU at most | two pads are called another kind by `analyzeSound`, their level now moving across its line |
+
+Every loop still comes round in every one of them, and none starts on a
+step. Chords reaches every kind of sound but one played from a `source`;
+speed and pattern are for phrases, so a bank of drones and pads is varied
+mostly by its chords and its touch. The notes of a variant on another chord
+are all of the key: the black-key share that rises is the overtones of a
+chord on E, A or D, whose thirds and fifths lie closer to black keys than
+those of a chord on C, F or G. A render is brought to the bank's peak
+whatever is played, so a variant's loudness is not its sound's: a phrase at
+double time, or with notes resting between the ones that are left, comes out
+2 to 3 LU louder at an amount of 1. A host that minds can bring a variant to
+its sound's loudness after rendering; the library does not. The draws that
+ask only the seed (which chord, how fast, whether a held chord loses a note)
+are the same for every sound at one seed, so a host should give each sound
+seeds of its own, as it would anyway.
+
+What varies least is a sound that is one note struck once: its tuning moves
+by a few cents and, with chords up, it may sound an octave away or on
+another step, and nothing else does, because the whole of a sound played
+softer is not level-safe (a single high felt piano note played 3 dB softer
+came out 4.6 LU quieter at the same peak). The share of a sound on the black
+keys moves by a point or two under the touch, but for the gong wash, grains
+of a source with no clear pitch: 10 to 41 % from one variant to the next, on
+the same held note, as its grains fall.
+
 ## What the bank is held to
 
 `src/dsp/factory/__tests__/factory.test.ts` renders every entry with the
