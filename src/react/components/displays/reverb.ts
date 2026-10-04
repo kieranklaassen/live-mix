@@ -930,9 +930,10 @@ function room(config: Room): PlateDisplay {
       const right = tail.x + tail.w - 1
       const left = right - words.length * 5.5 - 3
       const through = Math.min(lineY(state.body, left, foot), lineY(state.low, left, foot))
+      // The sign for a tail that never falls is a small one in most faces: it is set larger.
       text(frame, words, right, through < tail.y + 12 ? foot - 3 : tail.y + 8, {
         align: 'right',
-        size: 9,
+        size: words === '∞' ? 13 : 9,
       })
     },
     handles: (view) => roomHandles(config, view),
