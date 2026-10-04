@@ -165,6 +165,47 @@ describe('MidiInput', () => {
     expect(input.ports).toHaveLength(1)
   })
 
+  it('stays closed when it is closed before the access it asked for arrives', async () => {
+    const port = new FakePort('in-1', 'X')
+    const access = new FakeAccess()
+    access.inputs.set(port.id, port)
+    const grants: ((access: MidiAccessLike) => void)[] = []
+    const requestAccess = vi.fn(
+      () => new Promise<MidiAccessLike>((resolve) => grants.push(resolve)),
+    )
+    const input = new MidiInput({ requestAccess })
+    const events: ControlEvent[] = []
+    input.subscribe((event) => events.push(event))
+
+    // The page lets go while the browser is still asking (an effect cleaned up, a switch put back).
+    const opening = input.open()
+    input.close()
+    grants[0](access)
+    await opening
+    expect(input.opened).toBe(false)
+    expect(input.ports).toEqual([])
+    expect(port.onmidimessage).toBeNull()
+    expect(access.onstatechange).toBeNull()
+    port.send([0xb0, 7, 1])
+    expect(events).toEqual([])
+
+    // Opened again before an earlier request is answered: only the last one attaches.
+    const first = input.open()
+    input.close()
+    const second = input.open()
+    grants[2](access)
+    await second
+    const attached = port.onmidimessage
+    expect(input.ports).toHaveLength(1)
+    grants[1](new FakeAccess())
+    await first
+    expect(input.opened).toBe(true)
+    expect(input.ports).toHaveLength(1)
+    expect(port.onmidimessage).toBe(attached)
+    port.send([0xb0, 7, 2])
+    expect(events).toHaveLength(1)
+  })
+
   it('passes the sysex flag through and surfaces a denied request', async () => {
     const requestAccess = vi.fn(() => Promise.reject(new Error('denied')))
     const input = new MidiInput({ requestAccess, sysex: true })

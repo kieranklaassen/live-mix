@@ -164,6 +164,21 @@ describe('Arbiter: touch holds with an injected clock', () => {
     expect(level()).toBe(0.2)
   })
 
+  it('a timer that fires before the hold has lapsed by the clock is set again, and the waiting write lands', () => {
+    const { arbiter, clock, level, timers } = rig()
+    arbiter.apply(kickLevel(0.5), { author: human })
+    arbiter.apply(kickLevel(0.2), { author: coach })
+    // A timer and the wall clock are two clocks: the timer can be a millisecond ahead.
+    clock.ms = 4999
+    timers.pop()?.()
+    expect(level()).toBe(0.5)
+    expect(timers).toHaveLength(1)
+    clock.ms = 5000
+    timers.pop()?.()
+    expect(level()).toBe(0.2)
+    expect(arbiter.pending()).toEqual([])
+  })
+
   it('every human write refreshes the hold; touch and release bracket a drag', () => {
     const { arbiter, clock, level } = rig()
     const target = { kind: 'strip' as const, owner: 'kick', param: 'level' as const }
@@ -263,6 +278,29 @@ describe('Arbiter: rails and locks', () => {
     arbiter.tick()
     expect(level()).toBe(0.3)
     expect(arbiter.locks()).toEqual([])
+  })
+
+  it("a writer's own lock does not carry it through a hand's hold on the same target", () => {
+    const { arbiter, clock, level } = rig()
+    arbiter.lock('strip:kick:level', { author: coach })
+    expect(arbiter.apply(kickLevel(0.5), { author: human }).outcome).toBe('applied')
+    expect(arbiter.stateOf('strip:kick:level').holder).toEqual(human)
+    expect(arbiter.apply(kickLevel(0.2), { author: coach })).toMatchObject({
+      outcome: 'deferred',
+      holder: human,
+    })
+    expect(level()).toBe(0.5)
+    expect(arbiter.apply(kickLevel(0.1), { author: lane })).toMatchObject({
+      outcome: 'dropped',
+      reason: 'held',
+    })
+    clock.ms = 5000
+    arbiter.tick()
+    expect(level()).toBe(0.2)
+    expect(arbiter.apply(kickLevel(0.1), { author: lane })).toMatchObject({
+      outcome: 'dropped',
+      reason: 'locked',
+    })
   })
 
   it('unlock lands the waiting agent; a lock without ttl waits for it', () => {
@@ -488,6 +526,53 @@ describe('Arbiter: automation lanes', () => {
     expect(renderer.writerFor(target)?.isOverridden).toBe(true)
     arbiter.releaseAutomation()
     expect(renderer.writerFor(target)?.isOverridden).toBe(false)
+    engine.dispose()
+  })
+
+  it("with automationResume 'manual' a waiting write that lands reaches the graph", async () => {
+    const ctx = createMockContext({ sampleRate: 48000 })
+    const engine = createEngine({
+      context: asAudioContext(ctx),
+      setIntervalFn: () => 0 as unknown as ReturnType<typeof setInterval>,
+      clearIntervalFn: () => {},
+    })
+    const buffer = new MockAudioBuffer(2, 48000 * 10, 48000) as unknown as AudioBuffer
+    await engine.samples.load('a', buffer)
+    await engine.samples.load('b', buffer)
+    const clock = { ms: 0 }
+    const document = new ScoreDocument(demoScore(), { now: () => clock.ms })
+    const renderer = loadScore(engine, document, { onError: () => {} })
+    await renderer.whenIdle()
+    const arbiter = new Arbiter(document, {
+      now: () => clock.ms,
+      renderer,
+      automationResume: 'manual',
+      setTimeoutFn: () => 0,
+      clearTimeoutFn: () => {},
+    })
+    const target = { kind: 'strip' as const, owner: 'pad', param: 'level' as const }
+    const fader = renderer.audioTrack('pad').strip.fader as unknown as MockGainNode
+    arbiter.apply(
+      { type: 'strip.set', owner: 'pad', param: 'level', value: 0.55 },
+      { author: human },
+    )
+    expect(
+      arbiter.apply(
+        { type: 'strip.set', owner: 'pad', param: 'level', value: 0.3 },
+        { author: coach },
+      ).outcome,
+    ).toBe('deferred')
+    await renderer.whenIdle()
+    expect(fader.gain.lastEvent('setTargetAtTime')?.args[0]).toBeCloseTo(0.55)
+
+    // The hold lapses and the lane stays overridden: the renderer leaves the parameter alone.
+    clock.ms = 5000
+    arbiter.tick()
+    await renderer.whenIdle()
+    expect(arbiter.stateOf(target).overridden).toBe(true)
+    expect(findStripHost(document.score, 'pad')?.strip.level).toBe(0.3)
+    expect(fader.gain.lastEvent('setTargetAtTime')?.args[0]).toBeCloseTo(0.3)
+    arbiter.dispose()
     engine.dispose()
   })
 })
