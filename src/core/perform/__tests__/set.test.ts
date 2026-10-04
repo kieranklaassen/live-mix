@@ -111,6 +111,27 @@ describe('normalisePerformSet', () => {
     expect(set.follow).toBe(false)
   })
 
+  it("keeps a host target's own unit, which may be signed, and holds a ride to a gain", () => {
+    const set = normalisePerformSet({
+      dials: [
+        {
+          id: 'space',
+          targets: [
+            { kind: 'host', id: 'send', output: { min: -60, max: 6 } },
+            { kind: 'host', id: 'pan', output: { min: 1, max: -1 } },
+            { kind: 'ride', track: 'x', output: { min: -1, max: 9 } },
+          ],
+        },
+      ],
+    })
+    expect(set.dials[0].targets).toEqual([
+      { kind: 'host', id: 'send', output: { min: -60, max: 6 } },
+      { kind: 'host', id: 'pan', output: { min: 1, max: -1 } },
+      { kind: 'ride', track: 'x', output: { min: 0, max: 2 } },
+    ])
+    expect(shapeDial(set.dials[0].targets[0], 0.5)).toBeCloseTo(-27)
+  })
+
   it('reads the set a score carries under meta.perform', () => {
     const set = withScene(emptyPerformSet(), scene('a'))
     expect(performSetOf({ meta: { perform: JSON.parse(JSON.stringify(set)) } })).toEqual(set)

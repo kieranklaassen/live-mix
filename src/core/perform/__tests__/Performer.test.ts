@@ -217,6 +217,22 @@ describe('Performer: scenes', () => {
     expect(approach('b')?.[1]).toBeCloseTo(START + 1.5)
   })
 
+  it("finds the next line on a move's own grid after a seek, not on the set's", () => {
+    const { engine, performer, advance, approach, ride } = rig()
+    engine.transport.start()
+    advance(0.3)
+    performer.go('dawn', { quantize: 'beat' })
+    performer.ride('a', 0.25, { quantize: 'beat' })
+    engine.transport.seek(5.2)
+    expect(ride('b')).toBeNull()
+    // Position 5.2 s is beat 10.4: the next beat is 0.6 on, the next bar 1.6.
+    expect(performer.state.queuedInBeats).toBeCloseTo(0.6)
+    advance(0.25)
+    expect(approach('b')?.[0]).toBe(0)
+    expect(approach('b')?.[1]).toBeCloseTo(START + 0.6)
+    expect(approach('a')?.[1]).toBeCloseTo(START + 0.6)
+  })
+
   it('goes at once when the transport stops under a scene that waits', () => {
     const { engine, performer, advance, approach } = rig()
     engine.transport.start()
