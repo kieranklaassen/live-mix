@@ -2004,6 +2004,11 @@
   bottom: 0;
 }
 
+/* Something carried in from outside the chain lands at the same marker, kept above the devices. */
+.lm-chain--receiving .lm-chain__marker {
+  z-index: 4;
+}
+
 .lm-chain__handle {
   display: flex;
   align-items: center;
@@ -2107,7 +2112,8 @@
 
 .lm-plate .lm-knob {
   width: 100%;
-  gap: 3px;
+  /* 30 for the knob, 2 between, two lines of 9: a row of 50 holds a name of two words whole. */
+  gap: 2px;
   color: var(--lm-plate-ink);
 }
 
