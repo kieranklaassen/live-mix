@@ -6,6 +6,14 @@
   "class": "SpectralBlur",
   "header": "spectral_blur.h",
   "sources": [],
+  "meters": [
+    { "key": "hang1", "name": "Held share 20 to 63 Hz", "display": true },
+    { "key": "hang2", "name": "Held share 63 to 200 Hz", "display": true },
+    { "key": "hang3", "name": "Held share 200 to 630 Hz", "display": true },
+    { "key": "hang4", "name": "Held share 630 Hz to 2 kHz", "display": true },
+    { "key": "hang5", "name": "Held share 2 to 6.3 kHz", "display": true },
+    { "key": "hang6", "name": "Held share 6.3 to 20 kHz", "display": true }
+  ],
   "latencySamples": 2304,
   "params": [
     {

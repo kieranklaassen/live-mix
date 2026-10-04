@@ -7,6 +7,11 @@
   "header": "low_bitrate.h",
   "sources": [],
   "latencySamples": 4096,
+  "meters": [
+    { "key": "packet", "name": "Packet state", "display": true },
+    { "key": "lost", "name": "Dropouts so far", "display": true },
+    { "key": "stuck", "name": "Stutters so far", "display": true }
+  ],
   "params": [
     {
       "key": "loss",

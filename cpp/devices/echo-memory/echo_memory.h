@@ -94,6 +94,26 @@ class EchoMemory : public kit::DeviceBase<echo_memory::kNumParams> {
     if (store_param(id, value)) apply(id);
   }
 
+  // The readings named by "meters" in device.json, for a display to draw:
+  // 0, how far behind the echo's playback head is now, in milliseconds (Time,
+  // or on its way there); then for each of the two memory voices, how many
+  // seconds ago the frame it is reading was played (0 while it rests) and
+  // how loud it plays it: its window times how much fainter it is for being
+  // old, 0..1, below zero while it reads backwards.
+  float meter(int index) const {
+    if (index == 0) return static_cast<float>(delay_) * 1000.0f / sample_rate();
+    if (index < 1 || index > 2 * kNumSnippets) return 0.0f;
+    const Snippet& snippet = snippets_[(index - 1) / 2];
+    if (!snippet.active) return 0.0f;
+    if ((index & 1) == 1) {
+      return static_cast<float>(memory_.written() - snippet.position_q / 4) / store_rate_;
+    }
+    const float window = window_at(static_cast<float>(snippet.index) * snippet.per_length);
+    const float fade = std::sqrt(0.5f * (snippet.gain_left * snippet.gain_left +
+                                         snippet.gain_right * snippet.gain_right));
+    return snippet.step_q < 0 ? -window * fade : window * fade;
+  }
+
   void process(int frames) {
     using namespace echo_memory;
     frames = begin_block(frames);

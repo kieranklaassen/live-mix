@@ -11,7 +11,7 @@
 //   ?chain=1                         in one `DeviceChainView` on a strip, as an app draws them
 //   ?preset=<name>                   each device on its preset of that name, where it has one
 //
-// `window.plates` is there for a script: `ready`, `devices` by id, `context`.
+// `window.plates` is there for a script: `ready`, `devices` by id, `context`, `registry`.
 
 import '@kieranklaassen/live-mix/react/styles.css'
 
@@ -214,6 +214,7 @@ function Plates() {
           plates: {
             ready: true,
             context: made.engine.context,
+            registry: made.registry,
             devices: Object.fromEntries(
               made.entries.map((entry) => [entry.device.id, entry.device]),
             ),
@@ -265,14 +266,18 @@ function Plates() {
                       defaultOpen={open}
                       // A stand-in for an app's preset cell, so the tools stand where they do in an app.
                       presetPicker={<span style={{ fontSize: 9, opacity: 0.7 }}>Preset</span>}
+                      // As many tools as an app gives a plate: earlier, later, swap, save (and remove).
                       actions={
                         <>
-                          <button type="button" className="lm-button lm-button--neutral">
-                            ‹
-                          </button>
-                          <button type="button" className="lm-button lm-button--neutral">
-                            ›
-                          </button>
+                          {['‹', '›', '⇄', '↓'].map((mark) => (
+                            <button
+                              key={mark}
+                              type="button"
+                              className="lm-button lm-button--neutral"
+                            >
+                              {mark}
+                            </button>
+                          ))}
                         </>
                       }
                       onRemove={() => {}}

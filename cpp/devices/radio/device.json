@@ -6,6 +6,14 @@
   "class": "Radio",
   "header": "radio.h",
   "sources": [],
+  "meters": [
+    { "key": "tuning", "name": "Dial offset", "display": true },
+    { "key": "direct", "name": "Direct path", "display": true },
+    { "key": "lateRe", "name": "Late path, real", "display": true },
+    { "key": "lateIm", "name": "Late path, imaginary", "display": true },
+    { "key": "delay", "name": "Late path delay", "display": true },
+    { "key": "static", "name": "Static level", "display": true }
+  ],
   "params": [
     {
       "key": "band",

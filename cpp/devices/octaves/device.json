@@ -6,6 +6,14 @@
   "class": "Octaves",
   "header": "octaves.h",
   "sources": [],
+  "meters": [
+    {
+      "key": "note",
+      "name": "Loudest partial",
+      "unit": "Hz",
+      "display": true
+    }
+  ],
   "params": [
     {
       "key": "sub2",

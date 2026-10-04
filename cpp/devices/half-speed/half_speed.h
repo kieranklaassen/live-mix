@@ -76,6 +76,29 @@ class HalfSpeed : public kit::DeviceBase<half_speed::kNumParams> {
     if (store_param(id, value)) apply(id);
   }
 
+  // The readings named by "meters" in device.json, for a display to draw:
+  // where the first cycle clock is (0..1), how long the cycle in progress
+  // lasts with its Jitter (seconds), and how far behind the present its
+  // three heads read (seconds): the cycle's own, the last cycle's and the
+  // one started mid-cycle.
+  float meter(int index) const {
+    const Timing& lead = timing_[0];
+    switch (index) {
+      case 0:
+        return static_cast<float>(lead.phase);
+      case 1:
+        return static_cast<float>(cycle_frames_ * jitter_factor_ / sample_rate());
+      case 2:
+        return static_cast<float>(lead.delay[kCur] / sample_rate());
+      case 3:
+        return static_cast<float>(lead.delay[kPrev] / sample_rate());
+      case 4:
+        return static_cast<float>(lead.delay[kMid] / sample_rate());
+      default:
+        return 0.0f;
+    }
+  }
+
   void process(int frames) {
     using namespace half_speed;
     frames = begin_block(frames);
