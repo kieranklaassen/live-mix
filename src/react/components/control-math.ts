@@ -118,12 +118,22 @@ export function denormalizeValue(
   }
 }
 
+/**
+ * The decimals a step is written with, six at the most: what a value on its
+ * grid is rounded to. A quarter takes two, where its size alone says one.
+ */
+function stepDecimals(step: number): number {
+  for (let decimals = 0; decimals < 6; decimals += 1) {
+    if (Math.abs(Number(step.toFixed(decimals)) - step) <= step * 1e-9) return decimals
+  }
+  return 6
+}
+
 /** Snap to a step grid inside [min, max]; a step of 0 only clamps. */
 export function quantize(value: number, step: number, min: number, max: number): number {
   if (!(step > 0)) return clamp(value, min, max)
   const stepped = min + Math.round((value - min) / step) * step
-  const decimals = Math.min(6, Math.max(0, Math.ceil(-Math.log10(step))))
-  const rounded = Number(stepped.toFixed(decimals))
+  const rounded = Number(stepped.toFixed(stepDecimals(step)))
   return clamp(rounded, min, max)
 }
 
