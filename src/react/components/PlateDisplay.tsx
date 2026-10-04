@@ -68,7 +68,9 @@ const QUIET = 1e-4
 /** How long a display runs on in silence before it stands still, unless it says (`live.settle`). */
 const SETTLE_SEC = 8
 /** How often a display that stands still in silence listens for sound, in ms. */
-const LISTEN_MS = 200
+const LISTEN_MS = 100
+/** How far back it listens, in seconds: past the last listening, a late timer allowed for. */
+const LISTEN_BACK_SEC = (LISTEN_MS * 1.5) / 1000
 
 // Displays standing still in silence. They ask for no frames and no readings;
 // a timer listens at their taps, and the first sound sets them running again.
@@ -269,7 +271,7 @@ export class DisplayRunner {
   /** In silence: sound again sets it running. */
   listen(): void {
     if (this.disposed || !settled.has(this)) return
-    if (this.taps?.heard(QUIET)) this.sync(true)
+    if (this.taps?.listen(QUIET, LISTEN_BACK_SEC)) this.sync(true)
   }
 
   /** Whether what it draws from is other than at the last call: the settings, the size, the device, the power. */

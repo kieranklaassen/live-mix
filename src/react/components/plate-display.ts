@@ -250,6 +250,10 @@ export function runningDisplays(): number {
 
 /** About 43 ms at 48 kHz: longer than a frame at 30 fps, so no peak falls between two readings. */
 const TAP_WINDOW = 2048
+/** The longest stretch an analyser keeps. */
+const TAP_WINDOW_MOST = 32768
+// One buffer for every tap that listens: it is filled and looked through at once, and nothing of it is kept.
+let listened: Float32Array<ArrayBuffer> | null = null
 
 /**
  * One analyser hung on a node. It takes nothing from the sound and adds
@@ -261,6 +265,8 @@ class Tap {
   private readonly analyser: AnalyserNode
   private readonly wave: Float32Array<ArrayBuffer>
   private bins: Float32Array<ArrayBuffer> | null = null
+  /** The analyser keeps a longer stretch than a reading takes: it was listened at last. */
+  private wide = false
 
   constructor(
     private readonly context: BaseAudioContext,
@@ -285,7 +291,15 @@ class Tap {
     }
   }
 
+  /** A reading takes the newest window, which a longer stretch does not begin with. */
+  private narrow(): void {
+    if (!this.wide) return
+    this.analyser.fftSize = TAP_WINDOW
+    this.wide = false
+  }
+
   level(): DisplayLevel {
+    this.narrow()
     const wave = this.wave
     this.analyser.getFloatTimeDomainData(wave)
     let peak = 0
@@ -307,6 +321,7 @@ class Tap {
 
   /** Whether anything louder than `floor` is on the node now: the cheapest thing a tap can say. */
   heard(floor: number): boolean {
+    this.narrow()
     const wave = this.wave
     this.analyser.getFloatTimeDomainData(wave)
     for (let n = wave.length - 1; n >= 0; n -= 1)
@@ -314,8 +329,28 @@ class Tap {
     return false
   }
 
+  /**
+   * Whether anything louder than `floor` was on the node in the last
+   * `seconds`: for a display that stands still and listens only now and then,
+   * so that a short sound between two listenings is not missed. The analyser
+   * keeps the longer stretch from here on, and the next reading puts it back.
+   */
+  listen(floor: number, seconds: number): boolean {
+    let size = TAP_WINDOW
+    while (size < seconds * this.context.sampleRate && size < TAP_WINDOW_MOST) size *= 2
+    if (size === TAP_WINDOW) return this.heard(floor)
+    if (this.analyser.fftSize !== size) this.analyser.fftSize = size
+    this.wide = true
+    listened ??= new Float32Array(TAP_WINDOW_MOST)
+    const wave = listened.subarray(0, size)
+    this.analyser.getFloatTimeDomainData(wave)
+    for (let n = size - 1; n >= 0; n -= 1) if (wave[n] > floor || wave[n] < -floor) return true
+    return false
+  }
+
   spectrum(): Float32Array | null {
     if (!this.bins) return null
+    this.narrow()
     this.analyser.getFloatFrequencyData(this.bins)
     return this.bins
   }
@@ -436,6 +471,11 @@ export class DisplayTaps {
   /** Whether there is sound at the device, going in or coming out, louder than `floor`. */
   heard(floor: number): boolean {
     return this.output.heard(floor) || (this.input?.heard(floor) ?? false)
+  }
+
+  /** The same over the last `seconds`, for a display that stands still: see `Tap.listen`. */
+  listen(floor: number, seconds: number): boolean {
+    return this.output.listen(floor, seconds) || (this.input?.listen(floor, seconds) ?? false)
   }
 
   mend(): void {

@@ -336,6 +336,48 @@ describe('when a display is drawn', () => {
     expect(runningDisplays()).toBe(0)
   })
 
+  it('standing still, hears a short sound that came and went between two listenings', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+    try {
+      const fixture = createTestEngine()
+      const { device } = await makeMetered(fixture)
+      const analysers = fixture.ctx.analysers.length
+      const skin = { ...BASE, display: live(vi.fn(), { meters: true, settle: 1 }) }
+      render(<DevicePlate device={device} skin={skin} />, { wrapper: fixture.wrapper })
+      const [tap] = fixture.ctx.analysers.slice(analysers)
+      let now = 1000
+      const frames = (seconds: number): void => {
+        for (let n = 0; n < seconds * 10; n++) act(() => fixture.frames.flush((now += 100)))
+      }
+      frames(1.5)
+      expect([runningDisplays(), settledDisplays()]).toEqual([0, 1])
+
+      // A stab that was over before the newest window began: a reading's 2048 samples hold none of it.
+      const read = vi.fn((array: Float32Array) => {
+        array.fill(0)
+        if (array.length > 2048) array.fill(0.3, 0, array.length - 2048)
+      })
+      tap.getFloatTimeDomainData = read
+      act(() => {
+        vi.advanceTimersByTime(100)
+      })
+      expect([runningDisplays(), settledDisplays()]).toEqual([1, 0])
+      // It listened over more than the time between two listenings, and no further than it must.
+      const listened = read.mock.calls[0][0].length
+      expect(listened / fixture.ctx.sampleRate).toBeGreaterThan(0.1)
+      expect(listened).toBe(8192)
+
+      // Running again it reads the newest window, as before.
+      frames(0.2)
+      expect(tap.fftSize).toBe(2048)
+      expect(read.mock.calls.at(-1)?.[0].length).toBe(2048)
+      frames(1.5)
+      expect([runningDisplays(), settledDisplays()]).toEqual([0, 1])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('stands still after some seconds of silence, and runs again at the first sound', async () => {
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
     try {
