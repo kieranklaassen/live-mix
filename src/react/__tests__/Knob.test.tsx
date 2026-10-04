@@ -185,6 +185,34 @@ describe('Knob', () => {
     expect(control).not.toHaveAttribute('aria-valuenow', '0.5')
   })
 
+  it('holds back a finger’s first pixels, so a swipe the browser takes never turns it at all', () => {
+    const onChange = vi.fn()
+    render(<Knob label="Mix" defaultValue={0.5} min={0} max={1} onChange={onChange} />)
+    const control = slider()
+    const finger = { pointerId: 7, pointerType: 'touch' }
+    fireEvent.pointerDown(control, { ...finger, button: 0, clientX: 100, clientY: 50 })
+    // A swipe along a chain: far across, a pixel or two of drift, and then the browser has it.
+    fireEvent.pointerMove(control, { ...finger, clientX: 90, clientY: 49 })
+    fireEvent.pointerMove(control, { ...finger, clientX: 80, clientY: 47 })
+    fireEvent.pointerCancel(control, { ...finger })
+    expect(onChange).not.toHaveBeenCalled()
+    expect(control).toHaveAttribute('aria-valuenow', '0.5')
+    // A finger that goes on up means the knob, which catches up with all of the way so far.
+    fireEvent.pointerDown(control, { ...finger, button: 0, clientX: 100, clientY: 50 })
+    fireEvent.pointerMove(control, { ...finger, clientX: 100, clientY: 47 })
+    expect(onChange).not.toHaveBeenCalled()
+    fireEvent.pointerMove(control, { ...finger, clientX: 100, clientY: 38 })
+    fireEvent.pointerUp(control, { ...finger })
+    // Twelve pixels of a knob's 110, not the nine since it let go.
+    expect(onChange.mock.calls.at(-1)?.[0]).toBeCloseTo(0.5 + 12 / 110, 6)
+    // A mouse turns it from the first pixel, as ever.
+    onChange.mockClear()
+    fireEvent.pointerDown(control, { pointerId: 1, button: 0, clientX: 100, clientY: 50 })
+    fireEvent.pointerMove(control, { pointerId: 1, clientX: 100, clientY: 49 })
+    expect(onChange).toHaveBeenCalledTimes(1)
+    fireEvent.pointerUp(control, { pointerId: 1 })
+  })
+
   it('ends a key gesture after the idle time', () => {
     vi.useFakeTimers()
     try {

@@ -87,6 +87,9 @@ const isBrowser = typeof window !== 'undefined'
 // `useLayoutEffect` warns during server rendering; the effect only sets a ref.
 const useIsomorphicLayoutEffect = isBrowser ? useLayoutEffect : useEffect
 
+/** How far a finger goes before a control takes it for a turn, in pixels: less is a tap, or the start of a swipe. */
+const TOUCH_SLOP_PX = 4
+
 export function useParamControl(options: ParamControlOptions): ParamControl {
   const {
     value,
@@ -118,6 +121,8 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
   const lastPointRef = useRef({ x: 0, y: 0 })
   /** The value the control had when the pointer took it: what a press the browser takes back returns to. */
   const takenAtRef = useRef(shown)
+  /** How far a finger has gone without turning the control yet, in pixels; null once it turns, and for a mouse. */
+  const heldBackRef = useRef<number | null>(null)
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const elementRef = useRef<HTMLElement | null>(null)
 
@@ -217,6 +222,11 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
       pointerIdRef.current = event.pointerId
       lastPointRef.current = { x: event.clientX, y: event.clientY }
       takenAtRef.current = shownRef.current
+      // A finger's first pixels are held back: until it has gone a little way
+      // it may be a swipe along whatever the control stands in, which the
+      // browser is about to take, and a control that had already turned would
+      // leave a step to undo that changed nothing.
+      heldBackRef.current = event.pointerType === 'touch' ? 0 : null
       normRef.current = normalizeValue(
         shownRef.current,
         latest.current.min,
@@ -267,8 +277,16 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
       const a = latest.current.axis ?? axis
       const travel = a === 'vertical' ? dy : a === 'horizontal' ? -dx : dy - dx
       if (travel === 0) return
+      let moved = travel
+      if (heldBackRef.current !== null) {
+        heldBackRef.current += travel
+        if (Math.abs(heldBackRef.current) < TOUCH_SLOP_PX) return
+        // The finger means the control: it catches up with all of the way so far.
+        moved = heldBackRef.current
+        heldBackRef.current = null
+      }
       const px = latest.current.sensitivityPx ?? sensitivityPx
-      commitNorm(normRef.current + pointerDeltaToNormDelta(travel, px, event.shiftKey))
+      commitNorm(normRef.current + pointerDeltaToNormDelta(moved, px, event.shiftKey))
     },
     [axis, commitNorm, endPointer, sensitivityPx],
   )
