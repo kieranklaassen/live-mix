@@ -1,0 +1,502 @@
+{
+  "13001": {
+    "id": "polar-signal-under-the-harbour-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13002": {
+    "id": "polar-signal-hull-groan-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13003": {
+    "id": "polar-signal-pedal-left-on-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13004": {
+    "id": "polar-signal-unlit-chapel-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13005": {
+    "id": "polar-signal-road-tunnel-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13006": {
+    "id": "polar-signal-slowed-hum-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13007": {
+    "id": "polar-signal-warped-record-cellos-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13008": {
+    "id": "polar-signal-window-lamp-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13009": {
+    "id": "polar-signal-thin-ice-bows-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13010": {
+    "id": "polar-signal-street-lamp-hum-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13011": {
+    "id": "polar-signal-low-window-lamp-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13012": {
+    "id": "polar-signal-chapel-pedal-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13013": {
+    "id": "polar-signal-far-window-lamp-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13014": {
+    "id": "polar-signal-sub-under-snow-b",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13015": {
+    "id": "polar-signal-engine-below-deck-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13016": {
+    "id": "polar-signal-generator-shed-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13017": {
+    "id": "polar-signal-reed-in-fog-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13018": {
+    "id": "polar-signal-carrier-wave-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13019": {
+    "id": "polar-signal-singing-wires-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13020": {
+    "id": "polar-signal-ice-bowl-f",
+    "durationSec": 12,
+    "loops": false
+  },
+  "13021": {
+    "id": "polar-signal-long-plain-strings-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13022": {
+    "id": "polar-signal-hollow-chord-dm",
+    "durationSec": 16,
+    "loops": false
+  },
+  "13023": {
+    "id": "polar-signal-frost-forming-cmaj7",
+    "durationSec": 16,
+    "loops": false
+  },
+  "13024": {
+    "id": "polar-signal-sodium-lamps-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13025": {
+    "id": "polar-signal-fjord-horns-dm",
+    "durationSec": 16,
+    "loops": false
+  },
+  "13026": {
+    "id": "polar-signal-slowed-string-loop-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13027": {
+    "id": "polar-signal-voices-in-static-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13028": {
+    "id": "polar-signal-hymn-through-walls-c",
+    "durationSec": 12,
+    "loops": false
+  },
+  "13029": {
+    "id": "polar-signal-sampled-ensemble-em7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13030": {
+    "id": "polar-signal-ferry-lounge-strings-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13031": {
+    "id": "polar-signal-ridge-lights-dsus2",
+    "durationSec": 14,
+    "loops": false
+  },
+  "13032": {
+    "id": "polar-signal-cold-iron-sky-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13033": {
+    "id": "polar-signal-quartet-under-snow-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13034": {
+    "id": "polar-signal-starved-strings-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13035": {
+    "id": "polar-signal-fog-clarinets-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13036": {
+    "id": "polar-signal-late-watch-pad-e",
+    "durationSec": 14,
+    "loops": false
+  },
+  "13037": {
+    "id": "polar-signal-digital-frost-pad-am7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13038": {
+    "id": "polar-signal-moment-held-still-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13039": {
+    "id": "polar-signal-sun-returns-f",
+    "durationSec": 16,
+    "loops": false
+  },
+  "13040": {
+    "id": "polar-signal-orchestra-fragment-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13041": {
+    "id": "polar-signal-half-speed-reel-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13042": {
+    "id": "polar-signal-foghorn-f",
+    "durationSec": 8,
+    "loops": false
+  },
+  "13043": {
+    "id": "polar-signal-two-ships-f",
+    "durationSec": 16,
+    "loops": false
+  },
+  "13044": {
+    "id": "polar-signal-far-buzzing-string-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13045": {
+    "id": "polar-signal-wind-over-the-pass",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13046": {
+    "id": "polar-signal-wind-in-the-rigging",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13047": {
+    "id": "polar-signal-night-harbour-water",
+    "durationSec": 16,
+    "loops": true
+  },
+  "13048": {
+    "id": "polar-signal-sleet-on-the-hut-roof",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13049": {
+    "id": "polar-signal-crackle-at-the-run-out",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13050": {
+    "id": "polar-signal-hearth-on-cassette",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13051": {
+    "id": "polar-signal-snowplough-goes-by",
+    "durationSec": 12,
+    "loops": false
+  },
+  "13052": {
+    "id": "polar-signal-shortwave-stretched",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13053": {
+    "id": "polar-signal-far-thunder-over-ice",
+    "durationSec": 16,
+    "loops": true
+  },
+  "13054": {
+    "id": "polar-signal-stream-under-snow",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13055": {
+    "id": "polar-signal-wind-in-the-flue",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13056": {
+    "id": "polar-signal-whistlers-sliding-down",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13057": {
+    "id": "polar-signal-flute-breath-in-snow",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13058": {
+    "id": "polar-signal-waves-under-the-ice",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13059": {
+    "id": "polar-signal-buoy-bell-d",
+    "durationSec": 12,
+    "loops": false
+  },
+  "13060": {
+    "id": "polar-signal-ship-gong-d",
+    "durationSec": 12,
+    "loops": false
+  },
+  "13061": {
+    "id": "polar-signal-bars-on-vinyl-g",
+    "durationSec": 8,
+    "loops": false
+  },
+  "13062": {
+    "id": "polar-signal-beacon-a",
+    "durationSec": 6,
+    "loops": false
+  },
+  "13063": {
+    "id": "polar-signal-stairwell-strum-am",
+    "durationSec": 8,
+    "loops": false
+  },
+  "13064": {
+    "id": "polar-signal-cabin-guitar-em",
+    "durationSec": 4,
+    "loops": false
+  },
+  "13065": {
+    "id": "polar-signal-baritone-two-notes-f",
+    "durationSec": 8,
+    "loops": false
+  },
+  "13066": {
+    "id": "polar-signal-oil-drum-slowed-d",
+    "durationSec": 5,
+    "loops": false
+  },
+  "13067": {
+    "id": "polar-signal-sub-slowly-closing-e",
+    "durationSec": 6,
+    "loops": false
+  },
+  "13068": {
+    "id": "polar-signal-steel-over-snow-c",
+    "durationSec": 8,
+    "loops": false
+  },
+  "13069": {
+    "id": "polar-signal-lounge-keys-dm7",
+    "durationSec": 6,
+    "loops": false
+  },
+  "13070": {
+    "id": "polar-signal-tines-thawing-a",
+    "durationSec": 8,
+    "loops": false
+  },
+  "13071": {
+    "id": "polar-signal-hammer-on-wire-a",
+    "durationSec": 8,
+    "loops": false
+  },
+  "13072": {
+    "id": "polar-signal-marimba-next-hall-g",
+    "durationSec": 5,
+    "loops": false
+  },
+  "13073": {
+    "id": "polar-signal-glass-in-frost-g",
+    "durationSec": 8,
+    "loops": false
+  },
+  "13074": {
+    "id": "polar-signal-hull-thud-g",
+    "durationSec": 2,
+    "loops": false
+  },
+  "13075": {
+    "id": "polar-signal-piano-next-door-c",
+    "durationSec": 6,
+    "loops": false
+  },
+  "13076": {
+    "id": "polar-signal-harp-string-returning-g",
+    "durationSec": 8,
+    "loops": false
+  },
+  "13077": {
+    "id": "polar-signal-station-chime-g",
+    "durationSec": 6,
+    "loops": false
+  },
+  "13078": {
+    "id": "polar-signal-strum-left-hanging-a",
+    "durationSec": 12,
+    "loops": true
+  },
+  "13079": {
+    "id": "polar-signal-depth-sounder-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13080": {
+    "id": "polar-signal-icicles-b",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13081": {
+    "id": "polar-signal-cold-arpeggio-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13082": {
+    "id": "polar-signal-signal-through-snow-e",
+    "durationSec": 10,
+    "loops": false
+  },
+  "13083": {
+    "id": "polar-signal-frost-glasses-g",
+    "durationSec": 12,
+    "loops": true
+  },
+  "13084": {
+    "id": "polar-signal-lost-music-box-c",
+    "durationSec": 8,
+    "loops": false
+  },
+  "13085": {
+    "id": "polar-signal-coast-station-pips-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13086": {
+    "id": "polar-signal-steps-below-deck-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13087": {
+    "id": "polar-signal-radio-trumpet-dm",
+    "durationSec": 7,
+    "loops": false
+  },
+  "13088": {
+    "id": "polar-signal-cold-breath-horn-g",
+    "durationSec": 10,
+    "loops": false
+  },
+  "13089": {
+    "id": "polar-signal-looped-guitar-em",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13090": {
+    "id": "polar-signal-station-chimes-c",
+    "durationSec": 8,
+    "loops": false
+  },
+  "13091": {
+    "id": "polar-signal-piano-next-door-am",
+    "durationSec": 12,
+    "loops": true
+  },
+  "13092": {
+    "id": "polar-signal-lounge-piano-loop-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13093": {
+    "id": "polar-signal-bad-line-flute-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13094": {
+    "id": "polar-signal-muted-pulse-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13095": {
+    "id": "polar-signal-skipping-hand-drum-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "13096": {
+    "id": "polar-signal-harp-under-dust-dm",
+    "durationSec": 8,
+    "loops": false
+  },
+  "13097": {
+    "id": "polar-signal-harp-returning-g",
+    "durationSec": 12,
+    "loops": true
+  },
+  "13098": {
+    "id": "polar-signal-medium-wave-lullaby-c",
+    "durationSec": 8,
+    "loops": false
+  },
+  "13099": {
+    "id": "polar-signal-slow-reel-steel-c",
+    "durationSec": 12,
+    "loops": true
+  },
+  "13100": {
+    "id": "polar-signal-night-band-vibes-g",
+    "durationSec": 10,
+    "loops": false
+  }
+}

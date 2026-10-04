@@ -1,0 +1,502 @@
+{
+  "18001": {
+    "id": "laptop-guitar-ground-loop-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18002": {
+    "id": "laptop-guitar-hollow-hum-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18003": {
+    "id": "laptop-guitar-fuzz-organ-floor-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18004": {
+    "id": "laptop-guitar-buzz-through-fuzz-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18005": {
+    "id": "laptop-guitar-monochord-memory-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18006": {
+    "id": "laptop-guitar-folding-fizz-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18007": {
+    "id": "laptop-guitar-sub-under-the-wall-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18008": {
+    "id": "laptop-guitar-harmonium-in-the-red-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18009": {
+    "id": "laptop-guitar-chapel-stream-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18010": {
+    "id": "laptop-guitar-low-loop-through-amp-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18011": {
+    "id": "laptop-guitar-chapel-stream-low-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18012": {
+    "id": "laptop-guitar-loop-through-the-amp-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18013": {
+    "id": "laptop-guitar-organ-floor-lifted-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18014": {
+    "id": "laptop-guitar-held-feedback-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18015": {
+    "id": "laptop-guitar-bowed-and-caught-b",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18016": {
+    "id": "laptop-guitar-buffer-held-open-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18017": {
+    "id": "laptop-guitar-slide-into-fuzz-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18018": {
+    "id": "laptop-guitar-still-steel-drift-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18019": {
+    "id": "laptop-guitar-sine-and-hiss-b",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18020": {
+    "id": "laptop-guitar-octave-fizz-em",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18021": {
+    "id": "laptop-guitar-glass-under-gain-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18022": {
+    "id": "laptop-guitar-vowel-packets-fmaj7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18023": {
+    "id": "laptop-guitar-spectral-sunburn-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18024": {
+    "id": "laptop-guitar-saw-wall-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18025": {
+    "id": "laptop-guitar-overexposed-brass-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18026": {
+    "id": "laptop-guitar-airy-pad-overdriven-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18027": {
+    "id": "laptop-guitar-alias-pad-em",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18028": {
+    "id": "laptop-guitar-horn-swell-clipped-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18029": {
+    "id": "laptop-guitar-ensemble-haze-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18030": {
+    "id": "laptop-guitar-symphony-in-patch-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18031": {
+    "id": "laptop-guitar-chorale-in-grains-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18032": {
+    "id": "laptop-guitar-reed-from-nothing-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18033": {
+    "id": "laptop-guitar-rubbed-bowl-fuzz-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18034": {
+    "id": "laptop-guitar-tide-going-out-c6",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18035": {
+    "id": "laptop-guitar-slow-scan-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18036": {
+    "id": "laptop-guitar-half-the-song-am9",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18037": {
+    "id": "laptop-guitar-bleached-strings-cmaj7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18038": {
+    "id": "laptop-guitar-noise-chord-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18039": {
+    "id": "laptop-guitar-breath-fizz-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18040": {
+    "id": "laptop-guitar-cluster-in-the-wires-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18041": {
+    "id": "laptop-guitar-shore-down-the-line",
+    "durationSec": 16,
+    "loops": true
+  },
+  "18042": {
+    "id": "laptop-guitar-filtered-burst",
+    "durationSec": 8,
+    "loops": false
+  },
+  "18043": {
+    "id": "laptop-guitar-click-field-of-a-chord",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18044": {
+    "id": "laptop-guitar-bow-hair-and-grit",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18045": {
+    "id": "laptop-guitar-breath-and-bitrate",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18046": {
+    "id": "laptop-guitar-laptop-fan-at-noon",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18047": {
+    "id": "laptop-guitar-rain-down-the-line",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18048": {
+    "id": "laptop-guitar-crackle-in-the-buffer",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18049": {
+    "id": "laptop-guitar-beach-fire-low-bitrate",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18050": {
+    "id": "laptop-guitar-sunburnt-chords-em",
+    "durationSec": 12,
+    "loops": true
+  },
+  "18051": {
+    "id": "laptop-guitar-salt-in-the-pickups-g",
+    "durationSec": 5,
+    "loops": false
+  },
+  "18052": {
+    "id": "laptop-guitar-sideband-strum-fmaj7",
+    "durationSec": 5.5,
+    "loops": false
+  },
+  "18053": {
+    "id": "laptop-guitar-boardwalk-strum-g",
+    "durationSec": 6,
+    "loops": false
+  },
+  "18054": {
+    "id": "laptop-guitar-nylon-under-noise-d",
+    "durationSec": 5,
+    "loops": false
+  },
+  "18055": {
+    "id": "laptop-guitar-picked-bell-bits-g",
+    "durationSec": 4,
+    "loops": false
+  },
+  "18056": {
+    "id": "laptop-guitar-loop-shard-d",
+    "durationSec": 3,
+    "loops": false
+  },
+  "18057": {
+    "id": "laptop-guitar-harp-cut-up-f",
+    "durationSec": 3.5,
+    "loops": false
+  },
+  "18058": {
+    "id": "laptop-guitar-bell-tines-blurred-g",
+    "durationSec": 8,
+    "loops": false
+  },
+  "18059": {
+    "id": "laptop-guitar-bitten-bass-a",
+    "durationSec": 2,
+    "loops": false
+  },
+  "18060": {
+    "id": "laptop-guitar-strum-plate-shards-am7",
+    "durationSec": 5,
+    "loops": false
+  },
+  "18061": {
+    "id": "laptop-guitar-zither-haze-d",
+    "durationSec": 8,
+    "loops": false
+  },
+  "18062": {
+    "id": "laptop-guitar-vibes-looped-back-f",
+    "durationSec": 10,
+    "loops": false
+  },
+  "18063": {
+    "id": "laptop-guitar-hammered-pixels-a",
+    "durationSec": 6,
+    "loops": false
+  },
+  "18064": {
+    "id": "laptop-guitar-sub-drop-g",
+    "durationSec": 4,
+    "loops": false
+  },
+  "18065": {
+    "id": "laptop-guitar-twelve-string-glitter-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18066": {
+    "id": "laptop-guitar-deckchair-notes-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18067": {
+    "id": "laptop-guitar-stuck-on-the-bridge-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18068": {
+    "id": "laptop-guitar-chopped-fingerstyle-am",
+    "durationSec": 8,
+    "loops": false
+  },
+  "18069": {
+    "id": "laptop-guitar-postcard-nylon-dm",
+    "durationSec": 8,
+    "loops": false
+  },
+  "18070": {
+    "id": "laptop-guitar-backwards-slides-e",
+    "durationSec": 12,
+    "loops": true
+  },
+  "18071": {
+    "id": "laptop-guitar-singing-steel-fuzz-a",
+    "durationSec": 12,
+    "loops": true
+  },
+  "18072": {
+    "id": "laptop-guitar-pier-lights-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18073": {
+    "id": "laptop-guitar-borrowed-bar-dm9",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18074": {
+    "id": "laptop-guitar-stutter-patch-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18075": {
+    "id": "laptop-guitar-vibes-bad-disc-g",
+    "durationSec": 8,
+    "loops": false
+  },
+  "18076": {
+    "id": "laptop-guitar-vibes-line-looped-am",
+    "durationSec": 12,
+    "loops": true
+  },
+  "18077": {
+    "id": "laptop-guitar-glockenspiel-rain-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18078": {
+    "id": "laptop-guitar-music-box-buffering-c",
+    "durationSec": 8,
+    "loops": false
+  },
+  "18079": {
+    "id": "laptop-guitar-steel-pan-pixels-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18080": {
+    "id": "laptop-guitar-harp-cut-ups-g",
+    "durationSec": 8,
+    "loops": false
+  },
+  "18081": {
+    "id": "laptop-guitar-koto-in-the-patch-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18082": {
+    "id": "laptop-guitar-piano-and-haze-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18083": {
+    "id": "laptop-guitar-piano-starved-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18084": {
+    "id": "laptop-guitar-pipes-then-backwards-g",
+    "durationSec": 8,
+    "loops": false
+  },
+  "18085": {
+    "id": "laptop-guitar-trumpet-on-the-beach-d",
+    "durationSec": 12,
+    "loops": true
+  },
+  "18086": {
+    "id": "laptop-guitar-subtone-packets-b",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18087": {
+    "id": "laptop-guitar-bitten-bass-line-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18088": {
+    "id": "laptop-guitar-pixel-dulcimer-line-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18089": {
+    "id": "laptop-guitar-folded-pluck-restruck-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18090": {
+    "id": "laptop-guitar-bell-tines-round-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18091": {
+    "id": "laptop-guitar-stuck-harmony-c",
+    "durationSec": 12,
+    "loops": true
+  },
+  "18092": {
+    "id": "laptop-guitar-zither-haze-round-em",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18093": {
+    "id": "laptop-guitar-sub-with-dropouts-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18094": {
+    "id": "laptop-guitar-nylon-line-in-static-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18095": {
+    "id": "laptop-guitar-ringing-dissolve-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18096": {
+    "id": "laptop-guitar-low-ding-blurred-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18097": {
+    "id": "laptop-guitar-pop-chords-clipped-c",
+    "durationSec": 8,
+    "loops": false
+  },
+  "18098": {
+    "id": "laptop-guitar-bridge-clicks-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "18099": {
+    "id": "laptop-guitar-salt-pickup-line-a",
+    "durationSec": 8,
+    "loops": false
+  },
+  "18100": {
+    "id": "laptop-guitar-sideband-notes-e",
+    "durationSec": 8,
+    "loops": true
+  }
+}
