@@ -86,8 +86,10 @@ class AmbientLimiter : public kit::DeviceBase<ambient_limiter::kNumParams> {
     if (store_param(id, value)) apply(id);
   }
 
-  // The reading named by meters[index] in device.json; 0 for an unknown one.
-  float meter(int index) const { return index == 0 ? meter_ : 0.0f; }
+  // The readings named by meters[index] in device.json; 0 for an unknown one.
+  // 0 is the total reduction, 1 the ride's own share of it, for a display that
+  // draws the slow stage and the brickwall apart.
+  float meter(int index) const { return index == 0 ? meter_ : index == 1 ? ride_db_ : 0.0f; }
 
   // The ride's own share of the reduction in dB (0 or less), for the harness.
   float ride_db() const { return ride_db_; }
