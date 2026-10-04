@@ -56,6 +56,7 @@ export type AmbientLimiterParamName = keyof typeof AMBIENT_LIMITER_PARAMS
 
 export const AMBIENT_LIMITER_METERS = {
   reduction: { id: 0, name: 'Gain reduction', unit: 'dB' },
+  ride: { id: 1, name: 'Ride reduction', unit: 'dB', display: true },
 } as const satisfies Record<string, DeviceMeterSpec>
 
 export const AMBIENT_LIMITER_DEVICE = defineWasmDevice({
