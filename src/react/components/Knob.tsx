@@ -33,6 +33,8 @@ export interface KnobProps {
   max: number
   /** Quantisation step; 0 (default) clamps only. */
   step?: number
+  /** The value only takes whole steps (a list, a count): a key with Shift moves a step too, not a tenth of one. */
+  wholeSteps?: boolean
   unit?: ControlUnit
   taper?: ControlTaper
   skew?: number
@@ -151,6 +153,7 @@ export function Knob({
   min,
   max,
   step = 0,
+  wholeSteps,
   unit = 'ratio',
   taper = 'linear',
   skew = 2,
@@ -182,6 +185,7 @@ export function Knob({
     min,
     max,
     step,
+    wholeSteps,
     taper,
     skew,
     disabled,

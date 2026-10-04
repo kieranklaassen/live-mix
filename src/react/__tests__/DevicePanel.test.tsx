@@ -110,6 +110,25 @@ describe('DevicePanel', () => {
     )
   })
 
+  it('moves a list by whole entries with Shift held too, never to a place between two', async () => {
+    const fixture = createTestEngine()
+    const device = await filter(fixture)
+    render(<DevicePanel device={device} data-testid="panel" />, { wrapper: fixture.wrapper })
+    const type = screen.getByRole('slider', { name: 'Type' })
+    // A tenth of a step is no entry of a list: the device would be set to 0.1 and the knob still say the first.
+    fireEvent.keyDown(type, { key: 'ArrowUp', shiftKey: true })
+    expect(device.getParam('type')).toBe(1)
+    expect(type).toHaveAttribute('aria-valuetext', 'High pass')
+    fireEvent.keyDown(type, { key: 'ArrowUp', shiftKey: true })
+    fireEvent.keyDown(type, { key: 'ArrowDown', shiftKey: true })
+    fireEvent.keyDown(type, { key: 'ArrowUp', shiftKey: true })
+    expect(device.getParam('type')).toBe(2)
+    // A setting with no steps of its own keeps its fine key.
+    const gain = screen.getByRole('slider', { name: 'Gain' })
+    fireEvent.keyDown(gain, { key: 'ArrowUp', shiftKey: true })
+    expect(device.getParam('gain')).toBeCloseTo(0.01, 6)
+  })
+
   it('says which device, parameter and power switch each part is, for a host that maps controllers', async () => {
     const fixture = createTestEngine()
     const device = await filter(fixture)

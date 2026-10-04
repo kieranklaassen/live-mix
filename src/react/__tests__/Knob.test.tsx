@@ -69,6 +69,29 @@ describe('Knob', () => {
     expect(control).toHaveAttribute('aria-valuenow', '1')
   })
 
+  it('with `wholeSteps`, a key moves a whole step with Shift held too', () => {
+    function Host() {
+      const [value, setValue] = useState(12)
+      return (
+        <Knob
+          label="Pitch"
+          value={value}
+          defaultValue={12}
+          min={-24}
+          max={24}
+          step={1}
+          wholeSteps
+          onChange={setValue}
+        />
+      )
+    }
+    render(<Host />)
+    for (const key of ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowUp']) {
+      fireEvent.keyDown(slider(), { key, shiftKey: true })
+    }
+    expect(slider()).toHaveAttribute('aria-valuenow', '14')
+  })
+
   it('without a step, keys move one percent of the travel under the taper', () => {
     const onChange = vi.fn()
     render(

@@ -39,6 +39,11 @@ export interface ParamControlOptions {
   max: number
   /** Quantisation step; 0 clamps only (keys then move 1 % of the travel). */
   step?: number
+  /**
+   * The value only takes whole steps (a list, a count, semitones): a key
+   * moves it a step with Shift held too, where it would move a tenth of one.
+   */
+  wholeSteps?: boolean
   taper?: ControlTaper
   skew?: number
   disabled?: boolean
@@ -349,8 +354,8 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
     (event: KeyboardEvent<HTMLElement>) => {
       const o = latest.current
       if (o.disabled) return
-      const fine = event.shiftKey
       const stepSize = o.step ?? 0
+      const fine = event.shiftKey && !(o.wholeSteps && stepSize > 0)
       const current = shownRef.current
       // Without a step, keys move 1 % of the travel (0.1 % fine, 10 % page).
       const byNorm = (fraction: number): void =>
