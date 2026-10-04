@@ -36,7 +36,7 @@ build_generated_devices() {
     cpp/devices/choir/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device chord-harp \
     cpp/devices/chord-harp/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device chorus \
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device chorus \
     cpp/devices/chorus/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device clarinet \
     cpp/devices/clarinet/device_api.gen.cpp
@@ -50,7 +50,7 @@ build_generated_devices() {
     cpp/devices/ember/device_api.gen.cpp
   MEMORY_BYTES=6291456 EXTRA_EXPORTS="" build_device expanse \
     cpp/devices/expanse/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device flanger \
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device flanger \
     cpp/devices/flanger/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device flute \
     cpp/devices/flute/device_api.gen.cpp
@@ -102,7 +102,7 @@ build_generated_devices() {
     cpp/devices/patina/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device pedal-steel \
     cpp/devices/pedal-steel/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device phaser \
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device phaser \
     cpp/devices/phaser/device_api.gen.cpp
   MEMORY_BYTES=6291456 EXTRA_EXPORTS="" build_device pitch-shifter \
     cpp/devices/pitch-shifter/device_api.gen.cpp
@@ -112,7 +112,7 @@ build_generated_devices() {
     cpp/devices/re-amp/device_api.gen.cpp
   MEMORY_BYTES=20971520 EXTRA_EXPORTS="" build_device reverse-delay \
     cpp/devices/reverse-delay/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device rotary \
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device rotary \
     cpp/devices/rotary/device_api.gen.cpp
   MEMORY_BYTES=25165824 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_sample_capacity,_device_sample_buffer,_device_sample_commit" build_device sampler \
     cpp/devices/sampler/device_api.gen.cpp

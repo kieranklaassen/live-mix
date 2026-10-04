@@ -665,12 +665,20 @@ export function lfo(shape: LfoShape, phase: number): number {
  * Where an LFO is in its cycle on this frame, from a reading that arrives
  * less often than frames do: the reading is carried forward at the LFO's rate
  * between two arrivals, so the mark moves smoothly and stays in step with the
- * sound. Keep the returned state and pass it back.
+ * sound. A running LFO never reports the same place twice, so the same
+ * reading for `PHASE_STANDS_SEC` means the device is not running (it sleeps,
+ * or the engine is stopped): then the mark stands on the reading and is not
+ * carried on by the clock. Keep the returned state and pass it back.
  */
 export interface PhaseTrack {
   phase: number
   reading: number
+  /** How long the same reading has come, in seconds. */
+  stood?: number
 }
+
+/** How long the same reading may come before the mark stands on it, in seconds. */
+export const PHASE_STANDS_SEC = 0.15
 
 export function trackPhase(
   track: PhaseTrack | null,
@@ -688,7 +696,9 @@ export function trackPhase(
     const near = Math.abs(ahead) < Math.max(0.02, rateHz / 20)
     return { phase: near ? wrap(carried - ahead * 0.5) : reading, reading }
   }
-  return { phase: wrap(carried), reading }
+  const stood = (track.stood ?? 0) + dt
+  if (stood >= PHASE_STANDS_SEC) return { phase: reading, reading, stood }
+  return { phase: wrap(carried), reading, stood }
 }
 
 const wrap = (phase: number): number => phase - Math.floor(phase)
