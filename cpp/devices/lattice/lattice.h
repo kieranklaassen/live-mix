@@ -188,6 +188,26 @@ class Lattice : public kit::DeviceBase<lattice::kNumParams> {
     idle_.settle(kit::max(output_peak(frames), wet_peak), frames);
   }
 
+  // The readings named by "meters" in device.json, for a display to draw:
+  // the note last tracked, as a MIDI number with its fraction (0 before
+  // anything has been tracked); whether a pitched note is coming in now; and
+  // each voice's shift as it is now, on its way at the Glide time (cents).
+  float meter(int index) const {
+    switch (index) {
+      case 0:
+        return have_input_degree_ ? last_tracked_cents_ * 0.01f : 0.0f;
+      case 1:
+        return tracker_.isVoiced() ? 1.0f : 0.0f;
+      case 2:
+      case 3:
+      case 4:
+      case 5:
+        return voices_[index - 2].shift_cents.value;
+      default:
+        return 0.0f;
+    }
+  }
+
   // What the tracker last heard, for the harness and for meters.
   bool tracking() const { return tracker_.isVoiced(); }
   float tracked_hz() const { return tracker_.getFrequency(); }
