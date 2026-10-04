@@ -258,6 +258,35 @@ describe('Knob', () => {
     expect(onChange.mock.calls.at(-1)?.[0]).toBeCloseTo(0.5275, 4)
   })
 
+  it('leaves a swipe that goes more across than up or down to the scroller', () => {
+    const onChange = vi.fn()
+    render(
+      <Knob label="Mix" defaultValue={0.5} min={0} max={1} step={0.0001} onChange={onChange} />,
+    )
+    const control = slider()
+    // A trackpad scrolling a chain sideways, the pointer over a knob: straight across, and a little down.
+    for (const init of [
+      { deltaX: 12, deltaY: 0 },
+      { deltaX: 12, deltaY: 1 },
+      { deltaX: -40, deltaY: -8 },
+    ]) {
+      const swipe = new WheelEvent('wheel', { ...init, cancelable: true, bubbles: true })
+      control.dispatchEvent(swipe)
+      expect(swipe.defaultPrevented, JSON.stringify(init)).toBe(false)
+    }
+    expect(onChange).not.toHaveBeenCalled()
+    // More down than across is the knob's, as before.
+    const turn = new WheelEvent('wheel', { deltaX: 3, deltaY: 100, cancelable: true })
+    control.dispatchEvent(turn)
+    expect(turn.defaultPrevented).toBe(true)
+    expect(onChange).toHaveBeenLastCalledWith(0.475)
+    // With Shift held a wheel comes as a sideways delta on most platforms: that is a fine turn.
+    const shifted = new WheelEvent('wheel', { deltaX: -100, shiftKey: true, cancelable: true })
+    control.dispatchEvent(shifted)
+    expect(shifted.defaultPrevented).toBe(true)
+    expect(onChange.mock.calls.at(-1)?.[0]).toBeCloseTo(0.4775, 4)
+  })
+
   it('ignores the wheel when disabled or opted out', () => {
     const onChange = vi.fn()
     const { rerender } = render(

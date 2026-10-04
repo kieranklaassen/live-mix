@@ -372,7 +372,12 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
     (event: WheelEvent) => {
       const o = latest.current
       if (o.disabled || !(o.wheel ?? true)) return
-      // Shift turns a vertical wheel into a horizontal one on most platforms.
+      // Shift turns a vertical wheel into a horizontal one on most platforms, so with Shift held
+      // a sideways delta is the wheel. Without it, a swipe that goes more across than up or down
+      // is the scroller's (a chain of plates runs sideways): it turns nothing and scrolls on.
+      // A control that itself lies across keeps it.
+      const across = Math.abs(event.deltaX) > Math.abs(event.deltaY)
+      if (across && !event.shiftKey && o.axis !== 'horizontal') return
       const delta = event.deltaY !== 0 ? event.deltaY : event.deltaX
       if (delta === 0) return
       event.preventDefault()
