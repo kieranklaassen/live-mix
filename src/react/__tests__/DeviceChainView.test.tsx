@@ -6,6 +6,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { type Device } from '../../core/devices/Device'
 import { DEVICE_CATEGORIES } from '../../core/devices/registry'
 import {
+  armedEnds,
+  carryScrollMin,
   chainDropIndex,
   dropIndex,
   dropMarkerPosition,
@@ -108,6 +110,32 @@ describe('carrying a device along a chain', () => {
     expect(edgeScroll(382, 0, 400)).toBe(7)
     expect(edgeScroll(400, 0, 400)).toBe(14)
     expect(edgeScroll(10, 0, 0)).toBe(0)
+  })
+
+  it('scrolls a carry back no further than the chain\u2019s own start, or than the view already stood', () => {
+    // The chain starts 300 px into what its scroller holds: the carry goes back to there.
+    expect(carryScrollMin(300, 400)).toBe(300)
+    // A view that already showed what comes before the chain shows no more of it.
+    expect(carryScrollMin(300, 120)).toBe(120)
+    // A chain that is all its scroller holds goes back to its start.
+    expect(carryScrollMin(0, 250)).toBe(0)
+    expect(carryScrollMin(-8, 250)).toBe(0)
+  })
+
+  it('arms an end of the view once the pointer goes on toward it, or has been clear of it', () => {
+    const none = { near: false, far: false }
+    // Taken at the near end and not moved toward it: only the far end may scroll.
+    expect(armedEnds(none, -7, 20, 20)).toEqual({ near: false, far: true })
+    expect(armedEnds(none, -7, 26, 20)).toEqual({ near: false, far: true })
+    // Gone on toward the near end from where it was taken.
+    expect(armedEnds(none, -9, 14, 20)).toEqual({ near: true, far: true })
+    // Taken at the far end: the same the other way round.
+    expect(armedEnds(none, 7, 380, 384)).toEqual({ near: true, far: false })
+    expect(armedEnds(none, 9, 390, 384)).toEqual({ near: true, far: true })
+    // Clear of both ends arms both, and an end stays armed.
+    expect(armedEnds(none, 0, 200, 20)).toEqual({ near: true, far: true })
+    const both = { near: true, far: true }
+    expect(armedEnds(both, -7, 26, 20)).toBe(both)
   })
 
   it('keeps the carried name a little left of the pointer and inside the chain', () => {
@@ -428,6 +456,101 @@ describe('DeviceChainView', () => {
       expect(pad.strip.inserts).toEqual([eq, delay, filter])
     } finally {
       width.mockRestore()
+      vi.unstubAllGlobals()
+    }
+  })
+
+  /**
+   * The chain in a bar that scrolls and holds 300 px of other things before
+   * it: 600 px of content in a view of 200, scrolled to its end, so the chain's
+   * last two devices show. What is returned reads and sets how far the bar is.
+   */
+  function inABar(items: HTMLElement[]) {
+    const view = screen.getByTestId('chain')
+    const bar = view.parentElement
+    if (!bar) throw new Error('the chain stands in nothing')
+    let scrolled = 400
+    Object.defineProperties(bar, {
+      scrollWidth: { get: () => 600 },
+      clientWidth: { get: () => 200 },
+      scrollLeft: { get: () => scrolled, set: (value: number) => void (scrolled = value) },
+    })
+    bar.style.overflowX = 'auto'
+    bar.getBoundingClientRect = () => ({ left: 0, right: 200, top: 0, bottom: 40 }) as DOMRect
+    // The chain is as wide as its three devices and scrolls nothing itself.
+    Object.defineProperties(view, {
+      scrollWidth: { get: () => 300 },
+      clientWidth: { get: () => 300 },
+    })
+    view.getBoundingClientRect = () =>
+      ({ left: 300 - scrolled, right: 600 - scrolled, top: 0, bottom: 40 }) as DOMRect
+    items.forEach((item, index) => {
+      item.getBoundingClientRect = () =>
+        ({
+          left: 300 + index * 100 - scrolled,
+          right: 400 + index * 100 - scrolled,
+          top: 0,
+          bottom: 40,
+        }) as DOMRect
+    })
+    return { at: () => scrolled }
+  }
+
+  it('scrolls back under a carry to the chain\u2019s first device, not into what its bar holds before the chain', async () => {
+    const frames: FrameRequestCallback[] = []
+    vi.stubGlobal('requestAnimationFrame', (frame: FrameRequestCallback) => frames.push(frame))
+    vi.stubGlobal('cancelAnimationFrame', () => {})
+    try {
+      const { pad, devices, items, titles } = await threeDevices()
+      const [filter, eq, delay] = devices
+      const bar = inABar(items)
+      // The last device, taken in the middle of the view and held at the view's near edge.
+      fireEvent.pointerDown(titles[2], { pointerId: 1, button: 0, clientX: 150 })
+      fireEvent.pointerMove(window, { pointerId: 1, clientX: 2 })
+      for (let frame = 0; frame < 60; frame += 1) act(() => frames.shift()?.(0))
+      // The bar stops with the chain's start at its edge: the first device is what shows there.
+      expect(bar.at()).toBe(300)
+      expect(screen.getByTestId('chain-marker').style.left).toBe('4px')
+      fireEvent.pointerUp(window, { pointerId: 1 })
+      expect(pad.strip.inserts).toEqual([delay, filter, eq])
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('leaves the chain where it is when a device is taken at the view\u2019s edge and carried away from it', async () => {
+    const frames: FrameRequestCallback[] = []
+    vi.stubGlobal('requestAnimationFrame', (frame: FrameRequestCallback) => frames.push(frame))
+    vi.stubGlobal('cancelAnimationFrame', () => {})
+    const run = (count: number) => {
+      for (let frame = 0; frame < count; frame += 1) act(() => frames.shift()?.(0))
+    }
+    try {
+      const { items, titles } = await threeDevices()
+      const bar = inABar(items)
+      // The second device stands at the view's near edge and is taken by its first few px.
+      fireEvent.pointerDown(titles[1], { pointerId: 1, button: 0, clientX: 10 })
+      fireEvent.pointerMove(window, { pointerId: 1, clientX: 16 })
+      run(10)
+      expect(screen.getByTestId('chain-carried')).toBeInTheDocument()
+      expect(bar.at()).toBe(400)
+      // Clear of that edge and back at it: now the pointer is asking for more of the chain.
+      fireEvent.pointerMove(window, { pointerId: 1, clientX: 100 })
+      run(2)
+      expect(bar.at()).toBe(400)
+      fireEvent.pointerMove(window, { pointerId: 1, clientX: 10 })
+      run(3)
+      expect(bar.at()).toBeLessThan(400)
+      fireEvent.pointerUp(window, { pointerId: 1 })
+
+      // Taken at the edge and carried on toward it, the chain scrolls from the start.
+      fireEvent.pointerDown(titles[1], { pointerId: 2, button: 0, clientX: 20 })
+      const before = bar.at()
+      fireEvent.pointerMove(window, { pointerId: 2, clientX: 14 })
+      run(3)
+      expect(bar.at()).toBeLessThan(before)
+      fireEvent.pointerUp(window, { pointerId: 2 })
+    } finally {
       vi.unstubAllGlobals()
     }
   })
