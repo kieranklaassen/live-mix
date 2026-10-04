@@ -66,8 +66,9 @@ describe('device skins', () => {
         expect(skin.face, `${id} face`).toHaveLength(Math.min(room, params.length))
       for (const name of [...(skin.face ?? []), ...(skin.picture?.params ?? [])])
         expect(params, `${id} has ${name}`).toContain(name)
+      // A label is for any knob the plate can show: one on its face or one behind its +n cell.
       for (const name of Object.keys(skin.labels ?? {}))
-        expect(skin.face, `${id} labels a face knob`).toContain(name)
+        expect(params, `${id} labels a knob it has`).toContain(name)
       expect(PLATE_FINISHES).toContain(skin.finish)
     }
   })
@@ -195,6 +196,26 @@ describe('device skins', () => {
     const window = renderToStaticMarkup(<svg>{empty?.draw(() => 0.5)}</svg>)
     expect(window).toContain('<rect')
     expect(window).not.toMatch(/NaN|undefined|Infinity/)
+  })
+
+  it('keeps both inks readable on every plate: the words, and the lamp and marks in the accent', () => {
+    const channel = (hex: string, at: number): number => {
+      const c = parseInt(hex.slice(at, at + 2), 16) / 255
+      return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+    }
+    const light = (hex: string): number =>
+      0.2126 * channel(hex, 1) + 0.7152 * channel(hex, 3) + 0.0722 * channel(hex, 5)
+    const contrast = (a: string, b: string): number => {
+      const [high, low] = [light(a), light(b)].sort((x, y) => y - x)
+      return (high + 0.05) / (low + 0.05)
+    }
+    for (const [id, palette] of Object.entries(PLATE_PALETTES)) {
+      expect(contrast(palette.ink, palette.plate), `${id} ink on its plate`).toBeGreaterThan(3.8)
+      // A lit lamp and a display's mark for now are small: three to one tells them from the plate.
+      expect(contrast(palette.accent, palette.plate), `${id} accent on its plate`).toBeGreaterThan(
+        3,
+      )
+    }
   })
 
   it('reads a hex plate as dark or light, and anything else as light', () => {

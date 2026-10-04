@@ -92,6 +92,7 @@ describe('entries', () => {
     'useStripMeter',
     'reorderInserts',
     'useChainReorder',
+    'chainDropIndex',
     'freshDeviceId',
     'normalizeValue',
     'denormalizeValue',
