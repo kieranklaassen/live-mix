@@ -383,10 +383,14 @@ function tailPoints(out: Point[], tail: Tail, box: Box, span: number): void {
   out.length = count
 }
 
-/** A point of the tail's panel as a time and a level: the level kept between the foot and just under the top. */
+/**
+ * A point of the tail's panel as a time and a level: the level kept between
+ * the foot and just under the top. Past the right edge the time goes on, so
+ * an end that stands on that edge is drawn out by going on to the right.
+ */
 function tailPoint(box: Box, span: number, x: number, y: number): { sec: number; db: number } {
   return {
-    sec: clamp((x - box.x) / box.w, 0, 1) * span,
+    sec: Math.max(0, (x - box.x) / box.w) * span,
     db: clamp(dbOfY(y, box, TOP_DB, FOOT_DB), FOOT_DB, -0.25),
   }
 }

@@ -326,6 +326,13 @@ describe('the tail every one of them shares', () => {
     // Past either end of the range it stops there; the top of the right edge is the longest.
     expect(settingThrough(tailOf, 0.5, 30, TAIL, 12, TAIL.x, y)).toBeCloseTo(0.5, 3)
     expect(settingThrough(tailOf, 0.5, 30, TAIL, 12, TAIL.x + TAIL.w, TAIL.y)).toBe(30)
+    // An end on the right edge, half way down: 24 s. A hand that goes on to the right draws it out.
+    const half = TAIL.y + TAIL.h / 2
+    expect(settingThrough(tailOf, 0.5, 30, TAIL, 12, TAIL.x + TAIL.w, half)).toBeCloseTo(20, 2)
+    expect(settingThrough(tailOf, 0.5, 30, TAIL, 12, TAIL.x + TAIL.w * 1.25, half)).toBeCloseTo(
+      26,
+      2,
+    )
   })
 
   it('takes the nearer side where the tail jumps from one setting to the next', () => {
