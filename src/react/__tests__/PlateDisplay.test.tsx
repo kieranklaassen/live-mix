@@ -19,7 +19,7 @@ import { MockAudioBuffer, type MockAnalyserNode, type MockGainNode } from '../..
 import { DeviceChainView } from '../components/DeviceChainView'
 import { printedMeters } from '../components/DevicePanel'
 import { DevicePlate } from '../components/DevicePlate'
-import { settledDisplays } from '../components/PlateDisplay'
+import { PlateDisplayLayer, settledDisplays } from '../components/PlateDisplay'
 import { DEVICE_SKINS, QUIET_SKIN, type DeviceSkin } from '../components/device-skins'
 import {
   DisplayTaps,
@@ -537,8 +537,12 @@ describe('a handle on a display', () => {
     fireEvent.pointerUp(surface, { pointerId: 2 })
     expect(view(display.draw).dragging).toBe(false)
 
-    // A double press puts it back where the device starts.
+    // A double press puts it back where the device starts: two presses that move nothing.
     const now = display.handles?.(view(display.draw))[0]
+    for (const pointerId of [3, 4]) {
+      fireEvent.pointerDown(surface, { pointerId, button: 0, clientX: now?.x, clientY: now?.y })
+      fireEvent.pointerUp(surface, { pointerId })
+    }
     fireEvent.doubleClick(surface, { clientX: now?.x, clientY: now?.y })
     expect(device.getParam('frequency')).toBe(device.params.frequency.default)
     expect(device.getParam('q')).toBe(device.params.q.default)
@@ -655,5 +659,237 @@ describe('a handle on a display', () => {
     })
     fireEvent.pointerUp(surface, { pointerId: 2 })
     expect(document.log.entries.at(-1)?.gesture).toBe('ui:kick-filter:drag#2')
+  })
+})
+
+describe('a handle under the wheel, under a finger and under another handle', () => {
+  /** Two points on a line, each where its own value says; a drag moves the one taken. */
+  function twoPoints(): { display: PlateDisplay; at: { a: number; b: number } } {
+    const at = { a: 40, b: 40 }
+    const point = (key: 'a' | 'b') => ({
+      key,
+      name: key,
+      x: at[key],
+      y: 30,
+      drag: (x: number) => {
+        at[key] = x
+        return { [key]: x }
+      },
+      wheel: (steps: number) => ({ [`${key}Width`]: steps }),
+      reset: () => ({ [key]: 0 }),
+    })
+    return {
+      display: { ...withHandle(), handles: () => [point('a'), point('b')] },
+      at,
+    }
+  }
+
+  async function mount(display: PlateDisplay) {
+    const fixture = createTestEngine()
+    const device = await make(fixture)
+    const spies = { onDragStart: vi.fn(), onDrag: vi.fn(), onDragEnd: vi.fn() }
+    render(
+      <PlateDisplayLayer
+        display={display}
+        device={device}
+        source={null}
+        width={176}
+        height={100}
+        powered
+        params={device.params}
+        values={{}}
+        heading="Sweep"
+        data-testid="display"
+        {...spies}
+      />,
+      { wrapper: fixture.wrapper },
+    )
+    return { surface: screen.getByTestId('display'), ...spies }
+  }
+
+  const wheel = (surface: HTMLElement, init: WheelEventInit): WheelEvent => {
+    const event = new WheelEvent('wheel', { bubbles: true, cancelable: true, ...init })
+    act(() => void surface.dispatchEvent(event))
+    return event
+  }
+
+  it('turns by the size of the wheel: a trackpad’s small events add up to the step of one notch', async () => {
+    vi.useFakeTimers()
+    try {
+      const { display } = twoPoints()
+      const { surface, onDragStart, onDrag, onDragEnd } = await mount(display)
+      // Twenty-five events of 4 px are the 100 px of one notch: one step, not twenty-five.
+      for (let n = 0; n < 25; n++) {
+        const event = wheel(surface, { deltaY: -4, clientX: 40, clientY: 30 })
+        expect(event.defaultPrevented).toBe(true)
+      }
+      expect(onDrag.mock.calls).toEqual([[{ bWidth: 1 }]])
+      // A notch of a wheel is a step at once, and three notches in one event are three.
+      wheel(surface, { deltaY: 100, clientX: 40, clientY: 30 })
+      wheel(surface, { deltaY: -300, clientX: 40, clientY: 30 })
+      // Lines count as a wheel sends them: three to the notch.
+      wheel(surface, { deltaY: -3, deltaMode: 1, clientX: 40, clientY: 30 })
+      expect(onDrag.mock.calls.slice(1)).toEqual([
+        [{ bWidth: -1 }],
+        [{ bWidth: 3 }],
+        [{ bWidth: 1 }],
+      ])
+      // All of it is one turn of the wheel: one undo step, closed once the wheel rests.
+      expect(onDragStart).toHaveBeenCalledTimes(1)
+      expect(onDragEnd).not.toHaveBeenCalled()
+      act(() => void vi.advanceTimersByTime(399))
+      expect(onDragEnd).not.toHaveBeenCalled()
+      act(() => void vi.advanceTimersByTime(1))
+      expect(onDragEnd).toHaveBeenCalledTimes(1)
+      expect(onDragEnd).toHaveBeenCalledWith(['bWidth'])
+      // After a rest the next turn is another step.
+      wheel(surface, { deltaY: -100, clientX: 40, clientY: 30 })
+      expect(onDragStart).toHaveBeenCalledTimes(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('leaves a swipe that goes across to whatever the plate stands in, and a turn too small for a step costs no undo', async () => {
+    vi.useFakeTimers()
+    try {
+      const { display } = twoPoints()
+      const { surface, onDragStart, onDrag, onDragEnd } = await mount(display)
+      for (let n = 0; n < 20; n++) {
+        const across = wheel(surface, { deltaX: 12, deltaY: 1, clientX: 40, clientY: 30 })
+        expect(across.defaultPrevented).toBe(false)
+      }
+      expect(onDrag).not.toHaveBeenCalled()
+      // A little up and down over the point is the point's, and moves nothing yet.
+      const little = wheel(surface, { deltaY: -30, clientX: 40, clientY: 30 })
+      expect(little.defaultPrevented).toBe(true)
+      act(() => void vi.advanceTimersByTime(500))
+      expect(onDragStart).not.toHaveBeenCalled()
+      expect(onDragEnd).not.toHaveBeenCalled()
+      // And what was left of it is forgotten with the rest: it does not ride into the next turn.
+      wheel(surface, { deltaY: -80, clientX: 40, clientY: 30 })
+      expect(onDrag).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('closes an open turn of the wheel before a press takes the handle', async () => {
+    vi.useFakeTimers()
+    try {
+      const { display } = twoPoints()
+      const { surface, onDragStart, onDragEnd } = await mount(display)
+      wheel(surface, { deltaY: -100, clientX: 40, clientY: 30 })
+      fireEvent.pointerDown(surface, { pointerId: 1, button: 0, clientX: 40, clientY: 30 })
+      expect(onDragEnd.mock.calls).toEqual([[['bWidth']]])
+      expect(onDragStart.mock.calls).toEqual([[['bWidth']], [['b']]])
+      fireEvent.pointerUp(surface, { pointerId: 1 })
+      act(() => void vi.advanceTimersByTime(500))
+      expect(onDragEnd).toHaveBeenCalledTimes(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('lays the handle moved last on top of one it comes to stand on, so each can be taken again', async () => {
+    const { display, at } = twoPoints()
+    const { surface, onDragStart } = await mount(display)
+    const taken = (): string => (onDragStart.mock.calls.at(-1)?.[0] as string[])[0]
+    const drag = (from: number, to: number): void => {
+      fireEvent.pointerDown(surface, { pointerId: 1, button: 0, clientX: from, clientY: 30 })
+      fireEvent.pointerMove(surface, { pointerId: 1, clientX: to, clientY: 30 })
+      fireEvent.pointerUp(surface, { pointerId: 1 })
+    }
+    // Neither has been moved: the later one is on top, and is carried off.
+    drag(40, 120)
+    expect(taken()).toBe('b')
+    expect(at).toEqual({ a: 40, b: 120 })
+    // The one it covered is free, and is put down on the other.
+    drag(40, 120)
+    expect(taken()).toBe('a')
+    expect(at).toEqual({ a: 120, b: 120 })
+    // Now the one just put down is on top: a press there takes it again, not the later one.
+    drag(120, 60)
+    expect(taken()).toBe('a')
+    expect(at).toEqual({ a: 60, b: 120 })
+    // And a handle that is plainly nearer the press is taken whatever was moved last.
+    drag(120, 126)
+    expect(taken()).toBe('b')
+    at.a = 122
+    drag(121, 121)
+    expect(taken()).toBe('a')
+  })
+
+  it('takes two presses that moved nothing for a double press, and two quick nudges for two nudges', async () => {
+    const { display, at } = twoPoints()
+    const { surface, onDrag } = await mount(display)
+    const press = (by: number): void => {
+      const from = at.b
+      fireEvent.pointerDown(surface, { pointerId: 1, button: 0, clientX: from, clientY: 30 })
+      if (by !== 0)
+        fireEvent.pointerMove(surface, { pointerId: 1, clientX: from + by, clientY: 30 })
+      fireEvent.pointerUp(surface, { pointerId: 1 })
+    }
+    // Two nudges of 3 px, which the browser counts as a double click: the second nudge stays.
+    press(3)
+    press(3)
+    fireEvent.doubleClick(surface, { clientX: at.b, clientY: 30 })
+    expect(at.b).toBe(46)
+    expect(onDrag).not.toHaveBeenCalledWith({ b: 0 })
+    // A nudge and then a press is not one either.
+    press(0)
+    fireEvent.doubleClick(surface, { clientX: at.b, clientY: 30 })
+    expect(onDrag).not.toHaveBeenCalledWith({ b: 0 })
+    // Two presses that move nothing are.
+    press(0)
+    fireEvent.doubleClick(surface, { clientX: at.b, clientY: 30 })
+    expect(onDrag).toHaveBeenLastCalledWith({ b: 0 })
+  })
+
+  it('counts a finger’s double tap itself, on the second tap’s release, and not two nudges', async () => {
+    const { display, at } = twoPoints()
+    const { surface, onDrag, onDragStart, onDragEnd } = await mount(display)
+    const finger = (by: number): void => {
+      const from = at.b
+      const touch = { pointerId: 5, pointerType: 'touch', button: 0, clientY: 30 }
+      fireEvent.pointerDown(surface, { ...touch, clientX: from })
+      if (by !== 0) fireEvent.pointerMove(surface, { ...touch, clientX: from + by })
+      fireEvent.pointerUp(surface, { ...touch })
+    }
+    finger(4)
+    finger(4)
+    expect(at.b).toBe(48)
+    expect(onDrag).not.toHaveBeenCalledWith({ b: 0 })
+    // One tap is a tap.
+    finger(0)
+    expect(onDrag).not.toHaveBeenCalledWith({ b: 0 })
+    // The second, soon after and on the same point, puts it back: as one step of its own.
+    const starts = onDragStart.mock.calls.length
+    finger(0)
+    expect(onDrag).toHaveBeenLastCalledWith({ b: 0 })
+    expect(onDragStart.mock.calls.slice(starts)).toEqual([[['b']], [['b']]])
+    expect(onDragEnd).toHaveBeenCalledTimes(onDragStart.mock.calls.length)
+    // A third tap begins a new pair: it does not reset again by itself.
+    const drags = onDrag.mock.calls.length
+    finger(0)
+    expect(onDrag.mock.calls.length).toBe(drags)
+  })
+
+  it('keeps a finger that comes down on a point, and lets one beside the points scroll', async () => {
+    const { display } = twoPoints()
+    const { surface } = await mount(display)
+    const touchStart = (x: number, y: number): Event => {
+      const event = new Event('touchstart', { bubbles: true, cancelable: true })
+      Object.defineProperty(event, 'changedTouches', { value: [{ clientX: x, clientY: y }] })
+      act(() => void surface.dispatchEvent(event))
+      return event
+    }
+    // On the point, and within a finger's reach of it: the browser must not scroll.
+    expect(touchStart(40, 30).defaultPrevented).toBe(true)
+    expect(touchStart(54, 38).defaultPrevented).toBe(true)
+    // Beside the points the swipe is the browser's, to scroll what the plate stands in.
+    expect(touchStart(120, 30).defaultPrevented).toBe(false)
+    // No style says "never scroll from here": that would also hold the swipes beside the points.
+    expect(surface.style.touchAction).toBe('')
   })
 })

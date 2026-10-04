@@ -153,6 +153,38 @@ describe('Knob', () => {
     expect(container.firstChild).not.toHaveClass('lm-knob--active')
   })
 
+  it('puts back what it was turned by when the browser takes the press for a scroll', () => {
+    const onChange = vi.fn()
+    const onChangeEnd = vi.fn()
+    render(
+      <Knob
+        label="Mix"
+        defaultValue={0.5}
+        min={0}
+        max={1}
+        step={0.01}
+        onChange={onChange}
+        onChangeEnd={onChangeEnd}
+      />,
+    )
+    const control = slider()
+    fireEvent.pointerDown(control, { pointerId: 1, button: 0, clientX: 100, clientY: 50 })
+    // A finger swiping along a chain drifts a few pixels up or down before the browser scrolls.
+    fireEvent.pointerMove(control, { pointerId: 1, clientX: 80, clientY: 44 })
+    expect(onChange).toHaveBeenCalled()
+    expect(control).not.toHaveAttribute('aria-valuenow', '0.5')
+    fireEvent.pointerCancel(control, { pointerId: 1 })
+    // Back where it was, and the gesture is closed.
+    expect(onChange).toHaveBeenLastCalledWith(0.5)
+    expect(control).toHaveAttribute('aria-valuenow', '0.5')
+    expect(onChangeEnd).toHaveBeenCalledTimes(1)
+    // A press that is let go keeps what it was turned to, as ever.
+    fireEvent.pointerDown(control, { pointerId: 2, button: 0, clientX: 100, clientY: 50 })
+    fireEvent.pointerMove(control, { pointerId: 2, clientX: 100, clientY: 40 })
+    fireEvent.pointerUp(control, { pointerId: 2 })
+    expect(control).not.toHaveAttribute('aria-valuenow', '0.5')
+  })
+
   it('ends a key gesture after the idle time', () => {
     vi.useFakeTimers()
     try {

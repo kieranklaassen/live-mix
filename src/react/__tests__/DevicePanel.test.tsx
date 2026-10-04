@@ -104,7 +104,10 @@ describe('DevicePanel', () => {
     expect(frequency).toHaveAttribute('aria-valuetext', '1.00 kHz')
     expect(screen.getByRole('slider', { name: 'Gain' })).toHaveAttribute('aria-valuetext', '0.0 dB')
     // The type is a choice: integer steps.
-    expect(screen.getByRole('slider', { name: 'Type' })).toHaveAttribute('aria-valuetext', '0')
+    expect(screen.getByRole('slider', { name: 'Type' })).toHaveAttribute(
+      'aria-valuetext',
+      'Low pass',
+    )
   })
 
   it('says which device, parameter and power switch each part is, for a host that maps controllers', async () => {
