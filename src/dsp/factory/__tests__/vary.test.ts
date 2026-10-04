@@ -533,6 +533,32 @@ describe('a variant of a sound', () => {
       expect([...rates].sort()).toEqual([0.5, 1, 2])
     })
 
+    it('never brings the first note of a round ahead of where an attack may be, at double time', () => {
+      // Written just clear of that moment (0.03 s): halved from nought it would come inside it.
+      for (const start of [0.03, 0.045, 0.059]) {
+        const clear = cycled(8, [
+          [start, 1, 48],
+          [1 + start, 1, 60],
+          [2 + start, 1, 64],
+          [3 + start, 1, 67],
+          [4 + start, 1, 72],
+          [5 + start, 1, 76],
+          [6 + start, 1, 79],
+        ])
+        let doubled = 0
+        for (const seed of many) {
+          const variation = only('speed', seed)
+          if (describeVariant(clear, variation).rate !== 2) continue
+          doubled++
+          const pass = varySound(clear, variation).phrase.notes.filter((note) => note.atSec < 8)
+          expect(pass).toHaveLength(14)
+          expect(pass[0].atSec).toBe(start)
+          expect(pass[7].atSec).toBeCloseTo(4 + start, 9)
+        }
+        expect(doubled).toBeGreaterThan(0)
+      }
+    })
+
     it('does nothing to a held chord', () => {
       for (const seed of SEEDS) expect(varySound(held, only('speed', seed))).toBe(held)
     })
