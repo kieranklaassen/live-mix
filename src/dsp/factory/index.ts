@@ -66,7 +66,17 @@ export {
   type GeneratedKind,
   type GeneratedSound,
 } from './generate'
-export { VARIATION_LIMITS, varySound, type SoundVariation, type VariedPlaying } from './vary'
+export {
+  VARIATION_KINDS,
+  VARIATION_LIMITS,
+  describeVariant,
+  variationAmounts,
+  varySound,
+  type SoundVariation,
+  type VariantChanges,
+  type VariationKind,
+  type VariedPlaying,
+} from './vary'
 export {
   type FactoryChain,
   type FactoryChainCategory,
@@ -136,9 +146,10 @@ export type FactorySoundRenderOptions = FactoryRenderOptions & {
   transpose?: number
   /**
    * Which variant of the sound to render (`varySound`): the same recipe
-   * played a little differently, decided by a seed and an amount. Absent, or
-   * at an amount of 0, the sound as written. A sound made from another one
-   * plays the variant on that other sound as written.
+   * played differently, decided by a seed and an amount for each kind of
+   * difference (chords, speed, pattern, touch). Absent, or at 0 in every
+   * kind, the sound as written. A sound made from another one plays the
+   * variant on that other sound as written.
    */
   vary?: SoundVariation
 }
@@ -245,7 +256,8 @@ export async function renderFactorySound(
   options: FactorySoundRenderOptions = {},
 ): Promise<PlanarAudio> {
   const { transpose = 0, vary, ...render } = options
-  const inKey = varySound(transposeFactorySound(sound, transpose), vary)
+  // Varied as it is written, on the white keys, and moved into the key afterwards.
+  const inKey = transposeFactorySound(varySound(sound, vary), transpose)
   const patch = typeof inKey.patch === 'string' ? factoryPreset(inKey.patch) : inKey.patch
   if (!patch)
     throw new Error(`live-mix: factory sound "${sound.id}" names a preset that does not exist`)

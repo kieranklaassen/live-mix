@@ -24,11 +24,13 @@
 //     recipes that come twice), what each recipe breaks before it is rendered, and the
 //     sounds that are nearest each other. OFFKEY marks a pitched sound with over a quarter
 //     of its power on the black keys: partials that are meant, or a note the key lacks
-//   FACTORY_REPORT=variants [FACTORY=<part of an id>] [FACTORY_NUMBERS=<first>-<last>] [FACTORY_EVERY=<n>] [FACTORY_SEEDS=<how many, default 2>] [FACTORY_AMOUNT=<0..1, default 1>] [FACTORY_PACK=<pack id>] pnpm vitest run …
-//     each factory sound beside that many variants of it (../vary.ts): how far each is from
-//     the sound in dB (`soundPrint`), its loudness against the sound's, and in capitals where a
-//     variant leaves what the sound is held to (KIND, SEAM, STEP-IN, CUT, LATE, OFFKEY) or is
-//     louder or quieter by over 2 dB (LEVEL), or cannot be told from the sound (SAME)
+//   FACTORY_REPORT=variants [FACTORY=<part of an id>] [FACTORY_NUMBERS=<first>-<last>] [FACTORY_EVERY=<n>] [FACTORY_SEEDS=<how many, default 2>] [FACTORY_AMOUNT=<0..1, default 1>] [FACTORY_KIND=chords|speed|pattern|touch] [FACTORY_PACK=<pack id>] pnpm vitest run …
+//     each factory sound beside that many variants of it (../vary.ts), by every kind of
+//     difference at that amount or by the one kind named: what the variant does (which chord,
+//     how fast, how many rests), how far it is from the sound in dB (`soundPrint`), its loudness
+//     against the sound's, and in capitals where a variant leaves what the sound is held to
+//     (KIND, SEAM, STEP-IN, CUT, LATE, OFFKEY) or is louder or quieter by over 2 dB (LEVEL), or
+//     cannot be told from the sound (SAME)
 //   FACTORY_REPORT=packs FACTORY_PACK=<pack id> [FACTORY=<part of an id>] pnpm vitest run …
 //     each preset of one pack as it leaves the patch, with its instrument, its cost, and in
 //     capitals where it leaves a pack's limits (PEAK, LOUD, QUIET, DC; SLOW over 12 % of real
@@ -88,6 +90,7 @@ import {
   soundPackProblems,
 } from '../sound-packs/__tests__/support'
 import { type FactoryPreset, type FactorySound } from '../types'
+import { VARIATION_KINDS, describeVariant, type SoundVariation } from '../vary'
 import { CHAIN_TEST_PATCH, CHAIN_TEST_PHRASE } from './chain-input'
 import { KIND_LOUDNESS, blackKeyShare, longestName, measureEnds } from './sound-measure'
 import { BANK_LIMITS, chainProblems, nearestPrints, presetProblems } from './support'
@@ -444,6 +447,9 @@ describe.skipIf(!mode)('factory bench', () => {
       const every = Number(process.env.FACTORY_EVERY ?? 1)
       const seeds = Number(process.env.FACTORY_SEEDS ?? 2)
       const amount = Number(process.env.FACTORY_AMOUNT ?? 1)
+      const kind = VARIATION_KINDS.find((each) => each === process.env.FACTORY_KIND)
+      const variation = (seed: number): SoundVariation =>
+        kind ? { seed, [kind]: amount } : { seed, amount }
       const from = await soundsAsked()
       const chosen = from.filter(
         (s, index) => s.id.includes(only) && numbered(s.number) && index % every === 0,
@@ -458,8 +464,19 @@ describe.skipIf(!mode)('factory bench', () => {
         say(`${String(sound.number).padEnd(6)}${sound.id.padEnd(44)} ${sound.kind}`)
         for (let seed = 1; seed <= seeds; seed += 1) {
           const [variant, cost] = await timed(sound.durationSec, () =>
-            renderFactorySound(sound, { ...render, vary: { seed, amount } }),
+            renderFactorySound(sound, { ...render, vary: variation(seed) }),
           )
+          const did = describeVariant(sound, variation(seed))
+          const does = [
+            did.chordSteps !== 0 ? `chord ${did.chordSteps > 0 ? '+' : ''}${did.chordSteps}` : '',
+            did.octaves > 0 ? `${did.octaves} oct` : '',
+            did.rate !== 1 ? `x${did.rate}` : '',
+            did.rests > 0 ? `${did.rests} rest` : '',
+            did.swaps > 0 ? `${did.swaps} swap` : '',
+            did.laterSec > 0 ? `+${did.laterSec.toFixed(1)} s` : '',
+          ]
+            .filter(Boolean)
+            .join(' ')
           keep(`${sound.id}~${seed}`, variant)
           const measured = measureAudio(variant)
           const analysis = analyzeSound(variant.channels, variant.sampleRate)
@@ -489,7 +506,7 @@ describe.skipIf(!mode)('factory bench', () => {
           say(
             `      seed ${String(seed).padEnd(3)} ${distance.toFixed(2).padStart(5)} dB apart  ` +
               `${lu >= 0 ? '+' : ''}${lu.toFixed(1)} LU  kind ${analysis.kind}  ` +
-              `black ${(blackNow * 100).toFixed(0)}%  ${ending}  ${cost}` +
+              `black ${(blackNow * 100).toFixed(0)}%  ${ending}  ${cost}  [${does}]` +
               (problems.length > 0 ? `  ${problems.join(' ')}` : ''),
           )
         }
@@ -498,7 +515,7 @@ describe.skipIf(!mode)('factory bench', () => {
       const at = (share: number): string =>
         sorted.length > 0 ? sorted[Math.floor(share * (sorted.length - 1))].toFixed(2) : '-'
       say(
-        `\n${chosen.length} sounds, ${apart.length} variants at an amount of ${amount}: ` +
+        `\n${chosen.length} sounds, ${apart.length} variants by ${kind ?? 'every kind'} at an amount of ${amount}: ` +
           `${at(0)} to ${at(1)} dB apart, half under ${at(0.5)}; ${flagged} flagged`,
       )
       publish()
