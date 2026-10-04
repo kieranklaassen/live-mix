@@ -14,6 +14,8 @@ import { type DisplayColours, type DisplayFrame, type DisplayView } from './plat
 
 /** How strongly an ink is laid, by what it draws; one scale for every display. */
 export const INK = {
+  /** How much of the plate's own colour lies over its finish under a display. */
+  hush: 0.7,
   /** The ground under a display: the plate, a shade nearer its ink. */
   ground: 0.1,
   /** Scale lines. */
@@ -24,7 +26,7 @@ export const INK = {
   fill: 0.18,
   /** What stands behind the main trace: the sound going in, a curve's parts. */
   back: 0.5,
-  /** Words and numbers. */
+  /** A word or a mark that stands back a little from the main trace. */
   text: 0.8,
   /** The main trace. */
   trace: 1,
@@ -52,12 +54,16 @@ export const lerp = (from: number, to: number, t: number): number => from + (to 
 export const crisp = (value: number): number => Math.floor(value) + 0.5
 
 /**
- * The ground of a display, over the whole canvas: the plate a shade nearer its
- * ink, and a line around it. Returns the box to draw in, `pad` pixels inside
+ * The ground of a display, over the whole canvas: the plate with its finish
+ * hushed, a shade nearer its ink, and a line around it. Returns the box to draw in, `pad` pixels inside
  * the line (default 3).
  */
 export function ground(frame: Paint & Pick<DisplayView, 'width' | 'height'>, pad = 3): Box {
   const { ctx, colours, width, height } = frame
+  // The plate's finish (specks, a brushing) is hushed under a display, so a thin line is not read against it.
+  ctx.globalAlpha = INK.hush
+  ctx.fillStyle = colours.plate
+  ctx.fillRect(0, 0, width, height)
   ctx.globalAlpha = INK.ground
   ctx.fillStyle = colours.ink
   ctx.fillRect(0, 0, width, height)
@@ -237,6 +243,9 @@ export interface TextStyle {
   alpha?: number
 }
 
+/** The faintest a word is drawn: a scale's numbers and a part that is not in use stand back no further. */
+const TEXT_LEAST = 0.62
+
 /** Words on a display, in the plate's own type. */
 export function text(
   frame: Pick<DisplayFrame, 'ctx' | 'colours' | 'fontFamily'>,
@@ -249,7 +258,8 @@ export function text(
   ctx.font = `${style.size ?? 8}px ${frame.fontFamily}`
   ctx.textAlign = style.align ?? 'left'
   ctx.textBaseline = style.baseline ?? 'alphabetic'
-  ctx.globalAlpha = style.alpha ?? INK.text
+  // At 8 px a word needs all the ink there is; one told to stand back still has to be read.
+  ctx.globalAlpha = Math.max(TEXT_LEAST, style.alpha ?? 1)
   ctx.fillStyle = style.colour ?? frame.colours.ink
   ctx.fillText(words, x, y)
   ctx.globalAlpha = 1

@@ -19,6 +19,7 @@ import {
 import { FACTORY_PRESETS } from './presets'
 import { FACTORY_SOUNDS } from './sounds'
 import { type FactoryChain, type FactoryPreset, type FactorySound } from './types'
+import { varySound, type SoundVariation } from './vary'
 
 export { FACTORY_CHAINS } from './chains'
 export {
@@ -65,6 +66,17 @@ export {
   type GeneratedKind,
   type GeneratedSound,
 } from './generate'
+export {
+  VARIATION_KINDS,
+  VARIATION_LIMITS,
+  describeVariant,
+  variationAmounts,
+  varySound,
+  type SoundVariation,
+  type VariantChanges,
+  type VariationKind,
+  type VariedPlaying,
+} from './vary'
 export {
   type FactoryChain,
   type FactoryChainCategory,
@@ -132,6 +144,14 @@ export type FactorySoundRenderOptions = FactoryRenderOptions & {
    * white-key modes).
    */
   transpose?: number
+  /**
+   * Which variant of the sound to render (`varySound`): the same recipe
+   * played differently, decided by a seed and an amount for each kind of
+   * difference (chords, speed, pattern, touch). Absent, or at 0 in every
+   * kind, the sound as written. A sound made from another one plays the
+   * variant on that other sound as written.
+   */
+  vary?: SoundVariation
 }
 
 /**
@@ -235,8 +255,9 @@ export async function renderFactorySound(
   sound: FactorySound,
   options: FactorySoundRenderOptions = {},
 ): Promise<PlanarAudio> {
-  const { transpose = 0, ...render } = options
-  const inKey = transposeFactorySound(sound, transpose)
+  const { transpose = 0, vary, ...render } = options
+  // Varied as it is written, on the white keys, and moved into the key afterwards.
+  const inKey = transposeFactorySound(varySound(sound, vary), transpose)
   const patch = typeof inKey.patch === 'string' ? factoryPreset(inKey.patch) : inKey.patch
   if (!patch)
     throw new Error(`live-mix: factory sound "${sound.id}" names a preset that does not exist`)
@@ -246,7 +267,7 @@ export async function renderFactorySound(
     if (!source || source.source !== undefined) {
       throw new Error(`live-mix: factory sound "${sound.id}" has no plain source "${sound.source}"`)
     }
-    sample = await renderFactorySound(source, options)
+    sample = await renderFactorySound(source, { ...render, transpose })
   }
   const phrase =
     inKey.tuning === 'whole-cycles'

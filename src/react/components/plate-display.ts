@@ -286,10 +286,13 @@ class Tap {
   }
 
   level(): DisplayLevel {
-    this.analyser.getFloatTimeDomainData(this.wave)
+    const wave = this.wave
+    this.analyser.getFloatTimeDomainData(wave)
     let peak = 0
     let sum = 0
-    for (const sample of this.wave) {
+    // By index: this runs for every tap of every display on every frame, and an iterator costs several times as much.
+    for (let n = wave.length - 1; n >= 0; n -= 1) {
+      const sample = wave[n]
       const size = sample < 0 ? -sample : sample
       if (size > peak) peak = size
       sum += sample * sample
@@ -304,8 +307,10 @@ class Tap {
 
   /** Whether anything louder than `floor` is on the node now: the cheapest thing a tap can say. */
   heard(floor: number): boolean {
-    this.analyser.getFloatTimeDomainData(this.wave)
-    for (const sample of this.wave) if (sample > floor || sample < -floor) return true
+    const wave = this.wave
+    this.analyser.getFloatTimeDomainData(wave)
+    for (let n = wave.length - 1; n >= 0; n -= 1)
+      if (wave[n] > floor || wave[n] < -floor) return true
     return false
   }
 

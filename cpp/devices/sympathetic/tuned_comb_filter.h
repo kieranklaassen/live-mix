@@ -129,6 +129,18 @@ class TunedCombFilter {
   }
 
   float frequency() const { return frequency_; }
+  // The mean square of what the string holds: the last period written to
+  // the line. For a display; it reads and changes nothing.
+  float energy() const {
+    if (silent_) return 0.0f;
+    const int span = tap_[0].delay;
+    float sum = 0.0f;
+    for (int i = 1; i <= span; ++i) {
+      const float x = buffer_[(write_ - i) & kDelayMask];
+      sum += x * x;
+    }
+    return sum / static_cast<float>(span);
+  }
   // True while the string holds nothing: cleared, and not excited since.
   bool silent() const { return silent_; }
 
