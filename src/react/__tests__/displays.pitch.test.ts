@@ -198,6 +198,33 @@ describe('the pitch shifter display', () => {
     expect(drawn.words()).toContain('B')
   })
 
+  it('lights the input and each voice with the sound going in, as tall as the voice by full scale', () => {
+    const values = { pitchA: 7, pitchB: -5, levelB: 0.5 }
+    const signal = testSignal(0.5)
+    const lit = 1 + (20 * Math.log10(signal.input?.rms ?? 0)) / 54
+    const lights = pictureOf(drawDisplay(display, params, { values, signal })).rects.filter(
+      (rect) => rect.w === 7,
+    )
+    expect(lights.map((rect) => [rect.x + 3.5, rect.colour])).toEqual([
+      [xOfSt(0), ink],
+      [xOfSt(-5), accent],
+      [xOfSt(7), accent],
+    ])
+    expect(lights[0].h).toBeCloseTo(27 * lit, 4)
+    expect(lights[1].h).toBeCloseTo(27 * 0.5 * lit, 4)
+    expect(lights[2].h).toBeCloseTo(27 * lit, 4)
+    for (const light of lights) expect(light.y + light.h).toBeCloseTo(35, 6)
+    // No light without sound: a still picture, a plate that is off, silence going in.
+    const none = (options: FrameOptions): number =>
+      pictureOf(drawDisplay(display, params, { values, ...options })).rects.filter(
+        (rect) => rect.w === 7,
+      ).length
+    expect(none({})).toBe(0)
+    expect(none({ signal, powered: false })).toBe(0)
+    expect(none({ signal: testSignal(0) })).toBe(0)
+    expect(display.live).toEqual({ signal: true })
+  })
+
   it('pushes A sharp and B flat by Detune, in cents', () => {
     // `pitch_shifter.h`: A + detune / 100, B − detune / 100. 50 cents is half a semitone, 1.6875 px.
     const picture = pictureOf(
@@ -360,13 +387,25 @@ describe('the octaves display', () => {
   // Bars 20 px apart about x 64, standing on y 82; a level of 1.2 is 75 px.
   const heightOf = (level: number): number => (Math.min(level, 1.2) / 1.2) * 75
   const everything = { sub2: 1, sub1: 1, dry: 1, up1: 1, up2: 1 }
-  /** What the note gets of each voice now: the bars in the second colour, by octave. */
-  const gets = (options: FrameOptions): Map<number, number> =>
-    new Map(
-      pictureOf(drawDisplay(display, params, options))
-        .rects.filter((rect) => rect.colour === accent)
-        .map((rect) => [(rect.x + rect.w / 2 - 64) / 20, rect.h] as [number, number]),
-    )
+  const byOctave = (rects: { x: number; w: number; h: number }[]): Map<number, number> =>
+    new Map(rects.map((rect) => [(rect.x + rect.w / 2 - 64) / 20, rect.h] as [number, number]))
+  const inAccent = (options: FrameOptions): { x: number; w: number; h: number; alpha: number }[] =>
+    pictureOf(drawDisplay(display, params, options)).rects.filter((rect) => rect.colour === accent)
+  /**
+   * What the note gets of each voice: the bars in the second colour, by
+   * octave. Pale while there is sound to meter inside them, solid in a still picture.
+   */
+  const gets = (options: FrameOptions): Map<number, number> => {
+    const bars = inAccent(options)
+    const pale = bars.filter((rect) => rect.alpha === 0.35)
+    return byOctave(pale.length > 0 ? pale : bars)
+  }
+  /** What sounds of each voice now: the solid bars inside the pale ones. */
+  const sounds = (options: FrameOptions): Map<number, number> =>
+    byOctave(inAccent(options).filter((rect) => rect.alpha === 0.9))
+  /** `litBy`: the level going in on a scale from −54 dB to full scale. */
+  const litOf = (signal: ReturnType<typeof testSignal>): number =>
+    1 + (20 * Math.log10(signal.input?.rms ?? 0)) / 54
   /** The low pass at Q √½ is a Butterworth: 1 / √(1 + r⁴), with r in the filter's warped frequency. */
   const butterworth = (hz: number, cut: number): number => {
     const r = Math.tan((Math.PI * hz) / 48000) / Math.tan((Math.PI * cut) / 48000)
@@ -487,9 +526,50 @@ describe('the octaves display', () => {
     expect(gets({ meters: { note: 0 } }).size).toBe(0)
     expect(gets({}).size).toBe(0)
     expect(gets({ meters: { note: 220 }, powered: false }).size).toBe(0)
-    // The readings are all it needs: it asks for no tap on the sound.
+    // With a reading and no sound to meter (a still picture) the bars are whole.
     expect(gets({ meters: { note: 220 } }).size).toBe(3)
-    expect(display.live).toEqual({ meters: true })
+    expect(sounds({ meters: { note: 220 } })).toEqual(gets({ meters: { note: 220 } }))
+    expect(display.live).toEqual({ meters: true, signal: true })
+  })
+
+  it('meters each voice inside its bar: as much of it as the sound going in is loud', () => {
+    const values = { ...everything, filter: 440, resonance: 0 }
+    const loud = testSignal(0.5)
+    const quiet = testSignal(0.05)
+    // Ten times quieter is 20 dB: 20 / 54 of the scale less.
+    expect(litOf(loud) - litOf(quiet)).toBeCloseTo(20 / 54, 6)
+    for (const signal of [loud, quiet]) {
+      const options = { values, meters: { note: 220 }, signal }
+      const whole = gets(options)
+      const now = sounds(options)
+      expect(now.get(0)).toBeCloseTo(heightOf(litOf(signal)), 4)
+      expect(now.get(1)).toBeCloseTo(heightOf(Math.SQRT1_2 * litOf(signal)), 4)
+      for (const [octave, height] of now) expect(height).toBeLessThan(whole.get(octave) ?? 0)
+    }
+    // Silence going in lights nothing; the pale bars stay while the device still holds a partial.
+    const silent = { values, meters: { note: 220 }, signal: testSignal(0) }
+    expect(sounds(silent).size).toBe(0)
+    expect(gets(silent).size).toBe(5)
+  })
+
+  it('moves as a meter does: up at once, down over a moment', () => {
+    const values = { ...everything, filter: 16000, resonance: 0 }
+    const dry = (drawn: RecordingContext): number =>
+      pictureOf(drawn).rects.find(
+        (rect) => rect.colour === accent && rect.alpha === 0.9 && rect.x + rect.w / 2 === 64,
+      )?.h ?? 0
+    const loud = testSignal(0.5)
+    const quiet = testSignal(0.05)
+    const options = { values, meters: { note: 220 } }
+    // A tenth of a second of the loud sound and it stands at its level.
+    const up = dry(runDisplay(display, params, 0.2, { ...options, signal: loud }))
+    expect(up).toBeCloseTo(heightOf(litOf(loud)), 1)
+    // The sound drops 20 dB: a tenth of a second on, the meter is still on its way down.
+    const falling = dry(
+      runDisplay(display, params, 0.3, options, (time) => ({ signal: time < 0.2 ? loud : quiet })),
+    )
+    expect(falling).toBeGreaterThan(heightOf(litOf(quiet)) + 5)
+    expect(falling).toBeLessThan(up)
   })
 })
 
