@@ -1,0 +1,502 @@
+{
+  "5001": {
+    "id": "nature-film-peat-water-bass-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5002": {
+    "id": "nature-film-underfloor-hum-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5003": {
+    "id": "nature-film-moorland-hum-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5004": {
+    "id": "nature-film-riverbed-cellos-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5005": {
+    "id": "nature-film-monsoon-film-drone-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5006": {
+    "id": "nature-film-slowed-string-drone-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5007": {
+    "id": "nature-film-assembly-harmonium-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5008": {
+    "id": "nature-film-lone-cello-drone-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5009": {
+    "id": "nature-film-faded-reed-drone-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5010": {
+    "id": "nature-film-library-horn-drone-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5011": {
+    "id": "nature-film-oscilloscope-tone-b",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5012": {
+    "id": "nature-film-aerial-shot-drone-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5013": {
+    "id": "nature-film-science-film-tone-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5014": {
+    "id": "nature-film-far-fairground-organ-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5015": {
+    "id": "nature-film-faded-flutes-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5016": {
+    "id": "nature-film-deep-water-footage-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5017": {
+    "id": "nature-film-pylon-hum-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5018": {
+    "id": "nature-film-estuary-cellos-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5019": {
+    "id": "nature-film-freeze-frame-b",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5020": {
+    "id": "nature-film-opening-titles-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5021": {
+    "id": "nature-film-afternoon-programme-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5022": {
+    "id": "nature-film-slow-migration-d",
+    "durationSec": 12,
+    "loops": false
+  },
+  "5023": {
+    "id": "nature-film-phased-string-reel-em",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5024": {
+    "id": "nature-film-half-speed-strings-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5025": {
+    "id": "nature-film-documentary-brass-g",
+    "durationSec": 10,
+    "loops": false
+  },
+  "5026": {
+    "id": "nature-film-faded-horn-call-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5027": {
+    "id": "nature-film-after-closedown-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5028": {
+    "id": "nature-film-bothy-tin-roof-dsus2",
+    "durationSec": 10,
+    "loops": false
+  },
+  "5029": {
+    "id": "nature-film-loch-at-daybreak-em",
+    "durationSec": 16,
+    "loops": true
+  },
+  "5030": {
+    "id": "nature-film-vowel-lesson-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5031": {
+    "id": "nature-film-hollow-log-gsus4",
+    "durationSec": 16,
+    "loops": true
+  },
+  "5032": {
+    "id": "nature-film-frosted-lens-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5033": {
+    "id": "nature-film-crystal-set-pad-am7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5034": {
+    "id": "nature-film-sampled-quartet-cmaj7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5035": {
+    "id": "nature-film-choir-on-air-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5036": {
+    "id": "nature-film-wind-band-reel-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5037": {
+    "id": "nature-film-wireless-brass-band-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5038": {
+    "id": "nature-film-slowed-sample-bed-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5039": {
+    "id": "nature-film-rewinding-the-reel-am",
+    "durationSec": 10,
+    "loops": false
+  },
+  "5040": {
+    "id": "nature-film-bent-record-steel-c6",
+    "durationSec": 10,
+    "loops": false
+  },
+  "5041": {
+    "id": "nature-film-reversed-guitar-reel-em",
+    "durationSec": 10,
+    "loops": false
+  },
+  "5042": {
+    "id": "nature-film-schools-ident-f",
+    "durationSec": 5,
+    "loops": false
+  },
+  "5043": {
+    "id": "nature-film-wind-in-the-aerial",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5044": {
+    "id": "nature-film-fogbound-signal-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5045": {
+    "id": "nature-film-surf-on-the-reel",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5046": {
+    "id": "nature-film-hill-wind-gusts",
+    "durationSec": 16,
+    "loops": true
+  },
+  "5047": {
+    "id": "nature-film-projector-hum-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5048": {
+    "id": "nature-film-far-hedgerow-birds",
+    "durationSec": 16,
+    "loops": true
+  },
+  "5049": {
+    "id": "nature-film-burn-over-the-rocks",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5050": {
+    "id": "nature-film-rain-on-the-classroom",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5051": {
+    "id": "nature-film-shoreline-reel",
+    "durationSec": 16,
+    "loops": true
+  },
+  "5052": {
+    "id": "nature-film-film-leader-crackle",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5053": {
+    "id": "nature-film-storm-over-the-glen",
+    "durationSec": 16,
+    "loops": true
+  },
+  "5054": {
+    "id": "nature-film-bothy-hearth-reel",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5055": {
+    "id": "nature-film-sampled-frog-pond",
+    "durationSec": 16,
+    "loops": true
+  },
+  "5056": {
+    "id": "nature-film-times-tables-note-c",
+    "durationSec": 3.5,
+    "loops": false
+  },
+  "5057": {
+    "id": "nature-film-pond-skater-pluck-e",
+    "durationSec": 3,
+    "loops": false
+  },
+  "5058": {
+    "id": "nature-film-spinning-globe-stab-g",
+    "durationSec": 3,
+    "loops": false
+  },
+  "5059": {
+    "id": "nature-film-sampler-string-stab-am",
+    "durationSec": 5,
+    "loops": false
+  },
+  "5060": {
+    "id": "nature-film-rock-pool-d",
+    "durationSec": 5,
+    "loops": false
+  },
+  "5061": {
+    "id": "nature-film-rubber-boots-f",
+    "durationSec": 2,
+    "loops": false
+  },
+  "5062": {
+    "id": "nature-film-wet-playtime-tine-e",
+    "durationSec": 5,
+    "loops": false
+  },
+  "5063": {
+    "id": "nature-film-phaser-pedal-tines-dm9",
+    "durationSec": 6,
+    "loops": false
+  },
+  "5064": {
+    "id": "nature-film-toy-sampler-tine-b",
+    "durationSec": 3.5,
+    "loops": false
+  },
+  "5065": {
+    "id": "nature-film-rewound-tines-a",
+    "durationSec": 8,
+    "loops": false
+  },
+  "5066": {
+    "id": "nature-film-school-hall-piano-g",
+    "durationSec": 7,
+    "loops": false
+  },
+  "5067": {
+    "id": "nature-film-toy-shop-harp-f",
+    "durationSec": 2,
+    "loops": false
+  },
+  "5068": {
+    "id": "nature-film-music-room-zither-am",
+    "durationSec": 8,
+    "loops": false
+  },
+  "5069": {
+    "id": "nature-film-slowed-tongue-drum-d",
+    "durationSec": 7,
+    "loops": false
+  },
+  "5070": {
+    "id": "nature-film-vibraphone-reel-f",
+    "durationSec": 6,
+    "loops": false
+  },
+  "5071": {
+    "id": "nature-film-classroom-glockenspiel-g",
+    "durationSec": 4,
+    "loops": false
+  },
+  "5072": {
+    "id": "nature-film-nursery-music-box-e",
+    "durationSec": 4,
+    "loops": false
+  },
+  "5073": {
+    "id": "nature-film-far-sunday-bell-d",
+    "durationSec": 12,
+    "loops": false
+  },
+  "5074": {
+    "id": "nature-film-digital-tine-keys-cmaj7",
+    "durationSec": 6,
+    "loops": false
+  },
+  "5075": {
+    "id": "nature-film-wooden-block-a",
+    "durationSec": 3.5,
+    "loops": false
+  },
+  "5076": {
+    "id": "nature-film-steel-pan-postcard-g",
+    "durationSec": 7,
+    "loops": false
+  },
+  "5077": {
+    "id": "nature-film-strum-plate-chord-c",
+    "durationSec": 7,
+    "loops": false
+  },
+  "5078": {
+    "id": "nature-film-flashback-harp-c",
+    "durationSec": 7,
+    "loops": false
+  },
+  "5079": {
+    "id": "nature-film-narrator-theme-am",
+    "durationSec": 8,
+    "loops": false
+  },
+  "5080": {
+    "id": "nature-film-curlew-call-e",
+    "durationSec": 8,
+    "loops": false
+  },
+  "5081": {
+    "id": "nature-film-otter-theme-f",
+    "durationSec": 8,
+    "loops": false
+  },
+  "5082": {
+    "id": "nature-film-sampled-pan-pipes-g",
+    "durationSec": 7,
+    "loops": false
+  },
+  "5083": {
+    "id": "nature-film-hillside-flugelhorn-c",
+    "durationSec": 10,
+    "loops": false
+  },
+  "5084": {
+    "id": "nature-film-old-record-violin-am",
+    "durationSec": 8,
+    "loops": false
+  },
+  "5085": {
+    "id": "nature-film-portable-keyboard-c",
+    "durationSec": 7,
+    "loops": false
+  },
+  "5086": {
+    "id": "nature-film-times-tables-tune-g",
+    "durationSec": 6,
+    "loops": false
+  },
+  "5087": {
+    "id": "nature-film-corduroy-bass-riff-c",
+    "durationSec": 6,
+    "loops": false
+  },
+  "5088": {
+    "id": "nature-film-twelve-bit-keyboard-c",
+    "durationSec": 8,
+    "loops": false
+  },
+  "5089": {
+    "id": "nature-film-school-hall-hymn-dm",
+    "durationSec": 9,
+    "loops": false
+  },
+  "5090": {
+    "id": "nature-film-glockenspiel-round-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5091": {
+    "id": "nature-film-tape-flute-round-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5092": {
+    "id": "nature-film-evening-heather-em",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5093": {
+    "id": "nature-film-resampled-violins-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5094": {
+    "id": "nature-film-music-box-lullaby-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5095": {
+    "id": "nature-film-vibraphone-round-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5096": {
+    "id": "nature-film-caravan-picking-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5097": {
+    "id": "nature-film-sampled-piano-round-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5098": {
+    "id": "nature-film-sliding-credits-c",
+    "durationSec": 12,
+    "loops": true
+  },
+  "5099": {
+    "id": "nature-film-harp-under-glass-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "5100": {
+    "id": "nature-film-film-strip-keys-fmaj7",
+    "durationSec": 8,
+    "loops": true
+  }
+}

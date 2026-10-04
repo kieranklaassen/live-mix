@@ -1,0 +1,502 @@
+{
+  "19001": {
+    "id": "patch-cables-stepped-current-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19002": {
+    "id": "patch-cables-greenhouse-hum-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19003": {
+    "id": "patch-cables-quick-cycle-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19004": {
+    "id": "patch-cables-seventh-string-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19005": {
+    "id": "patch-cables-reed-organ-spin-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19006": {
+    "id": "patch-cables-low-brother-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19007": {
+    "id": "patch-cables-subtone-octaves-b",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19008": {
+    "id": "patch-cables-tape-choir-raised-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19009": {
+    "id": "patch-cables-patched-harmony-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19010": {
+    "id": "patch-cables-mirror-flute-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19011": {
+    "id": "patch-cables-seventh-stack-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19012": {
+    "id": "patch-cables-low-pedal-sawing-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19013": {
+    "id": "patch-cables-brass-triad-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19014": {
+    "id": "patch-cables-reed-thirds-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19015": {
+    "id": "patch-cables-reed-loop-in-thirds-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19016": {
+    "id": "patch-cables-folded-morning-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19017": {
+    "id": "patch-cables-green-vowels-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19018": {
+    "id": "patch-cables-morning-window-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19019": {
+    "id": "patch-cables-octave-siblings-em",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19020": {
+    "id": "patch-cables-reed-section-f6",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19021": {
+    "id": "patch-cables-crystal-chord-cadd9",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19022": {
+    "id": "patch-cables-glass-in-a-sung-ee-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19023": {
+    "id": "patch-cables-sunlit-brass-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19024": {
+    "id": "patch-cables-section-in-leaf-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19025": {
+    "id": "patch-cables-chorus-morning-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19026": {
+    "id": "patch-cables-grain-canopy-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19027": {
+    "id": "patch-cables-octave-choir-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19028": {
+    "id": "patch-cables-swelled-and-stacked-g",
+    "durationSec": 8,
+    "loops": false
+  },
+  "19029": {
+    "id": "patch-cables-top-octave-light-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19030": {
+    "id": "patch-cables-sung-wire-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19031": {
+    "id": "patch-cables-horn-fifths-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19032": {
+    "id": "patch-cables-overtone-ferns-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19033": {
+    "id": "patch-cables-hollow-reeds-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19034": {
+    "id": "patch-cables-flutter-tongue-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19035": {
+    "id": "patch-cables-canopy-air-dsus2",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19036": {
+    "id": "patch-cables-talking-greens-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19037": {
+    "id": "patch-cables-greenhouse-hum-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19038": {
+    "id": "patch-cables-pinging-window-rain",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19039": {
+    "id": "patch-cables-gusts-through-firs",
+    "durationSec": 16,
+    "loops": true
+  },
+  "19040": {
+    "id": "patch-cables-frog-pond-with-hops",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19041": {
+    "id": "patch-cables-distant-birds-on-cables",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19042": {
+    "id": "patch-cables-breathing-bands-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19043": {
+    "id": "patch-cables-patched-breath-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19044": {
+    "id": "patch-cables-spectral-garden-haze",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19045": {
+    "id": "patch-cables-tide-under-the-dock",
+    "durationSec": 16,
+    "loops": true
+  },
+  "19046": {
+    "id": "patch-cables-creek-through-the-patch",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19047": {
+    "id": "patch-cables-thunder-in-the-tank",
+    "durationSec": 16,
+    "loops": true
+  },
+  "19048": {
+    "id": "patch-cables-island-downpour",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19049": {
+    "id": "patch-cables-woodstove-in-a-spring",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19050": {
+    "id": "patch-cables-tines-with-octaves-a",
+    "durationSec": 5,
+    "loops": false
+  },
+  "19051": {
+    "id": "patch-cables-piano-climbing-c",
+    "durationSec": 6,
+    "loops": false
+  },
+  "19052": {
+    "id": "patch-cables-ring-piano-d",
+    "durationSec": 6,
+    "loops": false
+  },
+  "19053": {
+    "id": "patch-cables-steel-bell-double-g",
+    "durationSec": 6,
+    "loops": false
+  },
+  "19054": {
+    "id": "patch-cables-music-box-inhale-e",
+    "durationSec": 5,
+    "loops": false
+  },
+  "19055": {
+    "id": "patch-cables-glockenspiel-sparks-a",
+    "durationSec": 5,
+    "loops": false
+  },
+  "19056": {
+    "id": "patch-cables-motor-and-octave-f",
+    "durationSec": 7,
+    "loops": false
+  },
+  "19057": {
+    "id": "patch-cables-tongue-drum-echo-a",
+    "durationSec": 8,
+    "loops": false
+  },
+  "19058": {
+    "id": "patch-cables-scattered-strum-cmaj7",
+    "durationSec": 5,
+    "loops": false
+  },
+  "19059": {
+    "id": "patch-cables-kelp-bell-f",
+    "durationSec": 8,
+    "loops": false
+  },
+  "19060": {
+    "id": "patch-cables-glass-mallets-b",
+    "durationSec": 5,
+    "loops": false
+  },
+  "19061": {
+    "id": "patch-cables-celesta-steps-f",
+    "durationSec": 6,
+    "loops": false
+  },
+  "19062": {
+    "id": "patch-cables-ice-ladder-g",
+    "durationSec": 8,
+    "loops": false
+  },
+  "19063": {
+    "id": "patch-cables-brass-sprout-f",
+    "durationSec": 5,
+    "loops": false
+  },
+  "19064": {
+    "id": "patch-cables-tine-bubbles-em7",
+    "durationSec": 5,
+    "loops": false
+  },
+  "19065": {
+    "id": "patch-cables-pulse-pluck-d",
+    "durationSec": 5,
+    "loops": false
+  },
+  "19066": {
+    "id": "patch-cables-ensemble-stab-g",
+    "durationSec": 5,
+    "loops": false
+  },
+  "19067": {
+    "id": "patch-cables-gated-reed-a",
+    "durationSec": 5,
+    "loops": false
+  },
+  "19068": {
+    "id": "patch-cables-cedar-pluck-g",
+    "durationSec": 5,
+    "loops": false
+  },
+  "19069": {
+    "id": "patch-cables-rolled-greens-e",
+    "durationSec": 6,
+    "loops": false
+  },
+  "19070": {
+    "id": "patch-cables-twelve-in-steps-c",
+    "durationSec": 4,
+    "loops": false
+  },
+  "19071": {
+    "id": "patch-cables-quick-bow-a",
+    "durationSec": 4,
+    "loops": false
+  },
+  "19072": {
+    "id": "patch-cables-tuned-drum-knock-c",
+    "durationSec": 4,
+    "loops": false
+  },
+  "19073": {
+    "id": "patch-cables-thumb-piano-crystal-e",
+    "durationSec": 5,
+    "loops": false
+  },
+  "19074": {
+    "id": "patch-cables-kelp-bells-c",
+    "durationSec": 10,
+    "loops": false
+  },
+  "19075": {
+    "id": "patch-cables-deck-rain-patter",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19076": {
+    "id": "patch-cables-bright-ferns-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19077": {
+    "id": "patch-cables-glass-sprouts-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19078": {
+    "id": "patch-cables-folded-voice-d",
+    "durationSec": 10,
+    "loops": false
+  },
+  "19079": {
+    "id": "patch-cables-xylophone-patter-g",
+    "durationSec": 8,
+    "loops": false
+  },
+  "19080": {
+    "id": "patch-cables-piping-pattern-g",
+    "durationSec": 9,
+    "loops": false
+  },
+  "19081": {
+    "id": "patch-cables-pipes-on-springs-e",
+    "durationSec": 10,
+    "loops": false
+  },
+  "19082": {
+    "id": "patch-cables-wood-flute-grains-f",
+    "durationSec": 10,
+    "loops": false
+  },
+  "19083": {
+    "id": "patch-cables-soprano-bubbles-a",
+    "durationSec": 8,
+    "loops": false
+  },
+  "19084": {
+    "id": "patch-cables-piano-climbing-am",
+    "durationSec": 10,
+    "loops": false
+  },
+  "19085": {
+    "id": "patch-cables-marimba-garden-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19086": {
+    "id": "patch-cables-nylon-sprigs-em",
+    "durationSec": 9,
+    "loops": false
+  },
+  "19087": {
+    "id": "patch-cables-one-string-answered-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19088": {
+    "id": "patch-cables-celesta-steps-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19089": {
+    "id": "patch-cables-glass-pluck-rising-d",
+    "durationSec": 8,
+    "loops": false
+  },
+  "19090": {
+    "id": "patch-cables-quacking-neck-em",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19091": {
+    "id": "patch-cables-pan-taps-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19092": {
+    "id": "patch-cables-koto-backwards-d",
+    "durationSec": 10,
+    "loops": false
+  },
+  "19093": {
+    "id": "patch-cables-harp-loop-sparkle-f",
+    "durationSec": 9,
+    "loops": false
+  },
+  "19094": {
+    "id": "patch-cables-steel-in-fifths-c",
+    "durationSec": 10,
+    "loops": false
+  },
+  "19095": {
+    "id": "patch-cables-rubber-sequence-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19096": {
+    "id": "patch-cables-thumb-piano-crystals-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19097": {
+    "id": "patch-cables-cedar-plucks-c",
+    "durationSec": 8,
+    "loops": false
+  },
+  "19098": {
+    "id": "patch-cables-tines-turned-round-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "19099": {
+    "id": "patch-cables-hammered-patter-d",
+    "durationSec": 9,
+    "loops": false
+  },
+  "19100": {
+    "id": "patch-cables-suspended-sweep-d",
+    "durationSec": 12,
+    "loops": false
+  }
+}

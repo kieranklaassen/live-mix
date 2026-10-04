@@ -244,8 +244,13 @@ function vary<T extends VariedPlaying>(
   const tick = (sec: number): number => Math.round(sec * 1e4)
   const cents = (note: number): number => Math.round(note * 100)
 
-  // A phrase played round: its notes come again every `durationSec`, the same in every pass.
-  const round = loops && sound.loopFold === 'linear' ? sound.durationSec : null
+  // A chord held through everything that is rendered: the loop is a stretch of it.
+  const held =
+    loops && written.every((note) => note.atSec <= skipSec && note.atSec + note.durSec >= endSec)
+  // A phrase played round: its notes come again every `durationSec`, the same
+  // in every pass. The fold is only how the seam is mixed, so a round phrase
+  // folded at equal power is still a pass repeated.
+  const round = loops && !held ? sound.durationSec : null
   const passOf = (note: PhraseNote): number =>
     round === null ? 0 : Math.floor(note.atSec / round + 1e-9)
   const placeOf = (note: PhraseNote): number =>
@@ -262,11 +267,6 @@ function vary<T extends VariedPlaying>(
     Array.from({ length: passes }, (_, pass) => passed(pass + 1)).every((p) => p === passed(0))
   const period = regular ? round : null
 
-  // A chord held through everything that is rendered: the loop is a stretch of it.
-  const held =
-    loops &&
-    round === null &&
-    written.every((note) => note.atSec <= skipSec && note.atSec + note.durSec >= endSec)
   // Where the notes fall may change: not in a held chord, and not in a pass that is not repeated.
   const laid = !held && regular
 

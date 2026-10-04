@@ -21,6 +21,12 @@ const WITH_SOUNDS: ReadonlySet<string> = new Set<string>([
   'window-garden',
   'broadcast-hall',
   'ashram',
+  'park-zither',
+  'orbit-steel',
+  'oxide',
+  'nature-film',
+  'patch-cables',
+  'static-cathedral',
 ])
 
 const PACKS: readonly Omit<FactoryPack, 'sounds'>[] = [

@@ -1,0 +1,502 @@
+{
+  "4001": {
+    "id": "oxide-pedal-tone-old-reel-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4002": {
+    "id": "oxide-folding-tone-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4003": {
+    "id": "oxide-lounge-organ-low-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4004": {
+    "id": "oxide-pipes-under-hiss-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4005": {
+    "id": "oxide-high-pipes-under-hiss-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4006": {
+    "id": "oxide-first-pass-strings-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4007": {
+    "id": "oxide-last-light-brass-fmaj7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4008": {
+    "id": "oxide-held-at-the-head-em7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4009": {
+    "id": "oxide-lobby-reeds-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4010": {
+    "id": "oxide-warm-pad-thin-tape-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4011": {
+    "id": "oxide-two-decks-one-tune-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4012": {
+    "id": "oxide-chord-held-over-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4013": {
+    "id": "oxide-low-reel-chord-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4014": {
+    "id": "oxide-line-up-tone-b",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4015": {
+    "id": "oxide-slow-spool-cellos-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4016": {
+    "id": "oxide-monochord-at-two-thirds",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4017": {
+    "id": "oxide-cellos-printed-hot-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4018": {
+    "id": "oxide-low-hold-tone-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4019": {
+    "id": "oxide-low-bows-on-tape-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4020": {
+    "id": "oxide-carrier-tone-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4021": {
+    "id": "oxide-synth-horn-refrain-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4022": {
+    "id": "oxide-reed-loop-slow-fade-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4023": {
+    "id": "oxide-reel-run-backwards-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4024": {
+    "id": "oxide-late-summer-horns-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4025": {
+    "id": "oxide-distant-chorale-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4026": {
+    "id": "oxide-mostly-the-gaps-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4027": {
+    "id": "oxide-slow-ripple-strings-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4028": {
+    "id": "oxide-low-brass-slowed-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4029": {
+    "id": "oxide-swells-on-the-splice-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4030": {
+    "id": "oxide-hammers-worn-away-am7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4031": {
+    "id": "oxide-still-steel-swells-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4032": {
+    "id": "oxide-pulse-across-a-room-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4033": {
+    "id": "oxide-thrift-shop-strings-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4034": {
+    "id": "oxide-low-flute-half-reel-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4035": {
+    "id": "oxide-splice-in-backwards-c",
+    "durationSec": 8,
+    "loops": false
+  },
+  "4036": {
+    "id": "oxide-lounge-harp-sweep-c",
+    "durationSec": 10,
+    "loops": false
+  },
+  "4037": {
+    "id": "oxide-half-remembered-horn-g",
+    "durationSec": 12,
+    "loops": false
+  },
+  "4038": {
+    "id": "oxide-kitchen-radio-violin-c",
+    "durationSec": 10,
+    "loops": false
+  },
+  "4039": {
+    "id": "oxide-one-phrase-flugelhorn-d",
+    "durationSec": 12,
+    "loops": false
+  },
+  "4040": {
+    "id": "oxide-through-the-floor-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4041": {
+    "id": "oxide-steady-rain-on-the-reel",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4042": {
+    "id": "oxide-rosin-and-hiss-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4043": {
+    "id": "oxide-chord-made-of-hiss-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4044": {
+    "id": "oxide-thunder-rolls-far-off",
+    "durationSec": 16,
+    "loops": true
+  },
+  "4045": {
+    "id": "oxide-scattered-crickets",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4046": {
+    "id": "oxide-wind-on-a-worn-reel",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4047": {
+    "id": "oxide-stream-on-quarter-inch",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4048": {
+    "id": "oxide-crackle-in-flakes",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4049": {
+    "id": "oxide-fire-barely-moving",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4050": {
+    "id": "oxide-rain-back-and-forth",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4051": {
+    "id": "oxide-piano-left-on-the-reel",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4052": {
+    "id": "oxide-single-track-playback-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4053": {
+    "id": "oxide-fire-on-a-stalled-motor",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4054": {
+    "id": "oxide-crackle-through-dust",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4055": {
+    "id": "oxide-chimney-wind-rewound",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4056": {
+    "id": "oxide-shortwave-on-two-spools",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4057": {
+    "id": "oxide-upright-next-door-c",
+    "durationSec": 5,
+    "loops": false
+  },
+  "4058": {
+    "id": "oxide-upright-low-fifth-a",
+    "durationSec": 5,
+    "loops": false
+  },
+  "4059": {
+    "id": "oxide-piano-under-hiss-d",
+    "durationSec": 8,
+    "loops": false
+  },
+  "4060": {
+    "id": "oxide-piano-at-half-speed-g",
+    "durationSec": 8,
+    "loops": false
+  },
+  "4061": {
+    "id": "oxide-one-bolted-string-e",
+    "durationSec": 5,
+    "loops": false
+  },
+  "4062": {
+    "id": "oxide-worn-brushed-chord-dm7",
+    "durationSec": 8,
+    "loops": false
+  },
+  "4063": {
+    "id": "oxide-bowl-at-half-speed-d",
+    "durationSec": 12,
+    "loops": false
+  },
+  "4064": {
+    "id": "oxide-two-bowls-half-speed-a",
+    "durationSec": 12,
+    "loops": false
+  },
+  "4065": {
+    "id": "oxide-tongue-drum-dusty-f",
+    "durationSec": 6,
+    "loops": false
+  },
+  "4066": {
+    "id": "oxide-tongue-drum-fifth-c",
+    "durationSec": 6,
+    "loops": false
+  },
+  "4067": {
+    "id": "oxide-dull-muted-harp-g",
+    "durationSec": 3.5,
+    "loops": false
+  },
+  "4068": {
+    "id": "oxide-lounge-vibes-e",
+    "durationSec": 6,
+    "loops": false
+  },
+  "4069": {
+    "id": "oxide-bell-across-town-a",
+    "durationSec": 8,
+    "loops": false
+  },
+  "4070": {
+    "id": "oxide-small-bell-far-off-d",
+    "durationSec": 6,
+    "loops": false
+  },
+  "4071": {
+    "id": "oxide-wind-up-box-one-tooth",
+    "durationSec": 4,
+    "loops": false
+  },
+  "4072": {
+    "id": "oxide-supper-club-chord-g",
+    "durationSec": 5,
+    "loops": false
+  },
+  "4073": {
+    "id": "oxide-supper-club-low-a",
+    "durationSec": 6,
+    "loops": false
+  },
+  "4074": {
+    "id": "oxide-thumbed-and-slowed-am",
+    "durationSec": 6,
+    "loops": false
+  },
+  "4075": {
+    "id": "oxide-warm-reel-tines-cadd9",
+    "durationSec": 5,
+    "loops": false
+  },
+  "4076": {
+    "id": "oxide-high-warm-tine-e",
+    "durationSec": 5,
+    "loops": false
+  },
+  "4077": {
+    "id": "oxide-parlour-zither-em",
+    "durationSec": 8,
+    "loops": false
+  },
+  "4078": {
+    "id": "oxide-mallet-tape-reversed-a",
+    "durationSec": 6,
+    "loops": false
+  },
+  "4079": {
+    "id": "oxide-four-bars-again-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4080": {
+    "id": "oxide-harp-one-bar-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4081": {
+    "id": "oxide-harp-falling-bar-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4082": {
+    "id": "oxide-nylon-short-loop-em",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4083": {
+    "id": "oxide-plucked-bass-loop-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4084": {
+    "id": "oxide-ripple-on-the-reel-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4085": {
+    "id": "oxide-lounge-vibes-phrase-em",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4086": {
+    "id": "oxide-reel-tines-phrase-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4087": {
+    "id": "oxide-muted-harp-figure-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4088": {
+    "id": "oxide-wind-up-box-tune-g",
+    "durationSec": 6,
+    "loops": false
+  },
+  "4089": {
+    "id": "oxide-piano-flakes-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4090": {
+    "id": "oxide-tongue-drum-round-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4091": {
+    "id": "oxide-supper-club-line-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4092": {
+    "id": "oxide-tired-reel-steel-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4093": {
+    "id": "oxide-synth-line-worn-f",
+    "durationSec": 10,
+    "loops": false
+  },
+  "4094": {
+    "id": "oxide-interval-signal-g",
+    "durationSec": 10,
+    "loops": false
+  },
+  "4095": {
+    "id": "oxide-bolts-in-the-strings-e",
+    "durationSec": 8,
+    "loops": false
+  },
+  "4096": {
+    "id": "oxide-half-speed-piano-c",
+    "durationSec": 10,
+    "loops": false
+  },
+  "4097": {
+    "id": "oxide-next-door-a-tune-c",
+    "durationSec": 8,
+    "loops": false
+  },
+  "4098": {
+    "id": "oxide-parlour-zither-round-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4099": {
+    "id": "oxide-mallet-phrase-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "4100": {
+    "id": "oxide-soprano-under-static-e",
+    "durationSec": 10,
+    "loops": false
+  }
+}
