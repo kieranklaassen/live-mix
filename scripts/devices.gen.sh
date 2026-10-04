@@ -22,7 +22,7 @@ build_generated_devices() {
     cpp/devices/aurora/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device auto-filter \
     cpp/devices/auto-filter/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device bloom-reverb \
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device bloom-reverb \
     cpp/devices/bloom-reverb/device_api.gen.cpp \
     cpp/devices/spectral-drifter/SpectralDrifter.cpp \
     cpp/devices/stereo-widener/StereoWidener.cpp
@@ -132,11 +132,11 @@ build_generated_devices() {
     cpp/devices/string-machine/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device sustainer \
     cpp/devices/sustainer/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device swarm-reverb \
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device swarm-reverb \
     cpp/devices/swarm-reverb/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device swell \
     cpp/devices/swell/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device sympathetic \
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device sympathetic \
     cpp/devices/sympathetic/device_api.gen.cpp \
     cpp/devices/stereo-widener/StereoWidener.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device tanpura \
@@ -160,7 +160,7 @@ build_generated_devices() {
     cpp/devices/vintage-digital/device_api.gen.cpp
   MEMORY_BYTES=8388608 EXTRA_EXPORTS=",_device_meter" build_device vinyl \
     cpp/devices/vinyl/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device vowel-reverb \
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device vowel-reverb \
     cpp/devices/vowel-reverb/device_api.gen.cpp
   MEMORY_BYTES=5242880 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device wavetable \
     cpp/devices/wavetable/device_api.gen.cpp
