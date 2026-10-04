@@ -89,6 +89,57 @@ describe('Stroke', () => {
     expect(stroke.querySelector('.lm-stroke__automation-label')).toHaveTextContent('Reverb')
   })
 
+  it("keeps the line's word to a room from the name, or the round end, to where the word ends", () => {
+    const points = [
+      [0, 0.5],
+      [1, 0.5],
+    ] as const
+    const automation = { label: 'Level', points }
+    const { rerender } = render(
+      <Stroke width={200} height={40} name="Rain" automation={automation} data-testid="s" />,
+    )
+    const stroke = screen.getByTestId('s')
+    const room = () => stroke.querySelector<HTMLElement>('.lm-stroke__automation-room')
+    // One row for both: the room hangs on the end of the name, however long that is.
+    expect(room()?.parentElement).toHaveClass('lm-stroke__tag')
+    expect(room()).toHaveTextContent('Level')
+    expect(room()?.style.left).toBe('100%')
+    expect(room()?.style.top).toBe('0px')
+    // It is the row less the name: a length in px with 100% of the name taken off.
+    const row = () =>
+      /^calc\((?:-100% \+ ([\d.]+)px|([\d.]+)px - 100%)\)$/.exec(room()?.style.width ?? '')
+    const rowPx = () => Number(row()?.[1] ?? row()?.[2])
+    // The name starts 14 in and the word ends 16 short of the ring's inside: 198 - 16 - 14.
+    expect(rowPx()).toBe(168)
+    // A fade moves the name in and the word back; the room is what is between them.
+    rerender(
+      <Stroke
+        width={200}
+        height={40}
+        name="Rain"
+        fadeIn={0.25}
+        fadeOut={0.1}
+        automation={automation}
+        data-testid="s"
+      />,
+    )
+    expect(rowPx()).toBe(98)
+
+    // No name in its row: the room starts where the round end inside the ring is as far
+    // in as the word's row is from the edge, 12 down a half circle of 19.
+    rerender(<Stroke width={200} height={40} automation={automation} data-testid="s" />)
+    expect(room()?.parentElement).toBe(stroke)
+    expect(parseFloat(room()?.style.left ?? '')).toBeCloseTo(19 - Math.sqrt(19 * 19 - 7 * 7), 6)
+    expect(room()?.style.right).toBe('16px')
+    expect(room()?.style.bottom).toBe('12px')
+    // A tall stroke has the name above and the word below, 4 from the edge: 39 and 35.
+    rerender(<Stroke width={200} height={80} name="Rain" automation={automation} data-testid="s" />)
+    expect(room()?.parentElement).toBe(stroke)
+    expect(parseFloat(room()?.style.left ?? '')).toBeCloseTo(39 - Math.sqrt(39 * 39 - 35 * 35), 6)
+    expect(room()?.style.right).toBe('36px')
+    expect(room()?.style.bottom).toBe('4px')
+  })
+
   it('marks selected, muted and reversed strokes', () => {
     render(<Stroke width={200} height={40} name="Rain" selected muted reversed data-testid="s" />)
     const stroke = screen.getByTestId('s')
