@@ -289,22 +289,30 @@ function vary<T extends VariedPlaying>(
   // --- Speed ---------------------------------------------------------------------------
   if (amount.speed > 0 && laid) {
     if (period !== null) {
-      // Played round: half or double time, which still comes round.
+      // Played round: half or double time, which still comes round. A pass
+      // that starts on its attack (a pluck written a moment in, so the loop's
+      // seam is clear of it) keeps that start: the time is counted from it.
       if (draw(seed, SPEED) < amount.speed * VARIATION_LIMITS.doubling) {
+        const first = Math.min(...hits.map((hit) => hit.at))
+        const lead = first < LEAD_SEC ? first : 0
         if (draw(seed, SPEED_WAY) < 0.5) {
           hits = [0, 1].flatMap((turn) =>
             hits.map((hit) => ({
               ...hit,
-              at: hit.at / 2 + (turn * period) / 2,
+              at: lead + (hit.at - lead) / 2 + (turn * period) / 2,
               dur: hit.dur / 2,
               turn,
             })),
           )
           changes.rate = 2
         } else {
-          const firstHalf = hits.filter((hit) => hit.at < period / 2 - TOGETHER_SEC)
+          const firstHalf = hits.filter((hit) => hit.at - lead < period / 2 - TOGETHER_SEC)
           if (firstHalf.length > 0 && firstHalf.length < hits.length) {
-            hits = firstHalf.map((hit) => ({ ...hit, at: hit.at * 2, dur: hit.dur * 2 }))
+            hits = firstHalf.map((hit) => ({
+              ...hit,
+              at: lead + (hit.at - lead) * 2,
+              dur: hit.dur * 2,
+            }))
             changes.rate = 0.5
           }
         }

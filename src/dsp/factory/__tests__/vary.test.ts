@@ -507,6 +507,32 @@ describe('a variant of a sound', () => {
       }
     })
 
+    it('keeps the attack of a round that starts a moment in, at double and at half time', () => {
+      // A pluck written 0.02 s in, as the packs write a round whose seam must be clear of it.
+      const late = cycled(8, [
+        [0.02, 1, 48],
+        [1.02, 1, 60],
+        [2.02, 1, 64],
+        [3.02, 1, 67],
+        [4.02, 1, 72],
+        [5.02, 1, 76],
+        [6.02, 1, 79],
+      ])
+      const rates = new Set<number>()
+      for (const seed of many) {
+        const variation = only('speed', seed)
+        const { rate } = describeVariant(late, variation)
+        rates.add(rate)
+        const pass = varySound(late, variation).phrase.notes.filter((note) => note.atSec < 8)
+        expect(pass[0].atSec).toBe(0.02)
+        if (rate === 2) expect(pass[7].atSec).toBeCloseTo(4.02, 9)
+        if (rate === 0.5) {
+          expect(pass.map((note) => note.atSec)).toEqual([0.02, 2.02, 4.02, 6.02])
+        }
+      }
+      expect([...rates].sort()).toEqual([0.5, 1, 2])
+    })
+
     it('does nothing to a held chord', () => {
       for (const seed of SEEDS) expect(varySound(held, only('speed', seed))).toBe(held)
     })

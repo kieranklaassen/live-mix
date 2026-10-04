@@ -328,24 +328,41 @@ FACTORY_REPORT=variants FACTORY_AMOUNT=0.25 FACTORY_SEEDS=4 FACTORY_EVERY=5 pnpm
 FACTORY_REPORT=variants FACTORY_PACK=<id> pnpm vitest run src/dsp/factory/__tests__/report.test.ts # a pack's sounds
 ```
 
-What the bench says of the touch alone, so nobody has to find out again. Two
-variants of each of the bank's hundred sounds: at an amount of 1 they are 0 to 4 dB from their
-sound and half are under 1.1 dB (drones 0.7, pads 1.4, textures 0.8,
-one-shots 0.5, phrases 1.9 at the median); at 0.25, half are under 0.6 dB.
-Every loop still comes round, no sound that ends starts on a step, is cut off
-or ends later, at either amount. Seven of the 400 are given another kind by
-`analyzeSound`, a drone or a pad whose level now moves across the line to the
-next kind. A render is brought to the bank's peak whatever is played, so a
-variant's loudness is not its sound's: within 1 LU for most, over 2 LU for
-seven of 200 at an amount of 1 and two of 200 at 0.25, a phrase whose notes
-were all as hard as each other coming out quieter because only one of them
-still is. What varies least is a sound that is one note struck once: its
-tuning moves by a few cents and nothing else does, because the whole of a
-sound played softer is not level-safe (a single high felt piano note played
-3 dB softer came out 4.6 LU quieter at the same peak). The share of a sound
-on the black keys moves by a point or two, but for the gong wash, grains of a
-source with no clear pitch: 10 to 41 % from one variant to the next, on the
-same held note, as its grains fall.
+What the bench says, so nobody has to find out again. Each kind alone at an
+amount of 1, two variants of every fourth sound of the bank (25 sounds, 50
+variants a kind); a variant's distance from its sound is the level between
+the two renders, band by band.
+
+| Kind    | Variants that differ | Distance, where they differ   | Loudness against the sound's       | What was flagged                                                                           |
+| ------- | -------------------- | ----------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------ |
+| Chords  | 34 of 50 (23 sounds) | 0.1 to 5.0 dB, half under 1.7 | within 1 LU for 28, 2.1 LU at most | two held chords moved to E and to D read 37 and 34 % on the black keys, from 14 and 13 %   |
+| Speed   | 10 of 50 (5 sounds)  | 1.1 to 7.7 dB, half under 4.4 | over 2 LU for 3, 3.2 LU at most    | one slowed phrase ends at -58 dB, where the sound ends at -107                             |
+| Pattern | 10 of 50 (5 sounds)  | 1.4 to 6.5 dB, half under 2.5 | over 2 LU for 3, 3.1 LU at most    | one phrase with four of its notes resting is called a one-shot by `analyzeSound`           |
+| Touch   | 50 of 50 (25 sounds) | 0.1 to 2.2 dB, half under 1.0 | within 1 LU for 45, 2.0 LU at most | two pads are called another kind by `analyzeSound`, their level now moving across its line |
+
+Every loop still comes round in every one of them, and none starts on a
+step. Chords reaches every kind of sound but one played from a `source`;
+speed and pattern are for phrases, so a bank of drones and pads is varied
+mostly by its chords and its touch. The notes of a variant on another chord
+are all of the key: the black-key share that rises is the overtones of a
+chord on E, A or D, whose thirds and fifths lie closer to black keys than
+those of a chord on C, F or G. A render is brought to the bank's peak
+whatever is played, so a variant's loudness is not its sound's: a phrase at
+double time, or with notes resting between the ones that are left, comes out
+2 to 3 LU louder at an amount of 1. A host that minds can bring a variant to
+its sound's loudness after rendering; the library does not. The draws that
+ask only the seed (which chord, how fast, whether a held chord loses a note)
+are the same for every sound at one seed, so a host should give each sound
+seeds of its own, as it would anyway.
+
+What varies least is a sound that is one note struck once: its tuning moves
+by a few cents and, with chords up, it may sound an octave away or on
+another step, and nothing else does, because the whole of a sound played
+softer is not level-safe (a single high felt piano note played 3 dB softer
+came out 4.6 LU quieter at the same peak). The share of a sound on the black
+keys moves by a point or two under the touch, but for the gong wash, grains
+of a source with no clear pitch: 10 to 41 % from one variant to the next, on
+the same held note, as its grains fall.
 
 ## What the bank is held to
 

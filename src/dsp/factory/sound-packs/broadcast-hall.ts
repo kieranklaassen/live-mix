@@ -630,8 +630,8 @@ export const SOUNDS: readonly FactorySound[] = packSounds('broadcast-hall', 1700
   // Textures: the hall with nothing playing in it, the weather on its roof and the river outside.
   {
     n: 45,
-    id: 'skylight-shower',
-    name: 'Skylight shower',
+    id: 'rain-on-the-glass-roof',
+    name: 'Rain on the glass roof',
     kind: 'texture',
     description:
       'A steady shower on the glass roof high above, evened out by tape, over the rumble of the room.',
@@ -641,8 +641,8 @@ export const SOUNDS: readonly FactorySound[] = packSounds('broadcast-hall', 1700
   },
   {
     n: 46,
-    id: 'open-window-river',
-    name: 'Open window river',
+    id: 'river-past-the-window',
+    name: 'River past the window',
     kind: 'texture',
     description: 'Slow water moving past the open control-room window, a little way off.',
     preset: 'broadcast-hall-open-window-river',
