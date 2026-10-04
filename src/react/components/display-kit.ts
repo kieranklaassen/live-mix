@@ -45,8 +45,11 @@ export type Point = readonly [number, number]
 export const clamp = (value: number, low: number, high: number): number =>
   value < low ? low : value > high ? high : value
 export const lerp = (from: number, to: number, t: number): number => from + (to - from) * t
-/** Half a pixel in, so a line one pixel wide falls on a row of pixels and is sharp. */
-export const crisp = (value: number): number => Math.round(value) + 0.5
+/**
+ * The middle of the pixel a value falls in, so a line one pixel wide lies on
+ * one row of pixels and is sharp, never more than half a pixel from its value.
+ */
+export const crisp = (value: number): number => Math.floor(value) + 0.5
 
 /**
  * The ground of a display, over the whole canvas: the plate a shade nearer its
