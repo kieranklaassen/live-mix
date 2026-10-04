@@ -16,7 +16,7 @@ import { defaultFrameScheduler, type FrameScheduler } from '../frame'
 
 /**
  * Where a display stands on its plate.
- * - `strip`: under a row of four knobs, 184 by 48 on a plate 240 wide. For
+ * - `strip`: under a row of four knobs, 224 by 48 on a plate 280 wide. For
  *   things that happen in time: a delay's repeats, a reverb's tail, an LFO.
  * - `window`: beside the knobs at the plate's full working height, 100 high
  *   and 80, 128 or 176 wide on a plate 280 wide, with the knobs in two rows.
@@ -153,6 +153,11 @@ export interface PlateDisplay<S = unknown> {
     stereo?: boolean
     /** Frames per second: 30 unless something small moves fast enough to need 60. */
     fps?: 30 | 60
+    /**
+     * Seconds of silence, in and out, after which it stands still until sound
+     * comes again: 8 unless it has more of the past than that to show.
+     */
+    settle?: number
   }
   /** One or two sentences for the info view: what the display shows and how to read it. */
   info: string
@@ -176,7 +181,7 @@ export function plateDisplay<S>(display: PlateDisplay<S>): PlateDisplay {
   return display
 }
 
-/** A strip's size on a plate with its face knobs, and a window's height. */
+/** A strip's width beside two rows of knobs (under a face of four it is as wide as the plate allows), its height, and a window's height. */
 export const DISPLAY_STRIP_WIDTH = 184
 export const DISPLAY_STRIP_HEIGHT = 48
 export const DISPLAY_WINDOW_HEIGHT = 100
@@ -297,6 +302,13 @@ class Tap {
     }
   }
 
+  /** Whether anything louder than `floor` is on the node now: the cheapest thing a tap can say. */
+  heard(floor: number): boolean {
+    this.analyser.getFloatTimeDomainData(this.wave)
+    for (const sample of this.wave) if (sample > floor || sample < -floor) return true
+    return false
+  }
+
   spectrum(): Float32Array | null {
     if (!this.bins) return null
     this.analyser.getFloatFrequencyData(this.bins)
@@ -414,6 +426,11 @@ export class DisplayTaps {
       left: this.sides ? this.sides.left.level() : null,
       right: this.sides ? this.sides.right.level() : null,
     }
+  }
+
+  /** Whether there is sound at the device, going in or coming out, louder than `floor`. */
+  heard(floor: number): boolean {
+    return this.output.heard(floor) || (this.input?.heard(floor) ?? false)
   }
 
   mend(): void {

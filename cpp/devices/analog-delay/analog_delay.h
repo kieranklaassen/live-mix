@@ -64,6 +64,8 @@ class AnalogDelay : public kit::DeviceBase<analog_delay::kNumParams> {
     whine_ = 0.0f;
     drift_value_[0] = 0.0f;
     drift_value_[1] = 0.0f;
+    ticks_seen_[0] = 0.0f;
+    ticks_seen_[1] = 0.0f;
     drift_[0].seed(0x3C6EF372u);
     drift_[1].seed(0xA54FF53Au);
     drift_[0].set_rate(kDriftHz, sr);
@@ -81,6 +83,17 @@ class AnalogDelay : public kit::DeviceBase<analog_delay::kNumParams> {
     if (store_param(id, value)) apply(id);
   }
 
+  // The readings named by "meters" in device.json, for a display to draw:
+  // each line's clock as it runs now (the wobble, the drift and the step
+  // sequence on it) against the clock the Time knob asks for. 1 is the knob's
+  // own time; 2 is a clock twice as fast, so half the delay.
+  float meter(int index) const {
+    if (index < 0 || index > 1) return 1.0f;
+    // Before the first block there is no clock yet: the knob's own.
+    if (!(ticks_seen_[index] > 0.0f) || !(clock_.target > 0.0f)) return 1.0f;
+    return ticks_seen_[index] / clock_.target;
+  }
+
   void process(int frames) {
     using namespace analog_delay;
     frames = begin_block(frames);
@@ -89,6 +102,7 @@ class AnalogDelay : public kit::DeviceBase<analog_delay::kNumParams> {
       return;
     }
     float wet_peak = 0.0f;
+    float ticks_now[2] = {ticks_seen_[0], ticks_seen_[1]};
     for (int i = 0; i < frames; ++i) {
       float in[2];
       take_input(i, &in[0], &in[1]);
@@ -118,6 +132,8 @@ class AnalogDelay : public kit::DeviceBase<analog_delay::kNumParams> {
       ticks[0] = clock * (1.0f + wobble * kit::SineTable::lookup(lfo_phase_) + wander * drift_left);
       ticks[1] = clock * (1.0f + wobble * kit::SineTable::lookup(lfo_phase_ + 0.5f * spread) +
                           wander * drift_right);
+      ticks_now[0] = ticks[0];
+      ticks_now[1] = ticks[1];
 
       const float back[2] = {channel_[0].wet, channel_[1].wet};
       const float level = activity_.process(kit::max(std::fabs(in[0] + feedback * back[0]),
@@ -151,6 +167,8 @@ class AnalogDelay : public kit::DeviceBase<analog_delay::kNumParams> {
       out_left_[i] = in[0] * dry_gain_ + channel_[0].wet * wet_gain_;
       out_right_[i] = in[1] * dry_gain_ + channel_[1].wet * wet_gain_;
     }
+    ticks_seen_[0] = ticks_now[0];
+    ticks_seen_[1] = ticks_now[1];
     // The echoes keep the device awake even when Mix hides them, so a line
     // that is still ringing is never frozen and replayed later.
     idle_.settle(kit::max(output_peak(frames), wet_peak), frames);
@@ -365,6 +383,8 @@ class AnalogDelay : public kit::DeviceBase<analog_delay::kNumParams> {
   kit::ControlClock control_clock_;
   kit::IdleGate idle_;
   float drift_value_[2] = {0.0f, 0.0f};
+  // The two clocks at the end of the last block, for meter(): never read by the sound.
+  float ticks_seen_[2] = {0.0f, 0.0f};
   float lfo_phase_ = 0.0f;
   float lfo_increment_ = 0.0f;
   float noise_level_ = 0.0f;

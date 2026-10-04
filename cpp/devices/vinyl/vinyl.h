@@ -224,6 +224,31 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
     if (store_param(id, value)) apply(id);
   }
 
+  // The readings named by "meters" in device.json, for a display to draw:
+  // the pitch the warp and the platter have it at now (per cent off true),
+  // where the record is in its turn (0..1), how many ticks have stood out
+  // of the crackle (wraps at 2^20) and the size of the latest (linear), how
+  // many pops there have been, a scratch's included, and how far the
+  // surface noise is up (0..1).
+  float meter(int index) const {
+    switch (index) {
+      case 0:
+        return 100.0f * (spin_ - warp_step_ - 1.0f);
+      case 1:
+        return turn_phase_;
+      case 2:
+        return static_cast<float>(tick_count_ & 0xFFFFF);
+      case 3:
+        return tick_level_;
+      case 4:
+        return static_cast<float>(pop_count_ & 0xFFFFF);
+      case 5:
+        return noise_gate_ * (spin_ >= 1.0f ? 1.0f : std::sqrt(spin_));
+      default:
+        return 0.0f;
+    }
+  }
+
   void process(int frames) {
     using namespace vinyl;
     frames = begin_block(frames);
@@ -506,6 +531,8 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
     }
     Slot& slot = slots_[next_tick_];
     next_tick_ = (next_tick_ + 1) % kTickSlots;
+    ++tick_count_;
+    tick_level_ = level;
     // Mostly dull and short; now and then one that rings for a cycle.
     ring(slot, 1500.0f * std::exp2(2.2f * colour), 0.5f + 0.8f * sharp * sharp, false, level, lean);
   }
@@ -514,6 +541,7 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
   void pop(float level, float hz, float q, const float* lean, float thump) {
     Slot& slot = slots_[kTickSlots + next_pop_];
     next_pop_ = (next_pop_ + 1) % kPopSlots;
+    ++pop_count_;
     ring(slot, hz, q, true, level, lean);
     const float w = kit::kTwoPi * kThumpHz / sample_rate();
     // The thump is mostly lateral: it stays in the middle.
@@ -974,6 +1002,10 @@ class Vinyl : public kit::DeviceBase<vinyl::kNumParams> {
   long drain_now_ = 1;  // shorter when the surface is silent: there is nothing to wait for
   long quiet_ = 1;
   bool started_ = false;
+  // Kept for the display's readings only.
+  int tick_count_ = 0;
+  int pop_count_ = 0;
+  float tick_level_ = 0.0f;
 };
 
 }  // namespace livemix

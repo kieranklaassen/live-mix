@@ -82,6 +82,40 @@ class Glitch : public kit::DeviceBase<glitch::kNumParams> {
   long event_count() const { return events_; }
   int event_kind() const { return event_.active ? event_.kind : static_cast<int>(kNone); }
 
+  // The readings named by "meters" in device.json, for a display to draw each
+  // event as it happens: how many events have started, the kind of the one
+  // playing (Kind, 0 for none), how many pieces it has and which is playing
+  // (from 1), the seconds until the next cut (the end of the piece, or of the
+  // slice when nothing is playing; -1 while the device sleeps), and the speed
+  // the newest piece is read at now (1 is the input's own, negative backwards).
+  float meter(int index) const {
+    switch (index) {
+      case 0:
+        return static_cast<float>(events_ & 0xFFFFFF);
+      case 1:
+        return static_cast<float>(event_kind());
+      case 2:
+        return event_.active ? static_cast<float>(event_.count) : 0.0f;
+      case 3:
+        return event_.active ? static_cast<float>(event_.index + (event_.part == 1 ? 1 : 0)) : 0.0f;
+      case 4:
+        if (dormant_) return -1.0f;
+        return static_cast<float>(event_.active ? segment_left_ : until_boundary_) / sample_rate();
+      case 5: {
+        if (current_ < 0 || !readers_[current_].active) return 1.0f;
+        const Reader& reader = readers_[current_];
+        if (reader.mode == kHalfSpeed) return 0.5f + reader.glide;
+        if (reader.mode == kTapeStop) {
+          if (reader.age < reader.stop_length) return 1.0f - reader.age / reader.stop_length;
+          return kit::min(1.0f, (reader.age - reader.stop_length) / reader.spin_length);
+        }
+        return reader.rate;
+      }
+      default:
+        return 0.0f;
+    }
+  }
+
   void process(int frames) {
     frames = begin_block(frames);
     if (dormant_ && !input_present(frames)) {

@@ -6,6 +6,10 @@
   "class": "AnalogDelay",
   "header": "analog_delay.h",
   "sources": [],
+  "meters": [
+    { "key": "clockLeft", "name": "Clock left", "display": true },
+    { "key": "clockRight", "name": "Clock right", "display": true }
+  ],
   "params": [
     {
       "key": "time",

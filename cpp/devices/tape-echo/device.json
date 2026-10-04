@@ -6,6 +6,10 @@
   "class": "TapeEcho",
   "header": "tape_echo.h",
   "sources": [],
+  "meters": [
+    { "key": "time", "name": "Head time", "unit": "ms", "display": true },
+    { "key": "speed", "name": "Tape speed", "display": true }
+  ],
   "params": [
     {
       "key": "time",

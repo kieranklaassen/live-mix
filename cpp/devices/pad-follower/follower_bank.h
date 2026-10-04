@@ -207,6 +207,28 @@ class FollowerBank {
   // True while any band's oscillator is audible.
   bool sounding() const { return sounding_; }
 
+  // For a display: what the followers are fed and what they hold, each the
+  // sum over the bands. `heard` is the partials as steer() weighs them before
+  // the gate (level, the resonator's loss undone, the band's share, its
+  // trust), worked out again here from the state the last tick left; `held`
+  // is the followers' output before the body, the trim and the wander.
+  float heard() const {
+    float sum = 0.0f;
+    for (int b = 0; b < kBands; ++b) {
+      const float t = detune_scale_[b] * dev_[b];
+      const bool settled = age_[b] >= settle_[b];
+      const float off_centre = kit::max(std::fabs(dev_[b]), settled ? std::fabs(estimate_[b]) : 0.0f);
+      const float share = kit::max(0.0f, 1.0f - off_centre * share_scale_[b]);
+      sum += mag_[b] * (1.0f + t * t) * share * trust_[b];
+    }
+    return sum;
+  }
+  float held() const {
+    float sum = 0.0f;
+    for (int b = 0; b < kBands; ++b) sum += env2_[b];
+    return sum;
+  }
+
   // Rise is the time a swell takes to reach 90 %; Fall the time the pad takes
   // to fall 60 dB once its input has gone.
   void set_times(float rise_seconds, float fall_seconds) {

@@ -308,12 +308,15 @@ describe('plateLayout', () => {
   })
 
   it('lays a strip under one row of knobs, as wide as the row', () => {
+    // A face of four is as wide as a plate with a window, and its knobs share that room.
     const rest = plateLayout(4, false, { place: 'strip' })
-    expect(rest).toMatchObject({ rows: 1, columns: 4, width: 240 })
-    expect(rest.display).toEqual({ left: 8, top: 60, width: 184, height: 48 })
+    expect(rest).toMatchObject({ rows: 1, columns: 4, column: 58, width: 280 })
+    expect(rest.width).toBe(plateLayout(4, false, { place: 'window', columns: 2 }).width)
+    expect(rest.display).toEqual({ left: 8, top: 60, width: 224, height: 48 })
     // Opened in one row the strip runs under all of it; the right-hand column stays the plate's.
     const opened = plateLayout(9, false, { place: 'strip' })
     expect(opened.rows).toBe(1)
+    expect(opened.column).toBe(48)
     expect(opened.display).toMatchObject({ left: 8, top: 60, height: 48 })
     expect(opened.display?.width).toBe(opened.width - 56)
     // Past twelve knobs they take two rows and the strip stands beside them at full height.
@@ -443,6 +446,32 @@ describe('DevicePlate', () => {
     expect(tools?.nextElementSibling).toHaveClass('lm-plate__foot')
   })
 
+  it('says when the column at its right is its own, so the tools can stand there', async () => {
+    const fixture = createTestEngine()
+    const device = await make(fixture)
+    // Over a picture the tools keep their row, where there is no knob's name to cover.
+    const pictured = render(<DevicePlate device={device} skin={SKIN} data-testid="plate" />, {
+      wrapper: fixture.wrapper,
+    })
+    expect(screen.getByTestId('plate')).not.toHaveClass('lm-plate--plain')
+    pictured.unmount()
+
+    // Without a picture or a display it has two rows of knobs and a free column beside them.
+    const plain: DeviceSkin = { ...SKIN, picture: undefined }
+    const bare = render(<DevicePlate device={device} skin={plain} data-testid="plate" />, {
+      wrapper: fixture.wrapper,
+    })
+    expect(screen.getByTestId('plate')).toHaveClass('lm-plate--plain')
+    expect(screen.getByTestId('plate')).not.toHaveClass('lm-plate--editor')
+    bare.unmount()
+
+    // A plate with a window of its own has two cells in that column, and says so.
+    render(<DevicePlate device={await makeHosted(fixture)} skin={plain} data-testid="plate" />, {
+      wrapper: fixture.wrapper,
+    })
+    expect(screen.getByTestId('plate')).toHaveClass('lm-plate--plain', 'lm-plate--editor')
+  })
+
   it('is in hand once a finger presses it, until a press lands anywhere else', async () => {
     const fixture = createTestEngine()
     const device = await make(fixture)
@@ -554,9 +583,33 @@ describe('DevicePlate', () => {
       />,
       { wrapper: fixture.wrapper },
     )
-    expect(screen.getByTestId('plate-frequency')).toHaveClass('lm-plate__knob--tight')
+    const long = screen.getByTestId('plate-frequency')
+    expect(long).toHaveClass('lm-plate__knob--tight')
+    // It keeps the size of its neighbours and gives up width: twelve letters in a column of 48.
+    expect(Number(long.style.getPropertyValue('--lm-plate-squeeze'))).toBeCloseTo(
+      48 / (12 * 5.6),
+      3,
+    )
     // Two short words take two lines at the usual size.
-    expect(screen.getByTestId('plate-q')).not.toHaveClass('lm-plate__knob--tight')
+    const short = screen.getByTestId('plate-q')
+    expect(short).not.toHaveClass('lm-plate__knob--tight')
+    expect(short.style.getPropertyValue('--lm-plate-squeeze')).toBe('')
+  })
+
+  it('sets a word of eight letters closer and no narrower', async () => {
+    const fixture = createTestEngine()
+    const device = await make(fixture)
+    render(
+      <DevicePlate
+        device={device}
+        skin={{ ...SKIN, labels: { frequency: 'Feedback' } }}
+        data-testid="plate"
+      />,
+      { wrapper: fixture.wrapper },
+    )
+    const knob = screen.getByTestId('plate-frequency')
+    expect(knob).toHaveClass('lm-plate__knob--tight')
+    expect(knob.style.getPropertyValue('--lm-plate-squeeze')).toBe('')
   })
 
   it("opens a hosted plug-in's own window from a cell, and has no such cell for any other device", async () => {

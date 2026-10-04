@@ -139,6 +139,30 @@ class Radio : public kit::DeviceBase<radio::kNumParams> {
     if (store_param(id, value)) apply(id);
   }
 
+  // The readings named by "meters" in device.json, for a display to draw:
+  // where the dial is now with its wander (Hz off the station), the two
+  // paths of the sky wave (the gain of the direct one, the late one's gain
+  // as a real and an imaginary part, and how late it is in milliseconds),
+  // and the static's amplitude at the aerial against a carrier of 1.
+  float meter(int index) const {
+    switch (index) {
+      case 0:
+        return shift_.value;
+      case 1:
+        return direct_.value;
+      case 2:
+        return late_re_.value;
+      case 3:
+        return late_im_.value;
+      case 4:
+        return 1000.0f * delay_.value / sample_rate();
+      case 5:
+        return noise_gain_.value;
+      default:
+        return 0.0f;
+    }
+  }
+
   void process(int frames) {
     using namespace radio;
     frames = begin_block(frames);

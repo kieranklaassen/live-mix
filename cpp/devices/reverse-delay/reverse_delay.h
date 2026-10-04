@@ -49,6 +49,44 @@ class ReverseDelay : public kit::DeviceBase<reverse_delay::kNumParams> {
     if (store_param(id, value)) apply(id);
   }
 
+  // The readings named by "meters" in device.json, for a display to draw:
+  // the level that was just recorded (the highest sample of the last 40 ms),
+  // for each of the two readers how far behind the newest sample it is, in
+  // seconds, and the gain of its fade, and how long the device has run, in
+  // seconds, going round at 64: it moves on with every block the device
+  // works, so a display can tell a device that runs from one that stands.
+  // Asleep, when the ring is forgotten and nothing reads it, that is -1 and
+  // the rest 0. All of it is worked out here, when a display asks: nothing is
+  // kept for it while the sound is made.
+  float meter(int index) const {
+    if (asleep_) return index == 5 ? -1.0f : 0.0f;
+    switch (index) {
+      case 0:
+        return ring_.peak(static_cast<int>(kLevelSeconds * sample_rate()));
+      case 1:
+      case 3: {
+        const Reader& reader = readers_[index / 2];
+        return reader.active ? static_cast<float>((ring_.written() - reader.position) / sample_rate())
+                             : 0.0f;
+      }
+      case 2:
+      case 4: {
+        const Reader& reader = readers_[index / 2 - 1];
+        if (!reader.active) return 0.0f;
+        float gain = reader.in_phase < 1.0f ? kit::SineTable::lookup(0.25f * reader.in_phase) : 1.0f;
+        if (reader.releasing) gain *= kit::SineTable::cos_lookup(0.25f * reader.out_phase);
+        return gain;
+      }
+      case 5: {
+        const double lap = static_cast<double>(kClockSeconds) * sample_rate();
+        const double frames = ring_.written();
+        return static_cast<float>((frames - lap * std::floor(frames / lap)) / sample_rate());
+      }
+      default:
+        return 0.0f;
+    }
+  }
+
   void process(int frames) {
     using namespace reverse_delay;
     frames = begin_block(frames);
@@ -146,6 +184,11 @@ class ReverseDelay : public kit::DeviceBase<reverse_delay::kNumParams> {
   static constexpr float kMinFadeSeconds = 0.004f;
   static constexpr float kSqrtTwo = 1.41421356f;
   static constexpr float kRates[3] = {1.0f, 2.0f, 0.5f};
+  // For a display (see meter): how much of the newest sound its level is
+  // taken from, a little more than the time between two readings, and where
+  // its clock goes round.
+  static constexpr float kLevelSeconds = 0.04f;
+  static constexpr float kClockSeconds = 64.0f;
 
   struct Reader {
     bool active = false;

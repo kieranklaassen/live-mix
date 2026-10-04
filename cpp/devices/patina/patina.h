@@ -162,6 +162,37 @@ class Patina : public kit::DeviceBase<patina::kNumParams> {
     if (store_param(id, value)) apply(id);
   }
 
+  // The readings named by "meters" in device.json, for a display to draw:
+  // the pitch the wow has it at now (per cent off true), where the flutter
+  // is in its cycle (0..1) and how far it bends the pitch at its peaks (per
+  // cent), the gain Wobble has the level at where it moves the level and
+  // not the pitch (the radio's fading, the valve's sag; 1 elsewhere), how
+  // many dropouts the cassette has had (wraps at 2^20), and how far the
+  // noise is up (0..1).
+  float meter(int index) const {
+    switch (index) {
+      case 0:
+        return -100.0f * wow_rate_;
+      case 1:
+        return flutter_phase_;
+      case 2:
+        return 100.0f * flutter_depth_.value * flutter_scale_ * kit::kTwoPi *
+               kMedia[medium_].flutter_hz;
+      case 3: {
+        if (medium_ == kRadio) return fading_.value;
+        if (medium_ != kValve) return 1.0f;
+        const float depth = kSagDepth * sag_.value;
+        return (1.0f + depth * kSagReference) / (1.0f + depth * sag_env_);
+      }
+      case 4:
+        return static_cast<float>(drop_count_ & 0xFFFFF);
+      case 5:
+        return hiss_gate_;
+      default:
+        return 0.0f;
+    }
+  }
+
   void process(int frames) {
     using namespace patina;
     frames = begin_block(frames);
@@ -553,8 +584,14 @@ class Patina : public kit::DeviceBase<patina::kNumParams> {
     }
     wow_depth_.set(wow_depth, ramp);
     flutter_depth_.set(flutter_depth, ramp);
-    const float wobble = wow_depth_.next() * wow_shape + flutter_depth_.next() * flutter_scale *
-                                                             kit::SineTable::lookup(flutter_phase_);
+    const float wow = wow_depth_.next() * wow_shape;
+    const float wobble =
+        wow + flutter_depth_.next() * flutter_scale * kit::SineTable::lookup(flutter_phase_);
+    // For the display: how fast the wow moves the read point, and the
+    // flutter's depth as it wanders.
+    wow_rate_ = snap ? 0.0f : (wow - wow_seen_) / dt;
+    wow_seen_ = wow;
+    flutter_scale_ = flutter_scale;
     if (snap) wobble_ = wobble;
     wobble_step_ = (wobble - wobble_) * (1.0f / kControlPeriod);
 
@@ -680,6 +717,7 @@ class Patina : public kit::DeviceBase<patina::kNumParams> {
       drop_depth_ = 0.9f * std::sqrt(wear_) * (0.4f + 0.6f * size);
       drop_length_ = static_cast<int>((0.02f + (0.04f + 0.14f * wear_) * length) * sr);
       drop_left_ = drop_length_;
+      ++drop_count_;
       // Each channel takes at least half of it: the tape lifts at one edge.
       drop_weight_[0] = 0.5f + 0.5f * left;
       drop_weight_[1] = 0.5f + 0.5f * right;
@@ -768,6 +806,11 @@ class Patina : public kit::DeviceBase<patina::kNumParams> {
   int wanted_ = kReel;
   bool started_ = false;
   bool snap_ = true;
+  // Kept for the display's readings only.
+  float wow_seen_ = 0.0f;
+  float wow_rate_ = 0.0f;
+  float flutter_scale_ = 1.0f;
+  int drop_count_ = 0;
 };
 
 }  // namespace livemix

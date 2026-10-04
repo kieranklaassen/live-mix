@@ -81,6 +81,20 @@ class PadFollower : public kit::DeviceBase<pad_follower::kNumParams> {
     if (store_param(id, value)) apply(id);
   }
 
+  // The readings named by "meters" in device.json, for a display to draw the
+  // pad against the playing: the level of the partials the bank hears and the
+  // level its followers hold (amplitudes, summed over the bands).
+  float meter(int index) const {
+    switch (index) {
+      case 0:
+        return bank_.heard();
+      case 1:
+        return bank_.held();
+      default:
+        return 0.0f;
+    }
+  }
+
   void process(int frames) {
     frames = begin_block(frames);
     if (!idle_.wake(input_present(frames))) {

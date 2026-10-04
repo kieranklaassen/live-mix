@@ -6,6 +6,19 @@
   "class": "FreqShifter",
   "header": "freq_shifter.h",
   "sources": [],
+  "meters": [
+    {
+      "key": "shift",
+      "name": "Shift now",
+      "unit": "Hz",
+      "display": true
+    },
+    {
+      "key": "carrier",
+      "name": "Carrier phase",
+      "display": true
+    }
+  ],
   "params": [
     {
       "key": "shift",

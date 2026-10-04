@@ -79,6 +79,30 @@ class Octaves : public kit::DeviceBase<octaves::kNumParams> {
     if (store_param(id, value)) apply(id);
   }
 
+  // The reading named by "meters" in device.json, for a display to draw: the
+  // frequency of the loudest partial the bank holds, in Hz, read from its
+  // loudest channel and the louder of that channel's two neighbours (a note
+  // in tune lies between two channels). 0 while it holds nothing or sleeps.
+  float meter(int index) const {
+    if (index != 0 || idle_.asleep()) return 0.0f;
+    int top = 0;
+    float peak = bank_.probe(0).power;
+    for (int k = 1; k < bank_.bands(); ++k) {
+      const float power = bank_.probe(k).power;
+      if (power > peak) {
+        peak = power;
+        top = k;
+      }
+    }
+    if (!(peak > kHeard)) return 0.0f;
+    const float below = top > 0 ? bank_.probe(top - 1).power : 0.0f;
+    const float above = top + 1 < bank_.bands() ? bank_.probe(top + 1).power : 0.0f;
+    const int beside = above > below ? top + 1 : top - 1;
+    const float share = (above > below ? above : below) / (peak + (above > below ? above : below));
+    if (beside < 0 || !(share > 0.0f)) return bank_.centre(top);
+    return bank_.centre(top) * std::pow(bank_.centre(beside) / bank_.centre(top), share);
+  }
+
   void process(int frames) {
     frames = begin_block(frames);
     const bool slept = idle_.asleep();
@@ -144,6 +168,8 @@ class Octaves : public kit::DeviceBase<octaves::kNumParams> {
   static constexpr float kCeiling = 2.0f;
   // How far Spread moves a channel off centre at its top.
   static constexpr float kMaxSpread = 0.8f;
+  // The channel power under which meter() reports no partial (-80 dB).
+  static constexpr float kHeard = 1.0e-8f;
   // The largest input sample taken as sound (+36 dB over full scale).
   static constexpr float kSane = 64.0f;
   static float sane(float x) {

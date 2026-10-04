@@ -345,7 +345,7 @@ const faces: Record<string, PlateFace> = { filter: { display: sweep, face: ['typ
 
 | Place    | Where it stands                                                                                                                                                                                              |
 | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `strip`  | 184 by 48 under one row of four knobs, on a plate 240 wide. Opened, it is as wide as the row; on a device with more than twelve knobs it is 184 by 100 beside two rows. For what happens in time.            |
+| `strip`  | 224 by 48 under one row of four knobs, on a plate 280 wide. Opened, it is as wide as the row; on a device with more than twelve knobs it is 184 by 100 beside two rows. For what happens in time.            |
 | `window` | 100 high beside two rows of knobs, on a plate 280 wide: 176, 128 or 80 wide beside one, two or three columns (`displayWindowWidth`). For what has two axes: a curve over frequency, a level against a level. |
 
 A display draws to the size it is given and in the plate's own colours
