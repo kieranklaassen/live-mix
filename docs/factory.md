@@ -440,7 +440,7 @@ on, so whatever instrument is loaded, every pack has something for it.
 
 ```ts
 import {
-  FACTORY_PACKS, // FactoryPack[]: id, name, description, count
+  FACTORY_PACKS, // FactoryPack[]: id, name, description, count, sounds
   FACTORY_PACK_SIZE, // 100
   factoryPack,
   loadFactoryPacks, // () => Promise<readonly FactoryPreset[]>
@@ -531,6 +531,105 @@ they hint by sound, place, weather and hour. Each preset is written by hand
 as a designed sound, starting from the instrument and not only from its
 effects, and a description says only what its chain and its measurements
 bear out.
+
+## Pack sounds
+
+A pack also holds a hundred sounds to paint with: its own presets played. A
+pack sound names one of the pack's presets, says what is played on it and for
+how long, and may change a setting or the effects where the sound needs it.
+It is a `FactorySound` like the bank's, with its patch written out and the
+`pack` it belongs to, so `renderFactorySound` and `transposeFactorySound`
+take it as they take a sound of the bank.
+
+```ts
+import {
+  FACTORY_PACKS, // each pack says how many sounds it holds: `sounds`, 100 or 0
+  loadFactoryPackSounds, // () => Promise<readonly FactorySound[]>
+  renderFactorySound,
+} from '@kieranklaassen/live-mix/dsp'
+
+const sounds = await loadFactoryPackSounds()
+const mine = sounds.filter((sound) => sound.pack === FACTORY_PACKS[0].id)
+const audio = await renderFactorySound(mine[0])
+```
+
+Like the packs' presets they are a module of their own
+(`src/dsp/factory/sound-packs/all.ts`) behind a dynamic `import()`, fetched
+once by `loadFactoryPackSounds()`; `FACTORY_PACKS` says before that which
+packs have sounds. The packs are written one after another, so a pack whose
+sounds are not there yet says `sounds: 0`.
+
+A pack's sounds count up from a thousand times the pack's place: 1001 to 1100
+for the first pack, 2001 to 2100 for the second. The bank's own numbers stay
+under a thousand. A host that rendered the bank's hundred when it started
+should not do that with these: a pack sound is rendered when someone asks to
+hear it, which is why what is rendered for one (its skip, its length and its
+fold) is kept under 26 seconds.
+
+### What a pack sound is held to
+
+`src/dsp/factory/sound-packs/__tests__/<pack id>.sounds.test.ts` reads every
+recipe of its pack and renders every fifth sound;
+`FACTORY_SOUND_PACKS=all pnpm vitest run src/dsp/factory/sound-packs` renders
+them all, which is how a pack is checked before it ships.
+`sound-packs.test.ts` reads across the packs.
+
+| Entry  | Rule                                                                                                                                                                                              |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pack   | A hundred sounds or none, numbered in order from the pack's own thousand, at least ten of each kind (drone, pad, texture, one-shot, melodic), at most 1,000 seconds in all                        |
+| Recipe | Every note a white key; 2 to 16 seconds long, at most 26 rendered; the first note its name gives is one it plays; a valid patch of WASM devices with at most five effects; an id under its pack's |
+| Words  | A name of at most 24 characters in every key with its notes in braces, a one-sentence description of at most 140 characters                                                                       |
+| Render | The bank's rules for a sound (its kind by the analysis, a loop that comes round, a sound that ends at rest), and loudness inside its kind's band, no DC offset                                    |
+| Across | No id, number or name twice among the bank's sounds and every pack's; no id shared with a preset or chain; no recipe written twice                                                                |
+| Kept   | A sound that has shipped keeps its number, id, length and loop (`__tests__/shipped/<pack id>.json`, added to with `UPDATE_SHIPPED_SOUNDS=1`)                                                      |
+
+### Writing a pack's sounds
+
+`sound-packs/<pack id>.ts` hands its recipes to `packSounds` with the pack's
+presets:
+
+```ts
+import { PRESETS } from '../packs/concourse'
+import { type FactorySound } from '../types'
+import { cycled, looped, packSounds, played } from './recipe'
+
+export const SOUNDS: readonly FactorySound[] = packSounds('concourse', 1000, PRESETS, [
+  {
+    n: 1, // its place in the pack: the sound is number 1001
+    id: 'boarding-chime-a', // the sound's id is concourse-boarding-chime-a
+    name: 'Boarding chime {A}',
+    kind: 'oneshot',
+    description: 'One struck {A} on the boarding chime, left to ring out in the hall.',
+    preset: 'concourse-boarding-chime', // one of the pack's presets
+    ...played(8, [[0, 1.2, 69]], 1.5),
+  },
+])
+```
+
+`set` changes settings of the preset's instrument for this sound, `effects`
+puts other effects in place of the preset's, `then` adds effects after them
+(a `quarterTurn` for a loop of steady tones). `instrument` writes an
+instrument out for a sound no preset of the pack plays: weather, for most
+packs. `source` names a sound of the bank for a sample instrument to play.
+Everything under [Writing a sound](#writing-a-sound) holds: white keys in
+everything that sounds, note names in braces, loops that come round.
+
+```bash
+FACTORY_REPORT=sounds FACTORY_PACK=<pack id> pnpm vitest run src/dsp/factory/__tests__/report.test.ts
+cat tmp/factory-sounds-<pack id>.txt
+FACTORY_REPORT=keys FACTORY_KEYS=-5,6 FACTORY_PACK=<pack id> pnpm vitest run src/dsp/factory/__tests__/report.test.ts
+```
+
+The bench prints the bank's line for each sound, then what the pack lacks as
+a whole (its count, a kind it is short of), what each recipe breaks before it
+is rendered, and the sounds that are nearest each other. `black` is the share
+of a sound's power that lies on the black keys: a few per cent for a sound in
+tune with the bank, about two fifths for rain. `OFFKEY` marks a pitched sound
+over a quarter, which is either partials that are meant (a gong, a folded
+wave) or a note the key does not have (a shifted fifth over a B, a chord mode
+on the wrong degree). `FACTORY_NUMBERS=1001-1020` and `FACTORY=<part of an
+id>` narrow it. When the pack is whole, add its id to `WITH_SOUNDS` in
+`packs/index.ts` and its rows with `UPDATE_SHIPPED_SOUNDS=1`.
 
 ## What the bench found in the devices
 

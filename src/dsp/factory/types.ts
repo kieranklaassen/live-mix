@@ -25,8 +25,9 @@ export interface FactoryPreset extends Patch {
 
 /**
  * A pack: a hundred presets across every instrument that share one idea of
- * sound. Its name and description say what that is by a sound, a place or a
- * mood; a host lists the packs before any of their presets are loaded.
+ * sound, and a hundred sounds to paint with that are those presets played. Its
+ * name and description say what that is by a sound, a place or a mood; a host
+ * lists the packs before any of their presets or sounds are loaded.
  */
 export interface FactoryPack {
   /** Stable id; every preset of the pack has an id that starts with it. */
@@ -36,6 +37,11 @@ export interface FactoryPack {
   description: string
   /** How many presets it holds, known before they are loaded. */
   count: number
+  /**
+   * How many sounds to paint with it holds (./sound-packs), known before they
+   * are loaded: a hundred, or none for a pack whose sounds are not written yet.
+   */
+  sounds: number
 }
 
 /** What an effect chain is for; also where a browser lists it. */
@@ -92,4 +98,6 @@ export interface FactorySound {
    * another key. Absent when neither names a note.
    */
   words?: { name: string; description: string }
+  /** The id of the pack it belongs to (./sound-packs); absent for a sound of the bank itself. */
+  pack?: string
 }
