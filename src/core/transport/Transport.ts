@@ -81,6 +81,11 @@ export class Transport {
   // Timeline seconds per second of the audio clock, since the anchor while playing.
   private currentRate: number
   private readonly listeners = new Set<TransportListener>()
+  // Changes still to be told, in the order they happened: one a listener
+  // makes while it is being told of another (the scheduler pausing at the
+  // end of the timeline) waits until every listener has heard the first.
+  private readonly untold: TransportChange[] = []
+  private telling = false
 
   constructor(options: TransportOptions) {
     this.clock = options.now
@@ -171,14 +176,17 @@ export class Transport {
   setPass(pass: number): void {
     if (Number.isNaN(pass)) throw new RangeError('Transport: pass must be a number')
     const next = Math.max(0, Math.floor(pass))
-    if (next === this.pass()) return
-    const playing = this.currentAnchor !== null
-    const positionSec = playing ? this.unpin().positionSec : this.idlePositionSec
+    // One reading of the clock: the position is pinned again at the moment it was read at.
+    const now = this.clock()
+    if (next === this.pass(now)) return
+    const anchor = this.currentAnchor
+    const positionSec = anchor ? this.unpin(now).positionSec : this.idlePositionSec
     this.idlePass = next
     if (isLooping(this.currentLoop)) {
       this.idleElapsedSec = next * this.currentLoop.lengthSec + positionSec
     }
-    if (playing) this.pin(this.clock(), positionSec)
+    // A start still pinned in the future keeps its moment.
+    if (anchor) this.pin(Math.max(now, anchor.contextTime), positionSec)
     this.emit('seek')
   }
 
@@ -301,6 +309,8 @@ export class Transport {
     if (Number.isNaN(elapsedSec)) throw new RangeError('Transport: elapsed must be a number')
     const runSec = Math.max(0, elapsedSec)
     const looping = isLooping(this.currentLoop)
+    // No pass of the loop holds it.
+    if (looping && runSec === Infinity) throw new RangeError('Transport: elapsed must be finite')
     // The pass that point of the run is in, and how far into it, as a `Cycle`
     // of this length reads them: with a length a float cannot hold exactly, a
     // whole number of them divides back a hair short, and would otherwise land
@@ -394,14 +404,16 @@ export class Transport {
     ) {
       return
     }
+    // One reading of the clock: the position is carried over to the moment it was read at.
+    const now = this.clock()
     // A start still pinned in the future keeps its moment: what was handed over for it is on its way.
     const pinnedAt = this.currentAnchor?.contextTime ?? 0
-    if (this.currentAnchor) this.unpin()
+    if (this.currentAnchor) this.unpin(now)
     this.currentLoop = next
     // Folded into a shorter loop, the position moves and `elapsed()` with it.
     const target = this.normalisePosition(this.idlePositionSec)
     this.moveTo(target)
-    if (this.currentState === 'playing') this.pin(Math.max(this.clock(), pinnedAt), target)
+    if (this.currentState === 'playing') this.pin(Math.max(now, pinnedAt), target)
     this.emit('loop')
   }
 
@@ -455,9 +467,8 @@ export class Transport {
     this.nextIteration += 1
   }
 
-  /** Drops the anchor, freezing the position it reported and retiring its pass number. */
-  private unpin(): TransportPosition {
-    const now = this.clock()
+  /** Drops the anchor, freezing the position it reported at `now` and retiring its pass number. */
+  private unpin(now = this.clock()): TransportPosition {
     const position = this.position(now)
     this.idleElapsedSec = this.elapsed(now)
     this.idlePass = this.passOf(position.iteration)
@@ -486,18 +497,27 @@ export class Transport {
 
   private normalisePosition(sec: number): number {
     if (Number.isNaN(sec)) throw new RangeError('Transport: position must be a number')
-    if (isLooping(this.currentLoop)) return wrapPosition(sec, this.currentLoop.lengthSec)
-    return Math.min(Math.max(0, sec), this.currentLoop.lengthSec)
+    const positionSec = isLooping(this.currentLoop)
+      ? wrapPosition(sec, this.currentLoop.lengthSec)
+      : Math.min(Math.max(0, sec), this.currentLoop.lengthSec)
+    // Infinity wraps to nowhere in a loop, and an endless timeline has no end to hold it to.
+    if (!Number.isFinite(positionSec)) throw new RangeError('Transport: position must be finite')
+    return positionSec
   }
 
   private emit(reason: TransportChangeReason, fadeSec = 0): void {
-    const change: TransportChange = {
-      reason,
-      state: this.currentState,
-      position: this.position(),
-      fadeSec,
+    this.untold.push({ reason, state: this.currentState, position: this.position(), fadeSec })
+    // Inside a listener: told once every listener has heard the change it was made under.
+    if (this.telling) return
+    this.telling = true
+    try {
+      for (let change = this.untold.shift(); change; change = this.untold.shift()) {
+        for (const listener of [...this.listeners]) listener(change)
+      }
+    } finally {
+      this.telling = false
+      this.untold.length = 0
     }
-    for (const listener of [...this.listeners]) listener(change)
   }
 }
 

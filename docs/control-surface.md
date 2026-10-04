@@ -179,8 +179,9 @@ The kit's device views say what each part is, so a host can draw a mapping
 overlay over what is on screen and work out a target from the element that
 was clicked: `DeviceChainView` writes `data-lm-strip` (the strip's name) on
 its list and `data-lm-insert` (the place in the strip's chain) on each item;
-`DevicePanel` writes `data-lm-device` (the `Device.id`) on its frame,
-`data-lm-param` on each knob and `data-lm-power` on its power switch.
+`DevicePanel` and `DevicePlate` write `data-lm-device` (the `Device.id`) on
+their frame, `data-lm-param` on each knob and `data-lm-power` on the power
+switch.
 
 ## Migration path for ambient-live (U27 → library)
 

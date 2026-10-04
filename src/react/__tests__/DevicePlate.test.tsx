@@ -66,8 +66,9 @@ describe('device skins', () => {
         expect(skin.face, `${id} face`).toHaveLength(Math.min(room, params.length))
       for (const name of [...(skin.face ?? []), ...(skin.picture?.params ?? [])])
         expect(params, `${id} has ${name}`).toContain(name)
+      // A label is for any knob the plate can show: one on its face or one behind its +n cell.
       for (const name of Object.keys(skin.labels ?? {}))
-        expect(skin.face, `${id} labels a face knob`).toContain(name)
+        expect(params, `${id} labels a knob it has`).toContain(name)
       expect(PLATE_FINISHES).toContain(skin.finish)
     }
   })
@@ -378,6 +379,29 @@ describe('DevicePlate', () => {
     expect(plate).toHaveClass('lm-plate--open')
     fireEvent.click(screen.getByTestId('plate-more'))
     expect(screen.getAllByRole('slider')).toHaveLength(2)
+  })
+
+  it('says which device and parameter each part is, as a panel does, for a host that maps controllers', async () => {
+    const fixture = createTestEngine()
+    const device = await make(fixture)
+    render(<DevicePlate device={device} skin={SKIN} data-testid="plate" />, {
+      wrapper: fixture.wrapper,
+    })
+    const plate = screen.getByTestId('plate')
+    expect(plate).toHaveAttribute('data-lm-device', 'filter')
+    const named = () =>
+      [...plate.querySelectorAll('[data-lm-param]')].map((knob) =>
+        knob.getAttribute('data-lm-param'),
+      )
+    expect(named()).toEqual(['frequency', 'q'])
+    expect(screen.getByRole('slider', { name: 'Freq' }).closest('[data-lm-param]')).toHaveAttribute(
+      'data-lm-param',
+      'frequency',
+    )
+    expect(screen.getByTestId('plate-power')).toHaveAttribute('data-lm-power')
+    // Opened, every control is named, not only the face.
+    fireEvent.click(screen.getByTestId('plate-more'))
+    expect(named().sort()).toEqual(['frequency', 'gain', 'q', 'type'])
   })
 
   it('lists its presets among the tools, or gives the foot to a picker the host draws', async () => {

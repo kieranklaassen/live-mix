@@ -9,6 +9,9 @@
 import { type Patch, type PatchDevice, patchDeviceParams } from '../../core/devices/patch'
 import { type Phrase } from '../patch-render'
 import { describeStockWasmDevice } from '../registry'
+import { mod12, pitchClassName } from './words'
+
+export { PITCH_CLASS_NAMES, pitchClassName, transposeWords } from './words'
 
 /** The seven-note modes a key can have, as semitones above its root. */
 export const FACTORY_MODES = {
@@ -41,8 +44,6 @@ const WHITE_KEY_ROOT: Readonly<Record<FactoryMode, number>> = {
   minor: 9,
 }
 
-const mod12 = (value: number): number => ((Math.round(value) % 12) + 12) % 12
-
 /** The root of the major key with the same seven notes: C for A minor, for D dorian, for C major. */
 export function relativeMajorRoot(key: FactoryKey): number {
   return mod12(key.root - WHITE_KEY_ROOT[key.mode])
@@ -56,40 +57,6 @@ export function relativeMajorRoot(key: FactoryKey): number {
 export function factoryTranspose(key: FactoryKey): number {
   const up = relativeMajorRoot(key)
   return up > 6 ? up - 12 : up
-}
-
-/** Note names by pitch class, each black key by the name it is usually given. */
-export const PITCH_CLASS_NAMES = [
-  'C',
-  'C♯',
-  'D',
-  'E♭',
-  'E',
-  'F',
-  'F♯',
-  'G',
-  'A♭',
-  'A',
-  'B♭',
-  'B',
-] as const
-
-export function pitchClassName(note: number): string {
-  return PITCH_CLASS_NAMES[mod12(note)]
-}
-
-const NOTE_IN_BRACES = /\{([A-G])([♯♭]?)\}/g
-const LETTER_CLASS: Readonly<Record<string, number>> = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 }
-
-/**
- * A name or sentence with its note names in braces ("Low drone {D}"), moved
- * by `semitones` and written out: "Low drone D", or "Low drone F" three up.
- */
-export function transposeWords(template: string, semitones: number): string {
-  return template.replace(NOTE_IN_BRACES, (_all, letter: string, accidental: string) => {
-    const shift = accidental === '♯' ? 1 : accidental === '♭' ? -1 : 0
-    return pitchClassName(LETTER_CLASS[letter] + shift + semitones)
-  })
 }
 
 // --- Devices that are set to a pitch ----------------------------------------------

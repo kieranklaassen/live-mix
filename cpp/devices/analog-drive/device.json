@@ -6,6 +6,10 @@
   "class": "AnalogDrive",
   "header": "analog_drive.h",
   "sources": [],
+  "meters": [
+    { "key": "arriving", "name": "Level into the circuit", "display": true },
+    { "key": "envelope", "name": "Level out of the circuit", "display": true }
+  ],
   "latencySamples": 39,
   "params": [
     {

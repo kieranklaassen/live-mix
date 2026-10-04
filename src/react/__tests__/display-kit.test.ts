@@ -230,6 +230,23 @@ describe('motion', () => {
     // A reading far from where it was carried to (the device was retriggered) is taken at once.
     expect(trackPhase({ phase: 0.9, reading: 0.9 }, 0.3, 2, 1 / 60).phase).toBe(0.3)
   })
+
+  it('stands on a reading that stops coming, and goes on with the next', () => {
+    // A device asleep, or an engine stopped, reports the same place for good.
+    let track: PhaseTrack | null = null
+    const seen: number[] = []
+    for (let frame = 0; frame < 30; frame++) {
+      track = trackPhase(track, 0.25, 2, 1 / 60)
+      seen.push(track.phase)
+    }
+    // Carried between arrivals for a moment, as it must be, then held where the device is.
+    expect(seen[3]).toBeGreaterThan(0.25)
+    expect(seen.slice(9)).toEqual(seen.slice(9).map(() => 0.25))
+    // The next reading is taken up (eased to, being near) and carried again.
+    track = trackPhase(track, 0.3, 2, 1 / 60)
+    expect(Math.abs(track.phase - 0.3)).toBeLessThan(0.02)
+    expect(trackPhase(track, 0.3, 2, 1 / 60).phase).toBeCloseTo(track.phase + 2 / 60)
+  })
 })
 
 describe('drawing', () => {

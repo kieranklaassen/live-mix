@@ -122,7 +122,12 @@ export class SampleStore {
   private readonly loaded = new Map<string, LoadedSample>()
   private readonly pending = new Map<string, Promise<LoadedSample>>()
   private readonly pins = new Set<string>()
-  private readonly holdCounts = new Map<string, number>()
+  /**
+   * The holds outstanding on each id, one token a hold. A hold that `forget`
+   * or `clear` took away is no longer among them, so releasing it afterwards
+   * lets go of nothing: not of a hold taken since on the same id either.
+   */
+  private readonly holdTokens = new Map<string, Set<object>>()
   private readonly evictionListeners = new Set<SampleEvictionListener>()
   private readonly changeListeners = new Emitter<SampleStore>()
   private budget: number
@@ -229,7 +234,7 @@ export class SampleStore {
     this.remove(id)
     this.pending.delete(id)
     this.pins.delete(id)
-    this.holdCounts.delete(id)
+    this.holdTokens.delete(id)
     this.changed()
   }
 
@@ -237,7 +242,7 @@ export class SampleStore {
     this.loaded.clear()
     this.pending.clear()
     this.pins.clear()
-    this.holdCounts.clear()
+    this.holdTokens.clear()
     this.heldBytes = 0
     this.changed()
   }
@@ -297,19 +302,17 @@ export class SampleStore {
    * yet: the hold applies once it is.
    */
   retain(id: string): () => void {
-    this.holdCounts.set(id, (this.holdCounts.get(id) ?? 0) + 1)
+    const token = {}
+    const tokens = this.holdTokens.get(id) ?? new Set<object>()
+    tokens.add(token)
+    this.holdTokens.set(id, tokens)
     this.changed()
-    let released = false
-    return () => {
-      if (released) return
-      released = true
-      this.release(id)
-    }
+    return () => this.release(id, token)
   }
 
   /** Outstanding holds on `id`. */
   holds(id: string): number {
-    return this.holdCounts.get(id) ?? 0
+    return this.holdTokens.get(id)?.size ?? 0
   }
 
   /** True when the policy may drop `id` right now. */
@@ -378,14 +381,15 @@ export class SampleStore {
     this.changed()
   }
 
-  private release(id: string): void {
-    const count = this.holdCounts.get(id) ?? 0
-    if (count <= 1) this.holdCounts.delete(id)
-    else this.holdCounts.set(id, count - 1)
-    if (count > 1) {
+  private release(id: string, token: object): void {
+    const tokens = this.holdTokens.get(id)
+    // Released already, or taken away by a `forget` or a `clear`.
+    if (!tokens?.delete(token)) return
+    if (tokens.size > 0) {
       this.changed()
       return
     }
+    this.holdTokens.delete(id)
 
     const sample = this.loaded.get(id)
     if (sample && this.evictOnRelease && !this.pins.has(id)) {

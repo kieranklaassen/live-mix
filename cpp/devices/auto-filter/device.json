@@ -7,6 +7,7 @@
   "header": "auto_filter.h",
   "sources": [],
   "latencySamples": 31,
+  "meters": [{ "key": "cutoff", "name": "Cutoff now", "unit": "Hz", "display": true }],
   "params": [
     {
       "key": "type",
@@ -410,7 +411,7 @@
         "deviations": [
           "The device is called Auto Filter in the browser (the source's name is Filter, type tatami.filter); category eq.",
           "lfoSync and lfoDivision (and the beatsPerCycle table) are dropped: the device ABI has no tempo. The LFO always runs free at lfoRateHz. Twelve parameters remain, with the source's ids, ranges and defaults.",
-          "The envelope, lfo and cutoffHz meters and the enabled flag do not exist in the device ABI and are dropped."
+          "The envelope and lfo meters and the enabled flag do not exist in the device ABI and are dropped. The cutoffHz meter is the display reading `cutoff`."
         ]
       },
       {

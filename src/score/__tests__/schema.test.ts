@@ -317,6 +317,19 @@ describe('validateScore', () => {
     ])
   })
 
+  it('with a registry, a parameter named as something every plain object has is still unknown', () => {
+    const score = demoScore()
+    // As a saved piece gives them: its own entries, `__proto__` among them.
+    score.tracks[0].strip.inserts[0].params = JSON.parse(
+      '{"frequency":2000,"constructor":1,"toString":2,"__proto__":3}',
+    ) as Record<string, number>
+    expect(validateScore(score, { devices }).map((issue) => issue.path)).toEqual([
+      'tracks[0].strip.inserts[0].params.constructor',
+      'tracks[0].strip.inserts[0].params.toString',
+      'tracks[0].strip.inserts[0].params.__proto__',
+    ])
+  })
+
   it('rejects the master having a pan lane', () => {
     const score = demoScore()
     score.lanes.push({

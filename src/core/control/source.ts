@@ -122,7 +122,8 @@ export function keyCodeLabel(code: string): string {
   if (digit) return digit[1]
   const numpad = /^Numpad([0-9])$/.exec(code)
   if (numpad) return `Num ${numpad[1]}`
-  return KEY_NAMES[code] ?? code
+  // Its own names only: `constructor` and `__proto__` are on every object.
+  return Object.hasOwn(KEY_NAMES, code) ? KEY_NAMES[code] : code
 }
 
 /** Human-readable label, e.g. `CC 74 · ch 1`. */

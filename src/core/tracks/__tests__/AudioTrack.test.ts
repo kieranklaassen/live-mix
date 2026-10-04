@@ -1808,6 +1808,62 @@ describe('AudioTrack placed clips', () => {
     }
   })
 
+  it('a voice that ends in a render that is not on the clock stays wired until the track goes', () => {
+    // The page is told of the end at a block of its own thread's choosing:
+    // taking the voice out there cuts its low-pass's ring at another frame each render.
+    const ctx = createMockOfflineContext({ sampleRate: 48000, length: 48000 * 20 })
+    const dest = ctx.createGain()
+    const track = new AudioTrack(asAudioContext(ctx), {
+      name: 'music',
+      destination: dest as unknown as AudioNode,
+      samples: new SampleStore(asAudioContext(ctx)),
+      now: () => ctx.currentTime,
+      spaceImpulse: () => buffer(ctx, 2),
+    })
+    const placed = { ...voice, buffer: buffer(ctx, 10), spaceDb: 0 }
+    const ended = track.play('ended', placed, 1)
+    const [lowpass] = ctx.filters
+    const [panner] = ctx.panners
+    const send = ended?.placement?.send as unknown as (typeof ctx.gains)[number]
+    const [room] = ctx.convolvers
+    ctx.sources[0].finish()
+    // Forgotten, so its key is free, and still where it was in the graph.
+    expect(track.voice('ended')).toBeUndefined()
+    expect(lowpass.isConnectedTo(panner)).toBe(true)
+    expect(lowpass.isConnectedTo(send)).toBe(true)
+    expect(panner.isConnectedTo(dest)).toBe(true)
+    expect(send.reaches(room)).toBe(true)
+    expect(ctx.sources[0].disconnectCalls.count).toBe(0)
+
+    // So does one that was let go for another, and one stopped while it sounded.
+    track.play('gave-way', placed, 0)
+    track.release('gave-way', 0.5)
+    ctx.sources[1].finish()
+    expect(ctx.sources[1].disconnectCalls.count).toBe(0)
+    ctx.currentTime = 2
+    track.play('stopped', placed, 1)
+    track.stop('stopped')
+    ctx.sources[2].finish()
+    expect(ctx.sources[2].disconnectCalls.count).toBe(0)
+    expect(track.voices()).toHaveLength(0)
+
+    // On a device the same end takes the voice out.
+    const live = createMockContext({ currentTime: 0, sampleRate: 48000 })
+    const out = live.createGain()
+    const onDevice = new AudioTrack(asAudioContext(live), {
+      name: 'music',
+      destination: out as unknown as AudioNode,
+      samples: new SampleStore(asAudioContext(live)),
+      now: () => live.currentTime,
+      spaceImpulse: () => buffer(live, 2),
+    })
+    onDevice.play('ended', { ...voice, buffer: buffer(live, 10), spaceDb: 0 }, 1)
+    live.sources[0].finish()
+    expect(live.filters[0].outputs.size).toBe(0)
+    expect(live.panners[0].isConnectedTo(out)).toBe(false)
+    expect(live.sources[0].disconnectCalls.count).toBe(1)
+  })
+
   it('a scheduled clip that is moved while it sounds follows without starting again', async () => {
     const { ctx, samples, track } = setup({ lookaheadSec: 1 })
     const transport = new Transport({ now: () => ctx.currentTime })
@@ -2544,6 +2600,25 @@ describe('AudioTrack rate (tape speed)', () => {
     expect(ctx.sources.map((source) => source.playbackRate.events)).toEqual([[], []])
     expect(ctx.sources.map((source) => source.playbackRate.value)).toEqual([1, 1])
     expect(ctx.sources[1].stopCalls.calls).toEqual([[25]])
+  })
+
+  it('leaves a voice that has played out as it is: nothing is written at a time before the clock began', () => {
+    for (const loop of [false, true]) {
+      const { ctx, track } = setup()
+      track.setRate(4)
+      // 6 s of clip at four times the speed is over at 1.6 on the clock; its `ended` has not come.
+      const voice = track.play('k', { buffer: buffer(ctx, 10), ...faded, loop }, 0.1)
+      const source = ctx.sources[0]
+      const level = ctx.gains[1].gain
+      const stops = source.stopCalls.calls.length
+      ctx.currentTime = 2
+      level.events.length = 0
+      track.setRate(0.25)
+      // A ramp or a stop below zero is a RangeError in a browser.
+      expect(level.events).toEqual([])
+      expect(source.stopCalls.calls).toHaveLength(stops)
+      expect(voice?.endTime).toBe(1.6)
+    }
   })
 
   it('refuses a rate that is not a positive number and ignores the one it has', () => {

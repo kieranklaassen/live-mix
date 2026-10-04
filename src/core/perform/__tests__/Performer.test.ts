@@ -592,6 +592,66 @@ describe('Performer: bars and beats', () => {
     expect(new Set(beats.map((event) => event.at.toFixed(3))).size).toBe(beats.length)
   })
 
+  it('puts a beat on the grid though the clock moves on between two readings of it', () => {
+    const { ctx, engine, advance, events } = rig()
+    // The thread is put aside for 3 ms after every look at the clock, as a busy page's is.
+    let clock = ctx.currentTime
+    Object.defineProperty(ctx, 'currentTime', {
+      configurable: true,
+      get: () => {
+        const read = clock
+        clock += 0.003
+        return read
+      },
+      set: (value: number) => {
+        clock = value
+      },
+    })
+    engine.transport.start()
+    for (let i = 0; i < 45; i += 1) advance(0.1)
+    const beats = events.filter((event) => event.type === 'beat')
+    expect(beats.length).toBeGreaterThan(8)
+    const off = beats.map(
+      (event) =>
+        event.at - engine.transport.contextTimeAtElapsed((event.bar * 4 + event.beat) * 0.5),
+    )
+    // Never ahead of its line. One the clock has just passed when it is told is told as now.
+    for (const by of off) {
+      expect(by).toBeGreaterThan(-1e-6)
+      expect(by).toBeLessThan(0.01)
+    }
+    expect(off.filter((by) => Math.abs(by) < 1e-6).length).toBeGreaterThanOrEqual(beats.length - 1)
+  })
+
+  it('tells a beat once though the clock moves on between readings and the loop changes after a jump', () => {
+    const { ctx, engine, advance, events } = rig()
+    // The clock has moved on a millisecond at every look, as the audio thread's does under a busy page.
+    let clock = ctx.currentTime
+    Object.defineProperty(ctx, 'currentTime', {
+      configurable: true,
+      get: () => {
+        const read = clock
+        clock += 0.001
+        return read
+      },
+      set: (value: number) => {
+        clock = value
+      },
+    })
+    engine.transport.start()
+    advance(0.1)
+    // To just ahead of the second beat, which is told at once; then the loop
+    // is made longer, which moves nothing: the beat has been told.
+    const from = events.length
+    engine.transport.seek(0.4)
+    engine.transport.setLoop({ lengthSec: 16 * BAR })
+    for (let i = 0; i < 30; i += 1) advance(0.02)
+    const beats = events.slice(from).filter((event) => event.type === 'beat')
+    const told = beats.map((event) => `${event.pass}:${event.bar}:${event.beat}`)
+    expect(told.slice(0, 2)).toEqual(['0:0:1', '0:0:2'])
+    expect(new Set(told).size).toBe(told.length)
+  })
+
   it('counts bars from the start of each pass of the loop', () => {
     const { engine, advance, events } = rig()
     engine.transport.start()

@@ -1,14 +1,24 @@
 // The packs: a hundred presets each, across every instrument, that share one
 // idea of sound. What is here is only their names, so a host can list them
 // with the rest of the bank; the presets themselves are a module of their own
-// (./all), fetched the first time someone asks for them.
+// (./all), fetched the first time someone asks for them. A pack's sounds to
+// paint with are fetched the same way (../sound-packs).
 
 import { type FactoryPack, type FactoryPreset } from '../types'
 
 /** How many presets a pack holds. */
 export const FACTORY_PACK_SIZE = 100
 
-export const FACTORY_PACKS: readonly FactoryPack[] = [
+/** How many sounds a pack holds, once they are written. */
+export const FACTORY_SOUND_PACK_SIZE = 100
+
+/**
+ * The packs whose sounds are written (../sound-packs/<pack id>.ts holds a
+ * hundred): what a host can know before it fetches any of them.
+ */
+const WITH_SOUNDS: ReadonlySet<string> = new Set<string>([])
+
+const PACKS: readonly Omit<FactoryPack, 'sounds'>[] = [
   {
     id: 'concourse',
     name: 'Empty Concourse',
@@ -185,6 +195,11 @@ export const FACTORY_PACKS: readonly FactoryPack[] = [
     count: FACTORY_PACK_SIZE,
   },
 ]
+
+export const FACTORY_PACKS: readonly FactoryPack[] = PACKS.map((pack) => ({
+  ...pack,
+  sounds: WITH_SOUNDS.has(pack.id) ? FACTORY_SOUND_PACK_SIZE : 0,
+}))
 
 export function factoryPack(id: string): FactoryPack | undefined {
   return FACTORY_PACKS.find((pack) => pack.id === id)
