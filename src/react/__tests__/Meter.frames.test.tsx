@@ -360,6 +360,66 @@ describe('Meter on a source, drawn on frames', () => {
     observer.disconnect()
   })
 
+  it('brings the held mark down in time on a reading that stands still', () => {
+    const fixture = createTestEngine()
+    const commits = { count: 0 }
+    const { container } = render(
+      <Profiler id="meter" onRender={() => (commits.count += 1)}>
+        <Meter source={fixture.engine.master} holdMs={1000} />
+      </Profiler>,
+      { wrapper: fixture.wrapper },
+    )
+    const mark = (): HTMLElement | null => container.querySelector('.lm-meter__hold')
+    const figure = (): Element | null => container.querySelector('.lm-meter__value--peak')
+    let time = 0
+    const frame = (waitMs: number): void => {
+      clock += waitMs
+      time += 100
+      act(() => fixture.frames.flush(time))
+    }
+    const fill = (): HTMLElement | null => container.querySelector('.lm-meter__fill--peak')
+
+    fixture.ctx.analysers[0].level = dbToGain(-6)
+    frame(10)
+    const held = mark()?.style.bottom
+    expect(held).toBe(fill()?.style.height)
+    // The strip is muted: silence from here on, and every sample is the one before it.
+    fixture.ctx.analysers[0].level = 0
+    frame(10)
+    frame(500)
+    expect(fill()?.style.height).toBe('0%')
+    expect(mark()?.style.bottom).toBe(held)
+    expect(figure()).toHaveTextContent('-6.0')
+    // Its time is up, and no new reading comes to say so.
+    frame(600)
+    expect(mark()).toBeNull()
+    expect(figure()).toHaveTextContent('-∞')
+
+    // The same over a level that stands: the mark comes down to it, and that takes no render.
+    fixture.ctx.analysers[0].level = dbToGain(-3)
+    frame(10)
+    fixture.ctx.analysers[0].level = dbToGain(-30)
+    frame(10)
+    const before = commits.count
+    frame(500)
+    expect(figure()).toHaveTextContent('-3.0')
+    frame(600)
+    expect(mark()?.style.bottom).toBe(fill()?.style.height)
+    expect(figure()).toHaveTextContent('-30.0')
+    expect(commits.count).toBe(before)
+    // With nothing held over the reading, a still frame is no frame to draw.
+    const observer = new MutationObserver(() => {})
+    observer.observe(container, {
+      attributes: true,
+      characterData: true,
+      childList: true,
+      subtree: true,
+    })
+    frame(5000)
+    expect(observer.takeRecords()).toEqual([])
+    observer.disconnect()
+  })
+
   it('renders on the server what the rendered meter does', () => {
     const fixture = createTestEngine()
     fixture.ctx.analysers[0].level = dbToGain(-9)
